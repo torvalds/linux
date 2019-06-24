@@ -1458,17 +1458,6 @@ static irqreturn_t rockchip_usb2phy_bvalid_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t rockchip_usb2phy_otg_mux_irq(int irq, void *data)
-{
-	struct rockchip_usb2phy_port *rport = data;
-	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
-
-	if (property_enabled(rphy->grf, &rport->port_cfg->bvalid_det_st))
-		return rockchip_usb2phy_bvalid_irq(irq, data);
-	else
-		return IRQ_NONE;
-}
-
 static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 {
 	struct rockchip_usb2phy_port *rport = data;
@@ -1506,6 +1495,17 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t rockchip_usb2phy_otg_mux_irq(int irq, void *data)
+{
+	irqreturn_t ret = IRQ_NONE;
+
+	ret  = rockchip_usb2phy_id_irq(irq, data);
+	ret |= rockchip_usb2phy_bvalid_irq(irq, data);
+	ret |= rockchip_usb2phy_linestate_irq(irq, data);
+
+	return ret;
+}
+
 static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 					   struct rockchip_usb2phy_port *rport,
 					   struct device_node *child_np)
@@ -1524,9 +1524,9 @@ static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 	INIT_DELAYED_WORK(&rport->sm_work, rockchip_usb2phy_sm_work);
 
 	rport->ls_irq = of_irq_get_byname(child_np, "linestate");
-	if (rport->ls_irq < 0) {
+	if (rport->ls_irq <= 0) {
 		dev_err(rphy->dev, "no linestate irq provided\n");
-		return rport->ls_irq;
+		return -EINVAL;
 	}
 
 	ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
@@ -1647,9 +1647,9 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		}
 	} else {
 		rport->bvalid_irq = of_irq_get_byname(child_np, "otg-bvalid");
-		if (rport->bvalid_irq < 0) {
+		if (rport->bvalid_irq <= 0) {
 			dev_err(rphy->dev, "no vbus valid irq provided\n");
-			return rport->bvalid_irq;
+			return -EINVAL;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->bvalid_irq,
@@ -1665,9 +1665,9 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		}
 
 		rport->ls_irq = of_irq_get_byname(child_np, "linestate");
-		if (rport->ls_irq < 0) {
+		if (rport->ls_irq <= 0) {
 			dev_err(rphy->dev, "no linestate irq provided\n");
-			return rport->ls_irq;
+			return -EINVAL;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
@@ -1678,24 +1678,28 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			dev_err(rphy->dev, "failed to request linestate irq handle\n");
 			return ret;
 		}
+
+		if (rphy->edev_self) {
+			rport->id_irq = of_irq_get_byname(child_np, "otg-id");
+			if (rport->id_irq <= 0) {
+				dev_err(rphy->dev, "no otg id irq provided\n");
+				return -EINVAL;
+			}
+
+			ret = devm_request_threaded_irq(rphy->dev,
+							rport->id_irq, NULL,
+							rockchip_usb2phy_id_irq,
+							IRQF_ONESHOT,
+							"rockchip_usb2phy_id",
+							rport);
+			if (ret) {
+				dev_err(rphy->dev, "failed to request otg-id irq handle\n");
+				return ret;
+			}
+		}
 	}
 
 	if (rphy->edev_self) {
-		rport->id_irq = of_irq_get_byname(child_np, "otg-id");
-		if (rport->id_irq < 0) {
-			dev_err(rphy->dev, "no otg id irq provided\n");
-			return rport->id_irq;
-		}
-
-		ret = devm_request_threaded_irq(rphy->dev, rport->id_irq, NULL,
-						rockchip_usb2phy_id_irq,
-						IRQF_ONESHOT,
-						"rockchip_usb2phy_id", rport);
-		if (ret) {
-			dev_err(rphy->dev, "failed to request otg-id irq handle\n");
-			return ret;
-		}
-
 		iddig = property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig);
 		if (!iddig) {
 			extcon_set_state(rphy->edev, EXTCON_USB, false);
