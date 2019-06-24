@@ -360,6 +360,12 @@
 #define VPP_HSC_REGION4_PHASE_SLOPE 0x1d17
 #define VPP_HSC_PHASE_CTRL 0x1d18
 #define VPP_SC_MISC 0x1d19
+#define		VPP_SC_VD_EN_ENABLE             BIT(15)
+#define		VPP_SC_TOP_EN_ENABLE            BIT(16)
+#define		VPP_SC_HSC_EN_ENABLE            BIT(17)
+#define		VPP_SC_VSC_EN_ENABLE            BIT(18)
+#define		VPP_VSC_BANK_LENGTH(length)     (length & 0x7)
+#define		VPP_HSC_BANK_LENGTH(length)     ((length & 0x7) << 8)
 #define VPP_PREBLEND_VD1_H_START_END 0x1d1a
 #define VPP_PREBLEND_VD1_V_START_END 0x1d1b
 #define VPP_POSTBLEND_VD1_H_START_END 0x1d1c
@@ -1628,6 +1634,16 @@
 #define VPP_SLEEP_CTRL 0x1dfa
 #define VD1_BLEND_SRC_CTRL 0x1dfb
 #define VD2_BLEND_SRC_CTRL 0x1dfc
+#define		VD_BLEND_PREBLD_SRC_VD1         (1 << 0)
+#define		VD_BLEND_PREBLD_SRC_VD2         (2 << 0)
+#define		VD_BLEND_PREBLD_SRC_OSD1        (3 << 0)
+#define		VD_BLEND_PREBLD_SRC_OSD2        (4 << 0)
+#define		VD_BLEND_PREBLD_PREMULT_EN      BIT(4)
+#define		VD_BLEND_POSTBLD_SRC_VD1        (1 << 8)
+#define		VD_BLEND_POSTBLD_SRC_VD2        (2 << 8)
+#define		VD_BLEND_POSTBLD_SRC_OSD1       (3 << 8)
+#define		VD_BLEND_POSTBLD_SRC_OSD2       (4 << 8)
+#define		VD_BLEND_POSTBLD_PREMULT_EN     BIT(16)
 #define OSD1_BLEND_SRC_CTRL 0x1dfd
 #define OSD2_BLEND_SRC_CTRL 0x1dfe
 
