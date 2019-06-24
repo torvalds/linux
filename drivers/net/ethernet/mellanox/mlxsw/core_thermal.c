@@ -312,7 +312,7 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 	struct mlxsw_thermal *thermal = tzdev->devdata;
 	struct device *dev = thermal->bus_info->dev;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp;
+	int temp;
 	int err;
 
 	mlxsw_reg_mtmp_pack(mtmp_pl, 0, false, false);
@@ -327,7 +327,7 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 		mlxsw_thermal_tz_score_update(thermal, tzdev, thermal->trips,
 					      temp);
 
-	*p_temp = (int) temp;
+	*p_temp = temp;
 	return 0;
 }
 
@@ -503,7 +503,7 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 	struct mlxsw_thermal *thermal = tz->parent;
 	struct device *dev = thermal->bus_info->dev;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp;
+	int temp;
 	int err;
 
 	/* Read module temperature. */
@@ -519,14 +519,14 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 		return 0;
 	}
 	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
-	*p_temp = (int) temp;
+	*p_temp = temp;
 
 	if (!temp)
 		return 0;
 
 	/* Update trip points. */
 	err = mlxsw_thermal_module_trips_update(dev, thermal->core, tz);
-	if (!err)
+	if (!err && temp > 0)
 		mlxsw_thermal_tz_score_update(thermal, tzdev, tz->trips, temp);
 
 	return 0;
@@ -612,8 +612,8 @@ static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
 	struct mlxsw_thermal_module *tz = tzdev->devdata;
 	struct mlxsw_thermal *thermal = tz->parent;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp;
 	u16 index;
+	int temp;
 	int err;
 
 	index = MLXSW_REG_MTMP_GBOX_INDEX_MIN + tz->module;
@@ -627,7 +627,7 @@ static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
 	if (temp > 0)
 		mlxsw_thermal_tz_score_update(thermal, tzdev, tz->trips, temp);
 
-	*p_temp = (int) temp;
+	*p_temp = temp;
 	return 0;
 }
 
