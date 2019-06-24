@@ -247,7 +247,8 @@ module_param_named(msi, amdgpu_msi, int, 0444);
  * By default(with no lockup_timeout settings), the timeout for all non-compute(GFX, SDMA and Video)
  * jobs is 10000. And there is no timeout enforced on compute jobs.
  */
-MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: 10000 for non-compute jobs and no timeout for compute jobs), "
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: 10000 for non-compute jobs and infinity timeout for compute jobs."
+		" 0: keep default value. negative: infinity timeout), "
 		"format is [Non-Compute] or [GFX,Compute,SDMA,Video]");
 module_param_string(lockup_timeout, amdgpu_lockup_timeout, sizeof(amdgpu_lockup_timeout), 0444);
 
@@ -1302,7 +1303,8 @@ int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 	 * By default timeout for non compute jobs is 10000.
 	 * And there is no timeout enforced on compute jobs.
 	 */
-	adev->gfx_timeout = adev->sdma_timeout = adev->video_timeout = 10000;
+	adev->gfx_timeout = msecs_to_jiffies(10000);
+	adev->sdma_timeout = adev->video_timeout = adev->gfx_timeout;
 	adev->compute_timeout = MAX_SCHEDULE_TIMEOUT;
 
 	if (strnlen(input, AMDGPU_MAX_TIMEOUT_PARAM_LENTH)) {
@@ -1312,10 +1314,13 @@ int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 			if (ret)
 				return ret;
 
-			/* Invalidate 0 and negative values */
-			if (timeout <= 0) {
+			if (timeout == 0) {
 				index++;
 				continue;
+			} else if (timeout < 0) {
+				timeout = MAX_SCHEDULE_TIMEOUT;
+			} else {
+				timeout = msecs_to_jiffies(timeout);
 			}
 
 			switch (index++) {
