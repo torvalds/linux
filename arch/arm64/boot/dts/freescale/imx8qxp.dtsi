@@ -28,8 +28,8 @@
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
-		serial0 = &adma_lpuart0;
 		mu1 = &lsio_mu1;
+		serial0 = &adma_lpuart0;
 	};
 
 	cpus {
