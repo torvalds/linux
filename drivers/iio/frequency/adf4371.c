@@ -45,6 +45,10 @@
 #define ADF4371_RF_DIV_SEL_MSK		GENMASK(6, 4)
 #define ADF4371_RF_DIV_SEL(x)		FIELD_PREP(ADF4371_RF_DIV_SEL_MSK, x)
 
+/* ADF4371_REG25 */
+#define ADF4371_MUTE_LD_MSK		BIT(7)
+#define ADF4371_MUTE_LD(x)		FIELD_PREP(ADF4371_MUTE_LD_MSK, x)
+
 /* ADF4371_REG32 */
 #define ADF4371_TIMEOUT_MSK		GENMASK(1, 0)
 #define ADF4371_TIMEOUT(x)		FIELD_PREP(ADF4371_TIMEOUT_MSK, x)
@@ -483,6 +487,15 @@ static int adf4371_setup(struct adf4371_state *st)
 				     ARRAY_SIZE(adf4371_reg_defaults));
 	if (ret < 0)
 		return ret;
+
+	/* Mute to Lock Detect */
+	if (device_property_read_bool(&st->spi->dev, "adi,mute-till-lock-en")) {
+		ret = regmap_update_bits(st->regmap, ADF4371_REG(0x25),
+					 ADF4371_MUTE_LD_MSK,
+					 ADF4371_MUTE_LD(1));
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Set address in ascending order, so the bulk_write() will work */
 	ret = regmap_update_bits(st->regmap, ADF4371_REG(0x0),

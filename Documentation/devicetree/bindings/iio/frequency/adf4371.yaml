@@ -33,6 +33,13 @@ properties:
       Must be "clkin"
     maxItems: 1
 
+  adi,mute-till-lock-en:
+    type: boolean
+    description:
+      If this property is present, then the supply current to RF8P and RF8N
+      output stage will shut down until the ADF4371/ADF4372 achieves lock as
+      measured by the digital lock detect circuitry.
+
 required:
   - compatible
   - reg
