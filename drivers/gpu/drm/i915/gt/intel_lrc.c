@@ -240,7 +240,8 @@ ring_set_paused(const struct intel_engine_cs *engine, int state)
 	 * until the dword is false.
 	 */
 	engine->status_page.addr[I915_GEM_HWS_PREEMPT] = state;
-	wmb();
+	if (state)
+		wmb();
 }
 
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
@@ -1243,6 +1244,8 @@ done:
 		*port = execlists_schedule_in(last, port - execlists->pending);
 		memset(port + 1, 0, (last_port - port) * sizeof(*port));
 		execlists_submit_ports(engine);
+	} else {
+		ring_set_paused(engine, 0);
 	}
 }
 
