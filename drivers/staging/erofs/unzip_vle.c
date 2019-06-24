@@ -1642,8 +1642,8 @@ vle_extent_blkaddr(struct inode *inode, pgoff_t index)
 	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
 	struct erofs_vnode *vi = EROFS_V(inode);
 
-	unsigned int ofs = Z_EROFS_VLE_EXTENT_ALIGN(vi->inode_isize +
-		vi->xattr_isize) + sizeof(struct erofs_extent_header) +
+	unsigned int ofs = Z_EROFS_VLE_LEGACY_INDEX_ALIGN(vi->inode_isize +
+							  vi->xattr_isize) +
 		index * sizeof(struct z_erofs_vle_decompressed_index);
 
 	return erofs_blknr(iloc(sbi, vi->nid) + ofs);
@@ -1655,8 +1655,8 @@ vle_extent_blkoff(struct inode *inode, pgoff_t index)
 	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
 	struct erofs_vnode *vi = EROFS_V(inode);
 
-	unsigned int ofs = Z_EROFS_VLE_EXTENT_ALIGN(vi->inode_isize +
-		vi->xattr_isize) + sizeof(struct erofs_extent_header) +
+	unsigned int ofs = Z_EROFS_VLE_LEGACY_INDEX_ALIGN(vi->inode_isize +
+							  vi->xattr_isize) +
 		index * sizeof(struct z_erofs_vle_decompressed_index);
 
 	return erofs_blkoff(iloc(sbi, vi->nid) + ofs);

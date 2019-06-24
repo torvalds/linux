@@ -382,19 +382,14 @@ static inline unsigned long inode_datablocks(struct inode *inode)
 	return DIV_ROUND_UP(inode->i_size, EROFS_BLKSIZ);
 }
 
-static inline bool is_inode_layout_plain(struct inode *inode)
-{
-	return EROFS_V(inode)->datamode == EROFS_INODE_LAYOUT_PLAIN;
-}
-
 static inline bool is_inode_layout_compression(struct inode *inode)
 {
-	return EROFS_V(inode)->datamode == EROFS_INODE_LAYOUT_COMPRESSION;
+	return erofs_inode_is_data_compressed(EROFS_V(inode)->datamode);
 }
 
-static inline bool is_inode_layout_inline(struct inode *inode)
+static inline bool is_inode_flat_inline(struct inode *inode)
 {
-	return EROFS_V(inode)->datamode == EROFS_INODE_LAYOUT_INLINE;
+	return EROFS_V(inode)->datamode == EROFS_INODE_FLAT_INLINE;
 }
 
 extern const struct super_operations erofs_sops;
