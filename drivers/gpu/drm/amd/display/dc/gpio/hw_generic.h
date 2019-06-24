@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-16 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,42 +23,24 @@
  *
  */
 
-/*
- * Pre-requisites: headers required by header of this unit
- */
+#ifndef __DAL_HW_generic_H__
+#define __DAL_HW_generic_H__
 
-#include "dm_services.h"
-#include "include/gpio_types.h"
-#include "../hw_factory.h"
+#include "generic_regs.h"
 
-/*
- * Header of this unit
- */
-
-#include "../hw_gpio.h"
-#include "../hw_ddc.h"
-#include "../hw_hpd.h"
-#include "../hw_generic.h"
-
-/* function table */
-static const struct hw_factory_funcs funcs = {
-	.create_ddc_data = NULL,
-	.create_ddc_clock = NULL,
-	.create_generic = NULL,
-	.create_hpd = NULL,
-	.create_sync = NULL,
-	.create_gsl = NULL,
+struct hw_generic {
+	struct hw_gpio base;
+	const struct generic_registers *regs;
+	const struct generic_sh_mask *shifts;
+	const struct generic_sh_mask *masks;
 };
 
-void dal_hw_factory_diag_fpga_init(struct hw_factory *factory)
-{
-	factory->number_of_pins[GPIO_ID_DDC_DATA] = 8;
-	factory->number_of_pins[GPIO_ID_DDC_CLOCK] = 8;
-	factory->number_of_pins[GPIO_ID_GENERIC] = 7;
-	factory->number_of_pins[GPIO_ID_HPD] = 6;
-	factory->number_of_pins[GPIO_ID_GPIO_PAD] = 31;
-	factory->number_of_pins[GPIO_ID_VIP_PAD] = 0;
-	factory->number_of_pins[GPIO_ID_SYNC] = 2;
-	factory->number_of_pins[GPIO_ID_GSL] = 4;
-	factory->funcs = &funcs;
-}
+#define HW_GENERIC_FROM_BASE(hw_gpio) \
+	container_of((HW_GPIO_FROM_BASE(hw_gpio)), struct hw_generic, base)
+
+struct hw_gpio_pin *dal_hw_generic_create(
+	struct dc_context *ctx,
+	enum gpio_id id,
+	uint32_t en);
+
+#endif
