@@ -2884,11 +2884,9 @@ _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 
 	if (!_base_is_controller_msix_enabled(ioc))
 		return;
-	ioc->msix_load_balance = false;
-	if (ioc->reply_queue_count < num_online_cpus()) {
-		ioc->msix_load_balance = true;
+
+	if (ioc->msix_load_balance)
 		return;
-	}
 
 	memset(ioc->cpu_msix_table, 0, ioc->cpu_msix_table_sz);
 
@@ -3060,6 +3058,8 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	int i, local_max_msix_vectors;
 	u8 try_msix = 0;
 
+	ioc->msix_load_balance = false;
+
 	if (msix_disable == -1 || msix_disable == 0)
 		try_msix = 1;
 
@@ -3090,7 +3090,20 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	else if (local_max_msix_vectors == 0)
 		goto try_ioapic;
 
-	if (ioc->msix_vector_count < ioc->cpu_count)
+	/*
+	 * Enable msix_load_balance only if combined reply queue mode is
+	 * disabled on SAS3 & above generation HBA devices.
+	 */
+	if (!ioc->combined_reply_queue &&
+	    ioc->hba_mpi_version_belonged != MPI2_VERSION) {
+		ioc->msix_load_balance = true;
+	}
+
+	/*
+	 * smp affinity setting is not need when msix load balance
+	 * is enabled.
+	 */
+	if (ioc->msix_load_balance)
 		ioc->smp_affinity_enable = 0;
 
 	r = _base_alloc_irq_vectors(ioc);
