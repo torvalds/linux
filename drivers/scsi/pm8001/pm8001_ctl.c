@@ -462,6 +462,24 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 }
 static DEVICE_ATTR(bios_version, S_IRUGO, pm8001_ctl_bios_version_show, NULL);
 /**
+ * event_log_size_show - event log size
+ * @cdev: pointer to embedded class device
+ * @buf: the buffer returned
+ *
+ * A sysfs read  shost attribute.
+ */
+static ssize_t event_log_size_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		pm8001_ha->main_cfg_tbl.pm80xx_tbl.event_log_size);
+}
+static DEVICE_ATTR_RO(event_log_size);
+/**
  * pm8001_ctl_aap_log_show - IOP event log
  * @cdev: pointer to embedded class device
  * @buf: the buffer returned
@@ -796,6 +814,7 @@ struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_max_sg_list,
 	&dev_attr_sas_spec_support,
 	&dev_attr_logging_level,
+	&dev_attr_event_log_size,
 	&dev_attr_host_sas_address,
 	&dev_attr_bios_version,
 	&dev_attr_ib_log,
