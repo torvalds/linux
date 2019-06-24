@@ -205,7 +205,7 @@ static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
 	if (ret)
 		goto err2;
 
-	bch2_lock_inodes(src, dst);
+	bch2_lock_inodes(INODE_UPDATE_LOCK, src, dst);
 
 	if (inode_attr_changing(src, dst, Inode_opt_project)) {
 		ret = bch2_fs_quota_transfer(c, dst,
@@ -218,7 +218,7 @@ static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
 
 	ret = bch2_write_inode(c, dst, bch2_reinherit_attrs_fn, src, 0);
 err3:
-	bch2_unlock_inodes(src, dst);
+	bch2_unlock_inodes(INODE_UPDATE_LOCK, src, dst);
 
 	/* return true if we did work */
 	if (ret >= 0)

@@ -657,7 +657,7 @@ static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
 	struct btree_trans trans;
 	int ret;
 
-	bch2_lock_inodes(dir, inode);
+	bch2_lock_inodes(INODE_UPDATE_LOCK, dir, inode);
 	bch2_trans_init(&trans, c, 4, 1024);
 retry:
 	bch2_trans_begin(&trans);
@@ -690,7 +690,7 @@ retry:
 				      ATTR_MTIME);
 err:
 	bch2_trans_exit(&trans);
-	bch2_unlock_inodes(dir, inode);
+	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
 
 	return ret;
 }
@@ -871,7 +871,8 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 
 	bch2_trans_init(&trans, c, 8, 2048);
 
-	bch2_lock_inodes(i.src_dir,
+	bch2_lock_inodes(INODE_UPDATE_LOCK,
+			 i.src_dir,
 			 i.dst_dir,
 			 i.src_inode,
 			 i.dst_inode);
@@ -969,7 +970,8 @@ err:
 				       1 << QTYP_PRJ,
 				       KEY_TYPE_QUOTA_NOCHECK);
 
-	bch2_unlock_inodes(i.src_dir,
+	bch2_unlock_inodes(INODE_UPDATE_LOCK,
+			   i.src_dir,
 			   i.dst_dir,
 			   i.src_inode,
 			   i.dst_inode);

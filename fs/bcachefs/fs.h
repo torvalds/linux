@@ -57,24 +57,42 @@ static inline int ptrcmp(void *l, void *r)
 	return cmp_int(l, r);
 }
 
-#define __bch2_lock_inodes(_lock, ...)					\
+enum bch_inode_lock_op {
+	INODE_LOCK		= (1U << 0),
+	INODE_UPDATE_LOCK	= (1U << 1),
+};
+
+#define bch2_lock_inodes(_locks, ...)					\
 do {									\
 	struct bch_inode_info *a[] = { NULL, __VA_ARGS__ };		\
 	unsigned i;							\
 									\
-	bubble_sort(&a[1], ARRAY_SIZE(a) - 1 , ptrcmp);			\
+	bubble_sort(&a[1], ARRAY_SIZE(a) - 1, ptrcmp);			\
 									\
-	for (i = ARRAY_SIZE(a) - 1; a[i]; --i)				\
+	for (i = 1; i < ARRAY_SIZE(a); i++)				\
 		if (a[i] != a[i - 1]) {					\
-			if (_lock)					\
+			if (_locks & INODE_LOCK)			\
+				down_write_nested(&a[i]->v.i_rwsem, i);	\
+			if (_locks & INODE_UPDATE_LOCK)			\
 				mutex_lock_nested(&a[i]->ei_update_lock, i);\
-			else						\
-				mutex_unlock(&a[i]->ei_update_lock);	\
 		}							\
 } while (0)
 
-#define bch2_lock_inodes(...)	__bch2_lock_inodes(true, __VA_ARGS__)
-#define bch2_unlock_inodes(...)	__bch2_lock_inodes(false, __VA_ARGS__)
+#define bch2_unlock_inodes(_locks, ...)					\
+do {									\
+	struct bch_inode_info *a[] = { NULL, __VA_ARGS__ };		\
+	unsigned i;							\
+									\
+	bubble_sort(&a[1], ARRAY_SIZE(a) - 1, ptrcmp);			\
+									\
+	for (i = 1; i < ARRAY_SIZE(a); i++)				\
+		if (a[i] != a[i - 1]) {					\
+			if (_locks & INODE_LOCK)			\
+				up_write(&a[i]->v.i_rwsem);		\
+			if (_locks & INODE_UPDATE_LOCK)			\
+				mutex_unlock(&a[i]->ei_update_lock);	\
+		}							\
+} while (0)
 
 static inline struct bch_inode_info *file_bch_inode(struct file *file)
 {
