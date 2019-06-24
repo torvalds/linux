@@ -6384,6 +6384,7 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 	if (!hr_dev)
 		return 0;
 
+	hr_dev->is_reset = true;
 	hr_dev->active = false;
 	hr_dev->dis_db = true;
 
