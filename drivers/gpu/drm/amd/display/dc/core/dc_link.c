@@ -1523,15 +1523,6 @@ static enum dc_status enable_link_dp(
 	if (link_settings.link_rate == LINK_RATE_LOW)
 			skip_video_pattern = false;
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	if (link->preferred_training_settings.fec_enable != NULL)
-		fec_enable = *link->preferred_training_settings.fec_enable;
-	else
-		fec_enable = true;
-
-	dp_set_fec_ready(link, fec_enable);
-#endif
-
 	if (link->aux_access_disabled) {
 		dc_link_dp_perform_link_training_skip_aux(link, &link_settings);
 
@@ -1549,6 +1540,11 @@ static enum dc_status enable_link_dp(
 		status = DC_FAIL_DP_LINK_TRAINING;
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	if (link->preferred_training_settings.fec_enable != NULL)
+		fec_enable = *link->preferred_training_settings.fec_enable;
+	else
+		fec_enable = true;
+
 	dp_set_fec_enable(link, fec_enable);
 #endif
 	return status;

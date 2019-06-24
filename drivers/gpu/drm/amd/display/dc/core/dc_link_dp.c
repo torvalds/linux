@@ -1179,13 +1179,25 @@ enum link_training_result dc_link_dp_perform_link_training(
 	bool skip_video_pattern)
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
-
 	struct link_training_settings lt_settings;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool fec_enable;
+#endif
 
 	initialize_training_settings(link, link_setting, &lt_settings);
 
 	/* 1. set link rate, lane count and spread. */
 	dpcd_set_link_settings(link, &lt_settings);
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	if (link->preferred_training_settings.fec_enable != NULL)
+		fec_enable = *link->preferred_training_settings.fec_enable;
+	else
+		fec_enable = true;
+
+	dp_set_fec_ready(link, fec_enable);
+#endif
+
 
 	/* 2. perform link training (set link training done
 	 *  to false is done as well)
@@ -3153,7 +3165,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 
 	if (link_enc->funcs->fec_set_ready &&
 			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
-		if (link->fec_state == dc_link_fec_not_ready && ready) {
+		if (ready) {
 			fec_config = 1;
 			if (core_link_write_dpcd(link,
 					DP_FEC_CONFIGURATION,
@@ -3164,7 +3176,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 			} else {
 				dm_error("dpcd write failed to set fec_ready");
 			}
-		} else if (link->fec_state == dc_link_fec_ready && !ready) {
+		} else if (link->fec_state == dc_link_fec_ready) {
 			fec_config = 0;
 			core_link_write_dpcd(link,
 					DP_FEC_CONFIGURATION,
