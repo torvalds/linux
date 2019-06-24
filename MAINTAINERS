@@ -5156,7 +5156,7 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/panel/panel-tpo-tpg110.c
-F:	Documentation/devicetree/bindings/display/panel/tpo,tpg110.txt
+F:	Documentation/devicetree/bindings/display/panel/tpo,tpg110.yaml
 
 DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
 M:	Dave Airlie <airlied@redhat.com>
