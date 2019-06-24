@@ -695,8 +695,8 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 			continue; /* NPE already disabled or not present */
 		}
 		npe->regs = devm_ioremap_resource(dev, res);
-		if (!npe->regs)
-			return -ENOMEM;
+		if (IS_ERR(npe->regs))
+			return PTR_ERR(npe->regs);
 
 		if (npe_reset(npe)) {
 			dev_info(dev, "NPE%d at 0x%08x-0x%08x does not reset\n",

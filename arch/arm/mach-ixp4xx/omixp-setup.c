@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-ixp4xx/omixp-setup.c
  *
@@ -6,10 +7,6 @@
  *
  * based nslu2-setup.c, ixdp425-setup.c:
  *      Copyright (C) 2003-2004 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -26,6 +23,8 @@
 #include <asm/mach/flash.h>
 
 #include <mach/hardware.h>
+
+#include "irqs.h"
 
 static struct resource omixp_flash_resources[] = {
 	{

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Find uses of standard freeing functons on values allocated using devm_
 /// functions.  Values allocated using the devm_functions are freed when
 /// the device is detached, and thus the use of the standard freeing
@@ -14,8 +15,8 @@
 /// less reliable in these cases.
 ///
 // Confidence: Moderate
-// Copyright: (C) 2011 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2011 Gilles Muller, INRIA/LiP6.  GPLv2.
+// Copyright: (C) 2011 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2011 Gilles Muller, INRIA/LiP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
 // Options: --no-includes --include-headers

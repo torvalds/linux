@@ -276,8 +276,8 @@ fields of ``struct uio_mem``:
 -  ``int memtype``: Required if the mapping is used. Set this to
    ``UIO_MEM_PHYS`` if you you have physical memory on your card to be
    mapped. Use ``UIO_MEM_LOGICAL`` for logical memory (e.g. allocated
-   with :c:func:`kmalloc()`). There's also ``UIO_MEM_VIRTUAL`` for
-   virtual memory.
+   with :c:func:`__get_free_pages()` but not kmalloc()). There's also
+   ``UIO_MEM_VIRTUAL`` for virtual memory.
 
 -  ``phys_addr_t addr``: Required if the mapping is used. Fill in the
    address of your memory block. This address is the one that appears in

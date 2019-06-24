@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP4 SMP source file. It contains platform specific functions
  * needed for the linux smp kernel.
@@ -10,10 +11,6 @@
  * Platform file needed for the OMAP4 SMP. This file is based on arm
  * realview smp platform.
  * * Copyright (c) 2002 ARM Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/device.h>
