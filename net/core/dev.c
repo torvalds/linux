@@ -4689,9 +4689,7 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 		__skb_push(skb, skb->mac_len);
 		skb_do_redirect(skb);
 		return NULL;
-	case TC_ACT_REINSERT:
-		/* this does not scrub the packet, and updates stats on error */
-		skb_tc_reinsert(skb, &cl_res);
+	case TC_ACT_CONSUMED:
 		return NULL;
 	default:
 		break;

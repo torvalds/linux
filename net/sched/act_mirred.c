@@ -277,7 +277,8 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 		if (use_reinsert) {
 			res->ingress = want_ingress;
 			res->qstats = this_cpu_ptr(m->common.cpu_qstats);
-			return TC_ACT_REINSERT;
+			skb_tc_reinsert(skb, res);
+			return TC_ACT_CONSUMED;
 		}
 	}
 
