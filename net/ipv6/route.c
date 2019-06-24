@@ -3144,10 +3144,9 @@ out:
 	return entries > rt_max_size;
 }
 
-static struct rt6_info *ip6_nh_lookup_table(struct net *net,
-					    struct fib6_config *cfg,
-					    const struct in6_addr *gw_addr,
-					    u32 tbid, int flags)
+static int ip6_nh_lookup_table(struct net *net, struct fib6_config *cfg,
+			       const struct in6_addr *gw_addr, u32 tbid,
+			       int flags, struct fib6_result *res)
 {
 	struct flowi6 fl6 = {
 		.flowi6_oif = cfg->fc_ifindex,
@@ -3155,25 +3154,23 @@ static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 		.saddr = cfg->fc_prefsrc,
 	};
 	struct fib6_table *table;
-	struct rt6_info *rt;
+	int err;
 
 	table = fib6_get_table(net, tbid);
 	if (!table)
-		return NULL;
+		return -EINVAL;
 
 	if (!ipv6_addr_any(&cfg->fc_prefsrc))
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 
 	flags |= RT6_LOOKUP_F_IGNORE_LINKSTATE;
-	rt = ip6_pol_route(net, table, cfg->fc_ifindex, &fl6, NULL, flags);
 
-	/* if table lookup failed, fall back to full lookup */
-	if (rt == net->ipv6.ip6_null_entry) {
-		ip6_rt_put(rt);
-		rt = NULL;
-	}
+	err = fib6_table_lookup(net, table, cfg->fc_ifindex, &fl6, res, flags);
+	if (!err && res->f6i != net->ipv6.fib6_null_entry)
+		fib6_select_path(net, res, &fl6, cfg->fc_ifindex,
+				 cfg->fc_ifindex != 0, NULL, flags);
 
-	return rt;
+	return err;
 }
 
 static int ip6_route_check_nh_onlink(struct net *net,
@@ -3181,29 +3178,19 @@ static int ip6_route_check_nh_onlink(struct net *net,
 				     const struct net_device *dev,
 				     struct netlink_ext_ack *extack)
 {
-	u32 tbid = l3mdev_fib_table(dev) ? : RT_TABLE_MAIN;
+	u32 tbid = l3mdev_fib_table_rcu(dev) ? : RT_TABLE_MAIN;
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
-	u32 flags = RTF_LOCAL | RTF_ANYCAST | RTF_REJECT;
-	struct fib6_info *from;
-	struct rt6_info *grt;
+	struct fib6_result res = {};
 	int err;
 
-	err = 0;
-	grt = ip6_nh_lookup_table(net, cfg, gw_addr, tbid, 0);
-	if (grt) {
-		rcu_read_lock();
-		from = rcu_dereference(grt->from);
-		if (!grt->dst.error &&
-		    /* ignore match if it is the default route */
-		    from && !ipv6_addr_any(&from->fib6_dst.addr) &&
-		    (grt->rt6i_flags & flags || dev != grt->dst.dev)) {
-			NL_SET_ERR_MSG(extack,
-				       "Nexthop has invalid gateway or device mismatch");
-			err = -EINVAL;
-		}
-		rcu_read_unlock();
-
-		ip6_rt_put(grt);
+	err = ip6_nh_lookup_table(net, cfg, gw_addr, tbid, 0, &res);
+	if (!err && !(res.fib6_flags & RTF_REJECT) &&
+	    /* ignore match if it is the default route */
+	    !ipv6_addr_any(&res.f6i->fib6_dst.addr) &&
+	    (res.fib6_type != RTN_UNICAST || dev != res.nh->fib_nh_dev)) {
+		NL_SET_ERR_MSG(extack,
+			       "Nexthop has invalid gateway or device mismatch");
+		err = -EINVAL;
 	}
 
 	return err;
@@ -3216,47 +3203,50 @@ static int ip6_route_check_nh(struct net *net,
 {
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
 	struct net_device *dev = _dev ? *_dev : NULL;
-	struct rt6_info *grt = NULL;
+	int flags = RT6_LOOKUP_F_IFACE;
+	struct fib6_result res = {};
 	int err = -EHOSTUNREACH;
 
 	if (cfg->fc_table) {
-		int flags = RT6_LOOKUP_F_IFACE;
-
-		grt = ip6_nh_lookup_table(net, cfg, gw_addr,
-					  cfg->fc_table, flags);
-		if (grt) {
-			if (grt->rt6i_flags & RTF_GATEWAY ||
-			    (dev && dev != grt->dst.dev)) {
-				ip6_rt_put(grt);
-				grt = NULL;
-			}
-		}
+		err = ip6_nh_lookup_table(net, cfg, gw_addr,
+					  cfg->fc_table, flags, &res);
+		/* gw_addr can not require a gateway or resolve to a reject
+		 * route. If a device is given, it must match the result.
+		 */
+		if (err || res.fib6_flags & RTF_REJECT ||
+		    res.nh->fib_nh_gw_family ||
+		    (dev && dev != res.nh->fib_nh_dev))
+			err = -EHOSTUNREACH;
 	}
 
-	if (!grt)
-		grt = rt6_lookup(net, gw_addr, NULL, cfg->fc_ifindex, NULL, 1);
+	if (err < 0) {
+		struct flowi6 fl6 = {
+			.flowi6_oif = cfg->fc_ifindex,
+			.daddr = *gw_addr,
+		};
 
-	if (!grt)
-		goto out;
+		err = fib6_lookup(net, cfg->fc_ifindex, &fl6, &res, flags);
+		if (err || res.fib6_flags & RTF_REJECT ||
+		    res.nh->fib_nh_gw_family)
+			err = -EHOSTUNREACH;
 
+		if (err)
+			return err;
+
+		fib6_select_path(net, &res, &fl6, cfg->fc_ifindex,
+				 cfg->fc_ifindex != 0, NULL, flags);
+	}
+
+	err = 0;
 	if (dev) {
-		if (dev != grt->dst.dev) {
-			ip6_rt_put(grt);
-			goto out;
-		}
+		if (dev != res.nh->fib_nh_dev)
+			err = -EHOSTUNREACH;
 	} else {
-		*_dev = dev = grt->dst.dev;
-		*idev = grt->rt6i_idev;
+		*_dev = dev = res.nh->fib_nh_dev;
 		dev_hold(dev);
-		in6_dev_hold(grt->rt6i_idev);
+		*idev = in6_dev_get(dev);
 	}
 
-	if (!(grt->rt6i_flags & RTF_GATEWAY))
-		err = 0;
-
-	ip6_rt_put(grt);
-
-out:
 	return err;
 }
 
@@ -3297,10 +3287,14 @@ static int ip6_validate_gw(struct net *net, struct fib6_config *cfg,
 			goto out;
 		}
 
+		rcu_read_lock();
+
 		if (cfg->fc_flags & RTNH_F_ONLINK)
 			err = ip6_route_check_nh_onlink(net, cfg, dev, extack);
 		else
 			err = ip6_route_check_nh(net, cfg, _dev, idev);
+
+		rcu_read_unlock();
 
 		if (err)
 			goto out;
