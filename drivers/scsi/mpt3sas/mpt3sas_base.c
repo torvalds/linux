@@ -113,8 +113,7 @@ MODULE_PARM_DESC(perf_mode,
 	"interrupt coalescing is enabled on all queues,\n\t\t"
 	"2 - latency: high iops mode is disabled &\n\t\t"
 	"interrupt coalescing is enabled on all queues with timeout value 0xA,\n"
-	"\t\tdefault - on Intel architecture, default perf_mode is\n\t\t"
-	" 'balanced' and in others architectures the default mode is 'latency'"
+	"\t\tdefault - default perf_mode is 'balanced'"
 	);
 
 enum mpt3sas_perf_mode {
@@ -2990,19 +2989,6 @@ _base_check_and_enable_high_iops_queues(struct MPT3SAS_ADAPTER *ioc,
 
 	if (perf_mode == MPT_PERF_MODE_DEFAULT) {
 
-#if defined(CONFIG_X86)
-		/*
-		 * Use global variable boot_cpu_data.x86_vendor to
-		 * determine whether the architecture is Intel or not.
-		 */
-		if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
-			ioc->high_iops_queues = 0;
-			return;
-		}
-#else
-		ioc->high_iops_queues = 0;
-		return;
-#endif
 		speed = pcie_get_speed_cap(ioc->pdev);
 		dev_info(&ioc->pdev->dev, "PCIe device speed is %s\n",
 		     speed == PCIE_SPEED_2_5GT ? "2.5GHz" :
