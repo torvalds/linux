@@ -40,6 +40,7 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/sched/task_stack.h>
 
 #include "mali_base_kernel.h"
 #include <mali_kbase_uku.h>
