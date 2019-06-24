@@ -71,8 +71,6 @@ struct DR_VARIABLE_STRUCT {
 	u32 variable;
 };
 
-int mp_start_joinbss(struct _adapter *padapter, struct ndis_802_11_ssid *pssid);
-
 /* oid_rtl_seg_87_11_00 */
 uint oid_rt_pro_read_register_hdl(struct oid_par_priv *poid_par_priv);
 uint oid_rt_pro_write_register_hdl(struct oid_par_priv *poid_par_priv);

@@ -231,22 +231,6 @@ end_of_mp_stop_test:
 	return _SUCCESS;
 }
 
-int mp_start_joinbss(struct _adapter *padapter, struct ndis_802_11_ssid *pssid)
-{
-	struct mp_priv *pmppriv = &padapter->mppriv;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	unsigned char res = _SUCCESS;
-
-	if (!check_fwstate(pmlmepriv, WIFI_MP_STATE))
-		return _FAIL;
-	if (!check_fwstate(pmlmepriv, _FW_LINKED))
-		return _FAIL;
-	_clr_fwstate_(pmlmepriv, _FW_LINKED);
-	res = r8712_setassocsta_cmd(padapter, pmppriv->network_macaddr);
-	set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
-	return res;
-}
-
 uint oid_rt_pro_set_data_rate_hdl(struct oid_par_priv
 					 *poid_par_priv)
 {
