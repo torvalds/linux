@@ -7790,6 +7790,33 @@ L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/nand/raw/jz4780_*
 
+INGENIC JZ47xx SoCs
+M:	Paul Cercueil <paul@crapouillou.net>
+S:	Maintained
+F:	arch/mips/boot/dts/ingenic/
+F:	arch/mips/include/asm/mach-jz4740/
+F:	arch/mips/jz4740/
+F:	drivers/clk/ingenic/
+F:	drivers/dma/dma-jz4780.c
+F:	drivers/gpu/drm/ingenic/
+F:	drivers/i2c/busses/i2c-jz4780.c
+F:	drivers/iio/adc/ingenic-adc.c
+F:	drivers/irqchip/irq-ingenic.c
+F:	drivers/memory/jz4780-nemc.c
+F:	drivers/mmc/host/jz4740_mmc.c
+F:	drivers/mtd/nand/raw/ingenic/
+F:	drivers/pinctrl/pinctrl-ingenic.c
+F:	drivers/power/supply/ingenic-battery.c
+F:	drivers/pwm/pwm-jz4740.c
+F:	drivers/rtc/rtc-jz4740.c
+F:	drivers/tty/serial/8250/8250_ingenic.c
+F:	drivers/usb/musb/jz4740.c
+F:	drivers/watchdog/jz4740_wdt.c
+F:	include/dt-bindings/iio/adc/ingenic,adc.h
+F:	include/linux/mfd/ingenic-tcu.h
+F:	sound/soc/jz4740/
+F:	sound/soc/codecs/jz47*
+
 INOTIFY
 M:	Jan Kara <jack@suse.cz>
 R:	Amir Goldstein <amir73il@gmail.com>
