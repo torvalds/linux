@@ -1319,22 +1319,18 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 
 static int trans_get_key(struct btree_trans *trans,
 			 enum btree_id btree_id, struct bpos pos,
-			 struct btree_insert_entry **insert,
 			 struct btree_iter **iter,
 			 struct bkey_s_c *k)
 {
 	unsigned i;
 	int ret;
 
-	*insert = NULL;
-
 	for (i = 0; i < trans->nr_updates; i++)
 		if (!trans->updates[i].deferred &&
 		    trans->updates[i].iter->btree_id == btree_id &&
 		    !bkey_cmp(pos, trans->updates[i].iter->pos)) {
-			*insert = &trans->updates[i];
-			*iter	= (*insert)->iter;
-			*k	= bkey_i_to_s_c((*insert)->k);
+			*iter	= trans->updates[i].iter;
+			*k	= bkey_i_to_s_c(trans->updates[i].k);
 			return 0;
 		}
 
@@ -1350,30 +1346,34 @@ static int trans_get_key(struct btree_trans *trans,
 	return ret;
 }
 
-static int trans_update_key(struct btree_trans *trans,
-			    struct btree_insert_entry **insert,
-			    struct btree_iter *iter,
-			    struct bkey_s_c k,
-			    unsigned extra_u64s)
+static void *trans_update_key(struct btree_trans *trans,
+			      struct btree_iter *iter,
+			      unsigned u64s)
 {
 	struct bkey_i *new_k;
+	unsigned i;
 
-	if (*insert)
-		return 0;
-
-	new_k = bch2_trans_kmalloc(trans, bkey_bytes(k.k) +
-				   extra_u64s * sizeof(u64));
+	new_k = bch2_trans_kmalloc(trans, u64s * sizeof(u64));
 	if (IS_ERR(new_k))
-		return PTR_ERR(new_k);
+		return new_k;
 
-	*insert = bch2_trans_update(trans, ((struct btree_insert_entry) {
-				.iter = iter,
-				.k = new_k,
-				.triggered = true,
+	bkey_init(&new_k->k);
+	new_k->k.p = iter->pos;
+
+	for (i = 0; i < trans->nr_updates; i++)
+		if (!trans->updates[i].deferred &&
+		    trans->updates[i].iter == iter) {
+			trans->updates[i].k = new_k;
+			return new_k;
+		}
+
+	bch2_trans_update(trans, ((struct btree_insert_entry) {
+		.iter = iter,
+		.k = new_k,
+		.triggered = true,
 	}));
 
-	bkey_reassemble((*insert)->k, k);
-	return 0;
+	return new_k;
 }
 
 static int bch2_trans_mark_pointer(struct btree_trans *trans,
@@ -1382,7 +1382,6 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
-	struct btree_insert_entry *insert;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_alloc_unpacked u;
@@ -1392,7 +1391,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 
 	ret = trans_get_key(trans, BTREE_ID_ALLOC,
 			    POS(p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr)),
-			    &insert, &iter, &k);
+			    &iter, &k);
 	if (ret)
 		return ret;
 
@@ -1425,11 +1424,12 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		? u.dirty_sectors
 		: u.cached_sectors, sectors);
 
-	ret = trans_update_key(trans, &insert, iter, k, 1);
+	a = trans_update_key(trans, iter, BKEY_ALLOC_U64s_MAX);
+	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		goto out;
 
-	a = bkey_alloc_init(insert->k);
+	bkey_alloc_init(&a->k_i);
 	a->k.p = iter->pos;
 	bch2_alloc_pack(a, u);
 out:
@@ -1442,8 +1442,8 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 			s64 sectors, enum bch_data_type data_type)
 {
 	struct bch_replicas_padded r;
-	struct btree_insert_entry *insert;
 	struct btree_iter *iter;
+	struct bkey_i *new_k;
 	struct bkey_s_c k;
 	struct bkey_s_stripe s;
 	unsigned nr_data;
@@ -1452,8 +1452,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 
 	BUG_ON(!sectors);
 
-	ret = trans_get_key(trans, BTREE_ID_EC, POS(0, p.idx),
-			    &insert, &iter, &k);
+	ret = trans_get_key(trans, BTREE_ID_EC, POS(0, p.idx), &iter, &k);
 	if (ret)
 		return ret;
 
@@ -1465,11 +1464,13 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 		goto out;
 	}
 
-	ret = trans_update_key(trans, &insert, iter, k, 1);
+	new_k = trans_update_key(trans, iter, k.k->u64s);
+	ret = PTR_ERR_OR_ZERO(new_k);
 	if (ret)
 		goto out;
 
-	s = bkey_i_to_s_stripe(insert->k);
+	bkey_reassemble(new_k, k);
+	s = bkey_i_to_s_stripe(new_k);
 
 	nr_data = s.v->nr_blocks - s.v->nr_redundant;
 
