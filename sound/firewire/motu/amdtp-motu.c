@@ -306,8 +306,8 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 	struct amdtp_motu *p = s->protocol;
 	struct snd_pcm_substream *pcm;
 
-	trace_in_data_block_sph(s, data_blocks, buffer);
-	trace_in_data_block_message(s, data_blocks, buffer);
+	trace_data_block_sph(s, data_blocks, buffer);
+	trace_data_block_message(s, data_blocks, buffer);
 
 	if (p->midi_ports)
 		read_midi_messages(s, buffer, data_blocks);
@@ -384,8 +384,8 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 
 	write_sph(s, buffer, data_blocks);
 
-	trace_out_data_block_sph(s, data_blocks, buffer);
-	trace_out_data_block_message(s, data_blocks, buffer);
+	trace_data_block_sph(s, data_blocks, buffer);
+	trace_data_block_message(s, data_blocks, buffer);
 
 	return data_blocks;
 }
