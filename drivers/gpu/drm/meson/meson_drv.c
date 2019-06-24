@@ -140,10 +140,28 @@ static struct regmap_config meson_regmap_config = {
 
 static void meson_vpu_init(struct meson_drm *priv)
 {
-	writel_relaxed(0x210000, priv->io_base + _REG(VPU_RDARB_MODE_L1C1));
-	writel_relaxed(0x10000, priv->io_base + _REG(VPU_RDARB_MODE_L1C2));
-	writel_relaxed(0x900000, priv->io_base + _REG(VPU_RDARB_MODE_L2C1));
-	writel_relaxed(0x20000, priv->io_base + _REG(VPU_WRARB_MODE_L2C1));
+	u32 value;
+
+	/*
+	 * Slave dc0 and dc5 connected to master port 1.
+	 * By default other slaves are connected to master port 0.
+	 */
+	value = VPU_RDARB_SLAVE_TO_MASTER_PORT(0, 1) |
+		VPU_RDARB_SLAVE_TO_MASTER_PORT(5, 1);
+	writel_relaxed(value, priv->io_base + _REG(VPU_RDARB_MODE_L1C1));
+
+	/* Slave dc0 connected to master port 1 */
+	value = VPU_RDARB_SLAVE_TO_MASTER_PORT(0, 1);
+	writel_relaxed(value, priv->io_base + _REG(VPU_RDARB_MODE_L1C2));
+
+	/* Slave dc4 and dc7 connected to master port 1 */
+	value = VPU_RDARB_SLAVE_TO_MASTER_PORT(4, 1) |
+		VPU_RDARB_SLAVE_TO_MASTER_PORT(7, 1);
+	writel_relaxed(value, priv->io_base + _REG(VPU_RDARB_MODE_L2C1));
+
+	/* Slave dc1 connected to master port 1 */
+	value = VPU_RDARB_SLAVE_TO_MASTER_PORT(1, 1);
+	writel_relaxed(value, priv->io_base + _REG(VPU_WRARB_MODE_L2C1));
 }
 
 static void meson_remove_framebuffers(void)
