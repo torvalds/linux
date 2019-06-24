@@ -1518,11 +1518,9 @@ init_cifs(void)
 		goto out_destroy_dfs_cache;
 #endif /* CONFIG_CIFS_UPCALL */
 
-#ifdef CONFIG_CIFS_ACL
 	rc = init_cifs_idmap();
 	if (rc)
 		goto out_register_key_type;
-#endif /* CONFIG_CIFS_ACL */
 
 	rc = register_filesystem(&cifs_fs_type);
 	if (rc)
@@ -1537,10 +1535,8 @@ init_cifs(void)
 	return 0;
 
 out_init_cifs_idmap:
-#ifdef CONFIG_CIFS_ACL
 	exit_cifs_idmap();
 out_register_key_type:
-#endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
 out_destroy_dfs_cache:
@@ -1572,9 +1568,7 @@ exit_cifs(void)
 	unregister_filesystem(&cifs_fs_type);
 	unregister_filesystem(&smb3_fs_type);
 	cifs_dfs_release_automount_timer();
-#ifdef CONFIG_CIFS_ACL
 	exit_cifs_idmap();
-#endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
 #endif

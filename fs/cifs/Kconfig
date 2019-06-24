@@ -145,14 +145,6 @@ config CIFS_POSIX
 	  (such as Samba 3.10 and later) which can negotiate
 	  CIFS POSIX ACL support.  If unsure, say N.
 
-config CIFS_ACL
-	bool "Provide CIFS ACL support"
-	depends on CIFS_XATTR && KEYS
-	help
-	  Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
-	  is handed over to the application/caller.  See the man
-	  page for getcifsacl for more information.  If unsure, say Y.
-
 config CIFS_DEBUG
 	bool "Enable CIFS debugging routines"
 	default y
