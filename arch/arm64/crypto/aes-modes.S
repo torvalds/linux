@@ -13,6 +13,10 @@
 	.text
 	.align		4
 
+#ifndef MAX_STRIDE
+#define MAX_STRIDE	4
+#endif
+
 aes_encrypt_block4x:
 	encrypt_block4x	v0, v1, v2, v3, w3, x2, x8, w7
 	ret
@@ -22,6 +26,18 @@ aes_decrypt_block4x:
 	decrypt_block4x	v0, v1, v2, v3, w3, x2, x8, w7
 	ret
 ENDPROC(aes_decrypt_block4x)
+
+#if MAX_STRIDE == 5
+aes_encrypt_block5x:
+	encrypt_block5x	v0, v1, v2, v3, v4, w3, x2, x8, w7
+	ret
+ENDPROC(aes_encrypt_block5x)
+
+aes_decrypt_block5x:
+	decrypt_block5x	v0, v1, v2, v3, v4, w3, x2, x8, w7
+	ret
+ENDPROC(aes_decrypt_block5x)
+#endif
 
 	/*
 	 * aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,

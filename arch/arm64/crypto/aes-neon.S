@@ -117,25 +117,8 @@
 
 	/*
 	 * Interleaved versions: functionally equivalent to the
-	 * ones above, but applied to 2 or 4 AES states in parallel.
+	 * ones above, but applied to AES states in parallel.
 	 */
-
-	.macro		sub_bytes_2x, in0, in1
-	sub		v8.16b, \in0\().16b, v15.16b
-	tbl		\in0\().16b, {v16.16b-v19.16b}, \in0\().16b
-	sub		v9.16b, \in1\().16b, v15.16b
-	tbl		\in1\().16b, {v16.16b-v19.16b}, \in1\().16b
-	sub		v10.16b, v8.16b, v15.16b
-	tbx		\in0\().16b, {v20.16b-v23.16b}, v8.16b
-	sub		v11.16b, v9.16b, v15.16b
-	tbx		\in1\().16b, {v20.16b-v23.16b}, v9.16b
-	sub		v8.16b, v10.16b, v15.16b
-	tbx		\in0\().16b, {v24.16b-v27.16b}, v10.16b
-	sub		v9.16b, v11.16b, v15.16b
-	tbx		\in1\().16b, {v24.16b-v27.16b}, v11.16b
-	tbx		\in0\().16b, {v28.16b-v31.16b}, v8.16b
-	tbx		\in1\().16b, {v28.16b-v31.16b}, v9.16b
-	.endm
 
 	.macro		sub_bytes_4x, in0, in1, in2, in3
 	sub		v8.16b, \in0\().16b, v15.16b
@@ -215,25 +198,6 @@
 	eor		\in1\().16b, \in1\().16b, v11.16b
 	.endm
 
-	.macro		do_block_2x, enc, in0, in1, rounds, rk, rkp, i
-	ld1		{v15.4s}, [\rk]
-	add		\rkp, \rk, #16
-	mov		\i, \rounds
-1111:	eor		\in0\().16b, \in0\().16b, v15.16b	/* ^round key */
-	eor		\in1\().16b, \in1\().16b, v15.16b	/* ^round key */
-	movi		v15.16b, #0x40
-	tbl		\in0\().16b, {\in0\().16b}, v13.16b	/* ShiftRows */
-	tbl		\in1\().16b, {\in1\().16b}, v13.16b	/* ShiftRows */
-	sub_bytes_2x	\in0, \in1
-	subs		\i, \i, #1
-	ld1		{v15.4s}, [\rkp], #16
-	beq		2222f
-	mix_columns_2x	\in0, \in1, \enc
-	b		1111b
-2222:	eor		\in0\().16b, \in0\().16b, v15.16b	/* ^round key */
-	eor		\in1\().16b, \in1\().16b, v15.16b	/* ^round key */
-	.endm
-
 	.macro		do_block_4x, enc, in0, in1, in2, in3, rounds, rk, rkp, i
 	ld1		{v15.4s}, [\rk]
 	add		\rkp, \rk, #16
@@ -258,14 +222,6 @@
 	eor		\in1\().16b, \in1\().16b, v15.16b	/* ^round key */
 	eor		\in2\().16b, \in2\().16b, v15.16b	/* ^round key */
 	eor		\in3\().16b, \in3\().16b, v15.16b	/* ^round key */
-	.endm
-
-	.macro		encrypt_block2x, in0, in1, rounds, rk, rkp, i
-	do_block_2x	1, \in0, \in1, \rounds, \rk, \rkp, \i
-	.endm
-
-	.macro		decrypt_block2x, in0, in1, rounds, rk, rkp, i
-	do_block_2x	0, \in0, \in1, \rounds, \rk, \rkp, \i
 	.endm
 
 	.macro		encrypt_block4x, in0, in1, in2, in3, rounds, rk, rkp, i
