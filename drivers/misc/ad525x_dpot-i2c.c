@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Analog Devices digital potentiometers (I2C bus)
  *
  * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/i2c.h>

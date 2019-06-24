@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PMC551 PCI Mezzanine Ram Device
  *
  * Author:
  *	Mark Ferrell <mferrell@mvista.com>
  *	Copyright 1999,2000 Nortel Networks
- *
- * License:
- *	As part of this driver was derived from the slram.c driver it
- *	falls under the same license, which is GNU General Public
- *	License v2
  *
  * Description:
  *	This driver is intended to support the PMC551 PCI Ram device

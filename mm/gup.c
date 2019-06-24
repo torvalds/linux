@@ -1042,10 +1042,6 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 			BUG_ON(ret >= nr_pages);
 		}
 
-		if (!pages)
-			/* If it's a prefault don't insist harder */
-			return ret;
-
 		if (ret > 0) {
 			nr_pages -= ret;
 			pages_done += ret;
@@ -1061,8 +1057,12 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 				pages_done = ret;
 			break;
 		}
-		/* VM_FAULT_RETRY triggered, so seek to the faulting offset */
-		pages += ret;
+		/*
+		 * VM_FAULT_RETRY triggered, so seek to the faulting offset.
+		 * For the prefault case (!pages) we only update counts.
+		 */
+		if (likely(pages))
+			pages += ret;
 		start += ret << PAGE_SHIFT;
 
 		/*
@@ -1085,7 +1085,8 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 		pages_done++;
 		if (!nr_pages)
 			break;
-		pages++;
+		if (likely(pages))
+			pages++;
 		start += PAGE_SIZE;
 	}
 	if (lock_dropped && *locked) {

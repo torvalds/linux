@@ -207,7 +207,7 @@ int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 
 	ret = arch_stack_walk_reliable(consume_entry, &c, tsk);
 	put_task_stack(tsk);
-	return ret;
+	return ret ? ret : c.len;
 }
 #endif
 

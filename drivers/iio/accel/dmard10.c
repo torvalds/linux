@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * IIO driver for the 3-axis accelerometer Domintech ARD10.
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>
  * Copyright (c) 2012 Domintech Technology Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

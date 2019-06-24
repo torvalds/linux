@@ -85,11 +85,6 @@ static int tsens_register(struct tsens_priv *priv)
 	struct thermal_zone_device *tzd;
 
 	for (i = 0;  i < priv->num_sensors; i++) {
-		if (!is_sensor_enabled(priv, priv->sensor[i].hw_id)) {
-			dev_err(priv->dev, "sensor %d: disabled\n",
-				priv->sensor[i].hw_id);
-			continue;
-		}
 		priv->sensor[i].priv = priv;
 		priv->sensor[i].id = i;
 		tzd = devm_thermal_zone_of_sensor_register(priv->dev, i,

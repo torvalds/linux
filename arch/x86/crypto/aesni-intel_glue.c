@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for Intel AES-NI instructions. This file contains glue
  * code, the real AES implementation is in intel-aes_asm.S.
@@ -12,11 +13,6 @@
  *             Tadeusz Struk (tadeusz.struk@intel.com)
  *             Aidan O'Mahony (aidan.o.mahony@intel.com)
  *    Copyright (c) 2010, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/hardirq.h>

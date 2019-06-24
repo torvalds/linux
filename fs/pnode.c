@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/pnode.c
  *
  * (C) Copyright IBM Corporation 2005.
- *	Released under GPL v2.
  *	Author : Ram Pai (linuxram@us.ibm.com)
- *
  */
 #include <linux/mnt_namespace.h>
 #include <linux/mount.h>
@@ -262,7 +261,6 @@ static int propagate_one(struct mount *m)
 	child = copy_tree(last_source, last_source->mnt.mnt_root, type);
 	if (IS_ERR(child))
 		return PTR_ERR(child);
-	child->mnt.mnt_flags &= ~MNT_LOCKED;
 	mnt_set_mountpoint(m, mp, child);
 	last_dest = m;
 	last_source = child;

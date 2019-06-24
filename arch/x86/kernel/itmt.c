@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * itmt.c: Support Intel Turbo Boost Max Technology 3.0
  *
  * (C) Copyright 2016 Intel Corporation
  * Author: Tim Chen <tim.c.chen@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * On platforms supporting Intel Turbo Boost Max Technology 3.0, (ITMT),
  * the maximum turbo frequencies of some cores in a CPU package may be

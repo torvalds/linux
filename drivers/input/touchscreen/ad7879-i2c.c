@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AD7879-1/AD7889-1 touchscreen (I2C bus)
  *
  * Copyright (C) 2008-2010 Michael Hennerich, Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/input.h>	/* BUS_I2C */

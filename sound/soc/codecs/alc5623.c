@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * alc5623.c  --  alc562[123] ALSA Soc Audio driver
  *
@@ -6,13 +7,7 @@
  *
  * Copyright 2010 Arnaud Patard <arnaud.patard@rtp-net.org>
  *
- *
  * Based on WM8753.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>

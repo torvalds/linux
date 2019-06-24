@@ -248,11 +248,32 @@ void mlx5_unregister_interface(struct mlx5_interface *intf)
 }
 EXPORT_SYMBOL(mlx5_unregister_interface);
 
+/* Must be called with intf_mutex held */
+static bool mlx5_has_added_dev_by_protocol(struct mlx5_core_dev *mdev, int protocol)
+{
+	struct mlx5_device_context *dev_ctx;
+	struct mlx5_interface *intf;
+	bool found = false;
+
+	list_for_each_entry(intf, &intf_list, list) {
+		if (intf->protocol == protocol) {
+			dev_ctx = mlx5_get_device(intf, &mdev->priv);
+			if (dev_ctx && test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
+				found = true;
+			break;
+		}
+	}
+
+	return found;
+}
+
 void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol)
 {
 	mutex_lock(&mlx5_intf_mutex);
-	mlx5_remove_dev_by_protocol(mdev, protocol);
-	mlx5_add_dev_by_protocol(mdev, protocol);
+	if (mlx5_has_added_dev_by_protocol(mdev, protocol)) {
+		mlx5_remove_dev_by_protocol(mdev, protocol);
+		mlx5_add_dev_by_protocol(mdev, protocol);
+	}
 	mutex_unlock(&mlx5_intf_mutex);
 }
 

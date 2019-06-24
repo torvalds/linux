@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vSMPowered(tm) systems specific initialization
  * Copyright (C) 2005 ScaleMP Inc.
- *
- * Use of this code is subject to the terms and conditions of the
- * GNU general public license version 2. See "COPYING" or
- * http://www.gnu.org/licenses/gpl.html
  *
  * Ravikiran Thirumalai <kiran@scalemp.com>,
  * Shai Fultheim <shai@scalemp.com>

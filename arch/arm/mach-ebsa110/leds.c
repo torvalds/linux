@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the LED found on the EBSA110 machine
  * Based on Versatile and RealView machine LED code
  *
- * License terms: GNU General Public License (GPL) version 2
  * Author: Bryan Wu <bryan.wu@canonical.com>
  */
 #include <linux/kernel.h>

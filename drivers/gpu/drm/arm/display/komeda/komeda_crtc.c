@@ -350,7 +350,7 @@ static bool komeda_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
+static const struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
 	.atomic_check	= komeda_crtc_atomic_check,
 	.atomic_flush	= komeda_crtc_atomic_flush,
 	.atomic_enable	= komeda_crtc_atomic_enable,

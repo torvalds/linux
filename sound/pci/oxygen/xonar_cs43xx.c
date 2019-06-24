@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * card driver for models with CS4398/CS4362A DACs (Xonar D1/DX)
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- *
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License, version 2.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this driver; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*

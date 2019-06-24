@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LP8755 High Performance Power Management Unit : System Interface Driver
  * (based on rev. 0.26)
  * Copyright 2012 Texas Instruments
  *
  * Author: Daniel(Geon Si) Jeong <daniel.jeong@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>

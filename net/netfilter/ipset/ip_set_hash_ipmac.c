@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2016 Tomasz Chilinski <tomasz.chilinski@chilan.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /* Kernel module implementing an IP set type: the hash:ip,mac type */

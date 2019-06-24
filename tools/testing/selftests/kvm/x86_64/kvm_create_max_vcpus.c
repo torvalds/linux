@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kvm_create_max_vcpus
  *
  * Copyright (C) 2019, Google LLC.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Test for KVM_CAP_MAX_VCPUS and KVM_CAP_MAX_VCPU_ID.
  */

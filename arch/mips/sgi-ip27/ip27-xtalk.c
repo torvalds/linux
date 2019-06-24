@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1999, 2000 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999, 2000 Silcon Graphics, Inc.
  * Copyright (C) 2004 Christoph Hellwig.
- *	Released under GPL v2.
  *
  * Generic XTALK initialization code
  */

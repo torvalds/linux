@@ -36,7 +36,6 @@ config PARISC
 	select GENERIC_STRNCPY_FROM_USER
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	select SYSCTL_EXCEPTION_TRACE
-	select ARCH_DISCARD_MEMBLOCK
 	select HAVE_MOD_ARCH_SPECIFIC
 	select VIRT_TO_BUS
 	select MODULES_USE_ELF_RELA
@@ -195,7 +194,8 @@ config PREFETCH
 
 config MLONGCALLS
 	bool "Enable the -mlong-calls compiler option for big kernels"
-	default y
+	default y if !MODULES || UBSAN || FTRACE
+	default n
 	depends on PA8X00
 	help
 	  If you configure the kernel to include many drivers built-in instead

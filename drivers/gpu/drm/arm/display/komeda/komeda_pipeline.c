@@ -12,7 +12,7 @@
 /** komeda_pipeline_add - Add a pipeline to &komeda_dev */
 struct komeda_pipeline *
 komeda_pipeline_add(struct komeda_dev *mdev, size_t size,
-		    struct komeda_pipeline_funcs *funcs)
+		    const struct komeda_pipeline_funcs *funcs)
 {
 	struct komeda_pipeline *pipe;
 
@@ -130,7 +130,7 @@ komeda_pipeline_get_component(struct komeda_pipeline *pipe, int id)
 struct komeda_component *
 komeda_component_add(struct komeda_pipeline *pipe,
 		     size_t comp_sz, u32 id, u32 hw_id,
-		     struct komeda_component_funcs *funcs,
+		     const struct komeda_component_funcs *funcs,
 		     u8 max_active_inputs, u32 supported_inputs,
 		     u8 max_active_outputs, u32 __iomem *reg,
 		     const char *name_fmt, ...)

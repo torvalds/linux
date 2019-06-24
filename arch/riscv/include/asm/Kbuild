@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generic-y += bugs.h
 generic-y += checksum.h
 generic-y += compat.h

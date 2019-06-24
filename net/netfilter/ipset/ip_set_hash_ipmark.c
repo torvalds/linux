@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  * Copyright (C) 2013 Smoothwall Ltd. <vytas.dauksa@smoothwall.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /* Kernel module implementing an IP set type: the hash:ip,mark type */

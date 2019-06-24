@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* hermes.h
  *
  * Driver core for the "Hermes" wireless MAC controller, as used in
@@ -17,8 +18,6 @@
  *
  * Portions taken from hfa384x.h.
  * Copyright (C) 1999 AbsoluteValue Systems, Inc. All Rights Reserved.
- *
- * This file distributed under the GPL, version 2.
  */
 
 #ifndef _HERMES_H

@@ -28,14 +28,10 @@ static inline bool sja1105_is_link_local(const struct sk_buff *skb)
  */
 static bool sja1105_filter(const struct sk_buff *skb, struct net_device *dev)
 {
-	if (sja1105_is_link_local(skb)) {
-		SJA1105_SKB_CB(skb)->type = SJA1105_FRAME_TYPE_LINK_LOCAL;
+	if (sja1105_is_link_local(skb))
 		return true;
-	}
-	if (!dsa_port_is_vlan_filtering(dev->dsa_ptr)) {
-		SJA1105_SKB_CB(skb)->type = SJA1105_FRAME_TYPE_NORMAL;
+	if (!dsa_port_is_vlan_filtering(dev->dsa_ptr))
 		return true;
-	}
 	return false;
 }
 
@@ -84,7 +80,7 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 	skb->offload_fwd_mark = 1;
 
-	if (SJA1105_SKB_CB(skb)->type == SJA1105_FRAME_TYPE_LINK_LOCAL) {
+	if (sja1105_is_link_local(skb)) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
 		 * the incl_srcpt options.

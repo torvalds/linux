@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID support for Linux
  *
@@ -8,10 +9,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -30,7 +27,6 @@
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
-#include <linux/async.h>
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
@@ -1314,10 +1310,10 @@ static u32 __extract(u8 *report, unsigned offset, int n)
 u32 hid_field_extract(const struct hid_device *hid, u8 *report,
 			unsigned offset, unsigned n)
 {
-	if (n > 256) {
-		hid_warn(hid, "hid_field_extract() called with n (%d) > 256! (%s)\n",
+	if (n > 32) {
+		hid_warn(hid, "hid_field_extract() called with n (%d) > 32! (%s)\n",
 			 n, current->comm);
-		n = 256;
+		n = 32;
 	}
 
 	return __extract(report, offset, n);
@@ -2364,15 +2360,6 @@ int hid_add_device(struct hid_device *hdev)
 	 * is converted to allow more than 20 bytes as the device name? */
 	dev_set_name(&hdev->dev, "%04X:%04X:%04X.%04X", hdev->bus,
 		     hdev->vendor, hdev->product, atomic_inc_return(&id));
-
-	/*
-	 * Try loading the module for the device before the add, so that we do
-	 * not first have hid-generic binding only to have it replaced
-	 * immediately afterwards with a specialized driver.
-	 */
-	if (!current_is_async())
-		request_module("hid:b%04Xg%04Xv%08Xp%08X", hdev->bus,
-			       hdev->group, hdev->vendor, hdev->product);
 
 	hid_debug_register(hdev, dev_name(&hdev->dev));
 	ret = device_add(&hdev->dev);

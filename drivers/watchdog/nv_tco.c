@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	nv_tco 0.01:	TCO timer driver for NV chipsets
  *
@@ -7,11 +8,6 @@
  *	(c) Copyright 2000 kernel concepts <nils@kernelconcepts.de>, All Rights
  *	Reserved.
  *				http://www.kernelconcepts.de
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	TCO timer driver for NV chipsets
  *	based on softdog.c by Alan Cox <alan@redhat.com>

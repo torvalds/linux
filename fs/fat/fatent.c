@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004, OGAWA Hirofumi
- * Released under GPL v2.
  */
 
 #include <linux/blkdev.h>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NET		An implementation of the SOCKET network access protocol.
  *
@@ -44,13 +45,6 @@
  *		Tigran Aivazian	:	sys_send(args) calls sys_sendto(args, NULL, 0)
  *		Tigran Aivazian	:	Made listen(2) backlog sanity checks
  *					protocol-independent
- *
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  *
  *	This module is effectively the top level interface to the BSD socket
  *	paradigm.
