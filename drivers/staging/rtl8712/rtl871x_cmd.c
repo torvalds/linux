@@ -80,11 +80,11 @@ int r8712_init_evt_priv(struct evt_priv *pevtpriv)
 	pevtpriv->evt_allocated_buf = kmalloc(MAX_EVTSZ + 4, GFP_ATOMIC);
 
 	if (!pevtpriv->evt_allocated_buf)
-		return _FAIL;
+		return -ENOMEM;
 	pevtpriv->evt_buf = pevtpriv->evt_allocated_buf  +  4 -
 			    ((addr_t)(pevtpriv->evt_allocated_buf) & 3);
 	pevtpriv->evt_done_cnt = 0;
-	return _SUCCESS;
+	return 0;
 }
 
 static void _free_evt_priv(struct evt_priv *pevtpriv)

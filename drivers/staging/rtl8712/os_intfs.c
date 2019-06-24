@@ -300,7 +300,7 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	if (r8712_init_cmd_priv(&padapter->cmdpriv))
 		return _FAIL;
 	padapter->cmdpriv.padapter = padapter;
-	if ((r8712_init_evt_priv(&padapter->evtpriv)) == _FAIL)
+	if (r8712_init_evt_priv(&padapter->evtpriv))
 		return _FAIL;
 	if (r8712_init_mlme_priv(padapter) == _FAIL)
 		return _FAIL;
