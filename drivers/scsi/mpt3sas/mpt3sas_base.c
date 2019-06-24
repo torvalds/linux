@@ -2979,7 +2979,7 @@ static void
 _base_check_and_enable_high_iops_queues(struct MPT3SAS_ADAPTER *ioc,
 		int hba_msix_vector_count)
 {
-	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
+	u16 lnksta, speed;
 
 	if (perf_mode == MPT_PERF_MODE_IOPS ||
 	    perf_mode == MPT_PERF_MODE_LATENCY) {
@@ -2989,15 +2989,10 @@ _base_check_and_enable_high_iops_queues(struct MPT3SAS_ADAPTER *ioc,
 
 	if (perf_mode == MPT_PERF_MODE_DEFAULT) {
 
-		speed = pcie_get_speed_cap(ioc->pdev);
-		dev_info(&ioc->pdev->dev, "PCIe device speed is %s\n",
-		     speed == PCIE_SPEED_2_5GT ? "2.5GHz" :
-		     speed == PCIE_SPEED_5_0GT ? "5.0GHz" :
-		     speed == PCIE_SPEED_8_0GT ? "8.0GHz" :
-		     speed == PCIE_SPEED_16_0GT ? "16.0GHz" :
-		     "Unknown");
+		pcie_capability_read_word(ioc->pdev, PCI_EXP_LNKSTA, &lnksta);
+		speed = lnksta & PCI_EXP_LNKSTA_CLS;
 
-		if (speed < PCIE_SPEED_16_0GT) {
+		if (speed < 0x4) {
 			ioc->high_iops_queues = 0;
 			return;
 		}
