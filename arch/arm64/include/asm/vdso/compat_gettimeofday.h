@@ -12,6 +12,8 @@
 
 #include <asm/vdso/compat_barrier.h>
 
+#define __VDSO_USE_SYSCALL		ULLONG_MAX
+
 #define VDSO_HAS_CLOCK_GETRES		1
 
 static __always_inline
@@ -74,8 +76,24 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode)
 {
 	u64 res;
 
+	/*
+	 * clock_mode == 0 implies that vDSO are enabled otherwise
+	 * fallback on syscall.
+	 */
+	if (clock_mode)
+		return __VDSO_USE_SYSCALL;
+
+	/*
+	 * This isb() is required to prevent that the counter value
+	 * is speculated.
+	 */
 	isb();
 	asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (res));
+	/*
+	 * This isb() is required to prevent that the seq lock is
+	 * speculated.
+	 */
+	isb();
 
 	return res;
 }
