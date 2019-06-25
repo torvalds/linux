@@ -529,8 +529,7 @@ static const struct usbhs_of_data rcar_gen2_data = {
 	.platform_callback = &usbhs_rcar2_ops,
 	.param = {
 		.has_usb_dmac = 1,
-		.pipe_configs = usbhsc_new_pipe,
-		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+		.has_new_pipe_configs = 1,
 	}
 };
 
@@ -539,8 +538,7 @@ static const struct usbhs_of_data rcar_gen3_data = {
 	.param = {
 		.has_usb_dmac = 1,
 		.multi_clks = 1,
-		.pipe_configs = usbhsc_new_pipe,
-		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+		.has_new_pipe_configs = 1,
 	}
 };
 
@@ -549,16 +547,14 @@ static const struct usbhs_of_data rcar_gen3_with_pll_data = {
 	.param = {
 		.has_usb_dmac = 1,
 		.multi_clks = 1,
-		.pipe_configs = usbhsc_new_pipe,
-		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+		.has_new_pipe_configs = 1,
 	}
 };
 
 static const struct usbhs_of_data rza1_data = {
 	.platform_callback = &usbhs_rza1_ops,
 	.param = {
-		.pipe_configs = usbhsc_new_pipe,
-		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+		.has_new_pipe_configs = 1,
 	}
 };
 
@@ -567,8 +563,7 @@ static const struct usbhs_of_data rza2_data = {
 	.param = {
 		.has_cnen = 1,
 		.cfifo_byte_addr = 1,
-		.pipe_configs = usbhsc_new_pipe,
-		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+		.has_new_pipe_configs = 1,
 	}
 };
 
@@ -715,7 +710,10 @@ static int usbhs_probe(struct platform_device *pdev)
 	priv->pfunc = info->platform_callback;
 
 	/* set default param if platform doesn't have */
-	if (!priv->dparam.pipe_configs) {
+	if (usbhs_get_dparam(priv, has_new_pipe_configs)) {
+		priv->dparam.pipe_configs = usbhsc_new_pipe;
+		priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
+	} else if (!priv->dparam.pipe_configs) {
 		priv->dparam.pipe_configs = usbhsc_default_pipe;
 		priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_default_pipe);
 	}
