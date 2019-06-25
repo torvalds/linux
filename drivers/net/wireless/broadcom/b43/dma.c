@@ -797,7 +797,7 @@ static void free_all_descbuffers(struct b43_dmaring *ring)
 	}
 }
 
-static u64 supported_dma_mask(struct b43_wldev *dev)
+static enum b43_dmatype b43_engine_type(struct b43_wldev *dev)
 {
 	u32 tmp;
 	u16 mmio_base;
@@ -807,14 +807,14 @@ static u64 supported_dma_mask(struct b43_wldev *dev)
 	case B43_BUS_BCMA:
 		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOST);
 		if (tmp & BCMA_IOST_DMA64)
-			return DMA_BIT_MASK(64);
+			return B43_DMA_64BIT;
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
 	case B43_BUS_SSB:
 		tmp = ssb_read32(dev->dev->sdev, SSB_TMSHIGH);
 		if (tmp & SSB_TMSHIGH_DMA64)
-			return DMA_BIT_MASK(64);
+			return B43_DMA_64BIT;
 		break;
 #endif
 	}
@@ -823,20 +823,7 @@ static u64 supported_dma_mask(struct b43_wldev *dev)
 	b43_write32(dev, mmio_base + B43_DMA32_TXCTL, B43_DMA32_TXADDREXT_MASK);
 	tmp = b43_read32(dev, mmio_base + B43_DMA32_TXCTL);
 	if (tmp & B43_DMA32_TXADDREXT_MASK)
-		return DMA_BIT_MASK(32);
-
-	return DMA_BIT_MASK(30);
-}
-
-static enum b43_dmatype dma_mask_to_engine_type(u64 dmamask)
-{
-	if (dmamask == DMA_BIT_MASK(30))
-		return B43_DMA_30BIT;
-	if (dmamask == DMA_BIT_MASK(32))
 		return B43_DMA_32BIT;
-	if (dmamask == DMA_BIT_MASK(64))
-		return B43_DMA_64BIT;
-	B43_WARN_ON(1);
 	return B43_DMA_30BIT;
 }
 
@@ -1065,13 +1052,10 @@ static bool b43_dma_translation_in_low_word(struct b43_wldev *dev,
 int b43_dma_init(struct b43_wldev *dev)
 {
 	struct b43_dma *dma = &dev->dma;
+	enum b43_dmatype type = b43_engine_type(dev);
 	int err;
-	u64 dmamask;
-	enum b43_dmatype type;
 
-	dmamask = supported_dma_mask(dev);
-	type = dma_mask_to_engine_type(dmamask);
-	err = dma_set_mask_and_coherent(dev->dev->dma_dev, dmamask);
+	err = dma_set_mask_and_coherent(dev->dev->dma_dev, DMA_BIT_MASK(type));
 	if (err) {
 		b43err(dev->wl, "The machine/kernel does not support "
 		       "the required %u-bit DMA mask\n", type);
@@ -1780,7 +1764,7 @@ void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
 	enum b43_dmatype type;
 	u16 mmio_base;
 
-	type = dma_mask_to_engine_type(supported_dma_mask(dev));
+	type = b43_engine_type(dev);
 
 	mmio_base = b43_dmacontroller_base(type, engine_index);
 	direct_fifo_rx(dev, type, mmio_base, enable);
