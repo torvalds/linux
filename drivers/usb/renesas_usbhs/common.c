@@ -628,8 +628,6 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 	struct renesas_usbhs_platform_info *info;
 	struct renesas_usbhs_driver_param *dparam;
 	const struct usbhs_of_data *data;
-	u32 tmp;
-	int gpio;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -643,13 +641,6 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 	*dparam = data->param;
 	info->platform_callback = *data->platform_callback;
 
-	if (!of_property_read_u32(dev_of_node(dev), "renesas,buswait", &tmp))
-		dparam->buswait_bwait = tmp;
-	gpio = of_get_named_gpio_flags(dev_of_node(dev), "renesas,enable-gpio",
-				       0, NULL);
-	if (gpio > 0)
-		dparam->enable_gpio = gpio;
-
 	return info;
 }
 
@@ -659,7 +650,8 @@ static int usbhs_probe(struct platform_device *pdev)
 	struct usbhs_priv *priv;
 	struct resource *res, *irq_res;
 	struct device *dev = &pdev->dev;
-	int ret;
+	int ret, gpio;
+	u32 tmp;
 
 	/* check device node */
 	if (dev_of_node(dev))
@@ -720,6 +712,12 @@ static int usbhs_probe(struct platform_device *pdev)
 	}
 	if (!priv->dparam.pio_dma_border)
 		priv->dparam.pio_dma_border = 64; /* 64byte */
+	if (!of_property_read_u32(dev_of_node(dev), "renesas,buswait", &tmp))
+		priv->dparam.buswait_bwait = tmp;
+	gpio = of_get_named_gpio_flags(dev_of_node(dev), "renesas,enable-gpio",
+				       0, NULL);
+	if (gpio > 0)
+		priv->dparam.enable_gpio = gpio;
 
 	/* FIXME */
 	/* runtime power control ? */
