@@ -2323,11 +2323,6 @@ struct megasas_instance {
 	atomic_t fw_outstanding;
 	atomic_t ldio_outstanding;
 	atomic_t fw_reset_no_pci_access;
-	atomic_t ieee_sgl;
-	atomic_t prp_sgl;
-	atomic_t sge_holes_type1;
-	atomic_t sge_holes_type2;
-	atomic_t sge_holes_type3;
 	atomic64_t total_io_count;
 
 	struct megasas_instance_template *instancet;
