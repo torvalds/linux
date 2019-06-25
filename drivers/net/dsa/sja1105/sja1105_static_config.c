@@ -230,7 +230,11 @@ sja1105pqrs_l2_lookup_params_entry_packing(void *buf, void *entry_ptr,
 {
 	const size_t size = SJA1105PQRS_SIZE_L2_LOOKUP_PARAMS_ENTRY;
 	struct sja1105_l2_lookup_params_entry *entry = entry_ptr;
+	int offset, i;
 
+	for (i = 0, offset = 58; i < 5; i++, offset += 11)
+		sja1105_packing(buf, &entry->maxaddrp[i],
+				offset + 10, offset + 0, size, op);
 	sja1105_packing(buf, &entry->maxage,         57,  43, size, op);
 	sja1105_packing(buf, &entry->start_dynspc,   42,  33, size, op);
 	sja1105_packing(buf, &entry->drpnolearn,     32,  28, size, op);
