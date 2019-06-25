@@ -61,17 +61,6 @@ static inline int ksz_read16(struct ksz_device *dev, u32 reg, u16 *val)
 	return ret;
 }
 
-static inline int ksz_read24(struct ksz_device *dev, u32 reg, u32 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read24(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
 static inline int ksz_read32(struct ksz_device *dev, u32 reg, u32 *val)
 {
 	int ret;
@@ -100,17 +89,6 @@ static inline int ksz_write16(struct ksz_device *dev, u32 reg, u16 value)
 
 	mutex_lock(&dev->reg_mutex);
 	ret = dev->ops->write16(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_write24(struct ksz_device *dev, u32 reg, u32 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write24(dev, reg, value);
 	mutex_unlock(&dev->reg_mutex);
 
 	return ret;

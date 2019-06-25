@@ -105,11 +105,9 @@ struct ksz_device {
 struct ksz_io_ops {
 	int (*read8)(struct ksz_device *dev, u32 reg, u8 *value);
 	int (*read16)(struct ksz_device *dev, u32 reg, u16 *value);
-	int (*read24)(struct ksz_device *dev, u32 reg, u32 *value);
 	int (*read32)(struct ksz_device *dev, u32 reg, u32 *value);
 	int (*write8)(struct ksz_device *dev, u32 reg, u8 value);
 	int (*write16)(struct ksz_device *dev, u32 reg, u16 value);
-	int (*write24)(struct ksz_device *dev, u32 reg, u32 value);
 	int (*write32)(struct ksz_device *dev, u32 reg, u32 value);
 	int (*get)(struct ksz_device *dev, u32 reg, void *data, size_t len);
 	int (*set)(struct ksz_device *dev, u32 reg, void *data, size_t len);

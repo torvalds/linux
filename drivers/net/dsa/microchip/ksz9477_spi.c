@@ -73,37 +73,12 @@ static int ksz_spi_write(struct ksz_device *dev, u32 reg, void *data,
 	return ksz9477_spi_write_reg(spi, reg, dev->txbuf, len);
 }
 
-static int ksz_spi_read24(struct ksz_device *dev, u32 reg, u32 *val)
-{
-	int ret;
-
-	*val = 0;
-	ret = ksz_spi_read(dev, reg, (u8 *)val, 3);
-	if (!ret) {
-		*val = be32_to_cpu(*val);
-		/* convert to 24bit */
-		*val >>= 8;
-	}
-
-	return ret;
-}
-
-static int ksz_spi_write24(struct ksz_device *dev, u32 reg, u32 value)
-{
-	/* make it to big endian 24bit from MSB */
-	value <<= 8;
-	value = cpu_to_be32(value);
-	return ksz_spi_write(dev, reg, &value, 3);
-}
-
 static const struct ksz_io_ops ksz9477_spi_ops = {
 	.read8 = ksz_spi_read8,
 	.read16 = ksz_spi_read16,
-	.read24 = ksz_spi_read24,
 	.read32 = ksz_spi_read32,
 	.write8 = ksz_spi_write8,
 	.write16 = ksz_spi_write16,
-	.write24 = ksz_spi_write24,
 	.write32 = ksz_spi_write32,
 	.get = ksz_spi_get,
 	.set = ksz_spi_set,
