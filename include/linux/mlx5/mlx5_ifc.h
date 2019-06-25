@@ -528,7 +528,21 @@ struct mlx5_ifc_fte_match_set_misc2_bits {
 
 	struct mlx5_ifc_fte_match_mpls_bits outer_first_mpls_over_udp;
 
-	u8         reserved_at_80[0x100];
+	u8         metadata_reg_c_7[0x20];
+
+	u8         metadata_reg_c_6[0x20];
+
+	u8         metadata_reg_c_5[0x20];
+
+	u8         metadata_reg_c_4[0x20];
+
+	u8         metadata_reg_c_3[0x20];
+
+	u8         metadata_reg_c_2[0x20];
+
+	u8         metadata_reg_c_1[0x20];
+
+	u8         metadata_reg_c_0[0x20];
 
 	u8         metadata_reg_a[0x20];
 
@@ -636,8 +650,22 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 	u8         reserved_at_e00[0x7200];
 };
 
+enum {
+	MLX5_FDB_TO_VPORT_REG_C_0 = 0x01,
+	MLX5_FDB_TO_VPORT_REG_C_1 = 0x02,
+	MLX5_FDB_TO_VPORT_REG_C_2 = 0x04,
+	MLX5_FDB_TO_VPORT_REG_C_3 = 0x08,
+	MLX5_FDB_TO_VPORT_REG_C_4 = 0x10,
+	MLX5_FDB_TO_VPORT_REG_C_5 = 0x20,
+	MLX5_FDB_TO_VPORT_REG_C_6 = 0x40,
+	MLX5_FDB_TO_VPORT_REG_C_7 = 0x80,
+};
+
 struct mlx5_ifc_flow_table_eswitch_cap_bits {
-	u8      reserved_at_0[0x1a];
+	u8      fdb_to_vport_reg_c_id[0x8];
+	u8      reserved_at_8[0xf];
+	u8      flow_source[0x1];
+	u8      reserved_at_18[0x2];
 	u8      multi_fdb_encap[0x1];
 	u8      reserved_at_1b[0x1];
 	u8      fdb_multi_path_to_table[0x1];
@@ -665,7 +693,9 @@ struct mlx5_ifc_e_switch_cap_bits {
 	u8         vport_svlan_insert[0x1];
 	u8         vport_cvlan_insert_if_not_exist[0x1];
 	u8         vport_cvlan_insert_overwrite[0x1];
-	u8         reserved_at_5[0x14];
+	u8         reserved_at_5[0x3];
+	u8         esw_uplink_ingress_acl[0x1];
+	u8         reserved_at_9[0x10];
 	u8         esw_functions_changed[0x1];
 	u8         reserved_at_1a[0x1];
 	u8         ecpf_vport_exists[0x1];
@@ -2555,6 +2585,12 @@ enum {
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2 = 0x800,
 };
 
+enum {
+	MLX5_FLOW_CONTEXT_FLOW_SOURCE_ANY_VPORT         = 0x0,
+	MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK            = 0x1,
+	MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT       = 0x2,
+};
+
 struct mlx5_ifc_vlan_bits {
 	u8         ethtype[0x10];
 	u8         prio[0x3];
@@ -2574,7 +2610,9 @@ struct mlx5_ifc_flow_context_bits {
 	u8         action[0x10];
 
 	u8         extended_destination[0x1];
-	u8         reserved_at_80[0x7];
+	u8         reserved_at_81[0x1];
+	u8         flow_source[0x2];
+	u8         reserved_at_84[0x4];
 	u8         destination_list_size[0x18];
 
 	u8         reserved_at_a0[0x8];
@@ -3099,12 +3137,14 @@ struct mlx5_ifc_hca_vport_context_bits {
 };
 
 struct mlx5_ifc_esw_vport_context_bits {
-	u8         reserved_at_0[0x3];
+	u8         fdb_to_vport_reg_c[0x1];
+	u8         reserved_at_1[0x2];
 	u8         vport_svlan_strip[0x1];
 	u8         vport_cvlan_strip[0x1];
 	u8         vport_svlan_insert[0x1];
 	u8         vport_cvlan_insert[0x2];
-	u8         reserved_at_8[0x18];
+	u8         fdb_to_vport_reg_c_id[0x8];
+	u8         reserved_at_10[0x10];
 
 	u8         reserved_at_20[0x20];
 
@@ -4985,7 +5025,8 @@ struct mlx5_ifc_modify_esw_vport_context_out_bits {
 };
 
 struct mlx5_ifc_esw_vport_context_fields_select_bits {
-	u8         reserved_at_0[0x1c];
+	u8         reserved_at_0[0x1b];
+	u8         fdb_to_vport_reg_c_id[0x1];
 	u8         vport_cvlan_insert[0x1];
 	u8         vport_svlan_insert[0x1];
 	u8         vport_cvlan_strip[0x1];
@@ -5182,6 +5223,7 @@ enum {
 	MLX5_ACTION_IN_FIELD_OUT_DIPV4         = 0x16,
 	MLX5_ACTION_IN_FIELD_OUT_FIRST_VID     = 0x17,
 	MLX5_ACTION_IN_FIELD_OUT_IPV6_HOPLIMIT = 0x47,
+	MLX5_ACTION_IN_FIELD_METADATA_REG_C_0  = 0x51,
 };
 
 struct mlx5_ifc_alloc_modify_header_context_out_bits {
