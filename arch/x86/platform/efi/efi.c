@@ -59,7 +59,7 @@ static efi_system_table_t efi_systab __initdata;
 
 static efi_config_table_type_t arch_tables[] __initdata = {
 #ifdef CONFIG_X86_UV
-	{UV_SYSTEM_TABLE_GUID, "UVsystab", &efi.uv_systab},
+	{UV_SYSTEM_TABLE_GUID, "UVsystab", &uv_systab_phys},
 #endif
 	{NULL_GUID, NULL, NULL},
 };
@@ -74,7 +74,9 @@ static const unsigned long * const efi_tables[] = {
 	&efi.boot_info,
 	&efi.hcdp,
 	&efi.uga,
-	&efi.uv_systab,
+#ifdef CONFIG_X86_UV
+	&uv_systab_phys,
+#endif
 	&efi.fw_vendor,
 	&efi.runtime,
 	&efi.config_table,
