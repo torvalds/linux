@@ -15,6 +15,7 @@
 #include "util/thread_map.h"
 #include "util/color.h"
 #include "util/stat.h"
+#include "util/string2.h"
 #include "util/callchain.h"
 #include "util/time-utils.h"
 

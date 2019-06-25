@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "trace-event.h"
 #include "stat.h"
+#include "string2.h"
 #include "memswap.h"
 #include "util/parse-branch-options.h"
 

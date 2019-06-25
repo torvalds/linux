@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <string.h>
 
+extern const char *graph_dotted_line;
+extern const char *dots;
+
 s64 perf_atoll(const char *str);
 char **argv_split(const char *str, int *argcp);
 void argv_free(char **argv);
