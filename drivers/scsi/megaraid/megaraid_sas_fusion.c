@@ -3601,7 +3601,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 			if (irq_context) {
 				if (!irq_context->irq_poll_scheduled) {
 					irq_context->irq_poll_scheduled = true;
-					disable_irq_nosync(irq_context->os_irq);
+					irq_context->irq_line_enable = true;
 					irq_poll_sched(&irq_context->irqpoll);
 				}
 				return num_completed;
@@ -3681,6 +3681,11 @@ int megasas_irqpoll(struct irq_poll *irqpoll, int budget)
 	irq_ctx = container_of(irqpoll, struct megasas_irq_context, irqpoll);
 	instance = irq_ctx->instance;
 
+	if (irq_ctx->irq_line_enable) {
+		disable_irq(irq_ctx->os_irq);
+		irq_ctx->irq_line_enable = false;
+	}
+
 	num_entries = complete_cmd_fusion(instance, irq_ctx->MSIxIndex, irq_ctx);
 	if (num_entries < budget) {
 		irq_poll_complete(irqpoll);
@@ -3725,6 +3730,11 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 
 	if (instance->mask_interrupts)
 		return IRQ_NONE;
+
+#if defined(ENABLE_IRQ_POLL)
+	if (irq_context->irq_poll_scheduled)
+		return IRQ_HANDLED;
+#endif
 
 	if (!instance->msix_vectors) {
 		mfiStatus = instance->instancet->clear_intr(instance);

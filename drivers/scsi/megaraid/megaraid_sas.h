@@ -2186,6 +2186,7 @@ struct megasas_irq_context {
 	u32 os_irq;
 	struct irq_poll irqpoll;
 	bool irq_poll_scheduled;
+	bool irq_line_enable;
 };
 
 struct MR_DRV_SYSTEM_INFO {
