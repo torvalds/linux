@@ -833,10 +833,9 @@ last_active(const struct intel_engine_execlists *execlists)
 	return *last;
 }
 
-static void
-defer_request(struct i915_request * const rq, struct list_head * const pl)
+static void defer_request(struct i915_request *rq, struct list_head * const pl)
 {
-	struct i915_dependency *p;
+	LIST_HEAD(list);
 
 	/*
 	 * We want to move the interrupted request to the back of
@@ -845,34 +844,37 @@ defer_request(struct i915_request * const rq, struct list_head * const pl)
 	 * flight and were waiting for the interrupted request to
 	 * be run after it again.
 	 */
-	list_move_tail(&rq->sched.link, pl);
+	do {
+		struct i915_dependency *p;
 
-	list_for_each_entry(p, &rq->sched.waiters_list, wait_link) {
-		struct i915_request *w =
-			container_of(p->waiter, typeof(*w), sched);
+		GEM_BUG_ON(i915_request_is_active(rq));
+		list_move_tail(&rq->sched.link, pl);
 
-		/* Leave semaphores spinning on the other engines */
-		if (w->engine != rq->engine)
-			continue;
+		list_for_each_entry(p, &rq->sched.waiters_list, wait_link) {
+			struct i915_request *w =
+				container_of(p->waiter, typeof(*w), sched);
 
-		/* No waiter should start before the active request completed */
-		GEM_BUG_ON(i915_request_started(w));
+			/* Leave semaphores spinning on the other engines */
+			if (w->engine != rq->engine)
+				continue;
 
-		GEM_BUG_ON(rq_prio(w) > rq_prio(rq));
-		if (rq_prio(w) < rq_prio(rq))
-			continue;
+			/* No waiter should start before its signaler */
+			GEM_BUG_ON(i915_request_started(w) &&
+				   !i915_request_completed(rq));
 
-		if (list_empty(&w->sched.link))
-			continue; /* Not yet submitted; unready */
+			GEM_BUG_ON(i915_request_is_active(w));
+			if (list_empty(&w->sched.link))
+				continue; /* Not yet submitted; unready */
 
-		/*
-		 * This should be very shallow as it is limited by the
-		 * number of requests that can fit in a ring (<64) and
-		 * the number of contexts that can be in flight on this
-		 * engine.
-		 */
-		defer_request(w, pl);
-	}
+			if (rq_prio(w) < rq_prio(rq))
+				continue;
+
+			GEM_BUG_ON(rq_prio(w) > rq_prio(rq));
+			list_move_tail(&w->sched.link, &list);
+		}
+
+		rq = list_first_entry_or_null(&list, typeof(*rq), sched.link);
+	} while (rq);
 }
 
 static void defer_active(struct intel_engine_cs *engine)
