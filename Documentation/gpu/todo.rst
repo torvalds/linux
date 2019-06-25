@@ -228,6 +228,12 @@ struct drm_gem_object_funcs
 GEM objects can now have a function table instead of having the callbacks on the
 DRM driver struct. This is now the preferred way and drivers can be moved over.
 
+DRM_GEM_CMA_VMAP_DRIVER_OPS, DRM_GEM_SHMEM_DRIVER_OPS already support this, but
+DRM_GEM_VRAM_DRIVER_PRIME does not yet and needs to be aligned with the previous
+two. We also need a 2nd version of the CMA define that doesn't require the
+vmapping to be present (different hook for prime importing). Plus this needs to
+be rolled out to all drivers using their own implementations, too.
+
 Use DRM_MODESET_LOCK_ALL_* helpers instead of boilerplate
 ---------------------------------------------------------
 
@@ -291,6 +297,10 @@ drm_fb_helper tasks
 
 - The max connector argument for drm_fb_helper_init() and
   drm_fb_helper_fbdev_setup() isn't used anymore and can be removed.
+
+- The helper doesn't keep an array of connectors anymore so these can be
+  removed: drm_fb_helper_single_add_all_connectors(),
+  drm_fb_helper_add_one_connector() and drm_fb_helper_remove_one_connector().
 
 Core refactorings
 =================
@@ -479,6 +489,21 @@ i915
 - Our early/late pm callbacks could be removed in favour of using
   device_link_add to model the dependency between i915 and snd_had. See
   https://dri.freedesktop.org/docs/drm/driver-api/device_link.html
+
+Bootsplash
+==========
+
+There is support in place now for writing internal DRM clients making it
+possible to pick up the bootsplash work that was rejected because it was written
+for fbdev.
+
+- [v6,8/8] drm/client: Hack: Add bootsplash example
+  https://patchwork.freedesktop.org/patch/306579/
+
+- [RFC PATCH v2 00/13] Kernel based bootsplash
+  https://lkml.org/lkml/2017/12/13/764
+
+Contact: Sam Ravnborg
 
 Outside DRM
 ===========

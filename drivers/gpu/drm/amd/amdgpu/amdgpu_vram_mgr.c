@@ -22,7 +22,6 @@
  * Authors: Christian König
  */
 
-#include <drm/drmP.h>
 #include "amdgpu.h"
 
 struct amdgpu_vram_mgr {

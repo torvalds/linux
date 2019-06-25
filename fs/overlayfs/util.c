@@ -652,6 +652,18 @@ void ovl_inuse_unlock(struct dentry *dentry)
 	}
 }
 
+bool ovl_is_inuse(struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	bool inuse;
+
+	spin_lock(&inode->i_lock);
+	inuse = (inode->i_state & I_OVL_INUSE);
+	spin_unlock(&inode->i_lock);
+
+	return inuse;
+}
+
 /*
  * Does this overlay dentry need to be indexed on copy up?
  */

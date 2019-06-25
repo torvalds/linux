@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2018 Renesas Electronics
  *
@@ -8,18 +9,7 @@
  *		      Boris Brezillon <boris.brezillon@free-electrons.com>
  *		      Wu, Songjun <Songjun.Wu@atmel.com>
  *
- *
  * Copyright (C) 2010-2011 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/gpio/consumer.h>
@@ -599,8 +589,8 @@ static int sii902x_audio_hw_params(struct device *dev, void *data,
 	if (ret)
 		goto out;
 
-	for (i = 0; sii902x->audio.i2s_fifo_sequence[i] &&
-		     i < ARRAY_SIZE(sii902x->audio.i2s_fifo_sequence); i++)
+	for (i = 0; i < ARRAY_SIZE(sii902x->audio.i2s_fifo_sequence) &&
+		    sii902x->audio.i2s_fifo_sequence[i]; i++)
 		regmap_write(sii902x->regmap,
 			     SII902X_TPI_I2S_ENABLE_MAPPING_REG,
 			     sii902x->audio.i2s_fifo_sequence[i]);
@@ -729,7 +719,7 @@ static int sii902x_audio_codec_init(struct sii902x *sii902x,
 		.max_i2s_channels = 0,
 	};
 	u8 lanes[4];
-	u32 num_lanes, i;
+	int num_lanes, i;
 
 	if (!of_property_read_bool(dev->of_node, "#sound-dai-cells")) {
 		dev_dbg(dev, "%s: No \"#sound-dai-cells\", no audio\n",

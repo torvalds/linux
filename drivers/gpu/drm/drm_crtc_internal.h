@@ -50,7 +50,9 @@ struct drm_mode_create_dumb;
 struct drm_mode_fb_cmd2;
 struct drm_mode_fb_cmd;
 struct drm_mode_object;
+struct drm_mode_set;
 struct drm_plane;
+struct drm_plane_state;
 struct drm_property;
 struct edid;
 struct kref;
@@ -222,6 +224,11 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 struct drm_minor;
 int drm_atomic_debugfs_init(struct drm_minor *minor);
 #endif
+
+int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
+				      struct drm_plane_state *plane_state);
+int __drm_atomic_helper_set_config(struct drm_mode_set *set,
+				   struct drm_atomic_state *state);
 
 void drm_atomic_print_state(const struct drm_atomic_state *state);
 

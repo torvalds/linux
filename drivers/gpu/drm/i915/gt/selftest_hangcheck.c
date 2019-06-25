@@ -24,18 +24,20 @@
 
 #include <linux/kthread.h>
 
+#include "gem/i915_gem_context.h"
 #include "intel_engine_pm.h"
 
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
 #include "selftests/igt_flush_test.h"
-#include "selftests/igt_gem_utils.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_wedge_me.h"
 #include "selftests/igt_atomic.h"
 
-#include "selftests/mock_context.h"
 #include "selftests/mock_drm.h"
+
+#include "gem/selftests/mock_context.h"
+#include "gem/selftests/igt_gem_utils.h"
 
 #define IGT_IDLE_TIMEOUT 50 /* ms; time to wait after flushing between tests */
 
@@ -115,24 +117,18 @@ static int move_to_active(struct i915_vma *vma,
 {
 	int err;
 
+	i915_vma_lock(vma);
 	err = i915_vma_move_to_active(vma, rq, flags);
-	if (err)
-		return err;
+	i915_vma_unlock(vma);
 
-	if (!i915_gem_object_has_active_reference(vma->obj)) {
-		i915_gem_object_get(vma->obj);
-		i915_gem_object_set_active_reference(vma->obj);
-	}
-
-	return 0;
+	return err;
 }
 
 static struct i915_request *
 hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = h->i915;
-	struct i915_address_space *vm =
-		h->ctx->ppgtt ? &h->ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_address_space *vm = h->ctx->vm ?: &i915->ggtt.vm;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
 	unsigned int flags;
@@ -343,8 +339,7 @@ static int igt_hang_sanitycheck(void *arg)
 
 		timeout = 0;
 		igt_wedge_on_timeout(&w, i915, HZ / 10 /* 100ms timeout*/)
-			timeout = i915_request_wait(rq,
-						    I915_WAIT_LOCKED,
+			timeout = i915_request_wait(rq, 0,
 						    MAX_SCHEDULE_TIMEOUT);
 		if (i915_reset_failed(i915))
 			timeout = -EIO;
@@ -398,7 +393,7 @@ static int igt_reset_nop(void *arg)
 	}
 
 	i915_gem_context_clear_bannable(ctx);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	reset_count = i915_reset_count(&i915->gpu_error);
 	count = 0;
 	do {
@@ -445,7 +440,7 @@ static int igt_reset_nop(void *arg)
 	err = igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 out:
 	mock_file_free(i915, file);
@@ -482,7 +477,7 @@ static int igt_reset_nop_engine(void *arg)
 	}
 
 	i915_gem_context_clear_bannable(ctx);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	for_each_engine(engine, i915, id) {
 		unsigned int reset_count, reset_engine_count;
 		unsigned int count;
@@ -553,7 +548,7 @@ static int igt_reset_nop_engine(void *arg)
 	err = igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 out:
 	mock_file_free(i915, file);
 	if (i915_reset_failed(i915))
@@ -1102,7 +1097,7 @@ static int igt_reset_wait(void *arg)
 
 	reset_count = fake_hangcheck(i915, ALL_ENGINES);
 
-	timeout = i915_request_wait(rq, I915_WAIT_LOCKED, 10);
+	timeout = i915_request_wait(rq, 0, 10);
 	if (timeout < 0) {
 		pr_err("i915_request_wait failed on a stuck request: err=%ld\n",
 		       timeout);
@@ -1250,7 +1245,9 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 		}
 	}
 
+	i915_vma_lock(arg.vma);
 	err = i915_vma_move_to_active(arg.vma, rq, flags);
+	i915_vma_unlock(arg.vma);
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		i915_vma_unpin_fence(arg.vma);
@@ -1355,8 +1352,8 @@ static int igt_reset_evict_ppgtt(void *arg)
 	}
 
 	err = 0;
-	if (ctx->ppgtt) /* aliasing == global gtt locking, covered above */
-		err = __igt_reset_evict_vma(i915, &ctx->ppgtt->vm,
+	if (ctx->vm) /* aliasing == global gtt locking, covered above */
+		err = __igt_reset_evict_vma(i915, ctx->vm,
 					    evict_vma, EXEC_OBJECT_WRITE);
 
 out:
@@ -1668,9 +1665,7 @@ static int igt_atomic_reset_engine(struct intel_engine_cs *engine,
 		struct igt_wedge_me w;
 
 		igt_wedge_on_timeout(&w, i915, HZ / 20 /* 50ms timeout*/)
-			i915_request_wait(rq,
-					  I915_WAIT_LOCKED,
-					  MAX_SCHEDULE_TIMEOUT);
+			i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
 		if (i915_reset_failed(i915))
 			err = -EIO;
 	}
@@ -1751,7 +1746,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	if (i915_terminally_wedged(i915))
 		return -EIO; /* we're long past hope of a successful reset */
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
 	drain_delayed_work(&i915->gpu_error.hangcheck_work); /* flush param */
 
@@ -1762,7 +1757,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	i915_modparams.enable_hangcheck = saved_hangcheck;
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	return err;
 }

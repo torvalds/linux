@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dce_abm.h"
 #include "dm_services.h"
 #include "reg_helper.h"

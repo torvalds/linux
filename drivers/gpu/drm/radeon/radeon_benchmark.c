@@ -21,7 +21,7 @@
  *
  * Authors: Jerome Glisse
  */
-#include <drm/drmP.h>
+
 #include <drm/radeon_drm.h>
 #include "radeon_reg.h"
 #include "radeon.h"

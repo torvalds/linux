@@ -25,6 +25,7 @@
 #include <linux/fb.h>
 #include "linux/delay.h"
 #include <linux/types.h>
+#include <linux/pci.h>
 
 #include "smumgr.h"
 #include "pp_debug.h"

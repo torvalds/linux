@@ -1271,6 +1271,9 @@ int mvpp2_ethtool_cls_rule_ins(struct mvpp2_port *port,
 	if (ret)
 		goto clean_eth_rule;
 
+	ethtool_rx_flow_rule_destroy(ethtool_rule);
+	efs->rule.flow = NULL;
+
 	memcpy(&efs->rxnfc, info, sizeof(*info));
 	port->rfs_rules[efs->rule.loc] = efs;
 	port->n_rfs_rules++;

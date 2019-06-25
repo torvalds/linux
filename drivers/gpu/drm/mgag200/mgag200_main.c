@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2010 Matt Turner.
  * Copyright 2012 Red Hat
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Authors: Matthew Garrett
  *          Matt Turner
@@ -241,10 +238,8 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 		mdev->cursor.pixels_2 = NULL;
 		dev_warn(&dev->pdev->dev,
 			"Could not allocate space for cursors. Not doing hardware cursors.\n");
-	} else {
-		mdev->cursor.pixels_current = mdev->cursor.pixels_1;
-		mdev->cursor.pixels_prev = mdev->cursor.pixels_2;
 	}
+	mdev->cursor.pixels_current = NULL;
 
 	return 0;
 

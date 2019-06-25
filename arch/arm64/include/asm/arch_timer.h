@@ -193,7 +193,7 @@ static inline void arch_timer_set_cntkctl(u32 cntkctl)
 	: "=r" (tmp) : "r" (_val));					\
 } while (0)
 
-static inline u64 __arch_counter_get_cntpct_stable(void)
+static __always_inline u64 __arch_counter_get_cntpct_stable(void)
 {
 	u64 cnt;
 
@@ -203,7 +203,7 @@ static inline u64 __arch_counter_get_cntpct_stable(void)
 	return cnt;
 }
 
-static inline u64 __arch_counter_get_cntpct(void)
+static __always_inline u64 __arch_counter_get_cntpct(void)
 {
 	u64 cnt;
 
@@ -213,7 +213,7 @@ static inline u64 __arch_counter_get_cntpct(void)
 	return cnt;
 }
 
-static inline u64 __arch_counter_get_cntvct_stable(void)
+static __always_inline u64 __arch_counter_get_cntvct_stable(void)
 {
 	u64 cnt;
 
@@ -223,7 +223,7 @@ static inline u64 __arch_counter_get_cntvct_stable(void)
 	return cnt;
 }
 
-static inline u64 __arch_counter_get_cntvct(void)
+static __always_inline u64 __arch_counter_get_cntvct(void)
 {
 	u64 cnt;
 

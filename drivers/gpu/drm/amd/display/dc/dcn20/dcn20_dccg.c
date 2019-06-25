@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dcn20_dccg.h"

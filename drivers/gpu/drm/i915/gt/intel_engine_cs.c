@@ -24,10 +24,13 @@
 
 #include <drm/drm_print.h>
 
+#include "gem/i915_gem_context.h"
+
 #include "i915_drv.h"
 
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
+#include "intel_context.h"
 #include "intel_lrc.h"
 #include "intel_reset.h"
 
@@ -156,7 +159,7 @@ static const struct engine_info intel_engines[] = {
 };
 
 /**
- * ___intel_engine_context_size() - return the size of the context for an engine
+ * intel_engine_context_size() - return the size of the context for an engine
  * @dev_priv: i915 device private
  * @class: engine class
  *
@@ -169,8 +172,7 @@ static const struct engine_info intel_engines[] = {
  * in LRC mode, but does not include the "shared data page" used with
  * GuC submission. The caller should account for this if using the GuC.
  */
-static u32
-__intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
+u32 intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 {
 	u32 cxt_size;
 
@@ -327,8 +329,8 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 
 	engine->uabi_class = intel_engine_classes[info->class].uabi_class;
 
-	engine->context_size = __intel_engine_context_size(dev_priv,
-							   engine->class);
+	engine->context_size = intel_engine_context_size(dev_priv,
+							 engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;
 	if (engine->context_size)
@@ -525,7 +527,7 @@ static void cleanup_status_page(struct intel_engine_cs *engine)
 		i915_vma_unpin(vma);
 
 	i915_gem_object_unpin_map(vma->obj);
-	__i915_gem_object_release_unless_active(vma->obj);
+	i915_gem_object_put(vma->obj);
 }
 
 static int pin_ggtt_status_page(struct intel_engine_cs *engine,
@@ -609,18 +611,13 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 {
 	int err;
 
+	init_llist_head(&engine->barrier_tasks);
+
 	err = init_status_page(engine);
 	if (err)
 		return err;
 
-	err = i915_timeline_init(engine->i915,
-				 &engine->timeline,
-				 engine->status_page.vma);
-	if (err)
-		goto err_hwsp;
-
-	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
-
+	intel_engine_init_active(engine, ENGINE_PHYSICAL);
 	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
 	intel_engine_init_hangcheck(engine);
@@ -633,10 +630,6 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 		intel_sseu_from_device_info(&RUNTIME_INFO(engine->i915)->sseu);
 
 	return 0;
-
-err_hwsp:
-	cleanup_status_page(engine);
-	return err;
 }
 
 /**
@@ -793,6 +786,27 @@ static int pin_context(struct i915_gem_context *ctx,
 	return 0;
 }
 
+void
+intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
+{
+	INIT_LIST_HEAD(&engine->active.requests);
+
+	spin_lock_init(&engine->active.lock);
+	lockdep_set_subclass(&engine->active.lock, subclass);
+
+	/*
+	 * Due to an interesting quirk in lockdep's internal debug tracking,
+	 * after setting a subclass we must ensure the lock is used. Otherwise,
+	 * nr_unused_locks is incremented once too often.
+	 */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	local_irq_disable();
+	lock_map_acquire(&engine->active.lock.dep_map);
+	lock_map_release(&engine->active.lock.dep_map);
+	local_irq_enable();
+#endif
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -856,6 +870,8 @@ err_unpin:
  */
 void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
+	GEM_BUG_ON(!list_empty(&engine->active.requests));
+
 	cleanup_status_page(engine);
 
 	intel_engine_fini_breadcrumbs(engine);
@@ -868,8 +884,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->preempt_context)
 		intel_context_unpin(engine->preempt_context);
 	intel_context_unpin(engine->kernel_context);
-
-	i915_timeline_fini(&engine->timeline);
+	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
 
 	intel_wa_list_free(&engine->ctx_wa_list);
 	intel_wa_list_free(&engine->wa_list);
@@ -970,11 +985,12 @@ u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 	return mcr_s_ss_select;
 }
 
-static inline u32
-read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
-		  int subslice, i915_reg_t reg)
+static u32
+read_subslice_reg(struct intel_engine_cs *engine, int slice, int subslice,
+		  i915_reg_t reg)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_uncore *uncore = engine->uncore;
 	u32 mcr_slice_subslice_mask;
 	u32 mcr_slice_subslice_select;
 	u32 default_mcr_s_ss_select;
@@ -982,7 +998,7 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 	u32 ret;
 	enum forcewake_domains fw_domains;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (INTEL_GEN(i915) >= 11) {
 		mcr_slice_subslice_mask = GEN11_MCR_SLICE_MASK |
 					  GEN11_MCR_SUBSLICE_MASK;
 		mcr_slice_subslice_select = GEN11_MCR_SLICE(slice) |
@@ -994,7 +1010,7 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 					    GEN8_MCR_SUBSLICE(subslice);
 	}
 
-	default_mcr_s_ss_select = intel_calculate_mcr_s_ss_select(dev_priv);
+	default_mcr_s_ss_select = intel_calculate_mcr_s_ss_select(i915);
 
 	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg,
 						    FW_REG_READ);
@@ -1031,7 +1047,7 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
 	struct intel_uncore *uncore = engine->uncore;
 	u32 mmio_base = engine->mmio_base;
 	int slice;
@@ -1039,7 +1055,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 
 	memset(instdone, 0, sizeof(*instdone));
 
-	switch (INTEL_GEN(dev_priv)) {
+	switch (INTEL_GEN(i915)) {
 	default:
 		instdone->instdone =
 			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
@@ -1049,12 +1065,12 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 
 		instdone->slice_common =
 			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
-		for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
+		for_each_instdone_slice_subslice(i915, slice, subslice) {
 			instdone->sampler[slice][subslice] =
-				read_subslice_reg(dev_priv, slice, subslice,
+				read_subslice_reg(engine, slice, subslice,
 						  GEN7_SAMPLER_INSTDONE);
 			instdone->row[slice][subslice] =
-				read_subslice_reg(dev_priv, slice, subslice,
+				read_subslice_reg(engine, slice, subslice,
 						  GEN7_ROW_INSTDONE);
 		}
 		break;
@@ -1100,7 +1116,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* If the whole device is asleep, the engine must be idle */
-	wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+	wakeref = intel_runtime_pm_get_if_in_use(&dev_priv->runtime_pm);
 	if (!wakeref)
 		return true;
 
@@ -1114,7 +1130,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	    !(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE))
 		idle = false;
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return idle;
 }
@@ -1196,26 +1212,6 @@ void intel_engines_reset_default_submission(struct drm_i915_private *i915)
 
 	for_each_engine(engine, i915, id)
 		engine->set_default_submission(engine);
-}
-
-/**
- * intel_engine_lost_context: called when the GPU is reset into unknown state
- * @engine: the engine
- *
- * We have either reset the GPU or otherwise about to lose state tracking of
- * the current GPU logical state (e.g. suspend). On next use, it is therefore
- * imperative that we make no presumptions about the current state and load
- * from scratch.
- */
-void intel_engine_lost_context(struct intel_engine_cs *engine)
-{
-	struct intel_context *ce;
-
-	lockdep_assert_held(&engine->i915->drm.struct_mutex);
-
-	ce = fetch_and_zero(&engine->last_retired_context);
-	if (ce)
-		intel_context_unpin(ce);
 }
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
@@ -1315,12 +1311,13 @@ static void hexdump(struct drm_printer *m, const void *buf, size_t len)
 	}
 }
 
-static void intel_engine_print_registers(const struct intel_engine_cs *engine,
+static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					 struct drm_printer *m)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	const struct intel_engine_execlists * const execlists =
 		&engine->execlists;
+	unsigned long flags;
 	u64 addr;
 
 	if (engine->id == RCS0 && IS_GEN_RANGE(dev_priv, 4, 7))
@@ -1401,15 +1398,16 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 				   idx, hws[idx * 2], hws[idx * 2 + 1]);
 		}
 
-		rcu_read_lock();
+		spin_lock_irqsave(&engine->active.lock, flags);
 		for (idx = 0; idx < execlists_num_ports(execlists); idx++) {
 			struct i915_request *rq;
 			unsigned int count;
+			char hdr[80];
 
 			rq = port_unpack(&execlists->port[idx], &count);
-			if (rq) {
-				char hdr[80];
-
+			if (!rq) {
+				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
+			} else if (!i915_request_signaled(rq)) {
 				snprintf(hdr, sizeof(hdr),
 					 "\t\tELSP[%d] count=%d, ring:{start:%08x, hwsp:%08x, seqno:%08x}, rq: ",
 					 idx, count,
@@ -1418,11 +1416,11 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 					 hwsp_seqno(rq));
 				print_request(m, rq, hdr);
 			} else {
-				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
+				print_request(m, rq, "\t\tELSP[%d] rq: ");
 			}
 		}
 		drm_printf(m, "\t\tHW active? 0x%x\n", execlists->active);
-		rcu_read_unlock();
+		spin_unlock_irqrestore(&engine->active.lock, flags);
 	} else if (INTEL_GEN(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
 			   ENGINE_READ(engine, RING_PP_DIR_BASE));
@@ -1496,16 +1494,6 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 	drm_printf(m, "\tRequests:\n");
 
-	rq = list_first_entry(&engine->timeline.requests,
-			      struct i915_request, link);
-	if (&rq->link != &engine->timeline.requests)
-		print_request(m, rq, "\t\tfirst  ");
-
-	rq = list_last_entry(&engine->timeline.requests,
-			     struct i915_request, link);
-	if (&rq->link != &engine->timeline.requests)
-		print_request(m, rq, "\t\tlast   ");
-
 	rq = intel_engine_find_active_request(engine);
 	if (rq) {
 		print_request(m, rq, "\t\tactive ");
@@ -1528,10 +1516,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 	rcu_read_unlock();
 
-	wakeref = intel_runtime_pm_get_if_in_use(engine->i915);
+	wakeref = intel_runtime_pm_get_if_in_use(&engine->i915->runtime_pm);
 	if (wakeref) {
 		intel_engine_print_registers(engine, m);
-		intel_runtime_pm_put(engine->i915, wakeref);
+		intel_runtime_pm_put(&engine->i915->runtime_pm, wakeref);
 	} else {
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}
@@ -1586,7 +1574,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	if (!intel_engine_supports_stats(engine))
 		return -ENODEV;
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 	write_seqlock(&engine->stats.lock);
 
 	if (unlikely(engine->stats.enabled == ~0)) {
@@ -1612,7 +1600,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 
 unlock:
 	write_sequnlock(&engine->stats.lock);
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	return err;
 }
@@ -1697,22 +1685,22 @@ intel_engine_find_active_request(struct intel_engine_cs *engine)
 	 * At all other times, we must assume the GPU is still running, but
 	 * we only care about the snapshot of this moment.
 	 */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
-	list_for_each_entry(request, &engine->timeline.requests, link) {
+	spin_lock_irqsave(&engine->active.lock, flags);
+	list_for_each_entry(request, &engine->active.requests, sched.link) {
 		if (i915_request_completed(request))
 			continue;
 
 		if (!i915_request_started(request))
-			break;
+			continue;
 
 		/* More than one preemptible request may match! */
 		if (!match_ring(request))
-			break;
+			continue;
 
 		active = request;
 		break;
 	}
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	return active;
 }

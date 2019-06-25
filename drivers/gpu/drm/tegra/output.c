@@ -53,18 +53,11 @@ tegra_output_connector_detect(struct drm_connector *connector, bool force)
 	struct tegra_output *output = connector_to_output(connector);
 	enum drm_connector_status status = connector_status_unknown;
 
-	if (gpio_is_valid(output->hpd_gpio)) {
-		if (output->hpd_gpio_flags & OF_GPIO_ACTIVE_LOW) {
-			if (gpio_get_value(output->hpd_gpio) != 0)
-				status = connector_status_disconnected;
-			else
-				status = connector_status_connected;
-		} else {
-			if (gpio_get_value(output->hpd_gpio) == 0)
-				status = connector_status_disconnected;
-			else
-				status = connector_status_connected;
-		}
+	if (output->hpd_gpio) {
+		if (gpiod_get_value(output->hpd_gpio) == 0)
+			status = connector_status_disconnected;
+		else
+			status = connector_status_connected;
 	} else {
 		if (!output->panel)
 			status = connector_status_disconnected;
@@ -102,6 +95,7 @@ static irqreturn_t hpd_irq(int irq, void *data)
 int tegra_output_probe(struct tegra_output *output)
 {
 	struct device_node *ddc, *panel;
+	unsigned long flags;
 	int err, size;
 
 	if (!output->of_node)
@@ -130,23 +124,18 @@ int tegra_output_probe(struct tegra_output *output)
 		of_node_put(ddc);
 	}
 
-	output->hpd_gpio = of_get_named_gpio_flags(output->of_node,
-						   "nvidia,hpd-gpio", 0,
-						   &output->hpd_gpio_flags);
-	if (gpio_is_valid(output->hpd_gpio)) {
-		unsigned long flags;
+	output->hpd_gpio = devm_gpiod_get_from_of_node(output->dev,
+						       output->of_node,
+						       "nvidia,hpd-gpio", 0,
+						       GPIOD_IN,
+						       "HDMI hotplug detect");
+	if (IS_ERR(output->hpd_gpio))
+		return PTR_ERR(output->hpd_gpio);
 
-		err = gpio_request_one(output->hpd_gpio, GPIOF_DIR_IN,
-				       "HDMI hotplug detect");
+	if (output->hpd_gpio) {
+		err = gpiod_to_irq(output->hpd_gpio);
 		if (err < 0) {
-			dev_err(output->dev, "gpio_request_one(): %d\n", err);
-			return err;
-		}
-
-		err = gpio_to_irq(output->hpd_gpio);
-		if (err < 0) {
-			dev_err(output->dev, "gpio_to_irq(): %d\n", err);
-			gpio_free(output->hpd_gpio);
+			dev_err(output->dev, "gpiod_to_irq(): %d\n", err);
 			return err;
 		}
 
@@ -160,7 +149,6 @@ int tegra_output_probe(struct tegra_output *output)
 		if (err < 0) {
 			dev_err(output->dev, "failed to request IRQ#%u: %d\n",
 				output->hpd_irq, err);
-			gpio_free(output->hpd_gpio);
 			return err;
 		}
 
@@ -186,10 +174,8 @@ void tegra_output_remove(struct tegra_output *output)
 	if (output->cec)
 		cec_notifier_put(output->cec);
 
-	if (gpio_is_valid(output->hpd_gpio)) {
+	if (output->hpd_gpio)
 		free_irq(output->hpd_irq, output);
-		gpio_free(output->hpd_gpio);
-	}
 
 	if (output->ddc)
 		put_device(&output->ddc->dev);
@@ -209,7 +195,7 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	 * The connector is now registered and ready to receive hotplug events
 	 * so the hotplug interrupt can be enabled.
 	 */
-	if (gpio_is_valid(output->hpd_gpio))
+	if (output->hpd_gpio)
 		enable_irq(output->hpd_irq);
 
 	return 0;
@@ -221,7 +207,7 @@ void tegra_output_exit(struct tegra_output *output)
 	 * The connector is going away, so the interrupt must be disabled to
 	 * prevent the hotplug interrupt handler from potentially crashing.
 	 */
-	if (gpio_is_valid(output->hpd_gpio))
+	if (output->hpd_gpio)
 		disable_irq(output->hpd_irq);
 
 	if (output->panel)

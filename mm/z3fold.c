@@ -190,10 +190,11 @@ static int size_to_chunks(size_t size)
 
 static void compact_page_work(struct work_struct *w);
 
-static inline struct z3fold_buddy_slots *alloc_slots(struct z3fold_pool *pool)
+static inline struct z3fold_buddy_slots *alloc_slots(struct z3fold_pool *pool,
+							gfp_t gfp)
 {
 	struct z3fold_buddy_slots *slots = kmem_cache_alloc(pool->c_handle,
-							GFP_KERNEL);
+							    gfp);
 
 	if (slots) {
 		memset(slots->slot, 0, sizeof(slots->slot));
@@ -295,10 +296,10 @@ static void z3fold_unregister_migration(struct z3fold_pool *pool)
 
 /* Initializes the z3fold header of a newly allocated z3fold page */
 static struct z3fold_header *init_z3fold_page(struct page *page,
-					struct z3fold_pool *pool)
+					struct z3fold_pool *pool, gfp_t gfp)
 {
 	struct z3fold_header *zhdr = page_address(page);
-	struct z3fold_buddy_slots *slots = alloc_slots(pool);
+	struct z3fold_buddy_slots *slots = alloc_slots(pool, gfp);
 
 	if (!slots)
 		return NULL;
@@ -912,7 +913,7 @@ retry:
 	if (!page)
 		return -ENOMEM;
 
-	zhdr = init_z3fold_page(page, pool);
+	zhdr = init_z3fold_page(page, pool, gfp);
 	if (!zhdr) {
 		__free_page(page);
 		return -ENOMEM;

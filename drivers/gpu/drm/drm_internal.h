@@ -133,16 +133,21 @@ void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 			const struct drm_gem_object *obj);
 
+int drm_gem_pin(struct drm_gem_object *obj);
+void drm_gem_unpin(struct drm_gem_object *obj);
+void *drm_gem_vmap(struct drm_gem_object *obj);
+void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr);
+
 /* drm_debugfs.c drm_debugfs_crc.c */
 #if defined(CONFIG_DEBUG_FS)
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root);
-int drm_debugfs_cleanup(struct drm_minor *minor);
-int drm_debugfs_connector_add(struct drm_connector *connector);
+void drm_debugfs_cleanup(struct drm_minor *minor);
+void drm_debugfs_connector_add(struct drm_connector *connector);
 void drm_debugfs_connector_remove(struct drm_connector *connector);
-int drm_debugfs_crtc_add(struct drm_crtc *crtc);
+void drm_debugfs_crtc_add(struct drm_crtc *crtc);
 void drm_debugfs_crtc_remove(struct drm_crtc *crtc);
-int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc);
+void drm_debugfs_crtc_crc_add(struct drm_crtc *crtc);
 #else
 static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 				   struct dentry *root)
@@ -150,30 +155,26 @@ static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 	return 0;
 }
 
-static inline int drm_debugfs_cleanup(struct drm_minor *minor)
+static inline void drm_debugfs_cleanup(struct drm_minor *minor)
 {
-	return 0;
 }
 
-static inline int drm_debugfs_connector_add(struct drm_connector *connector)
+static inline void drm_debugfs_connector_add(struct drm_connector *connector)
 {
-	return 0;
 }
 static inline void drm_debugfs_connector_remove(struct drm_connector *connector)
 {
 }
 
-static inline int drm_debugfs_crtc_add(struct drm_crtc *crtc)
+static inline void drm_debugfs_crtc_add(struct drm_crtc *crtc)
 {
-	return 0;
 }
 static inline void drm_debugfs_crtc_remove(struct drm_crtc *crtc)
 {
 }
 
-static inline int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
+static inline void drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 {
-	return 0;
 }
 
 #endif

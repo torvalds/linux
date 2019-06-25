@@ -22,6 +22,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
 #include "amdgpu.h"
 #include "soc15_common.h"
 #include "nv.h"

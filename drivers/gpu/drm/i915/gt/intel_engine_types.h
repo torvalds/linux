@@ -11,6 +11,7 @@
 #include <linux/irq_work.h>
 #include <linux/kref.h>
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/types.h>
 
 #include "i915_gem.h"
@@ -29,6 +30,7 @@
 #define I915_CMD_HASH_ORDER 9
 
 struct dma_fence;
+struct drm_i915_gem_object;
 struct drm_i915_reg_table;
 struct i915_gem_context;
 struct i915_request;
@@ -286,10 +288,17 @@ struct intel_engine_cs {
 
 	struct intel_ring *buffer;
 
-	struct i915_timeline timeline;
+	struct {
+		spinlock_t lock;
+		struct list_head requests;
+	} active;
+
+	struct llist_head barrier_tasks;
 
 	struct intel_context *kernel_context; /* pinned */
 	struct intel_context *preempt_context; /* pinned; optional */
+
+	intel_engine_mask_t saturated; /* submitting semaphores too late? */
 
 	unsigned long serial;
 
@@ -433,17 +442,6 @@ struct intel_engine_cs {
 	void		(*destroy)(struct intel_engine_cs *engine);
 
 	struct intel_engine_execlists execlists;
-
-	/* Contexts are pinned whilst they are active on the GPU. The last
-	 * context executed remains active whilst the GPU is idle - the
-	 * switch away and write to the context object only occurs on the
-	 * next execution.  Contexts are only unpinned on retirement of the
-	 * following request ensuring that we can always write to the object
-	 * on the context switch even after idling. Across suspend, we switch
-	 * to the kernel context and trash it as the save may not happen
-	 * before the hardware is powered down.
-	 */
-	struct intel_context *last_retired_context;
 
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;

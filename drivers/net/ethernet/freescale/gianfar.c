@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/net/ethernet/freescale/gianfar.c
  *
  * Gianfar Ethernet Driver
@@ -11,11 +12,6 @@
  *
  * Copyright 2002-2009, 2011-2013 Freescale Semiconductor, Inc.
  * Copyright 2007 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  *  Gianfar:  AKA Lambda Draconis, "Dragon"
  *  RA 11 31 24.2

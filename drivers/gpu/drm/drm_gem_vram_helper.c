@@ -152,36 +152,6 @@ void drm_gem_vram_put(struct drm_gem_vram_object *gbo)
 EXPORT_SYMBOL(drm_gem_vram_put);
 
 /**
- * drm_gem_vram_lock() - Locks a VRAM-backed GEM object
- * @gbo:	the GEM VRAM object
- * @no_wait:	don't wait for buffer object to become available
- *
- * See ttm_bo_reserve() for more information.
- *
- * Returns:
- * 0 on success, or
- * a negative error code otherwise
- */
-int drm_gem_vram_lock(struct drm_gem_vram_object *gbo, bool no_wait)
-{
-	return ttm_bo_reserve(&gbo->bo, true, no_wait, NULL);
-}
-EXPORT_SYMBOL(drm_gem_vram_lock);
-
-/**
- * drm_gem_vram_unlock() - \
-	Release a reservation acquired by drm_gem_vram_lock()
- * @gbo:	the GEM VRAM object
- *
- * See ttm_bo_unreserve() for more information.
- */
-void drm_gem_vram_unlock(struct drm_gem_vram_object *gbo)
-{
-	ttm_bo_unreserve(&gbo->bo);
-}
-EXPORT_SYMBOL(drm_gem_vram_unlock);
-
-/**
  * drm_gem_vram_mmap_offset() - Returns a GEM VRAM object's mmap offset
  * @gbo:	the GEM VRAM object
  *
@@ -224,7 +194,9 @@ EXPORT_SYMBOL(drm_gem_vram_offset);
  *
  * Pinning a buffer object ensures that it is not evicted from
  * a memory region. A pinned buffer object has to be unpinned before
- * it can be pinned to another region.
+ * it can be pinned to another region. If the pl_flag argument is 0,
+ * the buffer is pinned at its current location (video RAM or system
+ * memory).
  *
  * Returns:
  * 0 on success, or
@@ -242,7 +214,9 @@ int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag)
 	if (gbo->pin_count)
 		goto out;
 
-	drm_gem_vram_placement(gbo, pl_flag);
+	if (pl_flag)
+		drm_gem_vram_placement(gbo, pl_flag);
+
 	for (i = 0; i < gbo->placement.num_placement; ++i)
 		gbo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
@@ -261,49 +235,6 @@ err_ttm_bo_unreserve:
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_pin);
-
-/**
- * drm_gem_vram_pin_locked() - Pins a GEM VRAM object in a region.
- * @gbo:	the GEM VRAM object
- * @pl_flag:	a bitmask of possible memory regions
- *
- * Pinning a buffer object ensures that it is not evicted from
- * a memory region. A pinned buffer object has to be unpinned before
- * it can be pinned to another region.
- *
- * This function pins a GEM VRAM object that has already been
- * locked. Use drm_gem_vram_pin() if possible.
- *
- * Returns:
- * 0 on success, or
- * a negative error code otherwise.
- */
-int drm_gem_vram_pin_locked(struct drm_gem_vram_object *gbo,
-			    unsigned long pl_flag)
-{
-	int i, ret;
-	struct ttm_operation_ctx ctx = { false, false };
-
-	lockdep_assert_held(&gbo->bo.resv->lock.base);
-
-	if (gbo->pin_count) {
-		++gbo->pin_count;
-		return 0;
-	}
-
-	drm_gem_vram_placement(gbo, pl_flag);
-	for (i = 0; i < gbo->placement.num_placement; ++i)
-		gbo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
-	if (ret < 0)
-		return ret;
-
-	gbo->pin_count = 1;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_gem_vram_pin_locked);
 
 /**
  * drm_gem_vram_unpin() - Unpins a GEM VRAM object
@@ -348,83 +279,6 @@ err_ttm_bo_unreserve:
 EXPORT_SYMBOL(drm_gem_vram_unpin);
 
 /**
- * drm_gem_vram_unpin_locked() - Unpins a GEM VRAM object
- * @gbo:	the GEM VRAM object
- *
- * This function unpins a GEM VRAM object that has already been
- * locked. Use drm_gem_vram_unpin() if possible.
- *
- * Returns:
- * 0 on success, or
- * a negative error code otherwise.
- */
-int drm_gem_vram_unpin_locked(struct drm_gem_vram_object *gbo)
-{
-	int i, ret;
-	struct ttm_operation_ctx ctx = { false, false };
-
-	lockdep_assert_held(&gbo->bo.resv->lock.base);
-
-	if (WARN_ON_ONCE(!gbo->pin_count))
-		return 0;
-
-	--gbo->pin_count;
-	if (gbo->pin_count)
-		return 0;
-
-	for (i = 0; i < gbo->placement.num_placement ; ++i)
-		gbo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_gem_vram_unpin_locked);
-
-/**
- * drm_gem_vram_kmap_at() - Maps a GEM VRAM object into kernel address space
- * @gbo:	the GEM VRAM object
- * @map:	establish a mapping if necessary
- * @is_iomem:	returns true if the mapped memory is I/O memory, or false \
-	otherwise; can be NULL
- * @kmap:	the mapping's kmap object
- *
- * This function maps the buffer object into the kernel's address space
- * or returns the current mapping. If the parameter map is false, the
- * function only queries the current mapping, but does not establish a
- * new one.
- *
- * Returns:
- * The buffers virtual address if mapped, or
- * NULL if not mapped, or
- * an ERR_PTR()-encoded error code otherwise.
- */
-void *drm_gem_vram_kmap_at(struct drm_gem_vram_object *gbo, bool map,
-			   bool *is_iomem, struct ttm_bo_kmap_obj *kmap)
-{
-	int ret;
-
-	if (kmap->virtual || !map)
-		goto out;
-
-	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, kmap);
-	if (ret)
-		return ERR_PTR(ret);
-
-out:
-	if (!is_iomem)
-		return kmap->virtual;
-	if (!kmap->virtual) {
-		*is_iomem = false;
-		return NULL;
-	}
-	return ttm_kmap_obj_virtual(kmap, is_iomem);
-}
-EXPORT_SYMBOL(drm_gem_vram_kmap_at);
-
-/**
  * drm_gem_vram_kmap() - Maps a GEM VRAM object into kernel address space
  * @gbo:	the GEM VRAM object
  * @map:	establish a mapping if necessary
@@ -444,25 +298,26 @@ EXPORT_SYMBOL(drm_gem_vram_kmap_at);
 void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
 			bool *is_iomem)
 {
-	return drm_gem_vram_kmap_at(gbo, map, is_iomem, &gbo->kmap);
+	int ret;
+	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+
+	if (kmap->virtual || !map)
+		goto out;
+
+	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, kmap);
+	if (ret)
+		return ERR_PTR(ret);
+
+out:
+	if (!is_iomem)
+		return kmap->virtual;
+	if (!kmap->virtual) {
+		*is_iomem = false;
+		return NULL;
+	}
+	return ttm_kmap_obj_virtual(kmap, is_iomem);
 }
 EXPORT_SYMBOL(drm_gem_vram_kmap);
-
-/**
- * drm_gem_vram_kunmap_at() - Unmaps a GEM VRAM object
- * @gbo:	the GEM VRAM object
- * @kmap:	the mapping's kmap object
- */
-void drm_gem_vram_kunmap_at(struct drm_gem_vram_object *gbo,
-			    struct ttm_bo_kmap_obj *kmap)
-{
-	if (!kmap->virtual)
-		return;
-
-	ttm_bo_kunmap(kmap);
-	kmap->virtual = NULL;
-}
-EXPORT_SYMBOL(drm_gem_vram_kunmap_at);
 
 /**
  * drm_gem_vram_kunmap() - Unmaps a GEM VRAM object
@@ -470,7 +325,13 @@ EXPORT_SYMBOL(drm_gem_vram_kunmap_at);
  */
 void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo)
 {
-	drm_gem_vram_kunmap_at(gbo, &gbo->kmap);
+	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+
+	if (!kmap->virtual)
+		return;
+
+	ttm_bo_kunmap(kmap);
+	kmap->virtual = NULL;
 }
 EXPORT_SYMBOL(drm_gem_vram_kunmap);
 
@@ -585,7 +446,7 @@ int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(drm_gem_vram_bo_driver_verify_access);
 
-/**
+/*
  * drm_gem_vram_mm_funcs - Functions for &struct drm_vram_mm
  *
  * Most users of @struct drm_gem_vram_object will also use
@@ -691,7 +552,15 @@ int drm_gem_vram_driver_gem_prime_pin(struct drm_gem_object *gem)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
 
-	return drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
+	/* Fbdev console emulation is the use case of these PRIME
+	 * helpers. This may involve updating a hardware buffer from
+	 * a shadow FB. We pin the buffer to it's current location
+	 * (either video RAM or system memory) to prevent it from
+	 * being relocated during the update operation. If you require
+	 * the buffer to be pinned to VRAM, implement a callback that
+	 * sets the flags accordingly.
+	 */
+	return drm_gem_vram_pin(gbo, 0);
 }
 EXPORT_SYMBOL(drm_gem_vram_driver_gem_prime_pin);
 
@@ -723,7 +592,7 @@ void *drm_gem_vram_driver_gem_prime_vmap(struct drm_gem_object *gem)
 	int ret;
 	void *base;
 
-	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
+	ret = drm_gem_vram_pin(gbo, 0);
 	if (ret)
 		return NULL;
 	base = drm_gem_vram_kmap(gbo, true, NULL);

@@ -2284,7 +2284,7 @@ static struct mlx5_flow_root_namespace
 		cmds = mlx5_fs_cmd_get_default_ipsec_fpga_cmds(table_type);
 
 	/* Create the root namespace */
-	root_ns = kvzalloc(sizeof(*root_ns), GFP_KERNEL);
+	root_ns = kzalloc(sizeof(*root_ns), GFP_KERNEL);
 	if (!root_ns)
 		return NULL;
 
@@ -2427,6 +2427,7 @@ static void cleanup_egress_acls_root_ns(struct mlx5_core_dev *dev)
 		cleanup_root_ns(steering->esw_egress_root_ns[i]);
 
 	kfree(steering->esw_egress_root_ns);
+	steering->esw_egress_root_ns = NULL;
 }
 
 static void cleanup_ingress_acls_root_ns(struct mlx5_core_dev *dev)
@@ -2441,6 +2442,7 @@ static void cleanup_ingress_acls_root_ns(struct mlx5_core_dev *dev)
 		cleanup_root_ns(steering->esw_ingress_root_ns[i]);
 
 	kfree(steering->esw_ingress_root_ns);
+	steering->esw_ingress_root_ns = NULL;
 }
 
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
@@ -2474,11 +2476,7 @@ static int init_sniffer_tx_root_ns(struct mlx5_flow_steering *steering)
 
 	/* Create single prio */
 	prio = fs_create_prio(&steering->sniffer_tx_root_ns->ns, 0, 1);
-	if (IS_ERR(prio)) {
-		cleanup_root_ns(steering->sniffer_tx_root_ns);
-		return PTR_ERR(prio);
-	}
-	return 0;
+	return PTR_ERR_OR_ZERO(prio);
 }
 
 static int init_sniffer_rx_root_ns(struct mlx5_flow_steering *steering)
@@ -2491,11 +2489,7 @@ static int init_sniffer_rx_root_ns(struct mlx5_flow_steering *steering)
 
 	/* Create single prio */
 	prio = fs_create_prio(&steering->sniffer_rx_root_ns->ns, 0, 1);
-	if (IS_ERR(prio)) {
-		cleanup_root_ns(steering->sniffer_rx_root_ns);
-		return PTR_ERR(prio);
-	}
-	return 0;
+	return PTR_ERR_OR_ZERO(prio);
 }
 
 static int init_rdma_rx_root_ns(struct mlx5_flow_steering *steering)
@@ -2511,11 +2505,7 @@ static int init_rdma_rx_root_ns(struct mlx5_flow_steering *steering)
 
 	/* Create single prio */
 	prio = fs_create_prio(&steering->rdma_rx_root_ns->ns, 0, 1);
-	if (IS_ERR(prio)) {
-		cleanup_root_ns(steering->rdma_rx_root_ns);
-		return PTR_ERR(prio);
-	}
-	return 0;
+	return PTR_ERR_OR_ZERO(prio);
 }
 static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 {
@@ -2637,6 +2627,7 @@ cleanup_root_ns:
 	for (i--; i >= 0; i--)
 		cleanup_root_ns(steering->esw_egress_root_ns[i]);
 	kfree(steering->esw_egress_root_ns);
+	steering->esw_egress_root_ns = NULL;
 	return err;
 }
 
@@ -2664,6 +2655,7 @@ cleanup_root_ns:
 	for (i--; i >= 0; i--)
 		cleanup_root_ns(steering->esw_ingress_root_ns[i]);
 	kfree(steering->esw_ingress_root_ns);
+	steering->esw_ingress_root_ns = NULL;
 	return err;
 }
 

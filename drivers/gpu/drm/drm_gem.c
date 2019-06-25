@@ -1216,15 +1216,6 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 		obj->dev->driver->gem_print_info(p, indent, obj);
 }
 
-/**
- * drm_gem_pin - Pin backing buffer in memory
- * @obj: GEM object
- *
- * Make sure the backing buffer is pinned in memory.
- *
- * Returns:
- * 0 on success or a negative error code on failure.
- */
 int drm_gem_pin(struct drm_gem_object *obj)
 {
 	if (obj->funcs && obj->funcs->pin)
@@ -1234,14 +1225,7 @@ int drm_gem_pin(struct drm_gem_object *obj)
 	else
 		return 0;
 }
-EXPORT_SYMBOL(drm_gem_pin);
 
-/**
- * drm_gem_unpin - Unpin backing buffer from memory
- * @obj: GEM object
- *
- * Relax the requirement that the backing buffer is pinned in memory.
- */
 void drm_gem_unpin(struct drm_gem_object *obj)
 {
 	if (obj->funcs && obj->funcs->unpin)
@@ -1249,16 +1233,7 @@ void drm_gem_unpin(struct drm_gem_object *obj)
 	else if (obj->dev->driver->gem_prime_unpin)
 		obj->dev->driver->gem_prime_unpin(obj);
 }
-EXPORT_SYMBOL(drm_gem_unpin);
 
-/**
- * drm_gem_vmap - Map buffer into kernel virtual address space
- * @obj: GEM object
- *
- * Returns:
- * A virtual pointer to a newly created GEM object or an ERR_PTR-encoded negative
- * error code on failure.
- */
 void *drm_gem_vmap(struct drm_gem_object *obj)
 {
 	void *vaddr;
@@ -1275,13 +1250,7 @@ void *drm_gem_vmap(struct drm_gem_object *obj)
 
 	return vaddr;
 }
-EXPORT_SYMBOL(drm_gem_vmap);
 
-/**
- * drm_gem_vunmap - Remove buffer mapping from kernel virtual address space
- * @obj: GEM object
- * @vaddr: Virtual address (can be NULL)
- */
 void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
 	if (!vaddr)
@@ -1292,7 +1261,6 @@ void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr)
 	else if (obj->dev->driver->gem_prime_vunmap)
 		obj->dev->driver->gem_prime_vunmap(obj, vaddr);
 }
-EXPORT_SYMBOL(drm_gem_vunmap);
 
 /**
  * drm_gem_lock_reservations - Sets up the ww context and acquires

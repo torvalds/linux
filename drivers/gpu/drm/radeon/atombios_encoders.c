@@ -23,15 +23,19 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/radeon_drm.h>
-#include "radeon.h"
-#include "radeon_audio.h"
-#include "radeon_asic.h"
-#include "atom.h"
+
 #include <linux/backlight.h>
 #include <linux/dmi.h>
+
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
+#include <drm/radeon_drm.h>
+
+#include "atom.h"
+#include "radeon.h"
+#include "radeon_asic.h"
+#include "radeon_audio.h"
 
 extern int atom_debug;
 

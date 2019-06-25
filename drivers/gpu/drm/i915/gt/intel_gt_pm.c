@@ -52,7 +52,7 @@ static int intel_gt_unpark(struct intel_wakeref *wf)
 
 void intel_gt_pm_get(struct drm_i915_private *i915)
 {
-	intel_wakeref_get(i915, &i915->gt.wakeref, intel_gt_unpark);
+	intel_wakeref_get(&i915->runtime_pm, &i915->gt.wakeref, intel_gt_unpark);
 }
 
 static int intel_gt_park(struct intel_wakeref *wf)
@@ -77,7 +77,7 @@ static int intel_gt_park(struct intel_wakeref *wf)
 
 void intel_gt_pm_put(struct drm_i915_private *i915)
 {
-	intel_wakeref_put(i915, &i915->gt.wakeref, intel_gt_park);
+	intel_wakeref_put(&i915->runtime_pm, &i915->gt.wakeref, intel_gt_park);
 }
 
 void intel_gt_pm_init(struct drm_i915_private *i915)

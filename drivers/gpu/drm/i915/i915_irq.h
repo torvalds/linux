@@ -110,5 +110,8 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv);
+void gen11_reset_guc_interrupts(struct drm_i915_private *i915);
+void gen11_enable_guc_interrupts(struct drm_i915_private *i915);
+void gen11_disable_guc_interrupts(struct drm_i915_private *i915);
 
 #endif /* __I915_IRQ_H__ */

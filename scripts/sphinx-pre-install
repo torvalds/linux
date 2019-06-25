@@ -1,19 +1,11 @@
 #!/usr/bin/perl
+# SPDX-License-Identifier: GPL-2.0-or-later
 use strict;
 
 # Copyright (c) 2017 Mauro Carvalho Chehab <mchehab@kernel.org>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
 
-my $virtenv_dir = "sphinx_1.4";
+my $conf = "Documentation/conf.py";
 my $requirement_file = "Documentation/sphinx/requirements.txt";
 
 #
@@ -26,7 +18,9 @@ my $need = 0;
 my $optional = 0;
 my $need_symlink = 0;
 my $need_sphinx = 0;
+my $rec_sphinx_upgrade = 0;
 my $install = "";
+my $virtenv_dir = "sphinx_";
 
 #
 # Command line arguments
@@ -201,13 +195,15 @@ sub check_missing_tex($)
 	}
 }
 
-sub check_sphinx()
+sub get_sphinx_fname()
 {
-	return if findprog("sphinx-build");
+	my $fname = "sphinx-build";
+	return $fname if findprog($fname);
 
-	if (findprog("sphinx-build-3")) {
+	$fname = "sphinx-build-3";
+	if (findprog($fname)) {
 		$need_symlink = 1;
-		return;
+		return $fname;
 	}
 
 	if ($virtualenv) {
@@ -218,6 +214,73 @@ sub check_sphinx()
 		$need_sphinx = 1;
 	} else {
 		add_package("python-sphinx", 0);
+	}
+
+	return "";
+}
+
+sub check_sphinx()
+{
+	my $min_version;
+	my $rec_version;
+	my $cur_version;
+
+	open IN, $conf or die "Can't open $conf";
+	while (<IN>) {
+		if (m/^\s*needs_sphinx\s*=\s*[\'\"]([\d\.]+)[\'\"]/) {
+			$min_version=$1;
+			last;
+		}
+	}
+	close IN;
+
+	die "Can't get needs_sphinx version from $conf" if (!$min_version);
+
+	open IN, $requirement_file or die "Can't open $requirement_file";
+	while (<IN>) {
+		if (m/^\s*Sphinx\s*==\s*([\d\.]+)$/) {
+			$rec_version=$1;
+			last;
+		}
+	}
+	close IN;
+
+	die "Can't get recommended sphinx version from $requirement_file" if (!$min_version);
+
+	$virtenv_dir .= $rec_version;
+
+	my $sphinx = get_sphinx_fname();
+	return if ($sphinx eq "");
+
+	open IN, "$sphinx --version 2>&1 |" or die "$sphinx returned an error";
+	while (<IN>) {
+		if (m/^\s*sphinx-build\s+([\d\.]+)$/) {
+			$cur_version=$1;
+			last;
+		}
+		# Sphinx 1.2.x uses a different format
+		if (m/^\s*Sphinx.*\s+([\d\.]+)$/) {
+			$cur_version=$1;
+			last;
+		}
+	}
+	close IN;
+
+	die "$sphinx didn't return its version" if (!$cur_version);
+
+	printf "Sphinx version %s (minimal: %s, recommended >= %s)\n",
+		$cur_version, $min_version, $rec_version;
+
+	if ($cur_version lt $min_version) {
+		print "Warning: Sphinx version should be >= $min_version\n\n";
+		$need_sphinx = 1;
+		return;
+	}
+
+	if ($cur_version lt $rec_version) {
+		print "Warning: It is recommended at least Sphinx version $rec_version.\n";
+		print "         To upgrade, use:\n\n";
+		$rec_sphinx_upgrade = 1;
 	}
 }
 
@@ -540,7 +603,7 @@ sub check_needs()
 		printf "\tsudo ln -sf %s /usr/bin/sphinx-build\n\n",
 		       which("sphinx-build-3");
 	}
-	if ($need_sphinx) {
+	if ($need_sphinx || $rec_sphinx_upgrade) {
 		my $activate = "$virtenv_dir/bin/activate";
 		if (-e "$ENV{'PWD'}/$activate") {
 			printf "\nNeed to activate virtualenv with:\n";
@@ -554,7 +617,8 @@ sub check_needs()
 			printf "\t$virtualenv $virtenv_dir\n";
 			printf "\t. $activate\n";
 			printf "\tpip install -r $requirement_file\n";
-			$need++;
+
+			$need++ if (!$rec_sphinx_upgrade);
 		}
 	}
 	printf "\n";

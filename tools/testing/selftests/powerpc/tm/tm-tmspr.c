@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015, Michael Neuling, IBM Corp.
- * Licensed under GPLv2.
  *
  * Original: Michael Neuling 3/4/2014
  * Modified: Rashmica Gupta 8/12/2015
@@ -21,7 +21,6 @@
  * 	(a) begin transaction
  *    	(b) abort transaction
  *	(c) check TEXASR to see if FS has been corrupted
- *
  */
 
 #define _GNU_SOURCE

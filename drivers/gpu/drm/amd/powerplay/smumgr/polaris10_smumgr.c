@@ -21,6 +21,8 @@
  *
  */
 
+#include <linux/pci.h>
+
 #include "pp_debug.h"
 #include "smumgr.h"
 #include "smu74.h"

@@ -26,6 +26,9 @@
  *  Created on: Aug 30, 2016
  *      Author: agrodzov
  */
+
+#include <linux/delay.h>
+
 #include "dm_services.h"
 #include <stdarg.h>
 

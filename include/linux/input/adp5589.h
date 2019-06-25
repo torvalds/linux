@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Analog Devices ADP5589/ADP5585 I/O Expander and QWERTY Keypad Controller
  *
  * Copyright 2010-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef _ADP5589_H

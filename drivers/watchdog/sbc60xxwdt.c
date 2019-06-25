@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	60xx Single Board Computer Watchdog Timer driver for Linux 2.2.x
  *
  *	Based on acquirewdt.c by Alan Cox.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	The author does NOT admit liability nor provide warranty for
  *	any of this software. This material is provided "AS-IS" in
@@ -38,14 +34,12 @@
  *                            added extra printk's for startup problems
  *                            added MODULE_AUTHOR and MODULE_DESCRIPTION info
  *
- *
  *  This WDT driver is different from the other Linux WDT
  *  drivers in the following ways:
  *  *)  The driver will ping the watchdog by itself, because this
  *      particular WDT has a very short timeout (one second) and it
  *      would be insane to count on any userspace daemon always
  *      getting scheduled within that time frame.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
+
 #include "radeon.h"
 
 /*

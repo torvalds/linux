@@ -27,7 +27,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
 
 #include "amdgpu.h"
@@ -1092,7 +1092,7 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	for (i = 0; i < timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= timeout)

@@ -65,7 +65,7 @@ enum mcde_dsi_formatter {
 void mcde_display_irq(struct mcde *mcde)
 {
 	u32 mispp, misovl, mischnl;
-	bool vblank;
+	bool vblank = false;
 
 	/* Handle display IRQs */
 	mispp = readl(mcde->regs + MCDE_MISPP);

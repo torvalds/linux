@@ -22,6 +22,9 @@
  * Authors: AMD
  *
  */
+
+#include <linux/delay.h>
+
 #include "dm_services.h"
 #include "dc.h"
 #include "dc_bios_types.h"

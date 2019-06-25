@@ -6,8 +6,6 @@ header_test := \
 	i915_active_types.h \
 	i915_debugfs.h \
 	i915_drv.h \
-	i915_gem_context_types.h \
-	i915_gem_pm.h \
 	i915_irq.h \
 	i915_params.h \
 	i915_priolist_types.h \
@@ -15,53 +13,12 @@ header_test := \
 	i915_scheduler_types.h \
 	i915_timeline_types.h \
 	i915_utils.h \
-	intel_acpi.h \
-	intel_atomic.h \
-	intel_atomic_plane.h \
-	intel_audio.h \
-	intel_bios.h \
-	intel_cdclk.h \
-	intel_color.h \
-	intel_combo_phy.h \
-	intel_connector.h \
-	intel_crt.h \
 	intel_csr.h \
-	intel_ddi.h \
-	intel_dp.h \
-	intel_dp_aux_backlight.h \
-	intel_dp_link_training.h \
-	intel_dp_mst.h \
-	intel_dpio_phy.h \
-	intel_dpll_mgr.h \
 	intel_drv.h \
-	intel_dsi.h \
-	intel_dsi_dcs_backlight.h \
-	intel_dvo.h \
-	intel_dvo_dev.h \
-	intel_fbc.h \
-	intel_fbdev.h \
-	intel_fifo_underrun.h \
-	intel_frontbuffer.h \
-	intel_gmbus.h \
-	intel_hdcp.h \
-	intel_hdmi.h \
-	intel_hotplug.h \
-	intel_lpe_audio.h \
-	intel_lspcon.h \
-	intel_lvds.h \
-	intel_overlay.h \
-	intel_panel.h \
-	intel_pipe_crc.h \
 	intel_pm.h \
-	intel_psr.h \
-	intel_quirks.h \
 	intel_runtime_pm.h \
-	intel_sdvo.h \
 	intel_sideband.h \
-	intel_sprite.h \
-	intel_tv.h \
 	intel_uncore.h \
-	intel_vdsc.h \
 	intel_wakeref.h
 
 quiet_cmd_header_test = HDRTEST $@

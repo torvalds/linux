@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2013
  * Authors: Vicram Arv
  *	    Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
  *	    Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 #include <linux/module.h>
 #include <linux/if_arp.h>

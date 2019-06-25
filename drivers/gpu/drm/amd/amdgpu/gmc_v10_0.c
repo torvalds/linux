@@ -21,6 +21,7 @@
  *
  */
 #include <linux/firmware.h>
+#include <linux/pci.h>
 #include "amdgpu.h"
 #include "amdgpu_atomfirmware.h"
 #include "gmc_v10_0.h"

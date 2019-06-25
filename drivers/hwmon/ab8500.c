@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson 2010 - 2013
  * Author: Martin Persson <martin.persson@stericsson.com>
  *         Hongbo Zhang <hongbo.zhang@linaro.org>
- * License Terms: GNU General Public License v2
  *
  * When the AB8500 thermal warning temperature is reached (threshold cannot
  * be changed by SW), an interrupt is set, and if no further action is taken

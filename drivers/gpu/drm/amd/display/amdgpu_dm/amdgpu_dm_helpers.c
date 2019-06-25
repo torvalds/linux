@@ -28,7 +28,6 @@
 #include <linux/version.h>
 #include <linux/i2c.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_edid.h>

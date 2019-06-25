@@ -8,8 +8,8 @@
 
 /**
  * blk_mq_rdma_map_queues - provide a default queue mapping for rdma device
- * @set:	tagset to provide the mapping for
- * @dev:	rdma device associated with @set.
+ * @map:	CPU to hardware queue map.
+ * @dev:	rdma device to provide a mapping for.
  * @first_vec:	first interrupt vectors to use for queues (usually 0)
  *
  * This function assumes the rdma device @dev has at least as many available

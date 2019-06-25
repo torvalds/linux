@@ -21,6 +21,10 @@
  *
  */
 
+#include <linux/module.h>
+
+#include <drm/drm_drv.h>
+
 #include "amdgpu.h"
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)

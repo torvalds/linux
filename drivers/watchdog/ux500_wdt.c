@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2011-2013
- *
- * License Terms: GNU General Public License v2
  *
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org> for ST-Ericsson
  * Author: Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson

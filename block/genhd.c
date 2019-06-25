@@ -532,8 +532,8 @@ void blk_free_devt(dev_t devt)
 	}
 }
 
-/**
- *	We invalidate devt by assigning NULL pointer for devt in idr.
+/*
+ * We invalidate devt by assigning NULL pointer for devt in idr.
  */
 void blk_invalidate_devt(dev_t devt)
 {

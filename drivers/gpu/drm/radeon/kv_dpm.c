@@ -21,13 +21,15 @@
  *
  */
 
-#include <drm/drmP.h>
-#include "radeon.h"
-#include "cikd.h"
-#include "r600_dpm.h"
-#include "kv_dpm.h"
-#include "radeon_asic.h"
 #include <linux/seq_file.h>
+
+#include <drm/drm_pci.h>
+
+#include "cikd.h"
+#include "kv_dpm.h"
+#include "r600_dpm.h"
+#include "radeon.h"
+#include "radeon_asic.h"
 
 #define KV_MAX_DEEPSLEEP_DIVIDER_ID     5
 #define KV_MINIMUM_ENGINE_CLOCK         800

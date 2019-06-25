@@ -24,7 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 

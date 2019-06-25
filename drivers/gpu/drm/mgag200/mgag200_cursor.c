@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Matrox Graphics
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Author: Christopher Harvey <charvey@matrox.com>
  */
@@ -22,10 +19,9 @@ static void mga_hide_cursor(struct mga_device *mdev)
 {
 	WREG8(MGA_CURPOSXL, 0);
 	WREG8(MGA_CURPOSXH, 0);
-	if (mdev->cursor.pixels_1->pin_count)
-		drm_gem_vram_unpin_locked(mdev->cursor.pixels_1);
-	if (mdev->cursor.pixels_2->pin_count)
-		drm_gem_vram_unpin_locked(mdev->cursor.pixels_2);
+	if (mdev->cursor.pixels_current)
+		drm_gem_vram_unpin(mdev->cursor.pixels_current);
+	mdev->cursor.pixels_current = NULL;
 }
 
 int mga_crtc_cursor_set(struct drm_crtc *crtc,
@@ -39,7 +35,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_gem_vram_object *pixels_1 = mdev->cursor.pixels_1;
 	struct drm_gem_vram_object *pixels_2 = mdev->cursor.pixels_2;
 	struct drm_gem_vram_object *pixels_current = mdev->cursor.pixels_current;
-	struct drm_gem_vram_object *pixels_prev = mdev->cursor.pixels_prev;
+	struct drm_gem_vram_object *pixels_next;
 	struct drm_gem_object *obj;
 	struct drm_gem_vram_object *gbo = NULL;
 	int ret = 0;
@@ -52,6 +48,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	bool found = false;
 	int colour_count = 0;
 	s64 gpu_addr;
+	u64 dst_gpu;
 	u8 reg_index;
 	u8 this_row[48];
 
@@ -61,80 +58,66 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 		return -ENOTSUPP; /* Didn't allocate space for cursors */
 	}
 
-	if ((width != 64 || height != 64) && handle) {
-		WREG8(MGA_CURPOSXL, 0);
-		WREG8(MGA_CURPOSXH, 0);
-		return -EINVAL;
+	if (WARN_ON(pixels_current &&
+		    pixels_1 != pixels_current &&
+		    pixels_2 != pixels_current)) {
+		return -ENOTSUPP; /* inconsistent state */
 	}
-
-	BUG_ON(pixels_1 != pixels_current && pixels_1 != pixels_prev);
-	BUG_ON(pixels_2 != pixels_current && pixels_2 != pixels_prev);
-	BUG_ON(pixels_current == pixels_prev);
 
 	if (!handle || !file_priv) {
 		mga_hide_cursor(mdev);
 		return 0;
 	}
 
+	if (width != 64 || height != 64) {
+		WREG8(MGA_CURPOSXL, 0);
+		WREG8(MGA_CURPOSXH, 0);
+		return -EINVAL;
+	}
+
+	if (pixels_current == pixels_1)
+		pixels_next = pixels_2;
+	else
+		pixels_next = pixels_1;
+
 	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj)
 		return -ENOENT;
-
-	ret = drm_gem_vram_lock(pixels_1, true);
-	if (ret) {
-		WREG8(MGA_CURPOSXL, 0);
-		WREG8(MGA_CURPOSXH, 0);
-		goto out_unref;
-	}
-	ret = drm_gem_vram_lock(pixels_2, true);
-	if (ret) {
-		WREG8(MGA_CURPOSXL, 0);
-		WREG8(MGA_CURPOSXH, 0);
-		drm_gem_vram_unlock(pixels_1);
-		goto out_unlock1;
-	}
-
-	/* Move cursor buffers into VRAM if they aren't already */
-	if (!pixels_1->pin_count) {
-		ret = drm_gem_vram_pin_locked(pixels_1,
-					      DRM_GEM_VRAM_PL_FLAG_VRAM);
-		if (ret)
-			goto out1;
-		gpu_addr = drm_gem_vram_offset(pixels_1);
-		if (gpu_addr < 0) {
-			drm_gem_vram_unpin_locked(pixels_1);
-			goto out1;
-		}
-		mdev->cursor.pixels_1_gpu_addr = gpu_addr;
-	}
-	if (!pixels_2->pin_count) {
-		ret = drm_gem_vram_pin_locked(pixels_2,
-					      DRM_GEM_VRAM_PL_FLAG_VRAM);
-		if (ret) {
-			drm_gem_vram_unpin_locked(pixels_1);
-			goto out1;
-		}
-		gpu_addr = drm_gem_vram_offset(pixels_2);
-		if (gpu_addr < 0) {
-			drm_gem_vram_unpin_locked(pixels_1);
-			drm_gem_vram_unpin_locked(pixels_2);
-			goto out1;
-		}
-		mdev->cursor.pixels_2_gpu_addr = gpu_addr;
-	}
-
 	gbo = drm_gem_vram_of_gem(obj);
-	ret = drm_gem_vram_lock(gbo, true);
+	ret = drm_gem_vram_pin(gbo, 0);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "failed to lock user bo\n");
-		goto out1;
+		goto err_drm_gem_object_put_unlocked;
 	}
 	src = drm_gem_vram_kmap(gbo, true, NULL);
 	if (IS_ERR(src)) {
 		ret = PTR_ERR(src);
-		dev_err(&dev->pdev->dev, "failed to kmap user buffer updates\n");
-		goto out2;
+		dev_err(&dev->pdev->dev,
+			"failed to kmap user buffer updates\n");
+		goto err_drm_gem_vram_unpin_src;
 	}
+
+	/* Pin and map up-coming buffer to write colour indices */
+	ret = drm_gem_vram_pin(pixels_next, 0);
+	if (ret)
+		dev_err(&dev->pdev->dev,
+			"failed to pin cursor buffer: %d\n", ret);
+		goto err_drm_gem_vram_kunmap_src;
+	dst = drm_gem_vram_kmap(pixels_next, true, NULL);
+	if (IS_ERR(dst)) {
+		ret = PTR_ERR(dst);
+		dev_err(&dev->pdev->dev,
+			"failed to kmap cursor updates: %d\n", ret);
+		goto err_drm_gem_vram_unpin_dst;
+	}
+	gpu_addr = drm_gem_vram_offset(pixels_2);
+	if (gpu_addr < 0) {
+		ret = (int)gpu_addr;
+		dev_err(&dev->pdev->dev,
+			"failed to get cursor scanout address: %d\n", ret);
+		goto err_drm_gem_vram_kunmap_dst;
+	}
+	dst_gpu = (u64)gpu_addr;
 
 	memset(&colour_set[0], 0, sizeof(uint32_t)*16);
 	/* width*height*4 = 16384 */
@@ -149,7 +132,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 				warn_transparent = false; /* Only tell the user once. */
 			}
 			ret = -EINVAL;
-			goto out3;
+			goto err_drm_gem_vram_kunmap_dst;
 		}
 		/* Don't need to store transparent pixels as colours */
 		if (this_colour>>24 == 0x0)
@@ -171,7 +154,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 				warn_palette = false; /* Only tell the user once. */
 			}
 			ret = -EINVAL;
-			goto out3;
+			goto err_drm_gem_vram_kunmap_dst;
 		}
 		*next_space = this_colour;
 		next_space++;
@@ -188,14 +171,6 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 		WREG_DAC(reg_index+1, colour_set[i]>>8 & 0xff);
 		WREG_DAC(reg_index+2, colour_set[i]>>16 & 0xff);
 		BUG_ON((colour_set[i]>>24 & 0xff) != 0xff);
-	}
-
-	/* Map up-coming buffer to write colour indices */
-	dst = drm_gem_vram_kmap(pixels_prev, true, NULL);
-	if (IS_ERR(dst)) {
-		ret = PTR_ERR(dst);
-		dev_err(&dev->pdev->dev, "failed to kmap cursor updates\n");
-		goto out3;
 	}
 
 	/* now write colour indices into hardware cursor buffer */
@@ -224,42 +199,35 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	/* Program gpu address of cursor buffer */
-	if (pixels_prev == pixels_1)
-		gpu_addr = mdev->cursor.pixels_1_gpu_addr;
-	else
-		gpu_addr = mdev->cursor.pixels_2_gpu_addr;
-	WREG_DAC(MGA1064_CURSOR_BASE_ADR_LOW, (u8)((gpu_addr>>10) & 0xff));
-	WREG_DAC(MGA1064_CURSOR_BASE_ADR_HI, (u8)((gpu_addr>>18) & 0x3f));
+	WREG_DAC(MGA1064_CURSOR_BASE_ADR_LOW, (u8)((dst_gpu>>10) & 0xff));
+	WREG_DAC(MGA1064_CURSOR_BASE_ADR_HI, (u8)((dst_gpu>>18) & 0x3f));
 
 	/* Adjust cursor control register to turn on the cursor */
 	WREG_DAC(MGA1064_CURSOR_CTL, 4); /* 16-colour palletized cursor mode */
 
-	/* Now swap internal buffer pointers */
-	if (mdev->cursor.pixels_1 == mdev->cursor.pixels_prev) {
-		mdev->cursor.pixels_prev = mdev->cursor.pixels_2;
-		mdev->cursor.pixels_current = mdev->cursor.pixels_1;
-	} else if (mdev->cursor.pixels_1 == mdev->cursor.pixels_current) {
-		mdev->cursor.pixels_prev = mdev->cursor.pixels_1;
-		mdev->cursor.pixels_current = mdev->cursor.pixels_2;
-	} else {
-		BUG();
-	}
-	ret = 0;
+	/* Now update internal buffer pointers */
+	if (pixels_current)
+		drm_gem_vram_unpin(pixels_current);
+	mdev->cursor.pixels_current = pixels_next;
 
-	drm_gem_vram_kunmap(pixels_prev);
- out3:
+	drm_gem_vram_kunmap(pixels_next);
+	drm_gem_vram_unpin(pixels_next);
 	drm_gem_vram_kunmap(gbo);
- out2:
-	drm_gem_vram_unlock(gbo);
- out1:
-	if (ret)
-		mga_hide_cursor(mdev);
-	drm_gem_vram_unlock(pixels_1);
-out_unlock1:
-	drm_gem_vram_unlock(pixels_2);
-out_unref:
+	drm_gem_vram_unpin(gbo);
 	drm_gem_object_put_unlocked(obj);
 
+	return 0;
+
+err_drm_gem_vram_kunmap_dst:
+	drm_gem_vram_kunmap(pixels_next);
+err_drm_gem_vram_unpin_dst:
+	drm_gem_vram_unpin(pixels_next);
+err_drm_gem_vram_kunmap_src:
+	drm_gem_vram_kunmap(gbo);
+err_drm_gem_vram_unpin_src:
+	drm_gem_vram_unpin(gbo);
+err_drm_gem_object_put_unlocked:
+	drm_gem_object_put_unlocked(obj);
 	return ret;
 }
 

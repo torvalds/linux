@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  net/dccp/feat.c
  *
@@ -7,7 +8,6 @@
  *  Rewrote from scratch, some bits from earlier code by
  *  Copyright (c) 2005 Andrea Bittau <a.bittau@cs.ucl.ac.uk>
  *
- *
  *  ASSUMPTIONS
  *  -----------
  *  o Feature negotiation is coordinated with connection setup (as in TCP), wild
@@ -16,11 +16,6 @@
  *  o All currently known SP features have 1-byte quantities. If in the future
  *    extensions of RFCs 4340..42 define features with item lengths larger than
  *    one byte, a feature-specific extension of the code will be required.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 #include <linux/module.h>
 #include <linux/slab.h>

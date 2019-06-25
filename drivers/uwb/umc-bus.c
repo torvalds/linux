@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Bus for UWB Multi-interface Controller capabilities.
  *
  * Copyright (C) 2007 Cambridge Silicon Radio Ltd.
- *
- * This file is released under the GNU GPL v2.
  */
 #include <linux/kernel.h>
 #include <linux/sysfs.h>

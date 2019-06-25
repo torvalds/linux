@@ -24,9 +24,11 @@
  * Authors:
  *    Jerome Glisse <glisse@freedesktop.org>
  */
+
+#include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/sync_file.h>
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_syncobj.h>
 #include "amdgpu.h"

@@ -36,11 +36,15 @@
 
 #include <drm/drm_print.h>
 
+#include "display/intel_atomic.h"
+#include "display/intel_overlay.h"
+
+#include "gem/i915_gem_context.h"
+
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
-#include "intel_atomic.h"
+#include "i915_scatterlist.h"
 #include "intel_csr.h"
-#include "intel_overlay.h"
 
 static inline const struct intel_engine_cs *
 engine_lookup(const struct drm_i915_private *i915, unsigned int id)
@@ -1120,17 +1124,23 @@ static u32 i915_error_generate_code(struct i915_gpu_state *error,
 static void gem_record_fences(struct i915_gpu_state *error)
 {
 	struct drm_i915_private *dev_priv = error->i915;
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	int i;
 
 	if (INTEL_GEN(dev_priv) >= 6) {
-		for (i = 0; i < dev_priv->num_fence_regs; i++)
-			error->fence[i] = I915_READ64(FENCE_REG_GEN6_LO(i));
+		for (i = 0; i < dev_priv->ggtt.num_fences; i++)
+			error->fence[i] =
+				intel_uncore_read64(uncore,
+						    FENCE_REG_GEN6_LO(i));
 	} else if (INTEL_GEN(dev_priv) >= 4) {
-		for (i = 0; i < dev_priv->num_fence_regs; i++)
-			error->fence[i] = I915_READ64(FENCE_REG_965_LO(i));
+		for (i = 0; i < dev_priv->ggtt.num_fences; i++)
+			error->fence[i] =
+				intel_uncore_read64(uncore,
+						    FENCE_REG_965_LO(i));
 	} else {
-		for (i = 0; i < dev_priv->num_fence_regs; i++)
-			error->fence[i] = I915_READ(FENCE_REG(i));
+		for (i = 0; i < dev_priv->ggtt.num_fences; i++)
+			error->fence[i] =
+				intel_uncore_read(uncore, FENCE_REG(i));
 	}
 	error->nfence = i;
 }
@@ -1146,7 +1156,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 		if (INTEL_GEN(dev_priv) >= 8)
 			ee->fault_reg = I915_READ(GEN8_RING_FAULT_REG);
 		else
-			ee->fault_reg = I915_READ(RING_FAULT_REG(engine));
+			ee->fault_reg = GEN6_RING_FAULT_REG_READ(engine);
 	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {
@@ -1216,7 +1226,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	if (HAS_PPGTT(dev_priv)) {
 		int i;
 
-		ee->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
+		ee->vm_info.gfx_mode = ENGINE_READ(engine, RING_MODE_GEN7);
 
 		if (IS_GEN(dev_priv, 6)) {
 			ee->vm_info.pp_dir_base =
@@ -1266,7 +1276,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->timeline.requests, link)
+	list_for_each_entry_from(request, &engine->active.requests, sched.link)
 		count++;
 	if (!count)
 		return;
@@ -1279,7 +1289,8 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->timeline.requests, link) {
+	list_for_each_entry_from(request,
+				 &engine->active.requests, sched.link) {
 		if (count >= ee->num_requests) {
 			/*
 			 * If the ring request list was changed in
@@ -1422,7 +1433,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 			struct i915_gem_context *ctx = request->gem_context;
 			struct intel_ring *ring;
 
-			ee->vm = ctx->ppgtt ? &ctx->ppgtt->vm : &ggtt->vm;
+			ee->vm = ctx->vm ?: &ggtt->vm;
 
 			record_context(&ee->context, ctx);
 
@@ -1567,7 +1578,8 @@ static void capture_uc_state(struct i915_gpu_state *error)
 /* Capture all registers which don't fit into another category. */
 static void capture_reg_state(struct i915_gpu_state *error)
 {
-	struct drm_i915_private *dev_priv = error->i915;
+	struct drm_i915_private *i915 = error->i915;
+	struct intel_uncore *uncore = &i915->uncore;
 	int i;
 
 	/* General organization
@@ -1579,71 +1591,84 @@ static void capture_reg_state(struct i915_gpu_state *error)
 	 */
 
 	/* 1: Registers specific to a single generation */
-	if (IS_VALLEYVIEW(dev_priv)) {
-		error->gtier[0] = I915_READ(GTIER);
-		error->ier = I915_READ(VLV_IER);
-		error->forcewake = I915_READ_FW(FORCEWAKE_VLV);
+	if (IS_VALLEYVIEW(i915)) {
+		error->gtier[0] = intel_uncore_read(uncore, GTIER);
+		error->ier = intel_uncore_read(uncore, VLV_IER);
+		error->forcewake = intel_uncore_read_fw(uncore, FORCEWAKE_VLV);
 	}
 
-	if (IS_GEN(dev_priv, 7))
-		error->err_int = I915_READ(GEN7_ERR_INT);
+	if (IS_GEN(i915, 7))
+		error->err_int = intel_uncore_read(uncore, GEN7_ERR_INT);
 
-	if (INTEL_GEN(dev_priv) >= 8) {
-		error->fault_data0 = I915_READ(GEN8_FAULT_TLB_DATA0);
-		error->fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
+	if (INTEL_GEN(i915) >= 8) {
+		error->fault_data0 = intel_uncore_read(uncore,
+						       GEN8_FAULT_TLB_DATA0);
+		error->fault_data1 = intel_uncore_read(uncore,
+						       GEN8_FAULT_TLB_DATA1);
 	}
 
-	if (IS_GEN(dev_priv, 6)) {
-		error->forcewake = I915_READ_FW(FORCEWAKE);
-		error->gab_ctl = I915_READ(GAB_CTL);
-		error->gfx_mode = I915_READ(GFX_MODE);
+	if (IS_GEN(i915, 6)) {
+		error->forcewake = intel_uncore_read_fw(uncore, FORCEWAKE);
+		error->gab_ctl = intel_uncore_read(uncore, GAB_CTL);
+		error->gfx_mode = intel_uncore_read(uncore, GFX_MODE);
 	}
 
 	/* 2: Registers which belong to multiple generations */
-	if (INTEL_GEN(dev_priv) >= 7)
-		error->forcewake = I915_READ_FW(FORCEWAKE_MT);
+	if (INTEL_GEN(i915) >= 7)
+		error->forcewake = intel_uncore_read_fw(uncore, FORCEWAKE_MT);
 
-	if (INTEL_GEN(dev_priv) >= 6) {
-		error->derrmr = I915_READ(DERRMR);
-		error->error = I915_READ(ERROR_GEN6);
-		error->done_reg = I915_READ(DONE_REG);
+	if (INTEL_GEN(i915) >= 6) {
+		error->derrmr = intel_uncore_read(uncore, DERRMR);
+		error->error = intel_uncore_read(uncore, ERROR_GEN6);
+		error->done_reg = intel_uncore_read(uncore, DONE_REG);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 5)
-		error->ccid = I915_READ(CCID(RENDER_RING_BASE));
+	if (INTEL_GEN(i915) >= 5)
+		error->ccid = intel_uncore_read(uncore, CCID(RENDER_RING_BASE));
 
 	/* 3: Feature specific registers */
-	if (IS_GEN_RANGE(dev_priv, 6, 7)) {
-		error->gam_ecochk = I915_READ(GAM_ECOCHK);
-		error->gac_eco = I915_READ(GAC_ECO_BITS);
+	if (IS_GEN_RANGE(i915, 6, 7)) {
+		error->gam_ecochk = intel_uncore_read(uncore, GAM_ECOCHK);
+		error->gac_eco = intel_uncore_read(uncore, GAC_ECO_BITS);
 	}
 
 	/* 4: Everything else */
-	if (INTEL_GEN(dev_priv) >= 11) {
-		error->ier = I915_READ(GEN8_DE_MISC_IER);
-		error->gtier[0] = I915_READ(GEN11_RENDER_COPY_INTR_ENABLE);
-		error->gtier[1] = I915_READ(GEN11_VCS_VECS_INTR_ENABLE);
-		error->gtier[2] = I915_READ(GEN11_GUC_SG_INTR_ENABLE);
-		error->gtier[3] = I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE);
-		error->gtier[4] = I915_READ(GEN11_CRYPTO_RSVD_INTR_ENABLE);
-		error->gtier[5] = I915_READ(GEN11_GUNIT_CSME_INTR_ENABLE);
+	if (INTEL_GEN(i915) >= 11) {
+		error->ier = intel_uncore_read(uncore, GEN8_DE_MISC_IER);
+		error->gtier[0] =
+			intel_uncore_read(uncore,
+					  GEN11_RENDER_COPY_INTR_ENABLE);
+		error->gtier[1] =
+			intel_uncore_read(uncore, GEN11_VCS_VECS_INTR_ENABLE);
+		error->gtier[2] =
+			intel_uncore_read(uncore, GEN11_GUC_SG_INTR_ENABLE);
+		error->gtier[3] =
+			intel_uncore_read(uncore,
+					  GEN11_GPM_WGBOXPERF_INTR_ENABLE);
+		error->gtier[4] =
+			intel_uncore_read(uncore,
+					  GEN11_CRYPTO_RSVD_INTR_ENABLE);
+		error->gtier[5] =
+			intel_uncore_read(uncore,
+					  GEN11_GUNIT_CSME_INTR_ENABLE);
 		error->ngtier = 6;
-	} else if (INTEL_GEN(dev_priv) >= 8) {
-		error->ier = I915_READ(GEN8_DE_MISC_IER);
+	} else if (INTEL_GEN(i915) >= 8) {
+		error->ier = intel_uncore_read(uncore, GEN8_DE_MISC_IER);
 		for (i = 0; i < 4; i++)
-			error->gtier[i] = I915_READ(GEN8_GT_IER(i));
+			error->gtier[i] = intel_uncore_read(uncore,
+							    GEN8_GT_IER(i));
 		error->ngtier = 4;
-	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		error->ier = I915_READ(DEIER);
-		error->gtier[0] = I915_READ(GTIER);
+	} else if (HAS_PCH_SPLIT(i915)) {
+		error->ier = intel_uncore_read(uncore, DEIER);
+		error->gtier[0] = intel_uncore_read(uncore, GTIER);
 		error->ngtier = 1;
-	} else if (IS_GEN(dev_priv, 2)) {
-		error->ier = I915_READ16(GEN2_IER);
-	} else if (!IS_VALLEYVIEW(dev_priv)) {
-		error->ier = I915_READ(GEN2_IER);
+	} else if (IS_GEN(i915, 2)) {
+		error->ier = intel_uncore_read16(uncore, GEN2_IER);
+	} else if (!IS_VALLEYVIEW(i915)) {
+		error->ier = intel_uncore_read(uncore, GEN2_IER);
 	}
-	error->eir = I915_READ(EIR);
-	error->pgtbl_er = I915_READ(PGTBL_ER);
+	error->eir = intel_uncore_read(uncore, EIR);
+	error->pgtbl_er = intel_uncore_read(uncore, PGTBL_ER);
 }
 
 static const char *

@@ -24,6 +24,8 @@
 #include <linux/debugfs.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_atomfirmware.h"

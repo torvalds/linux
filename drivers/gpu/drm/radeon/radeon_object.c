@@ -29,14 +29,17 @@
  *    Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  *    Dave Airlie
  */
+
+#include <linux/io.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
-#include <drm/radeon_drm.h>
+
 #include <drm/drm_cache.h>
+#include <drm/drm_prime.h>
+#include <drm/radeon_drm.h>
+
 #include "radeon.h"
 #include "radeon_trace.h"
-
 
 int radeon_ttm_init(struct radeon_device *rdev);
 void radeon_ttm_fini(struct radeon_device *rdev);

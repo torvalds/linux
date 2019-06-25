@@ -37,7 +37,7 @@ static int __engine_unpark(struct intel_wakeref *wf)
 
 void intel_engine_pm_get(struct intel_engine_cs *engine)
 {
-	intel_wakeref_get(engine->i915, &engine->wakeref, __engine_unpark);
+	intel_wakeref_get(&engine->i915->runtime_pm, &engine->wakeref, __engine_unpark);
 }
 
 void intel_engine_park(struct intel_engine_cs *engine)
@@ -88,6 +88,8 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
+
+	i915_request_add_barriers(rq);
 	__i915_request_commit(rq);
 
 	return false;
@@ -97,6 +99,8 @@ static int __engine_park(struct intel_wakeref *wf)
 {
 	struct intel_engine_cs *engine =
 		container_of(wf, typeof(*engine), wakeref);
+
+	engine->saturated = 0;
 
 	/*
 	 * If one and only one request is completed between pm events,
@@ -131,7 +135,7 @@ static int __engine_park(struct intel_wakeref *wf)
 
 void intel_engine_pm_put(struct intel_engine_cs *engine)
 {
-	intel_wakeref_put(engine->i915, &engine->wakeref, __engine_park);
+	intel_wakeref_put(&engine->i915->runtime_pm, &engine->wakeref, __engine_park);
 }
 
 void intel_engine_init__pm(struct intel_engine_cs *engine)

@@ -765,4 +765,7 @@ config GUP_BENCHMARK
 config ARCH_HAS_PTE_SPECIAL
 	bool
 
+config AS_DIRTY_HELPERS
+        bool
+
 endmenu

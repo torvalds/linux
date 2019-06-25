@@ -7,13 +7,12 @@
 #ifndef __I915_SELFTESTS_IGT_SPINNER_H__
 #define __I915_SELFTESTS_IGT_SPINNER_H__
 
-#include "../i915_selftest.h"
-
+#include "gem/i915_gem_context.h"
 #include "gt/intel_engine.h"
 
-#include "../i915_drv.h"
-#include "../i915_request.h"
-#include "../i915_gem_context.h"
+#include "i915_drv.h"
+#include "i915_request.h"
+#include "i915_selftest.h"
 
 struct igt_spinner {
 	struct drm_i915_private *i915;

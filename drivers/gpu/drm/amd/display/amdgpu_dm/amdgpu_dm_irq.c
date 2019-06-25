@@ -23,8 +23,6 @@
  *
  */
 
-#include <drm/drmP.h>
-
 #include "dm_services_types.h"
 #include "dc.h"
 

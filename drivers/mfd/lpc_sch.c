@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  lpc_sch.c - LPC interface for Intel Poulsbo SCH
  *
@@ -9,15 +10,6 @@
  *  Copyright (c) 2010 CompuLab Ltd
  *  Copyright (c) 2014 Intel Corp.
  *  Author: Denis Turischev <denis@compulab.co.il>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License 2 as published
- *  by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>

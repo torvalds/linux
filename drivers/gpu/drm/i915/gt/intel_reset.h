@@ -25,7 +25,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 		       const char *fmt, ...);
 #define I915_ERROR_CAPTURE BIT(0)
 
-void i915_clear_error_registers(struct drm_i915_private *i915);
+void i915_check_and_clear_faults(struct drm_i915_private *i915);
 
 void i915_reset(struct drm_i915_private *i915,
 		intel_engine_mask_t stalled_mask,

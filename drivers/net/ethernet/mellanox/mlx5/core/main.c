@@ -1067,7 +1067,7 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 	err = mlx5_core_set_hca_defaults(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to set hca defaults\n");
-		goto err_fs;
+		goto err_sriov;
 	}
 
 	err = mlx5_sriov_attach(dev);

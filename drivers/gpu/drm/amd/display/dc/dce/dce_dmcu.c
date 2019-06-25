@@ -23,6 +23,9 @@
  *
  */
 
+#include <linux/delay.h>
+#include <linux/slab.h>
+
 #include "core_types.h"
 #include "link_encoder.h"
 #include "dce_dmcu.h"

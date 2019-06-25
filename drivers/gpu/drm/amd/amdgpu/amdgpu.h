@@ -44,9 +44,9 @@
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_gem.h>
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_ioctl.h>
 #include <drm/gpu_scheduler.h>
 
 #include <kgd_kfd_interface.h>

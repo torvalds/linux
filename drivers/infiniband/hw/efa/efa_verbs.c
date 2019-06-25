@@ -1728,7 +1728,6 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 		ibdev_dbg(&dev->ibdev, "Mapping executable pages is not permitted\n");
 		return -EPERM;
 	}
-	vma->vm_flags &= ~VM_MAYEXEC;
 
 	return __efa_mmap(dev, ucontext, vma, key, length);
 }

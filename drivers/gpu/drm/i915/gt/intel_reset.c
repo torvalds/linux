@@ -7,6 +7,10 @@
 #include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
 
+#include "display/intel_overlay.h"
+
+#include "gem/i915_gem_context.h"
+
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
 #include "i915_irq.h"
@@ -15,7 +19,6 @@
 #include "intel_reset.h"
 
 #include "intel_guc.h"
-#include "intel_overlay.h"
 
 #define RESET_MAX_RETRIES 3
 
@@ -47,12 +50,12 @@ static void engine_skip_context(struct i915_request *rq)
 	struct intel_engine_cs *engine = rq->engine;
 	struct i915_gem_context *hung_ctx = rq->gem_context;
 
-	lockdep_assert_held(&engine->timeline.lock);
+	lockdep_assert_held(&engine->active.lock);
 
 	if (!i915_request_is_active(rq))
 		return;
 
-	list_for_each_entry_continue(rq, &engine->timeline.requests, link)
+	list_for_each_entry_continue(rq, &engine->active.requests, sched.link)
 		if (rq->gem_context == hung_ctx)
 			i915_request_skip(rq, -EIO);
 }
@@ -128,7 +131,7 @@ void i915_reset_request(struct i915_request *rq, bool guilty)
 		  rq->fence.seqno,
 		  yesno(guilty));
 
-	lockdep_assert_held(&rq->engine->timeline.lock);
+	lockdep_assert_held(&rq->engine->active.lock);
 	GEM_BUG_ON(i915_request_completed(rq));
 
 	if (guilty) {
@@ -693,19 +696,19 @@ static void revoke_mmaps(struct drm_i915_private *i915)
 {
 	int i;
 
-	for (i = 0; i < i915->num_fence_regs; i++) {
+	for (i = 0; i < i915->ggtt.num_fences; i++) {
 		struct drm_vma_offset_node *node;
 		struct i915_vma *vma;
 		u64 vma_offset;
 
-		vma = READ_ONCE(i915->fence_regs[i].vma);
+		vma = READ_ONCE(i915->ggtt.fence_regs[i].vma);
 		if (!vma)
 			continue;
 
 		if (!i915_vma_has_userfault(vma))
 			continue;
 
-		GEM_BUG_ON(vma->fence != &i915->fence_regs[i]);
+		GEM_BUG_ON(vma->fence != &i915->ggtt.fence_regs[i]);
 		node = &vma->obj->base.vma_node;
 		vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
 		unmap_mapping_range(i915->drm.anon_inode->i_mapping,
@@ -783,10 +786,10 @@ static void nop_submit_request(struct i915_request *request)
 		  engine->name, request->fence.context, request->fence.seqno);
 	dma_fence_set_error(&request->fence, -EIO);
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 	__i915_request_submit(request);
 	i915_request_mark_complete(request);
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	intel_engine_queue_breadcrumbs(engine);
 }
@@ -849,7 +852,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	intel_wakeref_t wakeref;
 
 	mutex_lock(&error->wedge_mutex);
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		__i915_gem_set_wedged(i915);
 	mutex_unlock(&error->wedge_mutex);
 }
@@ -976,10 +979,11 @@ void i915_reset(struct drm_i915_private *i915,
 
 	might_sleep();
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
+	mutex_lock(&error->wedge_mutex);
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
 	if (!__i915_gem_unset_wedged(i915))
-		return;
+		goto unlock;
 
 	if (reason)
 		dev_notice(i915->drm.dev, "Resetting chip for %s\n", reason);
@@ -1027,6 +1031,8 @@ void i915_reset(struct drm_i915_private *i915,
 
 finish:
 	reset_finish(i915);
+unlock:
+	mutex_unlock(&error->wedge_mutex);
 	return;
 
 taint:
@@ -1142,9 +1148,7 @@ static void i915_reset_device(struct drm_i915_private *i915,
 		/* Flush everyone using a resource about to be clobbered */
 		synchronize_srcu_expedited(&error->reset_backoff_srcu);
 
-		mutex_lock(&error->wedge_mutex);
 		i915_reset(i915, engine_mask, reason);
-		mutex_unlock(&error->wedge_mutex);
 
 		intel_finish_reset(i915);
 	}
@@ -1158,7 +1162,14 @@ static void clear_register(struct intel_uncore *uncore, i915_reg_t reg)
 	intel_uncore_rmw(uncore, reg, 0, 0);
 }
 
-void i915_clear_error_registers(struct drm_i915_private *i915)
+static void gen8_clear_engine_error_register(struct intel_engine_cs *engine)
+{
+	GEN6_RING_FAULT_REG_RMW(engine, RING_FAULT_VALID, 0);
+	GEN6_RING_FAULT_REG_POSTING_READ(engine);
+}
+
+static void clear_error_registers(struct drm_i915_private *i915,
+				  intel_engine_mask_t engine_mask)
 {
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 eir;
@@ -1191,13 +1202,72 @@ void i915_clear_error_registers(struct drm_i915_private *i915)
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
-		for_each_engine(engine, i915, id) {
-			rmw_clear(uncore,
-				  RING_FAULT_REG(engine), RING_FAULT_VALID);
-			intel_uncore_posting_read(uncore,
-						  RING_FAULT_REG(engine));
+		for_each_engine_masked(engine, i915, engine_mask, id)
+			gen8_clear_engine_error_register(engine);
+	}
+}
+
+static void gen6_check_faults(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	u32 fault;
+
+	for_each_engine(engine, dev_priv, id) {
+		fault = GEN6_RING_FAULT_REG_READ(engine);
+		if (fault & RING_FAULT_VALID) {
+			DRM_DEBUG_DRIVER("Unexpected fault\n"
+					 "\tAddr: 0x%08lx\n"
+					 "\tAddress space: %s\n"
+					 "\tSource ID: %d\n"
+					 "\tType: %d\n",
+					 fault & PAGE_MASK,
+					 fault & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
+					 RING_FAULT_SRCID(fault),
+					 RING_FAULT_FAULT_TYPE(fault));
 		}
 	}
+}
+
+static void gen8_check_faults(struct drm_i915_private *dev_priv)
+{
+	u32 fault = I915_READ(GEN8_RING_FAULT_REG);
+
+	if (fault & RING_FAULT_VALID) {
+		u32 fault_data0, fault_data1;
+		u64 fault_addr;
+
+		fault_data0 = I915_READ(GEN8_FAULT_TLB_DATA0);
+		fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
+		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
+			     ((u64)fault_data0 << 12);
+
+		DRM_DEBUG_DRIVER("Unexpected fault\n"
+				 "\tAddr: 0x%08x_%08x\n"
+				 "\tAddress space: %s\n"
+				 "\tEngine ID: %d\n"
+				 "\tSource ID: %d\n"
+				 "\tType: %d\n",
+				 upper_32_bits(fault_addr),
+				 lower_32_bits(fault_addr),
+				 fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
+				 GEN8_RING_FAULT_ENGINE_ID(fault),
+				 RING_FAULT_SRCID(fault),
+				 RING_FAULT_FAULT_TYPE(fault));
+	}
+}
+
+void i915_check_and_clear_faults(struct drm_i915_private *i915)
+{
+	/* From GEN8 onwards we only have one 'All Engine Fault Register' */
+	if (INTEL_GEN(i915) >= 8)
+		gen8_check_faults(i915);
+	else if (INTEL_GEN(i915) >= 6)
+		gen6_check_faults(i915);
+	else
+		return;
+
+	clear_error_registers(i915, ALL_ENGINES);
 }
 
 /**
@@ -1242,13 +1312,13 @@ void i915_handle_error(struct drm_i915_private *i915,
 	 * isn't the case at least when we get here by doing a
 	 * simulated reset via debugfs, so get an RPM reference.
 	 */
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	engine_mask &= INTEL_INFO(i915)->engine_mask;
 
 	if (flags & I915_ERROR_CAPTURE) {
 		i915_capture_error_state(i915, engine_mask, msg);
-		i915_clear_error_registers(i915);
+		clear_error_registers(i915, engine_mask);
 	}
 
 	/*
@@ -1305,7 +1375,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 	wake_up_all(&error->reset_queue);
 
 out:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
 int i915_reset_trylock(struct drm_i915_private *i915)

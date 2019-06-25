@@ -18,6 +18,11 @@ static enum efi_secureboot_mode get_sb_mode(void)
 
 	size = sizeof(secboot);
 
+	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
+		pr_info("ima: secureboot mode unknown, no efi\n");
+		return efi_secureboot_mode_unknown;
+	}
+
 	/* Get variable contents into buffer */
 	status = efi.get_variable(efi_SecureBoot_name, &efi_variable_guid,
 				  NULL, &size, &secboot);

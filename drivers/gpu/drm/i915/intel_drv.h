@@ -420,6 +420,8 @@ struct dpll {
 struct intel_atomic_state {
 	struct drm_atomic_state base;
 
+	intel_wakeref_t wakeref;
+
 	struct {
 		/*
 		 * Logical state of cdclk (used for all scaling, watermark,
@@ -885,6 +887,8 @@ struct intel_crtc_state {
 
 	struct intel_crtc_wm_state wm;
 
+	u32 data_rate[I915_MAX_PLANES];
+
 	/* Gamma mode programmed on the pipe */
 	u32 gamma_mode;
 
@@ -910,6 +914,7 @@ struct intel_crtc_state {
 		union hdmi_infoframe avi;
 		union hdmi_infoframe spd;
 		union hdmi_infoframe hdmi;
+		union hdmi_infoframe drm;
 	} infoframes;
 
 	/* HDMI scrambling status */
@@ -1463,8 +1468,6 @@ void intel_add_fb_offsets(int *x, int *y,
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
 unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info);
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
-void intel_mark_busy(struct drm_i915_private *dev_priv);
-void intel_mark_idle(struct drm_i915_private *dev_priv);
 int intel_display_suspend(struct drm_device *dev);
 void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
@@ -1532,18 +1535,6 @@ int intel_prepare_plane_fb(struct drm_plane *plane,
 			   struct drm_plane_state *new_state);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
 			    struct drm_plane_state *old_state);
-int intel_plane_atomic_get_property(struct drm_plane *plane,
-				    const struct drm_plane_state *state,
-				    struct drm_property *property,
-				    u64 *val);
-int intel_plane_atomic_set_property(struct drm_plane *plane,
-				    struct drm_plane_state *state,
-				    struct drm_property *property,
-				    u64 val);
-int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
-				    struct drm_crtc_state *crtc_state,
-				    const struct intel_plane_state *old_plane_state,
-				    struct drm_plane_state *plane_state);
 
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);
@@ -1552,6 +1543,7 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 		     const struct dpll *dpll);
 void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe);
 int lpt_get_iclkip(struct drm_i915_private *dev_priv);
+bool intel_fuzzy_clock_check(int clock1, int clock2);
 
 /* modesetting asserts */
 void assert_panel_unlocked(struct drm_i915_private *dev_priv,
@@ -1572,7 +1564,6 @@ void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
-unsigned int skl_cdclk_get_vco(unsigned int freq);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
 void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state,
@@ -1621,110 +1612,5 @@ unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);
-
-/* intel_runtime_pm.c */
-#define BITS_PER_WAKEREF	\
-	BITS_PER_TYPE(struct_member(struct i915_runtime_pm, wakeref_count))
-#define INTEL_RPM_WAKELOCK_SHIFT	(BITS_PER_WAKEREF / 2)
-#define INTEL_RPM_WAKELOCK_BIAS		(1 << INTEL_RPM_WAKELOCK_SHIFT)
-#define INTEL_RPM_RAW_WAKEREF_MASK	(INTEL_RPM_WAKELOCK_BIAS - 1)
-
-static inline int
-intel_rpm_raw_wakeref_count(int wakeref_count)
-{
-	return wakeref_count & INTEL_RPM_RAW_WAKEREF_MASK;
-}
-
-static inline int
-intel_rpm_wakelock_count(int wakeref_count)
-{
-	return wakeref_count >> INTEL_RPM_WAKELOCK_SHIFT;
-}
-
-static inline void
-assert_rpm_device_not_suspended(struct i915_runtime_pm *rpm)
-{
-	WARN_ONCE(rpm->suspended,
-		  "Device suspended during HW access\n");
-}
-
-static inline void
-____assert_rpm_raw_wakeref_held(struct i915_runtime_pm *rpm, int wakeref_count)
-{
-	assert_rpm_device_not_suspended(rpm);
-	WARN_ONCE(!intel_rpm_raw_wakeref_count(wakeref_count),
-		  "RPM raw-wakeref not held\n");
-}
-
-static inline void
-____assert_rpm_wakelock_held(struct i915_runtime_pm *rpm, int wakeref_count)
-{
-	____assert_rpm_raw_wakeref_held(rpm, wakeref_count);
-	WARN_ONCE(!intel_rpm_wakelock_count(wakeref_count),
-		  "RPM wakelock ref not held during HW access\n");
-}
-
-static inline void
-assert_rpm_raw_wakeref_held(struct drm_i915_private *i915)
-{
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
-
-	____assert_rpm_raw_wakeref_held(rpm, atomic_read(&rpm->wakeref_count));
-}
-
-static inline void
-__assert_rpm_wakelock_held(struct i915_runtime_pm *rpm)
-{
-	____assert_rpm_wakelock_held(rpm, atomic_read(&rpm->wakeref_count));
-}
-
-static inline void
-assert_rpm_wakelock_held(struct drm_i915_private *i915)
-{
-	__assert_rpm_wakelock_held(&i915->runtime_pm);
-}
-
-/**
- * disable_rpm_wakeref_asserts - disable the RPM assert checks
- * @i915: i915 device instance
- *
- * This function disable asserts that check if we hold an RPM wakelock
- * reference, while keeping the device-not-suspended checks still enabled.
- * It's meant to be used only in special circumstances where our rule about
- * the wakelock refcount wrt. the device power state doesn't hold. According
- * to this rule at any point where we access the HW or want to keep the HW in
- * an active state we must hold an RPM wakelock reference acquired via one of
- * the intel_runtime_pm_get() helpers. Currently there are a few special spots
- * where this rule doesn't hold: the IRQ and suspend/resume handlers, the
- * forcewake release timer, and the GPU RPS and hangcheck works. All other
- * users should avoid using this function.
- *
- * Any calls to this function must have a symmetric call to
- * enable_rpm_wakeref_asserts().
- */
-static inline void
-disable_rpm_wakeref_asserts(struct drm_i915_private *i915)
-{
-	atomic_add(INTEL_RPM_WAKELOCK_BIAS + 1,
-		   &i915->runtime_pm.wakeref_count);
-}
-
-/**
- * enable_rpm_wakeref_asserts - re-enable the RPM assert checks
- * @i915: i915 device instance
- *
- * This function re-enables the RPM assert checks after disabling them with
- * disable_rpm_wakeref_asserts. It's meant to be used only in special
- * circumstances otherwise its use should be avoided.
- *
- * Any calls to this function must have a symmetric call to
- * disable_rpm_wakeref_asserts().
- */
-static inline void
-enable_rpm_wakeref_asserts(struct drm_i915_private *i915)
-{
-	atomic_sub(INTEL_RPM_WAKELOCK_BIAS + 1,
-		   &i915->runtime_pm.wakeref_count);
-}
 
 #endif /* __INTEL_DRV_H__ */

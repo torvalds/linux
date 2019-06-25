@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Performance counter support for POWER7 processors.
  *
  * Copyright 2013 Runzhen Wang, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 EVENT(PM_IC_DEMAND_L2_BR_ALL,                 0x04898)

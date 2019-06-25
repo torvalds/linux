@@ -24,6 +24,7 @@
  */
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_vblank.h>
 
 #include "amdgpu.h"
 #include "amdgpu_dm.h"

@@ -24,7 +24,15 @@
 #ifndef _INTEL_LRC_H_
 #define _INTEL_LRC_H_
 
-#include "intel_engine.h"
+#include <linux/types.h>
+
+struct drm_printer;
+
+struct drm_i915_private;
+struct i915_gem_context;
+struct i915_request;
+struct intel_context;
+struct intel_engine_cs;
 
 /* Execlists regs */
 #define RING_ELSP(base)				_MMIO((base) + 0x230)
@@ -95,10 +103,6 @@ int intel_execlists_submission_init(struct intel_engine_cs *engine);
  * the size of the header is synonymous with the start of the PPHWSP.
  */
 #define LRC_HEADER_PAGES LRC_PPHWSP_PN
-
-struct drm_printer;
-
-struct drm_i915_private;
 
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
 

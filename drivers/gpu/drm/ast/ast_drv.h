@@ -101,10 +101,6 @@ struct ast_private {
 	int fb_mtrr;
 
 	struct drm_gem_object *cursor_cache;
-	uint64_t cursor_cache_gpu_addr;
-	/* Acces to this cache is protected by the crtc->mutex of the only crtc
-	 * we have. */
-	struct ttm_bo_kmap_obj cache_kmap;
 	int next_cursor;
 	bool support_wide_screen;
 	enum {
@@ -236,9 +232,6 @@ struct ast_connector {
 
 struct ast_crtc {
 	struct drm_crtc base;
-	struct drm_gem_object *cursor_bo;
-	uint64_t cursor_addr;
-	int cursor_width, cursor_height;
 	u8 offset_x, offset_y;
 };
 

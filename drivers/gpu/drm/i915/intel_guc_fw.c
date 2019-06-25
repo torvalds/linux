@@ -30,53 +30,82 @@
 #include "intel_guc_fw.h"
 #include "i915_drv.h"
 
-#define SKL_FW_MAJOR 9
-#define SKL_FW_MINOR 33
+#define __MAKE_GUC_FW_PATH(KEY) \
+	"i915/" \
+	__stringify(KEY##_GUC_FW_PREFIX) "_guc_" \
+	__stringify(KEY##_GUC_FW_MAJOR) "." \
+	__stringify(KEY##_GUC_FW_MINOR) "." \
+	__stringify(KEY##_GUC_FW_PATCH) ".bin"
 
-#define BXT_FW_MAJOR 9
-#define BXT_FW_MINOR 29
+#define SKL_GUC_FW_PREFIX skl
+#define SKL_GUC_FW_MAJOR 32
+#define SKL_GUC_FW_MINOR 0
+#define SKL_GUC_FW_PATCH 3
+#define SKL_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(SKL)
+MODULE_FIRMWARE(SKL_GUC_FIRMWARE_PATH);
 
-#define KBL_FW_MAJOR 9
-#define KBL_FW_MINOR 39
+#define BXT_GUC_FW_PREFIX bxt
+#define BXT_GUC_FW_MAJOR 32
+#define BXT_GUC_FW_MINOR 0
+#define BXT_GUC_FW_PATCH 3
+#define BXT_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(BXT)
+MODULE_FIRMWARE(BXT_GUC_FIRMWARE_PATH);
 
-#define GUC_FW_PATH(platform, major, minor) \
-       "i915/" __stringify(platform) "_guc_ver" __stringify(major) "_" __stringify(minor) ".bin"
+#define KBL_GUC_FW_PREFIX kbl
+#define KBL_GUC_FW_MAJOR 32
+#define KBL_GUC_FW_MINOR 0
+#define KBL_GUC_FW_PATCH 3
+#define KBL_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(KBL)
+MODULE_FIRMWARE(KBL_GUC_FIRMWARE_PATH);
 
-#define I915_SKL_GUC_UCODE GUC_FW_PATH(skl, SKL_FW_MAJOR, SKL_FW_MINOR)
-MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
+#define GLK_GUC_FW_PREFIX glk
+#define GLK_GUC_FW_MAJOR 32
+#define GLK_GUC_FW_MINOR 0
+#define GLK_GUC_FW_PATCH 3
+#define GLK_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(GLK)
+MODULE_FIRMWARE(GLK_GUC_FIRMWARE_PATH);
 
-#define I915_BXT_GUC_UCODE GUC_FW_PATH(bxt, BXT_FW_MAJOR, BXT_FW_MINOR)
-MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
-
-#define I915_KBL_GUC_UCODE GUC_FW_PATH(kbl, KBL_FW_MAJOR, KBL_FW_MINOR)
-MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
+#define ICL_GUC_FW_PREFIX icl
+#define ICL_GUC_FW_MAJOR 32
+#define ICL_GUC_FW_MINOR 0
+#define ICL_GUC_FW_PATCH 3
+#define ICL_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(ICL)
+MODULE_FIRMWARE(ICL_GUC_FIRMWARE_PATH);
 
 static void guc_fw_select(struct intel_uc_fw *guc_fw)
 {
 	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_private *i915 = guc_to_i915(guc);
 
 	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
-	if (!HAS_GUC(dev_priv))
+	if (!HAS_GUC(i915))
 		return;
 
 	if (i915_modparams.guc_firmware_path) {
 		guc_fw->path = i915_modparams.guc_firmware_path;
 		guc_fw->major_ver_wanted = 0;
 		guc_fw->minor_ver_wanted = 0;
-	} else if (IS_SKYLAKE(dev_priv)) {
-		guc_fw->path = I915_SKL_GUC_UCODE;
-		guc_fw->major_ver_wanted = SKL_FW_MAJOR;
-		guc_fw->minor_ver_wanted = SKL_FW_MINOR;
-	} else if (IS_BROXTON(dev_priv)) {
-		guc_fw->path = I915_BXT_GUC_UCODE;
-		guc_fw->major_ver_wanted = BXT_FW_MAJOR;
-		guc_fw->minor_ver_wanted = BXT_FW_MINOR;
-	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		guc_fw->path = I915_KBL_GUC_UCODE;
-		guc_fw->major_ver_wanted = KBL_FW_MAJOR;
-		guc_fw->minor_ver_wanted = KBL_FW_MINOR;
+	} else if (IS_ICELAKE(i915)) {
+		guc_fw->path = ICL_GUC_FIRMWARE_PATH;
+		guc_fw->major_ver_wanted = ICL_GUC_FW_MAJOR;
+		guc_fw->minor_ver_wanted = ICL_GUC_FW_MINOR;
+	} else if (IS_GEMINILAKE(i915)) {
+		guc_fw->path = GLK_GUC_FIRMWARE_PATH;
+		guc_fw->major_ver_wanted = GLK_GUC_FW_MAJOR;
+		guc_fw->minor_ver_wanted = GLK_GUC_FW_MINOR;
+	} else if (IS_KABYLAKE(i915) || IS_COFFEELAKE(i915)) {
+		guc_fw->path = KBL_GUC_FIRMWARE_PATH;
+		guc_fw->major_ver_wanted = KBL_GUC_FW_MAJOR;
+		guc_fw->minor_ver_wanted = KBL_GUC_FW_MINOR;
+	} else if (IS_BROXTON(i915)) {
+		guc_fw->path = BXT_GUC_FIRMWARE_PATH;
+		guc_fw->major_ver_wanted = BXT_GUC_FW_MAJOR;
+		guc_fw->minor_ver_wanted = BXT_GUC_FW_MINOR;
+	} else if (IS_SKYLAKE(i915)) {
+		guc_fw->path = SKL_GUC_FIRMWARE_PATH;
+		guc_fw->major_ver_wanted = SKL_GUC_FW_MAJOR;
+		guc_fw->minor_ver_wanted = SKL_GUC_FW_MINOR;
 	}
 }
 

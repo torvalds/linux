@@ -42,14 +42,14 @@ static int igt_wedged_reset(void *arg)
 	/* Check that we can recover a wedged device with a GPU reset */
 
 	igt_global_reset_lock(i915);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	i915_gem_set_wedged(i915);
 
 	GEM_BUG_ON(!i915_reset_failed(i915));
 	i915_reset(i915, ALL_ENGINES, NULL);
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	igt_global_reset_unlock(i915);
 
 	return i915_reset_failed(i915) ? -EIO : 0;
@@ -111,7 +111,7 @@ int intel_reset_live_selftests(struct drm_i915_private *i915)
 	if (i915_terminally_wedged(i915))
 		return -EIO; /* we're long past hope of a successful reset */
 
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = i915_subtests(tests, i915);
 
 	return err;

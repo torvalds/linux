@@ -680,6 +680,52 @@ struct drm_encoder_helper_funcs {
 					    struct drm_connector *connector);
 
 	/**
+	 * @atomic_disable:
+	 *
+	 * This callback should be used to disable the encoder. With the atomic
+	 * drivers it is called before this encoder's CRTC has been shut off
+	 * using their own &drm_crtc_helper_funcs.atomic_disable hook. If that
+	 * sequence is too simple drivers can just add their own driver private
+	 * encoder hooks and call them from CRTC's callback by looping over all
+	 * encoders connected to it using for_each_encoder_on_crtc().
+	 *
+	 * This callback is a variant of @disable that provides the atomic state
+	 * to the driver. If @atomic_disable is implemented, @disable is not
+	 * called by the helpers.
+	 *
+	 * This hook is only used by atomic helpers. Atomic drivers don't need
+	 * to implement it if there's no need to disable anything at the encoder
+	 * level. To ensure that runtime PM handling (using either DPMS or the
+	 * new "ACTIVE" property) works @atomic_disable must be the inverse of
+	 * @atomic_enable.
+	 */
+	void (*atomic_disable)(struct drm_encoder *encoder,
+			       struct drm_atomic_state *state);
+
+	/**
+	 * @atomic_enable:
+	 *
+	 * This callback should be used to enable the encoder. It is called
+	 * after this encoder's CRTC has been enabled using their own
+	 * &drm_crtc_helper_funcs.atomic_enable hook. If that sequence is
+	 * too simple drivers can just add their own driver private encoder
+	 * hooks and call them from CRTC's callback by looping over all encoders
+	 * connected to it using for_each_encoder_on_crtc().
+	 *
+	 * This callback is a variant of @enable that provides the atomic state
+	 * to the driver. If @atomic_enable is implemented, @enable is not
+	 * called by the helpers.
+	 *
+	 * This hook is only used by atomic helpers, it is the opposite of
+	 * @atomic_disable. Atomic drivers don't need to implement it if there's
+	 * no need to enable anything at the encoder level. To ensure that
+	 * runtime PM handling works @atomic_enable must be the inverse of
+	 * @atomic_disable.
+	 */
+	void (*atomic_enable)(struct drm_encoder *encoder,
+			      struct drm_atomic_state *state);
+
+	/**
 	 * @disable:
 	 *
 	 * This callback should be used to disable the encoder. With the atomic
@@ -694,6 +740,9 @@ struct drm_encoder_helper_funcs {
 	 * disable anything at the encoder level. To ensure that runtime PM
 	 * handling (using either DPMS or the new "ACTIVE" property) works
 	 * @disable must be the inverse of @enable for atomic drivers.
+	 *
+	 * For atomic drivers also consider @atomic_disable and save yourself
+	 * from having to read the NOTE below!
 	 *
 	 * NOTE:
 	 *
@@ -719,11 +768,11 @@ struct drm_encoder_helper_funcs {
 	 * hooks and call them from CRTC's callback by looping over all encoders
 	 * connected to it using for_each_encoder_on_crtc().
 	 *
-	 * This hook is used only by atomic helpers, for symmetry with @disable.
-	 * Atomic drivers don't need to implement it if there's no need to
-	 * enable anything at the encoder level. To ensure that runtime PM handling
-	 * (using either DPMS or the new "ACTIVE" property) works
-	 * @enable must be the inverse of @disable for atomic drivers.
+	 * This hook is only used by atomic helpers, it is the opposite of
+	 * @disable. Atomic drivers don't need to implement it if there's no
+	 * need to enable anything at the encoder level. To ensure that
+	 * runtime PM handling (using either DPMS or the new "ACTIVE" property)
+	 * works @enable must be the inverse of @disable for atomic drivers.
 	 */
 	void (*enable)(struct drm_encoder *encoder);
 
@@ -979,7 +1028,7 @@ struct drm_connector_helper_funcs {
 	 * deadlock.
 	 */
 	int (*atomic_check)(struct drm_connector *connector,
-			    struct drm_connector_state *state);
+			    struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_commit:
@@ -1184,6 +1233,14 @@ struct drm_plane_helper_funcs {
 	 * drivers shouldn't replace the &drm_plane_state but update the
 	 * current one with the new plane configurations in the new
 	 * plane_state.
+	 *
+	 * Drivers should also swap the framebuffers between current plane
+	 * state (&drm_plane.state) and new_state.
+	 * This is required since cleanup for async commits is performed on
+	 * the new state, rather than old state like for traditional commits.
+	 * Since we want to give up the reference on the current (old) fb
+	 * instead of our brand new one, swap them in the driver during the
+	 * async commit.
 	 *
 	 * FIXME:
 	 *  - It only works for single plane updates

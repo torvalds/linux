@@ -28,7 +28,8 @@
  *    Christian König <deathsimple@vodafone.de>
  */
 
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
+
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 

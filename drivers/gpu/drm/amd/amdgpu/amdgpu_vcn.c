@@ -26,7 +26,8 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/pci.h>
+
 #include <drm/drm.h>
 
 #include "amdgpu.h"
@@ -342,7 +343,7 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32(adev->vcn.external.scratch9);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -506,7 +507,7 @@ int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -663,7 +664,7 @@ int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32(adev->vcn.external.jpeg_pitch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -737,7 +738,7 @@ int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		tmp = RREG32(adev->vcn.external.jpeg_pitch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)

@@ -1423,6 +1423,13 @@ enum drm_dp_quirk {
 	 * driver still need to implement proper handling for such device.
 	 */
 	DP_DPCD_QUIRK_NO_PSR,
+	/**
+	 * @DP_DPCD_QUIRK_NO_SINK_COUNT:
+	 *
+	 * The device does not set SINK_COUNT to a non-zero value.
+	 * The driver should ignore SINK_COUNT during detection.
+	 */
+	DP_DPCD_QUIRK_NO_SINK_COUNT,
 };
 
 /**

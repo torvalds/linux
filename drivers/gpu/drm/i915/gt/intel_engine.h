@@ -52,6 +52,7 @@ struct drm_printer;
 #define ENGINE_READ(...)	__ENGINE_READ_OP(read, __VA_ARGS__)
 #define ENGINE_READ_FW(...)	__ENGINE_READ_OP(read_fw, __VA_ARGS__)
 #define ENGINE_POSTING_READ(...) __ENGINE_READ_OP(posting_read, __VA_ARGS__)
+#define ENGINE_POSTING_READ16(...) __ENGINE_READ_OP(posting_read16, __VA_ARGS__)
 
 #define ENGINE_READ64(engine__, lower_reg__, upper_reg__) \
 	__ENGINE_REG_OP(read64_2x32, (engine__), \
@@ -67,6 +68,24 @@ struct drm_printer;
 #define ENGINE_WRITE16(...)	__ENGINE_WRITE_OP(write16, __VA_ARGS__)
 #define ENGINE_WRITE(...)	__ENGINE_WRITE_OP(write, __VA_ARGS__)
 #define ENGINE_WRITE_FW(...)	__ENGINE_WRITE_OP(write_fw, __VA_ARGS__)
+
+#define GEN6_RING_FAULT_REG_READ(engine__) \
+	intel_uncore_read((engine__)->uncore, RING_FAULT_REG(engine__))
+
+#define GEN6_RING_FAULT_REG_POSTING_READ(engine__) \
+	intel_uncore_posting_read((engine__)->uncore, RING_FAULT_REG(engine__))
+
+#define GEN6_RING_FAULT_REG_RMW(engine__, clear__, set__) \
+({ \
+	u32 __val; \
+\
+	__val = intel_uncore_read((engine__)->uncore, \
+				  RING_FAULT_REG(engine__)); \
+	__val &= ~(clear__); \
+	__val |= (set__); \
+	intel_uncore_write((engine__)->uncore, RING_FAULT_REG(engine__), \
+			   __val); \
+})
 
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
@@ -448,8 +467,6 @@ static inline void intel_engine_reset(struct intel_engine_cs *engine,
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 
-void intel_engine_lost_context(struct intel_engine_cs *engine);
-
 void intel_engines_reset_default_submission(struct drm_i915_private *i915);
 unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
 
@@ -526,6 +543,8 @@ ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
 struct i915_request *
 intel_engine_find_active_request(struct intel_engine_cs *engine);
 
+u32 intel_engine_context_size(struct drm_i915_private *i915, u8 class);
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 
 static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
@@ -545,5 +564,11 @@ static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
 }
 
 #endif
+
+void intel_engine_init_active(struct intel_engine_cs *engine,
+			      unsigned int subclass);
+#define ENGINE_PHYSICAL	0
+#define ENGINE_MOCK	1
+#define ENGINE_VIRTUAL	2
 
 #endif /* _INTEL_RINGBUFFER_H_ */

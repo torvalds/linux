@@ -217,7 +217,7 @@ struct i915_request {
 
 	bool waitboost;
 
-	/** engine->request_list entry for this request */
+	/** timeline->request entry for this request */
 	struct list_head link;
 
 	/** ring->request_list entry for this request */

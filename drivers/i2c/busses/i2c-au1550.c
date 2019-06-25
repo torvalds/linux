@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * i2c-au1550.c: SMBus (i2c) adapter for Alchemy PSC interface
  * Copyright (C) 2004 Embedded Edge, LLC <dan@embeddededge.com>
@@ -11,16 +12,6 @@
  * This is just a skeleton adapter to use with the Au1550 PSC
  * algorithm.  It was developed for the Pb1550, but will work with
  * any Au1550 board that has a similar PSC configuration.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>

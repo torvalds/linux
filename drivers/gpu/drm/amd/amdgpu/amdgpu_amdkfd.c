@@ -22,7 +22,7 @@
 
 #include "amdgpu_amdkfd.h"
 #include "amd_shared.h"
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_dma_buf.h"

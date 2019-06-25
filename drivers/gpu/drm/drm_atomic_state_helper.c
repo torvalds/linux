@@ -129,6 +129,10 @@ void __drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc,
 	state->commit = NULL;
 	state->event = NULL;
 	state->pageflip_flags = 0;
+
+	/* Self refresh should be canceled when a new update is available */
+	state->active = drm_atomic_crtc_effectively_active(state);
+	state->self_refresh_active = false;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_crtc_duplicate_state);
 
@@ -374,6 +378,24 @@ void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 	__drm_atomic_helper_connector_reset(connector, conn_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_reset);
+
+/**
+ * drm_atomic_helper_connector_tv_reset - Resets TV connector properties
+ * @connector: DRM connector
+ *
+ * Resets the TV-related properties attached to a connector.
+ */
+void drm_atomic_helper_connector_tv_reset(struct drm_connector *connector)
+{
+	struct drm_cmdline_mode *cmdline = &connector->cmdline_mode;
+	struct drm_connector_state *state = connector->state;
+
+	state->tv.margins.left = cmdline->tv_margins.left;
+	state->tv.margins.right = cmdline->tv_margins.right;
+	state->tv.margins.top = cmdline->tv_margins.top;
+	state->tv.margins.bottom = cmdline->tv_margins.bottom;
+}
+EXPORT_SYMBOL(drm_atomic_helper_connector_tv_reset);
 
 /**
  * __drm_atomic_helper_connector_duplicate_state - copy atomic connector state

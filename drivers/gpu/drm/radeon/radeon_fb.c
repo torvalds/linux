@@ -23,19 +23,20 @@
  * Authors:
  *     David Airlie
  */
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
+#include <linux/vga_switcheroo.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/radeon_drm.h>
-#include "radeon.h"
-
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_pci.h>
+#include <drm/radeon_drm.h>
 
-#include <linux/vga_switcheroo.h>
+#include "radeon.h"
 
 /* object hierarchy -
  * this contains a helper + a radeon fb

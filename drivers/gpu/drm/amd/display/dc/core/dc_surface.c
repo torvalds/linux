@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/mm.h>
+
 /* DC interface (public) */
 #include "dm_services.h"
 #include "dc.h"
