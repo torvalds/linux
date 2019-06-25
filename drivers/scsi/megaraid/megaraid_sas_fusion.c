@@ -4246,6 +4246,13 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 			}
 
 			break;
+		case MFI_CMD_TOOLBOX:
+			if (!instance->support_pci_lane_margining) {
+				cmd_mfi->frame->hdr.cmd_status = MFI_STAT_INVALID_CMD;
+				result = COMPLETE_CMD;
+			}
+
+			break;
 		default:
 			break;
 		}

@@ -188,6 +188,7 @@ static u32 support_poll_for_event;
 u32 megasas_dbg_lvl;
 static u32 support_device_change;
 static bool support_nvme_encapsulation;
+static bool support_pci_lane_margining;
 
 /* define lock for aen poll */
 spinlock_t poll_aen_lock;
@@ -3494,6 +3495,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	case MFI_CMD_SMP:
 	case MFI_CMD_STP:
 	case MFI_CMD_NVME:
+	case MFI_CMD_TOOLBOX:
 		megasas_complete_int_cmd(instance, cmd);
 		break;
 
@@ -5099,6 +5101,7 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 		le32_to_cpus((u32 *)&ci->adapterOperations2);
 		le32_to_cpus((u32 *)&ci->adapterOperations3);
 		le16_to_cpus((u16 *)&ci->adapter_operations4);
+		le32_to_cpus((u32 *)&ci->adapter_operations5);
 
 		/* Update the latest Ext VD info.
 		 * From Init path, store current firmware details.
@@ -5112,6 +5115,8 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 			ci->adapter_operations4.support_pd_map_target_id;
 		instance->support_nvme_passthru =
 			ci->adapter_operations4.support_nvme_passthru;
+		instance->support_pci_lane_margining =
+			ci->adapter_operations5.support_pci_lane_margining;
 		instance->task_abort_tmo = ci->TaskAbortTO;
 		instance->max_reset_tmo = ci->MaxResetTO;
 
@@ -5145,6 +5150,8 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 			 instance->task_abort_tmo, instance->max_reset_tmo);
 		dev_info(&instance->pdev->dev, "JBOD sequence map support\t: %s\n",
 			 instance->support_seqnum_jbod_fp ? "Yes" : "No");
+		dev_info(&instance->pdev->dev, "PCI Lane Margining support\t: %s\n",
+			 instance->support_pci_lane_margining ? "Yes" : "No");
 
 		break;
 
@@ -7793,7 +7800,9 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 
 	if ((ioc->frame.hdr.cmd >= MFI_CMD_OP_COUNT) ||
 	    ((ioc->frame.hdr.cmd == MFI_CMD_NVME) &&
-	    !instance->support_nvme_passthru)) {
+	    !instance->support_nvme_passthru) ||
+	    ((ioc->frame.hdr.cmd == MFI_CMD_TOOLBOX) &&
+	    !instance->support_pci_lane_margining)) {
 		dev_err(&instance->pdev->dev,
 			"Received invalid ioctl command 0x%x\n",
 			ioc->frame.hdr.cmd);
@@ -8277,6 +8286,14 @@ support_nvme_encapsulation_show(struct device_driver *dd, char *buf)
 
 static DRIVER_ATTR_RO(support_nvme_encapsulation);
 
+static ssize_t
+support_pci_lane_margining_show(struct device_driver *dd, char *buf)
+{
+	return sprintf(buf, "%u\n", support_pci_lane_margining);
+}
+
+static DRIVER_ATTR_RO(support_pci_lane_margining);
+
 static inline void megasas_remove_scsi_device(struct scsi_device *sdev)
 {
 	sdev_printk(KERN_INFO, sdev, "SCSI device is removed\n");
@@ -8546,6 +8563,7 @@ static int __init megasas_init(void)
 	support_poll_for_event = 2;
 	support_device_change = 1;
 	support_nvme_encapsulation = true;
+	support_pci_lane_margining = true;
 
 	memset(&megasas_mgmt_info, 0, sizeof(megasas_mgmt_info));
 
@@ -8602,7 +8620,16 @@ static int __init megasas_init(void)
 	if (rval)
 		goto err_dcf_support_nvme_encapsulation;
 
+	rval = driver_create_file(&megasas_pci_driver.driver,
+				  &driver_attr_support_pci_lane_margining);
+	if (rval)
+		goto err_dcf_support_pci_lane_margining;
+
 	return rval;
+
+err_dcf_support_pci_lane_margining:
+	driver_remove_file(&megasas_pci_driver.driver,
+			   &driver_attr_support_nvme_encapsulation);
 
 err_dcf_support_nvme_encapsulation:
 	driver_remove_file(&megasas_pci_driver.driver,
@@ -8643,6 +8670,8 @@ static void __exit megasas_exit(void)
 	driver_remove_file(&megasas_pci_driver.driver, &driver_attr_version);
 	driver_remove_file(&megasas_pci_driver.driver,
 			   &driver_attr_support_nvme_encapsulation);
+	driver_remove_file(&megasas_pci_driver.driver,
+			   &driver_attr_support_pci_lane_margining);
 
 	pci_unregister_driver(&megasas_pci_driver);
 	megasas_exit_debugfs();

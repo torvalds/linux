@@ -208,6 +208,7 @@ enum MFI_CMD_OP {
 	MFI_CMD_SMP		= 0x7,
 	MFI_CMD_STP		= 0x8,
 	MFI_CMD_NVME		= 0x9,
+	MFI_CMD_TOOLBOX		= 0xa,
 	MFI_CMD_OP_COUNT,
 	MFI_CMD_INVALID		= 0xff
 };
@@ -1467,7 +1468,39 @@ struct megasas_ctrl_info {
 
 	u8 reserved6[64];
 
-	u32 rsvdForAdptOp[64];
+	struct {
+	#if defined(__BIG_ENDIAN_BITFIELD)
+		u32 reserved:19;
+		u32 support_pci_lane_margining: 1;
+		u32 support_psoc_update:1;
+		u32 support_force_personality_change:1;
+		u32 support_fde_type_mix:1;
+		u32 support_snap_dump:1;
+		u32 support_nvme_tm:1;
+		u32 support_oce_only:1;
+		u32 support_ext_mfg_vpd:1;
+		u32 support_pcie:1;
+		u32 support_cvhealth_info:1;
+		u32 support_profile_change:2;
+		u32 mr_config_ext2_supported:1;
+	#else
+		u32 mr_config_ext2_supported:1;
+		u32 support_profile_change:2;
+		u32 support_cvhealth_info:1;
+		u32 support_pcie:1;
+		u32 support_ext_mfg_vpd:1;
+		u32 support_oce_only:1;
+		u32 support_nvme_tm:1;
+		u32 support_snap_dump:1;
+		u32 support_fde_type_mix:1;
+		u32 support_force_personality_change:1;
+		u32 support_psoc_update:1;
+		u32 support_pci_lane_margining: 1;
+		u32 reserved:19;
+	#endif
+	} adapter_operations5;
+
+	u32 rsvdForAdptOp[63];
 
 	u8 reserved7[3];
 
@@ -2399,6 +2432,7 @@ struct megasas_instance {
 	u8 enable_fw_dev_list;
 	bool atomic_desc_support;
 	bool support_seqnum_jbod_fp;
+	bool support_pci_lane_margining;
 };
 
 struct MR_LD_VF_MAP {
