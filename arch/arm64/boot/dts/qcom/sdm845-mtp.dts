@@ -404,8 +404,8 @@
 };
 
 &usb_1_dwc3 {
-	/* Until we have Type C hooked up we'll force this as host. */
-	dr_mode = "host";
+	/* Until we have Type C hooked up we'll force this as peripheral. */
+	dr_mode = "peripheral";
 };
 
 &usb_1_hsphy {
