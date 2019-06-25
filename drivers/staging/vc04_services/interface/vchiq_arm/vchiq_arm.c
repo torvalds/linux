@@ -2705,42 +2705,6 @@ out:
 	return;
 }
 
-static void
-output_timeout_error(struct vchiq_state *state)
-{
-	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
-	char err[50] = "";
-	int vc_use_count = arm_state->videocore_use_count;
-	int active_services = state->unused_service;
-	int i;
-
-	if (!arm_state->videocore_use_count) {
-		snprintf(err, sizeof(err), " Videocore usecount is 0");
-		goto output_msg;
-	}
-	for (i = 0; i < active_services; i++) {
-		struct vchiq_service *service_ptr = state->services[i];
-
-		if (service_ptr && service_ptr->service_use_count &&
-			(service_ptr->srvstate != VCHIQ_SRVSTATE_FREE)) {
-			snprintf(err, sizeof(err), " %c%c%c%c(%d) service has "
-				"use count %d%s", VCHIQ_FOURCC_AS_4CHARS(
-					service_ptr->base.fourcc),
-				 service_ptr->client_id,
-				 service_ptr->service_use_count,
-				 service_ptr->service_use_count ==
-					 vc_use_count ? "" : " (+ more)");
-			break;
-		}
-	}
-
-output_msg:
-	vchiq_log_error(vchiq_susp_log_level,
-		"timed out waiting for vc suspend (%d).%s",
-		 arm_state->autosuspend_override, err);
-
-}
-
 void
 vchiq_check_suspend(struct vchiq_state *state)
 {
