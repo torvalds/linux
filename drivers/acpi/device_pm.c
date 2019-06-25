@@ -210,9 +210,15 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 			return -ENODEV;
 		}
 
-		result = acpi_dev_pm_explicit_set(device, state);
-		if (result)
-			goto end;
+		/*
+		 * If the device goes from D3hot to D3cold, _PS3 has been
+		 * evaluated for it already, so skip it in that case.
+		 */
+		if (device->power.state < ACPI_STATE_D3_HOT) {
+			result = acpi_dev_pm_explicit_set(device, state);
+			if (result)
+				goto end;
+		}
 
 		if (device->power.flags.power_resources)
 			result = acpi_power_transition(device, target_state);
