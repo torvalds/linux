@@ -179,7 +179,6 @@ static int radix__init_new_context(struct mm_struct *mm)
 	 */
 	asm volatile("ptesync;isync" : : : "memory");
 
-	mm->context.npu_context = NULL;
 	mm->context.hash_context = NULL;
 
 	return index;
