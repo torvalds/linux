@@ -1420,6 +1420,7 @@ config ARM64_SVE
 
 config ARM64_MODULE_PLTS
 	bool "Use PLTs to allow module memory to spill over into vmalloc area"
+	depends on MODULES
 	select HAVE_MOD_ARCH_SPECIFIC
 	help
 	  Allocate PLTs when loading modules so that jumps and calls whose
