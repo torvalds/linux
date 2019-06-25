@@ -654,7 +654,6 @@ int bnx2fc_send_srr(struct bnx2fc_cmd *orig_io_req, u32 offset, u8 r_ctl)
 	rc = bnx2fc_initiate_els(tgt, ELS_SRR, &srr, sizeof(srr),
 				 bnx2fc_srr_compl, cb_arg,
 				 r_a_tov);
-srr_err:
 	if (rc) {
 		BNX2FC_IO_DBG(orig_io_req, "SRR failed - release\n");
 		spin_lock_bh(&tgt->tgt_lock);
@@ -664,6 +663,7 @@ srr_err:
 	} else
 		set_bit(BNX2FC_FLAG_SRR_SENT, &orig_io_req->req_flags);
 
+srr_err:
 	return rc;
 }
 
