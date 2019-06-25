@@ -197,6 +197,8 @@ source "drivers/input/tablet/Kconfig"
 
 source "drivers/input/touchscreen/Kconfig"
 
+source "drivers/input/remotectl/Kconfig"
+
 source "drivers/input/misc/Kconfig"
 
 source "drivers/input/rmi4/Kconfig"
