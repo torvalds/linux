@@ -117,7 +117,7 @@ struct tee_shm *rk_tee_shm_alloc(struct tee *tee, size_t size, uint32_t flags)
 
 	ret = sg_alloc_table_from_pages(&shm->sgt, &page,
 			nr_pages, 0, nr_pages * PAGE_SIZE, GFP_KERNEL);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret < 0) {
 		dev_err(_DEV(tee), "%s: sg_alloc_table_from_pages() failed\n",
 				__func__);
 		tee->ops->free(shm);
