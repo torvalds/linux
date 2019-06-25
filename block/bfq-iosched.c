@@ -3210,7 +3210,186 @@ static void bfq_dispatch_remove(struct request_queue *q, struct request *rq)
 	bfq_remove_request(q, rq);
 }
 
-static bool __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq)
+/*
+ * There is a case where idling does not have to be performed for
+ * throughput concerns, but to preserve the throughput share of
+ * the process associated with bfqq.
+ *
+ * To introduce this case, we can note that allowing the drive
+ * to enqueue more than one request at a time, and hence
+ * delegating de facto final scheduling decisions to the
+ * drive's internal scheduler, entails loss of control on the
+ * actual request service order. In particular, the critical
+ * situation is when requests from different processes happen
+ * to be present, at the same time, in the internal queue(s)
+ * of the drive. In such a situation, the drive, by deciding
+ * the service order of the internally-queued requests, does
+ * determine also the actual throughput distribution among
+ * these processes. But the drive typically has no notion or
+ * concern about per-process throughput distribution, and
+ * makes its decisions only on a per-request basis. Therefore,
+ * the service distribution enforced by the drive's internal
+ * scheduler is likely to coincide with the desired throughput
+ * distribution only in a completely symmetric, or favorably
+ * skewed scenario where:
+ * (i-a) each of these processes must get the same throughput as
+ *	 the others,
+ * (i-b) in case (i-a) does not hold, it holds that the process
+ *       associated with bfqq must receive a lower or equal
+ *	 throughput than any of the other processes;
+ * (ii)  the I/O of each process has the same properties, in
+ *       terms of locality (sequential or random), direction
+ *       (reads or writes), request sizes, greediness
+ *       (from I/O-bound to sporadic), and so on;
+
+ * In fact, in such a scenario, the drive tends to treat the requests
+ * of each process in about the same way as the requests of the
+ * others, and thus to provide each of these processes with about the
+ * same throughput.  This is exactly the desired throughput
+ * distribution if (i-a) holds, or, if (i-b) holds instead, this is an
+ * even more convenient distribution for (the process associated with)
+ * bfqq.
+ *
+ * In contrast, in any asymmetric or unfavorable scenario, device
+ * idling (I/O-dispatch plugging) is certainly needed to guarantee
+ * that bfqq receives its assigned fraction of the device throughput
+ * (see [1] for details).
+ *
+ * The problem is that idling may significantly reduce throughput with
+ * certain combinations of types of I/O and devices. An important
+ * example is sync random I/O on flash storage with command
+ * queueing. So, unless bfqq falls in cases where idling also boosts
+ * throughput, it is important to check conditions (i-a), i(-b) and
+ * (ii) accurately, so as to avoid idling when not strictly needed for
+ * service guarantees.
+ *
+ * Unfortunately, it is extremely difficult to thoroughly check
+ * condition (ii). And, in case there are active groups, it becomes
+ * very difficult to check conditions (i-a) and (i-b) too.  In fact,
+ * if there are active groups, then, for conditions (i-a) or (i-b) to
+ * become false 'indirectly', it is enough that an active group
+ * contains more active processes or sub-groups than some other active
+ * group. More precisely, for conditions (i-a) or (i-b) to become
+ * false because of such a group, it is not even necessary that the
+ * group is (still) active: it is sufficient that, even if the group
+ * has become inactive, some of its descendant processes still have
+ * some request already dispatched but still waiting for
+ * completion. In fact, requests have still to be guaranteed their
+ * share of the throughput even after being dispatched. In this
+ * respect, it is easy to show that, if a group frequently becomes
+ * inactive while still having in-flight requests, and if, when this
+ * happens, the group is not considered in the calculation of whether
+ * the scenario is asymmetric, then the group may fail to be
+ * guaranteed its fair share of the throughput (basically because
+ * idling may not be performed for the descendant processes of the
+ * group, but it had to be).  We address this issue with the following
+ * bi-modal behavior, implemented in the function
+ * bfq_asymmetric_scenario().
+ *
+ * If there are groups with requests waiting for completion
+ * (as commented above, some of these groups may even be
+ * already inactive), then the scenario is tagged as
+ * asymmetric, conservatively, without checking any of the
+ * conditions (i-a), (i-b) or (ii). So the device is idled for bfqq.
+ * This behavior matches also the fact that groups are created
+ * exactly if controlling I/O is a primary concern (to
+ * preserve bandwidth and latency guarantees).
+ *
+ * On the opposite end, if there are no groups with requests waiting
+ * for completion, then only conditions (i-a) and (i-b) are actually
+ * controlled, i.e., provided that conditions (i-a) or (i-b) holds,
+ * idling is not performed, regardless of whether condition (ii)
+ * holds.  In other words, only if conditions (i-a) and (i-b) do not
+ * hold, then idling is allowed, and the device tends to be prevented
+ * from queueing many requests, possibly of several processes. Since
+ * there are no groups with requests waiting for completion, then, to
+ * control conditions (i-a) and (i-b) it is enough to check just
+ * whether all the queues with requests waiting for completion also
+ * have the same weight.
+ *
+ * Not checking condition (ii) evidently exposes bfqq to the
+ * risk of getting less throughput than its fair share.
+ * However, for queues with the same weight, a further
+ * mechanism, preemption, mitigates or even eliminates this
+ * problem. And it does so without consequences on overall
+ * throughput. This mechanism and its benefits are explained
+ * in the next three paragraphs.
+ *
+ * Even if a queue, say Q, is expired when it remains idle, Q
+ * can still preempt the new in-service queue if the next
+ * request of Q arrives soon (see the comments on
+ * bfq_bfqq_update_budg_for_activation). If all queues and
+ * groups have the same weight, this form of preemption,
+ * combined with the hole-recovery heuristic described in the
+ * comments on function bfq_bfqq_update_budg_for_activation,
+ * are enough to preserve a correct bandwidth distribution in
+ * the mid term, even without idling. In fact, even if not
+ * idling allows the internal queues of the device to contain
+ * many requests, and thus to reorder requests, we can rather
+ * safely assume that the internal scheduler still preserves a
+ * minimum of mid-term fairness.
+ *
+ * More precisely, this preemption-based, idleless approach
+ * provides fairness in terms of IOPS, and not sectors per
+ * second. This can be seen with a simple example. Suppose
+ * that there are two queues with the same weight, but that
+ * the first queue receives requests of 8 sectors, while the
+ * second queue receives requests of 1024 sectors. In
+ * addition, suppose that each of the two queues contains at
+ * most one request at a time, which implies that each queue
+ * always remains idle after it is served. Finally, after
+ * remaining idle, each queue receives very quickly a new
+ * request. It follows that the two queues are served
+ * alternatively, preempting each other if needed. This
+ * implies that, although both queues have the same weight,
+ * the queue with large requests receives a service that is
+ * 1024/8 times as high as the service received by the other
+ * queue.
+ *
+ * The motivation for using preemption instead of idling (for
+ * queues with the same weight) is that, by not idling,
+ * service guarantees are preserved (completely or at least in
+ * part) without minimally sacrificing throughput. And, if
+ * there is no active group, then the primary expectation for
+ * this device is probably a high throughput.
+ *
+ * We are now left only with explaining the additional
+ * compound condition that is checked below for deciding
+ * whether the scenario is asymmetric. To explain this
+ * compound condition, we need to add that the function
+ * bfq_asymmetric_scenario checks the weights of only
+ * non-weight-raised queues, for efficiency reasons (see
+ * comments on bfq_weights_tree_add()). Then the fact that
+ * bfqq is weight-raised is checked explicitly here. More
+ * precisely, the compound condition below takes into account
+ * also the fact that, even if bfqq is being weight-raised,
+ * the scenario is still symmetric if all queues with requests
+ * waiting for completion happen to be
+ * weight-raised. Actually, we should be even more precise
+ * here, and differentiate between interactive weight raising
+ * and soft real-time weight raising.
+ *
+ * As a side note, it is worth considering that the above
+ * device-idling countermeasures may however fail in the
+ * following unlucky scenario: if idling is (correctly)
+ * disabled in a time period during which all symmetry
+ * sub-conditions hold, and hence the device is allowed to
+ * enqueue many requests, but at some later point in time some
+ * sub-condition stops to hold, then it may become impossible
+ * to let requests be served in the desired order until all
+ * the requests already queued in the device have been served.
+ */
+static bool idling_needed_for_service_guarantees(struct bfq_data *bfqd,
+						 struct bfq_queue *bfqq)
+{
+	return (bfqq->wr_coeff > 1 &&
+		bfqd->wr_busy_queues <
+		bfq_tot_busy_queues(bfqd)) ||
+		bfq_asymmetric_scenario(bfqd, bfqq);
+}
+
+static bool __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq,
+			      enum bfqq_expiration reason)
 {
 	/*
 	 * If this bfqq is shared between multiple processes, check
@@ -3221,7 +3400,22 @@ static bool __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 	if (bfq_bfqq_coop(bfqq) && BFQQ_SEEKY(bfqq))
 		bfq_mark_bfqq_split_coop(bfqq);
 
-	if (RB_EMPTY_ROOT(&bfqq->sort_list)) {
+	/*
+	 * Consider queues with a higher finish virtual time than
+	 * bfqq. If idling_needed_for_service_guarantees(bfqq) returns
+	 * true, then bfqq's bandwidth would be violated if an
+	 * uncontrolled amount of I/O from these queues were
+	 * dispatched while bfqq is waiting for its new I/O to
+	 * arrive. This is exactly what may happen if this is a forced
+	 * expiration caused by a preemption attempt, and if bfqq is
+	 * not re-scheduled. To prevent this from happening, re-queue
+	 * bfqq if it needs I/O-dispatch plugging, even if it is
+	 * empty. By doing so, bfqq is granted to be served before the
+	 * above queues (provided that bfqq is of course eligible).
+	 */
+	if (RB_EMPTY_ROOT(&bfqq->sort_list) &&
+	    !(reason == BFQQE_PREEMPTED &&
+	      idling_needed_for_service_guarantees(bfqd, bfqq))) {
 		if (bfqq->dispatched == 0)
 			/*
 			 * Overloading budget_timeout field to store
@@ -3238,7 +3432,8 @@ static bool __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 		 * Resort priority tree of potential close cooperators.
 		 * See comments on bfq_pos_tree_add_move() for the unlikely().
 		 */
-		if (unlikely(!bfqd->nonrot_with_queueing))
+		if (unlikely(!bfqd->nonrot_with_queueing &&
+			     !RB_EMPTY_ROOT(&bfqq->sort_list)))
 			bfq_pos_tree_add_move(bfqd, bfqq);
 	}
 
@@ -3739,7 +3934,7 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 	 * reason.
 	 */
 	__bfq_bfqq_recalc_budget(bfqd, bfqq, reason);
-	if (__bfq_bfqq_expire(bfqd, bfqq))
+	if (__bfq_bfqq_expire(bfqd, bfqq, reason))
 		/* bfqq is gone, no more actions on it */
 		return;
 
@@ -3883,184 +4078,6 @@ static bool idling_boosts_thr_without_issues(struct bfq_data *bfqd,
 	 */
 	return idling_boosts_thr &&
 		bfqd->wr_busy_queues == 0;
-}
-
-/*
- * There is a case where idling does not have to be performed for
- * throughput concerns, but to preserve the throughput share of
- * the process associated with bfqq.
- *
- * To introduce this case, we can note that allowing the drive
- * to enqueue more than one request at a time, and hence
- * delegating de facto final scheduling decisions to the
- * drive's internal scheduler, entails loss of control on the
- * actual request service order. In particular, the critical
- * situation is when requests from different processes happen
- * to be present, at the same time, in the internal queue(s)
- * of the drive. In such a situation, the drive, by deciding
- * the service order of the internally-queued requests, does
- * determine also the actual throughput distribution among
- * these processes. But the drive typically has no notion or
- * concern about per-process throughput distribution, and
- * makes its decisions only on a per-request basis. Therefore,
- * the service distribution enforced by the drive's internal
- * scheduler is likely to coincide with the desired throughput
- * distribution only in a completely symmetric, or favorably
- * skewed scenario where:
- * (i-a) each of these processes must get the same throughput as
- *	 the others,
- * (i-b) in case (i-a) does not hold, it holds that the process
- *       associated with bfqq must receive a lower or equal
- *	 throughput than any of the other processes;
- * (ii)  the I/O of each process has the same properties, in
- *       terms of locality (sequential or random), direction
- *       (reads or writes), request sizes, greediness
- *       (from I/O-bound to sporadic), and so on;
-
- * In fact, in such a scenario, the drive tends to treat the requests
- * of each process in about the same way as the requests of the
- * others, and thus to provide each of these processes with about the
- * same throughput.  This is exactly the desired throughput
- * distribution if (i-a) holds, or, if (i-b) holds instead, this is an
- * even more convenient distribution for (the process associated with)
- * bfqq.
- *
- * In contrast, in any asymmetric or unfavorable scenario, device
- * idling (I/O-dispatch plugging) is certainly needed to guarantee
- * that bfqq receives its assigned fraction of the device throughput
- * (see [1] for details).
- *
- * The problem is that idling may significantly reduce throughput with
- * certain combinations of types of I/O and devices. An important
- * example is sync random I/O on flash storage with command
- * queueing. So, unless bfqq falls in cases where idling also boosts
- * throughput, it is important to check conditions (i-a), i(-b) and
- * (ii) accurately, so as to avoid idling when not strictly needed for
- * service guarantees.
- *
- * Unfortunately, it is extremely difficult to thoroughly check
- * condition (ii). And, in case there are active groups, it becomes
- * very difficult to check conditions (i-a) and (i-b) too.  In fact,
- * if there are active groups, then, for conditions (i-a) or (i-b) to
- * become false 'indirectly', it is enough that an active group
- * contains more active processes or sub-groups than some other active
- * group. More precisely, for conditions (i-a) or (i-b) to become
- * false because of such a group, it is not even necessary that the
- * group is (still) active: it is sufficient that, even if the group
- * has become inactive, some of its descendant processes still have
- * some request already dispatched but still waiting for
- * completion. In fact, requests have still to be guaranteed their
- * share of the throughput even after being dispatched. In this
- * respect, it is easy to show that, if a group frequently becomes
- * inactive while still having in-flight requests, and if, when this
- * happens, the group is not considered in the calculation of whether
- * the scenario is asymmetric, then the group may fail to be
- * guaranteed its fair share of the throughput (basically because
- * idling may not be performed for the descendant processes of the
- * group, but it had to be).  We address this issue with the following
- * bi-modal behavior, implemented in the function
- * bfq_asymmetric_scenario().
- *
- * If there are groups with requests waiting for completion
- * (as commented above, some of these groups may even be
- * already inactive), then the scenario is tagged as
- * asymmetric, conservatively, without checking any of the
- * conditions (i-a), (i-b) or (ii). So the device is idled for bfqq.
- * This behavior matches also the fact that groups are created
- * exactly if controlling I/O is a primary concern (to
- * preserve bandwidth and latency guarantees).
- *
- * On the opposite end, if there are no groups with requests waiting
- * for completion, then only conditions (i-a) and (i-b) are actually
- * controlled, i.e., provided that conditions (i-a) or (i-b) holds,
- * idling is not performed, regardless of whether condition (ii)
- * holds.  In other words, only if conditions (i-a) and (i-b) do not
- * hold, then idling is allowed, and the device tends to be prevented
- * from queueing many requests, possibly of several processes. Since
- * there are no groups with requests waiting for completion, then, to
- * control conditions (i-a) and (i-b) it is enough to check just
- * whether all the queues with requests waiting for completion also
- * have the same weight.
- *
- * Not checking condition (ii) evidently exposes bfqq to the
- * risk of getting less throughput than its fair share.
- * However, for queues with the same weight, a further
- * mechanism, preemption, mitigates or even eliminates this
- * problem. And it does so without consequences on overall
- * throughput. This mechanism and its benefits are explained
- * in the next three paragraphs.
- *
- * Even if a queue, say Q, is expired when it remains idle, Q
- * can still preempt the new in-service queue if the next
- * request of Q arrives soon (see the comments on
- * bfq_bfqq_update_budg_for_activation). If all queues and
- * groups have the same weight, this form of preemption,
- * combined with the hole-recovery heuristic described in the
- * comments on function bfq_bfqq_update_budg_for_activation,
- * are enough to preserve a correct bandwidth distribution in
- * the mid term, even without idling. In fact, even if not
- * idling allows the internal queues of the device to contain
- * many requests, and thus to reorder requests, we can rather
- * safely assume that the internal scheduler still preserves a
- * minimum of mid-term fairness.
- *
- * More precisely, this preemption-based, idleless approach
- * provides fairness in terms of IOPS, and not sectors per
- * second. This can be seen with a simple example. Suppose
- * that there are two queues with the same weight, but that
- * the first queue receives requests of 8 sectors, while the
- * second queue receives requests of 1024 sectors. In
- * addition, suppose that each of the two queues contains at
- * most one request at a time, which implies that each queue
- * always remains idle after it is served. Finally, after
- * remaining idle, each queue receives very quickly a new
- * request. It follows that the two queues are served
- * alternatively, preempting each other if needed. This
- * implies that, although both queues have the same weight,
- * the queue with large requests receives a service that is
- * 1024/8 times as high as the service received by the other
- * queue.
- *
- * The motivation for using preemption instead of idling (for
- * queues with the same weight) is that, by not idling,
- * service guarantees are preserved (completely or at least in
- * part) without minimally sacrificing throughput. And, if
- * there is no active group, then the primary expectation for
- * this device is probably a high throughput.
- *
- * We are now left only with explaining the additional
- * compound condition that is checked below for deciding
- * whether the scenario is asymmetric. To explain this
- * compound condition, we need to add that the function
- * bfq_asymmetric_scenario checks the weights of only
- * non-weight-raised queues, for efficiency reasons (see
- * comments on bfq_weights_tree_add()). Then the fact that
- * bfqq is weight-raised is checked explicitly here. More
- * precisely, the compound condition below takes into account
- * also the fact that, even if bfqq is being weight-raised,
- * the scenario is still symmetric if all queues with requests
- * waiting for completion happen to be
- * weight-raised. Actually, we should be even more precise
- * here, and differentiate between interactive weight raising
- * and soft real-time weight raising.
- *
- * As a side note, it is worth considering that the above
- * device-idling countermeasures may however fail in the
- * following unlucky scenario: if idling is (correctly)
- * disabled in a time period during which all symmetry
- * sub-conditions hold, and hence the device is allowed to
- * enqueue many requests, but at some later point in time some
- * sub-condition stops to hold, then it may become impossible
- * to let requests be served in the desired order until all
- * the requests already queued in the device have been served.
- */
-static bool idling_needed_for_service_guarantees(struct bfq_data *bfqd,
-						 struct bfq_queue *bfqq)
-{
-	return (bfqq->wr_coeff > 1 &&
-		bfqd->wr_busy_queues <
-		bfq_tot_busy_queues(bfqd)) ||
-		bfq_asymmetric_scenario(bfqd, bfqq);
 }
 
 /*
@@ -4321,7 +4338,8 @@ check_queue:
 	    (bfqq->dispatched != 0 && bfq_better_to_idle(bfqq))) {
 		struct bfq_queue *async_bfqq =
 			bfqq->bic && bfqq->bic->bfqq[0] &&
-			bfq_bfqq_busy(bfqq->bic->bfqq[0]) ?
+			bfq_bfqq_busy(bfqq->bic->bfqq[0]) &&
+			bfqq->bic->bfqq[0]->next_rq ?
 			bfqq->bic->bfqq[0] : NULL;
 
 		/*
@@ -4403,6 +4421,7 @@ check_queue:
 			bfqq = bfqq->bic->bfqq[0];
 		else if (bfq_bfqq_has_waker(bfqq) &&
 			   bfq_bfqq_busy(bfqq->waker_bfqq) &&
+			   bfqq->next_rq &&
 			   bfq_serv_to_charge(bfqq->waker_bfqq->next_rq,
 					      bfqq->waker_bfqq) <=
 			   bfq_bfqq_budget_left(bfqq->waker_bfqq)
@@ -4800,7 +4819,7 @@ static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 	struct hlist_node *n;
 
 	if (bfqq == bfqd->in_service_queue) {
-		__bfq_bfqq_expire(bfqd, bfqq);
+		__bfq_bfqq_expire(bfqd, bfqq, BFQQE_BUDGET_TIMEOUT);
 		bfq_schedule_dispatch(bfqd);
 	}
 
