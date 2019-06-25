@@ -396,7 +396,8 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	in_flow_context = MLX5_ADDR_OF(set_fte_in, in, flow_context);
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
 
-	MLX5_SET(flow_context, in_flow_context, flow_tag, fte->action.flow_tag);
+	MLX5_SET(flow_context, in_flow_context, flow_tag,
+		 fte->flow_context.flow_tag);
 	MLX5_SET(flow_context, in_flow_context, extended_destination,
 		 extended_dest);
 	if (extended_dest) {
