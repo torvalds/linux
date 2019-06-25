@@ -164,7 +164,7 @@ kp_spi_read_reg(struct kp_spi_controller_state *cs, int idx)
 	u64 val;
 
 	addr += idx;
-	if ((idx == KP_SPI_REG_CONFIG) && (cs->conf_cache >= 0)){
+	if ((idx == KP_SPI_REG_CONFIG) && (cs->conf_cache >= 0)) {
 		return cs->conf_cache;
 	}
 	val = readq(addr);
@@ -223,9 +223,9 @@ kp_spi_txrx_pio(struct spi_device *spidev, struct spi_transfer *transfer)
 			processed++;
 		}
 	}
-	else if(rx) {
+	else if (rx) {
 		for (i = 0 ; i < c ; i++) {
-			char test=0;
+			char test = 0;
 
 			kp_spi_write_reg(cs, KP_SPI_REG_TXDATA, 0x00);
 
@@ -261,7 +261,7 @@ kp_spi_setup(struct spi_device *spidev)
 	cs = spidev->controller_state;
 	if (!cs) {
 		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
-		if(!cs) {
+		if (!cs) {
 			return -ENOMEM;
 		}
 		cs->base = kpspi->base;
@@ -364,7 +364,7 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
 			if (transfer->bits_per_word) {
 				word_len = transfer->bits_per_word;
 			}
-			sc.bitfield.wl = word_len-1;
+			sc.bitfield.wl = word_len - 1;
 
 			/* ...chip select */
 			sc.bitfield.cs = spidev->chip_select;
@@ -425,7 +425,7 @@ kp_spi_probe(struct platform_device *pldev)
 	int i;
 
 	drvdata = pldev->dev.platform_data;
-	if (!drvdata){
+	if (!drvdata) {
 		dev_err(&pldev->dev, "kp_spi_probe: platform_data is NULL!\n");
 		return -ENODEV;
 	}
@@ -476,7 +476,7 @@ kp_spi_probe(struct platform_device *pldev)
 		spi_new_device(master, &(table[i])); \
 	}
 
-	switch ((drvdata->card_id & 0xFFFF0000) >> 16){
+	switch ((drvdata->card_id & 0xFFFF0000) >> 16) {
 	case PCI_DEVICE_ID_DAKTRONICS_KADOKA_P2KR0:
 		NEW_SPI_DEVICE_FROM_BOARD_INFO_TABLE(p2kr0_board_info);
 		break;
