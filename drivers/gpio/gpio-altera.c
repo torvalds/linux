@@ -238,6 +238,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	int reg, ret;
 	struct altera_gpio_chip *altera_gc;
+	struct gpio_irq_chip *girq;
 
 	altera_gc = devm_kzalloc(&pdev->dev, sizeof(*altera_gc), GFP_KERNEL);
 	if (!altera_gc)
@@ -265,24 +266,15 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	altera_gc->mmchip.gc.owner		= THIS_MODULE;
 	altera_gc->mmchip.gc.parent		= &pdev->dev;
 
-	ret = of_mm_gpiochip_add_data(node, &altera_gc->mmchip, altera_gc);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed adding memory mapped gpiochip\n");
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, altera_gc);
-
 	altera_gc->mapped_irq = platform_get_irq(pdev, 0);
 
 	if (altera_gc->mapped_irq < 0)
 		goto skip_irq;
 
 	if (of_property_read_u32(node, "altr,interrupt-type", &reg)) {
-		ret = -EINVAL;
 		dev_err(&pdev->dev,
 			"altr,interrupt-type value not set in device tree\n");
-		goto teardown;
+		return -EINVAL;
 	}
 	altera_gc->interrupt_trigger = reg;
 
@@ -293,29 +285,31 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	altera_gc->irq_chip.irq_startup  = altera_gpio_irq_startup;
 	altera_gc->irq_chip.irq_shutdown = altera_gpio_irq_mask;
 
-	ret = gpiochip_irqchip_add(&altera_gc->mmchip.gc, &altera_gc->irq_chip,
-		0, handle_bad_irq, IRQ_TYPE_NONE);
-
-	if (ret) {
-		dev_err(&pdev->dev, "could not add irqchip\n");
-		goto teardown;
-	}
-
-	gpiochip_set_chained_irqchip(&altera_gc->mmchip.gc,
-		&altera_gc->irq_chip,
-		altera_gc->mapped_irq,
-		altera_gc->interrupt_trigger == IRQ_TYPE_LEVEL_HIGH ?
-		altera_gpio_irq_leveL_high_handler :
-		altera_gpio_irq_edge_handler);
+	girq = &altera_gc->mmchip.gc.irq;
+	girq->chip = &altera_gc->irq_chip;
+	if (altera_gc->interrupt_trigger == IRQ_TYPE_LEVEL_HIGH)
+		girq->parent_handler = altera_gpio_irq_leveL_high_handler;
+	else
+		girq->parent_handler = altera_gpio_irq_edge_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1, sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_bad_irq;
+	girq->parents[0] = altera_gc->mapped_irq;
 
 skip_irq:
-	return 0;
-teardown:
-	of_mm_gpiochip_remove(&altera_gc->mmchip);
-	pr_err("%pOF: registration failed with status %d\n",
-		node, ret);
+	ret = of_mm_gpiochip_add_data(node, &altera_gc->mmchip, altera_gc);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed adding memory mapped gpiochip\n");
+		return ret;
+	}
 
-	return ret;
+	platform_set_drvdata(pdev, altera_gc);
+
+	return 0;
 }
 
 static int altera_gpio_remove(struct platform_device *pdev)
