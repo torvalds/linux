@@ -732,7 +732,7 @@ static void link_profile_stats(struct tipc_link *l)
 	if (msg_user(msg) == MSG_FRAGMENTER) {
 		if (msg_type(msg) != FIRST_FRAGMENT)
 			return;
-		length = msg_size(msg_get_wrapped(msg));
+		length = msg_size(msg_inner_hdr(msg));
 	}
 	l->stats.msg_lengths_total += length;
 	l->stats.msg_length_counts++;
