@@ -93,6 +93,12 @@ struct usbhs_mod_info {
 	 */
 	int (*irq_vbus)(struct usbhs_priv *priv,
 			struct usbhs_irq_state *irq_state);
+
+	/*
+	 * This function will be used on any gadget mode. To simplify the code,
+	 * this member is in here.
+	 */
+	int (*get_vbus)(struct platform_device *pdev);
 };
 
 /*
@@ -107,6 +113,7 @@ int usbhs_mod_probe(struct usbhs_priv *priv);
 void usbhs_mod_remove(struct usbhs_priv *priv);
 
 void usbhs_mod_autonomy_mode(struct usbhs_priv *priv);
+void usbhs_mod_non_autonomy_mode(struct usbhs_priv *priv);
 
 /*
  *		status functions

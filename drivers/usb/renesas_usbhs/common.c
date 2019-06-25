@@ -448,7 +448,7 @@ static void usbhsc_hotplug(struct usbhs_priv *priv)
 	/*
 	 * get vbus status from platform
 	 */
-	enable = usbhs_platform_call(priv, get_vbus, pdev);
+	enable = usbhs_mod_info_call(priv, get_vbus, pdev);
 
 	/*
 	 * get id from platform
@@ -809,6 +809,8 @@ static int usbhs_probe(struct platform_device *pdev)
 	if (!usbhs_get_dparam(priv, runtime_pwctrl)) {
 		usbhsc_power_ctrl(priv, 1);
 		usbhs_mod_autonomy_mode(priv);
+	} else {
+		usbhs_mod_non_autonomy_mode(priv);
 	}
 
 	/*

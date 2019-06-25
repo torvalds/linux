@@ -915,8 +915,8 @@ static void usbhs_mod_phy_mode(struct usbhs_priv *priv)
 {
 	struct usbhs_mod_info *info = &priv->mod_info;
 
-	info->irq_vbus		= NULL;
-	priv->pfunc.get_vbus	= usbhsm_phy_get_vbus;
+	info->irq_vbus = NULL;
+	info->get_vbus = usbhsm_phy_get_vbus;
 
 	usbhs_irq_callback_update(priv, NULL);
 }
