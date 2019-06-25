@@ -39,11 +39,6 @@ int vchiu_queue_is_empty(struct vchiu_queue *queue)
 	return queue->read == queue->write;
 }
 
-int vchiu_queue_is_full(struct vchiu_queue *queue)
-{
-	return queue->write == queue->read + queue->size;
-}
-
 void vchiu_queue_push(struct vchiu_queue *queue, struct vchiq_header *header)
 {
 	if (!queue->initialized)
