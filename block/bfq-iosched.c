@@ -1735,6 +1735,72 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 				false, BFQQE_PREEMPTED);
 }
 
+static void bfq_reset_inject_limit(struct bfq_data *bfqd,
+				   struct bfq_queue *bfqq)
+{
+	/* invalidate baseline total service time */
+	bfqq->last_serv_time_ns = 0;
+
+	/*
+	 * Reset pointer in case we are waiting for
+	 * some request completion.
+	 */
+	bfqd->waited_rq = NULL;
+
+	/*
+	 * If bfqq has a short think time, then start by setting the
+	 * inject limit to 0 prudentially, because the service time of
+	 * an injected I/O request may be higher than the think time
+	 * of bfqq, and therefore, if one request was injected when
+	 * bfqq remains empty, this injected request might delay the
+	 * service of the next I/O request for bfqq significantly. In
+	 * case bfqq can actually tolerate some injection, then the
+	 * adaptive update will however raise the limit soon. This
+	 * lucky circumstance holds exactly because bfqq has a short
+	 * think time, and thus, after remaining empty, is likely to
+	 * get new I/O enqueued---and then completed---before being
+	 * expired. This is the very pattern that gives the
+	 * limit-update algorithm the chance to measure the effect of
+	 * injection on request service times, and then to update the
+	 * limit accordingly.
+	 *
+	 * However, in the following special case, the inject limit is
+	 * left to 1 even if the think time is short: bfqq's I/O is
+	 * synchronized with that of some other queue, i.e., bfqq may
+	 * receive new I/O only after the I/O of the other queue is
+	 * completed. Keeping the inject limit to 1 allows the
+	 * blocking I/O to be served while bfqq is in service. And
+	 * this is very convenient both for bfqq and for overall
+	 * throughput, as explained in detail in the comments in
+	 * bfq_update_has_short_ttime().
+	 *
+	 * On the opposite end, if bfqq has a long think time, then
+	 * start directly by 1, because:
+	 * a) on the bright side, keeping at most one request in
+	 * service in the drive is unlikely to cause any harm to the
+	 * latency of bfqq's requests, as the service time of a single
+	 * request is likely to be lower than the think time of bfqq;
+	 * b) on the downside, after becoming empty, bfqq is likely to
+	 * expire before getting its next request. With this request
+	 * arrival pattern, it is very hard to sample total service
+	 * times and update the inject limit accordingly (see comments
+	 * on bfq_update_inject_limit()). So the limit is likely to be
+	 * never, or at least seldom, updated.  As a consequence, by
+	 * setting the limit to 1, we avoid that no injection ever
+	 * occurs with bfqq. On the downside, this proactive step
+	 * further reduces chances to actually compute the baseline
+	 * total service time. Thus it reduces chances to execute the
+	 * limit-update algorithm and possibly raise the limit to more
+	 * than 1.
+	 */
+	if (bfq_bfqq_has_short_ttime(bfqq))
+		bfqq->inject_limit = 0;
+	else
+		bfqq->inject_limit = 1;
+
+	bfqq->decrease_time_jif = jiffies;
+}
+
 static void bfq_add_request(struct request *rq)
 {
 	struct bfq_queue *bfqq = RQ_BFQQ(rq);
@@ -1755,71 +1821,8 @@ static void bfq_add_request(struct request *rq)
 		 * bfq_update_inject_limit().
 		 */
 		if (time_is_before_eq_jiffies(bfqq->decrease_time_jif +
-					     msecs_to_jiffies(1000))) {
-			/* invalidate baseline total service time */
-			bfqq->last_serv_time_ns = 0;
-
-			/*
-			 * Reset pointer in case we are waiting for
-			 * some request completion.
-			 */
-			bfqd->waited_rq = NULL;
-
-			/*
-			 * If bfqq has a short think time, then start
-			 * by setting the inject limit to 0
-			 * prudentially, because the service time of
-			 * an injected I/O request may be higher than
-			 * the think time of bfqq, and therefore, if
-			 * one request was injected when bfqq remains
-			 * empty, this injected request might delay
-			 * the service of the next I/O request for
-			 * bfqq significantly. In case bfqq can
-			 * actually tolerate some injection, then the
-			 * adaptive update will however raise the
-			 * limit soon. This lucky circumstance holds
-			 * exactly because bfqq has a short think
-			 * time, and thus, after remaining empty, is
-			 * likely to get new I/O enqueued---and then
-			 * completed---before being expired. This is
-			 * the very pattern that gives the
-			 * limit-update algorithm the chance to
-			 * measure the effect of injection on request
-			 * service times, and then to update the limit
-			 * accordingly.
-			 *
-			 * On the opposite end, if bfqq has a long
-			 * think time, then start directly by 1,
-			 * because:
-			 * a) on the bright side, keeping at most one
-			 * request in service in the drive is unlikely
-			 * to cause any harm to the latency of bfqq's
-			 * requests, as the service time of a single
-			 * request is likely to be lower than the
-			 * think time of bfqq;
-			 * b) on the downside, after becoming empty,
-			 * bfqq is likely to expire before getting its
-			 * next request. With this request arrival
-			 * pattern, it is very hard to sample total
-			 * service times and update the inject limit
-			 * accordingly (see comments on
-			 * bfq_update_inject_limit()). So the limit is
-			 * likely to be never, or at least seldom,
-			 * updated.  As a consequence, by setting the
-			 * limit to 1, we avoid that no injection ever
-			 * occurs with bfqq. On the downside, this
-			 * proactive step further reduces chances to
-			 * actually compute the baseline total service
-			 * time. Thus it reduces chances to execute the
-			 * limit-update algorithm and possibly raise the
-			 * limit to more than 1.
-			 */
-			if (bfq_bfqq_has_short_ttime(bfqq))
-				bfqq->inject_limit = 0;
-			else
-				bfqq->inject_limit = 1;
-			bfqq->decrease_time_jif = jiffies;
-		}
+					     msecs_to_jiffies(1000)))
+			bfq_reset_inject_limit(bfqd, bfqq);
 
 		/*
 		 * The following conditions must hold to setup a new
@@ -4855,7 +4858,7 @@ static void bfq_update_has_short_ttime(struct bfq_data *bfqd,
 				       struct bfq_queue *bfqq,
 				       struct bfq_io_cq *bic)
 {
-	bool has_short_ttime = true;
+	bool has_short_ttime = true, state_changed;
 
 	/*
 	 * No need to update has_short_ttime if bfqq is async or in
@@ -4880,13 +4883,93 @@ static void bfq_update_has_short_ttime(struct bfq_data *bfqd,
 	     bfqq->ttime.ttime_mean > bfqd->bfq_slice_idle))
 		has_short_ttime = false;
 
-	bfq_log_bfqq(bfqd, bfqq, "update_has_short_ttime: has_short_ttime %d",
-		     has_short_ttime);
+	state_changed = has_short_ttime != bfq_bfqq_has_short_ttime(bfqq);
 
 	if (has_short_ttime)
 		bfq_mark_bfqq_has_short_ttime(bfqq);
 	else
 		bfq_clear_bfqq_has_short_ttime(bfqq);
+
+	/*
+	 * Until the base value for the total service time gets
+	 * finally computed for bfqq, the inject limit does depend on
+	 * the think-time state (short|long). In particular, the limit
+	 * is 0 or 1 if the think time is deemed, respectively, as
+	 * short or long (details in the comments in
+	 * bfq_update_inject_limit()). Accordingly, the next
+	 * instructions reset the inject limit if the think-time state
+	 * has changed and the above base value is still to be
+	 * computed.
+	 *
+	 * However, the reset is performed only if more than 100 ms
+	 * have elapsed since the last update of the inject limit, or
+	 * (inclusive) if the change is from short to long think
+	 * time. The reason for this waiting is as follows.
+	 *
+	 * bfqq may have a long think time because of a
+	 * synchronization with some other queue, i.e., because the
+	 * I/O of some other queue may need to be completed for bfqq
+	 * to receive new I/O. This happens, e.g., if bfqq is
+	 * associated with a process that does some sync. A sync
+	 * generates extra blocking I/O, which must be completed
+	 * before the process associated with bfqq can go on with its
+	 * I/O.
+	 *
+	 * If such a synchronization is actually in place, then,
+	 * without injection on bfqq, the blocking I/O cannot happen
+	 * to served while bfqq is in service. As a consequence, if
+	 * bfqq is granted I/O-dispatch-plugging, then bfqq remains
+	 * empty, and no I/O is dispatched, until the idle timeout
+	 * fires. This is likely to result in lower bandwidth and
+	 * higher latencies for bfqq, and in a severe loss of total
+	 * throughput.
+	 *
+	 * On the opposite end, a non-zero inject limit may allow the
+	 * I/O that blocks bfqq to be executed soon, and therefore
+	 * bfqq to receive new I/O soon. But, if this actually
+	 * happens, then the next think-time sample for bfqq may be
+	 * very low. This in turn may cause bfqq's think time to be
+	 * deemed short. Without the 100 ms barrier, this new state
+	 * change would cause the body of the next if to be executed
+	 * immediately. But this would set to 0 the inject
+	 * limit. Without injection, the blocking I/O would cause the
+	 * think time of bfqq to become long again, and therefore the
+	 * inject limit to be raised again, and so on. The only effect
+	 * of such a steady oscillation between the two think-time
+	 * states would be to prevent effective injection on bfqq.
+	 *
+	 * In contrast, if the inject limit is not reset during such a
+	 * long time interval as 100 ms, then the number of short
+	 * think time samples can grow significantly before the reset
+	 * is allowed. As a consequence, the think time state can
+	 * become stable before the reset. There will be no state
+	 * change when the 100 ms elapse, and therefore no reset of
+	 * the inject limit. The inject limit remains steadily equal
+	 * to 1 both during and after the 100 ms. So injection can be
+	 * performed at all times, and throughput gets boosted.
+	 *
+	 * An inject limit equal to 1 is however in conflict, in
+	 * general, with the fact that the think time of bfqq is
+	 * short, because injection may be likely to delay bfqq's I/O
+	 * (as explained in the comments in
+	 * bfq_update_inject_limit()). But this does not happen in
+	 * this special case, because bfqq's low think time is due to
+	 * an effective handling of a synchronization, through
+	 * injection. In this special case, bfqq's I/O does not get
+	 * delayed by injection; on the contrary, bfqq's I/O is
+	 * brought forward, because it is not blocked for
+	 * milliseconds.
+	 *
+	 * In addition, during the 100 ms, the base value for the
+	 * total service time is likely to get finally computed,
+	 * freeing the inject limit from its relation with the think
+	 * time.
+	 */
+	if (state_changed && bfqq->last_serv_time_ns == 0 &&
+	    (time_is_before_eq_jiffies(bfqq->decrease_time_jif +
+				      msecs_to_jiffies(100)) ||
+	     !has_short_ttime))
+		bfq_reset_inject_limit(bfqd, bfqq);
 }
 
 /*
