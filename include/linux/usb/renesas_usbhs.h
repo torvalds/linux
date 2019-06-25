@@ -170,7 +170,6 @@ struct renesas_usbhs_driver_param {
 	 */
 	int pio_dma_border; /* default is 64byte */
 
-	uintptr_t type;
 	u32 enable_gpio;
 
 	/*
@@ -183,12 +182,6 @@ struct renesas_usbhs_driver_param {
 #define USBHS_USB_DMAC_XFER_SIZE	32	/* hardcode the xfer size */
 	u32 multi_clks:1;
 };
-
-#define USBHS_TYPE_RCAR_GEN2		1
-#define USBHS_TYPE_RCAR_GEN3		2
-#define USBHS_TYPE_RCAR_GEN3_WITH_PLL	3
-#define USBHS_TYPE_RZA1			4
-#define USBHS_TYPE_RZA2			5
 
 /*
  * option:
