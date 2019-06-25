@@ -2508,24 +2508,6 @@ static int allegro_s_fmt_vid_out(struct file *file, void *fh,
 	return 0;
 }
 
-static int allegro_try_encoder_cmd(struct file *file, void *fh,
-				   struct v4l2_encoder_cmd *cmd)
-{
-	switch (cmd->cmd) {
-	case V4L2_ENC_CMD_START:
-		cmd->flags = 0;
-		break;
-	case V4L2_ENC_CMD_STOP:
-		if (cmd->flags)
-			return -EINVAL;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int allegro_channel_cmd_stop(struct allegro_channel *channel)
 {
 	struct allegro_dev *dev = channel->dev;
@@ -2594,7 +2576,7 @@ static int allegro_encoder_cmd(struct file *file, void *fh,
 	struct allegro_channel *channel = fh_to_channel(fh);
 	int err;
 
-	err = allegro_try_encoder_cmd(file, fh, cmd);
+	err = v4l2_m2m_ioctl_try_encoder_cmd(file, fh, cmd);
 	if (err)
 		return err;
 
@@ -2688,7 +2670,7 @@ static const struct v4l2_ioctl_ops allegro_ioctl_ops = {
 	.vidioc_streamon = allegro_ioctl_streamon,
 	.vidioc_streamoff = v4l2_m2m_ioctl_streamoff,
 
-	.vidioc_try_encoder_cmd = allegro_try_encoder_cmd,
+	.vidioc_try_encoder_cmd = v4l2_m2m_ioctl_try_encoder_cmd,
 	.vidioc_encoder_cmd = allegro_encoder_cmd,
 	.vidioc_enum_framesizes = allegro_enum_framesizes,
 
