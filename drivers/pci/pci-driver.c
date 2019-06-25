@@ -859,7 +859,7 @@ static int pci_pm_suspend_noirq(struct device *dev)
 			pci_dev->bus->self->skip_bus_pm = true;
 	}
 
-	if (pci_dev->skip_bus_pm && !pm_suspend_via_firmware()) {
+	if (pci_dev->skip_bus_pm && pm_suspend_no_platform()) {
 		dev_dbg(dev, "PCI PM: Skipped\n");
 		goto Fixup;
 	}
@@ -914,10 +914,10 @@ static int pci_pm_resume_noirq(struct device *dev)
 	/*
 	 * In the suspend-to-idle case, devices left in D0 during suspend will
 	 * stay in D0, so it is not necessary to restore or update their
-	 * configuration here and attempting to put them into D0 again may
-	 * confuse some firmware, so avoid doing that.
+	 * configuration here and attempting to put them into D0 again is
+	 * pointless, so avoid doing that.
 	 */
-	if (!pci_dev->skip_bus_pm || pm_suspend_via_firmware())
+	if (!(pci_dev->skip_bus_pm && pm_suspend_no_platform()))
 		pci_pm_default_resume_early(pci_dev);
 
 	pci_fixup_device(pci_fixup_resume_early, pci_dev);
