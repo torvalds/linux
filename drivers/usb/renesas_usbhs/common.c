@@ -3,6 +3,7 @@
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  */
 #include <linux/clk.h>
@@ -513,7 +514,7 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 	usbhsc_hotplug(priv);
 }
 
-static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
+int usbhsc_schedule_notify_hotplug(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 	int delay = usbhs_get_dparam(priv, detection_delay);
@@ -667,7 +668,6 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 static int usbhs_probe(struct platform_device *pdev)
 {
 	struct renesas_usbhs_platform_info *info = renesas_usbhs_get_info(pdev);
-	struct renesas_usbhs_driver_callback *dfunc;
 	struct usbhs_priv *priv;
 	struct resource *res, *irq_res;
 	int ret;
@@ -720,10 +720,6 @@ static int usbhs_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	priv->pfunc = info->platform_callback;
-
-	/* set driver callback functions for platform */
-	dfunc			= &info->driver_callback;
-	dfunc->notify_hotplug	= usbhsc_drvcllbck_notify_hotplug;
 
 	/* set default param if platform doesn't have */
 	if (!priv->dparam.pipe_configs) {
@@ -818,7 +814,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	/*
 	 * manual call notify_hotplug for cold plug
 	 */
-	usbhsc_drvcllbck_notify_hotplug(pdev);
+	usbhsc_schedule_notify_hotplug(pdev);
 
 	dev_info(&pdev->dev, "probed\n");
 
@@ -843,12 +839,8 @@ probe_end_pipe_exit:
 static int usbhs_remove(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
-	struct renesas_usbhs_platform_info *info = renesas_usbhs_get_info(pdev);
-	struct renesas_usbhs_driver_callback *dfunc = &info->driver_callback;
 
 	dev_dbg(&pdev->dev, "usb remove\n");
-
-	dfunc->notify_hotplug = NULL;
 
 	/* power off */
 	if (!usbhs_get_dparam(priv, runtime_pwctrl))
@@ -894,7 +886,7 @@ static __maybe_unused int usbhsc_resume(struct device *dev)
 
 	usbhs_platform_call(priv, phy_reset, pdev);
 
-	usbhsc_drvcllbck_notify_hotplug(pdev);
+	usbhsc_schedule_notify_hotplug(pdev);
 
 	return 0;
 }

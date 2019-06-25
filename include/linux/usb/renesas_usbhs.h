@@ -3,6 +3,7 @@
  * Renesas USB
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
  * This program is distributed in the hope that it will be useful,
@@ -30,17 +31,6 @@ enum {
 	USBHS_HOST = 0,
 	USBHS_GADGET,
 	USBHS_MAX,
-};
-
-/*
- * callback functions table for driver
- *
- * These functions are called from platform for driver.
- * Callback function's pointer will be set before
- * renesas_usbhs_platform_callback :: hardware_init was called
- */
-struct renesas_usbhs_driver_callback {
-	int (*notify_hotplug)(struct platform_device *pdev);
 };
 
 /*
@@ -214,12 +204,6 @@ struct renesas_usbhs_platform_info {
 	struct renesas_usbhs_platform_callback	platform_callback;
 
 	/*
-	 * driver set these callback functions pointer.
-	 * platform can use it on callback functions
-	 */
-	struct renesas_usbhs_driver_callback	driver_callback;
-
-	/*
 	 * option:
 	 *
 	 * driver use these param for some register
@@ -232,12 +216,4 @@ struct renesas_usbhs_platform_info {
  */
 #define renesas_usbhs_get_info(pdev)\
 	((struct renesas_usbhs_platform_info *)(pdev)->dev.platform_data)
-
-#define renesas_usbhs_call_notify_hotplug(pdev)				\
-	({								\
-		struct renesas_usbhs_driver_callback *dc;		\
-		dc = &(renesas_usbhs_get_info(pdev)->driver_callback);	\
-		if (dc && dc->notify_hotplug)				\
-			dc->notify_hotplug(pdev);			\
-	})
 #endif /* RENESAS_USB_H */
