@@ -232,9 +232,14 @@ sja1105pqrs_l2_lookup_params_entry_packing(void *buf, void *entry_ptr,
 	struct sja1105_l2_lookup_params_entry *entry = entry_ptr;
 
 	sja1105_packing(buf, &entry->maxage,         57,  43, size, op);
+	sja1105_packing(buf, &entry->start_dynspc,   42,  33, size, op);
+	sja1105_packing(buf, &entry->drpnolearn,     32,  28, size, op);
 	sja1105_packing(buf, &entry->shared_learn,   27,  27, size, op);
 	sja1105_packing(buf, &entry->no_enf_hostprt, 26,  26, size, op);
 	sja1105_packing(buf, &entry->no_mgmt_learn,  25,  25, size, op);
+	sja1105_packing(buf, &entry->use_static,     24,  24, size, op);
+	sja1105_packing(buf, &entry->owr_dyn,        23,  23, size, op);
+	sja1105_packing(buf, &entry->learn_once,     22,  22, size, op);
 	return size;
 }
 
