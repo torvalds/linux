@@ -2,7 +2,6 @@
 #ifndef _PERF_SANE_CTYPE_H
 #define _PERF_SANE_CTYPE_H
 
-extern const char *graph_line;
 extern const char *graph_dotted_line;
 extern const char *spaces;
 extern const char *dots;
