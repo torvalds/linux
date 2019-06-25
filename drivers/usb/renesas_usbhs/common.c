@@ -658,27 +658,28 @@ static int usbhs_probe(struct platform_device *pdev)
 	struct renesas_usbhs_platform_info *info = renesas_usbhs_get_info(pdev);
 	struct usbhs_priv *priv;
 	struct resource *res, *irq_res;
+	struct device *dev = &pdev->dev;
 	int ret;
 
 	/* check device node */
-	if (dev_of_node(&pdev->dev))
+	if (dev_of_node(dev))
 		info = pdev->dev.platform_data = usbhs_parse_dt(&pdev->dev);
 
 	/* check platform information */
 	if (!info) {
-		dev_err(&pdev->dev, "no platform information\n");
+		dev_err(dev, "no platform information\n");
 		return -EINVAL;
 	}
 
 	/* platform data */
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
-		dev_err(&pdev->dev, "Not enough Renesas USB platform resources.\n");
+		dev_err(dev, "Not enough Renesas USB platform resources.\n");
 		return -ENODEV;
 	}
 
 	/* usb private data */
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -687,13 +688,13 @@ static int usbhs_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	if (of_property_read_bool(dev_of_node(&pdev->dev), "extcon")) {
-		priv->edev = extcon_get_edev_by_phandle(&pdev->dev, 0);
+	if (of_property_read_bool(dev_of_node(dev), "extcon")) {
+		priv->edev = extcon_get_edev_by_phandle(dev, 0);
 		if (IS_ERR(priv->edev))
 			return PTR_ERR(priv->edev);
 	}
 
-	priv->rsts = devm_reset_control_array_get_optional_shared(&pdev->dev);
+	priv->rsts = devm_reset_control_array_get_optional_shared(dev);
 	if (IS_ERR(priv->rsts))
 		return PTR_ERR(priv->rsts);
 
@@ -704,7 +705,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	priv->dparam = info->driver_param;
 
 	if (!info->platform_callback.get_id) {
-		dev_err(&pdev->dev, "no platform callbacks");
+		dev_err(dev, "no platform callbacks\n");
 		return -EINVAL;
 	}
 	priv->pfunc = info->platform_callback;
@@ -755,7 +756,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	if (ret)
 		goto probe_fail_rst;
 
-	ret = usbhsc_clk_get(&pdev->dev, priv);
+	ret = usbhsc_clk_get(dev, priv);
 	if (ret)
 		goto probe_fail_clks;
 
@@ -771,8 +772,7 @@ static int usbhs_probe(struct platform_device *pdev)
 		ret = !gpio_get_value(priv->dparam.enable_gpio);
 		gpio_free(priv->dparam.enable_gpio);
 		if (ret) {
-			dev_warn(&pdev->dev,
-				 "USB function not selected (GPIO %d)\n",
+			dev_warn(dev, "USB function not selected (GPIO %d)\n",
 				 priv->dparam.enable_gpio);
 			ret = -ENOTSUPP;
 			goto probe_end_mod_exit;
@@ -788,7 +788,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	 */
 	ret = usbhs_platform_call(priv, hardware_init, pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "platform init failed.\n");
+		dev_err(dev, "platform init failed.\n");
 		goto probe_end_mod_exit;
 	}
 
@@ -796,7 +796,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	usbhs_platform_call(priv, phy_reset, pdev);
 
 	/* power control */
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_enable(dev);
 	if (!usbhs_get_dparam(priv, runtime_pwctrl)) {
 		usbhsc_power_ctrl(priv, 1);
 		usbhs_mod_autonomy_mode(priv);
@@ -809,7 +809,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	 */
 	usbhsc_schedule_notify_hotplug(pdev);
 
-	dev_info(&pdev->dev, "probed\n");
+	dev_info(dev, "probed\n");
 
 	return ret;
 
@@ -824,7 +824,7 @@ probe_end_fifo_exit:
 probe_end_pipe_exit:
 	usbhs_pipe_remove(priv);
 
-	dev_info(&pdev->dev, "probe failed (%d)\n", ret);
+	dev_info(dev, "probe failed (%d)\n", ret);
 
 	return ret;
 }
