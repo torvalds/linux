@@ -42,7 +42,7 @@ clocks {
 	};
 
 	/* Cygnus ARM PLL */
-	armpll: armpll {
+	armpll: armpll@19000000 {
 		#clock-cells = <0>;
 		compatible = "brcm,cygnus-armpll";
 		clocks = <&osc>;
@@ -67,7 +67,7 @@ clocks {
 		clock-mult = <1>;
 	};
 
-	genpll: genpll {
+	genpll: genpll@301d000 {
 		#clock-cells = <1>;
 		compatible = "brcm,cygnus-genpll";
 		reg = <0x0301d000 0x2c>, <0x0301c020 0x4>;
@@ -94,7 +94,7 @@ clocks {
 		clock-mult = <1>;
 	};
 
-	lcpll0: lcpll0 {
+	lcpll0: lcpll0@301d02c {
 		#clock-cells = <1>;
 		compatible = "brcm,cygnus-lcpll0";
 		reg = <0x0301d02c 0x1c>, <0x0301c020 0x4>;
@@ -103,7 +103,7 @@ clocks {
 				     "usb_phy", "smart_card", "ch5";
 	};
 
-	mipipll: mipipll {
+	mipipll: mipipll@180a9800 {
 		#clock-cells = <1>;
 		compatible = "brcm,cygnus-mipipll";
 		reg = <0x180a9800 0x2c>, <0x0301c020 0x4>, <0x180aa024 0x4>;
@@ -113,7 +113,7 @@ clocks {
 				     "ch5_unused";
 	};
 
-	asiu_clks: asiu_clks {
+	asiu_clks: asiu_clks@301d048 {
 		#clock-cells = <1>;
 		compatible = "brcm,cygnus-asiu-clk";
 		reg = <0x0301d048 0xc>, <0x180aa024 0x4>;
@@ -122,7 +122,7 @@ clocks {
 		clock-output-names = "keypad", "adc/touch", "pwm";
 	};
 
-	audiopll: audiopll {
+	audiopll: audiopll@180aeb00 {
 		#clock-cells = <1>;
 		compatible = "brcm,cygnus-audiopll";
 		reg = <0x180aeb00 0x68>;
