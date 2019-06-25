@@ -22,6 +22,7 @@
 #include "../../util/pmu.h"
 #include "../../util/thread_map.h"
 #include "../../util/cs-etm.h"
+#include "../../util/util.h"
 
 #include <errno.h>
 #include <stdlib.h>

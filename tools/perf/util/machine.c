@@ -15,6 +15,7 @@
 #include "strlist.h"
 #include "thread.h"
 #include "vdso.h"
+#include "util.h"
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
