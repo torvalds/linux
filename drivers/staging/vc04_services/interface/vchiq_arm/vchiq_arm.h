@@ -113,9 +113,6 @@ extern VCHIQ_STATUS_T
 vchiq_arm_vcsuspend(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_arm_force_suspend(struct vchiq_state *state);
-
-extern VCHIQ_STATUS_T
 vchiq_arm_vcresume(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
