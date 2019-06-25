@@ -37,7 +37,7 @@
 
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 
-#define FEATURE_MASK(feature) (1UL << feature)
+#define FEATURE_MASK(feature) (1ULL << feature)
 #define SMC_DPM_FEATURE ( \
 	FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT) | \
 	FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)	 | \

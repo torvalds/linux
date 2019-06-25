@@ -576,7 +576,7 @@ static int vega20_run_btc_afll(struct smu_context *smu)
 	return smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc);
 }
 
-#define FEATURE_MASK(feature) (1UL << feature)
+#define FEATURE_MASK(feature) (1ULL << feature)
 static int
 vega20_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
