@@ -48,9 +48,6 @@
 #define USB_DEVICE_MAX			(USB_MAXBUS * 128)
 #define USB_SG_SIZE			16384 /* split-size for large txs */
 
-/* Mutual exclusion for removal, open, and release */
-DEFINE_MUTEX(usbfs_mutex);
-
 struct usb_dev_state {
 	struct list_head list;      /* state list */
 	struct usb_device *dev;
@@ -979,15 +976,9 @@ static int usbdev_open(struct inode *inode, struct file *file)
 
 	ret = -ENODEV;
 
-	/* Protect against simultaneous removal or release */
-	mutex_lock(&usbfs_mutex);
-
 	/* usbdev device-node */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
 		dev = usbdev_lookup_by_devt(inode->i_rdev);
-
-	mutex_unlock(&usbfs_mutex);
-
 	if (!dev)
 		goto out_free_ps;
 
