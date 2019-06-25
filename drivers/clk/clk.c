@@ -2997,11 +2997,10 @@ static int clk_flags_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(clk_flags);
 
-static int possible_parents_show(struct seq_file *s, void *data)
+static void possible_parent_show(struct seq_file *s, struct clk_core *core,
+				 unsigned int i, char terminator)
 {
-	struct clk_core *core = s->private;
 	struct clk_core *parent;
-	int i;
 
 	/*
 	 * Go through the following options to fetch a parent's name.
@@ -3015,22 +3014,6 @@ static int possible_parents_show(struct seq_file *s, void *data)
 	 * specified directly via a struct clk_hw pointer, but it isn't
 	 * registered (yet).
 	 */
-	for (i = 0; i < core->num_parents - 1; i++) {
-		parent = clk_core_get_parent_by_index(core, i);
-		if (parent)
-			seq_printf(s, "%s ", parent->name);
-		else if (core->parents[i].name)
-			seq_printf(s, "%s ", core->parents[i].name);
-		else if (core->parents[i].fw_name)
-			seq_printf(s, "<%s>(fw) ", core->parents[i].fw_name);
-		else if (core->parents[i].index >= 0)
-			seq_printf(s, "%s ",
-				   of_clk_get_parent_name(core->of_node,
-							  core->parents[i].index));
-		else
-			seq_puts(s, "(missing) ");
-	}
-
 	parent = clk_core_get_parent_by_index(core, i);
 	if (parent)
 		seq_printf(s, "%s", parent->name);
@@ -3044,6 +3027,19 @@ static int possible_parents_show(struct seq_file *s, void *data)
 						  core->parents[i].index));
 	else
 		seq_puts(s, "(missing)");
+
+	seq_putc(s, terminator);
+}
+
+static int possible_parents_show(struct seq_file *s, void *data)
+{
+	struct clk_core *core = s->private;
+	int i;
+
+	for (i = 0; i < core->num_parents - 1; i++)
+		possible_parent_show(s, core, i, ' ');
+
+	possible_parent_show(s, core, i, '\n');
 
 	return 0;
 }
