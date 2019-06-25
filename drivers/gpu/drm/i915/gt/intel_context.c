@@ -59,6 +59,10 @@ int __intel_context_do_pin(struct intel_context *ce)
 		if (err)
 			goto err;
 
+		GEM_TRACE("%s context:%llx pin ring:{head:%04x, tail:%04x}\n",
+			  ce->engine->name, ce->ring->timeline->fence_context,
+			  ce->ring->head, ce->ring->tail);
+
 		i915_gem_context_get(ce->gem_context); /* for ctx->ppgtt */
 
 		smp_mb__before_atomic(); /* flush pin before it is visible */
@@ -85,6 +89,9 @@ void intel_context_unpin(struct intel_context *ce)
 	mutex_lock_nested(&ce->pin_mutex, SINGLE_DEPTH_NESTING);
 
 	if (likely(atomic_dec_and_test(&ce->pin_count))) {
+		GEM_TRACE("%s context:%llx retire\n",
+			  ce->engine->name, ce->ring->timeline->fence_context);
+
 		ce->ops->unpin(ce);
 
 		i915_gem_context_put(ce->gem_context);
@@ -126,6 +133,9 @@ static void __context_unpin_state(struct i915_vma *vma)
 static void __intel_context_retire(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
+
+	GEM_TRACE("%s context:%llx retire\n",
+		  ce->engine->name, ce->ring->timeline->fence_context);
 
 	if (ce->state)
 		__context_unpin_state(ce->state);
