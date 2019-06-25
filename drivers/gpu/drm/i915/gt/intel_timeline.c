@@ -210,8 +210,11 @@ int intel_timeline_init(struct intel_timeline *timeline,
 {
 	void *vaddr;
 
+	kref_init(&timeline->kref);
+
 	timeline->gt = gt;
 	timeline->pin_count = 0;
+
 	timeline->has_initial_breadcrumb = !hwsp;
 	timeline->hwsp_cacheline = NULL;
 
@@ -356,8 +359,6 @@ intel_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp)
 		kfree(timeline);
 		return ERR_PTR(err);
 	}
-
-	kref_init(&timeline->kref);
 
 	return timeline;
 }
