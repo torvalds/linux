@@ -46,6 +46,8 @@
 #include "en/tc_tun.h"
 #include "fs_core.h"
 #include "lib/port_tun.h"
+#define CREATE_TRACE_POINTS
+#include "diag/en_rep_tracepoint.h"
 
 #define MLX5E_REP_PARAMS_DEF_LOG_SQ_SIZE \
         max(0x7, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)
@@ -656,6 +658,8 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 	read_unlock_bh(&n->lock);
 
 	neigh_connected = (nud_state & NUD_VALID) && !dead;
+
+	trace_mlx5e_rep_neigh_update(nhe, ha, neigh_connected);
 
 	list_for_each_entry(e, &nhe->encap_list, encap_list) {
 		if (!mlx5e_encap_take(e))
