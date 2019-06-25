@@ -3,7 +3,6 @@
 #define _PERF_SANE_CTYPE_H
 
 extern const char *graph_dotted_line;
-extern const char *spaces;
 extern const char *dots;
 
 /* Sane ctype - no locale, and works with signed chars */
