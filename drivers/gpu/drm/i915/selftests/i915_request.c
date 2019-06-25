@@ -75,55 +75,58 @@ static int igt_wait_request(void *arg)
 		err = -ENOMEM;
 		goto out_unlock;
 	}
+	i915_request_get(request);
 
 	if (i915_request_wait(request, 0, 0) != -ETIME) {
 		pr_err("request wait (busy query) succeeded (expected timeout before submit!)\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_wait(request, 0, T) != -ETIME) {
 		pr_err("request wait succeeded (expected timeout before submit!)\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_completed(request)) {
 		pr_err("request completed before submit!!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	i915_request_add(request);
 
 	if (i915_request_wait(request, 0, 0) != -ETIME) {
 		pr_err("request wait (busy query) succeeded (expected timeout after submit!)\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_completed(request)) {
 		pr_err("request completed immediately!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_wait(request, 0, T / 2) != -ETIME) {
 		pr_err("request wait succeeded (expected timeout!)\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_wait(request, 0, T) == -ETIME) {
 		pr_err("request wait timed out!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (!i915_request_completed(request)) {
 		pr_err("request not complete after waiting!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_wait(request, 0, T) == -ETIME) {
 		pr_err("request wait timed out when already complete!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	err = 0;
+out_request:
+	i915_request_put(request);
 out_unlock:
 	mock_device_flush(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
