@@ -83,7 +83,7 @@ static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 	u32 addr;
 	u8 data;
 
-	addr = dev->dev_ops->get_port_addr(port, offset);
+	addr = PORT_CTRL_ADDR(port, offset);
 	ksz_read8(dev, addr, &data);
 
 	if (set)
