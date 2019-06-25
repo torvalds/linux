@@ -1157,7 +1157,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * it may impact the display and we are uncertain about the stability
 	 * of the reset, so this could be applied to even earlier gen.
 	 */
-	intel_gt_sanitize(i915, false);
+	intel_gt_sanitize(&i915->gt, false);
 
 	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);

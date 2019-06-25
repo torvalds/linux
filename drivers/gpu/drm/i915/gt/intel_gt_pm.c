@@ -50,9 +50,11 @@ static int intel_gt_unpark(struct intel_wakeref *wf)
 	return 0;
 }
 
-void intel_gt_pm_get(struct drm_i915_private *i915)
+void intel_gt_pm_get(struct intel_gt *gt)
 {
-	intel_wakeref_get(&i915->runtime_pm, &i915->gt.wakeref, intel_gt_unpark);
+	struct intel_runtime_pm *rpm = &gt->i915->runtime_pm;
+
+	intel_wakeref_get(rpm, &gt->wakeref, intel_gt_unpark);
 }
 
 static int intel_gt_park(struct intel_wakeref *wf)
@@ -75,9 +77,11 @@ static int intel_gt_park(struct intel_wakeref *wf)
 	return 0;
 }
 
-void intel_gt_pm_put(struct drm_i915_private *i915)
+void intel_gt_pm_put(struct intel_gt *gt)
 {
-	intel_wakeref_put(&i915->runtime_pm, &i915->gt.wakeref, intel_gt_park);
+	struct intel_runtime_pm *rpm = &gt->i915->runtime_pm;
+
+	intel_wakeref_put(rpm, &gt->wakeref, intel_gt_park);
 }
 
 void intel_gt_pm_init_early(struct intel_gt *gt)
@@ -96,7 +100,7 @@ static bool reset_engines(struct drm_i915_private *i915)
 
 /**
  * intel_gt_sanitize: called after the GPU has lost power
- * @i915: the i915 device
+ * @gt: the i915 GT container
  * @force: ignore a failed reset and sanitize engine state anyway
  *
  * Anytime we reset the GPU, either with an explicit GPU reset or through a
@@ -104,21 +108,21 @@ static bool reset_engines(struct drm_i915_private *i915)
  * to match. Note that calling intel_gt_sanitize() if the GPU has not
  * been reset results in much confusion!
  */
-void intel_gt_sanitize(struct drm_i915_private *i915, bool force)
+void intel_gt_sanitize(struct intel_gt *gt, bool force)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	GEM_TRACE("\n");
 
-	if (!reset_engines(i915) && !force)
+	if (!reset_engines(gt->i915) && !force)
 		return;
 
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, gt->i915, id)
 		intel_engine_reset(engine, false);
 }
 
-void intel_gt_resume(struct drm_i915_private *i915)
+void intel_gt_resume(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -129,7 +133,7 @@ void intel_gt_resume(struct drm_i915_private *i915)
 	 * Only the kernel contexts should remain pinned over suspend,
 	 * allowing us to fixup the user contexts on their first pin.
 	 */
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt->i915, id) {
 		struct intel_context *ce;
 
 		ce = engine->kernel_context;

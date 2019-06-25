@@ -9,7 +9,6 @@
 
 #include <linux/types.h>
 
-struct drm_i915_private;
 struct intel_gt;
 
 enum {
@@ -17,12 +16,12 @@ enum {
 	INTEL_GT_PARK,
 };
 
-void intel_gt_pm_get(struct drm_i915_private *i915);
-void intel_gt_pm_put(struct drm_i915_private *i915);
+void intel_gt_pm_get(struct intel_gt *gt);
+void intel_gt_pm_put(struct intel_gt *gt);
 
 void intel_gt_pm_init_early(struct intel_gt *gt);
 
-void intel_gt_sanitize(struct drm_i915_private *i915, bool force);
-void intel_gt_resume(struct drm_i915_private *i915);
+void intel_gt_sanitize(struct intel_gt *gt, bool force);
+void intel_gt_resume(struct intel_gt *gt);
 
 #endif /* INTEL_GT_PM_H */

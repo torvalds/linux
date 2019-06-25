@@ -18,7 +18,7 @@ static int __engine_unpark(struct intel_wakeref *wf)
 
 	GEM_TRACE("%s\n", engine->name);
 
-	intel_gt_pm_get(engine->i915);
+	intel_gt_pm_get(engine->gt);
 
 	/* Pin the default state for fast resets from atomic context. */
 	map = NULL;
@@ -129,7 +129,7 @@ static int __engine_park(struct intel_wakeref *wf)
 
 	engine->execlists.no_priolist = false;
 
-	intel_gt_pm_put(engine->i915);
+	intel_gt_pm_put(engine->gt);
 	return 0;
 }
 
@@ -149,7 +149,7 @@ int intel_engines_resume(struct drm_i915_private *i915)
 	enum intel_engine_id id;
 	int err = 0;
 
-	intel_gt_pm_get(i915);
+	intel_gt_pm_get(&i915->gt);
 	for_each_engine(engine, i915, id) {
 		intel_engine_pm_get(engine);
 		engine->serial++; /* kernel context lost */
@@ -162,7 +162,7 @@ int intel_engines_resume(struct drm_i915_private *i915)
 			break;
 		}
 	}
-	intel_gt_pm_put(i915);
+	intel_gt_pm_put(&i915->gt);
 
 	return err;
 }

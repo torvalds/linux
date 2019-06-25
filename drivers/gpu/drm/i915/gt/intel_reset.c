@@ -714,7 +714,7 @@ static void reset_prepare(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	intel_gt_pm_get(i915);
+	intel_gt_pm_get(&i915->gt);
 	for_each_engine(engine, i915, id)
 		reset_prepare_engine(engine);
 
@@ -765,7 +765,7 @@ static void reset_finish(struct drm_i915_private *i915)
 		reset_finish_engine(engine);
 		intel_engine_signal_breadcrumbs(engine);
 	}
-	intel_gt_pm_put(i915);
+	intel_gt_pm_put(&i915->gt);
 }
 
 static void nop_submit_request(struct i915_request *request)
@@ -891,7 +891,7 @@ static bool __i915_gem_unset_wedged(struct drm_i915_private *i915)
 	}
 	mutex_unlock(&i915->gt.timelines.mutex);
 
-	intel_gt_sanitize(i915, false);
+	intel_gt_sanitize(&i915->gt, false);
 
 	/*
 	 * Undo nop_submit_request. We prevent all new i915 requests from
