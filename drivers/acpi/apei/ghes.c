@@ -345,7 +345,7 @@ static int __ghes_peek_estatus(struct ghes *ghes,
 		return -ENOENT;
 	}
 
-	return __ghes_check_estatus(ghes, estatus);
+	return 0;
 }
 
 static int __ghes_read_estatus(struct acpi_hest_generic_status *estatus,
