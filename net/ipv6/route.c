@@ -5281,7 +5281,7 @@ static struct ctl_table ipv6_route_table_template[] = {
 		.data		=	&init_net.ipv6.sysctl.skip_notify_on_dev_down,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.proc_handler	=	proc_dointvec_minmax,
 		.extra1		=	&zero,
 		.extra2		=	&one,
 	},
