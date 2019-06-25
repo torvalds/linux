@@ -18,6 +18,7 @@ int mlx5e_reporter_named_obj_nest_end(struct devlink_fmsg *fmsg);
 
 int mlx5e_reporter_rx_create(struct mlx5e_priv *priv);
 void mlx5e_reporter_rx_destroy(struct mlx5e_priv *priv);
+void mlx5e_reporter_icosq_cqe_err(struct mlx5e_icosq *icosq);
 
 #define MLX5E_REPORTER_PER_Q_MAX_LEN 256
 

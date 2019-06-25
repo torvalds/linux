@@ -27,6 +27,109 @@ out:
 	return err;
 }
 
+static int mlx5e_wait_for_icosq_flush(struct mlx5e_icosq *icosq)
+{
+	unsigned long exp_time = jiffies + msecs_to_jiffies(2000);
+
+	while (time_before(jiffies, exp_time)) {
+		if (icosq->cc == icosq->pc)
+			return 0;
+
+		msleep(20);
+	}
+
+	netdev_err(icosq->channel->netdev,
+		   "Wait for ICOSQ 0x%x flush timeout (cc = 0x%x, pc = 0x%x)\n",
+		   icosq->sqn, icosq->cc, icosq->pc);
+
+	return -ETIMEDOUT;
+}
+
+static void mlx5e_reset_icosq_cc_pc(struct mlx5e_icosq *icosq)
+{
+	WARN_ONCE(icosq->cc != icosq->pc, "ICOSQ 0x%x: cc (0x%x) != pc (0x%x)\n",
+		  icosq->sqn, icosq->cc, icosq->pc);
+	icosq->cc = 0;
+	icosq->pc = 0;
+}
+
+static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
+{
+	struct mlx5_core_dev *mdev;
+	struct mlx5e_icosq *icosq;
+	struct net_device *dev;
+	struct mlx5e_rq *rq;
+	u8 state;
+	int err;
+
+	icosq = ctx;
+	rq = &icosq->channel->rq;
+	mdev = icosq->channel->mdev;
+	dev = icosq->channel->netdev;
+	err = mlx5_core_query_sq_state(mdev, icosq->sqn, &state);
+	if (err) {
+		netdev_err(dev, "Failed to query ICOSQ 0x%x state. err = %d\n",
+			   icosq->sqn, err);
+		goto out;
+	}
+
+	if (state != MLX5_SQC_STATE_ERR)
+		goto out;
+
+	mlx5e_deactivate_rq(rq);
+	err = mlx5e_wait_for_icosq_flush(icosq);
+	if (err)
+		goto out;
+
+	mlx5e_deactivate_icosq(icosq);
+
+	/* At this point, both the rq and the icosq are disabled */
+
+	err = mlx5e_health_sq_to_ready(icosq->channel, icosq->sqn);
+	if (err)
+		goto out;
+
+	mlx5e_reset_icosq_cc_pc(icosq);
+	mlx5e_free_rx_descs(rq);
+	clear_bit(MLX5E_SQ_STATE_RECOVERING, &icosq->state);
+	mlx5e_activate_icosq(icosq);
+	mlx5e_activate_rq(rq);
+
+	rq->stats->recover++;
+	return 0;
+out:
+	clear_bit(MLX5E_SQ_STATE_RECOVERING, &icosq->state);
+	return err;
+}
+
+void mlx5e_reporter_icosq_cqe_err(struct mlx5e_icosq *icosq)
+{
+	struct mlx5e_priv *priv = icosq->channel->priv;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_err_ctx err_ctx = {};
+
+	err_ctx.ctx = icosq;
+	err_ctx.recover = mlx5e_rx_reporter_err_icosq_cqe_recover;
+	sprintf(err_str, "ERR CQE on ICOSQ: 0x%x", icosq->sqn);
+
+	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
+}
+
+static int mlx5e_rx_reporter_recover_from_ctx(struct mlx5e_err_ctx *err_ctx)
+{
+	return err_ctx->recover(err_ctx->ctx);
+}
+
+static int mlx5e_rx_reporter_recover(struct devlink_health_reporter *reporter,
+				     void *context)
+{
+	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
+	struct mlx5e_err_ctx *err_ctx = context;
+
+	return err_ctx ? mlx5e_rx_reporter_recover_from_ctx(err_ctx) :
+			 mlx5e_health_recover_channels(priv);
+}
+
 static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 						   struct devlink_fmsg *fmsg)
 {
@@ -167,8 +270,11 @@ unlock:
 
 static const struct devlink_health_reporter_ops mlx5_rx_reporter_ops = {
 	.name = "rx",
+	.recover = mlx5e_rx_reporter_recover,
 	.diagnose = mlx5e_rx_reporter_diagnose,
 };
+
+#define MLX5E_REPORTER_RX_GRACEFUL_PERIOD 500
 
 int mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
 {
@@ -177,7 +283,8 @@ int mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
 
 	reporter = devlink_health_reporter_create(devlink,
 						  &mlx5_rx_reporter_ops,
-						  0, false, priv);
+						  MLX5E_REPORTER_RX_GRACEFUL_PERIOD,
+						  true, priv);
 	if (IS_ERR(reporter)) {
 		netdev_warn(priv->netdev, "Failed to create rx reporter, err = %ld\n",
 			    PTR_ERR(reporter));
