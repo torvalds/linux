@@ -210,16 +210,6 @@ int intel_timeline_init(struct intel_timeline *timeline,
 {
 	void *vaddr;
 
-	/*
-	 * Ideally we want a set of engines on a single leaf as we expect
-	 * to mostly be tracking synchronisation between engines. It is not
-	 * a huge issue if this is not the case, but we may want to mitigate
-	 * any page crossing penalties if they become an issue.
-	 *
-	 * Called during early_init before we know how many engines there are.
-	 */
-	BUILD_BUG_ON(KSYNCMAP < I915_NUM_ENGINES);
-
 	timeline->gt = gt;
 	timeline->pin_count = 0;
 	timeline->has_initial_breadcrumb = !hwsp;
