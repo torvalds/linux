@@ -49,7 +49,7 @@ static struct ccu_div ar100_clk = {
 	},
 };
 
-static CLK_FIXED_FACTOR(r_ahb_clk, "r-ahb", "ar100", 1, 1, 0);
+static CLK_FIXED_FACTOR_HW(r_ahb_clk, "r-ahb", &ar100_clk.common.hw, 1, 1, 0);
 
 static struct ccu_div r_apb1_clk = {
 	.div		= _SUNXI_CCU_DIV(0, 2),
