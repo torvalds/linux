@@ -76,7 +76,8 @@ static int mwifiex_11n_dispatch_amsdu_pkt(struct mwifiex_private *priv,
 /* This function will process the rx packet and forward it to kernel/upper
  * layer.
  */
-static int mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv, void *payload)
+static int mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv,
+				    struct sk_buff *payload)
 {
 
 	int ret;
@@ -109,27 +110,26 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 					 struct mwifiex_rx_reorder_tbl *tbl,
 					 int start_win)
 {
+	struct sk_buff_head list;
+	struct sk_buff *skb;
 	int pkt_to_send, i;
-	void *rx_tmp_ptr;
 	unsigned long flags;
+
+	__skb_queue_head_init(&list);
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 
 	pkt_to_send = (start_win > tbl->start_win) ?
 		      min((start_win - tbl->start_win), tbl->win_size) :
 		      tbl->win_size;
 
 	for (i = 0; i < pkt_to_send; ++i) {
-		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
-		rx_tmp_ptr = NULL;
 		if (tbl->rx_reorder_ptr[i]) {
-			rx_tmp_ptr = tbl->rx_reorder_ptr[i];
+			skb = tbl->rx_reorder_ptr[i];
+			__skb_queue_tail(&list, skb);
 			tbl->rx_reorder_ptr[i] = NULL;
 		}
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
-		if (rx_tmp_ptr)
-			mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
-	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	/*
 	 * We don't have a circular buffer, hence use rotation to simulate
 	 * circular buffer
@@ -141,6 +141,9 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 
 	tbl->start_win = start_win;
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
+
+	while ((skb = __skb_dequeue(&list)))
+		mwifiex_11n_dispatch_pkt(priv, skb);
 }
 
 /*
@@ -155,24 +158,22 @@ static void
 mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 			      struct mwifiex_rx_reorder_tbl *tbl)
 {
+	struct sk_buff_head list;
+	struct sk_buff *skb;
 	int i, j, xchg;
-	void *rx_tmp_ptr;
 	unsigned long flags;
 
+	__skb_queue_head_init(&list);
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+
 	for (i = 0; i < tbl->win_size; ++i) {
-		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
-		if (!tbl->rx_reorder_ptr[i]) {
-			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
-					       flags);
+		if (!tbl->rx_reorder_ptr[i])
 			break;
-		}
-		rx_tmp_ptr = tbl->rx_reorder_ptr[i];
+		skb = tbl->rx_reorder_ptr[i];
+		__skb_queue_tail(&list, skb);
 		tbl->rx_reorder_ptr[i] = NULL;
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
-		mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
-	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	/*
 	 * We don't have a circular buffer, hence use rotation to simulate
 	 * circular buffer
@@ -185,7 +186,11 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		}
 	}
 	tbl->start_win = (tbl->start_win + i) & (MAX_TID_VALUE - 1);
+
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
+
+	while ((skb = __skb_dequeue(&list)))
+		mwifiex_11n_dispatch_pkt(priv, skb);
 }
 
 /*
