@@ -50,7 +50,6 @@ arc4
 arp_tables
 arpt_mangle
 arptable_filter
-asix
 asym_tpm
 async_memcpy
 async_pq
@@ -62,6 +61,7 @@ aufs
 auth_rpcgss
 authenc
 authencesn
+ax88796b
 bcache
 bcm-phy-lib
 bcm7xxx
