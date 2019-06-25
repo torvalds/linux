@@ -5103,7 +5103,7 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 		 * in case of Firmware upgrade without system reboot.
 		 */
 		megasas_update_ext_vd_details(instance);
-		instance->use_seqnum_jbod_fp =
+		instance->support_seqnum_jbod_fp =
 			ci->adapterOperations3.useSeqNumJbodFP;
 		instance->support_morethan256jbod =
 			ci->adapter_operations4.support_pd_map_target_id;
@@ -5140,6 +5140,8 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 		dev_info(&instance->pdev->dev,
 			 "FW provided TM TaskAbort/Reset timeout\t: %d secs/%d secs\n",
 			 instance->task_abort_tmo, instance->max_reset_tmo);
+		dev_info(&instance->pdev->dev, "JBOD sequence map support\t: %s\n",
+			 instance->support_seqnum_jbod_fp ? "Yes" : "No");
 
 		break;
 
@@ -5554,10 +5556,12 @@ megasas_setup_jbod_map(struct megasas_instance *instance)
 	pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
 		(sizeof(struct MR_PD_CFG_SEQ) * (MAX_PHYSICAL_DEVICES - 1));
 
+	instance->use_seqnum_jbod_fp =
+		instance->support_seqnum_jbod_fp;
 	if (reset_devices || !fusion ||
-		!instance->ctrl_info_buf->adapterOperations3.useSeqNumJbodFP) {
+		!instance->support_seqnum_jbod_fp) {
 		dev_info(&instance->pdev->dev,
-			"Jbod map is not supported %s %d\n",
+			"JBOD sequence map is disabled %s %d\n",
 			__func__, __LINE__);
 		instance->use_seqnum_jbod_fp = false;
 		return;
@@ -6042,8 +6046,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->UnevenSpanSupport ? "yes" : "no");
 	dev_info(&instance->pdev->dev, "firmware crash dump	: %s\n",
 		instance->crash_dump_drv_support ? "yes" : "no");
-	dev_info(&instance->pdev->dev, "jbod sync map		: %s\n",
-		instance->use_seqnum_jbod_fp ? "yes" : "no");
+	dev_info(&instance->pdev->dev, "JBOD sequence map	: %s\n",
+		instance->use_seqnum_jbod_fp ? "enabled" : "disabled");
 
 	instance->max_sectors_per_req = instance->max_num_sge *
 						SGE_BUFFER_SIZE / 512;
