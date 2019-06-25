@@ -100,7 +100,6 @@ int sja1105_spi_send_packed_buf(const struct sja1105_private *priv,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sja1105_spi_send_packed_buf);
 
 /* If @rw is:
  * - SPI_WRITE: creates and sends an SPI write message at absolute
@@ -136,7 +135,6 @@ int sja1105_spi_send_int(const struct sja1105_private *priv,
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(sja1105_spi_send_int);
 
 /* Should be used if a @packed_buf larger than SJA1105_SIZE_SPI_MSG_MAXLEN
  * must be sent/received. Splitting the buffer into chunks and assembling
