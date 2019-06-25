@@ -1218,8 +1218,10 @@ void iwl_mvm_rs_init_wk(struct work_struct *wk)
 	rcu_read_unlock();
 }
 
-void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  int tid, struct ieee80211_tx_info *info, bool ndp)
+static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
+				   struct ieee80211_sta *sta,
+				   int tid, struct ieee80211_tx_info *info,
+				   bool ndp)
 {
 	int legacy_success;
 	int retries;
@@ -1451,6 +1453,21 @@ done:
 		rs_rate_scale_perform(mvm, sta, lq_sta, tid, ndp);
 }
 
+void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			  int tid, struct ieee80211_tx_info *info, bool ndp)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	/* If it's locked we are in middle of init flow
+	 * just wait for next tx status to update the lq_sta data
+	 */
+	if (!mutex_trylock(&mvmsta->lq_sta.rs_drv.mutex))
+		return;
+
+	__iwl_mvm_rs_tx_status(mvm, sta, tid, info, ndp);
+	mutex_unlock(&mvmsta->lq_sta.rs_drv.mutex);
+}
+
 /*
  * mac80211 sends us Tx status
  */
@@ -1472,15 +1489,8 @@ static void rs_drv_mac80211_tx_status(void *mvm_r,
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
 
-	/* If it's locked we are in middle of init flow
-	 * just wait for next tx status to update the lq_sta data
-	 */
-	if (!mutex_trylock(&mvmsta->lq_sta.rs_drv.mutex))
-		return;
-
 	iwl_mvm_rs_tx_status(mvm, sta, rs_get_tid(hdr), info,
 			     ieee80211_is_qos_nullfunc(hdr->frame_control));
-	mutex_unlock(&mvmsta->lq_sta.rs_drv.mutex);
 }
 
 /*
