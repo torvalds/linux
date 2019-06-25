@@ -80,8 +80,6 @@ static const struct ksz_io_ops ksz9477_spi_ops = {
 	.write8 = ksz_spi_write8,
 	.write16 = ksz_spi_write16,
 	.write32 = ksz_spi_write32,
-	.get = ksz_spi_get,
-	.set = ksz_spi_set,
 };
 
 static int ksz9477_spi_probe(struct spi_device *spi)

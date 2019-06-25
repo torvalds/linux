@@ -109,8 +109,6 @@ struct ksz_io_ops {
 	int (*write8)(struct ksz_device *dev, u32 reg, u8 value);
 	int (*write16)(struct ksz_device *dev, u32 reg, u16 value);
 	int (*write32)(struct ksz_device *dev, u32 reg, u32 value);
-	int (*get)(struct ksz_device *dev, u32 reg, void *data, size_t len);
-	int (*set)(struct ksz_device *dev, u32 reg, void *data, size_t len);
 };
 
 struct alu_struct {

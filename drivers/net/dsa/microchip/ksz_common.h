@@ -105,30 +105,6 @@ static inline int ksz_write32(struct ksz_device *dev, u32 reg, u32 value)
 	return ret;
 }
 
-static inline int ksz_get(struct ksz_device *dev, u32 reg, void *data,
-			  size_t len)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->get(dev, reg, data, len);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_set(struct ksz_device *dev, u32 reg, void *data,
-			  size_t len)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->set(dev, reg, data, len);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
 static inline void ksz_pread8(struct ksz_device *dev, int port, int offset,
 			      u8 *data)
 {

@@ -56,14 +56,4 @@ static int ksz_spi_write32(struct ksz_device *dev, u32 reg, u32 value)
 	return ksz_spi_write(dev, reg, &value, 4);
 }
 
-static int ksz_spi_get(struct ksz_device *dev, u32 reg, void *data, size_t len)
-{
-	return ksz_spi_read(dev, reg, data, len);
-}
-
-static int ksz_spi_set(struct ksz_device *dev, u32 reg, void *data, size_t len)
-{
-	return ksz_spi_write(dev, reg, data, len);
-}
-
 #endif
