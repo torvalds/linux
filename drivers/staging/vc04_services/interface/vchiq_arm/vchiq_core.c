@@ -2831,22 +2831,6 @@ vchiq_shutdown_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance)
 }
 
 VCHIQ_STATUS_T
-vchiq_resume_internal(struct vchiq_state *state)
-{
-	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
-
-	if (state->conn_state == VCHIQ_CONNSTATE_PAUSED) {
-		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_RESUMING);
-		request_poll(state, NULL, 0);
-	} else {
-		status = VCHIQ_ERROR;
-		VCHIQ_STATS_INC(state, error_count);
-	}
-
-	return status;
-}
-
-VCHIQ_STATUS_T
 vchiq_close_service(VCHIQ_SERVICE_HANDLE_T handle)
 {
 	/* Unregister the service */
