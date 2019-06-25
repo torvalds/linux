@@ -25,19 +25,24 @@
 /* Enough to read all switch port registers. */
 #define SPI_TX_BUF_LEN			0x100
 
-static int ksz9477_spi_read_reg(struct spi_device *spi, u32 reg, u8 *val,
-				unsigned int len)
+static u32 ksz9477_spi_cmd(u32 reg, bool read)
 {
 	u32 txbuf;
-	int ret;
 
 	txbuf = reg & SPI_ADDR_MASK;
-	txbuf |= KS_SPIOP_RD << SPI_ADDR_SHIFT;
+	txbuf |= (read ? KS_SPIOP_RD : KS_SPIOP_WR) << SPI_ADDR_SHIFT;
 	txbuf <<= SPI_TURNAROUND_SHIFT;
 	txbuf = cpu_to_be32(txbuf);
 
-	ret = spi_write_then_read(spi, &txbuf, 4, val, len);
-	return ret;
+	return txbuf;
+}
+
+static int ksz9477_spi_read_reg(struct spi_device *spi, u32 reg, u8 *val,
+				unsigned int len)
+{
+	u32 txbuf = ksz9477_spi_cmd(reg, true);
+
+	return spi_write_then_read(spi, &txbuf, 4, val, len);
 }
 
 static int ksz9477_spi_write_reg(struct spi_device *spi, u32 reg, u8 *val,
@@ -45,10 +50,7 @@ static int ksz9477_spi_write_reg(struct spi_device *spi, u32 reg, u8 *val,
 {
 	u32 *txbuf = (u32 *)val;
 
-	*txbuf = reg & SPI_ADDR_MASK;
-	*txbuf |= (KS_SPIOP_WR << SPI_ADDR_SHIFT);
-	*txbuf <<= SPI_TURNAROUND_SHIFT;
-	*txbuf = cpu_to_be32(*txbuf);
+	*txbuf = ksz9477_spi_cmd(reg, false);
 
 	return spi_write(spi, txbuf, 4 + len);
 }
