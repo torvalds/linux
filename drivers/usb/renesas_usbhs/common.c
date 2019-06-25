@@ -297,7 +297,7 @@ static int usbhsc_clk_get(struct device *dev, struct usbhs_priv *priv)
 		return 0;
 
 	/* The first clock should exist */
-	priv->clks[0] = of_clk_get(dev->of_node, 0);
+	priv->clks[0] = of_clk_get(dev_of_node(dev), 0);
 	if (IS_ERR(priv->clks[0]))
 		return PTR_ERR(priv->clks[0]);
 
@@ -305,7 +305,7 @@ static int usbhsc_clk_get(struct device *dev, struct usbhs_priv *priv)
 	 * To backward compatibility with old DT, this driver checks the return
 	 * value if it's -ENOENT or not.
 	 */
-	priv->clks[1] = of_clk_get(dev->of_node, 1);
+	priv->clks[1] = of_clk_get(dev_of_node(dev), 1);
 	if (PTR_ERR(priv->clks[1]) == -ENOENT)
 		priv->clks[1] = NULL;
 	else if (IS_ERR(priv->clks[1]))
@@ -648,10 +648,10 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 	*dparam = data->param;
 	info->platform_callback = *data->platform_callback;
 
-	if (!of_property_read_u32(dev->of_node, "renesas,buswait", &tmp))
+	if (!of_property_read_u32(dev_of_node(dev), "renesas,buswait", &tmp))
 		dparam->buswait_bwait = tmp;
-	gpio = of_get_named_gpio_flags(dev->of_node, "renesas,enable-gpio", 0,
-				       NULL);
+	gpio = of_get_named_gpio_flags(dev_of_node(dev), "renesas,enable-gpio",
+				       0, NULL);
 	if (gpio > 0)
 		dparam->enable_gpio = gpio;
 
@@ -666,7 +666,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	int ret;
 
 	/* check device node */
-	if (pdev->dev.of_node)
+	if (dev_of_node(&pdev->dev))
 		info = pdev->dev.platform_data = usbhs_parse_dt(&pdev->dev);
 
 	/* check platform information */
@@ -692,7 +692,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	if (of_property_read_bool(pdev->dev.of_node, "extcon")) {
+	if (of_property_read_bool(dev_of_node(&pdev->dev), "extcon")) {
 		priv->edev = extcon_get_edev_by_phandle(&pdev->dev, 0);
 		if (IS_ERR(priv->edev))
 			return PTR_ERR(priv->edev);

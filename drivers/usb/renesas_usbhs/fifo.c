@@ -3,6 +3,7 @@
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  */
 #include <linux/delay.h>
@@ -1277,7 +1278,7 @@ static void usbhsf_dma_init(struct usbhs_priv *priv, struct usbhs_fifo *fifo,
 {
 	struct device *dev = usbhs_priv_to_dev(priv);
 
-	if (dev->of_node)
+	if (dev_of_node(dev))
 		usbhsf_dma_init_dt(dev, fifo, channel);
 	else
 		usbhsf_dma_init_pdev(fifo);
