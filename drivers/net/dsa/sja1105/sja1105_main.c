@@ -1126,44 +1126,60 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid)
 {
 	struct sja1105_private *priv = ds->priv;
-	int rc;
+	u16 rx_vid, tx_vid;
+	int rc, i;
+
+	if (dsa_port_is_vlan_filtering(&ds->ports[port]))
+		return priv->info->fdb_add_cmd(ds, port, addr, vid);
 
 	/* Since we make use of VLANs even when the bridge core doesn't tell us
 	 * to, translate these FDB entries into the correct dsa_8021q ones.
+	 * The basic idea (also repeats for removal below) is:
+	 * - Each of the other front-panel ports needs to be able to forward a
+	 *   pvid-tagged (aka tagged with their rx_vid) frame that matches this
+	 *   DMAC.
+	 * - The CPU port (aka the tx_vid of this port) needs to be able to
+	 *   send a frame matching this DMAC to the specified port.
+	 * For a better picture see net/dsa/tag_8021q.c.
 	 */
-	if (!dsa_port_is_vlan_filtering(&ds->ports[port])) {
-		unsigned int upstream = dsa_upstream_port(priv->ds, port);
-		u16 tx_vid = dsa_8021q_tx_vid(ds, port);
-		u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
+		if (i == port)
+			continue;
+		if (i == dsa_upstream_port(priv->ds, port))
+			continue;
 
-		rc = priv->info->fdb_add_cmd(ds, port, addr, tx_vid);
+		rx_vid = dsa_8021q_rx_vid(ds, i);
+		rc = priv->info->fdb_add_cmd(ds, port, addr, rx_vid);
 		if (rc < 0)
 			return rc;
-		return priv->info->fdb_add_cmd(ds, upstream, addr, rx_vid);
 	}
-	return priv->info->fdb_add_cmd(ds, port, addr, vid);
+	tx_vid = dsa_8021q_tx_vid(ds, port);
+	return priv->info->fdb_add_cmd(ds, port, addr, tx_vid);
 }
 
 static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid)
 {
 	struct sja1105_private *priv = ds->priv;
-	int rc;
+	u16 rx_vid, tx_vid;
+	int rc, i;
 
-	/* Since we make use of VLANs even when the bridge core doesn't tell us
-	 * to, translate these FDB entries into the correct dsa_8021q ones.
-	 */
-	if (!dsa_port_is_vlan_filtering(&ds->ports[port])) {
-		unsigned int upstream = dsa_upstream_port(priv->ds, port);
-		u16 tx_vid = dsa_8021q_tx_vid(ds, port);
-		u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+	if (dsa_port_is_vlan_filtering(&ds->ports[port]))
+		return priv->info->fdb_del_cmd(ds, port, addr, vid);
 
-		rc = priv->info->fdb_del_cmd(ds, port, addr, tx_vid);
+	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
+		if (i == port)
+			continue;
+		if (i == dsa_upstream_port(priv->ds, port))
+			continue;
+
+		rx_vid = dsa_8021q_rx_vid(ds, i);
+		rc = priv->info->fdb_del_cmd(ds, port, addr, rx_vid);
 		if (rc < 0)
 			return rc;
-		return priv->info->fdb_del_cmd(ds, upstream, addr, rx_vid);
 	}
-	return priv->info->fdb_del_cmd(ds, port, addr, vid);
+	tx_vid = dsa_8021q_tx_vid(ds, port);
+	return priv->info->fdb_del_cmd(ds, port, addr, tx_vid);
 }
 
 static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
@@ -1171,7 +1187,11 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 {
 	struct sja1105_private *priv = ds->priv;
 	struct device *dev = ds->dev;
+	u16 rx_vid, tx_vid;
 	int i;
+
+	rx_vid = dsa_8021q_rx_vid(ds, port);
+	tx_vid = dsa_8021q_tx_vid(ds, port);
 
 	for (i = 0; i < SJA1105_MAX_L2_LOOKUP_COUNT; i++) {
 		struct sja1105_l2_lookup_entry l2_lookup = {0};
@@ -1198,14 +1218,24 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 			continue;
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
-		/* We need to hide the dsa_8021q VLAN from the user.
-		 * Convert the TX VID into the pvid that is active in
-		 * standalone and non-vlan_filtering modes, aka 1.
-		 * The RX VID is applied on the CPU port, which is not seen by
-		 * the bridge core anyway, so there's nothing to hide.
+		/* We need to hide the dsa_8021q VLANs from the user. This
+		 * basically means hiding the duplicates and only showing
+		 * the pvid that is supposed to be active in standalone and
+		 * non-vlan_filtering modes (aka 1).
+		 * - For statically added FDB entries (bridge fdb add), we
+		 *   can convert the TX VID (coming from the CPU port) into the
+		 *   pvid and ignore the RX VIDs of the other ports.
+		 * - For dynamically learned FDB entries, a single entry with
+		 *   no duplicates is learned - that which has the real port's
+		 *   pvid, aka RX VID.
 		 */
-		if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
-			l2_lookup.vlanid = 1;
+		if (!dsa_port_is_vlan_filtering(&ds->ports[port])) {
+			if (l2_lookup.vlanid == tx_vid ||
+			    l2_lookup.vlanid == rx_vid)
+				l2_lookup.vlanid = 1;
+			else
+				continue;
+		}
 		cb(macaddr, l2_lookup.vlanid, l2_lookup.lockeds, data);
 	}
 	return 0;
