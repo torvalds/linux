@@ -14,3 +14,14 @@ config TI_SCI_CLK
 	  This adds the clock driver support over TI System Control Interface.
 	  If you wish to use clock resources from the PMMC firmware, say Y.
 	  Otherwise, say N.
+
+config TI_SCI_CLK_PROBE_FROM_FW
+	bool "Probe available clocks from firmware"
+	depends on TI_SCI_CLK
+	default n
+	help
+	  Forces the TI SCI clock driver to probe available clocks from the
+	  firmware. By default, only the used clocks are probed from DT.
+	  This is mostly only useful for debugging purposes, and will
+	  increase the boot time of the device. If you want the clocks probed
+	  from firmware, say Y. Otherwise, say N.

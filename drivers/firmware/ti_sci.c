@@ -916,7 +916,7 @@ static int ti_sci_cmd_get_device_resets(const struct ti_sci_handle *handle,
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_set_clock_state(const struct ti_sci_handle *handle,
-				  u32 dev_id, u8 clk_id,
+				  u32 dev_id, u32 clk_id,
 				  u32 flags, u8 state)
 {
 	struct ti_sci_info *info;
@@ -944,7 +944,12 @@ static int ti_sci_set_clock_state(const struct ti_sci_handle *handle,
 	}
 	req = (struct ti_sci_msg_req_set_clock_state *)xfer->xfer_buf;
 	req->dev_id = dev_id;
-	req->clk_id = clk_id;
+	if (clk_id < 255) {
+		req->clk_id = clk_id;
+	} else {
+		req->clk_id = 255;
+		req->clk_id_32 = clk_id;
+	}
 	req->request_state = state;
 
 	ret = ti_sci_do_xfer(info, xfer);
@@ -976,7 +981,7 @@ fail:
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_get_clock_state(const struct ti_sci_handle *handle,
-				      u32 dev_id, u8 clk_id,
+				      u32 dev_id, u32 clk_id,
 				      u8 *programmed_state, u8 *current_state)
 {
 	struct ti_sci_info *info;
@@ -1007,7 +1012,12 @@ static int ti_sci_cmd_get_clock_state(const struct ti_sci_handle *handle,
 	}
 	req = (struct ti_sci_msg_req_get_clock_state *)xfer->xfer_buf;
 	req->dev_id = dev_id;
-	req->clk_id = clk_id;
+	if (clk_id < 255) {
+		req->clk_id = clk_id;
+	} else {
+		req->clk_id = 255;
+		req->clk_id_32 = clk_id;
+	}
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
@@ -1047,8 +1057,8 @@ fail:
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_get_clock(const struct ti_sci_handle *handle, u32 dev_id,
-				u8 clk_id, bool needs_ssc, bool can_change_freq,
-				bool enable_input_term)
+				u32 clk_id, bool needs_ssc,
+				bool can_change_freq, bool enable_input_term)
 {
 	u32 flags = 0;
 
@@ -1073,7 +1083,7 @@ static int ti_sci_cmd_get_clock(const struct ti_sci_handle *handle, u32 dev_id,
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_idle_clock(const struct ti_sci_handle *handle,
-				 u32 dev_id, u8 clk_id)
+				 u32 dev_id, u32 clk_id)
 {
 	return ti_sci_set_clock_state(handle, dev_id, clk_id, 0,
 				      MSG_CLOCK_SW_STATE_UNREQ);
@@ -1092,7 +1102,7 @@ static int ti_sci_cmd_idle_clock(const struct ti_sci_handle *handle,
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_put_clock(const struct ti_sci_handle *handle,
-				u32 dev_id, u8 clk_id)
+				u32 dev_id, u32 clk_id)
 {
 	return ti_sci_set_clock_state(handle, dev_id, clk_id, 0,
 				      MSG_CLOCK_SW_STATE_AUTO);
@@ -1110,7 +1120,7 @@ static int ti_sci_cmd_put_clock(const struct ti_sci_handle *handle,
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_is_auto(const struct ti_sci_handle *handle,
-				  u32 dev_id, u8 clk_id, bool *req_state)
+				  u32 dev_id, u32 clk_id, bool *req_state)
 {
 	u8 state = 0;
 	int ret;
@@ -1139,7 +1149,7 @@ static int ti_sci_cmd_clk_is_auto(const struct ti_sci_handle *handle,
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_is_on(const struct ti_sci_handle *handle, u32 dev_id,
-				u8 clk_id, bool *req_state, bool *curr_state)
+				u32 clk_id, bool *req_state, bool *curr_state)
 {
 	u8 c_state = 0, r_state = 0;
 	int ret;
@@ -1172,7 +1182,7 @@ static int ti_sci_cmd_clk_is_on(const struct ti_sci_handle *handle, u32 dev_id,
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_is_off(const struct ti_sci_handle *handle, u32 dev_id,
-				 u8 clk_id, bool *req_state, bool *curr_state)
+				 u32 clk_id, bool *req_state, bool *curr_state)
 {
 	u8 c_state = 0, r_state = 0;
 	int ret;
@@ -1204,7 +1214,7 @@ static int ti_sci_cmd_clk_is_off(const struct ti_sci_handle *handle, u32 dev_id,
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_set_parent(const struct ti_sci_handle *handle,
-				     u32 dev_id, u8 clk_id, u8 parent_id)
+				     u32 dev_id, u32 clk_id, u32 parent_id)
 {
 	struct ti_sci_info *info;
 	struct ti_sci_msg_req_set_clock_parent *req;
@@ -1231,8 +1241,18 @@ static int ti_sci_cmd_clk_set_parent(const struct ti_sci_handle *handle,
 	}
 	req = (struct ti_sci_msg_req_set_clock_parent *)xfer->xfer_buf;
 	req->dev_id = dev_id;
-	req->clk_id = clk_id;
-	req->parent_id = parent_id;
+	if (clk_id < 255) {
+		req->clk_id = clk_id;
+	} else {
+		req->clk_id = 255;
+		req->clk_id_32 = clk_id;
+	}
+	if (parent_id < 255) {
+		req->parent_id = parent_id;
+	} else {
+		req->parent_id = 255;
+		req->parent_id_32 = parent_id;
+	}
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
@@ -1262,7 +1282,7 @@ fail:
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_get_parent(const struct ti_sci_handle *handle,
-				     u32 dev_id, u8 clk_id, u8 *parent_id)
+				     u32 dev_id, u32 clk_id, u32 *parent_id)
 {
 	struct ti_sci_info *info;
 	struct ti_sci_msg_req_get_clock_parent *req;
@@ -1289,7 +1309,12 @@ static int ti_sci_cmd_clk_get_parent(const struct ti_sci_handle *handle,
 	}
 	req = (struct ti_sci_msg_req_get_clock_parent *)xfer->xfer_buf;
 	req->dev_id = dev_id;
-	req->clk_id = clk_id;
+	if (clk_id < 255) {
+		req->clk_id = clk_id;
+	} else {
+		req->clk_id = 255;
+		req->clk_id_32 = clk_id;
+	}
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
@@ -1299,10 +1324,14 @@ static int ti_sci_cmd_clk_get_parent(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_resp_get_clock_parent *)xfer->xfer_buf;
 
-	if (!ti_sci_is_response_ack(resp))
+	if (!ti_sci_is_response_ack(resp)) {
 		ret = -ENODEV;
-	else
-		*parent_id = resp->parent_id;
+	} else {
+		if (resp->parent_id < 255)
+			*parent_id = resp->parent_id;
+		else
+			*parent_id = resp->parent_id_32;
+	}
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -1322,8 +1351,8 @@ fail:
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_get_num_parents(const struct ti_sci_handle *handle,
-					  u32 dev_id, u8 clk_id,
-					  u8 *num_parents)
+					  u32 dev_id, u32 clk_id,
+					  u32 *num_parents)
 {
 	struct ti_sci_info *info;
 	struct ti_sci_msg_req_get_clock_num_parents *req;
@@ -1350,7 +1379,12 @@ static int ti_sci_cmd_clk_get_num_parents(const struct ti_sci_handle *handle,
 	}
 	req = (struct ti_sci_msg_req_get_clock_num_parents *)xfer->xfer_buf;
 	req->dev_id = dev_id;
-	req->clk_id = clk_id;
+	if (clk_id < 255) {
+		req->clk_id = clk_id;
+	} else {
+		req->clk_id = 255;
+		req->clk_id_32 = clk_id;
+	}
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
@@ -1360,10 +1394,14 @@ static int ti_sci_cmd_clk_get_num_parents(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_resp_get_clock_num_parents *)xfer->xfer_buf;
 
-	if (!ti_sci_is_response_ack(resp))
+	if (!ti_sci_is_response_ack(resp)) {
 		ret = -ENODEV;
-	else
-		*num_parents = resp->num_parents;
+	} else {
+		if (resp->num_parents < 255)
+			*num_parents = resp->num_parents;
+		else
+			*num_parents = resp->num_parents_32;
+	}
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -1391,7 +1429,7 @@ fail:
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_get_match_freq(const struct ti_sci_handle *handle,
-					 u32 dev_id, u8 clk_id, u64 min_freq,
+					 u32 dev_id, u32 clk_id, u64 min_freq,
 					 u64 target_freq, u64 max_freq,
 					 u64 *match_freq)
 {
@@ -1420,7 +1458,12 @@ static int ti_sci_cmd_clk_get_match_freq(const struct ti_sci_handle *handle,
 	}
 	req = (struct ti_sci_msg_req_query_clock_freq *)xfer->xfer_buf;
 	req->dev_id = dev_id;
-	req->clk_id = clk_id;
+	if (clk_id < 255) {
+		req->clk_id = clk_id;
+	} else {
+		req->clk_id = 255;
+		req->clk_id_32 = clk_id;
+	}
 	req->min_freq_hz = min_freq;
 	req->target_freq_hz = target_freq;
 	req->max_freq_hz = max_freq;
@@ -1463,7 +1506,7 @@ fail:
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_set_freq(const struct ti_sci_handle *handle,
-				   u32 dev_id, u8 clk_id, u64 min_freq,
+				   u32 dev_id, u32 clk_id, u64 min_freq,
 				   u64 target_freq, u64 max_freq)
 {
 	struct ti_sci_info *info;
@@ -1491,7 +1534,12 @@ static int ti_sci_cmd_clk_set_freq(const struct ti_sci_handle *handle,
 	}
 	req = (struct ti_sci_msg_req_set_clock_freq *)xfer->xfer_buf;
 	req->dev_id = dev_id;
-	req->clk_id = clk_id;
+	if (clk_id < 255) {
+		req->clk_id = clk_id;
+	} else {
+		req->clk_id = 255;
+		req->clk_id_32 = clk_id;
+	}
 	req->min_freq_hz = min_freq;
 	req->target_freq_hz = target_freq;
 	req->max_freq_hz = max_freq;
@@ -1524,7 +1572,7 @@ fail:
  * Return: 0 if all went well, else returns appropriate error value.
  */
 static int ti_sci_cmd_clk_get_freq(const struct ti_sci_handle *handle,
-				   u32 dev_id, u8 clk_id, u64 *freq)
+				   u32 dev_id, u32 clk_id, u64 *freq)
 {
 	struct ti_sci_info *info;
 	struct ti_sci_msg_req_get_clock_freq *req;
@@ -1551,7 +1599,12 @@ static int ti_sci_cmd_clk_get_freq(const struct ti_sci_handle *handle,
 	}
 	req = (struct ti_sci_msg_req_get_clock_freq *)xfer->xfer_buf;
 	req->dev_id = dev_id;
-	req->clk_id = clk_id;
+	if (clk_id < 255) {
+		req->clk_id = clk_id;
+	} else {
+		req->clk_id = 255;
+		req->clk_id_32 = clk_id;
+	}
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
