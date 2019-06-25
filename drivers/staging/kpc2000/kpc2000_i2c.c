@@ -257,7 +257,7 @@ static int i801_block_transaction_by_block(struct i2c_device *priv, union i2c_sm
 		len = data->block[0];
 		outb_p(len, SMBHSTDAT0(priv));
 		for (i = 0; i < len; i++)
-			outb_p(data->block[i+1], SMBBLKDAT(priv));
+			outb_p(data->block[i + 1], SMBBLKDAT(priv));
 	}
 
 	status = i801_transaction(priv, I801_BLOCK_DATA | ENABLE_INT9 | I801_PEC_EN * hwpec);
@@ -337,8 +337,8 @@ static int i801_block_transaction_byte_by_byte(struct i2c_device *priv, union i2
 		/* Retrieve/store value in SMBBLKDAT */
 		if (read_write == I2C_SMBUS_READ)
 			data->block[i] = inb_p(SMBBLKDAT(priv));
-		if (read_write == I2C_SMBUS_WRITE && i+1 <= len)
-			outb_p(data->block[i+1], SMBBLKDAT(priv));
+		if (read_write == I2C_SMBUS_WRITE && i + 1 <= len)
+			outb_p(data->block[i + 1], SMBBLKDAT(priv));
 		/* signals SMBBLKDAT ready */
 		outb_p(SMBHSTSTS_BYTE_DONE | SMBHSTSTS_INTR, SMBHSTSTS(priv));
 	}
