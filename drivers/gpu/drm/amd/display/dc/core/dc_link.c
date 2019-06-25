@@ -550,7 +550,7 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 			break;
 		}
 
-		udelay(8000);
+		msleep(8);
 	}
 
 	ASSERT(status == DC_OK);
