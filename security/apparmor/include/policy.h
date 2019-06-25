@@ -214,7 +214,16 @@ static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
 	return labels_profile(aa_get_newest_label(&p->label));
 }
 
-#define PROFILE_MEDIATES(P, T)  ((P)->policy.start[(unsigned char) (T)])
+static inline unsigned int PROFILE_MEDIATES(struct aa_profile *profile,
+					    unsigned char class)
+{
+	if (class <= AA_CLASS_LAST)
+		return profile->policy.start[class];
+	else
+		return aa_dfa_match_len(profile->policy.dfa,
+					profile->policy.start[0], &class, 1);
+}
+
 static inline unsigned int PROFILE_MEDIATES_AF(struct aa_profile *profile,
 					       u16 AF) {
 	unsigned int state = PROFILE_MEDIATES(profile, AA_CLASS_NET);

@@ -2379,7 +2379,7 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 				if (closid_allocated(i) && i != closid) {
 					mode = rdtgroup_mode_by_closid(i);
 					if (mode == RDT_MODE_PSEUDO_LOCKSETUP)
-						break;
+						continue;
 					used_b |= *ctrl;
 					if (mode == RDT_MODE_SHAREABLE)
 						d->new_ctrl |= *ctrl;

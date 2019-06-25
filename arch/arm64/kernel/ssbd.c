@@ -4,6 +4,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/prctl.h>
 #include <linux/sched.h>
 #include <linux/thread_info.h>
 
