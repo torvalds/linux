@@ -724,11 +724,12 @@ rwsem_spin_on_owner(struct rw_semaphore *sem, unsigned long nonspinnable)
 
 	rcu_read_lock();
 	for (;;) {
-		if (atomic_long_read(&sem->count) & RWSEM_FLAG_HANDOFF) {
-			state = OWNER_NONSPINNABLE;
-			break;
-		}
-
+		/*
+		 * When a waiting writer set the handoff flag, it may spin
+		 * on the owner as well. Once that writer acquires the lock,
+		 * we can spin on it. So we don't need to quit even when the
+		 * handoff bit is set.
+		 */
 		new = rwsem_owner_flags(sem, &new_flags);
 		if ((new != owner) || (new_flags != flags)) {
 			state = rwsem_owner_state(new, new_flags, nonspinnable);
@@ -974,6 +975,13 @@ static inline bool rwsem_reader_phase_trylock(struct rw_semaphore *sem,
 {
 	return false;
 }
+
+static inline int
+rwsem_spin_on_owner(struct rw_semaphore *sem, unsigned long nonspinnable)
+{
+	return 0;
+}
+#define OWNER_NULL	1
 #endif
 
 /*
@@ -1206,6 +1214,18 @@ wait:
 
 		raw_spin_unlock_irq(&sem->wait_lock);
 
+		/*
+		 * After setting the handoff bit and failing to acquire
+		 * the lock, attempt to spin on owner to accelerate lock
+		 * transfer. If the previous owner is a on-cpu writer and it
+		 * has just released the lock, OWNER_NULL will be returned.
+		 * In this case, we attempt to acquire the lock again
+		 * without sleeping.
+		 */
+		if ((wstate == WRITER_HANDOFF) &&
+		    (rwsem_spin_on_owner(sem, 0) == OWNER_NULL))
+			goto trylock_again;
+
 		/* Block until there are no active lockers. */
 		for (;;) {
 			if (signal_pending_state(state, current))
@@ -1240,7 +1260,7 @@ wait:
 				break;
 			}
 		}
-
+trylock_again:
 		raw_spin_lock_irq(&sem->wait_lock);
 	}
 	__set_current_state(TASK_RUNNING);
