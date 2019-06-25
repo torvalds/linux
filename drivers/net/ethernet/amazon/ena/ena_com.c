@@ -1896,62 +1896,6 @@ int ena_com_get_link_params(struct ena_com_dev *ena_dev,
 	return ena_com_get_feature(ena_dev, resp, ENA_ADMIN_LINK_CONFIG, 0);
 }
 
-int ena_com_extra_properties_strings_init(struct ena_com_dev *ena_dev)
-{
-	struct ena_admin_get_feat_resp resp;
-	struct ena_extra_properties_strings *extra_properties_strings =
-			&ena_dev->extra_properties_strings;
-	u32 rc;
-
-	extra_properties_strings->size = ENA_ADMIN_EXTRA_PROPERTIES_COUNT *
-		ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN;
-
-	extra_properties_strings->virt_addr =
-		dma_alloc_coherent(ena_dev->dmadev,
-				   extra_properties_strings->size,
-				   &extra_properties_strings->dma_addr,
-				   GFP_KERNEL);
-	if (unlikely(!extra_properties_strings->virt_addr)) {
-		pr_err("Failed to allocate extra properties strings\n");
-		return 0;
-	}
-
-	rc = ena_com_get_feature_ex(ena_dev, &resp,
-				    ENA_ADMIN_EXTRA_PROPERTIES_STRINGS,
-				    extra_properties_strings->dma_addr,
-				    extra_properties_strings->size, 0);
-	if (rc) {
-		pr_debug("Failed to get extra properties strings\n");
-		goto err;
-	}
-
-	return resp.u.extra_properties_strings.count;
-err:
-	ena_com_delete_extra_properties_strings(ena_dev);
-	return 0;
-}
-
-void ena_com_delete_extra_properties_strings(struct ena_com_dev *ena_dev)
-{
-	struct ena_extra_properties_strings *extra_properties_strings =
-				&ena_dev->extra_properties_strings;
-
-	if (extra_properties_strings->virt_addr) {
-		dma_free_coherent(ena_dev->dmadev,
-				  extra_properties_strings->size,
-				  extra_properties_strings->virt_addr,
-				  extra_properties_strings->dma_addr);
-		extra_properties_strings->virt_addr = NULL;
-	}
-}
-
-int ena_com_get_extra_properties_flags(struct ena_com_dev *ena_dev,
-				       struct ena_admin_get_feat_resp *resp)
-{
-	return ena_com_get_feature(ena_dev, resp,
-				   ENA_ADMIN_EXTRA_PROPERTIES_FLAGS, 0);
-}
-
 int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 			      struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {

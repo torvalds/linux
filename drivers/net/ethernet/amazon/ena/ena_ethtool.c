@@ -198,24 +198,15 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 	ena_dev_admin_queue_stats(adapter, &data);
 }
 
-static int get_stats_sset_count(struct ena_adapter *adapter)
-{
-	return  adapter->num_queues * (ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX)
-		+ ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
-}
-
 int ena_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	switch (sset) {
-	case ETH_SS_STATS:
-		return get_stats_sset_count(adapter);
-	case ETH_SS_PRIV_FLAGS:
-		return adapter->ena_extra_properties_count;
-	default:
+	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
-	}
+
+	return  adapter->num_queues * (ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX)
+		+ ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
 }
 
 static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
@@ -257,52 +248,24 @@ static void ena_com_dev_strings(u8 **data)
 	}
 }
 
-static void get_stats_strings(struct ena_adapter *adapter, u8 *data)
-{
-	const struct ena_stats *ena_stats;
-	int i;
-
-	for (i = 0; i < ENA_STATS_ARRAY_GLOBAL; i++) {
-		ena_stats = &ena_stats_global_strings[i];
-		memcpy(data, ena_stats->name, ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
-	ena_queue_strings(adapter, &data);
-	ena_com_dev_strings(&data);
-}
-
-static void get_private_flags_strings(struct ena_adapter *adapter, u8 *data)
-{
-	struct ena_com_dev *ena_dev = adapter->ena_dev;
-	u8 *strings = ena_dev->extra_properties_strings.virt_addr;
-	int i;
-
-	if (unlikely(!strings)) {
-		adapter->ena_extra_properties_count = 0;
-		return;
-	}
-
-	for (i = 0; i < adapter->ena_extra_properties_count; i++) {
-		strlcpy(data, strings + ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN * i,
-			ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
-}
-
 static void ena_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
+	const struct ena_stats *ena_stats;
+	int i;
 
-	switch (sset) {
-	case ETH_SS_STATS:
-		get_stats_strings(adapter, data);
-		break;
-	case ETH_SS_PRIV_FLAGS:
-		get_private_flags_strings(adapter, data);
-		break;
-	default:
-		break;
+	if (sset != ETH_SS_STATS)
+		return;
+
+	for (i = 0; i < ENA_STATS_ARRAY_GLOBAL; i++) {
+		ena_stats = &ena_stats_global_strings[i];
+
+		memcpy(data, ena_stats->name, ETH_GSTRING_LEN);
+		data += ETH_GSTRING_LEN;
 	}
+
+	ena_queue_strings(adapter, &data);
+	ena_com_dev_strings(&data);
 }
 
 static int ena_get_link_ksettings(struct net_device *netdev,
@@ -479,7 +442,6 @@ static void ena_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
-	info->n_priv_flags = adapter->ena_extra_properties_count;
 }
 
 static void ena_get_ringparam(struct net_device *netdev,
@@ -856,20 +818,6 @@ static int ena_set_tunable(struct net_device *netdev,
 	return ret;
 }
 
-static u32 ena_get_priv_flags(struct net_device *netdev)
-{
-	struct ena_adapter *adapter = netdev_priv(netdev);
-	struct ena_com_dev *ena_dev = adapter->ena_dev;
-	struct ena_admin_get_feat_resp get_resp;
-	u32 rc;
-
-	rc = ena_com_get_extra_properties_flags(ena_dev, &get_resp);
-	if (!rc)
-		return get_resp.u.extra_properties_flags.flags;
-
-	return 0;
-}
-
 static const struct ethtool_ops ena_ethtool_ops = {
 	.get_link_ksettings	= ena_get_link_ksettings,
 	.get_drvinfo		= ena_get_drvinfo,
@@ -892,7 +840,6 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_channels		= ena_get_channels,
 	.get_tunable		= ena_get_tunable,
 	.set_tunable		= ena_set_tunable,
-	.get_priv_flags		= ena_get_priv_flags,
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev)

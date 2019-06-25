@@ -352,12 +352,6 @@ struct ena_host_attribute {
 	dma_addr_t host_info_dma_addr;
 };
 
-struct ena_extra_properties_strings {
-	u8 *virt_addr;
-	dma_addr_t dma_addr;
-	u32 size;
-};
-
 /* Each ena_dev is a PCI function. */
 struct ena_com_dev {
 	struct ena_com_admin_queue admin_queue;
@@ -386,7 +380,6 @@ struct ena_com_dev {
 	struct ena_intr_moder_entry *intr_moder_tbl;
 
 	struct ena_com_llq_info llq_info;
-	struct ena_extra_properties_strings extra_properties_strings;
 };
 
 struct ena_com_dev_get_features_ctx {
@@ -619,31 +612,6 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev);
  */
 int ena_com_get_link_params(struct ena_com_dev *ena_dev,
 			    struct ena_admin_get_feat_resp *resp);
-
-/* ena_com_extra_properties_strings_init - Initialize the extra properties strings buffer.
- * @ena_dev: ENA communication layer struct
- *
- * Initialize the extra properties strings buffer.
- */
-int ena_com_extra_properties_strings_init(struct ena_com_dev *ena_dev);
-
-/* ena_com_delete_extra_properties_strings - Free the extra properties strings buffer.
- * @ena_dev: ENA communication layer struct
- *
- * Free the allocated extra properties strings buffer.
- */
-void ena_com_delete_extra_properties_strings(struct ena_com_dev *ena_dev);
-
-/* ena_com_get_extra_properties_flags - Retrieve extra properties flags.
- * @ena_dev: ENA communication layer struct
- * @resp: Extra properties flags.
- *
- * Retrieve the extra properties flags.
- *
- * @return - 0 on Success negative value otherwise.
- */
-int ena_com_get_extra_properties_flags(struct ena_com_dev *ena_dev,
-				       struct ena_admin_get_feat_resp *resp);
 
 /* ena_com_get_dma_width - Retrieve physical dma address width the device
  * supports.

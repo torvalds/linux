@@ -378,8 +378,6 @@ struct ena_adapter {
 	u32 last_monitored_tx_qid;
 
 	enum ena_regs_reset_reason_types reset_reason;
-
-	u8 ena_extra_properties_count;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
