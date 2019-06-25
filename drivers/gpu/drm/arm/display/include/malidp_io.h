@@ -22,6 +22,13 @@ malidp_write32(u32 __iomem *base, u32 offset, u32 v)
 }
 
 static inline void
+malidp_write64(u32 __iomem *base, u32 offset, u64 v)
+{
+	writel(lower_32_bits(v), (base + (offset >> 2)));
+	writel(upper_32_bits(v), (base + (offset >> 2) + 1));
+}
+
+static inline void
 malidp_write32_mask(u32 __iomem *base, u32 offset, u32 m, u32 v)
 {
 	u32 tmp = malidp_read32(base, offset);
