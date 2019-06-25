@@ -80,7 +80,7 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		.maxage = 0xFF,
 		/* Internal VLAN (pvid) to apply to untagged ingress */
 		.vlanprio = 0,
-		.vlanid = 0,
+		.vlanid = 1,
 		.ing_mirr = false,
 		.egr_mirr = false,
 		/* Don't drop traffic with other EtherType than ETH_P_IP */
@@ -264,20 +264,15 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 		.vmemb_port = 0,
 		.vlan_bc = 0,
 		.tag_port = 0,
-		.vlanid = 0,
+		.vlanid = 1,
 	};
 	int i;
 
 	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
 
-	/* The static VLAN table will only contain the initial pvid of 0.
+	/* The static VLAN table will only contain the initial pvid of 1.
 	 * All other VLANs are to be configured through dynamic entries,
 	 * and kept in the static configuration table as backing memory.
-	 * The pvid of 0 is sufficient to pass traffic while the ports are
-	 * standalone and when vlan_filtering is disabled. When filtering
-	 * gets enabled, the switchdev core sets up the VLAN ID 1 and sets
-	 * it as the new pvid. Actually 'pvid 1' still comes up in 'bridge
-	 * vlan' even when vlan_filtering is off, but it has no effect.
 	 */
 	if (table->entry_count) {
 		kfree(table->entries);
@@ -291,7 +286,7 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 
 	table->entry_count = 1;
 
-	/* VLAN ID 0: all DT-defined ports are members; no restrictions on
+	/* VLAN 1: all DT-defined ports are members; no restrictions on
 	 * forwarding; always transmit priority-tagged frames as untagged.
 	 */
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
