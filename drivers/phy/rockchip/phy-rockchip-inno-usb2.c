@@ -1643,13 +1643,14 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret) {
 			dev_err(rphy->dev,
 				"failed to request otg-mux irq handle\n");
-			return ret;
+			goto err;
 		}
 	} else {
 		rport->bvalid_irq = of_irq_get_byname(child_np, "otg-bvalid");
 		if (rport->bvalid_irq <= 0) {
 			dev_err(rphy->dev, "no vbus valid irq provided\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->bvalid_irq,
@@ -1661,13 +1662,14 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret) {
 			dev_err(rphy->dev,
 				"failed to request otg-bvalid irq handle\n");
-			return ret;
+			goto err;
 		}
 
 		rport->ls_irq = of_irq_get_byname(child_np, "linestate");
 		if (rport->ls_irq <= 0) {
 			dev_err(rphy->dev, "no linestate irq provided\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
@@ -1676,14 +1678,15 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 						"rockchip_usb2phy", rport);
 		if (ret) {
 			dev_err(rphy->dev, "failed to request linestate irq handle\n");
-			return ret;
+			goto err;
 		}
 
 		if (rphy->edev_self) {
 			rport->id_irq = of_irq_get_byname(child_np, "otg-id");
 			if (rport->id_irq <= 0) {
 				dev_err(rphy->dev, "no otg id irq provided\n");
-				return -EINVAL;
+				ret = -EINVAL;
+				goto err;
 			}
 
 			ret = devm_request_threaded_irq(rphy->dev,
@@ -1694,7 +1697,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 							rport);
 			if (ret) {
 				dev_err(rphy->dev, "failed to request otg-id irq handle\n");
-				return ret;
+				goto err;
 			}
 		}
 	}
@@ -1708,7 +1711,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			/* Enable VBUS supply */
 			ret = rockchip_set_vbus_power(rport, true);
 			if (ret)
-				return ret;
+				goto err;
 		}
 	}
 
@@ -1719,7 +1722,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 					EXTCON_USB_HOST, &rport->event_nb);
 		if (ret) {
 			dev_err(rphy->dev, "register USB HOST notifier failed\n");
-			return ret;
+			goto err;
 		}
 	}
 
@@ -1735,6 +1738,10 @@ out:
 	rport->suspended = true;
 
 	return 0;
+
+err:
+	wake_lock_destroy(&rport->wakelock);
+	return ret;
 }
 
 static int rockchip_usb2phy_probe(struct platform_device *pdev)
