@@ -2021,6 +2021,9 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 			rcu_gp_kthread_wake();
 	}
 
+	my_rdp->nocb_gp_bypass = bypass;
+	my_rdp->nocb_gp_gp = needwait_gp;
+	my_rdp->nocb_gp_seq = needwait_gp ? wait_gp_seq : 0;
 	if (bypass && !rcu_nocb_poll) {
 		// At least one child with non-empty ->nocb_bypass, so set
 		// timer in order to avoid stranding its callbacks.
@@ -2055,6 +2058,7 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 		WRITE_ONCE(my_rdp->nocb_gp_sleep, true);
 		raw_spin_unlock_irqrestore(&my_rdp->nocb_gp_lock, flags);
 	}
+	my_rdp->nocb_gp_seq = -1;
 	WARN_ON(signal_pending(current));
 }
 
@@ -2071,6 +2075,7 @@ static int rcu_nocb_gp_kthread(void *arg)
 	struct rcu_data *rdp = arg;
 
 	for (;;) {
+		WRITE_ONCE(rdp->nocb_gp_loops, rdp->nocb_gp_loops + 1);
 		nocb_gp_wait(rdp);
 		cond_resched_tasks_rcu_qs();
 	}
@@ -2362,6 +2367,79 @@ void rcu_bind_current_to_nocb(void)
 }
 EXPORT_SYMBOL_GPL(rcu_bind_current_to_nocb);
 
+/*
+ * Dump out nocb grace-period kthread state for the specified rcu_data
+ * structure.
+ */
+static void show_rcu_nocb_gp_state(struct rcu_data *rdp)
+{
+	struct rcu_node *rnp = rdp->mynode;
+
+	pr_info("nocb GP %d %c%c%c%c%c%c %c[%c%c] %c%c:%ld rnp %d:%d %lu\n",
+		rdp->cpu,
+		"kK"[!!rdp->nocb_gp_kthread],
+		"lL"[raw_spin_is_locked(&rdp->nocb_gp_lock)],
+		"dD"[!!rdp->nocb_defer_wakeup],
+		"tT"[timer_pending(&rdp->nocb_timer)],
+		"bB"[timer_pending(&rdp->nocb_bypass_timer)],
+		"sS"[!!rdp->nocb_gp_sleep],
+		".W"[swait_active(&rdp->nocb_gp_wq)],
+		".W"[swait_active(&rnp->nocb_gp_wq[0])],
+		".W"[swait_active(&rnp->nocb_gp_wq[1])],
+		".B"[!!rdp->nocb_gp_bypass],
+		".G"[!!rdp->nocb_gp_gp],
+		(long)rdp->nocb_gp_seq,
+		rnp->grplo, rnp->grphi, READ_ONCE(rdp->nocb_gp_loops));
+}
+
+/* Dump out nocb kthread state for the specified rcu_data structure. */
+static void show_rcu_nocb_state(struct rcu_data *rdp)
+{
+	struct rcu_segcblist *rsclp = &rdp->cblist;
+	bool waslocked;
+	bool wastimer;
+	bool wassleep;
+
+	if (rdp->nocb_gp_rdp == rdp)
+		show_rcu_nocb_gp_state(rdp);
+
+	pr_info("   CB %d->%d %c%c%c%c%c%c F%ld L%ld C%d %c%c%c%c%c q%ld\n",
+		rdp->cpu, rdp->nocb_gp_rdp->cpu,
+		"kK"[!!rdp->nocb_cb_kthread],
+		"bB"[raw_spin_is_locked(&rdp->nocb_bypass_lock)],
+		"cC"[!!atomic_read(&rdp->nocb_lock_contended)],
+		"lL"[raw_spin_is_locked(&rdp->nocb_lock)],
+		"sS"[!!rdp->nocb_cb_sleep],
+		".W"[swait_active(&rdp->nocb_cb_wq)],
+		jiffies - rdp->nocb_bypass_first,
+		jiffies - rdp->nocb_nobypass_last,
+		rdp->nocb_nobypass_count,
+		".D"[rcu_segcblist_ready_cbs(rsclp)],
+		".W"[!rcu_segcblist_restempty(rsclp, RCU_DONE_TAIL)],
+		".R"[!rcu_segcblist_restempty(rsclp, RCU_WAIT_TAIL)],
+		".N"[!rcu_segcblist_restempty(rsclp, RCU_NEXT_READY_TAIL)],
+		".B"[!!rcu_cblist_n_cbs(&rdp->nocb_bypass)],
+		rcu_segcblist_n_cbs(&rdp->cblist));
+
+	/* It is OK for GP kthreads to have GP state. */
+	if (rdp->nocb_gp_rdp == rdp)
+		return;
+
+	waslocked = raw_spin_is_locked(&rdp->nocb_gp_lock);
+	wastimer = timer_pending(&rdp->nocb_timer);
+	wassleep = swait_active(&rdp->nocb_gp_wq);
+	if (!rdp->nocb_defer_wakeup && !rdp->nocb_gp_sleep &&
+	    !waslocked && !wastimer && !wassleep)
+		return;  /* Nothing untowards. */
+
+	pr_info("   !!! %c%c%c%c %c\n",
+		"lL"[waslocked],
+		"dD"[!!rdp->nocb_defer_wakeup],
+		"tT"[wastimer],
+		"sS"[!!rdp->nocb_gp_sleep],
+		".W"[wassleep]);
+}
+
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
 
 /* No ->nocb_lock to acquire.  */
@@ -2436,6 +2514,10 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 }
 
 static void __init rcu_spawn_nocb_kthreads(void)
+{
+}
+
+static void show_rcu_nocb_state(struct rcu_data *rdp)
 {
 }
 

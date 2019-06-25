@@ -589,6 +589,11 @@ void show_rcu_gp_kthreads(void)
 				cpu, (long)rdp->gp_seq_needed);
 		}
 	}
+	for_each_possible_cpu(cpu) {
+		rdp = per_cpu_ptr(&rcu_data, cpu);
+		if (rcu_segcblist_is_offloaded(&rdp->cblist))
+			show_rcu_nocb_state(rdp);
+	}
 	/* sched_show_task(rcu_state.gp_kthread); */
 }
 EXPORT_SYMBOL_GPL(show_rcu_gp_kthreads);

@@ -2176,6 +2176,7 @@ rcu_torture_cleanup(void)
 		return;
 	}
 
+	show_rcu_gp_kthreads();
 	rcu_torture_barrier_cleanup();
 	torture_stop_kthread(rcu_torture_fwd_prog, fwd_prog_task);
 	torture_stop_kthread(rcu_torture_stall, stall_task);

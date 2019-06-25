@@ -212,7 +212,11 @@ struct rcu_data {
 	/* The following fields are used by GP kthread, hence own cacheline. */
 	raw_spinlock_t nocb_gp_lock ____cacheline_internodealigned_in_smp;
 	struct timer_list nocb_bypass_timer; /* Force nocb_bypass flush. */
-	bool nocb_gp_sleep;		/* Is the nocb GP thread asleep? */
+	u8 nocb_gp_sleep;		/* Is the nocb GP thread asleep? */
+	u8 nocb_gp_bypass;		/* Found a bypass on last scan? */
+	u8 nocb_gp_gp;			/* GP to wait for on last scan? */
+	unsigned long nocb_gp_seq;	/*  If so, ->gp_seq to wait for. */
+	unsigned long nocb_gp_loops;	/* # passes through wait code. */
 	struct swait_queue_head nocb_gp_wq; /* For nocb kthreads to sleep on. */
 	bool nocb_cb_sleep;		/* Is the nocb CB thread asleep? */
 	struct task_struct *nocb_cb_kthread;
@@ -438,6 +442,7 @@ static void do_nocb_deferred_wakeup(struct rcu_data *rdp);
 static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
 static void rcu_spawn_cpu_nocb_kthread(int cpu);
 static void __init rcu_spawn_nocb_kthreads(void);
+static void show_rcu_nocb_state(struct rcu_data *rdp);
 static void rcu_nocb_lock(struct rcu_data *rdp);
 static void rcu_nocb_unlock(struct rcu_data *rdp);
 static void rcu_nocb_unlock_irqrestore(struct rcu_data *rdp,
