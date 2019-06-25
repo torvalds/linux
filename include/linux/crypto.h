@@ -327,6 +327,17 @@ struct cipher_alg {
 	void (*cia_decrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };
 
+/**
+ * struct compress_alg - compression/decompression algorithm
+ * @coa_compress: Compress a buffer of specified length, storing the resulting
+ *		  data in the specified buffer. Return the length of the
+ *		  compressed data in dlen.
+ * @coa_decompress: Decompress the source buffer, storing the uncompressed
+ *		    data in the specified buffer. The length of the data is
+ *		    returned in dlen.
+ *
+ * All fields are mandatory.
+ */
 struct compress_alg {
 	int (*coa_compress)(struct crypto_tfm *tfm, const u8 *src,
 			    unsigned int slen, u8 *dst, unsigned int *dlen);
