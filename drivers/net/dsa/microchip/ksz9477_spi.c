@@ -46,67 +46,12 @@ static const struct regmap_config ksz9477_regmap_config[] = {
 	KSZ_REGMAP_COMMON(32),
 };
 
-static int ksz_spi_read8(struct ksz_device *dev, u32 reg, u8 *val)
-{
-	unsigned int value;
-	int ret = regmap_read(dev->regmap, reg, &value);
-
-	*val = value;
-	return ret;
-}
-
-static int ksz_spi_read16(struct ksz_device *dev, u32 reg, u16 *val)
-{
-	int ret = regmap_bulk_read(dev->regmap, reg, val, 2);
-
-	if (!ret)
-		*val = be16_to_cpu(*val);
-
-	return ret;
-}
-
-static int ksz_spi_read32(struct ksz_device *dev, u32 reg, u32 *val)
-{
-	int ret = regmap_bulk_read(dev->regmap, reg, val, 4);
-
-	if (!ret)
-		*val = be32_to_cpu(*val);
-
-	return ret;
-}
-
-static int ksz_spi_write8(struct ksz_device *dev, u32 reg, u8 value)
-{
-	return regmap_write(dev->regmap, reg, value);
-}
-
-static int ksz_spi_write16(struct ksz_device *dev, u32 reg, u16 value)
-{
-	value = cpu_to_be16(value);
-	return regmap_bulk_write(dev->regmap, reg, &value, 2);
-}
-
-static int ksz_spi_write32(struct ksz_device *dev, u32 reg, u32 value)
-{
-	value = cpu_to_be32(value);
-	return regmap_bulk_write(dev->regmap, reg, &value, 4);
-}
-
-static const struct ksz_io_ops ksz9477_spi_ops = {
-	.read8 = ksz_spi_read8,
-	.read16 = ksz_spi_read16,
-	.read32 = ksz_spi_read32,
-	.write8 = ksz_spi_write8,
-	.write16 = ksz_spi_write16,
-	.write32 = ksz_spi_write32,
-};
-
 static int ksz9477_spi_probe(struct spi_device *spi)
 {
 	struct ksz_device *dev;
 	int i, ret;
 
-	dev = ksz_switch_alloc(&spi->dev, &ksz9477_spi_ops, spi);
+	dev = ksz_switch_alloc(&spi->dev, spi);
 	if (!dev)
 		return -ENOMEM;
 

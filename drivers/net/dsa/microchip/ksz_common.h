@@ -7,6 +7,8 @@
 #ifndef __KSZ_COMMON_H
 #define __KSZ_COMMON_H
 
+#include <linux/regmap.h>
+
 void ksz_port_cleanup(struct ksz_device *dev, int port);
 void ksz_update_port_member(struct ksz_device *dev, int port);
 void ksz_init_mib_timer(struct ksz_device *dev);
@@ -41,68 +43,44 @@ void ksz_disable_port(struct dsa_switch *ds, int port);
 
 static inline int ksz_read8(struct ksz_device *dev, u32 reg, u8 *val)
 {
-	int ret;
+	unsigned int value;
+	int ret = regmap_read(dev->regmap[0], reg, &value);
 
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read8(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
+	*val = value;
 	return ret;
 }
 
 static inline int ksz_read16(struct ksz_device *dev, u32 reg, u16 *val)
 {
-	int ret;
+	unsigned int value;
+	int ret = regmap_read(dev->regmap[1], reg, &value);
 
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read16(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
+	*val = value;
 	return ret;
 }
 
 static inline int ksz_read32(struct ksz_device *dev, u32 reg, u32 *val)
 {
-	int ret;
+	unsigned int value;
+	int ret = regmap_read(dev->regmap[2], reg, &value);
 
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read32(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
+	*val = value;
 	return ret;
 }
 
 static inline int ksz_write8(struct ksz_device *dev, u32 reg, u8 value)
 {
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write8(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
+	return regmap_write(dev->regmap[0], reg, value);
 }
 
 static inline int ksz_write16(struct ksz_device *dev, u32 reg, u16 value)
 {
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write16(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
+	return regmap_write(dev->regmap[1], reg, value);
 }
 
 static inline int ksz_write32(struct ksz_device *dev, u32 reg, u32 value)
 {
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write32(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
+	return regmap_write(dev->regmap[2], reg, value);
 }
 
 static inline void ksz_pread8(struct ksz_device *dev, int port, int offset,
