@@ -1640,6 +1640,7 @@ enum FW_BOOT_CONTEXT {
 #define MR_ATOMIC_DESCRIPTOR_SUPPORT_OFFSET	(1 << 24)
 
 #define MR_CAN_HANDLE_64_BIT_DMA_OFFSET		(1 << 25)
+#define MR_INTR_COALESCING_SUPPORT_OFFSET	(1 << 26)
 
 #define MEGASAS_WATCHDOG_THREAD_INTERVAL	1000
 #define MEGASAS_WAIT_FOR_NEXT_DMA_MSECS		20
@@ -2250,6 +2251,9 @@ enum MR_PD_TYPE {
 #define MR_DEFAULT_NVME_MDTS_KB		128
 #define MR_NVME_PAGE_SIZE_MASK		0x000000FF
 
+/*Aero performance parameters*/
+#define MR_HIGH_IOPS_QUEUE_COUNT	8
+
 struct megasas_instance {
 
 	unsigned int *reply_map;
@@ -2433,6 +2437,8 @@ struct megasas_instance {
 	bool atomic_desc_support;
 	bool support_seqnum_jbod_fp;
 	bool support_pci_lane_margining;
+	u8  low_latency_index_start;
+	bool balanced_mode;
 };
 
 struct MR_LD_VF_MAP {
