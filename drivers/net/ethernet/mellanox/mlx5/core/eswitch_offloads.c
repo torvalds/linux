@@ -88,6 +88,53 @@ u16 mlx5_eswitch_get_prio_range(struct mlx5_eswitch *esw)
 	return 1;
 }
 
+static void
+mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
+				  struct mlx5_flow_spec *spec,
+				  struct mlx5_esw_flow_attr *attr)
+{
+	void *misc2;
+	void *misc;
+
+	/* Use metadata matching because vport is not represented by single
+	 * VHCA in dual-port RoCE mode, and matching on source vport may fail.
+	 */
+	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
+		misc2 = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters_2);
+		MLX5_SET(fte_match_set_misc2, misc2, metadata_reg_c_0,
+			 mlx5_eswitch_get_vport_metadata_for_match(attr->in_mdev->priv.eswitch,
+								   attr->in_rep->vport));
+
+		misc2 = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters_2);
+		MLX5_SET_TO_ONES(fte_match_set_misc2, misc2, metadata_reg_c_0);
+
+		spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
+		if (memchr_inv(misc, 0, MLX5_ST_SZ_BYTES(fte_match_set_misc)))
+			spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
+	} else {
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
+		MLX5_SET(fte_match_set_misc, misc, source_port, attr->in_rep->vport);
+
+		if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
+			MLX5_SET(fte_match_set_misc, misc,
+				 source_eswitch_owner_vhca_id,
+				 MLX5_CAP_GEN(attr->in_mdev, vhca_id));
+
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
+		MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+		if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
+			MLX5_SET_TO_ONES(fte_match_set_misc, misc,
+					 source_eswitch_owner_vhca_id);
+
+		spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
+	}
+
+	if (MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source) &&
+	    attr->in_rep->vport == MLX5_VPORT_UPLINK)
+		spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
+}
+
 struct mlx5_flow_handle *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
@@ -99,7 +146,6 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_table *fdb;
 	int j, i = 0;
-	void *misc;
 
 	if (esw->mode != SRIOV_OFFLOADS)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -159,21 +205,8 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		i++;
 	}
 
-	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
-	MLX5_SET(fte_match_set_misc, misc, source_port, attr->in_rep->vport);
+	mlx5_eswitch_set_rule_source_port(esw, spec, attr);
 
-	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
-		MLX5_SET(fte_match_set_misc, misc,
-			 source_eswitch_owner_vhca_id,
-			 MLX5_CAP_GEN(attr->in_mdev, vhca_id));
-
-	misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
-	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
-	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
-		MLX5_SET_TO_ONES(fte_match_set_misc, misc,
-				 source_eswitch_owner_vhca_id);
-
-	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS;
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_DECAP) {
 		if (attr->tunnel_match_level != MLX5_MATCH_NONE)
 			spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
@@ -219,7 +252,6 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	struct mlx5_flow_table *fast_fdb;
 	struct mlx5_flow_table *fwd_fdb;
 	struct mlx5_flow_handle *rule;
-	void *misc;
 	int i;
 
 	fast_fdb = esw_get_prio_table(esw, attr->chain, attr->prio, 0);
@@ -251,25 +283,10 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	dest[i].ft = fwd_fdb,
 	i++;
 
-	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
-	MLX5_SET(fte_match_set_misc, misc, source_port, attr->in_rep->vport);
+	mlx5_eswitch_set_rule_source_port(esw, spec, attr);
 
-	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
-		MLX5_SET(fte_match_set_misc, misc,
-			 source_eswitch_owner_vhca_id,
-			 MLX5_CAP_GEN(attr->in_mdev, vhca_id));
-
-	misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
-	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
-	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
-		MLX5_SET_TO_ONES(fte_match_set_misc, misc,
-				 source_eswitch_owner_vhca_id);
-
-	if (attr->match_level == MLX5_MATCH_NONE)
-		spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS;
-	else
-		spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS |
-					      MLX5_MATCH_MISC_PARAMETERS;
+	if (attr->match_level != MLX5_MATCH_NONE)
+		spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
 	rule = mlx5_add_flow_rules(fast_fdb, spec, &flow_act, dest, i);
 
