@@ -97,6 +97,7 @@ enum {
 	Opt_persistent, Opt_nopersistent,
 	Opt_resilient, Opt_noresilient,
 	Opt_domainauto, Opt_rdma, Opt_modesid,
+	Opt_compress,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid, Opt_backupgid, Opt_uid,
@@ -213,6 +214,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_echo_interval, "echo_interval=%s" },
 	{ Opt_max_credits, "max_credits=%s" },
 	{ Opt_snapshot, "snapshot=%s" },
+	{ Opt_compress, "compress=%s" },
 
 	{ Opt_blank_user, "user=" },
 	{ Opt_blank_user, "username=" },
@@ -1915,6 +1917,11 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_rdma:
 			vol->rdma = true;
 			break;
+		case Opt_compress:
+			vol->compression = UNKNOWN_TYPE;
+			cifs_dbg(VFS,
+				"SMB3 compression support is experimental\n");
+			break;
 
 		/* Numeric Values */
 		case Opt_backupuid:
@@ -2691,6 +2698,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->sequence_number = 0;
 	tcp_ses->reconnect_instance = 1;
 	tcp_ses->lstrp = jiffies;
+	tcp_ses->compress_algorithm = cpu_to_le16(volume_info->compression);
 	spin_lock_init(&tcp_ses->req_lock);
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);

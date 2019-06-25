@@ -601,6 +601,7 @@ struct smb_vol {
 	__u64 snapshot_time; /* needed for timewarp tokens */
 	__u32 handle_timeout; /* persistent and durable handle timeout in ms */
 	unsigned int max_credits; /* smb3 max_credits 10 < credits < 60000 */
+	__u16 compression; /* compression algorithm 0xFFFF default 0=disabled */
 };
 
 /**

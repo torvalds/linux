@@ -521,7 +521,7 @@ build_posix_ctxt(struct smb2_posix_neg_context *pneg_ctxt)
 
 static void
 assemble_neg_contexts(struct smb2_negotiate_req *req,
-		      unsigned int *total_len)
+		      struct TCP_Server_Info *server, unsigned int *total_len)
 {
 	char *pneg_ctxt = (char *)req;
 	unsigned int ctxt_len;
@@ -551,17 +551,19 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	*total_len += ctxt_len;
 	pneg_ctxt += ctxt_len;
 
-	build_compression_ctxt((struct smb2_compression_capabilities_context *)
+	if (server->compress_algorithm) {
+		build_compression_ctxt((struct smb2_compression_capabilities_context *)
 				pneg_ctxt);
-	ctxt_len = DIV_ROUND_UP(
-		sizeof(struct smb2_compression_capabilities_context), 8) * 8;
-	*total_len += ctxt_len;
-	pneg_ctxt += ctxt_len;
-
+		ctxt_len = DIV_ROUND_UP(
+			sizeof(struct smb2_compression_capabilities_context),
+				8) * 8;
+		*total_len += ctxt_len;
+		pneg_ctxt += ctxt_len;
+		req->NegotiateContextCount = cpu_to_le16(4);
+	} else
+		req->NegotiateContextCount = cpu_to_le16(3);
 	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 	*total_len += sizeof(struct smb2_posix_neg_context);
-
-	req->NegotiateContextCount = cpu_to_le16(4);
 }
 
 static void decode_preauth_context(struct smb2_preauth_neg_context *ctxt)
@@ -829,7 +831,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		if ((ses->server->vals->protocol_id == SMB311_PROT_ID) ||
 		    (strcmp(ses->server->vals->version_string,
 		     SMBDEFAULT_VERSION_STRING) == 0))
-			assemble_neg_contexts(req, &total_len);
+			assemble_neg_contexts(req, server, &total_len);
 	}
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;
