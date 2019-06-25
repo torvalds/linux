@@ -127,8 +127,7 @@ struct tegra_output {
 	const struct edid *edid;
 	struct cec_notifier *cec;
 	unsigned int hpd_irq;
-	int hpd_gpio;
-	enum of_gpio_flags hpd_gpio_flags;
+	struct gpio_desc *hpd_gpio;
 
 	struct drm_encoder encoder;
 	struct drm_connector connector;

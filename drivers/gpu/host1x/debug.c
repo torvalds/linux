@@ -162,9 +162,6 @@ static void host1x_debugfs_init(struct host1x *host1x)
 {
 	struct dentry *de = debugfs_create_dir("tegra-host1x", NULL);
 
-	if (!de)
-		return;
-
 	/* Store the created entry */
 	host1x->debugfs = de;
 
