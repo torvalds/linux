@@ -640,9 +640,6 @@ extern VCHIQ_STATUS_T
 vchiq_send_remote_use(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_send_remote_release(struct vchiq_state *state);
-
-extern VCHIQ_STATUS_T
 vchiq_send_remote_use_active(struct vchiq_state *state);
 
 extern void
