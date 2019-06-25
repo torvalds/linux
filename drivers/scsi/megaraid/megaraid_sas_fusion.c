@@ -3324,9 +3324,9 @@ void megasas_prepare_secondRaid1_IO(struct megasas_instance *instance,
 	r1_cmd->request_desc->SCSIIO.DevHandle = cmd->r1_alt_dev_handle;
 	r1_cmd->io_request->DevHandle = cmd->r1_alt_dev_handle;
 	r1_cmd->r1_alt_dev_handle = cmd->io_request->DevHandle;
-	cmd->io_request->RaidContext.raid_context_g35.smid.peer_smid =
+	cmd->io_request->RaidContext.raid_context_g35.flow_specific.peer_smid =
 			cpu_to_le16(r1_cmd->index);
-	r1_cmd->io_request->RaidContext.raid_context_g35.smid.peer_smid =
+	r1_cmd->io_request->RaidContext.raid_context_g35.flow_specific.peer_smid =
 			cpu_to_le16(cmd->index);
 	/*MSIxIndex of both commands request descriptors should be same*/
 	r1_cmd->request_desc->SCSIIO.MSIxIndex =
@@ -3444,7 +3444,7 @@ megasas_complete_r1_command(struct megasas_instance *instance,
 
 	rctx_g35 = &cmd->io_request->RaidContext.raid_context_g35;
 	fusion = instance->ctrl_context;
-	peer_smid = le16_to_cpu(rctx_g35->smid.peer_smid);
+	peer_smid = le16_to_cpu(rctx_g35->flow_specific.peer_smid);
 
 	r1_cmd = fusion->cmd_list[peer_smid - 1];
 	scmd_local = cmd->scmd;

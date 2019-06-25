@@ -5777,8 +5777,16 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			MR_MAX_RAID_MAP_SIZE_MASK);
 	}
 
-	if (instance->adapter_type == VENTURA_SERIES)
+	switch (instance->adapter_type) {
+	case VENTURA_SERIES:
 		fusion->pcie_bw_limitation = true;
+		break;
+	case AERO_SERIES:
+		fusion->r56_div_offload = true;
+		break;
+	default:
+		break;
+	}
 
 	/* Check if MSI-X is supported while in ready state */
 	msix_enable = (instance->instancet->read_fw_status_reg(instance) &
