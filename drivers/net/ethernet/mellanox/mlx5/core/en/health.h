@@ -16,6 +16,9 @@ int mlx5e_reporter_cq_common_diagnose(struct mlx5e_cq *cq, struct devlink_fmsg *
 int mlx5e_reporter_named_obj_nest_start(struct devlink_fmsg *fmsg, char *name);
 int mlx5e_reporter_named_obj_nest_end(struct devlink_fmsg *fmsg);
 
+int mlx5e_reporter_rx_create(struct mlx5e_priv *priv);
+void mlx5e_reporter_rx_destroy(struct mlx5e_priv *priv);
+
 #define MLX5E_REPORTER_PER_Q_MAX_LEN 256
 
 struct mlx5e_err_ctx {
