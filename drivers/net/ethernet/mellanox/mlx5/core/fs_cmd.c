@@ -771,6 +771,10 @@ int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 		max_actions = MLX5_CAP_FLOWTABLE_NIC_TX(dev, max_modify_header_actions);
 		table_type = FS_FT_NIC_TX;
 		break;
+	case MLX5_FLOW_NAMESPACE_ESW_INGRESS:
+		max_actions = MLX5_CAP_ESW_INGRESS_ACL(dev, max_modify_header_actions);
+		table_type = FS_FT_ESW_INGRESS_ACL;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
