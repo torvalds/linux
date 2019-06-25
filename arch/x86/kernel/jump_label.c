@@ -103,7 +103,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 
 #define TP_VEC_MAX (PAGE_SIZE / sizeof(struct text_poke_loc))
 static struct text_poke_loc tp_vec[TP_VEC_MAX];
-int tp_vec_nr = 0;
+static int tp_vec_nr;
 
 bool arch_jump_label_transform_queue(struct jump_entry *entry,
 				     enum jump_label_type type)
