@@ -100,6 +100,14 @@ patternProperties:
         description: see Documentation/devicetree/bindings/iio/adc/adc.txt
         type: boolean
 
+      adi,buffered-positive:
+        description: Enable buffered mode for positive input.
+        type: boolean
+
+      adi,buffered-negative:
+        description: Enable buffered mode for negative input.
+        type: boolean
+
     required:
       - reg
       - diff-channels
@@ -123,6 +131,7 @@ examples:
         reg = <0>;
         diff-channels = <0 1>;
         adi,reference-select = <0>;
+        adi,buffered-positive;
       };
 
       channel@1 {
@@ -130,6 +139,8 @@ examples:
         bipolar;
         diff-channels = <2 3>;
         adi,reference-select = <0>;
+        adi,buffered-positive;
+        adi,buffered-negative;
       };
 
       channel@2 {
