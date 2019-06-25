@@ -61,6 +61,9 @@ static struct regulator_consumer_supply da830_evm_usb_supplies[] = {
 static struct regulator_init_data da830_evm_usb_vbus_data = {
 	.consumer_supplies	= da830_evm_usb_supplies,
 	.num_consumer_supplies	= ARRAY_SIZE(da830_evm_usb_supplies),
+	.constraints    = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
 };
 
 static struct fixed_voltage_config da830_evm_usb_vbus = {
