@@ -158,6 +158,13 @@ send SG_IO with the applicable sg_io_v4:
 If you wish to read or write a descriptor, use the appropriate xferp of
 sg_io_v4.
 
+The userspace tool that interacts with the ufs-bsg endpoint and uses its
+upiu-based protocol is available at:
+
+	https://github.com/westerndigitalcorporation/ufs-tool
+
+For more detailed information about the tool and its supported
+features, please see the tool's README.
 
 UFS Specifications can be found at,
 UFS - http://www.jedec.org/sites/default/files/docs/JESD220.pdf
