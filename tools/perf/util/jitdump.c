@@ -28,7 +28,7 @@
 #include "genelf.h"
 #include "../builtin.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 struct jit_buf_desc {
 	struct perf_data *output;

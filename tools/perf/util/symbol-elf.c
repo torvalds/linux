@@ -15,7 +15,7 @@
 #include "vdso.h"
 #include "debug.h"
 #include "util.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include <symbol/kallsyms.h>
 
 #ifndef EM_AARCH64

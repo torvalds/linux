@@ -37,7 +37,7 @@
 #include <api/fs/fs.h>
 #include <linux/time64.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #define PR_SET_NAME		15               /* Set process name */
 #define MAX_CPUS		4096

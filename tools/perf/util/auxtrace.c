@@ -51,7 +51,7 @@
 #include "arm-spe.h"
 #include "s390-cpumsf.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include "symbol/kallsyms.h"
 
 static bool auxtrace__dont_decode(struct perf_session *session)

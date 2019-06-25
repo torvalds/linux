@@ -29,7 +29,7 @@
 #include "evsel.h"
 #include "machine.h"
 #include "config.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)

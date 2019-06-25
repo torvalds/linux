@@ -76,7 +76,7 @@
 #include <linux/time64.h>
 #include <linux/types.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 static volatile int done;
 static volatile int resize;

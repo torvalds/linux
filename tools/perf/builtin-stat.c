@@ -82,7 +82,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #define DEFAULT_SEPARATOR	" "
 #define FREEZE_ON_SMI_PATH	"devices/cpu/freeze_on_smi"

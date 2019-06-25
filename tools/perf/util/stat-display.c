@@ -10,7 +10,7 @@
 #include "thread_map.h"
 #include "cpumap.h"
 #include "string2.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include "cgroup.h"
 #include <math.h>
 #include <api/fs/fs.h>

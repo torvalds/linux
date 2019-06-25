@@ -33,7 +33,7 @@
 #include "units.h"
 #include "time-utils.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 extern void hist_browser__init_hpp(void);
 

@@ -25,7 +25,7 @@
 #include "asm/bug.h"
 #include "bpf-event.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include <symbol/kallsyms.h>
 #include <linux/mman.h>
 

@@ -4,7 +4,7 @@
 #include "strfilter.h"
 
 #include <errno.h>
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 /* Operators */
 static const char *OP_and	= "&";	/* Logical AND */

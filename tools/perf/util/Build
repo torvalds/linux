@@ -213,6 +213,10 @@ $(OUTPUT)util/bitmap.o: ../lib/bitmap.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
+$(OUTPUT)util/ctype.o: ../lib/ctype.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
 $(OUTPUT)util/find_bit.o: ../lib/find_bit.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)

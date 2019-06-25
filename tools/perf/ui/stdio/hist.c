@@ -13,7 +13,7 @@
 #include "../../util/srcline.h"
 #include "../../util/string2.h"
 #include "../../util/thread.h"
-#include "../../util/sane_ctype.h"
+#include <linux/ctype.h>
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
 {

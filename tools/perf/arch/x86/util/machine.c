@@ -7,7 +7,7 @@
 #include "../../util/machine.h"
 #include "../../util/map.h"
 #include "../../util/symbol.h"
-#include "../../util/sane_ctype.h"
+#include <linux/ctype.h>
 
 #include <symbol/kallsyms.h>
 

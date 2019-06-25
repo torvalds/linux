@@ -4,7 +4,7 @@
 #include <linux/string.h>
 #include <stdlib.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 const char *graph_dotted_line =
 	"---------------------------------------------------------------------"

@@ -8,7 +8,7 @@
 
 #include "demangle-java.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 enum {
 	MODE_PREFIX = 0,

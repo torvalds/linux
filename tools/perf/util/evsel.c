@@ -39,7 +39,7 @@
 #include "memswap.h"
 #include "util/parse-branch-options.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 struct perf_missing_features perf_missing_features;
 

@@ -25,7 +25,7 @@
 #include "namespaces.h"
 #include "header.h"
 #include "path.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #include <elf.h>
 #include <limits.h>

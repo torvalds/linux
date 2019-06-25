@@ -6,7 +6,7 @@
 #
 
 util/python.c
-util/ctype.c
+../lib/ctype.c
 util/evlist.c
 util/evsel.c
 util/cpumap.c

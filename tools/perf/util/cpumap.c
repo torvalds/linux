@@ -10,7 +10,7 @@
 #include <linux/bitmap.h>
 #include "asm/bug.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 static int max_cpu_num;
 static int max_present_cpu_num;
