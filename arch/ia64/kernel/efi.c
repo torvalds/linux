@@ -47,8 +47,11 @@
 
 static __initdata unsigned long palo_phys;
 
+unsigned long sal_systab_phys = EFI_INVALID_TABLE_ADDR;
+
 static __initdata efi_config_table_type_t arch_tables[] = {
 	{PROCESSOR_ABSTRACTION_LAYER_OVERWRITE_GUID, "PALO", &palo_phys},
+	{SAL_SYSTEM_TABLE_GUID, "SALsystab", &sal_systab_phys},
 	{NULL_GUID, NULL, 0},
 };
 
