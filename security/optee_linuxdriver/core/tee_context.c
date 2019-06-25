@@ -50,7 +50,7 @@ int tee_context_dump(struct tee *tee, char *buff, size_t len)
 		pos += sprintf(buff + pos,
 				"[%02d] ctx=%p (refcount=%d) (usr=%d)",
 				i, ctx,
-				(int)atomic_read(&ctx->refcount.
+				(int)refcount_read(&ctx->refcount.
 					refcount),
 				ctx->usr_client);
 		pos += sprintf(buff + pos, "name=\"%s\" (tgid=%d)\n",
@@ -193,7 +193,7 @@ void tee_context_get(struct tee_context *ctx)
 	kref_get(&ctx->refcount);
 
 	dev_dbg(_DEV(ctx->tee), "%s: ctx=%p, kref=%d\n", __func__,
-		ctx, (int)atomic_read(&ctx->refcount.refcount));
+		ctx, (int)refcount_read(&ctx->refcount.refcount));
 }
 
 static int is_in_list(struct tee *tee, struct list_head *entry)
@@ -224,7 +224,7 @@ void tee_context_put(struct tee_context *ctx)
 	kref_put(&ctx->refcount, _tee_context_do_release);
 
 	dev_dbg(_DEV(tee), "%s: ctx=%p, kref=%d\n", __func__,
-		_ctx, (int)atomic_read(&ctx->refcount.refcount));
+		_ctx, (int)refcount_read(&ctx->refcount.refcount));
 }
 
 /**
