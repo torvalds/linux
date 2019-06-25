@@ -211,6 +211,7 @@ static int gpio_siox_get_direction(struct gpio_chip *chip, unsigned int offset)
 static int gpio_siox_probe(struct siox_device *sdevice)
 {
 	struct gpio_siox_ddata *ddata;
+	struct gpio_irq_chip *girq;
 	int ret;
 
 	ddata = devm_kzalloc(&sdevice->dev, sizeof(*ddata), GFP_KERNEL);
@@ -239,18 +240,15 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 	ddata->ichip.irq_unmask = gpio_siox_irq_unmask;
 	ddata->ichip.irq_set_type = gpio_siox_irq_set_type;
 
-	ret = gpiochip_add(&ddata->gchip);
-	if (ret) {
-		dev_err(&sdevice->dev,
-			"Failed to register gpio chip (%d)\n", ret);
-		return ret;
-	}
+	girq = &ddata->gchip.irq;
+	girq->chip = &ddata->ichip;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
 
-	ret = gpiochip_irqchip_add(&ddata->gchip, &ddata->ichip,
-				   0, handle_level_irq, IRQ_TYPE_NONE);
+	ret = gpiochip_add(&ddata->gchip);
 	if (ret)
 		dev_err(&sdevice->dev,
-			"Failed to register irq chip (%d)\n", ret);
+			"Failed to register gpio chip (%d)\n", ret);
 
 	return ret;
 }
