@@ -79,9 +79,6 @@ struct pnv_ioda_pe {
 	struct pnv_ioda_pe	*master;
 	struct list_head	slaves;
 
-	/* PCI peer-to-peer*/
-	int			p2p_initiator_count;
-
 	/* Link in list of PE#s */
 	struct list_head	list;
 };
@@ -172,8 +169,6 @@ struct pnv_phb {
 	/* PHB and hub diagnostics */
 	unsigned int		diag_data_size;
 	u8			*diag_data;
-
-	int p2p_target_count;
 };
 
 extern struct pci_ops pnv_pci_ops;
