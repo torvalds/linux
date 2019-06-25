@@ -777,6 +777,12 @@ static inline pci_power_t platform_pci_get_power_state(struct pci_dev *dev)
 	return pci_platform_pm ? pci_platform_pm->get_state(dev) : PCI_UNKNOWN;
 }
 
+static inline void platform_pci_refresh_power_state(struct pci_dev *dev)
+{
+	if (pci_platform_pm && pci_platform_pm->refresh_state)
+		pci_platform_pm->refresh_state(dev);
+}
+
 static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
 {
 	return pci_platform_pm ?
@@ -935,6 +941,21 @@ void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
 	} else {
 		dev->current_state = state;
 	}
+}
+
+/**
+ * pci_refresh_power_state - Refresh the given device's power state data
+ * @dev: Target PCI device.
+ *
+ * Ask the platform to refresh the devices power state information and invoke
+ * pci_update_current_state() to update its current PCI power state.
+ */
+void pci_refresh_power_state(struct pci_dev *dev)
+{
+	if (platform_pci_power_manageable(dev))
+		platform_pci_refresh_power_state(dev);
+
+	pci_update_current_state(dev, dev->current_state);
 }
 
 /**

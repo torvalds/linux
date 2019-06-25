@@ -710,7 +710,14 @@ static void pci_pm_complete(struct device *dev)
 	if (pm_runtime_suspended(dev) && pm_resume_via_firmware()) {
 		pci_power_t pre_sleep_state = pci_dev->current_state;
 
-		pci_update_current_state(pci_dev, pci_dev->current_state);
+		pci_refresh_power_state(pci_dev);
+		/*
+		 * On platforms with ACPI this check may also trigger for
+		 * devices sharing power resources if one of those power
+		 * resources has been activated as a result of a change of the
+		 * power state of another device sharing it.  However, in that
+		 * case it is also better to resume the device, in general.
+		 */
 		if (pci_dev->current_state < pre_sleep_state)
 			pm_request_resume(dev);
 	}
