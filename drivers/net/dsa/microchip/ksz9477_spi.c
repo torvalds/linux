@@ -14,37 +14,14 @@
 #include <linux/spi/spi.h>
 
 #include "ksz_priv.h"
+#include "ksz_common.h"
 
 #define SPI_ADDR_SHIFT			24
 #define SPI_ADDR_ALIGN			3
 #define SPI_TURNAROUND_SHIFT		5
 
-/* SPI frame opcodes */
-#define KS_SPIOP_RD			3
-#define KS_SPIOP_WR			2
-
-#define KS_SPIOP_FLAG_MASK(opcode)		\
-	swab32((opcode) << (SPI_ADDR_SHIFT + SPI_TURNAROUND_SHIFT))
-
-#define KSZ_REGMAP_COMMON(width)					\
-	{								\
-		.val_bits = (width),					\
-		.reg_stride = (width) / 8,				\
-		.reg_bits = SPI_ADDR_SHIFT + SPI_ADDR_ALIGN,		\
-		.pad_bits = SPI_TURNAROUND_SHIFT,			\
-		.max_register = BIT(SPI_ADDR_SHIFT) - 1,		\
-		.cache_type = REGCACHE_NONE,				\
-		.read_flag_mask = KS_SPIOP_FLAG_MASK(KS_SPIOP_RD),	\
-		.write_flag_mask = KS_SPIOP_FLAG_MASK(KS_SPIOP_WR),	\
-		.reg_format_endian = REGMAP_ENDIAN_BIG,			\
-		.val_format_endian = REGMAP_ENDIAN_BIG			\
-	}
-
-static const struct regmap_config ksz9477_regmap_config[] = {
-	KSZ_REGMAP_COMMON(8),
-	KSZ_REGMAP_COMMON(16),
-	KSZ_REGMAP_COMMON(32),
-};
+KSZ_REGMAP_TABLE(ksz9477, 32, SPI_ADDR_SHIFT,
+		 SPI_TURNAROUND_SHIFT, SPI_ADDR_ALIGN);
 
 static int ksz9477_spi_probe(struct spi_device *spi)
 {

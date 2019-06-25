@@ -133,4 +133,36 @@ static inline u32 ksz_pread32_poll(struct ksz_poll_ctx *ctx)
 	return data;
 }
 
+/* Regmap tables generation */
+#define KSZ_SPI_OP_RD		3
+#define KSZ_SPI_OP_WR		2
+
+#define KSZ_SPI_OP_FLAG_MASK(opcode, swp, regbits, regpad)		\
+	swab##swp((opcode) << ((regbits) + (regpad)))
+
+#define KSZ_REGMAP_ENTRY(width, swp, regbits, regpad, regalign)		\
+	{								\
+		.val_bits = (width),					\
+		.reg_stride = (width) / 8,				\
+		.reg_bits = (regbits) + (regalign),			\
+		.pad_bits = (regpad),					\
+		.max_register = BIT(regbits) - 1,			\
+		.cache_type = REGCACHE_NONE,				\
+		.read_flag_mask =					\
+			KSZ_SPI_OP_FLAG_MASK(KSZ_SPI_OP_RD, swp,	\
+					     regbits, regpad),		\
+		.write_flag_mask =					\
+			KSZ_SPI_OP_FLAG_MASK(KSZ_SPI_OP_WR, swp,	\
+					     regbits, regpad),		\
+		.reg_format_endian = REGMAP_ENDIAN_BIG,			\
+		.val_format_endian = REGMAP_ENDIAN_BIG			\
+	}
+
+#define KSZ_REGMAP_TABLE(ksz, swp, regbits, regpad, regalign)		\
+	static const struct regmap_config ksz##_regmap_config[] = {	\
+		KSZ_REGMAP_ENTRY(8, swp, (regbits), (regpad), (regalign)), \
+		KSZ_REGMAP_ENTRY(16, swp, (regbits), (regpad), (regalign)), \
+		KSZ_REGMAP_ENTRY(32, swp, (regbits), (regpad), (regalign)), \
+	}
+
 #endif
