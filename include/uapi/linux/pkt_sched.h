@@ -988,8 +988,8 @@ struct tc_etf_qopt {
 	__s32 delta;
 	__s32 clockid;
 	__u32 flags;
-#define TC_ETF_DEADLINE_MODE_ON	BIT(0)
-#define TC_ETF_OFFLOAD_ON	BIT(1)
+#define TC_ETF_DEADLINE_MODE_ON	_BITUL(0)
+#define TC_ETF_OFFLOAD_ON	_BITUL(1)
 };
 
 enum {
