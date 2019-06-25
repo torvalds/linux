@@ -13,7 +13,6 @@
 #include <linux/spi/spi.h>
 
 #include "ksz_priv.h"
-#include "ksz_spi.h"
 
 /* SPI frame opcodes */
 #define KS_SPIOP_RD			3
@@ -71,6 +70,48 @@ static int ksz_spi_write(struct ksz_device *dev, u32 reg, void *data,
 		len = SPI_TX_BUF_LEN;
 	memcpy(&dev->txbuf[4], data, len);
 	return ksz9477_spi_write_reg(spi, reg, dev->txbuf, len);
+}
+
+static int ksz_spi_read8(struct ksz_device *dev, u32 reg, u8 *val)
+{
+	return ksz_spi_read(dev, reg, val, 1);
+}
+
+static int ksz_spi_read16(struct ksz_device *dev, u32 reg, u16 *val)
+{
+	int ret = ksz_spi_read(dev, reg, (u8 *)val, 2);
+
+	if (!ret)
+		*val = be16_to_cpu(*val);
+
+	return ret;
+}
+
+static int ksz_spi_read32(struct ksz_device *dev, u32 reg, u32 *val)
+{
+	int ret = ksz_spi_read(dev, reg, (u8 *)val, 4);
+
+	if (!ret)
+		*val = be32_to_cpu(*val);
+
+	return ret;
+}
+
+static int ksz_spi_write8(struct ksz_device *dev, u32 reg, u8 value)
+{
+	return ksz_spi_write(dev, reg, &value, 1);
+}
+
+static int ksz_spi_write16(struct ksz_device *dev, u32 reg, u16 value)
+{
+	value = cpu_to_be16(value);
+	return ksz_spi_write(dev, reg, &value, 2);
+}
+
+static int ksz_spi_write32(struct ksz_device *dev, u32 reg, u32 value)
+{
+	value = cpu_to_be32(value);
+	return ksz_spi_write(dev, reg, &value, 4);
 }
 
 static const struct ksz_io_ops ksz9477_spi_ops = {
