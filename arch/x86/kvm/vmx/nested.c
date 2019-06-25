@@ -5373,7 +5373,10 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	 * nor can VMLAUNCH/VMRESUME be pending.  Outside SMM, SMM flags
 	 * must be zero.
 	 */
-	if (is_smm(vcpu) ? kvm_state->flags : kvm_state->hdr.vmx.smm.flags)
+	if (is_smm(vcpu) ?
+		(kvm_state->flags &
+		 (KVM_STATE_NESTED_GUEST_MODE | KVM_STATE_NESTED_RUN_PENDING))
+		: kvm_state->hdr.vmx.smm.flags)
 		return -EINVAL;
 
 	if ((kvm_state->hdr.vmx.smm.flags & KVM_STATE_NESTED_SMM_GUEST_MODE) &&
