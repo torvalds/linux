@@ -2402,12 +2402,13 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 	if (!res)
 		return ERR_PTR(-ENOMEM);
 
-	res->sets = of_property_count_elems_of_size(dev_of_node(dev), of_prop,
-						    sizeof(u32));
-	if (res->sets < 0) {
+	ret = of_property_count_elems_of_size(dev_of_node(dev), of_prop,
+					      sizeof(u32));
+	if (ret < 0) {
 		dev_err(dev, "%s resource type ids not available\n", of_prop);
-		return ERR_PTR(res->sets);
+		return ERR_PTR(ret);
 	}
+	res->sets = ret;
 
 	res->desc = devm_kcalloc(dev, res->sets, sizeof(*res->desc),
 				 GFP_KERNEL);
