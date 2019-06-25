@@ -582,8 +582,8 @@ static int at24_probe(struct i2c_client *client)
 	if (err)
 		/*
 		 * This is slow, but we can't know all eeproms, so we better
-		 * play safe. Specifying custom eeprom-types via platform_data
-		 * is recommended anyhow.
+		 * play safe. Specifying custom eeprom-types via device tree
+		 * or properties is recommended anyhow.
 		 */
 		page_size = 1;
 
