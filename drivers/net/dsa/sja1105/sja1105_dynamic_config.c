@@ -3,6 +3,98 @@
  */
 #include "sja1105.h"
 
+/* In the dynamic configuration interface, the switch exposes a register-like
+ * view of some of the static configuration tables.
+ * Many times the field organization of the dynamic tables is abbreviated (not
+ * all fields are dynamically reconfigurable) and different from the static
+ * ones, but the key reason for having it is that we can spare a switch reset
+ * for settings that can be changed dynamically.
+ *
+ * This file creates a per-switch-family abstraction called
+ * struct sja1105_dynamic_table_ops and two operations that work with it:
+ * - sja1105_dynamic_config_write
+ * - sja1105_dynamic_config_read
+ *
+ * Compared to the struct sja1105_table_ops from sja1105_static_config.c,
+ * the dynamic accessors work with a compound buffer:
+ *
+ * packed_buf
+ *
+ * |
+ * V
+ * +-----------------------------------------+------------------+
+ * |              ENTRY BUFFER               |  COMMAND BUFFER  |
+ * +-----------------------------------------+------------------+
+ *
+ * <----------------------- packed_size ------------------------>
+ *
+ * The ENTRY BUFFER may or may not have the same layout, or size, as its static
+ * configuration table entry counterpart. When it does, the same packing
+ * function is reused (bar exceptional cases - see
+ * sja1105pqrs_dyn_l2_lookup_entry_packing).
+ *
+ * The reason for the COMMAND BUFFER being at the end is to be able to send
+ * a dynamic write command through a single SPI burst. By the time the switch
+ * reacts to the command, the ENTRY BUFFER is already populated with the data
+ * sent by the core.
+ *
+ * The COMMAND BUFFER is always SJA1105_SIZE_DYN_CMD bytes (one 32-bit word) in
+ * size.
+ *
+ * Sometimes the ENTRY BUFFER does not really exist (when the number of fields
+ * that can be reconfigured is small), then the switch repurposes some of the
+ * unused 32 bits of the COMMAND BUFFER to hold ENTRY data.
+ *
+ * The key members of struct sja1105_dynamic_table_ops are:
+ * - .entry_packing: A function that deals with packing an ENTRY structure
+ *		     into an SPI buffer, or retrieving an ENTRY structure
+ *		     from one.
+ *		     The @packed_buf pointer it's given does always point to
+ *		     the ENTRY portion of the buffer.
+ * - .cmd_packing: A function that deals with packing/unpacking the COMMAND
+ *		   structure to/from the SPI buffer.
+ *		   It is given the same @packed_buf pointer as .entry_packing,
+ *		   so most of the time, the @packed_buf points *behind* the
+ *		   COMMAND offset inside the buffer.
+ *		   To access the COMMAND portion of the buffer, the function
+ *		   knows its correct offset.
+ *		   Giving both functions the same pointer is handy because in
+ *		   extreme cases (see sja1105pqrs_dyn_l2_lookup_entry_packing)
+ *		   the .entry_packing is able to jump to the COMMAND portion,
+ *		   or vice-versa (sja1105pqrs_l2_lookup_cmd_packing).
+ * - .access: A bitmap of:
+ *	OP_READ: Set if the hardware manual marks the ENTRY portion of the
+ *		 dynamic configuration table buffer as R (readable) after
+ *		 an SPI read command (the switch will populate the buffer).
+ *	OP_WRITE: Set if the manual marks the ENTRY portion of the dynamic
+ *		  table buffer as W (writable) after an SPI write command
+ *		  (the switch will read the fields provided in the buffer).
+ *	OP_DEL: Set if the manual says the VALIDENT bit is supported in the
+ *		COMMAND portion of this dynamic config buffer (i.e. the
+ *		specified entry can be invalidated through a SPI write
+ *		command).
+ *	OP_SEARCH: Set if the manual says that the index of an entry can
+ *		   be retrieved in the COMMAND portion of the buffer based
+ *		   on its ENTRY portion, as a result of a SPI write command.
+ *		   Only the TCAM-based FDB table on SJA1105 P/Q/R/S supports
+ *		   this.
+ * - .max_entry_count: The number of entries, counting from zero, that can be
+ *		       reconfigured through the dynamic interface. If a static
+ *		       table can be reconfigured at all dynamically, this
+ *		       number always matches the maximum number of supported
+ *		       static entries.
+ * - .packed_size: The length in bytes of the compound ENTRY + COMMAND BUFFER.
+ *		   Note that sometimes the compound buffer may contain holes in
+ *		   it (see sja1105_vlan_lookup_cmd_packing). The @packed_buf is
+ *		   contiguous however, so @packed_size includes any unused
+ *		   bytes.
+ * - .addr: The base SPI address at which the buffer must be written to the
+ *	    switch's memory. When looking at the hardware manual, this must
+ *	    always match the lowest documented address for the ENTRY, and not
+ *	    that of the COMMAND, since the other 32-bit words will follow along
+ *	    at the correct addresses.
+ */
+
 #define SJA1105_SIZE_DYN_CMD					4
 
 #define SJA1105ET_SIZE_MAC_CONFIG_DYN_ENTRY			\
