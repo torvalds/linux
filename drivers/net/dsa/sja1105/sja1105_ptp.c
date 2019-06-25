@@ -387,6 +387,7 @@ void sja1105_ptp_clock_unregister(struct sja1105_private *priv)
 	if (IS_ERR_OR_NULL(priv->clock))
 		return;
 
+	cancel_delayed_work_sync(&priv->refresh_work);
 	ptp_clock_unregister(priv->clock);
 	priv->clock = NULL;
 }
