@@ -67,60 +67,26 @@ static const struct {
 
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
-	u8 data;
-
-	ksz_read8(dev, addr, &data);
-	if (set)
-		data |= bits;
-	else
-		data &= ~bits;
-	ksz_write8(dev, addr, data);
+	regmap_update_bits(dev->regmap[0], addr, bits, set ? bits : 0);
 }
 
 static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 			 bool set)
 {
-	u32 addr;
-	u8 data;
-
-	addr = PORT_CTRL_ADDR(port, offset);
-	ksz_read8(dev, addr, &data);
-
-	if (set)
-		data |= bits;
-	else
-		data &= ~bits;
-
-	ksz_write8(dev, addr, data);
+	regmap_update_bits(dev->regmap[0], PORT_CTRL_ADDR(port, offset),
+			   bits, set ? bits : 0);
 }
 
 static void ksz9477_cfg32(struct ksz_device *dev, u32 addr, u32 bits, bool set)
 {
-	u32 data;
-
-	ksz_read32(dev, addr, &data);
-	if (set)
-		data |= bits;
-	else
-		data &= ~bits;
-	ksz_write32(dev, addr, data);
+	regmap_update_bits(dev->regmap[2], addr, bits, set ? bits : 0);
 }
 
 static void ksz9477_port_cfg32(struct ksz_device *dev, int port, int offset,
 			       u32 bits, bool set)
 {
-	u32 addr;
-	u32 data;
-
-	addr = PORT_CTRL_ADDR(port, offset);
-	ksz_read32(dev, addr, &data);
-
-	if (set)
-		data |= bits;
-	else
-		data &= ~bits;
-
-	ksz_write32(dev, addr, data);
+	regmap_update_bits(dev->regmap[2], PORT_CTRL_ADDR(port, offset),
+			   bits, set ? bits : 0);
 }
 
 static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev, u32 waiton,
