@@ -495,6 +495,21 @@ build_encrypt_ctxt(struct smb2_encryption_neg_context *pneg_ctxt)
 	pneg_ctxt->Ciphers[1] = SMB2_ENCRYPTION_AES128_CCM;
 }
 
+static unsigned int
+build_netname_ctxt(struct smb2_netname_neg_context *pneg_ctxt, char *hostname)
+{
+	struct nls_table *cp = load_nls_default();
+
+	pneg_ctxt->ContextType = SMB2_NETNAME_NEGOTIATE_CONTEXT_ID;
+
+	/* copy up to max of first 100 bytes of server name to NetName field */
+	pneg_ctxt->DataLength = cpu_to_le16(2 +
+		(2 * cifs_strtoUTF16(pneg_ctxt->NetName, hostname, 100, cp)));
+	/* context size is DataLength + minimal smb2_neg_context */
+	return DIV_ROUND_UP(le16_to_cpu(pneg_ctxt->DataLength) +
+			sizeof(struct smb2_neg_context), 8) * 8;
+}
+
 static void
 build_posix_ctxt(struct smb2_posix_neg_context *pneg_ctxt)
 {
@@ -559,9 +574,15 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 				8) * 8;
 		*total_len += ctxt_len;
 		pneg_ctxt += ctxt_len;
-		req->NegotiateContextCount = cpu_to_le16(4);
+		req->NegotiateContextCount = cpu_to_le16(5);
 	} else
-		req->NegotiateContextCount = cpu_to_le16(3);
+		req->NegotiateContextCount = cpu_to_le16(4);
+
+	ctxt_len = build_netname_ctxt((struct smb2_netname_neg_context *)pneg_ctxt,
+					server->hostname);
+	*total_len += ctxt_len;
+	pneg_ctxt += ctxt_len;
+
 	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 	*total_len += sizeof(struct smb2_posix_neg_context);
 }

@@ -317,6 +317,12 @@ struct smb2_compression_capabilities_context {
  * For smb2_netname_negotiate_context_id See MS-SMB2 2.2.3.1.4.
  * Its struct simply contains NetName, an array of Unicode characters
  */
+struct smb2_netname_neg_context {
+	__le16	ContextType; /* 0x100 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le16	NetName[0]; /* hostname of target converted to UCS-2 */
+} __packed;
 
 #define POSIX_CTXT_DATA_LEN	16
 struct smb2_posix_neg_context {
