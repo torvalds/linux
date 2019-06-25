@@ -728,6 +728,19 @@
 				status = "disabled";
 			};
 
+			dphy: dphy@30a00300 {
+				compatible = "fsl,imx8mq-mipi-dphy";
+				reg = <0x30a00300 0x100>;
+				clocks = <&clk IMX8MQ_CLK_DSI_PHY_REF>;
+				clock-names = "phy_ref";
+				assigned-clocks = <&clk IMX8MQ_CLK_DSI_PHY_REF>;
+				assigned-clock-parents = <&clk IMX8MQ_VIDEO_PLL1_OUT>;
+				assigned-clock-rates = <24000000>;
+				#phy-cells = <0>;
+				power-domains = <&pgc_mipi>;
+				status = "disabled";
+			};
+
 			i2c1: i2c@30a20000 {
 				compatible = "fsl,imx8mq-i2c", "fsl,imx21-i2c";
 				reg = <0x30a20000 0x10000>;
