@@ -288,11 +288,7 @@ static void usbhsc_set_buswait(struct usbhs_priv *priv)
 
 static bool usbhsc_is_multi_clks(struct usbhs_priv *priv)
 {
-	if (priv->dparam.type == USBHS_TYPE_RCAR_GEN3 ||
-	    priv->dparam.type == USBHS_TYPE_RCAR_GEN3_WITH_PLL)
-		return true;
-
-	return false;
+	return priv->dparam.multi_clks;
 }
 
 static int usbhsc_clk_get(struct device *dev, struct usbhs_priv *priv)
@@ -544,6 +540,7 @@ static const struct usbhs_of_data rcar_gen3_data = {
 	.param = {
 		.type = USBHS_TYPE_RCAR_GEN3,
 		.has_usb_dmac = 1,
+		.multi_clks = 1,
 		.pipe_configs = usbhsc_new_pipe,
 		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
 	}
@@ -554,6 +551,7 @@ static const struct usbhs_of_data rcar_gen3_with_pll_data = {
 	.param = {
 		.type = USBHS_TYPE_RCAR_GEN3_WITH_PLL,
 		.has_usb_dmac = 1,
+		.multi_clks = 1,
 		.pipe_configs = usbhsc_new_pipe,
 		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
 	}

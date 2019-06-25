@@ -181,6 +181,7 @@ struct renesas_usbhs_driver_param {
 	u32 has_cnen:1;
 	u32 cfifo_byte_addr:1; /* CFIFO is byte addressable */
 #define USBHS_USB_DMAC_XFER_SIZE	32	/* hardcode the xfer size */
+	u32 multi_clks:1;
 };
 
 #define USBHS_TYPE_RCAR_GEN2		1
