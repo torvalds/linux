@@ -2,7 +2,7 @@
 /*
  * Renesas USB driver R-Car Gen. 3 initialization and power control
  *
- * Copyright (C) 2016 Renesas Electronics Corporation
+ * Copyright (C) 2016-2019 Renesas Electronics Corporation
  */
 
 #include <linux/delay.h>
@@ -95,17 +95,12 @@ static int usbhs_rcar3_power_and_pll_ctrl(struct platform_device *pdev,
 	return 0;
 }
 
-static int usbhs_rcar3_get_id(struct platform_device *pdev)
-{
-	return USBHS_GADGET;
-}
-
 const struct renesas_usbhs_platform_callback usbhs_rcar3_ops = {
 	.power_ctrl = usbhs_rcar3_power_ctrl,
-	.get_id = usbhs_rcar3_get_id,
+	.get_id = usbhs_get_id_as_gadget,
 };
 
 const struct renesas_usbhs_platform_callback usbhs_rcar3_with_pll_ops = {
 	.power_ctrl = usbhs_rcar3_power_and_pll_ctrl,
-	.get_id = usbhs_rcar3_get_id,
+	.get_id = usbhs_get_id_as_gadget,
 };

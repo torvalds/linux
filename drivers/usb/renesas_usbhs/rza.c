@@ -3,7 +3,7 @@
  * Renesas USB driver RZ/A initialization and power control
  *
  * Copyright (C) 2018 Chris Brandt
- * Copyright (C) 2018 Renesas Electronics Corporation
+ * Copyright (C) 2018-2019 Renesas Electronics Corporation
  */
 
 #include <linux/delay.h>
@@ -41,12 +41,7 @@ static int usbhs_rza1_hardware_init(struct platform_device *pdev)
 	return 0;
 }
 
-static int usbhs_rza_get_id(struct platform_device *pdev)
-{
-	return USBHS_GADGET;
-}
-
 const struct renesas_usbhs_platform_callback usbhs_rza1_ops = {
 	.hardware_init = usbhs_rza1_hardware_init,
-	.get_id = usbhs_rza_get_id,
+	.get_id = usbhs_get_id_as_gadget,
 };

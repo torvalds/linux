@@ -3,6 +3,7 @@
  * Renesas USB driver R-Car Gen. 2 initialization and power control
  *
  * Copyright (C) 2014 Ulrich Hecht
+ * Copyright (C) 2019 Renesas Electronics Corporation
  */
 
 #include <linux/gpio.h>
@@ -62,14 +63,9 @@ static int usbhs_rcar2_power_ctrl(struct platform_device *pdev,
 	return retval;
 }
 
-static int usbhs_rcar2_get_id(struct platform_device *pdev)
-{
-	return USBHS_GADGET;
-}
-
 const struct renesas_usbhs_platform_callback usbhs_rcar2_ops = {
 	.hardware_init = usbhs_rcar2_hardware_init,
 	.hardware_exit = usbhs_rcar2_hardware_exit,
 	.power_ctrl = usbhs_rcar2_power_ctrl,
-	.get_id = usbhs_rcar2_get_id,
+	.get_id = usbhs_get_id_as_gadget,
 };
