@@ -146,7 +146,6 @@ void rk_tee_shm_free(struct tee_shm *shm)
 }
 
 static int _tee_shm_attach_dma_buf(struct dma_buf *dmabuf,
-					struct device *dev,
 					struct dma_buf_attachment *attach)
 {
 	struct tee_shm_attach *tee_shm_attach;
@@ -319,12 +318,6 @@ static int _tee_shm_dma_buf_mmap(struct dma_buf *dmabuf,
 	return ret;
 }
 
-static void *_tee_shm_dma_buf_kmap_atomic(struct dma_buf *dmabuf,
-					 unsigned long pgnum)
-{
-	return NULL;
-}
-
 static void *_tee_shm_dma_buf_kmap(struct dma_buf *db, unsigned long pgnum)
 {
 	struct tee_shm *shm = db->priv;
@@ -351,9 +344,8 @@ struct dma_buf_ops _tee_shm_dma_buf_ops = {
 	.map_dma_buf = _tee_shm_dma_buf_map_dma_buf,
 	.unmap_dma_buf = _tee_shm_dma_buf_unmap_dma_buf,
 	.release = _tee_shm_dma_buf_release,
-	.kmap_atomic = _tee_shm_dma_buf_kmap_atomic,
-	.kmap = _tee_shm_dma_buf_kmap,
-	.kunmap = _tee_shm_dma_buf_kunmap,
+	.map = _tee_shm_dma_buf_kmap,
+	.unmap = _tee_shm_dma_buf_kunmap,
 	.mmap = _tee_shm_dma_buf_mmap,
 };
 
