@@ -3044,7 +3044,7 @@ int usb_hcd_setup_local_mem(struct usb_hcd *hcd, phys_addr_t phys_addr,
 	int err;
 	void *local_mem;
 
-	hcd->localmem_pool = devm_gen_pool_create(hcd->self.sysdev, PAGE_SHIFT,
+	hcd->localmem_pool = devm_gen_pool_create(hcd->self.sysdev, 4,
 						  dev_to_node(hcd->self.sysdev),
 						  dev_name(hcd->self.sysdev));
 	if (IS_ERR(hcd->localmem_pool))

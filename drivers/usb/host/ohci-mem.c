@@ -94,7 +94,8 @@ td_alloc (struct ohci_hcd *hc, gfp_t mem_flags)
 	struct usb_hcd	*hcd = ohci_to_hcd(hc);
 
 	if (hcd->localmem_pool)
-		td = gen_pool_dma_zalloc(hcd->localmem_pool, sizeof(*td), &dma);
+		td = gen_pool_dma_zalloc_align(hcd->localmem_pool,
+				sizeof(*td), &dma, 32);
 	else
 		td = dma_pool_zalloc(hc->td_cache, mem_flags, &dma);
 	if (td) {
@@ -137,7 +138,8 @@ ed_alloc (struct ohci_hcd *hc, gfp_t mem_flags)
 	struct usb_hcd	*hcd = ohci_to_hcd(hc);
 
 	if (hcd->localmem_pool)
-		ed = gen_pool_dma_zalloc(hcd->localmem_pool, sizeof(*ed), &dma);
+		ed = gen_pool_dma_zalloc_align(hcd->localmem_pool,
+				sizeof(*ed), &dma, 16);
 	else
 		ed = dma_pool_zalloc(hc->ed_cache, mem_flags, &dma);
 	if (ed) {

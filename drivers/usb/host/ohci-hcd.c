@@ -507,9 +507,9 @@ static int ohci_init (struct ohci_hcd *ohci)
 	ohci->prev_frame_no = IO_WATCHDOG_OFF;
 
 	if (hcd->localmem_pool)
-		ohci->hcca = gen_pool_dma_alloc(hcd->localmem_pool,
+		ohci->hcca = gen_pool_dma_alloc_align(hcd->localmem_pool,
 						sizeof(*ohci->hcca),
-						&ohci->hcca_dma);
+						&ohci->hcca_dma, 256);
 	else
 		ohci->hcca = dma_alloc_coherent(hcd->self.controller,
 						sizeof(*ohci->hcca),
