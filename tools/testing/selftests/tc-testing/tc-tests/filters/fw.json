@@ -6,6 +6,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
@@ -25,6 +28,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
@@ -44,6 +50,114 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
@@ -872,6 +986,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: protocol 802_3 prio 3 handle 7 fw action ok"
@@ -892,6 +1009,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: prio 6 handle 2 fw action continue index 5"
@@ -912,6 +1032,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
@@ -931,6 +1054,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
@@ -950,6 +1076,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 5 prio 7 fw action pass",
@@ -972,6 +1101,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 5 prio 7 fw action pass",
@@ -994,6 +1126,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 5 prio 7 fw action pass",
@@ -1015,6 +1150,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 1 prio 4 fw action ok",
@@ -1036,6 +1174,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 4 prio 2 chain 13 fw action pipe",
@@ -1057,6 +1198,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 2 prio 4 fw action drop"
@@ -1077,6 +1221,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 3 prio 4 fw action continue"
@@ -1097,6 +1244,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 4 prio 2 protocol arp fw action pipe"
@@ -1117,6 +1267,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 4 prio 2 fw action pipe flowid 45"
@@ -1137,6 +1290,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 1 prio 2 fw action ok"
@@ -1157,6 +1313,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 1 prio 2 fw action ok"
@@ -1177,6 +1336,9 @@
             "filter",
             "fw"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 parent ffff: handle 1 prio 2 fw action ok index 3"
