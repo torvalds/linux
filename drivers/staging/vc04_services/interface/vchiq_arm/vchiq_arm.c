@@ -2883,49 +2883,6 @@ out:
 	vchiq_log_trace(vchiq_susp_log_level, "%s exit", __func__);
 }
 
-int
-vchiq_arm_allow_resume(struct vchiq_state *state)
-{
-	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
-	int resume = 0;
-	int ret = -1;
-
-	if (!arm_state)
-		goto out;
-
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
-
-	write_lock_bh(&arm_state->susp_res_lock);
-	unblock_resume(arm_state);
-	resume = vchiq_check_resume(state);
-	write_unlock_bh(&arm_state->susp_res_lock);
-
-	if (resume) {
-		if (wait_for_completion_interruptible(
-			&arm_state->vc_resume_complete) < 0) {
-			vchiq_log_error(vchiq_susp_log_level,
-				"%s interrupted", __func__);
-			/* failed, cannot accurately derive suspend
-			 * state, so exit early. */
-			goto out;
-		}
-	}
-
-	read_lock_bh(&arm_state->susp_res_lock);
-	if (arm_state->vc_suspend_state == VC_SUSPEND_SUSPENDED) {
-		vchiq_log_info(vchiq_susp_log_level,
-				"%s: Videocore remains suspended", __func__);
-	} else {
-		vchiq_log_info(vchiq_susp_log_level,
-				"%s: Videocore resumed", __func__);
-		ret = 0;
-	}
-	read_unlock_bh(&arm_state->susp_res_lock);
-out:
-	vchiq_log_trace(vchiq_susp_log_level, "%s exit %d", __func__, ret);
-	return ret;
-}
-
 /* This function should be called with the write lock held */
 int
 vchiq_check_resume(struct vchiq_state *state)
