@@ -1218,6 +1218,21 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 			continue;
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
+		/* On SJA1105 E/T, the switch doesn't implement the LOCKEDS
+		 * bit, so it doesn't tell us whether a FDB entry is static
+		 * or not.
+		 * But, of course, we can find out - we're the ones who added
+		 * it in the first place.
+		 */
+		if (priv->info->device_id == SJA1105E_DEVICE_ID ||
+		    priv->info->device_id == SJA1105T_DEVICE_ID) {
+			int match;
+
+			match = sja1105_find_static_fdb_entry(priv, port,
+							      &l2_lookup);
+			l2_lookup.lockeds = (match >= 0);
+		}
+
 		/* We need to hide the dsa_8021q VLANs from the user. This
 		 * basically means hiding the duplicates and only showing
 		 * the pvid that is supposed to be active in standalone and
