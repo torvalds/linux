@@ -1070,6 +1070,7 @@ int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
 		dev_err(ds->dev, "FDB is full, cannot add entry.\n");
 		return -EINVAL;
 	}
+	l2_lookup.lockeds = true;
 	l2_lookup.index = i;
 
 skip_finding_an_index:
@@ -1205,7 +1206,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		 */
 		if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
 			l2_lookup.vlanid = 1;
-		cb(macaddr, l2_lookup.vlanid, false, data);
+		cb(macaddr, l2_lookup.vlanid, l2_lookup.lockeds, data);
 	}
 	return 0;
 }

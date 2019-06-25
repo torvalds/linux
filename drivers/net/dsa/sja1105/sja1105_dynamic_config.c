@@ -149,13 +149,11 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 {
 	u8 *p = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
 	const int size = SJA1105_SIZE_DYN_CMD;
-	u64 lockeds = 0;
 	u64 hostcmd;
 
 	sja1105_packing(p, &cmd->valid,    31, 31, size, op);
 	sja1105_packing(p, &cmd->rdwrset,  30, 30, size, op);
 	sja1105_packing(p, &cmd->errors,   29, 29, size, op);
-	sja1105_packing(p, &lockeds,       28, 28, size, op);
 	sja1105_packing(p, &cmd->valident, 27, 27, size, op);
 
 	/* VALIDENT is supposed to indicate "keep or not", but in SJA1105 E/T,
@@ -203,6 +201,64 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	 */
 	sja1105_packing(buf, &cmd->index, 15, 6,
 			SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY, op);
+}
+
+/* The switch is so retarded that it makes our command/entry abstraction
+ * crumble apart.
+ *
+ * On P/Q/R/S, the switch tries to say whether a FDB entry
+ * is statically programmed or dynamically learned via a flag called LOCKEDS.
+ * The hardware manual says about this fiels:
+ *
+ *   On write will specify the format of ENTRY.
+ *   On read the flag will be found cleared at times the VALID flag is found
+ *   set.  The flag will also be found cleared in response to a read having the
+ *   MGMTROUTE flag set.  In response to a read with the MGMTROUTE flag
+ *   cleared, the flag be set if the most recent access operated on an entry
+ *   that was either loaded by configuration or through dynamic reconfiguration
+ *   (as opposed to automatically learned entries).
+ *
+ * The trouble with this flag is that it's part of the *command* to access the
+ * dynamic interface, and not part of the *entry* retrieved from it.
+ * Otherwise said, for a sja1105_dynamic_config_read, LOCKEDS is supposed to be
+ * an output from the switch into the command buffer, and for a
+ * sja1105_dynamic_config_write, the switch treats LOCKEDS as an input
+ * (hence we can write either static, or automatically learned entries, from
+ * the core).
+ * But the manual contradicts itself in the last phrase where it says that on
+ * read, LOCKEDS will be set to 1 for all FDB entries written through the
+ * dynamic interface (therefore, the value of LOCKEDS from the
+ * sja1105_dynamic_config_write is not really used for anything, it'll store a
+ * 1 anyway).
+ * This means you can't really write a FDB entry with LOCKEDS=0 (automatically
+ * learned) into the switch, which kind of makes sense.
+ * As for reading through the dynamic interface, it doesn't make too much sense
+ * to put LOCKEDS into the command, since the switch will inevitably have to
+ * ignore it (otherwise a command would be like "read the FDB entry 123, but
+ * only if it's dynamically learned" <- well how am I supposed to know?) and
+ * just use it as an output buffer for its findings. But guess what... that's
+ * what the entry buffer is for!
+ * Unfortunately, what really breaks this abstraction is the fact that it
+ * wasn't designed having the fact in mind that the switch can output
+ * entry-related data as writeback through the command buffer.
+ * However, whether a FDB entry is statically or dynamically learned *is* part
+ * of the entry and not the command data, no matter what the switch thinks.
+ * In order to do that, we'll need to wrap around the
+ * sja1105pqrs_l2_lookup_entry_packing from sja1105_static_config.c, and take
+ * a peek outside of the caller-supplied @buf (the entry buffer), to reach the
+ * command buffer.
+ */
+static size_t
+sja1105pqrs_dyn_l2_lookup_entry_packing(void *buf, void *entry_ptr,
+					enum packing_op op)
+{
+	struct sja1105_l2_lookup_entry *entry = entry_ptr;
+	u8 *cmd = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(cmd, &entry->lockeds, 28, 28, size, op);
+
+	return sja1105pqrs_l2_lookup_entry_packing(buf, entry_ptr, op);
 }
 
 static void
@@ -485,7 +541,7 @@ struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
 /* SJA1105P/Q/R/S: Second generation */
 struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_L2_LOOKUP] = {
-		.entry_packing = sja1105pqrs_l2_lookup_entry_packing,
+		.entry_packing = sja1105pqrs_dyn_l2_lookup_entry_packing,
 		.cmd_packing = sja1105pqrs_l2_lookup_cmd_packing,
 		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
 		.max_entry_count = SJA1105_MAX_L2_LOOKUP_COUNT,
