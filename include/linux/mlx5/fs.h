@@ -95,6 +95,7 @@ enum {
 struct mlx5_flow_context {
 	u32 flags;
 	u32 flow_tag;
+	u32 flow_source;
 };
 
 struct mlx5_flow_spec {
