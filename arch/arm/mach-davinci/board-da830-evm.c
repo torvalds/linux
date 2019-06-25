@@ -91,7 +91,7 @@ static struct gpiod_lookup_table da830_evm_usb_oc_gpio_lookup = {
 static struct gpiod_lookup_table da830_evm_usb_vbus_gpio_lookup = {
 	.dev_id		= "reg-fixed-voltage.0",
 	.table = {
-		GPIO_LOOKUP("davinci_gpio", ON_BD_USB_DRV, "vbus", 0),
+		GPIO_LOOKUP("davinci_gpio", ON_BD_USB_DRV, NULL, 0),
 		{ }
 	},
 };
