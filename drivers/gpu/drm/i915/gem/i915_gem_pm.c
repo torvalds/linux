@@ -54,7 +54,8 @@ static void idle_work_handler(struct work_struct *work)
 	mutex_lock(&i915->drm.struct_mutex);
 
 	intel_wakeref_lock(&i915->gt.wakeref);
-	park = !intel_wakeref_active(&i915->gt.wakeref) && !work_pending(work);
+	park = (!intel_wakeref_is_active(&i915->gt.wakeref) &&
+		!work_pending(work));
 	intel_wakeref_unlock(&i915->gt.wakeref);
 	if (park)
 		i915_gem_park(i915);

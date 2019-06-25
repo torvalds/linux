@@ -684,7 +684,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 	 * that all ELSP are drained i.e. we have processed the CSB,
 	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
 	 */
-	GEM_BUG_ON(!intel_wakeref_active(&engine->wakeref));
+	GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
 
 	/*
 	 * ELSQ note: the submit queue is not cleared after being submitted

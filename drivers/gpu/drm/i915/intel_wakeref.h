@@ -128,13 +128,13 @@ intel_wakeref_unlock(struct intel_wakeref *wf)
 }
 
 /**
- * intel_wakeref_active: Query whether the wakeref is currently held
+ * intel_wakeref_is_active: Query whether the wakeref is currently held
  * @wf: the wakeref
  *
  * Returns: true if the wakeref is currently held.
  */
 static inline bool
-intel_wakeref_active(struct intel_wakeref *wf)
+intel_wakeref_is_active(const struct intel_wakeref *wf)
 {
 	return READ_ONCE(wf->wakeref);
 }

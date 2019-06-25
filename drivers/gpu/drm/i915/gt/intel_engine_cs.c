@@ -1155,7 +1155,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (i915_reset_failed(engine->i915))
 		return true;
 
-	if (!intel_wakeref_active(&engine->wakeref))
+	if (!intel_engine_pm_is_awake(engine))
 		return true;
 
 	/* Waiting to drain ELSP? */
