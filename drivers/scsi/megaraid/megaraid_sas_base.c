@@ -168,6 +168,10 @@ static struct pci_device_id megasas_pci_table[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_AERO_10E2)},
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_AERO_10E5)},
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_AERO_10E6)},
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_AERO_10E0)},
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_AERO_10E3)},
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_AERO_10E4)},
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_AERO_10E7)},
 	{}
 };
 
@@ -6991,6 +6995,12 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	u16 control = 0;
 
 	switch (pdev->device) {
+	case PCI_DEVICE_ID_LSI_AERO_10E0:
+	case PCI_DEVICE_ID_LSI_AERO_10E3:
+	case PCI_DEVICE_ID_LSI_AERO_10E4:
+	case PCI_DEVICE_ID_LSI_AERO_10E7:
+		dev_err(&pdev->dev, "Adapter is in non secure mode\n");
+		return 1;
 	case PCI_DEVICE_ID_LSI_AERO_10E1:
 	case PCI_DEVICE_ID_LSI_AERO_10E5:
 		dev_info(&pdev->dev, "Adapter is in configurable secure mode\n");
@@ -7246,6 +7256,10 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct megasas_instance *instance;
 
 	instance = pci_get_drvdata(pdev);
+
+	if (!instance)
+		return 0;
+
 	instance->unload = 1;
 
 	dev_info(&pdev->dev, "%s is called\n", __func__);
@@ -7299,6 +7313,10 @@ megasas_resume(struct pci_dev *pdev)
 	int irq_flags = PCI_IRQ_LEGACY;
 
 	instance = pci_get_drvdata(pdev);
+
+	if (!instance)
+		return 0;
+
 	host = instance->host;
 	pci_set_power_state(pdev, PCI_D0);
 	pci_enable_wake(pdev, PCI_D0, 0);
@@ -7467,6 +7485,10 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	u32 pd_seq_map_sz;
 
 	instance = pci_get_drvdata(pdev);
+
+	if (!instance)
+		return;
+
 	host = instance->host;
 	fusion = instance->ctrl_context;
 
@@ -7594,6 +7616,9 @@ skip_firing_dcmds:
 static void megasas_shutdown(struct pci_dev *pdev)
 {
 	struct megasas_instance *instance = pci_get_drvdata(pdev);
+
+	if (!instance)
+		return;
 
 	instance->unload = 1;
 
