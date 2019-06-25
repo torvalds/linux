@@ -967,18 +967,12 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	used = btrfs_space_info_used(space_info, true);
 
 	/*
-	 * If we have enough space then hooray, make our reservation and carry
-	 * on.  If not see if we can overcommit, and if we can, hooray carry on.
-	 * If not things get more complicated.
+	 * Carry on if we have enough space (short-circuit) OR call
+	 * can_overcommit() to ensure we can overcommit to continue.
 	 */
-	if (used + orig_bytes <= space_info->total_bytes) {
-		btrfs_space_info_update_bytes_may_use(fs_info, space_info,
-						      orig_bytes);
-		trace_btrfs_space_reservation(fs_info, "space_info",
-					      space_info->flags, orig_bytes, 1);
-		ret = 0;
-	} else if (can_overcommit(fs_info, space_info, orig_bytes, flush,
-				  system_chunk)) {
+	if ((used + orig_bytes <= space_info->total_bytes) ||
+	    can_overcommit(fs_info, space_info, orig_bytes, flush,
+			   system_chunk)) {
 		btrfs_space_info_update_bytes_may_use(fs_info, space_info,
 						      orig_bytes);
 		trace_btrfs_space_reservation(fs_info, "space_info",
