@@ -3469,6 +3469,37 @@ free:
 	return ret;
 }
 
+static void mlx5_ib_set_rule_source_port(struct mlx5_ib_dev *dev,
+					 struct mlx5_flow_spec *spec,
+					 struct mlx5_eswitch_rep *rep)
+{
+	struct mlx5_eswitch *esw = dev->mdev->priv.eswitch;
+	void *misc;
+
+	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    misc_parameters_2);
+
+		MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0,
+			 mlx5_eswitch_get_vport_metadata_for_match(esw,
+								   rep->vport));
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    misc_parameters_2);
+
+		MLX5_SET_TO_ONES(fte_match_set_misc2, misc, metadata_reg_c_0);
+	} else {
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    misc_parameters);
+
+		MLX5_SET(fte_match_set_misc, misc, source_port, rep->vport);
+
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    misc_parameters);
+
+		MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+	}
+}
+
 static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 						      struct mlx5_ib_flow_prio *ft_prio,
 						      const struct ib_flow_attr *flow_attr,
@@ -3523,19 +3554,15 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 		set_underlay_qp(dev, spec, underlay_qpn);
 
 	if (dev->is_rep) {
-		void *misc;
+		struct mlx5_eswitch_rep *rep;
 
-		if (!dev->port[flow_attr->port - 1].rep) {
+		rep = dev->port[flow_attr->port - 1].rep;
+		if (!rep) {
 			err = -EINVAL;
 			goto free;
 		}
-		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
-				    misc_parameters);
-		MLX5_SET(fte_match_set_misc, misc, source_port,
-			 dev->port[flow_attr->port - 1].rep->vport);
-		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-				    misc_parameters);
-		MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+
+		mlx5_ib_set_rule_source_port(dev, spec, rep);
 	}
 
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
