@@ -930,6 +930,13 @@ S:	Supported
 F:	drivers/mux/adgs1408.c
 F:	Documentation/devicetree/bindings/mux/adi,adgs1408.txt
 
+ANALOG DEVICES INC ADIS DRIVER LIBRARY
+M:	Alexandru Ardelean <alexandru.ardelean@analog.com>
+S:	Supported
+L:	linux-iio@vger.kernel.org
+F:	include/linux/iio/imu/adis.h
+F:	drivers/iio/imu/adis.c
+
 ANALOG DEVICES INC ADP5061 DRIVER
 M:	Stefan Popa <stefan.popa@analog.com>
 L:	linux-pm@vger.kernel.org
