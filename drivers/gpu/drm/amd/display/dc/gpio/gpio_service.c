@@ -141,6 +141,62 @@ struct gpio *dal_gpio_service_create_irq(
 	return dal_gpio_create_irq(service, id, en);
 }
 
+struct gpio *dal_gpio_service_create_generic_mux(
+	struct gpio_service *service,
+	uint32_t offset,
+	uint32_t mask)
+{
+	enum gpio_id id;
+	uint32_t en;
+	struct gpio *generic;
+
+	if (mask == 1)
+		en = GPIO_GENERIC_A;
+	else if (mask == 0x00000100L)
+		en = GPIO_GENERIC_B;
+	else
+		return NULL;
+
+	id = GPIO_ID_GENERIC;
+
+	generic = dal_gpio_create(
+		service, id, en, GPIO_PIN_OUTPUT_STATE_DEFAULT);
+
+	return generic;
+}
+
+void dal_gpio_destroy_generic_mux(
+	struct gpio **mux)
+{
+	if (!mux || !*mux) {
+		ASSERT_CRITICAL(false);
+		return;
+	}
+
+	dal_gpio_close(*mux);
+	dal_gpio_destroy(mux);
+	kfree(*mux);
+
+	*mux = NULL;
+}
+
+struct gpio_pin_info dal_gpio_get_generic_pin_info(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en)
+{
+	struct gpio_pin_info pin;
+
+	if (service->translate.funcs->id_to_offset) {
+		service->translate.funcs->id_to_offset(id, en, &pin);
+	} else {
+		pin.mask = 0xFFFFFFFF;
+		pin.offset = 0xFFFFFFFF;
+	}
+
+	return pin;
+}
+
 void dal_gpio_service_destroy(
 	struct gpio_service **ptr)
 {
@@ -163,6 +219,21 @@ void dal_gpio_service_destroy(
 	kfree(*ptr);
 
 	*ptr = NULL;
+}
+
+enum gpio_result dal_mux_setup_config(
+	struct gpio *mux,
+	struct gpio_generic_mux_config *config)
+{
+	struct gpio_config_data config_data;
+
+	if (!config)
+		return GPIO_RESULT_INVALID_DATA;
+
+	config_data.config.generic_mux = *config;
+	config_data.type = GPIO_CONFIG_TYPE_GENERIC_MUX;
+
+	return dal_gpio_set_config(mux, &config_data);
 }
 
 /*
@@ -255,6 +326,7 @@ enum gpio_result dal_gpio_service_open(
 	case GPIO_ID_GENERIC:
 		pin = service->factory.funcs->create_generic(
 			service->ctx, id, en);
+		service->factory.funcs->define_generic_registers(pin, en);
 	break;
 	case GPIO_ID_HPD:
 		pin = service->factory.funcs->create_hpd(

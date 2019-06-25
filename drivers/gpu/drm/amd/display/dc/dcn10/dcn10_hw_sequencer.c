@@ -2692,6 +2692,13 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 
 	dcn10_config_stereo_parameters(stream, &flags);
 
+	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
+		if (!dc_set_generic_gpio_for_stereo(true, dc->ctx->gpio_service))
+			dc_set_generic_gpio_for_stereo(false, dc->ctx->gpio_service);
+	} else {
+		dc_set_generic_gpio_for_stereo(false, dc->ctx->gpio_service);
+	}
+
 	pipe_ctx->stream_res.opp->funcs->opp_program_stereo(
 		pipe_ctx->stream_res.opp,
 		flags.PROGRAM_STEREO == 1 ? true:false,
