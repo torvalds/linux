@@ -1536,6 +1536,8 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		}
 	}
 
+	trace_mlx5e_tc_update_neigh_used_value(nhe, neigh_used);
+
 	if (neigh_used) {
 		nhe->reported_lastuse = jiffies;
 

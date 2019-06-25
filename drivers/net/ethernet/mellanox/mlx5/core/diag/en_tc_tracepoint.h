@@ -10,6 +10,7 @@
 #include <linux/tracepoint.h>
 #include <linux/trace_seq.h>
 #include <net/flow_offload.h>
+#include "en_rep.h"
 
 #define __parse_action(ids, num) parse_action(p, ids, num)
 
@@ -70,6 +71,36 @@ TRACE_EVENT(mlx5e_stats_flower,
 	    TP_printk("cookie=%p bytes=%llu packets=%llu lastused=%llu\n",
 		      __entry->cookie, __entry->bytes,
 		      __entry->packets, __entry->lastused
+		      )
+);
+
+TRACE_EVENT(mlx5e_tc_update_neigh_used_value,
+	    TP_PROTO(const struct mlx5e_neigh_hash_entry *nhe, bool neigh_used),
+	    TP_ARGS(nhe, neigh_used),
+	    TP_STRUCT__entry(__string(devname, nhe->m_neigh.dev->name)
+			     __array(u8, v4, 4)
+			     __array(u8, v6, 16)
+			     __field(bool, neigh_used)
+			     ),
+	    TP_fast_assign(const struct mlx5e_neigh *mn = &nhe->m_neigh;
+			struct in6_addr *pin6;
+			__be32 *p32;
+
+			__assign_str(devname, mn->dev->name);
+			__entry->neigh_used = neigh_used;
+
+			p32 = (__be32 *)__entry->v4;
+			pin6 = (struct in6_addr *)__entry->v6;
+			if (mn->family == AF_INET) {
+				*p32 = mn->dst_ip.v4;
+				ipv6_addr_set_v4mapped(*p32, pin6);
+			} else if (mn->family == AF_INET6) {
+				*pin6 = mn->dst_ip.v6;
+			}
+			),
+	    TP_printk("netdev: %s IPv4: %pI4 IPv6: %pI6c neigh_used=%d\n",
+		      __get_str(devname), __entry->v4, __entry->v6,
+		      __entry->neigh_used
 		      )
 );
 
