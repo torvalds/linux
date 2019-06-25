@@ -465,17 +465,19 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 			    const u8 *data, u32 count)
 {
-	struct iwl_rxq_sync_cmd *cmd;
+	u8 buf[sizeof(struct iwl_rxq_sync_cmd) +
+	       sizeof(struct iwl_mvm_rss_sync_notif)];
+	struct iwl_rxq_sync_cmd *cmd = (void *)buf;
 	u32 data_size = sizeof(*cmd) + count;
 	int ret;
 
-	/* should be DWORD aligned */
-	if (WARN_ON(count & 3 || count > IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE))
+	/*
+	 * size must be a multiple of DWORD
+	 * Ensure we don't overflow buf
+	 */
+	if (WARN_ON(count & 3 ||
+		    count > sizeof(struct iwl_mvm_rss_sync_notif)))
 		return -EINVAL;
-
-	cmd = kzalloc(data_size, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
 
 	cmd->rxq_mask = cpu_to_le32(rxq_mask);
 	cmd->count =  cpu_to_le32(count);
@@ -487,7 +489,6 @@ int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 					   TRIGGER_RX_QUEUES_NOTIF_CMD),
 				   0, data_size, cmd);
 
-	kfree(cmd);
 	return ret;
 }
 

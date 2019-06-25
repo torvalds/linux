@@ -776,7 +776,6 @@ struct iwl_rss_config_cmd {
 	u8 indirection_table[IWL_RSS_INDIRECTION_TABLE_SIZE];
 } __packed; /* RSS_CONFIG_CMD_API_S_VER_1 */
 
-#define IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE 128
 #define IWL_MULTI_QUEUE_SYNC_SENDER_POS 0
 #define IWL_MULTI_QUEUE_SYNC_SENDER_MSK 0xf
 
