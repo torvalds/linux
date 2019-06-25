@@ -3073,20 +3073,6 @@ static void suspend_timer_callback(struct timer_list *t)
 }
 
 VCHIQ_STATUS_T
-vchiq_use_service_no_resume(VCHIQ_SERVICE_HANDLE_T handle)
-{
-	VCHIQ_STATUS_T ret = VCHIQ_ERROR;
-	struct vchiq_service *service = find_service_by_handle(handle);
-
-	if (service) {
-		ret = vchiq_use_internal(service->state, service,
-				USE_TYPE_SERVICE_NO_RESUME);
-		unlock_service(service);
-	}
-	return ret;
-}
-
-VCHIQ_STATUS_T
 vchiq_use_service(VCHIQ_SERVICE_HANDLE_T handle)
 {
 	VCHIQ_STATUS_T ret = VCHIQ_ERROR;
