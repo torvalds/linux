@@ -212,6 +212,13 @@ endif
 ifdef SUBDIRS
   $(warning ================= WARNING ================)
   $(warning 'SUBDIRS' will be removed after Linux 5.3)
+  $(warning )
+  $(warning If you are building an individual subdirectory)
+  $(warning in the kernel tree, you can do like this:)
+  $(warning $$ make path/to/dir/you/want/to/build/)
+  $(warning (Do not forget the trailing slash))
+  $(warning )
+  $(warning If you are building an external module,)
   $(warning Please use 'M=' or 'KBUILD_EXTMOD' instead)
   $(warning ==========================================)
   KBUILD_EXTMOD ?= $(SUBDIRS)
