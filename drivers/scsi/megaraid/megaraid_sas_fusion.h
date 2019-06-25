@@ -1335,7 +1335,7 @@ struct fusion_context {
 	dma_addr_t ioc_init_request_phys;
 	struct MPI2_IOC_INIT_REQUEST *ioc_init_request;
 	struct megasas_cmd *ioc_init_cmd;
-
+	bool pcie_bw_limitation;
 };
 
 union desc_value {
