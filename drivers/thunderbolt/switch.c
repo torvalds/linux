@@ -986,7 +986,7 @@ static int tb_plug_events_active(struct tb_switch *sw, bool active)
 	u32 data;
 	int res;
 
-	if (!sw->config.enabled)
+	if (tb_switch_is_icm(sw))
 		return 0;
 
 	sw->config.plug_events_delay = 0xff;
@@ -1720,7 +1720,7 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 	}
 
 	/* Root switch DMA port requires running firmware */
-	if (!tb_route(sw) && sw->config.enabled)
+	if (!tb_route(sw) && !tb_switch_is_icm(sw))
 		return 0;
 
 	sw->dma_port = dma_port_alloc(sw);

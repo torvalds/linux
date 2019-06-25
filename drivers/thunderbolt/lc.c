@@ -94,7 +94,7 @@ int tb_lc_configure_link(struct tb_switch *sw)
 	struct tb_port *up, *down;
 	int ret;
 
-	if (!sw->config.enabled || !tb_route(sw))
+	if (!tb_route(sw) || tb_switch_is_icm(sw))
 		return 0;
 
 	up = tb_upstream_port(sw);
@@ -124,7 +124,7 @@ void tb_lc_unconfigure_link(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
 
-	if (sw->is_unplugged || !sw->config.enabled || !tb_route(sw))
+	if (sw->is_unplugged || !tb_route(sw) || tb_switch_is_icm(sw))
 		return;
 
 	up = tb_upstream_port(sw);

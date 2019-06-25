@@ -591,6 +591,20 @@ static inline bool tb_switch_is_fr(const struct tb_switch *sw)
 	}
 }
 
+/**
+ * tb_switch_is_icm() - Is the switch handled by ICM firmware
+ * @sw: Switch to check
+ *
+ * In case there is a need to differentiate whether ICM firmware or SW CM
+ * is handling @sw this function can be called. It is valid to call this
+ * after tb_switch_alloc() and tb_switch_configure() has been called
+ * (latter only for SW CM case).
+ */
+static inline bool tb_switch_is_icm(const struct tb_switch *sw)
+{
+	return !sw->config.enabled;
+}
+
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_set_initial_credits(struct tb_port *port, u32 credits);
