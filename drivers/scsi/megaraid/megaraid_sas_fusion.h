@@ -962,6 +962,7 @@ struct IO_REQUEST_INFO {
 	u8  pd_after_lb;
 	u16 r1_alt_dev_handle; /* raid 1/10 only */
 	bool ra_capable;
+	u8 data_arms;
 };
 
 struct MR_LD_TARGET_SYNC {

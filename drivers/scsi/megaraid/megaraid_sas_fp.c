@@ -1038,6 +1038,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 	stripSize = 1 << raid->stripeShift;
 	stripe_mask = stripSize-1;
 
+	io_info->data_arms = raid->rowDataSize;
 
 	/*
 	 * calculate starting row and stripe, and number of strips and rows
