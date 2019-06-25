@@ -53,8 +53,8 @@
  */
 #define usbhs_platform_call(priv, func, args...)\
 	(!(priv) ? -ENODEV :			\
-	 !((priv)->pfunc.func) ? 0 :		\
-	 (priv)->pfunc.func(args))
+	 !((priv)->pfunc->func) ? 0 :		\
+	 (priv)->pfunc->func(args))
 
 /*
  *		common functions
@@ -644,7 +644,7 @@ static int usbhs_probe(struct platform_device *pdev)
 		dev_err(dev, "no platform callbacks\n");
 		return -EINVAL;
 	}
-	priv->pfunc = info->platform_callback;
+	priv->pfunc = &info->platform_callback;
 
 	/* set default param if platform doesn't have */
 	if (usbhs_get_dparam(priv, has_new_pipe_configs)) {
@@ -665,7 +665,7 @@ static int usbhs_probe(struct platform_device *pdev)
 
 	/* FIXME */
 	/* runtime power control ? */
-	if (priv->pfunc.get_vbus)
+	if (priv->pfunc->get_vbus)
 		usbhs_get_dparam(priv, runtime_pwctrl) = 1;
 
 	/*

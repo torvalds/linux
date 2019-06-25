@@ -252,7 +252,7 @@ struct usbhs_priv {
 	unsigned int irq;
 	unsigned long irqflags;
 
-	struct renesas_usbhs_platform_callback	pfunc;
+	const struct renesas_usbhs_platform_callback *pfunc;
 	struct renesas_usbhs_driver_param	dparam;
 
 	struct delayed_work notify_hotplug_work;

@@ -52,7 +52,7 @@ void usbhs_mod_non_autonomy_mode(struct usbhs_priv *priv)
 {
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
-	info->get_vbus = priv->pfunc.get_vbus;
+	info->get_vbus = priv->pfunc->get_vbus;
 }
 
 /*
