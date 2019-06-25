@@ -93,12 +93,19 @@ struct phylink_mac_ops {
  * Note that the PHY may be able to transform from one connection
  * technology to another, so, eg, don't clear 1000BaseX just
  * because the MAC is unable to BaseX mode. This is more about
- * clearing unsupported speeds and duplex settings.
+ * clearing unsupported speeds and duplex settings. The port modes
+ * should not be cleared; phylink_set_port_modes() will help with this.
  *
  * If the @state->interface mode is %PHY_INTERFACE_MODE_1000BASEX
  * or %PHY_INTERFACE_MODE_2500BASEX, select the appropriate mode
  * based on @state->advertising and/or @state->speed and update
- * @state->interface accordingly.
+ * @state->interface accordingly. See phylink_helper_basex_speed().
+ *
+ * When @state->interface is %PHY_INTERFACE_MODE_NA, phylink expects the
+ * MAC driver to return all supported link modes.
+ *
+ * If the @state->interface mode is not supported, then the @supported
+ * mask must be cleared.
  */
 void validate(struct net_device *ndev, unsigned long *supported,
 	      struct phylink_link_state *state);
