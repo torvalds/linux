@@ -10,78 +10,54 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
 #include "ksz_priv.h"
+
+#define SPI_ADDR_SHIFT			24
+#define SPI_ADDR_ALIGN			3
+#define SPI_TURNAROUND_SHIFT		5
 
 /* SPI frame opcodes */
 #define KS_SPIOP_RD			3
 #define KS_SPIOP_WR			2
 
-#define SPI_ADDR_SHIFT			24
-#define SPI_ADDR_MASK			(BIT(SPI_ADDR_SHIFT) - 1)
-#define SPI_TURNAROUND_SHIFT		5
+#define KS_SPIOP_FLAG_MASK(opcode)		\
+	swab32((opcode) << (SPI_ADDR_SHIFT + SPI_TURNAROUND_SHIFT))
 
-/* Enough to read all switch port registers. */
-#define SPI_TX_BUF_LEN			0x100
+#define KSZ_REGMAP_COMMON(width)					\
+	{								\
+		.val_bits = (width),					\
+		.reg_stride = (width) / 8,				\
+		.reg_bits = SPI_ADDR_SHIFT + SPI_ADDR_ALIGN,		\
+		.pad_bits = SPI_TURNAROUND_SHIFT,			\
+		.max_register = BIT(SPI_ADDR_SHIFT) - 1,		\
+		.cache_type = REGCACHE_NONE,				\
+		.read_flag_mask = KS_SPIOP_FLAG_MASK(KS_SPIOP_RD),	\
+		.write_flag_mask = KS_SPIOP_FLAG_MASK(KS_SPIOP_WR),	\
+		.reg_format_endian = REGMAP_ENDIAN_BIG,			\
+		.val_format_endian = REGMAP_ENDIAN_BIG			\
+	}
 
-static u32 ksz9477_spi_cmd(u32 reg, bool read)
-{
-	u32 txbuf;
-
-	txbuf = reg & SPI_ADDR_MASK;
-	txbuf |= (read ? KS_SPIOP_RD : KS_SPIOP_WR) << SPI_ADDR_SHIFT;
-	txbuf <<= SPI_TURNAROUND_SHIFT;
-	txbuf = cpu_to_be32(txbuf);
-
-	return txbuf;
-}
-
-static int ksz9477_spi_read_reg(struct spi_device *spi, u32 reg, u8 *val,
-				unsigned int len)
-{
-	u32 txbuf = ksz9477_spi_cmd(reg, true);
-
-	return spi_write_then_read(spi, &txbuf, 4, val, len);
-}
-
-static int ksz9477_spi_write_reg(struct spi_device *spi, u32 reg, u8 *val,
-				 unsigned int len)
-{
-	u32 *txbuf = (u32 *)val;
-
-	*txbuf = ksz9477_spi_cmd(reg, false);
-
-	return spi_write(spi, txbuf, 4 + len);
-}
-
-static int ksz_spi_read(struct ksz_device *dev, u32 reg, u8 *data,
-			unsigned int len)
-{
-	struct spi_device *spi = dev->priv;
-
-	return ksz9477_spi_read_reg(spi, reg, data, len);
-}
-
-static int ksz_spi_write(struct ksz_device *dev, u32 reg, void *data,
-			 unsigned int len)
-{
-	struct spi_device *spi = dev->priv;
-
-	if (len > SPI_TX_BUF_LEN)
-		len = SPI_TX_BUF_LEN;
-	memcpy(&dev->txbuf[4], data, len);
-	return ksz9477_spi_write_reg(spi, reg, dev->txbuf, len);
-}
+static const struct regmap_config ksz9477_regmap_config[] = {
+	KSZ_REGMAP_COMMON(8),
+	KSZ_REGMAP_COMMON(16),
+	KSZ_REGMAP_COMMON(32),
+};
 
 static int ksz_spi_read8(struct ksz_device *dev, u32 reg, u8 *val)
 {
-	return ksz_spi_read(dev, reg, val, 1);
+	unsigned int value;
+	int ret = regmap_read(dev->regmap, reg, &value);
+
+	*val = value;
+	return ret;
 }
 
 static int ksz_spi_read16(struct ksz_device *dev, u32 reg, u16 *val)
 {
-	int ret = ksz_spi_read(dev, reg, (u8 *)val, 2);
+	int ret = regmap_bulk_read(dev->regmap, reg, val, 2);
 
 	if (!ret)
 		*val = be16_to_cpu(*val);
@@ -91,7 +67,7 @@ static int ksz_spi_read16(struct ksz_device *dev, u32 reg, u16 *val)
 
 static int ksz_spi_read32(struct ksz_device *dev, u32 reg, u32 *val)
 {
-	int ret = ksz_spi_read(dev, reg, (u8 *)val, 4);
+	int ret = regmap_bulk_read(dev->regmap, reg, val, 4);
 
 	if (!ret)
 		*val = be32_to_cpu(*val);
@@ -101,19 +77,19 @@ static int ksz_spi_read32(struct ksz_device *dev, u32 reg, u32 *val)
 
 static int ksz_spi_write8(struct ksz_device *dev, u32 reg, u8 value)
 {
-	return ksz_spi_write(dev, reg, &value, 1);
+	return regmap_write(dev->regmap, reg, value);
 }
 
 static int ksz_spi_write16(struct ksz_device *dev, u32 reg, u16 value)
 {
 	value = cpu_to_be16(value);
-	return ksz_spi_write(dev, reg, &value, 2);
+	return regmap_bulk_write(dev->regmap, reg, &value, 2);
 }
 
 static int ksz_spi_write32(struct ksz_device *dev, u32 reg, u32 value)
 {
 	value = cpu_to_be32(value);
-	return ksz_spi_write(dev, reg, &value, 4);
+	return regmap_bulk_write(dev->regmap, reg, &value, 4);
 }
 
 static const struct ksz_io_ops ksz9477_spi_ops = {
@@ -128,16 +104,26 @@ static const struct ksz_io_ops ksz9477_spi_ops = {
 static int ksz9477_spi_probe(struct spi_device *spi)
 {
 	struct ksz_device *dev;
-	int ret;
+	int i, ret;
 
 	dev = ksz_switch_alloc(&spi->dev, &ksz9477_spi_ops, spi);
 	if (!dev)
 		return -ENOMEM;
 
+	for (i = 0; i < ARRAY_SIZE(ksz9477_regmap_config); i++) {
+		dev->regmap[i] = devm_regmap_init_spi(spi,
+					&ksz9477_regmap_config[i]);
+		if (IS_ERR(dev->regmap[i])) {
+			ret = PTR_ERR(dev->regmap[i]);
+			dev_err(&spi->dev,
+				"Failed to initialize regmap%i: %d\n",
+				ksz9477_regmap_config[i].val_bits, ret);
+			return ret;
+		}
+	}
+
 	if (spi->dev.platform_data)
 		dev->pdata = spi->dev.platform_data;
-
-	dev->txbuf = devm_kzalloc(dev->dev, 4 + SPI_TX_BUF_LEN, GFP_KERNEL);
 
 	ret = ksz9477_switch_register(dev);
 

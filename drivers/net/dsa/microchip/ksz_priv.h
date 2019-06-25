@@ -57,6 +57,7 @@ struct ksz_device {
 	const struct ksz_dev_ops *dev_ops;
 
 	struct device *dev;
+	struct regmap *regmap[3];
 
 	void *priv;
 
@@ -81,8 +82,6 @@ struct ksz_device {
 	bool synclko_125;
 
 	struct vlan_table *vlan_cache;
-
-	u8 *txbuf;
 
 	struct ksz_port *ports;
 	struct timer_list mib_read_timer;
