@@ -175,7 +175,7 @@
 /* Power supply above 3.625 V */
 #define ADIS16240_DIAG_STAT_POWER_HIGH_BIT	1
 
- /* Power supply below 3.15 V */
+ /* Power supply below 2.225 V */
 #define ADIS16240_DIAG_STAT_POWER_LOW_BIT	0
 
 /* GLOB_CMD */

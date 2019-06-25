@@ -122,7 +122,7 @@
 /* Power supply above 3.625 V */
 #define ADIS16203_DIAG_STAT_POWER_HIGH_BIT    1
 
-/* Power supply below 3.15 V */
+/* Power supply below 2.975 V */
 #define ADIS16203_DIAG_STAT_POWER_LOW_BIT     0
 
 /* GLOB_CMD */
@@ -234,7 +234,7 @@ static const char * const adis16203_status_error_msgs[] = {
 	[ADIS16203_DIAG_STAT_SPI_FAIL_BIT] = "SPI failure",
 	[ADIS16203_DIAG_STAT_FLASH_UPT_BIT] = "Flash update failed",
 	[ADIS16203_DIAG_STAT_POWER_HIGH_BIT] = "Power supply above 3.625V",
-	[ADIS16203_DIAG_STAT_POWER_LOW_BIT] = "Power supply below 3.15V",
+	[ADIS16203_DIAG_STAT_POWER_LOW_BIT] = "Power supply below 2.975V",
 };
 
 static const struct adis_data adis16203_data = {
