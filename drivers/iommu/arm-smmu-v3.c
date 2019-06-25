@@ -1789,12 +1789,10 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain)
 		.pgsize_bitmap	= smmu->pgsize_bitmap,
 		.ias		= ias,
 		.oas		= oas,
+		.coherent_walk	= smmu->features & ARM_SMMU_FEAT_COHERENCY,
 		.tlb		= &arm_smmu_gather_ops,
 		.iommu_dev	= smmu->dev,
 	};
-
-	if (smmu->features & ARM_SMMU_FEAT_COHERENCY)
-		pgtbl_cfg.quirks = IO_PGTABLE_QUIRK_NO_DMA;
 
 	if (smmu_domain->non_strict)
 		pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_NON_STRICT;
