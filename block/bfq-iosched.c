@@ -157,6 +157,7 @@ BFQ_BFQQ_FNS(in_large_burst);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
 BFQ_BFQQ_FNS(softrt_update);
+BFQ_BFQQ_FNS(has_waker);
 #undef BFQ_BFQQ_FNS						\
 
 /* Expiration time of sync (0) and async (1) requests, in ns. */
@@ -1814,6 +1815,111 @@ static void bfq_add_request(struct request *rq)
 	bfqd->queued++;
 
 	if (RB_EMPTY_ROOT(&bfqq->sort_list) && bfq_bfqq_sync(bfqq)) {
+		/*
+		 * Detect whether bfqq's I/O seems synchronized with
+		 * that of some other queue, i.e., whether bfqq, after
+		 * remaining empty, happens to receive new I/O only
+		 * right after some I/O request of the other queue has
+		 * been completed. We call waker queue the other
+		 * queue, and we assume, for simplicity, that bfqq may
+		 * have at most one waker queue.
+		 *
+		 * A remarkable throughput boost can be reached by
+		 * unconditionally injecting the I/O of the waker
+		 * queue, every time a new bfq_dispatch_request
+		 * happens to be invoked while I/O is being plugged
+		 * for bfqq.  In addition to boosting throughput, this
+		 * unblocks bfqq's I/O, thereby improving bandwidth
+		 * and latency for bfqq. Note that these same results
+		 * may be achieved with the general injection
+		 * mechanism, but less effectively. For details on
+		 * this aspect, see the comments on the choice of the
+		 * queue for injection in bfq_select_queue().
+		 *
+		 * Turning back to the detection of a waker queue, a
+		 * queue Q is deemed as a waker queue for bfqq if, for
+		 * two consecutive times, bfqq happens to become non
+		 * empty right after a request of Q has been
+		 * completed. In particular, on the first time, Q is
+		 * tentatively set as a candidate waker queue, while
+		 * on the second time, the flag
+		 * bfq_bfqq_has_waker(bfqq) is set to confirm that Q
+		 * is a waker queue for bfqq. These detection steps
+		 * are performed only if bfqq has a long think time,
+		 * so as to make it more likely that bfqq's I/O is
+		 * actually being blocked by a synchronization. This
+		 * last filter, plus the above two-times requirement,
+		 * make false positives less likely.
+		 *
+		 * NOTE
+		 *
+		 * The sooner a waker queue is detected, the sooner
+		 * throughput can be boosted by injecting I/O from the
+		 * waker queue. Fortunately, detection is likely to be
+		 * actually fast, for the following reasons. While
+		 * blocked by synchronization, bfqq has a long think
+		 * time. This implies that bfqq's inject limit is at
+		 * least equal to 1 (see the comments in
+		 * bfq_update_inject_limit()). So, thanks to
+		 * injection, the waker queue is likely to be served
+		 * during the very first I/O-plugging time interval
+		 * for bfqq. This triggers the first step of the
+		 * detection mechanism. Thanks again to injection, the
+		 * candidate waker queue is then likely to be
+		 * confirmed no later than during the next
+		 * I/O-plugging interval for bfqq.
+		 */
+		if (!bfq_bfqq_has_short_ttime(bfqq) &&
+		    ktime_get_ns() - bfqd->last_completion <
+		    200 * NSEC_PER_USEC) {
+			if (bfqd->last_completed_rq_bfqq != bfqq &&
+				   bfqd->last_completed_rq_bfqq !=
+				   bfqq->waker_bfqq) {
+				/*
+				 * First synchronization detected with
+				 * a candidate waker queue, or with a
+				 * different candidate waker queue
+				 * from the current one.
+				 */
+				bfqq->waker_bfqq = bfqd->last_completed_rq_bfqq;
+
+				/*
+				 * If the waker queue disappears, then
+				 * bfqq->waker_bfqq must be reset. To
+				 * this goal, we maintain in each
+				 * waker queue a list, woken_list, of
+				 * all the queues that reference the
+				 * waker queue through their
+				 * waker_bfqq pointer. When the waker
+				 * queue exits, the waker_bfqq pointer
+				 * of all the queues in the woken_list
+				 * is reset.
+				 *
+				 * In addition, if bfqq is already in
+				 * the woken_list of a waker queue,
+				 * then, before being inserted into
+				 * the woken_list of a new waker
+				 * queue, bfqq must be removed from
+				 * the woken_list of the old waker
+				 * queue.
+				 */
+				if (!hlist_unhashed(&bfqq->woken_list_node))
+					hlist_del_init(&bfqq->woken_list_node);
+				hlist_add_head(&bfqq->woken_list_node,
+				    &bfqd->last_completed_rq_bfqq->woken_list);
+
+				bfq_clear_bfqq_has_waker(bfqq);
+			} else if (bfqd->last_completed_rq_bfqq ==
+				   bfqq->waker_bfqq &&
+				   !bfq_bfqq_has_waker(bfqq)) {
+				/*
+				 * synchronization with waker_bfqq
+				 * seen for the second time
+				 */
+				bfq_mark_bfqq_has_waker(bfqq);
+			}
+		}
+
 		/*
 		 * Periodically reset inject limit, to make sure that
 		 * the latter eventually drops in case workload
@@ -4164,18 +4270,89 @@ check_queue:
 			bfqq->bic->bfqq[0] : NULL;
 
 		/*
-		 * If the process associated with bfqq has also async
-		 * I/O pending, then inject it
-		 * unconditionally. Injecting I/O from the same
-		 * process can cause no harm to the process. On the
-		 * contrary, it can only increase bandwidth and reduce
-		 * latency for the process.
+		 * The next three mutually-exclusive ifs decide
+		 * whether to try injection, and choose the queue to
+		 * pick an I/O request from.
+		 *
+		 * The first if checks whether the process associated
+		 * with bfqq has also async I/O pending. If so, it
+		 * injects such I/O unconditionally. Injecting async
+		 * I/O from the same process can cause no harm to the
+		 * process. On the contrary, it can only increase
+		 * bandwidth and reduce latency for the process.
+		 *
+		 * The second if checks whether there happens to be a
+		 * non-empty waker queue for bfqq, i.e., a queue whose
+		 * I/O needs to be completed for bfqq to receive new
+		 * I/O. This happens, e.g., if bfqq is associated with
+		 * a process that does some sync. A sync generates
+		 * extra blocking I/O, which must be completed before
+		 * the process associated with bfqq can go on with its
+		 * I/O. If the I/O of the waker queue is not served,
+		 * then bfqq remains empty, and no I/O is dispatched,
+		 * until the idle timeout fires for bfqq. This is
+		 * likely to result in lower bandwidth and higher
+		 * latencies for bfqq, and in a severe loss of total
+		 * throughput. The best action to take is therefore to
+		 * serve the waker queue as soon as possible. So do it
+		 * (without relying on the third alternative below for
+		 * eventually serving waker_bfqq's I/O; see the last
+		 * paragraph for further details). This systematic
+		 * injection of I/O from the waker queue does not
+		 * cause any delay to bfqq's I/O. On the contrary,
+		 * next bfqq's I/O is brought forward dramatically,
+		 * for it is not blocked for milliseconds.
+		 *
+		 * The third if checks whether bfqq is a queue for
+		 * which it is better to avoid injection. It is so if
+		 * bfqq delivers more throughput when served without
+		 * any further I/O from other queues in the middle, or
+		 * if the service times of bfqq's I/O requests both
+		 * count more than overall throughput, and may be
+		 * easily increased by injection (this happens if bfqq
+		 * has a short think time). If none of these
+		 * conditions holds, then a candidate queue for
+		 * injection is looked for through
+		 * bfq_choose_bfqq_for_injection(). Note that the
+		 * latter may return NULL (for example if the inject
+		 * limit for bfqq is currently 0).
+		 *
+		 * NOTE: motivation for the second alternative
+		 *
+		 * Thanks to the way the inject limit is updated in
+		 * bfq_update_has_short_ttime(), it is rather likely
+		 * that, if I/O is being plugged for bfqq and the
+		 * waker queue has pending I/O requests that are
+		 * blocking bfqq's I/O, then the third alternative
+		 * above lets the waker queue get served before the
+		 * I/O-plugging timeout fires. So one may deem the
+		 * second alternative superfluous. It is not, because
+		 * the third alternative may be way less effective in
+		 * case of a synchronization. For two main
+		 * reasons. First, throughput may be low because the
+		 * inject limit may be too low to guarantee the same
+		 * amount of injected I/O, from the waker queue or
+		 * other queues, that the second alternative
+		 * guarantees (the second alternative unconditionally
+		 * injects a pending I/O request of the waker queue
+		 * for each bfq_dispatch_request()). Second, with the
+		 * third alternative, the duration of the plugging,
+		 * i.e., the time before bfqq finally receives new I/O,
+		 * may not be minimized, because the waker queue may
+		 * happen to be served only after other queues.
 		 */
 		if (async_bfqq &&
 		    icq_to_bic(async_bfqq->next_rq->elv.icq) == bfqq->bic &&
 		    bfq_serv_to_charge(async_bfqq->next_rq, async_bfqq) <=
 		    bfq_bfqq_budget_left(async_bfqq))
 			bfqq = bfqq->bic->bfqq[0];
+		else if (bfq_bfqq_has_waker(bfqq) &&
+			   bfq_bfqq_busy(bfqq->waker_bfqq) &&
+			   bfq_serv_to_charge(bfqq->waker_bfqq->next_rq,
+					      bfqq->waker_bfqq) <=
+			   bfq_bfqq_budget_left(bfqq->waker_bfqq)
+			)
+			bfqq = bfqq->waker_bfqq;
 		else if (!idling_boosts_thr_without_issues(bfqd, bfqq) &&
 			 (bfqq->wr_coeff == 1 || bfqd->wr_busy_queues > 1 ||
 			  !bfq_bfqq_has_short_ttime(bfqq)))
@@ -4564,6 +4741,9 @@ static void bfq_put_cooperator(struct bfq_queue *bfqq)
 
 static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 {
+	struct bfq_queue *item;
+	struct hlist_node *n;
+
 	if (bfqq == bfqd->in_service_queue) {
 		__bfq_bfqq_expire(bfqd, bfqq);
 		bfq_schedule_dispatch(bfqd);
@@ -4572,6 +4752,18 @@ static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 	bfq_log_bfqq(bfqd, bfqq, "exit_bfqq: %p, %d", bfqq, bfqq->ref);
 
 	bfq_put_cooperator(bfqq);
+
+	/* remove bfqq from woken list */
+	if (!hlist_unhashed(&bfqq->woken_list_node))
+		hlist_del_init(&bfqq->woken_list_node);
+
+	/* reset waker for all queues in woken list */
+	hlist_for_each_entry_safe(item, n, &bfqq->woken_list,
+				  woken_list_node) {
+		item->waker_bfqq = NULL;
+		bfq_clear_bfqq_has_waker(item);
+		hlist_del_init(&item->woken_list_node);
+	}
 
 	bfq_put_queue(bfqq); /* release process reference */
 }
@@ -4691,6 +4883,8 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	RB_CLEAR_NODE(&bfqq->entity.rb_node);
 	INIT_LIST_HEAD(&bfqq->fifo);
 	INIT_HLIST_NODE(&bfqq->burst_list_node);
+	INIT_HLIST_NODE(&bfqq->woken_list_node);
+	INIT_HLIST_HEAD(&bfqq->woken_list);
 
 	bfqq->ref = 0;
 	bfqq->bfqd = bfqd;
@@ -4909,28 +5103,27 @@ static void bfq_update_has_short_ttime(struct bfq_data *bfqd,
 	 * bfqq may have a long think time because of a
 	 * synchronization with some other queue, i.e., because the
 	 * I/O of some other queue may need to be completed for bfqq
-	 * to receive new I/O. This happens, e.g., if bfqq is
-	 * associated with a process that does some sync. A sync
-	 * generates extra blocking I/O, which must be completed
-	 * before the process associated with bfqq can go on with its
-	 * I/O.
+	 * to receive new I/O. Details in the comments on the choice
+	 * of the queue for injection in bfq_select_queue().
 	 *
-	 * If such a synchronization is actually in place, then,
-	 * without injection on bfqq, the blocking I/O cannot happen
-	 * to served while bfqq is in service. As a consequence, if
-	 * bfqq is granted I/O-dispatch-plugging, then bfqq remains
-	 * empty, and no I/O is dispatched, until the idle timeout
-	 * fires. This is likely to result in lower bandwidth and
-	 * higher latencies for bfqq, and in a severe loss of total
-	 * throughput.
+	 * As stressed in those comments, if such a synchronization is
+	 * actually in place, then, without injection on bfqq, the
+	 * blocking I/O cannot happen to served while bfqq is in
+	 * service. As a consequence, if bfqq is granted
+	 * I/O-dispatch-plugging, then bfqq remains empty, and no I/O
+	 * is dispatched, until the idle timeout fires. This is likely
+	 * to result in lower bandwidth and higher latencies for bfqq,
+	 * and in a severe loss of total throughput.
 	 *
 	 * On the opposite end, a non-zero inject limit may allow the
 	 * I/O that blocks bfqq to be executed soon, and therefore
-	 * bfqq to receive new I/O soon. But, if this actually
-	 * happens, then the next think-time sample for bfqq may be
-	 * very low. This in turn may cause bfqq's think time to be
-	 * deemed short. Without the 100 ms barrier, this new state
-	 * change would cause the body of the next if to be executed
+	 * bfqq to receive new I/O soon.
+	 *
+	 * But, if the blocking gets actually eliminated, then the
+	 * next think-time sample for bfqq may be very low. This in
+	 * turn may cause bfqq's think time to be deemed
+	 * short. Without the 100 ms barrier, this new state change
+	 * would cause the body of the next if to be executed
 	 * immediately. But this would set to 0 the inject
 	 * limit. Without injection, the blocking I/O would cause the
 	 * think time of bfqq to become long again, and therefore the
@@ -4941,11 +5134,11 @@ static void bfq_update_has_short_ttime(struct bfq_data *bfqd,
 	 * In contrast, if the inject limit is not reset during such a
 	 * long time interval as 100 ms, then the number of short
 	 * think time samples can grow significantly before the reset
-	 * is allowed. As a consequence, the think time state can
-	 * become stable before the reset. There will be no state
-	 * change when the 100 ms elapse, and therefore no reset of
-	 * the inject limit. The inject limit remains steadily equal
-	 * to 1 both during and after the 100 ms. So injection can be
+	 * is performed. As a consequence, the think time state can
+	 * become stable before the reset. Therefore there will be no
+	 * state change when the 100 ms elapse, and no reset of the
+	 * inject limit. The inject limit remains steadily equal to 1
+	 * both during and after the 100 ms. So injection can be
 	 * performed at all times, and throughput gets boosted.
 	 *
 	 * An inject limit equal to 1 is however in conflict, in
@@ -4960,10 +5153,20 @@ static void bfq_update_has_short_ttime(struct bfq_data *bfqd,
 	 * brought forward, because it is not blocked for
 	 * milliseconds.
 	 *
-	 * In addition, during the 100 ms, the base value for the
-	 * total service time is likely to get finally computed,
-	 * freeing the inject limit from its relation with the think
-	 * time.
+	 * In addition, serving the blocking I/O much sooner, and much
+	 * more frequently than once per I/O-plugging timeout, makes
+	 * it much quicker to detect a waker queue (the concept of
+	 * waker queue is defined in the comments in
+	 * bfq_add_request()). This makes it possible to start sooner
+	 * to boost throughput more effectively, by injecting the I/O
+	 * of the waker queue unconditionally on every
+	 * bfq_dispatch_request().
+	 *
+	 * One last, important benefit of not resetting the inject
+	 * limit before 100 ms is that, during this time interval, the
+	 * base value for the total service time is likely to get
+	 * finally computed for bfqq, freeing the inject limit from
+	 * its relation with the think time.
 	 */
 	if (state_changed && bfqq->last_serv_time_ns == 0 &&
 	    (time_is_before_eq_jiffies(bfqq->decrease_time_jif +
@@ -5278,6 +5481,7 @@ static void bfq_completed_request(struct bfq_queue *bfqq, struct bfq_data *bfqd)
 			1UL<<(BFQ_RATE_SHIFT - 10))
 		bfq_update_rate_reset(bfqd, NULL);
 	bfqd->last_completion = now_ns;
+	bfqd->last_completed_rq_bfqq = bfqq;
 
 	/*
 	 * If we are waiting to discover whether the request pattern

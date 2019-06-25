@@ -357,6 +357,24 @@ struct bfq_queue {
 
 	/* max service rate measured so far */
 	u32 max_service_rate;
+
+	/*
+	 * Pointer to the waker queue for this queue, i.e., to the
+	 * queue Q such that this queue happens to get new I/O right
+	 * after some I/O request of Q is completed. For details, see
+	 * the comments on the choice of the queue for injection in
+	 * bfq_select_queue().
+	 */
+	struct bfq_queue *waker_bfqq;
+	/* node for woken_list, see below */
+	struct hlist_node woken_list_node;
+	/*
+	 * Head of the list of the woken queues for this queue, i.e.,
+	 * of the list of the queues for which this queue is a waker
+	 * queue. This list is used to reset the waker_bfqq pointer in
+	 * the woken queues when this queue exits.
+	 */
+	struct hlist_head woken_list;
 };
 
 /**
@@ -532,6 +550,9 @@ struct bfq_data {
 
 	/* time of last request completion (ns) */
 	u64 last_completion;
+
+	/* bfqq owning the last completed rq */
+	struct bfq_queue *last_completed_rq_bfqq;
 
 	/* time of last transition from empty to non-empty (ns) */
 	u64 last_empty_occupied_ns;
@@ -743,7 +764,8 @@ enum bfqq_state_flags {
 				 * update
 				 */
 	BFQQF_coop,		/* bfqq is shared */
-	BFQQF_split_coop	/* shared bfqq will be split */
+	BFQQF_split_coop,	/* shared bfqq will be split */
+	BFQQF_has_waker		/* bfqq has a waker queue */
 };
 
 #define BFQ_BFQQ_FNS(name)						\
@@ -763,6 +785,7 @@ BFQ_BFQQ_FNS(in_large_burst);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
 BFQ_BFQQ_FNS(softrt_update);
+BFQ_BFQQ_FNS(has_waker);
 #undef BFQ_BFQQ_FNS
 
 /* Expiration reasons. */
