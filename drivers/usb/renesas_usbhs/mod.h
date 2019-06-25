@@ -129,6 +129,15 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod);
 		 mod->func(param);			\
 	})
 
+#define usbhs_priv_to_modinfo(priv) (&priv->mod_info)
+#define usbhs_mod_info_call(priv, func, param...)	\
+({							\
+	struct usbhs_mod_info *info;			\
+	info = usbhs_priv_to_modinfo(priv);		\
+	!info->func ? 0 :				\
+	 info->func(param);				\
+})
+
 /*
  * host / gadget control
  */
