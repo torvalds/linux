@@ -610,7 +610,6 @@ int bnx2fc_send_rec(struct bnx2fc_cmd *orig_io_req)
 	rc = bnx2fc_initiate_els(tgt, ELS_REC, &rec, sizeof(rec),
 				 bnx2fc_rec_compl, cb_arg,
 				 r_a_tov);
-rec_err:
 	if (rc) {
 		BNX2FC_IO_DBG(orig_io_req, "REC failed - release\n");
 		spin_lock_bh(&tgt->tgt_lock);
@@ -618,6 +617,7 @@ rec_err:
 		spin_unlock_bh(&tgt->tgt_lock);
 		kfree(cb_arg);
 	}
+rec_err:
 	return rc;
 }
 
