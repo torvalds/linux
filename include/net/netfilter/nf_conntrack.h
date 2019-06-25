@@ -70,7 +70,8 @@ struct nf_conn {
 	struct nf_conntrack ct_general;
 
 	spinlock_t	lock;
-	u16		cpu;
+	/* jiffies32 when this ct is considered dead */
+	u32 timeout;
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	struct nf_conntrack_zone zone;
@@ -82,9 +83,7 @@ struct nf_conn {
 	/* Have we seen traffic both ways yet? (bitset) */
 	unsigned long status;
 
-	/* jiffies32 when this ct is considered dead */
-	u32 timeout;
-
+	u16		cpu;
 	possible_net_t ct_net;
 
 #if IS_ENABLED(CONFIG_NF_NAT)

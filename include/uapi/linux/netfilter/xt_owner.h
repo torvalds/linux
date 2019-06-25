@@ -11,6 +11,11 @@ enum {
 	XT_OWNER_SUPPL_GROUPS = 1 << 3,
 };
 
+#define XT_OWNER_MASK	(XT_OWNER_UID | 	\
+			 XT_OWNER_GID | 	\
+			 XT_OWNER_SOCKET |	\
+			 XT_OWNER_SUPPL_GROUPS)
+
 struct xt_owner_match_info {
 	__u32 uid_min, uid_max;
 	__u32 gid_min, gid_max;

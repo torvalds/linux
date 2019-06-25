@@ -6,7 +6,7 @@
  * Copyright (c) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * Based on the 'brute force' H.323 NAT module by
- * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Jozsef Kadlecsik <kadlec@netfilter.org>
  */
 
 #include <linux/module.h>

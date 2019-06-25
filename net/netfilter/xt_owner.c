@@ -22,6 +22,9 @@ static int owner_check(const struct xt_mtchk_param *par)
 	struct xt_owner_match_info *info = par->matchinfo;
 	struct net *net = par->net;
 
+	if (info->match & ~XT_OWNER_MASK)
+		return -EINVAL;
+
 	/* Only allow the common case where the userns of the writer
 	 * matches the userns of the network namespace.
 	 */
