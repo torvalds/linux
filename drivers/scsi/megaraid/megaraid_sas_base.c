@@ -105,6 +105,18 @@ unsigned int scmd_timeout = MEGASAS_DEFAULT_CMD_TIMEOUT;
 module_param(scmd_timeout, int, 0444);
 MODULE_PARM_DESC(scmd_timeout, "scsi command timeout (10-90s), default 90s. See megasas_reset_timer.");
 
+int perf_mode = -1;
+module_param(perf_mode, int, 0444);
+MODULE_PARM_DESC(perf_mode, "Performance mode (only for Aero adapters), options:\n\t\t"
+		"0 - balanced: High iops and low latency queues are allocated &\n\t\t"
+		"interrupt coalescing is enabled only on high iops queues\n\t\t"
+		"1 - iops: High iops queues are not allocated &\n\t\t"
+		"interrupt coalescing is enabled on all queues\n\t\t"
+		"2 - latency: High iops queues are not allocated &\n\t\t"
+		"interrupt coalescing is disabled on all queues\n\t\t"
+		"default mode is 'balanced'"
+		);
+
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux.pdl@broadcom.com");
@@ -5472,7 +5484,7 @@ megasas_setup_irqs_ioapic(struct megasas_instance *instance)
 				__func__, __LINE__);
 		return -1;
 	}
-	instance->balanced_mode = false;
+	instance->perf_mode = MR_LATENCY_PERF_MODE;
 	instance->low_latency_index_start = 0;
 	return 0;
 }
@@ -5683,7 +5695,7 @@ megasas_set_high_iops_queue_affinity_hint(struct megasas_instance *instance)
 	int i;
 	int local_numa_node;
 
-	if (instance->balanced_mode) {
+	if (instance->perf_mode == MR_BALANCED_PERF_MODE) {
 		local_numa_node = dev_to_node(&instance->pdev->dev);
 
 		for (i = 0; i < instance->low_latency_index_start; i++)
@@ -5726,11 +5738,12 @@ megasas_alloc_irq_vectors(struct megasas_instance *instance)
 
 	i = __megasas_alloc_irq_vectors(instance);
 
-	if (instance->balanced_mode && (i != instance->msix_vectors)) {
+	if ((instance->perf_mode == MR_BALANCED_PERF_MODE) &&
+	    (i != instance->msix_vectors)) {
 		if (instance->msix_vectors)
 			pci_free_irq_vectors(instance->pdev);
 		/* Disable Balanced IOPS mode and try realloc vectors */
-		instance->balanced_mode = false;
+		instance->perf_mode = MR_LATENCY_PERF_MODE;
 		instance->low_latency_index_start = 1;
 		num_msix_req = num_online_cpus() + instance->low_latency_index_start;
 
@@ -5774,6 +5787,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	struct fusion_context *fusion;
 	bool intr_coalescing;
 	unsigned int num_msix_req;
+	u16 lnksta, speed;
 
 	fusion = instance->ctrl_context;
 
@@ -5983,11 +5997,43 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		if (intr_coalescing &&
 			(num_online_cpus() >= MR_HIGH_IOPS_QUEUE_COUNT) &&
 			(instance->msix_vectors == MEGASAS_MAX_MSIX_QUEUES))
-			instance->balanced_mode = true;
+			instance->perf_mode = MR_BALANCED_PERF_MODE;
 		else
-			instance->balanced_mode = false;
+			instance->perf_mode = MR_LATENCY_PERF_MODE;
 
-		if (instance->balanced_mode)
+
+		if (instance->adapter_type == AERO_SERIES) {
+			pcie_capability_read_word(instance->pdev, PCI_EXP_LNKSTA, &lnksta);
+			speed = lnksta & PCI_EXP_LNKSTA_CLS;
+
+			/*
+			 * For Aero, if PCIe link speed is <16 GT/s, then driver should operate
+			 * in latency perf mode and enable R1 PCI bandwidth algorithm
+			 */
+			if (speed < 0x4) {
+				instance->perf_mode = MR_LATENCY_PERF_MODE;
+				fusion->pcie_bw_limitation = true;
+			}
+
+			/*
+			 * Performance mode settings provided through module parameter-perf_mode will
+			 * take affect only for:
+			 * 1. Aero family of adapters.
+			 * 2. When user sets module parameter- perf_mode in range of 0-2.
+			 */
+			if ((perf_mode >= MR_BALANCED_PERF_MODE) &&
+				(perf_mode <= MR_LATENCY_PERF_MODE))
+				instance->perf_mode = perf_mode;
+			/*
+			 * If intr coalescing is not supported by controller FW, then IOPS
+			 * and Balanced modes are not feasible.
+			 */
+			if (!intr_coalescing)
+				instance->perf_mode = MR_LATENCY_PERF_MODE;
+
+		}
+
+		if (instance->perf_mode == MR_BALANCED_PERF_MODE)
 			instance->low_latency_index_start =
 				MR_HIGH_IOPS_QUEUE_COUNT;
 		else

@@ -1097,10 +1097,10 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	if ((instance->low_latency_index_start ==
 		MR_HIGH_IOPS_QUEUE_COUNT) && cur_intr_coalescing)
-		instance->balanced_mode = true;
+		instance->perf_mode = MR_BALANCED_PERF_MODE;
 
-	dev_info(&instance->pdev->dev, "Balanced mode :%s\n",
-		instance->balanced_mode ? "Yes" : "No");
+	dev_info(&instance->pdev->dev, "Performance mode :%s\n",
+		MEGASAS_PERF_MODE_2STR(instance->perf_mode));
 
 	instance->fw_sync_cache_support = (scratch_pad_1 &
 		MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
@@ -1190,9 +1190,17 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	 * Each bit in replyqueue_mask represents one group of MSI-x vectors
 	 * (each group has 8 vectors)
 	 */
-	if (instance->balanced_mode)
+	switch (instance->perf_mode) {
+	case MR_BALANCED_PERF_MODE:
 		init_frame->replyqueue_mask =
-		       cpu_to_le16(~(~0 << instance->low_latency_index_start / 8));
+		       cpu_to_le16(~(~0 << instance->low_latency_index_start/8));
+		break;
+	case MR_IOPS_PERF_MODE:
+		init_frame->replyqueue_mask =
+		       cpu_to_le16(~(~0 << instance->msix_vectors/8));
+		break;
+	}
+
 
 	req_desc.u.low = cpu_to_le32(lower_32_bits(cmd->frame_phys_addr));
 	req_desc.u.high = cpu_to_le32(upper_32_bits(cmd->frame_phys_addr));
@@ -2831,7 +2839,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			fp_possible = (io_info.fpOkForIo > 0) ? true : false;
 	}
 
-	if (instance->balanced_mode &&
+	if ((instance->perf_mode == MR_BALANCED_PERF_MODE) &&
 		atomic_read(&scp->device->device_busy) >
 		(io_info.data_arms * MR_DEVICE_HIGH_IOPS_DEPTH))
 		cmd->request_desc->SCSIIO.MSIxIndex =
@@ -3164,7 +3172,7 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 
 	cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
 
-	if (instance->balanced_mode &&
+	if ((instance->perf_mode == MR_BALANCED_PERF_MODE) &&
 		atomic_read(&scmd->device->device_busy) > MR_DEVICE_HIGH_IOPS_DEPTH)
 		cmd->request_desc->SCSIIO.MSIxIndex =
 			mega_mod64((atomic64_add_return(1, &instance->high_iops_outstanding) /

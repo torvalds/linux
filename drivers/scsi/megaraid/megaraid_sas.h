@@ -2256,6 +2256,18 @@ enum MR_PD_TYPE {
 #define MR_DEVICE_HIGH_IOPS_DEPTH	8
 #define MR_HIGH_IOPS_BATCH_COUNT	16
 
+enum MR_PERF_MODE {
+	MR_BALANCED_PERF_MODE		= 0,
+	MR_IOPS_PERF_MODE		= 1,
+	MR_LATENCY_PERF_MODE		= 2,
+};
+
+#define MEGASAS_PERF_MODE_2STR(mode) \
+		((mode) == MR_BALANCED_PERF_MODE ? "Balanced" : \
+		 (mode) == MR_IOPS_PERF_MODE ? "IOPS" : \
+		 (mode) == MR_LATENCY_PERF_MODE ? "Latency" : \
+		 "Unknown")
+
 struct megasas_instance {
 
 	unsigned int *reply_map;
@@ -2441,7 +2453,7 @@ struct megasas_instance {
 	bool support_seqnum_jbod_fp;
 	bool support_pci_lane_margining;
 	u8  low_latency_index_start;
-	bool balanced_mode;
+	int perf_mode;
 };
 
 struct MR_LD_VF_MAP {
