@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Cirrus Logic EP93xx SPI controller.
  *
@@ -10,10 +11,6 @@
  * For more information about the SPI controller see documentation on Cirrus
  * Logic web site:
  *     http://www.cirrus.com/en/pubs/manual/EP93xx_Users_Guide_UM1.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>

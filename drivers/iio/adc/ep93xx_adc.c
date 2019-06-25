@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for ADC module on the Cirrus Logic EP93xx series of SoCs
  *
  * Copyright (C) 2015 Alexander Sverdlin
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The driver uses polling to get the conversion status. According to EP93xx
  * datasheets, reading ADCResult register starts the conversion, but user is also

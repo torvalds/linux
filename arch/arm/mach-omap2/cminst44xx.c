@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP4 CM instance functions
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2008-2011 Texas Instruments, Inc.
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This is needed since CM instances can be in the PRM, PRCM_MPU, CM1,
  * or CM2 hardware modules.  For example, the EMU_CM CM instance is in

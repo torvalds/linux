@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* drivers/media/platform/s5p-cec/regs-cec.h
  *
  * Copyright (c) 2010 Samsung Electronics
  *		http://www.samsung.com/
  *
  *  register header file for Samsung TVOUT driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __EXYNOS_REGS__H

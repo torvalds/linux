@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/irq/irq-nvic.c
  *
  * Copyright (C) 2008 ARM Limited, All Rights Reserved.
  * Copyright (C) 2013 Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Support for the Nested Vectored Interrupt Controller found on the
  * ARMv7-M CPUs (Cortex-M3/M4)

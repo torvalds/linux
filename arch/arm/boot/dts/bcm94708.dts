@@ -39,6 +39,7 @@
 	compatible = "brcm,bcm94708", "brcm,bcm4708";
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};
 };

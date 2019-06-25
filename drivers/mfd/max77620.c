@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Maxim MAX77620 MFD Driver
  *
@@ -7,10 +8,6 @@
  *	Laxman Dewangan <ldewangan@nvidia.com>
  *	Chaitanya Bandi <bandik@nvidia.com>
  *	Mallikarjun Kasoju <mkasoju@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /****************** Teminology used in driver ********************

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C adapter for the IMG Serial Control Bus (SCB) IP block.
  *
  * Copyright (C) 2009, 2010, 2012, 2014 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * There are three ways that this I2C controller can be driven:
  *

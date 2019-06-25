@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ralink MT7621/MT7628 built-in hardware watchdog timer
  *
  * Copyright (C) 2014 John Crispin <john@phrozen.org>
  *
  * This driver was based on: drivers/watchdog/rt2880_wdt.c
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
