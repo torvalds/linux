@@ -902,6 +902,7 @@ static void pci_acpi_setup(struct device *dev)
 		device_wakeup_enable(dev);
 
 	acpi_pci_wakeup(pci_dev, false);
+	acpi_device_power_add_dependent(adev, dev);
 }
 
 static void pci_acpi_cleanup(struct device *dev)
@@ -914,6 +915,7 @@ static void pci_acpi_cleanup(struct device *dev)
 
 	pci_acpi_remove_pm_notifier(adev);
 	if (adev->wakeup.flags.valid) {
+		acpi_device_power_remove_dependent(adev, dev);
 		if (pci_dev->bridge_d3)
 			device_wakeup_disable(dev);
 
