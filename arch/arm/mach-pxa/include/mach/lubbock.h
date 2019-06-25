@@ -50,7 +50,3 @@
 #define LUBBOCK_LAST_IRQ	LUBBOCK_IRQ(6)
 
 #define LUBBOCK_SA1111_IRQ_BASE	(LUBBOCK_NR_IRQS + 32)
-
-#ifndef __ASSEMBLY__
-extern void lubbock_set_misc_wr(unsigned int mask, unsigned int set);
-#endif
