@@ -2290,3 +2290,9 @@ struct mlx5_eswitch_rep *mlx5_eswitch_vport_rep(struct mlx5_eswitch *esw,
 	return mlx5_eswitch_get_rep(esw, vport);
 }
 EXPORT_SYMBOL(mlx5_eswitch_vport_rep);
+
+bool mlx5_eswitch_is_vf_vport(const struct mlx5_eswitch *esw, u16 vport_num)
+{
+	return vport_num >= MLX5_VPORT_FIRST_VF &&
+	       vport_num <= esw->dev->priv.sriov.max_vfs;
+}
