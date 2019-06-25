@@ -530,128 +530,65 @@ int usbhsc_schedule_notify_hotplug(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct usbhs_of_data rcar_gen2_data = {
-	.platform_callback = &usbhs_rcar2_ops,
-	.param = {
-		.has_usb_dmac = 1,
-		.has_new_pipe_configs = 1,
-	}
-};
-
-static const struct usbhs_of_data rcar_gen3_data = {
-	.platform_callback = &usbhs_rcar3_ops,
-	.param = {
-		.has_usb_dmac = 1,
-		.multi_clks = 1,
-		.has_new_pipe_configs = 1,
-	}
-};
-
-static const struct usbhs_of_data rcar_gen3_with_pll_data = {
-	.platform_callback = &usbhs_rcar3_with_pll_ops,
-	.param = {
-		.has_usb_dmac = 1,
-		.multi_clks = 1,
-		.has_new_pipe_configs = 1,
-	}
-};
-
-static const struct usbhs_of_data rza1_data = {
-	.platform_callback = &usbhs_rza1_ops,
-	.param = {
-		.has_new_pipe_configs = 1,
-	}
-};
-
-static const struct usbhs_of_data rza2_data = {
-	.platform_callback = &usbhs_rza2_ops,
-	.param = {
-		.has_cnen = 1,
-		.cfifo_byte_addr = 1,
-		.has_new_pipe_configs = 1,
-	}
-};
-
 /*
  *		platform functions
  */
 static const struct of_device_id usbhs_of_match[] = {
 	{
 		.compatible = "renesas,usbhs-r8a774c0",
-		.data = &rcar_gen3_with_pll_data,
+		.data = &usbhs_rcar_gen3_with_pll_plat_info,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7790",
-		.data = &rcar_gen2_data,
+		.data = &usbhs_rcar_gen2_plat_info,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7791",
-		.data = &rcar_gen2_data,
+		.data = &usbhs_rcar_gen2_plat_info,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7794",
-		.data = &rcar_gen2_data,
+		.data = &usbhs_rcar_gen2_plat_info,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7795",
-		.data = &rcar_gen3_data,
+		.data = &usbhs_rcar_gen3_plat_info,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7796",
-		.data = &rcar_gen3_data,
+		.data = &usbhs_rcar_gen3_plat_info,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a77990",
-		.data = &rcar_gen3_with_pll_data,
+		.data = &usbhs_rcar_gen3_with_pll_plat_info,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a77995",
-		.data = &rcar_gen3_with_pll_data,
+		.data = &usbhs_rcar_gen3_with_pll_plat_info,
 	},
 	{
 		.compatible = "renesas,rcar-gen2-usbhs",
-		.data = &rcar_gen2_data,
+		.data = &usbhs_rcar_gen2_plat_info,
 	},
 	{
 		.compatible = "renesas,rcar-gen3-usbhs",
-		.data = &rcar_gen3_data,
+		.data = &usbhs_rcar_gen3_plat_info,
 	},
 	{
 		.compatible = "renesas,rza1-usbhs",
-		.data = &rza1_data,
+		.data = &usbhs_rza1_plat_info,
 	},
 	{
 		.compatible = "renesas,rza2-usbhs",
-		.data = &rza2_data,
+		.data = &usbhs_rza2_plat_info,
 	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, usbhs_of_match);
 
-static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
-{
-	struct renesas_usbhs_platform_info *info;
-	struct renesas_usbhs_driver_param *dparam;
-	const struct usbhs_of_data *data;
-
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return NULL;
-
-	data = of_device_get_match_data(dev);
-	if (!data)
-		return NULL;
-
-	dparam = &info->driver_param;
-	*dparam = data->param;
-	info->platform_callback = *data->platform_callback;
-
-	return info;
-}
-
 static int usbhs_probe(struct platform_device *pdev)
 {
-	struct renesas_usbhs_platform_info *info = renesas_usbhs_get_info(pdev);
+	const struct renesas_usbhs_platform_info *info;
 	struct usbhs_priv *priv;
 	struct resource *res, *irq_res;
 	struct device *dev = &pdev->dev;
@@ -660,7 +597,9 @@ static int usbhs_probe(struct platform_device *pdev)
 
 	/* check device node */
 	if (dev_of_node(dev))
-		info = pdev->dev.platform_data = usbhs_parse_dt(&pdev->dev);
+		info = of_device_get_match_data(dev);
+	else
+		info = renesas_usbhs_get_info(pdev);
 
 	/* check platform information */
 	if (!info) {

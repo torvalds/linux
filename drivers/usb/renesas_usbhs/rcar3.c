@@ -95,12 +95,26 @@ static int usbhs_rcar3_power_and_pll_ctrl(struct platform_device *pdev,
 	return 0;
 }
 
-const struct renesas_usbhs_platform_callback usbhs_rcar3_ops = {
-	.power_ctrl = usbhs_rcar3_power_ctrl,
-	.get_id = usbhs_get_id_as_gadget,
+const struct renesas_usbhs_platform_info usbhs_rcar_gen3_plat_info = {
+	.platform_callback = {
+		.power_ctrl = usbhs_rcar3_power_ctrl,
+		.get_id = usbhs_get_id_as_gadget,
+	},
+	.driver_param = {
+		.has_usb_dmac = 1,
+		.multi_clks = 1,
+		.has_new_pipe_configs = 1,
+	},
 };
 
-const struct renesas_usbhs_platform_callback usbhs_rcar3_with_pll_ops = {
-	.power_ctrl = usbhs_rcar3_power_and_pll_ctrl,
-	.get_id = usbhs_get_id_as_gadget,
+const struct renesas_usbhs_platform_info usbhs_rcar_gen3_with_pll_plat_info = {
+	.platform_callback = {
+		.power_ctrl = usbhs_rcar3_power_and_pll_ctrl,
+		.get_id = usbhs_get_id_as_gadget,
+	},
+	.driver_param = {
+		.has_usb_dmac = 1,
+		.multi_clks = 1,
+		.has_new_pipe_configs = 1,
+	},
 };

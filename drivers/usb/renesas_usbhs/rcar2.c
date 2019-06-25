@@ -63,9 +63,15 @@ static int usbhs_rcar2_power_ctrl(struct platform_device *pdev,
 	return retval;
 }
 
-const struct renesas_usbhs_platform_callback usbhs_rcar2_ops = {
-	.hardware_init = usbhs_rcar2_hardware_init,
-	.hardware_exit = usbhs_rcar2_hardware_exit,
-	.power_ctrl = usbhs_rcar2_power_ctrl,
-	.get_id = usbhs_get_id_as_gadget,
+const struct renesas_usbhs_platform_info usbhs_rcar_gen2_plat_info = {
+	.platform_callback = {
+		.hardware_init = usbhs_rcar2_hardware_init,
+		.hardware_exit = usbhs_rcar2_hardware_exit,
+		.power_ctrl = usbhs_rcar2_power_ctrl,
+		.get_id = usbhs_get_id_as_gadget,
+	},
+	.driver_param = {
+		.has_usb_dmac = 1,
+		.has_new_pipe_configs = 1,
+	},
 };

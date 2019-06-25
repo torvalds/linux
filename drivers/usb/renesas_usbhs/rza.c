@@ -41,7 +41,12 @@ static int usbhs_rza1_hardware_init(struct platform_device *pdev)
 	return 0;
 }
 
-const struct renesas_usbhs_platform_callback usbhs_rza1_ops = {
-	.hardware_init = usbhs_rza1_hardware_init,
-	.get_id = usbhs_get_id_as_gadget,
+const struct renesas_usbhs_platform_info usbhs_rza1_plat_info = {
+	.platform_callback = {
+		.hardware_init = usbhs_rza1_hardware_init,
+		.get_id = usbhs_get_id_as_gadget,
+	},
+	.driver_param = {
+		.has_new_pipe_configs = 1,
+	},
 };

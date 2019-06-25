@@ -282,11 +282,6 @@ struct usbhs_priv {
 	struct clk *clks[2];
 };
 
-struct usbhs_of_data {
-	const struct renesas_usbhs_platform_callback	*platform_callback;
-	const struct renesas_usbhs_driver_param		param;
-};
-
 /*
  * common
  */
