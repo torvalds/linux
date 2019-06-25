@@ -173,30 +173,27 @@ EXPORT_SYMBOL_GPL(mwifiex_queue_main_work);
 
 static void mwifiex_queue_rx_work(struct mwifiex_adapter *adapter)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	spin_lock_bh(&adapter->rx_proc_lock);
 	if (adapter->rx_processing) {
-		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+		spin_unlock_bh(&adapter->rx_proc_lock);
 	} else {
-		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+		spin_unlock_bh(&adapter->rx_proc_lock);
 		queue_work(adapter->rx_workqueue, &adapter->rx_work);
 	}
 }
 
 static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 {
-	unsigned long flags;
 	struct sk_buff *skb;
 	struct mwifiex_rxinfo *rx_info;
 
-	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	spin_lock_bh(&adapter->rx_proc_lock);
 	if (adapter->rx_processing || adapter->rx_locked) {
-		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+		spin_unlock_bh(&adapter->rx_proc_lock);
 		goto exit_rx_proc;
 	} else {
 		adapter->rx_processing = true;
-		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+		spin_unlock_bh(&adapter->rx_proc_lock);
 	}
 
 	/* Check for Rx data */
@@ -219,9 +216,9 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 			mwifiex_handle_rx_packet(adapter, skb);
 		}
 	}
-	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	spin_lock_bh(&adapter->rx_proc_lock);
 	adapter->rx_processing = false;
-	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+	spin_unlock_bh(&adapter->rx_proc_lock);
 
 exit_rx_proc:
 	return 0;
@@ -825,13 +822,12 @@ mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (skb) {
-		unsigned long flags;
 		int id;
 
-		spin_lock_irqsave(&priv->ack_status_lock, flags);
+		spin_lock_bh(&priv->ack_status_lock);
 		id = idr_alloc(&priv->ack_status_frames, orig_skb,
 			       1, 0x10, GFP_ATOMIC);
-		spin_unlock_irqrestore(&priv->ack_status_lock, flags);
+		spin_unlock_bh(&priv->ack_status_lock);
 
 		if (id >= 0) {
 			tx_info = MWIFIEX_SKB_TXCB(skb);
@@ -1354,12 +1350,11 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
  */
 int is_command_pending(struct mwifiex_adapter *adapter)
 {
-	unsigned long flags;
 	int is_cmd_pend_q_empty;
 
-	spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
+	spin_lock_bh(&adapter->cmd_pending_q_lock);
 	is_cmd_pend_q_empty = list_empty(&adapter->cmd_pending_q);
-	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
+	spin_unlock_bh(&adapter->cmd_pending_q_lock);
 
 	return !is_cmd_pend_q_empty;
 }
