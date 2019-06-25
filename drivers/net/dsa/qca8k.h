@@ -10,6 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/regmap.h>
+#include <linux/gpio.h>
 
 #define QCA8K_NUM_PORTS					7
 
@@ -174,6 +175,7 @@ struct qca8k_priv {
 	struct mutex reg_mutex;
 	struct device *dev;
 	struct dsa_switch_ops ops;
+	struct gpio_desc *reset_gpio;
 };
 
 struct qca8k_mib_desc {

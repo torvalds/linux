@@ -14,6 +14,7 @@
 #include <linux/of_platform.h>
 #include <linux/if_bridge.h>
 #include <linux/mdio.h>
+#include <linux/gpio.h>
 #include <linux/etherdevice.h>
 
 #include "qca8k.h"
@@ -1045,6 +1046,20 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 
 	priv->bus = mdiodev->bus;
 	priv->dev = &mdiodev->dev;
+
+	priv->reset_gpio = devm_gpiod_get_optional(priv->dev, "reset",
+						   GPIOD_ASIS);
+	if (IS_ERR(priv->reset_gpio))
+		return PTR_ERR(priv->reset_gpio);
+
+	if (priv->reset_gpio) {
+		gpiod_set_value_cansleep(priv->reset_gpio, 1);
+		/* The active low duration must be greater than 10 ms
+		 * and checkpatch.pl wants 20 ms.
+		 */
+		msleep(20);
+		gpiod_set_value_cansleep(priv->reset_gpio, 0);
+	}
 
 	/* read the switches ID register */
 	id = qca8k_read(priv, QCA8K_REG_MASK_CTRL);
