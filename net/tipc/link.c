@@ -1125,7 +1125,7 @@ static int tipc_link_bc_retrans(struct tipc_link *l, struct tipc_link *r,
 				continue;
 			TIPC_SKB_CB(skb)->nxt_retr = jiffies + TIPC_BC_RETR_LIM;
 		}
-		_skb = __pskb_copy(skb, MIN_H_SIZE, GFP_ATOMIC);
+		_skb = __pskb_copy(skb, LL_MAX_HEADER + MIN_H_SIZE, GFP_ATOMIC);
 		if (!_skb)
 			return 0;
 		hdr = buf_msg(_skb);
