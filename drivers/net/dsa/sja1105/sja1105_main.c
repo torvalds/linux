@@ -816,6 +816,77 @@ static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
+static int
+sja1105_find_static_fdb_entry(struct sja1105_private *priv, int port,
+			      const struct sja1105_l2_lookup_entry *requested)
+{
+	struct sja1105_l2_lookup_entry *l2_lookup;
+	struct sja1105_table *table;
+	int i;
+
+	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP];
+	l2_lookup = table->entries;
+
+	for (i = 0; i < table->entry_count; i++)
+		if (l2_lookup[i].macaddr == requested->macaddr &&
+		    l2_lookup[i].vlanid == requested->vlanid &&
+		    l2_lookup[i].destports & BIT(port))
+			return i;
+
+	return -1;
+}
+
+/* We want FDB entries added statically through the bridge command to persist
+ * across switch resets, which are a common thing during normal SJA1105
+ * operation. So we have to back them up in the static configuration tables
+ * and hence apply them on next static config upload... yay!
+ */
+static int
+sja1105_static_fdb_change(struct sja1105_private *priv, int port,
+			  const struct sja1105_l2_lookup_entry *requested,
+			  bool keep)
+{
+	struct sja1105_l2_lookup_entry *l2_lookup;
+	struct sja1105_table *table;
+	int rc, match;
+
+	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP];
+
+	match = sja1105_find_static_fdb_entry(priv, port, requested);
+	if (match < 0) {
+		/* Can't delete a missing entry. */
+		if (!keep)
+			return 0;
+
+		/* No match => new entry */
+		rc = sja1105_table_resize(table, table->entry_count + 1);
+		if (rc)
+			return rc;
+
+		match = table->entry_count - 1;
+	}
+
+	/* Assign pointer after the resize (it may be new memory) */
+	l2_lookup = table->entries;
+
+	/* We have a match.
+	 * If the job was to add this FDB entry, it's already done (mostly
+	 * anyway, since the port forwarding mask may have changed, case in
+	 * which we update it).
+	 * Otherwise we have to delete it.
+	 */
+	if (keep) {
+		l2_lookup[match] = *requested;
+		return 0;
+	}
+
+	/* To remove, the strategy is to overwrite the element with
+	 * the last one, and then reduce the array size by 1
+	 */
+	l2_lookup[match] = l2_lookup[table->entry_count - 1];
+	return sja1105_table_resize(table, table->entry_count - 1);
+}
+
 /* First-generation switches have a 4-way set associative TCAM that
  * holds the FDB entries. An FDB index spans from 0 to 1023 and is comprised of
  * a "bin" (grouping of 4 entries) and a "way" (an entry within a bin).
@@ -866,7 +937,7 @@ int sja1105et_fdb_add(struct dsa_switch *ds, int port,
 	struct sja1105_private *priv = ds->priv;
 	struct device *dev = ds->dev;
 	int last_unused = -1;
-	int bin, way;
+	int bin, way, rc;
 
 	bin = sja1105et_fdb_hash(priv, addr, vid);
 
@@ -910,9 +981,13 @@ int sja1105et_fdb_add(struct dsa_switch *ds, int port,
 	}
 	l2_lookup.index = sja1105et_fdb_index(bin, way);
 
-	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
-					    l2_lookup.index, &l2_lookup,
-					    true);
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					  l2_lookup.index, &l2_lookup,
+					  true);
+	if (rc < 0)
+		return rc;
+
+	return sja1105_static_fdb_change(priv, port, &l2_lookup, true);
 }
 
 int sja1105et_fdb_del(struct dsa_switch *ds, int port,
@@ -920,7 +995,7 @@ int sja1105et_fdb_del(struct dsa_switch *ds, int port,
 {
 	struct sja1105_l2_lookup_entry l2_lookup = {0};
 	struct sja1105_private *priv = ds->priv;
-	int index, bin, way;
+	int index, bin, way, rc;
 	bool keep;
 
 	bin = sja1105et_fdb_hash(priv, addr, vid);
@@ -942,8 +1017,12 @@ int sja1105et_fdb_del(struct dsa_switch *ds, int port,
 	else
 		keep = false;
 
-	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
-					    index, &l2_lookup, keep);
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					  index, &l2_lookup, keep);
+	if (rc < 0)
+		return rc;
+
+	return sja1105_static_fdb_change(priv, port, &l2_lookup, keep);
 }
 
 int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
@@ -994,9 +1073,13 @@ int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
 	l2_lookup.index = i;
 
 skip_finding_an_index:
-	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
-					    l2_lookup.index, &l2_lookup,
-					    true);
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					  l2_lookup.index, &l2_lookup,
+					  true);
+	if (rc < 0)
+		return rc;
+
+	return sja1105_static_fdb_change(priv, port, &l2_lookup, true);
 }
 
 int sja1105pqrs_fdb_del(struct dsa_switch *ds, int port,
@@ -1030,8 +1113,12 @@ int sja1105pqrs_fdb_del(struct dsa_switch *ds, int port,
 	else
 		keep = false;
 
-	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
-					    l2_lookup.index, &l2_lookup, keep);
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					  l2_lookup.index, &l2_lookup, keep);
+	if (rc < 0)
+		return rc;
+
+	return sja1105_static_fdb_change(priv, port, &l2_lookup, keep);
 }
 
 static int sja1105_fdb_add(struct dsa_switch *ds, int port,
