@@ -1510,15 +1510,15 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 			ret = -EFAULT;
 			goto error;
 		}
-		if (uurb->buffer_length < (le16_to_cpup(&dr->wLength) + 8)) {
+		if (uurb->buffer_length < (le16_to_cpu(dr->wLength) + 8)) {
 			ret = -EINVAL;
 			goto error;
 		}
 		ret = check_ctrlrecip(ps, dr->bRequestType, dr->bRequest,
-				      le16_to_cpup(&dr->wIndex));
+				      le16_to_cpu(dr->wIndex));
 		if (ret)
 			goto error;
-		uurb->buffer_length = le16_to_cpup(&dr->wLength);
+		uurb->buffer_length = le16_to_cpu(dr->wLength);
 		uurb->buffer += 8;
 		if ((dr->bRequestType & USB_DIR_IN) && uurb->buffer_length) {
 			is_in = 1;
@@ -1533,9 +1533,9 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 			"bRequest=%02x wValue=%04x "
 			"wIndex=%04x wLength=%04x\n",
 			dr->bRequestType, dr->bRequest,
-			__le16_to_cpup(&dr->wValue),
-			__le16_to_cpup(&dr->wIndex),
-			__le16_to_cpup(&dr->wLength));
+			__le16_to_cpu(dr->wValue),
+			__le16_to_cpu(dr->wIndex),
+			__le16_to_cpu(dr->wLength));
 		u = sizeof(struct usb_ctrlrequest);
 		break;
 
