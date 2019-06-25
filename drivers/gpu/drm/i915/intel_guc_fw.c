@@ -197,6 +197,7 @@ static inline bool guc_ready(struct intel_guc *guc, u32 *status)
 
 static int guc_wait_ucode(struct intel_guc *guc)
 {
+	struct drm_i915_private *i915 = guc_to_i915(guc);
 	u32 status;
 	int ret;
 
@@ -214,6 +215,12 @@ static int guc_wait_ucode(struct intel_guc *guc)
 	if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
 		DRM_ERROR("GuC firmware signature verification failed\n");
 		ret = -ENOEXEC;
+	}
+
+	if ((status & GS_UKERNEL_MASK) == GS_UKERNEL_EXCEPTION) {
+		DRM_ERROR("GuC firmware exception. EIP: %#x\n",
+			  intel_uncore_read(&i915->uncore, SOFT_SCRATCH(13)));
+		ret = -ENXIO;
 	}
 
 	if (ret == 0 && !guc_xfer_completed(guc, &status)) {
