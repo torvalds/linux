@@ -2831,29 +2831,6 @@ vchiq_shutdown_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance)
 }
 
 VCHIQ_STATUS_T
-vchiq_pause_internal(struct vchiq_state *state)
-{
-	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
-
-	switch (state->conn_state) {
-	case VCHIQ_CONNSTATE_CONNECTED:
-		/* Request a pause */
-		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_PAUSING);
-		request_poll(state, NULL, 0);
-		break;
-	default:
-		vchiq_log_error(vchiq_core_log_level,
-			"%s in state %s\n",
-			__func__, conn_state_names[state->conn_state]);
-		status = VCHIQ_ERROR;
-		VCHIQ_STATS_INC(state, error_count);
-		break;
-	}
-
-	return status;
-}
-
-VCHIQ_STATUS_T
 vchiq_resume_internal(struct vchiq_state *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;

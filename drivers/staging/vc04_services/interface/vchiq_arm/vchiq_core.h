@@ -519,9 +519,6 @@ extern VCHIQ_STATUS_T
 vchiq_shutdown_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance);
 
 extern VCHIQ_STATUS_T
-vchiq_pause_internal(struct vchiq_state *state);
-
-extern VCHIQ_STATUS_T
 vchiq_resume_internal(struct vchiq_state *state);
 
 extern void
