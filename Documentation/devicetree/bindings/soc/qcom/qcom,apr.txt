@@ -9,7 +9,7 @@ used for audio/voice services on the QDSP.
 	Value type: <stringlist>
 	Definition: must be "qcom,apr-v<VERSION-NUMBER>", example "qcom,apr-v2"
 
-- reg
+- qcom,apr-domain
 	Usage: required
 	Value type: <u32>
 	Definition: Destination processor ID.
@@ -49,9 +49,9 @@ by the individual bindings for the specific service
 The following example represents a QDSP based sound card on a MSM8996 device
 which uses apr as communication between Apps and QDSP.
 
-	apr@4 {
+	apr {
 		compatible = "qcom,apr-v2";
-		reg = <APR_DOMAIN_ADSP>;
+		qcom,apr-domain = <APR_DOMAIN_ADSP>;
 
 		q6core@3 {
 			compatible = "qcom,q6core";
