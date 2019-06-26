@@ -145,6 +145,7 @@ static int arch__associate_ins_ops(struct arch* arch, const char *name, struct i
 #include "arch/arc/annotate/instructions.c"
 #include "arch/arm/annotate/instructions.c"
 #include "arch/arm64/annotate/instructions.c"
+#include "arch/csky/annotate/instructions.c"
 #include "arch/x86/annotate/instructions.c"
 #include "arch/powerpc/annotate/instructions.c"
 #include "arch/s390/annotate/instructions.c"
@@ -162,6 +163,10 @@ static struct arch architectures[] = {
 	{
 		.name = "arm64",
 		.init = arm64__annotate_init,
+	},
+	{
+		.name = "csky",
+		.init = csky__annotate_init,
 	},
 	{
 		.name = "x86",
