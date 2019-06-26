@@ -375,9 +375,6 @@ static int sh_vou_querycap(struct file *file, void  *priv,
 	strscpy(cap->card, "SuperH VOU", sizeof(cap->card));
 	strscpy(cap->driver, "sh-vou", sizeof(cap->driver));
 	strscpy(cap->bus_info, "platform:sh-vou", sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE |
-			   V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1210,6 +1207,8 @@ static const struct video_device sh_vou_video_template = {
 	.ioctl_ops	= &sh_vou_ioctl_ops,
 	.tvnorms	= V4L2_STD_525_60, /* PAL only supported in 8-bit non-bt656 mode */
 	.vfl_dir	= VFL_DIR_TX,
+	.device_caps	= V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE |
+			  V4L2_CAP_STREAMING,
 };
 
 static int sh_vou_probe(struct platform_device *pdev)
