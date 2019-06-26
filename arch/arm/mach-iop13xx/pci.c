@@ -289,7 +289,7 @@ iop13xx_atux_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 
 	if (size != 4) {
 		val = iop13xx_atux_read(addr);
-		if (!iop13xx_atux_pci_status(1) == 0)
+		if (iop13xx_atux_pci_status(1))
 			return PCIBIOS_SUCCESSFUL;
 
 		where = (where & 3) * 8;
@@ -436,7 +436,7 @@ iop13xx_atue_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 
 	if (size != 4) {
 		val = iop13xx_atue_read(addr);
-		if (!iop13xx_atue_pci_status(1) == 0)
+		if (iop13xx_atue_pci_status(1))
 			return PCIBIOS_SUCCESSFUL;
 
 		where = (where & 3) * 8;
