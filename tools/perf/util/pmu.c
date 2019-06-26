@@ -395,7 +395,7 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 	buf[ret] = 0;
 
 	/* Remove trailing newline from sysfs file */
-	rtrim(buf);
+	strim(buf);
 
 	return __perf_pmu__new_alias(list, dir, name, NULL, buf, NULL, NULL, NULL,
 				     NULL, NULL, NULL);

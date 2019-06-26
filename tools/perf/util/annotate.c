@@ -35,6 +35,7 @@
 #include <pthread.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <bpf/libbpf.h>
 
 /* FIXME: For the HE_COLORSET */
@@ -1495,7 +1496,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 		return -1;
 
 	line_ip = -1;
-	parsed_line = rtrim(line);
+	parsed_line = strim(line);
 
 	/* /filename:linenr ? Save line number and ignore. */
 	if (regexec(&file_lineno, parsed_line, 2, match, 0) == 0) {

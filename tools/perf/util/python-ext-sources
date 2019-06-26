@@ -16,6 +16,7 @@ util/namespaces.c
 ../lib/bitmap.c
 ../lib/find_bit.c
 ../lib/hweight.c
+../lib/string.c
 ../lib/vsprintf.c
 util/thread_map.c
 util/util.c

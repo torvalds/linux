@@ -2071,7 +2071,8 @@ static int hist_browser__fprintf_hierarchy_entry(struct hist_browser *browser,
 		advance_hpp(&hpp, ret);
 	}
 
-	printed += fprintf(fp, "%s\n", rtrim(s));
+	strim(s);
+	printed += fprintf(fp, "%s\n", s);
 
 	if (he->leaf && folded_sign == '-') {
 		printed += hist_browser__fprintf_callchain(browser, he, fp,
