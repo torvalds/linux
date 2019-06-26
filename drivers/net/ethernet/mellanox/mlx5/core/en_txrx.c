@@ -107,7 +107,9 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 		busy |= work_done == budget;
 	}
 
-	busy |= c->rq.post_wqes(rq);
+	mlx5e_poll_ico_cq(&c->icosq.cq);
+
+	busy |= rq->post_wqes(rq);
 
 	if (busy) {
 		if (likely(mlx5e_channel_no_affinity_change(c)))

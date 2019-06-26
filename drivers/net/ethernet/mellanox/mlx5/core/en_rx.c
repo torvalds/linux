@@ -427,11 +427,6 @@ static void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq, u8 n)
 	mlx5_wq_ll_update_db_record(wq);
 }
 
-static inline u16 mlx5e_icosq_wrap_cnt(struct mlx5e_icosq *sq)
-{
-	return mlx5_wq_cyc_get_ctr_wrap_cnt(&sq->wq, sq->pc);
-}
-
 static inline void mlx5e_fill_icosq_frag_edge(struct mlx5e_icosq *sq,
 					      struct mlx5_wq_cyc *wq,
 					      u16 pi, u16 nnops)
@@ -467,9 +462,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	}
 
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	if (unlikely(mlx5e_icosq_wrap_cnt(sq) < 2))
-		memcpy(umr_wqe, &rq->mpwqe.umr_wqe,
-		       offsetof(struct mlx5e_umr_wqe, inline_mtts));
+	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, offsetof(struct mlx5e_umr_wqe, inline_mtts));
 
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
 		err = mlx5e_page_alloc_mapped(rq, dma_info);
@@ -487,6 +480,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(xlt_offset);
 
 	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
+	sq->db.ico_wqe[pi].umr.rq = rq;
 	sq->pc += MLX5E_UMR_WQEBBS;
 
 	sq->doorbell_cseg = &umr_wqe->ctrl;
@@ -544,11 +538,10 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	return !!err;
 }
 
-static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
+void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 {
 	struct mlx5e_icosq *sq = container_of(cq, struct mlx5e_icosq, cq);
 	struct mlx5_cqe64 *cqe;
-	u8  completed_umr = 0;
 	u16 sqcc;
 	int i;
 
@@ -589,7 +582,7 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 
 			if (likely(wi->opcode == MLX5_OPCODE_UMR)) {
 				sqcc += MLX5E_UMR_WQEBBS;
-				completed_umr++;
+				wi->umr.rq->mpwqe.umr_completed++;
 			} else if (likely(wi->opcode == MLX5_OPCODE_NOP)) {
 				sqcc++;
 			} else {
@@ -605,24 +598,24 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 	sq->cc = sqcc;
 
 	mlx5_cqwq_update_db_record(&cq->wq);
-
-	if (likely(completed_umr)) {
-		mlx5e_post_rx_mpwqe(rq, completed_umr);
-		rq->mpwqe.umr_in_progress -= completed_umr;
-	}
 }
 
 bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 {
 	struct mlx5e_icosq *sq = &rq->channel->icosq;
 	struct mlx5_wq_ll *wq = &rq->mpwqe.wq;
+	u8  umr_completed = rq->mpwqe.umr_completed;
 	u8  missing, i;
 	u16 head;
 
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state)))
 		return false;
 
-	mlx5e_poll_ico_cq(&sq->cq, rq);
+	if (umr_completed) {
+		mlx5e_post_rx_mpwqe(rq, umr_completed);
+		rq->mpwqe.umr_in_progress -= umr_completed;
+		rq->mpwqe.umr_completed = 0;
+	}
 
 	missing = mlx5_wq_ll_missing(wq) - rq->mpwqe.umr_in_progress;
 

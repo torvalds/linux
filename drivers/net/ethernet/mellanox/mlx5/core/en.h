@@ -348,6 +348,13 @@ enum {
 
 struct mlx5e_sq_wqe_info {
 	u8  opcode;
+
+	/* Auxiliary data for different opcodes. */
+	union {
+		struct {
+			struct mlx5e_rq *rq;
+		} umr;
+	};
 };
 
 struct mlx5e_txqsq {
@@ -571,6 +578,7 @@ struct mlx5e_rq {
 			u8                     log_stride_sz;
 			u8                     umr_in_progress;
 			u8                     umr_last_bulk;
+			u8                     umr_completed;
 		} mpwqe;
 	};
 	struct {
@@ -798,6 +806,7 @@ void mlx5e_page_release(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info,
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq);
+void mlx5e_poll_ico_cq(struct mlx5e_cq *cq);
 bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq);
 void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
