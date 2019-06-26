@@ -1362,8 +1362,6 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	int j;
 	struct bio *bio;
 	int ret;
-	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
 
 	if (!iov_iter_count(iter))
 		return ERR_PTR(-EINVAL);
@@ -1430,9 +1428,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	return bio;
 
  out_unmap:
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		put_page(bvec->bv_page);
-	}
+	bio_release_pages(bio, false);
 	bio_put(bio);
 	return ERR_PTR(ret);
 }
