@@ -10,6 +10,7 @@
 #include <linux/cpufeature.h>
 #include <linux/cpuhotplug.h>
 #include <linux/fs.h>
+#include <linux/hashtable.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -57,6 +58,151 @@ static const struct isst_cmd_set_req_type isst_cmd_set_reqs[] = {
 	{0x7F, 0x02, 0x00},
 	{0x7F, 0x08, 0x00},
 };
+
+struct isst_cmd {
+	struct hlist_node hnode;
+	u64 data;
+	u32 cmd;
+	int cpu;
+	int mbox_cmd_type;
+	u32 param;
+};
+
+static DECLARE_HASHTABLE(isst_hash, 8);
+static DEFINE_MUTEX(isst_hash_lock);
+
+static int isst_store_new_cmd(int cmd, u32 cpu, int mbox_cmd_type, u32 param,
+			      u32 data)
+{
+	struct isst_cmd *sst_cmd;
+
+	sst_cmd = kmalloc(sizeof(*sst_cmd), GFP_KERNEL);
+	if (!sst_cmd)
+		return -ENOMEM;
+
+	sst_cmd->cpu = cpu;
+	sst_cmd->cmd = cmd;
+	sst_cmd->mbox_cmd_type = mbox_cmd_type;
+	sst_cmd->param = param;
+	sst_cmd->data = data;
+
+	hash_add(isst_hash, &sst_cmd->hnode, sst_cmd->cmd);
+
+	return 0;
+}
+
+static void isst_delete_hash(void)
+{
+	struct isst_cmd *sst_cmd;
+	struct hlist_node *tmp;
+	int i;
+
+	hash_for_each_safe(isst_hash, i, tmp, sst_cmd, hnode) {
+		hash_del(&sst_cmd->hnode);
+		kfree(sst_cmd);
+	}
+}
+
+/**
+ * isst_store_cmd() - Store command to a hash table
+ * @cmd: Mailbox command.
+ * @sub_cmd: Mailbox sub-command or MSR id.
+ * @mbox_cmd_type: Mailbox or MSR command.
+ * @param: Mailbox parameter.
+ * @data: Mailbox request data or MSR data.
+ *
+ * Stores the command to a hash table if there is no such command already
+ * stored. If already stored update the latest parameter and data for the
+ * command.
+ *
+ * Return: Return result of store to hash table, 0 for success, others for
+ * failure.
+ */
+int isst_store_cmd(int cmd, int sub_cmd, u32 cpu, int mbox_cmd_type,
+		   u32 param, u64 data)
+{
+	struct isst_cmd *sst_cmd;
+	int full_cmd, ret;
+
+	full_cmd = (cmd & GENMASK_ULL(15, 0)) << 16;
+	full_cmd |= (sub_cmd & GENMASK_ULL(15, 0));
+	mutex_lock(&isst_hash_lock);
+	hash_for_each_possible(isst_hash, sst_cmd, hnode, full_cmd) {
+		if (sst_cmd->cmd == full_cmd && sst_cmd->cpu == cpu &&
+		    sst_cmd->mbox_cmd_type == mbox_cmd_type) {
+			sst_cmd->param = param;
+			sst_cmd->data = data;
+			mutex_unlock(&isst_hash_lock);
+			return 0;
+		}
+	}
+
+	ret = isst_store_new_cmd(full_cmd, cpu, mbox_cmd_type, param, data);
+	mutex_unlock(&isst_hash_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(isst_store_cmd);
+
+static void isst_mbox_resume_command(struct isst_if_cmd_cb *cb,
+				     struct isst_cmd *sst_cmd)
+{
+	struct isst_if_mbox_cmd mbox_cmd;
+	int wr_only;
+
+	mbox_cmd.command = (sst_cmd->cmd & GENMASK_ULL(31, 16)) >> 16;
+	mbox_cmd.sub_command = sst_cmd->cmd & GENMASK_ULL(15, 0);
+	mbox_cmd.parameter = sst_cmd->param;
+	mbox_cmd.req_data = sst_cmd->data;
+	mbox_cmd.logical_cpu = sst_cmd->cpu;
+	(cb->cmd_callback)((u8 *)&mbox_cmd, &wr_only, 1);
+}
+
+/**
+ * isst_resume_common() - Process Resume request
+ *
+ * On resume replay all mailbox commands and MSRs.
+ *
+ * Return: None.
+ */
+void isst_resume_common(void)
+{
+	struct isst_cmd *sst_cmd;
+	int i;
+
+	hash_for_each(isst_hash, i, sst_cmd, hnode) {
+		struct isst_if_cmd_cb *cb;
+
+		if (sst_cmd->mbox_cmd_type) {
+			cb = &punit_callbacks[ISST_IF_DEV_MBOX];
+			if (cb->registered)
+				isst_mbox_resume_command(cb, sst_cmd);
+		} else {
+			wrmsrl_safe_on_cpu(sst_cmd->cpu, sst_cmd->cmd,
+					   sst_cmd->data);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(isst_resume_common);
+
+static void isst_restore_msr_local(int cpu)
+{
+	struct isst_cmd *sst_cmd;
+	int i;
+
+	mutex_lock(&isst_hash_lock);
+	for (i = 0; i < ARRAY_SIZE(punit_msr_white_list); ++i) {
+		if (!punit_msr_white_list[i])
+			break;
+
+		hash_for_each_possible(isst_hash, sst_cmd, hnode,
+				       punit_msr_white_list[i]) {
+			if (!sst_cmd->mbox_cmd_type && sst_cmd->cpu == cpu)
+				wrmsrl_safe(sst_cmd->cmd, sst_cmd->data);
+		}
+	}
+	mutex_unlock(&isst_hash_lock);
+}
 
 /**
  * isst_if_mbox_cmd_invalid() - Check invalid mailbox commands
@@ -185,6 +331,8 @@ static int isst_if_cpu_online(unsigned int cpu)
 	}
 	isst_cpu_info[cpu].punit_cpu_id = data;
 
+	isst_restore_msr_local(cpu);
+
 	return 0;
 }
 
@@ -267,6 +415,10 @@ static long isst_if_msr_cmd_req(u8 *cmd_ptr, int *write_only, int resume)
 					 msr_cmd->msr,
 					 msr_cmd->data);
 		*write_only = 1;
+		if (!ret && !resume)
+			ret = isst_store_cmd(0, msr_cmd->msr,
+					     msr_cmd->logical_cpu,
+					     0, 0, msr_cmd->data);
 	} else {
 		u64 data;
 
@@ -507,6 +659,8 @@ void isst_if_cdev_unregister(int device_type)
 	mutex_lock(&punit_misc_dev_lock);
 	misc_usage_count--;
 	punit_callbacks[device_type].registered = 0;
+	if (device_type == ISST_IF_DEV_MBOX)
+		isst_delete_hash();
 	if (!misc_usage_count && !misc_device_ret) {
 		misc_deregister(&isst_if_char_driver);
 		isst_if_cpu_info_exit();

@@ -63,4 +63,7 @@ void isst_if_cdev_unregister(int type);
 struct pci_dev *isst_if_get_pci_dev(int cpu, int bus, int dev, int fn);
 bool isst_if_mbox_cmd_set_req(struct isst_if_mbox_cmd *mbox_cmd);
 bool isst_if_mbox_cmd_invalid(struct isst_if_mbox_cmd *cmd);
+int isst_store_cmd(int cmd, int sub_command, u32 cpu, int mbox_cmd,
+		   u32 param, u64 data);
+void isst_resume_common(void);
 #endif

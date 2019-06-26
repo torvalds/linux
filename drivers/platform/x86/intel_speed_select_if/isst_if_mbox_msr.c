@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/topology.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/isst_if.h>
@@ -128,10 +129,36 @@ static long isst_if_mbox_proc_cmd(u8 *cmd_ptr, int *write_only, int resume)
 	if (ret)
 		return ret;
 
+	if (!action.err && !resume && isst_if_mbox_cmd_set_req(action.mbox_cmd))
+		action.err = isst_store_cmd(action.mbox_cmd->command,
+					    action.mbox_cmd->sub_command,
+					    action.mbox_cmd->logical_cpu, 1,
+					    action.mbox_cmd->parameter,
+					    action.mbox_cmd->req_data);
 	*write_only = 0;
 
 	return action.err;
 }
+
+
+static int isst_pm_notify(struct notifier_block *nb,
+			       unsigned long mode, void *_unused)
+{
+	switch (mode) {
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+	case PM_POST_SUSPEND:
+		isst_resume_common();
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block isst_pm_nb = {
+	.notifier_call = isst_pm_notify,
+};
 
 #define ICPU(model)     { X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, }
 
@@ -166,12 +193,21 @@ static int __init isst_if_mbox_init(void)
 	cb.offset = offsetof(struct isst_if_mbox_cmds, mbox_cmd);
 	cb.cmd_callback = isst_if_mbox_proc_cmd;
 	cb.owner = THIS_MODULE;
-	return isst_if_cdev_register(ISST_IF_DEV_MBOX, &cb);
+	ret = isst_if_cdev_register(ISST_IF_DEV_MBOX, &cb);
+	if (ret)
+		return ret;
+
+	ret = register_pm_notifier(&isst_pm_nb);
+	if (ret)
+		isst_if_cdev_unregister(ISST_IF_DEV_MBOX);
+
+	return ret;
 }
 module_init(isst_if_mbox_init)
 
 static void __exit isst_if_mbox_exit(void)
 {
+	unregister_pm_notifier(&isst_pm_nb);
 	isst_if_cdev_unregister(ISST_IF_DEV_MBOX);
 }
 module_exit(isst_if_mbox_exit)

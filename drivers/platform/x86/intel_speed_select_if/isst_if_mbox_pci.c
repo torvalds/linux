@@ -131,6 +131,12 @@ static long isst_if_mbox_proc_cmd(u8 *cmd_ptr, int *write_only, int resume)
 	 */
 	mutex_lock(&punit_dev->mutex);
 	ret = isst_if_mbox_cmd(pdev, mbox_cmd);
+	if (!ret && !resume && isst_if_mbox_cmd_set_req(mbox_cmd))
+		ret = isst_store_cmd(mbox_cmd->command,
+				     mbox_cmd->sub_command,
+				     mbox_cmd->logical_cpu, 1,
+				     mbox_cmd->parameter,
+				     mbox_cmd->req_data);
 	mutex_unlock(&punit_dev->mutex);
 	if (ret)
 		return ret;
@@ -186,11 +192,20 @@ static void isst_if_mbox_remove(struct pci_dev *pdev)
 	mutex_destroy(&punit_dev->mutex);
 }
 
+static int __maybe_unused isst_if_resume(struct device *device)
+{
+	isst_resume_common();
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(isst_if_pm_ops, NULL, isst_if_resume);
+
 static struct pci_driver isst_if_pci_driver = {
 	.name			= "isst_if_mbox_pci",
 	.id_table		= isst_if_mbox_ids,
 	.probe			= isst_if_mbox_probe,
 	.remove			= isst_if_mbox_remove,
+	.driver.pm		= &isst_if_pm_ops,
 };
 
 module_pci_driver(isst_if_pci_driver);

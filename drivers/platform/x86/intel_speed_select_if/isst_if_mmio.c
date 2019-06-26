@@ -15,8 +15,20 @@
 
 #include "isst_if_common.h"
 
+struct isst_mmio_range {
+	int beg;
+	int end;
+};
+
+struct isst_mmio_range mmio_range[] = {
+	{0x04, 0x14},
+	{0x20, 0xD0},
+};
+
 struct isst_if_device {
 	void __iomem *punit_mmio;
+	u32 range_0[5];
+	u32 range_1[45];
 	struct mutex mutex;
 };
 
@@ -118,11 +130,48 @@ static void isst_if_remove(struct pci_dev *pdev)
 	mutex_destroy(&punit_dev->mutex);
 }
 
+static int __maybe_unused isst_if_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct isst_if_device *punit_dev;
+	int i;
+
+	punit_dev = pci_get_drvdata(pdev);
+	for (i = 0; i < ARRAY_SIZE(punit_dev->range_0); ++i)
+		punit_dev->range_0[i] = readl(punit_dev->punit_mmio +
+						mmio_range[0].beg + 4 * i);
+	for (i = 0; i < ARRAY_SIZE(punit_dev->range_1); ++i)
+		punit_dev->range_1[i] = readl(punit_dev->punit_mmio +
+						mmio_range[1].beg + 4 * i);
+
+	return 0;
+}
+
+static int __maybe_unused isst_if_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct isst_if_device *punit_dev;
+	int i;
+
+	punit_dev = pci_get_drvdata(pdev);
+	for (i = 0; i < ARRAY_SIZE(punit_dev->range_0); ++i)
+		writel(punit_dev->range_0[i], punit_dev->punit_mmio +
+						mmio_range[0].beg + 4 * i);
+	for (i = 0; i < ARRAY_SIZE(punit_dev->range_1); ++i)
+		writel(punit_dev->range_1[i], punit_dev->punit_mmio +
+						mmio_range[1].beg + 4 * i);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(isst_if_pm_ops, isst_if_suspend, isst_if_resume);
+
 static struct pci_driver isst_if_pci_driver = {
 	.name			= "isst_if_pci",
 	.id_table		= isst_if_ids,
 	.probe			= isst_if_probe,
 	.remove			= isst_if_remove,
+	.driver.pm		= &isst_if_pm_ops,
 };
 
 module_pci_driver(isst_if_pci_driver);
