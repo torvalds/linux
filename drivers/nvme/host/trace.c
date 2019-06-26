@@ -178,7 +178,7 @@ static const char *nvme_trace_fabrics_common(struct trace_seq *p, u8 *spc)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
-	trace_seq_printf(p, "spcecific=%*ph", 24, spc);
+	trace_seq_printf(p, "specific=%*ph", 24, spc);
 	trace_seq_putc(p, 0);
 	return ret;
 }
