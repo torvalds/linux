@@ -45,13 +45,21 @@ struct vmem_altmap {
  * wakeup is used to coordinate physical address space management (ex:
  * fs truncate/hole punch) vs pinned pages (ex: device dma).
  *
+ * MEMORY_DEVICE_DEVDAX:
+ * Host memory that has similar access semantics as System RAM i.e. DMA
+ * coherent and supports page pinning. In contrast to
+ * MEMORY_DEVICE_FS_DAX, this memory is access via a device-dax
+ * character device.
+ *
  * MEMORY_DEVICE_PCI_P2PDMA:
  * Device memory residing in a PCI BAR intended for use with Peer-to-Peer
  * transactions.
  */
 enum memory_type {
+	/* 0 is reserved to catch uninitialized type fields */
 	MEMORY_DEVICE_PRIVATE = 1,
 	MEMORY_DEVICE_FS_DAX,
+	MEMORY_DEVICE_DEVDAX,
 	MEMORY_DEVICE_PCI_P2PDMA,
 };
 
