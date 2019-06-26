@@ -179,9 +179,9 @@ static unsigned long hash_key_type_and_desc(const struct keyring_index_key *inde
 	int n, desc_len = index_key->desc_len;
 
 	type = (unsigned long)index_key->type;
-
 	acc = mult_64x32_and_fold(type, desc_len + 13);
 	acc = mult_64x32_and_fold(acc, 9207);
+
 	for (;;) {
 		n = desc_len;
 		if (n <= 0)
@@ -215,23 +215,13 @@ static unsigned long hash_key_type_and_desc(const struct keyring_index_key *inde
 /*
  * Build the next index key chunk.
  *
- * On 32-bit systems the index key is laid out as:
- *
- *	0	4	5	9...
- *	hash	desclen	typeptr	desc[]
- *
- * On 64-bit systems:
- *
- *	0	8	9	17...
- *	hash	desclen	typeptr	desc[]
- *
  * We return it one word-sized chunk at a time.
  */
 static unsigned long keyring_get_key_chunk(const void *data, int level)
 {
 	const struct keyring_index_key *index_key = data;
 	unsigned long chunk = 0;
-	long offset = 0;
+	const u8 *d;
 	int desc_len = index_key->desc_len, n = sizeof(chunk);
 
 	level /= ASSOC_ARRAY_KEY_CHUNK_SIZE;
@@ -239,33 +229,23 @@ static unsigned long keyring_get_key_chunk(const void *data, int level)
 	case 0:
 		return hash_key_type_and_desc(index_key);
 	case 1:
-		return ((unsigned long)index_key->type << 8) | desc_len;
+		return index_key->x;
 	case 2:
-		if (desc_len == 0)
-			return (u8)((unsigned long)index_key->type >>
-				    (ASSOC_ARRAY_KEY_CHUNK_SIZE - 8));
-		n--;
-		offset = 1;
-		/* fall through */
+		return (unsigned long)index_key->type;
 	default:
-		offset += sizeof(chunk) - 1;
-		offset += (level - 3) * sizeof(chunk);
-		if (offset >= desc_len)
+		level -= 3;
+		if (desc_len <= sizeof(index_key->desc))
 			return 0;
-		desc_len -= offset;
+
+		d = index_key->description + sizeof(index_key->desc);
+		d += level * sizeof(long);
+		desc_len -= sizeof(index_key->desc);
 		if (desc_len > n)
 			desc_len = n;
-		offset += desc_len;
 		do {
 			chunk <<= 8;
-			chunk |= ((u8*)index_key->description)[--offset];
+			chunk |= *d++;
 		} while (--desc_len > 0);
-
-		if (level == 2) {
-			chunk <<= 8;
-			chunk |= (u8)((unsigned long)index_key->type >>
-				      (ASSOC_ARRAY_KEY_CHUNK_SIZE - 8));
-		}
 		return chunk;
 	}
 }
@@ -304,39 +284,28 @@ static int keyring_diff_objects(const void *object, const void *data)
 	seg_b = hash_key_type_and_desc(b);
 	if ((seg_a ^ seg_b) != 0)
 		goto differ;
+	level += ASSOC_ARRAY_KEY_CHUNK_SIZE / 8;
 
 	/* The number of bits contributed by the hash is controlled by a
 	 * constant in the assoc_array headers.  Everything else thereafter we
 	 * can deal with as being machine word-size dependent.
 	 */
-	level += ASSOC_ARRAY_KEY_CHUNK_SIZE / 8;
-	seg_a = a->desc_len;
-	seg_b = b->desc_len;
+	seg_a = a->x;
+	seg_b = b->x;
 	if ((seg_a ^ seg_b) != 0)
 		goto differ;
+	level += sizeof(unsigned long);
 
 	/* The next bit may not work on big endian */
-	level++;
 	seg_a = (unsigned long)a->type;
 	seg_b = (unsigned long)b->type;
 	if ((seg_a ^ seg_b) != 0)
 		goto differ;
-
 	level += sizeof(unsigned long);
-	if (a->desc_len == 0)
-		goto same;
 
-	i = 0;
-	if (((unsigned long)a->description | (unsigned long)b->description) &
-	    (sizeof(unsigned long) - 1)) {
-		do {
-			seg_a = *(unsigned long *)(a->description + i);
-			seg_b = *(unsigned long *)(b->description + i);
-			if ((seg_a ^ seg_b) != 0)
-				goto differ_plus_i;
-			i += sizeof(unsigned long);
-		} while (i < (a->desc_len & (sizeof(unsigned long) - 1)));
-	}
+	i = sizeof(a->desc);
+	if (a->desc_len <= i)
+		goto same;
 
 	for (; i < a->desc_len; i++) {
 		seg_a = *(unsigned char *)(a->description + i);
@@ -661,6 +630,9 @@ static bool search_nested_keyrings(struct key *keyring,
 #define STATE_CHECKS (KEYRING_SEARCH_NO_STATE_CHECK | KEYRING_SEARCH_DO_STATE_CHECK)
 	BUG_ON((ctx->flags & STATE_CHECKS) == 0 ||
 	       (ctx->flags & STATE_CHECKS) == STATE_CHECKS);
+
+	if (ctx->index_key.description)
+		key_set_index_key(&ctx->index_key);
 
 	/* Check to see if this top-level keyring is what we are looking for
 	 * and whether it is valid or not.
