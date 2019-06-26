@@ -195,7 +195,6 @@ static void halbtcoutsrc_NormalLps(PBTC_COEXIST pBtCoexist)
 static void halbtcoutsrc_LeaveLowPower(PBTC_COEXIST pBtCoexist)
 {
 	struct adapter *padapter;
-	struct hal_com_data *pHalData;
 	s32 ready;
 	unsigned long stime;
 	unsigned long utime;
@@ -203,7 +202,6 @@ static void halbtcoutsrc_LeaveLowPower(PBTC_COEXIST pBtCoexist)
 
 
 	padapter = pBtCoexist->Adapter;
-	pHalData = GET_HAL_DATA(padapter);
 	ready = _FAIL;
 #ifdef LPS_RPWM_WAIT_MS
 	timeout = LPS_RPWM_WAIT_MS;
