@@ -738,7 +738,6 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	if (ret)
 		return ret;
 	count = atomic_dec_return(&kfd_locked);
-	WARN_ONCE(count != 0, "KFD reset ref. error");
 
 	atomic_set(&kfd->sram_ecc_flag, 0);
 
