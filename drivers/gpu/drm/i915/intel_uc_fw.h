@@ -25,6 +25,8 @@
 #ifndef _INTEL_UC_FW_H_
 #define _INTEL_UC_FW_H_
 
+#include <linux/types.h>
+
 struct drm_printer;
 struct drm_i915_private;
 
