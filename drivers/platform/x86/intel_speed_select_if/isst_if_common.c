@@ -134,15 +134,89 @@ static void isst_if_cpu_info_exit(void)
 	kfree(isst_cpu_info);
 };
 
+static long isst_if_proc_phyid_req(u8 *cmd_ptr, int *write_only, int resume)
+{
+	struct isst_if_cpu_map *cpu_map;
+
+	cpu_map = (struct isst_if_cpu_map *)cmd_ptr;
+	if (cpu_map->logical_cpu >= nr_cpu_ids ||
+	    cpu_map->logical_cpu >= num_possible_cpus())
+		return -EINVAL;
+
+	*write_only = 0;
+	cpu_map->physical_cpu = isst_cpu_info[cpu_map->logical_cpu].punit_cpu_id;
+
+	return 0;
+}
+
+static long isst_if_exec_multi_cmd(void __user *argp, struct isst_if_cmd_cb *cb)
+{
+	unsigned char __user *ptr;
+	u32 cmd_count;
+	u8 *cmd_ptr;
+	long ret;
+	int i;
+
+	/* Each multi command has u32 command count as the first field */
+	if (copy_from_user(&cmd_count, argp, sizeof(cmd_count)))
+		return -EFAULT;
+
+	if (!cmd_count || cmd_count > ISST_IF_CMD_LIMIT)
+		return -EINVAL;
+
+	cmd_ptr = kmalloc(cb->cmd_size, GFP_KERNEL);
+	if (!cmd_ptr)
+		return -ENOMEM;
+
+	/* cb->offset points to start of the command after the command count */
+	ptr = argp + cb->offset;
+
+	for (i = 0; i < cmd_count; ++i) {
+		int wr_only;
+
+		if (signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+
+		if (copy_from_user(cmd_ptr, ptr, cb->cmd_size)) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = cb->cmd_callback(cmd_ptr, &wr_only, 0);
+		if (ret)
+			break;
+
+		if (!wr_only && copy_to_user(ptr, cmd_ptr, cb->cmd_size)) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ptr += cb->cmd_size;
+	}
+
+	kfree(cmd_ptr);
+
+	return i ? i : ret;
+}
+
 static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
+	struct isst_if_cmd_cb cmd_cb;
 	long ret = -ENOTTY;
 
 	switch (cmd) {
 	case ISST_IF_GET_PLATFORM_INFO:
 		ret = isst_if_get_platform_info(argp);
+		break;
+	case ISST_IF_GET_PHY_ID:
+		cmd_cb.cmd_size = sizeof(struct isst_if_cpu_map);
+		cmd_cb.offset = offsetof(struct isst_if_cpu_maps, cpu_map);
+		cmd_cb.cmd_callback = isst_if_proc_phyid_req;
+		ret = isst_if_exec_multi_cmd(argp, &cmd_cb);
 		break;
 	default:
 		break;

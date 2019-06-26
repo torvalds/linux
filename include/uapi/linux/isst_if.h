@@ -36,6 +36,34 @@ struct isst_if_platform_info {
 	__u8 mmio_supported;
 };
 
+/**
+ * struct isst_if_cpu_map - CPU mapping between logical and physical CPU
+ * @logical_cpu:	Linux logical CPU number
+ * @physical_cpu:	PUNIT CPU number
+ *
+ * Used to convert from Linux logical CPU to PUNIT CPU numbering scheme.
+ * The PUNIT CPU number is different than APIC ID based CPU numbering.
+ */
+struct isst_if_cpu_map {
+	__u32 logical_cpu;
+	__u32 physical_cpu;
+};
+
+/**
+ * struct isst_if_cpu_maps - structure for CPU map IOCTL
+ * @cmd_count:	Number of CPU mapping command in cpu_map[]
+ * @cpu_map[]:	Holds one or more CPU map data structure
+ *
+ * This structure used with ioctl ISST_IF_GET_PHY_ID to send
+ * one or more CPU mapping commands. Here IOCTL return value indicates
+ * number of commands sent or error number if no commands have been sent.
+ */
+struct isst_if_cpu_maps {
+	__u32 cmd_count;
+	struct isst_if_cpu_map cpu_map[1];
+};
+
 #define ISST_IF_MAGIC			0xFE
 #define ISST_IF_GET_PLATFORM_INFO	_IOR(ISST_IF_MAGIC, 0, struct isst_if_platform_info *)
+#define ISST_IF_GET_PHY_ID		_IOWR(ISST_IF_MAGIC, 1, struct isst_if_cpu_map *)
 #endif
