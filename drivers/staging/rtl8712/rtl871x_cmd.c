@@ -126,7 +126,7 @@ void r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 	complete(&pcmdpriv->cmd_queue_comp);
 }
 
-static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
+struct cmd_obj *r8712_dequeue_cmd(struct  __queue *queue)
 {
 	unsigned long irqL;
 	struct cmd_obj *obj;
@@ -154,11 +154,6 @@ void r8712_enqueue_cmd_ex(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 	list_add_tail(&obj->list, &queue->queue);
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	complete(&pcmdpriv->cmd_queue_comp);
-}
-
-struct cmd_obj *r8712_dequeue_cmd(struct  __queue *queue)
-{
-	return _dequeue_cmd(queue);
 }
 
 void r8712_free_cmd_obj(struct cmd_obj *pcmd)
