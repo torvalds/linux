@@ -2678,6 +2678,7 @@ static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 		 * to enjoy weight raising if split soon.
 		 */
 		bic->saved_wr_coeff = bfqq->bfqd->bfq_wr_coeff;
+		bic->saved_wr_start_at_switch_to_srt = bfq_smallest_from_now();
 		bic->saved_wr_cur_max_time = bfq_wr_duration(bfqq->bfqd);
 		bic->saved_last_wr_start_finish = jiffies;
 	} else {
