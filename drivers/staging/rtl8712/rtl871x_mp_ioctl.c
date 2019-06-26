@@ -153,7 +153,7 @@ static int mp_start_test(struct _adapter *padapter)
 	struct sta_info *psta;
 	unsigned long length;
 	unsigned long irqL;
-	int res = _SUCCESS;
+	int res = 0;
 
 	/* 3 1. initialize a new struct wlan_bssid_ex */
 	memcpy(bssid.MacAddress, pmppriv->network_macaddr, ETH_ALEN);
@@ -187,7 +187,7 @@ static int mp_start_test(struct _adapter *padapter)
 		r8712_free_stainfo(padapter, psta);
 	psta = r8712_alloc_stainfo(&padapter->stapriv, bssid.MacAddress);
 	if (psta == NULL) {
-		res = _FAIL;
+		res = -ENOMEM;
 		goto end_of_mp_start_test;
 	}
 	/* 3 3. join pseudo AdHoc */
@@ -262,7 +262,7 @@ uint oid_rt_pro_start_test_hdl(struct oid_par_priv *poid_par_priv)
 		return  RNDIS_STATUS_NOT_ACCEPTED;
 	mode = *((u32 *)poid_par_priv->information_buf);
 	Adapter->mppriv.mode = mode;/* 1 for loopback*/
-	if (mp_start_test(Adapter) == _FAIL)
+	if (mp_start_test(Adapter))
 		status = RNDIS_STATUS_NOT_ACCEPTED;
 	r8712_write8(Adapter, MSR, 1); /* Link in ad hoc network, 0x1025004C */
 	r8712_write8(Adapter, RCR, 0); /* RCR : disable all pkt, 0x10250048 */
