@@ -12,6 +12,7 @@ header_test := \
 	i915_irq.h \
 	i915_params.h \
 	i915_priolist_types.h \
+	i915_pvinfo.h \
 	i915_reg.h \
 	i915_scheduler_types.h \
 	i915_utils.h \

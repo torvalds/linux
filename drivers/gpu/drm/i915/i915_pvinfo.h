@@ -24,6 +24,8 @@
 #ifndef _I915_PVINFO_H_
 #define _I915_PVINFO_H_
 
+#include <linux/types.h>
+
 /* The MMIO offset of the shared info between guest and host emulator */
 #define VGT_PVINFO_PAGE	0x78000
 #define VGT_PVINFO_SIZE	0x1000
