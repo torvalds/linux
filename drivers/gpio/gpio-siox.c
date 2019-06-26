@@ -247,7 +247,7 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 	}
 
 	ret = gpiochip_irqchip_add(&ddata->gchip, &ddata->ichip,
-				   0, handle_level_irq, IRQ_TYPE_EDGE_RISING);
+				   0, handle_level_irq, IRQ_TYPE_NONE);
 	if (ret)
 		dev_err(&sdevice->dev,
 			"Failed to register irq chip (%d)\n", ret);
