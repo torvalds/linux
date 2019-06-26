@@ -740,6 +740,7 @@ static void rsnd_ssi_parent_attach(struct rsnd_mod *mod,
 	switch (rsnd_mod_id(mod)) {
 	case 1:
 	case 2:
+	case 9:
 		rsnd_dai_connect(rsnd_ssi_mod_get(priv, 0), io, RSND_MOD_SSIP);
 		break;
 	case 4:

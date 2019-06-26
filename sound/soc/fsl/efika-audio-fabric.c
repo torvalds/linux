@@ -29,22 +29,28 @@
 
 #define DRV_NAME "efika-audio-fabric"
 
+SND_SOC_DAILINK_DEFS(analog,
+	DAILINK_COMP_ARRAY(COMP_CPU("mpc5200-psc-ac97.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("stac9766-codec",
+				      "stac9766-hifi-analog")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("mpc5200-pcm-audio")));
+
+SND_SOC_DAILINK_DEFS(iec958,
+	DAILINK_COMP_ARRAY(COMP_CPU("mpc5200-psc-ac97.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("stac9766-codec",
+				      "stac9766-hifi-IEC958")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("mpc5200-pcm-audio")));
+
 static struct snd_soc_dai_link efika_fabric_dai[] = {
 {
 	.name = "AC97",
 	.stream_name = "AC97 Analog",
-	.codec_dai_name = "stac9766-hifi-analog",
-	.cpu_dai_name = "mpc5200-psc-ac97.0",
-	.platform_name = "mpc5200-pcm-audio",
-	.codec_name = "stac9766-codec",
+	SND_SOC_DAILINK_REG(analog),
 },
 {
 	.name = "AC97",
 	.stream_name = "AC97 IEC958",
-	.codec_dai_name = "stac9766-hifi-IEC958",
-	.cpu_dai_name = "mpc5200-psc-ac97.1",
-	.platform_name = "mpc5200-pcm-audio",
-	.codec_name = "stac9766-codec",
+	SND_SOC_DAILINK_REG(iec958),
 },
 };
 

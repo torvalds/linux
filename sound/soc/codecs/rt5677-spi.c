@@ -26,6 +26,8 @@
 
 #include "rt5677-spi.h"
 
+#define DRV_NAME "rt5677spi"
+
 #define RT5677_SPI_BURST_LEN	240
 #define RT5677_SPI_HEADER	5
 #define RT5677_SPI_FREQ		6000000
@@ -230,7 +232,7 @@ MODULE_DEVICE_TABLE(acpi, rt5677_spi_acpi_id);
 
 static struct spi_driver rt5677_spi_driver = {
 	.driver = {
-		.name = "rt5677",
+		.name = DRV_NAME,
 		.acpi_match_table = ACPI_PTR(rt5677_spi_acpi_id),
 	},
 	.probe = rt5677_spi_probe,

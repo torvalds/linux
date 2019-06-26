@@ -17,13 +17,15 @@
 
 #include "nuc900-audio.h"
 
+SND_SOC_DAILINK_DEFS(ac97,
+	DAILINK_COMP_ARRAY(COMP_CPU("nuc900-ac97")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("ac97-codec", "ac97-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("nuc900-pcm-audio")));
+
 static struct snd_soc_dai_link nuc900evb_ac97_dai = {
 	.name		= "AC97",
 	.stream_name	= "AC97 HiFi",
-	.cpu_dai_name	= "nuc900-ac97",
-	.codec_dai_name	= "ac97-hifi",
-	.codec_name	= "ac97-codec",
-	.platform_name	= "nuc900-pcm-audio",
+	SND_SOC_DAILINK_REG(ac97),
 };
 
 static struct snd_soc_card nuc900evb_audio_machine = {

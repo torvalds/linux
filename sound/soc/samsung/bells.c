@@ -242,119 +242,140 @@ static const struct snd_soc_pcm_stream sub_params = {
 	.channels_max = 2,
 };
 
+SND_SOC_DAILINK_DEFS(wm2200_cpu_dsp,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("spi0.0", "wm0010-sdi1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(wm2200_dsp_codec,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm0010-sdi2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm2200.1-003a", "wm2200")));
+
 static struct snd_soc_dai_link bells_dai_wm2200[] = {
 	{
 		.name = "CPU-DSP",
 		.stream_name = "CPU-DSP",
-		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm0010-sdi1",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "spi0.0",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
+		SND_SOC_DAILINK_REG(wm2200_cpu_dsp),
 	},
 	{
 		.name = "DSP-CODEC",
 		.stream_name = "DSP-CODEC",
-		.cpu_dai_name = "wm0010-sdi2",
-		.codec_dai_name = "wm2200",
-		.codec_name = "wm2200.1-003a",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.params = &sub_params,
 		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(wm2200_dsp_codec),
 	},
 };
+
+SND_SOC_DAILINK_DEFS(wm5102_cpu_dsp,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("spi0.0", "wm0010-sdi1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(wm5102_dsp_codec,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm0010-sdi2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm5102-codec", "wm5102-aif1")));
+
+SND_SOC_DAILINK_DEFS(wm5102_baseband,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm5102-aif2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm1250-ev1.1-0027", "wm1250-ev1")));
+
+SND_SOC_DAILINK_DEFS(wm5102_sub,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm5102-aif3")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9081.1-006c", "wm9081-hifi")));
 
 static struct snd_soc_dai_link bells_dai_wm5102[] = {
 	{
 		.name = "CPU-DSP",
 		.stream_name = "CPU-DSP",
-		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm0010-sdi1",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "spi0.0",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
+		SND_SOC_DAILINK_REG(wm5102_cpu_dsp),
 	},
 	{
 		.name = "DSP-CODEC",
 		.stream_name = "DSP-CODEC",
-		.cpu_dai_name = "wm0010-sdi2",
-		.codec_dai_name = "wm5102-aif1",
-		.codec_name = "wm5102-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.params = &sub_params,
 		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(wm5102_dsp_codec),
 	},
 	{
 		.name = "Baseband",
 		.stream_name = "Baseband",
-		.cpu_dai_name = "wm5102-aif2",
-		.codec_dai_name = "wm1250-ev1",
-		.codec_name = "wm1250-ev1.1-0027",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
 		.params = &baseband_params,
+		SND_SOC_DAILINK_REG(wm5102_baseband),
 	},
 	{
 		.name = "Sub",
 		.stream_name = "Sub",
-		.cpu_dai_name = "wm5102-aif3",
-		.codec_dai_name = "wm9081-hifi",
-		.codec_name = "wm9081.1-006c",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_suspend = 1,
 		.params = &sub_params,
+		SND_SOC_DAILINK_REG(wm5102_sub),
 	},
 };
+
+SND_SOC_DAILINK_DEFS(wm5110_cpu_dsp,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("spi0.0", "wm0010-sdi1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(wm5110_dsp_codec,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm0010-sdi2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm5110-codec", "wm5110-aif1")));
+
+SND_SOC_DAILINK_DEFS(wm5110_baseband,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm5110-aif2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm1250-ev1.1-0027", "wm1250-ev1")));
+
+
+SND_SOC_DAILINK_DEFS(wm5110_sub,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm5110-aif3")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9081.1-006c", "wm9081-hifi")));
 
 static struct snd_soc_dai_link bells_dai_wm5110[] = {
 	{
 		.name = "CPU-DSP",
 		.stream_name = "CPU-DSP",
-		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm0010-sdi1",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "spi0.0",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
+		SND_SOC_DAILINK_REG(wm5110_cpu_dsp),
 	},
 	{
 		.name = "DSP-CODEC",
 		.stream_name = "DSP-CODEC",
-		.cpu_dai_name = "wm0010-sdi2",
-		.codec_dai_name = "wm5110-aif1",
-		.codec_name = "wm5110-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.params = &sub_params,
 		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(wm5110_dsp_codec),
 	},
 	{
 		.name = "Baseband",
 		.stream_name = "Baseband",
-		.cpu_dai_name = "wm5110-aif2",
-		.codec_dai_name = "wm1250-ev1",
-		.codec_name = "wm1250-ev1.1-0027",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
 		.params = &baseband_params,
+		SND_SOC_DAILINK_REG(wm5110_baseband),
 	},
 	{
 		.name = "Sub",
 		.stream_name = "Sub",
-		.cpu_dai_name = "wm5110-aif3",
-		.codec_dai_name = "wm9081-hifi",
-		.codec_name = "wm9081.1-006c",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_suspend = 1,
 		.params = &sub_params,
+		SND_SOC_DAILINK_REG(wm5110_sub),
 	},
 };
 

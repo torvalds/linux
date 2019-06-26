@@ -153,18 +153,20 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
+SND_SOC_DAILINK_DEFS(wm8987,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8750.0-0x1a", "wm8750-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
 static struct snd_soc_dai_link smartq_dai[] = {
 	{
 		.name		= "wm8987",
 		.stream_name	= "SmartQ Hi-Fi",
-		.cpu_dai_name	= "samsung-i2s.0",
-		.codec_dai_name	= "wm8750-hifi",
-		.platform_name	= "samsung-i2s.0",
-		.codec_name	= "wm8750.0-0x1a",
 		.init		= smartq_wm8987_init,
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBS_CFS,
 		.ops		= &smartq_hifi_ops,
+		SND_SOC_DAILINK_REG(wm8987),
 	},
 };
 

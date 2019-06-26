@@ -61,6 +61,7 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.pcm_open	= hda_dsp_pcm_open,
 	.pcm_close	= hda_dsp_pcm_close,
 	.pcm_hw_params	= hda_dsp_pcm_hw_params,
+	.pcm_hw_free	= hda_dsp_stream_hw_free,
 	.pcm_trigger	= hda_dsp_pcm_trigger,
 	.pcm_pointer	= hda_dsp_pcm_pointer,
 

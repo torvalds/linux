@@ -376,13 +376,10 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 
 static int byt_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
-	u64 cmd = msg->header;
-
 	/* send the message */
 	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
 			  msg->msg_size);
-	snd_sof_dsp_write64(sdev, BYT_DSP_BAR, SHIM_IPCX,
-			    cmd | SHIM_BYT_IPCX_BUSY);
+	snd_sof_dsp_write64(sdev, BYT_DSP_BAR, SHIM_IPCX, SHIM_BYT_IPCX_BUSY);
 
 	return 0;
 }
