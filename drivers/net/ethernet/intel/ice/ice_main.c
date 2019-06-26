@@ -3297,6 +3297,8 @@ static void ice_update_vsi_stats(struct ice_vsi *vsi)
 		cur_ns->rx_errors = pf->stats.crc_errors +
 				    pf->stats.illegal_bytes;
 		cur_ns->rx_length_errors = pf->stats.rx_len_errors;
+		/* record drops from the port level */
+		cur_ns->rx_missed_errors = pf->stats.eth.rx_discards;
 	}
 }
 
@@ -3329,6 +3331,10 @@ static void ice_update_pf_stats(struct ice_pf *pf)
 	ice_stat_update40(hw, GLPRT_BPRCL(pf_id), pf->stat_prev_loaded,
 			  &prev_ps->eth.rx_broadcast,
 			  &cur_ps->eth.rx_broadcast);
+
+	ice_stat_update32(hw, PRTRPB_RDPC, pf->stat_prev_loaded,
+			  &prev_ps->eth.rx_discards,
+			  &cur_ps->eth.rx_discards);
 
 	ice_stat_update40(hw, GLPRT_GOTCL(pf_id), pf->stat_prev_loaded,
 			  &prev_ps->eth.tx_bytes,
