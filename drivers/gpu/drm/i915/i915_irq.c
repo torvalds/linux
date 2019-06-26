@@ -3379,7 +3379,7 @@ void bdw_disable_vblank(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-void i945gm_vblank_work_func(struct work_struct *work)
+static void i945gm_vblank_work_func(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private, i945gm_vblank.work);
