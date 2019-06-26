@@ -291,8 +291,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, G2D_NAME, sizeof(cap->driver));
 	strscpy(cap->card, G2D_NAME, sizeof(cap->card));
 	cap->bus_info[0] = 0;
-	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -696,6 +694,7 @@ static int g2d_probe(struct platform_device *pdev)
 	set_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags);
 	vfd->lock = &dev->mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
