@@ -1,9 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * relocate_kernel.S for kexec
  * Created by <nschichan@corp.free.fr> on Thu Oct 12 17:49:57 2006
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #include <asm/asm.h>

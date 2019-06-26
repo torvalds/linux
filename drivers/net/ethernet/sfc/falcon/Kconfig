@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SFC_FALCON
 	tristate "Solarflare SFC4000 support"
 	depends on PCI

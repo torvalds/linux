@@ -55,7 +55,6 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 	struct komeda_plane_state *kplane_st = to_kplane_st(state);
 	struct komeda_layer *layer = kplane->layer;
 	struct drm_crtc_state *crtc_st;
-	struct komeda_crtc *kcrtc;
 	struct komeda_crtc_state *kcrtc_st;
 	struct komeda_data_flow_cfg dflow;
 	int err;
@@ -64,7 +63,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	crtc_st = drm_atomic_get_crtc_state(state->state, state->crtc);
-	if (!crtc_st->enable) {
+	if (IS_ERR(crtc_st) || !crtc_st->enable) {
 		DRM_DEBUG_ATOMIC("Cannot update plane on a disabled CRTC.\n");
 		return -EINVAL;
 	}
@@ -73,7 +72,6 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc_st->active)
 		return 0;
 
-	kcrtc = to_kcrtc(state->crtc);
 	kcrtc_st = to_kcrtc_st(crtc_st);
 
 	err = komeda_plane_init_data_flow(state, &dflow);

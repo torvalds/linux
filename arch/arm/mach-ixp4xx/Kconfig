@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_IXP4XX
 
 menu "Intel IXP4xx Implementation Options"
@@ -12,7 +13,6 @@ config MACH_IXP4XX_OF
 	select I2C
 	select I2C_IOP3XX
 	select PCI
-	select SERIAL_OF_PLATFORM
 	select TIMER_OF
 	select USE_OF
 	help

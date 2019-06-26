@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tsys02d.c - Support for Measurement-Specialties tsys02d temperature sensor
  *
  * Copyright (c) 2015 Measurement-Specialties
- *
- * Licensed under the GPL-2.
  *
  * (7-bit I2C slave address 0x40)
  *

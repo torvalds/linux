@@ -1901,6 +1901,22 @@ static int mlx5e_flash_device(struct net_device *dev,
 	return mlx5e_ethtool_flash_device(priv, flash);
 }
 
+#ifndef CONFIG_MLX5_EN_RXNFC
+/* When CONFIG_MLX5_EN_RXNFC=n we only support ETHTOOL_GRXRINGS
+ * otherwise this function will be defined from en_fs_ethtool.c
+ */
+static int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info, u32 *rule_locs)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	if (info->cmd != ETHTOOL_GRXRINGS)
+		return -EOPNOTSUPP;
+	/* ring_count is needed by ethtool -x */
+	info->data = priv->channels.params.num_channels;
+	return 0;
+}
+#endif
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -1919,8 +1935,8 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_rxfh_indir_size = mlx5e_get_rxfh_indir_size,
 	.get_rxfh          = mlx5e_get_rxfh,
 	.set_rxfh          = mlx5e_set_rxfh,
-#ifdef CONFIG_MLX5_EN_RXNFC
 	.get_rxnfc         = mlx5e_get_rxnfc,
+#ifdef CONFIG_MLX5_EN_RXNFC
 	.set_rxnfc         = mlx5e_set_rxnfc,
 #endif
 	.flash_device      = mlx5e_flash_device,

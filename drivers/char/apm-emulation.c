@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * bios-less APM driver for ARM Linux
  *  Jamey Hicks <jamey@crl.dec.com>

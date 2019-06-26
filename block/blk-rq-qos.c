@@ -209,9 +209,10 @@ static int rq_qos_wake_function(struct wait_queue_entry *curr,
 
 /**
  * rq_qos_wait - throttle on a rqw if we need to
- * @private_data - caller provided specific data
- * @acquire_inflight_cb - inc the rqw->inflight counter if we can
- * @cleanup_cb - the callback to cleanup in case we race with a waker
+ * @rqw: rqw to throttle on
+ * @private_data: caller provided specific data
+ * @acquire_inflight_cb: inc the rqw->inflight counter if we can
+ * @cleanup_cb: the callback to cleanup in case we race with a waker
  *
  * This provides a uniform place for the rq_qos users to do their throttling.
  * Since you can end up with a lot of things sleeping at once, this manages the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Samsung S5K5BAF UXGA 1/5" 2M CMOS Image Sensor
  * with embedded SoC ISP.
@@ -7,10 +8,6 @@
  *
  * Based on S5K6AA driver authored by Sylwester Nawrocki
  * Copyright (C) 2013, Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>

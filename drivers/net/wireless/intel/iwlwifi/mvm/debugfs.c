@@ -1557,59 +1557,6 @@ static ssize_t iwl_dbgfs_bcast_filters_macs_write(struct iwl_mvm *mvm,
 }
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-static ssize_t iwl_dbgfs_d3_sram_write(struct iwl_mvm *mvm, char *buf,
-				       size_t count, loff_t *ppos)
-{
-	int store;
-
-	if (sscanf(buf, "%d", &store) != 1)
-		return -EINVAL;
-
-	mvm->store_d3_resume_sram = store;
-
-	return count;
-}
-
-static ssize_t iwl_dbgfs_d3_sram_read(struct file *file, char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	const struct fw_img *img;
-	int ofs, len, pos = 0;
-	size_t bufsz, ret;
-	char *buf;
-	u8 *ptr = mvm->d3_resume_sram;
-
-	img = &mvm->fw->img[IWL_UCODE_WOWLAN];
-	len = img->sec[IWL_UCODE_SECTION_DATA].len;
-
-	bufsz = len * 4 + 256;
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	pos += scnprintf(buf, bufsz, "D3 SRAM capture: %sabled\n",
-			 mvm->store_d3_resume_sram ? "en" : "dis");
-
-	if (ptr) {
-		for (ofs = 0; ofs < len; ofs += 16) {
-			pos += scnprintf(buf + pos, bufsz - pos,
-					 "0x%.4x %16ph\n", ofs, ptr + ofs);
-		}
-	} else {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "(no data captured)\n");
-	}
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-
-	kfree(buf);
-
-	return ret;
-}
-#endif
-
 #define PRINT_MVM_REF(ref) do {						\
 	if (mvm->refs[ref])						\
 		pos += scnprintf(buf + pos, bufsz - pos,		\
@@ -1940,9 +1887,6 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
-#endif
 #ifdef CONFIG_ACPI
 MVM_DEBUGFS_READ_FILE_OPS(sar_geo_profile);
 #endif
@@ -2159,7 +2103,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-	MVM_DEBUGFS_ADD_FILE(d3_sram, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(d3_test, mvm->debugfs_dir, 0400);
 	debugfs_create_bool("d3_wake_sysassert", 0600, mvm->debugfs_dir,
 			    &mvm->d3_wake_sysassert);

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Gigabit Ethernet adapters based on the Session Layer
  * Interface (SLIC) technology by Alacritech. The driver does not
  * support the hardware acceleration features provided by these cards.
  *
  * Copyright (C) 2016 Lino Sanfilippo <LinoSanfilippo@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>

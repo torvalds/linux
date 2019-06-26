@@ -3364,6 +3364,14 @@ S: Braunschweiger Strasse 79
 S: 31134 Hildesheim
 S: Germany
 
+N: Martin Schwidefsky
+D: Martin was the most significant contributor to the initial s390
+D: port of the Linux Kernel and later the maintainer of the s390
+D: architecture backend for almost two decades.
+D: He passed away in 2019, and will be greatly missed.
+S: Germany
+W: https://lwn.net/Articles/789028/
+
 N: Marcel Selhorst
 E: tpmdd@selhorst.net
 D: TPM driver

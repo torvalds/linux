@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Updated, and converted to generic GPIO based driver by Russell King.
  *
@@ -9,11 +10,6 @@
  * Device driver for NAND flash that uses a memory mapped interface to
  * read/write the NAND commands and data, and GPIO pins for control signals
  * (the DT binding refers to this as "GPIO assisted NAND flash")
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>

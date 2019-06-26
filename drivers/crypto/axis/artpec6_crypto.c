@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *   Driver for ARTPEC-6 crypto block using the kernel asynchronous crypto api.
  *

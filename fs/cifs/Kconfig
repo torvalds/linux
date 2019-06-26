@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CIFS
 	tristate "SMB3 and CIFS support (advanced network filesystem)"
 	depends on INET

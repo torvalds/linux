@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * test module to check whether the TSC-based delay routine continues
  * to work properly after cpufreq transitions. Needs ACPI to work

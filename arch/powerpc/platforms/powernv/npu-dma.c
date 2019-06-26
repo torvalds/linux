@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file implements the DMA operations for NVLink devices. The NPU
  * devices all point to the same iommu table as the parent PCI device.
  *
  * Copyright Alistair Popple, IBM Corporation 2015.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #include <linux/mmu_notifier.h>

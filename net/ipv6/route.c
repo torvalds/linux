@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Linux INET6 implementation
  *	FIB front-end.
  *
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 /*	Changes:
@@ -111,8 +107,8 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 			 int iif, int type, u32 portid, u32 seq,
 			 unsigned int flags);
 static struct rt6_info *rt6_find_cached_rt(const struct fib6_result *res,
-					   struct in6_addr *daddr,
-					   struct in6_addr *saddr);
+					   const struct in6_addr *daddr,
+					   const struct in6_addr *saddr);
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
 static struct fib6_info *rt6_add_route_info(struct net *net,
@@ -1295,6 +1291,13 @@ static struct rt6_info *rt6_make_pcpu_route(struct net *net,
 	prev = cmpxchg(p, NULL, pcpu_rt);
 	BUG_ON(prev);
 
+	if (res->f6i->fib6_destroying) {
+		struct fib6_info *from;
+
+		from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
+		fib6_info_release(from);
+	}
+
 	return pcpu_rt;
 }
 
@@ -1566,30 +1569,43 @@ out:
  * Caller has to hold rcu_read_lock()
  */
 static struct rt6_info *rt6_find_cached_rt(const struct fib6_result *res,
-					   struct in6_addr *daddr,
-					   struct in6_addr *saddr)
+					   const struct in6_addr *daddr,
+					   const struct in6_addr *saddr)
 {
+	const struct in6_addr *src_key = NULL;
 	struct rt6_exception_bucket *bucket;
-	struct in6_addr *src_key = NULL;
 	struct rt6_exception *rt6_ex;
 	struct rt6_info *ret = NULL;
-
-	bucket = rcu_dereference(res->f6i->rt6i_exception_bucket);
 
 #ifdef CONFIG_IPV6_SUBTREES
 	/* fib6i_src.plen != 0 indicates f6i is in subtree
 	 * and exception table is indexed by a hash of
 	 * both fib6_dst and fib6_src.
-	 * Otherwise, the exception table is indexed by
-	 * a hash of only fib6_dst.
+	 * However, the src addr used to create the hash
+	 * might not be exactly the passed in saddr which
+	 * is a /128 addr from the flow.
+	 * So we need to use f6i->fib6_src to redo lookup
+	 * if the passed in saddr does not find anything.
+	 * (See the logic in ip6_rt_cache_alloc() on how
+	 * rt->rt6i_src is updated.)
 	 */
 	if (res->f6i->fib6_src.plen)
 		src_key = saddr;
+find_ex:
 #endif
+	bucket = rcu_dereference(res->f6i->rt6i_exception_bucket);
 	rt6_ex = __rt6_find_exception_rcu(&bucket, daddr, src_key);
 
 	if (rt6_ex && !rt6_check_expired(rt6_ex->rt6i))
 		ret = rt6_ex->rt6i;
+
+#ifdef CONFIG_IPV6_SUBTREES
+	/* Use fib6_src as src_key and redo lookup */
+	if (!ret && src_key && src_key != &res->f6i->fib6_src.addr) {
+		src_key = &res->f6i->fib6_src.addr;
+		goto find_ex;
+	}
+#endif
 
 	return ret;
 }
@@ -2492,6 +2508,12 @@ static struct rt6_info *__ip6_route_redirect(struct net *net,
 	struct fib6_info *rt;
 	struct fib6_node *fn;
 
+	/* l3mdev_update_flow overrides oif if the device is enslaved; in
+	 * this case we must match on the real ingress device, so reset it
+	 */
+	if (fl6->flowi6_flags & FLOWI_FLAG_SKIP_NH_OIF)
+		fl6->flowi6_oif = skb->dev->ifindex;
+
 	/* Get the "current" route for this destination and
 	 * check if the redirect has come from appropriate router.
 	 *
@@ -2665,12 +2687,10 @@ u32 ip6_mtu_from_fib6(const struct fib6_result *res,
 		      const struct in6_addr *daddr,
 		      const struct in6_addr *saddr)
 {
-	struct rt6_exception_bucket *bucket;
 	const struct fib6_nh *nh = res->nh;
 	struct fib6_info *f6i = res->f6i;
-	const struct in6_addr *src_key;
-	struct rt6_exception *rt6_ex;
 	struct inet6_dev *idev;
+	struct rt6_info *rt;
 	u32 mtu = 0;
 
 	if (unlikely(fib6_metric_locked(f6i, RTAX_MTU))) {
@@ -2679,18 +2699,10 @@ u32 ip6_mtu_from_fib6(const struct fib6_result *res,
 			goto out;
 	}
 
-	src_key = NULL;
-#ifdef CONFIG_IPV6_SUBTREES
-	if (f6i->fib6_src.plen)
-		src_key = saddr;
-#endif
-
-	bucket = rcu_dereference(f6i->rt6i_exception_bucket);
-	rt6_ex = __rt6_find_exception_rcu(&bucket, daddr, src_key);
-	if (rt6_ex && !rt6_check_expired(rt6_ex->rt6i))
-		mtu = dst_metric_raw(&rt6_ex->rt6i->dst, RTAX_MTU);
-
-	if (likely(!mtu)) {
+	rt = rt6_find_cached_rt(res, daddr, saddr);
+	if (unlikely(rt)) {
+		mtu = dst_metric_raw(&rt->dst, RTAX_MTU);
+	} else {
 		struct net_device *dev = nh->fib_nh_dev;
 
 		mtu = IPV6_MIN_MTU;
@@ -3172,7 +3184,7 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 
 	rt->fib6_table = table;
 	rt->fib6_metric = cfg->fc_metric;
-	rt->fib6_type = cfg->fc_type;
+	rt->fib6_type = cfg->fc_type ? : RTN_UNICAST;
 	rt->fib6_flags = cfg->fc_flags & ~RTF_GATEWAY;
 
 	ipv6_addr_prefix(&rt->fib6_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);

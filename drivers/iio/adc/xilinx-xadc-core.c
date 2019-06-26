@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx XADC driver
  *
  * Copyright 2013-2014 Analog Devices Inc.
  *  Author: Lars-Peter Clauen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  *
  * Documentation for the parts can be found at:
  *  - XADC hardmacro: Xilinx UG480

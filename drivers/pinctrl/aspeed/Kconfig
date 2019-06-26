@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_ASPEED
 	bool
 	depends on (ARCH_ASPEED || COMPILE_TEST) && OF

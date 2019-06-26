@@ -40,7 +40,8 @@
 import gdb
 
 /* linux/clk-provider.h */
-LX_GDBPARSED(CLK_GET_RATE_NOCACHE)
+if IS_BUILTIN(CONFIG_COMMON_CLK):
+    LX_GDBPARSED(CLK_GET_RATE_NOCACHE)
 
 /* linux/fs.h */
 LX_VALUE(SB_RDONLY)

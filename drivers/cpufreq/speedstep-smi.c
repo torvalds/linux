@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel SpeedStep SMI driver.
  *
  * (C) 2003  Hiroshi Miura <miura@da-cha.org>
- *
- *  Licensed under the terms of the GNU GPL License version 2.
- *
  */
 
 

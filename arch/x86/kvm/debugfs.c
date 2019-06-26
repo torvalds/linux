@@ -1,19 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kernel-based Virtual Machine driver for Linux
  *
  * Copyright 2016 Red Hat, Inc. and/or its affiliates.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
  */
 #include <linux/kvm_host.h>
 #include <linux/debugfs.h>
+#include "lapic.h"
 
 bool kvm_arch_has_vcpu_debugfs(void)
 {
 	return true;
 }
+
+static int vcpu_get_timer_advance_ns(void *data, u64 *val)
+{
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) data;
+	*val = vcpu->arch.apic->lapic_timer.timer_advance_ns;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(vcpu_timer_advance_ns_fops, vcpu_get_timer_advance_ns, NULL, "%llu\n");
 
 static int vcpu_get_tsc_offset(void *data, u64 *val)
 {
@@ -50,6 +57,14 @@ int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
 							vcpu, &vcpu_tsc_offset_fops);
 	if (!ret)
 		return -ENOMEM;
+
+	if (lapic_in_kernel(vcpu)) {
+		ret = debugfs_create_file("lapic_timer_advance_ns", 0444,
+								vcpu->debugfs_dentry,
+								vcpu, &vcpu_timer_advance_ns_fops);
+		if (!ret)
+			return -ENOMEM;
+	}
 
 	if (kvm_has_tsc_control) {
 		ret = debugfs_create_file("tsc-scaling-ratio", 0444,

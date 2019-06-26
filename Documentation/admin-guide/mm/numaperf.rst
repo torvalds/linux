@@ -15,7 +15,7 @@ characteristics.  Some memory may share the same node as a CPU, and others
 are provided as memory only nodes. While memory only nodes do not provide
 CPUs, they may still be local to one or more compute nodes relative to
 other nodes. The following diagram shows one such example of two compute
-nodes with local memory and a memory only node for each of compute node:
+nodes with local memory and a memory only node for each of compute node::
 
  +------------------+     +------------------+
  | Compute Node 0   +-----+ Compute Node 1   |

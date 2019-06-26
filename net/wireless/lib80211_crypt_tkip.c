@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lib80211 crypt: host-based TKIP encryption implementation for lib80211
  *
  * Copyright (c) 2003-2004, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2008, John W. Linville <linville@tuxdriver.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

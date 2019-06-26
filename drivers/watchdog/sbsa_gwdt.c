@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SBSA(Server Base System Architecture) Generic Watchdog driver
  *
@@ -6,15 +7,6 @@
  *         Suravee Suthikulpanit <Suravee.Suthikulpanit@amd.com>
  *         Al Stone <al.stone@linaro.org>
  *         Timur Tabi <timur@codeaurora.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * ARM SBSA Generic Watchdog has two stage timeouts:
  * the first signal (WS0) is for alerting the system by interrupt,
@@ -46,7 +38,6 @@
  * by WOR, in the single stage mode, the timeout is (WOR * 2); in the two
  * stages mode, the timeout is WOR. The maximum timeout in the two stages mode
  * is half of that in the single stage mode.
- *
  */
 
 #include <linux/io.h>

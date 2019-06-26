@@ -216,7 +216,7 @@ Example:
 		#size-cells = <0>;
 
 		A57_0: cpu@0 {
-			compatible = "arm,cortex-a57","arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x0 0x0>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -225,7 +225,7 @@ Example:
 		.....
 
 		A53_0: cpu@100 {
-			compatible = "arm,cortex-a53","arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x100>;
 			device_type = "cpu";
 			enable-method = "psci";

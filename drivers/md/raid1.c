@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * raid1.c : Multiple Devices driver for Linux
  *
@@ -20,15 +21,6 @@
  *
  * Additions to bitmap code, (C) 2003-2004 Paul Clements, SteelEye Technology:
  * - persistent bitmap code
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * You should have received a copy of the GNU General Public License
- * (for example /usr/src/linux/COPYING); if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/slab.h>

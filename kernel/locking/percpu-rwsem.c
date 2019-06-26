@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/atomic.h>
 #include <linux/rwsem.h>
 #include <linux/percpu.h>

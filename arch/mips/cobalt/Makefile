@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for the Cobalt micro systems family specific parts of the kernel
 #

@@ -288,15 +288,17 @@ For instance if the device flags for device entries are:
     WRITE (1 << 62)
 
 Now let say that device driver wants to fault with at least read a range then
-it does set:
-    range->default_flags = (1 << 63)
+it does set::
+
+    range->default_flags = (1 << 63);
     range->pfn_flags_mask = 0;
 
 and calls hmm_range_fault() as described above. This will fill fault all page
 in the range with at least read permission.
 
 Now let say driver wants to do the same except for one page in the range for
-which its want to have write. Now driver set:
+which its want to have write. Now driver set::
+
     range->default_flags = (1 << 63);
     range->pfn_flags_mask = (1 << 62);
     range->pfns[index_of_write] = (1 << 62);

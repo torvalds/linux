@@ -54,12 +54,20 @@ acr_r375_generate_pmu_bl_desc(const struct nvkm_acr *acr,
 	desc->argv = addr_args;
 }
 
+static const struct acr_r352_lsf_func
+acr_r375_ls_pmu_func_0 = {
+	.generate_bl_desc = acr_r375_generate_pmu_bl_desc,
+	.bl_desc_size = sizeof(struct acr_r370_flcn_bl_desc),
+};
+
 const struct acr_r352_ls_func
 acr_r375_ls_pmu_func = {
 	.load = acr_ls_ucode_load_pmu,
-	.generate_bl_desc = acr_r375_generate_pmu_bl_desc,
-	.bl_desc_size = sizeof(struct acr_r370_flcn_bl_desc),
 	.post_run = acr_ls_pmu_post_run,
+	.version_max = 0,
+	.version = {
+		&acr_r375_ls_pmu_func_0,
+	}
 };
 
 const struct acr_r352_func

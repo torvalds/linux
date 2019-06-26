@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/net/sunrpc/clnt.c
  *
@@ -633,7 +634,6 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	new->cl_discrtry = clnt->cl_discrtry;
 	new->cl_chatty = clnt->cl_chatty;
 	new->cl_principal = clnt->cl_principal;
-	new->cl_cred = get_cred(clnt->cl_cred);
 	return new;
 
 out_err:
@@ -2287,13 +2287,13 @@ call_status(struct rpc_task *task)
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ECONNABORTED:
+	case -ENOTCONN:
 		rpc_force_rebind(clnt);
 		/* fall through */
 	case -EADDRINUSE:
 		rpc_delay(task, 3*HZ);
 		/* fall through */
 	case -EPIPE:
-	case -ENOTCONN:
 	case -EAGAIN:
 		break;
 	case -EIO:
@@ -2425,17 +2425,21 @@ call_decode(struct rpc_task *task)
 		return;
 	case -EAGAIN:
 		task->tk_status = 0;
-		/* Note: rpc_decode_header() may have freed the RPC slot */
-		if (task->tk_rqstp == req) {
-			xdr_free_bvec(&req->rq_rcv_buf);
-			req->rq_reply_bytes_recvd = 0;
-			req->rq_rcv_buf.len = 0;
-			if (task->tk_client->cl_discrtry)
-				xprt_conditional_disconnect(req->rq_xprt,
-							    req->rq_connect_cookie);
-		}
+		xdr_free_bvec(&req->rq_rcv_buf);
+		req->rq_reply_bytes_recvd = 0;
+		req->rq_rcv_buf.len = 0;
+		if (task->tk_client->cl_discrtry)
+			xprt_conditional_disconnect(req->rq_xprt,
+						    req->rq_connect_cookie);
 		task->tk_action = call_encode;
 		rpc_check_timeout(task);
+		break;
+	case -EKEYREJECTED:
+		task->tk_action = call_reserve;
+		rpc_check_timeout(task);
+		rpcauth_invalcred(task);
+		/* Ensure we obtain a new XID if we retry! */
+		xprt_release(task);
 	}
 }
 
@@ -2571,11 +2575,7 @@ out_msg_denied:
 			break;
 		task->tk_cred_retry--;
 		trace_rpc__stale_creds(task);
-		rpcauth_invalcred(task);
-		/* Ensure we obtain a new XID! */
-		xprt_release(task);
-		task->tk_action = call_reserve;
-		return -EAGAIN;
+		return -EKEYREJECTED;
 	case rpc_autherr_badcred:
 	case rpc_autherr_badverf:
 		/* possibly garbled cred/verf? */
@@ -2804,6 +2804,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 	xprt = xprt_iter_xprt(&clnt->cl_xpi);
 	if (xps == NULL || xprt == NULL) {
 		rcu_read_unlock();
+		xprt_switch_put(xps);
 		return -EAGAIN;
 	}
 	resvport = xprt->resvport;

@@ -201,9 +201,10 @@ struct __packed vmcs12 {
 /*
  * VMCS12_SIZE is the number of bytes L1 should allocate for the VMXON region
  * and any VMCS region. Although only sizeof(struct vmcs12) are used by the
- * current implementation, 4K are reserved to avoid future complications.
+ * current implementation, 4K are reserved to avoid future complications and
+ * to preserve userspace ABI.
  */
-#define VMCS12_SIZE 0x1000
+#define VMCS12_SIZE		KVM_STATE_NESTED_VMX_VMCS_SIZE
 
 /*
  * VMCS12_MAX_FIELD_INDEX is the highest index value used in any

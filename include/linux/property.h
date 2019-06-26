@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * property.h - Unified device property interface.
  *
  * Copyright (C) 2014, Intel Corporation
  * Authors: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _LINUX_PROPERTY_H_

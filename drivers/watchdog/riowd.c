@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* riowd.c - driver for hw watchdog inside Super I/O of RIO
  *
  * Copyright (C) 2001, 2008 David S. Miller (davem@davemloft.net)

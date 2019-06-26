@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91-cosino_mega2560.dts - Device Tree file for Cosino board with
  *			      Mega 2560 extension
@@ -8,8 +9,6 @@
  * Derived from at91sam9g35ek.dts by:
  * 	Copyright (C) 2012 Atmel,
  *      2012 Nicolas Ferre <nicolas.ferre@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 /dts-v1/;

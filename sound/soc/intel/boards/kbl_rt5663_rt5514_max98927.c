@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Kabylake I2S Machine Driver with MAXIM98927
  * RT5514 and RT5663 Codecs
@@ -7,15 +8,6 @@
  * Modified from:
  *   Intel Kabylake I2S Machine driver supporting MAXIM98927 and
  *   RT5663 codecs
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/input.h>

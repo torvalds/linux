@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config BCM2835_THERMAL
 	tristate "Thermal sensors on bcm2835 SoC"
 	depends on ARCH_BCM2835 || COMPILE_TEST

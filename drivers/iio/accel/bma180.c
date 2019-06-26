@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * bma180.c - IIO driver for Bosch BMA180 triaxial acceleration sensor
  *
  * Copyright 2013 Oleksandr Kravchenko <x0199363@ti.com>
  *
  * Support for BMA250 (c) Peter Meerwald <pmeerw@pmeerw.net>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * SPI is not supported by driver
  * BMA180: 7-bit I2C slave address 0x40 or 0x41

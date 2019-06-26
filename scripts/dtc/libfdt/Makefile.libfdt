@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile.libfdt
 #
 # This is not a complete Makefile of itself.  Instead, it is designed to

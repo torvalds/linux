@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Virtual PS/2 Mouse on VMware and QEMU hypervisors.
  *
  * Copyright (C) 2014, VMware, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Twin device code is hugely inspired by the ALPS driver.
  * Authors:

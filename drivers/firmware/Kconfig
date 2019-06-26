@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
@@ -255,7 +256,7 @@ config TI_SCI_PROTOCOL
 
 config TRUSTED_FOUNDATIONS
 	bool "Trusted Foundations secure monitor support"
-	depends on ARM
+	depends on ARM && CPU_V7
 	help
 	  Some devices (including most early Tegra-based consumer devices on
 	  the market) are booted with the Trusted Foundations secure monitor

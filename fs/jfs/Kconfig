@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config JFS_FS
 	tristate "JFS filesystem support"
 	select NLS

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Xilinx EmacLite Linux driver for the Xilinx Ethernet MAC Lite device.
  *
@@ -5,11 +6,6 @@
  * driver from John Williams <john.williams@xilinx.com>.
  *
  * 2007 - 2013 (c) Xilinx, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -27,6 +23,7 @@
 #include <linux/of_net.h>
 #include <linux/phy.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 
 #define DRIVER_NAME "xilinx_emaclite"
 
@@ -714,20 +711,15 @@ static irqreturn_t xemaclite_interrupt(int irq, void *dev_id)
 
 static int xemaclite_mdio_wait(struct net_local *lp)
 {
-	unsigned long end = jiffies + 2;
+	u32 val;
 
 	/* wait for the MDIO interface to not be busy or timeout
 	 * after some time.
 	 */
-	while (xemaclite_readl(lp->base_addr + XEL_MDIOCTRL_OFFSET) &
-			XEL_MDIOCTRL_MDIOSTS_MASK) {
-		if (time_before_eq(end, jiffies)) {
-			WARN_ON(1);
-			return -ETIMEDOUT;
-		}
-		msleep(1);
-	}
-	return 0;
+	return readx_poll_timeout(xemaclite_readl,
+				  lp->base_addr + XEL_MDIOCTRL_OFFSET,
+				  val, !(val & XEL_MDIOCTRL_MDIOSTS_MASK),
+				  1000, 20000);
 }
 
 /**

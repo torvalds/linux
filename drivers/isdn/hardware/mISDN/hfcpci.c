@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * hfcpci.c     low level driver for CCD's hfc-pci based cards
@@ -8,20 +9,6 @@
  *
  * Copyright 1999  by Werner Cornelius (werner@isdn-development.de)
  * Copyright 2008  by Karsten Keil <kkeil@novell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Module options:
  *
@@ -41,7 +28,6 @@
  *	If kernel uses a frequency of 1000 Hz, steps of 8 samples are possible.
  *	If the kernel uses 100 Hz, steps of 80 samples are possible.
  *	If the kernel uses 300 Hz, steps of about 26 samples are possible.
- *
  */
 
 #include <linux/interrupt.h>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* tunnel4.c: Generic IP tunnel transformer.
  *
  * Copyright (C) 2003 David S. Miller (davem@redhat.com)

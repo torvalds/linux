@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* GTP according to GSM TS 09.60 / 3GPP TS 29.060
  *
  * (C) 2012-2014 by sysmocom - s.f.m.c. GmbH
@@ -6,11 +7,6 @@
  * Author: Harald Welte <hwelte@sysmocom.de>
  *	   Pablo Neira Ayuso <pablo@netfilter.org>
  *	   Andreas Schultz <aschultz@travelping.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

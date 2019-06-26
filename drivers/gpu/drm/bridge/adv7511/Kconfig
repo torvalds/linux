@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_I2C_ADV7511
 	tristate "ADV7511 encoder"
 	depends on OF

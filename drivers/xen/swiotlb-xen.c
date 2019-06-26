@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright 2010
  *  by Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
  *
  * This code provides a IOMMU for Xen PV guests with PCI passthrough.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * PV guests under Xen are running in an non-contiguous memory architecture.
  *
@@ -30,7 +22,6 @@
  * and PFN+1==MFN+1. Lastly with Xen 4.0, pages (in debug mode) are
  * allocated in descending order (high to low), meaning the guest might
  * never get any MFN's under the 4GB mark.
- *
  */
 
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
@@ -211,6 +202,15 @@ int __ref xen_swiotlb_init(int verbose, bool early)
 retry:
 	bytes = xen_set_nslabs(xen_io_tlb_nslabs);
 	order = get_order(xen_io_tlb_nslabs << IO_TLB_SHIFT);
+
+	/*
+	 * IO TLB memory already allocated. Just use it.
+	 */
+	if (io_tlb_start != 0) {
+		xen_io_tlb_start = phys_to_virt(io_tlb_start);
+		goto end;
+	}
+
 	/*
 	 * Get IO TLB memory from any location.
 	 */
@@ -240,7 +240,6 @@ retry:
 		m_ret = XEN_SWIOTLB_ENOMEM;
 		goto error;
 	}
-	xen_io_tlb_end = xen_io_tlb_start + bytes;
 	/*
 	 * And replace that memory with pages under 4GB.
 	 */
@@ -267,6 +266,8 @@ retry:
 	} else
 		rc = swiotlb_late_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs);
 
+end:
+	xen_io_tlb_end = xen_io_tlb_start + bytes;
 	if (!rc)
 		swiotlb_set_max_segment(PAGE_SIZE);
 

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sched/sch_netem.c	Network emulator
- *
- * 		This program is free software; you can redistribute it and/or
- * 		modify it under the terms of the GNU General Public License
- * 		as published by the Free Software Foundation; either version
- * 		2 of the License.
  *
  *  		Many of the algorithms and ideas for this came from
  *		NIST Net which is not copyrighted.
@@ -443,8 +439,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	struct netem_skb_cb *cb;
 	struct sk_buff *skb2;
 	struct sk_buff *segs = NULL;
-	unsigned int len = 0, last_len, prev_len = qdisc_pkt_len(skb);
-	int nb = 0;
+	unsigned int prev_len = qdisc_pkt_len(skb);
 	int count = 1;
 	int rc = NET_XMIT_SUCCESS;
 	int rc_drop = NET_XMIT_DROP;
@@ -498,15 +493,13 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	 */
 	if (q->corrupt && q->corrupt >= get_crandom(&q->corrupt_cor)) {
 		if (skb_is_gso(skb)) {
-			segs = netem_segment(skb, sch, to_free);
-			if (!segs)
+			skb = netem_segment(skb, sch, to_free);
+			if (!skb)
 				return rc_drop;
-		} else {
-			segs = skb;
+			segs = skb->next;
+			skb_mark_not_on_list(skb);
+			qdisc_skb_cb(skb)->pkt_len = skb->len;
 		}
-
-		skb = segs;
-		segs = segs->next;
 
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (unlikely(!skb)) {
@@ -524,6 +517,8 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	}
 
 	if (unlikely(sch->q.qlen >= sch->limit)) {
+		/* re-link segs, so that qdisc_drop_all() frees them all */
+		skb->next = segs;
 		qdisc_drop_all(skb, sch, to_free);
 		return rc_drop;
 	}
@@ -597,6 +592,11 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 finish_segs:
 	if (segs) {
+		unsigned int len, last_len;
+		int nb = 0;
+
+		len = skb->len;
+
 		while (segs) {
 			skb2 = segs->next;
 			skb_mark_not_on_list(segs);
@@ -612,9 +612,7 @@ finish_segs:
 			}
 			segs = skb2;
 		}
-		sch->q.qlen += nb;
-		if (nb > 1)
-			qdisc_tree_reduce_backlog(sch, 1 - nb, prev_len - len);
+		qdisc_tree_reduce_backlog(sch, -nb, prev_len - len);
 	}
 	return NET_XMIT_SUCCESS;
 }

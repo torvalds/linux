@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Backlight control code for Sharp Zaurus SL-5500
  *
  * Copyright 2005 John Lenz <lenz@cs.wisc.edu>
  * Maintainer: Pavel Machek <pavel@ucw.cz> (unless John wants to :-)
- * GPL v2
  *
  * This driver assumes single CPU. That's okay, because collie is
  * slightly old hardware, and no one is going to retrofit second CPU to

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 32bit Socket syscall emulation. Based on arch/sparc64/kernel/sys_sparc32.c.
  *

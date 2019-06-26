@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "CAN USB interfaces"
 	depends on USB
 
@@ -100,12 +101,6 @@ config CAN_PEAK_USB
 	  PCAN-USB X6          6 CAN-FD channels USB adapter
 
 	  (see also http://www.peak-system.com).
-
-config CAN_MCBA_USB
-	tristate "Microchip CAN BUS Analyzer interface"
-	---help---
-	  This driver supports the CAN BUS Analyzer interface
-	  from Microchip (http://www.microchip.com/development-tools/).
 
 config CAN_UCAN
 	tristate "Theobroma Systems UCAN interface"

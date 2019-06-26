@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VXFS_FS
 	tristate "FreeVxFS file system support (VERITAS VxFS(TM) compatible)"
 	depends on BLOCK

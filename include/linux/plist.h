@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Descending-priority-sorted double-linked list
  *
@@ -11,8 +12,6 @@
  *
  * Simplifications of the original code by
  * Oleg Nesterov <oleg@tv-sign.ru>
- *
- * Licensed under the FSF's GNU Public License v2 or later.
  *
  * Based on simple lists (include/linux/list.h).
  *
@@ -70,7 +69,6 @@
  * is lowest priority.
  *
  * No locking is done, up to the caller.
- *
  */
 #ifndef _LINUX_PLIST_H_
 #define _LINUX_PLIST_H_

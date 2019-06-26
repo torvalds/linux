@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*                                              -*- linux-c -*-
  * dtlk.c - DoubleTalk PC driver for Linux
  *

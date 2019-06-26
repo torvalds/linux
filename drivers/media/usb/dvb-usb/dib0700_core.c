@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Linux driver for devices based on the DiBcom DiB0700 USB bridge
- *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
  *
  *  Copyright (C) 2005-6 DiBcom, SA
  */

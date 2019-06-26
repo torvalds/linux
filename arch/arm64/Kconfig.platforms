@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Platform selection"
 
 config ARCH_ACTIONS
@@ -88,6 +89,7 @@ config ARCH_K3
 	bool "Texas Instruments Inc. K3 multicore SoC architecture"
 	select PM_GENERIC_DOMAINS if PM
 	select MAILBOX
+	select SOC_TI
 	select TI_MESSAGE_MANAGER
 	select TI_SCI_PROTOCOL
 	select TI_SCI_INTR_IRQCHIP
@@ -167,6 +169,7 @@ config ARCH_MXC
 	select IMX_GPCV2_PM_DOMAINS
 	select PM
 	select PM_GENERIC_DOMAINS
+	select SOC_BUS
 	help
 	  This enables support for the ARMv8 based SoCs in the
 	  NXP i.MX family.

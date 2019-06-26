@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Contiguous Memory Allocator
  *
@@ -9,11 +10,6 @@
  *	Michal Nazarewicz <mina86@mina86.com>
  *	Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
  *	Joonsoo Kim <iamjoonsoo.kim@lge.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License or (at your optional) any later version of the license.
  */
 
 #define pr_fmt(fmt) "cma: " fmt

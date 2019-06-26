@@ -81,7 +81,6 @@ static void test_msr_platform_info_disabled(struct kvm_vm *vm)
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
-	struct kvm_run *state;
 	int rv;
 	uint64_t msr_platform_info;
 

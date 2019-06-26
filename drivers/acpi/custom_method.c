@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * custom_method.c - debugfs interface for customizing ACPI control method
  */

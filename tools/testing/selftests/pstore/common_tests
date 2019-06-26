@@ -1,11 +1,11 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # common_tests - Shell script commonly used by pstore test scripts
 #
 # Copyright (C) Hitachi Ltd., 2015
 #  Written by Hiraku Toyooka <hiraku.toyooka.gu@hitachi.com>
 #
-# Released under the terms of the GPL v2.
 
 # Utilities
 errexit() { # message

@@ -252,10 +252,10 @@ static const struct ixp4xx_irq_chunk ixp4xx_irq_chunks[] = {
  * @fwnode: Corresponding fwnode abstraction for this controller
  * @is_356: if this is an IXP43x, IXP45x or IXP46x SoC variant
  */
-static int ixp4xx_irq_setup(struct ixp4xx_irq *ixi,
-			    void __iomem *irqbase,
-			    struct fwnode_handle *fwnode,
-			    bool is_356)
+static int __init ixp4xx_irq_setup(struct ixp4xx_irq *ixi,
+				   void __iomem *irqbase,
+				   struct fwnode_handle *fwnode,
+				   bool is_356)
 {
 	int nr_irqs;
 

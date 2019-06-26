@@ -144,10 +144,10 @@ static void rtw_phy_stat_rssi_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw_phy_stat_iter_data *iter_data = data;
 	struct rtw_dev *rtwdev = iter_data->rtwdev;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
-	u8 rssi, rssi_level;
+	u8 rssi;
 
 	rssi = ewma_rssi_read(&si->avg_rssi);
-	rssi_level = rtw_phy_get_rssi_level(si->rssi_level, rssi);
+	si->rssi_level = rtw_phy_get_rssi_level(si->rssi_level, rssi);
 
 	rtw_fw_send_rssi_info(rtwdev, si);
 
@@ -422,6 +422,11 @@ static u64 rtw_phy_db_2_linear(u8 power_db)
 {
 	u8 i, j;
 	u64 linear;
+
+	if (power_db > 96)
+		power_db = 96;
+	else if (power_db < 1)
+		return 1;
 
 	/* 1dB ~ 96dB */
 	i = (power_db - 1) >> 3;
@@ -848,12 +853,13 @@ u8 rtw_vht_2s_rates[] = {
 	DESC_RATEVHT2SS_MCS6, DESC_RATEVHT2SS_MCS7,
 	DESC_RATEVHT2SS_MCS8, DESC_RATEVHT2SS_MCS9
 };
-u8 rtw_cck_size = ARRAY_SIZE(rtw_cck_rates);
-u8 rtw_ofdm_size = ARRAY_SIZE(rtw_ofdm_rates);
-u8 rtw_ht_1s_size = ARRAY_SIZE(rtw_ht_1s_rates);
-u8 rtw_ht_2s_size = ARRAY_SIZE(rtw_ht_2s_rates);
-u8 rtw_vht_1s_size = ARRAY_SIZE(rtw_vht_1s_rates);
-u8 rtw_vht_2s_size = ARRAY_SIZE(rtw_vht_2s_rates);
+
+static u8 rtw_cck_size = ARRAY_SIZE(rtw_cck_rates);
+static u8 rtw_ofdm_size = ARRAY_SIZE(rtw_ofdm_rates);
+static u8 rtw_ht_1s_size = ARRAY_SIZE(rtw_ht_1s_rates);
+static u8 rtw_ht_2s_size = ARRAY_SIZE(rtw_ht_2s_rates);
+static u8 rtw_vht_1s_size = ARRAY_SIZE(rtw_vht_1s_rates);
+static u8 rtw_vht_2s_size = ARRAY_SIZE(rtw_vht_2s_rates);
 u8 *rtw_rate_section[RTW_RATE_SECTION_MAX] = {
 	rtw_cck_rates, rtw_ofdm_rates,
 	rtw_ht_1s_rates, rtw_ht_2s_rates,

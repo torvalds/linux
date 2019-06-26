@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * APEI Boot Error Record Table (BERT) support
  *
@@ -16,9 +17,6 @@
  *
  * For more information about BERT, please refer to ACPI Specification
  * version 4.0, section 17.3.1
- *
- * This file is licensed under GPLv2.
- *
  */
 
 #include <linux/kernel.h>

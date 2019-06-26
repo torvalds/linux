@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_I915_WERROR
         bool "Force GCC to throw an error instead of a warning when compiling"
         # As this may inadvertently break the build, only allow the user

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config KRAIT_CLOCKS
        bool
        select KRAIT_L2_ACCESSORS

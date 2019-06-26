@@ -740,6 +740,9 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	struct mlxsw_thermal_module *module_tz;
 	int i, err;
 
+	if (!mlxsw_core_res_query_enabled(core))
+		return 0;
+
 	thermal->tz_module_arr = kcalloc(module_count,
 					 sizeof(*thermal->tz_module_arr),
 					 GFP_KERNEL);
@@ -775,6 +778,9 @@ mlxsw_thermal_modules_fini(struct mlxsw_thermal *thermal)
 {
 	unsigned int module_count = mlxsw_core_max_ports(thermal->core);
 	int i;
+
+	if (!mlxsw_core_res_query_enabled(thermal->core))
+		return;
 
 	for (i = module_count - 1; i >= 0; i--)
 		mlxsw_thermal_module_fini(&thermal->tz_module_arr[i]);

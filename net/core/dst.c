@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/core/dst.c	Protocol independent destination cache.
  *

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Contains CPU specific errata definitions
  *
  * Copyright (C) 2014 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/arm-smccc.h>
@@ -502,6 +491,22 @@ static const struct midr_range arm64_ssb_cpus[] = {
 	{},
 };
 
+#ifdef CONFIG_ARM64_ERRATUM_1463225
+DEFINE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
+
+static bool
+has_cortex_a76_erratum_1463225(const struct arm64_cpu_capabilities *entry,
+			       int scope)
+{
+	u32 midr = read_cpuid_id();
+	/* Cortex-A76 r0p0 - r3p1 */
+	struct midr_range range = MIDR_RANGE(MIDR_CORTEX_A76, 0, 0, 3, 1);
+
+	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
+	return is_midr_in_range(midr, &range) && is_kernel_in_hyp_mode();
+}
+#endif
+
 static void __maybe_unused
 cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused)
 {
@@ -682,12 +687,16 @@ static const struct midr_range workaround_clean_cache[] = {
 };
 #endif
 
-#ifdef CONFIG_ARM64_ERRATUM_1188873
-static const struct midr_range erratum_1188873_list[] = {
-	/* Cortex-A76 r0p0 to r2p0 */
-	MIDR_RANGE(MIDR_CORTEX_A76, 0, 0, 2, 0),
-	/* Neoverse-N1 r0p0 to r2p0 */
-	MIDR_RANGE(MIDR_NEOVERSE_N1, 0, 0, 2, 0),
+#ifdef CONFIG_ARM64_ERRATUM_1418040
+/*
+ * - 1188873 affects r0p0 to r2p0
+ * - 1418040 affects r0p0 to r3p1
+ */
+static const struct midr_range erratum_1418040_list[] = {
+	/* Cortex-A76 r0p0 to r3p1 */
+	MIDR_RANGE(MIDR_CORTEX_A76, 0, 0, 3, 1),
+	/* Neoverse-N1 r0p0 to r3p1 */
+	MIDR_RANGE(MIDR_NEOVERSE_N1, 0, 0, 3, 1),
 	{},
 };
 #endif
@@ -809,11 +818,11 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.matches = has_ssbd_mitigation,
 		.midr_range_list = arm64_ssb_cpus,
 	},
-#ifdef CONFIG_ARM64_ERRATUM_1188873
+#ifdef CONFIG_ARM64_ERRATUM_1418040
 	{
-		.desc = "ARM erratum 1188873",
-		.capability = ARM64_WORKAROUND_1188873,
-		ERRATA_MIDR_RANGE_LIST(erratum_1188873_list),
+		.desc = "ARM erratum 1418040",
+		.capability = ARM64_WORKAROUND_1418040,
+		ERRATA_MIDR_RANGE_LIST(erratum_1418040_list),
 	},
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_1165522
@@ -822,6 +831,14 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.desc = "ARM erratum 1165522",
 		.capability = ARM64_WORKAROUND_1165522,
 		ERRATA_MIDR_RANGE(MIDR_CORTEX_A76, 0, 0, 2, 0),
+	},
+#endif
+#ifdef CONFIG_ARM64_ERRATUM_1463225
+	{
+		.desc = "ARM erratum 1463225",
+		.capability = ARM64_WORKAROUND_1463225,
+		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
+		.matches = has_cortex_a76_erratum_1463225,
 	},
 #endif
 	{

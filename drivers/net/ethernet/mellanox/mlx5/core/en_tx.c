@@ -113,13 +113,13 @@ static inline int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev)
 {
-	int channel_ix = netdev_pick_tx(dev, skb, NULL);
+	int txq_ix = netdev_pick_tx(dev, skb, NULL);
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	u16 num_channels;
 	int up = 0;
 
 	if (!netdev_get_num_tc(dev))
-		return channel_ix;
+		return txq_ix;
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
@@ -129,14 +129,14 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		if (skb_vlan_tag_present(skb))
 			up = skb_vlan_tag_get_prio(skb);
 
-	/* channel_ix can be larger than num_channels since
+	/* txq_ix can be larger than num_channels since
 	 * dev->num_real_tx_queues = num_channels * num_tc
 	 */
 	num_channels = priv->channels.params.num_channels;
-	if (channel_ix >= num_channels)
-		channel_ix = reciprocal_scale(channel_ix, num_channels);
+	if (txq_ix >= num_channels)
+		txq_ix = priv->txq2sq[txq_ix]->ch_ix;
 
-	return priv->channel_tc2txq[channel_ix][up];
+	return priv->channel_tc2txq[txq_ix][up];
 }
 
 static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
@@ -361,7 +361,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	stats->bytes     += num_bytes;
-	stats->xmit_more += netdev_xmit_more();
+	stats->xmit_more += xmit_more;
 
 	headlen = skb->len - ihs - skb->data_len;
 	ds_cnt += !!headlen;
@@ -624,7 +624,8 @@ mlx5i_txwqe_build_datagram(struct mlx5_av *av, u32 dqpn, u32 dqkey,
 }
 
 netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5_av *av, u32 dqpn, u32 dqkey)
+			  struct mlx5_av *av, u32 dqpn, u32 dqkey,
+			  bool xmit_more)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5i_tx_wqe *wqe;
@@ -660,7 +661,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	stats->bytes     += num_bytes;
-	stats->xmit_more += netdev_xmit_more();
+	stats->xmit_more += xmit_more;
 
 	headlen = skb->len - ihs - skb->data_len;
 	ds_cnt += !!headlen;
@@ -705,7 +706,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		goto err_drop;
 
 	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt, num_wqebbs, num_bytes,
-			     num_dma, wi, cseg, false);
+			     num_dma, wi, cseg, xmit_more);
 
 	return NETDEV_TX_OK;
 

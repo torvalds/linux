@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADC12130/ADC12132/ADC12138 12-bit plus sign ADC driver
  *
  * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Datasheet: http://www.ti.com/lit/ds/symlink/adc12138.pdf
  */

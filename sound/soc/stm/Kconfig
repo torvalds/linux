@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "STMicroelectronics STM32 SOC audio support"
 
 config SND_SOC_STM32_SAI

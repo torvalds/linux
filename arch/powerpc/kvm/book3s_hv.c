@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  * Copyright (C) 2009. SUSE Linux Products GmbH. All rights reserved.
@@ -12,10 +13,6 @@
  *
  * This file is derived from arch/powerpc/kvm/book3s.c,
  * by Alexander Graf <agraf@suse.de>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kvm_host.h>
@@ -446,12 +443,7 @@ static void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 
 static struct kvm_vcpu *kvmppc_find_vcpu(struct kvm *kvm, int id)
 {
-	struct kvm_vcpu *ret;
-
-	mutex_lock(&kvm->lock);
-	ret = kvm_get_vcpu_by_id(kvm, id);
-	mutex_unlock(&kvm->lock);
-	return ret;
+	return kvm_get_vcpu_by_id(kvm, id);
 }
 
 static void init_vpa(struct kvm_vcpu *vcpu, struct lppaca *vpa)
@@ -1583,7 +1575,6 @@ static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr,
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	u64 mask;
 
-	mutex_lock(&kvm->lock);
 	spin_lock(&vc->lock);
 	/*
 	 * If ILE (interrupt little-endian) has changed, update the
@@ -1623,7 +1614,6 @@ static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr,
 		mask &= 0xFFFFFFFF;
 	vc->lpcr = (vc->lpcr & ~mask) | (new_lpcr & mask);
 	spin_unlock(&vc->lock);
-	mutex_unlock(&kvm->lock);
 }
 
 static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
@@ -2338,11 +2328,17 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 			pr_devel("KVM: collision on id %u", id);
 			vcore = NULL;
 		} else if (!vcore) {
+			/*
+			 * Take mmu_setup_lock for mutual exclusion
+			 * with kvmppc_update_lpcr().
+			 */
 			err = -ENOMEM;
 			vcore = kvmppc_vcore_create(kvm,
 					id & ~(kvm->arch.smt_mode - 1));
+			mutex_lock(&kvm->arch.mmu_setup_lock);
 			kvm->arch.vcores[core] = vcore;
 			kvm->arch.online_vcores++;
+			mutex_unlock(&kvm->arch.mmu_setup_lock);
 		}
 	}
 	mutex_unlock(&kvm->lock);
@@ -3663,6 +3659,7 @@ int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 	vc->in_guest = 0;
 
 	mtspr(SPRN_DEC, local_paca->kvm_hstate.dec_expires - mftb());
+	mtspr(SPRN_SPRG_VDSO_WRITE, local_paca->sprg_vdso);
 
 	kvmhv_load_host_pmu();
 
@@ -3859,7 +3856,7 @@ static int kvmhv_setup_mmu(struct kvm_vcpu *vcpu)
 	int r = 0;
 	struct kvm *kvm = vcpu->kvm;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.mmu_setup_lock);
 	if (!kvm->arch.mmu_ready) {
 		if (!kvm_is_radix(kvm))
 			r = kvmppc_hv_setup_htab_rma(vcpu);
@@ -3869,7 +3866,7 @@ static int kvmhv_setup_mmu(struct kvm_vcpu *vcpu)
 			kvm->arch.mmu_ready = 1;
 		}
 	}
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.mmu_setup_lock);
 	return r;
 }
 
@@ -4091,15 +4088,19 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 		kvmppc_check_need_tlb_flush(kvm, pcpu, nested);
 	}
 
-	trace_hardirqs_on();
 	guest_enter_irqoff();
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
 
 	this_cpu_disable_ftrace();
 
+	/* Tell lockdep that we're about to enable interrupts */
+	trace_hardirqs_on();
+
 	trap = kvmhv_p9_guest_entry(vcpu, time_limit, lpcr);
 	vcpu->arch.trap = trap;
+
+	trace_hardirqs_off();
 
 	this_cpu_enable_ftrace();
 
@@ -4110,7 +4111,6 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 		isync();
 	}
 
-	trace_hardirqs_off();
 	set_irq_happened(trap);
 
 	kvmppc_set_host_core(pcpu);
@@ -4478,7 +4478,8 @@ static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
 
 /*
  * Update LPCR values in kvm->arch and in vcores.
- * Caller must hold kvm->lock.
+ * Caller must hold kvm->arch.mmu_setup_lock (for mutual exclusion
+ * of kvm->arch.lpcr update).
  */
 void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr, unsigned long mask)
 {
@@ -4530,7 +4531,7 @@ void kvmppc_setup_partition_table(struct kvm *kvm)
 
 /*
  * Set up HPT (hashed page table) and RMA (real-mode area).
- * Must be called with kvm->lock held.
+ * Must be called with kvm->arch.mmu_setup_lock held.
  */
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 {
@@ -4618,7 +4619,10 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	goto out_srcu;
 }
 
-/* Must be called with kvm->lock held and mmu_ready = 0 and no vcpus running */
+/*
+ * Must be called with kvm->arch.mmu_setup_lock held and
+ * mmu_ready = 0 and no vcpus running.
+ */
 int kvmppc_switch_mmu_to_hpt(struct kvm *kvm)
 {
 	if (nesting_enabled(kvm))
@@ -4635,7 +4639,10 @@ int kvmppc_switch_mmu_to_hpt(struct kvm *kvm)
 	return 0;
 }
 
-/* Must be called with kvm->lock held and mmu_ready = 0 and no vcpus running */
+/*
+ * Must be called with kvm->arch.mmu_setup_lock held and
+ * mmu_ready = 0 and no vcpus running.
+ */
 int kvmppc_switch_mmu_to_radix(struct kvm *kvm)
 {
 	int err;
@@ -4739,6 +4746,8 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	unsigned long lpcr, lpid;
 	char buf[32];
 	int ret;
+
+	mutex_init(&kvm->arch.mmu_setup_lock);
 
 	/* Allocate the guest's logical partition ID */
 
@@ -5265,7 +5274,7 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	if (kvmhv_on_pseries() && !radix)
 		return -EINVAL;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.mmu_setup_lock);
 	if (radix != kvm_is_radix(kvm)) {
 		if (kvm->arch.mmu_ready) {
 			kvm->arch.mmu_ready = 0;
@@ -5293,7 +5302,7 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	err = 0;
 
  out_unlock:
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.mmu_setup_lock);
 	return err;
 }
 

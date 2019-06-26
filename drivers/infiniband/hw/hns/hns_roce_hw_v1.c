@@ -899,6 +899,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 		dev_err(dev, "Destroy cq for mr_free failed(%d)!\n", ret);
 
 	hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd, NULL);
+	kfree(&free_mr->mr_free_pd->ibpd);
 }
 
 static int hns_roce_db_init(struct hns_roce_dev *hr_dev)

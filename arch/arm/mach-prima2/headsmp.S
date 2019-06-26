@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Entry of the second core for CSR Marco dual-core SMP SoCs
  *
  * Copyright (c) 2012 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/linkage.h>

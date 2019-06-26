@@ -569,7 +569,7 @@ static int dpaa_set_coalesce(struct net_device *dev,
 	qman_dqrr_get_ithresh(portal, &prev_thresh);
 
 	/* set new values */
-	for_each_cpu(cpu, cpus) {
+	for_each_cpu_and(cpu, cpus, cpu_online_mask) {
 		portal = qman_get_affine_portal(cpu);
 		res = qman_portal_set_iperiod(portal, period);
 		if (res)
@@ -586,7 +586,7 @@ static int dpaa_set_coalesce(struct net_device *dev,
 
 revert_values:
 	/* restore previous values */
-	for_each_cpu(cpu, cpus) {
+	for_each_cpu_and(cpu, cpus, cpu_online_mask) {
 		if (!needs_revert[cpu])
 			continue;
 		portal = qman_get_affine_portal(cpu);

@@ -65,9 +65,26 @@ static void mlx5e_rep_indr_unregister_block(struct mlx5e_rep_priv *rpriv,
 static void mlx5e_rep_get_drvinfo(struct net_device *dev,
 				  struct ethtool_drvinfo *drvinfo)
 {
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+
 	strlcpy(drvinfo->driver, mlx5e_rep_driver_name,
 		sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, UTS_RELEASE, sizeof(drvinfo->version));
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		 "%d.%d.%04d (%.16s)",
+		 fw_rev_maj(mdev), fw_rev_min(mdev),
+		 fw_rev_sub(mdev), mdev->board_id);
+}
+
+static void mlx5e_uplink_rep_get_drvinfo(struct net_device *dev,
+					 struct ethtool_drvinfo *drvinfo)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	mlx5e_rep_get_drvinfo(dev, drvinfo);
+	strlcpy(drvinfo->bus_info, pci_name(priv->mdev->pdev),
+		sizeof(drvinfo->bus_info));
 }
 
 static const struct counter_desc sw_rep_stats_desc[] = {
@@ -363,7 +380,7 @@ static const struct ethtool_ops mlx5e_vf_rep_ethtool_ops = {
 };
 
 static const struct ethtool_ops mlx5e_uplink_rep_ethtool_ops = {
-	.get_drvinfo	   = mlx5e_rep_get_drvinfo,
+	.get_drvinfo	   = mlx5e_uplink_rep_get_drvinfo,
 	.get_link	   = ethtool_op_get_link,
 	.get_strings       = mlx5e_rep_get_strings,
 	.get_sset_count    = mlx5e_rep_get_sset_count,
@@ -796,7 +813,7 @@ static int mlx5e_nic_rep_netdevice_event(struct notifier_block *nb,
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 
 	if (!mlx5e_tc_tun_device_to_offload(priv, netdev) &&
-	    !is_vlan_dev(netdev))
+	    !(is_vlan_dev(netdev) && vlan_dev_real_dev(netdev) == rpriv->netdev))
 		return NOTIFY_OK;
 
 	switch (event) {
@@ -1334,6 +1351,7 @@ static const struct net_device_ops mlx5e_netdev_ops_uplink_rep = {
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
 	.ndo_set_vf_vlan         = mlx5e_uplink_rep_set_vf_vlan,
 	.ndo_get_port_parent_id	 = mlx5e_rep_get_port_parent_id,
+	.ndo_set_features        = mlx5e_set_features,
 };
 
 bool mlx5e_eswitch_rep(struct net_device *netdev)
@@ -1408,10 +1426,9 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 
 	netdev->watchdog_timeo    = 15 * HZ;
 
+	netdev->features       |= NETIF_F_NETNS_LOCAL;
 
-	netdev->features	 |= NETIF_F_HW_TC | NETIF_F_NETNS_LOCAL;
-	netdev->hw_features      |= NETIF_F_HW_TC;
-
+	netdev->hw_features    |= NETIF_F_HW_TC;
 	netdev->hw_features    |= NETIF_F_SG;
 	netdev->hw_features    |= NETIF_F_IP_CSUM;
 	netdev->hw_features    |= NETIF_F_IPV6_CSUM;
@@ -1420,7 +1437,9 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	netdev->hw_features    |= NETIF_F_TSO6;
 	netdev->hw_features    |= NETIF_F_RXCSUM;
 
-	if (rep->vport != MLX5_VPORT_UPLINK)
+	if (rep->vport == MLX5_VPORT_UPLINK)
+		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
+	else
 		netdev->features |= NETIF_F_VLAN_CHALLENGED;
 
 	netdev->features |= netdev->hw_features;

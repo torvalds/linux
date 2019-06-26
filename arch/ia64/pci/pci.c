@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * pci.c - Low-Level PCI Access in IA-64
  *
