@@ -199,6 +199,7 @@ static inline u32 cdns_readl(struct sdw_cdns *cdns, int offset)
 
 static inline void cdns_writel(struct sdw_cdns *cdns, int offset, u32 value)
 {
+	dev_vdbg(cdns->dev, "%s %x %x\n", __func__, offset, value);
 	writel(value, cdns->registers + offset);
 }
 
