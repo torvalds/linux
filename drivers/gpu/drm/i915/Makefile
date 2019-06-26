@@ -212,6 +212,25 @@ i915-y += \
 	display/vlv_dsi.o \
 	display/vlv_dsi_pll.o
 
+# perf code
+obj-y += oa/
+i915-y += \
+	oa/i915_oa_hsw.o \
+	oa/i915_oa_bdw.o \
+	oa/i915_oa_chv.o \
+	oa/i915_oa_sklgt2.o \
+	oa/i915_oa_sklgt3.o \
+	oa/i915_oa_sklgt4.o \
+	oa/i915_oa_bxt.o \
+	oa/i915_oa_kblgt2.o \
+	oa/i915_oa_kblgt3.o \
+	oa/i915_oa_glk.o \
+	oa/i915_oa_cflgt2.o \
+	oa/i915_oa_cflgt3.o \
+	oa/i915_oa_cnl.o \
+	oa/i915_oa_icl.o
+i915-y += i915_perf.o
+
 # Post-mortem debug and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 i915-$(CONFIG_DRM_I915_SELFTEST) += \
@@ -225,23 +244,6 @@ i915-$(CONFIG_DRM_I915_SELFTEST) += \
 
 # virtual gpu code
 i915-y += i915_vgpu.o
-
-# perf code
-i915-y += i915_perf.o \
-	  i915_oa_hsw.o \
-	  i915_oa_bdw.o \
-	  i915_oa_chv.o \
-	  i915_oa_sklgt2.o \
-	  i915_oa_sklgt3.o \
-	  i915_oa_sklgt4.o \
-	  i915_oa_bxt.o \
-	  i915_oa_kblgt2.o \
-	  i915_oa_kblgt3.o \
-	  i915_oa_glk.o \
-	  i915_oa_cflgt2.o \
-	  i915_oa_cflgt3.o \
-	  i915_oa_cnl.o \
-	  i915_oa_icl.o
 
 ifeq ($(CONFIG_DRM_I915_GVT),y)
 i915-y += intel_gvt.o
