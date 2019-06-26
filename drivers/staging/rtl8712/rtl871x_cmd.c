@@ -103,22 +103,27 @@ void r8712_free_cmd_priv(struct cmd_priv *pcmdpriv)
 /*
  * Calling Context:
  *
- * _enqueue_cmd can only be called between kernel thread,
+ * r8712_enqueue_cmd can only be called between kernel thread,
  * since only spin_lock is used.
  *
  * ISR/Call-Back functions can't call this sub-function.
  *
  */
 
-static void _enqueue_cmd(struct  __queue *queue, struct cmd_obj *obj)
+void r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 {
+	struct __queue *queue;
 	unsigned long irqL;
 
+	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag)
+		return;
 	if (!obj)
 		return;
+	queue = &pcmdpriv->cmd_queue;
 	spin_lock_irqsave(&queue->lock, irqL);
 	list_add_tail(&obj->list, &queue->queue);
 	spin_unlock_irqrestore(&queue->lock, irqL);
+	complete(&pcmdpriv->cmd_queue_comp);
 }
 
 static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
@@ -133,14 +138,6 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 		list_del_init(&obj->list);
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	return obj;
-}
-
-void r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
-{
-	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag)
-		return;
-	_enqueue_cmd(&pcmdpriv->cmd_queue, obj);
-	complete(&pcmdpriv->cmd_queue_comp);
 }
 
 void r8712_enqueue_cmd_ex(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
