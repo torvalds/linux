@@ -7,6 +7,9 @@
 
 void *memdup(const void *src, size_t len);
 
+char **argv_split(const char *str, int *argcp);
+void argv_free(char **argv);
+
 int strtobool(const char *s, bool *res);
 
 /*
