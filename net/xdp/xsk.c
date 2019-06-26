@@ -37,6 +37,12 @@ bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 		READ_ONCE(xs->umem->fq);
 }
 
+bool xsk_umem_has_addrs(struct xdp_umem *umem, u32 cnt)
+{
+	return xskq_has_addrs(umem->fq, cnt);
+}
+EXPORT_SYMBOL(xsk_umem_has_addrs);
+
 u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 {
 	return xskq_peek_addr(umem->fq, addr);
