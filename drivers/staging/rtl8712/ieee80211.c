@@ -283,12 +283,12 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 
 	if (wpa_ie_len <= 0) {
 		/* No WPA IE - fail silently */
-		return _FAIL;
+		return -EINVAL;
 	}
 	if ((*wpa_ie != _WPA_IE_ID_) ||
 	    (*(wpa_ie + 1) != (u8)(wpa_ie_len - 2)) ||
 	    (memcmp(wpa_ie + 2, (void *)WPA_OUI_TYPE, WPA_SELECTOR_LEN)))
-		return _FAIL;
+		return -EINVAL;
 	pos = wpa_ie;
 	pos += 8;
 	left = wpa_ie_len - 8;
@@ -298,7 +298,7 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 		pos += WPA_SELECTOR_LEN;
 		left -= WPA_SELECTOR_LEN;
 	} else if (left > 0) {
-		return _FAIL;
+		return -EINVAL;
 	}
 	/*pairwise_cipher*/
 	if (left >= 2) {
@@ -306,16 +306,16 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 		pos += 2;
 		left -= 2;
 		if (count == 0 || left < count * WPA_SELECTOR_LEN)
-			return _FAIL;
+			return -EINVAL;
 		for (i = 0; i < count; i++) {
 			*pairwise_cipher |= r8712_get_wpa_cipher_suite(pos);
 			pos += WPA_SELECTOR_LEN;
 			left -= WPA_SELECTOR_LEN;
 		}
 	} else if (left == 1) {
-		return _FAIL;
+		return -EINVAL;
 	}
-	return _SUCCESS;
+	return 0;
 }
 
 int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
