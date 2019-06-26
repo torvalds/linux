@@ -20,6 +20,7 @@ header_test := \
 	intel_csr.h \
 	intel_drv.h \
 	intel_guc_ct.h \
+	intel_guc_fwif.h \
 	intel_pm.h \
 	intel_runtime_pm.h \
 	intel_sideband.h \

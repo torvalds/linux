@@ -23,6 +23,10 @@
 #ifndef _INTEL_GUC_FWIF_H
 #define _INTEL_GUC_FWIF_H
 
+#include <linux/bits.h>
+#include <linux/compiler.h>
+#include <linux/types.h>
+
 #define GUC_CLIENT_PRIORITY_KMD_HIGH	0
 #define GUC_CLIENT_PRIORITY_HIGH	1
 #define GUC_CLIENT_PRIORITY_KMD_NORMAL	2
