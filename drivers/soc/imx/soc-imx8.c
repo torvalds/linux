@@ -66,6 +66,26 @@ out:
 	return rev;
 }
 
+static void __init imx8mm_soc_uid(void)
+{
+	void __iomem *ocotp_base;
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mm-ocotp");
+	if (!np)
+		return;
+
+	ocotp_base = of_iomap(np, 0);
+	WARN_ON(!ocotp_base);
+
+	soc_uid = readl_relaxed(ocotp_base + OCOTP_UID_HIGH);
+	soc_uid <<= 32;
+	soc_uid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW);
+
+	iounmap(ocotp_base);
+	of_node_put(np);
+}
+
 static u32 __init imx8mm_soc_revision(void)
 {
 	struct device_node *np;
@@ -83,6 +103,9 @@ static u32 __init imx8mm_soc_revision(void)
 
 	iounmap(anatop_base);
 	of_node_put(np);
+
+	imx8mm_soc_uid();
+
 	return rev;
 }
 
