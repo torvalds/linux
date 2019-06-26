@@ -877,8 +877,6 @@ static int vpfe_querycap(struct file *file, void  *priv,
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_querycap\n");
 
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	strscpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
 	strscpy(cap->bus_info, "VPFE", sizeof(cap->bus_info));
 	strscpy(cap->card, vpfe_dev->cfg->card_name, sizeof(cap->card));
@@ -1785,6 +1783,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
 	vfd->tvnorms		= 0;
 	vfd->v4l2_dev		= &vpfe_dev->v4l2_dev;
+	vfd->device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	snprintf(vfd->name, sizeof(vfd->name),
 		 "%s_V%d.%d.%d",
 		 CAPTURE_DRV_NAME,

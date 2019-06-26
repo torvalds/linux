@@ -1400,10 +1400,6 @@ static int vpfe_querycap(struct file *file, void  *priv,
 	strscpy(cap->card, "TI AM437x VPFE", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 			"platform:%s", vpfe->v4l2_dev.name);
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
-			    V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -2379,6 +2375,8 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 	vdev->vfl_dir = VFL_DIR_RX;
 	vdev->queue = q;
 	vdev->lock = &vpfe->lock;
+	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+			    V4L2_CAP_READWRITE;
 	video_set_drvdata(vdev, vpfe);
 	err = video_register_device(&vpfe->video_dev, VFL_TYPE_GRABBER, -1);
 	if (err) {
