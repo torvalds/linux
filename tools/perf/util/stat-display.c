@@ -212,7 +212,7 @@ static void print_metric_csv(struct perf_stat_config *config __maybe_unused,
 		return;
 	}
 	snprintf(buf, sizeof(buf), fmt, val);
-	ends = vals = ltrim(buf);
+	ends = vals = skip_spaces(buf);
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
 	*ends = 0;
@@ -280,7 +280,7 @@ static void print_metric_only_csv(struct perf_stat_config *config __maybe_unused
 		return;
 	unit = fixunit(tbuf, os->evsel, unit);
 	snprintf(buf, sizeof buf, fmt, val);
-	ends = vals = ltrim(buf);
+	ends = vals = skip_spaces(buf);
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
 	*ends = 0;

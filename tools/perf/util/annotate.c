@@ -557,7 +557,7 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_sy
 	if (comment == NULL)
 		return 0;
 
-	comment = ltrim(comment);
+	comment = skip_spaces(comment);
 	comment__symbol(ops->source.raw, comment + 1, &ops->source.addr, &ops->source.name);
 	comment__symbol(ops->target.raw, comment + 1, &ops->target.addr, &ops->target.name);
 
@@ -602,7 +602,7 @@ static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops
 	if (comment == NULL)
 		return 0;
 
-	comment = ltrim(comment);
+	comment = skip_spaces(comment);
 	comment__symbol(ops->target.raw, comment + 1, &ops->target.addr, &ops->target.name);
 
 	return 0;
@@ -1098,7 +1098,7 @@ static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, str
 
 static int disasm_line__parse(char *line, const char **namep, char **rawp)
 {
-	char tmp, *name = ltrim(line);
+	char tmp, *name = skip_spaces(line);
 
 	if (name[0] == '\0')
 		return -1;
@@ -1116,7 +1116,7 @@ static int disasm_line__parse(char *line, const char **namep, char **rawp)
 		goto out_free_name;
 
 	(*rawp)[0] = tmp;
-	*rawp = ltrim(*rawp);
+	*rawp = skip_spaces(*rawp);
 
 	return 0;
 
@@ -1503,7 +1503,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 		return 0;
 	}
 
-	tmp = ltrim(parsed_line);
+	tmp = skip_spaces(parsed_line);
 	if (*tmp) {
 		/*
 		 * Parse hexa addresses followed by ':'

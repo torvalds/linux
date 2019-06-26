@@ -1470,7 +1470,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 				int i = 0;
 
 				width -= fmt->entry(fmt, &hpp, entry);
-				ui_browser__printf(&browser->b, "%s", ltrim(s));
+				ui_browser__printf(&browser->b, "%s", skip_spaces(s));
 
 				while (isspace(s[i++]))
 					width++;

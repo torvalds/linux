@@ -594,7 +594,7 @@ static int ui_browser__color_config(const char *var, const char *value,
 			break;
 
 		*bg = '\0';
-		bg = ltrim(++bg);
+		bg = skip_spaces(bg + 1);
 		ui_browser__colorsets[i].bg = bg;
 		ui_browser__colorsets[i].fg = fg;
 		return 0;

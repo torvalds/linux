@@ -2,6 +2,7 @@
 #ifndef PERF_STRING_H
 #define PERF_STRING_H
 
+#include <linux/string.h>
 #include <linux/types.h>
 #include <stddef.h>
 #include <string.h>
@@ -22,12 +23,11 @@ static inline bool strisglob(const char *str)
 int strtailcmp(const char *s1, const char *s2);
 char *strxfrchar(char *s, char from, char to);
 
-char *ltrim(char *s);
 char *rtrim(char *s);
 
 static inline char *trim(char *s)
 {
-	return ltrim(rtrim(s));
+	return skip_spaces(rtrim(s));
 }
 
 char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints, int *ints);

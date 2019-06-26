@@ -516,7 +516,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 		 * dynamic entries are right-aligned but we want left-aligned
 		 * in the hierarchy mode
 		 */
-		printed += fprintf(fp, "%s%s", sep ?: "  ", ltrim(buf));
+		printed += fprintf(fp, "%s%s", sep ?: "  ", skip_spaces(buf));
 	}
 	printed += putc('\n', fp);
 

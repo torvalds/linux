@@ -158,9 +158,7 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 	if (name) {
 		char *nl;
 
-		name += 5;  /* strlen("Name:") */
-		name = ltrim(name);
-
+		name = skip_spaces(name + 5);  /* strlen("Name:") */
 		nl = strchr(name, '\n');
 		if (nl)
 			*nl = '\0';
