@@ -129,7 +129,7 @@
 /* Motorola i.MX SoC */
 #define PORT_IMX	62
 
-/* Marvell MPSC */
+/* Marvell MPSC (obsolete unused) */
 #define PORT_MPSC	63
 
 /* TXX9 type number */
