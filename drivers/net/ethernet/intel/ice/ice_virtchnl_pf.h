@@ -30,11 +30,6 @@ enum ice_vf_states {
 	ICE_VF_STATE_DIS,
 	ICE_VF_STATE_MC_PROMISC,
 	ICE_VF_STATE_UC_PROMISC,
-	/* state to indicate if PF needs to do vector assignment for VF.
-	 * This needs to be set during first time VF initialization or later
-	 * when VF asks for more Vectors through virtchnl OP.
-	 */
-	ICE_VF_STATE_CFG_INTR,
 	ICE_VF_STATES_NBITS
 };
 

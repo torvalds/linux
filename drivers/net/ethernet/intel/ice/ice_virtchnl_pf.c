@@ -297,13 +297,6 @@ void ice_free_vfs(struct ice_pf *pf)
 		if (test_bit(ICE_VF_STATE_INIT, pf->vf[i].vf_states)) {
 			/* disable VF qp mappings */
 			ice_dis_vf_mappings(&pf->vf[i]);
-
-			/* Set this state so that assigned VF vectors can be
-			 * reclaimed by PF for reuse in ice_vsi_release(). No
-			 * need to clear this bit since pf->vf array is being
-			 * freed anyways after this for loop
-			 */
-			set_bit(ICE_VF_STATE_CFG_INTR, pf->vf[i].vf_states);
 			ice_free_vf_res(&pf->vf[i]);
 		}
 	}
@@ -551,7 +544,6 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 	 * expect vector assignment to be changed unless there is a request for
 	 * more vectors.
 	 */
-	clear_bit(ICE_VF_STATE_CFG_INTR, vf->vf_states);
 ice_alloc_vsi_res_exit:
 	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
 	return status;
@@ -1283,9 +1275,6 @@ static int ice_alloc_vfs(struct ice_pf *pf, u16 num_alloc_vfs)
 		/* assign default capabilities */
 		set_bit(ICE_VIRTCHNL_VF_CAP_L2, &vfs[i].vf_caps);
 		vfs[i].spoofchk = true;
-
-		/* Set this state so that PF driver does VF vector assignment */
-		set_bit(ICE_VF_STATE_CFG_INTR, vfs[i].vf_states);
 	}
 	pf->num_alloc_vfs = num_alloc_vfs;
 
