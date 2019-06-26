@@ -24,10 +24,13 @@
 #ifndef _INTEL_GUC_CT_H_
 #define _INTEL_GUC_CT_H_
 
-struct intel_guc;
-struct i915_vma;
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 #include "intel_guc_fwif.h"
+
+struct i915_vma;
+struct intel_guc;
 
 /**
  * DOC: Command Transport (CT).
