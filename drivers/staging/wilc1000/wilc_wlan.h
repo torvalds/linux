@@ -216,6 +216,7 @@ struct txq_entry_t {
 	int buffer_size;
 	void *priv;
 	int status;
+	struct wilc_vif *vif;
 	void (*tx_complete_func)(void *priv, int status);
 };
 
@@ -253,7 +254,6 @@ struct wilc_hif_func {
 struct tx_complete_data {
 	int size;
 	void *buff;
-	u8 *bssid;
 	struct sk_buff *skb;
 };
 
@@ -284,7 +284,7 @@ int wilc_wlan_stop(struct wilc *wilc);
 int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 			      u32 buffer_size,
 			      void (*tx_complete_fn)(void *, int));
-int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count);
+int wilc_wlan_handle_txq(struct wilc *wl, u32 *txq_count);
 void wilc_handle_isr(struct wilc *wilc);
 void wilc_wlan_cleanup(struct net_device *dev);
 int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u16 wid, u8 *buffer,
@@ -301,7 +301,7 @@ void wilc_enable_tcp_ack_filter(struct wilc_vif *vif, bool value);
 int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc);
 netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *dev);
 
-void wilc_wfi_p2p_rx(struct net_device *dev, u8 *buff, u32 size);
+void wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size);
 void host_wakeup_notify(struct wilc *wilc);
 void host_sleep_notify(struct wilc *wilc);
 void chip_allow_sleep(struct wilc *wilc);
