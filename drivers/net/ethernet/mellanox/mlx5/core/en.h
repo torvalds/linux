@@ -300,6 +300,7 @@ struct mlx5e_dcbx_dp {
 
 enum {
 	MLX5E_RQ_STATE_ENABLED,
+	MLX5E_RQ_STATE_RECOVERING,
 	MLX5E_RQ_STATE_AM,
 	MLX5E_RQ_STATE_NO_CSUM_COMPLETE,
 	MLX5E_RQ_STATE_CSUM_FULL, /* cqe_csum_full hw bit is set */
@@ -671,6 +672,8 @@ struct mlx5e_rq {
 	/* AF_XDP zero-copy */
 	struct zero_copy_allocator zca;
 	struct xdp_umem       *umem;
+
+	struct work_struct     recover_work;
 
 	/* control */
 	struct mlx5_wq_ctrl    wq_ctrl;

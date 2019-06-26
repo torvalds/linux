@@ -8,6 +8,14 @@
 
 #define MLX5E_RX_ERR_CQE(cqe) (get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)
 
+static inline bool cqe_syndrome_needs_recover(u8 syndrome)
+{
+	return syndrome == MLX5_CQE_SYNDROME_LOCAL_LENGTH_ERR ||
+	       syndrome == MLX5_CQE_SYNDROME_LOCAL_QP_OP_ERR ||
+	       syndrome == MLX5_CQE_SYNDROME_LOCAL_PROT_ERR ||
+	       syndrome == MLX5_CQE_SYNDROME_WR_FLUSH_ERR;
+}
+
 int mlx5e_reporter_tx_create(struct mlx5e_priv *priv);
 void mlx5e_reporter_tx_destroy(struct mlx5e_priv *priv);
 void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq);
@@ -21,6 +29,7 @@ int mlx5e_reporter_named_obj_nest_end(struct devlink_fmsg *fmsg);
 int mlx5e_reporter_rx_create(struct mlx5e_priv *priv);
 void mlx5e_reporter_rx_destroy(struct mlx5e_priv *priv);
 void mlx5e_reporter_icosq_cqe_err(struct mlx5e_icosq *icosq);
+void mlx5e_reporter_rq_cqe_err(struct mlx5e_rq *rq);
 void mlx5e_reporter_rx_timeout(struct mlx5e_rq *rq);
 
 #define MLX5E_REPORTER_PER_Q_MAX_LEN 256
