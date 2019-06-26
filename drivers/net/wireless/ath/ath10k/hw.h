@@ -24,6 +24,7 @@ enum ath10k_bus {
 #define QCA988X_2_0_DEVICE_ID   (0x003c)
 #define QCA6164_2_1_DEVICE_ID   (0x0041)
 #define QCA6174_2_1_DEVICE_ID   (0x003e)
+#define QCA6174_3_2_DEVICE_ID   (0x0042)
 #define QCA99X0_2_0_DEVICE_ID   (0x0040)
 #define QCA9888_2_0_DEVICE_ID	(0x0056)
 #define QCA9984_1_0_DEVICE_ID	(0x0046)
@@ -606,6 +607,11 @@ struct ath10k_hw_params {
 
 	/* target supporting fw download via diag ce */
 	bool fw_diag_ce_download;
+
+	/* need to set uart pin if disable uart print, workaround for a
+	 * firmware bug
+	 */
+	bool uart_pin_workaround;
 };
 
 struct htt_rx_desc;

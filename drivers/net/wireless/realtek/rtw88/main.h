@@ -431,6 +431,7 @@ enum rtw_vif_port_set {
 	PORT_SET_BSSID		= BIT(1),
 	PORT_SET_NET_TYPE	= BIT(2),
 	PORT_SET_AID		= BIT(3),
+	PORT_SET_BCN_CTRL	= BIT(4),
 };
 
 struct rtw_vif_port {
@@ -438,6 +439,7 @@ struct rtw_vif_port {
 	struct rtw_hw_reg bssid;
 	struct rtw_hw_reg net_type;
 	struct rtw_hw_reg aid;
+	struct rtw_hw_reg bcn_ctrl;
 };
 
 struct rtw_tx_pkt_info {
@@ -591,6 +593,7 @@ struct rtw_vif {
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 port;
+	u8 bcn_ctrl;
 	const struct rtw_vif_port *conf;
 
 	struct rtw_traffic_stats stats;
@@ -838,6 +841,9 @@ struct rtw_chip_info {
 	u32 rfe_defs_size;
 };
 
+#define DACK_MSBK_BACKUP_NUM	0xf
+#define DACK_DCK_BACKUP_NUM	0x2
+
 struct rtw_dm_info {
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
@@ -853,6 +859,11 @@ struct rtw_dm_info {
 
 	u8 cck_gi_u_bnd;
 	u8 cck_gi_l_bnd;
+
+	/* backup dack results for each path and I/Q */
+	u32 dack_adck[RTW_RF_PATH_MAX];
+	u16 dack_msbk[RTW_RF_PATH_MAX][2][DACK_MSBK_BACKUP_NUM];
+	u8 dack_dck[RTW_RF_PATH_MAX][2][DACK_DCK_BACKUP_NUM];
 };
 
 struct rtw_efuse {

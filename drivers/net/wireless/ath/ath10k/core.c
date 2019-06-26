@@ -154,6 +154,33 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.fw_diag_ce_download = false,
 	},
 	{
+		.id = QCA6174_HW_3_2_VERSION,
+		.dev_id = QCA6174_3_2_DEVICE_ID,
+		.bus = ATH10K_BUS_SDIO,
+		.name = "qca6174 hw3.2 sdio",
+		.patch_load_addr = QCA6174_HW_3_0_PATCH_LOAD_ADDR,
+		.uart_pin = 19,
+		.otp_exe_param = 0,
+		.channel_counters_freq_hz = 88000,
+		.max_probe_resp_desc_thres = 0,
+		.cal_data_len = 0,
+		.fw = {
+			.dir = QCA6174_HW_3_0_FW_DIR,
+			.board = QCA6174_HW_3_0_BOARD_DATA_FILE,
+			.board_size = QCA6174_BOARD_DATA_SZ,
+			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
+		},
+		.hw_ops = &qca6174_ops,
+		.hw_clk = qca6174_clk,
+		.target_cpu_freq = 176000000,
+		.decap_align_bytes = 4,
+		.n_cipher_suites = 8,
+		.num_peers = 10,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
+		.uart_pin_workaround = true,
+	},
+	{
 		.id = QCA6174_HW_2_1_VERSION,
 		.dev_id = QCA6164_2_1_DEVICE_ID,
 		.bus = ATH10K_BUS_PCI,
@@ -629,7 +656,7 @@ static void ath10k_send_suspend_complete(struct ath10k *ar)
 	complete(&ar->target_suspend);
 }
 
-static void ath10k_init_sdio(struct ath10k *ar)
+static void ath10k_init_sdio(struct ath10k *ar, enum ath10k_firmware_mode mode)
 {
 	u32 param = 0;
 
@@ -646,7 +673,12 @@ static void ath10k_init_sdio(struct ath10k *ar)
 	 * not big enough for mac80211 / native wifi frames. disable it
 	 */
 	param &= ~HI_ACS_FLAGS_ALT_DATA_CREDIT_SIZE;
-	param |= HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
+
+	if (mode == ATH10K_FIRMWARE_MODE_UTF)
+		param &= ~HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
+	else
+		param |= HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
+
 	ath10k_bmi_write32(ar, hi_acs_flags, param);
 
 	/* Explicitly set fwlog prints to zero as target may turn it on
@@ -2065,8 +2097,16 @@ static int ath10k_init_uart(struct ath10k *ar)
 		return ret;
 	}
 
-	if (!uart_print)
+	if (!uart_print && ar->hw_params.uart_pin_workaround) {
+		ret = ath10k_bmi_write32(ar, hi_dbg_uart_txpin,
+					 ar->hw_params.uart_pin);
+		if (ret) {
+			ath10k_warn(ar, "failed to set UART TX pin: %d", ret);
+			return ret;
+		}
+
 		return 0;
+	}
 
 	ret = ath10k_bmi_write32(ar, hi_dbg_uart_txpin, ar->hw_params.uart_pin);
 	if (ret) {
@@ -2501,7 +2541,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 			goto err;
 
 		if (ar->hif.bus == ATH10K_BUS_SDIO)
-			ath10k_init_sdio(ar);
+			ath10k_init_sdio(ar, mode);
 	}
 
 	ar->htc.htc_ops.target_send_suspend_complete =

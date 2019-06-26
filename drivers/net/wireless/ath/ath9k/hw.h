@@ -173,6 +173,7 @@
 #define ATH9K_NUM_QUEUES            10
 
 #define MAX_RATE_POWER              63
+#define MAX_COMBINED_POWER          254 /* 128 dBm, chosen to fit in u8 */
 #define AH_WAIT_TIMEOUT             100000 /* (us) */
 #define AH_TSF_WRITE_TIMEOUT        100    /* (us) */
 #define AH_TIME_QUANTUM             10

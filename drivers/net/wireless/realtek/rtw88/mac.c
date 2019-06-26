@@ -285,8 +285,14 @@ int rtw_mac_power_on(struct rtw_dev *rtwdev)
 		goto err;
 
 	ret = rtw_mac_power_switch(rtwdev, true);
-	if (ret)
+	if (ret == -EALREADY) {
+		rtw_mac_power_switch(rtwdev, false);
+		ret = rtw_mac_power_switch(rtwdev, true);
+		if (ret)
+			goto err;
+	} else if (ret) {
 		goto err;
+	}
 
 	ret = rtw_mac_init_system_cfg(rtwdev);
 	if (ret)

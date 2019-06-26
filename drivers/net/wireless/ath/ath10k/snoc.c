@@ -165,7 +165,7 @@ static struct ce_attr host_ce_config_wlan[] = {
 	/* CE4: host->target HTT */
 	{
 		.flags = CE_ATTR_FLAGS | CE_ATTR_DIS_INTR,
-		.src_nentries = 256,
+		.src_nentries = 2048,
 		.src_sz_max = 256,
 		.dest_nentries = 0,
 		.send_cb = ath10k_snoc_htt_tx_cb,
@@ -1249,7 +1249,7 @@ out:
 int ath10k_snoc_fw_indication(struct ath10k *ar, u64 type)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_bus_params bus_params;
+	struct ath10k_bus_params bus_params = {};
 	int ret;
 
 	if (test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags))

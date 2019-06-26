@@ -20,7 +20,7 @@ EXPORT_SYMBOL(rtw_debug_mask);
 module_param_named(support_lps, rtw_fw_support_lps, bool, 0644);
 module_param_named(debug_mask, rtw_debug_mask, uint, 0644);
 
-MODULE_PARM_DESC(support_lps, "Set Y to enable LPS support");
+MODULE_PARM_DESC(support_lps, "Set Y to enable Leisure Power Save support, to turn radio off between beacons");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
 static struct ieee80211_channel rtw_channeltable_2g[] = {
@@ -308,6 +308,11 @@ void rtw_vif_port_config(struct rtw_dev *rtwdev,
 		addr = rtwvif->conf->aid.addr;
 		mask = rtwvif->conf->aid.mask;
 		rtw_write32_mask(rtwdev, addr, mask, rtwvif->aid);
+	}
+	if (config & PORT_SET_BCN_CTRL) {
+		addr = rtwvif->conf->bcn_ctrl.addr;
+		mask = rtwvif->conf->bcn_ctrl.mask;
+		rtw_write8_mask(rtwdev, addr, mask, rtwvif->bcn_ctrl);
 	}
 }
 
@@ -1169,6 +1174,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |
@@ -1177,6 +1183,8 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
+
+	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	rtw_set_supported_band(hw, rtwdev->chip);
 	SET_IEEE80211_PERM_ADDR(hw, rtwdev->efuse.addr);

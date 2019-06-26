@@ -424,6 +424,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
 	scaledPower = powerLimit - antenna_reduction;
+	scaledPower = min_t(u16, scaledPower, MAX_RATE_POWER);
 	numCtlModes = ARRAY_SIZE(ctlModesFor11g) - SUB_NUM_CTL_MODES_AT_2G_40;
 	pCtlMode = ctlModesFor11g;
 

@@ -142,6 +142,8 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		       min(sizeof(wil->platform_capa), sizeof(platform_capa)));
 	}
 
+	wil_info(wil, "platform_capa 0x%lx\n", *wil->platform_capa);
+
 	/* extract FW capabilities from file without loading the FW */
 	wil_request_firmware(wil, wil->wil_fw_name, false);
 	wil_refresh_fw_capabilities(wil);

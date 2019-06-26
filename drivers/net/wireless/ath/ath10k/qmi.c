@@ -506,6 +506,7 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 	struct wlfw_cap_resp_msg_v01 *resp;
 	struct wlfw_cap_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
@@ -560,13 +561,13 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 		strlcpy(qmi->fw_build_id, resp->fw_build_id,
 			MAX_BUILD_ID_LEN + 1);
 
-	ath10k_dbg(ar, ATH10K_DBG_QMI,
-		   "qmi chip_id 0x%x chip_family 0x%x board_id 0x%x soc_id 0x%x",
-		   qmi->chip_info.chip_id, qmi->chip_info.chip_family,
-		   qmi->board_info.board_id, qmi->soc_info.soc_id);
-	ath10k_dbg(ar, ATH10K_DBG_QMI,
-		   "qmi fw_version 0x%x fw_build_timestamp %s fw_build_id %s",
-		   qmi->fw_version, qmi->fw_build_timestamp, qmi->fw_build_id);
+	if (!test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags)) {
+		ath10k_info(ar, "qmi chip_id 0x%x chip_family 0x%x board_id 0x%x soc_id 0x%x",
+			    qmi->chip_info.chip_id, qmi->chip_info.chip_family,
+			    qmi->board_info.board_id, qmi->soc_info.soc_id);
+		ath10k_info(ar, "qmi fw_version 0x%x fw_build_timestamp %s fw_build_id %s",
+			    qmi->fw_version, qmi->fw_build_timestamp, qmi->fw_build_id);
+	}
 
 	kfree(resp);
 	return 0;

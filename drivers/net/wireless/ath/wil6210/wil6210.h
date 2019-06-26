@@ -335,6 +335,11 @@ struct RGF_ICR {
 	#define BIT_BOOT_FROM_ROM		BIT(31)
 
 /* eDMA */
+#define RGF_SCM_PTRS_SUBQ_RD_PTR	(0x8b4000)
+#define RGF_SCM_PTRS_COMPQ_RD_PTR	(0x8b4100)
+#define RGF_DMA_SCM_SUBQ_CONS		(0x8b60ec)
+#define RGF_DMA_SCM_COMPQ_PROD		(0x8b616c)
+
 #define RGF_INT_COUNT_ON_SPECIAL_EVT	(0x8b62d8)
 
 #define RGF_INT_CTRL_INT_GEN_CFG_0	(0x8bc000)
@@ -454,15 +459,6 @@ static inline void parse_cidxtid(u8 cidxtid, u8 *cid, u8 *tid)
 {
 	*cid = cidxtid & 0xf;
 	*tid = (cidxtid >> 4) & 0xf;
-}
-
-/**
- * wil_cid_valid - check cid is valid
- * @cid: CID value
- */
-static inline bool wil_cid_valid(u8 cid)
-{
-	return (cid >= 0 && cid < max_assoc_sta);
 }
 
 struct wil6210_mbox_ring {
@@ -913,6 +909,11 @@ struct wil_fw_stats_global {
 	struct wmi_link_stats_global stats;
 };
 
+struct wil_brd_info {
+	u32 file_addr;
+	u32 file_max_size;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	u32 bar_size;
@@ -927,8 +928,8 @@ struct wil6210_priv {
 	const char *hw_name;
 	const char *wil_fw_name;
 	char *board_file;
-	u32 brd_file_addr;
-	u32 brd_file_max_size;
+	u32 num_of_brd_entries;
+	struct wil_brd_info *brd_info;
 	DECLARE_BITMAP(hw_capa, hw_capa_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	DECLARE_BITMAP(platform_capa, WIL_PLATFORM_CAPA_MAX);
@@ -940,6 +941,8 @@ struct wil6210_priv {
 	struct wil6210_vif *vifs[WIL_MAX_VIFS];
 	struct mutex vif_mutex; /* protects access to VIF entries */
 	atomic_t connected_vifs;
+	u32 max_assoc_sta; /* max sta's supported by the driver and the FW */
+
 	/* profile */
 	struct cfg80211_chan_def monitor_chandef;
 	u32 monitor_flags;
@@ -1135,6 +1138,14 @@ static inline void wil_s(struct wil6210_priv *wil, u32 reg, u32 val)
 static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 {
 	wil_w(wil, reg, wil_r(wil, reg) & ~val);
+}
+
+/**
+ * wil_cid_valid - check cid is valid
+ */
+static inline bool wil_cid_valid(struct wil6210_priv *wil, u8 cid)
+{
+	return (cid >= 0 && cid < wil->max_assoc_sta);
 }
 
 void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len);
