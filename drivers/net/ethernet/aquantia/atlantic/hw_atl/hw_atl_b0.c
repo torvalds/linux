@@ -40,7 +40,9 @@
 			NETIF_F_TSO |     \
 			NETIF_F_LRO |     \
 			NETIF_F_NTUPLE |  \
-			NETIF_F_HW_VLAN_CTAG_FILTER, \
+			NETIF_F_HW_VLAN_CTAG_FILTER | \
+			NETIF_F_HW_VLAN_CTAG_RX |     \
+			NETIF_F_HW_VLAN_CTAG_TX,      \
 	.hw_priv_flags = IFF_UNICAST_FLT, \
 	.flow_control = true,		  \
 	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
@@ -501,7 +503,7 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->sw_tail];
 
-		if (buff->is_txc) {
+		if (buff->is_gso) {
 			txd->ctl |= (buff->len_l3 << 31) |
 				(buff->len_l2 << 24) |
 				HW_ATL_B0_TXD_CTL_CMD_TCP |
@@ -559,6 +561,7 @@ static int hw_atl_b0_hw_ring_rx_init(struct aq_hw_s *self,
 {
 	u32 dma_desc_addr_lsw = (u32)aq_ring->dx_ring_pa;
 	u32 dma_desc_addr_msw = (u32)(((u64)aq_ring->dx_ring_pa) >> 32);
+	u32 vlan_rx_stripping = self->aq_nic_cfg->is_vlan_rx_strip;
 
 	hw_atl_rdm_rx_desc_en_set(self, false, aq_ring->idx);
 
@@ -578,7 +581,8 @@ static int hw_atl_b0_hw_ring_rx_init(struct aq_hw_s *self,
 
 	hw_atl_rdm_rx_desc_head_buff_size_set(self, 0U, aq_ring->idx);
 	hw_atl_rdm_rx_desc_head_splitting_set(self, 0U, aq_ring->idx);
-	hw_atl_rpo_rx_desc_vlan_stripping_set(self, 0U, aq_ring->idx);
+	hw_atl_rpo_rx_desc_vlan_stripping_set(self, !!vlan_rx_stripping,
+					      aq_ring->idx);
 
 	/* Rx ring set mode */
 

@@ -126,6 +126,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 	cfg->link_speed_msk &= cfg->aq_hw_caps->link_speed_msk;
 	cfg->features = cfg->aq_hw_caps->hw_features;
+	cfg->is_vlan_rx_strip = !!(cfg->features & NETIF_F_HW_VLAN_CTAG_RX);
+	cfg->is_vlan_tx_insert = !!(cfg->features & NETIF_F_HW_VLAN_CTAG_TX);
 }
 
 static int aq_nic_update_link_status(struct aq_nic_s *self)
@@ -285,7 +287,8 @@ void aq_nic_ndev_init(struct aq_nic_s *self)
 	self->ndev->hw_features |= aq_hw_caps->hw_features;
 	self->ndev->features = aq_hw_caps->hw_features;
 	self->ndev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
-				     NETIF_F_RXHASH | NETIF_F_SG | NETIF_F_LRO;
+				     NETIF_F_RXHASH | NETIF_F_SG |
+				     NETIF_F_LRO | NETIF_F_TSO;
 	self->ndev->priv_flags = aq_hw_caps->hw_priv_flags;
 	self->ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
@@ -434,7 +437,7 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 		dx_buff->len_l3 = ip_hdrlen(skb);
 		dx_buff->len_l4 = tcp_hdrlen(skb);
 		dx_buff->mss = skb_shinfo(skb)->gso_size;
-		dx_buff->is_txc = 1U;
+		dx_buff->is_gso = 1U;
 		dx_buff->eop_index = 0xffffU;
 
 		dx_buff->is_ipv6 =
@@ -534,7 +537,7 @@ mapping_error:
 	     --ret, dx = aq_ring_next_dx(ring, dx)) {
 		dx_buff = &ring->buff_ring[dx];
 
-		if (!dx_buff->is_txc && dx_buff->pa) {
+		if (!dx_buff->is_gso && dx_buff->pa) {
 			if (unlikely(dx_buff->is_sop)) {
 				dma_unmap_single(aq_nic_get_dev(self),
 						 dx_buff->pa,
