@@ -1,5 +1,7 @@
-Using RCU to Protect Read-Mostly Linked Lists
+.. _list_rcu_doc:
 
+Using RCU to Protect Read-Mostly Linked Lists
+=============================================
 
 One of the best applications of RCU is to protect read-mostly linked lists
 ("struct list_head" in list.h).  One big advantage of this approach
@@ -7,8 +9,8 @@ is that all of the required memory barriers are included for you in
 the list macros.  This document describes several applications of RCU,
 with the best fits first.
 
-
 Example 1: Read-Side Action Taken Outside of Lock, No In-Place Updates
+----------------------------------------------------------------------
 
 The best applications are cases where, if reader-writer locking were
 used, the read-side lock would be dropped before taking any action
@@ -24,7 +26,7 @@ added or deleted, rather than being modified in place.
 
 A straightforward example of this use of RCU may be found in the
 system-call auditing support.  For example, a reader-writer locked
-implementation of audit_filter_task() might be as follows:
+implementation of audit_filter_task() might be as follows::
 
 	static enum audit_state audit_filter_task(struct task_struct *tsk)
 	{
@@ -48,7 +50,7 @@ the corresponding value is returned.  By the time that this value is acted
 on, the list may well have been modified.  This makes sense, since if
 you are turning auditing off, it is OK to audit a few extra system calls.
 
-This means that RCU can be easily applied to the read side, as follows:
+This means that RCU can be easily applied to the read side, as follows::
 
 	static enum audit_state audit_filter_task(struct task_struct *tsk)
 	{
@@ -73,7 +75,7 @@ become list_for_each_entry_rcu().  The _rcu() list-traversal primitives
 insert the read-side memory barriers that are required on DEC Alpha CPUs.
 
 The changes to the update side are also straightforward.  A reader-writer
-lock might be used as follows for deletion and insertion:
+lock might be used as follows for deletion and insertion::
 
 	static inline int audit_del_rule(struct audit_rule *rule,
 					 struct list_head *list)
@@ -106,7 +108,7 @@ lock might be used as follows for deletion and insertion:
 		return 0;
 	}
 
-Following are the RCU equivalents for these two functions:
+Following are the RCU equivalents for these two functions::
 
 	static inline int audit_del_rule(struct audit_rule *rule,
 					 struct list_head *list)
@@ -154,13 +156,13 @@ otherwise cause concurrent readers to fail spectacularly.
 So, when readers can tolerate stale data and when entries are either added
 or deleted, without in-place modification, it is very easy to use RCU!
 
-
 Example 2: Handling In-Place Updates
+------------------------------------
 
 The system-call auditing code does not update auditing rules in place.
 However, if it did, reader-writer-locked code to do so might look as
 follows (presumably, the field_count is only permitted to decrease,
-otherwise, the added fields would need to be filled in):
+otherwise, the added fields would need to be filled in)::
 
 	static inline int audit_upd_rule(struct audit_rule *rule,
 					 struct list_head *list,
@@ -187,7 +189,7 @@ otherwise, the added fields would need to be filled in):
 The RCU version creates a copy, updates the copy, then replaces the old
 entry with the newly updated entry.  This sequence of actions, allowing
 concurrent reads while doing a copy to perform an update, is what gives
-RCU ("read-copy update") its name.  The RCU code is as follows:
+RCU ("read-copy update") its name.  The RCU code is as follows::
 
 	static inline int audit_upd_rule(struct audit_rule *rule,
 					 struct list_head *list,
@@ -216,8 +218,8 @@ RCU ("read-copy update") its name.  The RCU code is as follows:
 Again, this assumes that the caller holds audit_netlink_sem.  Normally,
 the reader-writer lock would become a spinlock in this sort of code.
 
-
 Example 3: Eliminating Stale Data
+---------------------------------
 
 The auditing examples above tolerate stale data, as do most algorithms
 that are tracking external state.  Because there is a delay from the
@@ -231,13 +233,16 @@ per-entry spinlock, and, if the "deleted" flag is set, pretends that the
 entry does not exist.  For this to be helpful, the search function must
 return holding the per-entry spinlock, as ipc_lock() does in fact do.
 
-Quick Quiz:  Why does the search function need to return holding the
-	per-entry lock for this deleted-flag technique to be helpful?
+Quick Quiz:
+	Why does the search function need to return holding the per-entry lock for
+	this deleted-flag technique to be helpful?
+
+:ref:`Answer to Quick Quiz <answer_quick_quiz_list>`
 
 If the system-call audit module were to ever need to reject stale data,
 one way to accomplish this would be to add a "deleted" flag and a "lock"
 spinlock to the audit_entry structure, and modify audit_filter_task()
-as follows:
+as follows::
 
 	static enum audit_state audit_filter_task(struct task_struct *tsk)
 	{
@@ -268,7 +273,7 @@ audit_upd_rule() would need additional memory barriers to ensure
 that the list_add_rcu() was really executed before the list_del_rcu().
 
 The audit_del_rule() function would need to set the "deleted"
-flag under the spinlock as follows:
+flag under the spinlock as follows::
 
 	static inline int audit_del_rule(struct audit_rule *rule,
 					 struct list_head *list)
@@ -290,8 +295,8 @@ flag under the spinlock as follows:
 		return -EFAULT;		/* No matching rule */
 	}
 
-
 Summary
+-------
 
 Read-mostly list-based data structures that can tolerate stale data are
 the most amenable to use of RCU.  The simplest case is where entries are
@@ -302,8 +307,9 @@ If stale data cannot be tolerated, then a "deleted" flag may be used
 in conjunction with a per-entry spinlock in order to allow the search
 function to reject newly deleted data.
 
+.. _answer_quick_quiz_list:
 
-Answer to Quick Quiz
+Answer to Quick Quiz:
 	Why does the search function need to return holding the per-entry
 	lock for this deleted-flag technique to be helpful?
 
