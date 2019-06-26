@@ -97,15 +97,14 @@ static inline void mlx5e_xdp_update_inline_state(struct mlx5e_xdpsq *sq)
 }
 
 static inline void
-mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi,
+mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
+			 struct mlx5e_xdp_xmit_data *xdptxd,
 			 struct mlx5e_xdpsq_stats *stats)
 {
 	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
-	dma_addr_t dma_addr    = xdpi->dma_addr;
-	struct xdp_frame *xdpf = xdpi->xdpf;
 	struct mlx5_wqe_data_seg *dseg =
 		(struct mlx5_wqe_data_seg *)session->wqe + session->ds_count;
-	u16 dma_len = xdpf->len;
+	u32 dma_len = xdptxd->len;
 
 	session->pkt_count++;
 
@@ -124,7 +123,7 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi,
 		}
 
 		inline_dseg->byte_count = cpu_to_be32(dma_len | MLX5_INLINE_SEG);
-		memcpy(inline_dseg->data, xdpf->data, dma_len);
+		memcpy(inline_dseg->data, xdptxd->data, dma_len);
 
 		session->ds_count += ds_cnt;
 		stats->inlnw++;
@@ -132,7 +131,7 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi,
 	}
 
 no_inline:
-	dseg->addr       = cpu_to_be64(dma_addr);
+	dseg->addr       = cpu_to_be64(xdptxd->dma_addr);
 	dseg->byte_count = cpu_to_be32(dma_len);
 	dseg->lkey       = sq->mkey_be;
 	session->ds_count++;
