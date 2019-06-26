@@ -120,11 +120,11 @@ int r8712_xmit_resource_alloc(struct _adapter *padapter,
 		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!pxmitbuf->pxmit_urb[i]) {
 			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
-			return _FAIL;
+			return -ENOMEM;
 		}
 		kmemleak_not_leak(pxmitbuf->pxmit_urb[i]);
 	}
-	return _SUCCESS;
+	return 0;
 }
 
 void r8712_xmit_resource_free(struct _adapter *padapter,
