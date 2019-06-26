@@ -847,8 +847,8 @@ cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 }
 
 static const struct cnl_ddi_buf_trans *
-icl_get_combo_buf_trans(struct drm_i915_private *dev_priv, enum port port,
-			int type, int rate, int *n_entries)
+icl_get_combo_buf_trans(struct drm_i915_private *dev_priv, int type, int rate,
+			int *n_entries)
 {
 	if (type == INTEL_OUTPUT_HDMI) {
 		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
@@ -873,7 +873,7 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		if (intel_port_is_combophy(dev_priv, port))
-			icl_get_combo_buf_trans(dev_priv, port, INTEL_OUTPUT_HDMI,
+			icl_get_combo_buf_trans(dev_priv, INTEL_OUTPUT_HDMI,
 						0, &n_entries);
 		else
 			n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations);
@@ -2232,7 +2232,7 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		if (intel_port_is_combophy(dev_priv, port))
-			icl_get_combo_buf_trans(dev_priv, port, encoder->type,
+			icl_get_combo_buf_trans(dev_priv, encoder->type,
 						intel_dp->link_rate, &n_entries);
 		else
 			n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations);
@@ -2421,8 +2421,8 @@ static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
 	u32 n_entries, val;
 	int ln;
 
-	ddi_translations = icl_get_combo_buf_trans(dev_priv, port, type,
-						   rate, &n_entries);
+	ddi_translations = icl_get_combo_buf_trans(dev_priv, type, rate,
+						   &n_entries);
 	if (!ddi_translations)
 		return;
 
