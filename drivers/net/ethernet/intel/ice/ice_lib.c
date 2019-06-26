@@ -2978,6 +2978,10 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		if (ret)
 			goto err_rings;
 
+		ret = ice_vsi_setup_vector_base(vsi);
+		if (ret)
+			goto err_vectors;
+
 		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
 		if (ret)
 			goto err_vectors;
@@ -2998,10 +3002,6 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		ret = ice_vsi_alloc_q_vectors(vsi);
 		if (ret)
 			goto err_rings;
-
-		ret = ice_vsi_setup_vector_base(vsi);
-		if (ret)
-			goto err_vectors;
 
 		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
 		if (ret)
