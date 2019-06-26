@@ -762,7 +762,7 @@ long keyctl_keyring_search(key_serial_t ringid,
 	}
 
 	/* do the search */
-	key_ref = keyring_search(keyring_ref, ktype, description);
+	key_ref = keyring_search(keyring_ref, ktype, description, true);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
 

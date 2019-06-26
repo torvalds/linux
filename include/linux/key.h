@@ -341,7 +341,8 @@ extern int keyring_clear(struct key *keyring);
 
 extern key_ref_t keyring_search(key_ref_t keyring,
 				struct key_type *type,
-				const char *description);
+				const char *description,
+				bool recurse);
 
 extern int keyring_add_key(struct key *keyring,
 			   struct key *key);

@@ -1162,11 +1162,13 @@ payload contents" for more information.
 
 	key_ref_t keyring_search(key_ref_t keyring_ref,
 				 const struct key_type *type,
-				 const char *description)
+				 const char *description,
+				 bool recurse)
 
-    This searches the keyring tree specified for a matching key. Error ENOKEY
-    is returned upon failure (use IS_ERR/PTR_ERR to determine). If successful,
-    the returned key will need to be released.
+    This searches the specified keyring only (recurse == false) or keyring tree
+    (recurse == true) specified for a matching key. Error ENOKEY is returned
+    upon failure (use IS_ERR/PTR_ERR to determine). If successful, the returned
+    key will need to be released.
 
     The possession attribute from the keyring reference is used to control
     access through the permissions mask and is propagated to the returned key

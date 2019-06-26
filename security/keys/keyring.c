@@ -685,6 +685,9 @@ descend_to_keyring:
 	 * Non-keyrings avoid the leftmost branch of the root entirely (root
 	 * slots 1-15).
 	 */
+	if (!(ctx->flags & KEYRING_SEARCH_RECURSE))
+		goto not_this_keyring;
+
 	ptr = READ_ONCE(keyring->keys.root);
 	if (!ptr)
 		goto not_this_keyring;
@@ -885,13 +888,15 @@ key_ref_t keyring_search_rcu(key_ref_t keyring_ref,
  * @keyring: The root of the keyring tree to be searched.
  * @type: The type of keyring we want to find.
  * @description: The name of the keyring we want to find.
+ * @recurse: True to search the children of @keyring also
  *
  * As keyring_search_rcu() above, but using the current task's credentials and
  * type's default matching function and preferred search method.
  */
 key_ref_t keyring_search(key_ref_t keyring,
 			 struct key_type *type,
-			 const char *description)
+			 const char *description,
+			 bool recurse)
 {
 	struct keyring_search_context ctx = {
 		.index_key.type		= type,
@@ -906,6 +911,8 @@ key_ref_t keyring_search(key_ref_t keyring,
 	key_ref_t key;
 	int ret;
 
+	if (recurse)
+		ctx.flags |= KEYRING_SEARCH_RECURSE;
 	if (type->match_preparse) {
 		ret = type->match_preparse(&ctx.match_data);
 		if (ret < 0)
@@ -1176,7 +1183,8 @@ static int keyring_detect_cycle(struct key *A, struct key *B)
 		.flags			= (KEYRING_SEARCH_NO_STATE_CHECK |
 					   KEYRING_SEARCH_NO_UPDATE_TIME |
 					   KEYRING_SEARCH_NO_CHECK_PERM |
-					   KEYRING_SEARCH_DETECT_TOO_DEEP),
+					   KEYRING_SEARCH_DETECT_TOO_DEEP |
+					   KEYRING_SEARCH_RECURSE),
 	};
 
 	rcu_read_lock();
