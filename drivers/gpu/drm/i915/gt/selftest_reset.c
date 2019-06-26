@@ -73,11 +73,13 @@ static int igt_atomic_reset(void *arg)
 	for (p = igt_atomic_phases; p->name; p++) {
 		GEM_TRACE("intel_gpu_reset under %s\n", p->name);
 
-		p->critical_section_begin();
 		reset_prepare(i915);
+		p->critical_section_begin();
+
 		err = intel_gpu_reset(i915, ALL_ENGINES);
-		reset_finish(i915);
+
 		p->critical_section_end();
+		reset_finish(i915);
 
 		if (err) {
 			pr_err("intel_gpu_reset failed under %s\n", p->name);
@@ -95,12 +97,71 @@ unlock:
 	return err;
 }
 
+static int igt_atomic_engine_reset(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	const typeof(*igt_atomic_phases) *p;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	/* Check that the resets are usable from atomic context */
+
+	if (!intel_has_reset_engine(i915))
+		return 0;
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0;
+
+	intel_gt_pm_get(&i915->gt);
+	igt_global_reset_lock(i915);
+
+	/* Flush any requests before we get started and check basics */
+	if (!igt_force_reset(i915))
+		goto out_unlock;
+
+	for_each_engine(engine, i915, id) {
+		tasklet_disable_nosync(&engine->execlists.tasklet);
+		intel_engine_pm_get(engine);
+
+		for (p = igt_atomic_phases; p->name; p++) {
+			GEM_TRACE("i915_reset_engine(%s) under %s\n",
+				  engine->name, p->name);
+
+			p->critical_section_begin();
+			err = i915_reset_engine(engine, NULL);
+			p->critical_section_end();
+
+			if (err) {
+				pr_err("i915_reset_engine(%s) failed under %s\n",
+				       engine->name, p->name);
+				break;
+			}
+		}
+
+		intel_engine_pm_put(engine);
+		tasklet_enable(&engine->execlists.tasklet);
+		if (err)
+			break;
+	}
+
+	/* As we poke around the guts, do a full reset before continuing. */
+	igt_force_reset(i915);
+
+out_unlock:
+	igt_global_reset_unlock(i915);
+	intel_gt_pm_put(&i915->gt);
+
+	return err;
+}
+
 int intel_reset_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_global_reset), /* attempt to recover GPU first */
 		SUBTEST(igt_wedged_reset),
 		SUBTEST(igt_atomic_reset),
+		SUBTEST(igt_atomic_engine_reset),
 	};
 	intel_wakeref_t wakeref;
 	int err = 0;
