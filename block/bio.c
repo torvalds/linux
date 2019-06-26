@@ -845,7 +845,7 @@ static void bio_get_pages(struct bio *bio)
 		get_page(bvec->bv_page);
 }
 
-void bio_release_pages(struct bio *bio)
+void bio_release_pages(struct bio *bio, bool mark_dirty)
 {
 	struct bvec_iter_all iter_all;
 	struct bio_vec *bvec;
@@ -853,8 +853,11 @@ void bio_release_pages(struct bio *bio)
 	if (bio_flagged(bio, BIO_NO_PAGE_REF))
 		return;
 
-	bio_for_each_segment_all(bvec, bio, iter_all)
+	bio_for_each_segment_all(bvec, bio, iter_all) {
+		if (mark_dirty && !PageCompound(bvec->bv_page))
+			set_page_dirty_lock(bvec->bv_page);
 		put_page(bvec->bv_page);
+	}
 }
 
 static int __bio_iov_bvec_add_pages(struct bio *bio, struct iov_iter *iter)
@@ -1683,8 +1686,7 @@ static void bio_dirty_fn(struct work_struct *work)
 	while ((bio = next) != NULL) {
 		next = bio->bi_private;
 
-		bio_set_pages_dirty(bio);
-		bio_release_pages(bio);
+		bio_release_pages(bio, true);
 		bio_put(bio);
 	}
 }
@@ -1700,7 +1702,7 @@ void bio_check_pages_dirty(struct bio *bio)
 			goto defer;
 	}
 
-	bio_release_pages(bio);
+	bio_release_pages(bio, false);
 	bio_put(bio);
 	return;
 defer:
