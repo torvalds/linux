@@ -636,7 +636,7 @@ static int wilc_mac_open(struct net_device *ndev)
 	for (i = 0; i < wl->vif_num; i++) {
 		if (ndev == wl->vif[i]->ndev) {
 			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 vif->iftype, vif->ifc_id);
+						 vif->iftype, vif->idx);
 			wilc_set_operation_mode(vif, vif->iftype);
 			break;
 		}
@@ -995,7 +995,6 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	ndev->needs_free_netdev = true;
 	vif->iftype = vif_type;
 	vif->wilc->vif[wl->vif_num] = vif;
-	vif->ifc_id = wl->vif_num;
 	vif->idx = wl->vif_num;
 	wl->vif_num += 1;
 	vif->mac_opened = 0;

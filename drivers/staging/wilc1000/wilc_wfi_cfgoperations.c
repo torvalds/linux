@@ -1462,7 +1462,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		if (wl->initialized) {
 			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 0, vif->ifc_id);
+						 0, vif->idx);
 			wilc_set_operation_mode(vif, WILC_AP_MODE);
 			wilc_set_power_mgmt(vif, 0, 0);
 		}
@@ -1693,11 +1693,10 @@ static int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 			wl->vif[i] = NULL;
 		} else {
 			vif = wl->vif[i + 1];
-			vif->ifc_id = i;
 			vif->idx = i;
 			wl->vif[i] = vif;
 			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 vif->iftype, vif->ifc_id);
+						 vif->iftype, vif->idx);
 		}
 	}
 	wl->vif_num--;

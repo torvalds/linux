@@ -1472,7 +1472,7 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 	drv.mode = (ifc_id | (mode << 1));
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      hif_drv->driver_handler_id);
+				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
 
@@ -1644,7 +1644,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	for (i = 0; i < wilc->vif_num; i++)
 		if (dev == wilc->vif[i]->ndev) {
 			wilc->vif[i]->hif_drv = hif_drv;
-			hif_drv->driver_handler_id = i + 1;
 			break;
 		}
 
