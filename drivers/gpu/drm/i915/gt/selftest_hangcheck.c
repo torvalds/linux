@@ -398,6 +398,7 @@ static int igt_reset_nop(void *arg)
 	count = 0;
 	do {
 		mutex_lock(&i915->drm.struct_mutex);
+
 		for_each_engine(engine, i915, id) {
 			int i;
 
@@ -413,11 +414,12 @@ static int igt_reset_nop(void *arg)
 				i915_request_add(rq);
 			}
 		}
-		mutex_unlock(&i915->drm.struct_mutex);
 
 		igt_global_reset_lock(i915);
 		i915_reset(i915, ALL_ENGINES, NULL);
 		igt_global_reset_unlock(i915);
+
+		mutex_unlock(&i915->drm.struct_mutex);
 		if (i915_reset_failed(i915)) {
 			err = -EIO;
 			break;
@@ -511,9 +513,8 @@ static int igt_reset_nop_engine(void *arg)
 
 				i915_request_add(rq);
 			}
-			mutex_unlock(&i915->drm.struct_mutex);
-
 			err = i915_reset_engine(engine, NULL);
+			mutex_unlock(&i915->drm.struct_mutex);
 			if (err) {
 				pr_err("i915_reset_engine failed\n");
 				break;
