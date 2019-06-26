@@ -132,9 +132,41 @@ struct isst_if_mbox_cmds {
 	struct isst_if_mbox_cmd mbox_cmd[1];
 };
 
+/**
+ * struct isst_if_msr_cmd - Structure to define msr command
+ * @read_write:		Value 0: Read, 1: Write
+ * @logical_cpu:	Logical CPU number
+ * @msr:		MSR number
+ * @data:		For write operation, data to write, for read
+ *			place holder
+ *
+ * Structure to specify MSR command related to PUNIT.
+ */
+struct isst_if_msr_cmd {
+	__u32 read_write; /* Read:0, Write:1 */
+	__u32 logical_cpu;
+	__u64 msr;
+	__u64 data;
+};
+
+/**
+ * struct isst_if_msr_cmds - structure for msr commands
+ * @cmd_count:	Number of mailbox commands in msr_cmd[]
+ * @msr_cmd[]:	Holds one or more msr commands
+ *
+ * This structure used with ioctl ISST_IF_MSR_COMMAND to send
+ * one or more MSR commands. IOCTL return value indicates number of
+ * commands sent or error number if no commands have been sent.
+ */
+struct isst_if_msr_cmds {
+	__u32 cmd_count;
+	struct isst_if_msr_cmd msr_cmd[1];
+};
+
 #define ISST_IF_MAGIC			0xFE
 #define ISST_IF_GET_PLATFORM_INFO	_IOR(ISST_IF_MAGIC, 0, struct isst_if_platform_info *)
 #define ISST_IF_GET_PHY_ID		_IOWR(ISST_IF_MAGIC, 1, struct isst_if_cpu_map *)
 #define ISST_IF_IO_CMD		_IOW(ISST_IF_MAGIC, 2, struct isst_if_io_regs *)
 #define ISST_IF_MBOX_COMMAND	_IOWR(ISST_IF_MAGIC, 3, struct isst_if_mbox_cmds *)
+#define ISST_IF_MSR_COMMAND	_IOWR(ISST_IF_MAGIC, 4, struct isst_if_msr_cmds *)
 #endif

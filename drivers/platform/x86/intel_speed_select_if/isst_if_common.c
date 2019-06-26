@@ -25,6 +25,11 @@
 
 static struct isst_if_cmd_cb punit_callbacks[ISST_IF_DEV_MAX];
 
+static int punit_msr_white_list[] = {
+	MSR_TURBO_RATIO_LIMIT,
+	MSR_CONFIG_TDP_CONTROL,
+};
+
 struct isst_valid_cmd_ranges {
 	u16 cmd;
 	u16 sub_cmd_beg;
@@ -229,6 +234,54 @@ static long isst_if_proc_phyid_req(u8 *cmd_ptr, int *write_only, int resume)
 	return 0;
 }
 
+static bool match_punit_msr_white_list(int msr)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(punit_msr_white_list); ++i) {
+		if (punit_msr_white_list[i] == msr)
+			return true;
+	}
+
+	return false;
+}
+
+static long isst_if_msr_cmd_req(u8 *cmd_ptr, int *write_only, int resume)
+{
+	struct isst_if_msr_cmd *msr_cmd;
+	int ret;
+
+	msr_cmd = (struct isst_if_msr_cmd *)cmd_ptr;
+
+	if (!match_punit_msr_white_list(msr_cmd->msr))
+		return -EINVAL;
+
+	if (msr_cmd->logical_cpu >= nr_cpu_ids)
+		return -EINVAL;
+
+	if (msr_cmd->read_write) {
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		ret = wrmsrl_safe_on_cpu(msr_cmd->logical_cpu,
+					 msr_cmd->msr,
+					 msr_cmd->data);
+		*write_only = 1;
+	} else {
+		u64 data;
+
+		ret = rdmsrl_safe_on_cpu(msr_cmd->logical_cpu,
+					 msr_cmd->msr, &data);
+		if (!ret) {
+			msr_cmd->data = data;
+			*write_only = 0;
+		}
+	}
+
+
+	return ret;
+}
+
 static long isst_if_exec_multi_cmd(void __user *argp, struct isst_if_cmd_cb *cb)
 {
 	unsigned char __user *ptr;
@@ -308,6 +361,12 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		cb = &punit_callbacks[ISST_IF_DEV_MBOX];
 		if (cb->registered)
 			ret = isst_if_exec_multi_cmd(argp, cb);
+		break;
+	case ISST_IF_MSR_COMMAND:
+		cmd_cb.cmd_size = sizeof(struct isst_if_msr_cmd);
+		cmd_cb.offset = offsetof(struct isst_if_msr_cmds, msr_cmd);
+		cmd_cb.cmd_callback = isst_if_msr_cmd_req;
+		ret = isst_if_exec_multi_cmd(argp, &cmd_cb);
 		break;
 	default:
 		break;
