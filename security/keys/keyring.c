@@ -175,6 +175,9 @@ static void hash_key_type_and_desc(struct keyring_index_key *index_key)
 	type = (unsigned long)index_key->type;
 	acc = mult_64x32_and_fold(type, desc_len + 13);
 	acc = mult_64x32_and_fold(acc, 9207);
+	piece = (unsigned long)index_key->domain_tag;
+	acc = mult_64x32_and_fold(acc, piece);
+	acc = mult_64x32_and_fold(acc, 9207);
 
 	for (;;) {
 		n = desc_len;
@@ -208,14 +211,34 @@ static void hash_key_type_and_desc(struct keyring_index_key *index_key)
 
 /*
  * Finalise an index key to include a part of the description actually in the
- * index key and to add in the hash too.
+ * index key, to set the domain tag and to calculate the hash.
  */
 void key_set_index_key(struct keyring_index_key *index_key)
 {
+	static struct key_tag default_domain_tag = { .usage = REFCOUNT_INIT(1), };
 	size_t n = min_t(size_t, index_key->desc_len, sizeof(index_key->desc));
+
 	memcpy(index_key->desc, index_key->description, n);
 
+	index_key->domain_tag = &default_domain_tag;
 	hash_key_type_and_desc(index_key);
+}
+
+/**
+ * key_put_tag - Release a ref on a tag.
+ * @tag: The tag to release.
+ *
+ * This releases a reference the given tag and returns true if that ref was the
+ * last one.
+ */
+bool key_put_tag(struct key_tag *tag)
+{
+	if (refcount_dec_and_test(&tag->usage)) {
+		kfree_rcu(tag, rcu);
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -238,8 +261,10 @@ static unsigned long keyring_get_key_chunk(const void *data, int level)
 		return index_key->x;
 	case 2:
 		return (unsigned long)index_key->type;
+	case 3:
+		return (unsigned long)index_key->domain_tag;
 	default:
-		level -= 3;
+		level -= 4;
 		if (desc_len <= sizeof(index_key->desc))
 			return 0;
 
@@ -268,6 +293,7 @@ static bool keyring_compare_object(const void *object, const void *data)
 	const struct key *key = keyring_ptr_to_key(object);
 
 	return key->index_key.type == index_key->type &&
+		key->index_key.domain_tag == index_key->domain_tag &&
 		key->index_key.desc_len == index_key->desc_len &&
 		memcmp(key->index_key.description, index_key->description,
 		       index_key->desc_len) == 0;
@@ -305,6 +331,12 @@ static int keyring_diff_objects(const void *object, const void *data)
 	/* The next bit may not work on big endian */
 	seg_a = (unsigned long)a->type;
 	seg_b = (unsigned long)b->type;
+	if ((seg_a ^ seg_b) != 0)
+		goto differ;
+	level += sizeof(unsigned long);
+
+	seg_a = (unsigned long)a->domain_tag;
+	seg_b = (unsigned long)b->domain_tag;
 	if ((seg_a ^ seg_b) != 0)
 		goto differ;
 	level += sizeof(unsigned long);

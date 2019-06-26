@@ -40,7 +40,8 @@ static const unsigned char keyrings_capabilities[2] = {
 	       KEYCTL_CAPS0_RESTRICT_KEYRING |
 	       KEYCTL_CAPS0_MOVE
 	       ),
-	[1] = (KEYCTL_CAPS1_NS_KEYRING_NAME),
+	[1] = (KEYCTL_CAPS1_NS_KEYRING_NAME |
+	       KEYCTL_CAPS1_NS_KEY_TAG),
 };
 
 static int key_get_type_from_user(char *type,
