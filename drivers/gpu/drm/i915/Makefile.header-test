@@ -16,6 +16,7 @@ header_test := \
 	i915_reg.h \
 	i915_scheduler_types.h \
 	i915_utils.h \
+	i915_vgpu.h \
 	intel_csr.h \
 	intel_drv.h \
 	intel_pm.h \

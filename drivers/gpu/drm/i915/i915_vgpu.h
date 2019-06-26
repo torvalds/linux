@@ -24,6 +24,7 @@
 #ifndef _I915_VGPU_H_
 #define _I915_VGPU_H_
 
+#include "i915_drv.h"
 #include "i915_pvinfo.h"
 
 void i915_detect_vgpu(struct drm_i915_private *dev_priv);
