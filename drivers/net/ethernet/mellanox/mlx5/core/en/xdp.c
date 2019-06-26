@@ -69,14 +69,48 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	xdptxd.data = xdpf->data;
 	xdptxd.len  = xdpf->len;
 
-	xdpi.mode = MLX5E_XDP_XMIT_MODE_PAGE;
+	if (xdp->rxq->mem.type == MEM_TYPE_ZERO_COPY) {
+		/* The xdp_buff was in the UMEM and was copied into a newly
+		 * allocated page. The UMEM page was returned via the ZCA, and
+		 * this new page has to be mapped at this point and has to be
+		 * unmapped and returned via xdp_return_frame on completion.
+		 */
 
-	dma_addr = di->addr + (xdpf->data - (void *)xdpf);
-	dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd.len, DMA_TO_DEVICE);
+		/* Prevent double recycling of the UMEM page. Even in case this
+		 * function returns false, the xdp_buff shouldn't be recycled,
+		 * as it was already done in xdp_convert_zc_to_xdp_frame.
+		 */
+		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
 
-	xdptxd.dma_addr = dma_addr;
-	xdpi.page.rq = rq;
-	xdpi.page.di = *di;
+		xdpi.mode = MLX5E_XDP_XMIT_MODE_FRAME;
+
+		dma_addr = dma_map_single(sq->pdev, xdptxd.data, xdptxd.len,
+					  DMA_TO_DEVICE);
+		if (dma_mapping_error(sq->pdev, dma_addr)) {
+			xdp_return_frame(xdpf);
+			return false;
+		}
+
+		xdptxd.dma_addr     = dma_addr;
+		xdpi.frame.xdpf     = xdpf;
+		xdpi.frame.dma_addr = dma_addr;
+	} else {
+		/* Driver assumes that convert_to_xdp_frame returns an xdp_frame
+		 * that points to the same memory region as the original
+		 * xdp_buff. It allows to map the memory only once and to use
+		 * the DMA_BIDIRECTIONAL mode.
+		 */
+
+		xdpi.mode = MLX5E_XDP_XMIT_MODE_PAGE;
+
+		dma_addr = di->addr + (xdpf->data - (void *)xdpf);
+		dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd.len,
+					   DMA_TO_DEVICE);
+
+		xdptxd.dma_addr = dma_addr;
+		xdpi.page.rq    = rq;
+		xdpi.page.di    = *di;
+	}
 
 	return sq->xmit_xdp_frame(sq, &xdptxd, &xdpi);
 }
@@ -298,13 +332,13 @@ static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 
 		switch (xdpi.mode) {
 		case MLX5E_XDP_XMIT_MODE_FRAME:
-			/* XDP_REDIRECT */
+			/* XDP_TX from the XSK RQ and XDP_REDIRECT */
 			dma_unmap_single(sq->pdev, xdpi.frame.dma_addr,
 					 xdpi.frame.xdpf->len, DMA_TO_DEVICE);
 			xdp_return_frame(xdpi.frame.xdpf);
 			break;
 		case MLX5E_XDP_XMIT_MODE_PAGE:
-			/* XDP_TX */
+			/* XDP_TX from the regular RQ */
 			mlx5e_page_release(xdpi.page.rq, &xdpi.page.di, recycle);
 			break;
 		default:
