@@ -35,7 +35,7 @@ subdir-ccflags-y += \
 # Extra header tests
 include $(src)/Makefile.header-test
 
-subdir-ccflags-y += -I$(src)
+subdir-ccflags-y += -I$(srctree)/$(src)
 
 # Please keep these build lists sorted!
 
