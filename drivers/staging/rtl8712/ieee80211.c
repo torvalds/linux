@@ -327,11 +327,11 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 
 	if (rsn_ie_len <= 0) {
 		/* No RSN IE - fail silently */
-		return _FAIL;
+		return -EINVAL;
 	}
 	if ((*rsn_ie != _WPA2_IE_ID_) ||
 	    (*(rsn_ie + 1) != (u8)(rsn_ie_len - 2)))
-		return _FAIL;
+		return -EINVAL;
 	pos = rsn_ie;
 	pos += 4;
 	left = rsn_ie_len - 4;
@@ -341,7 +341,7 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 		pos += RSN_SELECTOR_LEN;
 		left -= RSN_SELECTOR_LEN;
 	} else if (left > 0) {
-		return _FAIL;
+		return -EINVAL;
 	}
 	/*pairwise_cipher*/
 	if (left >= 2) {
@@ -349,16 +349,16 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 		pos += 2;
 		left -= 2;
 		if (count == 0 || left < count * RSN_SELECTOR_LEN)
-			return _FAIL;
+			return -EINVAL;
 		for (i = 0; i < count; i++) {
 			*pairwise_cipher |= r8712_get_wpa2_cipher_suite(pos);
 			pos += RSN_SELECTOR_LEN;
 			left -= RSN_SELECTOR_LEN;
 		}
 	} else if (left == 1) {
-		return _FAIL;
+		return -EINVAL;
 	}
-	return _SUCCESS;
+	return 0;
 }
 
 int r8712_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
