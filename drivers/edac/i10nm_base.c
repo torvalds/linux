@@ -267,7 +267,7 @@ static int __init i10nm_init(void)
 		goto fail;
 
 	list_for_each_entry(d, i10nm_edac_list, list) {
-		rc = skx_get_src_id(d, &src_id);
+		rc = skx_get_src_id(d, 0xf8, &src_id);
 		if (rc < 0)
 			goto fail;
 
