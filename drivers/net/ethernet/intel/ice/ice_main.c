@@ -488,6 +488,7 @@ static void
 ice_prepare_for_reset(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
+	u8 i;
 
 	/* already prepared for reset */
 	if (test_bit(__ICE_PREPARED_FOR_RESET, pf->state))
@@ -496,6 +497,10 @@ ice_prepare_for_reset(struct ice_pf *pf)
 	/* Notify VFs of impending reset */
 	if (ice_check_sq_alive(hw, &hw->mailboxq))
 		ice_vc_notify_reset(pf);
+
+	/* Disable VFs until reset is completed */
+	for (i = 0; i < pf->num_alloc_vfs; i++)
+		clear_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states);
 
 	/* disable the VSIs and their queues that are not already DOWN */
 	ice_pf_dis_all_vsi(pf, false);
