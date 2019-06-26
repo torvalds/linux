@@ -57,4 +57,5 @@ struct isst_if_cmd_cb {
 /* Internal interface functions */
 int isst_if_cdev_register(int type, struct isst_if_cmd_cb *cb);
 void isst_if_cdev_unregister(int type);
+struct pci_dev *isst_if_get_pci_dev(int cpu, int bus, int dev, int fn);
 #endif
