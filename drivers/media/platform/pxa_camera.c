@@ -1992,9 +1992,6 @@ static int pxac_vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->bus_info, "platform:pxa-camera", sizeof(cap->bus_info));
 	strscpy(cap->driver, PXA_CAM_DRV_NAME, sizeof(cap->driver));
 	strscpy(cap->card, pxa_cam_driver_description, sizeof(cap->card));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
