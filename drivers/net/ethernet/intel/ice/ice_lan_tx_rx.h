@@ -290,6 +290,7 @@ struct ice_rlan_ctx {
 	u8 tphdata_ena;
 	u8 tphhead_ena;
 	u16 lrxqthresh; /* bigger than needed, see above for reason */
+	u8 prefena;	/* NOTE: normally must be set to 1 at init */
 };
 
 struct ice_ctx_ele {
