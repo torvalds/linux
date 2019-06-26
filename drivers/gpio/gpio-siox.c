@@ -212,20 +212,21 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 {
 	struct gpio_siox_ddata *ddata;
 	struct gpio_irq_chip *girq;
+	struct device *dev = &sdevice->dev;
 	int ret;
 
-	ddata = devm_kzalloc(&sdevice->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
-	dev_set_drvdata(&sdevice->dev, ddata);
+	dev_set_drvdata(dev, ddata);
 
 	mutex_init(&ddata->lock);
 	spin_lock_init(&ddata->irqlock);
 
 	ddata->gchip.base = -1;
 	ddata->gchip.can_sleep = 1;
-	ddata->gchip.parent = &sdevice->dev;
+	ddata->gchip.parent = dev;
 	ddata->gchip.owner = THIS_MODULE;
 	ddata->gchip.get = gpio_siox_get;
 	ddata->gchip.set = gpio_siox_set;
@@ -247,8 +248,7 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 
 	ret = gpiochip_add(&ddata->gchip);
 	if (ret)
-		dev_err(&sdevice->dev,
-			"Failed to register gpio chip (%d)\n", ret);
+		dev_err(dev, "Failed to register gpio chip (%d)\n", ret);
 
 	return ret;
 }
