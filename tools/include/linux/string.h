@@ -29,4 +29,6 @@ static inline bool strstarts(const char *str, const char *prefix)
 	return strncmp(str, prefix, strlen(prefix)) == 0;
 }
 
-#endif /* _LINUX_STRING_H_ */
+extern char * __must_check skip_spaces(const char *);
+
+#endif /* _TOOLS_LINUX_STRING_H_ */

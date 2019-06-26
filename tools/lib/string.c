@@ -17,6 +17,7 @@
 #include <string.h>
 #include <errno.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 #include <linux/compiler.h>
 
 /**
@@ -105,4 +106,17 @@ size_t __weak strlcpy(char *dest, const char *src, size_t size)
 		dest[len] = '\0';
 	}
 	return ret;
+}
+
+/**
+ * skip_spaces - Removes leading whitespace from @str.
+ * @str: The string to be stripped.
+ *
+ * Returns a pointer to the first non-whitespace character in @str.
+ */
+char *skip_spaces(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return (char *)str;
 }
