@@ -310,7 +310,8 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	       sizeof(struct security_priv));
 	timer_setup(&padapter->securitypriv.tkip_timer,
 		    r8712_use_tkipkey_handler, 0);
-	_r8712_init_sta_priv(&padapter->stapriv);
+	if (_r8712_init_sta_priv(&padapter->stapriv))
+		return _FAIL;
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
 	r8712_init_pwrctrl_priv(padapter);

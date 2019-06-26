@@ -119,7 +119,7 @@ static inline u32 wifi_mac_hash(u8 *mac)
 	return x;
 }
 
-u32 _r8712_init_sta_priv(struct sta_priv *pstapriv);
+int _r8712_init_sta_priv(struct sta_priv *pstapriv);
 void _r8712_free_sta_priv(struct sta_priv *pstapriv);
 struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv,
 				     u8 *hwaddr);

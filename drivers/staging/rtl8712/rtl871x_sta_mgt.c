@@ -34,7 +34,7 @@ static void _init_stainfo(struct sta_info *psta)
 	INIT_LIST_HEAD(&psta->auth_list);
 }
 
-u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
+int _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 {
 	struct sta_info *psta;
 	s32 i;
@@ -42,7 +42,7 @@ u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	pstapriv->pallocated_stainfo_buf = kmalloc(sizeof(struct sta_info) *
 						   NUM_STA + 4, GFP_ATOMIC);
 	if (!pstapriv->pallocated_stainfo_buf)
-		return _FAIL;
+		return -ENOMEM;
 	pstapriv->pstainfo_buf = pstapriv->pallocated_stainfo_buf + 4 -
 		((addr_t)(pstapriv->pallocated_stainfo_buf) & 3);
 	_init_queue(&pstapriv->free_sta_queue);
@@ -59,7 +59,7 @@ u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	}
 	INIT_LIST_HEAD(&pstapriv->asoc_list);
 	INIT_LIST_HEAD(&pstapriv->auth_list);
-	return _SUCCESS;
+	return 0;
 }
 
 /* this function is used to free the memory of lock || sema for all stainfos */
