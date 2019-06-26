@@ -402,6 +402,7 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 		netdev_dbg(priv->dev, "disable EEE\n");
 		del_timer_sync(&priv->eee_ctrl_timer);
 		stmmac_set_eee_timer(priv, priv->hw, 0, tx_lpi_timer);
+		mutex_unlock(&priv->lock);
 		return false;
 	}
 
