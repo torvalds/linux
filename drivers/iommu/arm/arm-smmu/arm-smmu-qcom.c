@@ -7,6 +7,8 @@
 #include <linux/acpi.h>
 #include <linux/adreno-smmu-priv.h>
 #include <linux/delay.h>
+#include <linux/bitfield.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/of.h>
@@ -746,16 +748,6 @@ static const struct arm_smmu_impl qcom_smmu_impl = {
 #define TBU_DBG_TIMEOUT_US		100
 #define TBU_MICRO_IDLE_DELAY_US		5
 
-#define TNX_TCR_CNTL			0x130
-#define TNX_TCR_CNTL_TBU_OT_CAPTURE_EN	BIT(18)
-#define TNX_TCR_CNTL_ALWAYS_CAPTURE	BIT(15)
-#define TNX_TCR_CNTL_MATCH_MASK_UPD	BIT(7)
-#define TNX_TCR_CNTL_MATCH_MASK_VALID	BIT(6)
-
-#define CAPTURE1_SNAPSHOT_1		0x138
-
-#define TNX_TCR_CNTL_2			0x178
-#define TNX_TCR_CNTL_2_CAP1_VALID	BIT(0)
 
 /* QTB constants */
 #define QTB_DBG_TIMEOUT_US		100
@@ -843,6 +835,7 @@ struct qsmmuv500_tbu_device {
 	/* Protects halt count */
 	spinlock_t			halt_lock;
 	u32				halt_count;
+	unsigned int			*irqs;
 };
 
 struct qsmmuv500_tbu_impl {
@@ -1407,6 +1400,10 @@ out:
 static DEFINE_MUTEX(capture_reg_lock);
 static DEFINE_SPINLOCK(testbus_lock);
 
+#ifdef CONFIG_IOMMU_DEBUGFS
+static struct dentry *debugfs_capturebus_dir;
+#endif
+
 #ifdef CONFIG_ARM_SMMU_TESTBUS_DEBUGFS
 static struct dentry *debugfs_testbus_dir;
 
@@ -1845,6 +1842,325 @@ struct platform_driver qsmmuv500_tbu_driver = {
 	.probe	= qsmmuv500_tbu_probe,
 };
 
+static ssize_t arm_smmu_debug_capturebus_snapshot_read(struct file *file,
+		char __user *ubuf, size_t count, loff_t *offset)
+{
+	struct qsmmuv500_tbu_device *tbu = file->private_data;
+	struct arm_smmu_device *smmu = tbu->smmu;
+	void __iomem *tbu_base = tbu->base;
+	u64 snapshot[NO_OF_CAPTURE_POINTS][REGS_PER_CAPTURE_POINT];
+	char buf[400];
+	ssize_t retval;
+	size_t buflen;
+	int buf_len = sizeof(buf);
+	int i, j;
+
+	if (*offset)
+		return 0;
+
+	memset(buf, 0, buf_len);
+
+	if (arm_smmu_power_on(smmu->pwr))
+		return -EINVAL;
+
+	if (arm_smmu_power_on(tbu->pwr)) {
+		arm_smmu_power_off(smmu, smmu->pwr);
+		return -EINVAL;
+	}
+
+	if (!mutex_trylock(&capture_reg_lock)) {
+		dev_warn_ratelimited(smmu->dev,
+			"capture bus regs in use, not dumping it.\n");
+		return -EBUSY;
+	}
+
+	arm_smmu_debug_get_capture_snapshot(tbu_base, snapshot);
+
+	mutex_unlock(&capture_reg_lock);
+	arm_smmu_power_off(tbu->smmu, tbu->pwr);
+	arm_smmu_power_off(smmu, smmu->pwr);
+
+	for (i = 0; i < NO_OF_CAPTURE_POINTS ; ++i) {
+		for (j = 0; j < REGS_PER_CAPTURE_POINT; ++j) {
+			scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+				 "Capture_%d_Snapshot_%d : 0x%0llx\n",
+				  i+1, j+1, snapshot[i][j]);
+		}
+	}
+
+	buflen = min(count, strlen(buf));
+	if (copy_to_user(ubuf, buf, buflen)) {
+		dev_err_ratelimited(smmu->dev, "Couldn't copy_to_user\n");
+		retval = -EFAULT;
+	} else {
+		*offset = 1;
+		retval = buflen;
+	}
+
+	return retval;
+}
+
+static const struct file_operations arm_smmu_debug_capturebus_snapshot_fops = {
+	.open	= simple_open,
+	.read	= arm_smmu_debug_capturebus_snapshot_read,
+};
+
+static ssize_t arm_smmu_debug_capturebus_config_write(struct file *file,
+		const char __user *ubuf, size_t count, loff_t *offset)
+{
+	struct qsmmuv500_tbu_device *tbu = file->private_data;
+	struct arm_smmu_device *smmu = tbu->smmu;
+	void __iomem *tbu_base = tbu->base;
+	char *comma1, *comma2;
+	char buf[100];
+	u64 sel, mask, match, val;
+
+	if (count >= sizeof(buf)) {
+		dev_err_ratelimited(smmu->dev, "Input too large\n");
+		goto invalid_format;
+	}
+
+	memset(buf, 0, sizeof(buf));
+
+	if (copy_from_user(buf, ubuf, count)) {
+		dev_err_ratelimited(smmu->dev, "Couldn't copy from user\n");
+		return -EFAULT;
+	}
+
+	comma1 = strnchr(buf, count, ',');
+	if (!comma1)
+		goto invalid_format;
+
+	*comma1  = '\0';
+
+	if (kstrtou64(buf, 0, &sel))
+		goto invalid_format;
+
+	if (sel > 4) {
+		goto invalid_format;
+	} else if (sel == 4) {
+		if (kstrtou64(comma1 + 1, 0, &val))
+			goto invalid_format;
+		goto program_capturebus;
+	}
+
+	comma2 = strnchr(comma1 + 1, count, ',');
+	if (!comma2)
+		goto invalid_format;
+
+	/* split up the words */
+	*comma2 = '\0';
+
+	if (kstrtou64(comma1 + 1, 0, &mask))
+		goto invalid_format;
+
+	if (kstrtou64(comma2 + 1, 0, &match))
+		goto invalid_format;
+
+program_capturebus:
+	if (arm_smmu_power_on(smmu->pwr))
+		return -EINVAL;
+
+	if (arm_smmu_power_on(tbu->pwr)) {
+		arm_smmu_power_off(smmu, smmu->pwr);
+		return -EINVAL;
+	}
+
+	if (!mutex_trylock(&capture_reg_lock)) {
+		dev_warn_ratelimited(smmu->dev,
+			"capture bus regs in use, not configuring it.\n");
+		return -EBUSY;
+	}
+
+	if (sel == 4)
+		arm_smmu_debug_set_tnx_tcr_cntl(tbu_base, val);
+	else
+		arm_smmu_debug_set_mask_and_match(tbu_base, sel, mask, match);
+
+	mutex_unlock(&capture_reg_lock);
+	arm_smmu_power_off(tbu->smmu, tbu->pwr);
+	arm_smmu_power_off(smmu, smmu->pwr);
+
+	return count;
+
+invalid_format:
+	dev_err_ratelimited(smmu->dev, "Invalid format\n");
+	dev_err_ratelimited(smmu->dev,
+			    "Expected:<1/2/3,Mask,Match> <4,TNX_TCR_CNTL>\n");
+	return -EINVAL;
+}
+
+static ssize_t arm_smmu_debug_capturebus_config_read(struct file *file,
+		char __user *ubuf, size_t count, loff_t *offset)
+{
+	struct qsmmuv500_tbu_device *tbu = file->private_data;
+	struct arm_smmu_device *smmu = tbu->smmu;
+	void __iomem *tbu_base = tbu->base;
+	u64 val;
+	u64 mask[NO_OF_MASK_AND_MATCH], match[NO_OF_MASK_AND_MATCH];
+	char buf[400];
+	ssize_t retval;
+	size_t buflen;
+	int buf_len = sizeof(buf);
+	int i;
+
+	if (*offset)
+		return 0;
+
+	memset(buf, 0, buf_len);
+
+	if (arm_smmu_power_on(smmu->pwr))
+		return -EINVAL;
+
+	if (arm_smmu_power_on(tbu->pwr)) {
+		arm_smmu_power_off(smmu, smmu->pwr);
+		return -EINVAL;
+	}
+
+	if (!mutex_trylock(&capture_reg_lock)) {
+		dev_warn_ratelimited(smmu->dev,
+			"capture bus regs in use, not configuring it.\n");
+		return -EBUSY;
+	}
+
+	arm_smmu_debug_get_mask_and_match(tbu_base,
+					mask, match);
+	val = arm_smmu_debug_get_tnx_tcr_cntl(tbu_base);
+
+	mutex_unlock(&capture_reg_lock);
+	arm_smmu_power_off(tbu->smmu, tbu->pwr);
+	arm_smmu_power_off(smmu, smmu->pwr);
+
+	for (i = 0; i < NO_OF_MASK_AND_MATCH; ++i) {
+		scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+				"Mask_%d : 0x%0llx\t", i+1, mask[i]);
+		scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+				"Match_%d : 0x%0llx\n", i+1, match[i]);
+	}
+	scnprintf(buf + strlen(buf), buf_len - strlen(buf), "0x%0lx\n", val);
+
+	buflen = min(count, strlen(buf));
+	if (copy_to_user(ubuf, buf, buflen)) {
+		dev_err_ratelimited(smmu->dev, "Couldn't copy_to_user\n");
+		retval = -EFAULT;
+	} else {
+		*offset = 1;
+		retval = buflen;
+	}
+
+	return retval;
+}
+
+static const struct file_operations arm_smmu_debug_capturebus_config_fops = {
+	.open	= simple_open,
+	.write	= arm_smmu_debug_capturebus_config_write,
+	.read	= arm_smmu_debug_capturebus_config_read,
+};
+
+#ifdef CONFIG_IOMMU_DEBUGFS
+static int qsmmuv500_capturebus_init(struct qsmmuv500_tbu_device *tbu)
+{
+	struct dentry *capturebus_dir;
+
+	if (!iommu_debugfs_dir)
+		return 0;
+
+	if (!debugfs_capturebus_dir) {
+		debugfs_capturebus_dir = debugfs_create_dir(
+					 "capturebus", iommu_debugfs_dir);
+		if (IS_ERR(debugfs_capturebus_dir)) {
+			dev_err_ratelimited(tbu->dev, "Couldn't create iommu/capturebus debugfs directory\n");
+			return PTR_ERR(debugfs_capturebus_dir);
+		}
+	}
+
+	capturebus_dir = debugfs_create_dir(dev_name(tbu->dev),
+				debugfs_capturebus_dir);
+	if (IS_ERR(capturebus_dir)) {
+		dev_err_ratelimited(tbu->dev, "Couldn't create iommu/capturebus/%s debugfs directory\n",
+				dev_name(tbu->dev));
+		goto err;
+	}
+
+	if (IS_ERR(debugfs_create_file("config", 0400, capturebus_dir, tbu,
+			&arm_smmu_debug_capturebus_config_fops))) {
+		dev_err_ratelimited(tbu->dev, "Couldn't create iommu/capturebus/%s/config debugfs file\n",
+				dev_name(tbu->dev));
+		goto err_rmdir;
+	}
+
+	if (IS_ERR(debugfs_create_file("snapshot", 0400, capturebus_dir, tbu,
+			&arm_smmu_debug_capturebus_snapshot_fops))) {
+		dev_err_ratelimited(tbu->dev, "Couldn't create iommu/capturebus/%s/snapshot debugfs file\n",
+				dev_name(tbu->dev));
+		goto err_rmdir;
+	}
+	return 0;
+err_rmdir:
+	debugfs_remove_recursive(capturebus_dir);
+err:
+	return -ENODEV;
+}
+#else
+static int qsmmuv500_capturebus_init(struct qsmmuv500_tbu_device *tbu)
+{
+	return 0;
+}
+#endif
+
+static irqreturn_t arm_smmu_debug_capture_bus_match(int irq, void *dev)
+{
+	struct qsmmuv500_tbu_device *tbu = dev;
+	struct arm_smmu_device *smmu = tbu->smmu;
+	void __iomem *tbu_base = tbu->base;
+	u64 mask[NO_OF_MASK_AND_MATCH], match[NO_OF_MASK_AND_MATCH];
+	u64 snapshot[NO_OF_CAPTURE_POINTS][REGS_PER_CAPTURE_POINT];
+	int i, j;
+	u64 val;
+
+	if (arm_smmu_power_on(smmu->pwr))
+		return IRQ_NONE;
+
+	if (arm_smmu_power_on(tbu->pwr)) {
+		arm_smmu_power_off(smmu, smmu->pwr);
+		return IRQ_NONE;
+	}
+
+	if (!mutex_trylock(&capture_reg_lock)) {
+		dev_warn_ratelimited(smmu->dev,
+			"capture bus regs in use, not dumping it.\n");
+		return IRQ_NONE;
+	}
+
+	val = arm_smmu_debug_get_tnx_tcr_cntl(tbu_base);
+	arm_smmu_debug_get_mask_and_match(tbu_base, mask, match);
+	arm_smmu_debug_get_capture_snapshot(tbu_base, snapshot);
+	arm_smmu_debug_clear_intr_and_validbits(tbu_base);
+
+	mutex_unlock(&capture_reg_lock);
+	arm_smmu_power_off(tbu->smmu, tbu->pwr);
+	arm_smmu_power_off(smmu, smmu->pwr);
+
+	dev_info(tbu->dev, "TNX_TCR_CNTL : 0x%0llx\n", val);
+
+	for (i = 0; i < NO_OF_MASK_AND_MATCH; ++i) {
+		dev_info(tbu->dev,
+				"Mask_%d : 0x%0llx\n", i+1, mask[i]);
+		dev_info(tbu->dev,
+				"Match_%d : 0x%0llx\n", i+1, match[i]);
+	}
+
+	for (i = 0; i < NO_OF_CAPTURE_POINTS ; ++i) {
+		for (j = 0; j < REGS_PER_CAPTURE_POINT; ++j) {
+			dev_info(tbu->dev,
+					"Capture_%d_Snapshot_%d : 0x%0llx\n",
+					i+1, j+1, snapshot[i][j]);
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
 static void qsmmuv500_tlb_sync_timeout(struct arm_smmu_device *smmu)
 {
 	u32 sync_inv_ack, tbu_pwr_status, sync_inv_progress;
@@ -2168,8 +2484,11 @@ static void qsmmuv500_init_cb(struct arm_smmu_domain *smmu_domain,
 
 static int qsmmuv500_tbu_register(struct device *dev, void *cookie)
 {
+	struct resource *res;
 	struct qsmmuv500_tbu_device *tbu;
 	struct qsmmuv500_archdata *data = cookie;
+	struct platform_device *pdev = to_platform_device(dev);
+	int i, err, num_irqs = 0;
 
 	if (!dev->driver) {
 		dev_err(dev, "TBU failed probe, QSMMUV500 cannot continue!\n");
@@ -2182,7 +2501,36 @@ static int qsmmuv500_tbu_register(struct device *dev, void *cookie)
 	tbu->smmu = &data->smmu;
 	list_add(&tbu->list, &data->tbus);
 
+	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, num_irqs)))
+		num_irqs++;
+
+	tbu->irqs = devm_kzalloc(dev, sizeof(*tbu->irqs) * num_irqs,
+				  GFP_KERNEL);
+	if (!tbu->irqs)
+		return -ENOMEM;
+
+	for (i = 0; i < num_irqs; ++i) {
+		int irq = platform_get_irq(pdev, i);
+
+		if (irq < 0) {
+			dev_err(dev, "failed to get irq index %d\n", i);
+			return -ENODEV;
+		}
+		tbu->irqs[i] = irq;
+
+		err = devm_request_threaded_irq(tbu->dev, tbu->irqs[i],
+					NULL, arm_smmu_debug_capture_bus_match,
+					IRQF_ONESHOT | IRQF_SHARED,
+					"capture bus", tbu);
+		if (err) {
+			dev_err(dev, "failed to request capture bus irq%d (%u)\n",
+				i, tbu->irqs[i]);
+			return err;
+		}
+	}
+
 	qsmmuv500_tbu_testbus_init(tbu);
+	qsmmuv500_capturebus_init(tbu);
 	return 0;
 }
 

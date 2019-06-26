@@ -263,3 +263,66 @@ void arm_smmu_debug_dump_tcu_testbus(struct device *dev, phys_addr_t phys_addr,
 		arm_smmu_debug_tcu_testbus_select(phys_addr, tcu_base,
 						CLK_TESTBUS, READ, 0));
 }
+
+void arm_smmu_debug_set_tnx_tcr_cntl(void __iomem *tbu_base, u64 val)
+{
+	u64 tcr_cntl_val = readq_relaxed(tbu_base + TNX_TCR_CNTL);
+
+	/* Don't override OT_CAPTURE configuration*/
+	if (!(tcr_cntl_val & TNX_TCR_CNTL_TBU_OT_CAPTURE_EN))
+		writeq_relaxed(val, tbu_base + TNX_TCR_CNTL);
+	else
+		pr_err_ratelimited("OT capture enbl, skip TCR CNTL write\n");
+}
+
+u64 arm_smmu_debug_get_tnx_tcr_cntl(void __iomem *tbu_base)
+{
+	return readq_relaxed(tbu_base + TNX_TCR_CNTL);
+}
+
+void arm_smmu_debug_set_mask_and_match(void __iomem *tbu_base, u64 sel,
+					u64 mask, u64 match)
+{
+	writeq_relaxed(mask, tbu_base + ARM_SMMU_CAPTURE1_MASK(sel));
+	writeq_relaxed(match, tbu_base + ARM_SMMU_CAPTURE1_MATCH(sel));
+}
+
+void arm_smmu_debug_get_mask_and_match(void __iomem *tbu_base, u64 *mask,
+					u64 *match)
+{
+	int i;
+
+	for (i = 0; i < NO_OF_MASK_AND_MATCH; ++i) {
+		mask[i] = readq_relaxed(tbu_base +
+				ARM_SMMU_CAPTURE1_MASK(i+1));
+		match[i] = readq_relaxed(tbu_base +
+				ARM_SMMU_CAPTURE1_MATCH(i+1));
+	}
+}
+
+void arm_smmu_debug_get_capture_snapshot(void __iomem *tbu_base,
+		u64 snapshot[NO_OF_CAPTURE_POINTS][REGS_PER_CAPTURE_POINT])
+{
+	int  i, j;
+	u64 valid;
+
+	valid = readl_relaxed(tbu_base + TNX_TCR_CNTL_2);
+
+	for (i = 0; i < NO_OF_CAPTURE_POINTS ; ++i) {
+		if (valid & BIT(i))
+			for (j = 0; j < REGS_PER_CAPTURE_POINT; ++j)
+				snapshot[i][j] = readq_relaxed(tbu_base +
+					ARM_SMMU_CAPTURE_SNAPSHOT(i, j));
+		else
+			for (j = 0; j < REGS_PER_CAPTURE_POINT; ++j)
+				snapshot[i][j] = 0xdededede;
+	}
+}
+
+void arm_smmu_debug_clear_intr_and_validbits(void __iomem *tbu_base)
+{
+	u64 val = 0;
+
+	val |= INTR_CLR | RESET_VALID;
+	writeq_relaxed(val, tbu_base + TNX_TCR_CNTL);
+}
