@@ -17,6 +17,35 @@ static DEFINE_XARRAY(pgmap_array);
 #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
 #define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
 
+#ifdef CONFIG_DEV_PAGEMAP_OPS
+DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
+EXPORT_SYMBOL(devmap_managed_key);
+static atomic_t devmap_managed_enable;
+
+static void devmap_managed_enable_put(void *data)
+{
+	if (atomic_dec_and_test(&devmap_managed_enable))
+		static_branch_disable(&devmap_managed_key);
+}
+
+static int devmap_managed_enable_get(struct device *dev, struct dev_pagemap *pgmap)
+{
+	if (!pgmap->ops->page_free) {
+		WARN(1, "Missing page_free method\n");
+		return -EINVAL;
+	}
+
+	if (atomic_inc_return(&devmap_managed_enable) == 1)
+		static_branch_enable(&devmap_managed_key);
+	return devm_add_action_or_reset(dev, devmap_managed_enable_put, NULL);
+}
+#else
+static int devmap_managed_enable_get(struct device *dev, struct dev_pagemap *pgmap)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_DEV_PAGEMAP_OPS */
+
 #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
 vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 		       unsigned long addr,
@@ -156,6 +185,7 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	};
 	pgprot_t pgprot = PAGE_KERNEL;
 	int error, nid, is_ram;
+	bool need_devmap_managed = true;
 
 	switch (pgmap->type) {
 	case MEMORY_DEVICE_PRIVATE:
@@ -173,6 +203,7 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 		break;
 	case MEMORY_DEVICE_DEVDAX:
 	case MEMORY_DEVICE_PCI_P2PDMA:
+		need_devmap_managed = false;
 		break;
 	default:
 		WARN(1, "Invalid pgmap type %d\n", pgmap->type);
@@ -183,6 +214,12 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	    !pgmap->ops->cleanup) {
 		WARN(1, "Missing reference count teardown definition\n");
 		return ERR_PTR(-EINVAL);
+	}
+
+	if (need_devmap_managed) {
+		error = devmap_managed_enable_get(dev, pgmap);
+		if (error)
+			return ERR_PTR(error);
 	}
 
 	align_start = res->start & ~(SECTION_SIZE - 1);
@@ -351,28 +388,6 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 EXPORT_SYMBOL_GPL(get_dev_pagemap);
 
 #ifdef CONFIG_DEV_PAGEMAP_OPS
-DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
-EXPORT_SYMBOL(devmap_managed_key);
-static atomic_t devmap_enable;
-
-/*
- * Toggle the static key for ->page_free() callbacks when dev_pagemap
- * pages go idle.
- */
-void dev_pagemap_get_ops(void)
-{
-	if (atomic_inc_return(&devmap_enable) == 1)
-		static_branch_enable(&devmap_managed_key);
-}
-EXPORT_SYMBOL_GPL(dev_pagemap_get_ops);
-
-void dev_pagemap_put_ops(void)
-{
-	if (atomic_dec_and_test(&devmap_enable))
-		static_branch_disable(&devmap_managed_key);
-}
-EXPORT_SYMBOL_GPL(dev_pagemap_put_ops);
-
 void __put_devmap_managed_page(struct page *page)
 {
 	int count = page_ref_dec_return(page);
