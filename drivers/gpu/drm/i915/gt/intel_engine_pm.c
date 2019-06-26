@@ -142,27 +142,3 @@ void intel_engine_init__pm(struct intel_engine_cs *engine)
 {
 	intel_wakeref_init(&engine->wakeref);
 }
-
-int intel_engines_resume(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int err = 0;
-
-	intel_gt_pm_get(&i915->gt);
-	for_each_engine(engine, i915, id) {
-		intel_engine_pm_get(engine);
-		engine->serial++; /* kernel context lost */
-		err = engine->resume(engine);
-		intel_engine_pm_put(engine);
-		if (err) {
-			dev_err(i915->drm.dev,
-				"Failed to restart %s (%d)\n",
-				engine->name, err);
-			break;
-		}
-	}
-	intel_gt_pm_put(&i915->gt);
-
-	return err;
-}

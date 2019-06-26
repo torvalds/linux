@@ -949,6 +949,21 @@ static int do_reset(struct drm_i915_private *i915,
 	return gt_reset(i915, stalled_mask);
 }
 
+static int resume(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int ret;
+
+	for_each_engine(engine, i915, id) {
+		ret = engine->resume(engine);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 /**
  * i915_reset - reset chip after a hang
  * @i915: #drm_i915_private to reset
@@ -1023,8 +1038,12 @@ void i915_reset(struct drm_i915_private *i915,
 	if (ret) {
 		DRM_ERROR("Failed to initialise HW following reset (%d)\n",
 			  ret);
-		goto error;
+		goto taint;
 	}
+
+	ret = resume(i915);
+	if (ret)
+		goto taint;
 
 	i915_queue_hangcheck(i915);
 

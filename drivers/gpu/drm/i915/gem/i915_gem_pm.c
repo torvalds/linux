@@ -254,14 +254,15 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	i915_gem_restore_gtt_mappings(i915);
 	i915_gem_restore_fences(i915);
 
+	if (i915_gem_init_hw(i915))
+		goto err_wedged;
+
 	/*
 	 * As we didn't flush the kernel context before suspend, we cannot
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
-	intel_gt_resume(&i915->gt);
-
-	if (i915_gem_init_hw(i915))
+	if (intel_gt_resume(&i915->gt))
 		goto err_wedged;
 
 	intel_uc_resume(i915);

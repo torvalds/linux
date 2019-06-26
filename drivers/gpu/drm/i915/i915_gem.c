@@ -46,7 +46,6 @@
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_pm.h"
 #include "gem/i915_gemfs.h"
-#include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_mocs.h"
@@ -1192,11 +1191,16 @@ static void init_unused_rings(struct intel_gt *gt)
 	}
 }
 
-static int init_hw(struct intel_gt *gt)
+int i915_gem_init_hw(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *i915 = gt->i915;
-	struct intel_uncore *uncore = gt->uncore;
+	struct intel_uncore *uncore = &i915->uncore;
+	struct intel_gt *gt = &i915->gt;
 	int ret;
+
+	BUG_ON(!i915->kernel_context);
+	ret = i915_terminally_wedged(i915);
+	if (ret)
+		return ret;
 
 	gt->last_init_time = ktime_get();
 
@@ -1248,51 +1252,10 @@ static int init_hw(struct intel_gt *gt)
 
 	intel_mocs_init_l3cc_table(gt);
 
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
-
-	return 0;
+	intel_engines_set_scheduler_caps(i915);
 
 out:
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
-
-	return ret;
-}
-
-int i915_gem_init_hw(struct drm_i915_private *i915)
-{
-	struct intel_uncore *uncore = &i915->uncore;
-	int ret;
-
-	BUG_ON(!i915->kernel_context);
-	ret = i915_terminally_wedged(i915);
-	if (ret)
-		return ret;
-
-	/* Double layer security blanket, see i915_gem_init() */
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-
-	ret = init_hw(&i915->gt);
-	if (ret)
-		goto err_init;
-
-	/* Only when the HW is re-initialised, can we replay the requests */
-	ret = intel_engines_resume(i915);
-	if (ret)
-		goto err_engines;
-
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
-
-	intel_engines_set_scheduler_caps(i915);
-
-	return 0;
-
-err_engines:
-	intel_uc_fini_hw(i915);
-err_init:
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
-
-	intel_engines_set_scheduler_caps(i915);
-
 	return ret;
 }
 
@@ -1524,6 +1487,11 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_uc_init;
 
+	/* Only when the HW is re-initialised, can we replay the requests */
+	ret = intel_gt_resume(&dev_priv->gt);
+	if (ret)
+		goto err_init_hw;
+
 	/*
 	 * Despite its name intel_init_clock_gating applies both display
 	 * clock gating workarounds; GT mmio workarounds and the occasional
@@ -1537,20 +1505,20 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	ret = intel_engines_verify_workarounds(dev_priv);
 	if (ret)
-		goto err_init_hw;
+		goto err_gt;
 
 	ret = __intel_engines_record_defaults(dev_priv);
 	if (ret)
-		goto err_init_hw;
+		goto err_gt;
 
 	if (i915_inject_load_failure()) {
 		ret = -ENODEV;
-		goto err_init_hw;
+		goto err_gt;
 	}
 
 	if (i915_inject_load_failure()) {
 		ret = -EIO;
-		goto err_init_hw;
+		goto err_gt;
 	}
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
@@ -1564,7 +1532,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * HW as irrevisibly wedged, but keep enough state around that the
 	 * driver doesn't explode during runtime.
 	 */
-err_init_hw:
+err_gt:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	i915_gem_set_wedged(dev_priv);
@@ -1574,6 +1542,7 @@ err_init_hw:
 	i915_gem_drain_workqueue(dev_priv);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+err_init_hw:
 	intel_uc_fini_hw(dev_priv);
 err_uc_init:
 	intel_uc_fini(dev_priv);

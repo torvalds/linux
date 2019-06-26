@@ -22,6 +22,6 @@ void intel_gt_pm_put(struct intel_gt *gt);
 void intel_gt_pm_init_early(struct intel_gt *gt);
 
 void intel_gt_sanitize(struct intel_gt *gt, bool force);
-void intel_gt_resume(struct intel_gt *gt);
+int intel_gt_resume(struct intel_gt *gt);
 
 #endif /* INTEL_GT_PM_H */
