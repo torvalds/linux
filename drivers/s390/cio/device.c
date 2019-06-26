@@ -1655,9 +1655,7 @@ EXPORT_SYMBOL_GPL(ccw_device_force_console);
 static int
 __ccwdev_check_busid(struct device *dev, const void *id)
 {
-	char *bus_id;
-
-	bus_id = id;
+	const char *bus_id = id;
 
 	return (strcmp(bus_id, dev_name(dev)) == 0);
 }

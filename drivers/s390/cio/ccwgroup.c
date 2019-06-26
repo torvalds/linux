@@ -610,7 +610,7 @@ EXPORT_SYMBOL(ccwgroup_driver_unregister);
 
 static int __ccwgroupdev_check_busid(struct device *dev, const void *id)
 {
-	char *bus_id = id;
+	const char *bus_id = id;
 
 	return (strcmp(bus_id, dev_name(dev)) == 0);
 }
