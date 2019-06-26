@@ -88,7 +88,6 @@ static const struct reg_default cs47l15_reg_default[] = {
 	{ 0x00000174, 0x007d }, /* R372 (0x174) - FLL1 Control 4 */
 	{ 0x00000175, 0x0000 }, /* R373 (0x175) - FLL1 Control 5 */
 	{ 0x00000176, 0x0000 }, /* R374 (0x176) - FLL1 Control 6 */
-	{ 0x00000177, 0x0281 }, /* R375 (0x177) - FLL1 Loop Filter Test 1 */
 	{ 0x00000179, 0x0000 }, /* R377 (0x179) - FLL1 Control 7 */
 	{ 0x0000017a, 0x2906 }, /* R378 (0x17A) - FLL1 EFS 2 */
 	{ 0x00000181, 0x0000 }, /* R385 (0x181) - FLL1 Synchroniser 1 */
@@ -746,7 +745,6 @@ static bool cs47l15_16bit_readable_register(struct device *dev,
 	case MADERA_FLL1_CONTROL_1 ... MADERA_FLL1_CONTROL_6:
 	case MADERA_FLL1_CONTROL_7:
 	case MADERA_FLL1_EFS_2:
-	case MADERA_FLL1_LOOP_FILTER_TEST_1:
 	case MADERA_FLL1_SYNCHRONISER_1 ... MADERA_FLL1_SYNCHRONISER_7:
 	case MADERA_FLL1_SPREAD_SPECTRUM:
 	case MADERA_FLL1_GPIO_CLOCK:
