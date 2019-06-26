@@ -183,9 +183,13 @@ static void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 static bool icl_combo_phy_enabled(struct drm_i915_private *dev_priv,
 				  enum port port)
 {
-	return !(I915_READ(ICL_PHY_MISC(port)) &
-		 ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN) &&
-		(I915_READ(ICL_PORT_COMP_DW0(port)) & COMP_INIT);
+	/* The PHY C added by EHL has no PHY_MISC register */
+	if (IS_ELKHARTLAKE(dev_priv) && port == PORT_C)
+		return I915_READ(ICL_PORT_COMP_DW0(port)) & COMP_INIT;
+	else
+		return !(I915_READ(ICL_PHY_MISC(port)) &
+			 ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN) &&
+			(I915_READ(ICL_PORT_COMP_DW0(port)) & COMP_INIT);
 }
 
 static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
@@ -300,6 +304,14 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		}
 
 		/*
+		 * Although EHL adds a combo PHY C, there's no PHY_MISC
+		 * register for it and no need to program the
+		 * DE_IO_COMP_PWR_DOWN setting on PHY C.
+		 */
+		if (IS_ELKHARTLAKE(dev_priv) && port == PORT_C)
+			goto skip_phy_misc;
+
+		/*
 		 * EHL's combo PHY A can be hooked up to either an external
 		 * display (via DDI-D) or an internal display (via DDI-A or
 		 * the DSI DPHY).  This is a motherboard design decision that
@@ -313,6 +325,7 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		val &= ~ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
 		I915_WRITE(ICL_PHY_MISC(port), val);
 
+skip_phy_misc:
 		cnl_set_procmon_ref_values(dev_priv, port);
 
 		if (port == PORT_A) {
@@ -343,10 +356,19 @@ static void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 			DRM_WARN("Port %c combo PHY HW state changed unexpectedly\n",
 				 port_name(port));
 
+		/*
+		 * Although EHL adds a combo PHY C, there's no PHY_MISC
+		 * register for it and no need to program the
+		 * DE_IO_COMP_PWR_DOWN setting on PHY C.
+		 */
+		if (IS_ELKHARTLAKE(dev_priv) && port == PORT_C)
+			goto skip_phy_misc;
+
 		val = I915_READ(ICL_PHY_MISC(port));
 		val |= ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
 		I915_WRITE(ICL_PHY_MISC(port), val);
 
+skip_phy_misc:
 		val = I915_READ(ICL_PORT_COMP_DW0(port));
 		val &= ~COMP_INIT;
 		I915_WRITE(ICL_PORT_COMP_DW0(port), val);
