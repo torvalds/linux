@@ -1202,10 +1202,11 @@ int wilc_wlan_cfg_get_val(struct wilc *wl, u16 wid, u8 *buffer, u32 buffer_size)
 }
 
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
-			 u32 count, u32 drv)
+			 u32 count)
 {
 	int i;
 	int ret = 0;
+	u32 drv = wilc_get_vif_idx(vif);
 
 	if (mode == WILC_GET_CFG) {
 		for (i = 0; i < count; i++) {
