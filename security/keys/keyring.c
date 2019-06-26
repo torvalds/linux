@@ -17,10 +17,12 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <linux/user_namespace.h>
+#include <linux/nsproxy.h>
 #include <keys/keyring-type.h>
 #include <keys/user-type.h>
 #include <linux/assoc_array_priv.h>
 #include <linux/uaccess.h>
+#include <net/net_namespace.h>
 #include "internal.h"
 
 /*
@@ -220,7 +222,10 @@ void key_set_index_key(struct keyring_index_key *index_key)
 
 	memcpy(index_key->desc, index_key->description, n);
 
-	index_key->domain_tag = &default_domain_tag;
+	if (index_key->type->flags & KEY_TYPE_NET_DOMAIN)
+		index_key->domain_tag = current->nsproxy->net_ns->key_domain;
+	else
+		index_key->domain_tag = &default_domain_tag;
 	hash_key_type_and_desc(index_key);
 }
 
