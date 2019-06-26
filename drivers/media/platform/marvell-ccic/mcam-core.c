@@ -1349,9 +1349,6 @@ static int mcam_vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, "marvell_ccic", sizeof(cap->driver));
 	strscpy(cap->card, "marvell_ccic", sizeof(cap->card));
 	strscpy(cap->bus_info, cam->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1688,6 +1685,8 @@ static const struct video_device mcam_v4l_template = {
 	.fops = &mcam_v4l_fops,
 	.ioctl_ops = &mcam_v4l_ioctl_ops,
 	.release = video_device_release_empty,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+		       V4L2_CAP_STREAMING,
 };
 
 /* ---------------------------------------------------------------------- */
