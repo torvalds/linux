@@ -36,6 +36,7 @@ static struct mtd_partition p2kr0_spi0_parts[] = {
 	{ .name = "SLOT_3",	.size = 7798784,		.offset = MTDPART_OFS_NXTBLK},
 	{ .name = "CS0_EXTRA",	.size = MTDPART_SIZ_FULL,	.offset = MTDPART_OFS_NXTBLK},
 };
+
 static struct mtd_partition p2kr0_spi1_parts[] = {
 	{ .name = "SLOT_4",	.size = 7798784,		.offset = 0,                },
 	{ .name = "SLOT_5",	.size = 7798784,		.offset = MTDPART_OFS_NXTBLK},
@@ -182,7 +183,8 @@ kp_spi_write_reg(struct kp_spi_controller_state *cs, int idx, u64 val)
 }
 
 	static int
-kp_spi_wait_for_reg_bit(struct kp_spi_controller_state *cs, int idx, unsigned long bit)
+kp_spi_wait_for_reg_bit(struct kp_spi_controller_state *cs, int idx,
+			unsigned long bit)
 {
 	unsigned long timeout;
 	timeout = jiffies + msecs_to_jiffies(1000);
@@ -207,6 +209,7 @@ kp_spi_txrx_pio(struct spi_device *spidev, struct spi_transfer *transfer)
 	unsigned int c = count;
 
 	int i;
+	int res;
 	u8 *rx       = transfer->rx_buf;
 	const u8 *tx = transfer->tx_buf;
 	int processed = 0;
@@ -215,9 +218,10 @@ kp_spi_txrx_pio(struct spi_device *spidev, struct spi_transfer *transfer)
 		for (i = 0 ; i < c ; i++) {
 			char val = *tx++;
 
-			if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS, KP_SPI_REG_STATUS_TXS) < 0) {
+			res = kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS,
+						      KP_SPI_REG_STATUS_TXS);
+			if (res < 0)
 				goto out;
-			}
 
 			kp_spi_write_reg(cs, KP_SPI_REG_TXDATA, val);
 			processed++;
@@ -228,10 +232,10 @@ kp_spi_txrx_pio(struct spi_device *spidev, struct spi_transfer *transfer)
 			char test = 0;
 
 			kp_spi_write_reg(cs, KP_SPI_REG_TXDATA, 0x00);
-
-			if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS, KP_SPI_REG_STATUS_RXS) < 0) {
+			res = kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS,
+						      KP_SPI_REG_STATUS_RXS);
+			if (res < 0)
 				goto out;
-			}
 
 			test = kp_spi_read_reg(cs, KP_SPI_REG_RXDATA);
 			*rx++ = test;
@@ -239,8 +243,10 @@ kp_spi_txrx_pio(struct spi_device *spidev, struct spi_transfer *transfer)
 		}
 	}
 
-	if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS, KP_SPI_REG_STATUS_EOT) < 0) {
-		//TODO: Figure out how to abort transaction??  This has never happened in practice though...
+	if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS,
+				    KP_SPI_REG_STATUS_EOT) < 0) {
+		//TODO: Figure out how to abort transaction??
+		//Ths has never happened in practice though...
 	}
 
 out:
@@ -307,7 +313,8 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
 		void       *rx_buf = transfer->rx_buf;
 		unsigned    len = transfer->len;
 
-		if (transfer->speed_hz > KP_SPI_CLK || (len && !(rx_buf || tx_buf))) {
+		if (transfer->speed_hz > KP_SPI_CLK ||
+		    (len && !(rx_buf || tx_buf))) {
 			dev_dbg(kpspi->dev, "  transfer: %d Hz, %d %s%s, %d bpw\n",
 					transfer->speed_hz,
 					len,
@@ -317,7 +324,8 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
 			dev_dbg(kpspi->dev, "  transfer -EINVAL\n");
 			return -EINVAL;
 		}
-		if (transfer->speed_hz && (transfer->speed_hz < (KP_SPI_CLK >> 15))) {
+		if (transfer->speed_hz &&
+		    transfer->speed_hz < (KP_SPI_CLK >> 15)) {
 			dev_dbg(kpspi->dev, "speed_hz %d below minimum %d Hz\n",
 					transfer->speed_hz,
 					KP_SPI_CLK >> 15);
@@ -332,14 +340,16 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
 	kp_spi_write_reg(cs, KP_SPI_REG_CONFIG, sc.reg);
 
 	/* work */
-	if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS, KP_SPI_REG_STATUS_EOT) < 0) {
+	if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS,
+				    KP_SPI_REG_STATUS_EOT) < 0) {
 		dev_info(kpspi->dev, "EOT timed out\n");
 		goto out;
 	}
 
 	/* do the transfers for this message */
 	list_for_each_entry(transfer, &m->transfers, transfer_list) {
-		if (transfer->tx_buf == NULL && transfer->rx_buf == NULL && transfer->len) {
+		if (!transfer->tx_buf && !transfer->rx_buf &&
+		    transfer->len) {
 			status = -EINVAL;
 			goto error;
 		}
