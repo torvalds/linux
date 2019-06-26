@@ -168,9 +168,9 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci)
 				ndimms += skx_get_nvdimm_info(dimm, imc, i, j,
 							      EDAC_MOD_STR);
 		}
-		if (ndimms && !i10nm_check_ecc(imc, 0)) {
-			i10nm_printk(KERN_ERR, "ECC is disabled on imc %d\n",
-				     imc->mc);
+		if (ndimms && !i10nm_check_ecc(imc, i)) {
+			i10nm_printk(KERN_ERR, "ECC is disabled on imc %d channel %d\n",
+				     imc->mc, i);
 			return -ENODEV;
 		}
 	}
