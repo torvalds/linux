@@ -62,6 +62,7 @@ void key_free_user_ns(struct user_namespace *ns)
 	list_del_init(&ns->keyring_name_list);
 	write_unlock(&keyring_name_lock);
 
+	key_put(ns->user_keyring_register);
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 	key_put(ns->persistent_keyring_register);
 #endif

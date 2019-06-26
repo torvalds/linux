@@ -121,7 +121,7 @@ static int call_sbin_request_key(struct key *authkey, void *aux)
 	struct request_key_auth *rka = get_request_key_auth(authkey);
 	const struct cred *cred = current_cred();
 	key_serial_t prkey, sskey;
-	struct key *key = rka->target_key, *keyring, *session;
+	struct key *key = rka->target_key, *keyring, *session, *user_session;
 	char *argv[9], *envp[3], uid_str[12], gid_str[12];
 	char key_str[12], keyring_str[3][12];
 	char desc[20];
@@ -129,9 +129,9 @@ static int call_sbin_request_key(struct key *authkey, void *aux)
 
 	kenter("{%d},{%d},%s", key->serial, authkey->serial, rka->op);
 
-	ret = install_user_keyrings();
+	ret = look_up_user_keyrings(NULL, &user_session);
 	if (ret < 0)
-		goto error_alloc;
+		goto error_us;
 
 	/* allocate a new session keyring */
 	sprintf(desc, "_req.%u", key->serial);
@@ -169,7 +169,7 @@ static int call_sbin_request_key(struct key *authkey, void *aux)
 
 	session = cred->session_keyring;
 	if (!session)
-		session = cred->user->session_keyring;
+		session = user_session;
 	sskey = session->serial;
 
 	sprintf(keyring_str[2], "%d", sskey);
@@ -211,6 +211,8 @@ error_link:
 	key_put(keyring);
 
 error_alloc:
+	key_put(user_session);
+error_us:
 	complete_request_key(authkey, ret);
 	kleave(" = %d", ret);
 	return ret;
@@ -317,13 +319,15 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 
 			/* fall through */
 		case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
-			dest_keyring =
-				key_get(READ_ONCE(cred->user->session_keyring));
+			ret = look_up_user_keyrings(NULL, &dest_keyring);
+			if (ret < 0)
+				return ret;
 			break;
 
 		case KEY_REQKEY_DEFL_USER_KEYRING:
-			dest_keyring =
-				key_get(READ_ONCE(cred->user->uid_keyring));
+			ret = look_up_user_keyrings(&dest_keyring, NULL);
+			if (ret < 0)
+				return ret;
 			break;
 
 		case KEY_REQKEY_DEFL_GROUP_KEYRING:

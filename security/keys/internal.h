@@ -148,7 +148,8 @@ extern key_ref_t search_process_keyrings_rcu(struct keyring_search_context *ctx)
 
 extern struct key *find_keyring_by_name(const char *name, bool uid_keyring);
 
-extern int install_user_keyrings(void);
+extern int look_up_user_keyrings(struct key **, struct key **);
+extern struct key *get_user_session_keyring_rcu(const struct cred *);
 extern int install_thread_keyring_to_cred(struct cred *);
 extern int install_process_keyring_to_cred(struct cred *);
 extern int install_session_keyring_to_cred(struct cred *, struct key *);

@@ -64,10 +64,7 @@ struct user_namespace init_user_ns = {
 	.flags = USERNS_INIT_FLAGS,
 #ifdef CONFIG_KEYS
 	.keyring_name_list = LIST_HEAD_INIT(init_user_ns.keyring_name_list),
-#endif
-#ifdef CONFIG_PERSISTENT_KEYRINGS
-	.persistent_keyring_register_sem =
-	__RWSEM_INITIALIZER(init_user_ns.persistent_keyring_register_sem),
+	.keyring_sem = __RWSEM_INITIALIZER(init_user_ns.keyring_sem),
 #endif
 };
 EXPORT_SYMBOL_GPL(init_user_ns);
@@ -143,8 +140,6 @@ static void free_user(struct user_struct *up, unsigned long flags)
 {
 	uid_hash_remove(up);
 	spin_unlock_irqrestore(&uidhash_lock, flags);
-	key_put(up->uid_keyring);
-	key_put(up->session_keyring);
 	kmem_cache_free(uid_cachep, up);
 }
 

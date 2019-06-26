@@ -135,9 +135,7 @@ int create_user_ns(struct cred *new)
 
 #ifdef CONFIG_KEYS
 	INIT_LIST_HEAD(&ns->keyring_name_list);
-#endif
-#ifdef CONFIG_PERSISTENT_KEYRINGS
-	init_rwsem(&ns->persistent_keyring_register_sem);
+	init_rwsem(&ns->keyring_sem);
 #endif
 	ret = -ENOMEM;
 	if (!setup_userns_sysctls(ns))
