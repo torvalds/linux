@@ -1768,49 +1768,16 @@ static void mlx5e_free_xps_cpumask(struct mlx5e_channel *c)
 	free_cpumask_var(c->xps_cpumask);
 }
 
-static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
-			      struct mlx5e_params *params,
-			      struct mlx5e_channel_param *cparam,
-			      struct mlx5e_channel **cp)
+static int mlx5e_open_queues(struct mlx5e_channel *c,
+			     struct mlx5e_params *params,
+			     struct mlx5e_channel_param *cparam)
 {
-	int cpu = cpumask_first(mlx5_comp_irq_get_affinity_mask(priv->mdev, ix));
 	struct net_dim_cq_moder icocq_moder = {0, 0};
-	struct net_device *netdev = priv->netdev;
-	struct mlx5e_channel *c;
-	unsigned int irq;
 	int err;
-	int eqn;
-
-	err = mlx5_vector2eqn(priv->mdev, ix, &eqn, &irq);
-	if (err)
-		return err;
-
-	c = kvzalloc_node(sizeof(*c), GFP_KERNEL, cpu_to_node(cpu));
-	if (!c)
-		return -ENOMEM;
-
-	c->priv     = priv;
-	c->mdev     = priv->mdev;
-	c->tstamp   = &priv->tstamp;
-	c->ix       = ix;
-	c->cpu      = cpu;
-	c->pdev     = priv->mdev->device;
-	c->netdev   = priv->netdev;
-	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
-	c->num_tc   = params->num_tc;
-	c->xdp      = !!params->xdp_prog;
-	c->stats    = &priv->channel_stats[ix].ch;
-	c->irq_desc = irq_to_desc(irq);
-
-	err = mlx5e_alloc_xps_cpumask(c, params);
-	if (err)
-		goto err_free_channel;
-
-	netif_napi_add(netdev, &c->napi, mlx5e_napi_poll, 64);
 
 	err = mlx5e_open_cq(c, icocq_moder, &cparam->icosq_cq, &c->icosq.cq);
 	if (err)
-		goto err_napi_del;
+		return err;
 
 	err = mlx5e_open_tx_cqs(c, params, cparam);
 	if (err)
@@ -1855,8 +1822,6 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (err)
 		goto err_close_rq;
 
-	*cp = c;
-
 	return 0;
 
 err_close_rq:
@@ -1874,6 +1839,7 @@ err_close_icosq:
 
 err_disable_napi:
 	napi_disable(&c->napi);
+
 	if (c->xdp)
 		mlx5e_close_cq(&c->rq_xdpsq.cq);
 
@@ -1888,6 +1854,73 @@ err_close_tx_cqs:
 
 err_close_icosq_cq:
 	mlx5e_close_cq(&c->icosq.cq);
+
+	return err;
+}
+
+static void mlx5e_close_queues(struct mlx5e_channel *c)
+{
+	mlx5e_close_xdpsq(&c->xdpsq);
+	mlx5e_close_rq(&c->rq);
+	if (c->xdp)
+		mlx5e_close_xdpsq(&c->rq_xdpsq);
+	mlx5e_close_sqs(c);
+	mlx5e_close_icosq(&c->icosq);
+	napi_disable(&c->napi);
+	if (c->xdp)
+		mlx5e_close_cq(&c->rq_xdpsq.cq);
+	mlx5e_close_cq(&c->rq.cq);
+	mlx5e_close_cq(&c->xdpsq.cq);
+	mlx5e_close_tx_cqs(c);
+	mlx5e_close_cq(&c->icosq.cq);
+}
+
+static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
+			      struct mlx5e_params *params,
+			      struct mlx5e_channel_param *cparam,
+			      struct mlx5e_channel **cp)
+{
+	int cpu = cpumask_first(mlx5_comp_irq_get_affinity_mask(priv->mdev, ix));
+	struct net_device *netdev = priv->netdev;
+	struct mlx5e_channel *c;
+	unsigned int irq;
+	int err;
+	int eqn;
+
+	err = mlx5_vector2eqn(priv->mdev, ix, &eqn, &irq);
+	if (err)
+		return err;
+
+	c = kvzalloc_node(sizeof(*c), GFP_KERNEL, cpu_to_node(cpu));
+	if (!c)
+		return -ENOMEM;
+
+	c->priv     = priv;
+	c->mdev     = priv->mdev;
+	c->tstamp   = &priv->tstamp;
+	c->ix       = ix;
+	c->cpu      = cpu;
+	c->pdev     = priv->mdev->device;
+	c->netdev   = priv->netdev;
+	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
+	c->num_tc   = params->num_tc;
+	c->xdp      = !!params->xdp_prog;
+	c->stats    = &priv->channel_stats[ix].ch;
+	c->irq_desc = irq_to_desc(irq);
+
+	err = mlx5e_alloc_xps_cpumask(c, params);
+	if (err)
+		goto err_free_channel;
+
+	netif_napi_add(netdev, &c->napi, mlx5e_napi_poll, 64);
+
+	err = mlx5e_open_queues(c, params, cparam);
+	if (unlikely(err))
+		goto err_napi_del;
+
+	*cp = c;
+
+	return 0;
 
 err_napi_del:
 	netif_napi_del(&c->napi);
@@ -1920,19 +1953,7 @@ static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
 
 static void mlx5e_close_channel(struct mlx5e_channel *c)
 {
-	mlx5e_close_xdpsq(&c->xdpsq);
-	mlx5e_close_rq(&c->rq);
-	if (c->xdp)
-		mlx5e_close_xdpsq(&c->rq_xdpsq);
-	mlx5e_close_sqs(c);
-	mlx5e_close_icosq(&c->icosq);
-	napi_disable(&c->napi);
-	if (c->xdp)
-		mlx5e_close_cq(&c->rq_xdpsq.cq);
-	mlx5e_close_cq(&c->rq.cq);
-	mlx5e_close_cq(&c->xdpsq.cq);
-	mlx5e_close_tx_cqs(c);
-	mlx5e_close_cq(&c->icosq.cq);
+	mlx5e_close_queues(c);
 	netif_napi_del(&c->napi);
 	mlx5e_free_xps_cpumask(c);
 
