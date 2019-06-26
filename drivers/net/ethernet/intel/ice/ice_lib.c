@@ -2148,6 +2148,9 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 		if (status == ICE_ERR_RESET_ONGOING) {
 			dev_dbg(&pf->pdev->dev,
 				"Reset in progress. LAN Tx queues already disabled\n");
+		} else if (status == ICE_ERR_DOES_NOT_EXIST) {
+			dev_dbg(&pf->pdev->dev,
+				"LAN Tx queues does not exist, nothing to disabled\n");
 		} else if (status) {
 			dev_err(&pf->pdev->dev,
 				"Failed to disable LAN Tx queues, error: %d\n",
