@@ -1756,9 +1756,10 @@ sanitize:
 
 static int icl_calc_cdclk(int min_cdclk, unsigned int ref)
 {
-	int ranges_24[] = { 312000, 552000, 648000 };
-	int ranges_19_38[] = { 307200, 556800, 652800 };
-	int *ranges;
+	static const int ranges_24[] = { 180000, 192000, 312000, 552000, 648000 };
+	static const int ranges_19_38[] = { 172800, 192000, 307200, 556800, 652800 };
+	const int *ranges;
+	int len, i;
 
 	switch (ref) {
 	default:
@@ -1766,19 +1767,22 @@ static int icl_calc_cdclk(int min_cdclk, unsigned int ref)
 		/* fall through */
 	case 24000:
 		ranges = ranges_24;
+		len = ARRAY_SIZE(ranges_24);
 		break;
 	case 19200:
 	case 38400:
 		ranges = ranges_19_38;
+		len = ARRAY_SIZE(ranges_19_38);
 		break;
 	}
 
-	if (min_cdclk > ranges[1])
-		return ranges[2];
-	else if (min_cdclk > ranges[0])
-		return ranges[1];
-	else
-		return ranges[0];
+	for (i = 0; i < len; i++) {
+		if (min_cdclk <= ranges[i])
+			return ranges[i];
+	}
+
+	WARN_ON(min_cdclk > ranges[len - 1]);
+	return ranges[len - 1];
 }
 
 static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
@@ -1792,16 +1796,24 @@ static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	default:
 		MISSING_CASE(cdclk);
 		/* fall through */
+	case 172800:
 	case 307200:
 	case 556800:
 	case 652800:
 		WARN_ON(dev_priv->cdclk.hw.ref != 19200 &&
 			dev_priv->cdclk.hw.ref != 38400);
 		break;
+	case 180000:
 	case 312000:
 	case 552000:
 	case 648000:
 		WARN_ON(dev_priv->cdclk.hw.ref != 24000);
+		break;
+	case 192000:
+		WARN_ON(dev_priv->cdclk.hw.ref != 19200 &&
+			dev_priv->cdclk.hw.ref != 38400 &&
+			dev_priv->cdclk.hw.ref != 24000);
+		break;
 	}
 
 	ratio = cdclk / (dev_priv->cdclk.hw.ref / 2);
