@@ -1547,15 +1547,11 @@ static void ice_irq_affinity_release(struct kref __always_unused *ref) {}
  */
 static int ice_vsi_ena_irq(struct ice_vsi *vsi)
 {
-	struct ice_pf *pf = vsi->back;
-	struct ice_hw *hw = &pf->hw;
+	struct ice_hw *hw = &vsi->back->hw;
+	int i;
 
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
-		int i;
-
-		ice_for_each_q_vector(vsi, i)
-			ice_irq_dynamic_ena(hw, vsi, vsi->q_vectors[i]);
-	}
+	ice_for_each_q_vector(vsi, i)
+		ice_irq_dynamic_ena(hw, vsi, vsi->q_vectors[i]);
 
 	ice_flush(hw);
 	return 0;
@@ -1803,7 +1799,7 @@ static void ice_free_irq_msix_misc(struct ice_pf *pf)
 	wr32(hw, PFINT_OICR_ENA, 0);
 	ice_flush(hw);
 
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags) && pf->msix_entries) {
+	if (pf->msix_entries) {
 		synchronize_irq(pf->msix_entries[pf->oicr_idx].vector);
 		devm_free_irq(&pf->pdev->dev,
 			      pf->msix_entries[pf->oicr_idx].vector, pf);
@@ -2229,7 +2225,6 @@ static void ice_deinit_pf(struct ice_pf *pf)
 static void ice_init_pf(struct ice_pf *pf)
 {
 	bitmap_zero(pf->flags, ICE_PF_FLAGS_NBITS);
-	set_bit(ICE_FLAG_MSIX_ENA, pf->flags);
 #ifdef CONFIG_PCI_IOV
 	if (pf->hw.func_caps.common_cap.sr_iov_1_1) {
 		struct ice_hw *hw = &pf->hw;
@@ -2329,7 +2324,6 @@ msix_err:
 
 exit_err:
 	pf->num_lan_msix = 0;
-	clear_bit(ICE_FLAG_MSIX_ENA, pf->flags);
 	return err;
 }
 
@@ -2342,7 +2336,6 @@ static void ice_dis_msix(struct ice_pf *pf)
 	pci_disable_msix(pf->pdev);
 	devm_kfree(&pf->pdev->dev, pf->msix_entries);
 	pf->msix_entries = NULL;
-	clear_bit(ICE_FLAG_MSIX_ENA, pf->flags);
 }
 
 /**
@@ -2351,8 +2344,7 @@ static void ice_dis_msix(struct ice_pf *pf)
  */
 static void ice_clear_interrupt_scheme(struct ice_pf *pf)
 {
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		ice_dis_msix(pf);
+	ice_dis_msix(pf);
 
 	if (pf->irq_tracker) {
 		devm_kfree(&pf->pdev->dev, pf->irq_tracker);
@@ -2368,10 +2360,7 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 {
 	int vectors;
 
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		vectors = ice_ena_msix_range(pf);
-	else
-		return -ENODEV;
+	vectors = ice_ena_msix_range(pf);
 
 	if (vectors < 0)
 		return vectors;
@@ -2528,12 +2517,10 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	 * the misc functionality and queue processing is combined in
 	 * the same vector and that gets setup at open.
 	 */
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
-		err = ice_req_irq_msix_misc(pf);
-		if (err) {
-			dev_err(dev, "setup of misc vector failed: %d\n", err);
-			goto err_init_interrupt_unroll;
-		}
+	err = ice_req_irq_msix_misc(pf);
+	if (err) {
+		dev_err(dev, "setup of misc vector failed: %d\n", err);
+		goto err_init_interrupt_unroll;
 	}
 
 	/* create switch struct for the switch element created by FW on boot */
@@ -3146,10 +3133,7 @@ static int ice_up_complete(struct ice_vsi *vsi)
 	struct ice_pf *pf = vsi->back;
 	int err;
 
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		ice_vsi_cfg_msix(vsi);
-	else
-		return -ENOTSUPP;
+	ice_vsi_cfg_msix(vsi);
 
 	/* Enable only Rx rings, Tx rings were enabled by the FW when the
 	 * Tx queue group list was configured and the context bits were
@@ -3610,24 +3594,6 @@ int ice_vsi_setup_rx_rings(struct ice_vsi *vsi)
 }
 
 /**
- * ice_vsi_req_irq - Request IRQ from the OS
- * @vsi: The VSI IRQ is being requested for
- * @basename: name for the vector
- *
- * Return 0 on success and a negative value on error
- */
-static int ice_vsi_req_irq(struct ice_vsi *vsi, char *basename)
-{
-	struct ice_pf *pf = vsi->back;
-	int err = -EINVAL;
-
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		err = ice_vsi_req_irq_msix(vsi, basename);
-
-	return err;
-}
-
-/**
  * ice_vsi_open - Called when a network interface is made active
  * @vsi: the VSI to open
  *
@@ -3656,7 +3622,7 @@ static int ice_vsi_open(struct ice_vsi *vsi)
 
 	snprintf(int_name, sizeof(int_name) - 1, "%s-%s",
 		 dev_driver_string(&pf->pdev->dev), vsi->netdev->name);
-	err = ice_vsi_req_irq(vsi, int_name);
+	err = ice_vsi_req_irq_msix(vsi, int_name);
 	if (err)
 		goto err_setup_rx;
 
@@ -3893,12 +3859,10 @@ static void ice_rebuild(struct ice_pf *pf)
 	}
 
 	/* start misc vector */
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
-		err = ice_req_irq_msix_misc(pf);
-		if (err) {
-			dev_err(dev, "misc vector setup failed: %d\n", err);
-			goto err_vsi_rebuild;
-		}
+	err = ice_req_irq_msix_misc(pf);
+	if (err) {
+		dev_err(dev, "misc vector setup failed: %d\n", err);
+		goto err_vsi_rebuild;
 	}
 
 	/* restart the VSIs that were rebuilt and running before the reset */
@@ -4295,9 +4259,7 @@ static void ice_tx_timeout(struct net_device *netdev)
 		head = (rd32(hw, QTX_COMM_HEAD(vsi->txq_map[hung_queue])) &
 			QTX_COMM_HEAD_HEAD_M) >> QTX_COMM_HEAD_HEAD_S;
 		/* Read interrupt register */
-		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-			val = rd32(hw,
-				   GLINT_DYN_CTL(tx_ring->q_vector->reg_idx));
+		val = rd32(hw, GLINT_DYN_CTL(tx_ring->q_vector->reg_idx));
 
 		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HW_HEAD: 0x%x, NTU: 0x%x, INT: 0x%x\n",
 			    vsi->vsi_num, hung_queue, tx_ring->next_to_clean,

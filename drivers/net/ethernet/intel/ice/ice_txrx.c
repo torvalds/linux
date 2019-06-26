@@ -1413,7 +1413,6 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	struct ice_q_vector *q_vector =
 				container_of(napi, struct ice_q_vector, napi);
 	struct ice_vsi *vsi = q_vector->vsi;
-	struct ice_pf *pf = vsi->back;
 	bool clean_complete = true;
 	int budget_per_ring = 0;
 	struct ice_ring *ring;
@@ -1454,8 +1453,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	 * poll us due to busy-polling
 	 */
 	if (likely(napi_complete_done(napi, work_done)))
-		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-			ice_update_ena_itr(vsi, q_vector);
+		ice_update_ena_itr(vsi, q_vector);
 
 	return min_t(int, work_done, budget - 1);
 }

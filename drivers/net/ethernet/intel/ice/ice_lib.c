@@ -1129,12 +1129,7 @@ static int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi)
 		return -EEXIST;
 	}
 
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
-		num_q_vectors = vsi->num_q_vectors;
-	} else {
-		err = -EINVAL;
-		goto err_out;
-	}
+	num_q_vectors = vsi->num_q_vectors;
 
 	for (v_idx = 0; v_idx < num_q_vectors; v_idx++) {
 		err = ice_vsi_alloc_q_vector(vsi, v_idx);
@@ -1179,9 +1174,6 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 			vsi->vsi_num, vsi->base_vector);
 		return -EEXIST;
 	}
-
-	if (!test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		return -ENOENT;
 
 	num_q_vectors = vsi->num_q_vectors;
 	/* reserve slots from OS requested IRQs */
@@ -2605,39 +2597,36 @@ void ice_vsi_free_irq(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	int base = vsi->base_vector;
+	int i;
 
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
-		int i;
+	if (!vsi->q_vectors || !vsi->irqs_ready)
+		return;
 
-		if (!vsi->q_vectors || !vsi->irqs_ready)
-			return;
+	ice_vsi_release_msix(vsi);
+	if (vsi->type == ICE_VSI_VF)
+		return;
 
-		ice_vsi_release_msix(vsi);
-		if (vsi->type == ICE_VSI_VF)
-			return;
+	vsi->irqs_ready = false;
+	ice_for_each_q_vector(vsi, i) {
+		u16 vector = i + base;
+		int irq_num;
 
-		vsi->irqs_ready = false;
-		ice_for_each_q_vector(vsi, i) {
-			u16 vector = i + base;
-			int irq_num;
+		irq_num = pf->msix_entries[vector].vector;
 
-			irq_num = pf->msix_entries[vector].vector;
+		/* free only the irqs that were actually requested */
+		if (!vsi->q_vectors[i] ||
+		    !(vsi->q_vectors[i]->num_ring_tx ||
+		      vsi->q_vectors[i]->num_ring_rx))
+			continue;
 
-			/* free only the irqs that were actually requested */
-			if (!vsi->q_vectors[i] ||
-			    !(vsi->q_vectors[i]->num_ring_tx ||
-			      vsi->q_vectors[i]->num_ring_rx))
-				continue;
+		/* clear the affinity notifier in the IRQ descriptor */
+		irq_set_affinity_notifier(irq_num, NULL);
 
-			/* clear the affinity notifier in the IRQ descriptor */
-			irq_set_affinity_notifier(irq_num, NULL);
-
-			/* clear the affinity_mask in the IRQ descriptor */
-			irq_set_affinity_hint(irq_num, NULL);
-			synchronize_irq(irq_num);
-			devm_free_irq(&pf->pdev->dev, irq_num,
-				      vsi->q_vectors[i]);
-		}
+		/* clear the affinity_mask in the IRQ descriptor */
+		irq_set_affinity_hint(irq_num, NULL);
+		synchronize_irq(irq_num);
+		devm_free_irq(&pf->pdev->dev, irq_num,
+			      vsi->q_vectors[i]);
 	}
 }
 
@@ -2816,15 +2805,13 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
 	}
 
 	/* disable each interrupt */
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
-		ice_for_each_q_vector(vsi, i)
-			wr32(hw, GLINT_DYN_CTL(vsi->q_vectors[i]->reg_idx), 0);
+	ice_for_each_q_vector(vsi, i)
+		wr32(hw, GLINT_DYN_CTL(vsi->q_vectors[i]->reg_idx), 0);
 
-		ice_flush(hw);
+	ice_flush(hw);
 
-		ice_for_each_q_vector(vsi, i)
-			synchronize_irq(pf->msix_entries[i + base].vector);
-	}
+	ice_for_each_q_vector(vsi, i)
+		synchronize_irq(pf->msix_entries[i + base].vector);
 }
 
 /**

@@ -329,7 +329,6 @@ struct ice_q_vector {
 } ____cacheline_internodealigned_in_smp;
 
 enum ice_pf_flags {
-	ICE_FLAG_MSIX_ENA,
 	ICE_FLAG_FLTR_SYNC,
 	ICE_FLAG_RSS_ENA,
 	ICE_FLAG_SRIOV_ENA,
