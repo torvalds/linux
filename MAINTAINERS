@@ -3717,7 +3717,7 @@ F:	arch/powerpc/platforms/cell/
 
 CEPH COMMON CODE (LIBCEPH)
 M:	Ilya Dryomov <idryomov@gmail.com>
-M:	"Yan, Zheng" <zyan@redhat.com>
+M:	Jeff Layton <jlayton@kernel.org>
 M:	Sage Weil <sage@redhat.com>
 L:	ceph-devel@vger.kernel.org
 W:	http://ceph.com/
@@ -3729,7 +3729,7 @@ F:	include/linux/ceph/
 F:	include/linux/crush/
 
 CEPH DISTRIBUTED FILE SYSTEM CLIENT (CEPH)
-M:	"Yan, Zheng" <zyan@redhat.com>
+M:	Jeff Layton <jlayton@kernel.org>
 M:	Sage Weil <sage@redhat.com>
 M:	Ilya Dryomov <idryomov@gmail.com>
 L:	ceph-devel@vger.kernel.org
