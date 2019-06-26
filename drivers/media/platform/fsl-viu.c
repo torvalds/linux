@@ -563,11 +563,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, "viu", sizeof(cap->driver));
 	strscpy(cap->card, "viu", sizeof(cap->card));
 	strscpy(cap->bus_info, "platform:viu", sizeof(cap->bus_info));
-	cap->device_caps =	V4L2_CAP_VIDEO_CAPTURE |
-				V4L2_CAP_STREAMING     |
-				V4L2_CAP_VIDEO_OVERLAY |
-				V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1380,6 +1375,8 @@ static const struct video_device viu_template = {
 	.release	= video_device_release,
 
 	.tvnorms        = V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+			  V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_READWRITE,
 };
 
 static int viu_of_probe(struct platform_device *op)
