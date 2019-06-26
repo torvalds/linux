@@ -2872,12 +2872,13 @@ int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
 		if (nhc->nhc_flags & RTNH_F_DEAD)
 			continue;
 
+		rcu_read_lock();
 		bucket = rcu_dereference(nhc->nhc_exceptions);
-		if (!bucket)
-			continue;
-
-		err = fnhe_dump_bucket(net, skb, cb, table_id, bucket, genid,
-				       fa_index, fa_start);
+		err = 0;
+		if (bucket)
+			err = fnhe_dump_bucket(net, skb, cb, table_id, bucket,
+					       genid, fa_index, fa_start);
+		rcu_read_unlock();
 		if (err)
 			return err;
 	}
