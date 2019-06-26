@@ -342,12 +342,12 @@ static int fsl_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (!oldstate->enabled) {
 		ret = clk_prepare_enable(fpc->clk[fpc->period.clk_select]);
 		if (ret)
-			return ret;
+			goto end_mutex;
 
 		ret = clk_prepare_enable(fpc->clk[FSL_PWM_CLK_CNTEN]);
 		if (ret) {
 			clk_disable_unprepare(fpc->clk[fpc->period.clk_select]);
-			return ret;
+			goto end_mutex;
 		}
 
 		regmap_update_bits(fpc->regmap, FTM_OUTMASK, BIT(pwm->hwpwm),
