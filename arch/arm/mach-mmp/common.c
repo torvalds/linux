@@ -17,7 +17,7 @@
 
 #include "common.h"
 
-#define MMP_CHIPID	(AXI_VIRT_BASE + 0x82c00)
+#define MMP_CHIPID	CIU_REG(0x00)
 
 unsigned int mmp_chip_id;
 EXPORT_SYMBOL(mmp_chip_id);
