@@ -96,7 +96,7 @@ static void remove_wb(struct md_rdev *rdev, sector_t lo, sector_t hi)
 		}
 
 	if (!found)
-		WARN_ON("The write behind IO is not recorded\n");
+		WARN(1, "The write behind IO is not recorded\n");
 	spin_unlock_irqrestore(&rdev->wb_list_lock, flags);
 	wake_up(&rdev->wb_io_wait);
 }
