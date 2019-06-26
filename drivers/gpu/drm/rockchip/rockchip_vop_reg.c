@@ -604,11 +604,11 @@ static const struct vop_data rk3399_vop_big = {
 
 static const struct vop_win_data rk3399_vop_lit_win_data[] = {
 	{ .base = 0x00, .phy = &rk3288_win01_data, .csc = &rk3399_win0_csc,
-	  .type = DRM_PLANE_TYPE_PRIMARY,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC },
 	{ .phy = NULL },
 	{ .base = 0x00, .phy = &rk3368_win23_data, .csc = &rk3399_win2_csc,
-	  .type = DRM_PLANE_TYPE_CURSOR,
+	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .feature = WIN_FEATURE_AFBDC,
 	  .area = rk3368_area_data,
 	  .area_size = ARRAY_SIZE(rk3368_area_data), },
