@@ -483,7 +483,8 @@ struct cfs_rq {
 	struct load_weight	load;
 	unsigned long		runnable_weight;
 	unsigned int		nr_running;
-	unsigned int		h_nr_running;
+	unsigned int		h_nr_running;      /* SCHED_{NORMAL,BATCH,IDLE} */
+	unsigned int		idle_h_nr_running; /* SCHED_IDLE */
 
 	u64			exec_clock;
 	u64			min_vruntime;
