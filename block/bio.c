@@ -1437,24 +1437,6 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	return ERR_PTR(ret);
 }
 
-static void __bio_unmap_user(struct bio *bio)
-{
-	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
-
-	/*
-	 * make sure we dirty pages we wrote to
-	 */
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		if (bio_data_dir(bio) == READ)
-			set_page_dirty_lock(bvec->bv_page);
-
-		put_page(bvec->bv_page);
-	}
-
-	bio_put(bio);
-}
-
 /**
  *	bio_unmap_user	-	unmap a bio
  *	@bio:		the bio being unmapped
@@ -1466,7 +1448,8 @@ static void __bio_unmap_user(struct bio *bio)
  */
 void bio_unmap_user(struct bio *bio)
 {
-	__bio_unmap_user(bio);
+	bio_release_pages(bio, bio_data_dir(bio) == READ);
+	bio_put(bio);
 	bio_put(bio);
 }
 
