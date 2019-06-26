@@ -1,6 +1,7 @@
 /* process_kobject.c, (C) 2002 Milan Pikula */
 
 #include <linux/sched.h>
+#include <linux/sched/signal.h> /* task_pgrp() */
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mm.h>

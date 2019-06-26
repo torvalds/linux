@@ -1,4 +1,5 @@
 #include <linux/sched.h>
+#include <linux/sched/signal.h> /* SEND_SIG_PRIV */
 #include <linux/signal.h>
 #include <linux/interrupt.h>
 #include <linux/medusa/l3/registry.h>
@@ -28,12 +29,15 @@ int __init sendsig_acctype_init(void) {
 }
 /* TODO: add the same type, triggered at OBJECT */
 
-medusa_answer_t medusa_sendsig(int sig, struct siginfo *info, struct task_struct *p)
+medusa_answer_t medusa_sendsig(int sig, struct kernel_siginfo *info, struct task_struct *p)
 {
 	medusa_answer_t retval;
 	struct send_signal access;
 	struct process_kobject sender;
 	struct process_kobject receiver;
+
+	if (!sig)
+		return 0; /* null signal; existence test */
 
         memset(&access, '\0', sizeof(struct send_signal));
         /* process_kobject sender is zeroed by process_kern2kobj function */
@@ -41,9 +45,10 @@ medusa_answer_t medusa_sendsig(int sig, struct siginfo *info, struct task_struct
 
 	if (in_interrupt())
 		return MED_OK;
-/* always allow signals coming from kernel - see kernel/signal.c:send_signalnal() */
-	if ((unsigned long) info == 1)
+	/* always allow signals coming from kernel - see kernel/signal.c:send_signalnal() */
+	if (info == SEND_SIG_PRIV)
 		return MED_OK;
+	/*
 	if (info) switch (info->si_code) {
 		case CLD_TRAPPED:
 		case CLD_STOPPED:
@@ -53,6 +58,7 @@ medusa_answer_t medusa_sendsig(int sig, struct siginfo *info, struct task_struct
 		case SI_KERNEL:
 			return MED_OK;
 	}
+	*/
 	if (!MED_MAGIC_VALID(&task_security(current)) &&
 		process_kobj_validate_task(current) <= 0)
 		return MED_OK;

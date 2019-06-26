@@ -1,7 +1,6 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/cred.h>
-#include <linux/flex_array.h>
 #include <linux/fs.h>
 #include <linux/spinlock_types.h>
 #include <linux/lsm_hooks.h>
@@ -11,6 +10,9 @@
 #include <linux/lsm_hooks.h>
 #include <linux/sched/signal.h>
 #include "init_medusa.h"
+#include "../l2/kobject_process.h"
+#include "../l2/kobject_file.h"
+#include "../l2/kobject_ipc.h"
 
 extern int medusa_l1_task_alloc(struct task_struct *task, unsigned long clone_flags);
 extern void medusa_l1_task_free(struct task_struct *task);
@@ -222,9 +224,6 @@ static int __init medusa_l0_init(void)
 	mutex_init(&l0_mutex);
 	l1_initialized = false;
 
-	if (!security_module_enable("medusa"))
-		return 0;
-
 	//init lists
 	INIT_LIST_HEAD(&l0_inode_list.list);
 	INIT_LIST_HEAD(&l0_task_list.list);
@@ -235,4 +234,27 @@ static int __init medusa_l0_init(void)
 	return 0;
 }
 
-security_initcall(medusa_l0_init);
+/*
+TODO:
+Refactor L0/L1 using this variable (initialization).
+Consider L0/L1 merge.
+*/
+int medusa_enabled __lsm_ro_after_init = 1;
+
+struct lsm_blob_sizes medusa_blob_sizes __lsm_ro_after_init = {
+	.lbs_cred = 0,
+	.lbs_file = 0,
+	.lbs_inode = sizeof(struct medusa_l1_inode_s),
+	.lbs_ipc = sizeof(struct medusa_l1_ipc_s),
+	.lbs_msg_msg = 0,
+	.lbs_task = sizeof(struct medusa_l1_task_s),
+};
+
+DEFINE_LSM(medusa) = {
+	.name = "medusa",
+	.order = LSM_ORDER_MUTABLE,
+	.flags = LSM_FLAG_LEGACY_MAJOR | LSM_FLAG_EXCLUSIVE,
+	.enabled = &medusa_enabled,
+	.init = medusa_l0_init,
+	.blobs = &medusa_blob_sizes,
+};

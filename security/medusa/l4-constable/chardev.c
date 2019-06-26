@@ -35,6 +35,7 @@
 #include <linux/types.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h> /* task_tgid() */
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/wait.h>
@@ -311,7 +312,7 @@ static ssize_t user_read(struct file * filp, char * buf,
 		return -EPERM;
 	if (*ppos != filp->f_pos)
 		return -ESPIPE;
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/* do we have an unfinished write? (e.g. dumb user-space) */
@@ -469,7 +470,7 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 		return -EPERM;
 	if (*ppos != filp->f_pos)
 		return -ESPIPE;
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	while (XFER_COUNT) {

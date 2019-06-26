@@ -102,17 +102,12 @@ static void medusa_l1_sb_free_security(struct super_block *sb)
 {
 }
 
-static int medusa_l1_sb_copy_data(char *orig, char *copy)
-{
-	return 0;
-}
-
 static int medusa_l1_sb_remount(struct super_block *sb, void *data)
 {
 	return 0;
 } 
 
-static int medusa_l1_sb_kern_mount(struct super_block *sb, int flags, void *data)
+static int medusa_l1_sb_kern_mount(struct super_block *sb)
 {
 	struct inode *inode = sb->s_root->d_inode;
 
@@ -153,12 +148,10 @@ static int medusa_l1_sb_pivotroot(const struct path *old_path, const struct path
 }
 
 static int medusa_l1_sb_set_mnt_opts(struct super_block *sb,
-				struct security_mnt_opts *opts,
+				void *opts,
 								unsigned long kern_flags,
 								unsigned long *set_kern_flags)
 {
-	if (unlikely(opts->num_mnt_opts))
-		return -EOPNOTSUPP;
 	return 0;
 }
 
@@ -169,11 +162,6 @@ static int medusa_l1_sb_clone_mnt_opts(const struct super_block *oldsb,
 	return 0;
 }
 */
-
-static int medusa_l1_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
-{
-	return 0;
-}
 
 static int medusa_l1_dentry_init_security(struct dentry *dentry, int mode, 
 					const struct qstr *name, void **ctx, u32 *ctxlen)
@@ -503,7 +491,7 @@ static int medusa_l1_file_receive(struct file *file)
 	return 0;
 }
 
-static int medusa_l1_file_open(struct file *file, const struct cred *cred)
+static int medusa_l1_file_open(struct file *file)
 {
 	
 	return validate_fuck(&file->f_path);
@@ -644,7 +632,7 @@ static int medusa_l1_task_wait(struct task_struct *p)
 */
 
 /* TODO TODO TODO: add support of 'cred' in medusa_sendsig() */
-static int medusa_l1_task_kill(struct task_struct *p, struct siginfo *info,
+static int medusa_l1_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 			 int sig, const struct cred *cred)
 {
 	if(medusa_sendsig(sig, info, p) == MED_NO)
@@ -1180,8 +1168,7 @@ static int medusa_l1_audit_rule_known(struct audit_krule *krule)
 	return 0;
 }
 
-static int medusa_l1_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
-				struct audit_context *actx)
+static int medusa_l1_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule)
 {
 	return 0;
 }
@@ -1219,7 +1206,7 @@ static int medusa_l1_capset(struct cred *new, const struct cred *old,
 
 
 static int medusa_l1_capable(const struct cred *cred,
-			struct user_namespace *ns, int cap, int audit)
+			struct user_namespace *ns, int cap, unsigned int audit)
 {
 	return 0;
 }
@@ -1392,7 +1379,6 @@ static struct security_hook_list medusa_l1_hooks[] = {
 
 	LSM_HOOK_INIT(sb_alloc_security, medusa_l1_sb_alloc_security),
 	LSM_HOOK_INIT(sb_free_security, medusa_l1_sb_free_security),
-	LSM_HOOK_INIT(sb_copy_data, medusa_l1_sb_copy_data),
 	LSM_HOOK_INIT(sb_remount, medusa_l1_sb_remount),
 	LSM_HOOK_INIT(sb_kern_mount, medusa_l1_sb_kern_mount),
 	LSM_HOOK_INIT(sb_show_options, medusa_l1_sb_show_options),
@@ -1402,7 +1388,6 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(sb_pivotroot, medusa_l1_sb_pivotroot),
 	LSM_HOOK_INIT(sb_set_mnt_opts, medusa_l1_sb_set_mnt_opts),
 	//LSM_HOOK_INIT(sb_clone_mnt_opts, medusa_l1_sb_clone_mnt_opts),
-	LSM_HOOK_INIT(sb_parse_opts_str, medusa_l1_sb_parse_opts_str),
 	LSM_HOOK_INIT(dentry_init_security, medusa_l1_dentry_init_security),
 
 #ifdef CONFIG_SECURITY_PATH
@@ -1657,9 +1642,6 @@ static int __init medusa_l1_init(void)
 	struct task_list *tmp_task;
 	struct kern_ipc_perm_list *tmp_ipcp;
 
-	if (!security_module_enable("medusa"))
-		return 0;
-	
 	/* holding l0_mutex cannot be executed no l0 hook */
 	mutex_lock(&l0_mutex);
 	
