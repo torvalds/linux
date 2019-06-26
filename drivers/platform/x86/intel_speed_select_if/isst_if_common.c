@@ -206,6 +206,7 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 {
 	void __user *argp = (void __user *)arg;
 	struct isst_if_cmd_cb cmd_cb;
+	struct isst_if_cmd_cb *cb;
 	long ret = -ENOTTY;
 
 	switch (cmd) {
@@ -217,6 +218,11 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		cmd_cb.offset = offsetof(struct isst_if_cpu_maps, cpu_map);
 		cmd_cb.cmd_callback = isst_if_proc_phyid_req;
 		ret = isst_if_exec_multi_cmd(argp, &cmd_cb);
+		break;
+	case ISST_IF_IO_CMD:
+		cb = &punit_callbacks[ISST_IF_DEV_MMIO];
+		if (cb->registered)
+			ret = isst_if_exec_multi_cmd(argp, cb);
 		break;
 	default:
 		break;

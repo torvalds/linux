@@ -10,6 +10,8 @@
 #ifndef __ISST_IF_COMMON_H
 #define __ISST_IF_COMMON_H
 
+#define INTEL_RAPL_PRIO_DEVID_0	0x3451
+
 /*
  * Validate maximum commands in a single request.
  * This is enough to handle command to every core in one ioctl, or all

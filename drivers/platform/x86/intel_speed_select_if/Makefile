@@ -5,3 +5,4 @@
 #
 
 obj-$(CONFIG_INTEL_SPEED_SELECT_INTERFACE) += isst_if_common.o
+obj-$(CONFIG_INTEL_SPEED_SELECT_INTERFACE) += isst_if_mmio.o

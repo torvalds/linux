@@ -63,7 +63,40 @@ struct isst_if_cpu_maps {
 	struct isst_if_cpu_map cpu_map[1];
 };
 
+/**
+ * struct isst_if_io_reg - Read write PUNIT IO register
+ * @read_write:		Value 0: Read, 1: Write
+ * @logical_cpu:	Logical CPU number to get target PCI device.
+ * @reg:		PUNIT register offset
+ * @value:		For write operation value to write and for
+ *			for read placeholder read value
+ *
+ * Structure to specify read/write data to PUNIT registers.
+ */
+struct isst_if_io_reg {
+	__u32 read_write; /* Read:0, Write:1 */
+	__u32 logical_cpu;
+	__u32 reg;
+	__u32 value;
+};
+
+/**
+ * struct isst_if_io_regs - structure for IO register commands
+ * @cmd_count:	Number of io reg commands in io_reg[]
+ * @io_reg[]:	Holds one or more io_reg command structure
+ *
+ * This structure used with ioctl ISST_IF_IO_CMD to send
+ * one or more read/write commands to PUNIT. Here IOCTL return value
+ * indicates number of requests sent or error number if no requests have
+ * been sent.
+ */
+struct isst_if_io_regs {
+	__u32 req_count;
+	struct isst_if_io_reg io_reg[1];
+};
+
 #define ISST_IF_MAGIC			0xFE
 #define ISST_IF_GET_PLATFORM_INFO	_IOR(ISST_IF_MAGIC, 0, struct isst_if_platform_info *)
 #define ISST_IF_GET_PHY_ID		_IOWR(ISST_IF_MAGIC, 1, struct isst_if_cpu_map *)
+#define ISST_IF_IO_CMD		_IOW(ISST_IF_MAGIC, 2, struct isst_if_io_regs *)
 #endif
