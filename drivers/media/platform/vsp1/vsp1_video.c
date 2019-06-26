@@ -956,12 +956,6 @@ vsp1_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 			  | V4L2_CAP_VIDEO_CAPTURE_MPLANE
 			  | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
 
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		cap->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE
-				 | V4L2_CAP_STREAMING;
-	else
-		cap->device_caps = V4L2_CAP_VIDEO_OUTPUT_MPLANE
-				 | V4L2_CAP_STREAMING;
 
 	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
 	strscpy(cap->card, video->video.name, sizeof(cap->card));
@@ -1268,11 +1262,15 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 		video->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		video->pad.flags = MEDIA_PAD_FL_SOURCE;
 		video->video.vfl_dir = VFL_DIR_TX;
+		video->video.device_caps = V4L2_CAP_VIDEO_OUTPUT_MPLANE |
+					   V4L2_CAP_STREAMING;
 	} else {
 		direction = "output";
 		video->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 		video->pad.flags = MEDIA_PAD_FL_SINK;
 		video->video.vfl_dir = VFL_DIR_RX;
+		video->video.device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE |
+					   V4L2_CAP_STREAMING;
 	}
 
 	mutex_init(&video->lock);
