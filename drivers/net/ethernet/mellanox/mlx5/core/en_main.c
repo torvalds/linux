@@ -1954,7 +1954,7 @@ static void mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	if (mlx5e_rx_is_linear_skb(params)) {
 		int frag_stride;
 
-		frag_stride = mlx5e_rx_get_linear_frag_sz(params);
+		frag_stride = mlx5e_rx_get_linear_frag_sz(params, NULL);
 		frag_stride = roundup_pow_of_two(frag_stride);
 
 		info->arr[0].frag_size = byte_count;

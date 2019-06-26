@@ -6,7 +6,13 @@
 
 #include "en.h"
 
-u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params);
+struct mlx5e_xsk_param {
+	u16 headroom;
+	u16 chunk_size;
+};
+
+u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params,
+				struct mlx5e_xsk_param *xsk);
 u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params);
 bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params);
 bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
