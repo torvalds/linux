@@ -1336,6 +1336,8 @@ config PCENGINES_APU2
 	  To compile this driver as a module, choose M here: the module
 	  will be called pcengines-apuv2.
 
+source "drivers/platform/x86/intel_speed_select_if/Kconfig"
+
 endif # X86_PLATFORM_DEVICES
 
 config PMC_ATOM
