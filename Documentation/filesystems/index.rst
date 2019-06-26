@@ -17,7 +17,7 @@ algorithms work.
    :maxdepth: 2
 
    vfs
-   path-lookup.rst
+   path-lookup
    api-summary
    splice
 
@@ -41,4 +41,4 @@ Documentation for individual filesystem types can be found here.
 .. toctree::
    :maxdepth: 2
 
-   binderfs.rst
+   binderfs
