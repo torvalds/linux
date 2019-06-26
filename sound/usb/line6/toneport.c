@@ -57,6 +57,8 @@ struct usb_line6_toneport {
 	struct toneport_led leds[2];
 };
 
+#define line6_to_toneport(x) container_of(x, struct usb_line6_toneport, line6)
+
 static int toneport_send_cmd(struct usb_device *usbdev, int cmd1, int cmd2);
 
 #define TONEPORT_PCM_DELAY 1
@@ -207,8 +209,8 @@ static int snd_toneport_source_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
-	struct usb_line6_toneport *toneport =
-	    (struct usb_line6_toneport *)line6pcm->line6;
+	struct usb_line6_toneport *toneport = line6_to_toneport(line6pcm->line6);
+
 	ucontrol->value.enumerated.item[0] = toneport->source;
 	return 0;
 }
@@ -218,8 +220,7 @@ static int snd_toneport_source_put(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
-	struct usb_line6_toneport *toneport =
-	    (struct usb_line6_toneport *)line6pcm->line6;
+	struct usb_line6_toneport *toneport = line6_to_toneport(line6pcm->line6);
 	unsigned int source;
 
 	source = ucontrol->value.enumerated.item[0];
@@ -393,8 +394,7 @@ static int toneport_setup(struct usb_line6_toneport *toneport)
 */
 static void line6_toneport_disconnect(struct usb_line6 *line6)
 {
-	struct usb_line6_toneport *toneport =
-		(struct usb_line6_toneport *)line6;
+	struct usb_line6_toneport *toneport = line6_to_toneport(line6);
 
 	if (toneport_has_led(toneport))
 		toneport_remove_leds(toneport);
@@ -408,7 +408,7 @@ static int toneport_init(struct usb_line6 *line6,
 			 const struct usb_device_id *id)
 {
 	int err;
-	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
+	struct usb_line6_toneport *toneport = line6_to_toneport(line6);
 
 	toneport->type = id->driver_info;
 

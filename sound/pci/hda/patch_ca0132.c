@@ -2718,7 +2718,7 @@ static bool is_last(const struct dsp_image_seg *p)
 
 static size_t dsp_sizeof(const struct dsp_image_seg *p)
 {
-	return sizeof(*p) + p->count*sizeof(u32);
+	return struct_size(p, data, p->count);
 }
 
 static const struct dsp_image_seg *get_next_seg_ptr(

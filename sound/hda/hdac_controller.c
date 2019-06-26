@@ -241,6 +241,8 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 
 	for (loopcounter = 0;; loopcounter++) {
 		spin_lock_irq(&bus->reg_lock);
+		if (bus->polling_mode)
+			snd_hdac_bus_update_rirb(bus);
 		if (!bus->rirb.cmds[addr]) {
 			if (res)
 				*res = bus->rirb.res[addr]; /* the last value */
