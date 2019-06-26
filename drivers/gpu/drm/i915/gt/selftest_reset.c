@@ -63,8 +63,8 @@ static int igt_atomic_reset(void *arg)
 
 	/* Check that the resets are usable from atomic context */
 
+	intel_gt_pm_get(&i915->gt);
 	igt_global_reset_lock(i915);
-	mutex_lock(&i915->drm.struct_mutex);
 
 	/* Flush any requests before we get started and check basics */
 	if (!igt_force_reset(i915))
@@ -89,8 +89,8 @@ static int igt_atomic_reset(void *arg)
 	igt_force_reset(i915);
 
 unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
 	igt_global_reset_unlock(i915);
+	intel_gt_pm_put(&i915->gt);
 
 	return err;
 }
