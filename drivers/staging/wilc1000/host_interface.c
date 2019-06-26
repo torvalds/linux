@@ -965,11 +965,8 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 	return 0;
 }
 
-static void handle_listen_state_expired(struct work_struct *work)
+static int wilc_handle_roc_expired(struct wilc_vif *vif, u64 cookie)
 {
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct wilc_remain_ch *hif_remain_ch = &msg->body.remain_on_ch;
 	u8 remain_on_chan_flag;
 	struct wid wid;
 	int result;
@@ -981,10 +978,10 @@ static void handle_listen_state_expired(struct work_struct *work)
 		wid.id = WID_REMAIN_ON_CHAN;
 		wid.type = WID_STR;
 		wid.size = 2;
-		wid.val = kmalloc(wid.size, GFP_KERNEL);
 
+		wid.val = kmalloc(wid.size, GFP_KERNEL);
 		if (!wid.val)
-			goto free_msg;
+			return -ENOMEM;
 
 		wid.val[0] = remain_on_chan_flag;
 		wid.val[1] = WILC_FALSE_FRMWR_CHANNEL;
@@ -994,18 +991,25 @@ static void handle_listen_state_expired(struct work_struct *work)
 		kfree(wid.val);
 		if (result != 0) {
 			netdev_err(vif->ndev, "Failed to set remain channel\n");
-			goto free_msg;
+			return -EINVAL;
 		}
 
 		if (hif_drv->remain_on_ch.expired) {
 			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.arg,
-						      hif_remain_ch->cookie);
+						      cookie);
 		}
 	} else {
 		netdev_dbg(vif->ndev, "Not in listen state\n");
 	}
 
-free_msg:
+	return 0;
+}
+
+static void wilc_handle_listen_state_expired(struct work_struct *work)
+{
+	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
+
+	wilc_handle_roc_expired(msg->vif, msg->body.remain_on_ch.cookie);
 	kfree(msg);
 }
 
@@ -1019,7 +1023,7 @@ static void listen_timer_cb(struct timer_list *t)
 
 	del_timer(&vif->hif_drv->remain_on_ch_timer);
 
-	msg = wilc_alloc_work(vif, handle_listen_state_expired, false);
+	msg = wilc_alloc_work(vif, wilc_handle_listen_state_expired, false);
 	if (IS_ERR(msg))
 		return;
 
@@ -1841,30 +1845,14 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie,
 
 int wilc_listen_state_expired(struct wilc_vif *vif, u64 cookie)
 {
-	int result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (!hif_drv) {
+	if (!vif->hif_drv) {
 		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
 		return -EFAULT;
 	}
 
-	del_timer(&hif_drv->remain_on_ch_timer);
+	del_timer(&vif->hif_drv->remain_on_ch_timer);
 
-	msg = wilc_alloc_work(vif, handle_listen_state_expired, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.remain_on_ch.cookie = cookie;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
-
-	return result;
+	return wilc_handle_roc_expired(vif, cookie);
 }
 
 void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
