@@ -247,6 +247,9 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 	/* LSO offloads*/
 	hw_atl_tdm_large_send_offload_en_set(self, 0xFFFFFFFFU);
 
+	/* Outer VLAN tag offload */
+	hw_atl_rpo_outer_vlan_tag_mode_set(self, 1U);
+
 /* LRO offloads */
 	{
 		unsigned int val = (8U < HW_ATL_B0_LRO_RXD_MAX) ? 0x3U :
@@ -489,6 +492,7 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 	unsigned int buff_pa_len = 0U;
 	unsigned int pkt_len = 0U;
 	unsigned int frag_count = 0U;
+	bool is_vlan = false;
 	bool is_gso = false;
 
 	buff = &ring->buff_ring[ring->sw_tail];
@@ -504,35 +508,43 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 		buff = &ring->buff_ring[ring->sw_tail];
 
 		if (buff->is_gso) {
+			txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_TCP;
+			txd->ctl |= HW_ATL_B0_TXD_CTL_DESC_TYPE_TXC;
 			txd->ctl |= (buff->len_l3 << 31) |
-				(buff->len_l2 << 24) |
-				HW_ATL_B0_TXD_CTL_CMD_TCP |
-				HW_ATL_B0_TXD_CTL_DESC_TYPE_TXC;
-			txd->ctl2 |= (buff->mss << 16) |
-				(buff->len_l4 << 8) |
-				(buff->len_l3 >> 1);
+				    (buff->len_l2 << 24);
+			txd->ctl2 |= (buff->mss << 16);
+			is_gso = true;
 
 			pkt_len -= (buff->len_l4 +
 				    buff->len_l3 +
 				    buff->len_l2);
-			is_gso = true;
-
 			if (buff->is_ipv6)
 				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_IPV6;
-		} else {
+			txd->ctl2 |= (buff->len_l4 << 8) |
+				     (buff->len_l3 >> 1);
+		}
+		if (buff->is_vlan) {
+			txd->ctl |= HW_ATL_B0_TXD_CTL_DESC_TYPE_TXC;
+			txd->ctl |= buff->vlan_tx_tag << 4;
+			is_vlan = true;
+		}
+		if (!buff->is_gso && !buff->is_vlan) {
 			buff_pa_len = buff->len;
 
 			txd->buf_addr = buff->pa;
 			txd->ctl |= (HW_ATL_B0_TXD_CTL_BLEN &
 						((u32)buff_pa_len << 4));
 			txd->ctl |= HW_ATL_B0_TXD_CTL_DESC_TYPE_TXD;
+
 			/* PAY_LEN */
 			txd->ctl2 |= HW_ATL_B0_TXD_CTL2_LEN & (pkt_len << 14);
 
-			if (is_gso) {
-				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_LSO;
+			if (is_gso || is_vlan) {
+				/* enable tx context */
 				txd->ctl2 |= HW_ATL_B0_TXD_CTL2_CTX_EN;
 			}
+			if (is_gso)
+				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_LSO;
 
 			/* Tx checksum offloads */
 			if (buff->is_ip_cso)
@@ -541,13 +553,16 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 			if (buff->is_udp_cso || buff->is_tcp_cso)
 				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_TUCSO;
 
+			if (is_vlan)
+				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_VLAN;
+
 			if (unlikely(buff->is_eop)) {
 				txd->ctl |= HW_ATL_B0_TXD_CTL_EOP;
 				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_WB;
 				is_gso = false;
+				is_vlan = false;
 			}
 		}
-
 		ring->sw_tail = aq_ring_next_dx(ring, ring->sw_tail);
 	}
 
@@ -685,11 +700,15 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->hw_head];
 
+		buff->flags = 0U;
+		buff->is_hash_l4 = 0U;
+
 		rx_stat = (0x0000003CU & rxd_wb->status) >> 2;
 
 		is_rx_check_sum_enabled = (rxd_wb->type >> 19) & 0x3U;
 
-		pkt_type = 0xFFU & (rxd_wb->type >> 4);
+		pkt_type = (rxd_wb->type & HW_ATL_B0_RXD_WB_STAT_PKTTYPE) >>
+			   HW_ATL_B0_RXD_WB_STAT_PKTTYPE_SHIFT;
 
 		if (is_rx_check_sum_enabled & BIT(0) &&
 		    (0x0U == (pkt_type & 0x3U)))
@@ -708,6 +727,13 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 		if (unlikely(rxd_wb->pkt_len <= 60)) {
 			buff->is_ip_cso = 0U;
 			buff->is_cso_err = 0U;
+		}
+
+		if (self->aq_nic_cfg->is_vlan_rx_strip &&
+		    ((pkt_type & HW_ATL_B0_RXD_WB_PKTTYPE_VLAN) ||
+		     (pkt_type & HW_ATL_B0_RXD_WB_PKTTYPE_VLAN_DOUBLE))) {
+			buff->is_vlan = 1;
+			buff->vlan_rx_tag = le16_to_cpu(rxd_wb->vlan);
 		}
 
 		if ((rx_stat & BIT(0)) || rxd_wb->type & 0x1000U) {
