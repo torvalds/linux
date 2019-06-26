@@ -1216,6 +1216,10 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev );
 static inline int amdgpu_dm_display_resume(struct amdgpu_device *adev) { return 0; }
 #endif
 
+
+void amdgpu_register_gpu_instance(struct amdgpu_device *adev);
+void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev);
+
 #include "amdgpu_object.h"
 
 /* used by df_v3_6.c and amdgpu_pmu.c */

@@ -3559,6 +3559,12 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 				if (vram_lost)
 					amdgpu_device_fill_reset_magic(tmp_adev);
 
+				/*
+				 * Add this ASIC as tracked as reset was already
+				 * complete successfully.
+				 */
+				amdgpu_register_gpu_instance(tmp_adev);
+
 				r = amdgpu_device_ip_late_init(tmp_adev);
 				if (r)
 					goto out;
@@ -3692,6 +3698,13 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		list_add_tail(&adev->gmc.xgmi.head, &device_list);
 		device_list_handle = &device_list;
 	}
+
+	/*
+	 * Mark these ASICs to be reseted as untracked first
+	 * And add them back after reset completed
+	 */
+	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head)
+		amdgpu_unregister_gpu_instance(tmp_adev);
 
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
