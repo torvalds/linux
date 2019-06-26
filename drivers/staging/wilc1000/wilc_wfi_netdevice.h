@@ -14,7 +14,7 @@
 #include <linux/if_arp.h>
 #include <linux/gpio/consumer.h>
 
-#include "host_interface.h"
+#include "wilc_hif.h"
 #include "wilc_wlan.h"
 #include "wilc_wlan_cfg.h"
 
