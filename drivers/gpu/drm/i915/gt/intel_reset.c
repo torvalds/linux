@@ -678,7 +678,6 @@ static void reset_prepare_engine(struct intel_engine_cs *engine)
 	 * written to the powercontext is undefined and so we may lose
 	 * GPU state upon resume, i.e. fail to restart after a reset.
 	 */
-	intel_engine_pm_get(engine);
 	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 	engine->reset.prepare(engine);
 }
@@ -709,16 +708,21 @@ static void revoke_mmaps(struct drm_i915_private *i915)
 	}
 }
 
-static void reset_prepare(struct drm_i915_private *i915)
+static intel_engine_mask_t reset_prepare(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
+	intel_engine_mask_t awake = 0;
 	enum intel_engine_id id;
 
-	intel_gt_pm_get(&i915->gt);
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, i915, id) {
+		if (intel_engine_pm_get_if_awake(engine))
+			awake |= engine->mask;
 		reset_prepare_engine(engine);
+	}
 
 	intel_uc_reset_prepare(i915);
+
+	return awake;
 }
 
 static void gt_revoke(struct drm_i915_private *i915)
@@ -752,20 +756,22 @@ static int gt_reset(struct drm_i915_private *i915,
 static void reset_finish_engine(struct intel_engine_cs *engine)
 {
 	engine->reset.finish(engine);
-	intel_engine_pm_put(engine);
 	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
+
+	intel_engine_signal_breadcrumbs(engine);
 }
 
-static void reset_finish(struct drm_i915_private *i915)
+static void reset_finish(struct drm_i915_private *i915,
+			 intel_engine_mask_t awake)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	for_each_engine(engine, i915, id) {
 		reset_finish_engine(engine);
-		intel_engine_signal_breadcrumbs(engine);
+		if (awake & engine->mask)
+			intel_engine_pm_put(engine);
 	}
-	intel_gt_pm_put(&i915->gt);
 }
 
 static void nop_submit_request(struct i915_request *request)
@@ -789,6 +795,7 @@ static void __i915_gem_set_wedged(struct drm_i915_private *i915)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	struct intel_engine_cs *engine;
+	intel_engine_mask_t awake;
 	enum intel_engine_id id;
 
 	if (test_bit(I915_WEDGED, &error->flags))
@@ -808,7 +815,7 @@ static void __i915_gem_set_wedged(struct drm_i915_private *i915)
 	 * rolling the global seqno forward (since this would complete requests
 	 * for which we haven't set the fence error to EIO yet).
 	 */
-	reset_prepare(i915);
+	awake = reset_prepare(i915);
 
 	/* Even if the GPU reset fails, it should still stop the engines */
 	if (!INTEL_INFO(i915)->gpu_reset_clobbers_display)
@@ -832,7 +839,7 @@ static void __i915_gem_set_wedged(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id)
 		engine->cancel_requests(engine);
 
-	reset_finish(i915);
+	reset_finish(i915, awake);
 
 	GEM_TRACE("end\n");
 }
@@ -964,6 +971,7 @@ void i915_reset(struct drm_i915_private *i915,
 		const char *reason)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
+	intel_engine_mask_t awake;
 	int ret;
 
 	GEM_TRACE("flags=%lx\n", error->flags);
@@ -980,7 +988,7 @@ void i915_reset(struct drm_i915_private *i915,
 		dev_notice(i915->drm.dev, "Resetting chip for %s\n", reason);
 	error->reset_count++;
 
-	reset_prepare(i915);
+	awake = reset_prepare(i915);
 
 	if (!intel_has_gpu_reset(i915)) {
 		if (i915_modparams.reset)
@@ -1021,7 +1029,7 @@ void i915_reset(struct drm_i915_private *i915,
 	i915_queue_hangcheck(i915);
 
 finish:
-	reset_finish(i915);
+	reset_finish(i915, awake);
 unlock:
 	mutex_unlock(&error->wedge_mutex);
 	return;
@@ -1072,7 +1080,7 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 	GEM_TRACE("%s flags=%lx\n", engine->name, error->flags);
 	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &error->flags));
 
-	if (!intel_engine_pm_is_awake(engine))
+	if (!intel_engine_pm_get_if_awake(engine))
 		return 0;
 
 	reset_prepare_engine(engine);
@@ -1107,12 +1115,11 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 	 * process to program RING_MODE, HWSP and re-enable submission.
 	 */
 	ret = engine->resume(engine);
-	if (ret)
-		goto out;
 
 out:
 	intel_engine_cancel_stop_cs(engine);
 	reset_finish_engine(engine);
+	intel_engine_pm_put(engine);
 	return ret;
 }
 
