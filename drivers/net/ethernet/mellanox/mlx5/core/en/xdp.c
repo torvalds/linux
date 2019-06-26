@@ -54,8 +54,8 @@ int mlx5e_xdp_max_mtu(struct mlx5e_params *params)
 }
 
 static inline bool
-mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_dma_info *di,
-		    struct xdp_buff *xdp)
+mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
+		    struct mlx5e_dma_info *di, struct xdp_buff *xdp)
 {
 	struct mlx5e_xdp_xmit_data xdptxd;
 	struct mlx5e_xdp_info xdpi;
@@ -75,6 +75,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_dma_info *di,
 	dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd.len, DMA_TO_DEVICE);
 
 	xdptxd.dma_addr = dma_addr;
+	xdpi.page.rq = rq;
 	xdpi.page.di = *di;
 
 	return sq->xmit_xdp_frame(sq, &xdptxd, &xdpi);
@@ -105,7 +106,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 		*len = xdp.data_end - xdp.data;
 		return false;
 	case XDP_TX:
-		if (unlikely(!mlx5e_xmit_xdp_buff(&rq->xdpsq, di, &xdp)))
+		if (unlikely(!mlx5e_xmit_xdp_buff(rq->xdpsq, rq, di, &xdp)))
 			goto xdp_abort;
 		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
 		return true;
@@ -287,7 +288,6 @@ static bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq,
 
 static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 				  struct mlx5e_xdp_wqe_info *wi,
-				  struct mlx5e_rq *rq,
 				  bool recycle)
 {
 	struct mlx5e_xdp_info_fifo *xdpi_fifo = &sq->db.xdpi_fifo;
@@ -305,7 +305,7 @@ static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 			break;
 		case MLX5E_XDP_XMIT_MODE_PAGE:
 			/* XDP_TX */
-			mlx5e_page_release(rq, &xdpi.page.di, recycle);
+			mlx5e_page_release(xdpi.page.rq, &xdpi.page.di, recycle);
 			break;
 		default:
 			WARN_ON_ONCE(true);
@@ -313,7 +313,7 @@ static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 	}
 }
 
-bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
+bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 {
 	struct mlx5e_xdpsq *sq;
 	struct mlx5_cqe64 *cqe;
@@ -358,7 +358,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 
 			sqcc += wi->num_wqebbs;
 
-			mlx5e_free_xdpsq_desc(sq, wi, rq, true);
+			mlx5e_free_xdpsq_desc(sq, wi, true);
 		} while (!last_wqe);
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
@@ -373,7 +373,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 	return (i == MLX5E_TX_CQ_POLL_BUDGET);
 }
 
-void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
+void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq)
 {
 	while (sq->cc != sq->pc) {
 		struct mlx5e_xdp_wqe_info *wi;
@@ -384,7 +384,7 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 
 		sq->cc += wi->num_wqebbs;
 
-		mlx5e_free_xdpsq_desc(sq, wi, rq, false);
+		mlx5e_free_xdpsq_desc(sq, wi, false);
 	}
 }
 
@@ -450,7 +450,7 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 
 void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq)
 {
-	struct mlx5e_xdpsq *xdpsq = &rq->xdpsq;
+	struct mlx5e_xdpsq *xdpsq = rq->xdpsq;
 
 	if (xdpsq->mpwqe.wqe)
 		mlx5e_xdp_mpwqe_complete(xdpsq);

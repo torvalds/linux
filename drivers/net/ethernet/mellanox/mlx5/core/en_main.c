@@ -418,6 +418,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq->mdev    = mdev;
 	rq->hw_mtu  = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	rq->stats   = &c->priv->channel_stats[c->ix].rq;
+	rq->xdpsq   = &c->rq_xdpsq;
 
 	rq->xdp_prog = params->xdp_prog ? bpf_prog_inc(params->xdp_prog) : NULL;
 	if (IS_ERR(rq->xdp_prog)) {
@@ -1438,7 +1439,7 @@ err_free_xdpsq:
 	return err;
 }
 
-static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
+static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq)
 {
 	struct mlx5e_channel *c = sq->channel;
 
@@ -1446,7 +1447,7 @@ static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 	napi_synchronize(&c->napi);
 
 	mlx5e_destroy_sq(c->mdev, sq->sqn);
-	mlx5e_free_xdpsq_descs(sq, rq);
+	mlx5e_free_xdpsq_descs(sq);
 	mlx5e_free_xdpsq(sq);
 }
 
@@ -1825,7 +1826,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 
 	/* XDP SQ CQ params are same as normal TXQ sq CQ params */
 	err = c->xdp ? mlx5e_open_cq(c, params->tx_cq_moderation,
-				     &cparam->tx_cq, &c->rq.xdpsq.cq) : 0;
+				     &cparam->tx_cq, &c->rq_xdpsq.cq) : 0;
 	if (err)
 		goto err_close_rx_cq;
 
@@ -1839,9 +1840,12 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (err)
 		goto err_close_icosq;
 
-	err = c->xdp ? mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, &c->rq.xdpsq, false) : 0;
-	if (err)
-		goto err_close_sqs;
+	if (c->xdp) {
+		err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq,
+				       &c->rq_xdpsq, false);
+		if (err)
+			goto err_close_sqs;
+	}
 
 	err = mlx5e_open_rq(c, params, &cparam->rq, &c->rq);
 	if (err)
@@ -1860,7 +1864,7 @@ err_close_rq:
 
 err_close_xdp_sq:
 	if (c->xdp)
-		mlx5e_close_xdpsq(&c->rq.xdpsq, &c->rq);
+		mlx5e_close_xdpsq(&c->rq_xdpsq);
 
 err_close_sqs:
 	mlx5e_close_sqs(c);
@@ -1871,7 +1875,7 @@ err_close_icosq:
 err_disable_napi:
 	napi_disable(&c->napi);
 	if (c->xdp)
-		mlx5e_close_cq(&c->rq.xdpsq.cq);
+		mlx5e_close_cq(&c->rq_xdpsq.cq);
 
 err_close_rx_cq:
 	mlx5e_close_cq(&c->rq.cq);
@@ -1916,15 +1920,15 @@ static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
 
 static void mlx5e_close_channel(struct mlx5e_channel *c)
 {
-	mlx5e_close_xdpsq(&c->xdpsq, NULL);
+	mlx5e_close_xdpsq(&c->xdpsq);
 	mlx5e_close_rq(&c->rq);
 	if (c->xdp)
-		mlx5e_close_xdpsq(&c->rq.xdpsq, &c->rq);
+		mlx5e_close_xdpsq(&c->rq_xdpsq);
 	mlx5e_close_sqs(c);
 	mlx5e_close_icosq(&c->icosq);
 	napi_disable(&c->napi);
 	if (c->xdp)
-		mlx5e_close_cq(&c->rq.xdpsq.cq);
+		mlx5e_close_cq(&c->rq_xdpsq.cq);
 	mlx5e_close_cq(&c->rq.cq);
 	mlx5e_close_cq(&c->xdpsq.cq);
 	mlx5e_close_tx_cqs(c);
