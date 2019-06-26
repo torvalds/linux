@@ -113,6 +113,8 @@ static void mtk_eint_mask(struct irq_data *d)
 	void __iomem *reg = mtk_eint_get_offset(eint, d->hwirq,
 						eint->regs->mask_set);
 
+	eint->cur_mask[d->hwirq >> 5] &= ~mask;
+
 	writel(mask, reg);
 }
 
@@ -122,6 +124,8 @@ static void mtk_eint_unmask(struct irq_data *d)
 	u32 mask = BIT(d->hwirq & 0x1f);
 	void __iomem *reg = mtk_eint_get_offset(eint, d->hwirq,
 						eint->regs->mask_clr);
+
+	eint->cur_mask[d->hwirq >> 5] |= mask;
 
 	writel(mask, reg);
 
@@ -214,19 +218,6 @@ static void mtk_eint_chip_write_mask(const struct mtk_eint *eint,
 		reg = base + (port << 2);
 		writel_relaxed(~buf[port], reg + eint->regs->mask_set);
 		writel_relaxed(buf[port], reg + eint->regs->mask_clr);
-	}
-}
-
-static void mtk_eint_chip_read_mask(const struct mtk_eint *eint,
-				    void __iomem *base, u32 *buf)
-{
-	int port;
-	void __iomem *reg;
-
-	for (port = 0; port < eint->hw->ports; port++) {
-		reg = base + eint->regs->mask + (port << 2);
-		buf[port] = ~readl_relaxed(reg);
-		/* Mask is 0 when irq is enabled, and 1 when disabled. */
 	}
 }
 
@@ -384,7 +375,6 @@ static void mtk_eint_irq_handler(struct irq_desc *desc)
 
 int mtk_eint_do_suspend(struct mtk_eint *eint)
 {
-	mtk_eint_chip_read_mask(eint, eint->base, eint->cur_mask);
 	mtk_eint_chip_write_mask(eint, eint->base, eint->wake_mask);
 
 	return 0;
