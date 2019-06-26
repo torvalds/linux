@@ -121,6 +121,14 @@ config ARM_ROCKCHIP_DMC_DEVFREQ
 	  It sets the frequency for the memory controller and reads the usage counts
 	  from hardware.
 
+config ARM_ROCKCHIP_DMC_DEBUG
+	tristate "ARM ROCKCHIP DMC DEBUG Driver"
+	depends on ARCH_ROCKCHIP
+	depends on (ARCH_ROCKCHIP && HAVE_ARM_SMCCC) || \
+		(COMPILE_TEST && HAVE_ARM_SMCCC)
+	help
+	  This adds the dmc debug driver for the ROCKCHIP DMC.
+
 source "drivers/devfreq/event/Kconfig"
 
 endif # PM_DEVFREQ
