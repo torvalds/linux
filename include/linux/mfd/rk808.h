@@ -396,7 +396,10 @@ enum rk805_reg {
 #define SHUTDOWN_FUN			(0x2 << 2)
 #define SLEEP_FUN			(0x1 << 2)
 #define RK8XX_ID_MSK			0xfff0
+#define PWM_MODE_MSK			BIT(7)
 #define FPWM_MODE			BIT(7)
+#define AUTO_PWM_MODE			0
+
 enum rk817_reg_id {
 	RK817_ID_DCDC1 = 0,
 	RK817_ID_DCDC2,
