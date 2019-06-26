@@ -529,6 +529,7 @@
 
 &saradc {
 	status = "okay";
+	vref-supply = <&vcc_1v8>;
 };
 
 &pinctrl {

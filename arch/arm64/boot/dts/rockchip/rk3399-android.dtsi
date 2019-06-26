@@ -43,6 +43,7 @@
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include <dt-bindings/display/media-bus-format.h>
 #include "rk3399-vop-clk-set.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	compatible = "rockchip,android", "rockchip,rk3399";
@@ -104,53 +105,63 @@
 		};
 	};
 
-	rk_key: rockchip-key {
-		compatible = "rockchip,key";
-		status = "okay";
-
+	adc-keys {
+		compatible = "adc-keys";
 		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
 
 		vol-up-key {
-			linux,code = <115>;
 			label = "volume up";
-			rockchip,adc_value = <1>;
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <1750>;
 		};
 
 		vol-down-key {
-			linux,code = <114>;
 			label = "volume down";
-			rockchip,adc_value = <170>;
-		};
-
-		power-key {
-			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
-			label = "power";
-			gpio-key,wakeup;
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <297500>;
 		};
 
 		menu-key {
-			linux,code = <59>;
 			label = "menu";
-			rockchip,adc_value = <746>;
+			linux,code = <KEY_MENU>;
+			press-threshold-microvolt = <1305500>;
 		};
 
 		home-key {
-			linux,code = <102>;
 			label = "home";
-			rockchip,adc_value = <355>;
+			linux,code = <KEY_HOME>;
+			press-threshold-microvolt = <621250>;
 		};
 
 		back-key {
-			linux,code = <158>;
 			label = "back";
-			rockchip,adc_value = <560>;
+			linux,code = <KEY_BACK>;
+			press-threshold-microvolt = <980000>;
 		};
 
 		camera-key {
-			linux,code = <212>;
 			label = "camera";
-			rockchip,adc_value = <450>;
+			linux,code = <KEY_CAMERA>;
+			press-threshold-microvolt = <787500>;
+		};
+
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwrbtn>;
+
+		power {
+			debounce-interval = <100>;
+			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+			label = "GPIO Key Power";
+			linux,code = <KEY_POWER>;
+			wakeup-source;
 		};
 	};
 
@@ -423,6 +434,12 @@
 			/*ISP_FLASHTRIGOU*/
 			rockchip,pins =
 				<1 3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	buttons {
+		pwrbtn: pwrbtn {
+			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
