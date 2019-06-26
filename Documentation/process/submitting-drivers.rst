@@ -16,7 +16,8 @@ you should probably talk to XFree86 (http://www.xfree86.org/) and/or X.Org
 
    Oh, and we don't really recommend submitting changes to XFree86 :)
 
-Also read the Documentation/process/submitting-patches.rst document.
+Also read the :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
+document.
 
 
 Allocating Device Numbers
@@ -27,7 +28,8 @@ by the Linux assigned name and number authority (currently this is
 Torben Mathiasen). The site is http://www.lanana.org/. This
 also deals with allocating numbers for devices that are not going to
 be submitted to the mainstream kernel.
-See Documentation/admin-guide/devices.rst for more information on this.
+See :ref:`Documentation/admin-guide/devices.rst <admin_devices>`
+for more information on this.
 
 If you don't use assigned numbers then when your device is submitted it will
 be given an assigned number even if that is different from values you may
@@ -117,7 +119,7 @@ PM support:
 		anything.  For the driver testing instructions see
 		Documentation/power/drivers-testing.txt and for a relatively
 		complete overview of the power management issues related to
-		drivers see Documentation/driver-api/pm/devices.rst.
+		drivers see :ref:`Documentation/driver-api/pm/devices.rst <driverapi_pm_devices>`.
 
 Control:
 		In general if there is active maintenance of a driver by

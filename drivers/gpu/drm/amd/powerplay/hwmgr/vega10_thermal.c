@@ -23,6 +23,7 @@
 
 #include "vega10_thermal.h"
 #include "vega10_hwmgr.h"
+#include "vega10_smumgr.h"
 #include "vega10_ppsmc.h"
 #include "vega10_inc.h"
 #include "soc15_common.h"
@@ -311,6 +312,7 @@ int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 	int result = 0;
 
 	if (hwmgr->thermal_controller.fanInfo.bNoFan ||
+	    speed == 0 ||
 	    (speed < hwmgr->thermal_controller.fanInfo.ulMinRPM) ||
 	    (speed > hwmgr->thermal_controller.fanInfo.ulMaxRPM))
 		return -1;
@@ -321,9 +323,9 @@ int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 	if (!result) {
 		crystal_clock_freq = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 		tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
-		WREG32_SOC15(THM, 0, mmCG_TACH_STATUS,
-				REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_STATUS),
-					CG_TACH_STATUS, TACH_PERIOD,
+		WREG32_SOC15(THM, 0, mmCG_TACH_CTRL,
+				REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL),
+					CG_TACH_CTRL, TARGET_PERIOD,
 					tach_period));
 	}
 	return vega10_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC_RPM);
@@ -550,6 +552,43 @@ int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 				PPTABLE, false);
 	if (ret)
 		pr_info("Failed to update Fan Control Table in PPTable!");
+
+	return ret;
+}
+
+int vega10_enable_mgpu_fan_boost(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	PPTable_t *table = &(data->smc_state_table.pp_table);
+	int ret;
+
+	if (!data->smu_features[GNLD_FAN_CONTROL].supported)
+		return 0;
+
+	if (!hwmgr->thermal_controller.advanceFanControlParameters.
+			usMGpuThrottlingRPMLimit)
+		return 0;
+
+	table->FanThrottlingRpm = hwmgr->thermal_controller.
+			advanceFanControlParameters.usMGpuThrottlingRPMLimit;
+
+	ret = smum_smc_table_manager(hwmgr,
+				(uint8_t *)(&(data->smc_state_table.pp_table)),
+				PPTABLE, false);
+	if (ret) {
+		pr_info("Failed to update fan control table in pptable!");
+		return ret;
+	}
+
+	ret = vega10_disable_fan_control_feature(hwmgr);
+	if (ret) {
+		pr_info("Attempt to disable SMC fan control feature failed!");
+		return ret;
+	}
+
+	ret = vega10_enable_fan_control_feature(hwmgr);
+	if (ret)
+		pr_info("Attempt to enable SMC fan control feature failed!");
 
 	return ret;
 }

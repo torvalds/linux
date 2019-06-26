@@ -1,0 +1,6 @@
+config DMA_RALINK
+	tristate "RALINK DMA support"
+	depends on RALINK && !SOC_RT288X
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+

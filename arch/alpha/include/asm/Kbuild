@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
 
-
+generated-y += syscall_table.h
 generic-y += compat.h
 generic-y += exec.h
 generic-y += export.h
 generic-y += fb.h
 generic-y += irq_work.h
+generic-y += kvm_para.h
 generic-y += mcs_spinlock.h
 generic-y += mm-arch-hooks.h
 generic-y += preempt.h

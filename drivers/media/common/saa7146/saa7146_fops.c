@@ -105,7 +105,7 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	}
 
 	q->curr->vb.state = state;
-	v4l2_get_timestamp(&q->curr->vb.ts);
+	q->curr->vb.ts = ktime_get_ns();
 	wake_up(&q->curr->vb.done);
 
 	q->curr = NULL;
@@ -606,7 +606,7 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	vfd->tvnorms = 0;
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
-	strlcpy(vfd->name, name, sizeof(vfd->name));
+	strscpy(vfd->name, name, sizeof(vfd->name));
 	video_set_drvdata(vfd, dev);
 
 	err = video_register_device(vfd, type, -1);

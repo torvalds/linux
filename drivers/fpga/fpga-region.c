@@ -158,11 +158,36 @@ err_put_region:
 }
 EXPORT_SYMBOL_GPL(fpga_region_program_fpga);
 
+static ssize_t compat_id_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct fpga_region *region = to_fpga_region(dev);
+
+	if (!region->compat_id)
+		return -ENOENT;
+
+	return sprintf(buf, "%016llx%016llx\n",
+		       (unsigned long long)region->compat_id->id_h,
+		       (unsigned long long)region->compat_id->id_l);
+}
+
+static DEVICE_ATTR_RO(compat_id);
+
+static struct attribute *fpga_region_attrs[] = {
+	&dev_attr_compat_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(fpga_region);
+
 /**
  * fpga_region_create - alloc and init a struct fpga_region
  * @dev: device parent
  * @mgr: manager that programs this region
  * @get_bridges: optional function to get bridges to a list
+ *
+ * The caller of this function is responsible for freeing the resulting region
+ * struct with fpga_region_free().  Using devm_fpga_region_create() instead is
+ * recommended.
  *
  * Return: struct fpga_region or NULL
  */
@@ -209,8 +234,8 @@ err_free:
 EXPORT_SYMBOL_GPL(fpga_region_create);
 
 /**
- * fpga_region_free - free a struct fpga_region
- * @region: FPGA region created by fpga_region_create
+ * fpga_region_free - free a FPGA region created by fpga_region_create()
+ * @region: FPGA region
  */
 void fpga_region_free(struct fpga_region *region)
 {
@@ -219,21 +244,69 @@ void fpga_region_free(struct fpga_region *region)
 }
 EXPORT_SYMBOL_GPL(fpga_region_free);
 
+static void devm_fpga_region_release(struct device *dev, void *res)
+{
+	struct fpga_region *region = *(struct fpga_region **)res;
+
+	fpga_region_free(region);
+}
+
+/**
+ * devm_fpga_region_create - create and initialize a managed FPGA region struct
+ * @dev: device parent
+ * @mgr: manager that programs this region
+ * @get_bridges: optional function to get bridges to a list
+ *
+ * This function is intended for use in a FPGA region driver's probe function.
+ * After the region driver creates the region struct with
+ * devm_fpga_region_create(), it should register it with fpga_region_register().
+ * The region driver's remove function should call fpga_region_unregister().
+ * The region struct allocated with this function will be freed automatically on
+ * driver detach.  This includes the case of a probe function returning error
+ * before calling fpga_region_register(), the struct will still get cleaned up.
+ *
+ * Return: struct fpga_region or NULL
+ */
+struct fpga_region
+*devm_fpga_region_create(struct device *dev,
+			 struct fpga_manager *mgr,
+			 int (*get_bridges)(struct fpga_region *))
+{
+	struct fpga_region **ptr, *region;
+
+	ptr = devres_alloc(devm_fpga_region_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	region = fpga_region_create(dev, mgr, get_bridges);
+	if (!region) {
+		devres_free(ptr);
+	} else {
+		*ptr = region;
+		devres_add(dev, ptr);
+	}
+
+	return region;
+}
+EXPORT_SYMBOL_GPL(devm_fpga_region_create);
+
 /**
  * fpga_region_register - register a FPGA region
- * @region: FPGA region created by fpga_region_create
+ * @region: FPGA region
+ *
  * Return: 0 or -errno
  */
 int fpga_region_register(struct fpga_region *region)
 {
 	return device_add(&region->dev);
-
 }
 EXPORT_SYMBOL_GPL(fpga_region_register);
 
 /**
- * fpga_region_unregister - unregister and free a FPGA region
+ * fpga_region_unregister - unregister a FPGA region
  * @region: FPGA region
+ *
+ * This function is intended for use in a FPGA region driver's remove function.
  */
 void fpga_region_unregister(struct fpga_region *region)
 {
@@ -243,9 +316,6 @@ EXPORT_SYMBOL_GPL(fpga_region_unregister);
 
 static void fpga_region_dev_release(struct device *dev)
 {
-	struct fpga_region *region = to_fpga_region(dev);
-
-	fpga_region_free(region);
 }
 
 /**
@@ -258,6 +328,7 @@ static int __init fpga_region_init(void)
 	if (IS_ERR(fpga_region_class))
 		return PTR_ERR(fpga_region_class);
 
+	fpga_region_class->dev_groups = fpga_region_groups;
 	fpga_region_class->dev_release = fpga_region_dev_release;
 
 	return 0;

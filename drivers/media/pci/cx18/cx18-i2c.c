@@ -83,7 +83,7 @@ static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
 	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
-	strlcpy(info.type, type, I2C_NAME_SIZE);
+	strscpy(info.type, type, I2C_NAME_SIZE);
 
 	/* Our default information for ir-kbd-i2c.c to use */
 	switch (hw) {

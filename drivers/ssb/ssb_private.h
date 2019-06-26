@@ -2,45 +2,12 @@
 #ifndef LINUX_SSB_PRIVATE_H_
 #define LINUX_SSB_PRIVATE_H_
 
+#define PFX		"ssb: "
+#define pr_fmt(fmt)	PFX fmt
+
 #include <linux/ssb/ssb.h>
 #include <linux/types.h>
 #include <linux/bcm47xx_wdt.h>
-
-
-#define PFX	"ssb: "
-
-#ifdef CONFIG_SSB_SILENT
-# define ssb_printk(fmt, ...)					\
-	do { if (0) printk(fmt, ##__VA_ARGS__); } while (0)
-#else
-# define ssb_printk(fmt, ...)					\
-	printk(fmt, ##__VA_ARGS__)
-#endif /* CONFIG_SSB_SILENT */
-
-#define ssb_emerg(fmt, ...)	ssb_printk(KERN_EMERG PFX fmt, ##__VA_ARGS__)
-#define ssb_err(fmt, ...)	ssb_printk(KERN_ERR PFX fmt, ##__VA_ARGS__)
-#define ssb_warn(fmt, ...)	ssb_printk(KERN_WARNING PFX fmt, ##__VA_ARGS__)
-#define ssb_notice(fmt, ...)	ssb_printk(KERN_NOTICE PFX fmt, ##__VA_ARGS__)
-#define ssb_info(fmt, ...)	ssb_printk(KERN_INFO PFX fmt, ##__VA_ARGS__)
-#define ssb_cont(fmt, ...)	ssb_printk(KERN_CONT fmt, ##__VA_ARGS__)
-
-/* dprintk: Debugging printk; vanishes for non-debug compilation */
-#ifdef CONFIG_SSB_DEBUG
-# define ssb_dbg(fmt, ...)					\
-	ssb_printk(KERN_DEBUG PFX fmt, ##__VA_ARGS__)
-#else
-# define ssb_dbg(fmt, ...)					\
-	do { if (0) printk(KERN_DEBUG PFX fmt, ##__VA_ARGS__); } while (0)
-#endif
-
-#ifdef CONFIG_SSB_DEBUG
-# define SSB_WARN_ON(x)		WARN_ON(x)
-# define SSB_BUG_ON(x)		BUG_ON(x)
-#else
-static inline int __ssb_do_nothing(int x) { return x; }
-# define SSB_WARN_ON(x)		__ssb_do_nothing(unlikely(!!(x)))
-# define SSB_BUG_ON(x)		__ssb_do_nothing(unlikely(!!(x)))
-#endif
 
 
 /* pci.c */

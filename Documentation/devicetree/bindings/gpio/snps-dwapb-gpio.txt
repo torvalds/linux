@@ -25,7 +25,6 @@ controller.
   interrupt.  Shall be set to 2.  The first cell defines the interrupt number,
   the second encodes the triger flags encoded as described in
   Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
-- interrupt-parent : The parent interrupt controller.
 - interrupts : The interrupts to the parent controller raised when GPIOs
   generate the interrupts. If the controller provides one combined interrupt
   for all GPIOs, specify a single interrupt. If the controller provides one
@@ -44,7 +43,7 @@ gpio: gpio@20000 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	porta: gpio-controller@0 {
+	porta: gpio@0 {
 		compatible = "snps,dw-apb-gpio-port";
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -56,7 +55,7 @@ gpio: gpio@20000 {
 		interrupts = <0>;
 	};
 
-	portb: gpio-controller@1 {
+	portb: gpio@1 {
 		compatible = "snps,dw-apb-gpio-port";
 		gpio-controller;
 		#gpio-cells = <2>;

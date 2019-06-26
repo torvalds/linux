@@ -292,7 +292,6 @@ void snd_gf1_free_voice(struct snd_gus_card * gus, struct snd_gus_voice *voice)
 {
 	unsigned long flags;
 	void (*private_free)(struct snd_gus_voice *voice);
-	void *private_data;
 
 	if (voice == NULL || !voice->use)
 		return;
@@ -300,7 +299,6 @@ void snd_gf1_free_voice(struct snd_gus_card * gus, struct snd_gus_voice *voice)
 	snd_gf1_clear_voices(gus, voice->number, voice->number);
 	spin_lock_irqsave(&gus->voice_alloc, flags);
 	private_free = voice->private_free;
-	private_data = voice->private_data;
 	voice->private_free = NULL;
 	voice->private_data = NULL;
 	if (voice->pcm)

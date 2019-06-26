@@ -3,7 +3,7 @@
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -179,6 +179,8 @@ char acpi_ut_remove_whitespace(char **string);
 char acpi_ut_remove_leading_zeros(char **string);
 
 u8 acpi_ut_detect_hex_prefix(char **string);
+
+void acpi_ut_remove_hex_prefix(char **string);
 
 u8 acpi_ut_detect_octal_prefix(char **string);
 

@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver for the Synopsys DesignWare DMA Controller
  *
  * Copyright (C) 2007 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
  * Copyright (C) 2014 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef _DMA_DW_H
 #define _DMA_DW_H
@@ -45,9 +42,13 @@ struct dw_dma_chip {
 #if IS_ENABLED(CONFIG_DW_DMAC_CORE)
 int dw_dma_probe(struct dw_dma_chip *chip);
 int dw_dma_remove(struct dw_dma_chip *chip);
+int idma32_dma_probe(struct dw_dma_chip *chip);
+int idma32_dma_remove(struct dw_dma_chip *chip);
 #else
 static inline int dw_dma_probe(struct dw_dma_chip *chip) { return -ENODEV; }
 static inline int dw_dma_remove(struct dw_dma_chip *chip) { return 0; }
+static inline int idma32_dma_probe(struct dw_dma_chip *chip) { return -ENODEV; }
+static inline int idma32_dma_remove(struct dw_dma_chip *chip) { return 0; }
 #endif /* CONFIG_DW_DMAC_CORE */
 
 #endif /* _DMA_DW_H */

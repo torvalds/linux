@@ -1,5 +1,6 @@
 menuconfig SAMPLES
 	bool "Sample kernel code"
+	depends on !UML
 	help
 	  You can build and test sample kernel code here.
 
@@ -145,6 +146,13 @@ config SAMPLE_VFIO_MDEV_MBOCHS
 	  interface vbe registers in the mmio register bar.
 	  Specifically it does *not* include any legacy vga stuff.
 	  Device looks a lot like "qemu -device secondary-vga".
+
+config SAMPLE_ANDROID_BINDERFS
+	bool "Build Android binderfs example"
+	depends on CONFIG_ANDROID_BINDERFS
+	help
+	  Builds a sample program to illustrate the use of the Android binderfs
+	  filesystem.
 
 config SAMPLE_STATX
 	bool "Build example extended-stat using code"

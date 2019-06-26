@@ -13,6 +13,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_clock.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 static struct dev_pm_domain davinci_pm_domain = {
 	.ops = {
@@ -28,6 +29,10 @@ static struct pm_clk_notifier_block platform_bus_notifier = {
 
 static int __init davinci_pm_runtime_init(void)
 {
+	if (of_have_populated_dt())
+		return 0;
+
+	/* Use pm_clk as fallback if we're not using genpd. */
 	pm_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
 
 	return 0;

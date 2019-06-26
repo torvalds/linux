@@ -4,9 +4,6 @@
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable
 
-disable_events
-echo > kprobe_events
-
 :;: "Add an event on function without name" ;:
 
 FUNC=`grep " [tT] .*vfs_read$" /proc/kallsyms | tail -n 1 | cut -f 3 -d " "`
@@ -33,5 +30,3 @@ echo "p $FUNC" > kprobe_events
 EVENT=`grep $FUNC kprobe_events | cut -f 1 -d " " | cut -f 2 -d:`
 [ "x" != "x$EVENT" ] || exit_failure
 test -d events/$EVENT || exit_failure
-
-echo > kprobe_events

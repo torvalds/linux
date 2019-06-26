@@ -5,6 +5,73 @@
  * Copyright (C) 2017 Marvell
  * Author: Miquel RAYNAL <miquel.raynal@free-electrons.com>
  *
+ *
+ * This NAND controller driver handles two versions of the hardware,
+ * one is called NFCv1 and is available on PXA SoCs and the other is
+ * called NFCv2 and is available on Armada SoCs.
+ *
+ * The main visible difference is that NFCv1 only has Hamming ECC
+ * capabilities, while NFCv2 also embeds a BCH ECC engine. Also, DMA
+ * is not used with NFCv2.
+ *
+ * The ECC layouts are depicted in details in Marvell AN-379, but here
+ * is a brief description.
+ *
+ * When using Hamming, the data is split in 512B chunks (either 1, 2
+ * or 4) and each chunk will have its own ECC "digest" of 6B at the
+ * beginning of the OOB area and eventually the remaining free OOB
+ * bytes (also called "spare" bytes in the driver). This engine
+ * corrects up to 1 bit per chunk and detects reliably an error if
+ * there are at most 2 bitflips. Here is the page layout used by the
+ * controller when Hamming is chosen:
+ *
+ * +-------------------------------------------------------------+
+ * | Data 1 | ... | Data N | ECC 1 | ... | ECCN | Free OOB bytes |
+ * +-------------------------------------------------------------+
+ *
+ * When using the BCH engine, there are N identical (data + free OOB +
+ * ECC) sections and potentially an extra one to deal with
+ * configurations where the chosen (data + free OOB + ECC) sizes do
+ * not align with the page (data + OOB) size. ECC bytes are always
+ * 30B per ECC chunk. Here is the page layout used by the controller
+ * when BCH is chosen:
+ *
+ * +-----------------------------------------
+ * | Data 1 | Free OOB bytes 1 | ECC 1 | ...
+ * +-----------------------------------------
+ *
+ *      -------------------------------------------
+ *       ... | Data N | Free OOB bytes N | ECC N |
+ *      -------------------------------------------
+ *
+ *           --------------------------------------------+
+ *            Last Data | Last Free OOB bytes | Last ECC |
+ *           --------------------------------------------+
+ *
+ * In both cases, the layout seen by the user is always: all data
+ * first, then all free OOB bytes and finally all ECC bytes. With BCH,
+ * ECC bytes are 30B long and are padded with 0xFF to align on 32
+ * bytes.
+ *
+ * The controller has certain limitations that are handled by the
+ * driver:
+ *   - It can only read 2k at a time. To overcome this limitation, the
+ *     driver issues data cycles on the bus, without issuing new
+ *     CMD + ADDR cycles. The Marvell term is "naked" operations.
+ *   - The ECC strength in BCH mode cannot be tuned. It is fixed 16
+ *     bits. What can be tuned is the ECC block size as long as it
+ *     stays between 512B and 2kiB. It's usually chosen based on the
+ *     chip ECC requirements. For instance, using 2kiB ECC chunks
+ *     provides 4b/512B correctability.
+ *   - The controller will always treat data bytes, free OOB bytes
+ *     and ECC bytes in that order, no matter what the real layout is
+ *     (which is usually all data then all OOB bytes). The
+ *     marvell_nfc_layouts array below contains the currently
+ *     supported layouts.
+ *   - Because of these weird layouts, the Bad Block Markers can be
+ *     located in data section. In this case, the NAND_BBT_NO_OOB_BBM
+ *     option must be set to prevent scanning/writing bad block
+ *     markers.
  */
 
 #include <linux/module.h>
@@ -217,8 +284,11 @@ static const struct marvell_hw_ecc_layout marvell_nfc_layouts[] = {
 	MARVELL_LAYOUT(  512,   512,  1,  1,  1,  512,  8,  8,  0,  0,  0),
 	MARVELL_LAYOUT( 2048,   512,  1,  1,  1, 2048, 40, 24,  0,  0,  0),
 	MARVELL_LAYOUT( 2048,   512,  4,  1,  1, 2048, 32, 30,  0,  0,  0),
+	MARVELL_LAYOUT( 2048,   512,  8,  2,  1, 1024,  0, 30,1024,32, 30),
 	MARVELL_LAYOUT( 4096,   512,  4,  2,  2, 2048, 32, 30,  0,  0,  0),
 	MARVELL_LAYOUT( 4096,   512,  8,  5,  4, 1024,  0, 30,  0, 64, 30),
+	MARVELL_LAYOUT( 8192,   512,  4,  4,  4, 2048,  0, 30,  0,  0,  0),
+	MARVELL_LAYOUT( 8192,   512,  8,  9,  8, 1024,  0, 30,  0, 160, 30),
 };
 
 /**
@@ -308,7 +378,7 @@ struct marvell_nfc_caps {
  * @dev:		Parent device (used to print error messages)
  * @regs:		NAND controller registers
  * @core_clk:		Core clock
- * @reg_clk:		Regiters clock
+ * @reg_clk:		Registers clock
  * @complete:		Completion object to wait for NAND controller events
  * @assigned_cs:	Bitmask describing already assigned CS lines
  * @chips:		List containing all the NAND chips attached to
@@ -318,7 +388,7 @@ struct marvell_nfc_caps {
  * @dma_buf:		32-bit aligned buffer for DMA transfers (NFCv1 only)
  */
 struct marvell_nfc {
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	struct device *dev;
 	void __iomem *regs;
 	struct clk *core_clk;
@@ -335,7 +405,7 @@ struct marvell_nfc {
 	u8 *dma_buf;
 };
 
-static inline struct marvell_nfc *to_marvell_nfc(struct nand_hw_control *ctrl)
+static inline struct marvell_nfc *to_marvell_nfc(struct nand_controller *ctrl)
 {
 	return container_of(ctrl, struct marvell_nfc, controller);
 }
@@ -444,9 +514,14 @@ static void marvell_nfc_enable_int(struct marvell_nfc *nfc, u32 int_mask)
 	writel_relaxed(reg & ~int_mask, nfc->regs + NDCR);
 }
 
-static void marvell_nfc_clear_int(struct marvell_nfc *nfc, u32 int_mask)
+static u32 marvell_nfc_clear_int(struct marvell_nfc *nfc, u32 int_mask)
 {
+	u32 reg;
+
+	reg = readl_relaxed(nfc->regs + NDSR);
 	writel_relaxed(int_mask, nfc->regs + NDSR);
+
+	return reg & int_mask;
 }
 
 static void marvell_nfc_force_byte_access(struct nand_chip *chip,
@@ -613,6 +688,7 @@ static int marvell_nfc_wait_cmdd(struct nand_chip *chip)
 static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 {
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
+	u32 pending;
 	int ret;
 
 	/* Timeout is expressed in ms */
@@ -625,8 +701,13 @@ static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 	ret = wait_for_completion_timeout(&nfc->complete,
 					  msecs_to_jiffies(timeout_ms));
 	marvell_nfc_disable_int(nfc, NDCR_RDYM);
-	marvell_nfc_clear_int(nfc, NDSR_RDY(0) | NDSR_RDY(1));
-	if (!ret) {
+	pending = marvell_nfc_clear_int(nfc, NDSR_RDY(0) | NDSR_RDY(1));
+
+	/*
+	 * In case the interrupt was not served in the required time frame,
+	 * check if the ISR was not served or if something went actually wrong.
+	 */
+	if (ret && !pending) {
 		dev_err(nfc->dev, "Timeout waiting for RB signal\n");
 		return -ETIMEDOUT;
 	}
@@ -634,29 +715,12 @@ static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 	return 0;
 }
 
-static void marvell_nfc_select_chip(struct mtd_info *mtd, int die_nr)
+static void marvell_nfc_select_target(struct nand_chip *chip,
+				      unsigned int die_nr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct marvell_nand_chip *marvell_nand = to_marvell_nand(chip);
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 	u32 ndcr_generic;
-
-	if (chip == nfc->selected_chip && die_nr == marvell_nand->selected_die)
-		return;
-
-	if (die_nr < 0 || die_nr >= marvell_nand->nsels) {
-		nfc->selected_chip = NULL;
-		marvell_nand->selected_die = -1;
-		return;
-	}
-
-	/*
-	 * Do not change the timing registers when using the DT property
-	 * marvell,nand-keep-config; in that case ->ndtr0 and ->ndtr1 from the
-	 * marvell_nand structure are supposedly empty.
-	 */
-	writel_relaxed(marvell_nand->ndtr0, nfc->regs + NDTR0);
-	writel_relaxed(marvell_nand->ndtr1, nfc->regs + NDTR1);
 
 	/*
 	 * Reset the NDCR register to a clean state for this particular chip,
@@ -668,6 +732,12 @@ static void marvell_nfc_select_chip(struct mtd_info *mtd, int die_nr)
 
 	/* Also reset the interrupt status register */
 	marvell_nfc_clear_int(nfc, NDCR_ALL_INT);
+
+	if (chip == nfc->selected_chip && die_nr == marvell_nand->selected_die)
+		return;
+
+	writel_relaxed(marvell_nand->ndtr0, nfc->regs + NDTR0);
+	writel_relaxed(marvell_nand->ndtr1, nfc->regs + NDTR1);
 
 	nfc->selected_chip = chip;
 	marvell_nand->selected_die = die_nr;
@@ -691,7 +761,7 @@ static irqreturn_t marvell_nfc_isr(int irq, void *dev_id)
 
 	marvell_nfc_disable_int(nfc, st & NDCR_ALL_INT);
 
-	if (!(st & (NDSR_RDDREQ | NDSR_WRDREQ | NDSR_WRCMDREQ)))
+	if (st & (NDSR_RDY(0) | NDSR_RDY(1)))
 		complete(&nfc->complete);
 
 	return IRQ_HANDLED;
@@ -960,28 +1030,26 @@ static int marvell_nfc_hw_ecc_hmg_do_read_page(struct nand_chip *chip,
 	}
 
 	ret = marvell_nfc_wait_cmdd(chip);
-
 	return ret;
 }
 
-static int marvell_nfc_hw_ecc_hmg_read_page_raw(struct mtd_info *mtd,
-						struct nand_chip *chip, u8 *buf,
+static int marvell_nfc_hw_ecc_hmg_read_page_raw(struct nand_chip *chip, u8 *buf,
 						int oob_required, int page)
 {
+	marvell_nfc_select_target(chip, chip->cur_cs);
 	return marvell_nfc_hw_ecc_hmg_do_read_page(chip, buf, chip->oob_poi,
 						   true, page);
 }
 
-static int marvell_nfc_hw_ecc_hmg_read_page(struct mtd_info *mtd,
-					    struct nand_chip *chip,
-					    u8 *buf, int oob_required,
-					    int page)
+static int marvell_nfc_hw_ecc_hmg_read_page(struct nand_chip *chip, u8 *buf,
+					    int oob_required, int page)
 {
 	const struct marvell_hw_ecc_layout *lt = to_marvell_nand(chip)->layout;
 	unsigned int full_sz = lt->data_bytes + lt->spare_bytes + lt->ecc_bytes;
 	int max_bitflips = 0, ret;
 	u8 *raw_buf;
 
+	marvell_nfc_select_target(chip, chip->cur_cs);
 	marvell_nfc_enable_hw_ecc(chip);
 	marvell_nfc_hw_ecc_hmg_do_read_page(chip, buf, chip->oob_poi, false,
 					    page);
@@ -1013,12 +1081,12 @@ static int marvell_nfc_hw_ecc_hmg_read_page(struct mtd_info *mtd,
  * it appears before the ECC bytes when reading), the ->read_oob_raw() function
  * also stands for ->read_oob().
  */
-static int marvell_nfc_hw_ecc_hmg_read_oob_raw(struct mtd_info *mtd,
-					       struct nand_chip *chip, int page)
+static int marvell_nfc_hw_ecc_hmg_read_oob_raw(struct nand_chip *chip, int page)
 {
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
+	marvell_nfc_select_target(chip, chip->cur_cs);
 	return marvell_nfc_hw_ecc_hmg_do_read_page(chip, chip->data_buf,
 						   chip->oob_poi, true, page);
 }
@@ -1078,22 +1146,22 @@ static int marvell_nfc_hw_ecc_hmg_do_write_page(struct nand_chip *chip,
 	return ret;
 }
 
-static int marvell_nfc_hw_ecc_hmg_write_page_raw(struct mtd_info *mtd,
-						 struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_hmg_write_page_raw(struct nand_chip *chip,
 						 const u8 *buf,
 						 int oob_required, int page)
 {
+	marvell_nfc_select_target(chip, chip->cur_cs);
 	return marvell_nfc_hw_ecc_hmg_do_write_page(chip, buf, chip->oob_poi,
 						    true, page);
 }
 
-static int marvell_nfc_hw_ecc_hmg_write_page(struct mtd_info *mtd,
-					     struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_hmg_write_page(struct nand_chip *chip,
 					     const u8 *buf,
 					     int oob_required, int page)
 {
 	int ret;
 
+	marvell_nfc_select_target(chip, chip->cur_cs);
 	marvell_nfc_enable_hw_ecc(chip);
 	ret = marvell_nfc_hw_ecc_hmg_do_write_page(chip, buf, chip->oob_poi,
 						   false, page);
@@ -1107,24 +1175,26 @@ static int marvell_nfc_hw_ecc_hmg_write_page(struct mtd_info *mtd,
  * it appears before the ECC bytes when reading), the ->write_oob_raw() function
  * also stands for ->write_oob().
  */
-static int marvell_nfc_hw_ecc_hmg_write_oob_raw(struct mtd_info *mtd,
-						struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_hmg_write_oob_raw(struct nand_chip *chip,
 						int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
 	memset(chip->data_buf, 0xFF, mtd->writesize);
 
+	marvell_nfc_select_target(chip, chip->cur_cs);
 	return marvell_nfc_hw_ecc_hmg_do_write_page(chip, chip->data_buf,
 						    chip->oob_poi, true, page);
 }
 
 /* BCH read helpers */
-static int marvell_nfc_hw_ecc_bch_read_page_raw(struct mtd_info *mtd,
-						struct nand_chip *chip, u8 *buf,
+static int marvell_nfc_hw_ecc_bch_read_page_raw(struct nand_chip *chip, u8 *buf,
 						int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	const struct marvell_hw_ecc_layout *lt = to_marvell_nand(chip)->layout;
 	u8 *oob = chip->oob_poi;
 	int chunk_size = lt->data_bytes + lt->spare_bytes + lt->ecc_bytes;
@@ -1134,6 +1204,8 @@ static int marvell_nfc_hw_ecc_bch_read_page_raw(struct mtd_info *mtd,
 	int spare_len = lt->spare_bytes;
 	int ecc_len = lt->ecc_bytes;
 	int chunk;
+
+	marvell_nfc_select_target(chip, chip->cur_cs);
 
 	if (oob_required)
 		memset(chip->oob_poi, 0xFF, mtd->oobsize);
@@ -1233,17 +1305,19 @@ static void marvell_nfc_hw_ecc_bch_read_chunk(struct nand_chip *chip, int chunk,
 	}
 }
 
-static int marvell_nfc_hw_ecc_bch_read_page(struct mtd_info *mtd,
-					    struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_bch_read_page(struct nand_chip *chip,
 					    u8 *buf, int oob_required,
 					    int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	const struct marvell_hw_ecc_layout *lt = to_marvell_nand(chip)->layout;
-	int data_len = lt->data_bytes, spare_len = lt->spare_bytes, ecc_len;
-	u8 *data = buf, *spare = chip->oob_poi, *ecc;
+	int data_len = lt->data_bytes, spare_len = lt->spare_bytes;
+	u8 *data = buf, *spare = chip->oob_poi;
 	int max_bitflips = 0;
 	u32 failure_mask = 0;
-	int chunk, ecc_offset_in_page, ret;
+	int chunk, ret;
+
+	marvell_nfc_select_target(chip, chip->cur_cs);
 
 	/*
 	 * With BCH, OOB is not fully used (and thus not read entirely), not
@@ -1284,73 +1358,98 @@ static int marvell_nfc_hw_ecc_bch_read_page(struct mtd_info *mtd,
 	 * the controller in normal mode and must be re-read in raw mode. To
 	 * avoid dropping the performances, we prefer not to include them. The
 	 * user should re-read the page in raw mode if ECC bytes are required.
+	 */
+
+	/*
+	 * In case there is any subpage read error reported by ->correct(), we
+	 * usually re-read only ECC bytes in raw mode and check if the whole
+	 * page is empty. In this case, it is normal that the ECC check failed
+	 * and we just ignore the error.
 	 *
-	 * However, for any subpage read error reported by ->correct(), the ECC
-	 * bytes must be read in raw mode and the full subpage must be checked
-	 * to see if it is entirely empty of if there was an actual error.
+	 * However, it has been empirically observed that for some layouts (e.g
+	 * 2k page, 8b strength per 512B chunk), the controller tries to correct
+	 * bits and may create itself bitflips in the erased area. To overcome
+	 * this strange behavior, the whole page is re-read in raw mode, not
+	 * only the ECC bytes.
 	 */
 	for (chunk = 0; chunk < lt->nchunks; chunk++) {
+		int data_off_in_page, spare_off_in_page, ecc_off_in_page;
+		int data_off, spare_off, ecc_off;
+		int data_len, spare_len, ecc_len;
+
 		/* No failure reported for this chunk, move to the next one */
 		if (!(failure_mask & BIT(chunk)))
 			continue;
 
-		/* Derive ECC bytes positions (in page/buffer) and length */
-		ecc = chip->oob_poi +
-			(lt->full_chunk_cnt * lt->spare_bytes) +
-			lt->last_spare_bytes +
-			(chunk * ALIGN(lt->ecc_bytes, 32));
-		ecc_offset_in_page =
-			(chunk * (lt->data_bytes + lt->spare_bytes +
-				  lt->ecc_bytes)) +
-			(chunk < lt->full_chunk_cnt ?
-			 lt->data_bytes + lt->spare_bytes :
-			 lt->last_data_bytes + lt->last_spare_bytes);
-		ecc_len = chunk < lt->full_chunk_cnt ?
-			lt->ecc_bytes : lt->last_ecc_bytes;
+		data_off_in_page = chunk * (lt->data_bytes + lt->spare_bytes +
+					    lt->ecc_bytes);
+		spare_off_in_page = data_off_in_page +
+			(chunk < lt->full_chunk_cnt ? lt->data_bytes :
+						      lt->last_data_bytes);
+		ecc_off_in_page = spare_off_in_page +
+			(chunk < lt->full_chunk_cnt ? lt->spare_bytes :
+						      lt->last_spare_bytes);
 
-		/* Do the actual raw read of the ECC bytes */
-		nand_change_read_column_op(chip, ecc_offset_in_page,
-					   ecc, ecc_len, false);
+		data_off = chunk * lt->data_bytes;
+		spare_off = chunk * lt->spare_bytes;
+		ecc_off = (lt->full_chunk_cnt * lt->spare_bytes) +
+			  lt->last_spare_bytes +
+			  (chunk * (lt->ecc_bytes + 2));
 
-		/* Derive data/spare bytes positions (in buffer) and length */
-		data = buf + (chunk * lt->data_bytes);
-		data_len = chunk < lt->full_chunk_cnt ?
-			lt->data_bytes : lt->last_data_bytes;
-		spare = chip->oob_poi + (chunk * (lt->spare_bytes +
-						  lt->ecc_bytes));
-		spare_len = chunk < lt->full_chunk_cnt ?
-			lt->spare_bytes : lt->last_spare_bytes;
+		data_len = chunk < lt->full_chunk_cnt ? lt->data_bytes :
+							lt->last_data_bytes;
+		spare_len = chunk < lt->full_chunk_cnt ? lt->spare_bytes :
+							 lt->last_spare_bytes;
+		ecc_len = chunk < lt->full_chunk_cnt ? lt->ecc_bytes :
+						       lt->last_ecc_bytes;
+
+		/*
+		 * Only re-read the ECC bytes, unless we are using the 2k/8b
+		 * layout which is buggy in the sense that the ECC engine will
+		 * try to correct data bytes anyway, creating bitflips. In this
+		 * case, re-read the entire page.
+		 */
+		if (lt->writesize == 2048 && lt->strength == 8) {
+			nand_change_read_column_op(chip, data_off_in_page,
+						   buf + data_off, data_len,
+						   false);
+			nand_change_read_column_op(chip, spare_off_in_page,
+						   chip->oob_poi + spare_off, spare_len,
+						   false);
+		}
+
+		nand_change_read_column_op(chip, ecc_off_in_page,
+					   chip->oob_poi + ecc_off, ecc_len,
+					   false);
 
 		/* Check the entire chunk (data + spare + ecc) for emptyness */
-		marvell_nfc_check_empty_chunk(chip, data, data_len, spare,
-					      spare_len, ecc, ecc_len,
+		marvell_nfc_check_empty_chunk(chip, buf + data_off, data_len,
+					      chip->oob_poi + spare_off, spare_len,
+					      chip->oob_poi + ecc_off, ecc_len,
 					      &max_bitflips);
 	}
 
 	return max_bitflips;
 }
 
-static int marvell_nfc_hw_ecc_bch_read_oob_raw(struct mtd_info *mtd,
-					       struct nand_chip *chip, int page)
+static int marvell_nfc_hw_ecc_bch_read_oob_raw(struct nand_chip *chip, int page)
 {
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
-	return chip->ecc.read_page_raw(mtd, chip, chip->data_buf, true, page);
+	return chip->ecc.read_page_raw(chip, chip->data_buf, true, page);
 }
 
-static int marvell_nfc_hw_ecc_bch_read_oob(struct mtd_info *mtd,
-					   struct nand_chip *chip, int page)
+static int marvell_nfc_hw_ecc_bch_read_oob(struct nand_chip *chip, int page)
 {
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
-	return chip->ecc.read_page(mtd, chip, chip->data_buf, true, page);
+	return chip->ecc.read_page(chip, chip->data_buf, true, page);
 }
 
 /* BCH write helpers */
-static int marvell_nfc_hw_ecc_bch_write_page_raw(struct mtd_info *mtd,
-						 struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_bch_write_page_raw(struct nand_chip *chip,
 						 const u8 *buf,
 						 int oob_required, int page)
 {
@@ -1363,6 +1462,8 @@ static int marvell_nfc_hw_ecc_bch_write_page_raw(struct mtd_info *mtd,
 	int ecc_offset = (lt->full_chunk_cnt * lt->spare_bytes) +
 		lt->last_spare_bytes;
 	int chunk;
+
+	marvell_nfc_select_target(chip, chip->cur_cs);
 
 	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 
@@ -1463,17 +1564,19 @@ marvell_nfc_hw_ecc_bch_write_chunk(struct nand_chip *chip, int chunk,
 	return 0;
 }
 
-static int marvell_nfc_hw_ecc_bch_write_page(struct mtd_info *mtd,
-					     struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_bch_write_page(struct nand_chip *chip,
 					     const u8 *buf,
 					     int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	const struct marvell_hw_ecc_layout *lt = to_marvell_nand(chip)->layout;
 	const u8 *data = buf;
 	const u8 *spare = chip->oob_poi;
 	int data_len = lt->data_bytes;
 	int spare_len = lt->spare_bytes;
 	int chunk, ret;
+
+	marvell_nfc_select_target(chip, chip->cur_cs);
 
 	/* Spare data will be written anyway, so clear it to avoid garbage */
 	if (!oob_required)
@@ -1512,27 +1615,29 @@ static int marvell_nfc_hw_ecc_bch_write_page(struct mtd_info *mtd,
 	return 0;
 }
 
-static int marvell_nfc_hw_ecc_bch_write_oob_raw(struct mtd_info *mtd,
-						struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_bch_write_oob_raw(struct nand_chip *chip,
 						int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
 	memset(chip->data_buf, 0xFF, mtd->writesize);
 
-	return chip->ecc.write_page_raw(mtd, chip, chip->data_buf, true, page);
+	return chip->ecc.write_page_raw(chip, chip->data_buf, true, page);
 }
 
-static int marvell_nfc_hw_ecc_bch_write_oob(struct mtd_info *mtd,
-					    struct nand_chip *chip, int page)
+static int marvell_nfc_hw_ecc_bch_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
 	memset(chip->data_buf, 0xFF, mtd->writesize);
 
-	return chip->ecc.write_page(mtd, chip, chip->data_buf, true, page);
+	return chip->ecc.write_page(chip, chip->data_buf, true, page);
 }
 
 /* NAND framework ->exec_op() hooks and related helpers */
@@ -1552,7 +1657,7 @@ static void marvell_nfc_parse_instructions(struct nand_chip *chip,
 	for (op_id = 0; op_id < subop->ninstrs; op_id++) {
 		unsigned int offset, naddrs;
 		const u8 *addrs;
-		int len = nand_subop_get_data_len(subop, op_id);
+		int len;
 
 		instr = &subop->instrs[op_id];
 
@@ -1598,6 +1703,7 @@ static void marvell_nfc_parse_instructions(struct nand_chip *chip,
 				nfc_op->ndcb[0] |=
 					NDCB0_CMD_XTYPE(XTYPE_MONOLITHIC_RW) |
 					NDCB0_LEN_OVRD;
+				len = nand_subop_get_data_len(subop, op_id);
 				nfc_op->ndcb[3] |= round_up(len, FIFO_DEPTH);
 			}
 			nfc_op->data_delay_ns = instr->delay_ns;
@@ -1611,6 +1717,7 @@ static void marvell_nfc_parse_instructions(struct nand_chip *chip,
 				nfc_op->ndcb[0] |=
 					NDCB0_CMD_XTYPE(XTYPE_MONOLITHIC_RW) |
 					NDCB0_LEN_OVRD;
+				len = nand_subop_get_data_len(subop, op_id);
 				nfc_op->ndcb[3] |= round_up(len, FIFO_DEPTH);
 			}
 			nfc_op->data_delay_ns = instr->delay_ns;
@@ -2009,6 +2116,8 @@ static int marvell_nfc_exec_op(struct nand_chip *chip,
 {
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 
+	marvell_nfc_select_target(chip, op->cs);
+
 	if (nfc->caps->is_nfcv2)
 		return nand_op_parser_exec_op(chip, &marvell_nfcv2_op_parser,
 					      op, check_only);
@@ -2100,6 +2209,16 @@ static int marvell_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
 		return -ENOTSUPP;
 	}
 
+	/* Special care for the layout 2k/8-bit/512B  */
+	if (l->writesize == 2048 && l->strength == 8) {
+		if (mtd->oobsize < 128) {
+			dev_err(nfc->dev, "Requested layout needs at least 128 OOB bytes\n");
+			return -ENOTSUPP;
+		} else {
+			chip->bbt_options |= NAND_BBT_NO_OOB_BBM;
+		}
+	}
+
 	mtd_set_ooblayout(mtd, &marvell_nand_ooblayout_ops);
 	ecc->steps = l->nchunks;
 	ecc->size = l->data_bytes;
@@ -2157,6 +2276,7 @@ static int marvell_nand_ecc_init(struct mtd_info *mtd,
 		break;
 	case NAND_ECC_NONE:
 	case NAND_ECC_SOFT:
+	case NAND_ECC_ON_DIE:
 		if (!nfc->caps->is_nfcv2 && mtd->writesize != SZ_512 &&
 		    mtd->writesize != SZ_2K) {
 			dev_err(nfc->dev, "NFCv1 cannot write %d bytes pages\n",
@@ -2194,11 +2314,10 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 	.pattern = bbt_mirror_pattern
 };
 
-static int marvell_nfc_setup_data_interface(struct mtd_info *mtd, int chipnr,
+static int marvell_nfc_setup_data_interface(struct nand_chip *chip, int chipnr,
 					    const struct nand_data_interface
 					    *conf)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct marvell_nand_chip *marvell_nand = to_marvell_nand(chip);
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 	unsigned int period_ns = 1000000000 / clk_get_rate(nfc->core_clk) * 2;
@@ -2294,6 +2413,113 @@ static int marvell_nfc_setup_data_interface(struct mtd_info *mtd, int chipnr,
 	return 0;
 }
 
+static int marvell_nand_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct marvell_nand_chip *marvell_nand = to_marvell_nand(chip);
+	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
+	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(nfc->dev);
+	int ret;
+
+	if (pdata && pdata->flash_bbt)
+		chip->bbt_options |= NAND_BBT_USE_FLASH;
+
+	if (chip->bbt_options & NAND_BBT_USE_FLASH) {
+		/*
+		 * We'll use a bad block table stored in-flash and don't
+		 * allow writing the bad block marker to the flash.
+		 */
+		chip->bbt_options |= NAND_BBT_NO_OOB_BBM;
+		chip->bbt_td = &bbt_main_descr;
+		chip->bbt_md = &bbt_mirror_descr;
+	}
+
+	/* Save the chip-specific fields of NDCR */
+	marvell_nand->ndcr = NDCR_PAGE_SZ(mtd->writesize);
+	if (chip->options & NAND_BUSWIDTH_16)
+		marvell_nand->ndcr |= NDCR_DWIDTH_M | NDCR_DWIDTH_C;
+
+	/*
+	 * On small page NANDs, only one cycle is needed to pass the
+	 * column address.
+	 */
+	if (mtd->writesize <= 512) {
+		marvell_nand->addr_cyc = 1;
+	} else {
+		marvell_nand->addr_cyc = 2;
+		marvell_nand->ndcr |= NDCR_RA_START;
+	}
+
+	/*
+	 * Now add the number of cycles needed to pass the row
+	 * address.
+	 *
+	 * Addressing a chip using CS 2 or 3 should also need the third row
+	 * cycle but due to inconsistance in the documentation and lack of
+	 * hardware to test this situation, this case is not supported.
+	 */
+	if (chip->options & NAND_ROW_ADDR_3)
+		marvell_nand->addr_cyc += 3;
+	else
+		marvell_nand->addr_cyc += 2;
+
+	if (pdata) {
+		chip->ecc.size = pdata->ecc_step_size;
+		chip->ecc.strength = pdata->ecc_strength;
+	}
+
+	ret = marvell_nand_ecc_init(mtd, &chip->ecc);
+	if (ret) {
+		dev_err(nfc->dev, "ECC init failed: %d\n", ret);
+		return ret;
+	}
+
+	if (chip->ecc.mode == NAND_ECC_HW) {
+		/*
+		 * Subpage write not available with hardware ECC, prohibit also
+		 * subpage read as in userspace subpage access would still be
+		 * allowed and subpage write, if used, would lead to numerous
+		 * uncorrectable ECC errors.
+		 */
+		chip->options |= NAND_NO_SUBPAGE_WRITE;
+	}
+
+	if (pdata || nfc->caps->legacy_of_bindings) {
+		/*
+		 * We keep the MTD name unchanged to avoid breaking platforms
+		 * where the MTD cmdline parser is used and the bootloader
+		 * has not been updated to use the new naming scheme.
+		 */
+		mtd->name = "pxa3xx_nand-0";
+	} else if (!mtd->name) {
+		/*
+		 * If the new bindings are used and the bootloader has not been
+		 * updated to pass a new mtdparts parameter on the cmdline, you
+		 * should define the following property in your NAND node, ie:
+		 *
+		 *	label = "main-storage";
+		 *
+		 * This way, mtd->name will be set by the core when
+		 * nand_set_flash_node() is called.
+		 */
+		mtd->name = devm_kasprintf(nfc->dev, GFP_KERNEL,
+					   "%s:nand.%d", dev_name(nfc->dev),
+					   marvell_nand->sels[0].cs);
+		if (!mtd->name) {
+			dev_err(nfc->dev, "Failed to allocate mtd->name\n");
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
+static const struct nand_controller_ops marvell_nand_controller_ops = {
+	.attach_chip = marvell_nand_attach_chip,
+	.exec_op = marvell_nfc_exec_op,
+	.setup_data_interface = marvell_nfc_setup_data_interface,
+};
+
 static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 				  struct device_node *np)
 {
@@ -2324,9 +2550,8 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 	}
 
 	/* Alloc the nand chip structure */
-	marvell_nand = devm_kzalloc(dev, sizeof(*marvell_nand) +
-				    (nsels *
-				     sizeof(struct marvell_nand_chip_sel)),
+	marvell_nand = devm_kzalloc(dev,
+				    struct_size(marvell_nand, sels, nsels),
 				    GFP_KERNEL);
 	if (!marvell_nand) {
 		dev_err(dev, "could not allocate chip structure\n");
@@ -2414,10 +2639,8 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 	chip->controller = &nfc->controller;
 	nand_set_flash_node(chip, np);
 
-	chip->exec_op = marvell_nfc_exec_op;
-	chip->select_chip = marvell_nfc_select_chip;
 	if (!of_property_read_bool(np, "marvell,nand-keep-config"))
-		chip->setup_data_interface = marvell_nfc_setup_data_interface;
+		chip->options |= NAND_KEEP_TIMINGS;
 
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = dev;
@@ -2436,105 +2659,10 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 	marvell_nand->ndtr1 = readl_relaxed(nfc->regs + NDTR1);
 
 	chip->options |= NAND_BUSWIDTH_AUTO;
-	ret = nand_scan_ident(mtd, marvell_nand->nsels, NULL);
+
+	ret = nand_scan(chip, marvell_nand->nsels);
 	if (ret) {
-		dev_err(dev, "could not identify the nand chip\n");
-		return ret;
-	}
-
-	if (pdata && pdata->flash_bbt)
-		chip->bbt_options |= NAND_BBT_USE_FLASH;
-
-	if (chip->bbt_options & NAND_BBT_USE_FLASH) {
-		/*
-		 * We'll use a bad block table stored in-flash and don't
-		 * allow writing the bad block marker to the flash.
-		 */
-		chip->bbt_options |= NAND_BBT_NO_OOB_BBM;
-		chip->bbt_td = &bbt_main_descr;
-		chip->bbt_md = &bbt_mirror_descr;
-	}
-
-	/* Save the chip-specific fields of NDCR */
-	marvell_nand->ndcr = NDCR_PAGE_SZ(mtd->writesize);
-	if (chip->options & NAND_BUSWIDTH_16)
-		marvell_nand->ndcr |= NDCR_DWIDTH_M | NDCR_DWIDTH_C;
-
-	/*
-	 * On small page NANDs, only one cycle is needed to pass the
-	 * column address.
-	 */
-	if (mtd->writesize <= 512) {
-		marvell_nand->addr_cyc = 1;
-	} else {
-		marvell_nand->addr_cyc = 2;
-		marvell_nand->ndcr |= NDCR_RA_START;
-	}
-
-	/*
-	 * Now add the number of cycles needed to pass the row
-	 * address.
-	 *
-	 * Addressing a chip using CS 2 or 3 should also need the third row
-	 * cycle but due to inconsistance in the documentation and lack of
-	 * hardware to test this situation, this case is not supported.
-	 */
-	if (chip->options & NAND_ROW_ADDR_3)
-		marvell_nand->addr_cyc += 3;
-	else
-		marvell_nand->addr_cyc += 2;
-
-	if (pdata) {
-		chip->ecc.size = pdata->ecc_step_size;
-		chip->ecc.strength = pdata->ecc_strength;
-	}
-
-	ret = marvell_nand_ecc_init(mtd, &chip->ecc);
-	if (ret) {
-		dev_err(dev, "ECC init failed: %d\n", ret);
-		return ret;
-	}
-
-	if (chip->ecc.mode == NAND_ECC_HW) {
-		/*
-		 * Subpage write not available with hardware ECC, prohibit also
-		 * subpage read as in userspace subpage access would still be
-		 * allowed and subpage write, if used, would lead to numerous
-		 * uncorrectable ECC errors.
-		 */
-		chip->options |= NAND_NO_SUBPAGE_WRITE;
-	}
-
-	if (pdata || nfc->caps->legacy_of_bindings) {
-		/*
-		 * We keep the MTD name unchanged to avoid breaking platforms
-		 * where the MTD cmdline parser is used and the bootloader
-		 * has not been updated to use the new naming scheme.
-		 */
-		mtd->name = "pxa3xx_nand-0";
-	} else if (!mtd->name) {
-		/*
-		 * If the new bindings are used and the bootloader has not been
-		 * updated to pass a new mtdparts parameter on the cmdline, you
-		 * should define the following property in your NAND node, ie:
-		 *
-		 *	label = "main-storage";
-		 *
-		 * This way, mtd->name will be set by the core when
-		 * nand_set_flash_node() is called.
-		 */
-		mtd->name = devm_kasprintf(nfc->dev, GFP_KERNEL,
-					   "%s:nand.%d", dev_name(nfc->dev),
-					   marvell_nand->sels[0].cs);
-		if (!mtd->name) {
-			dev_err(nfc->dev, "Failed to allocate mtd->name\n");
-			return -ENOMEM;
-		}
-	}
-
-	ret = nand_scan_tail(mtd);
-	if (ret) {
-		dev_err(dev, "nand_scan_tail failed: %d\n", ret);
+		dev_err(dev, "could not scan the nand chip\n");
 		return ret;
 	}
 
@@ -2545,7 +2673,7 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 		ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "failed to register mtd device: %d\n", ret);
-		nand_release(mtd);
+		nand_release(chip);
 		return ret;
 	}
 
@@ -2600,7 +2728,7 @@ static void marvell_nand_chips_cleanup(struct marvell_nfc *nfc)
 	struct marvell_nand_chip *entry, *temp;
 
 	list_for_each_entry_safe(entry, temp, &nfc->chips, node) {
-		nand_release(nand_to_mtd(&entry->chip));
+		nand_release(&entry->chip);
 		list_del(&entry->node);
 	}
 }
@@ -2612,8 +2740,6 @@ static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
 						    dev);
 	struct dma_slave_config config = {};
 	struct resource *r;
-	dma_cap_mask_t mask;
-	struct pxad_param param;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_PXA_DMA)) {
@@ -2626,20 +2752,7 @@ static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
 	if (ret)
 		return ret;
 
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!r) {
-		dev_err(nfc->dev, "No resource defined for data DMA\n");
-		return -ENXIO;
-	}
-
-	param.drcmr = r->start;
-	param.prio = PXAD_PRIO_LOWEST;
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	nfc->dma_chan =
-		dma_request_slave_channel_compat(mask, pxad_filter_fn,
-						 &param, nfc->dev,
-						 "data");
+	nfc->dma_chan =	dma_request_slave_channel(nfc->dev, "data");
 	if (!nfc->dma_chan) {
 		dev_err(nfc->dev,
 			"Unable to request data DMA channel\n");
@@ -2677,6 +2790,21 @@ static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
 	return 0;
 }
 
+static void marvell_nfc_reset(struct marvell_nfc *nfc)
+{
+	/*
+	 * ECC operations and interruptions are only enabled when specifically
+	 * needed. ECC shall not be activated in the early stages (fails probe).
+	 * Arbiter flag, even if marked as "reserved", must be set (empirical).
+	 * SPARE_EN bit must always be set or ECC bytes will not be at the same
+	 * offset in the read page and this will fail the protection.
+	 */
+	writel_relaxed(NDCR_ALL_INT | NDCR_ND_ARB_EN | NDCR_SPARE_EN |
+		       NDCR_RD_ID_CNT(NFCV1_READID_LEN), nfc->regs + NDCR);
+	writel_relaxed(0xFFFFFFFF, nfc->regs + NDSR);
+	writel_relaxed(0, nfc->regs + NDECCCTRL);
+}
+
 static int marvell_nfc_init(struct marvell_nfc *nfc)
 {
 	struct device_node *np = nfc->dev->of_node;
@@ -2691,41 +2819,30 @@ static int marvell_nfc_init(struct marvell_nfc *nfc)
 		struct regmap *sysctrl_base =
 			syscon_regmap_lookup_by_phandle(np,
 							"marvell,system-controller");
-		u32 reg;
 
 		if (IS_ERR(sysctrl_base))
 			return PTR_ERR(sysctrl_base);
 
-		reg = GENCONF_SOC_DEVICE_MUX_NFC_EN |
-		      GENCONF_SOC_DEVICE_MUX_ECC_CLK_RST |
-		      GENCONF_SOC_DEVICE_MUX_ECC_CORE_RST |
-		      GENCONF_SOC_DEVICE_MUX_NFC_INT_EN;
-		regmap_write(sysctrl_base, GENCONF_SOC_DEVICE_MUX, reg);
+		regmap_write(sysctrl_base, GENCONF_SOC_DEVICE_MUX,
+			     GENCONF_SOC_DEVICE_MUX_NFC_EN |
+			     GENCONF_SOC_DEVICE_MUX_ECC_CLK_RST |
+			     GENCONF_SOC_DEVICE_MUX_ECC_CORE_RST |
+			     GENCONF_SOC_DEVICE_MUX_NFC_INT_EN);
 
-		regmap_read(sysctrl_base, GENCONF_CLK_GATING_CTRL, &reg);
-		reg |= GENCONF_CLK_GATING_CTRL_ND_GATE;
-		regmap_write(sysctrl_base, GENCONF_CLK_GATING_CTRL, reg);
+		regmap_update_bits(sysctrl_base, GENCONF_CLK_GATING_CTRL,
+				   GENCONF_CLK_GATING_CTRL_ND_GATE,
+				   GENCONF_CLK_GATING_CTRL_ND_GATE);
 
-		regmap_read(sysctrl_base, GENCONF_ND_CLK_CTRL, &reg);
-		reg |= GENCONF_ND_CLK_CTRL_EN;
-		regmap_write(sysctrl_base, GENCONF_ND_CLK_CTRL, reg);
+		regmap_update_bits(sysctrl_base, GENCONF_ND_CLK_CTRL,
+				   GENCONF_ND_CLK_CTRL_EN,
+				   GENCONF_ND_CLK_CTRL_EN);
 	}
 
 	/* Configure the DMA if appropriate */
 	if (!nfc->caps->is_nfcv2)
 		marvell_nfc_init_dma(nfc);
 
-	/*
-	 * ECC operations and interruptions are only enabled when specifically
-	 * needed. ECC shall not be activated in the early stages (fails probe).
-	 * Arbiter flag, even if marked as "reserved", must be set (empirical).
-	 * SPARE_EN bit must always be set or ECC bytes will not be at the same
-	 * offset in the read page and this will fail the protection.
-	 */
-	writel_relaxed(NDCR_ALL_INT | NDCR_ND_ARB_EN | NDCR_SPARE_EN |
-		       NDCR_RD_ID_CNT(NFCV1_READID_LEN), nfc->regs + NDCR);
-	writel_relaxed(0xFFFFFFFF, nfc->regs + NDSR);
-	writel_relaxed(0, nfc->regs + NDECCCTRL);
+	marvell_nfc_reset(nfc);
 
 	return 0;
 }
@@ -2744,7 +2861,8 @@ static int marvell_nfc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	nfc->dev = dev;
-	nand_hw_control_init(&nfc->controller);
+	nand_controller_init(&nfc->controller);
+	nfc->controller.ops = &marvell_nand_controller_ops;
 	INIT_LIST_HEAD(&nfc->chips);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2772,16 +2890,18 @@ static int marvell_nfc_probe(struct platform_device *pdev)
 		return ret;
 
 	nfc->reg_clk = devm_clk_get(&pdev->dev, "reg");
-	if (PTR_ERR(nfc->reg_clk) != -ENOENT) {
-		if (!IS_ERR(nfc->reg_clk)) {
-			ret = clk_prepare_enable(nfc->reg_clk);
-			if (ret)
-				goto unprepare_core_clk;
-		} else {
+	if (IS_ERR(nfc->reg_clk)) {
+		if (PTR_ERR(nfc->reg_clk) != -ENOENT) {
 			ret = PTR_ERR(nfc->reg_clk);
 			goto unprepare_core_clk;
 		}
+
+		nfc->reg_clk = NULL;
 	}
+
+	ret = clk_prepare_enable(nfc->reg_clk);
+	if (ret)
+		goto unprepare_core_clk;
 
 	marvell_nfc_disable_int(nfc, NDCR_ALL_INT);
 	marvell_nfc_clear_int(nfc, NDCR_ALL_INT);
@@ -2839,6 +2959,49 @@ static int marvell_nfc_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+static int __maybe_unused marvell_nfc_suspend(struct device *dev)
+{
+	struct marvell_nfc *nfc = dev_get_drvdata(dev);
+	struct marvell_nand_chip *chip;
+
+	list_for_each_entry(chip, &nfc->chips, node)
+		marvell_nfc_wait_ndrun(&chip->chip);
+
+	clk_disable_unprepare(nfc->reg_clk);
+	clk_disable_unprepare(nfc->core_clk);
+
+	return 0;
+}
+
+static int __maybe_unused marvell_nfc_resume(struct device *dev)
+{
+	struct marvell_nfc *nfc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(nfc->core_clk);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_prepare_enable(nfc->reg_clk);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Reset nfc->selected_chip so the next command will cause the timing
+	 * registers to be restored in marvell_nfc_select_chip().
+	 */
+	nfc->selected_chip = NULL;
+
+	/* Reset registers that have lost their contents */
+	marvell_nfc_reset(nfc);
+
+	return 0;
+}
+
+static const struct dev_pm_ops marvell_nfc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(marvell_nfc_suspend, marvell_nfc_resume)
+};
 
 static const struct marvell_nfc_caps marvell_armada_8k_nfc_caps = {
 	.max_cs_nb = 4,
@@ -2924,6 +3087,7 @@ static struct platform_driver marvell_nfc_driver = {
 	.driver	= {
 		.name		= "marvell-nfc",
 		.of_match_table = marvell_nfc_of_ids,
+		.pm		= &marvell_nfc_pm_ops,
 	},
 	.id_table = marvell_nfc_platform_ids,
 	.probe = marvell_nfc_probe,

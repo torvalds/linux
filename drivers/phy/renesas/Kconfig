@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Phy drivers for Renesas platforms
 #
@@ -7,6 +8,13 @@ config PHY_RCAR_GEN2
 	depends on GENERIC_PHY
 	help
 	  Support for USB PHY found on Renesas R-Car generation 2 SoCs.
+
+config PHY_RCAR_GEN3_PCIE
+	tristate "Renesas R-Car generation 3 PCIe PHY driver"
+	depends on ARCH_RENESAS
+	select GENERIC_PHY
+	help
+	  Support for the PCIe PHY found on Renesas R-Car generation 3 SoCs.
 
 config PHY_RCAR_GEN3_USB2
 	tristate "Renesas R-Car generation 3 USB 2.0 PHY driver"

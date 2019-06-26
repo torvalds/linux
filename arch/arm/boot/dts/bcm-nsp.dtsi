@@ -34,12 +34,20 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/bcm-nsp.h>
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "brcm,nsp";
 	model = "Broadcom Northstar Plus SoC";
 	interrupt-parent = <&gic>;
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		ethernet0 = &amac0;
+		ethernet1 = &amac1;
+		ethernet2 = &amac2;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -273,7 +281,7 @@
 			brcm,nand-has-wp;
 		};
 
-		qspi: qspi@27200 {
+		qspi: spi@27200 {
 			compatible = "brcm,spi-bcm-qspi", "brcm,spi-nsp-qspi";
 			reg = <0x027200 0x184>,
 			      <0x027000 0x124>,
@@ -377,7 +385,36 @@
 
 		srab: srab@36000 {
 			compatible = "brcm,nsp-srab";
-			reg = <0x36000 0x1000>;
+			reg = <0x36000 0x1000>,
+			      <0x3f308 0x8>,
+			      <0x3f410 0xc>;
+			reg-names = "srab", "mux_config", "sgmii";
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "link_state_p0",
+					  "link_state_p1",
+					  "link_state_p2",
+					  "link_state_p3",
+					  "link_state_p4",
+					  "link_state_p5",
+					  "link_state_p7",
+					  "link_state_p8",
+					  "phy",
+					  "ts",
+					  "imp_sleep_timer_p5",
+					  "imp_sleep_timer_p7",
+					  "imp_sleep_timer_p8";
 			#address-cells = <1>;
 			#size-cells = <0>;
 

@@ -47,10 +47,6 @@ static const char version[] =
 MODULE_AUTHOR("Milan Jurik");
 MODULE_DESCRIPTION("Atari NFeth driver");
 MODULE_LICENSE("GPL");
-/*
-MODULE_PARM(nfeth_debug, "i");
-MODULE_PARM_DESC(nfeth_debug, "nfeth_debug level (1-2)");
-*/
 
 
 static long nfEtherID;

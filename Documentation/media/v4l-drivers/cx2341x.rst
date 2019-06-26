@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 The cx2341x driver
 ==================
 

@@ -1,0 +1,13 @@
+DLC Display Co. DLC0700YZG-1 7.0" WSVGA TFT LCD panel
+
+Required properties:
+- compatible: should be "dlc,dlc0700yzg-1"
+- power-supply: See simple-panel.txt
+
+Optional properties:
+- reset-gpios: See panel-common.txt
+- enable-gpios: See simple-panel.txt
+- backlight: See simple-panel.txt
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

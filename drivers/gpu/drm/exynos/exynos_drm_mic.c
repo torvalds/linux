@@ -246,8 +246,8 @@ already_disabled:
 }
 
 static void mic_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode)
 {
 	struct exynos_mic *mic = bridge->driver_private;
 
@@ -367,6 +367,8 @@ static int exynos_mic_resume(struct device *dev)
 
 static const struct dev_pm_ops exynos_mic_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_mic_suspend, exynos_mic_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static int exynos_mic_probe(struct platform_device *pdev)

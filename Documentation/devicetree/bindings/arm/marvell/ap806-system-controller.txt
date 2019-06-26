@@ -2,14 +2,17 @@ Marvell Armada AP806 System Controller
 ======================================
 
 The AP806 is one of the two core HW blocks of the Marvell Armada 7K/8K
-SoCs. It contains a system controller, which provides a number
-registers giving access to numerous features: clocks, pin-muxing and
-many other SoC configuration items. This DT binding allows to describe
-this system controller.
+SoCs. It contains system controllers, which provide several registers
+giving access to numerous features: clocks, pin-muxing and many other
+SoC configuration items. This DT binding allows to describe these
+system controllers.
 
 For the top level node:
  - compatible: must be: "syscon", "simple-mfd";
-  - reg: register area of the AP806 system controller
+ - reg: register area of the AP806 system controller
+
+SYSTEM CONTROLLER 0
+===================
 
 Clocks:
 -------
@@ -96,5 +99,47 @@ ap_syscon: system-controller@6f4000 {
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-ranges = <&ap_pinctrl 0 0 19>;
+	};
+};
+
+SYSTEM CONTROLLER 1
+===================
+
+Thermal:
+--------
+
+For common binding part and usage, refer to
+Documentation/devicetree/bindings/thermal/thermal.txt
+
+The thermal IP can probe the temperature all around the processor. It
+may feature several channels, each of them wired to one sensor.
+
+It is possible to setup an overheat interrupt by giving at least one
+critical point to any subnode of the thermal-zone node.
+
+Required properties:
+- compatible: must be one of:
+  * marvell,armada-ap806-thermal
+- reg: register range associated with the thermal functions.
+
+Optional properties:
+- interrupts: overheat interrupt handle. Should point to line 18 of the
+  SEI irqchip. See interrupt-controller/interrupts.txt
+- #thermal-sensor-cells: shall be <1> when thermal-zones subnodes refer
+  to this IP and represents the channel ID. There is one sensor per
+  channel. O refers to the thermal IP internal channel, while positive
+  IDs refer to each CPU.
+
+Example:
+ap_syscon1: system-controller@6f8000 {
+	compatible = "syscon", "simple-mfd";
+	reg = <0x6f8000 0x1000>;
+
+	ap_thermal: thermal-sensor@80 {
+		compatible = "marvell,armada-ap806-thermal";
+		reg = <0x80 0x10>;
+		interrupt-parent = <&sei>;
+		interrupts = <18>;
+		#thermal-sensor-cells = <1>;
 	};
 };

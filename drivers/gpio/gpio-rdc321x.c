@@ -25,7 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/pci.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/mfd/rdc321x.h>
 #include <linux/slab.h>
 

@@ -43,11 +43,6 @@
 				bank-width = <4>;
 			};
 
-			v2m_video_ram: vram@3,00000000 {
-				compatible = "arm,vexpress-vram";
-				reg = <3 0x00000000 0x00800000>;
-			};
-
 			ethernet@3,02000000 {
 				compatible = "smsc,lan9118", "smsc,lan9115";
 				reg = <3 0x02000000 0x10000>;
@@ -138,7 +133,7 @@
 				mmci@5000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x05000 0x1000>;
-					interrupts = <9 10>;
+					interrupts = <9>, <10>;
 					cd-gpios = <&v2m_mmc_gpios 0 0>;
 					wp-gpios = <&v2m_mmc_gpios 1 0>;
 					max-frequency = <12000000>;
@@ -223,13 +218,37 @@
 				v2m_i2c_dvi: i2c@16000 {
 					compatible = "arm,versatile-i2c";
 					reg = <0x16000 0x1000>;
-
 					#address-cells = <1>;
 					#size-cells = <0>;
 
 					dvi-transmitter@39 {
 						compatible = "sil,sii9022-tpi", "sil,sii9022";
 						reg = <0x39>;
+
+						ports {
+							#address-cells = <1>;
+							#size-cells = <0>;
+
+							/*
+							 * Both the core tile and the motherboard routes their output
+							 * pads to this transmitter. The motherboard system controller
+							 * can select one of them as input using a mux register in
+							 * "arm,vexpress-muxfpga". The Vexpress with the CA9 core tile is
+							 * the only platform with this specific set-up.
+							 */
+							port@0 {
+								reg = <0>;
+								dvi_bridge_in_ct: endpoint {
+									remote-endpoint = <&clcd_pads_ct>;
+								};
+							};
+							port@1 {
+								reg = <1>;
+								dvi_bridge_in_mb: endpoint {
+									remote-endpoint = <&clcd_pads_mb>;
+								};
+							};
+						};
 					};
 
 					dvi-transmitter@60 {
@@ -253,6 +272,7 @@
 					reg-shift = <2>;
 				};
 
+
 				clcd@1f000 {
 					compatible = "arm,pl111", "arm,primecell";
 					reg = <0x1f000 0x1000>;
@@ -260,35 +280,14 @@
 					interrupts = <14>;
 					clocks = <&v2m_oscclk1>, <&smbclk>;
 					clock-names = "clcdclk", "apb_pclk";
-					memory-region = <&v2m_video_ram>;
-					max-memory-bandwidth = <50350000>; /* 16bpp @ 25.175MHz */
+					/* 800x600 16bpp @36MHz works fine */
+					max-memory-bandwidth = <54000000>;
+					memory-region = <&vram>;
 
 					port {
-						v2m_clcd_pads: endpoint {
-							remote-endpoint = <&v2m_clcd_panel>;
+						clcd_pads_mb: endpoint {
+							remote-endpoint = <&dvi_bridge_in_mb>;
 							arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
-						};
-					};
-
-					panel {
-						compatible = "panel-dpi";
-
-						port {
-							v2m_clcd_panel: endpoint {
-								remote-endpoint = <&v2m_clcd_pads>;
-							};
-						};
-
-						panel-timing {
-							clock-frequency = <25175000>;
-							hactive = <640>;
-							hback-porch = <40>;
-							hfront-porch = <24>;
-							hsync-len = <96>;
-							vactive = <480>;
-							vback-porch = <32>;
-							vfront-porch = <11>;
-							vsync-len = <2>;
 						};
 					};
 				};

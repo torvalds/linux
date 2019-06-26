@@ -17,7 +17,6 @@
 
 #include <asm/pgtable.h>
 #include <linux/uaccess.h>
-#include <asm/tlbflush.h>
 
 /*
  * Free all pages allocated for subpage protection maps and pointers.
@@ -215,7 +214,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		return 0;
 	}
 
-	if (!access_ok(VERIFY_READ, map, (len >> PAGE_SHIFT) * sizeof(u32)))
+	if (!access_ok(map, (len >> PAGE_SHIFT) * sizeof(u32)))
 		return -EFAULT;
 
 	down_write(&mm->mmap_sem);

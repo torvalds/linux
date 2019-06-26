@@ -26,6 +26,7 @@
 #define __I915_GEM_H__
 
 #include <linux/bug.h>
+#include <linux/interrupt.h>
 
 struct drm_i915_private;
 
@@ -46,30 +47,46 @@ struct drm_i915_private;
 #define GEM_DEBUG_DECL(var) var
 #define GEM_DEBUG_EXEC(expr) expr
 #define GEM_DEBUG_BUG_ON(expr) GEM_BUG_ON(expr)
+#define GEM_DEBUG_WARN_ON(expr) GEM_WARN_ON(expr)
 
 #else
 
 #define GEM_SHOW_DEBUG() (0)
 
 #define GEM_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
-#define GEM_WARN_ON(expr) (BUILD_BUG_ON_INVALID(expr), 0)
+#define GEM_WARN_ON(expr) ({ unlikely(!!(expr)); })
 
 #define GEM_DEBUG_DECL(var)
 #define GEM_DEBUG_EXEC(expr) do { } while (0)
 #define GEM_DEBUG_BUG_ON(expr)
+#define GEM_DEBUG_WARN_ON(expr) ({ BUILD_BUG_ON_INVALID(expr); 0; })
 #endif
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
 #define GEM_TRACE(...) trace_printk(__VA_ARGS__)
 #define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
+#define GEM_TRACE_DUMP_ON(expr) \
+	do { if (expr) ftrace_dump(DUMP_ALL); } while (0)
 #else
 #define GEM_TRACE(...) do { } while (0)
 #define GEM_TRACE_DUMP() do { } while (0)
+#define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
 
 #define I915_NUM_ENGINES 8
 
 void i915_gem_park(struct drm_i915_private *i915);
 void i915_gem_unpark(struct drm_i915_private *i915);
+
+static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
+{
+	if (atomic_inc_return(&t->count) == 1)
+		tasklet_unlock_wait(t);
+}
+
+static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
+{
+	return !atomic_read(&t->count);
+}
 
 #endif /* __I915_GEM_H__ */

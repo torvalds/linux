@@ -8,10 +8,10 @@ src := $(obj)
 PHONY := __modbuiltin
 __modbuiltin:
 
--include include/config/auto.conf
+include include/config/auto.conf
 # tristate.conf sets tristate variables to uppercase 'Y' or 'M'
 # That way, we get the list of built-in modules in obj-Y
--include include/config/tristate.conf
+include include/config/tristate.conf
 
 include scripts/Kbuild.include
 

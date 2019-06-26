@@ -157,6 +157,7 @@ void __init xilinx_pci_init(void)
 
 	/* Set the max bus number to 255, and bus/subbus no's to 0 */
 	pci_reg = of_iomap(pci_node, 0);
+	WARN_ON(!pci_reg);
 	out_be32(pci_reg + XPLB_PCI_BUS, 0x000000ff);
 	iounmap(pci_reg);
 

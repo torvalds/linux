@@ -21,8 +21,6 @@
 
 #include "opl3_voice.h"
 
-extern char snd_opl3_regmap[MAX_OPL2_VOICES][4];
-
 static char snd_opl3_drum_table[47] =
 {
 	OPL3_BASSDRUM_ON,  OPL3_BASSDRUM_ON,  OPL3_HIHAT_ON,	/* 35 - 37 */

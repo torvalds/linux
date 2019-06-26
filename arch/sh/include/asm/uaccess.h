@@ -16,9 +16,12 @@
  * sum := addr + size;  carry? --> flag = true;
  * if (sum >= addr_limit) flag = true;
  */
-#define __access_ok(addr, size)		\
-	(__addr_ok((addr) + (size)))
-#define access_ok(type, addr, size)	\
+#define __access_ok(addr, size)	({				\
+	unsigned long __ao_a = (addr), __ao_b = (size);		\
+	unsigned long __ao_end = __ao_a + __ao_b - !!__ao_b;	\
+	__ao_end >= __ao_a && __addr_ok(__ao_end); })
+
+#define access_ok(addr, size)	\
 	(__chk_user_ptr(addr),		\
 	 __access_ok((unsigned long __force)(addr), (size)))
 
@@ -66,7 +69,7 @@ struct __large_struct { unsigned long buf[100]; };
 	long __gu_err = -EFAULT;					\
 	unsigned long __gu_val = 0;					\
 	const __typeof__(*(ptr)) *__gu_addr = (ptr);			\
-	if (likely(access_ok(VERIFY_READ, __gu_addr, (size))))		\
+	if (likely(access_ok(__gu_addr, (size))))		\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 	__gu_err;							\
@@ -87,7 +90,7 @@ struct __large_struct { unsigned long buf[100]; };
 	long __pu_err = -EFAULT;				\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
 	__typeof__(*(ptr)) __pu_val = x;			\
-	if (likely(access_ok(VERIFY_WRITE, __pu_addr, size)))	\
+	if (likely(access_ok(__pu_addr, size)))	\
 		__put_user_size(__pu_val, __pu_addr, (size),	\
 				__pu_err);			\
 	__pu_err;						\
@@ -132,8 +135,7 @@ __kernel_size_t __clear_user(void *addr, __kernel_size_t size);
 	void __user * __cl_addr = (addr);				\
 	unsigned long __cl_size = (n);					\
 									\
-	if (__cl_size && access_ok(VERIFY_WRITE,			\
-		((unsigned long)(__cl_addr)), __cl_size))		\
+	if (__cl_size && access_ok(__cl_addr, __cl_size))		\
 		__cl_size = __clear_user(__cl_addr, __cl_size);		\
 									\
 	__cl_size;							\

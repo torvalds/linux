@@ -104,6 +104,7 @@ struct vsp1_partition {
  * @entities: list of entities in the pipeline
  * @stream_config: cached stream configuration for video pipelines
  * @configured: when false the @stream_config shall be written to the hardware
+ * @interlaced: True when the pipeline is configured in interlaced mode
  * @partitions: The number of partitions used to process one frame
  * @partition: The current partition for configuration to process
  * @part_table: The pre-calculated partitions used by the pipeline
@@ -142,6 +143,7 @@ struct vsp1_pipeline {
 
 	struct vsp1_dl_body *stream_config;
 	bool configured;
+	bool interlaced;
 
 	unsigned int partitions;
 	struct vsp1_partition *partition;

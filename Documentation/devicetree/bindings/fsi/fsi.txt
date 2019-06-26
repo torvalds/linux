@@ -83,6 +83,10 @@ addresses and sizes in the slave address space:
     #address-cells = <1>;
     #size-cells = <1>;
 
+Optionally, a slave can provide a global unique chip ID which is used to
+identify the physical location of the chip in a system specific way
+
+    chip-id = <0>;
 
 FSI engines (devices)
 ---------------------
@@ -125,6 +129,7 @@ device tree if no extra platform information is required.
             reg = <0 0>;
             #address-cells = <1>;
             #size-cells = <1>;
+	    chip-id = <0>;
 
             /* FSI engine at 0xc00, using a single page. In this example,
              * it's an I2C master controller, so subnodes describe the

@@ -403,10 +403,9 @@ static unsigned int rtw_classify8021d(struct sk_buff *skb)
 }
 
 
-static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb
-				, void *accel_priv
-				, select_queue_fallback_t fallback
-)
+static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb,
+			    struct net_device *sb_dev,
+			    select_queue_fallback_t fallback)
 {
 	struct adapter	*padapter = rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -586,7 +585,7 @@ u32 rtw_start_drv_threads(struct adapter *padapter)
 	if (IS_ERR(padapter->cmdThread))
 		_status = _FAIL;
 	else
-		down(&padapter->cmdpriv.terminate_cmdthread_sema); /* wait for cmd_thread to run */
+		wait_for_completion(&padapter->cmdpriv.terminate_cmdthread_comp); /* wait for cmd_thread to run */
 
 	rtw_hal_start_thread(padapter);
 	return _status;
@@ -599,8 +598,8 @@ void rtw_stop_drv_threads (struct adapter *padapter)
 	rtw_stop_cmd_thread(padapter);
 
 	/*  Below is to termindate tx_thread... */
-	up(&padapter->xmitpriv.xmit_sema);
-	down(&padapter->xmitpriv.terminate_xmitthread_sema);
+	complete(&padapter->xmitpriv.xmit_comp);
+	wait_for_completion(&padapter->xmitpriv.terminate_xmitthread_comp);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("\n drv_halt: rtw_xmit_thread can be terminated !\n"));
 
 	rtw_hal_stop_thread(padapter);

@@ -35,7 +35,7 @@
 #include "ubifs.h"
 
 static int try_read_node(const struct ubifs_info *c, void *buf, int type,
-			 int len, int lnum, int offs);
+			 struct ubifs_zbranch *zbr);
 static int fallible_read_node(struct ubifs_info *c, const union ubifs_key *key,
 			      struct ubifs_zbranch *zbr, void *node);
 
@@ -211,7 +211,7 @@ static struct ubifs_znode *copy_znode(struct ubifs_info *c,
 	__set_bit(DIRTY_ZNODE, &zn->flags);
 	__clear_bit(COW_ZNODE, &zn->flags);
 
-	ubifs_assert(!ubifs_zn_obsolete(znode));
+	ubifs_assert(c, !ubifs_zn_obsolete(znode));
 	__set_bit(OBSOLETE_ZNODE, &znode->flags);
 
 	if (znode->level != 0) {
@@ -321,9 +321,9 @@ static int lnc_add(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 	void *lnc_node;
 	const struct ubifs_dent_node *dent = node;
 
-	ubifs_assert(!zbr->leaf);
-	ubifs_assert(zbr->len != 0);
-	ubifs_assert(is_hash_key(c, &zbr->key));
+	ubifs_assert(c, !zbr->leaf);
+	ubifs_assert(c, zbr->len != 0);
+	ubifs_assert(c, is_hash_key(c, &zbr->key));
 
 	err = ubifs_validate_entry(c, dent);
 	if (err) {
@@ -355,8 +355,8 @@ static int lnc_add_directly(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 {
 	int err;
 
-	ubifs_assert(!zbr->leaf);
-	ubifs_assert(zbr->len != 0);
+	ubifs_assert(c, !zbr->leaf);
+	ubifs_assert(c, zbr->len != 0);
 
 	err = ubifs_validate_entry(c, node);
 	if (err) {
@@ -398,11 +398,11 @@ static int tnc_read_hashed_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 {
 	int err;
 
-	ubifs_assert(is_hash_key(c, &zbr->key));
+	ubifs_assert(c, is_hash_key(c, &zbr->key));
 
 	if (zbr->leaf) {
 		/* Read from the leaf node cache */
-		ubifs_assert(zbr->len != 0);
+		ubifs_assert(c, zbr->len != 0);
 		memcpy(node, zbr->leaf, zbr->len);
 		return 0;
 	}
@@ -433,9 +433,7 @@ static int tnc_read_hashed_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
  * @c: UBIFS file-system description object
  * @buf: buffer to read to
  * @type: node type
- * @len: node length (not aligned)
- * @lnum: LEB number of node to read
- * @offs: offset of node to read
+ * @zbr: the zbranch describing the node to read
  *
  * This function tries to read a node of known type and length, checks it and
  * stores it in @buf. This function returns %1 if a node is present and %0 if
@@ -453,8 +451,11 @@ static int tnc_read_hashed_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
  * journal nodes may potentially be corrupted, so checking is required.
  */
 static int try_read_node(const struct ubifs_info *c, void *buf, int type,
-			 int len, int lnum, int offs)
+			 struct ubifs_zbranch *zbr)
 {
+	int len = zbr->len;
+	int lnum = zbr->lnum;
+	int offs = zbr->offs;
 	int err, node_len;
 	struct ubifs_ch *ch = buf;
 	uint32_t crc, node_crc;
@@ -487,6 +488,12 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 	if (crc != node_crc)
 		return 0;
 
+	err = ubifs_node_check_hash(c, buf, zbr->hash);
+	if (err) {
+		ubifs_bad_hash(c, buf, zbr->hash, lnum, offs);
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -507,8 +514,7 @@ static int fallible_read_node(struct ubifs_info *c, const union ubifs_key *key,
 
 	dbg_tnck(key, "LEB %d:%d, key ", zbr->lnum, zbr->offs);
 
-	ret = try_read_node(c, node, key_type(c, key), zbr->len, zbr->lnum,
-			    zbr->offs);
+	ret = try_read_node(c, node, key_type(c, key), zbr);
 	if (ret == 1) {
 		union ubifs_key node_key;
 		struct ubifs_dent_node *dent = node;
@@ -721,7 +727,7 @@ static int resolve_collision(struct ubifs_info *c, const union ubifs_key *key,
 		while (1) {
 			err = tnc_prev(c, zn, n);
 			if (err == -ENOENT) {
-				ubifs_assert(*n == 0);
+				ubifs_assert(c, *n == 0);
 				*n = -1;
 				return 0;
 			}
@@ -761,12 +767,12 @@ static int resolve_collision(struct ubifs_info *c, const union ubifs_key *key,
 					err = tnc_next(c, zn, n);
 					if (err) {
 						/* Should be impossible */
-						ubifs_assert(0);
+						ubifs_assert(c, 0);
 						if (err == -ENOENT)
 							err = -EINVAL;
 						return err;
 					}
-					ubifs_assert(*n == 0);
+					ubifs_assert(c, *n == 0);
 					*n = -1;
 				}
 				return 0;
@@ -778,7 +784,7 @@ static int resolve_collision(struct ubifs_info *c, const union ubifs_key *key,
 				return 0;
 			if (err == NAME_MATCHES)
 				return 1;
-			ubifs_assert(err == NAME_GREATER);
+			ubifs_assert(c, err == NAME_GREATER);
 		}
 	} else {
 		int nn = *n;
@@ -802,7 +808,7 @@ static int resolve_collision(struct ubifs_info *c, const union ubifs_key *key,
 			*n = nn;
 			if (err == NAME_MATCHES)
 				return 1;
-			ubifs_assert(err == NAME_LESS);
+			ubifs_assert(c, err == NAME_LESS);
 		}
 	}
 }
@@ -843,7 +849,7 @@ static int fallible_matches_name(struct ubifs_info *c,
 			err = NOT_ON_MEDIA;
 			goto out_free;
 		}
-		ubifs_assert(err == 1);
+		ubifs_assert(c, err == 1);
 
 		err = lnc_add_directly(c, zbr, dent);
 		if (err)
@@ -923,7 +929,7 @@ static int fallible_resolve_collision(struct ubifs_info *c,
 		while (1) {
 			err = tnc_prev(c, zn, n);
 			if (err == -ENOENT) {
-				ubifs_assert(*n == 0);
+				ubifs_assert(c, *n == 0);
 				*n = -1;
 				break;
 			}
@@ -935,12 +941,12 @@ static int fallible_resolve_collision(struct ubifs_info *c,
 					err = tnc_next(c, zn, n);
 					if (err) {
 						/* Should be impossible */
-						ubifs_assert(0);
+						ubifs_assert(c, 0);
 						if (err == -ENOENT)
 							err = -EINVAL;
 						return err;
 					}
-					ubifs_assert(*n == 0);
+					ubifs_assert(c, *n == 0);
 					*n = -1;
 				}
 				break;
@@ -1100,8 +1106,8 @@ static struct ubifs_znode *dirty_cow_bottom_up(struct ubifs_info *c,
 	struct ubifs_znode *zp;
 	int *path = c->bottom_up_buf, p = 0;
 
-	ubifs_assert(c->zroot.znode);
-	ubifs_assert(znode);
+	ubifs_assert(c, c->zroot.znode);
+	ubifs_assert(c, znode);
 	if (c->zroot.znode->level > BOTTOM_UP_HEIGHT) {
 		kfree(c->bottom_up_buf);
 		c->bottom_up_buf = kmalloc_array(c->zroot.znode->level,
@@ -1120,7 +1126,7 @@ static struct ubifs_znode *dirty_cow_bottom_up(struct ubifs_info *c,
 			if (!zp)
 				break;
 			n = znode->iip;
-			ubifs_assert(p < c->zroot.znode->level);
+			ubifs_assert(c, p < c->zroot.znode->level);
 			path[p++] = n;
 			if (!zp->cnext && ubifs_zn_dirty(znode))
 				break;
@@ -1134,18 +1140,18 @@ static struct ubifs_znode *dirty_cow_bottom_up(struct ubifs_info *c,
 
 		zp = znode->parent;
 		if (zp) {
-			ubifs_assert(path[p - 1] >= 0);
-			ubifs_assert(path[p - 1] < zp->child_cnt);
+			ubifs_assert(c, path[p - 1] >= 0);
+			ubifs_assert(c, path[p - 1] < zp->child_cnt);
 			zbr = &zp->zbranch[path[--p]];
 			znode = dirty_cow_znode(c, zbr);
 		} else {
-			ubifs_assert(znode == c->zroot.znode);
+			ubifs_assert(c, znode == c->zroot.znode);
 			znode = dirty_cow_znode(c, &c->zroot);
 		}
 		if (IS_ERR(znode) || !p)
 			break;
-		ubifs_assert(path[p - 1] >= 0);
-		ubifs_assert(path[p - 1] < znode->child_cnt);
+		ubifs_assert(c, path[p - 1] >= 0);
+		ubifs_assert(c, path[p - 1] < znode->child_cnt);
 		znode = znode->zbranch[path[p - 1]].znode;
 	}
 
@@ -1179,10 +1185,10 @@ int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 {
 	int err, exact;
 	struct ubifs_znode *znode;
-	unsigned long time = get_seconds();
+	time64_t time = ktime_get_seconds();
 
 	dbg_tnck(key, "search key ");
-	ubifs_assert(key_type(c, key) < UBIFS_INVALID_KEY);
+	ubifs_assert(c, key_type(c, key) < UBIFS_INVALID_KEY);
 
 	znode = c->zroot.znode;
 	if (unlikely(!znode)) {
@@ -1315,7 +1321,7 @@ static int lookup_level0_dirty(struct ubifs_info *c, const union ubifs_key *key,
 {
 	int err, exact;
 	struct ubifs_znode *znode;
-	unsigned long time = get_seconds();
+	time64_t time = ktime_get_seconds();
 
 	dbg_tnck(key, "search and dirty key ");
 
@@ -1658,9 +1664,9 @@ static int read_wbuf(struct ubifs_wbuf *wbuf, void *buf, int len, int lnum,
 	int rlen, overlap;
 
 	dbg_io("LEB %d:%d, length %d", lnum, offs, len);
-	ubifs_assert(wbuf && lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
-	ubifs_assert(!(offs & 7) && offs < c->leb_size);
-	ubifs_assert(offs + len <= c->leb_size);
+	ubifs_assert(c, wbuf && lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
+	ubifs_assert(c, !(offs & 7) && offs < c->leb_size);
+	ubifs_assert(c, offs + len <= c->leb_size);
 
 	spin_lock(&wbuf->lock);
 	overlap = (lnum == wbuf->lnum && offs + len > wbuf->offs);
@@ -1711,6 +1717,12 @@ static int validate_data_node(struct ubifs_info *c, void *buf,
 	if (err) {
 		ubifs_err(c, "expected node type %d", UBIFS_DATA_NODE);
 		goto out;
+	}
+
+	err = ubifs_node_check_hash(c, buf, zbr->hash);
+	if (err) {
+		ubifs_bad_hash(c, buf, zbr->hash, zbr->lnum, zbr->offs);
+		return err;
 	}
 
 	len = le32_to_cpu(ch->len);
@@ -1824,7 +1836,7 @@ static int do_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 		goto out_unlock;
 	}
 
-	ubifs_assert(n >= 0);
+	ubifs_assert(c, n >= 0);
 
 	err = resolve_collision(c, key, &znode, &n, nm);
 	dbg_tnc("rc returned %d, znode %p, n %d", err, znode, n);
@@ -1922,7 +1934,7 @@ static int do_lookup_dh(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 	union ubifs_key start_key;
 
-	ubifs_assert(is_hash_key(c, key));
+	ubifs_assert(c, is_hash_key(c, key));
 
 	lowest_dent_key(c, &start_key, key_inum(c, key));
 
@@ -1993,8 +2005,8 @@ static void correct_parent_keys(const struct ubifs_info *c,
 {
 	union ubifs_key *key, *key1;
 
-	ubifs_assert(znode->parent);
-	ubifs_assert(znode->iip == 0);
+	ubifs_assert(c, znode->parent);
+	ubifs_assert(c, znode->iip == 0);
 
 	key = &znode->zbranch[0].key;
 	key1 = &znode->parent->zbranch[0].key;
@@ -2011,6 +2023,7 @@ static void correct_parent_keys(const struct ubifs_info *c,
 
 /**
  * insert_zbranch - insert a zbranch into a znode.
+ * @c: UBIFS file-system description object
  * @znode: znode into which to insert
  * @zbr: zbranch to insert
  * @n: slot number to insert to
@@ -2020,12 +2033,12 @@ static void correct_parent_keys(const struct ubifs_info *c,
  * zbranch has to be inserted to the @znode->zbranches[]' array at the @n-th
  * slot, zbranches starting from @n have to be moved right.
  */
-static void insert_zbranch(struct ubifs_znode *znode,
+static void insert_zbranch(struct ubifs_info *c, struct ubifs_znode *znode,
 			   const struct ubifs_zbranch *zbr, int n)
 {
 	int i;
 
-	ubifs_assert(ubifs_zn_dirty(znode));
+	ubifs_assert(c, ubifs_zn_dirty(znode));
 
 	if (znode->level) {
 		for (i = znode->child_cnt; i > n; i--) {
@@ -2079,16 +2092,16 @@ static int tnc_insert(struct ubifs_info *c, struct ubifs_znode *znode,
 	int i, keep, move, appending = 0;
 	union ubifs_key *key = &zbr->key, *key1;
 
-	ubifs_assert(n >= 0 && n <= c->fanout);
+	ubifs_assert(c, n >= 0 && n <= c->fanout);
 
 	/* Implement naive insert for now */
 again:
 	zp = znode->parent;
 	if (znode->child_cnt < c->fanout) {
-		ubifs_assert(n != c->fanout);
+		ubifs_assert(c, n != c->fanout);
 		dbg_tnck(key, "inserted at %d level %d, key ", n, znode->level);
 
-		insert_zbranch(znode, zbr, n);
+		insert_zbranch(c, znode, zbr, n);
 
 		/* Ensure parent's key is correct */
 		if (n == 0 && zp && znode->iip == 0)
@@ -2197,7 +2210,7 @@ do_split:
 	/* Insert new key and branch */
 	dbg_tnck(key, "inserting at %d level %d, key ", n, zn->level);
 
-	insert_zbranch(zi, zbr, n);
+	insert_zbranch(c, zi, zbr, n);
 
 	/* Insert new znode (produced by spitting) into the parent */
 	if (zp) {
@@ -2259,13 +2272,14 @@ do_split:
  * @lnum: LEB number of node
  * @offs: node offset
  * @len: node length
+ * @hash: The hash over the node
  *
  * This function adds a node with key @key to TNC. The node may be new or it may
  * obsolete some existing one. Returns %0 on success or negative error code on
  * failure.
  */
 int ubifs_tnc_add(struct ubifs_info *c, const union ubifs_key *key, int lnum,
-		  int offs, int len)
+		  int offs, int len, const u8 *hash)
 {
 	int found, n, err = 0;
 	struct ubifs_znode *znode;
@@ -2280,6 +2294,7 @@ int ubifs_tnc_add(struct ubifs_info *c, const union ubifs_key *key, int lnum,
 		zbr.lnum = lnum;
 		zbr.offs = offs;
 		zbr.len = len;
+		ubifs_copy_hash(c, hash, zbr.hash);
 		key_copy(c, key, &zbr.key);
 		err = tnc_insert(c, znode, &zbr, n + 1);
 	} else if (found == 1) {
@@ -2290,6 +2305,7 @@ int ubifs_tnc_add(struct ubifs_info *c, const union ubifs_key *key, int lnum,
 		zbr->lnum = lnum;
 		zbr->offs = offs;
 		zbr->len = len;
+		ubifs_copy_hash(c, hash, zbr->hash);
 	} else
 		err = found;
 	if (!err)
@@ -2391,13 +2407,14 @@ out_unlock:
  * @lnum: LEB number of node
  * @offs: node offset
  * @len: node length
+ * @hash: The hash over the node
  * @nm: node name
  *
  * This is the same as 'ubifs_tnc_add()' but it should be used with keys which
  * may have collisions, like directory entry keys.
  */
 int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
-		     int lnum, int offs, int len,
+		     int lnum, int offs, int len, const u8 *hash,
 		     const struct fscrypt_name *nm)
 {
 	int found, n, err = 0;
@@ -2440,6 +2457,7 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 			zbr->lnum = lnum;
 			zbr->offs = offs;
 			zbr->len = len;
+			ubifs_copy_hash(c, hash, zbr->hash);
 			goto out_unlock;
 		}
 	}
@@ -2451,6 +2469,7 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 		zbr.lnum = lnum;
 		zbr.offs = offs;
 		zbr.len = len;
+		ubifs_copy_hash(c, hash, zbr.hash);
 		key_copy(c, key, &zbr.key);
 		err = tnc_insert(c, znode, &zbr, n + 1);
 		if (err)
@@ -2495,8 +2514,8 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 	int i, err;
 
 	/* Delete without merge for now */
-	ubifs_assert(znode->level == 0);
-	ubifs_assert(n >= 0 && n < c->fanout);
+	ubifs_assert(c, znode->level == 0);
+	ubifs_assert(c, n >= 0 && n < c->fanout);
 	dbg_tnck(&znode->zbranch[n].key, "deleting key ");
 
 	zbr = &znode->zbranch[n];
@@ -2522,8 +2541,8 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 	 */
 
 	do {
-		ubifs_assert(!ubifs_zn_obsolete(znode));
-		ubifs_assert(ubifs_zn_dirty(znode));
+		ubifs_assert(c, !ubifs_zn_obsolete(znode));
+		ubifs_assert(c, ubifs_zn_dirty(znode));
 
 		zp = znode->parent;
 		n = znode->iip;
@@ -2545,7 +2564,7 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 
 	/* Remove from znode, entry n - 1 */
 	znode->child_cnt -= 1;
-	ubifs_assert(znode->level != 0);
+	ubifs_assert(c, znode->level != 0);
 	for (i = n; i < znode->child_cnt; i++) {
 		znode->zbranch[i] = znode->zbranch[i + 1];
 		if (znode->zbranch[i].znode)
@@ -2578,8 +2597,8 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 			c->zroot.offs = zbr->offs;
 			c->zroot.len = zbr->len;
 			c->zroot.znode = znode;
-			ubifs_assert(!ubifs_zn_obsolete(zp));
-			ubifs_assert(ubifs_zn_dirty(zp));
+			ubifs_assert(c, !ubifs_zn_obsolete(zp));
+			ubifs_assert(c, ubifs_zn_dirty(zp));
 			atomic_long_dec(&c->dirty_zn_cnt);
 
 			if (zp->cnext) {
@@ -2944,7 +2963,7 @@ struct ubifs_dent_node *ubifs_tnc_next_ent(struct ubifs_info *c,
 	union ubifs_key *dkey;
 
 	dbg_tnck(key, "key ");
-	ubifs_assert(is_hash_key(c, key));
+	ubifs_assert(c, is_hash_key(c, key));
 
 	mutex_lock(&c->tnc_mutex);
 	err = ubifs_lookup_level0(c, key, &znode, &n);
@@ -3031,7 +3050,7 @@ static void tnc_destroy_cnext(struct ubifs_info *c)
 
 	if (!c->cnext)
 		return;
-	ubifs_assert(c->cmt_state == COMMIT_BROKEN);
+	ubifs_assert(c, c->cmt_state == COMMIT_BROKEN);
 	cnext = c->cnext;
 	do {
 		struct ubifs_znode *znode = cnext;
@@ -3053,8 +3072,8 @@ void ubifs_tnc_close(struct ubifs_info *c)
 		long n, freed;
 
 		n = atomic_long_read(&c->clean_zn_cnt);
-		freed = ubifs_destroy_tnc_subtree(c->zroot.znode);
-		ubifs_assert(freed == n);
+		freed = ubifs_destroy_tnc_subtree(c, c->zroot.znode);
+		ubifs_assert(c, freed == n);
 		atomic_long_sub(n, &ubifs_clean_zn_cnt);
 	}
 	kfree(c->gap_lebs);
@@ -3167,7 +3186,7 @@ static struct ubifs_znode *lookup_znode(struct ubifs_info *c,
 	struct ubifs_znode *znode, *zn;
 	int n, nn;
 
-	ubifs_assert(key_type(c, key) < UBIFS_INVALID_KEY);
+	ubifs_assert(c, key_type(c, key) < UBIFS_INVALID_KEY);
 
 	/*
 	 * The arguments have probably been read off flash, so don't assume
@@ -3206,7 +3225,7 @@ static struct ubifs_znode *lookup_znode(struct ubifs_info *c,
 			if (IS_ERR(znode))
 				return znode;
 			ubifs_search_zbranch(c, znode, key, &n);
-			ubifs_assert(n >= 0);
+			ubifs_assert(c, n >= 0);
 		}
 		if (znode->level == level + 1)
 			break;
@@ -3497,7 +3516,7 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 	if (err < 0)
 		goto out_unlock;
 
-	ubifs_assert(err == 0);
+	ubifs_assert(c, err == 0);
 	key = &znode->zbranch[n].key;
 	if (!key_in_range(c, key, &from_key, &to_key))
 		goto out_unlock;

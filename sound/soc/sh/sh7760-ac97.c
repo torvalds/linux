@@ -1,10 +1,8 @@
-/*
- * Generic AC97 sound support for SH7760
- *
- * (c) 2007 Manuel Lauss
- *
- * Licensed under the GPLv2.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Generic AC97 sound support for SH7760
+//
+// (c) 2007 Manuel Lauss
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -68,6 +66,6 @@ static void __exit sh7760_ac97_exit(void)
 module_init(sh7760_ac97_init);
 module_exit(sh7760_ac97_exit);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Generic SH7760 AC97 sound machine");
 MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");

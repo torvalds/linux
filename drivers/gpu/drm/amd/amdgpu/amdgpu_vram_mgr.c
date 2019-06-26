@@ -97,35 +97,53 @@ static u64 amdgpu_vram_mgr_vis_size(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vram_mgr_bo_invisible_size - CPU invisible BO size
+ * amdgpu_vram_mgr_bo_visible_size - CPU visible BO size
  *
  * @bo: &amdgpu_bo buffer object (must be in VRAM)
  *
  * Returns:
- * How much of the given &amdgpu_bo buffer object lies in CPU invisible VRAM.
+ * How much of the given &amdgpu_bo buffer object lies in CPU visible VRAM.
  */
-u64 amdgpu_vram_mgr_bo_invisible_size(struct amdgpu_bo *bo)
+u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_mem_reg *mem = &bo->tbo.mem;
 	struct drm_mm_node *nodes = mem->mm_node;
 	unsigned pages = mem->num_pages;
-	u64 usage = 0;
+	u64 usage;
 
-	if (adev->gmc.visible_vram_size == adev->gmc.real_vram_size)
-		return 0;
-
-	if (mem->start >= adev->gmc.visible_vram_size >> PAGE_SHIFT)
+	if (amdgpu_gmc_vram_full_visible(&adev->gmc))
 		return amdgpu_bo_size(bo);
 
-	while (nodes && pages) {
-		usage += nodes->size << PAGE_SHIFT;
-		usage -= amdgpu_vram_mgr_vis_size(adev, nodes);
-		pages -= nodes->size;
-		++nodes;
-	}
+	if (mem->start >= adev->gmc.visible_vram_size >> PAGE_SHIFT)
+		return 0;
+
+	for (usage = 0; nodes && pages; pages -= nodes->size, nodes++)
+		usage += amdgpu_vram_mgr_vis_size(adev, nodes);
 
 	return usage;
+}
+
+/**
+ * amdgpu_vram_mgr_virt_start - update virtual start address
+ *
+ * @mem: ttm_mem_reg to update
+ * @node: just allocated node
+ *
+ * Calculate a virtual BO start address to easily check if everything is CPU
+ * accessible.
+ */
+static void amdgpu_vram_mgr_virt_start(struct ttm_mem_reg *mem,
+				       struct drm_mm_node *node)
+{
+	unsigned long start;
+
+	start = node->start + node->size;
+	if (start > mem->num_pages)
+		start -= mem->num_pages;
+	else
+		start = 0;
+	mem->start = max(mem->start, start);
 }
 
 /**
@@ -180,10 +198,25 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	pages_left = mem->num_pages;
 
 	spin_lock(&mgr->lock);
-	for (i = 0; i < num_nodes; ++i) {
+	for (i = 0; pages_left >= pages_per_node; ++i) {
+		unsigned long pages = rounddown_pow_of_two(pages_left);
+
+		r = drm_mm_insert_node_in_range(mm, &nodes[i], pages,
+						pages_per_node, 0,
+						place->fpfn, lpfn,
+						mode);
+		if (unlikely(r))
+			break;
+
+		usage += nodes[i].size << PAGE_SHIFT;
+		vis_usage += amdgpu_vram_mgr_vis_size(adev, &nodes[i]);
+		amdgpu_vram_mgr_virt_start(mem, &nodes[i]);
+		pages_left -= pages;
+	}
+
+	for (; pages_left; ++i) {
 		unsigned long pages = min(pages_left, pages_per_node);
 		uint32_t alignment = mem->page_alignment;
-		unsigned long start;
 
 		if (pages == pages_per_node)
 			alignment = pages_per_node;
@@ -197,16 +230,7 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 
 		usage += nodes[i].size << PAGE_SHIFT;
 		vis_usage += amdgpu_vram_mgr_vis_size(adev, &nodes[i]);
-
-		/* Calculate a virtual BO start address to easily check if
-		 * everything is CPU accessible.
-		 */
-		start = nodes[i].start + nodes[i].size;
-		if (start > mem->num_pages)
-			start -= mem->num_pages;
-		else
-			start = 0;
-		mem->start = max(mem->start, start);
+		amdgpu_vram_mgr_virt_start(mem, &nodes[i]);
 		pages_left -= pages;
 	}
 	spin_unlock(&mgr->lock);

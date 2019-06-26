@@ -8,14 +8,16 @@ a cgroupv2 and attach a bash shell to the group.
   bash
   echo $$ >> /tmp/cgroupv2/foo/cgroup.procs
 
-Anything that runs under this shell belongs to the foo cgroupv2 To load
+Anything that runs under this shell belongs to the foo cgroupv2. To load
 (attach) one of the tcp_*_kern.o programs:
 
-  ./load_sock_ops -l /tmp/cgroupv2/foo tcp_basertt_kern.o
+  bpftool prog load tcp_basertt_kern.o /sys/fs/bpf/tcp_prog
+  bpftool cgroup attach /tmp/cgroupv2/foo sock_ops pinned /sys/fs/bpf/tcp_prog
+  bpftool prog tracelog
 
-If the "-l" flag is used, the load_sock_ops program will continue to run
-printing the BPF log buffer. The tcp_*_kern.o programs use special print
-functions to print logging information (if enabled by the ifdef).
+"bpftool prog tracelog" will continue to run printing the BPF log buffer.
+The tcp_*_kern.o programs use special print functions to print logging
+information (if enabled by the ifdef).
 
 If using netperf/netserver to create traffic, you need to run them under the
 cgroupv2 to which the BPF programs are attached (i.e. under bash shell
@@ -23,4 +25,4 @@ attached to the cgroupv2).
 
 To remove (unattach) a socket_ops BPF program from a cgroupv2:
 
-  ./load_sock_ops -r /tmp/cgroupv2/foo
+  bpftool cgroup attach /tmp/cgroupv2/foo sock_ops pinned /sys/fs/bpf/tcp_prog

@@ -53,9 +53,9 @@ static u16 get_tcpmss(const struct nft_pktinfo *pkt, const struct dst_entry *skb
 	return mtu - minlen;
 }
 
-static void nft_rt_get_eval(const struct nft_expr *expr,
-			    struct nft_regs *regs,
-			    const struct nft_pktinfo *pkt)
+void nft_rt_get_eval(const struct nft_expr *expr,
+		     struct nft_regs *regs,
+		     const struct nft_pktinfo *pkt)
 {
 	const struct nft_rt *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
@@ -90,6 +90,11 @@ static void nft_rt_get_eval(const struct nft_expr *expr,
 	case NFT_RT_TCPMSS:
 		nft_reg_store16(dest, get_tcpmss(pkt, dst));
 		break;
+#ifdef CONFIG_XFRM
+	case NFT_RT_XFRM:
+		nft_reg_store8(dest, !!dst->xfrm);
+		break;
+#endif
 	default:
 		WARN_ON(1);
 		goto err;
@@ -130,6 +135,11 @@ static int nft_rt_get_init(const struct nft_ctx *ctx,
 	case NFT_RT_TCPMSS:
 		len = sizeof(u16);
 		break;
+#ifdef CONFIG_XFRM
+	case NFT_RT_XFRM:
+		len = sizeof(u8);
+		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -164,6 +174,7 @@ static int nft_rt_validate(const struct nft_ctx *ctx, const struct nft_expr *exp
 	case NFT_RT_NEXTHOP4:
 	case NFT_RT_NEXTHOP6:
 	case NFT_RT_CLASSID:
+	case NFT_RT_XFRM:
 		return 0;
 	case NFT_RT_TCPMSS:
 		hooks = (1 << NF_INET_FORWARD) |

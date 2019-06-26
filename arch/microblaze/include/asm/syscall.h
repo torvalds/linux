@@ -82,18 +82,22 @@ static inline void microblaze_set_syscall_arg(struct pt_regs *regs,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
+	unsigned int i = 0;
+	unsigned int n = 6;
+
 	while (n--)
 		*args++ = microblaze_get_syscall_arg(regs, i++);
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
+	unsigned int i = 0;
+	unsigned int n = 6;
+
 	while (n--)
 		microblaze_set_syscall_arg(regs, i++, *args++);
 }

@@ -32,7 +32,8 @@ int enic_addfltr_5t(struct enic *enic, struct flow_keys *keys, u16 rq)
 		break;
 	default:
 		return -EPROTONOSUPPORT;
-	};
+	}
+
 	data.type = FILTER_IPV4_5TUPLE;
 	data.u.ipv4.src_addr = ntohl(keys->addrs.v4addrs.src);
 	data.u.ipv4.dst_addr = ntohl(keys->addrs.v4addrs.dst);

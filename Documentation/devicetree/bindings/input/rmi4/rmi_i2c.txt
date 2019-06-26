@@ -16,7 +16,6 @@ Required Properties:
 
 Optional Properties:
 - interrupts: interrupt which the rmi device is connected to.
-- interrupt-parent: The interrupt controller.
 See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
 - syna,reset-delay-ms: The number of milliseconds to wait after resetting the

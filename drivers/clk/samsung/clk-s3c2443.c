@@ -11,7 +11,6 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/syscore_ops.h>
 #include <linux/reboot.h>
 
 #include <dt-bindings/clock/s3c2443.h>
@@ -43,9 +42,6 @@ enum supported_socs {
 
 static void __iomem *reg_base;
 
-#ifdef CONFIG_PM_SLEEP
-static struct samsung_clk_reg_dump *s3c2443_save;
-
 /*
  * list of controller registers to be saved and restored during a
  * suspend/resume cycle.
@@ -64,42 +60,6 @@ static unsigned long s3c2443_clk_regs[] __initdata = {
 	HCLKCON,
 	SCLKCON,
 };
-
-static int s3c2443_clk_suspend(void)
-{
-	samsung_clk_save(reg_base, s3c2443_save,
-				ARRAY_SIZE(s3c2443_clk_regs));
-
-	return 0;
-}
-
-static void s3c2443_clk_resume(void)
-{
-	samsung_clk_restore(reg_base, s3c2443_save,
-				ARRAY_SIZE(s3c2443_clk_regs));
-}
-
-static struct syscore_ops s3c2443_clk_syscore_ops = {
-	.suspend = s3c2443_clk_suspend,
-	.resume = s3c2443_clk_resume,
-};
-
-static void __init s3c2443_clk_sleep_init(void)
-{
-	s3c2443_save = samsung_clk_alloc_reg_dump(s3c2443_clk_regs,
-						ARRAY_SIZE(s3c2443_clk_regs));
-	if (!s3c2443_save) {
-		pr_warn("%s: failed to allocate sleep save data, no sleep support!\n",
-			__func__);
-		return;
-	}
-
-	register_syscore_ops(&s3c2443_clk_syscore_ops);
-	return;
-}
-#else
-static void __init s3c2443_clk_sleep_init(void) {}
-#endif
 
 PNAME(epllref_p) = { "mpllref", "mpllref", "xti", "ext" };
 PNAME(esysclk_p) = { "epllref", "epll" };
@@ -429,7 +389,7 @@ void __init s3c2443_common_clk_init(struct device_node *np, unsigned long xti_f,
 				ARRAY_SIZE(s3c2450_gates));
 		samsung_clk_register_alias(ctx, s3c2450_aliases,
 				ARRAY_SIZE(s3c2450_aliases));
-		/* fall through, as s3c2450 extends the s3c2416 clocks */
+		/* fall through - as s3c2450 extends the s3c2416 clocks */
 	case S3C2416:
 		samsung_clk_register_div(ctx, s3c2416_dividers,
 				ARRAY_SIZE(s3c2416_dividers));
@@ -450,7 +410,8 @@ void __init s3c2443_common_clk_init(struct device_node *np, unsigned long xti_f,
 		break;
 	}
 
-	s3c2443_clk_sleep_init();
+	samsung_clk_sleep_init(reg_base, s3c2443_clk_regs,
+			       ARRAY_SIZE(s3c2443_clk_regs));
 
 	samsung_clk_of_add_provider(np, ctx);
 

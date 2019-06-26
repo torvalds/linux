@@ -1,39 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/*
- * Copyright (C) 2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/* Copyright (C) 2018 Netronome Systems, Inc. */
 
 #include <linux/list.h>
 #include <stdlib.h>
@@ -191,6 +157,11 @@ static bool cfg_partition_funcs(struct cfg *cfg, struct bpf_insn *cur,
 	return false;
 }
 
+static bool is_jmp_insn(u8 code)
+{
+	return BPF_CLASS(code) == BPF_JMP || BPF_CLASS(code) == BPF_JMP32;
+}
+
 static bool func_partition_bb_head(struct func_node *func)
 {
 	struct bpf_insn *cur, *end;
@@ -204,7 +175,7 @@ static bool func_partition_bb_head(struct func_node *func)
 		return true;
 
 	for (; cur <= end; cur++) {
-		if (BPF_CLASS(cur->code) == BPF_JMP) {
+		if (is_jmp_insn(cur->code)) {
 			u8 opcode = BPF_OP(cur->code);
 
 			if (opcode == BPF_EXIT || opcode == BPF_CALL)
@@ -330,7 +301,7 @@ static bool func_add_bb_edges(struct func_node *func)
 		e->src = bb;
 
 		insn = bb->tail;
-		if (BPF_CLASS(insn->code) != BPF_JMP ||
+		if (!is_jmp_insn(insn->code) ||
 		    BPF_OP(insn->code) == BPF_EXIT) {
 			e->dst = bb_next(bb);
 			e->flags |= EDGE_FLAG_FALLTHROUGH;

@@ -87,16 +87,15 @@ xfs_agino_range(
 	 * Calculate the first inode, which will be in the first
 	 * cluster-aligned block after the AGFL.
 	 */
-	bno = round_up(XFS_AGFL_BLOCK(mp) + 1,
-			xfs_ialloc_cluster_alignment(mp));
-	*first = XFS_OFFBNO_TO_AGINO(mp, bno, 0);
+	bno = round_up(XFS_AGFL_BLOCK(mp) + 1, mp->m_cluster_align);
+	*first = XFS_AGB_TO_AGINO(mp, bno);
 
 	/*
 	 * Calculate the last inode, which will be at the end of the
 	 * last (aligned) cluster that can be allocated in the AG.
 	 */
-	bno = round_down(eoag, xfs_ialloc_cluster_alignment(mp));
-	*last = XFS_OFFBNO_TO_AGINO(mp, bno, 0) - 1;
+	bno = round_down(eoag, mp->m_cluster_align);
+	*last = XFS_AGB_TO_AGINO(mp, bno) - 1;
 }
 
 /*
@@ -114,6 +113,19 @@ xfs_verify_agino(
 
 	xfs_agino_range(mp, agno, &first, &last);
 	return agino >= first && agino <= last;
+}
+
+/*
+ * Verify that an AG inode number pointer neither points outside the AG
+ * nor points at static metadata, or is NULLAGINO.
+ */
+bool
+xfs_verify_agino_or_null(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	xfs_agino_t		agino)
+{
+	return agino == NULLAGINO || xfs_verify_agino(mp, agno, agino);
 }
 
 /*
@@ -170,4 +182,49 @@ xfs_verify_rtbno(
 	xfs_rtblock_t		rtbno)
 {
 	return rtbno < mp->m_sb.sb_rblocks;
+}
+
+/* Calculate the range of valid icount values. */
+static void
+xfs_icount_range(
+	struct xfs_mount	*mp,
+	unsigned long long	*min,
+	unsigned long long	*max)
+{
+	unsigned long long	nr_inos = 0;
+	xfs_agnumber_t		agno;
+
+	/* root, rtbitmap, rtsum all live in the first chunk */
+	*min = XFS_INODES_PER_CHUNK;
+
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		xfs_agino_t	first, last;
+
+		xfs_agino_range(mp, agno, &first, &last);
+		nr_inos += last - first + 1;
+	}
+	*max = nr_inos;
+}
+
+/* Sanity-checking of inode counts. */
+bool
+xfs_verify_icount(
+	struct xfs_mount	*mp,
+	unsigned long long	icount)
+{
+	unsigned long long	min, max;
+
+	xfs_icount_range(mp, &min, &max);
+	return icount >= min && icount <= max;
+}
+
+/* Sanity-checking of dir/attr block offsets. */
+bool
+xfs_verify_dablk(
+	struct xfs_mount	*mp,
+	xfs_fileoff_t		dabno)
+{
+	xfs_dablk_t		max_dablk = -1U;
+
+	return dabno <= max_dablk;
 }

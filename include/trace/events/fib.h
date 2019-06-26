@@ -22,6 +22,7 @@ TRACE_EVENT(fib_table_lookup,
 		__field(	int,	err		)
 		__field(	int,	oif		)
 		__field(	int,	iif		)
+		__field(	u8,	proto		)
 		__field(	__u8,	tos		)
 		__field(	__u8,	scope		)
 		__field(	__u8,	flags		)
@@ -31,7 +32,6 @@ TRACE_EVENT(fib_table_lookup,
 		__array(	__u8,	saddr,	4	)
 		__field(	u16,	sport		)
 		__field(	u16,	dport		)
-		__field(	u8,	proto		)
 		__dynamic_array(char,  name,   IFNAMSIZ )
 	),
 

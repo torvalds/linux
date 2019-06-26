@@ -202,7 +202,7 @@ static int histb_pcie_host_init(struct pcie_port *pp)
 	return 0;
 }
 
-static struct dw_pcie_host_ops histb_pcie_host_ops = {
+static const struct dw_pcie_host_ops histb_pcie_host_ops = {
 	.rd_own_conf = histb_pcie_rd_own_conf,
 	.wr_own_conf = histb_pcie_wr_own_conf,
 	.host_init = histb_pcie_host_init,
@@ -420,7 +420,6 @@ static int histb_pcie_probe(struct platform_device *pdev)
 		phy_init(hipcie->phy);
 	}
 
-	pp->root_bus_nr = -1;
 	pp->ops = &histb_pcie_host_ops;
 
 	platform_set_drvdata(pdev, hipcie);

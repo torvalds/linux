@@ -26,7 +26,7 @@ struct iscsit_transport {
 	void (*iscsit_aborted_task)(struct iscsi_conn *, struct iscsi_cmd *);
 	int (*iscsit_xmit_pdu)(struct iscsi_conn *, struct iscsi_cmd *,
 			       struct iscsi_datain_req *, const void *, u32);
-	void (*iscsit_release_cmd)(struct iscsi_conn *, struct iscsi_cmd *);
+	void (*iscsit_unmap_cmd)(struct iscsi_conn *, struct iscsi_cmd *);
 	void (*iscsit_get_rx_pdu)(struct iscsi_conn *);
 	int (*iscsit_validate_params)(struct iscsi_conn *);
 	void (*iscsit_get_r2t_ttt)(struct iscsi_conn *, struct iscsi_cmd *,
@@ -53,7 +53,7 @@ extern void iscsit_put_transport(struct iscsit_transport *);
  */
 extern int iscsit_setup_scsi_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 				unsigned char *);
-extern void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *);
+extern void iscsit_set_unsolicited_dataout(struct iscsi_cmd *);
 extern int iscsit_process_scsi_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 				struct iscsi_scsi_req *);
 extern int

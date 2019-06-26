@@ -53,7 +53,7 @@ static int s5p_mfc_alloc_dec_temp_buffers_v6(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
-/* Release temproary buffers for decoding */
+/* Release temporary buffers for decoding */
 static void s5p_mfc_release_dec_desc_buffer_v6(struct s5p_mfc_ctx *ctx)
 {
 	/* NOP */
@@ -1928,7 +1928,7 @@ static inline int s5p_mfc_run_init_dec_buffers(struct s5p_mfc_ctx *ctx)
 
 	if (ctx->capture_state != QUEUE_BUFS_MMAPED) {
 		mfc_err("It seems that not all destination buffers were\n"
-			"mmaped.MFC requires that all destination are mmaped\n"
+			"mmapped.MFC requires that all destination are mmapped\n"
 			"before starting processing.\n");
 		return -EAGAIN;
 	}

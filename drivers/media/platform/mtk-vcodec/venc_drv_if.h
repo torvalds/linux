@@ -106,7 +106,7 @@ struct venc_enc_param {
  * @fb_addr: plane frame buffer addresses
  */
 struct venc_frm_buf {
-	struct mtk_vcodec_mem fb_addr[MTK_VCODEC_MAX_PLANES];
+	struct mtk_vcodec_fb fb_addr[MTK_VCODEC_MAX_PLANES];
 };
 
 /*

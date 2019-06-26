@@ -2,6 +2,7 @@
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
 #include "smc.h"
+#include "pm.h"
 
 static void tango_l2c_write(unsigned long val, unsigned int reg)
 {
@@ -15,4 +16,5 @@ DT_MACHINE_START(TANGO_DT, "Sigma Tango DT")
 	.dt_compat	= tango_dt_compat,
 	.l2c_aux_mask	= ~0,
 	.l2c_write_sec	= tango_l2c_write,
+	.init_late	= tango_pm_init,
 MACHINE_END

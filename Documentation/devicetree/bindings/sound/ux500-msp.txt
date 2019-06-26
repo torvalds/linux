@@ -6,7 +6,6 @@ Required properties:
 
 Optional properties:
  - interrupts       : The interrupt output from the device.
- - interrupt-parent : The parent interrupt controller.
  - <name>-supply    : Phandle to the regulator <name> supply
 
 Example:

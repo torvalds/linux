@@ -7,6 +7,7 @@
 #ifndef __RTW_PWRCTRL_H_
 #define __RTW_PWRCTRL_H_
 
+#include <linux/mutex.h>
 
 #define FW_PWR0	0
 #define FW_PWR1		1
@@ -92,10 +93,6 @@ struct reportpwrstate_parm {
 	unsigned char state; /* the CPWM value */
 	unsigned short rsvd;
 };
-
-
-typedef _sema _pwrlock;
-
 
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
 
@@ -207,8 +204,7 @@ typedef struct pno_scan_info
 
 struct pwrctrl_priv
 {
-	_pwrlock	lock;
-	_pwrlock	check_32k_lock;
+	struct mutex lock;
 	volatile u8 rpwm; /*  requested power state for fw */
 	volatile u8 cpwm; /*  fw current power state. updated when 1. read from HCPWM 2. driver lowers power level */
 	volatile u8 tog; /*  toggling */

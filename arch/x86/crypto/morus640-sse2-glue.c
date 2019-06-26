@@ -37,15 +37,10 @@ asmlinkage void crypto_morus640_sse2_final(void *state, void *tag_xor,
 
 MORUS640_DECLARE_ALGS(sse2, "morus640-sse2", 400);
 
-static const struct x86_cpu_id sse2_cpu_id[] = {
-    X86_FEATURE_MATCH(X86_FEATURE_XMM2),
-    {}
-};
-MODULE_DEVICE_TABLE(x86cpu, sse2_cpu_id);
-
 static int __init crypto_morus640_sse2_module_init(void)
 {
-	if (!x86_match_cpu(sse2_cpu_id))
+	if (!boot_cpu_has(X86_FEATURE_XMM2) ||
+	    !cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL))
 		return -ENODEV;
 
 	return crypto_register_aeads(crypto_morus640_sse2_algs,

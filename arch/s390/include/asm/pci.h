@@ -51,6 +51,10 @@ struct zpci_fmb_fmt2 {
 	u64 max_work_units;
 };
 
+struct zpci_fmb_fmt3 {
+	u64 tx_bytes;
+};
+
 struct zpci_fmb {
 	u32 format	: 8;
 	u32 fmt_ind	: 24;
@@ -66,6 +70,7 @@ struct zpci_fmb {
 		struct zpci_fmb_fmt0 fmt0;
 		struct zpci_fmb_fmt1 fmt1;
 		struct zpci_fmb_fmt2 fmt2;
+		struct zpci_fmb_fmt3 fmt3;
 	};
 } __packed __aligned(128);
 
@@ -143,7 +148,6 @@ struct zpci_dev {
 	enum pci_bus_speed max_bus_speed;
 
 	struct dentry	*debugfs_dev;
-	struct dentry	*debugfs_perf;
 
 	struct s390_domain *s390_domain; /* s390 IOMMU domain data */
 };

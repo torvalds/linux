@@ -60,7 +60,7 @@ static struct rc_map_list delock_61959_map = {
 	.map = {
 		.scan     = delock_61959,
 		.size     = ARRAY_SIZE(delock_61959),
-		.rc_proto = RC_PROTO_NEC,
+		.rc_proto = RC_PROTO_NECX,
 		.name     = RC_MAP_DELOCK_61959,
 	}
 };

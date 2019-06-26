@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,9 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -33,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,55 +65,116 @@
 #include "debugfs.h"
 #include "dbg.h"
 
-#define FWRT_DEBUGFS_READ_FILE_OPS(name)				\
-static ssize_t iwl_dbgfs_##name##_read(struct iwl_fw_runtime *fwrt,	\
-				       char *buf, size_t count,		\
-				       loff_t *ppos);			\
-static const struct file_operations iwl_dbgfs_##name##_ops = {		\
-	.read = iwl_dbgfs_##name##_read,				\
-	.open = simple_open,						\
-	.llseek = generic_file_llseek,					\
+#define FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)		\
+struct dbgfs_##name##_data {						\
+	argtype *arg;							\
+	bool read_done;							\
+	ssize_t rlen;							\
+	char rbuf[buflen];						\
+};									\
+static int _iwl_dbgfs_##name##_open(struct inode *inode,		\
+				    struct file *file)			\
+{									\
+	struct dbgfs_##name##_data *data;				\
+									\
+	data = kzalloc(sizeof(*data), GFP_KERNEL);			\
+	if (!data)							\
+		return -ENOMEM;						\
+									\
+	data->read_done = false;					\
+	data->arg = inode->i_private;					\
+	file->private_data = data;					\
+									\
+	return 0;							\
 }
 
-#define FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen)			\
-static ssize_t iwl_dbgfs_##name##_write(struct iwl_fw_runtime *fwrt,	\
-					char *buf, size_t count,	\
-					loff_t *ppos);			\
+#define FWRT_DEBUGFS_READ_WRAPPER(name)					\
+static ssize_t _iwl_dbgfs_##name##_read(struct file *file,		\
+					char __user *user_buf,		\
+					size_t count, loff_t *ppos)	\
+{									\
+	struct dbgfs_##name##_data *data = file->private_data;		\
+									\
+	if (!data->read_done) {						\
+		data->read_done = true;					\
+		data->rlen = iwl_dbgfs_##name##_read(data->arg,		\
+						     sizeof(data->rbuf),\
+						     data->rbuf);	\
+	}								\
+									\
+	if (data->rlen < 0)						\
+		return data->rlen;					\
+	return simple_read_from_buffer(user_buf, count, ppos,		\
+				       data->rbuf, data->rlen);		\
+}
+
+static int _iwl_dbgfs_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+
+	return 0;
+}
+
+#define _FWRT_DEBUGFS_READ_FILE_OPS(name, buflen, argtype)		\
+FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)			\
+FWRT_DEBUGFS_READ_WRAPPER(name)						\
+static const struct file_operations iwl_dbgfs_##name##_ops = {		\
+	.read = _iwl_dbgfs_##name##_read,				\
+	.open = _iwl_dbgfs_##name##_open,				\
+	.llseek = generic_file_llseek,					\
+	.release = _iwl_dbgfs_release,					\
+}
+
+#define FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen, argtype)		\
 static ssize_t _iwl_dbgfs_##name##_write(struct file *file,		\
 					 const char __user *user_buf,	\
 					 size_t count, loff_t *ppos)	\
 {									\
-	struct iwl_fw_runtime *fwrt = file->private_data;		\
+	argtype *arg =							\
+		((struct dbgfs_##name##_data *)file->private_data)->arg;\
 	char buf[buflen] = {};						\
 	size_t buf_size = min(count, sizeof(buf) -  1);			\
 									\
 	if (copy_from_user(buf, user_buf, buf_size))			\
 		return -EFAULT;						\
 									\
-	return iwl_dbgfs_##name##_write(fwrt, buf, buf_size, ppos);	\
+	return iwl_dbgfs_##name##_write(arg, buf, buf_size);		\
 }
 
-#define FWRT_DEBUGFS_READ_WRITE_FILE_OPS(name, buflen)			\
-FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen)				\
+#define _FWRT_DEBUGFS_READ_WRITE_FILE_OPS(name, buflen, argtype)	\
+FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)			\
+FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen, argtype)			\
+FWRT_DEBUGFS_READ_WRAPPER(name)						\
 static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.write = _iwl_dbgfs_##name##_write,				\
-	.read = iwl_dbgfs_##name##_read,				\
-	.open = simple_open,						\
+	.read = _iwl_dbgfs_##name##_read,				\
+	.open = _iwl_dbgfs_##name##_open,				\
 	.llseek = generic_file_llseek,					\
+	.release = _iwl_dbgfs_release,					\
 }
 
-#define FWRT_DEBUGFS_WRITE_FILE_OPS(name, buflen)			\
-FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen)				\
+#define _FWRT_DEBUGFS_WRITE_FILE_OPS(name, buflen, argtype)		\
+FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)			\
+FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen, argtype)			\
 static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.write = _iwl_dbgfs_##name##_write,				\
-	.open = simple_open,						\
+	.open = _iwl_dbgfs_##name##_open,				\
 	.llseek = generic_file_llseek,					\
+	.release = _iwl_dbgfs_release,					\
 }
+
+#define FWRT_DEBUGFS_READ_FILE_OPS(name, bufsz)				\
+	_FWRT_DEBUGFS_READ_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
+
+#define FWRT_DEBUGFS_WRITE_FILE_OPS(name, bufsz)			\
+	_FWRT_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
+
+#define FWRT_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz)			\
+	_FWRT_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
 
 #define FWRT_DEBUGFS_ADD_FILE_ALIAS(alias, name, parent, mode) do {	\
-		if (!debugfs_create_file(alias, mode, parent, fwrt,	\
-					 &iwl_dbgfs_##name##_ops))	\
-			goto err;					\
+	debugfs_create_file(alias, mode, parent, fwrt,			\
+			    &iwl_dbgfs_##name##_ops);			\
 	} while (0)
 #define FWRT_DEBUGFS_ADD_FILE(name, parent, mode) \
 	FWRT_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
@@ -173,8 +233,7 @@ void iwl_fw_trigger_timestamp(struct iwl_fw_runtime *fwrt, u32 delay)
 }
 
 static ssize_t iwl_dbgfs_timestamp_marker_write(struct iwl_fw_runtime *fwrt,
-						char *buf, size_t count,
-						loff_t *ppos)
+						char *buf, size_t count)
 {
 	int ret;
 	u32 delay;
@@ -188,15 +247,83 @@ static ssize_t iwl_dbgfs_timestamp_marker_write(struct iwl_fw_runtime *fwrt,
 	return count;
 }
 
-FWRT_DEBUGFS_WRITE_FILE_OPS(timestamp_marker, 10);
+static ssize_t iwl_dbgfs_timestamp_marker_read(struct iwl_fw_runtime *fwrt,
+					       size_t size, char *buf)
+{
+	u32 delay_secs = jiffies_to_msecs(fwrt->timestamp.delay) / 1000;
 
-int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
+	return scnprintf(buf, size, "%d\n", delay_secs);
+}
+
+FWRT_DEBUGFS_READ_WRITE_FILE_OPS(timestamp_marker, 16);
+
+struct hcmd_write_data {
+	__be32 cmd_id;
+	__be32 flags;
+	__be16 length;
+	u8 data[0];
+} __packed;
+
+static ssize_t iwl_dbgfs_send_hcmd_write(struct iwl_fw_runtime *fwrt, char *buf,
+					 size_t count)
+{
+	size_t header_size = (sizeof(u32) * 2 + sizeof(u16)) * 2;
+	size_t data_size = (count - 1) / 2;
+	int ret;
+	struct hcmd_write_data *data;
+	struct iwl_host_cmd hcmd = {
+		.len = { 0, },
+		.data = { NULL, },
+	};
+
+	if (fwrt->ops && fwrt->ops->fw_running &&
+	    !fwrt->ops->fw_running(fwrt->ops_ctx))
+		return -EIO;
+
+	if (count < header_size + 1 || count > 1024 * 4)
+		return -EINVAL;
+
+	data = kmalloc(data_size, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	ret = hex2bin((u8 *)data, buf, data_size);
+	if (ret)
+		goto out;
+
+	hcmd.id = be32_to_cpu(data->cmd_id);
+	hcmd.flags = be32_to_cpu(data->flags);
+	hcmd.len[0] = be16_to_cpu(data->length);
+	hcmd.data[0] = data->data;
+
+	if (count != header_size + hcmd.len[0] * 2 + 1) {
+		IWL_ERR(fwrt,
+			"host command data size does not match header length\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (fwrt->ops && fwrt->ops->send_hcmd)
+		ret = fwrt->ops->send_hcmd(fwrt->ops_ctx, &hcmd);
+	else
+		ret = -EPERM;
+
+	if (ret < 0)
+		goto out;
+
+	if (hcmd.flags & CMD_WANT_SKB)
+		iwl_free_resp(&hcmd);
+out:
+	kfree(data);
+	return ret ?: count;
+}
+
+FWRT_DEBUGFS_WRITE_FILE_OPS(send_hcmd, 512);
+
+void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir)
 {
 	INIT_DELAYED_WORK(&fwrt->timestamp.wk, iwl_fw_timestamp_marker_wk);
 	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
-	return 0;
-err:
-	IWL_ERR(fwrt, "Can't create the fwrt debugfs directory\n");
-	return -ENOMEM;
+	FWRT_DEBUGFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
 }

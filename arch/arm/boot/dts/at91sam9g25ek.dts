@@ -32,9 +32,9 @@
 					pinctrl-0 = <&pinctrl_pck0_as_isi_mck &pinctrl_sensor_power &pinctrl_sensor_reset>;
 					resetb-gpios = <&pioA 7 GPIO_ACTIVE_LOW>;
 					pwdn-gpios = <&pioA 13 GPIO_ACTIVE_HIGH>;
-					clocks = <&pck0>;
+					clocks = <&pmc PMC_TYPE_SYSTEM 8>;
 					clock-names = "xvclk";
-					assigned-clocks = <&pck0>;
+					assigned-clocks = <&pmc PMC_TYPE_SYSTEM 8>;
 					assigned-clock-rates = <25000000>;
 					status = "okay";
 

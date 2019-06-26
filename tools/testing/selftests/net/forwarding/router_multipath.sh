@@ -159,45 +159,6 @@ router2_destroy()
 	vrf_destroy "vrf-r2"
 }
 
-multipath_eval()
-{
-       local desc="$1"
-       local weight_rp12=$2
-       local weight_rp13=$3
-       local packets_rp12=$4
-       local packets_rp13=$5
-       local weights_ratio packets_ratio diff
-
-       RET=0
-
-       if [[ "$packets_rp12" -eq "0" || "$packets_rp13" -eq "0" ]]; then
-              check_err 1 "Packet difference is 0"
-              log_test "Multipath"
-              log_info "Expected ratio $weights_ratio"
-              return
-       fi
-
-       if [[ "$weight_rp12" -gt "$weight_rp13" ]]; then
-               weights_ratio=$(echo "scale=2; $weight_rp12 / $weight_rp13" \
-		       | bc -l)
-               packets_ratio=$(echo "scale=2; $packets_rp12 / $packets_rp13" \
-		       | bc -l)
-       else
-               weights_ratio=$(echo "scale=2; $weight_rp13 / $weight_rp12" | \
-		       bc -l)
-               packets_ratio=$(echo "scale=2; $packets_rp13 / $packets_rp12" | \
-		       bc -l)
-       fi
-
-       diff=$(echo $weights_ratio - $packets_ratio | bc -l)
-       diff=${diff#-}
-
-       test "$(echo "$diff / $weights_ratio > 0.15" | bc -l)" -eq 0
-       check_err $? "Too large discrepancy between expected and measured ratios"
-       log_test "$desc"
-       log_info "Expected ratio $weights_ratio Measured ratio $packets_ratio"
-}
-
 multipath4_test()
 {
        local desc="$1"

@@ -205,7 +205,7 @@ static void nfs_initiate_read(struct nfs_pgio_header *hdr,
 }
 
 static void
-nfs_async_read_error(struct list_head *head)
+nfs_async_read_error(struct list_head *head, int error)
 {
 	struct nfs_page	*req;
 
@@ -276,16 +276,14 @@ static void nfs_readpage_result(struct rpc_task *task,
 				struct nfs_pgio_header *hdr)
 {
 	if (hdr->res.eof) {
-		loff_t bound;
+		loff_t pos = hdr->args.offset + hdr->res.count;
+		unsigned int new = pos - hdr->io_start;
 
-		bound = hdr->args.offset + hdr->res.count;
-		spin_lock(&hdr->lock);
-		if (bound < hdr->io_start + hdr->good_bytes) {
+		if (hdr->good_bytes > new) {
+			hdr->good_bytes = new;
 			set_bit(NFS_IOHDR_EOF, &hdr->flags);
 			clear_bit(NFS_IOHDR_ERROR, &hdr->flags);
-			hdr->good_bytes = bound - hdr->io_start;
 		}
-		spin_unlock(&hdr->lock);
 	} else if (hdr->res.count < hdr->args.count)
 		nfs_readpage_retry(task, hdr);
 }

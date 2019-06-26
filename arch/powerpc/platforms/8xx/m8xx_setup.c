@@ -66,7 +66,7 @@ static int __init get_freq(char *name, unsigned long *val)
 	int found = 0;
 
 	/* The cpu node should have timebase and clock frequency properties */
-	cpu = of_find_node_by_type(NULL, "cpu");
+	cpu = of_get_cpu_node(0, NULL);
 
 	if (cpu) {
 		fp = of_get_property(cpu, name, NULL);
@@ -147,8 +147,9 @@ void __init mpc8xx_calibrate_decr(void)
 	 * we have to enable the timebase).  The decrementer interrupt
 	 * is wired into the vector table, nothing to do here for that.
 	 */
-	cpu = of_find_node_by_type(NULL, "cpu");
+	cpu = of_get_cpu_node(0, NULL);
 	virq= irq_of_parse_and_map(cpu, 0);
+	of_node_put(cpu);
 	irq = virq_to_hw(virq);
 
 	sys_tmr2 = immr_map(im_sit);

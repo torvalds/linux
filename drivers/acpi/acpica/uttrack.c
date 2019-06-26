@@ -3,7 +3,7 @@
  *
  * Module Name: uttrack - Memory allocation tracking routines (debug only)
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -587,6 +587,18 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 					     element->module, element->line,
 					     acpi_ut_get_descriptor_name
 					     (descriptor));
+
+					/* Optional object hex dump */
+
+					if (acpi_gbl_verbose_leak_dump) {
+						acpi_os_printf("\n");
+						acpi_ut_dump_buffer((u8 *)
+								    descriptor,
+								    element->
+								    size,
+								    DB_BYTE_DISPLAY,
+								    0);
+					}
 
 					/* Validate the descriptor type using Type field and length */
 

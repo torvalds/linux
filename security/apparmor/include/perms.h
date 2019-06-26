@@ -137,7 +137,8 @@ extern struct aa_perms allperms;
 	xcheck(fn_for_each((L1), (P), (FN1)), fn_for_each((L2), (P), (FN2)))
 
 
-void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask);
+void aa_perm_mask_to_str(char *str, size_t str_size, const char *chrs,
+			 u32 mask);
 void aa_audit_perm_names(struct audit_buffer *ab, const char * const *names,
 			 u32 mask);
 void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,

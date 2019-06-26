@@ -31,6 +31,7 @@ struct i915_selftest {
 	unsigned long timeout_jiffies;
 	unsigned int timeout_ms;
 	unsigned int random_seed;
+	char *filter;
 	int mock;
 	int live;
 };
@@ -99,6 +100,6 @@ __printf(2, 3)
 bool __igt_timeout(unsigned long timeout, const char *fmt, ...);
 
 #define igt_timeout(t, fmt, ...) \
-	__igt_timeout((t), KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
+	__igt_timeout((t), KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 
 #endif /* !__I915_SELFTEST_H__ */

@@ -2,7 +2,6 @@
 // Copyright 2017 IBM Corp.
 #include <linux/interrupt.h>
 #include <linux/eventfd.h>
-#include <asm/pnv-ocxl.h>
 #include "ocxl_internal.h"
 #include "trace.h"
 

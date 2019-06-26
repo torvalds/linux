@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <acpi/apei.h>
+#include <acpi/ghes.h>
 
 #include "apei-internal.h"
 
@@ -53,6 +54,7 @@ static const int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
 	[ACPI_HEST_TYPE_AER_BRIDGE] = sizeof(struct acpi_hest_aer_bridge),
 	[ACPI_HEST_TYPE_GENERIC_ERROR] = sizeof(struct acpi_hest_generic),
 	[ACPI_HEST_TYPE_GENERIC_ERROR_V2] = sizeof(struct acpi_hest_generic_v2),
+	[ACPI_HEST_TYPE_IA32_DEFERRED_CHECK] = -1,
 };
 
 static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
@@ -73,6 +75,11 @@ static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
 	} else if (hest_type == ACPI_HEST_TYPE_IA32_CHECK) {
 		struct acpi_hest_ia_machine_check *mc;
 		mc = (struct acpi_hest_ia_machine_check *)hest_hdr;
+		len = sizeof(*mc) + mc->num_hardware_banks *
+			sizeof(struct acpi_hest_ia_error_bank);
+	} else if (hest_type == ACPI_HEST_TYPE_IA32_DEFERRED_CHECK) {
+		struct acpi_hest_ia_deferred_check *mc;
+		mc = (struct acpi_hest_ia_deferred_check *)hest_hdr;
 		len = sizeof(*mc) + mc->num_hardware_banks *
 			sizeof(struct acpi_hest_ia_error_bank);
 	}
@@ -203,6 +210,11 @@ static int __init hest_ghes_dev_register(unsigned int ghes_count)
 	rc = apei_hest_parse(hest_parse_ghes, &ghes_arr);
 	if (rc)
 		goto err;
+
+	rc = ghes_estatus_pool_init(ghes_count);
+	if (rc)
+		goto err;
+
 out:
 	kfree(ghes_arr.ghes_devs);
 	return rc;
@@ -251,7 +263,9 @@ void __init acpi_hest_init(void)
 		rc = apei_hest_parse(hest_parse_ghes_count, &ghes_count);
 		if (rc)
 			goto err;
-		rc = hest_ghes_dev_register(ghes_count);
+
+		if (ghes_count)
+			rc = hest_ghes_dev_register(ghes_count);
 		if (rc)
 			goto err;
 	}

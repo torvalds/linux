@@ -1098,8 +1098,6 @@ of interest:
     unchecked_isa_dma - 1=>only use bottom 16 MB of ram (ISA DMA addressing
                    restriction), 0=>can use full 32 bit (or better) DMA
                    address space
-    use_clustering - 1=>SCSI commands in mid level's queue can be merged,
-                     0=>disallow SCSI command merging
     no_async_abort - 1=>Asynchronous aborts are not supported
                      0=>Timed-out commands will be aborted asynchronously
     hostt        - pointer to driver's struct scsi_host_template from which

@@ -1,8 +1,16 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
 // Driver to detect Tablet Mode for ChromeOS convertible.
 //
 // Copyright (C) 2017 Google, Inc.
 // Author: Gwendal Grignou <gwendal@chromium.org>
+//
+// On Chromebook using ACPI, this device listens for notification
+// from GOOG0006 and issue method TBMC to retrieve the status.
+//
+// GOOG0006 issues the notification when it receives EC_HOST_EVENT_MODE_CHANGE
+// from the EC.
+// Method TBMC reads EC_ACPI_MEM_DEVICE_ORIENTATION byte from the shared
+// memory region.
 
 #include <linux/acpi.h>
 #include <linux/input.h>
@@ -91,7 +99,7 @@ static const struct acpi_device_id chromeos_tbmc_acpi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, chromeos_tbmc_acpi_device_ids);
 
-static const SIMPLE_DEV_PM_OPS(chromeos_tbmc_pm_ops, NULL,
+static SIMPLE_DEV_PM_OPS(chromeos_tbmc_pm_ops, NULL,
 		chromeos_tbmc_resume);
 
 static struct acpi_driver chromeos_tbmc_driver = {

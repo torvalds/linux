@@ -74,8 +74,10 @@ static void hv_signal_on_write(u32 old_write, struct vmbus_channel *channel)
 	 * This is the only case we need to signal when the
 	 * ring transitions from being empty to non-empty.
 	 */
-	if (old_write == READ_ONCE(rbi->ring_buffer->read_index))
+	if (old_write == READ_ONCE(rbi->ring_buffer->read_index)) {
+		++channel->intr_out_empty;
 		vmbus_setevent(channel);
+	}
 }
 
 /* Get the next write location for the specified ring buffer. */
@@ -164,26 +166,25 @@ hv_get_ringbuffer_availbytes(const struct hv_ring_buffer_info *rbi,
 }
 
 /* Get various debug metrics for the specified ring buffer. */
-void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
-				 struct hv_ring_buffer_debug_info *debug_info)
+int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
+				struct hv_ring_buffer_debug_info *debug_info)
 {
 	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
 
-	if (ring_info->ring_buffer) {
-		hv_get_ringbuffer_availbytes(ring_info,
-					&bytes_avail_toread,
-					&bytes_avail_towrite);
+	if (!ring_info->ring_buffer)
+		return -EINVAL;
 
-		debug_info->bytes_avail_toread = bytes_avail_toread;
-		debug_info->bytes_avail_towrite = bytes_avail_towrite;
-		debug_info->current_read_index =
-			ring_info->ring_buffer->read_index;
-		debug_info->current_write_index =
-			ring_info->ring_buffer->write_index;
-		debug_info->current_interrupt_mask =
-			ring_info->ring_buffer->interrupt_mask;
-	}
+	hv_get_ringbuffer_availbytes(ring_info,
+				     &bytes_avail_toread,
+				     &bytes_avail_towrite);
+	debug_info->bytes_avail_toread = bytes_avail_toread;
+	debug_info->bytes_avail_towrite = bytes_avail_towrite;
+	debug_info->current_read_index = ring_info->ring_buffer->read_index;
+	debug_info->current_write_index = ring_info->ring_buffer->write_index;
+	debug_info->current_interrupt_mask
+		= ring_info->ring_buffer->interrupt_mask;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(hv_ringbuffer_get_debuginfo);
 
@@ -241,6 +242,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 {
 	vunmap(ring_info->ring_buffer);
+	ring_info->ring_buffer = NULL;
 }
 
 /* Write to the ring buffer. */
@@ -272,9 +274,18 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	 * is empty since the read index == write index.
 	 */
 	if (bytes_avail_towrite <= totalbytes_towrite) {
+		++channel->out_full_total;
+
+		if (!channel->out_full_flag) {
+			++channel->out_full_first;
+			channel->out_full_flag = true;
+		}
+
 		spin_unlock_irqrestore(&outring_info->ring_lock, flags);
 		return -EAGAIN;
 	}
+
+	channel->out_full_flag = false;
 
 	/* Write to the ring buffer */
 	next_write_location = hv_get_next_write_location(outring_info);
@@ -431,7 +442,24 @@ static u32 hv_pkt_iter_bytes_read(const struct hv_ring_buffer_info *rbi,
 }
 
 /*
- * Update host ring buffer after iterating over packets.
+ * Update host ring buffer after iterating over packets. If the host has
+ * stopped queuing new entries because it found the ring buffer full, and
+ * sufficient space is being freed up, signal the host. But be careful to
+ * only signal the host when necessary, both for performance reasons and
+ * because Hyper-V protects itself by throttling guests that signal
+ * inappropriately.
+ *
+ * Determining when to signal is tricky. There are three key data inputs
+ * that must be handled in this order to avoid race conditions:
+ *
+ * 1. Update the read_index
+ * 2. Read the pending_send_sz
+ * 3. Read the current write_index
+ *
+ * The interrupt_mask is not used to determine when to signal. The
+ * interrupt_mask is used only on the guest->host ring buffer when
+ * sending requests to the host. The host does not use it on the host->
+ * guest ring buffer to indicate whether it should be signaled.
  */
 void hv_pkt_iter_close(struct vmbus_channel *channel)
 {
@@ -447,22 +475,30 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	start_read_index = rbi->ring_buffer->read_index;
 	rbi->ring_buffer->read_index = rbi->priv_read_index;
 
+	/*
+	 * Older versions of Hyper-V (before WS2102 and Win8) do not
+	 * implement pending_send_sz and simply poll if the host->guest
+	 * ring buffer is full.  No signaling is needed or expected.
+	 */
 	if (!rbi->ring_buffer->feature_bits.feat_pending_send_sz)
 		return;
 
 	/*
 	 * Issue a full memory barrier before making the signaling decision.
-	 * Here is the reason for having this barrier:
-	 * If the reading of the pend_sz (in this function)
-	 * were to be reordered and read before we commit the new read
-	 * index (in the calling function)  we could
-	 * have a problem. If the host were to set the pending_sz after we
-	 * have sampled pending_sz and go to sleep before we commit the
+	 * If reading pending_send_sz were to be reordered and happen
+	 * before we commit the new read_index, a race could occur.  If the
+	 * host were to set the pending_send_sz after we have sampled
+	 * pending_send_sz, and the ring buffer blocks before we commit the
 	 * read index, we could miss sending the interrupt. Issue a full
 	 * memory barrier to address this.
 	 */
 	virt_mb();
 
+	/*
+	 * If the pending_send_sz is zero, then the ring buffer is not
+	 * blocked and there is no need to signal.  This is far by the
+	 * most common case, so exit quickly for best performance.
+	 */
 	pending_sz = READ_ONCE(rbi->ring_buffer->pending_send_sz);
 	if (!pending_sz)
 		return;
@@ -476,17 +512,36 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	bytes_read = hv_pkt_iter_bytes_read(rbi, start_read_index);
 
 	/*
-	 * If there was space before we began iteration,
-	 * then host was not blocked.
+	 * We want to signal the host only if we're transitioning
+	 * from a "not enough free space" state to a "enough free
+	 * space" state.  For example, it's possible that this function
+	 * could run and free up enough space to signal the host, and then
+	 * run again and free up additional space before the host has a
+	 * chance to clear the pending_send_sz.  The 2nd invocation would
+	 * be a null transition from "enough free space" to "enough free
+	 * space", which doesn't warrant a signal.
+	 *
+	 * Exactly filling the ring buffer is treated as "not enough
+	 * space". The ring buffer always must have at least one byte
+	 * empty so the empty and full conditions are distinguishable.
+	 * hv_get_bytes_to_write() doesn't fully tell the truth in
+	 * this regard.
+	 *
+	 * So first check if we were in the "enough free space" state
+	 * before we began the iteration. If so, the host was not
+	 * blocked, and there's no need to signal.
 	 */
-
 	if (curr_write_sz - bytes_read > pending_sz)
 		return;
 
-	/* If pending write will not fit, don't give false hope. */
+	/*
+	 * Similarly, if the new state is "not enough space", then
+	 * there's no need to signal.
+	 */
 	if (curr_write_sz <= pending_sz)
 		return;
 
+	++channel->intr_in_full;
 	vmbus_setevent(channel);
 }
 EXPORT_SYMBOL_GPL(hv_pkt_iter_close);

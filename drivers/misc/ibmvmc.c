@@ -273,7 +273,7 @@ static void *alloc_dma_buffer(struct vio_dev *vdev, size_t size,
 			      dma_addr_t *dma_handle)
 {
 	/* allocate memory */
-	void *buffer = kzalloc(size, GFP_KERNEL);
+	void *buffer = kzalloc(size, GFP_ATOMIC);
 
 	if (!buffer) {
 		*dma_handle = 0;
@@ -820,21 +820,24 @@ static int ibmvmc_send_msg(struct crq_server_adapter *adapter,
  *
  * Return:
  *	0 - Success
+ *	Non-zero - Failure
  */
 static int ibmvmc_open(struct inode *inode, struct file *file)
 {
 	struct ibmvmc_file_session *session;
-	int rc = 0;
 
 	pr_debug("%s: inode = 0x%lx, file = 0x%lx, state = 0x%x\n", __func__,
 		 (unsigned long)inode, (unsigned long)file,
 		 ibmvmc.state);
 
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
+	if (!session)
+		return -ENOMEM;
+
 	session->file = file;
 	file->private_data = session;
 
-	return rc;
+	return 0;
 }
 
 /**
@@ -2131,7 +2134,7 @@ static int ibmvmc_init_crq_queue(struct crq_server_adapter *adapter)
 	retrc = plpar_hcall_norets(H_REG_CRQ,
 				   vdev->unit_address,
 				   queue->msg_token, PAGE_SIZE);
-	retrc = rc;
+	rc = retrc;
 
 	if (rc == H_RESOURCE)
 		rc = ibmvmc_reset_crq_queue(adapter);

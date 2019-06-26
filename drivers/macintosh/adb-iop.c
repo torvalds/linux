@@ -20,13 +20,13 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 
-#include <asm/macintosh.h> 
-#include <asm/macints.h> 
+#include <asm/macintosh.h>
+#include <asm/macints.h>
 #include <asm/mac_iop.h>
 #include <asm/mac_oss.h>
 #include <asm/adb_iop.h>
 
-#include <linux/adb.h> 
+#include <linux/adb.h>
 
 /*#define DEBUG_ADB_IOP*/
 
@@ -38,9 +38,9 @@ static unsigned char *reply_ptr;
 #endif
 
 static enum adb_iop_state {
-    idle,
-    sending,
-    awaiting_reply
+	idle,
+	sending,
+	awaiting_reply
 } adb_iop_state;
 
 static void adb_iop_start(void);
@@ -66,7 +66,8 @@ static void adb_iop_end_req(struct adb_request *req, int state)
 {
 	req->complete = 1;
 	current_req = req->next;
-	if (req->done) (*req->done)(req);
+	if (req->done)
+		(*req->done)(req);
 	adb_iop_state = state;
 }
 
@@ -100,7 +101,7 @@ static void adb_iop_complete(struct iop_msg *msg)
 
 static void adb_iop_listen(struct iop_msg *msg)
 {
-	struct adb_iopmsg *amsg = (struct adb_iopmsg *) msg->message;
+	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
 	struct adb_request *req;
 	unsigned long flags;
 #ifdef DEBUG_ADB_IOP
@@ -113,9 +114,9 @@ static void adb_iop_listen(struct iop_msg *msg)
 
 #ifdef DEBUG_ADB_IOP
 	printk("adb_iop_listen %p: rcvd packet, %d bytes: %02X %02X", req,
-		(uint) amsg->count + 2, (uint) amsg->flags, (uint) amsg->cmd);
+	       (uint)amsg->count + 2, (uint)amsg->flags, (uint)amsg->cmd);
 	for (i = 0; i < amsg->count; i++)
-		printk(" %02X", (uint) amsg->data[i]);
+		printk(" %02X", (uint)amsg->data[i]);
 	printk("\n");
 #endif
 
@@ -168,14 +169,15 @@ static void adb_iop_start(void)
 
 	/* get the packet to send */
 	req = current_req;
-	if (!req) return;
+	if (!req)
+		return;
 
 	local_irq_save(flags);
 
 #ifdef DEBUG_ADB_IOP
 	printk("adb_iop_start %p: sending packet, %d bytes:", req, req->nbytes);
-	for (i = 0 ; i < req->nbytes ; i++)
-		printk(" %02X", (uint) req->data[i]);
+	for (i = 0; i < req->nbytes; i++)
+		printk(" %02X", (uint)req->data[i]);
 	printk("\n");
 #endif
 
@@ -196,19 +198,20 @@ static void adb_iop_start(void)
 	/* Now send it. The IOP manager will call adb_iop_complete */
 	/* when the packet has been sent.                          */
 
-	iop_send_message(ADB_IOP, ADB_CHAN, req,
-			 sizeof(amsg), (__u8 *) &amsg, adb_iop_complete);
+	iop_send_message(ADB_IOP, ADB_CHAN, req, sizeof(amsg), (__u8 *)&amsg,
+			 adb_iop_complete);
 }
 
 int adb_iop_probe(void)
 {
-	if (!iop_ism_present) return -ENODEV;
+	if (!iop_ism_present)
+		return -ENODEV;
 	return 0;
 }
 
 int adb_iop_init(void)
 {
-	printk("adb: IOP ISM driver v0.4 for Unified ADB.\n");
+	pr_info("adb: IOP ISM driver v0.4 for Unified ADB\n");
 	iop_listen(ADB_IOP, ADB_CHAN, adb_iop_listen, "ADB");
 	return 0;
 }
@@ -218,10 +221,12 @@ int adb_iop_send_request(struct adb_request *req, int sync)
 	int err;
 
 	err = adb_iop_write(req);
-	if (err) return err;
+	if (err)
+		return err;
 
 	if (sync) {
-		while (!req->complete) adb_iop_poll();
+		while (!req->complete)
+			adb_iop_poll();
 	}
 	return 0;
 }
@@ -251,7 +256,9 @@ static int adb_iop_write(struct adb_request *req)
 	}
 
 	local_irq_restore(flags);
-	if (adb_iop_state == idle) adb_iop_start();
+
+	if (adb_iop_state == idle)
+		adb_iop_start();
 	return 0;
 }
 
@@ -263,7 +270,8 @@ int adb_iop_autopoll(int devs)
 
 void adb_iop_poll(void)
 {
-	if (adb_iop_state == idle) adb_iop_start();
+	if (adb_iop_state == idle)
+		adb_iop_start();
 	iop_ism_irq_poll(ADB_IOP);
 }
 

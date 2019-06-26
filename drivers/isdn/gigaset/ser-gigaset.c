@@ -633,7 +633,7 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 			flush_send_queue(cs);
 			break;
 		}
-		/* Pass through */
+		/* fall through */
 
 	default:
 		/* pass through to underlying serial device */

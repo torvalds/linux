@@ -215,25 +215,25 @@ static void siox_poll(struct siox_master *smaster)
 			siox_status_clean(status,
 					  sdevice->status_written_lastcycle);
 
-		/* Check counter bits */
-		if (siox_device_counter_error(sdevice, status_clean)) {
-			bool prev_counter_error;
+		/* Check counter and type bits */
+		if (siox_device_counter_error(sdevice, status_clean) ||
+		    siox_device_type_error(sdevice, status_clean)) {
+			bool prev_error;
 
 			synced = false;
 
 			/* only report a new error if the last cycle was ok */
-			prev_counter_error =
+			prev_error =
 				siox_device_counter_error(sdevice,
-							  prev_status_clean);
-			if (!prev_counter_error) {
+							  prev_status_clean) ||
+				siox_device_type_error(sdevice,
+						       prev_status_clean);
+
+			if (!prev_error) {
 				sdevice->status_errors++;
 				sysfs_notify_dirent(sdevice->status_errors_kn);
 			}
 		}
-
-		/* Check type bits */
-		if (siox_device_type_error(sdevice, status_clean))
-			synced = false;
 
 		/* If the device is unsynced report the watchdog as active */
 		if (!synced) {
@@ -715,16 +715,16 @@ int siox_master_register(struct siox_master *smaster)
 
 	dev_set_name(&smaster->dev, "siox-%d", smaster->busno);
 
+	mutex_init(&smaster->lock);
+	INIT_LIST_HEAD(&smaster->devices);
+
 	smaster->last_poll = jiffies;
-	smaster->poll_thread = kthread_create(siox_poll_thread, smaster,
-					      "siox-%d", smaster->busno);
+	smaster->poll_thread = kthread_run(siox_poll_thread, smaster,
+					   "siox-%d", smaster->busno);
 	if (IS_ERR(smaster->poll_thread)) {
 		smaster->active = 0;
 		return PTR_ERR(smaster->poll_thread);
 	}
-
-	mutex_init(&smaster->lock);
-	INIT_LIST_HEAD(&smaster->devices);
 
 	ret = device_add(&smaster->dev);
 	if (ret)

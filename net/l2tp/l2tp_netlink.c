@@ -66,7 +66,7 @@ static struct l2tp_session *l2tp_nl_session_get(struct genl_info *info)
 		session_id = nla_get_u32(info->attrs[L2TP_ATTR_SESSION_ID]);
 		tunnel = l2tp_tunnel_get(net, tunnel_id);
 		if (tunnel) {
-			session = l2tp_session_get(net, tunnel, session_id);
+			session = l2tp_tunnel_get_session(tunnel, session_id);
 			l2tp_tunnel_dec_refcount(tunnel);
 		}
 	}
@@ -560,9 +560,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	}
 
 	if (tunnel->version > 2) {
-		if (info->attrs[L2TP_ATTR_DATA_SEQ])
-			cfg.data_seq = nla_get_u8(info->attrs[L2TP_ATTR_DATA_SEQ]);
-
 		if (info->attrs[L2TP_ATTR_L2SPEC_TYPE]) {
 			cfg.l2specific_type = nla_get_u8(info->attrs[L2TP_ATTR_L2SPEC_TYPE]);
 			if (cfg.l2specific_type != L2TP_L2SPECTYPE_DEFAULT &&
@@ -594,9 +591,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 		}
 		if (info->attrs[L2TP_ATTR_IFNAME])
 			cfg.ifname = nla_data(info->attrs[L2TP_ATTR_IFNAME]);
-
-		if (info->attrs[L2TP_ATTR_VLAN_ID])
-			cfg.vlan_id = nla_get_u16(info->attrs[L2TP_ATTR_VLAN_ID]);
 	}
 
 	if (info->attrs[L2TP_ATTR_DEBUG])
@@ -613,12 +607,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 
 	if (info->attrs[L2TP_ATTR_RECV_TIMEOUT])
 		cfg.reorder_timeout = nla_get_msecs(info->attrs[L2TP_ATTR_RECV_TIMEOUT]);
-
-	if (info->attrs[L2TP_ATTR_MTU])
-		cfg.mtu = nla_get_u16(info->attrs[L2TP_ATTR_MTU]);
-
-	if (info->attrs[L2TP_ATTR_MRU])
-		cfg.mru = nla_get_u16(info->attrs[L2TP_ATTR_MRU]);
 
 #ifdef CONFIG_MODULES
 	if (l2tp_nl_cmd_ops[cfg.pw_type] == NULL) {
@@ -639,7 +627,7 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 							   &cfg);
 
 	if (ret >= 0) {
-		session = l2tp_session_get(net, tunnel, session_id);
+		session = l2tp_tunnel_get_session(tunnel, session_id);
 		if (session) {
 			ret = l2tp_session_notify(&l2tp_nl_family, info, session,
 						  L2TP_CMD_SESSION_CREATE);
@@ -693,9 +681,6 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 	if (info->attrs[L2TP_ATTR_DEBUG])
 		session->debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
 
-	if (info->attrs[L2TP_ATTR_DATA_SEQ])
-		session->data_seq = nla_get_u8(info->attrs[L2TP_ATTR_DATA_SEQ]);
-
 	if (info->attrs[L2TP_ATTR_RECV_SEQ])
 		session->recv_seq = nla_get_u8(info->attrs[L2TP_ATTR_RECV_SEQ]);
 
@@ -709,12 +694,6 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 
 	if (info->attrs[L2TP_ATTR_RECV_TIMEOUT])
 		session->reorder_timeout = nla_get_msecs(info->attrs[L2TP_ATTR_RECV_TIMEOUT]);
-
-	if (info->attrs[L2TP_ATTR_MTU])
-		session->mtu = nla_get_u16(info->attrs[L2TP_ATTR_MTU]);
-
-	if (info->attrs[L2TP_ATTR_MRU])
-		session->mru = nla_get_u16(info->attrs[L2TP_ATTR_MRU]);
 
 	ret = l2tp_session_notify(&l2tp_nl_family, info,
 				  session, L2TP_CMD_SESSION_MODIFY);
@@ -731,9 +710,6 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	void *hdr;
 	struct nlattr *nest;
 	struct l2tp_tunnel *tunnel = session->tunnel;
-	struct sock *sk = NULL;
-
-	sk = tunnel->sock;
 
 	hdr = genlmsg_put(skb, portid, seq, &l2tp_nl_family, flags, cmd);
 	if (!hdr)
@@ -745,10 +721,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	    nla_put_u32(skb, L2TP_ATTR_PEER_SESSION_ID,
 			session->peer_session_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_DEBUG, session->debug) ||
-	    nla_put_u16(skb, L2TP_ATTR_PW_TYPE, session->pwtype) ||
-	    nla_put_u16(skb, L2TP_ATTR_MTU, session->mtu) ||
-	    (session->mru &&
-	     nla_put_u16(skb, L2TP_ATTR_MRU, session->mru)))
+	    nla_put_u16(skb, L2TP_ATTR_PW_TYPE, session->pwtype))
 		goto nla_put_failure;
 
 	if ((session->ifname[0] &&
@@ -762,10 +735,8 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	    nla_put_u8(skb, L2TP_ATTR_RECV_SEQ, session->recv_seq) ||
 	    nla_put_u8(skb, L2TP_ATTR_SEND_SEQ, session->send_seq) ||
 	    nla_put_u8(skb, L2TP_ATTR_LNS_MODE, session->lns_mode) ||
-#ifdef CONFIG_XFRM
-	    (((sk) && (sk->sk_policy[0] || sk->sk_policy[1])) &&
+	    (l2tp_tunnel_uses_xfrm(tunnel) &&
 	     nla_put_u8(skb, L2TP_ATTR_USING_IPSEC, 1)) ||
-#endif
 	    (session->reorder_timeout &&
 	     nla_put_msecs(skb, L2TP_ATTR_RECV_TIMEOUT,
 			   session->reorder_timeout, L2TP_ATTR_PAD)))

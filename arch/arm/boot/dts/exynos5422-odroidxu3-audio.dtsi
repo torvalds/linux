@@ -24,10 +24,11 @@
 			"Headphone Jack", "MICBIAS",
 			"IN1", "Headphone Jack",
 			"Speakers", "SPKL",
-			"Speakers", "SPKR";
+			"Speakers", "SPKR",
+			"I2S Playback", "Mixer DAI TX",
+			"HiFi Playback", "Mixer DAI TX";
 
-		assigned-clocks = <&i2s0 CLK_I2S_RCLK_SRC>,
-				<&clock CLK_MOUT_EPLL>,
+		assigned-clocks = <&clock CLK_MOUT_EPLL>,
 				<&clock CLK_MOUT_MAU_EPLL>,
 				<&clock CLK_MOUT_USER_MAU_EPLL>,
 				<&clock_audss EXYNOS_MOUT_AUDSS>,
@@ -36,8 +37,7 @@
 				<&clock_audss EXYNOS_DOUT_AUD_BUS>,
 				<&clock_audss EXYNOS_DOUT_I2S>;
 
-		assigned-clock-parents = <&clock_audss EXYNOS_SCLK_I2S>,
-				<&clock CLK_FOUT_EPLL>,
+		assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
 				<&clock CLK_MOUT_EPLL>,
 				<&clock CLK_MOUT_MAU_EPLL>,
 				<&clock CLK_MAU_EPLL>,
@@ -48,13 +48,12 @@
 				<0>,
 				<0>,
 				<0>,
-				<0>,
 				<196608001>,
 				<(196608002 / 2)>,
 				<196608000>;
 
 		cpu {
-			sound-dai = <&i2s0 0>;
+			sound-dai = <&i2s0 0>, <&i2s0 1>;
 		};
 		codec {
 			sound-dai = <&hdmi>, <&max98090>;
@@ -84,4 +83,6 @@
 
 &i2s0 {
 	status = "okay";
+	assigned-clocks = <&i2s0 CLK_I2S_RCLK_SRC>;
+	assigned-clock-parents = <&clock_audss EXYNOS_SCLK_I2S>;
 };

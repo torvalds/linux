@@ -62,8 +62,15 @@
 #define DC_LOG_EVENT_UNDERFLOW(...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define DC_LOG_IF_TRACE(...) pr_debug("[IF_TRACE]:"__VA_ARGS__)
 #define DC_LOG_PERF_TRACE(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_RETIMER_REDRIVER(...) DRM_DEBUG_KMS(__VA_ARGS__)
 
 struct dal_logger;
+
+struct dc_log_buffer_ctx {
+	char *buf;
+	size_t pos;
+	size_t size;
+};
 
 enum dc_log_type {
 	LOG_ERROR = 0,
@@ -99,7 +106,7 @@ enum dc_log_type {
 	LOG_IF_TRACE,
 	LOG_PERF_TRACE,
 	LOG_DISPLAYSTATS,
-
+	LOG_HDMI_RETIMER_REDRIVER,
 	LOG_SECTION_TOTAL_COUNT
 };
 
@@ -137,64 +144,5 @@ enum dc_log_type {
 		(1 << LOG_HW_LINK_TRAINING) | \
 		(1 << LOG_HW_AUDIO)| \
 		(1 << LOG_BANDWIDTH_CALCS)*/
-
-union logger_flags {
-	struct {
-		uint32_t ENABLE_CONSOLE:1; /* Print to console */
-		uint32_t ENABLE_BUFFER:1; /* Print to buffer */
-		uint32_t RESERVED:30;
-	} bits;
-	uint32_t value;
-};
-
-struct log_entry {
-	struct dal_logger *logger;
-	enum dc_log_type type;
-
-	char *buf;
-	uint32_t buf_offset;
-	uint32_t max_buf_bytes;
-};
-
-/**
-* Structure for enumerating log types
-*/
-struct dc_log_type_info {
-	enum dc_log_type type;
-	char name[MAX_NAME_LEN];
-};
-
-/* Structure for keeping track of offsets, buffer, etc */
-
-#define DAL_LOGGER_BUFFER_MAX_SIZE 2048
-
-/*Connectivity log needs to output EDID, which needs at lease 256x3 bytes,
- * change log line size to 896 to meet the request.
- */
-#define LOG_MAX_LINE_SIZE 896
-
-struct dal_logger {
-
-	/* How far into the circular buffer has been read by dsat
-	 * Read offset should never cross write offset. Write \0's to
-	 * read data just to be sure?
-	 */
-	uint32_t buffer_read_offset;
-
-	/* How far into the circular buffer we have written
-	 * Write offset should never cross read offset
-	 */
-	uint32_t buffer_write_offset;
-
-	uint32_t open_count;
-
-	char *log_buffer;	/* Pointer to malloc'ed buffer */
-	uint32_t log_buffer_size; /* Size of circular buffer */
-
-	uint32_t mask; /*array of masks for major elements*/
-
-	union logger_flags flags;
-	struct dc_context *ctx;
-};
 
 #endif /* __DAL_LOGGER_TYPES_H__ */

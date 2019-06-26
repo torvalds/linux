@@ -172,7 +172,6 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	pp->root_bus_nr = -1;
 	pp->ops = &armada8k_pcie_host_ops;
 
 	pp->irq = platform_get_irq(pdev, 0);

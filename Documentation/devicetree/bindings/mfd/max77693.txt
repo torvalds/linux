@@ -14,7 +14,6 @@ Required properties:
 - compatible : Must be "maxim,max77693".
 - reg : Specifies the i2c slave address of PMIC block.
 - interrupts : This i2c device has an IRQ line connected to the main SoC.
-- interrupt-parent :  The parent interrupt controller.
 
 Optional properties:
 - regulators : The regulators of max77693 have to be instantiated under subnode

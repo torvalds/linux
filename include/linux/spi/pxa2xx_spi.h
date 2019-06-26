@@ -22,9 +22,10 @@
 struct dma_chan;
 
 /* device.platform_data for SSP controller devices */
-struct pxa2xx_spi_master {
+struct pxa2xx_spi_controller {
 	u16 num_chipselect;
 	u8 enable_dma;
+	bool is_slave;
 
 	/* DMA engine specific config */
 	bool (*dma_filter)(struct dma_chan *chan, void *param);
@@ -53,7 +54,7 @@ struct pxa2xx_spi_chip {
 
 #include <linux/clk.h>
 
-extern void pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info);
+extern void pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_controller *info);
 
 #endif
 #endif

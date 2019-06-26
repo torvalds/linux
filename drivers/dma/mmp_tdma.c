@@ -116,6 +116,7 @@ struct mmp_tdma_chan {
 	u32				burst_sz;
 	enum dma_slave_buswidth		buswidth;
 	enum dma_status			status;
+	struct dma_slave_config		slave_config;
 
 	int				idx;
 	enum mmp_tdma_type		type;
@@ -138,6 +139,10 @@ struct mmp_tdma_device {
 };
 
 #define to_mmp_tdma_chan(dchan) container_of(dchan, struct mmp_tdma_chan, chan)
+
+static int mmp_tdma_config_write(struct dma_chan *chan,
+				 enum dma_transfer_direction dir,
+				 struct dma_slave_config *dmaengine_cfg);
 
 static void mmp_tdma_chan_set_desc(struct mmp_tdma_chan *tdmac, dma_addr_t phys)
 {
@@ -442,6 +447,8 @@ static struct dma_async_tx_descriptor *mmp_tdma_prep_dma_cyclic(
 	if (!desc)
 		goto err_out;
 
+	mmp_tdma_config_write(chan, direction, &tdmac->slave_config);
+
 	while (buf < buf_len) {
 		desc = &tdmac->desc_arr[i];
 
@@ -495,7 +502,18 @@ static int mmp_tdma_config(struct dma_chan *chan,
 {
 	struct mmp_tdma_chan *tdmac = to_mmp_tdma_chan(chan);
 
-	if (dmaengine_cfg->direction == DMA_DEV_TO_MEM) {
+	memcpy(&tdmac->slave_config, dmaengine_cfg, sizeof(*dmaengine_cfg));
+
+	return 0;
+}
+
+static int mmp_tdma_config_write(struct dma_chan *chan,
+				 enum dma_transfer_direction dir,
+				 struct dma_slave_config *dmaengine_cfg)
+{
+	struct mmp_tdma_chan *tdmac = to_mmp_tdma_chan(chan);
+
+	if (dir == DMA_DEV_TO_MEM) {
 		tdmac->dev_addr = dmaengine_cfg->src_addr;
 		tdmac->burst_sz = dmaengine_cfg->src_maxburst;
 		tdmac->buswidth = dmaengine_cfg->src_addr_width;
@@ -504,7 +522,7 @@ static int mmp_tdma_config(struct dma_chan *chan,
 		tdmac->burst_sz = dmaengine_cfg->dst_maxburst;
 		tdmac->buswidth = dmaengine_cfg->dst_addr_width;
 	}
-	tdmac->dir = dmaengine_cfg->direction;
+	tdmac->dir = dir;
 
 	return mmp_tdma_config_chan(chan);
 }
@@ -530,9 +548,6 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 
 static int mmp_tdma_remove(struct platform_device *pdev)
 {
-	struct mmp_tdma_device *tdev = platform_get_drvdata(pdev);
-
-	dma_async_device_unregister(&tdev->device);
 	return 0;
 }
 
@@ -696,7 +711,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	platform_set_drvdata(pdev, tdev);
 
-	ret = dma_async_device_register(&tdev->device);
+	ret = dmaenginem_async_device_register(&tdev->device);
 	if (ret) {
 		dev_err(tdev->device.dev, "unable to register\n");
 		return ret;
@@ -708,7 +723,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(tdev->device.dev,
 				"failed to register controller\n");
-			dma_async_device_unregister(&tdev->device);
+			return ret;
 		}
 	}
 

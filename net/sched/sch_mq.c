@@ -38,9 +38,8 @@ static int mq_offload(struct Qdisc *sch, enum tc_mq_command cmd)
 	return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
 }
 
-static void mq_offload_stats(struct Qdisc *sch)
+static int mq_offload_stats(struct Qdisc *sch)
 {
-	struct net_device *dev = qdisc_dev(sch);
 	struct tc_mq_qopt_offload opt = {
 		.command = TC_MQ_STATS,
 		.handle = sch->handle,
@@ -50,8 +49,7 @@ static void mq_offload_stats(struct Qdisc *sch)
 		},
 	};
 
-	if (tc_can_offload(dev) && dev->netdev_ops->ndo_setup_tc)
-		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
+	return qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_MQ, &opt);
 }
 
 static void mq_destroy(struct Qdisc *sch)
@@ -65,7 +63,7 @@ static void mq_destroy(struct Qdisc *sch)
 	if (!priv->qdiscs)
 		return;
 	for (ntx = 0; ntx < dev->num_tx_queues && priv->qdiscs[ntx]; ntx++)
-		qdisc_destroy(priv->qdiscs[ntx]);
+		qdisc_put(priv->qdiscs[ntx]);
 	kfree(priv->qdiscs);
 }
 
@@ -119,7 +117,7 @@ static void mq_attach(struct Qdisc *sch)
 		qdisc = priv->qdiscs[ntx];
 		old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
 		if (old)
-			qdisc_destroy(old);
+			qdisc_put(old);
 #ifdef CONFIG_NET_SCHED
 		if (ntx < dev->real_num_tx_queues)
 			qdisc_hash_add(qdisc, false);
@@ -171,9 +169,8 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
-	mq_offload_stats(sch);
 
-	return 0;
+	return mq_offload_stats(sch);
 }
 
 static struct netdev_queue *mq_queue_get(struct Qdisc *sch, unsigned long cl)
@@ -196,6 +193,7 @@ static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 		    struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct netdev_queue *dev_queue = mq_queue_get(sch, cl);
+	struct tc_mq_qopt_offload graft_offload;
 	struct net_device *dev = qdisc_dev(sch);
 
 	if (dev->flags & IFF_UP)
@@ -206,6 +204,14 @@ static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 		new->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
 	if (dev->flags & IFF_UP)
 		dev_activate(dev);
+
+	graft_offload.handle = sch->handle;
+	graft_offload.graft_params.queue = cl - 1;
+	graft_offload.graft_params.child_handle = new ? new->handle : 0;
+	graft_offload.command = TC_MQ_GRAFT;
+
+	qdisc_offload_graft_helper(qdisc_dev(sch), sch, new, *old,
+				   TC_SETUP_QDISC_MQ, &graft_offload, extack);
 	return 0;
 }
 
@@ -243,7 +249,7 @@ static int mq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 
 	sch = dev_queue->qdisc_sleeping;
 	if (gnet_stats_copy_basic(&sch->running, d, NULL, &sch->bstats) < 0 ||
-	    gnet_stats_copy_queue(d, NULL, &sch->qstats, sch->q.qlen) < 0)
+	    qdisc_qstats_copy(d, sch) < 0)
 		return -1;
 	return 0;
 }

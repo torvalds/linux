@@ -617,6 +617,8 @@ try_again:
 		if (oldcard && (oldcard->type != MMC_TYPE_SD_COMBO ||
 		    memcmp(card->raw_cid, oldcard->raw_cid, sizeof(card->raw_cid)) != 0)) {
 			mmc_remove_card(card);
+			pr_debug("%s: Perhaps the card was replaced\n",
+				mmc_hostname(host));
 			return -ENOENT;
 		}
 	} else {
@@ -624,6 +626,8 @@ try_again:
 
 		if (oldcard && oldcard->type != MMC_TYPE_SDIO) {
 			mmc_remove_card(card);
+			pr_debug("%s: Perhaps the card was replaced\n",
+				mmc_hostname(host));
 			return -ENOENT;
 		}
 	}
@@ -736,8 +740,11 @@ try_again:
 		int same = (card->cis.vendor == oldcard->cis.vendor &&
 			    card->cis.device == oldcard->cis.device);
 		mmc_remove_card(card);
-		if (!same)
+		if (!same) {
+			pr_debug("%s: Perhaps the card was replaced\n",
+				mmc_hostname(host));
 			return -ENOENT;
+		}
 
 		card = oldcard;
 	}
@@ -1076,7 +1083,6 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 	.resume = mmc_sdio_resume,
 	.runtime_suspend = mmc_sdio_runtime_suspend,
 	.runtime_resume = mmc_sdio_runtime_resume,
-	.power_restore = mmc_sdio_power_restore,
 	.alive = mmc_sdio_alive,
 	.hw_reset = mmc_sdio_hw_reset,
 	.sw_reset = mmc_sdio_sw_reset,

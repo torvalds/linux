@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TX4939 internal RTC driver
  * Based on RBTX49xx patch from CELF patch archive.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * (C) Copyright TOSHIBA CORPORATION 2005-2007
  */
@@ -65,10 +62,11 @@ static int tx4939_rtc_cmd(struct tx4939_rtc_reg __iomem *rtcreg, int cmd)
 	return 0;
 }
 
-static int tx4939_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int tx4939_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
+	unsigned long secs = rtc_tm_to_time64(tm);
 	int i, ret;
 	unsigned char buf[6];
 
@@ -111,7 +109,7 @@ static int tx4939_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	spin_unlock_irq(&pdata->lock);
 	sec = ((unsigned long)buf[5] << 24) | (buf[4] << 16) |
 		(buf[3] << 8) | buf[2];
-	rtc_time_to_tm(sec, tm);
+	rtc_time64_to_tm(sec, tm);
 	return 0;
 }
 
@@ -123,14 +121,7 @@ static int tx4939_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned long sec;
 	unsigned char buf[6];
 
-	if (alrm->time.tm_sec < 0 ||
-	    alrm->time.tm_min < 0 ||
-	    alrm->time.tm_hour < 0 ||
-	    alrm->time.tm_mday < 0 ||
-	    alrm->time.tm_mon < 0 ||
-	    alrm->time.tm_year < 0)
-		return -EINVAL;
-	rtc_tm_to_time(&alrm->time, &sec);
+	sec = rtc_tm_to_time64(&alrm->time);
 	buf[0] = 0;
 	buf[1] = 0;
 	buf[2] = sec;
@@ -173,7 +164,7 @@ static int tx4939_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	spin_unlock_irq(&pdata->lock);
 	sec = ((unsigned long)buf[5] << 24) | (buf[4] << 16) |
 		(buf[3] << 8) | buf[2];
-	rtc_time_to_tm(sec, &alrm->time);
+	rtc_time64_to_tm(sec, &alrm->time);
 	return rtc_valid_tm(&alrm->time);
 }
 
@@ -210,7 +201,7 @@ static const struct rtc_class_ops tx4939_rtc_ops = {
 	.read_time		= tx4939_rtc_read_time,
 	.read_alarm		= tx4939_rtc_read_alarm,
 	.set_alarm		= tx4939_rtc_set_alarm,
-	.set_mmss		= tx4939_rtc_set_mmss,
+	.set_time		= tx4939_rtc_set_time,
 	.alarm_irq_enable	= tx4939_rtc_alarm_irq_enable,
 };
 
@@ -253,9 +244,7 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, ret;
 	struct nvmem_config nvmem_cfg = {
-		.name = "rv8803_nvram",
-		.word_size = 4,
-		.stride = 4,
+		.name = "tx4939_nvram",
 		.size = TX4939_RTC_REG_RAMSIZE,
 		.reg_read = tx4939_nvram_read,
 		.reg_write = tx4939_nvram_write,
@@ -285,6 +274,7 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 
 	rtc->ops = &tx4939_rtc_ops;
 	rtc->nvram_old_abi = true;
+	rtc->range_max = U32_MAX;
 
 	pdata->rtc = rtc;
 
@@ -317,5 +307,5 @@ module_platform_driver_probe(tx4939_rtc_driver, tx4939_rtc_probe);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("TX4939 internal RTC driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:tx4939rtc");

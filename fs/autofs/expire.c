@@ -10,11 +10,9 @@
 
 #include "autofs_i.h"
 
-static unsigned long now;
-
 /* Check if a dentry can be expired */
 static inline int autofs_can_expire(struct dentry *dentry,
-				    unsigned long timeout, int do_now)
+				    unsigned long timeout, unsigned int how)
 {
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 
@@ -22,16 +20,17 @@ static inline int autofs_can_expire(struct dentry *dentry,
 	if (ino == NULL)
 		return 0;
 
-	if (!do_now) {
+	if (!(how & AUTOFS_EXP_IMMEDIATE)) {
 		/* Too young to die */
-		if (!timeout || time_after(ino->last_used + timeout, now))
+		if (!timeout || time_after(ino->last_used + timeout, jiffies))
 			return 0;
 	}
 	return 1;
 }
 
 /* Check a mount point for busyness */
-static int autofs_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
+static int autofs_mount_busy(struct vfsmount *mnt,
+			     struct dentry *dentry, unsigned int how)
 {
 	struct dentry *top = dentry;
 	struct path path = {.mnt = mnt, .dentry = dentry};
@@ -50,6 +49,12 @@ static int autofs_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 		/* This is an autofs submount, we can't expire it */
 		if (autofs_type_indirect(sbi->type))
 			goto done;
+	}
+
+	/* Not a submount, has a forced expire been requested */
+	if (how & AUTOFS_EXP_FORCED) {
+		status = 0;
+		goto done;
 	}
 
 	/* Update the expiry counter if fs is busy */
@@ -187,9 +192,13 @@ again:
 static int autofs_direct_busy(struct vfsmount *mnt,
 			      struct dentry *top,
 			      unsigned long timeout,
-			      int do_now)
+			      unsigned int how)
 {
 	pr_debug("top %p %pd\n", top, top);
+
+	/* Forced expire, user space handles busy mounts */
+	if (how & AUTOFS_EXP_FORCED)
+		return 0;
 
 	/* If it's busy update the expiry counters */
 	if (!may_umount_tree(mnt)) {
@@ -202,7 +211,7 @@ static int autofs_direct_busy(struct vfsmount *mnt,
 	}
 
 	/* Timeout of a direct mount is determined by its top dentry */
-	if (!autofs_can_expire(top, timeout, do_now))
+	if (!autofs_can_expire(top, timeout, how))
 		return 1;
 
 	return 0;
@@ -215,7 +224,7 @@ static int autofs_direct_busy(struct vfsmount *mnt,
 static int autofs_tree_busy(struct vfsmount *mnt,
 			    struct dentry *top,
 			    unsigned long timeout,
-			    int do_now)
+			    unsigned int how)
 {
 	struct autofs_info *top_ino = autofs_dentry_ino(top);
 	struct dentry *p;
@@ -237,7 +246,7 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 		 * If the fs is busy update the expiry counter.
 		 */
 		if (d_mountpoint(p)) {
-			if (autofs_mount_busy(mnt, p)) {
+			if (autofs_mount_busy(mnt, p, how)) {
 				top_ino->last_used = jiffies;
 				dput(p);
 				return 1;
@@ -260,8 +269,12 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 		}
 	}
 
+	/* Forced expire, user space handles busy mounts */
+	if (how & AUTOFS_EXP_FORCED)
+		return 0;
+
 	/* Timeout of a tree mount is ultimately determined by its top dentry */
-	if (!autofs_can_expire(top, timeout, do_now))
+	if (!autofs_can_expire(top, timeout, how))
 		return 1;
 
 	return 0;
@@ -270,7 +283,7 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 static struct dentry *autofs_check_leaves(struct vfsmount *mnt,
 					  struct dentry *parent,
 					  unsigned long timeout,
-					  int do_now)
+					  unsigned int how)
 {
 	struct dentry *p;
 
@@ -282,11 +295,17 @@ static struct dentry *autofs_check_leaves(struct vfsmount *mnt,
 
 		if (d_mountpoint(p)) {
 			/* Can we umount this guy */
-			if (autofs_mount_busy(mnt, p))
+			if (autofs_mount_busy(mnt, p, how))
 				continue;
 
+			/* This isn't a submount so if a forced expire
+			 * has been requested, user space handles busy
+			 * mounts */
+			if (how & AUTOFS_EXP_FORCED)
+				return p;
+
 			/* Can we expire this guy */
-			if (autofs_can_expire(p, timeout, do_now))
+			if (autofs_can_expire(p, timeout, how))
 				return p;
 		}
 	}
@@ -294,23 +313,21 @@ static struct dentry *autofs_check_leaves(struct vfsmount *mnt,
 }
 
 /* Check if we can expire a direct mount (possibly a tree) */
-struct dentry *autofs_expire_direct(struct super_block *sb,
-				    struct vfsmount *mnt,
-				    struct autofs_sb_info *sbi,
-				    int how)
+static struct dentry *autofs_expire_direct(struct super_block *sb,
+					   struct vfsmount *mnt,
+					   struct autofs_sb_info *sbi,
+					   unsigned int how)
 {
-	unsigned long timeout;
 	struct dentry *root = dget(sb->s_root);
-	int do_now = how & AUTOFS_EXP_IMMEDIATE;
 	struct autofs_info *ino;
+	unsigned long timeout;
 
 	if (!root)
 		return NULL;
 
-	now = jiffies;
 	timeout = sbi->exp_timeout;
 
-	if (!autofs_direct_busy(mnt, root, timeout, do_now)) {
+	if (!autofs_direct_busy(mnt, root, timeout, how)) {
 		spin_lock(&sbi->fs_lock);
 		ino = autofs_dentry_ino(root);
 		/* No point expiring a pending mount */
@@ -321,7 +338,7 @@ struct dentry *autofs_expire_direct(struct super_block *sb,
 		ino->flags |= AUTOFS_INF_WANT_EXPIRE;
 		spin_unlock(&sbi->fs_lock);
 		synchronize_rcu();
-		if (!autofs_direct_busy(mnt, root, timeout, do_now)) {
+		if (!autofs_direct_busy(mnt, root, timeout, how)) {
 			spin_lock(&sbi->fs_lock);
 			ino->flags |= AUTOFS_INF_EXPIRING;
 			init_completion(&ino->expire_complete);
@@ -346,10 +363,8 @@ out:
 static struct dentry *should_expire(struct dentry *dentry,
 				    struct vfsmount *mnt,
 				    unsigned long timeout,
-				    int how)
+				    unsigned int how)
 {
-	int do_now = how & AUTOFS_EXP_IMMEDIATE;
-	int exp_leaves = how & AUTOFS_EXP_LEAVES;
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	unsigned int ino_count;
 
@@ -367,22 +382,33 @@ static struct dentry *should_expire(struct dentry *dentry,
 		pr_debug("checking mountpoint %p %pd\n", dentry, dentry);
 
 		/* Can we umount this guy */
-		if (autofs_mount_busy(mnt, dentry))
+		if (autofs_mount_busy(mnt, dentry, how))
 			return NULL;
 
+		/* This isn't a submount so if a forced expire
+		 * has been requested, user space handles busy
+		 * mounts */
+		if (how & AUTOFS_EXP_FORCED)
+			return dentry;
+
 		/* Can we expire this guy */
-		if (autofs_can_expire(dentry, timeout, do_now))
+		if (autofs_can_expire(dentry, timeout, how))
 			return dentry;
 		return NULL;
 	}
 
 	if (d_really_is_positive(dentry) && d_is_symlink(dentry)) {
 		pr_debug("checking symlink %p %pd\n", dentry, dentry);
+
+		/* Forced expire, user space handles busy mounts */
+		if (how & AUTOFS_EXP_FORCED)
+			return dentry;
+
 		/*
 		 * A symlink can't be "busy" in the usual sense so
 		 * just check last used for expire timeout.
 		 */
-		if (autofs_can_expire(dentry, timeout, do_now))
+		if (autofs_can_expire(dentry, timeout, how))
 			return dentry;
 		return NULL;
 	}
@@ -391,27 +417,33 @@ static struct dentry *should_expire(struct dentry *dentry,
 		return NULL;
 
 	/* Case 2: tree mount, expire iff entire tree is not busy */
-	if (!exp_leaves) {
-		/* Path walk currently on this dentry? */
-		ino_count = atomic_read(&ino->count) + 1;
-		if (d_count(dentry) > ino_count)
-			return NULL;
+	if (!(how & AUTOFS_EXP_LEAVES)) {
+		/* Not a forced expire? */
+		if (!(how & AUTOFS_EXP_FORCED)) {
+			/* ref-walk currently on this dentry? */
+			ino_count = atomic_read(&ino->count) + 1;
+			if (d_count(dentry) > ino_count)
+				return NULL;
+		}
 
-		if (!autofs_tree_busy(mnt, dentry, timeout, do_now))
+		if (!autofs_tree_busy(mnt, dentry, timeout, how))
 			return dentry;
 	/*
 	 * Case 3: pseudo direct mount, expire individual leaves
 	 *	   (autofs-4.1).
 	 */
 	} else {
-		/* Path walk currently on this dentry? */
 		struct dentry *expired;
 
-		ino_count = atomic_read(&ino->count) + 1;
-		if (d_count(dentry) > ino_count)
-			return NULL;
+		/* Not a forced expire? */
+		if (!(how & AUTOFS_EXP_FORCED)) {
+			/* ref-walk currently on this dentry? */
+			ino_count = atomic_read(&ino->count) + 1;
+			if (d_count(dentry) > ino_count)
+				return NULL;
+		}
 
-		expired = autofs_check_leaves(mnt, dentry, timeout, do_now);
+		expired = autofs_check_leaves(mnt, dentry, timeout, how);
 		if (expired) {
 			if (expired == dentry)
 				dput(dentry);
@@ -427,10 +459,10 @@ static struct dentry *should_expire(struct dentry *dentry,
  *  - it is unused by any user process
  *  - it has been unused for exp_timeout time
  */
-struct dentry *autofs_expire_indirect(struct super_block *sb,
-				      struct vfsmount *mnt,
-				      struct autofs_sb_info *sbi,
-				      int how)
+static struct dentry *autofs_expire_indirect(struct super_block *sb,
+					     struct vfsmount *mnt,
+					     struct autofs_sb_info *sbi,
+					     unsigned int how)
 {
 	unsigned long timeout;
 	struct dentry *root = sb->s_root;
@@ -442,13 +474,10 @@ struct dentry *autofs_expire_indirect(struct super_block *sb,
 	if (!root)
 		return NULL;
 
-	now = jiffies;
 	timeout = sbi->exp_timeout;
 
 	dentry = NULL;
 	while ((dentry = get_next_positive_subdir(dentry, root))) {
-		int flags = how;
-
 		spin_lock(&sbi->fs_lock);
 		ino = autofs_dentry_ino(dentry);
 		if (ino->flags & AUTOFS_INF_WANT_EXPIRE) {
@@ -457,7 +486,7 @@ struct dentry *autofs_expire_indirect(struct super_block *sb,
 		}
 		spin_unlock(&sbi->fs_lock);
 
-		expired = should_expire(dentry, mnt, timeout, flags);
+		expired = should_expire(dentry, mnt, timeout, how);
 		if (!expired)
 			continue;
 
@@ -470,7 +499,7 @@ struct dentry *autofs_expire_indirect(struct super_block *sb,
 		/* Make sure a reference is not taken on found if
 		 * things have changed.
 		 */
-		flags &= ~AUTOFS_EXP_LEAVES;
+		how &= ~AUTOFS_EXP_LEAVES;
 		found = should_expire(expired, mnt, timeout, how);
 		if (!found || found != expired)
 			/* Something has changed, continue */
@@ -567,7 +596,6 @@ int autofs_expire_run(struct super_block *sb,
 	pkt.len = dentry->d_name.len;
 	memcpy(pkt.name, dentry->d_name.name, pkt.len);
 	pkt.name[pkt.len] = '\0';
-	dput(dentry);
 
 	if (copy_to_user(pkt_p, &pkt, sizeof(struct autofs_packet_expire)))
 		ret = -EFAULT;
@@ -575,24 +603,26 @@ int autofs_expire_run(struct super_block *sb,
 	spin_lock(&sbi->fs_lock);
 	ino = autofs_dentry_ino(dentry);
 	/* avoid rapid-fire expire attempts if expiry fails */
-	ino->last_used = now;
+	ino->last_used = jiffies;
 	ino->flags &= ~(AUTOFS_INF_EXPIRING|AUTOFS_INF_WANT_EXPIRE);
 	complete_all(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
+
+	dput(dentry);
 
 	return ret;
 }
 
 int autofs_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
-			   struct autofs_sb_info *sbi, int when)
+			   struct autofs_sb_info *sbi, unsigned int how)
 {
 	struct dentry *dentry;
 	int ret = -EAGAIN;
 
 	if (autofs_type_trigger(sbi->type))
-		dentry = autofs_expire_direct(sb, mnt, sbi, when);
+		dentry = autofs_expire_direct(sb, mnt, sbi, how);
 	else
-		dentry = autofs_expire_indirect(sb, mnt, sbi, when);
+		dentry = autofs_expire_indirect(sb, mnt, sbi, how);
 
 	if (dentry) {
 		struct autofs_info *ino = autofs_dentry_ino(dentry);
@@ -605,7 +635,7 @@ int autofs_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 
 		spin_lock(&sbi->fs_lock);
 		/* avoid rapid-fire expire attempts if expiry fails */
-		ino->last_used = now;
+		ino->last_used = jiffies;
 		ino->flags &= ~(AUTOFS_INF_EXPIRING|AUTOFS_INF_WANT_EXPIRE);
 		complete_all(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
@@ -622,10 +652,10 @@ int autofs_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 int autofs_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 			struct autofs_sb_info *sbi, int __user *arg)
 {
-	int do_now = 0;
+	unsigned int how = 0;
 
-	if (arg && get_user(do_now, arg))
+	if (arg && get_user(how, arg))
 		return -EFAULT;
 
-	return autofs_do_expire_multi(sb, mnt, sbi, do_now);
+	return autofs_do_expire_multi(sb, mnt, sbi, how);
 }

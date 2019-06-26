@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright © 2012-2014 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2012-2014 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -30,6 +30,11 @@
 
 #include "vmwgfx_drv.h"
 
+/*
+ * Extra memory required by the resource id's ida storage, which is allocated
+ * separately from the base object itself. We estimate an on-average 128 bytes
+ * per ida.
+ */
 #define VMW_IDA_ACC_SIZE 128
 
 enum vmw_cmdbuf_res_state {
@@ -120,8 +125,6 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 		      bool delay_id,
 		      void (*res_free) (struct vmw_resource *res),
 		      const struct vmw_res_func *func);
-void vmw_resource_activate(struct vmw_resource *res,
-			   void (*hw_destroy) (struct vmw_resource *));
 int
 vmw_simple_resource_create_ioctl(struct drm_device *dev,
 				 void *data,

@@ -33,7 +33,7 @@
  *   is cleared in the TLB miss handler before the TLB entry is loaded.
  * - All other bits of the PTE are loaded into TLBLO without
  *   modification, leaving us only the bits 20, 21, 24, 25, 26, 30 for
- *   software PTE bits.  We actually use use bits 21, 24, 25, and
+ *   software PTE bits.  We actually use bits 21, 24, 25, and
  *   30 respectively for the software bits: ACCESSED, DIRTY, RW, and
  *   PRESENT.
  */
@@ -50,13 +50,56 @@
 #define _PAGE_EXEC	0x200	/* hardware: EX permission */
 #define _PAGE_ACCESSED	0x400	/* software: R: page referenced */
 
+/* No page size encoding in the linux PTE */
+#define _PAGE_PSIZE		0
+
+/* cache related flags non existing on 40x */
+#define _PAGE_COHERENT	0
+
+#define _PAGE_KERNEL_RO		0
+#define _PAGE_KERNEL_ROX	_PAGE_EXEC
+#define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
+#define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE | _PAGE_EXEC)
+
 #define _PMD_PRESENT	0x400	/* PMD points to page of PTEs */
+#define _PMD_PRESENT_MASK	_PMD_PRESENT
 #define _PMD_BAD	0x802
 #define _PMD_SIZE_4M	0x0c0
 #define _PMD_SIZE_16M	0x0e0
+#define _PMD_USER	0
+
+#define _PTE_NONE_MASK	0
 
 /* Until my rework is finished, 40x still needs atomic PTE updates */
 #define PTE_ATOMIC_UPDATES	1
+
+#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
+#define _PAGE_BASE	(_PAGE_BASE_NC)
+
+/* Permission masks used to generate the __P and __S table */
+#define PAGE_NONE	__pgprot(_PAGE_BASE)
+#define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
+#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | _PAGE_EXEC)
+#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER)
+#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
+#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
+#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
+
+#ifndef __ASSEMBLY__
+static inline pte_t pte_wrprotect(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~(_PAGE_RW | _PAGE_HWWRITE));
+}
+
+#define pte_wrprotect pte_wrprotect
+
+static inline pte_t pte_mkclean(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~(_PAGE_DIRTY | _PAGE_HWWRITE));
+}
+
+#define pte_mkclean pte_mkclean
+#endif
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_NOHASH_32_PTE_40x_H */

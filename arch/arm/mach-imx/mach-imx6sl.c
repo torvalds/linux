@@ -42,7 +42,10 @@ static void __init imx6sl_init_late(void)
 	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ))
 		platform_device_register_simple("imx6q-cpufreq", -1, NULL, 0);
 
-	imx6sl_cpuidle_init();
+	if (IS_ENABLED(CONFIG_SOC_IMX6SL) && cpu_is_imx6sl())
+		imx6sl_cpuidle_init();
+	else if (IS_ENABLED(CONFIG_SOC_IMX6SLL))
+		imx6sx_cpuidle_init();
 }
 
 static void __init imx6sl_init_machine(void)

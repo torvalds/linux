@@ -255,6 +255,7 @@ enum {
 	Opt_nocephx_sign_messages,
 	Opt_tcp_nodelay,
 	Opt_notcp_nodelay,
+	Opt_abort_on_full,
 };
 
 static match_table_t opt_tokens = {
@@ -280,6 +281,7 @@ static match_table_t opt_tokens = {
 	{Opt_nocephx_sign_messages, "nocephx_sign_messages"},
 	{Opt_tcp_nodelay, "tcp_nodelay"},
 	{Opt_notcp_nodelay, "notcp_nodelay"},
+	{Opt_abort_on_full, "abort_on_full"},
 	{-1, NULL}
 };
 
@@ -304,7 +306,7 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 	struct ceph_crypto_key *ckey;
 
 	ukey = request_key(&key_type_ceph, name, NULL);
-	if (!ukey || IS_ERR(ukey)) {
+	if (IS_ERR(ukey)) {
 		/* request_key errors don't map nicely to mount(2)
 		   errors; don't even try, but still printk */
 		key_err = PTR_ERR(ukey);
@@ -379,7 +381,7 @@ ceph_parse_options(char *options, const char *dev_name,
 
 	/* parse mount options */
 	while ((c = strsep(&options, ",")) != NULL) {
-		int token, intval, ret;
+		int token, intval;
 		if (!*c)
 			continue;
 		err = -EINVAL;
@@ -394,11 +396,10 @@ ceph_parse_options(char *options, const char *dev_name,
 			continue;
 		}
 		if (token < Opt_last_int) {
-			ret = match_int(&argstr[0], &intval);
-			if (ret < 0) {
-				pr_err("bad mount option arg (not int) "
-				       "at '%s'\n", c);
-				continue;
+			err = match_int(&argstr[0], &intval);
+			if (err < 0) {
+				pr_err("bad option arg (not int) at '%s'\n", c);
+				goto out;
 			}
 			dout("got int token %d val %d\n", token, intval);
 		} else if (token > Opt_last_int && token < Opt_last_string) {
@@ -536,6 +537,10 @@ ceph_parse_options(char *options, const char *dev_name,
 			opt->flags &= ~CEPH_OPT_TCP_NODELAY;
 			break;
 
+		case Opt_abort_on_full:
+			opt->flags |= CEPH_OPT_ABORT_ON_FULL;
+			break;
+
 		default:
 			BUG_ON(token);
 		}
@@ -550,7 +555,8 @@ out:
 }
 EXPORT_SYMBOL(ceph_parse_options);
 
-int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
+int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
+			      bool show_all)
 {
 	struct ceph_options *opt = client->options;
 	size_t pos = m->count;
@@ -575,6 +581,8 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
 		seq_puts(m, "nocephx_sign_messages,");
 	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
 		seq_puts(m, "notcp_nodelay,");
+	if (show_all && (opt->flags & CEPH_OPT_ABORT_ON_FULL))
+		seq_puts(m, "abort_on_full,");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
 		seq_printf(m, "mount_timeout=%d,",
@@ -730,7 +738,6 @@ int __ceph_open_session(struct ceph_client *client, unsigned long started)
 }
 EXPORT_SYMBOL(__ceph_open_session);
 
-
 int ceph_open_session(struct ceph_client *client)
 {
 	int ret;
@@ -746,6 +753,23 @@ int ceph_open_session(struct ceph_client *client)
 }
 EXPORT_SYMBOL(ceph_open_session);
 
+int ceph_wait_for_latest_osdmap(struct ceph_client *client,
+				unsigned long timeout)
+{
+	u64 newest_epoch;
+	int ret;
+
+	ret = ceph_monc_get_version(&client->monc, "osdmap", &newest_epoch);
+	if (ret)
+		return ret;
+
+	if (client->osdc.osdmap->epoch >= newest_epoch)
+		return 0;
+
+	ceph_osdc_maybe_request_map(&client->osdc);
+	return ceph_monc_wait_osdmap(&client->monc, newest_epoch, timeout);
+}
+EXPORT_SYMBOL(ceph_wait_for_latest_osdmap);
 
 static int __init init_ceph_lib(void)
 {

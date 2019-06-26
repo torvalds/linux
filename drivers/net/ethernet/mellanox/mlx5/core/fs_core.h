@@ -36,10 +36,23 @@
 #include <linux/refcount.h>
 #include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
+#include <linux/llist.h>
+
+/* FS_TYPE_PRIO_CHAINS is a PRIO that will have namespaces only,
+ * and those are in parallel to one another when going over them to connect
+ * a new flow table. Meaning the last flow table in a TYPE_PRIO prio in one
+ * parallel namespace will not automatically connect to the first flow table
+ * found in any prio in any next namespace, but skip the entire containing
+ * TYPE_PRIO_CHAINS prio.
+ *
+ * This is used to implement tc chains, each chain of prios is a different
+ * namespace inside a containing TYPE_PRIO_CHAINS prio.
+ */
 
 enum fs_node_type {
 	FS_TYPE_NAMESPACE,
 	FS_TYPE_PRIO,
+	FS_TYPE_PRIO_CHAINS,
 	FS_TYPE_FLOW_TABLE,
 	FS_TYPE_FLOW_GROUP,
 	FS_TYPE_FLOW_ENTRY,
@@ -72,6 +85,7 @@ struct mlx5_flow_steering {
 	struct kmem_cache               *ftes_cache;
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
+	struct mlx5_flow_namespace	**fdb_sub_ns;
 	struct mlx5_flow_root_namespace **esw_egress_root_ns;
 	struct mlx5_flow_root_namespace **esw_ingress_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_tx_root_ns;
@@ -131,29 +145,6 @@ struct mlx5_flow_table {
 	struct rhltable			fgs_hash;
 };
 
-struct mlx5_fc_cache {
-	u64 packets;
-	u64 bytes;
-	u64 lastuse;
-};
-
-struct mlx5_fc {
-	struct rb_node node;
-	struct list_head list;
-
-	/* last{packets,bytes} members are used when calculating the delta since
-	 * last reading
-	 */
-	u64 lastpackets;
-	u64 lastbytes;
-
-	u32 id;
-	bool deleted;
-	bool aging;
-
-	struct mlx5_fc_cache cache ____cacheline_aligned_in_smp;
-};
-
 struct mlx5_ft_underlay_qp {
 	struct list_head list;
 	u32 qpn;
@@ -181,6 +172,7 @@ struct fs_fte {
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
 	struct rhash_head		hash;
+	int				modify_mask;
 };
 
 /* Type of children is mlx5_flow_table/namespace */

@@ -197,6 +197,14 @@
 #define IMX6SLL_CLK_EXTERN_AUDIO_PODF   171
 #define IMX6SLL_CLK_EXTERN_AUDIO        172
 
-#define IMX6SLL_CLK_END			173
+#define IMX6SLL_CLK_GPIO1               173
+#define IMX6SLL_CLK_GPIO2               174
+#define IMX6SLL_CLK_GPIO3               175
+#define IMX6SLL_CLK_GPIO4               176
+#define IMX6SLL_CLK_GPIO5               177
+#define IMX6SLL_CLK_GPIO6               178
+#define IMX6SLL_CLK_MMDC_P1_IPG		179
+
+#define IMX6SLL_CLK_END			180
 
 #endif /* __DT_BINDINGS_CLOCK_IMX6SLL_H */

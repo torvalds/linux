@@ -47,13 +47,7 @@
 
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-
-#if IS_ENABLED(CONFIG_AGP)
-#include <asm/agp.h>
-#endif
-#ifdef CONFIG_X86
-#include <asm/set_memory.h>
-#endif
+#include <drm/ttm/ttm_set_memory.h>
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		16
@@ -222,52 +216,6 @@ static struct kobj_type ttm_pool_kobj_type = {
 
 static struct ttm_pool_manager *_manager;
 
-#ifndef CONFIG_X86
-static int set_pages_wb(struct page *page, int numpages)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < numpages; i++)
-		unmap_page_from_agp(page++);
-#endif
-	return 0;
-}
-
-static int set_pages_array_wb(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		unmap_page_from_agp(pages[i]);
-#endif
-	return 0;
-}
-
-static int set_pages_array_wc(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		map_page_into_agp(pages[i]);
-#endif
-	return 0;
-}
-
-static int set_pages_array_uc(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		map_page_into_agp(pages[i]);
-#endif
-	return 0;
-}
-#endif
-
 /**
  * Select the right pool or requested caching state and ttm flags. */
 static struct ttm_page_pool *ttm_get_pool(int flags, bool huge,
@@ -302,13 +250,13 @@ static void ttm_pages_put(struct page *pages[], unsigned npages,
 	unsigned int i, pages_nr = (1 << order);
 
 	if (order == 0) {
-		if (set_pages_array_wb(pages, npages))
+		if (ttm_set_pages_array_wb(pages, npages))
 			pr_err("Failed to set %d pages to wb!\n", npages);
 	}
 
 	for (i = 0; i < npages; ++i) {
 		if (order > 0) {
-			if (set_pages_wb(pages[i], pages_nr))
+			if (ttm_set_pages_wb(pages[i], pages_nr))
 				pr_err("Failed to set %d pages to wb!\n", pages_nr);
 		}
 		__free_pages(pages[i], order);
@@ -498,12 +446,12 @@ static int ttm_set_pages_caching(struct page **pages,
 	/* Set page caching */
 	switch (cstate) {
 	case tt_uncached:
-		r = set_pages_array_uc(pages, cpages);
+		r = ttm_set_pages_array_uc(pages, cpages);
 		if (r)
 			pr_err("Failed to set %d pages to uc!\n", cpages);
 		break;
 	case tt_wc:
-		r = set_pages_array_wc(pages, cpages);
+		r = ttm_set_pages_array_wc(pages, cpages);
 		if (r)
 			pr_err("Failed to set %d pages to wc!\n", cpages);
 		break;
@@ -782,9 +730,10 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 			}
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-			if (!(flags & TTM_PAGE_FLAG_DMA32)) {
-				for (j = 0; j < HPAGE_PMD_NR; ++j)
-					if (p++ != pages[i + j])
+			if (!(flags & TTM_PAGE_FLAG_DMA32) &&
+			    (npages - i) >= HPAGE_PMD_NR) {
+				for (j = 1; j < HPAGE_PMD_NR; ++j)
+					if (++p != pages[i + j])
 					    break;
 
 				if (j == HPAGE_PMD_NR)
@@ -811,15 +760,15 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 		unsigned max_size, n2free;
 
 		spin_lock_irqsave(&huge->lock, irq_flags);
-		while (i < npages) {
+		while ((npages - i) >= HPAGE_PMD_NR) {
 			struct page *p = pages[i];
 			unsigned j;
 
 			if (!p)
 				break;
 
-			for (j = 0; j < HPAGE_PMD_NR; ++j)
-				if (p++ != pages[i + j])
+			for (j = 1; j < HPAGE_PMD_NR; ++j)
+				if (++p != pages[i + j])
 				    break;
 
 			if (j != HPAGE_PMD_NR)

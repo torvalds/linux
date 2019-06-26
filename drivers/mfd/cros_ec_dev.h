@@ -26,12 +26,13 @@
 
 #define CROS_EC_DEV_VERSION "1.0.0"
 
-/*
- * @offset: within EC_LPC_ADDR_MEMMAP region
- * @bytes: number of bytes to read. zero means "read a string" (including '\0')
- *         (at most only EC_MEMMAP_SIZE bytes can be read)
- * @buffer: where to store the result
- * ioctl returns the number of bytes read, negative on error
+/**
+ * struct cros_ec_readmem - Struct used to read mapped memory.
+ * @offset: Within EC_LPC_ADDR_MEMMAP region.
+ * @bytes: Number of bytes to read. Zero means "read a string" (including '\0')
+ *         At most only EC_MEMMAP_SIZE bytes can be read.
+ * @buffer: Where to store the result. The ioctl returns the number of bytes
+ *         read or negative on error.
  */
 struct cros_ec_readmem {
 	uint32_t offset;
@@ -42,11 +43,5 @@ struct cros_ec_readmem {
 #define CROS_EC_DEV_IOC       0xEC
 #define CROS_EC_DEV_IOCXCMD   _IOWR(CROS_EC_DEV_IOC, 0, struct cros_ec_command)
 #define CROS_EC_DEV_IOCRDMEM  _IOWR(CROS_EC_DEV_IOC, 1, struct cros_ec_readmem)
-
-/* Lightbar utilities */
-extern bool ec_has_lightbar(struct cros_ec_dev *ec);
-extern int lb_manual_suspend_ctrl(struct cros_ec_dev *ec, uint8_t enable);
-extern int lb_suspend(struct cros_ec_dev *ec);
-extern int lb_resume(struct cros_ec_dev *ec);
 
 #endif /* _CROS_EC_DEV_H_ */

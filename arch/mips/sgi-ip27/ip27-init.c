@@ -52,13 +52,10 @@ EXPORT_SYMBOL_GPL(sn_cpu_info);
 
 extern void pcibr_setup(cnodeid_t);
 
-extern void xtalk_probe_node(cnodeid_t nid);
-
 static void per_hub_init(cnodeid_t cnode)
 {
 	struct hub_data *hub = hub_data(cnode);
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
-	int i;
 
 	cpumask_set_cpu(smp_processor_id(), &hub->h_cpus);
 
@@ -71,7 +68,6 @@ static void per_hub_init(cnodeid_t cnode)
 	REMOTE_HUB_S(nasid, IIO_ICTO, 0xff);
 
 	hub_rtc_init(cnode);
-	xtalk_probe_node(cnode);
 
 #ifdef CONFIG_REPLICATE_EXHANDLERS
 	/*
@@ -90,24 +86,6 @@ static void per_hub_init(cnodeid_t cnode)
 		__flush_cache_all();
 	}
 #endif
-
-	/*
-	 * Some interrupts are reserved by hardware or by software convention.
-	 * Mark these as reserved right away so they won't be used accidentally
-	 * later.
-	 */
-	for (i = 0; i <= BASE_PCI_IRQ; i++) {
-		__set_bit(i, hub->irq_alloc_mask);
-		LOCAL_HUB_CLR_INTR(INT_PEND0_BASELVL + i);
-	}
-
-	__set_bit(IP_PEND0_6_63, hub->irq_alloc_mask);
-	LOCAL_HUB_S(PI_INT_PEND_MOD, IP_PEND0_6_63);
-
-	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++) {
-		__set_bit(i, hub->irq_alloc_mask);
-		LOCAL_HUB_CLR_INTR(INT_PEND1_BASELVL + i);
-	}
 }
 
 void per_cpu_init(void)
@@ -116,8 +94,6 @@ void per_cpu_init(void)
 	int slice = LOCAL_HUB_L(PI_CPU_NUM);
 	cnodeid_t cnode = get_compact_nodeid();
 	struct hub_data *hub = hub_data(cnode);
-	struct slice_data *si = hub->slice + slice;
-	int i;
 
 	if (test_and_set_bit(slice, &hub->slice_map))
 		return;
@@ -126,22 +102,14 @@ void per_cpu_init(void)
 
 	per_hub_init(cnode);
 
-	for (i = 0; i < LEVELS_PER_SLICE; i++)
-		si->level_to_irq[i] = -1;
-
-	/*
-	 * We use this so we can find the local hub's data as fast as only
-	 * possible.
-	 */
-	cpu_data[cpu].data = si;
-
 	cpu_time_init();
 	install_ipi();
 
 	/* Install our NMI handler if symmon hasn't installed one. */
 	install_cpu_nmi_handler(cputoslice(cpu));
 
-	set_c0_status(SRB_DEV0 | SRB_DEV1);
+	enable_percpu_irq(IP27_HUB_PEND0_IRQ, IRQ_TYPE_NONE);
+	enable_percpu_irq(IP27_HUB_PEND1_IRQ, IRQ_TYPE_NONE);
 }
 
 /*
@@ -177,7 +145,7 @@ extern void ip27_reboot_setup(void);
 
 void __init plat_mem_setup(void)
 {
-	hubreg_t p, e, n_mode;
+	u64 p, e, n_mode;
 	nasid_t nid;
 
 	ip27_reboot_setup();
@@ -215,7 +183,6 @@ void __init plat_mem_setup(void)
 #endif
 
 	ioc3_eth_init();
-	per_cpu_init();
 
 	set_io_port_base(IO_BASE);
 }

@@ -87,7 +87,6 @@ extern int  xive_smp_prepare_cpu(unsigned int cpu);
 extern void xive_smp_setup_cpu(void);
 extern void xive_smp_disable_cpu(void);
 extern void xive_teardown_cpu(void);
-extern void xive_kexec_teardown_cpu(int secondary);
 extern void xive_shutdown(void);
 extern void xive_flush_interrupt(void);
 

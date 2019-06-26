@@ -886,7 +886,7 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 				as3722_regs->desc[id].min_uV = 410000;
 			} else {
 				as3722_regs->desc[id].n_voltages =
-					AS3722_SD0_VSEL_MAX + 1,
+					AS3722_SD0_VSEL_MAX + 1;
 				as3722_regs->desc[id].min_uV = 610000;
 			}
 			as3722_regs->desc[id].uV_step = 10000;

@@ -950,67 +950,6 @@
 /include/ "qoriq-clockgen2.dtsi"
 	global-utilities@e1000 {
 		compatible = "fsl,t4240-clockgen", "fsl,qoriq-clockgen-2.0";
-
-		pll2: pll2@840 {
-			#clock-cells = <1>;
-			reg = <0x840 0x4>;
-			compatible = "fsl,qoriq-core-pll-2.0";
-			clocks = <&sysclk>;
-			clock-output-names = "pll2", "pll2-div2", "pll2-div4";
-		};
-
-		pll3: pll3@860 {
-			#clock-cells = <1>;
-			reg = <0x860 0x4>;
-			compatible = "fsl,qoriq-core-pll-2.0";
-			clocks = <&sysclk>;
-			clock-output-names = "pll3", "pll3-div2", "pll3-div4";
-		};
-
-		pll4: pll4@880 {
-			#clock-cells = <1>;
-			reg = <0x880 0x4>;
-			compatible = "fsl,qoriq-core-pll-2.0";
-			clocks = <&sysclk>;
-			clock-output-names = "pll4", "pll4-div2", "pll4-div4";
-		};
-
-		mux0: mux0@0 {
-			#clock-cells = <0>;
-			reg = <0x0 0x4>;
-			compatible = "fsl,qoriq-core-mux-2.0";
-			clocks = <&pll0 0>, <&pll0 1>, <&pll0 2>,
-				<&pll1 0>, <&pll1 1>, <&pll1 2>,
-				<&pll2 0>, <&pll2 1>, <&pll2 2>;
-			clock-names = "pll0", "pll0-div2", "pll0-div4",
-				"pll1", "pll1-div2", "pll1-div4",
-				"pll2", "pll2-div2", "pll2-div4";
-			clock-output-names = "cmux0";
-		};
-
-		mux1: mux1@20 {
-			#clock-cells = <0>;
-			reg = <0x20 0x4>;
-			compatible = "fsl,qoriq-core-mux-2.0";
-			clocks = <&pll0 0>, <&pll0 1>, <&pll0 2>,
-				<&pll1 0>, <&pll1 1>, <&pll1 2>,
-				<&pll2 0>, <&pll2 1>, <&pll2 2>;
-			clock-names = "pll0", "pll0-div2", "pll0-div4",
-				"pll1", "pll1-div2", "pll1-div4",
-				"pll2", "pll2-div2", "pll2-div4";
-			clock-output-names = "cmux1";
-		};
-
-		mux2: mux2@40 {
-			#clock-cells = <0>;
-			reg = <0x40 0x4>;
-			compatible = "fsl,qoriq-core-mux-2.0";
-			clocks = <&pll3 0>, <&pll3 1>, <&pll3 2>,
-				<&pll4 0>, <&pll4 1>, <&pll4 2>;
-			clock-names = "pll3", "pll3-div2", "pll3-div4",
-				"pll4", "pll4-div2", "pll4-div4";
-			clock-output-names = "cmux2";
-		};
 	};
 
 	rcpm: global-utilities@e2000 {

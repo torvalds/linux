@@ -16,7 +16,6 @@ Required properties:
  - compatible:	"ti,omap2-nand"
  - reg:		range id (CS number), base offset and length of the
 		NAND I/O space
- - interrupt-parent: must point to gpmc node
  - interrupts:	Two interrupt specifiers, one for fifoevent, one for termcount.
 
 Optional properties:

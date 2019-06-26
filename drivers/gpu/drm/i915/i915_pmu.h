@@ -31,6 +31,8 @@ enum {
 	((1 << I915_PMU_SAMPLE_BITS) + \
 	 (I915_PMU_LAST + 1 - __I915_PMU_OTHER(0)))
 
+#define I915_ENGINE_SAMPLE_COUNT (I915_SAMPLE_SEMA + 1)
+
 struct i915_pmu_sample {
 	u64 cur;
 };
@@ -65,6 +67,14 @@ struct i915_pmu {
 	 * event types.
 	 */
 	u64 enable;
+
+	/**
+	 * @timer_last:
+	 *
+	 * Timestmap of the previous timer invocation.
+	 */
+	ktime_t timer_last;
+
 	/**
 	 * @enable_count: Reference counts for the enabled events.
 	 *
@@ -87,9 +97,9 @@ struct i915_pmu {
 	 */
 	struct i915_pmu_sample sample[__I915_NUM_PMU_SAMPLERS];
 	/**
-	 * @suspended_jiffies_last: Cached suspend time from PM core.
+	 * @suspended_time_last: Cached suspend time from PM core.
 	 */
-	unsigned long suspended_jiffies_last;
+	u64 suspended_time_last;
 	/**
 	 * @i915_attr: Memory block holding device attributes.
 	 */

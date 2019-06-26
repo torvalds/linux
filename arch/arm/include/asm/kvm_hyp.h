@@ -40,6 +40,7 @@
 #define TTBR1		__ACCESS_CP15_64(1, c2)
 #define VTTBR		__ACCESS_CP15_64(6, c2)
 #define PAR		__ACCESS_CP15_64(0, c7)
+#define CNTP_CVAL	__ACCESS_CP15_64(2, c14)
 #define CNTV_CVAL	__ACCESS_CP15_64(3, c14)
 #define CNTVOFF		__ACCESS_CP15_64(4, c14)
 
@@ -85,6 +86,7 @@
 #define TID_PRIV	__ACCESS_CP15(c13, 0, c0, 4)
 #define HTPIDR		__ACCESS_CP15(c13, 4, c0, 2)
 #define CNTKCTL		__ACCESS_CP15(c14, 0, c1, 0)
+#define CNTP_CTL	__ACCESS_CP15(c14, 0, c2, 1)
 #define CNTV_CTL	__ACCESS_CP15(c14, 0, c3, 1)
 #define CNTHCTL		__ACCESS_CP15(c14, 4, c1, 0)
 
@@ -94,6 +96,8 @@
 #define read_sysreg_el0(r)		read_sysreg(r##_el0)
 #define write_sysreg_el0(v, r)		write_sysreg(v, r##_el0)
 
+#define cntp_ctl_el0			CNTP_CTL
+#define cntp_cval_el0			CNTP_CVAL
 #define cntv_ctl_el0			CNTV_CTL
 #define cntv_cval_el0			CNTV_CVAL
 #define cntvoff_el2			CNTVOFF

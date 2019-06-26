@@ -2,7 +2,7 @@
 /*
  * CPU-measurement facilities
  *
- *  Copyright IBM Corp. 2012
+ *  Copyright IBM Corp. 2012, 2018
  *  Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  *	       Jan Glauber <jang@linux.vnet.ibm.com>
  */
@@ -11,6 +11,8 @@
 
 #include <linux/errno.h>
 #include <asm/facility.h>
+
+asm(".include \"asm/cpu_mf-insn.h\"\n");
 
 #define CPU_MF_INT_SF_IAE	(1 << 31)	/* invalid entry address */
 #define CPU_MF_INT_SF_ISE	(1 << 30)	/* incorrect SDBT entry */
@@ -139,8 +141,14 @@ struct hws_trailer_entry {
 	unsigned char timestamp[16];	 /* 16 - 31 timestamp		      */
 	unsigned long long reserved1;	 /* 32 -Reserved		      */
 	unsigned long long reserved2;	 /*				      */
-	unsigned long long progusage1;	 /* 48 - reserved for programming use */
-	unsigned long long progusage2;	 /*				      */
+	union {				 /* 48 - reserved for programming use */
+		struct {
+			unsigned int clock_base:1; /* in progusage2 */
+			unsigned long long progusage1:63;
+			unsigned long long progusage2;
+		};
+		unsigned long long progusage[2];
+	};
 } __packed;
 
 /* Load program parameter */
@@ -203,17 +211,25 @@ static inline int ecctr(u64 ctr, u64 *val)
 	return cc;
 }
 
-/* Store CPU counter multiple for the MT utilization counter set */
-static inline int stcctm5(u64 num, u64 *val)
+/* Store CPU counter multiple for a particular counter set */
+enum stcctm_ctr_set {
+	EXTENDED = 0,
+	BASIC = 1,
+	PROBLEM_STATE = 2,
+	CRYPTO_ACTIVITY = 3,
+	MT_DIAG = 5,
+	MT_DIAG_CLEARING = 9,	/* clears loss-of-MT-ctr-data alert */
+};
+static inline int stcctm(enum stcctm_ctr_set set, u64 range, u64 *dest)
 {
 	int cc;
 
 	asm volatile (
-		"	.insn	rsy,0xeb0000000017,%2,5,%1\n"
+		"	STCCTM	%2,%3,%1\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (cc)
-		: "Q" (*val), "d" (num)
+		: "Q" (*dest), "d" (range), "i" (set)
 		: "cc", "memory");
 	return cc;
 }

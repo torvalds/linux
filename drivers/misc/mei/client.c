@@ -318,23 +318,6 @@ void mei_me_cl_rm_all(struct mei_device *dev)
 }
 
 /**
- * mei_cl_cmp_id - tells if the clients are the same
- *
- * @cl1: host client 1
- * @cl2: host client 2
- *
- * Return: true  - if the clients has same host and me ids
- *         false - otherwise
- */
-static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
-				const struct mei_cl *cl2)
-{
-	return cl1 && cl2 &&
-		(cl1->host_client_id == cl2->host_client_id) &&
-		(mei_cl_me_id(cl1) == mei_cl_me_id(cl2));
-}
-
-/**
  * mei_io_cb_free - free mei_cb_private related memory
  *
  * @cb: mei callback struct
@@ -418,8 +401,11 @@ static void mei_io_list_flush_cl(struct list_head *head,
 	struct mei_cl_cb *cb, *next;
 
 	list_for_each_entry_safe(cb, next, head, list) {
-		if (mei_cl_cmp_id(cl, cb->cl))
+		if (cl == cb->cl) {
 			list_del_init(&cb->list);
+			if (cb->fop_type == MEI_FOP_READ)
+				mei_io_cb_free(cb);
+		}
 	}
 }
 
@@ -435,7 +421,7 @@ static void mei_io_tx_list_free_cl(struct list_head *head,
 	struct mei_cl_cb *cb, *next;
 
 	list_for_each_entry_safe(cb, next, head, list) {
-		if (mei_cl_cmp_id(cl, cb->cl))
+		if (cl == cb->cl)
 			mei_tx_cb_dequeue(cb);
 	}
 }
@@ -478,7 +464,7 @@ struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 	if (length == 0)
 		return cb;
 
-	cb->buf.data = kmalloc(length, GFP_KERNEL);
+	cb->buf.data = kmalloc(roundup(length, MEI_SLOT_SIZE), GFP_KERNEL);
 	if (!cb->buf.data) {
 		mei_io_cb_free(cb);
 		return NULL;
@@ -863,10 +849,12 @@ int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int slots;
 	int ret;
 
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_connect_request));
 	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
 
-	if (slots < msg_slots)
+	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
 	ret = mei_cl_send_disconnect(cl, cb);
@@ -1053,13 +1041,15 @@ int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int slots;
 	int rets;
 
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
-	slots = mei_hbuf_empty_slots(dev);
-
 	if (mei_cl_is_other_connecting(cl))
 		return 0;
 
-	if (slots < msg_slots)
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_connect_request));
+	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
+
+	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
 	rets = mei_cl_send_connect(cl, cb);
@@ -1294,10 +1284,12 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int ret;
 	bool request;
 
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_connect_request));
 	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
 
-	if (slots < msg_slots)
+	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
 	request = mei_cl_notify_fop2req(cb->fop_type);
@@ -1368,7 +1360,9 @@ int mei_cl_notify_request(struct mei_cl *cl,
 
 	mutex_unlock(&dev->device_lock);
 	wait_event_timeout(cl->wait,
-			   cl->notify_en == request || !mei_cl_is_connected(cl),
+			   cl->notify_en == request ||
+			   cl->status ||
+			   !mei_cl_is_connected(cl),
 			   mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
@@ -1533,6 +1527,23 @@ nortpm:
 }
 
 /**
+ * mei_msg_hdr_init - initialize mei message header
+ *
+ * @mei_hdr: mei message header
+ * @cb: message callback structure
+ */
+static void mei_msg_hdr_init(struct mei_msg_hdr *mei_hdr, struct mei_cl_cb *cb)
+{
+	mei_hdr->host_addr = mei_cl_host_addr(cb->cl);
+	mei_hdr->me_addr = mei_cl_me_id(cb->cl);
+	mei_hdr->length = 0;
+	mei_hdr->reserved = 0;
+	mei_hdr->msg_complete = 0;
+	mei_hdr->dma_ring = 0;
+	mei_hdr->internal = cb->internal;
+}
+
+/**
  * mei_cl_irq_write - write a message to device
  *	from the interrupt thread context
  *
@@ -1548,11 +1559,15 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
+	size_t hdr_len = sizeof(mei_hdr);
 	size_t len;
-	u32 msg_slots;
-	int slots;
+	size_t hbuf_len, dr_len;
+	int hbuf_slots;
+	u32 dr_slots;
+	u32 dma_len;
 	int rets;
 	bool first_chunk;
+	const void *data;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -1572,40 +1587,54 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return 0;
 	}
 
-	slots = mei_hbuf_empty_slots(dev);
 	len = buf->size - cb->buf_idx;
-	msg_slots = mei_data2slots(len);
+	data = buf->data + cb->buf_idx;
+	hbuf_slots = mei_hbuf_empty_slots(dev);
+	if (hbuf_slots < 0) {
+		rets = -EOVERFLOW;
+		goto err;
+	}
 
-	mei_hdr.host_addr = mei_cl_host_addr(cl);
-	mei_hdr.me_addr = mei_cl_me_id(cl);
-	mei_hdr.reserved = 0;
-	mei_hdr.internal = cb->internal;
+	hbuf_len = mei_slots2data(hbuf_slots);
+	dr_slots = mei_dma_ring_empty_slots(dev);
+	dr_len = mei_slots2data(dr_slots);
 
-	if (slots >= msg_slots) {
+	mei_msg_hdr_init(&mei_hdr, cb);
+
+	/**
+	 * Split the message only if we can write the whole host buffer
+	 * otherwise wait for next time the host buffer is empty.
+	 */
+	if (len + hdr_len <= hbuf_len) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
-	/* Split the message only if we can write the whole host buffer */
-	} else if (slots == dev->hbuf_depth) {
-		msg_slots = slots;
-		len = (slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
+	} else if (dr_slots && hbuf_len >= hdr_len + sizeof(dma_len)) {
+		mei_hdr.dma_ring = 1;
+		if (len > dr_len)
+			len = dr_len;
+		else
+			mei_hdr.msg_complete = 1;
+
+		mei_hdr.length = sizeof(dma_len);
+		dma_len = len;
+		data = &dma_len;
+	} else if ((u32)hbuf_slots == mei_hbuf_depth(dev)) {
+		len = hbuf_len - hdr_len;
 		mei_hdr.length = len;
-		mei_hdr.msg_complete = 0;
 	} else {
-		/* wait for next time the host buffer is empty */
 		return 0;
 	}
 
-	cl_dbg(dev, cl, "buf: size = %zu idx = %zu\n",
-			cb->buf.size, cb->buf_idx);
+	if (mei_hdr.dma_ring)
+		mei_dma_ring_write(dev, buf->data + cb->buf_idx, len);
 
-	rets = mei_write_message(dev, &mei_hdr, buf->data + cb->buf_idx);
+	rets = mei_write_message(dev, &mei_hdr, hdr_len, data, mei_hdr.length);
 	if (rets)
 		goto err;
 
 	cl->status = 0;
 	cl->writing_state = MEI_WRITING;
-	cb->buf_idx += mei_hdr.length;
-	cb->completed = mei_hdr.msg_complete == 1;
+	cb->buf_idx += len;
 
 	if (first_chunk) {
 		if (mei_cl_tx_flow_ctrl_creds_reduce(cl)) {
@@ -1634,14 +1663,19 @@ err:
  *
  * Return: number of bytes sent on success, <0 on failure.
  */
-int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
+ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
-	int size;
-	int rets;
+	size_t hdr_len = sizeof(mei_hdr);
+	size_t len, hbuf_len, dr_len;
+	int hbuf_slots;
+	u32 dr_slots;
+	u32 dma_len;
+	ssize_t rets;
 	bool blocking;
+	const void *data;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -1652,52 +1686,75 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	dev = cl->dev;
 
 	buf = &cb->buf;
-	size = buf->size;
-	blocking = cb->blocking;
+	len = buf->size;
 
-	cl_dbg(dev, cl, "size=%d\n", size);
+	cl_dbg(dev, cl, "len=%zd\n", len);
+
+	blocking = cb->blocking;
+	data = buf->data;
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
 		pm_runtime_put_noidle(dev->dev);
-		cl_err(dev, cl, "rpm: get failed %d\n", rets);
+		cl_err(dev, cl, "rpm: get failed %zd\n", rets);
 		goto free;
 	}
 
 	cb->buf_idx = 0;
 	cl->writing_state = MEI_IDLE;
 
-	mei_hdr.host_addr = mei_cl_host_addr(cl);
-	mei_hdr.me_addr = mei_cl_me_id(cl);
-	mei_hdr.reserved = 0;
-	mei_hdr.msg_complete = 0;
-	mei_hdr.internal = cb->internal;
 
 	rets = mei_cl_tx_flow_ctrl_creds(cl);
 	if (rets < 0)
 		goto err;
 
+	mei_msg_hdr_init(&mei_hdr, cb);
+
 	if (rets == 0) {
 		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
-		rets = size;
+		rets = len;
 		goto out;
 	}
+
 	if (!mei_hbuf_acquire(dev)) {
 		cl_dbg(dev, cl, "Cannot acquire the host buffer: not sending.\n");
-		rets = size;
+		rets = len;
 		goto out;
 	}
 
-	/* Check for a maximum length */
-	if (size > mei_hbuf_max_len(dev)) {
-		mei_hdr.length = mei_hbuf_max_len(dev);
-		mei_hdr.msg_complete = 0;
-	} else {
-		mei_hdr.length = size;
-		mei_hdr.msg_complete = 1;
+	hbuf_slots = mei_hbuf_empty_slots(dev);
+	if (hbuf_slots < 0) {
+		rets = -EOVERFLOW;
+		goto out;
 	}
 
-	rets = mei_write_message(dev, &mei_hdr, buf->data);
+	hbuf_len = mei_slots2data(hbuf_slots);
+	dr_slots = mei_dma_ring_empty_slots(dev);
+	dr_len =  mei_slots2data(dr_slots);
+
+	if (len + hdr_len <= hbuf_len) {
+		mei_hdr.length = len;
+		mei_hdr.msg_complete = 1;
+	} else if (dr_slots && hbuf_len >= hdr_len + sizeof(dma_len)) {
+		mei_hdr.dma_ring = 1;
+		if (len > dr_len)
+			len = dr_len;
+		else
+			mei_hdr.msg_complete = 1;
+
+		mei_hdr.length = sizeof(dma_len);
+		dma_len = len;
+		data = &dma_len;
+	} else {
+		len = hbuf_len - hdr_len;
+		mei_hdr.length = len;
+	}
+
+	if (mei_hdr.dma_ring)
+		mei_dma_ring_write(dev, buf->data, len);
+
+	rets = mei_write_message(dev, &mei_hdr, hdr_len,
+				 data, mei_hdr.length);
 	if (rets)
 		goto err;
 
@@ -1706,8 +1763,9 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 		goto err;
 
 	cl->writing_state = MEI_WRITING;
-	cb->buf_idx = mei_hdr.length;
-	cb->completed = mei_hdr.msg_complete == 1;
+	cb->buf_idx = len;
+	/* restore return value */
+	len = buf->size;
 
 out:
 	if (mei_hdr.msg_complete)
@@ -1735,7 +1793,7 @@ out:
 		}
 	}
 
-	rets = size;
+	rets = len;
 err:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);

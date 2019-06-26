@@ -25,18 +25,6 @@ static void GLUE(X_PFX,ack_pending)(struct kvmppc_xive_vcpu *xc)
 	 */
 	eieio();
 
-	/*
-	 * DD1 bug workaround: If PIPR is less favored than CPPR
-	 * ignore the interrupt or we might incorrectly lose an IPB
-	 * bit.
-	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		__be64 qw1 = __x_readq(__x_tima + TM_QW1_OS);
-		u8 pipr = be64_to_cpu(qw1) & 0xff;
-		if (pipr >= xc->hw_cppr)
-			return;
-	}
-
 	/* Perform the acknowledge OS to register cycle. */
 	ack = be16_to_cpu(__x_readw(__x_tima + TM_SPC_ACK_OS_REG));
 
@@ -89,8 +77,15 @@ static void GLUE(X_PFX,source_eoi)(u32 hw_irq, struct xive_irq_data *xd)
 	/* If the XIVE supports the new "store EOI facility, use it */
 	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
 		__x_writeq(0, __x_eoi_page(xd) + XIVE_ESB_STORE_EOI);
-	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW) {
+	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW)
 		opal_int_eoi(hw_irq);
+	else if (xd->flags & XIVE_IRQ_FLAG_LSI) {
+		/*
+		 * For LSIs the HW EOI cycle is used rather than PQ bits,
+		 * as they are automatically re-triggred in HW when still
+		 * pending.
+		 */
+		__x_readq(__x_eoi_page(xd) + XIVE_ESB_LOAD_EOI);
 	} else {
 		uint64_t eoi_val;
 
@@ -102,20 +97,12 @@ static void GLUE(X_PFX,source_eoi)(u32 hw_irq, struct xive_irq_data *xd)
 		 *
 		 * This allows us to then do a re-trigger if Q was set
 		 * rather than synthetizing an interrupt in software
-		 *
-		 * For LSIs, using the HW EOI cycle works around a problem
-		 * on P9 DD1 PHBs where the other ESB accesses don't work
-		 * properly.
 		 */
-		if (xd->flags & XIVE_IRQ_FLAG_LSI)
-			__x_readq(__x_eoi_page(xd) + XIVE_ESB_LOAD_EOI);
-		else {
-			eoi_val = GLUE(X_PFX,esb_load)(xd, XIVE_ESB_SET_PQ_00);
+		eoi_val = GLUE(X_PFX,esb_load)(xd, XIVE_ESB_SET_PQ_00);
 
-			/* Re-trigger if needed */
-			if ((eoi_val & 1) && __x_trig_page(xd))
-				__x_writeq(0, __x_trig_page(xd));
-		}
+		/* Re-trigger if needed */
+		if ((eoi_val & 1) && __x_trig_page(xd))
+			__x_writeq(0, __x_trig_page(xd));
 	}
 }
 
@@ -292,14 +279,6 @@ X_STATIC unsigned long GLUE(X_PFX,h_xirr)(struct kvm_vcpu *vcpu)
 
 	/* First collect pending bits from HW */
 	GLUE(X_PFX,ack_pending)(xc);
-
-	/*
-	 * Cleanup the old-style bits if needed (they may have been
-	 * set by pull or an escalation interrupts).
-	 */
-	if (test_bit(BOOK3S_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions))
-		clear_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL,
-			  &vcpu->arch.pending_exceptions);
 
 	pr_devel(" new pending=0x%02x hw_cppr=%d cppr=%d\n",
 		 xc->pending, xc->hw_cppr, xc->cppr);

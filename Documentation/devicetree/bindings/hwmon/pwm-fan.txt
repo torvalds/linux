@@ -6,6 +6,9 @@ Required properties:
 - cooling-levels      : PWM duty cycle values in a range from 0 to 255
 			which correspond to thermal cooling states
 
+Optional properties:
+- fan-supply    : phandle to the regulator that provides power to the fan
+
 Example:
 	fan0: pwm-fan {
 		compatible = "pwm-fan";

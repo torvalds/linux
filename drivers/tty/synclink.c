@@ -2959,8 +2959,7 @@ static int mgsl_ioctl(struct tty_struct *tty,
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_ioctl"))
 		return -ENODEV;
 
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT)) {
+	if (cmd != TIOCMIWAIT) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}
@@ -4326,41 +4325,6 @@ static int mgsl_init_tty(void)
 	return 0;
 }
 
-/* enumerate user specified ISA adapters
- */
-static void mgsl_enum_isa_devices(void)
-{
-	struct mgsl_struct *info;
-	int i;
-		
-	/* Check for user specified ISA devices */
-	
-	for (i=0 ;(i < MAX_ISA_DEVICES) && io[i] && irq[i]; i++){
-		if ( debug_level >= DEBUG_LEVEL_INFO )
-			printk("ISA device specified io=%04X,irq=%d,dma=%d\n",
-				io[i], irq[i], dma[i] );
-		
-		info = mgsl_allocate_device();
-		if ( !info ) {
-			/* error allocating device instance data */
-			if ( debug_level >= DEBUG_LEVEL_ERROR )
-				printk( "can't allocate device instance data.\n");
-			continue;
-		}
-		
-		/* Copy user configuration info to device instance data */
-		info->io_base = (unsigned int)io[i];
-		info->irq_level = (unsigned int)irq[i];
-		info->irq_level = irq_canonicalize(info->irq_level);
-		info->dma_level = (unsigned int)dma[i];
-		info->bus_type = MGSL_BUS_TYPE_ISA;
-		info->io_addr_size = 16;
-		info->irq_flags = 0;
-		
-		mgsl_add_device( info );
-	}
-}
-
 static void synclink_cleanup(void)
 {
 	int rc;
@@ -4404,7 +4368,6 @@ static int __init synclink_init(void)
 
  	printk("%s %s\n", driver_name, driver_version);
 
-	mgsl_enum_isa_devices();
 	if ((rc = pci_register_driver(&synclink_pci_driver)) < 0)
 		printk("%s:failed to register PCI driver, error=%d\n",__FILE__,rc);
 	else
@@ -5025,12 +4988,6 @@ static void usc_set_sdlc_mode( struct mgsl_struct *info )
 	usc_DmaCmd( info, DmaCmd_ResetAllChannels );	/* disable both DMA channels */
 	info->mbre_bit = BIT8;
 	outw( BIT8, info->io_base );			/* set Master Bus Enable (DCAR) */
-
-	if (info->bus_type == MGSL_BUS_TYPE_ISA) {
-		/* Enable DMAEN (Port 7, Bit 14) */
-		/* This connects the DMA request signal to the ISA bus */
-		usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT15) & ~BIT14));
-	}
 
 	/* DMA Control Register (DCR)
 	 *
@@ -6008,12 +5965,6 @@ static void usc_set_async_mode( struct mgsl_struct *info )
 
 	usc_EnableMasterIrqBit( info );
 
-	if (info->bus_type == MGSL_BUS_TYPE_ISA) {
-		/* Enable INTEN (Port 6, Bit12) */
-		/* This connects the IRQ request signal to the ISA bus */
-		usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT13) & ~BIT12));
-	}
-
 	if (info->params.loopback) {
 		info->loopback_bits = 0x300;
 		outw(0x0300, info->io_base + CCAR);
@@ -6107,12 +6058,6 @@ static void usc_set_sync_mode( struct mgsl_struct *info )
 {
 	usc_loopback_frame( info );
 	usc_set_sdlc_mode( info );
-
-	if (info->bus_type == MGSL_BUS_TYPE_ISA) {
-		/* Enable INTEN (Port 6, Bit12) */
-		/* This connects the IRQ request signal to the ISA bus */
-		usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT13) & ~BIT12));
-	}
 
 	usc_enable_aux_clock(info, info->params.clock_speed);
 

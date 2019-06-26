@@ -67,7 +67,7 @@ struct cache_detail {
 	struct module *		owner;
 	int			hash_size;
 	struct hlist_head *	hash_table;
-	rwlock_t		hash_lock;
+	spinlock_t		hash_lock;
 
 	char			*name;
 	void			(*cache_put)(struct kref *);
@@ -168,8 +168,8 @@ extern const struct file_operations content_file_operations_pipefs;
 extern const struct file_operations cache_flush_operations_pipefs;
 
 extern struct cache_head *
-sunrpc_cache_lookup(struct cache_detail *detail,
-		    struct cache_head *key, int hash);
+sunrpc_cache_lookup_rcu(struct cache_detail *detail,
+			struct cache_head *key, int hash);
 extern struct cache_head *
 sunrpc_cache_update(struct cache_detail *detail,
 		    struct cache_head *new, struct cache_head *old, int hash);
@@ -186,6 +186,12 @@ static inline struct cache_head  *cache_get(struct cache_head *h)
 	return h;
 }
 
+static inline struct cache_head  *cache_get_rcu(struct cache_head *h)
+{
+	if (kref_get_unless_zero(&h->ref))
+		return h;
+	return NULL;
+}
 
 static inline void cache_put(struct cache_head *h, struct cache_detail *cd)
 {
@@ -224,9 +230,9 @@ extern void sunrpc_cache_unregister_pipefs(struct cache_detail *);
 extern void sunrpc_cache_unhash(struct cache_detail *, struct cache_head *);
 
 /* Must store cache_detail in seq_file->private if using next three functions */
-extern void *cache_seq_start(struct seq_file *file, loff_t *pos);
-extern void *cache_seq_next(struct seq_file *file, void *p, loff_t *pos);
-extern void cache_seq_stop(struct seq_file *file, void *p);
+extern void *cache_seq_start_rcu(struct seq_file *file, loff_t *pos);
+extern void *cache_seq_next_rcu(struct seq_file *file, void *p, loff_t *pos);
+extern void cache_seq_stop_rcu(struct seq_file *file, void *p);
 
 extern void qword_add(char **bpp, int *lp, char *str);
 extern void qword_addhex(char **bpp, int *lp, char *buf, int blen);

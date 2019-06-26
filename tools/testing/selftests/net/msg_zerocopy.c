@@ -651,12 +651,13 @@ static void do_flush_datagram(int fd, int type)
 
 static void do_rx(int domain, int type, int protocol)
 {
+	const int cfg_receiver_wait_ms = 400;
 	uint64_t tstop;
 	int fd;
 
 	fd = do_setup_rx(domain, type, protocol);
 
-	tstop = gettimeofday_ms() + cfg_runtime_ms;
+	tstop = gettimeofday_ms() + cfg_runtime_ms + cfg_receiver_wait_ms;
 	do {
 		if (type == SOCK_STREAM)
 			do_flush_tcp(fd);

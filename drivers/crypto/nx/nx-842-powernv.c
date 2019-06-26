@@ -24,6 +24,8 @@
 #include <asm/icswx.h>
 #include <asm/vas.h>
 #include <asm/reg.h>
+#include <asm/opal-api.h>
+#include <asm/opal.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
@@ -753,7 +755,7 @@ static int nx842_open_percpu_txwins(void)
 }
 
 static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
-					int vasid)
+					int vasid, int *ct)
 {
 	struct vas_window *rxwin = NULL;
 	struct vas_rx_win_attr rxattr;
@@ -837,6 +839,15 @@ static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
 	coproc->vas.id = vasid;
 	nx842_add_coprocs_list(coproc, chip_id);
 
+	/*
+	 * (lpid, pid, tid) combination has to be unique for each
+	 * coprocessor instance in the system. So to make it
+	 * unique, skiboot uses coprocessor type such as 842 or
+	 * GZIP for pid and provides this value to kernel in pid
+	 * device-tree property.
+	 */
+	*ct = pid;
+
 	return 0;
 
 err_out:
@@ -850,6 +861,7 @@ static int __init nx842_powernv_probe_vas(struct device_node *pn)
 	struct device_node *dn;
 	int chip_id, vasid, ret = 0;
 	int nx_fifo_found = 0;
+	int uninitialized_var(ct);
 
 	chip_id = of_get_ibm_chip_id(pn);
 	if (chip_id < 0) {
@@ -865,7 +877,7 @@ static int __init nx842_powernv_probe_vas(struct device_node *pn)
 
 	for_each_child_of_node(pn, dn) {
 		if (of_device_is_compatible(dn, "ibm,p9-nx-842")) {
-			ret = vas_cfg_coproc_info(dn, chip_id, vasid);
+			ret = vas_cfg_coproc_info(dn, chip_id, vasid, &ct);
 			if (ret) {
 				of_node_put(dn);
 				return ret;
@@ -876,8 +888,21 @@ static int __init nx842_powernv_probe_vas(struct device_node *pn)
 
 	if (!nx_fifo_found) {
 		pr_err("NX842 FIFO nodes are missing\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
+
+	/*
+	 * Initialize NX instance for both high and normal priority FIFOs.
+	 */
+	if (opal_check_token(OPAL_NX_COPROC_INIT)) {
+		ret = opal_nx_coproc_init(chip_id, ct);
+		if (ret) {
+			pr_err("Failed to initialize NX for chip(%d): %d\n",
+				chip_id, ret);
+			ret = opal_error_code(ret);
+		}
+	} else
+		pr_warn("Firmware doesn't support NX initialization\n");
 
 	return ret;
 }

@@ -18,6 +18,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -79,14 +80,138 @@ static const u32 reg[][4] = {
 			DMM_PAT_DESCR__2, DMM_PAT_DESCR__3},
 };
 
+static int dmm_dma_copy(struct dmm *dmm, dma_addr_t src, dma_addr_t dst)
+{
+	struct dma_device *dma_dev = dmm->wa_dma_chan->device;
+	struct dma_async_tx_descriptor *tx;
+	enum dma_status status;
+	dma_cookie_t cookie;
+
+	tx = dma_dev->device_prep_dma_memcpy(dmm->wa_dma_chan, dst, src, 4, 0);
+	if (!tx) {
+		dev_err(dmm->dev, "Failed to prepare DMA memcpy\n");
+		return -EIO;
+	}
+
+	cookie = tx->tx_submit(tx);
+	if (dma_submit_error(cookie)) {
+		dev_err(dmm->dev, "Failed to do DMA tx_submit\n");
+		return -EIO;
+	}
+
+	dma_async_issue_pending(dmm->wa_dma_chan);
+	status = dma_sync_wait(dmm->wa_dma_chan, cookie);
+	if (status != DMA_COMPLETE)
+		dev_err(dmm->dev, "i878 wa DMA copy failure\n");
+
+	dmaengine_terminate_all(dmm->wa_dma_chan);
+	return 0;
+}
+
+static u32 dmm_read_wa(struct dmm *dmm, u32 reg)
+{
+	dma_addr_t src, dst;
+	int r;
+
+	src = dmm->phys_base + reg;
+	dst = dmm->wa_dma_handle;
+
+	r = dmm_dma_copy(dmm, src, dst);
+	if (r) {
+		dev_err(dmm->dev, "sDMA read transfer timeout\n");
+		return readl(dmm->base + reg);
+	}
+
+	/*
+	 * As per i878 workaround, the DMA is used to access the DMM registers.
+	 * Make sure that the readl is not moved by the compiler or the CPU
+	 * earlier than the DMA finished writing the value to memory.
+	 */
+	rmb();
+	return readl(dmm->wa_dma_data);
+}
+
+static void dmm_write_wa(struct dmm *dmm, u32 val, u32 reg)
+{
+	dma_addr_t src, dst;
+	int r;
+
+	writel(val, dmm->wa_dma_data);
+	/*
+	 * As per i878 workaround, the DMA is used to access the DMM registers.
+	 * Make sure that the writel is not moved by the compiler or the CPU, so
+	 * the data will be in place before we start the DMA to do the actual
+	 * register write.
+	 */
+	wmb();
+
+	src = dmm->wa_dma_handle;
+	dst = dmm->phys_base + reg;
+
+	r = dmm_dma_copy(dmm, src, dst);
+	if (r) {
+		dev_err(dmm->dev, "sDMA write transfer timeout\n");
+		writel(val, dmm->base + reg);
+	}
+}
+
 static u32 dmm_read(struct dmm *dmm, u32 reg)
 {
-	return readl(dmm->base + reg);
+	if (dmm->dmm_workaround) {
+		u32 v;
+		unsigned long flags;
+
+		spin_lock_irqsave(&dmm->wa_lock, flags);
+		v = dmm_read_wa(dmm, reg);
+		spin_unlock_irqrestore(&dmm->wa_lock, flags);
+
+		return v;
+	} else {
+		return readl(dmm->base + reg);
+	}
 }
 
 static void dmm_write(struct dmm *dmm, u32 val, u32 reg)
 {
-	writel(val, dmm->base + reg);
+	if (dmm->dmm_workaround) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&dmm->wa_lock, flags);
+		dmm_write_wa(dmm, val, reg);
+		spin_unlock_irqrestore(&dmm->wa_lock, flags);
+	} else {
+		writel(val, dmm->base + reg);
+	}
+}
+
+static int dmm_workaround_init(struct dmm *dmm)
+{
+	dma_cap_mask_t mask;
+
+	spin_lock_init(&dmm->wa_lock);
+
+	dmm->wa_dma_data = dma_alloc_coherent(dmm->dev,  sizeof(u32),
+					      &dmm->wa_dma_handle, GFP_KERNEL);
+	if (!dmm->wa_dma_data)
+		return -ENOMEM;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY, mask);
+
+	dmm->wa_dma_chan = dma_request_channel(mask, NULL, NULL);
+	if (!dmm->wa_dma_chan) {
+		dma_free_coherent(dmm->dev, 4, dmm->wa_dma_data, dmm->wa_dma_handle);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static void dmm_workaround_uninit(struct dmm *dmm)
+{
+	dma_release_channel(dmm->wa_dma_chan);
+
+	dma_free_coherent(dmm->dev, 4, dmm->wa_dma_data, dmm->wa_dma_handle);
 }
 
 /* simple allocator to grab next 16 byte aligned memory from txn */
@@ -285,6 +410,17 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 	}
 
 	txn->last_pat->next_pa = 0;
+	/* ensure that the written descriptors are visible to DMM */
+	wmb();
+
+	/*
+	 * NOTE: the wmb() above should be enough, but there seems to be a bug
+	 * in OMAP's memory barrier implementation, which in some rare cases may
+	 * cause the writes not to be observable after wmb().
+	 */
+
+	/* read back to ensure the data is in RAM */
+	readl(&txn->last_pat->next_pa);
 
 	/* write to PAT_DESCR to clear out any pending transaction */
 	dmm_write(dmm, 0x0, reg[PAT_DESCR][engine->id]);
@@ -603,6 +739,10 @@ static int omap_dmm_remove(struct platform_device *dev)
 	unsigned long flags;
 
 	if (omap_dmm) {
+		/* Disable all enabled interrupts */
+		dmm_write(omap_dmm, 0x7e7e7e7e, DMM_PAT_IRQENABLE_CLR);
+		free_irq(omap_dmm->irq, omap_dmm);
+
 		/* free all area regions */
 		spin_lock_irqsave(&list_lock, flags);
 		list_for_each_entry_safe(block, _block, &omap_dmm->alloc_head,
@@ -625,8 +765,8 @@ static int omap_dmm_remove(struct platform_device *dev)
 		if (omap_dmm->dummy_page)
 			__free_page(omap_dmm->dummy_page);
 
-		if (omap_dmm->irq > 0)
-			free_irq(omap_dmm->irq, omap_dmm);
+		if (omap_dmm->dmm_workaround)
+			dmm_workaround_uninit(omap_dmm);
 
 		iounmap(omap_dmm->base);
 		kfree(omap_dmm);
@@ -673,6 +813,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 		goto fail;
 	}
 
+	omap_dmm->phys_base = mem->start;
 	omap_dmm->base = ioremap(mem->start, SZ_2K);
 
 	if (!omap_dmm->base) {
@@ -687,6 +828,22 @@ static int omap_dmm_probe(struct platform_device *dev)
 	}
 
 	omap_dmm->dev = &dev->dev;
+
+	if (of_machine_is_compatible("ti,dra7")) {
+		/*
+		 * DRA7 Errata i878 says that MPU should not be used to access
+		 * RAM and DMM at the same time. As it's not possible to prevent
+		 * MPU accessing RAM, we need to access DMM via a proxy.
+		 */
+		if (!dmm_workaround_init(omap_dmm)) {
+			omap_dmm->dmm_workaround = true;
+			dev_info(&dev->dev,
+				"workaround for errata i878 in use\n");
+		} else {
+			dev_warn(&dev->dev,
+				 "failed to initialize work-around for i878\n");
+		}
+	}
 
 	hwinfo = dmm_read(omap_dmm, DMM_PAT_HWINFO);
 	omap_dmm->num_engines = (hwinfo >> 24) & 0x1F;
@@ -713,24 +870,6 @@ static int omap_dmm_probe(struct platform_device *dev)
 	dmm_write(omap_dmm, 0x80000000, DMM_PAT_VIEW_MAP_BASE);
 	dmm_write(omap_dmm, 0x88888888, DMM_TILER_OR__0);
 	dmm_write(omap_dmm, 0x88888888, DMM_TILER_OR__1);
-
-	ret = request_irq(omap_dmm->irq, omap_dmm_irq_handler, IRQF_SHARED,
-				"omap_dmm_irq_handler", omap_dmm);
-
-	if (ret) {
-		dev_err(&dev->dev, "couldn't register IRQ %d, error %d\n",
-			omap_dmm->irq, ret);
-		omap_dmm->irq = -1;
-		goto fail;
-	}
-
-	/* Enable all interrupts for each refill engine except
-	 * ERR_LUT_MISS<n> (which is just advisory, and we don't care
-	 * about because we want to be able to refill live scanout
-	 * buffers for accelerated pan/scroll) and FILL_DSC<n> which
-	 * we just generally don't care about.
-	 */
-	dmm_write(omap_dmm, 0x7e7e7e7e, DMM_PAT_IRQENABLE_SET);
 
 	omap_dmm->dummy_page = alloc_page(GFP_KERNEL | __GFP_DMA32);
 	if (!omap_dmm->dummy_page) {
@@ -822,6 +961,24 @@ static int omap_dmm_probe(struct platform_device *dev)
 		.p1.x = omap_dmm->container_width - 1,
 		.p1.y = omap_dmm->container_height - 1,
 	};
+
+	ret = request_irq(omap_dmm->irq, omap_dmm_irq_handler, IRQF_SHARED,
+				"omap_dmm_irq_handler", omap_dmm);
+
+	if (ret) {
+		dev_err(&dev->dev, "couldn't register IRQ %d, error %d\n",
+			omap_dmm->irq, ret);
+		omap_dmm->irq = -1;
+		goto fail;
+	}
+
+	/* Enable all interrupts for each refill engine except
+	 * ERR_LUT_MISS<n> (which is just advisory, and we don't care
+	 * about because we want to be able to refill live scanout
+	 * buffers for accelerated pan/scroll) and FILL_DSC<n> which
+	 * we just generally don't care about.
+	 */
+	dmm_write(omap_dmm, 0x7e7e7e7e, DMM_PAT_IRQENABLE_SET);
 
 	/* initialize all LUTs to dummy page entries */
 	for (i = 0; i < omap_dmm->num_lut; i++) {

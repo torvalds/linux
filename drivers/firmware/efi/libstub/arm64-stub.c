@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013, 2014 Linaro Ltd;  <roy.franz@linaro.org>
  *
  * This file implements the EFI boot stub for the arm64 kernel.
  * Adapted from ARM version by Mark Salter <msalter@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 /*

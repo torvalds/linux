@@ -107,7 +107,7 @@ struct RECEPTION_STATISTICS_PER_SLICES_S {
 
 int smsdvb_debugfs_create(struct smsdvb_client_t *client);
 void smsdvb_debugfs_release(struct smsdvb_client_t *client);
-int smsdvb_debugfs_register(void);
+void smsdvb_debugfs_register(void);
 void smsdvb_debugfs_unregister(void);
 
 #else
@@ -119,10 +119,7 @@ static inline int smsdvb_debugfs_create(struct smsdvb_client_t *client)
 
 static inline void smsdvb_debugfs_release(struct smsdvb_client_t *client) {}
 
-static inline int smsdvb_debugfs_register(void)
-{
-	return 0;
-};
+static inline void smsdvb_debugfs_register(void) {}
 
 static inline void smsdvb_debugfs_unregister(void) {};
 

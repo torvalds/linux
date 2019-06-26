@@ -96,6 +96,13 @@ extern "C" {
 #define DRM_MODE_PICTURE_ASPECT_64_27		3
 #define DRM_MODE_PICTURE_ASPECT_256_135		4
 
+/* Content type options */
+#define DRM_MODE_CONTENT_TYPE_NO_DATA		0
+#define DRM_MODE_CONTENT_TYPE_GRAPHICS		1
+#define DRM_MODE_CONTENT_TYPE_PHOTO		2
+#define DRM_MODE_CONTENT_TYPE_CINEMA		3
+#define DRM_MODE_CONTENT_TYPE_GAME		4
+
 /* Aspect ratio flag bitmask (4 bits 22:19) */
 #define DRM_MODE_FLAG_PIC_AR_MASK		(0x0F<<19)
 #define  DRM_MODE_FLAG_PIC_AR_NONE \
@@ -179,8 +186,9 @@ extern "C" {
 /*
  * DRM_MODE_REFLECT_<axis>
  *
- * Signals that the contents of a drm plane is reflected in the <axis> axis,
+ * Signals that the contents of a drm plane is reflected along the <axis> axis,
  * in the same way as mirroring.
+ * See kerneldoc chapter "Plane Composition Properties" for more details.
  *
  * This define is provided as a convenience, looking up the property id
  * using the name->prop id lookup is the preferred method.
@@ -344,6 +352,7 @@ enum drm_mode_subconnector {
 #define DRM_MODE_CONNECTOR_VIRTUAL      15
 #define DRM_MODE_CONNECTOR_DSI		16
 #define DRM_MODE_CONNECTOR_DPI		17
+#define DRM_MODE_CONNECTOR_WRITEBACK	18
 
 struct drm_mode_get_connector {
 
@@ -877,6 +886,25 @@ struct drm_mode_revoke_lease {
 	/** Unique ID of lessee
 	 */
 	__u32 lessee_id;
+};
+
+/**
+ * struct drm_mode_rect - Two dimensional rectangle.
+ * @x1: Horizontal starting coordinate (inclusive).
+ * @y1: Vertical starting coordinate (inclusive).
+ * @x2: Horizontal ending coordinate (exclusive).
+ * @y2: Vertical ending coordinate (exclusive).
+ *
+ * With drm subsystem using struct drm_rect to manage rectangular area this
+ * export it to user-space.
+ *
+ * Currently used by drm_mode_atomic blob property FB_DAMAGE_CLIPS.
+ */
+struct drm_mode_rect {
+	__s32 x1;
+	__s32 y1;
+	__s32 x2;
+	__s32 y2;
 };
 
 #if defined(__cplusplus)

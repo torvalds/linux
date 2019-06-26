@@ -35,26 +35,25 @@ u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev)
 	return (u64)RREG32_SOC15(GC, 0, mmMC_VM_FB_OFFSET) << 24;
 }
 
-static void gfxhub_v1_0_init_gart_pt_regs(struct amdgpu_device *adev)
+void gfxhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+				uint64_t page_table_base)
 {
-	uint64_t value;
+	/* two registers distance between mmVM_CONTEXT0_* to mmVM_CONTEXT1_* */
+	int offset = mmVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_LO32
+			- mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32;
 
-	BUG_ON(adev->gart.table_addr & (~0x0000FFFFFFFFF000ULL));
-	value = adev->gart.table_addr - adev->gmc.vram_start
-		+ adev->vm_manager.vram_base_offset;
-	value &= 0x0000FFFFFFFFF000ULL;
-	value |= 0x1; /*valid bit*/
+	WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+				offset * vmid, lower_32_bits(page_table_base));
 
-	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
-		     lower_32_bits(value));
-
-	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
-		     upper_32_bits(value));
+	WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+				offset * vmid, upper_32_bits(page_table_base));
 }
 
 static void gfxhub_v1_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 {
-	gfxhub_v1_0_init_gart_pt_regs(adev);
+	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+
+	gfxhub_v1_0_setup_vm_pt_regs(adev, 0, pt_base);
 
 	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
 		     (u32)(adev->gmc.gart_start >> 12));
@@ -71,16 +70,28 @@ static void gfxhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 {
 	uint64_t value;
 
-	/* Disable AGP. */
+	/* Program the AGP BAR */
 	WREG32_SOC15(GC, 0, mmMC_VM_AGP_BASE, 0);
-	WREG32_SOC15(GC, 0, mmMC_VM_AGP_TOP, 0);
-	WREG32_SOC15(GC, 0, mmMC_VM_AGP_BOT, 0xFFFFFFFF);
+	WREG32_SOC15(GC, 0, mmMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
+	WREG32_SOC15(GC, 0, mmMC_VM_AGP_TOP, adev->gmc.agp_end >> 24);
 
 	/* Program the system aperture low logical page number. */
 	WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-		     adev->gmc.vram_start >> 18);
-	WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-		     adev->gmc.vram_end >> 18);
+		     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
+
+	if (adev->asic_type == CHIP_RAVEN && adev->rev_id >= 0x8)
+		/*
+		 * Raven2 has a HW issue that it is unable to use the vram which
+		 * is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR. So here is the
+		 * workaround that increase system aperture high address (add 1)
+		 * to get rid of the VM fault and hardware hang.
+		 */
+		WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			     max((adev->gmc.fb_end >> 18) + 0x1,
+				 adev->gmc.agp_end >> 18));
+	else
+		WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 	/* Set default page address. */
 	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start

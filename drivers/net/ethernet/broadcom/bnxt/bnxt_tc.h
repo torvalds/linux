@@ -98,6 +98,9 @@ struct bnxt_tc_flow {
 
 	/* flow applicable to pkts ingressing on this fid */
 	u16				src_fid;
+	u8				dir;
+#define BNXT_DIR_RX	1
+#define BNXT_DIR_TX	0
 	struct bnxt_tc_l2_key		l2_key;
 	struct bnxt_tc_l2_key		l2_mask;
 	struct bnxt_tc_l3_key		l3_key;
@@ -170,7 +173,9 @@ struct bnxt_tc_flow_node {
 
 	struct bnxt_tc_flow		flow;
 
+	__le64				ext_flow_handle;
 	__le16				flow_handle;
+	__le32				flow_id;
 
 	/* L2 node in l2 hashtable that shares flow's l2 key */
 	struct bnxt_tc_l2_node		*l2_node;

@@ -255,7 +255,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 
 	ns = alloc_ns(parent->base.hname, name);
 	if (!ns)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	ns->level = parent->level + 1;
 	mutex_lock_nested(&ns->lock, ns->level);
 	error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name, dir);

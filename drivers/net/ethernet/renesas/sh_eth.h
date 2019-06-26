@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*  SuperH Ethernet device driver
  *
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2012 Renesas Solutions Corp.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
  */
 
 #ifndef __SH_ETH_H__
@@ -383,12 +372,12 @@ enum ECSIPR_STATUS_MASK_BIT {
 
 /* APR */
 enum APR_BIT {
-	APR_AP = 0x00000001,
+	APR_AP = 0x0000ffff,
 };
 
 /* MPR */
 enum MPR_BIT {
-	MPR_MP = 0x00000001,
+	MPR_MP = 0x0000ffff,
 };
 
 /* TRSCER */
@@ -403,8 +392,7 @@ enum DESC_I_BIT {
 
 /* RPADIR */
 enum RPADIR_BIT {
-	RPADIR_PADS1 = 0x20000, RPADIR_PADS0 = 0x10000,
-	RPADIR_PADR = 0x0003f,
+	RPADIR_PADS = 0x1f0000, RPADIR_PADR = 0xffff,
 };
 
 /* FDR */
@@ -488,7 +476,6 @@ struct sh_eth_cpu_data {
 	u32 ecsipr_value;
 	u32 fdr_value;
 	u32 fcftr_value;
-	u32 rpadir_value;
 
 	/* interrupt checking mask */
 	u32 tx_check;
@@ -512,7 +499,8 @@ struct sh_eth_cpu_data {
 	unsigned no_ade:1;	/* E-DMAC DOES NOT have ADE bit in EESR */
 	unsigned no_xdfar:1;	/* E-DMAC DOES NOT have RDFAR/TDFAR */
 	unsigned xdfar_rw:1;	/* E-DMAC has writeable RDFAR/TDFAR */
-	unsigned hw_checksum:1;	/* E-DMAC has CSMR */
+	unsigned csmr:1;	/* E-DMAC has CSMR */
+	unsigned rx_csum:1;	/* EtherC has ECMR.RCSC */
 	unsigned select_mii:1;	/* EtherC has RMII_MII (MII select register) */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 	unsigned rtrate:1;	/* EtherC has RTRATE register */
@@ -559,11 +547,5 @@ struct sh_eth_private {
 	unsigned is_opened:1;
 	unsigned wol_enabled:1;
 };
-
-static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
-					  int enum_index)
-{
-	return mdp->tsu_addr + mdp->reg_offset[enum_index];
-}
 
 #endif	/* #ifndef __SH_ETH_H__ */

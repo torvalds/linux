@@ -7,6 +7,7 @@
  */
 
 #include <asm/page.h>
+#include <asm/setup.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/sn0/hub.h>
 #include <asm/sn/klconfig.h>

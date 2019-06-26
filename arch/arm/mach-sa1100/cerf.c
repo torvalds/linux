@@ -89,18 +89,8 @@ static struct gpio_led_platform_data cerf_gpio_led_info = {
 	.num_leds	= ARRAY_SIZE(cerf_gpio_leds),
 };
 
-static struct platform_device cerf_leds = {
-	.name	= "leds-gpio",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &cerf_gpio_led_info,
-	}
-};
-
-
 static struct platform_device *cerf_devices[] __initdata = {
 	&cerfuart2_device,
-	&cerf_leds,
 };
 
 #ifdef CONFIG_SA1100_CERF_FLASH_32MB
@@ -176,6 +166,7 @@ static void __init cerf_init(void)
 {
 	sa11x0_ppc_configure_mcp();
 	platform_add_devices(cerf_devices, ARRAY_SIZE(cerf_devices));
+	gpio_led_register_device(-1, &cerf_gpio_led_info);
 	sa11x0_register_mtd(&cerf_flash_data, &cerf_flash_resource, 1);
 	sa11x0_register_mcp(&cerf_mcp_data);
 	sa11x0_register_pcmcia(1, &cerf_cf_gpio_table);

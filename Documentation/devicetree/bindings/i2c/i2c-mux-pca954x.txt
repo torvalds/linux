@@ -28,8 +28,6 @@ Optional Properties:
   - i2c-mux-idle-disconnect: Boolean; if defined, forces mux to disconnect all
     children in idle state. This is necessary for example, if there are several
     multiplexers on the bus and the devices behind them use same I2C addresses.
-  - interrupt-parent: Phandle for the interrupt controller that services
-    interrupts for this device.
   - interrupts: Interrupt mapping for IRQ.
   - interrupt-controller: Marks the device node as an interrupt controller.
   - #interrupt-cells : Should be two.
@@ -56,7 +54,7 @@ Example:
 			reg = <2>;
 
 			eeprom@54 {
-				compatible = "at,24c08";
+				compatible = "atmel,24c08";
 				reg = <0x54>;
 			};
 		};

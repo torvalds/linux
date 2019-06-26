@@ -84,7 +84,7 @@ struct ibmpex_bmc_data {
 
 	struct ipmi_addr	address;
 	struct completion	read_complete;
-	ipmi_user_t		user;
+	struct ipmi_user	*user;
 	int			interface;
 
 	struct kernel_ipmi_msg	tx_message;
@@ -269,12 +269,12 @@ static struct ibmpex_bmc_data *get_bmc_data(int iface)
 	return NULL;
 }
 
-static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	return sprintf(buf, "%s\n", DRVNAME);
 }
-static SENSOR_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(name, name, 0);
 
 static ssize_t ibmpex_show_sensor(struct device *dev,
 				  struct device_attribute *devattr,
@@ -289,10 +289,9 @@ static ssize_t ibmpex_show_sensor(struct device *dev,
 		       data->sensors[attr->index].values[attr->nr] * mult);
 }
 
-static ssize_t ibmpex_reset_high_low(struct device *dev,
+static ssize_t ibmpex_high_low_store(struct device *dev,
 				     struct device_attribute *devattr,
-				     const char *buf,
-				     size_t count)
+				     const char *buf, size_t count)
 {
 	struct ibmpex_bmc_data *data = dev_get_drvdata(dev);
 
@@ -301,8 +300,7 @@ static ssize_t ibmpex_reset_high_low(struct device *dev,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(reset_high_low, S_IWUSR, NULL,
-			  ibmpex_reset_high_low, 0);
+static SENSOR_DEVICE_ATTR_WO(reset_high_low, ibmpex_high_low, 0);
 
 static int is_power_sensor(const char *sensor_id, int len)
 {
@@ -358,7 +356,7 @@ static int create_sensor(struct ibmpex_bmc_data *data, int type,
 
 	sysfs_attr_init(&data->sensors[sensor].attr[func].dev_attr.attr);
 	data->sensors[sensor].attr[func].dev_attr.attr.name = n;
-	data->sensors[sensor].attr[func].dev_attr.attr.mode = S_IRUGO;
+	data->sensors[sensor].attr[func].dev_attr.attr.mode = 0444;
 	data->sensors[sensor].attr[func].dev_attr.show = ibmpex_show_sensor;
 	data->sensors[sensor].attr[func].index = sensor;
 	data->sensors[sensor].attr[func].nr = func;

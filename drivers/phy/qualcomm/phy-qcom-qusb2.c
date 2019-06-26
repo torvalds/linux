@@ -152,6 +152,31 @@ static const struct qusb2_phy_init_tbl msm8996_init_tbl[] = {
 	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_PWR_CTRL, 0x00),
 };
 
+static const unsigned int msm8998_regs_layout[] = {
+	[QUSB2PHY_PLL_CORE_INPUT_OVERRIDE] = 0xa8,
+	[QUSB2PHY_PLL_STATUS]              = 0x1a0,
+	[QUSB2PHY_PORT_TUNE1]              = 0x23c,
+	[QUSB2PHY_PORT_TUNE2]              = 0x240,
+	[QUSB2PHY_PORT_TUNE3]              = 0x244,
+	[QUSB2PHY_PORT_TUNE4]              = 0x248,
+	[QUSB2PHY_PORT_TEST1]              = 0x24c,
+	[QUSB2PHY_PORT_TEST2]              = 0x250,
+	[QUSB2PHY_PORT_POWERDOWN]          = 0x210,
+	[QUSB2PHY_INTR_CTRL]               = 0x22c,
+};
+
+static const struct qusb2_phy_init_tbl msm8998_init_tbl[] = {
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_ANALOG_CONTROLS_TWO, 0x13),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_CLOCK_INVERTERS, 0x7c),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_CMODE, 0x80),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_LOCK_DELAY, 0x0a),
+
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE1, 0xa5),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE2, 0x09),
+
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_DIGITAL_TIMERS_TWO, 0x19),
+};
+
 static const unsigned int sdm845_regs_layout[] = {
 	[QUSB2PHY_PLL_CORE_INPUT_OVERRIDE] = 0xa8,
 	[QUSB2PHY_PLL_STATUS]		= 0x1a0,
@@ -221,6 +246,18 @@ static const struct qusb2_phy_cfg msm8996_phy_cfg = {
 	.autoresume_en	 = BIT(3),
 };
 
+static const struct qusb2_phy_cfg msm8998_phy_cfg = {
+	.tbl            = msm8998_init_tbl,
+	.tbl_num        = ARRAY_SIZE(msm8998_init_tbl),
+	.regs           = msm8998_regs_layout,
+
+	.disable_ctrl   = POWER_DOWN,
+	.mask_core_ready = CORE_READY_STATUS,
+	.has_pll_override = true,
+	.autoresume_en   = BIT(0),
+	.update_tune1_with_efuse = true,
+};
+
 static const struct qusb2_phy_cfg sdm845_phy_cfg = {
 	.tbl		= sdm845_init_tbl,
 	.tbl_num	= ARRAY_SIZE(sdm845_init_tbl),
@@ -231,6 +268,7 @@ static const struct qusb2_phy_cfg sdm845_phy_cfg = {
 	.mask_core_ready = CORE_READY_STATUS,
 	.has_pll_override = true,
 	.autoresume_en	  = BIT(0),
+	.update_tune1_with_efuse = true,
 };
 
 static const char * const qusb2_phy_vreg_names[] = {
@@ -402,10 +440,10 @@ static void qusb2_phy_set_tune2_param(struct qusb2_phy *qphy)
 
 	/*
 	 * Read efuse register having TUNE2/1 parameter's high nibble.
-	 * If efuse register shows value as 0x0, or if we fail to find
-	 * a valid efuse register settings, then use default value
-	 * as 0xB for high nibble that we have already set while
-	 * configuring phy.
+	 * If efuse register shows value as 0x0 (indicating value is not
+	 * fused), or if we fail to find a valid efuse register setting,
+	 * then use default value for high nibble that we have already
+	 * set while configuring the phy.
 	 */
 	val = nvmem_cell_read(qphy->cell, NULL);
 	if (IS_ERR(val) || !val[0]) {
@@ -415,15 +453,17 @@ static void qusb2_phy_set_tune2_param(struct qusb2_phy *qphy)
 
 	/* Fused TUNE1/2 value is the higher nibble only */
 	if (cfg->update_tune1_with_efuse)
-		qusb2_setbits(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE1],
-			      val[0] << 0x4);
+		qusb2_write_mask(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE1],
+				 val[0] << HSTX_TRIM_SHIFT,
+				 HSTX_TRIM_MASK);
 	else
-		qusb2_setbits(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE2],
-			      val[0] << 0x4);
-
+		qusb2_write_mask(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE2],
+				 val[0] << HSTX_TRIM_SHIFT,
+				 HSTX_TRIM_MASK);
 }
 
-static int qusb2_phy_set_mode(struct phy *phy, enum phy_mode mode)
+static int qusb2_phy_set_mode(struct phy *phy,
+			      enum phy_mode mode, int submode)
 {
 	struct qusb2_phy *qphy = phy_get_drvdata(phy);
 
@@ -731,6 +771,9 @@ static const struct of_device_id qusb2_phy_of_match_table[] = {
 		.compatible	= "qcom,msm8996-qusb2-phy",
 		.data		= &msm8996_phy_cfg,
 	}, {
+		.compatible	= "qcom,msm8998-qusb2-phy",
+		.data		= &msm8998_phy_cfg,
+	}, {
 		.compatible	= "qcom,sdm845-qusb2-phy",
 		.data		= &sdm845_phy_cfg,
 	},
@@ -800,7 +843,9 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 
 	ret = devm_regulator_bulk_get(dev, num, qphy->vregs);
 	if (ret) {
-		dev_err(dev, "failed to get regulator supplies\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "failed to get regulator supplies: %d\n",
+				ret);
 		return ret;
 	}
 

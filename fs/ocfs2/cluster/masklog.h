@@ -178,6 +178,15 @@ do {									\
 			      ##__VA_ARGS__);				\
 } while (0)
 
+#define mlog_ratelimited(mask, fmt, ...)				\
+do {									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+	if (__ratelimit(&_rs))						\
+		mlog(mask, fmt, ##__VA_ARGS__);				\
+} while (0)
+
 #define mlog_errno(st) ({						\
 	int _st = (st);							\
 	if (_st != -ERESTARTSYS && _st != -EINTR &&			\

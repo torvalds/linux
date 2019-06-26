@@ -163,7 +163,7 @@ struct zynqmp_dma_desc_ll {
 	u32 ctrl;
 	u64 nxtdscraddr;
 	u64 rsvd;
-}; __aligned(64)
+};
 
 /**
  * struct zynqmp_dma_desc_sw - Per Transaction structure
@@ -375,9 +375,10 @@ static dma_cookie_t zynqmp_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct zynqmp_dma_chan *chan = to_chan(tx->chan);
 	struct zynqmp_dma_desc_sw *desc, *new;
 	dma_cookie_t cookie;
+	unsigned long irqflags;
 
 	new = tx_to_desc(tx);
-	spin_lock_bh(&chan->lock);
+	spin_lock_irqsave(&chan->lock, irqflags);
 	cookie = dma_cookie_assign(tx);
 
 	if (!list_empty(&chan->pending_list)) {
@@ -393,7 +394,7 @@ static dma_cookie_t zynqmp_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	}
 
 	list_add_tail(&new->node, &chan->pending_list);
-	spin_unlock_bh(&chan->lock);
+	spin_unlock_irqrestore(&chan->lock, irqflags);
 
 	return cookie;
 }
@@ -408,12 +409,13 @@ static struct zynqmp_dma_desc_sw *
 zynqmp_dma_get_descriptor(struct zynqmp_dma_chan *chan)
 {
 	struct zynqmp_dma_desc_sw *desc;
+	unsigned long irqflags;
 
-	spin_lock_bh(&chan->lock);
+	spin_lock_irqsave(&chan->lock, irqflags);
 	desc = list_first_entry(&chan->free_list,
 				struct zynqmp_dma_desc_sw, node);
 	list_del(&desc->node);
-	spin_unlock_bh(&chan->lock);
+	spin_unlock_irqrestore(&chan->lock, irqflags);
 
 	INIT_LIST_HEAD(&desc->tx_list);
 	/* Clear the src and dst descriptor memory */
@@ -488,9 +490,9 @@ static int zynqmp_dma_alloc_chan_resources(struct dma_chan *dchan)
 		list_add_tail(&desc->node, &chan->free_list);
 	}
 
-	chan->desc_pool_v = dma_zalloc_coherent(chan->dev,
-				(2 * chan->desc_size * ZYNQMP_DMA_NUM_DESCS),
-				&chan->desc_pool_p, GFP_KERNEL);
+	chan->desc_pool_v = dma_alloc_coherent(chan->dev,
+					       (2 * chan->desc_size * ZYNQMP_DMA_NUM_DESCS),
+					       &chan->desc_pool_p, GFP_KERNEL);
 	if (!chan->desc_pool_v)
 		return -ENOMEM;
 
@@ -643,10 +645,11 @@ static void zynqmp_dma_complete_descriptor(struct zynqmp_dma_chan *chan)
 static void zynqmp_dma_issue_pending(struct dma_chan *dchan)
 {
 	struct zynqmp_dma_chan *chan = to_chan(dchan);
+	unsigned long irqflags;
 
-	spin_lock_bh(&chan->lock);
+	spin_lock_irqsave(&chan->lock, irqflags);
 	zynqmp_dma_start_transfer(chan);
-	spin_unlock_bh(&chan->lock);
+	spin_unlock_irqrestore(&chan->lock, irqflags);
 }
 
 /**
@@ -667,10 +670,11 @@ static void zynqmp_dma_free_descriptors(struct zynqmp_dma_chan *chan)
 static void zynqmp_dma_free_chan_resources(struct dma_chan *dchan)
 {
 	struct zynqmp_dma_chan *chan = to_chan(dchan);
+	unsigned long irqflags;
 
-	spin_lock_bh(&chan->lock);
+	spin_lock_irqsave(&chan->lock, irqflags);
 	zynqmp_dma_free_descriptors(chan);
-	spin_unlock_bh(&chan->lock);
+	spin_unlock_irqrestore(&chan->lock, irqflags);
 	dma_free_coherent(chan->dev,
 		(2 * ZYNQMP_DMA_DESC_SIZE(chan) * ZYNQMP_DMA_NUM_DESCS),
 		chan->desc_pool_v, chan->desc_pool_p);
@@ -743,8 +747,9 @@ static void zynqmp_dma_do_tasklet(unsigned long data)
 {
 	struct zynqmp_dma_chan *chan = (struct zynqmp_dma_chan *)data;
 	u32 count;
+	unsigned long irqflags;
 
-	spin_lock(&chan->lock);
+	spin_lock_irqsave(&chan->lock, irqflags);
 
 	if (chan->err) {
 		zynqmp_dma_reset(chan);
@@ -764,7 +769,7 @@ static void zynqmp_dma_do_tasklet(unsigned long data)
 		zynqmp_dma_start_transfer(chan);
 
 unlock:
-	spin_unlock(&chan->lock);
+	spin_unlock_irqrestore(&chan->lock, irqflags);
 }
 
 /**
@@ -776,11 +781,12 @@ unlock:
 static int zynqmp_dma_device_terminate_all(struct dma_chan *dchan)
 {
 	struct zynqmp_dma_chan *chan = to_chan(dchan);
+	unsigned long irqflags;
 
-	spin_lock_bh(&chan->lock);
+	spin_lock_irqsave(&chan->lock, irqflags);
 	writel(ZYNQMP_DMA_IDS_DEFAULT_MASK, chan->regs + ZYNQMP_DMA_IDS);
 	zynqmp_dma_free_descriptors(chan);
-	spin_unlock_bh(&chan->lock);
+	spin_unlock_irqrestore(&chan->lock, irqflags);
 
 	return 0;
 }
@@ -804,19 +810,20 @@ static struct dma_async_tx_descriptor *zynqmp_dma_prep_memcpy(
 	void *desc = NULL, *prev = NULL;
 	size_t copy;
 	u32 desc_cnt;
+	unsigned long irqflags;
 
 	chan = to_chan(dchan);
 
 	desc_cnt = DIV_ROUND_UP(len, ZYNQMP_DMA_MAX_TRANS_LEN);
 
-	spin_lock_bh(&chan->lock);
+	spin_lock_irqsave(&chan->lock, irqflags);
 	if (desc_cnt > chan->desc_free_cnt) {
-		spin_unlock_bh(&chan->lock);
+		spin_unlock_irqrestore(&chan->lock, irqflags);
 		dev_dbg(chan->dev, "chan %p descs are not available\n", chan);
 		return NULL;
 	}
 	chan->desc_free_cnt = chan->desc_free_cnt - desc_cnt;
-	spin_unlock_bh(&chan->lock);
+	spin_unlock_irqrestore(&chan->lock, irqflags);
 
 	do {
 		/* Allocate and populate the descriptor */

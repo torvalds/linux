@@ -68,6 +68,8 @@ Required properties:
     One of:
     - "nvidia,tegra186-gpio".
     - "nvidia,tegra186-gpio-aon".
+    - "nvidia,tegra194-gpio".
+    - "nvidia,tegra194-gpio-aon".
 - reg-names
     Array of strings.
     Contains a list of names for the register spaces described by the reg
@@ -91,6 +93,8 @@ Required properties:
     depending on compatible value:
     - "nvidia,tegra186-gpio": 6 entries.
     - "nvidia,tegra186-gpio-aon": 1 entry.
+    - "nvidia,tegra194-gpio": 6 entries.
+    - "nvidia,tegra194-gpio-aon": 1 entry.
 - gpio-controller
     Boolean.
     Marks the device node as a GPIO controller/provider.

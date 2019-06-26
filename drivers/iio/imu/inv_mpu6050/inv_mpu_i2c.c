@@ -127,6 +127,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 	st = iio_priv(dev_get_drvdata(&client->dev));
 	switch (st->chip_type) {
 	case INV_ICM20608:
+	case INV_ICM20602:
 		/* no i2c auxiliary bus on the chip */
 		break;
 	default:
@@ -174,10 +175,12 @@ static int inv_mpu_remove(struct i2c_client *client)
 static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu6050", INV_MPU6050},
 	{"mpu6500", INV_MPU6500},
+	{"mpu6515", INV_MPU6515},
 	{"mpu9150", INV_MPU9150},
 	{"mpu9250", INV_MPU9250},
 	{"mpu9255", INV_MPU9255},
 	{"icm20608", INV_ICM20608},
+	{"icm20602", INV_ICM20602},
 	{}
 };
 
@@ -191,6 +194,10 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,mpu6500",
 		.data = (void *)INV_MPU6500
+	},
+	{
+		.compatible = "invensense,mpu6515",
+		.data = (void *)INV_MPU6515
 	},
 	{
 		.compatible = "invensense,mpu9150",
@@ -207,6 +214,10 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,icm20608",
 		.data = (void *)INV_ICM20608
+	},
+	{
+		.compatible = "invensense,icm20602",
+		.data = (void *)INV_ICM20602
 	},
 	{ }
 };

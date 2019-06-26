@@ -415,11 +415,10 @@ exit:
 
 static const struct dvb_tuner_ops fc0012_tuner_ops = {
 	.info = {
-		.name           = "Fitipower FC0012",
+		.name              = "Fitipower FC0012",
 
-		.frequency_min  = 37000000,	/* estimate */
-		.frequency_max  = 862000000,	/* estimate */
-		.frequency_step = 0,
+		.frequency_min_hz  =  37 * MHz,	/* estimate */
+		.frequency_max_hz  = 862 * MHz,	/* estimate */
 	},
 
 	.release	= fc0012_release,

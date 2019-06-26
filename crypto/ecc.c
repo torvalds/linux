@@ -842,15 +842,23 @@ static void xycz_add_c(u64 *x1, u64 *y1, u64 *x2, u64 *y2, u64 *curve_prime,
 
 static void ecc_point_mult(struct ecc_point *result,
 			   const struct ecc_point *point, const u64 *scalar,
-			   u64 *initial_z, u64 *curve_prime,
+			   u64 *initial_z, const struct ecc_curve *curve,
 			   unsigned int ndigits)
 {
 	/* R0 and R1 */
 	u64 rx[2][ECC_MAX_DIGITS];
 	u64 ry[2][ECC_MAX_DIGITS];
 	u64 z[ECC_MAX_DIGITS];
+	u64 sk[2][ECC_MAX_DIGITS];
+	u64 *curve_prime = curve->p;
 	int i, nb;
-	int num_bits = vli_num_bits(scalar, ndigits);
+	int num_bits;
+	int carry;
+
+	carry = vli_add(sk[0], scalar, curve->n, ndigits);
+	vli_add(sk[1], sk[0], curve->n, ndigits);
+	scalar = sk[!carry];
+	num_bits = sizeof(u64) * ndigits * 8 + 1;
 
 	vli_set(rx[1], point->x, ndigits);
 	vli_set(ry[1], point->y, ndigits);
@@ -904,28 +912,41 @@ static inline void ecc_swap_digits(const u64 *in, u64 *out,
 		out[i] = __swab64(in[ndigits - 1 - i]);
 }
 
+static int __ecc_is_key_valid(const struct ecc_curve *curve,
+			      const u64 *private_key, unsigned int ndigits)
+{
+	u64 one[ECC_MAX_DIGITS] = { 1, };
+	u64 res[ECC_MAX_DIGITS];
+
+	if (!private_key)
+		return -EINVAL;
+
+	if (curve->g.ndigits != ndigits)
+		return -EINVAL;
+
+	/* Make sure the private key is in the range [2, n-3]. */
+	if (vli_cmp(one, private_key, ndigits) != -1)
+		return -EINVAL;
+	vli_sub(res, curve->n, one, ndigits);
+	vli_sub(res, res, one, ndigits);
+	if (vli_cmp(res, private_key, ndigits) != 1)
+		return -EINVAL;
+
+	return 0;
+}
+
 int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
 		     const u64 *private_key, unsigned int private_key_len)
 {
 	int nbytes;
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
 
-	if (!private_key)
-		return -EINVAL;
-
 	nbytes = ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
 
 	if (private_key_len != nbytes)
 		return -EINVAL;
 
-	if (vli_is_zero(private_key, ndigits))
-		return -EINVAL;
-
-	/* Make sure the private key is in the range [1, n-1]. */
-	if (vli_cmp(curve->n, private_key, ndigits) != 1)
-		return -EINVAL;
-
-	return 0;
+	return __ecc_is_key_valid(curve, private_key, ndigits);
 }
 
 /*
@@ -971,11 +992,8 @@ int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
 	if (err)
 		return err;
 
-	if (vli_is_zero(priv, ndigits))
-		return -EINVAL;
-
-	/* Make sure the private key is in the range [1, n-1]. */
-	if (vli_cmp(curve->n, priv, ndigits) != 1)
+	/* Make sure the private key is in the valid range. */
+	if (__ecc_is_key_valid(curve, priv, ndigits))
 		return -EINVAL;
 
 	ecc_swap_digits(priv, privkey, ndigits);
@@ -1004,7 +1022,7 @@ int ecc_make_pub_key(unsigned int curve_id, unsigned int ndigits,
 		goto out;
 	}
 
-	ecc_point_mult(pk, &curve->g, priv, NULL, curve->p, ndigits);
+	ecc_point_mult(pk, &curve->g, priv, NULL, curve, ndigits);
 	if (ecc_point_is_zero(pk)) {
 		ret = -EAGAIN;
 		goto err_free_point;
@@ -1017,6 +1035,36 @@ err_free_point:
 	ecc_free_point(pk);
 out:
 	return ret;
+}
+
+/* SP800-56A section 5.6.2.3.4 partial verification: ephemeral keys only */
+static int ecc_is_pubkey_valid_partial(const struct ecc_curve *curve,
+				       struct ecc_point *pk)
+{
+	u64 yy[ECC_MAX_DIGITS], xxx[ECC_MAX_DIGITS], w[ECC_MAX_DIGITS];
+
+	/* Check 1: Verify key is not the zero point. */
+	if (ecc_point_is_zero(pk))
+		return -EINVAL;
+
+	/* Check 2: Verify key is in the range [1, p-1]. */
+	if (vli_cmp(curve->p, pk->x, pk->ndigits) != 1)
+		return -EINVAL;
+	if (vli_cmp(curve->p, pk->y, pk->ndigits) != 1)
+		return -EINVAL;
+
+	/* Check 3: Verify that y^2 == (x^3 + a·x + b) mod p */
+	vli_mod_square_fast(yy, pk->y, curve->p, pk->ndigits); /* y^2 */
+	vli_mod_square_fast(xxx, pk->x, curve->p, pk->ndigits); /* x^2 */
+	vli_mod_mult_fast(xxx, xxx, pk->x, curve->p, pk->ndigits); /* x^3 */
+	vli_mod_mult_fast(w, curve->a, pk->x, curve->p, pk->ndigits); /* a·x */
+	vli_mod_add(w, w, curve->b, curve->p, pk->ndigits); /* a·x + b */
+	vli_mod_add(w, w, xxx, curve->p, pk->ndigits); /* x^3 + a·x + b */
+	if (vli_cmp(yy, w, pk->ndigits) != 0) /* Equation */
+		return -EINVAL;
+
+	return 0;
+
 }
 
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
@@ -1046,17 +1094,21 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 		goto out;
 	}
 
+	ecc_swap_digits(public_key, pk->x, ndigits);
+	ecc_swap_digits(&public_key[ndigits], pk->y, ndigits);
+	ret = ecc_is_pubkey_valid_partial(curve, pk);
+	if (ret)
+		goto err_alloc_product;
+
+	ecc_swap_digits(private_key, priv, ndigits);
+
 	product = ecc_alloc_point(ndigits);
 	if (!product) {
 		ret = -ENOMEM;
 		goto err_alloc_product;
 	}
 
-	ecc_swap_digits(public_key, pk->x, ndigits);
-	ecc_swap_digits(&public_key[ndigits], pk->y, ndigits);
-	ecc_swap_digits(private_key, priv, ndigits);
-
-	ecc_point_mult(product, pk, priv, rand_z, curve->p, ndigits);
+	ecc_point_mult(product, pk, priv, rand_z, curve, ndigits);
 
 	ecc_swap_digits(product->x, secret, ndigits);
 

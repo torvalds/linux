@@ -390,33 +390,64 @@ static inline __u8 uac_processing_unit_iChannelNames(struct uac_processing_unit_
 static inline __u8 uac_processing_unit_bControlSize(struct uac_processing_unit_descriptor *desc,
 						    int protocol)
 {
-	return (protocol == UAC_VERSION_1) ?
-		desc->baSourceID[desc->bNrInPins + 4] :
-		2; /* in UAC2, this value is constant */
+	switch (protocol) {
+	case UAC_VERSION_1:
+		return desc->baSourceID[desc->bNrInPins + 4];
+	case UAC_VERSION_2:
+		return 2; /* in UAC2, this value is constant */
+	case UAC_VERSION_3:
+		return 4; /* in UAC3, this value is constant */
+	default:
+		return 1;
+	}
 }
 
 static inline __u8 *uac_processing_unit_bmControls(struct uac_processing_unit_descriptor *desc,
 						   int protocol)
 {
-	return (protocol == UAC_VERSION_1) ?
-		&desc->baSourceID[desc->bNrInPins + 5] :
-		&desc->baSourceID[desc->bNrInPins + 6];
+	switch (protocol) {
+	case UAC_VERSION_1:
+		return &desc->baSourceID[desc->bNrInPins + 5];
+	case UAC_VERSION_2:
+		return &desc->baSourceID[desc->bNrInPins + 6];
+	case UAC_VERSION_3:
+		return &desc->baSourceID[desc->bNrInPins + 2];
+	default:
+		return NULL;
+	}
 }
 
 static inline __u8 uac_processing_unit_iProcessing(struct uac_processing_unit_descriptor *desc,
 						   int protocol)
 {
 	__u8 control_size = uac_processing_unit_bControlSize(desc, protocol);
-	return *(uac_processing_unit_bmControls(desc, protocol)
-			+ control_size);
+
+	switch (protocol) {
+	case UAC_VERSION_1:
+	case UAC_VERSION_2:
+	default:
+		return *(uac_processing_unit_bmControls(desc, protocol)
+			 + control_size);
+	case UAC_VERSION_3:
+		return 0; /* UAC3 does not have this field */
+	}
 }
 
 static inline __u8 *uac_processing_unit_specific(struct uac_processing_unit_descriptor *desc,
 						 int protocol)
 {
 	__u8 control_size = uac_processing_unit_bControlSize(desc, protocol);
-	return uac_processing_unit_bmControls(desc, protocol)
+
+	switch (protocol) {
+	case UAC_VERSION_1:
+	case UAC_VERSION_2:
+	default:
+		return uac_processing_unit_bmControls(desc, protocol)
 			+ control_size + 1;
+	case UAC_VERSION_3:
+		return uac_processing_unit_bmControls(desc, protocol)
+			+ control_size;
+	}
 }
 
 /* 4.5.2 Class-Specific AS Interface Descriptor */

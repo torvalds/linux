@@ -26,9 +26,9 @@
 #include <linux/of_graph.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "meson_venc_cvbs.h"
 #include "meson_venc.h"
@@ -282,7 +282,7 @@ int meson_venc_cvbs_create(struct meson_drm *priv)
 
 	encoder->possible_crtcs = BIT(0);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

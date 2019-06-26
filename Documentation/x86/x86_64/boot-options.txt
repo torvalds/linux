@@ -92,9 +92,7 @@ APICs
 Timing
 
   notsc
-  Don't use the CPU time stamp counter to read the wall time.
-  This can be used to work around timing problems on multiprocessor systems
-  with not properly synchronized CPUs.
+  Deprecated, use tsc=unstable instead.
 
   nohpet
   Don't use the HPET timer.
@@ -156,6 +154,10 @@ NUMA
 		If given as an integer, fills all system RAM with N fake nodes
 		interleaved over physical nodes.
 
+  numa=fake=<N>U
+		If given as an integer followed by 'U', it will divide each
+		physical node into N emulated nodes.
+
 ACPI
 
   acpi=off	Don't enable ACPI
@@ -207,7 +209,7 @@ IOMMU (input/output memory management unit)
       mapping with memory protection, etc.
       Kernel boot message: "PCI-DMA: Using Calgary IOMMU"
 
- iommu=[<size>][,noagp][,off][,force][,noforce][,leak[=<nr_of_leak_pages>]
+ iommu=[<size>][,noagp][,off][,force][,noforce]
 	[,memaper[=<order>]][,merge][,fullflush][,nomerge]
 	[,noaperture][,calgary]
 
@@ -226,9 +228,6 @@ IOMMU (input/output memory management unit)
     allowed            Overwrite iommu off workarounds for specific chipsets.
     fullflush          Flush IOMMU on each allocation (default).
     nofullflush        Don't use IOMMU fullflush.
-    leak               Turn on simple iommu leak tracing (only when
-                       CONFIG_IOMMU_LEAK is on). Default number of leak pages
-                       is 20.
     memaper[=<order>]  Allocate an own aperture over RAM with size 32MB<<order.
                        (default: order=1, i.e. 64MB)
     merge              Do scatter-gather (SG) merging. Implies "force"

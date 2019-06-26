@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef TEST_UTIL_H
-#define TEST_UTIL_H 1
+#ifndef SELFTEST_KVM_TEST_UTIL_H
+#define SELFTEST_KVM_TEST_UTIL_H
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -28,8 +28,6 @@ int test_seq_read(const char *path, char **bufp, size_t *sizep);
 void test_assert(bool exp, const char *exp_str,
 		 const char *file, unsigned int line, const char *fmt, ...);
 
-#define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
-
 #define TEST_ASSERT(e, fmt, ...) \
 	test_assert((e), #e, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
@@ -43,4 +41,4 @@ void test_assert(bool exp, const char *exp_str,
 		    #a, #b, #a, (unsigned long) __a, #b, (unsigned long) __b); \
 } while (0)
 
-#endif /* TEST_UTIL_H */
+#endif /* SELFTEST_KVM_TEST_UTIL_H */

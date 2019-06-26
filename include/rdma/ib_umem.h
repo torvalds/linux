@@ -36,21 +36,21 @@
 #include <linux/list.h>
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
+#include <rdma/ib_verbs.h>
 
 struct ib_ucontext;
 struct ib_umem_odp;
 
 struct ib_umem {
 	struct ib_ucontext     *context;
+	struct mm_struct       *owning_mm;
 	size_t			length;
 	unsigned long		address;
 	int			page_shift;
-	int                     writable;
-	int                     hugetlb;
+	u32 writable : 1;
+	u32 hugetlb : 1;
+	u32 is_odp : 1;
 	struct work_struct	work;
-	struct mm_struct       *mm;
-	unsigned long		diff;
-	struct ib_umem_odp     *odp_data;
 	struct sg_table sg_head;
 	int             nmap;
 	int             npages;
@@ -81,7 +81,7 @@ static inline size_t ib_umem_num_pages(struct ib_umem *umem)
 
 #ifdef CONFIG_INFINIBAND_USER_MEM
 
-struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 			    size_t size, int access, int dmasync);
 void ib_umem_release(struct ib_umem *umem);
 int ib_umem_page_count(struct ib_umem *umem);
@@ -92,9 +92,10 @@ int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
 
 #include <linux/err.h>
 
-static inline struct ib_umem *ib_umem_get(struct ib_ucontext *context,
+static inline struct ib_umem *ib_umem_get(struct ib_udata *udata,
 					  unsigned long addr, size_t size,
-					  int access, int dmasync) {
+					  int access, int dmasync)
+{
 	return ERR_PTR(-EINVAL);
 }
 static inline void ib_umem_release(struct ib_umem *umem) { }

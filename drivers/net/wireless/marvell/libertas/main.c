@@ -907,25 +907,29 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	struct net_device *dev;
 	struct wireless_dev *wdev;
 	struct lbs_private *priv = NULL;
+	int err;
 
 	/* Allocate an Ethernet device and register it */
 	wdev = lbs_cfg_alloc(dmdev);
 	if (IS_ERR(wdev)) {
+		err = PTR_ERR(wdev);
 		pr_err("cfg80211 init failed\n");
-		goto done;
+		goto err_cfg;
 	}
 
 	wdev->iftype = NL80211_IFTYPE_STATION;
 	priv = wdev_priv(wdev);
 	priv->wdev = wdev;
 
-	if (lbs_init_adapter(priv)) {
+	err = lbs_init_adapter(priv);
+	if (err) {
 		pr_err("failed to initialize adapter structure\n");
 		goto err_wdev;
 	}
 
 	dev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, ether_setup);
 	if (!dev) {
+		err = -ENOMEM;
 		dev_err(dmdev, "no memory for network device instance\n");
 		goto err_adapter;
 	}
@@ -949,6 +953,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	init_waitqueue_head(&priv->waitq);
 	priv->main_thread = kthread_run(lbs_thread, dev, "lbs_main");
 	if (IS_ERR(priv->main_thread)) {
+		err = PTR_ERR(priv->main_thread);
 		lbs_deb_thread("Error creating main thread.\n");
 		goto err_ndev;
 	}
@@ -961,7 +966,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->wol_gap = 20;
 	priv->ehs_remove_supported = true;
 
-	goto done;
+	return priv;
 
  err_ndev:
 	free_netdev(dev);
@@ -972,10 +977,8 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
  err_wdev:
 	lbs_cfg_free(priv);
 
-	priv = NULL;
-
-done:
-	return priv;
+ err_cfg:
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(lbs_add_card);
 

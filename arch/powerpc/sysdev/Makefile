@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 ccflags-$(CONFIG_PPC64)		:= $(NO_MINIMAL_TOC)
 
@@ -48,15 +47,13 @@ obj-$(CONFIG_UCODE_PATCH)	+= micropatch.o
 obj-$(CONFIG_PPC_MPC512x)	+= mpc5xxx_clocks.o
 obj-$(CONFIG_PPC_MPC52xx)	+= mpc5xxx_clocks.o
 
-ifeq ($(CONFIG_SUSPEND),y)
-obj-$(CONFIG_6xx)		+= 6xx-suspend.o
+ifdef CONFIG_SUSPEND
+obj-$(CONFIG_PPC_BOOK3S_32)	+= 6xx-suspend.o
 endif
 
 obj-$(CONFIG_PPC_SCOM)		+= scom.o
 
 obj-$(CONFIG_PPC_EARLY_DEBUG_MEMCONS)	+= udbg_memcons.o
-
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 obj-$(CONFIG_PPC_XICS)		+= xics/
 obj-$(CONFIG_PPC_XIVE)		+= xive/

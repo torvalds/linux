@@ -120,6 +120,8 @@ struct cudbg_mem_desc {
 	u32 idx;
 };
 
+#define CUDBG_MEMINFO_REV 1
+
 struct cudbg_meminfo {
 	struct cudbg_mem_desc avail[4];
 	struct cudbg_mem_desc mem[ARRAY_SIZE(cudbg_region) + 3];
@@ -137,6 +139,9 @@ struct cudbg_meminfo {
 	u32 port_alloc[4];
 	u32 loopback_used[NCHAN];
 	u32 loopback_alloc[NCHAN];
+	u32 p_structs_free_cnt;
+	u32 free_rx_cnt;
+	u32 free_tx_cnt;
 };
 
 struct cudbg_cim_pif_la {
@@ -281,12 +286,18 @@ struct cudbg_tid_data {
 
 #define CUDBG_NUM_ULPTX 11
 #define CUDBG_NUM_ULPTX_READ 512
+#define CUDBG_NUM_ULPTX_ASIC 6
+#define CUDBG_NUM_ULPTX_ASIC_READ 128
+
+#define CUDBG_ULPTX_LA_REV 1
 
 struct cudbg_ulptx_la {
 	u32 rdptr[CUDBG_NUM_ULPTX];
 	u32 wrptr[CUDBG_NUM_ULPTX];
 	u32 rddata[CUDBG_NUM_ULPTX];
 	u32 rd_data[CUDBG_NUM_ULPTX][CUDBG_NUM_ULPTX_READ];
+	u32 rdptr_asic[CUDBG_NUM_ULPTX_ASIC_READ];
+	u32 rddata_asic[CUDBG_NUM_ULPTX_ASIC_READ][CUDBG_NUM_ULPTX_ASIC];
 };
 
 #define CUDBG_CHAC_PBT_ADDR 0x2800
@@ -302,6 +313,48 @@ struct cudbg_pbt_tables {
 	u32 pbt_static[CUDBG_PBT_STATIC_ENTRIES];
 	u32 lrf_table[CUDBG_LRF_ENTRIES];
 	u32 pbt_data[CUDBG_PBT_DATA_ENTRIES];
+};
+
+enum cudbg_qdesc_qtype {
+	CUDBG_QTYPE_UNKNOWN = 0,
+	CUDBG_QTYPE_NIC_TXQ,
+	CUDBG_QTYPE_NIC_RXQ,
+	CUDBG_QTYPE_NIC_FLQ,
+	CUDBG_QTYPE_CTRLQ,
+	CUDBG_QTYPE_FWEVTQ,
+	CUDBG_QTYPE_INTRQ,
+	CUDBG_QTYPE_PTP_TXQ,
+	CUDBG_QTYPE_OFLD_TXQ,
+	CUDBG_QTYPE_RDMA_RXQ,
+	CUDBG_QTYPE_RDMA_FLQ,
+	CUDBG_QTYPE_RDMA_CIQ,
+	CUDBG_QTYPE_ISCSI_RXQ,
+	CUDBG_QTYPE_ISCSI_FLQ,
+	CUDBG_QTYPE_ISCSIT_RXQ,
+	CUDBG_QTYPE_ISCSIT_FLQ,
+	CUDBG_QTYPE_CRYPTO_TXQ,
+	CUDBG_QTYPE_CRYPTO_RXQ,
+	CUDBG_QTYPE_CRYPTO_FLQ,
+	CUDBG_QTYPE_TLS_RXQ,
+	CUDBG_QTYPE_TLS_FLQ,
+	CUDBG_QTYPE_MAX,
+};
+
+#define CUDBG_QDESC_REV 1
+
+struct cudbg_qdesc_entry {
+	u32 data_size;
+	u32 qtype;
+	u32 qid;
+	u32 desc_size;
+	u32 num_desc;
+	u8 data[0]; /* Must be last */
+};
+
+struct cudbg_qdesc_info {
+	u32 qdesc_entry_size;
+	u32 num_queues;
+	u8 data[0]; /* Must be last */
 };
 
 #define IREG_NUM_ELEM 4

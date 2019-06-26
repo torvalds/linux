@@ -15,8 +15,6 @@ Recommended properties :
    information for the interrupt.  This should be encoded based on
    the information in section 2) depending on the type of interrupt
    controller you have.
- - interrupt-parent : the phandle for the interrupt controller that
-   services interrupts for this device.
  - fsl,preserve-clocking : boolean; if defined, the clock settings
    from the bootloader are preserved (not touched).
  - clock-frequency : desired I2C bus clock frequency in Hz.

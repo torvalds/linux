@@ -29,7 +29,6 @@ struct udl_drm_dmabuf_attachment {
 };
 
 static int udl_attach_dma_buf(struct dma_buf *dmabuf,
-			      struct device *dev,
 			      struct dma_buf_attachment *attach)
 {
 	struct udl_drm_dmabuf_attachment *udl_attach;
@@ -158,23 +157,8 @@ static void *udl_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num)
 	return NULL;
 }
 
-static void *udl_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
-				    unsigned long page_num)
-{
-	/* TODO */
-
-	return NULL;
-}
-
 static void udl_dmabuf_kunmap(struct dma_buf *dma_buf,
 			      unsigned long page_num, void *addr)
-{
-	/* TODO */
-}
-
-static void udl_dmabuf_kunmap_atomic(struct dma_buf *dma_buf,
-				     unsigned long page_num,
-				     void *addr)
 {
 	/* TODO */
 }
@@ -193,9 +177,7 @@ static const struct dma_buf_ops udl_dmabuf_ops = {
 	.map_dma_buf		= udl_map_dma_buf,
 	.unmap_dma_buf		= udl_unmap_dma_buf,
 	.map			= udl_dmabuf_kmap,
-	.map_atomic		= udl_dmabuf_kmap_atomic,
 	.unmap			= udl_dmabuf_kunmap,
-	.unmap_atomic		= udl_dmabuf_kunmap_atomic,
 	.mmap			= udl_dmabuf_mmap,
 	.release		= drm_gem_dmabuf_release,
 };

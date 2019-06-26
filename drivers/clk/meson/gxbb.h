@@ -66,7 +66,6 @@
 #define HHI_USB_CLK_CNTL		0x220 /* 0x88 offset in data sheet */
 #define HHI_32K_CLK_CNTL		0x224 /* 0x89 offset in data sheet */
 #define HHI_GEN_CLK_CNTL		0x228 /* 0x8a offset in data sheet */
-#define HHI_GEN_CLK_CNTL		0x228 /* 0x8a offset in data sheet */
 
 #define HHI_PCM_CLK_CNTL		0x258 /* 0x96 offset in data sheet */
 #define HHI_NAND_CLK_CNTL		0x25C /* 0x97 offset in data sheet */
@@ -158,8 +157,38 @@
 #define CLKID_VDEC_1_DIV	  152
 #define CLKID_VDEC_HEVC_SEL	  154
 #define CLKID_VDEC_HEVC_DIV	  155
+#define CLKID_GEN_CLK_SEL	  157
+#define CLKID_GEN_CLK_DIV	  158
+#define CLKID_FIXED_PLL_DCO	  160
+#define CLKID_HDMI_PLL_DCO	  161
+#define CLKID_HDMI_PLL_OD	  162
+#define CLKID_HDMI_PLL_OD2	  163
+#define CLKID_SYS_PLL_DCO	  164
+#define CLKID_GP0_PLL_DCO	  165
+#define CLKID_VID_PLL_SEL	  167
+#define CLKID_VID_PLL_DIV	  168
+#define CLKID_VCLK_SEL		  169
+#define CLKID_VCLK2_SEL		  170
+#define CLKID_VCLK_INPUT	  171
+#define CLKID_VCLK2_INPUT	  172
+#define CLKID_VCLK_DIV		  173
+#define CLKID_VCLK2_DIV		  174
+#define CLKID_VCLK_DIV2_EN	  177
+#define CLKID_VCLK_DIV4_EN	  178
+#define CLKID_VCLK_DIV6_EN	  179
+#define CLKID_VCLK_DIV12_EN	  180
+#define CLKID_VCLK2_DIV2_EN	  181
+#define CLKID_VCLK2_DIV4_EN	  182
+#define CLKID_VCLK2_DIV6_EN	  183
+#define CLKID_VCLK2_DIV12_EN	  184
+#define CLKID_CTS_ENCI_SEL	  195
+#define CLKID_CTS_ENCP_SEL	  196
+#define CLKID_CTS_VDAC_SEL	  197
+#define CLKID_HDMI_TX_SEL	  198
+#define CLKID_HDMI_SEL		  203
+#define CLKID_HDMI_DIV		  204
 
-#define NR_CLKS			  157
+#define NR_CLKS			  206
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

@@ -494,7 +494,6 @@ xfs_efi_recover(
 	int			error = 0;
 	xfs_extent_t		*extp;
 	xfs_fsblock_t		startblock_fsb;
-	struct xfs_owner_info	oinfo;
 
 	ASSERT(!test_bit(XFS_EFI_RECOVERED, &efip->efi_flags));
 
@@ -526,11 +525,11 @@ xfs_efi_recover(
 		return error;
 	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
-	xfs_rmap_any_owner_update(&oinfo);
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
 		extp = &efip->efi_format.efi_extents[i];
 		error = xfs_trans_free_extent(tp, efdp, extp->ext_start,
-					      extp->ext_len, &oinfo, false);
+					      extp->ext_len,
+					      &XFS_RMAP_OINFO_ANY_OWNER, false);
 		if (error)
 			goto abort_error;
 

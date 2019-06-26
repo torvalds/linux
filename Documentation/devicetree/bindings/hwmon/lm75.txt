@@ -1,0 +1,37 @@
+*LM75 hwmon sensor.
+
+Required properties:
+- compatible: manufacturer and chip name, one of
+		"adi,adt75",
+		"dallas,ds1775",
+		"dallas,ds75",
+		"dallas,ds7505",
+		"gmt,g751",
+		"national,lm75",
+		"national,lm75a",
+		"national,lm75b",
+		"maxim,max6625",
+		"maxim,max6626",
+		"maxim,max31725",
+		"maxim,max31726",
+		"maxim,mcp980x",
+		"st,stds75",
+		"st,stlm75",
+		"microchip,tcn75",
+		"ti,tmp100",
+		"ti,tmp101",
+		"ti,tmp105",
+		"ti,tmp112",
+		"ti,tmp175",
+		"ti,tmp275",
+		"ti,tmp75",
+		"ti,tmp75c",
+
+- reg: I2C bus address of the device
+
+Example:
+
+sensor@48 {
+	compatible = "st,stlm75";
+	reg = <0x48>;
+};

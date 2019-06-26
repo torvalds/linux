@@ -61,5 +61,13 @@ static inline struct key *get_ima_blacklist_keyring(void)
 }
 #endif /* CONFIG_IMA_BLACKLIST_KEYRING */
 
+#if defined(CONFIG_INTEGRITY_PLATFORM_KEYRING) && \
+	defined(CONFIG_SYSTEM_TRUSTED_KEYRING)
+extern void __init set_platform_trusted_keys(struct key *keyring);
+#else
+static inline void set_platform_trusted_keys(struct key *keyring)
+{
+}
+#endif
 
 #endif /* _KEYS_SYSTEM_KEYRING_H */

@@ -1,9 +1,12 @@
-Analog Devices ADXL345 3-Axis, +/-(2g/4g/8g/16g) Digital Accelerometer
+Analog Devices ADXL345/ADXL375 3-Axis Digital Accelerometers
 
 http://www.analog.com/en/products/mems/accelerometers/adxl345.html
+http://www.analog.com/en/products/sensors-mems/accelerometers/adxl375.html
 
 Required properties:
- - compatible : should be "adi,adxl345"
+ - compatible : should be one of
+		"adi,adxl345"
+		"adi,adxl375"
  - reg : the I2C address or SPI chip select number of the sensor
 
 Required properties for SPI bus usage:
@@ -11,8 +14,6 @@ Required properties for SPI bus usage:
  - spi-cpol and spi-cpha : must be defined for adxl345 to enable SPI mode 3
 
 Optional properties:
- - interrupt-parent : phandle to the parent interrupt controller as documented
-   in Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
  - interrupts: interrupt mapping for IRQ as documented in
    Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 

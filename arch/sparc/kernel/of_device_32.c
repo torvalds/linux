@@ -9,6 +9,7 @@
 #include <linux/irq.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/dma-mapping.h>
 #include <asm/leon.h>
 #include <asm/leon_amba.h>
 
@@ -21,7 +22,7 @@
 
 static int of_bus_pci_match(struct device_node *np)
 {
-	if (!strcmp(np->type, "pci") || !strcmp(np->type, "pciex")) {
+	if (of_node_is_type(np, "pci") || of_node_is_type(np, "pciex")) {
 		/* Do not do PCI specific frobbing if the
 		 * PCI bridge lacks a ranges property.  We
 		 * want to pass it through up to the next
@@ -106,7 +107,7 @@ static unsigned long of_bus_sbus_get_flags(const u32 *addr, unsigned long flags)
 
 static int of_bus_ambapp_match(struct device_node *np)
 {
-	return !strcmp(np->type, "ambapp");
+	return of_node_is_type(np, "ambapp");
 }
 
 static void of_bus_ambapp_count_cells(struct device_node *child,
@@ -231,10 +232,10 @@ static int __init use_1to1_mapping(struct device_node *pp)
 	 * But, we should still pass the translation work up
 	 * to the SBUS itself.
 	 */
-	if (!strcmp(pp->name, "dma") ||
-	    !strcmp(pp->name, "espdma") ||
-	    !strcmp(pp->name, "ledma") ||
-	    !strcmp(pp->name, "lebuffer"))
+	if (of_node_name_eq(pp, "dma") ||
+	    of_node_name_eq(pp, "espdma") ||
+	    of_node_name_eq(pp, "ledma") ||
+	    of_node_name_eq(pp, "lebuffer"))
 		return 0;
 
 	return 1;
@@ -323,8 +324,8 @@ static void __init build_device_resources(struct platform_device *op,
 		memset(r, 0, sizeof(*r));
 
 		if (of_resource_verbose)
-			printk("%s reg[%d] -> %llx\n",
-			       op->dev.of_node->full_name, index,
+			printk("%pOF reg[%d] -> %llx\n",
+			       op->dev.of_node, index,
 			       result);
 
 		if (result != OF_BAD_ADDR) {
@@ -332,7 +333,7 @@ static void __init build_device_resources(struct platform_device *op,
 			r->end = result + size - 1;
 			r->flags = flags | ((result >> 32ULL) & 0xffUL);
 		}
-		r->name = op->dev.of_node->name;
+		r->name = op->dev.of_node->full_name;
 	}
 }
 
@@ -381,9 +382,11 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	else
 		dev_set_name(&op->dev, "%08x", dp->phandle);
 
+	op->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	op->dev.dma_mask = &op->dev.coherent_dma_mask;
+
 	if (of_device_register(op)) {
-		printk("%s: Could not register of device.\n",
-		       dp->full_name);
+		printk("%pOF: Could not register of device.\n", dp);
 		kfree(op);
 		op = NULL;
 	}

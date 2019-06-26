@@ -307,8 +307,8 @@ static int dt3155_querycap(struct file *filp, void *p,
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
 
-	strcpy(cap->driver, DT3155_NAME);
-	strcpy(cap->card, DT3155_NAME " frame grabber");
+	strscpy(cap->driver, DT3155_NAME, sizeof(cap->driver));
+	strscpy(cap->card, DT3155_NAME " frame grabber", sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(pd->pdev));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
@@ -322,7 +322,7 @@ static int dt3155_enum_fmt_vid_cap(struct file *filp,
 	if (f->index)
 		return -EINVAL;
 	f->pixelformat = V4L2_PIX_FMT_GREY;
-	strcpy(f->description, "8-bit Greyscale");
+	strscpy(f->description, "8-bit Greyscale", sizeof(f->description));
 	return 0;
 }
 
@@ -378,7 +378,7 @@ static int dt3155_enum_input(struct file *filp, void *p,
 		snprintf(input->name, sizeof(input->name), "VID%d",
 			 input->index);
 	else
-		strlcpy(input->name, "J2/VID0", sizeof(input->name));
+		strscpy(input->name, "J2/VID0", sizeof(input->name));
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	input->std = V4L2_STD_ALL;
 	input->status = 0;

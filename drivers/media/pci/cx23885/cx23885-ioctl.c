@@ -31,9 +31,9 @@ int cx23885_g_chip_info(struct file *file, void *fh,
 	if (chip->match.addr == 1) {
 		if (dev->v4l_device == NULL)
 			return -EINVAL;
-		strlcpy(chip->name, "cx23417", sizeof(chip->name));
+		strscpy(chip->name, "cx23417", sizeof(chip->name));
 	} else {
-		strlcpy(chip->name, dev->v4l2_dev.name, sizeof(chip->name));
+		strscpy(chip->name, dev->v4l2_dev.name, sizeof(chip->name));
 	}
 	return 0;
 }

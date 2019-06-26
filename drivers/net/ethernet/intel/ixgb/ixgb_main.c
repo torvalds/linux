@@ -81,11 +81,6 @@ static int ixgb_vlan_rx_kill_vid(struct net_device *netdev,
 				 __be16 proto, u16 vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/* for netdump / net console */
-static void ixgb_netpoll(struct net_device *dev);
-#endif
-
 static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
                              enum pci_channel_state state);
 static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev);
@@ -107,7 +102,7 @@ static struct pci_driver ixgb_driver = {
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) PRO/10GbE Network Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
@@ -348,9 +343,6 @@ static const struct net_device_ops ixgb_netdev_ops = {
 	.ndo_tx_timeout		= ixgb_tx_timeout,
 	.ndo_vlan_rx_add_vid	= ixgb_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgb_vlan_rx_kill_vid,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= ixgb_netpoll,
-#endif
 	.ndo_fix_features       = ixgb_fix_features,
 	.ndo_set_features       = ixgb_set_features,
 };
@@ -688,8 +680,8 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	txdr->size = txdr->count * sizeof(struct ixgb_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
 
-	txdr->desc = dma_zalloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
-					 GFP_KERNEL);
+	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
+					GFP_KERNEL);
 	if (!txdr->desc) {
 		vfree(txdr->buffer_info);
 		return -ENOMEM;
@@ -778,7 +770,6 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 		vfree(rxdr->buffer_info);
 		return -ENOMEM;
 	}
-	memset(rxdr->desc, 0, rxdr->size);
 
 	rxdr->next_to_clean = 0;
 	rxdr->next_to_use = 0;
@@ -2195,23 +2186,6 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
 		ixgb_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), vid);
 }
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/*
- * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
- * the interrupt routine is executing.
- */
-
-static void ixgb_netpoll(struct net_device *dev)
-{
-	struct ixgb_adapter *adapter = netdev_priv(dev);
-
-	disable_irq(adapter->pdev->irq);
-	ixgb_intr(adapter->pdev->irq, dev);
-	enable_irq(adapter->pdev->irq);
-}
-#endif
 
 /**
  * ixgb_io_error_detected - called when PCI error is detected

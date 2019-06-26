@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -9,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
@@ -499,7 +496,7 @@ resizer_configure_in_continuous_mode(struct vpfe_resizer_device *resizer)
 	configure_resizer_out_params(resizer, RSZ_A,
 				     &cont_config->output1, 1, 0);
 	param->rsz_en[RSZ_B] = DISABLE;
-	param->oper_mode = RESIZER_MODE_CONTINIOUS;
+	param->oper_mode = RESIZER_MODE_CONTINUOUS;
 
 	if (resizer->resizer_b.output == RESIZER_OUTPUT_MEMORY) {
 		struct v4l2_mbus_framefmt *outformat2;
@@ -1287,7 +1284,7 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
  * @cfg: V4L2 subdev pad config
  * @pad: pad number.
  * @which: wanted subdev format.
- * Retun wanted mbus frame format.
+ * Return wanted mbus frame format.
  */
 static struct v4l2_mbus_framefmt *
 __resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
@@ -1788,7 +1785,7 @@ void vpfe_resizer_unregister_entities(struct vpfe_resizer_device *vpfe_rsz)
 
 /*
  * vpfe_resizer_register_entities() - Register entity
- * @resizer - pointer to resizer devive.
+ * @resizer - pointer to resizer device.
  * @vdev: pointer to v4l2 device structure.
  */
 int vpfe_resizer_register_entities(struct vpfe_resizer_device *resizer,
@@ -1903,7 +1900,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER CROP", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER CROP", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1927,7 +1924,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER A", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER A", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1949,7 +1946,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER B", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER B", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;

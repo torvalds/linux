@@ -121,21 +121,6 @@ static inline void sk_busy_loop(struct sock *sk, int nonblock)
 #endif
 }
 
-static inline void sock_poll_busy_loop(struct socket *sock, __poll_t events)
-{
-	if (sk_can_busy_loop(sock->sk) &&
-	    events && (events & POLL_BUSY_LOOP)) {
-		/* once, only if requested by syscall */
-		sk_busy_loop(sock->sk, 1);
-	}
-}
-
-/* if this socket can poll_ll, tell the system call */
-static inline __poll_t sock_poll_busy_flag(struct socket *sock)
-{
-	return sk_can_busy_loop(sock->sk) ? POLL_BUSY_LOOP : 0;
-}
-
 /* used in the NIC receive handler to mark the skb */
 static inline void skb_mark_napi_id(struct sk_buff *skb,
 				    struct napi_struct *napi)
@@ -151,6 +136,7 @@ static inline void sk_mark_napi_id(struct sock *sk, const struct sk_buff *skb)
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	sk->sk_napi_id = skb->napi_id;
 #endif
+	sk_rx_queue_set(sk, skb);
 }
 
 /* variant used for unconnected sockets */

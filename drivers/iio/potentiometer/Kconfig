@@ -90,6 +90,18 @@ config MCP4531
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcp4531.
 
+config MCP41010
+	tristate "Microchip MCP41xxx/MCP42xxx Digital Potentiometer driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Microchip
+	  MCP41010, MCP41050, MCP41100,
+	  MCP42010, MCP42050, MCP42100
+	  digital potentiometer chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcp41010.
+
 config TPL0102
 	tristate "Texas Instruments digital potentiometer driver"
 	depends on I2C

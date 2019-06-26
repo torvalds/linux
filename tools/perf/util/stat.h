@@ -4,8 +4,14 @@
 
 #include <linux/types.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 #include "xyarray.h"
 #include "rblist.h"
+#include "perf.h"
+#include "event.h"
 
 struct stats {
 	double n, mean, M2;
@@ -84,15 +90,42 @@ struct runtime_stat {
 	struct rblist value_list;
 };
 
+typedef int (*aggr_get_id_t)(struct perf_stat_config *config,
+			     struct cpu_map *m, int cpu);
+
 struct perf_stat_config {
-	enum aggr_mode	aggr_mode;
-	bool		scale;
-	FILE		*output;
-	unsigned int	interval;
-	unsigned int	timeout;
-	int		times;
-	struct runtime_stat *stats;
-	int		stats_num;
+	enum aggr_mode		 aggr_mode;
+	bool			 scale;
+	bool			 no_inherit;
+	bool			 identifier;
+	bool			 csv_output;
+	bool			 interval_clear;
+	bool			 metric_only;
+	bool			 null_run;
+	bool			 ru_display;
+	bool			 big_num;
+	bool			 no_merge;
+	bool			 walltime_run_table;
+	FILE			*output;
+	unsigned int		 interval;
+	unsigned int		 timeout;
+	unsigned int		 initial_delay;
+	unsigned int		 unit_width;
+	unsigned int		 metric_only_len;
+	int			 times;
+	int			 run_count;
+	int			 print_free_counters_hint;
+	int			 print_mixed_hw_group_error;
+	struct runtime_stat	*stats;
+	int			 stats_num;
+	const char		*csv_sep;
+	struct stats		*walltime_nsecs_stats;
+	struct rusage		 ru_data;
+	struct cpu_map		*aggr_map;
+	aggr_get_id_t		 aggr_get_id;
+	struct cpu_map		*cpus_aggr_map;
+	u64			*walltime_run;
+	struct rblist		 metric_events;
 };
 
 void update_stats(struct stats *stats, u64 val);
@@ -130,9 +163,10 @@ bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;
 
-typedef void (*print_metric_t)(void *ctx, const char *color, const char *unit,
+typedef void (*print_metric_t)(struct perf_stat_config *config,
+			       void *ctx, const char *color, const char *unit,
 			       const char *fmt, double val);
-typedef void (*new_line_t )(void *ctx);
+typedef void (*new_line_t)(struct perf_stat_config *config, void *ctx);
 
 void runtime_stat__init(struct runtime_stat *st);
 void runtime_stat__exit(struct runtime_stat *st);
@@ -148,7 +182,8 @@ struct perf_stat_output_ctx {
 	bool force_header;
 };
 
-void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
+void perf_stat__print_shadow_stats(struct perf_stat_config *config,
+				   struct perf_evsel *evsel,
 				   double avg, int cpu,
 				   struct perf_stat_output_ctx *out,
 				   struct rblist *metric_events,
@@ -164,11 +199,25 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 struct perf_tool;
 union perf_event;
 struct perf_session;
-int perf_event__process_stat_event(struct perf_tool *tool,
-				   union perf_event *event,
-				   struct perf_session *session);
+int perf_event__process_stat_event(struct perf_session *session,
+				   union perf_event *event);
 
 size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp);
+
+int create_perf_stat_counter(struct perf_evsel *evsel,
+			     struct perf_stat_config *config,
+			     struct target *target);
+int perf_stat_synthesize_config(struct perf_stat_config *config,
+				struct perf_tool *tool,
+				struct perf_evlist *evlist,
+				perf_event__handler_t process,
+				bool attrs);
+void
+perf_evlist__print_counters(struct perf_evlist *evlist,
+			    struct perf_stat_config *config,
+			    struct target *_target,
+			    struct timespec *ts,
+			    int argc, const char **argv);
 #endif

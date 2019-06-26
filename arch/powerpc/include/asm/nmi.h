@@ -14,4 +14,6 @@ extern void arch_trigger_cpumask_backtrace(const cpumask_t *mask,
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 #endif
 
+extern void hv_nmi_check_nonrecoverable(struct pt_regs *regs);
+
 #endif /* _ASM_NMI_H */

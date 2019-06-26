@@ -82,7 +82,7 @@ As an example, here is how the 4.16 development cycle went (all dates in
 	March 11	4.16-rc5
 	March 18	4.16-rc6
 	March 25	4.16-rc7
-	April 1		4.17 stable release
+	April 1		4.16 stable release
 	==============  ===============================
 
 How do the developers decide when to close the development cycle and create
@@ -134,7 +134,7 @@ and their maintainers are:
 	4.4	Greg Kroah-Hartman	(very long-term stable kernel)
 	4.9	Greg Kroah-Hartman
 	4.14	Greg Kroah-Hartman
-	======  ======================  ===========================
+	======  ======================  ==============================
 
 The selection of a kernel for long-term support is purely a matter of a
 maintainer having the need and the time to maintain that release.  There

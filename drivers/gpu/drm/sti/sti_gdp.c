@@ -211,7 +211,11 @@ static int gdp_dbg_show(struct seq_file *s, void *data)
 	struct drm_info_node *node = s->private;
 	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
 	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
-	struct drm_crtc *crtc = drm_plane->crtc;
+	struct drm_crtc *crtc;
+
+	drm_modeset_lock(&drm_plane->mutex, NULL);
+	crtc = drm_plane->state->crtc;
+	drm_modeset_unlock(&drm_plane->mutex);
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_plane_to_str(&gdp->plane), gdp->regs);
@@ -513,7 +517,7 @@ static void sti_gdp_init(struct sti_gdp *gdp)
 	/* Allocate all the nodes within a single memory page */
 	size = sizeof(struct sti_gdp_node) *
 	    GDP_NODE_PER_FIELD * GDP_NODE_NB_BANK;
-	base = dma_alloc_wc(gdp->dev, size, &dma_addr, GFP_KERNEL | GFP_DMA);
+	base = dma_alloc_wc(gdp->dev, size, &dma_addr, GFP_KERNEL);
 
 	if (!base) {
 		DRM_ERROR("Failed to allocate memory for GDP node\n");
@@ -879,7 +883,6 @@ static void sti_gdp_destroy(struct drm_plane *drm_plane)
 {
 	DRM_DEBUG_DRIVER("\n");
 
-	drm_plane_helper_disable(drm_plane);
 	drm_plane_cleanup(drm_plane);
 }
 

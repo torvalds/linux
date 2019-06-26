@@ -13,18 +13,38 @@
 #ifndef __MALIDP_DRV_H__
 #define __MALIDP_DRV_H__
 
+#include <drm/drm_writeback.h>
+#include <drm/drm_encoder.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
+#include <linux/spinlock.h>
 #include <drm/drmP.h>
 #include "malidp_hw.h"
+
+#define MALIDP_CONFIG_VALID_INIT	0
+#define MALIDP_CONFIG_VALID_DONE	1
+#define MALIDP_CONFIG_START		0xd0
+
+struct malidp_error_stats {
+	s32 num_errors;
+	u32 last_error_status;
+	s64 last_error_vblank;
+};
 
 struct malidp_drm {
 	struct malidp_hw_device *dev;
 	struct drm_crtc crtc;
+	struct drm_writeback_connector mw_connector;
 	wait_queue_head_t wq;
 	struct drm_pending_vblank_event *event;
 	atomic_t config_valid;
 	u32 core_id;
+#ifdef CONFIG_DEBUG_FS
+	struct malidp_error_stats de_errors;
+	struct malidp_error_stats se_errors;
+	/* Protects errors stats */
+	spinlock_t errors_lock;
+#endif
 };
 
 #define crtc_to_malidp_device(x) container_of(x, struct malidp_drm, crtc)
@@ -35,6 +55,12 @@ struct malidp_plane {
 	const struct malidp_layer *layer;
 };
 
+enum mmu_prefetch_mode {
+	MALIDP_PREFETCH_MODE_NONE,
+	MALIDP_PREFETCH_MODE_PARTIAL,
+	MALIDP_PREFETCH_MODE_FULL,
+};
+
 struct malidp_plane_state {
 	struct drm_plane_state base;
 
@@ -43,6 +69,8 @@ struct malidp_plane_state {
 	/* internal format ID */
 	u8 format;
 	u8 n_planes;
+	enum mmu_prefetch_mode mmu_prefetch_mode;
+	u32 mmu_prefetch_pgsize;
 };
 
 #define to_malidp_plane(x) container_of(x, struct malidp_plane, base)
@@ -61,6 +89,12 @@ struct malidp_crtc_state {
 
 int malidp_de_planes_init(struct drm_device *drm);
 int malidp_crtc_init(struct drm_device *drm);
+
+#ifdef CONFIG_DEBUG_FS
+void malidp_error(struct malidp_drm *malidp,
+		  struct malidp_error_stats *error_stats, u32 status,
+		  u64 vblank);
+#endif
 
 /* often used combination of rotational bits */
 #define MALIDP_ROTATED_MASK	(DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270)

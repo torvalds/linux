@@ -449,7 +449,7 @@ static inline void bnx2x_init_fw_wrr(const struct cmng_init_input *input_data,
 				ccd[cos] =
 				    (u32)input_data->cos_min_rate[cos] * 100 *
 				    (T_FAIR_COEF / (8 * 100 * cosWeightSum));
-				 if (ccd[cos] < pdata->fair_vars.fair_threshold
+				if (ccd[cos] < pdata->fair_vars.fair_threshold
 						+ MIN_ABOVE_THRESH) {
 					ccd[cos] =
 					    pdata->fair_vars.fair_threshold +

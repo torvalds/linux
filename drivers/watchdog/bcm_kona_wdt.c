@@ -90,7 +90,7 @@ static int secure_register_read(struct bcm_kona_wdt *wdt, uint32_t offset)
 
 #ifdef CONFIG_BCM_KONA_WDT_DEBUG
 
-static int bcm_kona_wdt_dbg_show(struct seq_file *s, void *data)
+static int bcm_kona_show(struct seq_file *s, void *data)
 {
 	int ctl_val, cur_val;
 	unsigned long flags;
@@ -130,17 +130,7 @@ static int bcm_kona_wdt_dbg_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int bcm_kona_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bcm_kona_wdt_dbg_show, inode->i_private);
-}
-
-static const struct file_operations bcm_kona_dbg_operations = {
-	.open		= bcm_kona_dbg_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(bcm_kona);
 
 static void bcm_kona_wdt_debug_init(struct platform_device *pdev)
 {
@@ -157,7 +147,7 @@ static void bcm_kona_wdt_debug_init(struct platform_device *pdev)
 		return;
 
 	if (debugfs_create_file("info", S_IFREG | S_IRUGO, dir, wdt,
-				&bcm_kona_dbg_operations))
+				&bcm_kona_fops))
 		wdt->debugfs = dir;
 	else
 		debugfs_remove_recursive(dir);

@@ -125,6 +125,8 @@ struct dce110_clk_src {
 	uint32_t hdmi_ss_params_cnt;
 	struct spread_spectrum_data *dvi_ss_params;
 	uint32_t dvi_ss_params_cnt;
+	struct spread_spectrum_data *lvds_ss_params;
+	uint32_t lvds_ss_params_cnt;
 
 	uint32_t ext_clk_khz;
 	uint32_t ref_freq_khz;
@@ -138,6 +140,15 @@ bool dce110_clk_src_construct(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
 	enum clock_source_id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask);
+
+bool dce112_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
 	const struct dce110_clk_src_regs *regs,
 	const struct dce110_clk_src_shift *cs_shift,
 	const struct dce110_clk_src_mask *cs_mask);

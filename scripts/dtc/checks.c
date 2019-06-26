@@ -19,6 +19,7 @@
  */
 
 #include "dtc.h"
+#include "srcpos.h"
 
 #ifdef TRACE_CHECKS
 #define TRACE(c, ...) \
@@ -78,23 +79,56 @@ static inline void  PRINTF(5, 6) check_msg(struct check *c, struct dt_info *dti,
 					   const char *fmt, ...)
 {
 	va_list ap;
-	va_start(ap, fmt);
+	char *str = NULL;
+	struct srcpos *pos = NULL;
+	char *file_str;
 
-	if ((c->warn && (quiet < 1))
-	    || (c->error && (quiet < 2))) {
-		fprintf(stderr, "%s: %s (%s): ",
-			strcmp(dti->outname, "-") ? dti->outname : "<stdout>",
-			(c->error) ? "ERROR" : "Warning", c->name);
-		if (node) {
-			fprintf(stderr, "%s", node->fullpath);
-			if (prop)
-				fprintf(stderr, ":%s", prop->name);
-			fputs(": ", stderr);
-		}
-		vfprintf(stderr, fmt, ap);
-		fprintf(stderr, "\n");
+	if (!(c->warn && (quiet < 1)) && !(c->error && (quiet < 2)))
+		return;
+
+	if (prop && prop->srcpos)
+		pos = prop->srcpos;
+	else if (node && node->srcpos)
+		pos = node->srcpos;
+
+	if (pos) {
+		file_str = srcpos_string(pos);
+		xasprintf(&str, "%s", file_str);
+		free(file_str);
+	} else if (streq(dti->outname, "-")) {
+		xasprintf(&str, "<stdout>");
+	} else {
+		xasprintf(&str, "%s", dti->outname);
 	}
+
+	xasprintf_append(&str, ": %s (%s): ",
+			(c->error) ? "ERROR" : "Warning", c->name);
+
+	if (node) {
+		if (prop)
+			xasprintf_append(&str, "%s:%s: ", node->fullpath, prop->name);
+		else
+			xasprintf_append(&str, "%s: ", node->fullpath);
+	}
+
+	va_start(ap, fmt);
+	xavsprintf_append(&str, fmt, ap);
 	va_end(ap);
+
+	xasprintf_append(&str, "\n");
+
+	if (!prop && pos) {
+		pos = node->srcpos;
+		while (pos->next) {
+			pos = pos->next;
+
+			file_str = srcpos_string(pos);
+			xasprintf_append(&str, "  also defined at %s\n", file_str);
+			free(file_str);
+		}
+	}
+
+	fputs(str, stderr);
 }
 
 #define FAIL(c, dti, node, ...)						\
@@ -910,7 +944,7 @@ static bool node_is_compatible(struct node *node, const char *compat)
 
 	for (str = prop->val.val, end = str + prop->val.len; str < end;
 	     str += strnlen(str, end - str) + 1) {
-		if (strprefixeq(str, end - str, compat))
+		if (streq(str, compat))
 			return true;
 	}
 	return false;
@@ -921,7 +955,8 @@ static void check_simple_bus_bridge(struct check *c, struct dt_info *dti, struct
 	if (node_is_compatible(node, "simple-bus"))
 		node->bus = &simple_bus;
 }
-WARNING(simple_bus_bridge, check_simple_bus_bridge, NULL, &addr_size_cells);
+WARNING(simple_bus_bridge, check_simple_bus_bridge, NULL,
+	&addr_size_cells, &compatible_is_string_list);
 
 static void check_simple_bus_reg(struct check *c, struct dt_info *dti, struct node *node)
 {
@@ -961,6 +996,149 @@ static void check_simple_bus_reg(struct check *c, struct dt_info *dti, struct no
 		     unit_addr);
 }
 WARNING(simple_bus_reg, check_simple_bus_reg, NULL, &reg_format, &simple_bus_bridge);
+
+static const struct bus_type i2c_bus = {
+	.name = "i2c-bus",
+};
+
+static void check_i2c_bus_bridge(struct check *c, struct dt_info *dti, struct node *node)
+{
+	if (strprefixeq(node->name, node->basenamelen, "i2c-bus") ||
+	    strprefixeq(node->name, node->basenamelen, "i2c-arb")) {
+		node->bus = &i2c_bus;
+	} else if (strprefixeq(node->name, node->basenamelen, "i2c")) {
+		struct node *child;
+		for_each_child(node, child) {
+			if (strprefixeq(child->name, node->basenamelen, "i2c-bus"))
+				return;
+		}
+		node->bus = &i2c_bus;
+	} else
+		return;
+
+	if (!node->children)
+		return;
+
+	if (node_addr_cells(node) != 1)
+		FAIL(c, dti, node, "incorrect #address-cells for I2C bus");
+	if (node_size_cells(node) != 0)
+		FAIL(c, dti, node, "incorrect #size-cells for I2C bus");
+
+}
+WARNING(i2c_bus_bridge, check_i2c_bus_bridge, NULL, &addr_size_cells);
+
+static void check_i2c_bus_reg(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	const char *unitname = get_unitname(node);
+	char unit_addr[17];
+	uint32_t reg = 0;
+	int len;
+	cell_t *cells = NULL;
+
+	if (!node->parent || (node->parent->bus != &i2c_bus))
+		return;
+
+	prop = get_property(node, "reg");
+	if (prop)
+		cells = (cell_t *)prop->val.val;
+
+	if (!cells) {
+		FAIL(c, dti, node, "missing or empty reg property");
+		return;
+	}
+
+	reg = fdt32_to_cpu(*cells);
+	snprintf(unit_addr, sizeof(unit_addr), "%x", reg);
+	if (!streq(unitname, unit_addr))
+		FAIL(c, dti, node, "I2C bus unit address format error, expected \"%s\"",
+		     unit_addr);
+
+	for (len = prop->val.len; len > 0; len -= 4) {
+		reg = fdt32_to_cpu(*(cells++));
+		if (reg > 0x3ff)
+			FAIL_PROP(c, dti, node, prop, "I2C address must be less than 10-bits, got \"0x%x\"",
+				  reg);
+
+	}
+}
+WARNING(i2c_bus_reg, check_i2c_bus_reg, NULL, &reg_format, &i2c_bus_bridge);
+
+static const struct bus_type spi_bus = {
+	.name = "spi-bus",
+};
+
+static void check_spi_bus_bridge(struct check *c, struct dt_info *dti, struct node *node)
+{
+	int spi_addr_cells = 1;
+
+	if (strprefixeq(node->name, node->basenamelen, "spi")) {
+		node->bus = &spi_bus;
+	} else {
+		/* Try to detect SPI buses which don't have proper node name */
+		struct node *child;
+
+		if (node_addr_cells(node) != 1 || node_size_cells(node) != 0)
+			return;
+
+		for_each_child(node, child) {
+			struct property *prop;
+			for_each_property(child, prop) {
+				if (strprefixeq(prop->name, 4, "spi-")) {
+					node->bus = &spi_bus;
+					break;
+				}
+			}
+			if (node->bus == &spi_bus)
+				break;
+		}
+
+		if (node->bus == &spi_bus && get_property(node, "reg"))
+			FAIL(c, dti, node, "node name for SPI buses should be 'spi'");
+	}
+	if (node->bus != &spi_bus || !node->children)
+		return;
+
+	if (get_property(node, "spi-slave"))
+		spi_addr_cells = 0;
+	if (node_addr_cells(node) != spi_addr_cells)
+		FAIL(c, dti, node, "incorrect #address-cells for SPI bus");
+	if (node_size_cells(node) != 0)
+		FAIL(c, dti, node, "incorrect #size-cells for SPI bus");
+
+}
+WARNING(spi_bus_bridge, check_spi_bus_bridge, NULL, &addr_size_cells);
+
+static void check_spi_bus_reg(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	const char *unitname = get_unitname(node);
+	char unit_addr[9];
+	uint32_t reg = 0;
+	cell_t *cells = NULL;
+
+	if (!node->parent || (node->parent->bus != &spi_bus))
+		return;
+
+	if (get_property(node->parent, "spi-slave"))
+		return;
+
+	prop = get_property(node, "reg");
+	if (prop)
+		cells = (cell_t *)prop->val.val;
+
+	if (!cells) {
+		FAIL(c, dti, node, "missing or empty reg property");
+		return;
+	}
+
+	reg = fdt32_to_cpu(*cells);
+	snprintf(unit_addr, sizeof(unit_addr), "%x", reg);
+	if (!streq(unitname, unit_addr))
+		FAIL(c, dti, node, "SPI bus unit address format error, expected \"%s\"",
+		     unit_addr);
+}
+WARNING(spi_bus_reg, check_spi_bus_reg, NULL, &reg_format, &spi_bus_bridge);
 
 static void check_unit_address_format(struct check *c, struct dt_info *dti,
 				      struct node *node)
@@ -1581,6 +1759,12 @@ static struct check *check_table[] = {
 
 	&simple_bus_bridge,
 	&simple_bus_reg,
+
+	&i2c_bus_bridge,
+	&i2c_bus_reg,
+
+	&spi_bus_bridge,
+	&spi_bus_reg,
 
 	&avoid_default_addr_size,
 	&avoid_unnecessary_addr_size,

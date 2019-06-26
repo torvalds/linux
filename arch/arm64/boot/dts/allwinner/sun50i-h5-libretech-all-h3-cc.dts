@@ -12,3 +12,7 @@
 	model = "Libre Computer Board ALL-H3-CC H5";
 	compatible = "libretech,all-h3-cc-h5", "allwinner,sun50i-h5";
 };
+
+&mmc2 {
+	mmc-ddr-3_3v;
+};

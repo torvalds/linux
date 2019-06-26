@@ -11,7 +11,6 @@ Required properties:
 - compatible : Must be "maxim,max14577" or "maxim,max77836".
 - reg : I2C slave address for the max14577 chip (0x25 for max14577/max77836)
 - interrupts : IRQ line for the chip.
-- interrupt-parent :  The parent interrupt controller.
 
 
 Required nodes:

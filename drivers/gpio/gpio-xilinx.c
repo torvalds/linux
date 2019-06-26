@@ -20,7 +20,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 
 /* Register Offset Definitions */

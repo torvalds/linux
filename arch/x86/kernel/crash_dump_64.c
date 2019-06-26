@@ -11,8 +11,38 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
+static ssize_t __copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
+				  unsigned long offset, int userbuf,
+				  bool encrypted)
+{
+	void  *vaddr;
+
+	if (!csize)
+		return 0;
+
+	if (encrypted)
+		vaddr = (__force void *)ioremap_encrypted(pfn << PAGE_SHIFT, PAGE_SIZE);
+	else
+		vaddr = (__force void *)ioremap_cache(pfn << PAGE_SHIFT, PAGE_SIZE);
+
+	if (!vaddr)
+		return -ENOMEM;
+
+	if (userbuf) {
+		if (copy_to_user((void __user *)buf, vaddr + offset, csize)) {
+			iounmap((void __iomem *)vaddr);
+			return -EFAULT;
+		}
+	} else
+		memcpy(buf, vaddr + offset, csize);
+
+	set_iounmap_nonlazy();
+	iounmap((void __iomem *)vaddr);
+	return csize;
+}
+
 /**
- * copy_oldmem_page - copy one page from "oldmem"
+ * copy_oldmem_page - copy one page of memory
  * @pfn: page frame number to be copied
  * @buf: target memory address for the copy; this can be in kernel address
  *	space or user address space (see @userbuf)
@@ -21,30 +51,22 @@
  * @userbuf: if set, @buf is in user address space, use copy_to_user(),
  *	otherwise @buf is in kernel address space, use memcpy().
  *
- * Copy a page from "oldmem". For this page, there is no pte mapped
- * in the current kernel. We stitch up a pte, similar to kmap_atomic.
+ * Copy a page from the old kernel's memory. For this page, there is no pte
+ * mapped in the current kernel. We stitch up a pte, similar to kmap_atomic.
  */
-ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
-		size_t csize, unsigned long offset, int userbuf)
+ssize_t copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
+			 unsigned long offset, int userbuf)
 {
-	void  *vaddr;
+	return __copy_oldmem_page(pfn, buf, csize, offset, userbuf, false);
+}
 
-	if (!csize)
-		return 0;
-
-	vaddr = ioremap_cache(pfn << PAGE_SHIFT, PAGE_SIZE);
-	if (!vaddr)
-		return -ENOMEM;
-
-	if (userbuf) {
-		if (copy_to_user(buf, vaddr + offset, csize)) {
-			iounmap(vaddr);
-			return -EFAULT;
-		}
-	} else
-		memcpy(buf, vaddr + offset, csize);
-
-	set_iounmap_nonlazy();
-	iounmap(vaddr);
-	return csize;
+/**
+ * copy_oldmem_page_encrypted - same as copy_oldmem_page() above but ioremap the
+ * memory with the encryption mask set to accommodate kdump on SME-enabled
+ * machines.
+ */
+ssize_t copy_oldmem_page_encrypted(unsigned long pfn, char *buf, size_t csize,
+				   unsigned long offset, int userbuf)
+{
+	return __copy_oldmem_page(pfn, buf, csize, offset, userbuf, true);
 }

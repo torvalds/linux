@@ -7,9 +7,11 @@ inside the LSI.
 Required properties:
 - compatible		: "renesas,<soctype>-thermal",
 			  Examples with soctypes are:
+			    - "renesas,r8a774a1-thermal" (RZ/G2M)
 			    - "renesas,r8a7795-thermal" (R-Car H3)
 			    - "renesas,r8a7796-thermal" (R-Car M3-W)
 			    - "renesas,r8a77965-thermal" (R-Car M3-N)
+			    - "renesas,r8a77980-thermal" (R-Car V3H)
 - reg			: Address ranges of the thermal registers. Each sensor
 			  needs one address range. Sorting must be done in
 			  increasing order according to datasheet, i.e.
@@ -19,7 +21,7 @@ Required properties:
 
 Optional properties:
 
-- interrupts           : interrupts routed to the TSC (3 for H3, M3-W and M3-N)
+- interrupts		: interrupts routed to the TSC (must be 3).
 - power-domain		: Must contain a reference to the power domain. This
 			  property is mandatory if the thermal sensor instance
 			  is part of a controllable power domain.

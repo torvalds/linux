@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * QorIQ BMan Portals device tree
  *
  * Copyright 2011-2016 Freescale Semiconductor Inc.
  *
- * SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
  */
 
 &bportals {

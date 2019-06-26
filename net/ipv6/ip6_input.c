@@ -47,16 +47,10 @@
 #include <net/inet_ecn.h>
 #include <net/dst_metadata.h>
 
-int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+static void ip6_rcv_finish_core(struct net *net, struct sock *sk,
+				struct sk_buff *skb)
 {
 	void (*edemux)(struct sk_buff *skb);
-
-	/* if ingress device is enslaved to an L3 master device pass the
-	 * skb to its handler for processing
-	 */
-	skb = l3mdev_ip6_rcv(skb);
-	if (!skb)
-		return NET_RX_SUCCESS;
 
 	if (net->ipv4.sysctl_ip_early_demux && !skb_dst(skb) && skb->sk == NULL) {
 		const struct inet6_protocol *ipprot;
@@ -67,20 +61,73 @@ int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 	}
 	if (!skb_valid_dst(skb))
 		ip6_route_input(skb);
+}
+
+int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	/* if ingress device is enslaved to an L3 master device pass the
+	 * skb to its handler for processing
+	 */
+	skb = l3mdev_ip6_rcv(skb);
+	if (!skb)
+		return NET_RX_SUCCESS;
+	ip6_rcv_finish_core(net, sk, skb);
 
 	return dst_input(skb);
 }
 
-int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
+static void ip6_sublist_rcv_finish(struct list_head *head)
+{
+	struct sk_buff *skb, *next;
+
+	list_for_each_entry_safe(skb, next, head, list)
+		dst_input(skb);
+}
+
+static void ip6_list_rcv_finish(struct net *net, struct sock *sk,
+				struct list_head *head)
+{
+	struct dst_entry *curr_dst = NULL;
+	struct sk_buff *skb, *next;
+	struct list_head sublist;
+
+	INIT_LIST_HEAD(&sublist);
+	list_for_each_entry_safe(skb, next, head, list) {
+		struct dst_entry *dst;
+
+		skb_list_del_init(skb);
+		/* if ingress device is enslaved to an L3 master device pass the
+		 * skb to its handler for processing
+		 */
+		skb = l3mdev_ip6_rcv(skb);
+		if (!skb)
+			continue;
+		ip6_rcv_finish_core(net, sk, skb);
+		dst = skb_dst(skb);
+		if (curr_dst != dst) {
+			/* dispatch old sublist */
+			if (!list_empty(&sublist))
+				ip6_sublist_rcv_finish(&sublist);
+			/* start new sublist */
+			INIT_LIST_HEAD(&sublist);
+			curr_dst = dst;
+		}
+		list_add_tail(&skb->list, &sublist);
+	}
+	/* dispatch final sublist */
+	ip6_sublist_rcv_finish(&sublist);
+}
+
+static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
+				    struct net *net)
 {
 	const struct ipv6hdr *hdr;
 	u32 pkt_len;
 	struct inet6_dev *idev;
-	struct net *net = dev_net(skb->dev);
 
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		kfree_skb(skb);
-		return NET_RX_DROP;
+		return NULL;
 	}
 
 	rcu_read_lock();
@@ -131,7 +178,8 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	 */
 	if ((ipv6_addr_loopback(&hdr->saddr) ||
 	     ipv6_addr_loopback(&hdr->daddr)) &&
-	     !(dev->flags & IFF_LOOPBACK))
+	    !(dev->flags & IFF_LOOPBACK) &&
+	    !netif_is_l3_master(dev))
 		goto err;
 
 	/* RFC4291 Errata ID: 3480
@@ -196,7 +244,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		if (ipv6_parse_hopopts(skb) < 0) {
 			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
 			rcu_read_unlock();
-			return NET_RX_DROP;
+			return NULL;
 		}
 	}
 
@@ -205,42 +253,92 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	/* Must drop socket now because of tproxy. */
 	skb_orphan(skb);
 
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING,
-		       net, NULL, skb, dev, NULL,
-		       ip6_rcv_finish);
+	return skb;
 err:
 	__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
 drop:
 	rcu_read_unlock();
 	kfree_skb(skb);
-	return NET_RX_DROP;
+	return NULL;
+}
+
+int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
+{
+	struct net *net = dev_net(skb->dev);
+
+	skb = ip6_rcv_core(skb, dev, net);
+	if (skb == NULL)
+		return NET_RX_DROP;
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING,
+		       net, NULL, skb, dev, NULL,
+		       ip6_rcv_finish);
+}
+
+static void ip6_sublist_rcv(struct list_head *head, struct net_device *dev,
+			    struct net *net)
+{
+	NF_HOOK_LIST(NFPROTO_IPV6, NF_INET_PRE_ROUTING, net, NULL,
+		     head, dev, NULL, ip6_rcv_finish);
+	ip6_list_rcv_finish(net, NULL, head);
+}
+
+/* Receive a list of IPv6 packets */
+void ipv6_list_rcv(struct list_head *head, struct packet_type *pt,
+		   struct net_device *orig_dev)
+{
+	struct net_device *curr_dev = NULL;
+	struct net *curr_net = NULL;
+	struct sk_buff *skb, *next;
+	struct list_head sublist;
+
+	INIT_LIST_HEAD(&sublist);
+	list_for_each_entry_safe(skb, next, head, list) {
+		struct net_device *dev = skb->dev;
+		struct net *net = dev_net(dev);
+
+		skb_list_del_init(skb);
+		skb = ip6_rcv_core(skb, dev, net);
+		if (skb == NULL)
+			continue;
+
+		if (curr_dev != dev || curr_net != net) {
+			/* dispatch old sublist */
+			if (!list_empty(&sublist))
+				ip6_sublist_rcv(&sublist, curr_dev, curr_net);
+			/* start new sublist */
+			INIT_LIST_HEAD(&sublist);
+			curr_dev = dev;
+			curr_net = net;
+		}
+		list_add_tail(&skb->list, &sublist);
+	}
+	/* dispatch final sublist */
+	ip6_sublist_rcv(&sublist, curr_dev, curr_net);
 }
 
 /*
  *	Deliver the packet to the host
  */
-
-
-static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+void ip6_protocol_deliver_rcu(struct net *net, struct sk_buff *skb, int nexthdr,
+			      bool have_final)
 {
 	const struct inet6_protocol *ipprot;
 	struct inet6_dev *idev;
 	unsigned int nhoff;
-	int nexthdr;
 	bool raw;
-	bool have_final = false;
 
 	/*
 	 *	Parse extension headers
 	 */
 
-	rcu_read_lock();
 resubmit:
 	idev = ip6_dst_idev(skb_dst(skb));
-	if (!pskb_pull(skb, skb_transport_offset(skb)))
-		goto discard;
 	nhoff = IP6CB(skb)->nhoff;
-	nexthdr = skb_network_header(skb)[nhoff];
+	if (!have_final) {
+		if (!pskb_pull(skb, skb_transport_offset(skb)))
+			goto discard;
+		nexthdr = skb_network_header(skb)[nhoff];
+	}
 
 resubmit_final:
 	raw = raw6_local_deliver(skb, nexthdr);
@@ -259,6 +357,8 @@ resubmit_final:
 			}
 		} else if (ipprot->flags & INET6_PROTO_FINAL) {
 			const struct ipv6hdr *hdr;
+			int sdif = inet6_sdif(skb);
+			struct net_device *dev;
 
 			/* Only do this once for first final protocol */
 			have_final = true;
@@ -271,9 +371,19 @@ resubmit_final:
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));
 			hdr = ipv6_hdr(skb);
+
+			/* skb->dev passed may be master dev for vrfs. */
+			if (sdif) {
+				dev = dev_get_by_index_rcu(net, sdif);
+				if (!dev)
+					goto discard;
+			} else {
+				dev = skb->dev;
+			}
+
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&
-			    !ipv6_chk_mcast_addr(skb->dev, &hdr->daddr,
-			    &hdr->saddr) &&
+			    !ipv6_chk_mcast_addr(dev, &hdr->daddr,
+						 &hdr->saddr) &&
 			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb)))
 				goto discard;
 		}
@@ -311,13 +421,19 @@ resubmit_final:
 			consume_skb(skb);
 		}
 	}
-	rcu_read_unlock();
-	return 0;
+	return;
 
 discard:
 	__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDISCARDS);
-	rcu_read_unlock();
 	kfree_skb(skb);
+}
+
+static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	rcu_read_lock();
+	ip6_protocol_deliver_rcu(net, skb, 0, false);
+	rcu_read_unlock();
+
 	return 0;
 }
 
@@ -332,15 +448,32 @@ EXPORT_SYMBOL_GPL(ip6_input);
 
 int ip6_mc_input(struct sk_buff *skb)
 {
+	int sdif = inet6_sdif(skb);
 	const struct ipv6hdr *hdr;
+	struct net_device *dev;
 	bool deliver;
 
 	__IP6_UPD_PO_STATS(dev_net(skb_dst(skb)->dev),
 			 __in6_dev_get_safely(skb->dev), IPSTATS_MIB_INMCAST,
 			 skb->len);
 
+	/* skb->dev passed may be master dev for vrfs. */
+	if (sdif) {
+		rcu_read_lock();
+		dev = dev_get_by_index_rcu(dev_net(skb->dev), sdif);
+		if (!dev) {
+			rcu_read_unlock();
+			kfree_skb(skb);
+			return -ENODEV;
+		}
+	} else {
+		dev = skb->dev;
+	}
+
 	hdr = ipv6_hdr(skb);
-	deliver = ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, NULL);
+	deliver = ipv6_chk_mcast_addr(dev, &hdr->daddr, NULL);
+	if (sdif)
+		rcu_read_unlock();
 
 #ifdef CONFIG_IPV6_MROUTE
 	/*

@@ -42,30 +42,36 @@ struct amdgpu_uvd_inst {
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
 	void			*saved_bo;
-	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
-	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
 	struct amdgpu_ring	ring;
 	struct amdgpu_ring	ring_enc[AMDGPU_MAX_UVD_ENC_RINGS];
 	struct amdgpu_irq_src	irq;
-	struct drm_sched_entity entity;
-	struct drm_sched_entity entity_enc;
 	uint32_t                srbm_soft_reset;
 };
+
+#define AMDGPU_UVD_HARVEST_UVD0 (1 << 0)
+#define AMDGPU_UVD_HARVEST_UVD1 (1 << 1)
 
 struct amdgpu_uvd {
 	const struct firmware	*fw;	/* UVD firmware */
 	unsigned		fw_version;
 	unsigned		max_handles;
 	unsigned		num_enc_rings;
-	uint8_t		num_uvd_inst;
+	uint8_t			num_uvd_inst;
 	bool			address_64_bit;
 	bool			use_ctx_buf;
-	struct amdgpu_uvd_inst		inst[AMDGPU_MAX_UVD_INSTANCES];
+	struct amdgpu_uvd_inst	inst[AMDGPU_MAX_UVD_INSTANCES];
+	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
+	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
+	struct drm_sched_entity entity;
 	struct delayed_work	idle_work;
+	unsigned		harvest_config;
+	/* store image width to adjust nb memory state */
+	unsigned		decode_image_width;
 };
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev);
 int amdgpu_uvd_sw_fini(struct amdgpu_device *adev);
+int amdgpu_uvd_entity_init(struct amdgpu_device *adev);
 int amdgpu_uvd_suspend(struct amdgpu_device *adev);
 int amdgpu_uvd_resume(struct amdgpu_device *adev);
 int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,

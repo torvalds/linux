@@ -30,6 +30,7 @@ config DRM_CDNS_DSI
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL_BRIDGE
+	select GENERIC_PHY_MIPI_DPHY
 	depends on OF
 	help
 	  Support Cadence DPI to DSI bridge. This is an internal
@@ -82,9 +83,11 @@ config DRM_PARADE_PS8622
 
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
-	depends on OF && RC_CORE
+	depends on OF
 	select DRM_KMS_HELPER
 	imply EXTCON
+	select INPUT
+	select RC_CORE
 	help
 	  Silicon Image SII8620 HDMI/MHL bridge chip driver.
 
@@ -93,6 +96,7 @@ config DRM_SII902X
 	depends on OF
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
+	select I2C_MUX
 	---help---
 	  Silicon Image sii902x bridge chip driver.
 
@@ -110,6 +114,14 @@ config DRM_THINE_THC63LVD1024
 	---help---
 	  Thine THC63LVD1024 LVDS/parallel converter driver.
 
+config DRM_TOSHIBA_TC358764
+	tristate "TC358764 DSI/LVDS bridge"
+	depends on DRM && DRM_PANEL
+	depends on OF
+	select DRM_MIPI_DSI
+	help
+	  Toshiba TC358764 DSI/LVDS bridge driver.
+
 config DRM_TOSHIBA_TC358767
 	tristate "Toshiba TC358767 eDP bridge"
 	depends on OF
@@ -125,6 +137,16 @@ config DRM_TI_TFP410
 	select DRM_KMS_HELPER
 	---help---
 	  Texas Instruments TFP410 DVI/HDMI Transmitter driver
+
+config DRM_TI_SN65DSI86
+	tristate "TI SN65DSI86 DSI to eDP bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	help
+	  Texas Instruments SN65DSI86 DSI to eDP Bridge driver
 
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 

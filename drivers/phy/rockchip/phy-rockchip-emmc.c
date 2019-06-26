@@ -337,8 +337,8 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (of_property_read_u32(dev->of_node, "reg", &reg_offset)) {
-		dev_err(dev, "missing reg property in node %s\n",
-			dev->of_node->name);
+		dev_err(dev, "missing reg property in node %pOFn\n",
+			dev->of_node);
 		return -EINVAL;
 	}
 

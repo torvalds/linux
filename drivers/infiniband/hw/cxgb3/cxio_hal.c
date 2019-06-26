@@ -292,12 +292,11 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 		goto err3;
 
 	wq->queue = dma_alloc_coherent(&(rdev_p->rnic_info.pdev->dev),
-					     depth * sizeof(union t3_wr),
-					     &(wq->dma_addr), GFP_KERNEL);
+				       depth * sizeof(union t3_wr),
+				       &(wq->dma_addr), GFP_KERNEL);
 	if (!wq->queue)
 		goto err4;
 
-	memset(wq->queue, 0, depth * sizeof(union t3_wr));
 	dma_unmap_addr_set(wq, mapping, wq->dma_addr);
 	wq->doorbell = (void __iomem *)rdev_p->rnic_info.kdb_addr;
 	if (!kernel_domain)

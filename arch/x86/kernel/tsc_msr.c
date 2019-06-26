@@ -1,17 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * tsc_msr.c - TSC frequency enumeration via MSR
+ * TSC frequency enumeration via MSR
  *
- * Copyright (C) 2013 Intel Corporation
+ * Copyright (C) 2013, 2018 Intel Corporation
  * Author: Bin Gao <bin.gao@intel.com>
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/kernel.h>
-#include <asm/processor.h>
-#include <asm/setup.h>
+
 #include <asm/apic.h>
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
+#include <asm/msr.h>
 #include <asm/param.h>
+#include <asm/tsc.h>
 
 #define MAX_NUM_FREQS	9
 
@@ -23,44 +25,48 @@
  * field msr_plat does.
  */
 struct freq_desc {
-	u8 x86_family;	/* CPU family */
-	u8 x86_model;	/* model */
 	u8 msr_plat;	/* 1: use MSR_PLATFORM_INFO, 0: MSR_IA32_PERF_STATUS */
 	u32 freqs[MAX_NUM_FREQS];
 };
 
-static struct freq_desc freq_desc_tables[] = {
-	/* PNW */
-	{ 6, 0x27, 0, { 0, 0, 0, 0, 0, 99840, 0, 83200 } },
-	/* CLV+ */
-	{ 6, 0x35, 0, { 0, 133200, 0, 0, 0, 99840, 0, 83200 } },
-	/* TNG - Intel Atom processor Z3400 series */
-	{ 6, 0x4a, 1, { 0, 100000, 133300, 0, 0, 0, 0, 0 } },
-	/* VLV2 - Intel Atom processor E3000, Z3600, Z3700 series */
-	{ 6, 0x37, 1, { 83300, 100000, 133300, 116700, 80000, 0, 0, 0 } },
-	/* ANN - Intel Atom processor Z3500 series */
-	{ 6, 0x5a, 1, { 83300, 100000, 133300, 100000, 0, 0, 0, 0 } },
-	/* AMT - Intel Atom processor X7-Z8000 and X5-Z8000 series */
-	{ 6, 0x4c, 1, { 83300, 100000, 133300, 116700,
-			80000, 93300, 90000, 88900, 87500 } },
+/*
+ * Penwell and Clovertrail use spread spectrum clock,
+ * so the freq number is not exactly the same as reported
+ * by MSR based on SDM.
+ */
+static const struct freq_desc freq_desc_pnw = {
+	0, { 0, 0, 0, 0, 0, 99840, 0, 83200 }
 };
 
-static int match_cpu(u8 family, u8 model)
-{
-	int i;
+static const struct freq_desc freq_desc_clv = {
+	0, { 0, 133200, 0, 0, 0, 99840, 0, 83200 }
+};
 
-	for (i = 0; i < ARRAY_SIZE(freq_desc_tables); i++) {
-		if ((family == freq_desc_tables[i].x86_family) &&
-			(model == freq_desc_tables[i].x86_model))
-			return i;
-	}
+static const struct freq_desc freq_desc_byt = {
+	1, { 83300, 100000, 133300, 116700, 80000, 0, 0, 0 }
+};
 
-	return -1;
-}
+static const struct freq_desc freq_desc_cht = {
+	1, { 83300, 100000, 133300, 116700, 80000, 93300, 90000, 88900, 87500 }
+};
 
-/* Map CPU reference clock freq ID(0-7) to CPU reference clock freq(KHz) */
-#define id_to_freq(cpu_index, freq_id) \
-	(freq_desc_tables[cpu_index].freqs[freq_id])
+static const struct freq_desc freq_desc_tng = {
+	1, { 0, 100000, 133300, 0, 0, 0, 0, 0 }
+};
+
+static const struct freq_desc freq_desc_ann = {
+	1, { 83300, 100000, 133300, 100000, 0, 0, 0, 0 }
+};
+
+static const struct x86_cpu_id tsc_msr_cpu_ids[] = {
+	INTEL_CPU_FAM6(ATOM_SALTWELL_MID,	freq_desc_pnw),
+	INTEL_CPU_FAM6(ATOM_SALTWELL_TABLET,	freq_desc_clv),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT,		freq_desc_byt),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_MID,	freq_desc_tng),
+	INTEL_CPU_FAM6(ATOM_AIRMONT,		freq_desc_cht),
+	INTEL_CPU_FAM6(ATOM_AIRMONT_MID,	freq_desc_ann),
+	{}
+};
 
 /*
  * MSR-based CPU/TSC frequency discovery for certain CPUs.
@@ -70,18 +76,17 @@ static int match_cpu(u8 family, u8 model)
  */
 unsigned long cpu_khz_from_msr(void)
 {
-	u32 lo, hi, ratio, freq_id, freq;
+	u32 lo, hi, ratio, freq;
+	const struct freq_desc *freq_desc;
+	const struct x86_cpu_id *id;
 	unsigned long res;
-	int cpu_index;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+	id = x86_match_cpu(tsc_msr_cpu_ids);
+	if (!id)
 		return 0;
 
-	cpu_index = match_cpu(boot_cpu_data.x86, boot_cpu_data.x86_model);
-	if (cpu_index < 0)
-		return 0;
-
-	if (freq_desc_tables[cpu_index].msr_plat) {
+	freq_desc = (struct freq_desc *)id->driver_data;
+	if (freq_desc->msr_plat) {
 		rdmsr(MSR_PLATFORM_INFO, lo, hi);
 		ratio = (lo >> 8) & 0xff;
 	} else {
@@ -91,8 +96,9 @@ unsigned long cpu_khz_from_msr(void)
 
 	/* Get FSB FREQ ID */
 	rdmsr(MSR_FSB_FREQ, lo, hi);
-	freq_id = lo & 0x7;
-	freq = id_to_freq(cpu_index, freq_id);
+
+	/* Map CPU reference clock freq ID(0-7) to CPU reference clock freq(KHz) */
+	freq = freq_desc->freqs[lo & 0x7];
 
 	/* TSC frequency = maximum resolved freq * maximum resolved bus ratio */
 	res = freq * ratio;

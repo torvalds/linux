@@ -597,11 +597,13 @@ static void dpp1_dscl_set_manual_ratio_init(
 		SCL_V_INIT_FRAC, init_frac,
 		SCL_V_INIT_INT, init_int);
 
-	init_frac = dc_fixpt_u0d19(data->inits.v_bot) << 5;
-	init_int = dc_fixpt_floor(data->inits.v_bot);
-	REG_SET_2(SCL_VERT_FILTER_INIT_BOT, 0,
-		SCL_V_INIT_FRAC_BOT, init_frac,
-		SCL_V_INIT_INT_BOT, init_int);
+	if (REG(SCL_VERT_FILTER_INIT_BOT)) {
+		init_frac = dc_fixpt_u0d19(data->inits.v_bot) << 5;
+		init_int = dc_fixpt_floor(data->inits.v_bot);
+		REG_SET_2(SCL_VERT_FILTER_INIT_BOT, 0,
+			SCL_V_INIT_FRAC_BOT, init_frac,
+			SCL_V_INIT_INT_BOT, init_int);
+	}
 
 	init_frac = dc_fixpt_u0d19(data->inits.v_c) << 5;
 	init_int = dc_fixpt_floor(data->inits.v_c);
@@ -609,11 +611,13 @@ static void dpp1_dscl_set_manual_ratio_init(
 		SCL_V_INIT_FRAC_C, init_frac,
 		SCL_V_INIT_INT_C, init_int);
 
-	init_frac = dc_fixpt_u0d19(data->inits.v_c_bot) << 5;
-	init_int = dc_fixpt_floor(data->inits.v_c_bot);
-	REG_SET_2(SCL_VERT_FILTER_INIT_BOT_C, 0,
-		SCL_V_INIT_FRAC_BOT_C, init_frac,
-		SCL_V_INIT_INT_BOT_C, init_int);
+	if (REG(SCL_VERT_FILTER_INIT_BOT_C)) {
+		init_frac = dc_fixpt_u0d19(data->inits.v_c_bot) << 5;
+		init_int = dc_fixpt_floor(data->inits.v_c_bot);
+		REG_SET_2(SCL_VERT_FILTER_INIT_BOT_C, 0,
+			SCL_V_INIT_FRAC_BOT_C, init_frac,
+			SCL_V_INIT_INT_BOT_C, init_int);
+	}
 }
 
 
@@ -621,6 +625,10 @@ static void dpp1_dscl_set_manual_ratio_init(
 static void dpp1_dscl_set_recout(
 			struct dcn10_dpp *dpp, const struct rect *recout)
 {
+	int visual_confirm_on = 0;
+	if (dpp->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
+		visual_confirm_on = 1;
+
 	REG_SET_2(RECOUT_START, 0,
 		/* First pixel of RECOUT */
 			 RECOUT_START_X, recout->x,
@@ -632,8 +640,7 @@ static void dpp1_dscl_set_recout(
 			 RECOUT_WIDTH, recout->width,
 		/* Number of RECOUT vertical lines */
 			 RECOUT_HEIGHT, recout->height
-			 - dpp->base.ctx->dc->debug.surface_visual_confirm * 4 *
-			 (dpp->base.inst + 1));
+			 - visual_confirm_on * 4 * (dpp->base.inst + 1));
 }
 
 /* Main function to program scaler and line buffer in manual scaling mode */
@@ -654,6 +661,12 @@ void dpp1_dscl_set_scaler_manual_scale(
 	PERF_TRACE();
 
 	dpp->scl_data = *scl_data;
+
+	/* Autocal off */
+	REG_SET_3(DSCL_AUTOCAL, 0,
+		AUTOCAL_MODE, AUTOCAL_MODE_OFF,
+		AUTOCAL_NUM_PIPE, 0,
+		AUTOCAL_PIPE_ID, 0);
 
 	/* Recout */
 	dpp1_dscl_set_recout(dpp, &scl_data->recout);
@@ -678,22 +691,18 @@ void dpp1_dscl_set_scaler_manual_scale(
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
 
-	/* Autocal off */
-	REG_SET_3(DSCL_AUTOCAL, 0,
-		AUTOCAL_MODE, AUTOCAL_MODE_OFF,
-		AUTOCAL_NUM_PIPE, 0,
-		AUTOCAL_PIPE_ID, 0);
-
 	/* Black offsets */
-	if (ycbcr)
-		REG_SET_2(SCL_BLACK_OFFSET, 0,
-				SCL_BLACK_OFFSET_RGB_Y, BLACK_OFFSET_RGB_Y,
-				SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_CBCR);
-	else
+	if (REG(SCL_BLACK_OFFSET)) {
+		if (ycbcr)
+			REG_SET_2(SCL_BLACK_OFFSET, 0,
+					SCL_BLACK_OFFSET_RGB_Y, BLACK_OFFSET_RGB_Y,
+					SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_CBCR);
+		else
 
-		REG_SET_2(SCL_BLACK_OFFSET, 0,
-				SCL_BLACK_OFFSET_RGB_Y, BLACK_OFFSET_RGB_Y,
-				SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_RGB_Y);
+			REG_SET_2(SCL_BLACK_OFFSET, 0,
+					SCL_BLACK_OFFSET_RGB_Y, BLACK_OFFSET_RGB_Y,
+					SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_RGB_Y);
+	}
 
 	/* Manually calculate scale ratio and init values */
 	dpp1_dscl_set_manual_ratio_init(dpp, scl_data);

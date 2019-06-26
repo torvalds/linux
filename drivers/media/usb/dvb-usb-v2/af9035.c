@@ -204,7 +204,7 @@ static int af9035_add_i2c_dev(struct dvb_usb_device *d, const char *type,
 		.platform_data = platform_data,
 	};
 
-	strlcpy(board_info.type, type, I2C_NAME_SIZE);
+	strscpy(board_info.type, type, I2C_NAME_SIZE);
 
 	/* find first free client */
 	for (num = 0; num < AF9035_I2C_CLIENT_MAX; num++) {
@@ -402,8 +402,10 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 			if (msg[0].addr == state->af9033_i2c_addr[1])
 				reg |= 0x100000;
 
-			ret = af9035_wr_regs(d, reg, &msg[0].buf[3],
-					msg[0].len - 3);
+			ret = (msg[0].len >= 3) ? af9035_wr_regs(d, reg,
+							         &msg[0].buf[3],
+							         msg[0].len - 3)
+					        : -EOPNOTSUPP;
 		} else {
 			/* I2C write */
 			u8 buf[MAX_XFER_SIZE];

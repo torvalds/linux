@@ -101,8 +101,7 @@ static bool cmd_db_magic_matches(const struct cmd_db_header *header)
 
 static struct cmd_db_header *cmd_db_header;
 
-
-static inline void *rsc_to_entry_header(struct rsc_hdr *hdr)
+static inline const void *rsc_to_entry_header(const struct rsc_hdr *hdr)
 {
 	u16 offset = le16_to_cpu(hdr->header_offset);
 
@@ -110,7 +109,7 @@ static inline void *rsc_to_entry_header(struct rsc_hdr *hdr)
 }
 
 static inline void *
-rsc_offset(struct rsc_hdr *hdr, struct entry_header *ent)
+rsc_offset(const struct rsc_hdr *hdr, const struct entry_header *ent)
 {
 	u16 offset = le16_to_cpu(hdr->data_offset);
 	u16 loffset = le16_to_cpu(ent->offset);
@@ -134,20 +133,17 @@ int cmd_db_ready(void)
 }
 EXPORT_SYMBOL(cmd_db_ready);
 
-static int cmd_db_get_header(const char *id, struct entry_header *eh,
-			     struct rsc_hdr *rh)
+static int cmd_db_get_header(const char *id, const struct entry_header **eh,
+			     const struct rsc_hdr **rh)
 {
-	struct rsc_hdr *rsc_hdr;
-	struct entry_header *ent;
+	const struct rsc_hdr *rsc_hdr;
+	const struct entry_header *ent;
 	int ret, i, j;
 	u8 query[8];
 
 	ret = cmd_db_ready();
 	if (ret)
 		return ret;
-
-	if (!eh || !rh)
-		return -EINVAL;
 
 	/* Pad out query string to same length as in DB */
 	strncpy(query, id, sizeof(query));
@@ -159,14 +155,13 @@ static int cmd_db_get_header(const char *id, struct entry_header *eh,
 
 		ent = rsc_to_entry_header(rsc_hdr);
 		for (j = 0; j < le16_to_cpu(rsc_hdr->cnt); j++, ent++) {
-			if (memcmp(ent->id, query, sizeof(ent->id)) == 0)
-				break;
-		}
-
-		if (j < le16_to_cpu(rsc_hdr->cnt)) {
-			memcpy(eh, ent, sizeof(*ent));
-			memcpy(rh, rsc_hdr, sizeof(*rh));
-			return 0;
+			if (memcmp(ent->id, query, sizeof(ent->id)) == 0) {
+				if (eh)
+					*eh = ent;
+				if (rh)
+					*rh = rsc_hdr;
+				return 0;
+			}
 		}
 	}
 
@@ -186,67 +181,38 @@ static int cmd_db_get_header(const char *id, struct entry_header *eh,
 u32 cmd_db_read_addr(const char *id)
 {
 	int ret;
-	struct entry_header ent;
-	struct rsc_hdr rsc_hdr;
+	const struct entry_header *ent;
 
-	ret = cmd_db_get_header(id, &ent, &rsc_hdr);
+	ret = cmd_db_get_header(id, &ent, NULL);
 
-	return ret < 0 ? 0 : le32_to_cpu(ent.addr);
+	return ret < 0 ? 0 : le32_to_cpu(ent->addr);
 }
 EXPORT_SYMBOL(cmd_db_read_addr);
 
 /**
  * cmd_db_read_aux_data() - Query command db for aux data.
  *
- *  @id: Resource to retrieve AUX Data on.
- *  @data: Data buffer to copy returned aux data to. Returns size on NULL
- *  @len: Caller provides size of data buffer passed in.
+ *  @id: Resource to retrieve AUX Data on
+ *  @len: size of data buffer returned
  *
- *  Return: size of data on success, errno otherwise
+ *  Return: pointer to data on success, error pointer otherwise
  */
-int cmd_db_read_aux_data(const char *id, u8 *data, size_t len)
+const void *cmd_db_read_aux_data(const char *id, size_t *len)
 {
 	int ret;
-	struct entry_header ent;
-	struct rsc_hdr rsc_hdr;
-	u16 ent_len;
-
-	if (!data)
-		return -EINVAL;
+	const struct entry_header *ent;
+	const struct rsc_hdr *rsc_hdr;
 
 	ret = cmd_db_get_header(id, &ent, &rsc_hdr);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
-	ent_len = le16_to_cpu(ent.len);
-	if (len < ent_len)
-		return -EINVAL;
+	if (len)
+		*len = le16_to_cpu(ent->len);
 
-	len = min_t(u16, ent_len, len);
-	memcpy(data, rsc_offset(&rsc_hdr, &ent), len);
-
-	return len;
+	return rsc_offset(rsc_hdr, ent);
 }
 EXPORT_SYMBOL(cmd_db_read_aux_data);
-
-/**
- * cmd_db_read_aux_data_len - Get the length of the auxiliary data stored in DB.
- *
- * @id: Resource to retrieve AUX Data.
- *
- * Return: size on success, 0 on error
- */
-size_t cmd_db_read_aux_data_len(const char *id)
-{
-	int ret;
-	struct entry_header ent;
-	struct rsc_hdr rsc_hdr;
-
-	ret = cmd_db_get_header(id, &ent, &rsc_hdr);
-
-	return ret < 0 ? 0 : le16_to_cpu(ent.len);
-}
-EXPORT_SYMBOL(cmd_db_read_aux_data_len);
 
 /**
  * cmd_db_read_slave_id - Get the slave ID for a given resource address
@@ -258,15 +224,14 @@ EXPORT_SYMBOL(cmd_db_read_aux_data_len);
 enum cmd_db_hw_type cmd_db_read_slave_id(const char *id)
 {
 	int ret;
-	struct entry_header ent;
-	struct rsc_hdr rsc_hdr;
+	const struct entry_header *ent;
 	u32 addr;
 
-	ret = cmd_db_get_header(id, &ent, &rsc_hdr);
+	ret = cmd_db_get_header(id, &ent, NULL);
 	if (ret < 0)
 		return CMD_DB_HW_INVALID;
 
-	addr = le32_to_cpu(ent.addr);
+	addr = le32_to_cpu(ent->addr);
 	return (addr >> SLAVE_ID_SHIFT) & SLAVE_ID_MASK;
 }
 EXPORT_SYMBOL(cmd_db_read_slave_id);

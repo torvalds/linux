@@ -37,6 +37,10 @@
  * ********************************************************************
  */
 
+#define MAX_CONNECTOR_NUMBER_PER_SLOT	(16)
+#define MAX_BOARD_SLOTS					(4)
+#define INVALID_CONNECTOR_INDEX			((unsigned int)(-1))
+
 /* HPD unit id - HW direct translation */
 enum hpd_source_id {
 	HPD_SOURCEID1 = 0,
@@ -136,5 +140,47 @@ enum sync_source {
 	SYNC_SOURCE_DUAL_GPU_PIN
 };
 
+/* connector sizes in millimeters - from BiosParserTypes.hpp */
+#define CONNECTOR_SIZE_DVI			40
+#define CONNECTOR_SIZE_VGA			32
+#define CONNECTOR_SIZE_HDMI			16
+#define CONNECTOR_SIZE_DP			16
+#define CONNECTOR_SIZE_MINI_DP			9
+#define CONNECTOR_SIZE_UNKNOWN			30
 
+enum connector_layout_type {
+	CONNECTOR_LAYOUT_TYPE_UNKNOWN,
+	CONNECTOR_LAYOUT_TYPE_DVI_D,
+	CONNECTOR_LAYOUT_TYPE_DVI_I,
+	CONNECTOR_LAYOUT_TYPE_VGA,
+	CONNECTOR_LAYOUT_TYPE_HDMI,
+	CONNECTOR_LAYOUT_TYPE_DP,
+	CONNECTOR_LAYOUT_TYPE_MINI_DP,
+};
+struct connector_layout_info {
+	struct graphics_object_id connector_id;
+	enum connector_layout_type connector_type;
+	unsigned int length;
+	unsigned int position;  /* offset in mm from right side of the board */
+};
+
+/* length and width in mm */
+struct slot_layout_info {
+	unsigned int length;
+	unsigned int width;
+	unsigned int num_of_connectors;
+	struct connector_layout_info connectors[MAX_CONNECTOR_NUMBER_PER_SLOT];
+};
+
+struct board_layout_info {
+	unsigned int num_of_slots;
+
+	/* indicates valid information in bracket layout structure. */
+	unsigned int is_number_of_slots_valid : 1;
+	unsigned int is_slots_size_valid : 1;
+	unsigned int is_connector_offsets_valid : 1;
+	unsigned int is_connector_lengths_valid : 1;
+
+	struct slot_layout_info slots[MAX_BOARD_SLOTS];
+};
 #endif

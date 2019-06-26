@@ -23,7 +23,6 @@
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
 
-#include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 
@@ -426,6 +425,7 @@ void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu)
 	mmu->slbmte = NULL;
 	mmu->slbmfee = NULL;
 	mmu->slbmfev = NULL;
+	mmu->slbfee = NULL;
 	mmu->slbie = NULL;
 	mmu->slbia = NULL;
 }

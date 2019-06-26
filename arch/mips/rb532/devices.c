@@ -20,10 +20,10 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/serial_8250.h>
@@ -128,27 +128,30 @@ static struct resource cf_slot0_res[] = {
 	}
 };
 
-static struct cf_device cf_slot0_data = {
-	.gpio_pin = CF_GPIO_NUM
+static struct gpiod_lookup_table cf_slot0_gpio_table = {
+	.dev_id = "pata-rb532-cf",
+	.table = {
+		GPIO_LOOKUP("gpio0", CF_GPIO_NUM,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device cf_slot0 = {
 	.id = -1,
 	.name = "pata-rb532-cf",
-	.dev.platform_data = &cf_slot0_data,
 	.resource = cf_slot0_res,
 	.num_resources = ARRAY_SIZE(cf_slot0_res),
 };
 
 /* Resources and device for NAND */
-static int rb532_dev_ready(struct mtd_info *mtd)
+static int rb532_dev_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(GPIO_RDY);
 }
 
-static void rb532_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void rb532_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	unsigned char orbits, nandbits;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
@@ -161,7 +164,7 @@ static void rb532_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 		set_latch_u5(orbits, nandbits);
 	}
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, chip->IO_ADDR_W);
+		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
 static struct resource nand_slot0_res[] = {
@@ -307,6 +310,7 @@ static int __init plat_setup_devices(void)
 
 	dev_set_drvdata(&korina_dev0.dev, &korina_dev0_data);
 
+	gpiod_add_lookup_table(&cf_slot0_gpio_table);
 	return platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
 }
 

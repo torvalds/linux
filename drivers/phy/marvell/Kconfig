@@ -21,6 +21,37 @@ config PHY_BERLIN_USB
 	help
 	  Enable this to support the USB PHY on Marvell Berlin SoCs.
 
+config PHY_MVEBU_A3700_COMPHY
+	tristate "Marvell A3700 comphy driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	depends on HAVE_ARM_SMCCC
+	default y
+	select GENERIC_PHY
+	help
+	  This driver allows to control the comphy, a hardware block providing
+	  shared serdes PHYs on Marvell Armada 3700. Its serdes lanes can be
+	  used by various controllers: Ethernet, SATA, USB3, PCIe.
+
+config PHY_MVEBU_A3700_UTMI
+	tristate "Marvell A3700 UTMI driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	default y
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell A3700 UTMI PHY driver.
+
+config PHY_MVEBU_A38X_COMPHY
+	tristate "Marvell Armada 38x comphy driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	select GENERIC_PHY
+	help
+	  This driver allows to control the comphy, an hardware block providing
+	  shared serdes PHYs on Marvell Armada 38x. Its serdes lanes can be
+	  used by various controllers (Ethernet, sata, usb, PCIe...).
+
 config PHY_MVEBU_CP110_COMPHY
 	tristate "Marvell CP110 comphy driver"
 	depends on ARCH_MVEBU || COMPILE_TEST
@@ -55,6 +86,17 @@ config PHY_PXA_28NM_USB2
 	select GENERIC_PHY
 	help
 	  Enable this to support Marvell USB 2.0 PHY driver for Marvell
+	  SoC. This driver will do the PHY initialization and shutdown.
+	  The PHY driver will be used by Marvell udc/ehci/otg driver.
+
+	  To compile this driver as a module, choose M here.
+
+config PHY_PXA_USB
+	tristate "Marvell PXA USB PHY Driver"
+	depends on ARCH_PXA || ARCH_MMP
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell PXA USB PHY driver for Marvell
 	  SoC. This driver will do the PHY initialization and shutdown.
 	  The PHY driver will be used by Marvell udc/ehci/otg driver.
 

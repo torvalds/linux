@@ -11,7 +11,6 @@
 
 #include <linux/mm.h>
 #include <asm/cputable.h>
-#include <asm/cpu_has_feature.h>
 
 /*
  * No cache flushing is required when address mappings are changed,

@@ -44,6 +44,8 @@
 #include "../thread-stack.h"
 #include "../trace-event.h"
 #include "../call-path.h"
+#include "map.h"
+#include "symbol.h"
 #include "thread_map.h"
 #include "cpumap.h"
 #include "print_binary.h"
@@ -193,7 +195,7 @@ static void try_call_object(const char *handler_name, PyObject *args)
 		call_object(handler, args, handler_name);
 }
 
-static void define_value(enum print_arg_type field_type,
+static void define_value(enum tep_print_arg_type field_type,
 			 const char *ev_name,
 			 const char *field_name,
 			 const char *field_value,
@@ -204,7 +206,7 @@ static void define_value(enum print_arg_type field_type,
 	unsigned long long value;
 	unsigned n = 0;
 
-	if (field_type == PRINT_SYMBOL)
+	if (field_type == TEP_PRINT_SYMBOL)
 		handler_name = "define_symbolic_value";
 
 	t = PyTuple_New(4);
@@ -223,8 +225,8 @@ static void define_value(enum print_arg_type field_type,
 	Py_DECREF(t);
 }
 
-static void define_values(enum print_arg_type field_type,
-			  struct print_flag_sym *field,
+static void define_values(enum tep_print_arg_type field_type,
+			  struct tep_print_flag_sym *field,
 			  const char *ev_name,
 			  const char *field_name)
 {
@@ -235,7 +237,7 @@ static void define_values(enum print_arg_type field_type,
 		define_values(field_type, field->next, ev_name, field_name);
 }
 
-static void define_field(enum print_arg_type field_type,
+static void define_field(enum tep_print_arg_type field_type,
 			 const char *ev_name,
 			 const char *field_name,
 			 const char *delim)
@@ -244,10 +246,10 @@ static void define_field(enum print_arg_type field_type,
 	PyObject *t;
 	unsigned n = 0;
 
-	if (field_type == PRINT_SYMBOL)
+	if (field_type == TEP_PRINT_SYMBOL)
 		handler_name = "define_symbolic_field";
 
-	if (field_type == PRINT_FLAGS)
+	if (field_type == TEP_PRINT_FLAGS)
 		t = PyTuple_New(3);
 	else
 		t = PyTuple_New(2);
@@ -256,7 +258,7 @@ static void define_field(enum print_arg_type field_type,
 
 	PyTuple_SetItem(t, n++, _PyUnicode_FromString(ev_name));
 	PyTuple_SetItem(t, n++, _PyUnicode_FromString(field_name));
-	if (field_type == PRINT_FLAGS)
+	if (field_type == TEP_PRINT_FLAGS)
 		PyTuple_SetItem(t, n++, _PyUnicode_FromString(delim));
 
 	try_call_object(handler_name, t);
@@ -264,54 +266,54 @@ static void define_field(enum print_arg_type field_type,
 	Py_DECREF(t);
 }
 
-static void define_event_symbols(struct event_format *event,
+static void define_event_symbols(struct tep_event *event,
 				 const char *ev_name,
-				 struct print_arg *args)
+				 struct tep_print_arg *args)
 {
 	if (args == NULL)
 		return;
 
 	switch (args->type) {
-	case PRINT_NULL:
+	case TEP_PRINT_NULL:
 		break;
-	case PRINT_ATOM:
-		define_value(PRINT_FLAGS, ev_name, cur_field_name, "0",
+	case TEP_PRINT_ATOM:
+		define_value(TEP_PRINT_FLAGS, ev_name, cur_field_name, "0",
 			     args->atom.atom);
 		zero_flag_atom = 0;
 		break;
-	case PRINT_FIELD:
+	case TEP_PRINT_FIELD:
 		free(cur_field_name);
 		cur_field_name = strdup(args->field.name);
 		break;
-	case PRINT_FLAGS:
+	case TEP_PRINT_FLAGS:
 		define_event_symbols(event, ev_name, args->flags.field);
-		define_field(PRINT_FLAGS, ev_name, cur_field_name,
+		define_field(TEP_PRINT_FLAGS, ev_name, cur_field_name,
 			     args->flags.delim);
-		define_values(PRINT_FLAGS, args->flags.flags, ev_name,
+		define_values(TEP_PRINT_FLAGS, args->flags.flags, ev_name,
 			      cur_field_name);
 		break;
-	case PRINT_SYMBOL:
+	case TEP_PRINT_SYMBOL:
 		define_event_symbols(event, ev_name, args->symbol.field);
-		define_field(PRINT_SYMBOL, ev_name, cur_field_name, NULL);
-		define_values(PRINT_SYMBOL, args->symbol.symbols, ev_name,
+		define_field(TEP_PRINT_SYMBOL, ev_name, cur_field_name, NULL);
+		define_values(TEP_PRINT_SYMBOL, args->symbol.symbols, ev_name,
 			      cur_field_name);
 		break;
-	case PRINT_HEX:
-	case PRINT_HEX_STR:
+	case TEP_PRINT_HEX:
+	case TEP_PRINT_HEX_STR:
 		define_event_symbols(event, ev_name, args->hex.field);
 		define_event_symbols(event, ev_name, args->hex.size);
 		break;
-	case PRINT_INT_ARRAY:
+	case TEP_PRINT_INT_ARRAY:
 		define_event_symbols(event, ev_name, args->int_array.field);
 		define_event_symbols(event, ev_name, args->int_array.count);
 		define_event_symbols(event, ev_name, args->int_array.el_size);
 		break;
-	case PRINT_STRING:
+	case TEP_PRINT_STRING:
 		break;
-	case PRINT_TYPE:
+	case TEP_PRINT_TYPE:
 		define_event_symbols(event, ev_name, args->typecast.item);
 		break;
-	case PRINT_OP:
+	case TEP_PRINT_OP:
 		if (strcmp(args->op.op, ":") == 0)
 			zero_flag_atom = 1;
 		define_event_symbols(event, ev_name, args->op.left);
@@ -319,11 +321,11 @@ static void define_event_symbols(struct event_format *event,
 		break;
 	default:
 		/* gcc warns for these? */
-	case PRINT_BSTRING:
-	case PRINT_DYNAMIC_ARRAY:
-	case PRINT_DYNAMIC_ARRAY_LEN:
-	case PRINT_FUNC:
-	case PRINT_BITMASK:
+	case TEP_PRINT_BSTRING:
+	case TEP_PRINT_DYNAMIC_ARRAY:
+	case TEP_PRINT_DYNAMIC_ARRAY_LEN:
+	case TEP_PRINT_FUNC:
+	case TEP_PRINT_BITMASK:
 		/* we should warn... */
 		return;
 	}
@@ -332,10 +334,10 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static PyObject *get_field_numeric_entry(struct event_format *event,
-		struct format_field *field, void *data)
+static PyObject *get_field_numeric_entry(struct tep_event *event,
+		struct tep_format_field *field, void *data)
 {
-	bool is_array = field->flags & FIELD_IS_ARRAY;
+	bool is_array = field->flags & TEP_FIELD_IS_ARRAY;
 	PyObject *obj = NULL, *list = NULL;
 	unsigned long long val;
 	unsigned int item_size, n_items, i;
@@ -353,7 +355,7 @@ static PyObject *get_field_numeric_entry(struct event_format *event,
 
 		val = read_size(event, data + field->offset + i * item_size,
 				item_size);
-		if (field->flags & FIELD_IS_SIGNED) {
+		if (field->flags & TEP_FIELD_IS_SIGNED) {
 			if ((long long)val >= LONG_MIN &&
 					(long long)val <= LONG_MAX)
 				obj = _PyLong_FromLong(val);
@@ -494,14 +496,14 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 		pydict_set_item_string_decref(pyelem, "cycles",
 		    PyLong_FromUnsignedLongLong(br->entries[i].flags.cycles));
 
-		thread__find_map(thread, sample->cpumode,
-				 br->entries[i].from, &al);
+		thread__find_map_fb(thread, sample->cpumode,
+				    br->entries[i].from, &al);
 		dsoname = get_dsoname(al.map);
 		pydict_set_item_string_decref(pyelem, "from_dsoname",
 					      _PyUnicode_FromString(dsoname));
 
-		thread__find_map(thread, sample->cpumode,
-				 br->entries[i].to, &al);
+		thread__find_map_fb(thread, sample->cpumode,
+				    br->entries[i].to, &al);
 		dsoname = get_dsoname(al.map);
 		pydict_set_item_string_decref(pyelem, "to_dsoname",
 					      _PyUnicode_FromString(dsoname));
@@ -576,14 +578,14 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 		if (!pyelem)
 			Py_FatalError("couldn't create Python dictionary");
 
-		thread__find_symbol(thread, sample->cpumode,
-				    br->entries[i].from, &al);
+		thread__find_symbol_fb(thread, sample->cpumode,
+				       br->entries[i].from, &al);
 		get_symoff(al.sym, &al, true, bf, sizeof(bf));
 		pydict_set_item_string_decref(pyelem, "from",
 					      _PyUnicode_FromString(bf));
 
-		thread__find_symbol(thread, sample->cpumode,
-				    br->entries[i].to, &al);
+		thread__find_symbol_fb(thread, sample->cpumode,
+				       br->entries[i].to, &al);
 		get_symoff(al.sym, &al, true, bf, sizeof(bf));
 		pydict_set_item_string_decref(pyelem, "to",
 					      _PyUnicode_FromString(bf));
@@ -733,8 +735,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 		Py_FatalError("couldn't create Python dictionary");
 
 	pydict_set_item_string_decref(dict, "ev_name", _PyUnicode_FromString(perf_evsel__name(evsel)));
-	pydict_set_item_string_decref(dict, "attr", _PyUnicode_FromStringAndSize(
-			(const char *)&evsel->attr, sizeof(evsel->attr)));
+	pydict_set_item_string_decref(dict, "attr", _PyBytes_FromStringAndSize((const char *)&evsel->attr, sizeof(evsel->attr)));
 
 	pydict_set_item_string_decref(dict_sample, "pid",
 			_PyLong_FromLong(sample->pid));
@@ -790,11 +791,11 @@ static void python_process_tracepoint(struct perf_sample *sample,
 				      struct perf_evsel *evsel,
 				      struct addr_location *al)
 {
-	struct event_format *event = evsel->tp_format;
+	struct tep_event *event = evsel->tp_format;
 	PyObject *handler, *context, *t, *obj = NULL, *callchain;
 	PyObject *dict = NULL, *all_entries_dict = NULL;
 	static char handler_name[256];
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long s, ns;
 	unsigned n = 0;
 	int pid;
@@ -867,22 +868,22 @@ static void python_process_tracepoint(struct perf_sample *sample,
 		unsigned int offset, len;
 		unsigned long long val;
 
-		if (field->flags & FIELD_IS_ARRAY) {
+		if (field->flags & TEP_FIELD_IS_ARRAY) {
 			offset = field->offset;
 			len    = field->size;
-			if (field->flags & FIELD_IS_DYNAMIC) {
-				val     = pevent_read_number(scripting_context->pevent,
-							     data + offset, len);
+			if (field->flags & TEP_FIELD_IS_DYNAMIC) {
+				val     = tep_read_number(scripting_context->pevent,
+							  data + offset, len);
 				offset  = val;
 				len     = offset >> 16;
 				offset &= 0xffff;
 			}
-			if (field->flags & FIELD_IS_STRING &&
+			if (field->flags & TEP_FIELD_IS_STRING &&
 			    is_printable_array(data + offset, len)) {
 				obj = _PyUnicode_FromString((char *) data + offset);
 			} else {
 				obj = PyByteArray_FromStringAndSize((const char *) data + offset, len);
-				field->flags &= ~FIELD_IS_STRING;
+				field->flags &= ~TEP_FIELD_IS_STRING;
 			}
 		} else { /* FIELD_IS_NUMERIC */
 			obj = get_field_numeric_entry(event, field, data);
@@ -1172,7 +1173,7 @@ static int python_export_call_return(struct db_export *dbe,
 	u64 comm_db_id = cr->comm ? cr->comm->db_id : 0;
 	PyObject *t;
 
-	t = tuple_new(11);
+	t = tuple_new(12);
 
 	tuple_set_u64(t, 0, cr->db_id);
 	tuple_set_u64(t, 1, cr->thread->db_id);
@@ -1185,6 +1186,7 @@ static int python_export_call_return(struct db_export *dbe,
 	tuple_set_u64(t, 8, cr->return_ref);
 	tuple_set_u64(t, 9, cr->cp->parent->db_id);
 	tuple_set_s32(t, 10, cr->flags);
+	tuple_set_u64(t, 11, cr->parent_db_id);
 
 	call_object(tables->call_return_handler, t, "call_return_table");
 
@@ -1193,11 +1195,12 @@ static int python_export_call_return(struct db_export *dbe,
 	return 0;
 }
 
-static int python_process_call_return(struct call_return *cr, void *data)
+static int python_process_call_return(struct call_return *cr, u64 *parent_db_id,
+				      void *data)
 {
 	struct db_export *dbe = data;
 
-	return db_export__call_return(dbe, cr);
+	return db_export__call_return(dbe, cr, parent_db_id);
 }
 
 static void python_process_general_event(struct perf_sample *sample,
@@ -1494,34 +1497,40 @@ static void _free_command_line(wchar_t **command_line, int num)
 static int python_start_script(const char *script, int argc, const char **argv)
 {
 	struct tables *tables = &tables_global;
+	PyMODINIT_FUNC (*initfunc)(void);
 #if PY_MAJOR_VERSION < 3
 	const char **command_line;
 #else
 	wchar_t **command_line;
 #endif
-	char buf[PATH_MAX];
+	/*
+	 * Use a non-const name variable to cope with python 2.6's
+	 * PyImport_AppendInittab prototype
+	 */
+	char buf[PATH_MAX], name[19] = "perf_trace_context";
 	int i, err = 0;
 	FILE *fp;
 
 #if PY_MAJOR_VERSION < 3
+	initfunc = initperf_trace_context;
 	command_line = malloc((argc + 1) * sizeof(const char *));
 	command_line[0] = script;
 	for (i = 1; i < argc + 1; i++)
 		command_line[i] = argv[i - 1];
 #else
+	initfunc = PyInit_perf_trace_context;
 	command_line = malloc((argc + 1) * sizeof(wchar_t *));
 	command_line[0] = Py_DecodeLocale(script, NULL);
 	for (i = 1; i < argc + 1; i++)
 		command_line[i] = Py_DecodeLocale(argv[i - 1], NULL);
 #endif
 
+	PyImport_AppendInittab(name, initfunc);
 	Py_Initialize();
 
 #if PY_MAJOR_VERSION < 3
-	initperf_trace_context();
 	PySys_SetArgv(argc + 1, (char **)command_line);
 #else
-	PyInit_perf_trace_context();
 	PySys_SetArgv(argc + 1, command_line);
 #endif
 
@@ -1588,10 +1597,10 @@ static int python_stop_script(void)
 	return 0;
 }
 
-static int python_generate_script(struct pevent *pevent, const char *outfile)
+static int python_generate_script(struct tep_handle *pevent, const char *outfile)
 {
-	struct event_format *event = NULL;
-	struct format_field *f;
+	struct tep_event *event = NULL;
+	struct tep_format_field *f;
 	char fname[PATH_MAX];
 	int not_first, count;
 	FILE *ofp;
@@ -1686,12 +1695,12 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 			count++;
 
 			fprintf(ofp, "%s=", f->name);
-			if (f->flags & FIELD_IS_STRING ||
-			    f->flags & FIELD_IS_FLAG ||
-			    f->flags & FIELD_IS_ARRAY ||
-			    f->flags & FIELD_IS_SYMBOLIC)
+			if (f->flags & TEP_FIELD_IS_STRING ||
+			    f->flags & TEP_FIELD_IS_FLAG ||
+			    f->flags & TEP_FIELD_IS_ARRAY ||
+			    f->flags & TEP_FIELD_IS_SYMBOLIC)
 				fprintf(ofp, "%%s");
-			else if (f->flags & FIELD_IS_SIGNED)
+			else if (f->flags & TEP_FIELD_IS_SIGNED)
 				fprintf(ofp, "%%d");
 			else
 				fprintf(ofp, "%%u");
@@ -1709,7 +1718,7 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 			if (++count % 5 == 0)
 				fprintf(ofp, "\n\t\t");
 
-			if (f->flags & FIELD_IS_FLAG) {
+			if (f->flags & TEP_FIELD_IS_FLAG) {
 				if ((count - 1) % 5 != 0) {
 					fprintf(ofp, "\n\t\t");
 					count = 4;
@@ -1719,7 +1728,7 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 					event->name);
 				fprintf(ofp, "\"%s\", %s)", f->name,
 					f->name);
-			} else if (f->flags & FIELD_IS_SYMBOLIC) {
+			} else if (f->flags & TEP_FIELD_IS_SYMBOLIC) {
 				if ((count - 1) % 5 != 0) {
 					fprintf(ofp, "\n\t\t");
 					count = 4;

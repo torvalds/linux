@@ -384,11 +384,11 @@
      inkscape:window-height="1144"
      id="namedview208"
      showgrid="true"
-     inkscape:zoom="0.70710678"
-     inkscape:cx="617.89017"
-     inkscape:cy="542.52419"
-     inkscape:window-x="86"
-     inkscape:window-y="28"
+     inkscape:zoom="0.78716603"
+     inkscape:cx="513.06403"
+     inkscape:cy="623.1214"
+     inkscape:window-x="102"
+     inkscape:window-y="38"
      inkscape:window-maximized="0"
      inkscape:current-layer="g3188-3"
      fit-margin-top="5"
@@ -417,13 +417,15 @@
      id="g3188">
     <text
        xml:space="preserve"
-       x="3199.1516"
+       x="3145.9592"
        y="13255.592"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">-&gt;completed = -&gt;gpnum</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier"><tspan
+         style="font-size:172.87567139px"
+         id="tspan3143">rcu_seq_end(&amp;rnp-&gt;gp_seq)</tspan></text>
     <g
        id="g3107"
        transform="translate(947.90548,11584.029)">
@@ -502,13 +504,15 @@
     </g>
     <text
        xml:space="preserve"
-       x="5324.5371"
-       y="15414.598"
+       x="5264.4731"
+       y="15428.84"
        font-style="normal"
        font-weight="bold"
        font-size="192"
-       id="text202-753"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;completed = -&gt;gpnum</text>
+       id="text202-36-7"
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"><tspan
+         style="font-size:172.87567139px"
+         id="tspan3166-5">rcu_seq_end(&amp;rnp-&gt;gp_seq)</tspan></text>
   </g>
   <g
      style="fill:none;stroke-width:0.025in"
@@ -547,15 +551,6 @@
        sodipodi:linespacing="125%"><tspan
          style="font-size:159.57754517px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Liberation Sans;-inkscape-font-specification:Liberation Sans"
          id="tspan3104-6-5-6-0">Leaf</tspan></text>
-    <text
-       xml:space="preserve"
-       x="7479.5796"
-       y="17699.943"
-       font-style="normal"
-       font-weight="bold"
-       font-size="192"
-       id="text202-9"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;completed = -&gt;gpnum</text>
     <path
        sodipodi:nodetypes="cc"
        inkscape:connector-curvature="0"
@@ -566,15 +561,6 @@
        style="fill:none;stroke-width:0.025in"
        transform="translate(-737.93887,7732.6672)"
        id="g3188-3">
-      <text
-         xml:space="preserve"
-         x="3225.7478"
-         y="13175.802"
-         font-style="normal"
-         font-weight="bold"
-         font-size="192"
-         id="text202-60"
-         style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">rsp-&gt;completed =</text>
       <g
          id="g3107-62"
          transform="translate(947.90548,11584.029)">
@@ -607,15 +593,6 @@
          sodipodi:linespacing="125%"><tspan
            style="font-size:159.57754517px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Liberation Sans;-inkscape-font-specification:Liberation Sans"
            id="tspan3104-6-5-7">Root</tspan></text>
-      <text
-         xml:space="preserve"
-         x="3225.7478"
-         y="13390.038"
-         font-style="normal"
-         font-weight="bold"
-         font-size="192"
-         id="text202-60-3"
-         style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">       rnp-&gt;completed</text>
       <flowRoot
          xml:space="preserve"
          id="flowRoot3356"
@@ -627,7 +604,18 @@
              height="63.63961"
              x="332.34018"
              y="681.87292" /></flowRegion><flowPara
-           id="flowPara3362" /></flowRoot>    </g>
+           id="flowPara3362" /></flowRoot>      <text
+         xml:space="preserve"
+         x="3156.6121"
+         y="13317.754"
+         font-style="normal"
+         font-weight="bold"
+         font-size="192"
+         id="text202-36-6"
+         style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"><tspan
+           style="font-size:172.87567139px"
+           id="tspan3166-0">rcu_seq_end(&amp;rsp-&gt;gp_seq)</tspan></text>
+    </g>
     <g
        style="fill:none;stroke-width:0.025in"
        transform="translate(-858.40227,7769.0342)"
@@ -859,6 +847,17 @@
        id="path3414-8-3-6-6"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
+    <text
+       xml:space="preserve"
+       x="7418.769"
+       y="17646.104"
+       font-style="normal"
+       font-weight="bold"
+       font-size="192"
+       id="text202-36-70"
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"><tspan
+         style="font-size:172.87567139px"
+         id="tspan3166-93">rcu_seq_end(&amp;rnp-&gt;gp_seq)</tspan></text>
   </g>
   <g
      transform="translate(-1642.5377,-11611.245)"
@@ -887,13 +886,15 @@
     </g>
     <text
        xml:space="preserve"
-       x="5327.3057"
+       x="5274.1133"
        y="15428.84"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202-36"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;completed = -&gt;gpnum</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"><tspan
+         style="font-size:172.87567139px"
+         id="tspan3166">rcu_seq_end(&amp;rnp-&gt;gp_seq)</tspan></text>
   </g>
   <g
      transform="translate(-151.71746,-11647.612)"
@@ -972,13 +973,15 @@
          id="tspan3104-6-5-6-0-92">Leaf</tspan></text>
     <text
        xml:space="preserve"
-       x="7486.4907"
-       y="17670.119"
+       x="7408.5918"
+       y="17619.504"
        font-style="normal"
        font-weight="bold"
        font-size="192"
-       id="text202-6"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;completed = -&gt;gpnum</text>
+       id="text202-36-2"
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"><tspan
+         style="font-size:172.87567139px"
+         id="tspan3166-9">rcu_seq_end(&amp;rnp-&gt;gp_seq)</tspan></text>
   </g>
   <g
      transform="translate(-6817.1997,-11647.612)"
@@ -1019,13 +1022,15 @@
          id="tspan3104-6-5-6-0-1">Leaf</tspan></text>
     <text
        xml:space="preserve"
-       x="7474.1382"
-       y="17688.926"
+       x="7416.8003"
+       y="17619.504"
        font-style="normal"
        font-weight="bold"
        font-size="192"
-       id="text202-5"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;completed = -&gt;gpnum</text>
+       id="text202-36-3"
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"><tspan
+         style="font-size:172.87567139px"
+         id="tspan3166-56">rcu_seq_end(&amp;rnp-&gt;gp_seq)</tspan></text>
   </g>
   <path
      style="fill:none;stroke:#000000;stroke-width:13.29812908px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
@@ -1059,15 +1064,6 @@
      id="path3414-8-3-6"
      inkscape:connector-curvature="0"
      sodipodi:nodetypes="cc" />
-  <text
-     xml:space="preserve"
-     x="7318.9653"
-     y="6031.6353"
-     font-style="normal"
-     font-weight="bold"
-     font-size="192"
-     id="text202-2"
-     style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">-&gt;completed = -&gt;gpnum</text>
   <g
      style="fill:none;stroke-width:0.025in"
      id="g4504-3-9"
@@ -1123,4 +1119,15 @@
      id="path3134-9-0-3-5"
      d="m 6875.6003,15833.906 1595.7755,0"
      style="fill:none;stroke:#969696;stroke-width:53.19251633;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow1Send-36)" />
+  <text
+     xml:space="preserve"
+     x="7275.2612"
+     y="5971.8916"
+     font-style="normal"
+     font-weight="bold"
+     font-size="192"
+     id="text202-36-1"
+     style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"><tspan
+       style="font-size:172.87567139px"
+       id="tspan3166-2">rcu_seq_end(&amp;rnp-&gt;gp_seq)</tspan></text>
 </svg>

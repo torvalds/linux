@@ -193,6 +193,9 @@ i40e_status i40e_aq_update_nvm(struct i40e_hw *hw, u8 module_pointer,
 				u32 offset, u16 length, void *data,
 				bool last_command, u8 preservation_flags,
 				struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_rearrange_nvm(struct i40e_hw *hw,
+				  u8 rearrange_nvm,
+				  struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 				u8 mib_type, void *buff, u16 buff_size,
 				u16 *local_len, u16 *remote_len,

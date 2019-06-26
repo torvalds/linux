@@ -82,6 +82,7 @@ struct drm_panel_funcs {
  * @drm: DRM device owning the panel
  * @connector: DRM connector that the panel is attached to
  * @dev: parent device of the panel
+ * @link: link from panel device (supplier) to DRM device (consumer)
  * @funcs: operations that can be performed on the panel
  * @list: panel entry in registry
  */
@@ -199,7 +200,7 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np);
 #else
 static inline struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 #endif
 

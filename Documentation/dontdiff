@@ -106,7 +106,6 @@ compile.h*
 conf
 config
 config-*
-config_data.h*
 config.mak
 config.mak.autogen
 conmakehash

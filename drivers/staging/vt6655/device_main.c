@@ -440,12 +440,9 @@ static bool device_init_rings(struct vnt_private *priv)
 	void *vir_pool;
 
 	/*allocate all RD/TD rings a single pool*/
-	vir_pool = dma_zalloc_coherent(&priv->pcid->dev,
-				       priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc) +
-				       priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc) +
-				       priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) +
-				       priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
-				       &priv->pool_dma, GFP_ATOMIC);
+	vir_pool = dma_alloc_coherent(&priv->pcid->dev,
+				      priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc) + priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc) + priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) + priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
+				      &priv->pool_dma, GFP_ATOMIC);
 	if (!vir_pool) {
 		dev_err(&priv->pcid->dev, "allocate desc dma memory failed\n");
 		return false;
@@ -459,13 +456,9 @@ static bool device_init_rings(struct vnt_private *priv)
 	priv->rd1_pool_dma = priv->rd0_pool_dma +
 		priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc);
 
-	priv->tx0_bufs = dma_zalloc_coherent(&priv->pcid->dev,
-					     priv->opts.tx_descs[0] * PKT_BUF_SZ +
-					     priv->opts.tx_descs[1] * PKT_BUF_SZ +
-					     CB_BEACON_BUF_SIZE +
-					     CB_MAX_BUF_SIZE,
-					     &priv->tx_bufs_dma0,
-					     GFP_ATOMIC);
+	priv->tx0_bufs = dma_alloc_coherent(&priv->pcid->dev,
+					    priv->opts.tx_descs[0] * PKT_BUF_SZ + priv->opts.tx_descs[1] * PKT_BUF_SZ + CB_BEACON_BUF_SIZE + CB_MAX_BUF_SIZE,
+					    &priv->tx_bufs_dma0, GFP_ATOMIC);
 	if (!priv->tx0_bufs) {
 		dev_err(&priv->pcid->dev, "allocate buf dma memory failed\n");
 
@@ -812,12 +805,12 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 }
 
 static void device_free_rx_buf(struct vnt_private *priv,
-				struct vnt_rx_desc *rd)
+			       struct vnt_rx_desc *rd)
 {
 	struct vnt_rd_info *rd_info = rd->rd_info;
 
 	dma_unmap_single(&priv->pcid->dev, rd_info->skb_dma,
-			priv->rx_buf_sz, DMA_FROM_DEVICE);
+			 priv->rx_buf_sz, DMA_FROM_DEVICE);
 	dev_kfree_skb(rd_info->skb);
 }
 
@@ -1040,8 +1033,6 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 		return;
 	}
 
-	MACvIntDisable(priv->PortOffset);
-
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Read low level stats */
@@ -1129,8 +1120,6 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	MACvIntEnable(priv->PortOffset, IMR_MASK_VALUE);
 }
 
 static void vnt_interrupt_work(struct work_struct *work)
@@ -1140,14 +1129,17 @@ static void vnt_interrupt_work(struct work_struct *work)
 
 	if (priv->vif)
 		vnt_interrupt_process(priv);
+
+	MACvIntEnable(priv->PortOffset, IMR_MASK_VALUE);
 }
 
 static irqreturn_t vnt_interrupt(int irq,  void *arg)
 {
 	struct vnt_private *priv = arg;
 
-	if (priv->vif)
-		schedule_work(&priv->interrupt_work);
+	schedule_work(&priv->interrupt_work);
+
+	MACvIntDisable(priv->PortOffset);
 
 	return IRQ_HANDLED;
 }

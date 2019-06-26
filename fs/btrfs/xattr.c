@@ -11,6 +11,7 @@
 #include <linux/security.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/iversion.h>
+#include <linux/sched/mm.h>
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
@@ -422,9 +423,15 @@ static int btrfs_initxattrs(struct inode *inode,
 {
 	const struct xattr *xattr;
 	struct btrfs_trans_handle *trans = fs_info;
+	unsigned int nofs_flag;
 	char *name;
 	int err = 0;
 
+	/*
+	 * We're holding a transaction handle, so use a NOFS memory allocation
+	 * context to avoid deadlock if reclaim happens.
+	 */
+	nofs_flag = memalloc_nofs_save();
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
 		name = kmalloc(XATTR_SECURITY_PREFIX_LEN +
 			       strlen(xattr->name) + 1, GFP_KERNEL);
@@ -440,6 +447,7 @@ static int btrfs_initxattrs(struct inode *inode,
 		if (err < 0)
 			break;
 	}
+	memalloc_nofs_restore(nofs_flag);
 	return err;
 }
 

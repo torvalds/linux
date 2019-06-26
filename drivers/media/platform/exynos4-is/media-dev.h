@@ -79,7 +79,7 @@ struct fimc_camclk_info {
 
 /**
  * struct fimc_sensor_info - image data source subdev information
- * @pdata: sensor's atrributes passed as media device's platform data
+ * @pdata: sensor's attributes passed as media device's platform data
  * @asd: asynchronous subdev registration data structure
  * @subdev: image sensor v4l2 subdev
  * @host: fimc device the sensor is currently linked to
@@ -149,7 +149,6 @@ struct fimc_md {
 	} clk_provider;
 
 	struct v4l2_async_notifier subdev_notifier;
-	struct v4l2_async_subdev *async_subdevs[FIMC_MAX_SENSORS];
 
 	bool user_subdev_api;
 	spinlock_t slock;

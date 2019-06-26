@@ -1,18 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Merrifield SoC GPIO driver
  *
  * Copyright (c) 2016 Intel Corporation.
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>

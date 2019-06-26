@@ -56,8 +56,6 @@ source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/sm750fb/Kconfig"
 
-source "drivers/staging/xgifb/Kconfig"
-
 source "drivers/staging/emxx_udc/Kconfig"
 
 source "drivers/staging/speakup/Kconfig"
@@ -78,21 +76,13 @@ source "drivers/staging/goldfish/Kconfig"
 
 source "drivers/staging/netlogic/Kconfig"
 
-source "drivers/staging/mt29f_spinand/Kconfig"
-
-source "drivers/staging/dgnc/Kconfig"
-
 source "drivers/staging/gs_fpgaboot/Kconfig"
-
-source "drivers/staging/skein/Kconfig"
 
 source "drivers/staging/unisys/Kconfig"
 
 source "drivers/staging/clocking-wizard/Kconfig"
 
 source "drivers/staging/fbtft/Kconfig"
-
-source "drivers/staging/fsl-mc/Kconfig"
 
 source "drivers/staging/fsl-dpaa2/Kconfig"
 
@@ -106,24 +96,30 @@ source "drivers/staging/greybus/Kconfig"
 
 source "drivers/staging/vc04_services/Kconfig"
 
-source "drivers/staging/typec/Kconfig"
-
 source "drivers/staging/vboxvideo/Kconfig"
 
 source "drivers/staging/pi433/Kconfig"
 
-source "drivers/staging/mt7621-pinctrl/Kconfig"
+source "drivers/staging/mt7621-pci/Kconfig"
 
-source "drivers/staging/mt7621-gpio/Kconfig"
+source "drivers/staging/mt7621-pci-phy/Kconfig"
+
+source "drivers/staging/mt7621-pinctrl/Kconfig"
 
 source "drivers/staging/mt7621-spi/Kconfig"
 
 source "drivers/staging/mt7621-dma/Kconfig"
 
+source "drivers/staging/ralink-gdma/Kconfig"
+
 source "drivers/staging/mt7621-mmc/Kconfig"
 
-source "drivers/staging/mt7621-eth/Kconfig"
-
 source "drivers/staging/mt7621-dts/Kconfig"
+
+source "drivers/staging/gasket/Kconfig"
+
+source "drivers/staging/axis-fifo/Kconfig"
+
+source "drivers/staging/erofs/Kconfig"
 
 endif # STAGING

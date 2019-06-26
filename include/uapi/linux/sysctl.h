@@ -153,6 +153,7 @@ enum
 	KERN_NMI_WATCHDOG=75, /* int: enable/disable nmi watchdog */
 	KERN_PANIC_ON_NMI=76, /* int: whether we will panic on an unrecovered */
 	KERN_PANIC_ON_WARN=77, /* int: call panic() in WARN() functions */
+	KERN_PANIC_PRINT=78, /* ulong: bitmask to print system info on panic */
 };
 
 
@@ -575,7 +576,8 @@ enum {
 
 /* /proc/sys/net/ipv6/icmp */
 enum {
-	NET_IPV6_ICMP_RATELIMIT=1
+	NET_IPV6_ICMP_RATELIMIT = 1,
+	NET_IPV6_ICMP_ECHO_IGNORE_ALL = 2
 };
 
 /* /proc/sys/net/<protocol>/neigh/<dev> */

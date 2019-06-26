@@ -7,7 +7,7 @@
  * 2 of the License, or (at your option) any later version.
 **/
 
-#include <linux/compat_time.h>
+#include <linux/time.h>
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <asm/processor.h>
@@ -31,7 +31,7 @@ static unsigned int user_getsp32(unsigned int sp, int is_first)
 	unsigned int stack_frame[2];
 	void __user *p = compat_ptr(sp);
 
-	if (!access_ok(VERIFY_READ, p, sizeof(stack_frame)))
+	if (!access_ok(p, sizeof(stack_frame)))
 		return 0;
 
 	/*
@@ -57,7 +57,7 @@ static unsigned long user_getsp64(unsigned long sp, int is_first)
 {
 	unsigned long stack_frame[3];
 
-	if (!access_ok(VERIFY_READ, (void __user *)sp, sizeof(stack_frame)))
+	if (!access_ok((void __user *)sp, sizeof(stack_frame)))
 		return 0;
 
 	if (__copy_from_user_inatomic(stack_frame, (void __user *)sp,

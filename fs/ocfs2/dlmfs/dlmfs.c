@@ -179,7 +179,7 @@ bail:
 static int dlmfs_file_release(struct inode *inode,
 			      struct file *file)
 {
-	int level, status;
+	int level;
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
 	struct dlmfs_filp_private *fp = file->private_data;
 
@@ -188,7 +188,6 @@ static int dlmfs_file_release(struct inode *inode,
 
 	mlog(0, "close called on inode %lu\n", inode->i_ino);
 
-	status = 0;
 	if (fp) {
 		level = fp->fp_lock_level;
 		if (level != DLM_LOCK_IV)
@@ -255,7 +254,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/* don't read past the lvb */
@@ -303,7 +302,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/* don't write past the lvb */

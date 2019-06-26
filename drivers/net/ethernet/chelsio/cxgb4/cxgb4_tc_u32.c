@@ -93,14 +93,13 @@ static int fill_action_fields(struct adapter *adap,
 	unsigned int num_actions = 0;
 	const struct tc_action *a;
 	struct tcf_exts *exts;
-	LIST_HEAD(actions);
+	int i;
 
 	exts = cls->knode.exts;
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
-	tcf_exts_to_list(exts, &actions);
-	list_for_each_entry(a, &actions, list) {
+	tcf_exts_for_each_action(i, a, exts) {
 		/* Don't allow more than one action per rule. */
 		if (num_actions)
 			return -EINVAL;
@@ -445,8 +444,7 @@ struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 	if (!max_tids)
 		return NULL;
 
-	t = kvzalloc(sizeof(*t) +
-			 (max_tids * sizeof(struct cxgb4_link)), GFP_KERNEL);
+	t = kvzalloc(struct_size(t, table, max_tids), GFP_KERNEL);
 	if (!t)
 		return NULL;
 

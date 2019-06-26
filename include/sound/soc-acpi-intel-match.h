@@ -1,16 +1,6 @@
-
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * Copyright (C) 2017, Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __LINUX_SND_SOC_ACPI_INTEL_MATCH_H
@@ -29,5 +19,17 @@ extern struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[];
 extern struct snd_soc_acpi_mach snd_soc_acpi_intel_baytrail_legacy_machines[];
 extern struct snd_soc_acpi_mach snd_soc_acpi_intel_baytrail_machines[];
 extern struct snd_soc_acpi_mach snd_soc_acpi_intel_cherrytrail_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_skl_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_kbl_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_bxt_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_glk_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_machines[];
+
+/*
+ * generic table used for HDA codec-based platforms, possibly with
+ * additional ACPI-enumerated codecs
+ */
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_hda_machines[];
 
 #endif

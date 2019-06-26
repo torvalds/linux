@@ -29,7 +29,7 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/console.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ioport.h>
 #include <linux/blkdev.h>
 

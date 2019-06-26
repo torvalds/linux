@@ -114,19 +114,27 @@ DECLARE_EVENT_CLASS(hfi1_qpsleepwakeup_template,
 		    __field(u32, qpn)
 		    __field(u32, flags)
 		    __field(u32, s_flags)
+		    __field(u32, ps_flags)
+		    __field(unsigned long, iow_flags)
 		    ),
 		    TP_fast_assign(
 		    DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
 		    __entry->flags = flags;
 		    __entry->qpn = qp->ibqp.qp_num;
 		    __entry->s_flags = qp->s_flags;
+		    __entry->ps_flags =
+			((struct hfi1_qp_priv *)qp->priv)->s_flags;
+		    __entry->iow_flags =
+			((struct hfi1_qp_priv *)qp->priv)->s_iowait.flags;
 		    ),
 		    TP_printk(
-		    "[%s] qpn 0x%x flags 0x%x s_flags 0x%x",
+		    "[%s] qpn 0x%x flags 0x%x s_flags 0x%x ps_flags 0x%x iow_flags 0x%lx",
 		    __get_str(dev),
 		    __entry->qpn,
 		    __entry->flags,
-		    __entry->s_flags
+		    __entry->s_flags,
+		    __entry->ps_flags,
+		    __entry->iow_flags
 		    )
 );
 
@@ -834,6 +842,12 @@ DECLARE_EVENT_CLASS(
 
 DEFINE_EVENT(
 	hfi1_do_send_template, hfi1_rc_do_send,
+	TP_PROTO(struct rvt_qp *qp, bool flag),
+	TP_ARGS(qp, flag)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_do_send_template, hfi1_rc_do_tid_send,
 	TP_PROTO(struct rvt_qp *qp, bool flag),
 	TP_ARGS(qp, flag)
 );

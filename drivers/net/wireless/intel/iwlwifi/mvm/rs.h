@@ -144,8 +144,13 @@ enum {
 
 #define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(63)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(63)
-#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF	(64)
-#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_MAX	(64)
+/*
+ * FIXME - various places in firmware API still use u8,
+ * e.g. LQ command and SCD config command.
+ * This should be 256 instead.
+ */
+#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF	(255)
+#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_MAX	(255)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MIN	(0)
 
 #define LQ_SIZE		2	/* 2 mode tables:  "Active" and "Search" */
@@ -162,6 +167,8 @@ enum iwl_table_type {
 	LQ_HT_MIMO2,
 	LQ_VHT_SISO,    /* VHT types */
 	LQ_VHT_MIMO2,
+	LQ_HE_SISO,     /* HE types */
+	LQ_HE_MIMO2,
 	LQ_MAX,
 };
 
@@ -183,11 +190,16 @@ struct rs_rate {
 #define is_type_ht_mimo2(type) ((type) == LQ_HT_MIMO2)
 #define is_type_vht_siso(type) ((type) == LQ_VHT_SISO)
 #define is_type_vht_mimo2(type) ((type) == LQ_VHT_MIMO2)
-#define is_type_siso(type) (is_type_ht_siso(type) || is_type_vht_siso(type))
-#define is_type_mimo2(type) (is_type_ht_mimo2(type) || is_type_vht_mimo2(type))
+#define is_type_he_siso(type) ((type) == LQ_HE_SISO)
+#define is_type_he_mimo2(type) ((type) == LQ_HE_MIMO2)
+#define is_type_siso(type) (is_type_ht_siso(type) || is_type_vht_siso(type) || \
+			    is_type_he_siso(type))
+#define is_type_mimo2(type) (is_type_ht_mimo2(type) || \
+			     is_type_vht_mimo2(type) || is_type_he_mimo2(type))
 #define is_type_mimo(type) (is_type_mimo2(type))
 #define is_type_ht(type) (is_type_ht_siso(type) || is_type_ht_mimo2(type))
 #define is_type_vht(type) (is_type_vht_siso(type) || is_type_vht_mimo2(type))
+#define is_type_he(type) (is_type_he_siso(type) || is_type_he_mimo2(type))
 #define is_type_a_band(type) ((type) == LQ_LEGACY_A)
 #define is_type_g_band(type) ((type) == LQ_LEGACY_G)
 
@@ -201,6 +213,7 @@ struct rs_rate {
 #define is_mimo(rate)         is_type_mimo((rate)->type)
 #define is_ht(rate)           is_type_ht((rate)->type)
 #define is_vht(rate)          is_type_vht((rate)->type)
+#define is_he(rate)           is_type_he((rate)->type)
 #define is_a_band(rate)       is_type_a_band((rate)->type)
 #define is_g_band(rate)       is_type_g_band((rate)->type)
 
@@ -407,7 +420,7 @@ struct iwl_lq_sta {
 
 /* Initialize station's rate scaling information after adding station */
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  enum nl80211_band band);
+			  enum nl80211_band band, bool init);
 
 /* Notify RS about Tx status */
 void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
@@ -448,7 +461,7 @@ void rs_remove_sta_debugfs(void *mvm, void *mvm_sta);
 
 void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta);
 void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		     enum nl80211_band band);
+		     enum nl80211_band band, bool update);
 int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable);
 void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,

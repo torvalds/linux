@@ -15,9 +15,9 @@
  */
 
 #include <drm/drmP.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "regs-hdmi.h"
 
@@ -819,7 +819,8 @@ static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 		return;
 	}
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi, m, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi,
+						       &hdata->connector, m);
 	if (!ret)
 		ret = hdmi_avi_infoframe_pack(&frm.avi, buf, sizeof(buf));
 	if (ret > 0) {
@@ -888,7 +889,7 @@ static int hdmi_get_modes(struct drm_connector *connector)
 		(hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
 		edid->width_cm, edid->height_cm);
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	cec_notifier_set_phys_addr_from_edid(hdata->notifier, edid);
 
 	ret = drm_add_edid_modes(connector, edid);
@@ -951,7 +952,7 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	}
 
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	if (hdata->bridge) {
 		ret = drm_bridge_attach(encoder, hdata->bridge, NULL);
@@ -2093,6 +2094,8 @@ static int __maybe_unused exynos_hdmi_resume(struct device *dev)
 
 static const struct dev_pm_ops exynos_hdmi_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_hdmi_suspend, exynos_hdmi_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 struct platform_driver hdmi_driver = {

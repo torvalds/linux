@@ -463,8 +463,8 @@ Getting information about your UIO device
 
 Information about all UIO devices is available in sysfs. The first thing
 you should do in your driver is check ``name`` and ``version`` to make
-sure your talking to the right device and that its kernel driver has the
-version you expect.
+sure you're talking to the right device and that its kernel driver has
+the version you expect.
 
 You should also make sure that the memory mapping you need exists and
 has the size you expect.

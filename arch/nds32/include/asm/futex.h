@@ -16,7 +16,7 @@
 	"	.popsection\n"					\
 	"	.pushsection .fixup,\"ax\"\n"			\
 	"4:	move	%0, " err_reg "\n"			\
-	"	j	3b\n"					\
+	"	b	3b\n"					\
 	"	.popsection"
 
 #define __futex_atomic_op(insn, ret, oldval, tmp, uaddr, oparg)	\
@@ -40,7 +40,7 @@ futex_atomic_cmpxchg_inatomic(u32 * uval, u32 __user * uaddr,
 	int ret = 0;
 	u32 val, tmp, flags;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+	if (!access_ok(uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	smp_mb();

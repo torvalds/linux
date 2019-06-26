@@ -36,8 +36,6 @@
 #include <asm/apb_timer.h>
 #include <asm/reboot.h>
 
-#include "intel_mid_weak_decls.h"
-
 /*
  * the clockevent devices on Moorestown/Medfield can be APBT or LAPIC clock,
  * cmdline option x86_intel_mid_timer can be used to override the configuration
@@ -61,10 +59,6 @@
 
 enum intel_mid_timer_options intel_mid_timer_options;
 
-/* intel_mid_ops to store sub arch ops */
-static struct intel_mid_ops *intel_mid_ops;
-/* getter function for sub arch ops*/
-static void *(*get_intel_mid_ops[])(void) = INTEL_MID_OPS_INIT;
 enum intel_mid_cpu_type __intel_mid_cpu_chip;
 EXPORT_SYMBOL_GPL(__intel_mid_cpu_chip);
 
@@ -80,11 +74,6 @@ static void intel_mid_power_off(void)
 static void intel_mid_reboot(void)
 {
 	intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 0);
-}
-
-static unsigned long __init intel_mid_calibrate_tsc(void)
-{
-	return 0;
 }
 
 static void __init intel_mid_setup_bp_timer(void)
@@ -133,6 +122,7 @@ static void intel_mid_arch_setup(void)
 	case 0x3C:
 	case 0x4A:
 		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_TANGIER;
+		x86_platform.legacy.rtc = 1;
 		break;
 	case 0x27:
 	default:
@@ -140,17 +130,7 @@ static void intel_mid_arch_setup(void)
 		break;
 	}
 
-	if (__intel_mid_cpu_chip < MAX_CPU_OPS(get_intel_mid_ops))
-		intel_mid_ops = get_intel_mid_ops[__intel_mid_cpu_chip]();
-	else {
-		intel_mid_ops = get_intel_mid_ops[INTEL_MID_CPU_CHIP_PENWELL]();
-		pr_info("ARCH: Unknown SoC, assuming Penwell!\n");
-	}
-
 out:
-	if (intel_mid_ops->arch_setup)
-		intel_mid_ops->arch_setup();
-
 	/*
 	 * Intel MID platforms are using explicitly defined regulators.
 	 *
@@ -191,7 +171,6 @@ void __init x86_intel_mid_early_setup(void)
 
 	x86_cpuinit.setup_percpu_clockev = apbt_setup_secondary_clock;
 
-	x86_platform.calibrate_tsc = intel_mid_calibrate_tsc;
 	x86_platform.get_nmi_reason = intel_mid_get_nmi_reason;
 
 	x86_init.pci.arch_init = intel_mid_pci_init;

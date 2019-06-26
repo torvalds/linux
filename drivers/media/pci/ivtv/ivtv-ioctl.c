@@ -36,6 +36,7 @@
 #include <media/tveeprom.h>
 #include <media/v4l2-event.h>
 #ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
+#include <linux/compat.h>
 #include <linux/dvb/audio.h>
 #include <linux/dvb/video.h>
 #endif
@@ -747,8 +748,8 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
-	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
+	strscpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
+	strscpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
 	vcap->capabilities = itv->v4l2_cap | V4L2_CAP_DEVICE_CAPS;
 	vcap->device_caps = s->caps;
@@ -828,17 +829,18 @@ static int ivtv_enum_output(struct file *file, void *fh, struct v4l2_output *vou
 	return ivtv_get_output(itv, vout->index, vout);
 }
 
-static int ivtv_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cropcap)
+static int ivtv_g_pixelaspect(struct file *file, void *fh,
+			      int type, struct v4l2_fract *f)
 {
 	struct ivtv_open_id *id = fh2id(fh);
 	struct ivtv *itv = id->itv;
 
-	if (cropcap->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		cropcap->pixelaspect.numerator = itv->is_50hz ? 54 : 11;
-		cropcap->pixelaspect.denominator = itv->is_50hz ? 59 : 10;
-	} else if (cropcap->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		cropcap->pixelaspect.numerator = itv->is_out_50hz ? 54 : 11;
-		cropcap->pixelaspect.denominator = itv->is_out_50hz ? 59 : 10;
+	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		f->numerator = itv->is_50hz ? 54 : 11;
+		f->denominator = itv->is_50hz ? 59 : 10;
+	} else if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		f->numerator = itv->is_out_50hz ? 54 : 11;
+		f->denominator = itv->is_out_50hz ? 59 : 10;
 	} else {
 		return -EINVAL;
 	}
@@ -1227,9 +1229,9 @@ static int ivtv_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	ivtv_call_all(itv, tuner, g_tuner, vt);
 
 	if (vt->type == V4L2_TUNER_RADIO)
-		strlcpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
+		strscpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
 	else
-		strlcpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
+		strscpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
 	return 0;
 }
 
@@ -1627,6 +1629,21 @@ static __inline__ void warn_deprecated_ioctl(const char *name)
 	pr_warn_once("warning: the %s ioctl is deprecated. Don't use it, as it will be removed soon\n",
 		     name);
 }
+
+#ifdef CONFIG_COMPAT
+struct compat_video_event {
+	__s32 type;
+	/* unused, make sure to use atomic time for y2038 if it ever gets used */
+	compat_long_t timestamp;
+	union {
+		video_size_t size;
+		unsigned int frame_rate;        /* in frames per 1000sec */
+		unsigned char vsync_field;      /* unknown/odd/even/progressive */
+	} u;
+};
+#define VIDEO_GET_EVENT32 _IOR('o', 28, struct compat_video_event)
+#endif
+
 #endif
 
 static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
@@ -1749,7 +1766,13 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		return ivtv_video_command(itv, id, dc, try);
 	}
 
+#ifdef CONFIG_COMPAT
+	case VIDEO_GET_EVENT32:
+#endif
 	case VIDEO_GET_EVENT: {
+#ifdef CONFIG_COMPAT
+		struct compat_video_event *ev32 = arg;
+#endif
 		struct video_event *ev = arg;
 		DEFINE_WAIT(wait);
 
@@ -1763,14 +1786,22 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			if (test_and_clear_bit(IVTV_F_I_EV_DEC_STOPPED, &itv->i_flags))
 				ev->type = VIDEO_EVENT_DECODER_STOPPED;
 			else if (test_and_clear_bit(IVTV_F_I_EV_VSYNC, &itv->i_flags)) {
+				unsigned char vsync_field;
+
 				ev->type = VIDEO_EVENT_VSYNC;
-				ev->u.vsync_field = test_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags) ?
+				vsync_field = test_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags) ?
 					VIDEO_VSYNC_FIELD_ODD : VIDEO_VSYNC_FIELD_EVEN;
 				if (itv->output_mode == OUT_UDMA_YUV &&
 					(itv->yuv_info.lace_mode & IVTV_YUV_MODE_MASK) ==
 								IVTV_YUV_MODE_PROGRESSIVE) {
-					ev->u.vsync_field = VIDEO_VSYNC_FIELD_PROGRESSIVE;
+					vsync_field = VIDEO_VSYNC_FIELD_PROGRESSIVE;
 				}
+#ifdef CONFIG_COMPAT
+				if (cmd == VIDEO_GET_EVENT32)
+					ev32->u.vsync_field = vsync_field;
+				else
+#endif
+					ev->u.vsync_field = vsync_field;
 			}
 			if (ev->type)
 				return 0;
@@ -1893,7 +1924,7 @@ static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {
 	.vidioc_enum_input		    = ivtv_enum_input,
 	.vidioc_enum_output		    = ivtv_enum_output,
 	.vidioc_enumaudout		    = ivtv_enumaudout,
-	.vidioc_cropcap			    = ivtv_cropcap,
+	.vidioc_g_pixelaspect		    = ivtv_g_pixelaspect,
 	.vidioc_s_selection		    = ivtv_s_selection,
 	.vidioc_g_selection		    = ivtv_g_selection,
 	.vidioc_g_input			    = ivtv_g_input,

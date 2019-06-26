@@ -122,8 +122,21 @@ static uint64_t cvmx_bootmem_phy_get_next(uint64_t addr)
 	return cvmx_read64_uint64((addr + NEXT_OFFSET) | (1ull << 63));
 }
 
-void *cvmx_bootmem_alloc_range(uint64_t size, uint64_t alignment,
-			       uint64_t min_addr, uint64_t max_addr)
+/**
+ * Allocate a block of memory from the free list that was
+ * passed to the application by the bootloader within a specified
+ * address range. This is an allocate-only algorithm, so
+ * freeing memory is not possible. Allocation will fail if
+ * memory cannot be allocated in the requested range.
+ *
+ * @size:      Size in bytes of block to allocate
+ * @min_addr:  defines the minimum address of the range
+ * @max_addr:  defines the maximum address of the range
+ * @alignment: Alignment required - must be power of 2
+ * Returns pointer to block of memory, NULL on error
+ */
+static void *cvmx_bootmem_alloc_range(uint64_t size, uint64_t alignment,
+				      uint64_t min_addr, uint64_t max_addr)
 {
 	int64_t address;
 	address =
@@ -142,47 +155,6 @@ void *cvmx_bootmem_alloc_address(uint64_t size, uint64_t address,
 					address + size);
 }
 
-void *cvmx_bootmem_alloc(uint64_t size, uint64_t alignment)
-{
-	return cvmx_bootmem_alloc_range(size, alignment, 0, 0);
-}
-
-void *cvmx_bootmem_alloc_named_range_once(uint64_t size, uint64_t min_addr,
-					  uint64_t max_addr, uint64_t align,
-					  char *name,
-					  void (*init) (void *))
-{
-	int64_t addr;
-	void *ptr;
-	uint64_t named_block_desc_addr;
-
-	named_block_desc_addr = (uint64_t)
-		cvmx_bootmem_phy_named_block_find(name,
-						  (uint32_t)CVMX_BOOTMEM_FLAG_NO_LOCKING);
-
-	if (named_block_desc_addr) {
-		addr = CVMX_BOOTMEM_NAMED_GET_FIELD(named_block_desc_addr,
-						    base_addr);
-		return cvmx_phys_to_ptr(addr);
-	}
-
-	addr = cvmx_bootmem_phy_named_block_alloc(size, min_addr, max_addr,
-						  align, name,
-						  (uint32_t)CVMX_BOOTMEM_FLAG_NO_LOCKING);
-
-	if (addr < 0)
-		return NULL;
-	ptr = cvmx_phys_to_ptr(addr);
-
-	if (init)
-		init(ptr);
-	else
-		memset(ptr, 0, size);
-
-	return ptr;
-}
-EXPORT_SYMBOL(cvmx_bootmem_alloc_named_range_once);
-
 void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr,
 				     uint64_t max_addr, uint64_t align,
 				     char *name)
@@ -197,29 +169,11 @@ void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr,
 		return NULL;
 }
 
-void *cvmx_bootmem_alloc_named_address(uint64_t size, uint64_t address,
-				       char *name)
-{
-    return cvmx_bootmem_alloc_named_range(size, address, address + size,
-					  0, name);
-}
-
 void *cvmx_bootmem_alloc_named(uint64_t size, uint64_t alignment, char *name)
 {
     return cvmx_bootmem_alloc_named_range(size, 0, 0, alignment, name);
 }
 EXPORT_SYMBOL(cvmx_bootmem_alloc_named);
-
-int cvmx_bootmem_free_named(char *name)
-{
-	return cvmx_bootmem_phy_named_block_free(name, 0);
-}
-
-struct cvmx_bootmem_named_block_desc *cvmx_bootmem_find_named_block(char *name)
-{
-	return cvmx_bootmem_phy_named_block_find(name, 0);
-}
-EXPORT_SYMBOL(cvmx_bootmem_find_named_block);
 
 void cvmx_bootmem_lock(void)
 {
@@ -603,7 +557,20 @@ bootmem_free_done:
 
 }
 
-struct cvmx_bootmem_named_block_desc *
+/**
+ * Finds a named memory block by name.
+ * Also used for finding an unused entry in the named block table.
+ *
+ * @name: Name of memory block to find.	 If NULL pointer given, then
+ *	  finds unused descriptor, if available.
+ *
+ * @flags: Flags to control options for the allocation.
+ *
+ * Returns Pointer to memory block descriptor, NULL if not found.
+ *	   If NULL returned when name parameter is NULL, then no memory
+ *	   block descriptors are available.
+ */
+static struct cvmx_bootmem_named_block_desc *
 	cvmx_bootmem_phy_named_block_find(char *name, uint32_t flags)
 {
 	unsigned int i;
@@ -655,7 +622,58 @@ struct cvmx_bootmem_named_block_desc *
 	return NULL;
 }
 
-int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
+void *cvmx_bootmem_alloc_named_range_once(uint64_t size, uint64_t min_addr,
+					  uint64_t max_addr, uint64_t align,
+					  char *name,
+					  void (*init) (void *))
+{
+	int64_t addr;
+	void *ptr;
+	uint64_t named_block_desc_addr;
+
+	named_block_desc_addr = (uint64_t)
+		cvmx_bootmem_phy_named_block_find(name,
+						  (uint32_t)CVMX_BOOTMEM_FLAG_NO_LOCKING);
+
+	if (named_block_desc_addr) {
+		addr = CVMX_BOOTMEM_NAMED_GET_FIELD(named_block_desc_addr,
+						    base_addr);
+		return cvmx_phys_to_ptr(addr);
+	}
+
+	addr = cvmx_bootmem_phy_named_block_alloc(size, min_addr, max_addr,
+						  align, name,
+						  (uint32_t)CVMX_BOOTMEM_FLAG_NO_LOCKING);
+
+	if (addr < 0)
+		return NULL;
+	ptr = cvmx_phys_to_ptr(addr);
+
+	if (init)
+		init(ptr);
+	else
+		memset(ptr, 0, size);
+
+	return ptr;
+}
+EXPORT_SYMBOL(cvmx_bootmem_alloc_named_range_once);
+
+struct cvmx_bootmem_named_block_desc *cvmx_bootmem_find_named_block(char *name)
+{
+	return cvmx_bootmem_phy_named_block_find(name, 0);
+}
+EXPORT_SYMBOL(cvmx_bootmem_find_named_block);
+
+/**
+ * Frees a named block.
+ *
+ * @name:   name of block to free
+ * @flags:  flags for passing options
+ *
+ * Returns 0 on failure
+ *	   1 on success
+ */
+static int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 {
 	struct cvmx_bootmem_named_block_desc *named_block_ptr;
 
@@ -697,6 +715,11 @@ int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 
 	cvmx_bootmem_unlock();
 	return named_block_ptr != NULL; /* 0 on failure, 1 on success */
+}
+
+int cvmx_bootmem_free_named(char *name)
+{
+	return cvmx_bootmem_phy_named_block_free(name, 0);
 }
 
 int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,

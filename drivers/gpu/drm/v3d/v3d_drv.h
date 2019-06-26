@@ -2,30 +2,29 @@
 /* Copyright (C) 2015-2018 Broadcom */
 
 #include <linux/reservation.h>
+#include <linux/mm_types.h>
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
 #include <drm/gpu_scheduler.h>
+#include "uapi/drm/v3d_drm.h"
 
 #define GMP_GRANULARITY (128 * 1024)
 
-/* Enum for each of the V3D queues.  We maintain various queue
- * tracking as an array because at some point we'll want to support
- * the TFU (texture formatting unit) as another queue.
- */
+/* Enum for each of the V3D queues. */
 enum v3d_queue {
 	V3D_BIN,
 	V3D_RENDER,
+	V3D_TFU,
 };
 
-#define V3D_MAX_QUEUES (V3D_RENDER + 1)
+#define V3D_MAX_QUEUES (V3D_TFU + 1)
 
 struct v3d_queue_state {
 	struct drm_gpu_scheduler sched;
 
 	u64 fence_context;
 	u64 emit_seqno;
-	u64 finished_seqno;
 };
 
 struct v3d_dev {
@@ -68,6 +67,7 @@ struct v3d_dev {
 
 	struct v3d_exec_info *bin_job;
 	struct v3d_exec_info *render_job;
+	struct v3d_tfu_job *tfu_job;
 
 	struct v3d_queue_state queue[V3D_MAX_QUEUES];
 
@@ -84,6 +84,11 @@ struct v3d_dev {
 	 * reset at once.
 	 */
 	struct mutex reset_lock;
+
+	/* Lock taken when creating and pushing the GPU scheduler
+	 * jobs, to keep the sched-fence seqnos in order.
+	 */
+	struct mutex sched_lock;
 
 	struct {
 		u32 num_allocated;
@@ -179,6 +184,8 @@ struct v3d_job {
 
 	/* GPU virtual addresses of the start/end of the CL job. */
 	u32 start, end;
+
+	u32 timedout_ctca, timedout_ctra;
 };
 
 struct v3d_exec_info {
@@ -190,6 +197,11 @@ struct v3d_exec_info {
 	 * done, for render to depend on.
 	 */
 	struct dma_fence *bin_done_fence;
+
+	/* Fence for when the scheduler considers the render to be
+	 * done, for when the BOs reservations should be complete.
+	 */
+	struct dma_fence *render_done_fence;
 
 	struct kref refcount;
 
@@ -204,6 +216,25 @@ struct v3d_exec_info {
 
 	/* Submitted tile memory allocation start/size, tile state. */
 	u32 qma, qms, qts;
+};
+
+struct v3d_tfu_job {
+	struct drm_sched_job base;
+
+	struct drm_v3d_submit_tfu args;
+
+	/* An optional fence userspace can pass in for the job to depend on. */
+	struct dma_fence *in_fence;
+
+	/* v3d fence to be signaled by IRQ handler when the job is complete. */
+	struct dma_fence *done_fence;
+
+	struct v3d_dev *v3d;
+
+	struct kref refcount;
+
+	/* This is the array of BOs that were looked up at the start of exec. */
+	struct v3d_bo *bo[4];
 };
 
 /**
@@ -248,7 +279,7 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
-int v3d_gem_fault(struct vm_fault *vmf);
+vm_fault_t v3d_gem_fault(struct vm_fault *vmf);
 int v3d_mmap(struct file *filp, struct vm_area_struct *vma);
 struct reservation_object *v3d_prime_res_obj(struct drm_gem_object *obj);
 int v3d_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
@@ -269,12 +300,14 @@ int v3d_gem_init(struct drm_device *dev);
 void v3d_gem_destroy(struct drm_device *dev);
 int v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 int v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 void v3d_exec_put(struct v3d_exec_info *exec);
+void v3d_tfu_job_put(struct v3d_tfu_job *exec);
 void v3d_reset(struct v3d_dev *v3d);
 void v3d_invalidate_caches(struct v3d_dev *v3d);
-void v3d_flush_caches(struct v3d_dev *v3d);
 
 /* v3d_irq.c */
 void v3d_irq_init(struct v3d_dev *v3d);

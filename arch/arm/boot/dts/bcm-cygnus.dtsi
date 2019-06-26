@@ -34,12 +34,21 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/bcm-cygnus.h>
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "brcm,cygnus";
 	model = "Broadcom Cygnus SoC";
 	interrupt-parent = <&gic>;
+
+	aliases {
+		ethernet0 = &eth0;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0>;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -415,6 +424,11 @@
 			clocks = <&axi81_clk>;
 			clock-names = "apb_pclk";
 			status = "disabled";
+		};
+
+		rng: rng@18032000 {
+			compatible = "brcm,iproc-rng200";
+			reg = <0x18032000 0x28>;
 		};
 
 		sdhci0: sdhci@18041000 {

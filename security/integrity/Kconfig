@@ -51,6 +51,17 @@ config INTEGRITY_TRUSTED_KEYRING
 	   .evm keyrings be signed by a key on the system trusted
 	   keyring.
 
+config INTEGRITY_PLATFORM_KEYRING
+        bool "Provide keyring for platform/firmware trusted keys"
+        depends on INTEGRITY_ASYMMETRIC_KEYS
+        depends on SYSTEM_BLACKLIST_KEYRING
+        depends on EFI
+        help
+         Provide a separate, distinct keyring for platform trusted keys, which
+         the kernel automatically populates during initialization from values
+         provided by the platform for verifying the kexec'ed kerned image
+         and, possibly, the initramfs signature.
+
 config INTEGRITY_AUDIT
 	bool "Enables integrity auditing support "
 	depends on AUDIT
@@ -66,7 +77,7 @@ config INTEGRITY_AUDIT
 	  be enabled by specifying 'integrity_audit=1' on the kernel
 	  command line.
 
-source security/integrity/ima/Kconfig
-source security/integrity/evm/Kconfig
+source "security/integrity/ima/Kconfig"
+source "security/integrity/evm/Kconfig"
 
 endif   # if INTEGRITY

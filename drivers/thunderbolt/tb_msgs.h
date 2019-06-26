@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Thunderbolt control channel messages
  *
  * Copyright (C) 2014 Andreas Noever <andreas.noever@gmail.com>
  * Copyright (C) 2017, Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _TB_MSGS
@@ -286,6 +283,8 @@ struct icm_ar_pkg_driver_ready_response {
 	u16 info;
 };
 
+#define ICM_AR_FLAGS_RTD3		BIT(6)
+
 #define ICM_AR_INFO_SLEVEL_MASK		GENMASK(3, 0)
 #define ICM_AR_INFO_BOOT_ACL_SHIFT	7
 #define ICM_AR_INFO_BOOT_ACL_MASK	GENMASK(11, 7)
@@ -332,6 +331,8 @@ struct icm_tr_pkg_driver_ready_response {
 	u16 device_id;
 	u16 reserved2;
 };
+
+#define ICM_TR_FLAGS_RTD3		BIT(6)
 
 #define ICM_TR_INFO_SLEVEL_MASK		GENMASK(2, 0)
 #define ICM_TR_INFO_BOOT_ACL_SHIFT	7

@@ -4,11 +4,14 @@ UFSHC nodes are defined to describe on-chip UFS host controllers.
 Each UFS controller instance should have its own node.
 
 Required properties:
-- compatible		: must contain "jedec,ufs-1.1" or "jedec,ufs-2.0", may
-			  also list one or more of the following:
-					  "qcom,msm8994-ufshc"
-					  "qcom,msm8996-ufshc"
-					  "qcom,ufshc"
+- compatible		: must contain "jedec,ufs-1.1" or "jedec,ufs-2.0"
+
+			  For Qualcomm SoCs must contain, as below, an
+			  SoC-specific compatible along with "qcom,ufshc" and
+			  the appropriate jedec string:
+			    "qcom,msm8994-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
+			    "qcom,msm8996-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
+			    "qcom,sdm845-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
 - interrupts        : <interrupt mapping for UFS host controller IRQ>
 - reg               : <registers mapping>
 
@@ -33,6 +36,12 @@ Optional properties:
 - clocks                : List of phandle and clock specifier pairs
 - clock-names           : List of clock input name strings sorted in the same
                           order as the clocks property.
+			  "ref_clk" indicates reference clock frequency.
+			  UFS host supplies reference clock to UFS device and UFS device
+			  specification allows host to provide one of the 4 frequencies (19.2 MHz,
+			  26 MHz, 38.4 MHz, 52MHz) for reference clock. This "ref_clk" entry is
+			  parsed and used to update the reference clock setting in device.
+			  Defaults to 26 MHz(as per specification) if not specified by host.
 - freq-table-hz		: Array of <min max> operating frequencies stored in the same
                           order as the clocks property. If this property is not
 			  defined or a value in the array is "0" then it is assumed
@@ -41,6 +50,8 @@ Optional properties:
 -lanes-per-direction	: number of lanes available per direction - either 1 or 2.
 			  Note that it is assume same number of lanes is used both
 			  directions at once. If not specified, default is 2 lanes per direction.
+- resets            : reset node register
+- reset-names       : describe reset node register, the "rst" corresponds to reset the whole UFS IP.
 
 Note: If above properties are not defined it can be assumed that the supply
 regulators or clocks are always on.
@@ -61,9 +72,11 @@ Example:
 		vccq-max-microamp = 200000;
 		vccq2-max-microamp = 200000;
 
-		clocks = <&core 0>, <&ref 0>, <&iface 0>;
-		clock-names = "core_clk", "ref_clk", "iface_clk";
-		freq-table-hz = <100000000 200000000>, <0 0>, <0 0>;
+		clocks = <&core 0>, <&ref 0>, <&phy 0>, <&iface 0>;
+		clock-names = "core_clk", "ref_clk", "phy_clk", "iface_clk";
+		freq-table-hz = <100000000 200000000>, <0 0>, <0 0>, <0 0>;
+		resets = <&reset 0 1>;
+		reset-names = "rst";
 		phys = <&ufsphy1>;
 		phy-names = "ufsphy";
 	};

@@ -1044,7 +1044,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 			v4l2_ctrl_g_ctrl(sd->gain));
 
 	gspca_dev->cam.bulk_nurbs = 1;
-	ret = usb_submit_urb(gspca_dev->urb[0], GFP_ATOMIC);
+	ret = usb_submit_urb(gspca_dev->urb[0], GFP_KERNEL);
 	if (ret < 0)
 		pr_err("sd_dq_callback() err %d\n", ret);
 

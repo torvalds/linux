@@ -32,6 +32,7 @@
 
 #include <linux/irq.h>
 #include "en.h"
+#include "en/xdp.h"
 
 static inline bool mlx5e_channel_no_affinity_change(struct mlx5e_channel *c)
 {
@@ -74,26 +75,33 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
 					       napi);
+	struct mlx5e_ch_stats *ch_stats = c->stats;
+	struct mlx5e_rq *rq = &c->rq;
 	bool busy = false;
 	int work_done = 0;
 	int i;
 
+	ch_stats->poll++;
+
 	for (i = 0; i < c->num_tc; i++)
 		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
 
+	busy |= mlx5e_poll_xdpsq_cq(&c->xdpsq.cq, NULL);
+
 	if (c->xdp)
-		busy |= mlx5e_poll_xdpsq_cq(&c->rq.xdpsq.cq);
+		busy |= mlx5e_poll_xdpsq_cq(&rq->xdpsq.cq, rq);
 
 	if (likely(budget)) { /* budget=0 means: don't poll rx rings */
-		work_done = mlx5e_poll_rx_cq(&c->rq.cq, budget);
+		work_done = mlx5e_poll_rx_cq(&rq->cq, budget);
 		busy |= work_done == budget;
 	}
 
-	busy |= c->rq.post_wqes(&c->rq);
+	busy |= c->rq.post_wqes(rq);
 
 	if (busy) {
 		if (likely(mlx5e_channel_no_affinity_change(c)))
 			return budget;
+		ch_stats->aff_change++;
 		if (budget && work_done == budget)
 			work_done--;
 	}
@@ -101,15 +109,18 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	if (unlikely(!napi_complete_done(napi, work_done)))
 		return work_done;
 
+	ch_stats->arm++;
+
 	for (i = 0; i < c->num_tc; i++) {
 		mlx5e_handle_tx_dim(&c->sq[i]);
 		mlx5e_cq_arm(&c->sq[i].cq);
 	}
 
-	mlx5e_handle_rx_dim(&c->rq);
+	mlx5e_handle_rx_dim(rq);
 
-	mlx5e_cq_arm(&c->rq.cq);
+	mlx5e_cq_arm(&rq->cq);
 	mlx5e_cq_arm(&c->icosq.cq);
+	mlx5e_cq_arm(&c->xdpsq.cq);
 
 	return work_done;
 }
@@ -118,8 +129,9 @@ void mlx5e_completion_event(struct mlx5_core_cq *mcq)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 
-	cq->event_ctr++;
 	napi_schedule(cq->napi);
+	cq->event_ctr++;
+	cq->channel->stats->events++;
 }
 
 void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event)

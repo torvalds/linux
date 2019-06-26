@@ -47,6 +47,24 @@ int l3mdev_master_ifindex_rcu(const struct net_device *dev)
 EXPORT_SYMBOL_GPL(l3mdev_master_ifindex_rcu);
 
 /**
+ *	l3mdev_master_upper_ifindex_by_index - get index of upper l3 master
+ *					       device
+ *	@net: network namespace for device index lookup
+ *	@ifindex: targeted interface
+ */
+int l3mdev_master_upper_ifindex_by_index_rcu(struct net *net, int ifindex)
+{
+	struct net_device *dev;
+
+	dev = dev_get_by_index_rcu(net, ifindex);
+	while (dev && !netif_is_l3_master(dev))
+		dev = netdev_master_upper_dev_get(dev);
+
+	return dev ? dev->ifindex : 0;
+}
+EXPORT_SYMBOL_GPL(l3mdev_master_upper_ifindex_by_index_rcu);
+
+/**
  *	l3mdev_fib_table - get FIB table id associated with an L3
  *                             master interface
  *	@dev: targeted interface

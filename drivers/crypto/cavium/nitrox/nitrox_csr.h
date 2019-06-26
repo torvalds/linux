@@ -7,8 +7,15 @@
 
 /* EMU clusters */
 #define NR_CLUSTERS		4
+/* Maximum cores per cluster,
+ * varies based on partname
+ */
 #define AE_CORES_PER_CLUSTER	20
 #define SE_CORES_PER_CLUSTER	16
+
+#define AE_MAX_CORES	(AE_CORES_PER_CLUSTER * NR_CLUSTERS)
+#define SE_MAX_CORES	(SE_CORES_PER_CLUSTER * NR_CLUSTERS)
+#define ZIP_MAX_CORES	5
 
 /* BIST registers */
 #define EMU_BIST_STATUSX(_i)	(0x1402700 + ((_i) * 0x40000))
@@ -47,7 +54,13 @@
 #define NPS_STATS_PKT_DMA_WR_CNT	0x1000190
 
 /* NPS packet registers */
-#define NPS_PKT_INT				0x1040018
+#define NPS_PKT_INT			0x1040018
+#define NPS_PKT_MBOX_INT_LO		0x1040020
+#define NPS_PKT_MBOX_INT_LO_ENA_W1C	0x1040030
+#define NPS_PKT_MBOX_INT_LO_ENA_W1S	0x1040038
+#define NPS_PKT_MBOX_INT_HI		0x1040040
+#define NPS_PKT_MBOX_INT_HI_ENA_W1C	0x1040050
+#define NPS_PKT_MBOX_INT_HI_ENA_W1S	0x1040058
 #define NPS_PKT_IN_RERR_HI		0x1040108
 #define NPS_PKT_IN_RERR_HI_ENA_W1S	0x1040120
 #define NPS_PKT_IN_RERR_LO		0x1040128
@@ -67,6 +80,10 @@
 #define NPS_PKT_SLC_RERR_LO_ENA_W1S	0x1040240
 #define NPS_PKT_SLC_ERR_TYPE		0x1040248
 #define NPS_PKT_SLC_ERR_TYPE_ENA_W1S	0x1040260
+/* Mailbox PF->VF PF Accessible Data registers */
+#define NPS_PKT_MBOX_PF_VF_PFDATAX(_i)	(0x1040800 + ((_i) * 0x8))
+#define NPS_PKT_MBOX_VF_PF_PFDATAX(_i)	(0x1040C00 + ((_i) * 0x8))
+
 #define NPS_PKT_SLC_CTLX(_i)		(0x10000 + ((_i) * 0x40000))
 #define NPS_PKT_SLC_CNTSX(_i)		(0x10008 + ((_i) * 0x40000))
 #define NPS_PKT_SLC_INT_LEVELSX(_i)	(0x10010 + ((_i) * 0x40000))
@@ -110,6 +127,9 @@
 #define LBC_ELM_VF1_64_INT_ENA_W1S	0x120B000
 #define LBC_ELM_VF65_128_INT		0x120C000
 #define LBC_ELM_VF65_128_INT_ENA_W1S	0x120F000
+
+#define RST_BOOT	0x10C1600
+#define FUS_DAT1	0x10C1408
 
 /* PEM registers */
 #define PEM0_INT 0x1080428
@@ -1080,6 +1100,107 @@ union lbc_inval_status {
 		u64 raz3 : 23;
 #endif
 	} s;
+};
+
+/**
+ * struct rst_boot: RST Boot Register
+ * @jtcsrdis: when set, internal CSR access via JTAG TAP controller
+ *   is disabled
+ * @jt_tst_mode: JTAG test mode
+ * @io_supply: I/O power supply setting based on IO_VDD_SELECT pin:
+ *    0x1 = 1.8V
+ *    0x2 = 2.5V
+ *    0x4 = 3.3V
+ *    All other values are reserved
+ * @pnr_mul: clock multiplier
+ * @lboot: last boot cause mask, resets only with PLL_DC_OK
+ * @rboot: determines whether core 0 remains in reset after
+ *    chip cold or warm or soft reset
+ * @rboot_pin: read only access to REMOTE_BOOT pin
+ */
+union rst_boot {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_63 : 1;
+		u64 jtcsrdis : 1;
+		u64 raz_59_61 : 3;
+		u64 jt_tst_mode : 1;
+		u64 raz_40_57 : 18;
+		u64 io_supply : 3;
+		u64 raz_30_36 : 7;
+		u64 pnr_mul : 6;
+		u64 raz_12_23 : 12;
+		u64 lboot : 10;
+		u64 rboot : 1;
+		u64 rboot_pin : 1;
+#else
+		u64 rboot_pin : 1;
+		u64 rboot : 1;
+		u64 lboot : 10;
+		u64 raz_12_23 : 12;
+		u64 pnr_mul : 6;
+		u64 raz_30_36 : 7;
+		u64 io_supply : 3;
+		u64 raz_40_57 : 18;
+		u64 jt_tst_mode : 1;
+		u64 raz_59_61 : 3;
+		u64 jtcsrdis : 1;
+		u64 raz_63 : 1;
+#endif
+	};
+};
+
+/**
+ * struct fus_dat1: Fuse Data 1 Register
+ * @pll_mul: main clock PLL multiplier hardware limit
+ * @pll_half_dis: main clock PLL control
+ * @efus_lck: efuse lockdown
+ * @zip_info: ZIP information
+ * @bar2_sz_conf: when zero, BAR2 size conforms to
+ *    PCIe specification
+ * @efus_ign: efuse ignore
+ * @nozip: ZIP disable
+ * @pll_alt_matrix: select alternate PLL matrix
+ * @pll_bwadj_denom: select CLKF denominator for
+ *    BWADJ value
+ * @chip_id: chip ID
+ */
+union fus_dat1 {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_57_63 : 7;
+		u64 pll_mul : 3;
+		u64 pll_half_dis : 1;
+		u64 raz_43_52 : 10;
+		u64 efus_lck : 3;
+		u64 raz_26_39 : 14;
+		u64 zip_info : 5;
+		u64 bar2_sz_conf : 1;
+		u64 efus_ign : 1;
+		u64 nozip : 1;
+		u64 raz_11_17 : 7;
+		u64 pll_alt_matrix : 1;
+		u64 pll_bwadj_denom : 2;
+		u64 chip_id : 8;
+#else
+		u64 chip_id : 8;
+		u64 pll_bwadj_denom : 2;
+		u64 pll_alt_matrix : 1;
+		u64 raz_11_17 : 7;
+		u64 nozip : 1;
+		u64 efus_ign : 1;
+		u64 bar2_sz_conf : 1;
+		u64 zip_info : 5;
+		u64 raz_26_39 : 14;
+		u64 efus_lck : 3;
+		u64 raz_43_52 : 10;
+		u64 pll_half_dis : 1;
+		u64 pll_mul : 3;
+		u64 raz_57_63 : 7;
+#endif
+	};
 };
 
 #endif /* __NITROX_CSR_H */

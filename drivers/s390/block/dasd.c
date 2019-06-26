@@ -73,8 +73,8 @@ static int  dasd_alloc_queue(struct dasd_block *);
 static void dasd_setup_queue(struct dasd_block *);
 static void dasd_free_queue(struct dasd_block *);
 static int dasd_flush_block_queue(struct dasd_block *);
-static void dasd_device_tasklet(struct dasd_device *);
-static void dasd_block_tasklet(struct dasd_block *);
+static void dasd_device_tasklet(unsigned long);
+static void dasd_block_tasklet(unsigned long);
 static void do_kick_device(struct work_struct *);
 static void do_restore_device(struct work_struct *);
 static void do_reload_device(struct work_struct *);
@@ -125,8 +125,7 @@ struct dasd_device *dasd_alloc_device(void)
 	dasd_init_chunklist(&device->erp_chunks, device->erp_mem, PAGE_SIZE);
 	spin_lock_init(&device->mem_lock);
 	atomic_set(&device->tasklet_scheduled, 0);
-	tasklet_init(&device->tasklet,
-		     (void (*)(unsigned long)) dasd_device_tasklet,
+	tasklet_init(&device->tasklet, dasd_device_tasklet,
 		     (unsigned long) device);
 	INIT_LIST_HEAD(&device->ccw_queue);
 	timer_setup(&device->timer, dasd_device_timeout, 0);
@@ -166,8 +165,7 @@ struct dasd_block *dasd_alloc_block(void)
 	atomic_set(&block->open_count, -1);
 
 	atomic_set(&block->tasklet_scheduled, 0);
-	tasklet_init(&block->tasklet,
-		     (void (*)(unsigned long)) dasd_block_tasklet,
+	tasklet_init(&block->tasklet, dasd_block_tasklet,
 		     (unsigned long) block);
 	INIT_LIST_HEAD(&block->ccw_queue);
 	spin_lock_init(&block->queue_lock);
@@ -1194,20 +1192,7 @@ static int dasd_hosts_show(struct seq_file *m, void *v)
 	return rc;
 }
 
-static int dasd_hosts_open(struct inode *inode, struct file *file)
-{
-	struct dasd_device *device = inode->i_private;
-
-	return single_open(file, dasd_hosts_show, device);
-}
-
-static const struct file_operations dasd_hosts_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dasd_hosts_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dasd_hosts);
 
 static void dasd_hosts_exit(struct dasd_device *device)
 {
@@ -2064,8 +2049,9 @@ EXPORT_SYMBOL_GPL(dasd_flush_device_queue);
 /*
  * Acquire the device lock and process queues for the device.
  */
-static void dasd_device_tasklet(struct dasd_device *device)
+static void dasd_device_tasklet(unsigned long data)
 {
+	struct dasd_device *device = (struct dasd_device *) data;
 	struct list_head final_queue;
 
 	atomic_set (&device->tasklet_scheduled, 0);
@@ -2783,8 +2769,9 @@ static void __dasd_block_start_head(struct dasd_block *block)
  * block layer request queue, creates ccw requests, enqueues them on
  * a dasd_device and processes ccw requests that have been returned.
  */
-static void dasd_block_tasklet(struct dasd_block *block)
+static void dasd_block_tasklet(unsigned long data)
 {
+	struct dasd_block *block = (struct dasd_block *) data;
 	struct list_head final_queue;
 	struct list_head *l, *n;
 	struct dasd_ccw_req *cqr;
@@ -3127,6 +3114,7 @@ static int dasd_alloc_queue(struct dasd_block *block)
 	block->tag_set.nr_hw_queues = nr_hw_queues;
 	block->tag_set.queue_depth = queue_depth;
 	block->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	block->tag_set.numa_node = NUMA_NO_NODE;
 
 	rc = blk_mq_alloc_tag_set(&block->tag_set);
 	if (rc)
@@ -3308,10 +3296,8 @@ dasd_exit(void)
 	dasd_proc_exit();
 #endif
 	dasd_eer_exit();
-        if (dasd_page_cache != NULL) {
-		kmem_cache_destroy(dasd_page_cache);
-		dasd_page_cache = NULL;
-	}
+	kmem_cache_destroy(dasd_page_cache);
+	dasd_page_cache = NULL;
 	dasd_gendisk_exit();
 	dasd_devmap_exit();
 	if (dasd_debug_area != NULL) {
@@ -3979,13 +3965,11 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 EXPORT_SYMBOL_GPL(dasd_generic_restore_device);
 
 static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
-						   void *rdc_buffer,
 						   int rdc_buffer_size,
 						   int magic)
 {
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
-	unsigned long *idaw;
 
 	cqr = dasd_smalloc_request(magic, 1 /* RDC */, rdc_buffer_size, device,
 				   NULL);
@@ -4000,16 +3984,8 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = CCW_CMD_RDC;
-	if (idal_is_needed(rdc_buffer, rdc_buffer_size)) {
-		idaw = (unsigned long *) (cqr->data);
-		ccw->cda = (__u32)(addr_t) idaw;
-		ccw->flags = CCW_FLAG_IDA;
-		idaw = idal_create_words(idaw, rdc_buffer, rdc_buffer_size);
-	} else {
-		ccw->cda = (__u32)(addr_t) rdc_buffer;
-		ccw->flags = 0;
-	}
-
+	ccw->cda = (__u32)(addr_t) cqr->data;
+	ccw->flags = 0;
 	ccw->count = rdc_buffer_size;
 	cqr->startdev = device;
 	cqr->memdev = device;
@@ -4027,12 +4003,13 @@ int dasd_generic_read_dev_chars(struct dasd_device *device, int magic,
 	int ret;
 	struct dasd_ccw_req *cqr;
 
-	cqr = dasd_generic_build_rdc(device, rdc_buffer, rdc_buffer_size,
-				     magic);
+	cqr = dasd_generic_build_rdc(device, rdc_buffer_size, magic);
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);
 
 	ret = dasd_sleep_on(cqr);
+	if (ret == 0)
+		memcpy(rdc_buffer, cqr->data, rdc_buffer_size);
 	dasd_sfree_request(cqr, cqr->memdev);
 	return ret;
 }

@@ -25,6 +25,7 @@
 #include <linux/string.h>
 #include <linux/io.h>
 #include <asm/bootinfo.h>
+#include <asm/setup.h>
 
 #include <asm/mach-ar7/ar7.h>
 #include <asm/mach-ar7/prom.h>
@@ -259,10 +260,9 @@ static inline void serial_out(int offset, int value)
 	writel(value, (void *)PORT(offset));
 }
 
-int prom_putchar(char c)
+void prom_putchar(char c)
 {
 	while ((serial_in(UART_LSR) & UART_LSR_TEMT) == 0)
 		;
 	serial_out(UART_TX, c);
-	return 1;
 }

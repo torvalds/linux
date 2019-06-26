@@ -18,16 +18,22 @@
 #include <asm/ptrace.h>
 #include <asm/syscall.h>
 #include <asm/thread_info.h>
+#include <linux/audit.h>
 #include <linux/ptrace.h>
 #include <linux/elf.h>
 #include <linux/regset.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/tracehook.h>
+
+#define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
 enum riscv_regset {
 	REGSET_X,
+#ifdef CONFIG_FPU
+	REGSET_F,
+#endif
 };
 
 static int riscv_gpr_get(struct task_struct *target,
@@ -54,6 +60,45 @@ static int riscv_gpr_set(struct task_struct *target,
 	return ret;
 }
 
+#ifdef CONFIG_FPU
+static int riscv_fpr_get(struct task_struct *target,
+			 const struct user_regset *regset,
+			 unsigned int pos, unsigned int count,
+			 void *kbuf, void __user *ubuf)
+{
+	int ret;
+	struct __riscv_d_ext_state *fstate = &target->thread.fstate;
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, fstate, 0,
+				  offsetof(struct __riscv_d_ext_state, fcsr));
+	if (!ret) {
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, fstate, 0,
+					  offsetof(struct __riscv_d_ext_state, fcsr) +
+					  sizeof(fstate->fcsr));
+	}
+
+	return ret;
+}
+
+static int riscv_fpr_set(struct task_struct *target,
+			 const struct user_regset *regset,
+			 unsigned int pos, unsigned int count,
+			 const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	struct __riscv_d_ext_state *fstate = &target->thread.fstate;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, fstate, 0,
+				 offsetof(struct __riscv_d_ext_state, fcsr));
+	if (!ret) {
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, fstate, 0,
+					 offsetof(struct __riscv_d_ext_state, fcsr) +
+					 sizeof(fstate->fcsr));
+	}
+
+	return ret;
+}
+#endif
 
 static const struct user_regset riscv_user_regset[] = {
 	[REGSET_X] = {
@@ -64,6 +109,16 @@ static const struct user_regset riscv_user_regset[] = {
 		.get = &riscv_gpr_get,
 		.set = &riscv_gpr_set,
 	},
+#ifdef CONFIG_FPU
+	[REGSET_F] = {
+		.core_note_type = NT_PRFPREG,
+		.n = ELF_NFPREG,
+		.size = sizeof(elf_fpreg_t),
+		.align = sizeof(elf_fpreg_t),
+		.get = &riscv_fpr_get,
+		.set = &riscv_fpr_set,
+	},
+#endif
 };
 
 static const struct user_regset_view riscv_user_native_view = {
@@ -111,15 +166,19 @@ void do_syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, syscall_get_nr(current, regs));
 #endif
+
+	audit_syscall_entry(regs->a7, regs->a0, regs->a1, regs->a2, regs->a3);
 }
 
 void do_syscall_trace_exit(struct pt_regs *regs)
 {
+	audit_syscall_exit(regs);
+
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, 0);
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_exit(regs, regs->regs[0]);
+		trace_sys_exit(regs, regs_return_value(regs));
 #endif
 }

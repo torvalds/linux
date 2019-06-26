@@ -266,7 +266,7 @@ void nr_stop_idletimer(struct sock *);
 int nr_t1timer_running(struct sock *);
 
 /* sysctl_net_netrom.c */
-void nr_register_sysctl(void);
+int nr_register_sysctl(void);
 void nr_unregister_sysctl(void);
 
 #endif

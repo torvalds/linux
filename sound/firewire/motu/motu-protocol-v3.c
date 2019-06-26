@@ -188,11 +188,20 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 			pcm_chunks[1] += 2;
 		}
 	} else {
-		/*
-		 * Packets to v2 units transfer main-out-1/2 and phone-out-1/2.
-		 */
-		pcm_chunks[0] += 4;
-		pcm_chunks[1] += 4;
+		if (flags & SND_MOTU_SPEC_RX_SEPARETED_MAIN) {
+			pcm_chunks[0] += 2;
+			pcm_chunks[1] += 2;
+		}
+
+		// Packets to v3 units include 2 chunks for phone 1/2, except
+		// for 176.4/192.0 kHz.
+		pcm_chunks[0] += 2;
+		pcm_chunks[1] += 2;
+	}
+
+	if (flags & SND_MOTU_SPEC_HAS_AESEBU_IFACE) {
+		pcm_chunks[0] += 2;
+		pcm_chunks[1] += 2;
 	}
 
 	/*

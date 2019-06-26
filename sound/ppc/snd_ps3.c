@@ -930,6 +930,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 {
 	int i, ret;
 	u64 lpar_addr, lpar_size;
+	static u64 dummy_mask;
 
 	if (WARN_ON(!firmware_has_feature(FW_FEATURE_PS3_LV1)))
 		return -ENODEV;
@@ -969,6 +970,10 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 		pr_info("%s: region_create\n", __func__);
 		goto clean_mmio;
 	}
+
+	dummy_mask = DMA_BIT_MASK(32);
+	dev->core.dma_mask = &dummy_mask;
+	dma_set_coherent_mask(&dev->core, dummy_mask);
 
 	snd_ps3_audio_set_base_addr(dev->d_region->bus_addr);
 
@@ -1019,15 +1024,11 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 
 	the_card.pcm->info_flags = SNDRV_PCM_INFO_NONINTERLEAVED;
 	/* pre-alloc PCM DMA buffer*/
-	ret = snd_pcm_lib_preallocate_pages_for_all(the_card.pcm,
+	snd_pcm_lib_preallocate_pages_for_all(the_card.pcm,
 					SNDRV_DMA_TYPE_DEV,
 					&dev->core,
 					SND_PS3_PCM_PREALLOC_SIZE,
 					SND_PS3_PCM_PREALLOC_SIZE);
-	if (ret < 0) {
-		pr_info("%s: prealloc failed\n", __func__);
-		goto clean_card;
-	}
 
 	/*
 	 * allocate null buffer

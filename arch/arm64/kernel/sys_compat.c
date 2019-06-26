@@ -58,7 +58,7 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
 	if (end < start || flags)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_READ, (const void __user *)start, end - start))
+	if (!access_ok((const void __user *)start, end - start))
 		return -EFAULT;
 
 	return __do_compat_cache_op(start, end);
@@ -66,12 +66,11 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
 /*
  * Handle all unrecognised system calls.
  */
-long compat_arm_syscall(struct pt_regs *regs)
+long compat_arm_syscall(struct pt_regs *regs, int scno)
 {
-	siginfo_t info;
-	unsigned int no = regs->regs[7];
+	void __user *addr;
 
-	switch (no) {
+	switch (scno) {
 	/*
 	 * Flush a region from virtual address 'r0' to virtual address 'r1'
 	 * _exclusive_.  There is no alignment requirement on either address;
@@ -102,23 +101,20 @@ long compat_arm_syscall(struct pt_regs *regs)
 
 	default:
 		/*
-		 * Calls 9f00xx..9f07ff are defined to return -ENOSYS
+		 * Calls 0xf0xxx..0xf07ff are defined to return -ENOSYS
 		 * if not implemented, rather than raising SIGILL. This
 		 * way the calling program can gracefully determine whether
 		 * a feature is supported.
 		 */
-		if ((no & 0xffff) <= 0x7ff)
+		if (scno < __ARM_NR_COMPAT_END)
 			return -ENOSYS;
 		break;
 	}
 
-	clear_siginfo(&info);
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLTRP;
-	info.si_addr  = (void __user *)instruction_pointer(regs) -
-			 (compat_thumb_mode(regs) ? 2 : 4);
+	addr  = (void __user *)instruction_pointer(regs) -
+		(compat_thumb_mode(regs) ? 2 : 4);
 
-	arm64_notify_die("Oops - bad compat syscall(2)", regs, &info, no);
+	arm64_notify_die("Oops - bad compat syscall(2)", regs,
+			 SIGILL, ILL_ILLTRP, addr, scno);
 	return 0;
 }

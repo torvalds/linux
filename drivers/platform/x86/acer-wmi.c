@@ -672,10 +672,7 @@ static void __init find_quirks(void)
 
 static bool has_cap(u32 cap)
 {
-	if ((interface->capability & cap) != 0)
-		return 1;
-
-	return 0;
+	return interface->capability & cap;
 }
 
 /*
@@ -2216,7 +2213,7 @@ static int __init acer_wmi_init(void)
 	if (wmi_has_guid(AMW0_GUID1) &&
 	    !dmi_check_system(amw0_whitelist) &&
 	    quirks == &quirk_unknown) {
-		pr_err("Unsupported machine has AMW0_GUID1, unable to load\n");
+		pr_debug("Unsupported machine has AMW0_GUID1, unable to load\n");
 		return -ENODEV;
 	}
 

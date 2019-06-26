@@ -43,8 +43,6 @@ Optional properties:
   the master link of the 2-DSI panel.
 - qcom,sync-dual-dsi: Boolean value indicating if the DSI controller is
   driving a 2-DSI panel whose 2 links need receive command simultaneously.
-- interrupt-parent: phandle to the MDP block if the interrupt signal is routed
-  through MDP block
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-n: the "sleep" pinctrl state
@@ -108,6 +106,7 @@ Required properties:
 - clocks: Phandles to device clocks. See [1] for details on clock bindings.
 - clock-names: the following clocks are required:
   * "iface"
+  * "ref" (only required for new DTS files/entries)
   For 28nm HPM/LP, 28nm 8960 PHYs:
 - vddio-supply: phandle to vdd-io regulator device node
   For 20nm PHY:
@@ -121,6 +120,20 @@ Required properties:
 Optional properties:
 - qcom,dsi-phy-regulator-ldo-mode: Boolean value indicating if the LDO mode PHY
   regulator is wanted.
+- qcom,mdss-mdp-transfer-time-us:	Specifies the dsi transfer time for command mode
+					panels in microseconds. Driver uses this number to adjust
+					the clock rate according to the expected transfer time.
+					Increasing this value would slow down the mdp processing
+					and can result in slower performance.
+					Decreasing this value can speed up the mdp processing,
+					but this can also impact power consumption.
+					As a rule this time should not be higher than the time
+					that would be expected with the processing at the
+					dsi link rate since anyways this would be the maximum
+					transfer time that could be achieved.
+					If ping pong split is enabled, this time should not be higher
+					than two times the dsi link rate time.
+					If the property is not specified, then the default value is 14000 us.
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/graph.txt
@@ -170,6 +183,8 @@ Example:
 		qcom,dual-dsi-mode;
 		qcom,master-dsi;
 		qcom,sync-dual-dsi;
+
+		qcom,mdss-mdp-transfer-time-us = <12000>;
 
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&dsi_active>;

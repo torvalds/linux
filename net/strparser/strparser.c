@@ -201,14 +201,16 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 			memset(stm, 0, sizeof(*stm));
 			stm->strp.offset = orig_offset + eaten;
 		} else {
-			/* Unclone since we may be appending to an skb that we
+			/* Unclone if we are appending to an skb that we
 			 * already share a frag_list with.
 			 */
-			err = skb_unclone(skb, GFP_ATOMIC);
-			if (err) {
-				STRP_STATS_INCR(strp->stats.mem_fail);
-				desc->error = err;
-				break;
+			if (skb_has_frag_list(skb)) {
+				err = skb_unclone(skb, GFP_ATOMIC);
+				if (err) {
+					STRP_STATS_INCR(strp->stats.mem_fail);
+					desc->error = err;
+					break;
+				}
 			}
 
 			stm = _strp_msg(head);
@@ -404,8 +406,6 @@ EXPORT_SYMBOL_GPL(strp_data_ready);
 
 static void do_strp_work(struct strparser *strp)
 {
-	read_descriptor_t rd_desc;
-
 	/* We need the read lock to synchronize with strp_data_ready. We
 	 * need the socket lock for calling strp_read_sock.
 	 */
@@ -416,8 +416,6 @@ static void do_strp_work(struct strparser *strp)
 
 	if (strp->paused)
 		goto out;
-
-	rd_desc.arg.data = strp;
 
 	if (strp_read_sock(strp) == -ENOMEM)
 		queue_work(strp_wq, &strp->work);
@@ -550,6 +548,8 @@ EXPORT_SYMBOL_GPL(strp_check_rcv);
 static int __init strp_mod_init(void)
 {
 	strp_wq = create_singlethread_workqueue("kstrp");
+	if (unlikely(!strp_wq))
+		return -ENOMEM;
 
 	return 0;
 }

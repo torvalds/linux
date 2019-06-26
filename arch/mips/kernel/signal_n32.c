@@ -64,21 +64,23 @@ struct rt_sigframe_n32 {
 	struct ucontextn32 rs_uc;
 };
 
-asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sysn32_rt_sigreturn(void)
 {
 	struct rt_sigframe_n32 __user *frame;
+	struct pt_regs *regs;
 	sigset_t set;
 	int sig;
 
-	frame = (struct rt_sigframe_n32 __user *) regs.regs[29];
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	regs = current_pt_regs();
+	frame = (struct rt_sigframe_n32 __user *)regs->regs[29];
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_conv_sigset_from_user(&set, &frame->rs_uc.uc_sigmask))
 		goto badframe;
 
 	set_current_blocked(&set);
 
-	sig = restore_sigcontext(&regs, &frame->rs_uc.uc_mcontext);
+	sig = restore_sigcontext(regs, &frame->rs_uc.uc_mcontext);
 	if (sig < 0)
 		goto badframe;
 	else if (sig)
@@ -93,8 +95,8 @@ asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	__asm__ __volatile__(
 		"move\t$29, %0\n\t"
 		"j\tsyscall_exit"
-		:/* no outputs */
-		:"r" (&regs));
+		: /* no outputs */
+		: "r" (regs));
 	/* Unreached */
 
 badframe:
@@ -108,7 +110,7 @@ static int setup_rt_frame_n32(void *sig_return, struct ksignal *ksig,
 	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
+	if (!access_ok(frame, sizeof (*frame)))
 		return -EFAULT;
 
 	/* Create siginfo.  */

@@ -27,7 +27,6 @@
 
 #include <linux/string.h>
 #include <linux/bitops.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
@@ -87,7 +86,7 @@ u32 i915_gem_fence_size(struct drm_i915_private *i915,
 	}
 
 	/* Previous chips need a power-of-two fence region when tiling */
-	if (IS_GEN3(i915))
+	if (IS_GEN(i915, 3))
 		ggtt_size = 1024*1024;
 	else
 		ggtt_size = 512*1024;
@@ -162,7 +161,7 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 			return false;
 	}
 
-	if (IS_GEN2(i915) ||
+	if (IS_GEN(i915, 2) ||
 	    (tiling == I915_TILING_Y && HAS_128_BYTE_Y_TILING(i915)))
 		tile_width = 128;
 	else

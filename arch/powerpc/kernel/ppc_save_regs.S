@@ -12,6 +12,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/asm-compat.h>
 
 /*
  * Grab the register values as they are now.

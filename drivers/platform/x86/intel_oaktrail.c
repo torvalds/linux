@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * intel_oaktrail.c - Intel OakTrail Platform support.
+ * Intel OakTrail Platform support
  *
  * Copyright (C) 2010-2011 Intel Corporation
  * Author: Yin Kangkai (kangkai.yin@intel.com)
@@ -7,21 +8,6 @@
  * based on Compal driver, Copyright (C) 2008 Cezary Jackiewicz
  * <cezary.jackiewicz (at) gmail.com>, based on MSI driver
  * Copyright (C) 2006 Lennart Poettering <mzxreary (at) 0pointer (dot) de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  *
  * This driver does below things:
  * 1. registers itself in the Linux backlight control in
@@ -38,18 +24,18 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/acpi.h>
-#include <linux/fb.h>
-#include <linux/mutex.h>
-#include <linux/err.h>
-#include <linux/i2c.h>
 #include <linux/backlight.h>
-#include <linux/platform_device.h>
 #include <linux/dmi.h>
+#include <linux/err.h>
+#include <linux/fb.h>
+#include <linux/i2c.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/rfkill.h>
+
 #include <acpi/video.h>
 
 #define DRIVER_NAME	"intel_oaktrail"

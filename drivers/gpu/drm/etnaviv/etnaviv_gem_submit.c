@@ -179,7 +179,7 @@ static int submit_fence_sync(struct etnaviv_gem_submit *submit)
 		struct reservation_object *robj = bo->obj->resv;
 
 		if (!(bo->flags & ETNA_SUBMIT_BO_WRITE)) {
-			ret = reservation_object_reserve_shared(robj);
+			ret = reservation_object_reserve_shared(robj, 1);
 			if (ret)
 				return ret;
 		}
@@ -388,9 +388,9 @@ static void submit_cleanup(struct kref *kref)
 		dma_fence_put(submit->in_fence);
 	if (submit->out_fence) {
 		/* first remove from IDR, so fence can not be found anymore */
-		mutex_lock(&submit->gpu->fence_idr_lock);
+		mutex_lock(&submit->gpu->fence_lock);
 		idr_remove(&submit->gpu->fence_idr, submit->out_fence_id);
-		mutex_unlock(&submit->gpu->fence_idr_lock);
+		mutex_unlock(&submit->gpu->fence_lock);
 		dma_fence_put(submit->out_fence);
 	}
 	kfree(submit->pmrs);
@@ -506,7 +506,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto err_submit_objects;
 
-	submit->cmdbuf.ctx = file->driver_priv;
+	submit->ctx = file->driver_priv;
 	submit->exec_state = args->exec_state;
 	submit->flags = args->flags;
 

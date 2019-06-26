@@ -141,13 +141,13 @@ static int wpf_init_controls(struct vsp1_rwpf *wpf)
 	if (wpf->entity.index != 0) {
 		/* Only WPF0 supports flipping. */
 		num_flip_ctrls = 0;
-	} else if (vsp1->info->features & VSP1_HAS_WPF_HFLIP) {
+	} else if (vsp1_feature(vsp1, VSP1_HAS_WPF_HFLIP)) {
 		/*
 		 * When horizontal flip is supported the WPF implements three
 		 * controls (horizontal flip, vertical flip and rotation).
 		 */
 		num_flip_ctrls = 3;
-	} else if (vsp1->info->features & VSP1_HAS_WPF_VFLIP) {
+	} else if (vsp1_feature(vsp1, VSP1_HAS_WPF_VFLIP)) {
 		/*
 		 * When only vertical flip is supported the WPF implements a
 		 * single control (vertical flip).
@@ -276,7 +276,7 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 
 		vsp1_wpf_write(wpf, dlb, VI6_WPF_DSWAP, fmtinfo->swap);
 
-		if (vsp1->info->features & VSP1_HAS_WPF_HFLIP &&
+		if (vsp1_feature(vsp1, VSP1_HAS_WPF_HFLIP) &&
 		    wpf->entity.index == 0)
 			vsp1_wpf_write(wpf, dlb, VI6_WPF_ROT_CTRL,
 				       VI6_WPF_ROT_CTRL_LN16 |
@@ -317,7 +317,7 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_SRCRPF, srcrpf);
 
-	/* Enable interrupts */
+	/* Enable interrupts. */
 	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
 	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_ENB(wpf->entity.index),
 			   VI6_WFP_IRQ_ENB_DFEE);

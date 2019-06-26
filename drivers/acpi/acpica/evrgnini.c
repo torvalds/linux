@@ -3,7 +3,7 @@
  *
  * Module Name: evrgnini- ACPI address_space (op_region) init
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -15,9 +15,6 @@
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evrgnini")
-
-/* Local prototypes */
-static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
 
 /*******************************************************************************
  *
@@ -33,7 +30,6 @@ static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
  * DESCRIPTION: Setup a system_memory operation region
  *
  ******************************************************************************/
-
 acpi_status
 acpi_ev_system_memory_region_setup(acpi_handle handle,
 				   u32 function,
@@ -313,7 +309,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
  *
  ******************************************************************************/
 
-static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
+u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 {
 	acpi_status status;
 	struct acpi_pnp_device_id *hid;
@@ -518,25 +514,6 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 			case ACPI_TYPE_THERMAL:
 
 				handler_obj = obj_desc->common_notify.handler;
-				break;
-
-			case ACPI_TYPE_METHOD:
-				/*
-				 * If we are executing module level code, the original
-				 * Node's object was replaced by this Method object and we
-				 * saved the handler in the method object.
-				 *
-				 * Note: Only used for the legacy MLC support. Will
-				 * be removed in the future.
-				 *
-				 * See acpi_ns_exec_module_code
-				 */
-				if (!acpi_gbl_execute_tables_as_methods &&
-				    obj_desc->method.
-				    info_flags & ACPI_METHOD_MODULE_LEVEL) {
-					handler_obj =
-					    obj_desc->method.dispatch.handler;
-				}
 				break;
 
 			default:

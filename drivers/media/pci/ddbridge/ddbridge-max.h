@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge-max.h: Digital Devices bridge MAX card support
  *
@@ -13,7 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
 
 #ifndef _DDBRIDGE_MAX_H_
@@ -25,6 +25,6 @@
 
 int ddb_lnb_init_fmode(struct ddb *dev, struct ddb_link *link, u32 fm);
 int ddb_fe_attach_mxl5xx(struct ddb_input *input);
-int ddb_fe_attach_mci(struct ddb_input *input);
+int ddb_fe_attach_mci(struct ddb_input *input, u32 type);
 
 #endif /* _DDBRIDGE_MAX_H */

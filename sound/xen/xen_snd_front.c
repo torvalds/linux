@@ -16,12 +16,12 @@
 #include <xen/xen.h>
 #include <xen/xenbus.h>
 
+#include <xen/xen-front-pgdir-shbuf.h>
 #include <xen/interface/io/sndif.h>
 
 #include "xen_snd_front.h"
 #include "xen_snd_front_alsa.h"
 #include "xen_snd_front_evtchnl.h"
-#include "xen_snd_front_shbuf.h"
 
 static struct xensnd_req *
 be_stream_prepare_req(struct xen_snd_front_evtchnl *evtchnl, u8 operation)
@@ -82,7 +82,7 @@ int xen_snd_front_stream_query_hw_param(struct xen_snd_front_evtchnl *evtchnl,
 }
 
 int xen_snd_front_stream_prepare(struct xen_snd_front_evtchnl *evtchnl,
-				 struct xen_snd_front_shbuf *sh_buf,
+				 struct xen_front_pgdir_shbuf *shbuf,
 				 u8 format, unsigned int channels,
 				 unsigned int rate, u32 buffer_sz,
 				 u32 period_sz)
@@ -99,7 +99,8 @@ int xen_snd_front_stream_prepare(struct xen_snd_front_evtchnl *evtchnl,
 	req->op.open.pcm_rate = rate;
 	req->op.open.buffer_sz = buffer_sz;
 	req->op.open.period_sz = period_sz;
-	req->op.open.gref_directory = xen_snd_front_shbuf_get_dir_start(sh_buf);
+	req->op.open.gref_directory =
+		xen_front_pgdir_shbuf_get_dir_start(shbuf);
 	mutex_unlock(&evtchnl->ring_io_lock);
 
 	ret = be_stream_do_io(evtchnl);

@@ -64,8 +64,7 @@ svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
 		spin_unlock(&rdma->sc_rw_ctxt_lock);
 	} else {
 		spin_unlock(&rdma->sc_rw_ctxt_lock);
-		ctxt = kmalloc(sizeof(*ctxt) +
-			       SG_CHUNK_SIZE * sizeof(struct scatterlist),
+		ctxt = kmalloc(struct_size(ctxt, rw_first_sgl, SG_CHUNK_SIZE),
 			       GFP_KERNEL);
 		if (!ctxt)
 			goto out;
@@ -213,13 +212,8 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
 	wake_up(&rdma->sc_send_wait);
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (unlikely(wc->status != IB_WC_SUCCESS))
 		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			pr_err("svcrdma: write ctx: %s (%u/0x%x)\n",
-			       ib_wc_status_msg(wc->status),
-			       wc->status, wc->vendor_err);
-	}
 
 	svc_rdma_write_info_free(info);
 }
@@ -278,18 +272,15 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			pr_err("svcrdma: read ctx: %s (%u/0x%x)\n",
-			       ib_wc_status_msg(wc->status),
-			       wc->status, wc->vendor_err);
 		svc_rdma_recv_ctxt_put(rdma, info->ri_readctxt);
 	} else {
 		spin_lock(&rdma->sc_rq_dto_lock);
 		list_add_tail(&info->ri_readctxt->rc_list,
 			      &rdma->sc_read_complete_q);
+		/* Note the unlock pairs with the smp_rmb in svc_xprt_ready: */
+		set_bit(XPT_DATA, &rdma->sc_xprt.xpt_flags);
 		spin_unlock(&rdma->sc_rq_dto_lock);
 
-		set_bit(XPT_DATA, &rdma->sc_xprt.xpt_flags);
 		svc_xprt_enqueue(&rdma->sc_xprt);
 	}
 
@@ -307,7 +298,8 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 {
 	struct svcxprt_rdma *rdma = cc->cc_rdma;
 	struct svc_xprt *xprt = &rdma->sc_xprt;
-	struct ib_send_wr *first_wr, *bad_wr;
+	struct ib_send_wr *first_wr;
+	const struct ib_send_wr *bad_wr;
 	struct list_head *tmp;
 	struct ib_cqe *cqe;
 	int ret;
@@ -679,6 +671,7 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 				     struct svc_rdma_read_info *info,
 				     __be32 *p)
 {
+	unsigned int i;
 	int ret;
 
 	ret = -EINVAL;
@@ -700,6 +693,12 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 		trace_svcrdma_encode_rseg(rs_handle, rs_length, rs_offset);
 		info->ri_chunklen += rs_length;
 	}
+
+	/* Pages under I/O have been copied to head->rc_pages.
+	 * Prevent their premature release by svc_xprt_release() .
+	 */
+	for (i = 0; i < info->ri_readctxt->rc_page_count; i++)
+		rqstp->rq_pages[i] = NULL;
 
 	return ret;
 }
@@ -816,7 +815,6 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 			     struct svc_rdma_recv_ctxt *head, __be32 *p)
 {
 	struct svc_rdma_read_info *info;
-	struct page **page;
 	int ret;
 
 	/* The request (with page list) is constructed in
@@ -843,27 +841,15 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 		ret = svc_rdma_build_normal_read_chunk(rqstp, info, p);
 	else
 		ret = svc_rdma_build_pz_read_chunk(rqstp, info, p);
-
-	/* Mark the start of the pages that can be used for the reply */
-	if (info->ri_pageoff > 0)
-		info->ri_pageno++;
-	rqstp->rq_respages = &rqstp->rq_pages[info->ri_pageno];
-	rqstp->rq_next_page = rqstp->rq_respages + 1;
-
 	if (ret < 0)
-		goto out;
+		goto out_err;
 
 	ret = svc_rdma_post_chunk_ctxt(&info->ri_cc);
-
-out:
-	/* Read sink pages have been moved from rqstp->rq_pages to
-	 * head->rc_arg.pages. Force svc_recv to refill those slots
-	 * in rq_pages.
-	 */
-	for (page = rqstp->rq_pages; page < rqstp->rq_respages; page++)
-		*page = NULL;
-
 	if (ret < 0)
-		svc_rdma_read_info_free(info);
+		goto out_err;
+	return 0;
+
+out_err:
+	svc_rdma_read_info_free(info);
 	return ret;
 }

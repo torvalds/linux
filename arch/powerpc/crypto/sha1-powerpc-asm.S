@@ -7,6 +7,7 @@
 
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/asm-compat.h>
 
 #ifdef __BIG_ENDIAN__
 #define LWZ(rt, d, ra)	\

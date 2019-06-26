@@ -1177,7 +1177,7 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 				if (inl(ioaddr + DownListPtr) == isa_virt_to_bus(&lp->tx_ring[entry]))
 					break;	/* It still hasn't been processed. */
 				if (lp->tx_skbuff[entry]) {
-					dev_kfree_skb_irq(lp->tx_skbuff[entry]);
+					dev_consume_skb_irq(lp->tx_skbuff[entry]);
 					lp->tx_skbuff[entry] = NULL;
 				}
 				dirty_tx++;
@@ -1192,7 +1192,7 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 #ifdef VORTEX_BUS_MASTER
 		if (status & DMADone) {
 			outw(0x1000, ioaddr + Wn7_MasterStatus);	/* Ack the event. */
-			dev_kfree_skb_irq(lp->tx_skb);	/* Release the transferred buffer */
+			dev_consume_skb_irq(lp->tx_skb);	/* Release the transferred buffer */
 			netif_wake_queue(dev);
 		}
 #endif
@@ -1521,7 +1521,7 @@ static void update_stats(int ioaddr, struct net_device *dev)
 static void set_rx_mode(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
-	short new_mode;
+	unsigned short new_mode;
 
 	if (dev->flags & IFF_PROMISC) {
 		if (corkscrew_debug > 3)

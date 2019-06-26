@@ -11,6 +11,10 @@ struct test arch_tests[] = {
 	},
 #endif
 	{
+		.desc = "Vectors page",
+		.func = test__vectors_page,
+	},
+	{
 		.func = NULL,
 	},
 };

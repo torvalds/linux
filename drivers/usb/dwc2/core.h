@@ -65,60 +65,6 @@
 	DWC2_TRACE_SCHEDULER_VB(pr_fmt("%s: SCH: " fmt),		\
 				dev_name(hsotg->dev), ##__VA_ARGS__)
 
-#ifdef CONFIG_MIPS
-/*
- * There are some MIPS machines that can run in either big-endian
- * or little-endian mode and that use the dwc2 register without
- * a byteswap in both ways.
- * Unlike other architectures, MIPS apparently does not require a
- * barrier before the __raw_writel() to synchronize with DMA but does
- * require the barrier after the __raw_writel() to serialize a set of
- * writes. This set of operations was added specifically for MIPS and
- * should only be used there.
- */
-static inline u32 dwc2_readl(const void __iomem *addr)
-{
-	u32 value = __raw_readl(addr);
-
-	/* In order to preserve endianness __raw_* operation is used. Therefore
-	 * a barrier is needed to ensure IO access is not re-ordered across
-	 * reads or writes
-	 */
-	mb();
-	return value;
-}
-
-static inline void dwc2_writel(u32 value, void __iomem *addr)
-{
-	__raw_writel(value, addr);
-
-	/*
-	 * In order to preserve endianness __raw_* operation is used. Therefore
-	 * a barrier is needed to ensure IO access is not re-ordered across
-	 * reads or writes
-	 */
-	mb();
-#ifdef DWC2_LOG_WRITES
-	pr_info("INFO:: wrote %08x to %p\n", value, addr);
-#endif
-}
-#else
-/* Normal architectures just use readl/write */
-static inline u32 dwc2_readl(const void __iomem *addr)
-{
-	return readl(addr);
-}
-
-static inline void dwc2_writel(u32 value, void __iomem *addr)
-{
-	writel(value, addr);
-
-#ifdef DWC2_LOG_WRITES
-	pr_info("info:: wrote %08x to %p\n", value, addr);
-#endif
-}
-#endif
-
 /* Maximum number of Endpoints/HostChannels */
 #define MAX_EPS_CHANNELS	16
 
@@ -447,6 +393,20 @@ enum dwc2_ep0_state {
  *			0 - No
  *			1 - Yes
  * @hird_threshold:	Value of BESL or HIRD Threshold.
+ * @ref_clk_per:        Indicates in terms of pico seconds the period
+ *                      of ref_clk.
+ *			62500 - 16MHz
+ *                      58823 - 17MHz
+ *                      52083 - 19.2MHz
+ *			50000 - 20MHz
+ *			41666 - 24MHz
+ *			33333 - 30MHz (default)
+ *			25000 - 40MHz
+ * @sof_cnt_wkup_alert: Indicates in term of number of SOF's after which
+ *                      the controller should generate an interrupt if the
+ *                      device had been in L1 state until that period.
+ *                      This is used by SW to initiate Remote WakeUp in the
+ *                      controller so as to sync to the uF number from the host.
  * @activate_stm_fs_transceiver: Activate internal transceiver using GGPIO
  *			register.
  *			0 - Deactivate the transceiver (default)
@@ -470,6 +430,9 @@ enum dwc2_ep0_state {
  *                      back to DWC2_SPEED_PARAM_HIGH while device is gone.
  *			0 - No (default)
  *			1 - Yes
+ * @service_interval:   Enable service interval based scheduling.
+ *                      0 - No
+ *                      1 - Yes
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -515,12 +478,17 @@ struct dwc2_core_params {
 	bool lpm_clock_gating;
 	bool besl;
 	bool hird_threshold_en;
+	bool service_interval;
 	u8 hird_threshold;
 	bool activate_stm_fs_transceiver;
 	bool ipg_isoc_en;
 	u16 max_packet_count;
 	u32 max_transfer_size;
 	u32 ahbcfg;
+
+	/* GREFCLK parameters */
+	u32 ref_clk_per;
+	u16 sof_cnt_wkup_alert;
 
 	/* Host parameters */
 	bool host_dma;
@@ -659,6 +627,10 @@ struct dwc2_core_params {
  *			FIFO sizing is enabled 16 to 32768
  *			Actual maximum value is autodetected and also
  *			the default.
+ * @service_interval_mode: For enabling service interval based scheduling in the
+ *                         controller.
+ *                           0 - Disable
+ *                           1 - Enable
  */
 struct dwc2_hw_params {
 	unsigned op_mode:3;
@@ -689,6 +661,7 @@ struct dwc2_hw_params {
 	unsigned utmi_phy_data_width:2;
 	unsigned lpm_mode:1;
 	unsigned ipg_isoc_en:1;
+	unsigned service_interval_mode:1;
 	u32 snpsid;
 	u32 dev_ep_dirs;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
@@ -911,6 +884,7 @@ struct dwc2_hregs_backup {
  * @gr_backup: Backup of global registers during suspend
  * @dr_backup: Backup of device registers during suspend
  * @hr_backup: Backup of host registers during suspend
+ * @needs_byte_swap:		Specifies whether the opposite endianness.
  *
  * These are for host mode:
  *
@@ -1100,6 +1074,7 @@ struct dwc2_hsotg {
 
 	struct dentry *debug_root;
 	struct debugfs_regset32 *regset;
+	bool needs_byte_swap;
 
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
@@ -1215,6 +1190,55 @@ struct dwc2_hsotg {
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 
+/* Normal architectures just use readl/write */
+static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
+{
+	u32 val;
+
+	val = readl(hsotg->regs + offset);
+	if (hsotg->needs_byte_swap)
+		return swab32(val);
+	else
+		return val;
+}
+
+static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
+{
+	if (hsotg->needs_byte_swap)
+		writel(swab32(value), hsotg->regs + offset);
+	else
+		writel(value, hsotg->regs + offset);
+
+#ifdef DWC2_LOG_WRITES
+	pr_info("info:: wrote %08x to %p\n", value, hsotg->regs + offset);
+#endif
+}
+
+static inline void dwc2_readl_rep(struct dwc2_hsotg *hsotg, u32 offset,
+				  void *buffer, unsigned int count)
+{
+	if (count) {
+		u32 *buf = buffer;
+
+		do {
+			u32 x = dwc2_readl(hsotg, offset);
+			*buf++ = x;
+		} while (--count);
+	}
+}
+
+static inline void dwc2_writel_rep(struct dwc2_hsotg *hsotg, u32 offset,
+				   const void *buffer, unsigned int count)
+{
+	if (count) {
+		const u32 *buf = buffer;
+
+		do {
+			dwc2_writel(hsotg, *buf++, offset);
+		} while (--count);
+	}
+}
+
 /* Reasons for halting a host channel */
 enum dwc2_halt_status {
 	DWC2_HC_XFER_NO_HALT_STATUS,
@@ -1320,12 +1344,12 @@ bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg);
  */
 static inline int dwc2_is_host_mode(struct dwc2_hsotg *hsotg)
 {
-	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
+	return (dwc2_readl(hsotg, GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
 }
 
 static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
 {
-	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
+	return (dwc2_readl(hsotg, GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
 }
 
 /*
@@ -1357,6 +1381,7 @@ int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg);
 int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg);
 int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg);
 void dwc2_gadget_init_lpm(struct dwc2_hsotg *hsotg);
+void dwc2_gadget_program_ref_clk(struct dwc2_hsotg *hsotg);
 #else
 static inline int dwc2_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -1391,6 +1416,7 @@ static inline int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
 static inline int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg)
 { return 0; }
 static inline void dwc2_gadget_init_lpm(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_gadget_program_ref_clk(struct dwc2_hsotg *hsotg) {}
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)

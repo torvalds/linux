@@ -76,6 +76,7 @@ void dce80_hw_sequencer_construct(struct dc *dc)
 
 	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
 	dc->hwss.pipe_control_lock = dce_pipe_control_lock;
-	dc->hwss.set_bandwidth = dce100_set_bandwidth;
+	dc->hwss.prepare_bandwidth = dce100_prepare_bandwidth;
+	dc->hwss.optimize_bandwidth = dce100_optimize_bandwidth;
 }
 

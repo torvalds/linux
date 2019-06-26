@@ -24,7 +24,7 @@
 #define AUDIO_CMDS_SIZE           80	/* AUDIO CMDS size in bytes */
 #define MBIF_CMDS_SIZE            80	/* MBIF  CMDS size in bytes */
 
-/* #define RX_SRAM_POOL_START_SIZE   = 0;  //  Start of useable RX SRAM for buffers */
+/* #define RX_SRAM_POOL_START_SIZE   = 0;  //  Start of usable RX SRAM for buffers */
 #define VID_IQ_SIZE               64	/* VID instruction queue size in bytes */
 #define MBIF_IQ_SIZE              64
 #define AUDIO_IQ_SIZE             64	/* AUD instruction queue size in bytes */

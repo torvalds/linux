@@ -201,6 +201,21 @@ TRACE_EVENT(tlbie,
 		__entry->r)
 );
 
+TRACE_EVENT(tlbia,
+
+	TP_PROTO(unsigned long id),
+	TP_ARGS(id),
+	TP_STRUCT__entry(
+		__field(unsigned long, id)
+		),
+
+	TP_fast_assign(
+		__entry->id = id;
+		),
+
+	TP_printk("ctx.id=0x%lx", __entry->id)
+);
+
 #endif /* _TRACE_POWERPC_H */
 
 #undef TRACE_INCLUDE_PATH

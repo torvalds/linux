@@ -24,6 +24,10 @@ Required properties:
 
 - compatible: Must be "lvds-encoder"
 
+  Any encoder compatible with this generic binding, but with additional
+  properties not listed here, must list a device specific compatible first
+  followed by this generic compatible.
+
 Required nodes:
 
 This device has two video ports. Their connections are modeled using the OF
@@ -38,8 +42,6 @@ Example
 
 lvds-encoder {
 	compatible = "lvds-encoder";
-	#address-cells = <1>;
-	#size-cells = <0>;
 
 	ports {
 		#address-cells = <1>;

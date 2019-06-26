@@ -41,6 +41,9 @@
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
+struct ttm_mem_global ttm_mem_glob;
+EXPORT_SYMBOL(ttm_mem_glob);
+
 struct ttm_mem_zone {
 	struct kobject kobj;
 	struct ttm_mem_global *glob;
@@ -216,14 +219,6 @@ static ssize_t ttm_mem_global_store(struct kobject *kobj,
 	return size;
 }
 
-static void ttm_mem_global_kobj_release(struct kobject *kobj)
-{
-	struct ttm_mem_global *glob =
-		container_of(kobj, struct ttm_mem_global, kobj);
-
-	kfree(glob);
-}
-
 static struct attribute *ttm_mem_global_attrs[] = {
 	&ttm_mem_global_lower_mem_limit,
 	NULL
@@ -235,7 +230,6 @@ static const struct sysfs_ops ttm_mem_global_ops = {
 };
 
 static struct kobj_type ttm_mem_glob_kobj_type = {
-	.release = &ttm_mem_global_kobj_release,
 	.sysfs_ops = &ttm_mem_global_ops,
 	.default_attrs = ttm_mem_global_attrs,
 };
@@ -464,12 +458,11 @@ out_no_zone:
 	ttm_mem_global_release(glob);
 	return ret;
 }
-EXPORT_SYMBOL(ttm_mem_global_init);
 
 void ttm_mem_global_release(struct ttm_mem_global *glob)
 {
-	unsigned int i;
 	struct ttm_mem_zone *zone;
+	unsigned int i;
 
 	/* let the page allocator first stop the shrink work. */
 	ttm_page_alloc_fini();
@@ -482,11 +475,11 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 		zone = glob->zones[i];
 		kobject_del(&zone->kobj);
 		kobject_put(&zone->kobj);
-			}
+	}
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
+	memset(glob, 0, sizeof(*glob));
 }
-EXPORT_SYMBOL(ttm_mem_global_release);
 
 static void ttm_check_swapping(struct ttm_mem_global *glob)
 {

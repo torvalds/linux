@@ -75,7 +75,7 @@ static struct core_component comp;
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 {
 	u8 *buff = mbo->virt_address;
-	const u8 broadcast[] = { 0x03, 0xFF };
+	static const u8 broadcast[] = { 0x03, 0xFF };
 	const u8 *dest_addr = skb->data + 4;
 	const u8 *eth_type = skb->data + 12;
 	unsigned int payload_len = skb->len - ETH_HLEN;

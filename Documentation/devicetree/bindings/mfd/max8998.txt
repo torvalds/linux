@@ -20,8 +20,6 @@ Required properties:
 - reg: Specifies the i2c slave address of the pmic block. It should be 0x66.
 
 Optional properties:
-- interrupt-parent: Specifies the phandle of the interrupt controller to which
-  the interrupts from MAX8998 are routed to.
 - interrupts: Interrupt specifiers for two interrupt sources.
   - First interrupt specifier is for main interrupt.
   - Second interrupt specifier is for power-on/-off interrupt.

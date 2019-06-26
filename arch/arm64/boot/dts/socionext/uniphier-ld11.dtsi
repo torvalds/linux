@@ -33,7 +33,7 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x000>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -42,7 +42,7 @@
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x001>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -115,6 +115,28 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
+
+		spi0: spi@54006000 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006000 0x100>;
+			interrupts = <0 39 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi0>;
+			clocks = <&peri_clk 11>;
+			resets = <&peri_rst 11>;
+		};
+
+		spi1: spi@54006100 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006100 0x100>;
+			interrupts = <0 216 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi1>;
+			clocks = <&peri_clk 11>;
+			resets = <&peri_rst 11>;
+		};
 
 		serial0: serial@54006800 {
 			compatible = "socionext,uniphier-uart";
@@ -432,6 +454,8 @@
 				 <&mio_clk 12>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 8>,
 				 <&mio_rst 12>;
+			phy-names = "usb";
+			phys = <&usb_phy0>;
 			has-transaction-translator;
 		};
 
@@ -446,6 +470,8 @@
 				 <&mio_clk 13>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 9>,
 				 <&mio_rst 13>;
+			phy-names = "usb";
+			phys = <&usb_phy1>;
 			has-transaction-translator;
 		};
 
@@ -460,6 +486,8 @@
 				 <&mio_clk 14>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 10>,
 				 <&mio_rst 14>;
+			phy-names = "usb";
+			phys = <&usb_phy2>;
 			has-transaction-translator;
 		};
 
@@ -487,6 +515,27 @@
 
 			pinctrl: pinctrl {
 				compatible = "socionext,uniphier-ld11-pinctrl";
+			};
+
+			usb-phy {
+				compatible = "socionext,uniphier-ld11-usb2-phy";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				usb_phy0: phy@0 {
+					reg = <0>;
+					#phy-cells = <0>;
+				};
+
+				usb_phy1: phy@1 {
+					reg = <1>;
+					#phy-cells = <0>;
+				};
+
+				usb_phy2: phy@2 {
+					reg = <2>;
+					#phy-cells = <0>;
+				};
 			};
 		};
 
@@ -571,7 +620,8 @@
 			interrupts = <0 65 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand>;
-			clocks = <&sys_clk 2>;
+			clock-names = "nand", "nand_x", "ecc";
+			clocks = <&sys_clk 2>, <&sys_clk 3>, <&sys_clk 3>;
 			resets = <&sys_rst 2>;
 		};
 	};

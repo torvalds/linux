@@ -712,8 +712,11 @@ setup_io(struct inf_hw *hw)
 				(ulong)hw->addr.start, (ulong)hw->addr.size);
 			return err;
 		}
-		if (hw->ci->addr_mode == AM_MEMIO)
+		if (hw->ci->addr_mode == AM_MEMIO) {
 			hw->addr.p = ioremap(hw->addr.start, hw->addr.size);
+			if (unlikely(!hw->addr.p))
+				return -ENOMEM;
+		}
 		hw->addr.mode = hw->ci->addr_mode;
 		if (debug & DEBUG_HW)
 			pr_notice("%s: IO addr %lx (%lu bytes) mode%d\n",
@@ -887,6 +890,7 @@ release_card(struct inf_hw *card) {
 				release_card(card->sc[i]);
 			card->sc[i] = NULL;
 		}
+		/* fall through */
 	default:
 		pci_disable_device(card->pdev);
 		pci_set_drvdata(card->pdev, NULL);

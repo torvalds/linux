@@ -82,4 +82,9 @@
 			interrupts = <18>;
 		};
 	};
+
+	pmu {
+		compatible = "andestech,nds32v3-pmu";
+		interrupts= <13>;
+	};
 };

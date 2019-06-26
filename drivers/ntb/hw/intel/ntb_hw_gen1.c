@@ -180,7 +180,7 @@ int ndev_mw_to_bar(struct intel_ntb_dev *ndev, int idx)
 	return ndev->reg->mw_bar[idx];
 }
 
-static inline int ndev_db_addr(struct intel_ntb_dev *ndev,
+void ndev_db_addr(struct intel_ntb_dev *ndev,
 			       phys_addr_t *db_addr, resource_size_t *db_size,
 			       phys_addr_t reg_addr, unsigned long reg)
 {
@@ -196,8 +196,6 @@ static inline int ndev_db_addr(struct intel_ntb_dev *ndev,
 		*db_size = ndev->reg->db_size;
 		dev_dbg(&ndev->ntb.pdev->dev, "Peer db size %llx\n", *db_size);
 	}
-
-	return 0;
 }
 
 u64 ndev_db_read(struct intel_ntb_dev *ndev,
@@ -265,7 +263,7 @@ static inline int ndev_db_clear_mask(struct intel_ntb_dev *ndev, u64 db_bits,
 	return 0;
 }
 
-static inline int ndev_vec_mask(struct intel_ntb_dev *ndev, int db_vector)
+static inline u64 ndev_vec_mask(struct intel_ntb_dev *ndev, int db_vector)
 {
 	u64 shift, mask;
 
@@ -1111,13 +1109,28 @@ int intel_ntb_db_clear_mask(struct ntb_dev *ntb, u64 db_bits)
 				  ndev->self_reg->db_mask);
 }
 
-int intel_ntb_peer_db_addr(struct ntb_dev *ntb, phys_addr_t *db_addr,
-			   resource_size_t *db_size)
+static int intel_ntb_peer_db_addr(struct ntb_dev *ntb, phys_addr_t *db_addr,
+			   resource_size_t *db_size, u64 *db_data, int db_bit)
 {
+	u64 db_bits;
 	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
 
-	return ndev_db_addr(ndev, db_addr, db_size, ndev->peer_addr,
+	if (unlikely(db_bit >= BITS_PER_LONG_LONG))
+		return -EINVAL;
+
+	db_bits = BIT_ULL(db_bit);
+
+	if (unlikely(db_bits & ~ntb_ndev(ntb)->db_valid_mask))
+		return -EINVAL;
+
+	ndev_db_addr(ndev, db_addr, db_size, ndev->peer_addr,
 			    ndev->peer_reg->db_bell);
+
+	if (db_data)
+		*db_data = db_bits;
+
+
+	return 0;
 }
 
 static int intel_ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)

@@ -52,7 +52,7 @@ user root (0).  INITRAMFS_ROOT_GID can be set to a group ID that needs
 to be mapped to group root (0).
 
 A source file must be directives in the format required by the
-usr/gen_init_cpio utility (run 'usr/gen_init_cpio --help' to get the
+usr/gen_init_cpio utility (run 'usr/gen_init_cpio -h' to get the
 file format).  The directives in the file will be passed directly to
 usr/gen_init_cpio.
 
@@ -66,17 +66,17 @@ early userspace image can be built by an unprivileged user.
 
 As a technical note, when directories and files are specified, the
 entire CONFIG_INITRAMFS_SOURCE is passed to
-scripts/gen_initramfs_list.sh.  This means that CONFIG_INITRAMFS_SOURCE
+usr/gen_initramfs_list.sh.  This means that CONFIG_INITRAMFS_SOURCE
 can really be interpreted as any legal argument to
 gen_initramfs_list.sh.  If a directory is specified as an argument then
 the contents are scanned, uid/gid translation is performed, and
 usr/gen_init_cpio file directives are output.  If a directory is
-specified as an argument to scripts/gen_initramfs_list.sh then the
+specified as an argument to usr/gen_initramfs_list.sh then the
 contents of the file are simply copied to the output.  All of the output
 directives from directory scanning and file contents copying are
 processed by usr/gen_init_cpio.
 
-See also 'scripts/gen_initramfs_list.sh -h'.
+See also 'usr/gen_initramfs_list.sh -h'.
 
 Where's this all leading?
 =========================

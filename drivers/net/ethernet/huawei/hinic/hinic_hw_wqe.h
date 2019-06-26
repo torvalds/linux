@@ -62,19 +62,33 @@
 			(((val) >> HINIC_CMDQ_WQE_HEADER_##member##_SHIFT) \
 			 & HINIC_CMDQ_WQE_HEADER_##member##_MASK)
 
-#define HINIC_SQ_CTRL_BUFDESC_SECT_LEN_SHIFT    0
-#define HINIC_SQ_CTRL_TASKSECT_LEN_SHIFT        16
-#define HINIC_SQ_CTRL_DATA_FORMAT_SHIFT         22
-#define HINIC_SQ_CTRL_LEN_SHIFT                 29
+#define HINIC_SQ_CTRL_BUFDESC_SECT_LEN_SHIFT           0
+#define HINIC_SQ_CTRL_TASKSECT_LEN_SHIFT               16
+#define HINIC_SQ_CTRL_DATA_FORMAT_SHIFT                22
+#define HINIC_SQ_CTRL_LEN_SHIFT                        29
 
-#define HINIC_SQ_CTRL_BUFDESC_SECT_LEN_MASK     0xFF
-#define HINIC_SQ_CTRL_TASKSECT_LEN_MASK         0x1F
-#define HINIC_SQ_CTRL_DATA_FORMAT_MASK          0x1
-#define HINIC_SQ_CTRL_LEN_MASK                  0x3
+#define HINIC_SQ_CTRL_BUFDESC_SECT_LEN_MASK            0xFF
+#define HINIC_SQ_CTRL_TASKSECT_LEN_MASK                0x1F
+#define HINIC_SQ_CTRL_DATA_FORMAT_MASK                 0x1
+#define HINIC_SQ_CTRL_LEN_MASK                         0x3
 
-#define HINIC_SQ_CTRL_QUEUE_INFO_MSS_SHIFT      13
+#define HINIC_SQ_CTRL_QUEUE_INFO_PLDOFF_SHIFT          2
+#define HINIC_SQ_CTRL_QUEUE_INFO_UFO_SHIFT             10
+#define HINIC_SQ_CTRL_QUEUE_INFO_TSO_SHIFT             11
+#define HINIC_SQ_CTRL_QUEUE_INFO_TCPUDP_CS_SHIFT       12
+#define HINIC_SQ_CTRL_QUEUE_INFO_MSS_SHIFT             13
+#define HINIC_SQ_CTRL_QUEUE_INFO_SCTP_SHIFT            27
+#define HINIC_SQ_CTRL_QUEUE_INFO_UC_SHIFT              28
+#define HINIC_SQ_CTRL_QUEUE_INFO_PRI_SHIFT             29
 
-#define HINIC_SQ_CTRL_QUEUE_INFO_MSS_MASK       0x3FFF
+#define HINIC_SQ_CTRL_QUEUE_INFO_PLDOFF_MASK           0xFF
+#define HINIC_SQ_CTRL_QUEUE_INFO_UFO_MASK              0x1
+#define HINIC_SQ_CTRL_QUEUE_INFO_TSO_MASK              0x1
+#define HINIC_SQ_CTRL_QUEUE_INFO_TCPUDP_CS_MASK	       0x1
+#define HINIC_SQ_CTRL_QUEUE_INFO_MSS_MASK              0x3FFF
+#define HINIC_SQ_CTRL_QUEUE_INFO_SCTP_MASK             0x1
+#define HINIC_SQ_CTRL_QUEUE_INFO_UC_MASK               0x1
+#define HINIC_SQ_CTRL_QUEUE_INFO_PRI_MASK              0x7
 
 #define HINIC_SQ_CTRL_SET(val, member)          \
 		(((u32)(val) & HINIC_SQ_CTRL_##member##_MASK) \
@@ -83,6 +97,10 @@
 #define HINIC_SQ_CTRL_GET(val, member)          \
 		(((val) >> HINIC_SQ_CTRL_##member##_SHIFT) \
 		 & HINIC_SQ_CTRL_##member##_MASK)
+
+#define HINIC_SQ_CTRL_CLEAR(val, member)	\
+		((u32)(val) & (~(HINIC_SQ_CTRL_##member##_MASK \
+		 << HINIC_SQ_CTRL_##member##_SHIFT)))
 
 #define HINIC_SQ_TASK_INFO0_L2HDR_LEN_SHIFT     0
 #define HINIC_SQ_TASK_INFO0_L4_OFFLOAD_SHIFT    8
@@ -108,28 +126,28 @@
 
 /* 8 bits reserved */
 #define HINIC_SQ_TASK_INFO1_MEDIA_TYPE_SHIFT    8
-#define HINIC_SQ_TASK_INFO1_INNER_L4_LEN_SHIFT  16
-#define HINIC_SQ_TASK_INFO1_INNER_L3_LEN_SHIFT  24
+#define HINIC_SQ_TASK_INFO1_INNER_L4LEN_SHIFT   16
+#define HINIC_SQ_TASK_INFO1_INNER_L3LEN_SHIFT   24
 
 /* 8 bits reserved */
 #define HINIC_SQ_TASK_INFO1_MEDIA_TYPE_MASK     0xFF
-#define HINIC_SQ_TASK_INFO1_INNER_L4_LEN_MASK   0xFF
-#define HINIC_SQ_TASK_INFO1_INNER_L3_LEN_MASK   0xFF
+#define HINIC_SQ_TASK_INFO1_INNER_L4LEN_MASK    0xFF
+#define HINIC_SQ_TASK_INFO1_INNER_L3LEN_MASK    0xFF
 
 #define HINIC_SQ_TASK_INFO1_SET(val, member)    \
 		(((u32)(val) & HINIC_SQ_TASK_INFO1_##member##_MASK) <<  \
 		 HINIC_SQ_TASK_INFO1_##member##_SHIFT)
 
-#define HINIC_SQ_TASK_INFO2_TUNNEL_L4_LEN_SHIFT 0
-#define HINIC_SQ_TASK_INFO2_OUTER_L3_LEN_SHIFT  12
-#define HINIC_SQ_TASK_INFO2_TUNNEL_L4TYPE_SHIFT 19
+#define HINIC_SQ_TASK_INFO2_TUNNEL_L4LEN_SHIFT  0
+#define HINIC_SQ_TASK_INFO2_OUTER_L3LEN_SHIFT   8
+#define HINIC_SQ_TASK_INFO2_TUNNEL_L4TYPE_SHIFT 16
 /* 1 bit reserved */
-#define HINIC_SQ_TASK_INFO2_OUTER_L3TYPE_SHIFT  22
+#define HINIC_SQ_TASK_INFO2_OUTER_L3TYPE_SHIFT  24
 /* 8 bits reserved */
 
-#define HINIC_SQ_TASK_INFO2_TUNNEL_L4_LEN_MASK  0xFFF
-#define HINIC_SQ_TASK_INFO2_OUTER_L3_LEN_MASK   0x7F
-#define HINIC_SQ_TASK_INFO2_TUNNEL_L4TYPE_MASK  0x3
+#define HINIC_SQ_TASK_INFO2_TUNNEL_L4LEN_MASK   0xFF
+#define HINIC_SQ_TASK_INFO2_OUTER_L3LEN_MASK    0xFF
+#define HINIC_SQ_TASK_INFO2_TUNNEL_L4TYPE_MASK  0x7
 /* 1 bit reserved */
 #define HINIC_SQ_TASK_INFO2_OUTER_L3TYPE_MASK   0x3
 /* 8 bits reserved */
@@ -151,6 +169,10 @@
 #define HINIC_RQ_CQE_STATUS_RXDONE_SHIFT        31
 
 #define HINIC_RQ_CQE_STATUS_RXDONE_MASK         0x1
+
+#define HINIC_RQ_CQE_STATUS_CSUM_ERR_SHIFT	0
+
+#define HINIC_RQ_CQE_STATUS_CSUM_ERR_MASK	0xFFFFU
 
 #define HINIC_RQ_CQE_STATUS_GET(val, member)    \
 		(((val) >> HINIC_RQ_CQE_STATUS_##member##_SHIFT) & \
@@ -187,12 +209,15 @@
 		 sizeof(struct hinic_sq_task) + \
 		 (nr_sges) * sizeof(struct hinic_sq_bufdesc))
 
-#define HINIC_SCMD_DATA_LEN             16
+#define HINIC_SCMD_DATA_LEN                     16
 
-#define HINIC_MAX_SQ_BUFDESCS           17
+#define HINIC_MAX_SQ_BUFDESCS                   17
 
-#define HINIC_SQ_WQE_MAX_SIZE           320
-#define HINIC_RQ_WQE_SIZE               32
+#define HINIC_SQ_WQE_MAX_SIZE                   320
+#define HINIC_RQ_WQE_SIZE                       32
+
+#define HINIC_MSS_DEFAULT		        0x3E00
+#define HINIC_MSS_MIN		                0x50
 
 enum hinic_l4offload_type {
 	HINIC_L4_OFF_DISABLE            = 0,
@@ -209,6 +234,26 @@ enum hinic_vlan_offload {
 enum hinic_pkt_parsed {
 	HINIC_PKT_NOT_PARSED = 0,
 	HINIC_PKT_PARSED     = 1,
+};
+
+enum hinic_l3_offload_type {
+	L3TYPE_UNKNOWN = 0,
+	IPV6_PKT = 1,
+	IPV4_PKT_NO_CHKSUM_OFFLOAD = 2,
+	IPV4_PKT_WITH_CHKSUM_OFFLOAD = 3,
+};
+
+enum hinic_l4_offload_type {
+	OFFLOAD_DISABLE     = 0,
+	TCP_OFFLOAD_ENABLE  = 1,
+	SCTP_OFFLOAD_ENABLE = 2,
+	UDP_OFFLOAD_ENABLE  = 3,
+};
+
+enum hinic_l4_tunnel_type {
+	NOT_TUNNEL,
+	TUNNEL_UDP_NO_CSUM,
+	TUNNEL_UDP_CSUM,
 };
 
 enum hinic_outer_l3type {

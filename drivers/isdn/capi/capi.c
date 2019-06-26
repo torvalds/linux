@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -1154,12 +1155,6 @@ static int capinc_tty_chars_in_buffer(struct tty_struct *tty)
 	return mp->outbytes;
 }
 
-static int capinc_tty_ioctl(struct tty_struct *tty,
-			    unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-
 static void capinc_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	pr_debug("capinc_tty_set_termios\n");
@@ -1235,7 +1230,6 @@ static const struct tty_operations capinc_ops = {
 	.flush_chars = capinc_tty_flush_chars,
 	.write_room = capinc_tty_write_room,
 	.chars_in_buffer = capinc_tty_chars_in_buffer,
-	.ioctl = capinc_tty_ioctl,
 	.set_termios = capinc_tty_set_termios,
 	.throttle = capinc_tty_throttle,
 	.unthrottle = capinc_tty_unthrottle,
@@ -1321,7 +1315,7 @@ static inline void capinc_tty_exit(void) { }
  * /proc/capi/capi20:
  *  minor applid nrecvctlpkt nrecvdatapkt nsendctlpkt nsenddatapkt
  */
-static int capi20_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused capi20_proc_show(struct seq_file *m, void *v)
 {
 	struct capidev *cdev;
 	struct list_head *l;
@@ -1344,7 +1338,7 @@ static int capi20_proc_show(struct seq_file *m, void *v)
  * /proc/capi/capi20ncci:
  *  applid ncci
  */
-static int capi20ncci_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused capi20ncci_proc_show(struct seq_file *m, void *v)
 {
 	struct capidev *cdev;
 	struct capincci *np;

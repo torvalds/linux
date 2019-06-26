@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -740,10 +741,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		return -EOPNOTSUPP;
 	}
 
-	if (has_branch_stack(event) || event->attr.exclude_user ||
-			event->attr.exclude_kernel || event->attr.exclude_hv ||
-			event->attr.exclude_idle || event->attr.exclude_host ||
-			event->attr.exclude_guest) {
+	if (has_branch_stack(event)) {
 		dev_dbg(ccn->dev, "Can't exclude execution levels!\n");
 		return -EINVAL;
 	}
@@ -1289,6 +1287,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 		.read = arm_ccn_pmu_event_read,
 		.pmu_enable = arm_ccn_pmu_enable,
 		.pmu_disable = arm_ccn_pmu_disable,
+		.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
 	/* No overflow interrupt? Have to use a timer instead. */
@@ -1485,17 +1484,9 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ccn);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
-	if (!devm_request_mem_region(ccn->dev, res->start,
-			resource_size(res), pdev->name))
-		return -EBUSY;
-
-	ccn->base = devm_ioremap(ccn->dev, res->start,
-				resource_size(res));
-	if (!ccn->base)
-		return -EFAULT;
+	ccn->base = devm_ioremap_resource(ccn->dev, res);
+	if (IS_ERR(ccn->base))
+		return PTR_ERR(ccn->base);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res)

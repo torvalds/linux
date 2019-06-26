@@ -613,8 +613,8 @@ static int alloc_cmd_buf(struct hinic_api_cmd_chain *chain,
 	u8 *cmd_vaddr;
 	int err = 0;
 
-	cmd_vaddr = dma_zalloc_coherent(&pdev->dev, API_CMD_BUF_SIZE,
-					&cmd_paddr, GFP_KERNEL);
+	cmd_vaddr = dma_alloc_coherent(&pdev->dev, API_CMD_BUF_SIZE,
+				       &cmd_paddr, GFP_KERNEL);
 	if (!cmd_vaddr) {
 		dev_err(&pdev->dev, "Failed to allocate API CMD DMA memory\n");
 		return -ENOMEM;
@@ -663,8 +663,8 @@ static int api_cmd_create_cell(struct hinic_api_cmd_chain *chain,
 	dma_addr_t node_paddr;
 	int err;
 
-	node = dma_zalloc_coherent(&pdev->dev, chain->cell_size,
-				   &node_paddr, GFP_KERNEL);
+	node = dma_alloc_coherent(&pdev->dev, chain->cell_size, &node_paddr,
+				  GFP_KERNEL);
 	if (!node) {
 		dev_err(&pdev->dev, "Failed to allocate dma API CMD cell\n");
 		return -ENOMEM;
@@ -821,10 +821,10 @@ static int api_chain_init(struct hinic_api_cmd_chain *chain,
 	if (!chain->cell_ctxt)
 		return -ENOMEM;
 
-	chain->wb_status = dma_zalloc_coherent(&pdev->dev,
-					       sizeof(*chain->wb_status),
-					       &chain->wb_status_paddr,
-					       GFP_KERNEL);
+	chain->wb_status = dma_alloc_coherent(&pdev->dev,
+					      sizeof(*chain->wb_status),
+					      &chain->wb_status_paddr,
+					      GFP_KERNEL);
 	if (!chain->wb_status) {
 		dev_err(&pdev->dev, "Failed to allocate DMA wb status\n");
 		return -ENOMEM;

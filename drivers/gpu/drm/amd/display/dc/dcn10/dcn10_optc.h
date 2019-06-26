@@ -67,6 +67,8 @@
 	SRI(OTG_CLOCK_CONTROL, OTG, inst),\
 	SRI(OTG_VERTICAL_INTERRUPT0_CONTROL, OTG, inst),\
 	SRI(OTG_VERTICAL_INTERRUPT0_POSITION, OTG, inst),\
+	SRI(OTG_VERTICAL_INTERRUPT1_CONTROL, OTG, inst),\
+	SRI(OTG_VERTICAL_INTERRUPT1_POSITION, OTG, inst),\
 	SRI(OTG_VERTICAL_INTERRUPT2_CONTROL, OTG, inst),\
 	SRI(OTG_VERTICAL_INTERRUPT2_POSITION, OTG, inst),\
 	SRI(OPTC_INPUT_CLOCK_CONTROL, ODM, inst),\
@@ -75,7 +77,14 @@
 	SRI(CONTROL, VTG, inst),\
 	SRI(OTG_VERT_SYNC_CONTROL, OTG, inst),\
 	SRI(OTG_MASTER_UPDATE_MODE, OTG, inst),\
-	SRI(OTG_GSL_CONTROL, OTG, inst)
+	SRI(OTG_GSL_CONTROL, OTG, inst),\
+	SRI(OTG_CRC_CNTL, OTG, inst),\
+	SRI(OTG_CRC0_DATA_RG, OTG, inst),\
+	SRI(OTG_CRC0_DATA_B, OTG, inst),\
+	SRI(OTG_CRC0_WINDOWA_X_CONTROL, OTG, inst),\
+	SRI(OTG_CRC0_WINDOWA_Y_CONTROL, OTG, inst),\
+	SRI(OTG_CRC0_WINDOWB_X_CONTROL, OTG, inst),\
+	SRI(OTG_CRC0_WINDOWB_Y_CONTROL, OTG, inst)
 
 #define TG_COMMON_REG_LIST_DCN1_0(inst) \
 	TG_COMMON_REG_LIST_DCN(inst),\
@@ -128,6 +137,8 @@ struct dcn_optc_registers {
 	uint32_t OTG_CLOCK_CONTROL;
 	uint32_t OTG_VERTICAL_INTERRUPT0_CONTROL;
 	uint32_t OTG_VERTICAL_INTERRUPT0_POSITION;
+	uint32_t OTG_VERTICAL_INTERRUPT1_CONTROL;
+	uint32_t OTG_VERTICAL_INTERRUPT1_POSITION;
 	uint32_t OTG_VERTICAL_INTERRUPT2_CONTROL;
 	uint32_t OTG_VERTICAL_INTERRUPT2_POSITION;
 	uint32_t OPTC_INPUT_CLOCK_CONTROL;
@@ -138,6 +149,13 @@ struct dcn_optc_registers {
 	uint32_t OTG_GSL_WINDOW_X;
 	uint32_t OTG_GSL_WINDOW_Y;
 	uint32_t OTG_VUPDATE_KEEPOUT;
+	uint32_t OTG_CRC_CNTL;
+	uint32_t OTG_CRC0_DATA_RG;
+	uint32_t OTG_CRC0_DATA_B;
+	uint32_t OTG_CRC0_WINDOWA_X_CONTROL;
+	uint32_t OTG_CRC0_WINDOWA_Y_CONTROL;
+	uint32_t OTG_CRC0_WINDOWB_X_CONTROL;
+	uint32_t OTG_CRC0_WINDOWB_Y_CONTROL;
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -213,6 +231,8 @@ struct dcn_optc_registers {
 	SF(OTG0_OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_INT_ENABLE, mask_sh),\
 	SF(OTG0_OTG_VERTICAL_INTERRUPT0_POSITION, OTG_VERTICAL_INTERRUPT0_LINE_START, mask_sh),\
 	SF(OTG0_OTG_VERTICAL_INTERRUPT0_POSITION, OTG_VERTICAL_INTERRUPT0_LINE_END, mask_sh),\
+	SF(OTG0_OTG_VERTICAL_INTERRUPT1_CONTROL, OTG_VERTICAL_INTERRUPT1_INT_ENABLE, mask_sh),\
+	SF(OTG0_OTG_VERTICAL_INTERRUPT1_POSITION, OTG_VERTICAL_INTERRUPT1_LINE_START, mask_sh),\
 	SF(OTG0_OTG_VERTICAL_INTERRUPT2_CONTROL, OTG_VERTICAL_INTERRUPT2_INT_ENABLE, mask_sh),\
 	SF(OTG0_OTG_VERTICAL_INTERRUPT2_POSITION, OTG_VERTICAL_INTERRUPT2_LINE_START, mask_sh),\
 	SF(ODM0_OPTC_INPUT_CLOCK_CONTROL, OPTC_INPUT_CLK_EN, mask_sh),\
@@ -232,7 +252,21 @@ struct dcn_optc_registers {
 	SF(OTG0_OTG_GSL_CONTROL, OTG_GSL2_EN, mask_sh),\
 	SF(OTG0_OTG_GSL_CONTROL, OTG_GSL_MASTER_EN, mask_sh),\
 	SF(OTG0_OTG_GSL_CONTROL, OTG_GSL_FORCE_DELAY, mask_sh),\
-	SF(OTG0_OTG_GSL_CONTROL, OTG_GSL_CHECK_ALL_FIELDS, mask_sh)
+	SF(OTG0_OTG_GSL_CONTROL, OTG_GSL_CHECK_ALL_FIELDS, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL, OTG_CRC_CONT_EN, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL, OTG_CRC0_SELECT, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL, OTG_CRC_EN, mask_sh),\
+	SF(OTG0_OTG_CRC0_DATA_RG, CRC0_R_CR, mask_sh),\
+	SF(OTG0_OTG_CRC0_DATA_RG, CRC0_G_Y, mask_sh),\
+	SF(OTG0_OTG_CRC0_DATA_B, CRC0_B_CB, mask_sh),\
+	SF(OTG0_OTG_CRC0_WINDOWA_X_CONTROL, OTG_CRC0_WINDOWA_X_START, mask_sh),\
+	SF(OTG0_OTG_CRC0_WINDOWA_X_CONTROL, OTG_CRC0_WINDOWA_X_END, mask_sh),\
+	SF(OTG0_OTG_CRC0_WINDOWA_Y_CONTROL, OTG_CRC0_WINDOWA_Y_START, mask_sh),\
+	SF(OTG0_OTG_CRC0_WINDOWA_Y_CONTROL, OTG_CRC0_WINDOWA_Y_END, mask_sh),\
+	SF(OTG0_OTG_CRC0_WINDOWB_X_CONTROL, OTG_CRC0_WINDOWB_X_START, mask_sh),\
+	SF(OTG0_OTG_CRC0_WINDOWB_X_CONTROL, OTG_CRC0_WINDOWB_X_END, mask_sh),\
+	SF(OTG0_OTG_CRC0_WINDOWB_Y_CONTROL, OTG_CRC0_WINDOWB_Y_START, mask_sh),\
+	SF(OTG0_OTG_CRC0_WINDOWB_Y_CONTROL, OTG_CRC0_WINDOWB_Y_END, mask_sh)
 
 
 #define TG_COMMON_MASK_SH_LIST_DCN1_0(mask_sh)\
@@ -333,6 +367,8 @@ struct dcn_optc_registers {
 	type OTG_VERTICAL_INTERRUPT0_INT_ENABLE;\
 	type OTG_VERTICAL_INTERRUPT0_LINE_START;\
 	type OTG_VERTICAL_INTERRUPT0_LINE_END;\
+	type OTG_VERTICAL_INTERRUPT1_INT_ENABLE;\
+	type OTG_VERTICAL_INTERRUPT1_LINE_START;\
 	type OTG_VERTICAL_INTERRUPT2_INT_ENABLE;\
 	type OTG_VERTICAL_INTERRUPT2_LINE_START;\
 	type OPTC_INPUT_CLK_EN;\
@@ -363,7 +399,22 @@ struct dcn_optc_registers {
 	type OTG_MASTER_UPDATE_LOCK_GSL_EN;\
 	type MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET;\
 	type MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET;\
-	type OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN;
+	type OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN;\
+	type OTG_CRC_CONT_EN;\
+	type OTG_CRC0_SELECT;\
+	type OTG_CRC_EN;\
+	type CRC0_R_CR;\
+	type CRC0_G_Y;\
+	type CRC0_B_CB;\
+	type OTG_CRC0_WINDOWA_X_START;\
+	type OTG_CRC0_WINDOWA_X_END;\
+	type OTG_CRC0_WINDOWA_Y_START;\
+	type OTG_CRC0_WINDOWA_Y_END;\
+	type OTG_CRC0_WINDOWB_X_START;\
+	type OTG_CRC0_WINDOWB_X_END;\
+	type OTG_CRC0_WINDOWB_Y_START;\
+	type OTG_CRC0_WINDOWB_Y_END;
+
 
 #define TG_REG_FIELD_LIST(type) \
 	TG_REG_FIELD_LIST_DCN1_0(type)
@@ -384,7 +435,7 @@ struct optc {
 	const struct dcn_optc_shift *tg_shift;
 	const struct dcn_optc_mask *tg_mask;
 
-	enum controller_id controller_id;
+	int comb_opp_id;
 
 	uint32_t max_h_total;
 	uint32_t max_v_total;
@@ -432,9 +483,16 @@ void optc1_program_timing(
 	const struct dc_crtc_timing *dc_crtc_timing,
 	bool use_vbios);
 
-void optc1_program_vline_interrupt(struct timing_generator *optc,
-		const struct dc_crtc_timing *dc_crtc_timing,
-		unsigned long long vsync_delta);
+void optc1_setup_vertical_interrupt0(
+		struct timing_generator *optc,
+		uint32_t start_line,
+		uint32_t end_line);
+void optc1_setup_vertical_interrupt1(
+		struct timing_generator *optc,
+		uint32_t start_line);
+void optc1_setup_vertical_interrupt2(
+		struct timing_generator *optc,
+		uint32_t start_line);
 
 void optc1_program_global_sync(
 		struct timing_generator *optc);
@@ -506,5 +564,22 @@ bool optc1_is_tg_enabled(struct timing_generator *optc);
 bool optc1_is_optc_underflow_occurred(struct timing_generator *optc);
 
 void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable);
+
+bool optc1_get_otg_active_size(struct timing_generator *optc,
+		uint32_t *otg_active_width,
+		uint32_t *otg_active_height);
+
+void optc1_enable_crtc_reset(
+		struct timing_generator *optc,
+		int source_tg_inst,
+		struct crtc_trigger_info *crtc_tp);
+
+bool optc1_configure_crc(struct timing_generator *optc,
+			  const struct crc_params *params);
+
+bool optc1_get_crc(struct timing_generator *optc,
+		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
+
+bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
 
 #endif /* __DC_TIMING_GENERATOR_DCN10_H__ */

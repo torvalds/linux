@@ -14,6 +14,18 @@
 #include <asm/ppc-opcode.h>
 #include <asm/export.h>
 
+.pushsection ".tramp.ftrace.text","aw",@progbits;
+.globl ftrace_tramp_text
+ftrace_tramp_text:
+	.space 64
+.popsection
+
+.pushsection ".tramp.ftrace.init","aw",@progbits;
+.globl ftrace_tramp_init
+ftrace_tramp_init:
+	.space 64
+.popsection
+
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
 EXPORT_SYMBOL(_mcount)

@@ -32,9 +32,11 @@
 
 struct drm_fb_helper;
 
+#include <drm/drm_client.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <linux/kgdb.h>
+#include <linux/vgaarb.h>
 
 enum mode_set_atomic {
 	LEAVE_ATOMIC_MODE_SET,
@@ -154,6 +156,20 @@ struct drm_fb_helper_connector {
  * operations.
  */
 struct drm_fb_helper {
+	/**
+	 * @client:
+	 *
+	 * DRM client used by the generic fbdev emulation.
+	 */
+	struct drm_client_dev client;
+
+	/**
+	 * @buffer:
+	 *
+	 * Framebuffer used by the generic fbdev emulation.
+	 */
+	struct drm_client_buffer *buffer;
+
 	struct drm_framebuffer *fb;
 	struct drm_device *dev;
 	int crtc_count;
@@ -233,6 +249,12 @@ struct drm_fb_helper {
 	 */
 	int preferred_bpp;
 };
+
+static inline struct drm_fb_helper *
+drm_fb_helper_from_client(struct drm_client_dev *client)
+{
+	return container_of(client, struct drm_fb_helper, client);
+}
 
 /**
  * define DRM_FB_HELPER_DEFAULT_OPS - helper define for drm drivers
@@ -330,6 +352,10 @@ void drm_fb_helper_fbdev_teardown(struct drm_device *dev);
 
 void drm_fb_helper_lastclose(struct drm_device *dev);
 void drm_fb_helper_output_poll_changed(struct drm_device *dev);
+
+int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
+				struct drm_fb_helper_surface_size *sizes);
+int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					struct drm_fb_helper *helper,
@@ -564,8 +590,31 @@ static inline void drm_fb_helper_output_poll_changed(struct drm_device *dev)
 {
 }
 
+static inline int
+drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
+			    struct drm_fb_helper_surface_size *sizes)
+{
+	return 0;
+}
+
+static inline int
+drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
+{
+	return 0;
+}
+
 #endif
 
+/**
+ * drm_fb_helper_remove_conflicting_framebuffers - remove firmware-configured framebuffers
+ * @a: memory range, users of which are to be removed
+ * @name: requesting driver name
+ * @primary: also kick vga16fb if present
+ *
+ * This function removes framebuffer devices (initialized by firmware/bootloader)
+ * which use memory range described by @a. If @a is NULL all such devices are
+ * removed.
+ */
 static inline int
 drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
 					      const char *name, bool primary)
@@ -575,6 +624,37 @@ drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
 #else
 	return 0;
 #endif
+}
+
+/**
+ * drm_fb_helper_remove_conflicting_pci_framebuffers - remove firmware-configured framebuffers for PCI devices
+ * @pdev: PCI device
+ * @resource_id: index of PCI BAR configuring framebuffer memory
+ * @name: requesting driver name
+ *
+ * This function removes framebuffer devices (eg. initialized by firmware)
+ * using memory range configured for @pdev's BAR @resource_id.
+ *
+ * The function assumes that PCI device with shadowed ROM drives a primary
+ * display and so kicks out vga16fb.
+ */
+static inline int
+drm_fb_helper_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
+						  int resource_id,
+						  const char *name)
+{
+	int ret = 0;
+
+	/*
+	 * WARNING: Apparently we must kick fbdev drivers before vgacon,
+	 * otherwise the vga fbdev driver falls over.
+	 */
+#if IS_REACHABLE(CONFIG_FB)
+	ret = remove_conflicting_pci_framebuffers(pdev, resource_id, name);
+#endif
+	if (ret == 0)
+		ret = vga_remove_vgacon(pdev);
+	return ret;
 }
 
 #endif

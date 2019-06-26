@@ -30,6 +30,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_mem_dump[] = {
 
 static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_MBOX_LOG, cudbg_collect_mbox_log },
+	{ CUDBG_QDESC, cudbg_collect_qdesc },
 	{ CUDBG_DEV_LOG, cudbg_collect_fw_devlog },
 	{ CUDBG_REG_DUMP, cudbg_collect_reg_dump },
 	{ CUDBG_CIM_LA, cudbg_collect_cim_la },
@@ -224,7 +225,8 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
 		break;
 	case CUDBG_MEMINFO:
-		len = sizeof(struct cudbg_meminfo);
+		len = sizeof(struct cudbg_ver_hdr) +
+		      sizeof(struct cudbg_meminfo);
 		break;
 	case CUDBG_CIM_PIF_LA:
 		len = sizeof(struct cudbg_cim_pif_la);
@@ -273,7 +275,8 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		}
 		break;
 	case CUDBG_ULPTX_LA:
-		len = sizeof(struct cudbg_ulptx_la);
+		len = sizeof(struct cudbg_ver_hdr) +
+		      sizeof(struct cudbg_ulptx_la);
 		break;
 	case CUDBG_UP_CIM_INDIRECT:
 		n = 0;
@@ -308,6 +311,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 			len = EXT_MEM1_SIZE_G(value);
 		}
 		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_QDESC:
+		cudbg_fill_qdesc_num_and_size(adap, NULL, &len);
 		break;
 	default:
 		break;

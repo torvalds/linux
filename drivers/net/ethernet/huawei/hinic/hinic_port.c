@@ -377,3 +377,65 @@ int hinic_port_get_cap(struct hinic_dev *nic_dev,
 
 	return 0;
 }
+
+/**
+ * hinic_port_set_tso - set port tso configuration
+ * @nic_dev: nic device
+ * @state: the tso state to set
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_set_tso(struct hinic_dev *nic_dev, enum hinic_tso_state state)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct hinic_tso_config tso_cfg = {0};
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size;
+	int err;
+
+	tso_cfg.func_id = HINIC_HWIF_FUNC_IDX(hwif);
+	tso_cfg.tso_en = state;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_TSO,
+				 &tso_cfg, sizeof(tso_cfg),
+				 &tso_cfg, &out_size);
+	if (err || out_size != sizeof(tso_cfg) || tso_cfg.status) {
+		dev_err(&pdev->dev,
+			"Failed to set port tso, ret = %d\n",
+			tso_cfg.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int hinic_set_rx_csum_offload(struct hinic_dev *nic_dev, u32 en)
+{
+	struct hinic_checksum_offload rx_csum_cfg = {0};
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif;
+	struct pci_dev *pdev;
+	u16 out_size;
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	hwif = hwdev->hwif;
+	pdev = hwif->pdev;
+	rx_csum_cfg.func_id = HINIC_HWIF_FUNC_IDX(hwif);
+	rx_csum_cfg.rx_csum_offload = en;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_RX_CSUM,
+				 &rx_csum_cfg, sizeof(rx_csum_cfg),
+				 &rx_csum_cfg, &out_size);
+	if (err || !out_size || rx_csum_cfg.status) {
+		dev_err(&pdev->dev,
+			"Failed to set rx csum offload, ret = %d\n",
+			rx_csum_cfg.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}

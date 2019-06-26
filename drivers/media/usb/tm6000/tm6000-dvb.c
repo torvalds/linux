@@ -149,7 +149,7 @@ static int tm6000_start_stream(struct tm6000_core *dev)
 							ret, __func__);
 		return ret;
 	} else
-		printk(KERN_ERR "tm6000: pipe resetted\n");
+		printk(KERN_ERR "tm6000: pipe reset\n");
 
 /*	mutex_lock(&tm6000_driver.open_close_mutex); */
 	ret = usb_submit_urb(dvb->bulk_urb, GFP_ATOMIC);
@@ -266,6 +266,11 @@ static int register_dvb(struct tm6000_core *dev)
 
 	ret = dvb_register_adapter(&dvb->adapter, "Trident TVMaster 6000 DVB-T",
 					THIS_MODULE, &dev->udev->dev, adapter_nr);
+	if (ret < 0) {
+		pr_err("tm6000: couldn't register the adapter!\n");
+		goto err;
+	}
+
 	dvb->adapter.priv = dev;
 
 	if (dvb->frontend) {

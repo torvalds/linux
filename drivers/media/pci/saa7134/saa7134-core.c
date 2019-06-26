@@ -845,12 +845,13 @@ static void saa7134_create_entities(struct saa7134_dev *dev)
 	 */
 	if (!decoder) {
 		dev->demod.name = "saa713x";
-		dev->demod_pad[DEMOD_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
-		dev->demod_pad[DEMOD_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
-		dev->demod_pad[DEMOD_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->demod_pad[SAA7134_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+		dev->demod_pad[SAA7134_PAD_IF_INPUT].sig_type = PAD_SIGNAL_ANALOG;
+		dev->demod_pad[SAA7134_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->demod_pad[SAA7134_PAD_VID_OUT].sig_type = PAD_SIGNAL_DV;
 		dev->demod.function = MEDIA_ENT_F_ATV_DECODER;
 
-		ret = media_entity_pads_init(&dev->demod, DEMOD_NUM_PADS,
+		ret = media_entity_pads_init(&dev->demod, SAA7134_NUM_PADS,
 					     dev->demod_pad);
 		if (ret < 0)
 			pr_err("failed to initialize demod pad!\n");
@@ -1418,8 +1419,8 @@ static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 	del_timer(&dev->vbi_q.timeout);
 	del_timer(&dev->ts_q.timeout);
 
-	if (dev->remote)
-		saa7134_ir_stop(dev);
+	if (dev->remote && dev->remote->dev->users)
+		saa7134_ir_close(dev->remote->dev);
 
 	pci_save_state(pci_dev);
 	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
@@ -1446,8 +1447,8 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 		saa7134_videoport_init(dev);
 	if (card_has_mpeg(dev))
 		saa7134_ts_init_hw(dev);
-	if (dev->remote)
-		saa7134_ir_start(dev);
+	if (dev->remote && dev->remote->dev->users)
+		saa7134_ir_open(dev->remote->dev);
 	saa7134_hw_enable1(dev);
 
 	msleep(100);

@@ -541,7 +541,7 @@ static int mt9t112_init_setting(const struct i2c_client *client)
 	mt9t112_mcu_write(ret, client, VAR(18, 109), 0x0AF0);
 
 	/*
-	 * Flicker Dectection registers.
+	 * Flicker Detection registers.
 	 * This section should be replaced whenever new timing file is
 	 * generated. All the following registers need to be replaced.
 	 * Following registers are generated from Register Wizard but user can
@@ -887,12 +887,6 @@ static int mt9t112_get_selection(struct v4l2_subdev *sd,
 		sel->r.top = 0;
 		sel->r.width = MAX_WIDTH;
 		sel->r.height = MAX_HEIGHT;
-		return 0;
-	case V4L2_SEL_TGT_CROP_DEFAULT:
-		sel->r.left = 0;
-		sel->r.top = 0;
-		sel->r.width = VGA_WIDTH;
-		sel->r.height = VGA_HEIGHT;
 		return 0;
 	case V4L2_SEL_TGT_CROP:
 		sel->r = priv->frame;

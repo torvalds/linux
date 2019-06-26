@@ -75,10 +75,14 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = NULL;
 	int ret = -EINVAL;;
 	PHM_FUNC_CHECK(hwmgr);
+	adev = hwmgr->adev;
 
-	if (smum_is_dpm_running(hwmgr)) {
+	/* Skip for suspend/resume case */
+	if (smum_is_dpm_running(hwmgr) && !amdgpu_passthrough(adev)
+		&& adev->in_suspend) {
 		pr_info("dpm has been enabled\n");
 		return 0;
 	}
@@ -150,15 +154,6 @@ int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (NULL != hwmgr->hwmgr_func->enable_clock_power_gating)
-		return hwmgr->hwmgr_func->enable_clock_power_gating(hwmgr);
-
-	return 0;
-}
 
 int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
@@ -284,8 +279,8 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 	if (display_config == NULL)
 		return -EINVAL;
 
-	if (NULL != hwmgr->hwmgr_func->set_deep_sleep_dcefclk)
-		hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, display_config->min_dcef_deep_sleep_set_clk);
+	if (NULL != hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk)
+		hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk(hwmgr, display_config->min_dcef_deep_sleep_set_clk);
 
 	for (index = 0; index < display_config->num_path_including_non_display; index++) {
 		if (display_config->displays[index].controller_id != 0)
@@ -357,7 +352,7 @@ int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *s
 			PHM_PerformanceLevelDesignation designation)
 {
 	int result;
-	PHM_PerformanceLevel performance_level;
+	PHM_PerformanceLevel performance_level = {0};
 
 	PHM_FUNC_CHECK(hwmgr);
 
@@ -435,7 +430,7 @@ int phm_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 }
 
 int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+					void *clock_ranges)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
@@ -443,7 +438,7 @@ int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges(hwmgr,
-			wm_with_clock_ranges);
+								clock_ranges);
 }
 
 int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
@@ -476,3 +471,44 @@ int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr)
 
 	return hwmgr->hwmgr_func->disable_smc_firmware_ctf(hwmgr);
 }
+
+int phm_set_active_display_count(struct pp_hwmgr *hwmgr, uint32_t count)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_active_display_count)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_active_display_count(hwmgr, count);
+}
+
+int phm_set_min_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk(hwmgr, clock);
+}
+
+int phm_set_hard_min_dcefclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq(hwmgr, clock);
+}
+
+int phm_set_hard_min_fclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_hard_min_fclk_by_freq)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_hard_min_fclk_by_freq(hwmgr, clock);
+}
+

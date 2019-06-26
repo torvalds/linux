@@ -216,6 +216,7 @@ cleanup:
 	acpi_ut_remove_reference(obj_desc);
 }
 
+#ifdef ACPI_DISASSEMBLER
 /*******************************************************************************
  *
  * FUNCTION:    acpi_db_disassemble_aml
@@ -242,9 +243,8 @@ void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op)
 	if (statements) {
 		num_statements = strtoul(statements, NULL, 0);
 	}
-#ifdef ACPI_DISASSEMBLER
+
 	acpi_dm_disassemble(NULL, op, num_statements);
-#endif
 }
 
 /*******************************************************************************
@@ -317,8 +317,6 @@ acpi_status acpi_db_disassemble_method(char *name)
 	walk_state->parse_flags |= ACPI_PARSE_DISASSEMBLE;
 
 	status = acpi_ps_parse_aml(walk_state);
-
-#ifdef ACPI_DISASSEMBLER
 	(void)acpi_dm_parse_deferred_ops(op);
 
 	/* Now we can disassemble the method */
@@ -326,7 +324,6 @@ acpi_status acpi_db_disassemble_method(char *name)
 	acpi_gbl_dm_opt_verbose = FALSE;
 	acpi_dm_disassemble(NULL, op, 0);
 	acpi_gbl_dm_opt_verbose = TRUE;
-#endif
 
 	acpi_ps_delete_parse_tree(op);
 
@@ -337,6 +334,7 @@ acpi_status acpi_db_disassemble_method(char *name)
 	acpi_ut_release_owner_id(&obj_desc->method.owner_id);
 	return (AE_OK);
 }
+#endif
 
 /*******************************************************************************
  *

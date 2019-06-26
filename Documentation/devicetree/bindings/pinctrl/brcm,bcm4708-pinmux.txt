@@ -1,0 +1,55 @@
+Broadcom Northstar pins mux controller
+
+Some of Northstar SoCs's pins can be used for various purposes thanks to the mux
+controller. This binding allows describing mux controller and listing available
+functions. They can be referenced later by other bindings to let system
+configure controller correctly.
+
+A list of pins varies across chipsets so few bindings are available.
+
+Node of the pinmux must be nested in the CRU (Central Resource Unit) "syscon"
+noce.
+
+Required properties:
+- compatible: must be one of:
+	"brcm,bcm4708-pinmux"
+	"brcm,bcm4709-pinmux"
+	"brcm,bcm53012-pinmux"
+- offset: offset of pin registers in the CRU block
+
+Functions and their groups available for all chipsets:
+- "spi": "spi_grp"
+- "i2c": "i2c_grp"
+- "pwm": "pwm0_grp", "pwm1_grp", "pwm2_grp", "pwm3_grp"
+- "uart1": "uart1_grp"
+
+Additionally available on BCM4709 and BCM53012:
+- "mdio": "mdio_grp"
+- "uart2": "uart2_grp"
+- "sdio": "sdio_pwr_grp", "sdio_1p8v_grp"
+
+For documentation of subnodes see:
+Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+Example:
+	dmu@1800c000 {
+		compatible = "simple-bus";
+		ranges = <0 0x1800c000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		cru@100 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x100 0x1a4>;
+
+			pinctrl {
+				compatible = "brcm,bcm4708-pinmux";
+				offset = <0xc0>;
+
+				spi-pins {
+					function = "spi";
+					groups = "spi_grp";
+				};
+			};
+		};
+	};

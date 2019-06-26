@@ -108,6 +108,9 @@ nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 	if (stat)
 		nvkm_error(&mc->subdev, "intr %08x\n", stat);
 	*handled = intr != 0;
+
+	if (mc->func->intr_hack)
+		mc->func->intr_hack(mc, handled);
 }
 
 static u32

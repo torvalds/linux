@@ -200,6 +200,13 @@
 						phy-handle = <&switch1phy4>;
 					};
 
+					port@9 {
+						reg = <9>;
+						label = "sff2";
+						phy-mode = "sgmii";
+						managed = "in-band-status";
+						sfp = <&sff2>;
+					};
 
 					switch1port10: port@10 {
 						reg = <10>;
@@ -244,6 +251,22 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
+	};
+
+	sff2: sff2 {
+		/* lower */
+		compatible = "sff,sff";
+		i2c-bus = <&sff2_i2c>;
+		los-gpios = <&gpio6 12 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>;
+	};
+
+	sff3: sff3 {
+		/* upper */
+		compatible = "sff,sff";
+		i2c-bus = <&sff3_i2c>;
+		los-gpios = <&gpio6 13 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpio6 15 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -329,13 +352,6 @@
 		interrupts = <23 IRQ_TYPE_EDGE_FALLING>;
 		gpio-controller;
 		interrupt-controller;
-
-		enet_swr_en {
-			gpio-hog;
-			gpios = <0 GPIO_ACTIVE_HIGH>;
-			output-high;
-			line-name = "enet-swr-en";
-		};
 	};
 
 	/*
@@ -378,26 +394,16 @@
 			reg = <0>;
 		};
 
-		i2c@1 {
+		sff2_i2c: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
-
-			sfp2: at24c04@50 {
-				compatible = "atmel,24c02";
-				reg = <0x50>;
-			};
 		};
 
-		i2c@2 {
+		sff3_i2c: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
-
-			sfp3: at24c04@50 {
-				compatible = "atmel,24c02";
-				reg = <0x50>;
-			};
 		};
 
 		i2c@3 {

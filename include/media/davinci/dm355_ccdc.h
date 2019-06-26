@@ -228,7 +228,7 @@ struct ccdc_config_params_raw {
 	/* Threshold of median filter */
 	int med_filt_thres;
 	/*
-	 * horz and vertical data offset. Appliable for defect correction
+	 * horz and vertical data offset. Applicable for defect correction
 	 * and lsc
 	 */
 	struct ccdc_data_offset data_offset;
@@ -238,7 +238,7 @@ struct ccdc_config_params_raw {
 	struct ccdc_black_clamp blk_clamp;
 	/* Structure for Black Compensation */
 	struct ccdc_black_compensation blk_comp;
-	/* struture for vertical Defect Correction Module Configuration */
+	/* structure for vertical Defect Correction Module Configuration */
 	struct ccdc_vertical_dft vertical_dft;
 	/* structure for color space converter Module Configuration */
 	struct ccdc_csc csc;

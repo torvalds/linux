@@ -71,6 +71,19 @@ static inline int task_nice_ioclass(struct task_struct *task)
 }
 
 /*
+ * If the calling process has set an I/O priority, use that. Otherwise, return
+ * the default I/O priority.
+ */
+static inline int get_current_ioprio(void)
+{
+	struct io_context *ioc = current->io_context;
+
+	if (ioc)
+		return ioc->ioprio;
+	return IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0);
+}
+
+/*
  * For inheritance, return the highest of the two given priorities
  */
 extern int ioprio_best(unsigned short aprio, unsigned short bprio);

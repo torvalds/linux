@@ -104,7 +104,7 @@ static inline bool seg_writable(struct desc_struct *d)
 #define instruction_address	(*(struct address *)&I387->soft.fip)
 #define operand_address		(*(struct address *)&I387->soft.foo)
 
-#define FPU_access_ok(x,y,z)	if ( !access_ok(x,y,z) ) \
+#define FPU_access_ok(y,z)	if ( !access_ok(y,z) ) \
 				math_abort(FPU_info,SIGSEGV)
 #define FPU_abort		math_abort(FPU_info, SIGSEGV)
 
@@ -119,7 +119,7 @@ static inline bool seg_writable(struct desc_struct *d)
 /* A simpler test than access_ok() can probably be done for
    FPU_code_access_ok() because the only possible error is to step
    past the upper boundary of a legal code area. */
-#define	FPU_code_access_ok(z) FPU_access_ok(VERIFY_READ,(void __user *)FPU_EIP,z)
+#define	FPU_code_access_ok(z) FPU_access_ok((void __user *)FPU_EIP,z)
 #endif
 
 #define FPU_get_user(x,y)       get_user((x),(y))

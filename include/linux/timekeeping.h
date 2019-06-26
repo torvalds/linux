@@ -21,6 +21,21 @@ extern int do_sys_settimeofday64(const struct timespec64 *tv,
 				 const struct timezone *tz);
 
 /*
+ * ktime_get() family: read the current time in a multitude of ways,
+ *
+ * The default time reference is CLOCK_MONOTONIC, starting at
+ * boot time but not counting the time spent in suspend.
+ * For other references, use the functions with "real", "clocktai",
+ * "boottime" and "raw" suffixes.
+ *
+ * To get the time in a different format, use the ones wit
+ * "ns", "ts64" and "seconds" suffix.
+ *
+ * See Documentation/core-api/timekeeping.rst for more details.
+ */
+
+
+/*
  * timespec64 based interfaces
  */
 extern void ktime_get_raw_ts64(struct timespec64 *ts);
@@ -177,7 +192,7 @@ static inline time64_t ktime_get_clocktai_seconds(void)
 extern bool timekeeping_rtc_skipsuspend(void);
 extern bool timekeeping_rtc_skipresume(void);
 
-extern void timekeeping_inject_sleeptime64(struct timespec64 *delta);
+extern void timekeeping_inject_sleeptime64(const struct timespec64 *delta);
 
 /*
  * struct system_time_snapshot - simultaneous raw/real time capture with
@@ -243,33 +258,8 @@ extern void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot);
 extern int persistent_clock_is_local;
 
 extern void read_persistent_clock64(struct timespec64 *ts);
-extern void read_boot_clock64(struct timespec64 *ts);
+void read_persistent_wall_and_boot_offset(struct timespec64 *wall_clock,
+					  struct timespec64 *boot_offset);
 extern int update_persistent_clock64(struct timespec64 now);
-
-/*
- * deprecated aliases, don't use in new code
- */
-#define getnstimeofday64(ts)		ktime_get_real_ts64(ts)
-#define get_monotonic_boottime64(ts)	ktime_get_boottime_ts64(ts)
-#define getrawmonotonic64(ts)		ktime_get_raw_ts64(ts)
-#define timekeeping_clocktai64(ts)	ktime_get_clocktai_ts64(ts)
-
-static inline struct timespec64 current_kernel_time64(void)
-{
-	struct timespec64 ts;
-
-	ktime_get_coarse_real_ts64(&ts);
-
-	return ts;
-}
-
-static inline struct timespec64 get_monotonic_coarse64(void)
-{
-	struct timespec64 ts;
-
-	ktime_get_coarse_ts64(&ts);
-
-	return ts;
-}
 
 #endif

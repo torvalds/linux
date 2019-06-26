@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This is part of rtl8187 OpenSource driver.
  * Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
@@ -15,9 +16,10 @@
  * project Authors.
  */
 
-#ifndef R819xU_H
-#define R819xU_H
+#ifndef R8192U_H
+#define R8192U_H
 
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -38,26 +40,25 @@
 #include "ieee80211/ieee80211.h"
 
 #define RTL8192U
-#define RTL819xU_MODULE_NAME "rtl819xU"
+#define RTL819XU_MODULE_NAME "rtl819xU"
 /* HW security */
 #define MAX_KEY_LEN     61
 #define KEY_BUF_SIZE    5
 
-#define	Rx_Smooth_Factor		20
+#define	RX_SMOOTH_FACTOR		20
 #define DMESG(x, a...)
 #define DMESGW(x, a...)
 #define DMESGE(x, a...)
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
 	do {							\
-		if (rt_global_debug_component & component)	\
+		if (rt_global_debug_component & (component))	\
 			pr_debug("RTL8192U: " x "\n", ##args);	\
 	} while (0)
 
 #define COMP_TRACE              BIT(0)  /* Function call tracing. */
 #define COMP_DBG                BIT(1)
 #define COMP_INIT               BIT(2)  /* Driver initialization/halt/reset. */
-
 
 #define COMP_RECV               BIT(3)  /* Receive data path. */
 #define COMP_SEND               BIT(4)  /* Send data path. */
@@ -111,7 +112,7 @@ extern u32 rt_global_debug_component;
 	do {								\
 		if ((rt_global_debug_component & (level)) == (level)) {	\
 			int i;						\
-			u8 *pdata = (u8 *) data;			\
+			u8 *pdata = (u8 *)data;				\
 			pr_debug("RTL8192U: %s()\n", __func__);		\
 			for (i = 0; i < (int)(datalen); i++) {		\
 				printk("%2x ", pdata[i]);               \
@@ -125,7 +126,6 @@ extern u32 rt_global_debug_component;
 #define RTL8192U_ASSERT(expr) do {} while (0)
 #define RT_DEBUG_DATA(level, data, datalen) do {} while (0)
 #endif /* RTL8169_DEBUG */
-
 
 /* Queue Select Value in TxDesc */
 #define QSLT_BK                                 0x1
@@ -176,7 +176,7 @@ extern u32 rt_global_debug_component;
 #define	CCK_Table_length	12
 
 /* For rtl819x */
-typedef struct _tx_desc_819x_usb {
+struct tx_desc_819x_usb {
 	/* DWORD 0 */
 	u16	PktSize;
 	u8	Offset;
@@ -212,36 +212,9 @@ typedef struct _tx_desc_819x_usb {
 	u32	Reserved5;
 	u32	Reserved6;
 	u32	Reserved7;
-} tx_desc_819x_usb, *ptx_desc_819x_usb;
+};
 
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-typedef struct _tx_desc_819x_usb_aggr_subframe {
-	/* DWORD 0 */
-	u16	PktSize;
-	u8	Offset;
-	u8	TxFWInfoSize;
-
-	/* DWORD 1 */
-	u8	RATid:3;
-	u8	DISFB:1;
-	u8	USERATE:1;
-	u8	MOREFRAG:1;
-	u8	NoEnc:1;
-	u8	PIFS:1;
-	u8	QueueSelect:5;
-	u8	NoACM:1;
-	u8	Reserved1:2;
-	u8	SecCAMID:5;
-	u8	SecDescAssign:1;
-	u8	SecType:2;
-	u8	PacketID:7;
-	u8	OWN:1;
-} tx_desc_819x_usb_aggr_subframe, *ptx_desc_819x_usb_aggr_subframe;
-#endif
-
-
-
-typedef struct _tx_desc_cmd_819x_usb {
+struct tx_desc_cmd_819x_usb {
 	/* DWORD 0 */
 	u16	Reserved0;
 	u8	Reserved1;
@@ -266,10 +239,9 @@ typedef struct _tx_desc_cmd_819x_usb {
 	u32	Reserved6;
 	u32	Reserved7;
 	u32	Reserved8;
-} tx_desc_cmd_819x_usb, *ptx_desc_cmd_819x_usb;
+};
 
-
-typedef struct _tx_fwinfo_819x_usb {
+struct tx_fwinfo_819x_usb {
 	/* DOWRD 0 */
 	u8	TxRate:7;
 	u8	CtsEnable:1;
@@ -300,7 +272,7 @@ typedef struct _tx_fwinfo_819x_usb {
 	u32	TxAGCSign:1;
 	u32	Tx_INFO_RSVD:6;
 	u32	PacketID:13;
-} tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
+};
 
 struct rtl8192_rx_info {
 	struct urb *urb;
@@ -308,7 +280,7 @@ struct rtl8192_rx_info {
 	u8 out_pipe;
 };
 
-typedef struct rx_desc_819x_usb {
+struct rx_desc_819x_usb {
 	/* DOWRD 0 */
 	u16                 Length:14;
 	u16                 CRC32:1;
@@ -321,27 +293,9 @@ typedef struct rx_desc_819x_usb {
 
 	/* DWORD 1 */
 	u32                 Reserved2;
-} rx_desc_819x_usb, *prx_desc_819x_usb;
+};
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-typedef struct _rx_desc_819x_usb_aggr_subframe {
-	/* DOWRD 0 */
-	u16			Length:14;
-	u16			CRC32:1;
-	u16			ICV:1;
-	u8			Offset;
-	u8			RxDrvInfoSize;
-	/* DOWRD 1 */
-	u8			Shift:2;
-	u8			PHYStatus:1;
-	u8			SWDec:1;
-	u8			Reserved1:4;
-	u8			Reserved2;
-	u16			Reserved3;
-} rx_desc_819x_usb_aggr_subframe, *prx_desc_819x_usb_aggr_subframe;
-#endif
-
-typedef struct rx_drvinfo_819x_usb {
+struct rx_drvinfo_819x_usb {
 	/* DWORD 0 */
 	u16                 Reserved1:12;
 	u16                 PartAggr:1;
@@ -362,7 +316,7 @@ typedef struct rx_drvinfo_819x_usb {
 	/* DWORD 1 */
 	u32                  TSFL;
 
-} rx_drvinfo_819x_usb, *prx_drvinfo_819x_usb;
+};
 
 /* Support till 64 bit bus width OS */
 #define MAX_DEV_ADDR_SIZE		8
@@ -370,25 +324,23 @@ typedef struct rx_drvinfo_819x_usb {
 #define MAX_FIRMWARE_INFORMATION_SIZE   32
 #define MAX_802_11_HEADER_LENGTH        (40 + MAX_FIRMWARE_INFORMATION_SIZE)
 #define ENCRYPTION_MAX_OVERHEAD		128
-#define	USB_HWDESC_HEADER_LEN		sizeof(tx_desc_819x_usb)
-#define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
+#define	USB_HWDESC_HEADER_LEN		sizeof(struct tx_desc_819x_usb)
+#define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(struct tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define MAX_TRANSMIT_BUFFER_SIZE			32000
 #else
 #define MAX_TRANSMIT_BUFFER_SIZE			8000
 #endif
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-#define TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES (sizeof(tx_desc_819x_usb_aggr_subframe) + sizeof(tx_fwinfo_819x_usb))
-#endif
 /* Octets for crc32 (FCS, ICV) */
 #define scrclng					4
 
-typedef enum rf_optype {
+enum rf_op_type {
 	RF_OP_By_SW_3wire = 0,
 	RF_OP_By_FW,
 	RF_OP_MAX
-} rf_op_type;
+};
+
 /* 8190 Loopback Mode definition */
 typedef enum _rtl819xUsb_loopback {
 	RTL819xU_NO_LOOPBACK = 0,
@@ -412,13 +364,13 @@ typedef enum _firmware_status {
 	FW_STATUS_5_READY = 5,
 } firmware_status_e;
 
-typedef struct _rt_firmare_seg_container {
+typedef struct _fw_seg_container {
 	u16	seg_size;
 	u8	*seg_ptr;
 } fw_seg_container, *pfw_seg_container;
 typedef struct _rt_firmware {
 	firmware_status_e firmware_status;
-	u16               cmdpacket_frag_thresold;
+	u16               cmdpacket_frag_threshold;
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE  64000
 	u8                firmware_buf[RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u16               firmware_buf_size;
@@ -491,7 +443,6 @@ typedef struct _rt_firmware_info_819xUsb {
 
 #define		PHY_RSSI_SLID_WIN_MAX				100
 
-
 typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_UNKNOWN = 0x00,
 	WIRELESS_MODE_A = 0x01,
@@ -501,7 +452,6 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_N_24G = 0x10,
 	WIRELESS_MODE_N_5G = 0x20
 } WIRELESS_MODE;
-
 
 #define RTL_IOCTL_WPA_SUPPLICANT		(SIOCIWFIRSTPRIV + 30)
 
@@ -521,11 +471,6 @@ typedef struct rtl_reg_debug {
 	} head;
 	unsigned char buf[0xff];
 } rtl_reg_debug;
-
-
-
-
-
 
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
@@ -641,12 +586,10 @@ typedef struct Stats {
 	u32	CurrentShowTxate;
 } Stats;
 
-
 /* Bandwidth Offset */
 #define HAL_PRIME_CHNL_OFFSET_DONT_CARE		0
 #define HAL_PRIME_CHNL_OFFSET_LOWER			1
 #define HAL_PRIME_CHNL_OFFSET_UPPER			2
-
 
 typedef struct	ChnlAccessSetting {
 	u16 SIFS_Timer;
@@ -720,9 +663,17 @@ typedef enum _RT_RF_TYPE_819xU {
 	RF_PSEUDO_11N = 4,
 } RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
 
+/* 2007/10/08 MH Define RATR state. */
+enum dynamic_ratr_state {
+	DM_RATR_STA_HIGH = 0,
+	DM_RATR_STA_MIDDLE = 1,
+	DM_RATR_STA_LOW = 2,
+	DM_RATR_STA_MAX
+};
+
 typedef struct _rate_adaptive {
 	u8				rate_adaptive_disabled;
-	u8				ratr_state;
+	enum dynamic_ratr_state		ratr_state;
 	u16				reserve;
 
 	u32				high_rssi_thresh_for_ra;
@@ -755,7 +706,6 @@ typedef struct _ccktxbbgain_struct {
 	/* The value is from a22 to a29, one byte one time is much safer */
 	u8	ccktxbb_valuearray[8];
 } ccktxbbgain_struct, *pccktxbbgain_struct;
-
 
 typedef struct _init_gain {
 	u8				xaagccore1;
@@ -791,7 +741,6 @@ typedef struct _phy_cck_rx_status_report_819xusb {
 	u8	sq_rpt;
 	u8	cck_agc_rpt;
 } phy_sts_cck_819xusb_t;
-
 
 struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			reserved:4;
@@ -850,6 +799,18 @@ typedef enum _tag_TxCmd_Config_Index {
 	TXCMD_XXXX_CTRL,
 } DCMD_TXCMD_OP;
 
+enum version_819xu {
+	VERSION_819XU_A, // A-cut
+	VERSION_819XU_B, // B-cut
+	VERSION_819XU_C,// C-cut
+};
+
+//added for different RF type
+enum rt_rf_type {
+	RF_1T2R = 0,
+	RF_2T4R,
+};
+
 typedef struct r8192_priv {
 	struct usb_device *udev;
 	/* For maintain info from eeprom */
@@ -867,7 +828,7 @@ typedef struct r8192_priv {
 	/* O: rtl8192, 1: rtl8185 V B/C, 2: rtl8185 V D */
 	short card_8192;
 	/* If TCR reports card V B/C, this discriminates */
-	u8 card_8192_version;
+	enum version_819xu card_8192_version;
 	short enable_gpio0;
 	enum card_type {
 		PCI, MINIPCI, CARDBUS, USB
@@ -884,14 +845,13 @@ typedef struct r8192_priv {
 	short sens;
 	short max_sens;
 
-
 	short up;
 	/* If 1, allow bad crc frame, reception in monitor mode */
 	short crcmon;
 
 	struct mutex wx_mutex;
 
-	u8 rf_type;			/* 0: 1T2R, 1: 2T4R */
+	enum rt_rf_type   rf_type;	    /* 0: 1T2R, 1: 2T4R */
 	RT_RF_TYPE_819xU rf_chip;
 
 	short (*rf_set_sens)(struct net_device *dev, short sens);
@@ -917,12 +877,11 @@ typedef struct r8192_priv {
 	int     rx_inx;
 #endif
 
-       struct sk_buff_head rx_queue;
-       struct sk_buff_head skb_queue;
-       struct work_struct qos_activate;
+	struct sk_buff_head rx_queue;
+	struct sk_buff_head skb_queue;
+	struct work_struct qos_activate;
 	short  tx_urb_index;
 	atomic_t tx_pending[0x10]; /* UART_PRIORITY + 1 */
-
 
 	struct tasklet_struct irq_rx_tasklet;
 	struct urb *rxurb_task;
@@ -935,7 +894,6 @@ typedef struct r8192_priv {
 
 	u32     LastRxDescTSFHigh;
 	u32     LastRxDescTSFLow;
-
 
 	/* Rx Related variables */
 	u16	EarlyRxThreshold;
@@ -958,7 +916,7 @@ typedef struct r8192_priv {
 	u8      slot_time;
 	bool	bDcut;
 	bool bCurrentRxAggrEnable;
-	u8 Rf_Mode;	/* For Firmware RF -R/W switch */
+	enum rf_op_type Rf_Mode;	/* For Firmware RF -R/W switch */
 	prt_firmware		pFirmware;
 	rtl819xUsb_loopback_e	LoopbackMode;
 	u16 EEPROMTxPowerDiff;
@@ -995,7 +953,7 @@ typedef struct r8192_priv {
 	u8	SwChnlStage;
 	u8	SwChnlStep;
 	u8	SetBWModeInProgress;
-	HT_CHANNEL_WIDTH		CurrentChannelBW;
+	enum ht_channel_width 	CurrentChannelBW;
 	u8      ChannelPlan;
 	/* 8190 40MHz mode */
 	/* Control channel sub-carrier */
@@ -1069,7 +1027,7 @@ typedef struct r8192_priv {
 	u8	nrxAMPDU_aggr_num;
 
 	/* For gpio */
-	 bool bHwRadioOff;
+	bool bHwRadioOff;
 
 	u32 reset_count;
 	bool bpbc_pressed;
@@ -1134,9 +1092,6 @@ bool init_firmware(struct net_device *dev);
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
 
-u32 read_cam(struct net_device *dev, u8 addr);
-void write_cam(struct net_device *dev, u8 addr, u32 data);
-
 int read_nic_byte(struct net_device *dev, int x, u8 *data);
 int read_nic_byte_E(struct net_device *dev, int x, u8 *data);
 int read_nic_dword(struct net_device *dev, int x, u32 *data);
@@ -1149,27 +1104,16 @@ void force_pci_posting(struct net_device *dev);
 
 void rtl8192_rtx_disable(struct net_device *dev);
 void rtl8192_rx_enable(struct net_device *dev);
-void rtl8192_tx_enable(struct net_device *dev);
 
-void rtl8192_disassociate(struct net_device *dev);
-void rtl8185_set_rf_pins_enable(struct net_device *dev, u32 a);
-
-void rtl8192_set_anaparam(struct net_device *dev, u32 a);
-void rtl8185_set_anaparam2(struct net_device *dev, u32 a);
 void rtl8192_update_msr(struct net_device *dev);
 int rtl8192_down(struct net_device *dev);
 int rtl8192_up(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
 void rtl8192_set_chan(struct net_device *dev, short ch);
-void write_phy(struct net_device *dev, u8 adr, u8 data);
-void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
-void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
-void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8192_set_rxconf(struct net_device *dev);
 void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
 
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
-
 
 #endif

@@ -1,7 +1,7 @@
 /*
  * Maxim MAX77620 Regulator driver
  *
- * Copyright (c) 2016, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author: Mallikarjun Kasoju <mkasoju@nvidia.com>
  *	Laxman Dewangan <ldewangan@nvidia.com>
@@ -690,6 +690,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 			.active_discharge_mask = MAX77620_SD_CFG1_ADE_MASK, \
 			.active_discharge_reg = MAX77620_REG_##_id##_CFG, \
 			.type = REGULATOR_VOLTAGE,			\
+			.owner = THIS_MODULE,				\
 		},							\
 	}
 
@@ -721,6 +722,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 			.active_discharge_mask = MAX77620_LDO_CFG2_ADE_MASK, \
 			.active_discharge_reg = MAX77620_REG_##_id##_CFG2, \
 			.type = REGULATOR_VOLTAGE,			\
+			.owner = THIS_MODULE,				\
 		},							\
 	}
 
@@ -803,6 +805,14 @@ static int max77620_regulator_probe(struct platform_device *pdev)
 		rdesc = &rinfo[id].desc;
 		pmic->rinfo[id] = &max77620_regs_info[id];
 		pmic->enable_power_mode[id] = MAX77620_POWER_MODE_NORMAL;
+		pmic->reg_pdata[id].active_fps_src = -1;
+		pmic->reg_pdata[id].active_fps_pd_slot = -1;
+		pmic->reg_pdata[id].active_fps_pu_slot = -1;
+		pmic->reg_pdata[id].suspend_fps_src = -1;
+		pmic->reg_pdata[id].suspend_fps_pd_slot = -1;
+		pmic->reg_pdata[id].suspend_fps_pu_slot = -1;
+		pmic->reg_pdata[id].power_ok = -1;
+		pmic->reg_pdata[id].ramp_rate_setting = -1;
 
 		ret = max77620_read_slew_rate(pmic, id);
 		if (ret < 0)

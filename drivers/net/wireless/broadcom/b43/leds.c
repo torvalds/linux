@@ -131,7 +131,7 @@ static int b43_register_led(struct b43_wldev *dev, struct b43_led *led,
 	led->wl = dev->wl;
 	led->index = led_index;
 	led->activelow = activelow;
-	strncpy(led->name, name, sizeof(led->name));
+	strlcpy(led->name, name, sizeof(led->name));
 	atomic_set(&led->state, 0);
 
 	led->led_dev.name = led->name;

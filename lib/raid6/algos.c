@@ -34,64 +34,64 @@ struct raid6_calls raid6_call;
 EXPORT_SYMBOL_GPL(raid6_call);
 
 const struct raid6_calls * const raid6_algos[] = {
-#if defined(__ia64__)
-	&raid6_intx16,
-	&raid6_intx32,
-#endif
 #if defined(__i386__) && !defined(__arch_um__)
-	&raid6_mmxx1,
-	&raid6_mmxx2,
-	&raid6_sse1x1,
-	&raid6_sse1x2,
-	&raid6_sse2x1,
-	&raid6_sse2x2,
-#ifdef CONFIG_AS_AVX2
-	&raid6_avx2x1,
-	&raid6_avx2x2,
-#endif
 #ifdef CONFIG_AS_AVX512
-	&raid6_avx512x1,
 	&raid6_avx512x2,
+	&raid6_avx512x1,
 #endif
+#ifdef CONFIG_AS_AVX2
+	&raid6_avx2x2,
+	&raid6_avx2x1,
+#endif
+	&raid6_sse2x2,
+	&raid6_sse2x1,
+	&raid6_sse1x2,
+	&raid6_sse1x1,
+	&raid6_mmxx2,
+	&raid6_mmxx1,
 #endif
 #if defined(__x86_64__) && !defined(__arch_um__)
-	&raid6_sse2x1,
-	&raid6_sse2x2,
-	&raid6_sse2x4,
-#ifdef CONFIG_AS_AVX2
-	&raid6_avx2x1,
-	&raid6_avx2x2,
-	&raid6_avx2x4,
-#endif
 #ifdef CONFIG_AS_AVX512
-	&raid6_avx512x1,
-	&raid6_avx512x2,
 	&raid6_avx512x4,
+	&raid6_avx512x2,
+	&raid6_avx512x1,
 #endif
+#ifdef CONFIG_AS_AVX2
+	&raid6_avx2x4,
+	&raid6_avx2x2,
+	&raid6_avx2x1,
+#endif
+	&raid6_sse2x4,
+	&raid6_sse2x2,
+	&raid6_sse2x1,
 #endif
 #ifdef CONFIG_ALTIVEC
-	&raid6_altivec1,
-	&raid6_altivec2,
-	&raid6_altivec4,
-	&raid6_altivec8,
-	&raid6_vpermxor1,
-	&raid6_vpermxor2,
-	&raid6_vpermxor4,
 	&raid6_vpermxor8,
+	&raid6_vpermxor4,
+	&raid6_vpermxor2,
+	&raid6_vpermxor1,
+	&raid6_altivec8,
+	&raid6_altivec4,
+	&raid6_altivec2,
+	&raid6_altivec1,
 #endif
 #if defined(CONFIG_S390)
 	&raid6_s390vx8,
 #endif
-	&raid6_intx1,
-	&raid6_intx2,
-	&raid6_intx4,
-	&raid6_intx8,
 #ifdef CONFIG_KERNEL_MODE_NEON
-	&raid6_neonx1,
-	&raid6_neonx2,
-	&raid6_neonx4,
 	&raid6_neonx8,
+	&raid6_neonx4,
+	&raid6_neonx2,
+	&raid6_neonx1,
 #endif
+#if defined(__ia64__)
+	&raid6_intx32,
+	&raid6_intx16,
+#endif
+	&raid6_intx8,
+	&raid6_intx4,
+	&raid6_intx2,
+	&raid6_intx1,
 	NULL
 };
 
@@ -162,6 +162,11 @@ static inline const struct raid6_calls *raid6_choose_gen(
 		if (!best || (*algo)->prefer >= best->prefer) {
 			if ((*algo)->valid && !(*algo)->valid())
 				continue;
+
+			if (!IS_ENABLED(CONFIG_RAID6_PQ_BENCHMARK)) {
+				best = *algo;
+				break;
+			}
 
 			perf = 0;
 

@@ -92,6 +92,19 @@ config TOUCHSCREEN_AD7879_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7879-spi.
 
+config TOUCHSCREEN_ADC
+	tristate "Generic ADC based resistive touchscreen"
+	depends on IIO
+	select IIO_BUFFER_CB
+	help
+	  Say Y here if you want to use the generic ADC
+	  resistive touchscreen driver.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called resistive-adc-touch.ko.
+
 config TOUCHSCREEN_AR1021_I2C
 	tristate "Microchip AR1020/1021 i2c touchscreen"
 	depends on I2C && OF
@@ -150,6 +163,18 @@ config TOUCHSCREEN_BU21013
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bu21013_ts.
+
+config TOUCHSCREEN_BU21029
+	tristate "Rohm BU21029 based touch panel controllers"
+	depends on I2C
+	help
+	  Say Y here if you have a Rohm BU21029 touchscreen controller
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bu21029_ts.
 
 config TOUCHSCREEN_CHIPONE_ICN8318
 	tristate "chipone icn8318 touchscreen controller"
@@ -671,6 +696,19 @@ config TOUCHSCREEN_EDT_FT5X06
 	  To compile this driver as a module, choose M here: the
 	  module will be called edt-ft5x06.
 
+config TOUCHSCREEN_RASPBERRYPI_FW
+	tristate "Raspberry Pi's firmware base touch screen support"
+	depends on RASPBERRYPI_FIRMWARE || (RASPBERRYPI_FIRMWARE=n && COMPILE_TEST)
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you have the official Raspberry Pi 7 inch screen on
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called raspberrypi-ts.
+
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on (SH_MIGOR || COMPILE_TEST) && I2C
@@ -1131,11 +1169,11 @@ config TOUCHSCREEN_SIS_I2C
 	  module will be called sis_i2c.
 
 config TOUCHSCREEN_ST1232
-	tristate "Sitronix ST1232 touchscreen controllers"
+	tristate "Sitronix ST1232 or ST1633 touchscreen controllers"
 	depends on I2C
 	help
-	  Say Y here if you want to support Sitronix ST1232
-	  touchscreen controller.
+	  Say Y here if you want to support the Sitronix ST1232
+	  or ST1633 touchscreen controller.
 
 	  If unsure, say N.
 

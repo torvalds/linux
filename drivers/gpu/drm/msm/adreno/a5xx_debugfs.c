@@ -130,16 +130,14 @@ reset_set(void *data, u64 val)
 	adreno_gpu->fw[ADRENO_FW_PFP] = NULL;
 
 	if (a5xx_gpu->pm4_bo) {
-		if (a5xx_gpu->pm4_iova)
-			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->aspace);
-		drm_gem_object_unreference(a5xx_gpu->pm4_bo);
+		msm_gem_unpin_iova(a5xx_gpu->pm4_bo, gpu->aspace);
+		drm_gem_object_put(a5xx_gpu->pm4_bo);
 		a5xx_gpu->pm4_bo = NULL;
 	}
 
 	if (a5xx_gpu->pfp_bo) {
-		if (a5xx_gpu->pfp_iova)
-			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->aspace);
-		drm_gem_object_unreference(a5xx_gpu->pfp_bo);
+		msm_gem_unpin_iova(a5xx_gpu->pfp_bo, gpu->aspace);
+		drm_gem_object_put(a5xx_gpu->pfp_bo);
 		a5xx_gpu->pfp_bo = NULL;
 	}
 
@@ -173,7 +171,7 @@ int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 			minor->debugfs_root, minor);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install a5xx_debugfs_list\n");
+		DRM_DEV_ERROR(dev->dev, "could not install a5xx_debugfs_list\n");
 		return ret;
 	}
 

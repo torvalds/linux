@@ -96,7 +96,7 @@ struct dio200_subdev_intr {
 	unsigned int ofs;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
-	bool active:1;
+	unsigned int active:1;
 };
 
 static unsigned char dio200_read8(struct comedi_device *dev,

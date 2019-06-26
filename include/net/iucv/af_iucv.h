@@ -80,6 +80,11 @@ struct af_iucv_trans_hdr {
 	u8 pad;                          /* total 104 bytes */
 } __packed;
 
+static inline struct af_iucv_trans_hdr *iucv_trans_hdr(struct sk_buff *skb)
+{
+	return (struct af_iucv_trans_hdr *)skb_network_header(skb);
+}
+
 enum iucv_tx_notify {
 	/* transmission of skb is completed and was successful */
 	TX_NOTIFY_OK = 0,

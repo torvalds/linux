@@ -24,7 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/acpi.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/init.h>

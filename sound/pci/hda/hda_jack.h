@@ -13,6 +13,7 @@
 #define __SOUND_HDA_JACK_H
 
 #include <linux/err.h>
+#include <sound/jack.h>
 
 struct auto_pin_cfg;
 struct hda_jack_tbl;
@@ -24,6 +25,8 @@ struct hda_jack_callback {
 	hda_nid_t nid;
 	hda_jack_callback_fn func;
 	unsigned int private_data;	/* arbitrary data */
+	unsigned int unsol_res;		/* unsolicited event bits */
+	struct hda_jack_tbl *jack;	/* associated jack entry */
 	struct hda_jack_callback *next;
 };
 
@@ -40,7 +43,13 @@ struct hda_jack_tbl {
 	hda_nid_t gating_jack;		/* valid when gating jack plugged */
 	hda_nid_t gated_jack;		/* gated is dependent on this jack */
 	int type;
+	int button_state;
 	struct snd_jack *jack;
+};
+
+struct hda_jack_keymap {
+	enum snd_jack_types type;
+	int key;
 };
 
 struct hda_jack_tbl *
@@ -82,7 +91,8 @@ static inline bool snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid)
 bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid);
 
 int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
-			  const char *name, bool phantom_jack);
+			  const char *name, bool phantom_jack,
+			  int type, const struct hda_jack_keymap *keymap);
 int snd_hda_jack_add_kctls(struct hda_codec *codec,
 			   const struct auto_pin_cfg *cfg);
 

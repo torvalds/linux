@@ -257,7 +257,7 @@ static const struct
 	[I2400M_MS_ACCESSIBILITY_ERROR] = { "accesibility error", -EIO },
 	[I2400M_MS_BUSY] = { "busy", -EBUSY },
 	[I2400M_MS_CORRUPTED_TLV] = { "corrupted TLV", -EILSEQ },
-	[I2400M_MS_UNINITIALIZED] = { "not unitialized", -EILSEQ },
+	[I2400M_MS_UNINITIALIZED] = { "uninitialized", -EILSEQ },
 	[I2400M_MS_UNKNOWN_ERROR] = { "unknown error", -EIO },
 	[I2400M_MS_PRODUCTION_ERROR] = { "production error", -EIO },
 	[I2400M_MS_NO_RF] = { "no RF", -EIO },
@@ -566,13 +566,12 @@ static void i2400m_msg_ack_hook(struct i2400m *i2400m,
 {
 	int result;
 	struct device *dev = i2400m_dev(i2400m);
-	unsigned ack_type, ack_status;
+	unsigned int ack_type;
 	char strerr[32];
 
 	/* Chew on the message, we might need some information from
 	 * here */
 	ack_type = le16_to_cpu(l3l4_hdr->type);
-	ack_status = le16_to_cpu(l3l4_hdr->status);
 	switch (ack_type) {
 	case I2400M_MT_CMD_ENTER_POWERSAVE:
 		/* This is just left here for the sake of example, as

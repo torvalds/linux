@@ -616,40 +616,33 @@ static void gb_tty_unthrottle(struct tty_struct *tty)
 	}
 }
 
-static int get_serial_info(struct gb_tty *gb_tty,
-			   struct serial_struct __user *info)
+static int get_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss)
 {
-	struct serial_struct tmp;
+	struct gb_tty *gb_tty = tty->driver_data;
 
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.type = PORT_16550A;
-	tmp.line = gb_tty->minor;
-	tmp.xmit_fifo_size = 16;
-	tmp.baud_base = 9600;
-	tmp.close_delay = gb_tty->port.close_delay / 10;
-	tmp.closing_wait =
+	ss->type = PORT_16550A;
+	ss->line = gb_tty->minor;
+	ss->xmit_fifo_size = 16;
+	ss->baud_base = 9600;
+	ss->close_delay = gb_tty->port.close_delay / 10;
+	ss->closing_wait =
 		gb_tty->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
 		ASYNC_CLOSING_WAIT_NONE : gb_tty->port.closing_wait / 10;
-
-	if (copy_to_user(info, &tmp, sizeof(tmp)))
-		return -EFAULT;
 	return 0;
 }
 
-static int set_serial_info(struct gb_tty *gb_tty,
-			   struct serial_struct __user *newinfo)
+static int set_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss)
 {
-	struct serial_struct new_serial;
+	struct gb_tty *gb_tty = tty->driver_data;
 	unsigned int closing_wait;
 	unsigned int close_delay;
 	int retval = 0;
 
-	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
-		return -EFAULT;
-
-	close_delay = new_serial.close_delay * 10;
-	closing_wait = new_serial.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
-			ASYNC_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
+	close_delay = ss->close_delay * 10;
+	closing_wait = ss->closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+			ASYNC_CLOSING_WAIT_NONE : ss->closing_wait * 10;
 
 	mutex_lock(&gb_tty->port.mutex);
 	if (!capable(CAP_SYS_ADMIN)) {
@@ -728,12 +721,6 @@ static int gb_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	struct gb_tty *gb_tty = tty->driver_data;
 
 	switch (cmd) {
-	case TIOCGSERIAL:
-		return get_serial_info(gb_tty,
-				       (struct serial_struct __user *)arg);
-	case TIOCSSERIAL:
-		return set_serial_info(gb_tty,
-				       (struct serial_struct __user *)arg);
 	case TIOCMIWAIT:
 		return wait_serial_change(gb_tty, arg);
 	}
@@ -818,6 +805,8 @@ static const struct tty_operations gb_ops = {
 	.tiocmget =		gb_tty_tiocmget,
 	.tiocmset =		gb_tty_tiocmset,
 	.get_icount =		gb_tty_get_icount,
+	.set_serial =		set_serial_info,
+	.get_serial =		get_serial_info,
 };
 
 static const struct tty_port_operations gb_port_ops = {

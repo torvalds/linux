@@ -65,10 +65,15 @@ static void pm_clk_acquire(struct device *dev, struct pm_clock_entry *ce)
 	if (IS_ERR(ce->clk)) {
 		ce->status = PCE_STATUS_ERROR;
 	} else {
-		clk_prepare(ce->clk);
-		ce->status = PCE_STATUS_ACQUIRED;
-		dev_dbg(dev, "Clock %pC con_id %s managed by runtime PM.\n",
-			ce->clk, ce->con_id);
+		if (clk_prepare(ce->clk)) {
+			ce->status = PCE_STATUS_ERROR;
+			dev_err(dev, "clk_prepare() failed\n");
+		} else {
+			ce->status = PCE_STATUS_ACQUIRED;
+			dev_dbg(dev,
+				"Clock %pC con_id %s managed by runtime PM.\n",
+				ce->clk, ce->con_id);
+		}
 	}
 }
 
@@ -185,7 +190,7 @@ EXPORT_SYMBOL_GPL(of_pm_clk_add_clk);
 int of_pm_clk_add_clks(struct device *dev)
 {
 	struct clk **clks;
-	unsigned int i, count;
+	int i, count;
 	int ret;
 
 	if (!dev || !dev->of_node)

@@ -40,7 +40,7 @@
 #define DT9812_MAX_WRITE_CMD_PIPE_SIZE	32
 #define DT9812_MAX_READ_CMD_PIPE_SIZE	32
 
-/* usb_bulk_msg() timout in milliseconds */
+/* usb_bulk_msg() timeout in milliseconds */
 #define DT9812_USB_TIMEOUT		1000
 
 /*

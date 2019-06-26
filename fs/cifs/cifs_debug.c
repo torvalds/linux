@@ -30,6 +30,9 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifsfs.h"
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dfs_cache.h"
+#endif
 #ifdef CONFIG_CIFS_SMB_DIRECT
 #include "smbdirect.h"
 #endif
@@ -112,7 +115,12 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_puts(m, " type: CDROM ");
 	else
 		seq_printf(m, " type: %d ", dev_type);
-	if (tcon->seal)
+
+	seq_printf(m, "Serial Number: 0x%x", tcon->vol_serial_number);
+
+	if ((tcon->seal) ||
+	    (tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
+	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
 		seq_printf(m, " Encrypted");
 	if (tcon->nocase)
 		seq_printf(m, " nocase");
@@ -132,7 +140,7 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 	struct sockaddr_in *ipv4 = (struct sockaddr_in *)&iface->sockaddr;
 	struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&iface->sockaddr;
 
-	seq_printf(m, "\t\tSpeed: %zu bps\n", iface->speed);
+	seq_printf(m, "\tSpeed: %zu bps\n", iface->speed);
 	seq_puts(m, "\t\tCapabilities: ");
 	if (iface->rdma_capable)
 		seq_puts(m, "rdma ");
@@ -143,6 +151,58 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 		seq_printf(m, "\t\tIPv4: %pI4\n", &ipv4->sin_addr);
 	else if (iface->sockaddr.ss_family == AF_INET6)
 		seq_printf(m, "\t\tIPv6: %pI6\n", &ipv6->sin6_addr);
+}
+
+static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
+{
+	struct list_head *stmp, *tmp, *tmp1, *tmp2;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+	struct cifsFileInfo *cfile;
+
+	seq_puts(m, "# Version:1\n");
+	seq_puts(m, "# Format:\n");
+	seq_puts(m, "# <tree id> <persistent fid> <flags> <count> <pid> <uid>");
+#ifdef CONFIG_CIFS_DEBUG2
+	seq_printf(m, " <filename> <mid>\n");
+#else
+	seq_printf(m, " <filename>\n");
+#endif /* CIFS_DEBUG2 */
+	spin_lock(&cifs_tcp_ses_lock);
+	list_for_each(stmp, &cifs_tcp_ses_list) {
+		server = list_entry(stmp, struct TCP_Server_Info,
+				    tcp_ses_list);
+		list_for_each(tmp, &server->smb_ses_list) {
+			ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
+			list_for_each(tmp1, &ses->tcon_list) {
+				tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
+				spin_lock(&tcon->open_file_lock);
+				list_for_each(tmp2, &tcon->openFileList) {
+					cfile = list_entry(tmp2, struct cifsFileInfo,
+						     tlist);
+					seq_printf(m,
+						"0x%x 0x%llx 0x%x %d %d %d %s",
+						tcon->tid,
+						cfile->fid.persistent_fid,
+						cfile->f_flags,
+						cfile->count,
+						cfile->pid,
+						from_kuid(&init_user_ns, cfile->uid),
+						cfile->dentry->d_name.name);
+#ifdef CONFIG_CIFS_DEBUG2
+					seq_printf(m, " 0x%llx\n", cfile->fid.mid);
+#else
+					seq_printf(m, "\n");
+#endif /* CIFS_DEBUG2 */
+				}
+				spin_unlock(&tcon->open_file_lock);
+			}
+		}
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+	seq_putc(m, '\n');
+	return 0;
 }
 
 static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
@@ -160,27 +220,44 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "CIFS Version %s\n", CIFS_VERSION);
 	seq_printf(m, "Features:");
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	seq_printf(m, " dfs");
+	seq_printf(m, " DFS");
 #endif
 #ifdef CONFIG_CIFS_FSCACHE
-	seq_printf(m, " fscache");
+	seq_printf(m, ",FSCACHE");
+#endif
+#ifdef CONFIG_CIFS_SMB_DIRECT
+	seq_printf(m, ",SMB_DIRECT");
+#endif
+#ifdef CONFIG_CIFS_STATS2
+	seq_printf(m, ",STATS2");
+#else
+	seq_printf(m, ",STATS");
+#endif
+#ifdef CONFIG_CIFS_DEBUG2
+	seq_printf(m, ",DEBUG2");
+#elif defined(CONFIG_CIFS_DEBUG)
+	seq_printf(m, ",DEBUG");
+#endif
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
+	seq_printf(m, ",ALLOW_INSECURE_LEGACY");
 #endif
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-	seq_printf(m, " lanman");
+	seq_printf(m, ",WEAK_PW_HASH");
 #endif
 #ifdef CONFIG_CIFS_POSIX
-	seq_printf(m, " posix");
+	seq_printf(m, ",CIFS_POSIX");
 #endif
 #ifdef CONFIG_CIFS_UPCALL
-	seq_printf(m, " spnego");
+	seq_printf(m, ",UPCALL(SPNEGO)");
 #endif
 #ifdef CONFIG_CIFS_XATTR
-	seq_printf(m, " xattr");
+	seq_printf(m, ",XATTR");
 #endif
 #ifdef CONFIG_CIFS_ACL
-	seq_printf(m, " acl");
+	seq_printf(m, ",ACL");
 #endif
 	seq_putc(m, '\n');
+	seq_printf(m, "CIFSMaxBufSize: %d\n", CIFSMaxBufSize);
 	seq_printf(m, "Active VFS Requests: %d\n", GlobalTotalActiveXid);
 	seq_printf(m, "Servers:");
 
@@ -259,10 +336,9 @@ skip_rdma:
 			server->credits,  server->dialect);
 		if (server->sign)
 			seq_printf(m, " signed");
-#ifdef CONFIG_CIFS_SMB311
 		if (server->posix_ext_supported)
 			seq_printf(m, " posix");
-#endif /* 3.1.1 */
+
 		i++;
 		list_for_each(tmp2, &server->smb_ses_list) {
 			ses = list_entry(tmp2, struct cifs_ses,
@@ -270,7 +346,7 @@ skip_rdma:
 			if ((ses->serverDomain == NULL) ||
 				(ses->serverOS == NULL) ||
 				(ses->serverNOS == NULL)) {
-				seq_printf(m, "\n%d) Name: %s Uses: %d Capability: 0x%x\tSession Status: %d\t",
+				seq_printf(m, "\n%d) Name: %s Uses: %d Capability: 0x%x\tSession Status: %d ",
 					i, ses->serverName, ses->ses_count,
 					ses->capabilities, ses->status);
 				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
@@ -281,16 +357,18 @@ skip_rdma:
 				seq_printf(m,
 				    "\n%d) Name: %s  Domain: %s Uses: %d OS:"
 				    " %s\n\tNOS: %s\tCapability: 0x%x\n\tSMB"
-				    " session status: %d\t",
+				    " session status: %d ",
 				i, ses->serverName, ses->serverDomain,
 				ses->ses_count, ses->serverOS, ses->serverNOS,
 				ses->capabilities, ses->status);
 			}
 			if (server->rdma)
 				seq_printf(m, "RDMA\n\t");
-			seq_printf(m, "TCP status: %d\n\tLocal Users To "
+			seq_printf(m, "TCP status: %d Instance: %d\n\tLocal Users To "
 				   "Server: %d SecMode: 0x%x Req On Wire: %d",
-				   server->tcpStatus, server->srv_count,
+				   server->tcpStatus,
+				   server->reconnect_instance,
+				   server->srv_count,
 				   server->sec_mode, in_flight(server));
 
 #ifdef CONFIG_CIFS_STATS2
@@ -298,6 +376,10 @@ skip_rdma:
 				atomic_read(&server->in_send),
 				atomic_read(&server->num_waiters));
 #endif
+			if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
+				seq_puts(m, " encrypted");
+			if (ses->sign)
+				seq_puts(m, " signed");
 
 			seq_puts(m, "\n\tShares:");
 			j = 0;
@@ -337,7 +419,7 @@ skip_rdma:
 				seq_printf(m, "\n\tServer interfaces: %zu\n",
 					   ses->iface_count);
 			for (j = 0; j < ses->iface_count; j++) {
-				seq_printf(m, "\t%d)\n", j);
+				seq_printf(m, "\t%d)", j);
 				cifs_dump_iface(m, &ses->iface_list[j]);
 			}
 			spin_unlock(&ses->iface_lock);
@@ -350,7 +432,6 @@ skip_rdma:
 	return 0;
 }
 
-#ifdef CONFIG_CIFS_STATS
 static ssize_t cifs_stats_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
@@ -364,13 +445,26 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 	rc = kstrtobool_from_user(buffer, count, &bv);
 	if (rc == 0) {
 #ifdef CONFIG_CIFS_STATS2
+		int i;
+
 		atomic_set(&totBufAllocCount, 0);
 		atomic_set(&totSmBufAllocCount, 0);
 #endif /* CONFIG_CIFS_STATS2 */
+		atomic_set(&tcpSesReconnectCount, 0);
+		atomic_set(&tconInfoReconnectCount, 0);
+
+		spin_lock(&GlobalMid_Lock);
+		GlobalMaxActiveXid = 0;
+		GlobalCurrentXid = 0;
+		spin_unlock(&GlobalMid_Lock);
 		spin_lock(&cifs_tcp_ses_lock);
 		list_for_each(tmp1, &cifs_tcp_ses_list) {
 			server = list_entry(tmp1, struct TCP_Server_Info,
 					    tcp_ses_list);
+#ifdef CONFIG_CIFS_STATS2
+			for (i = 0; i < NUMBER_OF_SMB2_COMMANDS; i++)
+				atomic_set(&server->smb2slowcmd[i], 0);
+#endif /* CONFIG_CIFS_STATS2 */
 			list_for_each(tmp2, &server->smb_ses_list) {
 				ses = list_entry(tmp2, struct cifs_ses,
 						 smb_ses_list);
@@ -379,6 +473,10 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 							  struct cifs_tcon,
 							  tcon_list);
 					atomic_set(&tcon->num_smbs_sent, 0);
+					spin_lock(&tcon->stat_lock);
+					tcon->bytes_read = 0;
+					tcon->bytes_written = 0;
+					spin_unlock(&tcon->stat_lock);
 					if (server->ops->clear_stats)
 						server->ops->clear_stats(tcon);
 				}
@@ -395,13 +493,15 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 static int cifs_stats_proc_show(struct seq_file *m, void *v)
 {
 	int i;
+#ifdef CONFIG_CIFS_STATS2
+	int j;
+#endif /* STATS2 */
 	struct list_head *tmp1, *tmp2, *tmp3;
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 
-	seq_printf(m,
-			"Resources in use\nCIFS Session: %d\n",
+	seq_printf(m, "Resources in use\nCIFS Session: %d\n",
 			sesInfoAllocCount.counter);
 	seq_printf(m, "Share (unique mount targets): %d\n",
 			tconInfoAllocCount.counter);
@@ -430,6 +530,13 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 	list_for_each(tmp1, &cifs_tcp_ses_list) {
 		server = list_entry(tmp1, struct TCP_Server_Info,
 				    tcp_ses_list);
+#ifdef CONFIG_CIFS_STATS2
+		for (j = 0; j < NUMBER_OF_SMB2_COMMANDS; j++)
+			if (atomic_read(&server->smb2slowcmd[j]))
+				seq_printf(m, "%d slow responses from %s for command %d\n",
+					atomic_read(&server->smb2slowcmd[j]),
+					server->hostname, j);
+#endif /* STATS2 */
 		list_for_each(tmp2, &server->smb_ses_list) {
 			ses = list_entry(tmp2, struct cifs_ses,
 					 smb_ses_list);
@@ -466,7 +573,6 @@ static const struct file_operations cifs_stats_proc_fops = {
 	.release	= single_release,
 	.write		= cifs_stats_proc_write,
 };
-#endif /* STATS */
 
 #ifdef CONFIG_CIFS_SMB_DIRECT
 #define PROC_FILE_DEFINE(name) \
@@ -524,9 +630,10 @@ cifs_proc_init(void)
 	proc_create_single("DebugData", 0, proc_fs_cifs,
 			cifs_debug_data_proc_show);
 
-#ifdef CONFIG_CIFS_STATS
+	proc_create_single("open_files", 0400, proc_fs_cifs,
+			cifs_debug_files_proc_show);
+
 	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_fops);
-#endif /* STATS */
 	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_fops);
 	proc_create("traceSMB", 0644, proc_fs_cifs, &traceSMB_proc_fops);
 	proc_create("LinuxExtensionsEnabled", 0644, proc_fs_cifs,
@@ -535,6 +642,11 @@ cifs_proc_init(void)
 		    &cifs_security_flags_proc_fops);
 	proc_create("LookupCacheEnabled", 0644, proc_fs_cifs,
 		    &cifs_lookup_cache_proc_fops);
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	proc_create("dfscache", 0644, proc_fs_cifs, &dfscache_proc_fops);
+#endif
+
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	proc_create("rdma_readwrite_threshold", 0644, proc_fs_cifs,
 		&cifs_rdma_readwrite_threshold_proc_fops);
@@ -562,14 +674,17 @@ cifs_proc_clean(void)
 		return;
 
 	remove_proc_entry("DebugData", proc_fs_cifs);
+	remove_proc_entry("open_files", proc_fs_cifs);
 	remove_proc_entry("cifsFYI", proc_fs_cifs);
 	remove_proc_entry("traceSMB", proc_fs_cifs);
-#ifdef CONFIG_CIFS_STATS
 	remove_proc_entry("Stats", proc_fs_cifs);
-#endif
 	remove_proc_entry("SecurityFlags", proc_fs_cifs);
 	remove_proc_entry("LinuxExtensionsEnabled", proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled", proc_fs_cifs);
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	remove_proc_entry("dfscache", proc_fs_cifs);
+#endif
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	remove_proc_entry("rdma_readwrite_threshold", proc_fs_cifs);
 	remove_proc_entry("smbd_max_frmr_depth", proc_fs_cifs);

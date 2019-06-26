@@ -22,7 +22,6 @@ Required properties:
 	  clock to the AXI bus interface of the core.
 
 Optional properties:
-	- interrupt-parent: phandle to the parent interrupt controller
 	- xlnx,external-mux:
 		* "none": No external multiplexer is used, this is the default
 		  if the property is omitted.

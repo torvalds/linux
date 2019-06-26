@@ -10,7 +10,12 @@
 	model = "Freescale i.MX7 SabreSD Board";
 	compatible = "fsl,imx7d-sdb", "fsl,imx7d";
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x80000000>;
 	};
 
@@ -23,12 +28,14 @@
 			label = "Volume Up";
 			gpios = <&gpio5 11 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
+			wakeup-source;
 		};
 
 		volume-down {
 			label = "Volume Down";
 			gpios = <&gpio5 10 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
+			wakeup-source;
 		};
 	};
 
@@ -65,18 +72,12 @@
 	reg_usb_otg2_vbus: regulator-usb-otg2-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg2_vbus";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb_otg2_vbus_reg>;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio4 7 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};
-
-	reg_can2_3v3: regulator-can2-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "can2-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio1 7 GPIO_ACTIVE_LOW>;
 	};
 
 	reg_vref_1v8: regulator-vref-1v8 {
@@ -116,10 +117,27 @@
 		gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
 	};
 
+	reg_fec2_3v3: regulator-fec2-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "fec2-3v3";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enet2_reg>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 4 GPIO_ACTIVE_LOW>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 5000000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		status = "okay";
+	};
+
 	panel {
 		compatible = "innolux,at043tn24";
-		pinctrl-0 = <&pinctrl_backlight>;
-		enable-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		backlight = <&backlight>;
 		power-supply = <&reg_lcd_3v3>;
 
 		port {
@@ -205,6 +223,7 @@
 	assigned-clock-rates = <0>, <100000000>;
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy1>;
+	phy-supply = <&reg_fec2_3v3>;
 	fsl,magic-packet;
 	status = "okay";
 };
@@ -486,6 +505,12 @@
 			>;
 		};
 
+		pinctrl_enet2_reg: enet2reggrp {
+			fsl,pins = <
+				MX7D_PAD_LPSR_GPIO1_IO04__GPIO1_IO4	0x14
+			>;
+		};
+
 		pinctrl_flexcan2: flexcan2grp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO14__FLEXCAN2_RX	0x59
@@ -508,7 +533,6 @@
 
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX7D_PAD_UART3_CTS_B__GPIO4_IO7		0x14
 				MX7D_PAD_ECSPI2_SS0__GPIO4_IO23		0x34  /* bt reg on */
 			>;
 		};
@@ -712,6 +736,12 @@
 	};
 };
 
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
 &iomuxc_lpsr {
 	pinctrl_wdog: wdoggrp {
 		fsl,pins = <
@@ -719,9 +749,15 @@
 		>;
 	};
 
-	pinctrl_backlight: backlightgrp {
+	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
-			MX7D_PAD_LPSR_GPIO1_IO01__GPIO1_IO1		0x110b0
+			MX7D_PAD_LPSR_GPIO1_IO01__PWM1_OUT		0x30
+		>;
+	};
+
+	pinctrl_usb_otg2_vbus_reg: usbotg2vbusreggrp {
+		fsl,pins = <
+			MX7D_PAD_LPSR_GPIO1_IO07__GPIO1_IO7	  0x14
 		>;
 	};
 };

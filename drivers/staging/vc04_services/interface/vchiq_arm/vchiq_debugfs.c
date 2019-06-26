@@ -52,8 +52,8 @@
 #define VCHIQ_LOG_TRACE_STR   "trace"
 
 /* Global 'vchiq' debugfs and clients entry used by all instances */
-struct dentry *vchiq_dbg_dir;
-struct dentry *vchiq_dbg_clients;
+static struct dentry *vchiq_dbg_dir;
+static struct dentry *vchiq_dbg_clients;
 
 /* Log category debugfs entries */
 struct vchiq_debugfs_log_entry {
@@ -153,19 +153,7 @@ static int debugfs_usecount_show(struct seq_file *f, void *offset)
 
 	return 0;
 }
-
-static int debugfs_usecount_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debugfs_usecount_show, inode->i_private);
-}
-
-static const struct file_operations debugfs_usecount_fops = {
-	.owner		= THIS_MODULE,
-	.open		= debugfs_usecount_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(debugfs_usecount);
 
 static int debugfs_trace_show(struct seq_file *f, void *offset)
 {
@@ -243,7 +231,8 @@ void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
 
 void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
 {
-	VCHIQ_DEBUGFS_NODE_T *node = vchiq_instance_get_debugfs_node(instance);
+	struct vchiq_debugfs_node *node =
+				vchiq_instance_get_debugfs_node(instance);
 
 	debugfs_remove_recursive(node->dentry);
 }

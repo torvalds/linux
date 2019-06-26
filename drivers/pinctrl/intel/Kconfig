@@ -1,6 +1,6 @@
-#
+# SPDX-License-Identifier: GPL-2.0
 # Intel pin control drivers
-#
+
 if (X86 || COMPILE_TEST)
 
 config PINCTRL_BAYTRAIL
@@ -89,6 +89,14 @@ config PINCTRL_GEMINILAKE
 	help
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Gemini Lake SoC pins and using them as GPIOs.
+
+config PINCTRL_ICELAKE
+	tristate "Intel Ice Lake PCH pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Ice Lake PCH pins and using them as GPIOs.
 
 config PINCTRL_LEWISBURG
 	tristate "Intel Lewisburg pinctrl and GPIO driver"

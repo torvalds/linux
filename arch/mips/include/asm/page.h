@@ -80,7 +80,12 @@ extern void build_copy_page(void);
  * used in our early mem init code for all memory models.
  * So always define it.
  */
-#define ARCH_PFN_OFFSET		PFN_UP(PHYS_OFFSET)
+#ifdef CONFIG_MIPS_AUTO_PFN_OFFSET
+extern unsigned long ARCH_PFN_OFFSET;
+# define ARCH_PFN_OFFSET	ARCH_PFN_OFFSET
+#else
+# define ARCH_PFN_OFFSET	PFN_UP(PHYS_OFFSET)
+#endif
 
 extern void clear_page(void * page);
 extern void copy_page(void * to, void * from);
@@ -149,6 +154,7 @@ typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 #define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
+#define pte_pgprot(x)	__pgprot(pte_val(x) & ~_PFN_MASK)
 
 /*
  * On R4000-style MMUs where a TLB entry is mapping a adjacent even / odd
@@ -252,8 +258,8 @@ extern int __virt_addr_valid(const volatile void *kaddr);
 	 ((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
 	 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE)
-#define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET)
+#define UNCAC_ADDR(addr)	(UNCAC_BASE + __pa(addr))
+#define CAC_ADDR(addr)		((unsigned long)__va((addr) - UNCAC_BASE))
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

@@ -33,9 +33,19 @@ struct bnxt_cos2bw_cfg {
 	u8			unused;
 };
 
+struct bnxt_dscp2pri_entry {
+	u8	dscp;
+	u8	mask;
+	u8	pri;
+};
+
 #define BNXT_LLQ(q_profile)	\
 	((q_profile) ==		\
 	 QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSLESS_ROCE)
+
+#define BNXT_CNPQ(q_profile)	\
+	((q_profile) ==		\
+	 QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSY_ROCE_CNP)
 
 #define HWRM_STRUCT_DATA_SUBTYPE_HOST_OPERATIONAL	0x0300
 

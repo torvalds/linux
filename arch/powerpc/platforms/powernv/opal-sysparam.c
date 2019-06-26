@@ -194,7 +194,7 @@ void __init opal_sys_param_init(void)
 	count = of_property_count_strings(sysparam, "param-name");
 	if (count < 0) {
 		pr_err("SYSPARAM: No string found of property param-name in "
-				"the node %s\n", sysparam->name);
+				"the node %pOFn\n", sysparam);
 		goto out_param_buf;
 	}
 

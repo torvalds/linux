@@ -375,9 +375,9 @@ err:
 
 static const struct dvb_tuner_ops it913x_tuner_ops = {
 	.info = {
-		.name           = "ITE IT913X",
-		.frequency_min  = 174000000,
-		.frequency_max  = 862000000,
+		.name             = "ITE IT913X",
+		.frequency_min_hz = 174 * MHz,
+		.frequency_max_hz = 862 * MHz,
 	},
 
 	.init = it913x_init,

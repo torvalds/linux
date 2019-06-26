@@ -28,13 +28,13 @@ static DEFINE_MUTEX(nest_init_lock);
 static DEFINE_PER_CPU(struct imc_pmu_ref *, local_nest_imc_refc);
 static struct imc_pmu **per_nest_pmu_arr;
 static cpumask_t nest_imc_cpumask;
-struct imc_pmu_ref *nest_imc_refc;
+static struct imc_pmu_ref *nest_imc_refc;
 static int nest_pmus;
 
 /* Core IMC data structures and variables */
 
 static cpumask_t core_imc_cpumask;
-struct imc_pmu_ref *core_imc_refc;
+static struct imc_pmu_ref *core_imc_refc;
 static struct imc_pmu *core_imc_pmu;
 
 /* Thread IMC data structures and variables */
@@ -43,7 +43,7 @@ static DEFINE_PER_CPU(u64 *, thread_imc_mem);
 static struct imc_pmu *thread_imc_pmu;
 static int thread_imc_mem_size;
 
-struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
+static struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
 {
 	return container_of(event->pmu, struct imc_pmu, pmu);
 }
@@ -473,15 +473,6 @@ static int nest_imc_event_init(struct perf_event *event)
 	if (event->hw.sample_period)
 		return -EINVAL;
 
-	/* unsupported modes and filters */
-	if (event->attr.exclude_user   ||
-	    event->attr.exclude_kernel ||
-	    event->attr.exclude_hv     ||
-	    event->attr.exclude_idle   ||
-	    event->attr.exclude_host   ||
-	    event->attr.exclude_guest)
-		return -EINVAL;
-
 	if (event->cpu < 0)
 		return -EINVAL;
 
@@ -748,15 +739,6 @@ static int core_imc_event_init(struct perf_event *event)
 	if (event->hw.sample_period)
 		return -EINVAL;
 
-	/* unsupported modes and filters */
-	if (event->attr.exclude_user   ||
-	    event->attr.exclude_kernel ||
-	    event->attr.exclude_hv     ||
-	    event->attr.exclude_idle   ||
-	    event->attr.exclude_host   ||
-	    event->attr.exclude_guest)
-		return -EINVAL;
-
 	if (event->cpu < 0)
 		return -EINVAL;
 
@@ -865,59 +847,6 @@ static int thread_imc_cpu_init(void)
 			  "perf/powerpc/imc_thread:online",
 			  ppc_thread_imc_cpu_online,
 			  ppc_thread_imc_cpu_offline);
-}
-
-void thread_imc_pmu_sched_task(struct perf_event_context *ctx,
-				      bool sched_in)
-{
-	int core_id;
-	struct imc_pmu_ref *ref;
-
-	if (!is_core_imc_mem_inited(smp_processor_id()))
-		return;
-
-	core_id = smp_processor_id() / threads_per_core;
-	/*
-	 * imc pmus are enabled only when it is used.
-	 * See if this is triggered for the first time.
-	 * If yes, take the mutex lock and enable the counters.
-	 * If not, just increment the count in ref count struct.
-	 */
-	ref = &core_imc_refc[core_id];
-	if (!ref)
-		return;
-
-	if (sched_in) {
-		mutex_lock(&ref->lock);
-		if (ref->refc == 0) {
-			if (opal_imc_counters_start(OPAL_IMC_COUNTERS_CORE,
-			     get_hard_smp_processor_id(smp_processor_id()))) {
-				mutex_unlock(&ref->lock);
-				pr_err("thread-imc: Unable to start the counter\
-							for core %d\n", core_id);
-				return;
-			}
-		}
-		++ref->refc;
-		mutex_unlock(&ref->lock);
-	} else {
-		mutex_lock(&ref->lock);
-		ref->refc--;
-		if (ref->refc == 0) {
-			if (opal_imc_counters_stop(OPAL_IMC_COUNTERS_CORE,
-			    get_hard_smp_processor_id(smp_processor_id()))) {
-				mutex_unlock(&ref->lock);
-				pr_err("thread-imc: Unable to stop the counters\
-							for core %d\n", core_id);
-				return;
-			}
-		} else if (ref->refc < 0) {
-			ref->refc = 0;
-		}
-		mutex_unlock(&ref->lock);
-	}
-
-	return;
 }
 
 static int thread_imc_event_init(struct perf_event *event)
@@ -1046,22 +975,70 @@ static int imc_event_add(struct perf_event *event, int flags)
 
 static int thread_imc_event_add(struct perf_event *event, int flags)
 {
+	int core_id;
+	struct imc_pmu_ref *ref;
+
 	if (flags & PERF_EF_START)
 		imc_event_start(event, flags);
 
-	/* Enable the sched_task to start the engine */
-	perf_sched_cb_inc(event->ctx->pmu);
+	if (!is_core_imc_mem_inited(smp_processor_id()))
+		return -EINVAL;
+
+	core_id = smp_processor_id() / threads_per_core;
+	/*
+	 * imc pmus are enabled only when it is used.
+	 * See if this is triggered for the first time.
+	 * If yes, take the mutex lock and enable the counters.
+	 * If not, just increment the count in ref count struct.
+	 */
+	ref = &core_imc_refc[core_id];
+	if (!ref)
+		return -EINVAL;
+
+	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		if (opal_imc_counters_start(OPAL_IMC_COUNTERS_CORE,
+		    get_hard_smp_processor_id(smp_processor_id()))) {
+			mutex_unlock(&ref->lock);
+			pr_err("thread-imc: Unable to start the counter\
+				for core %d\n", core_id);
+			return -EINVAL;
+		}
+	}
+	++ref->refc;
+	mutex_unlock(&ref->lock);
 	return 0;
 }
 
 static void thread_imc_event_del(struct perf_event *event, int flags)
 {
+
+	int core_id;
+	struct imc_pmu_ref *ref;
+
 	/*
 	 * Take a snapshot and calculate the delta and update
 	 * the event counter values.
 	 */
 	imc_event_update(event);
-	perf_sched_cb_dec(event->ctx->pmu);
+
+	core_id = smp_processor_id() / threads_per_core;
+	ref = &core_imc_refc[core_id];
+
+	mutex_lock(&ref->lock);
+	ref->refc--;
+	if (ref->refc == 0) {
+		if (opal_imc_counters_stop(OPAL_IMC_COUNTERS_CORE,
+		    get_hard_smp_processor_id(smp_processor_id()))) {
+			mutex_unlock(&ref->lock);
+			pr_err("thread-imc: Unable to stop the counters\
+				for core %d\n", core_id);
+			return;
+		}
+	} else if (ref->refc < 0) {
+		ref->refc = 0;
+	}
+	mutex_unlock(&ref->lock);
 }
 
 /* update_pmu_ops : Populate the appropriate operations for "pmu" */
@@ -1074,6 +1051,7 @@ static int update_pmu_ops(struct imc_pmu *pmu)
 	pmu->pmu.stop = imc_event_stop;
 	pmu->pmu.read = imc_event_update;
 	pmu->pmu.attr_groups = pmu->attr_groups;
+	pmu->pmu.capabilities = PERF_PMU_CAP_NO_EXCLUDE;
 	pmu->attr_groups[IMC_FORMAT_ATTR] = &imc_format_group;
 
 	switch (pmu->domain) {
@@ -1087,7 +1065,6 @@ static int update_pmu_ops(struct imc_pmu *pmu)
 		break;
 	case IMC_DOMAIN_THREAD:
 		pmu->pmu.event_init = thread_imc_event_init;
-		pmu->pmu.sched_task = thread_imc_pmu_sched_task;
 		pmu->pmu.add = thread_imc_event_add;
 		pmu->pmu.del = thread_imc_event_del;
 		pmu->pmu.start_txn = thread_imc_pmu_start_txn;
@@ -1398,7 +1375,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 	if (ret)
 		goto err_free_cpuhp_mem;
 
-	pr_info("%s performance monitor hardware support registered\n",
+	pr_debug("%s performance monitor hardware support registered\n",
 							pmu_ptr->pmu.name);
 
 	return 0;

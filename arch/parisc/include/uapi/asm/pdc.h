@@ -60,6 +60,8 @@
 #define  PDC_MODEL_NVA_UNSUPPORTED	(3 << 4)
 #define PDC_MODEL_GET_BOOT__OP	8	/* returns boot test options	*/
 #define PDC_MODEL_SET_BOOT__OP	9	/* set boot test options	*/
+#define PDC_MODEL_GET_PLATFORM_INFO 10	/* returns platform info	*/
+#define PDC_MODEL_GET_INSTALL_KERNEL 11	/* returns kernel for installation */
 
 #define PA89_INSTRUCTION_SET	0x4	/* capabilities returned	*/
 #define PA90_INSTRUCTION_SET	0x8
@@ -99,7 +101,7 @@
 #define PDC_TOD		9		/* time-of-day clock (TOD)	*/
 #define PDC_TOD_READ		0	/* read TOD			*/
 #define PDC_TOD_WRITE		1	/* write TOD			*/
-
+#define PDC_TOD_CALIBRATE	2	/* calibrate timers		*/
 
 #define PDC_STABLE	10		/* stable storage (sprockets)	*/
 #define PDC_STABLE_READ		0
@@ -109,15 +111,22 @@
 #define PDC_STABLE_INITIALIZE	4
 
 #define PDC_NVOLATILE	11		/* often not implemented	*/
+#define PDC_NVOLATILE_READ	0
+#define PDC_NVOLATILE_WRITE	1
+#define PDC_NVOLATILE_RETURN_SIZE 2
+#define PDC_NVOLATILE_VERIFY_CONTENTS 3
+#define PDC_NVOLATILE_INITIALIZE 4
 
 #define PDC_ADD_VALID	12		/* Memory validation PDC call	*/
 #define PDC_ADD_VALID_VERIFY	0	/* Make PDC_ADD_VALID verify region */
+
+#define PDC_DEBUG	14		/* Obsolete			*/
 
 #define PDC_INSTR	15		/* get instr to invoke PDCE_CHECK() */
 
 #define PDC_PROC	16		/* (sprockets)			*/
 
-#define PDC_CONFIG	16		/* (sprockets)			*/
+#define PDC_CONFIG	17		/* (sprockets)			*/
 #define PDC_CONFIG_DECONFIG	0
 #define PDC_CONFIG_DRECONFIG	1
 #define PDC_CONFIG_DRETURN_CONFIG 2
@@ -167,6 +176,15 @@
 #define PDC_SOFT_POWER_INFO	0	/* return info about the soft power switch */
 #define PDC_SOFT_POWER_ENABLE	1	/* enable/disable soft power switch */
 
+#define PDC_ALLOC	24		/* allocate static storage for PDC & IODC */
+
+#define PDC_CRASH_PREP	25		/* Prepare system for crash dump */
+#define PDC_CRASH_DUMP		0	/* Do platform specific preparations for dump */
+#define PDC_CRASH_LOG_CEC_ERROR 1	/* Dump hardware registers	*/
+
+#define PDC_SCSI_PARMS	26		/* Get and set SCSI parameters	*/
+#define PDC_SCSI_GET_PARMS	0	/* Get SCSI parameters for I/O device */
+#define PDC_SCSI_SET_PARMS	1	/* Set SCSI parameters for I/O device */
 
 /* HVERSION dependent */
 
@@ -260,6 +278,10 @@
 #define PDC_PCI_READ_MON_TYPE		15
 #define PDC_PCI_WRITE_MON_TYPE		16
 
+#define PDC_RELOCATE	149		/* (sprockets)			*/
+#define PDC_RELOCATE_GET_RELOCINFO	0
+#define PDC_RELOCATE_CHECKSUM		1
+#define PDC_RELOCATE_RELOCATE		2
 
 /* Get SCSI Interface Card info:  SDTR, SCSI ID, mode (SE vs LVD) */
 #define PDC_INITIATOR	163

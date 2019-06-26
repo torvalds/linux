@@ -63,6 +63,7 @@
 #include <linux/acpi_dma.h>
 #include <linux/of_dma.h>
 #include <linux/mempool.h>
+#include <linux/numa.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
 static DEFINE_IDA(dma_ida);
@@ -161,9 +162,7 @@ static void chan_dev_release(struct device *dev)
 
 	chan_dev = container_of(dev, typeof(*chan_dev), device);
 	if (atomic_dec_and_test(chan_dev->idr_ref)) {
-		mutex_lock(&dma_list_mutex);
-		ida_remove(&dma_ida, chan_dev->dev_id);
-		mutex_unlock(&dma_list_mutex);
+		ida_free(&dma_ida, chan_dev->dev_id);
 		kfree(chan_dev->idr_ref);
 	}
 	kfree(chan_dev);
@@ -388,7 +387,8 @@ EXPORT_SYMBOL(dma_issue_pending_all);
 static bool dma_chan_is_local(struct dma_chan *chan, int cpu)
 {
 	int node = dev_to_node(chan->device->dev);
-	return node == -1 || cpumask_test_cpu(cpu, cpumask_of_node(node));
+	return node == NUMA_NO_NODE ||
+		cpumask_test_cpu(cpu, cpumask_of_node(node));
 }
 
 /**
@@ -500,12 +500,8 @@ int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 	caps->max_burst = device->max_burst;
 	caps->residue_granularity = device->residue_granularity;
 	caps->descriptor_reuse = device->descriptor_reuse;
-
-	/*
-	 * Some devices implement only pause (e.g. to get residuum) but no
-	 * resume. However cmd_pause is advertised as pause AND resume.
-	 */
-	caps->cmd_pause = !!(device->device_pause && device->device_resume);
+	caps->cmd_pause = !!device->device_pause;
+	caps->cmd_resume = !!device->device_resume;
 	caps->cmd_terminate = !!device->device_terminate_all;
 
 	return 0;
@@ -774,8 +770,14 @@ struct dma_chan *dma_request_chan_by_mask(const dma_cap_mask_t *mask)
 		return ERR_PTR(-ENODEV);
 
 	chan = __dma_request_channel(mask, NULL, NULL);
-	if (!chan)
-		chan = ERR_PTR(-ENODEV);
+	if (!chan) {
+		mutex_lock(&dma_list_mutex);
+		if (list_empty(&dma_device_list))
+			chan = ERR_PTR(-EPROBE_DEFER);
+		else
+			chan = ERR_PTR(-ENODEV);
+		mutex_unlock(&dma_list_mutex);
+	}
 
 	return chan;
 }
@@ -896,17 +898,12 @@ static bool device_has_all_tx_types(struct dma_device *device)
 
 static int get_dma_id(struct dma_device *device)
 {
-	int rc;
+	int rc = ida_alloc(&dma_ida, GFP_KERNEL);
 
-	do {
-		if (!ida_pre_get(&dma_ida, GFP_KERNEL))
-			return -ENOMEM;
-		mutex_lock(&dma_list_mutex);
-		rc = ida_get_new(&dma_ida, &device->dev_id);
-		mutex_unlock(&dma_list_mutex);
-	} while (rc == -EAGAIN);
-
-	return rc;
+	if (rc < 0)
+		return rc;
+	device->dev_id = rc;
+	return 0;
 }
 
 /**
@@ -1090,9 +1087,7 @@ int dma_async_device_register(struct dma_device *device)
 err_out:
 	/* if we never registered a channel just release the idr */
 	if (atomic_read(idr_ref) == 0) {
-		mutex_lock(&dma_list_mutex);
-		ida_remove(&dma_ida, device->dev_id);
-		mutex_unlock(&dma_list_mutex);
+		ida_free(&dma_ida, device->dev_id);
 		kfree(idr_ref);
 		return rc;
 	}
@@ -1138,6 +1133,41 @@ void dma_async_device_unregister(struct dma_device *device)
 	}
 }
 EXPORT_SYMBOL(dma_async_device_unregister);
+
+static void dmam_device_release(struct device *dev, void *res)
+{
+	struct dma_device *device;
+
+	device = *(struct dma_device **)res;
+	dma_async_device_unregister(device);
+}
+
+/**
+ * dmaenginem_async_device_register - registers DMA devices found
+ * @device: &dma_device
+ *
+ * The operation is managed and will be undone on driver detach.
+ */
+int dmaenginem_async_device_register(struct dma_device *device)
+{
+	void *p;
+	int ret;
+
+	p = devres_alloc(dmam_device_release, sizeof(void *), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	ret = dma_async_device_register(device);
+	if (!ret) {
+		*(struct dma_device **)p = device;
+		devres_add(device->dev, p);
+	} else {
+		devres_free(p);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(dmaenginem_async_device_register);
 
 struct dmaengine_unmap_pool {
 	struct kmem_cache *cache;

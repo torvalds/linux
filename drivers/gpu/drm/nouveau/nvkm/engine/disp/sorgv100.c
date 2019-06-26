@@ -23,7 +23,7 @@
 
 #include <subdev/timer.h>
 
-static void
+void
 gv100_sor_dp_watermark(struct nvkm_ior *sor, int head, u8 watermark)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -31,7 +31,7 @@ gv100_sor_dp_watermark(struct nvkm_ior *sor, int head, u8 watermark)
 	nvkm_mask(device, 0x616550 + hoff, 0x0c00003f, 0x08000000 | watermark);
 }
 
-static void
+void
 gv100_sor_dp_audio_sym(struct nvkm_ior *sor, int head, u16 h, u32 v)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -40,7 +40,7 @@ gv100_sor_dp_audio_sym(struct nvkm_ior *sor, int head, u16 h, u32 v)
 	nvkm_mask(device, 0x61656c + hoff, 0x00ffffff, v);
 }
 
-static void
+void
 gv100_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -54,7 +54,7 @@ gv100_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
 	);
 }
 
-static void
+void
 gv100_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -88,6 +88,7 @@ gv100_sor = {
 	.clock = gf119_sor_clock,
 	.hdmi = {
 		.ctrl = gv100_hdmi_ctrl,
+		.scdc = gm200_hdmi_scdc,
 	},
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },

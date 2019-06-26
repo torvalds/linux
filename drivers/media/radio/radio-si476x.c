@@ -340,9 +340,9 @@ static int si476x_radio_querycap(struct file *file, void *priv,
 {
 	struct si476x_radio *radio = video_drvdata(file);
 
-	strlcpy(capability->driver, radio->v4l2dev.name,
+	strscpy(capability->driver, radio->v4l2dev.name,
 		sizeof(capability->driver));
-	strlcpy(capability->card,   DRIVER_CARD, sizeof(capability->card));
+	strscpy(capability->card,   DRIVER_CARD, sizeof(capability->card));
 	snprintf(capability->bus_info, sizeof(capability->bus_info),
 		 "platform:%s", radio->v4l2dev.name);
 
@@ -428,15 +428,15 @@ static int si476x_radio_g_tuner(struct file *file, void *priv,
 	si476x_core_lock(radio->core);
 
 	if (si476x_core_is_a_secondary_tuner(radio->core)) {
-		strlcpy(tuner->name, "FM (secondary)", sizeof(tuner->name));
+		strscpy(tuner->name, "FM (secondary)", sizeof(tuner->name));
 		tuner->rxsubchans = 0;
 		tuner->rangelow = si476x_bands[SI476X_BAND_FM].rangelow;
 	} else if (si476x_core_has_am(radio->core)) {
 		if (si476x_core_is_a_primary_tuner(radio->core))
-			strlcpy(tuner->name, "AM/FM (primary)",
+			strscpy(tuner->name, "AM/FM (primary)",
 				sizeof(tuner->name));
 		else
-			strlcpy(tuner->name, "AM/FM", sizeof(tuner->name));
+			strscpy(tuner->name, "AM/FM", sizeof(tuner->name));
 
 		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO
 			| V4L2_TUNER_SUB_RDS;
@@ -446,7 +446,7 @@ static int si476x_radio_g_tuner(struct file *file, void *priv,
 
 		tuner->rangelow = si476x_bands[SI476X_BAND_AM].rangelow;
 	} else {
-		strlcpy(tuner->name, "FM", sizeof(tuner->name));
+		strscpy(tuner->name, "FM", sizeof(tuner->name));
 		tuner->rxsubchans = V4L2_TUNER_SUB_RDS;
 		tuner->capability |= V4L2_TUNER_CAP_RDS
 			| V4L2_TUNER_CAP_RDS_BLOCK_IO
@@ -1550,7 +1550,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 
 	rval = si476x_radio_init_debugfs(radio);
 	if (rval < 0) {
-		dev_err(&pdev->dev, "Could not creat debugfs interface\n");
+		dev_err(&pdev->dev, "Could not create debugfs interface\n");
 		goto exit;
 	}
 

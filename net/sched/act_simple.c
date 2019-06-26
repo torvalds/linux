@@ -18,8 +18,7 @@
 #include <linux/rtnetlink.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
-
-#define TCA_ACT_SIMP 22
+#include <net/pkt_cls.h>
 
 #include <linux/tc_act/tc_defact.h>
 #include <net/tc_act/tc_defact.h>
@@ -28,8 +27,8 @@ static unsigned int simp_net_id;
 static struct tc_action_ops act_simp_ops;
 
 #define SIMP_MAX_DATA	32
-static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
-		    struct tcf_result *res)
+static int tcf_simp_act(struct sk_buff *skb, const struct tc_action *a,
+			struct tcf_result *res)
 {
 	struct tcf_defact *d = to_defact(a);
 
@@ -62,14 +61,26 @@ static int alloc_defdata(struct tcf_defact *d, const struct nlattr *defdata)
 	return 0;
 }
 
-static void reset_policy(struct tcf_defact *d, const struct nlattr *defdata,
-			 struct tc_defact *p)
+static int reset_policy(struct tc_action *a, const struct nlattr *defdata,
+			struct tc_defact *p, struct tcf_proto *tp,
+			struct netlink_ext_ack *extack)
 {
+	struct tcf_chain *goto_ch = NULL;
+	struct tcf_defact *d;
+	int err;
+
+	err = tcf_action_check_ctrlact(p->action, tp, &goto_ch, extack);
+	if (err < 0)
+		return err;
+	d = to_defact(a);
 	spin_lock_bh(&d->tcf_lock);
-	d->tcf_action = p->action;
+	goto_ch = tcf_action_set_ctrlact(a, p->action, goto_ch);
 	memset(d->tcfd_defdata, 0, SIMP_MAX_DATA);
 	nla_strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	spin_unlock_bh(&d->tcf_lock);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+	return 0;
 }
 
 static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
@@ -79,10 +90,12 @@ static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
 
 static int tcf_simp_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind, struct netlink_ext_ack *extack)
+			 int ovr, int bind, bool rtnl_held,
+			 struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, simp_net_id);
 	struct nlattr *tb[TCA_DEF_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_defact *parm;
 	struct tcf_defact *d;
 	bool exists = false;
@@ -99,43 +112,61 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_DEF_PARMS]);
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
 	if (tb[TCA_DEF_DATA] == NULL) {
 		if (exists)
 			tcf_idr_release(*a, bind);
+		else
+			tcf_idr_cleanup(tn, parm->index);
 		return -EINVAL;
 	}
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_simp_ops, bind, false);
-		if (ret)
-			return ret;
-
-		d = to_defact(*a);
-		ret = alloc_defdata(d, tb[TCA_DEF_DATA]);
-		if (ret < 0) {
-			tcf_idr_release(*a, bind);
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
 		}
-		d->tcf_action = parm->action;
+
+		d = to_defact(*a);
+		err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch,
+					       extack);
+		if (err < 0)
+			goto release_idr;
+
+		err = alloc_defdata(d, tb[TCA_DEF_DATA]);
+		if (err < 0)
+			goto put_chain;
+
+		tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 		ret = ACT_P_CREATED;
 	} else {
-		d = to_defact(*a);
+		if (!ovr) {
+			err = -EEXIST;
+			goto release_idr;
+		}
 
-		tcf_idr_release(*a, bind);
-		if (!ovr)
-			return -EEXIST;
-
-		reset_policy(d, tb[TCA_DEF_DATA], parm);
+		err = reset_policy(*a, tb[TCA_DEF_DATA], parm, tp, extack);
+		if (err)
+			goto release_idr;
 	}
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
@@ -145,12 +176,13 @@ static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_defact *d = to_defact(a);
 	struct tc_defact opt = {
 		.index   = d->tcf_index,
-		.refcnt  = d->tcf_refcnt - ref,
-		.bindcnt = d->tcf_bindcnt - bind,
-		.action  = d->tcf_action,
+		.refcnt  = refcount_read(&d->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&d->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 
+	spin_lock_bh(&d->tcf_lock);
+	opt.action = d->tcf_action;
 	if (nla_put(skb, TCA_DEF_PARMS, sizeof(opt), &opt) ||
 	    nla_put_string(skb, TCA_DEF_DATA, d->tcfd_defdata))
 		goto nla_put_failure;
@@ -158,9 +190,12 @@ static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 	tcf_tm_dump(&t, &d->tcf_tm);
 	if (nla_put_64bit(skb, TCA_DEF_TM, sizeof(t), &t, TCA_DEF_PAD))
 		goto nla_put_failure;
+	spin_unlock_bh(&d->tcf_lock);
+
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&d->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -175,8 +210,7 @@ static int tcf_simp_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_simp_search(struct net *net, struct tc_action **a, u32 index,
-			   struct netlink_ext_ack *extack)
+static int tcf_simp_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, simp_net_id);
 
@@ -185,9 +219,9 @@ static int tcf_simp_search(struct net *net, struct tc_action **a, u32 index,
 
 static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
-	.type		=	TCA_ACT_SIMP,
+	.id		=	TCA_ID_SIMP,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_simp,
+	.act		=	tcf_simp_act,
 	.dump		=	tcf_simp_dump,
 	.cleanup	=	tcf_simp_release,
 	.init		=	tcf_simp_init,

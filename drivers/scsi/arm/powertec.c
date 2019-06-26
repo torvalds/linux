@@ -294,7 +294,6 @@ static struct scsi_host_template powertecscsi_template = {
 	.sg_tablesize			= SG_MAX_SEGMENTS,
 	.dma_boundary			= IOMD_DMA_BOUNDARY,
 	.cmd_per_lun			= 2,
-	.use_clustering			= ENABLE_CLUSTERING,
 	.proc_name			= "powertec",
 };
 

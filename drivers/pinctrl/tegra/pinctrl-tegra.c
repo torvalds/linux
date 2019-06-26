@@ -629,12 +629,12 @@ static void tegra_pinctrl_clear_parked_bits(struct tegra_pmx *pmx)
 	}
 }
 
-static bool gpio_node_has_range(void)
+static bool gpio_node_has_range(const char *compatible)
 {
 	struct device_node *np;
 	bool has_prop = false;
 
-	np = of_find_compatible_node(NULL, NULL, "nvidia,tegra30-gpio");
+	np = of_find_compatible_node(NULL, NULL, compatible);
 	if (!np)
 		return has_prop;
 
@@ -728,7 +728,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	tegra_pinctrl_clear_parked_bits(pmx);
 
-	if (!gpio_node_has_range())
+	if (!gpio_node_has_range(pmx->soc->gpio_compatible))
 		pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
 
 	platform_set_drvdata(pdev, pmx);
@@ -737,4 +737,3 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tegra_pinctrl_probe);

@@ -44,6 +44,9 @@ There are four components to pagemap:
  * ``/proc/kpagecount``.  This file contains a 64-bit count of the number of
    times each page is mapped, indexed by PFN.
 
+The page-types tool in the tools/vm directory can be used to query the
+number of times a page is mapped.
+
  * ``/proc/kpageflags``.  This file contains a 64-bit set of flags for each
    page, indexed by PFN.
 
@@ -72,9 +75,10 @@ There are four components to pagemap:
     20. NOPAGE
     21. KSM
     22. THP
-    23. BALLOON
+    23. OFFLINE
     24. ZERO_PAGE
     25. IDLE
+    26. PGTABLE
 
  * ``/proc/kpagecgroup``.  This file contains a 64-bit inode number of the
    memory cgroup each page is charged to, indexed by PFN. Only available when
@@ -115,8 +119,8 @@ Short descriptions to the page flags
     identical memory pages dynamically shared between one or more processes
 22 - THP
     contiguous pages which construct transparent hugepages
-23 - BALLOON
-    balloon compaction page
+23 - OFFLINE
+    page is logically offline
 24 - ZERO_PAGE
     zero page for pfn_zero or huge_zero page
 25 - IDLE
@@ -125,6 +129,8 @@ Short descriptions to the page flags
     Note that this flag may be stale in case the page was accessed via
     a PTE. To make sure the flag is up-to-date one has to read
     ``/sys/kernel/mm/page_idle/bitmap`` first.
+26 - PGTABLE
+    page is in use as a page table
 
 IO related page flags
 ---------------------

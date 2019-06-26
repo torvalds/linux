@@ -486,7 +486,7 @@ int peak_canfd_handle_msgs_list(struct peak_canfd_priv *priv,
 		if (msg_size <= 0)
 			break;
 
-		msg_ptr += msg_size;
+		msg_ptr += ALIGN(msg_size, 4);
 	}
 
 	if (msg_size < 0)

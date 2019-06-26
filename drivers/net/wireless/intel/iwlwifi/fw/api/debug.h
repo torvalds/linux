@@ -8,6 +8,7 @@
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -333,24 +335,49 @@ struct iwl_dbg_mem_access_rsp {
 	__le32 data[];
 } __packed; /* DEBUG_(U|L)MAC_RD_WR_RSP_API_S_VER_1 */
 
-#define CONT_REC_COMMAND_SIZE	80
-#define ENABLE_CONT_RECORDING	0x15
-#define DISABLE_CONT_RECORDING	0x16
+#define LDBG_CFG_COMMAND_SIZE	80
+#define BUFFER_ALLOCATION	0x27
+#define START_DEBUG_RECORDING	0x29
+#define STOP_DEBUG_RECORDING	0x2A
 
-/*
- * struct iwl_continuous_record_mode - recording mode
- */
-struct iwl_continuous_record_mode {
-	__le16 enable_recording;
-} __packed;
+/* maximum fragments to be allocated per target of allocationId */
+#define IWL_BUFFER_LOCATION_MAX_FRAGS	2
 
-/*
- * struct iwl_continuous_record_cmd - enable/disable continuous recording
+/**
+ * struct iwl_fragment_data single fragment structure
+ * @address: 64bit start address
+ * @size: size in bytes
  */
-struct iwl_continuous_record_cmd {
-	struct iwl_continuous_record_mode record_mode;
-	u8 pad[CONT_REC_COMMAND_SIZE -
-		sizeof(struct iwl_continuous_record_mode)];
-} __packed;
+struct iwl_fragment_data {
+	__le64 address;
+	__le32 size;
+} __packed; /* FRAGMENT_STRUCTURE_API_S_VER_1 */
+
+/**
+ * struct iwl_buffer_allocation_cmd - buffer allocation command structure
+ * @allocation_id: id of the allocation
+ * @buffer_location: location of the buffer
+ * @num_frags: number of fragments
+ * @fragments: memory fragments
+ */
+struct iwl_buffer_allocation_cmd {
+	__le32 allocation_id;
+	__le32 buffer_location;
+	__le32 num_frags;
+	struct iwl_fragment_data fragments[IWL_BUFFER_LOCATION_MAX_FRAGS];
+} __packed; /* BUFFER_ALLOCATION_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_ldbg_config_cmd - LDBG config command
+ * @type: configuration type
+ * @pad: reserved space for type-dependent data
+ */
+struct iwl_ldbg_config_cmd {
+	__le32 type;
+	union {
+		u8 pad[LDBG_CFG_COMMAND_SIZE - sizeof(__le32)];
+		struct iwl_buffer_allocation_cmd buffer_allocation;
+	}; /* LDBG_CFG_BODY_API_U_VER_2 (partially) */
+} __packed; /* LDBG_CFG_CMD_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_debug_h__ */

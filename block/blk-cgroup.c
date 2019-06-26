@@ -27,6 +27,7 @@
 #include <linux/atomic.h>
 #include <linux/ctype.h>
 #include <linux/blk-cgroup.h>
+#include <linux/tracehook.h>
 #include "blk.h"
 
 #define MAX_KEY_LEN 100
@@ -49,6 +50,8 @@ struct cgroup_subsys_state * const blkcg_root_css = &blkcg_root.css;
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
 static LIST_HEAD(all_blkcgs);		/* protected by blkcg_pol_mutex */
+
+static bool blkcg_debug_stats = false;
 
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
@@ -73,12 +76,40 @@ static void blkg_free(struct blkcg_gq *blkg)
 		if (blkg->pd[i])
 			blkcg_policy[i]->pd_free_fn(blkg->pd[i]);
 
-	if (blkg->blkcg != &blkcg_root)
-		blk_exit_rl(blkg->q, &blkg->rl);
-
 	blkg_rwstat_exit(&blkg->stat_ios);
 	blkg_rwstat_exit(&blkg->stat_bytes);
 	kfree(blkg);
+}
+
+static void __blkg_release(struct rcu_head *rcu)
+{
+	struct blkcg_gq *blkg = container_of(rcu, struct blkcg_gq, rcu_head);
+
+	percpu_ref_exit(&blkg->refcnt);
+
+	/* release the blkcg and parent blkg refs this blkg has been holding */
+	css_put(&blkg->blkcg->css);
+	if (blkg->parent)
+		blkg_put(blkg->parent);
+
+	wb_congested_put(blkg->wb_congested);
+
+	blkg_free(blkg);
+}
+
+/*
+ * A group is RCU protected, but having an rcu lock does not mean that one
+ * can access all the fields of blkg and assume these are valid.  For
+ * example, don't try to follow throtl_data and request queue links.
+ *
+ * Having a reference to blkg under an rcu allows accesses to only values
+ * local to groups like group stats and group rate limits.
+ */
+static void blkg_release(struct percpu_ref *ref)
+{
+	struct blkcg_gq *blkg = container_of(ref, struct blkcg_gq, refcnt);
+
+	call_rcu(&blkg->rcu_head, __blkg_release);
 }
 
 /**
@@ -107,14 +138,6 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	blkg->q = q;
 	INIT_LIST_HEAD(&blkg->q_node);
 	blkg->blkcg = blkcg;
-	atomic_set(&blkg->refcnt, 1);
-
-	/* root blkg uses @q->root_rl, init rl only for !root blkgs */
-	if (blkcg != &blkcg_root) {
-		if (blk_init_rl(&blkg->rl, q, gfp_mask))
-			goto err_free;
-		blkg->rl.blkg = blkg;
-	}
 
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkcg_policy *pol = blkcg_policy[i];
@@ -154,7 +177,7 @@ struct blkcg_gq *blkg_lookup_slowpath(struct blkcg *blkcg,
 	blkg = radix_tree_lookup(&blkcg->blkg_tree, q->id);
 	if (blkg && blkg->q == q) {
 		if (update_hint) {
-			lockdep_assert_held(q->queue_lock);
+			lockdep_assert_held(&q->queue_lock);
 			rcu_assign_pointer(blkcg->blkg_hint, blkg);
 		}
 		return blkg;
@@ -177,7 +200,13 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	int i, ret;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
-	lockdep_assert_held(q->queue_lock);
+	lockdep_assert_held(&q->queue_lock);
+
+	/* request_queue is dying, do not create/recreate a blkg */
+	if (blk_queue_dying(q)) {
+		ret = -ENODEV;
+		goto err_free_blkg;
+	}
 
 	/* blkg holds a reference to blkcg */
 	if (!css_tryget_online(&blkcg->css)) {
@@ -214,6 +243,11 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 		blkg_get(blkg->parent);
 	}
 
+	ret = percpu_ref_init(&blkg->refcnt, blkg_release, 0,
+			      GFP_NOWAIT | __GFP_NOWARN);
+	if (ret)
+		goto err_cancel_ref;
+
 	/* invoke per-policy init */
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkcg_policy *pol = blkcg_policy[i];
@@ -246,6 +280,8 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	blkg_put(blkg);
 	return ERR_PTR(ret);
 
+err_cancel_ref:
+	percpu_ref_exit(&blkg->refcnt);
 err_put_congested:
 	wb_congested_put(wb_congested);
 err_put_css:
@@ -256,7 +292,7 @@ err_free_blkg:
 }
 
 /**
- * blkg_lookup_create - lookup blkg, try to create one if not there
+ * __blkg_lookup_create - lookup blkg, try to create one if not there
  * @blkcg: blkcg of interest
  * @q: request_queue of interest
  *
@@ -265,24 +301,16 @@ err_free_blkg:
  * that all non-root blkg's have access to the parent blkg.  This function
  * should be called under RCU read lock and @q->queue_lock.
  *
- * Returns pointer to the looked up or created blkg on success, ERR_PTR()
- * value on error.  If @q is dead, returns ERR_PTR(-EINVAL).  If @q is not
- * dead and bypassing, returns ERR_PTR(-EBUSY).
+ * Returns the blkg or the closest blkg if blkg_create() fails as it walks
+ * down from root.
  */
-struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
-				    struct request_queue *q)
+struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
+				      struct request_queue *q)
 {
 	struct blkcg_gq *blkg;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
-	lockdep_assert_held(q->queue_lock);
-
-	/*
-	 * This could be the first entry point of blkcg implementation and
-	 * we shouldn't allow anything to go through for a bypassing queue.
-	 */
-	if (unlikely(blk_queue_bypass(q)))
-		return ERR_PTR(blk_queue_dying(q) ? -ENODEV : -EBUSY);
+	lockdep_assert_held(&q->queue_lock);
 
 	blkg = __blkg_lookup(blkcg, q, true);
 	if (blkg)
@@ -290,52 +318,76 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 
 	/*
 	 * Create blkgs walking down from blkcg_root to @blkcg, so that all
-	 * non-root blkgs have access to their parents.
+	 * non-root blkgs have access to their parents.  Returns the closest
+	 * blkg to the intended blkg should blkg_create() fail.
 	 */
 	while (true) {
 		struct blkcg *pos = blkcg;
 		struct blkcg *parent = blkcg_parent(blkcg);
+		struct blkcg_gq *ret_blkg = q->root_blkg;
 
-		while (parent && !__blkg_lookup(parent, q, false)) {
+		while (parent) {
+			blkg = __blkg_lookup(parent, q, false);
+			if (blkg) {
+				/* remember closest blkg */
+				ret_blkg = blkg;
+				break;
+			}
 			pos = parent;
 			parent = blkcg_parent(parent);
 		}
 
 		blkg = blkg_create(pos, q, NULL);
-		if (pos == blkcg || IS_ERR(blkg))
+		if (IS_ERR(blkg))
+			return ret_blkg;
+		if (pos == blkcg)
 			return blkg;
 	}
 }
 
-static void blkg_pd_offline(struct blkcg_gq *blkg)
+/**
+ * blkg_lookup_create - find or create a blkg
+ * @blkcg: target block cgroup
+ * @q: target request_queue
+ *
+ * This looks up or creates the blkg representing the unique pair
+ * of the blkcg and the request_queue.
+ */
+struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
+				    struct request_queue *q)
 {
-	int i;
+	struct blkcg_gq *blkg = blkg_lookup(blkcg, q);
 
-	lockdep_assert_held(blkg->q->queue_lock);
-	lockdep_assert_held(&blkg->blkcg->lock);
+	if (unlikely(!blkg)) {
+		unsigned long flags;
 
-	for (i = 0; i < BLKCG_MAX_POLS; i++) {
-		struct blkcg_policy *pol = blkcg_policy[i];
-
-		if (blkg->pd[i] && !blkg->pd[i]->offline &&
-		    pol->pd_offline_fn) {
-			pol->pd_offline_fn(blkg->pd[i]);
-			blkg->pd[i]->offline = true;
-		}
+		spin_lock_irqsave(&q->queue_lock, flags);
+		blkg = __blkg_lookup_create(blkcg, q);
+		spin_unlock_irqrestore(&q->queue_lock, flags);
 	}
+
+	return blkg;
 }
 
 static void blkg_destroy(struct blkcg_gq *blkg)
 {
 	struct blkcg *blkcg = blkg->blkcg;
 	struct blkcg_gq *parent = blkg->parent;
+	int i;
 
-	lockdep_assert_held(blkg->q->queue_lock);
+	lockdep_assert_held(&blkg->q->queue_lock);
 	lockdep_assert_held(&blkcg->lock);
 
 	/* Something wrong if we are trying to remove same group twice */
 	WARN_ON_ONCE(list_empty(&blkg->q_node));
 	WARN_ON_ONCE(hlist_unhashed(&blkg->blkcg_node));
+
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+
+		if (blkg->pd[i] && pol->pd_offline_fn)
+			pol->pd_offline_fn(blkg->pd[i]);
+	}
 
 	if (parent) {
 		blkg_rwstat_add_aux(&parent->stat_bytes, &blkg->stat_bytes);
@@ -360,7 +412,7 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	 * Put the reference taken at the time of creation so that when all
 	 * queues are gone, group can be destroyed.
 	 */
-	blkg_put(blkg);
+	percpu_ref_kill(&blkg->refcnt);
 }
 
 /**
@@ -373,77 +425,17 @@ static void blkg_destroy_all(struct request_queue *q)
 {
 	struct blkcg_gq *blkg, *n;
 
-	lockdep_assert_held(q->queue_lock);
-
+	spin_lock_irq(&q->queue_lock);
 	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_node) {
 		struct blkcg *blkcg = blkg->blkcg;
 
 		spin_lock(&blkcg->lock);
-		blkg_pd_offline(blkg);
 		blkg_destroy(blkg);
 		spin_unlock(&blkcg->lock);
 	}
 
 	q->root_blkg = NULL;
-	q->root_rl.blkg = NULL;
-}
-
-/*
- * A group is RCU protected, but having an rcu lock does not mean that one
- * can access all the fields of blkg and assume these are valid.  For
- * example, don't try to follow throtl_data and request queue links.
- *
- * Having a reference to blkg under an rcu allows accesses to only values
- * local to groups like group stats and group rate limits.
- */
-void __blkg_release_rcu(struct rcu_head *rcu_head)
-{
-	struct blkcg_gq *blkg = container_of(rcu_head, struct blkcg_gq, rcu_head);
-
-	/* release the blkcg and parent blkg refs this blkg has been holding */
-	css_put(&blkg->blkcg->css);
-	if (blkg->parent)
-		blkg_put(blkg->parent);
-
-	wb_congested_put(blkg->wb_congested);
-
-	blkg_free(blkg);
-}
-EXPORT_SYMBOL_GPL(__blkg_release_rcu);
-
-/*
- * The next function used by blk_queue_for_each_rl().  It's a bit tricky
- * because the root blkg uses @q->root_rl instead of its own rl.
- */
-struct request_list *__blk_queue_next_rl(struct request_list *rl,
-					 struct request_queue *q)
-{
-	struct list_head *ent;
-	struct blkcg_gq *blkg;
-
-	/*
-	 * Determine the current blkg list_head.  The first entry is
-	 * root_rl which is off @q->blkg_list and mapped to the head.
-	 */
-	if (rl == &q->root_rl) {
-		ent = &q->blkg_list;
-		/* There are no more block groups, hence no request lists */
-		if (list_empty(ent))
-			return NULL;
-	} else {
-		blkg = container_of(rl, struct blkcg_gq, rl);
-		ent = &blkg->q_node;
-	}
-
-	/* walk to the next list_head, skip root blkcg */
-	ent = ent->next;
-	if (ent == &q->root_blkg->q_node)
-		ent = ent->next;
-	if (ent == &q->blkg_list)
-		return NULL;
-
-	blkg = container_of(ent, struct blkcg_gq, q_node);
-	return &blkg->rl;
+	spin_unlock_irq(&q->queue_lock);
 }
 
 static int blkcg_reset_stats(struct cgroup_subsys_state *css,
@@ -485,7 +477,6 @@ const char *blkg_dev_name(struct blkcg_gq *blkg)
 		return dev_name(blkg->q->backing_dev_info->dev);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(blkg_dev_name);
 
 /**
  * blkcg_print_blkgs - helper for printing per-blkg data
@@ -516,10 +507,10 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
-		spin_lock_irq(blkg->q->queue_lock);
+		spin_lock_irq(&blkg->q->queue_lock);
 		if (blkcg_policy_enabled(blkg->q, pol))
 			total += prfill(sf, blkg->pd[pol->plid], data);
-		spin_unlock_irq(blkg->q->queue_lock);
+		spin_unlock_irq(&blkg->q->queue_lock);
 	}
 	rcu_read_unlock();
 
@@ -564,6 +555,7 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 		[BLKG_RWSTAT_WRITE]	= "Write",
 		[BLKG_RWSTAT_SYNC]	= "Sync",
 		[BLKG_RWSTAT_ASYNC]	= "Async",
+		[BLKG_RWSTAT_DISCARD]	= "Discard",
 	};
 	const char *dname = blkg_dev_name(pd->blkg);
 	u64 v;
@@ -577,7 +569,8 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 			   (unsigned long long)atomic64_read(&rwstat->aux_cnt[i]));
 
 	v = atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_READ]) +
-		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_WRITE]);
+		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_WRITE]) +
+		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_DISCARD]);
 	seq_printf(sf, "%s Total %llu\n", dname, (unsigned long long)v);
 	return v;
 }
@@ -715,7 +708,7 @@ u64 blkg_stat_recursive_sum(struct blkcg_gq *blkg,
 	struct cgroup_subsys_state *pos_css;
 	u64 sum = 0;
 
-	lockdep_assert_held(blkg->q->queue_lock);
+	lockdep_assert_held(&blkg->q->queue_lock);
 
 	rcu_read_lock();
 	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
@@ -758,7 +751,7 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
 	struct blkg_rwstat sum = { };
 	int i;
 
-	lockdep_assert_held(blkg->q->queue_lock);
+	lockdep_assert_held(&blkg->q->queue_lock);
 
 	rcu_read_lock();
 	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
@@ -789,18 +782,10 @@ static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
 					  struct request_queue *q)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held());
-	lockdep_assert_held(q->queue_lock);
+	lockdep_assert_held(&q->queue_lock);
 
 	if (!blkcg_policy_enabled(q, pol))
 		return ERR_PTR(-EOPNOTSUPP);
-
-	/*
-	 * This could be the first entry point of blkcg implementation and
-	 * we shouldn't allow anything to go through for a bypassing queue.
-	 */
-	if (unlikely(blk_queue_bypass(q)))
-		return ERR_PTR(blk_queue_dying(q) ? -ENODEV : -EBUSY);
-
 	return __blkg_lookup(blkcg, q, true /* update_hint */);
 }
 
@@ -818,7 +803,7 @@ static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
  */
 int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		   char *input, struct blkg_conf_ctx *ctx)
-	__acquires(rcu) __acquires(disk->queue->queue_lock)
+	__acquires(rcu) __acquires(&disk->queue->queue_lock)
 {
 	struct gendisk *disk;
 	struct request_queue *q;
@@ -846,7 +831,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	q = disk->queue;
 
 	rcu_read_lock();
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 
 	blkg = blkg_lookup_check(blkcg, pol, q);
 	if (IS_ERR(blkg)) {
@@ -873,7 +858,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		}
 
 		/* Drop locks to do new blkg allocation with GFP_KERNEL. */
-		spin_unlock_irq(q->queue_lock);
+		spin_unlock_irq(&q->queue_lock);
 		rcu_read_unlock();
 
 		new_blkg = blkg_alloc(pos, q, GFP_KERNEL);
@@ -883,7 +868,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		}
 
 		rcu_read_lock();
-		spin_lock_irq(q->queue_lock);
+		spin_lock_irq(&q->queue_lock);
 
 		blkg = blkg_lookup_check(pos, pol, q);
 		if (IS_ERR(blkg)) {
@@ -911,7 +896,7 @@ success:
 	return 0;
 
 fail_unlock:
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 	rcu_read_unlock();
 fail:
 	put_disk_and_module(disk);
@@ -927,7 +912,6 @@ fail:
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blkg_conf_prep);
 
 /**
  * blkg_conf_finish - finish up per-blkg config update
@@ -937,13 +921,12 @@ EXPORT_SYMBOL_GPL(blkg_conf_prep);
  * with blkg_conf_prep().
  */
 void blkg_conf_finish(struct blkg_conf_ctx *ctx)
-	__releases(ctx->disk->queue->queue_lock) __releases(rcu)
+	__releases(&ctx->disk->queue->queue_lock) __releases(rcu)
 {
-	spin_unlock_irq(ctx->disk->queue->queue_lock);
+	spin_unlock_irq(&ctx->disk->queue->queue_lock);
 	rcu_read_unlock();
 	put_disk_and_module(ctx->disk);
 }
-EXPORT_SYMBOL_GPL(blkg_conf_finish);
 
 static int blkcg_print_stat(struct seq_file *sf, void *v)
 {
@@ -954,30 +937,77 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
 		const char *dname;
+		char *buf;
 		struct blkg_rwstat rwstat;
-		u64 rbytes, wbytes, rios, wios;
+		u64 rbytes, wbytes, rios, wios, dbytes, dios;
+		size_t size = seq_get_buf(sf, &buf), off = 0;
+		int i;
+		bool has_stats = false;
 
 		dname = blkg_dev_name(blkg);
 		if (!dname)
 			continue;
 
-		spin_lock_irq(blkg->q->queue_lock);
+		/*
+		 * Hooray string manipulation, count is the size written NOT
+		 * INCLUDING THE \0, so size is now count+1 less than what we
+		 * had before, but we want to start writing the next bit from
+		 * the \0 so we only add count to buf.
+		 */
+		off += scnprintf(buf+off, size-off, "%s ", dname);
+
+		spin_lock_irq(&blkg->q->queue_lock);
 
 		rwstat = blkg_rwstat_recursive_sum(blkg, NULL,
 					offsetof(struct blkcg_gq, stat_bytes));
 		rbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
 		wbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
+		dbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_DISCARD]);
 
 		rwstat = blkg_rwstat_recursive_sum(blkg, NULL,
 					offsetof(struct blkcg_gq, stat_ios));
 		rios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
 		wios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
+		dios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_DISCARD]);
 
-		spin_unlock_irq(blkg->q->queue_lock);
+		spin_unlock_irq(&blkg->q->queue_lock);
 
-		if (rbytes || wbytes || rios || wios)
-			seq_printf(sf, "%s rbytes=%llu wbytes=%llu rios=%llu wios=%llu\n",
-				   dname, rbytes, wbytes, rios, wios);
+		if (rbytes || wbytes || rios || wios) {
+			has_stats = true;
+			off += scnprintf(buf+off, size-off,
+					 "rbytes=%llu wbytes=%llu rios=%llu wios=%llu dbytes=%llu dios=%llu",
+					 rbytes, wbytes, rios, wios,
+					 dbytes, dios);
+		}
+
+		if (!blkcg_debug_stats)
+			goto next;
+
+		if (atomic_read(&blkg->use_delay)) {
+			has_stats = true;
+			off += scnprintf(buf+off, size-off,
+					 " use_delay=%d delay_nsec=%llu",
+					 atomic_read(&blkg->use_delay),
+					(unsigned long long)atomic64_read(&blkg->delay_nsec));
+		}
+
+		for (i = 0; i < BLKCG_MAX_POLS; i++) {
+			struct blkcg_policy *pol = blkcg_policy[i];
+			size_t written;
+
+			if (!blkg->pd[i] || !pol->pd_stat_fn)
+				continue;
+
+			written = pol->pd_stat_fn(blkg->pd[i], buf+off, size-off);
+			if (written)
+				has_stats = true;
+			off += written;
+		}
+next:
+		if (has_stats) {
+			off += scnprintf(buf+off, size-off, "\n");
+			seq_commit(sf, off);
+		}
 	}
 
 	rcu_read_unlock();
@@ -1001,70 +1031,76 @@ static struct cftype blkcg_legacy_files[] = {
 	{ }	/* terminate */
 };
 
+/*
+ * blkcg destruction is a three-stage process.
+ *
+ * 1. Destruction starts.  The blkcg_css_offline() callback is invoked
+ *    which offlines writeback.  Here we tie the next stage of blkg destruction
+ *    to the completion of writeback associated with the blkcg.  This lets us
+ *    avoid punting potentially large amounts of outstanding writeback to root
+ *    while maintaining any ongoing policies.  The next stage is triggered when
+ *    the nr_cgwbs count goes to zero.
+ *
+ * 2. When the nr_cgwbs count goes to zero, blkcg_destroy_blkgs() is called
+ *    and handles the destruction of blkgs.  Here the css reference held by
+ *    the blkg is put back eventually allowing blkcg_css_free() to be called.
+ *    This work may occur in cgwb_release_workfn() on the cgwb_release
+ *    workqueue.  Any submitted ios that fail to get the blkg ref will be
+ *    punted to the root_blkg.
+ *
+ * 3. Once the blkcg ref count goes to zero, blkcg_css_free() is called.
+ *    This finally frees the blkcg.
+ */
+
 /**
  * blkcg_css_offline - cgroup css_offline callback
  * @css: css of interest
  *
- * This function is called when @css is about to go away and responsible
- * for offlining all blkgs pd and killing all wbs associated with @css.
- * blkgs pd offline should be done while holding both q and blkcg locks.
- * As blkcg lock is nested inside q lock, this function performs reverse
- * double lock dancing.
- *
- * This is the blkcg counterpart of ioc_release_fn().
+ * This function is called when @css is about to go away.  Here the cgwbs are
+ * offlined first and only once writeback associated with the blkcg has
+ * finished do we start step 2 (see above).
  */
 static void blkcg_css_offline(struct cgroup_subsys_state *css)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
-	struct blkcg_gq *blkg;
 
-	spin_lock_irq(&blkcg->lock);
-
-	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
-		struct request_queue *q = blkg->q;
-
-		if (spin_trylock(q->queue_lock)) {
-			blkg_pd_offline(blkg);
-			spin_unlock(q->queue_lock);
-		} else {
-			spin_unlock_irq(&blkcg->lock);
-			cpu_relax();
-			spin_lock_irq(&blkcg->lock);
-		}
-	}
-
-	spin_unlock_irq(&blkcg->lock);
-
+	/* this prevents anyone from attaching or migrating to this blkcg */
 	wb_blkcg_offline(blkcg);
+
+	/* put the base cgwb reference allowing step 2 to be triggered */
+	blkcg_cgwb_put(blkcg);
 }
 
 /**
- * blkcg_destroy_all_blkgs - destroy all blkgs associated with a blkcg
+ * blkcg_destroy_blkgs - responsible for shooting down blkgs
  * @blkcg: blkcg of interest
  *
- * This function is called when blkcg css is about to free and responsible for
- * destroying all blkgs associated with @blkcg.
- * blkgs should be removed while holding both q and blkcg locks. As blkcg lock
+ * blkgs should be removed while holding both q and blkcg locks.  As blkcg lock
  * is nested inside q lock, this function performs reverse double lock dancing.
+ * Destroying the blkgs releases the reference held on the blkcg's css allowing
+ * blkcg_css_free to eventually be called.
+ *
+ * This is the blkcg counterpart of ioc_release_fn().
  */
-static void blkcg_destroy_all_blkgs(struct blkcg *blkcg)
+void blkcg_destroy_blkgs(struct blkcg *blkcg)
 {
 	spin_lock_irq(&blkcg->lock);
+
 	while (!hlist_empty(&blkcg->blkg_list)) {
 		struct blkcg_gq *blkg = hlist_entry(blkcg->blkg_list.first,
-						    struct blkcg_gq,
-						    blkcg_node);
+						struct blkcg_gq, blkcg_node);
 		struct request_queue *q = blkg->q;
 
-		if (spin_trylock(q->queue_lock)) {
+		if (spin_trylock(&q->queue_lock)) {
 			blkg_destroy(blkg);
-			spin_unlock(q->queue_lock);
+			spin_unlock(&q->queue_lock);
 		} else {
 			spin_unlock_irq(&blkcg->lock);
 			cpu_relax();
 			spin_lock_irq(&blkcg->lock);
 		}
 	}
+
 	spin_unlock_irq(&blkcg->lock);
 }
 
@@ -1072,8 +1108,6 @@ static void blkcg_css_free(struct cgroup_subsys_state *css)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
 	int i;
-
-	blkcg_destroy_all_blkgs(blkcg);
 
 	mutex_lock(&blkcg_pol_mutex);
 
@@ -1137,6 +1171,7 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 #ifdef CONFIG_CGROUP_WRITEBACK
 	INIT_LIST_HEAD(&blkcg->cgwb_list);
+	refcount_set(&blkcg->cgwb_refcnt, 1);
 #endif
 	list_add_tail(&blkcg->all_blkcgs_node, &all_blkcgs);
 
@@ -1179,28 +1214,31 @@ int blkcg_init_queue(struct request_queue *q)
 
 	/* Make sure the root blkg exists. */
 	rcu_read_lock();
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 	blkg = blkg_create(&blkcg_root, q, new_blkg);
 	if (IS_ERR(blkg))
 		goto err_unlock;
 	q->root_blkg = blkg;
-	q->root_rl.blkg = blkg;
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 	rcu_read_unlock();
 
 	if (preloaded)
 		radix_tree_preload_end();
 
-	ret = blk_throtl_init(q);
-	if (ret) {
-		spin_lock_irq(q->queue_lock);
-		blkg_destroy_all(q);
-		spin_unlock_irq(q->queue_lock);
-	}
-	return ret;
+	ret = blk_iolatency_init(q);
+	if (ret)
+		goto err_destroy_all;
 
+	ret = blk_throtl_init(q);
+	if (ret)
+		goto err_destroy_all;
+	return 0;
+
+err_destroy_all:
+	blkg_destroy_all(q);
+	return ret;
 err_unlock:
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 	rcu_read_unlock();
 	if (preloaded)
 		radix_tree_preload_end();
@@ -1215,7 +1253,7 @@ err_unlock:
  */
 void blkcg_drain_queue(struct request_queue *q)
 {
-	lockdep_assert_held(q->queue_lock);
+	lockdep_assert_held(&q->queue_lock);
 
 	/*
 	 * @q could be exiting and already have destroyed all blkgs as
@@ -1231,14 +1269,11 @@ void blkcg_drain_queue(struct request_queue *q)
  * blkcg_exit_queue - exit and release blkcg part of request_queue
  * @q: request_queue being released
  *
- * Called from blk_release_queue().  Responsible for exiting blkcg part.
+ * Called from blk_exit_queue().  Responsible for exiting blkcg part.
  */
 void blkcg_exit_queue(struct request_queue *q)
 {
-	spin_lock_irq(q->queue_lock);
 	blkg_destroy_all(q);
-	spin_unlock_irq(q->queue_lock);
-
 	blk_throtl_exit(q);
 }
 
@@ -1288,6 +1323,13 @@ static void blkcg_bind(struct cgroup_subsys_state *root_css)
 	mutex_unlock(&blkcg_pol_mutex);
 }
 
+static void blkcg_exit(struct task_struct *tsk)
+{
+	if (tsk->throttle_queue)
+		blk_put_queue(tsk->throttle_queue);
+	tsk->throttle_queue = NULL;
+}
+
 struct cgroup_subsys io_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
 	.css_offline = blkcg_css_offline,
@@ -1297,6 +1339,7 @@ struct cgroup_subsys io_cgrp_subsys = {
 	.dfl_cftypes = blkcg_files,
 	.legacy_cftypes = blkcg_legacy_files,
 	.legacy_name = "blkio",
+	.exit = blkcg_exit,
 #ifdef CONFIG_MEMCG
 	/*
 	 * This ensures that, if available, memcg is automatically enabled
@@ -1334,10 +1377,8 @@ int blkcg_activate_policy(struct request_queue *q,
 	if (blkcg_policy_enabled(q, pol))
 		return 0;
 
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_freeze_queue(q);
-	else
-		blk_queue_bypass_start(q);
 pd_prealloc:
 	if (!pd_prealloc) {
 		pd_prealloc = pol->pd_alloc_fn(GFP_KERNEL, q->node);
@@ -1347,7 +1388,7 @@ pd_prealloc:
 		}
 	}
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
 		struct blkg_policy_data *pd;
@@ -1359,7 +1400,7 @@ pd_prealloc:
 		if (!pd)
 			swap(pd, pd_prealloc);
 		if (!pd) {
-			spin_unlock_irq(q->queue_lock);
+			spin_unlock_irq(&q->queue_lock);
 			goto pd_prealloc;
 		}
 
@@ -1373,12 +1414,10 @@ pd_prealloc:
 	__set_bit(pol->plid, q->blkcg_pols);
 	ret = 0;
 
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 out_bypass_end:
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_unfreeze_queue(q);
-	else
-		blk_queue_bypass_end(q);
 	if (pd_prealloc)
 		pol->pd_free_fn(pd_prealloc);
 	return ret;
@@ -1401,33 +1440,26 @@ void blkcg_deactivate_policy(struct request_queue *q,
 	if (!blkcg_policy_enabled(q, pol))
 		return;
 
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_freeze_queue(q);
-	else
-		blk_queue_bypass_start(q);
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 
 	__clear_bit(pol->plid, q->blkcg_pols);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
 		if (blkg->pd[pol->plid]) {
-			if (!blkg->pd[pol->plid]->offline &&
-			    pol->pd_offline_fn) {
+			if (pol->pd_offline_fn)
 				pol->pd_offline_fn(blkg->pd[pol->plid]);
-				blkg->pd[pol->plid]->offline = true;
-			}
 			pol->pd_free_fn(blkg->pd[pol->plid]);
 			blkg->pd[pol->plid] = NULL;
 		}
 	}
 
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_unfreeze_queue(q);
-	else
-		blk_queue_bypass_end(q);
 }
 EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
 
@@ -1451,8 +1483,10 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	for (i = 0; i < BLKCG_MAX_POLS; i++)
 		if (!blkcg_policy[i])
 			break;
-	if (i >= BLKCG_MAX_POLS)
+	if (i >= BLKCG_MAX_POLS) {
+		pr_warn("blkcg_policy_register: BLKCG_MAX_POLS too small\n");
 		goto err_unlock;
+	}
 
 	/* Make sure cpd/pd_alloc_fn and cpd/pd_free_fn in pairs */
 	if ((!pol->cpd_alloc_fn ^ !pol->cpd_free_fn) ||
@@ -1547,3 +1581,206 @@ out_unlock:
 	mutex_unlock(&blkcg_pol_register_mutex);
 }
 EXPORT_SYMBOL_GPL(blkcg_policy_unregister);
+
+/*
+ * Scale the accumulated delay based on how long it has been since we updated
+ * the delay.  We only call this when we are adding delay, in case it's been a
+ * while since we added delay, and when we are checking to see if we need to
+ * delay a task, to account for any delays that may have occurred.
+ */
+static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
+{
+	u64 old = atomic64_read(&blkg->delay_start);
+
+	/*
+	 * We only want to scale down every second.  The idea here is that we
+	 * want to delay people for min(delay_nsec, NSEC_PER_SEC) in a certain
+	 * time window.  We only want to throttle tasks for recent delay that
+	 * has occurred, in 1 second time windows since that's the maximum
+	 * things can be throttled.  We save the current delay window in
+	 * blkg->last_delay so we know what amount is still left to be charged
+	 * to the blkg from this point onward.  blkg->last_use keeps track of
+	 * the use_delay counter.  The idea is if we're unthrottling the blkg we
+	 * are ok with whatever is happening now, and we can take away more of
+	 * the accumulated delay as we've already throttled enough that
+	 * everybody is happy with their IO latencies.
+	 */
+	if (time_before64(old + NSEC_PER_SEC, now) &&
+	    atomic64_cmpxchg(&blkg->delay_start, old, now) == old) {
+		u64 cur = atomic64_read(&blkg->delay_nsec);
+		u64 sub = min_t(u64, blkg->last_delay, now - old);
+		int cur_use = atomic_read(&blkg->use_delay);
+
+		/*
+		 * We've been unthrottled, subtract a larger chunk of our
+		 * accumulated delay.
+		 */
+		if (cur_use < blkg->last_use)
+			sub = max_t(u64, sub, blkg->last_delay >> 1);
+
+		/*
+		 * This shouldn't happen, but handle it anyway.  Our delay_nsec
+		 * should only ever be growing except here where we subtract out
+		 * min(last_delay, 1 second), but lord knows bugs happen and I'd
+		 * rather not end up with negative numbers.
+		 */
+		if (unlikely(cur < sub)) {
+			atomic64_set(&blkg->delay_nsec, 0);
+			blkg->last_delay = 0;
+		} else {
+			atomic64_sub(sub, &blkg->delay_nsec);
+			blkg->last_delay = cur - sub;
+		}
+		blkg->last_use = cur_use;
+	}
+}
+
+/*
+ * This is called when we want to actually walk up the hierarchy and check to
+ * see if we need to throttle, and then actually throttle if there is some
+ * accumulated delay.  This should only be called upon return to user space so
+ * we're not holding some lock that would induce a priority inversion.
+ */
+static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
+{
+	u64 now = ktime_to_ns(ktime_get());
+	u64 exp;
+	u64 delay_nsec = 0;
+	int tok;
+
+	while (blkg->parent) {
+		if (atomic_read(&blkg->use_delay)) {
+			blkcg_scale_delay(blkg, now);
+			delay_nsec = max_t(u64, delay_nsec,
+					   atomic64_read(&blkg->delay_nsec));
+		}
+		blkg = blkg->parent;
+	}
+
+	if (!delay_nsec)
+		return;
+
+	/*
+	 * Let's not sleep for all eternity if we've amassed a huge delay.
+	 * Swapping or metadata IO can accumulate 10's of seconds worth of
+	 * delay, and we want userspace to be able to do _something_ so cap the
+	 * delays at 1 second.  If there's 10's of seconds worth of delay then
+	 * the tasks will be delayed for 1 second for every syscall.
+	 */
+	delay_nsec = min_t(u64, delay_nsec, 250 * NSEC_PER_MSEC);
+
+	/*
+	 * TODO: the use_memdelay flag is going to be for the upcoming psi stuff
+	 * that hasn't landed upstream yet.  Once that stuff is in place we need
+	 * to do a psi_memstall_enter/leave if memdelay is set.
+	 */
+
+	exp = ktime_add_ns(now, delay_nsec);
+	tok = io_schedule_prepare();
+	do {
+		__set_current_state(TASK_KILLABLE);
+		if (!schedule_hrtimeout(&exp, HRTIMER_MODE_ABS))
+			break;
+	} while (!fatal_signal_pending(current));
+	io_schedule_finish(tok);
+}
+
+/**
+ * blkcg_maybe_throttle_current - throttle the current task if it has been marked
+ *
+ * This is only called if we've been marked with set_notify_resume().  Obviously
+ * we can be set_notify_resume() for reasons other than blkcg throttling, so we
+ * check to see if current->throttle_queue is set and if not this doesn't do
+ * anything.  This should only ever be called by the resume code, it's not meant
+ * to be called by people willy-nilly as it will actually do the work to
+ * throttle the task if it is setup for throttling.
+ */
+void blkcg_maybe_throttle_current(void)
+{
+	struct request_queue *q = current->throttle_queue;
+	struct cgroup_subsys_state *css;
+	struct blkcg *blkcg;
+	struct blkcg_gq *blkg;
+	bool use_memdelay = current->use_memdelay;
+
+	if (!q)
+		return;
+
+	current->throttle_queue = NULL;
+	current->use_memdelay = false;
+
+	rcu_read_lock();
+	css = kthread_blkcg();
+	if (css)
+		blkcg = css_to_blkcg(css);
+	else
+		blkcg = css_to_blkcg(task_css(current, io_cgrp_id));
+
+	if (!blkcg)
+		goto out;
+	blkg = blkg_lookup(blkcg, q);
+	if (!blkg)
+		goto out;
+	if (!blkg_tryget(blkg))
+		goto out;
+	rcu_read_unlock();
+
+	blkcg_maybe_throttle_blkg(blkg, use_memdelay);
+	blkg_put(blkg);
+	blk_put_queue(q);
+	return;
+out:
+	rcu_read_unlock();
+	blk_put_queue(q);
+}
+
+/**
+ * blkcg_schedule_throttle - this task needs to check for throttling
+ * @q: the request queue IO was submitted on
+ * @use_memdelay: do we charge this to memory delay for PSI
+ *
+ * This is called by the IO controller when we know there's delay accumulated
+ * for the blkg for this task.  We do not pass the blkg because there are places
+ * we call this that may not have that information, the swapping code for
+ * instance will only have a request_queue at that point.  This set's the
+ * notify_resume for the task to check and see if it requires throttling before
+ * returning to user space.
+ *
+ * We will only schedule once per syscall.  You can call this over and over
+ * again and it will only do the check once upon return to user space, and only
+ * throttle once.  If the task needs to be throttled again it'll need to be
+ * re-set at the next time we see the task.
+ */
+void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
+{
+	if (unlikely(current->flags & PF_KTHREAD))
+		return;
+
+	if (!blk_get_queue(q))
+		return;
+
+	if (current->throttle_queue)
+		blk_put_queue(current->throttle_queue);
+	current->throttle_queue = q;
+	if (use_memdelay)
+		current->use_memdelay = use_memdelay;
+	set_notify_resume(current);
+}
+
+/**
+ * blkcg_add_delay - add delay to this blkg
+ * @blkg: blkg of interest
+ * @now: the current time in nanoseconds
+ * @delta: how many nanoseconds of delay to add
+ *
+ * Charge @delta to the blkg's current delay accumulation.  This is used to
+ * throttle tasks if an IO controller thinks we need more throttling.
+ */
+void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta)
+{
+	blkcg_scale_delay(blkg, now);
+	atomic64_add(delta, &blkg->delay_nsec);
+}
+
+module_param(blkcg_debug_stats, bool, 0644);
+MODULE_PARM_DESC(blkcg_debug_stats, "True if you want debug stats, false if not");

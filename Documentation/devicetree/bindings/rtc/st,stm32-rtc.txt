@@ -13,8 +13,6 @@ Required properties:
     It is required on stm32(h7/mp1).
 - clock-names: must be "rtc_ck" and "pclk".
     It is required on stm32(h7/mp1).
-- interrupt-parent: phandle for the interrupt controller.
-    It is required on stm32(f4/f7/h7).
 - interrupts: rtc alarm interrupt. On stm32mp1, a second interrupt is required
   for rtc alarm wakeup interrupt.
 - st,syscfg: phandle/offset/mask triplet. The phandle to pwrcfg used to

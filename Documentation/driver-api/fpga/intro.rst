@@ -12,18 +12,18 @@ Linux.  Some of the core intentions of the FPGA subsystems are:
 
 * Code should not be shared between upper and lower layers.  This
   should go without saying.  If that seems necessary, there's probably
-  framework functionality that that can be added that will benefit
+  framework functionality that can be added that will benefit
   other users.  Write the linux-fpga mailing list and maintainers and
   seek out a solution that expands the framework for broad reuse.
 
-* Generally, when adding code, think of the future.  Plan for re-use.
+* Generally, when adding code, think of the future.  Plan for reuse.
 
 The framework in the kernel is divided into:
 
 FPGA Manager
 ------------
 
-If you are adding a new FPGA or a new method of programming a FPGA,
+If you are adding a new FPGA or a new method of programming an FPGA,
 this is the subsystem for you.  Low level FPGA manager drivers contain
 the knowledge of how to program a specific device.  This subsystem
 includes the framework in fpga-mgr.c and the low level drivers that
@@ -32,10 +32,10 @@ are registered with it.
 FPGA Bridge
 -----------
 
-FPGA Bridges prevent spurious signals from going out of a FPGA or a
-region of a FPGA during programming.  They are disabled before
+FPGA Bridges prevent spurious signals from going out of an FPGA or a
+region of an FPGA during programming.  They are disabled before
 programming begins and re-enabled afterwards.  An FPGA bridge may be
-actual hard hardware that gates a bus to a cpu or a soft ("freeze")
+actual hard hardware that gates a bus to a CPU or a soft ("freeze")
 bridge in FPGA fabric that surrounds a partial reconfiguration region
 of an FPGA.  This subsystem includes fpga-bridge.c and the low level
 drivers that are registered with it.
@@ -44,7 +44,7 @@ FPGA Region
 -----------
 
 If you are adding a new interface to the FPGA framework, add it on top
-of a FPGA region to allow the most reuse of your interface.
+of an FPGA region.
 
 The FPGA Region framework (fpga-region.c) associates managers and
 bridges as reconfigurable regions.  A region may refer to the whole

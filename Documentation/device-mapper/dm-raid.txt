@@ -146,7 +146,7 @@ The target is named "raid" and it accepts the following parameters:
         [data_offset <sectors>]
 		This option value defines the offset into each data device
 		where the data starts. This is used to provide out-of-place
-		reshaping space to avoid writing over data whilst
+		reshaping space to avoid writing over data while
 		changing the layout of stripes, hence an interruption/crash
 		may happen at any time without the risk of losing data.
 		E.g. when adding devices to an existing raid set during
@@ -348,3 +348,7 @@ Version History
 1.13.1  Fix deadlock caused by early md_stop_writes().  Also fix size an
 	state races.
 1.13.2  Fix raid redundancy validation and avoid keeping raid set frozen
+1.14.0  Fix reshape race on small devices.  Fix stripe adding reshape
+	deadlock/potential data corruption.  Update superblock when
+	specific devices are requested via rebuild.  Fix RAID leg
+	rebuild errors.

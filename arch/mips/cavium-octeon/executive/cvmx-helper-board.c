@@ -31,6 +31,7 @@
  * network ports from the rest of the cvmx-helper files.
  */
 
+#include <linux/bug.h>
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-bootinfo.h>
 
@@ -210,56 +211,18 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 {
 	cvmx_helper_link_info_t result;
 
+	WARN(!octeon_is_simulation(),
+	     "Using deprecated link status - please update your DT");
+
 	/* Unless we fix it later, all links are defaulted to down */
 	result.u64 = 0;
 
-	/*
-	 * This switch statement should handle all ports that either don't use
-	 * Marvell PHYS, or don't support in-band status.
-	 */
-	switch (cvmx_sysinfo_get()->board_type) {
-	case CVMX_BOARD_TYPE_SIM:
+	if (octeon_is_simulation()) {
 		/* The simulator gives you a simulated 1Gbps full duplex link */
 		result.s.link_up = 1;
 		result.s.full_duplex = 1;
 		result.s.speed = 1000;
 		return result;
-	case CVMX_BOARD_TYPE_EBH3100:
-	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
-	case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
-	case CVMX_BOARD_TYPE_CN3020_EVB_HS5:
-		/* Port 1 on these boards is always Gigabit */
-		if (ipd_port == 1) {
-			result.s.link_up = 1;
-			result.s.full_duplex = 1;
-			result.s.speed = 1000;
-			return result;
-		}
-		/* Fall through to the generic code below */
-		break;
-	case CVMX_BOARD_TYPE_CUST_NB5:
-		/* Port 1 on these boards is always Gigabit */
-		if (ipd_port == 1) {
-			result.s.link_up = 1;
-			result.s.full_duplex = 1;
-			result.s.speed = 1000;
-			return result;
-		}
-		break;
-	case CVMX_BOARD_TYPE_BBGW_REF:
-		/* Port 1 on these boards is always Gigabit */
-		if (ipd_port == 2) {
-			/* Port 2 is not hooked up */
-			result.u64 = 0;
-			return result;
-		} else {
-			/* Ports 0 and 1 connect to the switch */
-			result.s.link_up = 1;
-			result.s.full_duplex = 1;
-			result.s.speed = 1000;
-			return result;
-		}
-		break;
 	}
 
 	if (OCTEON_IS_MODEL(OCTEON_CN3XXX)
@@ -355,45 +318,6 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
 		break;
 	}
 	return supported_ports;
-}
-
-/**
- * Enable packet input/output from the hardware. This function is
- * called after by cvmx_helper_packet_hardware_enable() to
- * perform board specific initialization. For most boards
- * nothing is needed.
- *
- * @interface: Interface to enable
- *
- * Returns Zero on success, negative on failure
- */
-int __cvmx_helper_board_hardware_enable(int interface)
-{
-	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CN3005_EVB_HS5) {
-		if (interface == 0) {
-			/* Different config for switch port */
-			cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(1, interface), 0);
-			cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(1, interface), 0);
-			/*
-			 * Boards with gigabit WAN ports need a
-			 * different setting that is compatible with
-			 * 100 Mbit settings
-			 */
-			cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(0, interface),
-				       0xc);
-			cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(0, interface),
-				       0xc);
-		}
-	} else if (cvmx_sysinfo_get()->board_type ==
-			CVMX_BOARD_TYPE_UBNT_E100) {
-		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(0, interface), 0);
-		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(0, interface), 0x10);
-		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(1, interface), 0);
-		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(1, interface), 0x10);
-		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(2, interface), 0);
-		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(2, interface), 0x10);
-	}
-	return 0;
 }
 
 /**

@@ -188,17 +188,6 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 int mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		     unsigned long *contpc);
 
-#define SIGNALLING_NAN 0x7ff800007ff80000LL
-
-static inline void fpu_emulator_init_fpu(void)
-{
-	struct task_struct *t = current;
-	int i;
-
-	for (i = 0; i < 32; i++)
-		set_fpr64(&t->thread.fpu.fpr[i], 0, SIGNALLING_NAN);
-}
-
 /*
  * Mask the FCSR Cause bits according to the Enable bits, observing
  * that Unimplemented is always enabled.

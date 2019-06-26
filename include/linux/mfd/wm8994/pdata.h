@@ -20,9 +20,6 @@
 #define WM8994_NUM_AIF   3
 
 struct wm8994_ldo_pdata {
-	/** GPIOs to enable regulator, 0 or less if not available */
-	int enable;
-
 	const struct regulator_init_data *init_data;
 };
 
@@ -221,6 +218,12 @@ struct wm8994_pdata {
 	 * system.
 	 */
 	bool spkmode_pu;
+
+	/*
+	 * CS/ADDR must be pulled internally by the device on this
+	 * system.
+	 */
+	bool csnaddr_pd;
 
 	/**
 	 * Maximum number of channels clocks will be generated for,

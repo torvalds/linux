@@ -702,7 +702,6 @@ config ARM_THUMBEE
 
 config ARM_VIRT_EXT
 	bool
-	depends on MMU
 	default y if CPU_V7
 	help
 	  Enable the kernel to make use of the ARM Virtualization

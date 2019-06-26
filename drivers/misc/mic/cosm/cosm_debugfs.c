@@ -28,12 +28,12 @@
 static struct dentry *cosm_dbg;
 
 /**
- * cosm_log_buf_show - Display MIC kernel log buffer
+ * log_buf_show - Display MIC kernel log buffer
  *
  * log_buf addr/len is read from System.map by user space
  * and populated in sysfs entries.
  */
-static int cosm_log_buf_show(struct seq_file *s, void *unused)
+static int log_buf_show(struct seq_file *s, void *unused)
 {
 	void __iomem *log_buf_va;
 	int __iomem *log_buf_len_va;
@@ -78,26 +78,15 @@ done:
 	return 0;
 }
 
-static int cosm_log_buf_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, cosm_log_buf_show, inode->i_private);
-}
-
-static const struct file_operations log_buf_ops = {
-	.owner   = THIS_MODULE,
-	.open    = cosm_log_buf_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release
-};
+DEFINE_SHOW_ATTRIBUTE(log_buf);
 
 /**
- * cosm_force_reset_show - Force MIC reset
+ * force_reset_show - Force MIC reset
  *
  * Invokes the force_reset COSM bus op instead of the standard reset
  * op in case a force reset of the MIC device is required
  */
-static int cosm_force_reset_show(struct seq_file *s, void *pos)
+static int force_reset_show(struct seq_file *s, void *pos)
 {
 	struct cosm_device *cdev = s->private;
 
@@ -105,18 +94,7 @@ static int cosm_force_reset_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int cosm_force_reset_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, cosm_force_reset_show, inode->i_private);
-}
-
-static const struct file_operations force_reset_ops = {
-	.owner   = THIS_MODULE,
-	.open    = cosm_force_reset_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release
-};
+DEFINE_SHOW_ATTRIBUTE(force_reset);
 
 void cosm_create_debug_dir(struct cosm_device *cdev)
 {
@@ -130,9 +108,10 @@ void cosm_create_debug_dir(struct cosm_device *cdev)
 	if (!cdev->dbg_dir)
 		return;
 
-	debugfs_create_file("log_buf", 0444, cdev->dbg_dir, cdev, &log_buf_ops);
+	debugfs_create_file("log_buf", 0444, cdev->dbg_dir, cdev,
+			    &log_buf_fops);
 	debugfs_create_file("force_reset", 0444, cdev->dbg_dir, cdev,
-			    &force_reset_ops);
+			    &force_reset_fops);
 }
 
 void cosm_delete_debug_dir(struct cosm_device *cdev)

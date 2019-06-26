@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (C) 2003-2018 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -39,10 +39,7 @@
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-pcsx-defs.h>
-
-void __cvmx_interrupt_gmxx_enable(int interface);
-void __cvmx_interrupt_pcsx_intx_en_reg_enable(int index, int block);
-void __cvmx_interrupt_pcsxx_int_en_reg_enable(int index);
+#include <asm/octeon/cvmx-pcsxx-defs.h>
 
 /**
  * Perform initialization required only once for an SGMII port.
@@ -515,42 +512,4 @@ int __cvmx_helper_sgmii_link_set(int ipd_port,
 	__cvmx_helper_sgmii_hardware_init_link(interface, index);
 	return __cvmx_helper_sgmii_hardware_init_link_speed(interface, index,
 							    link_info);
-}
-
-/**
- * Configure a port for internal and/or external loopback. Internal
- * loopback causes packets sent by the port to be received by
- * Octeon. External loopback causes packets received from the wire to
- * sent out again.
- *
- * @ipd_port: IPD/PKO port to loopback.
- * @enable_internal:
- *		   Non zero if you want internal loopback
- * @enable_external:
- *		   Non zero if you want external loopback
- *
- * Returns Zero on success, negative on failure.
- */
-int __cvmx_helper_sgmii_configure_loopback(int ipd_port, int enable_internal,
-					   int enable_external)
-{
-	int interface = cvmx_helper_get_interface_num(ipd_port);
-	int index = cvmx_helper_get_interface_index_num(ipd_port);
-	union cvmx_pcsx_mrx_control_reg pcsx_mrx_control_reg;
-	union cvmx_pcsx_miscx_ctl_reg pcsx_miscx_ctl_reg;
-
-	pcsx_mrx_control_reg.u64 =
-	    cvmx_read_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface));
-	pcsx_mrx_control_reg.s.loopbck1 = enable_internal;
-	cvmx_write_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface),
-		       pcsx_mrx_control_reg.u64);
-
-	pcsx_miscx_ctl_reg.u64 =
-	    cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
-	pcsx_miscx_ctl_reg.s.loopbck2 = enable_external;
-	cvmx_write_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface),
-		       pcsx_miscx_ctl_reg.u64);
-
-	__cvmx_helper_sgmii_hardware_init_link(interface, index);
-	return 0;
 }

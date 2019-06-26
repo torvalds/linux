@@ -26,9 +26,12 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
+#include <linux/input.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/slab.h>
 #include <asm/cpu_device_id.h>
-#include <asm/platform_sst_audio.h>
+#include <asm/intel-family.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -42,8 +45,6 @@ enum {
 	BYT_RT5651_IN1_MAP,
 	BYT_RT5651_IN2_MAP,
 	BYT_RT5651_IN1_IN2_MAP,
-	BYT_RT5651_IN1_HS_IN3_MAP,
-	BYT_RT5651_IN2_HS_IN3_MAP,
 };
 
 enum {
@@ -76,21 +77,33 @@ enum {
 #define BYT_RT5651_SSP2_AIF2		BIT(19) /* default is using AIF1  */
 #define BYT_RT5651_SSP0_AIF1		BIT(20)
 #define BYT_RT5651_SSP0_AIF2		BIT(21)
+#define BYT_RT5651_HP_LR_SWAPPED	BIT(22)
+#define BYT_RT5651_MONO_SPEAKER		BIT(23)
+
+#define BYT_RT5651_DEFAULT_QUIRKS	(BYT_RT5651_MCLK_EN | \
+					 BYT_RT5651_JD1_1   | \
+					 BYT_RT5651_OVCD_TH_2000UA | \
+					 BYT_RT5651_OVCD_SF_0P75)
 
 /* jack-detect-source + dmic-en + ovcd-th + -sf + terminating empty entry */
 #define MAX_NO_PROPS 5
 
 struct byt_rt5651_private {
 	struct clk *mclk;
+	struct gpio_desc *ext_amp_gpio;
+	struct gpio_desc *hp_detect;
 	struct snd_soc_jack jack;
 };
 
+static const struct acpi_gpio_mapping *byt_rt5651_gpios;
+
 /* Default: jack-detect on JD1_1, internal mic on in2, headsetmic on in3 */
-static unsigned long byt_rt5651_quirk = BYT_RT5651_MCLK_EN |
-					BYT_RT5651_JD1_1 |
-					BYT_RT5651_OVCD_TH_2000UA |
-					BYT_RT5651_OVCD_SF_0P75 |
-					BYT_RT5651_IN2_HS_IN3_MAP;
+static unsigned long byt_rt5651_quirk = BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP;
+
+static unsigned int quirk_override;
+module_param_named(quirk, quirk_override, uint, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 static void log_quirks(struct device *dev)
 {
@@ -100,10 +113,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk IN1_MAP enabled");
 	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN2_MAP)
 		dev_info(dev, "quirk IN2_MAP enabled");
-	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN1_HS_IN3_MAP)
-		dev_info(dev, "quirk IN1_HS_IN3_MAP enabled");
-	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN2_HS_IN3_MAP)
-		dev_info(dev, "quirk IN2_HS_IN3_MAP enabled");
+	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN1_IN2_MAP)
+		dev_info(dev, "quirk IN1_IN2_MAP enabled");
 	if (BYT_RT5651_JDSRC(byt_rt5651_quirk)) {
 		dev_info(dev, "quirk realtek,jack-detect-source %ld\n",
 			 BYT_RT5651_JDSRC(byt_rt5651_quirk));
@@ -124,6 +135,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk SSP0_AIF1 enabled\n");
 	if (byt_rt5651_quirk & BYT_RT5651_SSP0_AIF2)
 		dev_info(dev, "quirk SSP0_AIF2 enabled\n");
+	if (byt_rt5651_quirk & BYT_RT5651_MONO_SPEAKER)
+		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
 }
 
 #define BYT_CODEC_DAI1	"rt5651-aif1"
@@ -211,6 +224,20 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rt5651_ext_amp_power_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_card *card = w->dapm->card;
+	struct byt_rt5651_private *priv = snd_soc_card_get_drvdata(card);
+
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		gpiod_set_value_cansleep(priv->ext_amp_gpio, 1);
+	else
+		gpiod_set_value_cansleep(priv->ext_amp_gpio, 0);
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget byt_rt5651_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
@@ -220,7 +247,9 @@ static const struct snd_soc_dapm_widget byt_rt5651_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMD),
-
+	SND_SOC_DAPM_SUPPLY("Ext Amp Power", SND_SOC_NOPM, 0, 0,
+			    rt5651_ext_amp_power_event,
+			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_audio_map[] = {
@@ -228,6 +257,7 @@ static const struct snd_soc_dapm_route byt_rt5651_audio_map[] = {
 	{"Headset Mic", NULL, "Platform Clock"},
 	{"Internal Mic", NULL, "Platform Clock"},
 	{"Speaker", NULL, "Platform Clock"},
+	{"Speaker", NULL, "Ext Amp Power"},
 	{"Line In", NULL, "Platform Clock"},
 
 	{"Headset Mic", NULL, "micbias1"}, /* lowercase for rt5651 */
@@ -241,38 +271,26 @@ static const struct snd_soc_dapm_route byt_rt5651_audio_map[] = {
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_intmic_dmic_map[] = {
-	{"IN2P", NULL, "Headset Mic"},
 	{"DMIC L1", NULL, "Internal Mic"},
 	{"DMIC R1", NULL, "Internal Mic"},
+	{"IN2P", NULL, "Headset Mic"},
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_map[] = {
 	{"Internal Mic", NULL, "micbias1"},
 	{"IN1P", NULL, "Internal Mic"},
-	{"IN2P", NULL, "Headset Mic"},
+	{"IN3P", NULL, "Headset Mic"},
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_intmic_in2_map[] = {
 	{"Internal Mic", NULL, "micbias1"},
-	{"IN1P", NULL, "Headset Mic"},
 	{"IN2P", NULL, "Internal Mic"},
+	{"IN3P", NULL, "Headset Mic"},
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_in2_map[] = {
 	{"Internal Mic", NULL, "micbias1"},
 	{"IN1P", NULL, "Internal Mic"},
-	{"IN2P", NULL, "Internal Mic"},
-	{"IN3P", NULL, "Headset Mic"},
-};
-
-static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_hs_in3_map[] = {
-	{"Internal Mic", NULL, "micbias1"},
-	{"IN1P", NULL, "Internal Mic"},
-	{"IN3P", NULL, "Headset Mic"},
-};
-
-static const struct snd_soc_dapm_route byt_rt5651_intmic_in2_hs_in3_map[] = {
-	{"Internal Mic", NULL, "micbias1"},
 	{"IN2P", NULL, "Internal Mic"},
 	{"IN3P", NULL, "Headset Mic"},
 };
@@ -349,6 +367,22 @@ static int byt_rt5651_aif1_hw_params(struct snd_pcm_substream *substream,
 	return byt_rt5651_prepare_and_enable_pll1(codec_dai, rate, bclk_ratio);
 }
 
+static const struct acpi_gpio_params pov_p1006w_hp_detect = { 1, 0, false };
+static const struct acpi_gpio_params pov_p1006w_ext_amp_en = { 2, 0, true };
+
+static const struct acpi_gpio_mapping byt_rt5651_pov_p1006w_gpios[] = {
+	{ "hp-detect-gpios", &pov_p1006w_hp_detect, 1, },
+	{ "ext-amp-enable-gpios", &pov_p1006w_ext_amp_en, 1, },
+	{ },
+};
+
+static int byt_rt5651_pov_p1006w_quirk_cb(const struct dmi_system_id *id)
+{
+	byt_rt5651_quirk = (unsigned long)id->driver_data;
+	byt_rt5651_gpios = byt_rt5651_pov_p1006w_gpios;
+	return 1;
+}
+
 static int byt_rt5651_quirk_cb(const struct dmi_system_id *id)
 {
 	byt_rt5651_quirk = (unsigned long)id->driver_data;
@@ -357,33 +391,16 @@ static int byt_rt5651_quirk_cb(const struct dmi_system_id *id)
 
 static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 	{
+		/* Chuwi Hi8 Pro (CWI513) */
 		.callback = byt_rt5651_quirk_cb,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Max B3 PLATFORM"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X1D3_C806N"),
 		},
-		.driver_data = (void *)(BYT_RT5651_IN1_HS_IN3_MAP),
-	},
-	{
-		.callback = byt_rt5651_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ADI"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Turbot"),
-		},
-		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
-					BYT_RT5651_IN1_HS_IN3_MAP),
-	},
-	{
-		.callback = byt_rt5651_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "KIANO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "KIANO SlimNote 14.2"),
-		},
-		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
-					BYT_RT5651_JD1_1 |
-					BYT_RT5651_OVCD_TH_2000UA |
-					BYT_RT5651_OVCD_SF_0P75 |
-					BYT_RT5651_IN1_IN2_MAP),
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_HP_LR_SWAPPED |
+					BYT_RT5651_MONO_SPEAKER),
 	},
 	{
 		/* Chuwi Vi8 Plus (CWI519) */
@@ -392,11 +409,71 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hampoo"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "D2D3_Vi8A1"),
 		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_HP_LR_SWAPPED |
+					BYT_RT5651_MONO_SPEAKER),
+	},
+	{
+		/* I.T.Works TW701, Ployer Momo7w and Trekstor ST70416-6
+		 * (these all use the same mainboard) */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "INSYDE Corp."),
+			/* Partial match for all of itWORKS.G.WI71C.JGBMRBA,
+			 * TREK.G.WI71C.JGBMRBA0x and MOMO.G.WI71C.MABMRBA02 */
+			DMI_MATCH(DMI_BIOS_VERSION, ".G.WI71C."),
+		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_SSP0_AIF1 |
+					BYT_RT5651_MONO_SPEAKER),
+	},
+	{
+		/* KIANO SlimNote 14.2 */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "KIANO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "KIANO SlimNote 14.2"),
+		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN1_IN2_MAP),
+	},
+	{
+		/* Minnowboard Max B3 */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Max B3 PLATFORM"),
+		},
+		.driver_data = (void *)(BYT_RT5651_IN1_MAP),
+	},
+	{
+		/* Minnowboard Turbot */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ADI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Turbot"),
+		},
 		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
-					BYT_RT5651_JD1_1 |
+					BYT_RT5651_IN1_MAP),
+	},
+	{
+		/* Point of View mobii wintab p1006w (v1.0) */
+		.callback = byt_rt5651_pov_p1006w_quirk_cb,
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
+			/* Note 105b is Foxcon's USB/PCI vendor id */
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
+		},
+		.driver_data = (void *)(BYT_RT5651_DMIC_MAP |
 					BYT_RT5651_OVCD_TH_2000UA |
 					BYT_RT5651_OVCD_SF_0P75 |
-					BYT_RT5651_IN2_HS_IN3_MAP),
+					BYT_RT5651_DMIC_EN |
+					BYT_RT5651_MCLK_EN |
+					BYT_RT5651_SSP0_AIF1),
 	},
 	{
 		/* VIOS LTH17 */
@@ -405,11 +482,24 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "VIOS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LTH17"),
 		},
-		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
+		.driver_data = (void *)(BYT_RT5651_IN1_IN2_MAP |
 					BYT_RT5651_JD1_1 |
 					BYT_RT5651_OVCD_TH_2000UA |
 					BYT_RT5651_OVCD_SF_1P0 |
-					BYT_RT5651_IN1_IN2_MAP),
+					BYT_RT5651_MCLK_EN),
+	},
+	{
+		/* Yours Y8W81 (and others using the same mainboard) */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "INSYDE Corp."),
+			/* Partial match for all devs with a W86C mainboard */
+			DMI_MATCH(DMI_BIOS_VERSION, ".F.W86C."),
+		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_SSP0_AIF1 |
+					BYT_RT5651_MONO_SPEAKER),
 	},
 	{}
 };
@@ -418,15 +508,10 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
  * Note this MUST be called before snd_soc_register_card(), so that the props
  * are in place before the codec component driver's probe function parses them.
  */
-static int byt_rt5651_add_codec_device_props(const char *i2c_dev_name)
+static int byt_rt5651_add_codec_device_props(struct device *i2c_dev)
 {
 	struct property_entry props[MAX_NO_PROPS] = {};
-	struct device *i2c_dev;
-	int ret, cnt = 0;
-
-	i2c_dev = bus_find_device_by_name(&i2c_bus_type, NULL, i2c_dev_name);
-	if (!i2c_dev)
-		return -EPROBE_DEFER;
+	int cnt = 0;
 
 	props[cnt++] = PROPERTY_ENTRY_U32("realtek,jack-detect-source",
 				BYT_RT5651_JDSRC(byt_rt5651_quirk));
@@ -440,10 +525,7 @@ static int byt_rt5651_add_codec_device_props(const char *i2c_dev_name)
 	if (byt_rt5651_quirk & BYT_RT5651_DMIC_EN)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,dmic-en");
 
-	ret = device_add_properties(i2c_dev, props);
-	put_device(i2c_dev);
-
-	return ret;
+	return device_add_properties(i2c_dev, props);
 }
 
 static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
@@ -453,6 +535,7 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 	struct byt_rt5651_private *priv = snd_soc_card_get_drvdata(card);
 	const struct snd_soc_dapm_route *custom_map;
 	int num_routes;
+	int report;
 	int ret;
 
 	card->dapm.idle_bias_off = true;
@@ -474,14 +557,6 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 	case BYT_RT5651_IN1_IN2_MAP:
 		custom_map = byt_rt5651_intmic_in1_in2_map;
 		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_in2_map);
-		break;
-	case BYT_RT5651_IN1_HS_IN3_MAP:
-		custom_map = byt_rt5651_intmic_in1_hs_in3_map;
-		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_hs_in3_map);
-		break;
-	case BYT_RT5651_IN2_HS_IN3_MAP:
-		custom_map = byt_rt5651_intmic_in2_hs_in3_map;
-		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in2_hs_in3_map);
 		break;
 	default:
 		custom_map = byt_rt5651_intmic_dmic_map;
@@ -544,16 +619,27 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 			dev_err(card->dev, "unable to set MCLK rate\n");
 	}
 
-	if (BYT_RT5651_JDSRC(byt_rt5651_quirk)) {
+	report = 0;
+	if (BYT_RT5651_JDSRC(byt_rt5651_quirk))
+		report = SND_JACK_HEADSET | SND_JACK_BTN_0;
+	else if (priv->hp_detect)
+		report = SND_JACK_HEADSET;
+
+	if (report) {
 		ret = snd_soc_card_jack_new(runtime->card, "Headset",
-				    SND_JACK_HEADSET, &priv->jack,
-				    bytcr_jack_pins, ARRAY_SIZE(bytcr_jack_pins));
+				    report, &priv->jack, bytcr_jack_pins,
+				    ARRAY_SIZE(bytcr_jack_pins));
 		if (ret) {
 			dev_err(runtime->dev, "jack creation failed %d\n", ret);
 			return ret;
 		}
 
-		ret = snd_soc_component_set_jack(codec, &priv->jack, NULL);
+		if (report & SND_JACK_BTN_0)
+			snd_jack_set_key(priv->jack.jack, SND_JACK_BTN_0,
+					 KEY_PLAYPAUSE);
+
+		ret = snd_soc_component_set_jack(codec, &priv->jack,
+						 priv->hp_detect);
 		if (ret)
 			return ret;
 	}
@@ -691,6 +777,49 @@ static struct snd_soc_dai_link byt_rt5651_dais[] = {
 };
 
 /* SoC card */
+static char byt_rt5651_codec_name[SND_ACPI_I2C_ID_LEN];
+static char byt_rt5651_codec_aif_name[12]; /*  = "rt5651-aif[1|2]" */
+static char byt_rt5651_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
+static char byt_rt5651_long_name[50]; /* = "bytcr-rt5651-*-spk-*-mic[-swapped-hp]" */
+
+static int byt_rt5651_suspend(struct snd_soc_card *card)
+{
+	struct snd_soc_component *component;
+
+	if (!BYT_RT5651_JDSRC(byt_rt5651_quirk))
+		return 0;
+
+	for_each_card_components(card, component) {
+		if (!strcmp(component->name, byt_rt5651_codec_name)) {
+			dev_dbg(component->dev, "disabling jack detect before suspend\n");
+			snd_soc_component_set_jack(component, NULL, NULL);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int byt_rt5651_resume(struct snd_soc_card *card)
+{
+	struct byt_rt5651_private *priv = snd_soc_card_get_drvdata(card);
+	struct snd_soc_component *component;
+
+	if (!BYT_RT5651_JDSRC(byt_rt5651_quirk))
+		return 0;
+
+	for_each_card_components(card, component) {
+		if (!strcmp(component->name, byt_rt5651_codec_name)) {
+			dev_dbg(component->dev, "re-enabling jack detect after resume\n");
+			snd_soc_component_set_jack(component, &priv->jack,
+						   priv->hp_detect);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static struct snd_soc_card byt_rt5651_card = {
 	.name = "bytcr-rt5651",
 	.owner = THIS_MODULE,
@@ -701,24 +830,31 @@ static struct snd_soc_card byt_rt5651_card = {
 	.dapm_routes = byt_rt5651_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(byt_rt5651_audio_map),
 	.fully_routed = true,
+	.suspend_pre = byt_rt5651_suspend,
+	.resume_post = byt_rt5651_resume,
 };
 
-static char byt_rt5651_codec_name[SND_ACPI_I2C_ID_LEN];
-static char byt_rt5651_codec_aif_name[12]; /*  = "rt5651-aif[1|2]" */
-static char byt_rt5651_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
-static char byt_rt5651_long_name[40]; /* = "bytcr-rt5651-*-spk-*-mic" */
+static const struct x86_cpu_id baytrail_cpu_ids[] = {
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT }, /* Valleyview */
+	{}
+};
 
-static bool is_valleyview(void)
-{
-	static const struct x86_cpu_id cpu_ids[] = {
-		{ X86_VENDOR_INTEL, 6, 55 }, /* Valleyview, Bay Trail */
-		{}
-	};
+static const struct x86_cpu_id cherrytrail_cpu_ids[] = {
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_AIRMONT },     /* Braswell */
+	{}
+};
 
-	if (!x86_match_cpu(cpu_ids))
-		return false;
-	return true;
-}
+static const struct acpi_gpio_params ext_amp_enable_gpios = { 0, 0, false };
+
+static const struct acpi_gpio_mapping cht_rt5651_gpios[] = {
+	/*
+	 * Some boards have I2cSerialBusV2, GpioIo, GpioInt as ACPI resources,
+	 * other boards may  have I2cSerialBusV2, GpioInt, GpioIo instead.
+	 * We want the GpioIo one for the ext-amp-enable-gpio.
+	 */
+	{ "ext-amp-enable-gpios", &ext_amp_enable_gpios, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
+	{ },
+};
 
 struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 	u64 aif_value;       /* 1: AIF1, 2: AIF2 */
@@ -727,13 +863,13 @@ struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 
 static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 {
-	const char * const intmic_name[] =
-		{ "dmic", "in1", "in2", "in12", "in1", "in2" };
-	const char * const hsmic_name[] =
-		{  "in2", "in2", "in1",  "in3", "in3", "in3" };
+	static const char * const mic_name[] = { "dmic", "in1", "in2", "in12" };
 	struct byt_rt5651_private *priv;
 	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
+	struct device *codec_dev;
 	const char *i2c_name = NULL;
+	const char *hp_swapped;
 	bool is_bytcr = false;
 	int ret_val = 0;
 	int dai_index = 0;
@@ -767,15 +903,17 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 		"%s%s", "i2c-", i2c_name);
 	byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
 
+	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL,
+					    byt_rt5651_codec_name);
+	if (!codec_dev)
+		return -EPROBE_DEFER;
+
 	/*
 	 * swap SSP0 if bytcr is detected
 	 * (will be overridden if DMI quirk is detected)
 	 */
-	if (is_valleyview()) {
-		struct sst_platform_info *p_info = mach->pdata;
-		const struct sst_res_info *res_info = p_info->res_info;
-
-		if (res_info->acpi_ipc_irq_index == 0)
+	if (x86_match_cpu(baytrail_cpu_ids)) {
+		if (mach->mach_params.acpi_ipc_irq_index == 0)
 			is_bytcr = true;
 	}
 
@@ -829,10 +967,66 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5651_quirk_table);
 
+	if (quirk_override) {
+		dev_info(&pdev->dev, "Overriding quirk 0x%x => 0x%x\n",
+			 (unsigned int)byt_rt5651_quirk, quirk_override);
+		byt_rt5651_quirk = quirk_override;
+	}
+
 	/* Must be called before register_card, also see declaration comment. */
-	ret_val = byt_rt5651_add_codec_device_props(byt_rt5651_codec_name);
-	if (ret_val)
+	ret_val = byt_rt5651_add_codec_device_props(codec_dev);
+	if (ret_val) {
+		put_device(codec_dev);
 		return ret_val;
+	}
+
+	/* Cherry Trail devices use an external amplifier enable gpio */
+	if (x86_match_cpu(cherrytrail_cpu_ids) && !byt_rt5651_gpios)
+		byt_rt5651_gpios = cht_rt5651_gpios;
+
+	if (byt_rt5651_gpios) {
+		devm_acpi_dev_add_driver_gpios(codec_dev, byt_rt5651_gpios);
+		priv->ext_amp_gpio = devm_fwnode_get_index_gpiod_from_child(
+						&pdev->dev, "ext-amp-enable", 0,
+						codec_dev->fwnode,
+						GPIOD_OUT_LOW, "speaker-amp");
+		if (IS_ERR(priv->ext_amp_gpio)) {
+			ret_val = PTR_ERR(priv->ext_amp_gpio);
+			switch (ret_val) {
+			case -ENOENT:
+				priv->ext_amp_gpio = NULL;
+				break;
+			default:
+				dev_err(&pdev->dev, "Failed to get ext-amp-enable GPIO: %d\n",
+					ret_val);
+				/* fall through */
+			case -EPROBE_DEFER:
+				put_device(codec_dev);
+				return ret_val;
+			}
+		}
+		priv->hp_detect = devm_fwnode_get_index_gpiod_from_child(
+						&pdev->dev, "hp-detect", 0,
+						codec_dev->fwnode,
+						GPIOD_IN, "hp-detect");
+		if (IS_ERR(priv->hp_detect)) {
+			ret_val = PTR_ERR(priv->hp_detect);
+			switch (ret_val) {
+			case -ENOENT:
+				priv->hp_detect = NULL;
+				break;
+			default:
+				dev_err(&pdev->dev, "Failed to get hp-detect GPIO: %d\n",
+					ret_val);
+				/* fall through */
+			case -EPROBE_DEFER:
+				put_device(codec_dev);
+				return ret_val;
+			}
+		}
+	}
+
+	put_device(codec_dev);
 
 	log_quirks(&pdev->dev);
 
@@ -876,11 +1070,25 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (byt_rt5651_quirk & BYT_RT5651_HP_LR_SWAPPED)
+		hp_swapped = "-hp-swapped";
+	else
+		hp_swapped = "";
+
 	snprintf(byt_rt5651_long_name, sizeof(byt_rt5651_long_name),
-		 "bytcr-rt5651-%s-intmic-%s-hsmic",
-		 intmic_name[BYT_RT5651_MAP(byt_rt5651_quirk)],
-		 hsmic_name[BYT_RT5651_MAP(byt_rt5651_quirk)]);
+		 "bytcr-rt5651-%s-spk-%s-mic%s",
+		 (byt_rt5651_quirk & BYT_RT5651_MONO_SPEAKER) ?
+			"mono" : "stereo",
+		 mic_name[BYT_RT5651_MAP(byt_rt5651_quirk)], hp_swapped);
 	byt_rt5651_card.long_name = byt_rt5651_long_name;
+
+	/* override plaform name, if required */
+	platform_name = mach->mach_params.platform;
+
+	ret_val = snd_soc_fixup_dai_links_platform_name(&byt_rt5651_card,
+							platform_name);
+	if (ret_val)
+		return ret_val;
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5651_card);
 

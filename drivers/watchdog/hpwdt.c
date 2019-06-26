@@ -26,7 +26,7 @@
 #include <linux/watchdog.h>
 #include <asm/nmi.h>
 
-#define HPWDT_VERSION			"2.0.0"
+#define HPWDT_VERSION			"2.0.2"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
@@ -50,6 +50,11 @@ static const struct pci_device_id hpwdt_devices[] = {
 };
 MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
+static const struct pci_device_id hpwdt_blacklist[] = {
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_HP, 0x3306, PCI_VENDOR_ID_HP, 0x1979) }, /* auxilary iLO */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_HP, 0x3306, PCI_VENDOR_ID_HP_3PAR, 0x0289) },  /* CL */
+	{0},			/* terminate list */
+};
 
 /*
  *	Watchdog operations
@@ -162,7 +167,7 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 	if (ilo5 && ulReason == NMI_UNKNOWN && !mynmi)
 		return NMI_DONE;
 
-	if (ilo5 && !pretimeout)
+	if (ilo5 && !pretimeout && !mynmi)
 		return NMI_DONE;
 
 	hpwdt_stop();
@@ -205,9 +210,7 @@ static struct watchdog_device hpwdt_dev = {
 	.min_timeout	= 1,
 	.max_timeout	= HPWDT_MAX_TIMER,
 	.timeout	= DEFAULT_MARGIN,
-#ifdef CONFIG_HPWDT_NMI_DECODING
 	.pretimeout	= PRETIMEOUT_SEC,
-#endif
 };
 
 
@@ -276,12 +279,10 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		return -ENODEV;
 	}
 
-	/*
-	 * Ignore all auxilary iLO devices with the following PCI ID
-	 */
-	if (dev->subsystem_vendor == PCI_VENDOR_ID_HP &&
-	    dev->subsystem_device == 0x1979)
+	if (pci_match_id(hpwdt_blacklist, dev)) {
+		dev_dbg(&dev->dev, "Not supported on this device\n");
 		return -ENODEV;
+	}
 
 	if (pci_enable_device(dev)) {
 		dev_warn(&dev->dev,
@@ -313,6 +314,12 @@ static int hpwdt_init_one(struct pci_dev *dev,
 	if (watchdog_init_timeout(&hpwdt_dev, soft_margin, NULL))
 		dev_warn(&dev->dev, "Invalid soft_margin: %d.\n", soft_margin);
 
+	if (pretimeout && hpwdt_dev.timeout <= PRETIMEOUT_SEC) {
+		dev_warn(&dev->dev, "timeout <= pretimeout. Setting pretimeout to zero\n");
+		pretimeout = 0;
+	}
+	hpwdt_dev.pretimeout = pretimeout ? PRETIMEOUT_SEC : 0;
+
 	hpwdt_dev.parent = &dev->dev;
 	retval = watchdog_register_device(&hpwdt_dev);
 	if (retval < 0) {
@@ -320,9 +327,12 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		goto error_wd_register;
 	}
 
-	dev_info(&dev->dev, "HPE Watchdog Timer Driver: %s"
-			", timer margin: %d seconds (nowayout=%d).\n",
-			HPWDT_VERSION, hpwdt_dev.timeout, nowayout);
+	dev_info(&dev->dev, "HPE Watchdog Timer Driver: Version: %s\n",
+				HPWDT_VERSION);
+	dev_info(&dev->dev, "timeout: %d seconds (nowayout=%d)\n",
+				hpwdt_dev.timeout, nowayout);
+	dev_info(&dev->dev, "pretimeout: %s.\n",
+				pretimeout ? "on" : "off");
 
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_HP_3PAR)
 		ilo5 = true;
@@ -363,6 +373,9 @@ MODULE_VERSION(HPWDT_VERSION);
 
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");
+
+module_param_named(timeout, soft_margin, int, 0);
+MODULE_PARM_DESC(timeout, "Alias of soft_margin");
 
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="

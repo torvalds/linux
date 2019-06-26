@@ -1,3 +1,5 @@
+.. _magicnumbers:
+
 Linux magic numbers
 ===================
 

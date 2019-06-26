@@ -291,6 +291,7 @@ static int cb_pcidda_ao_insn_write(struct comedi_device *dev,
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int ctrl;
+	unsigned int i;
 
 	if (range != devpriv->ao_range[channel])
 		cb_pcidda_calibrate(dev, channel, range);
@@ -317,7 +318,8 @@ static int cb_pcidda_ao_insn_write(struct comedi_device *dev,
 
 	outw(ctrl, devpriv->daqio + CB_DDA_DA_CTRL_REG);
 
-	outw(data[0], devpriv->daqio + CB_DDA_DA_DATA_REG(channel));
+	for (i = 0; i < insn->n; i++)
+		outw(data[i], devpriv->daqio + CB_DDA_DA_DATA_REG(channel));
 
 	return insn->n;
 }

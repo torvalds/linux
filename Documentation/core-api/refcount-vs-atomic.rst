@@ -54,6 +54,13 @@ must propagate to all other CPUs before the release operation
 (A-cumulative property). This is implemented using
 :c:func:`smp_store_release`.
 
+An ACQUIRE memory ordering guarantees that all post loads and
+stores (all po-later instructions) on the same CPU are
+completed after the acquire operation. It also guarantees that all
+po-later stores on the same CPU must propagate to all other CPUs
+after the acquire operation executes. This is implemented using
+:c:func:`smp_acquire__after_ctrl_dep`.
+
 A control dependency (on success) for refcounters guarantees that
 if a reference for an object was successfully obtained (reference
 counter increment or addition happened, function returned true),
@@ -119,13 +126,24 @@ Memory ordering guarantees changes:
    result of obtaining pointer to the object!
 
 
-case 5) - decrement-based RMW ops that return a value
------------------------------------------------------
+case 5) - generic dec/sub decrement-based RMW ops that return a value
+---------------------------------------------------------------------
 
 Function changes:
 
  * :c:func:`atomic_dec_and_test` --> :c:func:`refcount_dec_and_test`
  * :c:func:`atomic_sub_and_test` --> :c:func:`refcount_sub_and_test`
+
+Memory ordering guarantees changes:
+
+ * fully ordered --> RELEASE ordering + ACQUIRE ordering on success
+
+
+case 6) other decrement-based RMW ops that return a value
+---------------------------------------------------------
+
+Function changes:
+
  * no atomic counterpart --> :c:func:`refcount_dec_if_one`
  * ``atomic_add_unless(&var, -1, 1)`` --> ``refcount_dec_not_one(&var)``
 
@@ -136,7 +154,7 @@ Memory ordering guarantees changes:
 .. note:: :c:func:`atomic_add_unless` only provides full order on success.
 
 
-case 6) - lock-based RMW
+case 7) - lock-based RMW
 ------------------------
 
 Function changes:

@@ -15,6 +15,7 @@
 	};
 
 	memory@90000000 {
+		device_type = "memory";
 		reg = <0x90000000 0x20000000>;
 	};
 
@@ -170,20 +171,15 @@
 		mux-ext-port = <3>;
 	};
 
-	usbphy {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "simple-bus";
-
-		usbh1phy: usbh1phy@0 {
-			compatible = "usb-nop-xceiv";
-			reg = <0>;
-			clocks = <&clk_usb>;
-			clock-names = "main_clk";
-			reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
-			vcc-supply = <&vusb_reg>;
-			#phy-cells = <0>;
-		};
+	usbphy1: usbphy1 {
+		compatible = "usb-nop-xceiv";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbh1reg>;
+		clocks = <&clk_usb>;
+		clock-names = "main_clk";
+		reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&vusb_reg>;
+		#phy-cells = <0>;
 	};
 };
 
@@ -209,6 +205,7 @@
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		fsl,mc13xxx-uses-adc;
 		fsl,mc13xxx-uses-rtc;
 
 		regulators {
@@ -401,6 +398,10 @@
 	status = "okay";
 };
 
+&pmu {
+	secure-reg-access;
+};
+
 &ssi2 {
 	status = "okay";
 };
@@ -429,7 +430,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh1>;
 	vbus-supply = <&reg_hub_reset>;
-	fsl,usbphy = <&usbh1phy>;
+	fsl,usbphy = <&usbphy1>;
 	phy_type = "ulpi";
 	status = "okay";
 };

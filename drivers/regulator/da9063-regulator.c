@@ -98,7 +98,7 @@ struct da9063_regulator_info {
 struct da9063_dev_model {
 	const struct da9063_regulator_info	*regulator_info;
 	unsigned				n_regulators;
-	unsigned				dev_model;
+	enum da9063_type			type;
 };
 
 /* Single regulator settings */
@@ -167,7 +167,7 @@ static int da9063_set_current_limit(struct regulator_dev *rdev,
 	const struct da9063_regulator_info *rinfo = regl->info;
 	int n, tval;
 
-	for (n = 0; n < rinfo->n_current_limits; n++) {
+	for (n = rinfo->n_current_limits - 1; n >= 0; n--) {
 		tval = rinfo->current_limits[n];
 		if (tval >= min_uA && tval <= max_uA)
 			return regmap_field_write(regl->ilimit, n);
@@ -530,30 +530,9 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 				 DA9063_BMEM_ILIM_MASK),
 	},
 	{
-		DA9063_LDO(DA9063, LDO1, 600, 20, 1860),
-		.suspend = BFIELD(DA9063_REG_DVC_1, DA9063_VLDO1_SEL),
-	},
-	{
-		DA9063_LDO(DA9063, LDO2, 600, 20, 1860),
-		.suspend = BFIELD(DA9063_REG_DVC_1, DA9063_VLDO2_SEL),
-	},
-	{
 		DA9063_LDO(DA9063, LDO3, 900, 20, 3440),
 		.suspend = BFIELD(DA9063_REG_DVC_1, DA9063_VLDO3_SEL),
 		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO3_LIM),
-	},
-	{
-		DA9063_LDO(DA9063, LDO4, 900, 20, 3440),
-		.suspend = BFIELD(DA9063_REG_DVC_2, DA9063_VLDO4_SEL),
-		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO4_LIM),
-	},
-	{
-		DA9063_LDO(DA9063, LDO5, 900, 50, 3600),
-		.suspend = BFIELD(DA9063_REG_LDO5_CONT, DA9063_VLDO5_SEL),
-	},
-	{
-		DA9063_LDO(DA9063, LDO6, 900, 50, 3600),
-		.suspend = BFIELD(DA9063_REG_LDO6_CONT, DA9063_VLDO6_SEL),
 	},
 	{
 		DA9063_LDO(DA9063, LDO7, 900, 50, 3600),
@@ -570,13 +549,37 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 		.suspend = BFIELD(DA9063_REG_LDO9_CONT, DA9063_VLDO9_SEL),
 	},
 	{
-		DA9063_LDO(DA9063, LDO10, 900, 50, 3600),
-		.suspend = BFIELD(DA9063_REG_LDO10_CONT, DA9063_VLDO10_SEL),
-	},
-	{
 		DA9063_LDO(DA9063, LDO11, 900, 50, 3600),
 		.suspend = BFIELD(DA9063_REG_LDO11_CONT, DA9063_VLDO11_SEL),
 		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO11_LIM),
+	},
+
+	/* The following LDOs are present only on DA9063, not on DA9063L */
+	{
+		DA9063_LDO(DA9063, LDO1, 600, 20, 1860),
+		.suspend = BFIELD(DA9063_REG_DVC_1, DA9063_VLDO1_SEL),
+	},
+	{
+		DA9063_LDO(DA9063, LDO2, 600, 20, 1860),
+		.suspend = BFIELD(DA9063_REG_DVC_1, DA9063_VLDO2_SEL),
+	},
+	{
+		DA9063_LDO(DA9063, LDO4, 900, 20, 3440),
+		.suspend = BFIELD(DA9063_REG_DVC_2, DA9063_VLDO4_SEL),
+		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO4_LIM),
+	},
+	{
+		DA9063_LDO(DA9063, LDO5, 900, 50, 3600),
+		.suspend = BFIELD(DA9063_REG_LDO5_CONT, DA9063_VLDO5_SEL),
+	},
+	{
+		DA9063_LDO(DA9063, LDO6, 900, 50, 3600),
+		.suspend = BFIELD(DA9063_REG_LDO6_CONT, DA9063_VLDO6_SEL),
+	},
+
+	{
+		DA9063_LDO(DA9063, LDO10, 900, 50, 3600),
+		.suspend = BFIELD(DA9063_REG_LDO10_CONT, DA9063_VLDO10_SEL),
 	},
 };
 
@@ -585,7 +588,12 @@ static struct da9063_dev_model regulators_models[] = {
 	{
 		.regulator_info = da9063_regulator_info,
 		.n_regulators = ARRAY_SIZE(da9063_regulator_info),
-		.dev_model = PMIC_DA9063,
+		.type = PMIC_TYPE_DA9063,
+	},
+	{
+		.regulator_info = da9063_regulator_info,
+		.n_regulators = ARRAY_SIZE(da9063_regulator_info) - 6,
+		.type = PMIC_TYPE_DA9063L,
 	},
 	{ }
 };
@@ -641,27 +649,33 @@ static struct of_regulator_match da9063_matches[] = {
 	[DA9063_ID_BPERI]            = { .name = "bperi",           },
 	[DA9063_ID_BCORES_MERGED]    = { .name = "bcores-merged"    },
 	[DA9063_ID_BMEM_BIO_MERGED]  = { .name = "bmem-bio-merged", },
-	[DA9063_ID_LDO1]             = { .name = "ldo1",            },
-	[DA9063_ID_LDO2]             = { .name = "ldo2",            },
 	[DA9063_ID_LDO3]             = { .name = "ldo3",            },
-	[DA9063_ID_LDO4]             = { .name = "ldo4",            },
-	[DA9063_ID_LDO5]             = { .name = "ldo5",            },
-	[DA9063_ID_LDO6]             = { .name = "ldo6",            },
 	[DA9063_ID_LDO7]             = { .name = "ldo7",            },
 	[DA9063_ID_LDO8]             = { .name = "ldo8",            },
 	[DA9063_ID_LDO9]             = { .name = "ldo9",            },
-	[DA9063_ID_LDO10]            = { .name = "ldo10",           },
 	[DA9063_ID_LDO11]            = { .name = "ldo11",           },
+	/* The following LDOs are present only on DA9063, not on DA9063L */
+	[DA9063_ID_LDO1]             = { .name = "ldo1",            },
+	[DA9063_ID_LDO2]             = { .name = "ldo2",            },
+	[DA9063_ID_LDO4]             = { .name = "ldo4",            },
+	[DA9063_ID_LDO5]             = { .name = "ldo5",            },
+	[DA9063_ID_LDO6]             = { .name = "ldo6",            },
+	[DA9063_ID_LDO10]            = { .name = "ldo10",           },
 };
 
 static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 		struct platform_device *pdev,
 		struct of_regulator_match **da9063_reg_matches)
 {
+	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
 	struct da9063_regulators_pdata *pdata;
 	struct da9063_regulator_data *rdata;
 	struct device_node *node;
+	int da9063_matches_len = ARRAY_SIZE(da9063_matches);
 	int i, n, num;
+
+	if (da9063->type == PMIC_TYPE_DA9063L)
+		da9063_matches_len -= 6;
 
 	node = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
 	if (!node) {
@@ -670,7 +684,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 	}
 
 	num = of_regulator_match(&pdev->dev, node, da9063_matches,
-				 ARRAY_SIZE(da9063_matches));
+				 da9063_matches_len);
 	of_node_put(node);
 	if (num < 0) {
 		dev_err(&pdev->dev, "Failed to match regulators\n");
@@ -689,7 +703,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 	pdata->n_regulators = num;
 
 	n = 0;
-	for (i = 0; i < ARRAY_SIZE(da9063_matches); i++) {
+	for (i = 0; i < da9063_matches_len; i++) {
 		if (!da9063_matches[i].init_data)
 			continue;
 
@@ -725,7 +739,6 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config;
 	bool bcores_merged, bmem_bio_merged;
 	int id, irq, n, n_regulators, ret, val;
-	size_t size;
 
 	regl_pdata = da9063_pdata ? da9063_pdata->regulators_pdata : NULL;
 
@@ -741,12 +754,12 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 
 	/* Find regulators set for particular device model */
 	for (model = regulators_models; model->regulator_info; model++) {
-		if (model->dev_model == da9063->model)
+		if (model->type == da9063->type)
 			break;
 	}
 	if (!model->regulator_info) {
 		dev_err(&pdev->dev, "Chip model not recognised (%u)\n",
-			da9063->model);
+			da9063->type);
 		return -ENODEV;
 	}
 
@@ -770,9 +783,8 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		n_regulators--;    /* remove BMEM_BIO_MERGED */
 
 	/* Allocate memory required by usable regulators */
-	size = sizeof(struct da9063_regulators) +
-		n_regulators * sizeof(struct da9063_regulator);
-	regulators = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	regulators = devm_kzalloc(&pdev->dev, struct_size(regulators,
+				  regulator, n_regulators), GFP_KERNEL);
 	if (!regulators)
 		return -ENOMEM;
 
@@ -821,21 +833,40 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		regl->desc.type = REGULATOR_VOLTAGE;
 		regl->desc.owner = THIS_MODULE;
 
-		if (regl->info->mode.reg)
+		if (regl->info->mode.reg) {
 			regl->mode = devm_regmap_field_alloc(&pdev->dev,
 					da9063->regmap, regl->info->mode);
-		if (regl->info->suspend.reg)
+			if (IS_ERR(regl->mode))
+				return PTR_ERR(regl->mode);
+		}
+
+		if (regl->info->suspend.reg) {
 			regl->suspend = devm_regmap_field_alloc(&pdev->dev,
 					da9063->regmap, regl->info->suspend);
-		if (regl->info->sleep.reg)
+			if (IS_ERR(regl->suspend))
+				return PTR_ERR(regl->suspend);
+		}
+
+		if (regl->info->sleep.reg) {
 			regl->sleep = devm_regmap_field_alloc(&pdev->dev,
 					da9063->regmap, regl->info->sleep);
-		if (regl->info->suspend_sleep.reg)
+			if (IS_ERR(regl->sleep))
+				return PTR_ERR(regl->sleep);
+		}
+
+		if (regl->info->suspend_sleep.reg) {
 			regl->suspend_sleep = devm_regmap_field_alloc(&pdev->dev,
 					da9063->regmap, regl->info->suspend_sleep);
-		if (regl->info->ilimit.reg)
+			if (IS_ERR(regl->suspend_sleep))
+				return PTR_ERR(regl->suspend_sleep);
+		}
+
+		if (regl->info->ilimit.reg) {
 			regl->ilimit = devm_regmap_field_alloc(&pdev->dev,
 					da9063->regmap, regl->info->ilimit);
+			if (IS_ERR(regl->ilimit))
+				return PTR_ERR(regl->ilimit);
+		}
 
 		/* Register regulator */
 		memset(&config, 0, sizeof(config));

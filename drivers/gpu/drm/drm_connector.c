@@ -20,11 +20,15 @@
  * OF THIS SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_utils.h>
+#include <drm/drm_print.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+
+#include <linux/uaccess.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -48,7 +52,7 @@
  *
  * Connectors must be attached to an encoder to be used. For devices that map
  * connectors to encoders 1:1, the connector should be attached at
- * initialization time with a call to drm_mode_connector_attach_encoder(). The
+ * initialization time with a call to drm_connector_attach_encoder(). The
  * driver must also set the &drm_connector.encoder field to point to the
  * attached encoder.
  *
@@ -87,6 +91,7 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] = {
 	{ DRM_MODE_CONNECTOR_VIRTUAL, "Virtual" },
 	{ DRM_MODE_CONNECTOR_DSI, "DSI" },
 	{ DRM_MODE_CONNECTOR_DPI, "DPI" },
+	{ DRM_MODE_CONNECTOR_WRITEBACK, "Writeback" },
 };
 
 void drm_connector_ida_init(void)
@@ -195,6 +200,10 @@ int drm_connector_init(struct drm_device *dev,
 	struct ida *connector_ida =
 		&drm_connector_enum_list[connector_type].ida;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(dev) &&
+		(!funcs->atomic_destroy_state ||
+		 !funcs->atomic_duplicate_state));
+
 	ret = __drm_mode_object_add(dev, &connector->base,
 				    DRM_MODE_OBJECT_CONNECTOR,
 				    false, drm_connector_free);
@@ -249,10 +258,9 @@ int drm_connector_init(struct drm_device *dev,
 	config->num_connector++;
 	spin_unlock_irq(&config->connector_list_lock);
 
-	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL)
-		drm_object_attach_property(&connector->base,
-					      config->edid_property,
-					      0);
+	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL &&
+	    connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
+		drm_connector_attach_edid_property(connector);
 
 	drm_object_attach_property(&connector->base,
 				      config->dpms_property, 0);
@@ -285,7 +293,25 @@ out_put:
 EXPORT_SYMBOL(drm_connector_init);
 
 /**
- * drm_mode_connector_attach_encoder - attach a connector to an encoder
+ * drm_connector_attach_edid_property - attach edid property.
+ * @connector: the connector
+ *
+ * Some connector types like DRM_MODE_CONNECTOR_VIRTUAL do not get a
+ * edid property attached by default.  This function can be used to
+ * explicitly enable the edid property in these cases.
+ */
+void drm_connector_attach_edid_property(struct drm_connector *connector)
+{
+	struct drm_mode_config *config = &connector->dev->mode_config;
+
+	drm_object_attach_property(&connector->base,
+				   config->edid_property,
+				   0);
+}
+EXPORT_SYMBOL(drm_connector_attach_edid_property);
+
+/**
+ * drm_connector_attach_encoder - attach a connector to an encoder
  * @connector: connector to attach
  * @encoder: encoder to attach @connector to
  *
@@ -296,8 +322,8 @@ EXPORT_SYMBOL(drm_connector_init);
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_connector_attach_encoder(struct drm_connector *connector,
-				      struct drm_encoder *encoder)
+int drm_connector_attach_encoder(struct drm_connector *connector,
+				 struct drm_encoder *encoder)
 {
 	int i;
 
@@ -315,7 +341,7 @@ int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 	if (WARN_ON(connector->encoder))
 		return -EINVAL;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+	for (i = 0; i < ARRAY_SIZE(connector->encoder_ids); i++) {
 		if (connector->encoder_ids[i] == 0) {
 			connector->encoder_ids[i] = encoder->base.id;
 			return 0;
@@ -323,7 +349,30 @@ int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 	}
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(drm_mode_connector_attach_encoder);
+EXPORT_SYMBOL(drm_connector_attach_encoder);
+
+/**
+ * drm_connector_has_possible_encoder - check if the connector and encoder are assosicated with each other
+ * @connector: the connector
+ * @encoder: the encoder
+ *
+ * Returns:
+ * True if @encoder is one of the possible encoders for @connector.
+ */
+bool drm_connector_has_possible_encoder(struct drm_connector *connector,
+					struct drm_encoder *encoder)
+{
+	struct drm_encoder *enc;
+	int i;
+
+	drm_connector_for_each_possible_encoder(connector, enc, i) {
+		if (enc == encoder)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_connector_has_possible_encoder);
 
 static void drm_mode_remove(struct drm_connector *connector,
 			    struct drm_display_mode *mode)
@@ -346,7 +395,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	/* The connector should have been removed from userspace long before
 	 * it is finally destroyed.
 	 */
-	if (WARN_ON(connector->registered))
+	if (WARN_ON(connector->registration_state ==
+		    DRM_CONNECTOR_REGISTERED))
 		drm_connector_unregister(connector);
 
 	if (connector->tile_group) {
@@ -403,7 +453,7 @@ int drm_connector_register(struct drm_connector *connector)
 		return 0;
 
 	mutex_lock(&connector->mutex);
-	if (connector->registered)
+	if (connector->registration_state != DRM_CONNECTOR_INITIALIZING)
 		goto unlock;
 
 	ret = drm_sysfs_connector_add(connector);
@@ -423,7 +473,7 @@ int drm_connector_register(struct drm_connector *connector)
 
 	drm_mode_object_register(connector->dev, &connector->base);
 
-	connector->registered = true;
+	connector->registration_state = DRM_CONNECTOR_REGISTERED;
 	goto unlock;
 
 err_debugfs:
@@ -445,7 +495,7 @@ EXPORT_SYMBOL(drm_connector_register);
 void drm_connector_unregister(struct drm_connector *connector)
 {
 	mutex_lock(&connector->mutex);
-	if (!connector->registered) {
+	if (connector->registration_state != DRM_CONNECTOR_REGISTERED) {
 		mutex_unlock(&connector->mutex);
 		return;
 	}
@@ -456,7 +506,7 @@ void drm_connector_unregister(struct drm_connector *connector)
 	drm_sysfs_connector_remove(connector);
 	drm_debugfs_connector_remove(connector);
 
-	connector->registered = false;
+	connector->registration_state = DRM_CONNECTOR_UNREGISTERED;
 	mutex_unlock(&connector->mutex);
 }
 EXPORT_SYMBOL(drm_connector_unregister);
@@ -577,7 +627,7 @@ __drm_connector_put_safe(struct drm_connector *conn)
 
 /**
  * drm_connector_list_iter_next - return next connector
- * @iter: connectr_list iterator
+ * @iter: connector_list iterator
  *
  * Returns the next connector for @iter, or NULL when the list walk has
  * completed.
@@ -720,6 +770,14 @@ static const struct drm_prop_enum_list drm_aspect_ratio_enum_list[] = {
 	{ DRM_MODE_PICTURE_ASPECT_16_9, "16:9" },
 };
 
+static const struct drm_prop_enum_list drm_content_type_enum_list[] = {
+	{ DRM_MODE_CONTENT_TYPE_NO_DATA, "No Data" },
+	{ DRM_MODE_CONTENT_TYPE_GRAPHICS, "Graphics" },
+	{ DRM_MODE_CONTENT_TYPE_PHOTO, "Photo" },
+	{ DRM_MODE_CONTENT_TYPE_CINEMA, "Cinema" },
+	{ DRM_MODE_CONTENT_TYPE_GAME, "Game" },
+};
+
 static const struct drm_prop_enum_list drm_panel_orientation_enum_list[] = {
 	{ DRM_MODE_PANEL_ORIENTATION_NORMAL,	"Normal"	},
 	{ DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP,	"Upside Down"	},
@@ -777,7 +835,7 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  * 	Blob property which contains the current EDID read from the sink. This
  * 	is useful to parse sink identification information like vendor, model
  * 	and serial. Drivers should update this property by calling
- * 	drm_mode_connector_update_edid_property(), usually after having parsed
+ * 	drm_connector_update_edid_property(), usually after having parsed
  * 	the EDID using drm_add_edid_modes(). Userspace cannot change this
  * 	property.
  * DPMS:
@@ -815,7 +873,7 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  * PATH:
  * 	Connector path property to identify how this sink is physically
  * 	connected. Used by DP MST. This should be set by calling
- * 	drm_mode_connector_set_path_property(), in the case of DP MST with the
+ * 	drm_connector_set_path_property(), in the case of DP MST with the
  * 	path property the MST manager created. Userspace cannot change this
  * 	property.
  * TILE:
@@ -826,14 +884,14 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  * 	are not gen-locked. Note that for tiled panels which are genlocked, like
  * 	dual-link LVDS or dual-link DSI, the driver should try to not expose the
  * 	tiling and virtualize both &drm_crtc and &drm_plane if needed. Drivers
- * 	should update this value using drm_mode_connector_set_tile_property().
+ * 	should update this value using drm_connector_set_tile_property().
  * 	Userspace cannot change this property.
  * link-status:
  *      Connector link-status property to indicate the status of link. The
  *      default value of link-status is "GOOD". If something fails during or
  *      after modeset, the kernel driver may set this to "BAD" and issue a
  *      hotplug uevent. Drivers should update this value using
- *      drm_mode_connector_set_link_status_property().
+ *      drm_connector_set_link_status_property().
  * non_desktop:
  * 	Indicates the output should be ignored for purposes of displaying a
  * 	standard desktop environment or console. This is most likely because
@@ -873,6 +931,13 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  *	  the value transitions from ENABLED to DESIRED. This signifies the link
  *	  is no longer protected and userspace should take appropriate action
  *	  (whatever that might be).
+ *
+ * max bpc:
+ *	This range property is used by userspace to limit the bit depth. When
+ *	used the driver would limit the bpc in accordance with the valid range
+ *	supported by the hardware and sink. Drivers to use the function
+ *	drm_connector_attach_max_bpc_property() to create and attach the
+ *	property to the connector during initialization.
  *
  * Connectors also have one standardized atomic property:
  *
@@ -997,7 +1062,147 @@ int drm_mode_create_dvi_i_properties(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
 
 /**
- * drm_create_tv_properties - create TV specific connector properties
+ * DOC: HDMI connector properties
+ *
+ * content type (HDMI specific):
+ *	Indicates content type setting to be used in HDMI infoframes to indicate
+ *	content type for the external device, so that it adjusts its display
+ *	settings accordingly.
+ *
+ *	The value of this property can be one of the following:
+ *
+ *	No Data:
+ *		Content type is unknown
+ *	Graphics:
+ *		Content type is graphics
+ *	Photo:
+ *		Content type is photo
+ *	Cinema:
+ *		Content type is cinema
+ *	Game:
+ *		Content type is game
+ *
+ *	Drivers can set up this property by calling
+ *	drm_connector_attach_content_type_property(). Decoding to
+ *	infoframe values is done through drm_hdmi_avi_infoframe_content_type().
+ */
+
+/**
+ * drm_connector_attach_content_type_property - attach content-type property
+ * @connector: connector to attach content type property on.
+ *
+ * Called by a driver the first time a HDMI connector is made.
+ */
+int drm_connector_attach_content_type_property(struct drm_connector *connector)
+{
+	if (!drm_mode_create_content_type_property(connector->dev))
+		drm_object_attach_property(&connector->base,
+					   connector->dev->mode_config.content_type_property,
+					   DRM_MODE_CONTENT_TYPE_NO_DATA);
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_content_type_property);
+
+
+/**
+ * drm_hdmi_avi_infoframe_content_type() - fill the HDMI AVI infoframe
+ *                                         content type information, based
+ *                                         on correspondent DRM property.
+ * @frame: HDMI AVI infoframe
+ * @conn_state: DRM display connector state
+ *
+ */
+void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
+					 const struct drm_connector_state *conn_state)
+{
+	switch (conn_state->content_type) {
+	case DRM_MODE_CONTENT_TYPE_GRAPHICS:
+		frame->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
+		break;
+	case DRM_MODE_CONTENT_TYPE_CINEMA:
+		frame->content_type = HDMI_CONTENT_TYPE_CINEMA;
+		break;
+	case DRM_MODE_CONTENT_TYPE_GAME:
+		frame->content_type = HDMI_CONTENT_TYPE_GAME;
+		break;
+	case DRM_MODE_CONTENT_TYPE_PHOTO:
+		frame->content_type = HDMI_CONTENT_TYPE_PHOTO;
+		break;
+	default:
+		/* Graphics is the default(0) */
+		frame->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
+	}
+
+	frame->itc = conn_state->content_type != DRM_MODE_CONTENT_TYPE_NO_DATA;
+}
+EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);
+
+/**
+ * drm_mode_attach_tv_margin_properties - attach TV connector margin properties
+ * @connector: DRM connector
+ *
+ * Called by a driver when it needs to attach TV margin props to a connector.
+ * Typically used on SDTV and HDMI connectors.
+ */
+void drm_connector_attach_tv_margin_properties(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_left_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_right_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_top_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_bottom_margin_property,
+				   0);
+}
+EXPORT_SYMBOL(drm_connector_attach_tv_margin_properties);
+
+/**
+ * drm_mode_create_tv_margin_properties - create TV connector margin properties
+ * @dev: DRM device
+ *
+ * Called by a driver's HDMI connector initialization routine, this function
+ * creates the TV margin properties for a given device. No need to call this
+ * function for an SDTV connector, it's already called from
+ * drm_mode_create_tv_properties().
+ */
+int drm_mode_create_tv_margin_properties(struct drm_device *dev)
+{
+	if (dev->mode_config.tv_left_margin_property)
+		return 0;
+
+	dev->mode_config.tv_left_margin_property =
+		drm_property_create_range(dev, 0, "left margin", 0, 100);
+	if (!dev->mode_config.tv_left_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_right_margin_property =
+		drm_property_create_range(dev, 0, "right margin", 0, 100);
+	if (!dev->mode_config.tv_right_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_top_margin_property =
+		drm_property_create_range(dev, 0, "top margin", 0, 100);
+	if (!dev->mode_config.tv_top_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_bottom_margin_property =
+		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
+	if (!dev->mode_config.tv_bottom_margin_property)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_tv_margin_properties);
+
+/**
+ * drm_mode_create_tv_properties - create TV specific connector properties
  * @dev: DRM device
  * @num_modes: number of different TV formats (modes) supported
  * @modes: array of pointers to strings containing name of each format
@@ -1042,24 +1247,7 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 	/*
 	 * Other, TV specific properties: margins & TV modes.
 	 */
-	dev->mode_config.tv_left_margin_property =
-		drm_property_create_range(dev, 0, "left margin", 0, 100);
-	if (!dev->mode_config.tv_left_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_right_margin_property =
-		drm_property_create_range(dev, 0, "right margin", 0, 100);
-	if (!dev->mode_config.tv_right_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_top_margin_property =
-		drm_property_create_range(dev, 0, "top margin", 0, 100);
-	if (!dev->mode_config.tv_top_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_bottom_margin_property =
-		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
-	if (!dev->mode_config.tv_bottom_margin_property)
+	if (drm_mode_create_tv_margin_properties(dev))
 		goto nomem;
 
 	dev->mode_config.tv_mode_property =
@@ -1136,6 +1324,105 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
+
+/**
+ * DOC: Variable refresh properties
+ *
+ * Variable refresh rate capable displays can dynamically adjust their
+ * refresh rate by extending the duration of their vertical front porch
+ * until page flip or timeout occurs. This can reduce or remove stuttering
+ * and latency in scenarios where the page flip does not align with the
+ * vblank interval.
+ *
+ * An example scenario would be an application flipping at a constant rate
+ * of 48Hz on a 60Hz display. The page flip will frequently miss the vblank
+ * interval and the same contents will be displayed twice. This can be
+ * observed as stuttering for content with motion.
+ *
+ * If variable refresh rate was active on a display that supported a
+ * variable refresh range from 35Hz to 60Hz no stuttering would be observable
+ * for the example scenario. The minimum supported variable refresh rate of
+ * 35Hz is below the page flip frequency and the vertical front porch can
+ * be extended until the page flip occurs. The vblank interval will be
+ * directly aligned to the page flip rate.
+ *
+ * Not all userspace content is suitable for use with variable refresh rate.
+ * Large and frequent changes in vertical front porch duration may worsen
+ * perceived stuttering for input sensitive applications.
+ *
+ * Panel brightness will also vary with vertical front porch duration. Some
+ * panels may have noticeable differences in brightness between the minimum
+ * vertical front porch duration and the maximum vertical front porch duration.
+ * Large and frequent changes in vertical front porch duration may produce
+ * observable flickering for such panels.
+ *
+ * Userspace control for variable refresh rate is supported via properties
+ * on the &drm_connector and &drm_crtc objects.
+ *
+ * "vrr_capable":
+ *	Optional &drm_connector boolean property that drivers should attach
+ *	with drm_connector_attach_vrr_capable_property() on connectors that
+ *	could support variable refresh rates. Drivers should update the
+ *	property value by calling drm_connector_set_vrr_capable_property().
+ *
+ *	Absence of the property should indicate absence of support.
+ *
+ * "VRR_ENABLED":
+ *	Default &drm_crtc boolean property that notifies the driver that the
+ *	content on the CRTC is suitable for variable refresh rate presentation.
+ *	The driver will take this property as a hint to enable variable
+ *	refresh rate support if the receiver supports it, ie. if the
+ *	"vrr_capable" property is true on the &drm_connector object. The
+ *	vertical front porch duration will be extended until page-flip or
+ *	timeout when enabled.
+ *
+ *	The minimum vertical front porch duration is defined as the vertical
+ *	front porch duration for the current mode.
+ *
+ *	The maximum vertical front porch duration is greater than or equal to
+ *	the minimum vertical front porch duration. The duration is derived
+ *	from the minimum supported variable refresh rate for the connector.
+ *
+ *	The driver may place further restrictions within these minimum
+ *	and maximum bounds.
+ *
+ *	The semantics for the vertical blank timestamp differ when
+ *	variable refresh rate is active. The vertical blank timestamp
+ *	is defined to be an estimate using the current mode's fixed
+ *	refresh rate timings. The semantics for the page-flip event
+ *	timestamp remain the same.
+ */
+
+/**
+ * drm_connector_attach_vrr_capable_property - creates the
+ * vrr_capable property
+ * @connector: connector to create the vrr_capable property on.
+ *
+ * This is used by atomic drivers to add support for querying
+ * variable refresh rate capability for a connector.
+ *
+ * Returns:
+ * Zero on success, negative errono on failure.
+ */
+int drm_connector_attach_vrr_capable_property(
+	struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	if (!connector->vrr_capable_property) {
+		prop = drm_property_create_bool(dev, DRM_MODE_PROP_IMMUTABLE,
+			"vrr_capable");
+		if (!prop)
+			return -ENOMEM;
+
+		connector->vrr_capable_property = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_vrr_capable_property);
 
 /**
  * drm_connector_attach_scaling_mode_property - attach atomic scaling mode property
@@ -1261,6 +1548,33 @@ int drm_mode_create_aspect_ratio_property(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
 
 /**
+ * drm_mode_create_content_type_property - create content type property
+ * @dev: DRM device
+ *
+ * Called by a driver the first time it's needed, must be attached to desired
+ * connectors.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_mode_create_content_type_property(struct drm_device *dev)
+{
+	if (dev->mode_config.content_type_property)
+		return 0;
+
+	dev->mode_config.content_type_property =
+		drm_property_create_enum(dev, 0, "content type",
+					 drm_content_type_enum_list,
+					 ARRAY_SIZE(drm_content_type_enum_list));
+
+	if (dev->mode_config.content_type_property == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_content_type_property);
+
+/**
  * drm_mode_create_suggested_offset_properties - create suggests offset properties
  * @dev: DRM device
  *
@@ -1285,7 +1599,7 @@ int drm_mode_create_suggested_offset_properties(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_suggested_offset_properties);
 
 /**
- * drm_mode_connector_set_path_property - set tile property on connector
+ * drm_connector_set_path_property - set tile property on connector
  * @connector: connector to set property on.
  * @path: path to use for property; must not be NULL.
  *
@@ -1297,8 +1611,8 @@ EXPORT_SYMBOL(drm_mode_create_suggested_offset_properties);
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_connector_set_path_property(struct drm_connector *connector,
-					 const char *path)
+int drm_connector_set_path_property(struct drm_connector *connector,
+				    const char *path)
 {
 	struct drm_device *dev = connector->dev;
 	int ret;
@@ -1311,10 +1625,10 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 	                                       dev->mode_config.path_property);
 	return ret;
 }
-EXPORT_SYMBOL(drm_mode_connector_set_path_property);
+EXPORT_SYMBOL(drm_connector_set_path_property);
 
 /**
- * drm_mode_connector_set_tile_property - set tile property on connector
+ * drm_connector_set_tile_property - set tile property on connector
  * @connector: connector to set property on.
  *
  * This looks up the tile information for a connector, and creates a
@@ -1324,7 +1638,7 @@ EXPORT_SYMBOL(drm_mode_connector_set_path_property);
  * Returns:
  * Zero on success, errno on failure.
  */
-int drm_mode_connector_set_tile_property(struct drm_connector *connector)
+int drm_connector_set_tile_property(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	char tile[256];
@@ -1354,10 +1668,10 @@ int drm_mode_connector_set_tile_property(struct drm_connector *connector)
 	                                       dev->mode_config.tile_property);
 	return ret;
 }
-EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
+EXPORT_SYMBOL(drm_connector_set_tile_property);
 
 /**
- * drm_mode_connector_update_edid_property - update the edid property of a connector
+ * drm_connector_update_edid_property - update the edid property of a connector
  * @connector: drm connector
  * @edid: new value of the edid property
  *
@@ -1367,8 +1681,8 @@ EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-					    const struct edid *edid)
+int drm_connector_update_edid_property(struct drm_connector *connector,
+				       const struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
 	size_t size = 0;
@@ -1406,10 +1720,10 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	                                       dev->mode_config.edid_property);
 	return ret;
 }
-EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
+EXPORT_SYMBOL(drm_connector_update_edid_property);
 
 /**
- * drm_mode_connector_set_link_status_property - Set link status property of a connector
+ * drm_connector_set_link_status_property - Set link status property of a connector
  * @connector: drm connector
  * @link_status: new value of link status property (0: Good, 1: Bad)
  *
@@ -1427,8 +1741,8 @@ EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
  * it is not limited to DP or link training. For example, if we implement
  * asynchronous setcrtc, this property can be used to report any failures in that.
  */
-void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
-						 uint64_t link_status)
+void drm_connector_set_link_status_property(struct drm_connector *connector,
+					    uint64_t link_status)
 {
 	struct drm_device *dev = connector->dev;
 
@@ -1436,7 +1750,59 @@ void drm_mode_connector_set_link_status_property(struct drm_connector *connector
 	connector->state->link_status = link_status;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
-EXPORT_SYMBOL(drm_mode_connector_set_link_status_property);
+EXPORT_SYMBOL(drm_connector_set_link_status_property);
+
+/**
+ * drm_connector_attach_max_bpc_property - attach "max bpc" property
+ * @connector: connector to attach max bpc property on.
+ * @min: The minimum bit depth supported by the connector.
+ * @max: The maximum bit depth supported by the connector.
+ *
+ * This is used to add support for limiting the bit depth on a connector.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_attach_max_bpc_property(struct drm_connector *connector,
+					  int min, int max)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	prop = connector->max_bpc_property;
+	if (!prop) {
+		prop = drm_property_create_range(dev, 0, "max bpc", min, max);
+		if (!prop)
+			return -ENOMEM;
+
+		connector->max_bpc_property = prop;
+	}
+
+	drm_object_attach_property(&connector->base, prop, max);
+	connector->state->max_requested_bpc = max;
+	connector->state->max_bpc = max;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_max_bpc_property);
+
+/**
+ * drm_connector_set_vrr_capable_property - sets the variable refresh rate
+ * capable property for a connector
+ * @connector: drm connector
+ * @capable: True if the connector is variable refresh rate capable
+ *
+ * Should be used by atomic drivers to update the indicated support for
+ * variable refresh rate over a connector.
+ */
+void drm_connector_set_vrr_capable_property(
+		struct drm_connector *connector, bool capable)
+{
+	drm_object_property_set_value(&connector->base,
+				      connector->vrr_capable_property,
+				      capable);
+}
+EXPORT_SYMBOL(drm_connector_set_vrr_capable_property);
 
 /**
  * drm_connector_init_panel_orientation_property -
@@ -1489,7 +1855,7 @@ int drm_connector_init_panel_orientation_property(
 }
 EXPORT_SYMBOL(drm_connector_init_panel_orientation_property);
 
-int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
+int drm_connector_set_obj_prop(struct drm_mode_object *obj,
 				    struct drm_property *property,
 				    uint64_t value)
 {
@@ -1507,8 +1873,8 @@ int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 	return ret;
 }
 
-int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
-				       void *data, struct drm_file *file_priv)
+int drm_connector_property_set_ioctl(struct drm_device *dev,
+				     void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_connector_set_property *conn_set_prop = data;
 	struct drm_mode_obj_set_property obj_set_prop = {
@@ -1581,7 +1947,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	LIST_HEAD(export_list);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
@@ -1589,22 +1955,19 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	if (!connector)
 		return -ENOENT;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
-		if (connector->encoder_ids[i] != 0)
-			encoders_count++;
+	drm_connector_for_each_possible_encoder(connector, encoder, i)
+		encoders_count++;
 
 	if ((out_resp->count_encoders >= encoders_count) && encoders_count) {
 		copied = 0;
 		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
-		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-			if (connector->encoder_ids[i] != 0) {
-				if (put_user(connector->encoder_ids[i],
-					     encoder_ptr + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
+
+		drm_connector_for_each_possible_encoder(connector, encoder, i) {
+			if (put_user(encoder->base.id, encoder_ptr + copied)) {
+				ret = -EFAULT;
+				goto out;
 			}
+			copied++;
 		}
 	}
 	out_resp->count_encoders = encoders_count;
@@ -1761,7 +2124,7 @@ EXPORT_SYMBOL(drm_mode_get_tile_group);
  * identifier for the tile group.
  *
  * RETURNS:
- * new tile group or error.
+ * new tile group or NULL.
  */
 struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 						  char topology[8])
@@ -1771,7 +2134,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
 	if (!tg)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	kref_init(&tg->refcount);
 	memcpy(tg->group_data, topology, 8);
@@ -1783,7 +2146,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 		tg->id = ret;
 	} else {
 		kfree(tg);
-		tg = ERR_PTR(ret);
+		tg = NULL;
 	}
 
 	mutex_unlock(&dev->mode_config.idr_mutex);

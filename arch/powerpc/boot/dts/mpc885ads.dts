@@ -72,7 +72,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
-		ranges = <0x0 0xff000000 0x4000>;
+		ranges = <0x0 0xff000000 0x28000>;
 		bus-frequency = <0>;
 
 		// Temporary -- will go away once kernel uses ranges for get_immrbase().
@@ -223,6 +223,17 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+		};
+
+		crypto@20000 {
+			compatible = "fsl,sec1.2", "fsl,sec1.0";
+			reg = <0x20000 0x8000>;
+			interrupts = <1 1>;
+			interrupt-parent = <&PIC>;
+			fsl,num-channels = <1>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x4c>;
+			fsl,descriptor-types-mask = <0x05000154>;
 		};
 	};
 

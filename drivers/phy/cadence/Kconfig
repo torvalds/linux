@@ -1,0 +1,28 @@
+#
+# Phy drivers for Cadence PHYs
+#
+
+config PHY_CADENCE_DP
+	tristate "Cadence MHDP DisplayPort PHY driver"
+	depends on OF
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Support for Cadence MHDP DisplayPort PHY.
+
+config PHY_CADENCE_DPHY
+	tristate "Cadence D-PHY Support"
+	depends on HAS_IOMEM && OF
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Choose this option if you have a Cadence D-PHY in your
+	  system. If M is selected, the module will be called
+	  cdns-dphy.
+
+config PHY_CADENCE_SIERRA
+	tristate "Cadence Sierra PHY Driver"
+	depends on OF && HAS_IOMEM && RESET_CONTROLLER
+	select GENERIC_PHY
+	help
+	  Enable this to support the Cadence Sierra PHY driver

@@ -19,7 +19,6 @@ representing a dsaf device.
 - #size-cells: must be 2
 Optional properties:
 - dma-coherent: Present if DMA operations are coherent.
-- interrupt-parent: the interrupt parent of this device.
 - interrupts: should contain 32 completion event irq,1 async event irq
 and 1 event overflow irq.
 - interrupt-names:should be one of 34 irqs for roce device

@@ -31,7 +31,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -66,43 +66,44 @@ static DEFINE_SPINLOCK(z2ram_lock);
 
 static struct gendisk *z2ram_gendisk;
 
-static void do_z2_request(struct request_queue *q)
+static blk_status_t z2_queue_rq(struct blk_mq_hw_ctx *hctx,
+				const struct blk_mq_queue_data *bd)
 {
-	struct request *req;
+	struct request *req = bd->rq;
+	unsigned long start = blk_rq_pos(req) << 9;
+	unsigned long len  = blk_rq_cur_bytes(req);
 
-	req = blk_fetch_request(q);
-	while (req) {
-		unsigned long start = blk_rq_pos(req) << 9;
-		unsigned long len  = blk_rq_cur_bytes(req);
-		blk_status_t err = BLK_STS_OK;
+	blk_mq_start_request(req);
 
-		if (start + len > z2ram_size) {
-			pr_err(DEVICE_NAME ": bad access: block=%llu, "
-			       "count=%u\n",
-			       (unsigned long long)blk_rq_pos(req),
-			       blk_rq_cur_sectors(req));
-			err = BLK_STS_IOERR;
-			goto done;
-		}
-		while (len) {
-			unsigned long addr = start & Z2RAM_CHUNKMASK;
-			unsigned long size = Z2RAM_CHUNKSIZE - addr;
-			void *buffer = bio_data(req->bio);
-
-			if (len < size)
-				size = len;
-			addr += z2ram_map[ start >> Z2RAM_CHUNKSHIFT ];
-			if (rq_data_dir(req) == READ)
-				memcpy(buffer, (char *)addr, size);
-			else
-				memcpy((char *)addr, buffer, size);
-			start += size;
-			len -= size;
-		}
-	done:
-		if (!__blk_end_request_cur(req, err))
-			req = blk_fetch_request(q);
+	if (start + len > z2ram_size) {
+		pr_err(DEVICE_NAME ": bad access: block=%llu, "
+		       "count=%u\n",
+		       (unsigned long long)blk_rq_pos(req),
+		       blk_rq_cur_sectors(req));
+		return BLK_STS_IOERR;
 	}
+
+	spin_lock_irq(&z2ram_lock);
+
+	while (len) {
+		unsigned long addr = start & Z2RAM_CHUNKMASK;
+		unsigned long size = Z2RAM_CHUNKSIZE - addr;
+		void *buffer = bio_data(req->bio);
+
+		if (len < size)
+			size = len;
+		addr += z2ram_map[ start >> Z2RAM_CHUNKSHIFT ];
+		if (rq_data_dir(req) == READ)
+			memcpy(buffer, (char *)addr, size);
+		else
+			memcpy((char *)addr, buffer, size);
+		start += size;
+		len -= size;
+	}
+
+	spin_unlock_irq(&z2ram_lock);
+	blk_mq_end_request(req, BLK_STS_OK);
+	return BLK_STS_OK;
 }
 
 static void
@@ -190,8 +191,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 			vfree(vmalloc (size));
 		}
 
-		vaddr = (unsigned long) __ioremap (paddr, size, 
-						   _PAGE_WRITETHRU);
+		vaddr = (unsigned long)ioremap_wt(paddr, size);
 
 #else
 		vaddr = (unsigned long)z_remap_nocache_nonser(paddr, size);
@@ -337,6 +337,11 @@ static struct kobject *z2_find(dev_t dev, int *part, void *data)
 }
 
 static struct request_queue *z2_queue;
+static struct blk_mq_tag_set tag_set;
+
+static const struct blk_mq_ops z2_mq_ops = {
+	.queue_rq	= z2_queue_rq,
+};
 
 static int __init 
 z2_init(void)
@@ -355,9 +360,13 @@ z2_init(void)
     if (!z2ram_gendisk)
 	goto out_disk;
 
-    z2_queue = blk_init_queue(do_z2_request, &z2ram_lock);
-    if (!z2_queue)
+    z2_queue = blk_mq_init_sq_queue(&tag_set, &z2_mq_ops, 16,
+					BLK_MQ_F_SHOULD_MERGE);
+    if (IS_ERR(z2_queue)) {
+	ret = PTR_ERR(z2_queue);
+	z2_queue = NULL;
 	goto out_queue;
+    }
 
     z2ram_gendisk->major = Z2RAM_MAJOR;
     z2ram_gendisk->first_minor = 0;
@@ -387,6 +396,7 @@ static void __exit z2_exit(void)
     del_gendisk(z2ram_gendisk);
     put_disk(z2ram_gendisk);
     blk_cleanup_queue(z2_queue);
+    blk_mq_free_tag_set(&tag_set);
 
     if ( current_device != -1 )
     {

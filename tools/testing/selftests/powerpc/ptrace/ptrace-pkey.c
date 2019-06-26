@@ -104,6 +104,10 @@ static int child(struct shared_info *info)
 
 	if (disable_execute)
 		info->expected_iamr |= 1ul << pkeyshift(pkey1);
+	else
+		info->expected_iamr &= ~(1ul << pkeyshift(pkey1));
+
+	info->expected_iamr &= ~(1ul << pkeyshift(pkey2) | 1ul << pkeyshift(pkey3));
 
 	info->expected_uamor |= 3ul << pkeyshift(pkey1) |
 				3ul << pkeyshift(pkey2);

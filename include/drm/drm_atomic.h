@@ -29,6 +29,7 @@
 #define DRM_ATOMIC_H_
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_util.h>
 
 /**
  * struct drm_crtc_commit - track modeset commits on a CRTC
@@ -138,9 +139,9 @@ struct drm_crtc_commit {
 	/**
 	 * @abort_completion:
 	 *
-	 * A flag that's set after drm_atomic_helper_setup_commit takes a second
-	 * reference for the completion of $drm_crtc_state.event. It's used by
-	 * the free code to remove the second reference if commit fails.
+	 * A flag that's set after drm_atomic_helper_setup_commit() takes a
+	 * second reference for the completion of $drm_crtc_state.event. It's
+	 * used by the free code to remove the second reference if commit fails.
 	 */
 	bool abort_completion;
 };
@@ -153,6 +154,17 @@ struct __drm_planes_state {
 struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
 	struct drm_crtc_state *state, *old_state, *new_state;
+
+	/**
+	 * @commit:
+	 *
+	 * A reference to the CRTC commit object that is kept for use by
+	 * drm_atomic_helper_wait_for_flip_done() after
+	 * drm_atomic_helper_commit_hw_done() is called. This ensures that a
+	 * concurrent commit won't free a commit object that is still in use.
+	 */
+	struct drm_crtc_commit *commit;
+
 	s32 __user *out_fence_ptr;
 	u64 last_vblank_count;
 };
@@ -160,6 +172,14 @@ struct __drm_crtcs_state {
 struct __drm_connnectors_state {
 	struct drm_connector *ptr;
 	struct drm_connector_state *state, *old_state, *new_state;
+	/**
+	 * @out_fence_ptr:
+	 *
+	 * User-provided pointer which the kernel uses to return a sync_file
+	 * file descriptor. Used by writeback connectors to signal completion of
+	 * the writeback.
+	 */
+	s32 __user *out_fence_ptr;
 };
 
 struct drm_private_obj;
@@ -172,7 +192,7 @@ struct drm_private_state;
  * private objects. The structure itself is used as a vtable to identify the
  * associated private object type. Each private object type that needs to be
  * added to the atomic states is expected to have an implementation of these
- * hooks and pass a pointer to it's drm_private_state_funcs struct to
+ * hooks and pass a pointer to its drm_private_state_funcs struct to
  * drm_atomic_get_private_obj_state().
  */
 struct drm_private_state_funcs {
@@ -208,8 +228,30 @@ struct drm_private_state_funcs {
  * Currently only tracks the state update functions and the opaque driver
  * private state itself, but in the future might also track which
  * &drm_modeset_lock is required to duplicate and update this object's state.
+ *
+ * All private objects must be initialized before the DRM device they are
+ * attached to is registered to the DRM subsystem (call to drm_dev_register())
+ * and should stay around until this DRM device is unregistered (call to
+ * drm_dev_unregister()). In other words, private objects lifetime is tied
+ * to the DRM device lifetime. This implies that:
+ *
+ * 1/ all calls to drm_atomic_private_obj_init() must be done before calling
+ *    drm_dev_register()
+ * 2/ all calls to drm_atomic_private_obj_fini() must be done after calling
+ *    drm_dev_unregister()
  */
 struct drm_private_obj {
+	/**
+	 * @head: List entry used to attach a private object to a &drm_device
+	 * (queued to &drm_mode_config.privobj_list).
+	 */
+	struct list_head head;
+
+	/**
+	 * @lock: Modeset lock to protect the state object.
+	 */
+	struct drm_modeset_lock lock;
+
 	/**
 	 * @state: Current atomic state for this driver private object.
 	 */
@@ -223,6 +265,18 @@ struct drm_private_obj {
 	 */
 	const struct drm_private_state_funcs *funcs;
 };
+
+/**
+ * drm_for_each_privobj() - private object iterator
+ *
+ * @privobj: pointer to the current private object. Updated after each
+ *	     iteration
+ * @dev: the DRM device we want get private objects from
+ *
+ * Allows one to iterate over all private objects attached to @dev
+ */
+#define drm_for_each_privobj(privobj, dev) \
+	list_for_each_entry(privobj, &(dev)->mode_config.privobj_list, head)
 
 /**
  * struct drm_private_state - base struct for driver private object state
@@ -245,7 +299,6 @@ struct __drm_private_objs_state {
  * struct drm_atomic_state - the global state object for atomic updates
  * @ref: count of all references to this state (will not be freed until zero)
  * @dev: parent DRM device
- * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
  * @async_update: hint for asynchronous plane update
  * @planes: pointer to array of structures with per-plane data
@@ -264,9 +317,27 @@ struct drm_atomic_state {
 	struct kref ref;
 
 	struct drm_device *dev;
+
+	/**
+	 * @allow_modeset:
+	 *
+	 * Allow full modeset. This is used by the ATOMIC IOCTL handler to
+	 * implement the DRM_MODE_ATOMIC_ALLOW_MODESET flag. Drivers should
+	 * never consult this flag, instead looking at the output of
+	 * drm_atomic_crtc_needs_modeset().
+	 */
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
 	bool async_update : 1;
+	/**
+	 * @duplicated:
+	 *
+	 * Indicates whether or not this atomic state was duplicated using
+	 * drm_atomic_helper_duplicate_state(). Drivers and atomic helpers
+	 * should use this to fixup normal  inconsistencies in duplicated
+	 * states.
+	 */
+	bool duplicated : 1;
 	struct __drm_planes_state *planes;
 	struct __drm_crtcs_state *crtcs;
 	int num_connector;
@@ -365,9 +436,6 @@ void drm_atomic_state_default_release(struct drm_atomic_state *state);
 struct drm_crtc_state * __must_check
 drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 			  struct drm_crtc *crtc);
-int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
-		struct drm_crtc_state *state, struct drm_property *property,
-		uint64_t val);
 struct drm_plane_state * __must_check
 drm_atomic_get_plane_state(struct drm_atomic_state *state,
 			   struct drm_plane *plane);
@@ -375,7 +443,8 @@ struct drm_connector_state * __must_check
 drm_atomic_get_connector_state(struct drm_atomic_state *state,
 			       struct drm_connector *connector);
 
-void drm_atomic_private_obj_init(struct drm_private_obj *obj,
+void drm_atomic_private_obj_init(struct drm_device *dev,
+				 struct drm_private_obj *obj,
 				 struct drm_private_state *state,
 				 const struct drm_private_state_funcs *funcs);
 void drm_atomic_private_obj_fini(struct drm_private_obj *obj);
@@ -579,30 +648,11 @@ __drm_atomic_get_current_plane_state(struct drm_atomic_state *state,
 }
 
 int __must_check
-drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
-			     const struct drm_display_mode *mode);
-int __must_check
-drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
-				  struct drm_property_blob *blob);
-int __must_check
-drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
-			      struct drm_crtc *crtc);
-void drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
-				 struct drm_framebuffer *fb);
-void drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
-				    struct dma_fence *fence);
-int __must_check
-drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
-				  struct drm_crtc *crtc);
-int __must_check
 drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 				   struct drm_crtc *crtc);
 int __must_check
 drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc);
-
-void
-drm_atomic_clean_old_fb(struct drm_device *dev, unsigned plane_mask, int ret);
 
 int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);

@@ -127,7 +127,6 @@ static struct scsi_host_template snic_host_template = {
 	.this_id = -1,
 	.cmd_per_lun = SNIC_DFLT_QUEUE_DEPTH,
 	.can_queue = SNIC_MAX_IO_REQ,
-	.use_clustering = ENABLE_CLUSTERING,
 	.sg_tablesize = SNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0x800,
 	.shost_attrs = snic_attrs,
@@ -398,12 +397,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 #ifdef CONFIG_SCSI_SNIC_DEBUG_FS
 	/* Per snic debugfs init */
-	ret = snic_stats_debugfs_init(snic);
-	if (ret) {
-		SNIC_HOST_ERR(snic->shost,
-			      "Failed to initialize debugfs stats\n");
-		snic_stats_debugfs_remove(snic);
-	}
+	snic_stats_debugfs_init(snic);
 #endif
 
 	/* Setup PCI Resources */
@@ -435,36 +429,16 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * limitation for the device. Try 43-bit first, and
 	 * fail to 32-bit.
 	 */
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(43));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(43));
 	if (ret) {
-		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			SNIC_HOST_ERR(shost,
 				      "No Usable DMA Configuration, aborting %d\n",
 				      ret);
-
-			goto err_rel_regions;
-		}
-
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (ret) {
-			SNIC_HOST_ERR(shost,
-				      "Unable to obtain 32-bit DMA for consistent allocations, aborting: %d\n",
-				      ret);
-
-			goto err_rel_regions;
-		}
-	} else {
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(43));
-		if (ret) {
-			SNIC_HOST_ERR(shost,
-				      "Unable to obtain 43-bit DMA for consistent allocations. aborting: %d\n",
-				      ret);
-
 			goto err_rel_regions;
 		}
 	}
-
 
 	/* Map vNIC resources from BAR0 */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
@@ -871,12 +845,7 @@ snic_global_data_init(void)
 #ifdef CONFIG_SCSI_SNIC_DEBUG_FS
 	/* Debugfs related Initialization */
 	/* Create debugfs entries for snic */
-	ret = snic_debugfs_init();
-	if (ret < 0) {
-		SNIC_ERR("Failed to create sysfs dir for tracing and stats.\n");
-		snic_debugfs_term();
-		/* continue even if it fails */
-	}
+	snic_debugfs_init();
 
 	/* Trace related Initialization */
 	/* Allocate memory for trace buffer */

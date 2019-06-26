@@ -33,6 +33,10 @@ Optional feature parameters:
 	All write I/O is silently ignored.
 	Read I/O is handled correctly.
 
+  error_writes:
+	All write I/O is failed with an error signalled.
+	Read I/O is handled correctly.
+
   corrupt_bio_byte <Nth_byte> <direction> <value> <flags>:
 	During <down interval>, replace <Nth_byte> of the data of
 	each matching bio with <value>.

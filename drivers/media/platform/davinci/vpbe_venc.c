@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  */
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
@@ -615,7 +616,7 @@ struct v4l2_subdev *venc_sub_dev_init(struct v4l2_device *v4l2_dev,
 
 	v4l2_subdev_init(&venc->sd, &venc_ops);
 
-	strcpy(venc->sd.name, venc_name);
+	strscpy(venc->sd.name, venc_name, sizeof(venc->sd.name));
 	if (v4l2_device_register_subdev(v4l2_dev, &venc->sd) < 0) {
 		v4l2_err(v4l2_dev,
 			"vpbe unable to register venc sub device\n");

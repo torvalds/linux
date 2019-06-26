@@ -91,7 +91,7 @@ static int lpass_platform_pcmops_open(struct snd_pcm_substream *substream)
 	if (ret) {
 		dev_err(soc_runtime->dev,
 			"error writing to rdmactl reg: %d\n", ret);
-			return ret;
+		return ret;
 	}
 
 	data->dma_ch = dma_ch;
@@ -458,7 +458,7 @@ static irqreturn_t lpass_dma_interrupt_handler(
 			return IRQ_NONE;
 		}
 		dev_warn(soc_runtime->dev, "xrun warning\n");
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
+		snd_pcm_stop_xrun(substream);
 		ret = IRQ_HANDLED;
 	}
 

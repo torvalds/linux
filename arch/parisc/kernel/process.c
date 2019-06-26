@@ -210,12 +210,6 @@ void __cpuidle arch_cpu_idle(void)
 
 static int __init parisc_idle_init(void)
 {
-	const char *marker;
-
-	/* check QEMU/SeaBIOS marker in PAGE0 */
-	marker = (char *) &PAGE0->pad0;
-	running_on_qemu = (memcmp(marker, "SeaBIOS", 8) == 0);
-
 	if (!running_on_qemu)
 		cpu_idle_poll_ctrl(1);
 
@@ -302,7 +296,7 @@ get_wchan(struct task_struct *p)
 		ip = info.ip;
 		if (!in_sched_functions(ip))
 			return ip;
-	} while (count++ < 16);
+	} while (count++ < MAX_UNWIND_ENTRIES);
 	return 0;
 }
 

@@ -3,6 +3,8 @@
 #include "util/kvm-stat.h"
 #include "util/parse-events.h"
 #include "util/debug.h"
+#include "util/evsel.h"
+#include "util/evlist.h"
 
 #include "book3s_hv_exits.h"
 #include "book3s_hcalls.h"

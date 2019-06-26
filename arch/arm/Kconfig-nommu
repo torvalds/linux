@@ -20,10 +20,12 @@ config DRAM_SIZE
 
 config FLASH_MEM_BASE
 	hex 'FLASH Base Address' if SET_MEM_PARAM
+	depends on CPU_ARM740T || CPU_ARM946E || CPU_ARM940T
 	default 0x00400000
 
 config FLASH_SIZE
 	hex 'FLASH Size' if SET_MEM_PARAM
+	depends on CPU_ARM740T || CPU_ARM946E || CPU_ARM940T
 	default 0x00400000
 
 config PROCESSOR_ID

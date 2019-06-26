@@ -54,6 +54,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0xd0000000 0x2000000>;
 	};
 
@@ -64,6 +65,23 @@
 
 &clk_hse {
 	clock-frequency = <25000000>;
+};
+
+&mac {
+	status = "disabled";
+	pinctrl-0	= <&ethernet_rmii>;
+	pinctrl-names	= "default";
+	phy-mode	= "rmii";
+	phy-handle	= <&phy0>;
+
+	mdio0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+		phy0: ethernet-phy@0 {
+			reg = <0>;
+		};
+	};
 };
 
 &usart2 {

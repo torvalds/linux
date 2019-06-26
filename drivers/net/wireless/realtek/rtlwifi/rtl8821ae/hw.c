@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2010  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2010  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../efuse.h"
@@ -2606,50 +2584,50 @@ static void _rtl8821ae_read_power_value_fromprom(struct ieee80211_hw *hw,
 	u8 *hwinfo)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 rfPath, eeAddr = EEPROM_TX_PWR_INX, group, TxCount = 0;
+	u32 rfpath, eeaddr = EEPROM_TX_PWR_INX, group, txcount = 0;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "hal_ReadPowerValueFromPROM8821ae(): hwinfo[0x%x]=0x%x\n",
-		 (eeAddr+1), hwinfo[eeAddr+1]);
-	if (0xFF == hwinfo[eeAddr+1])  /*YJ,add,120316*/
+		 (eeaddr + 1), hwinfo[eeaddr + 1]);
+	if (hwinfo[eeaddr + 1] == 0xFF)  /*YJ,add,120316*/
 		autoload_fail = true;
 
 	if (autoload_fail) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "auto load fail : Use Default value!\n");
-		for (rfPath = 0 ; rfPath < MAX_RF_PATH ; rfPath++) {
+		for (rfpath = 0 ; rfpath < MAX_RF_PATH ; rfpath++) {
 			/*2.4G default value*/
 			for (group = 0 ; group < MAX_CHNL_GROUP_24G; group++) {
-				pwrinfo24g->index_cck_base[rfPath][group] =	0x2D;
-				pwrinfo24g->index_bw40_base[rfPath][group] = 0x2D;
+				pwrinfo24g->index_cck_base[rfpath][group] = 0x2D;
+				pwrinfo24g->index_bw40_base[rfpath][group] = 0x2D;
 			}
-			for (TxCount = 0; TxCount < MAX_TX_COUNT; TxCount++) {
-				if (TxCount == 0) {
-					pwrinfo24g->bw20_diff[rfPath][0] = 0x02;
-					pwrinfo24g->ofdm_diff[rfPath][0] = 0x04;
+			for (txcount = 0; txcount < MAX_TX_COUNT; txcount++) {
+				if (txcount == 0) {
+					pwrinfo24g->bw20_diff[rfpath][0] = 0x02;
+					pwrinfo24g->ofdm_diff[rfpath][0] = 0x04;
 				} else {
-					pwrinfo24g->bw20_diff[rfPath][TxCount] = 0xFE;
-					pwrinfo24g->bw40_diff[rfPath][TxCount] = 0xFE;
-					pwrinfo24g->cck_diff[rfPath][TxCount] =	0xFE;
-					pwrinfo24g->ofdm_diff[rfPath][TxCount] = 0xFE;
+					pwrinfo24g->bw20_diff[rfpath][txcount] = 0xFE;
+					pwrinfo24g->bw40_diff[rfpath][txcount] = 0xFE;
+					pwrinfo24g->cck_diff[rfpath][txcount] =	0xFE;
+					pwrinfo24g->ofdm_diff[rfpath][txcount] = 0xFE;
 				}
 			}
 			/*5G default value*/
 			for (group = 0 ; group < MAX_CHNL_GROUP_5G; group++)
-				pwrinfo5g->index_bw40_base[rfPath][group] = 0x2A;
+				pwrinfo5g->index_bw40_base[rfpath][group] = 0x2A;
 
-			for (TxCount = 0; TxCount < MAX_TX_COUNT; TxCount++) {
-				if (TxCount == 0) {
-					pwrinfo5g->ofdm_diff[rfPath][0] = 0x04;
-					pwrinfo5g->bw20_diff[rfPath][0] = 0x00;
-					pwrinfo5g->bw80_diff[rfPath][0] = 0xFE;
-					pwrinfo5g->bw160_diff[rfPath][0] = 0xFE;
+			for (txcount = 0; txcount < MAX_TX_COUNT; txcount++) {
+				if (txcount == 0) {
+					pwrinfo5g->ofdm_diff[rfpath][0] = 0x04;
+					pwrinfo5g->bw20_diff[rfpath][0] = 0x00;
+					pwrinfo5g->bw80_diff[rfpath][0] = 0xFE;
+					pwrinfo5g->bw160_diff[rfpath][0] = 0xFE;
 				} else {
-					pwrinfo5g->ofdm_diff[rfPath][0] = 0xFE;
-					pwrinfo5g->bw20_diff[rfPath][0] = 0xFE;
-					pwrinfo5g->bw40_diff[rfPath][0] = 0xFE;
-					pwrinfo5g->bw80_diff[rfPath][0] = 0xFE;
-					pwrinfo5g->bw160_diff[rfPath][0] = 0xFE;
+					pwrinfo5g->ofdm_diff[rfpath][0] = 0xFE;
+					pwrinfo5g->bw20_diff[rfpath][0] = 0xFE;
+					pwrinfo5g->bw40_diff[rfpath][0] = 0xFE;
+					pwrinfo5g->bw80_diff[rfpath][0] = 0xFE;
+					pwrinfo5g->bw160_diff[rfpath][0] = 0xFE;
 				}
 			}
 		}
@@ -2658,112 +2636,112 @@ static void _rtl8821ae_read_power_value_fromprom(struct ieee80211_hw *hw,
 
 	rtl_priv(hw)->efuse.txpwr_fromeprom = true;
 
-	for (rfPath = 0 ; rfPath < MAX_RF_PATH ; rfPath++) {
+	for (rfpath = 0 ; rfpath < MAX_RF_PATH ; rfpath++) {
 		/*2.4G default value*/
 		for (group = 0 ; group < MAX_CHNL_GROUP_24G; group++) {
-			pwrinfo24g->index_cck_base[rfPath][group] = hwinfo[eeAddr++];
-			if (pwrinfo24g->index_cck_base[rfPath][group] == 0xFF)
-				pwrinfo24g->index_cck_base[rfPath][group] = 0x2D;
+			pwrinfo24g->index_cck_base[rfpath][group] = hwinfo[eeaddr++];
+			if (pwrinfo24g->index_cck_base[rfpath][group] == 0xFF)
+				pwrinfo24g->index_cck_base[rfpath][group] = 0x2D;
 		}
 		for (group = 0 ; group < MAX_CHNL_GROUP_24G - 1; group++) {
-			pwrinfo24g->index_bw40_base[rfPath][group] = hwinfo[eeAddr++];
-			if (pwrinfo24g->index_bw40_base[rfPath][group] == 0xFF)
-				pwrinfo24g->index_bw40_base[rfPath][group] = 0x2D;
+			pwrinfo24g->index_bw40_base[rfpath][group] = hwinfo[eeaddr++];
+			if (pwrinfo24g->index_bw40_base[rfpath][group] == 0xFF)
+				pwrinfo24g->index_bw40_base[rfpath][group] = 0x2D;
 		}
-		for (TxCount = 0; TxCount < MAX_TX_COUNT; TxCount++) {
-			if (TxCount == 0) {
-				pwrinfo24g->bw40_diff[rfPath][TxCount] = 0;
+		for (txcount = 0; txcount < MAX_TX_COUNT; txcount++) {
+			if (txcount == 0) {
+				pwrinfo24g->bw40_diff[rfpath][txcount] = 0;
 				/*bit sign number to 8 bit sign number*/
-				pwrinfo24g->bw20_diff[rfPath][TxCount] = (hwinfo[eeAddr] & 0xf0) >> 4;
-				if (pwrinfo24g->bw20_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo24g->bw20_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo24g->bw20_diff[rfpath][txcount] = (hwinfo[eeaddr] & 0xf0) >> 4;
+				if (pwrinfo24g->bw20_diff[rfpath][txcount] & BIT(3))
+					pwrinfo24g->bw20_diff[rfpath][txcount] |= 0xF0;
 				/*bit sign number to 8 bit sign number*/
-				pwrinfo24g->ofdm_diff[rfPath][TxCount] = (hwinfo[eeAddr] & 0x0f);
-				if (pwrinfo24g->ofdm_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo24g->ofdm_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo24g->ofdm_diff[rfpath][txcount] = (hwinfo[eeaddr] & 0x0f);
+				if (pwrinfo24g->ofdm_diff[rfpath][txcount] & BIT(3))
+					pwrinfo24g->ofdm_diff[rfpath][txcount] |= 0xF0;
 
-				pwrinfo24g->cck_diff[rfPath][TxCount] = 0;
-				eeAddr++;
+				pwrinfo24g->cck_diff[rfpath][txcount] = 0;
+				eeaddr++;
 			} else {
-				pwrinfo24g->bw40_diff[rfPath][TxCount] = (hwinfo[eeAddr]&0xf0) >> 4;
-				if (pwrinfo24g->bw40_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo24g->bw40_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo24g->bw40_diff[rfpath][txcount] = (hwinfo[eeaddr] & 0xf0) >> 4;
+				if (pwrinfo24g->bw40_diff[rfpath][txcount] & BIT(3))
+					pwrinfo24g->bw40_diff[rfpath][txcount] |= 0xF0;
 
-				pwrinfo24g->bw20_diff[rfPath][TxCount] = (hwinfo[eeAddr] & 0x0f);
-				if (pwrinfo24g->bw20_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo24g->bw20_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo24g->bw20_diff[rfpath][txcount] = (hwinfo[eeaddr] & 0x0f);
+				if (pwrinfo24g->bw20_diff[rfpath][txcount] & BIT(3))
+					pwrinfo24g->bw20_diff[rfpath][txcount] |= 0xF0;
 
-				eeAddr++;
+				eeaddr++;
 
-				pwrinfo24g->ofdm_diff[rfPath][TxCount] = (hwinfo[eeAddr] & 0xf0) >> 4;
-				if (pwrinfo24g->ofdm_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo24g->ofdm_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo24g->ofdm_diff[rfpath][txcount] = (hwinfo[eeaddr] & 0xf0) >> 4;
+				if (pwrinfo24g->ofdm_diff[rfpath][txcount] & BIT(3))
+					pwrinfo24g->ofdm_diff[rfpath][txcount] |= 0xF0;
 
-				pwrinfo24g->cck_diff[rfPath][TxCount] =	(hwinfo[eeAddr] & 0x0f);
-				if (pwrinfo24g->cck_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo24g->cck_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo24g->cck_diff[rfpath][txcount] =	(hwinfo[eeaddr] & 0x0f);
+				if (pwrinfo24g->cck_diff[rfpath][txcount] & BIT(3))
+					pwrinfo24g->cck_diff[rfpath][txcount] |= 0xF0;
 
-				eeAddr++;
+				eeaddr++;
 			}
 		}
 
 		/*5G default value*/
 		for (group = 0 ; group < MAX_CHNL_GROUP_5G; group++) {
-			pwrinfo5g->index_bw40_base[rfPath][group] = hwinfo[eeAddr++];
-			if (pwrinfo5g->index_bw40_base[rfPath][group] == 0xFF)
-				pwrinfo5g->index_bw40_base[rfPath][group] = 0xFE;
+			pwrinfo5g->index_bw40_base[rfpath][group] = hwinfo[eeaddr++];
+			if (pwrinfo5g->index_bw40_base[rfpath][group] == 0xFF)
+				pwrinfo5g->index_bw40_base[rfpath][group] = 0xFE;
 		}
 
-		for (TxCount = 0; TxCount < MAX_TX_COUNT; TxCount++) {
-			if (TxCount == 0) {
-				pwrinfo5g->bw40_diff[rfPath][TxCount] = 0;
+		for (txcount = 0; txcount < MAX_TX_COUNT; txcount++) {
+			if (txcount == 0) {
+				pwrinfo5g->bw40_diff[rfpath][txcount] = 0;
 
-				pwrinfo5g->bw20_diff[rfPath][0] = (hwinfo[eeAddr] & 0xf0) >> 4;
-				if (pwrinfo5g->bw20_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo5g->bw20_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo5g->bw20_diff[rfpath][0] = (hwinfo[eeaddr] & 0xf0) >> 4;
+				if (pwrinfo5g->bw20_diff[rfpath][txcount] & BIT(3))
+					pwrinfo5g->bw20_diff[rfpath][txcount] |= 0xF0;
 
-				pwrinfo5g->ofdm_diff[rfPath][0] = (hwinfo[eeAddr] & 0x0f);
-				if (pwrinfo5g->ofdm_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo5g->ofdm_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo5g->ofdm_diff[rfpath][0] = (hwinfo[eeaddr] & 0x0f);
+				if (pwrinfo5g->ofdm_diff[rfpath][txcount] & BIT(3))
+					pwrinfo5g->ofdm_diff[rfpath][txcount] |= 0xF0;
 
-				eeAddr++;
+				eeaddr++;
 			} else {
-				pwrinfo5g->bw40_diff[rfPath][TxCount] = (hwinfo[eeAddr] & 0xf0) >> 4;
-				if (pwrinfo5g->bw40_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo5g->bw40_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo5g->bw40_diff[rfpath][txcount] = (hwinfo[eeaddr] & 0xf0) >> 4;
+				if (pwrinfo5g->bw40_diff[rfpath][txcount] & BIT(3))
+					pwrinfo5g->bw40_diff[rfpath][txcount] |= 0xF0;
 
-				pwrinfo5g->bw20_diff[rfPath][TxCount] = (hwinfo[eeAddr] & 0x0f);
-				if (pwrinfo5g->bw20_diff[rfPath][TxCount] & BIT(3))
-					pwrinfo5g->bw20_diff[rfPath][TxCount] |= 0xF0;
+				pwrinfo5g->bw20_diff[rfpath][txcount] = (hwinfo[eeaddr] & 0x0f);
+				if (pwrinfo5g->bw20_diff[rfpath][txcount] & BIT(3))
+					pwrinfo5g->bw20_diff[rfpath][txcount] |= 0xF0;
 
-				eeAddr++;
+				eeaddr++;
 			}
 		}
 
-		pwrinfo5g->ofdm_diff[rfPath][1] =	(hwinfo[eeAddr] & 0xf0) >> 4;
-		pwrinfo5g->ofdm_diff[rfPath][2] =	(hwinfo[eeAddr] & 0x0f);
+		pwrinfo5g->ofdm_diff[rfpath][1] =	(hwinfo[eeaddr] & 0xf0) >> 4;
+		pwrinfo5g->ofdm_diff[rfpath][2] =	(hwinfo[eeaddr] & 0x0f);
 
-		eeAddr++;
+		eeaddr++;
 
-		pwrinfo5g->ofdm_diff[rfPath][3] = (hwinfo[eeAddr] & 0x0f);
+		pwrinfo5g->ofdm_diff[rfpath][3] = (hwinfo[eeaddr] & 0x0f);
 
-		eeAddr++;
+		eeaddr++;
 
-		for (TxCount = 1; TxCount < MAX_TX_COUNT; TxCount++) {
-			if (pwrinfo5g->ofdm_diff[rfPath][TxCount] & BIT(3))
-				pwrinfo5g->ofdm_diff[rfPath][TxCount] |= 0xF0;
+		for (txcount = 1; txcount < MAX_TX_COUNT; txcount++) {
+			if (pwrinfo5g->ofdm_diff[rfpath][txcount] & BIT(3))
+				pwrinfo5g->ofdm_diff[rfpath][txcount] |= 0xF0;
 		}
-		for (TxCount = 0; TxCount < MAX_TX_COUNT; TxCount++) {
-			pwrinfo5g->bw80_diff[rfPath][TxCount] =	(hwinfo[eeAddr] & 0xf0) >> 4;
+		for (txcount = 0; txcount < MAX_TX_COUNT; txcount++) {
+			pwrinfo5g->bw80_diff[rfpath][txcount] =	(hwinfo[eeaddr] & 0xf0) >> 4;
 			/* 4bit sign number to 8 bit sign number */
-			if (pwrinfo5g->bw80_diff[rfPath][TxCount] & BIT(3))
-				pwrinfo5g->bw80_diff[rfPath][TxCount] |= 0xF0;
+			if (pwrinfo5g->bw80_diff[rfpath][txcount] & BIT(3))
+				pwrinfo5g->bw80_diff[rfpath][txcount] |= 0xF0;
 			/* 4bit sign number to 8 bit sign number */
-			pwrinfo5g->bw160_diff[rfPath][TxCount] = (hwinfo[eeAddr] & 0x0f);
-			if (pwrinfo5g->bw160_diff[rfPath][TxCount] & BIT(3))
-				pwrinfo5g->bw160_diff[rfPath][TxCount] |= 0xF0;
+			pwrinfo5g->bw160_diff[rfpath][txcount] = (hwinfo[eeaddr] & 0x0f);
+			if (pwrinfo5g->bw160_diff[rfpath][txcount] & BIT(3))
+				pwrinfo5g->bw160_diff[rfpath][txcount] |= 0xF0;
 
-			eeAddr++;
+			eeaddr++;
 		}
 	}
 }
@@ -2930,8 +2908,8 @@ static void _rtl8812ae_read_pa_type(struct ieee80211_hw *hw, u8 *hwinfo,
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
 	if (!autoload_fail) {
-		rtlhal->pa_type_2g = hwinfo[0xBC];
-		rtlhal->lna_type_2g = hwinfo[0xBD];
+		rtlhal->pa_type_2g = hwinfo[0XBC];
+		rtlhal->lna_type_2g = hwinfo[0XBD];
 		if (rtlhal->pa_type_2g == 0xFF && rtlhal->lna_type_2g == 0xFF) {
 			rtlhal->pa_type_2g = 0;
 			rtlhal->lna_type_2g = 0;
@@ -2943,8 +2921,8 @@ static void _rtl8812ae_read_pa_type(struct ieee80211_hw *hw, u8 *hwinfo,
 					   (rtlhal->lna_type_2g & BIT(3))) ?
 					  1 : 0;
 
-		rtlhal->pa_type_5g = hwinfo[0xBC];
-		rtlhal->lna_type_5g = hwinfo[0xBF];
+		rtlhal->pa_type_5g = hwinfo[0XBC];
+		rtlhal->lna_type_5g = hwinfo[0XBF];
 		if (rtlhal->pa_type_5g == 0xFF && rtlhal->lna_type_5g == 0xFF) {
 			rtlhal->pa_type_5g = 0;
 			rtlhal->lna_type_5g = 0;
@@ -2969,18 +2947,18 @@ static void _rtl8812ae_read_amplifier_type(struct ieee80211_hw *hw, u8 *hwinfo,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
-	u8 ext_type_pa_2g_a  = (hwinfo[0xBD] & BIT(2))      >> 2; /* 0xBD[2] */
-	u8 ext_type_pa_2g_b  = (hwinfo[0xBD] & BIT(6))      >> 6; /* 0xBD[6] */
-	u8 ext_type_pa_5g_a  = (hwinfo[0xBF] & BIT(2))      >> 2; /* 0xBF[2] */
-	u8 ext_type_pa_5g_b  = (hwinfo[0xBF] & BIT(6))      >> 6; /* 0xBF[6] */
-	/* 0xBD[1:0] */
-	u8 ext_type_lna_2g_a = (hwinfo[0xBD] & (BIT(1) | BIT(0))) >> 0;
-	/* 0xBD[5:4] */
-	u8 ext_type_lna_2g_b = (hwinfo[0xBD] & (BIT(5) | BIT(4))) >> 4;
-	/* 0xBF[1:0] */
-	u8 ext_type_lna_5g_a = (hwinfo[0xBF] & (BIT(1) | BIT(0))) >> 0;
-	/* 0xBF[5:4] */
-	u8 ext_type_lna_5g_b = (hwinfo[0xBF] & (BIT(5) | BIT(4))) >> 4;
+	u8 ext_type_pa_2g_a  = (hwinfo[0XBD] & BIT(2))      >> 2; /* 0XBD[2] */
+	u8 ext_type_pa_2g_b  = (hwinfo[0XBD] & BIT(6))      >> 6; /* 0XBD[6] */
+	u8 ext_type_pa_5g_a  = (hwinfo[0XBF] & BIT(2))      >> 2; /* 0XBF[2] */
+	u8 ext_type_pa_5g_b  = (hwinfo[0XBF] & BIT(6))      >> 6; /* 0XBF[6] */
+	/* 0XBD[1:0] */
+	u8 ext_type_lna_2g_a = (hwinfo[0XBD] & (BIT(1) | BIT(0))) >> 0;
+	/* 0XBD[5:4] */
+	u8 ext_type_lna_2g_b = (hwinfo[0XBD] & (BIT(5) | BIT(4))) >> 4;
+	/* 0XBF[1:0] */
+	u8 ext_type_lna_5g_a = (hwinfo[0XBF] & (BIT(1) | BIT(0))) >> 0;
+	/* 0XBF[5:4] */
+	u8 ext_type_lna_5g_b = (hwinfo[0XBF] & (BIT(5) | BIT(4))) >> 4;
 
 	_rtl8812ae_read_pa_type(hw, hwinfo, autoload_fail);
 
@@ -3008,8 +2986,8 @@ static void _rtl8821ae_read_pa_type(struct ieee80211_hw *hw, u8 *hwinfo,
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
 	if (!autoload_fail) {
-		rtlhal->pa_type_2g = hwinfo[0xBC];
-		rtlhal->lna_type_2g = hwinfo[0xBD];
+		rtlhal->pa_type_2g = hwinfo[0XBC];
+		rtlhal->lna_type_2g = hwinfo[0XBD];
 		if (rtlhal->pa_type_2g == 0xFF && rtlhal->lna_type_2g == 0xFF) {
 			rtlhal->pa_type_2g = 0;
 			rtlhal->lna_type_2g = 0;
@@ -3017,8 +2995,8 @@ static void _rtl8821ae_read_pa_type(struct ieee80211_hw *hw, u8 *hwinfo,
 		rtlhal->external_pa_2g = (rtlhal->pa_type_2g & BIT(5)) ? 1 : 0;
 		rtlhal->external_lna_2g = (rtlhal->lna_type_2g & BIT(7)) ? 1 : 0;
 
-		rtlhal->pa_type_5g = hwinfo[0xBC];
-		rtlhal->lna_type_5g = hwinfo[0xBF];
+		rtlhal->pa_type_5g = hwinfo[0XBC];
+		rtlhal->lna_type_5g = hwinfo[0XBF];
 		if (rtlhal->pa_type_5g == 0xFF && rtlhal->lna_type_5g == 0xFF) {
 			rtlhal->pa_type_5g = 0;
 			rtlhal->lna_type_5g = 0;
@@ -3404,75 +3382,6 @@ static void rtl8821ae_update_hal_rate_table(struct ieee80211_hw *hw,
 		 "%x\n", rtl_read_dword(rtlpriv, REG_ARFR0));
 }
 
-static u8 _rtl8821ae_mrate_idx_to_arfr_id(
-	struct ieee80211_hw *hw, u8 rate_index,
-	enum wireless_mode wirelessmode)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	u8 ret = 0;
-	switch (rate_index) {
-	case RATR_INX_WIRELESS_NGB:
-		if (rtlphy->rf_type == RF_1T1R)
-			ret = 1;
-		else
-			ret = 0;
-		; break;
-	case RATR_INX_WIRELESS_N:
-	case RATR_INX_WIRELESS_NG:
-		if (rtlphy->rf_type == RF_1T1R)
-			ret = 5;
-		else
-			ret = 4;
-		; break;
-	case RATR_INX_WIRELESS_NB:
-		if (rtlphy->rf_type == RF_1T1R)
-			ret = 3;
-		else
-			ret = 2;
-		; break;
-	case RATR_INX_WIRELESS_GB:
-		ret = 6;
-		break;
-	case RATR_INX_WIRELESS_G:
-		ret = 7;
-		break;
-	case RATR_INX_WIRELESS_B:
-		ret = 8;
-		break;
-	case RATR_INX_WIRELESS_MC:
-		if ((wirelessmode == WIRELESS_MODE_B)
-			|| (wirelessmode == WIRELESS_MODE_G)
-			|| (wirelessmode == WIRELESS_MODE_N_24G)
-			|| (wirelessmode == WIRELESS_MODE_AC_24G))
-			ret = 6;
-		else
-			ret = 7;
-	case RATR_INX_WIRELESS_AC_5N:
-		if (rtlphy->rf_type == RF_1T1R)
-			ret = 10;
-		else
-			ret = 9;
-		break;
-	case RATR_INX_WIRELESS_AC_24N:
-		if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_80) {
-			if (rtlphy->rf_type == RF_1T1R)
-				ret = 10;
-			else
-				ret = 9;
-		} else {
-			if (rtlphy->rf_type == RF_1T1R)
-				ret = 11;
-			else
-				ret = 12;
-		}
-		break;
-	default:
-		ret = 0; break;
-	}
-	return ret;
-}
-
 static u32 _rtl8821ae_rate_to_bitmap_2ssvht(__le16 vht_rate)
 {
 	u8 i, j, tmp_rate;
@@ -3761,7 +3670,7 @@ static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
 		break;
 	}
 
-	ratr_index = _rtl8821ae_mrate_idx_to_arfr_id(hw, ratr_index, wirelessmode);
+	ratr_index = rtl_mrate_idx_to_arfr_id(hw, ratr_index, wirelessmode);
 	sta_entry->ratr_index = ratr_index;
 	ratr_bitmap = _rtl8821ae_set_ra_vht_ratr_bitmap(hw, wirelessmode,
 							ratr_bitmap);
@@ -4102,10 +4011,10 @@ void rtl8821ae_add_wowlan_pattern(struct ieee80211_hw *hw,
 	rtl_write_byte(rtlpriv, REG_PKT_BUFF_ACCESS_CTRL, RXPKT_BUF_SELECT);
 	for (addr = 0; addr < WKFMCAM_ADDR_NUM; addr++) {
 		/* Set Rx packet buffer offset.
-		 * RxBufer pointer increases 1,
+		 * RXBufer pointer increases 1,
 		 * we can access 8 bytes in Rx packet buffer.
 		 * CAM start offset (unit: 1 byte) =  index*WKFMCAM_SIZE
-		 * RxBufer addr = (CAM start offset +
+		 * RXBufer addr = (CAM start offset +
 		 *                 per entry offset of a WKFM CAM)/8
 		 *	* index: The index of the wake up frame mask
 		 *	* WKFMCAM_SIZE: the total size of one WKFM CAM

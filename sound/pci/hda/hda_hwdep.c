@@ -23,7 +23,7 @@
 #include <linux/compat.h>
 #include <linux/nospec.h>
 #include <sound/core.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 #include <sound/hda_hwdep.h>
 #include <sound/minors.h>

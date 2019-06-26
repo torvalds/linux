@@ -29,7 +29,8 @@
 
 #include <drm/drm_vma_manager.h>
 #include <drm/drm_gem.h>
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+#include <drm/drm_device.h>
 
 #include <drm/i915_drm.h>
 
@@ -56,6 +57,7 @@ struct drm_i915_gem_object_ops {
 #define I915_GEM_OBJECT_HAS_STRUCT_PAGE	BIT(0)
 #define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
 #define I915_GEM_OBJECT_IS_PROXY	BIT(2)
+#define I915_GEM_OBJECT_ASYNC_CANCEL	BIT(3)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -85,24 +87,33 @@ struct drm_i915_gem_object {
 
 	const struct drm_i915_gem_object_ops *ops;
 
-	/**
-	 * @vma_list: List of VMAs backed by this object
-	 *
-	 * The VMA on this list are ordered by type, all GGTT vma are placed
-	 * at the head and all ppGTT vma are placed at the tail. The different
-	 * types of GGTT vma are unordered between themselves, use the
-	 * @vma_tree (which has a defined order between all VMA) to find an
-	 * exact match.
-	 */
-	struct list_head vma_list;
-	/**
-	 * @vma_tree: Ordered tree of VMAs backed by this object
-	 *
-	 * All VMA created for this object are placed in the @vma_tree for
-	 * fast retrieval via a binary search in i915_vma_instance().
-	 * They are also added to @vma_list for easy iteration.
-	 */
-	struct rb_root vma_tree;
+	struct {
+		/**
+		 * @vma.lock: protect the list/tree of vmas
+		 */
+		spinlock_t lock;
+
+		/**
+		 * @vma.list: List of VMAs backed by this object
+		 *
+		 * The VMA on this list are ordered by type, all GGTT vma are
+		 * placed at the head and all ppGTT vma are placed at the tail.
+		 * The different types of GGTT vma are unordered between
+		 * themselves, use the @vma.tree (which has a defined order
+		 * between all VMA) to quickly find an exact match.
+		 */
+		struct list_head list;
+
+		/**
+		 * @vma.tree: Ordered tree of VMAs backed by this object
+		 *
+		 * All VMA created for this object are placed in the @vma.tree
+		 * for fast retrieval via a binary search in
+		 * i915_vma_instance(). They are also added to @vma.list for
+		 * easy iteration.
+		 */
+		struct rb_root tree;
+	} vma;
 
 	/**
 	 * @lut_list: List of vma lookup entries in use for this object.
@@ -141,7 +152,6 @@ struct drm_i915_gem_object {
 	 * Is the object to be mapped as read-only to the GPU
 	 * Only honoured if hardware has relevant pte bit
 	 */
-	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
 	unsigned int cache_coherent:2;
 #define I915_BO_CACHE_COHERENT_FOR_READ BIT(0)
@@ -165,7 +175,7 @@ struct drm_i915_gem_object {
 
 	atomic_t frontbuffer_bits;
 	unsigned int frontbuffer_ggtt_origin; /* write once */
-	struct i915_gem_active frontbuffer_write;
+	struct i915_active_request frontbuffer_write;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	unsigned int tiling_and_stride;
@@ -268,7 +278,6 @@ struct drm_i915_gem_object {
 	union {
 		struct i915_gem_userptr {
 			uintptr_t ptr;
-			unsigned read_only :1;
 
 			struct i915_mm_struct *mm;
 			struct i915_mmu_object *mmu_object;
@@ -337,25 +346,16 @@ __attribute__((nonnull))
 static inline struct drm_i915_gem_object *
 i915_gem_object_get(struct drm_i915_gem_object *obj)
 {
-	drm_gem_object_reference(&obj->base);
+	drm_gem_object_get(&obj->base);
 	return obj;
 }
-
-__deprecated
-extern void drm_gem_object_reference(struct drm_gem_object *);
 
 __attribute__((nonnull))
 static inline void
 i915_gem_object_put(struct drm_i915_gem_object *obj)
 {
-	__drm_gem_object_unreference(&obj->base);
+	__drm_gem_object_put(&obj->base);
 }
-
-__deprecated
-extern void drm_gem_object_unreference(struct drm_gem_object *);
-
-__deprecated
-extern void drm_gem_object_unreference_unlocked(struct drm_gem_object *);
 
 static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 {
@@ -365,6 +365,18 @@ static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 {
 	reservation_object_unlock(obj->resv);
+}
+
+static inline void
+i915_gem_object_set_readonly(struct drm_i915_gem_object *obj)
+{
+	obj->base.vma_node.readonly = true;
+}
+
+static inline bool
+i915_gem_object_is_readonly(const struct drm_i915_gem_object *obj)
+{
+	return obj->base.vma_node.readonly;
 }
 
 static inline bool
@@ -383,6 +395,12 @@ static inline bool
 i915_gem_object_is_proxy(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops->flags & I915_GEM_OBJECT_IS_PROXY;
+}
+
+static inline bool
+i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops->flags & I915_GEM_OBJECT_ASYNC_CANCEL;
 }
 
 static inline bool
@@ -420,19 +438,19 @@ i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
 }
 
 static inline unsigned int
-i915_gem_object_get_tiling(struct drm_i915_gem_object *obj)
+i915_gem_object_get_tiling(const struct drm_i915_gem_object *obj)
 {
 	return obj->tiling_and_stride & TILING_MASK;
 }
 
 static inline bool
-i915_gem_object_is_tiled(struct drm_i915_gem_object *obj)
+i915_gem_object_is_tiled(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_object_get_tiling(obj) != I915_TILING_NONE;
 }
 
 static inline unsigned int
-i915_gem_object_get_stride(struct drm_i915_gem_object *obj)
+i915_gem_object_get_stride(const struct drm_i915_gem_object *obj)
 {
 	return obj->tiling_and_stride & STRIDE_MASK;
 }
@@ -445,13 +463,13 @@ i915_gem_tile_height(unsigned int tiling)
 }
 
 static inline unsigned int
-i915_gem_object_get_tile_height(struct drm_i915_gem_object *obj)
+i915_gem_object_get_tile_height(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_tile_height(i915_gem_object_get_tiling(obj));
 }
 
 static inline unsigned int
-i915_gem_object_get_tile_row_size(struct drm_i915_gem_object *obj)
+i915_gem_object_get_tile_row_size(const struct drm_i915_gem_object *obj)
 {
 	return (i915_gem_object_get_stride(obj) *
 		i915_gem_object_get_tile_height(obj));

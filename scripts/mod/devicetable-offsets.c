@@ -221,5 +221,15 @@ int main(void)
 	DEVID_FIELD(tb_service_id, protocol_version);
 	DEVID_FIELD(tb_service_id, protocol_revision);
 
+	DEVID(typec_device_id);
+	DEVID_FIELD(typec_device_id, svid);
+	DEVID_FIELD(typec_device_id, mode);
+
+	DEVID(tee_client_device_id);
+	DEVID_FIELD(tee_client_device_id, uuid);
+
+	DEVID(wmi_device_id);
+	DEVID_FIELD(wmi_device_id, guid_string);
+
 	return 0;
 }

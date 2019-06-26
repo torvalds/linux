@@ -408,7 +408,7 @@ struct genwqe_file {
 	struct file *filp;
 
 	struct fasync_struct *async_queue;
-	struct task_struct *owner;
+	struct pid *opener;
 	struct list_head list;		/* entry in list of open files */
 
 	spinlock_t map_lock;		/* lock for dma_mappings */
@@ -497,7 +497,7 @@ int  genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m);
 static inline bool dma_mapping_used(struct dma_mapping *m)
 {
 	if (!m)
-		return 0;
+		return false;
 	return m->size != 0;
 }
 

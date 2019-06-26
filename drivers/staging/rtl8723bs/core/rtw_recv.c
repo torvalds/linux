@@ -113,7 +113,7 @@ union recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 
 	if (list_empty(&pfree_recv_queue->queue))
 		precvframe = NULL;
-	else{
+	else {
 		phead = get_list_head(pfree_recv_queue);
 
 		plist = get_next(phead);
@@ -291,7 +291,7 @@ struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue)
 
 	if (list_empty(&queue->queue))
 		precvbuf = NULL;
-	else{
+	else {
 		phead = get_list_head(queue);
 
 		plist = get_next(phead);
@@ -411,7 +411,7 @@ sint recvframe_chkmic(struct adapter *adapter,  union recv_frame *precvframe)
 					rtw_handle_tkip_mic_err(adapter, (u8)IS_MCAST(prxattrib->ra));
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" mic error :prxattrib->bdecrypted =%d ", prxattrib->bdecrypted));
 					DBG_871X(" mic error :prxattrib->bdecrypted =%d\n", prxattrib->bdecrypted);
-				} else{
+				} else {
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" mic error :prxattrib->bdecrypted =%d ", prxattrib->bdecrypted));
 					DBG_871X(" mic error :prxattrib->bdecrypted =%d\n", prxattrib->bdecrypted);
 				}
@@ -591,7 +591,7 @@ union recv_frame *portctrl(struct adapter *adapter, union recv_frame *precv_fram
 				rtw_free_recvframe(precv_frame, &adapter->recvpriv.free_recv_queue);
 				prtnframe = NULL;
 			}
-		} else{
+		} else {
 			/* allowed */
 			/* check decryption status, and decrypt the frame if needed */
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("########portctrl:psta->ieee8021x_blocked == 0\n"));
@@ -669,7 +669,7 @@ void process_pwrbit_data(struct adapter *padapter, union recv_frame *precv_frame
 
 				/* DBG_871X("to sleep, sta_dz_bitmap =%x\n", pstapriv->sta_dz_bitmap); */
 			}
-		} else{
+		} else {
 			if (psta->state & WIFI_SLEEP_STATE) {
 				/* psta->state ^= WIFI_SLEEP_STATE; */
 				/* pstapriv->sta_dz_bitmap &= ~BIT(psta->aid); */
@@ -831,7 +831,7 @@ sint sta2sta_data_frame(
 					ret = _FAIL;
 					goto exit;
 			}
-		} else{ /*  not mc-frame */
+		} else { /*  not mc-frame */
 			/*  For AP mode, if DA is non-MCAST, then it must be BSSID, and bssid == BSSID */
 			if (memcmp(pattrib->bssid, pattrib->dst, ETH_ALEN)) {
 				ret = _FAIL;
@@ -988,7 +988,7 @@ sint ap2sta_data_frame(
 		/* Special case */
 		ret = RTW_RX_HANDLED;
 		goto exit;
-	} else{
+	} else {
 		if (!memcmp(myhwaddr, pattrib->dst, ETH_ALEN) && (!bmcast)) {
 			*psta = rtw_get_stainfo(pstapriv, pattrib->bssid); /*  get sta_info */
 			if (*psta == NULL) {
@@ -1187,7 +1187,7 @@ sint validate_recv_ctrl_frame(struct adapter *padapter, union recv_frame *precv_
 				/* spin_unlock_bh(&psta->sleep_q.lock); */
 				spin_unlock_bh(&pxmitpriv->lock);
 
-			} else{
+			} else {
 				/* spin_unlock_bh(&psta->sleep_q.lock); */
 				spin_unlock_bh(&pxmitpriv->lock);
 
@@ -1198,7 +1198,7 @@ sint validate_recv_ctrl_frame(struct adapter *padapter, union recv_frame *precv_
 
 						/* issue nulldata with More data bit = 0 to indicate we have no buffered packets */
 						issue_nulldata_in_interrupt(padapter, psta->hwaddr);
-					} else{
+					} else {
 						DBG_871X("error!psta->sleepq_len =%d\n", psta->sleepq_len);
 						psta->sleepq_len = 0;
 					}
@@ -1355,7 +1355,7 @@ sint validate_recv_data_frame(struct adapter *adapter, union recv_frame *precv_f
 		if (pattrib->priority != 0 && pattrib->priority != 3)
 			adapter->recvpriv.bIsAnyNonBEPkts = true;
 
-	} else{
+	} else {
 		pattrib->priority = 0;
 		pattrib->hdrlen = pattrib->to_fr_ds == 3 ? 30 : 24;
 	}
@@ -1386,7 +1386,7 @@ sint validate_recv_data_frame(struct adapter *adapter, union recv_frame *precv_f
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n pattrib->encrypt =%d\n", pattrib->encrypt));
 
 		SET_ICE_IV_LEN(pattrib->iv_len, pattrib->icv_len, pattrib->encrypt);
-	} else{
+	} else {
 		pattrib->encrypt = 0;
 		pattrib->iv_len = pattrib->icv_len = 0;
 	}
@@ -1847,7 +1847,7 @@ union recv_frame *recvframe_chk_defrag(struct adapter *padapter, union recv_fram
 
 			prtnframe = NULL;
 
-		} else{
+		} else {
 			/* can't find this ta's defrag_queue, so free this recv_frame */
 			rtw_free_recvframe(precv_frame, pfree_recv_queue);
 			prtnframe = NULL;
@@ -1870,7 +1870,7 @@ union recv_frame *recvframe_chk_defrag(struct adapter *padapter, union recv_fram
 			precv_frame = recvframe_defrag(padapter, pdefrag_q);
 			prtnframe = precv_frame;
 
-		} else{
+		} else {
 			/* can't find this ta's defrag_queue, so free this recv_frame */
 			rtw_free_recvframe(precv_frame, pfree_recv_queue);
 			prtnframe = NULL;
@@ -2190,7 +2190,7 @@ int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctr
 				if (amsdu_to_msdu(padapter, prframe) != _SUCCESS)
 					rtw_free_recvframe(prframe, &precvpriv->free_recv_queue);
 
-			} else{
+			} else {
 				/* error condition; */
 			}
 
@@ -2198,7 +2198,7 @@ int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctr
 			/* Update local variables. */
 			bPktInBuf = false;
 
-		} else{
+		} else {
 			bPktInBuf = true;
 			break;
 		}
@@ -2333,7 +2333,7 @@ int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *prframe
 	if (recv_indicatepkts_in_order(padapter, preorder_ctrl, false) == true) {
 		_set_timer(&preorder_ctrl->reordering_ctrl_timer, REORDER_WAIT_TIME);
 		spin_unlock_bh(&ppending_recvframe_queue->lock);
-	} else{
+	} else {
 		spin_unlock_bh(&ppending_recvframe_queue->lock);
 		del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
 	}
@@ -2410,7 +2410,7 @@ int process_recv_indicatepkts(struct adapter *padapter, union recv_frame *prfram
 			rtw_recv_indicatepkt(padapter, prframe);
 
 
-		} else{
+		} else {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("@@@@ process_recv_indicatepkts- recv_func free_indicatepkt\n"));
 
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("recv_func:bDriverStopped(%d) OR bSurpriseRemoved(%d)", padapter->bDriverStopped, padapter->bSurpriseRemoved));

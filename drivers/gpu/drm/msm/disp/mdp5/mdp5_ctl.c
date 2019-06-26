@@ -262,13 +262,13 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 	struct mdp5_hw_mixer *mixer = pipeline->mixer;
 
 	if (unlikely(WARN_ON(!mixer))) {
-		dev_err(ctl_mgr->dev->dev, "CTL %d cannot find LM",
+		DRM_DEV_ERROR(ctl_mgr->dev->dev, "CTL %d cannot find LM",
 			ctl->id);
 		return -EINVAL;
 	}
 
 	if (pipeline->r_mixer) {
-		dev_err(ctl_mgr->dev->dev, "unsupported configuration");
+		DRM_DEV_ERROR(ctl_mgr->dev->dev, "unsupported configuration");
 		return -EINVAL;
 	}
 
@@ -604,10 +604,10 @@ int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable)
 		mdp5_write(mdp5_kms, REG_MDP5_SPARE_0, 0);
 		return 0;
 	} else if ((ctlx->pair != NULL) || (ctly->pair != NULL)) {
-		dev_err(ctl_mgr->dev->dev, "CTLs already paired\n");
+		DRM_DEV_ERROR(ctl_mgr->dev->dev, "CTLs already paired\n");
 		return -EINVAL;
 	} else if (!(ctlx->status & ctly->status & CTL_STAT_BOOKED)) {
-		dev_err(ctl_mgr->dev->dev, "Only pair booked CTLs\n");
+		DRM_DEV_ERROR(ctl_mgr->dev->dev, "Only pair booked CTLs\n");
 		return -EINVAL;
 	}
 
@@ -652,7 +652,7 @@ struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctl_mgr,
 		if ((ctl_mgr->ctls[c].status & checkm) == match)
 			goto found;
 
-	dev_err(ctl_mgr->dev->dev, "No more CTL available!");
+	DRM_DEV_ERROR(ctl_mgr->dev->dev, "No more CTL available!");
 	goto unlock;
 
 found:
@@ -698,13 +698,13 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 
 	ctl_mgr = kzalloc(sizeof(*ctl_mgr), GFP_KERNEL);
 	if (!ctl_mgr) {
-		dev_err(dev->dev, "failed to allocate CTL manager\n");
+		DRM_DEV_ERROR(dev->dev, "failed to allocate CTL manager\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	if (unlikely(WARN_ON(ctl_cfg->count > MAX_CTL))) {
-		dev_err(dev->dev, "Increase static pool size to at least %d\n",
+		DRM_DEV_ERROR(dev->dev, "Increase static pool size to at least %d\n",
 				ctl_cfg->count);
 		ret = -ENOSPC;
 		goto fail;
@@ -723,7 +723,7 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 		struct mdp5_ctl *ctl = &ctl_mgr->ctls[c];
 
 		if (WARN_ON(!ctl_cfg->base[c])) {
-			dev_err(dev->dev, "CTL_%d: base is null!\n", c);
+			DRM_DEV_ERROR(dev->dev, "CTL_%d: base is null!\n", c);
 			ret = -EINVAL;
 			spin_unlock_irqrestore(&ctl_mgr->pool_lock, flags);
 			goto fail;

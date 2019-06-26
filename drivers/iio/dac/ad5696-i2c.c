@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AD5671R, AD5675R, AD5691R, AD5692R, AD5693, AD5693R,
  * AD5694, AD5694R, AD5695R, AD5696, AD5696R
@@ -71,6 +71,7 @@ static int ad5686_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ad5686_i2c_id[] = {
+	{"ad5311r", ID_AD5311R},
 	{"ad5671r", ID_AD5671R},
 	{"ad5675r", ID_AD5675R},
 	{"ad5691r", ID_AD5691R},

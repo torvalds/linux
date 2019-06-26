@@ -2,8 +2,8 @@
 # Exar device configuration
 #
 
-config NET_VENDOR_EXAR
-	bool "Exar devices"
+config NET_VENDOR_NETERION
+	bool "Neterion (Exar) devices"
 	default y
 	depends on PCI
 	---help---
@@ -11,32 +11,37 @@ config NET_VENDOR_EXAR
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about Exar cards. If you say Y, you will be asked for
-	  your specific card in the following questions.
+	  the questions about Neterion/Exar cards. If you say Y, you will be
+	  asked for your specific card in the following questions.
 
-if NET_VENDOR_EXAR
+if NET_VENDOR_NETERION
 
 config S2IO
-	tristate "Exar Xframe 10Gb Ethernet Adapter"
+	tristate "Neterion (Exar) Xframe 10Gb Ethernet Adapter"
 	depends on PCI
 	---help---
 	  This driver supports Exar Corp's Xframe Series 10Gb Ethernet Adapters.
+	  These were originally released from S2IO, which renamed itself
+	  Neterion.  So, the adapters might be labeled as either one, depending
+	  on its age.
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/s2io.txt>.
+	  <file:Documentation/networking/device_drivers/neterion/s2io.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called s2io.
 
 config VXGE
-	tristate "Exar X3100 Series 10GbE PCIe Server Adapter"
+	tristate "Neterion (Exar) X3100 Series 10GbE PCIe Server Adapter"
 	depends on PCI
 	---help---
 	  This driver supports Exar Corp's X3100 Series 10 GbE PCIe
-	  I/O Virtualized Server Adapter.
+	  I/O Virtualized Server Adapter.  These were originally released from
+	  Neterion, which was later acquired by Exar.  So, the adapters might be
+	  labeled as either one, depending on its age.
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/vxge.txt>.
+	  <file:Documentation/networking/device_drivers/neterion/vxge.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called vxge.
@@ -50,4 +55,4 @@ config VXGE_DEBUG_TRACE_ALL
 	  the vxge driver. By default only few debug trace statements are
 	  enabled.
 
-endif # NET_VENDOR_EXAR
+endif # NET_VENDOR_NETERION

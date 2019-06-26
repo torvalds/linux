@@ -224,13 +224,16 @@ static void ni_tio_set_bits_transient(struct ni_gpct *counter,
 				      unsigned int transient)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	unsigned int chip = counter->chip_index;
 	unsigned long flags;
 
-	if (reg < NITIO_NUM_REGS) {
+	if (reg < NITIO_NUM_REGS && chip < counter_dev->num_chips) {
+		unsigned int *regs = counter_dev->regs[chip];
+
 		spin_lock_irqsave(&counter_dev->regs_lock, flags);
-		counter_dev->regs[reg] &= ~mask;
-		counter_dev->regs[reg] |= (value & mask);
-		ni_tio_write(counter, counter_dev->regs[reg] | transient, reg);
+		regs[reg] &= ~mask;
+		regs[reg] |= (value & mask);
+		ni_tio_write(counter, regs[reg] | transient, reg);
 		mmiowb();
 		spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
 	}
@@ -267,12 +270,13 @@ unsigned int ni_tio_get_soft_copy(const struct ni_gpct *counter,
 				  enum ni_gpct_register reg)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	unsigned int chip = counter->chip_index;
 	unsigned int value = 0;
 	unsigned long flags;
 
-	if (reg < NITIO_NUM_REGS) {
+	if (reg < NITIO_NUM_REGS && chip < counter_dev->num_chips) {
 		spin_lock_irqsave(&counter_dev->regs_lock, flags);
-		value = counter_dev->regs[reg];
+		value = counter_dev->regs[chip][reg];
 		spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
 	}
 	return value;
@@ -302,6 +306,7 @@ static int ni_m_series_clock_src_select(const struct ni_gpct *counter,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
+	unsigned int chip = counter->chip_index;
 	unsigned int second_gate_reg = NITIO_GATE2_REG(cidx);
 	unsigned int clock_source = 0;
 	unsigned int src;
@@ -318,7 +323,7 @@ static int ni_m_series_clock_src_select(const struct ni_gpct *counter,
 		clock_source = NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS;
 		break;
 	case NI_M_TIMEBASE_3_CLK:
-		if (counter_dev->regs[second_gate_reg] & GI_SRC_SUBSEL)
+		if (counter_dev->regs[chip][second_gate_reg] & GI_SRC_SUBSEL)
 			clock_source =
 			    NI_GPCT_ANALOG_TRIGGER_OUT_CLOCK_SRC_BITS;
 		else
@@ -328,7 +333,7 @@ static int ni_m_series_clock_src_select(const struct ni_gpct *counter,
 		clock_source = NI_GPCT_LOGIC_LOW_CLOCK_SRC_BITS;
 		break;
 	case NI_M_NEXT_GATE_CLK:
-		if (counter_dev->regs[second_gate_reg] & GI_SRC_SUBSEL)
+		if (counter_dev->regs[chip][second_gate_reg] & GI_SRC_SUBSEL)
 			clock_source = NI_GPCT_PXI_STAR_TRIGGER_CLOCK_SRC_BITS;
 		else
 			clock_source = NI_GPCT_NEXT_GATE_CLOCK_SRC_BITS;
@@ -721,6 +726,7 @@ static void ni_tio_set_source_subselect(struct ni_gpct *counter,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
+	unsigned int chip = counter->chip_index;
 	unsigned int second_gate_reg = NITIO_GATE2_REG(cidx);
 
 	if (counter_dev->variant != ni_gpct_variant_m_series)
@@ -729,18 +735,18 @@ static void ni_tio_set_source_subselect(struct ni_gpct *counter,
 		/* Gi_Source_Subselect is zero */
 	case NI_GPCT_NEXT_GATE_CLOCK_SRC_BITS:
 	case NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS:
-		counter_dev->regs[second_gate_reg] &= ~GI_SRC_SUBSEL;
+		counter_dev->regs[chip][second_gate_reg] &= ~GI_SRC_SUBSEL;
 		break;
 		/* Gi_Source_Subselect is one */
 	case NI_GPCT_ANALOG_TRIGGER_OUT_CLOCK_SRC_BITS:
 	case NI_GPCT_PXI_STAR_TRIGGER_CLOCK_SRC_BITS:
-		counter_dev->regs[second_gate_reg] |= GI_SRC_SUBSEL;
+		counter_dev->regs[chip][second_gate_reg] |= GI_SRC_SUBSEL;
 		break;
 		/* Gi_Source_Subselect doesn't matter */
 	default:
 		return;
 	}
-	ni_tio_write(counter, counter_dev->regs[second_gate_reg],
+	ni_tio_write(counter, counter_dev->regs[chip][second_gate_reg],
 		     second_gate_reg);
 }
 
@@ -818,10 +824,79 @@ static int ni_tio_get_clock_src(struct ni_gpct *counter,
 	return 0;
 }
 
+static inline void ni_tio_set_gate_raw(struct ni_gpct *counter,
+				       unsigned int gate_source)
+{
+	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(counter->counter_index),
+			GI_GATE_SEL_MASK, GI_GATE_SEL(gate_source));
+}
+
+static inline void ni_tio_set_gate2_raw(struct ni_gpct *counter,
+					unsigned int gate_source)
+{
+	ni_tio_set_bits(counter, NITIO_GATE2_REG(counter->counter_index),
+			GI_GATE2_SEL_MASK, GI_GATE2_SEL(gate_source));
+}
+
+/* Set the mode bits for gate. */
+static inline void ni_tio_set_gate_mode(struct ni_gpct *counter,
+					unsigned int src)
+{
+	unsigned int mode_bits = 0;
+
+	if (CR_CHAN(src) & NI_GPCT_DISABLED_GATE_SELECT) {
+		/*
+		 * Allowing bitwise comparison here to allow non-zero raw
+		 * register value to be used for channel when disabling.
+		 */
+		mode_bits = GI_GATING_DISABLED;
+	} else {
+		if (src & CR_INVERT)
+			mode_bits |= GI_GATE_POL_INVERT;
+		if (src & CR_EDGE)
+			mode_bits |= GI_RISING_EDGE_GATING;
+		else
+			mode_bits |= GI_LEVEL_GATING;
+	}
+	ni_tio_set_bits(counter, NITIO_MODE_REG(counter->counter_index),
+			GI_GATE_POL_INVERT | GI_GATING_MODE_MASK,
+			mode_bits);
+}
+
+/*
+ * Set the mode bits for gate2.
+ *
+ * Previously, the code this function represents did not actually write anything
+ * to the register.  Rather, writing to this register was reserved for the code
+ * ni ni_tio_set_gate2_raw.
+ */
+static inline void ni_tio_set_gate2_mode(struct ni_gpct *counter,
+					 unsigned int src)
+{
+	/*
+	 * The GI_GATE2_MODE bit was previously set in the code that also sets
+	 * the gate2 source.
+	 * We'll set mode bits _after_ source bits now, and thus, this function
+	 * will effectively enable the second gate after all bits are set.
+	 */
+	unsigned int mode_bits = GI_GATE2_MODE;
+
+	if (CR_CHAN(src) & NI_GPCT_DISABLED_GATE_SELECT)
+		/*
+		 * Allowing bitwise comparison here to allow non-zero raw
+		 * register value to be used for channel when disabling.
+		 */
+		mode_bits = GI_GATING_DISABLED;
+	if (src & CR_INVERT)
+		mode_bits |= GI_GATE2_POL_INVERT;
+
+	ni_tio_set_bits(counter, NITIO_GATE2_REG(counter->counter_index),
+			GI_GATE2_POL_INVERT | GI_GATE2_MODE, mode_bits);
+}
+
 static int ni_660x_set_gate(struct ni_gpct *counter, unsigned int gate_source)
 {
 	unsigned int chan = CR_CHAN(gate_source);
-	unsigned int cidx = counter->counter_index;
 	unsigned int gate_sel;
 	unsigned int i;
 
@@ -854,15 +929,13 @@ static int ni_660x_set_gate(struct ni_gpct *counter, unsigned int gate_source)
 			break;
 		return -EINVAL;
 	}
-	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx),
-			GI_GATE_SEL_MASK, GI_GATE_SEL(gate_sel));
+	ni_tio_set_gate_raw(counter, gate_sel);
 	return 0;
 }
 
 static int ni_m_set_gate(struct ni_gpct *counter, unsigned int gate_source)
 {
 	unsigned int chan = CR_CHAN(gate_source);
-	unsigned int cidx = counter->counter_index;
 	unsigned int gate_sel;
 	unsigned int i;
 
@@ -896,17 +969,13 @@ static int ni_m_set_gate(struct ni_gpct *counter, unsigned int gate_source)
 			break;
 		return -EINVAL;
 	}
-	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx),
-			GI_GATE_SEL_MASK, GI_GATE_SEL(gate_sel));
+	ni_tio_set_gate_raw(counter, gate_sel);
 	return 0;
 }
 
 static int ni_660x_set_gate2(struct ni_gpct *counter, unsigned int gate_source)
 {
-	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned int cidx = counter->counter_index;
 	unsigned int chan = CR_CHAN(gate_source);
-	unsigned int gate2_reg = NITIO_GATE2_REG(cidx);
 	unsigned int gate2_sel;
 	unsigned int i;
 
@@ -940,94 +1009,106 @@ static int ni_660x_set_gate2(struct ni_gpct *counter, unsigned int gate_source)
 			break;
 		return -EINVAL;
 	}
-	counter_dev->regs[gate2_reg] |= GI_GATE2_MODE;
-	counter_dev->regs[gate2_reg] &= ~GI_GATE2_SEL_MASK;
-	counter_dev->regs[gate2_reg] |= GI_GATE2_SEL(gate2_sel);
-	ni_tio_write(counter, counter_dev->regs[gate2_reg], gate2_reg);
+	ni_tio_set_gate2_raw(counter, gate2_sel);
 	return 0;
 }
 
 static int ni_m_set_gate2(struct ni_gpct *counter, unsigned int gate_source)
 {
-	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned int cidx = counter->counter_index;
-	unsigned int chan = CR_CHAN(gate_source);
-	unsigned int gate2_reg = NITIO_GATE2_REG(cidx);
-	unsigned int gate2_sel;
-
 	/*
 	 * FIXME: We don't know what the m-series second gate codes are,
 	 * so we'll just pass the bits through for now.
 	 */
-	switch (chan) {
-	default:
-		gate2_sel = chan & 0x1f;
-		break;
-	}
-	counter_dev->regs[gate2_reg] |= GI_GATE2_MODE;
-	counter_dev->regs[gate2_reg] &= ~GI_GATE2_SEL_MASK;
-	counter_dev->regs[gate2_reg] |= GI_GATE2_SEL(gate2_sel);
-	ni_tio_write(counter, counter_dev->regs[gate2_reg], gate2_reg);
+	ni_tio_set_gate2_raw(counter, gate_source);
 	return 0;
 }
 
-int ni_tio_set_gate_src(struct ni_gpct *counter,
-			unsigned int gate, unsigned int src)
+int ni_tio_set_gate_src_raw(struct ni_gpct *counter,
+			    unsigned int gate, unsigned int src)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned int cidx = counter->counter_index;
-	unsigned int chan = CR_CHAN(src);
-	unsigned int gate2_reg = NITIO_GATE2_REG(cidx);
-	unsigned int mode = 0;
 
 	switch (gate) {
 	case 0:
-		if (chan == NI_GPCT_DISABLED_GATE_SELECT) {
-			ni_tio_set_bits(counter, NITIO_MODE_REG(cidx),
-					GI_GATING_MODE_MASK,
-					GI_GATING_DISABLED);
-			return 0;
-		}
-		if (src & CR_INVERT)
-			mode |= GI_GATE_POL_INVERT;
-		if (src & CR_EDGE)
-			mode |= GI_RISING_EDGE_GATING;
-		else
-			mode |= GI_LEVEL_GATING;
-		ni_tio_set_bits(counter, NITIO_MODE_REG(cidx),
-				GI_GATE_POL_INVERT | GI_GATING_MODE_MASK,
-				mode);
-		switch (counter_dev->variant) {
-		case ni_gpct_variant_e_series:
-		case ni_gpct_variant_m_series:
-		default:
-			return ni_m_set_gate(counter, src);
-		case ni_gpct_variant_660x:
-			return ni_660x_set_gate(counter, src);
-		}
+		/* 1.  start by disabling gate */
+		ni_tio_set_gate_mode(counter, NI_GPCT_DISABLED_GATE_SELECT);
+		/* 2.  set the requested gate source */
+		ni_tio_set_gate_raw(counter, src);
+		/* 3.  reenable & set mode to starts things back up */
+		ni_tio_set_gate_mode(counter, src);
 		break;
 	case 1:
 		if (!ni_tio_has_gate2_registers(counter_dev))
 			return -EINVAL;
 
-		if (chan == NI_GPCT_DISABLED_GATE_SELECT) {
-			counter_dev->regs[gate2_reg] &= ~GI_GATE2_MODE;
-			ni_tio_write(counter, counter_dev->regs[gate2_reg],
-				     gate2_reg);
-			return 0;
-		}
-		if (src & CR_INVERT)
-			counter_dev->regs[gate2_reg] |= GI_GATE2_POL_INVERT;
-		else
-			counter_dev->regs[gate2_reg] &= ~GI_GATE2_POL_INVERT;
+		/* 1.  start by disabling gate */
+		ni_tio_set_gate2_mode(counter, NI_GPCT_DISABLED_GATE_SELECT);
+		/* 2.  set the requested gate source */
+		ni_tio_set_gate2_raw(counter, src);
+		/* 3.  reenable & set mode to starts things back up */
+		ni_tio_set_gate2_mode(counter, src);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ni_tio_set_gate_src_raw);
+
+int ni_tio_set_gate_src(struct ni_gpct *counter,
+			unsigned int gate, unsigned int src)
+{
+	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	/*
+	 * mask off disable flag.  This high bit still passes CR_CHAN.
+	 * Doing this allows one to both set the gate as disabled, but also
+	 * change the route value of the gate.
+	 */
+	int chan = CR_CHAN(src) & (~NI_GPCT_DISABLED_GATE_SELECT);
+	int ret;
+
+	switch (gate) {
+	case 0:
+		/* 1.  start by disabling gate */
+		ni_tio_set_gate_mode(counter, NI_GPCT_DISABLED_GATE_SELECT);
+		/* 2.  set the requested gate source */
 		switch (counter_dev->variant) {
+		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
-			return ni_m_set_gate2(counter, src);
+			ret = ni_m_set_gate(counter, chan);
+			break;
 		case ni_gpct_variant_660x:
-			return ni_660x_set_gate2(counter, src);
+			ret = ni_660x_set_gate(counter, chan);
+			break;
 		default:
 			return -EINVAL;
 		}
+		if (ret)
+			return ret;
+		/* 3.  reenable & set mode to starts things back up */
+		ni_tio_set_gate_mode(counter, src);
+		break;
+	case 1:
+		if (!ni_tio_has_gate2_registers(counter_dev))
+			return -EINVAL;
+
+		/* 1.  start by disabling gate */
+		ni_tio_set_gate2_mode(counter, NI_GPCT_DISABLED_GATE_SELECT);
+		/* 2.  set the requested gate source */
+		switch (counter_dev->variant) {
+		case ni_gpct_variant_m_series:
+			ret = ni_m_set_gate2(counter, chan);
+			break;
+		case ni_gpct_variant_660x:
+			ret = ni_660x_set_gate2(counter, chan);
+			break;
+		default:
+			return -EINVAL;
+		}
+		if (ret)
+			return ret;
+		/* 3.  reenable & set mode to starts things back up */
+		ni_tio_set_gate2_mode(counter, src);
 		break;
 	default:
 		return -EINVAL;
@@ -1041,32 +1122,68 @@ static int ni_tio_set_other_src(struct ni_gpct *counter, unsigned int index,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
+	unsigned int chip = counter->chip_index;
 	unsigned int abz_reg, shift, mask;
 
 	if (counter_dev->variant != ni_gpct_variant_m_series)
 		return -EINVAL;
 
 	abz_reg = NITIO_ABZ_REG(cidx);
-	switch (index) {
-	case NI_GPCT_SOURCE_ENCODER_A:
+
+	/* allow for new device-global names */
+	if (index == NI_GPCT_SOURCE_ENCODER_A ||
+	    (index >= NI_CtrA(0) && index <= NI_CtrA(-1))) {
 		shift = 10;
-		break;
-	case NI_GPCT_SOURCE_ENCODER_B:
+	} else if (index == NI_GPCT_SOURCE_ENCODER_B ||
+	    (index >= NI_CtrB(0) && index <= NI_CtrB(-1))) {
 		shift = 5;
-		break;
-	case NI_GPCT_SOURCE_ENCODER_Z:
+	} else if (index == NI_GPCT_SOURCE_ENCODER_Z ||
+	    (index >= NI_CtrZ(0) && index <= NI_CtrZ(-1))) {
 		shift = 0;
-		break;
-	default:
+	} else {
 		return -EINVAL;
 	}
+
 	mask = 0x1f << shift;
 	if (source > 0x1f)
 		source = 0x1f;	/* Disable gate */
 
-	counter_dev->regs[abz_reg] &= ~mask;
-	counter_dev->regs[abz_reg] |= (source << shift) & mask;
-	ni_tio_write(counter, counter_dev->regs[abz_reg], abz_reg);
+	counter_dev->regs[chip][abz_reg] &= ~mask;
+	counter_dev->regs[chip][abz_reg] |= (source << shift) & mask;
+	ni_tio_write(counter, counter_dev->regs[chip][abz_reg], abz_reg);
+	return 0;
+}
+
+static int ni_tio_get_other_src(struct ni_gpct *counter, unsigned int index,
+				unsigned int *source)
+{
+	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	unsigned int cidx = counter->counter_index;
+	unsigned int abz_reg, shift, mask;
+
+	if (counter_dev->variant != ni_gpct_variant_m_series)
+		/* A,B,Z only valid for m-series */
+		return -EINVAL;
+
+	abz_reg = NITIO_ABZ_REG(cidx);
+
+	/* allow for new device-global names */
+	if (index == NI_GPCT_SOURCE_ENCODER_A ||
+	    (index >= NI_CtrA(0) && index <= NI_CtrA(-1))) {
+		shift = 10;
+	} else if (index == NI_GPCT_SOURCE_ENCODER_B ||
+	    (index >= NI_CtrB(0) && index <= NI_CtrB(-1))) {
+		shift = 5;
+	} else if (index == NI_GPCT_SOURCE_ENCODER_Z ||
+	    (index >= NI_CtrZ(0) && index <= NI_CtrZ(-1))) {
+		shift = 0;
+	} else {
+		return -EINVAL;
+	}
+
+	mask = 0x1f;
+
+	*source = (ni_tio_get_soft_copy(counter, abz_reg) >> shift) & mask;
 	return 0;
 }
 
@@ -1112,7 +1229,7 @@ static int ni_660x_gate_to_generic_gate(unsigned int gate, unsigned int *src)
 	}
 	*src = source;
 	return 0;
-};
+}
 
 static int ni_m_gate_to_generic_gate(unsigned int gate, unsigned int *src)
 {
@@ -1165,7 +1282,7 @@ static int ni_m_gate_to_generic_gate(unsigned int gate, unsigned int *src)
 	}
 	*src = source;
 	return 0;
-};
+}
 
 static int ni_660x_gate2_to_generic_gate(unsigned int gate, unsigned int *src)
 {
@@ -1212,7 +1329,7 @@ static int ni_660x_gate2_to_generic_gate(unsigned int gate, unsigned int *src)
 	}
 	*src = source;
 	return 0;
-};
+}
 
 static int ni_m_gate2_to_generic_gate(unsigned int gate, unsigned int *src)
 {
@@ -1222,32 +1339,60 @@ static int ni_m_gate2_to_generic_gate(unsigned int gate, unsigned int *src)
 	 */
 	*src = gate;
 	return 0;
-};
+}
+
+static inline unsigned int ni_tio_get_gate_mode(struct ni_gpct *counter)
+{
+	unsigned int mode = ni_tio_get_soft_copy(
+		counter, NITIO_MODE_REG(counter->counter_index));
+	unsigned int ret = 0;
+
+	if ((mode & GI_GATING_MODE_MASK) == GI_GATING_DISABLED)
+		ret |= NI_GPCT_DISABLED_GATE_SELECT;
+	if (mode & GI_GATE_POL_INVERT)
+		ret |= CR_INVERT;
+	if ((mode & GI_GATING_MODE_MASK) != GI_LEVEL_GATING)
+		ret |= CR_EDGE;
+
+	return ret;
+}
+
+static inline unsigned int ni_tio_get_gate2_mode(struct ni_gpct *counter)
+{
+	unsigned int mode = ni_tio_get_soft_copy(
+		counter, NITIO_GATE2_REG(counter->counter_index));
+	unsigned int ret = 0;
+
+	if (!(mode & GI_GATE2_MODE))
+		ret |= NI_GPCT_DISABLED_GATE_SELECT;
+	if (mode & GI_GATE2_POL_INVERT)
+		ret |= CR_INVERT;
+
+	return ret;
+}
+
+static inline unsigned int ni_tio_get_gate_val(struct ni_gpct *counter)
+{
+	return GI_BITS_TO_GATE(ni_tio_get_soft_copy(counter,
+		NITIO_INPUT_SEL_REG(counter->counter_index)));
+}
+
+static inline unsigned int ni_tio_get_gate2_val(struct ni_gpct *counter)
+{
+	return GI_BITS_TO_GATE2(ni_tio_get_soft_copy(counter,
+		NITIO_GATE2_REG(counter->counter_index)));
+}
 
 static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned int gate_index,
 			       unsigned int *gate_source)
 {
-	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned int cidx = counter->counter_index;
-	unsigned int mode;
-	unsigned int reg;
 	unsigned int gate;
 	int ret;
 
-	mode = ni_tio_get_soft_copy(counter, NITIO_MODE_REG(cidx));
-	if (((mode & GI_GATING_MODE_MASK) == GI_GATING_DISABLED) ||
-	    (gate_index == 1 &&
-	     !(counter_dev->regs[NITIO_GATE2_REG(cidx)] & GI_GATE2_MODE))) {
-		*gate_source = NI_GPCT_DISABLED_GATE_SELECT;
-		return 0;
-	}
-
 	switch (gate_index) {
 	case 0:
-		reg = NITIO_INPUT_SEL_REG(cidx);
-		gate = GI_BITS_TO_GATE(ni_tio_get_soft_copy(counter, reg));
-
-		switch (counter_dev->variant) {
+		gate = ni_tio_get_gate_val(counter);
+		switch (counter->counter_dev->variant) {
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
 		default:
@@ -1259,16 +1404,11 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned int gate_index,
 		}
 		if (ret)
 			return ret;
-		if (mode & GI_GATE_POL_INVERT)
-			*gate_source |= CR_INVERT;
-		if ((mode & GI_GATING_MODE_MASK) != GI_LEVEL_GATING)
-			*gate_source |= CR_EDGE;
+		*gate_source |= ni_tio_get_gate_mode(counter);
 		break;
 	case 1:
-		reg = NITIO_GATE2_REG(cidx);
-		gate = GI_BITS_TO_GATE2(counter_dev->regs[reg]);
-
-		switch (counter_dev->variant) {
+		gate = ni_tio_get_gate2_val(counter);
+		switch (counter->counter_dev->variant) {
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
 		default:
@@ -1280,11 +1420,26 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned int gate_index,
 		}
 		if (ret)
 			return ret;
-		if (counter_dev->regs[reg] & GI_GATE2_POL_INVERT)
-			*gate_source |= CR_INVERT;
-		/* second gate can't have edge/level mode set independently */
-		if ((mode & GI_GATING_MODE_MASK) != GI_LEVEL_GATING)
-			*gate_source |= CR_EDGE;
+		*gate_source |= ni_tio_get_gate2_mode(counter);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int ni_tio_get_gate_src_raw(struct ni_gpct *counter,
+				   unsigned int gate_index,
+				   unsigned int *gate_source)
+{
+	switch (gate_index) {
+	case 0:
+		*gate_source = ni_tio_get_gate_mode(counter)
+			     | ni_tio_get_gate_val(counter);
+		break;
+	case 1:
+		*gate_source = ni_tio_get_gate2_mode(counter)
+			     | ni_tio_get_gate2_val(counter);
 		break;
 	default:
 		return -EINVAL;
@@ -1347,6 +1502,107 @@ int ni_tio_insn_config(struct comedi_device *dev,
 }
 EXPORT_SYMBOL_GPL(ni_tio_insn_config);
 
+/**
+ * Retrieves the register value of the current source of the output selector for
+ * the given destination.
+ *
+ * If the terminal for the destination is not already configured as an output,
+ * this function returns -EINVAL as error.
+ *
+ * Return: the register value of the destination output selector;
+ *         -EINVAL if terminal is not configured for output.
+ */
+int ni_tio_get_routing(struct ni_gpct_device *counter_dev, unsigned int dest)
+{
+	/* we need to know the actual counter below... */
+	int ctr_index = (dest - NI_COUNTER_NAMES_BASE) % NI_MAX_COUNTERS;
+	struct ni_gpct *counter = &counter_dev->counters[ctr_index];
+	int ret = 1;
+	unsigned int reg;
+
+	if (dest >= NI_CtrA(0) && dest <= NI_CtrZ(-1)) {
+		ret = ni_tio_get_other_src(counter, dest, &reg);
+	} else if (dest >= NI_CtrGate(0) && dest <= NI_CtrGate(-1)) {
+		ret = ni_tio_get_gate_src_raw(counter, 0, &reg);
+	} else if (dest >= NI_CtrAux(0) && dest <= NI_CtrAux(-1)) {
+		ret = ni_tio_get_gate_src_raw(counter, 1, &reg);
+	/*
+	 * This case is not possible through this interface.  A user must use
+	 * INSN_CONFIG_SET_CLOCK_SRC instead.
+	 * } else if (dest >= NI_CtrSource(0) && dest <= NI_CtrSource(-1)) {
+	 *	ret = ni_tio_set_clock_src(counter, &reg, &period_ns);
+	 */
+	}
+
+	if (ret)
+		return -EINVAL;
+
+	return reg;
+}
+EXPORT_SYMBOL_GPL(ni_tio_get_routing);
+
+/**
+ * Sets the register value of the selector MUX for the given destination.
+ * @counter_dev:Pointer to general counter device.
+ * @destination:Device-global identifier of route destination.
+ * @register_value:
+ *		The first several bits of this value should store the desired
+ *		value to write to the register.  All other bits are for
+ *		transmitting information that modify the mode of the particular
+ *		destination/gate.  These mode bits might include a bitwise or of
+ *		CR_INVERT and CR_EDGE.  Note that the calling function should
+ *		have already validated the correctness of this value.
+ */
+int ni_tio_set_routing(struct ni_gpct_device *counter_dev, unsigned int dest,
+		       unsigned int reg)
+{
+	/* we need to know the actual counter below... */
+	int ctr_index = (dest - NI_COUNTER_NAMES_BASE) % NI_MAX_COUNTERS;
+	struct ni_gpct *counter = &counter_dev->counters[ctr_index];
+	int ret;
+
+	if (dest >= NI_CtrA(0) && dest <= NI_CtrZ(-1)) {
+		ret = ni_tio_set_other_src(counter, dest, reg);
+	} else if (dest >= NI_CtrGate(0) && dest <= NI_CtrGate(-1)) {
+		ret = ni_tio_set_gate_src_raw(counter, 0, reg);
+	} else if (dest >= NI_CtrAux(0) && dest <= NI_CtrAux(-1)) {
+		ret = ni_tio_set_gate_src_raw(counter, 1, reg);
+	/*
+	 * This case is not possible through this interface.  A user must use
+	 * INSN_CONFIG_SET_CLOCK_SRC instead.
+	 * } else if (dest >= NI_CtrSource(0) && dest <= NI_CtrSource(-1)) {
+	 *	ret = ni_tio_set_clock_src(counter, reg, period_ns);
+	 */
+	} else {
+		return -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ni_tio_set_routing);
+
+/**
+ * Sets the given destination MUX to its default value or disable it.
+ *
+ * Return: 0 if successful; -EINVAL if terminal is unknown.
+ */
+int ni_tio_unset_routing(struct ni_gpct_device *counter_dev, unsigned int dest)
+{
+	if (dest >= NI_GATES_NAMES_BASE && dest <= NI_GATES_NAMES_MAX)
+		/* Disable gate (via mode bits) and set to default 0-value */
+		return ni_tio_set_routing(counter_dev, dest,
+					  NI_GPCT_DISABLED_GATE_SELECT);
+	/*
+	 * This case is not possible through this interface.  A user must use
+	 * INSN_CONFIG_SET_CLOCK_SRC instead.
+	 * if (dest >= NI_CtrSource(0) && dest <= NI_CtrSource(-1))
+	 *	return ni_tio_set_clock_src(counter, reg, period_ns);
+	 */
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(ni_tio_unset_routing);
+
 static unsigned int ni_tio_read_sw_save_reg(struct comedi_device *dev,
 					    struct comedi_subdevice *s)
 {
@@ -1383,6 +1639,7 @@ int ni_tio_insn_read(struct comedi_device *dev,
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	unsigned int cidx = counter->counter_index;
+	unsigned int chip = counter->chip_index;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
@@ -1391,10 +1648,12 @@ int ni_tio_insn_read(struct comedi_device *dev,
 			data[i] = ni_tio_read_sw_save_reg(dev, s);
 			break;
 		case 1:
-			data[i] = counter_dev->regs[NITIO_LOADA_REG(cidx)];
+			data[i] =
+			    counter_dev->regs[chip][NITIO_LOADA_REG(cidx)];
 			break;
 		case 2:
-			data[i] = counter_dev->regs[NITIO_LOADB_REG(cidx)];
+			data[i] =
+			    counter_dev->regs[chip][NITIO_LOADB_REG(cidx)];
 			break;
 		}
 	}
@@ -1421,6 +1680,7 @@ int ni_tio_insn_write(struct comedi_device *dev,
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	unsigned int cidx = counter->counter_index;
+	unsigned int chip = counter->chip_index;
 	unsigned int load_reg;
 
 	if (insn->n < 1)
@@ -1441,14 +1701,15 @@ int ni_tio_insn_write(struct comedi_device *dev,
 		ni_tio_set_bits_transient(counter, NITIO_CMD_REG(cidx),
 					  0, 0, GI_LOAD);
 		/* restore load reg */
-		ni_tio_write(counter, counter_dev->regs[load_reg], load_reg);
+		ni_tio_write(counter, counter_dev->regs[chip][load_reg],
+			     load_reg);
 		break;
 	case 1:
-		counter_dev->regs[NITIO_LOADA_REG(cidx)] = data[0];
+		counter_dev->regs[chip][NITIO_LOADA_REG(cidx)] = data[0];
 		ni_tio_write(counter, data[0], NITIO_LOADA_REG(cidx));
 		break;
 	case 2:
-		counter_dev->regs[NITIO_LOADB_REG(cidx)] = data[0];
+		counter_dev->regs[chip][NITIO_LOADB_REG(cidx)] = data[0];
 		ni_tio_write(counter, data[0], NITIO_LOADB_REG(cidx));
 		break;
 	default:
@@ -1462,11 +1723,12 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
+	unsigned int chip = counter->chip_index;
 
 	ni_tio_reset_count_and_disarm(counter);
 
 	/* initialize counter registers */
-	counter_dev->regs[NITIO_AUTO_INC_REG(cidx)] = 0x0;
+	counter_dev->regs[chip][NITIO_AUTO_INC_REG(cidx)] = 0x0;
 	ni_tio_write(counter, 0x0, NITIO_AUTO_INC_REG(cidx));
 
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx),
@@ -1474,10 +1736,10 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 
 	ni_tio_set_bits(counter, NITIO_MODE_REG(cidx), ~0, 0);
 
-	counter_dev->regs[NITIO_LOADA_REG(cidx)] = 0x0;
+	counter_dev->regs[chip][NITIO_LOADA_REG(cidx)] = 0x0;
 	ni_tio_write(counter, 0x0, NITIO_LOADA_REG(cidx));
 
-	counter_dev->regs[NITIO_LOADB_REG(cidx)] = 0x0;
+	counter_dev->regs[chip][NITIO_LOADB_REG(cidx)] = 0x0;
 	ni_tio_write(counter, 0x0, NITIO_LOADB_REG(cidx));
 
 	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx), ~0, 0);
@@ -1486,7 +1748,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 		ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx), ~0, 0);
 
 	if (ni_tio_has_gate2_registers(counter_dev)) {
-		counter_dev->regs[NITIO_GATE2_REG(cidx)] = 0x0;
+		counter_dev->regs[chip][NITIO_GATE2_REG(cidx)] = 0x0;
 		ni_tio_write(counter, 0x0, NITIO_GATE2_REG(cidx));
 	}
 
@@ -1504,13 +1766,15 @@ ni_gpct_device_construct(struct comedi_device *dev,
 			 unsigned int (*read)(struct ni_gpct *counter,
 					      enum ni_gpct_register reg),
 			 enum ni_gpct_variant variant,
-			 unsigned int num_counters)
+			 unsigned int num_counters,
+			 unsigned int counters_per_chip,
+			 const struct ni_route_tables *routing_tables)
 {
 	struct ni_gpct_device *counter_dev;
 	struct ni_gpct *counter;
 	unsigned int i;
 
-	if (num_counters == 0)
+	if (num_counters == 0 || counters_per_chip == 0)
 		return NULL;
 
 	counter_dev = kzalloc(sizeof(*counter_dev), GFP_KERNEL);
@@ -1521,12 +1785,20 @@ ni_gpct_device_construct(struct comedi_device *dev,
 	counter_dev->write = write;
 	counter_dev->read = read;
 	counter_dev->variant = variant;
+	counter_dev->routing_tables = routing_tables;
 
 	spin_lock_init(&counter_dev->regs_lock);
 
+	counter_dev->num_counters = num_counters;
+	counter_dev->num_chips = DIV_ROUND_UP(num_counters, counters_per_chip);
+
 	counter_dev->counters = kcalloc(num_counters, sizeof(*counter),
 					GFP_KERNEL);
-	if (!counter_dev->counters) {
+	counter_dev->regs = kcalloc(counter_dev->num_chips,
+				    sizeof(*counter_dev->regs), GFP_KERNEL);
+	if (!counter_dev->regs || !counter_dev->counters) {
+		kfree(counter_dev->regs);
+		kfree(counter_dev->counters);
 		kfree(counter_dev);
 		return NULL;
 	}
@@ -1534,9 +1806,10 @@ ni_gpct_device_construct(struct comedi_device *dev,
 	for (i = 0; i < num_counters; ++i) {
 		counter = &counter_dev->counters[i];
 		counter->counter_dev = counter_dev;
+		counter->chip_index = i / counters_per_chip;
+		counter->counter_index = i % counters_per_chip;
 		spin_lock_init(&counter->lock);
 	}
-	counter_dev->num_counters = num_counters;
 
 	return counter_dev;
 }
@@ -1546,6 +1819,7 @@ void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev)
 {
 	if (!counter_dev)
 		return;
+	kfree(counter_dev->regs);
 	kfree(counter_dev->counters);
 	kfree(counter_dev);
 }

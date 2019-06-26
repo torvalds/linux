@@ -18,7 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
@@ -101,15 +101,16 @@ static int abx500_gpio_get_bit(struct gpio_chip *chip, u8 reg,
 	reg += offset / 8;
 	ret = abx500_get_register_interruptible(pct->dev,
 						AB8500_MISC, reg, &val);
-
-	*bit = !!(val & BIT(pos));
-
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(pct->dev,
 			"%s read reg =%x, offset=%x failed (%d)\n",
 			__func__, reg, offset, ret);
+		return ret;
+	}
 
-	return ret;
+	*bit = !!(val & BIT(pos));
+
+	return 0;
 }
 
 static int abx500_gpio_set_bits(struct gpio_chip *chip, u8 reg,

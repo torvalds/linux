@@ -904,7 +904,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display info about system busses.
+ * DESCRIPTION: Display info about system buses.
  *
  ******************************************************************************/
 

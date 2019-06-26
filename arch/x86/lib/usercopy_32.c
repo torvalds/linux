@@ -47,41 +47,41 @@ do {									\
 		"3:	lea 0(%2,%0,4),%0\n"				\
 		"	jmp 2b\n"					\
 		".previous\n"						\
-		_ASM_EXTABLE(0b,3b)					\
-		_ASM_EXTABLE(1b,2b)					\
+		_ASM_EXTABLE_UA(0b, 3b)					\
+		_ASM_EXTABLE_UA(1b, 2b)					\
 		: "=&c"(size), "=&D" (__d0)				\
 		: "r"(size & 3), "0"(size / 4), "1"(addr), "a"(0));	\
 } while (0)
 
 /**
- * clear_user: - Zero a block of memory in user space.
+ * clear_user - Zero a block of memory in user space.
  * @to:   Destination address, in user space.
  * @n:    Number of bytes to zero.
  *
  * Zero a block of memory in user space.
  *
- * Returns number of bytes that could not be cleared.
+ * Return: number of bytes that could not be cleared.
  * On success, this will be zero.
  */
 unsigned long
 clear_user(void __user *to, unsigned long n)
 {
 	might_fault();
-	if (access_ok(VERIFY_WRITE, to, n))
+	if (access_ok(to, n))
 		__do_clear_user(to, n);
 	return n;
 }
 EXPORT_SYMBOL(clear_user);
 
 /**
- * __clear_user: - Zero a block of memory in user space, with less checking.
+ * __clear_user - Zero a block of memory in user space, with less checking.
  * @to:   Destination address, in user space.
  * @n:    Number of bytes to zero.
  *
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
  *
- * Returns number of bytes that could not be cleared.
+ * Return: number of bytes that could not be cleared.
  * On success, this will be zero.
  */
 unsigned long
@@ -153,44 +153,44 @@ __copy_user_intel(void __user *to, const void *from, unsigned long size)
 		       "101:   lea 0(%%eax,%0,4),%0\n"
 		       "       jmp 100b\n"
 		       ".previous\n"
-		       _ASM_EXTABLE(1b,100b)
-		       _ASM_EXTABLE(2b,100b)
-		       _ASM_EXTABLE(3b,100b)
-		       _ASM_EXTABLE(4b,100b)
-		       _ASM_EXTABLE(5b,100b)
-		       _ASM_EXTABLE(6b,100b)
-		       _ASM_EXTABLE(7b,100b)
-		       _ASM_EXTABLE(8b,100b)
-		       _ASM_EXTABLE(9b,100b)
-		       _ASM_EXTABLE(10b,100b)
-		       _ASM_EXTABLE(11b,100b)
-		       _ASM_EXTABLE(12b,100b)
-		       _ASM_EXTABLE(13b,100b)
-		       _ASM_EXTABLE(14b,100b)
-		       _ASM_EXTABLE(15b,100b)
-		       _ASM_EXTABLE(16b,100b)
-		       _ASM_EXTABLE(17b,100b)
-		       _ASM_EXTABLE(18b,100b)
-		       _ASM_EXTABLE(19b,100b)
-		       _ASM_EXTABLE(20b,100b)
-		       _ASM_EXTABLE(21b,100b)
-		       _ASM_EXTABLE(22b,100b)
-		       _ASM_EXTABLE(23b,100b)
-		       _ASM_EXTABLE(24b,100b)
-		       _ASM_EXTABLE(25b,100b)
-		       _ASM_EXTABLE(26b,100b)
-		       _ASM_EXTABLE(27b,100b)
-		       _ASM_EXTABLE(28b,100b)
-		       _ASM_EXTABLE(29b,100b)
-		       _ASM_EXTABLE(30b,100b)
-		       _ASM_EXTABLE(31b,100b)
-		       _ASM_EXTABLE(32b,100b)
-		       _ASM_EXTABLE(33b,100b)
-		       _ASM_EXTABLE(34b,100b)
-		       _ASM_EXTABLE(35b,100b)
-		       _ASM_EXTABLE(36b,100b)
-		       _ASM_EXTABLE(37b,100b)
-		       _ASM_EXTABLE(99b,101b)
+		       _ASM_EXTABLE_UA(1b, 100b)
+		       _ASM_EXTABLE_UA(2b, 100b)
+		       _ASM_EXTABLE_UA(3b, 100b)
+		       _ASM_EXTABLE_UA(4b, 100b)
+		       _ASM_EXTABLE_UA(5b, 100b)
+		       _ASM_EXTABLE_UA(6b, 100b)
+		       _ASM_EXTABLE_UA(7b, 100b)
+		       _ASM_EXTABLE_UA(8b, 100b)
+		       _ASM_EXTABLE_UA(9b, 100b)
+		       _ASM_EXTABLE_UA(10b, 100b)
+		       _ASM_EXTABLE_UA(11b, 100b)
+		       _ASM_EXTABLE_UA(12b, 100b)
+		       _ASM_EXTABLE_UA(13b, 100b)
+		       _ASM_EXTABLE_UA(14b, 100b)
+		       _ASM_EXTABLE_UA(15b, 100b)
+		       _ASM_EXTABLE_UA(16b, 100b)
+		       _ASM_EXTABLE_UA(17b, 100b)
+		       _ASM_EXTABLE_UA(18b, 100b)
+		       _ASM_EXTABLE_UA(19b, 100b)
+		       _ASM_EXTABLE_UA(20b, 100b)
+		       _ASM_EXTABLE_UA(21b, 100b)
+		       _ASM_EXTABLE_UA(22b, 100b)
+		       _ASM_EXTABLE_UA(23b, 100b)
+		       _ASM_EXTABLE_UA(24b, 100b)
+		       _ASM_EXTABLE_UA(25b, 100b)
+		       _ASM_EXTABLE_UA(26b, 100b)
+		       _ASM_EXTABLE_UA(27b, 100b)
+		       _ASM_EXTABLE_UA(28b, 100b)
+		       _ASM_EXTABLE_UA(29b, 100b)
+		       _ASM_EXTABLE_UA(30b, 100b)
+		       _ASM_EXTABLE_UA(31b, 100b)
+		       _ASM_EXTABLE_UA(32b, 100b)
+		       _ASM_EXTABLE_UA(33b, 100b)
+		       _ASM_EXTABLE_UA(34b, 100b)
+		       _ASM_EXTABLE_UA(35b, 100b)
+		       _ASM_EXTABLE_UA(36b, 100b)
+		       _ASM_EXTABLE_UA(37b, 100b)
+		       _ASM_EXTABLE_UA(99b, 101b)
 		       : "=&c"(size), "=&D" (d0), "=&S" (d1)
 		       :  "1"(to), "2"(from), "0"(size)
 		       : "eax", "edx", "memory");
@@ -259,26 +259,26 @@ static unsigned long __copy_user_intel_nocache(void *to,
 	       "9:      lea 0(%%eax,%0,4),%0\n"
 	       "16:     jmp 8b\n"
 	       ".previous\n"
-	       _ASM_EXTABLE(0b,16b)
-	       _ASM_EXTABLE(1b,16b)
-	       _ASM_EXTABLE(2b,16b)
-	       _ASM_EXTABLE(21b,16b)
-	       _ASM_EXTABLE(3b,16b)
-	       _ASM_EXTABLE(31b,16b)
-	       _ASM_EXTABLE(4b,16b)
-	       _ASM_EXTABLE(41b,16b)
-	       _ASM_EXTABLE(10b,16b)
-	       _ASM_EXTABLE(51b,16b)
-	       _ASM_EXTABLE(11b,16b)
-	       _ASM_EXTABLE(61b,16b)
-	       _ASM_EXTABLE(12b,16b)
-	       _ASM_EXTABLE(71b,16b)
-	       _ASM_EXTABLE(13b,16b)
-	       _ASM_EXTABLE(81b,16b)
-	       _ASM_EXTABLE(14b,16b)
-	       _ASM_EXTABLE(91b,16b)
-	       _ASM_EXTABLE(6b,9b)
-	       _ASM_EXTABLE(7b,16b)
+	       _ASM_EXTABLE_UA(0b, 16b)
+	       _ASM_EXTABLE_UA(1b, 16b)
+	       _ASM_EXTABLE_UA(2b, 16b)
+	       _ASM_EXTABLE_UA(21b, 16b)
+	       _ASM_EXTABLE_UA(3b, 16b)
+	       _ASM_EXTABLE_UA(31b, 16b)
+	       _ASM_EXTABLE_UA(4b, 16b)
+	       _ASM_EXTABLE_UA(41b, 16b)
+	       _ASM_EXTABLE_UA(10b, 16b)
+	       _ASM_EXTABLE_UA(51b, 16b)
+	       _ASM_EXTABLE_UA(11b, 16b)
+	       _ASM_EXTABLE_UA(61b, 16b)
+	       _ASM_EXTABLE_UA(12b, 16b)
+	       _ASM_EXTABLE_UA(71b, 16b)
+	       _ASM_EXTABLE_UA(13b, 16b)
+	       _ASM_EXTABLE_UA(81b, 16b)
+	       _ASM_EXTABLE_UA(14b, 16b)
+	       _ASM_EXTABLE_UA(91b, 16b)
+	       _ASM_EXTABLE_UA(6b, 9b)
+	       _ASM_EXTABLE_UA(7b, 16b)
 	       : "=&c"(size), "=&D" (d0), "=&S" (d1)
 	       :  "1"(to), "2"(from), "0"(size)
 	       : "eax", "edx", "memory");
@@ -321,9 +321,9 @@ do {									\
 		"3:	lea 0(%3,%0,4),%0\n"				\
 		"	jmp 2b\n"					\
 		".previous\n"						\
-		_ASM_EXTABLE(4b,5b)					\
-		_ASM_EXTABLE(0b,3b)					\
-		_ASM_EXTABLE(1b,2b)					\
+		_ASM_EXTABLE_UA(4b, 5b)					\
+		_ASM_EXTABLE_UA(0b, 3b)					\
+		_ASM_EXTABLE_UA(1b, 2b)					\
 		: "=&c"(size), "=&D" (__d0), "=&S" (__d1), "=r"(__d2)	\
 		: "3"(size), "0"(size), "1"(to), "2"(from)		\
 		: "memory");						\

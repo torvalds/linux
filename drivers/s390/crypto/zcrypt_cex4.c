@@ -37,8 +37,8 @@
 #define CEX4_CLEANUP_TIME	(900*HZ)
 
 MODULE_AUTHOR("IBM Corporation");
-MODULE_DESCRIPTION("CEX4 Cryptographic Card device driver, " \
-		   "Copyright IBM Corp. 2012");
+MODULE_DESCRIPTION("CEX4/CEX5/CEX6 Cryptographic Card device driver, " \
+		   "Copyright IBM Corp. 2018");
 MODULE_LICENSE("GPL");
 
 static struct ap_device_id zcrypt_cex4_card_ids[] = {
@@ -66,8 +66,9 @@ static struct ap_device_id zcrypt_cex4_queue_ids[] = {
 MODULE_DEVICE_TABLE(ap, zcrypt_cex4_queue_ids);
 
 /**
- * Probe function for CEX4 card device. It always accepts the AP device
- * since the bus_match already checked the hardware type.
+ * Probe function for CEX4/CEX5/CEX6 card device. It always
+ * accepts the AP device since the bus_match already checked
+ * the hardware type.
  * @ap_dev: pointer to the AP device.
  */
 static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
@@ -199,7 +200,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 }
 
 /**
- * This is called to remove the CEX4 card driver information
+ * This is called to remove the CEX4/CEX5/CEX6 card driver information
  * if an AP card device is removed.
  */
 static void zcrypt_cex4_card_remove(struct ap_device *ap_dev)
@@ -214,11 +215,13 @@ static struct ap_driver zcrypt_cex4_card_driver = {
 	.probe = zcrypt_cex4_card_probe,
 	.remove = zcrypt_cex4_card_remove,
 	.ids = zcrypt_cex4_card_ids,
+	.flags = AP_DRIVER_FLAG_DEFAULT,
 };
 
 /**
- * Probe function for CEX4 queue device. It always accepts the AP device
- * since the bus_match already checked the hardware type.
+ * Probe function for CEX4/CEX5/CEX6 queue device. It always
+ * accepts the AP device since the bus_match already checked
+ * the hardware type.
  * @ap_dev: pointer to the AP device.
  */
 static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
@@ -264,15 +267,14 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 }
 
 /**
- * This is called to remove the CEX4 queue driver information
- * if an AP queue device is removed.
+ * This is called to remove the CEX4/CEX5/CEX6 queue driver
+ * information if an AP queue device is removed.
  */
 static void zcrypt_cex4_queue_remove(struct ap_device *ap_dev)
 {
 	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
 	struct zcrypt_queue *zq = aq->private;
 
-	ap_queue_remove(aq);
 	if (zq)
 		zcrypt_queue_unregister(zq);
 }
@@ -283,6 +285,7 @@ static struct ap_driver zcrypt_cex4_queue_driver = {
 	.suspend = ap_queue_suspend,
 	.resume = ap_queue_resume,
 	.ids = zcrypt_cex4_queue_ids,
+	.flags = AP_DRIVER_FLAG_DEFAULT,
 };
 
 int __init zcrypt_cex4_init(void)

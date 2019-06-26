@@ -1434,8 +1434,16 @@ static void __init sun4i_ccu_init(struct device_node *node,
 		return;
 	}
 
-	/* Force the PLL-Audio-1x divider to 1 */
 	val = readl(reg + SUN4I_PLL_AUDIO_REG);
+
+	/*
+	 * Force VCO and PLL bias current to lowest setting. Higher
+	 * settings interfere with sigma-delta modulation and result
+	 * in audible noise and distortions when using SPDIF or I2S.
+	 */
+	val &= ~GENMASK(25, 16);
+
+	/* Force the PLL-Audio-1x divider to 1 */
 	val &= ~GENMASK(29, 26);
 	writel(val | (1 << 26), reg + SUN4I_PLL_AUDIO_REG);
 

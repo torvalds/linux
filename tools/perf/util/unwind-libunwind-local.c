@@ -34,6 +34,7 @@
 #include "session.h"
 #include "perf_regs.h"
 #include "unwind.h"
+#include "map.h"
 #include "symbol.h"
 #include "util.h"
 #include "debug.h"
@@ -575,7 +576,7 @@ static int entry(u64 ip, struct thread *thread,
 	struct addr_location al;
 
 	e.sym = thread__find_symbol(thread, PERF_RECORD_MISC_USER, ip, &al);
-	e.ip = al.addr;
+	e.ip  = ip;
 	e.map = al.map;
 
 	pr_debug("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",

@@ -50,12 +50,19 @@ config PSTORE_842_COMPRESS
 	help
 	  This option enables 842 compression algorithm support.
 
+config PSTORE_ZSTD_COMPRESS
+	bool "zstd compression"
+	depends on PSTORE
+	select CRYPTO_ZSTD
+	help
+	  This option enables zstd compression algorithm support.
+
 config PSTORE_COMPRESS
 	def_bool y
 	depends on PSTORE
 	depends on PSTORE_DEFLATE_COMPRESS || PSTORE_LZO_COMPRESS ||	\
 		   PSTORE_LZ4_COMPRESS || PSTORE_LZ4HC_COMPRESS ||	\
-		   PSTORE_842_COMPRESS
+		   PSTORE_842_COMPRESS || PSTORE_ZSTD_COMPRESS
 
 choice
 	prompt "Default pstore compression algorithm"
@@ -65,8 +72,8 @@ choice
 	  This change be changed at boot with "pstore.compress=..." on
 	  the kernel command line.
 
-	  Currently, pstore has support for 5 compression algorithms:
-	  deflate, lzo, lz4, lz4hc and 842.
+	  Currently, pstore has support for 6 compression algorithms:
+	  deflate, lzo, lz4, lz4hc, 842 and zstd.
 
 	  The default compression algorithm is deflate.
 
@@ -85,6 +92,9 @@ choice
 	config PSTORE_842_COMPRESS_DEFAULT
 		bool "842" if PSTORE_842_COMPRESS
 
+	config PSTORE_ZSTD_COMPRESS_DEFAULT
+		bool "zstd" if PSTORE_ZSTD_COMPRESS
+
 endchoice
 
 config PSTORE_COMPRESS_DEFAULT
@@ -95,6 +105,7 @@ config PSTORE_COMPRESS_DEFAULT
 	default "lz4" if PSTORE_LZ4_COMPRESS_DEFAULT
 	default "lz4hc" if PSTORE_LZ4HC_COMPRESS_DEFAULT
 	default "842" if PSTORE_842_COMPRESS_DEFAULT
+	default "zstd" if PSTORE_ZSTD_COMPRESS_DEFAULT
 
 config PSTORE_CONSOLE
 	bool "Log kernel console messages"
@@ -130,7 +141,6 @@ config PSTORE_RAM
 	tristate "Log panic/oops to a RAM buffer"
 	depends on PSTORE
 	depends on HAS_IOMEM
-	depends on HAVE_MEMBLOCK
 	select REED_SOLOMON
 	select REED_SOLOMON_ENC8
 	select REED_SOLOMON_DEC8

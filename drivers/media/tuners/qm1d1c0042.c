@@ -388,8 +388,8 @@ static const struct dvb_tuner_ops qm1d1c0042_ops = {
 	.info = {
 		.name = "Sharp QM1D1C0042",
 
-		.frequency_min =  950000,
-		.frequency_max = 2150000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 	},
 
 	.init = qm1d1c0042_init,

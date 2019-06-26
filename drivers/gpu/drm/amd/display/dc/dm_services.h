@@ -31,6 +31,8 @@
 
 #define __DM_SERVICES_H__
 
+#include "amdgpu_dm_trace.h"
+
 /* TODO: remove when DC is complete. */
 #include "dm_services_types.h"
 #include "logger_interface.h"
@@ -70,6 +72,7 @@ static inline uint32_t dm_read_reg_func(
 	}
 #endif
 	value = cgs_read_register(ctx->cgs_device, address);
+	trace_amdgpu_dc_rreg(&ctx->perf_trace->read_count, address, value);
 
 	return value;
 }
@@ -90,6 +93,7 @@ static inline void dm_write_reg_func(
 	}
 #endif
 	cgs_write_register(ctx->cgs_device, address, value);
+	trace_amdgpu_dc_wreg(&ctx->perf_trace->write_count, address, value);
 }
 
 static inline uint32_t dm_read_index_reg(
@@ -339,7 +343,10 @@ bool dm_dmcu_set_pipe(struct dc_context *ctx, unsigned int controller_id);
 #define dm_log_to_buffer(buffer, size, fmt, args)\
 	vsnprintf(buffer, size, fmt, args)
 
-unsigned long long dm_get_timestamp(struct dc_context *ctx);
+static inline unsigned long long dm_get_timestamp(struct dc_context *ctx)
+{
+	return ktime_get_raw_ns();
+}
 
 unsigned long long dm_get_elapse_time_in_ns(struct dc_context *ctx,
 		unsigned long long current_time_stamp,
@@ -348,16 +355,24 @@ unsigned long long dm_get_elapse_time_in_ns(struct dc_context *ctx,
 /*
  * performance tracing
  */
-void dm_perf_trace_timestamp(const char *func_name, unsigned int line);
-#define PERF_TRACE()	dm_perf_trace_timestamp(__func__, __LINE__)
+#define PERF_TRACE()	trace_amdgpu_dc_performance(CTX->perf_trace->read_count,\
+		CTX->perf_trace->write_count, &CTX->perf_trace->last_entry_read,\
+		&CTX->perf_trace->last_entry_write, __func__, __LINE__)
+#define PERF_TRACE_CTX(__CTX)	trace_amdgpu_dc_performance(__CTX->perf_trace->read_count,\
+		__CTX->perf_trace->write_count, &__CTX->perf_trace->last_entry_read,\
+		&__CTX->perf_trace->last_entry_write, __func__, __LINE__)
 
 
 /*
  * Debug and verification hooks
  */
 
-void dm_dtn_log_begin(struct dc_context *ctx);
-void dm_dtn_log_append_v(struct dc_context *ctx, const char *msg, ...);
-void dm_dtn_log_end(struct dc_context *ctx);
+void dm_dtn_log_begin(struct dc_context *ctx,
+	struct dc_log_buffer_ctx *log_ctx);
+void dm_dtn_log_append_v(struct dc_context *ctx,
+	struct dc_log_buffer_ctx *log_ctx,
+	const char *msg, ...);
+void dm_dtn_log_end(struct dc_context *ctx,
+	struct dc_log_buffer_ctx *log_ctx);
 
 #endif /* __DM_SERVICES_H__ */

@@ -403,24 +403,7 @@ bool pciehp_is_native(struct pci_dev *bridge)
  */
 bool shpchp_is_native(struct pci_dev *bridge)
 {
-	const struct pci_host_bridge *host;
-
-	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_SHPC))
-		return false;
-
-	/*
-	 * It is assumed that AMD GOLAM chips support SHPC but they do not
-	 * have SHPC capability.
-	 */
-	if (bridge->vendor == PCI_VENDOR_ID_AMD &&
-	    bridge->device == PCI_DEVICE_ID_AMD_GOLAM_7450)
-		return true;
-
-	if (!pci_find_capability(bridge, PCI_CAP_ID_SHPC))
-		return false;
-
-	host = pci_find_host_bridge(bridge->bus);
-	return host->native_shpc_hotplug;
+	return bridge->shpc_managed;
 }
 
 /**
@@ -536,6 +519,46 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 	return PCI_POWER_ERROR;
 }
 
+static struct acpi_device *acpi_pci_find_companion(struct device *dev);
+
+static bool acpi_pci_bridge_d3(struct pci_dev *dev)
+{
+	const struct fwnode_handle *fwnode;
+	struct acpi_device *adev;
+	struct pci_dev *root;
+	u8 val;
+
+	if (!dev->is_hotplug_bridge)
+		return false;
+
+	/*
+	 * Look for a special _DSD property for the root port and if it
+	 * is set we know the hierarchy behind it supports D3 just fine.
+	 */
+	root = pci_find_pcie_root_port(dev);
+	if (!root)
+		return false;
+
+	adev = ACPI_COMPANION(&root->dev);
+	if (root == dev) {
+		/*
+		 * It is possible that the ACPI companion is not yet bound
+		 * for the root port so look it up manually here.
+		 */
+		if (!adev && !pci_dev_is_added(root))
+			adev = acpi_pci_find_companion(&root->dev);
+	}
+
+	if (!adev)
+		return false;
+
+	fwnode = acpi_fwnode_handle(adev);
+	if (fwnode_property_read_u8(fwnode, "HotPlugSupportInD3", &val))
+		return false;
+
+	return val == 1;
+}
+
 static bool acpi_pci_power_manageable(struct pci_dev *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
@@ -565,6 +588,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 			error = -EBUSY;
 			break;
 		}
+		/* Fall through */
 	case PCI_D0:
 	case PCI_D1:
 	case PCI_D2:
@@ -632,13 +656,11 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 	/*
 	 * In some cases (eg. Samsung 305V4A) leaving a bridge in suspend over
 	 * system-wide suspend/resume confuses the platform firmware, so avoid
-	 * doing that, unless the bridge has a driver that should take care of
-	 * the PM handling.  According to Section 16.1.6 of ACPI 6.2, endpoint
+	 * doing that.  According to Section 16.1.6 of ACPI 6.2, endpoint
 	 * devices are expected to be in D3 before invoking the S3 entry path
 	 * from the firmware, so they should not be affected by this issue.
 	 */
-	if (pci_is_bridge(dev) && !dev->driver &&
-	    acpi_target_system_state() != ACPI_STATE_S0)
+	if (pci_is_bridge(dev) && acpi_target_system_state() != ACPI_STATE_S0)
 		return true;
 
 	if (!adev || !acpi_device_power_manageable(adev))
@@ -654,6 +676,7 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 }
 
 static const struct pci_platform_pm_ops acpi_pci_platform_pm = {
+	.bridge_d3 = acpi_pci_bridge_d3,
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.get_state = acpi_pci_get_power_state,
@@ -766,6 +789,24 @@ static void pci_acpi_optimize_delay(struct pci_dev *pdev,
 	ACPI_FREE(obj);
 }
 
+static void pci_acpi_set_untrusted(struct pci_dev *dev)
+{
+	u8 val;
+
+	if (pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT)
+		return;
+	if (device_property_read_u8(&dev->dev, "ExternalFacingPort", &val))
+		return;
+
+	/*
+	 * These root ports expose PCIe (including DMA) outside of the
+	 * system so make sure we treat them and everything behind as
+	 * untrusted.
+	 */
+	if (val)
+		dev->untrusted = 1;
+}
+
 static void pci_acpi_setup(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -775,25 +816,40 @@ static void pci_acpi_setup(struct device *dev)
 		return;
 
 	pci_acpi_optimize_delay(pci_dev, adev->handle);
+	pci_acpi_set_untrusted(pci_dev);
 
 	pci_acpi_add_pm_notifier(adev, pci_dev);
 	if (!adev->wakeup.flags.valid)
 		return;
 
 	device_set_wakeup_capable(dev, true);
+	/*
+	 * For bridges that can do D3 we enable wake automatically (as
+	 * we do for the power management itself in that case). The
+	 * reason is that the bridge may have additional methods such as
+	 * _DSW that need to be called.
+	 */
+	if (pci_dev->bridge_d3)
+		device_wakeup_enable(dev);
+
 	acpi_pci_wakeup(pci_dev, false);
 }
 
 static void pci_acpi_cleanup(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct pci_dev *pci_dev = to_pci_dev(dev);
 
 	if (!adev)
 		return;
 
 	pci_acpi_remove_pm_notifier(adev);
-	if (adev->wakeup.flags.valid)
+	if (adev->wakeup.flags.valid) {
+		if (pci_dev->bridge_d3)
+			device_wakeup_disable(dev);
+
 		device_set_wakeup_capable(dev, false);
+	}
 }
 
 static bool pci_acpi_bus_match(struct device *dev)

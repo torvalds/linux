@@ -80,6 +80,14 @@ void hci_req_clear_adv_instance(struct hci_dev *hdev, struct sock *sk,
 				struct hci_request *req, u8 instance,
 				bool force);
 
+int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance);
+int __hci_req_start_ext_adv(struct hci_request *req, u8 instance);
+void __hci_req_enable_ext_advertising(struct hci_request *req);
+void __hci_req_clear_ext_adv_sets(struct hci_request *req);
+int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
+			   bool use_rpa, struct adv_info *adv_instance,
+			   u8 *own_addr_type, bdaddr_t *rand_addr);
+
 void __hci_req_update_class(struct hci_request *req);
 
 /* Returns true if HCI commands were queued */

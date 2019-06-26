@@ -25,10 +25,9 @@
 
 #ifndef _CALCS_CALCS_LOGGER_H_
 #define _CALCS_CALCS_LOGGER_H_
-#define DC_LOGGER \
-	logger
+#define DC_LOGGER ctx->logger
 
-static void print_bw_calcs_dceip(struct dal_logger *logger, const struct bw_calcs_dceip *dceip)
+static void print_bw_calcs_dceip(struct dc_context *ctx, const struct bw_calcs_dceip *dceip)
 {
 
 	DC_LOG_BANDWIDTH_CALCS("#####################################################################");
@@ -122,7 +121,7 @@ static void print_bw_calcs_dceip(struct dal_logger *logger, const struct bw_calc
 
 }
 
-static void print_bw_calcs_vbios(struct dal_logger *logger, const struct bw_calcs_vbios *vbios)
+static void print_bw_calcs_vbios(struct dc_context *ctx, const struct bw_calcs_vbios *vbios)
 {
 
 	DC_LOG_BANDWIDTH_CALCS("#####################################################################");
@@ -181,7 +180,7 @@ static void print_bw_calcs_vbios(struct dal_logger *logger, const struct bw_calc
 
 }
 
-static void print_bw_calcs_data(struct dal_logger *logger, struct bw_calcs_data *data)
+static void print_bw_calcs_data(struct dc_context *ctx, struct bw_calcs_data *data)
 {
 
 	int i, j, k;

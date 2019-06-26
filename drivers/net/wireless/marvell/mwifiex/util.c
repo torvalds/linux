@@ -197,9 +197,11 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 		info->is_deep_sleep = adapter->is_deep_sleep;
 		info->pm_wakeup_card_req = adapter->pm_wakeup_card_req;
 		info->pm_wakeup_fw_try = adapter->pm_wakeup_fw_try;
-		info->is_hs_configured = adapter->is_hs_configured;
+		info->is_hs_configured = test_bit(MWIFIEX_IS_HS_CONFIGURED,
+						  &adapter->work_flags);
 		info->hs_activated = adapter->hs_activated;
-		info->is_cmd_timedout = adapter->is_cmd_timedout;
+		info->is_cmd_timedout = test_bit(MWIFIEX_IS_CMD_TIMEDOUT,
+						 &adapter->work_flags);
 		info->num_cmd_host_to_card_failure
 				= adapter->dbg.num_cmd_host_to_card_failure;
 		info->num_cmd_sleep_cfm_host_to_card_failure

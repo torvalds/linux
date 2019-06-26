@@ -36,63 +36,6 @@ mgag200_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct mga_device, ttm.bdev);
 }
 
-static int
-mgag200_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void
-mgag200_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-static int mgag200_ttm_global_init(struct mga_device *ast)
-{
-	struct drm_global_reference *global_ref;
-	int r;
-
-	global_ref = &ast->ttm.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &mgag200_ttm_mem_global_init;
-	global_ref->release = &mgag200_ttm_mem_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM memory accounting "
-			  "subsystem.\n");
-		return r;
-	}
-
-	ast->ttm.bo_global_ref.mem_glob =
-		ast->ttm.mem_global_ref.object;
-	global_ref = &ast->ttm.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&ast->ttm.mem_global_ref);
-		return r;
-	}
-	return 0;
-}
-
-static void
-mgag200_ttm_global_release(struct mga_device *ast)
-{
-	if (ast->ttm.mem_global_ref.release == NULL)
-		return;
-
-	drm_global_item_unref(&ast->ttm.bo_global_ref.ref);
-	drm_global_item_unref(&ast->ttm.mem_global_ref);
-	ast->ttm.mem_global_ref.release = NULL;
-}
-
-
 static void mgag200_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 {
 	struct mgag200_bo *bo;
@@ -232,12 +175,7 @@ int mgag200_mm_init(struct mga_device *mdev)
 	struct drm_device *dev = mdev->dev;
 	struct ttm_bo_device *bdev = &mdev->ttm.bdev;
 
-	ret = mgag200_ttm_global_init(mdev);
-	if (ret)
-		return ret;
-
 	ret = ttm_bo_device_init(&mdev->ttm.bdev,
-				 mdev->ttm.bo_global_ref.ref.object,
 				 &mgag200_bo_driver,
 				 dev->anon_inode->i_mapping,
 				 DRM_FILE_PAGE_OFFSET,
@@ -267,8 +205,6 @@ void mgag200_mm_fini(struct mga_device *mdev)
 	struct drm_device *dev = mdev->dev;
 
 	ttm_bo_device_release(&mdev->ttm.bdev);
-
-	mgag200_ttm_global_release(mdev);
 
 	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
 				pci_resource_len(dev->pdev, 0));

@@ -30,6 +30,16 @@
 
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+
+/*
+ * We generally only have a single long_branch tramp and at most 2 or 3 plt
+ * tramps generated. But, we don't use the plt tramps currently. We also allot
+ * 2 tramps after .text and .init.text. So, we only end up with around 3 usable
+ * tramps in total. Set aside 8 just to be sure.
+ */
+#define	NUM_FTRACE_TRAMPS	8
+static unsigned long ftrace_tramps[NUM_FTRACE_TRAMPS];
+
 static unsigned int
 ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 {
@@ -85,16 +95,19 @@ static int test_24bit_addr(unsigned long ip, unsigned long addr)
 	return create_branch((unsigned int *)ip, addr, 0);
 }
 
-#ifdef CONFIG_MODULES
-
 static int is_bl_op(unsigned int op)
 {
 	return (op & 0xfc000003) == 0x48000001;
 }
 
+static int is_b_op(unsigned int op)
+{
+	return (op & 0xfc000003) == 0x48000000;
+}
+
 static unsigned long find_bl_target(unsigned long ip, unsigned int op)
 {
-	static int offset;
+	int offset;
 
 	offset = (op & 0x03fffffc);
 	/* make it signed */
@@ -104,6 +117,7 @@ static unsigned long find_bl_target(unsigned long ip, unsigned int op)
 	return ip + (long)offset;
 }
 
+#ifdef CONFIG_MODULES
 #ifdef CONFIG_PPC64
 static int
 __ftrace_make_nop(struct module *mod,
@@ -270,6 +284,146 @@ __ftrace_make_nop(struct module *mod,
 #endif /* PPC64 */
 #endif /* CONFIG_MODULES */
 
+static unsigned long find_ftrace_tramp(unsigned long ip)
+{
+	int i;
+
+	/*
+	 * We have the compiler generated long_branch tramps at the end
+	 * and we prefer those
+	 */
+	for (i = NUM_FTRACE_TRAMPS - 1; i >= 0; i--)
+		if (!ftrace_tramps[i])
+			continue;
+		else if (create_branch((void *)ip, ftrace_tramps[i], 0))
+			return ftrace_tramps[i];
+
+	return 0;
+}
+
+static int add_ftrace_tramp(unsigned long tramp)
+{
+	int i;
+
+	for (i = 0; i < NUM_FTRACE_TRAMPS; i++)
+		if (!ftrace_tramps[i]) {
+			ftrace_tramps[i] = tramp;
+			return 0;
+		}
+
+	return -1;
+}
+
+/*
+ * If this is a compiler generated long_branch trampoline (essentially, a
+ * trampoline that has a branch to _mcount()), we re-write the branch to
+ * instead go to ftrace_[regs_]caller() and note down the location of this
+ * trampoline.
+ */
+static int setup_mcount_compiler_tramp(unsigned long tramp)
+{
+	int i, op;
+	unsigned long ptr;
+	static unsigned long ftrace_plt_tramps[NUM_FTRACE_TRAMPS];
+
+	/* Is this a known long jump tramp? */
+	for (i = 0; i < NUM_FTRACE_TRAMPS; i++)
+		if (!ftrace_tramps[i])
+			break;
+		else if (ftrace_tramps[i] == tramp)
+			return 0;
+
+	/* Is this a known plt tramp? */
+	for (i = 0; i < NUM_FTRACE_TRAMPS; i++)
+		if (!ftrace_plt_tramps[i])
+			break;
+		else if (ftrace_plt_tramps[i] == tramp)
+			return -1;
+
+	/* New trampoline -- read where this goes */
+	if (probe_kernel_read(&op, (void *)tramp, sizeof(int))) {
+		pr_debug("Fetching opcode failed.\n");
+		return -1;
+	}
+
+	/* Is this a 24 bit branch? */
+	if (!is_b_op(op)) {
+		pr_debug("Trampoline is not a long branch tramp.\n");
+		return -1;
+	}
+
+	/* lets find where the pointer goes */
+	ptr = find_bl_target(tramp, op);
+
+	if (ptr != ppc_global_function_entry((void *)_mcount)) {
+		pr_debug("Trampoline target %p is not _mcount\n", (void *)ptr);
+		return -1;
+	}
+
+	/* Let's re-write the tramp to go to ftrace_[regs_]caller */
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	ptr = ppc_global_function_entry((void *)ftrace_regs_caller);
+#else
+	ptr = ppc_global_function_entry((void *)ftrace_caller);
+#endif
+	if (!create_branch((void *)tramp, ptr, 0)) {
+		pr_debug("%ps is not reachable from existing mcount tramp\n",
+				(void *)ptr);
+		return -1;
+	}
+
+	if (patch_branch((unsigned int *)tramp, ptr, 0)) {
+		pr_debug("REL24 out of range!\n");
+		return -1;
+	}
+
+	if (add_ftrace_tramp(tramp)) {
+		pr_debug("No tramp locations left\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int __ftrace_make_nop_kernel(struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned long tramp, ip = rec->ip;
+	unsigned int op;
+
+	/* Read where this goes */
+	if (probe_kernel_read(&op, (void *)ip, sizeof(int))) {
+		pr_err("Fetching opcode failed.\n");
+		return -EFAULT;
+	}
+
+	/* Make sure that that this is still a 24bit jump */
+	if (!is_bl_op(op)) {
+		pr_err("Not expected bl: opcode is %x\n", op);
+		return -EINVAL;
+	}
+
+	/* Let's find where the pointer goes */
+	tramp = find_bl_target(ip, op);
+
+	pr_devel("ip:%lx jumps to %lx", ip, tramp);
+
+	if (setup_mcount_compiler_tramp(tramp)) {
+		/* Are other trampolines reachable? */
+		if (!find_ftrace_tramp(ip)) {
+			pr_err("No ftrace trampolines reachable from %ps\n",
+					(void *)ip);
+			return -EINVAL;
+		}
+	}
+
+	if (patch_instruction((unsigned int *)ip, PPC_INST_NOP)) {
+		pr_err("Patching NOP failed.\n");
+		return -EPERM;
+	}
+
+	return 0;
+}
+
 int ftrace_make_nop(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
@@ -286,7 +440,8 @@ int ftrace_make_nop(struct module *mod,
 		old = ftrace_call_replace(ip, addr, 1);
 		new = PPC_INST_NOP;
 		return ftrace_modify_code(ip, old, new);
-	}
+	} else if (core_kernel_text(ip))
+		return __ftrace_make_nop_kernel(rec, addr);
 
 #ifdef CONFIG_MODULES
 	/*
@@ -456,6 +611,53 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 #endif /* CONFIG_PPC64 */
 #endif /* CONFIG_MODULES */
 
+static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned int op;
+	void *ip = (void *)rec->ip;
+	unsigned long tramp, entry, ptr;
+
+	/* Make sure we're being asked to patch branch to a known ftrace addr */
+	entry = ppc_global_function_entry((void *)ftrace_caller);
+	ptr = ppc_global_function_entry((void *)addr);
+
+	if (ptr != entry) {
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+		entry = ppc_global_function_entry((void *)ftrace_regs_caller);
+		if (ptr != entry) {
+#endif
+			pr_err("Unknown ftrace addr to patch: %ps\n", (void *)ptr);
+			return -EINVAL;
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+		}
+#endif
+	}
+
+	/* Make sure we have a nop */
+	if (probe_kernel_read(&op, ip, sizeof(op))) {
+		pr_err("Unable to read ftrace location %p\n", ip);
+		return -EFAULT;
+	}
+
+	if (op != PPC_INST_NOP) {
+		pr_err("Unexpected call sequence at %p: %x\n", ip, op);
+		return -EINVAL;
+	}
+
+	tramp = find_ftrace_tramp((unsigned long)ip);
+	if (!tramp) {
+		pr_err("No ftrace trampolines reachable from %ps\n", ip);
+		return -EINVAL;
+	}
+
+	if (patch_branch(ip, tramp, BRANCH_SET_LINK)) {
+		pr_err("Error patching branch to ftrace tramp!\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long ip = rec->ip;
@@ -471,7 +673,8 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		old = PPC_INST_NOP;
 		new = ftrace_call_replace(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
-	}
+	} else if (core_kernel_text(ip))
+		return __ftrace_make_call_kernel(rec, addr);
 
 #ifdef CONFIG_MODULES
 	/*
@@ -603,6 +806,12 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		old = ftrace_call_replace(ip, old_addr, 1);
 		new = ftrace_call_replace(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
+	} else if (core_kernel_text(ip)) {
+		/*
+		 * We always patch out of range locations to go to the regs
+		 * variant, so there is nothing to do here
+		 */
+		return 0;
 	}
 
 #ifdef CONFIG_MODULES
@@ -654,10 +863,54 @@ void arch_ftrace_update_code(int command)
 	ftrace_modify_all_code(command);
 }
 
+#ifdef CONFIG_PPC64
+#define PACATOC offsetof(struct paca_struct, kernel_toc)
+
+#define PPC_LO(v) ((v) & 0xffff)
+#define PPC_HI(v) (((v) >> 16) & 0xffff)
+#define PPC_HA(v) PPC_HI ((v) + 0x8000)
+
+extern unsigned int ftrace_tramp_text[], ftrace_tramp_init[];
+
+int __init ftrace_dyn_arch_init(void)
+{
+	int i;
+	unsigned int *tramp[] = { ftrace_tramp_text, ftrace_tramp_init };
+	u32 stub_insns[] = {
+		0xe98d0000 | PACATOC,	/* ld      r12,PACATOC(r13)	*/
+		0x3d8c0000,		/* addis   r12,r12,<high>	*/
+		0x398c0000,		/* addi    r12,r12,<low>	*/
+		0x7d8903a6,		/* mtctr   r12			*/
+		0x4e800420,		/* bctr				*/
+	};
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	unsigned long addr = ppc_global_function_entry((void *)ftrace_regs_caller);
+#else
+	unsigned long addr = ppc_global_function_entry((void *)ftrace_caller);
+#endif
+	long reladdr = addr - kernel_toc_addr();
+
+	if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
+		pr_err("Address of %ps out of range of kernel_toc.\n",
+				(void *)addr);
+		return -1;
+	}
+
+	for (i = 0; i < 2; i++) {
+		memcpy(tramp[i], stub_insns, sizeof(stub_insns));
+		tramp[i][1] |= PPC_HA(reladdr);
+		tramp[i][2] |= PPC_LO(reladdr);
+		add_ftrace_tramp((unsigned long)tramp[i]);
+	}
+
+	return 0;
+}
+#else
 int __init ftrace_dyn_arch_init(void)
 {
 	return 0;
 }
+#endif
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -697,7 +950,6 @@ int ftrace_disable_ftrace_graph_caller(void)
  */
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip)
 {
-	struct ftrace_graph_ent trace;
 	unsigned long return_hooker;
 
 	if (unlikely(ftrace_graph_is_dead()))
@@ -708,29 +960,12 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip)
 
 	return_hooker = ppc_function_entry(return_to_handler);
 
-	trace.func = ip;
-	trace.depth = current->curr_ret_stack + 1;
-
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace))
-		goto out;
-
-	if (ftrace_push_return_trace(parent, ip, &trace.depth, 0,
-				     NULL) == -EBUSY)
-		goto out;
-
-	parent = return_hooker;
+	if (!function_graph_enter(parent, ip, 0, NULL))
+		parent = return_hooker;
 out:
 	return parent;
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-
-#if defined(CONFIG_FTRACE_SYSCALLS) && defined(CONFIG_PPC64)
-unsigned long __init arch_syscall_addr(int nr)
-{
-	return sys_call_table[nr*2];
-}
-#endif /* CONFIG_FTRACE_SYSCALLS && CONFIG_PPC64 */
 
 #ifdef PPC64_ELF_ABI_v1
 char *arch_ftrace_match_adjust(char *str, const char *search)

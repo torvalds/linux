@@ -493,8 +493,11 @@ static int omapfb_memory_read(struct fb_info *fbi,
 	if (!display || !display->driver->memory_read)
 		return -ENOENT;
 
-	if (!access_ok(VERIFY_WRITE, mr->buffer, mr->buffer_size))
+	if (!access_ok(mr->buffer, mr->buffer_size))
 		return -EFAULT;
+
+	if (mr->w > 4096 || mr->h > 4096)
+		return -EINVAL;
 
 	if (mr->w * mr->h * 3 > mr->buffer_size)
 		return -EINVAL;
@@ -509,7 +512,7 @@ static int omapfb_memory_read(struct fb_info *fbi,
 			mr->x, mr->y, mr->w, mr->h);
 
 	if (r > 0) {
-		if (copy_to_user(mr->buffer, buf, mr->buffer_size))
+		if (copy_to_user(mr->buffer, buf, r))
 			r = -EFAULT;
 	}
 
@@ -605,6 +608,8 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 	} p;
 
 	int r = 0;
+
+	memset(&p, 0, sizeof(p));
 
 	switch (cmd) {
 	case OMAPFB_SYNC_GFX:

@@ -156,34 +156,6 @@
 #define A10_INTMASK_CLR_OFST       0x10
 #define A10_DDR0_IRQ_MASK          BIT(17)
 
-/************* Stratix10 Defines **************/
-
-/* SDRAM Controller EccCtrl Register */
-#define S10_ECCCTRL1_OFST          0xF8011100
-
-/* SDRAM Controller DRAM IRQ Register */
-#define S10_ERRINTEN_OFST          0xF8011110
-
-/* SDRAM Interrupt Mode Register */
-#define S10_INTMODE_OFST           0xF801111C
-
-/* SDRAM Controller Error Status Register */
-#define S10_INTSTAT_OFST           0xF8011120
-
-/* SDRAM Controller ECC Error Address Register */
-#define S10_DERRADDR_OFST          0xF801112C
-#define S10_SERRADDR_OFST          0xF8011130
-
-/* SDRAM Controller ECC Diagnostic Register */
-#define S10_DIAGINTTEST_OFST       0xF8011124
-
-/* SDRAM Single Bit Error Count Compare Set Register */
-#define S10_SERRCNTREG_OFST        0xF801113C
-
-/* Sticky registers for Uncorrected Errors */
-#define S10_SYSMGR_UE_VAL_OFST     0xFFD12220
-#define S10_SYSMGR_UE_ADDR_OFST    0xFFD12224
-
 struct altr_sdram_prv_data {
 	int ecc_ctrl_offset;
 	int ecc_ctl_en_mask;
@@ -319,14 +291,39 @@ struct altr_sdram_mc_data {
 /************* Stratix10 Defines **************/
 
 /* Stratix10 ECC Manager Defines */
-#define S10_SYSMGR_ECC_INTMASK_VAL_OFST   0xFFD12090
-#define S10_SYSMGR_ECC_INTMASK_SET_OFST   0xFFD12094
-#define S10_SYSMGR_ECC_INTMASK_CLR_OFST   0xFFD12098
+#define S10_SYSMGR_ECC_INTMASK_CLR_OFST   0x98
+#define S10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xA0
 
-#define S10_SYSMGR_ECC_INTSTAT_SERR_OFST  0xFFD1209C
-#define S10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xFFD120A0
+/* Sticky registers for Uncorrected Errors */
+#define S10_SYSMGR_UE_VAL_OFST            0x220
+#define S10_SYSMGR_UE_ADDR_OFST           0x224
 
 #define S10_DDR0_IRQ_MASK                 BIT(16)
+
+/* Define ECC Block Offsets for peripherals */
+#define ECC_BLK_ADDRESS_OFST              0x40
+#define ECC_BLK_RDATA0_OFST               0x44
+#define ECC_BLK_RDATA1_OFST               0x48
+#define ECC_BLK_RDATA2_OFST               0x4C
+#define ECC_BLK_RDATA3_OFST               0x50
+#define ECC_BLK_WDATA0_OFST               0x54
+#define ECC_BLK_WDATA1_OFST               0x58
+#define ECC_BLK_WDATA2_OFST               0x5C
+#define ECC_BLK_WDATA3_OFST               0x60
+#define ECC_BLK_RECC0_OFST                0x64
+#define ECC_BLK_RECC1_OFST                0x68
+#define ECC_BLK_WECC0_OFST                0x6C
+#define ECC_BLK_WECC1_OFST                0x70
+#define ECC_BLK_DBYTECTRL_OFST            0x74
+#define ECC_BLK_ACCCTRL_OFST              0x78
+#define ECC_BLK_STARTACC_OFST             0x7C
+
+#define ECC_XACT_KICK                     0x10000
+#define ECC_WORD_WRITE                    0xF
+#define ECC_WRITE_DOVR                    0x101
+#define ECC_WRITE_EDOVR                   0x103
+#define ECC_READ_EOVR                     0x2
+#define ECC_READ_EDOVR                    0x3
 
 struct altr_edac_device_dev;
 
@@ -370,6 +367,7 @@ struct altr_arria10_edac {
 	struct irq_domain	*domain;
 	struct irq_chip		irq_chip;
 	struct list_head	a10_ecc_devices;
+	struct notifier_block	panic_notifier;
 };
 
 /*
@@ -436,14 +434,5 @@ struct altr_arria10_edac {
 #define INTEL_SIP_SMC_FUNCID_REG_WRITE 8
 #define INTEL_SIP_SMC_REG_WRITE \
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_WRITE)
-
-struct altr_stratix10_edac {
-	struct device		*dev;
-	int sb_irq;
-	struct irq_domain	*domain;
-	struct irq_chip		irq_chip;
-	struct list_head	s10_ecc_devices;
-	struct notifier_block	panic_notifier;
-};
 
 #endif	/* #ifndef _ALTERA_EDAC_H */

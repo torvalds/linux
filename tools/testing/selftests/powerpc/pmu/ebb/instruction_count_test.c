@@ -162,5 +162,6 @@ int instruction_count(void)
 
 int main(void)
 {
+	test_harness_set_timeout(300);
 	return test_harness(instruction_count, "instruction_count");
 }

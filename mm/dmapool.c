@@ -114,10 +114,9 @@ static DEVICE_ATTR(pools, 0444, show_pools, NULL);
  * @size: size of the blocks in this pool.
  * @align: alignment requirement for blocks; must be a power of two
  * @boundary: returned blocks won't cross this power of two boundary
- * Context: !in_interrupt()
+ * Context: not in_interrupt()
  *
- * Returns a dma allocation pool with the requested characteristics, or
- * null if one can't be created.  Given one of these pools, dma_pool_alloc()
+ * Given one of these pools, dma_pool_alloc()
  * may be used to allocate memory.  Such memory will all have "consistent"
  * DMA mappings, accessible by the device and its driver without using
  * cache flushing primitives.  The actual size of blocks allocated may be
@@ -127,6 +126,9 @@ static DEVICE_ATTR(pools, 0444, show_pools, NULL);
  * cross that size boundary.  This is useful for devices which have
  * addressing restrictions on individual DMA transfers, such as not crossing
  * boundaries of 4KBytes.
+ *
+ * Return: a dma allocation pool with the requested characteristics, or
+ * %NULL if one can't be created.
  */
 struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 				 size_t size, size_t align, size_t boundary)
@@ -313,7 +315,7 @@ EXPORT_SYMBOL(dma_pool_destroy);
  * @mem_flags: GFP_* bitmask
  * @handle: pointer to dma address of block
  *
- * This returns the kernel virtual address of a currently unused block,
+ * Return: the kernel virtual address of a currently unused block,
  * and reports its dma address through the handle.
  * If such a memory block can't be allocated, %NULL is returned.
  */
@@ -498,6 +500,9 @@ static int dmam_pool_match(struct device *dev, void *res, void *match_data)
  *
  * Managed dma_pool_create().  DMA pool created with this function is
  * automatically destroyed on driver detach.
+ *
+ * Return: a managed dma allocation pool with the requested
+ * characteristics, or %NULL if one can't be created.
  */
 struct dma_pool *dmam_pool_create(const char *name, struct device *dev,
 				  size_t size, size_t align, size_t allocation)

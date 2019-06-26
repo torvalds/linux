@@ -50,11 +50,6 @@ remaining bits are reserved for future SEC EUs.
 
   ..and so on and so forth.
 
-Optional properties:
-
-- interrupt-parent : the phandle for the interrupt controller that
-  services interrupts for this device.
-
 Example:
 
 	/* MPC8548E */

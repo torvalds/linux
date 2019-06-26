@@ -64,16 +64,14 @@ static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
 	ret = of_property_read_string(node, "function", &function_name);
 	if (ret) {
 		dev_err(pctrl->dev,
-			"missing function property in node %s\n",
-			node->name);
+			"missing function property in node %pOFn\n", node);
 		return -EINVAL;
 	}
 
 	ngroups = of_property_count_strings(node, "groups");
 	if (ngroups < 0) {
 		dev_err(pctrl->dev,
-			"missing groups property in node %s\n",
-			node->name);
+			"missing groups property in node %pOFn\n", node);
 		return -EINVAL;
 	}
 
@@ -216,10 +214,8 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 	}
 
 	/* we will reallocate later */
-	pctrl->functions = devm_kcalloc(&pdev->dev,
-					max_functions,
-					sizeof(*pctrl->functions),
-					GFP_KERNEL);
+	pctrl->functions = kcalloc(max_functions,
+				   sizeof(*pctrl->functions), GFP_KERNEL);
 	if (!pctrl->functions)
 		return -ENOMEM;
 
@@ -257,8 +253,10 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 				function++;
 			}
 
-			if (!found)
+			if (!found) {
+				kfree(pctrl->functions);
 				return -EINVAL;
+			}
 
 			if (!function->groups) {
 				function->groups =
@@ -267,8 +265,10 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 						     sizeof(char *),
 						     GFP_KERNEL);
 
-				if (!function->groups)
+				if (!function->groups) {
+					kfree(pctrl->functions);
 					return -ENOMEM;
+				}
 			}
 
 			groups = function->groups;

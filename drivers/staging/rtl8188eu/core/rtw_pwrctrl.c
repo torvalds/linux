@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTW_PWRCTRL_C_
@@ -24,7 +16,6 @@ static int rtw_hw_suspend(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct net_device *pnetdev = padapter->pnetdev;
-
 
 	if ((!padapter->bup) || (padapter->bDriverStopped) ||
 	    (padapter->bSurpriseRemoved)) {
@@ -56,7 +47,7 @@ static int rtw_hw_suspend(struct adapter *padapter)
 		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 			_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
-			LedControl8188eu(padapter, LED_CTL_NO_LINK);
+			led_control_8188eu(padapter, LED_CTL_NO_LINK);
 
 			rtw_os_indicate_disconnect(padapter);
 
@@ -87,7 +78,6 @@ static int rtw_hw_resume(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct net_device *pnetdev = padapter->pnetdev;
 
-
 	/* system resume */
 	DBG_88E("==> %s\n", __func__);
 	mutex_lock(&pwrpriv->mutex_lock);
@@ -114,7 +104,6 @@ static int rtw_hw_resume(struct adapter *padapter)
 	pwrpriv->bips_processing = false;
 
 	mutex_unlock(&pwrpriv->mutex_lock);
-
 
 	return 0;
 error_exit:
@@ -169,7 +158,6 @@ int ips_leave(struct adapter *padapter)
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	int result = _SUCCESS;
 	int keyid;
-
 
 	mutex_lock(&pwrpriv->mutex_lock);
 
@@ -304,7 +292,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 			pslv = PS_STATE_S3;
 	}
 
-	if ((pwrpriv->rpwm == pslv)) {
+	if (pwrpriv->rpwm == pslv) {
 		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
 			 ("%s: Already set rpwm[0x%02X], new=0x%02X!\n", __func__, pwrpriv->rpwm, pslv));
 		return;
@@ -350,14 +338,13 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 
-
 	curr_time = jiffies;
 	delta_time = curr_time - pwrpriv->DelayLPSLastTimeStamp;
 
 	if (delta_time < LPS_DELAY_TIME)
 		return false;
 
-	if ((check_fwstate(pmlmepriv, _FW_LINKED) == false) ||
+	if ((!check_fwstate(pmlmepriv, _FW_LINKED)) ||
 	    (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) ||
 	    (check_fwstate(pmlmepriv, WIFI_AP_STATE)) ||
 	    (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) ||
@@ -365,7 +352,8 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 		return false;
 	if (pwrpriv->bInSuspend)
 		return false;
-	if ((padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) && (padapter->securitypriv.binstallGrpkey == false)) {
+	if (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X &&
+	    !padapter->securitypriv.binstallGrpkey) {
 		DBG_88E("Group handshake still in progress !!!\n");
 		return false;
 	}
@@ -420,7 +408,6 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 	u8 bAwake = false;
 	s32 err = 0;
 
-
 	start_time = jiffies;
 	while (1) {
 		rtw_hal_get_hwreg(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
@@ -452,7 +439,7 @@ void LPS_Enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
 
-	if (PS_RDY_CHECK(padapter) == false)
+	if (!PS_RDY_CHECK(padapter))
 		return;
 
 	if (pwrpriv->bLeisurePs) {

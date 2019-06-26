@@ -51,6 +51,14 @@ Description:
 		 Controls the dirty page count condition for the in-place-update
 		 policies.
 
+What:		/sys/fs/f2fs/<disk>/min_seq_blocks
+Date:		August 2018
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the dirty page count condition for batched sequential
+		 writes in ->writepages.
+
+
 What:		/sys/fs/f2fs/<disk>/min_hot_blocks
 Date:		March 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
@@ -78,11 +86,27 @@ Description:
 		The unit size is one block, now only support configuring in range
 		of [1, 512].
 
+What:          /sys/fs/f2fs/<disk>/umount_discard_timeout
+Date:          January 2019
+Contact:       "Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		Set timeout to issue discard commands during umount.
+		Default: 5 secs
+
 What:		/sys/fs/f2fs/<disk>/max_victim_search
 Date:		January 2014
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:
 		 Controls the number of trials to find a victim segment.
+
+What:		/sys/fs/f2fs/<disk>/migration_granularity
+Date:		October 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:
+		 Controls migration granularity of garbage collection on large
+		 section, it can let GC move partial segment{s} of one section
+		 in one GC cycle, so that dispersing heavy overhead GC to
+		 multiple lightweight one.
 
 What:		/sys/fs/f2fs/<disk>/dir_level
 Date:		March 2014
@@ -113,7 +137,22 @@ What:		/sys/fs/f2fs/<disk>/idle_interval
 Date:		January 2016
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:
-		 Controls the idle timing.
+		 Controls the idle timing for all paths other than
+		 discard and gc path.
+
+What:		/sys/fs/f2fs/<disk>/discard_idle_interval
+Date:		September 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Description:
+		 Controls the idle timing for discard path.
+
+What:		/sys/fs/f2fs/<disk>/gc_idle_interval
+Date:		September 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Description:
+		 Controls the idle timing for gc path.
 
 What:		/sys/fs/f2fs/<disk>/iostat_enable
 Date:		August 2017

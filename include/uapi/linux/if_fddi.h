@@ -6,9 +6,10 @@
  *
  *		Global definitions for the ANSI FDDI interface.
  *
- * Version:	@(#)if_fddi.h	1.0.2	Sep 29 2004
+ * Version:	@(#)if_fddi.h	1.0.3	Oct  6 2018
  *
- * Author:	Lawrence V. Stefani, <stefani@lkg.dec.com>
+ * Author:	Lawrence V. Stefani, <stefani@yahoo.com>
+ * Maintainer:	Maciej W. Rozycki, <macro@linux-mips.org>
  *
  *		if_fddi.h is based on previous if_ether.h and if_tr.h work by
  *			Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
@@ -45,7 +46,21 @@
 #define FDDI_K_OUI_LEN		3	/* Octets in OUI in 802.2 SNAP
 					   header */
 
-/* Define FDDI Frame Control (FC) Byte values */
+/* Define FDDI Frame Control (FC) Byte masks */
+#define FDDI_FC_K_CLASS_MASK		0x80	/* class bit */
+#define FDDI_FC_K_CLASS_SYNC		0x80
+#define FDDI_FC_K_CLASS_ASYNC		0x00
+#define FDDI_FC_K_ALEN_MASK		0x40	/* address length bit */
+#define FDDI_FC_K_ALEN_48		0x40
+#define FDDI_FC_K_ALEN_16		0x00
+#define FDDI_FC_K_FORMAT_MASK		0x30	/* format bits */
+#define FDDI_FC_K_FORMAT_FUTURE		0x30
+#define FDDI_FC_K_FORMAT_IMPLEMENTOR	0x20
+#define FDDI_FC_K_FORMAT_LLC		0x10
+#define FDDI_FC_K_FORMAT_MANAGEMENT	0x00
+#define FDDI_FC_K_CONTROL_MASK		0x0f	/* control bits */
+
+/* Define FDDI Frame Control (FC) Byte specific values */
 #define FDDI_FC_K_VOID			0x00
 #define FDDI_FC_K_NON_RESTRICTED_TOKEN	0x80
 #define FDDI_FC_K_RESTRICTED_TOKEN	0xC0

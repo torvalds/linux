@@ -3,6 +3,13 @@
 
 PKG="gtk+-2.0 gmodule-2.0 libglade-2.0"
 
+if [ -z "$(command -v pkg-config)" ]; then
+	echo >&2 "*"
+	echo >&2 "* 'make gconfig' requires 'pkg-config'. Please install it."
+	echo >&2 "*"
+	exit 1
+fi
+
 if ! pkg-config --exists $PKG; then
 	echo >&2 "*"
 	echo >&2 "* Unable to find the GTK+ installation. Please make sure that"

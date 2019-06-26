@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #include <osdep_service.h>
@@ -52,10 +44,9 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 
 #define	CHAN_PLAN_HW	0x80
 
-u8 /* return the final channel plan decision */
-hal_com_get_channel_plan(struct adapter *padapter, u8 hw_channel_plan,
-			 u8 sw_channel_plan, u8 def_channel_plan,
-			 bool load_fail)
+/* return the final channel plan decision */
+u8 hal_com_get_channel_plan(u8 hw_channel_plan, u8 sw_channel_plan,
+			    u8 def_channel_plan, bool load_fail)
 {
 	u8 sw_cfg;
 	u8 chnlplan;
@@ -127,7 +118,7 @@ u8 MRateToHwRate(u8 rate)
 	return ret;
 }
 
-void HalSetBrateCfg(struct adapter *adapt, u8 *brates, u16 *rate_cfg)
+void hal_set_brate_cfg(u8 *brates, u16 *rate_cfg)
 {
 	u8 i, is_brate, brate;
 
@@ -197,11 +188,13 @@ static void two_out_pipe(struct adapter *adapter, bool wifi_cfg)
 {
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapter);
 
-	if (wifi_cfg) { /* WMM */
-		/* BK, BE, VI, VO, BCN,	CMD, MGT, HIGH, HCCA */
-		/*  0,  1,  0,  1,   0,   0,   0,    0,    0}; */
-		/* 0:H, 1:L */
-
+	if (wifi_cfg) {
+		/*
+		 * WMM
+		 * BK, BE, VI, VO, BCN, CMD, MGT, HIGH, HCCA
+		 *  0,  1,  0,  1,   0,   0,   0,    0,    0
+		 * 0:H, 1:L
+		 */
 		pdvobjpriv->Queue2Pipe[0] = pdvobjpriv->RtOutPipe[1];/* VO */
 		pdvobjpriv->Queue2Pipe[1] = pdvobjpriv->RtOutPipe[0];/* VI */
 		pdvobjpriv->Queue2Pipe[2] = pdvobjpriv->RtOutPipe[1];/* BE */
@@ -211,12 +204,13 @@ static void two_out_pipe(struct adapter *adapter, bool wifi_cfg)
 		pdvobjpriv->Queue2Pipe[5] = pdvobjpriv->RtOutPipe[0];/* MGT */
 		pdvobjpriv->Queue2Pipe[6] = pdvobjpriv->RtOutPipe[0];/* HIGH */
 		pdvobjpriv->Queue2Pipe[7] = pdvobjpriv->RtOutPipe[0];/* TXCMD */
-
-	} else {/* typical setting */
-		/* BK, BE, VI, VO, BCN,	CMD, MGT, HIGH, HCCA */
-		/*  1,	1,  0,  0,   0,   0,   0,    0,    0}; */
-		/* 0:H, 1:L */
-
+	} else {
+		/*
+		 * typical setting
+		 * BK, BE, VI, VO, BCN, CMD, MGT, HIGH, HCCA
+		 *  1,  1,  0,  0,   0,   0,   0,    0,    0
+		 * 0:H, 1:L
+		 */
 		pdvobjpriv->Queue2Pipe[0] = pdvobjpriv->RtOutPipe[0];/* VO */
 		pdvobjpriv->Queue2Pipe[1] = pdvobjpriv->RtOutPipe[0];/* VI */
 		pdvobjpriv->Queue2Pipe[2] = pdvobjpriv->RtOutPipe[1];/* BE */
@@ -233,11 +227,13 @@ static void three_out_pipe(struct adapter *adapter, bool wifi_cfg)
 {
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapter);
 
-	if (wifi_cfg) {/* for WMM */
-		/* BK, BE, VI, VO, BCN,	CMD, MGT, HIGH, HCCA */
-		/*  1,	2,  1,  0,   0,   0,   0,    0,    0}; */
-		/* 0:H, 1:N, 2:L */
-
+	if (wifi_cfg) {
+		/*
+		 * for WMM
+		 * BK, BE, VI, VO, BCN, CMD, MGT, HIGH, HCCA
+		 *  1,  2,  1,  0,   0,   0,   0,    0,    0
+		 * 0:H, 1:N, 2:L
+		 */
 		pdvobjpriv->Queue2Pipe[0] = pdvobjpriv->RtOutPipe[0];/* VO */
 		pdvobjpriv->Queue2Pipe[1] = pdvobjpriv->RtOutPipe[1];/* VI */
 		pdvobjpriv->Queue2Pipe[2] = pdvobjpriv->RtOutPipe[2];/* BE */
@@ -247,12 +243,13 @@ static void three_out_pipe(struct adapter *adapter, bool wifi_cfg)
 		pdvobjpriv->Queue2Pipe[5] = pdvobjpriv->RtOutPipe[0];/* MGT */
 		pdvobjpriv->Queue2Pipe[6] = pdvobjpriv->RtOutPipe[0];/* HIGH */
 		pdvobjpriv->Queue2Pipe[7] = pdvobjpriv->RtOutPipe[0];/* TXCMD */
-
-	} else {/* typical setting */
-		/* BK, BE, VI, VO, BCN,	CMD, MGT, HIGH, HCCA */
-		/*  2,  2,  1,  0,   0,   0,   0,    0,    0}; */
-		/* 0:H, 1:N, 2:L */
-
+	} else {
+		/*
+		 * typical setting
+		 * BK, BE, VI, VO, BCN, CMD, MGT, HIGH, HCCA
+		 *  2,  2,  1,  0,   0,   0,   0,    0,    0
+		 * 0:H, 1:N, 2:L
+		 */
 		pdvobjpriv->Queue2Pipe[0] = pdvobjpriv->RtOutPipe[0];/* VO */
 		pdvobjpriv->Queue2Pipe[1] = pdvobjpriv->RtOutPipe[1];/* VI */
 		pdvobjpriv->Queue2Pipe[2] = pdvobjpriv->RtOutPipe[2];/* BE */
@@ -265,25 +262,24 @@ static void three_out_pipe(struct adapter *adapter, bool wifi_cfg)
 	}
 }
 
-bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
+bool hal_mapping_out_pipe(struct adapter *adapter, u8 numoutpipe)
 {
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
-	bool  wifi_cfg = (pregistrypriv->wifi_spec) ? true : false;
+	bool wifi_cfg = (pregistrypriv->wifi_spec) ? true : false;
 	bool result = true;
 
 	switch (numoutpipe) {
+	case 1:
+		one_out_pipe(adapter);
+		break;
 	case 2:
 		two_out_pipe(adapter, wifi_cfg);
 		break;
 	case 3:
 		three_out_pipe(adapter, wifi_cfg);
 		break;
-	case 1:
-		one_out_pipe(adapter);
-		break;
 	default:
 		result = false;
-		break;
 	}
 	return result;
 }

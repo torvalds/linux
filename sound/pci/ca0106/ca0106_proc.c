@@ -424,30 +424,20 @@ static void snd_ca0106_proc_i2c_write(struct snd_info_entry *entry,
 
 int snd_ca0106_proc_init(struct snd_ca0106 *emu)
 {
-	struct snd_info_entry *entry;
-	
-	if(! snd_card_proc_new(emu->card, "iec958", &entry))
-		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_iec958);
-	if(! snd_card_proc_new(emu->card, "ca0106_reg32", &entry)) {
-		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read32);
-		entry->c.text.write = snd_ca0106_proc_reg_write32;
-		entry->mode |= 0200;
-	}
-	if(! snd_card_proc_new(emu->card, "ca0106_reg16", &entry))
-		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read16);
-	if(! snd_card_proc_new(emu->card, "ca0106_reg8", &entry))
-		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read8);
-	if(! snd_card_proc_new(emu->card, "ca0106_regs1", &entry)) {
-		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read1);
-		entry->c.text.write = snd_ca0106_proc_reg_write;
-		entry->mode |= 0200;
-	}
-	if(! snd_card_proc_new(emu->card, "ca0106_i2c", &entry)) {
-		entry->c.text.write = snd_ca0106_proc_i2c_write;
-		entry->private_data = emu;
-		entry->mode |= 0200;
-	}
-	if(! snd_card_proc_new(emu->card, "ca0106_regs2", &entry)) 
-		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read2);
+	snd_card_ro_proc_new(emu->card, "iec958", emu, snd_ca0106_proc_iec958);
+	snd_card_rw_proc_new(emu->card, "ca0106_reg32", emu,
+			     snd_ca0106_proc_reg_read32,
+			     snd_ca0106_proc_reg_write32);
+	snd_card_ro_proc_new(emu->card, "ca0106_reg16", emu,
+			     snd_ca0106_proc_reg_read16);
+	snd_card_ro_proc_new(emu->card, "ca0106_reg8", emu,
+			     snd_ca0106_proc_reg_read8);
+	snd_card_rw_proc_new(emu->card, "ca0106_regs1", emu,
+			     snd_ca0106_proc_reg_read1,
+			     snd_ca0106_proc_reg_write);
+	snd_card_rw_proc_new(emu->card, "ca0106_i2c", emu, NULL,
+			     snd_ca0106_proc_i2c_write);
+	snd_card_ro_proc_new(emu->card, "ca0106_regs2", emu,
+			     snd_ca0106_proc_reg_read2);
 	return 0;
 }

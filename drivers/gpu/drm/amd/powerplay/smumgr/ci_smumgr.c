@@ -1231,6 +1231,7 @@ static int ci_populate_single_memory_level(
 	memory_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
 	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	/* stutter mode not support on ci */
 
@@ -1610,37 +1611,6 @@ static int ci_populate_smc_acp_level(struct pp_hwmgr *hwmgr,
 
 		CONVERT_FROM_HOST_TO_SMC_UL(table->AcpLevel[count].Frequency);
 		CONVERT_FROM_HOST_TO_SMC_US(table->AcpLevel[count].MinVoltage);
-	}
-	return result;
-}
-
-static int ci_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
-					SMU7_Discrete_DpmTable *table)
-{
-	int result = -EINVAL;
-	uint8_t count;
-	struct pp_atomctrl_clock_dividers_vi dividers;
-	struct phm_samu_clock_voltage_dependency_table *samu_table =
-				hwmgr->dyn_state.samu_clock_voltage_dependency_table;
-
-	table->SamuBootLevel = 0;
-	table->SamuLevelCount = (uint8_t)(samu_table->count);
-
-	for (count = 0; count < table->SamuLevelCount; count++) {
-		table->SamuLevel[count].Frequency = samu_table->entries[count].samclk;
-		table->SamuLevel[count].MinVoltage = samu_table->entries[count].v * VOLTAGE_SCALE;
-		table->SamuLevel[count].MinPhases = 1;
-
-		/* retrieve divider value for VBIOS */
-		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
-				table->SamuLevel[count].Frequency, &dividers);
-		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for samu clock", return result);
-
-		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
-
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
-		CONVERT_FROM_HOST_TO_SMC_US(table->SamuLevel[count].MinVoltage);
 	}
 	return result;
 }
@@ -2026,10 +1996,6 @@ static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == result,
 		"Failed to initialize ACP Level!", return result);
 
-	result = ci_populate_smc_samu_level(hwmgr, table);
-	PP_ASSERT_WITH_CODE(0 == result,
-		"Failed to initialize SAMU Level!", return result);
-
 	/* Since only the initial state is completely set up at this point (the other states are just copies of the boot state) we only */
 	/* need to populate the  ARB settings for the initial state. */
 	result = ci_program_memory_timing_parameters(hwmgr);
@@ -2303,11 +2269,13 @@ static uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
 		case DRAM_LOG_BUFF_SIZE:
 			return offsetof(SMU7_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
+		break;
 	case SMU_Discrete_DpmTable:
 		switch (member) {
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU7_Discrete_DpmTable, LowSclkInterruptT);
 		}
+		break;
 	}
 	pr_debug("can't get the offset of type %x member %x\n", type, member);
 	return 0;
@@ -2881,6 +2849,89 @@ static int ci_update_dpm_settings(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int ci_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+	struct smu7_hwmgr *data = hwmgr->backend;
+	struct ci_smumgr *smu_data = hwmgr->smu_backend;
+	struct phm_uvd_clock_voltage_dependency_table *uvd_table =
+			hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
+	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
+	uint32_t max_vddc = adev->pm.ac_power ? hwmgr->dyn_state.max_clock_voltage_on_ac.vddc :
+						hwmgr->dyn_state.max_clock_voltage_on_dc.vddc;
+	int32_t i;
+
+	if (PP_CAP(PHM_PlatformCaps_UVDDPM) || uvd_table->count <= 0)
+		smu_data->smc_state_table.UvdBootLevel = 0;
+	else
+		smu_data->smc_state_table.UvdBootLevel = uvd_table->count - 1;
+
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, DPM_TABLE_475,
+				UvdBootLevel, smu_data->smc_state_table.UvdBootLevel);
+
+	data->dpm_level_enable_mask.uvd_dpm_enable_mask = 0;
+
+	for (i = uvd_table->count - 1; i >= 0; i--) {
+		if (uvd_table->entries[i].v <= max_vddc)
+			data->dpm_level_enable_mask.uvd_dpm_enable_mask |= 1 << i;
+		if (hwmgr->dpm_level & profile_mode_mask || !PP_CAP(PHM_PlatformCaps_UVDDPM))
+			break;
+	}
+	ci_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_UVDDPM_SetEnabledMask,
+				data->dpm_level_enable_mask.uvd_dpm_enable_mask);
+
+	return 0;
+}
+
+static int ci_update_vce_smc_table(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+	struct smu7_hwmgr *data = hwmgr->backend;
+	struct phm_vce_clock_voltage_dependency_table *vce_table =
+			hwmgr->dyn_state.vce_clock_voltage_dependency_table;
+	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
+	uint32_t max_vddc = adev->pm.ac_power ? hwmgr->dyn_state.max_clock_voltage_on_ac.vddc :
+						hwmgr->dyn_state.max_clock_voltage_on_dc.vddc;
+	int32_t i;
+
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, DPM_TABLE_475,
+				VceBootLevel, 0); /* temp hard code to level 0, vce can set min evclk*/
+
+	data->dpm_level_enable_mask.vce_dpm_enable_mask = 0;
+
+	for (i = vce_table->count - 1; i >= 0; i--) {
+		if (vce_table->entries[i].v <= max_vddc)
+			data->dpm_level_enable_mask.vce_dpm_enable_mask |= 1 << i;
+		if (hwmgr->dpm_level & profile_mode_mask || !PP_CAP(PHM_PlatformCaps_VCEDPM))
+			break;
+	}
+	ci_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_VCEDPM_SetEnabledMask,
+				data->dpm_level_enable_mask.vce_dpm_enable_mask);
+
+	return 0;
+}
+
+static int ci_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
+{
+	switch (type) {
+	case SMU_UVD_TABLE:
+		ci_update_uvd_smc_table(hwmgr);
+		break;
+	case SMU_VCE_TABLE:
+		ci_update_vce_smc_table(hwmgr);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 const struct pp_smumgr_func ci_smu_funcs = {
 	.smu_init = ci_smu_init,
 	.smu_fini = ci_smu_fini,
@@ -2903,4 +2954,5 @@ const struct pp_smumgr_func ci_smu_funcs = {
 	.initialize_mc_reg_table = ci_initialize_mc_reg_table,
 	.is_dpm_running = ci_is_dpm_running,
 	.update_dpm_settings = ci_update_dpm_settings,
+	.update_smc_table = ci_update_smc_table,
 };

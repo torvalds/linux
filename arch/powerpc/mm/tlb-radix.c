@@ -366,6 +366,7 @@ static inline void _tlbiel_lpid_guest(unsigned long lpid, unsigned long ric)
 		__tlbiel_lpid_guest(lpid, set, RIC_FLUSH_TLB);
 
 	asm volatile("ptesync": : :"memory");
+	asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
 }
 
 
@@ -833,6 +834,15 @@ EXPORT_SYMBOL_GPL(radix__flush_pwc_lpid);
 /*
  * Flush partition scoped translations from LPID (=LPIDR)
  */
+void radix__flush_tlb_lpid(unsigned int lpid)
+{
+	_tlbie_lpid(lpid, RIC_FLUSH_ALL);
+}
+EXPORT_SYMBOL_GPL(radix__flush_tlb_lpid);
+
+/*
+ * Flush partition scoped translations from LPID (=LPIDR)
+ */
 void radix__local_flush_tlb_lpid(unsigned int lpid)
 {
 	_tlbiel_lpid(lpid, RIC_FLUSH_ALL);
@@ -1007,7 +1017,6 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 			goto local;
 		}
 		_tlbie_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
-		goto local;
 	} else {
 local:
 		_tlbiel_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
@@ -1046,24 +1055,6 @@ void radix__flush_tlb_all(void)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
-}
-
-void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
-				 unsigned long address)
-{
-	/*
-	 * We track page size in pte only for DD1, So we can
-	 * call this only on DD1.
-	 */
-	if (!cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		VM_WARN_ON(1);
-		return;
-	}
-
-	if (old_pte & R_PAGE_LARGE)
-		radix__flush_tlb_page_psize(mm, address, MMU_PAGE_2M);
-	else
-		radix__flush_tlb_page_psize(mm, address, mmu_virtual_psize);
 }
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE

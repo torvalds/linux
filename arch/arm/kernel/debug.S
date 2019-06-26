@@ -86,7 +86,7 @@ hexbuf_rel:	.long	hexbuf_addr - .
 ENTRY(printascii)
 		addruart_current r3, r1, r2
 1:		teq	r0, #0
-		ldrneb	r1, [r0], #1
+		ldrbne	r1, [r0], #1
 		teqne	r1, #0
 		reteq	lr
 2:		teq     r1, #'\n'

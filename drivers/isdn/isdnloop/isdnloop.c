@@ -72,7 +72,7 @@ isdnloop_bchan_send(isdnloop_card *card, int ch)
 				printk(KERN_WARNING "isdnloop: no rcard, skb dropped\n");
 				dev_kfree_skb(skb);
 
-			};
+			}
 			cmd.command = ISDN_STAT_BSENT;
 			cmd.parm.length = len;
 			card->interface.statcallb(&cmd);
@@ -570,7 +570,7 @@ isdnloop_atimeout(isdnloop_card *card, int ch)
 	char buf[60];
 
 	spin_lock_irqsave(&card->isdnloop_lock, flags);
-	if (card->rcard) {
+	if (card->rcard[ch]) {
 		isdnloop_fake(card->rcard[ch], "DDIS_I", card->rch[ch] + 1);
 		card->rcard[ch]->rcard[card->rch[ch]] = NULL;
 		card->rcard[ch] = NULL;

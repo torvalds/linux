@@ -404,7 +404,7 @@ static struct clk * __init st_clk_register_quadfs_pll(
 
 	init.name = name;
 	init.ops = quadfs->pll_ops;
-	init.flags = CLK_IS_BASIC | CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_GET_RATE_NOCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -843,7 +843,7 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 
 	init.name = name;
 	init.ops = &st_quadfs_ops;
-	init.flags = flags | CLK_GET_RATE_NOCACHE | CLK_IS_BASIC;
+	init.flags = flags | CLK_GET_RATE_NOCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -936,7 +936,7 @@ static void __init st_of_quadfs_setup(struct device_node *np,
 	if (!clk_parent_name)
 		return;
 
-	pll_name = kasprintf(GFP_KERNEL, "%s.pll", np->name);
+	pll_name = kasprintf(GFP_KERNEL, "%pOFn.pll", np);
 	if (!pll_name)
 		return;
 

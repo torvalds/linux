@@ -42,6 +42,7 @@
 #define WORD3_QUEUE_LAST_IND	CC_GENMASK(3, QUEUE_LAST_IND)
 #define WORD4_ACK_NEEDED	CC_GENMASK(4, ACK_NEEDED)
 #define WORD4_AES_SEL_N_HASH	CC_GENMASK(4, AES_SEL_N_HASH)
+#define WORD4_AES_XOR_CRYPTO_KEY CC_GENMASK(4, AES_XOR_CRYPTO_KEY)
 #define WORD4_BYTES_SWAP	CC_GENMASK(4, BYTES_SWAP)
 #define WORD4_CIPHER_CONF0	CC_GENMASK(4, CIPHER_CONF0)
 #define WORD4_CIPHER_CONF1	CC_GENMASK(4, CIPHER_CONF1)
@@ -107,6 +108,7 @@ enum cc_flow_mode {
 	AES_to_AES_to_HASH_and_DOUT	= 13,
 	AES_to_AES_to_HASH	= 14,
 	AES_to_HASH_and_AES	= 15,
+	DIN_SM4_DOUT		= 16,
 	DIN_AES_AESMAC		= 17,
 	HASH_to_DOUT		= 18,
 	/* setup flows */
@@ -114,9 +116,11 @@ enum cc_flow_mode {
 	S_DIN_to_AES2		= 33,
 	S_DIN_to_DES		= 34,
 	S_DIN_to_RC4		= 35,
+	S_DIN_to_SM4		= 36,
 	S_DIN_to_HASH		= 37,
 	S_AES_to_DOUT		= 38,
 	S_AES2_to_DOUT		= 39,
+	S_SM4_to_DOUT		= 40,
 	S_RC4_to_DOUT		= 41,
 	S_DES_to_DOUT		= 42,
 	S_HASH_to_DOUT		= 43,
@@ -394,6 +398,16 @@ static inline void set_aes_not_hash_mode(struct cc_hw_desc *pdesc)
 }
 
 /*
+ * Set aes xor crypto key, this in some secenrios select SM3 engine
+ *
+ * @pdesc: pointer HW descriptor struct
+ */
+static inline void set_aes_xor_crypto_key(struct cc_hw_desc *pdesc)
+{
+	pdesc->word[4] |= FIELD_PREP(WORD4_AES_XOR_CRYPTO_KEY, 1);
+}
+
+/*
  * Set the DOUT field of a HW descriptors to SRAM mode
  * Note: No need to check SRAM alignment since host requests do not use SRAM and
  * adaptor will enforce alignment check.
@@ -449,10 +463,25 @@ static inline void set_flow_mode(struct cc_hw_desc *pdesc,
  * @pdesc: pointer HW descriptor struct
  * @mode:  Any one of the modes defined in [CC7x-DESC]
  */
-static inline void set_cipher_mode(struct cc_hw_desc *pdesc,
-				   enum drv_cipher_mode mode)
+static inline void set_cipher_mode(struct cc_hw_desc *pdesc, int mode)
 {
 	pdesc->word[4] |= FIELD_PREP(WORD4_CIPHER_MODE, mode);
+}
+
+/*
+ * Set the cipher mode for hash algorithms.
+ *
+ * @pdesc: pointer HW descriptor struct
+ * @cipher_mode:  Any one of the modes defined in [CC7x-DESC]
+ * @hash_mode: specifies which hash is being handled
+ */
+static inline void set_hash_cipher_mode(struct cc_hw_desc *pdesc,
+					enum drv_cipher_mode cipher_mode,
+					enum drv_hash_mode hash_mode)
+{
+	set_cipher_mode(pdesc, cipher_mode);
+	if (hash_mode == DRV_HASH_SM3)
+		set_aes_xor_crypto_key(pdesc);
 }
 
 /*
@@ -461,8 +490,7 @@ static inline void set_cipher_mode(struct cc_hw_desc *pdesc,
  * @pdesc: pointer HW descriptor struct
  * @mode: Any one of the modes defined in [CC7x-DESC]
  */
-static inline void set_cipher_config0(struct cc_hw_desc *pdesc,
-				      enum drv_crypto_direction mode)
+static inline void set_cipher_config0(struct cc_hw_desc *pdesc, int mode)
 {
 	pdesc->word[4] |= FIELD_PREP(WORD4_CIPHER_CONF0, mode);
 }

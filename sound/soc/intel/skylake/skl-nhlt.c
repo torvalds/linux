@@ -141,7 +141,7 @@ struct nhlt_specific_cfg
 {
 	struct nhlt_fmt *fmt;
 	struct nhlt_endpoint *epnt;
-	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct hdac_bus *bus = skl_to_bus(skl);
 	struct device *dev = bus->dev;
 	struct nhlt_specific_cfg *sp_config;
 	struct nhlt_acpi_table *nhlt = skl->nhlt;
@@ -179,6 +179,9 @@ int skl_get_dmic_geo(struct skl *skl)
 	struct device *dev = &skl->pci->dev;
 	unsigned int dmic_geo = 0;
 	u8 j;
+
+	if (!nhlt)
+		return 0;
 
 	epnt = (struct nhlt_endpoint *)nhlt->desc;
 
@@ -228,7 +231,7 @@ static void skl_nhlt_trim_space(char *trim)
 int skl_nhlt_update_topology_bin(struct skl *skl)
 {
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
-	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct hdac_bus *bus = skl_to_bus(skl);
 	struct device *dev = bus->dev;
 
 	dev_dbg(dev, "oem_id %.6s, oem_table_id %8s oem_revision %d\n",
@@ -248,8 +251,8 @@ static ssize_t skl_nhlt_platform_id_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
+	struct skl *skl = bus_to_skl(bus);
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
 	char platform_id[32];
 

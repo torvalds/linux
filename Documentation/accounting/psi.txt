@@ -1,0 +1,73 @@
+================================
+PSI - Pressure Stall Information
+================================
+
+:Date: April, 2018
+:Author: Johannes Weiner <hannes@cmpxchg.org>
+
+When CPU, memory or IO devices are contended, workloads experience
+latency spikes, throughput losses, and run the risk of OOM kills.
+
+Without an accurate measure of such contention, users are forced to
+either play it safe and under-utilize their hardware resources, or
+roll the dice and frequently suffer the disruptions resulting from
+excessive overcommit.
+
+The psi feature identifies and quantifies the disruptions caused by
+such resource crunches and the time impact it has on complex workloads
+or even entire systems.
+
+Having an accurate measure of productivity losses caused by resource
+scarcity aids users in sizing workloads to hardware--or provisioning
+hardware according to workload demand.
+
+As psi aggregates this information in realtime, systems can be managed
+dynamically using techniques such as load shedding, migrating jobs to
+other systems or data centers, or strategically pausing or killing low
+priority or restartable batch jobs.
+
+This allows maximizing hardware utilization without sacrificing
+workload health or risking major disruptions such as OOM kills.
+
+Pressure interface
+==================
+
+Pressure information for each resource is exported through the
+respective file in /proc/pressure/ -- cpu, memory, and io.
+
+The format for CPU is as such:
+
+some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+
+and for memory and IO:
+
+some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+
+The "some" line indicates the share of time in which at least some
+tasks are stalled on a given resource.
+
+The "full" line indicates the share of time in which all non-idle
+tasks are stalled on a given resource simultaneously. In this state
+actual CPU cycles are going to waste, and a workload that spends
+extended time in this state is considered to be thrashing. This has
+severe impact on performance, and it's useful to distinguish this
+situation from a state where some tasks are stalled but the CPU is
+still doing productive work. As such, time spent in this subset of the
+stall state is tracked separately and exported in the "full" averages.
+
+The ratios (in %) are tracked as recent trends over ten, sixty, and
+three hundred second windows, which gives insight into short term events
+as well as medium and long term trends. The total absolute stall time
+(in us) is tracked and exported as well, to allow detection of latency
+spikes which wouldn't necessarily make a dent in the time averages,
+or to average trends over custom time frames.
+
+Cgroup2 interface
+=================
+
+In a system with a CONFIG_CGROUP=y kernel and the cgroup2 filesystem
+mounted, pressure stall information is also tracked for tasks grouped
+into cgroups. Each subdirectory in the cgroupfs mountpoint contains
+cpu.pressure, memory.pressure, and io.pressure files; the format is
+the same as the /proc/pressure/ files.

@@ -133,7 +133,7 @@ struct fm_rds {
 /*
  * Current RX channel Alternate Frequency cache.
  * This info is used to switch to other freq (AF)
- * when current channel signal strengh is below RSSI threshold.
+ * when current channel signal strength is below RSSI threshold.
  */
 struct tuned_station_info {
 	u16 picode;
@@ -228,7 +228,7 @@ struct fmdev {
 	struct fm_rx rx;	/* FM receiver info */
 	struct fmtx_data tx_data;
 
-	/* V4L2 ctrl framwork handler*/
+	/* V4L2 ctrl framework handler*/
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	/* For core assisted locking */

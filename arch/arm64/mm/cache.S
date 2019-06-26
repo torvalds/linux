@@ -35,7 +35,7 @@
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(flush_icache_range)
+ENTRY(__flush_icache_range)
 	/* FALLTHROUGH */
 
 /*
@@ -77,7 +77,7 @@ alternative_else_nop_endif
 9:
 	mov	x0, #-EFAULT
 	b	1b
-ENDPROC(flush_icache_range)
+ENDPROC(__flush_icache_range)
 ENDPROC(__flush_cache_user_range)
 
 /*
@@ -212,6 +212,9 @@ ENDPROC(__dma_clean_area)
  *	- size    - size in question
  */
 ENTRY(__clean_dcache_area_pop)
+	alternative_if_not ARM64_HAS_DCPOP
+	b	__clean_dcache_area_poc
+	alternative_else_nop_endif
 	dcache_by_line_op cvap, sy, x0, x1, x2, x3
 	ret
 ENDPIPROC(__clean_dcache_area_pop)

@@ -27,7 +27,7 @@
 #include <nvif/class.h>
 
 void
-gk208_fifo_init_pbdma_timeout(struct gk104_fifo *fifo)
+gk208_fifo_pbdma_init_timeout(struct gk104_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	int i;
@@ -36,9 +36,16 @@ gk208_fifo_init_pbdma_timeout(struct gk104_fifo *fifo)
 		nvkm_wr32(device, 0x04012c + (i * 0x2000), 0x0000ffff);
 }
 
+const struct gk104_fifo_pbdma_func
+gk208_fifo_pbdma = {
+	.nr = gk104_fifo_pbdma_nr,
+	.init = gk104_fifo_pbdma_init,
+	.init_timeout = gk208_fifo_pbdma_init_timeout,
+};
+
 static const struct gk104_fifo_func
 gk208_fifo = {
-	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.pbdma = &gk208_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,

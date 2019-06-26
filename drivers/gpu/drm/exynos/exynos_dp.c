@@ -16,15 +16,17 @@
 #include <linux/clk.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/pm_runtime.h>
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #include <drm/bridge/analogix_dp.h>
 #include <drm/exynos_drm.h>
@@ -232,9 +234,11 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	np = of_parse_phandle(dev->of_node, "panel", 0);
 	if (np) {
 		dp->plat_data.panel = of_drm_find_panel(np);
+
 		of_node_put(np);
-		if (!dp->plat_data.panel)
-			return -EPROBE_DEFER;
+		if (IS_ERR(dp->plat_data.panel))
+			return PTR_ERR(dp->plat_data.panel);
+
 		goto out;
 	}
 
@@ -276,6 +280,8 @@ static int exynos_dp_resume(struct device *dev)
 
 static const struct dev_pm_ops exynos_dp_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_dp_suspend, exynos_dp_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static const struct of_device_id exynos_dp_match[] = {

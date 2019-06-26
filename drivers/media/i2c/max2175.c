@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Maxim Integrated MAX2175 RF to Bits tuner driver
  *
@@ -6,15 +7,6 @@
  *
  * Copyright (C) 2016 Maxim Integrated Products
  * Copyright (C) 2017 Renesas Electronics Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -1165,7 +1157,7 @@ static int max2175_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	if (vt->index > 0)
 		return -EINVAL;
 
-	strlcpy(vt->name, "RF", sizeof(vt->name));
+	strscpy(vt->name, "RF", sizeof(vt->name));
 	vt->type = V4L2_TUNER_RF;
 	vt->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 	vt->rangelow = ctx->bands_rf->rangelow;

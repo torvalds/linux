@@ -23,6 +23,8 @@ config DRM_I915
 	select SYNC_FILE
 	select IOSF_MBI
 	select CRC32
+	select SND_HDA_I915 if SND_HDA_CORE
+	select CEC_CORE if CEC_NOTIFIER
 	help
 	  Choose this option if you have a system that has "Intel Graphics
 	  Media Accelerator" or "HD Graphics" integrated graphics,
@@ -129,5 +131,5 @@ config DRM_I915_GVT_KVMGT
 menu "drm/i915 Debugging"
 depends on DRM_I915
 depends on EXPERT
-source drivers/gpu/drm/i915/Kconfig.debug
+source "drivers/gpu/drm/i915/Kconfig.debug"
 endmenu

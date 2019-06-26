@@ -81,11 +81,6 @@ static const char *drm_sched_fence_get_timeline_name(struct dma_fence *f)
 	return (const char *)fence->sched->name;
 }
 
-static bool drm_sched_fence_enable_signaling(struct dma_fence *f)
-{
-	return true;
-}
-
 /**
  * drm_sched_fence_free - free up the fence memory
  *
@@ -134,18 +129,12 @@ static void drm_sched_fence_release_finished(struct dma_fence *f)
 const struct dma_fence_ops drm_sched_fence_ops_scheduled = {
 	.get_driver_name = drm_sched_fence_get_driver_name,
 	.get_timeline_name = drm_sched_fence_get_timeline_name,
-	.enable_signaling = drm_sched_fence_enable_signaling,
-	.signaled = NULL,
-	.wait = dma_fence_default_wait,
 	.release = drm_sched_fence_release_scheduled,
 };
 
 const struct dma_fence_ops drm_sched_fence_ops_finished = {
 	.get_driver_name = drm_sched_fence_get_driver_name,
 	.get_timeline_name = drm_sched_fence_get_timeline_name,
-	.enable_signaling = drm_sched_fence_enable_signaling,
-	.signaled = NULL,
-	.wait = dma_fence_default_wait,
 	.release = drm_sched_fence_release_finished,
 };
 
@@ -172,7 +161,7 @@ struct drm_sched_fence *drm_sched_fence_create(struct drm_sched_entity *entity,
 		return NULL;
 
 	fence->owner = owner;
-	fence->sched = entity->sched;
+	fence->sched = entity->rq->sched;
 	spin_lock_init(&fence->lock);
 
 	seq = atomic_inc_return(&entity->fence_seq);

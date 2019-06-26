@@ -38,7 +38,7 @@
  * Virtual mode variants of the hcalls for use on radix/radix
  * with AIL. They require the VCPU's VP to be "pushed"
  *
- * We still instanciate them here because we use some of the
+ * We still instantiate them here because we use some of the
  * generated utility functions as well in this file.
  */
 #define XIVE_RUNTIME_CHECKS
@@ -60,6 +60,69 @@
  * account for the IPI and additional safety guard.
  */
 #define XIVE_Q_GAP	2
+
+/*
+ * Push a vcpu's context to the XIVE on guest entry.
+ * This assumes we are in virtual mode (MMU on)
+ */
+void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu)
+{
+	void __iomem *tima = local_paca->kvm_hstate.xive_tima_virt;
+	u64 pq;
+
+	if (!tima)
+		return;
+	eieio();
+	__raw_writeq(vcpu->arch.xive_saved_state.w01, tima + TM_QW1_OS);
+	__raw_writel(vcpu->arch.xive_cam_word, tima + TM_QW1_OS + TM_WORD2);
+	vcpu->arch.xive_pushed = 1;
+	eieio();
+
+	/*
+	 * We clear the irq_pending flag. There is a small chance of a
+	 * race vs. the escalation interrupt happening on another
+	 * processor setting it again, but the only consequence is to
+	 * cause a spurious wakeup on the next H_CEDE, which is not an
+	 * issue.
+	 */
+	vcpu->arch.irq_pending = 0;
+
+	/*
+	 * In single escalation mode, if the escalation interrupt is
+	 * on, we mask it.
+	 */
+	if (vcpu->arch.xive_esc_on) {
+		pq = __raw_readq((void __iomem *)(vcpu->arch.xive_esc_vaddr +
+						  XIVE_ESB_SET_PQ_01));
+		mb();
+
+		/*
+		 * We have a possible subtle race here: The escalation
+		 * interrupt might have fired and be on its way to the
+		 * host queue while we mask it, and if we unmask it
+		 * early enough (re-cede right away), there is a
+		 * theorical possibility that it fires again, thus
+		 * landing in the target queue more than once which is
+		 * a big no-no.
+		 *
+		 * Fortunately, solving this is rather easy. If the
+		 * above load setting PQ to 01 returns a previous
+		 * value where P is set, then we know the escalation
+		 * interrupt is somewhere on its way to the host. In
+		 * that case we simply don't clear the xive_esc_on
+		 * flag below. It will be eventually cleared by the
+		 * handler for the escalation interrupt.
+		 *
+		 * Then, when doing a cede, we check that flag again
+		 * before re-enabling the escalation interrupt, and if
+		 * set, we abort the cede.
+		 */
+		if (!(pq & XIVE_ESB_VAL_P))
+			/* Now P is 0, we can clear the flag */
+			vcpu->arch.xive_esc_on = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(kvmppc_xive_push_vcpu);
 
 /*
  * This is a simple trigger for a generic XIVE IRQ. This must
@@ -317,6 +380,11 @@ static int xive_select_target(struct kvm *kvm, u32 *server, u8 prio)
 	return -EBUSY;
 }
 
+static u32 xive_vp(struct kvmppc_xive *xive, u32 server)
+{
+	return xive->vp_base + kvmppc_pack_vcpu_id(xive->kvm, server);
+}
+
 static u8 xive_lock_and_mask(struct kvmppc_xive *xive,
 			     struct kvmppc_xive_src_block *sb,
 			     struct kvmppc_xive_irq_state *state)
@@ -362,7 +430,7 @@ static u8 xive_lock_and_mask(struct kvmppc_xive *xive,
 	 */
 	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {
 		xive_native_configure_irq(hw_num,
-					  xive->vp_base + state->act_server,
+					  xive_vp(xive, state->act_server),
 					  MASKED, state->number);
 		/* set old_p so we can track if an H_EOI was done */
 		state->old_p = true;
@@ -418,7 +486,7 @@ static void xive_finish_unmask(struct kvmppc_xive *xive,
 	 */
 	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {
 		xive_native_configure_irq(hw_num,
-					  xive->vp_base + state->act_server,
+					  xive_vp(xive, state->act_server),
 					  state->act_priority, state->number);
 		/* If an EOI is needed, do it here */
 		if (!state->old_p)
@@ -495,7 +563,7 @@ static int xive_target_interrupt(struct kvm *kvm,
 	kvmppc_xive_select_irq(state, &hw_num, NULL);
 
 	return xive_native_configure_irq(hw_num,
-					 xive->vp_base + server,
+					 xive_vp(xive, server),
 					 prio, state->number);
 }
 
@@ -883,7 +951,7 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 	 * which is fine for a never started interrupt.
 	 */
 	xive_native_configure_irq(hw_irq,
-				  xive->vp_base + state->act_server,
+				  xive_vp(xive, state->act_server),
 				  state->act_priority, state->number);
 
 	/*
@@ -959,7 +1027,7 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 
 	/* Reconfigure the IPI */
 	xive_native_configure_irq(state->ipi_number,
-				  xive->vp_base + state->act_server,
+				  xive_vp(xive, state->act_server),
 				  state->act_priority, state->number);
 
 	/*
@@ -1084,7 +1152,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		pr_devel("Duplicate !\n");
 		return -EEXIST;
 	}
-	if (cpu >= KVM_MAX_VCPUS) {
+	if (cpu >= (KVM_MAX_VCPUS * vcpu->kvm->arch.emul_smt_mode)) {
 		pr_devel("Out of bounds !\n");
 		return -EINVAL;
 	}
@@ -1098,7 +1166,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	xc->xive = xive;
 	xc->vcpu = vcpu;
 	xc->server_num = cpu;
-	xc->vp_id = xive->vp_base + cpu;
+	xc->vp_id = xive_vp(xive, cpu);
 	xc->mfrr = 0xff;
 	xc->valid = true;
 
@@ -1900,17 +1968,7 @@ static int xive_debug_show(struct seq_file *m, void *private)
 	return 0;
 }
 
-static int xive_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, xive_debug_show, inode->i_private);
-}
-
-static const struct file_operations xive_debug_fops = {
-	.open = xive_debug_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(xive_debug);
 
 static void xive_debugfs_init(struct kvmppc_xive *xive)
 {

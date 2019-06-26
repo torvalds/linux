@@ -268,7 +268,7 @@ struct s5p_mfc_priv_buf {
  * @enc_ctrl_handler:	control framework handler for encoding
  * @pm:			power management control
  * @variant:		MFC hardware variant information
- * @num_inst:		couter of active MFC instances
+ * @num_inst:		counter of active MFC instances
  * @irqlock:		lock for operations on videobuf2 queues
  * @condlock:		lock for changing/checking if a context is ready to be
  *			processed

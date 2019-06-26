@@ -66,6 +66,12 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
 }
 
+static inline bool rt6_qualify_for_ecmp(const struct fib6_info *f6i)
+{
+	return (f6i->fib6_flags & (RTF_GATEWAY|RTF_ADDRCONF|RTF_DYNAMIC)) ==
+	       RTF_GATEWAY;
+}
+
 void ip6_route_input(struct sk_buff *skb);
 struct dst_entry *ip6_route_input_lookup(struct net *net,
 					 struct net_device *dev,
@@ -159,8 +165,7 @@ void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu, int oif,
 void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu);
 void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
 		  kuid_t uid);
-void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
-			    u32 mark);
+void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif);
 void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
 
 struct netlink_callback;
@@ -169,6 +174,7 @@ struct rt6_rtnl_dump_arg {
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
 	struct net *net;
+	struct fib_dump_filter filter;
 };
 
 int rt6_dump_route(struct fib6_info *f6i, void *p_arg);

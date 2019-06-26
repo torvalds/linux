@@ -166,7 +166,7 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags
 
 			__irq_wake_thread(desc, action);
 
-			/* Fall through to add to randomness */
+			/* Fall through - to add to randomness */
 		case IRQ_HANDLED:
 			*flags |= action->flags;
 			break;

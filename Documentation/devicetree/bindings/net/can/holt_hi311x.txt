@@ -5,7 +5,6 @@ Required properties:
    - "holt,hi3110" for HI-3110
  - reg: SPI chip select.
  - clocks: The clock feeding the CAN controller.
- - interrupt-parent: The parent interrupt controller.
  - interrupts: Should contain IRQ line for the CAN controller.
 
 Optional properties:
@@ -18,7 +17,7 @@ Example:
 		reg = <1>;
 		clocks = <&clk32m>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <13 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
 		vdd-supply = <&reg5v0>;
 		xceiver-supply = <&reg5v0>;
 	};

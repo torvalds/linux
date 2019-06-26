@@ -781,7 +781,7 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 
 	switch (scale_action) {
 	case -1:
-		/* Decrese rate */
+		/* Decrease rate */
 		if (low != RATE_INVALID)
 			idx = low;
 		break;

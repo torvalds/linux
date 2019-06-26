@@ -17,10 +17,19 @@
 
 /* VIC registers */
 
+#define VIC_THI_STREAMID0	0x00000030
+#define VIC_THI_STREAMID1	0x00000034
+
 #define NV_PVIC_MISC_PRI_VIC_CG			0x000016d0
 #define CG_IDLE_CG_DLY_CNT(val)			((val & 0x3f) << 0)
 #define CG_IDLE_CG_EN				(1 << 6)
 #define CG_WAKEUP_DLY_CNT(val)			((val & 0xf) << 16)
+
+#define VIC_TFBIF_TRANSCFG	0x00002044
+#define  TRANSCFG_ATT(i, v)	(((v) & 0x3) << (i * 4))
+#define  TRANSCFG_SID_HW	0
+#define  TRANSCFG_SID_PHY	1
+#define  TRANSCFG_SID_FALCON	2
 
 /* Firmware offsets */
 

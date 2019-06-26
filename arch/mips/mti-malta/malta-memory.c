@@ -12,7 +12,7 @@
  *          Steven J. Hill <sjhill@mips.com>
  */
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>

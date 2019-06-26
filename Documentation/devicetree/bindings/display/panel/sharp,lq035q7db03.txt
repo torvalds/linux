@@ -1,0 +1,12 @@
+Sharp LQ035Q7DB03 3.5" QVGA TFT LCD panel
+
+Required properties:
+- compatible: should be "sharp,lq035q7db03"
+- power-supply: phandle of the regulator that provides the supply voltage
+
+Optional properties:
+- enable-gpios: GPIO pin to enable or disable the panel
+- backlight: phandle of the backlight device attached to the panel
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

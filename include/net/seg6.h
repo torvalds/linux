@@ -16,9 +16,8 @@
 
 #include <linux/net.h>
 #include <linux/ipv6.h>
-#include <net/lwtunnel.h>
 #include <linux/seg6.h>
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 
 static inline void update_csum_diff4(struct sk_buff *skb, __be32 from,
 				     __be32 to)

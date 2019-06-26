@@ -76,10 +76,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		.flowi4_iif = LOOPBACK_IFINDEX,
 	};
 	const struct net_device *oif;
-	struct net_device *found;
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int i;
-#endif
+	const struct net_device *found;
 
 	/*
 	 * Do not set flowi4_oif, it restricts results (for example, asking
@@ -146,25 +143,13 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 
        if (!oif) {
                found = FIB_RES_DEV(res);
-               goto ok;
-       }
+	} else {
+		if (!fib_info_nh_uses_dev(res.fi, oif))
+			return;
 
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-	for (i = 0; i < res.fi->fib_nhs; i++) {
-		struct fib_nh *nh = &res.fi->fib_nh[i];
-
-		if (nh->nh_dev == oif) {
-			found = nh->nh_dev;
-			goto ok;
-		}
+		found = oif;
 	}
-	return;
-#else
-	found = FIB_RES_DEV(res);
-	if (found != oif)
-		return;
-#endif
-ok:
+
 	switch (priv->result) {
 	case NFT_FIB_RESULT_OIF:
 		*dest = found->ifindex;

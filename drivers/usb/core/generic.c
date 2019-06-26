@@ -21,6 +21,7 @@
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <uapi/linux/usb/audio.h>
 #include "usb.h"
 
 static inline const char *plural(int n)
@@ -40,6 +41,16 @@ static int is_activesync(struct usb_interface_descriptor *desc)
 	return desc->bInterfaceClass == USB_CLASS_MISC
 		&& desc->bInterfaceSubClass == 1
 		&& desc->bInterfaceProtocol == 1;
+}
+
+static bool is_audio(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceClass == USB_CLASS_AUDIO;
+}
+
+static bool is_uac3_config(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceProtocol == UAC_VERSION_3;
 }
 
 int usb_choose_configuration(struct usb_device *udev)
@@ -104,6 +115,31 @@ int usb_choose_configuration(struct usb_device *udev)
 		/* Rule out configs that draw too much bus current */
 		if (usb_get_max_power(udev, c) > udev->bus_mA) {
 			insufficient_power++;
+			continue;
+		}
+
+		/*
+		 * Select first configuration as default for audio so that
+		 * devices that don't comply with UAC3 protocol are supported.
+		 * But, still iterate through other configurations and
+		 * select UAC3 compliant config if present.
+		 */
+		if (desc && is_audio(desc)) {
+			/* Always prefer the first found UAC3 config */
+			if (is_uac3_config(desc)) {
+				best = c;
+				break;
+			}
+
+			/* If there is no UAC3 config, prefer the first config */
+			else if (i == 0)
+				best = c;
+
+			/* Unconditional continue, because the rest of the code
+			 * in the loop is irrelevant for audio devices, and
+			 * because it can reassign best, which for audio devices
+			 * we don't want.
+			 */
 			continue;
 		}
 

@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,17 +128,6 @@ struct iwl_phy_cfg_cmd {
 	__le32	phy_cfg;
 	struct iwl_calib_ctrl calib_control;
 } __packed;
-
-#define PHY_CFG_RADIO_TYPE	(BIT(0) | BIT(1))
-#define PHY_CFG_RADIO_STEP	(BIT(2) | BIT(3))
-#define PHY_CFG_RADIO_DASH	(BIT(4) | BIT(5))
-#define PHY_CFG_PRODUCT_NUMBER	(BIT(6) | BIT(7))
-#define PHY_CFG_TX_CHAIN_A	BIT(8)
-#define PHY_CFG_TX_CHAIN_B	BIT(9)
-#define PHY_CFG_TX_CHAIN_C	BIT(10)
-#define PHY_CFG_RX_CHAIN_A	BIT(12)
-#define PHY_CFG_RX_CHAIN_B	BIT(13)
-#define PHY_CFG_RX_CHAIN_C	BIT(14)
 
 /*
  * enum iwl_dc2dc_config_id - flag ids

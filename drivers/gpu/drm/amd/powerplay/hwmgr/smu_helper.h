@@ -47,6 +47,18 @@ struct watermarks {
 	uint32_t     padding[7];
 };
 
+int phm_copy_clock_limits_array(
+	struct pp_hwmgr *hwmgr,
+	uint32_t **pptable_info_array,
+	const uint32_t *pptable_array,
+	uint32_t power_saving_clock_count);
+
+int phm_copy_overdrive_settings_limits_array(
+	struct pp_hwmgr *hwmgr,
+	uint32_t **pptable_info_array,
+	const uint32_t *pptable_array,
+	uint32_t od_setting_count);
+
 extern int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
 					uint32_t index,
 					uint32_t value, uint32_t mask);
@@ -107,7 +119,7 @@ int smu_get_voltage_dependency_table_ppt_v1(
 		struct phm_ppt_v1_clock_voltage_dependency_table *dep_table);
 
 int smu_set_watermarks_for_clocks_ranges(void *wt_table,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+		struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
 
 #define PHM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 #define PHM_FIELD_MASK(reg, field) reg##__##field##_MASK

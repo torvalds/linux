@@ -1,17 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Thunderbolt bus support
  *
  * Copyright (C) 2017, Intel Corporation
- * Author:  Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
 #include <linux/device.h>
+#include <linux/dmar.h>
 #include <linux/idr.h>
+#include <linux/iommu.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <crypto/hash.h>
@@ -132,6 +132,8 @@ static ssize_t boot_acl_show(struct device *dev, struct device_attribute *attr,
 	if (!uuids)
 		return -ENOMEM;
 
+	pm_runtime_get_sync(&tb->dev);
+
 	if (mutex_lock_interruptible(&tb->lock)) {
 		ret = -ERESTARTSYS;
 		goto out;
@@ -153,7 +155,10 @@ static ssize_t boot_acl_show(struct device *dev, struct device_attribute *attr,
 	}
 
 out:
+	pm_runtime_mark_last_busy(&tb->dev);
+	pm_runtime_put_autosuspend(&tb->dev);
 	kfree(uuids);
+
 	return ret;
 }
 
@@ -208,9 +213,11 @@ static ssize_t boot_acl_store(struct device *dev, struct device_attribute *attr,
 		goto err_free_acl;
 	}
 
+	pm_runtime_get_sync(&tb->dev);
+
 	if (mutex_lock_interruptible(&tb->lock)) {
 		ret = -ERESTARTSYS;
-		goto err_free_acl;
+		goto err_rpm_put;
 	}
 	ret = tb->cm_ops->set_boot_acl(tb, acl, tb->nboot_acl);
 	if (!ret) {
@@ -219,6 +226,9 @@ static ssize_t boot_acl_store(struct device *dev, struct device_attribute *attr,
 	}
 	mutex_unlock(&tb->lock);
 
+err_rpm_put:
+	pm_runtime_mark_last_busy(&tb->dev);
+	pm_runtime_put_autosuspend(&tb->dev);
 err_free_acl:
 	kfree(acl);
 err_free_str:
@@ -227,6 +237,20 @@ err_free_str:
 	return ret ?: count;
 }
 static DEVICE_ATTR_RW(boot_acl);
+
+static ssize_t iommu_dma_protection_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	/*
+	 * Kernel DMA protection is a feature where Thunderbolt security is
+	 * handled natively using IOMMU. It is enabled when IOMMU is
+	 * enabled and ACPI DMAR table has DMAR_PLATFORM_OPT_IN set.
+	 */
+	return sprintf(buf, "%d\n",
+		       iommu_present(&pci_bus_type) && dmar_platform_optin());
+}
+static DEVICE_ATTR_RO(iommu_dma_protection);
 
 static ssize_t security_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -243,6 +267,7 @@ static DEVICE_ATTR_RO(security);
 
 static struct attribute *domain_attrs[] = {
 	&dev_attr_boot_acl.attr,
+	&dev_attr_iommu_dma_protection.attr,
 	&dev_attr_security.attr,
 	NULL,
 };
@@ -430,6 +455,13 @@ int tb_domain_add(struct tb *tb)
 	/* This starts event processing */
 	mutex_unlock(&tb->lock);
 
+	pm_runtime_no_callbacks(&tb->dev);
+	pm_runtime_set_active(&tb->dev);
+	pm_runtime_enable(&tb->dev);
+	pm_runtime_set_autosuspend_delay(&tb->dev, TB_AUTOSUSPEND_DELAY);
+	pm_runtime_mark_last_busy(&tb->dev);
+	pm_runtime_use_autosuspend(&tb->dev);
+
 	return 0;
 
 err_domain_del:
@@ -509,26 +541,35 @@ int tb_domain_resume_noirq(struct tb *tb)
 
 int tb_domain_suspend(struct tb *tb)
 {
-	int ret;
-
-	mutex_lock(&tb->lock);
-	if (tb->cm_ops->suspend) {
-		ret = tb->cm_ops->suspend(tb);
-		if (ret) {
-			mutex_unlock(&tb->lock);
-			return ret;
-		}
-	}
-	mutex_unlock(&tb->lock);
-	return 0;
+	return tb->cm_ops->suspend ? tb->cm_ops->suspend(tb) : 0;
 }
 
 void tb_domain_complete(struct tb *tb)
 {
-	mutex_lock(&tb->lock);
 	if (tb->cm_ops->complete)
 		tb->cm_ops->complete(tb);
-	mutex_unlock(&tb->lock);
+}
+
+int tb_domain_runtime_suspend(struct tb *tb)
+{
+	if (tb->cm_ops->runtime_suspend) {
+		int ret = tb->cm_ops->runtime_suspend(tb);
+		if (ret)
+			return ret;
+	}
+	tb_ctl_stop(tb->ctl);
+	return 0;
+}
+
+int tb_domain_runtime_resume(struct tb *tb)
+{
+	tb_ctl_start(tb->ctl);
+	if (tb->cm_ops->runtime_resume) {
+		int ret = tb->cm_ops->runtime_resume(tb);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 /**

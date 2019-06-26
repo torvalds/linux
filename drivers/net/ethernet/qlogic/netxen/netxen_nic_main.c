@@ -72,9 +72,6 @@ static void netxen_schedule_work(struct netxen_adapter *adapter,
 		work_func_t func, int delay);
 static void netxen_cancel_fw_work(struct netxen_adapter *adapter);
 static int netxen_nic_poll(struct napi_struct *napi, int budget);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void netxen_nic_poll_controller(struct net_device *netdev);
-#endif
 
 static void netxen_create_sysfs_entries(struct netxen_adapter *adapter);
 static void netxen_remove_sysfs_entries(struct netxen_adapter *adapter);
@@ -581,9 +578,6 @@ static const struct net_device_ops netxen_netdev_ops = {
 	.ndo_tx_timeout	   = netxen_tx_timeout,
 	.ndo_fix_features = netxen_fix_features,
 	.ndo_set_features = netxen_set_features,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = netxen_nic_poll_controller,
-#endif
 };
 
 static inline bool netxen_function_zero(struct pci_dev *pdev)
@@ -1790,11 +1784,6 @@ static pci_ers_result_t netxen_io_slot_reset(struct pci_dev *pdev)
 	return err ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
 
-static void netxen_io_resume(struct pci_dev *pdev)
-{
-	pci_cleanup_aer_uncorrect_error_status(pdev);
-}
-
 static void netxen_nic_shutdown(struct pci_dev *pdev)
 {
 	struct netxen_adapter *adapter = pci_get_drvdata(pdev);
@@ -2073,7 +2062,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct skb_frag_struct *frag;
 
 	u32 producer;
-	int frag_count, no_of_desc;
+	int frag_count;
 	u32 num_txd = tx_ring->num_desc;
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
@@ -2093,8 +2082,6 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 		frag_count = 1 + skb_shinfo(skb)->nr_frags;
 	}
-	/* 4 fragments per cmd des */
-	no_of_desc = (frag_count + 3) >> 2;
 
 	if (unlikely(netxen_tx_avail(tx_ring) <= TX_STOP_THRESH)) {
 		netif_stop_queue(netdev);
@@ -2403,23 +2390,6 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 
 	return work_done;
 }
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void netxen_nic_poll_controller(struct net_device *netdev)
-{
-	int ring;
-	struct nx_host_sds_ring *sds_ring;
-	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
-
-	disable_irq(adapter->irq);
-	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
-		sds_ring = &recv_ctx->sds_rings[ring];
-		netxen_intr(adapter->irq, sds_ring);
-	}
-	enable_irq(adapter->irq);
-}
-#endif
 
 static int
 nx_incr_dev_ref_cnt(struct netxen_adapter *adapter)
@@ -3490,7 +3460,6 @@ netxen_free_ip_list(struct netxen_adapter *adapter, bool master)
 static const struct pci_error_handlers netxen_err_handler = {
 	.error_detected = netxen_io_error_detected,
 	.slot_reset = netxen_io_slot_reset,
-	.resume = netxen_io_resume,
 };
 
 static struct pci_driver netxen_driver = {

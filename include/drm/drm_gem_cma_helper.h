@@ -2,8 +2,11 @@
 #ifndef __DRM_GEM_CMA_HELPER_H__
 #define __DRM_GEM_CMA_HELPER_H__
 
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_gem.h>
+
+struct drm_mode_create_dumb;
 
 /**
  * struct drm_gem_cma_object - GEM object backed by CMA memory allocations
@@ -102,5 +105,29 @@ int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
 			   struct vm_area_struct *vma);
 void *drm_gem_cma_prime_vmap(struct drm_gem_object *obj);
 void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+
+struct drm_gem_object *
+drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size);
+
+/**
+ * DRM_GEM_CMA_VMAP_DRIVER_OPS - CMA GEM driver operations ensuring a virtual
+ *                               address on the buffer
+ *
+ * This macro provides a shortcut for setting the default GEM operations in the
+ * &drm_driver structure for drivers that need the virtual address also on
+ * imported buffers.
+ */
+#define DRM_GEM_CMA_VMAP_DRIVER_OPS \
+	.gem_create_object	= drm_cma_gem_create_object_default_funcs, \
+	.dumb_create		= drm_gem_cma_dumb_create, \
+	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \
+	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table_vmap, \
+	.gem_prime_mmap		= drm_gem_prime_mmap
+
+struct drm_gem_object *
+drm_gem_cma_prime_import_sg_table_vmap(struct drm_device *drm,
+				       struct dma_buf_attachment *attach,
+				       struct sg_table *sgt);
 
 #endif /* __DRM_GEM_CMA_HELPER_H__ */

@@ -205,6 +205,16 @@ struct bnxt_qplib_roce_stats {
 	/* res_tx_pci_err is 64 b */
 	u64 res_rx_pci_err;
 	/* res_rx_pci_err is 64 b */
+	u64 res_oos_drop_count;
+	/* res_oos_drop_count */
+	u64     active_qp_count_p0;
+	/* port 0 active qps */
+	u64     active_qp_count_p1;
+	/* port 1 active qps */
+	u64     active_qp_count_p2;
+	/* port 2 active qps */
+	u64     active_qp_count_p3;
+	/* port 3 active qps */
 };
 
 int bnxt_qplib_get_sgid(struct bnxt_qplib_res *res,
@@ -231,8 +241,10 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 int bnxt_qplib_set_func_resources(struct bnxt_qplib_res *res,
 				  struct bnxt_qplib_rcfw *rcfw,
 				  struct bnxt_qplib_ctx *ctx);
-int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah);
-int bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah);
+int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
+			 bool block);
+int bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
+			  bool block);
 int bnxt_qplib_alloc_mrw(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_mrw *mrw);
 int bnxt_qplib_dereg_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw,

@@ -34,11 +34,13 @@ struct video_device;
  * @list:	List node for the v4l2_fh->available list.
  * @sev:	Pointer to parent v4l2_subscribed_event.
  * @event:	The event itself.
+ * @ts:		The timestamp of the event.
  */
 struct v4l2_kevent {
 	struct list_head	list;
 	struct v4l2_subscribed_event *sev;
 	struct v4l2_event	event;
+	u64			ts;
 };
 
 /**

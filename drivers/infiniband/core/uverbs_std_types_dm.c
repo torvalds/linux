@@ -37,24 +37,27 @@ static int uverbs_free_dm(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
 	struct ib_dm *dm = uobject->object;
+	int ret;
 
-	if (why == RDMA_REMOVE_DESTROY && atomic_read(&dm->usecnt))
-		return -EBUSY;
+	ret = ib_destroy_usecnt(&dm->usecnt, why, uobject);
+	if (ret)
+		return ret;
 
-	return dm->device->dealloc_dm(dm);
+	return dm->device->ops.dealloc_dm(dm);
 }
 
-static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_device *ib_dev,
-						  struct ib_uverbs_file *file,
-						  struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
 {
-	struct ib_ucontext *ucontext = file->ucontext;
 	struct ib_dm_alloc_attr attr = {};
-	struct ib_uobject *uobj;
+	struct ib_uobject *uobj =
+		uverbs_attr_get(attrs, UVERBS_ATTR_ALLOC_DM_HANDLE)
+			->obj_attr.uobject;
+	struct ib_device *ib_dev = uobj->context->device;
 	struct ib_dm *dm;
 	int ret;
 
-	if (!ib_dev->alloc_dm)
+	if (!ib_dev->ops.alloc_dm)
 		return -EOPNOTSUPP;
 
 	ret = uverbs_copy_from(&attr.length, attrs,
@@ -67,9 +70,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_device *ib_dev,
 	if (ret)
 		return ret;
 
-	uobj = uverbs_attr_get(attrs, UVERBS_ATTR_ALLOC_DM_HANDLE)->obj_attr.uobject;
-
-	dm = ib_dev->alloc_dm(ib_dev, ucontext, &attr, attrs);
+	dm = ib_dev->ops.alloc_dm(ib_dev, uobj->context, &attr, attrs);
 	if (IS_ERR(dm))
 		return PTR_ERR(dm);
 
@@ -83,26 +84,33 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_device *ib_dev,
 	return 0;
 }
 
-static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_DM_ALLOC,
-	&UVERBS_ATTR_IDR(UVERBS_ATTR_ALLOC_DM_HANDLE, UVERBS_OBJECT_DM,
-			 UVERBS_ACCESS_NEW,
-			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_ALLOC_DM_LENGTH,
-			    UVERBS_ATTR_TYPE(u64),
-			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_ALLOC_DM_ALIGNMENT,
-			    UVERBS_ATTR_TYPE(u32),
-			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_DM_ALLOC,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_ALLOC_DM_HANDLE,
+			UVERBS_OBJECT_DM,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_ALLOC_DM_LENGTH,
+			   UVERBS_ATTR_TYPE(u64),
+			   UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_ALLOC_DM_ALIGNMENT,
+			   UVERBS_ATTR_TYPE(u32),
+			   UA_MANDATORY));
 
-static DECLARE_UVERBS_NAMED_METHOD_WITH_HANDLER(UVERBS_METHOD_DM_FREE,
-	uverbs_destroy_def_handler,
-	&UVERBS_ATTR_IDR(UVERBS_ATTR_FREE_DM_HANDLE,
-			 UVERBS_OBJECT_DM,
-			 UVERBS_ACCESS_DESTROY,
-			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
+	UVERBS_METHOD_DM_FREE,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_FREE_DM_HANDLE,
+			UVERBS_OBJECT_DM,
+			UVERBS_ACCESS_DESTROY,
+			UA_MANDATORY));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_DM,
-			    /* 1 is used in order to free the DM after MRs */
-			    &UVERBS_TYPE_ALLOC_IDR(1, uverbs_free_dm),
+			    UVERBS_TYPE_ALLOC_IDR(uverbs_free_dm),
 			    &UVERBS_METHOD(UVERBS_METHOD_DM_ALLOC),
 			    &UVERBS_METHOD(UVERBS_METHOD_DM_FREE));
+
+const struct uapi_definition uverbs_def_obj_dm[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_DM,
+				      UAPI_DEF_OBJ_NEEDS_FN(dealloc_dm)),
+	{}
+};

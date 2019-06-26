@@ -651,9 +651,8 @@ static void stac9460_proc_regs_read(struct snd_info_entry *entry,
 
 static void stac9460_proc_init(struct snd_ice1712 *ice)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ice->card, "stac9460_codec", &entry))
-		snd_info_set_text_ops(entry, ice, stac9460_proc_regs_read);
+	snd_card_ro_proc_new(ice->card, "stac9460_codec", ice,
+			     stac9460_proc_regs_read);
 }
 
 

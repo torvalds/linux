@@ -16,6 +16,7 @@
 #define __CODA_H__
 
 #include <linux/debugfs.h>
+#include <linux/idr.h>
 #include <linux/irqreturn.h>
 #include <linux/mutex.h>
 #include <linux/kfifo.h>
@@ -94,8 +95,7 @@ struct coda_dev {
 	struct mutex		coda_mutex;
 	struct workqueue_struct	*workqueue;
 	struct v4l2_m2m_dev	*m2m_dev;
-	struct list_head	instances;
-	unsigned long		instance_mask;
+	struct ida		ida;
 	struct dentry		*debugfs_root;
 };
 
@@ -115,9 +115,11 @@ struct coda_params {
 	u8			h264_inter_qp;
 	u8			h264_min_qp;
 	u8			h264_max_qp;
-	u8			h264_deblk_enabled;
-	u8			h264_deblk_alpha;
-	u8			h264_deblk_beta;
+	u8			h264_disable_deblocking_filter_idc;
+	s8			h264_slice_alpha_c0_offset_div2;
+	s8			h264_slice_beta_offset_div2;
+	bool			h264_constrained_intra_pred_flag;
+	s8			h264_chroma_qp_index_offset;
 	u8			h264_profile_idc;
 	u8			h264_level_idc;
 	u8			mpeg4_intra_qp;
@@ -144,8 +146,8 @@ struct coda_buffer_meta {
 	u32			sequence;
 	struct v4l2_timecode	timecode;
 	u64			timestamp;
-	u32			start;
-	u32			end;
+	unsigned int		start;
+	unsigned int		end;
 };
 
 /* Per-queue, driver-specific private data */
@@ -192,7 +194,6 @@ struct coda_context_ops {
 struct coda_ctx {
 	struct coda_dev			*dev;
 	struct mutex			buffer_mutex;
-	struct list_head		list;
 	struct work_struct		pic_run_work;
 	struct work_struct		seq_end_work;
 	struct completion		completion;
@@ -214,6 +215,8 @@ struct coda_ctx {
 	enum v4l2_quantization		quantization;
 	struct coda_params		params;
 	struct v4l2_ctrl_handler	ctrls;
+	struct v4l2_ctrl		*h264_profile_ctrl;
+	struct v4l2_ctrl		*h264_level_ctrl;
 	struct v4l2_fh			fh;
 	int				gopcounter;
 	int				runcounter;
@@ -250,6 +253,13 @@ struct coda_ctx {
 };
 
 extern int coda_debug;
+
+#define coda_dbg(level, ctx, fmt, arg...)				\
+	do {								\
+		if (coda_debug >= (level))				\
+			v4l2_dbg((level), coda_debug, &(ctx)->dev->v4l2_dev, \
+			 "%u: " fmt, (ctx)->idx, ##arg);		\
+	} while (0)
 
 void coda_write(struct coda_dev *dev, u32 data, u32 reg);
 unsigned int coda_read(struct coda_dev *dev, u32 reg);
@@ -293,6 +303,18 @@ static inline unsigned int coda_get_bitstream_payload(struct coda_ctx *ctx)
 	return kfifo_len(&ctx->bitstream_fifo);
 }
 
+/*
+ * The bitstream prefetcher needs to read at least 2 256 byte periods past
+ * the desired bitstream position for all data to reach the decoder.
+ */
+static inline bool coda_bitstream_can_fetch_past(struct coda_ctx *ctx,
+						 unsigned int pos)
+{
+	return (int)(ctx->bitstream_fifo.kfifo.in - ALIGN(pos, 256)) > 512;
+}
+
+bool coda_bitstream_can_fetch_past(struct coda_ctx *ctx, unsigned int pos);
+
 void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 
 void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
@@ -303,6 +325,8 @@ int coda_h264_padding(int size, char *p);
 int coda_h264_profile(int profile_idc);
 int coda_h264_level(int level_idc);
 int coda_sps_parse_profile(struct coda_ctx *ctx, struct vb2_buffer *vb);
+int coda_h264_sps_fixup(struct coda_ctx *ctx, int width, int height, char *buf,
+			int *size, int max_size);
 
 bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);
 int coda_jpeg_write_tables(struct coda_ctx *ctx);

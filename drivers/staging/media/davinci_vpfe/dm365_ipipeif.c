@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -9,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
@@ -310,6 +307,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 			ipipeif_write(val, ipipeif_base_addr, IPIPEIF_CFG2);
 			break;
 		}
+		/* fall through */
 
 	case IPIPEIF_SDRAM_YUV:
 		/* Set clock divider */
@@ -1020,7 +1018,7 @@ int vpfe_ipipeif_init(struct vpfe_ipipeif_device *ipipeif,
 	v4l2_subdev_init(sd, &ipipeif_v4l2_ops);
 
 	sd->internal_ops = &ipipeif_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI IPIPEIF", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI IPIPEIF", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 
 	v4l2_set_subdevdata(sd, ipipeif);

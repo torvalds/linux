@@ -524,7 +524,7 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 		return -ENOMEM;
 
 	fwr = __skb_put(skb, len);
-	t4_mk_filtdelwr(f->tid, fwr, (adapter->flags & SHUTTING_DOWN) ? -1
+	t4_mk_filtdelwr(f->tid, fwr, (adapter->flags & CXGB4_SHUTTING_DOWN) ? -1
 			: adapter->sge.fw_evtq.abs_id);
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
@@ -1038,10 +1038,8 @@ static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ACT_OPEN_REQ, qid_filterid));
 	req->local_port = cpu_to_be16(f->fs.val.lport);
 	req->peer_port = cpu_to_be16(f->fs.val.fport);
-	req->local_ip = f->fs.val.lip[0] | f->fs.val.lip[1] << 8 |
-		f->fs.val.lip[2] << 16 | f->fs.val.lip[3] << 24;
-	req->peer_ip = f->fs.val.fip[0] | f->fs.val.fip[1] << 8 |
-		f->fs.val.fip[2] << 16 | f->fs.val.fip[3] << 24;
+	memcpy(&req->local_ip, f->fs.val.lip, 4);
+	memcpy(&req->peer_ip, f->fs.val.fip, 4);
 	req->opt0 = cpu_to_be64(NAGLE_V(f->fs.newvlan == VLAN_REMOVE ||
 					f->fs.newvlan == VLAN_REWRITE) |
 				DELACK_V(f->fs.hitcnts) |
@@ -1571,7 +1569,7 @@ int cxgb4_del_filter(struct net_device *dev, int filter_id,
 	int ret;
 
 	/* If we are shutting down the adapter do not wait for completion */
-	if (netdev2adap(dev)->flags & SHUTTING_DOWN)
+	if (netdev2adap(dev)->flags & CXGB4_SHUTTING_DOWN)
 		return __cxgb4_del_filter(dev, filter_id, fs, NULL);
 
 	init_completion(&ctx.completion);

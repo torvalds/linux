@@ -61,8 +61,8 @@ ENTRY(__raw_writesw)
 		ldr	r3, [r1], #4
 		outword	r3
 
-.Lno_outsw_2:	ldrneh	r3, [r1]
-		strneh	r3, [r0]
+.Lno_outsw_2:	ldrhne	r3, [r1]
+		strhne	r3, [r0]
 
 		ldmfd	sp!, {r4, r5, pc}
 
@@ -95,6 +95,6 @@ ENTRY(__raw_writesw)
 
 		tst	r2, #1
 3:		movne	ip, r3, lsr #8
-		strneh	ip, [r0]
+		strhne	ip, [r0]
 		ret	lr
 ENDPROC(__raw_writesw)

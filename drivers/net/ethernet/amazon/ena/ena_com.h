@@ -37,6 +37,8 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
+#include <linux/io.h>
+#include <linux/prefetch.h>
 #include <linux/sched.h>
 #include <linux/sizes.h>
 #include <linux/spinlock.h>
@@ -108,6 +110,14 @@ enum ena_intr_moder_level {
 	ENA_INTR_MAX_NUM_OF_LEVELS,
 };
 
+struct ena_llq_configurations {
+	enum ena_admin_llq_header_location llq_header_location;
+	enum ena_admin_llq_ring_entry_size llq_ring_entry_size;
+	enum ena_admin_llq_stride_ctrl  llq_stride_ctrl;
+	enum ena_admin_llq_num_descs_before_header llq_num_decs_before_header;
+	u16 llq_ring_entry_size_value;
+};
+
 struct ena_intr_moder_entry {
 	unsigned int intr_moder_interval;
 	unsigned int pkts_per_interval;
@@ -140,6 +150,15 @@ struct ena_com_tx_meta {
 	u16 l3_hdr_len;
 	u16 l3_hdr_offset;
 	u16 l4_hdr_len; /* In words */
+};
+
+struct ena_com_llq_info {
+	u16 header_location_ctrl;
+	u16 desc_stride_ctrl;
+	u16 desc_list_entry_size_ctrl;
+	u16 desc_list_entry_size;
+	u16 descs_num_before_header;
+	u16 descs_per_entry;
 };
 
 struct ena_com_io_cq {
@@ -179,6 +198,20 @@ struct ena_com_io_cq {
 
 } ____cacheline_aligned;
 
+struct ena_com_io_bounce_buffer_control {
+	u8 *base_buffer;
+	u16 next_to_use;
+	u16 buffer_size;
+	u16 buffers_num;  /* Must be a power of 2 */
+};
+
+/* This struct is to keep tracking the current location of the next llq entry */
+struct ena_com_llq_pkt_ctrl {
+	u8 *curr_bounce_buf;
+	u16 idx;
+	u16 descs_left_in_line;
+};
+
 struct ena_com_io_sq {
 	struct ena_com_io_desc_addr desc_addr;
 
@@ -190,6 +223,9 @@ struct ena_com_io_sq {
 
 	u32 msix_vector;
 	struct ena_com_tx_meta cached_tx_meta;
+	struct ena_com_llq_info llq_info;
+	struct ena_com_llq_pkt_ctrl llq_buf_ctrl;
+	struct ena_com_io_bounce_buffer_control bounce_buf_ctrl;
 
 	u16 q_depth;
 	u16 qid;
@@ -197,6 +233,7 @@ struct ena_com_io_sq {
 	u16 idx;
 	u16 tail;
 	u16 next_to_comp;
+	u16 llq_last_copy_tail;
 	u32 tx_max_header_size;
 	u8 phase;
 	u8 desc_entry_size;
@@ -334,6 +371,8 @@ struct ena_com_dev {
 	u16 intr_delay_resolution;
 	u32 intr_moder_tx_interval;
 	struct ena_intr_moder_entry *intr_moder_tbl;
+
+	struct ena_com_llq_info llq_info;
 };
 
 struct ena_com_dev_get_features_ctx {
@@ -342,6 +381,7 @@ struct ena_com_dev_get_features_ctx {
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
 	struct ena_admin_ena_hw_hints hw_hints;
+	struct ena_admin_feature_llq_desc llq;
 };
 
 struct ena_com_create_io_ctx {
@@ -397,8 +437,6 @@ void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev);
 /* ena_com_admin_init - Init the admin and the async queues
  * @ena_dev: ENA communication layer struct
  * @aenq_handlers: Those handlers to be called upon event.
- * @init_spinlock: Indicate if this method should init the admin spinlock or
- * the spinlock was init before (for example, in a case of FLR).
  *
  * Initialize the admin submission and completion queues.
  * Initialize the asynchronous events notification queues.
@@ -406,8 +444,7 @@ void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev);
  * @return - 0 on success, negative value on failure.
  */
 int ena_com_admin_init(struct ena_com_dev *ena_dev,
-		       struct ena_aenq_handlers *aenq_handlers,
-		       bool init_spinlock);
+		       struct ena_aenq_handlers *aenq_handlers);
 
 /* ena_com_admin_destroy - Destroy the admin and the async events queues.
  * @ena_dev: ENA communication layer struct
@@ -935,6 +972,16 @@ void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
 				       enum ena_intr_moder_level level,
 				       struct ena_intr_moder_entry *entry);
 
+/* ena_com_config_dev_mode - Configure the placement policy of the device.
+ * @ena_dev: ENA communication layer struct
+ * @llq_features: LLQ feature descriptor, retrieve via
+ *                ena_com_get_dev_attr_feat.
+ * @ena_llq_config: The default driver LLQ parameters configurations
+ */
+int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
+			    struct ena_admin_feature_llq_desc *llq_features,
+			    struct ena_llq_configurations *llq_default_config);
+
 static inline bool ena_com_get_adaptive_moderation_enabled(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->adaptive_coalescing;
@@ -1042,6 +1089,23 @@ static inline void ena_com_update_intr_reg(struct ena_eth_io_intr_reg *intr_reg,
 
 	if (unmask)
 		intr_reg->intr_control |= ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK;
+}
+
+static inline u8 *ena_com_get_next_bounce_buffer(struct ena_com_io_bounce_buffer_control *bounce_buf_ctrl)
+{
+	u16 size, buffers_num;
+	u8 *buf;
+
+	size = bounce_buf_ctrl->buffer_size;
+	buffers_num = bounce_buf_ctrl->buffers_num;
+
+	buf = bounce_buf_ctrl->base_buffer +
+		(bounce_buf_ctrl->next_to_use++ & (buffers_num - 1)) * size;
+
+	prefetchw(bounce_buf_ctrl->base_buffer +
+		(bounce_buf_ctrl->next_to_use & (buffers_num - 1)) * size);
+
+	return buf;
 }
 
 #endif /* !(ENA_COM) */

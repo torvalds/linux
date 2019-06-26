@@ -107,6 +107,15 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	__check_htcap_enable(ht_capa, ht_capa_mask, ht_cap,
 			     IEEE80211_HT_CAP_40MHZ_INTOLERANT);
 
+	/* Allow user to enable TX STBC bit  */
+	__check_htcap_enable(ht_capa, ht_capa_mask, ht_cap,
+			     IEEE80211_HT_CAP_TX_STBC);
+
+	/* Allow user to configure RX STBC bits */
+	if (ht_capa_mask->cap_info & cpu_to_le16(IEEE80211_HT_CAP_RX_STBC))
+		ht_cap->cap |= le16_to_cpu(ht_capa->cap_info) &
+					IEEE80211_HT_CAP_RX_STBC;
+
 	/* Allow user to decrease AMPDU factor */
 	if (ht_capa_mask->ampdu_params_info &
 	    IEEE80211_HT_AMPDU_PARM_FACTOR) {
@@ -352,7 +361,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		    test_and_clear_bit(tid,
 				       sta->ampdu_mlme.tid_rx_manage_offl))
 			___ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
-							 IEEE80211_MAX_AMPDU_BUF,
+							 IEEE80211_MAX_AMPDU_BUF_HT,
 							 false, true);
 
 		if (test_and_clear_bit(tid + IEEE80211_NUM_TIDS,

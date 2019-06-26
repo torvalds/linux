@@ -194,6 +194,8 @@
 /* enable link status from external LINK_0 and LINK_1 pins */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
+#define E1000_CTRL_ADVD3WUC 0x00100000  /* D3 WUC */
+#define E1000_CTRL_EN_PHY_PWR_MGMT 0x00200000 /* PHY PM enable */
 #define E1000_CTRL_SDP0_DIR 0x00400000  /* SDP0 Data direction */
 #define E1000_CTRL_SDP1_DIR 0x00800000  /* SDP1 Data direction */
 #define E1000_CTRL_RST      0x04000000  /* Global reset */
@@ -334,6 +336,7 @@
 
 #define I210_RXPBSIZE_DEFAULT		0x000000A2 /* RXPBSIZE default */
 #define I210_RXPBSIZE_MASK		0x0000003F
+#define I210_RXPBSIZE_PB_30KB		0x0000001E
 #define I210_RXPBSIZE_PB_32KB		0x00000020
 #define I210_TXPBSIZE_DEFAULT		0x04000014 /* TXPBSIZE default */
 #define I210_TXPBSIZE_MASK		0xC0FFFFFF
@@ -1048,6 +1051,22 @@
 #define E1000_TQAVCTRL_XMIT_MODE	BIT(0)
 #define E1000_TQAVCTRL_DATAFETCHARB	BIT(4)
 #define E1000_TQAVCTRL_DATATRANARB	BIT(8)
+#define E1000_TQAVCTRL_DATATRANTIM	BIT(9)
+#define E1000_TQAVCTRL_SP_WAIT_SR	BIT(10)
+/* Fetch Time Delta - bits 31:16
+ *
+ * This field holds the value to be reduced from the launch time for
+ * fetch time decision. The FetchTimeDelta value is defined in 32 ns
+ * granularity.
+ *
+ * This field is 16 bits wide, and so the maximum value is:
+ *
+ * 65535 * 32 = 2097120 ~= 2.1 msec
+ *
+ * XXX: We are configuring the max value here since we couldn't come up
+ * with a reason for not doing so.
+ */
+#define E1000_TQAVCTRL_FETCHTIME_DELTA	(0xFFFF << 16)
 
 /* TX Qav Credit Control fields */
 #define E1000_TQAVCC_IDLESLOPE_MASK	0xFFFF

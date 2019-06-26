@@ -1020,10 +1020,9 @@ static const struct dvb_frontend_ops af9033_ops = {
 	.delsys = {SYS_DVBT},
 	.info = {
 		.name = "Afatech AF9033 (DVB-T)",
-		.frequency_min = 174000000,
-		.frequency_max = 862000000,
-		.frequency_stepsize = 250000,
-		.frequency_tolerance = 0,
+		.frequency_min_hz = 174 * MHz,
+		.frequency_max_hz = 862 * MHz,
+		.frequency_stepsize_hz = 250 * kHz,
 		.caps =	FE_CAN_FEC_1_2 |
 			FE_CAN_FEC_2_3 |
 			FE_CAN_FEC_3_4 |
@@ -1138,16 +1137,8 @@ static int af9033_probe(struct i2c_client *client,
 		 buf[4], buf[5], buf[6], buf[7]);
 
 	/* Sleep as chip seems to be partly active by default */
-	switch (dev->cfg.tuner) {
-	case AF9033_TUNER_IT9135_38:
-	case AF9033_TUNER_IT9135_51:
-	case AF9033_TUNER_IT9135_52:
-	case AF9033_TUNER_IT9135_60:
-	case AF9033_TUNER_IT9135_61:
-	case AF9033_TUNER_IT9135_62:
-		/* IT9135 did not like to sleep at that early */
-		break;
-	default:
+	/* IT9135 did not like to sleep at that early */
+	if (dev->is_af9035) {
 		ret = regmap_write(dev->regmap, 0x80004c, 0x01);
 		if (ret)
 			goto err_regmap_exit;

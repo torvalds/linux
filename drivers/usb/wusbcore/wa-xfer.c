@@ -662,9 +662,9 @@ static void __wa_setup_isoc_packet_descr(
 
 	/* populate isoc packet descriptor. */
 	packet_desc->bPacketType = WA_XFER_ISO_PACKET_INFO;
-	packet_desc->wLength = cpu_to_le16(sizeof(*packet_desc) +
-		(sizeof(packet_desc->PacketLength[0]) *
-			seg->isoc_frame_count));
+	packet_desc->wLength = cpu_to_le16(struct_size(packet_desc,
+					   PacketLength,
+					   seg->isoc_frame_count));
 	for (frame_index = 0; frame_index < seg->isoc_frame_count;
 		++frame_index) {
 		int offset_index = frame_index + seg->isoc_frame_offset;
@@ -1918,7 +1918,7 @@ EXPORT_SYMBOL_GPL(wa_urb_enqueue);
  */
 int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 {
-	unsigned long flags, flags2;
+	unsigned long flags;
 	struct wa_xfer *xfer;
 	struct wa_seg *seg;
 	struct wa_rpipe *rpipe;
@@ -1964,10 +1964,10 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 		goto out_unlock;
 	}
 	/* Check the delayed list -> if there, release and complete */
-	spin_lock_irqsave(&wa->xfer_list_lock, flags2);
+	spin_lock(&wa->xfer_list_lock);
 	if (!list_empty(&xfer->list_node) && xfer->seg == NULL)
 		goto dequeue_delayed;
-	spin_unlock_irqrestore(&wa->xfer_list_lock, flags2);
+	spin_unlock(&wa->xfer_list_lock);
 	if (xfer->seg == NULL)  	/* still hasn't reached */
 		goto out_unlock;	/* setup(), enqueue_b() completes */
 	/* Ok, the xfer is in flight already, it's been setup and submitted.*/
@@ -2054,7 +2054,7 @@ out_unlock:
 
 dequeue_delayed:
 	list_del_init(&xfer->list_node);
-	spin_unlock_irqrestore(&wa->xfer_list_lock, flags2);
+	spin_unlock(&wa->xfer_list_lock);
 	xfer->result = urb->status;
 	spin_unlock_irqrestore(&xfer->lock, flags);
 	wa_xfer_giveback(xfer);
@@ -2438,7 +2438,7 @@ static int wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 	struct wa_rpipe *rpipe;
 	unsigned done = 0, dti_busy = 0, data_frame_count = 0, seg_index;
 	unsigned first_frame_index = 0, rpipe_ready = 0;
-	int expected_size;
+	size_t expected_size;
 
 	/* We have a xfer result buffer; check it */
 	dev_dbg(dev, "DTI: isoc packet status %d bytes at %p\n",
@@ -2460,11 +2460,10 @@ static int wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 		goto error_bad_seg;
 	seg = xfer->seg[wa->dti_isoc_xfer_seg];
 	rpipe = xfer->ep->hcpriv;
-	expected_size = sizeof(*packet_status) +
-			(sizeof(packet_status->PacketStatus[0]) *
-			seg->isoc_frame_count);
+	expected_size = struct_size(packet_status, PacketStatus,
+				    seg->isoc_frame_count);
 	if (urb->actual_length != expected_size) {
-		dev_err(dev, "DTI Error: isoc packet status--bad urb length (%d bytes vs %d needed)\n",
+		dev_err(dev, "DTI Error: isoc packet status--bad urb length (%d bytes vs %zu needed)\n",
 			urb->actual_length, expected_size);
 		goto error_bad_seg;
 	}

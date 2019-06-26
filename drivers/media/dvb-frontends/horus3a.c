@@ -330,9 +330,9 @@ static int horus3a_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static const struct dvb_tuner_ops horus3a_tuner_ops = {
 	.info = {
 		.name = "Sony Horus3a",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_step = 1000,
+		.frequency_min_hz  =  950 * MHz,
+		.frequency_max_hz  = 2150 * MHz,
+		.frequency_step_hz =    1 * MHz,
 	},
 	.init = horus3a_init,
 	.release = horus3a_release,

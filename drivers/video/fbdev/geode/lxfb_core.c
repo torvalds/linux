@@ -23,6 +23,8 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 
+#include <asm/olpc.h>
+
 #include "lxfb.h"
 
 static char *mode_option;
@@ -216,9 +218,6 @@ static struct fb_videomode geode_modedb[] = {
 	  0, FB_VMODE_NONINTERLACED, 0 },
 };
 
-#ifdef CONFIG_OLPC
-#include <asm/olpc.h>
-
 static struct fb_videomode olpc_dcon_modedb[] = {
 	/* The only mode the DCON has is 1200x900 */
 	{ NULL, 50, 1200, 900, 17460, 24, 8, 4, 5, 8, 3,
@@ -236,14 +235,6 @@ static void get_modedb(struct fb_videomode **modedb, unsigned int *size)
 		*size = ARRAY_SIZE(geode_modedb);
 	}
 }
-
-#else
-static void get_modedb(struct fb_videomode **modedb, unsigned int *size)
-{
-	*modedb = (struct fb_videomode *) geode_modedb;
-	*size = ARRAY_SIZE(geode_modedb);
-}
-#endif
 
 static int lxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {

@@ -36,7 +36,6 @@ ssd1307: oled@3c {
         reg = <0x3c>;
         pwms = <&pwm 4 3000>;
         reset-gpios = <&gpio2 7>;
-        reset-active-low;
 };
 
 ssd1306: oled@3c {
@@ -44,7 +43,6 @@ ssd1306: oled@3c {
         reg = <0x3c>;
         pwms = <&pwm 4 3000>;
         reset-gpios = <&gpio2 7>;
-        reset-active-low;
         solomon,com-lrremap;
         solomon,com-invdir;
         solomon,com-offset = <32>;

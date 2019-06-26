@@ -63,6 +63,9 @@
 typedef unsigned int sclp_cmdw_t;
 
 #define SCLP_CMDW_READ_CPU_INFO		0x00010001
+#define SCLP_CMDW_READ_SCP_INFO		0x00020001
+#define SCLP_CMDW_READ_STORAGE_INFO	0x00040001
+#define SCLP_CMDW_READ_SCP_INFO_FORCED	0x00120001
 #define SCLP_CMDW_READ_EVENT_DATA	0x00770005
 #define SCLP_CMDW_WRITE_EVENT_DATA	0x00760005
 #define SCLP_CMDW_WRITE_EVENT_MASK	0x00780005
@@ -155,6 +158,56 @@ struct read_cpu_info_sccb {
 	u16	offset_standby;
 	u8	reserved[4096 - 16];
 } __attribute__((packed, aligned(PAGE_SIZE)));
+
+struct read_info_sccb {
+	struct	sccb_header header;	/* 0-7 */
+	u16	rnmax;			/* 8-9 */
+	u8	rnsize;			/* 10 */
+	u8	_pad_11[16 - 11];	/* 11-15 */
+	u16	ncpurl;			/* 16-17 */
+	u16	cpuoff;			/* 18-19 */
+	u8	_pad_20[24 - 20];	/* 20-23 */
+	u8	loadparm[8];		/* 24-31 */
+	u8	_pad_32[42 - 32];	/* 32-41 */
+	u8	fac42;			/* 42 */
+	u8	fac43;			/* 43 */
+	u8	_pad_44[48 - 44];	/* 44-47 */
+	u64	facilities;		/* 48-55 */
+	u8	_pad_56[66 - 56];	/* 56-65 */
+	u8	fac66;			/* 66 */
+	u8	_pad_67[76 - 67];	/* 67-83 */
+	u32	ibc;			/* 76-79 */
+	u8	_pad80[84 - 80];	/* 80-83 */
+	u8	fac84;			/* 84 */
+	u8	fac85;			/* 85 */
+	u8	_pad_86[91 - 86];	/* 86-90 */
+	u8	fac91;			/* 91 */
+	u8	_pad_92[98 - 92];	/* 92-97 */
+	u8	fac98;			/* 98 */
+	u8	hamaxpow;		/* 99 */
+	u32	rnsize2;		/* 100-103 */
+	u64	rnmax2;			/* 104-111 */
+	u32	hsa_size;		/* 112-115 */
+	u8	fac116;			/* 116 */
+	u8	fac117;			/* 117 */
+	u8	fac118;			/* 118 */
+	u8	fac119;			/* 119 */
+	u16	hcpua;			/* 120-121 */
+	u8	_pad_122[124 - 122];	/* 122-123 */
+	u32	hmfai;			/* 124-127 */
+	u8	_pad_128[134 - 128];	/* 128-133 */
+	u8	byte_134;			/* 134 */
+	u8	_pad_135[4096 - 135];	/* 135-4095 */
+} __packed __aligned(PAGE_SIZE);
+
+struct read_storage_sccb {
+	struct sccb_header header;
+	u16 max_id;
+	u16 assigned;
+	u16 standby;
+	u16 :16;
+	u32 entries[0];
+} __packed;
 
 static inline void sclp_fill_core_info(struct sclp_core_info *info,
 				       struct read_cpu_info_sccb *sccb)
@@ -275,6 +328,7 @@ unsigned int sclp_early_con_check_vt220(struct init_sccb *sccb);
 int sclp_early_set_event_mask(struct init_sccb *sccb,
 			      sccb_mask_t receive_mask,
 			      sccb_mask_t send_mask);
+int sclp_early_get_info(struct read_info_sccb *info);
 
 /* useful inlines */
 

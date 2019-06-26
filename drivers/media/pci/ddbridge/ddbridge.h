@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge.h: Digital Devices PCIe bridge driver
  *
@@ -8,60 +9,52 @@
  * modify it under the terms of the GNU General Public License
  * version 2 only, as published by the Free Software Foundation.
  *
- *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #ifndef _DDBRIDGE_H_
 #define _DDBRIDGE_H_
 
-#include <linux/module.h>
+#include <linux/clk.h>
+#include <linux/completion.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/dvb/ca.h>
+#include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
 #include <linux/io.h>
+#include <linux/kthread.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
-#include <linux/timer.h>
-#include <linux/i2c.h>
+#include <linux/platform_device.h>
+#include <linux/poll.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/socket.h>
+#include <linux/spi/spi.h>
 #include <linux/swab.h>
+#include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
-#include <linux/kthread.h>
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-#include <linux/spi/spi.h>
-#include <linux/gpio.h>
-#include <linux/completion.h>
 
-#include <linux/types.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/mutex.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
-#include <linux/io.h>
-#include <linux/uaccess.h>
-
-#include <linux/dvb/ca.h>
-#include <linux/socket.h>
-#include <linux/device.h>
-#include <linux/io.h>
 
 #include <media/dmxdev.h>
-#include <media/dvbdev.h>
-#include <media/dvb_demux.h>
-#include <media/dvb_frontend.h>
-#include <media/dvb_ringbuffer.h>
 #include <media/dvb_ca_en50221.h>
+#include <media/dvb_demux.h>
+#include <media/dvbdev.h>
+#include <media/dvb_frontend.h>
 #include <media/dvb_net.h>
+#include <media/dvb_ringbuffer.h>
 
 #define DDBRIDGE_VERSION "0.9.33-integrated"
 
@@ -120,21 +113,23 @@ struct ddb_info {
 #define DDB_OCTOPUS_MCI     9
 	char *name;
 	u32   i2c_mask;
+	u32   board_control;
+	u32   board_control_2;
+
 	u8    port_num;
 	u8    led_num;
 	u8    fan_num;
 	u8    temp_num;
 	u8    temp_bus;
-	u32   board_control;
-	u32   board_control_2;
-	u8    mdio_num;
 	u8    con_clock; /* use a continuous clock */
 	u8    ts_quirks;
 #define TS_QUIRK_SERIAL   1
 #define TS_QUIRK_REVERSED 2
 #define TS_QUIRK_ALT_OSC  8
+	u8    mci_ports;
+	u8    mci_type;
+
 	u32   tempmon_irq;
-	u8    mci;
 	const struct ddb_regmap *regmap;
 };
 
@@ -255,7 +250,6 @@ struct ddb_port {
 #define DDB_CI_EXTERNAL_XO2_B    13
 #define DDB_TUNER_DVBS_STV0910_PR 14
 #define DDB_TUNER_DVBC2T2I_SONY_P 15
-#define DDB_TUNER_MCI            16
 
 #define DDB_TUNER_XO2            32
 #define DDB_TUNER_DVBS_STV0910   (DDB_TUNER_XO2 + 0)
@@ -264,6 +258,9 @@ struct ddb_port {
 #define DDB_TUNER_DVBC2T2_SONY   (DDB_TUNER_XO2 + 3)
 #define DDB_TUNER_ATSC_ST        (DDB_TUNER_XO2 + 4)
 #define DDB_TUNER_DVBC2T2I_SONY  (DDB_TUNER_XO2 + 5)
+
+#define DDB_TUNER_MCI            48
+#define DDB_TUNER_MCI_SX8        (DDB_TUNER_MCI + 0)
 
 	struct ddb_input      *input[2];
 	struct ddb_output     *output;

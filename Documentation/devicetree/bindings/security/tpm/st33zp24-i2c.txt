@@ -6,7 +6,6 @@ Required properties:
 - reg: address on the bus
 
 Optional ST33ZP24 Properties:
-- interrupt-parent: phandle for the interrupt gpio controller
 - interrupts: GPIO interrupt to which the chip is connected
 - lpcpd-gpios: Output GPIO pin used for ST33ZP24 power management D1/D2 state.
 If set, power must be present when the platform is going into sleep/hibernate mode.

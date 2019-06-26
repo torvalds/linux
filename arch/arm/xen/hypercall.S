@@ -113,8 +113,7 @@ ENTRY(privcmd_call)
 
 	/*
 	 * Disable userspace access from kernel. This is fine to do it
-	 * unconditionally as no set_fs(KERNEL_DS)/set_fs(get_ds()) is
-	 * called before.
+	 * unconditionally as no set_fs(KERNEL_DS) is called before.
 	 */
 	uaccess_disable r4
 

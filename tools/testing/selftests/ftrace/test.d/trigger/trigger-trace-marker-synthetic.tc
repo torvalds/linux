@@ -3,15 +3,7 @@
 # description: trace_marker trigger - test histogram with synthetic event
 # flags:
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    echo > synthetic_events
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -41,8 +33,6 @@ if [ ! -f events/ftrace/print/hist ]; then
     exit_unsupported
 fi
 
-do_reset
-
 echo "Test histogram trace_marker to trace_marker latency histogram trigger"
 
 echo 'latency u64 lat' > synthetic_events
@@ -60,7 +50,5 @@ fi
 
 grep 'hitcount: *1$' events/synthetic/latency/hist > /dev/null || \
     fail "hist trigger did not trigger "
-
-do_reset
 
 exit 0

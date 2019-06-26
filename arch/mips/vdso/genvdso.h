@@ -15,8 +15,6 @@ static inline bool FUNC(patch_vdso)(const char *path, void *vdso)
 	ELF(Shdr) *shdr;
 	char *shstrtab, *name;
 	uint16_t sh_count, sh_entsize, i;
-	unsigned int local_gotno, symtabno, gotsym;
-	ELF(Dyn) *dyn = NULL;
 
 	shdrs = vdso + FUNC(swap_uint)(ehdr->e_shoff);
 	sh_count = swap_uint16(ehdr->e_shnum);
@@ -41,9 +39,6 @@ static inline bool FUNC(patch_vdso)(const char *path, void *vdso)
 				"%s: '%s' contains relocation sections\n",
 				program_name, path);
 			return false;
-		case SHT_DYNAMIC:
-			dyn = vdso + FUNC(swap_uint)(shdr->sh_offset);
-			break;
 		}
 
 		/* Check for existing sections. */
@@ -58,52 +53,6 @@ static inline bool FUNC(patch_vdso)(const char *path, void *vdso)
 			strcpy(name, ".MIPS.abiflags");
 			shdr->sh_type = swap_uint32(SHT_MIPS_ABIFLAGS);
 			shdr->sh_entsize = shdr->sh_size;
-		}
-	}
-
-	/*
-	 * Ensure the GOT has no entries other than the standard 2, for the same
-	 * reason we check that there's no relocation sections above.
-	 * The standard two entries are:
-	 * - Lazy resolver
-	 * - Module pointer
-	 */
-	if (dyn) {
-		local_gotno = symtabno = gotsym = 0;
-
-		while (FUNC(swap_uint)(dyn->d_tag) != DT_NULL) {
-			switch (FUNC(swap_uint)(dyn->d_tag)) {
-			/*
-			 * This member holds the number of local GOT entries.
-			 */
-			case DT_MIPS_LOCAL_GOTNO:
-				local_gotno = FUNC(swap_uint)(dyn->d_un.d_val);
-				break;
-			/*
-			 * This member holds the number of entries in the
-			 * .dynsym section.
-			 */
-			case DT_MIPS_SYMTABNO:
-				symtabno = FUNC(swap_uint)(dyn->d_un.d_val);
-				break;
-			/*
-			 * This member holds the index of the first dynamic
-			 * symbol table entry that corresponds to an entry in
-			 * the GOT.
-			 */
-			case DT_MIPS_GOTSYM:
-				gotsym = FUNC(swap_uint)(dyn->d_un.d_val);
-				break;
-			}
-
-			dyn++;
-		}
-
-		if (local_gotno > 2 || symtabno - gotsym) {
-			fprintf(stderr,
-				"%s: '%s' contains unexpected GOT entries\n",
-				program_name, path);
-			return false;
 		}
 	}
 

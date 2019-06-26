@@ -112,10 +112,15 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	/* Any params that aren't just register reads would go here. */
 
-	DRM_DEBUG("Unknown parameter %d\n", args->param);
-	return -EINVAL;
+	switch (args->param) {
+	case DRM_V3D_PARAM_SUPPORTS_TFU:
+		args->value = 1;
+		return 0;
+	default:
+		DRM_DEBUG("Unknown parameter %d\n", args->param);
+		return -EINVAL;
+	}
 }
 
 static int
@@ -123,6 +128,7 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv;
+	struct drm_sched_rq *rq;
 	int i;
 
 	v3d_priv = kzalloc(sizeof(*v3d_priv), GFP_KERNEL);
@@ -132,10 +138,8 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	v3d_priv->v3d = v3d;
 
 	for (i = 0; i < V3D_MAX_QUEUES; i++) {
-		drm_sched_entity_init(&v3d->queue[i].sched,
-				      &v3d_priv->sched_entity[i],
-				      &v3d->queue[i].sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL],
-				      NULL);
+		rq = &v3d->queue[i].sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+		drm_sched_entity_init(&v3d_priv->sched_entity[i], &rq, 1, NULL);
 	}
 
 	file->driver_priv = v3d_priv;
@@ -146,13 +150,11 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 static void
 v3d_postclose(struct drm_device *dev, struct drm_file *file)
 {
-	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv = file->driver_priv;
 	enum v3d_queue q;
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		drm_sched_entity_fini(&v3d->queue[q].sched,
-				      &v3d_priv->sched_entity[q]);
+		drm_sched_entity_destroy(&v3d_priv->sched_entity[q]);
 	}
 
 	kfree(v3d_priv);
@@ -173,7 +175,8 @@ static const struct file_operations v3d_drm_fops = {
 /* DRM_AUTH is required on SUBMIT_CL for now, while we don't have GMP
  * protection between clients.  Note that render nodes would be be
  * able to submit CLs that could access BOs from clients authenticated
- * with the master node.
+ * with the master node.  The TFU doesn't use the GMP, so it would
+ * need to stay DRM_AUTH until we do buffer size/offset validation.
  */
 static const struct drm_ioctl_desc v3d_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(V3D_SUBMIT_CL, v3d_submit_cl_ioctl, DRM_RENDER_ALLOW | DRM_AUTH),
@@ -182,6 +185,7 @@ static const struct drm_ioctl_desc v3d_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(V3D_MMAP_BO, v3d_mmap_bo_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(V3D_GET_PARAM, v3d_get_param_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(V3D_GET_BO_OFFSET, v3d_get_bo_offset_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(V3D_SUBMIT_TFU, v3d_submit_tfu_ioctl, DRM_RENDER_ALLOW | DRM_AUTH),
 };
 
 static const struct vm_operations_struct v3d_vm_ops = {

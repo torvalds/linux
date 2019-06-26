@@ -161,10 +161,21 @@ struct rdma_rq_sge {
 #define RDMA_RQ_SGE_L_KEY_HI_SHIFT  29
 };
 
+struct rdma_srq_wqe_header {
+	struct regpair wr_id;
+	u8 num_sges /* number of SGEs in WQE */;
+	u8 reserved2[7];
+};
+
 struct rdma_srq_sge {
 	struct regpair addr;
 	__le32 length;
 	__le32 l_key;
+};
+
+union rdma_srq_elm {
+	struct rdma_srq_wqe_header header;
+	struct rdma_srq_sge sge;
 };
 
 /* Rdma doorbell data for flags update */

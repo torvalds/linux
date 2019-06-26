@@ -11,6 +11,7 @@ extern int parisc_narrow_firmware;
 extern int pdc_type;
 extern unsigned long parisc_cell_num; /* cell number the CPU runs on (PAT) */
 extern unsigned long parisc_cell_loc; /* cell location of CPU (PAT)	   */
+extern unsigned long parisc_pat_pdc_cap; /* PDC capabilities (PAT) */
 
 /* Values for pdc_type */
 #define PDC_TYPE_ILLEGAL	-1
@@ -43,6 +44,7 @@ int pdc_model_sysmodel(char *name);
 int pdc_model_cpuid(unsigned long *cpu_id);
 int pdc_model_versions(unsigned long *versions, int id);
 int pdc_model_capabilities(unsigned long *capabilities);
+int pdc_model_platform_info(char *orig_prod_num, char *current_prod_num, char *serial_no);
 int pdc_cache_info(struct pdc_cache_info *cache);
 int pdc_spaceid_bits(unsigned long *space_bits);
 #ifndef CONFIG_PA20

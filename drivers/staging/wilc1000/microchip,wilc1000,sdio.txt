@@ -1,0 +1,32 @@
+* Microchip WILC wireless SDIO device
+
+The wilc1000 chips can be connected via SDIO. The node is used to specifiy
+child node to the SDIO controller that connects the device to the system.
+
+Required properties:
+- compatible	:	Should be "microchip,wilc1000-spi"
+- irq-gpios	:	Connect to a host IRQ
+- reg		:	Slot ID used in the controller
+
+Optional:
+- bus-width	:	Number of data lines wired up the slot. Default 1 bit.
+
+
+Examples:
+mmc1: mmc@fc000000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mmc1_clk_cmd_dat0 &pinctrl_mmc1_dat1_3>;
+		non-removable;
+		vmmc-supply = <&vcc_mmc1_reg>;
+		vqmmc-supply = <&vcc_3v3_reg>;
+		status = "okay";
+
+		wilc_sdio@0 {
+			compatible = "microchip,wilc1000-sdio";
+			irq-gpios = <&pioC 27 0>;
+			status = "okay";
+			reg = <0>;
+			bus-width = <4>;
+		}
+	};
+}

@@ -210,7 +210,7 @@ static int membarrier_register_global_expedited(void)
 		 * future scheduler executions will observe the new
 		 * thread flag state for this mm.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 	}
 	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY,
 		  &mm->membarrier_state);
@@ -246,7 +246,7 @@ static int membarrier_register_private_expedited(int flags)
 		 * Ensure all future scheduler executions will observe the
 		 * new thread flag state for this process.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 	}
 	atomic_or(state, &mm->membarrier_state);
 
@@ -298,7 +298,7 @@ SYSCALL_DEFINE2(membarrier, int, cmd, int, flags)
 		if (tick_nohz_full_enabled())
 			return -EINVAL;
 		if (num_online_cpus() > 1)
-			synchronize_sched();
+			synchronize_rcu();
 		return 0;
 	case MEMBARRIER_CMD_GLOBAL_EXPEDITED:
 		return membarrier_global_expedited();

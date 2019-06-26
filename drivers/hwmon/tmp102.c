@@ -141,10 +141,10 @@ static umode_t tmp102_is_visible(const void *data, enum hwmon_sensor_types type,
 
 	switch (attr) {
 	case hwmon_temp_input:
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_max_hyst:
 	case hwmon_temp_max:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	default:
 		return 0;
 	}
@@ -212,7 +212,8 @@ static const struct regmap_config tmp102_regmap_config = {
 	.volatile_reg = tmp102_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 	.cache_type = REGCACHE_RBTREE,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int tmp102_probe(struct i2c_client *client,

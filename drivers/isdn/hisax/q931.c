@@ -598,7 +598,7 @@ prcalling(char *dest, u_char *p)
 		dp += prbits(dp, *++p, 8, 8);
 		*dp++ = '\n';
 		l--;
-	};
+	}
 	p++;
 
 	dp += sprintf(dp, "    number digits ");

@@ -16,61 +16,6 @@ static inline struct bochs_device *bochs_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct bochs_device, ttm.bdev);
 }
 
-static int bochs_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void bochs_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-static int bochs_ttm_global_init(struct bochs_device *bochs)
-{
-	struct drm_global_reference *global_ref;
-	int r;
-
-	global_ref = &bochs->ttm.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &bochs_ttm_mem_global_init;
-	global_ref->release = &bochs_ttm_mem_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM memory accounting "
-			  "subsystem.\n");
-		return r;
-	}
-
-	bochs->ttm.bo_global_ref.mem_glob =
-		bochs->ttm.mem_global_ref.object;
-	global_ref = &bochs->ttm.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&bochs->ttm.mem_global_ref);
-		return r;
-	}
-
-	return 0;
-}
-
-static void bochs_ttm_global_release(struct bochs_device *bochs)
-{
-	if (bochs->ttm.mem_global_ref.release == NULL)
-		return;
-
-	drm_global_item_unref(&bochs->ttm.bo_global_ref.ref);
-	drm_global_item_unref(&bochs->ttm.mem_global_ref);
-	bochs->ttm.mem_global_ref.release = NULL;
-}
-
-
 static void bochs_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 {
 	struct bochs_bo *bo;
@@ -208,12 +153,7 @@ int bochs_mm_init(struct bochs_device *bochs)
 	struct ttm_bo_device *bdev = &bochs->ttm.bdev;
 	int ret;
 
-	ret = bochs_ttm_global_init(bochs);
-	if (ret)
-		return ret;
-
 	ret = ttm_bo_device_init(&bochs->ttm.bdev,
-				 bochs->ttm.bo_global_ref.ref.object,
 				 &bochs_bo_driver,
 				 bochs->dev->anon_inode->i_mapping,
 				 DRM_FILE_PAGE_OFFSET,
@@ -240,7 +180,6 @@ void bochs_mm_fini(struct bochs_device *bochs)
 		return;
 
 	ttm_bo_device_release(&bochs->ttm.bdev);
-	bochs_ttm_global_release(bochs);
 	bochs->ttm.initialized = false;
 }
 
@@ -271,33 +210,28 @@ static void bochs_ttm_placement(struct bochs_bo *bo, int domain)
 	bo->placement.num_busy_placement = c;
 }
 
-static inline u64 bochs_bo_gpu_offset(struct bochs_bo *bo)
-{
-	return bo->bo.offset;
-}
-
-int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag, u64 *gpu_addr)
+int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (bo->pin_count) {
 		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = bochs_bo_gpu_offset(bo);
 		return 0;
 	}
 
 	bochs_ttm_placement(bo, pl_flag);
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
+	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
+	if (ret)
+		return ret;
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
+	ttm_bo_unreserve(&bo->bo);
 	if (ret)
 		return ret;
 
 	bo->pin_count = 1;
-	if (gpu_addr)
-		*gpu_addr = bochs_bo_gpu_offset(bo);
 	return 0;
 }
 
@@ -317,7 +251,11 @@ int bochs_bo_unpin(struct bochs_bo *bo)
 
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
+	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
+	if (ret)
+		return ret;
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
+	ttm_bo_unreserve(&bo->bo);
 	if (ret)
 		return ret;
 
@@ -414,7 +352,7 @@ int bochs_dumb_create(struct drm_file *file, struct drm_device *dev,
 		return ret;
 
 	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 	if (ret)
 		return ret;
 
@@ -430,7 +368,7 @@ static void bochs_bo_unref(struct bochs_bo **bo)
 		return;
 
 	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
+	ttm_bo_put(tbo);
 	*bo = NULL;
 }
 
@@ -454,80 +392,56 @@ int bochs_dumb_mmap_offset(struct drm_file *file, struct drm_device *dev,
 	bo = gem_to_bochs_bo(obj);
 	*offset = bochs_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
 
-static void bochs_user_framebuffer_destroy(struct drm_framebuffer *fb)
+int bochs_gem_prime_pin(struct drm_gem_object *obj)
 {
-	struct bochs_framebuffer *bochs_fb = to_bochs_framebuffer(fb);
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
 
-	drm_gem_object_unreference_unlocked(bochs_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
+	return bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
 }
 
-static const struct drm_framebuffer_funcs bochs_fb_funcs = {
-	.destroy = bochs_user_framebuffer_destroy,
-};
-
-int bochs_framebuffer_init(struct drm_device *dev,
-			   struct bochs_framebuffer *gfb,
-			   const struct drm_mode_fb_cmd2 *mode_cmd,
-			   struct drm_gem_object *obj)
+void bochs_gem_prime_unpin(struct drm_gem_object *obj)
 {
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
+
+	bochs_bo_unpin(bo);
+}
+
+void *bochs_gem_prime_vmap(struct drm_gem_object *obj)
+{
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
+	bool is_iomem;
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
-	gfb->obj = obj;
-	ret = drm_framebuffer_init(dev, &gfb->base, &bochs_fb_funcs);
+	ret = bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
+	if (ret)
+		return NULL;
+	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
 	if (ret) {
-		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
-		return ret;
+		bochs_bo_unpin(bo);
+		return NULL;
 	}
-	return 0;
+	return ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
 }
 
-static struct drm_framebuffer *
-bochs_user_framebuffer_create(struct drm_device *dev,
-			      struct drm_file *filp,
-			      const struct drm_mode_fb_cmd2 *mode_cmd)
+void bochs_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
-	struct drm_gem_object *obj;
-	struct bochs_framebuffer *bochs_fb;
-	int ret;
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
 
-	DRM_DEBUG_DRIVER("%dx%d, format %c%c%c%c\n",
-	       mode_cmd->width, mode_cmd->height,
-	       (mode_cmd->pixel_format)       & 0xff,
-	       (mode_cmd->pixel_format >> 8)  & 0xff,
-	       (mode_cmd->pixel_format >> 16) & 0xff,
-	       (mode_cmd->pixel_format >> 24) & 0xff);
-
-	if (mode_cmd->pixel_format != DRM_FORMAT_XRGB8888)
-		return ERR_PTR(-ENOENT);
-
-	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (obj == NULL)
-		return ERR_PTR(-ENOENT);
-
-	bochs_fb = kzalloc(sizeof(*bochs_fb), GFP_KERNEL);
-	if (!bochs_fb) {
-		drm_gem_object_unreference_unlocked(obj);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	ret = bochs_framebuffer_init(dev, bochs_fb, mode_cmd, obj);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		kfree(bochs_fb);
-		return ERR_PTR(ret);
-	}
-	return &bochs_fb->base;
+	ttm_bo_kunmap(&bo->kmap);
+	bochs_bo_unpin(bo);
 }
 
-const struct drm_mode_config_funcs bochs_mode_funcs = {
-	.fb_create = bochs_user_framebuffer_create,
-};
+int bochs_gem_prime_mmap(struct drm_gem_object *obj,
+			 struct vm_area_struct *vma)
+{
+	struct bochs_bo *bo = gem_to_bochs_bo(obj);
+
+	bo->gem.vma_node.vm_node.start = bo->bo.vma_node.vm_node.start;
+	return drm_gem_prime_mmap(obj, vma);
+}

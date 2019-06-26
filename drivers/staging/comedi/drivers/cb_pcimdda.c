@@ -188,7 +188,5 @@ static struct pci_driver cb_pcimdda_driver_pci_driver = {
 module_comedi_pci_driver(cb_pcimdda_driver, cb_pcimdda_driver_pci_driver);
 
 MODULE_AUTHOR("Calin A. Culianu <calin@rtlab.org>");
-MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
-		   "series.  Currently only supports PCIM-DDA06-16 (which "
-		   "also happens to be the only board in this series. :) ) ");
+MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA series.  Currently only supports PCIM-DDA06-16 (which also happens to be the only board in this series. :) ) ");
 MODULE_LICENSE("GPL");

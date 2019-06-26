@@ -132,7 +132,7 @@ static int emc_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 		timing = tegra->timings + i;
 
 		if (timing->rate > req->max_rate) {
-			i = min(i, 1);
+			i = max(i, 1);
 			req->rate = tegra->timings[i - 1].rate;
 			return 0;
 		}

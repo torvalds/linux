@@ -39,7 +39,7 @@ static void owl_clk_set_regmap(const struct owl_clk_desc *desc,
 }
 
 int owl_clk_regmap_init(struct platform_device *pdev,
-			 const struct owl_clk_desc *desc)
+			struct owl_clk_desc *desc)
 {
 	void __iomem *base;
 	struct regmap *regmap;
@@ -57,6 +57,7 @@ int owl_clk_regmap_init(struct platform_device *pdev,
 	}
 
 	owl_clk_set_regmap(desc, regmap);
+	desc->regmap = regmap;
 
 	return 0;
 }

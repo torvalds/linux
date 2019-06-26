@@ -4,7 +4,7 @@
  * numbering scheme from the Princples of Operations: most significant bit
  * has bit number 0.
  *
- *    Copyright IBM Corp. 2015
+ *    Copyright IBM Corp. 2015, 2018
  *
  */
 
@@ -106,6 +106,9 @@ static struct facility_def facility_defs[] = {
 
 		.name = "FACILITIES_KVM_CPUMODEL",
 		.bits = (int[]){
+			12, /* AP Query Configuration Information */
+			15, /* AP Facilities Test */
+			156, /* etoken facility */
 			-1  /* END */
 		}
 	},

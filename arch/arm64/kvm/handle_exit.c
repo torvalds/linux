@@ -173,6 +173,23 @@ static int handle_sve(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return 1;
 }
 
+/*
+ * Guest usage of a ptrauth instruction (which the guest EL1 did not turn into
+ * a NOP).
+ */
+static int kvm_handle_ptrauth(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	/*
+	 * We don't currently support ptrauth in a guest, and we mask the ID
+	 * registers to prevent well-behaved guests from trying to make use of
+	 * it.
+	 *
+	 * Inject an UNDEF, as if the feature really isn't present.
+	 */
+	kvm_inject_undefined(vcpu);
+	return 1;
+}
+
 static exit_handle_fn arm_exit_handlers[] = {
 	[0 ... ESR_ELx_EC_MAX]	= kvm_handle_unknown_ec,
 	[ESR_ELx_EC_WFx]	= kvm_handle_wfx,
@@ -195,6 +212,7 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_ELx_EC_BKPT32]	= kvm_handle_guest_debug,
 	[ESR_ELx_EC_BRK64]	= kvm_handle_guest_debug,
 	[ESR_ELx_EC_FP_ASIMD]	= handle_no_fpsimd,
+	[ESR_ELx_EC_PAC]	= kvm_handle_ptrauth,
 };
 
 static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
@@ -229,13 +247,6 @@ static int handle_trap_exceptions(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		handled = exit_handler(vcpu, run);
 	}
 
-	/*
-	 * kvm_arm_handle_step_debug() sets the exit_reason on the kvm_run
-	 * structure if we need to return to userspace.
-	 */
-	if (handled > 0 && kvm_arm_handle_step_debug(vcpu, run))
-		handled = 0;
-
 	return handled;
 }
 
@@ -269,12 +280,7 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case ARM_EXCEPTION_IRQ:
 		return 1;
 	case ARM_EXCEPTION_EL1_SERROR:
-		/* We may still need to return for single-step */
-		if (!(*vcpu_cpsr(vcpu) & DBG_SPSR_SS)
-			&& kvm_arm_handle_step_debug(vcpu, run))
-			return 0;
-		else
-			return 1;
+		return 1;
 	case ARM_EXCEPTION_TRAP:
 		return handle_trap_exceptions(vcpu, run);
 	case ARM_EXCEPTION_HYP_GONE:
@@ -284,6 +290,13 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		 */
 		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		return 0;
+	case ARM_EXCEPTION_IL:
+		/*
+		 * We attempted an illegal exception return.  Guest state must
+		 * have been corrupted somehow.  Give up.
+		 */
+		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		return -EINVAL;
 	default:
 		kvm_pr_unimpl("Unsupported exception type: %d",
 			      exception_index);

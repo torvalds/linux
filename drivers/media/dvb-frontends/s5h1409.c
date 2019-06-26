@@ -490,7 +490,7 @@ static void s5h1409_set_qam_amhum_mode(struct dvb_frontend *fe)
 
 	if (state->qam_state == QAM_STATE_QAM_OPTIMIZED_L3) {
 		/* We've already reached the maximum optimization level, so
-		   dont bother banging on the status registers */
+		   don't bother banging on the status registers */
 		return;
 	}
 
@@ -999,9 +999,9 @@ static const struct dvb_frontend_ops s5h1409_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Samsung S5H1409 QAM/8VSB Frontend",
-		.frequency_min		= 54000000,
-		.frequency_max		= 858000000,
-		.frequency_stepsize	= 62500,
+		.frequency_min_hz	=  54 * MHz,
+		.frequency_max_hz	= 858 * MHz,
+		.frequency_stepsize_hz	= 62500,
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 

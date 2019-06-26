@@ -3348,7 +3348,7 @@ static void hw_var_set_opmode(struct adapter *padapter, u8 variable, u8 *val)
 			/*  disable atim wnd */
 			rtw_write8(padapter, REG_BCN_CTRL, DIS_TSF_UDT|EN_BCN_FUNCTION|DIS_ATIM);
 			/* rtw_write8(padapter, REG_BCN_CTRL, 0x18); */
-		} else if ((mode == _HW_STATE_ADHOC_) /*|| (mode == _HW_STATE_AP_)*/) {
+		} else if (mode == _HW_STATE_ADHOC_) {
 			ResumeTxBeacon(padapter);
 			rtw_write8(padapter, REG_BCN_CTRL, DIS_TSF_UDT|EN_BCN_FUNCTION|DIS_BCNQ_SUB);
 		} else if (mode == _HW_STATE_AP_) {
@@ -4502,8 +4502,8 @@ void rtl8723b_stop_thread(struct adapter *padapter)
 
 	/*  stop xmit_buf_thread */
 	if (xmitpriv->SdioXmitThread) {
-		up(&xmitpriv->SdioXmitSema);
-		down(&xmitpriv->SdioXmitTerminateSema);
+		complete(&xmitpriv->SdioXmitStart);
+		wait_for_completion(&xmitpriv->SdioXmitTerminate);
 		xmitpriv->SdioXmitThread = NULL;
 	}
 #endif

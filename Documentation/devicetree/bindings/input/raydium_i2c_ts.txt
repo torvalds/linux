@@ -3,7 +3,6 @@ Raydium I2C touchscreen
 Required properties:
 - compatible: must be "raydium,rm32380"
 - reg: The I2C address of the device
-- interrupt-parent: the phandle for the interrupt controller
 - interrupts: interrupt to which the chip is connected
     See ../interrupt-controller/interrupts.txt
 Optional properties:

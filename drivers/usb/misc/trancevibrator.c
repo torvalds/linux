@@ -46,7 +46,9 @@ static ssize_t speed_store(struct device *dev, struct device_attribute *attr,
 	struct trancevibrator *tv = usb_get_intfdata(intf);
 	int temp, retval, old;
 
-	temp = simple_strtoul(buf, NULL, 10);
+	retval = kstrtoint(buf, 10, &temp);
+	if (retval)
+		return retval;
 	if (temp > 255)
 		temp = 255;
 	else if (temp < 0)

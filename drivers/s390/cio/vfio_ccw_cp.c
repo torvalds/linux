@@ -163,7 +163,7 @@ static bool pfn_array_table_iova_pinned(struct pfn_array_table *pat,
 
 	for (i = 0; i < pat->pat_nr; i++, pa++)
 		for (j = 0; j < pa->pa_nr; j++)
-			if (pa->pa_iova_pfn[i] == iova_pfn)
+			if (pa->pa_iova_pfn[j] == iova_pfn)
 				return true;
 
 	return false;
@@ -283,6 +283,33 @@ static long copy_ccw_from_iova(struct channel_program *cp,
 
 #define ccw_is_chain(_ccw) ((_ccw)->flags & (CCW_FLAG_CC | CCW_FLAG_DC))
 
+/*
+ * is_cpa_within_range()
+ *
+ * @cpa: channel program address being questioned
+ * @head: address of the beginning of a CCW chain
+ * @len: number of CCWs within the chain
+ *
+ * Determine whether the address of a CCW (whether a new chain,
+ * or the target of a TIC) falls within a range (including the end points).
+ *
+ * Returns 1 if yes, 0 if no.
+ */
+static inline int is_cpa_within_range(u32 cpa, u32 head, int len)
+{
+	u32 tail = head + (len - 1) * sizeof(struct ccw1);
+
+	return (head <= cpa && cpa <= tail);
+}
+
+static inline int is_tic_within_range(struct ccw1 *ccw, u32 head, int len)
+{
+	if (!ccw_is_tic(ccw))
+		return 0;
+
+	return is_cpa_within_range(ccw->cda, head, len);
+}
+
 static struct ccwchain *ccwchain_alloc(struct channel_program *cp, int len)
 {
 	struct ccwchain *chain;
@@ -387,10 +414,20 @@ static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 		 * orb specified one of the unsupported formats, we defer
 		 * checking for IDAWs in unsupported formats to here.
 		 */
-		if ((!cp->orb.cmd.c64 || cp->orb.cmd.i2k) && ccw_is_idal(ccw))
+		if ((!cp->orb.cmd.c64 || cp->orb.cmd.i2k) && ccw_is_idal(ccw)) {
+			kfree(p);
 			return -EOPNOTSUPP;
+		}
 
-		if ((!ccw_is_chain(ccw)) && (!ccw_is_tic(ccw)))
+		/*
+		 * We want to keep counting if the current CCW has the
+		 * command-chaining flag enabled, or if it is a TIC CCW
+		 * that loops back into the current chain.  The latter
+		 * is used for device orientation, where the CCW PRIOR to
+		 * the TIC can either jump to the TIC or a CCW immediately
+		 * after the TIC, depending on the results of its operation.
+		 */
+		if (!ccw_is_chain(ccw) && !is_tic_within_range(ccw, iova, cnt))
 			break;
 
 		ccw++;
@@ -406,13 +443,11 @@ static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 static int tic_target_chain_exists(struct ccw1 *tic, struct channel_program *cp)
 {
 	struct ccwchain *chain;
-	u32 ccw_head, ccw_tail;
+	u32 ccw_head;
 
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		ccw_head = chain->ch_iova;
-		ccw_tail = ccw_head + (chain->ch_len - 1) * sizeof(struct ccw1);
-
-		if ((ccw_head <= tic->cda) && (tic->cda <= ccw_tail))
+		if (is_cpa_within_range(tic->cda, ccw_head, chain->ch_len))
 			return 1;
 	}
 
@@ -479,13 +514,11 @@ static int ccwchain_fetch_tic(struct ccwchain *chain,
 {
 	struct ccw1 *ccw = chain->ch_ccw + idx;
 	struct ccwchain *iter;
-	u32 ccw_head, ccw_tail;
+	u32 ccw_head;
 
 	list_for_each_entry(iter, &cp->ccwchain_list, next) {
 		ccw_head = iter->ch_iova;
-		ccw_tail = ccw_head + (iter->ch_len - 1) * sizeof(struct ccw1);
-
-		if ((ccw_head <= ccw->cda) && (ccw->cda <= ccw_tail)) {
+		if (is_cpa_within_range(ccw->cda, ccw_head, iter->ch_len)) {
 			ccw->cda = (__u32) (addr_t) (((char *)iter->ch_ccw) +
 						     (ccw->cda - ccw_head));
 			return 0;
@@ -528,7 +561,7 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 
 	ret = pfn_array_alloc_pin(pat->pat_pa, cp->mdev, ccw->cda, ccw->count);
 	if (ret < 0)
-		goto out_init;
+		goto out_unpin;
 
 	/* Translate this direct ccw to a idal ccw. */
 	idaws = kcalloc(ret, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
@@ -827,7 +860,7 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 {
 	struct ccwchain *chain;
 	u32 cpa = scsw->cmd.cpa;
-	u32 ccw_head, ccw_tail;
+	u32 ccw_head;
 
 	/*
 	 * LATER:
@@ -837,9 +870,7 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 	 */
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		ccw_head = (u32)(u64)chain->ch_ccw;
-		ccw_tail = (u32)(u64)(chain->ch_ccw + chain->ch_len - 1);
-
-		if ((ccw_head <= cpa) && (cpa <= ccw_tail)) {
+		if (is_cpa_within_range(cpa, ccw_head, chain->ch_len)) {
 			/*
 			 * (cpa - ccw_head) is the offset value of the host
 			 * physical ccw to its chain head.

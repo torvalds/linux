@@ -8,8 +8,8 @@ struct cache_set;
 
 #ifdef CONFIG_BCACHE_DEBUG
 
-void bch_btree_verify(struct btree *);
-void bch_data_verify(struct cached_dev *, struct bio *);
+void bch_btree_verify(struct btree *b);
+void bch_data_verify(struct cached_dev *dc, struct bio *bio);
 
 #define expensive_debug_checks(c)	((c)->expensive_debug_checks)
 #define key_merging_disabled(c)		((c)->key_merging_disabled)
@@ -27,7 +27,7 @@ static inline void bch_data_verify(struct cached_dev *dc, struct bio *bio) {}
 #endif
 
 #ifdef CONFIG_DEBUG_FS
-void bch_debug_init_cache_set(struct cache_set *);
+void bch_debug_init_cache_set(struct cache_set *c);
 #else
 static inline void bch_debug_init_cache_set(struct cache_set *c) {}
 #endif

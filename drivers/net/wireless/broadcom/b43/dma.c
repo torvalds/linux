@@ -431,9 +431,9 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 	u16 ring_mem_size = (ring->type == B43_DMA_64BIT) ?
 				B43_DMA64_RINGMEMSIZE : B43_DMA32_RINGMEMSIZE;
 
-	ring->descbase = dma_zalloc_coherent(ring->dev->dev->dma_dev,
-					     ring_mem_size, &(ring->dmabase),
-					     GFP_KERNEL);
+	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
+					    ring_mem_size, &(ring->dmabase),
+					    GFP_KERNEL);
 	if (!ring->descbase)
 		return -ENOMEM;
 
@@ -1432,7 +1432,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		goto out;
 	}
 
-	if (unlikely(WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME))) {
+	if (WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME)) {
 		/* If we get here, we have a real error with the queue
 		 * full, but queues not stopped. */
 		b43err(dev->wl, "DMA queue overflow\n");
@@ -1518,13 +1518,15 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			}
 		} else {
 			/* More than a single header/data pair were missed.
-			 * Report this error, and reset the controller to
+			 * Report this error. If running with open-source
+			 * firmware, then reset the controller to
 			 * revive operation.
 			 */
 			b43dbg(dev->wl,
 			       "Out of order TX status report on DMA ring %d. Expected %d, but got %d\n",
 			       ring->index, firstused, slot);
-			b43_controller_restart(dev, "Out of order TX");
+			if (dev->fw.opensource)
+				b43_controller_restart(dev, "Out of order TX");
 			return;
 		}
 	}

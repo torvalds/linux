@@ -131,19 +131,7 @@ static inline void writel(u32 value, volatile void __iomem *addr)
 #define PCI_SPACE_LIMIT	PCI_IO_MASK
 #endif /* CONFIG_PCI */
 
-/*
- * These are defined in kmap.h as static inline functions. To maintain
- * previous behavior we put these define guards here so io_mm.h doesn't
- * see them.
- */
-#ifdef CONFIG_MMU
-#define memset_io memset_io
-#define memcpy_fromio memcpy_fromio
-#define memcpy_toio memcpy_toio
-#endif
-
 #include <asm/kmap.h>
 #include <asm/virtconvert.h>
-#include <asm-generic/io.h>
 
 #endif /* _M68KNOMMU_IO_H */

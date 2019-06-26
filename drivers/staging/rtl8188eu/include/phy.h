@@ -4,7 +4,6 @@
 #define IQK_DELAY_TIME_88E	    10
 #define index_mapping_NUM_88E	    15
 #define AVG_THERMAL_NUM_88E	    4
-#define ODM_TARGET_CHNL_NUM_2G_5G   59
 
 bool rtl88eu_phy_mac_config(struct adapter *adapt);
 bool rtl88eu_phy_rf_config(struct adapter *adapt);

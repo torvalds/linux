@@ -2,7 +2,9 @@
 #ifndef __ASM_TRAPS_H
 #define __ASM_TRAPS_H
 
-#ifdef __KERNEL__
+#define PARISC_ITLB_TRAP	6 /* defined by architecture. Do not change. */
+
+#if !defined(__ASSEMBLY__)
 struct pt_regs;
 
 /* traps.c */

@@ -11,6 +11,4 @@ Required properties:
   region
 - #interrupt-cells: specifies the number of cells needed to encode an interrupt
   source, should be 1.
-- interrupt-parent: phandle to the parent interrupt controller this one is
-  cascaded from
 - interrupts: specifies the interrupt line in the interrupt-parent controller

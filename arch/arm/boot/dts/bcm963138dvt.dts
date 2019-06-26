@@ -41,3 +41,11 @@
 		brcm,nand-oob-sectors-size = <16>;
 	};
 };
+
+&ahci {
+	status = "okay";
+};
+
+&sata_phy {
+	status = "okay";
+};

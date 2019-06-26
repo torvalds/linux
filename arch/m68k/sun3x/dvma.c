@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/vmalloc.h>
 
 #include <asm/sun3x.h>

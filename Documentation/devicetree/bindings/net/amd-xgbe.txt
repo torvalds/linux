@@ -8,8 +8,6 @@ Required properties:
    - SerDes Rx/Tx registers
    - SerDes integration registers (1/2)
    - SerDes integration registers (2/2)
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the amd-xgbe interrupt(s). The first interrupt
   listed is required and is the general device interrupt. If the optional
   amd,per-channel-interrupt property is specified, then one additional

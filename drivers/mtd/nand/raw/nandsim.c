@@ -443,7 +443,7 @@ static unsigned long total_wear = 0;
 /* MTD structure for NAND controller */
 static struct mtd_info *nsmtd;
 
-static int nandsim_debugfs_show(struct seq_file *m, void *private)
+static int nandsim_show(struct seq_file *m, void *private)
 {
 	unsigned long wmin = -1, wmax = 0, avg;
 	unsigned long deciles[10], decile_max[10], tot = 0;
@@ -494,18 +494,7 @@ static int nandsim_debugfs_show(struct seq_file *m, void *private)
 
 	return 0;
 }
-
-static int nandsim_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nandsim_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations dfs_fops = {
-	.open		= nandsim_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(nandsim);
 
 /**
  * nandsim_debugfs_create - initialize debugfs
@@ -531,7 +520,7 @@ static int nandsim_debugfs_create(struct nandsim *dev)
 	}
 
 	dent = debugfs_create_file("nandsim_wear_report", S_IRUSR,
-				   root, dev, &dfs_fops);
+				   root, dev, &nandsim_fops);
 	if (IS_ERR_OR_NULL(dent)) {
 		NS_ERR("cannot create \"nandsim_wear_report\" debugfs entry\n");
 		return -1;
@@ -656,7 +645,7 @@ static int __init init_nandsim(struct mtd_info *mtd)
 	}
 
 	/* Force mtd to not do delays */
-	chip->chip_delay = 0;
+	chip->legacy.chip_delay = 0;
 
 	/* Initialize the NAND flash parameters */
 	ns->busw = chip->options & NAND_BUSWIDTH_16 ? 16 : 8;
@@ -1872,9 +1861,8 @@ static void switch_state(struct nandsim *ns)
 	}
 }
 
-static u_char ns_nand_read_byte(struct mtd_info *mtd)
+static u_char ns_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 	u_char outb = 0x00;
 
@@ -1934,9 +1922,8 @@ static u_char ns_nand_read_byte(struct mtd_info *mtd)
 	return outb;
 }
 
-static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
+static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
@@ -2089,9 +2076,8 @@ static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 	return;
 }
 
-static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
+static void ns_hwcontrol(struct nand_chip *chip, int cmd, unsigned int bitmask)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	ns->lines.cle = bitmask & NAND_CLE ? 1 : 0;
@@ -2099,27 +2085,18 @@ static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
 	ns->lines.ce = bitmask & NAND_NCE ? 1 : 0;
 
 	if (cmd != NAND_CMD_NONE)
-		ns_nand_write_byte(mtd, cmd);
+		ns_nand_write_byte(chip, cmd);
 }
 
-static int ns_device_ready(struct mtd_info *mtd)
+static int ns_device_ready(struct nand_chip *chip)
 {
 	NS_DBG("device_ready\n");
 	return 1;
 }
 
-static uint16_t ns_nand_read_word(struct mtd_info *mtd)
+static void ns_nand_write_buf(struct nand_chip *chip, const u_char *buf,
+			      int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
-	NS_DBG("read_word\n");
-
-	return chip->read_byte(mtd) | (chip->read_byte(mtd) << 8);
-}
-
-static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Check that chip is expecting data input */
@@ -2145,9 +2122,8 @@ static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 	}
 }
 
-static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void ns_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
@@ -2169,7 +2145,7 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 		int i;
 
 		for (i = 0; i < len; i++)
-			buf[i] = mtd_to_nand(mtd)->read_byte(mtd);
+			buf[i] = chip->legacy.read_byte(chip);
 
 		return;
 	}
@@ -2191,6 +2167,48 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 
 	return;
 }
+
+static int ns_attach_chip(struct nand_chip *chip)
+{
+	unsigned int eccsteps, eccbytes;
+
+	if (!bch)
+		return 0;
+
+	if (!mtd_nand_has_bch()) {
+		NS_ERR("BCH ECC support is disabled\n");
+		return -EINVAL;
+	}
+
+	/* Use 512-byte ecc blocks */
+	eccsteps = nsmtd->writesize / 512;
+	eccbytes = ((bch * 13) + 7) / 8;
+
+	/* Do not bother supporting small page devices */
+	if (nsmtd->oobsize < 64 || !eccsteps) {
+		NS_ERR("BCH not available on small page devices\n");
+		return -EINVAL;
+	}
+
+	if (((eccbytes * eccsteps) + 2) > nsmtd->oobsize) {
+		NS_ERR("Invalid BCH value %u\n", bch);
+		return -EINVAL;
+	}
+
+	chip->ecc.mode = NAND_ECC_SOFT;
+	chip->ecc.algo = NAND_ECC_BCH;
+	chip->ecc.size = 512;
+	chip->ecc.strength = bch;
+	chip->ecc.bytes = eccbytes;
+
+	NS_INFO("Using %u-bit/%u bytes BCH ECC\n", bch, chip->ecc.size);
+
+	return 0;
+}
+
+static const struct nand_controller_ops ns_controller_ops = {
+	.attach_chip = ns_attach_chip,
+};
 
 /*
  * Module initialization function
@@ -2220,12 +2238,11 @@ static int __init ns_init_module(void)
 	/*
 	 * Register simulator's callbacks.
 	 */
-	chip->cmd_ctrl	 = ns_hwcontrol;
-	chip->read_byte  = ns_nand_read_byte;
-	chip->dev_ready  = ns_device_ready;
-	chip->write_buf  = ns_nand_write_buf;
-	chip->read_buf   = ns_nand_read_buf;
-	chip->read_word  = ns_nand_read_word;
+	chip->legacy.cmd_ctrl	 = ns_hwcontrol;
+	chip->legacy.read_byte  = ns_nand_read_byte;
+	chip->legacy.dev_ready  = ns_device_ready;
+	chip->legacy.write_buf  = ns_nand_write_buf;
+	chip->legacy.read_buf   = ns_nand_read_buf;
 	chip->ecc.mode   = NAND_ECC_SOFT;
 	chip->ecc.algo   = NAND_ECC_HAMMING;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
@@ -2276,44 +2293,10 @@ static int __init ns_init_module(void)
 	if ((retval = parse_gravepages()) != 0)
 		goto error;
 
-	retval = nand_scan_ident(nsmtd, 1, NULL);
+	chip->legacy.dummy_controller.ops = &ns_controller_ops;
+	retval = nand_scan(chip, 1);
 	if (retval) {
-		NS_ERR("cannot scan NAND Simulator device\n");
-		goto error;
-	}
-
-	if (bch) {
-		unsigned int eccsteps, eccbytes;
-		if (!mtd_nand_has_bch()) {
-			NS_ERR("BCH ECC support is disabled\n");
-			retval = -EINVAL;
-			goto error;
-		}
-		/* use 512-byte ecc blocks */
-		eccsteps = nsmtd->writesize/512;
-		eccbytes = (bch*13+7)/8;
-		/* do not bother supporting small page devices */
-		if ((nsmtd->oobsize < 64) || !eccsteps) {
-			NS_ERR("bch not available on small page devices\n");
-			retval = -EINVAL;
-			goto error;
-		}
-		if ((eccbytes*eccsteps+2) > nsmtd->oobsize) {
-			NS_ERR("invalid bch value %u\n", bch);
-			retval = -EINVAL;
-			goto error;
-		}
-		chip->ecc.mode = NAND_ECC_SOFT;
-		chip->ecc.algo = NAND_ECC_BCH;
-		chip->ecc.size = 512;
-		chip->ecc.strength = bch;
-		chip->ecc.bytes = eccbytes;
-		NS_INFO("using %u-bit/%u bytes BCH ECC\n", bch, chip->ecc.size);
-	}
-
-	retval = nand_scan_tail(nsmtd);
-	if (retval) {
-		NS_ERR("can't register NAND Simulator\n");
+		NS_ERR("Could not scan NAND Simulator device\n");
 		goto error;
 	}
 
@@ -2337,7 +2320,7 @@ static int __init ns_init_module(void)
 	if ((retval = init_nandsim(nsmtd)) != 0)
 		goto err_exit;
 
-	if ((retval = chip->scan_bbt(nsmtd)) != 0)
+	if ((retval = nand_create_bbt(chip)) != 0)
 		goto err_exit;
 
 	if ((retval = parse_badblocks(nand, nsmtd)) != 0)
@@ -2356,7 +2339,7 @@ static int __init ns_init_module(void)
 
 err_exit:
 	free_nandsim(nand);
-	nand_release(nsmtd);
+	nand_release(chip);
 	for (i = 0;i < ARRAY_SIZE(nand->partitions); ++i)
 		kfree(nand->partitions[i].name);
 error:
@@ -2378,7 +2361,7 @@ static void __exit ns_cleanup_module(void)
 	int i;
 
 	free_nandsim(ns);    /* Free nandsim private resources */
-	nand_release(nsmtd); /* Unregister driver */
+	nand_release(chip); /* Unregister driver */
 	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
 		kfree(ns->partitions[i].name);
 	kfree(mtd_to_nand(nsmtd));        /* Free other structures */

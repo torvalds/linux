@@ -9,7 +9,8 @@ Channels are independent from each other.
 Required Properties:
 
   - compatible: must be one or more of the following:
-    - "renesas,r7s72100-ostm" for the r7s72100 OSTM
+    - "renesas,r7s72100-ostm" for the R7S72100 (RZ/A1) OSTM
+    - "renesas,r7s9210-ostm" for the R7S9210 (RZ/A2) OSTM
     - "renesas,ostm" for any OSTM
 		This is a fallback for the above renesas,*-ostm entries
 

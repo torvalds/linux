@@ -37,7 +37,10 @@ Procedure for submitting patches to the -stable tree
 
  - If the patch covers files in net/ or drivers/net please follow netdev stable
    submission guidelines as described in
-   Documentation/networking/netdev-FAQ.txt
+   :ref:`Documentation/networking/netdev-FAQ.rst <netdev-FAQ>`
+   after first checking the stable networking queue at
+   https://patchwork.ozlabs.org/bundle/davem/stable/?series=&submitter=&state=*&q=&archive=
+   to ensure the requested patch is not already queued up.
  - Security patches should not be handled (solely) by the -stable review
    process but should follow the procedures in
    :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`.
@@ -98,9 +101,9 @@ text, like this:
 
     commit <sha1> upstream.
 
-Additionally, some patches submitted via Option 1 may have additional patch
-prerequisites which can be cherry-picked. This can be specified in the following
-format in the sign-off area:
+Additionally, some patches submitted via :ref:`option_1` may have additional
+patch prerequisites which can be cherry-picked. This can be specified in the
+following format in the sign-off area:
 
 .. code-block:: none
 

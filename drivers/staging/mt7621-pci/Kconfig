@@ -1,0 +1,8 @@
+config PCI_MT7621
+	tristate "MediaTek MT7621 PCI Controller"
+	depends on RALINK
+	depends on PCI
+	select PCI_DRIVERS_GENERIC
+	help
+	  This selects a driver for the MediaTek MT7621 PCI Controller.
+

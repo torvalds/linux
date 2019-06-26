@@ -446,8 +446,8 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s@%llx", np->name,
-		(unsigned long long)res.start);
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%pOFn@%llx", np,
+		 (unsigned long long)res.start);
 
 	priv->map = of_iomap(np, 0);
 	if (!priv->map) {
@@ -473,7 +473,7 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 	if (data->get_tbipa) {
 		for_each_child_of_node(np, tbi) {
-			if (strcmp(tbi->type, "tbi-phy") == 0) {
+			if (of_node_is_type(tbi, "tbi-phy")) {
 				dev_dbg(&pdev->dev, "found TBI PHY node %pOFP\n",
 					tbi);
 				break;

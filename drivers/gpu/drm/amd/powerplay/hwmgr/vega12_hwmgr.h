@@ -304,6 +304,12 @@ struct vega12_odn_fan_table {
 	bool		force_fan_pwm;
 };
 
+struct vega12_clock_range {
+	uint32_t	ACMax;
+	uint32_t	ACMin;
+	uint32_t	DCMax;
+};
+
 struct vega12_hwmgr {
 	struct vega12_dpm_table          dpm_table;
 	struct vega12_dpm_table          golden_dpm_table;
@@ -385,6 +391,11 @@ struct vega12_hwmgr {
 	uint32_t                       smu_version;
 	struct smu_features            smu_features[GNLD_FEATURES_MAX];
 	struct vega12_smc_state_table  smc_state_table;
+
+	struct vega12_clock_range      clk_range[PPCLK_COUNT];
+
+	/* ---- Gfxoff ---- */
+	bool                           gfxoff_controlled_by_driver;
 };
 
 #define VEGA12_DPM2_NEAR_TDP_DEC                      10
@@ -435,6 +446,8 @@ struct vega12_hwmgr {
 #define VEGA12_UMD_PSTATE_GFXCLK_LEVEL         0x3
 #define VEGA12_UMD_PSTATE_SOCCLK_LEVEL         0x3
 #define VEGA12_UMD_PSTATE_MCLK_LEVEL           0x2
+#define VEGA12_UMD_PSTATE_UVDCLK_LEVEL         0x3
+#define VEGA12_UMD_PSTATE_VCEMCLK_LEVEL        0x3
 
 int vega12_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
 

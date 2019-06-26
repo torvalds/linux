@@ -73,30 +73,30 @@ static int mixart_wait_nice_for_register_value(struct mixart_mgr *mgr,
  */
 struct snd_mixart_elf32_ehdr {
 	u8      e_ident[16];
-	u16     e_type;
-	u16     e_machine;
-	u32     e_version;
-	u32     e_entry;
-	u32     e_phoff;
-	u32     e_shoff;
-	u32     e_flags;
-	u16     e_ehsize;
-	u16     e_phentsize;
-	u16     e_phnum;
-	u16     e_shentsize;
-	u16     e_shnum;
-	u16     e_shstrndx;
+	__be16  e_type;
+	__be16  e_machine;
+	__be32  e_version;
+	__be32  e_entry;
+	__be32  e_phoff;
+	__be32  e_shoff;
+	__be32  e_flags;
+	__be16  e_ehsize;
+	__be16  e_phentsize;
+	__be16  e_phnum;
+	__be16  e_shentsize;
+	__be16  e_shnum;
+	__be16  e_shstrndx;
 };
 
 struct snd_mixart_elf32_phdr {
-	u32     p_type;
-	u32     p_offset;
-	u32     p_vaddr;
-	u32     p_paddr;
-	u32     p_filesz;
-	u32     p_memsz;
-	u32     p_flags;
-	u32     p_align;
+	__be32  p_type;
+	__be32  p_offset;
+	__be32  p_vaddr;
+	__be32  p_paddr;
+	__be32  p_filesz;
+	__be32  p_memsz;
+	__be32  p_flags;
+	__be32  p_align;
 };
 
 static int mixart_load_elf(struct mixart_mgr *mgr, const struct firmware *dsp )

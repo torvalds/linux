@@ -185,7 +185,7 @@ static int process_ep_req(struct mv_udc *udc, int index,
 	else
 		bit_pos = 1 << (16 + curr_req->ep->ep_num);
 
-	while ((curr_dqh->curr_dtd_ptr == curr_dtd->td_dma)) {
+	while (curr_dqh->curr_dtd_ptr == curr_dtd->td_dma) {
 		if (curr_dtd->dtd_next == EP_QUEUE_HEAD_NEXT_TERMINATE) {
 			while (readl(&udc->op_regs->epstatus) & bit_pos)
 				udelay(1);

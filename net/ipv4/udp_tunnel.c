@@ -20,6 +20,14 @@ int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
 	if (err < 0)
 		goto error;
 
+	if (cfg->bind_ifindex) {
+		err = kernel_setsockopt(sock, SOL_SOCKET, SO_BINDTOIFINDEX,
+					(void *)&cfg->bind_ifindex,
+					sizeof(cfg->bind_ifindex));
+		if (err < 0)
+			goto error;
+	}
+
 	udp_addr.sin_family = AF_INET;
 	udp_addr.sin_addr = cfg->local_ip;
 	udp_addr.sin_port = cfg->local_udp_port;
@@ -68,6 +76,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 
 	udp_sk(sk)->encap_type = cfg->encap_type;
 	udp_sk(sk)->encap_rcv = cfg->encap_rcv;
+	udp_sk(sk)->encap_err_lookup = cfg->encap_err_lookup;
 	udp_sk(sk)->encap_destroy = cfg->encap_destroy;
 	udp_sk(sk)->gro_receive = cfg->gro_receive;
 	udp_sk(sk)->gro_complete = cfg->gro_complete;

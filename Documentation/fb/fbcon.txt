@@ -18,9 +18,10 @@ made available by the underlying graphics card are also possible.
 A. Configuration
 
 	The framebuffer console can be enabled by using your favorite kernel
-configuration tool.  It is under Device Drivers->Graphics Support->Support for
-framebuffer devices->Framebuffer Console Support. Select 'y' to compile
-support statically, or 'm' for module support.  The module will be fbcon.
+configuration tool.  It is under Device Drivers->Graphics Support->Frame
+buffer Devices->Console display driver support->Framebuffer Console Support.
+Select 'y' to compile support statically or 'm' for module support.  The
+module will be fbcon.
 
 	In order for fbcon to activate, at least one framebuffer driver is
 required, so choose from any of the numerous drivers available. For x86
@@ -29,10 +30,10 @@ always be available. However, using a chipset-specific driver will give you
 more speed and features, such as the ability to change the video mode
 dynamically.
 
-	To display the penguin logo, choose any logo available in Logo
-Configuration->Boot up logo.
+	To display the penguin logo, choose any logo available in Graphics
+support->Bootup logo.
 
-	Also, you will need to select at least one compiled-in fonts, but if
+	Also, you will need to select at least one compiled-in font, but if
 you don't do anything, the kernel configuration tool will select one for you,
 usually an 8x16 font.
 
@@ -135,16 +136,16 @@ C. Boot options
 
 	The angle can be changed anytime afterwards by 'echoing' the same
 	numbers to any one of the 2 attributes found in
-	 /sys/class/graphics/fbcon
+	/sys/class/graphics/fbcon:
 
 		rotate     - rotate the display of the active console
 		rotate_all - rotate the display of all consoles
 
-	Console rotation will only become available if Console Rotation
-	Support is compiled in your kernel.
+	Console rotation will only become available if Framebuffer Console
+	Rotation support is compiled in your kernel.
 
 	NOTE: This is purely console rotation.  Any other applications that
-	use the framebuffer will remain at their 'normal'orientation.
+	use the framebuffer will remain at their 'normal' orientation.
 	Actually, the underlying fb driver is totally ignorant of console
 	rotation.
 
@@ -155,9 +156,24 @@ C. Boot options
 	used by text. By default, this area will be black. The 'color' value
 	is an integer number that depends on the framebuffer driver being used.
 
+6. fbcon=nodefer
+
+	If the kernel is compiled with deferred fbcon takeover support, normally
+	the framebuffer contents, left in place by the firmware/bootloader, will
+	be preserved until there actually is some text is output to the console.
+	This option causes fbcon to bind immediately to the fbdev device.
+
+7. fbcon=logo-pos:<location>
+
+	The only possible 'location' is 'center' (without quotes), and when
+	given, the bootup logo is moved from the default top-left corner
+	location to the center of the framebuffer. If more than one logo is
+	displayed due to multiple CPUs, the collected line of logos is moved
+	as a whole.
+
 C. Attaching, Detaching and Unloading
 
-Before going on how to attach, detach and unload the framebuffer console, an
+Before going on to how to attach, detach and unload the framebuffer console, an
 illustration of the dependencies may help.
 
 The console layer, as with most subsystems, needs a driver that interfaces with
@@ -175,7 +191,7 @@ because fbcon is an intermediate layer between the console and the drivers:
 
 console ---> fbcon ---> fbdev drivers ---> hardware
 
-The fbdev drivers cannot be unloaded if it's bound to fbcon, and fbcon cannot
+The fbdev drivers cannot be unloaded if bound to fbcon, and fbcon cannot
 be unloaded if it's bound to the console layer.
 
 So to unload the fbdev drivers, one must first unbind fbcon from the console,
@@ -225,7 +241,7 @@ restored properly. The following is one of the several methods that you can do:
        echo 0 > /sys/class/vtconsole/vtcon1/bind
 
 6. That's it, you're back to VGA mode. And if you compiled fbcon as a module,
-   you can unload it by 'rmmod fbcon'
+   you can unload it by 'rmmod fbcon'.
 
 7. To reattach fbcon:
 
@@ -283,7 +299,7 @@ Samples:
 ========
 
 Here are 2 sample bash scripts that you can use to bind or unbind the
-framebuffer console driver if you are in an X86 box:
+framebuffer console driver if you are on an X86 box:
 
 ---------------------------------------------------------------------------
 #!/bin/bash

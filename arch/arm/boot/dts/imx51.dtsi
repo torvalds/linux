@@ -16,10 +16,8 @@
 	 * The decompressor and also some bootloaders rely on a
 	 * pre-existing /chosen node to be available to insert the
 	 * command line and merge other ATAGS info.
-	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; };
 
 	aliases {
 		ethernet0 = &fec;
@@ -93,18 +91,17 @@
 		};
 	};
 
-	usbphy {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "simple-bus";
+	pmu: pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupt-parent = <&tzic>;
+		interrupts = <77>;
+	};
 
-		usbphy0: usbphy@0 {
-			compatible = "usb-nop-xceiv";
-			reg = <0>;
-			clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
-			clock-names = "main_clk";
-			#phy-cells = <0>;
-		};
+	usbphy0: usbphy0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
 	};
 
 	display-subsystem {
@@ -122,6 +119,16 @@
 		iram: iram@1ffe0000 {
 			compatible = "mmio-sram";
 			reg = <0x1ffe0000 0x20000>;
+		};
+
+		gpu: gpu@30000000 {
+			compatible = "amd,imageon-200.1", "amd,imageon";
+			reg = <0x30000000 0x20000>;
+			reg-names = "kgsl_3d0_reg_memory";
+			interrupts = <12>;
+			interrupt-names = "kgsl_3d0_irq";
+			clocks = <&clks IMX5_CLK_GPU3D_GATE>, <&clks IMX5_CLK_GARB_GATE>;
+			clock-names = "core_clk", "mem_iface_clk";
 		};
 
 		ipu: ipu@40000000 {
@@ -198,7 +205,7 @@
 					status = "disabled";
 				};
 
-				ecspi1: ecspi@70010000 {
+				ecspi1: spi@70010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx51-ecspi";
@@ -248,6 +255,11 @@
 					bus-width = <4>;
 					status = "disabled";
 				};
+			};
+
+			aipstz1: bridge@73f00000 {
+				compatible = "fsl,imx51-aipstz";
+				reg = <0x73f00000 0x60>;
 			};
 
 			usbotg: usb@73f80000 {
@@ -435,11 +447,21 @@
 			reg = <0x80000000 0x10000000>;
 			ranges;
 
+			aipstz2: bridge@83f00000 {
+				compatible = "fsl,imx51-aipstz";
+				reg = <0x83f00000 0x60>;
+			};
+
 			iim: iim@83f98000 {
 				compatible = "fsl,imx51-iim", "fsl,imx27-iim";
 				reg = <0x83f98000 0x4000>;
 				interrupts = <69>;
 				clocks = <&clks IMX5_CLK_IIM_GATE>;
+			};
+
+			tigerp: tigerp@83fa0000 {
+				compatible = "fsl,imx51-tigerp";
+				reg = <0x83fa0000 0x28>;
 			};
 
 			owire: owire@83fa4000 {
@@ -450,7 +472,7 @@
 				status = "disabled";
 			};
 
-			ecspi2: ecspi@83fac000 {
+			ecspi2: spi@83fac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx51-ecspi";
@@ -473,7 +495,7 @@
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
 			};
 
-			cspi: cspi@83fc0000 {
+			cspi: spi@83fc0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx51-cspi", "fsl,imx35-cspi";
@@ -526,6 +548,11 @@
 				clocks = <&clks IMX5_CLK_DUMMY>;
 				clock-names = "audmux";
 				status = "disabled";
+			};
+
+			m4if: m4if@83fd8000 {
+				compatible = "fsl,imx51-m4if";
+				reg = <0x83fd8000 0x1000>;
 			};
 
 			weim: weim@83fda000 {
@@ -587,6 +614,26 @@
 					 <&clks IMX5_CLK_FEC_GATE>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
+			};
+
+			vpu: vpu@83ff4000 {
+				compatible = "fsl,imx51-vpu", "cnm,codahx4";
+				reg = <0x83ff4000 0x1000>;
+				interrupts = <9>;
+				clocks = <&clks IMX5_CLK_VPU_REFERENCE_GATE>,
+					 <&clks IMX5_CLK_VPU_GATE>;
+				clock-names = "per", "ahb";
+				resets = <&src 1>;
+				iram = <&iram>;
+			};
+
+			sahara: crypto@83ff8000 {
+				compatible = "fsl,imx53-sahara", "fsl,imx51-sahara";
+				reg = <0x83ff8000 0x4000>;
+				interrupts = <19 20>;
+				clocks = <&clks IMX5_CLK_SAHARA_IPG_GATE>,
+					 <&clks IMX5_CLK_SAHARA_IPG_GATE>;
+				clock-names = "ipg", "ahb";
 			};
 		};
 	};

@@ -91,10 +91,39 @@ static int ti_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
+/**
+ * clk_mux_save_context - Save the parent selcted in the mux
+ * @hw: pointer  struct clk_hw
+ *
+ * Save the parent mux value.
+ */
+static int clk_mux_save_context(struct clk_hw *hw)
+{
+	struct clk_omap_mux *mux = to_clk_omap_mux(hw);
+
+	mux->saved_parent = ti_clk_mux_get_parent(hw);
+	return 0;
+}
+
+/**
+ * clk_mux_restore_context - Restore the parent in the mux
+ * @hw: pointer  struct clk_hw
+ *
+ * Restore the saved parent mux value.
+ */
+static void clk_mux_restore_context(struct clk_hw *hw)
+{
+	struct clk_omap_mux *mux = to_clk_omap_mux(hw);
+
+	ti_clk_mux_set_parent(hw, mux->saved_parent);
+}
+
 const struct clk_ops ti_clk_mux_ops = {
 	.get_parent = ti_clk_mux_get_parent,
 	.set_parent = ti_clk_mux_set_parent,
 	.determine_rate = __clk_mux_determine_rate,
+	.save_context = clk_mux_save_context,
+	.restore_context = clk_mux_restore_context,
 };
 
 static struct clk *_register_mux(struct device *dev, const char *name,
@@ -114,7 +143,7 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &ti_clk_mux_ops;
-	init.flags = flags | CLK_IS_BASIC;
+	init.flags = flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
@@ -186,7 +215,7 @@ static void of_mux_clk_setup(struct device_node *node)
 
 	num_parents = of_clk_get_parent_count(node);
 	if (num_parents < 2) {
-		pr_err("mux-clock %s must have parents\n", node->name);
+		pr_err("mux-clock %pOFn must have parents\n", node);
 		return;
 	}
 	parent_names = kzalloc((sizeof(char *) * num_parents), GFP_KERNEL);
@@ -278,7 +307,7 @@ static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 	num_parents = of_clk_get_parent_count(node);
 
 	if (num_parents < 2) {
-		pr_err("%s must have parents\n", node->name);
+		pr_err("%pOFn must have parents\n", node);
 		goto cleanup;
 	}
 

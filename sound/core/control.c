@@ -348,6 +348,82 @@ static int snd_ctl_find_hole(struct snd_card *card, unsigned int count)
 	return 0;
 }
 
+enum snd_ctl_add_mode {
+	CTL_ADD_EXCLUSIVE, CTL_REPLACE, CTL_ADD_ON_REPLACE,
+};
+
+/* add/replace a new kcontrol object; call with card->controls_rwsem locked */
+static int __snd_ctl_add_replace(struct snd_card *card,
+				 struct snd_kcontrol *kcontrol,
+				 enum snd_ctl_add_mode mode)
+{
+	struct snd_ctl_elem_id id;
+	unsigned int idx;
+	unsigned int count;
+	struct snd_kcontrol *old;
+	int err;
+
+	id = kcontrol->id;
+	if (id.index > UINT_MAX - kcontrol->count)
+		return -EINVAL;
+
+	old = snd_ctl_find_id(card, &id);
+	if (!old) {
+		if (mode == CTL_REPLACE)
+			return -EINVAL;
+	} else {
+		if (mode == CTL_ADD_EXCLUSIVE) {
+			dev_err(card->dev,
+				"control %i:%i:%i:%s:%i is already present\n",
+				id.iface, id.device, id.subdevice, id.name,
+				id.index);
+			return -EBUSY;
+		}
+
+		err = snd_ctl_remove(card, old);
+		if (err < 0)
+			return err;
+	}
+
+	if (snd_ctl_find_hole(card, kcontrol->count) < 0)
+		return -ENOMEM;
+
+	list_add_tail(&kcontrol->list, &card->controls);
+	card->controls_count += kcontrol->count;
+	kcontrol->id.numid = card->last_numid + 1;
+	card->last_numid += kcontrol->count;
+
+	id = kcontrol->id;
+	count = kcontrol->count;
+	for (idx = 0; idx < count; idx++, id.index++, id.numid++)
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_ADD, &id);
+
+	return 0;
+}
+
+static int snd_ctl_add_replace(struct snd_card *card,
+			       struct snd_kcontrol *kcontrol,
+			       enum snd_ctl_add_mode mode)
+{
+	int err = -EINVAL;
+
+	if (! kcontrol)
+		return err;
+	if (snd_BUG_ON(!card || !kcontrol->info))
+		goto error;
+
+	down_write(&card->controls_rwsem);
+	err = __snd_ctl_add_replace(card, kcontrol, mode);
+	up_write(&card->controls_rwsem);
+	if (err < 0)
+		goto error;
+	return 0;
+
+ error:
+	snd_ctl_free_one(kcontrol);
+	return err;
+}
+
 /**
  * snd_ctl_add - add the control instance to the card
  * @card: the card instance
@@ -364,50 +440,7 @@ static int snd_ctl_find_hole(struct snd_card *card, unsigned int count)
  */
 int snd_ctl_add(struct snd_card *card, struct snd_kcontrol *kcontrol)
 {
-	struct snd_ctl_elem_id id;
-	unsigned int idx;
-	unsigned int count;
-	int err = -EINVAL;
-
-	if (! kcontrol)
-		return err;
-	if (snd_BUG_ON(!card || !kcontrol->info))
-		goto error;
-	id = kcontrol->id;
-	if (id.index > UINT_MAX - kcontrol->count)
-		goto error;
-
-	down_write(&card->controls_rwsem);
-	if (snd_ctl_find_id(card, &id)) {
-		up_write(&card->controls_rwsem);
-		dev_err(card->dev, "control %i:%i:%i:%s:%i is already present\n",
-					id.iface,
-					id.device,
-					id.subdevice,
-					id.name,
-					id.index);
-		err = -EBUSY;
-		goto error;
-	}
-	if (snd_ctl_find_hole(card, kcontrol->count) < 0) {
-		up_write(&card->controls_rwsem);
-		err = -ENOMEM;
-		goto error;
-	}
-	list_add_tail(&kcontrol->list, &card->controls);
-	card->controls_count += kcontrol->count;
-	kcontrol->id.numid = card->last_numid + 1;
-	card->last_numid += kcontrol->count;
-	id = kcontrol->id;
-	count = kcontrol->count;
-	up_write(&card->controls_rwsem);
-	for (idx = 0; idx < count; idx++, id.index++, id.numid++)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_ADD, &id);
-	return 0;
-
- error:
-	snd_ctl_free_one(kcontrol);
-	return err;
+	return snd_ctl_add_replace(card, kcontrol, CTL_ADD_EXCLUSIVE);
 }
 EXPORT_SYMBOL(snd_ctl_add);
 
@@ -428,53 +461,8 @@ EXPORT_SYMBOL(snd_ctl_add);
 int snd_ctl_replace(struct snd_card *card, struct snd_kcontrol *kcontrol,
 		    bool add_on_replace)
 {
-	struct snd_ctl_elem_id id;
-	unsigned int count;
-	unsigned int idx;
-	struct snd_kcontrol *old;
-	int ret;
-
-	if (!kcontrol)
-		return -EINVAL;
-	if (snd_BUG_ON(!card || !kcontrol->info)) {
-		ret = -EINVAL;
-		goto error;
-	}
-	id = kcontrol->id;
-	down_write(&card->controls_rwsem);
-	old = snd_ctl_find_id(card, &id);
-	if (!old) {
-		if (add_on_replace)
-			goto add;
-		up_write(&card->controls_rwsem);
-		ret = -EINVAL;
-		goto error;
-	}
-	ret = snd_ctl_remove(card, old);
-	if (ret < 0) {
-		up_write(&card->controls_rwsem);
-		goto error;
-	}
-add:
-	if (snd_ctl_find_hole(card, kcontrol->count) < 0) {
-		up_write(&card->controls_rwsem);
-		ret = -ENOMEM;
-		goto error;
-	}
-	list_add_tail(&kcontrol->list, &card->controls);
-	card->controls_count += kcontrol->count;
-	kcontrol->id.numid = card->last_numid + 1;
-	card->last_numid += kcontrol->count;
-	id = kcontrol->id;
-	count = kcontrol->count;
-	up_write(&card->controls_rwsem);
-	for (idx = 0; idx < count; idx++, id.index++, id.numid++)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_ADD, &id);
-	return 0;
-
-error:
-	snd_ctl_free_one(kcontrol);
-	return ret;
+	return snd_ctl_add_replace(card, kcontrol,
+				   add_on_replace ? CTL_ADD_ON_REPLACE : CTL_REPLACE);
 }
 EXPORT_SYMBOL(snd_ctl_replace);
 
@@ -1361,9 +1349,12 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		kctl->tlv.c = snd_ctl_elem_user_tlv;
 
 	/* This function manage to free the instance on failure. */
-	err = snd_ctl_add(card, kctl);
-	if (err < 0)
-		return err;
+	down_write(&card->controls_rwsem);
+	err = __snd_ctl_add_replace(card, kctl, CTL_ADD_EXCLUSIVE);
+	if (err < 0) {
+		snd_ctl_free_one(kctl);
+		goto unlock;
+	}
 	offset = snd_ctl_get_ioff(kctl, &info->id);
 	snd_ctl_build_ioff(&info->id, kctl, offset);
 	/*
@@ -1374,10 +1365,10 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	 * which locks the element.
 	 */
 
-	down_write(&card->controls_rwsem);
 	card->user_ctl_count++;
-	up_write(&card->controls_rwsem);
 
+ unlock:
+	up_write(&card->controls_rwsem);
 	return 0;
 }
 

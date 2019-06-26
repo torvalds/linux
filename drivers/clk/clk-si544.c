@@ -86,6 +86,33 @@ static int si544_enable_output(struct clk_si544 *data, bool enable)
 		SI544_OE_STATE_ODC_OE, enable ? SI544_OE_STATE_ODC_OE : 0);
 }
 
+static int si544_prepare(struct clk_hw *hw)
+{
+	struct clk_si544 *data = to_clk_si544(hw);
+
+	return si544_enable_output(data, true);
+}
+
+static void si544_unprepare(struct clk_hw *hw)
+{
+	struct clk_si544 *data = to_clk_si544(hw);
+
+	si544_enable_output(data, false);
+}
+
+static int si544_is_prepared(struct clk_hw *hw)
+{
+	struct clk_si544 *data = to_clk_si544(hw);
+	unsigned int val;
+	int err;
+
+	err = regmap_read(data->regmap, SI544_REG_OE_STATE, &val);
+	if (err < 0)
+		return err;
+
+	return !!(val & SI544_OE_STATE_ODC_OE);
+}
+
 /* Retrieve clock multiplier and dividers from hardware */
 static int si544_get_muldiv(struct clk_si544 *data,
 	struct clk_si544_muldiv *settings)
@@ -273,12 +300,17 @@ static int si544_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_si544 *data = to_clk_si544(hw);
 	struct clk_si544_muldiv settings;
+	unsigned int old_oe_state;
 	int err;
 
 	if (!is_valid_frequency(data, rate))
 		return -EINVAL;
 
 	err = si544_calc_muldiv(&settings, rate);
+	if (err)
+		return err;
+
+	err = regmap_read(data->regmap, SI544_REG_OE_STATE, &old_oe_state);
 	if (err)
 		return err;
 
@@ -303,12 +335,16 @@ static int si544_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* Applying a new frequency can take up to 10ms */
 	usleep_range(10000, 12000);
 
-	si544_enable_output(data, true);
+	if (old_oe_state & SI544_OE_STATE_ODC_OE)
+		si544_enable_output(data, true);
 
 	return err;
 }
 
 static const struct clk_ops si544_clk_ops = {
+	.prepare = si544_prepare,
+	.unprepare = si544_unprepare,
+	.is_prepared = si544_is_prepared,
 	.recalc_rate = si544_recalc_rate,
 	.round_rate = si544_round_rate,
 	.set_rate = si544_set_rate,

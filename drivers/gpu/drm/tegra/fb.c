@@ -15,6 +15,7 @@
 #include "drm.h"
 #include "gem.h"
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_modeset_helper.h>
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
@@ -255,7 +256,6 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	helper->fbdev = info;
 
 	info->par = helper;
-	info->flags = FBINFO_FLAG_DEFAULT;
 	info->fbops = &tegra_fb_ops;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
@@ -356,7 +356,7 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 		/* Undo the special mapping we made in fbdev probe. */
 		if (bo && bo->pages) {
 			vunmap(bo->vaddr);
-			bo->vaddr = 0;
+			bo->vaddr = NULL;
 		}
 
 		drm_framebuffer_remove(fbdev->fb);
@@ -410,27 +410,5 @@ void tegra_drm_fb_exit(struct drm_device *drm)
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_exit(tegra->fbdev);
-#endif
-}
-
-void tegra_drm_fb_suspend(struct drm_device *drm)
-{
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct tegra_drm *tegra = drm->dev_private;
-
-	console_lock();
-	drm_fb_helper_set_suspend(&tegra->fbdev->base, 1);
-	console_unlock();
-#endif
-}
-
-void tegra_drm_fb_resume(struct drm_device *drm)
-{
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct tegra_drm *tegra = drm->dev_private;
-
-	console_lock();
-	drm_fb_helper_set_suspend(&tegra->fbdev->base, 0);
-	console_unlock();
 #endif
 }

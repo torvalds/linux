@@ -31,7 +31,8 @@ struct xdp_umem_ring {
 };
 
 struct xsk_queue {
-	struct xdp_umem_props umem_props;
+	u64 chunk_mask;
+	u64 size;
 	u32 ring_mask;
 	u32 nentries;
 	u32 prod_head;
@@ -62,14 +63,9 @@ static inline u32 xskq_nb_avail(struct xsk_queue *q, u32 dcnt)
 	return (entries > dcnt) ? dcnt : entries;
 }
 
-static inline u32 xskq_nb_free_lazy(struct xsk_queue *q, u32 producer)
-{
-	return q->nentries - (producer - q->cons_tail);
-}
-
 static inline u32 xskq_nb_free(struct xsk_queue *q, u32 producer, u32 dcnt)
 {
-	u32 free_entries = xskq_nb_free_lazy(q, producer);
+	u32 free_entries = q->nentries - (producer - q->cons_tail);
 
 	if (free_entries >= dcnt)
 		return free_entries;
@@ -83,7 +79,7 @@ static inline u32 xskq_nb_free(struct xsk_queue *q, u32 producer, u32 dcnt)
 
 static inline bool xskq_is_valid_addr(struct xsk_queue *q, u64 addr)
 {
-	if (addr >= q->umem_props.size) {
+	if (addr >= q->size) {
 		q->invalid_descs++;
 		return false;
 	}
@@ -97,7 +93,7 @@ static inline u64 *xskq_validate_addr(struct xsk_queue *q, u64 *addr)
 		struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 		unsigned int idx = q->cons_tail & q->ring_mask;
 
-		*addr = READ_ONCE(ring->desc[idx]) & q->umem_props.chunk_mask;
+		*addr = READ_ONCE(ring->desc[idx]) & q->chunk_mask;
 		if (xskq_is_valid_addr(q, *addr))
 			return addr;
 
@@ -129,7 +125,7 @@ static inline int xskq_produce_addr(struct xsk_queue *q, u64 addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 
-	if (xskq_nb_free(q, q->prod_tail, LAZY_UPDATE_THRESHOLD) == 0)
+	if (xskq_nb_free(q, q->prod_tail, 1) == 0)
 		return -ENOSPC;
 
 	ring->desc[q->prod_tail++ & q->ring_mask] = addr;
@@ -178,8 +174,8 @@ static inline bool xskq_is_valid_desc(struct xsk_queue *q, struct xdp_desc *d)
 	if (!xskq_is_valid_addr(q, d->addr))
 		return false;
 
-	if (((d->addr + d->len) & q->umem_props.chunk_mask) !=
-	    (d->addr & q->umem_props.chunk_mask)) {
+	if (((d->addr + d->len) & q->chunk_mask) != (d->addr & q->chunk_mask) ||
+	    d->options) {
 		q->invalid_descs++;
 		return false;
 	}
@@ -255,11 +251,14 @@ static inline bool xskq_full_desc(struct xsk_queue *q)
 
 static inline bool xskq_empty_desc(struct xsk_queue *q)
 {
-	return xskq_nb_free(q, q->prod_tail, 1) == q->nentries;
+	return xskq_nb_free(q, q->prod_tail, q->nentries) == q->nentries;
 }
 
-void xskq_set_umem(struct xsk_queue *q, struct xdp_umem_props *umem_props);
+void xskq_set_umem(struct xsk_queue *q, u64 size, u64 chunk_mask);
 struct xsk_queue *xskq_create(u32 nentries, bool umem_queue);
 void xskq_destroy(struct xsk_queue *q_ops);
+
+/* Executed by the core when the entire UMEM gets freed */
+void xsk_reuseq_destroy(struct xdp_umem *umem);
 
 #endif /* _LINUX_XSK_QUEUE_H */

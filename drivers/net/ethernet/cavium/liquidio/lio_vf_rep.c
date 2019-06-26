@@ -25,19 +25,20 @@
 #include "octeon_nic.h"
 #include "octeon_main.h"
 #include "octeon_network.h"
-#include <net/switchdev.h>
 #include "lio_vf_rep.h"
-#include "octeon_network.h"
 
 static int lio_vf_rep_open(struct net_device *ndev);
 static int lio_vf_rep_stop(struct net_device *ndev);
-static int lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev);
+static netdev_tx_t lio_vf_rep_pkt_xmit(struct sk_buff *skb,
+				       struct net_device *ndev);
 static void lio_vf_rep_tx_timeout(struct net_device *netdev);
 static int lio_vf_rep_phys_port_name(struct net_device *dev,
 				     char *buf, size_t len);
 static void lio_vf_rep_get_stats64(struct net_device *dev,
 				   struct rtnl_link_stats64 *stats64);
 static int lio_vf_rep_change_mtu(struct net_device *ndev, int new_mtu);
+static int lio_vf_get_port_parent_id(struct net_device *dev,
+				     struct netdev_phys_item_id *ppid);
 
 static const struct net_device_ops lio_vf_rep_ndev_ops = {
 	.ndo_open = lio_vf_rep_open,
@@ -47,23 +48,8 @@ static const struct net_device_ops lio_vf_rep_ndev_ops = {
 	.ndo_get_phys_port_name = lio_vf_rep_phys_port_name,
 	.ndo_get_stats64 = lio_vf_rep_get_stats64,
 	.ndo_change_mtu = lio_vf_rep_change_mtu,
+	.ndo_get_port_parent_id = lio_vf_get_port_parent_id,
 };
-
-static void
-lio_vf_rep_send_sc_complete(struct octeon_device *oct,
-			    u32 status, void *ptr)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)ptr;
-	struct lio_vf_rep_sc_ctx *ctx =
-		(struct lio_vf_rep_sc_ctx *)sc->ctxptr;
-	struct lio_vf_rep_resp *resp =
-		(struct lio_vf_rep_resp *)sc->virtrptr;
-
-	if (status != OCTEON_REQUEST_TIMEOUT && READ_ONCE(resp->status))
-		WRITE_ONCE(resp->status, 0);
-
-	complete(&ctx->complete);
-}
 
 static int
 lio_vf_rep_send_soft_command(struct octeon_device *oct,
@@ -71,22 +57,19 @@ lio_vf_rep_send_soft_command(struct octeon_device *oct,
 			     void *resp, int resp_size)
 {
 	int tot_resp_size = sizeof(struct lio_vf_rep_resp) + resp_size;
-	int ctx_size = sizeof(struct lio_vf_rep_sc_ctx);
 	struct octeon_soft_command *sc = NULL;
 	struct lio_vf_rep_resp *rep_resp;
-	struct lio_vf_rep_sc_ctx *ctx;
 	void *sc_req;
 	int err;
 
 	sc = (struct octeon_soft_command *)
 		octeon_alloc_soft_command(oct, req_size,
-					  tot_resp_size, ctx_size);
+					  tot_resp_size, 0);
 	if (!sc)
 		return -ENOMEM;
 
-	ctx = (struct lio_vf_rep_sc_ctx *)sc->ctxptr;
-	memset(ctx, 0, ctx_size);
-	init_completion(&ctx->complete);
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
 
 	sc_req = (struct lio_vf_rep_req *)sc->virtdptr;
 	memcpy(sc_req, req, req_size);
@@ -98,23 +81,24 @@ lio_vf_rep_send_soft_command(struct octeon_device *oct,
 	sc->iq_no = 0;
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_VF_REP_CMD, 0, 0, 0);
-	sc->callback = lio_vf_rep_send_sc_complete;
-	sc->callback_arg = sc;
-	sc->wait_time = LIO_VF_REP_REQ_TMO_MS;
 
 	err = octeon_send_soft_command(oct, sc);
 	if (err == IQ_SEND_FAILED)
 		goto free_buff;
 
-	wait_for_completion_timeout(&ctx->complete,
-				    msecs_to_jiffies
-				    (2 * LIO_VF_REP_REQ_TMO_MS));
+	err = wait_for_sc_completion_timeout(oct, sc, 0);
+	if (err)
+		return err;
+
 	err = READ_ONCE(rep_resp->status) ? -EBUSY : 0;
 	if (err)
 		dev_err(&oct->pci_dev->dev, "VF rep send config failed\n");
-
-	if (resp)
+	else if (resp)
 		memcpy(resp, (rep_resp + 1), resp_size);
+
+	WRITE_ONCE(sc->caller_is_done, true);
+	return err;
+
 free_buff:
 	octeon_free_soft_command(oct, sc);
 
@@ -367,20 +351,22 @@ lio_vf_rep_packet_sent_callback(struct octeon_device *oct,
 	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
 	struct sk_buff *skb = sc->ctxptr;
 	struct net_device *ndev = skb->dev;
+	u32 iq_no;
 
 	dma_unmap_single(&oct->pci_dev->dev, sc->dmadptr,
 			 sc->datasize, DMA_TO_DEVICE);
 	dev_kfree_skb_any(skb);
+	iq_no = sc->iq_no;
 	octeon_free_soft_command(oct, sc);
 
-	if (octnet_iq_is_full(oct, sc->iq_no))
+	if (octnet_iq_is_full(oct, iq_no))
 		return;
 
 	if (netif_queue_stopped(ndev))
 		netif_wake_queue(ndev);
 }
 
-static int
+static netdev_tx_t
 lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct lio_vf_rep_desc *vf_rep = netdev_priv(ndev);
@@ -404,7 +390,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	sc = (struct octeon_soft_command *)
-		octeon_alloc_soft_command(oct, 0, 0, 0);
+		octeon_alloc_soft_command(oct, 0, 16, 0);
 	if (!sc) {
 		dev_err(&oct->pci_dev->dev, "VF rep: Soft command alloc failed\n");
 		goto xmit_failed;
@@ -413,6 +399,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* Multiple buffers are not used for vf_rep packets. */
 	if (skb_shinfo(skb)->nr_frags != 0) {
 		dev_err(&oct->pci_dev->dev, "VF rep: nr_frags != 0. Dropping packet\n");
+		octeon_free_soft_command(oct, sc);
 		goto xmit_failed;
 	}
 
@@ -420,6 +407,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 				     skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&oct->pci_dev->dev, sc->dmadptr)) {
 		dev_err(&oct->pci_dev->dev, "VF rep: DMA mapping failed\n");
+		octeon_free_soft_command(oct, sc);
 		goto xmit_failed;
 	}
 
@@ -440,6 +428,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (status == IQ_SEND_FAILED) {
 		dma_unmap_single(&oct->pci_dev->dev, sc->dmadptr,
 				 sc->datasize, DMA_TO_DEVICE);
+		octeon_free_soft_command(oct, sc);
 		goto xmit_failed;
 	}
 
@@ -456,30 +445,18 @@ xmit_failed:
 	return NETDEV_TX_OK;
 }
 
-static int
-lio_vf_rep_attr_get(struct net_device *dev, struct switchdev_attr *attr)
+static int lio_vf_get_port_parent_id(struct net_device *dev,
+				     struct netdev_phys_item_id *ppid)
 {
 	struct lio_vf_rep_desc *vf_rep = netdev_priv(dev);
 	struct net_device *parent_ndev = vf_rep->parent_ndev;
 	struct lio *lio = GET_LIO(parent_ndev);
 
-	switch (attr->id) {
-	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
-		attr->u.ppid.id_len = ETH_ALEN;
-		ether_addr_copy(attr->u.ppid.id,
-				(void *)&lio->linfo.hw_addr + 2);
-		break;
-
-	default:
-		return -EOPNOTSUPP;
-	}
+	ppid->id_len = ETH_ALEN;
+	ether_addr_copy(ppid->id, (void *)&lio->linfo.hw_addr + 2);
 
 	return 0;
 }
-
-static const struct switchdev_ops lio_vf_rep_switchdev_ops = {
-	.switchdev_port_attr_get        = lio_vf_rep_attr_get,
-};
 
 static void
 lio_vf_rep_fetch_stats(struct work_struct *work)
@@ -537,7 +514,6 @@ lio_vf_rep_create(struct octeon_device *oct)
 		ndev->min_mtu = LIO_MIN_MTU_SIZE;
 		ndev->max_mtu = LIO_MAX_MTU_SIZE;
 		ndev->netdev_ops = &lio_vf_rep_ndev_ops;
-		SWITCHDEV_SET_OPS(ndev, &lio_vf_rep_switchdev_ops);
 
 		vf_rep = netdev_priv(ndev);
 		memset(vf_rep, 0, sizeof(*vf_rep));

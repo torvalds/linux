@@ -2111,9 +2111,9 @@ static const struct dvb_frontend_ops mb86a20s_ops = {
 			FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_QAM_AUTO |
 			FE_CAN_GUARD_INTERVAL_AUTO    | FE_CAN_HIERARCHY_AUTO,
 		/* Actually, those values depend on the used tuner */
-		.frequency_min = 45000000,
-		.frequency_max = 864000000,
-		.frequency_stepsize = 62500,
+		.frequency_min_hz =  45 * MHz,
+		.frequency_max_hz = 864 * MHz,
+		.frequency_stepsize_hz = 62500,
 	},
 
 	.release = mb86a20s_release,

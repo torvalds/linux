@@ -27,7 +27,6 @@
 #include <linux/mutex.h>
 #include <linux/bitmap.h>
 #include <linux/irq.h>
-#include <linux/interrupt.h>
 #include <linux/perf_event.h>
 #include <linux/atomic.h>
 #include <linux/of.h>
@@ -477,6 +476,7 @@ int __init init_hw_perf_events(void)
 
 		if (of_id)
 			riscv_pmu = of_id->data;
+		of_node_put(node);
 	}
 
 	perf_pmu_register(riscv_pmu->pmu, "cpu", PERF_TYPE_RAW);

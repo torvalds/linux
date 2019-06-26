@@ -2,6 +2,7 @@
 /fd-002-posix-eq
 /fd-003-kthread
 /proc-loadavg-001
+/proc-pid-vm
 /proc-self-map-files-001
 /proc-self-map-files-002
 /proc-self-syscall
@@ -9,3 +10,6 @@
 /proc-uptime-001
 /proc-uptime-002
 /read
+/self
+/setns-dcache
+/thread-self

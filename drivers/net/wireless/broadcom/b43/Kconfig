@@ -4,6 +4,7 @@ config B43
 	select BCMA if B43_BCMA
 	select SSB if B43_SSB
 	select FW_LOADER
+	select CORDIC
 	---help---
 	  b43 is a driver for the Broadcom 43xx series wireless devices.
 

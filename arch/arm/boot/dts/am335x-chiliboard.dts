@@ -14,6 +14,10 @@
 	compatible = "grinn,am335x-chiliboard", "grinn,am335x-chilisom",
 		     "ti,am33xx";
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -140,15 +144,15 @@
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rmii";
-};
-
-&phy_sel {
-	rmii-clock-ext;
 };
 
 /* USB */

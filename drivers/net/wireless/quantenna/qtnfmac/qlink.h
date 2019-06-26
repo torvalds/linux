@@ -1,25 +1,12 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #ifndef _QTN_QLINK_H_
 #define _QTN_QLINK_H_
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		11
+#define QLINK_PROTO_VER		13
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -69,11 +56,19 @@ struct qlink_msg_header {
  *	associated STAs due to inactivity. Inactivity timeout period is taken
  *	from QLINK_CMD_START_AP parameters.
  * @QLINK_HW_CAPAB_DFS_OFFLOAD: device implements DFS offload functionality
+ * @QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR: device supports MAC Address
+ *	Randomization in probe requests.
+ * @QLINK_HW_CAPAB_OBSS_SCAN: device can perform OBSS scanning.
  */
 enum qlink_hw_capab {
 	QLINK_HW_CAPAB_REG_UPDATE		= BIT(0),
 	QLINK_HW_CAPAB_STA_INACT_TIMEOUT	= BIT(1),
 	QLINK_HW_CAPAB_DFS_OFFLOAD		= BIT(2),
+	QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR	= BIT(3),
+	QLINK_HW_CAPAB_PWR_MGMT			= BIT(4),
+	QLINK_HW_CAPAB_OBSS_SCAN		= BIT(5),
+	QLINK_HW_CAPAB_SCAN_DWELL		= BIT(6),
+	QLINK_HW_CAPAB_SAE			= BIT(8),
 };
 
 enum qlink_iface_type {
@@ -98,7 +93,8 @@ struct qlink_intf_info {
 	__le16 if_type;
 	__le16 vlanid;
 	u8 mac_addr[ETH_ALEN];
-	u8 rsvd[2];
+	u8 use4addr;
+	u8 rsvd[1];
 } __packed;
 
 enum qlink_sta_flags {
@@ -253,6 +249,9 @@ enum qlink_cmd_type {
 	QLINK_CMD_CHAN_STATS		= 0x0054,
 	QLINK_CMD_CONNECT		= 0x0060,
 	QLINK_CMD_DISCONNECT		= 0x0061,
+	QLINK_CMD_PM_SET		= 0x0062,
+	QLINK_CMD_WOWLAN_SET		= 0x0063,
+	QLINK_CMD_EXTERNAL_AUTH		= 0x0066,
 };
 
 /**
@@ -484,6 +483,20 @@ struct qlink_cmd_connect {
 } __packed;
 
 /**
+ * struct qlink_cmd_external_auth - data for QLINK_CMD_EXTERNAL_AUTH command
+ *
+ * @bssid: BSSID of the BSS to connect to
+ * @status: authentication status code
+ * @payload: variable portion of connection request.
+ */
+struct qlink_cmd_external_auth {
+	struct qlink_cmd chdr;
+	u8 bssid[ETH_ALEN];
+	__le16 status;
+	u8 payload[0];
+} __packed;
+
+/**
  * struct qlink_cmd_disconnect - data for QLINK_CMD_DISCONNECT command
  *
  * @reason: code of the reason of disconnect, see &enum ieee80211_reasoncode.
@@ -665,6 +678,54 @@ struct qlink_acl_data {
 	struct qlink_mac_address mac_addrs[0];
 } __packed;
 
+/**
+ * enum qlink_pm_mode - Power Management mode
+ *
+ * @QLINK_PM_OFF: normal mode, no power saving enabled
+ * @QLINK_PM_AUTO_STANDBY: enable auto power save mode
+ */
+enum qlink_pm_mode {
+	QLINK_PM_OFF		= 0,
+	QLINK_PM_AUTO_STANDBY	= 1,
+};
+
+/**
+ * struct qlink_cmd_pm_set - data for QLINK_CMD_PM_SET command
+ *
+ * @pm_standby timer: period of network inactivity in seconds before
+ *	putting a radio in power save mode
+ * @pm_mode: power management mode
+ */
+struct qlink_cmd_pm_set {
+	struct qlink_cmd chdr;
+	__le32 pm_standby_timer;
+	u8 pm_mode;
+} __packed;
+
+/**
+ * enum qlink_wowlan_trigger
+ *
+ * @QLINK_WOWLAN_TRIG_DISCONNECT: wakeup on disconnect
+ * @QLINK_WOWLAN_TRIG_MAGIC_PKT: wakeup on magic packet
+ * @QLINK_WOWLAN_TRIG_PATTERN_PKT: wakeup on user-defined packet
+ */
+enum qlink_wowlan_trigger {
+	QLINK_WOWLAN_TRIG_DISCONNECT	= BIT(0),
+	QLINK_WOWLAN_TRIG_MAGIC_PKT	= BIT(1),
+	QLINK_WOWLAN_TRIG_PATTERN_PKT	= BIT(2),
+};
+
+/**
+ * struct qlink_cmd_wowlan_set - data for QLINK_CMD_WOWLAN_SET command
+ *
+ * @triggers: requested bitmask of WoWLAN triggers
+ */
+struct qlink_cmd_wowlan_set {
+	struct qlink_cmd chdr;
+	__le32 triggers;
+	u8 data[0];
+} __packed;
+
 /* QLINK Command Responses messages related definitions
  */
 
@@ -676,6 +737,7 @@ enum qlink_cmd_result {
 	QLINK_CMD_RESULT_EALREADY,
 	QLINK_CMD_RESULT_EADDRINUSE,
 	QLINK_CMD_RESULT_EADDRNOTAVAIL,
+	QLINK_CMD_RESULT_EBUSY,
 };
 
 /**
@@ -879,6 +941,7 @@ enum qlink_event_type {
 	QLINK_EVENT_BSS_LEAVE		= 0x0027,
 	QLINK_EVENT_FREQ_CHANGE		= 0x0028,
 	QLINK_EVENT_RADAR		= 0x0029,
+	QLINK_EVENT_EXTERNAL_AUTH	= 0x0030,
 };
 
 /**
@@ -929,13 +992,16 @@ struct qlink_event_sta_deauth {
 /**
  * struct qlink_event_bss_join - data for QLINK_EVENT_BSS_JOIN event
  *
+ * @chan: new operating channel definition
  * @bssid: BSSID of a BSS which interface tried to joined.
  * @status: status of joining attempt, see &enum ieee80211_statuscode.
  */
 struct qlink_event_bss_join {
 	struct qlink_event ehdr;
+	struct qlink_chandef chan;
 	u8 bssid[ETH_ALEN];
 	__le16 status;
+	u8 ies[0];
 } __packed;
 
 /**
@@ -1051,6 +1117,24 @@ struct qlink_event_radar {
 	u8 rsvd[3];
 } __packed;
 
+/**
+ * struct qlink_event_external_auth - data for QLINK_EVENT_EXTERNAL_AUTH event
+ *
+ * @ssid: SSID announced by BSS
+ * @ssid_len: SSID length
+ * @bssid: BSSID of the BSS to connect to
+ * @akm_suite: AKM suite for external authentication
+ * @action: action type/trigger for external authentication
+ */
+struct qlink_event_external_auth {
+	struct qlink_event ehdr;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+	u8 bssid[ETH_ALEN];
+	__le32 akm_suite;
+	u8 action;
+} __packed;
+
 /* QLINK TLVs (Type-Length Values) definitions
  */
 
@@ -1062,6 +1146,8 @@ struct qlink_event_radar {
  * @QTN_TLV_ID_STA_STATS: per-STA statistics as defined by
  *	&struct qlink_sta_stats. Valid values are marked as such in a bitmap
  *	carried by QTN_TLV_ID_STA_STATS_MAP.
+ * @QTN_TLV_ID_MAX_SCAN_SSIDS: maximum number of SSIDs the device can scan
+ *	for in any given scan.
  */
 enum qlink_tlv_id {
 	QTN_TLV_ID_FRAG_THRESH		= 0x0201,
@@ -1089,6 +1175,12 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_HW_ID		= 0x0405,
 	QTN_TLV_ID_CALIBRATION_VER	= 0x0406,
 	QTN_TLV_ID_UBOOT_VER		= 0x0407,
+	QTN_TLV_ID_RANDOM_MAC_ADDR	= 0x0408,
+	QTN_TLV_ID_MAX_SCAN_SSIDS	= 0x0409,
+	QTN_TLV_ID_WOWLAN_CAPAB		= 0x0410,
+	QTN_TLV_ID_WOWLAN_PATTERN	= 0x0411,
+	QTN_TLV_ID_SCAN_FLUSH		= 0x0412,
+	QTN_TLV_ID_SCAN_DWELL		= 0x0413,
 };
 
 struct qlink_tlv_hdr {
@@ -1117,7 +1209,7 @@ struct qlink_iface_limit_record {
 
 struct qlink_tlv_frag_rts_thr {
 	struct qlink_tlv_hdr hdr;
-	__le16 thr;
+	__le32 thr;
 } __packed;
 
 struct qlink_tlv_rlimit {
@@ -1359,5 +1451,50 @@ struct qlink_sta_stats {
 	u8 signal_avg;
 	u8 rsvd[1];
 };
+
+/**
+ * struct qlink_random_mac_addr - data for QTN_TLV_ID_RANDOM_MAC_ADDR TLV
+ *
+ * Specifies MAC address mask/value for generation random MAC address
+ * during scan.
+ *
+ * @mac_addr: MAC address used with randomisation
+ * @mac_addr_mask: MAC address mask used with randomisation, bits that
+ *	are 0 in the mask should be randomised, bits that are 1 should
+ *	be taken from the @mac_addr
+ */
+struct qlink_random_mac_addr {
+	u8 mac_addr[ETH_ALEN];
+	u8 mac_addr_mask[ETH_ALEN];
+} __packed;
+
+/**
+ * struct qlink_wowlan_capab_data - data for QTN_TLV_ID_WOWLAN_CAPAB TLV
+ *
+ * WoWLAN capabilities supported by cards.
+ *
+ * @version: version of WoWLAN data structure, to ensure backward
+ *	compatibility for firmwares with limited WoWLAN support
+ * @len: Total length of WoWLAN data
+ * @data: supported WoWLAN features
+ */
+struct qlink_wowlan_capab_data {
+	__le16 version;
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+/**
+ * struct qlink_wowlan_support - supported WoWLAN capabilities
+ *
+ * @n_patterns: number of supported wakeup patterns
+ * @pattern_max_len: maximum length of each pattern
+ * @pattern_min_len: minimum length of each pattern
+ */
+struct qlink_wowlan_support {
+	__le32 n_patterns;
+	__le32 pattern_max_len;
+	__le32 pattern_min_len;
+} __packed;
 
 #endif /* _QTN_QLINK_H_ */

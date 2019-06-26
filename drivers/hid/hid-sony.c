@@ -58,6 +58,7 @@
 #define FUTUREMAX_DANCE_MAT       BIT(13)
 #define NSG_MR5U_REMOTE_BT        BIT(14)
 #define NSG_MR7U_REMOTE_BT        BIT(15)
+#define SHANWAN_GAMEPAD           BIT(16)
 
 #define SIXAXIS_CONTROLLER (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)
 #define MOTION_CONTROLLER (MOTION_CONTROLLER_USB | MOTION_CONTROLLER_BT)
@@ -1353,7 +1354,7 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	char *name;
 	int ret;
 
-	sc->touchpad = input_allocate_device();
+	sc->touchpad = devm_input_allocate_device(&sc->hdev->dev);
 	if (!sc->touchpad)
 		return -ENOMEM;
 
@@ -1370,11 +1371,9 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	 * DS4 compatible non-Sony devices with different names.
 	 */
 	name_sz = strlen(sc->hdev->name) + sizeof(DS4_TOUCHPAD_SUFFIX);
-	name = kzalloc(name_sz, GFP_KERNEL);
-	if (!name) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	name = devm_kzalloc(&sc->hdev->dev, name_sz, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 	snprintf(name, name_sz, "%s" DS4_TOUCHPAD_SUFFIX, sc->hdev->name);
 	sc->touchpad->name = name;
 
@@ -1403,34 +1402,13 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 
 	ret = input_mt_init_slots(sc->touchpad, touch_count, INPUT_MT_POINTER);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	ret = input_register_device(sc->touchpad);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	return 0;
-
-err:
-	kfree(sc->touchpad->name);
-	sc->touchpad->name = NULL;
-
-	input_free_device(sc->touchpad);
-	sc->touchpad = NULL;
-
-	return ret;
-}
-
-static void sony_unregister_touchpad(struct sony_sc *sc)
-{
-	if (!sc->touchpad)
-		return;
-
-	kfree(sc->touchpad->name);
-	sc->touchpad->name = NULL;
-
-	input_unregister_device(sc->touchpad);
-	sc->touchpad = NULL;
 }
 
 static int sony_register_sensors(struct sony_sc *sc)
@@ -1440,7 +1418,7 @@ static int sony_register_sensors(struct sony_sc *sc)
 	int ret;
 	int range;
 
-	sc->sensor_dev = input_allocate_device();
+	sc->sensor_dev = devm_input_allocate_device(&sc->hdev->dev);
 	if (!sc->sensor_dev)
 		return -ENOMEM;
 
@@ -1457,11 +1435,9 @@ static int sony_register_sensors(struct sony_sc *sc)
 	 * DS4 compatible non-Sony devices with different names.
 	 */
 	name_sz = strlen(sc->hdev->name) + sizeof(SENSOR_SUFFIX);
-	name = kzalloc(name_sz, GFP_KERNEL);
-	if (!name) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	name = devm_kzalloc(&sc->hdev->dev, name_sz, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 	snprintf(name, name_sz, "%s" SENSOR_SUFFIX, sc->hdev->name);
 	sc->sensor_dev->name = name;
 
@@ -1503,32 +1479,10 @@ static int sony_register_sensors(struct sony_sc *sc)
 
 	ret = input_register_device(sc->sensor_dev);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	return 0;
-
-err:
-	kfree(sc->sensor_dev->name);
-	sc->sensor_dev->name = NULL;
-
-	input_free_device(sc->sensor_dev);
-	sc->sensor_dev = NULL;
-
-	return ret;
 }
-
-static void sony_unregister_sensors(struct sony_sc *sc)
-{
-	if (!sc->sensor_dev)
-		return;
-
-	kfree(sc->sensor_dev->name);
-	sc->sensor_dev->name = NULL;
-
-	input_unregister_device(sc->sensor_dev);
-	sc->sensor_dev = NULL;
-}
-
 
 /*
  * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
@@ -1537,6 +1491,7 @@ static void sony_unregister_sensors(struct sony_sc *sc)
  */
 static int sixaxis_set_operational_usb(struct hid_device *hdev)
 {
+	struct sony_sc *sc = hid_get_drvdata(hdev);
 	const int buf_size =
 		max(SIXAXIS_REPORT_0xF2_SIZE, SIXAXIS_REPORT_0xF5_SIZE);
 	u8 *buf;
@@ -1566,14 +1521,15 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 
 	/*
 	 * But the USB interrupt would cause SHANWAN controllers to
-	 * start rumbling non-stop.
+	 * start rumbling non-stop, so skip step 3 for these controllers.
 	 */
-	if (strcmp(hdev->name, "SHANWAN PS3 GamePad")) {
-		ret = hid_hw_output_report(hdev, buf, 1);
-		if (ret < 0) {
-			hid_info(hdev, "can't set operational mode: step 3, ignoring\n");
-			ret = 0;
-		}
+	if (sc->quirks & SHANWAN_GAMEPAD)
+		goto out;
+
+	ret = hid_hw_output_report(hdev, buf, 1);
+	if (ret < 0) {
+		hid_info(hdev, "can't set operational mode: step 3, ignoring\n");
+		ret = 0;
 	}
 
 out:
@@ -1987,25 +1943,6 @@ static int sony_led_blink_set(struct led_classdev *led, unsigned long *delay_on,
 	return 0;
 }
 
-static void sony_leds_remove(struct sony_sc *sc)
-{
-	struct led_classdev *led;
-	int n;
-
-	BUG_ON(!(sc->quirks & SONY_LED_SUPPORT));
-
-	for (n = 0; n < sc->led_count; n++) {
-		led = sc->leds[n];
-		sc->leds[n] = NULL;
-		if (!led)
-			continue;
-		led_classdev_unregister(led);
-		kfree(led);
-	}
-
-	sc->led_count = 0;
-}
-
 static int sony_leds_init(struct sony_sc *sc)
 {
 	struct hid_device *hdev = sc->hdev;
@@ -2078,11 +2015,10 @@ static int sony_leds_init(struct sony_sc *sc)
 		if (use_ds4_names)
 			name_sz = strlen(dev_name(&hdev->dev)) + strlen(ds4_name_str[n]) + 2;
 
-		led = kzalloc(sizeof(struct led_classdev) + name_sz, GFP_KERNEL);
+		led = devm_kzalloc(&hdev->dev, sizeof(struct led_classdev) + name_sz, GFP_KERNEL);
 		if (!led) {
 			hid_err(hdev, "Couldn't allocate memory for LED %d\n", n);
-			ret = -ENOMEM;
-			goto error_leds;
+			return -ENOMEM;
 		}
 
 		name = (void *)(&led[1]);
@@ -2103,21 +2039,14 @@ static int sony_leds_init(struct sony_sc *sc)
 
 		sc->leds[n] = led;
 
-		ret = led_classdev_register(&hdev->dev, led);
+		ret = devm_led_classdev_register(&hdev->dev, led);
 		if (ret) {
 			hid_err(hdev, "Failed to register LED %d\n", n);
-			sc->leds[n] = NULL;
-			kfree(led);
-			goto error_leds;
+			return ret;
 		}
 	}
 
-	return ret;
-
-error_leds:
-	sony_leds_remove(sc);
-
-	return ret;
+	return 0;
 }
 
 static void sixaxis_send_output_report(struct sony_sc *sc)
@@ -2171,9 +2100,14 @@ static void sixaxis_send_output_report(struct sony_sc *sc)
 		}
 	}
 
-	hid_hw_raw_request(sc->hdev, report->report_id, (u8 *)report,
-			sizeof(struct sixaxis_output_report),
-			HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	/* SHANWAN controllers require output reports via intr channel */
+	if (sc->quirks & SHANWAN_GAMEPAD)
+		hid_hw_output_report(sc->hdev, (u8 *)report,
+				sizeof(struct sixaxis_output_report));
+	else
+		hid_hw_raw_request(sc->hdev, report->report_id, (u8 *)report,
+				sizeof(struct sixaxis_output_report),
+				HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
 }
 
 static void dualshock4_send_output_report(struct sony_sc *sc)
@@ -2276,16 +2210,20 @@ static int sony_allocate_output_report(struct sony_sc *sc)
 	if ((sc->quirks & SIXAXIS_CONTROLLER) ||
 			(sc->quirks & NAVIGATION_CONTROLLER))
 		sc->output_report_dmabuf =
-			kmalloc(sizeof(union sixaxis_output_report_01),
+			devm_kmalloc(&sc->hdev->dev,
+				sizeof(union sixaxis_output_report_01),
 				GFP_KERNEL);
 	else if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
-		sc->output_report_dmabuf = kmalloc(DS4_OUTPUT_REPORT_0x11_SIZE,
+		sc->output_report_dmabuf = devm_kmalloc(&sc->hdev->dev,
+						DS4_OUTPUT_REPORT_0x11_SIZE,
 						GFP_KERNEL);
 	else if (sc->quirks & (DUALSHOCK4_CONTROLLER_USB | DUALSHOCK4_DONGLE))
-		sc->output_report_dmabuf = kmalloc(DS4_OUTPUT_REPORT_0x05_SIZE,
+		sc->output_report_dmabuf = devm_kmalloc(&sc->hdev->dev,
+						DS4_OUTPUT_REPORT_0x05_SIZE,
 						GFP_KERNEL);
 	else if (sc->quirks & MOTION_CONTROLLER)
-		sc->output_report_dmabuf = kmalloc(MOTION_REPORT_0x02_SIZE,
+		sc->output_report_dmabuf = devm_kmalloc(&sc->hdev->dev,
+						MOTION_REPORT_0x02_SIZE,
 						GFP_KERNEL);
 	else
 		return 0;
@@ -2392,36 +2330,21 @@ static int sony_battery_probe(struct sony_sc *sc, int append_dev_id)
 	sc->battery_desc.get_property = sony_battery_get_property;
 	sc->battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	sc->battery_desc.use_for_apm = 0;
-	sc->battery_desc.name = kasprintf(GFP_KERNEL, battery_str_fmt,
-					  sc->mac_address, sc->device_id);
+	sc->battery_desc.name = devm_kasprintf(&hdev->dev, GFP_KERNEL,
+					  battery_str_fmt, sc->mac_address, sc->device_id);
 	if (!sc->battery_desc.name)
 		return -ENOMEM;
 
-	sc->battery = power_supply_register(&hdev->dev, &sc->battery_desc,
+	sc->battery = devm_power_supply_register(&hdev->dev, &sc->battery_desc,
 					    &psy_cfg);
 	if (IS_ERR(sc->battery)) {
 		ret = PTR_ERR(sc->battery);
 		hid_err(hdev, "Unable to register battery device\n");
-		goto err_free;
+		return ret;
 	}
 
 	power_supply_powers(sc->battery, &hdev->dev);
 	return 0;
-
-err_free:
-	kfree(sc->battery_desc.name);
-	sc->battery_desc.name = NULL;
-	return ret;
-}
-
-static void sony_battery_remove(struct sony_sc *sc)
-{
-	if (!sc->battery_desc.name)
-		return;
-
-	power_supply_unregister(sc->battery);
-	kfree(sc->battery_desc.name);
-	sc->battery_desc.name = NULL;
 }
 
 /*
@@ -2879,16 +2802,7 @@ err_stop:
 		device_remove_file(&sc->hdev->dev, &dev_attr_firmware_version);
 	if (sc->hw_version)
 		device_remove_file(&sc->hdev->dev, &dev_attr_hardware_version);
-	if (sc->quirks & SONY_LED_SUPPORT)
-		sony_leds_remove(sc);
-	if (sc->quirks & SONY_BATTERY_SUPPORT)
-		sony_battery_remove(sc);
-	if (sc->touchpad)
-		sony_unregister_touchpad(sc);
-	if (sc->sensor_dev)
-		sony_unregister_sensors(sc);
 	sony_cancel_work_sync(sc);
-	kfree(sc->output_report_dmabuf);
 	sony_remove_dev_list(sc);
 	sony_release_device_id(sc);
 	hid_hw_stop(hdev);
@@ -2904,6 +2818,9 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (!strcmp(hdev->name, "FutureMax Dance Mat"))
 		quirks |= FUTUREMAX_DANCE_MAT;
+
+	if (!strcmp(hdev->name, "SHANWAN PS3 GamePad"))
+		quirks |= SHANWAN_GAMEPAD;
 
 	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);
 	if (sc == NULL) {
@@ -2965,18 +2882,6 @@ static void sony_remove(struct hid_device *hdev)
 
 	hid_hw_close(hdev);
 
-	if (sc->quirks & SONY_LED_SUPPORT)
-		sony_leds_remove(sc);
-
-	if (sc->quirks & SONY_BATTERY_SUPPORT)
-		sony_battery_remove(sc);
-
-	if (sc->touchpad)
-		sony_unregister_touchpad(sc);
-
-	if (sc->sensor_dev)
-		sony_unregister_sensors(sc);
-
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
 		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
 
@@ -2987,8 +2892,6 @@ static void sony_remove(struct hid_device *hdev)
 		device_remove_file(&sc->hdev->dev, &dev_attr_hardware_version);
 
 	sony_cancel_work_sync(sc);
-
-	kfree(sc->output_report_dmabuf);
 
 	sony_remove_dev_list(sc);
 

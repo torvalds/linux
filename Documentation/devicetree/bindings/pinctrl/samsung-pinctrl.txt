@@ -124,8 +124,6 @@ used as system wakeup events.
 A. External GPIO Interrupts: For supporting external gpio interrupts, the
    following properties should be specified in the pin-controller device node.
 
-   - interrupt-parent: phandle of the interrupt parent to which the external
-     GPIO interrupts are forwarded to.
    - interrupts: interrupt specifier for the controller. The format and value of
      the interrupt specifier depends on the interrupt parent for the controller.
 
@@ -145,8 +143,13 @@ A. External GPIO Interrupts: For supporting external gpio interrupts, the
 
 B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
    child node representing the external wakeup interrupt controller should be
-   included in the pin-controller device node. This child node should include
-   the following properties.
+   included in the pin-controller device node.
+
+   Only one pin-controller device node can include external wakeup interrupts
+   child node (in other words, only one External Wakeup Interrupts
+   pin-controller is supported).
+
+   This child node should include following properties:
 
    - compatible: identifies the type of the external wakeup interrupt controller
      The possible values are:
@@ -156,12 +159,12 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
        found on Samsung S3C2412 and S3C2413 SoCs,
      - samsung,s3c64xx-wakeup-eint: represents wakeup interrupt controller
        found on Samsung S3C64xx SoCs,
+     - samsung,s5pv210-wakeup-eint: represents wakeup interrupt controller
+       found on Samsung S5Pv210 SoCs,
      - samsung,exynos4210-wakeup-eint: represents wakeup interrupt controller
        found on Samsung Exynos4210 and S5PC110/S5PV210 SoCs.
      - samsung,exynos7-wakeup-eint: represents wakeup interrupt controller
        found on Samsung Exynos7 SoC.
-   - interrupt-parent: phandle of the interrupt parent to which the external
-     wakeup interrupts are forwarded to.
    - interrupts: interrupt used by multiplexed wakeup interrupts.
 
    In addition, following properties must be present in node of every bank
@@ -181,8 +184,6 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
    Node of every bank of pins supporting direct wake-up interrupts (without
    multiplexing) must contain following properties:
 
-   - interrupt-parent: phandle of the interrupt parent to which the external
-     wakeup interrupts are forwarded to.
    - interrupts: interrupts of the interrupt parent which are used for external
      wakeup interrupts from pins of the bank, must contain interrupts for all
      pins of the bank.

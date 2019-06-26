@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -38,7 +38,7 @@ struct vmw_user_context {
 	struct vmw_cmdbuf_res_manager *man;
 	struct vmw_resource *cotables[SVGA_COTABLE_DX10_MAX];
 	spinlock_t cotable_lock;
-	struct vmw_dma_buffer *dx_query_mob;
+	struct vmw_buffer_object *dx_query_mob;
 };
 
 static void vmw_user_context_free(struct vmw_resource *res);
@@ -217,9 +217,7 @@ static int vmw_gb_context_init(struct vmw_private *dev_priv,
 		}
 	}
 
-
-
-	vmw_resource_activate(res, vmw_hw_context_destroy);
+	res->hw_destroy = vmw_hw_context_destroy;
 	return 0;
 
 out_cotables:
@@ -274,7 +272,7 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	vmw_fifo_resource_inc(dev_priv);
-	vmw_resource_activate(res, vmw_hw_context_destroy);
+	res->hw_destroy = vmw_hw_context_destroy;
 	return 0;
 
 out_early:
@@ -424,7 +422,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(bo, fence);
+	vmw_bo_fence_single(bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -648,7 +646,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(bo, fence);
+	vmw_bo_fence_single(bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -757,14 +755,10 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	/*
-	 * Approximate idr memory usage with 128 bytes. It will be limited
-	 * by maximum number_of contexts anyway.
-	 */
-
 	if (unlikely(vmw_user_context_size == 0))
-		vmw_user_context_size = ttm_round_pot(sizeof(*ctx)) + 128 +
-		  ((dev_priv->has_mob) ? vmw_cmdbuf_res_man_size() : 0);
+		vmw_user_context_size = ttm_round_pot(sizeof(*ctx)) +
+		  ((dev_priv->has_mob) ? vmw_cmdbuf_res_man_size() : 0) +
+		  + VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
@@ -809,7 +803,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		goto out_err;
 	}
 
-	arg->cid = ctx->base.hash.key;
+	arg->cid = ctx->base.handle;
 out_err:
 	vmw_resource_unreference(&res);
 out_unlock:
@@ -867,9 +861,8 @@ struct vmw_resource *vmw_context_cotable(struct vmw_resource *ctx,
 	if (cotable_type >= SVGA_COTABLE_DX10_MAX)
 		return ERR_PTR(-EINVAL);
 
-	return vmw_resource_reference
-		(container_of(ctx, struct vmw_user_context, res)->
-		 cotables[cotable_type]);
+	return container_of(ctx, struct vmw_user_context, res)->
+		cotables[cotable_type];
 }
 
 /**
@@ -900,7 +893,7 @@ vmw_context_binding_state(struct vmw_resource *ctx)
  * specified in the parameter.  0 otherwise.
  */
 int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
-			      struct vmw_dma_buffer *mob)
+			      struct vmw_buffer_object *mob)
 {
 	struct vmw_user_context *uctx =
 		container_of(ctx_res, struct vmw_user_context, res);
@@ -908,7 +901,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
 	if (mob == NULL) {
 		if (uctx->dx_query_mob) {
 			uctx->dx_query_mob->dx_query_ctx = NULL;
-			vmw_dmabuf_unreference(&uctx->dx_query_mob);
+			vmw_bo_unreference(&uctx->dx_query_mob);
 			uctx->dx_query_mob = NULL;
 		}
 
@@ -922,7 +915,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
 	mob->dx_query_ctx  = ctx_res;
 
 	if (!uctx->dx_query_mob)
-		uctx->dx_query_mob = vmw_dmabuf_reference(mob);
+		uctx->dx_query_mob = vmw_bo_reference(mob);
 
 	return 0;
 }
@@ -932,7 +925,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
  *
  * @ctx_res: The context resource
  */
-struct vmw_dma_buffer *
+struct vmw_buffer_object *
 vmw_context_get_dx_query_mob(struct vmw_resource *ctx_res)
 {
 	struct vmw_user_context *uctx =

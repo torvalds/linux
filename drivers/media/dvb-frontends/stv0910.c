@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the ST STV0910 DVB-S/S2 demodulator.
  *
@@ -682,8 +683,8 @@ static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
 		return -EINVAL;
 
 	if ((regs[0] & 0x80) == 0) {
-		state->last_berdenominator = 1 << ((state->berscale * 2) +
-						  10 + 3);
+		state->last_berdenominator = 1ULL << ((state->berscale * 2) +
+						     10 + 3);
 		state->last_bernumerator = ((u32)(regs[0] & 0x7F) << 16) |
 			((u32)regs[1] << 8) | regs[2];
 		if (state->last_bernumerator < 256 && state->berscale < 6) {
@@ -1237,7 +1238,7 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 	 * mutex_lock note: Concurrent I2C gate bus accesses must be
 	 * prevented (STV0910 = dual demod on a single IC with a single I2C
 	 * gate/bus, and two tuners attached), similar to most (if not all)
-	 * other I2C host interfaces/busses.
+	 * other I2C host interfaces/buses.
 	 *
 	 * enable=1 (open I2C gate) will grab the lock
 	 * enable=0 (close I2C gate) releases the lock
@@ -1499,7 +1500,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 				  RSTV0910_P2_FBERCPT4 + state->regoff, 0x00);
 			/*
 			 * Reset the packet Error counter2 (and Set it to
-			 * infinit error count mode)
+			 * infinite error count mode)
 			 */
 			write_reg(state,
 				  RSTV0910_P2_ERRCTRL2 + state->regoff, 0xc1);
@@ -1724,10 +1725,8 @@ static const struct dvb_frontend_ops stv0910_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name			= "ST STV0910",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 0,
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
 		.symbol_rate_min	= 100000,
 		.symbol_rate_max	= 70000000,
 		.caps			= FE_CAN_INVERSION_AUTO |
@@ -1841,4 +1840,4 @@ EXPORT_SYMBOL_GPL(stv0910_attach);
 
 MODULE_DESCRIPTION("ST STV0910 multistandard frontend driver");
 MODULE_AUTHOR("Ralph and Marcus Metzler, Manfred Voelkel");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

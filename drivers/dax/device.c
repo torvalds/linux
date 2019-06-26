@@ -1,15 +1,6 @@
-/*
- * Copyright(c) 2016 - 2017 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2016-2018 Intel Corporation. All rights reserved. */
+#include <linux/memremap.h>
 #include <linux/pagemap.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -21,161 +12,39 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include "dax-private.h"
-#include "dax.h"
+#include "bus.h"
 
-static struct class *dax_class;
-
-/*
- * Rely on the fact that drvdata is set before the attributes are
- * registered, and that the attributes are unregistered before drvdata
- * is cleared to assume that drvdata is always valid.
- */
-static ssize_t id_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static struct dev_dax *ref_to_dev_dax(struct percpu_ref *ref)
 {
-	struct dax_region *dax_region = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", dax_region->id);
-}
-static DEVICE_ATTR_RO(id);
-
-static ssize_t region_size_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct dax_region *dax_region = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%llu\n", (unsigned long long)
-			resource_size(&dax_region->res));
-}
-static struct device_attribute dev_attr_region_size = __ATTR(size, 0444,
-		region_size_show, NULL);
-
-static ssize_t align_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct dax_region *dax_region = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%u\n", dax_region->align);
-}
-static DEVICE_ATTR_RO(align);
-
-static struct attribute *dax_region_attributes[] = {
-	&dev_attr_region_size.attr,
-	&dev_attr_align.attr,
-	&dev_attr_id.attr,
-	NULL,
-};
-
-static const struct attribute_group dax_region_attribute_group = {
-	.name = "dax_region",
-	.attrs = dax_region_attributes,
-};
-
-static const struct attribute_group *dax_region_attribute_groups[] = {
-	&dax_region_attribute_group,
-	NULL,
-};
-
-static void dax_region_free(struct kref *kref)
-{
-	struct dax_region *dax_region;
-
-	dax_region = container_of(kref, struct dax_region, kref);
-	kfree(dax_region);
+	return container_of(ref, struct dev_dax, ref);
 }
 
-void dax_region_put(struct dax_region *dax_region)
+static void dev_dax_percpu_release(struct percpu_ref *ref)
 {
-	kref_put(&dax_region->kref, dax_region_free);
-}
-EXPORT_SYMBOL_GPL(dax_region_put);
+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
 
-static void dax_region_unregister(void *region)
-{
-	struct dax_region *dax_region = region;
-
-	sysfs_remove_groups(&dax_region->dev->kobj,
-			dax_region_attribute_groups);
-	dax_region_put(dax_region);
+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	complete(&dev_dax->cmp);
 }
 
-struct dax_region *alloc_dax_region(struct device *parent, int region_id,
-		struct resource *res, unsigned int align, void *addr,
-		unsigned long pfn_flags)
+static void dev_dax_percpu_exit(void *data)
 {
-	struct dax_region *dax_region;
+	struct percpu_ref *ref = data;
+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
 
-	/*
-	 * The DAX core assumes that it can store its private data in
-	 * parent->driver_data. This WARN is a reminder / safeguard for
-	 * developers of device-dax drivers.
-	 */
-	if (dev_get_drvdata(parent)) {
-		dev_WARN(parent, "dax core failed to setup private data\n");
-		return NULL;
-	}
-
-	if (!IS_ALIGNED(res->start, align)
-			|| !IS_ALIGNED(resource_size(res), align))
-		return NULL;
-
-	dax_region = kzalloc(sizeof(*dax_region), GFP_KERNEL);
-	if (!dax_region)
-		return NULL;
-
-	dev_set_drvdata(parent, dax_region);
-	memcpy(&dax_region->res, res, sizeof(*res));
-	dax_region->pfn_flags = pfn_flags;
-	kref_init(&dax_region->kref);
-	dax_region->id = region_id;
-	ida_init(&dax_region->ida);
-	dax_region->align = align;
-	dax_region->dev = parent;
-	dax_region->base = addr;
-	if (sysfs_create_groups(&parent->kobj, dax_region_attribute_groups)) {
-		kfree(dax_region);
-		return NULL;
-	}
-
-	kref_get(&dax_region->kref);
-	if (devm_add_action_or_reset(parent, dax_region_unregister, dax_region))
-		return NULL;
-	return dax_region;
-}
-EXPORT_SYMBOL_GPL(alloc_dax_region);
-
-static struct dev_dax *to_dev_dax(struct device *dev)
-{
-	return container_of(dev, struct dev_dax, dev);
+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	wait_for_completion(&dev_dax->cmp);
+	percpu_ref_exit(ref);
 }
 
-static ssize_t size_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static void dev_dax_percpu_kill(struct percpu_ref *data)
 {
-	struct dev_dax *dev_dax = to_dev_dax(dev);
-	unsigned long long size = 0;
-	int i;
+	struct percpu_ref *ref = data;
+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
 
-	for (i = 0; i < dev_dax->num_resources; i++)
-		size += resource_size(&dev_dax->res[i]);
-
-	return sprintf(buf, "%llu\n", size);
+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	percpu_ref_kill(ref);
 }
-static DEVICE_ATTR_RO(size);
-
-static struct attribute *dev_dax_attributes[] = {
-	&dev_attr_size.attr,
-	NULL,
-};
-
-static const struct attribute_group dev_dax_attribute_group = {
-	.attrs = dev_dax_attributes,
-};
-
-static const struct attribute_group *dax_attribute_groups[] = {
-	&dev_dax_attribute_group,
-	NULL,
-};
 
 static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 		const char *func)
@@ -226,21 +95,11 @@ static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 __weak phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
 		unsigned long size)
 {
-	struct resource *res;
-	/* gcc-4.6.3-nolibc for i386 complains that this is uninitialized */
-	phys_addr_t uninitialized_var(phys);
-	int i;
+	struct resource *res = &dev_dax->region->res;
+	phys_addr_t phys;
 
-	for (i = 0; i < dev_dax->num_resources; i++) {
-		res = &dev_dax->res[i];
-		phys = pgoff * PAGE_SIZE + res->start;
-		if (phys >= res->start && phys <= res->end)
-			break;
-		pgoff -= PHYS_PFN(resource_size(res));
-	}
-
-	if (i < dev_dax->num_resources) {
-		res = &dev_dax->res[i];
+	phys = pgoff * PAGE_SIZE + res->start;
+	if (phys >= res->start && phys <= res->end) {
 		if (phys + size - 1 <= res->end)
 			return phys;
 	}
@@ -248,13 +107,12 @@ __weak phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
 	return -1;
 }
 
-static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
+static vm_fault_t __dev_dax_pte_fault(struct dev_dax *dev_dax,
+				struct vm_fault *vmf, pfn_t *pfn)
 {
 	struct device *dev = &dev_dax->dev;
 	struct dax_region *dax_region;
-	int rc = VM_FAULT_SIGBUS;
 	phys_addr_t phys;
-	pfn_t pfn;
 	unsigned int fault_size = PAGE_SIZE;
 
 	if (check_vma(dev_dax, vmf->vma, __func__))
@@ -276,26 +134,19 @@ static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
 
-	rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
-
-	if (rc == -ENOMEM)
-		return VM_FAULT_OOM;
-	if (rc < 0 && rc != -EBUSY)
-		return VM_FAULT_SIGBUS;
-
-	return VM_FAULT_NOPAGE;
+	return vmf_insert_mixed(vmf->vma, vmf->address, *pfn);
 }
 
-static int __dev_dax_pmd_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
+static vm_fault_t __dev_dax_pmd_fault(struct dev_dax *dev_dax,
+				struct vm_fault *vmf, pfn_t *pfn)
 {
 	unsigned long pmd_addr = vmf->address & PMD_MASK;
 	struct device *dev = &dev_dax->dev;
 	struct dax_region *dax_region;
 	phys_addr_t phys;
 	pgoff_t pgoff;
-	pfn_t pfn;
 	unsigned int fault_size = PMD_SIZE;
 
 	if (check_vma(dev_dax, vmf->vma, __func__))
@@ -331,21 +182,21 @@ static int __dev_dax_pmd_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
 
-	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd, pfn,
+	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd, *pfn,
 			vmf->flags & FAULT_FLAG_WRITE);
 }
 
 #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-static int __dev_dax_pud_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
+static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
+				struct vm_fault *vmf, pfn_t *pfn)
 {
 	unsigned long pud_addr = vmf->address & PUD_MASK;
 	struct device *dev = &dev_dax->dev;
 	struct dax_region *dax_region;
 	phys_addr_t phys;
 	pgoff_t pgoff;
-	pfn_t pfn;
 	unsigned int fault_size = PUD_SIZE;
 
 
@@ -382,23 +233,27 @@ static int __dev_dax_pud_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
 
-	return vmf_insert_pfn_pud(vmf->vma, vmf->address, vmf->pud, pfn,
+	return vmf_insert_pfn_pud(vmf->vma, vmf->address, vmf->pud, *pfn,
 			vmf->flags & FAULT_FLAG_WRITE);
 }
 #else
-static int __dev_dax_pud_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
+static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
+				struct vm_fault *vmf, pfn_t *pfn)
 {
 	return VM_FAULT_FALLBACK;
 }
 #endif /* !CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
 
-static int dev_dax_huge_fault(struct vm_fault *vmf,
+static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
 		enum page_entry_size pe_size)
 {
-	int rc, id;
 	struct file *filp = vmf->vma->vm_file;
+	unsigned long fault_size;
+	vm_fault_t rc = VM_FAULT_SIGBUS;
+	int id;
+	pfn_t pfn;
 	struct dev_dax *dev_dax = filp->private_data;
 
 	dev_dbg(&dev_dax->dev, "%s: %s (%#lx - %#lx) size = %d\n", current->comm,
@@ -408,23 +263,49 @@ static int dev_dax_huge_fault(struct vm_fault *vmf,
 	id = dax_read_lock();
 	switch (pe_size) {
 	case PE_SIZE_PTE:
-		rc = __dev_dax_pte_fault(dev_dax, vmf);
+		fault_size = PAGE_SIZE;
+		rc = __dev_dax_pte_fault(dev_dax, vmf, &pfn);
 		break;
 	case PE_SIZE_PMD:
-		rc = __dev_dax_pmd_fault(dev_dax, vmf);
+		fault_size = PMD_SIZE;
+		rc = __dev_dax_pmd_fault(dev_dax, vmf, &pfn);
 		break;
 	case PE_SIZE_PUD:
-		rc = __dev_dax_pud_fault(dev_dax, vmf);
+		fault_size = PUD_SIZE;
+		rc = __dev_dax_pud_fault(dev_dax, vmf, &pfn);
 		break;
 	default:
 		rc = VM_FAULT_SIGBUS;
+	}
+
+	if (rc == VM_FAULT_NOPAGE) {
+		unsigned long i;
+		pgoff_t pgoff;
+
+		/*
+		 * In the device-dax case the only possibility for a
+		 * VM_FAULT_NOPAGE result is when device-dax capacity is
+		 * mapped. No need to consider the zero page, or racing
+		 * conflicting mappings.
+		 */
+		pgoff = linear_page_index(vmf->vma, vmf->address
+				& ~(fault_size - 1));
+		for (i = 0; i < fault_size / PAGE_SIZE; i++) {
+			struct page *page;
+
+			page = pfn_to_page(pfn_t_to_pfn(pfn) + i);
+			if (page->mapping)
+				continue;
+			page->mapping = filp->f_mapping;
+			page->index = pgoff + i;
+		}
 	}
 	dax_read_unlock(id);
 
 	return rc;
 }
 
-static int dev_dax_fault(struct vm_fault *vmf)
+static vm_fault_t dev_dax_fault(struct vm_fault *vmf)
 {
 	return dev_dax_huge_fault(vmf, PE_SIZE_PTE);
 }
@@ -474,7 +355,7 @@ static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
 		return rc;
 
 	vma->vm_ops = &dax_vm_ops;
-	vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
+	vma->vm_flags |= VM_HUGEPAGE;
 	return 0;
 }
 
@@ -513,6 +394,11 @@ static unsigned long dax_get_unmapped_area(struct file *filp,
 	return current->mm->get_unmapped_area(filp, addr, len, pgoff, flags);
 }
 
+static const struct address_space_operations dev_dax_aops = {
+	.set_page_dirty		= noop_set_page_dirty,
+	.invalidatepage		= noop_invalidatepage,
+};
+
 static int dax_open(struct inode *inode, struct file *filp)
 {
 	struct dax_device *dax_dev = inode_dax(inode);
@@ -522,6 +408,7 @@ static int dax_open(struct inode *inode, struct file *filp)
 	dev_dbg(&dev_dax->dev, "trace\n");
 	inode->i_mapping = __dax_inode->i_mapping;
 	inode->i_mapping->host = __dax_inode;
+	inode->i_mapping->a_ops = &dev_dax_aops;
 	filp->f_mapping = inode->i_mapping;
 	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
 	filp->private_data = dev_dax;
@@ -548,152 +435,100 @@ static const struct file_operations dax_fops = {
 	.mmap_supported_flags = MAP_SYNC,
 };
 
-static void dev_dax_release(struct device *dev)
+static void dev_dax_cdev_del(void *cdev)
 {
-	struct dev_dax *dev_dax = to_dev_dax(dev);
-	struct dax_region *dax_region = dev_dax->region;
-	struct dax_device *dax_dev = dev_dax->dax_dev;
-
-	if (dev_dax->id >= 0)
-		ida_simple_remove(&dax_region->ida, dev_dax->id);
-	dax_region_put(dax_region);
-	put_dax(dax_dev);
-	kfree(dev_dax);
+	cdev_del(cdev);
 }
 
-static void kill_dev_dax(struct dev_dax *dev_dax)
+static void dev_dax_kill(void *dev_dax)
 {
-	struct dax_device *dax_dev = dev_dax->dax_dev;
-	struct inode *inode = dax_inode(dax_dev);
-
-	kill_dax(dax_dev);
-	unmap_mapping_range(inode->i_mapping, 0, 0, 1);
-}
-
-static void unregister_dev_dax(void *dev)
-{
-	struct dev_dax *dev_dax = to_dev_dax(dev);
-	struct dax_device *dax_dev = dev_dax->dax_dev;
-	struct inode *inode = dax_inode(dax_dev);
-	struct cdev *cdev = inode->i_cdev;
-
-	dev_dbg(dev, "trace\n");
-
 	kill_dev_dax(dev_dax);
-	cdev_device_del(cdev, dev);
-	put_device(dev);
 }
 
-struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
-		int id, struct resource *res, int count)
+int dev_dax_probe(struct device *dev)
 {
-	struct device *parent = dax_region->dev;
-	struct dax_device *dax_dev;
-	struct dev_dax *dev_dax;
+	struct dev_dax *dev_dax = to_dev_dax(dev);
+	struct dax_device *dax_dev = dev_dax->dax_dev;
+	struct resource *res = &dev_dax->region->res;
 	struct inode *inode;
-	struct device *dev;
 	struct cdev *cdev;
-	int rc, i;
+	void *addr;
+	int rc;
 
-	if (!count)
-		return ERR_PTR(-EINVAL);
-
-	dev_dax = kzalloc(struct_size(dev_dax, res, count), GFP_KERNEL);
-	if (!dev_dax)
-		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < count; i++) {
-		if (!IS_ALIGNED(res[i].start, dax_region->align)
-				|| !IS_ALIGNED(resource_size(&res[i]),
-					dax_region->align)) {
-			rc = -EINVAL;
-			break;
-		}
-		dev_dax->res[i].start = res[i].start;
-		dev_dax->res[i].end = res[i].end;
+	/* 1:1 map region resource range to device-dax instance range */
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				dev_name(dev))) {
+		dev_warn(dev, "could not reserve region %pR\n", res);
+		return -EBUSY;
 	}
 
-	if (i < count)
-		goto err_id;
+	init_completion(&dev_dax->cmp);
+	rc = percpu_ref_init(&dev_dax->ref, dev_dax_percpu_release, 0,
+			GFP_KERNEL);
+	if (rc)
+		return rc;
 
-	if (id < 0) {
-		id = ida_simple_get(&dax_region->ida, 0, 0, GFP_KERNEL);
-		dev_dax->id = id;
-		if (id < 0) {
-			rc = id;
-			goto err_id;
-		}
-	} else {
-		/* region provider owns @id lifetime */
-		dev_dax->id = -1;
+	rc = devm_add_action_or_reset(dev, dev_dax_percpu_exit, &dev_dax->ref);
+	if (rc)
+		return rc;
+
+	dev_dax->pgmap.ref = &dev_dax->ref;
+	dev_dax->pgmap.kill = dev_dax_percpu_kill;
+	addr = devm_memremap_pages(dev, &dev_dax->pgmap);
+	if (IS_ERR(addr)) {
+		devm_remove_action(dev, dev_dax_percpu_exit, &dev_dax->ref);
+		percpu_ref_exit(&dev_dax->ref);
+		return PTR_ERR(addr);
 	}
-
-	/*
-	 * No 'host' or dax_operations since there is no access to this
-	 * device outside of mmap of the resulting character device.
-	 */
-	dax_dev = alloc_dax(dev_dax, NULL, NULL);
-	if (!dax_dev) {
-		rc = -ENOMEM;
-		goto err_dax;
-	}
-
-	/* from here on we're committed to teardown via dax_dev_release() */
-	dev = &dev_dax->dev;
-	device_initialize(dev);
 
 	inode = dax_inode(dax_dev);
 	cdev = inode->i_cdev;
 	cdev_init(cdev, &dax_fops);
-	cdev->owner = parent->driver->owner;
-
-	dev_dax->num_resources = count;
-	dev_dax->dax_dev = dax_dev;
-	dev_dax->region = dax_region;
-	kref_get(&dax_region->kref);
-
-	dev->devt = inode->i_rdev;
-	dev->class = dax_class;
-	dev->parent = parent;
-	dev->groups = dax_attribute_groups;
-	dev->release = dev_dax_release;
-	dev_set_name(dev, "dax%d.%d", dax_region->id, id);
-
-	rc = cdev_device_add(cdev, dev);
-	if (rc) {
-		kill_dev_dax(dev_dax);
-		put_device(dev);
-		return ERR_PTR(rc);
-	}
-
-	rc = devm_add_action_or_reset(dax_region->dev, unregister_dev_dax, dev);
+	if (dev->class) {
+		/* for the CONFIG_DEV_DAX_PMEM_COMPAT case */
+		cdev->owner = dev->parent->driver->owner;
+	} else
+		cdev->owner = dev->driver->owner;
+	cdev_set_parent(cdev, &dev->kobj);
+	rc = cdev_add(cdev, dev->devt, 1);
 	if (rc)
-		return ERR_PTR(rc);
+		return rc;
 
-	return dev_dax;
+	rc = devm_add_action_or_reset(dev, dev_dax_cdev_del, cdev);
+	if (rc)
+		return rc;
 
- err_dax:
-	if (dev_dax->id >= 0)
-		ida_simple_remove(&dax_region->ida, dev_dax->id);
- err_id:
-	kfree(dev_dax);
-
-	return ERR_PTR(rc);
+	run_dax(dax_dev);
+	return devm_add_action_or_reset(dev, dev_dax_kill, dev_dax);
 }
-EXPORT_SYMBOL_GPL(devm_create_dev_dax);
+EXPORT_SYMBOL_GPL(dev_dax_probe);
+
+static int dev_dax_remove(struct device *dev)
+{
+	/* all probe actions are unwound by devm */
+	return 0;
+}
+
+static struct dax_device_driver device_dax_driver = {
+	.drv = {
+		.probe = dev_dax_probe,
+		.remove = dev_dax_remove,
+	},
+	.match_always = 1,
+};
 
 static int __init dax_init(void)
 {
-	dax_class = class_create(THIS_MODULE, "dax");
-	return PTR_ERR_OR_ZERO(dax_class);
+	return dax_driver_register(&device_dax_driver);
 }
 
 static void __exit dax_exit(void)
 {
-	class_destroy(dax_class);
+	dax_driver_unregister(&device_dax_driver);
 }
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL v2");
-subsys_initcall(dax_init);
+module_init(dax_init);
 module_exit(dax_exit);
+MODULE_ALIAS_DAX_DEVICE(0);

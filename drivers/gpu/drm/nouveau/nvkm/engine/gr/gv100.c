@@ -25,24 +25,31 @@
 #include <nvif/class.h>
 
 static void
-gv100_gr_trap_mp(struct gf100_gr *gr, int gpc, int tpc)
+gv100_gr_trap_sm(struct gf100_gr *gr, int gpc, int tpc, int sm)
 {
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 werr = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x730));
-	u32 gerr = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x734));
+	u32 werr = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x730 + (sm * 0x80)));
+	u32 gerr = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x734 + (sm * 0x80)));
 	const struct nvkm_enum *warp;
 	char glob[128];
 
 	nvkm_snprintbf(glob, sizeof(glob), gf100_mp_global_error, gerr);
 	warp = nvkm_enum_find(gf100_mp_warp_error, werr & 0xffff);
 
-	nvkm_error(subdev, "GPC%i/TPC%i/MP trap: "
+	nvkm_error(subdev, "GPC%i/TPC%i/SM%d trap: "
 			   "global %08x [%s] warp %04x [%s]\n",
-		   gpc, tpc, gerr, glob, werr, warp ? warp->name : "");
+		   gpc, tpc, sm, gerr, glob, werr, warp ? warp->name : "");
 
-	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x730), 0x00000000);
-	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x734), gerr);
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x730 + sm * 0x80), 0x00000000);
+	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x734 + sm * 0x80), gerr);
+}
+
+static void
+gv100_gr_trap_mp(struct gf100_gr *gr, int gpc, int tpc)
+{
+	gv100_gr_trap_sm(gr, gpc, tpc, 0);
+	gv100_gr_trap_sm(gr, gpc, tpc, 1);
 }
 
 static void

@@ -3,11 +3,6 @@
  * Device Tree file for SolidRun Armada 38x Microsom
  *
  *  Copyright (C) 2015 Russell King
- *
- * This board is in development; the contents of this file work with
- * the A1 rev 2.0 of the board, which does not represent final
- * production board.  Things will change, don't expect this file to
- * remain compatible info the future.
  */
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -99,7 +94,6 @@
 		compatible = "w25q32", "jedec,spi-nor";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <3000000>;
-		status = "disabled";
 	};
 };
 

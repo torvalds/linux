@@ -39,9 +39,11 @@ static void gfs2_init_inode_once(void *foo)
 	struct gfs2_inode *ip = foo;
 
 	inode_init_once(&ip->i_inode);
+	atomic_set(&ip->i_sizehint, 0);
 	init_rwsem(&ip->i_rw_mutex);
 	INIT_LIST_HEAD(&ip->i_trunc_list);
 	ip->i_qadata = NULL;
+	gfs2_holder_mark_uninitialized(&ip->i_rgd_gh);
 	memset(&ip->i_res, 0, sizeof(ip->i_res));
 	RB_CLEAR_NODE(&ip->i_res.rs_node);
 	ip->i_hash_cache = NULL;
@@ -176,16 +178,12 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_page_pool)
 		goto fail_mempool;
 
-	error = gfs2_register_debugfs();
-	if (error)
-		goto fail_debugfs;
+	gfs2_register_debugfs();
 
 	pr_info("GFS2 installed\n");
 
 	return 0;
 
-fail_debugfs:
-	mempool_destroy(gfs2_page_pool);
 fail_mempool:
 	destroy_workqueue(gfs2_freeze_wq);
 fail_wq3:

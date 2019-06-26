@@ -1266,17 +1266,17 @@ static umode_t lm90_temp_is_visible(const void *data, u32 attr, int channel)
 	case hwmon_temp_emergency_alarm:
 	case hwmon_temp_emergency_hyst:
 	case hwmon_temp_fault:
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_min:
 	case hwmon_temp_max:
 	case hwmon_temp_crit:
 	case hwmon_temp_emergency:
 	case hwmon_temp_offset:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	case hwmon_temp_crit_hyst:
 		if (channel == 0)
-			return S_IRUGO | S_IWUSR;
-		return S_IRUGO;
+			return 0644;
+		return 0444;
 	default:
 		return 0;
 	}
@@ -1338,9 +1338,9 @@ static umode_t lm90_chip_is_visible(const void *data, u32 attr, int channel)
 {
 	switch (attr) {
 	case hwmon_chip_update_interval:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	case hwmon_chip_alarms:
-		return S_IRUGO;
+		return 0444;
 	default:
 		return 0;
 	}

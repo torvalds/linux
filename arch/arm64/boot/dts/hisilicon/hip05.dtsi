@@ -87,7 +87,7 @@
 
 		cpu0: cpu@20000 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20000>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
@@ -95,7 +95,7 @@
 
 		cpu1: cpu@20001 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20001>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
@@ -103,7 +103,7 @@
 
 		cpu2: cpu@20002 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20002>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
@@ -111,7 +111,7 @@
 
 		cpu3: cpu@20003 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20003>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
@@ -119,7 +119,7 @@
 
 		cpu4: cpu@20100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20100>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
@@ -127,7 +127,7 @@
 
 		cpu5: cpu@20101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20101>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
@@ -135,7 +135,7 @@
 
 		cpu6: cpu@20102 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20102>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
@@ -143,7 +143,7 @@
 
 		cpu7: cpu@20103 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20103>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
@@ -151,7 +151,7 @@
 
 		cpu8: cpu@20200 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20200>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
@@ -159,7 +159,7 @@
 
 		cpu9: cpu@20201 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20201>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
@@ -167,7 +167,7 @@
 
 		cpu10: cpu@20202 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20202>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
@@ -175,7 +175,7 @@
 
 		cpu11: cpu@20203 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20203>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
@@ -183,7 +183,7 @@
 
 		cpu12: cpu@20300 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20300>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
@@ -191,7 +191,7 @@
 
 		cpu13: cpu@20301 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20301>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
@@ -199,7 +199,7 @@
 
 		cpu14: cpu@20302 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20302>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
@@ -207,7 +207,7 @@
 
 		cpu15: cpu@20303 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x20303>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;

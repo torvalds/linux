@@ -17,6 +17,7 @@
 #else
 #define FP_OFFSET (-2)
 #endif
+#define LP_OFFSET (-1)
 
 extern void __init early_trap_init(void);
 static inline void GIE_ENABLE(void)

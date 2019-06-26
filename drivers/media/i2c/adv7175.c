@@ -219,7 +219,7 @@ static int adv7175_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		 * SECAM->PAL (typically it does not work
 		 * due to genlock: when decoder is in SECAM
 		 * and encoder in in PAL the subcarrier can
-		 * not be syncronized with horizontal
+		 * not be synchronized with horizontal
 		 * quency) */
 		adv7175_write_block(sd, init_pal, sizeof(init_pal));
 		if (encoder->input == 0)

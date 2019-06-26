@@ -12,6 +12,7 @@
 #include "util/color.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/map.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/debug.h"
@@ -19,6 +20,7 @@
 #include "util/data.h"
 #include "util/auxtrace.h"
 #include "util/jit.h"
+#include "util/symbol.h"
 #include "util/thread.h"
 
 #include <subcmd/parse-options.h>
@@ -86,12 +88,10 @@ static int perf_event__drop_oe(struct perf_tool *tool __maybe_unused,
 }
 #endif
 
-static int perf_event__repipe_op2_synth(struct perf_tool *tool,
-					union perf_event *event,
-					struct perf_session *session
-					__maybe_unused)
+static int perf_event__repipe_op2_synth(struct perf_session *session,
+					union perf_event *event)
 {
-	return perf_event__repipe_synth(tool, event);
+	return perf_event__repipe_synth(session->tool, event);
 }
 
 static int perf_event__repipe_attr(struct perf_tool *tool,
@@ -133,10 +133,10 @@ static int copy_bytes(struct perf_inject *inject, int fd, off_t size)
 	return 0;
 }
 
-static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
-				       union perf_event *event,
-				       struct perf_session *session)
+static s64 perf_event__repipe_auxtrace(struct perf_session *session,
+				       union perf_event *event)
 {
+	struct perf_tool *tool = session->tool;
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
 	int ret;
@@ -174,9 +174,8 @@ static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 #else
 
 static s64
-perf_event__repipe_auxtrace(struct perf_tool *tool __maybe_unused,
-			    union perf_event *event __maybe_unused,
-			    struct perf_session *session __maybe_unused)
+perf_event__repipe_auxtrace(struct perf_session *session __maybe_unused,
+			    union perf_event *event __maybe_unused)
 {
 	pr_err("AUX area tracing not supported\n");
 	return -EINVAL;
@@ -362,26 +361,24 @@ static int perf_event__repipe_exit(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_tracing_data(struct perf_tool *tool,
-					   union perf_event *event,
-					   struct perf_session *session)
+static int perf_event__repipe_tracing_data(struct perf_session *session,
+					   union perf_event *event)
 {
 	int err;
 
-	perf_event__repipe_synth(tool, event);
-	err = perf_event__process_tracing_data(tool, event, session);
+	perf_event__repipe_synth(session->tool, event);
+	err = perf_event__process_tracing_data(session, event);
 
 	return err;
 }
 
-static int perf_event__repipe_id_index(struct perf_tool *tool,
-				       union perf_event *event,
-				       struct perf_session *session)
+static int perf_event__repipe_id_index(struct perf_session *session,
+				       union perf_event *event)
 {
 	int err;
 
-	perf_event__repipe_synth(tool, event);
-	err = perf_event__process_id_index(tool, event, session);
+	perf_event__repipe_synth(session->tool, event);
+	err = perf_event__process_id_index(session, event);
 
 	return err;
 }
@@ -773,10 +770,8 @@ int cmd_inject(int argc, const char **argv)
 		.input_name  = "-",
 		.samples = LIST_HEAD_INIT(inject.samples),
 		.output = {
-			.file      = {
-				.path = "-",
-			},
-			.mode      = PERF_DATA_MODE_WRITE,
+			.path = "-",
+			.mode = PERF_DATA_MODE_WRITE,
 		},
 	};
 	struct perf_data data = {
@@ -789,7 +784,7 @@ int cmd_inject(int argc, const char **argv)
 			    "Inject build-ids into the output stream"),
 		OPT_STRING('i', "input", &inject.input_name, "file",
 			   "input file name"),
-		OPT_STRING('o', "output", &inject.output.file.path, "file",
+		OPT_STRING('o', "output", &inject.output.path, "file",
 			   "output file name"),
 		OPT_BOOLEAN('s', "sched-stat", &inject.sched_stat,
 			    "Merge sched-stat and sched-switch for getting events "
@@ -803,7 +798,8 @@ int cmd_inject(int argc, const char **argv)
 			   "kallsyms pathname"),
 		OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
 		OPT_CALLBACK_OPTARG(0, "itrace", &inject.itrace_synth_opts,
-				    NULL, "opts", "Instruction Tracing options",
+				    NULL, "opts", "Instruction Tracing options\n"
+				    ITRACE_HELP,
 				    itrace_parse_synth_opts),
 		OPT_BOOLEAN(0, "strip", &inject.strip,
 			    "strip non-synthesized events (use with --itrace)"),
@@ -836,7 +832,7 @@ int cmd_inject(int argc, const char **argv)
 
 	inject.tool.ordered_events = inject.sched_stat;
 
-	data.file.path = inject.input_name;
+	data.path = inject.input_name;
 	inject.session = perf_session__new(&data, true, &inject.tool);
 	if (inject.session == NULL)
 		return -1;

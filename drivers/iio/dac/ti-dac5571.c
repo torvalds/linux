@@ -97,9 +97,6 @@ static int dac5571_cmd_quad(struct dac5571_data *data, int channel, u16 val)
 
 static int dac5571_pwrdwn_single(struct dac5571_data *data, int channel, u8 pwrdwn)
 {
-	unsigned int shift;
-
-	shift = 12 - data->spec->resolution;
 	data->buf[1] = 0;
 	data->buf[0] = pwrdwn << DAC5571_SINGLE_PWRDWN_BITS;
 
@@ -111,9 +108,6 @@ static int dac5571_pwrdwn_single(struct dac5571_data *data, int channel, u8 pwrd
 
 static int dac5571_pwrdwn_quad(struct dac5571_data *data, int channel, u8 pwrdwn)
 {
-	unsigned int shift;
-
-	shift = 16 - data->spec->resolution;
 	data->buf[2] = 0;
 	data->buf[1] = pwrdwn << DAC5571_QUAD_PWRDWN_BITS;
 	data->buf[0] = (channel << DAC5571_CHANNEL_SELECT) |
@@ -427,6 +421,7 @@ MODULE_DEVICE_TABLE(i2c, dac5571_id);
 static struct i2c_driver dac5571_driver = {
 	.driver = {
 		   .name = "ti-dac5571",
+		   .of_match_table = of_match_ptr(dac5571_of_id),
 	},
 	.probe	  = dac5571_probe,
 	.remove   = dac5571_remove,

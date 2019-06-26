@@ -67,7 +67,7 @@ int cx231xx_ir_init(struct cx231xx *dev)
 
 	dev->init_data.name = cx231xx_boards[dev->model].name;
 
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	strscpy(info.type, "ir_video", I2C_NAME_SIZE);
 	info.platform_data = &dev->init_data;
 
 	/*

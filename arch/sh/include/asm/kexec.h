@@ -4,6 +4,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
+#include <linux/kernel.h>
 
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
@@ -61,7 +62,7 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 		__asm__ __volatile__ ("stc gbr, %0" : "=r" (newregs->gbr));
 		__asm__ __volatile__ ("stc sr, %0" : "=r" (newregs->sr));
 
-		newregs->pc = (unsigned long)current_text_addr();
+		newregs->pc = _THIS_IP_;
 	}
 }
 #else

@@ -161,8 +161,8 @@ static inline void dent_key_init(const struct ubifs_info *c,
 {
 	uint32_t hash = c->key_hash(fname_name(nm), fname_len(nm));
 
-	ubifs_assert(!(hash & ~UBIFS_S_KEY_HASH_MASK));
-	ubifs_assert(!nm->hash && !nm->minor_hash);
+	ubifs_assert(c, !(hash & ~UBIFS_S_KEY_HASH_MASK));
+	ubifs_assert(c, !nm->hash && !nm->minor_hash);
 	key->u32[0] = inum;
 	key->u32[1] = hash | (UBIFS_DENT_KEY << UBIFS_S_KEY_HASH_BITS);
 }
@@ -179,7 +179,7 @@ static inline void dent_key_init_hash(const struct ubifs_info *c,
 				      union ubifs_key *key, ino_t inum,
 				      uint32_t hash)
 {
-	ubifs_assert(!(hash & ~UBIFS_S_KEY_HASH_MASK));
+	ubifs_assert(c, !(hash & ~UBIFS_S_KEY_HASH_MASK));
 	key->u32[0] = inum;
 	key->u32[1] = hash | (UBIFS_DENT_KEY << UBIFS_S_KEY_HASH_BITS);
 }
@@ -198,7 +198,7 @@ static inline void dent_key_init_flash(const struct ubifs_info *c, void *k,
 	union ubifs_key *key = k;
 	uint32_t hash = c->key_hash(fname_name(nm), fname_len(nm));
 
-	ubifs_assert(!(hash & ~UBIFS_S_KEY_HASH_MASK));
+	ubifs_assert(c, !(hash & ~UBIFS_S_KEY_HASH_MASK));
 	key->j32[0] = cpu_to_le32(inum);
 	key->j32[1] = cpu_to_le32(hash |
 				  (UBIFS_DENT_KEY << UBIFS_S_KEY_HASH_BITS));
@@ -231,7 +231,7 @@ static inline void xent_key_init(const struct ubifs_info *c,
 {
 	uint32_t hash = c->key_hash(fname_name(nm), fname_len(nm));
 
-	ubifs_assert(!(hash & ~UBIFS_S_KEY_HASH_MASK));
+	ubifs_assert(c, !(hash & ~UBIFS_S_KEY_HASH_MASK));
 	key->u32[0] = inum;
 	key->u32[1] = hash | (UBIFS_XENT_KEY << UBIFS_S_KEY_HASH_BITS);
 }
@@ -249,7 +249,7 @@ static inline void xent_key_init_flash(const struct ubifs_info *c, void *k,
 	union ubifs_key *key = k;
 	uint32_t hash = c->key_hash(fname_name(nm), fname_len(nm));
 
-	ubifs_assert(!(hash & ~UBIFS_S_KEY_HASH_MASK));
+	ubifs_assert(c, !(hash & ~UBIFS_S_KEY_HASH_MASK));
 	key->j32[0] = cpu_to_le32(inum);
 	key->j32[1] = cpu_to_le32(hash |
 				  (UBIFS_XENT_KEY << UBIFS_S_KEY_HASH_BITS));
@@ -280,7 +280,7 @@ static inline void data_key_init(const struct ubifs_info *c,
 				 union ubifs_key *key, ino_t inum,
 				 unsigned int block)
 {
-	ubifs_assert(!(block & ~UBIFS_S_KEY_BLOCK_MASK));
+	ubifs_assert(c, !(block & ~UBIFS_S_KEY_BLOCK_MASK));
 	key->u32[0] = inum;
 	key->u32[1] = block | (UBIFS_DATA_KEY << UBIFS_S_KEY_BLOCK_BITS);
 }

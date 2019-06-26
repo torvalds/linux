@@ -264,10 +264,16 @@ static int efx_check_disabled(struct efx_nic *efx)
 static int efx_process_channel(struct efx_channel *channel, int budget)
 {
 	struct efx_tx_queue *tx_queue;
+	struct list_head rx_list;
 	int spent;
 
 	if (unlikely(!channel->enabled))
 		return 0;
+
+	/* Prepare the batch receive list */
+	EFX_WARN_ON_PARANOID(channel->rx_list != NULL);
+	INIT_LIST_HEAD(&rx_list);
+	channel->rx_list = &rx_list;
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
 		tx_queue->pkts_compl = 0;
@@ -290,6 +296,10 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 				tx_queue->pkts_compl, tx_queue->bytes_compl);
 		}
 	}
+
+	/* Receive any packets we queued up */
+	netif_receive_skb_list(channel->rx_list);
+	channel->rx_list = NULL;
 
 	return spent;
 }
@@ -554,6 +564,8 @@ static int efx_probe_channel(struct efx_channel *channel)
 		if (rc)
 			goto fail;
 	}
+
+	channel->rx_list = NULL;
 
 	return 0;
 
@@ -903,7 +915,7 @@ rollback:
 
 void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 {
-	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(100));
+	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(10));
 }
 
 static bool efx_default_channel_want_txqs(struct efx_channel *channel)
@@ -1871,12 +1883,6 @@ static void efx_remove_filters(struct efx_nic *efx)
 	up_write(&efx->filter_sem);
 }
 
-static void efx_restore_filters(struct efx_nic *efx)
-{
-	down_read(&efx->filter_sem);
-	efx->type->filter_table_restore(efx);
-	up_read(&efx->filter_sem);
-}
 
 /**************************************************************************
  *
@@ -2202,29 +2208,6 @@ static void efx_fini_napi(struct efx_nic *efx)
 
 /**************************************************************************
  *
- * Kernel netpoll interface
- *
- *************************************************************************/
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-
-/* Although in the common case interrupts will be disabled, this is not
- * guaranteed. However, all our work happens inside the NAPI callback,
- * so no locking is required.
- */
-static void efx_netpoll(struct net_device *net_dev)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_channel *channel;
-
-	efx_for_each_channel(channel, efx)
-		efx_schedule_channel(channel);
-}
-
-#endif
-
-/**************************************************************************
- *
  * Kernel net device interface
  *
  *************************************************************************/
@@ -2503,9 +2486,6 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
 	.ndo_get_phys_port_name	= efx_get_phys_port_name,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = efx_netpoll,
-#endif
 	.ndo_setup_tc		= efx_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
@@ -2688,6 +2668,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx_disable_interrupts(efx);
 
 	mutex_lock(&efx->mac_lock);
+	down_write(&efx->filter_sem);
 	mutex_lock(&efx->rss_lock);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
 	    method != RESET_TYPE_DATAPATH)
@@ -2745,9 +2726,8 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	if (efx->type->rx_restore_rss_contexts)
 		efx->type->rx_restore_rss_contexts(efx);
 	mutex_unlock(&efx->rss_lock);
-	down_read(&efx->filter_sem);
-	efx_restore_filters(efx);
-	up_read(&efx->filter_sem);
+	efx->type->filter_table_restore(efx);
+	up_write(&efx->filter_sem);
 	if (efx->type->sriov_reset)
 		efx->type->sriov_reset(efx);
 
@@ -2764,6 +2744,7 @@ fail:
 	efx->port_initialized = false;
 
 	mutex_unlock(&efx->rss_lock);
+	up_write(&efx->filter_sem);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -3186,7 +3167,7 @@ struct hlist_head *efx_rps_hash_bucket(struct efx_nic *efx,
 {
 	u32 hash = efx_filter_spec_hash(spec);
 
-	WARN_ON(!spin_is_locked(&efx->rps_hash_lock));
+	lockdep_assert_held(&efx->rps_hash_lock);
 	if (!efx->rps_hash_table)
 		return NULL;
 	return &efx->rps_hash_table[hash % EFX_ARFS_HASH_TABLE_SIZE];
@@ -3473,7 +3454,9 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 
 	efx_init_napi(efx);
 
+	down_write(&efx->filter_sem);
 	rc = efx->type->init(efx);
+	up_write(&efx->filter_sem);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "failed to initialise NIC\n");
@@ -3765,7 +3748,9 @@ static int efx_pm_resume(struct device *dev)
 	rc = efx->type->reset(efx, RESET_TYPE_ALL);
 	if (rc)
 		return rc;
+	down_write(&efx->filter_sem);
 	rc = efx->type->init(efx);
+	up_write(&efx->filter_sem);
 	if (rc)
 		return rc;
 	rc = efx_pm_thaw(dev);
@@ -3836,19 +3821,11 @@ static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
 {
 	struct efx_nic *efx = pci_get_drvdata(pdev);
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	int rc;
 
 	if (pci_enable_device(pdev)) {
 		netif_err(efx, hw, efx->net_dev,
 			  "Cannot re-enable PCI device after reset.\n");
 		status =  PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	rc = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev,
-		"pci_cleanup_aer_uncorrect_error_status failed (%d)\n", rc);
-		/* Non-fatal error. Continue. */
 	}
 
 	return status;

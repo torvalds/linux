@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel INT0002 "Virtual GPIO" driver
  *
@@ -8,10 +9,6 @@
  * Copyright (c) 2014, Intel Corporation.
  *
  * Author: Dyut Kumar Sil <dyut.k.sil@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Some peripherals on Bay Trail and Cherry Trail platforms signal a Power
  * Management Event (PME) to the Power Management Controller (PMC) to wakeup
@@ -54,15 +51,14 @@
 #define GPE0A_STS_PORT			0x420
 #define GPE0A_EN_PORT			0x428
 
-#define ICPU(model)	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, }
+#define BAYTRAIL			0x01
+#define CHERRYTRAIL			0x02
+
+#define ICPU(model, data) { X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, data }
 
 static const struct x86_cpu_id int0002_cpu_ids[] = {
-/*
- * Limit ourselves to Cherry Trail for now, until testing shows we
- * need to handle the INT0002 device on Baytrail too.
- *	ICPU(INTEL_FAM6_ATOM_SILVERMONT1),	 * Valleyview, Bay Trail *
- */
-	ICPU(INTEL_FAM6_ATOM_AIRMONT),		/* Braswell, Cherry Trail */
+	ICPU(INTEL_FAM6_ATOM_SILVERMONT, BAYTRAIL), /* Valleyview, Bay Trail  */
+	ICPU(INTEL_FAM6_ATOM_AIRMONT, CHERRYTRAIL), /* Braswell, Cherry Trail */
 	{}
 };
 
@@ -110,6 +106,21 @@ static void int0002_irq_mask(struct irq_data *data)
 	outl(gpe_en_reg, GPE0A_EN_PORT);
 }
 
+static int int0002_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct platform_device *pdev = to_platform_device(chip->parent);
+	int irq = platform_get_irq(pdev, 0);
+
+	/* Propagate to parent irq */
+	if (on)
+		enable_irq_wake(irq);
+	else
+		disable_irq_wake(irq);
+
+	return 0;
+}
+
 static irqreturn_t int0002_irq(int irq, void *data)
 {
 	struct gpio_chip *chip = data;
@@ -127,17 +138,30 @@ static irqreturn_t int0002_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct irq_chip int0002_irqchip = {
+static struct irq_chip int0002_byt_irqchip = {
 	.name			= DRV_NAME,
 	.irq_ack		= int0002_irq_ack,
 	.irq_mask		= int0002_irq_mask,
 	.irq_unmask		= int0002_irq_unmask,
+	.irq_set_wake		= int0002_irq_set_wake,
+};
+
+static struct irq_chip int0002_cht_irqchip = {
+	.name			= DRV_NAME,
+	.irq_ack		= int0002_irq_ack,
+	.irq_mask		= int0002_irq_mask,
+	.irq_unmask		= int0002_irq_unmask,
+	/*
+	 * No set_wake, on CHT the IRQ is typically shared with the ACPI SCI
+	 * and we don't want to mess with the ACPI SCI irq settings.
+	 */
 };
 
 static int int0002_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct x86_cpu_id *cpu_id;
+	struct irq_chip *irq_chip;
 	struct gpio_chip *chip;
 	int irq, ret;
 
@@ -186,14 +210,19 @@ static int int0002_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = gpiochip_irqchip_add(chip, &int0002_irqchip, 0, handle_edge_irq,
+	if (cpu_id->driver_data == BAYTRAIL)
+		irq_chip = &int0002_byt_irqchip;
+	else
+		irq_chip = &int0002_cht_irqchip;
+
+	ret = gpiochip_irqchip_add(chip, irq_chip, 0, handle_edge_irq,
 				   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(dev, "Error adding irqchip: %d\n", ret);
 		return ret;
 	}
 
-	gpiochip_set_chained_irqchip(chip, &int0002_irqchip, irq, NULL);
+	gpiochip_set_chained_irqchip(chip, irq_chip, irq, NULL);
 
 	return 0;
 }
@@ -216,4 +245,4 @@ module_platform_driver(int0002_driver);
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Intel INT0002 Virtual GPIO driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

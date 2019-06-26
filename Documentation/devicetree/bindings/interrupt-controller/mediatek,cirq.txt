@@ -16,8 +16,6 @@ Required properties:
   and "mediatek,cirq" as a fallback.
 - interrupt-controller : Identifies the node as an interrupt controller.
 - #interrupt-cells : Use the same format as specified by GIC in arm,gic.txt.
-- interrupt-parent: phandle of irq parent for cirq. The parent must
-  use the same interrupt-cells format as GIC.
 - reg: Physical base address of the cirq registers and length of memory
   mapped region.
 - mediatek,ext-irq-range: Identifies external irq number range in different

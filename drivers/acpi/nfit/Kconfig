@@ -13,3 +13,14 @@ config ACPI_NFIT
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called nfit.
+
+config NFIT_SECURITY_DEBUG
+	bool "Enable debug for NVDIMM security commands"
+	depends on ACPI_NFIT
+	help
+	  Some NVDIMM devices and controllers support encryption and
+	  other security features. The payloads for the commands that
+	  enable those features may contain sensitive clear-text
+	  security material. Disable debug of those command payloads
+	  by default. If you are a kernel developer actively working
+	  on NVDIMM security enabling say Y, otherwise say N.

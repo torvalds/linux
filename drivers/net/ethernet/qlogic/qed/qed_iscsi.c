@@ -200,6 +200,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 		       "Cannot satisfy CQ amount. Queues requested %d, CQs available %d. Aborting function start\n",
 		       p_params->num_queues,
 		       p_hwfn->hw_info.feat_num[QED_ISCSI_CQ]);
+		qed_sp_destroy_request(p_hwfn, p_ent);
 		return -EINVAL;
 	}
 
@@ -873,8 +874,8 @@ static void qed_iscsi_release_connection(struct qed_hwfn *p_hwfn,
 	spin_unlock_bh(&p_hwfn->p_iscsi_info->lock);
 }
 
-void qed_iscsi_free_connection(struct qed_hwfn *p_hwfn,
-			       struct qed_iscsi_conn *p_conn)
+static void qed_iscsi_free_connection(struct qed_hwfn *p_hwfn,
+				      struct qed_iscsi_conn *p_conn)
 {
 	qed_chain_free(p_hwfn->cdev, &p_conn->xhq);
 	qed_chain_free(p_hwfn->cdev, &p_conn->uhq);

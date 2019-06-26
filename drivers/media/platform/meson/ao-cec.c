@@ -524,7 +524,7 @@ static int meson_ao_cec_transmit(struct cec_adapter *adap, u8 attempts,
 		return ret;
 
 	if (reg == TX_BUSY) {
-		dev_err(&ao_cec->pdev->dev, "%s: busy TX: aborting\n",
+		dev_dbg(&ao_cec->pdev->dev, "%s: busy TX: aborting\n",
 			__func__);
 		meson_ao_cec_write(ao_cec, CEC_TX_MSG_CMD, TX_ABORT, &ret);
 	}

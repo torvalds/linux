@@ -199,7 +199,7 @@ void __init opal_powercap_init(void)
 		}
 
 		j = 0;
-		pcaps[i].pg.name = node->name;
+		pcaps[i].pg.name = kasprintf(GFP_KERNEL, "%pOFn", node);
 		if (has_min) {
 			powercap_add_attr(min, "powercap-min",
 					  &pcaps[i].pattrs[j]);
@@ -237,6 +237,7 @@ out_pcaps_pattrs:
 	while (--i >= 0) {
 		kfree(pcaps[i].pattrs);
 		kfree(pcaps[i].pg.attrs);
+		kfree(pcaps[i].pg.name);
 	}
 	kobject_put(powercap_kobj);
 out_pcaps:

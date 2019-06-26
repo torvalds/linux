@@ -1,7 +1,10 @@
-* Samsung's Exynos SoC based boards
+* Samsung's Exynos and S5P SoC based boards
 
 Required root node properties:
     - compatible = should be one or more of the following.
+	- "samsung,aries"	- for S5PV210-based Samsung Aries board.
+	- "samsung,fascinate4g"	- for S5PV210-based Samsung Galaxy S Fascinate 4G (SGH-T959P) board.
+	- "samsung,galaxys"	- for S5PV210-based Samsung Galaxy S (i9000)  board.
 	- "samsung,artik5"	- for Exynos3250-based Samsung ARTIK5 module.
 	- "samsung,artik5-eval" - for Exynos3250-based Samsung ARTIK5 eval board.
 	- "samsung,monk"	- for Exynos3250-based Samsung Simband board.
@@ -66,7 +69,7 @@ Required root node properties:
 	- "insignal,arndale-octa" - for Exynos5420-based Insignal Arndale
 				    Octa board.
 	- "insignal,origen"       - for Exynos4210-based Insignal Origen board.
-	- "insignal,origen4412    - for Exynos4412-based Insignal Origen board.
+	- "insignal,origen4412"   - for Exynos4412-based Insignal Origen board.
 
 
 Optional nodes:

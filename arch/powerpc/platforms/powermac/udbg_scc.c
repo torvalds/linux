@@ -73,7 +73,7 @@ void udbg_scc_init(int force_scc)
 	struct device_node *stdout = NULL, *escc = NULL, *macio = NULL;
 	struct device_node *ch, *ch_def = NULL, *ch_a = NULL;
 	const char *path;
-	int i, x;
+	int i;
 
 	escc = of_find_node_by_name(NULL, "escc");
 	if (escc == NULL)
@@ -87,7 +87,7 @@ void udbg_scc_init(int force_scc)
 	for (ch = NULL; (ch = of_get_next_child(escc, ch)) != NULL;) {
 		if (ch == stdout)
 			ch_def = of_node_get(ch);
-		if (strcmp(ch->name, "ch-a") == 0)
+		if (of_node_name_eq(ch, "ch-a"))
 			ch_a = of_node_get(ch);
 	}
 	if (ch_def == NULL && !force_scc)
@@ -120,7 +120,7 @@ void udbg_scc_init(int force_scc)
 	mb();
 
 	for (i = 20000; i != 0; --i)
-		x = in_8(sccc);
+		in_8(sccc);
 	out_8(sccc, 0x09);		/* reset A or B side */
 	out_8(sccc, 0xc0);
 

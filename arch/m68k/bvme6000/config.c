@@ -41,7 +41,6 @@ static void bvme6000_get_model(char *model);
 extern void bvme6000_sched_init(irq_handler_t handler);
 extern u32 bvme6000_gettimeoffset(void);
 extern int bvme6000_hwclk (int, struct rtc_time *);
-extern int bvme6000_set_clock_mmss (unsigned long);
 extern void bvme6000_reset (void);
 void bvme6000_set_vectors (void);
 
@@ -113,7 +112,6 @@ void __init config_bvme6000(void)
     mach_init_IRQ        = bvme6000_init_IRQ;
     arch_gettimeoffset   = bvme6000_gettimeoffset;
     mach_hwclk           = bvme6000_hwclk;
-    mach_set_clock_mmss	 = bvme6000_set_clock_mmss;
     mach_reset		 = bvme6000_reset;
     mach_get_model       = bvme6000_get_model;
 
@@ -305,46 +303,3 @@ int bvme6000_hwclk(int op, struct rtc_time *t)
 
 	return 0;
 }
-
-/*
- * Set the minutes and seconds from seconds value 'nowtime'.  Fail if
- * clock is out by > 30 minutes.  Logic lifted from atari code.
- * Algorithm is to wait for the 10ms register to change, and then to
- * wait a short while, and then set it.
- */
-
-int bvme6000_set_clock_mmss (unsigned long nowtime)
-{
-	int retval = 0;
-	short real_seconds = nowtime % 60, real_minutes = (nowtime / 60) % 60;
-	unsigned char rtc_minutes, rtc_tenms;
-	volatile RtcPtr_t rtc = (RtcPtr_t)BVME_RTC_BASE;
-	unsigned char msr = rtc->msr & 0xc0;
-	unsigned long flags;
-	volatile int i;
-
-	rtc->msr = 0;		/* Ensure clock accessible */
-	rtc_minutes = bcd2bin (rtc->bcd_min);
-
-	if ((rtc_minutes < real_minutes
-		? real_minutes - rtc_minutes
-			: rtc_minutes - real_minutes) < 30)
-	{
-		local_irq_save(flags);
-		rtc_tenms = rtc->bcd_tenms;
-		while (rtc_tenms == rtc->bcd_tenms)
-			;
-		for (i = 0; i < 1000; i++)
-			;
-		rtc->bcd_min = bin2bcd(real_minutes);
-		rtc->bcd_sec = bin2bcd(real_seconds);
-		local_irq_restore(flags);
-	}
-	else
-		retval = -1;
-
-	rtc->msr = msr;
-
-	return retval;
-}
-

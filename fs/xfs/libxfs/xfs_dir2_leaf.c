@@ -142,41 +142,22 @@ xfs_dir3_leaf_check_int(
  */
 static xfs_failaddr_t
 xfs_dir3_leaf_verify(
-	struct xfs_buf		*bp,
-	uint16_t		magic)
+	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
+	xfs_failaddr_t		fa;
 
-	ASSERT(magic == XFS_DIR2_LEAF1_MAGIC || magic == XFS_DIR2_LEAFN_MAGIC);
-
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
-		uint16_t		magic3;
-
-		magic3 = (magic == XFS_DIR2_LEAF1_MAGIC) ? XFS_DIR3_LEAF1_MAGIC
-							 : XFS_DIR3_LEAFN_MAGIC;
-
-		if (leaf3->info.hdr.magic != cpu_to_be16(magic3))
-			return __this_address;
-		if (!uuid_equal(&leaf3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return __this_address;
-		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
-			return __this_address;
-		if (!xfs_log_check_lsn(mp, be64_to_cpu(leaf3->info.lsn)))
-			return __this_address;
-	} else {
-		if (leaf->hdr.info.magic != cpu_to_be16(magic))
-			return __this_address;
-	}
+	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
+	if (fa)
+		return fa;
 
 	return xfs_dir3_leaf_check_int(mp, NULL, NULL, leaf);
 }
 
 static void
-__read_verify(
-	struct xfs_buf  *bp,
-	uint16_t	magic)
+xfs_dir3_leaf_read_verify(
+	struct xfs_buf  *bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	xfs_failaddr_t		fa;
@@ -185,23 +166,22 @@ __read_verify(
 	     !xfs_buf_verify_cksum(bp, XFS_DIR3_LEAF_CRC_OFF))
 		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
 	else {
-		fa = xfs_dir3_leaf_verify(bp, magic);
+		fa = xfs_dir3_leaf_verify(bp);
 		if (fa)
 			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 	}
 }
 
 static void
-__write_verify(
-	struct xfs_buf  *bp,
-	uint16_t	magic)
+xfs_dir3_leaf_write_verify(
+	struct xfs_buf  *bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_dir3_leaf_hdr *hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;
 
-	fa = xfs_dir3_leaf_verify(bp, magic);
+	fa = xfs_dir3_leaf_verify(bp);
 	if (fa) {
 		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
@@ -216,60 +196,22 @@ __write_verify(
 	xfs_buf_update_cksum(bp, XFS_DIR3_LEAF_CRC_OFF);
 }
 
-static xfs_failaddr_t
-xfs_dir3_leaf1_verify(
-	struct xfs_buf	*bp)
-{
-	return xfs_dir3_leaf_verify(bp, XFS_DIR2_LEAF1_MAGIC);
-}
-
-static void
-xfs_dir3_leaf1_read_verify(
-	struct xfs_buf	*bp)
-{
-	__read_verify(bp, XFS_DIR2_LEAF1_MAGIC);
-}
-
-static void
-xfs_dir3_leaf1_write_verify(
-	struct xfs_buf	*bp)
-{
-	__write_verify(bp, XFS_DIR2_LEAF1_MAGIC);
-}
-
-static xfs_failaddr_t
-xfs_dir3_leafn_verify(
-	struct xfs_buf	*bp)
-{
-	return xfs_dir3_leaf_verify(bp, XFS_DIR2_LEAFN_MAGIC);
-}
-
-static void
-xfs_dir3_leafn_read_verify(
-	struct xfs_buf	*bp)
-{
-	__read_verify(bp, XFS_DIR2_LEAFN_MAGIC);
-}
-
-static void
-xfs_dir3_leafn_write_verify(
-	struct xfs_buf	*bp)
-{
-	__write_verify(bp, XFS_DIR2_LEAFN_MAGIC);
-}
-
 const struct xfs_buf_ops xfs_dir3_leaf1_buf_ops = {
 	.name = "xfs_dir3_leaf1",
-	.verify_read = xfs_dir3_leaf1_read_verify,
-	.verify_write = xfs_dir3_leaf1_write_verify,
-	.verify_struct = xfs_dir3_leaf1_verify,
+	.magic16 = { cpu_to_be16(XFS_DIR2_LEAF1_MAGIC),
+		     cpu_to_be16(XFS_DIR3_LEAF1_MAGIC) },
+	.verify_read = xfs_dir3_leaf_read_verify,
+	.verify_write = xfs_dir3_leaf_write_verify,
+	.verify_struct = xfs_dir3_leaf_verify,
 };
 
 const struct xfs_buf_ops xfs_dir3_leafn_buf_ops = {
 	.name = "xfs_dir3_leafn",
-	.verify_read = xfs_dir3_leafn_read_verify,
-	.verify_write = xfs_dir3_leafn_write_verify,
-	.verify_struct = xfs_dir3_leafn_verify,
+	.magic16 = { cpu_to_be16(XFS_DIR2_LEAFN_MAGIC),
+		     cpu_to_be16(XFS_DIR3_LEAFN_MAGIC) },
+	.verify_read = xfs_dir3_leaf_read_verify,
+	.verify_write = xfs_dir3_leaf_write_verify,
+	.verify_struct = xfs_dir3_leaf_verify,
 };
 
 int
@@ -621,42 +563,39 @@ xfs_dir3_leaf_find_entry(
  */
 int						/* error */
 xfs_dir2_leaf_addname(
-	xfs_da_args_t		*args)		/* operation arguments */
+	struct xfs_da_args	*args)		/* operation arguments */
 {
+	struct xfs_dir3_icleaf_hdr leafhdr;
+	struct xfs_trans	*tp = args->trans;
 	__be16			*bestsp;	/* freespace table in leaf */
-	int			compact;	/* need to compact leaves */
-	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
+	__be16			*tagp;		/* end of data entry */
 	struct xfs_buf		*dbp;		/* data block buffer */
-	xfs_dir2_data_entry_t	*dep;		/* data block entry */
-	xfs_inode_t		*dp;		/* incore directory inode */
-	xfs_dir2_data_unused_t	*dup;		/* data unused entry */
+	struct xfs_buf		*lbp;		/* leaf's buffer */
+	struct xfs_dir2_leaf	*leaf;		/* leaf structure */
+	struct xfs_inode	*dp = args->dp;	/* incore directory inode */
+	struct xfs_dir2_data_hdr *hdr;		/* data block header */
+	struct xfs_dir2_data_entry *dep;	/* data block entry */
+	struct xfs_dir2_leaf_entry *lep;	/* leaf entry table pointer */
+	struct xfs_dir2_leaf_entry *ents;
+	struct xfs_dir2_data_unused *dup;	/* data unused entry */
+	struct xfs_dir2_leaf_tail *ltp;		/* leaf tail pointer */
+	struct xfs_dir2_data_free *bf;		/* bestfree table */
+	int			compact;	/* need to compact leaves */
 	int			error;		/* error return value */
 	int			grown;		/* allocated new data block */
-	int			highstale;	/* index of next stale leaf */
+	int			highstale = 0;	/* index of next stale leaf */
 	int			i;		/* temporary, index */
 	int			index;		/* leaf table position */
-	struct xfs_buf		*lbp;		/* leaf's buffer */
-	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 	int			length;		/* length of new entry */
-	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry table pointer */
 	int			lfloglow;	/* low leaf logging index */
 	int			lfloghigh;	/* high leaf logging index */
-	int			lowstale;	/* index of prev stale leaf */
-	xfs_dir2_leaf_tail_t	*ltp;		/* leaf tail pointer */
+	int			lowstale = 0;	/* index of prev stale leaf */
 	int			needbytes;	/* leaf block bytes needed */
 	int			needlog;	/* need to log data header */
 	int			needscan;	/* need to rescan data free */
-	__be16			*tagp;		/* end of data entry */
-	xfs_trans_t		*tp;		/* transaction pointer */
 	xfs_dir2_db_t		use_block;	/* data block number */
-	struct xfs_dir2_data_free *bf;		/* bestfree table */
-	struct xfs_dir2_leaf_entry *ents;
-	struct xfs_dir3_icleaf_hdr leafhdr;
 
 	trace_xfs_dir2_leaf_addname(args);
-
-	dp = args->dp;
-	tp = args->trans;
 
 	error = xfs_dir3_leaf_read(tp, dp, args->geo->leafblk, -1, &lbp);
 	if (error)

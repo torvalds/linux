@@ -62,10 +62,11 @@ static int test_find_delalloc(u32 sectorsize)
 	struct page *page;
 	struct page *locked_page = NULL;
 	unsigned long index = 0;
-	u64 total_dirty = SZ_256M;
-	u64 max_bytes = SZ_128M;
+	/* In this test we need at least 2 file extents at its maximum size */
+	u64 max_bytes = BTRFS_MAX_EXTENT_SIZE;
+	u64 total_dirty = 2 * max_bytes;
 	u64 start, end, test_start;
-	u64 found;
+	bool found;
 	int ret = -EINVAL;
 
 	test_msg("running find delalloc tests");
@@ -76,7 +77,7 @@ static int test_find_delalloc(u32 sectorsize)
 		return -ENOMEM;
 	}
 
-	extent_io_tree_init(&tmp, inode);
+	extent_io_tree_init(&tmp, NULL);
 
 	/*
 	 * First go through and create and mark all of our pages dirty, we pin
@@ -107,7 +108,7 @@ static int test_find_delalloc(u32 sectorsize)
 	start = 0;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
-					 &end, max_bytes);
+					 &end);
 	if (!found) {
 		test_err("should have found at least one delalloc");
 		goto out_bits;
@@ -138,7 +139,7 @@ static int test_find_delalloc(u32 sectorsize)
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
-					 &end, max_bytes);
+					 &end);
 	if (!found) {
 		test_err("couldn't find delalloc in our range");
 		goto out_bits;
@@ -172,7 +173,7 @@ static int test_find_delalloc(u32 sectorsize)
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
-					 &end, max_bytes);
+					 &end);
 	if (found) {
 		test_err("found range when we shouldn't have");
 		goto out_bits;
@@ -193,7 +194,7 @@ static int test_find_delalloc(u32 sectorsize)
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
-					 &end, max_bytes);
+					 &end);
 	if (!found) {
 		test_err("didn't find our range");
 		goto out_bits;
@@ -234,7 +235,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 * tests expected behavior.
 	 */
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
-					 &end, max_bytes);
+					 &end);
 	if (!found) {
 		test_err("didn't find our range");
 		goto out_bits;

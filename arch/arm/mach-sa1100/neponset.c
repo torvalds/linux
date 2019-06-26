@@ -5,6 +5,7 @@
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/gpio-reg.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
@@ -94,6 +95,19 @@ struct neponset_drvdata {
 	struct platform_device *smc91x;
 	unsigned irq_base;
 	struct gpio_chip *gpio[4];
+};
+
+static struct gpiod_lookup_table neponset_pcmcia_table = {
+	.dev_id = "1800",
+	.table = {
+		GPIO_LOOKUP("sa1111", 1, "a0vcc", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sa1111", 0, "a1vcc", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("neponset-ncr", 5, "a0vpp", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("neponset-ncr", 6, "a1vpp", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sa1111", 2, "b0vcc", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sa1111", 3, "b1vcc", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct neponset_drvdata *nep;
@@ -374,6 +388,8 @@ static int neponset_probe(struct platform_device *dev)
 			   d->base + AUD_CTL, AUD_NGPIO, false,
 			   neponset_aud_names);
 
+	gpiod_add_lookup_table(&neponset_pcmcia_table);
+
 	/*
 	 * We would set IRQ_GPIO25 to be a wake-up IRQ, but unfortunately
 	 * something on the Neponset activates this IRQ on sleep (eth?)
@@ -424,6 +440,9 @@ static int neponset_remove(struct platform_device *dev)
 		platform_device_unregister(d->sa1111);
 	if (!IS_ERR(d->smc91x))
 		platform_device_unregister(d->smc91x);
+
+	gpiod_remove_lookup_table(&neponset_pcmcia_table);
+
 	irq_set_chained_handler(irq, NULL);
 	irq_free_descs(d->irq_base, NEP_IRQ_NR);
 	nep = NULL;

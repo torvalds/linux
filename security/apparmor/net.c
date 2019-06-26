@@ -18,6 +18,7 @@
 #include "include/label.h"
 #include "include/net.h"
 #include "include/policy.h"
+#include "include/secid.h"
 
 #include "net_names.h"
 
@@ -146,17 +147,20 @@ int aa_af_perm(struct aa_label *label, const char *op, u32 request, u16 family,
 static int aa_label_sk_perm(struct aa_label *label, const char *op, u32 request,
 			    struct sock *sk)
 {
-	struct aa_profile *profile;
-	DEFINE_AUDIT_SK(sa, op, sk);
+	int error = 0;
 
 	AA_BUG(!label);
 	AA_BUG(!sk);
 
-	if (unconfined(label))
-		return 0;
+	if (!unconfined(label)) {
+		struct aa_profile *profile;
+		DEFINE_AUDIT_SK(sa, op, sk);
 
-	return fn_for_each_confined(label, profile,
-			aa_profile_af_sk_perm(profile, &sa, request, sk));
+		error = fn_for_each_confined(label, profile,
+			    aa_profile_af_sk_perm(profile, &sa, request, sk));
+	}
+
+	return error;
 }
 
 int aa_sk_perm(const char *op, u32 request, struct sock *sk)
@@ -185,3 +189,70 @@ int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
 
 	return aa_label_sk_perm(label, op, request, sock->sk);
 }
+
+#ifdef CONFIG_NETWORK_SECMARK
+static int apparmor_secmark_init(struct aa_secmark *secmark)
+{
+	struct aa_label *label;
+
+	if (secmark->label[0] == '*') {
+		secmark->secid = AA_SECID_WILDCARD;
+		return 0;
+	}
+
+	label = aa_label_strn_parse(&root_ns->unconfined->label,
+				    secmark->label, strlen(secmark->label),
+				    GFP_ATOMIC, false, false);
+
+	if (IS_ERR(label))
+		return PTR_ERR(label);
+
+	secmark->secid = label->secid;
+
+	return 0;
+}
+
+static int aa_secmark_perm(struct aa_profile *profile, u32 request, u32 secid,
+			   struct common_audit_data *sa, struct sock *sk)
+{
+	int i, ret;
+	struct aa_perms perms = { };
+
+	if (profile->secmark_count == 0)
+		return 0;
+
+	for (i = 0; i < profile->secmark_count; i++) {
+		if (!profile->secmark[i].secid) {
+			ret = apparmor_secmark_init(&profile->secmark[i]);
+			if (ret)
+				return ret;
+		}
+
+		if (profile->secmark[i].secid == secid ||
+		    profile->secmark[i].secid == AA_SECID_WILDCARD) {
+			if (profile->secmark[i].deny)
+				perms.deny = ALL_PERMS_MASK;
+			else
+				perms.allow = ALL_PERMS_MASK;
+
+			if (profile->secmark[i].audit)
+				perms.audit = ALL_PERMS_MASK;
+		}
+	}
+
+	aa_apply_modes_to_perms(profile, &perms);
+
+	return aa_check_perms(profile, &perms, request, sa, audit_net_cb);
+}
+
+int apparmor_secmark_check(struct aa_label *label, char *op, u32 request,
+			   u32 secid, struct sock *sk)
+{
+	struct aa_profile *profile;
+	DEFINE_AUDIT_SK(sa, op, sk);
+
+	return fn_for_each_confined(label, profile,
+				    aa_secmark_perm(profile, request, secid,
+						    &sa, sk));
+}
+#endif

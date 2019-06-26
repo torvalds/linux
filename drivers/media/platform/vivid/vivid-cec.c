@@ -241,11 +241,11 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 		cec_ops_set_osd_string(msg, &disp_ctl, osd);
 		switch (disp_ctl) {
 		case CEC_OP_DISP_CTL_DEFAULT:
-			strcpy(dev->osd, osd);
+			strscpy(dev->osd, osd, sizeof(dev->osd));
 			dev->osd_jiffies = jiffies;
 			break;
 		case CEC_OP_DISP_CTL_UNTIL_CLEARED:
-			strcpy(dev->osd, osd);
+			strscpy(dev->osd, osd, sizeof(dev->osd));
 			dev->osd_jiffies = 0;
 			break;
 		case CEC_OP_DISP_CTL_CLEAR:

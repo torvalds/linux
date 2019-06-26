@@ -14,6 +14,12 @@
 #define AES_ENTRY(func)		ENTRY(neon_ ## func)
 #define AES_ENDPROC(func)	ENDPROC(neon_ ## func)
 
+	xtsmask		.req	v7
+
+	.macro		xts_reload_mask, tmp
+	xts_load_mask	\tmp
+	.endm
+
 	/* multiply by polynomial 'x' in GF(2^8) */
 	.macro		mul_by_x, out, in, temp, const
 	sshr		\temp, \in, #7

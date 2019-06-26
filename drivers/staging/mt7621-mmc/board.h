@@ -36,10 +36,10 @@
 #ifndef __ARCH_ARM_MACH_BOARD_H
 #define __ARCH_ARM_MACH_BOARD_H
 
-#define MSDC_CD_PIN_EN      (1 << 0)  /* card detection pin is wired   */
-#define MSDC_WP_PIN_EN      (1 << 1)  /* write protection pin is wired */
-#define MSDC_RST_PIN_EN     (1 << 2)  /* emmc reset pin is wired       */
-#define MSDC_REMOVABLE      (1 << 5)  /* removable slot                */
+#define MSDC_CD_PIN_EN      BIT(0)  /* card detection pin is wired   */
+#define MSDC_WP_PIN_EN      BIT(1)  /* write protection pin is wired */
+#define MSDC_RST_PIN_EN     BIT(2)  /* emmc reset pin is wired       */
+#define MSDC_REMOVABLE      BIT(5)  /* removable slot                */
 
 #define MSDC_SMPL_RISING    (0)
 #define MSDC_SMPL_FALLING   (1)

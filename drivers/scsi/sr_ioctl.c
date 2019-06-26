@@ -186,14 +186,13 @@ static int sr_play_trkind(struct cdrom_device_info *cdi,
 int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 {
 	struct scsi_device *SDev;
-	struct scsi_sense_hdr sshdr;
+	struct scsi_sense_hdr local_sshdr, *sshdr = &local_sshdr;
 	int result, err = 0, retries = 0;
-	unsigned char sense_buffer[SCSI_SENSE_BUFFERSIZE], *senseptr = NULL;
 
 	SDev = cd->device;
 
-	if (cgc->sense)
-		senseptr = sense_buffer;
+	if (cgc->sshdr)
+		sshdr = cgc->sshdr;
 
       retry:
 	if (!scsi_block_when_processing_errors(SDev)) {
@@ -202,15 +201,12 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 	}
 
 	result = scsi_execute(SDev, cgc->cmd, cgc->data_direction,
-			      cgc->buffer, cgc->buflen, senseptr, &sshdr,
+			      cgc->buffer, cgc->buflen, NULL, sshdr,
 			      cgc->timeout, IOCTL_RETRIES, 0, 0, NULL);
-
-	if (cgc->sense)
-		memcpy(cgc->sense, sense_buffer, sizeof(*cgc->sense));
 
 	/* Minimal error checking.  Ignore cases we know about, and report the rest. */
 	if (driver_byte(result) != 0) {
-		switch (sshdr.sense_key) {
+		switch (sshdr->sense_key) {
 		case UNIT_ATTENTION:
 			SDev->changed = 1;
 			if (!cgc->quiet)
@@ -221,8 +217,8 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			err = -ENOMEDIUM;
 			break;
 		case NOT_READY:	/* This happens if there is no disc in drive */
-			if (sshdr.asc == 0x04 &&
-			    sshdr.ascq == 0x01) {
+			if (sshdr->asc == 0x04 &&
+			    sshdr->ascq == 0x01) {
 				/* sense: Logical unit is in process of becoming ready */
 				if (!cgc->quiet)
 					sr_printk(KERN_INFO, cd,
@@ -245,8 +241,8 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			break;
 		case ILLEGAL_REQUEST:
 			err = -EIO;
-			if (sshdr.asc == 0x20 &&
-			    sshdr.ascq == 0x00)
+			if (sshdr->asc == 0x20 &&
+			    sshdr->ascq == 0x00)
 				/* sense: Invalid command operation code */
 				err = -EDRIVE_CANT_DO_THIS;
 			break;

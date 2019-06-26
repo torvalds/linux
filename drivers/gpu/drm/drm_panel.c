@@ -36,6 +36,9 @@ static LIST_HEAD(panel_list);
  * The DRM panel helpers allow drivers to register panel objects with a
  * central registry and provide functions to retrieve those panels in display
  * drivers.
+ *
+ * For easy integration into drivers using the &drm_bridge infrastructure please
+ * take look at drm_panel_bridge_add() and devm_drm_panel_bridge_add().
  */
 
 /**
@@ -94,6 +97,9 @@ EXPORT_SYMBOL(drm_panel_remove);
  *
  * An error is returned if the panel is already attached to another connector.
  *
+ * When unloading, the driver should detach from the panel by calling
+ * drm_panel_detach().
+ *
  * Return: 0 on success or a negative error code on failure.
  */
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
@@ -115,6 +121,9 @@ EXPORT_SYMBOL(drm_panel_attach);
  * Detaches a panel from the connector it is attached to. If a panel is not
  * attached to any connector this is effectively a no-op.
  *
+ * This function should not be called by the panel device itself. It
+ * is only for the drm device that called drm_panel_attach().
+ *
  * Return: 0 on success or a negative error code on failure.
  */
 int drm_panel_detach(struct drm_panel *panel)
@@ -135,11 +144,20 @@ EXPORT_SYMBOL(drm_panel_detach);
  * tree node. If a matching panel is found, return a pointer to it.
  *
  * Return: A pointer to the panel registered for the specified device tree
- * node or NULL if no panel matching the device tree node can be found.
+ * node or an ERR_PTR() if no panel matching the device tree node can be found.
+ *
+ * Possible error codes returned by this function:
+ *
+ * - EPROBE_DEFER: the panel device has not been probed yet, and the caller
+ *   should retry later
+ * - ENODEV: the device is not available (status != "okay" or "ok")
  */
 struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
 	struct drm_panel *panel;
+
+	if (!of_device_is_available(np))
+		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&panel_lock);
 
@@ -151,7 +169,7 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np)
 	}
 
 	mutex_unlock(&panel_lock);
-	return NULL;
+	return ERR_PTR(-EPROBE_DEFER);
 }
 EXPORT_SYMBOL(of_drm_find_panel);
 #endif

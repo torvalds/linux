@@ -29,6 +29,8 @@
 #include <asm/checksum.h>
 #include <asm/debug.h>
 #include <asm/os_info.h>
+#include <asm/sections.h>
+#include <asm/boot_data.h>
 #include "entry.h"
 
 #define IPL_PARM_BLOCK_VERSION 0
@@ -117,6 +119,9 @@ static char *dump_type_str(enum dump_type type)
 	}
 }
 
+struct ipl_parameter_block __bootdata(early_ipl_block);
+int __bootdata(early_ipl_block_valid);
+
 static int ipl_block_valid;
 static struct ipl_parameter_block ipl_block;
 
@@ -151,6 +156,8 @@ static inline int __diag308(unsigned long subcode, void *addr)
 
 int diag308(unsigned long subcode, void *addr)
 {
+	if (IS_ENABLED(CONFIG_KASAN))
+		__arch_local_irq_stosm(0x04); /* enable DAT */
 	diag_stat_inc(DIAG_STAT_X308);
 	return __diag308(subcode, addr);
 }
@@ -262,114 +269,15 @@ static ssize_t ipl_type_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 static struct kobj_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
 
-/* VM IPL PARM routines */
-static size_t reipl_get_ascii_vmparm(char *dest, size_t size,
-				     const struct ipl_parameter_block *ipb)
-{
-	int i;
-	size_t len;
-	char has_lowercase = 0;
-
-	len = 0;
-	if ((ipb->ipl_info.ccw.vm_flags & DIAG308_VM_FLAGS_VP_VALID) &&
-	    (ipb->ipl_info.ccw.vm_parm_len > 0)) {
-
-		len = min_t(size_t, size - 1, ipb->ipl_info.ccw.vm_parm_len);
-		memcpy(dest, ipb->ipl_info.ccw.vm_parm, len);
-		/* If at least one character is lowercase, we assume mixed
-		 * case; otherwise we convert everything to lowercase.
-		 */
-		for (i = 0; i < len; i++)
-			if ((dest[i] > 0x80 && dest[i] < 0x8a) || /* a-i */
-			    (dest[i] > 0x90 && dest[i] < 0x9a) || /* j-r */
-			    (dest[i] > 0xa1 && dest[i] < 0xaa)) { /* s-z */
-				has_lowercase = 1;
-				break;
-			}
-		if (!has_lowercase)
-			EBC_TOLOWER(dest, len);
-		EBCASC(dest, len);
-	}
-	dest[len] = 0;
-
-	return len;
-}
-
-size_t append_ipl_vmparm(char *dest, size_t size)
-{
-	size_t rc;
-
-	rc = 0;
-	if (ipl_block_valid && ipl_block.hdr.pbt == DIAG308_IPL_TYPE_CCW)
-		rc = reipl_get_ascii_vmparm(dest, size, &ipl_block);
-	else
-		dest[0] = 0;
-	return rc;
-}
-
 static ssize_t ipl_vm_parm_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *page)
 {
 	char parm[DIAG308_VMPARM_SIZE + 1] = {};
 
-	append_ipl_vmparm(parm, sizeof(parm));
+	if (ipl_block_valid && (ipl_block.hdr.pbt == DIAG308_IPL_TYPE_CCW))
+		ipl_block_get_ascii_vmparm(parm, sizeof(parm), &ipl_block);
 	return sprintf(page, "%s\n", parm);
 }
-
-static size_t scpdata_length(const char* buf, size_t count)
-{
-	while (count) {
-		if (buf[count - 1] != '\0' && buf[count - 1] != ' ')
-			break;
-		count--;
-	}
-	return count;
-}
-
-static size_t reipl_append_ascii_scpdata(char *dest, size_t size,
-					 const struct ipl_parameter_block *ipb)
-{
-	size_t count;
-	size_t i;
-	int has_lowercase;
-
-	count = min(size - 1, scpdata_length(ipb->ipl_info.fcp.scp_data,
-					     ipb->ipl_info.fcp.scp_data_len));
-	if (!count)
-		goto out;
-
-	has_lowercase = 0;
-	for (i = 0; i < count; i++) {
-		if (!isascii(ipb->ipl_info.fcp.scp_data[i])) {
-			count = 0;
-			goto out;
-		}
-		if (!has_lowercase && islower(ipb->ipl_info.fcp.scp_data[i]))
-			has_lowercase = 1;
-	}
-
-	if (has_lowercase)
-		memcpy(dest, ipb->ipl_info.fcp.scp_data, count);
-	else
-		for (i = 0; i < count; i++)
-			dest[i] = tolower(ipb->ipl_info.fcp.scp_data[i]);
-out:
-	dest[count] = '\0';
-	return count;
-}
-
-size_t append_ipl_scpdata(char *dest, size_t len)
-{
-	size_t rc;
-
-	rc = 0;
-	if (ipl_block_valid && ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP)
-		rc = reipl_append_ascii_scpdata(dest, len, &ipl_block);
-	else
-		dest[0] = 0;
-	return rc;
-}
-
 
 static struct kobj_attribute sys_ipl_vm_parm_attr =
 	__ATTR(parm, S_IRUGO, ipl_vm_parm_show, NULL);
@@ -564,7 +472,7 @@ static ssize_t reipl_generic_vmparm_show(struct ipl_parameter_block *ipb,
 {
 	char vmparm[DIAG308_VMPARM_SIZE + 1] = {};
 
-	reipl_get_ascii_vmparm(vmparm, sizeof(vmparm), ipb);
+	ipl_block_get_ascii_vmparm(vmparm, sizeof(vmparm), ipb);
 	return sprintf(page, "%s\n", vmparm);
 }
 
@@ -1769,11 +1677,10 @@ void __init setup_ipl(void)
 
 void __init ipl_store_parameters(void)
 {
-	int rc;
-
-	rc = diag308(DIAG308_STORE, &ipl_block);
-	if (rc == DIAG308_RC_OK && ipl_block.hdr.version <= IPL_MAX_SUPPORTED_VERSION)
+	if (early_ipl_block_valid) {
+		memcpy(&ipl_block, &early_ipl_block, sizeof(ipl_block));
 		ipl_block_valid = 1;
+	}
 }
 
 void s390_reset_system(void)

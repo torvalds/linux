@@ -45,6 +45,10 @@ enum {
 	MLX5_QP_FLAG_BFREG_INDEX	= 1 << 3,
 	MLX5_QP_FLAG_TYPE_DCT		= 1 << 4,
 	MLX5_QP_FLAG_TYPE_DCI		= 1 << 5,
+	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC = 1 << 6,
+	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC = 1 << 7,
+	MLX5_QP_FLAG_ALLOW_SCATTER_CQE	= 1 << 8,
+	MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE	= 1 << 9,
 };
 
 enum {
@@ -76,6 +80,9 @@ enum mlx5_lib_caps {
 	MLX5_LIB_CAP_4K_UAR	= (__u64)1 << 0,
 };
 
+enum mlx5_ib_alloc_uctx_v2_flags {
+	MLX5_IB_ALLOC_UCTX_DEVX	= 1 << 0,
+};
 struct mlx5_ib_alloc_ucontext_req_v2 {
 	__u32	total_num_bfregs;
 	__u32	num_low_latency_bfregs;
@@ -90,6 +97,7 @@ struct mlx5_ib_alloc_ucontext_req_v2 {
 
 enum mlx5_ib_alloc_ucontext_resp_mask {
 	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_CORE_CLOCK_OFFSET = 1UL << 0,
+	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_DUMP_FILL_MKEY    = 1UL << 1,
 };
 
 enum mlx5_user_cmds_supp_uhw {
@@ -138,7 +146,7 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u32	log_uar_size;
 	__u32	num_uars_per_page;
 	__u32	num_dyn_bfregs;
-	__u32	reserved3;
+	__u32	dump_fill_mkey;
 };
 
 struct mlx5_ib_alloc_pd_resp {
@@ -229,6 +237,8 @@ enum mlx5_ib_query_dev_resp_flags {
 	/* Support 128B CQE compression */
 	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_COMP = 1 << 0,
 	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_PAD  = 1 << 1,
+	MLX5_IB_QUERY_DEV_RESP_PACKET_BASED_CREDIT_MODE = 1 << 2,
+	MLX5_IB_QUERY_DEV_RESP_FLAGS_SCAT2CQE_DCT = 1 << 3,
 };
 
 enum mlx5_ib_tunnel_offloads {
@@ -345,9 +355,22 @@ struct mlx5_ib_create_qp_rss {
 	__u32	flags;
 };
 
+enum mlx5_ib_create_qp_resp_mask {
+	MLX5_IB_CREATE_QP_RESP_MASK_TIRN = 1UL << 0,
+	MLX5_IB_CREATE_QP_RESP_MASK_TISN = 1UL << 1,
+	MLX5_IB_CREATE_QP_RESP_MASK_RQN  = 1UL << 2,
+	MLX5_IB_CREATE_QP_RESP_MASK_SQN  = 1UL << 3,
+};
+
 struct mlx5_ib_create_qp_resp {
 	__u32	bfreg_index;
 	__u32   reserved;
+	__u32	comp_mask;
+	__u32	tirn;
+	__u32	tisn;
+	__u32	rqn;
+	__u32	sqn;
+	__u32   reserved1;
 };
 
 struct mlx5_ib_alloc_mw {

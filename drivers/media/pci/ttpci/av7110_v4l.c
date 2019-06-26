@@ -332,7 +332,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 		return -EINVAL;
 
 	memset(t, 0, sizeof(*t));
-	strcpy((char *)t->name, "Television");
+	strscpy((char *)t->name, "Television", sizeof(t->name));
 
 	t->type = V4L2_TUNER_ANALOG_TV;
 	t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO |

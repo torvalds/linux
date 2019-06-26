@@ -1,0 +1,38 @@
+Intersil ISL1209/19 I2C RTC/Alarm chip with event in
+
+ISL12X9 have additional pins EVIN and #EVDET for tamper detection, while the
+ISL1208 and ISL1218 do not.  They are all use the same driver with the bindings
+described here, with chip specific properties as noted.
+
+Required properties supported by the device:
+ - "compatible": Should be one of the following:
+		- "isil,isl1208"
+		- "isil,isl1209"
+		- "isil,isl1218"
+		- "isil,isl1219"
+ - "reg": I2C bus address of the device
+
+Optional properties:
+ - "interrupt-names": list which may contains "irq" and "evdet"
+	evdet applies to isl1209 and isl1219 only
+ - "interrupts": list of interrupts for "irq" and "evdet"
+	evdet applies to isl1209 and isl1219 only
+ - "isil,ev-evienb": Enable or disable internal pull on EVIN pin
+	Applies to isl1209 and isl1219 only
+	Possible values are 0 and 1
+	Value 0 enables internal pull-up on evin pin, 1 disables it.
+	Default will leave the non-volatile configuration of the pullup
+	as is.
+
+Example isl1219 node with #IRQ pin connected to SoC gpio1 pin12 and #EVDET pin
+connected to SoC gpio2 pin 24 and internal pull-up enabled in EVIN pin.
+
+	isl1219: rtc@68 {
+		compatible = "isil,isl1219";
+		reg = <0x68>;
+		interrupt-names = "irq", "evdet";
+		interrupts-extended = <&gpio1 12 IRQ_TYPE_EDGE_FALLING>,
+			<&gpio2 24 IRQ_TYPE_EDGE_FALLING>;
+		isil,ev-evienb = <1>;
+	};
+

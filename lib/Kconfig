@@ -10,6 +10,14 @@ menu "Library routines"
 config RAID6_PQ
 	tristate
 
+config RAID6_PQ_BENCHMARK
+	bool "Automatically choose fastest RAID6 PQ functions"
+	depends on RAID6_PQ
+	default y
+	help
+	  Benchmark all available RAID6 PQ functions on init and choose the
+	  fastest one.
+
 config BITREVERSE
 	tristate
 
@@ -170,6 +178,14 @@ config CRC32_BIT
 
 endchoice
 
+config CRC64
+	tristate "CRC64 functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC64 functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC64
+	  functions require M here.
+
 config CRC4
 	tristate "CRC4 functions"
 	help
@@ -223,7 +239,6 @@ config AUDIT_COMPAT_GENERIC
 
 config RANDOM32_SELFTEST
 	bool "PRNG perform self test on init"
-	default n
 	help
 	  This option enables the 32 bit PRNG library functions to perform a
 	  self test on initialization.
@@ -392,8 +407,11 @@ config INTERVAL_TREE
 
 	  for more information.
 
-config RADIX_TREE_MULTIORDER
+config XARRAY_MULTI
 	bool
+	help
+	  Support entries which occupy multiple consecutive indices in the
+	  XArray.
 
 config ASSOCIATIVE_ARRAY
 	bool
@@ -567,7 +585,7 @@ config SG_POOL
 # sg chaining option
 #
 
-config ARCH_HAS_SG_CHAIN
+config ARCH_NO_SG_CHAIN
 	def_bool n
 
 config ARCH_HAS_PMEM_API
@@ -614,3 +632,6 @@ config GENERIC_LIB_CMPDI2
 
 config GENERIC_LIB_UCMPDI2
 	bool
+
+config OBJAGG
+	tristate "objagg" if COMPILE_TEST

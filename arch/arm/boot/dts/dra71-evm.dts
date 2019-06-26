@@ -203,13 +203,13 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <2>;
+	phy-handle = <&dp83867_0>;
 	phy-mode = "rgmii-id";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <3>;
+	phy-handle = <&dp83867_1>;
 	phy-mode = "rgmii-id";
 	dual_emac_res_vlan = <2>;
 };
@@ -264,4 +264,12 @@
 &hdmi {
 	/* Supplied by VDA_1V8_PHY */
 	vdda_video-supply = <&lp8732_ldo1_reg>;
+};
+
+&extcon_usb1 {
+	vbus-gpio = <&pcf_lcd 14 GPIO_ACTIVE_HIGH>;
+};
+
+&extcon_usb2 {
+	vbus-gpio = <&pcf_lcd 15 GPIO_ACTIVE_HIGH>;
 };

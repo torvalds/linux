@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # Ignore header name
 ignore define __LINUX_MEDIA_H
 
@@ -6,10 +8,10 @@ ignore define MEDIA_API_VERSION
 ignore define MEDIA_ENT_F_BASE
 ignore define MEDIA_ENT_F_OLD_BASE
 ignore define MEDIA_ENT_F_OLD_SUBDEV_BASE
+ignore define MEDIA_ENT_F_DTV_DECODER
 ignore define MEDIA_INTF_T_DVB_BASE
 ignore define MEDIA_INTF_T_V4L_BASE
 ignore define MEDIA_INTF_T_ALSA_BASE
-
 #ignore legacy entity type macros
 ignore define MEDIA_ENT_TYPE_SHIFT
 ignore define MEDIA_ENT_TYPE_MASK

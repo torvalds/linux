@@ -1216,7 +1216,7 @@ int sst_hsw_stream_commit(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 		return ret;
 	}
 
-	stream->commited = 1;
+	stream->commited = true;
 	trace_hsw_stream_alloc_reply(stream);
 
 	return 0;

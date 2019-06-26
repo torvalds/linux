@@ -151,6 +151,8 @@ static void lpc32xx_hsuart_console_write(struct console *co, const char *s,
 	local_irq_restore(flags);
 }
 
+static void lpc32xx_loopback_set(resource_size_t mapbase, int state);
+
 static int __init lpc32xx_hsuart_console_setup(struct console *co,
 					       char *options)
 {
@@ -169,6 +171,8 @@ static int __init lpc32xx_hsuart_console_setup(struct console *co,
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
+
+	lpc32xx_loopback_set(port->mapbase, 0); /* get out of loopback mode */
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }

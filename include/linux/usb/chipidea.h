@@ -60,9 +60,12 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_OVERRIDE_RX_BURST	BIT(11)
 #define CI_HDRC_OVERRIDE_PHY_CONTROL	BIT(12) /* Glue layer manages phy */
 #define CI_HDRC_REQUIRES_ALIGNED_DMA	BIT(13)
+#define CI_HDRC_IMX_IS_HSIC		BIT(14)
 	enum usb_dr_mode	dr_mode;
 #define CI_HDRC_CONTROLLER_RESET_EVENT		0
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
+#define CI_HDRC_IMX_HSIC_ACTIVE_EVENT		2
+#define CI_HDRC_IMX_HSIC_SUSPEND_EVENT		3
 	int	(*notify_event) (struct ci_hdrc *ci, unsigned event);
 	struct regulator	*reg_vbus;
 	struct usb_otg_caps	ci_otg_caps;
@@ -77,6 +80,12 @@ struct ci_hdrc_platform_data {
 	struct ci_hdrc_cable		vbus_extcon;
 	struct ci_hdrc_cable		id_extcon;
 	u32			phy_clkgate_delay_us;
+
+	/* pins */
+	struct pinctrl *pctl;
+	struct pinctrl_state *pins_default;
+	struct pinctrl_state *pins_host;
+	struct pinctrl_state *pins_device;
 };
 
 /* Default offset of capability registers */

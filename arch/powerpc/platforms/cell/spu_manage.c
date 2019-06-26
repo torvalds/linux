@@ -180,35 +180,22 @@ out:
 
 static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 {
-	struct of_phandle_args oirq;
-	int ret;
 	int i;
 
 	for (i=0; i < 3; i++) {
-		ret = of_irq_parse_one(np, i, &oirq);
-		if (ret) {
-			pr_debug("spu_new: failed to get irq %d\n", i);
+		spu->irqs[i] = irq_of_parse_and_map(np, i);
+		if (!spu->irqs[i])
 			goto err;
-		}
-		ret = -EINVAL;
-		pr_debug("  irq %d no 0x%x on %pOF\n", i, oirq.args[0],
-			 oirq.np);
-		spu->irqs[i] = irq_create_of_mapping(&oirq);
-		if (!spu->irqs[i]) {
-			pr_debug("spu_new: failed to map it !\n");
-			goto err;
-		}
 	}
 	return 0;
 
 err:
-	pr_debug("failed to map irq %x for spu %s\n", *oirq.args,
-		spu->name);
+	pr_debug("failed to map irq %x for spu %s\n", i, spu->name);
 	for (; i >= 0; i--) {
 		if (spu->irqs[i])
 			irq_dispose_mapping(spu->irqs[i]);
 	}
-	return ret;
+	return -EINVAL;
 }
 
 static int spu_map_resource(struct spu *spu, int nr,
@@ -295,8 +282,8 @@ static int __init of_enumerate_spus(int (*fn)(void *data))
 	for_each_node_by_type(node, "spe") {
 		ret = fn(node);
 		if (ret) {
-			printk(KERN_WARNING "%s: Error initializing %s\n",
-				__func__, node->name);
+			printk(KERN_WARNING "%s: Error initializing %pOFn\n",
+				__func__, node);
 			of_node_put(node);
 			break;
 		}
@@ -471,7 +458,6 @@ static void init_affinity_node(int cbe)
 	struct device_node *vic_dn, *last_spu_dn;
 	phandle avoid_ph;
 	const phandle *vic_handles;
-	const char *name;
 	int lenp, i, added;
 
 	last_spu = list_first_entry(&cbe_spu_info[cbe].spus, struct spu,
@@ -493,12 +479,7 @@ static void init_affinity_node(int cbe)
 			if (!vic_dn)
 				continue;
 
-			/* a neighbour might be spe, mic-tm, or bif0 */
-			name = of_get_property(vic_dn, "name", NULL);
-			if (!name)
-				continue;
-
-			if (strcmp(name, "spe") == 0) {
+			if (of_node_name_eq(vic_dn, "spe") ) {
 				spu = devnode_spu(cbe, vic_dn);
 				avoid_ph = last_spu_dn->phandle;
 			} else {
@@ -511,7 +492,7 @@ static void init_affinity_node(int cbe)
 				spu = neighbour_spu(cbe, vic_dn, last_spu_dn);
 				if (!spu)
 					continue;
-				if (!strcmp(name, "mic-tm")) {
+				if (of_node_name_eq(vic_dn, "mic-tm")) {
 					last_spu->has_mem_affinity = 1;
 					spu->has_mem_affinity = 1;
 				}

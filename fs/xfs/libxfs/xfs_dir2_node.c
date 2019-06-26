@@ -87,19 +87,17 @@ xfs_dir3_free_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dir2_free_hdr *hdr = bp->b_addr;
 
+	if (!xfs_verify_magic(bp, hdr->magic))
+		return __this_address;
+
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_dir3_blk_hdr *hdr3 = bp->b_addr;
 
-		if (hdr3->magic != cpu_to_be32(XFS_DIR3_FREE_MAGIC))
-			return __this_address;
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
-			return __this_address;
-	} else {
-		if (hdr->magic != cpu_to_be32(XFS_DIR2_FREE_MAGIC))
 			return __this_address;
 	}
 
@@ -151,6 +149,8 @@ xfs_dir3_free_write_verify(
 
 const struct xfs_buf_ops xfs_dir3_free_buf_ops = {
 	.name = "xfs_dir3_free",
+	.magic = { cpu_to_be32(XFS_DIR2_FREE_MAGIC),
+		   cpu_to_be32(XFS_DIR3_FREE_MAGIC) },
 	.verify_read = xfs_dir3_free_read_verify,
 	.verify_write = xfs_dir3_free_write_verify,
 	.verify_struct = xfs_dir3_free_verify,
@@ -426,24 +426,22 @@ xfs_dir2_leaf_to_node(
 static int					/* error */
 xfs_dir2_leafn_add(
 	struct xfs_buf		*bp,		/* leaf buffer */
-	xfs_da_args_t		*args,		/* operation arguments */
+	struct xfs_da_args	*args,		/* operation arguments */
 	int			index)		/* insertion pt for new entry */
 {
+	struct xfs_dir3_icleaf_hdr leafhdr;
+	struct xfs_inode	*dp = args->dp;
+	struct xfs_dir2_leaf	*leaf = bp->b_addr;
+	struct xfs_dir2_leaf_entry *lep;
+	struct xfs_dir2_leaf_entry *ents;
 	int			compact;	/* compacting stale leaves */
-	xfs_inode_t		*dp;		/* incore directory inode */
-	int			highstale;	/* next stale entry */
-	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
-	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry */
+	int			highstale = 0;	/* next stale entry */
 	int			lfloghigh;	/* high leaf entry logging */
 	int			lfloglow;	/* low leaf entry logging */
-	int			lowstale;	/* previous stale entry */
-	struct xfs_dir3_icleaf_hdr leafhdr;
-	struct xfs_dir2_leaf_entry *ents;
+	int			lowstale = 0;	/* previous stale entry */
 
 	trace_xfs_dir2_leafn_add(args, index);
 
-	dp = args->dp;
-	leaf = bp->b_addr;
 	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 
@@ -1012,7 +1010,7 @@ xfs_dir2_leafn_rebalance(
 	int			oldstale;	/* old count of stale leaves */
 #endif
 	int			oldsum;		/* old total leaf count */
-	int			swap;		/* swapped leaf blocks */
+	int			swap_blocks;	/* swapped leaf blocks */
 	struct xfs_dir2_leaf_entry *ents1;
 	struct xfs_dir2_leaf_entry *ents2;
 	struct xfs_dir3_icleaf_hdr hdr1;
@@ -1023,13 +1021,10 @@ xfs_dir2_leafn_rebalance(
 	/*
 	 * If the block order is wrong, swap the arguments.
 	 */
-	if ((swap = xfs_dir2_leafn_order(dp, blk1->bp, blk2->bp))) {
-		xfs_da_state_blk_t	*tmp;	/* temp for block swap */
+	swap_blocks = xfs_dir2_leafn_order(dp, blk1->bp, blk2->bp);
+	if (swap_blocks)
+		swap(blk1, blk2);
 
-		tmp = blk1;
-		blk1 = blk2;
-		blk2 = tmp;
-	}
 	leaf1 = blk1->bp->b_addr;
 	leaf2 = blk2->bp->b_addr;
 	dp->d_ops->leaf_hdr_from_disk(&hdr1, leaf1);
@@ -1093,11 +1088,11 @@ xfs_dir2_leafn_rebalance(
 	 * Mark whether we're inserting into the old or new leaf.
 	 */
 	if (hdr1.count < hdr2.count)
-		state->inleaf = swap;
+		state->inleaf = swap_blocks;
 	else if (hdr1.count > hdr2.count)
-		state->inleaf = !swap;
+		state->inleaf = !swap_blocks;
 	else
-		state->inleaf = swap ^ (blk1->index <= hdr1.count);
+		state->inleaf = swap_blocks ^ (blk1->index <= hdr1.count);
 	/*
 	 * Adjust the expected index for insertion.
 	 */

@@ -77,28 +77,6 @@ static int psci_ops_check(void)
 	return 0;
 }
 
-static int find_cpu_groups(const struct cpumask *cpus,
-			   const struct cpumask **cpu_groups)
-{
-	unsigned int nb = 0;
-	cpumask_var_t tmp;
-
-	if (!alloc_cpumask_var(&tmp, GFP_KERNEL))
-		return -ENOMEM;
-	cpumask_copy(tmp, cpus);
-
-	while (!cpumask_empty(tmp)) {
-		const struct cpumask *cpu_group =
-			topology_core_cpumask(cpumask_any(tmp));
-
-		cpu_groups[nb++] = cpu_group;
-		cpumask_andnot(tmp, tmp, cpu_group);
-	}
-
-	free_cpumask_var(tmp);
-	return nb;
-}
-
 /*
  * offlined_cpus is a temporary array but passing it as an argument avoids
  * multiple allocations.
@@ -166,29 +144,66 @@ static unsigned int down_and_up_cpus(const struct cpumask *cpus,
 	return err;
 }
 
+static void free_cpu_groups(int num, cpumask_var_t **pcpu_groups)
+{
+	int i;
+	cpumask_var_t *cpu_groups = *pcpu_groups;
+
+	for (i = 0; i < num; ++i)
+		free_cpumask_var(cpu_groups[i]);
+	kfree(cpu_groups);
+}
+
+static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
+{
+	int num_groups = 0;
+	cpumask_var_t tmp, *cpu_groups;
+
+	if (!alloc_cpumask_var(&tmp, GFP_KERNEL))
+		return -ENOMEM;
+
+	cpu_groups = kcalloc(nb_available_cpus, sizeof(cpu_groups),
+			     GFP_KERNEL);
+	if (!cpu_groups)
+		return -ENOMEM;
+
+	cpumask_copy(tmp, cpu_online_mask);
+
+	while (!cpumask_empty(tmp)) {
+		const struct cpumask *cpu_group =
+			topology_core_cpumask(cpumask_any(tmp));
+
+		if (!alloc_cpumask_var(&cpu_groups[num_groups], GFP_KERNEL)) {
+			free_cpu_groups(num_groups, &cpu_groups);
+			return -ENOMEM;
+		}
+		cpumask_copy(cpu_groups[num_groups++], cpu_group);
+		cpumask_andnot(tmp, tmp, cpu_group);
+	}
+
+	free_cpumask_var(tmp);
+	*pcpu_groups = cpu_groups;
+
+	return num_groups;
+}
+
 static int hotplug_tests(void)
 {
-	int err;
-	cpumask_var_t offlined_cpus;
-	int i, nb_cpu_group;
-	const struct cpumask **cpu_groups;
+	int i, nb_cpu_group, err = -ENOMEM;
+	cpumask_var_t offlined_cpus, *cpu_groups;
 	char *page_buf;
 
-	err = -ENOMEM;
 	if (!alloc_cpumask_var(&offlined_cpus, GFP_KERNEL))
 		return err;
-	/* We may have up to nb_available_cpus cpu_groups. */
-	cpu_groups = kmalloc_array(nb_available_cpus, sizeof(*cpu_groups),
-				   GFP_KERNEL);
-	if (!cpu_groups)
+
+	nb_cpu_group = alloc_init_cpu_groups(&cpu_groups);
+	if (nb_cpu_group < 0)
 		goto out_free_cpus;
 	page_buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!page_buf)
 		goto out_free_cpu_groups;
 
 	err = 0;
-	nb_cpu_group = find_cpu_groups(cpu_online_mask, cpu_groups);
-
 	/*
 	 * Of course the last CPU cannot be powered down and cpu_down() should
 	 * refuse doing that.
@@ -212,7 +227,7 @@ static int hotplug_tests(void)
 
 	free_page((unsigned long)page_buf);
 out_free_cpu_groups:
-	kfree(cpu_groups);
+	free_cpu_groups(nb_cpu_group, &cpu_groups);
 out_free_cpus:
 	free_cpumask_var(offlined_cpus);
 	return err;

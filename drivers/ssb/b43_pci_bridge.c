@@ -10,11 +10,11 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/ssb/ssb.h>
-
-#include "ssb_private.h"
 
 
 static const struct pci_device_id b43_pci_bridge_tbl[] = {

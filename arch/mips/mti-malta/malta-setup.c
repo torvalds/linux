@@ -26,6 +26,7 @@
 #include <linux/screen_info.h>
 #include <linux/time.h>
 
+#include <asm/dma-coherence.h>
 #include <asm/fw/fw.h>
 #include <asm/mach-malta/malta-dtshim.h>
 #include <asm/mips-cps.h>
@@ -79,8 +80,6 @@ const char *get_system_type(void)
 {
 	return "MIPS Malta";
 }
-
-const char display_string[] = "	       LINUX ON MALTA	    ";
 
 #ifdef CONFIG_BLK_DEV_FD
 static void __init fd_activate(void)
@@ -144,12 +143,6 @@ static int __init plat_enable_iocoherency(void)
 
 static void __init plat_setup_iocoherency(void)
 {
-#ifdef CONFIG_DMA_NONCOHERENT
-	/*
-	 * Kernel has been configured with software coherency
-	 * but we might choose to turn it off and use hardware
-	 * coherency instead.
-	 */
 	if (plat_enable_iocoherency()) {
 		if (coherentio == IO_COHERENCE_DISABLED)
 			pr_info("Hardware DMA cache coherency disabled\n");
@@ -161,10 +154,6 @@ static void __init plat_setup_iocoherency(void)
 		else
 			pr_info("Software DMA cache coherency enabled\n");
 	}
-#else
-	if (!plat_enable_iocoherency())
-		panic("Hardware DMA cache coherency not supported!");
-#endif
 }
 
 static void __init pci_clock_check(void)
@@ -226,29 +215,6 @@ static void __init bonito_quirks_setup(void)
 		pr_info("Enabled Bonito debug mode\n");
 	} else
 		BONITO_BONGENCFG &= ~BONITO_BONGENCFG_DEBUGMODE;
-
-#ifdef CONFIG_DMA_COHERENT
-	if (BONITO_PCICACHECTRL & BONITO_PCICACHECTRL_CPUCOH_PRES) {
-		BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_CPUCOH_EN;
-		pr_info("Enabled Bonito CPU coherency\n");
-
-		argptr = fw_getcmdline();
-		if (strstr(argptr, "iobcuncached")) {
-			BONITO_PCICACHECTRL &= ~BONITO_PCICACHECTRL_IOBCCOH_EN;
-			BONITO_PCIMEMBASECFG = BONITO_PCIMEMBASECFG &
-				~(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
-					BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
-			pr_info("Disabled Bonito IOBC coherency\n");
-		} else {
-			BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_IOBCCOH_EN;
-			BONITO_PCIMEMBASECFG |=
-				(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
-					BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
-			pr_info("Enabled Bonito IOBC coherency\n");
-		}
-	} else
-		panic("Hardware DMA cache coherency not supported");
-#endif
 }
 
 void __init *plat_get_fdt(void)
@@ -278,11 +244,6 @@ void __init plat_mem_setup(void)
 	 * Enable DMA channel 4 (cascade channel) in the PIIX4 south bridge.
 	 */
 	enable_dma(4);
-
-#ifdef CONFIG_DMA_COHERENT
-	if (mips_revision_sconid != MIPS_REVISION_SCON_BONITO)
-		panic("Hardware DMA cache coherency not supported");
-#endif
 
 	if (mips_revision_sconid == MIPS_REVISION_SCON_BONITO)
 		bonito_quirks_setup();

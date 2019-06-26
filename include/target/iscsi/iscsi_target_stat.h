@@ -33,7 +33,7 @@ struct iscsi_sess_err_stats {
 	u32		cxn_timeout_errors;
 	u32		pdu_format_errors;
 	u32		last_sess_failure_type;
-	char		last_sess_fail_rem_name[224];
+	char		last_sess_fail_rem_name[ISCSI_IQN_LEN];
 } ____cacheline_aligned;
 
 /* iSCSI login failure types (sub oids) */
@@ -56,7 +56,7 @@ struct iscsi_login_stats {
 	u32		last_fail_type;
 	int		last_intr_fail_ip_family;
 	struct sockaddr_storage last_intr_fail_sockaddr;
-	char		last_intr_fail_name[224];
+	char		last_intr_fail_name[ISCSI_IQN_LEN];
 } ____cacheline_aligned;
 
 /* iSCSI logout stats */

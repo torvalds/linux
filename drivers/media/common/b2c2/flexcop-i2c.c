@@ -226,12 +226,12 @@ int flexcop_i2c_init(struct flexcop_device *fc)
 	fc->fc_i2c_adap[1].port = FC_I2C_PORT_EEPROM;
 	fc->fc_i2c_adap[2].port = FC_I2C_PORT_TUNER;
 
-	strlcpy(fc->fc_i2c_adap[0].i2c_adap.name, "B2C2 FlexCop I2C to demod",
-			sizeof(fc->fc_i2c_adap[0].i2c_adap.name));
-	strlcpy(fc->fc_i2c_adap[1].i2c_adap.name, "B2C2 FlexCop I2C to eeprom",
-			sizeof(fc->fc_i2c_adap[1].i2c_adap.name));
-	strlcpy(fc->fc_i2c_adap[2].i2c_adap.name, "B2C2 FlexCop I2C to tuner",
-			sizeof(fc->fc_i2c_adap[2].i2c_adap.name));
+	strscpy(fc->fc_i2c_adap[0].i2c_adap.name, "B2C2 FlexCop I2C to demod",
+		sizeof(fc->fc_i2c_adap[0].i2c_adap.name));
+	strscpy(fc->fc_i2c_adap[1].i2c_adap.name, "B2C2 FlexCop I2C to eeprom",
+		sizeof(fc->fc_i2c_adap[1].i2c_adap.name));
+	strscpy(fc->fc_i2c_adap[2].i2c_adap.name, "B2C2 FlexCop I2C to tuner",
+		sizeof(fc->fc_i2c_adap[2].i2c_adap.name));
 
 	i2c_set_adapdata(&fc->fc_i2c_adap[0].i2c_adap, &fc->fc_i2c_adap[0]);
 	i2c_set_adapdata(&fc->fc_i2c_adap[1].i2c_adap, &fc->fc_i2c_adap[1]);

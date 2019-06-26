@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/staging/android/ion/ion_carveout_heap.c
+ * ION Memory Allocator carveout heap helper
  *
  * Copyright (C) 2011 Google, Inc.
  */
-#include <linux/spinlock.h>
+
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/genalloc.h>
@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
+
 #include "ion.h"
 
 #define ION_CARVEOUT_ALLOCATE_FAIL	-1
@@ -20,7 +20,6 @@
 struct ion_carveout_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
-	phys_addr_t base;
 };
 
 static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
@@ -44,6 +43,7 @@ static void ion_carveout_free(struct ion_heap *heap, phys_addr_t addr,
 
 	if (addr == ION_CARVEOUT_ALLOCATE_FAIL)
 		return;
+
 	gen_pool_free(carveout_heap->pool, addr, size);
 }
 
@@ -103,17 +103,14 @@ static struct ion_heap_ops carveout_heap_ops = {
 	.unmap_kernel = ion_heap_unmap_kernel,
 };
 
-struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
+struct ion_heap *ion_carveout_heap_create(phys_addr_t base, size_t size)
 {
 	struct ion_carveout_heap *carveout_heap;
 	int ret;
 
 	struct page *page;
-	size_t size;
 
-	page = pfn_to_page(PFN_DOWN(heap_data->base));
-	size = heap_data->size;
-
+	page = pfn_to_page(PFN_DOWN(base));
 	ret = ion_heap_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
 	if (ret)
 		return ERR_PTR(ret);
@@ -127,9 +124,7 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 		kfree(carveout_heap);
 		return ERR_PTR(-ENOMEM);
 	}
-	carveout_heap->base = heap_data->base;
-	gen_pool_add(carveout_heap->pool, carveout_heap->base, heap_data->size,
-		     -1);
+	gen_pool_add(carveout_heap->pool, base, size, -1);
 	carveout_heap->heap.ops = &carveout_heap_ops;
 	carveout_heap->heap.type = ION_HEAP_TYPE_CARVEOUT;
 	carveout_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;

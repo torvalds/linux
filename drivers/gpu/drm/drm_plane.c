@@ -20,8 +20,17 @@
  * OF THIS SOFTWARE.
  */
 
-#include <drm/drmP.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+
 #include <drm/drm_plane.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_print.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_file.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 
 #include "drm_crtc_internal.h"
 
@@ -177,6 +186,10 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (WARN_ON(config->num_total_plane >= 32))
 		return -EINVAL;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(dev) &&
+		(!funcs->atomic_destroy_state ||
+		 !funcs->atomic_duplicate_state));
+
 	ret = drm_mode_object_add(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	if (ret)
 		return ret;
@@ -206,6 +219,9 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		while (*temp_modifiers++ != DRM_FORMAT_MOD_INVALID)
 			format_modifier_count++;
 	}
+
+	if (format_modifier_count)
+		config->allow_fb_modifiers = true;
 
 	plane->modifier_count = format_modifier_count;
 	plane->modifiers = kmalloc_array(format_modifier_count,
@@ -459,15 +475,13 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	struct drm_mode_get_plane_res *plane_resp = data;
-	struct drm_mode_config *config;
 	struct drm_plane *plane;
 	uint32_t __user *plane_ptr;
 	int count = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
-	config = &dev->mode_config;
 	plane_ptr = u64_to_user_ptr(plane_resp->plane_id_ptr);
 
 	/*
@@ -503,7 +517,7 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	uint32_t __user *format_ptr;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	plane = drm_plane_find(dev, file_priv, plane_resp->plane_id);
 	if (!plane)
@@ -561,22 +575,92 @@ int drm_plane_check_pixel_format(struct drm_plane *plane,
 	if (i == plane->format_count)
 		return -EINVAL;
 
-	if (!plane->modifier_count)
-		return 0;
+	if (plane->funcs->format_mod_supported) {
+		if (!plane->funcs->format_mod_supported(plane, format, modifier))
+			return -EINVAL;
+	} else {
+		if (!plane->modifier_count)
+			return 0;
 
-	for (i = 0; i < plane->modifier_count; i++) {
-		if (modifier == plane->modifiers[i])
-			break;
+		for (i = 0; i < plane->modifier_count; i++) {
+			if (modifier == plane->modifiers[i])
+				break;
+		}
+		if (i == plane->modifier_count)
+			return -EINVAL;
 	}
-	if (i == plane->modifier_count)
-		return -EINVAL;
-
-	if (plane->funcs->format_mod_supported &&
-	    !plane->funcs->format_mod_supported(plane, format, modifier))
-		return -EINVAL;
 
 	return 0;
 }
+
+static int __setplane_check(struct drm_plane *plane,
+			    struct drm_crtc *crtc,
+			    struct drm_framebuffer *fb,
+			    int32_t crtc_x, int32_t crtc_y,
+			    uint32_t crtc_w, uint32_t crtc_h,
+			    uint32_t src_x, uint32_t src_y,
+			    uint32_t src_w, uint32_t src_h)
+{
+	int ret;
+
+	/* Check whether this plane is usable on this CRTC */
+	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
+		DRM_DEBUG_KMS("Invalid crtc for plane\n");
+		return -EINVAL;
+	}
+
+	/* Check whether this plane supports the fb pixel format. */
+	ret = drm_plane_check_pixel_format(plane, fb->format->format,
+					   fb->modifier);
+	if (ret) {
+		struct drm_format_name_buf format_name;
+
+		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
+			      drm_get_format_name(fb->format->format,
+						  &format_name),
+			      fb->modifier);
+		return ret;
+	}
+
+	/* Give drivers some help against integer overflows */
+	if (crtc_w > INT_MAX ||
+	    crtc_x > INT_MAX - (int32_t) crtc_w ||
+	    crtc_h > INT_MAX ||
+	    crtc_y > INT_MAX - (int32_t) crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      crtc_w, crtc_h, crtc_x, crtc_y);
+		return -ERANGE;
+	}
+
+	ret = drm_framebuffer_check_src_coords(src_x, src_y, src_w, src_h, fb);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/**
+ * drm_any_plane_has_format - Check whether any plane supports this format and modifier combination
+ * @dev: DRM device
+ * @format: pixel format (DRM_FORMAT_*)
+ * @modifier: data layout modifier
+ *
+ * Returns:
+ * Whether at least one plane supports the specified format and modifier combination.
+ */
+bool drm_any_plane_has_format(struct drm_device *dev,
+			      u32 format, u64 modifier)
+{
+	struct drm_plane *plane;
+
+	drm_for_each_plane(plane, dev) {
+		if (drm_plane_check_pixel_format(plane, format, modifier) == 0)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_any_plane_has_format);
 
 /*
  * __setplane_internal - setplane handler for internal callers
@@ -598,6 +682,8 @@ static int __setplane_internal(struct drm_plane *plane,
 {
 	int ret = 0;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(plane->dev));
+
 	/* No fb means shut it down */
 	if (!fb) {
 		plane->old_fb = plane->fb;
@@ -611,37 +697,9 @@ static int __setplane_internal(struct drm_plane *plane,
 		goto out;
 	}
 
-	/* Check whether this plane is usable on this CRTC */
-	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
-		DRM_DEBUG_KMS("Invalid crtc for plane\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, fb->format->format,
-					   fb->modifier);
-	if (ret) {
-		struct drm_format_name_buf format_name;
-		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
-			      drm_get_format_name(fb->format->format,
-						  &format_name),
-			      fb->modifier);
-		goto out;
-	}
-
-	/* Give drivers some help against integer overflows */
-	if (crtc_w > INT_MAX ||
-	    crtc_x > INT_MAX - (int32_t) crtc_w ||
-	    crtc_h > INT_MAX ||
-	    crtc_y > INT_MAX - (int32_t) crtc_h) {
-		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
-			      crtc_w, crtc_h, crtc_x, crtc_y);
-		ret = -ERANGE;
-		goto out;
-	}
-
-	ret = drm_framebuffer_check_src_coords(src_x, src_y, src_w, src_h, fb);
+	ret = __setplane_check(plane, crtc, fb,
+			       crtc_x, crtc_y, crtc_w, crtc_h,
+			       src_x, src_y, src_w, src_h);
 	if (ret)
 		goto out;
 
@@ -665,6 +723,41 @@ out:
 	return ret;
 }
 
+static int __setplane_atomic(struct drm_plane *plane,
+			     struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb,
+			     int32_t crtc_x, int32_t crtc_y,
+			     uint32_t crtc_w, uint32_t crtc_h,
+			     uint32_t src_x, uint32_t src_y,
+			     uint32_t src_w, uint32_t src_h,
+			     struct drm_modeset_acquire_ctx *ctx)
+{
+	int ret;
+
+	WARN_ON(!drm_drv_uses_atomic_modeset(plane->dev));
+
+	/* No fb means shut it down */
+	if (!fb)
+		return plane->funcs->disable_plane(plane, ctx);
+
+	/*
+	 * FIXME: This is redundant with drm_atomic_plane_check(),
+	 * but the legacy cursor/"async" .update_plane() tricks
+	 * don't call that so we still need this here. Should remove
+	 * this when all .update_plane() implementations have been
+	 * fixed to call drm_atomic_plane_check().
+	 */
+	ret = __setplane_check(plane, crtc, fb,
+			       crtc_x, crtc_y, crtc_w, crtc_h,
+			       src_x, src_y, src_w, src_h);
+	if (ret)
+		return ret;
+
+	return plane->funcs->update_plane(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h, ctx);
+}
+
 static int setplane_internal(struct drm_plane *plane,
 			     struct drm_crtc *crtc,
 			     struct drm_framebuffer *fb,
@@ -677,23 +770,19 @@ static int setplane_internal(struct drm_plane *plane,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-retry:
-	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
-	if (ret)
-		goto fail;
-	ret = __setplane_internal(plane, crtc, fb,
-				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  src_x, src_y, src_w, src_h, &ctx);
+	DRM_MODESET_LOCK_ALL_BEGIN(plane->dev, ctx,
+				   DRM_MODESET_ACQUIRE_INTERRUPTIBLE, ret);
 
-fail:
-	if (ret == -EDEADLK) {
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	if (drm_drv_uses_atomic_modeset(plane->dev))
+		ret = __setplane_atomic(plane, crtc, fb,
+					crtc_x, crtc_y, crtc_w, crtc_h,
+					src_x, src_y, src_w, src_h, &ctx);
+	else
+		ret = __setplane_internal(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h, &ctx);
+
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 
 	return ret;
 }
@@ -708,7 +797,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/*
 	 * First, find the plane, crtc, and fb objects.  If not available,
@@ -816,9 +905,14 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 		src_h = fb->height << 16;
 	}
 
-	ret = __setplane_internal(plane, crtc, fb,
-				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  0, 0, src_w, src_h, ctx);
+	if (drm_drv_uses_atomic_modeset(dev))
+		ret = __setplane_atomic(plane, crtc, fb,
+					crtc_x, crtc_y, crtc_w, crtc_h,
+					0, 0, src_w, src_h, ctx);
+	else
+		ret = __setplane_internal(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  0, 0, src_w, src_h, ctx);
 
 	if (fb)
 		drm_framebuffer_put(fb);
@@ -841,7 +935,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!req->flags || (~DRM_MODE_CURSOR_FLAGS & req->flags))
 		return -EINVAL;
@@ -945,7 +1039,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	int ret = -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS)
 		return -EINVAL;
@@ -1092,8 +1186,10 @@ retry:
 		/* Keep the old fb, don't unref it. */
 		plane->old_fb = NULL;
 	} else {
-		plane->fb = fb;
-		drm_framebuffer_get(fb);
+		if (!plane->state) {
+			plane->fb = fb;
+			drm_framebuffer_get(fb);
+		}
 	}
 
 out:

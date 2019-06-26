@@ -2,7 +2,7 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 
 struct netns_frags {
 	/* sysctls */
@@ -56,8 +56,9 @@ struct frag_v6_compare_key {
  * @timer: queue expiration timer
  * @lock: spinlock protecting this frag
  * @refcnt: reference count of the queue
- * @fragments: received fragments head
+ * @rb_fragments: received fragments rb-tree root
  * @fragments_tail: received fragments tail
+ * @last_run_head: the head of the last "run". see ip_fragment.c
  * @stamp: timestamp of the last received fragment
  * @len: total length of the original datagram
  * @meat: length of received fragments so far
@@ -75,8 +76,9 @@ struct inet_frag_queue {
 	struct timer_list	timer;
 	spinlock_t		lock;
 	refcount_t		refcnt;
-	struct sk_buff		*fragments;
+	struct rb_root		rb_fragments;
 	struct sk_buff		*fragments_tail;
+	struct sk_buff		*last_run_head;
 	ktime_t			stamp;
 	int			len;
 	int			meat;
@@ -112,6 +114,9 @@ void inet_frag_kill(struct inet_frag_queue *q);
 void inet_frag_destroy(struct inet_frag_queue *q);
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf, void *key);
 
+/* Free all skbs in the queue; return the sum of their truesizes. */
+unsigned int inet_frag_rbtree_purge(struct rb_root *root);
+
 static inline void inet_frag_put(struct inet_frag_queue *q)
 {
 	if (refcount_dec_and_test(&q->refcnt))
@@ -145,5 +150,17 @@ static inline void add_frag_mem_limit(struct netns_frags *nf, long val)
 #define	IPFRAG_ECN_CE		0x08 /* one frag had ECN_CE */
 
 extern const u8 ip_frag_ecn_table[16];
+
+/* Return values of inet_frag_queue_insert() */
+#define IPFRAG_OK	0
+#define IPFRAG_DUP	1
+#define IPFRAG_OVERLAP	2
+int inet_frag_queue_insert(struct inet_frag_queue *q, struct sk_buff *skb,
+			   int offset, int end);
+void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
+			      struct sk_buff *parent);
+void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
+			    void *reasm_data);
+struct sk_buff *inet_frag_pull_head(struct inet_frag_queue *q);
 
 #endif

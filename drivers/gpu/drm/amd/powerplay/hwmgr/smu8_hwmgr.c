@@ -244,6 +244,7 @@ static int smu8_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+/* convert form 8bit vid to real voltage in mV*4 */
 static uint32_t smu8_convert_8Bit_index_to_voltage(
 			struct pp_hwmgr *hwmgr, uint16_t voltage)
 {
@@ -271,12 +272,10 @@ static int smu8_init_dynamic_state_adjustment_rule_settings(
 			struct pp_hwmgr *hwmgr,
 			ATOM_CLK_VOLT_CAPABILITY *disp_voltage_table)
 {
-	uint32_t table_size =
-		sizeof(struct phm_clock_voltage_dependency_table) +
-		(7 * sizeof(struct phm_clock_voltage_dependency_record));
+	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	struct phm_clock_voltage_dependency_table *table_clk_vlt =
-					kzalloc(table_size, GFP_KERNEL);
+	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 7),
+				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
 		pr_err("Can not allocate memory!\n");
@@ -663,8 +662,13 @@ static void smu8_init_power_gate_state(struct pp_hwmgr *hwmgr)
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
 	data->samu_power_gated = false;
+#ifdef CONFIG_DRM_AMD_ACP
 	data->acp_power_gated = false;
-	data->pgacpinit = true;
+#else
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	data->acp_power_gated = true;
+#endif
+
 }
 
 static void smu8_init_sclk_threshold(struct pp_hwmgr *hwmgr)
@@ -874,7 +878,7 @@ static int smu8_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 	smu8_update_low_mem_pstate(hwmgr, input);
 
 	return 0;
-};
+}
 
 
 static int smu8_setup_asic_task(struct pp_hwmgr *hwmgr)
@@ -927,14 +931,6 @@ static void smu8_reset_cc6_data(struct pp_hwmgr *hwmgr)
 	hw_data->cc6_settings.cpu_cc6_disable = false;
 	hw_data->cc6_settings.cpu_pstate_disable = false;
 }
-
-static int smu8_power_off_asic(struct pp_hwmgr *hwmgr)
-{
-	smu8_power_up_display_clock_sys_pll(hwmgr);
-	smu8_clear_nb_dpm_flag(hwmgr);
-	smu8_reset_cc6_data(hwmgr);
-	return 0;
-};
 
 static void smu8_program_voting_clients(struct pp_hwmgr *hwmgr)
 {
@@ -1005,17 +1001,6 @@ static void smu8_reset_acp_boot_level(struct pp_hwmgr *hwmgr)
 	data->acp_boot_level = 0xff;
 }
 
-static int smu8_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
-{
-	smu8_disable_nb_dpm(hwmgr);
-
-	smu8_clear_voting_clients(hwmgr);
-	if (smu8_stop_dpm(hwmgr))
-		return -EINVAL;
-
-	return 0;
-};
-
 static int smu8_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	smu8_program_voting_clients(hwmgr);
@@ -1025,7 +1010,27 @@ static int smu8_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	smu8_reset_acp_boot_level(hwmgr);
 
 	return 0;
-};
+}
+
+static int smu8_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
+{
+	smu8_disable_nb_dpm(hwmgr);
+
+	smu8_clear_voting_clients(hwmgr);
+	if (smu8_stop_dpm(hwmgr))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int smu8_power_off_asic(struct pp_hwmgr *hwmgr)
+{
+	smu8_disable_dpm_tasks(hwmgr);
+	smu8_power_up_display_clock_sys_pll(hwmgr);
+	smu8_clear_nb_dpm_flag(hwmgr);
+	smu8_reset_cc6_data(hwmgr);
+	return 0;
+}
 
 static int smu8_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state  *prequest_ps,
@@ -1604,17 +1609,17 @@ static int smu8_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type
 	switch (type) {
 	case amd_pp_disp_clock:
 		for (i = 0; i < clocks->count; i++)
-			clocks->clock[i] = data->sys_info.display_clock[i];
+			clocks->clock[i] = data->sys_info.display_clock[i] * 10;
 		break;
 	case amd_pp_sys_clock:
 		table = hwmgr->dyn_state.vddc_dependency_on_sclk;
 		for (i = 0; i < clocks->count; i++)
-			clocks->clock[i] = table->entries[i].clk;
+			clocks->clock[i] = table->entries[i].clk * 10;
 		break;
 	case amd_pp_mem_clock:
 		clocks->count = SMU8_NUM_NBPMEMORYCLOCK;
 		for (i = 0; i < clocks->count; i++)
-			clocks->clock[i] = data->sys_info.nbp_memory_clock[clocks->count - 1 - i];
+			clocks->clock[i] = data->sys_info.nbp_memory_clock[clocks->count - 1 - i] * 10;
 		break;
 	default:
 		return -1;
@@ -1702,13 +1707,13 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	case AMDGPU_PP_SENSOR_VDDNB:
 		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_NB_CURRENTVID) &
 			CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
-		vddnb = smu8_convert_8Bit_index_to_voltage(hwmgr, tmp);
+		vddnb = smu8_convert_8Bit_index_to_voltage(hwmgr, tmp) / 4;
 		*((uint32_t *)value) = vddnb;
 		return 0;
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_GFX_CURRENTVID) &
 			CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
-		vddgfx = smu8_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp);
+		vddgfx = smu8_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp) / 4;
 		*((uint32_t *)value) = vddgfx;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_VCLK:
@@ -1885,6 +1890,19 @@ static int smu8_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 }
 
 
+static void smu8_dpm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct smu8_hwmgr *data = hwmgr->backend;
+
+	if (data->acp_power_gated == bgate)
+		return;
+
+	if (bgate)
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	else
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerON);
+}
+
 static void smu8_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct smu8_hwmgr *data = hwmgr->backend;
@@ -1950,6 +1968,7 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.powerdown_uvd = smu8_dpm_powerdown_uvd,
 	.powergate_uvd = smu8_dpm_powergate_uvd,
 	.powergate_vce = smu8_dpm_powergate_vce,
+	.powergate_acp = smu8_dpm_powergate_acp,
 	.get_mclk = smu8_dpm_get_mclk,
 	.get_sclk = smu8_dpm_get_sclk,
 	.patch_boot_state = smu8_dpm_patch_boot_state,
@@ -1971,6 +1990,7 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.power_state_set = smu8_set_power_state_tasks,
 	.dynamic_state_management_disable = smu8_disable_dpm_tasks,
 	.notify_cac_buffer_info = smu8_notify_cac_buffer_info,
+	.update_nbdpm_pstate = smu8_nbdpm_pstate_enable_disable,
 	.get_thermal_temperature_range = smu8_get_thermal_temperature_range,
 };
 

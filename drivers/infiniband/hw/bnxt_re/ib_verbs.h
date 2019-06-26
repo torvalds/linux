@@ -56,8 +56,8 @@ struct bnxt_re_fence_data {
 };
 
 struct bnxt_re_pd {
+	struct ib_pd            ib_pd;
 	struct bnxt_re_dev	*rdev;
-	struct ib_pd		ib_pd;
 	struct bnxt_qplib_pd	qplib_pd;
 	struct bnxt_re_fence_data fence;
 };
@@ -135,8 +135,8 @@ struct bnxt_re_mw {
 };
 
 struct bnxt_re_ucontext {
+	struct ib_ucontext      ib_uctx;
 	struct bnxt_re_dev	*rdev;
-	struct ib_ucontext	ib_uctx;
 	struct bnxt_qplib_dpi	dpi;
 	void			*shpg;
 	spinlock_t		sh_lock;	/* protect shpg */
@@ -158,22 +158,21 @@ void bnxt_re_query_fw_str(struct ib_device *ibdev, char *str);
 int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
 		       u16 index, u16 *pkey);
 int bnxt_re_del_gid(const struct ib_gid_attr *attr, void **context);
-int bnxt_re_add_gid(const union ib_gid *gid,
-		    const struct ib_gid_attr *attr, void **context);
+int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context);
 int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
 		      int index, union ib_gid *gid);
 enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
 					    u8 port_num);
-struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
-			       struct ib_ucontext *context,
-			       struct ib_udata *udata);
-int bnxt_re_dealloc_pd(struct ib_pd *pd);
+int bnxt_re_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
+		     struct ib_udata *udata);
+void bnxt_re_dealloc_pd(struct ib_pd *pd);
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *pd,
 				struct rdma_ah_attr *ah_attr,
+				u32 flags,
 				struct ib_udata *udata);
 int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
-int bnxt_re_destroy_ah(struct ib_ah *ah);
+int bnxt_re_destroy_ah(struct ib_ah *ah, u32 flags);
 struct ib_srq *bnxt_re_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *srq_init_attr,
 				  struct ib_udata *udata);
@@ -182,8 +181,8 @@ int bnxt_re_modify_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr,
 		       struct ib_udata *udata);
 int bnxt_re_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
 int bnxt_re_destroy_srq(struct ib_srq *srq);
-int bnxt_re_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *recv_wr,
-			  struct ib_recv_wr **bad_recv_wr);
+int bnxt_re_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *recv_wr,
+			  const struct ib_recv_wr **bad_recv_wr);
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *qp_init_attr,
 				struct ib_udata *udata);
@@ -192,10 +191,10 @@ int bnxt_re_modify_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 int bnxt_re_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 		     int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 int bnxt_re_destroy_qp(struct ib_qp *qp);
-int bnxt_re_post_send(struct ib_qp *qp, struct ib_send_wr *send_wr,
-		      struct ib_send_wr **bad_send_wr);
-int bnxt_re_post_recv(struct ib_qp *qp, struct ib_recv_wr *recv_wr,
-		      struct ib_recv_wr **bad_recv_wr);
+int bnxt_re_post_send(struct ib_qp *qp, const struct ib_send_wr *send_wr,
+		      const struct ib_send_wr **bad_send_wr);
+int bnxt_re_post_recv(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,
+		      const struct ib_recv_wr **bad_recv_wr);
 struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
@@ -216,9 +215,8 @@ int bnxt_re_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
 				  struct ib_udata *udata);
-struct ib_ucontext *bnxt_re_alloc_ucontext(struct ib_device *ibdev,
-					   struct ib_udata *udata);
-int bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
+int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata);
+void bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
 int bnxt_re_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 unsigned long bnxt_re_lock_cqs(struct bnxt_re_qp *qp);

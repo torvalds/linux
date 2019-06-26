@@ -161,7 +161,7 @@
  * instead. The following list contains all registers that
  * require saving.
  */
-static const uint16_t backup_addresses[] = {
+static const u16 backup_addresses[] = {
 	0x11, 0x12,
 	0x18, 0x19, 0x1a, 0x1f,
 	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
@@ -174,11 +174,11 @@ static const uint16_t backup_addresses[] = {
 struct ivch_priv {
 	bool quiet;
 
-	uint16_t width, height;
+	u16 width, height;
 
 	/* Register backup */
 
-	uint16_t reg_backup[ARRAY_SIZE(backup_addresses)];
+	u16 reg_backup[ARRAY_SIZE(backup_addresses)];
 };
 
 
@@ -188,7 +188,7 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo);
  *
  * Each of the 256 registers are 16 bits long.
  */
-static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
+static bool ivch_read(struct intel_dvo_device *dvo, int addr, u16 *data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
@@ -231,7 +231,7 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 }
 
 /* Writes a 16-bit register on the ivch */
-static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
+static bool ivch_write(struct intel_dvo_device *dvo, int addr, u16 data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
@@ -263,7 +263,7 @@ static bool ivch_init(struct intel_dvo_device *dvo,
 		      struct i2c_adapter *adapter)
 {
 	struct ivch_priv *priv;
-	uint16_t temp;
+	u16 temp;
 	int i;
 
 	priv = kzalloc(sizeof(struct ivch_priv), GFP_KERNEL);
@@ -342,7 +342,7 @@ static void ivch_reset(struct intel_dvo_device *dvo)
 static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	int i;
-	uint16_t vr01, vr30, backlight;
+	u16 vr01, vr30, backlight;
 
 	ivch_reset(dvo);
 
@@ -379,7 +379,7 @@ static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 
 static bool ivch_get_hw_state(struct intel_dvo_device *dvo)
 {
-	uint16_t vr01;
+	u16 vr01;
 
 	ivch_reset(dvo);
 
@@ -398,9 +398,9 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 			  const struct drm_display_mode *adjusted_mode)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
-	uint16_t vr40 = 0;
-	uint16_t vr01 = 0;
-	uint16_t vr10;
+	u16 vr40 = 0;
+	u16 vr01 = 0;
+	u16 vr10;
 
 	ivch_reset(dvo);
 
@@ -416,7 +416,7 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 
 	if (mode->hdisplay != adjusted_mode->crtc_hdisplay ||
 	    mode->vdisplay != adjusted_mode->crtc_vdisplay) {
-		uint16_t x_ratio, y_ratio;
+		u16 x_ratio, y_ratio;
 
 		vr01 |= VR01_PANEL_FIT_ENABLE;
 		vr40 |= VR40_CLOCK_GATING_ENABLE;
@@ -438,7 +438,7 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 
 static void ivch_dump_regs(struct intel_dvo_device *dvo)
 {
-	uint16_t val;
+	u16 val;
 
 	ivch_read(dvo, VR00, &val);
 	DRM_DEBUG_KMS("VR00: 0x%04x\n", val);

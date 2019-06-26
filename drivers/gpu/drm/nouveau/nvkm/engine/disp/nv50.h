@@ -5,6 +5,8 @@
 #include "priv.h"
 struct nvkm_head;
 
+#include <core/enum.h>
+
 struct nv50_disp {
 	const struct nv50_disp_func *func;
 	struct nvkm_disp base;
@@ -71,12 +73,18 @@ int nv50_disp_init(struct nv50_disp *);
 void nv50_disp_fini(struct nv50_disp *);
 void nv50_disp_intr(struct nv50_disp *);
 void nv50_disp_super(struct work_struct *);
+extern const struct nvkm_enum nv50_disp_intr_error_type[];
 
 int gf119_disp_init(struct nv50_disp *);
 void gf119_disp_fini(struct nv50_disp *);
 void gf119_disp_intr(struct nv50_disp *);
 void gf119_disp_super(struct work_struct *);
 void gf119_disp_intr_error(struct nv50_disp *, int);
+
+void gv100_disp_fini(struct nv50_disp *);
+void gv100_disp_intr(struct nv50_disp *);
+void gv100_disp_super(struct work_struct *);
+int gv100_disp_wndw_cnt(struct nvkm_disp *, unsigned long *);
 
 void nv50_disp_dptmds_war_2(struct nv50_disp *, struct dcb_output *);
 void nv50_disp_dptmds_war_3(struct nv50_disp *, struct dcb_output *);

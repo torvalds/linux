@@ -57,7 +57,7 @@ struct cmd_nvme {
 	uint64_t rsvd;
 
 	uint16_t control_flags;         /* Control Flags */
-#define CF_NVME_ENABLE                  BIT_9
+#define CF_NVME_FIRST_BURST_ENABLE	BIT_11
 #define CF_DIF_SEG_DESCR_ENABLE         BIT_3
 #define CF_DATA_SEG_DESCR_ENABLE        BIT_2
 #define CF_READ_DATA                    BIT_1
@@ -142,7 +142,7 @@ struct pt_ls4_rx_unsol {
 /*
  * Global functions prototype in qla_nvme.c source file.
  */
-void qla_nvme_register_hba(struct scsi_qla_host *);
+int qla_nvme_register_hba(struct scsi_qla_host *);
 int  qla_nvme_register_remote(struct scsi_qla_host *, struct fc_port *);
 void qla_nvme_delete(struct scsi_qla_host *);
 void qla_nvme_abort(struct qla_hw_data *, struct srb *sp, int res);

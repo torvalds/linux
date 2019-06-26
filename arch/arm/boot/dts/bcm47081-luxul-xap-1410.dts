@@ -16,6 +16,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};
 
@@ -55,5 +56,9 @@
 };
 
 &spi_nor {
+	status = "okay";
+};
+
+&usb3_phy {
 	status = "okay";
 };

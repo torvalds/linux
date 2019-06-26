@@ -448,10 +448,7 @@ struct radeon_surface_reg {
  * TTM.
  */
 struct radeon_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
 	struct ttm_bo_device		bdev;
-	bool				mem_global_referenced;
 	bool				initialized;
 
 #if defined(CONFIG_DEBUG_FS)
@@ -1652,6 +1649,10 @@ struct radeon_pm {
 	bool                    sysfs_initialized;
 	struct radeon_dpm       dpm;
 };
+
+#define RADEON_PCIE_SPEED_25 1
+#define RADEON_PCIE_SPEED_50 2
+#define RADEON_PCIE_SPEED_80 4
 
 int radeon_pm_get_type_index(struct radeon_device *rdev,
 			     enum radeon_pm_state_type ps_type,

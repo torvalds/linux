@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0+
 /dts-v1/;
 #include "zynq-7000.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Zynq ZYBO Z7 Development Board";
+	model = "Digilent Zybo Z7 board";
 	compatible = "digilent,zynq-zybo-z7", "xlnx,zynq-7000";
 
 	aliases {
@@ -13,7 +14,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x20000000>;
+		reg = <0x0 0x40000000>;
 	};
 
 	chosen {
@@ -21,10 +22,19 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		ld4 {
+			label = "zynq-zybo-z7:green:ld4";
+			gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	usb_phy0: phy0 {
 		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
-		reset-gpios = <&gpio0 46 1>;
+		reset-gpios = <&gpio0 46 GPIO_ACTIVE_LOW>;
 	};
 };
 

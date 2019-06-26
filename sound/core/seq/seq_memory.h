@@ -94,12 +94,6 @@ struct snd_seq_pool *snd_seq_pool_new(int poolsize);
 /* remove pool */
 int snd_seq_pool_delete(struct snd_seq_pool **pool);
 
-/* init memory */
-int snd_sequencer_memory_init(void);
-            
-/* release event memory */
-void snd_sequencer_memory_done(void);
-
 /* polling */
 int snd_seq_pool_poll_wait(struct snd_seq_pool *pool, struct file *file, poll_table *wait);
 

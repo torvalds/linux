@@ -42,6 +42,66 @@
  */
 static struct cppc_cpudata **all_cpu_data;
 
+struct cppc_workaround_oem_info {
+	char oem_id[ACPI_OEM_ID_SIZE +1];
+	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
+	u32 oem_revision;
+};
+
+static bool apply_hisi_workaround;
+
+static struct cppc_workaround_oem_info wa_info[] = {
+	{
+		.oem_id		= "HISI  ",
+		.oem_table_id	= "HIP07   ",
+		.oem_revision	= 0,
+	}, {
+		.oem_id		= "HISI  ",
+		.oem_table_id	= "HIP08   ",
+		.oem_revision	= 0,
+	}
+};
+
+static unsigned int cppc_cpufreq_perf_to_khz(struct cppc_cpudata *cpu,
+					unsigned int perf);
+
+/*
+ * HISI platform does not support delivered performance counter and
+ * reference performance counter. It can calculate the performance using the
+ * platform specific mechanism. We reuse the desired performance register to
+ * store the real performance calculated by the platform.
+ */
+static unsigned int hisi_cppc_cpufreq_get_rate(unsigned int cpunum)
+{
+	struct cppc_cpudata *cpudata = all_cpu_data[cpunum];
+	u64 desired_perf;
+	int ret;
+
+	ret = cppc_get_desired_perf(cpunum, &desired_perf);
+	if (ret < 0)
+		return -EIO;
+
+	return cppc_cpufreq_perf_to_khz(cpudata, desired_perf);
+}
+
+static void cppc_check_hisi_workaround(void)
+{
+	struct acpi_table_header *tbl;
+	acpi_status status = AE_OK;
+	int i;
+
+	status = acpi_get_table(ACPI_SIG_PCCT, 0, &tbl);
+	if (ACPI_FAILURE(status) || !tbl)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(wa_info); i++) {
+		if (!memcmp(wa_info[i].oem_id, tbl->oem_id, ACPI_OEM_ID_SIZE) &&
+		    !memcmp(wa_info[i].oem_table_id, tbl->oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
+		    wa_info[i].oem_revision == tbl->oem_revision)
+			apply_hisi_workaround = true;
+	}
+}
+
 /* Callback function used to retrieve the max frequency from DMI */
 static void cppc_find_dmi_mhz(const struct dmi_header *dm, void *private)
 {
@@ -296,10 +356,65 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return ret;
 }
 
+static inline u64 get_delta(u64 t1, u64 t0)
+{
+	if (t1 > t0 || t0 > ~(u32)0)
+		return t1 - t0;
+
+	return (u32)t1 - (u32)t0;
+}
+
+static int cppc_get_rate_from_fbctrs(struct cppc_cpudata *cpu,
+				     struct cppc_perf_fb_ctrs fb_ctrs_t0,
+				     struct cppc_perf_fb_ctrs fb_ctrs_t1)
+{
+	u64 delta_reference, delta_delivered;
+	u64 reference_perf, delivered_perf;
+
+	reference_perf = fb_ctrs_t0.reference_perf;
+
+	delta_reference = get_delta(fb_ctrs_t1.reference,
+				    fb_ctrs_t0.reference);
+	delta_delivered = get_delta(fb_ctrs_t1.delivered,
+				    fb_ctrs_t0.delivered);
+
+	/* Check to avoid divide-by zero */
+	if (delta_reference || delta_delivered)
+		delivered_perf = (reference_perf * delta_delivered) /
+					delta_reference;
+	else
+		delivered_perf = cpu->perf_ctrls.desired_perf;
+
+	return cppc_cpufreq_perf_to_khz(cpu, delivered_perf);
+}
+
+static unsigned int cppc_cpufreq_get_rate(unsigned int cpunum)
+{
+	struct cppc_perf_fb_ctrs fb_ctrs_t0 = {0}, fb_ctrs_t1 = {0};
+	struct cppc_cpudata *cpu = all_cpu_data[cpunum];
+	int ret;
+
+	if (apply_hisi_workaround)
+		return hisi_cppc_cpufreq_get_rate(cpunum);
+
+	ret = cppc_get_perf_ctrs(cpunum, &fb_ctrs_t0);
+	if (ret)
+		return ret;
+
+	udelay(2); /* 2usec delay between sampling */
+
+	ret = cppc_get_perf_ctrs(cpunum, &fb_ctrs_t1);
+	if (ret)
+		return ret;
+
+	return cppc_get_rate_from_fbctrs(cpu, fb_ctrs_t0, fb_ctrs_t1);
+}
+
 static struct cpufreq_driver cppc_cpufreq_driver = {
 	.flags = CPUFREQ_CONST_LOOPS,
 	.verify = cppc_verify_policy,
 	.target = cppc_cpufreq_set_target,
+	.get = cppc_cpufreq_get_rate,
 	.init = cppc_cpufreq_cpu_init,
 	.stop_cpu = cppc_cpufreq_stop_cpu,
 	.name = "cppc_cpufreq",
@@ -333,6 +448,8 @@ static int __init cppc_cpufreq_init(void)
 		pr_debug("Error parsing PSD data. Aborting cpufreq registration.\n");
 		goto out;
 	}
+
+	cppc_check_hisi_workaround();
 
 	ret = cpufreq_register_driver(&cppc_cpufreq_driver);
 	if (ret)
@@ -376,7 +493,7 @@ MODULE_LICENSE("GPL");
 
 late_initcall(cppc_cpufreq_init);
 
-static const struct acpi_device_id cppc_acpi_ids[] = {
+static const struct acpi_device_id cppc_acpi_ids[] __used = {
 	{ACPI_PROCESSOR_DEVICE_HID, },
 	{}
 };

@@ -37,6 +37,7 @@
 
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/ipsec.h"
+#include "accel/accel.h"
 #include "en.h"
 
 enum {
@@ -253,11 +254,13 @@ struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
 	struct mlx5e_ipsec_metadata *mdata;
 	struct mlx5e_ipsec_sa_entry *sa_entry;
 	struct xfrm_state *x;
+	struct sec_path *sp;
 
 	if (!xo)
 		return skb;
 
-	if (unlikely(skb->sp->len != 1)) {
+	sp = skb_sec_path(skb);
+	if (unlikely(sp->len != 1)) {
 		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_bundle);
 		goto drop;
 	}
@@ -304,10 +307,11 @@ mlx5e_ipsec_build_sp(struct net_device *netdev, struct sk_buff *skb,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct xfrm_offload *xo;
 	struct xfrm_state *xs;
+	struct sec_path *sp;
 	u32 sa_handle;
 
-	skb->sp = secpath_dup(skb->sp);
-	if (unlikely(!skb->sp)) {
+	sp = secpath_set(skb);
+	if (unlikely(!sp)) {
 		atomic64_inc(&priv->ipsec->sw_stats.ipsec_rx_drop_sp_alloc);
 		return NULL;
 	}
@@ -319,8 +323,9 @@ mlx5e_ipsec_build_sp(struct net_device *netdev, struct sk_buff *skb,
 		return NULL;
 	}
 
-	skb->sp->xvec[skb->sp->len++] = xs;
-	skb->sp->olen++;
+	sp = skb_sec_path(skb);
+	sp->xvec[sp->len++] = xs;
+	sp->olen++;
 
 	xo = xfrm_offload(skb);
 	xo->flags = CRYPTO_DONE;
@@ -346,19 +351,12 @@ mlx5e_ipsec_build_sp(struct net_device *netdev, struct sk_buff *skb,
 }
 
 struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
-					  struct sk_buff *skb)
+					  struct sk_buff *skb, u32 *cqe_bcnt)
 {
 	struct mlx5e_ipsec_metadata *mdata;
-	struct ethhdr *old_eth;
-	struct ethhdr *new_eth;
 	struct xfrm_state *xs;
-	__be16 *ethtype;
 
-	/* Detect inline metadata */
-	if (skb->len < ETH_HLEN + MLX5E_METADATA_ETHER_LEN)
-		return skb;
-	ethtype = (__be16 *)(skb->data + ETH_ALEN * 2);
-	if (*ethtype != cpu_to_be16(MLX5E_METADATA_ETHER_TYPE))
+	if (!is_metadata_hdr_valid(skb))
 		return skb;
 
 	/* Use the metadata */
@@ -369,12 +367,8 @@ struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
 		return NULL;
 	}
 
-	/* Remove the metadata from the buffer */
-	old_eth = (struct ethhdr *)skb->data;
-	new_eth = (struct ethhdr *)(skb->data + MLX5E_METADATA_ETHER_LEN);
-	memmove(new_eth, old_eth, 2 * ETH_ALEN);
-	/* Ethertype is already in its new place */
-	skb_pull_inline(skb, MLX5E_METADATA_ETHER_LEN);
+	remove_metadata_hdr(skb);
+	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 
 	return skb;
 }
@@ -382,10 +376,11 @@ struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
 bool mlx5e_ipsec_feature_check(struct sk_buff *skb, struct net_device *netdev,
 			       netdev_features_t features)
 {
+	struct sec_path *sp = skb_sec_path(skb);
 	struct xfrm_state *x;
 
-	if (skb->sp && skb->sp->len) {
-		x = skb->sp->xvec[0];
+	if (sp && sp->len) {
+		x = sp->xvec[0];
 		if (x && x->xso.offload_handle)
 			return true;
 	}

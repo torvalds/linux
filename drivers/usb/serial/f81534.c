@@ -45,14 +45,17 @@
 #define F81534_CONFIG1_REG		(0x09 + F81534_UART_BASE_ADDRESS)
 
 #define F81534_DEF_CONF_ADDRESS_START	0x3000
-#define F81534_DEF_CONF_SIZE		8
+#define F81534_DEF_CONF_SIZE		12
 
 #define F81534_CUSTOM_ADDRESS_START	0x2f00
 #define F81534_CUSTOM_DATA_SIZE		0x10
 #define F81534_CUSTOM_NO_CUSTOM_DATA	0xff
 #define F81534_CUSTOM_VALID_TOKEN	0xf0
 #define F81534_CONF_OFFSET		1
-#define F81534_CONF_GPIO_OFFSET		4
+#define F81534_CONF_INIT_GPIO_OFFSET	4
+#define F81534_CONF_WORK_GPIO_OFFSET	8
+#define F81534_CONF_GPIO_SHUTDOWN	7
+#define F81534_CONF_GPIO_RS232		1
 
 #define F81534_MAX_DATA_BLOCK		64
 #define F81534_MAX_BUS_RETRY		20
@@ -1139,41 +1142,19 @@ static void f81534_close(struct usb_serial_port *port)
 	mutex_unlock(&serial_priv->urb_mutex);
 }
 
-static int f81534_get_serial_info(struct usb_serial_port *port,
-				  struct serial_struct __user *retinfo)
+static int f81534_get_serial_info(struct tty_struct *tty,
+				  struct serial_struct *ss)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct f81534_port_private *port_priv;
-	struct serial_struct tmp;
 
 	port_priv = usb_get_serial_port_data(port);
 
-	memset(&tmp, 0, sizeof(tmp));
-
-	tmp.type = PORT_16550A;
-	tmp.port = port->port_number;
-	tmp.line = port->minor;
-	tmp.baud_base = port_priv->baud_base;
-
-	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return -EFAULT;
-
+	ss->type = PORT_16550A;
+	ss->port = port->port_number;
+	ss->line = port->minor;
+	ss->baud_base = port_priv->baud_base;
 	return 0;
-}
-
-static int f81534_ioctl(struct tty_struct *tty, unsigned int cmd,
-			unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct serial_struct __user *buf = (struct serial_struct __user *)arg;
-
-	switch (cmd) {
-	case TIOCGSERIAL:
-		return f81534_get_serial_info(port, buf);
-	default:
-		break;
-	}
-
-	return -ENOIOCTLCMD;
 }
 
 static void f81534_process_per_serial_block(struct usb_serial_port *port,
@@ -1359,8 +1340,19 @@ static int f81534_set_port_output_pin(struct usb_serial_port *port)
 	serial_priv = usb_get_serial_data(serial);
 	port_priv = usb_get_serial_port_data(port);
 
-	idx = F81534_CONF_GPIO_OFFSET + port_priv->phy_num;
+	idx = F81534_CONF_INIT_GPIO_OFFSET + port_priv->phy_num;
 	value = serial_priv->conf_data[idx];
+	if (value >= F81534_CONF_GPIO_SHUTDOWN) {
+		/*
+		 * Newer IC configure will make transceiver in shutdown mode on
+		 * initial power on. We need enable it before using UARTs.
+		 */
+		idx = F81534_CONF_WORK_GPIO_OFFSET + port_priv->phy_num;
+		value = serial_priv->conf_data[idx];
+		if (value >= F81534_CONF_GPIO_SHUTDOWN)
+			value = F81534_CONF_GPIO_RS232;
+	}
+
 	pins = &f81534_port_out_pins[port_priv->phy_num];
 
 	for (i = 0; i < ARRAY_SIZE(pins->pin); ++i) {
@@ -1581,7 +1573,7 @@ static struct usb_serial_driver f81534_device = {
 	.break_ctl =		f81534_break_ctl,
 	.dtr_rts =		f81534_dtr_rts,
 	.process_read_urb =	f81534_process_read_urb,
-	.ioctl =		f81534_ioctl,
+	.get_serial =		f81534_get_serial_info,
 	.tiocmget =		f81534_tiocmget,
 	.tiocmset =		f81534_tiocmset,
 	.write_bulk_callback =	f81534_write_usb_callback,

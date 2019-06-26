@@ -22,29 +22,79 @@
 #define VSP1_DLH_INT_ENABLE		(1 << 1)
 #define VSP1_DLH_AUTO_START		(1 << 0)
 
+#define VSP1_DLH_EXT_PRE_CMD_EXEC	(1 << 9)
+#define VSP1_DLH_EXT_POST_CMD_EXEC	(1 << 8)
+
 struct vsp1_dl_header_list {
 	u32 num_bytes;
 	u32 addr;
-} __attribute__((__packed__));
+} __packed;
 
 struct vsp1_dl_header {
 	u32 num_lists;
 	struct vsp1_dl_header_list lists[8];
 	u32 next_header;
 	u32 flags;
-} __attribute__((__packed__));
+} __packed;
+
+/**
+ * struct vsp1_dl_ext_header - Extended display list header
+ * @padding: padding zero bytes for alignment
+ * @pre_ext_dl_num_cmd: number of pre-extended command bodies to parse
+ * @flags: enables or disables execution of the pre and post command
+ * @pre_ext_dl_plist: start address of pre-extended display list bodies
+ * @post_ext_dl_num_cmd: number of post-extended command bodies to parse
+ * @post_ext_dl_plist: start address of post-extended display list bodies
+ */
+struct vsp1_dl_ext_header {
+	u32 padding;
+
+	/*
+	 * The datasheet represents flags as stored before pre_ext_dl_num_cmd,
+	 * expecting 32-bit accesses. The flags are appropriate to the whole
+	 * header, not just the pre_ext command, and thus warrant being
+	 * separated out. Due to byte ordering, and representing as 16 bit
+	 * values here, the flags must be positioned after the
+	 * pre_ext_dl_num_cmd.
+	 */
+	u16 pre_ext_dl_num_cmd;
+	u16 flags;
+	u32 pre_ext_dl_plist;
+
+	u32 post_ext_dl_num_cmd;
+	u32 post_ext_dl_plist;
+} __packed;
+
+struct vsp1_dl_header_extended {
+	struct vsp1_dl_header header;
+	struct vsp1_dl_ext_header ext;
+} __packed;
 
 struct vsp1_dl_entry {
 	u32 addr;
 	u32 data;
-} __attribute__((__packed__));
+} __packed;
+
+/**
+ * struct vsp1_pre_ext_dl_body - Pre Extended Display List Body
+ * @opcode: Extended display list command operation code
+ * @flags: Pre-extended command flags. These are specific to each command
+ * @address_set: Source address set pointer. Must have 16-byte alignment
+ * @reserved: Zero bits for alignment.
+ */
+struct vsp1_pre_ext_dl_body {
+	u32 opcode;
+	u32 flags;
+	u32 address_set;
+	u32 reserved;
+} __packed;
 
 /**
  * struct vsp1_dl_body - Display list body
  * @list: entry in the display list list of bodies
  * @free: entry in the pool free body list
+ * @refcnt: reference tracking for the body
  * @pool: pool to which this body belongs
- * @vsp1: the VSP1 device
  * @entries: array of entries
  * @dma: DMA address of the entries
  * @size: size of the DMA memory in bytes
@@ -58,7 +108,6 @@ struct vsp1_dl_body {
 	refcount_t refcnt;
 
 	struct vsp1_dl_body_pool *pool;
-	struct vsp1_device *vsp1;
 
 	struct vsp1_dl_entry *entries;
 	dma_addr_t dma;
@@ -93,13 +142,40 @@ struct vsp1_dl_body_pool {
 };
 
 /**
+ * struct vsp1_cmd_pool - Display List commands pool
+ * @dma: DMA address of the entries
+ * @size: size of the full DMA memory pool in bytes
+ * @mem: CPU memory pointer for the pool
+ * @cmds: Array of command structures for the pool
+ * @free: Free pool entries
+ * @lock: Protects the free list
+ * @vsp1: the VSP1 device
+ */
+struct vsp1_dl_cmd_pool {
+	/* DMA allocation */
+	dma_addr_t dma;
+	size_t size;
+	void *mem;
+
+	struct vsp1_dl_ext_cmd *cmds;
+	struct list_head free;
+
+	spinlock_t lock;
+
+	struct vsp1_device *vsp1;
+};
+
+/**
  * struct vsp1_dl_list - Display list
  * @list: entry in the display list manager lists
  * @dlm: the display list manager
- * @header: display list header, NULL for headerless lists
+ * @header: display list header
+ * @extension: extended display list header. NULL for normal lists
  * @dma: DMA address for the header
  * @body0: first display list body
  * @bodies: list of extra display list bodies
+ * @pre_cmd: pre command to be issued through extended dl header
+ * @post_cmd: post command to be issued through extended dl header
  * @has_chain: if true, indicates that there's a partition chain
  * @chain: entry in the display list partition chain
  * @internal: whether the display list is used for internal purpose
@@ -109,10 +185,14 @@ struct vsp1_dl_list {
 	struct vsp1_dl_manager *dlm;
 
 	struct vsp1_dl_header *header;
+	struct vsp1_dl_ext_header *extension;
 	dma_addr_t dma;
 
 	struct vsp1_dl_body *body0;
 	struct list_head bodies;
+
+	struct vsp1_dl_ext_cmd *pre_cmd;
+	struct vsp1_dl_ext_cmd *post_cmd;
 
 	bool has_chain;
 	struct list_head chain;
@@ -120,15 +200,9 @@ struct vsp1_dl_list {
 	bool internal;
 };
 
-enum vsp1_dl_mode {
-	VSP1_DL_MODE_HEADER,
-	VSP1_DL_MODE_HEADERLESS,
-};
-
 /**
  * struct vsp1_dl_manager - Display List manager
  * @index: index of the related WPF
- * @mode: display list operation mode (header or headerless)
  * @singleshot: execute the display list in single-shot mode
  * @vsp1: the VSP1 device
  * @lock: protects the free, active, queued, and pending lists
@@ -137,10 +211,10 @@ enum vsp1_dl_mode {
  * @queued: list queued to the hardware (written to the DL registers)
  * @pending: list waiting to be queued to the hardware
  * @pool: body pool for the display list bodies
+ * @cmdpool: commands pool for extended display list
  */
 struct vsp1_dl_manager {
 	unsigned int index;
-	enum vsp1_dl_mode mode;
 	bool singleshot;
 	struct vsp1_device *vsp1;
 
@@ -151,6 +225,7 @@ struct vsp1_dl_manager {
 	struct vsp1_dl_list *pending;
 
 	struct vsp1_dl_body_pool *pool;
+	struct vsp1_dl_cmd_pool *cmdpool;
 };
 
 /* -----------------------------------------------------------------------------
@@ -314,12 +389,164 @@ void vsp1_dl_body_write(struct vsp1_dl_body *dlb, u32 reg, u32 data)
 }
 
 /* -----------------------------------------------------------------------------
+ * Display List Extended Command Management
+ */
+
+enum vsp1_extcmd_type {
+	VSP1_EXTCMD_AUTODISP,
+	VSP1_EXTCMD_AUTOFLD,
+};
+
+struct vsp1_extended_command_info {
+	u16 opcode;
+	size_t body_size;
+};
+
+static const struct vsp1_extended_command_info vsp1_extended_commands[] = {
+	[VSP1_EXTCMD_AUTODISP] = { 0x02, 96 },
+	[VSP1_EXTCMD_AUTOFLD]  = { 0x03, 160 },
+};
+
+/**
+ * vsp1_dl_cmd_pool_create - Create a pool of commands from a single allocation
+ * @vsp1: The VSP1 device
+ * @type: The command pool type
+ * @num_cmds: The number of commands to allocate
+ *
+ * Allocate a pool of commands each with enough memory to contain the private
+ * data of each command. The allocation sizes are dependent upon the command
+ * type.
+ *
+ * Return a pointer to the pool on success or NULL if memory can't be allocated.
+ */
+static struct vsp1_dl_cmd_pool *
+vsp1_dl_cmd_pool_create(struct vsp1_device *vsp1, enum vsp1_extcmd_type type,
+			unsigned int num_cmds)
+{
+	struct vsp1_dl_cmd_pool *pool;
+	unsigned int i;
+	size_t cmd_size;
+
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	if (!pool)
+		return NULL;
+
+	spin_lock_init(&pool->lock);
+	INIT_LIST_HEAD(&pool->free);
+
+	pool->cmds = kcalloc(num_cmds, sizeof(*pool->cmds), GFP_KERNEL);
+	if (!pool->cmds) {
+		kfree(pool);
+		return NULL;
+	}
+
+	cmd_size = sizeof(struct vsp1_pre_ext_dl_body) +
+		   vsp1_extended_commands[type].body_size;
+	cmd_size = ALIGN(cmd_size, 16);
+
+	pool->size = cmd_size * num_cmds;
+	pool->mem = dma_alloc_wc(vsp1->bus_master, pool->size, &pool->dma,
+				 GFP_KERNEL);
+	if (!pool->mem) {
+		kfree(pool->cmds);
+		kfree(pool);
+		return NULL;
+	}
+
+	for (i = 0; i < num_cmds; ++i) {
+		struct vsp1_dl_ext_cmd *cmd = &pool->cmds[i];
+		size_t cmd_offset = i * cmd_size;
+		/* data_offset must be 16 byte aligned for DMA. */
+		size_t data_offset = sizeof(struct vsp1_pre_ext_dl_body) +
+				     cmd_offset;
+
+		cmd->pool = pool;
+		cmd->opcode = vsp1_extended_commands[type].opcode;
+
+		/*
+		 * TODO: Auto-disp can utilise more than one extended body
+		 * command per cmd.
+		 */
+		cmd->num_cmds = 1;
+		cmd->cmds = pool->mem + cmd_offset;
+		cmd->cmd_dma = pool->dma + cmd_offset;
+
+		cmd->data = pool->mem + data_offset;
+		cmd->data_dma = pool->dma + data_offset;
+
+		list_add_tail(&cmd->free, &pool->free);
+	}
+
+	return pool;
+}
+
+static
+struct vsp1_dl_ext_cmd *vsp1_dl_ext_cmd_get(struct vsp1_dl_cmd_pool *pool)
+{
+	struct vsp1_dl_ext_cmd *cmd = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pool->lock, flags);
+
+	if (!list_empty(&pool->free)) {
+		cmd = list_first_entry(&pool->free, struct vsp1_dl_ext_cmd,
+				       free);
+		list_del(&cmd->free);
+	}
+
+	spin_unlock_irqrestore(&pool->lock, flags);
+
+	return cmd;
+}
+
+static void vsp1_dl_ext_cmd_put(struct vsp1_dl_ext_cmd *cmd)
+{
+	unsigned long flags;
+
+	if (!cmd)
+		return;
+
+	/* Reset flags, these mark data usage. */
+	cmd->flags = 0;
+
+	spin_lock_irqsave(&cmd->pool->lock, flags);
+	list_add_tail(&cmd->free, &cmd->pool->free);
+	spin_unlock_irqrestore(&cmd->pool->lock, flags);
+}
+
+static void vsp1_dl_ext_cmd_pool_destroy(struct vsp1_dl_cmd_pool *pool)
+{
+	if (!pool)
+		return;
+
+	if (pool->mem)
+		dma_free_wc(pool->vsp1->bus_master, pool->size, pool->mem,
+			    pool->dma);
+
+	kfree(pool->cmds);
+	kfree(pool);
+}
+
+struct vsp1_dl_ext_cmd *vsp1_dl_get_pre_cmd(struct vsp1_dl_list *dl)
+{
+	struct vsp1_dl_manager *dlm = dl->dlm;
+
+	if (dl->pre_cmd)
+		return dl->pre_cmd;
+
+	dl->pre_cmd = vsp1_dl_ext_cmd_get(dlm->cmdpool);
+
+	return dl->pre_cmd;
+}
+
+/* ----------------------------------------------------------------------------
  * Display List Transaction Management
  */
 
 static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 {
 	struct vsp1_dl_list *dl;
+	size_t header_offset;
 
 	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
 	if (!dl)
@@ -332,16 +559,14 @@ static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 	dl->body0 = vsp1_dl_body_get(dlm->pool);
 	if (!dl->body0)
 		return NULL;
-	if (dlm->mode == VSP1_DL_MODE_HEADER) {
-		size_t header_offset = dl->body0->max_entries
-				     * sizeof(*dl->body0->entries);
 
-		dl->header = ((void *)dl->body0->entries) + header_offset;
-		dl->dma = dl->body0->dma + header_offset;
+	header_offset = dl->body0->max_entries * sizeof(*dl->body0->entries);
 
-		memset(dl->header, 0, sizeof(*dl->header));
-		dl->header->lists[0].addr = dl->body0->dma;
-	}
+	dl->header = ((void *)dl->body0->entries) + header_offset;
+	dl->dma = dl->body0->dma + header_offset;
+
+	memset(dl->header, 0, sizeof(*dl->header));
+	dl->header->lists[0].addr = dl->body0->dma;
 
 	return dl;
 }
@@ -398,7 +623,7 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 /* This function must be called with the display list manager lock held.*/
 static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 {
-	struct vsp1_dl_list *dl_child;
+	struct vsp1_dl_list *dl_next;
 
 	if (!dl)
 		return;
@@ -408,13 +633,19 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 	 * hardware operation.
 	 */
 	if (dl->has_chain) {
-		list_for_each_entry(dl_child, &dl->chain, chain)
-			__vsp1_dl_list_put(dl_child);
+		list_for_each_entry(dl_next, &dl->chain, chain)
+			__vsp1_dl_list_put(dl_next);
 	}
 
 	dl->has_chain = false;
 
 	vsp1_dl_list_bodies_put(dl);
+
+	vsp1_dl_ext_cmd_put(dl->pre_cmd);
+	vsp1_dl_ext_cmd_put(dl->post_cmd);
+
+	dl->pre_cmd = NULL;
+	dl->post_cmd = NULL;
 
 	/*
 	 * body0 is reused as as an optimisation as presently every display list
@@ -473,16 +704,9 @@ struct vsp1_dl_body *vsp1_dl_list_get_body0(struct vsp1_dl_list *dl)
  *
  * The reference must be explicitly released by a call to vsp1_dl_body_put()
  * when the body isn't needed anymore.
- *
- * Additional bodies are only usable for display lists in header mode.
- * Attempting to add a body to a header-less display list will return an error.
  */
 int vsp1_dl_list_add_body(struct vsp1_dl_list *dl, struct vsp1_dl_body *dlb)
 {
-	/* Multi-body lists are only available in header mode. */
-	if (dl->dlm->mode != VSP1_DL_MODE_HEADER)
-		return -EINVAL;
-
 	refcount_inc(&dlb->refcnt);
 
 	list_add_tail(&dlb->list, &dl->bodies);
@@ -503,20 +727,21 @@ int vsp1_dl_list_add_body(struct vsp1_dl_list *dl, struct vsp1_dl_body *dlb)
  * Adding a display list to a chain passes ownership of the display list to
  * the head display list item. The chain is released when the head dl item is
  * put back with __vsp1_dl_list_put().
- *
- * Chained display lists are only usable in header mode. Attempts to add a
- * display list to a chain in header-less mode will return an error.
  */
 int vsp1_dl_list_add_chain(struct vsp1_dl_list *head,
 			   struct vsp1_dl_list *dl)
 {
-	/* Chained lists are only available in header mode. */
-	if (head->dlm->mode != VSP1_DL_MODE_HEADER)
-		return -EINVAL;
-
 	head->has_chain = true;
 	list_add_tail(&dl->chain, &head->chain);
 	return 0;
+}
+
+static void vsp1_dl_ext_cmd_fill_header(struct vsp1_dl_ext_cmd *cmd)
+{
+	cmd->cmds[0].opcode = cmd->opcode;
+	cmd->cmds[0].flags = cmd->flags;
+	cmd->cmds[0].address_set = cmd->data_dma;
+	cmd->cmds[0].reserved = 0;
 }
 
 static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
@@ -571,6 +796,27 @@ static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 		 */
 		dl->header->flags = VSP1_DLH_INT_ENABLE;
 	}
+
+	if (!dl->extension)
+		return;
+
+	dl->extension->flags = 0;
+
+	if (dl->pre_cmd) {
+		dl->extension->pre_ext_dl_plist = dl->pre_cmd->cmd_dma;
+		dl->extension->pre_ext_dl_num_cmd = dl->pre_cmd->num_cmds;
+		dl->extension->flags |= VSP1_DLH_EXT_PRE_CMD_EXEC;
+
+		vsp1_dl_ext_cmd_fill_header(dl->pre_cmd);
+	}
+
+	if (dl->post_cmd) {
+		dl->extension->post_ext_dl_plist = dl->post_cmd->cmd_dma;
+		dl->extension->post_ext_dl_num_cmd = dl->post_cmd->num_cmds;
+		dl->extension->flags |= VSP1_DLH_EXT_POST_CMD_EXEC;
+
+		vsp1_dl_ext_cmd_fill_header(dl->post_cmd);
+	}
 }
 
 static bool vsp1_dl_list_hw_update_pending(struct vsp1_dl_manager *dlm)
@@ -581,17 +827,10 @@ static bool vsp1_dl_list_hw_update_pending(struct vsp1_dl_manager *dlm)
 		return false;
 
 	/*
-	 * Check whether the VSP1 has taken the update. In headerless mode the
-	 * hardware indicates this by clearing the UPD bit in the DL_BODY_SIZE
-	 * register, and in header mode by clearing the UPDHDR bit in the CMD
-	 * register.
+	 * Check whether the VSP1 has taken the update. The hardware indicates
+	 * this by clearing the UPDHDR bit in the CMD register.
 	 */
-	if (dlm->mode == VSP1_DL_MODE_HEADERLESS)
-		return !!(vsp1_read(vsp1, VI6_DL_BODY_SIZE)
-			  & VI6_DL_BODY_SIZE_UPD);
-	else
-		return !!(vsp1_read(vsp1, VI6_CMD(dlm->index))
-			  & VI6_CMD_UPDHDR);
+	return !!(vsp1_read(vsp1, VI6_CMD(dlm->index)) & VI6_CMD_UPDHDR);
 }
 
 static void vsp1_dl_list_hw_enqueue(struct vsp1_dl_list *dl)
@@ -599,26 +838,14 @@ static void vsp1_dl_list_hw_enqueue(struct vsp1_dl_list *dl)
 	struct vsp1_dl_manager *dlm = dl->dlm;
 	struct vsp1_device *vsp1 = dlm->vsp1;
 
-	if (dlm->mode == VSP1_DL_MODE_HEADERLESS) {
-		/*
-		 * In headerless mode, program the hardware directly with the
-		 * display list body address and size and set the UPD bit. The
-		 * bit will be cleared by the hardware when the display list
-		 * processing starts.
-		 */
-		vsp1_write(vsp1, VI6_DL_HDR_ADDR(0), dl->body0->dma);
-		vsp1_write(vsp1, VI6_DL_BODY_SIZE, VI6_DL_BODY_SIZE_UPD |
-			(dl->body0->num_entries * sizeof(*dl->header->lists)));
-	} else {
-		/*
-		 * In header mode, program the display list header address. If
-		 * the hardware is idle (single-shot mode or first frame in
-		 * continuous mode) it will then be started independently. If
-		 * the hardware is operating, the VI6_DL_HDR_REF_ADDR register
-		 * will be updated with the display list address.
-		 */
-		vsp1_write(vsp1, VI6_DL_HDR_ADDR(dlm->index), dl->dma);
-	}
+	/*
+	 * Program the display list header address. If the hardware is idle
+	 * (single-shot mode or first frame in continuous mode) it will then be
+	 * started independently. If the hardware is operating, the
+	 * VI6_DL_HDR_REF_ADDR register will be updated with the display list
+	 * address.
+	 */
+	vsp1_write(vsp1, VI6_DL_HDR_ADDR(dlm->index), dl->dma);
 }
 
 static void vsp1_dl_list_commit_continuous(struct vsp1_dl_list *dl)
@@ -673,18 +900,16 @@ static void vsp1_dl_list_commit_singleshot(struct vsp1_dl_list *dl)
 void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal)
 {
 	struct vsp1_dl_manager *dlm = dl->dlm;
-	struct vsp1_dl_list *dl_child;
+	struct vsp1_dl_list *dl_next;
 	unsigned long flags;
 
-	if (dlm->mode == VSP1_DL_MODE_HEADER) {
-		/* Fill the header for the head and chained display lists. */
-		vsp1_dl_list_fill_header(dl, list_empty(&dl->chain));
+	/* Fill the header for the head and chained display lists. */
+	vsp1_dl_list_fill_header(dl, list_empty(&dl->chain));
 
-		list_for_each_entry(dl_child, &dl->chain, chain) {
-			bool last = list_is_last(&dl_child->chain, &dl->chain);
+	list_for_each_entry(dl_next, &dl->chain, chain) {
+		bool last = list_is_last(&dl_next->chain, &dl->chain);
 
-			vsp1_dl_list_fill_header(dl_child, last);
-		}
+		vsp1_dl_list_fill_header(dl_next, last);
 	}
 
 	dl->internal = internal;
@@ -713,7 +938,7 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal)
  * has completed at frame end. If the flag is not returned display list
  * completion has been delayed by one frame because the display list commit
  * raced with the frame end interrupt. The function always returns with the flag
- * set in header mode as display list processing is then not continuous and
+ * set in single-shot mode as display list processing is then not continuous and
  * races never occur.
  *
  * The VSP1_DL_FRAME_END_INTERNAL flag indicates that the previous display list
@@ -722,6 +947,8 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal)
  */
 unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
+	struct vsp1_device *vsp1 = dlm->vsp1;
+	u32 status = vsp1_read(vsp1, VI6_STATUS);
 	unsigned int flags = 0;
 
 	spin_lock(&dlm->lock);
@@ -744,6 +971,14 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	 * and retry.
 	 */
 	if (vsp1_dl_list_hw_update_pending(dlm))
+		goto done;
+
+	/*
+	 * Progressive streams report only TOP fields. If we have a BOTTOM
+	 * field, we are interlaced, and expect the frame to complete on the
+	 * next frame end interrupt.
+	 */
+	if (status & VI6_STATUS_FLD_STD(dlm->index))
 		goto done;
 
 	/*
@@ -781,16 +1016,17 @@ done:
 /* Hardware Setup */
 void vsp1_dlm_setup(struct vsp1_device *vsp1)
 {
+	unsigned int i;
 	u32 ctrl = (256 << VI6_DL_CTRL_AR_WAIT_SHIFT)
 		 | VI6_DL_CTRL_DC2 | VI6_DL_CTRL_DC1 | VI6_DL_CTRL_DC0
 		 | VI6_DL_CTRL_DLE;
+	u32 ext_dl = (0x02 << VI6_DL_EXT_CTRL_POLINT_SHIFT)
+		   | VI6_DL_EXT_CTRL_DLPRI | VI6_DL_EXT_CTRL_EXT;
 
-	/*
-	 * The DRM pipeline operates with display lists in Continuous Frame
-	 * Mode, all other pipelines use manual start.
-	 */
-	if (vsp1->drm)
-		ctrl |= VI6_DL_CTRL_CFM0 | VI6_DL_CTRL_NH0;
+	if (vsp1_feature(vsp1, VSP1_HAS_EXT_DL)) {
+		for (i = 0; i < vsp1->info->wpf_count; ++i)
+			vsp1_write(vsp1, VI6_DL_EXT_CTRL(i), ext_dl);
+	}
 
 	vsp1_write(vsp1, VI6_DL_CTRL, ctrl);
 	vsp1_write(vsp1, VI6_DL_SWAP, VI6_DL_SWAP_LWS);
@@ -831,8 +1067,6 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 		return NULL;
 
 	dlm->index = index;
-	dlm->mode = index == 0 && !vsp1->info->uapi
-		  ? VSP1_DL_MODE_HEADERLESS : VSP1_DL_MODE_HEADER;
 	dlm->singleshot = vsp1->info->uapi;
 	dlm->vsp1 = vsp1;
 
@@ -841,14 +1075,16 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 
 	/*
 	 * Initialize the display list body and allocate DMA memory for the body
-	 * and the optional header. Both are allocated together to avoid memory
+	 * and the header. Both are allocated together to avoid memory
 	 * fragmentation, with the header located right after the body in
 	 * memory. An extra body is allocated on top of the prealloc to account
 	 * for the cached body used by the vsp1_pipeline object.
 	 */
-	header_size = dlm->mode == VSP1_DL_MODE_HEADER
-		    ? ALIGN(sizeof(struct vsp1_dl_header), 8)
-		    : 0;
+	header_size = vsp1_feature(vsp1, VSP1_HAS_EXT_DL) ?
+			sizeof(struct vsp1_dl_header_extended) :
+			sizeof(struct vsp1_dl_header);
+
+	header_size = ALIGN(header_size, 8);
 
 	dlm->pool = vsp1_dl_body_pool_create(vsp1, prealloc + 1,
 					     VSP1_DL_NUM_ENTRIES, header_size);
@@ -859,10 +1095,26 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 		struct vsp1_dl_list *dl;
 
 		dl = vsp1_dl_list_alloc(dlm);
-		if (!dl)
+		if (!dl) {
+			vsp1_dlm_destroy(dlm);
 			return NULL;
+		}
+
+		/* The extended header immediately follows the header. */
+		if (vsp1_feature(vsp1, VSP1_HAS_EXT_DL))
+			dl->extension = (void *)dl->header
+				      + sizeof(*dl->header);
 
 		list_add_tail(&dl->list, &dlm->free);
+	}
+
+	if (vsp1_feature(vsp1, VSP1_HAS_EXT_DL)) {
+		dlm->cmdpool = vsp1_dl_cmd_pool_create(vsp1,
+					VSP1_EXTCMD_AUTOFLD, prealloc);
+		if (!dlm->cmdpool) {
+			vsp1_dlm_destroy(dlm);
+			return NULL;
+		}
 	}
 
 	return dlm;
@@ -881,4 +1133,5 @@ void vsp1_dlm_destroy(struct vsp1_dl_manager *dlm)
 	}
 
 	vsp1_dl_body_pool_destroy(dlm->pool);
+	vsp1_dl_ext_cmd_pool_destroy(dlm->cmdpool);
 }

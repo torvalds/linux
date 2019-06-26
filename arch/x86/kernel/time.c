@@ -10,8 +10,10 @@
  *
  */
 
+#include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/i8253.h>
 #include <linux/time.h>
 #include <linux/export.h>
@@ -24,7 +26,7 @@
 #include <asm/time.h>
 
 #ifdef CONFIG_X86_64
-__visible volatile unsigned long jiffies __cacheline_aligned = INITIAL_JIFFIES;
+__visible volatile unsigned long jiffies __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 #endif
 
 unsigned long profile_pc(struct pt_regs *regs)
@@ -103,4 +105,25 @@ static __init void x86_late_time_init(void)
 void __init time_init(void)
 {
 	late_time_init = x86_late_time_init;
+}
+
+/*
+ * Sanity check the vdso related archdata content.
+ */
+void clocksource_arch_init(struct clocksource *cs)
+{
+	if (cs->archdata.vclock_mode == VCLOCK_NONE)
+		return;
+
+	if (cs->archdata.vclock_mode > VCLOCK_MAX) {
+		pr_warn("clocksource %s registered with invalid vclock_mode %d. Disabling vclock.\n",
+			cs->name, cs->archdata.vclock_mode);
+		cs->archdata.vclock_mode = VCLOCK_NONE;
+	}
+
+	if (cs->mask != CLOCKSOURCE_MASK(64)) {
+		pr_warn("clocksource %s registered with invalid mask %016llx. Disabling vclock.\n",
+			cs->name, cs->mask);
+		cs->archdata.vclock_mode = VCLOCK_NONE;
+	}
 }

@@ -1431,7 +1431,7 @@ err:
 	for (++i; i < S5C73M3_MAX_SUPPLIES; i++) {
 		int r = regulator_enable(state->supplies[i].consumer);
 		if (r < 0)
-			v4l2_err(&state->oif_sd, "Failed to reenable %s: %d\n",
+			v4l2_err(&state->oif_sd, "Failed to re-enable %s: %d\n",
 				 state->supplies[i].supply, r);
 	}
 
@@ -1603,7 +1603,7 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 	const struct s5c73m3_platform_data *pdata = dev->platform_data;
 	struct device_node *node = dev->of_node;
 	struct device_node *node_ep;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int ret;
 
 	if (!node) {
@@ -1644,7 +1644,7 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 	if (ret)
 		return ret;
 
-	if (ep.bus_type != V4L2_MBUS_CSI2) {
+	if (ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "unsupported bus type\n");
 		return -EINVAL;
 	}
@@ -1683,7 +1683,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 	v4l2_subdev_init(sd, &s5c73m3_subdev_ops);
 	sd->owner = client->dev.driver->owner;
 	v4l2_set_subdevdata(sd, state);
-	strlcpy(sd->name, "S5C73M3", sizeof(sd->name));
+	strscpy(sd->name, "S5C73M3", sizeof(sd->name));
 
 	sd->internal_ops = &s5c73m3_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1698,7 +1698,8 @@ static int s5c73m3_probe(struct i2c_client *client,
 		return ret;
 
 	v4l2_i2c_subdev_init(oif_sd, client, &oif_subdev_ops);
-	strcpy(oif_sd->name, "S5C73M3-OIF");
+	/* Static name; NEVER use in new drivers! */
+	strscpy(oif_sd->name, "S5C73M3-OIF", sizeof(oif_sd->name));
 
 	oif_sd->internal_ops = &oif_internal_ops;
 	oif_sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;

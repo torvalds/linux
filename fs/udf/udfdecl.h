@@ -235,7 +235,7 @@ extern struct inode *udf_new_inode(struct inode *, umode_t);
 /* truncate.c */
 extern void udf_truncate_tail_extent(struct inode *);
 extern void udf_discard_prealloc(struct inode *);
-extern void udf_truncate_extents(struct inode *);
+extern int udf_truncate_extents(struct inode *);
 
 /* balloc.c */
 extern void udf_free_blocks(struct super_block *, struct inode *,
@@ -258,8 +258,8 @@ extern struct long_ad *udf_get_filelongad(uint8_t *, int, uint32_t *, int);
 extern struct short_ad *udf_get_fileshortad(uint8_t *, int, uint32_t *, int);
 
 /* udftime.c */
-extern void udf_disk_stamp_to_time(struct timespec *dest,
+extern void udf_disk_stamp_to_time(struct timespec64 *dest,
 						struct timestamp src);
-extern void udf_time_to_disk_stamp(struct timestamp *dest, struct timespec src);
+extern void udf_time_to_disk_stamp(struct timestamp *dest, struct timespec64 src);
 
 #endif				/* __UDF_DECL_H */

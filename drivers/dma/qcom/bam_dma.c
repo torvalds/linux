@@ -636,8 +636,8 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 		num_alloc += DIV_ROUND_UP(sg_dma_len(sg), BAM_FIFO_SIZE);
 
 	/* allocate enough room to accomodate the number of entries */
-	async_desc = kzalloc(sizeof(*async_desc) +
-			(num_alloc * sizeof(struct bam_desc_hw)), GFP_NOWAIT);
+	async_desc = kzalloc(struct_size(async_desc, desc, num_alloc),
+			     GFP_NOWAIT);
 
 	if (!async_desc)
 		goto err_out;

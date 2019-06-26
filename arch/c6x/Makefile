@@ -23,8 +23,7 @@ ifdef CONFIG_CPU_BIG_ENDIAN
 KBUILD_CFLAGS   += -mbig-endian
 KBUILD_AFLAGS   += -mbig-endian
 LINKFLAGS       += -mbig-endian
-KBUILD_LDFLAGS  += -mbig-endian
-LDFLAGS += -EB
+KBUILD_LDFLAGS  += -mbig-endian -EB
 CHECKFLAGS	+= -D_BIG_ENDIAN
 endif
 
@@ -41,9 +40,7 @@ boot := arch/$(ARCH)/boot
 DTB:=$(subst dtbImage.,,$(filter dtbImage.%, $(MAKECMDGOALS)))
 export DTB
 
-ifneq ($(DTB),)
 core-y	+= $(boot)/dts/
-endif
 
 # With make 3.82 we cannot mix normal and wildcard targets
 

@@ -479,7 +479,7 @@ static void program_grph_pixel_format(
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		sign = 1;
 		floating = 1;
-		/* no break */
+		/* fall through */
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F: /* shouldn't this get float too? */
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 		grph_depth = 3;
@@ -729,7 +729,7 @@ static bool dce_mi_program_surface_flip_and_addr(
 	return true;
 }
 
-static struct mem_input_funcs dce_mi_funcs = {
+static const struct mem_input_funcs dce_mi_funcs = {
 	.mem_input_program_display_marks = dce_mi_program_display_marks,
 	.allocate_mem_input = dce_mi_allocate_dmif,
 	.free_mem_input = dce_mi_free_dmif,
@@ -741,6 +741,29 @@ static struct mem_input_funcs dce_mi_funcs = {
 	.mem_input_is_flip_pending = dce_mi_is_flip_pending
 };
 
+static const struct mem_input_funcs dce112_mi_funcs = {
+	.mem_input_program_display_marks = dce112_mi_program_display_marks,
+	.allocate_mem_input = dce_mi_allocate_dmif,
+	.free_mem_input = dce_mi_free_dmif,
+	.mem_input_program_surface_flip_and_addr =
+			dce_mi_program_surface_flip_and_addr,
+	.mem_input_program_pte_vm = dce_mi_program_pte_vm,
+	.mem_input_program_surface_config =
+			dce_mi_program_surface_config,
+	.mem_input_is_flip_pending = dce_mi_is_flip_pending
+};
+
+static const struct mem_input_funcs dce120_mi_funcs = {
+	.mem_input_program_display_marks = dce120_mi_program_display_marks,
+	.allocate_mem_input = dce_mi_allocate_dmif,
+	.free_mem_input = dce_mi_free_dmif,
+	.mem_input_program_surface_flip_and_addr =
+			dce_mi_program_surface_flip_and_addr,
+	.mem_input_program_pte_vm = dce_mi_program_pte_vm,
+	.mem_input_program_surface_config =
+			dce_mi_program_surface_config,
+	.mem_input_is_flip_pending = dce_mi_is_flip_pending
+};
 
 void dce_mem_input_construct(
 	struct dce_mem_input *dce_mi,
@@ -769,7 +792,7 @@ void dce112_mem_input_construct(
 	const struct dce_mem_input_mask *mi_mask)
 {
 	dce_mem_input_construct(dce_mi, ctx, inst, regs, mi_shift, mi_mask);
-	dce_mi->base.funcs->mem_input_program_display_marks = dce112_mi_program_display_marks;
+	dce_mi->base.funcs = &dce112_mi_funcs;
 }
 
 void dce120_mem_input_construct(
@@ -781,5 +804,5 @@ void dce120_mem_input_construct(
 	const struct dce_mem_input_mask *mi_mask)
 {
 	dce_mem_input_construct(dce_mi, ctx, inst, regs, mi_shift, mi_mask);
-	dce_mi->base.funcs->mem_input_program_display_marks = dce120_mi_program_display_marks;
+	dce_mi->base.funcs = &dce120_mi_funcs;
 }

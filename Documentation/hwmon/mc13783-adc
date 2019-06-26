@@ -2,12 +2,12 @@ Kernel driver mc13783-adc
 =========================
 
 Supported chips:
-  * Freescale Atlas MC13783
+  * Freescale MC13783
     Prefix: 'mc13783'
-    Datasheet: http://www.freescale.com/files/rf_if/doc/data_sheet/MC13783.pdf?fsrch=1
-  * Freescale Atlas MC13892
+    Datasheet: https://www.nxp.com/docs/en/data-sheet/MC13783.pdf
+  * Freescale MC13892
     Prefix: 'mc13892'
-    Datasheet: http://cache.freescale.com/files/analog/doc/data_sheet/MC13892.pdf?fsrch=1&sr=1
+    Datasheet: https://www.nxp.com/docs/en/data-sheet/MC13892.pdf
 
 Authors:
     Sascha Hauer <s.hauer@pengutronix.de>

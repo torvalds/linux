@@ -23,12 +23,9 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/platform_data/davinci-cpufreq.h>
 #include <linux/platform_device.h>
 #include <linux/export.h>
-
-#include <mach/hardware.h>
-#include <mach/cpufreq.h>
-#include <mach/common.h>
 
 struct davinci_cpufreq {
 	struct device *dev;

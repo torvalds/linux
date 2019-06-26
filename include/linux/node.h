@@ -33,10 +33,10 @@ typedef  void (*node_registration_func_t)(struct node *);
 
 #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_NUMA)
 extern int link_mem_sections(int nid, unsigned long start_pfn,
-			     unsigned long nr_pages, bool check_nid);
+			     unsigned long end_pfn);
 #else
 static inline int link_mem_sections(int nid, unsigned long start_pfn,
-				    unsigned long nr_pages, bool check_nid)
+				    unsigned long end_pfn)
 {
 	return 0;
 }
@@ -54,12 +54,14 @@ static inline int register_one_node(int nid)
 
 	if (node_online(nid)) {
 		struct pglist_data *pgdat = NODE_DATA(nid);
+		unsigned long start_pfn = pgdat->node_start_pfn;
+		unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
 
 		error = __register_one_node(nid);
 		if (error)
 			return error;
 		/* link memory sections under this node */
-		error = link_mem_sections(nid, pgdat->node_start_pfn, pgdat->node_spanned_pages, true);
+		error = link_mem_sections(nid, start_pfn, end_pfn);
 	}
 
 	return error;
@@ -69,7 +71,7 @@ extern void unregister_one_node(int nid);
 extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
 extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
 extern int register_mem_sect_under_node(struct memory_block *mem_blk,
-						int nid, bool check_nid);
+						void *arg);
 extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
 					   unsigned long phys_index);
 
@@ -99,7 +101,7 @@ static inline int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 	return 0;
 }
 static inline int register_mem_sect_under_node(struct memory_block *mem_blk,
-							int nid, bool check_nid)
+							void *arg)
 {
 	return 0;
 }

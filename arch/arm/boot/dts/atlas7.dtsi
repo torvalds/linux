@@ -6,7 +6,6 @@
  * Licensed under GPLv2 or later.
  */
 
-/include/ "skeleton.dtsi"
 / {
 	compatible = "sirf,atlas7";
 	#address-cells = <1>;

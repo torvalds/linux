@@ -1133,47 +1133,42 @@ static const struct rapl_defaults rapl_defaults_cht = {
 	.compute_time_window = rapl_compute_time_window_atom,
 };
 
-#define RAPL_CPU(_model, _ops) {			\
-		.vendor = X86_VENDOR_INTEL,		\
-		.family = 6,				\
-		.model = _model,			\
-		.driver_data = (kernel_ulong_t)&_ops,	\
-		}
-
 static const struct x86_cpu_id rapl_ids[] __initconst = {
-	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE_X,	rapl_defaults_core),
+	INTEL_CPU_FAM6(SANDYBRIDGE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(SANDYBRIDGE_X,		rapl_defaults_core),
 
-	RAPL_CPU(INTEL_FAM6_IVYBRIDGE,		rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_IVYBRIDGE_X,	rapl_defaults_core),
+	INTEL_CPU_FAM6(IVYBRIDGE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(IVYBRIDGE_X,		rapl_defaults_core),
 
-	RAPL_CPU(INTEL_FAM6_HASWELL_CORE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_HASWELL_ULT,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_HASWELL_GT3E,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_HASWELL_X,		rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(HASWELL_CORE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(HASWELL_ULT,		rapl_defaults_core),
+	INTEL_CPU_FAM6(HASWELL_GT3E,		rapl_defaults_core),
+	INTEL_CPU_FAM6(HASWELL_X,		rapl_defaults_hsw_server),
 
-	RAPL_CPU(INTEL_FAM6_BROADWELL_CORE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_BROADWELL_GT3E,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_BROADWELL_XEON_D,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_BROADWELL_X,	rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(BROADWELL_CORE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(BROADWELL_GT3E,		rapl_defaults_core),
+	INTEL_CPU_FAM6(BROADWELL_XEON_D,	rapl_defaults_core),
+	INTEL_CPU_FAM6(BROADWELL_X,		rapl_defaults_hsw_server),
 
-	RAPL_CPU(INTEL_FAM6_SKYLAKE_DESKTOP,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_SKYLAKE_MOBILE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_SKYLAKE_X,		rapl_defaults_hsw_server),
-	RAPL_CPU(INTEL_FAM6_KABYLAKE_MOBILE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_KABYLAKE_DESKTOP,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_CANNONLAKE_MOBILE,	rapl_defaults_core),
+	INTEL_CPU_FAM6(SKYLAKE_DESKTOP,		rapl_defaults_core),
+	INTEL_CPU_FAM6(SKYLAKE_MOBILE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(SKYLAKE_X,		rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(KABYLAKE_MOBILE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(KABYLAKE_DESKTOP,	rapl_defaults_core),
+	INTEL_CPU_FAM6(CANNONLAKE_MOBILE,	rapl_defaults_core),
+	INTEL_CPU_FAM6(ICELAKE_MOBILE,		rapl_defaults_core),
 
-	RAPL_CPU(INTEL_FAM6_ATOM_SILVERMONT1,	rapl_defaults_byt),
-	RAPL_CPU(INTEL_FAM6_ATOM_AIRMONT,	rapl_defaults_cht),
-	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD,	rapl_defaults_tng),
-	RAPL_CPU(INTEL_FAM6_ATOM_MOOREFIELD,	rapl_defaults_ann),
-	RAPL_CPU(INTEL_FAM6_ATOM_GOLDMONT,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_ATOM_GEMINI_LAKE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_ATOM_DENVERTON,	rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT,		rapl_defaults_byt),
+	INTEL_CPU_FAM6(ATOM_AIRMONT,		rapl_defaults_cht),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_MID,	rapl_defaults_tng),
+	INTEL_CPU_FAM6(ATOM_AIRMONT_MID,	rapl_defaults_ann),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT,		rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS,	rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_X,		rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_TREMONT_X,		rapl_defaults_core),
 
-	RAPL_CPU(INTEL_FAM6_XEON_PHI_KNL,	rapl_defaults_hsw_server),
-	RAPL_CPU(INTEL_FAM6_XEON_PHI_KNM,	rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(XEON_PHI_KNL,		rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(XEON_PHI_KNM,		rapl_defaults_hsw_server),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_ids);

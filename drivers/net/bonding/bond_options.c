@@ -743,15 +743,20 @@ const struct bond_option *bond_opt_get(unsigned int option)
 static int bond_option_mode_set(struct bonding *bond,
 				const struct bond_opt_value *newval)
 {
-	if (!bond_mode_uses_arp(newval->value) && bond->params.arp_interval) {
-		netdev_dbg(bond->dev, "%s mode is incompatible with arp monitoring, start mii monitoring\n",
-			   newval->string);
-		/* disable arp monitoring */
-		bond->params.arp_interval = 0;
-		/* set miimon to default value */
-		bond->params.miimon = BOND_DEFAULT_MIIMON;
-		netdev_dbg(bond->dev, "Setting MII monitoring interval to %d\n",
-			   bond->params.miimon);
+	if (!bond_mode_uses_arp(newval->value)) {
+		if (bond->params.arp_interval) {
+			netdev_dbg(bond->dev, "%s mode is incompatible with arp monitoring, start mii monitoring\n",
+				   newval->string);
+			/* disable arp monitoring */
+			bond->params.arp_interval = 0;
+		}
+
+		if (!bond->params.miimon) {
+			/* set miimon to default value */
+			bond->params.miimon = BOND_DEFAULT_MIIMON;
+			netdev_dbg(bond->dev, "Setting MII monitoring interval to %d\n",
+				   bond->params.miimon);
+		}
 	}
 
 	if (newval->value == BOND_MODE_ALB)
@@ -1370,6 +1375,7 @@ static int bond_option_slaves_set(struct bonding *bond,
 	sscanf(newval->string, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
 	if ((strlen(command) <= 1) ||
+	    (command[0] != '+' && command[0] != '-') ||
 	    !dev_valid_name(ifname))
 		goto err_no_cmd;
 
@@ -1393,6 +1399,7 @@ static int bond_option_slaves_set(struct bonding *bond,
 		break;
 
 	default:
+		/* should not run here. */
 		goto err_no_cmd;
 	}
 

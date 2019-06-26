@@ -65,7 +65,6 @@ When the iProc event queue based MSI is used, one needs to define the
 following properties in the MSI device node:
 - compatible: Must be "brcm,iproc-msi"
 - msi-controller: claims itself as an MSI controller
-- interrupt-parent: Link to its parent interrupt device
 - interrupts: List of interrupt IDs from its parent interrupt device
 
 Optional properties:

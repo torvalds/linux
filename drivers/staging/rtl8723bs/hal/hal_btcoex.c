@@ -259,7 +259,7 @@ static void halbtcoutsrc_AggregationCheck(PBTC_COEXIST pBtCoexist)
 
 	if (pBtCoexist->btInfo.bRejectAggPkt)
 		rtw_btcoex_RejectApAggregatedPacket(padapter, true);
-	else{
+	else {
 
 		if (pBtCoexist->btInfo.bPreBtCtrlAggBufSize !=
 			pBtCoexist->btInfo.bBtCtrlAggBufSize){
@@ -1209,7 +1209,7 @@ void EXhalbtcoutsrc_SpecialPacketNotify(PBTC_COEXIST pBtCoexist, u8 pktType)
 		packetType = BTC_PACKET_EAPOL;
 	else if (PACKET_ARP == pktType)
 		packetType = BTC_PACKET_ARP;
-	else{
+	else {
 		packetType = BTC_PACKET_UNKNOWN;
 		return;
 	}

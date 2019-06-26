@@ -66,15 +66,6 @@ static const struct file_operations _##name##_file_ops = { \
 	.release = seq_release \
 };
 
-#define DEBUGFS_FILE_CREATE(name) \
-do { \
-	struct dentry *ent; \
-	ent = debugfs_create_file(#name , 0400, ibd->qib_ibdev_dbg, \
-		ibd, &_##name##_file_ops); \
-	if (!ent) \
-		pr_warn("create of " #name " failed\n"); \
-} while (0)
-
 static void *_opcode_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
 	struct qib_opcode_stats_perctx *opstats;
@@ -249,17 +240,17 @@ DEBUGFS_FILE(qp_stats)
 
 void qib_dbg_ibdev_init(struct qib_ibdev *ibd)
 {
+	struct dentry *root;
 	char name[10];
 
 	snprintf(name, sizeof(name), "qib%d", dd_from_dev(ibd)->unit);
-	ibd->qib_ibdev_dbg = debugfs_create_dir(name, qib_dbg_root);
-	if (!ibd->qib_ibdev_dbg) {
-		pr_warn("create of %s failed\n", name);
-		return;
-	}
-	DEBUGFS_FILE_CREATE(opcode_stats);
-	DEBUGFS_FILE_CREATE(ctx_stats);
-	DEBUGFS_FILE_CREATE(qp_stats);
+	root = debugfs_create_dir(name, qib_dbg_root);
+	ibd->qib_ibdev_dbg = root;
+
+	debugfs_create_file("opcode_stats", 0400, root, ibd,
+			    &_opcode_stats_file_ops);
+	debugfs_create_file("ctx_stats", 0400, root, ibd, &_ctx_stats_file_ops);
+	debugfs_create_file("qp_stats", 0400, root, ibd, &_qp_stats_file_ops);
 }
 
 void qib_dbg_ibdev_exit(struct qib_ibdev *ibd)
@@ -274,8 +265,6 @@ out:
 void qib_dbg_init(void)
 {
 	qib_dbg_root = debugfs_create_dir(QIB_DRV_NAME, NULL);
-	if (!qib_dbg_root)
-		pr_warn("init of debugfs failed\n");
 }
 
 void qib_dbg_exit(void)

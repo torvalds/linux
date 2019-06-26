@@ -24,6 +24,12 @@ struct test arch_tests[] = {
 		.func = test__insn_x86,
 	},
 #endif
+#if defined(__x86_64__)
+	{
+		.desc = "x86 bp modify",
+		.func = test__bp_modify,
+	},
+#endif
 	{
 		.func = NULL,
 	},

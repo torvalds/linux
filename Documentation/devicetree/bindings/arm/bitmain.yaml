@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/bitmain.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Bitmain platform device tree bindings
+
+maintainers:
+  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+
+properties:
+  compatible:
+    items:
+      - enum:
+        - bitmain,sophon-edge
+      - const: bitmain,bm1880
+...

@@ -48,18 +48,12 @@ static int __init failslab_debugfs_init(void)
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
-	if (!debugfs_create_bool("ignore-gfp-wait", mode, dir,
-				&failslab.ignore_gfp_reclaim))
-		goto fail;
-	if (!debugfs_create_bool("cache-filter", mode, dir,
-				&failslab.cache_filter))
-		goto fail;
+	debugfs_create_bool("ignore-gfp-wait", mode, dir,
+			    &failslab.ignore_gfp_reclaim);
+	debugfs_create_bool("cache-filter", mode, dir,
+			    &failslab.cache_filter);
 
 	return 0;
-fail:
-	debugfs_remove_recursive(dir);
-
-	return -ENOMEM;
 }
 
 late_initcall(failslab_debugfs_init);

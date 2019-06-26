@@ -16,9 +16,6 @@
  * firmware fallback configuration table
  */
 
-/* Module or buit-in */
-#ifdef CONFIG_FW_LOADER_USER_HELPER
-
 static unsigned int zero;
 static unsigned int one = 1;
 
@@ -51,5 +48,3 @@ struct ctl_table firmware_config_table[] = {
 	{ }
 };
 EXPORT_SYMBOL_GPL(firmware_config_table);
-
-#endif

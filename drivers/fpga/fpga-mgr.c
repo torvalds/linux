@@ -406,12 +406,40 @@ static ssize_t state_show(struct device *dev,
 	return sprintf(buf, "%s\n", state_str[mgr->state]);
 }
 
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct fpga_manager *mgr = to_fpga_manager(dev);
+	u64 status;
+	int len = 0;
+
+	if (!mgr->mops->status)
+		return -ENOENT;
+
+	status = mgr->mops->status(mgr);
+
+	if (status & FPGA_MGR_STATUS_OPERATION_ERR)
+		len += sprintf(buf + len, "reconfig operation error\n");
+	if (status & FPGA_MGR_STATUS_CRC_ERR)
+		len += sprintf(buf + len, "reconfig CRC error\n");
+	if (status & FPGA_MGR_STATUS_INCOMPATIBLE_IMAGE_ERR)
+		len += sprintf(buf + len, "reconfig incompatible image\n");
+	if (status & FPGA_MGR_STATUS_IP_PROTOCOL_ERR)
+		len += sprintf(buf + len, "reconfig IP protocol error\n");
+	if (status & FPGA_MGR_STATUS_FIFO_OVERFLOW_ERR)
+		len += sprintf(buf + len, "reconfig fifo overflow error\n");
+
+	return len;
+}
+
 static DEVICE_ATTR_RO(name);
 static DEVICE_ATTR_RO(state);
+static DEVICE_ATTR_RO(status);
 
 static struct attribute *fpga_mgr_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_state.attr,
+	&dev_attr_status.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(fpga_mgr);
@@ -530,6 +558,9 @@ EXPORT_SYMBOL_GPL(fpga_mgr_unlock);
  * @mops:	pointer to structure of fpga manager ops
  * @priv:	fpga manager private data
  *
+ * The caller of this function is responsible for freeing the struct with
+ * fpga_mgr_free().  Using devm_fpga_mgr_create() instead is recommended.
+ *
  * Return: pointer to struct fpga_manager or NULL
  */
 struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
@@ -590,8 +621,8 @@ error_kfree:
 EXPORT_SYMBOL_GPL(fpga_mgr_create);
 
 /**
- * fpga_mgr_free - deallocate a FPGA manager
- * @mgr:	fpga manager struct created by fpga_mgr_create
+ * fpga_mgr_free - free a FPGA manager created with fpga_mgr_create()
+ * @mgr:	fpga manager struct
  */
 void fpga_mgr_free(struct fpga_manager *mgr)
 {
@@ -600,9 +631,55 @@ void fpga_mgr_free(struct fpga_manager *mgr)
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_free);
 
+static void devm_fpga_mgr_release(struct device *dev, void *res)
+{
+	struct fpga_manager *mgr = *(struct fpga_manager **)res;
+
+	fpga_mgr_free(mgr);
+}
+
+/**
+ * devm_fpga_mgr_create - create and initialize a managed FPGA manager struct
+ * @dev:	fpga manager device from pdev
+ * @name:	fpga manager name
+ * @mops:	pointer to structure of fpga manager ops
+ * @priv:	fpga manager private data
+ *
+ * This function is intended for use in a FPGA manager driver's probe function.
+ * After the manager driver creates the manager struct with
+ * devm_fpga_mgr_create(), it should register it with fpga_mgr_register().  The
+ * manager driver's remove function should call fpga_mgr_unregister().  The
+ * manager struct allocated with this function will be freed automatically on
+ * driver detach.  This includes the case of a probe function returning error
+ * before calling fpga_mgr_register(), the struct will still get cleaned up.
+ *
+ * Return: pointer to struct fpga_manager or NULL
+ */
+struct fpga_manager *devm_fpga_mgr_create(struct device *dev, const char *name,
+					  const struct fpga_manager_ops *mops,
+					  void *priv)
+{
+	struct fpga_manager **ptr, *mgr;
+
+	ptr = devres_alloc(devm_fpga_mgr_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	mgr = fpga_mgr_create(dev, name, mops, priv);
+	if (!mgr) {
+		devres_free(ptr);
+	} else {
+		*ptr = mgr;
+		devres_add(dev, ptr);
+	}
+
+	return mgr;
+}
+EXPORT_SYMBOL_GPL(devm_fpga_mgr_create);
+
 /**
  * fpga_mgr_register - register a FPGA manager
- * @mgr:	fpga manager struct created by fpga_mgr_create
+ * @mgr: fpga manager struct
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -633,8 +710,10 @@ error_device:
 EXPORT_SYMBOL_GPL(fpga_mgr_register);
 
 /**
- * fpga_mgr_unregister - unregister and free a FPGA manager
- * @mgr:	fpga manager struct
+ * fpga_mgr_unregister - unregister a FPGA manager
+ * @mgr: fpga manager struct
+ *
+ * This function is intended for use in a FPGA manager driver's remove function.
  */
 void fpga_mgr_unregister(struct fpga_manager *mgr)
 {
@@ -653,9 +732,6 @@ EXPORT_SYMBOL_GPL(fpga_mgr_unregister);
 
 static void fpga_mgr_dev_release(struct device *dev)
 {
-	struct fpga_manager *mgr = to_fpga_manager(dev);
-
-	fpga_mgr_free(mgr);
 }
 
 static int __init fpga_mgr_class_init(void)

@@ -2844,8 +2844,8 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 		 * in some desktop G4s), Via (M9+ chip on iBook G4) and
 		 * Snowy (M11 chip on iBook G4 manufactured after July 2005)
 		 */
-		if (!strcmp(rinfo->of_node->name, "ATY,JasperParent") ||
-		    !strcmp(rinfo->of_node->name, "ATY,SnowyParent")) {
+		if (of_node_name_eq(rinfo->of_node, "ATY,JasperParent") ||
+		    of_node_name_eq(rinfo->of_node, "ATY,SnowyParent")) {
 			rinfo->reinit_func = radeon_reinitialize_M10;
 			rinfo->pm_mode |= radeon_pm_off;
 		}
@@ -2855,7 +2855,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 			rinfo->pm_mode |= radeon_pm_off;
 		}
 #endif
-		if (!strcmp(rinfo->of_node->name, "ATY,ViaParent")) {
+		if (of_node_name_eq(rinfo->of_node, "ATY,ViaParent")) {
 			rinfo->reinit_func = radeon_reinitialize_M9P;
 			rinfo->pm_mode |= radeon_pm_off;
 		}

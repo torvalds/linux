@@ -166,11 +166,9 @@ isdn_wildmat(char *s, char *p)
 	for (; *p; s++, p++)
 		switch (*p) {
 		case '\\':
-			/*
-			 * Literal match with following character,
-			 * fall through.
-			 */
+			/* Literal match with following character. */
 			p++;
+			/* fall through */
 		default:
 			if (*s != *p)
 				return (*s == '\0') ? 2 : 1;
@@ -729,6 +727,7 @@ isdn_status_callback(isdn_ctrl *c)
 		if (divert_if)
 			return (divert_if->stat_callback(c));
 #endif /* CONFIG_ISDN_DIVERSION */
+		/* fall through */
 	default:
 		return -1;
 	}
@@ -1640,13 +1639,7 @@ isdn_ioctl(struct file *file, uint cmd, ulong arg)
 			} else
 				return -EINVAL;
 		case IIOCDBGVAR:
-			if (arg) {
-				if (copy_to_user(argp, &dev, sizeof(ulong)))
-					return -EFAULT;
-				return 0;
-			} else
-				return -EINVAL;
-			break;
+			return -EINVAL;
 		default:
 			if ((cmd & IIOCDRVCTL) == IIOCDRVCTL)
 				cmd = ((cmd >> _IOC_NRSHIFT) & _IOC_NRMASK) & ISDN_DRVIOCTL_MASK;

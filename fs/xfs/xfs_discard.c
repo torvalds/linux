@@ -128,7 +128,7 @@ next_extent:
 	}
 
 out_del_cursor:
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 	xfs_buf_relse(agbp);
 out_put_perag:
 	xfs_perag_put(pag);
@@ -161,6 +161,14 @@ xfs_ioc_trim(
 		return -EPERM;
 	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;
+
+	/*
+	 * We haven't recovered the log, so we cannot use our bnobt-guided
+	 * storage zapping commands.
+	 */
+	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
+		return -EROFS;
+
 	if (copy_from_user(&range, urange, sizeof(range)))
 		return -EFAULT;
 

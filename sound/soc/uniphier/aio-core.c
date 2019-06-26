@@ -265,6 +265,57 @@ void aio_port_reset(struct uniphier_aio_sub *sub)
 }
 
 /**
+ * aio_port_set_ch - set channels of LPCM
+ * @sub: the AIO substream pointer, PCM substream only
+ * @ch : count of channels
+ *
+ * Set suitable slot selecting to input/output port block of AIO.
+ *
+ * This function may return error if non-PCM substream.
+ *
+ * Return: Zero if successful, otherwise a negative value on error.
+ */
+static int aio_port_set_ch(struct uniphier_aio_sub *sub)
+{
+	struct regmap *r = sub->aio->chip->regmap;
+	u32 slotsel_2ch[] = {
+		0, 0, 0, 0, 0,
+	};
+	u32 slotsel_multi[] = {
+		OPORTMXTYSLOTCTR_SLOTSEL_SLOT0,
+		OPORTMXTYSLOTCTR_SLOTSEL_SLOT1,
+		OPORTMXTYSLOTCTR_SLOTSEL_SLOT2,
+		OPORTMXTYSLOTCTR_SLOTSEL_SLOT3,
+		OPORTMXTYSLOTCTR_SLOTSEL_SLOT4,
+	};
+	u32 mode, *slotsel;
+	int i;
+
+	switch (params_channels(&sub->params)) {
+	case 8:
+	case 6:
+		mode = OPORTMXTYSLOTCTR_MODE;
+		slotsel = slotsel_multi;
+		break;
+	case 2:
+		mode = 0;
+		slotsel = slotsel_2ch;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < AUD_MAX_SLOTSEL; i++) {
+		regmap_update_bits(r, OPORTMXTYSLOTCTR(sub->swm->oport.map, i),
+				   OPORTMXTYSLOTCTR_MODE, mode);
+		regmap_update_bits(r, OPORTMXTYSLOTCTR(sub->swm->oport.map, i),
+				   OPORTMXTYSLOTCTR_SLOTSEL_MASK, slotsel[i]);
+	}
+
+	return 0;
+}
+
+/**
  * aio_port_set_rate - set sampling rate of LPCM
  * @sub: the AIO substream pointer, PCM substream only
  * @rate: Sampling rate in Hz.
@@ -276,7 +327,7 @@ void aio_port_reset(struct uniphier_aio_sub *sub)
  *
  * Return: Zero if successful, otherwise a negative value on error.
  */
-int aio_port_set_rate(struct uniphier_aio_sub *sub, int rate)
+static int aio_port_set_rate(struct uniphier_aio_sub *sub, int rate)
 {
 	struct regmap *r = sub->aio->chip->regmap;
 	struct device *dev = &sub->aio->chip->pdev->dev;
@@ -395,7 +446,7 @@ int aio_port_set_rate(struct uniphier_aio_sub *sub, int rate)
  *
  * Return: Zero if successful, otherwise a negative value on error.
  */
-int aio_port_set_fmt(struct uniphier_aio_sub *sub)
+static int aio_port_set_fmt(struct uniphier_aio_sub *sub)
 {
 	struct regmap *r = sub->aio->chip->regmap;
 	struct device *dev = &sub->aio->chip->pdev->dev;
@@ -460,7 +511,7 @@ int aio_port_set_fmt(struct uniphier_aio_sub *sub)
  *
  * Return: Zero if successful, otherwise a negative value on error.
  */
-int aio_port_set_clk(struct uniphier_aio_sub *sub)
+static int aio_port_set_clk(struct uniphier_aio_sub *sub)
 {
 	struct uniphier_aio_chip *chip = sub->aio->chip;
 	struct device *dev = &sub->aio->chip->pdev->dev;
@@ -574,6 +625,10 @@ int aio_port_set_param(struct uniphier_aio_sub *sub, int pass_through,
 		} else {
 			rate = params_rate(params);
 		}
+
+		ret = aio_port_set_ch(sub);
+		if (ret)
+			return ret;
 
 		ret = aio_port_set_rate(sub, rate);
 		if (ret)
@@ -731,15 +786,28 @@ void aio_port_set_volume(struct uniphier_aio_sub *sub, int vol)
 int aio_if_set_param(struct uniphier_aio_sub *sub, int pass_through)
 {
 	struct regmap *r = sub->aio->chip->regmap;
-	u32 v;
+	u32 memfmt, v;
 
 	if (sub->swm->dir == PORT_DIR_OUTPUT) {
-		if (pass_through)
+		if (pass_through) {
 			v = PBOUTMXCTR0_ENDIAN_0123 |
 				PBOUTMXCTR0_MEMFMT_STREAM;
-		else
-			v = PBOUTMXCTR0_ENDIAN_3210 |
-				PBOUTMXCTR0_MEMFMT_2CH;
+		} else {
+			switch (params_channels(&sub->params)) {
+			case 2:
+				memfmt = PBOUTMXCTR0_MEMFMT_2CH;
+				break;
+			case 6:
+				memfmt = PBOUTMXCTR0_MEMFMT_6CH;
+				break;
+			case 8:
+				memfmt = PBOUTMXCTR0_MEMFMT_8CH;
+				break;
+			default:
+				return -EINVAL;
+			}
+			v = PBOUTMXCTR0_ENDIAN_3210 | memfmt;
+		}
 
 		regmap_write(r, PBOUTMXCTR0(sub->swm->oif.map), v);
 		regmap_write(r, PBOUTMXCTR1(sub->swm->oif.map), 0);

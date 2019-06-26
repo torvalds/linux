@@ -63,8 +63,6 @@
 		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <8>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&bl_enable_pin>;
 		enable-gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>; /* PH7 */
 	};
 
@@ -74,8 +72,6 @@
 };
 
 &codec {
-	pinctrl-names = "default";
-	pinctrl-0 = <&codec_pa_pin>;
 	allwinner,pa-gpios = <&pio 7 15 GPIO_ACTIVE_HIGH>; /* PH15 */
 	status = "okay";
 };
@@ -93,8 +89,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -107,14 +101,10 @@
 #include "axp209.dtsi"
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 
 	gt911: touchscreen@5d {
@@ -122,8 +112,6 @@
 		reg = <0x5d>;
 		interrupt-parent = <&pio>;
 		interrupts = <7 21 IRQ_TYPE_EDGE_FALLING>; /* EINT21 (PH21) */
-		pinctrl-names = "default";
-		pinctrl-0 = <&ts_reset_pin>;
 		irq-gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>; /* INT (PH21) */
 		reset-gpios = <&pio 1 13 GPIO_ACTIVE_HIGH>; /* RST (PB13) */
 		touchscreen-swapped-x-y;
@@ -134,14 +122,14 @@
 	vref-supply = <&reg_vcc3v0>;
 	status = "okay";
 
-	button@571 {
+	button-571 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <571428>;
 	};
 
-	button@761 {
+	button-761 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
@@ -150,8 +138,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
@@ -171,22 +157,7 @@
 };
 
 &pio {
-	bl_enable_pin: bl_enable_pin@0 {
-		pins = "PH7";
-		function = "gpio_out";
-	};
-
-	codec_pa_pin: codec_pa_pin@0 {
-		pins = "PH15";
-		function = "gpio_out";
-	};
-
-	ts_reset_pin: ts_reset_pin@0 {
-		pins = "PB13";
-		function = "gpio_out";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
@@ -195,7 +166,7 @@
 
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins_a>;
+	pinctrl-0 = <&pwm0_pin>;
 	status = "okay";
 };
 
@@ -238,7 +209,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

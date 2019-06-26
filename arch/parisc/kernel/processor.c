@@ -242,6 +242,7 @@ static int __init processor_probe(struct parisc_device *dev)
 void __init collect_boot_cpu_data(void)
 {
 	unsigned long cr16_seed;
+	char orig_prod_num[64], current_prod_num[64], serial_no[64];
 
 	memset(&boot_cpu_data, 0, sizeof(boot_cpu_data));
 
@@ -288,6 +289,8 @@ void __init collect_boot_cpu_data(void)
 		printk(KERN_INFO "model %s\n",
 			boot_cpu_data.pdc.sys_model_name);
 
+	dump_stack_set_arch_desc("%s", boot_cpu_data.pdc.sys_model_name);
+
 	boot_cpu_data.hversion =  boot_cpu_data.pdc.model.hversion;
 	boot_cpu_data.sversion =  boot_cpu_data.pdc.model.sversion;
 
@@ -299,6 +302,14 @@ void __init collect_boot_cpu_data(void)
 	_parisc_requires_coherency = (boot_cpu_data.cpu_type == mako) ||
 				(boot_cpu_data.cpu_type == mako2);
 #endif
+
+	if (pdc_model_platform_info(orig_prod_num, current_prod_num, serial_no) == PDC_OK) {
+		printk(KERN_INFO "product %s, original product %s, S/N: %s\n",
+			current_prod_num, orig_prod_num, serial_no);
+		add_device_randomness(orig_prod_num, strlen(orig_prod_num));
+		add_device_randomness(current_prod_num, strlen(current_prod_num));
+		add_device_randomness(serial_no, strlen(serial_no));
+	}
 }
 
 

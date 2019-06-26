@@ -167,7 +167,7 @@ static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_cf_device,
 };
 
-static struct gpio_led tps_leds[] = {
+static const struct gpio_led tps_leds[] = {
 	/* NOTE:  D9 and D2 have hardware blink support.
 	 * Also, D9 requires non-battery power.
 	 */
@@ -385,7 +385,7 @@ static struct platform_device osk5912_lcd_device = {
 	.id		= -1,
 };
 
-static struct gpio_led mistral_gpio_led_pins[] = {
+static const struct gpio_led mistral_gpio_led_pins[] = {
 	{
 		.name		= "mistral:red",
 		.default_trigger = "heartbeat",

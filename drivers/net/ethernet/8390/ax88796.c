@@ -377,9 +377,7 @@ static int ax_mii_probe(struct net_device *dev)
 		return ret;
 	}
 
-	/* mask with MAC supported features */
-	phy_dev->supported &= PHY_BASIC_FEATURES;
-	phy_dev->advertising = phy_dev->supported;
+	phy_set_max_speed(phy_dev, SPEED_100);
 
 	netdev_info(dev, "PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
 		    phy_dev->drv->name, phydev_name(phy_dev), phy_dev->irq);

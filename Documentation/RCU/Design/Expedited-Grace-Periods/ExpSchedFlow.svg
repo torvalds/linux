@@ -328,13 +328,13 @@
      inkscape:window-height="1148"
      id="namedview90"
      showgrid="true"
-     inkscape:zoom="0.80021373"
-     inkscape:cx="462.49289"
-     inkscape:cy="473.6718"
+     inkscape:zoom="0.69092787"
+     inkscape:cx="476.34085"
+     inkscape:cy="712.80957"
      inkscape:window-x="770"
      inkscape:window-y="24"
      inkscape:window-maximized="0"
-     inkscape:current-layer="g4114-9-3-9"
+     inkscape:current-layer="g4"
      inkscape:snap-grids="false"
      fit-margin-top="5"
      fit-margin-right="5"
@@ -813,14 +813,18 @@
       <text
          sodipodi:linespacing="125%"
          id="text4110-5-7-6-2-4-0"
-         y="841.88086"
+         y="670.74316"
          x="1460.1007"
          style="font-size:267.24359131px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
          xml:space="preserve"><tspan
-           y="841.88086"
+           y="670.74316"
            x="1460.1007"
            sodipodi:role="line"
-           id="tspan4925-1-2-4-5">reched_cpu()</tspan></text>
+           id="tspan4925-1-2-4-5">Request</tspan><tspan
+           y="1004.7976"
+           x="1460.1007"
+           sodipodi:role="line"
+           id="tspan3100">context switch</tspan></text>
     </g>
   </g>
 </svg>

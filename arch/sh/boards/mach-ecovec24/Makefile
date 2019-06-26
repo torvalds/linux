@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the R0P7724LC0011/21RL (EcoVec)
 #

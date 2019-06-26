@@ -33,14 +33,13 @@ int hw_breakpoint_slots(int type)
 	}
 }
 
-int arch_check_bp_in_kernelspace(struct perf_event *bp)
+int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
 {
 	unsigned int len;
 	unsigned long va;
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 
-	va = info->address;
-	len = bp->attr.bp_len;
+	va = hw->address;
+	len = hw->len;
 
 	return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
 }
@@ -48,48 +47,39 @@ int arch_check_bp_in_kernelspace(struct perf_event *bp)
 /*
  * Construct an arch_hw_breakpoint from a perf_event.
  */
-static int arch_build_bp_info(struct perf_event *bp)
+int hw_breakpoint_arch_parse(struct perf_event *bp,
+			     const struct perf_event_attr *attr,
+			     struct arch_hw_breakpoint *hw)
 {
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-
 	/* Type */
-	switch (bp->attr.bp_type) {
+	switch (attr->bp_type) {
 	case HW_BREAKPOINT_X:
-		info->type = XTENSA_BREAKPOINT_EXECUTE;
+		hw->type = XTENSA_BREAKPOINT_EXECUTE;
 		break;
 	case HW_BREAKPOINT_R:
-		info->type = XTENSA_BREAKPOINT_LOAD;
+		hw->type = XTENSA_BREAKPOINT_LOAD;
 		break;
 	case HW_BREAKPOINT_W:
-		info->type = XTENSA_BREAKPOINT_STORE;
+		hw->type = XTENSA_BREAKPOINT_STORE;
 		break;
 	case HW_BREAKPOINT_RW:
-		info->type = XTENSA_BREAKPOINT_LOAD | XTENSA_BREAKPOINT_STORE;
+		hw->type = XTENSA_BREAKPOINT_LOAD | XTENSA_BREAKPOINT_STORE;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	/* Len */
-	info->len = bp->attr.bp_len;
-	if (info->len < 1 || info->len > 64 || !is_power_of_2(info->len))
+	hw->len = attr->bp_len;
+	if (hw->len < 1 || hw->len > 64 || !is_power_of_2(hw->len))
 		return -EINVAL;
 
 	/* Address */
-	info->address = bp->attr.bp_addr;
-	if (info->address & (info->len - 1))
+	hw->address = attr->bp_addr;
+	if (hw->address & (hw->len - 1))
 		return -EINVAL;
 
 	return 0;
-}
-
-int arch_validate_hwbkpt_settings(struct perf_event *bp)
-{
-	int ret;
-
-	/* Build the arch_hw_breakpoint. */
-	ret = arch_build_bp_info(bp);
-	return ret;
 }
 
 int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
@@ -111,30 +101,30 @@ static void xtensa_wsr(unsigned long v, u8 sr)
 	switch (sr) {
 #if XCHAL_NUM_IBREAK > 0
 	case SREG_IBREAKA + 0:
-		WSR(v, SREG_IBREAKA + 0);
+		xtensa_set_sr(v, SREG_IBREAKA + 0);
 		break;
 #endif
 #if XCHAL_NUM_IBREAK > 1
 	case SREG_IBREAKA + 1:
-		WSR(v, SREG_IBREAKA + 1);
+		xtensa_set_sr(v, SREG_IBREAKA + 1);
 		break;
 #endif
 
 #if XCHAL_NUM_DBREAK > 0
 	case SREG_DBREAKA + 0:
-		WSR(v, SREG_DBREAKA + 0);
+		xtensa_set_sr(v, SREG_DBREAKA + 0);
 		break;
 	case SREG_DBREAKC + 0:
-		WSR(v, SREG_DBREAKC + 0);
+		xtensa_set_sr(v, SREG_DBREAKC + 0);
 		break;
 #endif
 #if XCHAL_NUM_DBREAK > 1
 	case SREG_DBREAKA + 1:
-		WSR(v, SREG_DBREAKA + 1);
+		xtensa_set_sr(v, SREG_DBREAKA + 1);
 		break;
 
 	case SREG_DBREAKC + 1:
-		WSR(v, SREG_DBREAKC + 1);
+		xtensa_set_sr(v, SREG_DBREAKC + 1);
 		break;
 #endif
 	}
@@ -160,8 +150,8 @@ static void set_ibreak_regs(int reg, struct perf_event *bp)
 	unsigned long ibreakenable;
 
 	xtensa_wsr(info->address, SREG_IBREAKA + reg);
-	RSR(ibreakenable, SREG_IBREAKENABLE);
-	WSR(ibreakenable | (1 << reg), SREG_IBREAKENABLE);
+	ibreakenable = xtensa_get_sr(SREG_IBREAKENABLE);
+	xtensa_set_sr(ibreakenable | (1 << reg), SREG_IBREAKENABLE);
 }
 
 static void set_dbreak_regs(int reg, struct perf_event *bp)
@@ -224,8 +214,9 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 		/* Breakpoint */
 		i = free_slot(this_cpu_ptr(bp_on_reg), XCHAL_NUM_IBREAK, bp);
 		if (i >= 0) {
-			RSR(ibreakenable, SREG_IBREAKENABLE);
-			WSR(ibreakenable & ~(1 << i), SREG_IBREAKENABLE);
+			ibreakenable = xtensa_get_sr(SREG_IBREAKENABLE);
+			xtensa_set_sr(ibreakenable & ~(1 << i),
+				      SREG_IBREAKENABLE);
 		}
 	} else {
 		/* Watchpoint */

@@ -1,0 +1,23 @@
+PCM3060 audio CODEC
+
+This driver supports both I2C and SPI.
+
+Required properties:
+
+- compatible: "ti,pcm3060"
+
+- reg : the I2C address of the device for I2C, the chip select
+        number for SPI.
+
+Optional properties:
+
+- ti,out-single-ended: "true" if output is single-ended;
+                       "false" or not specified if output is differential.
+
+Examples:
+
+	pcm3060: pcm3060@46 {
+		 compatible = "ti,pcm3060";
+		 reg = <0x46>;
+		 ti,out-single-ended = "true";
+	};

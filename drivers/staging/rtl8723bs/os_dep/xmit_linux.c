@@ -46,11 +46,6 @@ sint rtw_endofpktfile(struct pkt_file *pfile)
 	return false;
 }
 
-void rtw_set_tx_chksum_offload(_pkt *pkt, struct pkt_attrib *pattrib)
-{
-
-}
-
 int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitbuf, u32 alloc_sz, u8 flag)
 {
 	if (alloc_sz > 0) {
@@ -106,7 +101,7 @@ void rtw_os_xmit_schedule(struct adapter *padapter)
 		return;
 
 	if (!list_empty(&padapter->xmitpriv.pending_xmitbuf_queue.queue))
-		up(&pri_adapter->xmitpriv.xmit_sema);
+		complete(&pri_adapter->xmitpriv.xmit_comp);
 }
 
 static void rtw_check_xmit_resource(struct adapter *padapter, _pkt *pkt)

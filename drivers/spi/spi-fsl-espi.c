@@ -547,8 +547,11 @@ static void fsl_espi_cpu_irq(struct fsl_espi *espi, u32 events)
 		dev_err(espi->dev,
 			"Transfer done but SPIE_DON isn't set!\n");
 
-	if (SPIE_RXCNT(events) || SPIE_TXCNT(events) != FSL_ESPI_FIFO_SIZE)
+	if (SPIE_RXCNT(events) || SPIE_TXCNT(events) != FSL_ESPI_FIFO_SIZE) {
 		dev_err(espi->dev, "Transfer done but rx/tx fifo's aren't empty!\n");
+		dev_err(espi->dev, "SPIE_RXCNT = %d, SPIE_TXCNT = %d\n",
+			SPIE_RXCNT(events), SPIE_TXCNT(events));
+	}
 
 	complete(&espi->done);
 }
@@ -795,10 +798,8 @@ static int of_fsl_espi_suspend(struct device *dev)
 	int ret;
 
 	ret = spi_master_suspend(master);
-	if (ret) {
-		dev_warn(dev, "cannot suspend master\n");
+	if (ret)
 		return ret;
-	}
 
 	return pm_runtime_force_suspend(dev);
 }

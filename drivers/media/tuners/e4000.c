@@ -312,7 +312,7 @@ static int e4000_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 
 	dev_dbg(&client->dev, "index=%d\n", v->index);
 
-	strlcpy(v->name, "Elonics E4000", sizeof(v->name));
+	strscpy(v->name, "Elonics E4000", sizeof(v->name));
 	v->type = V4L2_TUNER_RF;
 	v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 	v->rangelow  = bands[0].rangelow;
@@ -610,9 +610,9 @@ static int e4000_dvb_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops e4000_dvb_tuner_ops = {
 	.info = {
-		.name           = "Elonics E4000",
-		.frequency_min  = 174000000,
-		.frequency_max  = 862000000,
+		.name              = "Elonics E4000",
+		.frequency_min_hz  = 174 * MHz,
+		.frequency_max_hz  = 862 * MHz,
 	},
 
 	.init = e4000_dvb_init,

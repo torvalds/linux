@@ -139,7 +139,8 @@ static int intel_th_remove(struct device *dev)
 			th->thdev[i] = NULL;
 		}
 
-		th->num_thdevs = lowest;
+		if (lowest >= 0)
+			th->num_thdevs = lowest;
 	}
 
 	if (thdrv->attr_group)
@@ -421,6 +422,7 @@ static const struct intel_th_subdevice {
 	unsigned		nres;
 	unsigned		type;
 	unsigned		otype;
+	bool			mknode;
 	unsigned		scrpd;
 	int			id;
 } intel_th_subdevices[] = {
@@ -455,6 +457,7 @@ static const struct intel_th_subdevice {
 		.name	= "msc",
 		.id	= 0,
 		.type	= INTEL_TH_OUTPUT,
+		.mknode	= true,
 		.otype	= GTH_MSU,
 		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC0_IS_ENABLED,
 	},
@@ -475,6 +478,7 @@ static const struct intel_th_subdevice {
 		.name	= "msc",
 		.id	= 1,
 		.type	= INTEL_TH_OUTPUT,
+		.mknode	= true,
 		.otype	= GTH_MSU,
 		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC1_IS_ENABLED,
 	},
@@ -487,7 +491,7 @@ static const struct intel_th_subdevice {
 				.flags	= IORESOURCE_MEM,
 			},
 			{
-				.start	= TH_MMIO_SW,
+				.start	= 1, /* use resource[1] */
 				.end	= 0,
 				.flags	= IORESOURCE_MEM,
 			},
@@ -580,6 +584,7 @@ intel_th_subdevice_alloc(struct intel_th *th,
 	struct intel_th_device *thdev;
 	struct resource res[3];
 	unsigned int req = 0;
+	bool is64bit = false;
 	int r, err;
 
 	thdev = intel_th_device_alloc(th, subdev->type, subdev->name,
@@ -589,12 +594,18 @@ intel_th_subdevice_alloc(struct intel_th *th,
 
 	thdev->drvdata = th->drvdata;
 
+	for (r = 0; r < th->num_resources; r++)
+		if (th->resource[r].flags & IORESOURCE_MEM_64) {
+			is64bit = true;
+			break;
+		}
+
 	memcpy(res, subdev->res,
 	       sizeof(struct resource) * subdev->nres);
 
 	for (r = 0; r < subdev->nres; r++) {
 		struct resource *devres = th->resource;
-		int bar = TH_MMIO_CONFIG;
+		int bar = 0; /* cut subdevices' MMIO from resource[0] */
 
 		/*
 		 * Take .end == 0 to mean 'take the whole bar',
@@ -603,6 +614,8 @@ intel_th_subdevice_alloc(struct intel_th *th,
 		 */
 		if (!res[r].end && res[r].flags == IORESOURCE_MEM) {
 			bar = res[r].start;
+			if (is64bit)
+				bar *= 2;
 			res[r].start = 0;
 			res[r].end = resource_size(&devres[bar]) - 1;
 		}
@@ -625,7 +638,8 @@ intel_th_subdevice_alloc(struct intel_th *th,
 	}
 
 	if (subdev->type == INTEL_TH_OUTPUT) {
-		thdev->dev.devt = MKDEV(th->major, th->num_thdevs);
+		if (subdev->mknode)
+			thdev->dev.devt = MKDEV(th->major, th->num_thdevs);
 		thdev->output.type = subdev->otype;
 		thdev->output.port = -1;
 		thdev->output.scratchpad = subdev->scrpd;

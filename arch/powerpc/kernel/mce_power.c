@@ -60,13 +60,10 @@ static unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 
 /* flush SLBs and reload */
 #ifdef CONFIG_PPC_BOOK3S_64
-static void flush_and_reload_slb(void)
+void flush_and_reload_slb(void)
 {
-	struct slb_shadow *slb;
-	unsigned long i, n;
-
 	/* Invalidate all SLBs */
-	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
+	slb_flush_all_realmode();
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
 	/*
@@ -76,27 +73,29 @@ static void flush_and_reload_slb(void)
 	if (get_paca()->kvm_hstate.in_guest)
 		return;
 #endif
-
-	/* For host kernel, reload the SLBs from shadow SLB buffer. */
-	slb = get_slb_shadow();
-	if (!slb)
+	if (early_radix_enabled())
 		return;
 
-	n = min_t(u32, be32_to_cpu(slb->persistent), SLB_MIN_SIZE);
+	/*
+	 * This probably shouldn't happen, but it may be possible it's
+	 * called in early boot before SLB shadows are allocated.
+	 */
+	if (!get_slb_shadow())
+		return;
 
-	/* Load up the SLB entries from shadow SLB */
-	for (i = 0; i < n; i++) {
-		unsigned long rb = be64_to_cpu(slb->save_area[i].esid);
-		unsigned long rs = be64_to_cpu(slb->save_area[i].vsid);
-
-		rb = (rb & ~0xFFFul) | i;
-		asm volatile("slbmte %0,%1" : : "r" (rs), "r" (rb));
-	}
+	slb_restore_bolted_realmode();
 }
 #endif
 
 static void flush_erat(void)
 {
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
+		flush_and_reload_slb();
+		return;
+	}
+#endif
+	/* PPC_INVALIDATE_ERAT can only be used on ISA v3 and newer */
 	asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
 }
 
@@ -257,11 +256,11 @@ static const struct mce_derror_table mce_p7_derror_table[] = {
 { 0x00000400, true,
   MCE_ERROR_TYPE_TLB,  MCE_TLB_ERROR_MULTIHIT,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
+{ 0x00000080, true,
+  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,	/* Before PARITY */
+  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000100, true,
   MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_PARITY,
-  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
-{ 0x00000080, true,
-  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000040, true,
   MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_INDETERMINATE, /* BOTH */
@@ -290,11 +289,11 @@ static const struct mce_derror_table mce_p8_derror_table[] = {
 { 0x00000200, true,
   MCE_ERROR_TYPE_ERAT, MCE_ERAT_ERROR_MULTIHIT, /* SECONDARY ERAT */
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
+{ 0x00000080, true,
+  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,	/* Before PARITY */
+  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000100, true,
   MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_PARITY,
-  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
-{ 0x00000080, true,
-  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0, false, 0, 0, 0, 0 } };
 
@@ -320,11 +319,11 @@ static const struct mce_derror_table mce_p9_derror_table[] = {
 { 0x00000200, false,
   MCE_ERROR_TYPE_USER, MCE_USER_ERROR_TLBIE,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
+{ 0x00000080, true,
+  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,	/* Before PARITY */
+  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000100, true,
   MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_PARITY,
-  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
-{ 0x00000080, true,
-  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000040, true,
   MCE_ERROR_TYPE_RA,   MCE_RA_ERROR_LOAD,

@@ -46,6 +46,11 @@
 #define DRV_NAME		"gmac-gemini"
 #define DRV_VERSION		"1.0"
 
+#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
+static int debug = -1;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+
 #define HSIZE_8			0x00
 #define HSIZE_16		0x01
 #define HSIZE_32		0x02
@@ -146,6 +151,7 @@ struct gemini_ethernet {
 	void __iomem *base;
 	struct gemini_ethernet_port *port0;
 	struct gemini_ethernet_port *port1;
+	bool initialized;
 
 	spinlock_t	irq_lock; /* Locks IRQ-related registers */
 	unsigned int	freeq_order;
@@ -300,23 +306,26 @@ static void gmac_speed_set(struct net_device *netdev)
 		status.bits.speed = GMAC_SPEED_1000;
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII)
 			status.bits.mii_rmii = GMAC_PHY_RGMII_1000;
-		netdev_info(netdev, "connect to RGMII @ 1Gbit\n");
+		netdev_dbg(netdev, "connect %s to RGMII @ 1Gbit\n",
+			   phydev_name(phydev));
 		break;
 	case 100:
 		status.bits.speed = GMAC_SPEED_100;
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII)
 			status.bits.mii_rmii = GMAC_PHY_RGMII_100_10;
-		netdev_info(netdev, "connect to RGMII @ 100 Mbit\n");
+		netdev_dbg(netdev, "connect %s to RGMII @ 100 Mbit\n",
+			   phydev_name(phydev));
 		break;
 	case 10:
 		status.bits.speed = GMAC_SPEED_10;
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII)
 			status.bits.mii_rmii = GMAC_PHY_RGMII_100_10;
-		netdev_info(netdev, "connect to RGMII @ 10 Mbit\n");
+		netdev_dbg(netdev, "connect %s to RGMII @ 10 Mbit\n",
+			   phydev_name(phydev));
 		break;
 	default:
-		netdev_warn(netdev, "Not supported PHY speed (%d)\n",
-			    phydev->speed);
+		netdev_warn(netdev, "Unsupported PHY speed (%d) on %s\n",
+			    phydev->speed, phydev_name(phydev));
 	}
 
 	if (phydev->duplex == DUPLEX_FULL) {
@@ -363,32 +372,25 @@ static int gmac_setup_phy(struct net_device *netdev)
 		return -ENODEV;
 	netdev->phydev = phy;
 
-	netdev_info(netdev, "connected to PHY \"%s\"\n",
-		    phydev_name(phy));
-	phy_attached_print(phy, "phy_id=0x%.8lx, phy_mode=%s\n",
-			   (unsigned long)phy->phy_id,
-			   phy_modes(phy->interface));
-
-	phy->supported &= PHY_GBIT_FEATURES;
-	phy->supported |= SUPPORTED_Asym_Pause | SUPPORTED_Pause;
-	phy->advertising = phy->supported;
+	phy_set_max_speed(phy, SPEED_1000);
+	phy_support_asym_pause(phy);
 
 	/* set PHY interface type */
 	switch (phy->interface) {
 	case PHY_INTERFACE_MODE_MII:
-		netdev_info(netdev, "set GMAC0 to GMII mode, GMAC1 disabled\n");
+		netdev_dbg(netdev,
+			   "MII: set GMAC0 to GMII mode, GMAC1 disabled\n");
 		status.bits.mii_rmii = GMAC_PHY_MII;
-		netdev_info(netdev, "connect to MII\n");
 		break;
 	case PHY_INTERFACE_MODE_GMII:
-		netdev_info(netdev, "set GMAC0 to GMII mode, GMAC1 disabled\n");
+		netdev_dbg(netdev,
+			   "GMII: set GMAC0 to GMII mode, GMAC1 disabled\n");
 		status.bits.mii_rmii = GMAC_PHY_GMII;
-		netdev_info(netdev, "connect to GMII\n");
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
-		dev_info(dev, "set GMAC0 and GMAC1 to MII/RGMII mode\n");
+		netdev_dbg(netdev,
+			   "RGMII: set GMAC0 and GMAC1 to MII/RGMII mode\n");
 		status.bits.mii_rmii = GMAC_PHY_RGMII_100_10;
-		netdev_info(netdev, "connect to RGMII\n");
 		break;
 	default:
 		netdev_err(netdev, "Unsupported MII interface\n");
@@ -398,29 +400,63 @@ static int gmac_setup_phy(struct net_device *netdev)
 	}
 	writel(status.bits32, port->gmac_base + GMAC_STATUS);
 
+	if (netif_msg_link(port))
+		phy_attached_info(phy);
+
 	return 0;
 }
 
-static int gmac_pick_rx_max_len(int max_l3_len)
+/* The maximum frame length is not logically enumerated in the
+ * hardware, so we do a table lookup to find the applicable max
+ * frame length.
+ */
+struct gmac_max_framelen {
+	unsigned int max_l3_len;
+	u8 val;
+};
+
+static const struct gmac_max_framelen gmac_maxlens[] = {
+	{
+		.max_l3_len = 1518,
+		.val = CONFIG0_MAXLEN_1518,
+	},
+	{
+		.max_l3_len = 1522,
+		.val = CONFIG0_MAXLEN_1522,
+	},
+	{
+		.max_l3_len = 1536,
+		.val = CONFIG0_MAXLEN_1536,
+	},
+	{
+		.max_l3_len = 1542,
+		.val = CONFIG0_MAXLEN_1542,
+	},
+	{
+		.max_l3_len = 9212,
+		.val = CONFIG0_MAXLEN_9k,
+	},
+	{
+		.max_l3_len = 10236,
+		.val = CONFIG0_MAXLEN_10k,
+	},
+};
+
+static int gmac_pick_rx_max_len(unsigned int max_l3_len)
 {
-	/* index = CONFIG_MAXLEN_XXX values */
-	static const int max_len[8] = {
-		1536, 1518, 1522, 1542,
-		9212, 10236, 1518, 1518
-	};
-	int i, n = 5;
+	const struct gmac_max_framelen *maxlen;
+	int maxtot;
+	int i;
 
-	max_l3_len += ETH_HLEN + VLAN_HLEN;
+	maxtot = max_l3_len + ETH_HLEN + VLAN_HLEN;
 
-	if (max_l3_len > max_len[n])
-		return -1;
-
-	for (i = 0; i < 5; i++) {
-		if (max_len[i] >= max_l3_len && max_len[i] < max_len[n])
-			n = i;
+	for (i = 0; i < ARRAY_SIZE(gmac_maxlens); i++) {
+		maxlen = &gmac_maxlens[i];
+		if (maxtot <= maxlen->max_l3_len)
+			return maxlen->val;
 	}
 
-	return n;
+	return -1;
 }
 
 static int gmac_init(struct net_device *netdev)
@@ -624,7 +660,7 @@ static void gmac_clean_txq(struct net_device *netdev, struct gmac_txq *txq,
 
 			u64_stats_update_begin(&port->tx_stats_syncp);
 			port->tx_frag_stats[nfrags]++;
-			u64_stats_update_end(&port->ir_stats_syncp);
+			u64_stats_update_end(&port->tx_stats_syncp);
 		}
 	}
 
@@ -1276,8 +1312,8 @@ static void gmac_enable_irq(struct net_device *netdev, int enable)
 	unsigned long flags;
 	u32 val, mask;
 
-	netdev_info(netdev, "%s device %d %s\n", __func__,
-		    netdev->dev_id, enable ? "enable" : "disable");
+	netdev_dbg(netdev, "%s device %d %s\n", __func__,
+		   netdev->dev_id, enable ? "enable" : "disable");
 	spin_lock_irqsave(&geth->irq_lock, flags);
 
 	mask = GMAC0_IRQ0_2 << (netdev->dev_id * 2);
@@ -1753,7 +1789,10 @@ static int gmac_open(struct net_device *netdev)
 	phy_start(netdev->phydev);
 
 	err = geth_resize_freeq(port);
-	if (err) {
+	/* It's fine if it's just busy, the other port has set up
+	 * the freeq in that case.
+	 */
+	if (err && (err != -EBUSY)) {
 		netdev_err(netdev, "could not resize freeq\n");
 		goto err_stop_phy;
 	}
@@ -1782,7 +1821,7 @@ static int gmac_open(struct net_device *netdev)
 		     HRTIMER_MODE_REL);
 	port->rx_coalesce_timer.function = &gmac_coalesce_delay_expired;
 
-	netdev_info(netdev, "opened\n");
+	netdev_dbg(netdev, "opened\n");
 
 	return 0;
 
@@ -2264,6 +2303,14 @@ static void gemini_port_remove(struct gemini_ethernet_port *port)
 
 static void gemini_ethernet_init(struct gemini_ethernet *geth)
 {
+	/* Only do this once both ports are online */
+	if (geth->initialized)
+		return;
+	if (geth->port0 && geth->port1)
+		geth->initialized = true;
+	else
+		return;
+
 	writel(0, geth->base + GLOBAL_INTERRUPT_ENABLE_0_REG);
 	writel(0, geth->base + GLOBAL_INTERRUPT_ENABLE_1_REG);
 	writel(0, geth->base + GLOBAL_INTERRUPT_ENABLE_2_REG);
@@ -2354,6 +2401,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	port->id = id;
 	port->geth = geth;
 	port->dev = dev;
+	port->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	/* DMA memory */
 	dmares = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2410,6 +2458,10 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 		geth->port0 = port;
 	else
 		geth->port1 = port;
+
+	/* This will just be done once both ports are up and reset */
+	gemini_ethernet_init(geth);
+
 	platform_set_drvdata(pdev, port);
 
 	/* Set up and register the netdev */
@@ -2423,6 +2475,11 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 
 	netdev->hw_features = GMAC_OFFLOAD_FEATURES;
 	netdev->features |= GMAC_OFFLOAD_FEATURES | NETIF_F_GRO;
+	/* We can handle jumbo frames up to 10236 bytes so, let's accept
+	 * payloads of 10236 bytes minus VLAN and ethernet header
+	 */
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = 10236 - VLAN_ETH_HLEN;
 
 	port->freeq_refill = 0;
 	netif_napi_add(netdev, &port->napi, gmac_napi_poll,
@@ -2435,7 +2492,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 			port->mac_addr[0], port->mac_addr[1],
 			port->mac_addr[2]);
 		dev_info(dev, "using a random ethernet address\n");
-		random_ether_addr(netdev->dev_addr);
+		eth_random_addr(netdev->dev_addr);
 	}
 	gmac_write_mac_address(netdev);
 
@@ -2527,7 +2584,6 @@ static int gemini_ethernet_probe(struct platform_device *pdev)
 
 	spin_lock_init(&geth->irq_lock);
 	spin_lock_init(&geth->freeq_lock);
-	gemini_ethernet_init(geth);
 
 	/* The children will use this */
 	platform_set_drvdata(pdev, geth);
@@ -2540,8 +2596,8 @@ static int gemini_ethernet_remove(struct platform_device *pdev)
 {
 	struct gemini_ethernet *geth = platform_get_drvdata(pdev);
 
-	gemini_ethernet_init(geth);
 	geth_cleanup_freeq(geth);
+	geth->initialized = false;
 
 	return 0;
 }

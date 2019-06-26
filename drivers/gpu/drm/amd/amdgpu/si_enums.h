@@ -46,6 +46,26 @@
 #define GRPH_ENDIAN_8IN16              1
 #define GRPH_ENDIAN_8IN32              2
 #define GRPH_ENDIAN_8IN64              3
+#define GRPH_RED_CROSSBAR(x)           (((x) & 0x3) << 4)
+#define GRPH_RED_SEL_R                 0
+#define GRPH_RED_SEL_G                 1
+#define GRPH_RED_SEL_B                 2
+#define GRPH_RED_SEL_A                 3
+#define GRPH_GREEN_CROSSBAR(x)         (((x) & 0x3) << 6)
+#define GRPH_GREEN_SEL_G               0
+#define GRPH_GREEN_SEL_B               1
+#define GRPH_GREEN_SEL_A               2
+#define GRPH_GREEN_SEL_R               3
+#define GRPH_BLUE_CROSSBAR(x)          (((x) & 0x3) << 8)
+#define GRPH_BLUE_SEL_B                0
+#define GRPH_BLUE_SEL_A                1
+#define GRPH_BLUE_SEL_R                2
+#define GRPH_BLUE_SEL_G                3
+#define GRPH_ALPHA_CROSSBAR(x)         (((x) & 0x3) << 10)
+#define GRPH_ALPHA_SEL_A               0
+#define GRPH_ALPHA_SEL_R               1
+#define GRPH_ALPHA_SEL_G               2
+#define GRPH_ALPHA_SEL_B               3
 
 #define GRPH_DEPTH(x)                  (((x) & 0x3) << 0)
 #define GRPH_DEPTH_8BPP                0

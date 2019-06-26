@@ -1,0 +1,16 @@
+Freescale i.MX7ULP System Integration Module
+----------------------------------------------
+The system integration module (SIM) provides system control and chip configuration
+registers. In this module, chip revision information is located in JTAG ID register,
+and a set of registers have been made available in DGO domain for SW use, with the
+objective to maintain its value between system resets.
+
+Required properties:
+- compatible:	Should be "fsl,imx7ulp-sim".
+- reg:		Specifies base physical address and size of the register sets.
+
+Example:
+sim: sim@410a3000 {
+	compatible = "fsl,imx7ulp-sim", "syscon";
+	reg = <0x410a3000 0x1000>;
+};

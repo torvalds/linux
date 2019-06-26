@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -62,3 +62,5 @@ __print_symbolic(etype,                         \
 #include "trace_rx.h"
 #include "trace_tx.h"
 #include "trace_mmu.h"
+#include "trace_iowait.h"
+#include "trace_tid.h"

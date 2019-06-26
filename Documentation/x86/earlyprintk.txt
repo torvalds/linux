@@ -35,25 +35,25 @@ and two USB cables, connected like this:
 ( If your system does not list a debug port capability then you probably
   won't be able to use the USB debug key. )
 
- b.) You also need a Netchip USB debug cable/key:
+ b.) You also need a NetChip USB debug cable/key:
 
         http://www.plxtech.com/products/NET2000/NET20DC/default.asp
 
-     This is a small blue plastic connector with two USB connections,
+     This is a small blue plastic connector with two USB connections;
      it draws power from its USB connections.
 
  c.) You need a second client/console system with a high speed USB 2.0
      port.
 
- d.) The Netchip device must be plugged directly into the physical
+ d.) The NetChip device must be plugged directly into the physical
      debug port on the "host/target" system.  You cannot use a USB hub in
      between the physical debug port and the "host/target" system.
 
      The EHCI debug controller is bound to a specific physical USB
-     port and the Netchip device will only work as an early printk
+     port and the NetChip device will only work as an early printk
      device in this port.  The EHCI host controllers are electrically
      wired such that the EHCI debug controller is hooked up to the
-     first physical and there is no way to change this via software.
+     first physical port and there is no way to change this via software.
      You can find the physical port through experimentation by trying
      each physical port on the system and rebooting.  Or you can try
      and use lsusb or look at the kernel info messages emitted by the
@@ -65,9 +65,9 @@ and two USB cables, connected like this:
      to the hardware vendor, because there is no reason not to wire
      this port into one of the physically accessible ports.
 
- e.) It is also important to note, that many versions of the Netchip
+ e.) It is also important to note, that many versions of the NetChip
      device require the "client/console" system to be plugged into the
-     right and side of the device (with the product logo facing up and
+     right hand side of the device (with the product logo facing up and
      readable left to right).  The reason being is that the 5 volt
      power supply is taken from only one side of the device and it
      must be the side that does not get rebooted.
@@ -81,13 +81,18 @@ and two USB cables, connected like this:
       CONFIG_EARLY_PRINTK_DBGP=y
 
     And you need to add the boot command line: "earlyprintk=dbgp".
+
     (If you are using Grub, append it to the 'kernel' line in
-     /etc/grub.conf)
+     /etc/grub.conf.  If you are using Grub2 on a BIOS firmware system,
+     append it to the 'linux' line in /boot/grub2/grub.cfg. If you are
+     using Grub2 on an EFI firmware system, append it to the 'linux'
+     or 'linuxefi' line in /boot/grub2/grub.cfg or
+     /boot/efi/EFI/<distro>/grub.cfg.)
 
     On systems with more than one EHCI debug controller you must
     specify the correct EHCI debug controller number.  The ordering
     comes from the PCI bus enumeration of the EHCI controllers.  The
-    default with no number argument is "0" the first EHCI debug
+    default with no number argument is "0" or the first EHCI debug
     controller.  To use the second EHCI debug controller, you would
     use the command line: "earlyprintk=dbgp1"
 
@@ -111,7 +116,7 @@ and two USB cables, connected like this:
     see the raw output.
 
  c.) On Nvidia Southbridge based systems: the kernel will try to probe
-     and find out which port has debug device connected.
+     and find out which port has a debug device connected.
 
 3. Testing that it works fine:
 

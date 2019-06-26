@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,6 +30,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -363,14 +365,7 @@ struct mvm_statistics_general_v8 {
 	u8 reserved[4 - (NUM_MAC_INDEX % 4)];
 } __packed; /* STATISTICS_GENERAL_API_S_VER_8 */
 
-struct mvm_statistics_general_cdb_v9 {
-	struct mvm_statistics_general_common_v19 common;
-	__le32 beacon_counter[NUM_MAC_INDEX_CDB];
-	u8 beacon_average_energy[NUM_MAC_INDEX_CDB];
-	u8 reserved[4 - (NUM_MAC_INDEX_CDB % 4)];
-} __packed; /* STATISTICS_GENERAL_API_S_VER_9 */
-
-struct mvm_statistics_general_cdb {
+struct mvm_statistics_general {
 	struct mvm_statistics_general_common common;
 	__le32 beacon_counter[MAC_INDEX_AUX];
 	u8 beacon_average_energy[MAC_INDEX_AUX];
@@ -435,11 +430,11 @@ struct iwl_notif_statistics_v11 {
 	struct mvm_statistics_load_v1 load_stats;
 } __packed; /* STATISTICS_NTFY_API_S_VER_11 */
 
-struct iwl_notif_statistics_cdb {
+struct iwl_notif_statistics {
 	__le32 flag;
 	struct mvm_statistics_rx rx;
 	struct mvm_statistics_tx tx;
-	struct mvm_statistics_general_cdb general;
+	struct mvm_statistics_general general;
 	struct mvm_statistics_load load_stats;
 } __packed; /* STATISTICS_NTFY_API_S_VER_13 */
 

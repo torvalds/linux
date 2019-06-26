@@ -1,26 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include "tsens.h"
 
-#define S0_ST_ADDR		0x1030
+/* SROT */
+#define TSENS_EN		BIT(0)
+
+/* TM */
+#define STATUS_OFFSET		0x30
 #define SN_ADDR_OFFSET		0x4
 #define SN_ST_TEMP_MASK		0x3ff
 #define CAL_DEGC_PT1		30
@@ -103,11 +99,11 @@ int get_temp_common(struct tsens_device *tmdev, int id, int *temp)
 {
 	struct tsens_sensor *s = &tmdev->sensor[id];
 	u32 code;
-	unsigned int sensor_addr;
+	unsigned int status_reg;
 	int last_temp = 0, ret;
 
-	sensor_addr = S0_ST_ADDR + s->hw_id * SN_ADDR_OFFSET;
-	ret = regmap_read(tmdev->map, sensor_addr, &code);
+	status_reg = tmdev->tm_offset + STATUS_OFFSET + s->hw_id * SN_ADDR_OFFSET;
+	ret = regmap_read(tmdev->tm_map, status_reg, &code);
 	if (ret)
 		return ret;
 	last_temp = code & SN_ST_TEMP_MASK;
@@ -118,6 +114,14 @@ int get_temp_common(struct tsens_device *tmdev, int id, int *temp)
 }
 
 static const struct regmap_config tsens_config = {
+	.name		= "tm",
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+};
+
+static const struct regmap_config tsens_srot_config = {
+	.name		= "srot",
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
@@ -125,17 +129,65 @@ static const struct regmap_config tsens_config = {
 
 int __init init_common(struct tsens_device *tmdev)
 {
-	void __iomem *base;
+	void __iomem *tm_base, *srot_base;
+	struct resource *res;
+	u32 code;
+	int ret;
+	struct platform_device *op = of_find_device_by_node(tmdev->dev->of_node);
+	u16 ctrl_offset = tmdev->reg_offsets[SROT_CTRL_OFFSET];
 
-	base = of_iomap(tmdev->dev->of_node, 0);
-	if (!base)
+	if (!op)
 		return -EINVAL;
 
-	tmdev->map = devm_regmap_init_mmio(tmdev->dev, base, &tsens_config);
-	if (IS_ERR(tmdev->map)) {
-		iounmap(base);
-		return PTR_ERR(tmdev->map);
+	if (op->num_resources > 1) {
+		/* DT with separate SROT and TM address space */
+		tmdev->tm_offset = 0;
+		res = platform_get_resource(op, IORESOURCE_MEM, 1);
+		srot_base = devm_ioremap_resource(&op->dev, res);
+		if (IS_ERR(srot_base)) {
+			ret = PTR_ERR(srot_base);
+			goto err_put_device;
+		}
+
+		tmdev->srot_map = devm_regmap_init_mmio(tmdev->dev, srot_base,
+							&tsens_srot_config);
+		if (IS_ERR(tmdev->srot_map)) {
+			ret = PTR_ERR(tmdev->srot_map);
+			goto err_put_device;
+		}
+
+	} else {
+		/* old DTs where SROT and TM were in a contiguous 2K block */
+		tmdev->tm_offset = 0x1000;
+	}
+
+	res = platform_get_resource(op, IORESOURCE_MEM, 0);
+	tm_base = devm_ioremap_resource(&op->dev, res);
+	if (IS_ERR(tm_base)) {
+		ret = PTR_ERR(tm_base);
+		goto err_put_device;
+	}
+
+	tmdev->tm_map = devm_regmap_init_mmio(tmdev->dev, tm_base, &tsens_config);
+	if (IS_ERR(tmdev->tm_map)) {
+		ret = PTR_ERR(tmdev->tm_map);
+		goto err_put_device;
+	}
+
+	if (tmdev->srot_map) {
+		ret = regmap_read(tmdev->srot_map, ctrl_offset, &code);
+		if (ret)
+			goto err_put_device;
+		if (!(code & TSENS_EN)) {
+			dev_err(tmdev->dev, "tsens device is not enabled\n");
+			ret = -ENODEV;
+			goto err_put_device;
+		}
 	}
 
 	return 0;
+
+err_put_device:
+	put_device(&op->dev);
+	return ret;
 }

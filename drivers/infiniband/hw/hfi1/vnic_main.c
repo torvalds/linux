@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2017 Intel Corporation.
+ * Copyright(c) 2017 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -120,8 +120,7 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 	uctxt->seq_cnt = 1;
 	uctxt->is_vnic = true;
 
-	if (dd->num_msix_entries)
-		hfi1_set_vnic_msix_info(uctxt);
+	msix_request_rcd_irq(uctxt);
 
 	hfi1_stats.sps_ctxts++;
 	dd_dev_dbg(dd, "created vnic context %d\n", uctxt->ctxt);
@@ -136,9 +135,6 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 	dd_dev_dbg(dd, "closing vnic context %d\n", uctxt->ctxt);
 	flush_wc();
 
-	if (dd->num_msix_entries)
-		hfi1_reset_vnic_msix_info(uctxt);
-
 	/*
 	 * Disable receive context and interrupt available, reset all
 	 * RcvCtxtCtrl bits to default values.
@@ -149,6 +145,10 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
 		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
 		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt);
+
+	/* msix_intr will always be > 0, only clean up if this is true */
+	if (uctxt->msix_intr)
+		msix_free_irq(dd, uctxt->msix_intr);
 
 	uctxt->event_flags = 0;
 
@@ -423,7 +423,7 @@ tx_finish:
 
 static u16 hfi1_vnic_select_queue(struct net_device *netdev,
 				  struct sk_buff *skb,
-				  void *accel_priv,
+				  struct net_device *sb_dev,
 				  select_queue_fallback_t fallback)
 {
 	struct hfi1_vnic_vport_info *vinfo = opa_vnic_dev_priv(netdev);
@@ -628,7 +628,7 @@ static void hfi1_vnic_down(struct hfi1_vnic_vport_info *vinfo)
 	idr_remove(&dd->vnic.vesw_idr, vinfo->vesw_id);
 
 	/* ensure irqs see the change */
-	hfi1_vnic_synchronize_irq(dd);
+	msix_vnic_synchronize_irq(dd);
 
 	/* remove unread skbs */
 	for (i = 0; i < vinfo->num_rx_q; i++) {
@@ -692,8 +692,6 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 		rc = hfi1_vnic_txreq_init(dd);
 		if (rc)
 			goto txreq_fail;
-
-		dd->vnic.msix_idx = dd->first_dyn_msix_idx;
 	}
 
 	for (i = dd->vnic.num_ctxt; i < vinfo->num_rx_q; i++) {
@@ -818,14 +816,14 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 
 	size = sizeof(struct opa_vnic_rdma_netdev) + sizeof(*vinfo);
 	netdev = alloc_netdev_mqs(size, name, name_assign_type, setup,
-				  dd->chip_sdma_engines, dd->num_vnic_contexts);
+				  dd->num_sdma, dd->num_vnic_contexts);
 	if (!netdev)
 		return ERR_PTR(-ENOMEM);
 
 	rn = netdev_priv(netdev);
 	vinfo = opa_vnic_dev_priv(netdev);
 	vinfo->dd = dd;
-	vinfo->num_tx_q = dd->chip_sdma_engines;
+	vinfo->num_tx_q = dd->num_sdma;
 	vinfo->num_rx_q = dd->num_vnic_contexts;
 	vinfo->netdev = netdev;
 	rn->free_rdma_netdev = hfi1_vnic_free_rn;

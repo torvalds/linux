@@ -27,6 +27,9 @@ static int adxl345_i2c_probe(struct i2c_client *client,
 {
 	struct regmap *regmap;
 
+	if (!id)
+		return -ENODEV;
+
 	regmap = devm_regmap_init_i2c(client, &adxl345_i2c_regmap_config);
 	if (IS_ERR(regmap)) {
 		dev_err(&client->dev, "Error initializing i2c regmap: %ld\n",
@@ -34,7 +37,8 @@ static int adxl345_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
-	return adxl345_core_probe(&client->dev, regmap, id ? id->name : NULL);
+	return adxl345_core_probe(&client->dev, regmap, id->driver_data,
+				  id->name);
 }
 
 static int adxl345_i2c_remove(struct i2c_client *client)
@@ -43,7 +47,8 @@ static int adxl345_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adxl345_i2c_id[] = {
-	{ "adxl345", 0 },
+	{ "adxl345", ADXL345 },
+	{ "adxl375", ADXL375 },
 	{ }
 };
 
@@ -51,6 +56,7 @@ MODULE_DEVICE_TABLE(i2c, adxl345_i2c_id);
 
 static const struct of_device_id adxl345_of_match[] = {
 	{ .compatible = "adi,adxl345" },
+	{ .compatible = "adi,adxl375" },
 	{ },
 };
 

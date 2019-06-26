@@ -496,28 +496,29 @@ struct reset_control *__of_reset_control_get(struct device_node *node,
 			break;
 		}
 	}
-	of_node_put(args.np);
 
 	if (!rcdev) {
-		mutex_unlock(&reset_list_mutex);
-		return ERR_PTR(-EPROBE_DEFER);
+		rstc = ERR_PTR(-EPROBE_DEFER);
+		goto out;
 	}
 
 	if (WARN_ON(args.args_count != rcdev->of_reset_n_cells)) {
-		mutex_unlock(&reset_list_mutex);
-		return ERR_PTR(-EINVAL);
+		rstc = ERR_PTR(-EINVAL);
+		goto out;
 	}
 
 	rstc_id = rcdev->of_xlate(rcdev, &args);
 	if (rstc_id < 0) {
-		mutex_unlock(&reset_list_mutex);
-		return ERR_PTR(rstc_id);
+		rstc = ERR_PTR(rstc_id);
+		goto out;
 	}
 
 	/* reset_list_mutex also protects the rcdev's reset_control list */
 	rstc = __reset_control_get_internal(rcdev, rstc_id, shared);
 
+out:
 	mutex_unlock(&reset_list_mutex);
+	of_node_put(args.np);
 
 	return rstc;
 }
@@ -794,3 +795,45 @@ devm_reset_control_array_get(struct device *dev, bool shared, bool optional)
 	return rstc;
 }
 EXPORT_SYMBOL_GPL(devm_reset_control_array_get);
+
+static int reset_control_get_count_from_lookup(struct device *dev)
+{
+	const struct reset_control_lookup *lookup;
+	const char *dev_id;
+	int count = 0;
+
+	if (!dev)
+		return -EINVAL;
+
+	dev_id = dev_name(dev);
+	mutex_lock(&reset_lookup_mutex);
+
+	list_for_each_entry(lookup, &reset_lookup_list, list) {
+		if (!strcmp(lookup->dev_id, dev_id))
+			count++;
+	}
+
+	mutex_unlock(&reset_lookup_mutex);
+
+	if (count == 0)
+		count = -ENOENT;
+
+	return count;
+}
+
+/**
+ * reset_control_get_count - Count number of resets available with a device
+ *
+ * @dev: device for which to return the number of resets
+ *
+ * Returns positive reset count on success, or error number on failure and
+ * on count being zero.
+ */
+int reset_control_get_count(struct device *dev)
+{
+	if (dev->of_node)
+		return of_reset_control_get_count(dev->of_node);
+
+	return reset_control_get_count_from_lookup(dev);
+}
+EXPORT_SYMBOL_GPL(reset_control_get_count);

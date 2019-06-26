@@ -330,7 +330,7 @@ void pci_bus_add_device(struct pci_dev *dev)
 		return;
 	}
 
-	dev->is_added = 1;
+	pci_dev_assign_added(dev, true);
 }
 EXPORT_SYMBOL_GPL(pci_bus_add_device);
 
@@ -347,14 +347,14 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		/* Skip already-added devices */
-		if (dev->is_added)
+		if (pci_dev_is_added(dev))
 			continue;
 		pci_bus_add_device(dev);
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		/* Skip if device attach failed */
-		if (!dev->is_added)
+		if (!pci_dev_is_added(dev))
 			continue;
 		child = dev->subordinate;
 		if (child)

@@ -7,7 +7,7 @@ Required properties:
 
 Example node:
 
-	ads1202: adc@0 {
+	ads1202: adc {
 		compatible = "sd-modulator";
 		#io-channel-cells = <0>;
 	};

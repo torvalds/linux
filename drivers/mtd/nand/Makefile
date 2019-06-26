@@ -5,3 +5,4 @@ obj-$(CONFIG_MTD_NAND_CORE) += nandcore.o
 
 obj-y	+= onenand/
 obj-y	+= raw/
+obj-y	+= spi/

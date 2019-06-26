@@ -1,14 +1,7 @@
-/*
- * Driver for the IMX SNVS ON/OFF Power Key
- * Copyright (C) 2015 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Driver for the IMX SNVS ON/OFF Power Key
+// Copyright (C) 2015 Freescale Semiconductor, Inc. All Rights Reserved.
 
 #include <linux/device.h>
 #include <linux/err.h>
@@ -155,6 +148,9 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
+	pdata->input = input;
+	platform_set_drvdata(pdev, pdata);
+
 	error = devm_request_irq(&pdev->dev, pdata->irq,
 			       imx_snvs_pwrkey_interrupt,
 			       0, pdev->name, pdev);
@@ -169,9 +165,6 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register input device\n");
 		return error;
 	}
-
-	pdata->input = input;
-	platform_set_drvdata(pdev, pdata);
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
 

@@ -42,15 +42,11 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
-
 #include "sun5i.dtsi"
 
 #include <dt-bindings/dma/sun4i-a10.h>
 
 / {
-	interrupt-parent = <&intc>;
-
 	aliases {
 		ethernet0 = &emac;
 	};
@@ -60,7 +56,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer@2 {
+		framebuffer-lcd0-hdmi {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
@@ -76,7 +72,7 @@
 		allwinner,pipelines = <&fe0>;
 	};
 
-	soc@1c00000 {
+	soc {
 		hdmi: hdmi@1c16000 {
 			compatible = "allwinner,sun5i-a10s-hdmi";
 			reg = <0x01c16000 0x1000>;
@@ -104,8 +100,6 @@
 				};
 
 				hdmi_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 				};
 			};
@@ -125,20 +119,25 @@
 	compatible = "allwinner,sun5i-a10s-ccu";
 };
 
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+};
+
 &pio {
 	compatible = "allwinner,sun5i-a10s-pinctrl";
 
-	uart0_pins_a: uart0@0 {
+	uart0_pb_pins: uart0-pb-pins {
 		pins = "PB19", "PB20";
 		function = "uart0";
 	};
 
-	uart2_pins_b: uart2@1 {
+	uart2_pc_pins: uart2-pc-pins {
 		pins = "PC18", "PC19";
 		function = "uart2";
 	};
 
-	emac_pins_b: emac0@1 {
+	emac_pa_pins: emac-pa-pins {
 		pins = "PA0", "PA1", "PA2",
 				"PA3", "PA4", "PA5", "PA6",
 				"PA7", "PA8", "PA9", "PA10",
@@ -147,25 +146,22 @@
 		function = "emac";
 	};
 
-	mmc1_pins_a: mmc1@0 {
+	mmc1_pins: mmc1-pins {
 		pins = "PG3", "PG4", "PG5",
 				 "PG6", "PG7", "PG8";
 		function = "mmc1";
 		drive-strength = <30>;
 	};
 
-	spi2_pins_b: spi2@1 {
+	spi2_pb_pins: spi2-pb-pins {
 		pins = "PB12", "PB13", "PB14";
 		function = "spi2";
 	};
 
-	spi2_cs0_pins_b: spi2_cs0@1 {
+	spi2_cs0_pb_pin: spi2-cs0-pb-pin {
 		pins = "PB11";
 		function = "spi2";
 	};
-};
-
-&sram_a {
 };
 
 &tcon0_out {

@@ -23,6 +23,7 @@ Required properties:
  * "ti,bq27546" - BQ27546
  * "ti,bq27742" - BQ27742
  * "ti,bq27545" - BQ27545
+ * "ti,bq27411" - BQ27411
  * "ti,bq27421" - BQ27421
  * "ti,bq27425" - BQ27425
  * "ti,bq27426" - BQ27426

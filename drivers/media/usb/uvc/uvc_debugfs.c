@@ -106,9 +106,6 @@ void uvc_debugfs_init_stream(struct uvc_streaming *stream)
 
 void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream)
 {
-	if (stream->debugfs_dir == NULL)
-		return;
-
 	debugfs_remove_recursive(stream->debugfs_dir);
 	stream->debugfs_dir = NULL;
 }
@@ -128,6 +125,5 @@ void uvc_debugfs_init(void)
 
 void uvc_debugfs_cleanup(void)
 {
-	if (uvc_debugfs_root_dir != NULL)
-		debugfs_remove_recursive(uvc_debugfs_root_dir);
+	debugfs_remove_recursive(uvc_debugfs_root_dir);
 }

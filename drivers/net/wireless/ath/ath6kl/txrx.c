@@ -1701,7 +1701,6 @@ void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid_mux, u16 seq_no,
 	struct ath6kl_sta *sta;
 	struct aggr_info_conn *aggr_conn = NULL;
 	struct rxtid *rxtid;
-	struct rxtid_stats *stats;
 	u16 hold_q_size;
 	u8 tid, aid;
 
@@ -1722,7 +1721,6 @@ void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid_mux, u16 seq_no,
 		return;
 
 	rxtid = &aggr_conn->rx_tid[tid];
-	stats = &aggr_conn->stat[tid];
 
 	if (win_sz < AGGR_WIN_SZ_MIN || win_sz > AGGR_WIN_SZ_MAX)
 		ath6kl_dbg(ATH6KL_DBG_WLAN_RX, "%s: win_sz %d, tid %d\n",

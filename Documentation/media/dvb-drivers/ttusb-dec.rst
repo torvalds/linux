@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 TechnoTrend/Hauppauge DEC USB Driver
 ====================================
 

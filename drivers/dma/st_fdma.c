@@ -243,8 +243,7 @@ static struct st_fdma_desc *st_fdma_alloc_desc(struct st_fdma_chan *fchan,
 	struct st_fdma_desc *fdesc;
 	int i;
 
-	fdesc = kzalloc(sizeof(*fdesc) +
-			sizeof(struct st_fdma_sw_node) * sg_len, GFP_NOWAIT);
+	fdesc = kzalloc(struct_size(fdesc, node, sg_len), GFP_NOWAIT);
 	if (!fdesc)
 		return NULL;
 
@@ -293,8 +292,6 @@ static void st_fdma_free_chan_res(struct dma_chan *chan)
 	struct st_fdma_chan *fchan = to_st_fdma_chan(chan);
 	struct rproc *rproc = fchan->fdev->slim_rproc->rproc;
 	unsigned long flags;
-
-	LIST_HEAD(head);
 
 	dev_dbg(fchan->fdev->dev, "%s: freeing chan:%d\n",
 		__func__, fchan->vchan.chan.chan_id);
@@ -626,7 +623,6 @@ static void st_fdma_issue_pending(struct dma_chan *chan)
 static int st_fdma_pause(struct dma_chan *chan)
 {
 	unsigned long flags;
-	LIST_HEAD(head);
 	struct st_fdma_chan *fchan = to_st_fdma_chan(chan);
 	int ch_id = fchan->vchan.chan.chan_id;
 	unsigned long cmd = FDMA_CMD_PAUSE(ch_id);
@@ -833,7 +829,7 @@ static int st_fdma_probe(struct platform_device *pdev)
 	fdev->dma_device.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	fdev->dma_device.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
-	ret = dma_async_device_register(&fdev->dma_device);
+	ret = dmaenginem_async_device_register(&fdev->dma_device);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Failed to register DMA device (%d)\n", ret);
@@ -844,15 +840,13 @@ static int st_fdma_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Failed to register controller (%d)\n", ret);
-		goto err_dma_dev;
+		goto err_rproc;
 	}
 
 	dev_info(&pdev->dev, "ST FDMA engine driver, irq:%d\n", fdev->irq);
 
 	return 0;
 
-err_dma_dev:
-	dma_async_device_unregister(&fdev->dma_device);
 err_rproc:
 	st_fdma_free(fdev);
 	st_slim_rproc_put(fdev->slim_rproc);
@@ -867,7 +861,6 @@ static int st_fdma_remove(struct platform_device *pdev)
 	devm_free_irq(&pdev->dev, fdev->irq, fdev);
 	st_slim_rproc_put(fdev->slim_rproc);
 	of_dma_controller_free(pdev->dev.of_node);
-	dma_async_device_unregister(&fdev->dma_device);
 
 	return 0;
 }

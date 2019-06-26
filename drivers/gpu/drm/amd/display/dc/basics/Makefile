@@ -25,7 +25,7 @@
 # subcomponents.
 
 BASICS = conversion.o fixpt31_32.o \
-	logger.o log_helpers.o vector.o
+	log_helpers.o vector.o
 
 AMD_DAL_BASICS = $(addprefix $(AMDDALPATH)/dc/basics/,$(BASICS))
 

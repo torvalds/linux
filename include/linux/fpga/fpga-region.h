@@ -14,6 +14,7 @@
  * @bridge_list: list of FPGA bridges specified in region
  * @mgr: FPGA manager
  * @info: FPGA image info
+ * @compat_id: FPGA region id for compatibility check.
  * @priv: private data
  * @get_bridges: optional function to get bridges to a list
  */
@@ -23,6 +24,7 @@ struct fpga_region {
 	struct list_head bridge_list;
 	struct fpga_manager *mgr;
 	struct fpga_image_info *info;
+	struct fpga_compat_id *compat_id;
 	void *priv;
 	int (*get_bridges)(struct fpga_region *region);
 };
@@ -41,5 +43,9 @@ struct fpga_region
 void fpga_region_free(struct fpga_region *region);
 int fpga_region_register(struct fpga_region *region);
 void fpga_region_unregister(struct fpga_region *region);
+
+struct fpga_region
+*devm_fpga_region_create(struct device *dev, struct fpga_manager *mgr,
+			int (*get_bridges)(struct fpga_region *));
 
 #endif /* _FPGA_REGION_H */

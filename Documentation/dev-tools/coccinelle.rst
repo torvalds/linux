@@ -4,6 +4,8 @@
 
 .. highlight:: none
 
+.. _devtools_coccinelle:
+
 Coccinelle
 ==========
 
@@ -30,17 +32,28 @@ of many distributions, e.g. :
  - NetBSD
  - FreeBSD
 
-You can get the latest version released from the Coccinelle homepage at
+Some distribution packages are obsolete and it is recommended
+to use the latest version released from the Coccinelle homepage at
 http://coccinelle.lip6.fr/
 
-Once you have it, run the following command::
+Or from Github at:
 
-     	./configure
+https://github.com/coccinelle/coccinelle
+
+Once you have it, run the following commands::
+
+        ./autogen
+        ./configure
         make
 
 as a regular user, and install it with::
 
         sudo make install
+
+More detailed installation instructions to build from source can be
+found at:
+
+https://github.com/coccinelle/coccinelle/blob/master/install.txt
 
 Supplemental documentation
 ---------------------------
@@ -50,6 +63,10 @@ For supplemental documentation refer to the wiki:
 https://bottest.wiki.kernel.org/coccicheck
 
 The wiki documentation always refers to the linux-next version of the script.
+
+For Semantic Patch Language(SmPL) grammar documentation refer to:
+
+http://coccinelle.lip6.fr/documentation.php
 
 Using Coccinelle on the Linux kernel
 ------------------------------------
@@ -223,7 +240,7 @@ Since coccicheck runs through make, it naturally runs from the kernel
 proper dir, as such the second rule above would be implied for picking up a
 .cocciconfig when using ``make coccicheck``.
 
-``make coccicheck`` also supports using M= targets.If you do not supply
+``make coccicheck`` also supports using M= targets. If you do not supply
 any M= target, it is assumed you want to target the entire kernel.
 The kernel coccicheck script has::
 

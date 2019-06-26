@@ -28,6 +28,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_connectors.h"
+#include "amdgpu_display.h"
 #include "atom.h"
 #include "atombios_encoders.h"
 
@@ -46,7 +47,7 @@ amdgpu_link_encoder_connector(struct drm_device *dev)
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			amdgpu_encoder = to_amdgpu_encoder(encoder);
 			if (amdgpu_encoder->devices & amdgpu_connector->devices) {
-				drm_mode_connector_attach_encoder(connector, encoder);
+				drm_connector_attach_encoder(connector, encoder);
 				if (amdgpu_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 					amdgpu_atombios_encoder_init_backlight(amdgpu_encoder, connector);
 					adev->mode_info.bl_encoder = amdgpu_encoder;

@@ -193,3 +193,28 @@ And the table can be added to the board code as follows::
 
 The line will be hogged as soon as the gpiochip is created or - in case the
 chip was created earlier - when the hog table is registered.
+
+Arrays of pins
+--------------
+In addition to requesting pins belonging to a function one by one, a device may
+also request an array of pins assigned to the function.  The way those pins are
+mapped to the device determines if the array qualifies for fast bitmap
+processing.  If yes, a bitmap is passed over get/set array functions directly
+between a caller and a respective .get/set_multiple() callback of a GPIO chip.
+
+In order to qualify for fast bitmap processing, the array must meet the
+following requirements:
+
+- pin hardware number of array member 0 must also be 0,
+- pin hardware numbers of consecutive array members which belong to the same
+  chip as member 0 does must also match their array indexes.
+
+Otherwise fast bitmap processing path is not used in order to avoid consecutive
+pins which belong to the same chip but are not in hardware order being processed
+separately.
+
+If the array applies for fast bitmap processing path, pins which belong to
+different chips than member 0 does, as well as those with indexes different from
+their hardware pin numbers, are excluded from the fast path, both input and
+output.  Moreover, open drain and open source pins are excluded from fast bitmap
+output processing.

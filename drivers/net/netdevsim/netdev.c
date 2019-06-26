@@ -40,6 +40,9 @@ struct nsim_vf_config {
 
 static u32 nsim_dev_id;
 
+static struct dentry *nsim_ddir;
+static struct dentry *nsim_sdev_ddir;
+
 static int nsim_num_vf(struct device *dev)
 {
 	struct netdevsim *ns = to_nsim(dev);
@@ -144,8 +147,19 @@ static struct device_type nsim_dev_type = {
 	.release = nsim_dev_release,
 };
 
+static int nsim_get_port_parent_id(struct net_device *dev,
+				   struct netdev_phys_item_id *ppid)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+
+	ppid->id_len = sizeof(ns->sdev->switch_id);
+	memcpy(&ppid->id, &ns->sdev->switch_id, ppid->id_len);
+	return 0;
+}
+
 static int nsim_init(struct net_device *dev)
 {
+	char sdev_ddir_name[10], sdev_link_name[32];
 	struct netdevsim *ns = netdev_priv(dev);
 	int err;
 
@@ -154,9 +168,32 @@ static int nsim_init(struct net_device *dev)
 	if (IS_ERR_OR_NULL(ns->ddir))
 		return -ENOMEM;
 
+	if (!ns->sdev) {
+		ns->sdev = kzalloc(sizeof(*ns->sdev), GFP_KERNEL);
+		if (!ns->sdev) {
+			err = -ENOMEM;
+			goto err_debugfs_destroy;
+		}
+		ns->sdev->refcnt = 1;
+		ns->sdev->switch_id = nsim_dev_id;
+		sprintf(sdev_ddir_name, "%u", ns->sdev->switch_id);
+		ns->sdev->ddir = debugfs_create_dir(sdev_ddir_name,
+						    nsim_sdev_ddir);
+		if (IS_ERR_OR_NULL(ns->sdev->ddir)) {
+			err = PTR_ERR_OR_ZERO(ns->sdev->ddir) ?: -EINVAL;
+			goto err_sdev_free;
+		}
+	} else {
+		sprintf(sdev_ddir_name, "%u", ns->sdev->switch_id);
+		ns->sdev->refcnt++;
+	}
+
+	sprintf(sdev_link_name, "../../" DRV_NAME "_sdev/%s", sdev_ddir_name);
+	debugfs_create_symlink("sdev", ns->ddir, sdev_link_name);
+
 	err = nsim_bpf_init(ns);
 	if (err)
-		goto err_debugfs_destroy;
+		goto err_sdev_destroy;
 
 	ns->dev.id = nsim_dev_id++;
 	ns->dev.bus = &nsim_bus;
@@ -171,12 +208,20 @@ static int nsim_init(struct net_device *dev)
 	if (err)
 		goto err_unreg_dev;
 
+	nsim_ipsec_init(ns);
+
 	return 0;
 
 err_unreg_dev:
 	device_unregister(&ns->dev);
 err_bpf_uninit:
 	nsim_bpf_uninit(ns);
+err_sdev_destroy:
+	if (!--ns->sdev->refcnt) {
+		debugfs_remove_recursive(ns->sdev->ddir);
+err_sdev_free:
+		kfree(ns->sdev);
+	}
 err_debugfs_destroy:
 	debugfs_remove_recursive(ns->ddir);
 	return err;
@@ -186,9 +231,14 @@ static void nsim_uninit(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
+	nsim_ipsec_teardown(ns);
 	nsim_devlink_teardown(ns);
 	debugfs_remove_recursive(ns->ddir);
 	nsim_bpf_uninit(ns);
+	if (!--ns->sdev->refcnt) {
+		debugfs_remove_recursive(ns->sdev->ddir);
+		kfree(ns->sdev);
+	}
 }
 
 static void nsim_free(struct net_device *dev)
@@ -203,11 +253,15 @@ static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
+	if (!nsim_ipsec_tx(ns, skb))
+		goto out;
+
 	u64_stats_update_begin(&ns->syncp);
 	ns->tx_packets++;
 	ns->tx_bytes += skb->len;
 	u64_stats_update_end(&ns->syncp);
 
+out:
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
@@ -221,8 +275,7 @@ static int nsim_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	if (ns->xdp_prog_mode == XDP_ATTACHED_DRV &&
-	    new_mtu > NSIM_XDP_MAX_MTU)
+	if (ns->xdp.prog && new_mtu > NSIM_XDP_MAX_MTU)
 		return -EBUSY;
 
 	dev->mtu = new_mtu;
@@ -260,7 +313,7 @@ nsim_setup_tc_block(struct net_device *dev, struct tc_block_offload *f)
 	switch (f->command) {
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block, nsim_setup_tc_block_cb,
-					     ns, ns);
+					     ns, ns, f->extack);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block, nsim_setup_tc_block_cb, ns);
 		return 0;
@@ -428,6 +481,7 @@ static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
 	.ndo_bpf		= nsim_bpf,
+	.ndo_get_port_parent_id	= nsim_get_port_parent_id,
 };
 
 static void nsim_setup(struct net_device *dev)
@@ -464,14 +518,45 @@ static int nsim_validate(struct nlattr *tb[], struct nlattr *data[],
 	return 0;
 }
 
+static int nsim_newlink(struct net *src_net, struct net_device *dev,
+			struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+
+	if (tb[IFLA_LINK]) {
+		struct net_device *joindev;
+		struct netdevsim *joinns;
+
+		joindev = __dev_get_by_index(src_net,
+					     nla_get_u32(tb[IFLA_LINK]));
+		if (!joindev)
+			return -ENODEV;
+		if (joindev->netdev_ops != &nsim_netdev_ops)
+			return -EINVAL;
+
+		joinns = netdev_priv(joindev);
+		if (!joinns->sdev || !joinns->sdev->refcnt)
+			return -EINVAL;
+		ns->sdev = joinns->sdev;
+	}
+
+	return register_netdevice(dev);
+}
+
+static void nsim_dellink(struct net_device *dev, struct list_head *head)
+{
+	unregister_netdevice_queue(dev, head);
+}
+
 static struct rtnl_link_ops nsim_link_ops __read_mostly = {
 	.kind		= DRV_NAME,
 	.priv_size	= sizeof(struct netdevsim),
 	.setup		= nsim_setup,
 	.validate	= nsim_validate,
+	.newlink	= nsim_newlink,
+	.dellink	= nsim_dellink,
 };
-
-struct dentry *nsim_ddir;
 
 static int __init nsim_module_init(void)
 {
@@ -481,9 +566,15 @@ static int __init nsim_module_init(void)
 	if (IS_ERR_OR_NULL(nsim_ddir))
 		return -ENOMEM;
 
+	nsim_sdev_ddir = debugfs_create_dir(DRV_NAME "_sdev", NULL);
+	if (IS_ERR_OR_NULL(nsim_sdev_ddir)) {
+		err = -ENOMEM;
+		goto err_debugfs_destroy;
+	}
+
 	err = bus_register(&nsim_bus);
 	if (err)
-		goto err_debugfs_destroy;
+		goto err_sdir_destroy;
 
 	err = nsim_devlink_init();
 	if (err)
@@ -499,6 +590,8 @@ err_dl_fini:
 	nsim_devlink_exit();
 err_unreg_bus:
 	bus_unregister(&nsim_bus);
+err_sdir_destroy:
+	debugfs_remove_recursive(nsim_sdev_ddir);
 err_debugfs_destroy:
 	debugfs_remove_recursive(nsim_ddir);
 	return err;
@@ -509,6 +602,7 @@ static void __exit nsim_module_exit(void)
 	rtnl_link_unregister(&nsim_link_ops);
 	nsim_devlink_exit();
 	bus_unregister(&nsim_bus);
+	debugfs_remove_recursive(nsim_sdev_ddir);
 	debugfs_remove_recursive(nsim_ddir);
 }
 

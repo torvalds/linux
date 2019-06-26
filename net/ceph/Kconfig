@@ -41,4 +41,3 @@ config CEPH_LIB_USE_DNS_RESOLVER
 	  Documentation/networking/dns_resolver.txt
 
 	  If unsure, say N.
-

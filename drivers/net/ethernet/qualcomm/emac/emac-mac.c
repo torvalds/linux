@@ -776,7 +776,7 @@ int emac_mac_rx_tx_rings_alloc_all(struct emac_adapter *adpt)
 			    8 + 2 * 8; /* 8 byte per one Tx and two Rx rings */
 
 	ring_header->used = 0;
-	ring_header->v_addr = dma_zalloc_coherent(dev, ring_header->size,
+	ring_header->v_addr = dma_alloc_coherent(dev, ring_header->size,
 						 &ring_header->dma_addr,
 						 GFP_KERNEL);
 	if (!ring_header->v_addr)
@@ -1204,7 +1204,7 @@ void emac_mac_tx_process(struct emac_adapter *adpt, struct emac_tx_queue *tx_q)
 		if (tpbuf->skb) {
 			pkts_compl++;
 			bytes_compl += tpbuf->skb->len;
-			dev_kfree_skb_irq(tpbuf->skb);
+			dev_consume_skb_irq(tpbuf->skb);
 			tpbuf->skb = NULL;
 		}
 

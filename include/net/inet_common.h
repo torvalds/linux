@@ -2,6 +2,8 @@
 #ifndef _INET_COMMON_H
 #define _INET_COMMON_H
 
+#include <linux/indirect_call_wrapper.h>
+
 extern const struct proto_ops inet_stream_ops;
 extern const struct proto_ops inet_dgram_ops;
 
@@ -43,7 +45,7 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 int inet_recv_error(struct sock *sk, struct msghdr *msg, int len,
 		    int *addr_len);
 
-struct sk_buff **inet_gro_receive(struct sk_buff **head, struct sk_buff *skb);
+struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb);
 int inet_gro_complete(struct sk_buff *skb, int nhoff);
 struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 				 netdev_features_t features);
@@ -53,5 +55,12 @@ static inline void inet_ctl_sock_destroy(struct sock *sk)
 	if (sk)
 		sock_release(sk->sk_socket);
 }
+
+#define indirect_call_gro_receive(f2, f1, cb, head, skb)	\
+({								\
+	unlikely(gro_recursion_inc_test(skb)) ?			\
+		NAPI_GRO_CB(skb)->flush |= 1, NULL :		\
+		INDIRECT_CALL_2(cb, f2, f1, head, skb);		\
+})
 
 #endif

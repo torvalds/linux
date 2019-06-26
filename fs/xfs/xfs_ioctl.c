@@ -604,14 +604,6 @@ xfs_ioc_space(
 	uint			iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	int			error;
 
-	/*
-	 * Only allow the sys admin to reserve space unless
-	 * unwritten extents are enabled.
-	 */
-	if (!xfs_sb_version_hasextflgbit(&ip->i_mount->m_sb) &&
-	    !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (inode->i_flags & (S_IMMUTABLE|S_APPEND))
 		return -EPERM;
 
@@ -1616,7 +1608,7 @@ xfs_ioc_getbmap(
 	error = 0;
 out_free_buf:
 	kmem_free(buf);
-	return 0;
+	return error;
 }
 
 struct getfsmap_info {

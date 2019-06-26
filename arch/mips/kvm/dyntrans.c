@@ -16,7 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/cacheflush.h>
 
 #include "commpage.h"

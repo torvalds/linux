@@ -109,12 +109,12 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	rx_bssid = get_hdr_bssid(wlanhdr);
 	pkt_info.bssid_match = ((!IsFrameTypeCtrl(wlanhdr)) &&
 				!pattrib->icv_err && !pattrib->crc_err &&
-				!ether_addr_equal(rx_bssid, my_bssid));
+				ether_addr_equal(rx_bssid, my_bssid));
 
 	rx_ra = get_ra(wlanhdr);
 	my_hwaddr = myid(&padapter->eeprompriv);
 	pkt_info.to_self = pkt_info.bssid_match &&
-		!ether_addr_equal(rx_ra, my_hwaddr);
+		ether_addr_equal(rx_ra, my_hwaddr);
 
 
 	pkt_info.is_beacon = pkt_info.bssid_match &&
@@ -262,7 +262,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 		while (ptr < precvbuf->ptail) {
 			precvframe = try_alloc_recvframe(precvpriv, precvbuf);
-			if(!precvframe)
+			if (!precvframe)
 				return;
 
 			/* rx desc parsing */
@@ -271,8 +271,8 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 			pattrib = &precvframe->u.hdr.attrib;
 
-			if(rx_crc_err(precvpriv, p_hal_data,
-				      pattrib, precvframe))
+			if (rx_crc_err(precvpriv, p_hal_data,
+				       pattrib, precvframe))
 				break;
 
 			rx_report_sz = RXDESC_SIZE + pattrib->drvinfo_sz;
@@ -280,8 +280,8 @@ static void rtl8723bs_recv_tasklet(void *priv)
 				pattrib->shift_sz +
 				pattrib->pkt_len;
 
-			if(pkt_exceeds_tail(precvpriv, ptr + pkt_offset,
-					    precvbuf->ptail, precvframe))
+			if (pkt_exceeds_tail(precvpriv, ptr + pkt_offset,
+					     precvbuf->ptail, precvframe))
 				break;
 
 			if ((pattrib->crc_err) || (pattrib->icv_err)) {

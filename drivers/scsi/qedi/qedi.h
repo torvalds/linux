@@ -45,7 +45,7 @@ struct qedi_endpoint;
 #define QEDI_MAX_TASK_NUM		0x0FFF
 #define QEDI_MAX_ISCSI_CONNS_PER_HBA	1024
 #define QEDI_ISCSI_MAX_BDS_PER_CMD	255	/* Firmware max BDs is 255 */
-#define MAX_OUSTANDING_TASKS_PER_CON	1024
+#define MAX_OUTSTANDING_TASKS_PER_CON	1024
 
 #define QEDI_MAX_BD_LEN		0xffff
 #define QEDI_BD_SPLIT_SZ	0x1000
@@ -63,18 +63,20 @@ struct qedi_endpoint;
 #define QEDI_LOCAL_PORT_INVALID	0xffff
 #define TX_RX_RING		16
 #define RX_RING			(TX_RX_RING - 1)
-#define LL2_SINGLE_BUF_SIZE	0x400
-#define QEDI_PAGE_SIZE		4096
 #define QEDI_PAGE_ALIGN(addr)	ALIGN(addr, QEDI_PAGE_SIZE)
 #define QEDI_PAGE_MASK		(~((QEDI_PAGE_SIZE) - 1))
 
-#define QEDI_PAGE_SIZE		4096
 #define QEDI_HW_DMA_BOUNDARY	0xfff
 #define QEDI_PATH_HANDLE	0xFE0000000UL
 
 enum qedi_nvm_tgts {
 	QEDI_NVM_TGT_PRI,
 	QEDI_NVM_TGT_SEC,
+};
+
+struct qedi_nvm_iscsi_image {
+	struct nvm_iscsi_cfg iscsi_cfg;
+	u32 crc;
 };
 
 struct qedi_uio_ctrl {
@@ -141,7 +143,7 @@ struct skb_work_list {
 };
 
 /* Queue sizes in number of elements */
-#define QEDI_SQ_SIZE		MAX_OUSTANDING_TASKS_PER_CON
+#define QEDI_SQ_SIZE		MAX_OUTSTANDING_TASKS_PER_CON
 #define QEDI_CQ_SIZE		2048
 #define QEDI_CMDQ_SIZE		QEDI_MAX_ISCSI_TASK
 #define QEDI_PROTO_CQ_PROD_IDX	0
@@ -294,7 +296,7 @@ struct qedi_ctx {
 	void *bdq_pbl_list;
 	dma_addr_t bdq_pbl_list_dma;
 	u8 bdq_pbl_list_num_entries;
-	struct nvm_iscsi_cfg *iscsi_cfg;
+	struct qedi_nvm_iscsi_image *iscsi_image;
 	dma_addr_t nvm_buf_dma;
 	void __iomem *bdq_primary_prod;
 	void __iomem *bdq_secondary_prod;

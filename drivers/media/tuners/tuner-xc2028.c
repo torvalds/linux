@@ -376,9 +376,8 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 			tuner_err("Firmware type ");
 			dump_firm_type(type);
 			printk(KERN_CONT
-			       "(%x), id %llx is corrupted (size=%d, expected %d)\n",
-			       type, (unsigned long long)id,
-			       (unsigned)(endp - p), size);
+			       "(%x), id %llx is corrupted (size=%zd, expected %d)\n",
+			       type, (unsigned long long)id, (endp - p), size);
 			goto corrupt;
 		}
 
@@ -616,8 +615,8 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 		}
 
 		if ((size + p > endp)) {
-			tuner_err("missing bytes: need %d, have %d\n",
-				   size, (int)(endp - p));
+			tuner_err("missing bytes: need %d, have %zd\n",
+				   size, (endp - p));
 			return -EINVAL;
 		}
 
@@ -1440,9 +1439,9 @@ unlock:
 static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 	.info = {
 		 .name = "Xceive XC3028",
-		 .frequency_min = 42000000,
-		 .frequency_max = 864000000,
-		 .frequency_step = 50000,
+		 .frequency_min_hz  =  42 * MHz,
+		 .frequency_max_hz  = 864 * MHz,
+		 .frequency_step_hz =  50 * kHz,
 		 },
 
 	.set_config	   = xc2028_set_config,

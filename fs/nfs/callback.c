@@ -56,7 +56,7 @@ static int nfs4_callback_up_net(struct svc_serv *serv, struct net *net)
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret > 0) {
 		nn->nfs_callback_tcpport6 = ret;
-		dprintk("NFS: Callback listener port = %u (af %u, net %x\n",
+		dprintk("NFS: Callback listener port = %u (af %u, net %x)\n",
 			nn->nfs_callback_tcpport6, PF_INET6, net->ns.inum);
 	} else if (ret != -EAFNOSUPPORT)
 		goto out_err;
@@ -206,11 +206,13 @@ static int nfs_callback_up_net(int minorversion, struct svc_serv *serv,
 		goto err_bind;
 	}
 
-	ret = -EPROTONOSUPPORT;
+	ret = 0;
 	if (!IS_ENABLED(CONFIG_NFS_V4_1) || minorversion == 0)
 		ret = nfs4_callback_up_net(serv, net);
-	else if (xprt->ops->bc_up)
-		ret = xprt->ops->bc_up(serv, net);
+	else if (xprt->ops->bc_setup)
+		set_bc_enabled(serv);
+	else
+		ret = -EPROTONOSUPPORT;
 
 	if (ret < 0) {
 		printk(KERN_ERR "NFS: callback service start failed\n");

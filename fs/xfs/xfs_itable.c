@@ -114,7 +114,7 @@ xfs_bulkstat_one_int(
 		break;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	IRELE(ip);
+	xfs_irele(ip);
 
 	error = formatter(buffer, ubsize, ubused, buf);
 	if (!error)
@@ -167,20 +167,18 @@ xfs_bulkstat_ichunk_ra(
 {
 	xfs_agblock_t			agbno;
 	struct blk_plug			plug;
-	int				blks_per_cluster;
-	int				inodes_per_cluster;
 	int				i;	/* inode chunk index */
 
 	agbno = XFS_AGINO_TO_AGBNO(mp, irec->ir_startino);
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
 
 	blk_start_plug(&plug);
 	for (i = 0; i < XFS_INODES_PER_CHUNK;
-	     i += inodes_per_cluster, agbno += blks_per_cluster) {
-		if (xfs_inobt_maskn(i, inodes_per_cluster) & ~irec->ir_free) {
-			xfs_btree_reada_bufs(mp, agno, agbno, blks_per_cluster,
-					     &xfs_inode_buf_ops);
+	     i += mp->m_inodes_per_cluster, agbno += mp->m_blocks_per_cluster) {
+		if (xfs_inobt_maskn(i, mp->m_inodes_per_cluster) &
+		    ~irec->ir_free) {
+			xfs_btree_reada_bufs(mp, agno, agbno,
+					mp->m_blocks_per_cluster,
+					&xfs_inode_buf_ops);
 		}
 	}
 	blk_finish_plug(&plug);
@@ -458,8 +456,7 @@ xfs_bulkstat(
 		 * pending error, then we are done.
 		 */
 del_cursor:
-		xfs_btree_del_cursor(cur, error ?
-					  XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+		xfs_btree_del_cursor(cur, error);
 		xfs_buf_relse(agbp);
 		if (error)
 			break;
@@ -632,8 +629,7 @@ next_ag:
 
 	kmem_free(buffer);
 	if (cur)
-		xfs_btree_del_cursor(cur, (error ? XFS_BTREE_ERROR :
-					   XFS_BTREE_NOERROR));
+		xfs_btree_del_cursor(cur, error);
 	if (agbp)
 		xfs_buf_relse(agbp);
 

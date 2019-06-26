@@ -308,21 +308,11 @@ void do_request_cleanup(struct cpt_vf *cptvf,
 		}
 	}
 
-	if (info->scatter_components)
-		kzfree(info->scatter_components);
-
-	if (info->gather_components)
-		kzfree(info->gather_components);
-
-	if (info->out_buffer)
-		kzfree(info->out_buffer);
-
-	if (info->in_buffer)
-		kzfree(info->in_buffer);
-
-	if (info->completion_addr)
-		kzfree((void *)info->completion_addr);
-
+	kzfree(info->scatter_components);
+	kzfree(info->gather_components);
+	kzfree(info->out_buffer);
+	kzfree(info->in_buffer);
+	kzfree((void *)info->completion_addr);
 	kzfree(info);
 }
 

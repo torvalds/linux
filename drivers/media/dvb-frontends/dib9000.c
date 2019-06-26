@@ -1020,7 +1020,7 @@ static int dib9000_risc_apb_access_read(struct dib9000_state *state, u32 address
 	if (address >= 1024 || !state->platform.risc.fw_is_running)
 		return -EINVAL;
 
-	/* dprintk( "APB access thru rd fw %d %x\n", address, attribute); */
+	/* dprintk( "APB access through rd fw %d %x\n", address, attribute); */
 
 	mb[0] = (u16) address;
 	mb[1] = len / 2;
@@ -1050,7 +1050,7 @@ static int dib9000_risc_apb_access_write(struct dib9000_state *state, u32 addres
 	if (len > 18)
 		return -EINVAL;
 
-	/* dprintk( "APB access thru wr fw %d %x\n", address, attribute); */
+	/* dprintk( "APB access through wr fw %d %x\n", address, attribute); */
 
 	mb[0] = (u16)address;
 	for (i = 0; i + 1 < len; i += 2)
@@ -2553,9 +2553,9 @@ static const struct dvb_frontend_ops dib9000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 9000",
-		 .frequency_min = 44250000,
-		 .frequency_max = 867250000,
-		 .frequency_stepsize = 62500,
+		 .frequency_min_hz =  44250 * kHz,
+		 .frequency_max_hz = 867250 * kHz,
+		 .frequency_stepsize_hz = 62500,
 		 .caps = FE_CAN_INVERSION_AUTO |
 		 FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		 FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

@@ -866,11 +866,9 @@ static int __cmd_report(bool display_info)
 		.ordered_events	 = true,
 	};
 	struct perf_data data = {
-		.file      = {
-			.path = input_name,
-		},
-		.mode      = PERF_DATA_MODE_READ,
-		.force     = force,
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
+		.force = force,
 	};
 
 	session = perf_session__new(&data, false, &eops);

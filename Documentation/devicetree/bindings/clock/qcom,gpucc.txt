@@ -1,0 +1,22 @@
+Qualcomm Graphics Clock & Reset Controller Binding
+--------------------------------------------------
+
+Required properties :
+- compatible : shall contain "qcom,sdm845-gpucc"
+- reg : shall contain base register location and length
+- #clock-cells : from common clock binding, shall contain 1
+- #reset-cells : from common reset binding, shall contain 1
+- #power-domain-cells : from generic power domain binding, shall contain 1
+- clocks : shall contain the XO clock
+- clock-names : shall be "xo"
+
+Example:
+	gpucc: clock-controller@5090000 {
+		compatible = "qcom,sdm845-gpucc";
+		reg = <0x5090000 0x9000>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		#power-domain-cells = <1>;
+		clocks = <&rpmhcc RPMH_CXO_CLK>;
+		clock-names = "xo";
+	};

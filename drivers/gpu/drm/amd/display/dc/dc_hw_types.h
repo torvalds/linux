@@ -97,6 +97,8 @@ struct dc_plane_address {
 			union large_integer chroma_dcc_const_color;
 		} video_progressive;
 	};
+
+	union large_integer page_table_base;
 };
 
 struct dc_size {
@@ -192,13 +194,14 @@ enum surface_pixel_format {
 	/*swaped & float*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F,
 	/*grow graphics here if necessary */
-
 	SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr =
 		SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb,
+		SURFACE_PIXEL_FORMAT_SUBSAMPLE_END,
+	SURFACE_PIXEL_FORMAT_VIDEO_AYCrCb8888,
 	SURFACE_PIXEL_FORMAT_INVALID
 
 	/*grow 444 video here if necessary */
@@ -288,7 +291,8 @@ enum swizzle_mode_values {
 	DC_SW_VAR_S_X = 29,
 	DC_SW_VAR_D_X = 30,
 	DC_SW_VAR_R_X = 31,
-	DC_SW_MAX
+	DC_SW_MAX = 32,
+	DC_SW_UNKNOWN = DC_SW_MAX
 };
 
 union dc_tiling_info {
@@ -356,15 +360,16 @@ union dc_tiling_info {
 	} gfx8;
 
 	struct {
+		enum swizzle_mode_values swizzle;
 		unsigned int num_pipes;
-		unsigned int num_banks;
+		unsigned int max_compressed_frags;
 		unsigned int pipe_interleave;
+
+		unsigned int num_banks;
 		unsigned int num_shader_engines;
 		unsigned int num_rb_per_se;
-		unsigned int max_compressed_frags;
 		bool shaderEnable;
 
-		enum swizzle_mode_values swizzle;
 		bool meta_linear;
 		bool rb_aligned;
 		bool pipe_aligned;
@@ -403,9 +408,11 @@ struct dc_cursor_position {
 struct dc_cursor_mi_param {
 	unsigned int pixel_clk_khz;
 	unsigned int ref_clk_khz;
-	unsigned int viewport_x_start;
-	unsigned int viewport_width;
+	struct rect viewport;
 	struct fixed31_32 h_scale_ratio;
+	struct fixed31_32 v_scale_ratio;
+	enum dc_rotation_angle rotation;
+	bool mirror;
 };
 
 /* IPP related types */
@@ -414,6 +421,7 @@ enum {
 	GAMMA_RGB_256_ENTRIES = 256,
 	GAMMA_RGB_FLOAT_1024_ENTRIES = 1024,
 	GAMMA_CS_TFM_1D_ENTRIES = 4096,
+	GAMMA_CUSTOM_ENTRIES = 4096,
 	GAMMA_MAX_ENTRIES = 4096
 };
 
@@ -421,6 +429,7 @@ enum dc_gamma_type {
 	GAMMA_RGB_256 = 1,
 	GAMMA_RGB_FLOAT_1024 = 2,
 	GAMMA_CS_TFM_1D = 3,
+	GAMMA_CUSTOM = 4,
 };
 
 struct dc_csc_transform {
@@ -489,11 +498,17 @@ struct dc_cursor_attributes {
 	uint32_t height;
 
 	enum dc_cursor_color_format color_format;
+	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* In case we support HW Cursor rotation in the future */
 	enum dc_rotation_angle rotation_angle;
 
 	union dc_cursor_attribute_flags attribute_flags;
+};
+
+struct dpp_cursor_attributes {
+	int bias;
+	int scale;
 };
 
 /* OPP */
@@ -567,25 +582,25 @@ struct scaling_taps {
 };
 
 enum dc_timing_standard {
-	TIMING_STANDARD_UNDEFINED,
-	TIMING_STANDARD_DMT,
-	TIMING_STANDARD_GTF,
-	TIMING_STANDARD_CVT,
-	TIMING_STANDARD_CVT_RB,
-	TIMING_STANDARD_CEA770,
-	TIMING_STANDARD_CEA861,
-	TIMING_STANDARD_HDMI,
-	TIMING_STANDARD_TV_NTSC,
-	TIMING_STANDARD_TV_NTSC_J,
-	TIMING_STANDARD_TV_PAL,
-	TIMING_STANDARD_TV_PAL_M,
-	TIMING_STANDARD_TV_PAL_CN,
-	TIMING_STANDARD_TV_SECAM,
-	TIMING_STANDARD_EXPLICIT,
+	DC_TIMING_STANDARD_UNDEFINED,
+	DC_TIMING_STANDARD_DMT,
+	DC_TIMING_STANDARD_GTF,
+	DC_TIMING_STANDARD_CVT,
+	DC_TIMING_STANDARD_CVT_RB,
+	DC_TIMING_STANDARD_CEA770,
+	DC_TIMING_STANDARD_CEA861,
+	DC_TIMING_STANDARD_HDMI,
+	DC_TIMING_STANDARD_TV_NTSC,
+	DC_TIMING_STANDARD_TV_NTSC_J,
+	DC_TIMING_STANDARD_TV_PAL,
+	DC_TIMING_STANDARD_TV_PAL_M,
+	DC_TIMING_STANDARD_TV_PAL_CN,
+	DC_TIMING_STANDARD_TV_SECAM,
+	DC_TIMING_STANDARD_EXPLICIT,
 	/*!< For explicit timings from EDID, VBIOS, etc.*/
-	TIMING_STANDARD_USER_OVERRIDE,
+	DC_TIMING_STANDARD_USER_OVERRIDE,
 	/*!< For mode timing override by user*/
-	TIMING_STANDARD_MAX
+	DC_TIMING_STANDARD_MAX
 };
 
 enum dc_color_depth {
@@ -697,12 +712,6 @@ struct crtc_trigger_info {
 	enum trigger_delay delay;
 };
 
-enum vrr_state {
-	VRR_STATE_OFF = 0,
-	VRR_STATE_VARIABLE,
-	VRR_STATE_FIXED,
-};
-
 struct dc_crtc_timing_adjust {
 	uint32_t v_total_min;
 	uint32_t v_total_max;
@@ -723,7 +732,7 @@ struct dc_crtc_timing {
 	uint32_t v_front_porch;
 	uint32_t v_sync_width;
 
-	uint32_t pix_clk_khz;
+	uint32_t pix_clk_100hz;
 
 	uint32_t vic;
 	uint32_t hdmi_vic;

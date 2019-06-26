@@ -41,10 +41,6 @@ static const struct regmap_config da9210_regmap_config = {
 	.val_bits = 8,
 };
 
-static int da9210_set_current_limit(struct regulator_dev *rdev, int min_uA,
-				    int max_uA);
-static int da9210_get_current_limit(struct regulator_dev *rdev);
-
 static const struct regulator_ops da9210_buck_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -52,8 +48,8 @@ static const struct regulator_ops da9210_buck_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
-	.set_current_limit = da9210_set_current_limit,
-	.get_current_limit = da9210_get_current_limit,
+	.set_current_limit = regulator_set_current_limit_regmap,
+	.get_current_limit = regulator_get_current_limit_regmap,
 };
 
 /* Default limits measured in millivolts and milliamps */
@@ -62,7 +58,7 @@ static const struct regulator_ops da9210_buck_ops = {
 #define DA9210_STEP_MV		10
 
 /* Current limits for buck (uA) indices corresponds with register values */
-static const int da9210_buck_limits[] = {
+static const unsigned int da9210_buck_limits[] = {
 	1600000, 1800000, 2000000, 2200000, 2400000, 2600000, 2800000, 3000000,
 	3200000, 3400000, 3600000, 3800000, 4000000, 4200000, 4400000, 4600000
 };
@@ -80,46 +76,11 @@ static const struct regulator_desc da9210_reg = {
 	.enable_reg = DA9210_REG_BUCK_CONT,
 	.enable_mask = DA9210_BUCK_EN,
 	.owner = THIS_MODULE,
+	.curr_table = da9210_buck_limits,
+	.n_current_limits = ARRAY_SIZE(da9210_buck_limits),
+	.csel_reg = DA9210_REG_BUCK_ILIM,
+	.csel_mask = DA9210_BUCK_ILIM_MASK,
 };
-
-static int da9210_set_current_limit(struct regulator_dev *rdev, int min_uA,
-				    int max_uA)
-{
-	struct da9210 *chip = rdev_get_drvdata(rdev);
-	unsigned int sel;
-	int i;
-
-	/* search for closest to maximum */
-	for (i = ARRAY_SIZE(da9210_buck_limits)-1; i >= 0; i--) {
-		if (min_uA <= da9210_buck_limits[i] &&
-		    max_uA >= da9210_buck_limits[i]) {
-			sel = i;
-			sel = sel << DA9210_BUCK_ILIM_SHIFT;
-			return regmap_update_bits(chip->regmap,
-						  DA9210_REG_BUCK_ILIM,
-						  DA9210_BUCK_ILIM_MASK, sel);
-		}
-	}
-
-	return -EINVAL;
-}
-
-static int da9210_get_current_limit(struct regulator_dev *rdev)
-{
-	struct da9210 *chip = rdev_get_drvdata(rdev);
-	unsigned int data;
-	unsigned int sel;
-	int ret;
-
-	ret = regmap_read(chip->regmap, DA9210_REG_BUCK_ILIM, &data);
-	if (ret < 0)
-		return ret;
-
-	/* select one of 16 values: 0000 (1600mA) to 1111 (4600mA) */
-	sel = (data & DA9210_BUCK_ILIM_MASK) >> DA9210_BUCK_ILIM_SHIFT;
-
-	return da9210_buck_limits[sel];
-}
 
 static irqreturn_t da9210_irq_handler(int irq, void *data)
 {
@@ -131,7 +92,7 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 	if (error < 0)
 		goto error_i2c;
 
-	mutex_lock(&chip->rdev->mutex);
+	regulator_lock(chip->rdev);
 
 	if (val & DA9210_E_OVCURR) {
 		regulator_notifier_call_chain(chip->rdev,
@@ -157,7 +118,7 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 		handled |= DA9210_E_VMAX;
 	}
 
-	mutex_unlock(&chip->rdev->mutex);
+	regulator_unlock(chip->rdev);
 
 	if (handled) {
 		/* Clear handled events */

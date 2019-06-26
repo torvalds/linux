@@ -1120,7 +1120,6 @@ static int lm63_probe(struct i2c_client *client,
 		data->kind = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		data->kind = id->driver_data;
-	data->kind = id->driver_data;
 	if (data->kind == lm64)
 		data->temp2_offset = 16000;
 

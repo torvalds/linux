@@ -354,19 +354,17 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 
 	snd_pcm_chip(pcm) = solo_dev;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, card->shortname);
+	strscpy(pcm->name, card->shortname, sizeof(pcm->name));
 
 	for (i = 0, ss = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
 	     ss; ss = ss->next, i++)
 		sprintf(ss->name, "Camera #%d Audio", i);
 
-	ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_lib_preallocate_pages_for_all(pcm,
 					SNDRV_DMA_TYPE_CONTINUOUS,
 					snd_dma_continuous_data(GFP_KERNEL),
 					G723_PERIOD_BYTES * PERIODS,
 					G723_PERIOD_BYTES * PERIODS);
-	if (ret < 0)
-		return ret;
 
 	solo_dev->snd_pcm = pcm;
 
@@ -394,8 +392,8 @@ int solo_g723_init(struct solo_dev *solo_dev)
 
 	card = solo_dev->snd_card;
 
-	strcpy(card->driver, SOLO6X10_NAME);
-	strcpy(card->shortname, "SOLO-6x10 Audio");
+	strscpy(card->driver, SOLO6X10_NAME, sizeof(card->driver));
+	strscpy(card->shortname, "SOLO-6x10 Audio", sizeof(card->shortname));
 	sprintf(card->longname, "%s on %s IRQ %d", card->shortname,
 		pci_name(solo_dev->pdev), solo_dev->pdev->irq);
 
@@ -404,7 +402,7 @@ int solo_g723_init(struct solo_dev *solo_dev)
 		goto snd_error;
 
 	/* Mixer controls */
-	strcpy(card->mixername, "SOLO-6x10");
+	strscpy(card->mixername, "SOLO-6x10", sizeof(card->mixername));
 	kctl = snd_solo_capture_volume;
 	kctl.count = solo_dev->nr_chans;
 

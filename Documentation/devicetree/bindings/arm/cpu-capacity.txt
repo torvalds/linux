@@ -59,9 +59,11 @@ mhz values (normalized w.r.t. the highest value found while parsing the DT).
 ===========================================
 
 Example 1 (ARM 64-bit, 6-cpu system, two clusters):
-capacities-dmips-mhz are scaled w.r.t. 1024 (cpu@0 and cpu@1)
-supposing cluster0@max-freq=1100 and custer1@max-freq=850,
-final capacities are 1024 for cluster0 and 446 for cluster1
+The capacities-dmips-mhz or DMIPS/MHz values (scaled to 1024)
+are 1024 and 578 for cluster0 and cluster1. Further normalization
+is done by the operating system based on cluster0@max-freq=1100 and
+custer1@max-freq=850, final capacities are 1024 for cluster0 and
+446 for cluster1 (576*850/1100).
 
 cpus {
 	#address-cells = <2>;
@@ -94,7 +96,7 @@ cpus {
 	};
 
 	idle-states {
-		entry-method = "arm,psci";
+		entry-method = "psci";
 
 		CPU_SLEEP_0: cpu-sleep-0 {
 			compatible = "arm,idle-state";
@@ -233,4 +235,4 @@ cpus {
 ===========================================
 
 [1] ARM Linux Kernel documentation - CPUs bindings
-    Documentation/devicetree/bindings/arm/cpus.txt
+    Documentation/devicetree/bindings/arm/cpus.yaml

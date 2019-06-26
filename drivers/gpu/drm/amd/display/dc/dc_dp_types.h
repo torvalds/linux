@@ -46,11 +46,14 @@ enum dc_lane_count {
  */
 enum dc_link_rate {
 	LINK_RATE_UNKNOWN = 0,
-	LINK_RATE_LOW = 0x06,
-	LINK_RATE_HIGH = 0x0A,
-	LINK_RATE_RBR2 = 0x0C,
-	LINK_RATE_HIGH2 = 0x14,
-	LINK_RATE_HIGH3 = 0x1E
+	LINK_RATE_LOW = 0x06,		// Rate_1 (RBR)	- 1.62 Gbps/Lane
+	LINK_RATE_RATE_2 = 0x08,	// Rate_2		- 2.16 Gbps/Lane
+	LINK_RATE_RATE_3 = 0x09,	// Rate_3		- 2.43 Gbps/Lane
+	LINK_RATE_HIGH = 0x0A,		// Rate_4 (HBR)	- 2.70 Gbps/Lane
+	LINK_RATE_RBR2 = 0x0C,		// Rate_5 (RBR2)- 3.24 Gbps/Lane
+	LINK_RATE_RATE_6 = 0x10,	// Rate_6		- 4.32 Gbps/Lane
+	LINK_RATE_HIGH2 = 0x14,		// Rate_7 (HBR2)- 5.40 Gbps/Lane
+	LINK_RATE_HIGH3 = 0x1E		// Rate_8 (HBR3)- 8.10 Gbps/Lane
 };
 
 enum dc_link_spread {
@@ -430,7 +433,7 @@ union test_request {
 	struct {
 	uint8_t LINK_TRAINING         :1;
 	uint8_t LINK_TEST_PATTRN      :1;
-	uint8_t EDID_REAT             :1;
+	uint8_t EDID_READ             :1;
 	uint8_t PHY_TEST_PATTERN      :1;
 	uint8_t AUDIO_TEST_PATTERN    :1;
 	uint8_t RESERVED              :1;
@@ -443,7 +446,8 @@ union test_response {
 	struct {
 		uint8_t ACK         :1;
 		uint8_t NO_ACK      :1;
-		uint8_t RESERVED    :6;
+		uint8_t EDID_CHECKSUM_WRITE:1;
+		uint8_t RESERVED    :5;
 	} bits;
 	uint8_t raw;
 };

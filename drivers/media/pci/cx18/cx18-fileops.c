@@ -403,7 +403,7 @@ static size_t cx18_copy_mdl_to_user(struct cx18_stream *s,
 		tot_written += rc;
 
 		if (stop ||	/* Forced stopping point for VBI insertion */
-		    tot_written >= ucount ||	/* Reader request statisfied */
+		    tot_written >= ucount ||	/* Reader request satisfied */
 		    mdl->curr_buf->readpos < mdl->curr_buf->bytesused ||
 		    mdl->readpos >= mdl->bytesused) /* MDL buffers drained */
 			break;

@@ -1,4 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    This file is dual-licensed: you can use it either under the terms
+    of the GPL 2.0 or the GFDL 1.1+ license, at your option. Note that this
+    dual licensing only applies to this file, and not this project as a
+    whole.
+
+    a) This file is free software; you can redistribute it and/or
+       modify it under the terms of the GNU General Public License as
+       published by the Free Software Foundation version 2 of
+       the License.
+
+       This file is distributed in the hope that it will be useful,
+       but WITHOUT ANY WARRANTY; without even the implied warranty of
+       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+       GNU General Public License for more details.
+
+    Or, alternatively,
+
+    b) Permission is granted to copy, distribute and/or modify this
+       document under the terms of the GNU Free Documentation License,
+       Version 1.1 or any later version published by the Free Software
+       Foundation, with no Invariant Sections, no Front-Cover Texts
+       and no Back-Cover Texts. A copy of the license is included at
+       Documentation/media/uapi/fdl-appendix.rst.
+
+    TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH no-invariant-sections
+-->
 <svg id="svg2" width="164.15mm" height="46.771mm" fill-rule="evenodd" stroke-linejoin="round" stroke-width="28.222" preserveAspectRatio="xMidYMid" version="1.2" viewBox="0 0 16415.333 4677.1107" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><metadata id="metadata652"><rdf:RDF><cc:Work rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/><dc:title/></cc:Work></rdf:RDF></metadata><g id="g186" class="com.sun.star.drawing.CustomShape" transform="translate(-3285.9 -3185.9)"><g id="id6"><rect id="rect189" class="BoundingBox" x="3299" y="3199" width="1303" height="1203" fill="none"/><path id="path191" d="m3950 4400h-650v-1200h1300v1200h-650z" fill="#00f"/><path id="path193" d="m3950
 4400h-650v-1200h1300v1200h-650z" fill="none" stroke="#3465a4"/><text id="text195" class="TextShape"><tspan id="tspan197" class="TextParagraph" font-family="sans-serif" font-size="635px" font-weight="400"><tspan id="tspan199" class="TextPosition" x="3739" y="4021"><tspan id="tspan201" fill="#ffffff">B</tspan></tspan></tspan></text>
 </g></g><g id="g203" class="com.sun.star.drawing.CustomShape" transform="translate(-3285.9 -3185.9)"><g id="id7"><rect id="rect206" class="BoundingBox" x="4599" y="3199" width="1303" height="1203" fill="none"/><path id="path208" d="m5250 4400h-650v-1200h1300v1200h-650z" fill="#0c0"/><path id="path210" d="m5250 4400h-650v-1200h1300v1200h-650z" fill="none" stroke="#3465a4"/><text id="text212" class="TextShape"><tspan id="tspan214" class="TextParagraph" font-family="sans-serif" font-size="635px" font-weight="400"><tspan id="tspan216" class="TextPosition" x="5003" y="4021"><tspan id="tspan218" fill="#ffffff">G</tspan></tspan></tspan></text>

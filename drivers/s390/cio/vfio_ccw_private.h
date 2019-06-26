@@ -41,7 +41,7 @@ struct vfio_ccw_private {
 	atomic_t		avail;
 	struct mdev_device	*mdev;
 	struct notifier_block	nb;
-	struct ccw_io_region	io_region;
+	struct ccw_io_region	*io_region;
 
 	struct channel_program	cp;
 	struct irb		irb;
@@ -63,7 +63,6 @@ enum vfio_ccw_state {
 	VFIO_CCW_STATE_NOT_OPER,
 	VFIO_CCW_STATE_STANDBY,
 	VFIO_CCW_STATE_IDLE,
-	VFIO_CCW_STATE_BOXED,
 	VFIO_CCW_STATE_BUSY,
 	/* last element! */
 	NR_VFIO_CCW_STATES

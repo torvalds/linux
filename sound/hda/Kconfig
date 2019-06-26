@@ -5,11 +5,12 @@ config SND_HDA_CORE
 config SND_HDA_DSP_LOADER
 	bool
 
+config SND_HDA_COMPONENT
+	bool
+
 config SND_HDA_I915
 	bool
-	default y
-	depends on DRM_I915
-	depends on SND_HDA_CORE
+	select SND_HDA_COMPONENT
 
 config SND_HDA_EXT_CORE
        tristate

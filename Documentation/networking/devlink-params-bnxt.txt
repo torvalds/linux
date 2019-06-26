@@ -1,0 +1,18 @@
+enable_sriov		[DEVICE, GENERIC]
+			Configuration mode: Permanent
+
+ignore_ari		[DEVICE, GENERIC]
+			Configuration mode: Permanent
+
+msix_vec_per_pf_max	[DEVICE, GENERIC]
+			Configuration mode: Permanent
+
+msix_vec_per_pf_min	[DEVICE, GENERIC]
+			Configuration mode: Permanent
+
+gre_ver_check		[DEVICE, DRIVER-SPECIFIC]
+			Generic Routing Encapsulation (GRE) version check will
+			be enabled in the device. If disabled, device skips
+			version checking for incoming packets.
+			Type: Boolean
+			Configuration mode: Permanent

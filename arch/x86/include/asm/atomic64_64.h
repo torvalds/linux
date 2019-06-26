@@ -73,8 +73,9 @@ static inline void arch_atomic64_sub(long i, atomic64_t *v)
  */
 static inline bool arch_atomic64_sub_and_test(long i, atomic64_t *v)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "subq", v->counter, "er", i, "%0", e);
+	return GEN_BINARY_RMWcc(LOCK_PREFIX "subq", v->counter, e, "er", i);
 }
+#define arch_atomic64_sub_and_test arch_atomic64_sub_and_test
 
 /**
  * arch_atomic64_inc - increment atomic64 variable
@@ -88,6 +89,7 @@ static __always_inline void arch_atomic64_inc(atomic64_t *v)
 		     : "=m" (v->counter)
 		     : "m" (v->counter));
 }
+#define arch_atomic64_inc arch_atomic64_inc
 
 /**
  * arch_atomic64_dec - decrement atomic64 variable
@@ -101,6 +103,7 @@ static __always_inline void arch_atomic64_dec(atomic64_t *v)
 		     : "=m" (v->counter)
 		     : "m" (v->counter));
 }
+#define arch_atomic64_dec arch_atomic64_dec
 
 /**
  * arch_atomic64_dec_and_test - decrement and test
@@ -112,8 +115,9 @@ static __always_inline void arch_atomic64_dec(atomic64_t *v)
  */
 static inline bool arch_atomic64_dec_and_test(atomic64_t *v)
 {
-	GEN_UNARY_RMWcc(LOCK_PREFIX "decq", v->counter, "%0", e);
+	return GEN_UNARY_RMWcc(LOCK_PREFIX "decq", v->counter, e);
 }
+#define arch_atomic64_dec_and_test arch_atomic64_dec_and_test
 
 /**
  * arch_atomic64_inc_and_test - increment and test
@@ -125,8 +129,9 @@ static inline bool arch_atomic64_dec_and_test(atomic64_t *v)
  */
 static inline bool arch_atomic64_inc_and_test(atomic64_t *v)
 {
-	GEN_UNARY_RMWcc(LOCK_PREFIX "incq", v->counter, "%0", e);
+	return GEN_UNARY_RMWcc(LOCK_PREFIX "incq", v->counter, e);
 }
+#define arch_atomic64_inc_and_test arch_atomic64_inc_and_test
 
 /**
  * arch_atomic64_add_negative - add and test if negative
@@ -139,8 +144,9 @@ static inline bool arch_atomic64_inc_and_test(atomic64_t *v)
  */
 static inline bool arch_atomic64_add_negative(long i, atomic64_t *v)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "addq", v->counter, "er", i, "%0", s);
+	return GEN_BINARY_RMWcc(LOCK_PREFIX "addq", v->counter, s, "er", i);
 }
+#define arch_atomic64_add_negative arch_atomic64_add_negative
 
 /**
  * arch_atomic64_add_return - add and return
@@ -169,9 +175,6 @@ static inline long arch_atomic64_fetch_sub(long i, atomic64_t *v)
 	return xadd(&v->counter, -i);
 }
 
-#define arch_atomic64_inc_return(v)  (arch_atomic64_add_return(1, (v)))
-#define arch_atomic64_dec_return(v)  (arch_atomic64_sub_return(1, (v)))
-
 static inline long arch_atomic64_cmpxchg(atomic64_t *v, long old, long new)
 {
 	return arch_cmpxchg(&v->counter, old, new);
@@ -185,46 +188,7 @@ static __always_inline bool arch_atomic64_try_cmpxchg(atomic64_t *v, s64 *old, l
 
 static inline long arch_atomic64_xchg(atomic64_t *v, long new)
 {
-	return xchg(&v->counter, new);
-}
-
-/**
- * arch_atomic64_add_unless - add unless the number is a given value
- * @v: pointer of type atomic64_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v.
- */
-static inline bool arch_atomic64_add_unless(atomic64_t *v, long a, long u)
-{
-	s64 c = arch_atomic64_read(v);
-	do {
-		if (unlikely(c == u))
-			return false;
-	} while (!arch_atomic64_try_cmpxchg(v, &c, c + a));
-	return true;
-}
-
-#define arch_atomic64_inc_not_zero(v) arch_atomic64_add_unless((v), 1, 0)
-
-/*
- * arch_atomic64_dec_if_positive - decrement by 1 if old value positive
- * @v: pointer of type atomic_t
- *
- * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
- */
-static inline long arch_atomic64_dec_if_positive(atomic64_t *v)
-{
-	s64 dec, c = arch_atomic64_read(v);
-	do {
-		dec = c - 1;
-		if (unlikely(dec < 0))
-			break;
-	} while (!arch_atomic64_try_cmpxchg(v, &c, dec));
-	return dec;
+	return arch_xchg(&v->counter, new);
 }
 
 static inline void arch_atomic64_and(long i, atomic64_t *v)

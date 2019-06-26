@@ -29,7 +29,7 @@
  * Returns:
  *	x0 - address of first occurrence of 'c' or 0
  */
-ENTRY(strchr)
+WEAK(strchr)
 	and	w1, w1, #0xff
 1:	ldrb	w2, [x0], #1
 	cmp	w2, w1
@@ -40,3 +40,4 @@ ENTRY(strchr)
 	csel	x0, x0, xzr, eq
 	ret
 ENDPROC(strchr)
+EXPORT_SYMBOL_NOKASAN(strchr)

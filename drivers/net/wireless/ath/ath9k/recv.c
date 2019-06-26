@@ -829,7 +829,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * Discard zero-length packets and packets smaller than an ACK
 	 */
 	if (rx_stats->rs_datalen < 10) {
-		RX_STAT_INC(rx_len_err);
+		RX_STAT_INC(sc, rx_len_err);
 		goto corrupt;
 	}
 
@@ -839,7 +839,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * those frames.
 	 */
 	if (rx_stats->rs_datalen > (common->rx_bufsize - ah->caps.rx_status_len)) {
-		RX_STAT_INC(rx_len_err);
+		RX_STAT_INC(sc, rx_len_err);
 		goto corrupt;
 	}
 
@@ -880,7 +880,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		} else if (sc->spec_priv.spectral_mode != SPECTRAL_DISABLED &&
 			   ath_cmn_process_fft(&sc->spec_priv, hdr, rx_stats,
 					       rx_status->mactime)) {
-			RX_STAT_INC(rx_spectral);
+			RX_STAT_INC(sc, rx_spectral);
 		}
 		return -EINVAL;
 	}
@@ -898,7 +898,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	spin_unlock_bh(&sc->chan_lock);
 
 	if (ath_is_mybeacon(common, hdr)) {
-		RX_STAT_INC(rx_beacons);
+		RX_STAT_INC(sc, rx_beacons);
 		rx_stats->is_mybeacon = true;
 	}
 
@@ -915,7 +915,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		 */
 		ath_dbg(common, ANY, "unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
 			rx_stats->rs_rate);
-		RX_STAT_INC(rx_rate_err);
+		RX_STAT_INC(sc, rx_rate_err);
 		return -EINVAL;
 	}
 
@@ -1006,9 +1006,6 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 				 struct ath_rx_status *rs,
 				 struct sk_buff *skb)
 {
-	struct ath_node *an;
-	struct ath_acq *acq;
-	struct ath_vif *avp;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1019,7 +1016,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 	int phy;
 	u16 len = rs->rs_datalen;
 	u32 airtime = 0;
-	u8 tidno, acno;
+	u8 tidno;
 
 	if (!ieee80211_is_data(hdr->frame_control))
 		return;
@@ -1029,11 +1026,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 	sta = ieee80211_find_sta_by_ifaddr(sc->hw, hdr->addr2, NULL);
 	if (!sta)
 		goto exit;
-	an = (struct ath_node *) sta->drv_priv;
-	avp = (struct ath_vif *) an->vif->drv_priv;
 	tidno = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
-	acno = TID_TO_WME_AC(tidno);
-	acq = &avp->chanctx->acq[acno];
 
 	rxs = IEEE80211_SKB_RXCB(skb);
 
@@ -1054,14 +1047,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 						len, rxs->rate_idx, is_sp);
 	}
 
- 	if (!!(sc->airtime_flags & AIRTIME_USE_RX)) {
-		spin_lock_bh(&acq->lock);
-		an->airtime_deficit[acno] -= airtime;
-		if (an->airtime_deficit[acno] <= 0)
-			__ath_tx_queue_tid(sc, ATH_AN_2_TID(an, tidno));
-		spin_unlock_bh(&acq->lock);
-	}
-	ath_debug_airtime(sc, an, airtime, 0);
+	ieee80211_sta_register_airtime(sta, tidno, 0, airtime);
 exit:
 	rcu_read_unlock();
 }
@@ -1136,7 +1122,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * skb and put it at the tail of the sc->rx.rxbuf list for
 		 * processing. */
 		if (!requeue_skb) {
-			RX_STAT_INC(rx_oom_err);
+			RX_STAT_INC(sc, rx_oom_err);
 			goto requeue_drop_frag;
 		}
 
@@ -1164,7 +1150,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 						     rxs, decrypt_error);
 
 		if (rs.rs_more) {
-			RX_STAT_INC(rx_frags);
+			RX_STAT_INC(sc, rx_frags);
 			/*
 			 * rs_more indicates chained descriptors which can be
 			 * used to link buffers together for a sort of
@@ -1174,7 +1160,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 				/* too many fragments - cannot handle frame */
 				dev_kfree_skb_any(sc->rx.frag);
 				dev_kfree_skb_any(skb);
-				RX_STAT_INC(rx_too_many_frags_err);
+				RX_STAT_INC(sc, rx_too_many_frags_err);
 				skb = NULL;
 			}
 			sc->rx.frag = skb;
@@ -1186,7 +1172,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 			if (pskb_expand_head(hdr_skb, 0, space, GFP_ATOMIC) < 0) {
 				dev_kfree_skb(skb);
-				RX_STAT_INC(rx_oom_err);
+				RX_STAT_INC(sc, rx_oom_err);
 				goto requeue_drop_frag;
 			}
 

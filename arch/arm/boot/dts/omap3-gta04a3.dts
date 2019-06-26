@@ -9,7 +9,7 @@
 #include "omap3-gta04.dtsi"
 
 / {
-	model = "Goldelico GTA04A3";
+	model = "Goldelico GTA04A3/Letux 2804";
 };
 
 &i2c2 {

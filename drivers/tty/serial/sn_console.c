@@ -888,7 +888,7 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 
 	/* somebody really wants this output, might be an
 	 * oops, kdb, panic, etc.  make sure they get it. */
-	if (spin_is_locked(&port->sc_port.lock)) {
+	if (!spin_trylock_irqsave(&port->sc_port.lock, flags)) {
 		int lhead = port->sc_port.state->xmit.head;
 		int ltail = port->sc_port.state->xmit.tail;
 		int counter, got_lock = 0;
@@ -905,13 +905,11 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 		 */
 
 		for (counter = 0; counter < 150; mdelay(125), counter++) {
-			if (!spin_is_locked(&port->sc_port.lock)
-			    || stole_lock) {
-				if (!stole_lock) {
-					spin_lock_irqsave(&port->sc_port.lock,
-							  flags);
-					got_lock = 1;
-				}
+			if (stole_lock)
+				break;
+
+			if (spin_trylock_irqsave(&port->sc_port.lock, flags)) {
+				got_lock = 1;
 				break;
 			} else {
 				/* still locked */
@@ -938,7 +936,6 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 		puts_raw_fixed(port->sc_ops->sal_puts_raw, s, count);
 	} else {
 		stole_lock = 0;
-		spin_lock_irqsave(&port->sc_port.lock, flags);
 		sn_transmit_chars(port, 1);
 		spin_unlock_irqrestore(&port->sc_port.lock, flags);
 

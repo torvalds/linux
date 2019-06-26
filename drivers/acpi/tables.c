@@ -31,9 +31,8 @@
 #include <linux/irq.h>
 #include <linux/errno.h>
 #include <linux/acpi.h>
-#include <linux/bootmem.h>
-#include <linux/earlycpio.h>
 #include <linux/memblock.h>
+#include <linux/earlycpio.h>
 #include <linux/initrd.h>
 #include "internal.h"
 
@@ -474,13 +473,21 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
 
 void __init acpi_table_upgrade(void)
 {
-	void *data = (void *)initrd_start;
-	size_t size = initrd_end - initrd_start;
+	void *data;
+	size_t size;
 	int sig, no, table_nr = 0, total_offset = 0;
 	long offset = 0;
 	struct acpi_table_header *table;
 	char cpio_path[32] = "kernel/firmware/acpi/";
 	struct cpio_data file;
+
+	if (IS_ENABLED(CONFIG_ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD)) {
+		data = __initramfs_start;
+		size = __initramfs_size;
+	} else {
+		data = (void *)initrd_start;
+		size = initrd_end - initrd_start;
+	}
 
 	if (data == NULL || size == 0)
 		return;
@@ -713,6 +720,11 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 					  table_length);
 }
 
+#ifdef CONFIG_ACPI_CUSTOM_DSDT
+static void *amlcode __attribute__ ((weakref("AmlCode")));
+static void *dsdt_amlcode __attribute__ ((weakref("dsdt_aml_code")));
+#endif
+
 acpi_status
 acpi_os_table_override(struct acpi_table_header *existing_table,
 		       struct acpi_table_header **new_table)
@@ -723,8 +735,11 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 	*new_table = NULL;
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
-	if (strncmp(existing_table->signature, "DSDT", 4) == 0)
-		*new_table = (struct acpi_table_header *)AmlCode;
+	if (!strncmp(existing_table->signature, "DSDT", 4)) {
+		*new_table = (struct acpi_table_header *)&amlcode;
+		if (!(*new_table))
+			*new_table = (struct acpi_table_header *)&dsdt_amlcode;
+	}
 #endif
 	if (*new_table != NULL)
 		acpi_table_taint(existing_table);

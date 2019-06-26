@@ -5,8 +5,9 @@ Linux kernel management style
 
 This is a short document describing the preferred (or made up, depending
 on who you ask) management style for the linux kernel.  It's meant to
-mirror the process/coding-style.rst document to some degree, and mainly written to
-avoid answering [#f1]_  the same (or similar) questions over and over again.
+mirror the :ref:`process/coding-style.rst <codingstyle>` document to some
+degree, and mainly written to avoid answering [#f1]_  the same (or similar)
+questions over and over again.
 
 Management style is very personal and much harder to quantify than
 simple coding style rules, so this document may or may not have anything
@@ -105,7 +106,7 @@ to admit that you are stupid when you haven't **yet** done the really
 stupid thing.
 
 Then, when it really does turn out to be stupid, people just roll their
-eyes and say "Oops, he did it again".
+eyes and say "Oops, not again".
 
 This preemptive admission of incompetence might also make the people who
 actually do the work also think twice about whether it's worth doing or
@@ -172,10 +173,10 @@ To solve this problem, you really only have two options:
    might even be amused.
 
 The option of being unfailingly polite really doesn't exist. Nobody will
-trust somebody who is so clearly hiding his true character.
+trust somebody who is so clearly hiding their true character.
 
 .. [#f2] Paul Simon sang "Fifty Ways to Leave Your Lover", because quite
-  frankly, "A Million Ways to Tell a Developer He Is a D*ckhead" doesn't
+  frankly, "A Million Ways to Tell a Developer They're a D*ckhead" doesn't
   scan nearly as well.  But I'm sure he thought about it.
 
 
@@ -219,15 +220,16 @@ Things will go wrong, and people want somebody to blame. Tag, you're it.
 
 It's not actually that hard to accept the blame, especially if people
 kind of realize that it wasn't **all** your fault.  Which brings us to the
-best way of taking the blame: do it for another guy. You'll feel good
-for taking the fall, he'll feel good about not getting blamed, and the
-guy who lost his whole 36GB porn-collection because of your incompetence
-will grudgingly admit that you at least didn't try to weasel out of it.
+best way of taking the blame: do it for someone else. You'll feel good
+for taking the fall, they'll feel good about not getting blamed, and the
+person who lost their whole 36GB porn-collection because of your
+incompetence will grudgingly admit that you at least didn't try to weasel
+out of it.
 
-Then make the developer who really screwed up (if you can find him) know
-**in_private** that he screwed up.  Not just so he can avoid it in the
-future, but so that he knows he owes you one.  And, perhaps even more
-importantly, he's also likely the person who can fix it.  Because, let's
+Then make the developer who really screwed up (if you can find them) know
+**in_private** that they screwed up.  Not just so they can avoid it in the
+future, but so that they know they owe you one.  And, perhaps even more
+importantly, they're also likely the person who can fix it.  Because, let's
 face it, it sure ain't you.
 
 Taking the blame is also why you get to be manager in the first place.

@@ -10,7 +10,6 @@ struct drm_display_mode;
 struct drm_encoder;
 struct drm_framebuffer;
 struct drm_plane;
-struct imx_drm_crtc;
 struct platform_device;
 
 struct imx_crtc_state {

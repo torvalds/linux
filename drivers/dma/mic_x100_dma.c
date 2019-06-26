@@ -470,11 +470,6 @@ static void mic_dma_chan_destroy(struct mic_dma_chan *ch)
 	mic_dma_chan_mask_intr(ch);
 }
 
-static void mic_dma_unregister_dma_device(struct mic_dma_device *mic_dma_dev)
-{
-	dma_async_device_unregister(&mic_dma_dev->dma_dev);
-}
-
 static int mic_dma_setup_irq(struct mic_dma_chan *ch)
 {
 	ch->cookie =
@@ -630,7 +625,7 @@ static int mic_dma_register_dma_device(struct mic_dma_device *mic_dma_dev,
 		list_add_tail(&mic_dma_dev->mic_ch[i].api_ch.device_node,
 			      &mic_dma_dev->dma_dev.channels);
 	}
-	return dma_async_device_register(&mic_dma_dev->dma_dev);
+	return dmaenginem_async_device_register(&mic_dma_dev->dma_dev);
 }
 
 /*
@@ -644,7 +639,7 @@ static struct mic_dma_device *mic_dma_dev_reg(struct mbus_device *mbdev,
 	int ret;
 	struct device *dev = &mbdev->dev;
 
-	mic_dma_dev = kzalloc(sizeof(*mic_dma_dev), GFP_KERNEL);
+	mic_dma_dev = devm_kzalloc(dev, sizeof(*mic_dma_dev), GFP_KERNEL);
 	if (!mic_dma_dev) {
 		ret = -ENOMEM;
 		goto alloc_error;
@@ -669,7 +664,6 @@ static struct mic_dma_device *mic_dma_dev_reg(struct mbus_device *mbdev,
 reg_error:
 	mic_dma_uninit(mic_dma_dev);
 init_error:
-	kfree(mic_dma_dev);
 	mic_dma_dev = NULL;
 alloc_error:
 	dev_err(dev, "Error at %s %d ret=%d\n", __func__, __LINE__, ret);
@@ -678,13 +672,11 @@ alloc_error:
 
 static void mic_dma_dev_unreg(struct mic_dma_device *mic_dma_dev)
 {
-	mic_dma_unregister_dma_device(mic_dma_dev);
 	mic_dma_uninit(mic_dma_dev);
-	kfree(mic_dma_dev);
 }
 
 /* DEBUGFS CODE */
-static int mic_dma_reg_seq_show(struct seq_file *s, void *pos)
+static int mic_dma_reg_show(struct seq_file *s, void *pos)
 {
 	struct mic_dma_device *mic_dma_dev = s->private;
 	int i, chan_num, first_chan = mic_dma_dev->start_ch;
@@ -715,23 +707,7 @@ static int mic_dma_reg_seq_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int mic_dma_reg_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mic_dma_reg_seq_show, inode->i_private);
-}
-
-static int mic_dma_reg_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations mic_dma_reg_ops = {
-	.owner   = THIS_MODULE,
-	.open    = mic_dma_reg_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = mic_dma_reg_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(mic_dma_reg);
 
 /* Debugfs parent dir */
 static struct dentry *mic_dma_dbg;
@@ -755,7 +731,7 @@ static int mic_dma_driver_probe(struct mbus_device *mbdev)
 		if (mic_dma_dev->dbg_dir)
 			debugfs_create_file("mic_dma_reg", 0444,
 					    mic_dma_dev->dbg_dir, mic_dma_dev,
-					    &mic_dma_reg_ops);
+					    &mic_dma_reg_fops);
 	}
 	return 0;
 }

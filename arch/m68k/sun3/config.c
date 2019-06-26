@@ -15,7 +15,7 @@
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/platform_device.h>
 
 #include <asm/oplib.h>
@@ -123,10 +123,6 @@ static void __init sun3_bootmem_alloc(unsigned long memory_start,
 	availmem = memory_start;
 
 	m68k_setup_node(0);
-	availmem += init_bootmem(start_page, num_pages);
-	availmem = (availmem + (PAGE_SIZE-1)) & PAGE_MASK;
-
-	free_bootmem(__pa(availmem), memory_end - (availmem));
 }
 
 

@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2010  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2010  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../pci.h"
@@ -394,6 +372,7 @@ static void _rtl8812ae_phy_set_rfe_reg_24g(struct ieee80211_hw *hw)
 			rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
 			break;
 		}
+		/* fall through */
 	case 0:
 	case 2:
 	default:
@@ -474,7 +453,7 @@ u32 phy_get_tx_swing_8812A(struct ieee80211_hw *hw, u8	band,
 	const s8 auto_temp = -1;
 
 	RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
-		 "===> PHY_GetTxBBSwing_8812A, bbSwing_2G: %d, bbSwing_5G: %d,autoload_failflag=%d.\n",
+		 "===> PHY_GetTXBBSwing_8812A, bbSwing_2G: %d, bbSwing_5G: %d,autoload_failflag=%d.\n",
 		 (int)swing_2g, (int)swing_5g,
 		 (int)rtlefuse->autoload_failflag);
 
@@ -555,7 +534,7 @@ u32 phy_get_tx_swing_8812A(struct ieee80211_hw *hw, u8	band,
 		swing_a = (swing & 0x3) >> 0; /* 0xC6/C7[1:0] */
 		swing_b = (swing & 0xC) >> 2; /* 0xC6/C7[3:2] */
 		RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
-			 "===> PHY_GetTxBBSwing_8812A, swingA: 0x%X, swingB: 0x%X\n",
+			 "===> PHY_GetTXBBSwing_8812A, swingA: 0x%X, swingB: 0x%X\n",
 			 swing_a, swing_b);
 
 		/* 3 Path-A */
@@ -613,7 +592,7 @@ u32 phy_get_tx_swing_8812A(struct ieee80211_hw *hw, u8	band,
 	}
 
 	RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
-		 "<=== PHY_GetTxBBSwing_8812A, out = 0x%X\n", out);
+		 "<=== PHY_GetTXBBSwing_8812A, out = 0x%X\n", out);
 	return out;
 }
 
@@ -1077,52 +1056,52 @@ static void _rtl8821ae_phy_store_txpower_by_rate_base(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	u16 rawValue = 0;
+	u16 rawvalue = 0;
 	u8 base = 0, path = 0;
 
 	for (path = RF90_PATH_A; path <= RF90_PATH_B; ++path) {
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_1TX][0] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_1TX][0] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_2_4G, path, CCK, RF_1TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_1TX][2] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_1TX][2] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_2_4G, path, OFDM, RF_1TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_1TX][4] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_1TX][4] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_2_4G, path, HT_MCS0_MCS7, RF_1TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_2TX][6] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_2TX][6] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_2_4G, path, HT_MCS8_MCS15, RF_2TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_1TX][8] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_1TX][8] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_2_4G, path, VHT_1SSMCS0_1SSMCS9, RF_1TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_2TX][11] >> 8) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][path][RF_2TX][11] >> 8) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_2_4G, path, VHT_2SSMCS0_2SSMCS9, RF_2TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_1TX][2] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_1TX][2] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_5G, path, OFDM, RF_1TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_1TX][4] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_1TX][4] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_5G, path, HT_MCS0_MCS7, RF_1TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_2TX][6] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_2TX][6] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_5G, path, HT_MCS8_MCS15, RF_2TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_1TX][8] >> 24) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_1TX][8] >> 24) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_5G, path, VHT_1SSMCS0_1SSMCS9, RF_1TX, base);
 
-		rawValue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_2TX][11] >> 8) & 0xFF;
-		base = (rawValue >> 4) * 10 + (rawValue & 0xF);
+		rawvalue = (u16)(rtlphy->tx_power_by_rate_offset[BAND_ON_5G][path][RF_2TX][11] >> 8) & 0xFF;
+		base = (rawvalue >> 4) * 10 + (rawvalue & 0xF);
 		_rtl8821ae_phy_set_txpower_by_rate_base(hw, BAND_ON_5G, path, VHT_2SSMCS0_2SSMCS9, RF_2TX, base);
 	}
 }
@@ -1379,7 +1358,7 @@ static void _rtl8812ae_phy_convert_txpower_limit_to_power_index(struct ieee80211
 						}
 
 						RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-							"TxPwrLimit_2_4G[regulation %d][bw %d][rateSection %d][channel %d] = %d\n(TxPwrLimit in dBm %d - BW40PwrLmt2_4G[channel %d][rfPath %d] %d)\n",
+							"TxPwrLimit_2_4G[regulation %d][bw %d][rateSection %d][channel %d] = %d\n(TxPwrLimit in dBm %d - BW40PwrLmt2_4G[channel %d][rfpath %d] %d)\n",
 							regulation, bw, rate_section, channel,
 							rtlphy->txpwr_limit_2_4g[regulation][bw]
 							[rate_section][channel][rf_path], (temp_pwrlmt == 63)
@@ -1444,7 +1423,7 @@ static void _rtl8812ae_phy_convert_txpower_limit_to_power_index(struct ieee80211
 						}
 
 						RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-							"TxPwrLimit_5G[regulation %d][bw %d][rateSection %d][channel %d] =%d\n(TxPwrLimit in dBm %d - BW40PwrLmt5G[chnl group %d][rfPath %d] %d)\n",
+							"TxPwrLimit_5G[regulation %d][bw %d][rateSection %d][channel %d] =%d\n(TxPwrLimit in dBm %d - BW40PwrLmt5G[chnl group %d][rfpath %d] %d)\n",
 							regulation, bw, rate_section,
 							channel, rtlphy->txpwr_limit_5g[regulation]
 							[bw][rate_section][channel][rf_path],
@@ -1494,106 +1473,106 @@ static void _rtl8821ae_phy_convert_txpower_dbm_to_relative_value(struct ieee8021
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	u8 base = 0, rfPath = 0;
+	u8 base = 0, rfpath = 0;
 
-	for (rfPath = RF90_PATH_A; rfPath <= RF90_PATH_B; ++rfPath) {
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfPath, RF_1TX, CCK);
+	for (rfpath = RF90_PATH_A; rfpath <= RF90_PATH_B; ++rfpath) {
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfpath, RF_1TX, CCK);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][0],
-			0, 3, base);
-
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfPath, RF_1TX, OFDM);
-		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][1],
-			0, 3, base);
-		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][2],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][0],
 			0, 3, base);
 
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfPath, RF_1TX, HT_MCS0_MCS7);
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfpath, RF_1TX, OFDM);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][3],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][1],
 			0, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][4],
-			0, 3, base);
-
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfPath, RF_2TX, HT_MCS8_MCS15);
-
-		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_2TX][5],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][2],
 			0, 3, base);
 
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfpath, RF_1TX, HT_MCS0_MCS7);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_2TX][6],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][3],
+			0, 3, base);
+		_phy_convert_txpower_dbm_to_relative_value(
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][4],
 			0, 3, base);
 
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfPath, RF_1TX, VHT_1SSMCS0_1SSMCS9);
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfpath, RF_2TX, HT_MCS8_MCS15);
+
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][7],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_2TX][5],
+			0, 3, base);
+
+		_phy_convert_txpower_dbm_to_relative_value(
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_2TX][6],
+			0, 3, base);
+
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfpath, RF_1TX, VHT_1SSMCS0_1SSMCS9);
+		_phy_convert_txpower_dbm_to_relative_value(
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][7],
 			0, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][8],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][8],
 			0, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][9],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][9],
 			0, 1, base);
 
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfPath, RF_2TX, VHT_2SSMCS0_2SSMCS9);
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_2_4G, rfpath, RF_2TX, VHT_2SSMCS0_2SSMCS9);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_1TX][9],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_1TX][9],
 			2, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_2TX][10],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_2TX][10],
 			0, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfPath][RF_2TX][11],
-			0, 3, base);
-
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfPath, RF_1TX, OFDM);
-		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_1TX][1],
-			0, 3, base);
-		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_1TX][2],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_2_4G][rfpath][RF_2TX][11],
 			0, 3, base);
 
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfPath, RF_1TX, HT_MCS0_MCS7);
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfpath, RF_1TX, OFDM);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_1TX][3],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_1TX][1],
 			0, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_1TX][4],
-			0, 3, base);
-
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfPath, RF_2TX, HT_MCS8_MCS15);
-		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_2TX][5],
-			0, 3, base);
-		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_2TX][6],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_1TX][2],
 			0, 3, base);
 
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfPath, RF_1TX, VHT_1SSMCS0_1SSMCS9);
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfpath, RF_1TX, HT_MCS0_MCS7);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_1TX][7],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_1TX][3],
 			0, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_1TX][8],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_1TX][4],
+			0, 3, base);
+
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfpath, RF_2TX, HT_MCS8_MCS15);
+		_phy_convert_txpower_dbm_to_relative_value(
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_2TX][5],
 			0, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_1TX][9],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_2TX][6],
+			0, 3, base);
+
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfpath, RF_1TX, VHT_1SSMCS0_1SSMCS9);
+		_phy_convert_txpower_dbm_to_relative_value(
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_1TX][7],
+			0, 3, base);
+		_phy_convert_txpower_dbm_to_relative_value(
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_1TX][8],
+			0, 3, base);
+		_phy_convert_txpower_dbm_to_relative_value(
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_1TX][9],
 			0, 1, base);
 
-		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfPath, RF_2TX, VHT_2SSMCS0_2SSMCS9);
+		base = _rtl8821ae_phy_get_txpower_by_rate_base(hw, BAND_ON_5G, rfpath, RF_2TX, VHT_2SSMCS0_2SSMCS9);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_1TX][9],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_1TX][9],
 			2, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_2TX][10],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_2TX][10],
 			0, 3, base);
 		_phy_convert_txpower_dbm_to_relative_value(
-			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfPath][RF_2TX][11],
+			&rtlphy->tx_power_by_rate_offset[BAND_ON_5G][rfpath][RF_2TX][11],
 			0, 3, base);
 	}
 

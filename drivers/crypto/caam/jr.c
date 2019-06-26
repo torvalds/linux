@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * CAAM/SEC 4.x transport/backend driver
  * JobR backend functionality
@@ -190,7 +191,8 @@ static void caam_jr_dequeue(unsigned long devarg)
 		BUG_ON(CIRC_CNT(head, tail + i, JOBR_DEPTH) <= 0);
 
 		/* Unmap just-run descriptor so we can post-process */
-		dma_unmap_single(dev, jrp->outring[hw_idx].desc,
+		dma_unmap_single(dev,
+				 caam_dma_to_cpu(jrp->outring[hw_idx].desc),
 				 jrp->entinfo[sw_idx].desc_size,
 				 DMA_TO_DEVICE);
 

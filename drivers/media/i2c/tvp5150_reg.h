@@ -125,8 +125,11 @@
 #define TVP5150_TELETEXT_FIL_ENA    0xbb /* Teletext filter enable */
 /* Reserved	BCh-BFh */
 #define TVP5150_INT_STATUS_REG_A    0xc0 /* Interrupt status register A */
+#define   TVP5150_INT_A_LOCK_STATUS BIT(7)
+#define   TVP5150_INT_A_LOCK        BIT(6)
 #define TVP5150_INT_ENABLE_REG_A    0xc1 /* Interrupt enable register A */
 #define TVP5150_INT_CONF            0xc2 /* Interrupt configuration */
+#define   TVP5150_VDPOE             BIT(2)
 #define TVP5150_VDP_CONF_RAM_DATA   0xc3 /* VDP configuration RAM data */
 #define TVP5150_CONF_RAM_ADDR_LOW   0xc4 /* Configuration RAM address low byte */
 #define TVP5150_CONF_RAM_ADDR_HIGH  0xc5 /* Configuration RAM address high byte */

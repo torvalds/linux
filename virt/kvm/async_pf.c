@@ -82,7 +82,7 @@ static void async_pf_execute(struct work_struct *work)
 	might_sleep();
 
 	/*
-	 * This work is run asynchromously to the task which owns
+	 * This work is run asynchronously to the task which owns
 	 * mm and might be done in another context, so we must
 	 * access remotely.
 	 */
@@ -107,7 +107,7 @@ static void async_pf_execute(struct work_struct *work)
 	trace_kvm_async_pf_completed(addr, gva);
 
 	if (swq_has_sleeper(&vcpu->wq))
-		swake_up(&vcpu->wq);
+		swake_up_one(&vcpu->wq);
 
 	mmput(mm);
 	kvm_put_kvm(vcpu->kvm);

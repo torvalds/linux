@@ -50,6 +50,12 @@ void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
 #endif /* DEBUG */
 EXPORT_SYMBOL(caam_dump_sg);
 
+bool caam_little_end;
+EXPORT_SYMBOL(caam_little_end);
+
+bool caam_imx;
+EXPORT_SYMBOL(caam_imx);
+
 static const struct {
 	u8 value;
 	const char *error_text;
@@ -106,6 +112,54 @@ static const struct {
 	{ 0xC8, "Blob Command error: Trusted/Secure mode error" },
 	{ 0xF0, "IPsec TTL or hop limit field either came in as 0, or was decremented to 0" },
 	{ 0xF1, "3GPP HFN matches or exceeds the Threshold" },
+};
+
+static const struct {
+	u8 value;
+	const char *error_text;
+} qi_error_list[] = {
+	{ 0x1F, "Job terminated by FQ or ICID flush" },
+	{ 0x20, "FD format error"},
+	{ 0x21, "FD command format error"},
+	{ 0x23, "FL format error"},
+	{ 0x25, "CRJD specified in FD, but not enabled in FLC"},
+	{ 0x30, "Max. buffer size too small"},
+	{ 0x31, "DHR exceeds max. buffer size (allocate mode, S/G format)"},
+	{ 0x32, "SGT exceeds max. buffer size (allocate mode, S/G format"},
+	{ 0x33, "Size over/underflow (allocate mode)"},
+	{ 0x34, "Size over/underflow (reuse mode)"},
+	{ 0x35, "Length exceeds max. short length (allocate mode, S/G/ format)"},
+	{ 0x36, "Memory footprint exceeds max. value (allocate mode, S/G/ format)"},
+	{ 0x41, "SBC frame format not supported (allocate mode)"},
+	{ 0x42, "Pool 0 invalid / pool 1 size < pool 0 size (allocate mode)"},
+	{ 0x43, "Annotation output enabled but ASAR = 0 (allocate mode)"},
+	{ 0x44, "Unsupported or reserved frame format or SGHR = 1 (reuse mode)"},
+	{ 0x45, "DHR correction underflow (reuse mode, single buffer format)"},
+	{ 0x46, "Annotation length exceeds offset (reuse mode)"},
+	{ 0x48, "Annotation output enabled but ASA limited by ASAR (reuse mode)"},
+	{ 0x49, "Data offset correction exceeds input frame data length (reuse mode)"},
+	{ 0x4B, "Annotation output enabled but ASA cannote be expanded (frame list)"},
+	{ 0x51, "Unsupported IF reuse mode"},
+	{ 0x52, "Unsupported FL use mode"},
+	{ 0x53, "Unsupported RJD use mode"},
+	{ 0x54, "Unsupported inline descriptor use mode"},
+	{ 0xC0, "Table buffer pool 0 depletion"},
+	{ 0xC1, "Table buffer pool 1 depletion"},
+	{ 0xC2, "Data buffer pool 0 depletion, no OF allocated"},
+	{ 0xC3, "Data buffer pool 1 depletion, no OF allocated"},
+	{ 0xC4, "Data buffer pool 0 depletion, partial OF allocated"},
+	{ 0xC5, "Data buffer pool 1 depletion, partial OF allocated"},
+	{ 0xD0, "FLC read error"},
+	{ 0xD1, "FL read error"},
+	{ 0xD2, "FL write error"},
+	{ 0xD3, "OF SGT write error"},
+	{ 0xD4, "PTA read error"},
+	{ 0xD5, "PTA write error"},
+	{ 0xD6, "OF SGT F-bit write error"},
+	{ 0xD7, "ASA write error"},
+	{ 0xE1, "FLC[ICR]=0 ICID error"},
+	{ 0xE2, "FLC[ICR]=1 ICID error"},
+	{ 0xE4, "source of ICID flush not trusted (BDI = 0)"},
 };
 
 static const char * const cha_id_list[] = {
@@ -236,6 +290,27 @@ static void report_deco_status(struct device *jrdev, const u32 status,
 		status, error, idx_str, idx, err_str, err_err_code);
 }
 
+static void report_qi_status(struct device *qidev, const u32 status,
+			     const char *error)
+{
+	u8 err_id = status & JRSTA_QIERR_ERROR_MASK;
+	const char *err_str = "unidentified error value 0x";
+	char err_err_code[3] = { 0 };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(qi_error_list); i++)
+		if (qi_error_list[i].value == err_id)
+			break;
+
+	if (i != ARRAY_SIZE(qi_error_list) && qi_error_list[i].error_text)
+		err_str = qi_error_list[i].error_text;
+	else
+		snprintf(err_err_code, sizeof(err_err_code), "%02x", err_id);
+
+	dev_err(qidev, "%08x: %s: %s%s\n",
+		status, error, err_str, err_err_code);
+}
+
 static void report_jr_status(struct device *jrdev, const u32 status,
 			     const char *error)
 {
@@ -250,7 +325,7 @@ static void report_cond_code_status(struct device *jrdev, const u32 status,
 		status, error, __func__);
 }
 
-void caam_jr_strstatus(struct device *jrdev, u32 status)
+void caam_strstatus(struct device *jrdev, u32 status, bool qi_v2)
 {
 	static const struct stat_src {
 		void (*report_ssed)(struct device *jrdev, const u32 status,
@@ -262,7 +337,7 @@ void caam_jr_strstatus(struct device *jrdev, u32 status)
 		{ report_ccb_status, "CCB" },
 		{ report_jump_status, "Jump" },
 		{ report_deco_status, "DECO" },
-		{ NULL, "Queue Manager Interface" },
+		{ report_qi_status, "Queue Manager Interface" },
 		{ report_jr_status, "Job Ring" },
 		{ report_cond_code_status, "Condition Code" },
 		{ NULL, NULL },
@@ -288,4 +363,8 @@ void caam_jr_strstatus(struct device *jrdev, u32 status)
 	else
 		dev_err(jrdev, "%d: unknown error source\n", ssrc);
 }
-EXPORT_SYMBOL(caam_jr_strstatus);
+EXPORT_SYMBOL(caam_strstatus);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("FSL CAAM error reporting");
+MODULE_AUTHOR("Freescale Semiconductor");

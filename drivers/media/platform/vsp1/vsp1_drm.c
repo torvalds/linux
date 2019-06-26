@@ -333,19 +333,19 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 	 * on the BRx sink pad 0 and propagated inside the entity, not on the
 	 * source pad.
 	 */
-	format.pad = pipe->brx->source_pad;
+	format.pad = brx->source_pad;
 	format.format.width = drm_pipe->width;
 	format.format.height = drm_pipe->height;
 	format.format.field = V4L2_FIELD_NONE;
 
-	ret = v4l2_subdev_call(&pipe->brx->subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&brx->subdev, pad, set_fmt, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
 		__func__, format.format.width, format.format.height,
-		format.format.code, BRX_NAME(pipe->brx), pipe->brx->source_pad);
+		format.format.code, BRX_NAME(brx), brx->source_pad);
 
 	if (format.format.width != drm_pipe->width ||
 	    format.format.height != drm_pipe->height) {
@@ -670,9 +670,11 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 
 	drm_pipe->width = cfg->width;
 	drm_pipe->height = cfg->height;
+	pipe->interlaced = cfg->interlaced;
 
-	dev_dbg(vsp1->dev, "%s: configuring LIF%u with format %ux%u\n",
-		__func__, pipe_index, cfg->width, cfg->height);
+	dev_dbg(vsp1->dev, "%s: configuring LIF%u with format %ux%u%s\n",
+		__func__, pipe_index, cfg->width, cfg->height,
+		pipe->interlaced ? "i" : "");
 
 	mutex_lock(&vsp1->drm->lock);
 
@@ -728,9 +730,6 @@ EXPORT_SYMBOL_GPL(vsp1_du_setup_lif);
  */
 void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index)
 {
-	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
-
-	mutex_lock(&vsp1->drm->lock);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -771,6 +770,7 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_drm_pipeline *drm_pipe = &vsp1->drm->pipe[pipe_index];
 	const struct vsp1_format_info *fmtinfo;
+	unsigned int chroma_hsub;
 	struct vsp1_rwpf *rpf;
 
 	if (rpf_index >= vsp1->info->rpf_count)
@@ -806,15 +806,23 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 	 */
 	fmtinfo = vsp1_get_format_info(vsp1, cfg->pixelformat);
 	if (!fmtinfo) {
-		dev_dbg(vsp1->dev, "Unsupport pixel format %08x for RPF\n",
+		dev_dbg(vsp1->dev, "Unsupported pixel format %08x for RPF\n",
 			cfg->pixelformat);
 		return -EINVAL;
 	}
 
+	/*
+	 * Only formats with three planes can affect the chroma planes pitch.
+	 * All formats with two planes have a horizontal subsampling value of 2,
+	 * but combine U and V in a single chroma plane, which thus results in
+	 * the luma plane and chroma plane having the same pitch.
+	 */
+	chroma_hsub = (fmtinfo->planes == 3) ? fmtinfo->hsub : 1;
+
 	rpf->fmtinfo = fmtinfo;
 	rpf->format.num_planes = fmtinfo->planes;
 	rpf->format.plane_fmt[0].bytesperline = cfg->pitch;
-	rpf->format.plane_fmt[1].bytesperline = cfg->pitch;
+	rpf->format.plane_fmt[1].bytesperline = cfg->pitch / chroma_hsub;
 	rpf->alpha = cfg->alpha;
 
 	rpf->mem.addr[0] = cfg->mem[0];
@@ -846,6 +854,7 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
 
 	drm_pipe->crc = cfg->crc;
 
+	mutex_lock(&vsp1->drm->lock);
 	vsp1_du_pipeline_setup_inputs(vsp1, pipe);
 	vsp1_du_pipeline_configure(pipe);
 	mutex_unlock(&vsp1->drm->lock);

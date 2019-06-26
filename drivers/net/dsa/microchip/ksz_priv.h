@@ -1,19 +1,8 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * Microchip KSZ series switch common definitions
  *
- * Copyright (C) 2017
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * Copyright (C) 2017-2019 Microchip Technology Inc.
  */
 
 #ifndef __KSZ_PRIV_H
@@ -25,12 +14,33 @@
 #include <linux/etherdevice.h>
 #include <net/dsa.h>
 
-#include "ksz_9477_reg.h"
-
 struct ksz_io_ops;
 
 struct vlan_table {
 	u32 table[3];
+};
+
+struct ksz_port_mib {
+	struct mutex cnt_mutex;		/* structure access */
+	u8 cnt_ptr;
+	u64 *counters;
+};
+
+struct ksz_port {
+	u16 member;
+	u16 vid_member;
+	int stp_state;
+	struct phy_device phydev;
+
+	u32 on:1;			/* port is not disabled by hardware */
+	u32 phy:1;			/* port has a PHY */
+	u32 fiber:1;			/* port is fiber */
+	u32 sgmii:1;			/* port is SGMII */
+	u32 force:1;
+	u32 read:1;			/* read MIB counters in background */
+	u32 freeze:1;			/* MIB counter freeze is enabled */
+
+	struct ksz_port_mib mib;
 };
 
 struct ksz_device {
@@ -38,15 +48,19 @@ struct ksz_device {
 	struct ksz_platform_data *pdata;
 	const char *name;
 
+	struct mutex dev_mutex;		/* device access */
 	struct mutex reg_mutex;		/* register access */
 	struct mutex stats_mutex;	/* status access */
 	struct mutex alu_mutex;		/* ALU access */
 	struct mutex vlan_mutex;	/* vlan access */
 	const struct ksz_io_ops *ops;
+	const struct ksz_dev_ops *dev_ops;
 
 	struct device *dev;
 
 	void *priv;
+
+	struct gpio_desc *reset_gpio;	/* Optional reset GPIO */
 
 	/* chip specific data */
 	u32 chip_id;
@@ -55,11 +69,35 @@ struct ksz_device {
 	int num_statics;
 	int cpu_port;			/* port connected to CPU */
 	int cpu_ports;			/* port bitmap can be cpu port */
+	int phy_port_cnt;
 	int port_cnt;
+	int reg_mib_cnt;
+	int mib_cnt;
+	int mib_port_cnt;
+	int last_port;			/* ports after that not used */
+	phy_interface_t interface;
+	u32 regs_size;
 
 	struct vlan_table *vlan_cache;
 
-	u64 mib_value[TOTAL_SWITCH_COUNTER_NUM];
+	u8 *txbuf;
+
+	struct ksz_port *ports;
+	struct timer_list mib_read_timer;
+	struct work_struct mib_read;
+	unsigned long mib_read_interval;
+	u16 br_member;
+	u16 member;
+	u16 live_ports;
+	u16 on_ports;			/* ports enabled by DSA */
+	u16 rx_ports;
+	u16 tx_ports;
+	u16 mirror_rx;
+	u16 mirror_tx;
+	u32 features;			/* chip specific features */
+	u32 overrides;			/* chip functions set by user */
+	u16 host_mask;
+	u16 port_mask;
 };
 
 struct ksz_io_ops {
@@ -71,140 +109,64 @@ struct ksz_io_ops {
 	int (*write16)(struct ksz_device *dev, u32 reg, u16 value);
 	int (*write24)(struct ksz_device *dev, u32 reg, u32 value);
 	int (*write32)(struct ksz_device *dev, u32 reg, u32 value);
-	int (*phy_read16)(struct ksz_device *dev, int addr, int reg,
-			  u16 *value);
-	int (*phy_write16)(struct ksz_device *dev, int addr, int reg,
-			   u16 value);
+	int (*get)(struct ksz_device *dev, u32 reg, void *data, size_t len);
+	int (*set)(struct ksz_device *dev, u32 reg, void *data, size_t len);
+};
+
+struct alu_struct {
+	/* entry 1 */
+	u8	is_static:1;
+	u8	is_src_filter:1;
+	u8	is_dst_filter:1;
+	u8	prio_age:3;
+	u32	_reserv_0_1:23;
+	u8	mstp:3;
+	/* entry 2 */
+	u8	is_override:1;
+	u8	is_use_fid:1;
+	u32	_reserv_1_1:23;
+	u8	port_forward:7;
+	/* entry 3 & 4*/
+	u32	_reserv_2_1:9;
+	u8	fid:7;
+	u8	mac[ETH_ALEN];
+};
+
+struct ksz_dev_ops {
+	u32 (*get_port_addr)(int port, int offset);
+	void (*cfg_port_member)(struct ksz_device *dev, int port, u8 member);
+	void (*flush_dyn_mac_table)(struct ksz_device *dev, int port);
+	void (*phy_setup)(struct ksz_device *dev, int port,
+			  struct phy_device *phy);
+	void (*port_cleanup)(struct ksz_device *dev, int port);
+	void (*port_setup)(struct ksz_device *dev, int port, bool cpu_port);
+	void (*r_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
+	void (*w_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 val);
+	int (*r_dyn_mac_table)(struct ksz_device *dev, u16 addr, u8 *mac_addr,
+			       u8 *fid, u8 *src_port, u8 *timestamp,
+			       u16 *entries);
+	int (*r_sta_mac_table)(struct ksz_device *dev, u16 addr,
+			       struct alu_struct *alu);
+	void (*w_sta_mac_table)(struct ksz_device *dev, u16 addr,
+				struct alu_struct *alu);
+	void (*r_mib_cnt)(struct ksz_device *dev, int port, u16 addr,
+			  u64 *cnt);
+	void (*r_mib_pkt)(struct ksz_device *dev, int port, u16 addr,
+			  u64 *dropped, u64 *cnt);
+	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
+	void (*port_init_cnt)(struct ksz_device *dev, int port);
+	int (*shutdown)(struct ksz_device *dev);
+	int (*detect)(struct ksz_device *dev);
+	int (*init)(struct ksz_device *dev);
+	void (*exit)(struct ksz_device *dev);
 };
 
 struct ksz_device *ksz_switch_alloc(struct device *base,
 				    const struct ksz_io_ops *ops, void *priv);
-int ksz_switch_detect(struct ksz_device *dev);
-int ksz_switch_register(struct ksz_device *dev);
+int ksz_switch_register(struct ksz_device *dev,
+			const struct ksz_dev_ops *ops);
 void ksz_switch_remove(struct ksz_device *dev);
 
-static inline int ksz_read8(struct ksz_device *dev, u32 reg, u8 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read8(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_read16(struct ksz_device *dev, u32 reg, u16 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read16(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_read24(struct ksz_device *dev, u32 reg, u32 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read24(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_read32(struct ksz_device *dev, u32 reg, u32 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read32(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_write8(struct ksz_device *dev, u32 reg, u8 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write8(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_write16(struct ksz_device *dev, u32 reg, u16 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write16(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_write24(struct ksz_device *dev, u32 reg, u32 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write24(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_write32(struct ksz_device *dev, u32 reg, u32 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write32(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline void ksz_pread8(struct ksz_device *dev, int port, int offset,
-			      u8 *data)
-{
-	ksz_read8(dev, PORT_CTRL_ADDR(port, offset), data);
-}
-
-static inline void ksz_pread16(struct ksz_device *dev, int port, int offset,
-			       u16 *data)
-{
-	ksz_read16(dev, PORT_CTRL_ADDR(port, offset), data);
-}
-
-static inline void ksz_pread32(struct ksz_device *dev, int port, int offset,
-			       u32 *data)
-{
-	ksz_read32(dev, PORT_CTRL_ADDR(port, offset), data);
-}
-
-static inline void ksz_pwrite8(struct ksz_device *dev, int port, int offset,
-			       u8 data)
-{
-	ksz_write8(dev, PORT_CTRL_ADDR(port, offset), data);
-}
-
-static inline void ksz_pwrite16(struct ksz_device *dev, int port, int offset,
-				u16 data)
-{
-	ksz_write16(dev, PORT_CTRL_ADDR(port, offset), data);
-}
-
-static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
-				u32 data)
-{
-	ksz_write32(dev, PORT_CTRL_ADDR(port, offset), data);
-}
+int ksz9477_switch_register(struct ksz_device *dev);
 
 #endif

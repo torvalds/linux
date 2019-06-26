@@ -21,10 +21,12 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 /**
  * DOC: aux kms helpers
@@ -145,6 +147,21 @@ static struct drm_plane *create_primary_plane(struct drm_device *dev)
  *
  * Initialize a CRTC object with a default helper-provided primary plane and no
  * cursor plane.
+ *
+ * Note that we make some assumptions about hardware limitations that may not be
+ * true for all hardware:
+ *
+ * 1. Primary plane cannot be repositioned.
+ * 2. Primary plane cannot be scaled.
+ * 3. Primary plane must cover the entire CRTC.
+ * 4. Subpixel positioning is not supported.
+ * 5. The primary plane must always be on if the CRTC is enabled.
+ *
+ * This is purely a backwards compatibility helper for old drivers. Drivers
+ * should instead implement their own primary plane. Atomic drivers must do so.
+ * Drivers with the above hardware restriction can look into using &struct
+ * drm_simple_display_pipe, which encapsulates the above limitations into a nice
+ * interface.
  *
  * Returns:
  * Zero on success, error code on failure.

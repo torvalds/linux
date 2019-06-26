@@ -61,7 +61,7 @@ void hns_ppe_set_indir_table(struct hns_ppe_cb *ppe_cb,
 	}
 }
 
-static void __iomem *
+static u8 __iomem *
 hns_ppe_common_get_ioaddr(struct ppe_common_cb *ppe_common)
 {
 	return ppe_common->dsaf_dev->ppe_base + PPE_COMMON_REG_OFFSET;
@@ -73,7 +73,7 @@ hns_ppe_common_get_ioaddr(struct ppe_common_cb *ppe_common)
  * comm_index: common index
  * retuen 0 - success , negative --fail
  */
-int hns_ppe_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index)
+static int hns_ppe_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index)
 {
 	struct ppe_common_cb *ppe_common;
 	int ppe_num;
@@ -83,8 +83,9 @@ int hns_ppe_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index)
 	else
 		ppe_num = HNS_PPE_DEBUG_NW_ENGINE_NUM;
 
-	ppe_common = devm_kzalloc(dsaf_dev->dev, sizeof(*ppe_common) +
-		ppe_num * sizeof(struct hns_ppe_cb), GFP_KERNEL);
+	ppe_common = devm_kzalloc(dsaf_dev->dev,
+				  struct_size(ppe_common, ppe_cb, ppe_num),
+				  GFP_KERNEL);
 	if (!ppe_common)
 		return -ENOMEM;
 
@@ -104,13 +105,14 @@ int hns_ppe_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index)
 	return 0;
 }
 
-void hns_ppe_common_free_cfg(struct dsaf_device *dsaf_dev, u32 comm_index)
+static void
+hns_ppe_common_free_cfg(struct dsaf_device *dsaf_dev, u32 comm_index)
 {
 	dsaf_dev->ppe_common[comm_index] = NULL;
 }
 
-static void __iomem *hns_ppe_get_iobase(struct ppe_common_cb *ppe_common,
-					int ppe_idx)
+static u8 __iomem *hns_ppe_get_iobase(struct ppe_common_cb *ppe_common,
+				      int ppe_idx)
 {
 	return ppe_common->dsaf_dev->ppe_base + ppe_idx * PPE_REG_OFFSET;
 }
@@ -203,9 +205,9 @@ static int hns_ppe_common_init_hw(struct ppe_common_cb *ppe_common)
 	enum dsaf_mode dsaf_mode = dsaf_dev->dsaf_mode;
 
 	dsaf_dev->misc_op->ppe_comm_srst(dsaf_dev, 0);
-	mdelay(100);
+	msleep(100);
 	dsaf_dev->misc_op->ppe_comm_srst(dsaf_dev, 1);
-	mdelay(100);
+	msleep(100);
 
 	if (ppe_common->ppe_mode == PPE_COMMON_MODE_SERVICE) {
 		switch (dsaf_mode) {
@@ -274,6 +276,29 @@ static void hns_ppe_exc_irq_en(struct hns_ppe_cb *ppe_cb, int en)
 	dsaf_write_dev(ppe_cb, PPE_INTEN_REG, msk_vlue & vld_msk);
 }
 
+int hns_ppe_wait_tx_fifo_clean(struct hns_ppe_cb *ppe_cb)
+{
+	int wait_cnt;
+	u32 val;
+
+	wait_cnt = 0;
+	while (wait_cnt++ < HNS_MAX_WAIT_CNT) {
+		val = dsaf_read_dev(ppe_cb, PPE_CURR_TX_FIFO0_REG) & 0x3ffU;
+		if (!val)
+			break;
+
+		usleep_range(100, 200);
+	}
+
+	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
+		dev_err(ppe_cb->dev, "hns ppe tx fifo clean wait timeout, still has %u pkt.\n",
+			val);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 /**
  * ppe_init_hw - init ppe
  * @ppe_cb: ppe device
@@ -337,7 +362,7 @@ static void hns_ppe_uninit_hw(struct hns_ppe_cb *ppe_cb)
 	}
 }
 
-void hns_ppe_uninit_ex(struct ppe_common_cb *ppe_common)
+static void hns_ppe_uninit_ex(struct ppe_common_cb *ppe_common)
 {
 	u32 i;
 

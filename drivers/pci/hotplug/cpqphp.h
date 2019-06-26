@@ -260,7 +260,7 @@ struct slot {
 	u8 hp_slot;
 	struct controller *ctrl;
 	void __iomem *p_sm_slot;
-	struct hotplug_slot *hotplug_slot;
+	struct hotplug_slot hotplug_slot;
 };
 
 struct pci_resource {
@@ -445,7 +445,12 @@ extern u8 cpqhp_disk_irq;
 
 static inline const char *slot_name(struct slot *slot)
 {
-	return hotplug_slot_name(slot->hotplug_slot);
+	return hotplug_slot_name(&slot->hotplug_slot);
+}
+
+static inline struct slot *to_slot(struct hotplug_slot *hotplug_slot)
+{
+	return container_of(hotplug_slot, struct slot, hotplug_slot);
 }
 
 /*

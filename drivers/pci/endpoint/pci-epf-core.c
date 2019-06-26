@@ -131,11 +131,27 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar)
 	epf->bar[bar].phys_addr = phys_addr;
 	epf->bar[bar].size = size;
 	epf->bar[bar].barno = bar;
-	epf->bar[bar].flags = PCI_BASE_ADDRESS_SPACE_MEMORY;
+	epf->bar[bar].flags |= upper_32_bits(size) ?
+				PCI_BASE_ADDRESS_MEM_TYPE_64 :
+				PCI_BASE_ADDRESS_MEM_TYPE_32;
 
 	return space;
 }
 EXPORT_SYMBOL_GPL(pci_epf_alloc_space);
+
+static void pci_epf_remove_cfs(struct pci_epf_driver *driver)
+{
+	struct config_group *group, *tmp;
+
+	if (!IS_ENABLED(CONFIG_PCI_ENDPOINT_CONFIGFS))
+		return;
+
+	mutex_lock(&pci_epf_mutex);
+	list_for_each_entry_safe(group, tmp, &driver->epf_group, group_entry)
+		pci_ep_cfs_remove_epf_group(group);
+	list_del(&driver->epf_group);
+	mutex_unlock(&pci_epf_mutex);
+}
 
 /**
  * pci_epf_unregister_driver() - unregister the PCI EPF driver
@@ -145,16 +161,37 @@ EXPORT_SYMBOL_GPL(pci_epf_alloc_space);
  */
 void pci_epf_unregister_driver(struct pci_epf_driver *driver)
 {
-	struct config_group *group, *tmp;
-
-	mutex_lock(&pci_epf_mutex);
-	list_for_each_entry_safe(group, tmp, &driver->epf_group, group_entry)
-		pci_ep_cfs_remove_epf_group(group);
-	list_del(&driver->epf_group);
-	mutex_unlock(&pci_epf_mutex);
+	pci_epf_remove_cfs(driver);
 	driver_unregister(&driver->driver);
 }
 EXPORT_SYMBOL_GPL(pci_epf_unregister_driver);
+
+static int pci_epf_add_cfs(struct pci_epf_driver *driver)
+{
+	struct config_group *group;
+	const struct pci_epf_device_id *id;
+
+	if (!IS_ENABLED(CONFIG_PCI_ENDPOINT_CONFIGFS))
+		return 0;
+
+	INIT_LIST_HEAD(&driver->epf_group);
+
+	id = driver->id_table;
+	while (id->name[0]) {
+		group = pci_ep_cfs_add_epf_group(id->name);
+		if (IS_ERR(group)) {
+			pci_epf_remove_cfs(driver);
+			return PTR_ERR(group);
+		}
+
+		mutex_lock(&pci_epf_mutex);
+		list_add_tail(&group->group_entry, &driver->epf_group);
+		mutex_unlock(&pci_epf_mutex);
+		id++;
+	}
+
+	return 0;
+}
 
 /**
  * __pci_epf_register_driver() - register a new PCI EPF driver
@@ -167,8 +204,6 @@ int __pci_epf_register_driver(struct pci_epf_driver *driver,
 			      struct module *owner)
 {
 	int ret;
-	struct config_group *group;
-	const struct pci_epf_device_id *id;
 
 	if (!driver->ops)
 		return -EINVAL;
@@ -183,16 +218,7 @@ int __pci_epf_register_driver(struct pci_epf_driver *driver,
 	if (ret)
 		return ret;
 
-	INIT_LIST_HEAD(&driver->epf_group);
-
-	id = driver->id_table;
-	while (id->name[0]) {
-		group = pci_ep_cfs_add_epf_group(id->name);
-		mutex_lock(&pci_epf_mutex);
-		list_add_tail(&group->group_entry, &driver->epf_group);
-		mutex_unlock(&pci_epf_mutex);
-		id++;
-	}
+	pci_epf_add_cfs(driver);
 
 	return 0;
 }

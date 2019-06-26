@@ -429,12 +429,19 @@ static const char *cmd_status_names[] = {
 	"Scaling not supported"
 };
 
+#define MAX_ARG_LEN 32
+
 static bool psb_intel_sdvo_write_cmd(struct psb_intel_sdvo *psb_intel_sdvo, u8 cmd,
 				 const void *args, int args_len)
 {
-	u8 buf[args_len*2 + 2], status;
-	struct i2c_msg msgs[args_len + 3];
+	u8 buf[MAX_ARG_LEN*2 + 2], status;
+	struct i2c_msg msgs[MAX_ARG_LEN + 3];
 	int i, ret;
+
+	if (args_len > MAX_ARG_LEN) {
+		DRM_ERROR("Need to increase arg length\n");
+		return false;
+	}
 
 	psb_intel_sdvo_debug_write(psb_intel_sdvo, cmd, args, args_len);
 
@@ -1465,7 +1472,7 @@ static void psb_intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 		bool connector_is_digital = !!IS_TMDS(psb_intel_sdvo_connector);
 
 		if (connector_is_digital == monitor_is_digital) {
-			drm_mode_connector_update_edid_property(connector, edid);
+			drm_connector_update_edid_property(connector, edid);
 			drm_add_edid_modes(connector, edid);
 		}
 

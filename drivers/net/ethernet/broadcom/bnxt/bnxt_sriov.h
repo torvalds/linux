@@ -39,5 +39,5 @@ int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void bnxt_sriov_disable(struct bnxt *);
 void bnxt_hwrm_exec_fwd_req(struct bnxt *);
 void bnxt_update_vf_mac(struct bnxt *);
-int bnxt_approve_mac(struct bnxt *, u8 *);
+int bnxt_approve_mac(struct bnxt *, u8 *, bool);
 #endif

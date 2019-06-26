@@ -106,7 +106,7 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 			spin_lock_irqsave(&dev->sync_fib->event_lock, sflags);
 			if (dev->sync_fib->flags & FIB_CONTEXT_FLAG_WAIT) {
 				dev->management_fib_count--;
-				up(&dev->sync_fib->event_wait);
+				complete(&dev->sync_fib->event_wait);
 			}
 			spin_unlock_irqrestore(&dev->sync_fib->event_lock,
 						sflags);
@@ -409,7 +409,8 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 
 	init = dev->init;
 	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
-		init->r8.host_elapsed_seconds = cpu_to_le32(get_seconds());
+		init->r8.host_elapsed_seconds =
+			cpu_to_le32(ktime_get_real_seconds());
 		src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS,
 			lower_32_bits(dev->init_pa),
 			upper_32_bits(dev->init_pa),
@@ -417,7 +418,8 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 			(AAC_MAX_HRRQ - 1) * sizeof(struct _rrq),
 			0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 	} else {
-		init->r7.host_elapsed_seconds = cpu_to_le32(get_seconds());
+		init->r7.host_elapsed_seconds =
+			cpu_to_le32(ktime_get_real_seconds());
 		// We can only use a 32 bit address here
 		src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS,
 			(u32)(ulong)dev->init_pa, 0, 0, 0, 0, 0,
@@ -1155,7 +1157,7 @@ out:
 		dev_err(&dev->pdev->dev, "%s: %s status = %d", __func__,
 			state_str[state], rc);
 
-return rc;
+	return rc;
 }
 /**
  *  aac_srcv_init	-	initialize an SRCv card

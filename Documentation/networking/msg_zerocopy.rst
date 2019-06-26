@@ -7,7 +7,7 @@ Intro
 =====
 
 The MSG_ZEROCOPY flag enables copy avoidance for socket send calls.
-The feature is currently implemented for TCP sockets.
+The feature is currently implemented for TCP and UDP sockets.
 
 
 Opportunity and Caveats
@@ -50,7 +50,7 @@ the excellent reporting over at LWN.net or read the original code.
 
   patchset
     [PATCH net-next v4 0/9] socket sendmsg MSG_ZEROCOPY
-    http://lkml.kernel.org/r/20170803202945.70750-1-willemdebruijn.kernel@gmail.com
+    https://lkml.kernel.org/netdev/20170803202945.70750-1-willemdebruijn.kernel@gmail.com
 
 
 Interface

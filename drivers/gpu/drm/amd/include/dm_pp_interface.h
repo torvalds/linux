@@ -23,6 +23,8 @@
 #ifndef _DM_PP_INTERFACE_
 #define _DM_PP_INTERFACE_
 
+#include "dm_services_types.h"
+
 #define PP_MAX_CLOCK_LEVELS 16
 
 enum amd_pp_display_config_type{
@@ -187,41 +189,6 @@ struct pp_clock_levels_with_voltage {
 struct pp_display_clock_request {
 	enum amd_pp_clock_type clock_type;
 	uint32_t clock_freq_in_khz;
-};
-
-#define PP_MAX_WM_SETS 4
-
-enum pp_wm_set_id {
-	DC_WM_SET_A = 0,
-	DC_WM_SET_B,
-	DC_WM_SET_C,
-	DC_WM_SET_D,
-	DC_WM_SET_INVALID = 0xffff,
-};
-
-struct pp_wm_set_with_dmif_clock_range_soc15 {
-	enum pp_wm_set_id wm_set_id;
-	uint32_t wm_min_dcefclk_in_khz;
-	uint32_t wm_max_dcefclk_in_khz;
-	uint32_t wm_min_memclk_in_khz;
-	uint32_t wm_max_memclk_in_khz;
-};
-
-struct pp_wm_set_with_mcif_clock_range_soc15 {
-	enum pp_wm_set_id wm_set_id;
-	uint32_t wm_min_socclk_in_khz;
-	uint32_t wm_max_socclk_in_khz;
-	uint32_t wm_min_memclk_in_khz;
-	uint32_t wm_max_memclk_in_khz;
-};
-
-struct pp_wm_sets_with_clock_ranges_soc15 {
-	uint32_t num_wm_sets_dmif;
-	uint32_t num_wm_sets_mcif;
-	struct pp_wm_set_with_dmif_clock_range_soc15
-		wm_sets_dmif[PP_MAX_WM_SETS];
-	struct pp_wm_set_with_mcif_clock_range_soc15
-		wm_sets_mcif[PP_MAX_WM_SETS];
 };
 
 #endif /* _DM_PP_INTERFACE_ */

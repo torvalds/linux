@@ -71,7 +71,7 @@ extern struct ppc64_caches ppc64_caches;
 #else
 #define __read_mostly __attribute__((__section__(".data..read_mostly")))
 
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 extern long _get_L2CR(void);
 extern long _get_L3CR(void);
 extern void _set_L2CR(unsigned long);

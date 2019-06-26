@@ -26,4 +26,3 @@ struct ceph_auth_none_info {
 int ceph_auth_none_init(struct ceph_auth_client *ac);
 
 #endif
-

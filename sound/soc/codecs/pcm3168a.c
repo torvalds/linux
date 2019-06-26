@@ -33,6 +33,8 @@
 #define PCM3168A_FMT_RIGHT_J_16		0x3
 #define PCM3168A_FMT_DSP_A		0x4
 #define PCM3168A_FMT_DSP_B		0x5
+#define PCM3168A_FMT_I2S_TDM		0x6
+#define PCM3168A_FMT_LEFT_J_TDM		0x7
 #define PCM3168A_FMT_DSP_MASK		0x4
 
 #define PCM3168A_NUM_SUPPLIES 6
@@ -131,10 +133,6 @@ static const struct snd_kcontrol_new pcm3168a_snd_controls[] = {
 	SOC_DOUBLE("DAC2 Invert Switch", PCM3168A_DAC_INV, 2, 3, 1, 0),
 	SOC_DOUBLE("DAC3 Invert Switch", PCM3168A_DAC_INV, 4, 5, 1, 0),
 	SOC_DOUBLE("DAC4 Invert Switch", PCM3168A_DAC_INV, 6, 7, 1, 0),
-	SOC_DOUBLE_STS("DAC1 Zero Flag", PCM3168A_DAC_ZERO, 0, 1, 1, 0),
-	SOC_DOUBLE_STS("DAC2 Zero Flag", PCM3168A_DAC_ZERO, 2, 3, 1, 0),
-	SOC_DOUBLE_STS("DAC3 Zero Flag", PCM3168A_DAC_ZERO, 4, 5, 1, 0),
-	SOC_DOUBLE_STS("DAC4 Zero Flag", PCM3168A_DAC_ZERO, 6, 7, 1, 0),
 	SOC_ENUM("DAC Volume Control Type", pcm3168a_dac_volume_type),
 	SOC_ENUM("DAC Volume Rate Multiplier", pcm3168a_dac_att_mult),
 	SOC_ENUM("DAC De-Emphasis", pcm3168a_dac_demp),
@@ -174,9 +172,6 @@ static const struct snd_kcontrol_new pcm3168a_snd_controls[] = {
 	SOC_DOUBLE("ADC1 Mute Switch", PCM3168A_ADC_MUTE, 0, 1, 1, 0),
 	SOC_DOUBLE("ADC2 Mute Switch", PCM3168A_ADC_MUTE, 2, 3, 1, 0),
 	SOC_DOUBLE("ADC3 Mute Switch", PCM3168A_ADC_MUTE, 4, 5, 1, 0),
-	SOC_DOUBLE_STS("ADC1 Overflow Flag", PCM3168A_ADC_OV, 0, 1, 1, 0),
-	SOC_DOUBLE_STS("ADC2 Overflow Flag", PCM3168A_ADC_OV, 2, 3, 1, 0),
-	SOC_DOUBLE_STS("ADC3 Overflow Flag", PCM3168A_ADC_OV, 4, 5, 1, 0),
 	SOC_ENUM("ADC Volume Control Type", pcm3168a_adc_volume_type),
 	SOC_ENUM("ADC Volume Rate Multiplier", pcm3168a_adc_att_mult),
 	SOC_ENUM("ADC Overflow Flag Polarity", pcm3168a_adc_ov_pol),
@@ -401,9 +396,11 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	bool tx, master_mode;
 	u32 val, mask, shift, reg;
 	unsigned int rate, fmt, ratio, max_ratio;
+	unsigned int chan;
 	int i, min_frame_size;
 
 	rate = params_rate(params);
+	chan = params_channels(params);
 
 	ratio = pcm3168a->sysclk / rate;
 
@@ -456,6 +453,21 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	/* for TDM */
+	if (chan > 2) {
+		switch (fmt) {
+		case PCM3168A_FMT_I2S:
+			fmt = PCM3168A_FMT_I2S_TDM;
+			break;
+		case PCM3168A_FMT_LEFT_J:
+			fmt = PCM3168A_FMT_LEFT_J_TDM;
+			break;
+		default:
+			dev_err(component->dev, "TDM is supported under I2S/Left_J only\n");
+			return -EINVAL;
+		}
+	}
+
 	if (master_mode)
 		val = ((i + 1) << shift);
 	else
@@ -476,7 +488,64 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int pcm3168a_startup(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	unsigned int fmt;
+	unsigned int sample_min;
+	unsigned int channel_max;
+	unsigned int channel_maxs[] = {
+		6, /* rx */
+		8  /* tx */
+	};
+
+	if (tx)
+		fmt = pcm3168a->dac_fmt;
+	else
+		fmt = pcm3168a->adc_fmt;
+
+	/*
+	 * Available Data Bits
+	 *
+	 * RIGHT_J : 24 / 16
+	 * LEFT_J  : 24
+	 * I2S     : 24
+	 *
+	 * TDM available
+	 *
+	 * I2S
+	 * LEFT_J
+	 */
+	switch (fmt) {
+	case PCM3168A_FMT_RIGHT_J:
+		sample_min  = 16;
+		channel_max =  2;
+		break;
+	case PCM3168A_FMT_LEFT_J:
+	case PCM3168A_FMT_I2S:
+		sample_min  = 24;
+		channel_max = channel_maxs[tx];
+		break;
+	default:
+		sample_min  = 24;
+		channel_max =  2;
+	}
+
+	snd_pcm_hw_constraint_minmax(substream->runtime,
+				     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+				     sample_min, 32);
+
+	snd_pcm_hw_constraint_minmax(substream->runtime,
+				     SNDRV_PCM_HW_PARAM_CHANNELS,
+				     2, channel_max);
+
+	return 0;
+}
 static const struct snd_soc_dai_ops pcm3168a_dac_dai_ops = {
+	.startup	= pcm3168a_startup,
 	.set_fmt	= pcm3168a_set_dai_fmt_dac,
 	.set_sysclk	= pcm3168a_set_dai_sysclk,
 	.hw_params	= pcm3168a_hw_params,
@@ -484,6 +553,7 @@ static const struct snd_soc_dai_ops pcm3168a_dac_dai_ops = {
 };
 
 static const struct snd_soc_dai_ops pcm3168a_adc_dai_ops = {
+	.startup	= pcm3168a_startup,
 	.set_fmt	= pcm3168a_set_dai_fmt_adc,
 	.set_sysclk	= pcm3168a_set_dai_sysclk,
 	.hw_params	= pcm3168a_hw_params
@@ -688,14 +758,21 @@ err_clk:
 }
 EXPORT_SYMBOL_GPL(pcm3168a_probe);
 
-void pcm3168a_remove(struct device *dev)
+static void pcm3168a_disable(struct device *dev)
 {
 	struct pcm3168a_priv *pcm3168a = dev_get_drvdata(dev);
 
-	pm_runtime_disable(dev);
 	regulator_bulk_disable(ARRAY_SIZE(pcm3168a->supplies),
-				pcm3168a->supplies);
+			       pcm3168a->supplies);
 	clk_disable_unprepare(pcm3168a->scki);
+}
+
+void pcm3168a_remove(struct device *dev)
+{
+	pm_runtime_disable(dev);
+#ifndef CONFIG_PM
+	pcm3168a_disable(dev);
+#endif
 }
 EXPORT_SYMBOL_GPL(pcm3168a_remove);
 
@@ -751,10 +828,7 @@ static int pcm3168a_rt_suspend(struct device *dev)
 
 	regcache_cache_only(pcm3168a->regmap, true);
 
-	regulator_bulk_disable(ARRAY_SIZE(pcm3168a->supplies),
-			       pcm3168a->supplies);
-
-	clk_disable_unprepare(pcm3168a->scki);
+	pcm3168a_disable(dev);
 
 	return 0;
 }

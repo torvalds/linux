@@ -356,7 +356,7 @@ static int nuc900_ac97_drvprobe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	ret = snd_soc_register_component(&pdev->dev, &nuc900_ac97_component,
+	ret = devm_snd_soc_register_component(&pdev->dev, &nuc900_ac97_component,
 					 &nuc900_ac97_dai, 1);
 	if (ret)
 		goto out;
@@ -373,8 +373,6 @@ out:
 
 static int nuc900_ac97_drvremove(struct platform_device *pdev)
 {
-	snd_soc_unregister_component(&pdev->dev);
-
 	nuc900_ac97_data = NULL;
 	snd_soc_set_ac97_ops(NULL);
 

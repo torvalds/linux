@@ -37,7 +37,6 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 				  struct rdma_ah_attr *ah_attr)
 {
 	enum ib_gid_type gid_type;
-	int err;
 
 	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
 		const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
@@ -53,18 +52,12 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 	ah->av.stat_rate_sl = (rdma_ah_get_static_rate(ah_attr) << 4);
 
 	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
-		err = mlx5_get_roce_gid_type(dev, ah_attr->port_num,
-					     ah_attr->grh.sgid_index,
-					     &gid_type);
-		if (err)
-			return ERR_PTR(err);
+		gid_type = ah_attr->grh.sgid_attr->gid_type;
 
 		memcpy(ah->av.rmac, ah_attr->roce.dmac,
 		       sizeof(ah_attr->roce.dmac));
 		ah->av.udp_sport =
-		mlx5_get_roce_udp_sport(dev,
-					rdma_ah_get_port_num(ah_attr),
-					rdma_ah_read_grh(ah_attr)->sgid_index);
+			mlx5_get_roce_udp_sport(dev, ah_attr->grh.sgid_attr);
 		ah->av.stat_rate_sl |= (rdma_ah_get_sl(ah_attr) & 0x7) << 1;
 		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
 #define MLX5_ECN_ENABLED BIT(1)
@@ -79,7 +72,7 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 }
 
 struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata)
+				u32 flags, struct ib_udata *udata)
 
 {
 	struct mlx5_ib_ah *ah;
@@ -138,7 +131,7 @@ int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
-int mlx5_ib_destroy_ah(struct ib_ah *ah)
+int mlx5_ib_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	kfree(to_mah(ah));
 	return 0;

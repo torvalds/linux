@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -262,13 +263,19 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 		sec_in_line = l_mg->data_line->sec_in_line;
 		meta_weight = bitmap_weight(&l_mg->meta_bitmap,
 							PBLK_DATA_LINES);
-		map_weight = bitmap_weight(l_mg->data_line->map_bitmap,
+
+		spin_lock(&l_mg->data_line->lock);
+		if (l_mg->data_line->map_bitmap)
+			map_weight = bitmap_weight(l_mg->data_line->map_bitmap,
 							lm->sec_per_line);
+		else
+			map_weight = 0;
+		spin_unlock(&l_mg->data_line->lock);
 	}
 	spin_unlock(&l_mg->free_lock);
 
 	if (nr_free_lines != free_line_cnt)
-		pr_err("pblk: corrupted free line list:%d/%d\n",
+		pblk_err(pblk, "corrupted free line list:%d/%d\n",
 						nr_free_lines, free_line_cnt);
 
 	sz = snprintf(page, PAGE_SIZE - sz,
@@ -337,7 +344,6 @@ static ssize_t pblk_get_write_amp(u64 user, u64 gc, u64 pad,
 {
 	int sz;
 
-
 	sz = snprintf(page, PAGE_SIZE,
 			"user:%lld gc:%lld pad:%lld WA:",
 			user, gc, pad);
@@ -349,7 +355,7 @@ static ssize_t pblk_get_write_amp(u64 user, u64 gc, u64 pad,
 		u32 wa_frac;
 
 		wa_int = (user + gc + pad) * 100000;
-		wa_int = div_u64(wa_int, user);
+		wa_int = div64_u64(wa_int, user);
 		wa_int = div_u64_rem(wa_int, 100000, &wa_frac);
 
 		sz += snprintf(page + sz, PAGE_SIZE - sz, "%llu.%05u\n",
@@ -421,7 +427,7 @@ static ssize_t pblk_sysfs_get_padding_dist(struct pblk *pblk, char *page)
 	return sz;
 }
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 {
 	return snprintf(page, PAGE_SIZE,
@@ -472,6 +478,13 @@ static ssize_t pblk_sysfs_set_sec_per_write(struct pblk *pblk,
 
 	if (kstrtouint(page, 0, &sec_per_write))
 		return -EINVAL;
+
+	if (!pblk_is_oob_meta_supported(pblk)) {
+		/* For packed metadata case it is
+		 * not allowed to change sec_per_write.
+		 */
+		return -EINVAL;
+	}
 
 	if (sec_per_write < pblk->min_write_pgs
 				|| sec_per_write > pblk->max_write_pgs
@@ -598,7 +611,7 @@ static struct attribute sys_padding_dist = {
 	.mode = 0644,
 };
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 static struct attribute sys_stats_debug_attr = {
 	.name = "stats",
 	.mode = 0444,
@@ -619,7 +632,7 @@ static struct attribute *pblk_attrs[] = {
 	&sys_write_amp_mileage,
 	&sys_write_amp_trip,
 	&sys_padding_dist,
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	&sys_stats_debug_attr,
 #endif
 	NULL,
@@ -654,7 +667,7 @@ static ssize_t pblk_sysfs_show(struct kobject *kobj, struct attribute *attr,
 		return pblk_sysfs_get_write_amp_trip(pblk, buf);
 	else if (strcmp(attr->name, "padding_dist") == 0)
 		return pblk_sysfs_get_padding_dist(pblk, buf);
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	else if (strcmp(attr->name, "stats") == 0)
 		return pblk_sysfs_stats_debug(pblk, buf);
 #endif
@@ -697,8 +710,7 @@ int pblk_sysfs_init(struct gendisk *tdisk)
 					kobject_get(&parent_dev->kobj),
 					"%s", "pblk");
 	if (ret) {
-		pr_err("pblk: could not register %s/pblk\n",
-						tdisk->disk_name);
+		pblk_err(pblk, "could not register\n");
 		return ret;
 	}
 

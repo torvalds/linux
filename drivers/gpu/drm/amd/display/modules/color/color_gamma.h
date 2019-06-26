@@ -73,18 +73,28 @@ struct regamma_lut {
 	};
 };
 
+struct freesync_hdr_tf_params {
+	unsigned int sdr_white_level;
+	unsigned int min_content; // luminance in 1/10000 nits
+	unsigned int max_content; // luminance in nits
+	unsigned int min_display; // luminance in 1/10000 nits
+	unsigned int max_display; // luminance in nits
+};
+
 void setup_x_points_distribution(void);
 void precompute_pq(void);
 void precompute_de_pq(void);
 
 bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
-		const struct dc_gamma *ramp, bool mapUserRamp);
+		const struct dc_gamma *ramp, bool mapUserRamp, bool canRomBeUsed,
+		const struct freesync_hdr_tf_params *fs_params);
 
 bool mod_color_calculate_degamma_params(struct dc_transfer_func *output_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp);
 
 bool mod_color_calculate_curve(enum dc_transfer_func_predefined  trans,
-		struct dc_transfer_func_distributed_points *points);
+		struct dc_transfer_func_distributed_points *points,
+		uint32_t sdr_ref_white_level);
 
 bool mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 				struct dc_transfer_func_distributed_points *points);

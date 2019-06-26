@@ -45,10 +45,10 @@ struct rw_semaphore {
 };
 
 /*
- * Setting bit 0 of the owner field with other non-zero bits will indicate
+ * Setting bit 1 of the owner field but not bit 0 will indicate
  * that the rwsem is writer-owned with an unknown owner.
  */
-#define RWSEM_OWNER_UNKNOWN	((struct task_struct *)-1L)
+#define RWSEM_OWNER_UNKNOWN	((struct task_struct *)-2L)
 
 extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
 extern struct rw_semaphore *rwsem_down_read_failed_killable(struct rw_semaphore *sem);

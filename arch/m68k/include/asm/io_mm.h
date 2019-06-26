@@ -16,12 +16,10 @@
  *    isa_readX(),isa_writeX()  are for ISA memory
  */
 
-#ifndef _IO_H
-#define _IO_H
+#ifndef _M68K_IO_MM_H
+#define _M68K_IO_MM_H
 
 #ifdef __KERNEL__
-
-#define ARCH_HAS_IOREMAP_WT
 
 #include <linux/compiler.h>
 #include <asm/raw_io.h>
@@ -369,40 +367,6 @@ static inline void isa_delay(void)
 #define writew(val, addr)	out_le16((addr), (val))
 #endif /* CONFIG_ATARI_ROM_ISA */
 
-#if !defined(CONFIG_ISA) && !defined(CONFIG_ATARI_ROM_ISA)
-/*
- * We need to define dummy functions for GENERIC_IOMAP support.
- */
-#define inb(port)          0xff
-#define inb_p(port)        0xff
-#define outb(val,port)     ((void)0)
-#define outb_p(val,port)   ((void)0)
-#define inw(port)          0xffff
-#define inw_p(port)        0xffff
-#define outw(val,port)     ((void)0)
-#define outw_p(val,port)   ((void)0)
-#define inl(port)          0xffffffffUL
-#define inl_p(port)        0xffffffffUL
-#define outl(val,port)     ((void)0)
-#define outl_p(val,port)   ((void)0)
-
-#define insb(port,buf,nr)  ((void)0)
-#define outsb(port,buf,nr) ((void)0)
-#define insw(port,buf,nr)  ((void)0)
-#define outsw(port,buf,nr) ((void)0)
-#define insl(port,buf,nr)  ((void)0)
-#define outsl(port,buf,nr) ((void)0)
-
-/*
- * These should be valid on any ioremap()ed region
- */
-#define readb(addr)      in_8(addr)
-#define writeb(val,addr) out_8((addr),(val))
-#define readw(addr)      in_le16(addr)
-#define writew(val,addr) out_le16((addr),(val))
-
-#endif /* !CONFIG_ISA && !CONFIG_ATARI_ROM_ISA */
-
 #define readl(addr)      in_le32(addr)
 #define writel(val,addr) out_le32((addr),(val))
 
@@ -444,4 +408,4 @@ static inline void isa_delay(void)
 #define writew_relaxed(b, addr)	writew(b, addr)
 #define writel_relaxed(b, addr)	writel(b, addr)
 
-#endif /* _IO_H */
+#endif /* _M68K_IO_MM_H */

@@ -18,6 +18,7 @@
 #include <linux/quotaops.h>
 #include <linux/types.h>
 #include <linux/writeback.h>
+#include <linux/nospec.h>
 
 static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 				     qid_t id)
@@ -120,8 +121,6 @@ static int quota_getinfo(struct super_block *sb, int type, void __user *addr)
 	struct if_dqinfo uinfo;
 	int ret;
 
-	/* This checks whether qc_state has enough entries... */
-	BUILD_BUG_ON(MAXQUOTAS > XQM_MAXQUOTAS);
 	if (!sb->s_qcop->get_state)
 		return -ENOSYS;
 	ret = sb->s_qcop->get_state(sb, &state);
@@ -354,10 +353,10 @@ static int quota_getstate(struct super_block *sb, struct fs_quota_stat *fqs)
 	 * GETXSTATE quotactl has space for just one set of time limits so
 	 * report them for the first enabled quota type
 	 */
-	for (type = 0; type < XQM_MAXQUOTAS; type++)
+	for (type = 0; type < MAXQUOTAS; type++)
 		if (state.s_state[type].flags & QCI_ACCT_ENABLED)
 			break;
-	BUG_ON(type == XQM_MAXQUOTAS);
+	BUG_ON(type == MAXQUOTAS);
 	fqs->qs_btimelimit = state.s_state[type].spc_timelimit;
 	fqs->qs_itimelimit = state.s_state[type].ino_timelimit;
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
@@ -427,10 +426,10 @@ static int quota_getstatev(struct super_block *sb, struct fs_quota_statv *fqs)
 	 * GETXSTATV quotactl has space for just one set of time limits so
 	 * report them for the first enabled quota type
 	 */
-	for (type = 0; type < XQM_MAXQUOTAS; type++)
+	for (type = 0; type < MAXQUOTAS; type++)
 		if (state.s_state[type].flags & QCI_ACCT_ENABLED)
 			break;
-	BUG_ON(type == XQM_MAXQUOTAS);
+	BUG_ON(type == MAXQUOTAS);
 	fqs->qs_btimelimit = state.s_state[type].spc_timelimit;
 	fqs->qs_itimelimit = state.s_state[type].ino_timelimit;
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
@@ -701,8 +700,9 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 {
 	int ret;
 
-	if (type >= (XQM_COMMAND(cmd) ? XQM_MAXQUOTAS : MAXQUOTAS))
+	if (type >= MAXQUOTAS)
 		return -EINVAL;
+	type = array_index_nospec(type, MAXQUOTAS);
 	/*
 	 * Quota not supported on this fs? Check this before s_quota_types
 	 * since they needn't be set if quota is not supported at all.
@@ -791,7 +791,8 @@ static int quotactl_cmd_write(int cmd)
 /* Return true if quotactl command is manipulating quota on/off state */
 static bool quotactl_cmd_onoff(int cmd)
 {
-	return (cmd == Q_QUOTAON) || (cmd == Q_QUOTAOFF);
+	return (cmd == Q_QUOTAON) || (cmd == Q_QUOTAOFF) ||
+		 (cmd == Q_XQUOTAON) || (cmd == Q_XQUOTAOFF);
 }
 
 /*

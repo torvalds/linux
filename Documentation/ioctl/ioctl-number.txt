@@ -79,6 +79,7 @@ Code  Seq#(hex)	Include File		Comments
 0x1b	all	InfiniBand Subsystem	<http://infiniband.sourceforge.net/>
 0x20	all	drivers/cdrom/cm206.h
 0x22	all	scsi/sg.h
+'!'	00-1F	uapi/linux/seccomp.h
 '#'	00-3F	IEEE 1394 Subsystem	Block for the entire subsystem
 '$'	00-0F	linux/perf_counter.h, linux/perf_event.h
 '%'	00-0F	include/uapi/linux/stm.h
@@ -166,6 +167,7 @@ Code  Seq#(hex)	Include File		Comments
 'P'	all	linux/soundcard.h	conflict!
 'P'	60-6F	sound/sscape_ioctl.h	conflict!
 'P'	00-0F	drivers/usb/class/usblp.c	conflict!
+'P'	01-09	drivers/misc/pci_endpoint_test.c	conflict!
 'Q'	all	linux/soundcard.h
 'R'	00-1F	linux/random.h		conflict!
 'R'	01	linux/rfkill.h		conflict!
@@ -200,7 +202,7 @@ Code  Seq#(hex)	Include File		Comments
 'X'	01	linux/pktcdvd.h		conflict!
 'Y'	all	linux/cyclades.h
 'Z'	14-15	drivers/message/fusion/mptctl.h
-'['	00-07	linux/usb/tmc.h		USB Test and Measurement Devices
+'['	00-3F	linux/usb/tmc.h		USB Test and Measurement Devices
 					<mailto:gregkh@linuxfoundation.org>
 'a'	all	linux/atm*.h, linux/sonet.h	ATM on linux
 					<http://lrcwww.epfl.ch/>
@@ -271,9 +273,11 @@ Code  Seq#(hex)	Include File		Comments
 't'	90-91	linux/toshiba.h		toshiba and toshiba_acpi SMM
 'u'	00-1F	linux/smb_fs.h		gone
 'u'	20-3F	linux/uvcvideo.h	USB video class host driver
+'u'	40-4f	linux/udmabuf.h		userspace dma-buf misc device
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
 'v'	00-0F	linux/sonypi.h		conflict!
+'v'	00-0F	media/v4l2-subdev.h	conflict!
 'v'	C0-FF	linux/meye.h		conflict!
 'w'	all				CERN SCI driver
 'y'	00-1F				packet based user level communications
@@ -322,6 +326,7 @@ Code  Seq#(hex)	Include File		Comments
 0xB3	00	linux/mmc/ioctl.h
 0xB4	00-0F	linux/gpio.h		<mailto:linux-gpio@vger.kernel.org>
 0xB5	00-0F	uapi/linux/rpmsg.h	<mailto:linux-remoteproc@vger.kernel.org>
+0xB6	all	linux/fpga-dfl.h
 0xC0	00-0F	linux/usb/iowarrior.h
 0xCA	00-0F	uapi/misc/cxl.h
 0xCA	10-2F	uapi/misc/ocxl.h

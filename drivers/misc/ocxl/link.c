@@ -2,6 +2,7 @@
 // Copyright 2017 IBM Corp.
 #include <linux/sched/mm.h>
 #include <linux/mutex.h>
+#include <linux/mm_types.h>
 #include <linux/mmu_context.h>
 #include <asm/copro.h>
 #include <asm/pnv-ocxl.h>
@@ -126,7 +127,7 @@ static void ack_irq(struct spa *spa, enum xsl_response r)
 
 static void xsl_fault_handler_bh(struct work_struct *fault_work)
 {
-	unsigned int flt = 0;
+	vm_fault_t flt = 0;
 	unsigned long access, flags, inv_flags = 0;
 	enum xsl_response r;
 	struct xsl_fault *fault = container_of(fault_work, struct xsl_fault,
@@ -136,7 +137,7 @@ static void xsl_fault_handler_bh(struct work_struct *fault_work)
 	int rc;
 
 	/*
-	 * We need to release a reference on the mm whenever exiting this
+	 * We must release a reference on mm_users whenever exiting this
 	 * function (taken in the memory fault interrupt handler)
 	 */
 	rc = copro_handle_mm_fault(fault->pe_data.mm, fault->dar, fault->dsisr,
@@ -172,7 +173,7 @@ static void xsl_fault_handler_bh(struct work_struct *fault_work)
 	}
 	r = RESTART;
 ack:
-	mmdrop(fault->pe_data.mm);
+	mmput(fault->pe_data.mm);
 	ack_irq(spa, r);
 }
 
@@ -184,6 +185,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	struct pe_data *pe_data;
 	struct ocxl_process_element *pe;
 	int lpid, pid, tid;
+	bool schedule = false;
 
 	read_irq(spa, &dsisr, &dar, &pe_handle);
 	trace_ocxl_fault(spa->spa_mem, pe_handle, dsisr, dar, -1);
@@ -226,14 +228,19 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	}
 	WARN_ON(pe_data->mm->context.id != pid);
 
-	spa->xsl_fault.pe = pe_handle;
-	spa->xsl_fault.dar = dar;
-	spa->xsl_fault.dsisr = dsisr;
-	spa->xsl_fault.pe_data = *pe_data;
-	mmgrab(pe_data->mm); /* mm count is released by bottom half */
-
+	if (mmget_not_zero(pe_data->mm)) {
+			spa->xsl_fault.pe = pe_handle;
+			spa->xsl_fault.dar = dar;
+			spa->xsl_fault.dsisr = dsisr;
+			spa->xsl_fault.pe_data = *pe_data;
+			schedule = true;
+			/* mm_users count released by bottom half */
+	}
 	rcu_read_unlock();
-	schedule_work(&spa->xsl_fault.fault_work);
+	if (schedule)
+		schedule_work(&spa->xsl_fault.fault_work);
+	else
+		ack_irq(spa, ADDRESS_ERROR);
 	return IRQ_HANDLED;
 }
 
@@ -266,9 +273,9 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	spa->irq_name = kasprintf(GFP_KERNEL, "ocxl-xsl-%x-%x-%x",
 				link->domain, link->bus, link->dev);
 	if (!spa->irq_name) {
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev, "Can't allocate name for xsl interrupt\n");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto err_xsl;
 	}
 	/*
 	 * At some point, we'll need to look into allowing a higher
@@ -276,11 +283,10 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	 */
 	spa->virq = irq_create_mapping(NULL, hwirq);
 	if (!spa->virq) {
-		kfree(spa->irq_name);
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev,
 			"irq_create_mapping failed for translation interrupt\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_name;
 	}
 
 	dev_dbg(&dev->dev, "hwirq %d mapped to virq %d\n", hwirq, spa->virq);
@@ -288,15 +294,21 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	rc = request_irq(spa->virq, xsl_fault_handler, 0, spa->irq_name,
 			link);
 	if (rc) {
-		irq_dispose_mapping(spa->virq);
-		kfree(spa->irq_name);
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev,
 			"request_irq failed for translation interrupt: %d\n",
 			rc);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_mapping;
 	}
 	return 0;
+
+err_mapping:
+	irq_dispose_mapping(spa->virq);
+err_name:
+	kfree(spa->irq_name);
+err_xsl:
+	unmap_irq_registers(spa);
+	return rc;
 }
 
 static void release_xsl_irq(struct link *link)
@@ -559,7 +571,7 @@ int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 
 	mutex_lock(&spa->spa_lock);
 
-	pe->tid = tid;
+	pe->tid = cpu_to_be32(tid);
 
 	/*
 	 * The barrier makes sure the PE is updated

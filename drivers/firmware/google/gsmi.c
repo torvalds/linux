@@ -29,6 +29,7 @@
 #include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/ucs2_string.h>
+#include <linux/suspend.h>
 
 #define GSMI_SHUTDOWN_CLEAN	0	/* Clean Shutdown */
 /* TODO(mikew@google.com): Tie in HARDLOCKUP_DETECTOR with NMIWDT */
@@ -70,6 +71,8 @@
 #define GSMI_CMD_SET_NVRAM_VAR		0x03
 #define GSMI_CMD_SET_EVENT_LOG		0x08
 #define GSMI_CMD_CLEAR_EVENT_LOG	0x09
+#define GSMI_CMD_LOG_S0IX_SUSPEND	0x0a
+#define GSMI_CMD_LOG_S0IX_RESUME	0x0b
 #define GSMI_CMD_CLEAR_CONFIG		0x20
 #define GSMI_CMD_HANDSHAKE_TYPE		0xC1
 
@@ -84,7 +87,7 @@ struct gsmi_buf {
 	u32 address;			/* physical address of buffer */
 };
 
-struct gsmi_device {
+static struct gsmi_device {
 	struct platform_device *pdev;	/* platform device */
 	struct gsmi_buf *name_buf;	/* variable name buffer */
 	struct gsmi_buf *data_buf;	/* generic data buffer */
@@ -122,7 +125,6 @@ struct gsmi_log_entry_type_1 {
 	u32	instance;
 } __packed;
 
-
 /*
  * Some platforms don't have explicit SMI handshake
  * and need to wait for SMI to complete.
@@ -132,6 +134,15 @@ static unsigned int spincount = GSMI_DEFAULT_SPINCOUNT;
 module_param(spincount, uint, 0600);
 MODULE_PARM_DESC(spincount,
 	"The number of loop iterations to use when using the spin handshake.");
+
+/*
+ * Platforms might not support S0ix logging in their GSMI handlers. In order to
+ * avoid any side-effects of generating an SMI for S0ix logging, use the S0ix
+ * related GSMI commands only for those platforms that explicitly enable this
+ * option.
+ */
+static bool s0ix_logging_enable;
+module_param(s0ix_logging_enable, bool, 0600);
 
 static struct gsmi_buf *gsmi_buf_alloc(void)
 {
@@ -288,6 +299,10 @@ static int gsmi_exec(u8 func, u8 sub)
 
 	return rc;
 }
+
+#ifdef CONFIG_EFI_VARS
+
+static struct efivars efivars;
 
 static efi_status_t gsmi_get_variable(efi_char16_t *name,
 				      efi_guid_t *vendor, u32 *attr,
@@ -466,6 +481,8 @@ static const struct efivar_operations efivar_ops = {
 	.get_next_variable = gsmi_get_next_variable,
 };
 
+#endif /* CONFIG_EFI_VARS */
+
 static ssize_t eventlog_write(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t pos, size_t count)
@@ -480,11 +497,10 @@ static ssize_t eventlog_write(struct file *filp, struct kobject *kobj,
 	if (count < sizeof(u32))
 		return -EINVAL;
 	param.type = *(u32 *)buf;
-	count -= sizeof(u32);
 	buf += sizeof(u32);
 
 	/* The remaining buffer is the data payload */
-	if (count > gsmi_dev.data_buf->length)
+	if ((count - sizeof(u32)) > gsmi_dev.data_buf->length)
 		return -EINVAL;
 	param.data_len = count - sizeof(u32);
 
@@ -504,7 +520,7 @@ static ssize_t eventlog_write(struct file *filp, struct kobject *kobj,
 
 	spin_unlock_irqrestore(&gsmi_dev.lock, flags);
 
-	return rc;
+	return (rc == 0) ? count : rc;
 
 }
 
@@ -716,6 +732,12 @@ static const struct dmi_system_id gsmi_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Google, Inc."),
 		},
 	},
+	{
+		.ident = "Coreboot Firmware",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
+		},
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(dmi, gsmi_dmi_table);
@@ -762,7 +784,6 @@ static __init int gsmi_system_valid(void)
 }
 
 static struct kobject *gsmi_kobj;
-static struct efivars efivars;
 
 static const struct platform_device_info gsmi_dev_info = {
 	.name		= "gsmi",
@@ -770,6 +791,78 @@ static const struct platform_device_info gsmi_dev_info = {
 	/* SMI callbacks require 32bit addresses */
 	.dma_mask	= DMA_BIT_MASK(32),
 };
+
+#ifdef CONFIG_PM
+static void gsmi_log_s0ix_info(u8 cmd)
+{
+	unsigned long flags;
+
+	/*
+	 * If platform has not enabled S0ix logging, then no action is
+	 * necessary.
+	 */
+	if (!s0ix_logging_enable)
+		return;
+
+	spin_lock_irqsave(&gsmi_dev.lock, flags);
+
+	memset(gsmi_dev.param_buf->start, 0, gsmi_dev.param_buf->length);
+
+	gsmi_exec(GSMI_CALLBACK, cmd);
+
+	spin_unlock_irqrestore(&gsmi_dev.lock, flags);
+}
+
+static int gsmi_log_s0ix_suspend(struct device *dev)
+{
+	/*
+	 * If system is not suspending via firmware using the standard ACPI Sx
+	 * types, then make a GSMI call to log the suspend info.
+	 */
+	if (!pm_suspend_via_firmware())
+		gsmi_log_s0ix_info(GSMI_CMD_LOG_S0IX_SUSPEND);
+
+	/*
+	 * Always return success, since we do not want suspend
+	 * to fail just because of logging failure.
+	 */
+	return 0;
+}
+
+static int gsmi_log_s0ix_resume(struct device *dev)
+{
+	/*
+	 * If system did not resume via firmware, then make a GSMI call to log
+	 * the resume info and wake source.
+	 */
+	if (!pm_resume_via_firmware())
+		gsmi_log_s0ix_info(GSMI_CMD_LOG_S0IX_RESUME);
+
+	/*
+	 * Always return success, since we do not want resume
+	 * to fail just because of logging failure.
+	 */
+	return 0;
+}
+
+static const struct dev_pm_ops gsmi_pm_ops = {
+	.suspend_noirq = gsmi_log_s0ix_suspend,
+	.resume_noirq = gsmi_log_s0ix_resume,
+};
+
+static int gsmi_platform_driver_probe(struct platform_device *dev)
+{
+	return 0;
+}
+
+static struct platform_driver gsmi_driver_info = {
+	.driver = {
+		.name = "gsmi",
+		.pm = &gsmi_pm_ops,
+	},
+	.probe = gsmi_platform_driver_probe,
+};
+#endif
 
 static __init int gsmi_init(void)
 {
@@ -781,6 +874,14 @@ static __init int gsmi_init(void)
 		return ret;
 
 	gsmi_dev.smi_cmd = acpi_gbl_FADT.smi_command;
+
+#ifdef CONFIG_PM
+	ret = platform_driver_register(&gsmi_driver_info);
+	if (unlikely(ret)) {
+		printk(KERN_ERR "gsmi: unable to register platform driver\n");
+		return ret;
+	}
+#endif
 
 	/* register device */
 	gsmi_dev.pdev = platform_device_register_full(&gsmi_dev_info);
@@ -886,11 +987,14 @@ static __init int gsmi_init(void)
 		goto out_remove_bin_file;
 	}
 
+#ifdef CONFIG_EFI_VARS
 	ret = efivars_register(&efivars, &efivar_ops, gsmi_kobj);
 	if (ret) {
 		printk(KERN_INFO "gsmi: Failed to register efivars\n");
-		goto out_remove_sysfs_files;
+		sysfs_remove_files(gsmi_kobj, gsmi_attrs);
+		goto out_remove_bin_file;
 	}
+#endif
 
 	register_reboot_notifier(&gsmi_reboot_notifier);
 	register_die_notifier(&gsmi_die_notifier);
@@ -901,8 +1005,6 @@ static __init int gsmi_init(void)
 
 	return 0;
 
-out_remove_sysfs_files:
-	sysfs_remove_files(gsmi_kobj, gsmi_attrs);
 out_remove_bin_file:
 	sysfs_remove_bin_file(gsmi_kobj, &eventlog_bin_attr);
 out_err:
@@ -922,7 +1024,9 @@ static void __exit gsmi_exit(void)
 	unregister_die_notifier(&gsmi_die_notifier);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &gsmi_panic_notifier);
+#ifdef CONFIG_EFI_VARS
 	efivars_unregister(&efivars);
+#endif
 
 	sysfs_remove_files(gsmi_kobj, gsmi_attrs);
 	sysfs_remove_bin_file(gsmi_kobj, &eventlog_bin_attr);

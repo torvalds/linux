@@ -56,7 +56,7 @@ static uint64_t vce_v2_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		return RREG32(mmVCE_RB_RPTR);
 	else
 		return RREG32(mmVCE_RB_RPTR2);
@@ -73,7 +73,7 @@ static uint64_t vce_v2_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		return RREG32(mmVCE_RB_WPTR);
 	else
 		return RREG32(mmVCE_RB_WPTR2);
@@ -90,7 +90,7 @@ static void vce_v2_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
 	else
 		WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
@@ -417,7 +417,7 @@ static int vce_v2_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* VCE */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 167, &adev->vce.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 167, &adev->vce.irq);
 	if (r)
 		return r;
 
@@ -438,6 +438,8 @@ static int vce_v2_0_sw_init(void *handle)
 		if (r)
 			return r;
 	}
+
+	r = amdgpu_vce_entity_init(adev);
 
 	return r;
 }
@@ -461,15 +463,11 @@ static int vce_v2_0_hw_init(void *handle)
 
 	amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
 	vce_v2_0_enable_mgcg(adev, true, false);
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].ready = false;
 
 	for (i = 0; i < adev->vce.num_rings; i++) {
-		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
+		r = amdgpu_ring_test_helper(&adev->vce.ring[i]);
 		if (r)
 			return r;
-		else
-			adev->vce.ring[i].ready = true;
 	}
 
 	DRM_INFO("VCE initialized successfully.\n");
@@ -627,8 +625,10 @@ static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->vce.num_rings; i++)
+	for (i = 0; i < adev->vce.num_rings; i++) {
 		adev->vce.ring[i].funcs = &vce_v2_0_ring_funcs;
+		adev->vce.ring[i].me = i;
+	}
 }
 
 static const struct amdgpu_irq_src_funcs vce_v2_0_irq_funcs = {

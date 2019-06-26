@@ -7,6 +7,7 @@ include $(src)/nvkm/subdev/fault/Kbuild
 include $(src)/nvkm/subdev/fb/Kbuild
 include $(src)/nvkm/subdev/fuse/Kbuild
 include $(src)/nvkm/subdev/gpio/Kbuild
+include $(src)/nvkm/subdev/gsp/Kbuild
 include $(src)/nvkm/subdev/i2c/Kbuild
 include $(src)/nvkm/subdev/ibus/Kbuild
 include $(src)/nvkm/subdev/iccsense/Kbuild

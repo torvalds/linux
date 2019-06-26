@@ -30,10 +30,9 @@
 #include <linux/list.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
 
 /* Defaulting to pixel clock defined on AM335x */
 #define TILCDC_DEFAULT_MAX_PIXELCLOCK  126000
@@ -69,9 +68,6 @@ struct tilcdc_drm_private {
 	/* Supported pixel formats */
 	const uint32_t *pixelformats;
 	uint32_t num_pixelformats;
-
-	/* The context for pm susped/resume cycle is stored here */
-	struct drm_atomic_state *saved_state;
 
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block freq_transition;

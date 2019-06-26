@@ -59,6 +59,7 @@ static int mt8173_rt5650_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	unsigned int mclk_clock;
+	struct snd_soc_dai *codec_dai;
 	int i, ret;
 
 	switch (mt8173_rt5650_priv.pll_from) {
@@ -76,9 +77,7 @@ static int mt8173_rt5650_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	for (i = 0; i < rtd->num_codecs; i++) {
-		struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
-
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
 		/* pll from mclk */
 		ret = snd_soc_dai_set_pll(codec_dai, 0, 0, mclk_clock,
 					  params_rate(params) * 512);
@@ -240,6 +239,7 @@ static int mt8173_rt5650_dev_probe(struct platform_device *pdev)
 	struct device_node *platform_node;
 	struct device_node *np;
 	const char *codec_capture_dai;
+	struct snd_soc_dai_link *dai_link;
 	int i, ret;
 
 	platform_node = of_parse_phandle(pdev->dev.of_node,
@@ -249,10 +249,10 @@ static int mt8173_rt5650_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < card->num_links; i++) {
-		if (mt8173_rt5650_dais[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->platform_name)
 			continue;
-		mt8173_rt5650_dais[i].platform_of_node = platform_node;
+		dai_link->platform_of_node = platform_node;
 	}
 
 	mt8173_rt5650_codecs[0].of_node =

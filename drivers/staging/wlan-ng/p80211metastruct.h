@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
-/* This file is GENERATED AUTOMATICALLY.  DO NOT EDIT OR MODIFY.
- * --------------------------------------------------------------------
+/* --------------------------------------------------------------------
  *
  * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
  * --------------------------------------------------------------------

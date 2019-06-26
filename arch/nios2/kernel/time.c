@@ -214,12 +214,12 @@ static int __init nios2_timer_get_base_and_freq(struct device_node *np,
 {
 	*base = of_iomap(np, 0);
 	if (!*base) {
-		pr_crit("Unable to map reg for %s\n", np->name);
+		pr_crit("Unable to map reg for %pOFn\n", np);
 		return -ENXIO;
 	}
 
 	if (of_property_read_u32(np, "clock-frequency", freq)) {
-		pr_crit("Unable to get %s clock frequency\n", np->name);
+		pr_crit("Unable to get %pOFn clock frequency\n", np);
 		return -EINVAL;
 	}
 

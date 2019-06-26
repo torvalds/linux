@@ -78,11 +78,12 @@ static int run_smbios_call(struct wmi_device *wdev)
 	dev_dbg(&wdev->dev, "result: [%08x,%08x,%08x,%08x]\n",
 		priv->buf->std.output[0], priv->buf->std.output[1],
 		priv->buf->std.output[2], priv->buf->std.output[3]);
+	kfree(output.pointer);
 
 	return 0;
 }
 
-int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
+static int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
 {
 	struct wmi_smbios_priv *priv;
 	size_t difference;
@@ -276,4 +277,4 @@ void exit_dell_smbios_wmi(void)
 	wmi_driver_unregister(&dell_smbios_wmi_driver);
 }
 
-MODULE_ALIAS("wmi:" DELL_WMI_SMBIOS_GUID);
+MODULE_DEVICE_TABLE(wmi, dell_smbios_wmi_id_table);

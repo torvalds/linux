@@ -173,7 +173,7 @@ static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 	u32 sample_period;
 	unsigned long *ldata;
 	unsigned int next_one, next_zero, size;
-	DEFINE_IR_RAW_EVENT(ev);
+	struct ir_raw_event ev = {};
 
 	if (length == 0)
 		return;
@@ -515,7 +515,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	/* and set the carrier values for reception */
 	ite_set_carrier_params(dev);
 
-	/* reenable the receiver */
+	/* re-enable the receiver */
 	if (dev->in_use)
 		dev->params.enable_rx(dev);
 
@@ -1506,9 +1506,6 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	/* initialize spinlocks */
 	spin_lock_init(&itdev->lock);
-
-	/* initialize raw event */
-	init_ir_raw_event(&itdev->rawir);
 
 	/* set driver data into the pnp device */
 	pnp_set_drvdata(pdev, itdev);

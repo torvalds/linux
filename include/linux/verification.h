@@ -13,6 +13,13 @@
 #define _LINUX_VERIFICATION_H
 
 /*
+ * Indicate that both builtin trusted keys and secondary trusted keys
+ * should be used.
+ */
+#define VERIFY_USE_SECONDARY_KEYRING ((struct key *)1UL)
+#define VERIFY_USE_PLATFORM_KEYRING  ((struct key *)2UL)
+
+/*
  * The use to which an asymmetric key is being put.
  */
 enum key_being_used_for {

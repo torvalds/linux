@@ -288,99 +288,93 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 	int result = 0;
 
 	switch (msg->msgcode) {
-	case DIDmsg_dot11req_mibget:
+	case DIDMSG_DOT11REQ_MIBGET:
 		pr_debug("Received mibget request\n");
 		result = prism2mgmt_mibset_mibget(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_mibset:
+	case DIDMSG_DOT11REQ_MIBSET:
 		pr_debug("Received mibset request\n");
 		result = prism2mgmt_mibset_mibget(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_scan:
+	case DIDMSG_DOT11REQ_SCAN:
 		pr_debug("Received scan request\n");
 		result = prism2mgmt_scan(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_scan_results:
+	case DIDMSG_DOT11REQ_SCAN_RESULTS:
 		pr_debug("Received scan_results request\n");
 		result = prism2mgmt_scan_results(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_start:
+	case DIDMSG_DOT11REQ_START:
 		pr_debug("Received mlme start request\n");
 		result = prism2mgmt_start(wlandev, msg);
 		break;
 		/*
 		 * Prism2 specific messages
 		 */
-	case DIDmsg_p2req_readpda:
+	case DIDMSG_P2REQ_READPDA:
 		pr_debug("Received mlme readpda request\n");
 		result = prism2mgmt_readpda(wlandev, msg);
 		break;
-	case DIDmsg_p2req_ramdl_state:
+	case DIDMSG_P2REQ_RAMDL_STATE:
 		pr_debug("Received mlme ramdl_state request\n");
 		result = prism2mgmt_ramdl_state(wlandev, msg);
 		break;
-	case DIDmsg_p2req_ramdl_write:
+	case DIDMSG_P2REQ_RAMDL_WRITE:
 		pr_debug("Received mlme ramdl_write request\n");
 		result = prism2mgmt_ramdl_write(wlandev, msg);
 		break;
-	case DIDmsg_p2req_flashdl_state:
+	case DIDMSG_P2REQ_FLASHDL_STATE:
 		pr_debug("Received mlme flashdl_state request\n");
 		result = prism2mgmt_flashdl_state(wlandev, msg);
 		break;
-	case DIDmsg_p2req_flashdl_write:
+	case DIDMSG_P2REQ_FLASHDL_WRITE:
 		pr_debug("Received mlme flashdl_write request\n");
 		result = prism2mgmt_flashdl_write(wlandev, msg);
 		break;
 		/*
 		 * Linux specific messages
 		 */
-	case DIDmsg_lnxreq_hostwep:
+	case DIDMSG_LNXREQ_HOSTWEP:
 		break;		/* ignore me. */
-	case DIDmsg_lnxreq_ifstate:
-		{
-			struct p80211msg_lnxreq_ifstate *ifstatemsg;
+	case DIDMSG_LNXREQ_IFSTATE: {
+		struct p80211msg_lnxreq_ifstate *ifstatemsg;
 
-			pr_debug("Received mlme ifstate request\n");
-			ifstatemsg = (struct p80211msg_lnxreq_ifstate *)msg;
-			result =
-			    prism2sta_ifstate(wlandev,
-					      ifstatemsg->ifstate.data);
-			ifstatemsg->resultcode.status =
-			    P80211ENUM_msgitem_status_data_ok;
-			ifstatemsg->resultcode.data = result;
-			result = 0;
-		}
+		pr_debug("Received mlme ifstate request\n");
+		ifstatemsg = (struct p80211msg_lnxreq_ifstate *)msg;
+		result = prism2sta_ifstate(wlandev,
+					   ifstatemsg->ifstate.data);
+		ifstatemsg->resultcode.status =
+			P80211ENUM_msgitem_status_data_ok;
+		ifstatemsg->resultcode.data = result;
+		result = 0;
 		break;
-	case DIDmsg_lnxreq_wlansniff:
+	}
+	case DIDMSG_LNXREQ_WLANSNIFF:
 		pr_debug("Received mlme wlansniff request\n");
 		result = prism2mgmt_wlansniff(wlandev, msg);
 		break;
-	case DIDmsg_lnxreq_autojoin:
+	case DIDMSG_LNXREQ_AUTOJOIN:
 		pr_debug("Received mlme autojoin request\n");
 		result = prism2mgmt_autojoin(wlandev, msg);
 		break;
-	case DIDmsg_lnxreq_commsquality:{
-			struct p80211msg_lnxreq_commsquality *qualmsg;
+	case DIDMSG_LNXREQ_COMMSQUALITY: {
+		struct p80211msg_lnxreq_commsquality *qualmsg;
 
-			pr_debug("Received commsquality request\n");
+		pr_debug("Received commsquality request\n");
 
-			qualmsg = (struct p80211msg_lnxreq_commsquality *)msg;
+		qualmsg = (struct p80211msg_lnxreq_commsquality *)msg;
 
-			qualmsg->link.status =
-			    P80211ENUM_msgitem_status_data_ok;
-			qualmsg->level.status =
-			    P80211ENUM_msgitem_status_data_ok;
-			qualmsg->noise.status =
-			    P80211ENUM_msgitem_status_data_ok;
+		qualmsg->link.status = P80211ENUM_msgitem_status_data_ok;
+		qualmsg->level.status = P80211ENUM_msgitem_status_data_ok;
+		qualmsg->noise.status = P80211ENUM_msgitem_status_data_ok;
 
-			qualmsg->link.data = le16_to_cpu(hw->qual.cq_curr_bss);
-			qualmsg->level.data =
-				le16_to_cpu(hw->qual.asl_curr_bss);
-			qualmsg->noise.data = le16_to_cpu(hw->qual.anl_curr_fc);
-			qualmsg->txrate.data = hw->txrate;
+		qualmsg->link.data = le16_to_cpu(hw->qual.cq_curr_bss);
+		qualmsg->level.data = le16_to_cpu(hw->qual.asl_curr_bss);
+		qualmsg->noise.data = le16_to_cpu(hw->qual.anl_curr_fc);
+		qualmsg->txrate.data = hw->txrate;
 
-			break;
-		}
+		break;
+	}
 	default:
 		netdev_warn(wlandev->netdev,
 			    "Unknown mgmt request message 0x%08x",
@@ -1949,8 +1943,8 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	}
 
 	/* Get the signal rate */
-	msg.msgcode = DIDmsg_dot11req_mibget;
-	mibitem->did = DIDmib_p2_p2MAC_p2CurrentTxRate;
+	msg.msgcode = DIDMSG_DOT11REQ_MIBGET;
+	mibitem->did = DIDMIB_P2_MAC_CURRENTTXRATE;
 	result = p80211req_dorequest(wlandev, (u8 *)&msg);
 
 	if (result) {

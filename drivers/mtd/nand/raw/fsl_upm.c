@@ -52,9 +52,9 @@ static inline struct fsl_upm_nand *to_fsl_upm_nand(struct mtd_info *mtdinfo)
 			    chip);
 }
 
-static int fun_chip_ready(struct mtd_info *mtd)
+static int fun_chip_ready(struct nand_chip *chip)
 {
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 
 	if (gpio_get_value(fun->rnb_gpio[fun->mchip_number]))
 		return 1;
@@ -69,7 +69,7 @@ static void fun_wait_rnb(struct fsl_upm_nand *fun)
 		struct mtd_info *mtd = nand_to_mtd(&fun->chip);
 		int cnt = 1000000;
 
-		while (--cnt && !fun_chip_ready(mtd))
+		while (--cnt && !fun_chip_ready(&fun->chip))
 			cpu_relax();
 		if (!cnt)
 			dev_err(fun->dev, "tired waiting for RNB\n");
@@ -78,10 +78,9 @@ static void fun_wait_rnb(struct fsl_upm_nand *fun)
 	}
 }
 
-static void fun_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void fun_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 	u32 mar;
 
 	if (!(ctrl & fun->last_ctrl)) {
@@ -102,51 +101,50 @@ static void fun_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 
 	mar = (cmd << (32 - fun->upm.width)) |
 		fun->mchip_offsets[fun->mchip_number];
-	fsl_upm_run_pattern(&fun->upm, chip->IO_ADDR_R, mar);
+	fsl_upm_run_pattern(&fun->upm, chip->legacy.IO_ADDR_R, mar);
 
 	if (fun->wait_flags & FSL_UPM_WAIT_RUN_PATTERN)
 		fun_wait_rnb(fun);
 }
 
-static void fun_select_chip(struct mtd_info *mtd, int mchip_nr)
+static void fun_select_chip(struct nand_chip *chip, int mchip_nr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 
 	if (mchip_nr == -1) {
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
+		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
 	} else if (mchip_nr >= 0 && mchip_nr < NAND_MAX_CHIPS) {
 		fun->mchip_number = mchip_nr;
-		chip->IO_ADDR_R = fun->io_base + fun->mchip_offsets[mchip_nr];
-		chip->IO_ADDR_W = chip->IO_ADDR_R;
+		chip->legacy.IO_ADDR_R = fun->io_base + fun->mchip_offsets[mchip_nr];
+		chip->legacy.IO_ADDR_W = chip->legacy.IO_ADDR_R;
 	} else {
 		BUG();
 	}
 }
 
-static uint8_t fun_read_byte(struct mtd_info *mtd)
+static uint8_t fun_read_byte(struct nand_chip *chip)
 {
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 
-	return in_8(fun->chip.IO_ADDR_R);
+	return in_8(fun->chip.legacy.IO_ADDR_R);
 }
 
-static void fun_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void fun_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 	int i;
 
 	for (i = 0; i < len; i++)
-		buf[i] = in_8(fun->chip.IO_ADDR_R);
+		buf[i] = in_8(fun->chip.legacy.IO_ADDR_R);
 }
 
-static void fun_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void fun_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 	int i;
 
 	for (i = 0; i < len; i++) {
-		out_8(fun->chip.IO_ADDR_W, buf[i]);
+		out_8(fun->chip.legacy.IO_ADDR_W, buf[i]);
 		if (fun->wait_flags & FSL_UPM_WAIT_WRITE_BYTE)
 			fun_wait_rnb(fun);
 	}
@@ -162,20 +160,20 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	int ret;
 	struct device_node *flash_np;
 
-	fun->chip.IO_ADDR_R = fun->io_base;
-	fun->chip.IO_ADDR_W = fun->io_base;
-	fun->chip.cmd_ctrl = fun_cmd_ctrl;
-	fun->chip.chip_delay = fun->chip_delay;
-	fun->chip.read_byte = fun_read_byte;
-	fun->chip.read_buf = fun_read_buf;
-	fun->chip.write_buf = fun_write_buf;
+	fun->chip.legacy.IO_ADDR_R = fun->io_base;
+	fun->chip.legacy.IO_ADDR_W = fun->io_base;
+	fun->chip.legacy.cmd_ctrl = fun_cmd_ctrl;
+	fun->chip.legacy.chip_delay = fun->chip_delay;
+	fun->chip.legacy.read_byte = fun_read_byte;
+	fun->chip.legacy.read_buf = fun_read_buf;
+	fun->chip.legacy.write_buf = fun_write_buf;
 	fun->chip.ecc.mode = NAND_ECC_SOFT;
 	fun->chip.ecc.algo = NAND_ECC_HAMMING;
 	if (fun->mchip_count > 1)
-		fun->chip.select_chip = fun_select_chip;
+		fun->chip.legacy.select_chip = fun_select_chip;
 
 	if (fun->rnb_gpio[0] >= 0)
-		fun->chip.dev_ready = fun_chip_ready;
+		fun->chip.legacy.dev_ready = fun_chip_ready;
 
 	mtd->dev.parent = fun->dev;
 
@@ -184,14 +182,14 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 		return -ENODEV;
 
 	nand_set_flash_node(&fun->chip, flash_np);
-	mtd->name = kasprintf(GFP_KERNEL, "0x%llx.%s", (u64)io_res->start,
-			      flash_np->name);
+	mtd->name = kasprintf(GFP_KERNEL, "0x%llx.%pOFn", (u64)io_res->start,
+			      flash_np);
 	if (!mtd->name) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	ret = nand_scan(mtd, fun->mchip_count);
+	ret = nand_scan(&fun->chip, fun->mchip_count);
 	if (ret)
 		goto err;
 
@@ -326,7 +324,7 @@ static int fun_remove(struct platform_device *ofdev)
 	struct mtd_info *mtd = nand_to_mtd(&fun->chip);
 	int i;
 
-	nand_release(mtd);
+	nand_release(&fun->chip);
 	kfree(mtd->name);
 
 	for (i = 0; i < fun->mchip_count; i++) {

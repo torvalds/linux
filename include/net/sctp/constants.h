@@ -71,7 +71,7 @@ enum { SCTP_DEFAULT_INSTREAMS = SCTP_MAX_STREAM };
 					 SCTP_NUM_AUTH_CHUNK_TYPES)
 
 /* These are the different flavours of event.  */
-enum sctp_event {
+enum sctp_event_type {
 	SCTP_EVENT_T_CHUNK = 1,
 	SCTP_EVENT_T_TIMEOUT,
 	SCTP_EVENT_T_OTHER,
@@ -147,11 +147,6 @@ SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	enum sctp_event_primitive, primitive)
 
 #define sctp_chunk_is_data(a) (a->chunk_hdr->type == SCTP_CID_DATA || \
 			       a->chunk_hdr->type == SCTP_CID_I_DATA)
-
-/* Calculate the actual data size in a data chunk */
-#define SCTP_DATA_SNDSIZE(c) ((int)((unsigned long)(c->chunk_end) - \
-				    (unsigned long)(c->chunk_hdr) - \
-				    sctp_datachk_len(&c->asoc->stream)))
 
 /* Internal error codes */
 enum sctp_ierror {

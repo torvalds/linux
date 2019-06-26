@@ -10,7 +10,6 @@ Required properties:
 - compatible : Should be "ti,irq-crossbar"
 - reg: Base address and the size of the crossbar registers.
 - interrupt-controller: indicates that this block is an interrupt controller.
-- interrupt-parent: the interrupt controller this block is connected to.
 - ti,max-irqs: Total number of irqs available at the parent interrupt controller.
 - ti,max-crossbar-sources: Maximum number of crossbar sources that can be routed.
 - ti,reg-size: Size of a individual register in bytes. Every individual

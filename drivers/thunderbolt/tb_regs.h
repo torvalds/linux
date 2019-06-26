@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Thunderbolt Cactus Ridge driver - Port/Switch config area registers
+ * Thunderbolt driver - Port/Switch config area registers
  *
  * Every thunderbolt device consists (logically) of a switch with multiple
  * ports. Every port contains up to four config regions (HOPS, PORT, SWITCH,
  * COUNTERS) which are used to configure the device.
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #ifndef _TB_REGS
@@ -202,7 +203,7 @@ struct tb_regs_port_header {
 	/* DWORD 5 */
 	u32 max_in_hop_id:11;
 	u32 max_out_hop_id:11;
-	u32 __unkown4:10;
+	u32 __unknown4:10;
 	/* DWORD 6 */
 	u32 __unknown5;
 	/* DWORD 7 */

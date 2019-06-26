@@ -47,7 +47,7 @@ struct flow_dissector_key_tags {
 struct flow_dissector_key_vlan {
 	u16	vlan_id:12,
 		vlan_priority:3;
-	u16	padding;
+	__be16	vlan_tpid;
 };
 
 struct flow_dissector_key_mpls {
@@ -55,6 +55,21 @@ struct flow_dissector_key_mpls {
 		mpls_bos:1,
 		mpls_tc:3,
 		mpls_label:20;
+};
+
+#define FLOW_DIS_TUN_OPTS_MAX 255
+/**
+ * struct flow_dissector_key_enc_opts:
+ * @data: tunnel option data
+ * @len: length of tunnel option data
+ * @dst_opt_type: tunnel option type
+ */
+struct flow_dissector_key_enc_opts {
+	u8 data[FLOW_DIS_TUN_OPTS_MAX];	/* Using IP_TUNNEL_OPTS_MAX is desired
+					 * here but seems difficult to #include
+					 */
+	u8 len;
+	__be16 dst_opt_type;
 };
 
 struct flow_dissector_key_keyid {
@@ -194,8 +209,8 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_ETH_ADDRS, /* struct flow_dissector_key_eth_addrs */
 	FLOW_DISSECTOR_KEY_TIPC, /* struct flow_dissector_key_tipc */
 	FLOW_DISSECTOR_KEY_ARP, /* struct flow_dissector_key_arp */
-	FLOW_DISSECTOR_KEY_VLAN, /* struct flow_dissector_key_flow_vlan */
-	FLOW_DISSECTOR_KEY_FLOW_LABEL, /* struct flow_dissector_key_flow_tags */
+	FLOW_DISSECTOR_KEY_VLAN, /* struct flow_dissector_key_vlan */
+	FLOW_DISSECTOR_KEY_FLOW_LABEL, /* struct flow_dissector_key_tags */
 	FLOW_DISSECTOR_KEY_GRE_KEYID, /* struct flow_dissector_key_keyid */
 	FLOW_DISSECTOR_KEY_MPLS_ENTROPY, /* struct flow_dissector_key_keyid */
 	FLOW_DISSECTOR_KEY_ENC_KEYID, /* struct flow_dissector_key_keyid */
@@ -206,6 +221,9 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_MPLS, /* struct flow_dissector_key_mpls */
 	FLOW_DISSECTOR_KEY_TCP, /* struct flow_dissector_key_tcp */
 	FLOW_DISSECTOR_KEY_IP, /* struct flow_dissector_key_ip */
+	FLOW_DISSECTOR_KEY_CVLAN, /* struct flow_dissector_key_vlan */
+	FLOW_DISSECTOR_KEY_ENC_IP, /* struct flow_dissector_key_ip */
+	FLOW_DISSECTOR_KEY_ENC_OPTS, /* struct flow_dissector_key_enc_opts */
 
 	FLOW_DISSECTOR_KEY_MAX,
 };
@@ -237,6 +255,7 @@ struct flow_keys {
 	struct flow_dissector_key_basic basic;
 	struct flow_dissector_key_tags tags;
 	struct flow_dissector_key_vlan vlan;
+	struct flow_dissector_key_vlan cvlan;
 	struct flow_dissector_key_keyid keyid;
 	struct flow_dissector_key_ports ports;
 	struct flow_dissector_key_addrs addrs;

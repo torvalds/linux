@@ -39,8 +39,6 @@ __asm__(								\
 	".end\t__" #symbol "\n\t"					\
 	".size\t__" #symbol",. - __" #symbol)
 
-#define nabi_no_regargs
-
 #endif /* CONFIG_32BIT */
 
 #ifdef CONFIG_64BIT
@@ -66,16 +64,6 @@ __asm__(								\
 	"j\t" #symbol "\n\t"						\
 	".end\t__" #symbol "\n\t"					\
 	".size\t__" #symbol",. - __" #symbol)
-
-#define nabi_no_regargs							\
-	unsigned long __dummy0,						\
-	unsigned long __dummy1,						\
-	unsigned long __dummy2,						\
-	unsigned long __dummy3,						\
-	unsigned long __dummy4,						\
-	unsigned long __dummy5,						\
-	unsigned long __dummy6,						\
-	unsigned long __dummy7,
 
 #endif /* CONFIG_64BIT */
 

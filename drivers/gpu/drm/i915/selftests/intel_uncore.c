@@ -160,7 +160,7 @@ static int intel_uncore_check_forcewake_domains(struct drm_i915_private *dev_pri
 		i915_reg_t reg = { offset };
 
 		iosf_mbi_punit_acquire();
-		intel_uncore_forcewake_reset(dev_priv, false);
+		intel_uncore_forcewake_reset(dev_priv);
 		iosf_mbi_punit_release();
 
 		check_for_unclaimed_mmio(dev_priv);

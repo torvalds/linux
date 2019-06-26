@@ -875,13 +875,7 @@ static void proc_regs_read(struct snd_info_entry *entry,
 
 static int proc_init(struct snd_akm4xxx *ak)
 {
-	struct snd_info_entry *entry;
-	int err;
-	err = snd_card_proc_new(ak->card, ak->name, &entry);
-	if (err < 0)
-		return err;
-	snd_info_set_text_ops(entry, ak, proc_regs_read);
-	return 0;
+	return snd_card_ro_proc_new(ak->card, ak->name, ak, proc_regs_read);
 }
 
 int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
@@ -911,15 +905,3 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 	return 0;
 }
 EXPORT_SYMBOL(snd_akm4xxx_build_controls);
-
-static int __init alsa_akm4xxx_module_init(void)
-{
-	return 0;
-}
-        
-static void __exit alsa_akm4xxx_module_exit(void)
-{
-}
-        
-module_init(alsa_akm4xxx_module_init)
-module_exit(alsa_akm4xxx_module_exit)

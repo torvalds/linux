@@ -10,6 +10,7 @@
 #include <linux/serial_reg.h>
 
 #include <asm/addrspace.h>
+#include <asm/setup.h>
 
 #ifdef CONFIG_SOC_RT288X
 #define EARLY_UART_BASE		0x300c00
@@ -68,7 +69,7 @@ static void find_uart_base(void)
 	}
 }
 
-void prom_putchar(unsigned char ch)
+void prom_putchar(char ch)
 {
 	if (!init_complete) {
 		find_uart_base();
@@ -76,13 +77,13 @@ void prom_putchar(unsigned char ch)
 	}
 
 	if (IS_ENABLED(CONFIG_SOC_MT7621) || soc_is_mt7628()) {
-		uart_w32(ch, UART_TX);
+		uart_w32((unsigned char)ch, UART_TX);
 		while ((uart_r32(UART_REG_LSR) & UART_LSR_THRE) == 0)
 			;
 	} else {
 		while ((uart_r32(UART_REG_LSR_RT2880) & UART_LSR_THRE) == 0)
 			;
-		uart_w32(ch, UART_REG_TX);
+		uart_w32((unsigned char)ch, UART_REG_TX);
 		while ((uart_r32(UART_REG_LSR_RT2880) & UART_LSR_THRE) == 0)
 			;
 	}

@@ -22,6 +22,7 @@ available subsections can be seen below.
    device_connection
    dma-buf
    device_link
+   component
    message-based
    sound
    frame-buffer
@@ -29,9 +30,11 @@ available subsections can be seen below.
    iio/index
    input
    usb/index
-   pci
+   firewire
+   pci/index
    spi
    i2c
+   i3c/index
    hsi
    edac
    scsi

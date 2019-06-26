@@ -1,11 +1,8 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * linux/sound/soc-dpcm.h -- ALSA SoC Dynamic PCM Support
  *
  * Author:		Liam Girdwood <lrg@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_SND_SOC_DPCM_H
@@ -105,6 +102,16 @@ struct snd_soc_dpcm_runtime {
 
 	int trigger_pending; /* trigger cmd + 1 if pending, 0 if not */
 };
+
+#define for_each_dpcm_fe(be, stream, dpcm)				\
+	list_for_each_entry(dpcm, &(be)->dpcm[stream].fe_clients, list_fe)
+
+#define for_each_dpcm_be(fe, stream, dpcm)				\
+	list_for_each_entry(dpcm, &(fe)->dpcm[stream].be_clients, list_be)
+#define for_each_dpcm_be_safe(fe, stream, dpcm, _dpcm)			\
+	list_for_each_entry_safe(dpcm, _dpcm, &(fe)->dpcm[stream].be_clients, list_be)
+#define for_each_dpcm_be_rollback(fe, stream, dpcm)			\
+	list_for_each_entry_continue_reverse(dpcm, &(fe)->dpcm[stream].be_clients, list_be)
 
 /* can this BE stop and free */
 int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,

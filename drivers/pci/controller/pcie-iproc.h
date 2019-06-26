@@ -58,8 +58,13 @@ struct iproc_msi;
  * @phy: optional PHY device that controls the Serdes
  * @map_irq: function callback to map interrupts
  * @ep_is_internal: indicates an internal emulated endpoint device is connected
+ * @iproc_cfg_read: indicates the iProc config read function should be used
+ * @rej_unconfig_pf: indicates the root complex needs to detect and reject
+ * enumeration against unconfigured physical functions emulated in the ASIC
  * @has_apb_err_disable: indicates the controller can be configured to prevent
  * unsupported request from being forwarded as an APB bus error
+ * @fix_paxc_cap: indicates the controller has corrupted capability list in its
+ * config space registers and requires SW based fixup
  *
  * @need_ob_cfg: indicates SW needs to configure the outbound mapping window
  * @ob: outbound mapping related parameters
@@ -84,7 +89,10 @@ struct iproc_pcie {
 	struct phy *phy;
 	int (*map_irq)(const struct pci_dev *, u8, u8);
 	bool ep_is_internal;
+	bool iproc_cfg_read;
+	bool rej_unconfig_pf;
 	bool has_apb_err_disable;
+	bool fix_paxc_cap;
 
 	bool need_ob_cfg;
 	struct iproc_pcie_ob ob;

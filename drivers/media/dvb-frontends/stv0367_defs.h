@@ -1096,7 +1096,7 @@ static const struct st_register def0367dd_ofdm[] = {
 };
 
 static const struct st_register def0367dd_qam[] = {
-	{R367CAB_CTRL_1,                  0x06}, /* Orginal 0x04 */
+	{R367CAB_CTRL_1,                  0x06}, /* Original 0x04 */
 	{R367CAB_CTRL_2,                  0x03},
 	{R367CAB_IT_STATUS1,              0x2b},
 	{R367CAB_IT_STATUS2,              0x08},

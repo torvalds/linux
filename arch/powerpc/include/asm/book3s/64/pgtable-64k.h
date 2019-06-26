@@ -10,6 +10,9 @@
  *
  * Defined in such a way that we can optimize away code block at build time
  * if CONFIG_HUGETLB_PAGE=n.
+ *
+ * returns true for pmd migration entries, THP, devmap, hugetlb
+ * But compile time dependent on CONFIG_HUGETLB_PAGE
  */
 static inline int pmd_huge(pmd_t pmd)
 {

@@ -75,7 +75,8 @@ static int humidity_read_raw(struct iio_dev *indio_dev,
 				HID_USAGE_SENSOR_HUMIDITY,
 				HID_USAGE_SENSOR_ATMOSPHERIC_HUMIDITY,
 				humid_st->humidity_attr.report_id,
-				SENSOR_HUB_SYNC);
+				SENSOR_HUB_SYNC,
+				humid_st->humidity_attr.logical_minimum < 0);
 		hid_sensor_power_state(&humid_st->common_attributes, false);
 
 		return IIO_VAL_INT;

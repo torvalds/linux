@@ -65,7 +65,7 @@ int restore_fpu_state(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 	set_used_math();
 	clear_tsk_thread_flag(current, TIF_USEDFPU);
 
-	if (!access_ok(VERIFY_READ, fpu, sizeof(*fpu)))
+	if (!access_ok(fpu, sizeof(*fpu)))
 		return -EFAULT;
 
 	err = __copy_from_user(&current->thread.float_regs[0], &fpu->si_float_regs[0],

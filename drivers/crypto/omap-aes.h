@@ -101,7 +101,7 @@ struct omap_aes_ctx {
 	int		keylen;
 	u32		key[AES_KEYSIZE_256 / sizeof(u32)];
 	u8		nonce[4];
-	struct crypto_skcipher	*fallback;
+	struct crypto_sync_skcipher	*fallback;
 	struct crypto_skcipher	*ctr;
 };
 

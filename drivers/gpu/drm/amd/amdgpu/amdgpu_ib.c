@@ -32,8 +32,10 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "atom.h"
+#include "amdgpu_trace.h"
 
 #define AMDGPU_IB_TEST_TIMEOUT	msecs_to_jiffies(1000)
+#define AMDGPU_IB_TEST_GFX_XGMI_TIMEOUT	msecs_to_jiffies(2000)
 
 /*
  * IB
@@ -139,13 +141,13 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* ring tests don't use a job */
 	if (job) {
 		vm = job->vm;
-		fence_ctx = job->fence_ctx;
+		fence_ctx = job->base.s_fence->scheduled.context;
 	} else {
 		vm = NULL;
 		fence_ctx = 0;
 	}
 
-	if (!ring->ready) {
+	if (!ring->sched.ready) {
 		dev_err(adev->dev, "couldn't schedule ib on ring <%s>\n", ring->name);
 		return -EINVAL;
 	}
@@ -164,10 +166,16 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return r;
 	}
 
+	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (ring->funcs->emit_pipeline_sync && job &&
 	    ((tmp = amdgpu_sync_get_fence(&job->sched_sync, NULL)) ||
+	     (amdgpu_sriov_vf(adev) && need_ctx_switch) ||
 	     amdgpu_vm_need_pipeline_sync(ring, job))) {
 		need_pipe_sync = true;
+
+		if (tmp)
+			trace_amdgpu_ib_pipe_sync(job, tmp);
+
 		dma_fence_put(tmp);
 	}
 
@@ -195,13 +203,12 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			amdgpu_asic_flush_hdp(adev, ring);
 	}
 
-	skip_preamble = ring->current_ctx == fence_ctx;
-	need_ctx_switch = ring->current_ctx != fence_ctx;
-	if (job && ring->funcs->emit_cntxcntl) {
-		if (need_ctx_switch)
-			status |= AMDGPU_HAVE_CTX_SWITCH;
-		status |= job->preamble_status;
+	if (need_ctx_switch)
+		status |= AMDGPU_HAVE_CTX_SWITCH;
 
+	skip_preamble = ring->current_ctx == fence_ctx;
+	if (job && ring->funcs->emit_cntxcntl) {
+		status |= job->preamble_status;
 		amdgpu_ring_emit_cntxcntl(ring, status);
 	}
 
@@ -215,9 +222,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			!amdgpu_sriov_vf(adev)) /* for SRIOV preemption, Preamble CE ib must be inserted anyway */
 			continue;
 
-		amdgpu_ring_emit_ib(ring, ib, job ? job->vmid : 0,
-				    need_ctx_switch);
-		need_ctx_switch = false;
+		amdgpu_ring_emit_ib(ring, job, ib, status);
+		status &= ~AMDGPU_HAVE_CTX_SWITCH;
 	}
 
 	if (ring->funcs->emit_tmz)
@@ -339,13 +345,18 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		 * cost waiting for it coming back under RUNTIME only
 		*/
 		tmo_gfx = 8 * AMDGPU_IB_TEST_TIMEOUT;
+	} else if (adev->gmc.xgmi.hive_id) {
+		tmo_gfx = AMDGPU_IB_TEST_GFX_XGMI_TIMEOUT;
 	}
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+	for (i = 0; i < adev->num_rings; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 		long tmo;
 
-		if (!ring || !ring->ready)
+		/* KIQ rings don't have an IB test because we never submit IBs
+		 * to them and they have no interrupt support.
+		 */
+		if (!ring->sched.ready || !ring->funcs->test_ib)
 			continue;
 
 		/* MM engine need more time */
@@ -353,26 +364,30 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 			ring->funcs->type == AMDGPU_RING_TYPE_VCE ||
 			ring->funcs->type == AMDGPU_RING_TYPE_UVD_ENC ||
 			ring->funcs->type == AMDGPU_RING_TYPE_VCN_DEC ||
-			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			tmo = tmo_mm;
 		else
 			tmo = tmo_gfx;
 
 		r = amdgpu_ring_test_ib(ring, tmo);
-		if (r) {
-			ring->ready = false;
+		if (!r) {
+			DRM_DEV_DEBUG(adev->dev, "ib test on %s succeeded\n",
+				      ring->name);
+			continue;
+		}
 
-			if (ring == &adev->gfx.gfx_ring[0]) {
-				/* oh, oh, that's really bad */
-				DRM_ERROR("amdgpu: failed testing IB on GFX ring (%d).\n", r);
-				adev->accel_working = false;
-				return r;
+		ring->sched.ready = false;
+		DRM_DEV_ERROR(adev->dev, "IB test failed on %s (%d).\n",
+			  ring->name, r);
 
-			} else {
-				/* still not good, but we can live with it */
-				DRM_ERROR("amdgpu: failed testing IB on ring %d (%d).\n", i, r);
-				ret = r;
-			}
+		if (ring == &adev->gfx.gfx_ring[0]) {
+			/* oh, oh, that's really bad */
+			adev->accel_working = false;
+			return r;
+
+		} else {
+			ret = r;
 		}
 	}
 	return ret;

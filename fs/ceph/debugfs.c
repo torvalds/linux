@@ -139,23 +139,6 @@ static int caps_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int dentry_lru_show(struct seq_file *s, void *ptr)
-{
-	struct ceph_fs_client *fsc = s->private;
-	struct ceph_mds_client *mdsc = fsc->mdsc;
-	struct ceph_dentry_info *di;
-
-	spin_lock(&mdsc->dentry_lru_lock);
-	list_for_each_entry(di, &mdsc->dentry_lru, lru) {
-		struct dentry *dentry = di->dentry;
-		seq_printf(s, "%p %p\t%pd\n",
-			   di, dentry, dentry);
-	}
-	spin_unlock(&mdsc->dentry_lru_lock);
-
-	return 0;
-}
-
 static int mds_sessions_show(struct seq_file *s, void *ptr)
 {
 	struct ceph_fs_client *fsc = s->private;
@@ -195,7 +178,6 @@ static int mds_sessions_show(struct seq_file *s, void *ptr)
 CEPH_DEFINE_SHOW_FUNC(mdsmap_show)
 CEPH_DEFINE_SHOW_FUNC(mdsc_show)
 CEPH_DEFINE_SHOW_FUNC(caps_show)
-CEPH_DEFINE_SHOW_FUNC(dentry_lru_show)
 CEPH_DEFINE_SHOW_FUNC(mds_sessions_show)
 
 
@@ -231,7 +213,6 @@ void ceph_fs_debugfs_cleanup(struct ceph_fs_client *fsc)
 	debugfs_remove(fsc->debugfs_mds_sessions);
 	debugfs_remove(fsc->debugfs_caps);
 	debugfs_remove(fsc->debugfs_mdsc);
-	debugfs_remove(fsc->debugfs_dentry_lru);
 }
 
 int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
@@ -289,14 +270,6 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 						   fsc,
 						   &caps_show_fops);
 	if (!fsc->debugfs_caps)
-		goto out;
-
-	fsc->debugfs_dentry_lru = debugfs_create_file("dentry_lru",
-					0400,
-					fsc->client->debugfs_dir,
-					fsc,
-					&dentry_lru_show_fops);
-	if (!fsc->debugfs_dentry_lru)
 		goto out;
 
 	return 0;

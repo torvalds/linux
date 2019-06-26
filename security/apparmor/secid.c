@@ -32,8 +32,7 @@
  * secids - do not pin labels with a refcount. They rely on the label
  * properly updating/freeing them
  */
-
-#define AA_FIRST_SECID 1
+#define AA_FIRST_SECID 2
 
 static DEFINE_IDR(aa_secids);
 static DEFINE_SPINLOCK(secid_lock);
@@ -79,7 +78,6 @@ int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	struct aa_label *label = aa_secid_to_label(secid);
 	int len;
 
-	AA_BUG(!secdata);
 	AA_BUG(!seclen);
 
 	if (!label)

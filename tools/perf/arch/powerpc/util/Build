@@ -1,10 +1,11 @@
-libperf-y += header.o
-libperf-y += sym-handling.o
-libperf-y += kvm-stat.o
-libperf-y += perf_regs.o
+perf-y += header.o
+perf-y += sym-handling.o
+perf-y += kvm-stat.o
+perf-y += perf_regs.o
+perf-y += mem-events.o
 
-libperf-$(CONFIG_DWARF) += dwarf-regs.o
-libperf-$(CONFIG_DWARF) += skip-callchain-idx.o
+perf-$(CONFIG_DWARF) += dwarf-regs.o
+perf-$(CONFIG_DWARF) += skip-callchain-idx.o
 
-libperf-$(CONFIG_LIBUNWIND) += unwind-libunwind.o
-libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+perf-$(CONFIG_LIBUNWIND) += unwind-libunwind.o
+perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o

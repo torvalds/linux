@@ -169,100 +169,100 @@
 		interrupt-map-mask = <0xff00 0 0 7>;
 		interrupt-map = <
 			/* IDSEL 0x11 func 0 - PCI slot 1 */
-			0x8800 0 0 1 &mpic 2 1
-			0x8800 0 0 2 &mpic 3 1
-			0x8800 0 0 3 &mpic 4 1
-			0x8800 0 0 4 &mpic 1 1
+			0x8800 0 0 1 &mpic 2 1 0 0
+			0x8800 0 0 2 &mpic 3 1 0 0
+			0x8800 0 0 3 &mpic 4 1 0 0
+			0x8800 0 0 4 &mpic 1 1 0 0
 
 			/* IDSEL 0x11 func 1 - PCI slot 1 */
-			0x8900 0 0 1 &mpic 2 1
-			0x8900 0 0 2 &mpic 3 1
-			0x8900 0 0 3 &mpic 4 1
-			0x8900 0 0 4 &mpic 1 1
+			0x8900 0 0 1 &mpic 2 1 0 0
+			0x8900 0 0 2 &mpic 3 1 0 0
+			0x8900 0 0 3 &mpic 4 1 0 0
+			0x8900 0 0 4 &mpic 1 1 0 0
 
 			/* IDSEL 0x11 func 2 - PCI slot 1 */
-			0x8a00 0 0 1 &mpic 2 1
-			0x8a00 0 0 2 &mpic 3 1
-			0x8a00 0 0 3 &mpic 4 1
-			0x8a00 0 0 4 &mpic 1 1
+			0x8a00 0 0 1 &mpic 2 1 0 0
+			0x8a00 0 0 2 &mpic 3 1 0 0
+			0x8a00 0 0 3 &mpic 4 1 0 0
+			0x8a00 0 0 4 &mpic 1 1 0 0
 
 			/* IDSEL 0x11 func 3 - PCI slot 1 */
-			0x8b00 0 0 1 &mpic 2 1
-			0x8b00 0 0 2 &mpic 3 1
-			0x8b00 0 0 3 &mpic 4 1
-			0x8b00 0 0 4 &mpic 1 1
+			0x8b00 0 0 1 &mpic 2 1 0 0
+			0x8b00 0 0 2 &mpic 3 1 0 0
+			0x8b00 0 0 3 &mpic 4 1 0 0
+			0x8b00 0 0 4 &mpic 1 1 0 0
 
 			/* IDSEL 0x11 func 4 - PCI slot 1 */
-			0x8c00 0 0 1 &mpic 2 1
-			0x8c00 0 0 2 &mpic 3 1
-			0x8c00 0 0 3 &mpic 4 1
-			0x8c00 0 0 4 &mpic 1 1
+			0x8c00 0 0 1 &mpic 2 1 0 0
+			0x8c00 0 0 2 &mpic 3 1 0 0
+			0x8c00 0 0 3 &mpic 4 1 0 0
+			0x8c00 0 0 4 &mpic 1 1 0 0
 
 			/* IDSEL 0x11 func 5 - PCI slot 1 */
-			0x8d00 0 0 1 &mpic 2 1
-			0x8d00 0 0 2 &mpic 3 1
-			0x8d00 0 0 3 &mpic 4 1
-			0x8d00 0 0 4 &mpic 1 1
+			0x8d00 0 0 1 &mpic 2 1 0 0
+			0x8d00 0 0 2 &mpic 3 1 0 0
+			0x8d00 0 0 3 &mpic 4 1 0 0
+			0x8d00 0 0 4 &mpic 1 1 0 0
 
 			/* IDSEL 0x11 func 6 - PCI slot 1 */
-			0x8e00 0 0 1 &mpic 2 1
-			0x8e00 0 0 2 &mpic 3 1
-			0x8e00 0 0 3 &mpic 4 1
-			0x8e00 0 0 4 &mpic 1 1
+			0x8e00 0 0 1 &mpic 2 1 0 0
+			0x8e00 0 0 2 &mpic 3 1 0 0
+			0x8e00 0 0 3 &mpic 4 1 0 0
+			0x8e00 0 0 4 &mpic 1 1 0 0
 
 			/* IDSEL 0x11 func 7 - PCI slot 1 */
-			0x8f00 0 0 1 &mpic 2 1
-			0x8f00 0 0 2 &mpic 3 1
-			0x8f00 0 0 3 &mpic 4 1
-			0x8f00 0 0 4 &mpic 1 1
+			0x8f00 0 0 1 &mpic 2 1 0 0
+			0x8f00 0 0 2 &mpic 3 1 0 0
+			0x8f00 0 0 3 &mpic 4 1 0 0
+			0x8f00 0 0 4 &mpic 1 1 0 0
 
 			/* IDSEL 0x12 func 0 - PCI slot 2 */
-			0x9000 0 0 1 &mpic 3 1
-			0x9000 0 0 2 &mpic 4 1
-			0x9000 0 0 3 &mpic 1 1
-			0x9000 0 0 4 &mpic 2 1
+			0x9000 0 0 1 &mpic 3 1 0 0
+			0x9000 0 0 2 &mpic 4 1 0 0
+			0x9000 0 0 3 &mpic 1 1 0 0
+			0x9000 0 0 4 &mpic 2 1 0 0
 
 			/* IDSEL 0x12 func 1 - PCI slot 2 */
-			0x9100 0 0 1 &mpic 3 1
-			0x9100 0 0 2 &mpic 4 1
-			0x9100 0 0 3 &mpic 1 1
-			0x9100 0 0 4 &mpic 2 1
+			0x9100 0 0 1 &mpic 3 1 0 0
+			0x9100 0 0 2 &mpic 4 1 0 0
+			0x9100 0 0 3 &mpic 1 1 0 0
+			0x9100 0 0 4 &mpic 2 1 0 0
 
 			/* IDSEL 0x12 func 2 - PCI slot 2 */
-			0x9200 0 0 1 &mpic 3 1
-			0x9200 0 0 2 &mpic 4 1
-			0x9200 0 0 3 &mpic 1 1
-			0x9200 0 0 4 &mpic 2 1
+			0x9200 0 0 1 &mpic 3 1 0 0
+			0x9200 0 0 2 &mpic 4 1 0 0
+			0x9200 0 0 3 &mpic 1 1 0 0
+			0x9200 0 0 4 &mpic 2 1 0 0
 
 			/* IDSEL 0x12 func 3 - PCI slot 2 */
-			0x9300 0 0 1 &mpic 3 1
-			0x9300 0 0 2 &mpic 4 1
-			0x9300 0 0 3 &mpic 1 1
-			0x9300 0 0 4 &mpic 2 1
+			0x9300 0 0 1 &mpic 3 1 0 0
+			0x9300 0 0 2 &mpic 4 1 0 0
+			0x9300 0 0 3 &mpic 1 1 0 0
+			0x9300 0 0 4 &mpic 2 1 0 0
 
 			/* IDSEL 0x12 func 4 - PCI slot 2 */
-			0x9400 0 0 1 &mpic 3 1
-			0x9400 0 0 2 &mpic 4 1
-			0x9400 0 0 3 &mpic 1 1
-			0x9400 0 0 4 &mpic 2 1
+			0x9400 0 0 1 &mpic 3 1 0 0
+			0x9400 0 0 2 &mpic 4 1 0 0
+			0x9400 0 0 3 &mpic 1 1 0 0
+			0x9400 0 0 4 &mpic 2 1 0 0
 
 			/* IDSEL 0x12 func 5 - PCI slot 2 */
-			0x9500 0 0 1 &mpic 3 1
-			0x9500 0 0 2 &mpic 4 1
-			0x9500 0 0 3 &mpic 1 1
-			0x9500 0 0 4 &mpic 2 1
+			0x9500 0 0 1 &mpic 3 1 0 0
+			0x9500 0 0 2 &mpic 4 1 0 0
+			0x9500 0 0 3 &mpic 1 1 0 0
+			0x9500 0 0 4 &mpic 2 1 0 0
 
 			/* IDSEL 0x12 func 6 - PCI slot 2 */
-			0x9600 0 0 1 &mpic 3 1
-			0x9600 0 0 2 &mpic 4 1
-			0x9600 0 0 3 &mpic 1 1
-			0x9600 0 0 4 &mpic 2 1
+			0x9600 0 0 1 &mpic 3 1 0 0
+			0x9600 0 0 2 &mpic 4 1 0 0
+			0x9600 0 0 3 &mpic 1 1 0 0
+			0x9600 0 0 4 &mpic 2 1 0 0
 
 			/* IDSEL 0x12 func 7 - PCI slot 2 */
-			0x9700 0 0 1 &mpic 3 1
-			0x9700 0 0 2 &mpic 4 1
-			0x9700 0 0 3 &mpic 1 1
-			0x9700 0 0 4 &mpic 2 1
+			0x9700 0 0 1 &mpic 3 1 0 0
+			0x9700 0 0 2 &mpic 4 1 0 0
+			0x9700 0 0 3 &mpic 1 1 0 0
+			0x9700 0 0 4 &mpic 2 1 0 0
 
 			// IDSEL 0x1c  USB
 			0xe000 0 0 1 &i8259 12 2

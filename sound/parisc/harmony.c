@@ -669,14 +669,8 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 	}
 
 	/* pre-allocate space for DMA */
-	err = snd_pcm_lib_preallocate_pages_for_all(pcm, h->dma.type,
-						    h->dma.dev,
-						    MAX_BUF_SIZE, 
-						    MAX_BUF_SIZE);
-	if (err < 0) {
-		printk(KERN_ERR PFX "buffer allocation error: %d\n", err);
-		return err;
-	}
+	snd_pcm_lib_preallocate_pages_for_all(pcm, h->dma.type, h->dma.dev,
+					      MAX_BUF_SIZE, MAX_BUF_SIZE);
 
 	h->st.format = snd_harmony_set_data_format(h,
 		SNDRV_PCM_FORMAT_S16_BE, 1);

@@ -1199,8 +1199,6 @@ wlc_lcnphy_rx_iq_est(struct brcms_phy *pi,
 {
 	int wait_count = 0;
 	bool result = true;
-	u8 phybw40;
-	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 
 	mod_phy_reg(pi, 0x6da, (0x1 << 5), (1) << 5);
 
@@ -3082,7 +3080,7 @@ static void wlc_lcnphy_tx_pwr_ctrl_init(struct brcms_phy_pub *ppi)
 	u8 bbmult;
 	struct phytbl_info tab;
 	s32 a1, b0, b1;
-	s32 tssi, pwr, maxtargetpwr, mintargetpwr;
+	s32 tssi, pwr, mintargetpwr;
 	bool suspend;
 	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
 
@@ -3119,7 +3117,6 @@ static void wlc_lcnphy_tx_pwr_ctrl_init(struct brcms_phy_pub *ppi)
 		b0 = pi->txpa_2g[0];
 		b1 = pi->txpa_2g[1];
 		a1 = pi->txpa_2g[2];
-		maxtargetpwr = wlc_lcnphy_tssi2dbm(10, a1, b0, b1);
 		mintargetpwr = wlc_lcnphy_tssi2dbm(125, a1, b0, b1);
 
 		tab.tbl_id = LCNPHY_TBL_ID_TXPWRCTL;
@@ -3447,8 +3444,8 @@ wlc_lcnphy_start_tx_tone(struct brcms_phy *pi, s32 f_kHz, u16 max_val,
 
 		theta += rot;
 
-		i_samp = (u16) (FLOAT(tone_samp.i * max_val) & 0x3ff);
-		q_samp = (u16) (FLOAT(tone_samp.q * max_val) & 0x3ff);
+		i_samp = (u16)(CORDIC_FLOAT(tone_samp.i * max_val) & 0x3ff);
+		q_samp = (u16)(CORDIC_FLOAT(tone_samp.q * max_val) & 0x3ff);
 		data_buf[t] = (i_samp << 10) | q_samp;
 	}
 
@@ -4212,7 +4209,7 @@ static void wlc_lcnphy_periodic_cal(struct brcms_phy *pi)
 	s8 index;
 	struct phytbl_info tab;
 	s32 a1, b0, b1;
-	s32 tssi, pwr, maxtargetpwr, mintargetpwr;
+	s32 tssi, pwr, mintargetpwr;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
 	pi->phy_lastcal = pi->sh->now;
@@ -4249,7 +4246,6 @@ static void wlc_lcnphy_periodic_cal(struct brcms_phy *pi)
 		b0 = pi->txpa_2g[0];
 		b1 = pi->txpa_2g[1];
 		a1 = pi->txpa_2g[2];
-		maxtargetpwr = wlc_lcnphy_tssi2dbm(10, a1, b0, b1);
 		mintargetpwr = wlc_lcnphy_tssi2dbm(125, a1, b0, b1);
 
 		tab.tbl_id = LCNPHY_TBL_ID_TXPWRCTL;
@@ -4622,12 +4618,9 @@ static void wlc_lcnphy_radio_init(struct brcms_phy *pi)
 static void wlc_lcnphy_tbl_init(struct brcms_phy *pi)
 {
 	uint idx;
-	u8 phybw40;
 	struct phytbl_info tab;
 	const struct phytbl_info *tb;
 	u32 val;
-
-	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 
 	for (idx = 0; idx < dot11lcnphytbl_info_sz_rev0; idx++)
 		wlc_lcnphy_write_table(pi, &dot11lcnphytbl_info_rev0[idx]);
@@ -4831,9 +4824,7 @@ static void wlc_lcnphy_baseband_init(struct brcms_phy *pi)
 
 void wlc_phy_init_lcnphy(struct brcms_phy *pi)
 {
-	u8 phybw40;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
-	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 
 	pi_lcn->lcnphy_cal_counter = 0;
 	pi_lcn->lcnphy_cal_temper = pi_lcn->lcnphy_rawtempsense;

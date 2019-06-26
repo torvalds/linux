@@ -5,10 +5,10 @@ config XFRM
        bool
        depends on NET
        select GRO_CELLS
+       select SKB_EXTENSIONS
 
 config XFRM_OFFLOAD
        bool
-       depends on XFRM
 
 config XFRM_ALGO
 	tristate
@@ -24,6 +24,14 @@ config XFRM_USER
 	  like IPsec used by native Linux tools.
 
 	  If unsure, say Y.
+
+config XFRM_INTERFACE
+	tristate "Transformation virtual interface"
+	depends on XFRM && IPV6
+	---help---
+	  This provides a virtual interface to route IPsec traffic.
+
+	  If unsure, say N.
 
 config XFRM_SUB_POLICY
 	bool "Transformation sub policy support"
@@ -87,4 +95,3 @@ config NET_KEY_MIGRATE
 	  <draft-sugimoto-mip6-pfkey-migrate>.
 
 	  If unsure, say N.
-

@@ -190,13 +190,16 @@ ENOSPC:
 
         Simply running out of kernel/system memory is signalled through ENOMEM.
 
-EPERM/EACCESS:
+EPERM/EACCES:
         Returned for an operation that is valid, but needs more privileges.
         E.g. root-only or much more common, DRM master-only operations return
         this when when called by unpriviledged clients. There's no clear
-        difference between EACCESS and EPERM.
+        difference between EACCES and EPERM.
 
 ENODEV:
+        The device is not (yet) present or fully initialized.
+
+EOPNOTSUPP:
         Feature (like PRIME, modesetting, GEM) is not supported by the driver.
 
 ENXIO:
@@ -234,6 +237,14 @@ DRM specific patterns. Note that ENOTTY has the slightly unintuitive meaning of
 
 Testing and validation
 ======================
+
+Testing Requirements for userspace API
+--------------------------------------
+
+New cross-driver userspace interface extensions, like new IOCTL, new KMS
+properties, new files in sysfs or anything else that constitutes an API change
+should have driver-agnostic testcases in IGT for that feature, if such a test
+can be reasonably made using IGT for the target hardware.
 
 Validating changes with IGT
 ---------------------------

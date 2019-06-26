@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_UACCESS_64_H
 #define __ASM_SH_UACCESS_64_H
 
@@ -15,10 +16,6 @@
  *     MIPS implementation version 1.15 by
  *              Copyright (C) 1996, 1997, 1998 by Ralf Baechle
  *     and i386 version.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #define __get_user_size(x,ptr,size,retval)			\

@@ -33,6 +33,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "cikd.h"
+#include "amdgpu_gem.h"
 
 #include <drm/drm_fb_helper.h>
 
@@ -146,7 +147,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 				       AMDGPU_GEM_CREATE_VRAM_CLEARED,
-				       true, NULL, &gobj);
+				       ttm_bo_type_kernel, NULL, &gobj);
 	if (ret) {
 		pr_err("failed to allocate framebuffer (%d)\n", aligned_size);
 		return -ENOMEM;
@@ -168,11 +169,19 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	}
 
 
-	ret = amdgpu_bo_pin(abo, domain, NULL);
+	ret = amdgpu_bo_pin(abo, domain);
 	if (ret) {
 		amdgpu_bo_unreserve(abo);
 		goto out_unref;
 	}
+
+	ret = amdgpu_ttm_alloc_gart(&abo->tbo);
+	if (ret) {
+		amdgpu_bo_unreserve(abo);
+		dev_err(adev->dev, "%p bind failed\n", abo);
+		goto out_unref;
+	}
+
 	ret = amdgpu_bo_kmap(abo, NULL);
 	amdgpu_bo_unreserve(abo);
 	if (ret) {
@@ -365,8 +374,8 @@ void amdgpu_fbdev_fini(struct amdgpu_device *adev)
 void amdgpu_fbdev_set_suspend(struct amdgpu_device *adev, int state)
 {
 	if (adev->mode_info.rfbdev)
-		drm_fb_helper_set_suspend(&adev->mode_info.rfbdev->helper,
-			state);
+		drm_fb_helper_set_suspend_unlocked(&adev->mode_info.rfbdev->helper,
+						   state);
 }
 
 int amdgpu_fbdev_total_size(struct amdgpu_device *adev)

@@ -140,6 +140,10 @@ static int child(struct shared_info *info)
 
 	if (disable_execute)
 		info->iamr |= 1ul << pkeyshift(pkey1);
+	else
+		info->iamr &= ~(1ul << pkeyshift(pkey1));
+
+	info->iamr &= ~(1ul << pkeyshift(pkey2) | 1ul << pkeyshift(pkey3));
 
 	info->uamor |= 3ul << pkeyshift(pkey1) | 3ul << pkeyshift(pkey2);
 
@@ -348,10 +352,7 @@ static int write_core_pattern(const char *core_pattern)
 	FILE *f;
 
 	f = fopen(core_pattern_file, "w");
-	if (!f) {
-		perror("Error writing to core_pattern file");
-		return TEST_FAIL;
-	}
+	SKIP_IF_MSG(!f, "Try with root privileges");
 
 	ret = fwrite(core_pattern, 1, len, f);
 	fclose(f);

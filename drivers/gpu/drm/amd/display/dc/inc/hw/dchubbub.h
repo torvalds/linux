@@ -39,6 +39,18 @@ enum segment_order {
 	segment_order__non_contiguous,
 };
 
+struct dcn_hubbub_wm_set {
+	uint32_t wm_set;
+	uint32_t data_urgent;
+	uint32_t pte_meta_urgent;
+	uint32_t sr_enter;
+	uint32_t sr_exit;
+	uint32_t dram_clk_chanage;
+};
+
+struct dcn_hubbub_wm {
+	struct dcn_hubbub_wm_set sets[4];
+};
 
 struct hubbub_funcs {
 	void (*update_dchub)(
@@ -58,7 +70,14 @@ struct hubbub_funcs {
 	bool (*dcc_support_pixel_format)(
 			enum surface_pixel_format format,
 			unsigned int *bytes_per_element);
+
+	void (*wm_read_state)(struct hubbub *hubbub,
+			struct dcn_hubbub_wm *wm);
 };
 
+struct hubbub {
+	const struct hubbub_funcs *funcs;
+	struct dc_context *ctx;
+};
 
 #endif

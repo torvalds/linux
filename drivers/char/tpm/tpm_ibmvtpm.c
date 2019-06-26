@@ -39,8 +39,7 @@ static const struct vio_device_id tpm_ibmvtpm_device_table[] = {
 MODULE_DEVICE_TABLE(vio, tpm_ibmvtpm_device_table);
 
 /**
- *
- * ibmvtpm_send_crq_word - Send a CRQ request
+ * ibmvtpm_send_crq_word() - Send a CRQ request
  * @vdev:	vio device struct
  * @w1:		pre-constructed first word of tpm crq (second word is reserved)
  *
@@ -54,8 +53,7 @@ static int ibmvtpm_send_crq_word(struct vio_dev *vdev, u64 w1)
 }
 
 /**
- *
- * ibmvtpm_send_crq - Send a CRQ request
+ * ibmvtpm_send_crq() - Send a CRQ request
  *
  * @vdev:	vio device struct
  * @valid:	Valid field
@@ -141,14 +139,14 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 }
 
 /**
- * tpm_ibmvtpm_send - Send tpm request
- *
+ * tpm_ibmvtpm_send() - Send a TPM command
  * @chip:	tpm chip struct
  * @buf:	buffer contains data to send
  * @count:	size of buffer
  *
  * Return:
- *	Number of bytes sent or < 0 on error.
+ *   0 on success,
+ *   -errno on error
  */
 static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
@@ -194,7 +192,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 		rc = 0;
 		ibmvtpm->tpm_processing_cmd = false;
 	} else
-		rc = count;
+		rc = 0;
 
 	spin_unlock(&ibmvtpm->rtce_lock);
 	return rc;

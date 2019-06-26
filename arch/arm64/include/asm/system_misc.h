@@ -33,7 +33,8 @@ void die(const char *msg, struct pt_regs *regs, int err);
 
 struct siginfo;
 void arm64_notify_die(const char *str, struct pt_regs *regs,
-		      struct siginfo *info, int err);
+		      int signo, int sicode, void __user *addr,
+		      int err);
 
 void hook_debug_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 					     struct pt_regs *),
@@ -44,8 +45,6 @@ extern void show_pte(unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 
 extern void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
-
-int handle_guest_sea(phys_addr_t addr, unsigned int esr);
 
 #endif	/* __ASSEMBLY__ */
 

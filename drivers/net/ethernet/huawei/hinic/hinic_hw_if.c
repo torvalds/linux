@@ -168,6 +168,22 @@ void hinic_db_state_set(struct hinic_hwif *hwif,
 	hinic_hwif_write_reg(hwif, HINIC_CSR_FUNC_ATTR4_ADDR, attr4);
 }
 
+void hinic_set_msix_state(struct hinic_hwif *hwif, u16 msix_idx,
+			  enum hinic_msix_state flag)
+{
+	u32 offset = msix_idx * HINIC_PCI_MSIX_ENTRY_SIZE +
+			HINIC_PCI_MSIX_ENTRY_VECTOR_CTRL;
+	u32 mask_bits;
+
+	mask_bits = readl(hwif->intr_regs_base + offset);
+	mask_bits &= ~HINIC_PCI_MSIX_ENTRY_CTRL_MASKBIT;
+
+	if (flag)
+		mask_bits |= HINIC_PCI_MSIX_ENTRY_CTRL_MASKBIT;
+
+	writel(mask_bits, hwif->intr_regs_base + offset);
+}
+
 /**
  * hwif_ready - test if the HW is ready for use
  * @hwif: the HW interface of a pci function device
@@ -321,6 +337,13 @@ int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
 		return -ENOMEM;
 	}
 
+	hwif->intr_regs_base = pci_ioremap_bar(pdev, HINIC_PCI_INTR_REGS_BAR);
+	if (!hwif->intr_regs_base) {
+		dev_err(&pdev->dev, "Failed to map configuration regs\n");
+		err = -ENOMEM;
+		goto err_map_intr_bar;
+	}
+
 	err = hwif_ready(hwif);
 	if (err) {
 		dev_err(&pdev->dev, "HW interface is not ready\n");
@@ -337,7 +360,11 @@ int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
 	return 0;
 
 err_hwif_ready:
+	iounmap(hwif->intr_regs_base);
+
+err_map_intr_bar:
 	iounmap(hwif->cfg_regs_bar);
+
 	return err;
 }
 
@@ -347,5 +374,6 @@ err_hwif_ready:
  **/
 void hinic_free_hwif(struct hinic_hwif *hwif)
 {
+	iounmap(hwif->intr_regs_base);
 	iounmap(hwif->cfg_regs_bar);
 }

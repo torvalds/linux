@@ -27,7 +27,6 @@
 
 
 #include "dml_common_defs.h"
-#include "soc_bounding_box.h"
 #include "dml1_display_rq_dlg_calc.h"
 
 enum dml_project {
@@ -43,5 +42,7 @@ struct display_mode_lib {
 };
 
 void dml_init_instance(struct display_mode_lib *lib, enum dml_project project);
+
+const char *dml_get_status_message(enum dm_validation_status status);
 
 #endif

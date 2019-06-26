@@ -43,6 +43,8 @@
 #include <limits.h>
 #include <netinet/in.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 #include "ecoff.h"
 
@@ -55,8 +57,8 @@
 /* -------------------------------------------------------------------- */
 
 struct sect {
-	unsigned long vaddr;
-	unsigned long len;
+	uint32_t vaddr;
+	uint32_t len;
 };
 
 int *symTypeTable;
@@ -153,16 +155,16 @@ static char *saveRead(int file, off_t offset, off_t len, char *name)
 }
 
 #define swab16(x) \
-	((unsigned short)( \
-		(((unsigned short)(x) & (unsigned short)0x00ffU) << 8) | \
-		(((unsigned short)(x) & (unsigned short)0xff00U) >> 8) ))
+	((uint16_t)( \
+		(((uint16_t)(x) & (uint16_t)0x00ffU) << 8) | \
+		(((uint16_t)(x) & (uint16_t)0xff00U) >> 8) ))
 
 #define swab32(x) \
 	((unsigned int)( \
-		(((unsigned int)(x) & (unsigned int)0x000000ffUL) << 24) | \
-		(((unsigned int)(x) & (unsigned int)0x0000ff00UL) <<  8) | \
-		(((unsigned int)(x) & (unsigned int)0x00ff0000UL) >>  8) | \
-		(((unsigned int)(x) & (unsigned int)0xff000000UL) >> 24) ))
+		(((uint32_t)(x) & (uint32_t)0x000000ffUL) << 24) | \
+		(((uint32_t)(x) & (uint32_t)0x0000ff00UL) <<  8) | \
+		(((uint32_t)(x) & (uint32_t)0x00ff0000UL) >>  8) | \
+		(((uint32_t)(x) & (uint32_t)0xff000000UL) >> 24) ))
 
 static void convert_elf_hdr(Elf32_Ehdr * e)
 {
@@ -274,7 +276,7 @@ int main(int argc, char *argv[])
 	struct aouthdr eah;
 	struct scnhdr esecs[6];
 	int infile, outfile;
-	unsigned long cur_vma = ULONG_MAX;
+	uint32_t cur_vma = UINT32_MAX;
 	int addflag = 0;
 	int nosecs;
 
@@ -518,7 +520,7 @@ int main(int argc, char *argv[])
 
 		for (i = 0; i < nosecs; i++) {
 			printf
-			    ("Section %d: %s phys %lx  size %lx	 file offset %lx\n",
+			    ("Section %d: %s phys %"PRIx32"  size %"PRIx32"\t file offset %"PRIx32"\n",
 			     i, esecs[i].s_name, esecs[i].s_paddr,
 			     esecs[i].s_size, esecs[i].s_scnptr);
 		}
@@ -564,17 +566,16 @@ int main(int argc, char *argv[])
 		   the section can be loaded before copying. */
 		if (ph[i].p_type == PT_LOAD && ph[i].p_filesz) {
 			if (cur_vma != ph[i].p_vaddr) {
-				unsigned long gap =
-				    ph[i].p_vaddr - cur_vma;
+				uint32_t gap = ph[i].p_vaddr - cur_vma;
 				char obuf[1024];
 				if (gap > 65536) {
 					fprintf(stderr,
-						"Intersegment gap (%ld bytes) too large.\n",
+						"Intersegment gap (%"PRId32" bytes) too large.\n",
 						gap);
 					exit(1);
 				}
 				fprintf(stderr,
-					"Warning: %ld byte intersegment gap.\n",
+					"Warning: %d byte intersegment gap.\n",
 					gap);
 				memset(obuf, 0, sizeof obuf);
 				while (gap) {

@@ -41,17 +41,14 @@ enum {
  * XFS global statistics
  */
 struct __xfsstats {
-# define XFSSTAT_END_EXTENT_ALLOC	4
 	uint32_t		xs_allocx;
 	uint32_t		xs_allocb;
 	uint32_t		xs_freex;
 	uint32_t		xs_freeb;
-# define XFSSTAT_END_ALLOC_BTREE	(XFSSTAT_END_EXTENT_ALLOC+4)
 	uint32_t		xs_abt_lookup;
 	uint32_t		xs_abt_compare;
 	uint32_t		xs_abt_insrec;
 	uint32_t		xs_abt_delrec;
-# define XFSSTAT_END_BLOCK_MAPPING	(XFSSTAT_END_ALLOC_BTREE+7)
 	uint32_t		xs_blk_mapr;
 	uint32_t		xs_blk_mapw;
 	uint32_t		xs_blk_unmap;
@@ -59,21 +56,17 @@ struct __xfsstats {
 	uint32_t		xs_del_exlist;
 	uint32_t		xs_look_exlist;
 	uint32_t		xs_cmp_exlist;
-# define XFSSTAT_END_BLOCK_MAP_BTREE	(XFSSTAT_END_BLOCK_MAPPING+4)
 	uint32_t		xs_bmbt_lookup;
 	uint32_t		xs_bmbt_compare;
 	uint32_t		xs_bmbt_insrec;
 	uint32_t		xs_bmbt_delrec;
-# define XFSSTAT_END_DIRECTORY_OPS	(XFSSTAT_END_BLOCK_MAP_BTREE+4)
 	uint32_t		xs_dir_lookup;
 	uint32_t		xs_dir_create;
 	uint32_t		xs_dir_remove;
 	uint32_t		xs_dir_getdents;
-# define XFSSTAT_END_TRANSACTIONS	(XFSSTAT_END_DIRECTORY_OPS+3)
 	uint32_t		xs_trans_sync;
 	uint32_t		xs_trans_async;
 	uint32_t		xs_trans_empty;
-# define XFSSTAT_END_INODE_OPS		(XFSSTAT_END_TRANSACTIONS+7)
 	uint32_t		xs_ig_attempts;
 	uint32_t		xs_ig_found;
 	uint32_t		xs_ig_frecycle;
@@ -81,13 +74,11 @@ struct __xfsstats {
 	uint32_t		xs_ig_dup;
 	uint32_t		xs_ig_reclaims;
 	uint32_t		xs_ig_attrchg;
-# define XFSSTAT_END_LOG_OPS		(XFSSTAT_END_INODE_OPS+5)
 	uint32_t		xs_log_writes;
 	uint32_t		xs_log_blocks;
 	uint32_t		xs_log_noiclogs;
 	uint32_t		xs_log_force;
 	uint32_t		xs_log_force_sleep;
-# define XFSSTAT_END_TAIL_PUSHING	(XFSSTAT_END_LOG_OPS+10)
 	uint32_t		xs_try_logspace;
 	uint32_t		xs_sleep_logspace;
 	uint32_t		xs_push_ail;
@@ -98,22 +89,17 @@ struct __xfsstats {
 	uint32_t		xs_push_ail_flushing;
 	uint32_t		xs_push_ail_restarts;
 	uint32_t		xs_push_ail_flush;
-# define XFSSTAT_END_WRITE_CONVERT	(XFSSTAT_END_TAIL_PUSHING+2)
 	uint32_t		xs_xstrat_quick;
 	uint32_t		xs_xstrat_split;
-# define XFSSTAT_END_READ_WRITE_OPS	(XFSSTAT_END_WRITE_CONVERT+2)
 	uint32_t		xs_write_calls;
 	uint32_t		xs_read_calls;
-# define XFSSTAT_END_ATTRIBUTE_OPS	(XFSSTAT_END_READ_WRITE_OPS+4)
 	uint32_t		xs_attr_get;
 	uint32_t		xs_attr_set;
 	uint32_t		xs_attr_remove;
 	uint32_t		xs_attr_list;
-# define XFSSTAT_END_INODE_CLUSTER	(XFSSTAT_END_ATTRIBUTE_OPS+3)
 	uint32_t		xs_iflush_count;
 	uint32_t		xs_icluster_flushcnt;
 	uint32_t		xs_icluster_flushinode;
-# define XFSSTAT_END_VNODE_OPS		(XFSSTAT_END_INODE_CLUSTER+8)
 	uint32_t		vn_active;	/* # vnodes not on free lists */
 	uint32_t		vn_alloc;	/* # times vn_alloc called */
 	uint32_t		vn_get;		/* # times vn_get called */
@@ -122,7 +108,6 @@ struct __xfsstats {
 	uint32_t		vn_reclaim;	/* # times vn_reclaim called */
 	uint32_t		vn_remove;	/* # times vn_remove called */
 	uint32_t		vn_free;	/* # times vn_free called */
-#define XFSSTAT_END_BUF			(XFSSTAT_END_VNODE_OPS+9)
 	uint32_t		xb_get;
 	uint32_t		xb_create;
 	uint32_t		xb_get_locked;
@@ -133,28 +118,19 @@ struct __xfsstats {
 	uint32_t		xb_page_found;
 	uint32_t		xb_get_read;
 /* Version 2 btree counters */
-#define XFSSTAT_END_ABTB_V2		(XFSSTAT_END_BUF + __XBTS_MAX)
 	uint32_t		xs_abtb_2[__XBTS_MAX];
-#define XFSSTAT_END_ABTC_V2		(XFSSTAT_END_ABTB_V2 + __XBTS_MAX)
 	uint32_t		xs_abtc_2[__XBTS_MAX];
-#define XFSSTAT_END_BMBT_V2		(XFSSTAT_END_ABTC_V2 + __XBTS_MAX)
 	uint32_t		xs_bmbt_2[__XBTS_MAX];
-#define XFSSTAT_END_IBT_V2		(XFSSTAT_END_BMBT_V2 + __XBTS_MAX)
 	uint32_t		xs_ibt_2[__XBTS_MAX];
-#define XFSSTAT_END_FIBT_V2		(XFSSTAT_END_IBT_V2 + __XBTS_MAX)
 	uint32_t		xs_fibt_2[__XBTS_MAX];
-#define XFSSTAT_END_RMAP_V2		(XFSSTAT_END_FIBT_V2 + __XBTS_MAX)
 	uint32_t		xs_rmap_2[__XBTS_MAX];
-#define XFSSTAT_END_REFCOUNT		(XFSSTAT_END_RMAP_V2 + __XBTS_MAX)
 	uint32_t		xs_refcbt_2[__XBTS_MAX];
-#define XFSSTAT_END_XQMSTAT		(XFSSTAT_END_REFCOUNT + 6)
 	uint32_t		xs_qm_dqreclaims;
 	uint32_t		xs_qm_dqreclaim_misses;
 	uint32_t		xs_qm_dquot_dups;
 	uint32_t		xs_qm_dqcachemisses;
 	uint32_t		xs_qm_dqcachehits;
 	uint32_t		xs_qm_dqwants;
-#define XFSSTAT_END_QM			(XFSSTAT_END_XQMSTAT+2)
 	uint32_t		xs_qm_dquot;
 	uint32_t		xs_qm_dquot_unused;
 /* Extra precision counters */
@@ -163,10 +139,12 @@ struct __xfsstats {
 	uint64_t		xs_read_bytes;
 };
 
+#define	xfsstats_offset(f)	(offsetof(struct __xfsstats, f)/sizeof(uint32_t))
+
 struct xfsstats {
 	union {
 		struct __xfsstats	s;
-		uint32_t		a[XFSSTAT_END_XQMSTAT];
+		uint32_t		a[xfsstats_offset(xs_qm_dquot)];
 	};
 };
 

@@ -226,9 +226,12 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	case CHIP_FIJI:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		pm->pmf = &kfd_vi_pm_funcs;
 		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		pm->pmf = &kfd_v9_pm_funcs;
 		break;
@@ -417,5 +420,31 @@ out:
 	mutex_unlock(&pm->lock);
 	return 0;
 }
+
+int pm_debugfs_hang_hws(struct packet_manager *pm)
+{
+	uint32_t *buffer, size;
+	int r = 0;
+
+	size = pm->pmf->query_status_size;
+	mutex_lock(&pm->lock);
+	pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
+			size / sizeof(uint32_t), (unsigned int **)&buffer);
+	if (!buffer) {
+		pr_err("Failed to allocate buffer on kernel queue\n");
+		r = -ENOMEM;
+		goto out;
+	}
+	memset(buffer, 0x55, size);
+	pm->priv_queue->ops.submit_packet(pm->priv_queue);
+
+	pr_info("Submitting %x %x %x %x %x %x %x to HIQ to hang the HWS.",
+		buffer[0], buffer[1], buffer[2], buffer[3],
+		buffer[4], buffer[5], buffer[6]);
+out:
+	mutex_unlock(&pm->lock);
+	return r;
+}
+
 
 #endif

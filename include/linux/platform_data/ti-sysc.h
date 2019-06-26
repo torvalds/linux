@@ -14,6 +14,7 @@ enum ti_sysc_module_type {
 	TI_SYSC_OMAP4_SR,
 	TI_SYSC_OMAP4_MCASP,
 	TI_SYSC_OMAP4_USB_HOST_FS,
+	TI_SYSC_DRA7_MCAN,
 };
 
 struct ti_sysc_cookie {
@@ -45,7 +46,6 @@ struct sysc_regbits {
 	s8 emufree_shift;
 };
 
-#define SYSC_QUIRK_RESOURCE_PROVIDER	BIT(9)
 #define SYSC_QUIRK_LEGACY_IDLE		BIT(8)
 #define SYSC_QUIRK_RESET_STATUS		BIT(7)
 #define SYSC_QUIRK_NO_IDLE_ON_INIT	BIT(6)

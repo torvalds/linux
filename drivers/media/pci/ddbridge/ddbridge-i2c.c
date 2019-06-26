@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ddbridge-i2c.c: Digital Devices bridge i2c driver
  *
@@ -13,7 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -73,7 +73,10 @@ static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 		}
 		return -EIO;
 	}
-	if (val & 0x70000)
+	val &= 0x70000;
+	if (val == 0x20000)
+		dev_err(dev->dev, "I2C bus error\n");
+	if (val)
 		return -EIO;
 	return 0;
 }

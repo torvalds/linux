@@ -137,6 +137,7 @@ static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8173_max98090_card;
 	struct device_node *codec_node, *platform_node;
+	struct snd_soc_dai_link *dai_link;
 	int ret, i;
 
 	platform_node = of_parse_phandle(pdev->dev.of_node,
@@ -145,10 +146,10 @@ static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt8173_max98090_dais[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->platform_name)
 			continue;
-		mt8173_max98090_dais[i].platform_of_node = platform_node;
+		dai_link->platform_of_node = platform_node;
 	}
 
 	codec_node = of_parse_phandle(pdev->dev.of_node,
@@ -158,10 +159,10 @@ static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt8173_max98090_dais[i].codec_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->codec_name)
 			continue;
-		mt8173_max98090_dais[i].codec_of_node = codec_node;
+		dai_link->codec_of_node = codec_node;
 	}
 	card->dev = &pdev->dev;
 

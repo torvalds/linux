@@ -14,8 +14,6 @@ Required properties:
 
 Optional properties:
 - interrupts : Interrupt mapping for GPIO IRQ.
-- interrupt-parent : Phandle for the interrupt controller that
-  services interrupts for this device.
 - xlnx,all-inputs : if n-th bit is setup, GPIO-n is input
 - xlnx,dout-default : if n-th bit is 1, GPIO-n default value is 1
 - xlnx,gpio-width : gpio width

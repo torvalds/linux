@@ -4,7 +4,7 @@ Supported adapters:
   * OpenCores.org I2C controller by Richard Herveille (see datasheet link)
     https://opencores.org/project/i2c/overview
 
-Author: Peter Korsgaard <jacmet@sunsite.dk>
+Author: Peter Korsgaard <peter@korsgaard.com>
 
 Description
 -----------

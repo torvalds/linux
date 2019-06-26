@@ -21,7 +21,6 @@ Optional properties:
   one as described by the fsl,cpm1-gpio-irq-mask property. There should be as
   many interrupts as number of ones in the mask property. The first interrupt in
   the list corresponds to the most significant bit of the mask.
-- interrupt-parent : Parent for the above interrupt property.
 
 Example of four SOC GPIO banks defined as gpio-controller nodes:
 

@@ -1,5 +1,5 @@
 /*
- * spidev platform data initilization file
+ * spidev platform data initialization file
  *
  * (C) Copyright 2014, 2016 Intel Corporation
  * Authors: Andy Shevchenko <andriy.shevchenko@linux.intel.com>

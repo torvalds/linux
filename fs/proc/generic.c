@@ -256,7 +256,7 @@ struct dentry *proc_lookup_de(struct inode *dir, struct dentry *dentry,
 		inode = proc_get_inode(dir->i_sb, de);
 		if (!inode)
 			return ERR_PTR(-ENOMEM);
-		d_set_d_op(dentry, &proc_misc_dentry_ops);
+		d_set_d_op(dentry, de->proc_dops);
 		return d_splice_alias(inode, dentry);
 	}
 	read_unlock(&proc_subdir_lock);
@@ -286,9 +286,9 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
+	i = ctx->pos - 2;
 	read_lock(&proc_subdir_lock);
 	de = pde_subdir_first(de);
-	i = ctx->pos - 2;
 	for (;;) {
 		if (!de) {
 			read_unlock(&proc_subdir_lock);
@@ -309,8 +309,8 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 			pde_put(de);
 			return 0;
 		}
-		read_lock(&proc_subdir_lock);
 		ctx->pos++;
+		read_lock(&proc_subdir_lock);
 		next = pde_subdir_next(de);
 		pde_put(de);
 		de = next;
@@ -428,6 +428,8 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	spin_lock_init(&ent->pde_unload_lock);
 	INIT_LIST_HEAD(&ent->pde_openers);
 	proc_set_user(ent, (*parent)->uid, (*parent)->gid);
+
+	ent->proc_dops = &proc_misc_dentry_ops;
 
 out:
 	return ent;

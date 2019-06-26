@@ -312,12 +312,6 @@ config DVB_USB_DTV5100
 	help
 	  Say Y here to support the AME DTV-5100 USB2.0 DVB-T receiver.
 
-config DVB_USB_FRIIO
-	tristate "Friio ISDB-T USB2.0 Receiver support"
-	depends on DVB_USB
-	help
-	  Say Y here to support the Japanese DTV receiver Friio.
-
 config DVB_USB_AZ6027
 	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"
 	depends on DVB_USB

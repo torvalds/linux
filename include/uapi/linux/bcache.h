@@ -30,10 +30,10 @@ struct bkey {
 	BITMASK(name, struct bkey, field, offset, size)
 
 #define PTR_FIELD(name, offset, size)					\
-static inline __u64 name(const struct bkey *k, unsigned i)		\
+static inline __u64 name(const struct bkey *k, unsigned int i)		\
 { return (k->ptr[i] >> offset) & ~(~0ULL << size); }			\
 									\
-static inline void SET_##name(struct bkey *k, unsigned i, __u64 v)	\
+static inline void SET_##name(struct bkey *k, unsigned int i, __u64 v)	\
 {									\
 	k->ptr[i] &= ~(~(~0ULL << size) << offset);			\
 	k->ptr[i] |= (v & ~(~0ULL << size)) << offset;			\
@@ -117,12 +117,14 @@ static inline void bkey_copy_key(struct bkey *dest, const struct bkey *src)
 static inline struct bkey *bkey_next(const struct bkey *k)
 {
 	__u64 *d = (void *) k;
+
 	return (struct bkey *) (d + bkey_u64s(k));
 }
 
-static inline struct bkey *bkey_idx(const struct bkey *k, unsigned nr_keys)
+static inline struct bkey *bkey_idx(const struct bkey *k, unsigned int nr_keys)
 {
 	__u64 *d = (void *) k;
+
 	return (struct bkey *) (d + nr_keys);
 }
 /* Enough for a key with 6 pointers */
@@ -195,7 +197,7 @@ struct cache_sb {
 	};
 	};
 
-	__u32			last_mount;	/* time_t */
+	__u32			last_mount;	/* time overflow in y2106 */
 
 	__u16			first_bucket;
 	union {
@@ -318,7 +320,7 @@ struct uuid_entry {
 		struct {
 			__u8	uuid[16];
 			__u8	label[32];
-			__u32	first_reg;
+			__u32	first_reg; /* time overflow in y2106 */
 			__u32	last_reg;
 			__u32	invalidated;
 

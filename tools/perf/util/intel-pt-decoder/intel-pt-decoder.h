@@ -37,6 +37,8 @@ enum intel_pt_sample_type {
 	INTEL_PT_EX_STOP	= 1 << 6,
 	INTEL_PT_PWR_EXIT	= 1 << 7,
 	INTEL_PT_CBR_CHG	= 1 << 8,
+	INTEL_PT_TRACE_BEGIN	= 1 << 9,
+	INTEL_PT_TRACE_END	= 1 << 10,
 };
 
 enum intel_pt_period_type {

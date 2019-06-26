@@ -278,10 +278,8 @@ static void xenbus_va_dev_error(struct xenbus_device *dev, int err,
 	dev_err(&dev->dev, "%s\n", printf_buffer);
 
 	path_buffer = kasprintf(GFP_KERNEL, "error/%s", dev->nodename);
-	if (!path_buffer ||
-	    xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer))
-		dev_err(&dev->dev, "failed to write error node for %s (%s)\n",
-			dev->nodename, printf_buffer);
+	if (path_buffer)
+		xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer);
 
 	kfree(printf_buffer);
 	kfree(path_buffer);

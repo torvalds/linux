@@ -8,6 +8,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/current.h>
+#include <asm/fpu.h>
 
 
 
@@ -22,10 +23,18 @@
 	.macro	restore_user_regs_first
 	setgie.d
 	isb
-
+#if defined(CONFIG_FPU)
+	addi    $sp, $sp, OSP_OFFSET
+	lmw.adm $r12, [$sp], $r25, #0x0
+	sethi   $p0, hi20(has_fpu)
+	lbsi 	$p0, [$p0+lo12(has_fpu)]
+	beqz	$p0, 2f
+	mtsr    $r25, $FUCOP_CTL
+2:
+#else
 	addi	$sp, $sp, FUCOP_CTL_OFFSET
-
 	lmw.adm $r12, [$sp], $r24, #0x0
+#endif
 	mtsr	$r12, $SP_USR
 	mtsr	$r13, $IPC
 #ifdef CONFIG_HWZOL
@@ -138,8 +147,8 @@ no_work_pending:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	lwi	$p0, [$sp+(#IPSW_OFFSET)]
 	andi	$p0, $p0, #0x1
-	la	$r10, trace_hardirqs_off
-	la	$r9, trace_hardirqs_on
+	la	$r10, __trace_hardirqs_off
+	la	$r9, __trace_hardirqs_on
 	cmovz	$r9, $p0, $r10
 	jral	$r9
 #endif

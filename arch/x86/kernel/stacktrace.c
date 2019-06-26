@@ -81,16 +81,6 @@ EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
 #ifdef CONFIG_HAVE_RELIABLE_STACKTRACE
 
-#define STACKTRACE_DUMP_ONCE(task) ({				\
-	static bool __section(.data.unlikely) __dumped;		\
-								\
-	if (!__dumped) {					\
-		__dumped = true;				\
-		WARN_ON(1);					\
-		show_stack(task, NULL);				\
-	}							\
-})
-
 static int __always_inline
 __save_stack_trace_reliable(struct stack_trace *trace,
 			    struct task_struct *task)
@@ -99,30 +89,25 @@ __save_stack_trace_reliable(struct stack_trace *trace,
 	struct pt_regs *regs;
 	unsigned long addr;
 
-	for (unwind_start(&state, task, NULL, NULL); !unwind_done(&state);
+	for (unwind_start(&state, task, NULL, NULL);
+	     !unwind_done(&state) && !unwind_error(&state);
 	     unwind_next_frame(&state)) {
 
 		regs = unwind_get_entry_regs(&state, NULL);
 		if (regs) {
+			/* Success path for user tasks */
+			if (user_mode(regs))
+				goto success;
+
 			/*
 			 * Kernel mode registers on the stack indicate an
 			 * in-kernel interrupt or exception (e.g., preemption
 			 * or a page fault), which can make frame pointers
 			 * unreliable.
 			 */
-			if (!user_mode(regs))
-				return -EINVAL;
 
-			/*
-			 * The last frame contains the user mode syscall
-			 * pt_regs.  Skip it and finish the unwind.
-			 */
-			unwind_next_frame(&state);
-			if (!unwind_done(&state)) {
-				STACKTRACE_DUMP_ONCE(task);
+			if (IS_ENABLED(CONFIG_FRAME_POINTER))
 				return -EINVAL;
-			}
-			break;
 		}
 
 		addr = unwind_get_return_address(&state);
@@ -132,21 +117,22 @@ __save_stack_trace_reliable(struct stack_trace *trace,
 		 * generated code which __kernel_text_address() doesn't know
 		 * about.
 		 */
-		if (!addr) {
-			STACKTRACE_DUMP_ONCE(task);
+		if (!addr)
 			return -EINVAL;
-		}
 
 		if (save_stack_address(trace, addr, false))
 			return -EINVAL;
 	}
 
 	/* Check for stack corruption */
-	if (unwind_error(&state)) {
-		STACKTRACE_DUMP_ONCE(task);
+	if (unwind_error(&state))
 		return -EINVAL;
-	}
 
+	/* Success path for non-user tasks, i.e. kthreads and idle tasks */
+	if (!(task->flags & (PF_KTHREAD | PF_IDLE)))
+		return -EINVAL;
+
+success:
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 
@@ -191,7 +177,7 @@ copy_stack_frame(const void __user *fp, struct stack_frame_user *frame)
 {
 	int ret;
 
-	if (!access_ok(VERIFY_READ, fp, sizeof(*frame)))
+	if (!access_ok(fp, sizeof(*frame)))
 		return 0;
 
 	ret = 1;

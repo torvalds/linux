@@ -49,12 +49,8 @@ int blk_rq_count_integrity_sg(struct request_queue *q, struct bio *bio)
 	bio_for_each_integrity_vec(iv, bio, iter) {
 
 		if (prev) {
-			if (!BIOVEC_PHYS_MERGEABLE(&ivprv, &iv))
+			if (!biovec_phys_mergeable(q, &ivprv, &iv))
 				goto new_segment;
-
-			if (!BIOVEC_SEG_BOUNDARY(q, &ivprv, &iv))
-				goto new_segment;
-
 			if (seg_size + iv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
 
@@ -95,12 +91,8 @@ int blk_rq_map_integrity_sg(struct request_queue *q, struct bio *bio,
 	bio_for_each_integrity_vec(iv, bio, iter) {
 
 		if (prev) {
-			if (!BIOVEC_PHYS_MERGEABLE(&ivprv, &iv))
+			if (!biovec_phys_mergeable(q, &ivprv, &iv))
 				goto new_segment;
-
-			if (!BIOVEC_SEG_BOUNDARY(q, &ivprv, &iv))
-				goto new_segment;
-
 			if (sg->length + iv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
 

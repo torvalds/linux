@@ -2,11 +2,14 @@ Renesas Electronics USB3.0 Peripheral driver
 
 Required properties:
   - compatible: Must contain one of the following:
+	- "renesas,r8a774a1-usb3-peri"
+	- "renesas,r8a774c0-usb3-peri"
 	- "renesas,r8a7795-usb3-peri"
 	- "renesas,r8a7796-usb3-peri"
 	- "renesas,r8a77965-usb3-peri"
-	- "renesas,rcar-gen3-usb3-peri" for a generic R-Car Gen3 compatible
-	  device
+	- "renesas,r8a77990-usb3-peri"
+	- "renesas,rcar-gen3-usb3-peri" for a generic R-Car Gen3 or RZ/G2
+	  compatible device
 
     When compatible with the generic version, nodes must list the
     SoC-specific version corresponding to the platform first

@@ -111,7 +111,7 @@ static __always_inline void kasan_poison_element(mempool_t *pool, void *element)
 		kasan_free_pages(element, (unsigned long)pool->pool_data);
 }
 
-static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t flags)
+static void kasan_unpoison_element(mempool_t *pool, void *element)
 {
 	if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
 		kasan_unpoison_slab(element);
@@ -127,12 +127,12 @@ static __always_inline void add_element(mempool_t *pool, void *element)
 	pool->elements[pool->curr_nr++] = element;
 }
 
-static void *remove_element(mempool_t *pool, gfp_t flags)
+static void *remove_element(mempool_t *pool)
 {
 	void *element = pool->elements[--pool->curr_nr];
 
 	BUG_ON(pool->curr_nr < 0);
-	kasan_unpoison_element(pool, element, flags);
+	kasan_unpoison_element(pool, element);
 	check_element(pool, element);
 	return element;
 }
@@ -151,7 +151,7 @@ static void *remove_element(mempool_t *pool, gfp_t flags)
 void mempool_exit(mempool_t *pool)
 {
 	while (pool->curr_nr) {
-		void *element = remove_element(pool, GFP_KERNEL);
+		void *element = remove_element(pool);
 		pool->free(element, pool->pool_data);
 	}
 	kfree(pool->elements);
@@ -213,6 +213,7 @@ EXPORT_SYMBOL(mempool_init_node);
 
 /**
  * mempool_init - initialize a memory pool
+ * @pool:      pointer to the memory pool that should be initialized
  * @min_nr:    the minimum number of elements guaranteed to be
  *             allocated for this pool.
  * @alloc_fn:  user-defined element-allocation function.
@@ -221,6 +222,8 @@ EXPORT_SYMBOL(mempool_init_node);
  *
  * Like mempool_create(), but initializes the pool in (i.e. embedded in another
  * structure).
+ *
+ * Return: %0 on success, negative error code otherwise.
  */
 int mempool_init(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		 mempool_free_t *free_fn, void *pool_data)
@@ -244,6 +247,8 @@ EXPORT_SYMBOL(mempool_init);
  * functions. This function might sleep. Both the alloc_fn() and the free_fn()
  * functions might sleep - as long as the mempool_alloc() function is not called
  * from IRQ contexts.
+ *
+ * Return: pointer to the created memory pool object or %NULL on error.
  */
 mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
 				mempool_free_t *free_fn, void *pool_data)
@@ -288,6 +293,8 @@ EXPORT_SYMBOL(mempool_create_node);
  * Note, the caller must guarantee that no mempool_destroy is called
  * while this function is running. mempool_alloc() & mempool_free()
  * might be called (eg. from IRQ contexts) while this function executes.
+ *
+ * Return: %0 on success, negative error code otherwise.
  */
 int mempool_resize(mempool_t *pool, int new_min_nr)
 {
@@ -301,7 +308,7 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
 	spin_lock_irqsave(&pool->lock, flags);
 	if (new_min_nr <= pool->min_nr) {
 		while (new_min_nr < pool->curr_nr) {
-			element = remove_element(pool, GFP_KERNEL);
+			element = remove_element(pool);
 			spin_unlock_irqrestore(&pool->lock, flags);
 			pool->free(element, pool->pool_data);
 			spin_lock_irqsave(&pool->lock, flags);
@@ -362,6 +369,8 @@ EXPORT_SYMBOL(mempool_resize);
  * *never* fails when called from process contexts. (it might
  * fail if called from an IRQ context.)
  * Note: using __GFP_ZERO is not supported.
+ *
+ * Return: pointer to the allocated element or %NULL on error.
  */
 void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 {
@@ -387,7 +396,7 @@ repeat_alloc:
 
 	spin_lock_irqsave(&pool->lock, flags);
 	if (likely(pool->curr_nr)) {
-		element = remove_element(pool, gfp_temp);
+		element = remove_element(pool);
 		spin_unlock_irqrestore(&pool->lock, flags);
 		/* paired with rmb in mempool_free(), read comment there */
 		smp_wmb();

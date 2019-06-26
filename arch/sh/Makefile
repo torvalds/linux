@@ -122,11 +122,11 @@ endif
 ifdef CONFIG_CPU_LITTLE_ENDIAN
 ld-bfd			:= elf32-$(UTS_MACHINE)-linux
 LDFLAGS_vmlinux		+= --defsym jiffies=jiffies_64 --oformat $(ld-bfd)
-LDFLAGS			+= -EL
+KBUILD_LDFLAGS		+= -EL
 else
 ld-bfd			:= elf32-$(UTS_MACHINE)big-linux
 LDFLAGS_vmlinux		+= --defsym jiffies=jiffies_64+4 --oformat $(ld-bfd)
-LDFLAGS			+= -EB
+KBUILD_LDFLAGS		+= -EB
 endif
 
 export ld-bfd BITS
@@ -227,6 +227,9 @@ archprepare:
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 	$(Q)$(MAKE) $(clean)=arch/sh/kernel/vsyscall
+
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/sh/kernel/syscalls all
 
 define archhelp
 	@echo '  zImage 	           - Compressed kernel image'

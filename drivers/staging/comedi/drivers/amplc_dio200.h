@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * comedi/drivers/amplc_dio.h
  *
@@ -32,9 +32,9 @@ struct dio200_board {
 	unsigned short n_subdevs;	/* number of subdevices */
 	unsigned char sdtype[DIO200_MAX_SUBDEVS];	/* enum dio200_sdtype */
 	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */
-	bool has_int_sce:1;		/* has interrupt enable/status reg */
-	bool has_clk_gat_sce:1;		/* has clock/gate selection registers */
-	bool is_pcie:1;			/* has enhanced features */
+	unsigned int has_int_sce:1;	/* has interrupt enable/status reg */
+	unsigned int has_clk_gat_sce:1;	/* has clock/gate selection registers */
+	unsigned int is_pcie:1;			/* has enhanced features */
 };
 
 int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,

@@ -7,8 +7,6 @@ Required properties:
   - "maxim,max3109" for Maxim MAX3109,
   - "maxim,max14830" for Maxim MAX14830.
 - reg: SPI chip select number.
-- interrupt-parent: The phandle for the interrupt controller that
-  services interrupts for this IC.
 - interrupts: Specifies the interrupt source of the parent interrupt
   controller. The format of the interrupt specifier depends on the
   parent interrupt controller.

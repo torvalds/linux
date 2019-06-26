@@ -171,11 +171,35 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int pipe;
 
+	if (IS_BROXTON(dev_priv)) {
+		vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &= ~(BXT_DE_PORT_HP_DDIA |
+			BXT_DE_PORT_HP_DDIB |
+			BXT_DE_PORT_HP_DDIC);
+
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_A)) {
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+				BXT_DE_PORT_HP_DDIA;
+		}
+
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+				BXT_DE_PORT_HP_DDIB;
+		}
+
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+				BXT_DE_PORT_HP_DDIC;
+		}
+
+		return;
+	}
+
 	vgpu_vreg_t(vgpu, SDEISR) &= ~(SDE_PORTB_HOTPLUG_CPT |
 			SDE_PORTC_HOTPLUG_CPT |
 			SDE_PORTD_HOTPLUG_CPT);
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv) ||
+	    IS_COFFEELAKE(dev_priv)) {
 		vgpu_vreg_t(vgpu, SDEISR) &= ~(SDE_PORTA_HOTPLUG_SPT |
 				SDE_PORTE_HOTPLUG_SPT);
 		vgpu_vreg_t(vgpu, SKL_FUSE_STATUS) |=
@@ -250,7 +274,8 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 		vgpu_vreg_t(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDID_DETECTED;
 	}
 
-	if ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
+	if ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv) ||
+	     IS_COFFEELAKE(dev_priv)) &&
 			intel_vgpu_has_monitor_on_port(vgpu, PORT_E)) {
 		vgpu_vreg_t(vgpu, SDEISR) |= SDE_PORTE_HOTPLUG_SPT;
 	}
@@ -273,8 +298,8 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	for_each_pipe(dev_priv, pipe) {
 		vgpu_vreg_t(vgpu, DSPCNTR(pipe)) &= ~DISPLAY_PLANE_ENABLE;
 		vgpu_vreg_t(vgpu, SPRCTL(pipe)) &= ~SPRITE_ENABLE;
-		vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~CURSOR_MODE;
-		vgpu_vreg_t(vgpu, CURCNTR(pipe)) |= CURSOR_MODE_DISABLE;
+		vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~MCURSOR_MODE;
+		vgpu_vreg_t(vgpu, CURCNTR(pipe)) |= MCURSOR_MODE_DISABLE;
 	}
 
 	vgpu_vreg_t(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_ENABLE;
@@ -317,6 +342,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 	port->dpcd->data_valid = true;
 	port->dpcd->data[DPCD_SINK_COUNT] = 0x1;
 	port->type = type;
+	port->id = resolution;
 
 	emulate_monitor_status_change(vgpu);
 
@@ -337,26 +363,28 @@ void intel_gvt_check_vblank_emulation(struct intel_gvt *gvt)
 	struct intel_gvt_irq *irq = &gvt->irq;
 	struct intel_vgpu *vgpu;
 	int pipe, id;
+	int found = false;
 
-	if (WARN_ON(!mutex_is_locked(&gvt->lock)))
-		return;
-
+	mutex_lock(&gvt->lock);
 	for_each_active_vgpu(gvt, vgpu, id) {
 		for (pipe = 0; pipe < I915_MAX_PIPES; pipe++) {
-			if (pipe_is_enabled(vgpu, pipe))
-				goto out;
+			if (pipe_is_enabled(vgpu, pipe)) {
+				found = true;
+				break;
+			}
 		}
+		if (found)
+			break;
 	}
 
 	/* all the pipes are disabled */
-	hrtimer_cancel(&irq->vblank_timer.timer);
-	return;
-
-out:
-	hrtimer_start(&irq->vblank_timer.timer,
-		ktime_add_ns(ktime_get(), irq->vblank_timer.period),
-		HRTIMER_MODE_ABS);
-
+	if (!found)
+		hrtimer_cancel(&irq->vblank_timer.timer);
+	else
+		hrtimer_start(&irq->vblank_timer.timer,
+			ktime_add_ns(ktime_get(), irq->vblank_timer.period),
+			HRTIMER_MODE_ABS);
+	mutex_unlock(&gvt->lock);
 }
 
 static void emulate_vblank_on_pipe(struct intel_vgpu *vgpu, int pipe)
@@ -393,8 +421,10 @@ static void emulate_vblank(struct intel_vgpu *vgpu)
 {
 	int pipe;
 
+	mutex_lock(&vgpu->vgpu_lock);
 	for_each_pipe(vgpu->gvt->dev_priv, pipe)
 		emulate_vblank_on_pipe(vgpu, pipe);
+	mutex_unlock(&vgpu->vgpu_lock);
 }
 
 /**
@@ -409,11 +439,40 @@ void intel_gvt_emulate_vblank(struct intel_gvt *gvt)
 	struct intel_vgpu *vgpu;
 	int id;
 
-	if (WARN_ON(!mutex_is_locked(&gvt->lock)))
-		return;
-
+	mutex_lock(&gvt->lock);
 	for_each_active_vgpu(gvt, vgpu, id)
 		emulate_vblank(vgpu);
+	mutex_unlock(&gvt->lock);
+}
+
+/**
+ * intel_vgpu_emulate_hotplug - trigger hotplug event for vGPU
+ * @vgpu: a vGPU
+ * @connected: link state
+ *
+ * This function is used to trigger hotplug interrupt for vGPU
+ *
+ */
+void intel_vgpu_emulate_hotplug(struct intel_vgpu *vgpu, bool connected)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+
+	/* TODO: add more platforms support */
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		if (connected) {
+			vgpu_vreg_t(vgpu, SFUSE_STRAP) |=
+				SFUSE_STRAP_DDID_DETECTED;
+			vgpu_vreg_t(vgpu, SDEISR) |= SDE_PORTD_HOTPLUG_CPT;
+		} else {
+			vgpu_vreg_t(vgpu, SFUSE_STRAP) &=
+				~SFUSE_STRAP_DDID_DETECTED;
+			vgpu_vreg_t(vgpu, SDEISR) &= ~SDE_PORTD_HOTPLUG_CPT;
+		}
+		vgpu_vreg_t(vgpu, SDEIIR) |= SDE_PORTD_HOTPLUG_CPT;
+		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
+				PORTD_HOTPLUG_STATUS_MASK;
+		intel_vgpu_trigger_virtual_event(vgpu, DP_D_HOTPLUG);
+	}
 }
 
 /**
@@ -427,7 +486,8 @@ void intel_vgpu_clean_display(struct intel_vgpu *vgpu)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv) ||
+	    IS_COFFEELAKE(dev_priv))
 		clean_virtual_dp_monitor(vgpu, PORT_D);
 	else
 		clean_virtual_dp_monitor(vgpu, PORT_B);
@@ -436,6 +496,7 @@ void intel_vgpu_clean_display(struct intel_vgpu *vgpu)
 /**
  * intel_vgpu_init_display- initialize vGPU virtual display emulation
  * @vgpu: a vGPU
+ * @resolution: resolution index for intel_vgpu_edid
  *
  * This function is used to initialize vGPU virtual display emulation stuffs
  *
@@ -449,7 +510,8 @@ int intel_vgpu_init_display(struct intel_vgpu *vgpu, u64 resolution)
 
 	intel_vgpu_init_i2c_edid(vgpu);
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv) ||
+	    IS_COFFEELAKE(dev_priv))
 		return setup_virtual_dp_monitor(vgpu, PORT_D, GVT_DP_D,
 						resolution);
 	else

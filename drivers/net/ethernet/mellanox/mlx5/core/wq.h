@@ -80,7 +80,6 @@ int mlx5_wq_cyc_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		       void *wqc, struct mlx5_wq_cyc *wq,
 		       struct mlx5_wq_ctrl *wq_ctrl);
 u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq);
-u32 mlx5_wq_cyc_get_frag_size(struct mlx5_wq_cyc *wq);
 
 int mlx5_wq_qp_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		      void *qpc, struct mlx5_wq_qp *wq,
@@ -140,11 +139,6 @@ static inline u16 mlx5_wq_cyc_ctr2ix(struct mlx5_wq_cyc *wq, u16 ctr)
 	return ctr & wq->fbc.sz_m1;
 }
 
-static inline u16 mlx5_wq_cyc_ctr2fragix(struct mlx5_wq_cyc *wq, u16 ctr)
-{
-	return ctr & wq->fbc.frag_sz_m1;
-}
-
 static inline u16 mlx5_wq_cyc_get_head(struct mlx5_wq_cyc *wq)
 {
 	return mlx5_wq_cyc_ctr2ix(wq, wq->wqe_ctr);
@@ -158,6 +152,11 @@ static inline u16 mlx5_wq_cyc_get_tail(struct mlx5_wq_cyc *wq)
 static inline void *mlx5_wq_cyc_get_wqe(struct mlx5_wq_cyc *wq, u16 ix)
 {
 	return mlx5_frag_buf_get_wqe(&wq->fbc, ix);
+}
+
+static inline u16 mlx5_wq_cyc_get_contig_wqebbs(struct mlx5_wq_cyc *wq, u16 ix)
+{
+	return mlx5_frag_buf_get_idx_last_contig_stride(&wq->fbc, ix) - ix + 1;
 }
 
 static inline int mlx5_wq_cyc_cc_bigger(u16 cc1, u16 cc2)
@@ -178,9 +177,14 @@ static inline u32 mlx5_cqwq_get_ci(struct mlx5_cqwq *wq)
 	return mlx5_cqwq_ctr2ix(wq, wq->cc);
 }
 
-static inline void *mlx5_cqwq_get_wqe(struct mlx5_cqwq *wq, u32 ix)
+static inline struct mlx5_cqe64 *mlx5_cqwq_get_wqe(struct mlx5_cqwq *wq, u32 ix)
 {
-	return mlx5_frag_buf_get_wqe(&wq->fbc, ix);
+	struct mlx5_cqe64 *cqe = mlx5_frag_buf_get_wqe(&wq->fbc, ix);
+
+	/* For 128B CQEs the data is in the last 64B */
+	cqe += wq->fbc.log_stride == 7;
+
+	return cqe;
 }
 
 static inline u32 mlx5_cqwq_get_ctr_wrap_cnt(struct mlx5_cqwq *wq, u32 ctr)
@@ -227,6 +231,11 @@ static inline int mlx5_wq_ll_is_full(struct mlx5_wq_ll *wq)
 static inline int mlx5_wq_ll_is_empty(struct mlx5_wq_ll *wq)
 {
 	return !wq->cur_sz;
+}
+
+static inline int mlx5_wq_ll_missing(struct mlx5_wq_ll *wq)
+{
+	return wq->fbc.sz_m1 - wq->cur_sz;
 }
 
 static inline void *mlx5_wq_ll_get_wqe(struct mlx5_wq_ll *wq, u16 ix)

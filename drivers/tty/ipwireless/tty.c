@@ -248,20 +248,27 @@ static int ipw_write_room(struct tty_struct *linux_tty)
 	return room;
 }
 
-static int ipwireless_get_serial_info(struct ipw_tty *tty,
-				      struct serial_struct __user *retinfo)
+static int ipwireless_get_serial_info(struct tty_struct *linux_tty,
+				      struct serial_struct *ss)
 {
-	struct serial_struct tmp;
+	struct ipw_tty *tty = linux_tty->driver_data;
 
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.type = PORT_UNKNOWN;
-	tmp.line = tty->index;
-	tmp.baud_base = 115200;
+	if (!tty)
+		return -ENODEV;
 
-	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return -EFAULT;
+	if (!tty->port.count)
+		return -EINVAL;
 
+	ss->type = PORT_UNKNOWN;
+	ss->line = tty->index;
+	ss->baud_base = 115200;
 	return 0;
+}
+
+static int ipwireless_set_serial_info(struct tty_struct *linux_tty,
+				      struct serial_struct *ss)
+{
+	return 0;	/* Keeps the PCMCIA scripts happy. */
 }
 
 static int ipw_chars_in_buffer(struct tty_struct *linux_tty)
@@ -386,15 +393,6 @@ static int ipw_ioctl(struct tty_struct *linux_tty,
 		return -EINVAL;
 
 	/* FIXME: Exactly how is the tty object locked here .. */
-
-	switch (cmd) {
-	case TIOCGSERIAL:
-		return ipwireless_get_serial_info(tty, (void __user *) arg);
-
-	case TIOCSSERIAL:
-		return 0;	/* Keeps the PCMCIA scripts happy. */
-	}
-
 	if (tty->tty_type == TTYTYPE_MODEM) {
 		switch (cmd) {
 		case PPPIOCGCHAN:
@@ -561,6 +559,8 @@ static const struct tty_operations tty_ops = {
 	.chars_in_buffer = ipw_chars_in_buffer,
 	.tiocmget = ipw_tiocmget,
 	.tiocmset = ipw_tiocmset,
+	.set_serial = ipwireless_set_serial_info,
+	.get_serial = ipwireless_get_serial_info,
 };
 
 int ipwireless_tty_init(void)

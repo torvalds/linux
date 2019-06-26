@@ -95,12 +95,10 @@ struct lp8788_buck {
 	void *dvs;
 };
 
-/* BUCK 1 ~ 4 voltage table */
-static const int lp8788_buck_vtbl[] = {
-	 500000,  800000,  850000,  900000,  950000, 1000000, 1050000, 1100000,
-	1150000, 1200000, 1250000, 1300000, 1350000, 1400000, 1450000, 1500000,
-	1550000, 1600000, 1650000, 1700000, 1750000, 1800000, 1850000, 1900000,
-	1950000, 2000000,
+/* BUCK 1 ~ 4 voltage ranges */
+static const struct regulator_linear_range buck_volt_ranges[] = {
+	REGULATOR_LINEAR_RANGE(500000, 0, 0, 0),
+	REGULATOR_LINEAR_RANGE(800000, 1, 25, 50000),
 };
 
 static void lp8788_buck1_set_dvs(struct lp8788_buck *buck)
@@ -345,8 +343,8 @@ static unsigned int lp8788_buck_get_mode(struct regulator_dev *rdev)
 }
 
 static const struct regulator_ops lp8788_buck12_ops = {
-	.list_voltage = regulator_list_voltage_table,
-	.map_voltage = regulator_map_voltage_ascend,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = lp8788_buck12_set_voltage_sel,
 	.get_voltage_sel = lp8788_buck12_get_voltage_sel,
 	.enable = regulator_enable_regmap,
@@ -358,8 +356,8 @@ static const struct regulator_ops lp8788_buck12_ops = {
 };
 
 static const struct regulator_ops lp8788_buck34_ops = {
-	.list_voltage = regulator_list_voltage_table,
-	.map_voltage = regulator_map_voltage_ascend,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.enable = regulator_enable_regmap,
@@ -370,13 +368,14 @@ static const struct regulator_ops lp8788_buck34_ops = {
 	.get_mode = lp8788_buck_get_mode,
 };
 
-static struct regulator_desc lp8788_buck_desc[] = {
+static const struct regulator_desc lp8788_buck_desc[] = {
 	{
 		.name = "buck1",
 		.id = BUCK1,
 		.ops = &lp8788_buck12_ops,
-		.n_voltages = ARRAY_SIZE(lp8788_buck_vtbl),
-		.volt_table = lp8788_buck_vtbl,
+		.n_voltages = 26,
+		.linear_ranges = buck_volt_ranges,
+		.n_linear_ranges = ARRAY_SIZE(buck_volt_ranges),
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_BUCK,
@@ -386,8 +385,9 @@ static struct regulator_desc lp8788_buck_desc[] = {
 		.name = "buck2",
 		.id = BUCK2,
 		.ops = &lp8788_buck12_ops,
-		.n_voltages = ARRAY_SIZE(lp8788_buck_vtbl),
-		.volt_table = lp8788_buck_vtbl,
+		.n_voltages = 26,
+		.linear_ranges = buck_volt_ranges,
+		.n_linear_ranges = ARRAY_SIZE(buck_volt_ranges),
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_BUCK,
@@ -397,8 +397,9 @@ static struct regulator_desc lp8788_buck_desc[] = {
 		.name = "buck3",
 		.id = BUCK3,
 		.ops = &lp8788_buck34_ops,
-		.n_voltages = ARRAY_SIZE(lp8788_buck_vtbl),
-		.volt_table = lp8788_buck_vtbl,
+		.n_voltages = 26,
+		.linear_ranges = buck_volt_ranges,
+		.n_linear_ranges = ARRAY_SIZE(buck_volt_ranges),
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 		.vsel_reg = LP8788_BUCK3_VOUT,
@@ -410,8 +411,9 @@ static struct regulator_desc lp8788_buck_desc[] = {
 		.name = "buck4",
 		.id = BUCK4,
 		.ops = &lp8788_buck34_ops,
-		.n_voltages = ARRAY_SIZE(lp8788_buck_vtbl),
-		.volt_table = lp8788_buck_vtbl,
+		.n_voltages = 26,
+		.linear_ranges = buck_volt_ranges,
+		.n_linear_ranges = ARRAY_SIZE(buck_volt_ranges),
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 		.vsel_reg = LP8788_BUCK4_VOUT,

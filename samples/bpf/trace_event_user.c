@@ -122,6 +122,16 @@ static void print_stacks(void)
 	}
 }
 
+static inline int generate_load(void)
+{
+	if (system("dd if=/dev/zero of=/dev/null count=5000k status=none") < 0) {
+		printf("failed to generate some load with dd: %s\n", strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
 static void test_perf_event_all_cpu(struct perf_event_attr *attr)
 {
 	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
@@ -142,7 +152,11 @@ static void test_perf_event_all_cpu(struct perf_event_attr *attr)
 		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);
 		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE) == 0);
 	}
-	system("dd if=/dev/zero of=/dev/null count=5000k status=none");
+
+	if (generate_load() < 0) {
+		error = 1;
+		goto all_cpu_err;
+	}
 	print_stacks();
 all_cpu_err:
 	for (i--; i >= 0; i--) {
@@ -156,7 +170,7 @@ all_cpu_err:
 
 static void test_perf_event_task(struct perf_event_attr *attr)
 {
-	int pmu_fd;
+	int pmu_fd, error = 0;
 
 	/* per task perf event, enable inherit so the "dd ..." command can be traced properly.
 	 * Enabling inherit will cause bpf_perf_prog_read_time helper failure.
@@ -171,10 +185,17 @@ static void test_perf_event_task(struct perf_event_attr *attr)
 	}
 	assert(ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);
 	assert(ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE) == 0);
-	system("dd if=/dev/zero of=/dev/null count=5000k status=none");
+
+	if (generate_load() < 0) {
+		error = 1;
+		goto err;
+	}
 	print_stacks();
+err:
 	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
 	close(pmu_fd);
+	if (error)
+		int_exit(0);
 }
 
 static void test_bpf_perf_event(void)

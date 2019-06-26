@@ -112,4 +112,9 @@ config OF_PMEM
 
 	  Select Y if unsure.
 
+config NVDIMM_KEYS
+	def_bool y
+	depends on ENCRYPTED_KEYS
+	depends on (LIBNVDIMM=ENCRYPTED_KEYS) || LIBNVDIMM=m
+
 endif

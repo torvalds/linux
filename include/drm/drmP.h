@@ -57,8 +57,7 @@
 #include <linux/workqueue.h>
 #include <linux/dma-fence.h>
 #include <linux/module.h>
-
-#include <asm/mman.h>
+#include <linux/mman.h>
 #include <asm/pgalloc.h>
 #include <linux/uaccess.h>
 
@@ -68,7 +67,6 @@
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_global.h>
 #include <drm/drm_hashtab.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_os_linux.h>
@@ -95,40 +93,11 @@ struct dma_buf_attachment;
 struct pci_dev;
 struct pci_controller;
 
-#define DRM_IF_VERSION(maj, min) (maj << 16 | min)
-
-/**
- * drm_drv_uses_atomic_modeset - check if the driver implements
- * atomic_commit()
- * @dev: DRM device
+/*
+ * NOTE: drmP.h is obsolete - do NOT add anything to this file
  *
- * This check is useful if drivers do not have DRIVER_ATOMIC set but
- * have atomic modesetting internally implemented.
+ * Do not include drmP.h in new files.
+ * Work is ongoing to remove drmP.h includes from existing files
  */
-static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
-{
-	return dev->mode_config.funcs->atomic_commit != NULL;
-}
-
-#define DRM_SWITCH_POWER_ON 0
-#define DRM_SWITCH_POWER_OFF 1
-#define DRM_SWITCH_POWER_CHANGING 2
-#define DRM_SWITCH_POWER_DYNAMIC_OFF 3
-
-static inline bool drm_core_check_feature(struct drm_device *dev, int feature)
-{
-	return dev->driver->driver_features & feature;
-}
-
-/* returns true if currently okay to sleep */
-static inline bool drm_can_sleep(void)
-{
-	if (in_atomic() || in_dbg_master() || irqs_disabled())
-		return false;
-	return true;
-}
-
-/* helper for handling conditionals in various for_each macros */
-#define for_each_if(condition) if (!(condition)) {} else
 
 #endif

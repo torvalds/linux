@@ -18,4 +18,4 @@ Required Properties:
 Each clock is assigned an identifier and client nodes use this identifier
 to specify the clock which they consume.
 
-All these identifier could be found in <dt-bindings/clock/marvell-mmp2.h>.
+All these identifiers could be found in <dt-bindings/clock/marvell,mmp2.h>.

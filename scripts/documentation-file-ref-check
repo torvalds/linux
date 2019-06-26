@@ -75,6 +75,12 @@ while (<IN>) {
 		# Remove URL false-positives
 		next if ($fulref =~ m/^http/);
 
+		# Remove sched-pelt false-positive
+		next if ($fulref =~ m,^Documentation/scheduler/sched-pelt$,);
+
+		# Discard some build examples from Documentation/target/tcm_mod_builder.txt
+		next if ($fulref =~ m,mnt/sdb/lio-core-2.6.git/Documentation/target,);
+
 		# Check if exists, evaluating wildcards
 		next if (grep -e, glob("$ref $fulref"));
 

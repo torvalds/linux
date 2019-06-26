@@ -71,6 +71,8 @@ struct hfi1_devdata;
 struct hfi1_packet;
 
 #include "iowait.h"
+#include "tid_rdma.h"
+#include "opfn.h"
 
 #define HFI1_MAX_RDMA_ATOMIC     16
 
@@ -156,21 +158,82 @@ struct hfi1_qp_priv {
 	struct hfi1_ahg_info *s_ahg;              /* ahg info for next header */
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
+	struct hfi1_ctxtdata *rcd;                /* QP's receive context */
+	struct page **pages;                      /* for TID page scan */
+	u32 tid_enqueue;                          /* saved when tid waited */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
+	struct timer_list s_tid_timer;            /* for timing tid wait */
+	struct timer_list s_tid_retry_timer;      /* for timing tid ack */
+	struct list_head tid_wait;                /* for queueing tid space */
+	struct hfi1_opfn_data opfn;
+	struct tid_flow_state flow_state;
+	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
 	u8 hdr_type; /* 9B or 16B */
+	struct rvt_sge_state tid_ss;       /* SGE state pointer for 2nd leg */
+	atomic_t n_requests;               /* # of TID RDMA requests in the */
+					   /* queue */
+	atomic_t n_tid_requests;            /* # of sent TID RDMA requests */
+	unsigned long tid_timer_timeout_jiffies;
+	unsigned long tid_retry_timeout_jiffies;
+
+	/* variables for the TID RDMA SE state machine */
+	u8 s_state;
+	u8 s_retry;
+	u8 rnr_nak_state;       /* RNR NAK state */
+	u8 s_nak_state;
+	u32 s_nak_psn;
+	u32 s_flags;
+	u32 s_tid_cur;
+	u32 s_tid_head;
+	u32 s_tid_tail;
+	u32 r_tid_head;     /* Most recently added TID RDMA request */
+	u32 r_tid_tail;     /* the last completed TID RDMA request */
+	u32 r_tid_ack;      /* the TID RDMA request to be ACK'ed */
+	u32 r_tid_alloc;    /* Request for which we are allocating resources */
+	u32 pending_tid_w_segs; /* Num of pending tid write segments */
+	u32 pending_tid_w_resp; /* Num of pending tid write responses */
+	u32 alloc_w_segs;       /* Number of segments for which write */
+			       /* resources have been allocated for this QP */
+
+	/* For TID RDMA READ */
+	u32 tid_r_reqs;         /* Num of tid reads requested */
+	u32 tid_r_comp;         /* Num of tid reads completed */
+	u32 pending_tid_r_segs; /* Num of pending tid read segments */
+	u16 pkts_ps;            /* packets per segment */
+	u8 timeout_shift;       /* account for number of packets per segment */
+
+	u32 r_next_psn_kdeth;
+	u32 r_next_psn_kdeth_save;
+	u32 s_resync_psn;
+	u8 sync_pt;           /* Set when QP reaches sync point */
+	u8 resync;
+};
+
+#define HFI1_QP_WQE_INVALID   ((u32)-1)
+
+struct hfi1_swqe_priv {
+	struct tid_rdma_request tid_req;
+	struct rvt_sge_state ss;  /* Used for TID RDMA READ Request */
+};
+
+struct hfi1_ack_priv {
+	struct rvt_sge_state ss;               /* used for TID WRITE RESP */
+	struct tid_rdma_request tid_req;
 };
 
 /*
  * This structure is used to hold commonly lookedup and computed values during
  * the send engine progress.
  */
+struct iowait_work;
 struct hfi1_pkt_state {
 	struct hfi1_ibdev *dev;
 	struct hfi1_ibport *ibp;
 	struct hfi1_pportdata *ppd;
 	struct verbs_txreq *s_txreq;
+	struct iowait_work *wait;
 	unsigned long flags;
 	unsigned long timeout;
 	unsigned long timeout_int;
@@ -221,6 +284,7 @@ struct hfi1_ibdev {
 	struct kmem_cache *verbs_txreq_cache;
 	u64 n_txwait;
 	u64 n_kmem_wait;
+	u64 n_tidwait;
 
 	/* protect iowait lists */
 	seqlock_t iowait_lock ____cacheline_aligned_in_smp;
@@ -247,7 +311,7 @@ static inline struct hfi1_ibdev *to_idev(struct ib_device *ibdev)
 	return container_of(rdi, struct hfi1_ibdev, rdi);
 }
 
-static inline struct rvt_qp *iowait_to_qp(struct  iowait *s_iowait)
+static inline struct rvt_qp *iowait_to_qp(struct iowait *s_iowait)
 {
 	struct hfi1_qp_priv *priv;
 
@@ -308,13 +372,35 @@ static inline u32 delta_psn(u32 a, u32 b)
 	return (((int)a - (int)b) << PSN_SHIFT) >> PSN_SHIFT;
 }
 
+static inline struct tid_rdma_request *wqe_to_tid_req(struct rvt_swqe *wqe)
+{
+	return &((struct hfi1_swqe_priv *)wqe->priv)->tid_req;
+}
+
+static inline struct tid_rdma_request *ack_to_tid_req(struct rvt_ack_entry *e)
+{
+	return &((struct hfi1_ack_priv *)e->priv)->tid_req;
+}
+
+/*
+ * Look through all the active flows for a TID RDMA request and find
+ * the one (if it exists) that contains the specified PSN.
+ */
+static inline u32 __full_flow_psn(struct flow_state *state, u32 psn)
+{
+	return mask_psn((state->generation << HFI1_KDETH_BTH_SEQ_SHIFT) |
+			(psn & HFI1_KDETH_BTH_SEQ_MASK));
+}
+
+static inline u32 full_flow_psn(struct tid_rdma_flow *flow, u32 psn)
+{
+	return __full_flow_psn(&flow->flow_state, psn);
+}
+
 struct verbs_txreq;
 void hfi1_put_txreq(struct verbs_txreq *tx);
 
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
-
-void hfi1_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
-		   bool release, bool copy_last);
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet);
 
@@ -343,7 +429,8 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
 void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
-int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
+int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe,
+		   bool *call_send);
 
 extern const u32 rc_only_opcode;
 extern const u32 uc_only_opcode;
@@ -354,17 +441,17 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		  const struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
-			  u32 bth0, u32 bth2, int middle,
+			  u32 bth0, u32 bth1, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps);
+
+bool hfi1_schedule_send_yield(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			      bool tid);
 
 void _hfi1_do_send(struct work_struct *work);
 
 void hfi1_do_send_from_rvt(struct rvt_qp *qp);
 
 void hfi1_do_send(struct rvt_qp *qp, bool in_thread);
-
-void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
-			enum ib_wc_status status);
 
 void hfi1_send_rc_ack(struct hfi1_packet *packet, bool is_fecn);
 
@@ -378,6 +465,10 @@ int hfi1_register_ib_device(struct hfi1_devdata *);
 
 void hfi1_unregister_ib_device(struct hfi1_devdata *);
 
+void hfi1_kdeth_eager_rcv(struct hfi1_packet *packet);
+
+void hfi1_kdeth_expected_rcv(struct hfi1_packet *packet);
+
 void hfi1_ib_rcv(struct hfi1_packet *packet);
 
 void hfi1_16B_rcv(struct hfi1_packet *packet);
@@ -390,31 +481,19 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc);
 
-int hfi1_wss_init(void);
-void hfi1_wss_exit(void);
-
-/* platform specific: return the lowest level cache (llc) size, in KiB */
-static inline int wss_llc_size(void)
-{
-	/* assume that the boot CPU value is universal for all CPUs */
-	return boot_cpu_data.x86_cache_size;
-}
-
-/* platform specific: cacheless copy */
-static inline void cacheless_memcpy(void *dst, void *src, size_t n)
-{
-	/*
-	 * Use the only available X64 cacheless copy.  Add a __user cast
-	 * to quiet sparse.  The src agument is already in the kernel so
-	 * there are no security issues.  The extra fault recovery machinery
-	 * is not invoked.
-	 */
-	__copy_user_nocache(dst, (void __user *)src, n, 0);
-}
-
 static inline bool opa_bth_is_migration(struct ib_other_headers *ohdr)
 {
 	return ohdr->bth[1] & cpu_to_be32(OPA_BTH_MIG_REQ);
+}
+
+void hfi1_wait_kmem(struct rvt_qp *qp);
+
+static inline void hfi1_trdma_send_complete(struct rvt_qp *qp,
+					    struct rvt_swqe *wqe,
+					    enum ib_wc_status status)
+{
+	trdma_clean_swqe(qp, wqe);
+	rvt_send_complete(qp, wqe, status);
 }
 
 extern const enum ib_wc_opcode ib_hfi1_wc_opcode[];

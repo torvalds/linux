@@ -91,15 +91,21 @@ gf119_disp_intr_error(struct nv50_disp *disp, int chid)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 mthd = nvkm_rd32(device, 0x6101f0 + (chid * 12));
+	u32 stat = nvkm_rd32(device, 0x6101f0 + (chid * 12));
+	u32 type = (stat & 0x00007000) >> 12;
+	u32 mthd = (stat & 0x00000ffc);
 	u32 data = nvkm_rd32(device, 0x6101f4 + (chid * 12));
-	u32 unkn = nvkm_rd32(device, 0x6101f8 + (chid * 12));
+	u32 code = nvkm_rd32(device, 0x6101f8 + (chid * 12));
+	const struct nvkm_enum *reason =
+		nvkm_enum_find(nv50_disp_intr_error_type, type);
 
-	nvkm_error(subdev, "chid %d mthd %04x data %08x %08x %08x\n",
-		   chid, (mthd & 0x0000ffc), data, mthd, unkn);
+	nvkm_error(subdev, "chid %d stat %08x reason %d [%s] mthd %04x "
+			   "data %08x code %08x\n",
+		   chid, stat, type, reason ? reason->name : "",
+		   mthd, data, code);
 
 	if (chid < ARRAY_SIZE(disp->chan)) {
-		switch (mthd & 0xffc) {
+		switch (mthd) {
 		case 0x0080:
 			nv50_disp_chan_mthd(disp->chan[chid], NV_DBG_ERROR);
 			break;

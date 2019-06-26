@@ -638,7 +638,7 @@ static void b44_tx(struct b44 *bp)
 		bytes_compl += skb->len;
 		pkts_compl++;
 
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 
 	netdev_completed_queue(bp->dev, pkts_compl, bytes_compl);
@@ -1012,7 +1012,7 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		skb_copy_from_linear_data(skb, skb_put(bounce_skb, len), len);
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 		skb = bounce_skb;
 	}
 
@@ -2248,6 +2248,7 @@ static void b44_adjust_link(struct net_device *dev)
 
 static int b44_register_phy_one(struct b44 *bp)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct mii_bus *mii_bus;
 	struct ssb_device *sdev = bp->sdev;
 	struct phy_device *phydev;
@@ -2303,11 +2304,12 @@ static int b44_register_phy_one(struct b44 *bp)
 	}
 
 	/* mask with MAC supported features */
-	phydev->supported &= (SUPPORTED_100baseT_Half |
-			      SUPPORTED_100baseT_Full |
-			      SUPPORTED_Autoneg |
-			      SUPPORTED_MII);
-	phydev->advertising = phydev->supported;
+	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_MII_BIT, mask);
+	linkmode_and(phydev->supported, phydev->supported, mask);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	bp->old_link = 0;
 	bp->phy_addr = phydev->mdio.addr;

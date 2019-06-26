@@ -35,14 +35,12 @@
 #include "tpm.h"
 
 /* I2C interface offsets */
-#define TPM_STS                0x00
-#define TPM_BURST_COUNT        0x01
-#define TPM_DATA_FIFO_W        0x20
-#define TPM_DATA_FIFO_R        0x40
-#define TPM_VID_DID_RID        0x60
-/* TPM command header size */
-#define TPM_HEADER_SIZE        10
-#define TPM_RETRY      5
+#define TPM_STS			0x00
+#define TPM_BURST_COUNT		0x01
+#define TPM_DATA_FIFO_W		0x20
+#define TPM_DATA_FIFO_R		0x40
+#define TPM_VID_DID_RID		0x60
+#define TPM_I2C_RETRIES		5
 /*
  * I2C bus device maximum buffer size w/o counting I2C address or command
  * i.e. max size required for I2C write is 34 = addr, command, 32 bytes data
@@ -292,7 +290,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		dev_err(dev, "%s() count < header size\n", __func__);
 		return -EIO;
 	}
-	for (retries = 0; retries < TPM_RETRY; retries++) {
+	for (retries = 0; retries < TPM_I2C_RETRIES; retries++) {
 		if (retries > 0) {
 			/* if this is not the first trial, set responseRetry */
 			i2c_nuvoton_write_status(client,
@@ -369,6 +367,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct device *dev = chip->dev.parent;
 	struct i2c_client *client = to_i2c_client(dev);
 	u32 ordinal;
+	unsigned long duration;
 	size_t count = 0;
 	int burst_count, bytes2write, retries, rc = -EIO;
 
@@ -455,18 +454,18 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		return rc;
 	}
 	ordinal = be32_to_cpu(*((__be32 *) (buf + 6)));
-	rc = i2c_nuvoton_wait_for_data_avail(chip,
-					     tpm_calc_ordinal_duration(chip,
-								       ordinal),
-					     &priv->read_queue);
+	duration = tpm_calc_ordinal_duration(chip, ordinal);
+
+	rc = i2c_nuvoton_wait_for_data_avail(chip, duration, &priv->read_queue);
 	if (rc) {
-		dev_err(dev, "%s() timeout command duration\n", __func__);
+		dev_err(dev, "%s() timeout command duration %ld\n",
+			__func__, duration);
 		i2c_nuvoton_ready(chip);
 		return rc;
 	}
 
 	dev_dbg(dev, "%s() -> %zd\n", __func__, len);
-	return len;
+	return 0;
 }
 
 static bool i2c_nuvoton_req_canceled(struct tpm_chip *chip, u8 status)

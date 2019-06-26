@@ -112,7 +112,9 @@
 #define PCM512x_RQST_SHIFT 4
 
 /* Page 0, Register 3 - mute */
+#define PCM512x_RQMR (1 << 0)
 #define PCM512x_RQMR_SHIFT 0
+#define PCM512x_RQML (1 << 4)
 #define PCM512x_RQML_SHIFT 4
 
 /* Page 0, Register 4 - PLL */

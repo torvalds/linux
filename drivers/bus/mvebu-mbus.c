@@ -1229,7 +1229,7 @@ mbus_parse_ranges(struct device_node *node,
 	tuple_len = (*cell_count) * sizeof(__be32);
 
 	if (ranges_len % tuple_len) {
-		pr_warn("malformed ranges entry '%s'\n", node->name);
+		pr_warn("malformed ranges entry '%pOFn'\n", node);
 		return -EINVAL;
 	}
 	return 0;

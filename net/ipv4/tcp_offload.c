@@ -10,6 +10,7 @@
  *	TCPv4 GSO/GRO support
  */
 
+#include <linux/indirect_call_wrapper.h>
 #include <linux/skbuff.h>
 #include <net/tcp.h>
 #include <net/protocol.h>
@@ -180,9 +181,9 @@ out:
 	return segs;
 }
 
-struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
+struct sk_buff *tcp_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
-	struct sk_buff **pp = NULL;
+	struct sk_buff *pp = NULL;
 	struct sk_buff *p;
 	struct tcphdr *th;
 	struct tcphdr *th2;
@@ -220,7 +221,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	len = skb_gro_len(skb);
 	flags = tcp_flag_word(th);
 
-	for (; (p = *head); head = &p->next) {
+	list_for_each_entry(p, head, list) {
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
 
@@ -233,7 +234,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 		goto found;
 	}
-
+	p = NULL;
 	goto out_check_final;
 
 found:
@@ -262,8 +263,11 @@ found:
 
 	flush |= (len - 1) >= mss;
 	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
+#ifdef CONFIG_TLS_DEVICE
+	flush |= p->decrypted ^ skb->decrypted;
+#endif
 
-	if (flush || skb_gro_receive(head, skb)) {
+	if (flush || skb_gro_receive(p, skb)) {
 		mss = 1;
 		goto out_check_final;
 	}
@@ -277,7 +281,7 @@ out_check_final:
 					TCP_FLAG_FIN));
 
 	if (p && (!NAPI_GRO_CB(skb)->same_flow || flush))
-		pp = head;
+		pp = p;
 
 out:
 	NAPI_GRO_CB(skb)->flush |= (flush != 0);
@@ -302,7 +306,8 @@ int tcp_gro_complete(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(tcp_gro_complete);
 
-static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE
+struct sk_buff *tcp4_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
 	/* Don't bother verifying checksum if we're going to flush anyway. */
 	if (!NAPI_GRO_CB(skb)->flush &&
@@ -315,7 +320,7 @@ static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *
 	return tcp_gro_receive(head, skb);
 }
 
-static int tcp4_gro_complete(struct sk_buff *skb, int thoff)
+INDIRECT_CALLABLE_SCOPE int tcp4_gro_complete(struct sk_buff *skb, int thoff)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);

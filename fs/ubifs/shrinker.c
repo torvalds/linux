@@ -71,10 +71,10 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 {
 	int total_freed = 0;
 	struct ubifs_znode *znode, *zprev;
-	int time = get_seconds();
+	time64_t time = ktime_get_seconds();
 
-	ubifs_assert(mutex_is_locked(&c->umount_mutex));
-	ubifs_assert(mutex_is_locked(&c->tnc_mutex));
+	ubifs_assert(c, mutex_is_locked(&c->umount_mutex));
+	ubifs_assert(c, mutex_is_locked(&c->tnc_mutex));
 
 	if (!c->zroot.znode || atomic_long_read(&c->clean_zn_cnt) == 0)
 		return 0;
@@ -89,7 +89,7 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 	 * changed only when the 'c->tnc_mutex' is held.
 	 */
 	zprev = NULL;
-	znode = ubifs_tnc_levelorder_next(c->zroot.znode, NULL);
+	znode = ubifs_tnc_levelorder_next(c, c->zroot.znode, NULL);
 	while (znode && total_freed < nr &&
 	       atomic_long_read(&c->clean_zn_cnt) > 0) {
 		int freed;
@@ -125,7 +125,7 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 			else
 				c->zroot.znode = NULL;
 
-			freed = ubifs_destroy_tnc_subtree(znode);
+			freed = ubifs_destroy_tnc_subtree(c, znode);
 			atomic_long_sub(freed, &ubifs_clean_zn_cnt);
 			atomic_long_sub(freed, &c->clean_zn_cnt);
 			total_freed += freed;
@@ -136,7 +136,7 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 			break;
 
 		zprev = znode;
-		znode = ubifs_tnc_levelorder_next(c->zroot.znode, znode);
+		znode = ubifs_tnc_levelorder_next(c, c->zroot.znode, znode);
 		cond_resched();
 	}
 

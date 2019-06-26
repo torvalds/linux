@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include "common.h"
 #include <linux/ptp_clock_kernel.h>
+#include <linux/net_tstamp.h>
 #include <linux/reset.h>
 
 struct stmmac_resources {
@@ -48,6 +49,8 @@ struct stmmac_tx_info {
 
 /* Frequently used values are kept adjacent for cache effect */
 struct stmmac_tx_queue {
+	u32 tx_count_frames;
+	struct timer_list txtimer;
 	u32 queue_index;
 	struct stmmac_priv *priv_data;
 	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
@@ -73,7 +76,13 @@ struct stmmac_rx_queue {
 	u32 rx_zeroc_thresh;
 	dma_addr_t dma_rx_phy;
 	u32 rx_tail_addr;
-	struct napi_struct napi ____cacheline_aligned_in_smp;
+};
+
+struct stmmac_channel {
+	struct napi_struct rx_napi ____cacheline_aligned_in_smp;
+	struct napi_struct tx_napi ____cacheline_aligned_in_smp;
+	struct stmmac_priv *priv_data;
+	u32 index;
 };
 
 struct stmmac_tc_entry {
@@ -109,15 +118,12 @@ struct stmmac_pps_cfg {
 
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
-	u32 tx_count_frames;
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
-	bool tx_timer_armed;
 
 	int tx_coalesce;
 	int hwts_tx_en;
 	bool tx_path_in_lpi_mode;
-	struct timer_list txtimer;
 	bool tso;
 
 	unsigned int dma_buf_sz;
@@ -137,6 +143,9 @@ struct stmmac_priv {
 
 	/* TX Queue */
 	struct stmmac_tx_queue tx_queue[MTL_MAX_TX_QUEUES];
+
+	/* Generic channel for NAPI */
+	struct stmmac_channel channel[STMMAC_CH_MAX];
 
 	bool oldlink;
 	int speed;
@@ -165,6 +174,7 @@ struct stmmac_priv {
 	unsigned int mode;
 	unsigned int chain_mode;
 	int extend_desc;
+	struct hwtstamp_config tstamp_config;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;

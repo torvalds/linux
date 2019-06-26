@@ -46,11 +46,11 @@ Memory pinning
   I/O targets be kept resident at the same physical address.  The
   ib_uverbs module manages pinning and unpinning memory regions via
   get_user_pages() and put_page() calls.  It also accounts for the
-  amount of memory pinned in the process's locked_vm, and checks that
+  amount of memory pinned in the process's pinned_vm, and checks that
   unprivileged processes do not exceed their RLIMIT_MEMLOCK limit.
 
   Pages that are pinned multiple times are counted each time they are
-  pinned, so the value of locked_vm may be an overestimate of the
+  pinned, so the value of pinned_vm may be an overestimate of the
   number of pages pinned by a process.
 
 /dev files

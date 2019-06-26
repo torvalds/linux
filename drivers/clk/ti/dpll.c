@@ -39,6 +39,8 @@ static const struct clk_ops dpll_m4xen_ck_ops = {
 	.set_rate_and_parent	= &omap3_noncore_dpll_set_rate_and_parent,
 	.determine_rate	= &omap4_dpll_regm4xen_determine_rate,
 	.get_parent	= &omap2_init_dpll_parent,
+	.save_context	= &omap3_core_dpll_save_context,
+	.restore_context = &omap3_core_dpll_restore_context,
 };
 #else
 static const struct clk_ops dpll_m4xen_ck_ops = {};
@@ -62,6 +64,8 @@ static const struct clk_ops dpll_ck_ops = {
 	.set_rate_and_parent	= &omap3_noncore_dpll_set_rate_and_parent,
 	.determine_rate	= &omap3_noncore_dpll_determine_rate,
 	.get_parent	= &omap2_init_dpll_parent,
+	.save_context	= &omap3_noncore_dpll_save_context,
+	.restore_context = &omap3_noncore_dpll_restore_context,
 };
 
 static const struct clk_ops dpll_no_gate_ck_ops = {
@@ -72,6 +76,8 @@ static const struct clk_ops dpll_no_gate_ck_ops = {
 	.set_parent	= &omap3_noncore_dpll_set_parent,
 	.set_rate_and_parent	= &omap3_noncore_dpll_set_rate_and_parent,
 	.determine_rate	= &omap3_noncore_dpll_determine_rate,
+	.save_context	= &omap3_noncore_dpll_save_context,
+	.restore_context = &omap3_noncore_dpll_restore_context
 };
 #else
 static const struct clk_ops dpll_core_ck_ops = {};
@@ -162,8 +168,8 @@ static void __init _register_dpll(void *user,
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_debug("clk-ref missing for %s, retry later\n",
-			 node->name);
+		pr_debug("clk-ref missing for %pOFn, retry later\n",
+			 node);
 		if (!ti_clk_retry_init(node, hw, _register_dpll))
 			return;
 
@@ -175,8 +181,8 @@ static void __init _register_dpll(void *user,
 	clk = of_clk_get(node, 1);
 
 	if (IS_ERR(clk)) {
-		pr_debug("clk-bypass missing for %s, retry later\n",
-			 node->name);
+		pr_debug("clk-bypass missing for %pOFn, retry later\n",
+			 node);
 		if (!ti_clk_retry_init(node, hw, _register_dpll))
 			return;
 
@@ -186,10 +192,9 @@ static void __init _register_dpll(void *user,
 	dd->clk_bypass = __clk_get_hw(clk);
 
 	/* register the clock */
-	clk = ti_clk_register(NULL, &clk_hw->hw, node->name);
+	clk = ti_clk_register_omap_hw(NULL, &clk_hw->hw, node->name);
 
 	if (!IS_ERR(clk)) {
-		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 		kfree(clk_hw->hw.init->parent_names);
 		kfree(clk_hw->hw.init);
@@ -226,7 +231,7 @@ static void _register_dpll_x2(struct device_node *node,
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
-		pr_err("%s must have parent\n", node->name);
+		pr_err("%pOFn must have parent\n", node);
 		return;
 	}
 
@@ -259,14 +264,12 @@ static void _register_dpll_x2(struct device_node *node,
 #endif
 
 	/* register the clock */
-	clk = ti_clk_register(NULL, &clk_hw->hw, name);
+	clk = ti_clk_register_omap_hw(NULL, &clk_hw->hw, name);
 
-	if (IS_ERR(clk)) {
+	if (IS_ERR(clk))
 		kfree(clk_hw);
-	} else {
-		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
+	else
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	}
 }
 #endif
 
@@ -305,7 +308,7 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 
 	init->num_parents = of_clk_get_parent_count(node);
 	if (!init->num_parents) {
-		pr_err("%s must have parent(s)\n", node->name);
+		pr_err("%pOFn must have parent(s)\n", node);
 		goto cleanup;
 	}
 
@@ -404,7 +407,7 @@ static void __init of_ti_omap3_dpll_setup(struct device_node *node)
 
 	if ((of_machine_is_compatible("ti,omap3630") ||
 	     of_machine_is_compatible("ti,omap36xx")) &&
-	    !strcmp(node->name, "dpll5_ck"))
+	     of_node_name_eq(node, "dpll5_ck"))
 		of_ti_dpll_setup(node, &omap3_dpll5_ck_ops, &dd);
 	else
 		of_ti_dpll_setup(node, &omap3_dpll_ck_ops, &dd);

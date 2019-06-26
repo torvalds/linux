@@ -311,7 +311,7 @@ int sms_board_led_feedback(struct smscore_device_t *coredev, int led)
 	int board_id = smscore_get_board_id(coredev);
 	struct sms_board *board = sms_get_board(board_id);
 
-	/* dont touch GPIO if LEDs are already set */
+	/* don't touch GPIO if LEDs are already set */
 	if (smscore_led_state(coredev, -1) == led)
 		return 0;
 

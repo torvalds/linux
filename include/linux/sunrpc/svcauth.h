@@ -31,6 +31,7 @@ struct svc_cred {
 	/* name of form servicetype@hostname, passed down by
 	 * rpc.svcgssd, or computed from the above: */
 	char			*cr_principal;
+	char			*cr_targ_princ;
 	struct gss_api_mech	*cr_gss_mech;
 };
 
@@ -39,6 +40,7 @@ static inline void init_svc_cred(struct svc_cred *cred)
 	cred->cr_group_info = NULL;
 	cred->cr_raw_principal = NULL;
 	cred->cr_principal = NULL;
+	cred->cr_targ_princ = NULL;
 	cred->cr_gss_mech = NULL;
 }
 
@@ -48,6 +50,7 @@ static inline void free_svc_cred(struct svc_cred *cred)
 		put_group_info(cred->cr_group_info);
 	kfree(cred->cr_raw_principal);
 	kfree(cred->cr_principal);
+	kfree(cred->cr_targ_princ);
 	gss_mech_put(cred->cr_gss_mech);
 	init_svc_cred(cred);
 }
@@ -79,6 +82,7 @@ struct auth_domain {
 	struct hlist_node	hash;
 	char			*name;
 	struct auth_ops		*flavour;
+	struct rcu_head		rcu_head;
 };
 
 /*

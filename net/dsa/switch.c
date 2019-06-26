@@ -12,6 +12,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
+#include <linux/if_vlan.h>
 #include <net/switchdev.h>
 
 #include "dsa_priv.h"
@@ -136,21 +137,20 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 {
 	const struct switchdev_obj_port_mdb *mdb = info->mdb;
 	struct switchdev_trans *trans = info->trans;
-	DECLARE_BITMAP(group, ds->num_ports);
 	int port;
 
 	/* Build a mask of Multicast group members */
-	bitmap_zero(group, ds->num_ports);
+	bitmap_zero(ds->bitmap, ds->num_ports);
 	if (ds->index == info->sw_index)
-		set_bit(info->port, group);
+		set_bit(info->port, ds->bitmap);
 	for (port = 0; port < ds->num_ports; port++)
 		if (dsa_is_dsa_port(ds, port))
-			set_bit(port, group);
+			set_bit(port, ds->bitmap);
 
 	if (switchdev_trans_ph_prepare(trans))
-		return dsa_switch_mdb_prepare_bitmap(ds, mdb, group);
+		return dsa_switch_mdb_prepare_bitmap(ds, mdb, ds->bitmap);
 
-	dsa_switch_mdb_add_bitmap(ds, mdb, group);
+	dsa_switch_mdb_add_bitmap(ds, mdb, ds->bitmap);
 
 	return 0;
 }
@@ -169,6 +169,43 @@ static int dsa_switch_mdb_del(struct dsa_switch *ds,
 	return 0;
 }
 
+static int dsa_port_vlan_device_check(struct net_device *vlan_dev,
+				      int vlan_dev_vid,
+				      void *arg)
+{
+	struct switchdev_obj_port_vlan *vlan = arg;
+	u16 vid;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
+		if (vid == vlan_dev_vid)
+			return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int dsa_port_vlan_check(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_vlan *vlan)
+{
+	const struct dsa_port *dp = dsa_to_port(ds, port);
+	int err = 0;
+
+	/* Device is not bridged, let it proceed with the VLAN device
+	 * creation.
+	 */
+	if (!dp->bridge_dev)
+		return err;
+
+	/* dsa_slave_vlan_rx_{add,kill}_vid() cannot use the prepare pharse and
+	 * already checks whether there is an overlapping bridge VLAN entry
+	 * with the same VID, so here we only need to check that if we are
+	 * adding a bridge VLAN entry there is not an overlapping VLAN device
+	 * claiming that VID.
+	 */
+	return vlan_for_each(dp->slave, dsa_port_vlan_device_check,
+			     (void *)vlan);
+}
+
 static int
 dsa_switch_vlan_prepare_bitmap(struct dsa_switch *ds,
 			       const struct switchdev_obj_port_vlan *vlan,
@@ -180,6 +217,10 @@ dsa_switch_vlan_prepare_bitmap(struct dsa_switch *ds,
 		return -EOPNOTSUPP;
 
 	for_each_set_bit(port, bitmap, ds->num_ports) {
+		err = dsa_port_vlan_check(ds, port, vlan);
+		if (err)
+			return err;
+
 		err = ds->ops->port_vlan_prepare(ds, port, vlan);
 		if (err)
 			return err;
@@ -204,21 +245,20 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 {
 	const struct switchdev_obj_port_vlan *vlan = info->vlan;
 	struct switchdev_trans *trans = info->trans;
-	DECLARE_BITMAP(members, ds->num_ports);
 	int port;
 
 	/* Build a mask of VLAN members */
-	bitmap_zero(members, ds->num_ports);
+	bitmap_zero(ds->bitmap, ds->num_ports);
 	if (ds->index == info->sw_index)
-		set_bit(info->port, members);
+		set_bit(info->port, ds->bitmap);
 	for (port = 0; port < ds->num_ports; port++)
 		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
-			set_bit(port, members);
+			set_bit(port, ds->bitmap);
 
 	if (switchdev_trans_ph_prepare(trans))
-		return dsa_switch_vlan_prepare_bitmap(ds, vlan, members);
+		return dsa_switch_vlan_prepare_bitmap(ds, vlan, ds->bitmap);
 
-	dsa_switch_vlan_add_bitmap(ds, vlan, members);
+	dsa_switch_vlan_add_bitmap(ds, vlan, ds->bitmap);
 
 	return 0;
 }

@@ -41,6 +41,7 @@ int load_kallsyms(void)
 		syms[i].name = strdup(func);
 		i++;
 	}
+	fclose(f);
 	sym_cnt = i;
 	qsort(syms, sym_cnt, sizeof(struct ksym), ksym_cmp);
 	return 0;
@@ -88,7 +89,7 @@ static int page_size;
 static int page_cnt = 8;
 static struct perf_event_mmap_page *header;
 
-int perf_event_mmap(int fd)
+int perf_event_mmap_header(int fd, struct perf_event_mmap_page **header)
 {
 	void *base;
 	int mmap_size;
@@ -102,8 +103,13 @@ int perf_event_mmap(int fd)
 		return -1;
 	}
 
-	header = base;
+	*header = base;
 	return 0;
+}
+
+int perf_event_mmap(int fd)
+{
+	return perf_event_mmap_header(fd, &header);
 }
 
 static int perf_event_poll(int fd)
@@ -119,10 +125,11 @@ struct perf_event_sample {
 	char data[];
 };
 
-static enum bpf_perf_event_ret bpf_perf_event_print(void *event, void *priv)
+static enum bpf_perf_event_ret
+bpf_perf_event_print(struct perf_event_header *hdr, void *private_data)
 {
-	struct perf_event_sample *e = event;
-	perf_event_print_fn fn = priv;
+	struct perf_event_sample *e = (struct perf_event_sample *)hdr;
+	perf_event_print_fn fn = private_data;
 	int ret;
 
 	if (e->header.type == PERF_RECORD_SAMPLE) {
@@ -160,6 +167,45 @@ int perf_event_poller(int fd, perf_event_print_fn output_fn)
 			break;
 	}
 	free(buf);
+
+	return ret;
+}
+
+int perf_event_poller_multi(int *fds, struct perf_event_mmap_page **headers,
+			    int num_fds, perf_event_print_fn output_fn)
+{
+	enum bpf_perf_event_ret ret;
+	struct pollfd *pfds;
+	void *buf = NULL;
+	size_t len = 0;
+	int i;
+
+	pfds = calloc(num_fds, sizeof(*pfds));
+	if (!pfds)
+		return LIBBPF_PERF_EVENT_ERROR;
+
+	for (i = 0; i < num_fds; i++) {
+		pfds[i].fd = fds[i];
+		pfds[i].events = POLLIN;
+	}
+
+	for (;;) {
+		poll(pfds, num_fds, 1000);
+		for (i = 0; i < num_fds; i++) {
+			if (!pfds[i].revents)
+				continue;
+
+			ret = bpf_perf_event_read_simple(headers[i],
+							 page_cnt * page_size,
+							 page_size, &buf, &len,
+							 bpf_perf_event_print,
+							 output_fn);
+			if (ret != LIBBPF_PERF_EVENT_CONT)
+				break;
+		}
+	}
+	free(buf);
+	free(pfds);
 
 	return ret;
 }

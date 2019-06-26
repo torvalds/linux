@@ -135,6 +135,7 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 	/* set regmap and offset to know where to write */
 	wdt->feed_offset = reg;
 	wdt->regmap = syscon_node_to_regmap(syscon_np);
+	of_node_put(syscon_np);
 	if (IS_ERR(wdt->regmap)) {
 		dev_err(&pdev->dev, "cannot get parent's regmap\n");
 		return PTR_ERR(wdt->regmap);

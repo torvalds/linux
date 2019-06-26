@@ -175,18 +175,14 @@ static int ice40_fpga_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	mgr = fpga_mgr_create(dev, "Lattice iCE40 FPGA Manager",
-			      &ice40_fpga_ops, priv);
+	mgr = devm_fpga_mgr_create(dev, "Lattice iCE40 FPGA Manager",
+				   &ice40_fpga_ops, priv);
 	if (!mgr)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, mgr);
 
-	ret = fpga_mgr_register(mgr);
-	if (ret)
-		fpga_mgr_free(mgr);
-
-	return ret;
+	return fpga_mgr_register(mgr);
 }
 
 static int ice40_fpga_remove(struct spi_device *spi)

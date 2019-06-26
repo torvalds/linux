@@ -31,12 +31,11 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <sound/minors.h>
+#include "opl3_voice.h"
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Hannu Savolainen 1993-1996, Rob Hooft");
 MODULE_DESCRIPTION("Routines for control of AdLib FM cards (OPL2/OPL3/OPL4 chips)");
 MODULE_LICENSE("GPL");
-
-extern char snd_opl3_regmap[MAX_OPL2_VOICES][4];
 
 static void snd_opl2_command(struct snd_opl3 * opl3, unsigned short cmd, unsigned char val)
 {
@@ -539,19 +538,3 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 }
 
 EXPORT_SYMBOL(snd_opl3_hwdep_new);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_opl3_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_opl3_exit(void)
-{
-}
-
-module_init(alsa_opl3_init)
-module_exit(alsa_opl3_exit)

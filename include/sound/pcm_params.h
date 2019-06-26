@@ -87,6 +87,13 @@ static inline void snd_mask_set(struct snd_mask *mask, unsigned int val)
 	mask->bits[MASK_OFS(val)] |= MASK_BIT(val);
 }
 
+/* Most of drivers need only this one */
+static inline void snd_mask_set_format(struct snd_mask *mask,
+				       snd_pcm_format_t format)
+{
+	snd_mask_set(mask, (__force unsigned int)format);
+}
+
 static inline void snd_mask_reset(struct snd_mask *mask, unsigned int val)
 {
 	mask->bits[MASK_OFS(val)] &= ~MASK_BIT(val);
@@ -247,11 +254,13 @@ static inline int snd_interval_empty(const struct snd_interval *i)
 static inline int snd_interval_single(const struct snd_interval *i)
 {
 	return (i->min == i->max || 
-		(i->min + 1 == i->max && i->openmax));
+		(i->min + 1 == i->max && (i->openmin || i->openmax)));
 }
 
 static inline int snd_interval_value(const struct snd_interval *i)
 {
+	if (i->openmin && !i->openmax)
+		return i->max;
 	return i->min;
 }
 
@@ -369,8 +378,7 @@ static inline int params_physical_width(const struct snd_pcm_hw_params *p)
 static inline void
 params_set_format(struct snd_pcm_hw_params *p, snd_pcm_format_t fmt)
 {
-	snd_mask_set(hw_param_mask(p, SNDRV_PCM_HW_PARAM_FORMAT),
-		(__force int)fmt);
+	snd_mask_set_format(hw_param_mask(p, SNDRV_PCM_HW_PARAM_FORMAT), fmt);
 }
 
 #endif /* __SOUND_PCM_PARAMS_H */

@@ -156,7 +156,7 @@ struct cx25821_i2c {
 	struct i2c_client i2c_client;
 	u32 i2c_rc;
 
-	/* cx25821 registers used for raw addess */
+	/* cx25821 registers used for raw address */
 	u32 i2c_period;
 	u32 reg_ctrl;
 	u32 reg_stat;
@@ -432,18 +432,6 @@ extern int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 					    const struct sram_channel *ch,
 					    unsigned int bpl, u32 risc);
 
-extern int cx25821_vidupstream_init(struct cx25821_channel *chan, int pixel_format);
-extern int cx25821_audio_upstream_init(struct cx25821_dev *dev,
-				       int channel_select);
-extern int cx25821_write_frame(struct cx25821_channel *chan,
-		const char __user *data, size_t count);
-extern void cx25821_free_mem_upstream(struct cx25821_channel *chan);
-extern void cx25821_free_mem_upstream_audio(struct cx25821_dev *dev);
-extern void cx25821_stop_upstream_video(struct cx25821_channel *chan);
-extern void cx25821_stop_upstream_audio(struct cx25821_dev *dev);
-extern int cx25821_sram_channel_setup_upstream(struct cx25821_dev *dev,
-					       const struct sram_channel *ch,
-					       unsigned int bpl, u32 risc);
 extern void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel,
 				     u32 format);
 

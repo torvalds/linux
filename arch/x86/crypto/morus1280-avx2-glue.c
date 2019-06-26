@@ -37,15 +37,11 @@ asmlinkage void crypto_morus1280_avx2_final(void *state, void *tag_xor,
 
 MORUS1280_DECLARE_ALGS(avx2, "morus1280-avx2", 400);
 
-static const struct x86_cpu_id avx2_cpu_id[] = {
-    X86_FEATURE_MATCH(X86_FEATURE_AVX2),
-    {}
-};
-MODULE_DEVICE_TABLE(x86cpu, avx2_cpu_id);
-
 static int __init crypto_morus1280_avx2_module_init(void)
 {
-	if (!x86_match_cpu(avx2_cpu_id))
+	if (!boot_cpu_has(X86_FEATURE_AVX2) ||
+	    !boot_cpu_has(X86_FEATURE_OSXSAVE) ||
+	    !cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL))
 		return -ENODEV;
 
 	return crypto_register_aeads(crypto_morus1280_avx2_algs,

@@ -23,15 +23,31 @@
  *
  * Authors: Alex Deucher
  */
+
+/**
+ * DOC: PRIME Buffer Sharing
+ *
+ * The following callback implementations are used for :ref:`sharing GEM buffer
+ * objects between different devices via PRIME <prime_buffer_sharing>`.
+ */
+
 #include <drm/drmP.h>
 
 #include "amdgpu.h"
 #include "amdgpu_display.h"
+#include "amdgpu_gem.h"
 #include <drm/amdgpu_drm.h>
 #include <linux/dma-buf.h>
+#include <linux/dma-fence-array.h>
 
-static const struct dma_buf_ops amdgpu_dmabuf_ops;
-
+/**
+ * amdgpu_gem_prime_get_sg_table - &drm_driver.gem_prime_get_sg_table
+ * implementation
+ * @obj: GEM buffer object (BO)
+ *
+ * Returns:
+ * A scatter/gather table for the pinned pages of the BO's memory.
+ */
 struct sg_table *amdgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
@@ -40,6 +56,15 @@ struct sg_table *amdgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	return drm_prime_pages_to_sg(bo->tbo.ttm->pages, npages);
 }
 
+/**
+ * amdgpu_gem_prime_vmap - &dma_buf_ops.vmap implementation
+ * @obj: GEM BO
+ *
+ * Sets up an in-kernel virtual mapping of the BO's memory.
+ *
+ * Returns:
+ * The virtual address of the mapping or an error pointer.
+ */
 void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
@@ -53,6 +78,13 @@ void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj)
 	return bo->dma_buf_vmap.virtual;
 }
 
+/**
+ * amdgpu_gem_prime_vunmap - &dma_buf_ops.vunmap implementation
+ * @obj: GEM BO
+ * @vaddr: Virtual address (unused)
+ *
+ * Tears down the in-kernel virtual mapping of the BO's memory.
+ */
 void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
@@ -60,6 +92,17 @@ void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 	ttm_bo_kunmap(&bo->dma_buf_vmap);
 }
 
+/**
+ * amdgpu_gem_prime_mmap - &drm_driver.gem_prime_mmap implementation
+ * @obj: GEM BO
+ * @vma: Virtual memory area
+ *
+ * Sets up a userspace mapping of the BO's memory in the given
+ * virtual memory area.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
 int amdgpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
@@ -94,6 +137,19 @@ int amdgpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma
 	return ret;
 }
 
+/**
+ * amdgpu_gem_prime_import_sg_table - &drm_driver.gem_prime_import_sg_table
+ * implementation
+ * @dev: DRM device
+ * @attach: DMA-buf attachment
+ * @sg: Scatter/gather table
+ *
+ * Imports shared DMA buffer memory exported by another device.
+ *
+ * Returns:
+ * A new GEM BO of the given DRM device, representing the memory
+ * described by the given DMA-buf attachment and scatter/gather table.
+ */
 struct drm_gem_object *
 amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 				 struct dma_buf_attachment *attach,
@@ -132,8 +188,61 @@ error:
 	return ERR_PTR(ret);
 }
 
+static int
+__reservation_object_make_exclusive(struct reservation_object *obj)
+{
+	struct dma_fence **fences;
+	unsigned int count;
+	int r;
+
+	if (!reservation_object_get_list(obj)) /* no shared fences to convert */
+		return 0;
+
+	r = reservation_object_get_fences_rcu(obj, NULL, &count, &fences);
+	if (r)
+		return r;
+
+	if (count == 0) {
+		/* Now that was unexpected. */
+	} else if (count == 1) {
+		reservation_object_add_excl_fence(obj, fences[0]);
+		dma_fence_put(fences[0]);
+		kfree(fences);
+	} else {
+		struct dma_fence_array *array;
+
+		array = dma_fence_array_create(count, fences,
+					       dma_fence_context_alloc(1), 0,
+					       false);
+		if (!array)
+			goto err_fences_put;
+
+		reservation_object_add_excl_fence(obj, &array->base);
+		dma_fence_put(&array->base);
+	}
+
+	return 0;
+
+err_fences_put:
+	while (count--)
+		dma_fence_put(fences[count]);
+	kfree(fences);
+	return -ENOMEM;
+}
+
+/**
+ * amdgpu_gem_map_attach - &dma_buf_ops.attach implementation
+ * @dma_buf: Shared DMA buffer
+ * @attach: DMA-buf attachment
+ *
+ * Makes sure that the shared DMA buffer can be accessed by the target device.
+ * For now, simply pins it to the GTT domain, where it should be accessible by
+ * all DMA devices.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
 static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
-				 struct device *target_dev,
 				 struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
@@ -141,7 +250,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	long r;
 
-	r = drm_gem_map_attach(dma_buf, target_dev, attach);
+	r = drm_gem_map_attach(dma_buf, attach);
 	if (r)
 		return r;
 
@@ -152,20 +261,20 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 
 	if (attach->dev->driver != adev->dev->driver) {
 		/*
-		 * Wait for all shared fences to complete before we switch to future
-		 * use of exclusive fence on this prime shared bo.
+		 * We only create shared fences for internal use, but importers
+		 * of the dmabuf rely on exclusive fences for implicitly
+		 * tracking write hazards. As any of the current fences may
+		 * correspond to a write, we need to convert all existing
+		 * fences on the reservation object into a single exclusive
+		 * fence.
 		 */
-		r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
-							true, false,
-							MAX_SCHEDULE_TIMEOUT);
-		if (unlikely(r < 0)) {
-			DRM_DEBUG_PRIME("Fence wait failed: %li\n", r);
+		r = __reservation_object_make_exclusive(bo->tbo.resv);
+		if (r)
 			goto error_unreserve;
-		}
 	}
 
 	/* pin buffer into GTT */
-	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT, NULL);
+	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
 	if (r)
 		goto error_unreserve;
 
@@ -181,6 +290,14 @@ error_detach:
 	return r;
 }
 
+/**
+ * amdgpu_gem_map_detach - &dma_buf_ops.detach implementation
+ * @dma_buf: Shared DMA buffer
+ * @attach: DMA-buf attachment
+ *
+ * This is called when a shared DMA buffer no longer needs to be accessible by
+ * another device. For now, simply unpins the buffer from GTT.
+ */
 static void amdgpu_gem_map_detach(struct dma_buf *dma_buf,
 				  struct dma_buf_attachment *attach)
 {
@@ -202,6 +319,13 @@ error:
 	drm_gem_map_detach(dma_buf, attach);
 }
 
+/**
+ * amdgpu_gem_prime_res_obj - &drm_driver.gem_prime_res_obj implementation
+ * @obj: GEM BO
+ *
+ * Returns:
+ * The BO's reservation object.
+ */
 struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *obj)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
@@ -209,6 +333,18 @@ struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *obj)
 	return bo->tbo.resv;
 }
 
+/**
+ * amdgpu_gem_begin_cpu_access - &dma_buf_ops.begin_cpu_access implementation
+ * @dma_buf: Shared DMA buffer
+ * @direction: Direction of DMA transfer
+ *
+ * This is called before CPU access to the shared DMA buffer's memory. If it's
+ * a read access, the buffer is moved to the GTT domain if possible, for optimal
+ * CPU read performance.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
 static int amdgpu_gem_begin_cpu_access(struct dma_buf *dma_buf,
 				       enum dma_data_direction direction)
 {
@@ -229,7 +365,7 @@ static int amdgpu_gem_begin_cpu_access(struct dma_buf *dma_buf,
 		return ret;
 
 	if (!bo->pin_count && (bo->allowed_domains & AMDGPU_GEM_DOMAIN_GTT)) {
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
+		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	}
 
@@ -237,22 +373,30 @@ static int amdgpu_gem_begin_cpu_access(struct dma_buf *dma_buf,
 	return ret;
 }
 
-static const struct dma_buf_ops amdgpu_dmabuf_ops = {
+const struct dma_buf_ops amdgpu_dmabuf_ops = {
 	.attach = amdgpu_gem_map_attach,
 	.detach = amdgpu_gem_map_detach,
 	.map_dma_buf = drm_gem_map_dma_buf,
 	.unmap_dma_buf = drm_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
 	.begin_cpu_access = amdgpu_gem_begin_cpu_access,
-	.map = drm_gem_dmabuf_kmap,
-	.map_atomic = drm_gem_dmabuf_kmap_atomic,
-	.unmap = drm_gem_dmabuf_kunmap,
-	.unmap_atomic = drm_gem_dmabuf_kunmap_atomic,
 	.mmap = drm_gem_dmabuf_mmap,
 	.vmap = drm_gem_dmabuf_vmap,
 	.vunmap = drm_gem_dmabuf_vunmap,
 };
 
+/**
+ * amdgpu_gem_prime_export - &drm_driver.gem_prime_export implementation
+ * @dev: DRM device
+ * @gobj: GEM BO
+ * @flags: Flags such as DRM_CLOEXEC and DRM_RDWR.
+ *
+ * The main work is done by the &drm_gem_prime_export helper, which in turn
+ * uses &amdgpu_gem_prime_res_obj.
+ *
+ * Returns:
+ * Shared DMA buffer representing the GEM BO from the given device.
+ */
 struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 					struct drm_gem_object *gobj,
 					int flags)
@@ -273,6 +417,17 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 	return buf;
 }
 
+/**
+ * amdgpu_gem_prime_import - &drm_driver.gem_prime_import implementation
+ * @dev: DRM device
+ * @dma_buf: Shared DMA buffer
+ *
+ * The main work is done by the &drm_gem_prime_import helper, which in turn
+ * uses &amdgpu_gem_prime_import_sg_table.
+ *
+ * Returns:
+ * GEM BO representing the shared DMA buffer for the given device.
+ */
 struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf)
 {

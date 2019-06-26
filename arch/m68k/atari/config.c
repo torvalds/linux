@@ -81,9 +81,6 @@ extern void atari_sched_init(irq_handler_t);
 extern u32 atari_gettimeoffset(void);
 extern int atari_mste_hwclk (int, struct rtc_time *);
 extern int atari_tt_hwclk (int, struct rtc_time *);
-extern int atari_mste_set_clock_mmss (unsigned long);
-extern int atari_tt_set_clock_mmss (unsigned long);
-
 
 /* ++roman: This is a more elaborate test for an SCC chip, since the plain
  * Medusa board generates DTACK at the SCC's standard addresses, but a SCC
@@ -151,7 +148,7 @@ int __init atari_parse_bootinfo(const struct bi_record *record)
 /* Parse the Atari-specific switches= option. */
 static int __init atari_switches_setup(char *str)
 {
-	char switches[strlen(str) + 1];
+	char switches[COMMAND_LINE_SIZE];
 	char *p;
 	int ovsc_shift;
 	char *args = switches;
@@ -362,13 +359,11 @@ void __init config_atari(void)
 		ATARIHW_SET(TT_CLK);
 		pr_cont(" TT_CLK");
 		mach_hwclk = atari_tt_hwclk;
-		mach_set_clock_mmss = atari_tt_set_clock_mmss;
 	}
 	if (hwreg_present(&mste_rtc.sec_ones)) {
 		ATARIHW_SET(MSTE_CLK);
 		pr_cont(" MSTE_CLK");
 		mach_hwclk = atari_mste_hwclk;
-		mach_set_clock_mmss = atari_mste_set_clock_mmss;
 	}
 	if (!MACH_IS_MEDUSA && hwreg_present(&dma_wd.fdc_speed) &&
 	    hwreg_write(&dma_wd.fdc_speed, 0)) {

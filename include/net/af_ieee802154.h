@@ -56,6 +56,7 @@ struct sockaddr_ieee802154 {
 #define WPAN_WANTACK		0
 #define WPAN_SECURITY		1
 #define WPAN_SECURITY_LEVEL	2
+#define WPAN_WANTLQI		3
 
 #define WPAN_SECURITY_DEFAULT	0
 #define WPAN_SECURITY_OFF	1

@@ -1,0 +1,244 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Pinctrl dts file for HiSilicon HiKey970 development board
+ */
+
+#include <dt-bindings/pinctrl/hisi.h>
+
+/ {
+	soc {
+		range: gpio-range {
+			#pinctrl-single,gpio-range-cells = <3>;
+		};
+
+		pmx0: pinmux@e896c000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xe896c000 0x0 0x72c>;
+			#pinctrl-cells = <1>;
+			#gpio-range-cells = <0x3>;
+			pinctrl-single,register-width = <0x20>;
+			pinctrl-single,function-mask = <0x7>;
+			/* pin base, nr pins & gpio function */
+			pinctrl-single,gpio-range = <&range 0 82 0>;
+
+			uart0_pmx_func: uart0_pmx_func {
+				pinctrl-single,pins = <
+					0x054 MUX_M2 /* UART0_RXD */
+					0x058 MUX_M2 /* UART0_TXD */
+				>;
+			};
+
+			uart2_pmx_func: uart2_pmx_func {
+				pinctrl-single,pins = <
+					0x700 MUX_M2 /* UART2_CTS_N */
+					0x704 MUX_M2 /* UART2_RTS_N */
+					0x708 MUX_M2 /* UART2_RXD */
+					0x70c MUX_M2 /* UART2_TXD */
+				>;
+			};
+
+			uart3_pmx_func: uart3_pmx_func {
+				pinctrl-single,pins = <
+					0x064 MUX_M1 /* UART3_CTS_N */
+					0x068 MUX_M1 /* UART3_RTS_N */
+					0x06c MUX_M1 /* UART3_RXD */
+					0x070 MUX_M1 /* UART3_TXD */
+				>;
+			};
+
+			uart4_pmx_func: uart4_pmx_func {
+				pinctrl-single,pins = <
+					0x074 MUX_M1 /* UART4_CTS_N */
+					0x078 MUX_M1 /* UART4_RTS_N */
+					0x07c MUX_M1 /* UART4_RXD */
+					0x080 MUX_M1 /* UART4_TXD */
+				>;
+			};
+
+			uart6_pmx_func: uart6_pmx_func {
+				pinctrl-single,pins = <
+					0x05c MUX_M1 /* UART6_RXD */
+					0x060 MUX_M1 /* UART6_TXD */
+				>;
+			};
+		};
+
+		pmx2: pinmux@e896c800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xe896c800 0x0 0x72c>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+
+			uart0_cfg_func: uart0_cfg_func {
+				pinctrl-single,pins = <
+					0x058 0x0 /* UART0_RXD */
+					0x05c 0x0 /* UART0_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+
+			uart2_cfg_func: uart2_cfg_func {
+				pinctrl-single,pins = <
+					0x700 0x0 /* UART2_CTS_N */
+					0x704 0x0 /* UART2_RTS_N */
+					0x708 0x0 /* UART2_RXD */
+					0x70c 0x0 /* UART2_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+
+			uart3_cfg_func: uart3_cfg_func {
+				pinctrl-single,pins = <
+					0x068 0x0 /* UART3_CTS_N */
+					0x06c 0x0 /* UART3_RTS_N */
+					0x070 0x0 /* UART3_RXD */
+					0x074 0x0 /* UART3_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+
+			uart4_cfg_func: uart4_cfg_func {
+				pinctrl-single,pins = <
+					0x078 0x0 /* UART4_CTS_N */
+					0x07c 0x0 /* UART4_RTS_N */
+					0x080 0x0 /* UART4_RXD */
+					0x084 0x0 /* UART4_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+
+			uart6_cfg_func: uart6_cfg_func {
+				pinctrl-single,pins = <
+					0x060 0x0 /* UART6_RXD */
+					0x064 0x0 /* UART6_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+		};
+
+		pmx5: pinmux@fc182000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xfc182000 0x0 0x028>;
+			#gpio-range-cells = <3>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+			pinctrl-single,function-mask = <0x7>;
+			/* pin base, nr pins & gpio function */
+			pinctrl-single,gpio-range = <&range 0 10 0>;
+
+		};
+
+		pmx6: pinmux@fc182800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xfc182800 0x0 0x028>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+		};
+
+		pmx7: pinmux@ff37e000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xff37e000 0x0 0x030>;
+			#gpio-range-cells = <3>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+			pinctrl-single,function-mask = <7>;
+			/* pin base, nr pins & gpio function */
+			pinctrl-single,gpio-range = <&range 0 12 0>;
+		};
+
+		pmx8: pinmux@ff37e800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xff37e800 0x0 0x030>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+		};
+
+		pmx1: pinmux@fff11000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xfff11000 0x0 0x73c>;
+			#gpio-range-cells = <0x3>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+			pinctrl-single,function-mask = <0x7>;
+			/* pin base, nr pins & gpio function */
+			pinctrl-single,gpio-range = <&range 0 46 0>;
+		};
+
+		pmx16: pinmux@fff11800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xfff11800 0x0 0x73c>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+		};
+	};
+};

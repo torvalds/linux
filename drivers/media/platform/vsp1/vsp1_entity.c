@@ -404,7 +404,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(entity, config, entity->source_pad);
 	*format = fmt->format;
 
-	/* Reset the crop and compose rectangles */
+	/* Reset the crop and compose rectangles. */
 	selection = vsp1_entity_get_pad_selection(entity, config, fmt->pad,
 						  V4L2_SEL_TGT_CROP);
 	selection->left = 0;

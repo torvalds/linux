@@ -15,9 +15,10 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+
+#include "internals.h"
 
 #define NAND_HYNIX_CMD_SET_PARAMS	0x36
 #define NAND_HYNIX_CMD_APPLY_PARAMS	0x16
@@ -79,36 +80,42 @@ static bool hynix_nand_has_valid_jedecid(struct nand_chip *chip)
 
 static int hynix_nand_cmd_op(struct nand_chip *chip, u8 cmd)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
-	if (chip->exec_op) {
+	if (nand_has_exec_op(chip)) {
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(cmd, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, cmd, -1, -1);
+	chip->legacy.cmdfunc(chip, cmd, -1, -1);
 
 	return 0;
 }
 
 static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	u16 column = ((u16)addr << 8) | addr;
 
-	chip->cmdfunc(mtd, NAND_CMD_NONE, column, -1);
-	chip->write_byte(mtd, val);
+	if (nand_has_exec_op(chip)) {
+		struct nand_op_instr instrs[] = {
+			NAND_OP_ADDR(1, &addr, 0),
+			NAND_OP_8BIT_DATA_OUT(1, &val, 0),
+		};
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
+
+		return nand_exec_op(chip, &op);
+	}
+
+	chip->legacy.cmdfunc(chip, NAND_CMD_NONE, column, -1);
+	chip->legacy.write_byte(chip, val);
 
 	return 0;
 }
 
-static int hynix_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
+static int hynix_nand_setup_read_retry(struct nand_chip *chip, int retry_mode)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hynix_nand *hynix = nand_get_manufacturer_data(chip);
 	const u8 *values;
 	int i, ret;
@@ -473,6 +480,19 @@ static void hynix_nand_extract_oobsize(struct nand_chip *chip,
 			WARN(1, "Invalid OOB size");
 			break;
 		}
+
+		/*
+		 * The datasheet of H27UCG8T2BTR mentions that the "Redundant
+		 * Area Size" is encoded "per 8KB" (page size). This chip uses
+		 * a page size of 16KiB. The datasheet mentions an OOB size of
+		 * 1.280 bytes, but the OOB size encoded in the ID bytes (using
+		 * the existing logic above) is 640 bytes.
+		 * Update the OOB size for this chip by taking the value
+		 * determined above and scaling it to the actual page size (so
+		 * the actual OOB size for this chip is: 640 * 16k / 8k).
+		 */
+		if (chip->id.data[1] == 0xde)
+			mtd->oobsize *= mtd->writesize / SZ_8K;
 	}
 }
 

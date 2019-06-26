@@ -43,10 +43,10 @@
 #ifndef __OCRDMA_VERBS_H__
 #define __OCRDMA_VERBS_H__
 
-int ocrdma_post_send(struct ib_qp *, struct ib_send_wr *,
-		     struct ib_send_wr **bad_wr);
-int ocrdma_post_recv(struct ib_qp *, struct ib_recv_wr *,
-		     struct ib_recv_wr **bad_wr);
+int ocrdma_post_send(struct ib_qp *, const struct ib_send_wr *,
+		     const struct ib_send_wr **bad_wr);
+int ocrdma_post_recv(struct ib_qp *, const struct ib_recv_wr *,
+		     const struct ib_recv_wr **bad_wr);
 
 int ocrdma_poll_cq(struct ib_cq *, int num_entries, struct ib_wc *wc);
 int ocrdma_arm_cq(struct ib_cq *, enum ib_cq_notify_flags flags);
@@ -64,15 +64,14 @@ void ocrdma_get_guid(struct ocrdma_dev *, u8 *guid);
 struct net_device *ocrdma_get_netdev(struct ib_device *device, u8 port_num);
 int ocrdma_query_pkey(struct ib_device *, u8 port, u16 index, u16 *pkey);
 
-struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *,
-					  struct ib_udata *);
-int ocrdma_dealloc_ucontext(struct ib_ucontext *);
+int ocrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
+void ocrdma_dealloc_ucontext(struct ib_ucontext *uctx);
 
 int ocrdma_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
 
-struct ib_pd *ocrdma_alloc_pd(struct ib_device *,
-			      struct ib_ucontext *, struct ib_udata *);
-int ocrdma_dealloc_pd(struct ib_pd *pd);
+int ocrdma_alloc_pd(struct ib_pd *pd, struct ib_ucontext *uctx,
+		    struct ib_udata *udata);
+void ocrdma_dealloc_pd(struct ib_pd *pd);
 
 struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
 			       const struct ib_cq_init_attr *attr,
@@ -100,8 +99,8 @@ int ocrdma_modify_srq(struct ib_srq *, struct ib_srq_attr *,
 		      enum ib_srq_attr_mask, struct ib_udata *);
 int ocrdma_query_srq(struct ib_srq *, struct ib_srq_attr *);
 int ocrdma_destroy_srq(struct ib_srq *);
-int ocrdma_post_srq_recv(struct ib_srq *, struct ib_recv_wr *,
-			 struct ib_recv_wr **bad_recv_wr);
+int ocrdma_post_srq_recv(struct ib_srq *, const struct ib_recv_wr *,
+			 const struct ib_recv_wr **bad_recv_wr);
 
 int ocrdma_dereg_mr(struct ib_mr *);
 struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *, int acc);

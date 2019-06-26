@@ -27,28 +27,28 @@
 
 		cpu@0 {
 			device_type = "cpu";
-			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 		};
 
 		cpu@1 {
 			device_type = "cpu";
-			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 		};
 
 		cpu@2 {
 			device_type = "cpu";
-			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 		};
 
 		cpu@3 {
 			device_type = "cpu";
-			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 		};

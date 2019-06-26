@@ -421,14 +421,14 @@ static umode_t lm95245_temp_is_visible(const void *data, u32 attr, int channel)
 	case hwmon_temp_max_hyst:
 	case hwmon_temp_crit_alarm:
 	case hwmon_temp_fault:
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_type:
 	case hwmon_temp_max:
 	case hwmon_temp_crit:
 	case hwmon_temp_offset:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	case hwmon_temp_crit_hyst:
-		return (channel == 0) ? S_IRUGO | S_IWUSR : S_IRUGO;
+		return (channel == 0) ? 0644 : 0444;
 	default:
 		return 0;
 	}
@@ -442,7 +442,7 @@ static umode_t lm95245_is_visible(const void *data,
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			return S_IRUGO | S_IWUSR;
+			return 0644;
 		default:
 			return 0;
 		}
@@ -541,7 +541,8 @@ static const struct regmap_config lm95245_regmap_config = {
 	.writeable_reg = lm95245_is_writeable_reg,
 	.volatile_reg = lm95245_is_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static const u32 lm95245_chip_config[] = {

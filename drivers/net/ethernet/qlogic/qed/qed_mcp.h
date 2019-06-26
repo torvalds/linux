@@ -322,14 +322,61 @@ int qed_mcp_get_mbi_ver(struct qed_hwfn *p_hwfn,
  * @brief Get media type value of the port.
  *
  * @param cdev      - qed dev pointer
+ * @param p_ptt
  * @param mfw_ver    - media type value
  *
  * @return int -
  *      0 - Operation was successul.
  *      -EBUSY - Operation failed
  */
-int qed_mcp_get_media_type(struct qed_dev      *cdev,
-			   u32                  *media_type);
+int qed_mcp_get_media_type(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u32 *media_type);
+
+/**
+ * @brief Get transceiver data of the port.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_transceiver_state - transceiver state.
+ * @param p_transceiver_type - media type value
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_transceiver_data(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 u32 *p_transceiver_state,
+				 u32 *p_tranceiver_type);
+
+/**
+ * @brief Get transceiver supported speed mask.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_speed_mask - Bit mask of all supported speeds.
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+
+int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_speed_mask);
+
+/**
+ * @brief Get board configuration.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_board_config - Board config.
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_board_config(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_board_config);
 
 /**
  * @brief General function for sending commands to the MCP
@@ -392,6 +439,38 @@ int
 qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 struct qed_mcp_drv_version *p_ver);
+
+/**
+ * @brief Read the MFW process kill counter
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return u32
+ */
+u32 qed_get_process_kill_counter(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt);
+
+/**
+ * @brief Trigger a recovery process
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *
+ * @return int
+ */
+int qed_start_recovery_process(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief A recovery handler must call this function as its first step.
+ *        It is assumed that the handler is not run from an interrupt context.
+ *
+ *  @param cdev
+ *  @param p_ptt
+ *
+ * @return int
+ */
+int qed_recovery_prolog(struct qed_dev *cdev);
 
 /**
  * @brief Notify MFW about the change in base device properties
@@ -494,16 +573,6 @@ int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len);
  */
 int qed_mcp_nvm_write(struct qed_dev *cdev,
 		      u32 cmd, u32 addr, u8 *p_buf, u32 len);
-
-/**
- * @brief Put file begin
- *
- *  @param cdev
- *  @param addr - nvm offset
- *
- * @return int - 0 - operation was successful.
- */
-int qed_mcp_nvm_put_file_begin(struct qed_dev *cdev, u32 addr);
 
 /**
  * @brief Check latest response
@@ -622,10 +691,6 @@ int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 					    rel_pfid)
 #define MCP_PF_ID(p_hwfn) MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
 
-#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
-				 ((_p_hwfn)->cdev->num_ports_in_engine * \
-				  qed_device_num_engines((_p_hwfn)->cdev)))
-
 struct qed_mcp_info {
 	/* List for mailbox commands which were sent and wait for a response */
 	struct list_head			cmd_list;
@@ -635,11 +700,14 @@ struct qed_mcp_info {
 	 */
 	spinlock_t				cmd_lock;
 
+	/* Flag to indicate whether sending a MFW mailbox command is blocked */
+	bool					b_block_cmd;
+
 	/* Spinlock used for syncing SW link-changes and link-changes
 	 * originating from attention context.
 	 */
 	spinlock_t				link_lock;
-	bool					block_mb_sending;
+
 	u32					public_base;
 	u32					drv_mb_addr;
 	u32					mfw_mb_addr;
@@ -660,14 +728,20 @@ struct qed_mcp_info {
 };
 
 struct qed_mcp_mb_params {
-	u32			cmd;
-	u32			param;
-	void			*p_data_src;
-	u8			data_src_size;
-	void			*p_data_dst;
-	u8			data_dst_size;
-	u32			mcp_resp;
-	u32			mcp_param;
+	u32 cmd;
+	u32 param;
+	void *p_data_src;
+	void *p_data_dst;
+	u8 data_src_size;
+	u8 data_dst_size;
+	u32 mcp_resp;
+	u32 mcp_param;
+	u32 flags;
+#define QED_MB_FLAG_CAN_SLEEP	(0x1 << 0)
+#define QED_MB_FLAG_AVOID_BLOCK	(0x1 << 1)
+#define QED_MB_FLAGS_IS_SET(params, flag) \
+	({ typeof(params) __params = (params); \
+	   (__params && (__params->flags & QED_MB_FLAG_ ## flag)); })
 };
 
 struct qed_drv_tlv_hdr {
@@ -755,6 +829,16 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 		     struct qed_load_req_params *p_params);
 
 /**
+ * @brief Sends a LOAD_DONE message to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int - 0 - Operation was successful.
+ */
+int qed_mcp_load_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
  * @brief Sends a UNLOAD_REQ message to the MFW
  *
  * @param p_hwfn
@@ -838,6 +922,22 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 		       u32 param,
 		       u32 *o_mcp_resp,
 		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf);
+
+/**
+ * @brief Read from sfp
+ *
+ *  @param p_hwfn - hw function
+ *  @param p_ptt  - PTT required for register access
+ *  @param port   - transceiver port
+ *  @param addr   - I2C address
+ *  @param offset - offset in sfp
+ *  @param len    - buffer length
+ *  @param p_buf  - buffer to read into
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_phy_sfp_read(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u32 port, u32 addr, u32 offset, u32 len, u8 *p_buf);
 
 /**
  * @brief indicates whether the MFW objects [under mcp_info] are accessible
@@ -1044,6 +1144,16 @@ void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
 				    struct qed_resc_unlock_params *p_unlock,
 				    enum qed_resc_lock
 				    resource, bool b_is_permanent);
+
+/**
+ * @brief - Return whether management firmware support smart AN
+ *
+ * @param p_hwfn
+ *
+ * @return bool - true if feature is supported.
+ */
+bool qed_mcp_is_smart_an_supported(struct qed_hwfn *p_hwfn);
+
 /**
  * @brief Learn of supported MFW features; To be done during early init
  *

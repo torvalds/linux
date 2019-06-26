@@ -287,7 +287,7 @@ void hdmi5_core_dump(struct hdmi_core_data *core, struct seq_file *s)
 }
 
 static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
-			struct hdmi_config *cfg)
+			   const struct hdmi_config *cfg)
 {
 	DSSDBG("hdmi_core_init\n");
 
@@ -325,10 +325,10 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 
 /* DSS_HDMI_CORE_VIDEO_CONFIG */
 static void hdmi_core_video_config(struct hdmi_core_data *core,
-			struct hdmi_core_vid_config *cfg)
+			const struct hdmi_core_vid_config *cfg)
 {
 	void __iomem *base = core->base;
-	struct videomode *vm = &cfg->v_fc_config.vm;
+	const struct videomode *vm = &cfg->v_fc_config.vm;
 	unsigned char r = 0;
 	bool vsync_pol, hsync_pol;
 

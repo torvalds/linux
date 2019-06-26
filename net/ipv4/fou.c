@@ -3,6 +3,7 @@
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
+#include <linux/icmp.h>
 #include <linux/udp.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -120,6 +121,7 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 	struct guehdr *guehdr;
 	void *data;
 	u16 doffset = 0;
+	u8 proto_ctype;
 
 	if (!fou)
 		return 1;
@@ -211,27 +213,28 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(guehdr->control))
 		return gue_control_message(skb, guehdr);
 
+	proto_ctype = guehdr->proto_ctype;
 	__skb_pull(skb, sizeof(struct udphdr) + hdrlen);
 	skb_reset_transport_header(skb);
 
 	if (iptunnel_pull_offloads(skb))
 		goto drop;
 
-	return -guehdr->proto_ctype;
+	return -proto_ctype;
 
 drop:
 	kfree_skb(skb);
 	return 0;
 }
 
-static struct sk_buff **fou_gro_receive(struct sock *sk,
-					struct sk_buff **head,
-					struct sk_buff *skb)
+static struct sk_buff *fou_gro_receive(struct sock *sk,
+				       struct list_head *head,
+				       struct sk_buff *skb)
 {
-	const struct net_offload *ops;
-	struct sk_buff **pp = NULL;
 	u8 proto = fou_from_sock(sk)->protocol;
 	const struct net_offload **offloads;
+	const struct net_offload *ops;
+	struct sk_buff *pp = NULL;
 
 	/* We can clear the encap_mark for FOU as we are essentially doing
 	 * one of two possible things.  We are either adding an L4 tunnel
@@ -305,13 +308,13 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 	return guehdr;
 }
 
-static struct sk_buff **gue_gro_receive(struct sock *sk,
-					struct sk_buff **head,
-					struct sk_buff *skb)
+static struct sk_buff *gue_gro_receive(struct sock *sk,
+				       struct list_head *head,
+				       struct sk_buff *skb)
 {
 	const struct net_offload **offloads;
 	const struct net_offload *ops;
-	struct sk_buff **pp = NULL;
+	struct sk_buff *pp = NULL;
 	struct sk_buff *p;
 	struct guehdr *guehdr;
 	size_t len, optlen, hdrlen, off;
@@ -397,7 +400,7 @@ static struct sk_buff **gue_gro_receive(struct sock *sk,
 
 	skb_gro_pull(skb, hdrlen);
 
-	for (p = *head; p; p = p->next) {
+	list_for_each_entry(p, head, list) {
 		const struct guehdr *guehdr2;
 
 		if (!NAPI_GRO_CB(p)->same_flow)
@@ -1003,15 +1006,95 @@ static int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	return 0;
 }
 
+static int gue_err_proto_handler(int proto, struct sk_buff *skb, u32 info)
+{
+	const struct net_protocol *ipprot = rcu_dereference(inet_protos[proto]);
+
+	if (ipprot && ipprot->err_handler) {
+		if (!ipprot->err_handler(skb, info))
+			return 0;
+	}
+
+	return -ENOENT;
+}
+
+static int gue_err(struct sk_buff *skb, u32 info)
+{
+	int transport_offset = skb_transport_offset(skb);
+	struct guehdr *guehdr;
+	size_t len, optlen;
+	int ret;
+
+	len = sizeof(struct udphdr) + sizeof(struct guehdr);
+	if (!pskb_may_pull(skb, transport_offset + len))
+		return -EINVAL;
+
+	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
+
+	switch (guehdr->version) {
+	case 0: /* Full GUE header present */
+		break;
+	case 1: {
+		/* Direct encasulation of IPv4 or IPv6 */
+		skb_set_transport_header(skb, -(int)sizeof(struct icmphdr));
+
+		switch (((struct iphdr *)guehdr)->version) {
+		case 4:
+			ret = gue_err_proto_handler(IPPROTO_IPIP, skb, info);
+			goto out;
+#if IS_ENABLED(CONFIG_IPV6)
+		case 6:
+			ret = gue_err_proto_handler(IPPROTO_IPV6, skb, info);
+			goto out;
+#endif
+		default:
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+	}
+	default: /* Undefined version */
+		return -EOPNOTSUPP;
+	}
+
+	if (guehdr->control)
+		return -ENOENT;
+
+	optlen = guehdr->hlen << 2;
+
+	if (!pskb_may_pull(skb, transport_offset + len + optlen))
+		return -EINVAL;
+
+	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
+	if (validate_gue_flags(guehdr, optlen))
+		return -EINVAL;
+
+	/* Handling exceptions for direct UDP encapsulation in GUE would lead to
+	 * recursion. Besides, this kind of encapsulation can't even be
+	 * configured currently. Discard this.
+	 */
+	if (guehdr->proto_ctype == IPPROTO_UDP ||
+	    guehdr->proto_ctype == IPPROTO_UDPLITE)
+		return -EOPNOTSUPP;
+
+	skb_set_transport_header(skb, -(int)sizeof(struct icmphdr));
+	ret = gue_err_proto_handler(guehdr->proto_ctype, skb, info);
+
+out:
+	skb_set_transport_header(skb, transport_offset);
+	return ret;
+}
+
 
 static const struct ip_tunnel_encap_ops fou_iptun_ops = {
 	.encap_hlen = fou_encap_hlen,
 	.build_header = fou_build_header,
+	.err_handler = gue_err,
 };
 
 static const struct ip_tunnel_encap_ops gue_iptun_ops = {
 	.encap_hlen = gue_encap_hlen,
 	.build_header = gue_build_header,
+	.err_handler = gue_err,
 };
 
 static int ip_tunnel_encap_add_fou_ops(void)

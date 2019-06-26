@@ -76,7 +76,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 	hfi_core_deinit(core, true);
 	hfi_destroy(core);
 	mutex_lock(&core->lock);
-	venus_shutdown(core->dev);
+	venus_shutdown(core);
 
 	pm_runtime_put_sync(core->dev);
 
@@ -84,7 +84,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 
 	pm_runtime_get_sync(core->dev);
 
-	ret |= venus_boot(core->dev, core->res->fwname);
+	ret |= venus_boot(core);
 
 	ret |= hfi_core_resume(core, true);
 
@@ -152,6 +152,83 @@ static void venus_clks_disable(struct venus_core *core)
 		clk_disable_unprepare(core->clks[i]);
 }
 
+static u32 to_v4l2_codec_type(u32 codec)
+{
+	switch (codec) {
+	case HFI_VIDEO_CODEC_H264:
+		return V4L2_PIX_FMT_H264;
+	case HFI_VIDEO_CODEC_H263:
+		return V4L2_PIX_FMT_H263;
+	case HFI_VIDEO_CODEC_MPEG1:
+		return V4L2_PIX_FMT_MPEG1;
+	case HFI_VIDEO_CODEC_MPEG2:
+		return V4L2_PIX_FMT_MPEG2;
+	case HFI_VIDEO_CODEC_MPEG4:
+		return V4L2_PIX_FMT_MPEG4;
+	case HFI_VIDEO_CODEC_VC1:
+		return V4L2_PIX_FMT_VC1_ANNEX_G;
+	case HFI_VIDEO_CODEC_VP8:
+		return V4L2_PIX_FMT_VP8;
+	case HFI_VIDEO_CODEC_VP9:
+		return V4L2_PIX_FMT_VP9;
+	case HFI_VIDEO_CODEC_DIVX:
+	case HFI_VIDEO_CODEC_DIVX_311:
+		return V4L2_PIX_FMT_XVID;
+	default:
+		return 0;
+	}
+}
+
+static int venus_enumerate_codecs(struct venus_core *core, u32 type)
+{
+	const struct hfi_inst_ops dummy_ops = {};
+	struct venus_inst *inst;
+	u32 codec, codecs;
+	unsigned int i;
+	int ret;
+
+	if (core->res->hfi_version != HFI_VERSION_1XX)
+		return 0;
+
+	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+
+	mutex_init(&inst->lock);
+	inst->core = core;
+	inst->session_type = type;
+	if (type == VIDC_SESSION_TYPE_DEC)
+		codecs = core->dec_codecs;
+	else
+		codecs = core->enc_codecs;
+
+	ret = hfi_session_create(inst, &dummy_ops);
+	if (ret)
+		goto err;
+
+	for (i = 0; i < MAX_CODEC_NUM; i++) {
+		codec = (1 << i) & codecs;
+		if (!codec)
+			continue;
+
+		ret = hfi_session_init(inst, to_v4l2_codec_type(codec));
+		if (ret)
+			goto done;
+
+		ret = hfi_session_deinit(inst);
+		if (ret)
+			goto done;
+	}
+
+done:
+	hfi_session_destroy(inst);
+err:
+	mutex_destroy(&inst->lock);
+	kfree(inst);
+
+	return ret;
+}
+
 static int venus_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -187,6 +264,14 @@ static int venus_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	if (!dev->dma_parms) {
+		dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms),
+					      GFP_KERNEL);
+		if (!dev->dma_parms)
+			return -ENOMEM;
+	}
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
 	INIT_LIST_HEAD(&core->instances);
 	mutex_init(&core->lock);
 	INIT_DELAYED_WORK(&core->work, venus_sys_error_handler);
@@ -207,7 +292,15 @@ static int venus_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_runtime_disable;
 
-	ret = venus_boot(dev, core->res->fwname);
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret)
+		goto err_runtime_disable;
+
+	ret = venus_firmware_init(core);
+	if (ret)
+		goto err_runtime_disable;
+
+	ret = venus_boot(core);
 	if (ret)
 		goto err_runtime_disable;
 
@@ -219,13 +312,17 @@ static int venus_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_venus_shutdown;
 
+	ret = venus_enumerate_codecs(core, VIDC_SESSION_TYPE_DEC);
+	if (ret)
+		goto err_venus_shutdown;
+
+	ret = venus_enumerate_codecs(core, VIDC_SESSION_TYPE_ENC);
+	if (ret)
+		goto err_venus_shutdown;
+
 	ret = v4l2_device_register(dev, &core->v4l2_dev);
 	if (ret)
 		goto err_core_deinit;
-
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	if (ret)
-		goto err_dev_unregister;
 
 	ret = pm_runtime_put_sync(dev);
 	if (ret)
@@ -238,7 +335,7 @@ err_dev_unregister:
 err_core_deinit:
 	hfi_core_deinit(core, false);
 err_venus_shutdown:
-	venus_shutdown(dev);
+	venus_shutdown(core);
 err_runtime_disable:
 	pm_runtime_set_suspended(dev);
 	pm_runtime_disable(dev);
@@ -259,8 +356,10 @@ static int venus_remove(struct platform_device *pdev)
 	WARN_ON(ret);
 
 	hfi_destroy(core);
-	venus_shutdown(dev);
+	venus_shutdown(core);
 	of_platform_depopulate(dev);
+
+	venus_firmware_deinit(core);
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
@@ -356,7 +455,7 @@ static const struct venus_resources msm8996_res = {
 	.reg_tbl_size = ARRAY_SIZE(msm8996_reg_preset),
 	.clks = {"core", "iface", "bus", "mbus" },
 	.clks_num = 4,
-	.max_load = 2563200,
+	.max_load = 3110400,	/* 4096x2160@90 */
 	.hfi_version = HFI_VERSION_3XX,
 	.vmem_id = VIDC_RESOURCE_NONE,
 	.vmem_size = 0,
@@ -365,9 +464,33 @@ static const struct venus_resources msm8996_res = {
 	.fwname = "qcom/venus-4.2/venus.mdt",
 };
 
+static const struct freq_tbl sdm845_freq_table[] = {
+	{ 3110400, 533000000 },	/* 4096x2160@90 */
+	{ 2073600, 444000000 },	/* 4096x2160@60 */
+	{ 1944000, 404000000 },	/* 3840x2160@60 */
+	{  972000, 330000000 },	/* 3840x2160@30 */
+	{  489600, 200000000 },	/* 1920x1080@60 */
+	{  244800, 100000000 },	/* 1920x1080@30 */
+};
+
+static const struct venus_resources sdm845_res = {
+	.freq_tbl = sdm845_freq_table,
+	.freq_tbl_size = ARRAY_SIZE(sdm845_freq_table),
+	.clks = {"core", "iface", "bus" },
+	.clks_num = 3,
+	.max_load = 2563200,
+	.hfi_version = HFI_VERSION_4XX,
+	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_size = 0,
+	.vmem_addr = 0,
+	.dma_mask = 0xe0000000 - 1,
+	.fwname = "qcom/venus-5.2/venus.mdt",
+};
+
 static const struct of_device_id venus_dt_match[] = {
 	{ .compatible = "qcom,msm8916-venus", .data = &msm8916_res, },
 	{ .compatible = "qcom,msm8996-venus", .data = &msm8996_res, },
+	{ .compatible = "qcom,sdm845-venus", .data = &sdm845_res, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, venus_dt_match);

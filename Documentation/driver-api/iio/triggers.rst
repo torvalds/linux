@@ -38,7 +38,7 @@ There are two locations in sysfs related to triggers:
 
 * :file:`/sys/bus/iio/devices/iio:device{X}/trigger/*`, this directory is
   created once the device supports a triggered buffer. We can associate a
-  trigger with our  device by writing the trigger's name in the
+  trigger with our device by writing the trigger's name in the
   :file:`current_trigger` file.
 
 IIO trigger setup

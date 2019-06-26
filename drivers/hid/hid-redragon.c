@@ -44,29 +44,6 @@ static __u8 *redragon_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
-static int redragon_probe(struct hid_device *dev,
-	const struct hid_device_id *id)
-{
-	int ret;
-
-	ret = hid_parse(dev);
-	if (ret) {
-		hid_err(dev, "parse failed\n");
-		return ret;
-	}
-
-	/* do not register unused input device */
-	if (dev->maxapplication == 1)
-		return 0;
-
-	ret = hid_hw_start(dev, HID_CONNECT_DEFAULT);
-	if (ret) {
-		hid_err(dev, "hw start failed\n");
-		return ret;
-	}
-
-	return 0;
-}
 static const struct hid_device_id redragon_devices[] = {
 	{HID_USB_DEVICE(USB_VENDOR_ID_JESS, USB_DEVICE_ID_REDRAGON_ASURA)},
 	{}
@@ -77,8 +54,7 @@ MODULE_DEVICE_TABLE(hid, redragon_devices);
 static struct hid_driver redragon_driver = {
 	.name = "redragon",
 	.id_table = redragon_devices,
-	.report_fixup = redragon_report_fixup,
-	.probe = redragon_probe
+	.report_fixup = redragon_report_fixup
 };
 
 module_hid_driver(redragon_driver);

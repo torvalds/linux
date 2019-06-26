@@ -395,6 +395,8 @@ struct integrated_info {
 	struct i2c_reg_info dp3_ext_hdmi_reg_settings[9];
 	unsigned char dp3_ext_hdmi_6g_reg_num;
 	struct i2c_reg_info dp3_ext_hdmi_6g_reg_settings[3];
+	/* V11 */
+	uint32_t dp_ss_control;
 };
 
 /**

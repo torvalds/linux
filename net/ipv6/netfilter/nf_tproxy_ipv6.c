@@ -55,7 +55,7 @@ nf_tproxy_handle_time_wait6(struct sk_buff *skb, int tproto, int thoff,
 		 * to a listener socket if there's one */
 		struct sock *sk2;
 
-		sk2 = nf_tproxy_get_sock_v6(net, skb, thoff, hp, tproto,
+		sk2 = nf_tproxy_get_sock_v6(net, skb, thoff, tproto,
 					    &iph->saddr,
 					    nf_tproxy_laddr6(skb, laddr, &iph->daddr),
 					    hp->source,
@@ -72,7 +72,7 @@ nf_tproxy_handle_time_wait6(struct sk_buff *skb, int tproto, int thoff,
 EXPORT_SYMBOL_GPL(nf_tproxy_handle_time_wait6);
 
 struct sock *
-nf_tproxy_get_sock_v6(struct net *net, struct sk_buff *skb, int thoff, void *hp,
+nf_tproxy_get_sock_v6(struct net *net, struct sk_buff *skb, int thoff,
 		      const u8 protocol,
 		      const struct in6_addr *saddr, const struct in6_addr *daddr,
 		      const __be16 sport, const __be16 dport,
@@ -80,15 +80,20 @@ nf_tproxy_get_sock_v6(struct net *net, struct sk_buff *skb, int thoff, void *hp,
 		      const enum nf_tproxy_lookup_t lookup_type)
 {
 	struct sock *sk;
-	struct tcphdr *tcph;
 
 	switch (protocol) {
-	case IPPROTO_TCP:
+	case IPPROTO_TCP: {
+		struct tcphdr _hdr, *hp;
+
+		hp = skb_header_pointer(skb, thoff,
+					sizeof(struct tcphdr), &_hdr);
+		if (hp == NULL)
+			return NULL;
+
 		switch (lookup_type) {
 		case NF_TPROXY_LOOKUP_LISTENER:
-			tcph = hp;
 			sk = inet6_lookup_listener(net, &tcp_hashinfo, skb,
-						   thoff + __tcp_hdrlen(tcph),
+						   thoff + __tcp_hdrlen(hp),
 						   saddr, sport,
 						   daddr, ntohs(dport),
 						   in->ifindex, 0);
@@ -110,6 +115,7 @@ nf_tproxy_get_sock_v6(struct net *net, struct sk_buff *skb, int thoff, void *hp,
 			BUG();
 		}
 		break;
+		}
 	case IPPROTO_UDP:
 		sk = udp6_lib_lookup(net, saddr, sport, daddr, dport,
 				     in->ifindex);

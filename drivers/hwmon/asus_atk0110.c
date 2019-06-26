@@ -681,10 +681,8 @@ static int atk_debugfs_gitm_get(void *p, u64 *val)
 	return err;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(atk_debugfs_gitm,
-			atk_debugfs_gitm_get,
-			NULL,
-			"0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(atk_debugfs_gitm, atk_debugfs_gitm_get, NULL,
+			 "0x%08llx\n");
 
 static int atk_acpi_print(char *buf, size_t sz, union acpi_object *obj)
 {
@@ -799,17 +797,17 @@ static void atk_debugfs_init(struct atk_data *data)
 	if (!d || IS_ERR(d))
 		return;
 
-	f = debugfs_create_x32("id", S_IRUSR | S_IWUSR, d, &data->debugfs.id);
+	f = debugfs_create_x32("id", 0600, d, &data->debugfs.id);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
-	f = debugfs_create_file("gitm", S_IRUSR, d, data,
-			&atk_debugfs_gitm);
+	f = debugfs_create_file_unsafe("gitm", 0400, d, data,
+				       &atk_debugfs_gitm);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
-	f = debugfs_create_file("ggrp", S_IRUSR, d, data,
-			&atk_debugfs_ggrp_fops);
+	f = debugfs_create_file("ggrp", 0400, d, data,
+				&atk_debugfs_ggrp_fops);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
@@ -1210,10 +1208,8 @@ static int atk_register_hwmon(struct atk_data *data)
 	data->hwmon_dev = hwmon_device_register_with_groups(dev, "atk0110",
 							    data,
 							    data->attr_groups);
-	if (IS_ERR(data->hwmon_dev))
-		return PTR_ERR(data->hwmon_dev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(data->hwmon_dev);
 }
 
 static int atk_probe_if(struct atk_data *data)

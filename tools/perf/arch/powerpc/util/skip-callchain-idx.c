@@ -16,6 +16,9 @@
 #include "util/thread.h"
 #include "util/callchain.h"
 #include "util/debug.h"
+#include "util/dso.h"
+#include "util/map.h"
+#include "util/symbol.h"
 
 /*
  * When saving the callchain on Power, the kernel conservatively saves
@@ -58,9 +61,13 @@ static int check_return_reg(int ra_regno, Dwarf_Frame *frame)
 	}
 
 	/*
-	 * Check if return address is on the stack.
+	 * Check if return address is on the stack. If return address
+	 * is in a register (typically R0), it is yet to be saved on
+	 * the stack.
 	 */
-	if (nops != 0 || ops != NULL)
+	if ((nops != 0 || ops != NULL) &&
+		!(nops == 1 && ops[0].atom == DW_OP_regx &&
+			ops[0].number2 == 0 && ops[0].offset == 0))
 		return 0;
 
 	/*
@@ -246,7 +253,7 @@ int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain)
 	if (!chain || chain->nr < 3)
 		return skip_slot;
 
-	ip = chain->ips[2];
+	ip = chain->ips[1];
 
 	thread__find_symbol(thread, PERF_RECORD_MISC_USER, ip, &al);
 

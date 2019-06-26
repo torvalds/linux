@@ -10,6 +10,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <asm/asm-const.h>
+
 /*
  * We always define HW_PAGE_SHIFT to 12 as use of 64K pages remains Linux
  * specific, every notion of page number shared with the firmware, TCEs,

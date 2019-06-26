@@ -44,8 +44,8 @@ struct xfs_mount;
 		 ((index) - 1) * sizeof(xfs_refcount_ptr_t)))
 
 extern struct xfs_btree_cur *xfs_refcountbt_init_cursor(struct xfs_mount *mp,
-		struct xfs_trans *tp, struct xfs_buf *agbp, xfs_agnumber_t agno,
-		struct xfs_defer_ops *dfops);
+		struct xfs_trans *tp, struct xfs_buf *agbp,
+		xfs_agnumber_t agno);
 extern int xfs_refcountbt_maxrecs(int blocklen, bool leaf);
 extern void xfs_refcountbt_compute_maxlevels(struct xfs_mount *mp);
 
@@ -55,6 +55,7 @@ extern xfs_extlen_t xfs_refcountbt_max_size(struct xfs_mount *mp,
 		xfs_agblock_t agblocks);
 
 extern int xfs_refcountbt_calc_reserves(struct xfs_mount *mp,
-		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
+		struct xfs_trans *tp, xfs_agnumber_t agno, xfs_extlen_t *ask,
+		xfs_extlen_t *used);
 
 #endif	/* __XFS_REFCOUNT_BTREE_H__ */

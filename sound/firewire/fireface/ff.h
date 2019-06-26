@@ -31,23 +31,31 @@
 #include "../amdtp-stream.h"
 #include "../iso-resources.h"
 
-#define SND_FF_STREAM_MODES		3
-
 #define SND_FF_MAXIMIM_MIDI_QUADS	9
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
+
+enum snd_ff_stream_mode {
+	SND_FF_STREAM_MODE_LOW = 0,
+	SND_FF_STREAM_MODE_MID,
+	SND_FF_STREAM_MODE_HIGH,
+	SND_FF_STREAM_MODE_COUNT,
+};
 
 struct snd_ff_protocol;
 struct snd_ff_spec {
 	const char *const name;
 
-	const unsigned int pcm_capture_channels[SND_FF_STREAM_MODES];
-	const unsigned int pcm_playback_channels[SND_FF_STREAM_MODES];
+	const unsigned int pcm_capture_channels[SND_FF_STREAM_MODE_COUNT];
+	const unsigned int pcm_playback_channels[SND_FF_STREAM_MODE_COUNT];
 
 	unsigned int midi_in_ports;
 	unsigned int midi_out_ports;
 
 	const struct snd_ff_protocol *protocol;
+	u64 midi_high_addr;
+	u8 midi_addr_range;
+	u64 midi_rx_addrs[SND_FF_OUT_MIDI_PORTS];
 };
 
 struct snd_ff {
@@ -67,7 +75,7 @@ struct snd_ff {
 
 	/* TO handle MIDI rx. */
 	struct snd_rawmidi_substream *rx_midi_substreams[SND_FF_OUT_MIDI_PORTS];
-	u8 running_status[SND_FF_OUT_MIDI_PORTS];
+	bool on_sysex[SND_FF_OUT_MIDI_PORTS];
 	__le32 msg_buf[SND_FF_OUT_MIDI_PORTS][SND_FF_MAXIMIM_MIDI_QUADS];
 	struct work_struct rx_midi_work[SND_FF_OUT_MIDI_PORTS];
 	struct fw_transaction transactions[SND_FF_OUT_MIDI_PORTS];
@@ -89,30 +97,30 @@ struct snd_ff {
 enum snd_ff_clock_src {
 	SND_FF_CLOCK_SRC_INTERNAL,
 	SND_FF_CLOCK_SRC_SPDIF,
-	SND_FF_CLOCK_SRC_ADAT,
+	SND_FF_CLOCK_SRC_ADAT1,
+	SND_FF_CLOCK_SRC_ADAT2,
 	SND_FF_CLOCK_SRC_WORD,
 	SND_FF_CLOCK_SRC_LTC,
-	/* TODO: perhaps ADAT2 and TCO exists. */
+	/* TODO: perhaps TCO exists. */
 };
 
 struct snd_ff_protocol {
+	void (*handle_midi_msg)(struct snd_ff *ff, unsigned int offset,
+				__le32 *buf, size_t length);
+	int (*fill_midi_msg)(struct snd_ff *ff,
+			     struct snd_rawmidi_substream *substream,
+			     unsigned int port);
 	int (*get_clock)(struct snd_ff *ff, unsigned int *rate,
 			 enum snd_ff_clock_src *src);
+	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
 	int (*begin_session)(struct snd_ff *ff, unsigned int rate);
 	void (*finish_session)(struct snd_ff *ff);
-	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
-
-	void (*dump_sync_status)(struct snd_ff *ff,
-				 struct snd_info_buffer *buffer);
-	void (*dump_clock_config)(struct snd_ff *ff,
-				  struct snd_info_buffer *buffer);
-
-	u64 midi_high_addr_reg;
-	u64 midi_rx_port_0_reg;
-	u64 midi_rx_port_1_reg;
+	void (*dump_status)(struct snd_ff *ff, struct snd_info_buffer *buffer);
 };
 
+extern const struct snd_ff_protocol snd_ff_protocol_ff800;
 extern const struct snd_ff_protocol snd_ff_protocol_ff400;
+extern const struct snd_ff_protocol snd_ff_protocol_latter;
 
 int snd_ff_transaction_register(struct snd_ff *ff);
 int snd_ff_transaction_reregister(struct snd_ff *ff);
@@ -125,6 +133,8 @@ int amdtp_ff_add_pcm_hw_constraints(struct amdtp_stream *s,
 int amdtp_ff_init(struct amdtp_stream *s, struct fw_unit *unit,
 		  enum amdtp_stream_direction dir);
 
+int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
+				      enum snd_ff_stream_mode *mode);
 int snd_ff_stream_init_duplex(struct snd_ff *ff);
 void snd_ff_stream_destroy_duplex(struct snd_ff *ff);
 int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate);
@@ -136,6 +146,7 @@ int snd_ff_stream_lock_try(struct snd_ff *ff);
 void snd_ff_stream_lock_release(struct snd_ff *ff);
 
 void snd_ff_proc_init(struct snd_ff *ff);
+const char *snd_ff_proc_get_clk_label(enum snd_ff_clock_src src);
 
 int snd_ff_create_midi_devices(struct snd_ff *ff);
 

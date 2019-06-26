@@ -9,7 +9,8 @@
 
 void __iomem *atl2c_base;
 static const struct of_device_id atl2c_ids[] __initconst = {
-	{.compatible = "andestech,atl2c",}
+	{.compatible = "andestech,atl2c",},
+	{}
 };
 
 static int __init atl2c_of_init(void)

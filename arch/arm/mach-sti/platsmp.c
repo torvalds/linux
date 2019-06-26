@@ -28,82 +28,33 @@
 
 #include "smp.h"
 
-static void write_pen_release(int val)
-{
-	pen_release = val;
-	smp_wmb();
-	sync_cache_w(&pen_release);
-}
-
-static DEFINE_SPINLOCK(boot_lock);
-
-static void sti_secondary_init(unsigned int cpu)
-{
-	/*
-	 * let the primary processor know we're out of the
-	 * pen, then head off into the C entry point
-	 */
-	write_pen_release(-1);
-
-	/*
-	 * Synchronise with the boot thread.
-	 */
-	spin_lock(&boot_lock);
-	spin_unlock(&boot_lock);
-}
+static u32 __iomem *cpu_strt_ptr;
 
 static int sti_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	unsigned long timeout;
+	unsigned long entry_pa = __pa_symbol(secondary_startup);
 
 	/*
-	 * set synchronisation state between this boot processor
-	 * and the secondary one
+	 * Secondary CPU is initialised and started by a U-BOOTROM firmware.
+	 * Secondary CPU is spinning and waiting for a write at cpu_strt_ptr.
+	 * Writing secondary_startup address at cpu_strt_ptr makes it to
+	 * jump directly to secondary_startup().
 	 */
-	spin_lock(&boot_lock);
+	__raw_writel(entry_pa, cpu_strt_ptr);
 
-	/*
-	 * The secondary processor is waiting to be released from
-	 * the holding pen - release it, then wait for it to flag
-	 * that it has been released by resetting pen_release.
-	 *
-	 * Note that "pen_release" is the hardware CPU ID, whereas
-	 * "cpu" is Linux's internal ID.
-	 */
-	write_pen_release(cpu_logical_map(cpu));
+	/* wmb so that data is actually written before cache flush is done */
+	smp_wmb();
+	sync_cache_w(cpu_strt_ptr);
 
-	/*
-	 * Send the secondary CPU a soft interrupt, thereby causing
-	 * it to jump to the secondary entrypoint.
-	 */
-	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
-
-	timeout = jiffies + (1 * HZ);
-	while (time_before(jiffies, timeout)) {
-		smp_rmb();
-		if (pen_release == -1)
-			break;
-
-		udelay(10);
-	}
-
-	/*
-	 * now the secondary core is starting up let it run its
-	 * calibrations, then wait for it to finish
-	 */
-	spin_unlock(&boot_lock);
-
-	return pen_release != -1 ? -ENOSYS : 0;
+	return 0;
 }
 
 static void __init sti_smp_prepare_cpus(unsigned int max_cpus)
 {
 	struct device_node *np;
 	void __iomem *scu_base;
-	u32 __iomem *cpu_strt_ptr;
 	u32 release_phys;
 	int cpu;
-	unsigned long entry_pa = __pa_symbol(sti_secondary_startup);
 
 	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
 
@@ -131,8 +82,8 @@ static void __init sti_smp_prepare_cpus(unsigned int max_cpus)
 		}
 
 		/*
-		 * holding pen is usually configured in SBC DMEM but can also be
-		 * in RAM.
+		 * cpu-release-addr is usually configured in SBC DMEM but can
+		 * also be in RAM.
 		 */
 
 		if (!memblock_is_memory(release_phys))
@@ -142,22 +93,11 @@ static void __init sti_smp_prepare_cpus(unsigned int max_cpus)
 			cpu_strt_ptr =
 				(u32 __iomem *)phys_to_virt(release_phys);
 
-		__raw_writel(entry_pa, cpu_strt_ptr);
-
-		/*
-		 * wmb so that data is actually written
-		 * before cache flush is done
-		 */
-		smp_wmb();
-		sync_cache_w(cpu_strt_ptr);
-
-		if (!memblock_is_memory(release_phys))
-			iounmap(cpu_strt_ptr);
+		set_cpu_possible(cpu, true);
 	}
 }
 
 const struct smp_operations sti_smp_ops __initconst = {
 	.smp_prepare_cpus	= sti_smp_prepare_cpus,
-	.smp_secondary_init	= sti_secondary_init,
 	.smp_boot_secondary	= sti_boot_secondary,
 };

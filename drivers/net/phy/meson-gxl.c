@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Amlogic Meson GXL Internal PHY Driver
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  * Copyright (C) 2016 BayLibre, SAS. All rights reserved.
  * Author: Neil Armstrong <narmstrong@baylibre.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -211,6 +201,7 @@ static int meson_gxl_ack_interrupt(struct phy_device *phydev)
 static int meson_gxl_config_intr(struct phy_device *phydev)
 {
 	u16 val;
+	int ret;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
 		val = INTSRC_ANEG_PR
@@ -223,6 +214,11 @@ static int meson_gxl_config_intr(struct phy_device *phydev)
 		val = 0;
 	}
 
+	/* Ack any pending IRQ */
+	ret = meson_gxl_ack_interrupt(phydev);
+	if (ret)
+		return ret;
+
 	return phy_write(phydev, INTSRC_MASK, val);
 }
 
@@ -232,7 +228,8 @@ static struct phy_driver meson_gxl_phy[] = {
 		.phy_id_mask	= 0xfffffff0,
 		.name		= "Meson GXL Internal PHY",
 		.features	= PHY_BASIC_FEATURES,
-		.flags		= PHY_IS_INTERNAL | PHY_HAS_INTERRUPT,
+		.flags		= PHY_IS_INTERNAL,
+		.soft_reset     = genphy_soft_reset,
 		.config_init	= meson_gxl_config_init,
 		.aneg_done      = genphy_aneg_done,
 		.read_status	= meson_gxl_read_status,

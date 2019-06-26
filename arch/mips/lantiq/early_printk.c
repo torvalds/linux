@@ -8,6 +8,7 @@
 
 #include <linux/cpu.h>
 #include <lantiq_soc.h>
+#include <asm/setup.h>
 
 #define ASC_BUF		1024
 #define LTQ_ASC_FSTAT	((u32 *)(LTQ_EARLY_ASC + 0x0048))

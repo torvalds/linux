@@ -785,7 +785,7 @@ static int dim2_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dev->disable_platform = pdata ? pdata->disable : 0;
+	dev->disable_platform = pdata ? pdata->disable : NULL;
 
 	dev_info(&pdev->dev, "sync: num of frames per sub-buffer: %u\n", fcnt);
 	hal_ret = dim_startup(dev->io_base, dev->clk_speed, fcnt);

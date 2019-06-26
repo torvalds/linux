@@ -15,8 +15,6 @@ ib_core-y :=			packer.o ud_header.o verbs.o cq.o rw.o sysfs.o \
 				nldev.o restrack.o
 
 ib_core-$(CONFIG_SECURITY_INFINIBAND) += security.o
-ib_core-$(CONFIG_INFINIBAND_USER_MEM) += umem.o
-ib_core-$(CONFIG_INFINIBAND_ON_DEMAND_PAGING) += umem_odp.o
 ib_core-$(CONFIG_CGROUP_RDMA) += cgroup.o
 
 ib_cm-y :=			cm.o
@@ -35,6 +33,9 @@ ib_ucm-y :=			ucm.o
 
 ib_uverbs-y :=			uverbs_main.o uverbs_cmd.o uverbs_marshall.o \
 				rdma_core.o uverbs_std_types.o uverbs_ioctl.o \
-				uverbs_ioctl_merge.o uverbs_std_types_cq.o \
+				uverbs_std_types_cq.o \
 				uverbs_std_types_flow_action.o uverbs_std_types_dm.o \
-				uverbs_std_types_mr.o uverbs_std_types_counters.o
+				uverbs_std_types_mr.o uverbs_std_types_counters.o \
+				uverbs_uapi.o uverbs_std_types_device.o
+ib_uverbs-$(CONFIG_INFINIBAND_USER_MEM) += umem.o
+ib_uverbs-$(CONFIG_INFINIBAND_ON_DEMAND_PAGING) += umem_odp.o

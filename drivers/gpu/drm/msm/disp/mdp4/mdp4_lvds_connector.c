@@ -34,9 +34,12 @@ static enum drm_connector_status mdp4_lvds_connector_detect(
 	struct mdp4_lvds_connector *mdp4_lvds_connector =
 			to_mdp4_lvds_connector(connector);
 
-	if (!mdp4_lvds_connector->panel)
+	if (!mdp4_lvds_connector->panel) {
 		mdp4_lvds_connector->panel =
 			of_drm_find_panel(mdp4_lvds_connector->panel_node);
+		if (IS_ERR(mdp4_lvds_connector->panel))
+			mdp4_lvds_connector->panel = NULL;
+	}
 
 	return mdp4_lvds_connector->panel ?
 			connector_status_connected :
@@ -129,7 +132,7 @@ struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return connector;
 }

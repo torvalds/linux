@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
  * Copyright (c) 2012 David Airlie <airlied@linux.ie>
@@ -102,10 +103,7 @@ EXPORT_SYMBOL(drm_vma_offset_manager_init);
  */
 void drm_vma_offset_manager_destroy(struct drm_vma_offset_manager *mgr)
 {
-	/* take the lock to protect against buggy drivers */
-	write_lock(&mgr->vm_lock);
 	drm_mm_takedown(&mgr->vm_addr_space_mm);
-	write_unlock(&mgr->vm_lock);
 }
 EXPORT_SYMBOL(drm_vma_offset_manager_destroy);
 

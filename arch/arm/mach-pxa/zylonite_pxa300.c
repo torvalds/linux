@@ -230,11 +230,13 @@ static struct pca953x_platform_data gpio_exp[] = {
 static struct i2c_board_info zylonite_i2c_board_info[] = {
 	{
 		.type		= "pca9539",
+		.dev_name	= "pca9539-a",
 		.addr		= 0x74,
 		.platform_data	= &gpio_exp[0],
 		.irq		= PXA_GPIO_TO_IRQ(18),
 	}, {
 		.type		= "pca9539",
+		.dev_name	= "pca9539-b",
 		.addr		= 0x75,
 		.platform_data	= &gpio_exp[1],
 		.irq		= PXA_GPIO_TO_IRQ(19),

@@ -39,7 +39,7 @@
 			d-cache-size = <32768>;
 			dcr-controller;
 			dcr-access-method = "native";
-			status = "ok";
+			status = "okay";
 		};
 		cpu@1 {
 			device_type = "cpu";

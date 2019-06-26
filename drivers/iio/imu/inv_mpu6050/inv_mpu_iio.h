@@ -12,8 +12,6 @@
 */
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-#include <linux/kfifo.h>
-#include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -46,6 +44,7 @@
  *  @int_pin_cfg;	Controls interrupt pin configuration.
  *  @accl_offset:	Controls the accelerometer calibration offset.
  *  @gyro_offset:	Controls the gyroscope calibration offset.
+ *  @i2c_if:		Controls the i2c interface
  */
 struct inv_mpu6050_reg_map {
 	u8 sample_rate_div;
@@ -67,17 +66,20 @@ struct inv_mpu6050_reg_map {
 	u8 int_pin_cfg;
 	u8 accl_offset;
 	u8 gyro_offset;
+	u8 i2c_if;
 };
 
 /*device enum */
 enum inv_devices {
 	INV_MPU6050,
 	INV_MPU6500,
+	INV_MPU6515,
 	INV_MPU6000,
 	INV_MPU9150,
 	INV_MPU9250,
 	INV_MPU9255,
 	INV_ICM20608,
+	INV_ICM20602,
 	INV_NUM_PARTS
 };
 
@@ -88,7 +90,7 @@ enum inv_devices {
  *  @accl_fs:		accel full scale range.
  *  @accl_fifo_enable:	enable accel data output
  *  @gyro_fifo_enable:	enable gyro data output
- *  @fifo_rate:		FIFO update rate.
+ *  @divider:		chip sample rate divider (sample rate divider - 1)
  */
 struct inv_mpu6050_chip_config {
 	unsigned int fsr:2;
@@ -96,7 +98,7 @@ struct inv_mpu6050_chip_config {
 	unsigned int accl_fs:2;
 	unsigned int accl_fifo_enable:1;
 	unsigned int gyro_fifo_enable:1;
-	u16 fifo_rate;
+	u8 divider;
 	u8 user_ctrl;
 };
 
@@ -116,40 +118,42 @@ struct inv_mpu6050_hw {
 
 /*
  *  struct inv_mpu6050_state - Driver state variables.
- *  @TIMESTAMP_FIFO_SIZE: fifo size for timestamp.
  *  @lock:              Chip access lock.
  *  @trig:              IIO trigger.
  *  @chip_config:	Cached attribute information.
  *  @reg:		Map of important registers.
  *  @hw:		Other hardware-specific information.
  *  @chip_type:		chip type.
- *  @time_stamp_lock:	spin lock to time stamp.
  *  @plat_data:		platform data (deprecated in favor of @orientation).
  *  @orientation:	sensor chip orientation relative to main hardware.
- *  @timestamps:        kfifo queue to store time stamp.
  *  @map		regmap pointer.
  *  @irq		interrupt number.
  *  @irq_mask		the int_pin_cfg mask to configure interrupt type.
+ *  @chip_period:	chip internal period estimation (~1kHz).
+ *  @it_timestamp:	timestamp from previous interrupt.
+ *  @data_timestamp:	timestamp for next data sample.
+ *  @vddio_supply	voltage regulator for the chip.
  */
 struct inv_mpu6050_state {
-#define TIMESTAMP_FIFO_SIZE 16
 	struct mutex lock;
 	struct iio_trigger  *trig;
 	struct inv_mpu6050_chip_config chip_config;
 	const struct inv_mpu6050_reg_map *reg;
 	const struct inv_mpu6050_hw *hw;
 	enum   inv_devices chip_type;
-	spinlock_t time_stamp_lock;
 	struct i2c_mux_core *muxc;
 	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	struct iio_mount_matrix orientation;
-	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
 	struct regmap *map;
 	int irq;
 	u8 irq_mask;
 	unsigned skip_samples;
+	s64 chip_period;
+	s64 it_timestamp;
+	s64 data_timestamp;
+	struct regulator *vddio_supply;
 };
 
 /*register and associated bit definition*/
@@ -174,6 +178,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_RAW_GYRO            0x43
 
 #define INV_MPU6050_REG_INT_STATUS          0x3A
+#define INV_MPU6050_BIT_FIFO_OVERFLOW_INT   0x10
 #define INV_MPU6050_BIT_RAW_DATA_RDY_INT    0x01
 
 #define INV_MPU6050_REG_USER_CTRL           0x6A
@@ -193,12 +198,15 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BIT_PWR_ACCL_STBY       0x38
 #define INV_MPU6050_BIT_PWR_GYRO_STBY       0x07
 
+/* ICM20602 register */
+#define INV_ICM20602_REG_I2C_IF             0x70
+#define INV_ICM20602_BIT_I2C_IF_DIS         0x40
+
 #define INV_MPU6050_REG_FIFO_COUNT_H        0x72
 #define INV_MPU6050_REG_FIFO_R_W            0x74
 
 #define INV_MPU6050_BYTES_PER_3AXIS_SENSOR   6
 #define INV_MPU6050_FIFO_COUNT_BYTE          2
-#define INV_MPU6050_FIFO_THRESHOLD           500
 
 /* mpu6500 registers */
 #define INV_MPU6500_REG_ACCEL_CONFIG_2      0x1D
@@ -231,13 +239,24 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_LATCH_INT_EN	0x20
 #define INV_MPU6050_BIT_BYPASS_EN	0x2
 
+/* Allowed timestamp period jitter in percent */
+#define INV_MPU6050_TS_PERIOD_JITTER	4
 
 /* init parameters */
 #define INV_MPU6050_INIT_FIFO_RATE           50
-#define INV_MPU6050_TIME_STAMP_TOR           5
 #define INV_MPU6050_MAX_FIFO_RATE            1000
 #define INV_MPU6050_MIN_FIFO_RATE            4
-#define INV_MPU6050_ONE_K_HZ                 1000
+
+/* chip internal frequency: 1KHz */
+#define INV_MPU6050_INTERNAL_FREQ_HZ		1000
+/* return the frequency divider (chip sample rate divider + 1) */
+#define INV_MPU6050_FREQ_DIVIDER(st)					\
+	((st)->chip_config.divider + 1)
+/* chip sample rate divider to fifo rate */
+#define INV_MPU6050_FIFO_RATE_TO_DIVIDER(fifo_rate)			\
+	((INV_MPU6050_INTERNAL_FREQ_HZ / (fifo_rate)) - 1)
+#define INV_MPU6050_DIVIDER_TO_FIFO_RATE(divider)			\
+	(INV_MPU6050_INTERNAL_FREQ_HZ / ((divider) + 1))
 
 #define INV_MPU6050_REG_WHOAMI			117
 
@@ -247,7 +266,9 @@ struct inv_mpu6050_state {
 #define INV_MPU9150_WHOAMI_VALUE		0x68
 #define INV_MPU9250_WHOAMI_VALUE		0x71
 #define INV_MPU9255_WHOAMI_VALUE		0x73
+#define INV_MPU6515_WHOAMI_VALUE		0x74
 #define INV_ICM20608_WHOAMI_VALUE		0xAF
+#define INV_ICM20602_WHOAMI_VALUE		0x12
 
 /* scan element definition */
 enum inv_mpu6050_scan {
@@ -300,7 +321,6 @@ enum inv_mpu6050_clock_sel_e {
 	NUM_CLK
 };
 
-irqreturn_t inv_mpu6050_irq_handler(int irq, void *p);
 irqreturn_t inv_mpu6050_read_fifo(int irq, void *p);
 int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type);
 int inv_reset_fifo(struct iio_dev *indio_dev);

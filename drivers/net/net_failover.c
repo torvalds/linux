@@ -19,7 +19,6 @@
 #include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/netdevice.h>
 #include <linux/netpoll.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
@@ -41,14 +40,14 @@ static int net_failover_open(struct net_device *dev)
 
 	primary_dev = rtnl_dereference(nfo_info->primary_dev);
 	if (primary_dev) {
-		err = dev_open(primary_dev);
+		err = dev_open(primary_dev, NULL);
 		if (err)
 			goto err_primary_open;
 	}
 
 	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 	if (standby_dev) {
-		err = dev_open(standby_dev);
+		err = dev_open(standby_dev, NULL);
 		if (err)
 			goto err_standby_open;
 	}
@@ -115,7 +114,8 @@ static netdev_tx_t net_failover_start_xmit(struct sk_buff *skb,
 }
 
 static u16 net_failover_select_queue(struct net_device *dev,
-				     struct sk_buff *skb, void *accel_priv,
+				     struct sk_buff *skb,
+				     struct net_device *sb_dev,
 				     select_queue_fallback_t fallback)
 {
 	struct net_failover_info *nfo_info = netdev_priv(dev);
@@ -128,9 +128,9 @@ static u16 net_failover_select_queue(struct net_device *dev,
 
 		if (ops->ndo_select_queue)
 			txq = ops->ndo_select_queue(primary_dev, skb,
-						    accel_priv, fallback);
+						    sb_dev, fallback);
 		else
-			txq = fallback(primary_dev, skb);
+			txq = fallback(primary_dev, skb, NULL);
 
 		qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
 
@@ -219,14 +219,14 @@ static int net_failover_change_mtu(struct net_device *dev, int new_mtu)
 	struct net_device *primary_dev, *standby_dev;
 	int ret = 0;
 
-	primary_dev = rcu_dereference(nfo_info->primary_dev);
+	primary_dev = rtnl_dereference(nfo_info->primary_dev);
 	if (primary_dev) {
 		ret = dev_set_mtu(primary_dev, new_mtu);
 		if (ret)
 			return ret;
 	}
 
-	standby_dev = rcu_dereference(nfo_info->standby_dev);
+	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 	if (standby_dev) {
 		ret = dev_set_mtu(standby_dev, new_mtu);
 		if (ret) {
@@ -517,7 +517,7 @@ static int net_failover_slave_register(struct net_device *slave_dev,
 	dev_hold(slave_dev);
 
 	if (netif_running(failover_dev)) {
-		err = dev_open(slave_dev);
+		err = dev_open(slave_dev, NULL);
 		if (err && (err != -EBUSY)) {
 			netdev_err(failover_dev, "Opening slave %s failed err:%d\n",
 				   slave_dev->name, err);
@@ -602,6 +602,9 @@ static int net_failover_slave_unregister(struct net_device *slave_dev,
 	primary_dev = rtnl_dereference(nfo_info->primary_dev);
 	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 
+	if (WARN_ON_ONCE(slave_dev != primary_dev && slave_dev != standby_dev))
+		return -ENODEV;
+
 	vlan_vids_del_by_dev(slave_dev, failover_dev);
 	dev_uc_unsync(slave_dev, failover_dev);
 	dev_mc_unsync(slave_dev, failover_dev);
@@ -677,7 +680,7 @@ static int net_failover_slave_name_change(struct net_device *slave_dev,
 	/* We need to bring up the slave after the rename by udev in case
 	 * open failed with EBUSY when it was registered.
 	 */
-	dev_open(slave_dev);
+	dev_open(slave_dev, NULL);
 
 	return 0;
 }
@@ -761,8 +764,10 @@ struct failover *net_failover_create(struct net_device *standby_dev)
 	netif_carrier_off(failover_dev);
 
 	failover = failover_register(failover_dev, &net_failover_ops);
-	if (IS_ERR(failover))
+	if (IS_ERR(failover)) {
+		err = PTR_ERR(failover);
 		goto err_failover_register;
+	}
 
 	return failover;
 

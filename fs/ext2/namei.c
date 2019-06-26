@@ -45,8 +45,7 @@ static inline int ext2_add_nondir(struct dentry *dentry, struct inode *inode)
 		return 0;
 	}
 	inode_dec_link_count(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	discard_new_inode(inode);
 	return err;
 }
 
@@ -192,8 +191,7 @@ out:
 
 out_fail:
 	inode_dec_link_count(inode);
-	unlock_new_inode(inode);
-	iput (inode);
+	discard_new_inode(inode);
 	goto out;
 }
 
@@ -261,8 +259,7 @@ out:
 out_fail:
 	inode_dec_link_count(inode);
 	inode_dec_link_count(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	discard_new_inode(inode);
 out_dir:
 	inode_dec_link_count(dir);
 	goto out;
@@ -419,6 +416,7 @@ const struct inode_operations ext2_dir_inode_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR
 	.listxattr	= ext2_listxattr,
 #endif
+	.getattr	= ext2_getattr,
 	.setattr	= ext2_setattr,
 	.get_acl	= ext2_get_acl,
 	.set_acl	= ext2_set_acl,
@@ -429,6 +427,7 @@ const struct inode_operations ext2_special_inode_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR
 	.listxattr	= ext2_listxattr,
 #endif
+	.getattr	= ext2_getattr,
 	.setattr	= ext2_setattr,
 	.get_acl	= ext2_get_acl,
 	.set_acl	= ext2_set_acl,

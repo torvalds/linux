@@ -81,7 +81,7 @@ static struct clock_event_device au1x_rtcmatch2_clockdev = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 1500,
 	.set_next_event = au1x_rtcmatch2_set_next_event,
-	.cpumask	= cpu_all_mask,
+	.cpumask	= cpu_possible_mask,
 };
 
 static struct irqaction au1x_rtcmatch2_irqaction = {

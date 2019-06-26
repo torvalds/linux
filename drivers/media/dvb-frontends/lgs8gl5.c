@@ -416,10 +416,9 @@ static const struct dvb_frontend_ops lgs8gl5_ops = {
 	.delsys = { SYS_DTMB },
 	.info = {
 		.name			= "Legend Silicon LGS-8GL5 DMB-TH",
-		.frequency_min		= 474000000,
-		.frequency_max		= 858000000,
-		.frequency_stepsize	= 10000,
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	= 474 * MHz,
+		.frequency_max_hz	= 858 * MHz,
+		.frequency_stepsize_hz	=  10 * kHz,
 		.caps = FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_32 |
 			FE_CAN_QAM_64 | FE_CAN_QAM_AUTO |

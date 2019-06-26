@@ -241,7 +241,6 @@ struct smi_rc {
 	struct rc_dev *rc_dev;
 	char input_phys[64];
 	char device_name[64];
-	struct work_struct work;
 	u8 irData[256];
 
 	int users;

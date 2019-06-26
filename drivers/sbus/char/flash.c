@@ -165,9 +165,9 @@ static int flash_probe(struct platform_device *op)
 
 	parent = dp->parent;
 
-	if (strcmp(parent->name, "sbus") &&
-	    strcmp(parent->name, "sbi") &&
-	    strcmp(parent->name, "ebus"))
+	if (!of_node_name_eq(parent, "sbus") &&
+	    !of_node_name_eq(parent, "sbi") &&
+	    !of_node_name_eq(parent, "ebus"))
 		return -ENODEV;
 
 	flash.read_base = op->resource[0].start;

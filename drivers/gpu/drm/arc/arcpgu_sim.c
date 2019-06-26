@@ -14,8 +14,9 @@
  *
  */
 
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_device.h>
+#include <drm/drm_probe_helper.h>
 
 #include "arcpgu.h"
 
@@ -51,7 +52,6 @@ arcpgu_drm_connector_helper_funcs = {
 };
 
 static const struct drm_connector_funcs arcpgu_drm_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = arcpgu_drm_connector_destroy,
@@ -99,7 +99,7 @@ int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np)
 		goto error_encoder_cleanup;
 	}
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0) {
 		dev_err(drm->dev, "could not attach connector to encoder\n");
 		drm_connector_unregister(connector);

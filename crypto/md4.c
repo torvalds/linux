@@ -217,7 +217,6 @@ static struct shash_alg alg = {
 	.descsize	=	sizeof(struct md4_ctx),
 	.base		=	{
 		.cra_name	=	"md4",
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	MD4_HMAC_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

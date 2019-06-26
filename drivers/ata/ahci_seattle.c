@@ -164,7 +164,7 @@ static int ahci_seattle_probe(struct platform_device *pdev)
 	int rc;
 	struct ahci_host_priv *hpriv;
 
-	hpriv = ahci_platform_get_resources(pdev);
+	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 

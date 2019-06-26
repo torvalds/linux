@@ -317,19 +317,15 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <5>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rmii";
 	dual_emac_res_vlan = <2>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <4>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rmii";
 	dual_emac_res_vlan = <3>;
-};
-
-&phy_sel {
-	rmii-clock-ext;
 };
 
 &mac {
@@ -345,6 +341,14 @@
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@5 {
+		reg = <5>;
+	};
+
+	ethphy1: ethernet-phy@4 {
+		reg = <4>;
+	};
 };
 
 &mmc1 {

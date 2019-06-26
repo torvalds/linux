@@ -68,7 +68,7 @@ config I2C_MUX
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-mux.
 
-source drivers/i2c/muxes/Kconfig
+source "drivers/i2c/muxes/Kconfig"
 
 config I2C_HELPER_AUTO
 	bool "Autoselect pertinent helper modules"
@@ -94,8 +94,8 @@ config I2C_SMBUS
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-smbus.
 
-source drivers/i2c/algos/Kconfig
-source drivers/i2c/busses/Kconfig
+source "drivers/i2c/algos/Kconfig"
+source "drivers/i2c/busses/Kconfig"
 
 config I2C_STUB
 	tristate "I2C/SMBus Test Stub"

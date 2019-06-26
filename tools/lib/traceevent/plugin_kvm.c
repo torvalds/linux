@@ -23,6 +23,7 @@
 #include <stdint.h>
 
 #include "event-parse.h"
+#include "trace-seq.h"
 
 #ifdef HAVE_UDIS86
 
@@ -247,17 +248,17 @@ static const char *find_exit_reason(unsigned isa, int val)
 	return strings[i].str;
 }
 
-static int print_exit_reason(struct trace_seq *s, struct pevent_record *record,
-			     struct event_format *event, const char *field)
+static int print_exit_reason(struct trace_seq *s, struct tep_record *record,
+			     struct tep_event *event, const char *field)
 {
 	unsigned long long isa;
 	unsigned long long val;
 	const char *reason;
 
-	if (pevent_get_field_val(s, event, field, record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, field, record, &val, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "isa", record, &isa, 0) < 0)
+	if (tep_get_field_val(s, event, "isa", record, &isa, 0) < 0)
 		isa = 1;
 
 	reason = find_exit_reason(isa, val);
@@ -268,18 +269,18 @@ static int print_exit_reason(struct trace_seq *s, struct pevent_record *record,
 	return 0;
 }
 
-static int kvm_exit_handler(struct trace_seq *s, struct pevent_record *record,
-			    struct event_format *event, void *context)
+static int kvm_exit_handler(struct trace_seq *s, struct tep_record *record,
+			    struct tep_event *event, void *context)
 {
 	unsigned long long info1 = 0, info2 = 0;
 
 	if (print_exit_reason(s, record, event, "exit_reason") < 0)
 		return -1;
 
-	pevent_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
+	tep_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
 
-	if (pevent_get_field_val(s, event, "info1", record, &info1, 0) >= 0
-	    && pevent_get_field_val(s, event, "info2", record, &info2, 0) >= 0)
+	if (tep_get_field_val(s, event, "info1", record, &info1, 0) >= 0
+	    && tep_get_field_val(s, event, "info2", record, &info2, 0) >= 0)
 		trace_seq_printf(s, " info %llx %llx", info1, info2);
 
 	return 0;
@@ -291,30 +292,30 @@ static int kvm_exit_handler(struct trace_seq *s, struct pevent_record *record,
 #define KVM_EMUL_INSN_F_CS_L   (1 << 3)
 
 static int kvm_emulate_insn_handler(struct trace_seq *s,
-				    struct pevent_record *record,
-				    struct event_format *event, void *context)
+				    struct tep_record *record,
+				    struct tep_event *event, void *context)
 {
 	unsigned long long rip, csbase, len, flags, failed;
 	int llen;
 	uint8_t *insn;
 	const char *disasm;
 
-	if (pevent_get_field_val(s, event, "rip", record, &rip, 1) < 0)
+	if (tep_get_field_val(s, event, "rip", record, &rip, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "csbase", record, &csbase, 1) < 0)
+	if (tep_get_field_val(s, event, "csbase", record, &csbase, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "len", record, &len, 1) < 0)
+	if (tep_get_field_val(s, event, "len", record, &len, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "flags", record, &flags, 1) < 0)
+	if (tep_get_field_val(s, event, "flags", record, &flags, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "failed", record, &failed, 1) < 0)
+	if (tep_get_field_val(s, event, "failed", record, &failed, 1) < 0)
 		return -1;
 
-	insn = pevent_get_field_raw(s, event, "insn", record, &llen, 1);
+	insn = tep_get_field_raw(s, event, "insn", record, &llen, 1);
 	if (!insn)
 		return -1;
 
@@ -330,24 +331,24 @@ static int kvm_emulate_insn_handler(struct trace_seq *s,
 }
 
 
-static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct pevent_record *record,
-					    struct event_format *event, void *context)
+static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct tep_record *record,
+					    struct tep_event *event, void *context)
 {
 	if (print_exit_reason(s, record, event, "exit_code") < 0)
 		return -1;
 
-	pevent_print_num_field(s, " info1 %llx", event, "exit_info1", record, 1);
-	pevent_print_num_field(s, " info2 %llx", event, "exit_info2", record, 1);
-	pevent_print_num_field(s, " int_info %llx", event, "exit_int_info", record, 1);
-	pevent_print_num_field(s, " int_info_err %llx", event, "exit_int_info_err", record, 1);
+	tep_print_num_field(s, " info1 %llx", event, "exit_info1", record, 1);
+	tep_print_num_field(s, " info2 %llx", event, "exit_info2", record, 1);
+	tep_print_num_field(s, " int_info %llx", event, "exit_int_info", record, 1);
+	tep_print_num_field(s, " int_info_err %llx", event, "exit_int_info_err", record, 1);
 
 	return 0;
 }
 
-static int kvm_nested_vmexit_handler(struct trace_seq *s, struct pevent_record *record,
-				     struct event_format *event, void *context)
+static int kvm_nested_vmexit_handler(struct trace_seq *s, struct tep_record *record,
+				     struct tep_event *event, void *context)
 {
-	pevent_print_num_field(s, "rip %llx ", event, "rip", record, 1);
+	tep_print_num_field(s, "rip %llx ", event, "rip", record, 1);
 
 	return kvm_nested_vmexit_inject_handler(s, record, event, context);
 }
@@ -370,8 +371,8 @@ union kvm_mmu_page_role {
 	};
 };
 
-static int kvm_mmu_print_role(struct trace_seq *s, struct pevent_record *record,
-			      struct event_format *event, void *context)
+static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
+			      struct tep_event *event, void *context)
 {
 	unsigned long long val;
 	static const char *access_str[] = {
@@ -379,17 +380,17 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct pevent_record *record,
 	};
 	union kvm_mmu_page_role role;
 
-	if (pevent_get_field_val(s, event, "role", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "role", record, &val, 1) < 0)
 		return -1;
 
 	role.word = (int)val;
 
 	/*
 	 * We can only use the structure if file is of the same
-	 * endianess.
+	 * endianness.
 	 */
-	if (pevent_is_file_bigendian(event->pevent) ==
-	    pevent_is_host_bigendian(event->pevent)) {
+	if (tep_file_bigendian(event->pevent) ==
+	    tep_is_host_bigendian(event->pevent)) {
 
 		trace_seq_printf(s, "%u q%u%s %s%s %spae %snxe %swp%s%s%s",
 				 role.level,
@@ -406,10 +407,10 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct pevent_record *record,
 	} else
 		trace_seq_printf(s, "WORD: %08x", role.word);
 
-	pevent_print_num_field(s, " root %u ",  event,
-			       "root_count", record, 1);
+	tep_print_num_field(s, " root %u ",  event,
+			    "root_count", record, 1);
 
-	if (pevent_get_field_val(s, event, "unsync", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "unsync", record, &val, 1) < 0)
 		return -1;
 
 	trace_seq_printf(s, "%s%c",  val ? "unsync" : "sync", 0);
@@ -417,17 +418,17 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct pevent_record *record,
 }
 
 static int kvm_mmu_get_page_handler(struct trace_seq *s,
-				    struct pevent_record *record,
-				    struct event_format *event, void *context)
+				    struct tep_record *record,
+				    struct tep_event *event, void *context)
 {
 	unsigned long long val;
 
-	if (pevent_get_field_val(s, event, "created", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "created", record, &val, 1) < 0)
 		return -1;
 
 	trace_seq_printf(s, "%s ", val ? "new" : "existing");
 
-	if (pevent_get_field_val(s, event, "gfn", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "gfn", record, &val, 1) < 0)
 		return -1;
 
 	trace_seq_printf(s, "sp gfn %llx ", val);
@@ -444,79 +445,79 @@ process_is_writable_pte(struct trace_seq *s, unsigned long long *args)
 	return pte & PT_WRITABLE_MASK;
 }
 
-int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	init_disassembler();
 
-	pevent_register_event_handler(pevent, -1, "kvm", "kvm_exit",
-				      kvm_exit_handler, NULL);
+	tep_register_event_handler(pevent, -1, "kvm", "kvm_exit",
+				   kvm_exit_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "kvm", "kvm_emulate_insn",
-				      kvm_emulate_insn_handler, NULL);
+	tep_register_event_handler(pevent, -1, "kvm", "kvm_emulate_insn",
+				   kvm_emulate_insn_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit",
-				      kvm_nested_vmexit_handler, NULL);
+	tep_register_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit",
+				   kvm_nested_vmexit_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit_inject",
-				      kvm_nested_vmexit_inject_handler, NULL);
+	tep_register_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit_inject",
+				   kvm_nested_vmexit_inject_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_get_page",
-				      kvm_mmu_get_page_handler, NULL);
+	tep_register_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_get_page",
+				   kvm_mmu_get_page_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_sync_page",
-				      kvm_mmu_print_role, NULL);
+	tep_register_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_sync_page",
+				   kvm_mmu_print_role, NULL);
 
-	pevent_register_event_handler(pevent, -1,
-				      "kvmmmu", "kvm_mmu_unsync_page",
-				      kvm_mmu_print_role, NULL);
+	tep_register_event_handler(pevent, -1,
+				   "kvmmmu", "kvm_mmu_unsync_page",
+				   kvm_mmu_print_role, NULL);
 
-	pevent_register_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_zap_page",
-				      kvm_mmu_print_role, NULL);
+	tep_register_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_zap_page",
+				   kvm_mmu_print_role, NULL);
 
-	pevent_register_event_handler(pevent, -1, "kvmmmu",
+	tep_register_event_handler(pevent, -1, "kvmmmu",
 			"kvm_mmu_prepare_zap_page", kvm_mmu_print_role,
 			NULL);
 
-	pevent_register_print_function(pevent,
-				       process_is_writable_pte,
-				       PEVENT_FUNC_ARG_INT,
-				       "is_writable_pte",
-				       PEVENT_FUNC_ARG_LONG,
-				       PEVENT_FUNC_ARG_VOID);
+	tep_register_print_function(pevent,
+				    process_is_writable_pte,
+				    TEP_FUNC_ARG_INT,
+				    "is_writable_pte",
+				    TEP_FUNC_ARG_LONG,
+				    TEP_FUNC_ARG_VOID);
 	return 0;
 }
 
-void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
-	pevent_unregister_event_handler(pevent, -1, "kvm", "kvm_exit",
-					kvm_exit_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "kvm", "kvm_exit",
+				     kvm_exit_handler, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "kvm", "kvm_emulate_insn",
-					kvm_emulate_insn_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "kvm", "kvm_emulate_insn",
+				     kvm_emulate_insn_handler, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit",
-					kvm_nested_vmexit_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit",
+				     kvm_nested_vmexit_handler, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit_inject",
-					kvm_nested_vmexit_inject_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit_inject",
+				     kvm_nested_vmexit_inject_handler, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_get_page",
-					kvm_mmu_get_page_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_get_page",
+				     kvm_mmu_get_page_handler, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_sync_page",
-					kvm_mmu_print_role, NULL);
+	tep_unregister_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_sync_page",
+				     kvm_mmu_print_role, NULL);
 
-	pevent_unregister_event_handler(pevent, -1,
-					"kvmmmu", "kvm_mmu_unsync_page",
-					kvm_mmu_print_role, NULL);
+	tep_unregister_event_handler(pevent, -1,
+				     "kvmmmu", "kvm_mmu_unsync_page",
+				     kvm_mmu_print_role, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_zap_page",
-					kvm_mmu_print_role, NULL);
+	tep_unregister_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_zap_page",
+				     kvm_mmu_print_role, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "kvmmmu",
+	tep_unregister_event_handler(pevent, -1, "kvmmmu",
 			"kvm_mmu_prepare_zap_page", kvm_mmu_print_role,
 			NULL);
 
-	pevent_unregister_print_function(pevent, process_is_writable_pte,
-					 "is_writable_pte");
+	tep_unregister_print_function(pevent, process_is_writable_pte,
+				      "is_writable_pte");
 }

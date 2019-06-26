@@ -22,6 +22,7 @@
 
 #include <linux/types.h>
 #include "kfd_priv.h"
+#include "amdgpu_ids.h"
 
 static unsigned int pasid_bits = 16;
 static const struct kfd2kgd_calls *kfd2kgd;
@@ -71,7 +72,7 @@ unsigned int kfd_pasid_alloc(void)
 			return false;
 	}
 
-	r = kfd2kgd->alloc_pasid(pasid_bits);
+	r = amdgpu_pasid_alloc(pasid_bits);
 
 	return r > 0 ? r : 0;
 }
@@ -79,5 +80,5 @@ unsigned int kfd_pasid_alloc(void)
 void kfd_pasid_free(unsigned int pasid)
 {
 	if (kfd2kgd)
-		kfd2kgd->free_pasid(pasid);
+		amdgpu_pasid_free(pasid);
 }

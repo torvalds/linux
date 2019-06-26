@@ -67,6 +67,7 @@ int xfrm4_transport_finish(struct sk_buff *skb, int async)
 
 	if (xo && (xo->flags & XFRM_GRO)) {
 		skb_mac_header_rebuild(skb);
+		skb_reset_transport_header(skb);
 		return 0;
 	}
 

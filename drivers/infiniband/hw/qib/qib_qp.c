@@ -378,25 +378,22 @@ void qib_flush_qp_waiters(struct rvt_qp *qp)
  * qib_check_send_wqe - validate wr/wqe
  * @qp - The qp
  * @wqe - The built wqe
+ * @call_send - Determine if the send should be posted or scheduled
  *
- * validate wr/wqe.  This is called
- * prior to inserting the wqe into
- * the ring but after the wqe has been
- * setup.
- *
- * Returns 1 to force direct progress, 0 otherwise, -EINVAL on failure
+ * Returns 0 on success, -EINVAL on failure
  */
 int qib_check_send_wqe(struct rvt_qp *qp,
-		       struct rvt_swqe *wqe)
+		       struct rvt_swqe *wqe, bool *call_send)
 {
 	struct rvt_ah *ah;
-	int ret = 0;
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
 	case IB_QPT_UC:
 		if (wqe->length > 0x80000000U)
 			return -EINVAL;
+		if (wqe->length > qp->pmtu)
+			*call_send = false;
 		break;
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
@@ -405,12 +402,12 @@ int qib_check_send_wqe(struct rvt_qp *qp,
 		if (wqe->length > (1 << ah->log_pmtu))
 			return -EINVAL;
 		/* progress hint */
-		ret = 1;
+		*call_send = true;
 		break;
 	default:
 		break;
 	}
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_DEBUG_FS

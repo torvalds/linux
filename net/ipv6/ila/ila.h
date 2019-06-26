@@ -19,6 +19,7 @@
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <net/checksum.h>
+#include <net/genetlink.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <uapi/linux/ila.h>
@@ -104,9 +105,31 @@ void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
 
 void ila_init_saved_csum(struct ila_params *p);
 
+struct ila_net {
+	struct {
+		struct rhashtable rhash_table;
+		spinlock_t *locks; /* Bucket locks for entry manipulation */
+		unsigned int locks_mask;
+		bool hooks_registered;
+	} xlat;
+};
+
 int ila_lwt_init(void);
 void ila_lwt_fini(void);
-int ila_xlat_init(void);
-void ila_xlat_fini(void);
+
+int ila_xlat_init_net(struct net *net);
+void ila_xlat_exit_net(struct net *net);
+
+int ila_xlat_nl_cmd_add_mapping(struct sk_buff *skb, struct genl_info *info);
+int ila_xlat_nl_cmd_del_mapping(struct sk_buff *skb, struct genl_info *info);
+int ila_xlat_nl_cmd_get_mapping(struct sk_buff *skb, struct genl_info *info);
+int ila_xlat_nl_cmd_flush(struct sk_buff *skb, struct genl_info *info);
+int ila_xlat_nl_dump_start(struct netlink_callback *cb);
+int ila_xlat_nl_dump_done(struct netlink_callback *cb);
+int ila_xlat_nl_dump(struct sk_buff *skb, struct netlink_callback *cb);
+
+extern unsigned int ila_net_id;
+
+extern struct genl_family ila_nl_family;
 
 #endif /* __ILA_H */

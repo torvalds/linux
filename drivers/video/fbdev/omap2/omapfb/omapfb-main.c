@@ -287,7 +287,7 @@ static bool cmp_var_to_colormode(struct fb_var_screeninfo *var,
 			var->red.length == 0 ||
 			var->blue.length == 0 ||
 			var->green.length == 0)
-		return 0;
+		return false;
 
 	return var->bits_per_pixel == color->bits_per_pixel &&
 		cmp_component(&var->red, &color->red) &&
@@ -893,6 +893,7 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 				/ (var->bits_per_pixel >> 2);
 			break;
 		}
+		/* fall through */
 	default:
 		screen_width = fix->line_length / (var->bits_per_pixel >> 3);
 		break;

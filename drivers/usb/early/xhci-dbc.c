@@ -12,7 +12,7 @@
 #include <linux/console.h>
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/io.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
@@ -94,7 +94,7 @@ static void * __init xdbc_get_page(dma_addr_t *dma_addr)
 {
 	void *virt;
 
-	virt = alloc_bootmem_pages_nopanic(PAGE_SIZE);
+	virt = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	if (!virt)
 		return NULL;
 
@@ -191,7 +191,7 @@ static void __init xdbc_free_ring(struct xdbc_ring *ring)
 	if (!seg)
 		return;
 
-	free_bootmem(seg->dma, PAGE_SIZE);
+	memblock_free(seg->dma, PAGE_SIZE);
 	ring->segment = NULL;
 }
 
@@ -675,10 +675,10 @@ int __init early_xdbc_setup_hardware(void)
 		xdbc_free_ring(&xdbc.in_ring);
 
 		if (xdbc.table_dma)
-			free_bootmem(xdbc.table_dma, PAGE_SIZE);
+			memblock_free(xdbc.table_dma, PAGE_SIZE);
 
 		if (xdbc.out_dma)
-			free_bootmem(xdbc.out_dma, PAGE_SIZE);
+			memblock_free(xdbc.out_dma, PAGE_SIZE);
 
 		xdbc.table_base = NULL;
 		xdbc.out_buf = NULL;
@@ -717,17 +717,14 @@ static void xdbc_handle_port_status(struct xdbc_trb *evt_trb)
 
 static void xdbc_handle_tx_event(struct xdbc_trb *evt_trb)
 {
-	size_t remain_length;
 	u32 comp_code;
 	int ep_id;
 
 	comp_code	= GET_COMP_CODE(le32_to_cpu(evt_trb->field[2]));
-	remain_length	= EVENT_TRB_LEN(le32_to_cpu(evt_trb->field[2]));
 	ep_id		= TRB_TO_EP_ID(le32_to_cpu(evt_trb->field[3]));
 
 	switch (comp_code) {
 	case COMP_SUCCESS:
-		remain_length = 0;
 	case COMP_SHORT_PACKET:
 		break;
 	case COMP_TRB_ERROR:
@@ -1000,8 +997,8 @@ free_and_quit:
 	xdbc_free_ring(&xdbc.evt_ring);
 	xdbc_free_ring(&xdbc.out_ring);
 	xdbc_free_ring(&xdbc.in_ring);
-	free_bootmem(xdbc.table_dma, PAGE_SIZE);
-	free_bootmem(xdbc.out_dma, PAGE_SIZE);
+	memblock_free(xdbc.table_dma, PAGE_SIZE);
+	memblock_free(xdbc.out_dma, PAGE_SIZE);
 	writel(0, &xdbc.xdbc_reg->control);
 	early_iounmap(xdbc.xhci_base, xdbc.xhci_length);
 

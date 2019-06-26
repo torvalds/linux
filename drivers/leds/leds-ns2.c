@@ -42,8 +42,8 @@
 
 struct ns2_led_data {
 	struct led_classdev	cdev;
-	unsigned		cmd;
-	unsigned		slow;
+	unsigned int		cmd;
+	unsigned int		slow;
 	bool			can_sleep;
 	unsigned char		sata; /* True when SATA mode active. */
 	rwlock_t		rw_lock; /* Lock GPIOs. */

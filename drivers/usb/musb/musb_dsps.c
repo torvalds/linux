@@ -181,9 +181,11 @@ static void dsps_musb_enable(struct musb *musb)
 
 	musb_writel(reg_base, wrp->epintr_set, epmask);
 	musb_writel(reg_base, wrp->coreintr_set, coremask);
-	/* start polling for ID change in dual-role idle mode */
-	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
-			musb->port_mode == MUSB_OTG)
+	/*
+	 * start polling for runtime PM active and idle,
+	 * and for ID change in dual-role idle mode.
+	 */
+	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE)
 		dsps_mod_timer(glue, -1);
 }
 
@@ -227,8 +229,13 @@ static int dsps_check_status(struct musb *musb, void *unused)
 
 	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_WAIT_VRISE:
-		dsps_mod_timer_optional(glue);
-		break;
+		if (musb->port_mode == MUSB_HOST) {
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_BCON;
+			dsps_mod_timer_optional(glue);
+			break;
+		}
+		/* fall through */
+
 	case OTG_STATE_A_WAIT_BCON:
 		/* keep VBUS on for host-only mode */
 		if (musb->port_mode == MUSB_HOST) {
@@ -237,7 +244,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 		}
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
-		/* fall */
+		/* fall through */
 
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_B_IDLE:
@@ -249,6 +256,10 @@ static int dsps_check_status(struct musb *musb, void *unused)
 				musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 				MUSB_HST_MODE(musb);
 			}
+
+			if (musb->port_mode == MUSB_PERIPHERAL)
+				skip_session = 1;
+
 			if (!(devctl & MUSB_DEVCTL_SESSION) && !skip_session)
 				musb_writeb(mregs, MUSB_DEVCTL,
 					    MUSB_DEVCTL_SESSION);
@@ -658,16 +669,6 @@ dsps_dma_controller_create(struct musb *musb, void __iomem *base)
 	return controller;
 }
 
-static void dsps_dma_controller_destroy(struct dma_controller *c)
-{
-	struct musb *musb = c->musb;
-	struct dsps_glue *glue = dev_get_drvdata(musb->controller->parent);
-	void __iomem *usbss_base = glue->usbss_base;
-
-	musb_writel(usbss_base, USBSS_IRQ_CLEARR, USBSS_IRQ_PD_COMP);
-	cppi41_dma_controller_destroy(c);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static void dsps_dma_controller_suspend(struct dsps_glue *glue)
 {
@@ -697,7 +698,7 @@ static struct musb_platform_ops dsps_ops = {
 
 #ifdef CONFIG_USB_TI_CPPI41_DMA
 	.dma_init	= dsps_dma_controller_create,
-	.dma_exit	= dsps_dma_controller_destroy,
+	.dma_exit	= cppi41_dma_controller_destroy,
 #endif
 	.enable		= dsps_musb_enable,
 	.disable	= dsps_musb_disable,

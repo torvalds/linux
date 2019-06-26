@@ -1856,7 +1856,7 @@ void fib_table_flush_external(struct fib_table *tb)
 }
 
 /* Caller must hold RTNL. */
-int fib_table_flush(struct net *net, struct fib_table *tb)
+int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *pn = t->kv;
@@ -1904,8 +1904,17 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
 			struct fib_info *fi = fa->fa_info;
 
-			if (!fi || !(fi->fib_flags & RTNH_F_DEAD) ||
-			    tb->tb_id != fa->tb_id) {
+			if (!fi || tb->tb_id != fa->tb_id ||
+			    (!(fi->fib_flags & RTNH_F_DEAD) &&
+			     !fib_props[fa->fa_type].error)) {
+				slen = fa->fa_slen;
+				continue;
+			}
+
+			/* Do not flush error routes if network namespace is
+			 * not being dismantled
+			 */
+			if (!flush_all && fib_props[fa->fa_type].error) {
 				slen = fa->fa_slen;
 				continue;
 			}
@@ -2003,11 +2012,16 @@ void fib_free_table(struct fib_table *tb)
 }
 
 static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
-			     struct sk_buff *skb, struct netlink_callback *cb)
+			     struct sk_buff *skb, struct netlink_callback *cb,
+			     struct fib_dump_filter *filter)
 {
+	unsigned int flags = NLM_F_MULTI;
 	__be32 xkey = htonl(l->key);
 	struct fib_alias *fa;
 	int i, s_i;
+
+	if (filter->filter_set)
+		flags |= NLM_F_DUMP_FILTERED;
 
 	s_i = cb->args[4];
 	i = 0;
@@ -2016,25 +2030,35 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
 		int err;
 
-		if (i < s_i) {
-			i++;
-			continue;
-		}
+		if (i < s_i)
+			goto next;
 
-		if (tb->tb_id != fa->tb_id) {
-			i++;
-			continue;
+		if (tb->tb_id != fa->tb_id)
+			goto next;
+
+		if (filter->filter_set) {
+			if (filter->rt_type && fa->fa_type != filter->rt_type)
+				goto next;
+
+			if ((filter->protocol &&
+			     fa->fa_info->fib_protocol != filter->protocol))
+				goto next;
+
+			if (filter->dev &&
+			    !fib_info_nh_uses_dev(fa->fa_info, filter->dev))
+				goto next;
 		}
 
 		err = fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
 				    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
 				    tb->tb_id, fa->fa_type,
 				    xkey, KEYLENGTH - fa->fa_slen,
-				    fa->fa_tos, fa->fa_info, NLM_F_MULTI);
+				    fa->fa_tos, fa->fa_info, flags);
 		if (err < 0) {
 			cb->args[4] = i;
 			return err;
 		}
+next:
 		i++;
 	}
 
@@ -2044,7 +2068,7 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 
 /* rcu_read_lock needs to be hold by caller from readside */
 int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
-		   struct netlink_callback *cb)
+		   struct netlink_callback *cb, struct fib_dump_filter *filter)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
@@ -2057,7 +2081,7 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
 		int err;
 
-		err = fn_trie_dump_leaf(l, tb, skb, cb);
+		err = fn_trie_dump_leaf(l, tb, skb, cb, filter);
 		if (err < 0) {
 			cb->args[3] = key;
 			cb->args[2] = count;

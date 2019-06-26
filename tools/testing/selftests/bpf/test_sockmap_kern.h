@@ -70,11 +70,11 @@ struct bpf_map_def SEC("maps") sock_cork_bytes = {
 	.max_entries = 1
 };
 
-struct bpf_map_def SEC("maps") sock_pull_bytes = {
+struct bpf_map_def SEC("maps") sock_bytes = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
-	.max_entries = 2
+	.max_entries = 6
 };
 
 struct bpf_map_def SEC("maps") sock_redir_flags = {
@@ -181,8 +181,8 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 SEC("sk_msg1")
 int bpf_prog4(struct sk_msg_md *msg)
 {
-	int *bytes, zero = 0, one = 1;
-	int *start, *end;
+	int *bytes, zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5;
+	int *start, *end, *start_push, *end_push, *start_pop, *pop;
 
 	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
 	if (bytes)
@@ -190,18 +190,28 @@ int bpf_prog4(struct sk_msg_md *msg)
 	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
 	if (bytes)
 		bpf_msg_cork_bytes(msg, *bytes);
-	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
-	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+	start = bpf_map_lookup_elem(&sock_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_bytes, &one);
 	if (start && end)
 		bpf_msg_pull_data(msg, *start, *end, 0);
+	start_push = bpf_map_lookup_elem(&sock_bytes, &two);
+	end_push = bpf_map_lookup_elem(&sock_bytes, &three);
+	if (start_push && end_push)
+		bpf_msg_push_data(msg, *start_push, *end_push, 0);
+	start_pop = bpf_map_lookup_elem(&sock_bytes, &four);
+	pop = bpf_map_lookup_elem(&sock_bytes, &five);
+	if (start_pop && pop)
+		bpf_msg_pop_data(msg, *start_pop, *pop, 0);
 	return SK_PASS;
 }
 
 SEC("sk_msg2")
 int bpf_prog5(struct sk_msg_md *msg)
 {
-	int err1 = -1, err2 = -1, zero = 0, one = 1;
-	int *bytes, *start, *end, len1, len2;
+	int zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5;
+	int *start, *end, *start_push, *end_push, *start_pop, *pop;
+	int *bytes, len1, len2 = 0, len3, len4;
+	int err1 = -1, err2 = -1;
 
 	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
 	if (bytes)
@@ -210,8 +220,8 @@ int bpf_prog5(struct sk_msg_md *msg)
 	if (bytes)
 		err2 = bpf_msg_cork_bytes(msg, *bytes);
 	len1 = (__u64)msg->data_end - (__u64)msg->data;
-	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
-	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+	start = bpf_map_lookup_elem(&sock_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_bytes, &one);
 	if (start && end) {
 		int err;
 
@@ -225,6 +235,37 @@ int bpf_prog5(struct sk_msg_md *msg)
 		bpf_printk("sk_msg2: length update %i->%i\n",
 			   len1, len2);
 	}
+
+	start_push = bpf_map_lookup_elem(&sock_bytes, &two);
+	end_push = bpf_map_lookup_elem(&sock_bytes, &three);
+	if (start_push && end_push) {
+		int err;
+
+		bpf_printk("sk_msg2: push(%i:%i)\n",
+			   start_push ? *start_push : 0,
+			   end_push ? *end_push : 0);
+		err = bpf_msg_push_data(msg, *start_push, *end_push, 0);
+		if (err)
+			bpf_printk("sk_msg2: push_data err %i\n", err);
+		len3 = (__u64)msg->data_end - (__u64)msg->data;
+		bpf_printk("sk_msg2: length push_update %i->%i\n",
+			   len2 ? len2 : len1, len3);
+	}
+	start_pop = bpf_map_lookup_elem(&sock_bytes, &four);
+	pop = bpf_map_lookup_elem(&sock_bytes, &five);
+	if (start_pop && pop) {
+		int err;
+
+		bpf_printk("sk_msg2: pop(%i@%i)\n",
+			   start_pop, pop);
+		err = bpf_msg_pop_data(msg, *start_pop, *pop, 0);
+		if (err)
+			bpf_printk("sk_msg2: pop_data err %i\n", err);
+		len4 = (__u64)msg->data_end - (__u64)msg->data;
+		bpf_printk("sk_msg2: length pop_data %i->%i\n",
+			   len1 ? len1 : 0,  len4);
+	}
+
 	bpf_printk("sk_msg2: data length %i err1 %i err2 %i\n",
 		   len1, err1, err2);
 	return SK_PASS;
@@ -233,8 +274,8 @@ int bpf_prog5(struct sk_msg_md *msg)
 SEC("sk_msg3")
 int bpf_prog6(struct sk_msg_md *msg)
 {
-	int *bytes, zero = 0, one = 1, key = 0;
-	int *start, *end, *f;
+	int zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, key = 0;
+	int *bytes, *start, *end, *start_push, *end_push, *start_pop, *pop, *f;
 	__u64 flags = 0;
 
 	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
@@ -243,10 +284,22 @@ int bpf_prog6(struct sk_msg_md *msg)
 	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
 	if (bytes)
 		bpf_msg_cork_bytes(msg, *bytes);
-	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
-	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+
+	start = bpf_map_lookup_elem(&sock_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_bytes, &one);
 	if (start && end)
 		bpf_msg_pull_data(msg, *start, *end, 0);
+
+	start_push = bpf_map_lookup_elem(&sock_bytes, &two);
+	end_push = bpf_map_lookup_elem(&sock_bytes, &three);
+	if (start_push && end_push)
+		bpf_msg_push_data(msg, *start_push, *end_push, 0);
+
+	start_pop = bpf_map_lookup_elem(&sock_bytes, &four);
+	pop = bpf_map_lookup_elem(&sock_bytes, &five);
+	if (start_pop && pop)
+		bpf_msg_pop_data(msg, *start_pop, *pop, 0);
+
 	f = bpf_map_lookup_elem(&sock_redir_flags, &zero);
 	if (f && *f) {
 		key = 2;
@@ -262,8 +315,10 @@ int bpf_prog6(struct sk_msg_md *msg)
 SEC("sk_msg4")
 int bpf_prog7(struct sk_msg_md *msg)
 {
-	int err1 = 0, err2 = 0, zero = 0, one = 1, key = 0;
-	int *f, *bytes, *start, *end, len1, len2;
+	int *bytes, *start, *end, *start_push, *end_push, *start_pop, *pop, *f;
+	int zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5;
+	int len1, len2 = 0, len3, len4;
+	int err1 = 0, err2 = 0, key = 0;
 	__u64 flags = 0;
 
 		int err;
@@ -274,10 +329,10 @@ int bpf_prog7(struct sk_msg_md *msg)
 	if (bytes)
 		err2 = bpf_msg_cork_bytes(msg, *bytes);
 	len1 = (__u64)msg->data_end - (__u64)msg->data;
-	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
-	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
-	if (start && end) {
 
+	start = bpf_map_lookup_elem(&sock_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_bytes, &one);
+	if (start && end) {
 		bpf_printk("sk_msg2: pull(%i:%i)\n",
 			   start ? *start : 0, end ? *end : 0);
 		err = bpf_msg_pull_data(msg, *start, *end, 0);
@@ -288,6 +343,38 @@ int bpf_prog7(struct sk_msg_md *msg)
 		bpf_printk("sk_msg2: length update %i->%i\n",
 			   len1, len2);
 	}
+
+	start_push = bpf_map_lookup_elem(&sock_bytes, &two);
+	end_push = bpf_map_lookup_elem(&sock_bytes, &three);
+	if (start_push && end_push) {
+		bpf_printk("sk_msg4: push(%i:%i)\n",
+			   start_push ? *start_push : 0,
+			   end_push ? *end_push : 0);
+		err = bpf_msg_push_data(msg, *start_push, *end_push, 0);
+		if (err)
+			bpf_printk("sk_msg4: push_data err %i\n",
+				   err);
+		len3 = (__u64)msg->data_end - (__u64)msg->data;
+		bpf_printk("sk_msg4: length push_update %i->%i\n",
+			   len2 ? len2 : len1, len3);
+	}
+
+	start_pop = bpf_map_lookup_elem(&sock_bytes, &four);
+	pop = bpf_map_lookup_elem(&sock_bytes, &five);
+	if (start_pop && pop) {
+		int err;
+
+		bpf_printk("sk_msg4: pop(%i@%i)\n",
+			   start_pop, pop);
+		err = bpf_msg_pop_data(msg, *start_pop, *pop, 0);
+		if (err)
+			bpf_printk("sk_msg4: pop_data err %i\n", err);
+		len4 = (__u64)msg->data_end - (__u64)msg->data;
+		bpf_printk("sk_msg4: length pop_data %i->%i\n",
+			   len1 ? len1 : 0,  len4);
+	}
+
+
 	f = bpf_map_lookup_elem(&sock_redir_flags, &zero);
 	if (f && *f) {
 		key = 2;
@@ -342,8 +429,8 @@ int bpf_prog9(struct sk_msg_md *msg)
 SEC("sk_msg7")
 int bpf_prog10(struct sk_msg_md *msg)
 {
-	int *bytes, zero = 0, one = 1;
-	int *start, *end;
+	int *bytes, *start, *end, *start_push, *end_push, *start_pop, *pop;
+	int zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5;
 
 	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
 	if (bytes)
@@ -351,11 +438,19 @@ int bpf_prog10(struct sk_msg_md *msg)
 	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
 	if (bytes)
 		bpf_msg_cork_bytes(msg, *bytes);
-	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
-	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+	start = bpf_map_lookup_elem(&sock_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_bytes, &one);
 	if (start && end)
 		bpf_msg_pull_data(msg, *start, *end, 0);
-
+	start_push = bpf_map_lookup_elem(&sock_bytes, &two);
+	end_push = bpf_map_lookup_elem(&sock_bytes, &three);
+	if (start_push && end_push)
+		bpf_msg_push_data(msg, *start_push, *end_push, 0);
+	start_pop = bpf_map_lookup_elem(&sock_bytes, &four);
+	pop = bpf_map_lookup_elem(&sock_bytes, &five);
+	if (start_pop && pop)
+		bpf_msg_pop_data(msg, *start_pop, *pop, 0);
+	bpf_printk("return sk drop\n");
 	return SK_DROP;
 }
 

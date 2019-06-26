@@ -99,7 +99,7 @@ struct snic_stats {
 	atomic64_t io_cmpl_skip;
 };
 
-int snic_stats_debugfs_init(struct snic *);
+void snic_stats_debugfs_init(struct snic *);
 void snic_stats_debugfs_remove(struct snic *);
 
 /* Auxillary function to update active IO counter */

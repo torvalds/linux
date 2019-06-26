@@ -404,7 +404,7 @@ static int dsi_phy_regulator_init(struct msm_dsi_phy *phy)
 
 	ret = devm_regulator_bulk_get(dev, num, s);
 	if (ret < 0) {
-		dev_err(dev, "%s: failed to init regulator, ret=%d\n",
+		DRM_DEV_ERROR(dev, "%s: failed to init regulator, ret=%d\n",
 						__func__, ret);
 		return ret;
 	}
@@ -441,7 +441,7 @@ static int dsi_phy_regulator_enable(struct msm_dsi_phy *phy)
 			ret = regulator_set_load(s[i].consumer,
 							regs[i].enable_load);
 			if (ret < 0) {
-				dev_err(dev,
+				DRM_DEV_ERROR(dev,
 					"regulator %d set op mode failed, %d\n",
 					i, ret);
 				goto fail;
@@ -451,7 +451,7 @@ static int dsi_phy_regulator_enable(struct msm_dsi_phy *phy)
 
 	ret = regulator_bulk_enable(num, s);
 	if (ret < 0) {
-		dev_err(dev, "regulator enable failed, %d\n", ret);
+		DRM_DEV_ERROR(dev, "regulator enable failed, %d\n", ret);
 		goto fail;
 	}
 
@@ -472,7 +472,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 
 	ret = clk_prepare_enable(phy->ahb_clk);
 	if (ret) {
-		dev_err(dev, "%s: can't enable ahb clk, %d\n", __func__, ret);
+		DRM_DEV_ERROR(dev, "%s: can't enable ahb clk, %d\n", __func__, ret);
 		pm_runtime_put_sync(dev);
 	}
 
@@ -543,7 +543,7 @@ int msm_dsi_phy_init_common(struct msm_dsi_phy *phy)
 	phy->reg_base = msm_ioremap(pdev, "dsi_phy_regulator",
 				"DSI_PHY_REG");
 	if (IS_ERR(phy->reg_base)) {
-		dev_err(&pdev->dev, "%s: failed to map phy regulator base\n",
+		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map phy regulator base\n",
 			__func__);
 		ret = -ENOMEM;
 		goto fail;
@@ -574,7 +574,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	phy->id = dsi_phy_get_id(phy);
 	if (phy->id < 0) {
 		ret = phy->id;
-		dev_err(dev, "%s: couldn't identify PHY index, %d\n",
+		DRM_DEV_ERROR(dev, "%s: couldn't identify PHY index, %d\n",
 			__func__, ret);
 		goto fail;
 	}
@@ -584,20 +584,20 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 
 	phy->base = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
 	if (IS_ERR(phy->base)) {
-		dev_err(dev, "%s: failed to map phy base\n", __func__);
+		DRM_DEV_ERROR(dev, "%s: failed to map phy base\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	ret = dsi_phy_regulator_init(phy);
 	if (ret) {
-		dev_err(dev, "%s: failed to init regulator\n", __func__);
+		DRM_DEV_ERROR(dev, "%s: failed to init regulator\n", __func__);
 		goto fail;
 	}
 
 	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk)) {
-		dev_err(dev, "%s: Unable to get ahb clk\n", __func__);
+		DRM_DEV_ERROR(dev, "%s: Unable to get ahb clk\n", __func__);
 		ret = PTR_ERR(phy->ahb_clk);
 		goto fail;
 	}
@@ -617,7 +617,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 
 	phy->pll = msm_dsi_pll_init(pdev, phy->cfg->type, phy->id);
 	if (IS_ERR_OR_NULL(phy->pll))
-		dev_info(dev,
+		DRM_DEV_INFO(dev,
 			"%s: pll init failed: %ld, need separate pll clk driver\n",
 			__func__, PTR_ERR(phy->pll));
 
@@ -675,21 +675,21 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 
 	ret = dsi_phy_enable_resource(phy);
 	if (ret) {
-		dev_err(dev, "%s: resource enable failed, %d\n",
+		DRM_DEV_ERROR(dev, "%s: resource enable failed, %d\n",
 			__func__, ret);
 		goto res_en_fail;
 	}
 
 	ret = dsi_phy_regulator_enable(phy);
 	if (ret) {
-		dev_err(dev, "%s: regulator enable failed, %d\n",
+		DRM_DEV_ERROR(dev, "%s: regulator enable failed, %d\n",
 			__func__, ret);
 		goto reg_en_fail;
 	}
 
 	ret = phy->cfg->ops.enable(phy, src_pll_id, clk_req);
 	if (ret) {
-		dev_err(dev, "%s: phy enable failed, %d\n", __func__, ret);
+		DRM_DEV_ERROR(dev, "%s: phy enable failed, %d\n", __func__, ret);
 		goto phy_en_fail;
 	}
 
@@ -702,7 +702,7 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	if (phy->usecase != MSM_DSI_PHY_SLAVE) {
 		ret = msm_dsi_pll_restore_state(phy->pll);
 		if (ret) {
-			dev_err(dev, "%s: failed to restore pll state, %d\n",
+			DRM_DEV_ERROR(dev, "%s: failed to restore pll state, %d\n",
 				__func__, ret);
 			goto pll_restor_fail;
 		}

@@ -119,7 +119,7 @@ static int rk_load_data(struct rk_crypto_info *dev,
 		count = (dev->left_bytes > PAGE_SIZE) ?
 			PAGE_SIZE : dev->left_bytes;
 
-		if (!sg_pcopy_to_buffer(dev->first, dev->nents,
+		if (!sg_pcopy_to_buffer(dev->first, dev->src_nents,
 					dev->addr_vir, count,
 					dev->total - dev->left_bytes)) {
 			dev_err(dev->dev, "[%s:%d] pcopy err\n",

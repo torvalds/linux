@@ -363,23 +363,23 @@
 .endm
 
 /* VECTOR LOAD MULTIPLE */
-.macro	VLM	vfrom, vto, disp, base
+.macro	VLM	vfrom, vto, disp, base, hint=3
 	VX_NUM	v1, \vfrom
 	VX_NUM	v3, \vto
 	GR_NUM	b2, \base	    /* Base register */
 	.word	0xE700 | ((v1&15) << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
-	MRXBOPC	0, 0x36, v1, v3
+	MRXBOPC	\hint, 0x36, v1, v3
 .endm
 
 /* VECTOR STORE MULTIPLE */
-.macro	VSTM	vfrom, vto, disp, base
+.macro	VSTM	vfrom, vto, disp, base, hint=3
 	VX_NUM	v1, \vfrom
 	VX_NUM	v3, \vto
 	GR_NUM	b2, \base	    /* Base register */
 	.word	0xE700 | ((v1&15) << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
-	MRXBOPC	0, 0x3E, v1, v3
+	MRXBOPC	\hint, 0x3E, v1, v3
 .endm
 
 /* VECTOR PERMUTE */

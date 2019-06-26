@@ -359,8 +359,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	dst_release(skb_dst(skb));
 	skb_dst_set(skb, NULL);
 #ifdef CONFIG_XFRM
-	secpath_put(skb->sp);
-	skb->sp = NULL;
+	secpath_reset(skb);
 #endif
 	nf_reset(skb);
 

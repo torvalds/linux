@@ -408,12 +408,12 @@ static void qede_xdp_tx_int(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 static int qede_tx_int(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
+	unsigned int pkts_compl = 0, bytes_compl = 0;
 	struct netdev_queue *netdev_txq;
 	u16 hw_bd_cons;
-	unsigned int pkts_compl = 0, bytes_compl = 0;
 	int rc;
 
-	netdev_txq = netdev_get_tx_queue(edev->ndev, txq->index);
+	netdev_txq = netdev_get_tx_queue(edev->ndev, txq->ndev_txq_id);
 
 	hw_bd_cons = le16_to_cpu(*txq->hw_cons_ptr);
 	barrier();
@@ -1119,8 +1119,10 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 
 	default:
 		bpf_warn_invalid_xdp_action(act);
+		/* Fall through */
 	case XDP_ABORTED:
 		trace_xdp_exception(edev->ndev, prog, act);
+		/* Fall through */
 	case XDP_DROP:
 		qede_recycle_rx_bd_ring(rxq, cqe->bd_num);
 	}
@@ -1363,9 +1365,14 @@ static bool qede_poll_is_more_work(struct qede_fastpath *fp)
 		if (qede_txq_has_work(fp->xdp_tx))
 			return true;
 
-	if (likely(fp->type & QEDE_FASTPATH_TX))
-		if (qede_txq_has_work(fp->txq))
-			return true;
+	if (likely(fp->type & QEDE_FASTPATH_TX)) {
+		int cos;
+
+		for_each_cos_in_txq(fp->edev, cos) {
+			if (qede_txq_has_work(&fp->txq[cos]))
+				return true;
+		}
+	}
 
 	return false;
 }
@@ -1380,8 +1387,14 @@ int qede_poll(struct napi_struct *napi, int budget)
 	struct qede_dev *edev = fp->edev;
 	int rx_work_done = 0;
 
-	if (likely(fp->type & QEDE_FASTPATH_TX) && qede_txq_has_work(fp->txq))
-		qede_tx_int(edev, fp->txq);
+	if (likely(fp->type & QEDE_FASTPATH_TX)) {
+		int cos;
+
+		for_each_cos_in_txq(fp->edev, cos) {
+			if (qede_txq_has_work(&fp->txq[cos]))
+				qede_tx_int(edev, &fp->txq[cos]);
+		}
+	}
 
 	if ((fp->type & QEDE_FASTPATH_XDP) && qede_txq_has_work(fp->xdp_tx))
 		qede_xdp_tx_int(edev, fp->xdp_tx);
@@ -1442,8 +1455,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* Get tx-queue context and netdev index */
 	txq_index = skb_get_queue_mapping(skb);
-	WARN_ON(txq_index >= QEDE_TSS_COUNT(edev));
-	txq = edev->fp_array[edev->fp_num_rx + txq_index].txq;
+	WARN_ON(txq_index >= QEDE_TSS_COUNT(edev) * edev->dev_info.num_tc);
+	txq = QEDE_NDEV_TXQ_ID_TO_TXQ(edev, txq_index);
 	netdev_txq = netdev_get_tx_queue(ndev, txq_index);
 
 	WARN_ON(qed_chain_get_elem_left(&txq->tx_pbl) < (MAX_SKB_FRAGS + 1));
@@ -1453,8 +1466,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 #if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET)
 	if (qede_pkt_req_lin(skb, xmit_type)) {
 		if (skb_linearize(skb)) {
-			DP_NOTICE(edev,
-				  "SKB linearization failed - silently dropping this SKB\n");
+			txq->tx_mem_alloc_err++;
+
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
@@ -1680,6 +1693,19 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	return NETDEV_TX_OK;
+}
+
+u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
+		      struct net_device *sb_dev,
+		      select_queue_fallback_t fallback)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	int total_txq;
+
+	total_txq = QEDE_TSS_COUNT(edev) * edev->dev_info.num_tc;
+
+	return QEDE_TSS_COUNT(edev) ?
+		fallback(dev, skb, NULL) % total_txq :  0;
 }
 
 /* 8B udp header + 8B base tunnel header + 32B option length */

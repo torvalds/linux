@@ -1,9 +1,9 @@
 * Thermal Monitoring Unit (TMU) on Freescale QorIQ SoCs
 
 Required properties:
-- compatible : Must include "fsl,qoriq-tmu". The version of the device is
-	determined by the TMU IP Block Revision Register (IPBRR0) at
-	offset 0x0BF8.
+- compatible : Must include "fsl,qoriq-tmu" or "fsl,imx8mq-tmu". The
+	version of the device is determined by the TMU IP Block Revision
+	Register (IPBRR0) at offset 0x0BF8.
 	Table of correspondences between IPBRR0 values and example  chips:
 		Value           Device
 		----------      -----

@@ -1,0 +1,26 @@
+* Microchip WILC wireless SPI device
+
+The wilc1000 chips can be connected via SPI. This document describes
+the binding for the SPI connected module.
+
+Required properties:
+- compatible		: Should be "microchip,wilc1000-spi"
+- spi-max-frequency	: Maximum SPI clocking speed of device in Hz
+- reg			: Chip select address of device
+- irq-gpios		: Connect to a host IRQ
+
+
+Examples:
+
+spi1: spi@fc018000 {
+		cs-gpios = <&pioB 21 0>;
+		status = "okay";
+
+		wilc_spi@0 {
+			compatible = "microchip,wilc1000-spi";
+			spi-max-frequency = <48000000>;
+			reg = <0>;
+			irq-gpios = <&pioC 27 0>;
+			status = "okay";
+		};
+};

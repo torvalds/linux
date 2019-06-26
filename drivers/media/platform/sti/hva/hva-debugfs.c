@@ -271,7 +271,7 @@ static void hva_dbg_perf_compute(struct hva_ctx *ctx)
  * device debug info
  */
 
-static int hva_dbg_device(struct seq_file *s, void *data)
+static int device_show(struct seq_file *s, void *data)
 {
 	struct hva_dev *hva = s->private;
 
@@ -281,7 +281,7 @@ static int hva_dbg_device(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int hva_dbg_encoders(struct seq_file *s, void *data)
+static int encoders_show(struct seq_file *s, void *data)
 {
 	struct hva_dev *hva = s->private;
 	unsigned int i = 0;
@@ -299,7 +299,7 @@ static int hva_dbg_encoders(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int hva_dbg_last(struct seq_file *s, void *data)
+static int last_show(struct seq_file *s, void *data)
 {
 	struct hva_dev *hva = s->private;
 	struct hva_ctx *last_ctx = &hva->dbg.last_ctx;
@@ -316,7 +316,7 @@ static int hva_dbg_last(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int hva_dbg_regs(struct seq_file *s, void *data)
+static int regs_show(struct seq_file *s, void *data)
 {
 	struct hva_dev *hva = s->private;
 
@@ -325,26 +325,14 @@ static int hva_dbg_regs(struct seq_file *s, void *data)
 	return 0;
 }
 
-#define hva_dbg_declare(name)						  \
-	static int hva_dbg_##name##_open(struct inode *i, struct file *f) \
-	{								  \
-		return single_open(f, hva_dbg_##name, i->i_private);	  \
-	}								  \
-	static const struct file_operations hva_dbg_##name##_fops = {	  \
-		.open		= hva_dbg_##name##_open,		  \
-		.read		= seq_read,				  \
-		.llseek		= seq_lseek,				  \
-		.release	= single_release,			  \
-	}
-
 #define hva_dbg_create_entry(name)					 \
 	debugfs_create_file(#name, 0444, hva->dbg.debugfs_entry, hva, \
-			    &hva_dbg_##name##_fops)
+			    &name##_fops)
 
-hva_dbg_declare(device);
-hva_dbg_declare(encoders);
-hva_dbg_declare(last);
-hva_dbg_declare(regs);
+DEFINE_SHOW_ATTRIBUTE(device);
+DEFINE_SHOW_ATTRIBUTE(encoders);
+DEFINE_SHOW_ATTRIBUTE(last);
+DEFINE_SHOW_ATTRIBUTE(regs);
 
 void hva_debugfs_create(struct hva_dev *hva)
 {
@@ -380,7 +368,7 @@ void hva_debugfs_remove(struct hva_dev *hva)
  * context (instance) debug info
  */
 
-static int hva_dbg_ctx(struct seq_file *s, void *data)
+static int ctx_show(struct seq_file *s, void *data)
 {
 	struct hva_ctx *ctx = s->private;
 
@@ -392,7 +380,7 @@ static int hva_dbg_ctx(struct seq_file *s, void *data)
 	return 0;
 }
 
-hva_dbg_declare(ctx);
+DEFINE_SHOW_ATTRIBUTE(ctx);
 
 void hva_dbg_ctx_create(struct hva_ctx *ctx)
 {
@@ -407,7 +395,7 @@ void hva_dbg_ctx_create(struct hva_ctx *ctx)
 
 	ctx->dbg.debugfs_entry = debugfs_create_file(name, 0444,
 						     hva->dbg.debugfs_entry,
-						     ctx, &hva_dbg_ctx_fops);
+						     ctx, &ctx_fops);
 }
 
 void hva_dbg_ctx_remove(struct hva_ctx *ctx)

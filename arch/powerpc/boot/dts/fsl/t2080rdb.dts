@@ -77,12 +77,12 @@
 		};
 
 		ethernet@f0000 {
-			phy-handle = <&xg_cs4315_phy1>;
+			phy-handle = <&xg_cs4315_phy2>;
 			phy-connection-type = "xgmii";
 		};
 
 		ethernet@f2000 {
-			phy-handle = <&xg_cs4315_phy2>;
+			phy-handle = <&xg_cs4315_phy1>;
 			phy-connection-type = "xgmii";
 		};
 
@@ -97,12 +97,12 @@
 
 		mdio@fd000 {
 			xg_cs4315_phy1: ethernet-phy@c {
-				compatible = "ethernet-phy-ieee802.3-c45";
+				compatible = "ethernet-phy-id13e5.1002";
 				reg = <0xc>;
 			};
 
 			xg_cs4315_phy2: ethernet-phy@d {
-				compatible = "ethernet-phy-ieee802.3-c45";
+				compatible = "ethernet-phy-id13e5.1002";
 				reg = <0xd>;
 			};
 

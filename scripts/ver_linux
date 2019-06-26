@@ -13,6 +13,8 @@ BEGIN {
 	system("uname -a")
 	printf("\n")
 
+	vernum = "[0-9]+([.]?[0-9]+)+"
+
 	printversion("GNU C", version("gcc -dumpversion"))
 	printversion("GNU Make", version("make --version"))
 	printversion("Binutils", version("ld -v"))
@@ -32,11 +34,13 @@ BEGIN {
 	printversion("Nfs-utils", version("showmount --version"))
 
 	while (getline <"/proc/self/maps" > 0) {
-		n = split($0, procmaps, "/")
-		if (/libc.*so$/ && match(procmaps[n], /[0-9]+([.]?[0-9]+)+/)) {
-			ver = substr(procmaps[n], RSTART, RLENGTH)
-			printversion("Linux C Library", ver)
-			break
+		if (/libc.*\.so$/) {
+			n = split($0, procmaps, "/")
+			if (match(procmaps[n], vernum)) {
+				ver = substr(procmaps[n], RSTART, RLENGTH)
+				printversion("Linux C Library", ver)
+				break
+			}
 		}
 	}
 
@@ -68,7 +72,7 @@ BEGIN {
 function version(cmd,    ver) {
 	cmd = cmd " 2>&1"
 	while (cmd | getline > 0) {
-		if (!/ver_linux/ && match($0, /[0-9]+([.]?[0-9]+)+/)) {
+		if (match($0, vernum)) {
 			ver = substr($0, RSTART, RLENGTH)
 			break
 		}

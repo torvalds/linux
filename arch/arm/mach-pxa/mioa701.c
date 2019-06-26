@@ -31,6 +31,7 @@
 #include <linux/rtc.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pda_power.h>
@@ -397,9 +398,22 @@ struct gpio_vbus_mach_info gpio_vbus_data = {
 static struct pxamci_platform_data mioa701_mci_info = {
 	.detect_delay_ms	= 250,
 	.ocr_mask 		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO15_SDIO_INSERT,
-	.gpio_card_ro		= GPIO78_SDIO_RO,
-	.gpio_power		= GPIO91_SDIO_EN,
+};
+
+static struct gpiod_lookup_table mioa701_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 15 */
+		GPIO_LOOKUP("gpio-pxa", GPIO15_SDIO_INSERT,
+			    "cd", GPIO_ACTIVE_LOW),
+		/* Write protect on GPIO 78 */
+		GPIO_LOOKUP("gpio-pxa", GPIO78_SDIO_RO,
+			    "wp", GPIO_ACTIVE_LOW),
+		/* Power on GPIO 91 */
+		GPIO_LOOKUP("gpio-pxa", GPIO91_SDIO_EN,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /* FlashRAM */
@@ -677,14 +691,12 @@ MIO_SIMPLE_DEV(mioa701_led,	  "leds-gpio",	    &gpio_led_info)
 MIO_SIMPLE_DEV(pxa2xx_pcm,	  "pxa2xx-pcm",	    NULL)
 MIO_SIMPLE_DEV(mioa701_sound,	  "mioa701-wm9713", NULL)
 MIO_SIMPLE_DEV(mioa701_board,	  "mioa701-board",  NULL)
-MIO_SIMPLE_DEV(wm9713_acodec,	  "wm9713-codec",   NULL);
 MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      &gpio_vbus_data);
 
 static struct platform_device *devices[] __initdata = {
 	&mioa701_gpio_keys,
 	&mioa701_backlight,
 	&mioa701_led,
-	&wm9713_acodec,
 	&pxa2xx_pcm,
 	&mioa701_sound,
 	&power_dev,
@@ -745,6 +757,7 @@ static void __init mioa701_machine_init(void)
 		pr_err("MioA701: Failed to request GPIOs: %d", rc);
 	bootstrap_init();
 	pxa_set_fb_info(NULL, &mioa701_pxafb_info);
+	gpiod_add_lookup_table(&mioa701_mci_gpio_table);
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	pxa_set_udc_info(&mioa701_udc_info);

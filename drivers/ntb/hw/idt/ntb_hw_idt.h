@@ -4,7 +4,7 @@
  *
  *   GPL LICENSE SUMMARY
  *
- *   Copyright (C) 2016 T-Platforms All Rights Reserved.
+ *   Copyright (C) 2016-2018 T-Platforms JSC All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or modify it
  *   under the terms and conditions of the GNU General Public License,
@@ -47,8 +47,8 @@
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/ntb.h>
-
 
 /*
  * Macro is used to create the struct pci_device_id that matches
@@ -688,15 +688,14 @@
  * @IDT_NTINTMSK_DBELL:		Doorbell interrupt mask bit
  * @IDT_NTINTMSK_SEVENT:	Switch Event interrupt mask bit
  * @IDT_NTINTMSK_TMPSENSOR:	Temperature sensor interrupt mask bit
- * @IDT_NTINTMSK_ALL:		All the useful interrupts mask
+ * @IDT_NTINTMSK_ALL:		NTB-related interrupts mask
  */
 #define IDT_NTINTMSK_MSG		0x00000001U
 #define IDT_NTINTMSK_DBELL		0x00000002U
 #define IDT_NTINTMSK_SEVENT		0x00000008U
 #define IDT_NTINTMSK_TMPSENSOR		0x00000080U
 #define IDT_NTINTMSK_ALL \
-	(IDT_NTINTMSK_MSG | IDT_NTINTMSK_DBELL | \
-	 IDT_NTINTMSK_SEVENT | IDT_NTINTMSK_TMPSENSOR)
+	(IDT_NTINTMSK_MSG | IDT_NTINTMSK_DBELL | IDT_NTINTMSK_SEVENT)
 
 /*
  * NTGSIGNAL register fields related constants
@@ -886,12 +885,60 @@
 #define IDT_SWPxMSGCTL_PART_FLD		4
 
 /*
+ * TMPCTL register fields related constants
+ * @IDT_TMPCTL_LTH_MASK:	Low temperature threshold field mask
+ * @IDT_TMPCTL_LTH_FLD:		Low temperature threshold field offset
+ * @IDT_TMPCTL_MTH_MASK:	Middle temperature threshold field mask
+ * @IDT_TMPCTL_MTH_FLD:		Middle temperature threshold field offset
+ * @IDT_TMPCTL_HTH_MASK:	High temperature threshold field mask
+ * @IDT_TMPCTL_HTH_FLD:		High temperature threshold field offset
+ * @IDT_TMPCTL_PDOWN:		Temperature sensor power down
+ */
+#define IDT_TMPCTL_LTH_MASK		0x000000FFU
+#define IDT_TMPCTL_LTH_FLD		0
+#define IDT_TMPCTL_MTH_MASK		0x0000FF00U
+#define IDT_TMPCTL_MTH_FLD		8
+#define IDT_TMPCTL_HTH_MASK		0x00FF0000U
+#define IDT_TMPCTL_HTH_FLD		16
+#define IDT_TMPCTL_PDOWN		0x80000000U
+
+/*
  * TMPSTS register fields related constants
  * @IDT_TMPSTS_TEMP_MASK:	Current temperature field mask
  * @IDT_TMPSTS_TEMP_FLD:	Current temperature field offset
+ * @IDT_TMPSTS_LTEMP_MASK:	Lowest temperature field mask
+ * @IDT_TMPSTS_LTEMP_FLD:	Lowest temperature field offset
+ * @IDT_TMPSTS_HTEMP_MASK:	Highest temperature field mask
+ * @IDT_TMPSTS_HTEMP_FLD:	Highest temperature field offset
  */
 #define IDT_TMPSTS_TEMP_MASK		0x000000FFU
 #define IDT_TMPSTS_TEMP_FLD		0
+#define IDT_TMPSTS_LTEMP_MASK		0x0000FF00U
+#define IDT_TMPSTS_LTEMP_FLD		8
+#define IDT_TMPSTS_HTEMP_MASK		0x00FF0000U
+#define IDT_TMPSTS_HTEMP_FLD		16
+
+/*
+ * TMPALARM register fields related constants
+ * @IDT_TMPALARM_LTEMP_MASK:	Lowest temperature field mask
+ * @IDT_TMPALARM_LTEMP_FLD:	Lowest temperature field offset
+ * @IDT_TMPALARM_HTEMP_MASK:	Highest temperature field mask
+ * @IDT_TMPALARM_HTEMP_FLD:	Highest temperature field offset
+ * @IDT_TMPALARM_IRQ_MASK:	Alarm IRQ status mask
+ */
+#define IDT_TMPALARM_LTEMP_MASK		0x0000FF00U
+#define IDT_TMPALARM_LTEMP_FLD		8
+#define IDT_TMPALARM_HTEMP_MASK		0x00FF0000U
+#define IDT_TMPALARM_HTEMP_FLD		16
+#define IDT_TMPALARM_IRQ_MASK		0x3F000000U
+
+/*
+ * TMPADJ register fields related constants
+ * @IDT_TMPADJ_OFFSET_MASK:	Temperature value offset field mask
+ * @IDT_TMPADJ_OFFSET_FLD:	Temperature value offset field offset
+ */
+#define IDT_TMPADJ_OFFSET_MASK		0x000000FFU
+#define IDT_TMPADJ_OFFSET_FLD		0
 
 /*
  * Helper macro to get/set the corresponding field value
@@ -949,6 +996,32 @@
 #define IDT_PCIE_REGSIZE	4
 #define IDT_TRANS_ALIGN		4
 #define IDT_DIR_SIZE_ALIGN	1
+
+/*
+ * IDT PCIe-switch temperature sensor value limits
+ * @IDT_TEMP_MIN_MDEG:	Minimal integer value of temperature
+ * @IDT_TEMP_MAX_MDEG:	Maximal integer value of temperature
+ * @IDT_TEMP_MIN_OFFSET:Minimal integer value of temperature offset
+ * @IDT_TEMP_MAX_OFFSET:Maximal integer value of temperature offset
+ */
+#define IDT_TEMP_MIN_MDEG	0
+#define IDT_TEMP_MAX_MDEG	127500
+#define IDT_TEMP_MIN_OFFSET	-64000
+#define IDT_TEMP_MAX_OFFSET	63500
+
+/*
+ * Temperature sensor values enumeration
+ * @IDT_TEMP_CUR:	Current temperature
+ * @IDT_TEMP_LOW:	Lowest historical temperature
+ * @IDT_TEMP_HIGH:	Highest historical temperature
+ * @IDT_TEMP_OFFSET:	Current temperature offset
+ */
+enum idt_temp_val {
+	IDT_TEMP_CUR,
+	IDT_TEMP_LOW,
+	IDT_TEMP_HIGH,
+	IDT_TEMP_OFFSET
+};
 
 /*
  * IDT Memory Windows type. Depending on the device settings, IDT supports
@@ -1044,6 +1117,8 @@ struct idt_ntb_peer {
  * @msg_mask_lock:	Message mask register lock
  * @gasa_lock:		GASA registers access lock
  *
+ * @hwmon_mtx:		Temperature sensor interface update mutex
+ *
  * @dbgfs_info:		DebugFS info node
  */
 struct idt_ntb_dev {
@@ -1070,6 +1145,8 @@ struct idt_ntb_dev {
 	spinlock_t db_mask_lock;
 	spinlock_t msg_mask_lock;
 	spinlock_t gasa_lock;
+
+	struct mutex hwmon_mtx;
 
 	struct dentry *dbgfs_info;
 };

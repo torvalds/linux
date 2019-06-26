@@ -480,6 +480,7 @@ static void hid_ctrl(struct urb *urb)
 {
 	struct hid_device *hid = urb->context;
 	struct usbhid_device *usbhid = hid->driver_data;
+	unsigned long flags;
 	int unplug = 0, status = urb->status;
 
 	switch (status) {
@@ -501,7 +502,7 @@ static void hid_ctrl(struct urb *urb)
 		hid_warn(urb->dev, "ctrl urb status %d received\n", status);
 	}
 
-	spin_lock(&usbhid->lock);
+	spin_lock_irqsave(&usbhid->lock, flags);
 
 	if (unplug) {
 		usbhid->ctrltail = usbhid->ctrlhead;
@@ -511,13 +512,13 @@ static void hid_ctrl(struct urb *urb)
 		if (usbhid->ctrlhead != usbhid->ctrltail &&
 				hid_submit_ctrl(hid) == 0) {
 			/* Successfully submitted next urb in queue */
-			spin_unlock(&usbhid->lock);
+			spin_unlock_irqrestore(&usbhid->lock, flags);
 			return;
 		}
 	}
 
 	clear_bit(HID_CTRL_RUNNING, &usbhid->iofl);
-	spin_unlock(&usbhid->lock);
+	spin_unlock_irqrestore(&usbhid->lock, flags);
 	usb_autopm_put_interface_async(usbhid->intf);
 	wake_up(&usbhid->wait);
 }

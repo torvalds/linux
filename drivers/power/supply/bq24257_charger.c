@@ -845,7 +845,7 @@ static DEVICE_ATTR(high_impedance_enable, S_IWUSR | S_IRUGO,
 static DEVICE_ATTR(sysoff_enable, S_IWUSR | S_IRUGO,
 		   bq24257_sysfs_show_enable, bq24257_sysfs_set_enable);
 
-static struct attribute *bq24257_charger_attr[] = {
+static struct attribute *bq24257_charger_sysfs_attrs[] = {
 	&dev_attr_ovp_voltage.attr,
 	&dev_attr_in_dpm_voltage.attr,
 	&dev_attr_high_impedance_enable.attr,
@@ -853,14 +853,13 @@ static struct attribute *bq24257_charger_attr[] = {
 	NULL,
 };
 
-static const struct attribute_group bq24257_attr_group = {
-	.attrs = bq24257_charger_attr,
-};
+ATTRIBUTE_GROUPS(bq24257_charger_sysfs);
 
 static int bq24257_power_supply_init(struct bq24257_device *bq)
 {
 	struct power_supply_config psy_cfg = { .drv_data = bq, };
 
+	psy_cfg.attr_grp = bq24257_charger_sysfs_groups;
 	psy_cfg.supplied_to = bq24257_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq24257_charger_supplied_to);
 
@@ -1084,12 +1083,6 @@ static int bq24257_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = sysfs_create_group(&bq->charger->dev.kobj, &bq24257_attr_group);
-	if (ret < 0) {
-		dev_err(dev, "Can't create sysfs entries\n");
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -1099,8 +1092,6 @@ static int bq24257_remove(struct i2c_client *client)
 
 	if (bq->iilimit_autoset_enable)
 		cancel_delayed_work_sync(&bq->iilimit_setup_work);
-
-	sysfs_remove_group(&bq->charger->dev.kobj, &bq24257_attr_group);
 
 	bq24257_field_write(bq, F_RESET, 1); /* reset to defaults */
 

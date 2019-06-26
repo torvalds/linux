@@ -121,18 +121,16 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 	/* Get f2s bridge configuration saved in handoff register */
 	regmap_read(sysmgr, SYSMGR_ISWGRP_HANDOFF3, &priv->mask);
 
-	br = fpga_bridge_create(dev, F2S_BRIDGE_NAME,
-				&altera_fpga2sdram_br_ops, priv);
+	br = devm_fpga_bridge_create(dev, F2S_BRIDGE_NAME,
+				     &altera_fpga2sdram_br_ops, priv);
 	if (!br)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, br);
 
 	ret = fpga_bridge_register(br);
-	if (ret) {
-		fpga_bridge_free(br);
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "driver initialized with handoff %08x\n", priv->mask);
 

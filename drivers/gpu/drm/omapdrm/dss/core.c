@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -45,36 +45,14 @@ static struct platform_driver * const omap_dss_drivers[] = {
 #endif
 };
 
-static struct platform_device *omap_drm_device;
-
 static int __init omap_dss_init(void)
 {
-	int r;
-
-	r = platform_register_drivers(omap_dss_drivers,
-				      ARRAY_SIZE(omap_dss_drivers));
-	if (r)
-		goto err_reg;
-
-	omap_drm_device = platform_device_register_simple("omapdrm", 0, NULL, 0);
-	if (IS_ERR(omap_drm_device)) {
-		r = PTR_ERR(omap_drm_device);
-		goto err_reg;
-	}
-
-	return 0;
-
-err_reg:
-	platform_unregister_drivers(omap_dss_drivers,
-				    ARRAY_SIZE(omap_dss_drivers));
-
-	return r;
+	return platform_register_drivers(omap_dss_drivers,
+					 ARRAY_SIZE(omap_dss_drivers));
 }
 
 static void __exit omap_dss_exit(void)
 {
-	platform_device_unregister(omap_drm_device);
-
 	platform_unregister_drivers(omap_dss_drivers,
 				    ARRAY_SIZE(omap_dss_drivers));
 }
@@ -82,7 +60,7 @@ static void __exit omap_dss_exit(void)
 module_init(omap_dss_init);
 module_exit(omap_dss_exit);
 
-MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
+MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("OMAP2/3 Display Subsystem");
 MODULE_LICENSE("GPL v2");
 

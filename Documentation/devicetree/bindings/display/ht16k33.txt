@@ -4,8 +4,6 @@ Holtek ht16k33 RAM mapping 16*8 LED controller driver with keyscan
 Required properties:
 - compatible:		"holtek,ht16k33"
 - reg:			I2C slave address of the chip.
-- interrupt-parent:	A phandle pointing to the interrupt controller
-			serving the interrupt for this chip.
 - interrupts:		Interrupt specification for the key pressed interrupt.
 - refresh-rate-hz:	Display update interval in HZ.
 - debounce-delay-ms:	Debouncing interval time in milliseconds.

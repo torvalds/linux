@@ -47,7 +47,6 @@ static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
 	p->max_transfer_size = 65535;
 	p->max_packet_count = 511;
 	p->ahbcfg = 0x10;
-	p->uframe_sched = false;
 }
 
 static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
@@ -68,9 +67,15 @@ static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
 	p->reload_ctl = false;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
-	p->uframe_sched = false;
 	p->change_speed_quirk = true;
 	p->power_down = false;
+}
+
+static void dwc2_set_s3c6400_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->power_down = 0;
 }
 
 static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
@@ -83,6 +88,7 @@ static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 	p->host_perio_tx_fifo_size = 256;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
+	p->power_down = 0;
 }
 
 static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
@@ -112,7 +118,7 @@ static void dwc2_set_amlogic_params(struct dwc2_hsotg *hsotg)
 	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR8 <<
 		GAHBCFG_HBSTLEN_SHIFT;
-	p->uframe_sched = false;
+	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
 }
 
 static void dwc2_set_amcc_params(struct dwc2_hsotg *hsotg)
@@ -134,7 +140,6 @@ static void dwc2_set_stm32f4x9_fsotg_params(struct dwc2_hsotg *hsotg)
 	p->max_packet_count = 256;
 	p->phy_type = DWC2_PHY_TYPE_PARAM_FS;
 	p->i2c_enable = false;
-	p->uframe_sched = false;
 	p->activate_stm_fs_transceiver = true;
 }
 
@@ -154,7 +159,8 @@ const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "lantiq,arx100-usb", .data = dwc2_set_ltq_params },
 	{ .compatible = "lantiq,xrx200-usb", .data = dwc2_set_ltq_params },
 	{ .compatible = "snps,dwc2" },
-	{ .compatible = "samsung,s3c6400-hsotg" },
+	{ .compatible = "samsung,s3c6400-hsotg",
+	  .data = dwc2_set_s3c6400_params },
 	{ .compatible = "amlogic,meson8-usb",
 	  .data = dwc2_set_amlogic_params },
 	{ .compatible = "amlogic,meson8b-usb",
@@ -303,9 +309,12 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->hird_threshold_en = true;
 	p->hird_threshold = 4;
 	p->ipg_isoc_en = false;
+	p->service_interval = false;
 	p->max_packet_count = hw->max_packet_count;
 	p->max_transfer_size = hw->max_transfer_size;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR << GAHBCFG_HBSTLEN_SHIFT;
+	p->ref_clk_per = 33333;
+	p->sof_cnt_wkup_alert = 100;
 
 	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
@@ -596,6 +605,7 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	CHECK_BOOL(besl, (hsotg->hw_params.snpsid >= DWC2_CORE_REV_3_00a));
 	CHECK_BOOL(hird_threshold_en, hsotg->params.lpm);
 	CHECK_RANGE(hird_threshold, 0, hsotg->params.besl ? 12 : 7, 0);
+	CHECK_BOOL(service_interval, hw->service_interval_mode);
 	CHECK_RANGE(max_packet_count,
 		    15, hw->max_packet_count,
 		    hw->max_packet_count);
@@ -654,8 +664,8 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 
 	dwc2_force_mode(hsotg, true);
 
-	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
-	hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
+	gnptxfsiz = dwc2_readl(hsotg, GNPTXFSIZ);
+	hptxfsiz = dwc2_readl(hsotg, HPTXFSIZ);
 
 	hw->host_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
 				       FIFOSIZE_DEPTH_SHIFT;
@@ -679,13 +689,13 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 
 	dwc2_force_mode(hsotg, false);
 
-	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
+	gnptxfsiz = dwc2_readl(hsotg, GNPTXFSIZ);
 
 	fifo_count = dwc2_hsotg_tx_fifo_count(hsotg);
 
 	for (fifo = 1; fifo <= fifo_count; fifo++) {
 		hw->g_tx_fifo_size[fifo] =
-			(dwc2_readl(hsotg->regs + DPTXFSIZN(fifo)) &
+			(dwc2_readl(hsotg, DPTXFSIZN(fifo)) &
 			 FIFOSIZE_DEPTH_MASK) >> FIFOSIZE_DEPTH_SHIFT;
 	}
 
@@ -713,7 +723,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	 * 0x45f4xxxx, 0x5531xxxx or 0x5532xxxx
 	 */
 
-	hw->snpsid = dwc2_readl(hsotg->regs + GSNPSID);
+	hw->snpsid = dwc2_readl(hsotg, GSNPSID);
 	if ((hw->snpsid & GSNPSID_ID_MASK) != DWC2_OTG_ID &&
 	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_FS_IOT_ID &&
 	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_HS_IOT_ID) {
@@ -726,11 +736,11 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 		hw->snpsid >> 12 & 0xf, hw->snpsid >> 8 & 0xf,
 		hw->snpsid >> 4 & 0xf, hw->snpsid & 0xf, hw->snpsid);
 
-	hwcfg1 = dwc2_readl(hsotg->regs + GHWCFG1);
-	hwcfg2 = dwc2_readl(hsotg->regs + GHWCFG2);
-	hwcfg3 = dwc2_readl(hsotg->regs + GHWCFG3);
-	hwcfg4 = dwc2_readl(hsotg->regs + GHWCFG4);
-	grxfsiz = dwc2_readl(hsotg->regs + GRXFSIZ);
+	hwcfg1 = dwc2_readl(hsotg, GHWCFG1);
+	hwcfg2 = dwc2_readl(hsotg, GHWCFG2);
+	hwcfg3 = dwc2_readl(hsotg, GHWCFG3);
+	hwcfg4 = dwc2_readl(hsotg, GHWCFG4);
+	grxfsiz = dwc2_readl(hsotg, GRXFSIZ);
 
 	/* hwcfg1 */
 	hw->dev_ep_dirs = hwcfg1;
@@ -784,6 +794,8 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 				  GHWCFG4_UTMI_PHY_DATA_WIDTH_SHIFT;
 	hw->acg_enable = !!(hwcfg4 & GHWCFG4_ACG_SUPPORTED);
 	hw->ipg_isoc_en = !!(hwcfg4 & GHWCFG4_IPG_ISOC_SUPPORTED);
+	hw->service_interval_mode = !!(hwcfg4 &
+				       GHWCFG4_SERVICE_INTERVAL_SUPPORTED);
 
 	/* fifo sizes */
 	hw->rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>

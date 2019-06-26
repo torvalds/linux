@@ -243,7 +243,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 			acpi_os_printf("[%s] ",
 				       acpi_ut_get_reference_name(obj_desc));
 
-			/* Decode the refererence */
+			/* Decode the reference */
 
 			switch (obj_desc->reference.class) {
 			case ACPI_REFCLASS_LOCAL:

@@ -422,25 +422,28 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&davinci_mdio_default>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@4 {
+		reg = <4>;
+	};
+
+	ethphy1: ethernet-phy@5 {
+		reg = <5>;
+	};
 };
 
 &cpsw_emac0 {
 	status = "okay";
-	phy_id = <&davinci_mdio>, <4>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rmii";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
 	status = "okay";
-	phy_id = <&davinci_mdio>, <5>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rmii";
 	dual_emac_res_vlan = <2>;
-};
-
-&phy_sel {
-	reg= <0x44e10650 0xf5>;
-	rmii-clock-ext;
 };
 
 &sham {

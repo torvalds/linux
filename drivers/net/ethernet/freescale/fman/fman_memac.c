@@ -928,7 +928,7 @@ int memac_add_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	hash = get_mac_addr_hash_code(addr) & HASH_CTRL_ADDR_MASK;
 
 	/* Create element to be added to the driver hash table */
-	hash_entry = kmalloc(sizeof(*hash_entry), GFP_KERNEL);
+	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
@@ -962,6 +962,11 @@ int memac_set_allmulti(struct fman_mac *memac, bool enable)
 	memac->allmulti_enabled = enable;
 
 	return 0;
+}
+
+int memac_set_tstamp(struct fman_mac *memac, bool enable)
+{
+	return 0; /* Always enabled. */
 }
 
 int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)

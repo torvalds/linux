@@ -14,8 +14,6 @@ Required properties:
 
     "marvell,armada-8k-gpio" should be used for the Armada 7K and 8K
     SoCs (either from AP or CP), see
-    Documentation/devicetree/bindings/arm/marvell/cp110-system-controller0.txt
-    and
     Documentation/devicetree/bindings/arm/marvell/ap806-system-controller.txt
     for specific details about the offset property.
 

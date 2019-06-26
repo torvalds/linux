@@ -94,7 +94,6 @@ static int read_reset_stat(struct ctl_table *table, int write,
 		atomic_set(stat, 0);
 	else {
 		char str_buf[32];
-		char *data;
 		int len = snprintf(str_buf, 32, "%d\n", atomic_read(stat));
 		if (len >= 32)
 			return -EFAULT;
@@ -103,7 +102,6 @@ static int read_reset_stat(struct ctl_table *table, int write,
 			*lenp = 0;
 			return 0;
 		}
-		data = &str_buf[*ppos];
 		len -= *ppos;
 		if (len > *lenp)
 			len = *lenp;
@@ -237,9 +235,6 @@ void svc_rdma_cleanup(void)
 		unregister_sysctl_table(svcrdma_table_header);
 		svcrdma_table_header = NULL;
 	}
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	svc_unreg_xprt_class(&svc_rdma_bc_class);
-#endif
 	svc_unreg_xprt_class(&svc_rdma_class);
 }
 
@@ -261,8 +256,5 @@ int svc_rdma_init(void)
 
 	/* Register RDMA with the SVC transport switch */
 	svc_reg_xprt_class(&svc_rdma_class);
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	svc_reg_xprt_class(&svc_rdma_bc_class);
-#endif
 	return 0;
 }

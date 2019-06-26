@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/moduleparam.h>
+#include <linux/nospec.h>
 
 #include <sound/core.h>
 #include <sound/tlv.h>
@@ -526,7 +527,7 @@ static int snd_emu10k1_gpr_poke(struct snd_emu10k1 *emu,
 		if (!test_bit(gpr, icode->gpr_valid))
 			continue;
 		if (in_kernel)
-			val = *(u32 *)&icode->gpr_map[gpr];
+			val = *(__force u32 *)&icode->gpr_map[gpr];
 		else if (get_user(val, &icode->gpr_map[gpr]))
 			return -EFAULT;
 		snd_emu10k1_ptr_write(emu, emu->gpr_base + gpr, 0, val);
@@ -560,8 +561,8 @@ static int snd_emu10k1_tram_poke(struct snd_emu10k1 *emu,
 		if (!test_bit(tram, icode->tram_valid))
 			continue;
 		if (in_kernel) {
-			val = *(u32 *)&icode->tram_data_map[tram];
-			addr = *(u32 *)&icode->tram_addr_map[tram];
+			val = *(__force u32 *)&icode->tram_data_map[tram];
+			addr = *(__force u32 *)&icode->tram_addr_map[tram];
 		} else {
 			if (get_user(val, &icode->tram_data_map[tram]) ||
 			    get_user(addr, &icode->tram_addr_map[tram]))
@@ -611,8 +612,8 @@ static int snd_emu10k1_code_poke(struct snd_emu10k1 *emu,
 		if (!test_bit(pc / 2, icode->code_valid))
 			continue;
 		if (in_kernel) {
-			lo = *(u32 *)&icode->code[pc + 0];
-			hi = *(u32 *)&icode->code[pc + 1];
+			lo = *(__force u32 *)&icode->code[pc + 0];
+			hi = *(__force u32 *)&icode->code[pc + 1];
 		} else {
 			if (get_user(lo, &icode->code[pc + 0]) ||
 			    get_user(hi, &icode->code[pc + 1]))
@@ -666,7 +667,7 @@ static unsigned int *copy_tlv(const unsigned int __user *_tlv, bool in_kernel)
 	if (!_tlv)
 		return NULL;
 	if (in_kernel)
-		memcpy(data, (void *)_tlv, sizeof(data));
+		memcpy(data, (__force void *)_tlv, sizeof(data));
 	else if (copy_from_user(data, _tlv, sizeof(data)))
 		return NULL;
 	if (data[1] >= MAX_TLV_SIZE)
@@ -676,7 +677,7 @@ static unsigned int *copy_tlv(const unsigned int __user *_tlv, bool in_kernel)
 		return NULL;
 	memcpy(tlv, data, sizeof(data));
 	if (in_kernel) {
-		memcpy(tlv + 2, (void *)(_tlv + 2),  data[1]);
+		memcpy(tlv + 2, (__force void *)(_tlv + 2),  data[1]);
 	} else if (copy_from_user(tlv + 2, _tlv + 2, data[1])) {
 		kfree(tlv);
 		return NULL;
@@ -693,7 +694,7 @@ static int copy_gctl(struct snd_emu10k1 *emu,
 
 	if (emu->support_tlv) {
 		if (in_kernel)
-			memcpy(gctl, (void *)&_gctl[idx], sizeof(*gctl));
+			memcpy(gctl, (__force void *)&_gctl[idx], sizeof(*gctl));
 		else if (copy_from_user(gctl, &_gctl[idx], sizeof(*gctl)))
 			return -EFAULT;
 		return 0;
@@ -701,7 +702,7 @@ static int copy_gctl(struct snd_emu10k1 *emu,
 
 	octl = (struct snd_emu10k1_fx8010_control_old_gpr __user *)_gctl;
 	if (in_kernel)
-		memcpy(gctl, (void *)&octl[idx], sizeof(*octl));
+		memcpy(gctl, (__force void *)&octl[idx], sizeof(*octl));
 	else if (copy_from_user(gctl, &octl[idx], sizeof(*octl)))
 		return -EFAULT;
 	gctl->tlv = NULL;
@@ -735,7 +736,7 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 	for (i = 0, _id = icode->gpr_del_controls;
 	     i < icode->gpr_del_control_count; i++, _id++) {
 		if (in_kernel)
-			id = *(struct snd_ctl_elem_id *)_id;
+			id = *(__force struct snd_ctl_elem_id *)_id;
 		else if (copy_from_user(&id, _id, sizeof(id)))
 	     		return -EFAULT;
 		if (snd_emu10k1_look_for_ctl(emu, &id) == NULL)
@@ -833,7 +834,7 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 		knew.device = gctl->id.device;
 		knew.subdevice = gctl->id.subdevice;
 		knew.info = snd_emu10k1_gpr_ctl_info;
-		knew.tlv.p = copy_tlv(gctl->tlv, in_kernel);
+		knew.tlv.p = copy_tlv((__force const unsigned int __user *)gctl->tlv, in_kernel);
 		if (knew.tlv.p)
 			knew.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 				SNDRV_CTL_ELEM_ACCESS_TLV_READ;
@@ -897,7 +898,7 @@ static int snd_emu10k1_del_controls(struct snd_emu10k1 *emu,
 	for (i = 0, _id = icode->gpr_del_controls;
 	     i < icode->gpr_del_control_count; i++, _id++) {
 		if (in_kernel)
-			id = *(struct snd_ctl_elem_id *)_id;
+			id = *(__force struct snd_ctl_elem_id *)_id;
 		else if (copy_from_user(&id, _id, sizeof(id)))
 			return -EFAULT;
 		down_write(&card->controls_rwsem);
@@ -1026,6 +1027,8 @@ static int snd_emu10k1_ipcm_poke(struct snd_emu10k1 *emu,
 
 	if (ipcm->substream >= EMU10K1_FX8010_PCM_COUNT)
 		return -EINVAL;
+	ipcm->substream = array_index_nospec(ipcm->substream,
+					     EMU10K1_FX8010_PCM_COUNT);
 	if (ipcm->channels > 32)
 		return -EINVAL;
 	pcm = &emu->fx8010.pcm[ipcm->substream];
@@ -1072,6 +1075,8 @@ static int snd_emu10k1_ipcm_peek(struct snd_emu10k1 *emu,
 
 	if (ipcm->substream >= EMU10K1_FX8010_PCM_COUNT)
 		return -EINVAL;
+	ipcm->substream = array_index_nospec(ipcm->substream,
+					     EMU10K1_FX8010_PCM_COUNT);
 	pcm = &emu->fx8010.pcm[ipcm->substream];
 	mutex_lock(&emu->fx8010.lock);
 	spin_lock_irq(&emu->reg_lock);
@@ -2540,7 +2545,7 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 		emu->support_tlv = 1;
 		return put_user(SNDRV_EMU10K1_VERSION, (int __user *)argp);
 	case SNDRV_EMU10K1_IOCTL_INFO:
-		info = kmalloc(sizeof(*info), GFP_KERNEL);
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 		snd_emu10k1_fx8010_info(emu, info);

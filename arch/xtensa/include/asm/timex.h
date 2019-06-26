@@ -10,7 +10,6 @@
 #define _XTENSA_TIMEX_H
 
 #include <asm/processor.h>
-#include <linux/stringify.h>
 
 #if XCHAL_NUM_TIMERS > 0 && \
 	XTENSA_INT_LEVEL(XCHAL_TIMER0_INTERRUPT) <= XCHAL_EXCM_LEVEL
@@ -40,33 +39,24 @@ void local_timer_setup(unsigned cpu);
  * Register access.
  */
 
-#define WSR_CCOUNT(r)	  asm volatile ("wsr %0, ccount" :: "a" (r))
-#define RSR_CCOUNT(r)	  asm volatile ("rsr %0, ccount" : "=a" (r))
-#define WSR_CCOMPARE(x,r) asm volatile ("wsr %0,"__stringify(SREG_CCOMPARE)"+"__stringify(x) :: "a"(r))
-#define RSR_CCOMPARE(x,r) asm volatile ("rsr %0,"__stringify(SREG_CCOMPARE)"+"__stringify(x) : "=a"(r))
-
 static inline unsigned long get_ccount (void)
 {
-	unsigned long ccount;
-	RSR_CCOUNT(ccount);
-	return ccount;
+	return xtensa_get_sr(ccount);
 }
 
 static inline void set_ccount (unsigned long ccount)
 {
-	WSR_CCOUNT(ccount);
+	xtensa_set_sr(ccount, ccount);
 }
 
 static inline unsigned long get_linux_timer (void)
 {
-	unsigned ccompare;
-	RSR_CCOMPARE(LINUX_TIMER, ccompare);
-	return ccompare;
+	return xtensa_get_sr(SREG_CCOMPARE + LINUX_TIMER);
 }
 
 static inline void set_linux_timer (unsigned long ccompare)
 {
-	WSR_CCOMPARE(LINUX_TIMER, ccompare);
+	xtensa_set_sr(ccompare, SREG_CCOMPARE + LINUX_TIMER);
 }
 
 #endif	/* _XTENSA_TIMEX_H */

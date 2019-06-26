@@ -77,7 +77,7 @@ The key point is that the lock-acquisition functions, including
 <tt>smp_mb__after_unlock_lock()</tt> immediately after successful
 acquisition of the lock.
 
-<p>Therefore, for any given <tt>rcu_node</tt> struction, any access
+<p>Therefore, for any given <tt>rcu_node</tt> structure, any access
 happening before one of the above lock-release functions will be seen
 by all CPUs as happening before any access happening after a later
 one of the above lock-acquisition functions.
@@ -357,7 +357,7 @@ parts, starting in this section with the various phases of
 grace-period initialization.
 
 <p>The first ordering-related grace-period initialization action is to
-increment the <tt>rcu_state</tt> structure's <tt>-&gt;gpnum</tt>
+advance the <tt>rcu_state</tt> structure's <tt>-&gt;gp_seq</tt>
 grace-period-number counter, as shown below:
 
 </p><p><img src="TreeRCU-gp-init-1.svg" alt="TreeRCU-gp-init-1.svg" width="75%">
@@ -388,7 +388,7 @@ its last CPU and if the next <tt>rcu_node</tt> structure has no online CPUs).
 
 <p>The final <tt>rcu_gp_init()</tt> pass through the <tt>rcu_node</tt>
 tree traverses breadth-first, setting each <tt>rcu_node</tt> structure's
-<tt>-&gt;gpnum</tt> field to the newly incremented value from the
+<tt>-&gt;gp_seq</tt> field to the newly advanced value from the
 <tt>rcu_state</tt> structure, as shown in the following diagram.
 
 </p><p><img src="TreeRCU-gp-init-3.svg" alt="TreeRCU-gp-init-1.svg" width="75%">
@@ -398,9 +398,9 @@ tree traverses breadth-first, setting each <tt>rcu_node</tt> structure's
 to notice that a new grace period has started, as described in the next
 section.
 But because the grace-period kthread started the grace period at the
-root (with the increment of the <tt>rcu_state</tt> structure's
-<tt>-&gt;gpnum</tt> field) before setting each leaf <tt>rcu_node</tt>
-structure's <tt>-&gt;gpnum</tt> field, each CPU's observation of
+root (with the advancing of the <tt>rcu_state</tt> structure's
+<tt>-&gt;gp_seq</tt> field) before setting each leaf <tt>rcu_node</tt>
+structure's <tt>-&gt;gp_seq</tt> field, each CPU's observation of
 the start of the grace period will happen after the actual start
 of the grace period.
 
@@ -466,7 +466,7 @@ section that the grace period must wait on.
 <tr><td>
 	But a RCU read-side critical section might have started
 	after the beginning of the grace period
-	(the <tt>-&gt;gpnum++</tt> from earlier), so why should
+	(the advancing of <tt>-&gt;gp_seq</tt> from earlier), so why should
 	the grace period wait on such a critical section?
 </td></tr>
 <tr><th align="left">Answer:</th></tr>
@@ -485,13 +485,13 @@ section that the grace period must wait on.
 noted by <tt>rcu_node_context_switch()</tt> on the left.
 On the other hand, if the CPU takes a scheduler-clock interrupt
 while executing in usermode, a quiescent state will be noted by
-<tt>rcu_check_callbacks()</tt> on the right.
+<tt>rcu_sched_clock_irq()</tt> on the right.
 Either way, the passage through a quiescent state will be noted
 in a per-CPU variable.
 
 <p>The next time an <tt>RCU_SOFTIRQ</tt> handler executes on
 this CPU (for example, after the next scheduler-clock
-interrupt), <tt>__rcu_process_callbacks()</tt> will invoke
+interrupt), <tt>rcu_core()</tt> will invoke
 <tt>rcu_check_quiescent_state()</tt>, which will notice the
 recorded quiescent state, and invoke
 <tt>rcu_report_qs_rdp()</tt>.
@@ -609,10 +609,8 @@ states outstanding from other CPUs.
 <h4><a name="Grace-Period Cleanup">Grace-Period Cleanup</a></h4>
 
 <p>Grace-period cleanup first scans the <tt>rcu_node</tt> tree
-breadth-first setting all the <tt>-&gt;completed</tt> fields equal
-to the number of the newly completed grace period, then it sets
-the <tt>rcu_state</tt> structure's <tt>-&gt;completed</tt> field,
-again to the number of the newly completed grace period.
+breadth-first advancing all the <tt>-&gt;gp_seq</tt> fields, then it
+advances the <tt>rcu_state</tt> structure's <tt>-&gt;gp_seq</tt> field.
 The ordering effects are shown below:
 
 </p><p><img src="TreeRCU-gp-cleanup.svg" alt="TreeRCU-gp-cleanup.svg" width="75%">
@@ -634,7 +632,7 @@ grace-period cleanup is complete, the next grace period can begin.
 	CPU has reported its quiescent state, but it may be some
 	milliseconds before RCU becomes aware of this.
 	The latest reasonable candidate is once the <tt>rcu_state</tt>
-	structure's <tt>-&gt;completed</tt> field has been updated,
+	structure's <tt>-&gt;gp_seq</tt> field has been updated,
 	but it is quite possible that some CPUs have already completed
 	phase two of their updates by that time.
 	In short, if you are going to work with RCU, you need to
@@ -647,13 +645,13 @@ grace-period cleanup is complete, the next grace period can begin.
 <h4><a name="Callback Invocation">Callback Invocation</a></h4>
 
 <p>Once a given CPU's leaf <tt>rcu_node</tt> structure's
-<tt>-&gt;completed</tt> field has been updated, that CPU can begin
+<tt>-&gt;gp_seq</tt> field has been updated, that CPU can begin
 invoking its RCU callbacks that were waiting for this grace period
 to end.
 These callbacks are identified by <tt>rcu_advance_cbs()</tt>,
 which is usually invoked by <tt>__note_gp_changes()</tt>.
 As shown in the diagram below, this invocation can be triggered by
-the scheduling-clock interrupt (<tt>rcu_check_callbacks()</tt> on
+the scheduling-clock interrupt (<tt>rcu_sched_clock_irq()</tt> on
 the left) or by idle entry (<tt>rcu_cleanup_after_idle()</tt> on
 the right, but only for kernels build with
 <tt>CONFIG_RCU_FAST_NO_HZ=y</tt>).

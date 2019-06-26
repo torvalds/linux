@@ -339,14 +339,14 @@ xfs_ag_init_headers(
 	{ /* BNO root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_BNO_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_allocbt_buf_ops,
+		.ops = &xfs_bnobt_buf_ops,
 		.work = &xfs_bnoroot_init,
 		.need_init = true
 	},
 	{ /* CNT root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_CNT_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_allocbt_buf_ops,
+		.ops = &xfs_cntbt_buf_ops,
 		.work = &xfs_cntroot_init,
 		.need_init = true
 	},
@@ -361,7 +361,7 @@ xfs_ag_init_headers(
 	{ /* FINO root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_FIBT_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_inobt_buf_ops,
+		.ops = &xfs_finobt_buf_ops,
 		.work = &xfs_btroot_init,
 		.type = XFS_BTNUM_FINO,
 		.need_init =  xfs_sb_version_hasfinobt(&mp->m_sb)
@@ -414,7 +414,6 @@ xfs_ag_extend_space(
 	struct aghdr_init_data	*id,
 	xfs_extlen_t		len)
 {
-	struct xfs_owner_info	oinfo;
 	struct xfs_buf		*bp;
 	struct xfs_agi		*agi;
 	struct xfs_agf		*agf;
@@ -448,17 +447,17 @@ xfs_ag_extend_space(
 	/*
 	 * Free the new space.
 	 *
-	 * XFS_RMAP_OWN_NULL is used here to tell the rmap btree that
+	 * XFS_RMAP_OINFO_SKIP_UPDATE is used here to tell the rmap btree that
 	 * this doesn't actually exist in the rmap btree.
 	 */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_NULL);
 	error = xfs_rmap_free(tp, bp, id->agno,
 				be32_to_cpu(agf->agf_length) - len,
-				len, &oinfo);
+				len, &XFS_RMAP_OINFO_SKIP_UPDATE);
 	if (error)
 		return error;
 
 	return  xfs_free_extent(tp, XFS_AGB_TO_FSB(mp, id->agno,
 					be32_to_cpu(agf->agf_length) - len),
-				len, &oinfo, XFS_AG_RESV_NONE);
+				len, &XFS_RMAP_OINFO_SKIP_UPDATE,
+				XFS_AG_RESV_NONE);
 }

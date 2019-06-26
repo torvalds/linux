@@ -74,14 +74,14 @@ static int stm32_sai_sync_conf_provider(struct stm32_sai_data *sai, int synco)
 		return ret;
 	}
 
-	dev_dbg(&sai->pdev->dev, "Set %s%s as synchro provider\n",
-		sai->pdev->dev.of_node->name,
+	dev_dbg(&sai->pdev->dev, "Set %pOFn%s as synchro provider\n",
+		sai->pdev->dev.of_node,
 		synco == STM_SAI_SYNC_OUT_A ? "A" : "B");
 
 	prev_synco = FIELD_GET(SAI_GCR_SYNCOUT_MASK, readl_relaxed(sai->base));
 	if (prev_synco != STM_SAI_SYNC_OUT_NONE && synco != prev_synco) {
-		dev_err(&sai->pdev->dev, "%s%s already set as sync provider\n",
-			sai->pdev->dev.of_node->name,
+		dev_err(&sai->pdev->dev, "%pOFn%s already set as sync provider\n",
+			sai->pdev->dev.of_node,
 			prev_synco == STM_SAI_SYNC_OUT_A ? "A" : "B");
 		clk_disable_unprepare(sai->pclk);
 		return -EINVAL;
@@ -104,7 +104,8 @@ static int stm32_sai_set_sync(struct stm32_sai_data *sai_client,
 
 	if (!pdev) {
 		dev_err(&sai_client->pdev->dev,
-			"Device not found for node %s\n", np_provider->name);
+			"Device not found for node %pOFn\n", np_provider);
+		of_node_put(np_provider);
 		return -ENODEV;
 	}
 
@@ -112,16 +113,22 @@ static int stm32_sai_set_sync(struct stm32_sai_data *sai_client,
 	if (!sai_provider) {
 		dev_err(&sai_client->pdev->dev,
 			"SAI sync provider data not found\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
 
 	/* Configure sync client */
 	ret = stm32_sai_sync_conf_client(sai_client, synci);
 	if (ret < 0)
-		return ret;
+		goto error;
 
 	/* Configure sync provider */
-	return stm32_sai_sync_conf_provider(sai_provider, synco);
+	ret = stm32_sai_sync_conf_provider(sai_provider, synco);
+
+error:
+	put_device(&pdev->dev);
+	of_node_put(np_provider);
+	return ret;
 }
 
 static int stm32_sai_probe(struct platform_device *pdev)

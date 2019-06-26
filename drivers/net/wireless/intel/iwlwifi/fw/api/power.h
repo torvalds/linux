@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,9 +200,16 @@ struct iwl_powertable_cmd {
  * @DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK:
  *	'1' Allow to save power by turning off
  *	receiver and transmitter. '0' - does not allow.
+ * @DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK:
+ *	Device Retention indication, '1' indicate retention is enabled.
+ * @DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK:
+ *	32Khz external slow clock valid indication, '1' indicate cloack is
+ *	valid.
 */
 enum iwl_device_power_flags {
-	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK	= BIT(0),
+	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
+	DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK	= BIT(1),
+	DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK		= BIT(12),
 };
 
 /**
@@ -316,7 +325,9 @@ enum iwl_dev_tx_power_cmd_mode {
 	IWL_TX_POWER_MODE_SET_DEVICE = 1,
 	IWL_TX_POWER_MODE_SET_CHAINS = 2,
 	IWL_TX_POWER_MODE_SET_ACK = 3,
-}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_4 */;
+	IWL_TX_POWER_MODE_SET_SAR_TIMER = 4,
+	IWL_TX_POWER_MODE_SET_SAR_TIMER_DEFAULT_TABLE = 5,
+}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_5 */;
 
 #define IWL_NUM_CHAIN_LIMITS	2
 #define IWL_NUM_SUB_BANDS	5
@@ -350,12 +361,34 @@ struct iwl_dev_tx_power_cmd_v3 {
  *	reduction.
  * @reserved: reserved (padding)
  */
-struct iwl_dev_tx_power_cmd {
+struct iwl_dev_tx_power_cmd_v4 {
 	/* v4 is just an extension of v3 - keep this here */
 	struct iwl_dev_tx_power_cmd_v3 v3;
 	u8 enable_ack_reduction;
 	u8 reserved[3];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
+
+/**
+ * struct iwl_dev_tx_power_cmd - TX power reduction command
+ * @v3: version 3 of the command, embedded here for easier software handling
+ * @enable_ack_reduction: enable or disable close range ack TX power
+ *	reduction.
+ * @per_chain_restriction_changed: is per_chain_restriction has changed
+ *	from last command. used if set_mode is
+ *	IWL_TX_POWER_MODE_SET_SAR_TIMER.
+ *	note: if not changed, the command is used for keep alive only.
+ * @reserved: reserved (padding)
+ * @timer_period: timer in milliseconds. if expires FW will change to default
+ *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
+ */
+struct iwl_dev_tx_power_cmd {
+	/* v5 is just an extension of v3 - keep this here */
+	struct iwl_dev_tx_power_cmd_v3 v3;
+	u8 enable_ack_reduction;
+	u8 per_chain_restriction_changed;
+	u8 reserved[2];
+	__le32 timer_period;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_5 */
 
 #define IWL_NUM_GEO_PROFILES   3
 
@@ -444,6 +477,13 @@ struct iwl_geo_tx_power_profiles_resp {
  * @ba_escape_timer: Fully receive and parse beacon if no beacons were passed
  *      for a longer period of time then this escape-timeout. Units: Beacons.
  * @ba_enable_beacon_abort: 1, beacon abort is enabled; 0, disabled.
+ * @bf_threshold_absolute_low: See below.
+ * @bf_threshold_absolute_high: Send Beacon to driver if Energy value calculated
+ *      for this beacon crossed this absolute threshold. For the 'Increase'
+ *      direction the bf_energy_absolute_low[i] is used. For the 'Decrease'
+ *      direction the bf_energy_absolute_high[i] is used. Zero value means
+ *      that this specific threshold is ignored for beacon filtering, and
+ *      beacon will not be forced to be sent to driver due to this setting.
  */
 struct iwl_beacon_filter_cmd {
 	__le32 bf_energy_delta;
@@ -457,7 +497,9 @@ struct iwl_beacon_filter_cmd {
 	__le32 bf_escape_timer;
 	__le32 ba_escape_timer;
 	__le32 ba_enable_beacon_abort;
-} __packed;
+	__le32 bf_threshold_absolute_low[2];
+	__le32 bf_threshold_absolute_high[2];
+} __packed; /* BEACON_FILTER_CONFIG_API_S_VER_4 */
 
 /* Beacon filtering and beacon abort */
 #define IWL_BF_ENERGY_DELTA_DEFAULT 5

@@ -11,7 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/iommu.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 
 /*
@@ -22,25 +22,25 @@ static struct attribute *devices_attr[] = {
 	NULL,
 };
 
-static const struct attribute_group iommu_devices_attr_group = {
+static const struct attribute_group devices_attr_group = {
 	.name = "devices",
 	.attrs = devices_attr,
 };
 
-static const struct attribute_group *iommu_dev_groups[] = {
-	&iommu_devices_attr_group,
+static const struct attribute_group *dev_groups[] = {
+	&devices_attr_group,
 	NULL,
 };
 
-static void iommu_release_device(struct device *dev)
+static void release_device(struct device *dev)
 {
 	kfree(dev);
 }
 
 static struct class iommu_class = {
 	.name = "iommu",
-	.dev_release = iommu_release_device,
-	.dev_groups = iommu_dev_groups,
+	.dev_release = release_device,
+	.dev_groups = dev_groups,
 };
 
 static int __init iommu_dev_init(void)

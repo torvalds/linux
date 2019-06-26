@@ -300,7 +300,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define SOR1_TIMING_CYA	(1 << 27)
 #define CURSOR_ENABLE	(1 << 16)
 
-#define SOR_ENABLE(x)	(1 << (25 + (x)))
+#define SOR_ENABLE(x)	(1 << (25 + (((x) > 1) ? ((x) + 1) : (x))))
 
 #define DC_DISP_DISP_MEM_HIGH_PRIORITY		0x403
 #define CURSOR_THRESHOLD(x)   (((x) & 0x03) << 24)

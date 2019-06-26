@@ -72,9 +72,9 @@ static int pps_tty_open(struct tty_struct *tty)
 
 	pps = pps_register_source(&info, PPS_CAPTUREBOTH | \
 				PPS_OFFSETASSERT | PPS_OFFSETCLEAR);
-	if (pps == NULL) {
+	if (IS_ERR(pps)) {
 		pr_err("cannot register PPS source \"%s\"\n", info.path);
-		return -ENOMEM;
+		return PTR_ERR(pps);
 	}
 	pps->lookup_cookie = tty;
 

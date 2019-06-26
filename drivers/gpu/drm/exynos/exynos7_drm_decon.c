@@ -30,7 +30,6 @@
 #include "exynos_drm_plane.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
-#include "exynos_drm_iommu.h"
 #include "regs-decon7.h"
 
 /*
@@ -133,13 +132,13 @@ static int decon_ctx_initialize(struct decon_context *ctx,
 
 	decon_clear_channels(ctx->crtc);
 
-	return drm_iommu_attach_device(drm_dev, ctx->dev);
+	return exynos_drm_register_dma(drm_dev, ctx->dev);
 }
 
 static void decon_ctx_remove(struct decon_context *ctx)
 {
 	/* detach this sub driver from iommu mapping if supported. */
-	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
+	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev);
 }
 
 static u32 decon_calc_clkdiv(struct decon_context *ctx,
@@ -832,6 +831,8 @@ static int exynos7_decon_resume(struct device *dev)
 static const struct dev_pm_ops exynos7_decon_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos7_decon_suspend, exynos7_decon_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 struct platform_driver decon_driver = {

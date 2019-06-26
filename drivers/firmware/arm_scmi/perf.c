@@ -166,9 +166,15 @@ scmi_perf_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 					le32_to_cpu(attr->sustained_freq_khz);
 		dom_info->sustained_perf_level =
 					le32_to_cpu(attr->sustained_perf_level);
-		dom_info->mult_factor =	(dom_info->sustained_freq_khz * 1000) /
+		if (!dom_info->sustained_freq_khz ||
+		    !dom_info->sustained_perf_level)
+			/* CPUFreq converts to kHz, hence default 1000 */
+			dom_info->mult_factor =	1000;
+		else
+			dom_info->mult_factor =
+					(dom_info->sustained_freq_khz * 1000) /
 					dom_info->sustained_perf_level;
-		memcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
+		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
 	}
 
 	scmi_xfer_put(handle, t);
@@ -363,8 +369,6 @@ static int scmi_dvfs_device_opps_add(const struct scmi_handle *handle,
 		return domain;
 
 	dom = pi->dom_info + domain;
-	if (!dom)
-		return -EIO;
 
 	for (opp = dom->opp, idx = 0; idx < dom->opp_count; idx++, opp++) {
 		freq = opp->perf * dom->mult_factor;
@@ -394,9 +398,6 @@ static int scmi_dvfs_transition_latency_get(const struct scmi_handle *handle,
 		return domain;
 
 	dom = pi->dom_info + domain;
-	if (!dom)
-		return -EIO;
-
 	/* uS to nS */
 	return dom->opp[dom->opp_count - 1].trans_latency_us * 1000;
 }
@@ -426,6 +427,33 @@ static int scmi_dvfs_freq_get(const struct scmi_handle *handle, u32 domain,
 	return ret;
 }
 
+static int scmi_dvfs_est_power_get(const struct scmi_handle *handle, u32 domain,
+				   unsigned long *freq, unsigned long *power)
+{
+	struct scmi_perf_info *pi = handle->perf_priv;
+	struct perf_dom_info *dom;
+	unsigned long opp_freq;
+	int idx, ret = -EINVAL;
+	struct scmi_opp *opp;
+
+	dom = pi->dom_info + domain;
+	if (!dom)
+		return -EIO;
+
+	for (opp = dom->opp, idx = 0; idx < dom->opp_count; idx++, opp++) {
+		opp_freq = opp->perf * dom->mult_factor;
+		if (opp_freq < *freq)
+			continue;
+
+		*freq = opp_freq;
+		*power = opp->power;
+		ret = 0;
+		break;
+	}
+
+	return ret;
+}
+
 static struct scmi_perf_ops perf_ops = {
 	.limits_set = scmi_perf_limits_set,
 	.limits_get = scmi_perf_limits_get,
@@ -436,6 +464,7 @@ static struct scmi_perf_ops perf_ops = {
 	.device_opps_add = scmi_dvfs_device_opps_add,
 	.freq_set = scmi_dvfs_freq_set,
 	.freq_get = scmi_dvfs_freq_get,
+	.est_power_get = scmi_dvfs_est_power_get,
 };
 
 static int scmi_perf_protocol_init(struct scmi_handle *handle)

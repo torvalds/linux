@@ -135,9 +135,12 @@ static bool __nft_rbtree_get(const struct net *net, const struct nft_set *set,
 		d = memcmp(this, key, set->klen);
 		if (d < 0) {
 			parent = rcu_dereference_raw(parent->rb_left);
-			interval = rbe;
+			if (!(flags & NFT_SET_ELEM_INTERVAL_END))
+				interval = rbe;
 		} else if (d > 0) {
 			parent = rcu_dereference_raw(parent->rb_right);
+			if (flags & NFT_SET_ELEM_INTERVAL_END)
+				interval = rbe;
 		} else {
 			if (!nft_set_elem_active(&rbe->ext, genmask))
 				parent = rcu_dereference_raw(parent->rb_left);
@@ -154,7 +157,10 @@ static bool __nft_rbtree_get(const struct net *net, const struct nft_set *set,
 
 	if (set->flags & NFT_SET_INTERVAL && interval != NULL &&
 	    nft_set_elem_active(&interval->ext, genmask) &&
-	    !nft_rbtree_interval_end(interval)) {
+	    ((!nft_rbtree_interval_end(interval) &&
+	      !(flags & NFT_SET_ELEM_INTERVAL_END)) ||
+	     (nft_rbtree_interval_end(interval) &&
+	      (flags & NFT_SET_ELEM_INTERVAL_END)))) {
 		*elem = interval;
 		return true;
 	}
@@ -302,10 +308,6 @@ static void *nft_rbtree_deactivate(const struct net *net,
 		else if (d > 0)
 			parent = parent->rb_right;
 		else {
-			if (!nft_set_elem_active(&rbe->ext, genmask)) {
-				parent = parent->rb_left;
-				continue;
-			}
 			if (nft_rbtree_interval_end(rbe) &&
 			    !nft_rbtree_interval_end(this)) {
 				parent = parent->rb_left;
@@ -313,6 +315,9 @@ static void *nft_rbtree_deactivate(const struct net *net,
 			} else if (!nft_rbtree_interval_end(rbe) &&
 				   nft_rbtree_interval_end(this)) {
 				parent = parent->rb_right;
+				continue;
+			} else if (!nft_set_elem_active(&rbe->ext, genmask)) {
+				parent = parent->rb_left;
 				continue;
 			}
 			nft_rbtree_flush(net, set, rbe);
@@ -355,12 +360,11 @@ cont:
 
 static void nft_rbtree_gc(struct work_struct *work)
 {
+	struct nft_rbtree_elem *rbe, *rbe_end = NULL, *rbe_prev = NULL;
 	struct nft_set_gc_batch *gcb = NULL;
-	struct rb_node *node, *prev = NULL;
-	struct nft_rbtree_elem *rbe;
 	struct nft_rbtree *priv;
+	struct rb_node *node;
 	struct nft_set *set;
-	int i;
 
 	priv = container_of(work, struct nft_rbtree, gc_work.work);
 	set  = nft_set_container_of(priv);
@@ -371,7 +375,7 @@ static void nft_rbtree_gc(struct work_struct *work)
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
 
 		if (nft_rbtree_interval_end(rbe)) {
-			prev = node;
+			rbe_end = rbe;
 			continue;
 		}
 		if (!nft_set_elem_expired(&rbe->ext))
@@ -379,27 +383,30 @@ static void nft_rbtree_gc(struct work_struct *work)
 		if (nft_set_elem_mark_busy(&rbe->ext))
 			continue;
 
+		if (rbe_prev) {
+			rb_erase(&rbe_prev->node, &priv->root);
+			rbe_prev = NULL;
+		}
 		gcb = nft_set_gc_batch_check(set, gcb, GFP_ATOMIC);
 		if (!gcb)
-			goto out;
+			break;
 
 		atomic_dec(&set->nelems);
 		nft_set_gc_batch_add(gcb, rbe);
+		rbe_prev = rbe;
 
-		if (prev) {
-			rbe = rb_entry(prev, struct nft_rbtree_elem, node);
+		if (rbe_end) {
 			atomic_dec(&set->nelems);
-			nft_set_gc_batch_add(gcb, rbe);
+			nft_set_gc_batch_add(gcb, rbe_end);
+			rb_erase(&rbe_end->node, &priv->root);
+			rbe_end = NULL;
 		}
 		node = rb_next(node);
+		if (!node)
+			break;
 	}
-out:
-	if (gcb) {
-		for (i = 0; i < gcb->head.cnt; i++) {
-			rbe = gcb->elems[i];
-			rb_erase(&rbe->node, &priv->root);
-		}
-	}
+	if (rbe_prev)
+		rb_erase(&rbe_prev->node, &priv->root);
 	write_seqcount_end(&priv->count);
 	write_unlock_bh(&priv->lock);
 
@@ -409,8 +416,8 @@ out:
 			   nft_set_gc_interval(set));
 }
 
-static unsigned int nft_rbtree_privsize(const struct nlattr * const nla[],
-					const struct nft_set_desc *desc)
+static u64 nft_rbtree_privsize(const struct nlattr * const nla[],
+			       const struct nft_set_desc *desc)
 {
 	return sizeof(struct nft_rbtree);
 }
@@ -440,6 +447,7 @@ static void nft_rbtree_destroy(const struct nft_set *set)
 	struct rb_node *node;
 
 	cancel_delayed_work_sync(&priv->gc_work);
+	rcu_barrier();
 	while ((node = priv->root.rb_node) != NULL) {
 		rb_erase(node, &priv->root);
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
@@ -462,7 +470,7 @@ static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-static struct nft_set_type nft_rbtree_type __read_mostly = {
+struct nft_set_type nft_set_rbtree_type __read_mostly = {
 	.owner		= THIS_MODULE,
 	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
 	.ops		= {
@@ -481,20 +489,3 @@ static struct nft_set_type nft_rbtree_type __read_mostly = {
 		.get		= nft_rbtree_get,
 	},
 };
-
-static int __init nft_rbtree_module_init(void)
-{
-	return nft_register_set(&nft_rbtree_type);
-}
-
-static void __exit nft_rbtree_module_exit(void)
-{
-	nft_unregister_set(&nft_rbtree_type);
-}
-
-module_init(nft_rbtree_module_init);
-module_exit(nft_rbtree_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_SET();

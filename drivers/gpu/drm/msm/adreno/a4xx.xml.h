@@ -8,17 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    431 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  37162 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  13324 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  31866 bytes, from 2017-06-06 18:26:14)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 111898 bytes, from 2017-06-06 18:23:59)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a5xx.xml          ( 139480 bytes, from 2017-06-16 12:44:39)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  42463 bytes, from 2018-11-19 13:44:03)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
+- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
 
-Copyright (C) 2013-2017 by the following authors:
+Copyright (C) 2013-2018 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -261,12 +263,6 @@ enum a4xx_depth_format {
 	DEPTH4_16 = 1,
 	DEPTH4_24_8 = 2,
 	DEPTH4_32 = 3,
-};
-
-enum a4xx_tess_spacing {
-	EQUAL_SPACING = 0,
-	ODD_SPACING = 2,
-	EVEN_SPACING = 3,
 };
 
 enum a4xx_ccu_perfcounter_select {
@@ -3544,12 +3540,13 @@ static inline uint32_t A4XX_HLSQ_VS_CONTROL_REG_CONSTLENGTH(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_VS_CONTROL_REG_CONSTLENGTH__SHIFT) & A4XX_HLSQ_VS_CONTROL_REG_CONSTLENGTH__MASK;
 }
-#define A4XX_HLSQ_VS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x0000ff00
+#define A4XX_HLSQ_VS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x00007f00
 #define A4XX_HLSQ_VS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT	8
 static inline uint32_t A4XX_HLSQ_VS_CONTROL_REG_CONSTOBJECTOFFSET(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_VS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT) & A4XX_HLSQ_VS_CONTROL_REG_CONSTOBJECTOFFSET__MASK;
 }
+#define A4XX_HLSQ_VS_CONTROL_REG_SSBO_ENABLE			0x00008000
 #define A4XX_HLSQ_VS_CONTROL_REG_ENABLED			0x00010000
 #define A4XX_HLSQ_VS_CONTROL_REG_SHADEROBJOFFSET__MASK		0x00fe0000
 #define A4XX_HLSQ_VS_CONTROL_REG_SHADEROBJOFFSET__SHIFT		17
@@ -3571,12 +3568,13 @@ static inline uint32_t A4XX_HLSQ_FS_CONTROL_REG_CONSTLENGTH(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_FS_CONTROL_REG_CONSTLENGTH__SHIFT) & A4XX_HLSQ_FS_CONTROL_REG_CONSTLENGTH__MASK;
 }
-#define A4XX_HLSQ_FS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x0000ff00
+#define A4XX_HLSQ_FS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x00007f00
 #define A4XX_HLSQ_FS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT	8
 static inline uint32_t A4XX_HLSQ_FS_CONTROL_REG_CONSTOBJECTOFFSET(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_FS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT) & A4XX_HLSQ_FS_CONTROL_REG_CONSTOBJECTOFFSET__MASK;
 }
+#define A4XX_HLSQ_FS_CONTROL_REG_SSBO_ENABLE			0x00008000
 #define A4XX_HLSQ_FS_CONTROL_REG_ENABLED			0x00010000
 #define A4XX_HLSQ_FS_CONTROL_REG_SHADEROBJOFFSET__MASK		0x00fe0000
 #define A4XX_HLSQ_FS_CONTROL_REG_SHADEROBJOFFSET__SHIFT		17
@@ -3598,12 +3596,13 @@ static inline uint32_t A4XX_HLSQ_HS_CONTROL_REG_CONSTLENGTH(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_HS_CONTROL_REG_CONSTLENGTH__SHIFT) & A4XX_HLSQ_HS_CONTROL_REG_CONSTLENGTH__MASK;
 }
-#define A4XX_HLSQ_HS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x0000ff00
+#define A4XX_HLSQ_HS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x00007f00
 #define A4XX_HLSQ_HS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT	8
 static inline uint32_t A4XX_HLSQ_HS_CONTROL_REG_CONSTOBJECTOFFSET(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_HS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT) & A4XX_HLSQ_HS_CONTROL_REG_CONSTOBJECTOFFSET__MASK;
 }
+#define A4XX_HLSQ_HS_CONTROL_REG_SSBO_ENABLE			0x00008000
 #define A4XX_HLSQ_HS_CONTROL_REG_ENABLED			0x00010000
 #define A4XX_HLSQ_HS_CONTROL_REG_SHADEROBJOFFSET__MASK		0x00fe0000
 #define A4XX_HLSQ_HS_CONTROL_REG_SHADEROBJOFFSET__SHIFT		17
@@ -3625,12 +3624,13 @@ static inline uint32_t A4XX_HLSQ_DS_CONTROL_REG_CONSTLENGTH(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_DS_CONTROL_REG_CONSTLENGTH__SHIFT) & A4XX_HLSQ_DS_CONTROL_REG_CONSTLENGTH__MASK;
 }
-#define A4XX_HLSQ_DS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x0000ff00
+#define A4XX_HLSQ_DS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x00007f00
 #define A4XX_HLSQ_DS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT	8
 static inline uint32_t A4XX_HLSQ_DS_CONTROL_REG_CONSTOBJECTOFFSET(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_DS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT) & A4XX_HLSQ_DS_CONTROL_REG_CONSTOBJECTOFFSET__MASK;
 }
+#define A4XX_HLSQ_DS_CONTROL_REG_SSBO_ENABLE			0x00008000
 #define A4XX_HLSQ_DS_CONTROL_REG_ENABLED			0x00010000
 #define A4XX_HLSQ_DS_CONTROL_REG_SHADEROBJOFFSET__MASK		0x00fe0000
 #define A4XX_HLSQ_DS_CONTROL_REG_SHADEROBJOFFSET__SHIFT		17
@@ -3652,12 +3652,13 @@ static inline uint32_t A4XX_HLSQ_GS_CONTROL_REG_CONSTLENGTH(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_GS_CONTROL_REG_CONSTLENGTH__SHIFT) & A4XX_HLSQ_GS_CONTROL_REG_CONSTLENGTH__MASK;
 }
-#define A4XX_HLSQ_GS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x0000ff00
+#define A4XX_HLSQ_GS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x00007f00
 #define A4XX_HLSQ_GS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT	8
 static inline uint32_t A4XX_HLSQ_GS_CONTROL_REG_CONSTOBJECTOFFSET(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_GS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT) & A4XX_HLSQ_GS_CONTROL_REG_CONSTOBJECTOFFSET__MASK;
 }
+#define A4XX_HLSQ_GS_CONTROL_REG_SSBO_ENABLE			0x00008000
 #define A4XX_HLSQ_GS_CONTROL_REG_ENABLED			0x00010000
 #define A4XX_HLSQ_GS_CONTROL_REG_SHADEROBJOFFSET__MASK		0x00fe0000
 #define A4XX_HLSQ_GS_CONTROL_REG_SHADEROBJOFFSET__SHIFT		17
@@ -3672,23 +3673,103 @@ static inline uint32_t A4XX_HLSQ_GS_CONTROL_REG_INSTRLENGTH(uint32_t val)
 	return ((val) << A4XX_HLSQ_GS_CONTROL_REG_INSTRLENGTH__SHIFT) & A4XX_HLSQ_GS_CONTROL_REG_INSTRLENGTH__MASK;
 }
 
-#define REG_A4XX_HLSQ_CS_CONTROL				0x000023ca
+#define REG_A4XX_HLSQ_CS_CONTROL_REG				0x000023ca
+#define A4XX_HLSQ_CS_CONTROL_REG_CONSTLENGTH__MASK		0x000000ff
+#define A4XX_HLSQ_CS_CONTROL_REG_CONSTLENGTH__SHIFT		0
+static inline uint32_t A4XX_HLSQ_CS_CONTROL_REG_CONSTLENGTH(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CS_CONTROL_REG_CONSTLENGTH__SHIFT) & A4XX_HLSQ_CS_CONTROL_REG_CONSTLENGTH__MASK;
+}
+#define A4XX_HLSQ_CS_CONTROL_REG_CONSTOBJECTOFFSET__MASK	0x00007f00
+#define A4XX_HLSQ_CS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT	8
+static inline uint32_t A4XX_HLSQ_CS_CONTROL_REG_CONSTOBJECTOFFSET(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CS_CONTROL_REG_CONSTOBJECTOFFSET__SHIFT) & A4XX_HLSQ_CS_CONTROL_REG_CONSTOBJECTOFFSET__MASK;
+}
+#define A4XX_HLSQ_CS_CONTROL_REG_SSBO_ENABLE			0x00008000
+#define A4XX_HLSQ_CS_CONTROL_REG_ENABLED			0x00010000
+#define A4XX_HLSQ_CS_CONTROL_REG_SHADEROBJOFFSET__MASK		0x00fe0000
+#define A4XX_HLSQ_CS_CONTROL_REG_SHADEROBJOFFSET__SHIFT		17
+static inline uint32_t A4XX_HLSQ_CS_CONTROL_REG_SHADEROBJOFFSET(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CS_CONTROL_REG_SHADEROBJOFFSET__SHIFT) & A4XX_HLSQ_CS_CONTROL_REG_SHADEROBJOFFSET__MASK;
+}
+#define A4XX_HLSQ_CS_CONTROL_REG_INSTRLENGTH__MASK		0xff000000
+#define A4XX_HLSQ_CS_CONTROL_REG_INSTRLENGTH__SHIFT		24
+static inline uint32_t A4XX_HLSQ_CS_CONTROL_REG_INSTRLENGTH(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CS_CONTROL_REG_INSTRLENGTH__SHIFT) & A4XX_HLSQ_CS_CONTROL_REG_INSTRLENGTH__MASK;
+}
 
 #define REG_A4XX_HLSQ_CL_NDRANGE_0				0x000023cd
+#define A4XX_HLSQ_CL_NDRANGE_0_KERNELDIM__MASK			0x00000003
+#define A4XX_HLSQ_CL_NDRANGE_0_KERNELDIM__SHIFT			0
+static inline uint32_t A4XX_HLSQ_CL_NDRANGE_0_KERNELDIM(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_NDRANGE_0_KERNELDIM__SHIFT) & A4XX_HLSQ_CL_NDRANGE_0_KERNELDIM__MASK;
+}
+#define A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEX__MASK			0x00000ffc
+#define A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEX__SHIFT		2
+static inline uint32_t A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEX(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEX__SHIFT) & A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEX__MASK;
+}
+#define A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEY__MASK			0x003ff000
+#define A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEY__SHIFT		12
+static inline uint32_t A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEY(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEY__SHIFT) & A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEY__MASK;
+}
+#define A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEZ__MASK			0xffc00000
+#define A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEZ__SHIFT		22
+static inline uint32_t A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEZ(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEZ__SHIFT) & A4XX_HLSQ_CL_NDRANGE_0_LOCALSIZEZ__MASK;
+}
 
 #define REG_A4XX_HLSQ_CL_NDRANGE_1				0x000023ce
+#define A4XX_HLSQ_CL_NDRANGE_1_SIZE_X__MASK			0xffffffff
+#define A4XX_HLSQ_CL_NDRANGE_1_SIZE_X__SHIFT			0
+static inline uint32_t A4XX_HLSQ_CL_NDRANGE_1_SIZE_X(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_NDRANGE_1_SIZE_X__SHIFT) & A4XX_HLSQ_CL_NDRANGE_1_SIZE_X__MASK;
+}
 
 #define REG_A4XX_HLSQ_CL_NDRANGE_2				0x000023cf
 
 #define REG_A4XX_HLSQ_CL_NDRANGE_3				0x000023d0
+#define A4XX_HLSQ_CL_NDRANGE_3_SIZE_Y__MASK			0xffffffff
+#define A4XX_HLSQ_CL_NDRANGE_3_SIZE_Y__SHIFT			0
+static inline uint32_t A4XX_HLSQ_CL_NDRANGE_3_SIZE_Y(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_NDRANGE_3_SIZE_Y__SHIFT) & A4XX_HLSQ_CL_NDRANGE_3_SIZE_Y__MASK;
+}
 
 #define REG_A4XX_HLSQ_CL_NDRANGE_4				0x000023d1
 
 #define REG_A4XX_HLSQ_CL_NDRANGE_5				0x000023d2
+#define A4XX_HLSQ_CL_NDRANGE_5_SIZE_Z__MASK			0xffffffff
+#define A4XX_HLSQ_CL_NDRANGE_5_SIZE_Z__SHIFT			0
+static inline uint32_t A4XX_HLSQ_CL_NDRANGE_5_SIZE_Z(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_NDRANGE_5_SIZE_Z__SHIFT) & A4XX_HLSQ_CL_NDRANGE_5_SIZE_Z__MASK;
+}
 
 #define REG_A4XX_HLSQ_CL_NDRANGE_6				0x000023d3
 
 #define REG_A4XX_HLSQ_CL_CONTROL_0				0x000023d4
+#define A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__MASK		0x000000ff
+#define A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__SHIFT		0
+static inline uint32_t A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__SHIFT) & A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__MASK;
+}
+#define A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID__MASK		0xff000000
+#define A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID__SHIFT		24
+static inline uint32_t A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID__SHIFT) & A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID__MASK;
+}
 
 #define REG_A4XX_HLSQ_CL_CONTROL_1				0x000023d5
 
@@ -4086,6 +4167,72 @@ static inline uint32_t A4XX_TEX_CONST_4_BASE(uint32_t val)
 #define REG_A4XX_TEX_CONST_6					0x00000006
 
 #define REG_A4XX_TEX_CONST_7					0x00000007
+
+#define REG_A4XX_SSBO_0_0					0x00000000
+#define A4XX_SSBO_0_0_BASE__MASK				0xffffffe0
+#define A4XX_SSBO_0_0_BASE__SHIFT				5
+static inline uint32_t A4XX_SSBO_0_0_BASE(uint32_t val)
+{
+	return ((val >> 5) << A4XX_SSBO_0_0_BASE__SHIFT) & A4XX_SSBO_0_0_BASE__MASK;
+}
+
+#define REG_A4XX_SSBO_0_1					0x00000001
+#define A4XX_SSBO_0_1_PITCH__MASK				0x003fffff
+#define A4XX_SSBO_0_1_PITCH__SHIFT				0
+static inline uint32_t A4XX_SSBO_0_1_PITCH(uint32_t val)
+{
+	return ((val) << A4XX_SSBO_0_1_PITCH__SHIFT) & A4XX_SSBO_0_1_PITCH__MASK;
+}
+
+#define REG_A4XX_SSBO_0_2					0x00000002
+#define A4XX_SSBO_0_2_ARRAY_PITCH__MASK				0x03fff000
+#define A4XX_SSBO_0_2_ARRAY_PITCH__SHIFT			12
+static inline uint32_t A4XX_SSBO_0_2_ARRAY_PITCH(uint32_t val)
+{
+	return ((val >> 12) << A4XX_SSBO_0_2_ARRAY_PITCH__SHIFT) & A4XX_SSBO_0_2_ARRAY_PITCH__MASK;
+}
+
+#define REG_A4XX_SSBO_0_3					0x00000003
+#define A4XX_SSBO_0_3_CPP__MASK					0x0000003f
+#define A4XX_SSBO_0_3_CPP__SHIFT				0
+static inline uint32_t A4XX_SSBO_0_3_CPP(uint32_t val)
+{
+	return ((val) << A4XX_SSBO_0_3_CPP__SHIFT) & A4XX_SSBO_0_3_CPP__MASK;
+}
+
+#define REG_A4XX_SSBO_1_0					0x00000000
+#define A4XX_SSBO_1_0_CPP__MASK					0x0000001f
+#define A4XX_SSBO_1_0_CPP__SHIFT				0
+static inline uint32_t A4XX_SSBO_1_0_CPP(uint32_t val)
+{
+	return ((val) << A4XX_SSBO_1_0_CPP__SHIFT) & A4XX_SSBO_1_0_CPP__MASK;
+}
+#define A4XX_SSBO_1_0_FMT__MASK					0x0000ff00
+#define A4XX_SSBO_1_0_FMT__SHIFT				8
+static inline uint32_t A4XX_SSBO_1_0_FMT(enum a4xx_color_fmt val)
+{
+	return ((val) << A4XX_SSBO_1_0_FMT__SHIFT) & A4XX_SSBO_1_0_FMT__MASK;
+}
+#define A4XX_SSBO_1_0_WIDTH__MASK				0xffff0000
+#define A4XX_SSBO_1_0_WIDTH__SHIFT				16
+static inline uint32_t A4XX_SSBO_1_0_WIDTH(uint32_t val)
+{
+	return ((val) << A4XX_SSBO_1_0_WIDTH__SHIFT) & A4XX_SSBO_1_0_WIDTH__MASK;
+}
+
+#define REG_A4XX_SSBO_1_1					0x00000001
+#define A4XX_SSBO_1_1_HEIGHT__MASK				0x0000ffff
+#define A4XX_SSBO_1_1_HEIGHT__SHIFT				0
+static inline uint32_t A4XX_SSBO_1_1_HEIGHT(uint32_t val)
+{
+	return ((val) << A4XX_SSBO_1_1_HEIGHT__SHIFT) & A4XX_SSBO_1_1_HEIGHT__MASK;
+}
+#define A4XX_SSBO_1_1_DEPTH__MASK				0xffff0000
+#define A4XX_SSBO_1_1_DEPTH__SHIFT				16
+static inline uint32_t A4XX_SSBO_1_1_DEPTH(uint32_t val)
+{
+	return ((val) << A4XX_SSBO_1_1_DEPTH__SHIFT) & A4XX_SSBO_1_1_DEPTH__MASK;
+}
 
 
 #endif /* A4XX_XML */

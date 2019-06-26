@@ -20,7 +20,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #define HOTPLUG_DEBOUNCE_MS		1100
 
@@ -62,7 +62,7 @@ static int tfp410_get_modes(struct drm_connector *connector)
 		goto fallback;
 	}
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 
 	return drm_add_edid_modes(connector, edid);
 fallback:
@@ -132,7 +132,7 @@ static int tfp410_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	drm_mode_connector_attach_encoder(&dvi->connector,
+	drm_connector_attach_encoder(&dvi->connector,
 					  bridge->encoder);
 
 	return 0;

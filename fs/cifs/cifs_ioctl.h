@@ -43,8 +43,22 @@ struct smb_snapshot_array {
 	/*	snapshots[]; */
 } __packed;
 
+/* query_info flags */
+#define PASSTHRU_QUERY_INFO	0x00000000
+#define PASSTHRU_FSCTL		0x00000001
+struct smb_query_info {
+	__u32   info_type;
+	__u32   file_info_class;
+	__u32   additional_information;
+	__u32   flags;
+	__u32	input_buffer_length;
+	__u32	output_buffer_length;
+	/* char buffer[]; */
+} __packed;
+
 #define CIFS_IOCTL_MAGIC	0xCF
 #define CIFS_IOC_COPYCHUNK_FILE	_IOW(CIFS_IOCTL_MAGIC, 3, int)
 #define CIFS_IOC_SET_INTEGRITY  _IO(CIFS_IOCTL_MAGIC, 4)
 #define CIFS_IOC_GET_MNT_INFO _IOR(CIFS_IOCTL_MAGIC, 5, struct smb_mnt_fs_info)
 #define CIFS_ENUMERATE_SNAPSHOTS _IOR(CIFS_IOCTL_MAGIC, 6, struct smb_snapshot_array)
+#define CIFS_QUERY_INFO _IOWR(CIFS_IOCTL_MAGIC, 7, struct smb_query_info)

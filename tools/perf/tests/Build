@@ -21,6 +21,7 @@ perf-y += python-use.o
 perf-y += bp_signal.o
 perf-y += bp_signal_overflow.o
 perf-y += bp_account.o
+perf-y += wp.o
 perf-y += task-exit.o
 perf-y += sw-clock.o
 perf-y += mmap-thread-lookup.o

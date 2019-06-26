@@ -42,14 +42,29 @@
 #define MV88E6XXX_PORT_STS_CMODE_2500BASEX	0x000b
 #define MV88E6XXX_PORT_STS_CMODE_XAUI		0x000c
 #define MV88E6XXX_PORT_STS_CMODE_RXAUI		0x000d
+#define MV88E6185_PORT_STS_CDUPLEX		0x0008
+#define MV88E6185_PORT_STS_CMODE_MASK		0x0007
+#define MV88E6185_PORT_STS_CMODE_GMII_FD	0x0000
+#define MV88E6185_PORT_STS_CMODE_MII_100_FD_PS	0x0001
+#define MV88E6185_PORT_STS_CMODE_MII_100	0x0002
+#define MV88E6185_PORT_STS_CMODE_MII_10		0x0003
+#define MV88E6185_PORT_STS_CMODE_SERDES		0x0004
+#define MV88E6185_PORT_STS_CMODE_1000BASE_X	0x0005
+#define MV88E6185_PORT_STS_CMODE_PHY		0x0006
+#define MV88E6185_PORT_STS_CMODE_DISABLED	0x0007
+#define MV88E6XXX_PORT_STS_CMODE_INVALID	0xff
 
 /* Offset 0x01: MAC (or PCS or Physical) Control Register */
 #define MV88E6XXX_PORT_MAC_CTL				0x01
 #define MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK	0x8000
 #define MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK	0x4000
+#define MV88E6185_PORT_MAC_CTL_SYNC_OK			0x4000
 #define MV88E6390_PORT_MAC_CTL_FORCE_SPEED		0x2000
 #define MV88E6390_PORT_MAC_CTL_ALTSPEED			0x1000
 #define MV88E6352_PORT_MAC_CTL_200BASE			0x1000
+#define MV88E6185_PORT_MAC_CTL_AN_EN			0x0400
+#define MV88E6185_PORT_MAC_CTL_AN_RESTART		0x0200
+#define MV88E6185_PORT_MAC_CTL_AN_DONE			0x0100
 #define MV88E6XXX_PORT_MAC_CTL_FC			0x0080
 #define MV88E6XXX_PORT_MAC_CTL_FORCE_FC			0x0040
 #define MV88E6XXX_PORT_MAC_CTL_LINK_UP			0x0020
@@ -237,11 +252,23 @@
 /* Offset 0x19: Port IEEE Priority Remapping Registers (4-7) */
 #define MV88E6095_PORT_IEEE_PRIO_REMAP_4567	0x19
 
+/* Offset 0x1a: Magic undocumented errata register */
+#define PORT_RESERVED_1A			0x1a
+#define PORT_RESERVED_1A_BUSY			BIT(15)
+#define PORT_RESERVED_1A_WRITE			BIT(14)
+#define PORT_RESERVED_1A_READ			0
+#define PORT_RESERVED_1A_PORT_SHIFT		5
+#define PORT_RESERVED_1A_BLOCK			(0xf << 10)
+#define PORT_RESERVED_1A_CTRL_PORT		4
+#define PORT_RESERVED_1A_DATA_PORT		5
+
 int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
 			u16 *val);
 int mv88e6xxx_port_write(struct mv88e6xxx_chip *chip, int port, int reg,
 			 u16 val);
 
+int mv88e6185_port_set_pause(struct mv88e6xxx_chip *chip, int port,
+			     int pause);
 int mv88e6352_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 				   phy_interface_t mode);
 int mv88e6390_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
@@ -253,9 +280,14 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup);
 
 int mv88e6065_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
 int mv88e6185_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
+int mv88e6341_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
 int mv88e6352_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
 int mv88e6390_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
 int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
+
+phy_interface_t mv88e6341_port_max_speed_mode(int port);
+phy_interface_t mv88e6390_port_max_speed_mode(int port);
+phy_interface_t mv88e6390x_port_max_speed_mode(int port);
 
 int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state);
 
@@ -293,10 +325,15 @@ int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 			       u8 out);
 int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 			       u8 out);
+int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+			     phy_interface_t mode);
 int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
-int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
-int mv88e6xxx_port_link_state(struct mv88e6xxx_chip *chip, int port,
+int mv88e6185_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
+int mv88e6352_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
+int mv88e6185_port_link_state(struct mv88e6xxx_chip *chip, int port,
+			      struct phylink_link_state *state);
+int mv88e6352_port_link_state(struct mv88e6xxx_chip *chip, int port,
 			      struct phylink_link_state *state);
 int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port);
 int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,

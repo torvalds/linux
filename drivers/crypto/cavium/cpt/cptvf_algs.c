@@ -351,7 +351,7 @@ static int cvm_enc_dec_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
-struct crypto_alg algs[] = { {
+static struct crypto_alg algs[] = { {
 	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize = AES_BLOCK_SIZE,
 	.cra_ctxsize = sizeof(struct cvm_enc_ctx),

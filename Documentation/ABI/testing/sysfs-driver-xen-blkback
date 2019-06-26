@@ -15,3 +15,13 @@ Description:
                 blkback. If the frontend tries to use more than
                 max_persistent_grants, the LRU kicks in and starts
                 removing 5% of max_persistent_grants every 100ms.
+
+What:           /sys/module/xen_blkback/parameters/persistent_grant_unused_seconds
+Date:           August 2018
+KernelVersion:  4.19
+Contact:        Roger Pau Monné <roger.pau@citrix.com>
+Description:
+                How long a persistent grant is allowed to remain
+                allocated without being in use. The time is in
+                seconds, 0 means indefinitely long.
+                The default is 60 seconds.

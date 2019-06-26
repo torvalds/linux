@@ -9,14 +9,12 @@ Required Properties:
 	- "amlogic,meson8-clkc" for Meson8 (S802) SoCs
 	- "amlogic,meson8b-clkc" for Meson8 (S805) SoCs
 	- "amlogic,meson8m2-clkc" for Meson8m2 (S812) SoCs
-- reg: it must be composed by two tuples:
-	0) physical base address of the xtal register and length of memory
-	   mapped region.
-	1) physical base address of the clock controller and length of memory
-	   mapped region.
-
 - #clock-cells: should be 1.
 - #reset-cells: should be 1.
+
+Parent node should have the following properties :
+- compatible: "amlogic,meson-hhi-sysctrl", "simple-mfd", "syscon"
+- reg: base address and size of the HHI system control register space.
 
 Each clock is assigned an identifier and client nodes can use this identifier
 to specify the clock which they consume. All available clocks are defined as
@@ -30,9 +28,8 @@ device tree sources).
 
 Example: Clock controller node:
 
-	clkc: clock-controller@c1104000 {
+	clkc: clock-controller {
 		compatible = "amlogic,meson8b-clkc";
-		reg = <0xc1108000 0x4>, <0xc1104000 0x460>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};

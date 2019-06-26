@@ -949,11 +949,13 @@ static int vpif_enum_fmt_vid_cap(struct file *file, void  *priv,
 	/* Fill in the information about format */
 	if (ch->vpifparams.iface.if_type == VPIF_IF_RAW_BAYER) {
 		fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		strcpy(fmt->description, "Raw Mode -Bayer Pattern GrRBGb");
+		strscpy(fmt->description, "Raw Mode -Bayer Pattern GrRBGb",
+			sizeof(fmt->description));
 		fmt->pixelformat = V4L2_PIX_FMT_SBGGR8;
 	} else {
 		fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		strcpy(fmt->description, "YCbCr4:2:2 Semi-Planar");
+		strscpy(fmt->description, "YCbCr4:2:2 Semi-Planar",
+			sizeof(fmt->description));
 		fmt->pixelformat = V4L2_PIX_FMT_NV16;
 	}
 	return 0;
@@ -1094,10 +1096,10 @@ static int vpif_querycap(struct file *file, void  *priv,
 
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	strlcpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
+	strscpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(vpif_dev));
-	strlcpy(cap->card, config->card_name, sizeof(cap->card));
+	strscpy(cap->card, config->card_name, sizeof(cap->card));
 
 	return 0;
 }
@@ -1463,7 +1465,7 @@ static int vpif_probe_complete(void)
 
 		/* Initialize the video_device structure */
 		vdev = &ch->video_dev;
-		strlcpy(vdev->name, VPIF_DRIVER_NAME, sizeof(vdev->name));
+		strscpy(vdev->name, VPIF_DRIVER_NAME, sizeof(vdev->name));
 		vdev->release = video_device_release_empty;
 		vdev->fops = &vpif_fops;
 		vdev->ioctl_ops = &vpif_ioctl_ops;
@@ -1509,11 +1511,12 @@ static struct vpif_capture_config *
 vpif_capture_get_pdata(struct platform_device *pdev)
 {
 	struct device_node *endpoint = NULL;
-	struct v4l2_fwnode_endpoint bus_cfg;
 	struct vpif_capture_config *pdata;
 	struct vpif_subdev_info *sdinfo;
 	struct vpif_capture_chan_config *chan;
 	unsigned int i;
+
+	v4l2_async_notifier_init(&vpif_obj.notifier);
 
 	/*
 	 * DT boot: OF node from parent device contains
@@ -1537,6 +1540,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		return NULL;
 
 	for (i = 0; i < VPIF_CAPTURE_NUM_CHANNELS; i++) {
+		struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 		struct device_node *rem;
 		unsigned int flags;
 		int err;
@@ -1546,14 +1550,25 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		if (!endpoint)
 			break;
 
+		rem = of_graph_get_remote_port_parent(endpoint);
+		if (!rem) {
+			dev_dbg(&pdev->dev, "Remote device at %pOF not found\n",
+				endpoint);
+			of_node_put(endpoint);
+			goto done;
+		}
+
 		sdinfo = &pdata->subdev_info[i];
 		chan = &pdata->chan_config[i];
 		chan->inputs = devm_kcalloc(&pdev->dev,
 					    VPIF_CAPTURE_NUM_CHANNELS,
 					    sizeof(*chan->inputs),
 					    GFP_KERNEL);
-		if (!chan->inputs)
-			return NULL;
+		if (!chan->inputs) {
+			of_node_put(rem);
+			of_node_put(endpoint);
+			goto err_cleanup;
+		}
 
 		chan->input_count++;
 		chan->inputs[i].input.type = V4L2_INPUT_TYPE_CAMERA;
@@ -1562,12 +1577,16 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 
 		err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
 						 &bus_cfg);
+		of_node_put(endpoint);
 		if (err) {
 			dev_err(&pdev->dev, "Could not parse the endpoint\n");
+			of_node_put(rem);
 			goto done;
 		}
+
 		dev_dbg(&pdev->dev, "Endpoint %pOF, bus_width = %d\n",
 			endpoint, bus_cfg.bus.parallel.bus_width);
+
 		flags = bus_cfg.bus.parallel.flags;
 
 		if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
@@ -1576,39 +1595,29 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		if (flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH)
 			chan->vpif_if.vd_pol = 1;
 
-		rem = of_graph_get_remote_port_parent(endpoint);
-		if (!rem) {
-			dev_dbg(&pdev->dev, "Remote device at %pOF not found\n",
-				endpoint);
-			goto done;
-		}
-
-		dev_dbg(&pdev->dev, "Remote device %s, %pOF found\n",
-			rem->name, rem);
+		dev_dbg(&pdev->dev, "Remote device %pOF found\n", rem);
 		sdinfo->name = rem->full_name;
 
-		pdata->asd[i] = devm_kzalloc(&pdev->dev,
-					     sizeof(struct v4l2_async_subdev),
-					     GFP_KERNEL);
-		if (!pdata->asd[i]) {
+		pdata->asd[i] = v4l2_async_notifier_add_fwnode_subdev(
+			&vpif_obj.notifier, of_fwnode_handle(rem),
+			sizeof(struct v4l2_async_subdev));
+		if (IS_ERR(pdata->asd[i])) {
 			of_node_put(rem);
-			pdata = NULL;
-			goto done;
+			goto err_cleanup;
 		}
-
-		pdata->asd[i]->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		pdata->asd[i]->match.fwnode = of_fwnode_handle(rem);
-		of_node_put(rem);
 	}
 
 done:
-	if (pdata) {
-		pdata->asd_sizes[0] = i;
-		pdata->subdev_count = i;
-		pdata->card_name = "DA850/OMAP-L138 Video Capture";
-	}
+	pdata->asd_sizes[0] = i;
+	pdata->subdev_count = i;
+	pdata->card_name = "DA850/OMAP-L138 Video Capture";
 
 	return pdata;
+
+err_cleanup:
+	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+
+	return NULL;
 }
 
 /**
@@ -1633,23 +1642,18 @@ static __init int vpif_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (!pdev->dev.platform_data) {
-		dev_warn(&pdev->dev, "Missing platform data.  Giving up.\n");
-		return -EINVAL;
-	}
-
 	vpif_dev = &pdev->dev;
 
 	err = initialize_vpif();
 	if (err) {
 		v4l2_err(vpif_dev->driver, "Error initializing vpif\n");
-		return err;
+		goto cleanup;
 	}
 
 	err = v4l2_device_register(vpif_dev, &vpif_obj.v4l2_dev);
 	if (err) {
 		v4l2_err(vpif_dev->driver, "Error registering v4l2 device\n");
-		return err;
+		goto cleanup;
 	}
 
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, res_idx))) {
@@ -1698,8 +1702,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 		vpif_probe_complete();
 	} else {
-		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
-		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
 		vpif_obj.notifier.ops = &vpif_async_ops;
 		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
 						   &vpif_obj.notifier);
@@ -1717,6 +1719,8 @@ probe_subdev_out:
 	kfree(vpif_obj.sd);
 vpif_unregister:
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
+cleanup:
+	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
 
 	return err;
 }
@@ -1732,6 +1736,8 @@ static int vpif_remove(struct platform_device *device)
 	struct channel_obj *ch;
 	int i;
 
+	v4l2_async_notifier_unregister(&vpif_obj.notifier);
+	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 
 	kfree(vpif_obj.sd);

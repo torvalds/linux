@@ -21,15 +21,24 @@
 
 #include "malidp_drv.h"
 #include "malidp_hw.h"
+#include "malidp_mw.h"
+
+enum {
+	MW_NOT_ENABLED = 0,	/* SE writeback not enabled */
+	MW_ONESHOT,		/* SE in one-shot mode for writeback */
+	MW_START,		/* SE started writeback */
+	MW_RESTART,		/* SE will start another writeback after this one */
+	MW_STOP,		/* SE needs to stop after this writeback */
+};
 
 static const struct malidp_format_id malidp500_de_formats[] = {
 	/*    fourcc,   layers supporting the format,     internal id  */
-	{ DRM_FORMAT_ARGB2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  0 },
-	{ DRM_FORMAT_ABGR2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  1 },
+	{ DRM_FORMAT_ARGB2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2 | SE_MEMWRITE,  0 },
+	{ DRM_FORMAT_ABGR2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2 | SE_MEMWRITE,  1 },
 	{ DRM_FORMAT_ARGB8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  2 },
 	{ DRM_FORMAT_ABGR8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  3 },
-	{ DRM_FORMAT_XRGB8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  4 },
-	{ DRM_FORMAT_XBGR8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  5 },
+	{ DRM_FORMAT_XRGB8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2 | SE_MEMWRITE,  4 },
+	{ DRM_FORMAT_XBGR8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2 | SE_MEMWRITE,  5 },
 	{ DRM_FORMAT_RGB888, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  6 },
 	{ DRM_FORMAT_BGR888, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  7 },
 	{ DRM_FORMAT_RGBA5551, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  8 },
@@ -38,7 +47,7 @@ static const struct malidp_format_id malidp500_de_formats[] = {
 	{ DRM_FORMAT_BGR565, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2, 11 },
 	{ DRM_FORMAT_UYVY, DE_VIDEO1, 12 },
 	{ DRM_FORMAT_YUYV, DE_VIDEO1, 13 },
-	{ DRM_FORMAT_NV12, DE_VIDEO1, 14 },
+	{ DRM_FORMAT_NV12, DE_VIDEO1 | SE_MEMWRITE, 14 },
 	{ DRM_FORMAT_YUV420, DE_VIDEO1, 15 },
 };
 
@@ -47,44 +56,82 @@ static const struct malidp_format_id malidp500_de_formats[] = {
 
 #define MALIDP_COMMON_FORMATS \
 	/*    fourcc,   layers supporting the format,      internal id   */ \
-	{ DRM_FORMAT_ARGB2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(0, 0) }, \
-	{ DRM_FORMAT_ABGR2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(0, 1) }, \
-	{ DRM_FORMAT_RGBA1010102, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(0, 2) }, \
-	{ DRM_FORMAT_BGRA1010102, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(0, 3) }, \
+	{ DRM_FORMAT_ARGB2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(0, 0) }, \
+	{ DRM_FORMAT_ABGR2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(0, 1) }, \
+	{ DRM_FORMAT_RGBA1010102, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(0, 2) }, \
+	{ DRM_FORMAT_BGRA1010102, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(0, 3) }, \
 	{ DRM_FORMAT_ARGB8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART, MALIDP_ID(1, 0) }, \
 	{ DRM_FORMAT_ABGR8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART, MALIDP_ID(1, 1) }, \
 	{ DRM_FORMAT_RGBA8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART, MALIDP_ID(1, 2) }, \
 	{ DRM_FORMAT_BGRA8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART, MALIDP_ID(1, 3) }, \
-	{ DRM_FORMAT_XRGB8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART, MALIDP_ID(2, 0) }, \
-	{ DRM_FORMAT_XBGR8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART, MALIDP_ID(2, 1) }, \
-	{ DRM_FORMAT_RGBX8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART, MALIDP_ID(2, 2) }, \
-	{ DRM_FORMAT_BGRX8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART, MALIDP_ID(2, 3) }, \
-	{ DRM_FORMAT_RGB888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(3, 0) }, \
-	{ DRM_FORMAT_BGR888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(3, 1) }, \
+	{ DRM_FORMAT_XRGB8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART | SE_MEMWRITE, MALIDP_ID(2, 0) }, \
+	{ DRM_FORMAT_XBGR8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART | SE_MEMWRITE, MALIDP_ID(2, 1) }, \
+	{ DRM_FORMAT_RGBX8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART | SE_MEMWRITE, MALIDP_ID(2, 2) }, \
+	{ DRM_FORMAT_BGRX8888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | DE_SMART | SE_MEMWRITE, MALIDP_ID(2, 3) }, \
+	{ DRM_FORMAT_RGB888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(3, 0) }, \
+	{ DRM_FORMAT_BGR888, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(3, 1) }, \
 	{ DRM_FORMAT_RGBA5551, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(4, 0) }, \
 	{ DRM_FORMAT_ABGR1555, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(4, 1) }, \
 	{ DRM_FORMAT_RGB565, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(4, 2) }, \
 	{ DRM_FORMAT_BGR565, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(4, 3) }, \
 	{ DRM_FORMAT_YUYV, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 2) },	\
 	{ DRM_FORMAT_UYVY, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 3) },	\
-	{ DRM_FORMAT_NV12, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 6) },	\
-	{ DRM_FORMAT_YUV420, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 7) }
+	{ DRM_FORMAT_NV12, DE_VIDEO1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(5, 6) },	\
+	{ DRM_FORMAT_YUV420, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 7) }, \
+	{ DRM_FORMAT_X0L2, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(6, 6)}
 
 static const struct malidp_format_id malidp550_de_formats[] = {
 	MALIDP_COMMON_FORMATS,
 };
 
+static const struct malidp_format_id malidp650_de_formats[] = {
+	MALIDP_COMMON_FORMATS,
+	{ DRM_FORMAT_X0L0, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 4)},
+};
+
 static const struct malidp_layer malidp500_layers[] = {
-	{ DE_VIDEO1, MALIDP500_DE_LV_BASE, MALIDP500_DE_LV_PTR_BASE, MALIDP_DE_LV_STRIDE0, MALIDP500_LV_YUV2RGB },
-	{ DE_GRAPHICS1, MALIDP500_DE_LG1_BASE, MALIDP500_DE_LG1_PTR_BASE, MALIDP_DE_LG_STRIDE, 0 },
-	{ DE_GRAPHICS2, MALIDP500_DE_LG2_BASE, MALIDP500_DE_LG2_PTR_BASE, MALIDP_DE_LG_STRIDE, 0 },
+	/* id, base address, fb pointer address base, stride offset,
+	 *	yuv2rgb matrix offset, mmu control register offset, rotation_features
+	 */
+	{ DE_VIDEO1, MALIDP500_DE_LV_BASE, MALIDP500_DE_LV_PTR_BASE,
+		MALIDP_DE_LV_STRIDE0, MALIDP500_LV_YUV2RGB, 0, ROTATE_ANY },
+	{ DE_GRAPHICS1, MALIDP500_DE_LG1_BASE, MALIDP500_DE_LG1_PTR_BASE,
+		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY },
+	{ DE_GRAPHICS2, MALIDP500_DE_LG2_BASE, MALIDP500_DE_LG2_PTR_BASE,
+		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY },
 };
 
 static const struct malidp_layer malidp550_layers[] = {
-	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE, MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB },
-	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE, MALIDP_DE_LG_STRIDE, 0 },
-	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE, MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB },
-	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE, MALIDP550_DE_LS_R1_STRIDE, 0 },
+	/* id, base address, fb pointer address base, stride offset,
+	 *	yuv2rgb matrix offset, mmu control register offset, rotation_features
+	 */
+	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE,
+		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB, 0, ROTATE_ANY },
+	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE,
+		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY },
+	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE,
+		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB, 0, ROTATE_ANY },
+	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE,
+		MALIDP550_DE_LS_R1_STRIDE, 0, 0, ROTATE_NONE },
+};
+
+static const struct malidp_layer malidp650_layers[] = {
+	/* id, base address, fb pointer address base, stride offset,
+	 *	yuv2rgb matrix offset, mmu control register offset,
+	 *	rotation_features
+	 */
+	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE,
+		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB,
+		MALIDP650_DE_LV_MMU_CTRL, ROTATE_ANY },
+	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE,
+		MALIDP_DE_LG_STRIDE, 0, MALIDP650_DE_LG_MMU_CTRL,
+		ROTATE_COMPRESSED },
+	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE,
+		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB,
+		MALIDP650_DE_LV_MMU_CTRL, ROTATE_ANY },
+	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE,
+		MALIDP550_DE_LS_R1_STRIDE, 0, MALIDP650_DE_LS_MMU_CTRL,
+		ROTATE_NONE },
 };
 
 #define SE_N_SCALING_COEFFS	96
@@ -223,15 +270,20 @@ static bool malidp500_in_config_mode(struct malidp_hw_device *hwdev)
 	return false;
 }
 
-static void malidp500_set_config_valid(struct malidp_hw_device *hwdev)
+static void malidp500_set_config_valid(struct malidp_hw_device *hwdev, u8 value)
 {
-	malidp_hw_setbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
+	if (value)
+		malidp_hw_setbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
+	else
+		malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
 }
 
 static void malidp500_modeset(struct malidp_hw_device *hwdev, struct videomode *mode)
 {
 	u32 val = 0;
 
+	malidp_hw_write(hwdev, hwdev->output_color_depth,
+		hwdev->hw->map.out_depth_base);
 	malidp_hw_clearbits(hwdev, MALIDP500_DC_CLEAR_MASK, MALIDP500_DC_CONTROL);
 	if (mode->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		val |= MALIDP500_HSYNCPOL;
@@ -274,10 +326,6 @@ static void malidp500_modeset(struct malidp_hw_device *hwdev, struct videomode *
 
 static int malidp500_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 h, u32 fmt)
 {
-	/* RGB888 or BGR888 can't be rotated */
-	if ((fmt == DRM_FORMAT_RGB888) || (fmt == DRM_FORMAT_BGR888))
-		return -EINVAL;
-
 	/*
 	 * Each layer needs enough rotation memory to fit 8 lines
 	 * worth of pixel data. Required size is then:
@@ -368,6 +416,66 @@ static long malidp500_se_calc_mclk(struct malidp_hw_device *hwdev,
 	return ret;
 }
 
+static int malidp500_enable_memwrite(struct malidp_hw_device *hwdev,
+				     dma_addr_t *addrs, s32 *pitches,
+				     int num_planes, u16 w, u16 h, u32 fmt_id,
+				     const s16 *rgb2yuv_coeffs)
+{
+	u32 base = MALIDP500_SE_MEMWRITE_BASE;
+	u32 de_base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
+
+	/* enable the scaling engine block */
+	malidp_hw_setbits(hwdev, MALIDP_SCALE_ENGINE_EN, de_base + MALIDP_DE_DISPLAY_FUNC);
+
+	/* restart the writeback if already enabled */
+	if (hwdev->mw_state != MW_NOT_ENABLED)
+		hwdev->mw_state = MW_RESTART;
+	else
+		hwdev->mw_state = MW_START;
+
+	malidp_hw_write(hwdev, fmt_id, base + MALIDP_MW_FORMAT);
+	switch (num_planes) {
+	case 2:
+		malidp_hw_write(hwdev, lower_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_LOW);
+		malidp_hw_write(hwdev, upper_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_HIGH);
+		malidp_hw_write(hwdev, pitches[1], base + MALIDP_MW_P2_STRIDE);
+		/* fall through */
+	case 1:
+		malidp_hw_write(hwdev, lower_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_LOW);
+		malidp_hw_write(hwdev, upper_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_HIGH);
+		malidp_hw_write(hwdev, pitches[0], base + MALIDP_MW_P1_STRIDE);
+		break;
+	default:
+		WARN(1, "Invalid number of planes");
+	}
+
+	malidp_hw_write(hwdev, MALIDP_DE_H_ACTIVE(w) | MALIDP_DE_V_ACTIVE(h),
+			MALIDP500_SE_MEMWRITE_OUT_SIZE);
+
+	if (rgb2yuv_coeffs) {
+		int i;
+
+		for (i = 0; i < MALIDP_COLORADJ_NUM_COEFFS; i++) {
+			malidp_hw_write(hwdev, rgb2yuv_coeffs[i],
+					MALIDP500_SE_RGB_YUV_COEFFS + i * 4);
+		}
+	}
+
+	malidp_hw_setbits(hwdev, MALIDP_SE_MEMWRITE_EN, MALIDP500_SE_CONTROL);
+
+	return 0;
+}
+
+static void malidp500_disable_memwrite(struct malidp_hw_device *hwdev)
+{
+	u32 base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
+
+	if (hwdev->mw_state == MW_START || hwdev->mw_state == MW_RESTART)
+		hwdev->mw_state = MW_STOP;
+	malidp_hw_clearbits(hwdev, MALIDP_SE_MEMWRITE_EN, MALIDP500_SE_CONTROL);
+	malidp_hw_clearbits(hwdev, MALIDP_SCALE_ENGINE_EN, base + MALIDP_DE_DISPLAY_FUNC);
+}
+
 static int malidp550_query_hw(struct malidp_hw_device *hwdev)
 {
 	u32 conf = malidp_hw_read(hwdev, MALIDP550_CONFIG_ID);
@@ -447,15 +555,20 @@ static bool malidp550_in_config_mode(struct malidp_hw_device *hwdev)
 	return false;
 }
 
-static void malidp550_set_config_valid(struct malidp_hw_device *hwdev)
+static void malidp550_set_config_valid(struct malidp_hw_device *hwdev, u8 value)
 {
-	malidp_hw_setbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
+	if (value)
+		malidp_hw_setbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
+	else
+		malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
 }
 
 static void malidp550_modeset(struct malidp_hw_device *hwdev, struct videomode *mode)
 {
 	u32 val = MALIDP_DE_DEFAULT_PREFETCH_START;
 
+	malidp_hw_write(hwdev, hwdev->output_color_depth,
+		hwdev->hw->map.out_depth_base);
 	malidp_hw_write(hwdev, val, MALIDP550_DE_CONTROL);
 	/*
 	 * Mali-DP550 and Mali-DP650 encode the background color like this:
@@ -500,10 +613,6 @@ static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 
 {
 	u32 bytes_per_col;
 
-	/* raw RGB888 or BGR888 can't be rotated */
-	if ((fmt == DRM_FORMAT_RGB888) || (fmt == DRM_FORMAT_BGR888))
-		return -EINVAL;
-
 	switch (fmt) {
 	/* 8 lines at 4 bytes per pixel */
 	case DRM_FORMAT_ARGB2101010:
@@ -527,6 +636,8 @@ static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 
 	case DRM_FORMAT_BGR565:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_X0L0:
+	case DRM_FORMAT_X0L2:
 		bytes_per_col = 32;
 		break;
 	/* 16 lines at 1.5 bytes per pixel */
@@ -588,6 +699,61 @@ static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
 	return ret;
 }
 
+static int malidp550_enable_memwrite(struct malidp_hw_device *hwdev,
+				     dma_addr_t *addrs, s32 *pitches,
+				     int num_planes, u16 w, u16 h, u32 fmt_id,
+				     const s16 *rgb2yuv_coeffs)
+{
+	u32 base = MALIDP550_SE_MEMWRITE_BASE;
+	u32 de_base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
+
+	/* enable the scaling engine block */
+	malidp_hw_setbits(hwdev, MALIDP_SCALE_ENGINE_EN, de_base + MALIDP_DE_DISPLAY_FUNC);
+
+	hwdev->mw_state = MW_ONESHOT;
+
+	malidp_hw_write(hwdev, fmt_id, base + MALIDP_MW_FORMAT);
+	switch (num_planes) {
+	case 2:
+		malidp_hw_write(hwdev, lower_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_LOW);
+		malidp_hw_write(hwdev, upper_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_HIGH);
+		malidp_hw_write(hwdev, pitches[1], base + MALIDP_MW_P2_STRIDE);
+		/* fall through */
+	case 1:
+		malidp_hw_write(hwdev, lower_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_LOW);
+		malidp_hw_write(hwdev, upper_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_HIGH);
+		malidp_hw_write(hwdev, pitches[0], base + MALIDP_MW_P1_STRIDE);
+		break;
+	default:
+		WARN(1, "Invalid number of planes");
+	}
+
+	malidp_hw_write(hwdev, MALIDP_DE_H_ACTIVE(w) | MALIDP_DE_V_ACTIVE(h),
+			MALIDP550_SE_MEMWRITE_OUT_SIZE);
+	malidp_hw_setbits(hwdev, MALIDP550_SE_MEMWRITE_ONESHOT | MALIDP_SE_MEMWRITE_EN,
+			  MALIDP550_SE_CONTROL);
+
+	if (rgb2yuv_coeffs) {
+		int i;
+
+		for (i = 0; i < MALIDP_COLORADJ_NUM_COEFFS; i++) {
+			malidp_hw_write(hwdev, rgb2yuv_coeffs[i],
+					MALIDP550_SE_RGB_YUV_COEFFS + i * 4);
+		}
+	}
+
+	return 0;
+}
+
+static void malidp550_disable_memwrite(struct malidp_hw_device *hwdev)
+{
+	u32 base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
+
+	malidp_hw_clearbits(hwdev, MALIDP550_SE_MEMWRITE_ONESHOT | MALIDP_SE_MEMWRITE_EN,
+			    MALIDP550_SE_CONTROL);
+	malidp_hw_clearbits(hwdev, MALIDP_SCALE_ENGINE_EN, base + MALIDP_DE_DISPLAY_FUNC);
+}
+
 static int malidp650_query_hw(struct malidp_hw_device *hwdev)
 {
 	u32 conf = malidp_hw_read(hwdev, MALIDP550_CONFIG_ID);
@@ -632,11 +798,18 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 					    MALIDP500_DE_IRQ_VSYNC |
 					    MALIDP500_DE_IRQ_GLOBAL,
 				.vsync_irq = MALIDP500_DE_IRQ_VSYNC,
+				.err_mask = MALIDP_DE_IRQ_UNDERRUN |
+					    MALIDP500_DE_IRQ_AXI_ERR |
+					    MALIDP500_DE_IRQ_SATURATION,
 			},
 			.se_irq_map = {
 				.irq_mask = MALIDP500_SE_IRQ_CONF_MODE |
+					    MALIDP500_SE_IRQ_CONF_VALID |
 					    MALIDP500_SE_IRQ_GLOBAL,
-				.vsync_irq = 0,
+				.vsync_irq = MALIDP500_SE_IRQ_CONF_VALID,
+				.err_mask = MALIDP500_SE_IRQ_INIT_BUSY |
+					    MALIDP500_SE_IRQ_AXI_ERROR |
+					    MALIDP500_SE_IRQ_OVERRUN,
 			},
 			.dc_irq_map = {
 				.irq_mask = MALIDP500_DE_IRQ_CONF_VALID,
@@ -655,6 +828,8 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 		.rotmem_required = malidp500_rotmem_required,
 		.se_set_scaling_coeffs = malidp500_se_set_scaling_coeffs,
 		.se_calc_mclk = malidp500_se_calc_mclk,
+		.enable_memwrite = malidp500_enable_memwrite,
+		.disable_memwrite = malidp500_disable_memwrite,
 		.features = MALIDP_DEVICE_LV_HAS_3_STRIDES,
 	},
 	[MALIDP_550] = {
@@ -670,13 +845,20 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 				.irq_mask = MALIDP_DE_IRQ_UNDERRUN |
 					    MALIDP550_DE_IRQ_VSYNC,
 				.vsync_irq = MALIDP550_DE_IRQ_VSYNC,
+				.err_mask = MALIDP_DE_IRQ_UNDERRUN |
+					    MALIDP550_DE_IRQ_SATURATION |
+					    MALIDP550_DE_IRQ_AXI_ERR,
 			},
 			.se_irq_map = {
-				.irq_mask = MALIDP550_SE_IRQ_EOW |
-					    MALIDP550_SE_IRQ_AXI_ERR,
+				.irq_mask = MALIDP550_SE_IRQ_EOW,
+				.vsync_irq = MALIDP550_SE_IRQ_EOW,
+				.err_mask  = MALIDP550_SE_IRQ_AXI_ERR |
+					     MALIDP550_SE_IRQ_OVR |
+					     MALIDP550_SE_IRQ_IBSY,
 			},
 			.dc_irq_map = {
-				.irq_mask = MALIDP550_DC_IRQ_CONF_VALID,
+				.irq_mask = MALIDP550_DC_IRQ_CONF_VALID |
+					    MALIDP550_DC_IRQ_SE,
 				.vsync_irq = MALIDP550_DC_IRQ_CONF_VALID,
 			},
 			.pixel_formats = malidp550_de_formats,
@@ -692,6 +874,8 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 		.rotmem_required = malidp550_rotmem_required,
 		.se_set_scaling_coeffs = malidp550_se_set_scaling_coeffs,
 		.se_calc_mclk = malidp550_se_calc_mclk,
+		.enable_memwrite = malidp550_enable_memwrite,
+		.disable_memwrite = malidp550_disable_memwrite,
 		.features = 0,
 	},
 	[MALIDP_650] = {
@@ -701,24 +885,36 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,
 			.features = MALIDP_REGMAP_HAS_CLEARIRQ,
-			.n_layers = ARRAY_SIZE(malidp550_layers),
-			.layers = malidp550_layers,
+			.n_layers = ARRAY_SIZE(malidp650_layers),
+			.layers = malidp650_layers,
 			.de_irq_map = {
 				.irq_mask = MALIDP_DE_IRQ_UNDERRUN |
 					    MALIDP650_DE_IRQ_DRIFT |
 					    MALIDP550_DE_IRQ_VSYNC,
 				.vsync_irq = MALIDP550_DE_IRQ_VSYNC,
+				.err_mask = MALIDP_DE_IRQ_UNDERRUN |
+					    MALIDP650_DE_IRQ_DRIFT |
+					    MALIDP550_DE_IRQ_SATURATION |
+					    MALIDP550_DE_IRQ_AXI_ERR |
+					    MALIDP650_DE_IRQ_ACEV1 |
+					    MALIDP650_DE_IRQ_ACEV2 |
+					    MALIDP650_DE_IRQ_ACEG |
+					    MALIDP650_DE_IRQ_AXIEP,
 			},
 			.se_irq_map = {
-				.irq_mask = MALIDP550_SE_IRQ_EOW |
-					    MALIDP550_SE_IRQ_AXI_ERR,
+				.irq_mask = MALIDP550_SE_IRQ_EOW,
+				.vsync_irq = MALIDP550_SE_IRQ_EOW,
+				.err_mask = MALIDP550_SE_IRQ_AXI_ERR |
+					    MALIDP550_SE_IRQ_OVR |
+					    MALIDP550_SE_IRQ_IBSY,
 			},
 			.dc_irq_map = {
-				.irq_mask = MALIDP550_DC_IRQ_CONF_VALID,
+				.irq_mask = MALIDP550_DC_IRQ_CONF_VALID |
+					    MALIDP550_DC_IRQ_SE,
 				.vsync_irq = MALIDP550_DC_IRQ_CONF_VALID,
 			},
-			.pixel_formats = malidp550_de_formats,
-			.n_pixel_formats = ARRAY_SIZE(malidp550_de_formats),
+			.pixel_formats = malidp650_de_formats,
+			.n_pixel_formats = ARRAY_SIZE(malidp650_de_formats),
 			.bus_align_bytes = 16,
 		},
 		.query_hw = malidp650_query_hw,
@@ -730,6 +926,8 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 		.rotmem_required = malidp550_rotmem_required,
 		.se_set_scaling_coeffs = malidp550_se_set_scaling_coeffs,
 		.se_calc_mclk = malidp550_se_calc_mclk,
+		.enable_memwrite = malidp550_enable_memwrite,
+		.disable_memwrite = malidp550_disable_memwrite,
 		.features = 0,
 	},
 };
@@ -791,7 +989,7 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 			malidp->event = NULL;
 			spin_unlock(&drm->event_lock);
 		}
-		atomic_set(&malidp->config_valid, 1);
+		atomic_set(&malidp->config_valid, MALIDP_CONFIG_VALID_DONE);
 		ret = IRQ_WAKE_THREAD;
 	}
 
@@ -800,10 +998,17 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 		return ret;
 
 	mask = malidp_hw_read(hwdev, MALIDP_REG_MASKIRQ);
-	status &= mask;
+	/* keep the status of the enabled interrupts, plus the error bits */
+	status &= (mask | de->err_mask);
 	if ((status & de->vsync_irq) && malidp->crtc.enabled)
 		drm_crtc_handle_vblank(&malidp->crtc);
 
+#ifdef CONFIG_DEBUG_FS
+	if (status & de->err_mask) {
+		malidp_error(malidp, &malidp->de_errors, status,
+			     drm_crtc_vblank_count(&malidp->crtc));
+	}
+#endif
 	malidp_hw_clear_irq(hwdev, MALIDP_DE_BLOCK, status);
 
 	return (ret == IRQ_NONE) ? IRQ_HANDLED : ret;
@@ -817,6 +1022,23 @@ static irqreturn_t malidp_de_irq_thread_handler(int irq, void *arg)
 	wake_up(&malidp->wq);
 
 	return IRQ_HANDLED;
+}
+
+void malidp_de_irq_hw_init(struct malidp_hw_device *hwdev)
+{
+	/* ensure interrupts are disabled */
+	malidp_hw_disable_irq(hwdev, MALIDP_DE_BLOCK, 0xffffffff);
+	malidp_hw_clear_irq(hwdev, MALIDP_DE_BLOCK, 0xffffffff);
+	malidp_hw_disable_irq(hwdev, MALIDP_DC_BLOCK, 0xffffffff);
+	malidp_hw_clear_irq(hwdev, MALIDP_DC_BLOCK, 0xffffffff);
+
+	/* first enable the DC block IRQs */
+	malidp_hw_enable_irq(hwdev, MALIDP_DC_BLOCK,
+			     hwdev->hw->map.dc_irq_map.irq_mask);
+
+	/* now enable the DE block IRQs */
+	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
+			     hwdev->hw->map.de_irq_map.irq_mask);
 }
 
 int malidp_de_irq_init(struct drm_device *drm, int irq)
@@ -839,22 +1061,13 @@ int malidp_de_irq_init(struct drm_device *drm, int irq)
 		return ret;
 	}
 
-	/* first enable the DC block IRQs */
-	malidp_hw_enable_irq(hwdev, MALIDP_DC_BLOCK,
-			     hwdev->hw->map.dc_irq_map.irq_mask);
-
-	/* now enable the DE block IRQs */
-	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
-			     hwdev->hw->map.de_irq_map.irq_mask);
+	malidp_de_irq_hw_init(hwdev);
 
 	return 0;
 }
 
-void malidp_de_irq_fini(struct drm_device *drm)
+void malidp_de_irq_fini(struct malidp_hw_device *hwdev)
 {
-	struct malidp_drm *malidp = drm->dev_private;
-	struct malidp_hw_device *hwdev = malidp->dev;
-
 	malidp_hw_disable_irq(hwdev, MALIDP_DE_BLOCK,
 			      hwdev->hw->map.de_irq_map.irq_mask);
 	malidp_hw_disable_irq(hwdev, MALIDP_DC_BLOCK,
@@ -879,17 +1092,59 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 		return IRQ_NONE;
 
 	status = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_STATUS);
-	if (!(status & se->irq_mask))
+	if (!(status & (se->irq_mask | se->err_mask)))
 		return IRQ_NONE;
 
+#ifdef CONFIG_DEBUG_FS
+	if (status & se->err_mask)
+		malidp_error(malidp, &malidp->se_errors, status,
+			     drm_crtc_vblank_count(&malidp->crtc));
+#endif
 	mask = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_MASKIRQ);
-	status = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_STATUS);
 	status &= mask;
-	/* ToDo: status decoding and firing up of VSYNC and page flip events */
+
+	if (status & se->vsync_irq) {
+		switch (hwdev->mw_state) {
+		case MW_ONESHOT:
+			drm_writeback_signal_completion(&malidp->mw_connector, 0);
+			break;
+		case MW_STOP:
+			drm_writeback_signal_completion(&malidp->mw_connector, 0);
+			/* disable writeback after stop */
+			hwdev->mw_state = MW_NOT_ENABLED;
+			break;
+		case MW_RESTART:
+			drm_writeback_signal_completion(&malidp->mw_connector, 0);
+			/* fall through to a new start */
+		case MW_START:
+			/* writeback started, need to emulate one-shot mode */
+			hw->disable_memwrite(hwdev);
+			/*
+			 * only set config_valid HW bit if there is no other update
+			 * in progress or if we raced ahead of the DE IRQ handler
+			 * and config_valid flag will not be update until later
+			 */
+			status = malidp_hw_read(hwdev, hw->map.dc_base + MALIDP_REG_STATUS);
+			if ((atomic_read(&malidp->config_valid) != MALIDP_CONFIG_START) ||
+			    (status & hw->map.dc_irq_map.vsync_irq))
+				hw->set_config_valid(hwdev, 1);
+			break;
+		}
+	}
 
 	malidp_hw_clear_irq(hwdev, MALIDP_SE_BLOCK, status);
 
 	return IRQ_HANDLED;
+}
+
+void malidp_se_irq_hw_init(struct malidp_hw_device *hwdev)
+{
+	/* ensure interrupts are disabled */
+	malidp_hw_disable_irq(hwdev, MALIDP_SE_BLOCK, 0xffffffff);
+	malidp_hw_clear_irq(hwdev, MALIDP_SE_BLOCK, 0xffffffff);
+
+	malidp_hw_enable_irq(hwdev, MALIDP_SE_BLOCK,
+			     hwdev->hw->map.se_irq_map.irq_mask);
 }
 
 static irqreturn_t malidp_se_irq_thread_handler(int irq, void *arg)
@@ -915,17 +1170,14 @@ int malidp_se_irq_init(struct drm_device *drm, int irq)
 		return ret;
 	}
 
-	malidp_hw_enable_irq(hwdev, MALIDP_SE_BLOCK,
-			     hwdev->hw->map.se_irq_map.irq_mask);
+	hwdev->mw_state = MW_NOT_ENABLED;
+	malidp_se_irq_hw_init(hwdev);
 
 	return 0;
 }
 
-void malidp_se_irq_fini(struct drm_device *drm)
+void malidp_se_irq_fini(struct malidp_hw_device *hwdev)
 {
-	struct malidp_drm *malidp = drm->dev_private;
-	struct malidp_hw_device *hwdev = malidp->dev;
-
 	malidp_hw_disable_irq(hwdev, MALIDP_SE_BLOCK,
 			      hwdev->hw->map.se_irq_map.irq_mask);
 }

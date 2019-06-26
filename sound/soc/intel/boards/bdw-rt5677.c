@@ -26,6 +26,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 #include <sound/jack.h>
+#include <sound/soc-acpi.h>
 
 #include "../common/sst-dsp.h"
 #include "../haswell/sst-haswell-ipc.h"
@@ -154,9 +155,7 @@ static int broadwell_ssp0_fixup(struct snd_soc_pcm_runtime *rtd,
 	channels->min = channels->max = 2;
 
 	/* set SSP0 to 16 bit */
-	snd_mask_set(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT -
-				    SNDRV_PCM_HW_PARAM_FIRST_MASK],
-				    SNDRV_PCM_FORMAT_S16_LE);
+	params_set_format(params, SNDRV_PCM_FORMAT_S16_LE);
 	return 0;
 }
 
@@ -341,6 +340,9 @@ static struct snd_soc_card bdw_rt5677_card = {
 static int bdw_rt5677_probe(struct platform_device *pdev)
 {
 	struct bdw_rt5677_priv *bdw_rt5677;
+	struct snd_soc_acpi_mach *mach;
+	const char *platform_name = NULL;
+	int ret;
 
 	bdw_rt5677_card.dev = &pdev->dev;
 
@@ -351,6 +353,16 @@ static int bdw_rt5677_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't allocate bdw_rt5677\n");
 		return -ENOMEM;
 	}
+
+	/* override plaform name, if required */
+	mach = (&pdev->dev)->platform_data;
+	if (mach) /* extra check since legacy does not pass parameters */
+		platform_name = mach->mach_params.platform;
+
+	ret = snd_soc_fixup_dai_links_platform_name(&bdw_rt5677_card,
+						    platform_name);
+	if (ret)
+		return ret;
 
 	snd_soc_card_set_drvdata(&bdw_rt5677_card, bdw_rt5677);
 

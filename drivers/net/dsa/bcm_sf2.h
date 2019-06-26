@@ -56,6 +56,7 @@ struct bcm_sf2_cfp_priv {
 	DECLARE_BITMAP(used, CFP_NUM_RULES);
 	DECLARE_BITMAP(unique, CFP_NUM_RULES);
 	unsigned int rules_cnt;
+	struct list_head rules_list;
 };
 
 struct bcm_sf2_priv {
@@ -85,9 +86,6 @@ struct bcm_sf2_priv {
 
 	/* Backing b53_device */
 	struct b53_device		*dev;
-
-	/* Mutex protecting access to the MIB counters */
-	struct mutex			stats_mutex;
 
 	struct bcm_sf2_hw_params	hw_params;
 
@@ -213,5 +211,12 @@ int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
 int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
 		      struct ethtool_rxnfc *nfc);
 int bcm_sf2_cfp_rst(struct bcm_sf2_priv *priv);
+void bcm_sf2_cfp_exit(struct dsa_switch *ds);
+int bcm_sf2_cfp_resume(struct dsa_switch *ds);
+void bcm_sf2_cfp_get_strings(struct dsa_switch *ds, int port,
+			     u32 stringset, uint8_t *data);
+void bcm_sf2_cfp_get_ethtool_stats(struct dsa_switch *ds, int port,
+				   uint64_t *data);
+int bcm_sf2_cfp_get_sset_count(struct dsa_switch *ds, int port, int sset);
 
 #endif /* __BCM_SF2_H */

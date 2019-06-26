@@ -25,7 +25,8 @@ extern const struct xfs_buf_ops xfs_agf_buf_ops;
 extern const struct xfs_buf_ops xfs_agi_buf_ops;
 extern const struct xfs_buf_ops xfs_agf_buf_ops;
 extern const struct xfs_buf_ops xfs_agfl_buf_ops;
-extern const struct xfs_buf_ops xfs_allocbt_buf_ops;
+extern const struct xfs_buf_ops xfs_bnobt_buf_ops;
+extern const struct xfs_buf_ops xfs_cntbt_buf_ops;
 extern const struct xfs_buf_ops xfs_rmapbt_buf_ops;
 extern const struct xfs_buf_ops xfs_refcountbt_buf_ops;
 extern const struct xfs_buf_ops xfs_attr3_leaf_buf_ops;
@@ -36,6 +37,7 @@ extern const struct xfs_buf_ops xfs_dquot_buf_ops;
 extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 extern const struct xfs_buf_ops xfs_agi_buf_ops;
 extern const struct xfs_buf_ops xfs_inobt_buf_ops;
+extern const struct xfs_buf_ops xfs_finobt_buf_ops;
 extern const struct xfs_buf_ops xfs_inode_buf_ops;
 extern const struct xfs_buf_ops xfs_inode_buf_ra_ops;
 extern const struct xfs_buf_ops xfs_dquot_buf_ops;
@@ -64,6 +66,18 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define XFS_TRANS_RESERVE	0x20    /* OK to use reserved data blocks */
 #define XFS_TRANS_NO_WRITECOUNT 0x40	/* do not elevate SB writecount */
 #define XFS_TRANS_NOFS		0x80	/* pass KM_NOFS to kmem_alloc */
+/*
+ * LOWMODE is used by the allocator to activate the lowspace algorithm - when
+ * free space is running low the extent allocator may choose to allocate an
+ * extent from an AG without leaving sufficient space for a btree split when
+ * inserting the new extent. In this case the allocator will enable the
+ * lowspace algorithm which is supposed to allow further allocations (such as
+ * btree splits and newroots) to allocate from sequential AGs. In order to
+ * avoid locking AGs out of order the lowspace algorithm will start searching
+ * for free space from AG 0. If the correct transaction reservations have been
+ * made then this algorithm will eventually find all the space it needs.
+ */
+#define XFS_TRANS_LOWMODE	0x100	/* allocate in low space mode */
 
 /*
  * Field values for xfs_trans_mod_sb.
