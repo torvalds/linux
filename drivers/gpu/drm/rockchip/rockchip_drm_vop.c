@@ -202,6 +202,7 @@ struct vop_win {
 
 	int win_id;
 	int area_id;
+	int zpos;
 	uint32_t offset;
 	enum drm_plane_type type;
 	const struct vop_win_phy *phy;
@@ -1935,7 +1936,7 @@ static void vop_atomic_plane_reset(struct drm_plane *plane)
 	if (!vop_plane_state)
 		return;
 
-	win->state.zpos = win->win_id;
+	win->state.zpos = win->zpos;
 	vop_plane_state->global_alpha = 0xff;
 	plane->state = &vop_plane_state->base;
 	plane->state->plane = plane;
@@ -4200,6 +4201,26 @@ static void vop_destroy_crtc(struct vop *vop)
 }
 
 /*
+ * Win_id is the order in vop_win_data array.
+ * This is related to the actual hardware plane.
+ * But in the Linux platform, such as video hardware and camera preview,
+ * it can only be played on the nv12 plane.
+ * So set the order of zpos to PRIMARY < OVERLAY (if have) < CURSOR (if have).
+ */
+static int vop_plane_get_zpos(enum drm_plane_type type, unsigned int size)
+{
+	switch (type) {
+	case DRM_PLANE_TYPE_PRIMARY:
+		return 0;
+	case DRM_PLANE_TYPE_OVERLAY:
+		return 1;
+	case DRM_PLANE_TYPE_CURSOR:
+		return size - 1;
+	}
+	return 0;
+}
+
+/*
  * Initialize the vop->win array elements.
  */
 static int vop_win_init(struct vop *vop)
@@ -4236,6 +4257,9 @@ static int vop_win_init(struct vop *vop)
 		vop_win->vop = vop;
 		vop_win->win_id = i;
 		vop_win->area_id = 0;
+		vop_win->zpos = vop_plane_get_zpos(win_data->type,
+						   vop_data->win_size);
+
 		num_wins++;
 
 		for (j = 0; j < win_data->area_size; j++) {
@@ -4258,7 +4282,7 @@ static int vop_win_init(struct vop *vop)
 	vop->num_wins = num_wins;
 
 	prop = drm_property_create_range(vop->drm_dev, DRM_MODE_PROP_ATOMIC,
-					 "ZPOS", 0, vop_data->win_size);
+					 "ZPOS", 0, vop->data->win_size - 1);
 	if (!prop) {
 		DRM_ERROR("failed to create zpos property\n");
 		return -EINVAL;
