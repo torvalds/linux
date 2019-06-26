@@ -1563,18 +1563,6 @@ static void dm_bb_initialgain_restore(struct net_device *dev)
 
 }	/* dm_BBInitialGainRestore */
 
-void dm_backup_dynamic_mechanism_state(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	/* Fsync to avoid reset */
-	priv->bswitch_fsync  = false;
-	priv->bfsync_processing = false;
-	/* Backup BB InitialGain */
-	dm_bb_initialgain_backup(dev);
-
-}	/* DM_BackupDynamicMechanismState */
-
 static void dm_bb_initialgain_backup(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
