@@ -398,10 +398,12 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 	mutex_lock(&priv->lock);
 
 	/* Check if it needs to be deactivated */
-	if (!priv->eee_active && priv->eee_enabled) {
-		netdev_dbg(priv->dev, "disable EEE\n");
-		del_timer_sync(&priv->eee_ctrl_timer);
-		stmmac_set_eee_timer(priv, priv->hw, 0, tx_lpi_timer);
+	if (!priv->eee_active) {
+		if (priv->eee_enabled) {
+			netdev_dbg(priv->dev, "disable EEE\n");
+			del_timer_sync(&priv->eee_ctrl_timer);
+			stmmac_set_eee_timer(priv, priv->hw, 0, tx_lpi_timer);
+		}
 		mutex_unlock(&priv->lock);
 		return false;
 	}
