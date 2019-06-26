@@ -2,6 +2,7 @@
 #ifndef _NF_CONNTRACK_SYNPROXY_H
 #define _NF_CONNTRACK_SYNPROXY_H
 
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netns/generic.h>
 
 struct nf_conn_synproxy {
