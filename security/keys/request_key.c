@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/keyctl.h>
 #include <linux/slab.h>
+#include <net/net_namespace.h>
 #include "internal.h"
 #include <keys/request_key_auth-type.h>
 
@@ -533,16 +534,18 @@ error:
  * request_key_and_link - Request a key and cache it in a keyring.
  * @type: The type of key we want.
  * @description: The searchable description of the key.
+ * @domain_tag: The domain in which the key operates.
  * @callout_info: The data to pass to the instantiation upcall (or NULL).
  * @callout_len: The length of callout_info.
  * @aux: Auxiliary data for the upcall.
  * @dest_keyring: Where to cache the key.
  * @flags: Flags to key_alloc().
  *
- * A key matching the specified criteria is searched for in the process's
- * keyrings and returned with its usage count incremented if found.  Otherwise,
- * if callout_info is not NULL, a key will be allocated and some service
- * (probably in userspace) will be asked to instantiate it.
+ * A key matching the specified criteria (type, description, domain_tag) is
+ * searched for in the process's keyrings and returned with its usage count
+ * incremented if found.  Otherwise, if callout_info is not NULL, a key will be
+ * allocated and some service (probably in userspace) will be asked to
+ * instantiate it.
  *
  * If successfully found or created, the key will be linked to the destination
  * keyring if one is provided.
@@ -558,6 +561,7 @@ error:
  */
 struct key *request_key_and_link(struct key_type *type,
 				 const char *description,
+				 struct key_tag *domain_tag,
 				 const void *callout_info,
 				 size_t callout_len,
 				 void *aux,
@@ -566,6 +570,7 @@ struct key *request_key_and_link(struct key_type *type,
 {
 	struct keyring_search_context ctx = {
 		.index_key.type		= type,
+		.index_key.domain_tag	= domain_tag,
 		.index_key.description	= description,
 		.index_key.desc_len	= strlen(description),
 		.cred			= current_cred(),
@@ -672,9 +677,10 @@ int wait_for_key_construction(struct key *key, bool intr)
 EXPORT_SYMBOL(wait_for_key_construction);
 
 /**
- * request_key - Request a key and wait for construction
+ * request_key_tag - Request a key and wait for construction
  * @type: Type of key.
  * @description: The searchable description of the key.
+ * @domain_tag: The domain in which the key operates.
  * @callout_info: The data to pass to the instantiation upcall (or NULL).
  *
  * As for request_key_and_link() except that it does not add the returned key
@@ -685,9 +691,10 @@ EXPORT_SYMBOL(wait_for_key_construction);
  * Furthermore, it then works as wait_for_key_construction() to wait for the
  * completion of keys undergoing construction with a non-interruptible wait.
  */
-struct key *request_key(struct key_type *type,
-			const char *description,
-			const char *callout_info)
+struct key *request_key_tag(struct key_type *type,
+			    const char *description,
+			    struct key_tag *domain_tag,
+			    const char *callout_info)
 {
 	struct key *key;
 	size_t callout_len = 0;
@@ -695,7 +702,8 @@ struct key *request_key(struct key_type *type,
 
 	if (callout_info)
 		callout_len = strlen(callout_info);
-	key = request_key_and_link(type, description, callout_info, callout_len,
+	key = request_key_and_link(type, description, domain_tag,
+				   callout_info, callout_len,
 				   NULL, NULL, KEY_ALLOC_IN_QUOTA);
 	if (!IS_ERR(key)) {
 		ret = wait_for_key_construction(key, false);
@@ -706,12 +714,13 @@ struct key *request_key(struct key_type *type,
 	}
 	return key;
 }
-EXPORT_SYMBOL(request_key);
+EXPORT_SYMBOL(request_key_tag);
 
 /**
  * request_key_with_auxdata - Request a key with auxiliary data for the upcaller
  * @type: The type of key we want.
  * @description: The searchable description of the key.
+ * @domain_tag: The domain in which the key operates.
  * @callout_info: The data to pass to the instantiation upcall (or NULL).
  * @callout_len: The length of callout_info.
  * @aux: Auxiliary data for the upcall.
@@ -724,6 +733,7 @@ EXPORT_SYMBOL(request_key);
  */
 struct key *request_key_with_auxdata(struct key_type *type,
 				     const char *description,
+				     struct key_tag *domain_tag,
 				     const void *callout_info,
 				     size_t callout_len,
 				     void *aux)
@@ -731,7 +741,8 @@ struct key *request_key_with_auxdata(struct key_type *type,
 	struct key *key;
 	int ret;
 
-	key = request_key_and_link(type, description, callout_info, callout_len,
+	key = request_key_and_link(type, description, domain_tag,
+				   callout_info, callout_len,
 				   aux, NULL, KEY_ALLOC_IN_QUOTA);
 	if (!IS_ERR(key)) {
 		ret = wait_for_key_construction(key, false);
@@ -748,6 +759,7 @@ EXPORT_SYMBOL(request_key_with_auxdata);
  * request_key_rcu - Request key from RCU-read-locked context
  * @type: The type of key we want.
  * @description: The name of the key we want.
+ * @domain_tag: The domain in which the key operates.
  *
  * Request a key from a context that we may not sleep in (such as RCU-mode
  * pathwalk).  Keys under construction are ignored.
@@ -755,10 +767,13 @@ EXPORT_SYMBOL(request_key_with_auxdata);
  * Return a pointer to the found key if successful, -ENOKEY if we couldn't find
  * a key or some other error if the key found was unsuitable or inaccessible.
  */
-struct key *request_key_rcu(struct key_type *type, const char *description)
+struct key *request_key_rcu(struct key_type *type,
+			    const char *description,
+			    struct key_tag *domain_tag)
 {
 	struct keyring_search_context ctx = {
 		.index_key.type		= type,
+		.index_key.domain_tag	= domain_tag,
 		.index_key.description	= description,
 		.index_key.desc_len	= strlen(description),
 		.cred			= current_cred(),

@@ -36,6 +36,7 @@ typedef int32_t key_serial_t;
 typedef uint32_t key_perm_t;
 
 struct key;
+struct net;
 
 #ifdef CONFIG_KEYS
 
@@ -296,18 +297,56 @@ static inline void key_ref_put(key_ref_t key_ref)
 	key_put(key_ref_to_ptr(key_ref));
 }
 
-extern struct key *request_key(struct key_type *type,
-			       const char *description,
-			       const char *callout_info);
+extern struct key *request_key_tag(struct key_type *type,
+				   const char *description,
+				   struct key_tag *domain_tag,
+				   const char *callout_info);
 
 extern struct key *request_key_rcu(struct key_type *type,
-				   const char *description);
+				   const char *description,
+				   struct key_tag *domain_tag);
 
 extern struct key *request_key_with_auxdata(struct key_type *type,
 					    const char *description,
+					    struct key_tag *domain_tag,
 					    const void *callout_info,
 					    size_t callout_len,
 					    void *aux);
+
+/**
+ * request_key - Request a key and wait for construction
+ * @type: Type of key.
+ * @description: The searchable description of the key.
+ * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ *
+ * As for request_key_tag(), but with the default global domain tag.
+ */
+static inline struct key *request_key(struct key_type *type,
+				      const char *description,
+				      const char *callout_info)
+{
+	return request_key_tag(type, description, NULL, callout_info);
+}
+
+#ifdef CONFIG_NET
+/*
+ * request_key_net - Request a key for a net namespace and wait for construction
+ * @type: Type of key.
+ * @description: The searchable description of the key.
+ * @net: The network namespace that is the key's domain of operation.
+ * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ *
+ * As for request_key() except that it does not add the returned key to a
+ * keyring if found, new keys are always allocated in the user's quota, the
+ * callout_info must be a NUL-terminated string and no auxiliary data can be
+ * passed.  Only keys that operate the specified network namespace are used.
+ *
+ * Furthermore, it then works as wait_for_key_construction() to wait for the
+ * completion of keys undergoing construction with a non-interruptible wait.
+ */
+#define request_key_net(type, description, net, callout_info) \
+	request_key_tag(type, description, net->key_domain, callout_info);
+#endif /* CONFIG_NET */
 
 extern int wait_for_key_construction(struct key *key, bool intr);
 

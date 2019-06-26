@@ -15,8 +15,16 @@ The process starts by either the kernel requesting a service by calling
 
 or::
 
+	struct key *request_key_tag(const struct key_type *type,
+				    const char *description,
+				    const struct key_tag *domain_tag,
+				    const char *callout_info);
+
+or::
+
 	struct key *request_key_with_auxdata(const struct key_type *type,
 					     const char *description,
+					     const struct key_tag *domain_tag,
 					     const char *callout_info,
 					     size_t callout_len,
 					     void *aux);
@@ -24,7 +32,8 @@ or::
 or::
 
 	struct key *request_key_rcu(const struct key_type *type,
-				    const char *description);
+				    const char *description,
+				    const struct key_tag *domain_tag);
 
 Or by userspace invoking the request_key system call::
 
@@ -38,14 +47,18 @@ does not need to link the key to a keyring to prevent it from being immediately
 destroyed.  The kernel interface returns a pointer directly to the key, and
 it's up to the caller to destroy the key.
 
-The request_key_with_auxdata() calls is like the in-kernel request_key() call,
-except that they permit auxiliary data to be passed to the upcaller (the
-default is NULL).  This is only useful for those key types that define their
-own upcall mechanism rather than using /sbin/request-key.
+The request_key_tag() call is like the in-kernel request_key(), except that it
+also takes a domain tag that allows keys to be separated by namespace and
+killed off as a group.
 
-The request_key_rcu() call is like the in-kernel request_key() call, except
-that it doesn't check for keys that are under construction and doesn't attempt
-to construct missing keys.
+The request_key_with_auxdata() calls is like the request_key_tag() call, except
+that they permit auxiliary data to be passed to the upcaller (the default is
+NULL).  This is only useful for those key types that define their own upcall
+mechanism rather than using /sbin/request-key.
+
+The request_key_rcu() call is like the request_key_tag() call, except that it
+doesn't check for keys that are under construction and doesn't attempt to
+construct missing keys.
 
 The userspace interface links the key to a keyring associated with the process
 to prevent the key from going away, and returns the serial number of the key to

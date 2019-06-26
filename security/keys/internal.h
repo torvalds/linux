@@ -156,6 +156,7 @@ extern int install_session_keyring_to_cred(struct cred *, struct key *);
 
 extern struct key *request_key_and_link(struct key_type *type,
 					const char *description,
+					struct key_tag *domain_tag,
 					const void *callout_info,
 					size_t callout_len,
 					void *aux,
