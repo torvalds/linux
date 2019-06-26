@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
-#include <ctype.h>
+#include <linux/ctype.h>
 
 #include "perf.h"
 #include "debug.h"

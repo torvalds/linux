@@ -17,7 +17,7 @@
 #include "pmu-events/pmu-events.h"
 #include "strlist.h"
 #include <assert.h>
-#include <ctype.h>
+#include <linux/ctype.h>
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct perf_evsel *evsel,
