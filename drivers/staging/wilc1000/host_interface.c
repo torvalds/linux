@@ -1634,19 +1634,14 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
-	int i;
 
 	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
 	if (!hif_drv)
 		return -ENOMEM;
 
 	*hif_drv_handler = hif_drv;
-	for (i = 0; i < wilc->vif_num; i++)
-		if (dev == wilc->vif[i]->ndev) {
-			wilc->vif[i]->hif_drv = hif_drv;
-			break;
-		}
 
+	vif->hif_drv = hif_drv;
 	vif->obtaining_ip = false;
 
 	if (wilc->clients_count == 0)

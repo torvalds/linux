@@ -614,7 +614,6 @@ static int wilc_mac_open(struct net_device *ndev)
 	struct wilc_priv *priv = wdev_priv(vif->ndev->ieee80211_ptr);
 	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
-	int i = 0;
 
 	if (!wl || !wl->dev) {
 		netdev_err(ndev, "device not ready\n");
@@ -633,19 +632,14 @@ static int wilc_mac_open(struct net_device *ndev)
 		return ret;
 	}
 
-	for (i = 0; i < wl->vif_num; i++) {
-		if (ndev == wl->vif[i]->ndev) {
-			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 vif->iftype, vif->idx);
-			wilc_set_operation_mode(vif, vif->iftype);
-			break;
-		}
-	}
+	wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif), vif->iftype,
+				 vif->idx);
+	wilc_set_operation_mode(vif, vif->iftype);
 
 	wilc_get_mac_address(vif, mac_add);
 	netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
-	memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
-	memcpy(ndev->dev_addr, wl->vif[i]->src_addr, ETH_ALEN);
+	memcpy(vif->src_addr, mac_add, ETH_ALEN);
+	memcpy(ndev->dev_addr, vif->src_addr, ETH_ALEN);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		netdev_err(ndev, "Wrong MAC address\n");
