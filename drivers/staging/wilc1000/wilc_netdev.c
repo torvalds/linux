@@ -638,8 +638,7 @@ static int wilc_mac_open(struct net_device *ndev)
 
 	wilc_get_mac_address(vif, mac_add);
 	netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
-	memcpy(vif->src_addr, mac_add, ETH_ALEN);
-	memcpy(ndev->dev_addr, vif->src_addr, ETH_ALEN);
+	ether_addr_copy(ndev->dev_addr, mac_add);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		netdev_err(ndev, "Wrong MAC address\n");
