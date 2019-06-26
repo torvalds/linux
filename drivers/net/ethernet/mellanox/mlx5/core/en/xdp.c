@@ -64,7 +64,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_dma_info *di,
 		return false;
 	xdpi.dma_addr = di->addr + (xdpi.xdpf->data - (void *)xdpi.xdpf);
 	dma_sync_single_for_device(sq->pdev, xdpi.dma_addr,
-				   xdpi.xdpf->len, PCI_DMA_TODEVICE);
+				   xdpi.xdpf->len, DMA_TO_DEVICE);
 	xdpi.di = *di;
 
 	return sq->xmit_xdp_frame(sq, &xdpi);
