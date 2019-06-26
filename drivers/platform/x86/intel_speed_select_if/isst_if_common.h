@@ -11,6 +11,7 @@
 #define __ISST_IF_COMMON_H
 
 #define INTEL_RAPL_PRIO_DEVID_0	0x3451
+#define INTEL_CFG_MBOX_DEVID_0	0x3459
 
 /*
  * Validate maximum commands in a single request.
@@ -60,4 +61,6 @@ struct isst_if_cmd_cb {
 int isst_if_cdev_register(int type, struct isst_if_cmd_cb *cb);
 void isst_if_cdev_unregister(int type);
 struct pci_dev *isst_if_get_pci_dev(int cpu, int bus, int dev, int fn);
+bool isst_if_mbox_cmd_set_req(struct isst_if_mbox_cmd *mbox_cmd);
+bool isst_if_mbox_cmd_invalid(struct isst_if_mbox_cmd *cmd);
 #endif

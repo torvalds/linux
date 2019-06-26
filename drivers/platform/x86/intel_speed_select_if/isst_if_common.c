@@ -25,6 +25,86 @@
 
 static struct isst_if_cmd_cb punit_callbacks[ISST_IF_DEV_MAX];
 
+struct isst_valid_cmd_ranges {
+	u16 cmd;
+	u16 sub_cmd_beg;
+	u16 sub_cmd_end;
+};
+
+struct isst_cmd_set_req_type {
+	u16 cmd;
+	u16 sub_cmd;
+	u16 param;
+};
+
+static const struct isst_valid_cmd_ranges isst_valid_cmds[] = {
+	{0xD0, 0x00, 0x03},
+	{0x7F, 0x00, 0x0B},
+	{0x7F, 0x10, 0x12},
+	{0x7F, 0x20, 0x23},
+};
+
+static const struct isst_cmd_set_req_type isst_cmd_set_reqs[] = {
+	{0xD0, 0x00, 0x08},
+	{0xD0, 0x01, 0x08},
+	{0xD0, 0x02, 0x08},
+	{0xD0, 0x03, 0x08},
+	{0x7F, 0x02, 0x00},
+	{0x7F, 0x08, 0x00},
+};
+
+/**
+ * isst_if_mbox_cmd_invalid() - Check invalid mailbox commands
+ * @cmd: Pointer to the command structure to verify.
+ *
+ * Invalid command to PUNIT to may result in instability of the platform.
+ * This function has a whitelist of commands, which are allowed.
+ *
+ * Return: Return true if the command is invalid, else false.
+ */
+bool isst_if_mbox_cmd_invalid(struct isst_if_mbox_cmd *cmd)
+{
+	int i;
+
+	if (cmd->logical_cpu >= nr_cpu_ids)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(isst_valid_cmds); ++i) {
+		if (cmd->command == isst_valid_cmds[i].cmd &&
+		    (cmd->sub_command >= isst_valid_cmds[i].sub_cmd_beg &&
+		     cmd->sub_command <= isst_valid_cmds[i].sub_cmd_end)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(isst_if_mbox_cmd_invalid);
+
+/**
+ * isst_if_mbox_cmd_set_req() - Check mailbox command is a set request
+ * @cmd: Pointer to the command structure to verify.
+ *
+ * Check if the given mail box level is set request and not a get request.
+ *
+ * Return: Return true if the command is set_req, else false.
+ */
+bool isst_if_mbox_cmd_set_req(struct isst_if_mbox_cmd *cmd)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(isst_cmd_set_reqs); ++i) {
+		if (cmd->command == isst_cmd_set_reqs[i].cmd &&
+		    cmd->sub_command == isst_cmd_set_reqs[i].sub_cmd &&
+		    cmd->parameter == isst_cmd_set_reqs[i].param) {
+			return true;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(isst_if_mbox_cmd_set_req);
+
 static int isst_if_get_platform_info(void __user *argp)
 {
 	struct isst_if_platform_info info;
@@ -221,6 +301,11 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case ISST_IF_IO_CMD:
 		cb = &punit_callbacks[ISST_IF_DEV_MMIO];
+		if (cb->registered)
+			ret = isst_if_exec_multi_cmd(argp, cb);
+		break;
+	case ISST_IF_MBOX_COMMAND:
+		cb = &punit_callbacks[ISST_IF_DEV_MBOX];
 		if (cb->registered)
 			ret = isst_if_exec_multi_cmd(argp, cb);
 		break;

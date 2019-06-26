@@ -95,8 +95,46 @@ struct isst_if_io_regs {
 	struct isst_if_io_reg io_reg[1];
 };
 
+/**
+ * struct isst_if_mbox_cmd - Structure to define mail box command
+ * @logical_cpu:	Logical CPU number to get target PCI device
+ * @parameter:		Mailbox parameter value
+ * @req_data:		Request data for the mailbox
+ * @resp_data:		Response data for mailbox command response
+ * @command:		Mailbox command value
+ * @sub_command:	Mailbox sub command value
+ * @reserved:		Unused, set to 0
+ *
+ * Structure to specify mailbox command to be sent to PUNIT.
+ */
+struct isst_if_mbox_cmd {
+	__u32 logical_cpu;
+	__u32 parameter;
+	__u32 req_data;
+	__u32 resp_data;
+	__u16 command;
+	__u16 sub_command;
+	__u32 reserved;
+};
+
+/**
+ * struct isst_if_mbox_cmds - structure for mailbox commands
+ * @cmd_count:	Number of mailbox commands in mbox_cmd[]
+ * @mbox_cmd[]:	Holds one or more mbox commands
+ *
+ * This structure used with ioctl ISST_IF_MBOX_COMMAND to send
+ * one or more mailbox commands to PUNIT. Here IOCTL return value
+ * indicates number of commands sent or error number if no commands have
+ * been sent.
+ */
+struct isst_if_mbox_cmds {
+	__u32 cmd_count;
+	struct isst_if_mbox_cmd mbox_cmd[1];
+};
+
 #define ISST_IF_MAGIC			0xFE
 #define ISST_IF_GET_PLATFORM_INFO	_IOR(ISST_IF_MAGIC, 0, struct isst_if_platform_info *)
 #define ISST_IF_GET_PHY_ID		_IOWR(ISST_IF_MAGIC, 1, struct isst_if_cpu_map *)
 #define ISST_IF_IO_CMD		_IOW(ISST_IF_MAGIC, 2, struct isst_if_io_regs *)
+#define ISST_IF_MBOX_COMMAND	_IOWR(ISST_IF_MAGIC, 3, struct isst_if_mbox_cmds *)
 #endif
