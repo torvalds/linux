@@ -80,6 +80,12 @@ struct dev_pagemap_ops {
 	 * Wait for refcount in struct dev_pagemap to be idle and reap it.
 	 */
 	void (*cleanup)(struct dev_pagemap *pgmap);
+
+	/*
+	 * Used for private (un-addressable) device memory only.  Must migrate
+	 * the page back to a CPU accessible page.
+	 */
+	vm_fault_t (*migrate_to_ram)(struct vm_fault *vmf);
 };
 
 /**
