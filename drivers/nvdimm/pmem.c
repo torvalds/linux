@@ -303,7 +303,7 @@ static const struct attribute_group *pmem_attribute_groups[] = {
 	NULL,
 };
 
-static void __pmem_release_queue(struct percpu_ref *ref)
+static void pmem_pagemap_cleanup(struct percpu_ref *ref)
 {
 	struct request_queue *q;
 
@@ -313,10 +313,10 @@ static void __pmem_release_queue(struct percpu_ref *ref)
 
 static void pmem_release_queue(void *ref)
 {
-	__pmem_release_queue(ref);
+	pmem_pagemap_cleanup(ref);
 }
 
-static void pmem_freeze_queue(struct percpu_ref *ref)
+static void pmem_pagemap_kill(struct percpu_ref *ref)
 {
 	struct request_queue *q;
 
@@ -339,10 +339,16 @@ static void pmem_release_pgmap_ops(void *__pgmap)
 	dev_pagemap_put_ops();
 }
 
-static void fsdax_pagefree(struct page *page, void *data)
+static void pmem_pagemap_page_free(struct page *page, void *data)
 {
 	wake_up_var(&page->_refcount);
 }
+
+static const struct dev_pagemap_ops fsdax_pagemap_ops = {
+	.page_free		= pmem_pagemap_page_free,
+	.kill			= pmem_pagemap_kill,
+	.cleanup		= pmem_pagemap_cleanup,
+};
 
 static int setup_pagemap_fsdax(struct device *dev, struct dev_pagemap *pgmap)
 {
@@ -350,8 +356,7 @@ static int setup_pagemap_fsdax(struct device *dev, struct dev_pagemap *pgmap)
 	if (devm_add_action_or_reset(dev, pmem_release_pgmap_ops, pgmap))
 		return -ENOMEM;
 	pgmap->type = MEMORY_DEVICE_FS_DAX;
-	pgmap->page_free = fsdax_pagefree;
-
+	pgmap->ops = &fsdax_pagemap_ops;
 	return 0;
 }
 
@@ -409,8 +414,6 @@ static int pmem_attach_disk(struct device *dev,
 
 	pmem->pfn_flags = PFN_DEV;
 	pmem->pgmap.ref = &q->q_usage_counter;
-	pmem->pgmap.kill = pmem_freeze_queue;
-	pmem->pgmap.cleanup = __pmem_release_queue;
 	if (is_nd_pfn(dev)) {
 		if (setup_pagemap_fsdax(dev, &pmem->pgmap))
 			return -ENOMEM;
