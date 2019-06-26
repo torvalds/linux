@@ -39,7 +39,7 @@ config EXTCON_AXP288
 
 config EXTCON_FSA9480
 	tristate "FSA9480 EXTCON Support"
-	depends on INPUT
+	depends on INPUT && I2C
 	select IRQ_DOMAIN
 	select REGMAP_I2C
 	help
