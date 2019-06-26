@@ -700,6 +700,7 @@ struct hclge_mac_tnl_stats {
 };
 
 #define HCLGE_RESET_INTERVAL	(10 * HZ)
+#define HCLGE_WAIT_RESET_DONE	100
 
 #pragma pack(1)
 struct hclge_vf_vlan_cfg {
@@ -929,6 +930,7 @@ struct hclge_vport {
 	u32 bw_limit;		/* VSI BW Limit (0 = disabled) */
 	u8  dwrr;
 
+	unsigned long vlan_del_fail_bmap[BITS_TO_LONGS(VLAN_N_VID)];
 	struct hclge_port_base_vlan_config port_base_vlan_cfg;
 	struct hclge_tx_vtag_cfg  txvlan_cfg;
 	struct hclge_rx_vtag_cfg  rxvlan_cfg;

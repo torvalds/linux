@@ -35,6 +35,7 @@
 
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
+static void hclge_sync_vlan_filter(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 static bool hclge_get_hw_reset_stat(struct hnae3_handle *handle);
 static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
@@ -2315,6 +2316,17 @@ static int hclge_restart_autoneg(struct hnae3_handle *handle)
 	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 }
 
+static int hclge_halt_autoneg(struct hnae3_handle *handle, bool halt)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	if (hdev->hw.mac.support_autoneg && hdev->hw.mac.autoneg)
+		return hclge_set_autoneg_en(hdev, !halt);
+
+	return 0;
+}
+
 static int hclge_set_fec_hw(struct hclge_dev *hdev, u32 fec_mode)
 {
 	struct hclge_config_fec_cmd *req;
@@ -2386,6 +2398,15 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev,
 			"Config mac speed dup fail ret=%d\n", ret);
 		return ret;
+	}
+
+	if (hdev->hw.mac.support_autoneg) {
+		ret = hclge_set_autoneg_en(hdev, hdev->hw.mac.autoneg);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"Config mac autoneg fail ret=%d\n", ret);
+			return ret;
+		}
 	}
 
 	mac->link = 0;
@@ -3528,6 +3549,7 @@ static void hclge_service_task(struct work_struct *work)
 	hclge_update_port_info(hdev);
 	hclge_update_link_status(hdev);
 	hclge_update_vport_alive(hdev);
+	hclge_sync_vlan_filter(hdev);
 	if (hdev->fd_arfs_expire_timer >= HCLGE_FD_ARFS_EXPIRE_TIMER_INTERVAL) {
 		hclge_rfs_filter_expire(hdev);
 		hdev->fd_arfs_expire_timer = 0;
@@ -7101,12 +7123,13 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
 		if (!req0->resp_code)
 			return 0;
 
-		if (req0->resp_code == HCLGE_VF_VLAN_DEL_NO_FOUND) {
-			dev_warn(&hdev->pdev->dev,
-				 "vlan %d filter is not in vf vlan table\n",
-				 vlan);
+		/* vf vlan filter is disabled when vf vlan table is full,
+		 * then new vlan id will not be added into vf vlan table.
+		 * Just return 0 without warning, avoid massive verbose
+		 * print logs when unload.
+		 */
+		if (req0->resp_code == HCLGE_VF_VLAN_DEL_NO_FOUND)
 			return 0;
-		}
 
 		dev_err(&hdev->pdev->dev,
 			"Kill vf vlan filter fail, ret =%d.\n",
@@ -7730,11 +7753,20 @@ int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 	bool writen_to_tbl = false;
 	int ret = 0;
 
-	/* when port based VLAN enabled, we use port based VLAN as the VLAN
-	 * filter entry. In this case, we don't update VLAN filter table
-	 * when user add new VLAN or remove exist VLAN, just update the vport
-	 * VLAN list. The VLAN id in VLAN list won't be writen in VLAN filter
-	 * table until port based VLAN disabled
+	/* When device is resetting, firmware is unable to handle
+	 * mailbox. Just record the vlan id, and remove it after
+	 * reset finished.
+	 */
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) && is_kill) {
+		set_bit(vlan_id, vport->vlan_del_fail_bmap);
+		return -EBUSY;
+	}
+
+	/* When port base vlan enabled, we use port base vlan as the vlan
+	 * filter entry. In this case, we don't update vlan filter table
+	 * when user add new vlan or remove exist vlan, just update the vport
+	 * vlan list. The vlan id in vlan list will be writen in vlan filter
+	 * table until port base vlan disabled
 	 */
 	if (handle->port_base_vlan_state == HNAE3_PORT_BASE_VLAN_DISABLE) {
 		ret = hclge_set_vlan_filter_hw(hdev, proto, vport->vport_id,
@@ -7742,16 +7774,53 @@ int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 		writen_to_tbl = true;
 	}
 
-	if (ret)
-		return ret;
+	if (!ret) {
+		if (is_kill)
+			hclge_rm_vport_vlan_table(vport, vlan_id, false);
+		else
+			hclge_add_vport_vlan_table(vport, vlan_id,
+						   writen_to_tbl);
+	} else if (is_kill) {
+		/* When remove hw vlan filter failed, record the vlan id,
+		 * and try to remove it from hw later, to be consistence
+		 * with stack
+		 */
+		set_bit(vlan_id, vport->vlan_del_fail_bmap);
+	}
+	return ret;
+}
 
-	if (is_kill)
-		hclge_rm_vport_vlan_table(vport, vlan_id, false);
-	else
-		hclge_add_vport_vlan_table(vport, vlan_id,
-					   writen_to_tbl);
+static void hclge_sync_vlan_filter(struct hclge_dev *hdev)
+{
+#define HCLGE_MAX_SYNC_COUNT	60
 
-	return 0;
+	int i, ret, sync_cnt = 0;
+	u16 vlan_id;
+
+	/* start from vport 1 for PF is always alive */
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		struct hclge_vport *vport = &hdev->vport[i];
+
+		vlan_id = find_first_bit(vport->vlan_del_fail_bmap,
+					 VLAN_N_VID);
+		while (vlan_id != VLAN_N_VID) {
+			ret = hclge_set_vlan_filter_hw(hdev, htons(ETH_P_8021Q),
+						       vport->vport_id, vlan_id,
+						       0, true);
+			if (ret && ret != -EINVAL)
+				return;
+
+			clear_bit(vlan_id, vport->vlan_del_fail_bmap);
+			hclge_rm_vport_vlan_table(vport, vlan_id, false);
+
+			sync_cnt++;
+			if (sync_cnt >= HCLGE_MAX_SYNC_COUNT)
+				return;
+
+			vlan_id = find_first_bit(vport->vlan_del_fail_bmap,
+						 VLAN_N_VID);
+		}
+	}
 }
 
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps)
@@ -8213,23 +8282,42 @@ static int hclge_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
 {
 	struct hnae3_client *client = vport->nic.client;
 	struct hclge_dev *hdev = ae_dev->priv;
+	int rst_cnt;
 	int ret;
 
+	rst_cnt = hdev->rst_stats.reset_cnt;
 	ret = client->ops->init_instance(&vport->nic);
 	if (ret)
 		return ret;
 
 	set_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state);
-	hnae3_set_client_init_flag(client, ae_dev, 1);
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) ||
+	    rst_cnt != hdev->rst_stats.reset_cnt) {
+		ret = -EBUSY;
+		goto init_nic_err;
+	}
 
 	/* Enable nic hw error interrupts */
 	ret = hclge_config_nic_hw_error(hdev, true);
-	if (ret)
+	if (ret) {
 		dev_err(&ae_dev->pdev->dev,
 			"fail(%d) to enable hw error interrupts\n", ret);
+		goto init_nic_err;
+	}
+
+	hnae3_set_client_init_flag(client, ae_dev, 1);
 
 	if (netif_msg_drv(&hdev->vport->nic))
 		hclge_info_show(hdev);
+
+	return ret;
+
+init_nic_err:
+	clear_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state);
+	while (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		msleep(HCLGE_WAIT_RESET_DONE);
+
+	client->ops->uninit_instance(&vport->nic, 0);
 
 	return ret;
 }
@@ -8239,6 +8327,7 @@ static int hclge_init_roce_client_instance(struct hnae3_ae_dev *ae_dev,
 {
 	struct hnae3_client *client = vport->roce.client;
 	struct hclge_dev *hdev = ae_dev->priv;
+	int rst_cnt;
 	int ret;
 
 	if (!hnae3_dev_roce_supported(hdev) || !hdev->roce_client ||
@@ -8250,14 +8339,38 @@ static int hclge_init_roce_client_instance(struct hnae3_ae_dev *ae_dev,
 	if (ret)
 		return ret;
 
+	rst_cnt = hdev->rst_stats.reset_cnt;
 	ret = client->ops->init_instance(&vport->roce);
 	if (ret)
 		return ret;
 
 	set_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state);
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) ||
+	    rst_cnt != hdev->rst_stats.reset_cnt) {
+		ret = -EBUSY;
+		goto init_roce_err;
+	}
+
+	/* Enable roce ras interrupts */
+	ret = hclge_config_rocee_ras_interrupt(hdev, true);
+	if (ret) {
+		dev_err(&ae_dev->pdev->dev,
+			"fail(%d) to enable roce ras interrupts\n", ret);
+		goto init_roce_err;
+	}
+
 	hnae3_set_client_init_flag(client, ae_dev, 1);
 
 	return 0;
+
+init_roce_err:
+	clear_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state);
+	while (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		msleep(HCLGE_WAIT_RESET_DONE);
+
+	hdev->roce_client->ops->uninit_instance(&vport->roce, 0);
+
+	return ret;
 }
 
 static int hclge_init_client_instance(struct hnae3_client *client,
@@ -8300,12 +8413,6 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 		}
 	}
 
-	/* Enable roce ras interrupts */
-	ret = hclge_config_rocee_ras_interrupt(hdev, true);
-	if (ret)
-		dev_err(&ae_dev->pdev->dev,
-			"fail(%d) to enable roce ras interrupts\n", ret);
-
 	return ret;
 
 clear_nic:
@@ -8329,6 +8436,9 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 		vport = &hdev->vport[i];
 		if (hdev->roce_client) {
 			clear_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state);
+			while (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+				msleep(HCLGE_WAIT_RESET_DONE);
+
 			hdev->roce_client->ops->uninit_instance(&vport->roce,
 								0);
 			hdev->roce_client = NULL;
@@ -8338,6 +8448,9 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 			return;
 		if (hdev->nic_client && client->ops->uninit_instance) {
 			clear_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state);
+			while (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+				msleep(HCLGE_WAIT_RESET_DONE);
+
 			client->ops->uninit_instance(&vport->nic, 0);
 			hdev->nic_client = NULL;
 			vport->nic.client = NULL;
@@ -9265,6 +9378,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_autoneg = hclge_set_autoneg,
 	.get_autoneg = hclge_get_autoneg,
 	.restart_autoneg = hclge_restart_autoneg,
+	.halt_autoneg = hclge_halt_autoneg,
 	.get_pauseparam = hclge_get_pauseparam,
 	.set_pauseparam = hclge_set_pauseparam,
 	.set_mtu = hclge_set_mtu,

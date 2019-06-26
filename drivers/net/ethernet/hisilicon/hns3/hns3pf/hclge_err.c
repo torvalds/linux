@@ -1060,6 +1060,52 @@ static int hclge_config_ssu_hw_err_int(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
+/* hclge_query_bd_num: query number of buffer descriptors
+ * @hdev: pointer to struct hclge_dev
+ * @is_ras: true for ras, false for msix
+ * @mpf_bd_num: number of main PF interrupt buffer descriptors
+ * @pf_bd_num: number of not main PF interrupt buffer descriptors
+ *
+ * This function querys number of mpf and pf buffer descriptors.
+ */
+static int hclge_query_bd_num(struct hclge_dev *hdev, bool is_ras,
+			      int *mpf_bd_num, int *pf_bd_num)
+{
+	struct device *dev = &hdev->pdev->dev;
+	u32 mpf_min_bd_num, pf_min_bd_num;
+	enum hclge_opcode_type opcode;
+	struct hclge_desc desc_bd;
+	int ret;
+
+	if (is_ras) {
+		opcode = HCLGE_QUERY_RAS_INT_STS_BD_NUM;
+		mpf_min_bd_num = HCLGE_MPF_RAS_INT_MIN_BD_NUM;
+		pf_min_bd_num = HCLGE_PF_RAS_INT_MIN_BD_NUM;
+	} else {
+		opcode = HCLGE_QUERY_MSIX_INT_STS_BD_NUM;
+		mpf_min_bd_num = HCLGE_MPF_MSIX_INT_MIN_BD_NUM;
+		pf_min_bd_num = HCLGE_PF_MSIX_INT_MIN_BD_NUM;
+	}
+
+	hclge_cmd_setup_basic_desc(&desc_bd, opcode, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc_bd, 1);
+	if (ret) {
+		dev_err(dev, "fail(%d) to query msix int status bd num\n",
+			ret);
+		return ret;
+	}
+
+	*mpf_bd_num = le32_to_cpu(desc_bd.data[0]);
+	*pf_bd_num = le32_to_cpu(desc_bd.data[1]);
+	if (*mpf_bd_num < mpf_min_bd_num || *pf_bd_num < pf_min_bd_num) {
+		dev_err(dev, "Invalid bd num: mpf(%d), pf(%d)\n",
+			*mpf_bd_num, *pf_bd_num);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* hclge_handle_mpf_ras_error: handle all main PF RAS errors
  * @hdev: pointer to struct hclge_dev
  * @desc: descriptor for describing the command
@@ -1291,24 +1337,16 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 
 static int hclge_handle_all_ras_errors(struct hclge_dev *hdev)
 {
-	struct device *dev = &hdev->pdev->dev;
 	u32 mpf_bd_num, pf_bd_num, bd_num;
-	struct hclge_desc desc_bd;
 	struct hclge_desc *desc;
 	int ret;
 
 	/* query the number of registers in the RAS int status */
-	hclge_cmd_setup_basic_desc(&desc_bd, HCLGE_QUERY_RAS_INT_STS_BD_NUM,
-				   true);
-	ret = hclge_cmd_send(&hdev->hw, &desc_bd, 1);
-	if (ret) {
-		dev_err(dev, "fail(%d) to query ras int status bd num\n", ret);
+	ret = hclge_query_bd_num(hdev, true, &mpf_bd_num, &pf_bd_num);
+	if (ret)
 		return ret;
-	}
-	mpf_bd_num = le32_to_cpu(desc_bd.data[0]);
-	pf_bd_num = le32_to_cpu(desc_bd.data[1]);
-	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
 
+	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
 	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
@@ -1606,6 +1644,8 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 	if (status & HCLGE_RAS_REG_NFE_MASK ||
 	    status & HCLGE_RAS_REG_ROCEE_ERR_MASK)
 		ae_dev->hw_err_reset_req = 0;
+	else
+		goto out;
 
 	/* Handling Non-fatal HNS RAS errors */
 	if (status & HCLGE_RAS_REG_NFE_MASK) {
@@ -1613,27 +1653,22 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 			 "HNS Non-Fatal RAS error(status=0x%x) identified\n",
 			 status);
 		hclge_handle_all_ras_errors(hdev);
-	} else {
-		if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) ||
-		    hdev->pdev->revision < 0x21) {
-			ae_dev->override_pci_need_reset = 1;
-			return PCI_ERS_RESULT_RECOVERED;
-		}
 	}
 
-	if (status & HCLGE_RAS_REG_ROCEE_ERR_MASK) {
-		dev_warn(dev, "ROCEE uncorrected RAS error identified\n");
+	/* Handling Non-fatal Rocee RAS errors */
+	if (hdev->pdev->revision >= 0x21 &&
+	    status & HCLGE_RAS_REG_ROCEE_ERR_MASK) {
+		dev_warn(dev, "ROCEE Non-Fatal RAS error identified\n");
 		hclge_handle_rocee_ras_error(ae_dev);
 	}
 
-	if ((status & HCLGE_RAS_REG_NFE_MASK ||
-	     status & HCLGE_RAS_REG_ROCEE_ERR_MASK) &&
-	     ae_dev->hw_err_reset_req) {
-		ae_dev->override_pci_need_reset = 0;
-		return PCI_ERS_RESULT_NEED_RESET;
-	}
-	ae_dev->override_pci_need_reset = 1;
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		goto out;
 
+	if (ae_dev->hw_err_reset_req)
+		return PCI_ERS_RESULT_NEED_RESET;
+
+out:
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -1847,28 +1882,21 @@ static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
 	struct hclge_mac_tnl_stats mac_tnl_stats;
 	struct device *dev = &hdev->pdev->dev;
 	u32 mpf_bd_num, pf_bd_num, bd_num;
-	struct hclge_desc desc_bd;
 	struct hclge_desc *desc;
 	u32 status;
 	int ret;
 
 	/* query the number of bds for the MSIx int status */
-	hclge_cmd_setup_basic_desc(&desc_bd, HCLGE_QUERY_MSIX_INT_STS_BD_NUM,
-				   true);
-	ret = hclge_cmd_send(&hdev->hw, &desc_bd, 1);
-	if (ret) {
-		dev_err(dev, "fail(%d) to query msix int status bd num\n",
-			ret);
-		return ret;
-	}
-
-	mpf_bd_num = le32_to_cpu(desc_bd.data[0]);
-	pf_bd_num = le32_to_cpu(desc_bd.data[1]);
-	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
-
-	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
-	if (!desc)
+	ret = hclge_query_bd_num(hdev, false, &mpf_bd_num, &pf_bd_num);
+	if (ret)
 		goto out;
+
+	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
+	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	if (!desc) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	ret = hclge_handle_mpf_msix_error(hdev, desc, mpf_bd_num,
 					  reset_requests);
@@ -1931,7 +1959,6 @@ void hclge_handle_all_hns_hw_errors(struct hnae3_ae_dev *ae_dev)
 	struct hclge_dev *hdev = ae_dev->priv;
 	struct device *dev = &hdev->pdev->dev;
 	u32 mpf_bd_num, pf_bd_num, bd_num;
-	struct hclge_desc desc_bd;
 	struct hclge_desc *desc;
 	u32 status;
 	int ret;
@@ -1940,19 +1967,11 @@ void hclge_handle_all_hns_hw_errors(struct hnae3_ae_dev *ae_dev)
 	status = hclge_read_dev(&hdev->hw, HCLGE_RAS_PF_OTHER_INT_STS_REG);
 
 	/* query the number of bds for the MSIx int status */
-	hclge_cmd_setup_basic_desc(&desc_bd, HCLGE_QUERY_MSIX_INT_STS_BD_NUM,
-				   true);
-	ret = hclge_cmd_send(&hdev->hw, &desc_bd, 1);
-	if (ret) {
-		dev_err(dev, "fail(%d) to query msix int status bd num\n",
-			ret);
+	ret = hclge_query_bd_num(hdev, false, &mpf_bd_num, &pf_bd_num);
+	if (ret)
 		return;
-	}
 
-	mpf_bd_num = le32_to_cpu(desc_bd.data[0]);
-	pf_bd_num = le32_to_cpu(desc_bd.data[1]);
 	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
-
 	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc)
 		return;

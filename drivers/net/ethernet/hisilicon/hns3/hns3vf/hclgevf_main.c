@@ -1244,6 +1244,7 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 #define HCLGEVF_VLAN_MBX_MSG_LEN 5
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 msg_data[HCLGEVF_VLAN_MBX_MSG_LEN];
+	int ret;
 
 	if (vlan_id > HCLGEVF_MAX_VLAN_ID)
 		return -EINVAL;
@@ -1251,12 +1252,53 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 	if (proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
 
+	/* When device is resetting, firmware is unable to handle
+	 * mailbox. Just record the vlan id, and remove it after
+	 * reset finished.
+	 */
+	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state) && is_kill) {
+		set_bit(vlan_id, hdev->vlan_del_fail_bmap);
+		return -EBUSY;
+	}
+
 	msg_data[0] = is_kill;
 	memcpy(&msg_data[1], &vlan_id, sizeof(vlan_id));
 	memcpy(&msg_data[3], &proto, sizeof(proto));
-	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
-				    HCLGE_MBX_VLAN_FILTER, msg_data,
-				    HCLGEVF_VLAN_MBX_MSG_LEN, false, NULL, 0);
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
+				   HCLGE_MBX_VLAN_FILTER, msg_data,
+				   HCLGEVF_VLAN_MBX_MSG_LEN, false, NULL, 0);
+
+	/* When remove hw vlan filter failed, record the vlan id,
+	 * and try to remove it from hw later, to be consistence
+	 * with stack.
+	 */
+	if (is_kill && ret)
+		set_bit(vlan_id, hdev->vlan_del_fail_bmap);
+
+	return ret;
+}
+
+static void hclgevf_sync_vlan_filter(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_MAX_SYNC_COUNT	60
+	struct hnae3_handle *handle = &hdev->nic;
+	int ret, sync_cnt = 0;
+	u16 vlan_id;
+
+	vlan_id = find_first_bit(hdev->vlan_del_fail_bmap, VLAN_N_VID);
+	while (vlan_id != VLAN_N_VID) {
+		ret = hclgevf_set_vlan_filter(handle, htons(ETH_P_8021Q),
+					      vlan_id, true);
+		if (ret)
+			return;
+
+		clear_bit(vlan_id, hdev->vlan_del_fail_bmap);
+		sync_cnt++;
+		if (sync_cnt >= HCLGEVF_MAX_SYNC_COUNT)
+			return;
+
+		vlan_id = find_first_bit(hdev->vlan_del_fail_bmap, VLAN_N_VID);
+	}
 }
 
 static int hclgevf_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
@@ -1796,6 +1838,8 @@ static void hclgevf_service_task(struct work_struct *work)
 	hclgevf_request_link_info(hdev);
 
 	hclgevf_update_link_mode(hdev);
+
+	hclgevf_sync_vlan_filter(hdev);
 
 	hclgevf_deferred_task_schedule(hdev);
 
