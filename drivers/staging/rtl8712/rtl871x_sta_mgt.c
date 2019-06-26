@@ -77,14 +77,13 @@ static void mfree_all_stainfo(struct sta_priv *pstapriv)
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
 }
 
-u32 _r8712_free_sta_priv(struct sta_priv *pstapriv)
+void _r8712_free_sta_priv(struct sta_priv *pstapriv)
 {
 	if (pstapriv) {
 		/* be done before free sta_hash_lock */
 		mfree_all_stainfo(pstapriv);
 		kfree(pstapriv->pallocated_stainfo_buf);
 	}
-	return _SUCCESS;
 }
 
 struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
