@@ -467,7 +467,7 @@ uint oid_rt_pro_rf_read_registry_hdl(struct oid_par_priv *poid_par_priv)
 		 * RegDataWidth = *((unsigned long *)InformationBuffer+1);
 		 * RegDataValue =  *((unsigned long *)InformationBuffer+2);
 		 */
-			if (!r8712_getrfreg_cmd(Adapter,
+			if (r8712_getrfreg_cmd(Adapter,
 			    *(unsigned char *)poid_par_priv->information_buf,
 			    (unsigned char *)&Adapter->mppriv.workparam.io_value
 			    ))

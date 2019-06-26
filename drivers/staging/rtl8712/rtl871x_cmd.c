@@ -280,7 +280,7 @@ int r8712_setrfreg_cmd(struct _adapter  *padapter, u8 offset, u32 val)
 	return 0;
 }
 
-u8 r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
+int r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
 {
 	struct cmd_obj *ph2c;
 	struct readRF_parm *prdrfparm;
@@ -288,11 +288,11 @@ u8 r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
 	if (!ph2c)
-		return _FAIL;
+		return -ENOMEM;
 	prdrfparm = kmalloc(sizeof(*prdrfparm), GFP_ATOMIC);
 	if (!prdrfparm) {
 		kfree(ph2c);
-		return _FAIL;
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&ph2c->list);
 	ph2c->cmdcode = GEN_CMD_CODE(_GetRFReg);
@@ -302,7 +302,7 @@ u8 r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
 	ph2c->rspsz = sizeof(struct readRF_rsp);
 	prdrfparm->offset = offset;
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
+	return 0;
 }
 
 void r8712_getbbrfreg_cmdrsp_callback(struct _adapter *padapter,
