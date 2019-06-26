@@ -439,13 +439,14 @@ kp_spi_probe(struct platform_device *pldev)
 
 	drvdata = pldev->dev.platform_data;
 	if (!drvdata) {
-		dev_err(&pldev->dev, "kp_spi_probe: platform_data is NULL!\n");
+		dev_err(&pldev->dev, "%s: platform_data is NULL\n", __func__);
 		return -ENODEV;
 	}
 
 	master = spi_alloc_master(&pldev->dev, sizeof(struct kp_spi));
 	if (master == NULL) {
-		dev_err(&pldev->dev, "kp_spi_probe: master allocation failed\n");
+		dev_err(&pldev->dev, "%s: master allocation failed\n",
+			__func__);
 		return -ENOMEM;
 	}
 
@@ -469,7 +470,8 @@ kp_spi_probe(struct platform_device *pldev)
 
 	r = platform_get_resource(pldev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
-		dev_err(&pldev->dev, "kp_spi_probe: Unable to get platform resources\n");
+		dev_err(&pldev->dev, "%s: Unable to get platform resources\n",
+			__func__);
 		status = -ENODEV;
 		goto free_master;
 	}
