@@ -229,6 +229,33 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 	return __vdso_data;
 }
 
+/*
+ * x86 specific delta calculation.
+ *
+ * The regular implementation assumes that clocksource reads are globally
+ * monotonic. The TSC can be slightly off across sockets which can cause
+ * the regular delta calculation (@cycles - @last) to return a huge time
+ * jump.
+ *
+ * Therefore it needs to be verified that @cycles are greater than
+ * @last. If not then use @last, which is the base time of the current
+ * conversion period.
+ *
+ * This variant also removes the masking of the subtraction because the
+ * clocksource mask of all VDSO capable clocksources on x86 is U64_MAX
+ * which would result in a pointless operation. The compiler cannot
+ * optimize it away as the mask comes from the vdso data and is not compile
+ * time constant.
+ */
+static __always_inline
+u64 vdso_calc_delta(u64 cycles, u64 last, u64 mask, u32 mult)
+{
+	if (cycles > last)
+		return (cycles - last) * mult;
+	return 0;
+}
+#define vdso_calc_delta vdso_calc_delta
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_VDSO_GETTIMEOFDAY_H */
