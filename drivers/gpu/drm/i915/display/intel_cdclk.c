@@ -2606,7 +2606,12 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		if (dev_priv->cdclk.hw.ref == 24000)
+			dev_priv->max_cdclk_freq = 552000;
+		else
+			dev_priv->max_cdclk_freq = 556800;
+	} else if (INTEL_GEN(dev_priv) >= 11) {
 		if (dev_priv->cdclk.hw.ref == 24000)
 			dev_priv->max_cdclk_freq = 648000;
 		else
