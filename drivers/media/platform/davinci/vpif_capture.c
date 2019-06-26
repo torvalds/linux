@@ -972,7 +972,6 @@ static int vpif_try_fmt_vid_cap(struct file *file, void *priv,
 		pixfmt->bytesperline = common->fmt.fmt.pix.width * 2;
 		pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height;
 	}
-	pixfmt->priv = 0;
 
 	dev_dbg(vpif_dev, "%s: %d x %d; pitch=%d pixelformat=0x%08x, field=%d, size=%d\n", __func__,
 		pixfmt->width, pixfmt->height,

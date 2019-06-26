@@ -1510,7 +1510,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	else
 		f->fmt.pix.field = v4l2->interlaced_fieldmode ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }

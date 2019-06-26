@@ -323,7 +323,6 @@ static int cpia2_try_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage = cam->frame_size;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-	f->fmt.pix.priv = 0;
 
 	switch (cpia2_match_video_size(f->fmt.pix.width, f->fmt.pix.height)) {
 	case VIDEOSIZE_VGA:
@@ -434,7 +433,6 @@ static int cpia2_g_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage = cam->frame_size;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }

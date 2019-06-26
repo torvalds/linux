@@ -785,7 +785,6 @@ static int cobalt_try_fmt_vid_cap(struct file *file, void *priv_fh,
 
 	pix->sizeimage = pix->bytesperline * pix->height;
 	pix->field = V4L2_FIELD_NONE;
-	pix->priv = 0;
 
 	return 0;
 }
