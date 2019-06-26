@@ -1793,8 +1793,10 @@ enum i915_power_well_id {
  */
 #define _ICL_COMBOPHY_A			0x162000
 #define _ICL_COMBOPHY_B			0x6C000
+#define _EHL_COMBOPHY_C			0x160000
 #define _ICL_COMBOPHY(port)		_PICK(port, _ICL_COMBOPHY_A, \
-					      _ICL_COMBOPHY_B)
+					      _ICL_COMBOPHY_B, \
+					      _EHL_COMBOPHY_C)
 
 /* CNL/ICL Port CL_DW registers */
 #define _ICL_PORT_CL_DW(dw, port)	(_ICL_COMBOPHY(port) + \
