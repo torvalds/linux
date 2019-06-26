@@ -7,6 +7,8 @@
 #ifndef _I915_GLOBALS_H_
 #define _I915_GLOBALS_H_
 
+#include <linux/types.h>
+
 typedef void (*i915_global_func_t)(void);
 
 struct i915_global {

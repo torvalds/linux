@@ -8,6 +8,7 @@ header_test := \
 	i915_drv.h \
 	i915_fixed.h \
 	i915_gem_gtt.h \
+	i915_globals.h \
 	i915_irq.h \
 	i915_params.h \
 	i915_priolist_types.h \
