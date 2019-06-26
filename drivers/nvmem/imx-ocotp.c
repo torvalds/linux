@@ -469,8 +469,8 @@ static const struct ocotp_params imx7ulp_params = {
 
 static const struct ocotp_params imx8mq_params = {
 	.nregs = 256,
-	.bank_address_words = 4,
-	.set_timing = imx_ocotp_set_imx7_timing,
+	.bank_address_words = 0,
+	.set_timing = imx_ocotp_set_imx6_timing,
 };
 
 static const struct ocotp_params imx8mm_params = {
