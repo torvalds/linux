@@ -425,7 +425,7 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
  * Returns 0 on success or error code otherwise.
  */
 static int comp_probe(struct most_interface *iface, int channel_id,
-		      struct most_channel_config *cfg, char *name)
+		      struct most_channel_config *cfg, char *name, char *args)
 {
 	struct comp_channel *c;
 	unsigned long cl_flags;
@@ -527,8 +527,13 @@ static int __init mod_init(void)
 	err = most_register_component(&comp.cc);
 	if (err)
 		goto free_cdev;
+	err = most_register_configfs_subsys(&comp.cc);
+	if (err)
+		goto deregister_comp;
 	return 0;
 
+deregister_comp:
+	most_deregister_component(&comp.cc);
 free_cdev:
 	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
 dest_ida:
@@ -543,13 +548,14 @@ static void __exit mod_exit(void)
 
 	pr_info("exit module\n");
 
+	most_deregister_configfs_subsys(&comp.cc);
 	most_deregister_component(&comp.cc);
 
 	list_for_each_entry_safe(c, tmp, &channel_list, list) {
 		destroy_cdev(c);
 		destroy_channel(c);
 	}
-	unregister_chrdev_region(comp.devno, 1);
+	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
 	ida_destroy(&comp.minor_id);
 	class_destroy(comp.class);
 }

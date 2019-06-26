@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y := nvkm/core/client.o
 nvkm-y += nvkm/core/engine.o
 nvkm-y += nvkm/core/enum.o

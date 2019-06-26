@@ -95,7 +95,8 @@ struct uverbs_obj_type_class {
 	void (*lookup_put)(struct ib_uobject *uobj, enum rdma_lookup_mode mode);
 	/* This does not consume the kref on uobj */
 	int __must_check (*destroy_hw)(struct ib_uobject *uobj,
-				       enum rdma_remove_reason why);
+				       enum rdma_remove_reason why,
+				       struct uverbs_attr_bundle *attrs);
 	void (*remove_handle)(struct ib_uobject *uobj);
 	u8    needs_kfree_rcu;
 };
@@ -126,18 +127,23 @@ struct uverbs_obj_idr_type {
 	 * completely unchanged.
 	 */
 	int __must_check (*destroy_object)(struct ib_uobject *uobj,
-					   enum rdma_remove_reason why);
+					   enum rdma_remove_reason why,
+					   struct uverbs_attr_bundle *attrs);
 };
 
 struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 					   struct ib_uverbs_file *ufile, s64 id,
-					   enum rdma_lookup_mode mode);
+					   enum rdma_lookup_mode mode,
+					   struct uverbs_attr_bundle *attrs);
 void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 			     enum rdma_lookup_mode mode);
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
-					    struct ib_uverbs_file *ufile);
-void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
-int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj);
+					    struct ib_uverbs_file *ufile,
+					    struct uverbs_attr_bundle *attrs);
+void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
+			      struct uverbs_attr_bundle *attrs);
+int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj,
+					   struct uverbs_attr_bundle *attrs);
 
 struct uverbs_obj_fd_type {
 	/*

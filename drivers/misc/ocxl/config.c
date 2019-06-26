@@ -2,8 +2,8 @@
 // Copyright 2017 IBM Corp.
 #include <linux/pci.h>
 #include <asm/pnv-ocxl.h>
-#include <misc/ocxl.h>
 #include <misc/ocxl-config.h>
+#include "ocxl_internal.h"
 
 #define EXTRACT_BIT(val, bit) (!!(val & BIT(bit)))
 #define EXTRACT_BITS(val, s, e) ((val & GENMASK(e, s)) >> s)
@@ -68,7 +68,7 @@ static int find_dvsec_afu_ctrl(struct pci_dev *dev, u8 afu_idx)
 	return 0;
 }
 
-static int read_pasid(struct pci_dev *dev, struct ocxl_fn_config *fn)
+static void read_pasid(struct pci_dev *dev, struct ocxl_fn_config *fn)
 {
 	u16 val;
 	int pos;
@@ -89,7 +89,6 @@ static int read_pasid(struct pci_dev *dev, struct ocxl_fn_config *fn)
 out:
 	dev_dbg(&dev->dev, "PASID capability:\n");
 	dev_dbg(&dev->dev, "  Max PASID log = %d\n", fn->max_pasid_log);
-	return 0;
 }
 
 static int read_dvsec_tl(struct pci_dev *dev, struct ocxl_fn_config *fn)
@@ -205,11 +204,7 @@ int ocxl_config_read_function(struct pci_dev *dev, struct ocxl_fn_config *fn)
 {
 	int rc;
 
-	rc = read_pasid(dev, fn);
-	if (rc) {
-		dev_err(&dev->dev, "Invalid PASID configuration: %d\n", rc);
-		return -ENODEV;
-	}
+	read_pasid(dev, fn);
 
 	rc = read_dvsec_tl(dev, fn);
 	if (rc) {
@@ -304,7 +299,6 @@ int ocxl_config_check_afu_index(struct pci_dev *dev,
 	}
 	return 1;
 }
-EXPORT_SYMBOL_GPL(ocxl_config_check_afu_index);
 
 static int read_afu_name(struct pci_dev *dev, struct ocxl_fn_config *fn,
 			struct ocxl_afu_config *afu)
@@ -540,7 +534,6 @@ int ocxl_config_get_pasid_info(struct pci_dev *dev, int *count)
 {
 	return pnv_ocxl_get_pasid_count(dev, count);
 }
-EXPORT_SYMBOL_GPL(ocxl_config_get_pasid_info);
 
 void ocxl_config_set_afu_pasid(struct pci_dev *dev, int pos, int pasid_base,
 			u32 pasid_count_log)

@@ -354,8 +354,10 @@ this ioctl is called until no further expire candidates are found.
 
 The call requires an initialized struct autofs_dev_ioctl with the
 ioctlfd field set to the descriptor obtained from the open call. In
-addition an immediate expire, independent of the mount timeout, can be
-requested by setting the how field of struct args_expire to 1. If no
+addition an immediate expire that's independent of the mount timeout,
+and a forced expire that's independent of whether the mount is busy,
+can be requested by setting the how field of struct args_expire to
+AUTOFS_EXP_IMMEDIATE or AUTOFS_EXP_FORCED, respectively . If no
 expire candidates can be found the ioctl returns -1 with errno set to
 EAGAIN.
 

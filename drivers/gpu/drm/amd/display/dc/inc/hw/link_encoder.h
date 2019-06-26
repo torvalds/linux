@@ -59,6 +59,7 @@ struct encoder_feature_support {
 			uint32_t IS_TPS3_CAPABLE:1;
 			uint32_t IS_TPS4_CAPABLE:1;
 			uint32_t HDMI_6GB_EN:1;
+			uint32_t DP_IS_USB_C:1;
 		} bits;
 		uint32_t raw;
 	} flags;

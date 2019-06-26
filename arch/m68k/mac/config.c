@@ -54,8 +54,6 @@ struct mac_booter_data mac_bi_data;
 /* The phys. video addr. - might be bogus on some machines */
 static unsigned long mac_orig_videoaddr;
 
-/* Mac specific timer functions */
-extern u32 mac_gettimeoffset(void);
 extern int mac_hwclk(int, struct rtc_time *);
 extern void iop_preinit(void);
 extern void iop_init(void);
@@ -155,7 +153,6 @@ void __init config_mac(void)
 	mach_sched_init = mac_sched_init;
 	mach_init_IRQ = mac_init_IRQ;
 	mach_get_model = mac_get_model;
-	arch_gettimeoffset = mac_gettimeoffset;
 	mach_hwclk = mac_hwclk;
 	mach_reset = mac_reset;
 	mach_halt = mac_poweroff;

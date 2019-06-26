@@ -960,9 +960,9 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 		return -1;
 	}
 	regVal = pm8001_cr32(pm8001_ha, 2, GPIO_GPIO_0_0UTPUT_CTL_OFFSET);
-		PM8001_INIT_DBG(pm8001_ha,
-				pm8001_printk("GPIO Output Control Register:"
-				" = 0x%x\n", regVal));
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("GPIO Output Control Register:"
+			" = 0x%x\n", regVal));
 	/* set GPIO-0 output control to tri-state */
 	regVal &= 0xFFFFFFFC;
 	pm8001_cw32(pm8001_ha, 2, GPIO_GPIO_0_0UTPUT_CTL_OFFSET, regVal);
@@ -1204,6 +1204,7 @@ void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha)
 	}
 }
 
+#ifndef PM8001_USE_MSIX
 /**
  * pm8001_chip_interrupt_enable - enable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
@@ -1224,6 +1225,8 @@ pm8001_chip_intx_interrupt_disable(struct pm8001_hba_info *pm8001_ha)
 {
 	pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, ODMR_MASK_ALL);
 }
+
+#else
 
 /**
  * pm8001_chip_msix_interrupt_enable - enable PM8001 chip interrupt
@@ -1256,6 +1259,7 @@ pm8001_chip_msix_interrupt_disable(struct pm8001_hba_info *pm8001_ha,
 	msi_index += MSIX_TABLE_BASE;
 	pm8001_cw32(pm8001_ha, 0,  msi_index, MSIX_INTERRUPT_DISABLE);
 }
+#endif
 
 /**
  * pm8001_chip_interrupt_enable - enable PM8001 chip interrupt
@@ -1266,10 +1270,9 @@ pm8001_chip_interrupt_enable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
 #ifdef PM8001_USE_MSIX
 	pm8001_chip_msix_interrupt_enable(pm8001_ha, 0);
-	return;
-#endif
+#else
 	pm8001_chip_intx_interrupt_enable(pm8001_ha);
-
+#endif
 }
 
 /**
@@ -1281,10 +1284,9 @@ pm8001_chip_interrupt_disable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
 #ifdef PM8001_USE_MSIX
 	pm8001_chip_msix_interrupt_disable(pm8001_ha, 0);
-	return;
-#endif
+#else
 	pm8001_chip_intx_interrupt_disable(pm8001_ha);
-
+#endif
 }
 
 /**
@@ -2898,7 +2900,6 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 static void
 mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
-	u32 param;
 	struct sas_task *t;
 	struct pm8001_ccb_info *ccb;
 	unsigned long flags;
@@ -2913,7 +2914,6 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	tag = le32_to_cpu(psmpPayload->tag);
 
 	ccb = &pm8001_ha->ccb_info[tag];
-	param = le32_to_cpu(psmpPayload->param);
 	t = ccb->task;
 	ts = &t->task_status;
 	pm8001_dev = ccb->device;
@@ -2928,7 +2928,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS\n"));
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAM_STAT_GOOD;
-	if (pm8001_dev)
+		if (pm8001_dev)
 			pm8001_dev->running_req--;
 		break;
 	case IO_ABORTED:
@@ -3244,11 +3244,9 @@ void pm8001_bytes_dmaed(struct pm8001_hba_info *pm8001_ha, int i)
 {
 	struct pm8001_phy *phy = &pm8001_ha->phy[i];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	struct sas_ha_struct *sas_ha;
 	if (!phy->phy_attached)
 		return;
 
-	sas_ha = pm8001_ha->sas;
 	if (sas_phy->phy) {
 		struct sas_phy *sphy = sas_phy->phy;
 		sphy->negotiated_linkrate = sas_phy->linkrate;
@@ -4627,17 +4625,18 @@ static int pm8001_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
 	return ret;
 }
 
-static u32 pm8001_chip_is_our_interupt(struct pm8001_hba_info *pm8001_ha)
+static u32 pm8001_chip_is_our_interrupt(struct pm8001_hba_info *pm8001_ha)
 {
-	u32 value;
 #ifdef PM8001_USE_MSIX
 	return 1;
-#endif
+#else
+	u32 value;
+
 	value = pm8001_cr32(pm8001_ha, 0, MSGU_ODR);
 	if (value)
 		return 1;
 	return 0;
-
+#endif
 }
 
 /**
@@ -5123,7 +5122,7 @@ const struct pm8001_dispatch pm8001_8001_dispatch = {
 	.chip_rst		= pm8001_hw_chip_rst,
 	.chip_iounmap		= pm8001_chip_iounmap,
 	.isr			= pm8001_chip_isr,
-	.is_our_interupt	= pm8001_chip_is_our_interupt,
+	.is_our_interrupt	= pm8001_chip_is_our_interrupt,
 	.isr_process_oq		= process_oq,
 	.interrupt_enable 	= pm8001_chip_interrupt_enable,
 	.interrupt_disable	= pm8001_chip_interrupt_disable,

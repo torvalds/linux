@@ -811,6 +811,22 @@ static inline bool clk_has_parent(struct clk *clk, struct clk *parent)
 	return true;
 }
 
+static inline int clk_set_rate_range(struct clk *clk, unsigned long min,
+				     unsigned long max)
+{
+	return 0;
+}
+
+static inline int clk_set_min_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+}
+
+static inline int clk_set_max_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+}
+
 static inline int clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	return 0;

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DA8XX/OMAP L1XX platform device data
  *
  * Copyright (c) 2007-2009, MontaVista Software, Inc. <source@mvista.com>
  * Derived from code that was:
  *	Copyright (C) 2006 Komal Shah <komal_shah802003@yahoo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/ahci_platform.h>
 #include <linux/clk-provider.h>
@@ -17,6 +13,7 @@
 #include <linux/dma-contiguous.h>
 #include <linux/dmaengine.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>

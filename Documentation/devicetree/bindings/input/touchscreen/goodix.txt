@@ -3,6 +3,7 @@ Device tree bindings for Goodix GT9xx series touchscreen controller
 Required properties:
 
  - compatible		: Should be "goodix,gt1151"
+				 or "goodix,gt5663"
 				 or "goodix,gt5688"
 				 or "goodix,gt911"
 				 or "goodix,gt9110"
@@ -19,6 +20,8 @@ Optional properties:
  - irq-gpios		: GPIO pin used for IRQ. The driver uses the
 			  interrupt gpio pin as output to reset the device.
  - reset-gpios		: GPIO pin used for reset
+ - AVDD28-supply	: Analog power supply regulator on AVDD28 pin
+ - VDDIO-supply		: GPIO power supply regulator on VDDIO pin
  - touchscreen-inverted-x
  - touchscreen-inverted-y
  - touchscreen-size-x

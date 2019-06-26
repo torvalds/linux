@@ -49,6 +49,7 @@ static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
 static int comp_sack_nr_max = 255;
 static u32 u32_max_div_HZ = UINT_MAX / HZ;
+static int one_day_secs = 24 * 3600;
 
 /* obsolete */
 static int sysctl_tcp_low_latency __read_mostly;
@@ -548,6 +549,15 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(sysctl_udp_mem),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "fib_sync_mem",
+		.data		= &sysctl_fib_sync_mem,
+		.maxlen		= sizeof(sysctl_fib_sync_mem),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= &sysctl_fib_sync_mem_min,
+		.extra2		= &sysctl_fib_sync_mem_max,
 	},
 	{ }
 };
@@ -1151,7 +1161,9 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_min_rtt_wlen,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one_day_secs
 	},
 	{
 		.procname	= "tcp_autocorking",

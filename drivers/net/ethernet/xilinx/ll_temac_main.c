@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Xilinx TEMAC Ethernet device
  *
@@ -33,6 +34,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
+#include <linux/if_ether.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
@@ -51,6 +53,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_data/xilinx-ll-temac.h>
 
 #include "ll_temac.h"
 
@@ -61,14 +64,24 @@
  * Low level register access functions
  */
 
-u32 temac_ior(struct temac_local *lp, int offset)
+static u32 _temac_ior_be(struct temac_local *lp, int offset)
 {
-	return in_be32(lp->regs + offset);
+	return ioread32be(lp->regs + offset);
 }
 
-void temac_iow(struct temac_local *lp, int offset, u32 value)
+static void _temac_iow_be(struct temac_local *lp, int offset, u32 value)
 {
-	out_be32(lp->regs + offset, value);
+	return iowrite32be(value, lp->regs + offset);
+}
+
+static u32 _temac_ior_le(struct temac_local *lp, int offset)
+{
+	return ioread32(lp->regs + offset);
+}
+
+static void _temac_iow_le(struct temac_local *lp, int offset, u32 value)
+{
+	return iowrite32(value, lp->regs + offset);
 }
 
 int temac_indirect_busywait(struct temac_local *lp)
@@ -80,7 +93,7 @@ int temac_indirect_busywait(struct temac_local *lp)
 			WARN_ON(1);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(500, 1000);
 	}
 	return 0;
 }
@@ -119,23 +132,35 @@ void temac_indirect_out32(struct temac_local *lp, int reg, u32 value)
 }
 
 /**
- * temac_dma_in32 - Memory mapped DMA read, this function expects a
- * register input that is based on DCR word addresses which
- * are then converted to memory mapped byte addresses
+ * temac_dma_in32_* - Memory mapped DMA read, these function expects a
+ * register input that is based on DCR word addresses which are then
+ * converted to memory mapped byte addresses.  To be assigned to
+ * lp->dma_in32.
  */
-static u32 temac_dma_in32(struct temac_local *lp, int reg)
+static u32 temac_dma_in32_be(struct temac_local *lp, int reg)
 {
-	return in_be32(lp->sdma_regs + (reg << 2));
+	return ioread32be(lp->sdma_regs + (reg << 2));
+}
+
+static u32 temac_dma_in32_le(struct temac_local *lp, int reg)
+{
+	return ioread32(lp->sdma_regs + (reg << 2));
 }
 
 /**
- * temac_dma_out32 - Memory mapped DMA read, this function expects a
- * register input that is based on DCR word addresses which
- * are then converted to memory mapped byte addresses
+ * temac_dma_out32_* - Memory mapped DMA read, these function expects
+ * a register input that is based on DCR word addresses which are then
+ * converted to memory mapped byte addresses.  To be assigned to
+ * lp->dma_out32.
  */
-static void temac_dma_out32(struct temac_local *lp, int reg, u32 value)
+static void temac_dma_out32_be(struct temac_local *lp, int reg, u32 value)
 {
-	out_be32(lp->sdma_regs + (reg << 2), value);
+	iowrite32be(value, lp->sdma_regs + (reg << 2));
+}
+
+static void temac_dma_out32_le(struct temac_local *lp, int reg, u32 value)
+{
+	iowrite32(value, lp->sdma_regs + (reg << 2));
 }
 
 /* DMA register access functions can be DCR based or memory mapped.
@@ -187,7 +212,7 @@ static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 
 /*
  * temac_dcr_setup - This is a stub for when DCR is not supported,
- * such as with MicroBlaze
+ * such as with MicroBlaze and x86
  */
 static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 				struct device_node *np)
@@ -225,7 +250,6 @@ static void temac_dma_bd_release(struct net_device *ndev)
 		dma_free_coherent(ndev->dev.parent,
 				sizeof(*lp->tx_bd_v) * TX_BD_NUM,
 				lp->tx_bd_v, lp->tx_bd_p);
-	kfree(lp->rx_skb);
 }
 
 /**
@@ -235,9 +259,11 @@ static int temac_dma_bd_init(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 	struct sk_buff *skb;
+	dma_addr_t skb_dma_addr;
 	int i;
 
-	lp->rx_skb = kcalloc(RX_BD_NUM, sizeof(*lp->rx_skb), GFP_KERNEL);
+	lp->rx_skb = devm_kcalloc(&ndev->dev, RX_BD_NUM, sizeof(*lp->rx_skb),
+				  GFP_KERNEL);
 	if (!lp->rx_skb)
 		goto out;
 
@@ -256,13 +282,13 @@ static int temac_dma_bd_init(struct net_device *ndev)
 		goto out;
 
 	for (i = 0; i < TX_BD_NUM; i++) {
-		lp->tx_bd_v[i].next = lp->tx_bd_p +
-				sizeof(*lp->tx_bd_v) * ((i + 1) % TX_BD_NUM);
+		lp->tx_bd_v[i].next = cpu_to_be32(lp->tx_bd_p
+				+ sizeof(*lp->tx_bd_v) * ((i + 1) % TX_BD_NUM));
 	}
 
 	for (i = 0; i < RX_BD_NUM; i++) {
-		lp->rx_bd_v[i].next = lp->rx_bd_p +
-				sizeof(*lp->rx_bd_v) * ((i + 1) % RX_BD_NUM);
+		lp->rx_bd_v[i].next = cpu_to_be32(lp->rx_bd_p
+				+ sizeof(*lp->rx_bd_v) * ((i + 1) % RX_BD_NUM));
 
 		skb = netdev_alloc_skb_ip_align(ndev,
 						XTE_MAX_JUMBO_FRAME_SIZE);
@@ -271,37 +297,38 @@ static int temac_dma_bd_init(struct net_device *ndev)
 
 		lp->rx_skb[i] = skb;
 		/* returns physical address of skb->data */
-		lp->rx_bd_v[i].phys = dma_map_single(ndev->dev.parent,
-						     skb->data,
-						     XTE_MAX_JUMBO_FRAME_SIZE,
-						     DMA_FROM_DEVICE);
-		lp->rx_bd_v[i].len = XTE_MAX_JUMBO_FRAME_SIZE;
-		lp->rx_bd_v[i].app0 = STS_CTRL_APP0_IRQONEND;
+		skb_dma_addr = dma_map_single(ndev->dev.parent, skb->data,
+					      XTE_MAX_JUMBO_FRAME_SIZE,
+					      DMA_FROM_DEVICE);
+		lp->rx_bd_v[i].phys = cpu_to_be32(skb_dma_addr);
+		lp->rx_bd_v[i].len = cpu_to_be32(XTE_MAX_JUMBO_FRAME_SIZE);
+		lp->rx_bd_v[i].app0 = cpu_to_be32(STS_CTRL_APP0_IRQONEND);
 	}
 
-	lp->dma_out(lp, TX_CHNL_CTRL, 0x10220400 |
-					  CHNL_CTRL_IRQ_EN |
-					  CHNL_CTRL_IRQ_DLY_EN |
-					  CHNL_CTRL_IRQ_COAL_EN);
-	/* 0x10220483 */
-	/* 0x00100483 */
-	lp->dma_out(lp, RX_CHNL_CTRL, 0xff070000 |
-					  CHNL_CTRL_IRQ_EN |
-					  CHNL_CTRL_IRQ_DLY_EN |
-					  CHNL_CTRL_IRQ_COAL_EN |
-					  CHNL_CTRL_IRQ_IOE);
-	/* 0xff010283 */
-
-	lp->dma_out(lp, RX_CURDESC_PTR,  lp->rx_bd_p);
-	lp->dma_out(lp, RX_TAILDESC_PTR,
-		       lp->rx_bd_p + (sizeof(*lp->rx_bd_v) * (RX_BD_NUM - 1)));
-	lp->dma_out(lp, TX_CURDESC_PTR, lp->tx_bd_p);
+	/* Configure DMA channel (irq setup) */
+	lp->dma_out(lp, TX_CHNL_CTRL, lp->tx_chnl_ctrl |
+		    0x00000400 | // Use 1 Bit Wide Counters. Currently Not Used!
+		    CHNL_CTRL_IRQ_EN | CHNL_CTRL_IRQ_ERR_EN |
+		    CHNL_CTRL_IRQ_DLY_EN | CHNL_CTRL_IRQ_COAL_EN);
+	lp->dma_out(lp, RX_CHNL_CTRL, lp->rx_chnl_ctrl |
+		    CHNL_CTRL_IRQ_IOE |
+		    CHNL_CTRL_IRQ_EN | CHNL_CTRL_IRQ_ERR_EN |
+		    CHNL_CTRL_IRQ_DLY_EN | CHNL_CTRL_IRQ_COAL_EN);
 
 	/* Init descriptor indexes */
 	lp->tx_bd_ci = 0;
 	lp->tx_bd_next = 0;
 	lp->tx_bd_tail = 0;
 	lp->rx_bd_ci = 0;
+
+	/* Enable RX DMA transfers */
+	wmb();
+	lp->dma_out(lp, RX_CURDESC_PTR,  lp->rx_bd_p);
+	lp->dma_out(lp, RX_TAILDESC_PTR,
+		       lp->rx_bd_p + (sizeof(*lp->rx_bd_v) * (RX_BD_NUM - 1)));
+
+	/* Prepare for TX DMA transfer */
+	lp->dma_out(lp, TX_CURDESC_PTR, lp->tx_bd_p);
 
 	return 0;
 
@@ -319,7 +346,7 @@ static void temac_do_set_mac_address(struct net_device *ndev)
 	struct temac_local *lp = netdev_priv(ndev);
 
 	/* set up unicast MAC address filter set its mac address */
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	temac_indirect_out32(lp, XTE_UAW0_OFFSET,
 			     (ndev->dev_addr[0]) |
 			     (ndev->dev_addr[1] << 8) |
@@ -330,12 +357,12 @@ static void temac_do_set_mac_address(struct net_device *ndev)
 	temac_indirect_out32(lp, XTE_UAW1_OFFSET,
 			     (ndev->dev_addr[4] & 0x000000ff) |
 			     (ndev->dev_addr[5] << 8));
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 }
 
 static int temac_init_mac_address(struct net_device *ndev, const void *address)
 {
-	memcpy(ndev->dev_addr, address, ETH_ALEN);
+	ether_addr_copy(ndev->dev_addr, address);
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 	temac_do_set_mac_address(ndev);
@@ -359,7 +386,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 	u32 multi_addr_msw, multi_addr_lsw, val;
 	int i;
 
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	if (ndev->flags & (IFF_ALLMULTI | IFF_PROMISC) ||
 	    netdev_mc_count(ndev) > MULTICAST_CAM_TABLE_NUM) {
 		/*
@@ -398,7 +425,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 		temac_indirect_out32(lp, XTE_MAW1_OFFSET, 0);
 		dev_info(&ndev->dev, "Promiscuous mode disabled.\n");
 	}
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 }
 
 static struct temac_option {
@@ -490,7 +517,7 @@ static u32 temac_setoptions(struct net_device *ndev, u32 options)
 	struct temac_option *tp = &temac_options[0];
 	int reg;
 
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	while (tp->opt) {
 		reg = temac_indirect_in32(lp, tp->reg) & ~tp->m_or;
 		if (options & tp->opt)
@@ -499,7 +526,7 @@ static u32 temac_setoptions(struct net_device *ndev, u32 options)
 		tp++;
 	}
 	lp->options |= options;
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 
 	return 0;
 }
@@ -518,7 +545,7 @@ static void temac_device_reset(struct net_device *ndev)
 
 	dev_dbg(&ndev->dev, "%s()\n", __func__);
 
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	/* Reset the receiver and wait for it to finish reset */
 	temac_indirect_out32(lp, XTE_RXC1_OFFSET, XTE_RXC1_RXRST_MASK);
 	timeout = 1000;
@@ -570,7 +597,7 @@ static void temac_device_reset(struct net_device *ndev)
 	temac_indirect_out32(lp, XTE_TXC_OFFSET, 0);
 	temac_indirect_out32(lp, XTE_FCC_OFFSET, XTE_FCC_RXFLO_MASK);
 
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 
 	/* Sync default options with HW
 	 * but leave receiver and transmitter disabled.  */
@@ -598,7 +625,7 @@ static void temac_adjust_link(struct net_device *ndev)
 	/* hash together the state values to decide if something has changed */
 	link_state = phy->speed | (phy->duplex << 1) | phy->link;
 
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	if (lp->last_link != link_state) {
 		mii_speed = temac_indirect_in32(lp, XTE_EMCFG_OFFSET);
 		mii_speed &= ~XTE_EMCFG_LINKSPD_MASK;
@@ -614,23 +641,52 @@ static void temac_adjust_link(struct net_device *ndev)
 		lp->last_link = link_state;
 		phy_print_status(phy);
 	}
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 }
+
+#ifdef CONFIG_64BIT
+
+static void ptr_to_txbd(void *p, struct cdmac_bd *bd)
+{
+	bd->app3 = (u32)(((u64)p) >> 32);
+	bd->app4 = (u32)((u64)p & 0xFFFFFFFF);
+}
+
+static void *ptr_from_txbd(struct cdmac_bd *bd)
+{
+	return (void *)(((u64)(bd->app3) << 32) | bd->app4);
+}
+
+#else
+
+static void ptr_to_txbd(void *p, struct cdmac_bd *bd)
+{
+	bd->app4 = (u32)p;
+}
+
+static void *ptr_from_txbd(struct cdmac_bd *bd)
+{
+	return (void *)(bd->app4);
+}
+
+#endif
 
 static void temac_start_xmit_done(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 	struct cdmac_bd *cur_p;
 	unsigned int stat = 0;
+	struct sk_buff *skb;
 
 	cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
-	stat = cur_p->app0;
+	stat = be32_to_cpu(cur_p->app0);
 
 	while (stat & STS_CTRL_APP0_CMPLT) {
-		dma_unmap_single(ndev->dev.parent, cur_p->phys, cur_p->len,
-				 DMA_TO_DEVICE);
-		if (cur_p->app4)
-			dev_consume_skb_irq((struct sk_buff *)cur_p->app4);
+		dma_unmap_single(ndev->dev.parent, be32_to_cpu(cur_p->phys),
+				 be32_to_cpu(cur_p->len), DMA_TO_DEVICE);
+		skb = (struct sk_buff *)ptr_from_txbd(cur_p);
+		if (skb)
+			dev_consume_skb_irq(skb);
 		cur_p->app0 = 0;
 		cur_p->app1 = 0;
 		cur_p->app2 = 0;
@@ -638,14 +694,14 @@ static void temac_start_xmit_done(struct net_device *ndev)
 		cur_p->app4 = 0;
 
 		ndev->stats.tx_packets++;
-		ndev->stats.tx_bytes += cur_p->len;
+		ndev->stats.tx_bytes += be32_to_cpu(cur_p->len);
 
 		lp->tx_bd_ci++;
 		if (lp->tx_bd_ci >= TX_BD_NUM)
 			lp->tx_bd_ci = 0;
 
 		cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
-		stat = cur_p->app0;
+		stat = be32_to_cpu(cur_p->app0);
 	}
 
 	netif_wake_queue(ndev);
@@ -679,7 +735,7 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 	struct cdmac_bd *cur_p;
-	dma_addr_t start_p, tail_p;
+	dma_addr_t start_p, tail_p, skb_dma_addr;
 	int ii;
 	unsigned long num_frag;
 	skb_frag_t *frag;
@@ -689,7 +745,7 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	start_p = lp->tx_bd_p + sizeof(*lp->tx_bd_v) * lp->tx_bd_tail;
 	cur_p = &lp->tx_bd_v[lp->tx_bd_tail];
 
-	if (temac_check_tx_bd_space(lp, num_frag)) {
+	if (temac_check_tx_bd_space(lp, num_frag + 1)) {
 		if (!netif_queue_stopped(ndev))
 			netif_stop_queue(ndev);
 		return NETDEV_TX_BUSY;
@@ -700,16 +756,18 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		unsigned int csum_start_off = skb_checksum_start_offset(skb);
 		unsigned int csum_index_off = csum_start_off + skb->csum_offset;
 
-		cur_p->app0 |= 1; /* TX Checksum Enabled */
-		cur_p->app1 = (csum_start_off << 16) | csum_index_off;
+		cur_p->app0 |= cpu_to_be32(0x000001); /* TX Checksum Enabled */
+		cur_p->app1 = cpu_to_be32((csum_start_off << 16)
+					  | csum_index_off);
 		cur_p->app2 = 0;  /* initial checksum seed */
 	}
 
-	cur_p->app0 |= STS_CTRL_APP0_SOP;
-	cur_p->len = skb_headlen(skb);
-	cur_p->phys = dma_map_single(ndev->dev.parent, skb->data,
-				     skb_headlen(skb), DMA_TO_DEVICE);
-	cur_p->app4 = (unsigned long)skb;
+	cur_p->app0 |= cpu_to_be32(STS_CTRL_APP0_SOP);
+	skb_dma_addr = dma_map_single(ndev->dev.parent, skb->data,
+				      skb_headlen(skb), DMA_TO_DEVICE);
+	cur_p->len = cpu_to_be32(skb_headlen(skb));
+	cur_p->phys = cpu_to_be32(skb_dma_addr);
+	ptr_to_txbd((void *)skb, cur_p);
 
 	for (ii = 0; ii < num_frag; ii++) {
 		lp->tx_bd_tail++;
@@ -717,14 +775,16 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			lp->tx_bd_tail = 0;
 
 		cur_p = &lp->tx_bd_v[lp->tx_bd_tail];
-		cur_p->phys = dma_map_single(ndev->dev.parent,
-					     skb_frag_address(frag),
-					     skb_frag_size(frag), DMA_TO_DEVICE);
-		cur_p->len = skb_frag_size(frag);
+		skb_dma_addr = dma_map_single(ndev->dev.parent,
+					      skb_frag_address(frag),
+					      skb_frag_size(frag),
+					      DMA_TO_DEVICE);
+		cur_p->phys = cpu_to_be32(skb_dma_addr);
+		cur_p->len = cpu_to_be32(skb_frag_size(frag));
 		cur_p->app0 = 0;
 		frag++;
 	}
-	cur_p->app0 |= STS_CTRL_APP0_EOP;
+	cur_p->app0 |= cpu_to_be32(STS_CTRL_APP0_EOP);
 
 	tail_p = lp->tx_bd_p + sizeof(*lp->tx_bd_v) * lp->tx_bd_tail;
 	lp->tx_bd_tail++;
@@ -734,6 +794,7 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	skb_tx_timestamp(skb);
 
 	/* Kick off the transfer */
+	wmb();
 	lp->dma_out(lp, TX_TAILDESC_PTR, tail_p); /* DMA start */
 
 	return NETDEV_TX_OK;
@@ -746,7 +807,7 @@ static void ll_temac_recv(struct net_device *ndev)
 	struct sk_buff *skb, *new_skb;
 	unsigned int bdstat;
 	struct cdmac_bd *cur_p;
-	dma_addr_t tail_p;
+	dma_addr_t tail_p, skb_dma_addr;
 	int length;
 	unsigned long flags;
 
@@ -755,14 +816,14 @@ static void ll_temac_recv(struct net_device *ndev)
 	tail_p = lp->rx_bd_p + sizeof(*lp->rx_bd_v) * lp->rx_bd_ci;
 	cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
 
-	bdstat = cur_p->app0;
+	bdstat = be32_to_cpu(cur_p->app0);
 	while ((bdstat & STS_CTRL_APP0_CMPLT)) {
 
 		skb = lp->rx_skb[lp->rx_bd_ci];
-		length = cur_p->app4 & 0x3FFF;
+		length = be32_to_cpu(cur_p->app4) & 0x3FFF;
 
-		dma_unmap_single(ndev->dev.parent, cur_p->phys, length,
-				 DMA_FROM_DEVICE);
+		dma_unmap_single(ndev->dev.parent, be32_to_cpu(cur_p->phys),
+				 XTE_MAX_JUMBO_FRAME_SIZE, DMA_FROM_DEVICE);
 
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, ndev);
@@ -773,7 +834,12 @@ static void ll_temac_recv(struct net_device *ndev)
 		    (skb->protocol == htons(ETH_P_IP)) &&
 		    (skb->len > 64)) {
 
-			skb->csum = cur_p->app3 & 0xFFFF;
+			/* Convert from device endianness (be32) to cpu
+			 * endiannes, and if necessary swap the bytes
+			 * (back) for proper IP checksum byte order
+			 * (be16).
+			 */
+			skb->csum = htons(be32_to_cpu(cur_p->app3) & 0xFFFF);
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		}
 
@@ -790,11 +856,12 @@ static void ll_temac_recv(struct net_device *ndev)
 			return;
 		}
 
-		cur_p->app0 = STS_CTRL_APP0_IRQONEND;
-		cur_p->phys = dma_map_single(ndev->dev.parent, new_skb->data,
-					     XTE_MAX_JUMBO_FRAME_SIZE,
-					     DMA_FROM_DEVICE);
-		cur_p->len = XTE_MAX_JUMBO_FRAME_SIZE;
+		cur_p->app0 = cpu_to_be32(STS_CTRL_APP0_IRQONEND);
+		skb_dma_addr = dma_map_single(ndev->dev.parent, new_skb->data,
+					      XTE_MAX_JUMBO_FRAME_SIZE,
+					      DMA_FROM_DEVICE);
+		cur_p->phys = cpu_to_be32(skb_dma_addr);
+		cur_p->len = cpu_to_be32(XTE_MAX_JUMBO_FRAME_SIZE);
 		lp->rx_skb[lp->rx_bd_ci] = new_skb;
 
 		lp->rx_bd_ci++;
@@ -802,7 +869,7 @@ static void ll_temac_recv(struct net_device *ndev)
 			lp->rx_bd_ci = 0;
 
 		cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
-		bdstat = cur_p->app0;
+		bdstat = be32_to_cpu(cur_p->app0);
 	}
 	lp->dma_out(lp, RX_TAILDESC_PTR, tail_p);
 
@@ -820,8 +887,10 @@ static irqreturn_t ll_temac_tx_irq(int irq, void *_ndev)
 
 	if (status & (IRQ_COAL | IRQ_DLY))
 		temac_start_xmit_done(lp->ndev);
-	if (status & 0x080)
-		dev_err(&ndev->dev, "DMA error 0x%x\n", status);
+	if (status & (IRQ_ERR | IRQ_DMAERR))
+		dev_err_ratelimited(&ndev->dev,
+				    "TX error 0x%x TX_CHNL_STS=0x%08x\n",
+				    status, lp->dma_in(lp, TX_CHNL_STS));
 
 	return IRQ_HANDLED;
 }
@@ -838,6 +907,10 @@ static irqreturn_t ll_temac_rx_irq(int irq, void *_ndev)
 
 	if (status & (IRQ_COAL | IRQ_DLY))
 		ll_temac_recv(lp->ndev);
+	if (status & (IRQ_ERR | IRQ_DMAERR))
+		dev_err_ratelimited(&ndev->dev,
+				    "RX error 0x%x RX_CHNL_STS=0x%08x\n",
+				    status, lp->dma_in(lp, RX_CHNL_STS));
 
 	return IRQ_HANDLED;
 }
@@ -857,7 +930,14 @@ static int temac_open(struct net_device *ndev)
 			dev_err(lp->dev, "of_phy_connect() failed\n");
 			return -ENODEV;
 		}
-
+		phy_start(phydev);
+	} else if (strlen(lp->phy_name) > 0) {
+		phydev = phy_connect(lp->ndev, lp->phy_name, temac_adjust_link,
+				     lp->phy_interface);
+		if (IS_ERR(phydev)) {
+			dev_err(lp->dev, "phy_connect() failed\n");
+			return PTR_ERR(phydev);
+		}
 		phy_start(phydev);
 	}
 
@@ -977,22 +1057,25 @@ static const struct ethtool_ops temac_ethtool_ops = {
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
-static int temac_of_probe(struct platform_device *op)
+static int temac_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct ll_temac_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node *temac_np = dev_of_node(&pdev->dev), *dma_np;
 	struct temac_local *lp;
 	struct net_device *ndev;
+	struct resource *res;
 	const void *addr;
 	__be32 *p;
+	bool little_endian;
 	int rc = 0;
 
 	/* Init network device structure */
-	ndev = alloc_etherdev(sizeof(*lp));
+	ndev = devm_alloc_etherdev(&pdev->dev, sizeof(*lp));
 	if (!ndev)
 		return -ENOMEM;
 
-	platform_set_drvdata(op, ndev);
-	SET_NETDEV_DEV(ndev, &op->dev);
+	platform_set_drvdata(pdev, ndev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->flags &= ~IFF_MULTICAST;  /* clear multicast */
 	ndev->features = NETIF_F_SG;
 	ndev->netdev_ops = &temac_netdev_ops;
@@ -1014,89 +1097,196 @@ static int temac_of_probe(struct platform_device *op)
 	/* setup temac private info structure */
 	lp = netdev_priv(ndev);
 	lp->ndev = ndev;
-	lp->dev = &op->dev;
+	lp->dev = &pdev->dev;
 	lp->options = XTE_OPTION_DEFAULTS;
 	spin_lock_init(&lp->rx_lock);
-	mutex_init(&lp->indirect_mutex);
+
+	/* Setup mutex for synchronization of indirect register access */
+	if (pdata) {
+		if (!pdata->indirect_mutex) {
+			dev_err(&pdev->dev,
+				"indirect_mutex missing in platform_data\n");
+			return -EINVAL;
+		}
+		lp->indirect_mutex = pdata->indirect_mutex;
+	} else {
+		lp->indirect_mutex = devm_kmalloc(&pdev->dev,
+						  sizeof(*lp->indirect_mutex),
+						  GFP_KERNEL);
+		mutex_init(lp->indirect_mutex);
+	}
 
 	/* map device registers */
-	lp->regs = of_iomap(op->dev.of_node, 0);
-	if (!lp->regs) {
-		dev_err(&op->dev, "could not map temac regs.\n");
-		rc = -ENOMEM;
-		goto nodev;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	lp->regs = devm_ioremap_nocache(&pdev->dev, res->start,
+					resource_size(res));
+	if (IS_ERR(lp->regs)) {
+		dev_err(&pdev->dev, "could not map TEMAC registers\n");
+		return PTR_ERR(lp->regs);
+	}
+
+	/* Select register access functions with the specified
+	 * endianness mode.  Default for OF devices is big-endian.
+	 */
+	little_endian = false;
+	if (temac_np) {
+		if (of_get_property(temac_np, "little-endian", NULL))
+			little_endian = true;
+	} else if (pdata) {
+		little_endian = pdata->reg_little_endian;
+	}
+	if (little_endian) {
+		lp->temac_ior = _temac_ior_le;
+		lp->temac_iow = _temac_iow_le;
+	} else {
+		lp->temac_ior = _temac_ior_be;
+		lp->temac_iow = _temac_iow_be;
 	}
 
 	/* Setup checksum offload, but default to off if not specified */
 	lp->temac_features = 0;
-	p = (__be32 *)of_get_property(op->dev.of_node, "xlnx,txcsum", NULL);
-	if (p && be32_to_cpu(*p)) {
-		lp->temac_features |= TEMAC_FEATURE_TX_CSUM;
+	if (temac_np) {
+		p = (__be32 *)of_get_property(temac_np, "xlnx,txcsum", NULL);
+		if (p && be32_to_cpu(*p))
+			lp->temac_features |= TEMAC_FEATURE_TX_CSUM;
+		p = (__be32 *)of_get_property(temac_np, "xlnx,rxcsum", NULL);
+		if (p && be32_to_cpu(*p))
+			lp->temac_features |= TEMAC_FEATURE_RX_CSUM;
+	} else if (pdata) {
+		if (pdata->txcsum)
+			lp->temac_features |= TEMAC_FEATURE_TX_CSUM;
+		if (pdata->rxcsum)
+			lp->temac_features |= TEMAC_FEATURE_RX_CSUM;
+	}
+	if (lp->temac_features & TEMAC_FEATURE_TX_CSUM)
 		/* Can checksum TCP/UDP over IPv4. */
 		ndev->features |= NETIF_F_IP_CSUM;
-	}
-	p = (__be32 *)of_get_property(op->dev.of_node, "xlnx,rxcsum", NULL);
-	if (p && be32_to_cpu(*p))
-		lp->temac_features |= TEMAC_FEATURE_RX_CSUM;
 
-	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
-	np = of_parse_phandle(op->dev.of_node, "llink-connected", 0);
-	if (!np) {
-		dev_err(&op->dev, "could not find DMA node\n");
-		rc = -ENODEV;
-		goto err_iounmap;
-	}
-
-	/* Setup the DMA register accesses, could be DCR or memory mapped */
-	if (temac_dcr_setup(lp, op, np)) {
-
-		/* no DCR in the device tree, try non-DCR */
-		lp->sdma_regs = of_iomap(np, 0);
-		if (lp->sdma_regs) {
-			lp->dma_in = temac_dma_in32;
-			lp->dma_out = temac_dma_out32;
-			dev_dbg(&op->dev, "MEM base: %p\n", lp->sdma_regs);
-		} else {
-			dev_err(&op->dev, "unable to map DMA registers\n");
-			of_node_put(np);
-			goto err_iounmap;
+	/* Setup LocalLink DMA */
+	if (temac_np) {
+		/* Find the DMA node, map the DMA registers, and
+		 * decode the DMA IRQs.
+		 */
+		dma_np = of_parse_phandle(temac_np, "llink-connected", 0);
+		if (!dma_np) {
+			dev_err(&pdev->dev, "could not find DMA node\n");
+			return -ENODEV;
 		}
+
+		/* Setup the DMA register accesses, could be DCR or
+		 * memory mapped.
+		 */
+		if (temac_dcr_setup(lp, pdev, dma_np)) {
+			/* no DCR in the device tree, try non-DCR */
+			lp->sdma_regs = devm_of_iomap(&pdev->dev, dma_np, 0,
+						      NULL);
+			if (IS_ERR(lp->sdma_regs)) {
+				dev_err(&pdev->dev,
+					"unable to map DMA registers\n");
+				of_node_put(dma_np);
+				return PTR_ERR(lp->sdma_regs);
+			}
+			if (of_get_property(dma_np, "little-endian", NULL)) {
+				lp->dma_in = temac_dma_in32_le;
+				lp->dma_out = temac_dma_out32_le;
+			} else {
+				lp->dma_in = temac_dma_in32_be;
+				lp->dma_out = temac_dma_out32_be;
+			}
+			dev_dbg(&pdev->dev, "MEM base: %p\n", lp->sdma_regs);
+		}
+
+		/* Get DMA RX and TX interrupts */
+		lp->rx_irq = irq_of_parse_and_map(dma_np, 0);
+		lp->tx_irq = irq_of_parse_and_map(dma_np, 1);
+
+		/* Use defaults for IRQ delay/coalescing setup.  These
+		 * are configuration values, so does not belong in
+		 * device-tree.
+		 */
+		lp->tx_chnl_ctrl = 0x10220000;
+		lp->rx_chnl_ctrl = 0xff070000;
+
+		/* Finished with the DMA node; drop the reference */
+		of_node_put(dma_np);
+	} else if (pdata) {
+		/* 2nd memory resource specifies DMA registers */
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		lp->sdma_regs = devm_ioremap_nocache(&pdev->dev, res->start,
+						     resource_size(res));
+		if (IS_ERR(lp->sdma_regs)) {
+			dev_err(&pdev->dev,
+				"could not map DMA registers\n");
+			return PTR_ERR(lp->sdma_regs);
+		}
+		if (pdata->dma_little_endian) {
+			lp->dma_in = temac_dma_in32_le;
+			lp->dma_out = temac_dma_out32_le;
+		} else {
+			lp->dma_in = temac_dma_in32_be;
+			lp->dma_out = temac_dma_out32_be;
+		}
+
+		/* Get DMA RX and TX interrupts */
+		lp->rx_irq = platform_get_irq(pdev, 0);
+		lp->tx_irq = platform_get_irq(pdev, 1);
+
+		/* IRQ delay/coalescing setup */
+		if (pdata->tx_irq_timeout || pdata->tx_irq_count)
+			lp->tx_chnl_ctrl = (pdata->tx_irq_timeout << 24) |
+				(pdata->tx_irq_count << 16);
+		else
+			lp->tx_chnl_ctrl = 0x10220000;
+		if (pdata->rx_irq_timeout || pdata->rx_irq_count)
+			lp->rx_chnl_ctrl = (pdata->rx_irq_timeout << 24) |
+				(pdata->rx_irq_count << 16);
+		else
+			lp->rx_chnl_ctrl = 0xff070000;
 	}
 
-	lp->rx_irq = irq_of_parse_and_map(np, 0);
-	lp->tx_irq = irq_of_parse_and_map(np, 1);
-
-	of_node_put(np); /* Finished with the DMA node; drop the reference */
-
-	if (!lp->rx_irq || !lp->tx_irq) {
-		dev_err(&op->dev, "could not determine irqs\n");
-		rc = -ENOMEM;
-		goto err_iounmap_2;
+	/* Error handle returned DMA RX and TX interrupts */
+	if (lp->rx_irq < 0) {
+		if (lp->rx_irq != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "could not get DMA RX irq\n");
+		return lp->rx_irq;
+	}
+	if (lp->tx_irq < 0) {
+		if (lp->tx_irq != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "could not get DMA TX irq\n");
+		return lp->tx_irq;
 	}
 
-
-	/* Retrieve the MAC address */
-	addr = of_get_mac_address(op->dev.of_node);
-	if (!addr) {
-		dev_err(&op->dev, "could not find MAC address\n");
-		rc = -ENODEV;
-		goto err_iounmap_2;
+	if (temac_np) {
+		/* Retrieve the MAC address */
+		addr = of_get_mac_address(temac_np);
+		if (IS_ERR(addr)) {
+			dev_err(&pdev->dev, "could not find MAC address\n");
+			return -ENODEV;
+		}
+		temac_init_mac_address(ndev, addr);
+	} else if (pdata) {
+		temac_init_mac_address(ndev, pdata->mac_addr);
 	}
-	temac_init_mac_address(ndev, addr);
 
-	rc = temac_mdio_setup(lp, op->dev.of_node);
+	rc = temac_mdio_setup(lp, pdev);
 	if (rc)
-		dev_warn(&op->dev, "error registering MDIO bus\n");
+		dev_warn(&pdev->dev, "error registering MDIO bus\n");
 
-	lp->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
-	if (lp->phy_node)
-		dev_dbg(lp->dev, "using PHY node %pOF (%p)\n", np, np);
+	if (temac_np) {
+		lp->phy_node = of_parse_phandle(temac_np, "phy-handle", 0);
+		if (lp->phy_node)
+			dev_dbg(lp->dev, "using PHY node %pOF\n", temac_np);
+	} else if (pdata) {
+		snprintf(lp->phy_name, sizeof(lp->phy_name),
+			 PHY_ID_FMT, lp->mii_bus->id, pdata->phy_addr);
+		lp->phy_interface = pdata->phy_interface;
+	}
 
 	/* Add the device attributes */
 	rc = sysfs_create_group(&lp->dev->kobj, &temac_attr_group);
 	if (rc) {
 		dev_err(lp->dev, "Error creating sysfs files\n");
-		goto err_iounmap_2;
+		goto err_sysfs_create;
 	}
 
 	rc = register_netdev(lp->ndev);
@@ -1107,33 +1297,25 @@ static int temac_of_probe(struct platform_device *op)
 
 	return 0;
 
- err_register_ndev:
+err_register_ndev:
 	sysfs_remove_group(&lp->dev->kobj, &temac_attr_group);
- err_iounmap_2:
-	if (lp->sdma_regs)
-		iounmap(lp->sdma_regs);
- err_iounmap:
-	iounmap(lp->regs);
- nodev:
-	free_netdev(ndev);
-	ndev = NULL;
+err_sysfs_create:
+	if (lp->phy_node)
+		of_node_put(lp->phy_node);
+	temac_mdio_teardown(lp);
 	return rc;
 }
 
-static int temac_of_remove(struct platform_device *op)
+static int temac_remove(struct platform_device *pdev)
 {
-	struct net_device *ndev = platform_get_drvdata(op);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct temac_local *lp = netdev_priv(ndev);
 
-	temac_mdio_teardown(lp);
 	unregister_netdev(ndev);
 	sysfs_remove_group(&lp->dev->kobj, &temac_attr_group);
-	of_node_put(lp->phy_node);
-	lp->phy_node = NULL;
-	iounmap(lp->regs);
-	if (lp->sdma_regs)
-		iounmap(lp->sdma_regs);
-	free_netdev(ndev);
+	if (lp->phy_node)
+		of_node_put(lp->phy_node);
+	temac_mdio_teardown(lp);
 	return 0;
 }
 
@@ -1146,16 +1328,16 @@ static const struct of_device_id temac_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, temac_of_match);
 
-static struct platform_driver temac_of_driver = {
-	.probe = temac_of_probe,
-	.remove = temac_of_remove,
+static struct platform_driver temac_driver = {
+	.probe = temac_probe,
+	.remove = temac_remove,
 	.driver = {
 		.name = "xilinx_temac",
 		.of_match_table = temac_of_match,
 	},
 };
 
-module_platform_driver(temac_of_driver);
+module_platform_driver(temac_driver);
 
 MODULE_DESCRIPTION("Xilinx LL_TEMAC Ethernet driver");
 MODULE_AUTHOR("Yoshio Kashiwagi");

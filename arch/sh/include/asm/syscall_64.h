@@ -59,7 +59,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	memcpy(&regs->regs[2], args, 6 * sizeof(args[0]));
 }
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
 	int arch = AUDIT_ARCH_SH;
 

@@ -529,7 +529,7 @@ static int of_get_devfreq_events(struct device_node *np,
 			if (!ppmu_events[i].name)
 				continue;
 
-			if (!of_node_cmp(node->name, ppmu_events[i].name))
+			if (of_node_name_eq(node, ppmu_events[i].name))
 				break;
 		}
 

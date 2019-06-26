@@ -302,10 +302,8 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 
 	mem_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	adc->base = devm_ioremap_resource(dev, mem_base);
-	if (IS_ERR(adc->base)) {
-		dev_err(dev, "Unable to ioremap mmio resource\n");
+	if (IS_ERR(adc->base))
 		return PTR_ERR(adc->base);
-	}
 
 	adc->clk = devm_clk_get(dev, "adc");
 	if (IS_ERR(adc->clk)) {

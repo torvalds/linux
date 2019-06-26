@@ -78,10 +78,9 @@ struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			      u64 virt_addr, int mr_access_flags,
 			      struct ib_udata *udata);
-int rvt_dereg_mr(struct ib_mr *ibmr);
-struct ib_mr *rvt_alloc_mr(struct ib_pd *pd,
-			   enum ib_mr_type mr_type,
-			   u32 max_num_sg);
+int rvt_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
+struct ib_mr *rvt_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+			   u32 max_num_sg, struct ib_udata *udata);
 int rvt_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 		  int sg_nents, unsigned int *sg_offset);
 struct ib_fmr *rvt_alloc_fmr(struct ib_pd *pd, int mr_access_flags,

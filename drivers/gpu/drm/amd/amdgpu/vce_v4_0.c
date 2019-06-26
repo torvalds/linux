@@ -25,7 +25,7 @@
  */
 
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_vce.h"
 #include "soc15.h"
@@ -244,13 +244,18 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_SWAP_CNTL1), 0);
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VM_CTRL), 0);
 
+		offset = AMDGPU_VCE_FIRMWARE_OFFSET;
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+			uint32_t low = adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].tmr_mc_addr_lo;
+			uint32_t hi = adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].tmr_mc_addr_hi;
+			uint64_t tmr_mc_addr = (uint64_t)(hi) << 32 | low;
+
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
-						mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
-						adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
+						mmVCE_LMI_VCPU_CACHE_40BIT_BAR0), tmr_mc_addr >> 8);
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
 						mmVCE_LMI_VCPU_CACHE_64BIT_BAR0),
-						(adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 40) & 0xff);
+						(tmr_mc_addr >> 40) & 0xff);
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0), 0);
 		} else {
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
 						mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
@@ -258,6 +263,9 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
 						mmVCE_LMI_VCPU_CACHE_64BIT_BAR0),
 						(adev->vce.gpu_addr >> 40) & 0xff);
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0),
+						offset & ~0x0f000000);
+
 		}
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
 						mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
@@ -272,10 +280,7 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 						mmVCE_LMI_VCPU_CACHE_64BIT_BAR2),
 						(adev->vce.gpu_addr >> 40) & 0xff);
 
-		offset = AMDGPU_VCE_FIRMWARE_OFFSET;
 		size = VCE_V4_0_FW_SIZE;
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0),
-					offset & ~0x0f000000);
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE0), size);
 
 		offset = (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) ? offset + size : 0;
@@ -1064,6 +1069,7 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.align_mask = 0x3f,
 	.nop = VCE_CMD_NO_OP,
 	.support_64bit_ptrs = false,
+	.no_user_fence = true,
 	.vmhub = AMDGPU_MMHUB,
 	.get_rptr = vce_v4_0_ring_get_rptr,
 	.get_wptr = vce_v4_0_ring_get_wptr,

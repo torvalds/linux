@@ -1,16 +1,5 @@
-/*
- * wakeirq.c - Device wakeirq helper functions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
+// SPDX-License-Identifier: GPL-2.0
+/* Device wakeirq helper functions */
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>

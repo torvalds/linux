@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
+#include <linux/sched/mm.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -412,6 +413,16 @@ fail:
 	return ret;
 }
 
+/*
+ * btrfs_csum_one_bio - Calculates checksums of the data contained inside a bio
+ * @inode:	 Owner of the data inside the bio
+ * @bio:	 Contains the data to be checksummed
+ * @file_start:  offset in file this bio begins to describe
+ * @contig:	 Boolean. If true/1 means all bio vecs in this bio are
+ *		 contiguous and they begin at @file_start in the file. False/0
+ *		 means this bio can contains potentially discontigous bio vecs
+ *		 so the logical offset of each should be calculated separately.
+ */
 blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 		       u64 file_start, int contig)
 {
@@ -427,9 +438,13 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 	unsigned long this_sum_bytes = 0;
 	int i;
 	u64 offset;
+	unsigned nofs_flag;
 
-	sums = kzalloc(btrfs_ordered_sum_size(fs_info, bio->bi_iter.bi_size),
-		       GFP_NOFS);
+	nofs_flag = memalloc_nofs_save();
+	sums = kvzalloc(btrfs_ordered_sum_size(fs_info, bio->bi_iter.bi_size),
+		       GFP_KERNEL);
+	memalloc_nofs_restore(nofs_flag);
+
 	if (!sums)
 		return BLK_STS_RESOURCE;
 
@@ -453,8 +468,6 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 			BUG_ON(!ordered); /* Logic error */
 		}
 
-		data = kmap_atomic(bvec.bv_page);
-
 		nr_sectors = BTRFS_BYTES_TO_BLKS(fs_info,
 						 bvec.bv_len + fs_info->sectorsize
 						 - 1);
@@ -464,16 +477,17 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 				offset < ordered->file_offset) {
 				unsigned long bytes_left;
 
-				kunmap_atomic(data);
 				sums->len = this_sum_bytes;
 				this_sum_bytes = 0;
-				btrfs_add_ordered_sum(inode, ordered, sums);
+				btrfs_add_ordered_sum(ordered, sums);
 				btrfs_put_ordered_extent(ordered);
 
 				bytes_left = bio->bi_iter.bi_size - total_bytes;
 
-				sums = kzalloc(btrfs_ordered_sum_size(fs_info, bytes_left),
-					       GFP_NOFS);
+				nofs_flag = memalloc_nofs_save();
+				sums = kvzalloc(btrfs_ordered_sum_size(fs_info,
+						      bytes_left), GFP_KERNEL);
+				memalloc_nofs_restore(nofs_flag);
 				BUG_ON(!sums); /* -ENOMEM */
 				sums->len = bytes_left;
 				ordered = btrfs_lookup_ordered_extent(inode,
@@ -482,16 +496,16 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 				sums->bytenr = ((u64)bio->bi_iter.bi_sector << 9)
 					+ total_bytes;
 				index = 0;
-
-				data = kmap_atomic(bvec.bv_page);
 			}
 
 			sums->sums[index] = ~(u32)0;
+			data = kmap_atomic(bvec.bv_page);
 			sums->sums[index]
 				= btrfs_csum_data(data + bvec.bv_offset
 						+ (i * fs_info->sectorsize),
 						sums->sums[index],
 						fs_info->sectorsize);
+			kunmap_atomic(data);
 			btrfs_csum_final(sums->sums[index],
 					(char *)(sums->sums + index));
 			index++;
@@ -500,10 +514,9 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 			total_bytes += fs_info->sectorsize;
 		}
 
-		kunmap_atomic(data);
 	}
 	this_sum_bytes = 0;
-	btrfs_add_ordered_sum(inode, ordered, sums);
+	btrfs_add_ordered_sum(ordered, sums);
 	btrfs_put_ordered_extent(ordered);
 	return 0;
 }
@@ -544,7 +557,7 @@ static noinline void truncate_one_csum(struct btrfs_fs_info *fs_info,
 		 */
 		u32 new_size = (bytenr - key->offset) >> blocksize_bits;
 		new_size *= csum_size;
-		btrfs_truncate_item(fs_info, path, new_size, 1);
+		btrfs_truncate_item(path, new_size, 1);
 	} else if (key->offset >= bytenr && csum_end > end_byte &&
 		   end_byte > key->offset) {
 		/*
@@ -556,7 +569,7 @@ static noinline void truncate_one_csum(struct btrfs_fs_info *fs_info,
 		u32 new_size = (csum_end - end_byte) >> blocksize_bits;
 		new_size *= csum_size;
 
-		btrfs_truncate_item(fs_info, path, new_size, 0);
+		btrfs_truncate_item(path, new_size, 0);
 
 		key->offset = end_byte;
 		btrfs_set_item_key_safe(fs_info, path, key);
@@ -825,11 +838,11 @@ again:
 		u32 diff;
 		u32 free_space;
 
-		if (btrfs_leaf_free_space(fs_info, leaf) <
+		if (btrfs_leaf_free_space(leaf) <
 				 sizeof(struct btrfs_item) + csum_size * 2)
 			goto insert;
 
-		free_space = btrfs_leaf_free_space(fs_info, leaf) -
+		free_space = btrfs_leaf_free_space(leaf) -
 					 sizeof(struct btrfs_item) - csum_size;
 		tmp = sums->len - total_bytes;
 		tmp >>= fs_info->sb->s_blocksize_bits;
@@ -845,7 +858,7 @@ again:
 		diff /= csum_size;
 		diff *= csum_size;
 
-		btrfs_extend_item(fs_info, path, diff);
+		btrfs_extend_item(path, diff);
 		ret = 0;
 		goto csum;
 	}

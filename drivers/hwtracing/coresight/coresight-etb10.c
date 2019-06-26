@@ -5,6 +5,7 @@
  * Description: CoreSight Embedded Trace Buffer driver
  */
 
+#include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -71,6 +72,8 @@
  * @miscdev:	specifics to handle "/dev/xyz.etb" entry.
  * @spinlock:	only one at a time pls.
  * @reading:	synchronise user space access to etb buffer.
+ * @pid:	Process ID of the process being monitored by the session
+ *		that is using this component.
  * @buf:	area of memory where ETB buffer content gets sent.
  * @mode:	this ETB is being used.
  * @buffer_depth: size of @buf.
@@ -84,6 +87,7 @@ struct etb_drvdata {
 	struct miscdevice	miscdev;
 	spinlock_t		spinlock;
 	local_t			reading;
+	pid_t			pid;
 	u8			*buf;
 	u32			mode;
 	u32			buffer_depth;
@@ -93,17 +97,9 @@ struct etb_drvdata {
 static int etb_set_buffer(struct coresight_device *csdev,
 			  struct perf_output_handle *handle);
 
-static unsigned int etb_get_buffer_depth(struct etb_drvdata *drvdata)
+static inline unsigned int etb_get_buffer_depth(struct etb_drvdata *drvdata)
 {
-	u32 depth = 0;
-
-	pm_runtime_get_sync(drvdata->dev);
-
-	/* RO registers don't need locking */
-	depth = readl_relaxed(drvdata->base + ETB_RAM_DEPTH_REG);
-
-	pm_runtime_put(drvdata->dev);
-	return depth;
+	return readl_relaxed(drvdata->base + ETB_RAM_DEPTH_REG);
 }
 
 static void __etb_enable_hw(struct etb_drvdata *drvdata)
@@ -159,14 +155,15 @@ static int etb_enable_sysfs(struct coresight_device *csdev)
 		goto out;
 	}
 
-	/* Nothing to do, the tracer is already enabled. */
-	if (drvdata->mode == CS_MODE_SYSFS)
-		goto out;
+	if (drvdata->mode == CS_MODE_DISABLED) {
+		ret = etb_enable_hw(drvdata);
+		if (ret)
+			goto out;
 
-	ret = etb_enable_hw(drvdata);
-	if (!ret)
 		drvdata->mode = CS_MODE_SYSFS;
+	}
 
+	atomic_inc(csdev->refcnt);
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 	return ret;
@@ -175,14 +172,33 @@ out:
 static int etb_enable_perf(struct coresight_device *csdev, void *data)
 {
 	int ret = 0;
+	pid_t pid;
 	unsigned long flags;
 	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	struct perf_output_handle *handle = data;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/* No need to continue if the component is already in use. */
-	if (drvdata->mode != CS_MODE_DISABLED) {
+	/* No need to continue if the component is already in used by sysFS. */
+	if (drvdata->mode == CS_MODE_SYSFS) {
 		ret = -EBUSY;
+		goto out;
+	}
+
+	/* Get a handle on the pid of the process to monitor */
+	pid = task_pid_nr(handle->event->owner);
+
+	if (drvdata->pid != -1 && drvdata->pid != pid) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	/*
+	 * No HW configuration is needed if the sink is already in
+	 * use for this session.
+	 */
+	if (drvdata->pid == pid) {
+		atomic_inc(csdev->refcnt);
 		goto out;
 	}
 
@@ -191,13 +207,17 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	 * the perf buffer. So we can perform the step before we turn the
 	 * ETB on and leave without cleaning up.
 	 */
-	ret = etb_set_buffer(csdev, (struct perf_output_handle *)data);
+	ret = etb_set_buffer(csdev, handle);
 	if (ret)
 		goto out;
 
 	ret = etb_enable_hw(drvdata);
-	if (!ret)
+	if (!ret) {
+		/* Associate with monitored process. */
+		drvdata->pid = pid;
 		drvdata->mode = CS_MODE_PERF;
+		atomic_inc(csdev->refcnt);
+	}
 
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
@@ -325,27 +345,35 @@ static void etb_disable_hw(struct etb_drvdata *drvdata)
 	coresight_disclaim_device(drvdata->base);
 }
 
-static void etb_disable(struct coresight_device *csdev)
+static int etb_disable(struct coresight_device *csdev)
 {
 	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	unsigned long flags;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/* Disable the ETB only if it needs to */
-	if (drvdata->mode != CS_MODE_DISABLED) {
-		etb_disable_hw(drvdata);
-		drvdata->mode = CS_MODE_DISABLED;
+	if (atomic_dec_return(csdev->refcnt)) {
+		spin_unlock_irqrestore(&drvdata->spinlock, flags);
+		return -EBUSY;
 	}
+
+	/* Complain if we (somehow) got out of sync */
+	WARN_ON_ONCE(drvdata->mode == CS_MODE_DISABLED);
+	etb_disable_hw(drvdata);
+	/* Dissociate from monitored process. */
+	drvdata->pid = -1;
+	drvdata->mode = CS_MODE_DISABLED;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	dev_dbg(drvdata->dev, "ETB disabled\n");
+	return 0;
 }
 
-static void *etb_alloc_buffer(struct coresight_device *csdev, int cpu,
-			      void **pages, int nr_pages, bool overwrite)
+static void *etb_alloc_buffer(struct coresight_device *csdev,
+			      struct perf_event *event, void **pages,
+			      int nr_pages, bool overwrite)
 {
-	int node;
+	int node, cpu = event->cpu;
 	struct cs_buffers *buf;
 
 	if (cpu == -1)
@@ -404,7 +432,7 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 	const u32 *barrier;
 	u32 read_ptr, write_ptr, capacity;
 	u32 status, read_data;
-	unsigned long offset, to_read;
+	unsigned long offset, to_read = 0, flags;
 	struct cs_buffers *buf = sink_config;
 	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -412,6 +440,12 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 		return 0;
 
 	capacity = drvdata->buffer_depth * ETB_FRAME_SIZE_WORDS;
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+
+	/* Don't do anything if another tracer is using this sink */
+	if (atomic_read(csdev->refcnt) != 1)
+		goto out;
 
 	__etb_disable_hw(drvdata);
 	CS_UNLOCK(drvdata->base);
@@ -523,6 +557,8 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 	}
 	__etb_enable_hw(drvdata);
 	CS_LOCK(drvdata->base);
+out:
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	return to_read;
 }
@@ -720,7 +756,6 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 	spin_lock_init(&drvdata->spinlock);
 
 	drvdata->buffer_depth = etb_get_buffer_depth(drvdata);
-	pm_runtime_put(&adev->dev);
 
 	if (drvdata->buffer_depth & 0x80000000)
 		return -EINVAL;
@@ -729,6 +764,9 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 				    drvdata->buffer_depth, 4, GFP_KERNEL);
 	if (!drvdata->buf)
 		return -ENOMEM;
+
+	/* This device is not associated with a session */
+	drvdata->pid = -1;
 
 	desc.type = CORESIGHT_DEV_TYPE_SINK;
 	desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
@@ -747,6 +785,7 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		goto err_misc_register;
 
+	pm_runtime_put(&adev->dev);
 	return 0;
 
 err_misc_register:

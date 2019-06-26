@@ -290,7 +290,7 @@ tapechar_open (struct inode *inode, struct file *filp)
 	rc = tape_open(device);
 	if (rc == 0) {
 		filp->private_data = device;
-		nonseekable_open(inode, filp);
+		stream_open(inode, filp);
 	} else
 		tape_put_device(device);
 

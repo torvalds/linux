@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Host communication command constants for ChromeOS EC
  *
  * Copyright (C) 2012 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * The ChromeOS EC multi function device is used to mux all the requests
  * to the EC device for its multiple features: keyboard controller,
@@ -840,7 +832,7 @@ enum ec_feature_code {
 	 * (Common Smart Battery System Interface Specification)
 	 */
 	EC_FEATURE_SMART_BATTERY = 18,
-	/* EC can dectect when the host hangs. */
+	/* EC can detect when the host hangs. */
 	EC_FEATURE_HANG_DETECT = 19,
 	/* Report power information, for pit only */
 	EC_FEATURE_PMU = 20,
@@ -852,10 +844,42 @@ enum ec_feature_code {
 	EC_FEATURE_USB_MUX = 23,
 	/* Motion Sensor code has an internal software FIFO */
 	EC_FEATURE_MOTION_SENSE_FIFO = 24,
+	/* Support temporary secure vstore */
+	EC_FEATURE_VSTORE = 25,
+	/* EC decides on USB-C SS mux state, muxes configured by host */
+	EC_FEATURE_USBC_SS_MUX_VIRTUAL = 26,
 	/* EC has RTC feature that can be controlled by host commands */
 	EC_FEATURE_RTC = 27,
+	/* The MCU exposes a Fingerprint sensor */
+	EC_FEATURE_FINGERPRINT = 28,
+	/* The MCU exposes a Touchpad */
+	EC_FEATURE_TOUCHPAD = 29,
+	/* The MCU has RWSIG task enabled */
+	EC_FEATURE_RWSIG = 30,
+	/* EC has device events support */
+	EC_FEATURE_DEVICE_EVENT = 31,
+	/* EC supports the unified wake masks for LPC/eSPI systems */
+	EC_FEATURE_UNIFIED_WAKE_MASKS = 32,
+	/* EC supports 64-bit host events */
+	EC_FEATURE_HOST_EVENT64 = 33,
+	/* EC runs code in RAM (not in place, a.k.a. XIP) */
+	EC_FEATURE_EXEC_IN_RAM = 34,
 	/* EC supports CEC commands */
 	EC_FEATURE_CEC = 35,
+	/* EC supports tight sensor timestamping. */
+	EC_FEATURE_MOTION_SENSE_TIGHT_TIMESTAMPS = 36,
+	/*
+	 * EC supports tablet mode detection aligned to Chrome and allows
+	 * setting of threshold by host command using
+	 * MOTIONSENSE_CMD_TABLET_MODE_LID_ANGLE.
+	 */
+	EC_FEATURE_REFINED_TABLET_MODE_HYSTERESIS = 37,
+	/* EC supports audio codec. */
+	EC_FEATURE_AUDIO_CODEC = 38,
+	/* EC Supports SCP. */
+	EC_FEATURE_SCP = 39,
+	/* The MCU is an Integrated Sensor Hub */
+	EC_FEATURE_ISH = 40,
 };
 
 #define EC_FEATURE_MASK_0(event_code) (1UL << (event_code % 32))
@@ -2727,6 +2751,63 @@ enum host_sleep_event {
 
 struct ec_params_host_sleep_event {
 	uint8_t sleep_event;
+} __packed;
+
+/*
+ * Use a default timeout value (CONFIG_SLEEP_TIMEOUT_MS) for detecting sleep
+ * transition failures
+ */
+#define EC_HOST_SLEEP_TIMEOUT_DEFAULT 0
+
+/* Disable timeout detection for this sleep transition */
+#define EC_HOST_SLEEP_TIMEOUT_INFINITE 0xFFFF
+
+struct ec_params_host_sleep_event_v1 {
+	/* The type of sleep being entered or exited. */
+	uint8_t sleep_event;
+
+	/* Padding */
+	uint8_t reserved;
+	union {
+		/* Parameters that apply for suspend messages. */
+		struct {
+			/*
+			 * The timeout in milliseconds between when this message
+			 * is received and when the EC will declare sleep
+			 * transition failure if the sleep signal is not
+			 * asserted.
+			 */
+			uint16_t sleep_timeout_ms;
+		} suspend_params;
+
+		/* No parameters for non-suspend messages. */
+	};
+} __packed;
+
+/* A timeout occurred when this bit is set */
+#define EC_HOST_RESUME_SLEEP_TIMEOUT 0x80000000
+
+/*
+ * The mask defining which bits correspond to the number of sleep transitions,
+ * as well as the maximum number of suspend line transitions that will be
+ * reported back to the host.
+ */
+#define EC_HOST_RESUME_SLEEP_TRANSITIONS_MASK 0x7FFFFFFF
+
+struct ec_response_host_sleep_event_v1 {
+	union {
+		/* Response fields that apply for resume messages. */
+		struct {
+			/*
+			 * The number of sleep power signal transitions that
+			 * occurred since the suspend message. The high bit
+			 * indicates a timeout occurred.
+			 */
+			uint32_t sleep_transitions;
+		} resume_response;
+
+		/* No response fields for non-resume messages. */
+	};
 } __packed;
 
 /*****************************************************************************/

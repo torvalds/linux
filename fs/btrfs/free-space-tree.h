@@ -30,7 +30,6 @@ int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 struct btrfs_free_space_info *
 search_free_space_info(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info,
 		       struct btrfs_block_group_cache *block_group,
 		       struct btrfs_path *path, int cow);
 int __add_to_free_space_tree(struct btrfs_trans_handle *trans,

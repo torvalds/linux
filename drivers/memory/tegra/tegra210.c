@@ -1132,7 +1132,7 @@ const struct tegra_mc_soc tegra210_mc_soc = {
 	.intmask = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
 		   MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
 		   MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM,
-	.reset_ops = &terga_mc_reset_ops_common,
+	.reset_ops = &tegra_mc_reset_ops_common,
 	.resets = tegra210_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra210_mc_resets),
 };

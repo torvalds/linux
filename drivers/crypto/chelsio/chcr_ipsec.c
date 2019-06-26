@@ -575,7 +575,8 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		netif_tx_stop_queue(q->txq);
 		q->q.stops++;
-		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+		if (!q->dbqt)
+			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 	wr_mid |= FW_ULPTX_WR_DATA_F;
 	wr->wreq.flowid_len16 = htonl(wr_mid);

@@ -3122,13 +3122,18 @@ static int bond_slave_netdev_event(unsigned long event,
 	case NETDEV_CHANGE:
 		/* For 802.3ad mode only:
 		 * Getting invalid Speed/Duplex values here will put slave
-		 * in weird state. So mark it as link-fail for the time
-		 * being and let link-monitoring (miimon) set it right when
-		 * correct speeds/duplex are available.
+		 * in weird state. Mark it as link-fail if the link was
+		 * previously up or link-down if it hasn't yet come up, and
+		 * let link-monitoring (miimon) set it right when correct
+		 * speeds/duplex are available.
 		 */
 		if (bond_update_speed_duplex(slave) &&
-		    BOND_MODE(bond) == BOND_MODE_8023AD)
-			slave->link = BOND_LINK_FAIL;
+		    BOND_MODE(bond) == BOND_MODE_8023AD) {
+			if (slave->last_link_up)
+				slave->link = BOND_LINK_FAIL;
+			else
+				slave->link = BOND_LINK_DOWN;
+		}
 
 		if (BOND_MODE(bond) == BOND_MODE_8023AD)
 			bond_3ad_adapter_speed_duplex_changed(slave);
@@ -3213,8 +3218,12 @@ static int bond_netdev_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	if (event_dev->flags & IFF_MASTER) {
+		int ret;
+
 		netdev_dbg(event_dev, "IFF_MASTER\n");
-		return bond_master_netdev_event(event, event_dev);
+		ret = bond_master_netdev_event(event, event_dev);
+		if (ret != NOTIFY_DONE)
+			return ret;
 	}
 
 	if (event_dev->flags & IFF_SLAVE) {
@@ -4114,8 +4123,7 @@ static inline int bond_slave_override(struct bonding *bond,
 
 
 static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb,
-			     struct net_device *sb_dev,
-			     select_queue_fallback_t fallback)
+			     struct net_device *sb_dev)
 {
 	/* This helper function exists to help dev_pick_tx get the correct
 	 * destination queue.  Using a helper function skips a call to

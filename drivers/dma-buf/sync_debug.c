@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sync File validation framework and debug information
  *
  * Copyright (C) 2012 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/debugfs.h>
@@ -197,29 +188,3 @@ static __init int sync_debugfs_init(void)
 	return 0;
 }
 late_initcall(sync_debugfs_init);
-
-#define DUMP_CHUNK 256
-static char sync_dump_buf[64 * 1024];
-void sync_dump(void)
-{
-	struct seq_file s = {
-		.buf = sync_dump_buf,
-		.size = sizeof(sync_dump_buf) - 1,
-	};
-	int i;
-
-	sync_info_debugfs_show(&s, NULL);
-
-	for (i = 0; i < s.count; i += DUMP_CHUNK) {
-		if ((s.count - i) > DUMP_CHUNK) {
-			char c = s.buf[i + DUMP_CHUNK];
-
-			s.buf[i + DUMP_CHUNK] = 0;
-			pr_cont("%s", s.buf + i);
-			s.buf[i + DUMP_CHUNK] = c;
-		} else {
-			s.buf[s.count] = 0;
-			pr_cont("%s", s.buf + i);
-		}
-	}
-}

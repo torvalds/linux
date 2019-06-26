@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "RAM/ROM/Flash chip drivers"
 	depends on MTD!=n
 

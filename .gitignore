@@ -58,6 +58,7 @@ modules.builtin
 /vmlinuz
 /System.map
 /Module.markers
+/modules.builtin.modinfo
 
 #
 # RPM spec file (make rpm-pkg)
@@ -80,20 +81,22 @@ modules.builtin
 /tar-install/
 
 #
-# git files that we don't want to ignore even if they are dot-files
+# We don't want to ignore the following even if they are dot-files
 #
+!.clang-format
+!.cocciconfig
+!.get_maintainer.ignore
+!.gitattributes
 !.gitignore
 !.mailmap
-!.cocciconfig
-!.clang-format
 
 #
 # Generated include files
 #
-include/config
-include/generated
-include/ksym
-arch/*/include/generated
+/include/config/
+/include/generated/
+/include/ksym/
+/arch/*/include/generated/
 
 # stgit generated dirs
 patches-*
@@ -129,7 +132,12 @@ signing_key.x509
 x509.genkey
 
 # Kconfig presets
-all.config
+/all.config
+/alldef.config
+/allmod.config
+/allno.config
+/allrandom.config
+/allyes.config
 
 # Kdevelop4
 *.kdev4

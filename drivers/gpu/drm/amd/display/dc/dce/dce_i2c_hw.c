@@ -22,6 +22,9 @@
  * Authors: AMD
  *
  */
+
+#include <linux/delay.h>
+
 #include "dce_i2c.h"
 #include "dce_i2c_hw.h"
 #include "reg_helper.h"
@@ -268,6 +271,8 @@ static bool setup_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
 	uint32_t i2c_setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
+	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
+	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
 	if (dce_i2c_hw->setup_limit != 0)
 		i2c_setup_limit = dce_i2c_hw->setup_limit;
@@ -322,8 +327,6 @@ static void release_engine(
 
 	set_speed(dce_i2c_hw, dce_i2c_hw->original_speed);
 
-	/* Release I2C */
-	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, 1);
 
 	/* Reset HW engine */
 	{
@@ -343,6 +346,9 @@ static void release_engine(
 	/* HW I2c engine - clock gating feature */
 	if (!dce_i2c_hw->engine_keep_power_up_count)
 		REG_UPDATE_N(SETUP, 1, FN(SETUP, DC_I2C_DDC1_ENABLE), 0);
+	/* Release I2C after reset, so HW or DMCU could use it */
+	REG_UPDATE_2(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, 1,
+		DC_I2C_SW_USE_I2C_REG_REQ, 0);
 
 }
 

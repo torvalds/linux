@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_DDBRIDGE
 	tristate "Digital Devices bridge support"
 	depends on DVB_CORE && PCI && I2C
@@ -15,7 +16,7 @@ config DVB_DDBRIDGE
 	select DVB_MXL5XX if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_CXD2099 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_DUMMY_FE if MEDIA_SUBDRV_AUTOSELECT
-	---help---
+	help
 	  Support for cards with the Digital Devices PCI express bridge:
 	  - Octopus PCIe Bridge
 	  - Octopus mini PCIe Bridge
@@ -36,7 +37,7 @@ config DVB_DDBRIDGE_MSIENABLE
 	depends on DVB_DDBRIDGE
 	depends on PCI_MSI
 	default n
-	---help---
+	help
 	  Use PCI MSI (Message Signaled Interrupts) per default. Enabling this
 	  might lead to I2C errors originating from the bridge in conjunction
 	  with certain SATA controllers, requiring a reload of the ddbridge

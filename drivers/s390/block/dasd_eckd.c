@@ -2004,14 +2004,14 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 	blk_per_trk = recs_per_track(&private->rdc_data, 0, block->bp_block);
 
 raw:
-	block->blocks = (private->real_cyl *
+	block->blocks = ((unsigned long) private->real_cyl *
 			  private->rdc_data.trk_per_cyl *
 			  blk_per_trk);
 
 	dev_info(&device->cdev->dev,
-		 "DASD with %d KB/block, %d KB total size, %d KB/track, "
+		 "DASD with %u KB/block, %lu KB total size, %u KB/track, "
 		 "%s\n", (block->bp_block >> 10),
-		 ((private->real_cyl *
+		 (((unsigned long) private->real_cyl *
 		   private->rdc_data.trk_per_cyl *
 		   blk_per_trk * (block->bp_block >> 9)) >> 1),
 		 ((blk_per_trk * block->bp_block) >> 10),
@@ -3827,7 +3827,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 	if ((start_padding_sectors || end_padding_sectors) &&
 	    (rq_data_dir(req) == WRITE)) {
 		DBF_DEV_EVENT(DBF_ERR, basedev,
-			      "raw write not track aligned (%lu,%lu) req %p",
+			      "raw write not track aligned (%llu,%llu) req %p",
 			      start_padding_sectors, end_padding_sectors, req);
 		return ERR_PTR(-EINVAL);
 	}

@@ -382,7 +382,7 @@ atmel_hlcdc_plane_update_general_settings(struct atmel_hlcdc_plane *plane,
 			cfg |= ATMEL_HLCDC_LAYER_LAEN;
 		else
 			cfg |= ATMEL_HLCDC_LAYER_GAEN |
-			       ATMEL_HLCDC_LAYER_GA(state->base.alpha >> 8);
+			       ATMEL_HLCDC_LAYER_GA(state->base.alpha);
 	}
 
 	if (state->disc_h && state->disc_w)
@@ -603,8 +603,6 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 	const struct drm_display_mode *mode;
 	struct drm_crtc_state *crtc_state;
 	unsigned int tmp;
-	int hsub = 1;
-	int vsub = 1;
 	int ret;
 	int i;
 
@@ -642,13 +640,10 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 	if (state->nplanes > ATMEL_HLCDC_LAYER_MAX_PLANES)
 		return -EINVAL;
 
-	hsub = drm_format_horz_chroma_subsampling(fb->format->format);
-	vsub = drm_format_vert_chroma_subsampling(fb->format->format);
-
 	for (i = 0; i < state->nplanes; i++) {
 		unsigned int offset = 0;
-		int xdiv = i ? hsub : 1;
-		int ydiv = i ? vsub : 1;
+		int xdiv = i ? fb->format->hsub : 1;
+		int ydiv = i ? fb->format->vsub : 1;
 
 		state->bpp[i] = fb->format->cpp[i];
 		if (!state->bpp[i])

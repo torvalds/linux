@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MAC802154
 	tristate "Generic IEEE 802.15.4 Soft Networking Stack (mac802154)"
 	depends on IEEE802154

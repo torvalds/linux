@@ -145,12 +145,12 @@
 
 		soc_slppin_slp: soc_slppin_slp {
 			rockchip,pins =
-				<0 RK_PA4 RK_FUNC_1 &pcfg_pull_none>;
+				<0 RK_PA4 1 &pcfg_pull_none>;
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
 			rockchip,pins =
-				<0 RK_PA4 RK_FUNC_2 &pcfg_pull_none>;
+				<0 RK_PA4 2 &pcfg_pull_none>;
 		};
 	};
 

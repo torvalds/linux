@@ -198,7 +198,7 @@ void media_request_put(struct media_request *req);
  * Get the request represented by @request_fd that is owned
  * by the media device.
  *
- * Return a -EACCES error pointer if requests are not supported
+ * Return a -EBADR error pointer if requests are not supported
  * by this driver. Return -EINVAL if the request was not found.
  * Return the pointer to the request if found: the caller will
  * have to call @media_request_put when it finished using the
@@ -231,7 +231,7 @@ static inline void media_request_put(struct media_request *req)
 static inline struct media_request *
 media_request_get_by_fd(struct media_device *mdev, int request_fd)
 {
-	return ERR_PTR(-EACCES);
+	return ERR_PTR(-EBADR);
 }
 
 #endif

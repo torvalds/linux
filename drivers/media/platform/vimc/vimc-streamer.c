@@ -46,19 +46,19 @@ static struct media_entity *vimc_get_source_entity(struct media_entity *ent)
  */
 static void vimc_streamer_pipeline_terminate(struct vimc_stream *stream)
 {
-	struct media_entity *entity;
+	struct vimc_ent_device *ved;
 	struct v4l2_subdev *sd;
 
 	while (stream->pipe_size) {
 		stream->pipe_size--;
-		entity = stream->ved_pipeline[stream->pipe_size]->ent;
-		entity = vimc_get_source_entity(entity);
+		ved = stream->ved_pipeline[stream->pipe_size];
+		ved->stream = NULL;
 		stream->ved_pipeline[stream->pipe_size] = NULL;
 
-		if (!is_media_entity_v4l2_subdev(entity))
+		if (!is_media_entity_v4l2_subdev(ved->ent))
 			continue;
 
-		sd = media_entity_to_v4l2_subdev(entity);
+		sd = media_entity_to_v4l2_subdev(ved->ent);
 		v4l2_subdev_call(sd, video, s_stream, 0);
 	}
 }
@@ -88,19 +88,27 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 			return -EINVAL;
 		}
 		stream->ved_pipeline[stream->pipe_size++] = ved;
+		ved->stream = stream;
+
+		if (is_media_entity_v4l2_subdev(ved->ent)) {
+			sd = media_entity_to_v4l2_subdev(ved->ent);
+			ret = v4l2_subdev_call(sd, video, s_stream, 1);
+			if (ret && ret != -ENOIOCTLCMD) {
+				pr_err("subdev_call error %s\n",
+				       ved->ent->name);
+				vimc_streamer_pipeline_terminate(stream);
+				return ret;
+			}
+		}
 
 		entity = vimc_get_source_entity(ved->ent);
 		/* Check if the end of the pipeline was reached*/
 		if (!entity)
 			return 0;
 
+		/* Get the next device in the pipeline */
 		if (is_media_entity_v4l2_subdev(entity)) {
 			sd = media_entity_to_v4l2_subdev(entity);
-			ret = v4l2_subdev_call(sd, video, s_stream, 1);
-			if (ret && ret != -ENOIOCTLCMD) {
-				vimc_streamer_pipeline_terminate(stream);
-				return ret;
-			}
 			ved = v4l2_get_subdevdata(sd);
 		} else {
 			vdev = container_of(entity,
@@ -117,10 +125,10 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 static int vimc_streamer_thread(void *data)
 {
 	struct vimc_stream *stream = data;
+	u8 *frame = NULL;
 	int i;
 
 	set_freezable();
-	set_current_state(TASK_UNINTERRUPTIBLE);
 
 	for (;;) {
 		try_to_freeze();
@@ -128,15 +136,13 @@ static int vimc_streamer_thread(void *data)
 			break;
 
 		for (i = stream->pipe_size - 1; i >= 0; i--) {
-			stream->frame = stream->ved_pipeline[i]->process_frame(
-					stream->ved_pipeline[i],
-					stream->frame);
-			if (!stream->frame)
-				break;
-			if (IS_ERR(stream->frame))
+			frame = stream->ved_pipeline[i]->process_frame(
+					stream->ved_pipeline[i], frame);
+			if (!frame || IS_ERR(frame))
 				break;
 		}
 		//wait for 60hz
+		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(HZ / 60);
 	}
 

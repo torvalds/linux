@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  NET  is implemented using the  BSD Socket
@@ -12,12 +13,6 @@
  *
  *		Relocated to include/linux where it belongs by Alan Cox 
  *							<gw4pts@gw4pts.ampr.org>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  */
 #ifndef _LINUX_ETHERDEVICE_H
 #define _LINUX_ETHERDEVICE_H
@@ -33,7 +28,7 @@ struct device;
 int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr);
 unsigned char *arch_get_platform_mac_address(void);
 int nvmem_get_mac_address(struct device *dev, void *addrbuf);
-u32 eth_get_headlen(void *data, unsigned int max_len);
+u32 eth_get_headlen(const struct net_device *dev, void *data, unsigned int len);
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev);
 extern const struct header_ops eth_header_ops;
 
@@ -445,6 +440,18 @@ static inline void eth_addr_dec(u8 *addr)
 	u64 u = ether_addr_to_u64(addr);
 
 	u--;
+	u64_to_ether_addr(u, addr);
+}
+
+/**
+ * eth_addr_inc() - Increment the given MAC address.
+ * @addr: Pointer to a six-byte array containing Ethernet address to increment.
+ */
+static inline void eth_addr_inc(u8 *addr)
+{
+	u64 u = ether_addr_to_u64(addr);
+
+	u++;
 	u64_to_ether_addr(u, addr);
 }
 

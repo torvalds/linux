@@ -11,7 +11,6 @@
 
 #include <asm/hwrpb.h>
 #include <asm/io.h>
-#include <asm/segment.h>
 
 #define SMC_DEBUG 0
 

@@ -70,17 +70,28 @@ static struct xfrm_if *xfrmi_lookup(struct net *net, struct xfrm_state *x)
 	return NULL;
 }
 
-static struct xfrm_if *xfrmi_decode_session(struct sk_buff *skb)
+static struct xfrm_if *xfrmi_decode_session(struct sk_buff *skb,
+					    unsigned short family)
 {
 	struct xfrmi_net *xfrmn;
-	int ifindex;
 	struct xfrm_if *xi;
+	int ifindex = 0;
 
 	if (!secpath_exists(skb) || !skb->dev)
 		return NULL;
 
+	switch (family) {
+	case AF_INET6:
+		ifindex = inet6_sdif(skb);
+		break;
+	case AF_INET:
+		ifindex = inet_sdif(skb);
+		break;
+	}
+	if (!ifindex)
+		ifindex = skb->dev->ifindex;
+
 	xfrmn = net_generic(xs_net(xfrm_input_state(skb)), xfrmi_net_id);
-	ifindex = skb->dev->ifindex;
 
 	for_each_xfrmi_rcu(xfrmn->xfrmi[0], xi) {
 		if (ifindex == xi->dev->ifindex &&
@@ -244,8 +255,8 @@ static void xfrmi_scrub_packet(struct sk_buff *skb, bool xnet)
 
 static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 {
+	const struct xfrm_mode *inner_mode;
 	struct pcpu_sw_netstats *tstats;
-	struct xfrm_mode *inner_mode;
 	struct net_device *dev;
 	struct xfrm_state *x;
 	struct xfrm_if *xi;
@@ -273,7 +284,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 	xnet = !net_eq(xi->net, dev_net(skb->dev));
 
 	if (xnet) {
-		inner_mode = x->inner_mode;
+		inner_mode = &x->inner_mode;
 
 		if (x->sel.family == AF_UNSPEC) {
 			inner_mode = xfrm_ip2inner_mode(x, XFRM_MODE_SKB_CB(skb)->protocol);
@@ -285,7 +296,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 		}
 
 		if (!xfrm_policy_check(NULL, XFRM_POLICY_IN, skb,
-				       inner_mode->afinfo->family))
+				       inner_mode->family))
 			return -EPERM;
 	}
 

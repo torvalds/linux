@@ -91,6 +91,7 @@ extern u32 cp15_save_power;
 
 extern void __iomem *sysram_ns_base_addr;
 extern void __iomem *sysram_base_addr;
+extern phys_addr_t sysram_base_phys;
 extern void __iomem *pmu_base_addr;
 void exynos_sysram_init(void);
 

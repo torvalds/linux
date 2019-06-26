@@ -48,8 +48,6 @@ struct device_process_node {
  *
  * @update_queue: Queue update routine.
  *
- * @get_mqd_manager: Returns the mqd manager according to the mqd type.
- *
  * @exeute_queues: Dispatches the queues list to the H/W.
  *
  * @register_process: This routine associates a specific process with device.
@@ -96,10 +94,6 @@ struct device_queue_manager_ops {
 
 	int	(*update_queue)(struct device_queue_manager *dqm,
 				struct queue *q);
-
-	struct mqd_manager * (*get_mqd_manager)
-					(struct device_queue_manager *dqm,
-					enum KFD_MQD_TYPE type);
 
 	int	(*register_process)(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
@@ -158,6 +152,8 @@ struct device_queue_manager_asic_ops {
 	void	(*init_sdma_vm)(struct device_queue_manager *dqm,
 				struct queue *q,
 				struct qcm_process_device *qpd);
+	struct mqd_manager *	(*mqd_manager_init)(enum KFD_MQD_TYPE type,
+				 struct kfd_dev *dev);
 };
 
 /**
@@ -185,10 +181,12 @@ struct device_queue_manager {
 	unsigned int		processes_count;
 	unsigned int		queue_count;
 	unsigned int		sdma_queue_count;
+	unsigned int		xgmi_sdma_queue_count;
 	unsigned int		total_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
-	unsigned int		sdma_bitmap;
+	uint64_t		sdma_bitmap;
+	uint64_t		xgmi_sdma_bitmap;
 	unsigned int		vmid_bitmap;
 	uint64_t		pipelines_addr;
 	struct kfd_mem_obj	*pipeline_mem;
@@ -201,6 +199,7 @@ struct device_queue_manager {
 	/* hw exception  */
 	bool			is_hws_hang;
 	struct work_struct	hw_exception_work;
+	struct kfd_mem_obj	hiq_sdma_mqd;
 };
 
 void device_queue_manager_init_cik(
@@ -219,6 +218,7 @@ unsigned int get_queues_num(struct device_queue_manager *dqm);
 unsigned int get_queues_per_pipe(struct device_queue_manager *dqm);
 unsigned int get_pipes_per_mec(struct device_queue_manager *dqm);
 unsigned int get_num_sdma_queues(struct device_queue_manager *dqm);
+unsigned int get_num_xgmi_sdma_queues(struct device_queue_manager *dqm);
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {

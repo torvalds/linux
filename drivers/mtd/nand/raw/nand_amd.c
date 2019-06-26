@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 Free Electrons
  * Copyright (C) 2017 NextThing Co
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "internals.h"
@@ -20,6 +11,9 @@
 static void amd_nand_decode_id(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	nand_decode_ext_id(chip);
 
@@ -31,16 +25,24 @@ static void amd_nand_decode_id(struct nand_chip *chip)
 	 */
 	if (chip->id.data[4] != 0x00 && chip->id.data[5] == 0x00 &&
 	    chip->id.data[6] == 0x00 && chip->id.data[7] == 0x00 &&
-	    mtd->writesize == 512) {
-		mtd->erasesize = 128 * 1024;
-		mtd->erasesize <<= ((chip->id.data[3] & 0x03) << 1);
+	    memorg->pagesize == 512) {
+		memorg->pages_per_eraseblock = 256;
+		memorg->pages_per_eraseblock <<= ((chip->id.data[3] & 0x03) << 1);
+		mtd->erasesize = memorg->pages_per_eraseblock *
+				 memorg->pagesize;
 	}
 }
 
 static int amd_nand_init(struct nand_chip *chip)
 {
 	if (nand_is_slc(chip))
-		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
+		/*
+		 * According to the datasheet of some Cypress SLC NANDs,
+		 * the bad block markers can be in the first, second or last
+		 * page of a block. So let's check all three locations.
+		 */
+		chip->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE |
+				 NAND_BBM_LASTPAGE;
 
 	return 0;
 }

@@ -95,6 +95,29 @@ TRACE_EVENT(net_dev_xmit,
 		__get_str(name), __entry->skbaddr, __entry->len, __entry->rc)
 );
 
+TRACE_EVENT(net_dev_xmit_timeout,
+
+	TP_PROTO(struct net_device *dev,
+		 int queue_index),
+
+	TP_ARGS(dev, queue_index),
+
+	TP_STRUCT__entry(
+		__string(	name,		dev->name	)
+		__string(	driver,		netdev_drivername(dev))
+		__field(	int,		queue_index	)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, dev->name);
+		__assign_str(driver, netdev_drivername(dev));
+		__entry->queue_index = queue_index;
+	),
+
+	TP_printk("dev=%s driver=%s queue=%d",
+		__get_str(name), __get_str(driver), __entry->queue_index)
+);
+
 DECLARE_EVENT_CLASS(net_dev_template,
 
 	TP_PROTO(struct sk_buff *skb),

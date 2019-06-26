@@ -1294,9 +1294,9 @@ void HiSax_reportcard(int cardnr, int sel)
 	printk(KERN_DEBUG "HiSax: reportcard No %d\n", cardnr + 1);
 	printk(KERN_DEBUG "HiSax: Type %s\n", CardType[cs->typ]);
 	printk(KERN_DEBUG "HiSax: debuglevel %x\n", cs->debug);
-	printk(KERN_DEBUG "HiSax: HiSax_reportcard address 0x%lX\n",
-	       (ulong) & HiSax_reportcard);
-	printk(KERN_DEBUG "HiSax: cs 0x%lX\n", (ulong) cs);
+	printk(KERN_DEBUG "HiSax: HiSax_reportcard address 0x%px\n",
+		HiSax_reportcard);
+	printk(KERN_DEBUG "HiSax: cs 0x%px\n", cs);
 	printk(KERN_DEBUG "HiSax: HW_Flags %lx bc0 flg %lx bc1 flg %lx\n",
 	       cs->HW_Flags, cs->bcs[0].Flag, cs->bcs[1].Flag);
 	printk(KERN_DEBUG "HiSax: bcs 0 mode %d ch%d\n",

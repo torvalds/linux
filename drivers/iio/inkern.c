@@ -733,11 +733,11 @@ static int iio_channel_read_avail(struct iio_channel *chan,
 						 vals, type, length, info);
 }
 
-int iio_read_avail_channel_raw(struct iio_channel *chan,
-			       const int **vals, int *length)
+int iio_read_avail_channel_attribute(struct iio_channel *chan,
+				     const int **vals, int *type, int *length,
+				     enum iio_chan_info_enum attribute)
 {
 	int ret;
-	int type;
 
 	mutex_lock(&chan->indio_dev->info_exist_lock);
 	if (!chan->indio_dev->info) {
@@ -745,10 +745,22 @@ int iio_read_avail_channel_raw(struct iio_channel *chan,
 		goto err_unlock;
 	}
 
-	ret = iio_channel_read_avail(chan,
-				     vals, &type, length, IIO_CHAN_INFO_RAW);
+	ret = iio_channel_read_avail(chan, vals, type, length, attribute);
 err_unlock:
 	mutex_unlock(&chan->indio_dev->info_exist_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iio_read_avail_channel_attribute);
+
+int iio_read_avail_channel_raw(struct iio_channel *chan,
+			       const int **vals, int *length)
+{
+	int ret;
+	int type;
+
+	ret = iio_read_avail_channel_attribute(chan, vals, &type, length,
+					 IIO_CHAN_INFO_RAW);
 
 	if (ret >= 0 && type != IIO_VAL_INT)
 		/* raw values are assumed to be IIO_VAL_INT */

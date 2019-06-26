@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API
  *
  * ARC4 Cipher Algorithm
  *
  * Jon Oberheide <jon@oberheide.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <crypto/algapi.h>
@@ -163,7 +158,7 @@ static void __exit arc4_exit(void)
 	crypto_unregister_skcipher(&arc4_skcipher);
 }
 
-module_init(arc4_init);
+subsys_initcall(arc4_init);
 module_exit(arc4_exit);
 
 MODULE_LICENSE("GPL");

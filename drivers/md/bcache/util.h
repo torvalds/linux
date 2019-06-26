@@ -560,17 +560,29 @@ static inline uint64_t bch_crc64_update(uint64_t crc,
 	return crc;
 }
 
-/* Does linear interpolation between powers of two */
+/*
+ * A stepwise-linear pseudo-exponential.  This returns 1 << (x >>
+ * frac_bits), with the less-significant bits filled in by linear
+ * interpolation.
+ *
+ * This can also be interpreted as a floating-point number format,
+ * where the low frac_bits are the mantissa (with implicit leading
+ * 1 bit), and the more significant bits are the exponent.
+ * The return value is 1.mantissa * 2^exponent.
+ *
+ * The way this is used, fract_bits is 6 and the largest possible
+ * input is CONGESTED_MAX-1 = 1023 (exponent 16, mantissa 0x1.fc),
+ * so the maximum output is 0x1fc00.
+ */
 static inline unsigned int fract_exp_two(unsigned int x,
 					 unsigned int fract_bits)
 {
-	unsigned int fract = x & ~(~0 << fract_bits);
+	unsigned int mantissa = 1 << fract_bits;	/* Implicit bit */
 
-	x >>= fract_bits;
-	x   = 1 << x;
-	x  += (x * fract) >> fract_bits;
-
-	return x;
+	mantissa += x & (mantissa - 1);
+	x >>= fract_bits;	/* The exponent */
+	/* Largest intermediate value 0x7f0000 */
+	return mantissa << x >> fract_bits;
 }
 
 void bch_bio_map(struct bio *bio, void *base);

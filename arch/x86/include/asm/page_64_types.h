@@ -14,22 +14,20 @@
 
 #define THREAD_SIZE_ORDER	(2 + KASAN_STACK_ORDER)
 #define THREAD_SIZE  (PAGE_SIZE << THREAD_SIZE_ORDER)
-#define CURRENT_MASK (~(THREAD_SIZE - 1))
 
 #define EXCEPTION_STACK_ORDER (0 + KASAN_STACK_ORDER)
 #define EXCEPTION_STKSZ (PAGE_SIZE << EXCEPTION_STACK_ORDER)
 
-#define DEBUG_STACK_ORDER (EXCEPTION_STACK_ORDER + 1)
-#define DEBUG_STKSZ (PAGE_SIZE << DEBUG_STACK_ORDER)
-
 #define IRQ_STACK_ORDER (2 + KASAN_STACK_ORDER)
 #define IRQ_STACK_SIZE (PAGE_SIZE << IRQ_STACK_ORDER)
 
-#define DOUBLEFAULT_STACK 1
-#define NMI_STACK 2
-#define DEBUG_STACK 3
-#define MCE_STACK 4
-#define N_EXCEPTION_STACKS 4  /* hw limit: 7 */
+/*
+ * The index for the tss.ist[] array. The hardware limit is 7 entries.
+ */
+#define	IST_INDEX_DF		0
+#define	IST_INDEX_NMI		1
+#define	IST_INDEX_DB		2
+#define	IST_INDEX_MCE		3
 
 /*
  * Set __PAGE_OFFSET to the most negative possible address +

@@ -310,7 +310,7 @@ static int dp83822_resume(struct phy_device *phydev)
 	{							\
 		PHY_ID_MATCH_MODEL(_id),			\
 		.name		= (_name),			\
-		.features	= PHY_BASIC_FEATURES,		\
+		/* PHY_BASIC_FEATURES */			\
 		.soft_reset	= dp83822_phy_reset,		\
 		.config_init	= dp83822_config_init,		\
 		.get_wol = dp83822_get_wol,			\

@@ -97,6 +97,9 @@ static struct snd_soc_card hda_soc_card = {
 };
 
 #define IDISP_DAI_COUNT		3
+#define HDAC_DAI_COUNT		2
+#define DMIC_DAI_COUNT		2
+
 /* there are two routes per iDisp output */
 #define IDISP_ROUTE_COUNT	(IDISP_DAI_COUNT * 2)
 #define IDISP_CODEC_MASK	0x4
@@ -112,11 +115,23 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 	codec_count = hweight_long(codec_mask);
 
 	if (codec_count == 1 && codec_mask & IDISP_CODEC_MASK) {
-		num_links = IDISP_DAI_COUNT;
+		num_links = IDISP_DAI_COUNT + DMIC_DAI_COUNT;
 		num_route = IDISP_ROUTE_COUNT;
+
+		/*
+		 * rearrange the dai link array and make the
+		 * dmic dai links follow idsp dai links for only
+		 * num_links of dai links need to be registered
+		 * to ASoC.
+		 */
+		for (i = 0; i < DMIC_DAI_COUNT; i++) {
+			skl_hda_be_dai_links[IDISP_DAI_COUNT + i] =
+				skl_hda_be_dai_links[IDISP_DAI_COUNT +
+					HDAC_DAI_COUNT + i];
+		}
 	} else if (codec_count == 2 && codec_mask & IDISP_CODEC_MASK) {
 		num_links = ARRAY_SIZE(skl_hda_be_dai_links);
-		num_route = ARRAY_SIZE(skl_hda_map),
+		num_route = ARRAY_SIZE(skl_hda_map);
 		card->dapm_widgets = skl_hda_widgets;
 		card->num_dapm_widgets = ARRAY_SIZE(skl_hda_widgets);
 	} else {

@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * User interface for Resource Alloction in Resource Director Technology(RDT)
  *
  * Copyright (C) 2016 Intel Corporation
  *
  * Author: Fenghua Yu <fenghua.yu@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * More information about RDT be found in the Intel (R) x86 Architecture
  * Software Developer Manual.
@@ -2516,102 +2508,135 @@ static void cbm_ensure_valid(u32 *_val, struct rdt_resource *r)
 	bitmap_clear(val, zero_bit, cbm_len - zero_bit);
 }
 
-/**
- * rdtgroup_init_alloc - Initialize the new RDT group's allocations
+/*
+ * Initialize cache resources per RDT domain
  *
- * A new RDT group is being created on an allocation capable (CAT)
- * supporting system. Set this group up to start off with all usable
- * allocations. That is, all shareable and unused bits.
- *
- * All-zero CBM is invalid. If there are no more shareable bits available
- * on any domain then the entire allocation will fail.
+ * Set the RDT domain up to start off with all usable allocations. That is,
+ * all shareable and unused bits. All-zero CBM is invalid.
  */
-static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
+static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
+				 u32 closid)
 {
 	struct rdt_resource *r_cdp = NULL;
 	struct rdt_domain *d_cdp = NULL;
 	u32 used_b = 0, unused_b = 0;
-	u32 closid = rdtgrp->closid;
-	struct rdt_resource *r;
 	unsigned long tmp_cbm;
 	enum rdtgrp_mode mode;
-	struct rdt_domain *d;
 	u32 peer_ctl, *ctrl;
-	int i, ret;
+	int i;
 
-	for_each_alloc_enabled_rdt_resource(r) {
-		/*
-		 * Only initialize default allocations for CBM cache
-		 * resources
-		 */
-		if (r->rid == RDT_RESOURCE_MBA)
-			continue;
-		list_for_each_entry(d, &r->domains, list) {
-			rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp);
-			d->have_new_ctrl = false;
-			d->new_ctrl = r->cache.shareable_bits;
-			used_b = r->cache.shareable_bits;
-			ctrl = d->ctrl_val;
-			for (i = 0; i < closids_supported(); i++, ctrl++) {
-				if (closid_allocated(i) && i != closid) {
-					mode = rdtgroup_mode_by_closid(i);
-					if (mode == RDT_MODE_PSEUDO_LOCKSETUP)
-						break;
-					/*
-					 * If CDP is active include peer
-					 * domain's usage to ensure there
-					 * is no overlap with an exclusive
-					 * group.
-					 */
-					if (d_cdp)
-						peer_ctl = d_cdp->ctrl_val[i];
-					else
-						peer_ctl = 0;
-					used_b |= *ctrl | peer_ctl;
-					if (mode == RDT_MODE_SHAREABLE)
-						d->new_ctrl |= *ctrl | peer_ctl;
-				}
-			}
-			if (d->plr && d->plr->cbm > 0)
-				used_b |= d->plr->cbm;
-			unused_b = used_b ^ (BIT_MASK(r->cache.cbm_len) - 1);
-			unused_b &= BIT_MASK(r->cache.cbm_len) - 1;
-			d->new_ctrl |= unused_b;
+	rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp);
+	d->have_new_ctrl = false;
+	d->new_ctrl = r->cache.shareable_bits;
+	used_b = r->cache.shareable_bits;
+	ctrl = d->ctrl_val;
+	for (i = 0; i < closids_supported(); i++, ctrl++) {
+		if (closid_allocated(i) && i != closid) {
+			mode = rdtgroup_mode_by_closid(i);
+			if (mode == RDT_MODE_PSEUDO_LOCKSETUP)
+				/*
+				 * ctrl values for locksetup aren't relevant
+				 * until the schemata is written, and the mode
+				 * becomes RDT_MODE_PSEUDO_LOCKED.
+				 */
+				continue;
 			/*
-			 * Force the initial CBM to be valid, user can
-			 * modify the CBM based on system availability.
+			 * If CDP is active include peer domain's
+			 * usage to ensure there is no overlap
+			 * with an exclusive group.
 			 */
-			cbm_ensure_valid(&d->new_ctrl, r);
-			/*
-			 * Assign the u32 CBM to an unsigned long to ensure
-			 * that bitmap_weight() does not access out-of-bound
-			 * memory.
-			 */
-			tmp_cbm = d->new_ctrl;
-			if (bitmap_weight(&tmp_cbm, r->cache.cbm_len) <
-			    r->cache.min_cbm_bits) {
-				rdt_last_cmd_printf("No space on %s:%d\n",
-						    r->name, d->id);
-				return -ENOSPC;
-			}
-			d->have_new_ctrl = true;
+			if (d_cdp)
+				peer_ctl = d_cdp->ctrl_val[i];
+			else
+				peer_ctl = 0;
+			used_b |= *ctrl | peer_ctl;
+			if (mode == RDT_MODE_SHAREABLE)
+				d->new_ctrl |= *ctrl | peer_ctl;
 		}
 	}
+	if (d->plr && d->plr->cbm > 0)
+		used_b |= d->plr->cbm;
+	unused_b = used_b ^ (BIT_MASK(r->cache.cbm_len) - 1);
+	unused_b &= BIT_MASK(r->cache.cbm_len) - 1;
+	d->new_ctrl |= unused_b;
+	/*
+	 * Force the initial CBM to be valid, user can
+	 * modify the CBM based on system availability.
+	 */
+	cbm_ensure_valid(&d->new_ctrl, r);
+	/*
+	 * Assign the u32 CBM to an unsigned long to ensure that
+	 * bitmap_weight() does not access out-of-bound memory.
+	 */
+	tmp_cbm = d->new_ctrl;
+	if (bitmap_weight(&tmp_cbm, r->cache.cbm_len) < r->cache.min_cbm_bits) {
+		rdt_last_cmd_printf("No space on %s:%d\n", r->name, d->id);
+		return -ENOSPC;
+	}
+	d->have_new_ctrl = true;
+
+	return 0;
+}
+
+/*
+ * Initialize cache resources with default values.
+ *
+ * A new RDT group is being created on an allocation capable (CAT)
+ * supporting system. Set this group up to start off with all usable
+ * allocations.
+ *
+ * If there are no more shareable bits available on any domain then
+ * the entire allocation will fail.
+ */
+static int rdtgroup_init_cat(struct rdt_resource *r, u32 closid)
+{
+	struct rdt_domain *d;
+	int ret;
+
+	list_for_each_entry(d, &r->domains, list) {
+		ret = __init_one_rdt_domain(d, r, closid);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+/* Initialize MBA resource with default values. */
+static void rdtgroup_init_mba(struct rdt_resource *r)
+{
+	struct rdt_domain *d;
+
+	list_for_each_entry(d, &r->domains, list) {
+		d->new_ctrl = is_mba_sc(r) ? MBA_MAX_MBPS : r->default_ctrl;
+		d->have_new_ctrl = true;
+	}
+}
+
+/* Initialize the RDT group's allocations. */
+static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
+{
+	struct rdt_resource *r;
+	int ret;
 
 	for_each_alloc_enabled_rdt_resource(r) {
-		/*
-		 * Only initialize default allocations for CBM cache
-		 * resources
-		 */
-		if (r->rid == RDT_RESOURCE_MBA)
-			continue;
+		if (r->rid == RDT_RESOURCE_MBA) {
+			rdtgroup_init_mba(r);
+		} else {
+			ret = rdtgroup_init_cat(r, rdtgrp->closid);
+			if (ret < 0)
+				return ret;
+		}
+
 		ret = update_domains(r, rdtgrp->closid);
 		if (ret < 0) {
 			rdt_last_cmd_puts("Failed to initialize allocations\n");
 			return ret;
 		}
-		rdtgrp->mode = RDT_MODE_SHAREABLE;
+
 	}
+
+	rdtgrp->mode = RDT_MODE_SHAREABLE;
 
 	return 0;
 }

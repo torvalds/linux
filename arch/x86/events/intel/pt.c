@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel(R) Processor Trace PMU driver for perf
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * Intel PT is specified in the Intel Architecture Instruction Set Extensions
  * Programming Reference:
@@ -1525,8 +1517,7 @@ static __init int pt_init(void)
 	}
 
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries))
-		pt_pmu.pmu.capabilities =
-			PERF_PMU_CAP_AUX_NO_SG | PERF_PMU_CAP_AUX_SW_DOUBLEBUF;
+		pt_pmu.pmu.capabilities = PERF_PMU_CAP_AUX_NO_SG;
 
 	pt_pmu.pmu.capabilities	|= PERF_PMU_CAP_EXCLUSIVE | PERF_PMU_CAP_ITRACE;
 	pt_pmu.pmu.attr_groups		 = pt_attr_groups;

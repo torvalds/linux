@@ -20,7 +20,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <drm/drmP.h>
+
+#include <linux/pci.h>
+
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_i2c.h"

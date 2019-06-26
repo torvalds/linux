@@ -169,21 +169,7 @@ vmw_validation_bo_reserve(struct vmw_validation_context *ctx,
 			  bool intr)
 {
 	return ttm_eu_reserve_buffers(&ctx->ticket, &ctx->bo_list, intr,
-				      NULL);
-}
-
-/**
- * vmw_validation_bo_backoff - Unreserve buffer objects registered with a
- * validation context
- * @ctx: The validation context
- *
- * This function unreserves the buffer objects previously reserved using
- * vmw_validation_bo_reserve. It's typically used as part of an error path
- */
-static inline void
-vmw_validation_bo_backoff(struct vmw_validation_context *ctx)
-{
-	ttm_eu_backoff_reservation(&ctx->ticket, &ctx->bo_list);
+				      NULL, true);
 }
 
 /**
@@ -268,4 +254,6 @@ int vmw_validation_preload_res(struct vmw_validation_context *ctx,
 			       unsigned int size);
 void vmw_validation_res_set_dirty(struct vmw_validation_context *ctx,
 				  void *val_private, u32 dirty);
+void vmw_validation_bo_backoff(struct vmw_validation_context *ctx);
+
 #endif

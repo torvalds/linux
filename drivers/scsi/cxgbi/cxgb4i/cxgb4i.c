@@ -60,7 +60,7 @@ MODULE_PARM_DESC(dbg_level, "Debug flag (default=0)");
 #define CXGB4I_DEFAULT_10G_RCV_WIN (256 * 1024)
 static int cxgb4i_rcv_win = -1;
 module_param(cxgb4i_rcv_win, int, 0644);
-MODULE_PARM_DESC(cxgb4i_rcv_win, "TCP reveive window in bytes");
+MODULE_PARM_DESC(cxgb4i_rcv_win, "TCP receive window in bytes");
 
 #define CXGB4I_DEFAULT_10G_SND_WIN (128 * 1024)
 static int cxgb4i_snd_win = -1;

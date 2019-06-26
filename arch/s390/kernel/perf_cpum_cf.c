@@ -2,8 +2,8 @@
 /*
  * Performance event support for s390x - CPU-measurement Counter Facility
  *
- *  Copyright IBM Corp. 2012, 2017
- *  Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
+ *  Copyright IBM Corp. 2012, 2019
+ *  Author(s): Hendrik Brueckner <brueckner@linux.ibm.com>
  */
 #define KMSG_COMPONENT	"cpum_cf"
 #define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
@@ -26,7 +26,7 @@ static enum cpumf_ctr_set get_counter_set(u64 event)
 		set = CPUMF_CTR_SET_USER;
 	else if (event < 128)
 		set = CPUMF_CTR_SET_CRYPTO;
-	else if (event < 256)
+	else if (event < 288)
 		set = CPUMF_CTR_SET_EXT;
 	else if (event >= 448 && event < 496)
 		set = CPUMF_CTR_SET_MT_DIAG;
@@ -50,12 +50,19 @@ static int validate_ctr_version(const struct hw_perf_event *hwc)
 			err = -EOPNOTSUPP;
 		break;
 	case CPUMF_CTR_SET_CRYPTO:
+		if ((cpuhw->info.csvn >= 1 && cpuhw->info.csvn <= 5 &&
+		     hwc->config > 79) ||
+		    (cpuhw->info.csvn >= 6 && hwc->config > 83))
+			err = -EOPNOTSUPP;
+		break;
 	case CPUMF_CTR_SET_EXT:
 		if (cpuhw->info.csvn < 1)
 			err = -EOPNOTSUPP;
 		if ((cpuhw->info.csvn == 1 && hwc->config > 159) ||
 		    (cpuhw->info.csvn == 2 && hwc->config > 175) ||
-		    (cpuhw->info.csvn  > 2 && hwc->config > 255))
+		    (cpuhw->info.csvn >= 3 && cpuhw->info.csvn <= 5
+		     && hwc->config > 255) ||
+		    (cpuhw->info.csvn >= 6 && hwc->config > 287))
 			err = -EOPNOTSUPP;
 		break;
 	case CPUMF_CTR_SET_MT_DIAG:

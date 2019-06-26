@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * blk-mq scheduling framework
  *
@@ -413,6 +414,14 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 				  struct list_head *list, bool run_queue_async)
 {
 	struct elevator_queue *e;
+	struct request_queue *q = hctx->queue;
+
+	/*
+	 * blk_mq_sched_insert_requests() is called from flush plug
+	 * context only, and hold one usage counter to prevent queue
+	 * from being released.
+	 */
+	percpu_ref_get(&q->q_usage_counter);
 
 	e = hctx->queue->elevator;
 	if (e && e->type->ops.insert_requests)
@@ -426,12 +435,14 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 		if (!hctx->dispatch_busy && !e && !run_queue_async) {
 			blk_mq_try_issue_list_directly(hctx, list);
 			if (list_empty(list))
-				return;
+				goto out;
 		}
 		blk_mq_insert_requests(hctx, ctx, list);
 	}
 
 	blk_mq_run_hw_queue(hctx, run_queue_async);
+ out:
+	percpu_ref_put(&q->q_usage_counter);
 }
 
 static void blk_mq_sched_free_tags(struct blk_mq_tag_set *set,
@@ -464,14 +475,18 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 	return ret;
 }
 
+/* called in queue's release handler, tagset has gone away */
 static void blk_mq_sched_tags_teardown(struct request_queue *q)
 {
-	struct blk_mq_tag_set *set = q->tag_set;
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
-	queue_for_each_hw_ctx(q, hctx, i)
-		blk_mq_sched_free_tags(set, hctx, i);
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (hctx->sched_tags) {
+			blk_mq_free_rq_map(hctx->sched_tags);
+			hctx->sched_tags = NULL;
+		}
+	}
 }
 
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
@@ -512,6 +527,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 			ret = e->ops.init_hctx(hctx, i);
 			if (ret) {
 				eq = q->elevator;
+				blk_mq_sched_free_requests(q);
 				blk_mq_exit_sched(q, eq);
 				kobject_put(&eq->kobj);
 				return ret;
@@ -523,9 +539,27 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	return 0;
 
 err:
+	blk_mq_sched_free_requests(q);
 	blk_mq_sched_tags_teardown(q);
 	q->elevator = NULL;
 	return ret;
+}
+
+/*
+ * called in either blk_queue_cleanup or elevator_switch, tagset
+ * is required for freeing requests
+ */
+void blk_mq_sched_free_requests(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx;
+	int i;
+
+	lockdep_assert_held(&q->sysfs_lock);
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (hctx->sched_tags)
+			blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
+	}
 }
 
 void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)

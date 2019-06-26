@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* bpf/cpumap.c
  *
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
- * Released under terms in GPL version 2.  See COPYING.
  */
 
 /* The 'cpumap' is primarily used as a backend map for XDP BPF helper
@@ -160,12 +160,12 @@ static void cpu_map_kthread_stop(struct work_struct *work)
 }
 
 static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
-					 struct xdp_frame *xdpf)
+					 struct xdp_frame *xdpf,
+					 struct sk_buff *skb)
 {
 	unsigned int hard_start_headroom;
 	unsigned int frame_size;
 	void *pkt_data_start;
-	struct sk_buff *skb;
 
 	/* Part of headroom was reserved to xdpf */
 	hard_start_headroom = sizeof(struct xdp_frame) +  xdpf->headroom;
@@ -191,8 +191,8 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	pkt_data_start = xdpf->data - hard_start_headroom;
-	skb = build_skb(pkt_data_start, frame_size);
-	if (!skb)
+	skb = build_skb_around(skb, pkt_data_start, frame_size);
+	if (unlikely(!skb))
 		return NULL;
 
 	skb_reserve(skb, hard_start_headroom);
@@ -240,6 +240,8 @@ static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
 	}
 }
 
+#define CPUMAP_BATCH 8
+
 static int cpu_map_kthread_run(void *data)
 {
 	struct bpf_cpu_map_entry *rcpu = data;
@@ -252,8 +254,11 @@ static int cpu_map_kthread_run(void *data)
 	 * kthread_stop signal until queue is empty.
 	 */
 	while (!kthread_should_stop() || !__ptr_ring_empty(rcpu->queue)) {
-		unsigned int processed = 0, drops = 0, sched = 0;
-		struct xdp_frame *xdpf;
+		unsigned int drops = 0, sched = 0;
+		void *frames[CPUMAP_BATCH];
+		void *skbs[CPUMAP_BATCH];
+		gfp_t gfp = __GFP_ZERO | GFP_ATOMIC;
+		int i, n, m;
 
 		/* Release CPU reschedule checks */
 		if (__ptr_ring_empty(rcpu->queue)) {
@@ -269,18 +274,38 @@ static int cpu_map_kthread_run(void *data)
 			sched = cond_resched();
 		}
 
-		/* Process packets in rcpu->queue */
-		local_bh_disable();
 		/*
 		 * The bpf_cpu_map_entry is single consumer, with this
 		 * kthread CPU pinned. Lockless access to ptr_ring
 		 * consume side valid as no-resize allowed of queue.
 		 */
-		while ((xdpf = __ptr_ring_consume(rcpu->queue))) {
-			struct sk_buff *skb;
+		n = ptr_ring_consume_batched(rcpu->queue, frames, CPUMAP_BATCH);
+
+		for (i = 0; i < n; i++) {
+			void *f = frames[i];
+			struct page *page = virt_to_page(f);
+
+			/* Bring struct page memory area to curr CPU. Read by
+			 * build_skb_around via page_is_pfmemalloc(), and when
+			 * freed written by page_frag_free call.
+			 */
+			prefetchw(page);
+		}
+
+		m = kmem_cache_alloc_bulk(skbuff_head_cache, gfp, n, skbs);
+		if (unlikely(m == 0)) {
+			for (i = 0; i < n; i++)
+				skbs[i] = NULL; /* effect: xdp_return_frame */
+			drops = n;
+		}
+
+		local_bh_disable();
+		for (i = 0; i < n; i++) {
+			struct xdp_frame *xdpf = frames[i];
+			struct sk_buff *skb = skbs[i];
 			int ret;
 
-			skb = cpu_map_build_skb(rcpu, xdpf);
+			skb = cpu_map_build_skb(rcpu, xdpf, skb);
 			if (!skb) {
 				xdp_return_frame(xdpf);
 				continue;
@@ -290,13 +315,9 @@ static int cpu_map_kthread_run(void *data)
 			ret = netif_receive_skb_core(skb);
 			if (ret == NET_RX_DROP)
 				drops++;
-
-			/* Limit BH-disable period */
-			if (++processed == 8)
-				break;
 		}
 		/* Feedback loop via tracepoint */
-		trace_xdp_cpumap_kthread(rcpu->map_id, processed, drops, sched);
+		trace_xdp_cpumap_kthread(rcpu->map_id, n, drops, sched);
 
 		local_bh_enable(); /* resched point, may call do_softirq() */
 	}

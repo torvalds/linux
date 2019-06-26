@@ -14,8 +14,11 @@ MAKEFLAGS += -r
 
 CFLAGS += -O2 -Wall -g -D_GNU_SOURCE -I$(OUTPUT)include
 
-ALL_TARGETS := pcitest pcitest.sh
+ALL_TARGETS := pcitest
 ALL_PROGRAMS := $(patsubst %,$(OUTPUT)%,$(ALL_TARGETS))
+
+SCRIPTS := pcitest.sh
+ALL_SCRIPTS := $(patsubst %,$(OUTPUT)%,$(SCRIPTS))
 
 all: $(ALL_PROGRAMS)
 
@@ -44,8 +47,11 @@ clean:
 
 install: $(ALL_PROGRAMS)
 	install -d -m 755 $(DESTDIR)$(bindir);		\
-	for program in $(ALL_PROGRAMS); do		\
+	for program in $(ALL_PROGRAMS) pcitest.sh; do	\
 		install $$program $(DESTDIR)$(bindir);	\
+	done;						\
+	for script in $(ALL_SCRIPTS); do		\
+		install $$script $(DESTDIR)$(bindir);	\
 	done
 
 FORCE:

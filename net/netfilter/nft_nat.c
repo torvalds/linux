@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  * Copyright (c) 2012 Pablo Neira Ayuso <pablo@netfilter.org>
  * Copyright (c) 2012 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -140,7 +136,7 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		return -EINVAL;
 
 	family = ntohl(nla_get_be32(tb[NFTA_NAT_FAMILY]));
-	if (family != ctx->family)
+	if (ctx->family != NFPROTO_INET && ctx->family != family)
 		return -EOPNOTSUPP;
 
 	switch (family) {
@@ -278,13 +274,67 @@ static struct nft_expr_type nft_nat_type __read_mostly = {
 	.owner          = THIS_MODULE,
 };
 
+#ifdef CONFIG_NF_TABLES_INET
+static void nft_nat_inet_eval(const struct nft_expr *expr,
+			      struct nft_regs *regs,
+			      const struct nft_pktinfo *pkt)
+{
+	const struct nft_nat *priv = nft_expr_priv(expr);
+
+	if (priv->family == nft_pf(pkt))
+		nft_nat_eval(expr, regs, pkt);
+}
+
+static const struct nft_expr_ops nft_nat_inet_ops = {
+	.type           = &nft_nat_type,
+	.size           = NFT_EXPR_SIZE(sizeof(struct nft_nat)),
+	.eval           = nft_nat_inet_eval,
+	.init           = nft_nat_init,
+	.destroy        = nft_nat_destroy,
+	.dump           = nft_nat_dump,
+	.validate	= nft_nat_validate,
+};
+
+static struct nft_expr_type nft_inet_nat_type __read_mostly = {
+	.name           = "nat",
+	.family		= NFPROTO_INET,
+	.ops            = &nft_nat_inet_ops,
+	.policy         = nft_nat_policy,
+	.maxattr        = NFTA_NAT_MAX,
+	.owner          = THIS_MODULE,
+};
+
+static int nft_nat_inet_module_init(void)
+{
+	return nft_register_expr(&nft_inet_nat_type);
+}
+
+static void nft_nat_inet_module_exit(void)
+{
+	nft_unregister_expr(&nft_inet_nat_type);
+}
+#else
+static int nft_nat_inet_module_init(void) { return 0; }
+static void nft_nat_inet_module_exit(void) { }
+#endif
+
 static int __init nft_nat_module_init(void)
 {
-	return nft_register_expr(&nft_nat_type);
+	int ret = nft_nat_inet_module_init();
+
+	if (ret)
+		return ret;
+
+	ret = nft_register_expr(&nft_nat_type);
+	if (ret)
+		nft_nat_inet_module_exit();
+
+	return ret;
 }
 
 static void __exit nft_nat_module_exit(void)
 {
+	nft_nat_inet_module_exit();
 	nft_unregister_expr(&nft_nat_type);
 }
 

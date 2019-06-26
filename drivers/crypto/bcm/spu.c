@@ -22,9 +22,6 @@
 #include "spum.h"
 #include "cipher.h"
 
-/* This array is based on the hash algo type supported in spu.h */
-char *tag_to_hash_idx[] = { "none", "md5", "sha1", "sha224", "sha256" };
-
 char *hash_alg_name[] = { "None", "md5", "sha1", "sha224", "sha256", "aes",
 	"sha384", "sha512", "sha3_224", "sha3_256", "sha3_384", "sha3_512" };
 

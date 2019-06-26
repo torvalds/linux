@@ -1,13 +1,9 @@
-/*
- * Register map access API - W1 (1-Wire) support
- *
- * Copyright (c) 2017 Radioavionica Corporation
- * Author: Alex A. Mihaylov <minimumlaw@rambler.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Register map access API - W1 (1-Wire) support
+//
+// Copyright (c) 2017 Radioavionica Corporation
+// Author: Alex A. Mihaylov <minimumlaw@rambler.ru>
 
 #include <linux/regmap.h>
 #include <linux/module.h>

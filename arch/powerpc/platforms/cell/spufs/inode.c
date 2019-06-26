@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * SPU file system
@@ -5,20 +6,6 @@
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/file.h>
@@ -71,15 +58,9 @@ spufs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void spufs_i_callback(struct rcu_head *head)
+static void spufs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(spufs_inode_cache, SPUFS_I(inode));
-}
-
-static void spufs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, spufs_i_callback);
 }
 
 static void
@@ -739,7 +720,7 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 	struct spufs_sb_info *info;
 	static const struct super_operations s_ops = {
 		.alloc_inode = spufs_alloc_inode,
-		.destroy_inode = spufs_destroy_inode,
+		.free_inode = spufs_free_inode,
 		.statfs = simple_statfs,
 		.evict_inode = spufs_evict_inode,
 		.show_options = spufs_show_options,

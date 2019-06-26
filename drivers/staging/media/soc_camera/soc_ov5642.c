@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for OV5642 CMOS Image Sensor from Omnivision
  *
@@ -8,12 +9,7 @@
  *
  * Based on Omnivision OV7670 Camera Driver
  * Copyright (C) 2006-7 Jonathan Corbet <corbet@lwn.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
-
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>

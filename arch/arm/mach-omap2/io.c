@@ -411,14 +411,9 @@ static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 
 static void __init __maybe_unused omap_hwmod_init_postsetup(void)
 {
-	u8 postsetup_state;
+	u8 postsetup_state = _HWMOD_STATE_DEFAULT;
 
 	/* Set the default postsetup state for all hwmods */
-#ifdef CONFIG_PM
-	postsetup_state = _HWMOD_STATE_IDLE;
-#else
-	postsetup_state = _HWMOD_STATE_ENABLED;
-#endif
 	omap_hwmod_for_each(_set_hwmod_postsetup_state, &postsetup_state);
 }
 

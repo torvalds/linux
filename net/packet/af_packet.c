@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -43,13 +44,6 @@
  *		Chetan Loke	:	Implemented TPACKET_V3 block abstraction
  *					layer.
  *					Copyright (C) 2011, <lokec@ccs.neu.edu>
- *
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/types.h>
@@ -275,24 +269,22 @@ static bool packet_use_direct_xmit(const struct packet_sock *po)
 	return po->xmit == packet_direct_xmit;
 }
 
-static u16 __packet_pick_tx_queue(struct net_device *dev, struct sk_buff *skb,
-				  struct net_device *sb_dev)
-{
-	return dev_pick_tx_cpu_id(dev, skb, sb_dev, NULL);
-}
-
 static u16 packet_pick_tx_queue(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	const struct net_device_ops *ops = dev->netdev_ops;
+	int cpu = raw_smp_processor_id();
 	u16 queue_index;
 
+#ifdef CONFIG_XPS
+	skb->sender_cpu = cpu + 1;
+#endif
+	skb_record_rx_queue(skb, cpu % dev->real_num_tx_queues);
 	if (ops->ndo_select_queue) {
-		queue_index = ops->ndo_select_queue(dev, skb, NULL,
-						    __packet_pick_tx_queue);
+		queue_index = ops->ndo_select_queue(dev, skb, NULL);
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	} else {
-		queue_index = __packet_pick_tx_queue(dev, skb, NULL);
+		queue_index = netdev_pick_tx(dev, skb, NULL);
 	}
 
 	return queue_index;
@@ -2602,8 +2594,8 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	void *ph;
 	DECLARE_SOCKADDR(struct sockaddr_ll *, saddr, msg->msg_name);
 	bool need_wait = !(msg->msg_flags & MSG_DONTWAIT);
+	unsigned char *addr = NULL;
 	int tp_len, size_max;
-	unsigned char *addr;
 	void *data;
 	int len_sum = 0;
 	int status = TP_STATUS_AVAILABLE;
@@ -2614,7 +2606,6 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	if (likely(saddr == NULL)) {
 		dev	= packet_cached_dev_get(po);
 		proto	= po->num;
-		addr	= NULL;
 	} else {
 		err = -EINVAL;
 		if (msg->msg_namelen < sizeof(struct sockaddr_ll))
@@ -2624,10 +2615,13 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 						sll_addr)))
 			goto out;
 		proto	= saddr->sll_protocol;
-		addr	= saddr->sll_halen ? saddr->sll_addr : NULL;
 		dev = dev_get_by_index(sock_net(&po->sk), saddr->sll_ifindex);
-		if (addr && dev && saddr->sll_halen < dev->addr_len)
-			goto out_put;
+		if (po->sk.sk_socket->type == SOCK_DGRAM) {
+			if (dev && msg->msg_namelen < dev->addr_len +
+				   offsetof(struct sockaddr_ll, sll_addr))
+				goto out_put;
+			addr = saddr->sll_addr;
+		}
 	}
 
 	err = -ENXIO;
@@ -2799,7 +2793,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	struct sk_buff *skb;
 	struct net_device *dev;
 	__be16 proto;
-	unsigned char *addr;
+	unsigned char *addr = NULL;
 	int err, reserve = 0;
 	struct sockcm_cookie sockc;
 	struct virtio_net_hdr vnet_hdr = { 0 };
@@ -2816,7 +2810,6 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	if (likely(saddr == NULL)) {
 		dev	= packet_cached_dev_get(po);
 		proto	= po->num;
-		addr	= NULL;
 	} else {
 		err = -EINVAL;
 		if (msg->msg_namelen < sizeof(struct sockaddr_ll))
@@ -2824,10 +2817,13 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		if (msg->msg_namelen < (saddr->sll_halen + offsetof(struct sockaddr_ll, sll_addr)))
 			goto out;
 		proto	= saddr->sll_protocol;
-		addr	= saddr->sll_halen ? saddr->sll_addr : NULL;
 		dev = dev_get_by_index(sock_net(sk), saddr->sll_ifindex);
-		if (addr && dev && saddr->sll_halen < dev->addr_len)
-			goto out_unlock;
+		if (sock->type == SOCK_DGRAM) {
+			if (dev && msg->msg_namelen < dev->addr_len +
+				   offsetof(struct sockaddr_ll, sll_addr))
+				goto out_unlock;
+			addr = saddr->sll_addr;
+		}
 	}
 
 	err = -ENXIO;
@@ -3012,8 +3008,8 @@ static int packet_release(struct socket *sock)
 
 	synchronize_net();
 
+	kfree(po->rollover);
 	if (f) {
-		kfree(po->rollover);
 		fanout_release_data(f);
 		kfree(f);
 	}
@@ -3344,20 +3340,29 @@ static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (msg->msg_name) {
+		int copy_len;
+
 		/* If the address length field is there to be filled
 		 * in, we fill it in now.
 		 */
 		if (sock->type == SOCK_PACKET) {
 			__sockaddr_check_size(sizeof(struct sockaddr_pkt));
 			msg->msg_namelen = sizeof(struct sockaddr_pkt);
+			copy_len = msg->msg_namelen;
 		} else {
 			struct sockaddr_ll *sll = &PACKET_SKB_CB(skb)->sa.ll;
 
 			msg->msg_namelen = sll->sll_halen +
 				offsetof(struct sockaddr_ll, sll_addr);
+			copy_len = msg->msg_namelen;
+			if (msg->msg_namelen < sizeof(struct sockaddr_ll)) {
+				memset(msg->msg_name +
+				       offsetof(struct sockaddr_ll, sll_addr),
+				       0, sizeof(sll->sll_addr));
+				msg->msg_namelen = sizeof(struct sockaddr_ll);
+			}
 		}
-		memcpy(msg->msg_name, &PACKET_SKB_CB(skb)->sa,
-		       msg->msg_namelen);
+		memcpy(msg->msg_name, &PACKET_SKB_CB(skb)->sa, copy_len);
 	}
 
 	if (pkt_sk(sk)->auxdata) {
@@ -4077,11 +4082,6 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 		return put_user(amount, (int __user *)arg);
 	}
-	case SIOCGSTAMP:
-		return sock_get_timestamp(sk, (struct timeval __user *)arg);
-	case SIOCGSTAMPNS:
-		return sock_get_timestampns(sk, (struct timespec __user *)arg);
-
 #ifdef CONFIG_INET
 	case SIOCADDRT:
 	case SIOCDELRT:
@@ -4457,6 +4457,7 @@ static const struct proto_ops packet_ops_spkt = {
 	.getname =	packet_getname_spkt,
 	.poll =		datagram_poll,
 	.ioctl =	packet_ioctl,
+	.gettstamp =	sock_gettstamp,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	sock_no_setsockopt,
@@ -4478,6 +4479,7 @@ static const struct proto_ops packet_ops = {
 	.getname =	packet_getname,
 	.poll =		packet_poll,
 	.ioctl =	packet_ioctl,
+	.gettstamp =	sock_gettstamp,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	packet_setsockopt,
@@ -4590,14 +4592,29 @@ static void __exit packet_exit(void)
 
 static int __init packet_init(void)
 {
-	int rc = proto_register(&packet_proto, 0);
+	int rc;
 
-	if (rc != 0)
+	rc = proto_register(&packet_proto, 0);
+	if (rc)
 		goto out;
+	rc = sock_register(&packet_family_ops);
+	if (rc)
+		goto out_proto;
+	rc = register_pernet_subsys(&packet_net_ops);
+	if (rc)
+		goto out_sock;
+	rc = register_netdevice_notifier(&packet_netdev_notifier);
+	if (rc)
+		goto out_pernet;
 
-	sock_register(&packet_family_ops);
-	register_pernet_subsys(&packet_net_ops);
-	register_netdevice_notifier(&packet_netdev_notifier);
+	return 0;
+
+out_pernet:
+	unregister_pernet_subsys(&packet_net_ops);
+out_sock:
+	sock_unregister(PF_PACKET);
+out_proto:
+	proto_unregister(&packet_proto);
 out:
 	return rc;
 }

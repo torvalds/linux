@@ -17,7 +17,7 @@
 #include <linux/etherdevice.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/system_info.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>

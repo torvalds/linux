@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_HDA_CORE
 	tristate
 	select REGMAP

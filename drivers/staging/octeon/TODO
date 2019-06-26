@@ -1,0 +1,9 @@
+This driver is functional and supports Ethernet on OCTEON+/OCTEON2/OCTEON3
+chips at least up to CN7030.
+
+TODO:
+	- general code review and clean up
+	- make driver self-contained instead of being split between staging and
+	  arch/mips/cavium-octeon.
+
+Contact: Aaro Koskinen <aaro.koskinen@iki.fi>

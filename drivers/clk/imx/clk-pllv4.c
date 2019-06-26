@@ -9,6 +9,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/slab.h>
 
@@ -29,6 +30,9 @@
 
 /* PLL Denominator Register (xPLLDENOM) */
 #define PLL_DENOM_OFFSET	0x14
+
+#define MAX_MFD			0x3fffffff
+#define DEFAULT_MFD		1000000
 
 struct clk_pllv4 {
 	struct clk_hw	hw;
@@ -64,13 +68,20 @@ static unsigned long clk_pllv4_recalc_rate(struct clk_hw *hw,
 					   unsigned long parent_rate)
 {
 	struct clk_pllv4 *pll = to_clk_pllv4(hw);
-	u32 div;
+	u32 mult, mfn, mfd;
+	u64 temp64;
 
-	div = readl_relaxed(pll->base + PLL_CFG_OFFSET);
-	div &= BM_PLL_MULT;
-	div >>= BP_PLL_MULT;
+	mult = readl_relaxed(pll->base + PLL_CFG_OFFSET);
+	mult &= BM_PLL_MULT;
+	mult >>= BP_PLL_MULT;
 
-	return parent_rate * div;
+	mfn = readl_relaxed(pll->base + PLL_NUM_OFFSET);
+	mfd = readl_relaxed(pll->base + PLL_DENOM_OFFSET);
+	temp64 = parent_rate;
+	temp64 *= mfn;
+	do_div(temp64, mfd);
+
+	return (parent_rate * mult) + (u32)temp64;
 }
 
 static long clk_pllv4_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -78,14 +89,46 @@ static long clk_pllv4_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	unsigned long parent_rate = *prate;
 	unsigned long round_rate, i;
+	u32 mfn, mfd = DEFAULT_MFD;
+	bool found = false;
+	u64 temp64;
 
 	for (i = 0; i < ARRAY_SIZE(pllv4_mult_table); i++) {
 		round_rate = parent_rate * pllv4_mult_table[i];
-		if (rate >= round_rate)
-			return round_rate;
+		if (rate >= round_rate) {
+			found = true;
+			break;
+		}
 	}
 
-	return round_rate;
+	if (!found) {
+		pr_warn("%s: unable to round rate %lu, parent rate %lu\n",
+			clk_hw_get_name(hw), rate, parent_rate);
+		return 0;
+	}
+
+	if (parent_rate <= MAX_MFD)
+		mfd = parent_rate;
+
+	temp64 = (u64)(rate - round_rate);
+	temp64 *= mfd;
+	do_div(temp64, parent_rate);
+	mfn = temp64;
+
+	/*
+	 * NOTE: The value of numerator must always be configured to be
+	 * less than the value of the denominator. If we can't get a proper
+	 * pair of mfn/mfd, we simply return the round_rate without using
+	 * the frac part.
+	 */
+	if (mfn >= mfd)
+		return round_rate;
+
+	temp64 = (u64)parent_rate;
+	temp64 *= mfn;
+	do_div(temp64, mfd);
+
+	return round_rate + (u32)temp64;
 }
 
 static bool clk_pllv4_is_valid_mult(unsigned int mult)
@@ -105,17 +148,29 @@ static int clk_pllv4_set_rate(struct clk_hw *hw, unsigned long rate,
 			      unsigned long parent_rate)
 {
 	struct clk_pllv4 *pll = to_clk_pllv4(hw);
-	u32 val, mult;
+	u32 val, mult, mfn, mfd = DEFAULT_MFD;
+	u64 temp64;
 
 	mult = rate / parent_rate;
 
 	if (!clk_pllv4_is_valid_mult(mult))
 		return -EINVAL;
 
+	if (parent_rate <= MAX_MFD)
+		mfd = parent_rate;
+
+	temp64 = (u64)(rate - mult * parent_rate);
+	temp64 *= mfd;
+	do_div(temp64, parent_rate);
+	mfn = temp64;
+
 	val = readl_relaxed(pll->base + PLL_CFG_OFFSET);
 	val &= ~BM_PLL_MULT;
 	val |= mult << BP_PLL_MULT;
 	writel_relaxed(val, pll->base + PLL_CFG_OFFSET);
+
+	writel_relaxed(mfn, pll->base + PLL_NUM_OFFSET);
+	writel_relaxed(mfd, pll->base + PLL_DENOM_OFFSET);
 
 	return 0;
 }

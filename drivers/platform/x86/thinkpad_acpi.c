@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  thinkpad_acpi.c - ThinkPad ACPI Extras
  *
- *
  *  Copyright (C) 2004-2005 Borislav Deianov <borislav@users.sf.net>
  *  Copyright (C) 2006-2009 Henrique de Moraes Holschuh <hmh@hmh.eng.br>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -79,7 +64,7 @@
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
 #include <linux/acpi.h>
-#include <linux/pci_ids.h>
+#include <linux/pci.h>
 #include <linux/power_supply.h>
 #include <sound/core.h>
 #include <sound/control.h>
@@ -4212,7 +4197,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				known_ev = true;
 				break;
 			}
-			/* fallthrough to default */
+			/* fallthrough - to default */
 		default:
 			known_ev = false;
 		}
@@ -4501,6 +4486,74 @@ static void bluetooth_exit(void)
 	bluetooth_shutdown();
 }
 
+static const struct dmi_system_id bt_fwbug_list[] __initconst = {
+	{
+		.ident = "ThinkPad E485",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "20KU"),
+		},
+	},
+	{
+		.ident = "ThinkPad E585",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "20KV"),
+		},
+	},
+	{
+		.ident = "ThinkPad A285 - 20MW",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "20MW"),
+		},
+	},
+	{
+		.ident = "ThinkPad A285 - 20MX",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "20MX"),
+		},
+	},
+	{
+		.ident = "ThinkPad A485 - 20MU",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "20MU"),
+		},
+	},
+	{
+		.ident = "ThinkPad A485 - 20MV",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "20MV"),
+		},
+	},
+	{}
+};
+
+static const struct pci_device_id fwbug_cards_ids[] __initconst = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x24F3) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x24FD) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2526) },
+	{}
+};
+
+
+static int __init have_bt_fwbug(void)
+{
+	/*
+	 * Some AMD based ThinkPads have a firmware bug that calling
+	 * "GBDC" will cause bluetooth on Intel wireless cards blocked
+	 */
+	if (dmi_check_system(bt_fwbug_list) && pci_dev_present(fwbug_cards_ids)) {
+		vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
+			FW_BUG "disable bluetooth subdriver for Intel cards\n");
+		return 1;
+	} else
+		return 0;
+}
+
 static int __init bluetooth_init(struct ibm_init_struct *iibm)
 {
 	int res;
@@ -4513,7 +4566,7 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 
 	/* bluetooth not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
 	   G4x, R30, R31, R40e, R50e, T20-22, X20-21 */
-	tp_features.bluetooth = hkey_handle &&
+	tp_features.bluetooth = !have_bt_fwbug() && hkey_handle &&
 	    acpi_evalf(hkey_handle, &status, "GBDC", "qd");
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
@@ -5808,7 +5861,7 @@ static int led_set_status(const unsigned int led,
 			return -EPERM;
 		if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
 				(1 << led), led_sled_arg1[ledstatus]))
-			rc = -EIO;
+			return -EIO;
 		break;
 	case TPACPI_LED_OLD:
 		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
@@ -5832,10 +5885,10 @@ static int led_set_status(const unsigned int led,
 			return -EPERM;
 		if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
 				led, led_led_arg1[ledstatus]))
-			rc = -EIO;
+			return -EIO;
 		break;
 	default:
-		rc = -ENXIO;
+		return -ENXIO;
 	}
 
 	if (!rc)
@@ -6249,8 +6302,8 @@ static int thermal_get_sensor(int idx, s32 *value)
 			t = TP_EC_THERMAL_TMP8;
 			idx -= 8;
 		}
-		/* fallthrough */
 #endif
+		/* fallthrough */
 	case TPACPI_THERMAL_TPEC_8:
 		if (idx <= 7) {
 			if (!acpi_ec_read(t + idx, &tmp))
@@ -9890,6 +9943,37 @@ invalid:
 	return '\0';
 }
 
+static void find_new_ec_fwstr(const struct dmi_header *dm, void *private)
+{
+	char *ec_fw_string = (char *) private;
+	const char *dmi_data = (const char *)dm;
+	/*
+	 * ThinkPad Embedded Controller Program Table on newer models
+	 *
+	 * Offset |  Name                | Width  | Description
+	 * ----------------------------------------------------
+	 *  0x00  | Type                 | BYTE   | 0x8C
+	 *  0x01  | Length               | BYTE   |
+	 *  0x02  | Handle               | WORD   | Varies
+	 *  0x04  | Signature            | BYTEx6 | ASCII for "LENOVO"
+	 *  0x0A  | OEM struct offset    | BYTE   | 0x0B
+	 *  0x0B  | OEM struct number    | BYTE   | 0x07, for this structure
+	 *  0x0C  | OEM struct revision  | BYTE   | 0x01, for this format
+	 *  0x0D  | ECP version ID       | STR ID |
+	 *  0x0E  | ECP release date     | STR ID |
+	 */
+
+	/* Return if data structure not match */
+	if (dm->type != 140 || dm->length < 0x0F ||
+	memcmp(dmi_data + 4, "LENOVO", 6) != 0 ||
+	dmi_data[0x0A] != 0x0B || dmi_data[0x0B] != 0x07 ||
+	dmi_data[0x0C] != 0x01)
+		return;
+
+	/* fwstr is the first 8byte string  */
+	strncpy(ec_fw_string, dmi_data + 0x0F, 8);
+}
+
 /* returns 0 - probe ok, or < 0 - probe error.
  * Probe ok doesn't mean thinkpad found.
  * On error, kfree() cleanup on tp->* is not performed, caller must do it */
@@ -9897,7 +9981,7 @@ static int __must_check __init get_thinkpad_model_data(
 						struct thinkpad_id_data *tp)
 {
 	const struct dmi_device *dev = NULL;
-	char ec_fw_string[18];
+	char ec_fw_string[18] = {0};
 	char const *s;
 	char t;
 
@@ -9937,20 +10021,25 @@ static int __must_check __init get_thinkpad_model_data(
 			   ec_fw_string) == 1) {
 			ec_fw_string[sizeof(ec_fw_string) - 1] = 0;
 			ec_fw_string[strcspn(ec_fw_string, " ]")] = 0;
-
-			tp->ec_version_str = kstrdup(ec_fw_string, GFP_KERNEL);
-			if (!tp->ec_version_str)
-				return -ENOMEM;
-
-			t = tpacpi_parse_fw_id(ec_fw_string,
-					       &tp->ec_model, &tp->ec_release);
-			if (t != 'H') {
-				pr_notice("ThinkPad firmware release %s doesn't match the known patterns\n",
-					  ec_fw_string);
-				pr_notice("please report this to %s\n",
-					  TPACPI_MAIL);
-			}
 			break;
+		}
+	}
+
+	/* Newer ThinkPads have different EC program info table */
+	if (!ec_fw_string[0])
+		dmi_walk(find_new_ec_fwstr, &ec_fw_string);
+
+	if (ec_fw_string[0]) {
+		tp->ec_version_str = kstrdup(ec_fw_string, GFP_KERNEL);
+		if (!tp->ec_version_str)
+			return -ENOMEM;
+
+		t = tpacpi_parse_fw_id(ec_fw_string,
+			 &tp->ec_model, &tp->ec_release);
+		if (t != 'H') {
+			pr_notice("ThinkPad firmware release %s doesn't match the known patterns\n",
+				  ec_fw_string);
+			pr_notice("please report this to %s\n", TPACPI_MAIL);
 		}
 	}
 
@@ -10165,7 +10254,7 @@ MODULE_PARM_DESC(volume_mode,
 
 module_param_named(volume_capabilities, volume_capabilities, uint, 0444);
 MODULE_PARM_DESC(volume_capabilities,
-		 "Selects the mixer capabilites: 0=auto, 1=volume and mute, 2=mute only");
+		 "Selects the mixer capabilities: 0=auto, 1=volume and mute, 2=mute only");
 
 module_param_named(volume_control, volume_control_allowed, bool, 0444);
 MODULE_PARM_DESC(volume_control,

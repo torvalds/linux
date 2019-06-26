@@ -472,6 +472,8 @@ int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 	return 0;
 
 free_exit:
+	if (data->base)
+		memunmap(data->base);
 	kfree(data);
 
 	return ret;

@@ -620,14 +620,7 @@ static void rza1_pin_reset(struct rza1_port *port, unsigned int pin)
 static inline int rza1_pin_get_direction(struct rza1_port *port,
 					 unsigned int pin)
 {
-	unsigned long irqflags;
-	int input;
-
-	spin_lock_irqsave(&port->lock, irqflags);
-	input = rza1_get_bit(port, RZA1_PM_REG, pin);
-	spin_unlock_irqrestore(&port->lock, irqflags);
-
-	return !!input;
+	return !!rza1_get_bit(port, RZA1_PM_REG, pin);
 }
 
 /**
@@ -671,14 +664,7 @@ static inline void rza1_pin_set(struct rza1_port *port, unsigned int pin,
 
 static inline int rza1_pin_get(struct rza1_port *port, unsigned int pin)
 {
-	unsigned long irqflags;
-	int val;
-
-	spin_lock_irqsave(&port->lock, irqflags);
-	val = rza1_get_bit(port, RZA1_PPR_REG, pin);
-	spin_unlock_irqrestore(&port->lock, irqflags);
-
-	return val;
+	return rza1_get_bit(port, RZA1_PPR_REG, pin);
 }
 
 /**

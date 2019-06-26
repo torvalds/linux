@@ -1,17 +1,13 @@
-/*
- * FAN53555 Fairchild Digitally Programmable TinyBuck Regulator Driver.
- *
- * Supported Part Numbers:
- * FAN53555UC00X/01X/03X/04X/05X
- *
- * Copyright (c) 2012 Marvell Technology Ltd.
- * Yunfan Zhang <yfzhang@marvell.com>
- *
- * This package is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// FAN53555 Fairchild Digitally Programmable TinyBuck Regulator Driver.
+//
+// Supported Part Numbers:
+// FAN53555UC00X/01X/03X/04X/05X
+//
+// Copyright (c) 2012 Marvell Technology Ltd.
+// Yunfan Zhang <yfzhang@marvell.com>
+
 #include <linux/module.h>
 #include <linux/param.h>
 #include <linux/err.h>
@@ -91,10 +87,8 @@ enum {
 
 struct fan53555_device_info {
 	enum fan53555_vendor vendor;
-	struct regmap *regmap;
 	struct device *dev;
 	struct regulator_desc desc;
-	struct regulator_dev *rdev;
 	struct regulator_init_data *regulator;
 	/* IC Type and Rev */
 	int chip_id;
@@ -106,8 +100,6 @@ struct fan53555_device_info {
 	unsigned int vsel_min;
 	unsigned int vsel_step;
 	unsigned int vsel_count;
-	/* Voltage slew rate limiting */
-	unsigned int slew_rate;
 	/* Mode */
 	unsigned int mode_reg;
 	unsigned int mode_mask;
@@ -125,7 +117,7 @@ static int fan53555_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 	ret = regulator_map_voltage_linear(rdev, uV, uV);
 	if (ret < 0)
 		return ret;
-	ret = regmap_update_bits(di->regmap, di->sleep_reg,
+	ret = regmap_update_bits(rdev->regmap, di->sleep_reg,
 				 di->desc.vsel_mask, ret);
 	if (ret < 0)
 		return ret;
@@ -140,7 +132,7 @@ static int fan53555_set_suspend_enable(struct regulator_dev *rdev)
 {
 	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
 
-	return regmap_update_bits(di->regmap, di->sleep_reg,
+	return regmap_update_bits(rdev->regmap, di->sleep_reg,
 				  VSEL_BUCK_EN, VSEL_BUCK_EN);
 }
 
@@ -148,7 +140,7 @@ static int fan53555_set_suspend_disable(struct regulator_dev *rdev)
 {
 	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
 
-	return regmap_update_bits(di->regmap, di->sleep_reg,
+	return regmap_update_bits(rdev->regmap, di->sleep_reg,
 				  VSEL_BUCK_EN, 0);
 }
 
@@ -158,11 +150,11 @@ static int fan53555_set_mode(struct regulator_dev *rdev, unsigned int mode)
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		regmap_update_bits(di->regmap, di->mode_reg,
+		regmap_update_bits(rdev->regmap, di->mode_reg,
 				   di->mode_mask, di->mode_mask);
 		break;
 	case REGULATOR_MODE_NORMAL:
-		regmap_update_bits(di->regmap, di->vol_reg, di->mode_mask, 0);
+		regmap_update_bits(rdev->regmap, di->vol_reg, di->mode_mask, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -176,7 +168,7 @@ static unsigned int fan53555_get_mode(struct regulator_dev *rdev)
 	unsigned int val;
 	int ret = 0;
 
-	ret = regmap_read(di->regmap, di->mode_reg, &val);
+	ret = regmap_read(rdev->regmap, di->mode_reg, &val);
 	if (ret < 0)
 		return ret;
 	if (val & di->mode_mask)
@@ -213,7 +205,7 @@ static int fan53555_set_ramp(struct regulator_dev *rdev, int ramp)
 		return -EINVAL;
 	}
 
-	return regmap_update_bits(di->regmap, FAN53555_CONTROL,
+	return regmap_update_bits(rdev->regmap, FAN53555_CONTROL,
 				  CTL_SLEW_MASK, regval << CTL_SLEW_SHIFT);
 }
 
@@ -396,6 +388,7 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 			struct regulator_config *config)
 {
 	struct regulator_desc *rdesc = &di->desc;
+	struct regulator_dev *rdev;
 
 	rdesc->name = "fan53555-reg";
 	rdesc->supply_name = "vin";
@@ -410,8 +403,8 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	rdesc->vsel_mask = di->vsel_count - 1;
 	rdesc->owner = THIS_MODULE;
 
-	di->rdev = devm_regulator_register(di->dev, &di->desc, config);
-	return PTR_ERR_OR_ZERO(di->rdev);
+	rdev = devm_regulator_register(di->dev, &di->desc, config);
+	return PTR_ERR_OR_ZERO(rdev);
 }
 
 static const struct regmap_config fan53555_regmap_config = {
@@ -466,6 +459,7 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	struct fan53555_device_info *di;
 	struct fan53555_platform_data *pdata;
 	struct regulator_config config = { };
+	struct regmap *regmap;
 	unsigned int val;
 	int ret;
 
@@ -502,22 +496,22 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 		di->vendor = id->driver_data;
 	}
 
-	di->regmap = devm_regmap_init_i2c(client, &fan53555_regmap_config);
-	if (IS_ERR(di->regmap)) {
+	regmap = devm_regmap_init_i2c(client, &fan53555_regmap_config);
+	if (IS_ERR(regmap)) {
 		dev_err(&client->dev, "Failed to allocate regmap!\n");
-		return PTR_ERR(di->regmap);
+		return PTR_ERR(regmap);
 	}
 	di->dev = &client->dev;
 	i2c_set_clientdata(client, di);
 	/* Get chip ID */
-	ret = regmap_read(di->regmap, FAN53555_ID1, &val);
+	ret = regmap_read(regmap, FAN53555_ID1, &val);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to get chip ID!\n");
 		return ret;
 	}
 	di->chip_id = val & DIE_ID;
 	/* Get chip revision */
-	ret = regmap_read(di->regmap, FAN53555_ID2, &val);
+	ret = regmap_read(regmap, FAN53555_ID2, &val);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to get chip Rev!\n");
 		return ret;
@@ -534,7 +528,7 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	/* Register regulator */
 	config.dev = di->dev;
 	config.init_data = di->regulator;
-	config.regmap = di->regmap;
+	config.regmap = regmap;
 	config.driver_data = di;
 	config.of_node = np;
 

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2008 Red Hat, Inc., Eric Paris <eparis@redhat.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/dcache.h>
@@ -108,6 +95,47 @@ void fsnotify_sb_delete(struct super_block *sb)
 }
 
 /*
+ * fsnotify_nameremove - a filename was removed from a directory
+ *
+ * This is mostly called under parent vfs inode lock so name and
+ * dentry->d_parent should be stable. However there are some corner cases where
+ * inode lock is not held. So to be on the safe side and be reselient to future
+ * callers and out of tree users of d_delete(), we do not assume that d_parent
+ * and d_name are stable and we use dget_parent() and
+ * take_dentry_name_snapshot() to grab stable references.
+ */
+void fsnotify_nameremove(struct dentry *dentry, int isdir)
+{
+	struct dentry *parent;
+	struct name_snapshot name;
+	__u32 mask = FS_DELETE;
+
+	/* d_delete() of pseudo inode? (e.g. __ns_get_path() playing tricks) */
+	if (IS_ROOT(dentry))
+		return;
+
+	if (isdir)
+		mask |= FS_ISDIR;
+
+	parent = dget_parent(dentry);
+	/* Avoid unneeded take_dentry_name_snapshot() */
+	if (!(d_inode(parent)->i_fsnotify_mask & FS_DELETE) &&
+	    !(dentry->d_sb->s_fsnotify_mask & FS_DELETE))
+		goto out_dput;
+
+	take_dentry_name_snapshot(&name, dentry);
+
+	fsnotify(d_inode(parent), mask, d_inode(dentry), FSNOTIFY_EVENT_INODE,
+		 &name.name, 0);
+
+	release_dentry_name_snapshot(&name);
+
+out_dput:
+	dput(parent);
+}
+EXPORT_SYMBOL(fsnotify_nameremove);
+
+/*
  * Given an inode, first check if we care what happens to our children.  Inotify
  * and dnotify both tell their parents about events.  If we care about any event
  * on a child we run all of our children and set a dentry flag saying that the
@@ -179,10 +207,10 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 		take_dentry_name_snapshot(&name, dentry);
 		if (path)
 			ret = fsnotify(p_inode, mask, path, FSNOTIFY_EVENT_PATH,
-				       name.name, 0);
+				       &name.name, 0);
 		else
 			ret = fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
-				       name.name, 0);
+				       &name.name, 0);
 		release_dentry_name_snapshot(&name);
 	}
 
@@ -195,7 +223,7 @@ EXPORT_SYMBOL_GPL(__fsnotify_parent);
 static int send_to_group(struct inode *to_tell,
 			 __u32 mask, const void *data,
 			 int data_is, u32 cookie,
-			 const unsigned char *file_name,
+			 const struct qstr *file_name,
 			 struct fsnotify_iter_info *iter_info)
 {
 	struct fsnotify_group *group = NULL;
@@ -325,7 +353,7 @@ static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
  * notification event in whatever means they feel necessary.
  */
 int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
-	     const unsigned char *file_name, u32 cookie)
+	     const struct qstr *file_name, u32 cookie)
 {
 	struct fsnotify_iter_info iter_info = {};
 	struct super_block *sb = to_tell->i_sb;

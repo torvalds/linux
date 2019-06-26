@@ -38,7 +38,12 @@ static void perf_output_get_handle(struct perf_output_handle *handle)
 	struct ring_buffer *rb = handle->rb;
 
 	preempt_disable();
-	local_inc(&rb->nest);
+
+	/*
+	 * Avoid an explicit LOAD/STORE such that architectures with memops
+	 * can use them.
+	 */
+	(*(volatile unsigned int *)&rb->nest)++;
 	handle->wakeup = local_read(&rb->wakeup);
 }
 
@@ -46,16 +51,34 @@ static void perf_output_put_handle(struct perf_output_handle *handle)
 {
 	struct ring_buffer *rb = handle->rb;
 	unsigned long head;
+	unsigned int nest;
+
+	/*
+	 * If this isn't the outermost nesting, we don't have to update
+	 * @rb->user_page->data_head.
+	 */
+	nest = READ_ONCE(rb->nest);
+	if (nest > 1) {
+		WRITE_ONCE(rb->nest, nest - 1);
+		goto out;
+	}
 
 again:
+	/*
+	 * In order to avoid publishing a head value that goes backwards,
+	 * we must ensure the load of @rb->head happens after we've
+	 * incremented @rb->nest.
+	 *
+	 * Otherwise we can observe a @rb->head value before one published
+	 * by an IRQ/NMI happening between the load and the increment.
+	 */
+	barrier();
 	head = local_read(&rb->head);
 
 	/*
-	 * IRQ/NMI can happen here, which means we can miss a head update.
+	 * IRQ/NMI can happen here and advance @rb->head, causing our
+	 * load above to be stale.
 	 */
-
-	if (!local_dec_and_test(&rb->nest))
-		goto out;
 
 	/*
 	 * Since the mmap() consumer (userspace) can run on a different CPU:
@@ -84,14 +107,23 @@ again:
 	 * See perf_output_begin().
 	 */
 	smp_wmb(); /* B, matches C */
-	rb->user_page->data_head = head;
+	WRITE_ONCE(rb->user_page->data_head, head);
 
 	/*
-	 * Now check if we missed an update -- rely on previous implied
-	 * compiler barriers to force a re-read.
+	 * We must publish the head before decrementing the nest count,
+	 * otherwise an IRQ/NMI can publish a more recent head value and our
+	 * write will (temporarily) publish a stale value.
 	 */
+	barrier();
+	WRITE_ONCE(rb->nest, 0);
+
+	/*
+	 * Ensure we decrement @rb->nest before we validate the @rb->head.
+	 * Otherwise we cannot be sure we caught the 'last' nested update.
+	 */
+	barrier();
 	if (unlikely(head != local_read(&rb->head))) {
-		local_inc(&rb->nest);
+		WRITE_ONCE(rb->nest, 1);
 		goto again;
 	}
 
@@ -330,6 +362,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	struct perf_event *output_event = event;
 	unsigned long aux_head, aux_tail;
 	struct ring_buffer *rb;
+	unsigned int nest;
 
 	if (output_event->parent)
 		output_event = output_event->parent;
@@ -360,12 +393,15 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	if (!refcount_inc_not_zero(&rb->aux_refcount))
 		goto err;
 
+	nest = READ_ONCE(rb->aux_nest);
 	/*
 	 * Nesting is not supported for AUX area, make sure nested
 	 * writers are caught early
 	 */
-	if (WARN_ON_ONCE(local_xchg(&rb->aux_nest, 1)))
+	if (WARN_ON_ONCE(nest))
 		goto err_put;
+
+	WRITE_ONCE(rb->aux_nest, nest + 1);
 
 	aux_head = rb->aux_head;
 
@@ -394,7 +430,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 		if (!handle->size) { /* A, matches D */
 			event->pending_disable = smp_processor_id();
 			perf_output_wakeup(handle);
-			local_set(&rb->aux_nest, 0);
+			WRITE_ONCE(rb->aux_nest, 0);
 			goto err_put;
 		}
 	}
@@ -455,26 +491,23 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 		rb->aux_head += size;
 	}
 
-	if (size || handle->aux_flags) {
-		/*
-		 * Only send RECORD_AUX if we have something useful to communicate
-		 *
-		 * Note: the OVERWRITE records by themselves are not considered
-		 * useful, as they don't communicate any *new* information,
-		 * aside from the short-lived offset, that becomes history at
-		 * the next event sched-in and therefore isn't useful.
-		 * The userspace that needs to copy out AUX data in overwrite
-		 * mode should know to use user_page::aux_head for the actual
-		 * offset. So, from now on we don't output AUX records that
-		 * have *only* OVERWRITE flag set.
-		 */
+	/*
+	 * Only send RECORD_AUX if we have something useful to communicate
+	 *
+	 * Note: the OVERWRITE records by themselves are not considered
+	 * useful, as they don't communicate any *new* information,
+	 * aside from the short-lived offset, that becomes history at
+	 * the next event sched-in and therefore isn't useful.
+	 * The userspace that needs to copy out AUX data in overwrite
+	 * mode should know to use user_page::aux_head for the actual
+	 * offset. So, from now on we don't output AUX records that
+	 * have *only* OVERWRITE flag set.
+	 */
+	if (size || (handle->aux_flags & ~(u64)PERF_AUX_FLAG_OVERWRITE))
+		perf_event_aux_event(handle->event, aux_head, size,
+				     handle->aux_flags);
 
-		if (handle->aux_flags & ~(u64)PERF_AUX_FLAG_OVERWRITE)
-			perf_event_aux_event(handle->event, aux_head, size,
-			                     handle->aux_flags);
-	}
-
-	rb->user_page->aux_head = rb->aux_head;
+	WRITE_ONCE(rb->user_page->aux_head, rb->aux_head);
 	if (rb_need_aux_wakeup(rb))
 		wakeup = true;
 
@@ -486,7 +519,7 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 
 	handle->event = NULL;
 
-	local_set(&rb->aux_nest, 0);
+	WRITE_ONCE(rb->aux_nest, 0);
 	/* can't be last */
 	rb_free_aux(rb);
 	ring_buffer_put(rb);
@@ -506,7 +539,7 @@ int perf_aux_output_skip(struct perf_output_handle *handle, unsigned long size)
 
 	rb->aux_head += size;
 
-	rb->user_page->aux_head = rb->aux_head;
+	WRITE_ONCE(rb->user_page->aux_head, rb->aux_head);
 	if (rb_need_aux_wakeup(rb)) {
 		perf_output_wakeup(handle);
 		handle->wakeup = rb->aux_wakeup + rb->aux_watermark;
@@ -613,8 +646,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 	 * PMU requests more than one contiguous chunks of memory
 	 * for SW double buffering
 	 */
-	if ((event->pmu->capabilities & PERF_PMU_CAP_AUX_SW_DOUBLEBUF) &&
-	    !overwrite) {
+	if (!overwrite) {
 		if (!max_order)
 			return -EINVAL;
 

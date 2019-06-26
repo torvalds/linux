@@ -61,6 +61,7 @@ static unsigned int prng_reseed_limit;
 module_param_named(reseed_limit, prng_reseed_limit, int, 0);
 MODULE_PARM_DESC(prng_reseed_limit, "PRNG reseed limit");
 
+static bool trng_available;
 
 /*
  * Any one who considers arithmetical methods of producing random digits is,
@@ -115,46 +116,68 @@ static const u8 initial_parm_block[32] __initconst = {
 
 /*
  * generate_entropy:
- * This algorithm produces 64 bytes of entropy data based on 1024
- * individual stckf() invocations assuming that each stckf() value
- * contributes 0.25 bits of entropy. So the caller gets 256 bit
- * entropy per 64 byte or 4 bits entropy per byte.
+ * This function fills a given buffer with random bytes. The entropy within
+ * the random bytes given back is assumed to have at least 50% - meaning
+ * a 64 bytes buffer has at least 64 * 8 / 2 = 256 bits of entropy.
+ * Within the function the entropy generation is done in junks of 64 bytes.
+ * So the caller should also ask for buffer fill in multiples of 64 bytes.
+ * The generation of the entropy is based on the assumption that every stckf()
+ * invocation produces 0.5 bits of entropy. To accumulate 256 bits of entropy
+ * at least 512 stckf() values are needed. The entropy relevant part of the
+ * stckf value is bit 51 (counting starts at the left with bit nr 0) so
+ * here we use the lower 4 bytes and exor the values into 2k of bufferspace.
+ * To be on the save side, if there is ever a problem with stckf() the
+ * other half of the page buffer is filled with bytes from urandom via
+ * get_random_bytes(), so this function consumes 2k of urandom for each
+ * requested 64 bytes output data. Finally the buffer page is condensed into
+ * a 64 byte value by hashing with a SHA512 hash.
  */
 static int generate_entropy(u8 *ebuf, size_t nbytes)
 {
 	int n, ret = 0;
-	u8 *pg, *h, hash[64];
+	u8 *pg, pblock[80] = {
+		/* 8 x 64 bit init values */
+		0x6A, 0x09, 0xE6, 0x67, 0xF3, 0xBC, 0xC9, 0x08,
+		0xBB, 0x67, 0xAE, 0x85, 0x84, 0xCA, 0xA7, 0x3B,
+		0x3C, 0x6E, 0xF3, 0x72, 0xFE, 0x94, 0xF8, 0x2B,
+		0xA5, 0x4F, 0xF5, 0x3A, 0x5F, 0x1D, 0x36, 0xF1,
+		0x51, 0x0E, 0x52, 0x7F, 0xAD, 0xE6, 0x82, 0xD1,
+		0x9B, 0x05, 0x68, 0x8C, 0x2B, 0x3E, 0x6C, 0x1F,
+		0x1F, 0x83, 0xD9, 0xAB, 0xFB, 0x41, 0xBD, 0x6B,
+		0x5B, 0xE0, 0xCD, 0x19, 0x13, 0x7E, 0x21, 0x79,
+		/* 128 bit counter total message bit length */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
 
-	/* allocate 2 pages */
-	pg = (u8 *) __get_free_pages(GFP_KERNEL, 1);
+	/* allocate one page stckf buffer */
+	pg = (u8 *) __get_free_page(GFP_KERNEL);
 	if (!pg) {
 		prng_errorflag = PRNG_GEN_ENTROPY_FAILED;
 		return -ENOMEM;
 	}
 
+	/* fill the ebuf in chunks of 64 byte each */
 	while (nbytes) {
-		/* fill pages with urandom bytes */
-		get_random_bytes(pg, 2*PAGE_SIZE);
-		/* exor pages with 1024 stckf values */
-		for (n = 0; n < 2 * PAGE_SIZE / sizeof(u64); n++) {
-			u64 *p = ((u64 *)pg) + n;
+		/* fill lower 2k with urandom bytes */
+		get_random_bytes(pg, PAGE_SIZE / 2);
+		/* exor upper 2k with 512 stckf values, offset 4 bytes each */
+		for (n = 0; n < 512; n++) {
+			int offset = (PAGE_SIZE / 2) + (n * 4) - 4;
+			u64 *p = (u64 *)(pg + offset);
 			*p ^= get_tod_clock_fast();
 		}
-		n = (nbytes < sizeof(hash)) ? nbytes : sizeof(hash);
-		if (n < sizeof(hash))
-			h = hash;
-		else
-			h = ebuf;
-		/* hash over the filled pages */
-		cpacf_kimd(CPACF_KIMD_SHA_512, h, pg, 2*PAGE_SIZE);
-		if (n < sizeof(hash))
-			memcpy(ebuf, hash, n);
+		/* hash over the filled page */
+		cpacf_klmd(CPACF_KLMD_SHA_512, pblock, pg, PAGE_SIZE);
+		n = (nbytes < 64) ? nbytes : 64;
+		memcpy(ebuf, pblock, n);
 		ret += n;
 		ebuf += n;
 		nbytes -= n;
 	}
 
-	free_pages((unsigned long)pg, 1);
+	memzero_explicit(pblock, sizeof(pblock));
+	memzero_explicit(pg, PAGE_SIZE);
+	free_page((unsigned long)pg);
 	return ret;
 }
 
@@ -344,8 +367,8 @@ static int __init prng_sha512_selftest(void)
 
 static int __init prng_sha512_instantiate(void)
 {
-	int ret, datalen;
-	u8 seed[64 + 32 + 16];
+	int ret, datalen, seedlen;
+	u8 seed[128 + 16];
 
 	pr_debug("prng runs in SHA-512 mode "
 		 "with chunksize=%d and reseed_limit=%u\n",
@@ -368,16 +391,36 @@ static int __init prng_sha512_instantiate(void)
 	if (ret)
 		goto outfree;
 
-	/* generate initial seed bytestring, with 256 + 128 bits entropy */
-	ret = generate_entropy(seed, 64 + 32);
-	if (ret != 64 + 32)
-		goto outfree;
-	/* followed by 16 bytes of unique nonce */
-	get_tod_clock_ext(seed + 64 + 32);
+	/* generate initial seed, we need at least  256 + 128 bits entropy. */
+	if (trng_available) {
+		/*
+		 * Trng available, so use it. The trng works in chunks of
+		 * 32 bytes and produces 100% entropy. So we pull 64 bytes
+		 * which gives us 512 bits entropy.
+		 */
+		seedlen = 2 * 32;
+		cpacf_trng(NULL, 0, seed, seedlen);
+	} else {
+		/*
+		 * No trng available, so use the generate_entropy() function.
+		 * This function works in 64 byte junks and produces
+		 * 50% entropy. So we pull 2*64 bytes which gives us 512 bits
+		 * of entropy.
+		 */
+		seedlen = 2 * 64;
+		ret = generate_entropy(seed, seedlen);
+		if (ret != seedlen)
+			goto outfree;
+	}
 
-	/* initial seed of the prno drng */
+	/* append the seed by 16 bytes of unique nonce */
+	get_tod_clock_ext(seed + seedlen);
+	seedlen += 16;
+
+	/* now initial seed of the prno drng */
 	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
-		   &prng_data->prnows, NULL, 0, seed, sizeof(seed));
+		   &prng_data->prnows, NULL, 0, seed, seedlen);
+	memzero_explicit(seed, sizeof(seed));
 
 	/* if fips mode is enabled, generate a first block of random
 	   bytes for the FIPS 140-2 Conditional Self Test */
@@ -405,17 +448,26 @@ static void prng_sha512_deinstantiate(void)
 
 static int prng_sha512_reseed(void)
 {
-	int ret;
+	int ret, seedlen;
 	u8 seed[64];
 
-	/* fetch 256 bits of fresh entropy */
-	ret = generate_entropy(seed, sizeof(seed));
-	if (ret != sizeof(seed))
-		return ret;
+	/* We need at least 256 bits of fresh entropy for reseeding */
+	if (trng_available) {
+		/* trng produces 256 bits entropy in 32 bytes */
+		seedlen = 32;
+		cpacf_trng(NULL, 0, seed, seedlen);
+	} else {
+		/* generate_entropy() produces 256 bits entropy in 64 bytes */
+		seedlen = 64;
+		ret = generate_entropy(seed, seedlen);
+		if (ret != sizeof(seed))
+			return ret;
+	}
 
 	/* do a reseed of the prno drng with this bytestring */
 	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
-		   &prng_data->prnows, NULL, 0, seed, sizeof(seed));
+		   &prng_data->prnows, NULL, 0, seed, seedlen);
+	memzero_explicit(seed, sizeof(seed));
 
 	return 0;
 }
@@ -592,6 +644,7 @@ static ssize_t prng_sha512_read(struct file *file, char __user *ubuf,
 			ret = -EFAULT;
 			break;
 		}
+		memzero_explicit(p, n);
 		ubuf += n;
 		nbytes -= n;
 		ret += n;
@@ -772,6 +825,10 @@ static int __init prng_init(void)
 	/* check if the CPU has a PRNG */
 	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG))
 		return -EOPNOTSUPP;
+
+	/* check if TRNG subfunction is available */
+	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
+		trng_available = true;
 
 	/* choose prng mode */
 	if (prng_mode != PRNG_MODE_TDES) {

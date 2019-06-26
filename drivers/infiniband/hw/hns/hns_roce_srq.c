@@ -206,13 +206,13 @@ static int hns_roce_create_idx_que(struct ib_pd *pd, struct hns_roce_srq *srq,
 	return 0;
 }
 
-struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
-				   struct ib_srq_init_attr *srq_init_attr,
-				   struct ib_udata *udata)
+int hns_roce_create_srq(struct ib_srq *ib_srq,
+			struct ib_srq_init_attr *srq_init_attr,
+			struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_srq->device);
 	struct hns_roce_ib_create_srq_resp resp = {};
-	struct hns_roce_srq *srq;
+	struct hns_roce_srq *srq = to_hr_srq(ib_srq);
 	int srq_desc_size;
 	int srq_buf_size;
 	u32 page_shift;
@@ -223,11 +223,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 	/* Check the actual SRQ wqe and SRQ sge num */
 	if (srq_init_attr->attr.max_wr >= hr_dev->caps.max_srq_wrs ||
 	    srq_init_attr->attr.max_sge > hr_dev->caps.max_srq_sges)
-		return ERR_PTR(-EINVAL);
-
-	srq = kzalloc(sizeof(*srq), GFP_KERNEL);
-	if (!srq)
-		return ERR_PTR(-ENOMEM);
+		return -EINVAL;
 
 	mutex_init(&srq->mutex);
 	spin_lock_init(&srq->lock);
@@ -249,17 +245,13 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 	if (udata) {
 		struct hns_roce_ib_create_srq  ucmd;
 
-		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
-			ret = -EFAULT;
-			goto err_srq;
-		}
+		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
+			return -EFAULT;
 
 		srq->umem =
 			ib_umem_get(udata, ucmd.buf_addr, srq_buf_size, 0, 0);
-		if (IS_ERR(srq->umem)) {
-			ret = PTR_ERR(srq->umem);
-			goto err_srq;
-		}
+		if (IS_ERR(srq->umem))
+			return PTR_ERR(srq->umem);
 
 		if (hr_dev->caps.srqwqe_buf_pg_sz) {
 			npages = (ib_umem_page_count(srq->umem) +
@@ -321,11 +313,9 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 	} else {
 		page_shift = PAGE_SHIFT + hr_dev->caps.srqwqe_buf_pg_sz;
 		if (hns_roce_buf_alloc(hr_dev, srq_buf_size,
-				      (1 << page_shift) * 2,
-				      &srq->buf, page_shift)) {
-			ret = -ENOMEM;
-			goto err_srq;
-		}
+				       (1 << page_shift) * 2, &srq->buf,
+				       page_shift))
+			return -ENOMEM;
 
 		srq->head = 0;
 		srq->tail = srq->max - 1;
@@ -340,7 +330,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 			goto err_srq_mtt;
 
 		page_shift = PAGE_SHIFT + hr_dev->caps.idx_buf_pg_sz;
-		ret = hns_roce_create_idx_que(pd, srq, page_shift);
+		ret = hns_roce_create_idx_que(ib_srq->pd, srq, page_shift);
 		if (ret) {
 			dev_err(hr_dev->dev, "Create idx queue fail(%d)!\n",
 				ret);
@@ -372,7 +362,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 
 	srq->db_reg_l = hr_dev->reg_base + SRQ_DB_REG;
 
-	ret = hns_roce_srq_alloc(hr_dev, to_hr_pd(pd)->pdn, cqn, 0,
+	ret = hns_roce_srq_alloc(hr_dev, to_hr_pd(ib_srq->pd)->pdn, cqn, 0,
 				 &srq->mtt, 0, srq);
 	if (ret)
 		goto err_wrid;
@@ -389,7 +379,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 		}
 	}
 
-	return &srq->ibsrq;
+	return 0;
 
 err_srqc_alloc:
 	hns_roce_srq_free(hr_dev, srq);
@@ -418,12 +408,10 @@ err_buf:
 	else
 		hns_roce_buf_free(hr_dev, srq_buf_size, &srq->buf);
 
-err_srq:
-	kfree(srq);
-	return ERR_PTR(ret);
+	return ret;
 }
 
-int hns_roce_destroy_srq(struct ib_srq *ibsrq)
+void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibsrq->device);
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
@@ -440,10 +428,6 @@ int hns_roce_destroy_srq(struct ib_srq *ibsrq)
 		hns_roce_buf_free(hr_dev, srq->max << srq->wqe_shift,
 				  &srq->buf);
 	}
-
-	kfree(srq);
-
-	return 0;
 }
 
 int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev)

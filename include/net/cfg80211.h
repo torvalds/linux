@@ -485,6 +485,7 @@ struct vif_params {
  *	with the get_key() callback, must be in little endian,
  *	length given by @seq_len.
  * @seq_len: length of @seq.
+ * @mode: key install mode (RX_TX, NO_TX or SET_TX)
  */
 struct key_params {
 	const u8 *key;
@@ -492,6 +493,7 @@ struct key_params {
 	int key_len;
 	int seq_len;
 	u32 cipher;
+	enum nl80211_key_mode mode;
 };
 
 /**
@@ -973,6 +975,27 @@ enum station_parameters_apply_mask {
 	STATION_PARAM_APPLY_UAPSD = BIT(0),
 	STATION_PARAM_APPLY_CAPABILITY = BIT(1),
 	STATION_PARAM_APPLY_PLINK_STATE = BIT(2),
+	STATION_PARAM_APPLY_STA_TXPOWER = BIT(3),
+};
+
+/**
+ * struct sta_txpwr - station txpower configuration
+ *
+ * Used to configure txpower for station.
+ *
+ * @power: tx power (in dBm) to be used for sending data traffic. If tx power
+ *	is not provided, the default per-interface tx power setting will be
+ *	overriding. Driver should be picking up the lowest tx power, either tx
+ *	power per-interface or per-station.
+ * @type: In particular if TPC %type is NL80211_TX_POWER_LIMITED then tx power
+ *	will be less than or equal to specified from userspace, whereas if TPC
+ *	%type is NL80211_TX_POWER_AUTOMATIC then it indicates default tx power.
+ *	NL80211_TX_POWER_FIXED is not a valid configuration option for
+ *	per peer TPC.
+ */
+struct sta_txpwr {
+	s16 power;
+	enum nl80211_tx_power_setting type;
 };
 
 /**
@@ -1047,6 +1070,7 @@ struct station_parameters {
 	const struct ieee80211_he_cap_elem *he_capa;
 	u8 he_capa_len;
 	u16 airtime_weight;
+	struct sta_txpwr txpwr;
 };
 
 /**
@@ -1327,6 +1351,7 @@ struct cfg80211_tid_stats {
  * @fcs_err_count: number of packets (MPDUs) received from this station with
  *	an FCS error. This counter should be incremented only when TA of the
  *	received packet with an FCS error matches the peer MAC address.
+ * @airtime_link_metric: mesh airtime link metric.
  */
 struct station_info {
 	u64 filled;
@@ -1381,6 +1406,8 @@ struct station_info {
 
 	u32 rx_mpdu_count;
 	u32 fcs_err_count;
+
+	u32 airtime_link_metric;
 };
 
 #if IS_ENABLED(CONFIG_CFG80211)
@@ -1832,11 +1859,19 @@ static inline void get_random_mask_addr(u8 *buf, const u8 *addr, const u8 *mask)
  * @bssid: BSSID to be matched; may be all-zero BSSID in case of SSID match
  *	or no match (RSSI only)
  * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
+ * @per_band_rssi_thold: Minimum rssi threshold for each band to be applied
+ *	for filtering out scan results received. Drivers advertize this support
+ *	of band specific rssi based filtering through the feature capability
+ *	%NL80211_EXT_FEATURE_SCHED_SCAN_BAND_SPECIFIC_RSSI_THOLD. These band
+ *	specific rssi thresholds take precedence over rssi_thold, if specified.
+ *	If not specified for any band, it will be assigned with rssi_thold of
+ *	corresponding matchset.
  */
 struct cfg80211_match_set {
 	struct cfg80211_ssid ssid;
 	u8 bssid[ETH_ALEN];
 	s32 rssi_thold;
+	s32 per_band_rssi_thold[NUM_NL80211_BANDS];
 };
 
 /**
@@ -3100,6 +3135,32 @@ struct cfg80211_pmsr_request {
 };
 
 /**
+ * struct cfg80211_update_owe_info - OWE Information
+ *
+ * This structure provides information needed for the drivers to offload OWE
+ * (Opportunistic Wireless Encryption) processing to the user space.
+ *
+ * Commonly used across update_owe_info request and event interfaces.
+ *
+ * @peer: MAC address of the peer device for which the OWE processing
+ *	has to be done.
+ * @status: status code, %WLAN_STATUS_SUCCESS for successful OWE info
+ *	processing, use %WLAN_STATUS_UNSPECIFIED_FAILURE if user space
+ *	cannot give you the real status code for failures. Used only for
+ *	OWE update request command interface (user space to driver).
+ * @ie: IEs obtained from the peer or constructed by the user space. These are
+ *	the IEs of the remote peer in the event from the host driver and
+ *	the constructed IEs by the user space in the request interface.
+ * @ie_len: Length of IEs in octets.
+ */
+struct cfg80211_update_owe_info {
+	u8 peer[ETH_ALEN] __aligned(2);
+	u16 status;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -3436,6 +3497,13 @@ struct cfg80211_pmsr_request {
  *	Statistics should be cumulative, currently no way to reset is provided.
  * @start_pmsr: start peer measurement (e.g. FTM)
  * @abort_pmsr: abort peer measurement
+ *
+ * @update_owe_info: Provide updated OWE info to driver. Driver implementing SME
+ *	but offloading OWE processing to the user space will get the updated
+ *	DH IE through this interface.
+ *
+ * @probe_mesh_link: Probe direct Mesh peer's link quality by sending data frame
+ *	and overrule HWMP path selection algorithm.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3750,6 +3818,10 @@ struct cfg80211_ops {
 			      struct cfg80211_pmsr_request *request);
 	void	(*abort_pmsr)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			      struct cfg80211_pmsr_request *request);
+	int	(*update_owe_info)(struct wiphy *wiphy, struct net_device *dev,
+				   struct cfg80211_update_owe_info *owe_info);
+	int	(*probe_mesh_link)(struct wiphy *wiphy, struct net_device *dev,
+				   const u8 *buf, size_t len);
 };
 
 /*
@@ -5492,6 +5564,28 @@ static inline void cfg80211_gen_new_bssid(const u8 *bssid, u8 max_bssid,
 }
 
 /**
+ * cfg80211_is_element_inherited - returns if element ID should be inherited
+ * @element: element to check
+ * @non_inherit_element: non inheritance element
+ */
+bool cfg80211_is_element_inherited(const struct element *element,
+				   const struct element *non_inherit_element);
+
+/**
+ * cfg80211_merge_profile - merges a MBSSID profile if it is split between IEs
+ * @ie: ies
+ * @ielen: length of IEs
+ * @mbssid_elem: current MBSSID element
+ * @sub_elem: current MBSSID subelement (profile)
+ * @merged_ie: location of the merged profile
+ * @max_copy_len: max merged profile length
+ */
+size_t cfg80211_merge_profile(const u8 *ie, size_t ielen,
+			      const struct element *mbssid_elem,
+			      const struct element *sub_elem,
+			      u8 *merged_ie, size_t max_copy_len);
+
+/**
  * enum cfg80211_bss_frame_type - frame type that the BSS data came from
  * @CFG80211_BSS_FTYPE_UNKNOWN: driver doesn't know whether the data is
  *	from a beacon or probe response
@@ -7183,6 +7277,11 @@ void cfg80211_pmsr_complete(struct wireless_dev *wdev,
 #define wiphy_info(wiphy, format, args...)			\
 	dev_info(&(wiphy)->dev, format, ##args)
 
+#define wiphy_err_ratelimited(wiphy, format, args...)		\
+	dev_err_ratelimited(&(wiphy)->dev, format, ##args)
+#define wiphy_warn_ratelimited(wiphy, format, args...)		\
+	dev_warn_ratelimited(&(wiphy)->dev, format, ##args)
+
 #define wiphy_debug(wiphy, format, args...)			\
 	wiphy_printk(KERN_DEBUG, wiphy, format, ##args)
 
@@ -7207,5 +7306,15 @@ void cfg80211_pmsr_complete(struct wireless_dev *wdev,
  */
 #define wiphy_WARN(wiphy, format, args...)			\
 	WARN(1, "wiphy: %s\n" format, wiphy_name(wiphy), ##args);
+
+/**
+ * cfg80211_update_owe_info_event - Notify the peer's OWE info to user space
+ * @netdev: network device
+ * @owe_info: peer's owe info
+ * @gfp: allocation flags
+ */
+void cfg80211_update_owe_info_event(struct net_device *netdev,
+				    struct cfg80211_update_owe_info *owe_info,
+				    gfp_t gfp);
 
 #endif /* __NET_CFG80211_H */

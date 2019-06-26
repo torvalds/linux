@@ -13,6 +13,7 @@ VADC node:
     Definition: Should contain "qcom,spmi-vadc".
                 Should contain "qcom,spmi-adc5" for PMIC5 ADC driver.
                 Should contain "qcom,spmi-adc-rev2" for PMIC rev2 ADC driver.
+                Should contain "qcom,pms405-adc" for PMS405 PMIC
 
 - reg:
     Usage: required

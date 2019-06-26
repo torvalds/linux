@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra host1x Channel
  *
  * Copyright (c) 2010-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/host1x.h>
@@ -114,9 +103,13 @@ static inline void synchronize_syncpt_base(struct host1x_job *job)
 
 static void host1x_channel_set_streamid(struct host1x_channel *channel)
 {
-#if IS_ENABLED(CONFIG_IOMMU_API) &&  HOST1X_HW >= 6
+#if HOST1X_HW >= 6
+	u32 sid = 0x7f;
+#ifdef CONFIG_IOMMU_API
 	struct iommu_fwspec *spec = dev_iommu_fwspec_get(channel->dev->parent);
-	u32 sid = spec ? spec->ids[0] & 0xffff : 0x7f;
+	if (spec)
+		sid = spec->ids[0] & 0xffff;
+#endif
 
 	host1x_ch_writel(channel, sid, HOST1X_CHANNEL_SMMU_STREAMID);
 #endif

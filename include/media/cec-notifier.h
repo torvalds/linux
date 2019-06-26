@@ -9,7 +9,7 @@
 #ifndef LINUX_CEC_NOTIFIER_H
 #define LINUX_CEC_NOTIFIER_H
 
-#include <linux/types.h>
+#include <linux/err.h>
 #include <media/cec.h>
 
 struct device;
@@ -87,6 +87,17 @@ void cec_notifier_unregister(struct cec_notifier *n);
 void cec_register_cec_notifier(struct cec_adapter *adap,
 			       struct cec_notifier *notifier);
 
+/**
+ * cec_notifier_parse_hdmi_phandle - find the hdmi device from "hdmi-phandle"
+ * @dev: the device with the "hdmi-phandle" device tree property
+ *
+ * Returns the device pointer referenced by the "hdmi-phandle" property.
+ * Note that the refcount of the returned device is not incremented.
+ * This device pointer is only used as a key value in the notifier
+ * list, but it is never accessed by the CEC driver.
+ */
+struct device *cec_notifier_parse_hdmi_phandle(struct device *dev);
+
 #else
 static inline struct cec_notifier *cec_notifier_get_conn(struct device *dev,
 							 const char *conn)
@@ -122,6 +133,12 @@ static inline void cec_register_cec_notifier(struct cec_adapter *adap,
 					     struct cec_notifier *notifier)
 {
 }
+
+static inline struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 #endif
 
 /**

@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Information interface for ALSA driver
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -713,8 +698,11 @@ snd_info_create_entry(const char *name, struct snd_info_entry *parent,
 	INIT_LIST_HEAD(&entry->list);
 	entry->parent = parent;
 	entry->module = module;
-	if (parent)
+	if (parent) {
+		mutex_lock(&parent->access);
 		list_add_tail(&entry->list, &parent->children);
+		mutex_unlock(&parent->access);
+	}
 	return entry;
 }
 
@@ -792,7 +780,12 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 	list_for_each_entry_safe(p, n, &entry->children, list)
 		snd_info_free_entry(p);
 
-	list_del(&entry->list);
+	p = entry->parent;
+	if (p) {
+		mutex_lock(&p->access);
+		list_del(&entry->list);
+		mutex_unlock(&p->access);
+	}
 	kfree(entry->name);
 	if (entry->private_free)
 		entry->private_free(entry);

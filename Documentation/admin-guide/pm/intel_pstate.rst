@@ -1,10 +1,13 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 ===============================================
 ``intel_pstate`` CPU Performance Scaling Driver
 ===============================================
 
-::
+:Copyright: |copy| 2017 Intel Corporation
 
- Copyright (c) 2017 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
 
 General Information
@@ -20,11 +23,10 @@ you have not done that yet.]
 
 For the processors supported by ``intel_pstate``, the P-state concept is broader
 than just an operating frequency or an operating performance point (see the
-`LinuxCon Europe 2015 presentation by Kristen Accardi <LCEU2015_>`_ for more
+LinuxCon Europe 2015 presentation by Kristen Accardi [1]_ for more
 information about that).  For this reason, the representation of P-states used
 by ``intel_pstate`` internally follows the hardware specification (for details
-refer to `Intel® 64 and IA-32 Architectures Software Developer’s Manual
-Volume 3: System Programming Guide <SDM_>`_).  However, the ``CPUFreq`` core
+refer to Intel Software Developer’s Manual [2]_).  However, the ``CPUFreq`` core
 uses frequencies for identifying operating performance points of CPUs and
 frequencies are involved in the user space interface exposed by it, so
 ``intel_pstate`` maps its internal representation of P-states to frequencies too
@@ -561,9 +563,9 @@ or to pin every task potentially sensitive to them to a specific CPU.]
 
 On the majority of systems supported by ``intel_pstate``, the ACPI tables
 provided by the platform firmware contain ``_PSS`` objects returning information
-that can be used for CPU performance scaling (refer to the `ACPI specification`_
-for details on the ``_PSS`` objects and the format of the information returned
-by them).
+that can be used for CPU performance scaling (refer to the ACPI specification
+[3]_ for details on the ``_PSS`` objects and the format of the information
+returned by them).
 
 The information returned by the ACPI ``_PSS`` objects is used by the
 ``acpi-cpufreq`` scaling driver.  On systems supported by ``intel_pstate``
@@ -728,6 +730,14 @@ P-state is called, the ``ftrace`` filter can be set to to
            <idle>-0     [000] ..s.  2537.654843: intel_pstate_set_pstate <-intel_pstate_timer_func
 
 
-.. _LCEU2015: http://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf
-.. _SDM: http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html
-.. _ACPI specification: http://www.uefi.org/sites/default/files/resources/ACPI_6_1.pdf
+References
+==========
+
+.. [1] Kristen Accardi, *Balancing Power and Performance in the Linux Kernel*,
+       http://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf
+
+.. [2] *Intel® 64 and IA-32 Architectures Software Developer’s Manual Volume 3: System Programming Guide*,
+       http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html
+
+.. [3] *Advanced Configuration and Power Interface Specification*,
+       https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf

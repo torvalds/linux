@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * dwmac-stm32.c - DWMAC Specific Glue layer for STM32 MCU
  *
  * Copyright (C) STMicroelectronics SA 2017
  * Author:  Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
- *
  */
 
 #include <linux/clk.h>
@@ -333,6 +332,9 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 	 */
 	dwmac->irq_pwr_wakeup = platform_get_irq_byname(pdev,
 							"stm32_pwr_wakeup");
+	if (dwmac->irq_pwr_wakeup == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
 	if (!dwmac->clk_eth_ck && dwmac->irq_pwr_wakeup >= 0) {
 		err = device_init_wakeup(&pdev->dev, true);
 		if (err) {

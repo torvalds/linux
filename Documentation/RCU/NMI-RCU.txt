@@ -81,18 +81,19 @@ currently executing on some other CPU.  We therefore cannot free
 up any data structures used by the old NMI handler until execution
 of it completes on all other CPUs.
 
-One way to accomplish this is via synchronize_sched(), perhaps as
+One way to accomplish this is via synchronize_rcu(), perhaps as
 follows:
 
 	unset_nmi_callback();
-	synchronize_sched();
+	synchronize_rcu();
 	kfree(my_nmi_data);
 
-This works because synchronize_sched() blocks until all CPUs complete
-any preemption-disabled segments of code that they were executing.
-Since NMI handlers disable preemption, synchronize_sched() is guaranteed
+This works because (as of v4.20) synchronize_rcu() blocks until all
+CPUs complete any preemption-disabled segments of code that they were
+executing.
+Since NMI handlers disable preemption, synchronize_rcu() is guaranteed
 not to return until all ongoing NMI handlers exit.  It is therefore safe
-to free up the handler's data as soon as synchronize_sched() returns.
+to free up the handler's data as soon as synchronize_rcu() returns.
 
 Important note: for this to work, the architecture in question must
 invoke nmi_enter() and nmi_exit() on NMI entry and exit, respectively.

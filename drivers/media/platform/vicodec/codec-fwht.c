@@ -46,8 +46,12 @@ static const uint8_t zigzag[64] = {
 	63,
 };
 
-
-static int rlc(const s16 *in, __be16 *output, int blocktype)
+/*
+ * noinline_for_stack to work around
+ * https://bugs.llvm.org/show_bug.cgi?id=38809
+ */
+static int noinline_for_stack
+rlc(const s16 *in, __be16 *output, int blocktype)
 {
 	s16 block[8 * 8];
 	s16 *wp = block;
@@ -106,8 +110,8 @@ static int rlc(const s16 *in, __be16 *output, int blocktype)
  * This function will worst-case increase rlc_in by 65*2 bytes:
  * one s16 value for the header and 8 * 8 coefficients of type s16.
  */
-static u16 derlc(const __be16 **rlc_in, s16 *dwht_out,
-		 const __be16 *end_of_input)
+static noinline_for_stack u16
+derlc(const __be16 **rlc_in, s16 *dwht_out, const __be16 *end_of_input)
 {
 	/* header */
 	const __be16 *input = *rlc_in;
@@ -240,8 +244,9 @@ static void dequantize_inter(s16 *coeff)
 			*coeff <<= *quant;
 }
 
-static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
-		 unsigned int input_step, bool intra)
+static void noinline_for_stack fwht(const u8 *block, s16 *output_block,
+				    unsigned int stride,
+				    unsigned int input_step, bool intra)
 {
 	/* we'll need more than 8 bits for the transformed coefficients */
 	s32 workspace1[8], workspace2[8];
@@ -373,7 +378,8 @@ static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
  * Furthermore values can be negative... This is just a version that
  * works with 16 signed data
  */
-static void fwht16(const s16 *block, s16 *output_block, int stride, int intra)
+static void noinline_for_stack
+fwht16(const s16 *block, s16 *output_block, int stride, int intra)
 {
 	/* we'll need more than 8 bits for the transformed coefficients */
 	s32 workspace1[8], workspace2[8];
@@ -456,7 +462,8 @@ static void fwht16(const s16 *block, s16 *output_block, int stride, int intra)
 	}
 }
 
-static void ifwht(const s16 *block, s16 *output_block, int intra)
+static noinline_for_stack void
+ifwht(const s16 *block, s16 *output_block, int intra)
 {
 	/*
 	 * we'll need more than 8 bits for the transformed coefficients
@@ -604,9 +611,9 @@ static int var_inter(const s16 *old, const s16 *new)
 	return ret;
 }
 
-static int decide_blocktype(const u8 *cur, const u8 *reference,
-			    s16 *deltablock, unsigned int stride,
-			    unsigned int input_step)
+static noinline_for_stack int
+decide_blocktype(const u8 *cur, const u8 *reference, s16 *deltablock,
+		 unsigned int stride, unsigned int input_step)
 {
 	s16 tmp[64];
 	s16 old[64];
@@ -632,12 +639,13 @@ static int decide_blocktype(const u8 *cur, const u8 *reference,
 	return vari <= vard ? IBLOCK : PBLOCK;
 }
 
-static void fill_decoder_block(u8 *dst, const s16 *input, int stride)
+static void fill_decoder_block(u8 *dst, const s16 *input, int stride,
+			       unsigned int dst_step)
 {
 	int i, j;
 
 	for (i = 0; i < 8; i++) {
-		for (j = 0; j < 8; j++, input++, dst++) {
+		for (j = 0; j < 8; j++, input++, dst += dst_step) {
 			if (*input < 0)
 				*dst = 0;
 			else if (*input > 255)
@@ -645,17 +653,19 @@ static void fill_decoder_block(u8 *dst, const s16 *input, int stride)
 			else
 				*dst = *input;
 		}
-		dst += stride - 8;
+		dst += stride - (8 * dst_step);
 	}
 }
 
-static void add_deltas(s16 *deltas, const u8 *ref, int stride)
+static void add_deltas(s16 *deltas, const u8 *ref, int stride,
+		       unsigned int ref_step)
 {
 	int k, l;
 
 	for (k = 0; k < 8; k++) {
 		for (l = 0; l < 8; l++) {
-			*deltas += *ref++;
+			*deltas += *ref;
+			ref += ref_step;
 			/*
 			 * Due to quantizing, it might possible that the
 			 * decoded coefficients are slightly out of range
@@ -666,7 +676,7 @@ static void add_deltas(s16 *deltas, const u8 *ref, int stride)
 				*deltas = 255;
 			deltas++;
 		}
-		ref += stride - 8;
+		ref += stride - (8 * ref_step);
 	}
 }
 
@@ -711,8 +721,8 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 				ifwht(cf->de_coeffs, cf->de_fwht, blocktype);
 
 				if (blocktype == PBLOCK)
-					add_deltas(cf->de_fwht, refp, 8);
-				fill_decoder_block(refp, cf->de_fwht, 8);
+					add_deltas(cf->de_fwht, refp, 8, 1);
+				fill_decoder_block(refp, cf->de_fwht, 8, 1);
 			}
 
 			input += 8 * input_step;
@@ -821,23 +831,31 @@ u32 fwht_encode_frame(struct fwht_raw_frame *frm,
 	return encoding;
 }
 
-static bool decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
-			 u32 height, u32 width, u32 coded_width,
+static bool decode_plane(struct fwht_cframe *cf, const __be16 **rlco,
+			 u32 height, u32 width, const u8 *ref, u32 ref_stride,
+			 unsigned int ref_step, u8 *dst,
+			 unsigned int dst_stride, unsigned int dst_step,
 			 bool uncompressed, const __be16 *end_of_rlco_buf)
 {
 	unsigned int copies = 0;
 	s16 copy[8 * 8];
 	u16 stat;
 	unsigned int i, j;
+	bool is_intra = !ref;
 
 	width = round_up(width, 8);
 	height = round_up(height, 8);
 
 	if (uncompressed) {
+		int i;
+
 		if (end_of_rlco_buf + 1 < *rlco + width * height / 2)
 			return false;
-		memcpy(ref, *rlco, width * height);
-		*rlco += width * height / 2;
+		for (i = 0; i < height; i++) {
+			memcpy(dst, *rlco, width);
+			dst += dst_stride;
+			*rlco += width / 2;
+		}
 		return true;
 	}
 
@@ -849,15 +867,17 @@ static bool decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
 	 */
 	for (j = 0; j < height / 8; j++) {
 		for (i = 0; i < width / 8; i++) {
-			u8 *refp = ref + j * 8 * coded_width + i * 8;
+			const u8 *refp = ref + j * 8 * ref_stride +
+				i * 8 * ref_step;
+			u8 *dstp = dst + j * 8 * dst_stride + i * 8 * dst_step;
 
 			if (copies) {
 				memcpy(cf->de_fwht, copy, sizeof(copy));
-				if (stat & PFRAME_BIT)
+				if ((stat & PFRAME_BIT) && !is_intra)
 					add_deltas(cf->de_fwht, refp,
-						   coded_width);
-				fill_decoder_block(refp, cf->de_fwht,
-						   coded_width);
+						   ref_stride, ref_step);
+				fill_decoder_block(dstp, cf->de_fwht,
+						   dst_stride, dst_step);
 				copies--;
 				continue;
 			}
@@ -865,35 +885,41 @@ static bool decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
 			stat = derlc(rlco, cf->coeffs, end_of_rlco_buf);
 			if (stat & OVERFLOW_BIT)
 				return false;
-			if (stat & PFRAME_BIT)
+			if ((stat & PFRAME_BIT) && !is_intra)
 				dequantize_inter(cf->coeffs);
 			else
 				dequantize_intra(cf->coeffs);
 
 			ifwht(cf->coeffs, cf->de_fwht,
-			      (stat & PFRAME_BIT) ? 0 : 1);
+			      ((stat & PFRAME_BIT) && !is_intra) ? 0 : 1);
 
 			copies = (stat & DUPS_MASK) >> 1;
 			if (copies)
 				memcpy(copy, cf->de_fwht, sizeof(copy));
-			if (stat & PFRAME_BIT)
-				add_deltas(cf->de_fwht, refp, coded_width);
-			fill_decoder_block(refp, cf->de_fwht, coded_width);
+			if ((stat & PFRAME_BIT) && !is_intra)
+				add_deltas(cf->de_fwht, refp,
+					   ref_stride, ref_step);
+			fill_decoder_block(dstp, cf->de_fwht, dst_stride,
+					   dst_step);
 		}
 	}
 	return true;
 }
 
-bool fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
-		       u32 hdr_flags, unsigned int components_num,
-		       unsigned int width, unsigned int height,
-		       unsigned int coded_width)
+bool fwht_decode_frame(struct fwht_cframe *cf, u32 hdr_flags,
+		       unsigned int components_num, unsigned int width,
+		       unsigned int height, const struct fwht_raw_frame *ref,
+		       unsigned int ref_stride, unsigned int ref_chroma_stride,
+		       struct fwht_raw_frame *dst, unsigned int dst_stride,
+		       unsigned int dst_chroma_stride)
 {
 	const __be16 *rlco = cf->rlc_data;
 	const __be16 *end_of_rlco_buf = cf->rlc_data +
 			(cf->size / sizeof(*rlco)) - 1;
 
-	if (!decode_plane(cf, &rlco, ref->luma, height, width, coded_width,
+	if (!decode_plane(cf, &rlco, height, width, ref->luma, ref_stride,
+			  ref->luma_alpha_step, dst->luma, dst_stride,
+			  dst->luma_alpha_step,
 			  hdr_flags & FWHT_FL_LUMA_IS_UNCOMPRESSED,
 			  end_of_rlco_buf))
 		return false;
@@ -901,27 +927,30 @@ bool fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
 	if (components_num >= 3) {
 		u32 h = height;
 		u32 w = width;
-		u32 c = coded_width;
 
 		if (!(hdr_flags & FWHT_FL_CHROMA_FULL_HEIGHT))
 			h /= 2;
-		if (!(hdr_flags & FWHT_FL_CHROMA_FULL_WIDTH)) {
+		if (!(hdr_flags & FWHT_FL_CHROMA_FULL_WIDTH))
 			w /= 2;
-			c /= 2;
-		}
-		if (!decode_plane(cf, &rlco, ref->cb, h, w, c,
+
+		if (!decode_plane(cf, &rlco, h, w, ref->cb, ref_chroma_stride,
+				  ref->chroma_step, dst->cb, dst_chroma_stride,
+				  dst->chroma_step,
 				  hdr_flags & FWHT_FL_CB_IS_UNCOMPRESSED,
 				  end_of_rlco_buf))
 			return false;
-		if (!decode_plane(cf, &rlco, ref->cr, h, w, c,
+		if (!decode_plane(cf, &rlco, h, w, ref->cr, ref_chroma_stride,
+				  ref->chroma_step, dst->cr, dst_chroma_stride,
+				  dst->chroma_step,
 				  hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED,
 				  end_of_rlco_buf))
 			return false;
 	}
 
 	if (components_num == 4)
-		if (!decode_plane(cf, &rlco, ref->alpha, height, width,
-				  coded_width,
+		if (!decode_plane(cf, &rlco, height, width, ref->alpha, ref_stride,
+				  ref->luma_alpha_step, dst->alpha, dst_stride,
+				  dst->luma_alpha_step,
 				  hdr_flags & FWHT_FL_ALPHA_IS_UNCOMPRESSED,
 				  end_of_rlco_buf))
 			return false;

@@ -158,7 +158,8 @@ static int rds_pin_pages(unsigned long user_addr, unsigned int nr_pages,
 {
 	int ret;
 
-	ret = get_user_pages_fast(user_addr, nr_pages, write, pages);
+	ret = get_user_pages_fast(user_addr, nr_pages, write ? FOLL_WRITE : 0,
+				  pages);
 
 	if (ret >= 0 && ret < nr_pages) {
 		while (ret--)

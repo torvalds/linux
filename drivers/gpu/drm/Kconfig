@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Drm device configuration
 #
@@ -160,6 +161,13 @@ config DRM_TTM
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
 
+config DRM_VRAM_HELPER
+	tristate
+	depends on DRM
+	select DRM_TTM
+	help
+	  Helpers for VRAM memory management
+
 config DRM_GEM_CMA_HELPER
 	bool
 	depends on DRM
@@ -200,7 +208,6 @@ config DRM_RADEON
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
-	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
@@ -221,7 +228,6 @@ config DRM_AMDGPU
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
-	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
 	select CHASH
 	help
@@ -310,6 +316,8 @@ source "drivers/gpu/drm/sti/Kconfig"
 
 source "drivers/gpu/drm/imx/Kconfig"
 
+source "drivers/gpu/drm/ingenic/Kconfig"
+
 source "drivers/gpu/drm/v3d/Kconfig"
 
 source "drivers/gpu/drm/vc4/Kconfig"
@@ -343,6 +351,8 @@ source "drivers/gpu/drm/lima/Kconfig"
 source "drivers/gpu/drm/panfrost/Kconfig"
 
 source "drivers/gpu/drm/aspeed/Kconfig"
+
+source "drivers/gpu/drm/mcde/Kconfig"
 
 # Keep legacy drivers last
 

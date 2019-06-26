@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 comment "VME Board Drivers"
 
 config VMIVME_7805

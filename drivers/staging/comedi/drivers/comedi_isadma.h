@@ -10,6 +10,7 @@
 #include <linux/types.h>
 
 struct comedi_device;
+struct device;
 
 /*
  * These are used to avoid issues when <asm/dma.h> and the DMA_MODE_
@@ -38,6 +39,7 @@ struct comedi_isadma_desc {
 
 /**
  * struct comedi_isadma - ISA DMA data
+ * @dev:	device to allocate non-coherent memory for
  * @desc:	cookie for each DMA buffer
  * @n_desc:	the number of cookies
  * @cur_dma:	the current cookie in use
@@ -45,6 +47,7 @@ struct comedi_isadma_desc {
  * @chan2:	the second DMA channel requested
  */
 struct comedi_isadma {
+	struct device *dev;
 	struct comedi_isadma_desc *desc;
 	int n_desc;
 	int cur_dma;

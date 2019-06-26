@@ -646,6 +646,8 @@ static int wm5102_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				return ret;
 			}
 		}
+
+		wm_adsp2_set_dspclk(w, v);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
@@ -659,7 +661,7 @@ static int wm5102_adsp_power_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
-	return wm_adsp2_early_event(w, kcontrol, event, v);
+	return wm_adsp_early_event(w, kcontrol, event);
 }
 
 static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,

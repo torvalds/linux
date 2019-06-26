@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Bridge netlink control interface
  *
  *	Authors:
  *	Stephen Hemminger		<shemminger@osdl.org>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -102,7 +98,7 @@ static size_t br_get_link_af_size_filtered(const struct net_device *dev,
 	size_t vinfo_sz = 0;
 
 	rcu_read_lock();
-	if (br_port_exists(dev)) {
+	if (netif_is_bridge_port(dev)) {
 		p = br_port_get_rcu(dev);
 		vg = nbp_vlan_group_rcu(p);
 	} else if (dev->priv_flags & IFF_EBRIDGE) {
@@ -413,9 +409,9 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (event == RTM_NEWLINK && port) {
-		struct nlattr *nest
-			= nla_nest_start(skb, IFLA_PROTINFO | NLA_F_NESTED);
+		struct nlattr *nest;
 
+		nest = nla_nest_start(skb, IFLA_PROTINFO);
 		if (nest == NULL || br_port_fill_attrs(skb, port) < 0)
 			goto nla_put_failure;
 		nla_nest_end(skb, nest);
@@ -439,7 +435,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			rcu_read_unlock();
 			goto done;
 		}
-		af = nla_nest_start(skb, IFLA_AF_SPEC);
+		af = nla_nest_start_noflag(skb, IFLA_AF_SPEC);
 		if (!af) {
 			rcu_read_unlock();
 			goto nla_put_failure;
@@ -880,8 +876,10 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags,
 
 	if (p && protinfo) {
 		if (protinfo->nla_type & NLA_F_NESTED) {
-			err = nla_parse_nested(tb, IFLA_BRPORT_MAX, protinfo,
-					       br_port_policy, NULL);
+			err = nla_parse_nested_deprecated(tb, IFLA_BRPORT_MAX,
+							  protinfo,
+							  br_port_policy,
+							  NULL);
 			if (err)
 				return err;
 
@@ -1441,7 +1439,7 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_ENABLED,
 		       br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) ||
 	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_PER_PORT,
-		       br_opt_get(br, IFLA_BR_VLAN_STATS_PER_PORT)))
+		       br_opt_get(br, BROPT_VLAN_STATS_PER_PORT)))
 		return -EMSGSIZE;
 #endif
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
@@ -1569,7 +1567,7 @@ static int br_fill_linkxstats(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	nest = nla_nest_start(skb, LINK_XSTATS_TYPE_BRIDGE);
+	nest = nla_nest_start_noflag(skb, LINK_XSTATS_TYPE_BRIDGE);
 	if (!nest)
 		return -EMSGSIZE;
 

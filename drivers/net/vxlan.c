@@ -20,6 +20,7 @@
 #include <linux/ethtool.h>
 #include <net/arp.h>
 #include <net/ndisc.h>
+#include <net/ipv6_stubs.h>
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/rtnetlink.h>

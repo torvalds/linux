@@ -373,6 +373,8 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
 		if  (ps2_handle_response(&psmouse->ps2dev, data))
 			goto out;
 
+	pm_wakeup_event(&serio->dev, 0);
+
 	if (psmouse->state <= PSMOUSE_RESYNCING)
 		goto out;
 

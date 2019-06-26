@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Audio support for PS3
  * Copyright (C) 2007 Sony Computer Entertainment Inc.
  * All rights reserved.
  * Copyright 2006, 2007 Sony Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2 of the Licence.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/dma-mapping.h>
@@ -233,7 +221,6 @@ static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 	int fill_stages, dma_ch, stage;
 	enum snd_ps3_ch ch;
 	uint32_t ch0_kick_event = 0; /* initialize to mute gcc */
-	void *start_vaddr;
 	unsigned long irqsave;
 	int silent = 0;
 
@@ -257,7 +244,6 @@ static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 	fill_stages = 4;
 	spin_lock_irqsave(&card->dma_lock, irqsave);
 	for (ch = 0; ch < 2; ch++) {
-		start_vaddr = card->dma_next_transfer_vaddr[0];
 		for (stage = 0; stage < fill_stages; stage++) {
 			dma_ch = stage * 2 + ch;
 			if (silent)
@@ -526,9 +512,7 @@ static int snd_ps3_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ps3_card_info *card = snd_pcm_substream_chip(substream);
-	int pcm_index;
 
-	pcm_index = substream->pcm->device;
 	/* to retrieve substream/runtime in interrupt handler */
 	card->substream = substream;
 

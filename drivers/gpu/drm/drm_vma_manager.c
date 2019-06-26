@@ -23,15 +23,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mm.h>
-#include <drm/drm_vma_manager.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+
+#include <drm/drm_mm.h>
+#include <drm/drm_vma_manager.h>
 
 /**
  * DOC: vma offset manager

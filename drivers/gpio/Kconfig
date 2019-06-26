@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # GPIO infrastructure and drivers
 #
@@ -12,7 +13,6 @@ config ARCH_HAVE_CUSTOM_GPIO_H
 
 menuconfig GPIOLIB
 	bool "GPIO Support"
-	select ANON_INODES
 	help
 	  This enables GPIO support through the generic GPIO library.
 	  You only need to enable this, if you also want to enable
@@ -27,12 +27,12 @@ config GPIOLIB_FASTPATH_LIMIT
 	range 32 512
 	default 512
 	help
-	   This adjusts the point at which certain APIs will switch from
-	   using a stack allocated buffer to a dynamically allocated buffer.
+	  This adjusts the point at which certain APIs will switch from
+	  using a stack allocated buffer to a dynamically allocated buffer.
 
-	   You shouldn't need to change this unless you really need to
-	   optimize either stack space or performance. Change this carefully
-	   since setting an incorrect value could cause stack corruption.
+	  You shouldn't need to change this unless you really need to
+	  optimize either stack space or performance. Change this carefully
+	  since setting an incorrect value could cause stack corruption.
 
 config OF_GPIO
 	def_bool y
@@ -287,6 +287,19 @@ config GPIO_IOP
 
 	  If unsure, say N.
 
+config GPIO_IXP4XX
+	bool "Intel IXP4xx GPIO"
+	depends on ARM # For <asm/mach-types.h>
+	depends on ARCH_IXP4XX
+	select GPIO_GENERIC
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say yes here to support the GPIO functionality of a number of Intel
+	  IXP4xx series of chips.
+
+	  If unsure, say N.
+
 config GPIO_LOONGSON
 	bool "Loongson-2/3 GPIO support"
 	depends on CPU_LOONGSON2 || CPU_LOONGSON3
@@ -320,7 +333,7 @@ config GPIO_MENZ127
 	depends on MCB
 	select GPIO_GENERIC
 	help
-	 Say yes here to support the MEN 16Z127 GPIO Controller
+	  Say yes here to support the MEN 16Z127 GPIO Controller
 
 config GPIO_MM_LANTIQ
 	bool "Lantiq Memory mapped GPIOs"
@@ -329,20 +342,6 @@ config GPIO_MM_LANTIQ
 	  This enables support for memory mapped GPIOs on the External Bus Unit
 	  (EBU) found on Lantiq SoCs. The gpios are output only as they are
 	  created by attaching a 16bit latch to the bus.
-
-config GPIO_MOCKUP
-	tristate "GPIO Testing Driver"
-	depends on GPIOLIB && SYSFS
-	select GPIO_SYSFS
-	select GPIOLIB_IRQCHIP
-	select IRQ_SIM
-	help
-	  This enables GPIO Testing driver, which provides a way to test GPIO
-	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
-	  must be selected for this test.
-	  User could use it through the script in
-	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
-	  it.
 
 config GPIO_MPC5200
 	def_bool y
@@ -824,6 +823,7 @@ config GPIO_ADP5588
 config GPIO_ADP5588_IRQ
 	bool "Interrupt controller support for ADP5588"
 	depends on GPIO_ADP5588=y
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to enable the adp5588 to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
@@ -862,11 +862,11 @@ config GPIO_MAX732X
 	  Input and Output (designed by 'P'). The combinations are listed
 	  below:
 
-	  8 bits:	max7319 (8I), max7320 (8O), max7321 (8P),
-		  	max7322 (4I4O), max7323 (4P4O)
+	  8 bits:       max7319 (8I), max7320 (8O), max7321 (8P),
+	                max7322 (4I4O), max7323 (4P4O)
 
-	  16 bits:	max7324 (8I8O), max7325 (8P8O),
-		  	max7326 (4I12O), max7327 (4P12O)
+	  16 bits:      max7324 (8I8O), max7325 (8P8O),
+	                max7326 (4I12O), max7327 (4P12O)
 
 	  Board setup code must specify the model to use, and the start
 	  number for these GPIOs.
@@ -893,17 +893,17 @@ config GPIO_PCA953X
 	  SMBus I/O expanders, made mostly by NXP or TI.  Compatible
 	  models include:
 
-	  4 bits:	pca9536, pca9537
+	  4 bits:       pca9536, pca9537
 
-	  8 bits:	max7310, max7315, pca6107, pca9534, pca9538, pca9554,
-			pca9556, pca9557, pca9574, tca6408, tca9554, xra1202
+	  8 bits:       max7310, max7315, pca6107, pca9534, pca9538, pca9554,
+	                pca9556, pca9557, pca9574, tca6408, tca9554, xra1202
 
-	  16 bits:	max7312, max7313, pca9535, pca9539, pca9555, pca9575,
-			tca6416
+	  16 bits:      max7312, max7313, pca9535, pca9539, pca9555, pca9575,
+	                tca6416
 
-	  24 bits:	tca6424
+	  24 bits:      tca6424
 
-	  40 bits:	pca9505, pca9698
+	  40 bits:      pca9505, pca9698
 
 config GPIO_PCA953X_IRQ
 	bool "Interrupt controller support for PCA953x"
@@ -925,7 +925,7 @@ config GPIO_PCF857X
 
 	  8 bits:   pcf8574, pcf8574a, pca8574, pca8574a,
 	            pca9670, pca9672, pca9674, pca9674a,
-	  	    max7328, max7329
+	            max7328, max7329
 
 	  16 bits:  pcf8575, pcf8575c, pca8575,
 	            pca9671, pca9673, pca9675
@@ -1047,9 +1047,9 @@ config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GPIOLIB && ARM
 	help
-	    This driver supports the CPLD egpio chip present on
-	    several HTC phones.  It provides basic support for input
-	    pins, output pins, and irqs.
+	  This driver supports the CPLD egpio chip present on
+	  several HTC phones.  It provides basic support for input
+	  pins, output pins, and irqs.
 
 config GPIO_JANZ_TTL
 	tristate "Janz VMOD-TTL Digital IO Module"
@@ -1085,7 +1085,7 @@ config GPIO_LP873X
 	  on LP873X PMICs.
 
 	  This driver can also be built as a module. If so, the module will be
-          called gpio-lp873x.
+	  called gpio-lp873x.
 
 config GPIO_LP87565
 	tristate "TI LP87565 GPIO"
@@ -1111,6 +1111,13 @@ config GPIO_MAX77620
 	  MAX77620 PMIC has 8 pins that can be configured as GPIOs. The
 	  driver also provides interrupt support for each of the gpios.
 	  Say yes here to enable the max77620 to be used as gpio controller.
+
+config GPIO_MAX77650
+	tristate "Maxim MAX77650/77651 GPIO support"
+	depends on MFD_MAX77650
+	help
+	  GPIO driver for MAX77650/77651 PMIC from Maxim Semiconductor.
+	  These chips have a single pin that can be configured as GPIO.
 
 config GPIO_MSIC
 	bool "Intel MSIC mixed signal gpio support"
@@ -1316,6 +1323,13 @@ config GPIO_MERRIFIELD
 	help
 	  Say Y here to support Intel Merrifield GPIO.
 
+config GPIO_MLXBF
+	tristate "Mellanox BlueField SoC GPIO"
+	depends on (MELLANOX_PLATFORM && ARM64 && ACPI) || (64BIT && COMPILE_TEST)
+	select GPIO_GENERIC
+	help
+	  Say Y here if you want GPIO support on Mellanox BlueField SoC.
+
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
 	depends on X86 || COMPILE_TEST
@@ -1436,10 +1450,22 @@ config GPIO_VIPERBOARD
 	  Say yes here to access the GPIO signals of Nano River
 	  Technologies Viperboard. There are two GPIO chips on the
 	  board: gpioa and gpiob.
-          See viperboard API specification and Nano
-          River Tech's viperboard.h for detailed meaning
-          of the module parameters.
+	  See viperboard API specification and Nano
+	  River Tech's viperboard.h for detailed meaning
+	  of the module parameters.
 
 endmenu
+
+config GPIO_MOCKUP
+	tristate "GPIO Testing Driver"
+	depends on GPIOLIB
+	select IRQ_SIM
+	help
+	  This enables GPIO Testing driver, which provides a way to test GPIO
+	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
+	  must be selected for this test.
+	  User could use it through the script in
+	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
+	  it.
 
 endif

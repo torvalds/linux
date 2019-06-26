@@ -93,7 +93,7 @@ A queued request cannot be modified anymore.
 .. caution::
    For :ref:`memory-to-memory devices <mem2mem>` you can use requests only for
    output buffers, not for capture buffers. Attempting to add a capture buffer
-   to a request will result in an ``EACCES`` error.
+   to a request will result in an ``EBADR`` error.
 
 If the request contains configurations for multiple entities, individual drivers
 may synchronize so the requested pipeline's topology is applied before the

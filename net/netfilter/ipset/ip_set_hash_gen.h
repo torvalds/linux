@@ -1057,7 +1057,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	htable_bits = t->htable_bits;
 	rcu_read_unlock_bh();
 
-	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
+	nested = nla_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
 		goto nla_put_failure;
 	if (nla_put_net32(skb, IPSET_ATTR_HASHSIZE,
@@ -1079,7 +1079,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 	if (unlikely(ip_set_put_flags(skb, set)))
 		goto nla_put_failure;
-	ipset_nest_end(skb, nested);
+	nla_nest_end(skb, nested);
 
 	return 0;
 nla_put_failure:
@@ -1124,7 +1124,7 @@ mtype_list(const struct ip_set *set,
 	void *incomplete;
 	int i, ret = 0;
 
-	atd = ipset_nest_start(skb, IPSET_ATTR_ADT);
+	atd = nla_nest_start(skb, IPSET_ATTR_ADT);
 	if (!atd)
 		return -EMSGSIZE;
 
@@ -1150,7 +1150,7 @@ mtype_list(const struct ip_set *set,
 				continue;
 			pr_debug("list hash %lu hbucket %p i %u, data %p\n",
 				 cb->args[IPSET_CB_ARG0], n, i, e);
-			nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
+			nested = nla_nest_start(skb, IPSET_ATTR_DATA);
 			if (!nested) {
 				if (cb->args[IPSET_CB_ARG0] == first) {
 					nla_nest_cancel(skb, atd);
@@ -1163,10 +1163,10 @@ mtype_list(const struct ip_set *set,
 				goto nla_put_failure;
 			if (ip_set_put_extensions(skb, set, e, true))
 				goto nla_put_failure;
-			ipset_nest_end(skb, nested);
+			nla_nest_end(skb, nested);
 		}
 	}
-	ipset_nest_end(skb, atd);
+	nla_nest_end(skb, atd);
 	/* Set listing finished */
 	cb->args[IPSET_CB_ARG0] = 0;
 
@@ -1180,7 +1180,7 @@ nla_put_failure:
 		cb->args[IPSET_CB_ARG0] = 0;
 		ret = -EMSGSIZE;
 	} else {
-		ipset_nest_end(skb, atd);
+		nla_nest_end(skb, atd);
 	}
 out:
 	rcu_read_unlock();

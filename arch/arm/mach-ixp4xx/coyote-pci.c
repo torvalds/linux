@@ -23,6 +23,8 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 
+#include "irqs.h"
+
 #define SLOT0_DEVID	14
 #define SLOT1_DEVID	15
 

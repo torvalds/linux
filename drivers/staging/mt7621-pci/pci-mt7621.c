@@ -275,7 +275,7 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 			break;
 		}
 
-		if (res != NULL)
+		if (res)
 			of_pci_range_to_resource(&range, node, res);
 	}
 

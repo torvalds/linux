@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPv6 BSD socket options interface
  *	Linux INET6 implementation
@@ -6,11 +7,6 @@
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	Based on linux/net/ipv4/ip_sockglue.c
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  *	FIXME: Make the setsockopt code POSIX compliant: That is
  *
@@ -68,6 +64,8 @@ int ip6_ra_control(struct sock *sk, int sel)
 		return -ENOPROTOOPT;
 
 	new_ra = (sel >= 0) ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
+	if (sel >= 0 && !new_ra)
+		return -ENOMEM;
 
 	write_lock_bh(&ip6_ra_lock);
 	for (rap = &ip6_ra_chain; (ra = *rap) != NULL; rap = &ra->next) {

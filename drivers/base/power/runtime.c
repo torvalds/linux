@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/power/runtime.c - Helper functions for device runtime PM
  *
  * Copyright (c) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
  * Copyright (C) 2010 Alan Stern <stern@rowland.harvard.edu>
- *
- * This file is released under the GPLv2.
  */
-
 #include <linux/sched/mm.h>
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>

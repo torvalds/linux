@@ -383,8 +383,8 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 label;
 	int err = 0;
 
-	err = nlmsg_parse(nlh, sizeof(*ifal), tb, IFAL_MAX, ifal_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ifal), tb, IFAL_MAX,
+				     ifal_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -476,7 +476,7 @@ static int ip6addrlbl_valid_dump_req(const struct nlmsghdr *nlh,
 	}
 
 	if (nlmsg_attrlen(nlh, sizeof(*ifal))) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header for address label dump requewst");
+		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header for address label dump request");
 		return -EINVAL;
 	}
 
@@ -537,8 +537,8 @@ static int ip6addrlbl_valid_get_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(*ifal), tb, IFAL_MAX,
-				   ifal_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(*ifal), tb,
+					      IFAL_MAX, ifal_policy, extack);
 
 	ifal = nlmsg_data(nlh);
 	if (ifal->__ifal_reserved || ifal->ifal_flags || ifal->ifal_seq) {
@@ -546,8 +546,8 @@ static int ip6addrlbl_valid_get_req(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	err = nlmsg_parse_strict(nlh, sizeof(*ifal), tb, IFAL_MAX,
-				 ifal_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*ifal), tb, IFAL_MAX,
+					    ifal_policy, extack);
 	if (err)
 		return err;
 

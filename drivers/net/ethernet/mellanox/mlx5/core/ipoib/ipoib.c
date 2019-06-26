@@ -68,6 +68,7 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 
 	params->lro_en = false;
 	params->hard_mtu = MLX5_IB_GRH_BYTES + MLX5_IPOIB_HARD_LEN;
+	params->tunneled_offload_en = false;
 }
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
@@ -77,15 +78,14 @@ int mlx5i_init(struct mlx5_core_dev *mdev,
 	       void *ppriv)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
-	u16 max_mtu;
 	int err;
 
 	err = mlx5e_netdev_init(netdev, priv, mdev, profile, ppriv);
 	if (err)
 		return err;
 
-	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
-	netdev->mtu = max_mtu;
+	mlx5e_set_netdev_mtu_boundaries(priv);
+	netdev->mtu = netdev->max_mtu;
 
 	mlx5e_build_nic_params(mdev, &priv->rss_params, &priv->channels.params,
 			       mlx5e_get_netdev_max_channels(netdev),
@@ -619,7 +619,7 @@ static int mlx5i_xmit(struct net_device *dev, struct sk_buff *skb,
 	struct mlx5_ib_ah *mah   = to_mah(address);
 	struct mlx5i_priv *ipriv = epriv->ppriv;
 
-	return mlx5i_sq_xmit(sq, skb, &mah->av, dqpn, ipriv->qkey);
+	return mlx5i_sq_xmit(sq, skb, &mah->av, dqpn, ipriv->qkey, netdev_xmit_more());
 }
 
 static void mlx5i_set_pkey_index(struct net_device *netdev, int id)

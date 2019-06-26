@@ -141,12 +141,4 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 void skx_remove(void);
 
-#ifdef CONFIG_EDAC_DEBUG
-void setup_skx_debug(const char *dirname);
-void teardown_skx_debug(void);
-#else
-static inline void setup_skx_debug(const char *dirname) {}
-static inline void teardown_skx_debug(void) {}
-#endif /*CONFIG_EDAC_DEBUG*/
-
 #endif /* _SKX_COMM_EDAC_H */

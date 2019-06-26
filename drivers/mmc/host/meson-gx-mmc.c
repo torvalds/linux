@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/iopoll.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
@@ -48,6 +49,8 @@
 #define   CLK_CORE_PHASE_MASK GENMASK(9, 8)
 #define   CLK_TX_PHASE_MASK GENMASK(11, 10)
 #define   CLK_RX_PHASE_MASK GENMASK(13, 12)
+#define   CLK_PHASE_0 0
+#define   CLK_PHASE_180 2
 #define   CLK_V2_TX_DELAY_MASK GENMASK(19, 16)
 #define   CLK_V2_RX_DELAY_MASK GENMASK(23, 20)
 #define   CLK_V2_ALWAYS_ON BIT(24)
@@ -55,10 +58,6 @@
 #define   CLK_V3_TX_DELAY_MASK GENMASK(21, 16)
 #define   CLK_V3_RX_DELAY_MASK GENMASK(27, 22)
 #define   CLK_V3_ALWAYS_ON BIT(28)
-
-#define   CLK_DELAY_STEP_PS 200
-#define   CLK_PHASE_STEP 30
-#define   CLK_PHASE_POINT_NUM (360 / CLK_PHASE_STEP)
 
 #define   CLK_TX_DELAY_MASK(h)		(h->data->tx_delay_mask)
 #define   CLK_RX_DELAY_MASK(h)		(h->data->rx_delay_mask)
@@ -164,10 +163,10 @@ struct meson_host {
 
 	void __iomem *regs;
 	struct clk *core_clk;
+	struct clk *mux_clk;
 	struct clk *mmc_clk;
-	struct clk *rx_clk;
-	struct clk *tx_clk;
 	unsigned long req_rate;
+	bool ddr;
 
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default;
@@ -206,90 +205,6 @@ struct meson_host {
 #define CMD_DATA_SRAM BIT(0)
 #define CMD_RESP_MASK GENMASK(31, 1)
 #define CMD_RESP_SRAM BIT(0)
-
-struct meson_mmc_phase {
-	struct clk_hw hw;
-	void __iomem *reg;
-	unsigned long phase_mask;
-	unsigned long delay_mask;
-	unsigned int delay_step_ps;
-};
-
-#define to_meson_mmc_phase(_hw) container_of(_hw, struct meson_mmc_phase, hw)
-
-static int meson_mmc_clk_get_phase(struct clk_hw *hw)
-{
-	struct meson_mmc_phase *mmc = to_meson_mmc_phase(hw);
-	unsigned int phase_num = 1 <<  hweight_long(mmc->phase_mask);
-	unsigned long period_ps, p, d;
-		int degrees;
-	u32 val;
-
-	val = readl(mmc->reg);
-	p = (val & mmc->phase_mask) >> __ffs(mmc->phase_mask);
-	degrees = p * 360 / phase_num;
-
-	if (mmc->delay_mask) {
-		period_ps = DIV_ROUND_UP((unsigned long)NSEC_PER_SEC * 1000,
-					 clk_get_rate(hw->clk));
-		d = (val & mmc->delay_mask) >> __ffs(mmc->delay_mask);
-		degrees += d * mmc->delay_step_ps * 360 / period_ps;
-		degrees %= 360;
-	}
-
-	return degrees;
-}
-
-static void meson_mmc_apply_phase_delay(struct meson_mmc_phase *mmc,
-					unsigned int phase,
-					unsigned int delay)
-{
-	u32 val;
-
-	val = readl(mmc->reg);
-	val &= ~mmc->phase_mask;
-	val |= phase << __ffs(mmc->phase_mask);
-
-	if (mmc->delay_mask) {
-		val &= ~mmc->delay_mask;
-		val |= delay << __ffs(mmc->delay_mask);
-	}
-
-	writel(val, mmc->reg);
-}
-
-static int meson_mmc_clk_set_phase(struct clk_hw *hw, int degrees)
-{
-	struct meson_mmc_phase *mmc = to_meson_mmc_phase(hw);
-	unsigned int phase_num = 1 <<  hweight_long(mmc->phase_mask);
-	unsigned long period_ps, d = 0, r;
-	uint64_t p;
-
-	p = degrees % 360;
-
-	if (!mmc->delay_mask) {
-		p = DIV_ROUND_CLOSEST_ULL(p, 360 / phase_num);
-	} else {
-		period_ps = DIV_ROUND_UP((unsigned long)NSEC_PER_SEC * 1000,
-					 clk_get_rate(hw->clk));
-
-		/* First compute the phase index (p), the remainder (r) is the
-		 * part we'll try to acheive using the delays (d).
-		 */
-		r = do_div(p, 360 / phase_num);
-		d = DIV_ROUND_CLOSEST(r * period_ps,
-				      360 * mmc->delay_step_ps);
-		d = min(d, mmc->delay_mask >> __ffs(mmc->delay_mask));
-	}
-
-	meson_mmc_apply_phase_delay(mmc, p, d);
-	return 0;
-}
-
-static const struct clk_ops meson_mmc_clk_phase_ops = {
-	.get_phase = meson_mmc_clk_get_phase,
-	.set_phase = meson_mmc_clk_set_phase,
-};
 
 static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
 {
@@ -383,16 +298,6 @@ static void meson_mmc_post_req(struct mmc_host *mmc, struct mmc_request *mrq,
 			     mmc_get_dma_dir(data));
 }
 
-static bool meson_mmc_timing_is_ddr(struct mmc_ios *ios)
-{
-	if (ios->timing == MMC_TIMING_MMC_DDR52 ||
-	    ios->timing == MMC_TIMING_UHS_DDR50 ||
-	    ios->timing == MMC_TIMING_MMC_HS400)
-		return true;
-
-	return false;
-}
-
 /*
  * Gating the clock on this controller is tricky.  It seems the mmc clock
  * is also used by the controller.  It may crash during some operation if the
@@ -429,35 +334,40 @@ static void meson_mmc_clk_ungate(struct meson_host *host)
 	writel(cfg, host->regs + SD_EMMC_CFG);
 }
 
-static int meson_mmc_clk_set(struct meson_host *host, struct mmc_ios *ios)
+static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
+			     bool ddr)
 {
 	struct mmc_host *mmc = host->mmc;
-	unsigned long rate = ios->clock;
 	int ret;
 	u32 cfg;
 
-	/* DDR modes require higher module clock */
-	if (meson_mmc_timing_is_ddr(ios))
-		rate <<= 1;
-
 	/* Same request - bail-out */
-	if (host->req_rate == rate)
+	if (host->ddr == ddr && host->req_rate == rate)
 		return 0;
 
 	/* stop clock */
 	meson_mmc_clk_gate(host);
 	host->req_rate = 0;
+	mmc->actual_clock = 0;
 
-	if (!rate) {
-		mmc->actual_clock = 0;
-		/* return with clock being stopped */
+	/* return with clock being stopped */
+	if (!rate)
 		return 0;
-	}
 
 	/* Stop the clock during rate change to avoid glitches */
 	cfg = readl(host->regs + SD_EMMC_CFG);
 	cfg |= CFG_STOP_CLOCK;
 	writel(cfg, host->regs + SD_EMMC_CFG);
+
+	if (ddr) {
+		/* DDR modes require higher module clock */
+		rate <<= 1;
+		cfg |= CFG_DDR;
+	} else {
+		cfg &= ~CFG_DDR;
+	}
+	writel(cfg, host->regs + SD_EMMC_CFG);
+	host->ddr = ddr;
 
 	ret = clk_set_rate(host->mmc_clk, rate);
 	if (ret) {
@@ -470,12 +380,14 @@ static int meson_mmc_clk_set(struct meson_host *host, struct mmc_ios *ios)
 	mmc->actual_clock = clk_get_rate(host->mmc_clk);
 
 	/* We should report the real output frequency of the controller */
-	if (meson_mmc_timing_is_ddr(ios))
+	if (ddr) {
+		host->req_rate >>= 1;
 		mmc->actual_clock >>= 1;
+	}
 
 	dev_dbg(host->dev, "clk rate: %u Hz\n", mmc->actual_clock);
-	if (ios->clock != mmc->actual_clock)
-		dev_dbg(host->dev, "requested rate was %u\n", ios->clock);
+	if (rate != mmc->actual_clock)
+		dev_dbg(host->dev, "requested rate was %lu\n", rate);
 
 	/* (re)start clock */
 	meson_mmc_clk_ungate(host);
@@ -493,8 +405,6 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	struct clk_init_data init;
 	struct clk_mux *mux;
 	struct clk_divider *div;
-	struct meson_mmc_phase *core, *tx, *rx;
-	struct clk *clk;
 	char clk_name[32];
 	int i, ret = 0;
 	const char *mux_parent_names[MUX_CLK_NUM_PARENTS];
@@ -502,9 +412,11 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	u32 clk_reg;
 
 	/* init SD_EMMC_CLOCK to sane defaults w/min clock rate */
-	clk_reg = 0;
-	clk_reg |= CLK_ALWAYS_ON(host);
+	clk_reg = CLK_ALWAYS_ON(host);
 	clk_reg |= CLK_DIV_MASK;
+	clk_reg |= FIELD_PREP(CLK_CORE_PHASE_MASK, CLK_PHASE_180);
+	clk_reg |= FIELD_PREP(CLK_TX_PHASE_MASK, CLK_PHASE_0);
+	clk_reg |= FIELD_PREP(CLK_RX_PHASE_MASK, CLK_PHASE_0);
 	writel(clk_reg, host->regs + SD_EMMC_CLOCK);
 
 	/* get the mux parents */
@@ -540,9 +452,9 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	mux->mask = CLK_SRC_MASK >> mux->shift;
 	mux->hw.init = &init;
 
-	clk = devm_clk_register(host->dev, &mux->hw);
-	if (WARN_ON(IS_ERR(clk)))
-		return PTR_ERR(clk);
+	host->mux_clk = devm_clk_register(host->dev, &mux->hw);
+	if (WARN_ON(IS_ERR(host->mux_clk)))
+		return PTR_ERR(host->mux_clk);
 
 	/* create the divider */
 	div = devm_kzalloc(host->dev, sizeof(*div), GFP_KERNEL);
@@ -553,7 +465,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	init.name = clk_name;
 	init.ops = &clk_divider_ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	clk_parent[0] = __clk_get_name(clk);
+	clk_parent[0] = __clk_get_name(host->mux_clk);
 	init.parent_names = clk_parent;
 	init.num_parents = 1;
 
@@ -563,76 +475,9 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	div->hw.init = &init;
 	div->flags = CLK_DIVIDER_ONE_BASED;
 
-	clk = devm_clk_register(host->dev, &div->hw);
-	if (WARN_ON(IS_ERR(clk)))
-		return PTR_ERR(clk);
-
-	/* create the mmc core clock */
-	core = devm_kzalloc(host->dev, sizeof(*core), GFP_KERNEL);
-	if (!core)
-		return -ENOMEM;
-
-	snprintf(clk_name, sizeof(clk_name), "%s#core", dev_name(host->dev));
-	init.name = clk_name;
-	init.ops = &meson_mmc_clk_phase_ops;
-	init.flags = CLK_SET_RATE_PARENT;
-	clk_parent[0] = __clk_get_name(clk);
-	init.parent_names = clk_parent;
-	init.num_parents = 1;
-
-	core->reg = host->regs + SD_EMMC_CLOCK;
-	core->phase_mask = CLK_CORE_PHASE_MASK;
-	core->hw.init = &init;
-
-	host->mmc_clk = devm_clk_register(host->dev, &core->hw);
-	if (WARN_ON(PTR_ERR_OR_ZERO(host->mmc_clk)))
+	host->mmc_clk = devm_clk_register(host->dev, &div->hw);
+	if (WARN_ON(IS_ERR(host->mmc_clk)))
 		return PTR_ERR(host->mmc_clk);
-
-	/* create the mmc tx clock */
-	tx = devm_kzalloc(host->dev, sizeof(*tx), GFP_KERNEL);
-	if (!tx)
-		return -ENOMEM;
-
-	snprintf(clk_name, sizeof(clk_name), "%s#tx", dev_name(host->dev));
-	init.name = clk_name;
-	init.ops = &meson_mmc_clk_phase_ops;
-	init.flags = 0;
-	clk_parent[0] = __clk_get_name(host->mmc_clk);
-	init.parent_names = clk_parent;
-	init.num_parents = 1;
-
-	tx->reg = host->regs + SD_EMMC_CLOCK;
-	tx->phase_mask = CLK_TX_PHASE_MASK;
-	tx->delay_mask = CLK_TX_DELAY_MASK(host);
-	tx->delay_step_ps = CLK_DELAY_STEP_PS;
-	tx->hw.init = &init;
-
-	host->tx_clk = devm_clk_register(host->dev, &tx->hw);
-	if (WARN_ON(PTR_ERR_OR_ZERO(host->tx_clk)))
-		return PTR_ERR(host->tx_clk);
-
-	/* create the mmc rx clock */
-	rx = devm_kzalloc(host->dev, sizeof(*rx), GFP_KERNEL);
-	if (!rx)
-		return -ENOMEM;
-
-	snprintf(clk_name, sizeof(clk_name), "%s#rx", dev_name(host->dev));
-	init.name = clk_name;
-	init.ops = &meson_mmc_clk_phase_ops;
-	init.flags = 0;
-	clk_parent[0] = __clk_get_name(host->mmc_clk);
-	init.parent_names = clk_parent;
-	init.num_parents = 1;
-
-	rx->reg = host->regs + SD_EMMC_CLOCK;
-	rx->phase_mask = CLK_RX_PHASE_MASK;
-	rx->delay_mask = CLK_RX_DELAY_MASK(host);
-	rx->delay_step_ps = CLK_DELAY_STEP_PS;
-	rx->hw.init = &init;
-
-	host->rx_clk = devm_clk_register(host->dev, &rx->hw);
-	if (WARN_ON(PTR_ERR_OR_ZERO(host->rx_clk)))
-		return PTR_ERR(host->rx_clk);
 
 	/* init SD_EMMC_CLOCK to sane defaults w/min clock rate */
 	host->mmc->f_min = clk_round_rate(host->mmc_clk, 400000);
@@ -640,113 +485,94 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	if (ret)
 		return ret;
 
-	clk_set_phase(host->mmc_clk, 180);
-	clk_set_phase(host->tx_clk, 0);
-	clk_set_phase(host->rx_clk, 0);
-
 	return clk_prepare_enable(host->mmc_clk);
 }
 
-static void meson_mmc_shift_map(unsigned long *map, unsigned long shift)
+static void meson_mmc_disable_resampling(struct meson_host *host)
 {
-	DECLARE_BITMAP(left, CLK_PHASE_POINT_NUM);
-	DECLARE_BITMAP(right, CLK_PHASE_POINT_NUM);
+	unsigned int val = readl(host->regs + host->data->adjust);
 
-	/*
-	 * shift the bitmap right and reintroduce the dropped bits on the left
-	 * of the bitmap
-	 */
-	bitmap_shift_right(right, map, shift, CLK_PHASE_POINT_NUM);
-	bitmap_shift_left(left, map, CLK_PHASE_POINT_NUM - shift,
-			  CLK_PHASE_POINT_NUM);
-	bitmap_or(map, left, right, CLK_PHASE_POINT_NUM);
+	val &= ~ADJUST_ADJ_EN;
+	writel(val, host->regs + host->data->adjust);
 }
 
-static void meson_mmc_find_next_region(unsigned long *map,
-				       unsigned long *start,
-				       unsigned long *stop)
+static void meson_mmc_reset_resampling(struct meson_host *host)
 {
-	*start = find_next_bit(map, CLK_PHASE_POINT_NUM, *start);
-	*stop = find_next_zero_bit(map, CLK_PHASE_POINT_NUM, *start);
+	unsigned int val;
+
+	meson_mmc_disable_resampling(host);
+
+	val = readl(host->regs + host->data->adjust);
+	val &= ~ADJUST_ADJ_DELAY_MASK;
+	writel(val, host->regs + host->data->adjust);
 }
 
-static int meson_mmc_find_tuning_point(unsigned long *test)
-{
-	unsigned long shift, stop, offset = 0, start = 0, size = 0;
-
-	/* Get the all good/all bad situation out the way */
-	if (bitmap_full(test, CLK_PHASE_POINT_NUM))
-		return 0; /* All points are good so point 0 will do */
-	else if (bitmap_empty(test, CLK_PHASE_POINT_NUM))
-		return -EIO; /* No successful tuning point */
-
-	/*
-	 * Now we know there is a least one region find. Make sure it does
-	 * not wrap by the shifting the bitmap if necessary
-	 */
-	shift = find_first_zero_bit(test, CLK_PHASE_POINT_NUM);
-	if (shift != 0)
-		meson_mmc_shift_map(test, shift);
-
-	while (start < CLK_PHASE_POINT_NUM) {
-		meson_mmc_find_next_region(test, &start, &stop);
-
-		if ((stop - start) > size) {
-			offset = start;
-			size = stop - start;
-		}
-
-		start = stop;
-	}
-
-	/* Get the center point of the region */
-	offset += (size / 2);
-
-	/* Shift the result back */
-	offset = (offset + shift) % CLK_PHASE_POINT_NUM;
-
-	return offset;
-}
-
-static int meson_mmc_clk_phase_tuning(struct mmc_host *mmc, u32 opcode,
-				      struct clk *clk)
-{
-	int point, ret;
-	DECLARE_BITMAP(test, CLK_PHASE_POINT_NUM);
-
-	dev_dbg(mmc_dev(mmc), "%s phase/delay tunning...\n",
-		__clk_get_name(clk));
-	bitmap_zero(test, CLK_PHASE_POINT_NUM);
-
-	/* Explore tuning points */
-	for (point = 0; point < CLK_PHASE_POINT_NUM; point++) {
-		clk_set_phase(clk, point * CLK_PHASE_STEP);
-		ret = mmc_send_tuning(mmc, opcode, NULL);
-		if (!ret)
-			set_bit(point, test);
-	}
-
-	/* Find the optimal tuning point and apply it */
-	point = meson_mmc_find_tuning_point(test);
-	if (point < 0)
-		return point; /* tuning failed */
-
-	clk_set_phase(clk, point * CLK_PHASE_STEP);
-	dev_dbg(mmc_dev(mmc), "success with phase: %d\n",
-		clk_get_phase(clk));
-	return 0;
-}
-
-static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+static int meson_mmc_resampling_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct meson_host *host = mmc_priv(mmc);
-	int adj = 0;
+	unsigned int val, dly, max_dly, i;
+	int ret;
 
-	/* enable signal resampling w/o delay */
-	adj = ADJUST_ADJ_EN;
-	writel(adj, host->regs + host->data->adjust);
+	/* Resampling is done using the source clock */
+	max_dly = DIV_ROUND_UP(clk_get_rate(host->mux_clk),
+			       clk_get_rate(host->mmc_clk));
 
-	return meson_mmc_clk_phase_tuning(mmc, opcode, host->rx_clk);
+	val = readl(host->regs + host->data->adjust);
+	val |= ADJUST_ADJ_EN;
+	writel(val, host->regs + host->data->adjust);
+
+	if (mmc->doing_retune)
+		dly = FIELD_GET(ADJUST_ADJ_DELAY_MASK, val) + 1;
+	else
+		dly = 0;
+
+	for (i = 0; i < max_dly; i++) {
+		val &= ~ADJUST_ADJ_DELAY_MASK;
+		val |= FIELD_PREP(ADJUST_ADJ_DELAY_MASK, (dly + i) % max_dly);
+		writel(val, host->regs + host->data->adjust);
+
+		ret = mmc_send_tuning(mmc, opcode, NULL);
+		if (!ret) {
+			dev_dbg(mmc_dev(mmc), "resampling delay: %u\n",
+				(dly + i) % max_dly);
+			return 0;
+		}
+	}
+
+	meson_mmc_reset_resampling(host);
+	return -EIO;
+}
+
+static int meson_mmc_prepare_ios_clock(struct meson_host *host,
+				       struct mmc_ios *ios)
+{
+	bool ddr;
+
+	switch (ios->timing) {
+	case MMC_TIMING_MMC_DDR52:
+	case MMC_TIMING_UHS_DDR50:
+		ddr = true;
+		break;
+
+	default:
+		ddr = false;
+		break;
+	}
+
+	return meson_mmc_clk_set(host, ios->clock, ddr);
+}
+
+static void meson_mmc_check_resampling(struct meson_host *host,
+				       struct mmc_ios *ios)
+{
+	switch (ios->timing) {
+	case MMC_TIMING_LEGACY:
+	case MMC_TIMING_MMC_HS:
+	case MMC_TIMING_SD_HS:
+	case MMC_TIMING_MMC_DDR52:
+		meson_mmc_disable_resampling(host);
+		break;
+	}
 }
 
 static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
@@ -774,12 +600,6 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_UP:
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
-
-		/* disable signal resampling */
-		writel(0, host->regs + host->data->adjust);
-
-		/* Reset rx phase */
-		clk_set_phase(host->rx_clk, 0);
 
 		break;
 
@@ -817,20 +637,13 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	val = readl(host->regs + SD_EMMC_CFG);
 	val &= ~CFG_BUS_WIDTH_MASK;
 	val |= FIELD_PREP(CFG_BUS_WIDTH_MASK, bus_width);
+	writel(val, host->regs + SD_EMMC_CFG);
 
-	val &= ~CFG_DDR;
-	if (meson_mmc_timing_is_ddr(ios))
-		val |= CFG_DDR;
-
-	val &= ~CFG_CHK_DS;
-	if (ios->timing == MMC_TIMING_MMC_HS400)
-		val |= CFG_CHK_DS;
-
-	err = meson_mmc_clk_set(host, ios);
+	meson_mmc_check_resampling(host, ios);
+	err = meson_mmc_prepare_ios_clock(host, ios);
 	if (err)
 		dev_err(host->dev, "Failed to set clock: %d\n,", err);
 
-	writel(val, host->regs + SD_EMMC_CFG);
 	dev_dbg(host->dev, "SD_EMMC_CFG:  0x%08x\n", val);
 }
 
@@ -1046,6 +859,9 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	if (WARN_ON(!host) || WARN_ON(!host->cmd))
 		return IRQ_NONE;
 
+	/* ack all raised interrupts */
+	writel(status, host->regs + SD_EMMC_STATUS);
+
 	cmd = host->cmd;
 	data = cmd->data;
 	cmd->error = 0;
@@ -1081,9 +897,6 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	}
 
 out:
-	/* ack all enabled interrupts */
-	writel(irq_en, host->regs + SD_EMMC_STATUS);
-
 	if (cmd->error) {
 		/* Stop desc in case of errors */
 		u32 start = readl(host->regs + SD_EMMC_START);
@@ -1100,7 +913,6 @@ out:
 
 static int meson_mmc_wait_desc_stop(struct meson_host *host)
 {
-	int loop;
 	u32 status;
 
 	/*
@@ -1110,20 +922,10 @@ static int meson_mmc_wait_desc_stop(struct meson_host *host)
 	 * If we don't confirm the descriptor is stopped, it might raise new
 	 * IRQs after we have called mmc_request_done() which is bad.
 	 */
-	for (loop = 50; loop; loop--) {
-		status = readl(host->regs + SD_EMMC_STATUS);
-		if (status & (STATUS_BUSY | STATUS_DESC_BUSY))
-			udelay(100);
-		else
-			break;
-	}
 
-	if (status & (STATUS_BUSY | STATUS_DESC_BUSY)) {
-		dev_err(host->dev, "Timed out waiting for host to stop\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	return readl_poll_timeout(host->regs + SD_EMMC_STATUS, status,
+				  !(status & (STATUS_BUSY | STATUS_DESC_BUSY)),
+				  100, 5000);
 }
 
 static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
@@ -1227,7 +1029,7 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.get_cd         = meson_mmc_get_cd,
 	.pre_req	= meson_mmc_pre_req,
 	.post_req	= meson_mmc_post_req,
-	.execute_tuning = meson_mmc_execute_tuning,
+	.execute_tuning = meson_mmc_resampling_tuning,
 	.card_busy	= meson_mmc_card_busy,
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
 };
@@ -1338,7 +1140,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	       host->regs + SD_EMMC_IRQ_EN);
 
 	ret = request_threaded_irq(host->irq, meson_mmc_irq,
-				   meson_mmc_irq_thread, IRQF_SHARED,
+				   meson_mmc_irq_thread, IRQF_ONESHOT,
 				   dev_name(&pdev->dev), host);
 	if (ret)
 		goto err_init_clk;
@@ -1348,6 +1150,13 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	mmc->max_req_size = mmc->max_blk_count * mmc->max_blk_size;
 	mmc->max_segs = SD_EMMC_DESC_BUF_LEN / sizeof(struct sd_emmc_desc);
 	mmc->max_seg_size = mmc->max_req_size;
+
+	/*
+	 * At the moment, we don't know how to reliably enable HS400.
+	 * From the different datasheets, it is not even clear if this mode
+	 * is officially supported by any of the SoCs
+	 */
+	mmc->caps2 &= ~MMC_CAP2_HS400;
 
 	/* data bounce buffer */
 	host->bounce_buf_size = mmc->max_req_size;

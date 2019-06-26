@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -239,8 +226,8 @@ static int ip_tun_build_state(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(tb, LWTUNNEL_IP_MAX, attr, ip_tun_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_MAX, attr,
+					  ip_tun_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -356,8 +343,8 @@ static int ip6_tun_build_state(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP6_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(tb, LWTUNNEL_IP6_MAX, attr, ip6_tun_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP6_MAX, attr,
+					  ip6_tun_policy, extack);
 	if (err < 0)
 		return err;
 

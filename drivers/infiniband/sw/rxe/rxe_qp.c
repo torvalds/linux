@@ -217,8 +217,7 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 }
 
 static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
-			   struct ib_qp_init_attr *init,
-			   struct ib_ucontext *context,
+			   struct ib_qp_init_attr *init, struct ib_udata *udata,
 			   struct rxe_create_qp_resp __user *uresp)
 {
 	int err;
@@ -254,7 +253,7 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	if (!qp->sq.queue)
 		return -ENOMEM;
 
-	err = do_mmap_info(rxe, uresp ? &uresp->sq_mi : NULL, context,
+	err = do_mmap_info(rxe, uresp ? &uresp->sq_mi : NULL, udata,
 			   qp->sq.queue->buf, qp->sq.queue->buf_size,
 			   &qp->sq.queue->ip);
 
@@ -287,7 +286,7 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 			    struct ib_qp_init_attr *init,
-			    struct ib_ucontext *context,
+			    struct ib_udata *udata,
 			    struct rxe_create_qp_resp __user *uresp)
 {
 	int err;
@@ -308,7 +307,7 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 		if (!qp->rq.queue)
 			return -ENOMEM;
 
-		err = do_mmap_info(rxe, uresp ? &uresp->rq_mi : NULL, context,
+		err = do_mmap_info(rxe, uresp ? &uresp->rq_mi : NULL, udata,
 				   qp->rq.queue->buf, qp->rq.queue->buf_size,
 				   &qp->rq.queue->ip);
 		if (err) {
@@ -344,8 +343,6 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	struct rxe_cq *rcq = to_rcq(init->recv_cq);
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
-	struct rxe_ucontext *ucontext =
-		rdma_udata_to_drv_context(udata, struct rxe_ucontext, ibuc);
 
 	rxe_add_ref(pd);
 	rxe_add_ref(rcq);
@@ -360,11 +357,11 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 
 	rxe_qp_init_misc(rxe, qp, init);
 
-	err = rxe_qp_init_req(rxe, qp, init, &ucontext->ibuc, uresp);
+	err = rxe_qp_init_req(rxe, qp, init, udata, uresp);
 	if (err)
 		goto err1;
 
-	err = rxe_qp_init_resp(rxe, qp, init, &ucontext->ibuc, uresp);
+	err = rxe_qp_init_resp(rxe, qp, init, udata, uresp);
 	if (err)
 		goto err2;
 

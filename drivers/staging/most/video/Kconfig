@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # MOST V4L2 configuration
 #
@@ -5,7 +6,7 @@
 config MOST_VIDEO
 	tristate "Video"
 	depends on VIDEO_V4L2
-	---help---
+	help
 	  Say Y here if you want to commumicate via Video 4 Linux.
 
 	  To compile this driver as a module, choose M here: the

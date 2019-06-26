@@ -142,6 +142,7 @@ void	transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 ssize_t	target_show_dynamic_sessions(struct se_portal_group *, char *);
 void	transport_free_session(struct se_session *);
+void	target_spc2_release(struct se_node_acl *nacl);
 void	target_put_nacl(struct se_node_acl *);
 void	transport_deregister_session_configfs(struct se_session *);
 void	transport_deregister_session(struct se_session *);

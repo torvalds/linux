@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* n2_core.c: Niagara2 Stream Processing Unit (SPU) crypto support.
  *
  * Copyright (C) 2010, 2011 David S. Miller <davem@davemloft.net>
@@ -469,8 +470,6 @@ static int n2_hmac_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return err;
 
 	shash->tfm = child_shash;
-	shash->flags = crypto_ahash_get_flags(tfm) &
-		CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	bs = crypto_shash_blocksize(child_shash);
 	ds = crypto_shash_digestsize(child_shash);
@@ -788,13 +787,18 @@ static int n2_3des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 	struct n2_cipher_context *ctx = crypto_tfm_ctx(tfm);
 	struct n2_cipher_alg *n2alg = n2_cipher_alg(tfm);
+	u32 flags;
+	int err;
+
+	flags = crypto_ablkcipher_get_flags(cipher);
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(cipher, flags);
+		return err;
+	}
 
 	ctx->enc_type = n2alg->enc_type;
 
-	if (keylen != (3 * DES_KEY_SIZE)) {
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
 	ctx->key_len = keylen;
 	memcpy(ctx->key.des3, key, keylen);
 	return 0;

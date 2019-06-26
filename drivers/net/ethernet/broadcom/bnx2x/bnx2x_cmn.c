@@ -1909,8 +1909,7 @@ void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 }
 
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev,
-		       select_queue_fallback_t fallback)
+		       struct net_device *sb_dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -1932,7 +1931,7 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	/* select a non-FCoE queue */
-	return fallback(dev, skb, NULL) %
+	return netdev_pick_tx(dev, skb, NULL) %
 	       (BNX2X_NUM_ETH_QUEUES(bp) * bp->max_cos);
 }
 
@@ -4165,8 +4164,6 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 
 	DOORBELL_RELAXED(bp, txdata->cid, txdata->tx_db.raw);
-
-	mmiowb();
 
 	txdata->tx_bd_prod += nbd;
 

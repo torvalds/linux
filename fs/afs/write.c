@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* handling of writes to regular files and writing back to the server
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/backing-dev.h>
@@ -264,6 +260,7 @@ static void afs_kill_pages(struct address_space *mapping,
 				first = page->index + 1;
 			lock_page(page);
 			generic_error_remove_page(mapping, page);
+			unlock_page(page);
 		}
 
 		__pagevec_release(&pv);
@@ -313,6 +310,46 @@ static void afs_redirty_pages(struct writeback_control *wbc,
 }
 
 /*
+ * completion of write to server
+ */
+static void afs_pages_written_back(struct afs_vnode *vnode,
+				   pgoff_t first, pgoff_t last)
+{
+	struct pagevec pv;
+	unsigned long priv;
+	unsigned count, loop;
+
+	_enter("{%llx:%llu},{%lx-%lx}",
+	       vnode->fid.vid, vnode->fid.vnode, first, last);
+
+	pagevec_init(&pv);
+
+	do {
+		_debug("done %lx-%lx", first, last);
+
+		count = last - first + 1;
+		if (count > PAGEVEC_SIZE)
+			count = PAGEVEC_SIZE;
+		pv.nr = find_get_pages_contig(vnode->vfs_inode.i_mapping,
+					      first, count, pv.pages);
+		ASSERTCMP(pv.nr, ==, count);
+
+		for (loop = 0; loop < count; loop++) {
+			priv = page_private(pv.pages[loop]);
+			trace_afs_page_dirty(vnode, tracepoint_string("clear"),
+					     pv.pages[loop]->index, priv);
+			set_page_private(pv.pages[loop], 0);
+			end_page_writeback(pv.pages[loop]);
+		}
+		first += count;
+		__pagevec_release(&pv);
+	} while (first <= last);
+
+	afs_prune_wb_keys(vnode);
+	_leave("");
+}
+
+/*
  * write to a file
  */
 static int afs_store_data(struct address_space *mapping,
@@ -321,6 +358,7 @@ static int afs_store_data(struct address_space *mapping,
 {
 	struct afs_vnode *vnode = AFS_FS_I(mapping->host);
 	struct afs_fs_cursor fc;
+	struct afs_status_cb *scb;
 	struct afs_wb_key *wbk = NULL;
 	struct list_head *p;
 	int ret = -ENOKEY, ret2;
@@ -331,6 +369,10 @@ static int afs_store_data(struct address_space *mapping,
 	       vnode->fid.vnode,
 	       vnode->fid.unique,
 	       first, last, offset, to);
+
+	scb = kzalloc(sizeof(struct afs_status_cb), GFP_NOFS);
+	if (!scb)
+		return -ENOMEM;
 
 	spin_lock(&vnode->wb_lock);
 	p = vnode->wb_keys.next;
@@ -350,6 +392,7 @@ try_next_key:
 
 	spin_unlock(&vnode->wb_lock);
 	afs_put_wb_key(wbk);
+	kfree(scb);
 	_leave(" = %d [no keys]", ret);
 	return ret;
 
@@ -360,14 +403,19 @@ found_key:
 	_debug("USE WB KEY %u", key_serial(wbk->key));
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, wbk->key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, wbk->key, false)) {
+		afs_dataversion_t data_version = vnode->status.data_version + 1;
+
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_store_data(&fc, mapping, first, last, offset, to);
+			afs_fs_store_data(&fc, mapping, first, last, offset, to, scb);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		afs_check_for_remote_deletion(&fc, vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
+					&data_version, scb);
+		if (fc.ac.error == 0)
+			afs_pages_written_back(vnode, first, last);
 		ret = afs_end_vnode_operation(&fc);
 	}
 
@@ -392,6 +440,7 @@ found_key:
 	}
 
 	afs_put_wb_key(wbk);
+	kfree(scb);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -675,46 +724,6 @@ int afs_writepages(struct address_space *mapping,
 
 	_leave(" = %d", ret);
 	return ret;
-}
-
-/*
- * completion of write to server
- */
-void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
-{
-	struct pagevec pv;
-	unsigned long priv;
-	unsigned count, loop;
-	pgoff_t first = call->first, last = call->last;
-
-	_enter("{%llx:%llu},{%lx-%lx}",
-	       vnode->fid.vid, vnode->fid.vnode, first, last);
-
-	pagevec_init(&pv);
-
-	do {
-		_debug("done %lx-%lx", first, last);
-
-		count = last - first + 1;
-		if (count > PAGEVEC_SIZE)
-			count = PAGEVEC_SIZE;
-		pv.nr = find_get_pages_contig(vnode->vfs_inode.i_mapping,
-					      first, count, pv.pages);
-		ASSERTCMP(pv.nr, ==, count);
-
-		for (loop = 0; loop < count; loop++) {
-			priv = page_private(pv.pages[loop]);
-			trace_afs_page_dirty(vnode, tracepoint_string("clear"),
-					     pv.pages[loop]->index, priv);
-			set_page_private(pv.pages[loop], 0);
-			end_page_writeback(pv.pages[loop]);
-		}
-		first += count;
-		__pagevec_release(&pv);
-	} while (first <= last);
-
-	afs_prune_wb_keys(vnode);
-	_leave("");
 }
 
 /*

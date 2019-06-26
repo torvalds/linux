@@ -102,6 +102,8 @@
 #define FORCEWAKE_ACK_MEDIA_GEN9_REG 0x0D88
 #define FORCEWAKE_ACK_HSW_REG 0x130044
 
+#define RB_HEAD_WRAP_CNT_MAX	((1 << 11) - 1)
+#define RB_HEAD_WRAP_CNT_OFF	21
 #define RB_HEAD_OFF_MASK	((1U << 21) - (1U << 2))
 #define RB_TAIL_OFF_MASK	((1U << 21) - (1U << 3))
 #define RB_TAIL_SIZE_MASK	((1U << 21) - (1U << 12))
@@ -125,8 +127,5 @@
 #define RING_EXCC(base)		_MMIO((base) + 0x28)
 #define RING_GFX_MODE(base)	_MMIO((base) + 0x29c)
 #define VF_GUARDBAND		_MMIO(0x83a4)
-
-/* define the effective range of MCHBAR register on Sandybridge+ */
-#define MCHBAR_MIRROR_REG_BASE	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x4000)
 
 #endif

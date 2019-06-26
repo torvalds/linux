@@ -167,9 +167,6 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * @sched: the scheduler instance on which this job is scheduled.
  * @s_fence: contains the fences for the scheduling of job.
  * @finish_cb: the callback for the finished fence.
- * @finish_work: schedules the function @drm_sched_job_finish once the job has
- *               finished to remove the job from the
- *               @drm_gpu_scheduler.ring_mirror_list.
  * @node: used to append this struct to the @drm_gpu_scheduler.ring_mirror_list.
  * @id: a unique id assigned to each job scheduled on the scheduler.
  * @karma: increment on every hang caused by this job. If this exceeds the hang
@@ -188,7 +185,6 @@ struct drm_sched_job {
 	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_fence		*s_fence;
 	struct dma_fence_cb		finish_cb;
-	struct work_struct		finish_work;
 	struct list_head		node;
 	uint64_t			id;
 	atomic_t			karma;
@@ -263,6 +259,7 @@ struct drm_sched_backend_ops {
  *              guilty and it will be considered for scheduling further.
  * @num_jobs: the number of jobs in queue in the scheduler
  * @ready: marks if the underlying HW is ready to work
+ * @free_guilty: A hit to time out handler to free the guilty job.
  *
  * One scheduler is implemented for each hardware ring.
  */
@@ -283,6 +280,7 @@ struct drm_gpu_scheduler {
 	int				hang_limit;
 	atomic_t                        num_jobs;
 	bool			ready;
+	bool				free_guilty;
 };
 
 int drm_sched_init(struct drm_gpu_scheduler *sched,
@@ -296,7 +294,7 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		       void *owner);
 void drm_sched_job_cleanup(struct drm_sched_job *job);
 void drm_sched_wakeup(struct drm_gpu_scheduler *sched);
-void drm_sched_stop(struct drm_gpu_scheduler *sched);
+void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad);
 void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery);
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
 void drm_sched_increase_karma(struct drm_sched_job *bad);

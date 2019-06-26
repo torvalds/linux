@@ -12,6 +12,8 @@ Required properties:
 - reg: I2C address of the SC16IS7xx device.
 - interrupts: Should contain the UART interrupt
 - clocks: Reference to the IC source clock.
+	OR (when there is no clock provider visible to the platform)
+- clock-frequency: The source clock frequency for the IC.
 
 Optional properties:
 - gpio-controller: Marks the device node as a GPIO controller.

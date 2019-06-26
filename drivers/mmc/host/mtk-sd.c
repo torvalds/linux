@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2015 MediaTek Inc.
  * Author: Chaotian.Jing <chaotian.jing@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -300,6 +292,8 @@
 #define CMD_TIMEOUT         (HZ/10 * 5)	/* 100ms x5 */
 #define DAT_TIMEOUT         (HZ    * 5)	/* 1000ms x5 */
 
+#define DEFAULT_DEBOUNCE	(8)	/* 8 cycles CD debounce */
+
 #define PAD_DELAY_MAX	32 /* PAD delay cells */
 /*--------------------------------------------------------------------------*/
 /* Descriptor Structure                                                     */
@@ -372,6 +366,7 @@ struct mtk_mmc_compatible {
 	bool stop_clk_fix;
 	bool enhance_rx;
 	bool support_64g;
+	bool use_internal_cd;
 };
 
 struct msdc_tune_para {
@@ -430,6 +425,7 @@ struct msdc_host {
 	bool hs400_cmd_resp_sel_rising;
 				 /* cmd response sample selection for HS400 */
 	bool hs400_mode;	/* current eMMC will run at hs400 mode */
+	bool internal_cd;	/* Use internal card-detect logic */
 	struct msdc_save_para save_para; /* used when gate HCLK */
 	struct msdc_tune_para def_tune_para; /* default tune setting */
 	struct msdc_tune_para saved_tune_para; /* tune result of CMD21/CMD19 */
@@ -507,6 +503,28 @@ static const struct mtk_mmc_compatible mt7622_compat = {
 	.support_64g = false,
 };
 
+static const struct mtk_mmc_compatible mt8516_compat = {
+	.clk_div_bits = 12,
+	.hs400_tune = false,
+	.pad_tune_reg = MSDC_PAD_TUNE0,
+	.async_fifo = true,
+	.data_tune = true,
+	.busy_check = true,
+	.stop_clk_fix = true,
+};
+
+static const struct mtk_mmc_compatible mt7620_compat = {
+	.clk_div_bits = 8,
+	.hs400_tune = false,
+	.pad_tune_reg = MSDC_PAD_TUNE,
+	.async_fifo = false,
+	.data_tune = false,
+	.busy_check = false,
+	.stop_clk_fix = false,
+	.enhance_rx = false,
+	.use_internal_cd = true,
+};
+
 static const struct of_device_id msdc_of_ids[] = {
 	{ .compatible = "mediatek,mt8135-mmc", .data = &mt8135_compat},
 	{ .compatible = "mediatek,mt8173-mmc", .data = &mt8173_compat},
@@ -514,6 +532,8 @@ static const struct of_device_id msdc_of_ids[] = {
 	{ .compatible = "mediatek,mt2701-mmc", .data = &mt2701_compat},
 	{ .compatible = "mediatek,mt2712-mmc", .data = &mt2712_compat},
 	{ .compatible = "mediatek,mt7622-mmc", .data = &mt7622_compat},
+	{ .compatible = "mediatek,mt8516-mmc", .data = &mt8516_compat},
+	{ .compatible = "mediatek,mt7620-mmc", .data = &mt7620_compat},
 	{}
 };
 MODULE_DEVICE_TABLE(of, msdc_of_ids);
@@ -1407,6 +1427,12 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 			sdio_signal_irq(host->mmc);
 		}
 
+		if ((events & event_mask) & MSDC_INT_CDSC) {
+			if (host->internal_cd)
+				mmc_detect_change(host->mmc, msecs_to_jiffies(20));
+			events &= ~MSDC_INT_CDSC;
+		}
+
 		if (!(events & (event_mask & ~MSDC_INT_SDIOIRQ)))
 			break;
 
@@ -1440,13 +1466,23 @@ static void msdc_init_hw(struct msdc_host *host)
 	/* Reset */
 	msdc_reset_hw(host);
 
-	/* Disable card detection */
-	sdr_clr_bits(host->base + MSDC_PS, MSDC_PS_CDEN);
-
 	/* Disable and clear all interrupts */
 	writel(0, host->base + MSDC_INTEN);
 	val = readl(host->base + MSDC_INT);
 	writel(val, host->base + MSDC_INT);
+
+	/* Configure card detection */
+	if (host->internal_cd) {
+		sdr_set_field(host->base + MSDC_PS, MSDC_PS_CDDEBOUNCE,
+			      DEFAULT_DEBOUNCE);
+		sdr_set_bits(host->base + MSDC_PS, MSDC_PS_CDEN);
+		sdr_set_bits(host->base + MSDC_INTEN, MSDC_INTEN_CDSC);
+		sdr_set_bits(host->base + SDC_CFG, SDC_CFG_INSWKUP);
+	} else {
+		sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_INSWKUP);
+		sdr_clr_bits(host->base + MSDC_PS, MSDC_PS_CDEN);
+		sdr_clr_bits(host->base + MSDC_INTEN, MSDC_INTEN_CDSC);
+	}
 
 	if (host->top_base) {
 		writel(0, host->top_base + EMMC_TOP_CONTROL);
@@ -1557,6 +1593,13 @@ static void msdc_init_hw(struct msdc_host *host)
 static void msdc_deinit_hw(struct msdc_host *host)
 {
 	u32 val;
+
+	if (host->internal_cd) {
+		/* Disabled card-detect */
+		sdr_clr_bits(host->base + MSDC_PS, MSDC_PS_CDEN);
+		sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_INSWKUP);
+	}
+
 	/* Disable and clear all interrupts */
 	writel(0, host->base + MSDC_INTEN);
 
@@ -2055,13 +2098,31 @@ static void msdc_ack_sdio_irq(struct mmc_host *mmc)
 	__msdc_enable_sdio_irq(mmc, 1);
 }
 
+static int msdc_get_cd(struct mmc_host *mmc)
+{
+	struct msdc_host *host = mmc_priv(mmc);
+	int val;
+
+	if (mmc->caps & MMC_CAP_NONREMOVABLE)
+		return 1;
+
+	if (!host->internal_cd)
+		return mmc_gpio_get_cd(mmc);
+
+	val = readl(host->base + MSDC_PS) & MSDC_PS_CDSTS;
+	if (mmc->caps2 & MMC_CAP2_CD_ACTIVE_HIGH)
+		return !!val;
+	else
+		return !val;
+}
+
 static const struct mmc_host_ops mt_msdc_ops = {
 	.post_req = msdc_post_req,
 	.pre_req = msdc_pre_req,
 	.request = msdc_ops_request,
 	.set_ios = msdc_ops_set_ios,
 	.get_ro = mmc_gpio_get_ro,
-	.get_cd = mmc_gpio_get_cd,
+	.get_cd = msdc_get_cd,
 	.enable_sdio_irq = msdc_enable_sdio_irq,
 	.ack_sdio_irq = msdc_ack_sdio_irq,
 	.start_signal_voltage_switch = msdc_ops_switch_volt,
@@ -2123,9 +2184,11 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	host->top_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(host->top_base))
-		host->top_base = NULL;
+	if (res) {
+		host->top_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(host->top_base))
+			host->top_base = NULL;
+	}
 
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret)
@@ -2191,6 +2254,16 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	else
 		mmc->f_min = DIV_ROUND_UP(host->src_clk_freq, 4 * 4095);
 
+	if (!(mmc->caps & MMC_CAP_NONREMOVABLE) &&
+	    !mmc_can_gpio_cd(mmc) &&
+	    host->dev_comp->use_internal_cd) {
+		/*
+		 * Is removable but no GPIO declared, so
+		 * use internal functionality.
+		 */
+		host->internal_cd = true;
+	}
+
 	if (mmc->caps & MMC_CAP_SDIO_IRQ)
 		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
 
@@ -2227,7 +2300,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	msdc_init_hw(host);
 
 	ret = devm_request_irq(&pdev->dev, host->irq, msdc_irq,
-		IRQF_TRIGGER_LOW | IRQF_ONESHOT, pdev->name, host);
+			       IRQF_TRIGGER_NONE, pdev->name, host);
 	if (ret)
 		goto release;
 

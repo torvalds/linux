@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Regents of the University of California
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation, version 2.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
  */
 
 #include <asm/thread_info.h>
@@ -23,7 +15,8 @@
 __INIT
 ENTRY(_start)
 	/* Mask all interrupts */
-	csrw sie, zero
+	csrw CSR_SIE, zero
+	csrw CSR_SIP, zero
 
 	/* Load the global pointer */
 .option push
@@ -68,14 +61,10 @@ clear_bss_done:
 	/* Restore C environment */
 	la tp, init_task
 	sw zero, TASK_TI_CPU(tp)
-
-	la sp, init_thread_union
-	li a0, ASM_THREAD_SIZE
-	add sp, sp, a0
+	la sp, init_thread_union + THREAD_SIZE
 
 	/* Start the kernel */
-	mv a0, s0
-	mv a1, s1
+	mv a0, s1
 	call parse_dtb
 	tail start_kernel
 
@@ -89,7 +78,7 @@ relocate:
 	/* Point stvec to virtual address of intruction after satp write */
 	la a0, 1f
 	add a0, a0, a1
-	csrw stvec, a0
+	csrw CSR_STVEC, a0
 
 	/* Compute satp for kernel page tables, but don't load it yet */
 	la a2, swapper_pg_dir
@@ -99,18 +88,20 @@ relocate:
 
 	/*
 	 * Load trampoline page directory, which will cause us to trap to
-	 * stvec if VA != PA, or simply fall through if VA == PA
+	 * stvec if VA != PA, or simply fall through if VA == PA.  We need a
+	 * full fence here because setup_vm() just wrote these PTEs and we need
+	 * to ensure the new translations are in use.
 	 */
 	la a0, trampoline_pg_dir
 	srl a0, a0, PAGE_SHIFT
 	or a0, a0, a1
 	sfence.vma
-	csrw sptbr, a0
+	csrw CSR_SATP, a0
 .align 2
 1:
 	/* Set trap vector to spin forever to help debug */
 	la a0, .Lsecondary_park
-	csrw stvec, a0
+	csrw CSR_STVEC, a0
 
 	/* Reload the global pointer */
 .option push
@@ -118,8 +109,14 @@ relocate:
 	la gp, __global_pointer$
 .option pop
 
-	/* Switch to kernel page tables */
-	csrw sptbr, a2
+	/*
+	 * Switch to kernel page tables.  A full fence is necessary in order to
+	 * avoid using the trampoline translations, which are only correct for
+	 * the first superpage.  Fetching the fence is guarnteed to work
+	 * because that first superpage is translated the same way.
+	 */
+	csrw CSR_SATP, a2
+	sfence.vma
 
 	ret
 
@@ -130,7 +127,7 @@ relocate:
 
 	/* Set trap vector to spin forever to help debug */
 	la a3, .Lsecondary_park
-	csrw stvec, a3
+	csrw CSR_STVEC, a3
 
 	slli a3, a0, LGREG
 	la a1, __cpu_up_stack_pointer

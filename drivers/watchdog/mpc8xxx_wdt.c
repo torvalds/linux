@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mpc8xxx_wdt.c - MPC8xx/MPC83xx/MPC86xx watchdog userspace interface
  *
@@ -10,11 +11,6 @@
  *
  * Note: it appears that you can only actually ENABLE or DISABLE the thing
  * once after POR. Once enabled, you cannot disable, and vice versa.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/fs.h>
@@ -149,8 +145,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	if (!ddata)
 		return -ENOMEM;
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	ddata->base = devm_ioremap_resource(dev, res);
+	ddata->base = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
 
@@ -205,9 +200,10 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	if (ddata->wdd.timeout < ddata->wdd.min_timeout)
 		ddata->wdd.timeout = ddata->wdd.min_timeout;
 
-	ret = watchdog_register_device(&ddata->wdd);
+	ret = devm_watchdog_register_device(dev, &ddata->wdd);
 	if (ret) {
-		dev_err(dev, "cannot register watchdog device (err=%d)\n", ret);
+		dev_err(dev, "cannot register watchdog device (err=%d)\n",
+			ret);
 		return ret;
 	}
 
@@ -216,17 +212,6 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 		 reset ? "reset" : "interrupt", ddata->wdd.timeout);
 
 	platform_set_drvdata(ofdev, ddata);
-	return 0;
-}
-
-static int mpc8xxx_wdt_remove(struct platform_device *ofdev)
-{
-	struct mpc8xxx_wdt_ddata *ddata = platform_get_drvdata(ofdev);
-
-	dev_crit(&ofdev->dev, "Watchdog removed, expect the %s soon!\n",
-		 reset ? "reset" : "machine check exception");
-	watchdog_unregister_device(&ddata->wdd);
-
 	return 0;
 }
 
@@ -260,7 +245,6 @@ MODULE_DEVICE_TABLE(of, mpc8xxx_wdt_match);
 
 static struct platform_driver mpc8xxx_wdt_driver = {
 	.probe		= mpc8xxx_wdt_probe,
-	.remove		= mpc8xxx_wdt_remove,
 	.driver = {
 		.name = "mpc8xxx_wdt",
 		.of_match_table = mpc8xxx_wdt_match,

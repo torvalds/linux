@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/partitions/acorn.c
- *
  *  Copyright (c) 1996-2000 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Scan ADFS partitions on hard disk drives.  Unfortunately, there
  *  isn't a standard for partitioning drives on Acorn machines, so

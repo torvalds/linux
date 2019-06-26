@@ -5,6 +5,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 
 #include "ccu_common.h"
@@ -240,7 +241,7 @@ static SUNXI_CCU_MUX_WITH_GATE(spdif_clk, "spdif", i2s_spdif_parents,
 /* The BSP header file has a CIR_CFG, but no mod clock uses this definition */
 
 static SUNXI_CCU_GATE(usb_phy0_clk,	"usb-phy0",	"osc24M",
-		      0x0cc, BIT(8), 0);
+		      0x0cc, BIT(1), 0);
 
 static SUNXI_CCU_GATE(dram_ve_clk,	"dram-ve",	"pll-ddr",
 		      0x100, BIT(0), 0);

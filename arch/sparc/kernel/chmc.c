@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* chmc.c: Driver for UltraSPARC-III memory controller.
  *
  * Copyright (C) 2001, 2007, 2008 David S. Miller (davem@davemloft.net)

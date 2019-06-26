@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -52,12 +53,8 @@ void tcp_mstamp_refresh(struct tcp_sock *tp)
 {
 	u64 val = tcp_clock_ns();
 
-	if (val > tp->tcp_clock_cache)
-		tp->tcp_clock_cache = val;
-
-	val = div_u64(val, NSEC_PER_USEC);
-	if (val > tp->tcp_mstamp)
-		tp->tcp_mstamp = val;
+	tp->tcp_clock_cache = val;
+	tp->tcp_mstamp = div_u64(val, NSEC_PER_USEC);
 }
 
 static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
@@ -3092,7 +3089,6 @@ void tcp_send_fin(struct sock *sk)
 		tskb = skb_rb_last(&sk->tcp_rtx_queue);
 
 	if (tskb) {
-coalesce:
 		TCP_SKB_CB(tskb)->tcp_flags |= TCPHDR_FIN;
 		TCP_SKB_CB(tskb)->end_seq++;
 		tp->write_seq++;
@@ -3108,11 +3104,9 @@ coalesce:
 		}
 	} else {
 		skb = alloc_skb_fclone(MAX_TCP_HEADER, sk->sk_allocation);
-		if (unlikely(!skb)) {
-			if (tskb)
-				goto coalesce;
+		if (unlikely(!skb))
 			return;
-		}
+
 		INIT_LIST_HEAD(&skb->tcp_tsorted_anchor);
 		skb_reserve(skb, MAX_TCP_HEADER);
 		sk_forced_mem_schedule(sk, skb->truesize);
@@ -3254,7 +3248,11 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 		skb->skb_mstamp_ns = cookie_init_timestamp(req);
 	else
 #endif
+	{
 		skb->skb_mstamp_ns = tcp_clock_ns();
+		if (!tcp_rsk(req)->snt_synack) /* Timestamp first SYNACK */
+			tcp_rsk(req)->snt_synack = tcp_skb_timestamp_us(skb);
+	}
 
 #ifdef CONFIG_TCP_MD5SIG
 	rcu_read_lock();

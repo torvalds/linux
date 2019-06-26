@@ -124,7 +124,7 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 	}
 
 	/* Get MAC address if available (DT) */
-	if (mac)
+	if (!IS_ERR_OR_NULL(mac))
 		ether_addr_copy(priv->dev->dev_addr, mac);
 
 	/* Get the TX/RX IRQ numbers */

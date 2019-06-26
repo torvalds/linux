@@ -396,8 +396,6 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 	}
 }
 
-#define mmiowb()
-
 #ifdef __KERNEL__
 
 /* On sparc64 we have the whole physical IO address space accessible

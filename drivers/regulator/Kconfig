@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig REGULATOR
 	bool "Voltage and Current Regulator Support"
 	help
@@ -223,6 +224,7 @@ config REGULATOR_CPCAP
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
+	depends on !CC_IS_CLANG # https://bugs.llvm.org/show_bug.cgi?id=38789
 	help
 	  Say y here to support the BUCKs and LDOs regulators found on
 	  Dialog Semiconductor DA9030/DA9034 PMIC.
@@ -839,6 +841,13 @@ config REGULATOR_STM32_VREFBUF
 	  This driver can also be built as a module. If so, the module
 	  will be called stm32-vrefbuf.
 
+config REGULATOR_STM32_PWR
+	bool "STMicroelectronics STM32 PWR"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  This driver supports internal regulators (1V1, 1V8, 3V3) in the
+	  STMicroelectronics STM32 chips.
+
 config REGULATOR_STPMIC1
 	tristate "STMicroelectronics STPMIC1 PMIC Regulators"
 	depends on MFD_STPMIC1
@@ -1010,7 +1019,8 @@ config REGULATOR_TWL4030
 config REGULATOR_UNIPHIER
 	tristate "UniPhier regulator driver"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
-	depends on OF && MFD_SYSCON
+	depends on OF
+	select REGMAP_MMIO
 	default ARCH_UNIPHIER
 	help
 	  Support for regulators implemented on Socionext UniPhier SoCs.

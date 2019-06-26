@@ -187,8 +187,8 @@ static int make_exe(const uint8_t *payload, size_t len)
 	ph.p_offset = 0;
 	ph.p_vaddr = VADDR;
 	ph.p_paddr = 0;
-	ph.p_filesz = sizeof(struct elf64_hdr) + sizeof(struct elf64_phdr) + sizeof(payload);
-	ph.p_memsz = sizeof(struct elf64_hdr) + sizeof(struct elf64_phdr) + sizeof(payload);
+	ph.p_filesz = sizeof(struct elf64_hdr) + sizeof(struct elf64_phdr) + len;
+	ph.p_memsz = sizeof(struct elf64_hdr) + sizeof(struct elf64_phdr) + len;
 	ph.p_align = 4096;
 
 	fd = openat(AT_FDCWD, "/tmp", O_WRONLY|O_EXCL|O_TMPFILE, 0700);

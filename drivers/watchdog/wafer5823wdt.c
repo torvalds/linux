@@ -197,7 +197,7 @@ static int wafwdt_open(struct inode *inode, struct file *file)
 	 *      Activate
 	 */
 	wafwdt_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int wafwdt_close(struct inode *inode, struct file *file)

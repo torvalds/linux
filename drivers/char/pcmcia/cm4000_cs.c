@@ -1682,7 +1682,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	link->open = 1;		/* only one open per device */
 
 	DEBUGP(2, dev, "<- cmm_open\n");
-	ret = nonseekable_open(inode, filp);
+	ret = stream_open(inode, filp);
 out:
 	mutex_unlock(&cmm_mutex);
 	return ret;

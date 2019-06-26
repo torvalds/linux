@@ -31,7 +31,7 @@
  */
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_cache.h>
 #include "amdgpu.h"

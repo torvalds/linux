@@ -109,7 +109,6 @@ struct mt7603_dev {
 
 	ktime_t survey_time;
 	ktime_t ed_time;
-	int beacon_int;
 
 	struct mt76_queue q_rx;
 
@@ -126,8 +125,6 @@ struct mt7603_dev {
 
 	s8 sensitivity;
 
-	u8 beacon_mask;
-
 	u8 beacon_check;
 	u8 tx_hang_check;
 	u8 tx_dma_check;
@@ -143,10 +140,6 @@ struct mt7603_dev {
 	u32 reset_test;
 
 	unsigned int reset_cause[__RESET_CAUSE_MAX];
-
-	struct delayed_work mac_work;
-	struct tasklet_struct tx_tasklet;
-	struct tasklet_struct pre_tbtt_tasklet;
 };
 
 extern const struct mt76_driver_ops mt7603_drv_ops;
@@ -179,16 +172,14 @@ void mt7603_dma_cleanup(struct mt7603_dev *dev);
 int mt7603_mcu_init(struct mt7603_dev *dev);
 void mt7603_init_debugfs(struct mt7603_dev *dev);
 
-void mt7603_set_irq_mask(struct mt7603_dev *dev, u32 clear, u32 set);
-
 static inline void mt7603_irq_enable(struct mt7603_dev *dev, u32 mask)
 {
-	mt7603_set_irq_mask(dev, 0, mask);
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, 0, mask);
 }
 
 static inline void mt7603_irq_disable(struct mt7603_dev *dev, u32 mask)
 {
-	mt7603_set_irq_mask(dev, mask, 0);
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
 void mt7603_mac_dma_start(struct mt7603_dev *dev);
@@ -200,7 +191,7 @@ void mt7603_beacon_set_timer(struct mt7603_dev *dev, int idx, int intval);
 int mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb);
 void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data);
 void mt7603_mac_rx_ba_reset(struct mt7603_dev *dev, void *addr, u8 tid);
-void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid, int ssn,
+void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid,
 			    int ba_size);
 
 void mt7603_pse_client_reset(struct mt7603_dev *dev);
@@ -225,12 +216,12 @@ void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort);
 
 int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-			  struct sk_buff *skb, struct mt76_queue *q,
-			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			  u32 *tx_info);
+			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
+			  struct ieee80211_sta *sta,
+			  struct mt76_tx_info *tx_info);
 
-void mt7603_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
-			    struct mt76_queue_entry *e, bool flush);
+void mt7603_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
+			    struct mt76_queue_entry *e);
 
 void mt7603_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);

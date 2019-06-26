@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lm63.c - driver for the National Semiconductor LM63 temperature sensor
  *          with integrated fan control
@@ -21,20 +22,6 @@
  * I had a explanation from National Semiconductor though. The two lower
  * bits of the read value have to be masked out. The value is still 16 bit
  * in width.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -1153,7 +1140,7 @@ static const struct i2c_device_id lm63_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm63_id);
 
-static const struct of_device_id lm63_of_match[] = {
+static const struct of_device_id __maybe_unused lm63_of_match[] = {
 	{
 		.compatible = "national,lm63",
 		.data = (void *)lm63

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* tmp421.c
  *
  * Copyright (C) 2009 Andre Prendel <andre.prendel@gmx.de>
  * Preliminary support by:
  * Melvin Rook, Raymond Ng
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -70,7 +61,7 @@ static const struct i2c_device_id tmp421_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp421_id);
 
-static const struct of_device_id tmp421_of_match[] = {
+static const struct of_device_id __maybe_unused tmp421_of_match[] = {
 	{
 		.compatible = "ti,tmp421",
 		.data = (void *)2

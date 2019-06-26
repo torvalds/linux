@@ -11,15 +11,15 @@
 #include <linux/delay.h>
 #include <linux/fwnode.h>
 #include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #define HOTPLUG_DEBOUNCE_MS		1100

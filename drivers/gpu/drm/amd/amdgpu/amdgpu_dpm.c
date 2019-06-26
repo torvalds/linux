@@ -22,7 +22,6 @@
  * Authors: Alex Deucher
  */
 
-#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_i2c.h"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -188,7 +189,7 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 	struct net_device *dev = dst->dev;
 	unsigned int hh_len = LL_RESERVED_SPACE(dev);
 	struct neighbour *neigh;
-	u32 nexthop;
+	bool is_v6gw = false;
 
 	if (rt->rt_type == RTN_MULTICAST) {
 		IP_UPD_PO_STATS(net, IPSTATS_MIB_OUTMCAST, skb->len);
@@ -218,16 +219,13 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 	}
 
 	rcu_read_lock_bh();
-	nexthop = (__force u32) rt_nexthop(rt, ip_hdr(skb)->daddr);
-	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
-	if (unlikely(!neigh))
-		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
+	neigh = ip_neigh_for_gw(rt, skb, &is_v6gw);
 	if (!IS_ERR(neigh)) {
 		int res;
 
 		sock_confirm_neigh(skb, neigh);
-		res = neigh_output(neigh, skb);
-
+		/* if crossing protocols, can not use the cached header */
+		res = neigh_output(neigh, skb, is_v6gw);
 		rcu_read_unlock_bh();
 		return res;
 	}
@@ -472,7 +470,7 @@ int __ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	skb_dst_set_noref(skb, &rt->dst);
 
 packet_routed:
-	if (inet_opt && inet_opt->opt.is_strictroute && rt->rt_uses_gateway)
+	if (inet_opt && inet_opt->opt.is_strictroute && rt->rt_gw_family)
 		goto no_route;
 
 	/* OK, we know where to send it, allocate and build IP header. */
@@ -519,6 +517,7 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->pkt_type = from->pkt_type;
 	to->priority = from->priority;
 	to->protocol = from->protocol;
+	to->skb_iif = from->skb_iif;
 	skb_dst_drop(to);
 	skb_dst_copy(to, from);
 	to->dev = from->dev;
@@ -693,11 +692,8 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			return 0;
 		}
 
-		while (frag) {
-			skb = frag->next;
-			kfree_skb(frag);
-			frag = skb;
-		}
+		kfree_skb_list(frag);
+
 		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		return err;
 
@@ -882,7 +878,7 @@ static int __ip_append_data(struct sock *sk,
 	int csummode = CHECKSUM_NONE;
 	struct rtable *rt = (struct rtable *)cork->dst;
 	unsigned int wmem_alloc_delta = 0;
-	bool paged, extra_uref;
+	bool paged, extra_uref = false;
 	u32 tskey = 0;
 
 	skb = skb_peek_tail(queue);
@@ -922,7 +918,7 @@ static int __ip_append_data(struct sock *sk,
 		uarg = sock_zerocopy_realloc(sk, length, skb_zcopy(skb));
 		if (!uarg)
 			return -ENOBUFS;
-		extra_uref = true;
+		extra_uref = !skb;	/* only extra ref if !MSG_MORE */
 		if (rt->dst.dev->features & NETIF_F_SG &&
 		    csummode == CHECKSUM_PARTIAL) {
 			paged = true;

@@ -206,4 +206,3 @@
 #define DMA_NRTR_NON_LIN_SCRAMB_EN_MASK                              0x1
 
 #endif /* ASIC_REG_DMA_NRTR_MASKS_H_ */
-

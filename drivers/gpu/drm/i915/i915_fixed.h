@@ -71,7 +71,7 @@ static inline u32 mul_round_up_u32_fixed16(u32 val, uint_fixed_16_16_t mul)
 {
 	u64 tmp;
 
-	tmp = (u64)val * mul.val;
+	tmp = mul_u32_u32(val, mul.val);
 	tmp = DIV_ROUND_UP_ULL(tmp, 1 << 16);
 	WARN_ON(tmp > U32_MAX);
 
@@ -83,7 +83,7 @@ static inline uint_fixed_16_16_t mul_fixed16(uint_fixed_16_16_t val,
 {
 	u64 tmp;
 
-	tmp = (u64)val.val * mul.val;
+	tmp = mul_u32_u32(val.val, mul.val);
 	tmp = tmp >> 16;
 
 	return clamp_u64_to_fixed16(tmp);
@@ -114,7 +114,7 @@ static inline uint_fixed_16_16_t mul_u32_fixed16(u32 val, uint_fixed_16_16_t mul
 {
 	u64 tmp;
 
-	tmp = (u64)val * mul.val;
+	tmp = mul_u32_u32(val, mul.val);
 
 	return clamp_u64_to_fixed16(tmp);
 }

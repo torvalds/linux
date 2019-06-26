@@ -13,6 +13,11 @@
 
 #include "trace_probe.h"
 
+#undef C
+#define C(a, b)		b
+
+static const char *trace_probe_err_text[] = { ERRORS };
+
 static const char *reserved_field_names[] = {
 	"common_type",
 	"common_flags",
@@ -133,6 +138,60 @@ fail:
 	return NULL;
 }
 
+static struct trace_probe_log trace_probe_log;
+
+void trace_probe_log_init(const char *subsystem, int argc, const char **argv)
+{
+	trace_probe_log.subsystem = subsystem;
+	trace_probe_log.argc = argc;
+	trace_probe_log.argv = argv;
+	trace_probe_log.index = 0;
+}
+
+void trace_probe_log_clear(void)
+{
+	memset(&trace_probe_log, 0, sizeof(trace_probe_log));
+}
+
+void trace_probe_log_set_index(int index)
+{
+	trace_probe_log.index = index;
+}
+
+void __trace_probe_log_err(int offset, int err_type)
+{
+	char *command, *p;
+	int i, len = 0, pos = 0;
+
+	if (!trace_probe_log.argv)
+		return;
+
+	/* Recalcurate the length and allocate buffer */
+	for (i = 0; i < trace_probe_log.argc; i++) {
+		if (i == trace_probe_log.index)
+			pos = len;
+		len += strlen(trace_probe_log.argv[i]) + 1;
+	}
+	command = kzalloc(len, GFP_KERNEL);
+	if (!command)
+		return;
+
+	/* And make a command string from argv array */
+	p = command;
+	for (i = 0; i < trace_probe_log.argc; i++) {
+		len = strlen(trace_probe_log.argv[i]);
+		strcpy(p, trace_probe_log.argv[i]);
+		p[len] = ' ';
+		p += len + 1;
+	}
+	*(p - 1) = '\0';
+
+	tracing_log_err(NULL, trace_probe_log.subsystem, command,
+			trace_probe_err_text, err_type, pos + offset);
+
+	kfree(command);
+}
+
 /* Split symbol and offset. */
 int traceprobe_split_symbol_offset(char *symbol, long *offset)
 {
@@ -156,7 +215,7 @@ int traceprobe_split_symbol_offset(char *symbol, long *offset)
 
 /* @buf must has MAX_EVENT_NAME_LEN size */
 int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
-				char *buf)
+				char *buf, int offset)
 {
 	const char *slash, *event = *pevent;
 	int len;
@@ -164,32 +223,33 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 	slash = strchr(event, '/');
 	if (slash) {
 		if (slash == event) {
-			pr_info("Group name is not specified\n");
+			trace_probe_log_err(offset, NO_GROUP_NAME);
 			return -EINVAL;
 		}
 		if (slash - event + 1 > MAX_EVENT_NAME_LEN) {
-			pr_info("Group name is too long\n");
-			return -E2BIG;
+			trace_probe_log_err(offset, GROUP_TOO_LONG);
+			return -EINVAL;
 		}
 		strlcpy(buf, event, slash - event + 1);
 		if (!is_good_name(buf)) {
-			pr_info("Group name must follow the same rules as C identifiers\n");
+			trace_probe_log_err(offset, BAD_GROUP_NAME);
 			return -EINVAL;
 		}
 		*pgroup = buf;
 		*pevent = slash + 1;
+		offset += slash - event + 1;
 		event = *pevent;
 	}
 	len = strlen(event);
 	if (len == 0) {
-		pr_info("Event name is not specified\n");
+		trace_probe_log_err(offset, NO_EVENT_NAME);
 		return -EINVAL;
 	} else if (len > MAX_EVENT_NAME_LEN) {
-		pr_info("Event name is too long\n");
-		return -E2BIG;
+		trace_probe_log_err(offset, EVENT_TOO_LONG);
+		return -EINVAL;
 	}
 	if (!is_good_name(event)) {
-		pr_info("Event name must follow the same rules as C identifiers\n");
+		trace_probe_log_err(offset, BAD_EVENT_NAME);
 		return -EINVAL;
 	}
 	return 0;
@@ -198,56 +258,67 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
 static int parse_probe_vars(char *arg, const struct fetch_type *t,
-			    struct fetch_insn *code, unsigned int flags)
+			struct fetch_insn *code, unsigned int flags, int offs)
 {
 	unsigned long param;
 	int ret = 0;
 	int len;
 
 	if (strcmp(arg, "retval") == 0) {
-		if (flags & TPARG_FL_RETURN)
+		if (flags & TPARG_FL_RETURN) {
 			code->op = FETCH_OP_RETVAL;
-		else
+		} else {
+			trace_probe_log_err(offs, RETVAL_ON_PROBE);
 			ret = -EINVAL;
+		}
 	} else if ((len = str_has_prefix(arg, "stack"))) {
 		if (arg[len] == '\0') {
 			code->op = FETCH_OP_STACKP;
 		} else if (isdigit(arg[len])) {
 			ret = kstrtoul(arg + len, 10, &param);
-			if (ret || ((flags & TPARG_FL_KERNEL) &&
-				    param > PARAM_MAX_STACK))
+			if (ret) {
+				goto inval_var;
+			} else if ((flags & TPARG_FL_KERNEL) &&
+				    param > PARAM_MAX_STACK) {
+				trace_probe_log_err(offs, BAD_STACK_NUM);
 				ret = -EINVAL;
-			else {
+			} else {
 				code->op = FETCH_OP_STACK;
 				code->param = (unsigned int)param;
 			}
 		} else
-			ret = -EINVAL;
+			goto inval_var;
 	} else if (strcmp(arg, "comm") == 0) {
 		code->op = FETCH_OP_COMM;
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 	} else if (((flags & TPARG_FL_MASK) ==
 		    (TPARG_FL_KERNEL | TPARG_FL_FENTRY)) &&
 		   (len = str_has_prefix(arg, "arg"))) {
-		if (!isdigit(arg[len]))
-			return -EINVAL;
 		ret = kstrtoul(arg + len, 10, &param);
-		if (ret || !param || param > PARAM_MAX_STACK)
+		if (ret) {
+			goto inval_var;
+		} else if (!param || param > PARAM_MAX_STACK) {
+			trace_probe_log_err(offs, BAD_ARG_NUM);
 			return -EINVAL;
+		}
 		code->op = FETCH_OP_ARG;
 		code->param = (unsigned int)param - 1;
 #endif
 	} else
-		ret = -EINVAL;
+		goto inval_var;
 
 	return ret;
+
+inval_var:
+	trace_probe_log_err(offs, BAD_VAR);
+	return -EINVAL;
 }
 
 /* Recursive argument parser */
 static int
 parse_probe_arg(char *arg, const struct fetch_type *type,
 		struct fetch_insn **pcode, struct fetch_insn *end,
-		unsigned int flags)
+		unsigned int flags, int offs)
 {
 	struct fetch_insn *code = *pcode;
 	unsigned long param;
@@ -257,7 +328,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 
 	switch (arg[0]) {
 	case '$':
-		ret = parse_probe_vars(arg + 1, type, code, flags);
+		ret = parse_probe_vars(arg + 1, type, code, flags, offs);
 		break;
 
 	case '%':	/* named register */
@@ -266,47 +337,57 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 			code->op = FETCH_OP_REG;
 			code->param = (unsigned int)ret;
 			ret = 0;
-		}
+		} else
+			trace_probe_log_err(offs, BAD_REG_NAME);
 		break;
 
 	case '@':	/* memory, file-offset or symbol */
 		if (isdigit(arg[1])) {
 			ret = kstrtoul(arg + 1, 0, &param);
-			if (ret)
+			if (ret) {
+				trace_probe_log_err(offs, BAD_MEM_ADDR);
 				break;
+			}
 			/* load address */
 			code->op = FETCH_OP_IMM;
 			code->immediate = param;
 		} else if (arg[1] == '+') {
 			/* kprobes don't support file offsets */
-			if (flags & TPARG_FL_KERNEL)
+			if (flags & TPARG_FL_KERNEL) {
+				trace_probe_log_err(offs, FILE_ON_KPROBE);
 				return -EINVAL;
-
+			}
 			ret = kstrtol(arg + 2, 0, &offset);
-			if (ret)
+			if (ret) {
+				trace_probe_log_err(offs, BAD_FILE_OFFS);
 				break;
+			}
 
 			code->op = FETCH_OP_FOFFS;
 			code->immediate = (unsigned long)offset;  // imm64?
 		} else {
 			/* uprobes don't support symbols */
-			if (!(flags & TPARG_FL_KERNEL))
+			if (!(flags & TPARG_FL_KERNEL)) {
+				trace_probe_log_err(offs, SYM_ON_UPROBE);
 				return -EINVAL;
-
+			}
 			/* Preserve symbol for updating */
 			code->op = FETCH_NOP_SYMBOL;
 			code->data = kstrdup(arg + 1, GFP_KERNEL);
 			if (!code->data)
 				return -ENOMEM;
-			if (++code == end)
-				return -E2BIG;
-
+			if (++code == end) {
+				trace_probe_log_err(offs, TOO_MANY_OPS);
+				return -EINVAL;
+			}
 			code->op = FETCH_OP_IMM;
 			code->immediate = 0;
 		}
 		/* These are fetching from memory */
-		if (++code == end)
-			return -E2BIG;
+		if (++code == end) {
+			trace_probe_log_err(offs, TOO_MANY_OPS);
+			return -EINVAL;
+		}
 		*pcode = code;
 		code->op = FETCH_OP_DEREF;
 		code->offset = offset;
@@ -317,28 +398,38 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		/* fall through */
 	case '-':
 		tmp = strchr(arg, '(');
-		if (!tmp)
+		if (!tmp) {
+			trace_probe_log_err(offs, DEREF_NEED_BRACE);
 			return -EINVAL;
-
+		}
 		*tmp = '\0';
 		ret = kstrtol(arg, 0, &offset);
-		if (ret)
+		if (ret) {
+			trace_probe_log_err(offs, BAD_DEREF_OFFS);
 			break;
-
+		}
+		offs += (tmp + 1 - arg) + (arg[0] != '-' ? 1 : 0);
 		arg = tmp + 1;
 		tmp = strrchr(arg, ')');
-
-		if (tmp) {
+		if (!tmp) {
+			trace_probe_log_err(offs + strlen(arg),
+					    DEREF_OPEN_BRACE);
+			return -EINVAL;
+		} else {
 			const struct fetch_type *t2 = find_fetch_type(NULL);
 
 			*tmp = '\0';
-			ret = parse_probe_arg(arg, t2, &code, end, flags);
+			ret = parse_probe_arg(arg, t2, &code, end, flags, offs);
 			if (ret)
 				break;
-			if (code->op == FETCH_OP_COMM)
+			if (code->op == FETCH_OP_COMM) {
+				trace_probe_log_err(offs, COMM_CANT_DEREF);
 				return -EINVAL;
-			if (++code == end)
-				return -E2BIG;
+			}
+			if (++code == end) {
+				trace_probe_log_err(offs, TOO_MANY_OPS);
+				return -EINVAL;
+			}
 			*pcode = code;
 
 			code->op = FETCH_OP_DEREF;
@@ -348,6 +439,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 	}
 	if (!ret && code->op == FETCH_OP_NOP) {
 		/* Parsed, but do not find fetch method */
+		trace_probe_log_err(offs, BAD_FETCH_ARG);
 		ret = -EINVAL;
 	}
 	return ret;
@@ -379,7 +471,7 @@ static int __parse_bitfield_probe_arg(const char *bf,
 		return -EINVAL;
 	code++;
 	if (code->op != FETCH_OP_NOP)
-		return -E2BIG;
+		return -EINVAL;
 	*pcode = code;
 
 	code->op = FETCH_OP_MOD_BF;
@@ -392,44 +484,66 @@ static int __parse_bitfield_probe_arg(const char *bf,
 
 /* String length checking wrapper */
 static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
-		struct probe_arg *parg, unsigned int flags)
+		struct probe_arg *parg, unsigned int flags, int offset)
 {
 	struct fetch_insn *code, *scode, *tmp = NULL;
-	char *t, *t2;
+	char *t, *t2, *t3;
 	int ret, len;
 
-	if (strlen(arg) > MAX_ARGSTR_LEN) {
-		pr_info("Argument is too long.: %s\n",  arg);
-		return -ENOSPC;
+	len = strlen(arg);
+	if (len > MAX_ARGSTR_LEN) {
+		trace_probe_log_err(offset, ARG_TOO_LONG);
+		return -EINVAL;
+	} else if (len == 0) {
+		trace_probe_log_err(offset, NO_ARG_BODY);
+		return -EINVAL;
 	}
+
 	parg->comm = kstrdup(arg, GFP_KERNEL);
-	if (!parg->comm) {
-		pr_info("Failed to allocate memory for command '%s'.\n", arg);
+	if (!parg->comm)
 		return -ENOMEM;
-	}
+
 	t = strchr(arg, ':');
 	if (t) {
 		*t = '\0';
 		t2 = strchr(++t, '[');
 		if (t2) {
-			*t2 = '\0';
-			parg->count = simple_strtoul(t2 + 1, &t2, 0);
-			if (strcmp(t2, "]") || parg->count == 0)
+			*t2++ = '\0';
+			t3 = strchr(t2, ']');
+			if (!t3) {
+				offset += t2 + strlen(t2) - arg;
+				trace_probe_log_err(offset,
+						    ARRAY_NO_CLOSE);
 				return -EINVAL;
-			if (parg->count > MAX_ARRAY_LEN)
-				return -E2BIG;
+			} else if (t3[1] != '\0') {
+				trace_probe_log_err(offset + t3 + 1 - arg,
+						    BAD_ARRAY_SUFFIX);
+				return -EINVAL;
+			}
+			*t3 = '\0';
+			if (kstrtouint(t2, 0, &parg->count) || !parg->count) {
+				trace_probe_log_err(offset + t2 - arg,
+						    BAD_ARRAY_NUM);
+				return -EINVAL;
+			}
+			if (parg->count > MAX_ARRAY_LEN) {
+				trace_probe_log_err(offset + t2 - arg,
+						    ARRAY_TOO_BIG);
+				return -EINVAL;
+			}
 		}
 	}
-	/*
-	 * The default type of $comm should be "string", and it can't be
-	 * dereferenced.
-	 */
-	if (!t && strcmp(arg, "$comm") == 0)
+
+	/* Since $comm can not be dereferred, we can find $comm by strcmp */
+	if (strcmp(arg, "$comm") == 0) {
+		/* The type of $comm must be "string", and not an array. */
+		if (parg->count || (t && strcmp(t, "string")))
+			return -EINVAL;
 		parg->type = find_fetch_type("string");
-	else
+	} else
 		parg->type = find_fetch_type(t);
 	if (!parg->type) {
-		pr_info("Unsupported type: %s\n", t);
+		trace_probe_log_err(offset + (t ? (t - arg) : 0), BAD_TYPE);
 		return -EINVAL;
 	}
 	parg->offset = *size;
@@ -444,13 +558,13 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 			 parg->count);
 	}
 
-	code = tmp = kzalloc(sizeof(*code) * FETCH_INSN_MAX, GFP_KERNEL);
+	code = tmp = kcalloc(FETCH_INSN_MAX, sizeof(*code), GFP_KERNEL);
 	if (!code)
 		return -ENOMEM;
 	code[FETCH_INSN_MAX - 1].op = FETCH_OP_END;
 
 	ret = parse_probe_arg(arg, parg->type, &code, &code[FETCH_INSN_MAX - 1],
-			      flags);
+			      flags, offset);
 	if (ret)
 		goto fail;
 
@@ -458,7 +572,8 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	if (!strcmp(parg->type->name, "string")) {
 		if (code->op != FETCH_OP_DEREF && code->op != FETCH_OP_IMM &&
 		    code->op != FETCH_OP_COMM) {
-			pr_info("string only accepts memory or address.\n");
+			trace_probe_log_err(offset + (t ? (t - arg) : 0),
+					    BAD_STRING);
 			ret = -EINVAL;
 			goto fail;
 		}
@@ -470,7 +585,8 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 			 */
 			code++;
 			if (code->op != FETCH_OP_NOP) {
-				ret = -E2BIG;
+				trace_probe_log_err(offset, TOO_MANY_OPS);
+				ret = -EINVAL;
 				goto fail;
 			}
 		}
@@ -483,7 +599,8 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	} else {
 		code++;
 		if (code->op != FETCH_OP_NOP) {
-			ret = -E2BIG;
+			trace_probe_log_err(offset, TOO_MANY_OPS);
+			ret = -EINVAL;
 			goto fail;
 		}
 		code->op = FETCH_OP_ST_RAW;
@@ -493,20 +610,24 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	/* Modify operation */
 	if (t != NULL) {
 		ret = __parse_bitfield_probe_arg(t, parg->type, &code);
-		if (ret)
+		if (ret) {
+			trace_probe_log_err(offset + t - arg, BAD_BITFIELD);
 			goto fail;
+		}
 	}
 	/* Loop(Array) operation */
 	if (parg->count) {
 		if (scode->op != FETCH_OP_ST_MEM &&
 		    scode->op != FETCH_OP_ST_STRING) {
-			pr_info("array only accepts memory or address\n");
+			trace_probe_log_err(offset + (t ? (t - arg) : 0),
+					    BAD_STRING);
 			ret = -EINVAL;
 			goto fail;
 		}
 		code++;
 		if (code->op != FETCH_OP_NOP) {
-			ret = -E2BIG;
+			trace_probe_log_err(offset, TOO_MANY_OPS);
+			ret = -EINVAL;
 			goto fail;
 		}
 		code->op = FETCH_OP_LP_ARRAY;
@@ -516,7 +637,7 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	code->op = FETCH_OP_END;
 
 	/* Shrink down the code buffer */
-	parg->code = kzalloc(sizeof(*code) * (code - tmp + 1), GFP_KERNEL);
+	parg->code = kcalloc(code - tmp + 1, sizeof(*code), GFP_KERNEL);
 	if (!parg->code)
 		ret = -ENOMEM;
 	else
@@ -555,15 +676,19 @@ int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, char *arg,
 {
 	struct probe_arg *parg = &tp->args[i];
 	char *body;
-	int ret;
 
 	/* Increment count for freeing args in error case */
 	tp->nr_args++;
 
 	body = strchr(arg, '=');
 	if (body) {
-		if (body - arg > MAX_ARG_NAME_LEN || body == arg)
+		if (body - arg > MAX_ARG_NAME_LEN) {
+			trace_probe_log_err(0, ARG_NAME_TOO_LONG);
 			return -EINVAL;
+		} else if (body == arg) {
+			trace_probe_log_err(0, NO_ARG_NAME);
+			return -EINVAL;
+		}
 		parg->name = kmemdup_nul(arg, body - arg, GFP_KERNEL);
 		body++;
 	} else {
@@ -575,22 +700,16 @@ int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, char *arg,
 		return -ENOMEM;
 
 	if (!is_good_name(parg->name)) {
-		pr_info("Invalid argument[%d] name: %s\n",
-			i, parg->name);
+		trace_probe_log_err(0, BAD_ARG_NAME);
 		return -EINVAL;
 	}
-
 	if (traceprobe_conflict_field_name(parg->name, tp->args, i)) {
-		pr_info("Argument[%d]: '%s' conflicts with another field.\n",
-			i, parg->name);
+		trace_probe_log_err(0, USED_ARG_NAME);
 		return -EINVAL;
 	}
-
 	/* Parse fetch argument */
-	ret = traceprobe_parse_probe_arg_body(body, &tp->size, parg, flags);
-	if (ret)
-		pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
-	return ret;
+	return traceprobe_parse_probe_arg_body(body, &tp->size, parg, flags,
+					       body - arg);
 }
 
 void traceprobe_free_probe_arg(struct probe_arg *arg)

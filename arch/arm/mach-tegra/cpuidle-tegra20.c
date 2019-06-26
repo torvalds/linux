@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CPU idle driver for Tegra CPUs
  *
@@ -7,16 +8,6 @@
  *         Gary King <gking@nvidia.com>
  *
  * Rework for 3.3 by Peter De Schrijver <pdeschrijver@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/clk/tegra.h>
@@ -61,7 +52,8 @@ static struct cpuidle_driver tegra_idle_driver = {
 			.exit_latency     = 5000,
 			.target_residency = 10000,
 			.power_usage      = 0,
-			.flags            = CPUIDLE_FLAG_COUPLED,
+			.flags            = CPUIDLE_FLAG_COUPLED |
+			                    CPUIDLE_FLAG_TIMER_STOP,
 			.name             = "powered-down",
 			.desc             = "CPU power gated",
 		},
@@ -136,11 +128,7 @@ static bool tegra20_cpu_cluster_power_down(struct cpuidle_device *dev,
 	if (tegra20_reset_cpu_1() || !tegra_cpu_rail_off_ready())
 		return false;
 
-	tick_broadcast_enter();
-
 	tegra_idle_lp2_last();
-
-	tick_broadcast_exit();
 
 	if (cpu_online(1))
 		tegra20_wake_cpu1_from_reset();
@@ -153,13 +141,9 @@ static bool tegra20_idle_enter_lp2_cpu_1(struct cpuidle_device *dev,
 					 struct cpuidle_driver *drv,
 					 int index)
 {
-	tick_broadcast_enter();
-
 	cpu_suspend(0, tegra20_sleep_cpu_secondary_finish);
 
 	tegra20_cpu_clear_resettable();
-
-	tick_broadcast_exit();
 
 	return true;
 }

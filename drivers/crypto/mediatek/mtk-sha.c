@@ -365,7 +365,6 @@ static int mtk_sha_finish_hmac(struct ahash_request *req)
 	SHASH_DESC_ON_STACK(shash, bctx->shash);
 
 	shash->tfm = bctx->shash;
-	shash->flags = 0; /* not CRYPTO_TFM_REQ_MAY_SLEEP */
 
 	return crypto_shash_init(shash) ?:
 	       crypto_shash_update(shash, bctx->opad, ctx->bs) ?:
@@ -810,8 +809,6 @@ static int mtk_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 	SHASH_DESC_ON_STACK(shash, bctx->shash);
 
 	shash->tfm = bctx->shash;
-	shash->flags = crypto_shash_get_flags(bctx->shash) &
-		       CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	if (keylen > bs) {
 		err = crypto_shash_digest(shash, key, keylen, bctx->ipad);

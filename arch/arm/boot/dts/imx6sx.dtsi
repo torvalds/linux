@@ -820,7 +820,7 @@
 				compatible = "fsl,imx6sx-sdma", "fsl,imx6q-sdma";
 				reg = <0x020ec000 0x4000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_SDMA>,
+				clocks = <&clks IMX6SX_CLK_IPG>,
 					 <&clks IMX6SX_CLK_SDMA>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
@@ -1017,7 +1017,7 @@
 				status = "disabled";
 			};
 
-			mmdc: mmdc@21b0000 {
+			memory-controller@21b0000 {
 				compatible = "fsl,imx6sx-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
 				clocks = <&clks IMX6SX_CLK_MMDC_P0_IPG>;

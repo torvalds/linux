@@ -88,7 +88,7 @@ enum v4l2_exposure_metering -
     Determines how the camera measures the amount of light available for
     the frame exposure. Possible values are:
 
-.. tabularcolumns:: |p{8.5cm}|p{9.0cm}|
+.. tabularcolumns:: |p{8.7cm}|p{8.8cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -180,7 +180,7 @@ enum v4l2_exposure_metering -
     control may stop updates of the ``V4L2_CID_AUTO_FOCUS_STATUS``
     control value.
 
-.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
+.. tabularcolumns:: |p{6.7cm}|p{10.8cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -206,7 +206,7 @@ enum v4l2_exposure_metering -
 enum v4l2_auto_focus_range -
     Determines auto focus distance range for which lens may be adjusted.
 
-.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
+.. tabularcolumns:: |p{6.8cm}|p{10.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -281,7 +281,7 @@ enum v4l2_auto_n_preset_white_balance -
     representation. The following white balance presets are listed in
     order of increasing color temperature.
 
-.. tabularcolumns:: |p{7.0 cm}|p{10.5cm}|
+.. tabularcolumns:: |p{7.2 cm}|p{10.3cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -387,7 +387,11 @@ enum v4l2_scene_mode -
     to ``V4L2_SCENE_MODE_NONE`` to make sure the other possibly related
     controls are accessible. The following scene programs are defined:
 
-.. tabularcolumns:: |p{6.0cm}|p{11.5cm}|
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{5.9cm}|p{11.5cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -459,6 +463,9 @@ enum v4l2_scene_mode -
 	may be switched to close-up mode and this setting may also involve
 	some lens-distortion correction.
 
+.. raw:: latex
+
+    \normalsize
 
 
 ``V4L2_CID_3A_LOCK (bitmask)``

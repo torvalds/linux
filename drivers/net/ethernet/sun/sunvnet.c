@@ -234,8 +234,7 @@ static struct vnet_port *vnet_tx_port_find(struct sk_buff *skb,
 }
 
 static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
-			     struct net_device *sb_dev,
-			     select_queue_fallback_t fallback)
+			     struct net_device *sb_dev)
 {
 	struct vnet *vp = netdev_priv(dev);
 	struct vnet_port *port = __tx_port_find(vp, skb);

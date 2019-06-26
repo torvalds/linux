@@ -31,10 +31,13 @@
 #include <linux/ratelimit.h>
 #include <linux/export.h>
 
-#include <drm/drmP.h>
-#include "drm_legacy.h"
-#include "drm_internal.h"
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
+
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
+#include "drm_legacy.h"
 
 #define DRM_IOCTL_VERSION32		DRM_IOWR(0x00, drm_version32_t)
 #define DRM_IOCTL_GET_UNIQUE32		DRM_IOWR(0x01, drm_unique32_t)

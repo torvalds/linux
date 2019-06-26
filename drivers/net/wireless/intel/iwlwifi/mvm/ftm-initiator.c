@@ -187,12 +187,24 @@ static void iwl_mvm_ftm_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	for (i = 0; i < ETH_ALEN; i++)
 		cmd->macaddr_mask[i] = ~req->mac_addr_mask[i];
 
-	if (vif->bss_conf.assoc)
+	if (vif->bss_conf.assoc) {
 		memcpy(cmd->range_req_bssid, vif->bss_conf.bssid, ETH_ALEN);
-	else
-		eth_broadcast_addr(cmd->range_req_bssid);
 
-	/* TODO: fill in tsf_mac_id if needed */
+		/* AP's TSF is only relevant if associated */
+		for (i = 0; i < req->n_peers; i++) {
+			if (req->peers[i].report_ap_tsf) {
+				struct iwl_mvm_vif *mvmvif =
+					iwl_mvm_vif_from_mac80211(vif);
+
+				cmd->tsf_mac_id = cpu_to_le32(mvmvif->id);
+				return;
+			}
+		}
+	} else {
+		eth_broadcast_addr(cmd->range_req_bssid);
+	}
+
+	/* Don't report AP's TSF */
 	cmd->tsf_mac_id = cpu_to_le32(0xff);
 }
 
@@ -480,6 +492,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_tof_range_rsp_ntfy_v5 *fw_resp_v5 = (void *)pkt->data;
+	struct iwl_tof_range_rsp_ntfy_v6 *fw_resp_v6 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy *fw_resp = (void *)pkt->data;
 	int i;
 	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
@@ -519,8 +532,15 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		int peer_idx;
 
 		if (new_api) {
-			fw_ap = &fw_resp->ap[i];
+			if (fw_has_api(&mvm->fw->ucode_capa,
+				       IWL_UCODE_TLV_API_FTM_RTT_ACCURACY))
+				fw_ap = &fw_resp->ap[i];
+			else
+				fw_ap = (void *)&fw_resp_v6->ap[i];
+
 			result.final = fw_resp->ap[i].last_burst;
+			result.ap_tsf = le32_to_cpu(fw_ap->start_tsf);
+			result.ap_tsf_valid = 1;
 		} else {
 			/* the first part is the same for old and new APIs */
 			fw_ap = (void *)&fw_resp_v5->ap[i];
@@ -587,6 +607,11 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		cfg80211_pmsr_report(mvm->ftm_initiator.req_wdev,
 				     mvm->ftm_initiator.req,
 				     &result, GFP_KERNEL);
+
+		if (fw_has_api(&mvm->fw->ucode_capa,
+			       IWL_UCODE_TLV_API_FTM_RTT_ACCURACY))
+			IWL_DEBUG_INFO(mvm, "RTT confidence: %hhu\n",
+				       fw_ap->rttConfidence);
 
 		iwl_mvm_debug_range_resp(mvm, i, &result);
 	}

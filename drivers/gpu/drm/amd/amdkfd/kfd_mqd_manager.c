@@ -23,34 +23,54 @@
 
 #include "kfd_mqd_manager.h"
 #include "amdgpu_amdkfd.h"
+#include "kfd_device_queue_manager.h"
 
-struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
-					struct kfd_dev *dev)
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev)
 {
-	switch (dev->device_info->asic_family) {
-	case CHIP_KAVERI:
-		return mqd_manager_init_cik(type, dev);
-	case CHIP_HAWAII:
-		return mqd_manager_init_cik_hawaii(type, dev);
-	case CHIP_CARRIZO:
-		return mqd_manager_init_vi(type, dev);
-	case CHIP_TONGA:
-	case CHIP_FIJI:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-		return mqd_manager_init_vi_tonga(type, dev);
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_RAVEN:
-		return mqd_manager_init_v9(type, dev);
-	default:
-		WARN(1, "Unexpected ASIC family %u",
-		     dev->device_info->asic_family);
-	}
+	struct kfd_mem_obj *mqd_mem_obj = NULL;
 
-	return NULL;
+	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	if (!mqd_mem_obj)
+		return NULL;
+
+	mqd_mem_obj->gtt_mem = dev->dqm->hiq_sdma_mqd.gtt_mem;
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr;
+	mqd_mem_obj->cpu_ptr = dev->dqm->hiq_sdma_mqd.cpu_ptr;
+
+	return mqd_mem_obj;
+}
+
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+					struct queue_properties *q)
+{
+	struct kfd_mem_obj *mqd_mem_obj = NULL;
+	uint64_t offset;
+
+	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	if (!mqd_mem_obj)
+		return NULL;
+
+	offset = (q->sdma_engine_id *
+		dev->device_info->num_sdma_queues_per_engine +
+		q->sdma_queue_id) *
+		dev->dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size;
+
+	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+
+	mqd_mem_obj->gtt_mem = (void *)((uint64_t)dev->dqm->hiq_sdma_mqd.gtt_mem
+				+ offset);
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr + offset;
+	mqd_mem_obj->cpu_ptr = (uint32_t *)((uint64_t)
+				dev->dqm->hiq_sdma_mqd.cpu_ptr + offset);
+
+	return mqd_mem_obj;
+}
+
+void uninit_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
+			struct kfd_mem_obj *mqd_mem_obj)
+{
+	WARN_ON(!mqd_mem_obj->gtt_mem);
+	kfree(mqd_mem_obj);
 }
 
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,

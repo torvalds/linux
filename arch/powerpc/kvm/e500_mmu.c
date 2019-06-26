@@ -783,7 +783,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	if (!pages)
 		return -ENOMEM;
 
-	ret = get_user_pages_fast(cfg->array, num_pages, 1, pages);
+	ret = get_user_pages_fast(cfg->array, num_pages, FOLL_WRITE, pages);
 	if (ret < 0)
 		goto free_pages;
 

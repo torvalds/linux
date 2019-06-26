@@ -115,7 +115,7 @@ struct mthca_qp_path {
 	u8     hop_limit;
 	__be32 sl_tclass_flowlabel;
 	u8     rgid[16];
-} __attribute__((packed));
+} __packed;
 
 struct mthca_qp_context {
 	__be32 flags;
@@ -154,14 +154,14 @@ struct mthca_qp_context {
 	__be16 rq_wqe_counter;	/* reserved on Tavor */
 	__be16 sq_wqe_counter;	/* reserved on Tavor */
 	u32    reserved3[18];
-} __attribute__((packed));
+} __packed;
 
 struct mthca_qp_param {
 	__be32 opt_param_mask;
 	u32    reserved1;
 	struct mthca_qp_context context;
 	u32    reserved2[62];
-} __attribute__((packed));
+} __packed;
 
 enum {
 	MTHCA_QP_OPTPAR_ALT_ADDR_PATH     = 1 << 0,
@@ -1809,11 +1809,6 @@ out:
 			      (qp->qpn << 8) | size0,
 			      dev->kar + MTHCA_SEND_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
-		/*
-		 * Make sure doorbells don't leak out of SQ spinlock
-		 * and reach the HCA out of order:
-		 */
-		mmiowb();
 	}
 
 	qp->sq.next_ind = ind;
@@ -1923,12 +1918,6 @@ out:
 
 	qp->rq.next_ind = ind;
 	qp->rq.head    += nreq;
-
-	/*
-	 * Make sure doorbells don't leak out of RQ spinlock and reach
-	 * the HCA out of order:
-	 */
-	mmiowb();
 
 	spin_unlock_irqrestore(&qp->rq.lock, flags);
 	return err;
@@ -2163,12 +2152,6 @@ out:
 		mthca_write64(dbhi, (qp->qpn << 8) | size0, dev->kar + MTHCA_SEND_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 	}
-
-	/*
-	 * Make sure doorbells don't leak out of SQ spinlock and reach
-	 * the HCA out of order:
-	 */
-	mmiowb();
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
 	return err;

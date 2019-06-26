@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cht-bsw-rt5645.c - ASoc Machine driver for Intel Cherryview-based platforms
  *                     Cherrytrail and Braswell, with RT5645 codec.
@@ -7,15 +8,6 @@
  *	        N,Harshapriya <harshapriya.n@intel.com>
  *  This file is modified from cht_bsw_rt5672.c
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -532,7 +524,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
 	struct cht_mc_private *drv;
-	const char *i2c_name = NULL;
+	struct acpi_device *adev;
 	bool found = false;
 	bool is_bytcr = false;
 	int dai_index = 0;
@@ -573,10 +565,11 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		}
 
 	/* fixup codec name based on HID */
-	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
-	if (i2c_name) {
+	adev = acpi_dev_get_first_match_dev(mach->id, NULL, -1);
+	if (adev) {
 		snprintf(cht_rt5645_codec_name, sizeof(cht_rt5645_codec_name),
-			"%s%s", "i2c-", i2c_name);
+			 "i2c-%s", acpi_dev_name(adev));
+		put_device(&adev->dev);
 		cht_dailink[dai_index].codec_name = cht_rt5645_codec_name;
 	}
 

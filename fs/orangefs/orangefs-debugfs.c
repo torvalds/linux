@@ -963,7 +963,7 @@ int orangefs_debugfs_new_client_mask(void __user *arg)
 	return ret;
 }
 
-int orangefs_debugfs_new_client_string(void __user *arg) 
+int orangefs_debugfs_new_client_string(void __user *arg)
 {
 	int ret;
 
@@ -1016,7 +1016,7 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 	return 0;
 }
 
-int orangefs_debugfs_new_debug(void __user *arg) 
+int orangefs_debugfs_new_debug(void __user *arg)
 {
 	struct dev_mask_info_s mask_info = {0};
 	int ret;

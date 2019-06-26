@@ -37,15 +37,21 @@ MODULE_DEVICE_TABLE(acpi, intel_th_acpi_ids);
 static int intel_th_acpi_probe(struct platform_device *pdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
+	struct resource resource[TH_MMIO_END];
 	const struct acpi_device_id *id;
 	struct intel_th *th;
+	int i, r;
 
 	id = acpi_match_device(intel_th_acpi_ids, &pdev->dev);
 	if (!id)
 		return -ENODEV;
 
-	th = intel_th_alloc(&pdev->dev, (void *)id->driver_data,
-			    pdev->resource, pdev->num_resources, -1);
+	for (i = 0, r = 0; i < pdev->num_resources && r < TH_MMIO_END; i++)
+		if (pdev->resource[i].flags &
+		    (IORESOURCE_IRQ | IORESOURCE_MEM))
+			resource[r++] = pdev->resource[i];
+
+	th = intel_th_alloc(&pdev->dev, (void *)id->driver_data, resource, r);
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 

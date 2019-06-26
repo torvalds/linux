@@ -742,6 +742,8 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 		iowait_wakeup,
 		iowait_sdma_drained,
 		hfi1_init_priority);
+	/* Init to a value to start the running average correctly */
+	priv->s_running_pkt_size = piothreshold / 2;
 	return priv;
 }
 

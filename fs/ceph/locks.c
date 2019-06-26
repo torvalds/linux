@@ -237,15 +237,6 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) {
 		err = -EIO;
-	} else if (op == CEPH_MDS_OP_SETFILELOCK) {
-		/*
-		 * increasing i_filelock_ref closes race window between
-		 * handling request reply and adding file_lock struct to
-		 * inode. Otherwise, i_auth_cap may get trimmed in the
-		 * window. Caller function will decrease the counter.
-		 */
-		fl->fl_ops = &ceph_fl_lock_ops;
-		atomic_inc(&ci->i_filelock_ref);
 	}
 	spin_unlock(&ci->i_ceph_lock);
 	if (err < 0) {
@@ -299,10 +290,6 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) {
 		err = -EIO;
-	} else {
-		/* see comment in ceph_lock */
-		fl->fl_ops = &ceph_fl_lock_ops;
-		atomic_inc(&ci->i_filelock_ref);
 	}
 	spin_unlock(&ci->i_ceph_lock);
 	if (err < 0) {

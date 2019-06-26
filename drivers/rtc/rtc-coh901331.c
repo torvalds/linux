@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Real Time Clock interface for ST-Ericsson AB COH 901 331 RTC.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  * Based on rtc-pl031.c by Deepak Saxena <dsaxena@plexity.net>
@@ -80,21 +80,22 @@ static int coh901331_read_time(struct device *dev, struct rtc_time *tm)
 
 	clk_enable(rtap->clk);
 	/* Check if the time is valid */
-	if (readl(rtap->virtbase + COH901331_VALID)) {
-		rtc_time_to_tm(readl(rtap->virtbase + COH901331_CUR_TIME), tm);
+	if (!readl(rtap->virtbase + COH901331_VALID)) {
 		clk_disable(rtap->clk);
-		return 0;
+		return -EINVAL;
 	}
+
+	rtc_time64_to_tm(readl(rtap->virtbase + COH901331_CUR_TIME), tm);
 	clk_disable(rtap->clk);
-	return -EINVAL;
+	return 0;
 }
 
-static int coh901331_set_mmss(struct device *dev, unsigned long secs)
+static int coh901331_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct coh901331_port *rtap = dev_get_drvdata(dev);
 
 	clk_enable(rtap->clk);
-	writel(secs, rtap->virtbase + COH901331_SET_TIME);
+	writel(rtc_tm_to_time64(tm), rtap->virtbase + COH901331_SET_TIME);
 	clk_disable(rtap->clk);
 
 	return 0;
@@ -105,7 +106,7 @@ static int coh901331_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	struct coh901331_port *rtap = dev_get_drvdata(dev);
 
 	clk_enable(rtap->clk);
-	rtc_time_to_tm(readl(rtap->virtbase + COH901331_ALARM), &alarm->time);
+	rtc_time64_to_tm(readl(rtap->virtbase + COH901331_ALARM), &alarm->time);
 	alarm->pending = readl(rtap->virtbase + COH901331_IRQ_EVENT) & 1U;
 	alarm->enabled = readl(rtap->virtbase + COH901331_IRQ_MASK) & 1U;
 	clk_disable(rtap->clk);
@@ -116,9 +117,8 @@ static int coh901331_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int coh901331_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct coh901331_port *rtap = dev_get_drvdata(dev);
-	unsigned long time;
+	unsigned long time =  rtc_tm_to_time64(&alarm->time);
 
-	rtc_tm_to_time(&alarm->time, &time);
 	clk_enable(rtap->clk);
 	writel(time, rtap->virtbase + COH901331_ALARM);
 	writel(alarm->enabled, rtap->virtbase + COH901331_IRQ_MASK);
@@ -143,7 +143,7 @@ static int coh901331_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static const struct rtc_class_ops coh901331_ops = {
 	.read_time = coh901331_read_time,
-	.set_mmss = coh901331_set_mmss,
+	.set_time = coh901331_set_time,
 	.read_alarm = coh901331_read_alarm,
 	.set_alarm = coh901331_set_alarm,
 	.alarm_irq_enable = coh901331_alarm_irq_enable,
@@ -188,6 +188,13 @@ static int __init coh901331_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	rtap->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtap->rtc))
+		return PTR_ERR(rtap->rtc);
+
+	rtap->rtc->ops = &coh901331_ops;
+	rtap->rtc->range_max = U32_MAX;
+
 	/* We enable/disable the clock only to assure it works */
 	ret = clk_prepare_enable(rtap->clk);
 	if (ret) {
@@ -197,12 +204,10 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	clk_disable(rtap->clk);
 
 	platform_set_drvdata(pdev, rtap);
-	rtap->rtc = devm_rtc_device_register(&pdev->dev, "coh901331",
-					&coh901331_ops, THIS_MODULE);
-	if (IS_ERR(rtap->rtc)) {
-		ret = PTR_ERR(rtap->rtc);
+
+	ret = rtc_register_device(rtap->rtc);
+	if (ret)
 		goto out_no_rtc;
-	}
 
 	return 0;
 

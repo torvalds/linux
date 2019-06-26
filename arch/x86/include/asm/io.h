@@ -90,8 +90,6 @@ build_mmio_write(__writel, "l", unsigned int, "r", )
 #define __raw_writew __writew
 #define __raw_writel __writel
 
-#define mmiowb() barrier()
-
 #ifdef CONFIG_X86_64
 
 build_mmio_read(readq, "q", u64, "=r", :"memory")

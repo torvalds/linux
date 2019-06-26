@@ -54,6 +54,7 @@ static const struct kfd_device_info kaveri_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -71,6 +72,7 @@ static const struct kfd_device_info carrizo_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -87,6 +89,7 @@ static const struct kfd_device_info raven_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 1,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 #endif
@@ -105,6 +108,7 @@ static const struct kfd_device_info hawaii_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -121,6 +125,7 @@ static const struct kfd_device_info tonga_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -137,6 +142,7 @@ static const struct kfd_device_info fiji_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -153,6 +159,7 @@ static const struct kfd_device_info fiji_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -170,6 +177,7 @@ static const struct kfd_device_info polaris10_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -186,6 +194,7 @@ static const struct kfd_device_info polaris10_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -202,6 +211,7 @@ static const struct kfd_device_info polaris11_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -218,6 +228,24 @@ static const struct kfd_device_info polaris12_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
+	.num_sdma_queues_per_engine = 2,
+};
+
+static const struct kfd_device_info vegam_device_info = {
+	.asic_family = CHIP_VEGAM,
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 4,
+	.ih_ring_entry_size = 4 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_cik,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
+	.needs_iommu_device = false,
+	.needs_pci_atomics = true,
+	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -234,6 +262,7 @@ static const struct kfd_device_info vega10_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -250,6 +279,7 @@ static const struct kfd_device_info vega10_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -266,6 +296,7 @@ static const struct kfd_device_info vega12_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
@@ -282,6 +313,7 @@ static const struct kfd_device_info vega20_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
@@ -355,6 +387,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x67CF, &polaris10_device_info },	/* Polaris10 */
 	{ 0x67D0, &polaris10_vf_device_info },	/* Polaris10 vf*/
 	{ 0x67DF, &polaris10_device_info },	/* Polaris10 */
+	{ 0x6FDF, &polaris10_device_info },	/* Polaris10 */
 	{ 0x67E0, &polaris11_device_info },	/* Polaris11 */
 	{ 0x67E1, &polaris11_device_info },	/* Polaris11 */
 	{ 0x67E3, &polaris11_device_info },	/* Polaris11 */
@@ -372,6 +405,9 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x6995, &polaris12_device_info },	/* Polaris12 */
 	{ 0x6997, &polaris12_device_info },	/* Polaris12 */
 	{ 0x699F, &polaris12_device_info },	/* Polaris12 */
+	{ 0x694C, &vegam_device_info },		/* VegaM */
+	{ 0x694E, &vegam_device_info },		/* VegaM */
+	{ 0x694F, &vegam_device_info },		/* VegaM */
 	{ 0x6860, &vega10_device_info },	/* Vega10 */
 	{ 0x6861, &vega10_device_info },	/* Vega10 */
 	{ 0x6862, &vega10_device_info },	/* Vega10 */
@@ -462,6 +498,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	kfd->pdev = pdev;
 	kfd->init_complete = false;
 	kfd->kfd2kgd = f2g;
+	atomic_set(&kfd->compute_profile, 0);
 
 	mutex_init(&kfd->doorbell_mutex);
 	memset(&kfd->doorbell_available_index, 0,
@@ -516,6 +553,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	} else
 		kfd->max_proc_per_quantum = hws_max_conc_proc;
 
+	/* Allocate global GWS that is shared by all KFD processes */
+	if (hws_gws_support && amdgpu_amdkfd_alloc_gws(kfd->kgd,
+			amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws)) {
+		dev_err(kfd_device, "Could not allocate %d gws\n",
+			amdgpu_amdkfd_get_num_gws(kfd->kgd));
+		goto out;
+	}
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
 			kfd->device_info->mqd_size_aligned;
@@ -539,7 +583,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
 		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
-		goto out;
+		goto alloc_gtt_mem_failure;
 	}
 
 	dev_info(kfd_device, "Allocated %d bytes on gart\n", size);
@@ -609,6 +653,9 @@ kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
 	amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+alloc_gtt_mem_failure:
+	if (hws_gws_support)
+		amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
 		kfd->pdev->vendor, kfd->pdev->device);
@@ -626,6 +673,8 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_doorbell_fini(kfd);
 		kfd_gtt_sa_fini(kfd);
 		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+		if (hws_gws_support)
+			amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	}
 
 	kfree(kfd);
@@ -1034,6 +1083,21 @@ void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 {
 	if (kfd)
 		atomic_inc(&kfd->sram_ecc_flag);
+}
+
+void kfd_inc_compute_active(struct kfd_dev *kfd)
+{
+	if (atomic_inc_return(&kfd->compute_profile) == 1)
+		amdgpu_amdkfd_set_compute_idle(kfd->kgd, false);
+}
+
+void kfd_dec_compute_active(struct kfd_dev *kfd)
+{
+	int count = atomic_dec_return(&kfd->compute_profile);
+
+	if (count == 0)
+		amdgpu_amdkfd_set_compute_idle(kfd->kgd, true);
+	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 
 #if defined(CONFIG_DEBUG_FS)

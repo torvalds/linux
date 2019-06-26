@@ -282,9 +282,8 @@ static void iwl_pcie_restock_bd(struct iwl_trans *trans,
 	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
 		struct iwl_rx_transfer_desc *bd = rxq->bd;
 
-		bd[rxq->write].type_n_size =
-			cpu_to_le32((IWL_RX_TD_TYPE & IWL_RX_TD_TYPE_MSK) |
-			((IWL_RX_TD_SIZE_2K >> 8) & IWL_RX_TD_SIZE_MSK));
+		BUILD_BUG_ON(sizeof(*bd) != 2 * sizeof(u64));
+
 		bd[rxq->write].addr = cpu_to_le64(rxb->page_dma);
 		bd[rxq->write].rbid = cpu_to_le16(rxb->vid);
 	} else {
@@ -435,7 +434,7 @@ static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
 		/*
 		 * Issue an error if we don't have enough pre-allocated
 		  * buffers.
-`		 */
+		 */
 		if (!(gfp_mask & __GFP_NOWARN) && net_ratelimit())
 			IWL_CRIT(trans,
 				 "Failed to alloc_pages\n");
@@ -1265,9 +1264,6 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			.truesize = max_len,
 		};
 
-		if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
-			rxcb.status = rxq->cd[i].status;
-
 		pkt = rxb_addr(&rxcb);
 
 		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID)) {
@@ -1394,6 +1390,8 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 	struct iwl_rx_mem_buffer *rxb;
 	u16 vid;
 
+	BUILD_BUG_ON(sizeof(struct iwl_rx_completion_desc) != 32);
+
 	if (!trans->cfg->mq_rx_supported) {
 		rxb = rxq->queue[i];
 		rxq->queue[i] = NULL;
@@ -1415,9 +1413,6 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 
 	IWL_DEBUG_RX(trans, "Got virtual RB ID %u\n", (u32)rxb->vid);
 
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
-		rxb->size = le32_to_cpu(rxq->cd[i].size) & IWL_RX_CD_SIZE;
-
 	rxb->invalid = true;
 
 	return rxb;
@@ -1434,9 +1429,14 @@ out_err:
 static void iwl_pcie_rx_handle(struct iwl_trans *trans, int queue)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq[queue];
+	struct iwl_rxq *rxq;
 	u32 r, i, count = 0;
 	bool emergency = false;
+
+	if (WARN_ON_ONCE(!trans_pcie->rxq || !trans_pcie->rxq[queue].bd))
+		return;
+
+	rxq = &trans_pcie->rxq[queue];
 
 restart:
 	spin_lock(&rxq->lock);
@@ -2212,6 +2212,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 			"Hardware error detected. Restarting.\n");
 
 		isr_stats->hw++;
+		trans->hw_error = true;
 		iwl_pcie_irq_handle_error(trans);
 	}
 

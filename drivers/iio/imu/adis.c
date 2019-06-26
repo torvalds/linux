@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Common library for ADIS16XXX devices
  *
  * Copyright 2012 Analog Devices Inc.
  *   Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/delay.h>

@@ -96,6 +96,8 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 	for (i = 0; i < rdi->lkey_table.max; i++)
 		RCU_INIT_POINTER(rdi->lkey_table.table[i], NULL);
 
+	rdi->dparms.props.max_mr = rdi->lkey_table.max;
+	rdi->dparms.props.max_fmr = rdi->lkey_table.max;
 	return 0;
 }
 
@@ -392,7 +394,7 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (IS_ERR(umem))
 		return (void *)umem;
 
-	n = umem->nmap;
+	n = ib_umem_num_pages(umem);
 
 	mr = __rvt_alloc_mr(n, pd);
 	if (IS_ERR(mr)) {
@@ -548,7 +550,7 @@ bool rvt_ss_has_lkey(struct rvt_sge_state *ss, u32 lkey)
  *
  * Returns 0 on success.
  */
-int rvt_dereg_mr(struct ib_mr *ibmr)
+int rvt_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct rvt_mr *mr = to_imr(ibmr);
 	int ret;
@@ -575,9 +577,8 @@ out:
  *
  * Return: the memory region on success, otherwise return an errno.
  */
-struct ib_mr *rvt_alloc_mr(struct ib_pd *pd,
-			   enum ib_mr_type mr_type,
-			   u32 max_num_sg)
+struct ib_mr *rvt_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+			   u32 max_num_sg, struct ib_udata *udata)
 {
 	struct rvt_mr *mr;
 
@@ -608,11 +609,6 @@ static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
 	if (unlikely(mapped_segs == mr->mr.max_segs))
 		return -ENOMEM;
 
-	if (mr->mr.length == 0) {
-		mr->mr.user_base = addr;
-		mr->mr.iova = addr;
-	}
-
 	m = mapped_segs / RVT_SEGSZ;
 	n = mapped_segs % RVT_SEGSZ;
 	mr->mr.map[m]->segs[n].vaddr = (void *)addr;
@@ -630,17 +626,24 @@ static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
  * @sg_nents: number of entries in sg
  * @sg_offset: offset in bytes into sg
  *
+ * Overwrite rvt_mr length with mr length calculated by ib_sg_to_pages.
+ *
  * Return: number of sg elements mapped to the memory region
  */
 int rvt_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 		  int sg_nents, unsigned int *sg_offset)
 {
 	struct rvt_mr *mr = to_imr(ibmr);
+	int ret;
 
 	mr->mr.length = 0;
 	mr->mr.page_shift = PAGE_SHIFT;
-	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset,
-			      rvt_set_page);
+	ret = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, rvt_set_page);
+	mr->mr.user_base = ibmr->iova;
+	mr->mr.iova = ibmr->iova;
+	mr->mr.offset = ibmr->iova - (u64)mr->mr.map[0]->segs[0].vaddr;
+	mr->mr.length = (size_t)ibmr->length;
+	return ret;
 }
 
 /**
@@ -671,6 +674,7 @@ int rvt_fast_reg_mr(struct rvt_qp *qp, struct ib_mr *ibmr, u32 key,
 	ibmr->rkey = key;
 	mr->mr.lkey = key;
 	mr->mr.access_flags = access;
+	mr->mr.iova = ibmr->iova;
 	atomic_set(&mr->mr.lkey_invalid, 0);
 
 	return 0;

@@ -1,18 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Driver for the Auvitek AU0828 USB bridge
  *
  *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -31,6 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
 #include <media/media-device.h>
+#include <media/media-dev-allocator.h>
 
 /* DVB */
 #include <media/demux.h>
@@ -283,9 +274,12 @@ struct au0828_dev {
 	struct media_entity_notify entity_notify;
 	struct media_entity *tuner;
 	struct media_link *active_link;
-	struct media_entity *active_link_owner;
 	struct media_entity *active_source;
 	struct media_entity *active_sink;
+	struct media_entity *active_link_owner;
+	struct media_entity *active_link_user;
+	struct media_pipeline *active_link_user_pipe;
+	bool active_link_shared;
 #endif
 };
 

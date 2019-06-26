@@ -80,8 +80,23 @@
 /* MSI-X Table Register Descriptions */
 #define IGC_PBACL		0x05B68  /* MSIx PBA Clear - R/W 1 to clear */
 
+/* RSS registers */
+#define IGC_MRQC		0x05818 /* Multiple Receive Control - RW */
+
+/* Filtering Registers */
+#define IGC_ETQF(_n)		(0x05CB0 + (4 * (_n))) /* EType Queue Fltr */
+
+/* ETQF register bit definitions */
+#define IGC_ETQF_FILTER_ENABLE	BIT(26)
+#define IGC_ETQF_QUEUE_ENABLE	BIT(31)
+#define IGC_ETQF_QUEUE_SHIFT	16
+#define IGC_ETQF_QUEUE_MASK	0x00070000
+#define IGC_ETQF_ETYPE_MASK	0x0000FFFF
+
 /* Redirection Table - RW Array */
 #define IGC_RETA(_i)		(0x05C00 + ((_i) * 4))
+/* RSS Random Key - RW Array */
+#define IGC_RSSRK(_i)		(0x05C80 + ((_i) * 4))
 
 /* Receive Register Descriptions */
 #define IGC_RCTL		0x00100  /* Rx Control - RW */
@@ -101,6 +116,7 @@
 #define IGC_UTA			0x0A000  /* Unicast Table Array - RW */
 #define IGC_RAL(_n)		(0x05400 + ((_n) * 0x08))
 #define IGC_RAH(_n)		(0x05404 + ((_n) * 0x08))
+#define IGC_VLAPQF		0x055B0  /* VLAN Priority Queue Filter VLAPQF */
 
 /* Transmit Register Descriptions */
 #define IGC_TCTL		0x00400  /* Tx Control - RW */

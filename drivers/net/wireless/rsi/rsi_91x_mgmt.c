@@ -209,6 +209,59 @@ static struct bootup_params boot_params_40 = {
 	.beacon_resedue_alg_en = 0,
 };
 
+static struct bootup_params_9116 boot_params_9116_20 = {
+	.magic_number = cpu_to_le16(LOADED_TOKEN),
+	.valid = cpu_to_le32(VALID_20),
+	.device_clk_info_9116 = {{
+		.pll_config_9116_g = {
+			.pll_ctrl_set_reg = cpu_to_le16(0xd518),
+			.pll_ctrl_clr_reg = cpu_to_le16(0x2ae7),
+			.pll_modem_conig_reg = cpu_to_le16(0x2000),
+			.soc_clk_config_reg = cpu_to_le16(0x0c18),
+			.adc_dac_strm1_config_reg = cpu_to_le16(0x1100),
+			.adc_dac_strm2_config_reg = cpu_to_le16(0x6600),
+		},
+		.switch_clk_9116_g = {
+			.switch_clk_info =
+				cpu_to_le32((RSI_SWITCH_TASS_CLK |
+					    RSI_SWITCH_WLAN_BBP_LMAC_CLK_REG |
+					    RSI_SWITCH_BBP_LMAC_CLK_REG)),
+			.tass_clock_reg = cpu_to_le32(0x083C0503),
+			.wlan_bbp_lmac_clk_reg_val = cpu_to_le32(0x01042001),
+			.zbbt_bbp_lmac_clk_reg_val = cpu_to_le32(0x02010001),
+			.bbp_lmac_clk_en_val = cpu_to_le32(0x0000003b),
+		}
+	},
+	},
+};
+
+static struct bootup_params_9116 boot_params_9116_40 = {
+	.magic_number = cpu_to_le16(LOADED_TOKEN),
+	.valid = cpu_to_le32(VALID_40),
+	.device_clk_info_9116 = {{
+		.pll_config_9116_g = {
+			.pll_ctrl_set_reg = cpu_to_le16(0xd518),
+			.pll_ctrl_clr_reg = cpu_to_le16(0x2ae7),
+			.pll_modem_conig_reg = cpu_to_le16(0x3000),
+			.soc_clk_config_reg = cpu_to_le16(0x0c18),
+			.adc_dac_strm1_config_reg = cpu_to_le16(0x0000),
+			.adc_dac_strm2_config_reg = cpu_to_le16(0x6600),
+		},
+		.switch_clk_9116_g = {
+			.switch_clk_info =
+				cpu_to_le32((RSI_SWITCH_TASS_CLK |
+					    RSI_SWITCH_WLAN_BBP_LMAC_CLK_REG |
+					    RSI_SWITCH_BBP_LMAC_CLK_REG |
+					    RSI_MODEM_CLK_160MHZ)),
+			.tass_clock_reg = cpu_to_le32(0x083C0503),
+			.wlan_bbp_lmac_clk_reg_val = cpu_to_le32(0x01042002),
+			.zbbt_bbp_lmac_clk_reg_val = cpu_to_le32(0x04010002),
+			.bbp_lmac_clk_en_val = cpu_to_le32(0x0000003b),
+		}
+	},
+	},
+};
+
 static u16 mcs[] = {13, 26, 39, 52, 78, 104, 117, 130};
 
 /**
@@ -235,6 +288,14 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->obm_ant_sel_val = 2;
 	common->beacon_interval = RSI_BEACON_INTERVAL;
 	common->dtim_cnt = RSI_DTIM_COUNT;
+	common->w9116_features.pll_mode = 0x0;
+	common->w9116_features.rf_type = 1;
+	common->w9116_features.wireless_mode = 0;
+	common->w9116_features.enable_ppe = 0;
+	common->w9116_features.afe_type = 1;
+	common->w9116_features.dpd = 0;
+	common->w9116_features.sifs_tx_enable = 0;
+	common->w9116_features.ps_options = 0;
 }
 
 void init_bgscan_params(struct rsi_common *common)
@@ -363,6 +424,10 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	}
 	radio_caps->radio_info |= radio_id;
 
+	if (adapter->device_model == RSI_DEV_9116 &&
+	    common->channel_width == BW_20MHZ)
+		radio_caps->radio_cfg_info &= ~0x3;
+
 	radio_caps->sifs_tx_11n = cpu_to_le16(SIFS_TX_11N_VALUE);
 	radio_caps->sifs_tx_11b = cpu_to_le16(SIFS_TX_11B_VALUE);
 	radio_caps->slot_rx_11n = cpu_to_le16(SHORT_SLOT_VALUE);
@@ -378,14 +443,16 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	}
 
 	for (ii = 0; ii < NUM_EDCA_QUEUES; ii++) {
-		radio_caps->qos_params[ii].cont_win_min_q =
-			cpu_to_le16(common->edca_params[ii].cw_min);
-		radio_caps->qos_params[ii].cont_win_max_q =
-			cpu_to_le16(common->edca_params[ii].cw_max);
-		radio_caps->qos_params[ii].aifsn_val_q =
-			cpu_to_le16((common->edca_params[ii].aifs) << 8);
-		radio_caps->qos_params[ii].txop_q =
-			cpu_to_le16(common->edca_params[ii].txop);
+		if (common->edca_params[ii].cw_max > 0) {
+			radio_caps->qos_params[ii].cont_win_min_q =
+				cpu_to_le16(common->edca_params[ii].cw_min);
+			radio_caps->qos_params[ii].cont_win_max_q =
+				cpu_to_le16(common->edca_params[ii].cw_max);
+			radio_caps->qos_params[ii].aifsn_val_q =
+				cpu_to_le16(common->edca_params[ii].aifs << 8);
+			radio_caps->qos_params[ii].txop_q =
+				cpu_to_le16(common->edca_params[ii].txop);
+		}
 	}
 
 	radio_caps->qos_params[BROADCAST_HW_Q].txop_q = cpu_to_le16(0xffff);
@@ -893,6 +960,50 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
 
+static int rsi_load_9116_bootup_params(struct rsi_common *common)
+{
+	struct sk_buff *skb;
+	struct rsi_boot_params_9116 *boot_params;
+
+	rsi_dbg(MGMT_TX_ZONE, "%s: Sending boot params frame\n", __func__);
+
+	skb = dev_alloc_skb(sizeof(struct rsi_boot_params_9116));
+	if (!skb)
+		return -ENOMEM;
+	memset(skb->data, 0, sizeof(struct rsi_boot_params));
+	boot_params = (struct rsi_boot_params_9116 *)skb->data;
+
+	if (common->channel_width == BW_40MHZ) {
+		memcpy(&boot_params->bootup_params,
+		       &boot_params_9116_40,
+		       sizeof(struct bootup_params_9116));
+		rsi_dbg(MGMT_TX_ZONE, "%s: Packet 40MHZ <=== %d\n", __func__,
+			UMAC_CLK_40BW);
+		boot_params->umac_clk = cpu_to_le16(UMAC_CLK_40BW);
+	} else {
+		memcpy(&boot_params->bootup_params,
+		       &boot_params_9116_20,
+		       sizeof(struct bootup_params_9116));
+		if (boot_params_20.valid != cpu_to_le32(VALID_20)) {
+			boot_params->umac_clk = cpu_to_le16(UMAC_CLK_20BW);
+			rsi_dbg(MGMT_TX_ZONE,
+				"%s: Packet 20MHZ <=== %d\n", __func__,
+				UMAC_CLK_20BW);
+		} else {
+			boot_params->umac_clk = cpu_to_le16(UMAC_CLK_40MHZ);
+			rsi_dbg(MGMT_TX_ZONE,
+				"%s: Packet 20MHZ <=== %d\n", __func__,
+				UMAC_CLK_40MHZ);
+		}
+	}
+	rsi_set_len_qno(&boot_params->desc_dword0.len_qno,
+			sizeof(struct bootup_params_9116), RSI_WIFI_MGMT_Q);
+	boot_params->desc_dword0.frame_type = BOOTUP_PARAMS_REQUEST;
+	skb_put(skb, sizeof(struct rsi_boot_params_9116));
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
 /**
  * rsi_send_reset_mac() - This function prepares reset MAC request and sends an
  *			  internal management frame to indicate it to firmware.
@@ -920,6 +1031,11 @@ static int rsi_send_reset_mac(struct rsi_common *common)
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(RESET_MAC_REQ);
 	mgmt_frame->desc_word[4] = cpu_to_le16(RETRY_COUNT << 8);
+
+#define RSI_9116_DEF_TA_AGGR	3
+	if (common->priv->device_model == RSI_DEV_9116)
+		mgmt_frame->desc_word[3] |=
+			cpu_to_le16(RSI_9116_DEF_TA_AGGR << 8);
 
 	skb_put(skb, FRAME_DESC_SZ);
 
@@ -971,7 +1087,10 @@ int rsi_band_check(struct rsi_common *common,
 	}
 
 	if (common->channel_width != prev_bw) {
-		status = rsi_load_bootup_params(common);
+		if (adapter->device_model == RSI_DEV_9116)
+			status = rsi_load_9116_bootup_params(common);
+		else
+			status = rsi_load_bootup_params(common);
 		if (status)
 			return status;
 
@@ -1546,6 +1665,47 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
 
+static int rsi_send_w9116_features(struct rsi_common *common)
+{
+	struct rsi_wlan_9116_features *w9116_features;
+	u16 frame_len = sizeof(struct rsi_wlan_9116_features);
+	struct sk_buff *skb;
+
+	rsi_dbg(MGMT_TX_ZONE,
+		"%s: Sending wlan 9116 features\n", __func__);
+
+	skb = dev_alloc_skb(frame_len);
+	if (!skb)
+		return -ENOMEM;
+	memset(skb->data, 0, frame_len);
+
+	w9116_features = (struct rsi_wlan_9116_features *)skb->data;
+
+	w9116_features->pll_mode = common->w9116_features.pll_mode;
+	w9116_features->rf_type = common->w9116_features.rf_type;
+	w9116_features->wireless_mode = common->w9116_features.wireless_mode;
+	w9116_features->enable_ppe = common->w9116_features.enable_ppe;
+	w9116_features->afe_type = common->w9116_features.afe_type;
+	if (common->w9116_features.dpd)
+		w9116_features->feature_enable |= cpu_to_le32(RSI_DPD);
+	if (common->w9116_features.sifs_tx_enable)
+		w9116_features->feature_enable |=
+			cpu_to_le32(RSI_SIFS_TX_ENABLE);
+	if (common->w9116_features.ps_options & RSI_DUTY_CYCLING)
+		w9116_features->feature_enable |= cpu_to_le32(RSI_DUTY_CYCLING);
+	if (common->w9116_features.ps_options & RSI_END_OF_FRAME)
+		w9116_features->feature_enable |= cpu_to_le32(RSI_END_OF_FRAME);
+	w9116_features->feature_enable |=
+		cpu_to_le32((common->w9116_features.ps_options & ~0x3) << 2);
+
+	rsi_set_len_qno(&w9116_features->desc.desc_dword0.len_qno,
+			frame_len - FRAME_DESC_SZ, RSI_WIFI_MGMT_Q);
+	w9116_features->desc.desc_dword0.frame_type = FEATURES_ENABLE;
+	skb_put(skb, frame_len);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
 /**
  * rsi_set_antenna() - This function send antenna configuration request
  *		       to device
@@ -1766,15 +1926,26 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 		rsi_dbg(FSM_ZONE, "%s: Boot up params confirm received\n",
 			__func__);
 		if (common->fsm_state == FSM_BOOT_PARAMS_SENT) {
-			adapter->eeprom.length = (IEEE80211_ADDR_LEN +
-						  WLAN_MAC_MAGIC_WORD_LEN +
-						  WLAN_HOST_MODE_LEN);
-			adapter->eeprom.offset = WLAN_MAC_EEPROM_ADDR;
-			if (rsi_eeprom_read(common)) {
-				common->fsm_state = FSM_CARD_NOT_READY;
-				goto out;
+			if (adapter->device_model == RSI_DEV_9116) {
+				common->band = NL80211_BAND_5GHZ;
+				common->num_supp_bands = 2;
+
+				if (rsi_send_reset_mac(common))
+					goto out;
+				else
+					common->fsm_state = FSM_RESET_MAC_SENT;
+			} else {
+				adapter->eeprom.length =
+					(IEEE80211_ADDR_LEN +
+					 WLAN_MAC_MAGIC_WORD_LEN +
+					 WLAN_HOST_MODE_LEN);
+				adapter->eeprom.offset = WLAN_MAC_EEPROM_ADDR;
+				if (rsi_eeprom_read(common)) {
+					common->fsm_state = FSM_CARD_NOT_READY;
+					goto out;
+				}
+				common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
 			}
-			common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
 		} else {
 			rsi_dbg(INFO_ZONE,
 				"%s: Received bootup params cfm in %d state\n",
@@ -1853,6 +2024,12 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 	case RADIO_CAPABILITIES:
 		if (common->fsm_state == FSM_RADIO_CAPS_SENT) {
 			common->rf_reset = 1;
+			if (adapter->device_model == RSI_DEV_9116 &&
+			    rsi_send_w9116_features(common)) {
+				rsi_dbg(ERR_ZONE,
+					"Failed to send 9116 features\n");
+				goto out;
+			}
 			if (rsi_program_bb_rf(common)) {
 				goto out;
 			} else {
@@ -1925,6 +2102,8 @@ out:
 
 int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 {
+	int status;
+
 	switch (common->fsm_state) {
 	case FSM_CARD_NOT_READY:
 		rsi_dbg(INIT_ZONE, "Card ready indication from Common HAL\n");
@@ -1936,14 +2115,29 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 	case FSM_COMMON_DEV_PARAMS_SENT:
 		rsi_dbg(INIT_ZONE, "Card ready indication from WLAN HAL\n");
 
+		if (common->priv->device_model == RSI_DEV_9116) {
+			if (msg[16] != MAGIC_WORD) {
+				rsi_dbg(FSM_ZONE,
+					"%s: [EEPROM_READ] Invalid token\n",
+					__func__);
+				common->fsm_state = FSM_CARD_NOT_READY;
+				return -EINVAL;
+			}
+			memcpy(common->mac_addr, &msg[20], ETH_ALEN);
+			rsi_dbg(INIT_ZONE, "MAC Addr %pM", common->mac_addr);
+		}
 		/* Get usb buffer status register address */
 		common->priv->usb_buffer_status_reg = *(u32 *)&msg[8];
 		rsi_dbg(INFO_ZONE, "USB buffer status register = %x\n",
 			common->priv->usb_buffer_status_reg);
 
-		if (rsi_load_bootup_params(common)) {
+		if (common->priv->device_model == RSI_DEV_9116)
+			status = rsi_load_9116_bootup_params(common);
+		else
+			status = rsi_load_bootup_params(common);
+		if (status < 0) {
 			common->fsm_state = FSM_CARD_NOT_READY;
-			return -EINVAL;
+			return status;
 		}
 		common->fsm_state = FSM_BOOT_PARAMS_SENT;
 		break;

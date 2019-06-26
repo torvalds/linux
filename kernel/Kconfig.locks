@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # The ARCH_INLINE foo is necessary because select ignores "depends on"
 #
@@ -229,7 +230,7 @@ config MUTEX_SPIN_ON_OWNER
 
 config RWSEM_SPIN_ON_OWNER
        def_bool y
-       depends on SMP && RWSEM_XCHGADD_ALGORITHM && ARCH_SUPPORTS_ATOMIC_RMW
+       depends on SMP && ARCH_SUPPORTS_ATOMIC_RMW
 
 config LOCK_SPIN_ON_OWNER
        def_bool y
@@ -250,4 +251,11 @@ config ARCH_USE_QUEUED_RWLOCKS
 
 config QUEUED_RWLOCKS
 	def_bool y if ARCH_USE_QUEUED_RWLOCKS
+	depends on SMP
+
+config ARCH_HAS_MMIOWB
+	bool
+
+config MMIOWB
+	def_bool y if ARCH_HAS_MMIOWB
 	depends on SMP

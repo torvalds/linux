@@ -30,6 +30,8 @@ MODULE_ALIAS("platform:ixp4xx-beeper");
 
 static DEFINE_SPINLOCK(beep_lock);
 
+static int ixp4xx_timer2_irq;
+
 static void ixp4xx_spkr_control(unsigned int pin, unsigned int count)
 {
 	unsigned long flags;
@@ -90,6 +92,7 @@ static irqreturn_t ixp4xx_spkr_interrupt(int irq, void *dev_id)
 static int ixp4xx_spkr_probe(struct platform_device *dev)
 {
 	struct input_dev *input_dev;
+	int irq;
 	int err;
 
 	input_dev = input_allocate_device();
@@ -110,15 +113,22 @@ static int ixp4xx_spkr_probe(struct platform_device *dev)
 	input_dev->sndbit[0] = BIT_MASK(SND_BELL) | BIT_MASK(SND_TONE);
 	input_dev->event = ixp4xx_spkr_event;
 
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0) {
+		err = irq;
+		goto err_free_device;
+	}
+
 	err = gpio_request(dev->id, "ixp4-beeper");
 	if (err)
 		goto err_free_device;
 
-	err = request_irq(IRQ_IXP4XX_TIMER2, &ixp4xx_spkr_interrupt,
+	err = request_irq(irq, &ixp4xx_spkr_interrupt,
 			  IRQF_NO_SUSPEND, "ixp4xx-beeper",
 			  (void *) dev->id);
 	if (err)
 		goto err_free_gpio;
+	ixp4xx_timer2_irq = irq;
 
 	err = input_register_device(input_dev);
 	if (err)
@@ -129,7 +139,7 @@ static int ixp4xx_spkr_probe(struct platform_device *dev)
 	return 0;
 
  err_free_irq:
-	free_irq(IRQ_IXP4XX_TIMER2, (void *)dev->id);
+	free_irq(irq, (void *)dev->id);
  err_free_gpio:
 	gpio_free(dev->id);
  err_free_device:
@@ -146,10 +156,10 @@ static int ixp4xx_spkr_remove(struct platform_device *dev)
 	input_unregister_device(input_dev);
 
 	/* turn the speaker off */
-	disable_irq(IRQ_IXP4XX_TIMER2);
+	disable_irq(ixp4xx_timer2_irq);
 	ixp4xx_spkr_control(pin, 0);
 
-	free_irq(IRQ_IXP4XX_TIMER2, (void *)dev->id);
+	free_irq(ixp4xx_timer2_irq, (void *)dev->id);
 	gpio_free(dev->id);
 
 	return 0;
@@ -161,7 +171,7 @@ static void ixp4xx_spkr_shutdown(struct platform_device *dev)
 	unsigned int pin = (unsigned int) input_get_drvdata(input_dev);
 
 	/* turn off the speaker */
-	disable_irq(IRQ_IXP4XX_TIMER2);
+	disable_irq(ixp4xx_timer2_irq);
 	ixp4xx_spkr_control(pin, 0);
 }
 

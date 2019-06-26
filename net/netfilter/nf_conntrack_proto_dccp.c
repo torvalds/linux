@@ -598,7 +598,7 @@ static int dccp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	struct nlattr *nest_parms;
 
 	spin_lock_bh(&ct->lock);
-	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_DCCP | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_DCCP);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (nla_put_u8(skb, CTA_PROTOINFO_DCCP_STATE, ct->proto.dccp.state) ||
@@ -639,8 +639,8 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 	if (!attr)
 		return 0;
 
-	err = nla_parse_nested(tb, CTA_PROTOINFO_DCCP_MAX, attr,
-			       dccp_nla_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, CTA_PROTOINFO_DCCP_MAX, attr,
+					  dccp_nla_policy, NULL);
 	if (err < 0)
 		return err;
 

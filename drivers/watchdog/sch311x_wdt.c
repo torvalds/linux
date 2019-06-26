@@ -316,7 +316,7 @@ static int sch311x_wdt_open(struct inode *inode, struct file *file)
 	 *	Activate
 	 */
 	sch311x_wdt_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int sch311x_wdt_close(struct inode *inode, struct file *file)

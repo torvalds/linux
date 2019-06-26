@@ -20,6 +20,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/rhashtable.h>
+#include <linux/crash_dump.h>
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
 #include <net/xdp.h>
@@ -1227,6 +1228,7 @@ struct bnxt_ctx_mem_info {
 	u16	mrav_entry_size;
 	u16	tim_entry_size;
 	u32	tim_max_entries;
+	u16	mrav_num_entries_units;
 	u8	tqm_entries_multiple;
 
 	u32	flags;
@@ -1354,6 +1356,7 @@ struct bnxt {
 	#define BNXT_FLAG_DIM		0x2000000
 	#define BNXT_FLAG_ROCE_MIRROR_CAP	0x4000000
 	#define BNXT_FLAG_PORT_STATS_EXT	0x10000000
+	#define BNXT_FLAG_PCIE_STATS	0x40000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
@@ -1367,7 +1370,8 @@ struct bnxt {
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
 #define BNXT_SUPPORTS_TPA(bp)	(!BNXT_CHIP_TYPE_NITRO_A0(bp) &&	\
-				 !(bp->flags & BNXT_FLAG_CHIP_P5))
+				 !(bp->flags & BNXT_FLAG_CHIP_P5) &&	\
+				 !is_kdump_kernel())
 
 /* Chip class phase 5 */
 #define BNXT_CHIP_P5(bp)			\
@@ -1480,6 +1484,11 @@ struct bnxt {
 	#define BNXT_FW_CAP_KONG_MB_CHNL		0x00000080
 	#define BNXT_FW_CAP_OVS_64BIT_HANDLE		0x00000400
 	#define BNXT_FW_CAP_TRUSTED_VF			0x00000800
+	#define BNXT_FW_CAP_PKG_VER			0x00004000
+	#define BNXT_FW_CAP_CFA_ADV_FLOW		0x00008000
+	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX	0x00010000
+	#define BNXT_FW_CAP_PCIE_STATS_SUPPORTED	0x00020000
+	#define BNXT_FW_CAP_EXT_STATS_SUPPORTED		0x00040000
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 	u32			hwrm_spec_code;
@@ -1498,10 +1507,12 @@ struct bnxt {
 	struct tx_port_stats	*hw_tx_port_stats;
 	struct rx_port_stats_ext	*hw_rx_port_stats_ext;
 	struct tx_port_stats_ext	*hw_tx_port_stats_ext;
+	struct pcie_ctx_hw_stats	*hw_pcie_stats;
 	dma_addr_t		hw_rx_port_stats_map;
 	dma_addr_t		hw_tx_port_stats_map;
 	dma_addr_t		hw_rx_port_stats_ext_map;
 	dma_addr_t		hw_tx_port_stats_ext_map;
+	dma_addr_t		hw_pcie_stats_map;
 	int			hw_port_stats_size;
 	u16			fw_rx_stats_ext_size;
 	u16			fw_tx_stats_ext_size;
@@ -1633,6 +1644,9 @@ struct bnxt {
 
 #define BNXT_TX_STATS_EXT_OFFSET(counter)		\
 	(offsetof(struct tx_port_stats_ext, counter) / 8)
+
+#define BNXT_PCIE_STATS_OFFSET(counter)			\
+	(offsetof(struct pcie_ctx_hw_stats, counter) / 8)
 
 #define I2C_DEV_ADDR_A0				0xa0
 #define I2C_DEV_ADDR_A2				0xa2
@@ -1778,7 +1792,7 @@ unsigned int bnxt_get_avail_stat_ctxs_for_en(struct bnxt *bp);
 unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp);
 unsigned int bnxt_get_avail_cp_rings_for_en(struct bnxt *bp);
 int bnxt_get_avail_msix(struct bnxt *bp, int num);
-int bnxt_reserve_rings(struct bnxt *bp);
+int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init);
 void bnxt_tx_disable(struct bnxt *bp);
 void bnxt_tx_enable(struct bnxt *bp);
 int bnxt_hwrm_set_pause(struct bnxt *);

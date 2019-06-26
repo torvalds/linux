@@ -390,7 +390,7 @@ static int switchtec_dev_open(struct inode *inode, struct file *filp)
 		return PTR_ERR(stuser);
 
 	filp->private_data = stuser;
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 
 	dev_dbg(&stdev->dev, "%s: %p\n", __func__, stuser);
 
@@ -658,19 +658,25 @@ static int ioctl_flash_part_info(struct switchtec_dev *stdev,
 
 static int ioctl_event_summary(struct switchtec_dev *stdev,
 	struct switchtec_user *stuser,
-	struct switchtec_ioctl_event_summary __user *usum)
+	struct switchtec_ioctl_event_summary __user *usum,
+	size_t size)
 {
-	struct switchtec_ioctl_event_summary s = {0};
+	struct switchtec_ioctl_event_summary *s;
 	int i;
 	u32 reg;
+	int ret = 0;
 
-	s.global = ioread32(&stdev->mmio_sw_event->global_summary);
-	s.part_bitmap = ioread32(&stdev->mmio_sw_event->part_event_bitmap);
-	s.local_part = ioread32(&stdev->mmio_part_cfg->part_event_summary);
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	s->global = ioread32(&stdev->mmio_sw_event->global_summary);
+	s->part_bitmap = ioread32(&stdev->mmio_sw_event->part_event_bitmap);
+	s->local_part = ioread32(&stdev->mmio_part_cfg->part_event_summary);
 
 	for (i = 0; i < stdev->partition_count; i++) {
 		reg = ioread32(&stdev->mmio_part_cfg_all[i].part_event_summary);
-		s.part[i] = reg;
+		s->part[i] = reg;
 	}
 
 	for (i = 0; i < SWITCHTEC_MAX_PFF_CSR; i++) {
@@ -679,15 +685,19 @@ static int ioctl_event_summary(struct switchtec_dev *stdev,
 			break;
 
 		reg = ioread32(&stdev->mmio_pff_csr[i].pff_event_summary);
-		s.pff[i] = reg;
+		s->pff[i] = reg;
 	}
 
-	if (copy_to_user(usum, &s, sizeof(s)))
-		return -EFAULT;
+	if (copy_to_user(usum, s, size)) {
+		ret = -EFAULT;
+		goto error_case;
+	}
 
 	stuser->event_cnt = atomic_read(&stdev->event_cnt);
 
-	return 0;
+error_case:
+	kfree(s);
+	return ret;
 }
 
 static u32 __iomem *global_ev_reg(struct switchtec_dev *stdev,
@@ -977,8 +987,9 @@ static long switchtec_dev_ioctl(struct file *filp, unsigned int cmd,
 	case SWITCHTEC_IOCTL_FLASH_PART_INFO:
 		rc = ioctl_flash_part_info(stdev, argp);
 		break;
-	case SWITCHTEC_IOCTL_EVENT_SUMMARY:
-		rc = ioctl_event_summary(stdev, stuser, argp);
+	case SWITCHTEC_IOCTL_EVENT_SUMMARY_LEGACY:
+		rc = ioctl_event_summary(stdev, stuser, argp,
+					 sizeof(struct switchtec_ioctl_event_summary_legacy));
 		break;
 	case SWITCHTEC_IOCTL_EVENT_CTL:
 		rc = ioctl_event_ctl(stdev, argp);
@@ -988,6 +999,10 @@ static long switchtec_dev_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case SWITCHTEC_IOCTL_PORT_TO_PFF:
 		rc = ioctl_port_to_pff(stdev, argp);
+		break;
+	case SWITCHTEC_IOCTL_EVENT_SUMMARY:
+		rc = ioctl_event_summary(stdev, stuser, argp,
+					 sizeof(struct switchtec_ioctl_event_summary));
 		break;
 	default:
 		rc = -ENOTTY;
@@ -1162,7 +1177,8 @@ static int mask_event(struct switchtec_dev *stdev, int eid, int idx)
 	if (!(hdr & SWITCHTEC_EVENT_OCCURRED && hdr & SWITCHTEC_EVENT_EN_IRQ))
 		return 0;
 
-	if (eid == SWITCHTEC_IOCTL_EVENT_LINK_STATE)
+	if (eid == SWITCHTEC_IOCTL_EVENT_LINK_STATE ||
+	    eid == SWITCHTEC_IOCTL_EVENT_MRPC_COMP)
 		return 0;
 
 	dev_dbg(&stdev->dev, "%s: %d %d %x\n", __func__, eid, idx, hdr);

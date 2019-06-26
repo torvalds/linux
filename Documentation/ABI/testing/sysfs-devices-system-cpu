@@ -484,6 +484,7 @@ What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/spectre_v2
 		/sys/devices/system/cpu/vulnerabilities/spec_store_bypass
 		/sys/devices/system/cpu/vulnerabilities/l1tf
+		/sys/devices/system/cpu/vulnerabilities/mds
 Date:		January 2018
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Information about CPU vulnerabilities
@@ -496,8 +497,7 @@ Description:	Information about CPU vulnerabilities
 		"Vulnerable"	  CPU is affected and no mitigation in effect
 		"Mitigation: $M"  CPU is affected and mitigation $M is in effect
 
-		Details about the l1tf file can be found in
-		Documentation/admin-guide/l1tf.rst
+		See also: Documentation/admin-guide/hw-vuln/index.rst
 
 What:		/sys/devices/system/cpu/smt
 		/sys/devices/system/cpu/smt/active
@@ -511,10 +511,30 @@ Description:	Control Symetric Multi Threading (SMT)
 		control: Read/write interface to control SMT. Possible
 			 values:
 
-			 "on"		SMT is enabled
-			 "off"		SMT is disabled
-			 "forceoff"	SMT is force disabled. Cannot be changed.
-			 "notsupported" SMT is not supported by the CPU
+			 "on"		  SMT is enabled
+			 "off"		  SMT is disabled
+			 "forceoff"	  SMT is force disabled. Cannot be changed.
+			 "notsupported"   SMT is not supported by the CPU
+			 "notimplemented" SMT runtime toggling is not
+					  implemented for the architecture
 
 			 If control status is "forceoff" or "notsupported" writes
 			 are rejected.
+
+What:		/sys/devices/system/cpu/cpu#/power/energy_perf_bias
+Date:		March 2019
+Contact:	linux-pm@vger.kernel.org
+Description:	Intel Energy and Performance Bias Hint (EPB)
+
+		EPB for the given CPU in a sliding scale 0 - 15, where a value
+		of 0 corresponds to a hint preference for highest performance
+		and a value of 15 corresponds to the maximum energy savings.
+
+		In order to change the EPB value for the CPU, write either
+		a number in the 0 - 15 sliding scale above, or one of the
+		strings: "performance", "balance-performance", "normal",
+		"balance-power", "power" (that represent values reflected by
+		their meaning), to this attribute.
+
+		This attribute is present for all online CPUs supporting the
+		Intel EPB feature.

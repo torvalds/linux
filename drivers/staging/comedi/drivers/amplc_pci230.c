@@ -2464,7 +2464,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	devpriv->adcg = 0;
 	devpriv->adccon = PCI230_ADC_TRIG_NONE | PCI230_ADC_IM_SE |
 			  PCI230_ADC_IR_BIP;
-	outw(1 << 0, devpriv->daqio + PCI230_ADCEN);
+	outw(BIT(0), devpriv->daqio + PCI230_ADCEN);
 	outw(devpriv->adcg, devpriv->daqio + PCI230_ADCG);
 	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
 	     devpriv->daqio + PCI230_ADCCON);

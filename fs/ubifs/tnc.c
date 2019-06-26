@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -479,14 +467,13 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 	if (node_len != len)
 		return 0;
 
-	if (type == UBIFS_DATA_NODE && c->no_chk_data_crc && !c->mounting &&
-	    !c->remounting_rw)
-		return 1;
-
-	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
-	node_crc = le32_to_cpu(ch->crc);
-	if (crc != node_crc)
-		return 0;
+	if (type != UBIFS_DATA_NODE || !c->no_chk_data_crc || c->mounting ||
+	    c->remounting_rw) {
+		crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
+		node_crc = le32_to_cpu(ch->crc);
+		if (crc != node_crc)
+			return 0;
+	}
 
 	err = ubifs_node_check_hash(c, buf, zbr->hash);
 	if (err) {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/buffer.c
  *
@@ -2085,7 +2086,7 @@ int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
 }
 EXPORT_SYMBOL(block_write_begin);
 
-int __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
+void __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
 		struct page *page)
 {
 	loff_t old_size = inode->i_size;
@@ -2104,7 +2105,6 @@ int __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
 	}
 
 	unlock_page(page);
-	put_page(page);
 
 	if (old_size < pos)
 		pagecache_isize_extended(inode, old_size, pos);
@@ -2116,7 +2116,6 @@ int __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
 	 */
 	if (i_size_changed)
 		mark_inode_dirty(inode);
-	return copied;
 }
 
 int block_write_end(struct file *file, struct address_space *mapping,
@@ -2160,7 +2159,9 @@ int generic_write_end(struct file *file, struct address_space *mapping,
 			struct page *page, void *fsdata)
 {
 	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
-	return __generic_write_end(mapping->host, pos, copied, page);
+	__generic_write_end(mapping->host, pos, copied, page);
+	put_page(page);
+	return copied;
 }
 EXPORT_SYMBOL(generic_write_end);
 

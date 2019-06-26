@@ -3174,13 +3174,14 @@ static int usb_disable_remote_wakeup(struct usb_device *udev)
 }
 
 /* Count of wakeup-enabled devices at or below udev */
-static unsigned wakeup_enabled_descendants(struct usb_device *udev)
+unsigned usb_wakeup_enabled_descendants(struct usb_device *udev)
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(udev);
 
 	return udev->do_remote_wakeup +
 			(hub ? hub->wakeup_enabled_descendants : 0);
 }
+EXPORT_SYMBOL_GPL(usb_wakeup_enabled_descendants);
 
 /*
  * usb_port_suspend - suspend a usb device's upstream port
@@ -3282,7 +3283,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	 * Therefore we will turn on the suspend feature if udev or any of its
 	 * descendants is enabled for remote wakeup.
 	 */
-	else if (PMSG_IS_AUTO(msg) || wakeup_enabled_descendants(udev) > 0)
+	else if (PMSG_IS_AUTO(msg) || usb_wakeup_enabled_descendants(udev) > 0)
 		status = set_port_feature(hub->hdev, port1,
 				USB_PORT_FEAT_SUSPEND);
 	else {
@@ -3668,7 +3669,6 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	struct usb_hub		*hub = usb_get_intfdata(intf);
 	struct usb_device	*hdev = hub->hdev;
 	unsigned		port1;
-	int			status;
 
 	/*
 	 * Warn if children aren't already suspended.
@@ -3687,7 +3687,7 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 		}
 		if (udev)
 			hub->wakeup_enabled_descendants +=
-					wakeup_enabled_descendants(udev);
+					usb_wakeup_enabled_descendants(udev);
 	}
 
 	if (hdev->do_remote_wakeup && hub->quirk_check_port_auto_suspend) {
@@ -3702,12 +3702,12 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	if (hub_is_superspeed(hdev) && hdev->do_remote_wakeup) {
 		/* Enable hub to send remote wakeup for all ports. */
 		for (port1 = 1; port1 <= hdev->maxchild; port1++) {
-			status = set_port_feature(hdev,
-					port1 |
-					USB_PORT_FEAT_REMOTE_WAKE_CONNECT |
-					USB_PORT_FEAT_REMOTE_WAKE_DISCONNECT |
-					USB_PORT_FEAT_REMOTE_WAKE_OVER_CURRENT,
-					USB_PORT_FEAT_REMOTE_WAKE_MASK);
+			set_port_feature(hdev,
+					 port1 |
+					 USB_PORT_FEAT_REMOTE_WAKE_CONNECT |
+					 USB_PORT_FEAT_REMOTE_WAKE_DISCONNECT |
+					 USB_PORT_FEAT_REMOTE_WAKE_OVER_CURRENT,
+					 USB_PORT_FEAT_REMOTE_WAKE_MASK);
 		}
 	}
 
@@ -5902,7 +5902,10 @@ int usb_reset_device(struct usb_device *udev)
 					cintf->needs_binding = 1;
 			}
 		}
-		usb_unbind_and_rebind_marked_interfaces(udev);
+
+		/* If the reset failed, hub_wq will unbind drivers later */
+		if (ret == 0)
+			usb_unbind_and_rebind_marked_interfaces(udev);
 	}
 
 	usb_autosuspend_device(udev);

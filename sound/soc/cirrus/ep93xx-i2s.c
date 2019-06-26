@@ -27,9 +27,8 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <mach/hardware.h>
-#include <mach/ep93xx-regs.h>
 #include <linux/platform_data/dma-ep93xx.h>
+#include <linux/soc/cirrus/ep93xx.h>
 
 #include "ep93xx-pcm.h"
 

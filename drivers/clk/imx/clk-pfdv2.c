@@ -9,6 +9,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/slab.h>
 
@@ -43,7 +44,7 @@ static int clk_pfdv2_wait(struct clk_pfdv2 *pfd)
 {
 	u32 val;
 
-	return readl_poll_timeout(pfd->reg, val, val & pfd->vld_bit,
+	return readl_poll_timeout(pfd->reg, val, val & (1 << pfd->vld_bit),
 				  0, LOCK_TIMEOUT_US);
 }
 
@@ -55,7 +56,7 @@ static int clk_pfdv2_enable(struct clk_hw *hw)
 
 	spin_lock_irqsave(&pfd_lock, flags);
 	val = readl_relaxed(pfd->reg);
-	val &= ~pfd->gate_bit;
+	val &= ~(1 << pfd->gate_bit);
 	writel_relaxed(val, pfd->reg);
 	spin_unlock_irqrestore(&pfd_lock, flags);
 
@@ -70,7 +71,7 @@ static void clk_pfdv2_disable(struct clk_hw *hw)
 
 	spin_lock_irqsave(&pfd_lock, flags);
 	val = readl_relaxed(pfd->reg);
-	val |= pfd->gate_bit;
+	val |= (1 << pfd->gate_bit);
 	writel_relaxed(val, pfd->reg);
 	spin_unlock_irqrestore(&pfd_lock, flags);
 }
@@ -123,7 +124,7 @@ static int clk_pfdv2_is_enabled(struct clk_hw *hw)
 {
 	struct clk_pfdv2 *pfd = to_clk_pfdv2(hw);
 
-	if (readl_relaxed(pfd->reg) & pfd->gate_bit)
+	if (readl_relaxed(pfd->reg) & (1 << pfd->gate_bit))
 		return 0;
 
 	return 1;
@@ -180,7 +181,7 @@ struct clk_hw *imx_clk_pfdv2(const char *name, const char *parent_name,
 		return ERR_PTR(-ENOMEM);
 
 	pfd->reg = reg;
-	pfd->gate_bit = 1 << ((idx + 1) * 8 - 1);
+	pfd->gate_bit = (idx + 1) * 8 - 1;
 	pfd->vld_bit = pfd->gate_bit - 1;
 	pfd->frac_off = idx * 8;
 

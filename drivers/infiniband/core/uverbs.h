@@ -160,10 +160,9 @@ struct ib_uverbs_file {
 
 	struct mutex umap_lock;
 	struct list_head umaps;
+	struct page *disassociate_page;
 
-	struct idr		idr;
-	/* spinlock protects write access to idr */
-	spinlock_t		idr_lock;
+	struct xarray		idr;
 };
 
 struct ib_uverbs_event {
@@ -240,7 +239,8 @@ void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_event_handler(struct ib_event_handler *handler,
 			     struct ib_event *event);
 int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
-			   enum rdma_remove_reason why);
+			   enum rdma_remove_reason why,
+			   struct uverbs_attr_bundle *attrs);
 
 int uverbs_dealloc_mw(struct ib_mw *mw);
 void ib_uverbs_detach_umcast(struct ib_qp *qp,

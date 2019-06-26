@@ -54,7 +54,9 @@ const char tipc_bclink_name[] = "broadcast-link";
  * @dests: array keeping number of reachable destinations per bearer
  * @primary_bearer: a bearer having links to all broadcast destinations, if any
  * @bcast_support: indicates if primary bearer, if any, supports broadcast
+ * @force_bcast: forces broadcast for multicast traffic
  * @rcast_support: indicates if all peer nodes support replicast
+ * @force_rcast: forces replicast for multicast traffic
  * @rc_ratio: dest count as percentage of cluster size where send method changes
  * @bc_threshold: calculated from rc_ratio; if dests > threshold use broadcast
  */
@@ -64,7 +66,9 @@ struct tipc_bc_base {
 	int dests[MAX_BEARERS];
 	int primary_bearer;
 	bool bcast_support;
+	bool force_bcast;
 	bool rcast_support;
+	bool force_rcast;
 	int rc_ratio;
 	int bc_threshold;
 };
@@ -216,9 +220,24 @@ static void tipc_bcast_select_xmit_method(struct net *net, int dests,
 	}
 	/* Can current method be changed ? */
 	method->expires = jiffies + TIPC_METHOD_EXPIRE;
-	if (method->mandatory || time_before(jiffies, exp))
+	if (method->mandatory)
 		return;
 
+	if (!(tipc_net(net)->capabilities & TIPC_MCAST_RBCTL) &&
+	    time_before(jiffies, exp))
+		return;
+
+	/* Configuration as force 'broadcast' method */
+	if (bb->force_bcast) {
+		method->rcast = false;
+		return;
+	}
+	/* Configuration as force 'replicast' method */
+	if (bb->force_rcast) {
+		method->rcast = true;
+		return;
+	}
+	/* Configuration as 'autoselect' or default method */
 	/* Determine method to use now */
 	method->rcast = dests <= bb->bc_threshold;
 }
@@ -281,6 +300,63 @@ static int tipc_rcast_xmit(struct net *net, struct sk_buff_head *pkts,
 	return 0;
 }
 
+/* tipc_mcast_send_sync - deliver a dummy message with SYN bit
+ * @net: the applicable net namespace
+ * @skb: socket buffer to copy
+ * @method: send method to be used
+ * @dests: destination nodes for message.
+ * @cong_link_cnt: returns number of encountered congested destination links
+ * Returns 0 if success, otherwise errno
+ */
+static int tipc_mcast_send_sync(struct net *net, struct sk_buff *skb,
+				struct tipc_mc_method *method,
+				struct tipc_nlist *dests,
+				u16 *cong_link_cnt)
+{
+	struct tipc_msg *hdr, *_hdr;
+	struct sk_buff_head tmpq;
+	struct sk_buff *_skb;
+
+	/* Is a cluster supporting with new capabilities ? */
+	if (!(tipc_net(net)->capabilities & TIPC_MCAST_RBCTL))
+		return 0;
+
+	hdr = buf_msg(skb);
+	if (msg_user(hdr) == MSG_FRAGMENTER)
+		hdr = msg_get_wrapped(hdr);
+	if (msg_type(hdr) != TIPC_MCAST_MSG)
+		return 0;
+
+	/* Allocate dummy message */
+	_skb = tipc_buf_acquire(MCAST_H_SIZE, GFP_KERNEL);
+	if (!_skb)
+		return -ENOMEM;
+
+	/* Preparing for 'synching' header */
+	msg_set_syn(hdr, 1);
+
+	/* Copy skb's header into a dummy header */
+	skb_copy_to_linear_data(_skb, hdr, MCAST_H_SIZE);
+	skb_orphan(_skb);
+
+	/* Reverse method for dummy message */
+	_hdr = buf_msg(_skb);
+	msg_set_size(_hdr, MCAST_H_SIZE);
+	msg_set_is_rcast(_hdr, !msg_is_rcast(hdr));
+
+	skb_queue_head_init(&tmpq);
+	__skb_queue_tail(&tmpq, _skb);
+	if (method->rcast)
+		tipc_bcast_xmit(net, &tmpq, cong_link_cnt);
+	else
+		tipc_rcast_xmit(net, &tmpq, dests, cong_link_cnt);
+
+	/* This queue should normally be empty by now */
+	__skb_queue_purge(&tmpq);
+
+	return 0;
+}
+
 /* tipc_mcast_xmit - deliver message to indicated destination nodes
  *                   and to identified node local sockets
  * @net: the applicable net namespace
@@ -296,6 +372,9 @@ int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
 		    u16 *cong_link_cnt)
 {
 	struct sk_buff_head inputq, localq;
+	bool rcast = method->rcast;
+	struct tipc_msg *hdr;
+	struct sk_buff *skb;
 	int rc = 0;
 
 	skb_queue_head_init(&inputq);
@@ -309,6 +388,18 @@ int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
 	/* Send according to determined transmit method */
 	if (dests->remote) {
 		tipc_bcast_select_xmit_method(net, dests->remote, method);
+
+		skb = skb_peek(pkts);
+		hdr = buf_msg(skb);
+		if (msg_user(hdr) == MSG_FRAGMENTER)
+			hdr = msg_get_wrapped(hdr);
+		msg_set_is_rcast(hdr, method->rcast);
+
+		/* Switch method ? */
+		if (rcast != method->rcast)
+			tipc_mcast_send_sync(net, skb, method,
+					     dests, cong_link_cnt);
+
 		if (method->rcast)
 			rc = tipc_rcast_xmit(net, pkts, dests, cong_link_cnt);
 		else
@@ -485,10 +576,63 @@ static int tipc_bc_link_set_queue_limits(struct net *net, u32 limit)
 	return 0;
 }
 
+static int tipc_bc_link_set_broadcast_mode(struct net *net, u32 bc_mode)
+{
+	struct tipc_bc_base *bb = tipc_bc_base(net);
+
+	switch (bc_mode) {
+	case BCLINK_MODE_BCAST:
+		if (!bb->bcast_support)
+			return -ENOPROTOOPT;
+
+		bb->force_bcast = true;
+		bb->force_rcast = false;
+		break;
+	case BCLINK_MODE_RCAST:
+		if (!bb->rcast_support)
+			return -ENOPROTOOPT;
+
+		bb->force_bcast = false;
+		bb->force_rcast = true;
+		break;
+	case BCLINK_MODE_SEL:
+		if (!bb->bcast_support || !bb->rcast_support)
+			return -ENOPROTOOPT;
+
+		bb->force_bcast = false;
+		bb->force_rcast = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int tipc_bc_link_set_broadcast_ratio(struct net *net, u32 bc_ratio)
+{
+	struct tipc_bc_base *bb = tipc_bc_base(net);
+
+	if (!bb->bcast_support || !bb->rcast_support)
+		return -ENOPROTOOPT;
+
+	if (bc_ratio > 100 || bc_ratio <= 0)
+		return -EINVAL;
+
+	bb->rc_ratio = bc_ratio;
+	tipc_bcast_lock(net);
+	tipc_bcbase_calc_bc_threshold(net);
+	tipc_bcast_unlock(net);
+
+	return 0;
+}
+
 int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[])
 {
 	int err;
 	u32 win;
+	u32 bc_mode;
+	u32 bc_ratio;
 	struct nlattr *props[TIPC_NLA_PROP_MAX + 1];
 
 	if (!attrs[TIPC_NLA_LINK_PROP])
@@ -498,12 +642,28 @@ int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[])
 	if (err)
 		return err;
 
-	if (!props[TIPC_NLA_PROP_WIN])
+	if (!props[TIPC_NLA_PROP_WIN] &&
+	    !props[TIPC_NLA_PROP_BROADCAST] &&
+	    !props[TIPC_NLA_PROP_BROADCAST_RATIO]) {
 		return -EOPNOTSUPP;
+	}
 
-	win = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+	if (props[TIPC_NLA_PROP_BROADCAST]) {
+		bc_mode = nla_get_u32(props[TIPC_NLA_PROP_BROADCAST]);
+		err = tipc_bc_link_set_broadcast_mode(net, bc_mode);
+	}
 
-	return tipc_bc_link_set_queue_limits(net, win);
+	if (!err && props[TIPC_NLA_PROP_BROADCAST_RATIO]) {
+		bc_ratio = nla_get_u32(props[TIPC_NLA_PROP_BROADCAST_RATIO]);
+		err = tipc_bc_link_set_broadcast_ratio(net, bc_ratio);
+	}
+
+	if (!err && props[TIPC_NLA_PROP_WIN]) {
+		win = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+		err = tipc_bc_link_set_queue_limits(net, win);
+	}
+
+	return err;
 }
 
 int tipc_bcast_init(struct net *net)
@@ -529,7 +689,7 @@ int tipc_bcast_init(struct net *net)
 		goto enomem;
 	bb->link = l;
 	tn->bcl = l;
-	bb->rc_ratio = 25;
+	bb->rc_ratio = 10;
 	bb->rcast_support = true;
 	return 0;
 enomem:
@@ -575,4 +735,109 @@ void tipc_nlist_purge(struct tipc_nlist *nl)
 	tipc_dest_list_purge(&nl->list);
 	nl->remote = 0;
 	nl->local = false;
+}
+
+u32 tipc_bcast_get_broadcast_mode(struct net *net)
+{
+	struct tipc_bc_base *bb = tipc_bc_base(net);
+
+	if (bb->force_bcast)
+		return BCLINK_MODE_BCAST;
+
+	if (bb->force_rcast)
+		return BCLINK_MODE_RCAST;
+
+	if (bb->bcast_support && bb->rcast_support)
+		return BCLINK_MODE_SEL;
+
+	return 0;
+}
+
+u32 tipc_bcast_get_broadcast_ratio(struct net *net)
+{
+	struct tipc_bc_base *bb = tipc_bc_base(net);
+
+	return bb->rc_ratio;
+}
+
+void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
+			   struct sk_buff_head *inputq)
+{
+	struct sk_buff *skb, *_skb, *tmp;
+	struct tipc_msg *hdr, *_hdr;
+	bool match = false;
+	u32 node, port;
+
+	skb = skb_peek(inputq);
+	if (!skb)
+		return;
+
+	hdr = buf_msg(skb);
+
+	if (likely(!msg_is_syn(hdr) && skb_queue_empty(defq)))
+		return;
+
+	node = msg_orignode(hdr);
+	if (node == tipc_own_addr(net))
+		return;
+
+	port = msg_origport(hdr);
+
+	/* Has the twin SYN message already arrived ? */
+	skb_queue_walk(defq, _skb) {
+		_hdr = buf_msg(_skb);
+		if (msg_orignode(_hdr) != node)
+			continue;
+		if (msg_origport(_hdr) != port)
+			continue;
+		match = true;
+		break;
+	}
+
+	if (!match) {
+		if (!msg_is_syn(hdr))
+			return;
+		__skb_dequeue(inputq);
+		__skb_queue_tail(defq, skb);
+		return;
+	}
+
+	/* Deliver non-SYN message from other link, otherwise queue it */
+	if (!msg_is_syn(hdr)) {
+		if (msg_is_rcast(hdr) != msg_is_rcast(_hdr))
+			return;
+		__skb_dequeue(inputq);
+		__skb_queue_tail(defq, skb);
+		return;
+	}
+
+	/* Queue non-SYN/SYN message from same link */
+	if (msg_is_rcast(hdr) == msg_is_rcast(_hdr)) {
+		__skb_dequeue(inputq);
+		__skb_queue_tail(defq, skb);
+		return;
+	}
+
+	/* Matching SYN messages => return the one with data, if any */
+	__skb_unlink(_skb, defq);
+	if (msg_data_sz(hdr)) {
+		kfree_skb(_skb);
+	} else {
+		__skb_dequeue(inputq);
+		kfree_skb(skb);
+		__skb_queue_tail(inputq, _skb);
+	}
+
+	/* Deliver subsequent non-SYN messages from same peer */
+	skb_queue_walk_safe(defq, _skb, tmp) {
+		_hdr = buf_msg(_skb);
+		if (msg_orignode(_hdr) != node)
+			continue;
+		if (msg_origport(_hdr) != port)
+			continue;
+		if (msg_is_syn(_hdr))
+			break;
+		__skb_unlink(_skb, defq);
+		__skb_queue_tail(inputq, _skb);
+	}
 }

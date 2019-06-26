@@ -311,7 +311,7 @@ struct iser_login_desc {
 	u64                          rsp_dma;
 	struct ib_sge                sge;
 	struct ib_cqe		     cqe;
-} __attribute__((packed));
+} __packed;
 
 struct iser_conn;
 struct ib_conn;

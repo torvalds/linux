@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Provide a way to create a superblock configuration context within the kernel
  * that allows a superblock to be set up prior to mounting.
  *
  * Copyright (C) 2017 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include <linux/module.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/fs.h>
@@ -23,6 +20,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
 #include <net/net_namespace.h>
+#include <asm/sections.h>
 #include "mount.h"
 #include "internal.h"
 
@@ -271,6 +269,8 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 	fc->cred	= get_current_cred();
 	fc->net_ns	= get_net(current->nsproxy->net_ns);
 
+	mutex_init(&fc->uapi_mutex);
+
 	switch (purpose) {
 	case FS_CONTEXT_FOR_MOUNT:
 		fc->user_ns = get_user_ns(fc->cred->user_ns);
@@ -353,6 +353,8 @@ struct fs_context *vfs_dup_fs_context(struct fs_context *src_fc)
 	if (!fc)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&fc->uapi_mutex);
+
 	fc->fs_private	= NULL;
 	fc->s_fs_info	= NULL;
 	fc->source	= NULL;
@@ -361,6 +363,8 @@ struct fs_context *vfs_dup_fs_context(struct fs_context *src_fc)
 	get_net(fc->net_ns);
 	get_user_ns(fc->user_ns);
 	get_cred(fc->cred);
+	if (fc->log)
+		refcount_inc(&fc->log->usage);
 
 	/* Can't call put until we've called ->dup */
 	ret = fc->ops->dup(fc, src_fc);
@@ -378,7 +382,6 @@ err_fc:
 }
 EXPORT_SYMBOL(vfs_dup_fs_context);
 
-#ifdef CONFIG_PRINTK
 /**
  * logfc - Log a message to a filesystem context
  * @fc: The filesystem context to log to.
@@ -386,27 +389,100 @@ EXPORT_SYMBOL(vfs_dup_fs_context);
  */
 void logfc(struct fs_context *fc, const char *fmt, ...)
 {
+	static const char store_failure[] = "OOM: Can't store error string";
+	struct fc_log *log = fc ? fc->log : NULL;
+	const char *p;
 	va_list va;
+	char *q;
+	u8 freeable;
 
 	va_start(va, fmt);
-
-	switch (fmt[0]) {
-	case 'w':
-		vprintk_emit(0, LOGLEVEL_WARNING, NULL, 0, fmt, va);
-		break;
-	case 'e':
-		vprintk_emit(0, LOGLEVEL_ERR, NULL, 0, fmt, va);
-		break;
-	default:
-		vprintk_emit(0, LOGLEVEL_NOTICE, NULL, 0, fmt, va);
-		break;
+	if (!strchr(fmt, '%')) {
+		p = fmt;
+		goto unformatted_string;
+	}
+	if (strcmp(fmt, "%s") == 0) {
+		p = va_arg(va, const char *);
+		goto unformatted_string;
 	}
 
-	pr_cont("\n");
+	q = kvasprintf(GFP_KERNEL, fmt, va);
+copied_string:
+	if (!q)
+		goto store_failure;
+	freeable = 1;
+	goto store_string;
+
+unformatted_string:
+	if ((unsigned long)p >= (unsigned long)__start_rodata &&
+	    (unsigned long)p <  (unsigned long)__end_rodata)
+		goto const_string;
+	if (log && within_module_core((unsigned long)p, log->owner))
+		goto const_string;
+	q = kstrdup(p, GFP_KERNEL);
+	goto copied_string;
+
+store_failure:
+	p = store_failure;
+const_string:
+	q = (char *)p;
+	freeable = 0;
+store_string:
+	if (!log) {
+		switch (fmt[0]) {
+		case 'w':
+			printk(KERN_WARNING "%s\n", q + 2);
+			break;
+		case 'e':
+			printk(KERN_ERR "%s\n", q + 2);
+			break;
+		default:
+			printk(KERN_NOTICE "%s\n", q + 2);
+			break;
+		}
+		if (freeable)
+			kfree(q);
+	} else {
+		unsigned int logsize = ARRAY_SIZE(log->buffer);
+		u8 index;
+
+		index = log->head & (logsize - 1);
+		BUILD_BUG_ON(sizeof(log->head) != sizeof(u8) ||
+			     sizeof(log->tail) != sizeof(u8));
+		if ((u8)(log->head - log->tail) == logsize) {
+			/* The buffer is full, discard the oldest message */
+			if (log->need_free & (1 << index))
+				kfree(log->buffer[index]);
+			log->tail++;
+		}
+
+		log->buffer[index] = q;
+		log->need_free &= ~(1 << index);
+		log->need_free |= freeable << index;
+		log->head++;
+	}
 	va_end(va);
 }
 EXPORT_SYMBOL(logfc);
-#endif
+
+/*
+ * Free a logging structure.
+ */
+static void put_fc_log(struct fs_context *fc)
+{
+	struct fc_log *log = fc->log;
+	int i;
+
+	if (log) {
+		if (refcount_dec_and_test(&log->usage)) {
+			fc->log = NULL;
+			for (i = 0; i <= 7; i++)
+				if (log->need_free & (1 << i))
+					kfree(log->buffer[i]);
+			kfree(log);
+		}
+	}
+}
 
 /**
  * put_fs_context - Dispose of a superblock configuration context.
@@ -431,6 +507,7 @@ void put_fs_context(struct fs_context *fc)
 	put_user_ns(fc->user_ns);
 	put_cred(fc->cred);
 	kfree(fc->subtype);
+	put_fc_log(fc);
 	put_filesystem(fc->fs_type);
 	kfree(fc->source);
 	kfree(fc);
@@ -639,4 +716,55 @@ int parse_monolithic_mount_data(struct fs_context *fc, void *data)
 		monolithic_mount_data = generic_parse_monolithic;
 
 	return monolithic_mount_data(fc, data);
+}
+
+/*
+ * Clean up a context after performing an action on it and put it into a state
+ * from where it can be used to reconfigure a superblock.
+ *
+ * Note that here we do only the parts that can't fail; the rest is in
+ * finish_clean_context() below and in between those fs_context is marked
+ * FS_CONTEXT_AWAITING_RECONF.  The reason for splitup is that after
+ * successful mount or remount we need to report success to userland.
+ * Trying to do full reinit (for the sake of possible subsequent remount)
+ * and failing to allocate memory would've put us into a nasty situation.
+ * So here we only discard the old state and reinitialization is left
+ * until we actually try to reconfigure.
+ */
+void vfs_clean_context(struct fs_context *fc)
+{
+	if (fc->need_free && fc->ops && fc->ops->free)
+		fc->ops->free(fc);
+	fc->need_free = false;
+	fc->fs_private = NULL;
+	fc->s_fs_info = NULL;
+	fc->sb_flags = 0;
+	security_free_mnt_opts(&fc->security);
+	kfree(fc->subtype);
+	fc->subtype = NULL;
+	kfree(fc->source);
+	fc->source = NULL;
+
+	fc->purpose = FS_CONTEXT_FOR_RECONFIGURE;
+	fc->phase = FS_CONTEXT_AWAITING_RECONF;
+}
+
+int finish_clean_context(struct fs_context *fc)
+{
+	int error;
+
+	if (fc->phase != FS_CONTEXT_AWAITING_RECONF)
+		return 0;
+
+	if (fc->fs_type->init_fs_context)
+		error = fc->fs_type->init_fs_context(fc);
+	else
+		error = legacy_init_fs_context(fc);
+	if (unlikely(error)) {
+		fc->phase = FS_CONTEXT_FAILED;
+		return error;
+	}
+	fc->need_free = true;
+	fc->phase = FS_CONTEXT_RECONF_PARAMS;
+	return 0;
 }

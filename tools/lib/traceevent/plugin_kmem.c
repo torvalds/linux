@@ -39,57 +39,57 @@ static int call_site_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_read_number_field(field, data, &val))
 		return 1;
 
-	func = tep_find_function(event->pevent, val);
+	func = tep_find_function(event->tep, val);
 	if (!func)
 		return 1;
 
-	addr = tep_find_function_address(event->pevent, val);
+	addr = tep_find_function_address(event->tep, val);
 
 	trace_seq_printf(s, "(%s+0x%x) ", func, (int)(val - addr));
 	return 1;
 }
 
-int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 {
-	tep_register_event_handler(pevent, -1, "kmem", "kfree",
+	tep_register_event_handler(tep, -1, "kmem", "kfree",
 				   call_site_handler, NULL);
 
-	tep_register_event_handler(pevent, -1, "kmem", "kmalloc",
+	tep_register_event_handler(tep, -1, "kmem", "kmalloc",
 				   call_site_handler, NULL);
 
-	tep_register_event_handler(pevent, -1, "kmem", "kmalloc_node",
+	tep_register_event_handler(tep, -1, "kmem", "kmalloc_node",
 				   call_site_handler, NULL);
 
-	tep_register_event_handler(pevent, -1, "kmem", "kmem_cache_alloc",
+	tep_register_event_handler(tep, -1, "kmem", "kmem_cache_alloc",
 				   call_site_handler, NULL);
 
-	tep_register_event_handler(pevent, -1, "kmem",
+	tep_register_event_handler(tep, -1, "kmem",
 				   "kmem_cache_alloc_node",
 				   call_site_handler, NULL);
 
-	tep_register_event_handler(pevent, -1, "kmem", "kmem_cache_free",
+	tep_register_event_handler(tep, -1, "kmem", "kmem_cache_free",
 				   call_site_handler, NULL);
 	return 0;
 }
 
-void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
 {
-	tep_unregister_event_handler(pevent, -1, "kmem", "kfree",
+	tep_unregister_event_handler(tep, -1, "kmem", "kfree",
 				     call_site_handler, NULL);
 
-	tep_unregister_event_handler(pevent, -1, "kmem", "kmalloc",
+	tep_unregister_event_handler(tep, -1, "kmem", "kmalloc",
 				     call_site_handler, NULL);
 
-	tep_unregister_event_handler(pevent, -1, "kmem", "kmalloc_node",
+	tep_unregister_event_handler(tep, -1, "kmem", "kmalloc_node",
 				     call_site_handler, NULL);
 
-	tep_unregister_event_handler(pevent, -1, "kmem", "kmem_cache_alloc",
+	tep_unregister_event_handler(tep, -1, "kmem", "kmem_cache_alloc",
 				     call_site_handler, NULL);
 
-	tep_unregister_event_handler(pevent, -1, "kmem",
+	tep_unregister_event_handler(tep, -1, "kmem",
 				     "kmem_cache_alloc_node",
 				     call_site_handler, NULL);
 
-	tep_unregister_event_handler(pevent, -1, "kmem", "kmem_cache_free",
+	tep_unregister_event_handler(tep, -1, "kmem", "kmem_cache_free",
 				     call_site_handler, NULL);
 }

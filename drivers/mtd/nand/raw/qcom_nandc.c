@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -1680,14 +1672,12 @@ check_for_erased_page(struct qcom_nand_host *host, u8 *data_buf,
 	u8 *cw_data_buf, *cw_oob_buf;
 	int cw, data_size, oob_size, ret = 0;
 
-	if (!data_buf) {
-		data_buf = chip->data_buf;
-		chip->pagebuf = -1;
-	}
+	if (!data_buf)
+		data_buf = nand_get_data_buf(chip);
 
 	if (!oob_buf) {
+		nand_get_data_buf(chip);
 		oob_buf = chip->oob_poi;
-		chip->pagebuf = -1;
 	}
 
 	for_each_set_bit(cw, &uncorrectable_cws, ecc->steps) {

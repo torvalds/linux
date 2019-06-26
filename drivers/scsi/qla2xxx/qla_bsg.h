@@ -31,6 +31,7 @@
 #define QL_VND_GET_PRIV_STATS	0x18
 #define QL_VND_DPORT_DIAGNOSTICS	0x19
 #define QL_VND_GET_PRIV_STATS_EX	0x1A
+#define QL_VND_SS_GET_FLASH_IMAGE_STATUS	0x1E
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -278,5 +279,15 @@ struct qla_dport_diag {
 /* D_Port options */
 #define QLA_DPORT_RESULT	0x0
 #define QLA_DPORT_START		0x2
+
+/* active images in flash */
+struct qla_active_regions {
+	uint8_t global_image;
+	uint8_t board_config;
+	uint8_t vpd_nvram;
+	uint8_t npiv_config_0_1;
+	uint8_t npiv_config_2_3;
+	uint8_t reserved[32];
+} __packed;
 
 #endif

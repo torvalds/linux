@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "reg_helper.h"
 #include "dce_audio.h"
 #include "dce/dce_11_0_d.h"

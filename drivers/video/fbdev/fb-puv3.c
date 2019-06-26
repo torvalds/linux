@@ -20,7 +20,7 @@
 #include <linux/console.h>
 #include <linux/mm.h>
 
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/pgtable.h>
 #include <mach/hardware.h>
 

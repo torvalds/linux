@@ -65,12 +65,9 @@
 #define CACHE_FLUSH_IS_SAFE		1
 
 /* kprobes BRK opcodes with ESR encoding  */
-#define BRK64_ESR_MASK		0xFFFF
-#define BRK64_ESR_KPROBES	0x0004
-#define BRK64_OPCODE_KPROBES	(AARCH64_BREAK_MON | (BRK64_ESR_KPROBES << 5))
+#define BRK64_OPCODE_KPROBES	(AARCH64_BREAK_MON | (KPROBES_BRK_IMM << 5))
 /* uprobes BRK opcodes with ESR encoding  */
-#define BRK64_ESR_UPROBES	0x0005
-#define BRK64_OPCODE_UPROBES	(AARCH64_BREAK_MON | (BRK64_ESR_UPROBES << 5))
+#define BRK64_OPCODE_UPROBES	(AARCH64_BREAK_MON | (UPROBES_BRK_IMM << 5))
 
 /* AArch32 */
 #define DBG_ESR_EVT_BKPT	0x4
@@ -94,18 +91,24 @@ struct step_hook {
 	int (*fn)(struct pt_regs *regs, unsigned int esr);
 };
 
-void register_step_hook(struct step_hook *hook);
-void unregister_step_hook(struct step_hook *hook);
+void register_user_step_hook(struct step_hook *hook);
+void unregister_user_step_hook(struct step_hook *hook);
+
+void register_kernel_step_hook(struct step_hook *hook);
+void unregister_kernel_step_hook(struct step_hook *hook);
 
 struct break_hook {
 	struct list_head node;
-	u32 esr_val;
-	u32 esr_mask;
 	int (*fn)(struct pt_regs *regs, unsigned int esr);
+	u16 imm;
+	u16 mask; /* These bits are ignored when comparing with imm */
 };
 
-void register_break_hook(struct break_hook *hook);
-void unregister_break_hook(struct break_hook *hook);
+void register_user_break_hook(struct break_hook *hook);
+void unregister_user_break_hook(struct break_hook *hook);
+
+void register_kernel_break_hook(struct break_hook *hook);
+void unregister_kernel_break_hook(struct break_hook *hook);
 
 u8 debug_monitors_arch(void);
 

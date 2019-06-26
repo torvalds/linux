@@ -1121,7 +1121,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
-		iwl_fw_dbg_error_collect(&mvm->fwrt, FW_DBG_TRIGGER_DRIVER);
+		if (ret != -ERFKILL)
+			iwl_fw_dbg_error_collect(&mvm->fwrt,
+						 FW_DBG_TRIGGER_DRIVER);
 		goto error;
 	}
 

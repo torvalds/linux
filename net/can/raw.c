@@ -846,6 +846,7 @@ static const struct proto_ops raw_ops = {
 	.getname       = raw_getname,
 	.poll          = datagram_poll,
 	.ioctl         = can_ioctl,	/* use can_ioctl() from af_can.c */
+	.gettstamp     = sock_gettstamp,
 	.listen        = sock_no_listen,
 	.shutdown      = sock_no_shutdown,
 	.setsockopt    = raw_setsockopt,

@@ -1395,7 +1395,7 @@ struct acpi_table_hmat {
 /* Values for HMAT structure types */
 
 enum acpi_hmat_type {
-	ACPI_HMAT_TYPE_ADDRESS_RANGE = 0,	/* Memory subsystem address range */
+	ACPI_HMAT_TYPE_PROXIMITY = 0,	/* Memory proximity domain attributes */
 	ACPI_HMAT_TYPE_LOCALITY = 1,	/* System locality latency and bandwidth information */
 	ACPI_HMAT_TYPE_CACHE = 2,	/* Memory side cache information */
 	ACPI_HMAT_TYPE_RESERVED = 3	/* 3 and greater are reserved */

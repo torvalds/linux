@@ -69,7 +69,7 @@ static void zip_static_init_zip_ops(struct zip_operation *zip_ops,
 	zip_ops->csum	      = 1; /* Adler checksum desired */
 }
 
-int zip_ctx_init(struct zip_kernel_ctx *zip_ctx, int lzs_flag)
+static int zip_ctx_init(struct zip_kernel_ctx *zip_ctx, int lzs_flag)
 {
 	struct zip_operation  *comp_ctx   = &zip_ctx->zip_comp;
 	struct zip_operation  *decomp_ctx = &zip_ctx->zip_decomp;
@@ -107,7 +107,7 @@ err_comp_input:
 	return -ENOMEM;
 }
 
-void zip_ctx_exit(struct zip_kernel_ctx *zip_ctx)
+static void zip_ctx_exit(struct zip_kernel_ctx *zip_ctx)
 {
 	struct zip_operation  *comp_ctx   = &zip_ctx->zip_comp;
 	struct zip_operation  *dec_ctx = &zip_ctx->zip_decomp;
@@ -119,7 +119,7 @@ void zip_ctx_exit(struct zip_kernel_ctx *zip_ctx)
 	zip_data_buf_free(dec_ctx->output, MAX_OUTPUT_BUFFER_SIZE);
 }
 
-int zip_compress(const u8 *src, unsigned int slen,
+static int zip_compress(const u8 *src, unsigned int slen,
 		 u8 *dst, unsigned int *dlen,
 		 struct zip_kernel_ctx *zip_ctx)
 {
@@ -155,7 +155,7 @@ int zip_compress(const u8 *src, unsigned int slen,
 	return ret;
 }
 
-int zip_decompress(const u8 *src, unsigned int slen,
+static int zip_decompress(const u8 *src, unsigned int slen,
 		   u8 *dst, unsigned int *dlen,
 		   struct zip_kernel_ctx *zip_ctx)
 {

@@ -42,7 +42,7 @@ unsigned long __cpuid_to_hartid_map[NR_CPUS] = {
 
 void __init smp_setup_processor_id(void)
 {
-       cpuid_to_hartid_map(0) = boot_cpu_hartid;
+	cpuid_to_hartid_map(0) = boot_cpu_hartid;
 }
 
 /* A collection of single bit ipi messages.  */
@@ -53,7 +53,7 @@ static struct {
 
 int riscv_hartid_to_cpuid(int hartid)
 {
-	int i = -1;
+	int i;
 
 	for (i = 0; i < NR_CPUS; i++)
 		if (cpuid_to_hartid_map(i) == hartid)
@@ -70,6 +70,12 @@ void riscv_cpuid_to_hartid_mask(const struct cpumask *in, struct cpumask *out)
 	for_each_cpu(cpu, in)
 		cpumask_set_cpu(cpuid_to_hartid_map(cpu), out);
 }
+
+bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
+{
+	return phys_id == cpuid_to_hartid_map(cpu);
+}
+
 /* Unsupported */
 int setup_profiling_timer(unsigned int multiplier)
 {
@@ -89,7 +95,7 @@ void riscv_software_interrupt(void)
 	unsigned long *stats = ipi_data[smp_processor_id()].stats;
 
 	/* Clear pending IPI */
-	csr_clear(sip, SIE_SSIE);
+	csr_clear(CSR_SIP, SIE_SSIE);
 
 	while (true) {
 		unsigned long ops;
@@ -199,52 +205,3 @@ void smp_send_reschedule(int cpu)
 	send_ipi_message(cpumask_of(cpu), IPI_RESCHEDULE);
 }
 
-/*
- * Performs an icache flush for the given MM context.  RISC-V has no direct
- * mechanism for instruction cache shoot downs, so instead we send an IPI that
- * informs the remote harts they need to flush their local instruction caches.
- * To avoid pathologically slow behavior in a common case (a bunch of
- * single-hart processes on a many-hart machine, ie 'make -j') we avoid the
- * IPIs for harts that are not currently executing a MM context and instead
- * schedule a deferred local instruction cache flush to be performed before
- * execution resumes on each hart.
- */
-void flush_icache_mm(struct mm_struct *mm, bool local)
-{
-	unsigned int cpu;
-	cpumask_t others, hmask, *mask;
-
-	preempt_disable();
-
-	/* Mark every hart's icache as needing a flush for this MM. */
-	mask = &mm->context.icache_stale_mask;
-	cpumask_setall(mask);
-	/* Flush this hart's I$ now, and mark it as flushed. */
-	cpu = smp_processor_id();
-	cpumask_clear_cpu(cpu, mask);
-	local_flush_icache_all();
-
-	/*
-	 * Flush the I$ of other harts concurrently executing, and mark them as
-	 * flushed.
-	 */
-	cpumask_andnot(&others, mm_cpumask(mm), cpumask_of(cpu));
-	local |= cpumask_empty(&others);
-	if (mm != current->active_mm || !local) {
-		cpumask_clear(&hmask);
-		riscv_cpuid_to_hartid_mask(&others, &hmask);
-		sbi_remote_fence_i(hmask.bits);
-	} else {
-		/*
-		 * It's assumed that at least one strongly ordered operation is
-		 * performed on this hart between setting a hart's cpumask bit
-		 * and scheduling this MM context on that hart.  Sending an SBI
-		 * remote message will do this, but in the case where no
-		 * messages are sent we still need to order this hart's writes
-		 * with flush_icache_deferred().
-		 */
-		smp_mb();
-	}
-
-	preempt_enable();
-}

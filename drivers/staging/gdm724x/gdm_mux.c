@@ -164,8 +164,7 @@ static int up_to_host(struct mux_rx *r)
 
 		total_len = ALIGN(MUX_HEADER_SIZE + payload_size, 4);
 
-		if (len - packet_size_sum <
-			total_len) {
+		if (len - packet_size_sum < total_len) {
 			pr_err("invalid payload : %d %d %04x\n",
 			       payload_size, len, packet_type);
 			break;
@@ -376,8 +375,8 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	mux_header->packet_type = __cpu_to_le16(packet_type[tty_index]);
 
 	memcpy(t->buf + MUX_HEADER_SIZE, data, len);
-	memset(t->buf + MUX_HEADER_SIZE + len, 0, total_len - MUX_HEADER_SIZE -
-	       len);
+	memset(t->buf + MUX_HEADER_SIZE + len, 0,
+	       total_len - MUX_HEADER_SIZE - len);
 
 	t->len = total_len;
 	t->callback = cb;

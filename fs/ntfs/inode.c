@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * inode.c - NTFS kernel inode handling.
  *
  * Copyright (c) 2001-2014 Anton Altaparmakov and Tuxera Inc.
- *
- * This program/include file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as published
- * by the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program/include file is distributed in the hope that it will be
- * useful, but WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program (in the main directory of the Linux-NTFS
- * distribution in the file COPYING); if not, write to the Free Software
- * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/buffer_head.h>
@@ -332,21 +318,9 @@ struct inode *ntfs_alloc_big_inode(struct super_block *sb)
 	return NULL;
 }
 
-static void ntfs_i_callback(struct rcu_head *head)
+void ntfs_free_big_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(ntfs_big_inode_cache, NTFS_I(inode));
-}
-
-void ntfs_destroy_big_inode(struct inode *inode)
-{
-	ntfs_inode *ni = NTFS_I(inode);
-
-	ntfs_debug("Entering.");
-	BUG_ON(ni->page);
-	if (!atomic_dec_and_test(&ni->count))
-		BUG();
-	call_rcu(&inode->i_rcu, ntfs_i_callback);
 }
 
 static inline ntfs_inode *ntfs_alloc_extent_inode(void)
@@ -2287,6 +2261,9 @@ void ntfs_evict_big_inode(struct inode *vi)
 			ni->ext.base_ntfs_ino = NULL;
 		}
 	}
+	BUG_ON(ni->page);
+	if (!atomic_dec_and_test(&ni->count))
+		BUG();
 	return;
 }
 

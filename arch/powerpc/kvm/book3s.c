@@ -651,6 +651,18 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
 				*val = get_reg_val(id, kvmppc_xics_get_icp(vcpu));
 			break;
 #endif /* CONFIG_KVM_XICS */
+#ifdef CONFIG_KVM_XIVE
+		case KVM_REG_PPC_VP_STATE:
+			if (!vcpu->arch.xive_vcpu) {
+				r = -ENXIO;
+				break;
+			}
+			if (xive_enabled())
+				r = kvmppc_xive_native_get_vp(vcpu, val);
+			else
+				r = -ENXIO;
+			break;
+#endif /* CONFIG_KVM_XIVE */
 		case KVM_REG_PPC_FSCR:
 			*val = get_reg_val(id, vcpu->arch.fscr);
 			break;
@@ -724,6 +736,18 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
 				r = kvmppc_xics_set_icp(vcpu, set_reg_val(id, *val));
 			break;
 #endif /* CONFIG_KVM_XICS */
+#ifdef CONFIG_KVM_XIVE
+		case KVM_REG_PPC_VP_STATE:
+			if (!vcpu->arch.xive_vcpu) {
+				r = -ENXIO;
+				break;
+			}
+			if (xive_enabled())
+				r = kvmppc_xive_native_set_vp(vcpu, val);
+			else
+				r = -ENXIO;
+			break;
+#endif /* CONFIG_KVM_XIVE */
 		case KVM_REG_PPC_FSCR:
 			vcpu->arch.fscr = set_reg_val(id, *val);
 			break;
@@ -878,6 +902,7 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 #ifdef CONFIG_PPC64
 	INIT_LIST_HEAD_RCU(&kvm->arch.spapr_tce_tables);
 	INIT_LIST_HEAD(&kvm->arch.rtas_tokens);
+	mutex_init(&kvm->arch.rtas_token_lock);
 #endif
 
 	return kvm->arch.kvm_ops->init_vm(kvm);
@@ -891,6 +916,17 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 	kvmppc_rtas_tokens_free(kvm);
 	WARN_ON(!list_empty(&kvm->arch.spapr_tce_tables));
 #endif
+
+#ifdef CONFIG_KVM_XICS
+	/*
+	 * Free the XIVE devices which are not directly freed by the
+	 * device 'release' method
+	 */
+	kfree(kvm->arch.xive_devices.native);
+	kvm->arch.xive_devices.native = NULL;
+	kfree(kvm->arch.xive_devices.xics_on_xive);
+	kvm->arch.xive_devices.xics_on_xive = NULL;
+#endif /* CONFIG_KVM_XICS */
 }
 
 int kvmppc_h_logical_ci_load(struct kvm_vcpu *vcpu)
@@ -1050,6 +1086,9 @@ static int kvmppc_book3s_init(void)
 	if (xics_on_xive()) {
 		kvmppc_xive_init_module();
 		kvm_register_device_ops(&kvm_xive_ops, KVM_DEV_TYPE_XICS);
+		kvmppc_xive_native_init_module();
+		kvm_register_device_ops(&kvm_xive_native_ops,
+					KVM_DEV_TYPE_XIVE);
 	} else
 #endif
 		kvm_register_device_ops(&kvm_xics_ops, KVM_DEV_TYPE_XICS);
@@ -1060,8 +1099,10 @@ static int kvmppc_book3s_init(void)
 static void kvmppc_book3s_exit(void)
 {
 #ifdef CONFIG_KVM_XICS
-	if (xics_on_xive())
+	if (xics_on_xive()) {
 		kvmppc_xive_exit_module();
+		kvmppc_xive_native_exit_module();
+	}
 #endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	kvmppc_book3s_exit_pr();

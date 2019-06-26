@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Verify the signature on a PKCS#7 message.
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "PKCS7: "fmt
@@ -56,7 +52,6 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 		goto error_no_desc;
 
 	desc->tfm   = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	/* Digest the message [RFC2315 9.3] */
 	ret = crypto_shash_digest(desc, pkcs7->data, pkcs7->data_len,

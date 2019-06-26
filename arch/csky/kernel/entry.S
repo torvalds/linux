@@ -40,7 +40,8 @@ ENTRY(csky_\name)
 	WR_MCIR	a2
 #endif
 	bclri   r6, 0
-	lrw	a2, PHYS_OFFSET
+	lrw	a2, va_pa_offset
+	ld.w	a2, (a2, 0)
 	subu	r6, a2
 	bseti	r6, 31
 
@@ -50,7 +51,8 @@ ENTRY(csky_\name)
 	addu    r6, a2
 	ldw     r6, (r6)
 
-	lrw	a2, PHYS_OFFSET
+	lrw	a2, va_pa_offset
+	ld.w	a2, (a2, 0)
 	subu	r6, a2
 	bseti	r6, 31
 
@@ -91,7 +93,7 @@ ENTRY(csky_\name)
 	mfcr    a3, ss2
 	mfcr    r6, ss3
 	mfcr    a2, ss4
-	SAVE_ALL EPC_KEEP
+	SAVE_ALL 0
 .endm
 .macro tlbop_end is_write
 	RD_MEH	a2
@@ -99,7 +101,6 @@ ENTRY(csky_\name)
 	mov     a0, sp
 	movi    a1, \is_write
 	jbsr    do_page_fault
-	movi    r11_sig, 0             /* r11 = 0, Not a syscall. */
 	jmpi    ret_from_exception
 .endm
 
@@ -118,7 +119,7 @@ jbsr csky_cmpxchg_fixup
 tlbop_end 1
 
 ENTRY(csky_systemcall)
-	SAVE_ALL EPC_INCREASE
+	SAVE_ALL TRAP0_SIZE
 
 	psrset  ee, ie
 
@@ -136,8 +137,9 @@ ENTRY(csky_systemcall)
 	bmaski  r10, THREAD_SHIFT
 	andn    r9, r10
 	ldw     r8, (r9, TINFO_FLAGS)
-	btsti   r8, TIF_SYSCALL_TRACE
-	bt      1f
+	ANDI_R3	r8, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
+	cmpnei	r8, 0
+	bt      csky_syscall_trace
 #if defined(__CSKYABIV2__)
 	subi    sp, 8
 	stw  	r5, (sp, 0x4)
@@ -150,10 +152,9 @@ ENTRY(csky_systemcall)
 	stw     a0, (sp, LSAVE_A0)      /* Save return value */
 	jmpi    ret_from_exception
 
-1:
-	movi	a0, 0                   /* enter system call */
-	mov	a1, sp                  /* sp = pt_regs pointer */
-	jbsr	syscall_trace
+csky_syscall_trace:
+	mov	a0, sp                  /* sp = pt_regs pointer */
+	jbsr	syscall_trace_enter
 	/* Prepare args before do system call */
 	ldw	a0, (sp, LSAVE_A0)
 	ldw	a1, (sp, LSAVE_A1)
@@ -173,9 +174,8 @@ ENTRY(csky_systemcall)
 #endif
 	stw	a0, (sp, LSAVE_A0)	/* Save return value */
 
-	movi    a0, 1                   /* leave system call */
-	mov     a1, sp                  /* right now, sp --> pt_regs */
-	jbsr    syscall_trace
+	mov     a0, sp                  /* right now, sp --> pt_regs */
+	jbsr    syscall_trace_exit
 	br	ret_from_exception
 
 ENTRY(ret_from_kernel_thread)
@@ -190,14 +190,11 @@ ENTRY(ret_from_fork)
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
 	ldw	r8, (r9, TINFO_FLAGS)
-	movi	r11_sig, 1
-	btsti	r8, TIF_SYSCALL_TRACE
-	bf	3f
-	movi	a0, 1
-	mov	a1, sp			/* sp = pt_regs pointer */
-	jbsr	syscall_trace
-3:
-	jbsr	ret_from_exception
+	ANDI_R3	r8, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
+	cmpnei	r8, 0
+	bf	ret_from_exception
+	mov	a0, sp			/* sp = pt_regs pointer */
+	jbsr	syscall_trace_exit
 
 ret_from_exception:
 	ld	syscallid, (sp, LSAVE_PSR)
@@ -212,41 +209,30 @@ ret_from_exception:
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
 
-resume_userspace:
 	ldw	r8, (r9, TINFO_FLAGS)
 	andi	r8, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
 	cmpnei	r8, 0
 	bt	exit_work
-1:  RESTORE_ALL
+1:
+	RESTORE_ALL
 
 exit_work:
+	lrw	syscallid, ret_from_exception
+	mov	lr, syscallid
+
 	btsti	r8, TIF_NEED_RESCHED
 	bt	work_resched
-	/* If thread_info->flag is empty, RESTORE_ALL */
-	cmpnei	r8, 0
-	bf	1b
-	mov	a1, sp
-	mov	a0, r8
-	mov	a2, r11_sig		/* syscall? */
-	btsti	r8, TIF_SIGPENDING	/* delivering a signal? */
-	/* prevent further restarts(set r11 = 0) */
-	clrt	r11_sig
-	jbsr	do_notify_resume	/* do signals */
-	br	resume_userspace
+
+	mov	a0, sp
+	mov	a1, r8
+	jmpi	do_notify_resume
 
 work_resched:
-	lrw	syscallid, ret_from_exception
-	mov	r15, syscallid		/* Return address in link */
 	jmpi	schedule
 
-ENTRY(sys_rt_sigreturn)
-	movi	r11_sig, 0
-	jmpi	do_rt_sigreturn
-
 ENTRY(csky_trap)
-	SAVE_ALL EPC_KEEP
+	SAVE_ALL 0
 	psrset	ee
-	movi	r11_sig, 0             /* r11 = 0, Not a syscall. */
 	mov	a0, sp                 /* Push Stack pointer arg */
 	jbsr	trap_c                 /* Call C-level trap handler */
 	jmpi	ret_from_exception
@@ -261,7 +247,7 @@ ENTRY(csky_get_tls)
 
 	/* increase epc for continue */
 	mfcr	a0, epc
-	INCTRAP	a0
+	addi	a0, TRAP0_SIZE
 	mtcr	a0, epc
 
 	/* get current task thread_info with kernel 8K stack */
@@ -278,9 +264,8 @@ ENTRY(csky_get_tls)
 	rte
 
 ENTRY(csky_irq)
-	SAVE_ALL EPC_KEEP
+	SAVE_ALL 0
 	psrset	ee
-	movi	r11_sig, 0		/* r11 = 0, Not a syscall. */
 
 #ifdef CONFIG_PREEMPT
 	mov	r9, sp			/* Get current stack  pointer */

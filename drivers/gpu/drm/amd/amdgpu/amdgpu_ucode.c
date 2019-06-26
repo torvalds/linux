@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ucode.h"
 
@@ -311,6 +311,69 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	}
 
 	return AMDGPU_FW_LOAD_DIRECT;
+}
+
+#define FW_VERSION_ATTR(name, mode, field)				\
+static ssize_t show_##name(struct device *dev,				\
+			  struct device_attribute *attr,		\
+			  char *buf)					\
+{									\
+	struct drm_device *ddev = dev_get_drvdata(dev);			\
+	struct amdgpu_device *adev = ddev->dev_private;			\
+									\
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", adev->field);	\
+}									\
+static DEVICE_ATTR(name, mode, show_##name, NULL)
+
+FW_VERSION_ATTR(vce_fw_version, 0444, vce.fw_version);
+FW_VERSION_ATTR(uvd_fw_version, 0444, uvd.fw_version);
+FW_VERSION_ATTR(mc_fw_version, 0444, gmc.fw_version);
+FW_VERSION_ATTR(me_fw_version, 0444, gfx.me_fw_version);
+FW_VERSION_ATTR(pfp_fw_version, 0444, gfx.pfp_fw_version);
+FW_VERSION_ATTR(ce_fw_version, 0444, gfx.ce_fw_version);
+FW_VERSION_ATTR(rlc_fw_version, 0444, gfx.rlc_fw_version);
+FW_VERSION_ATTR(rlc_srlc_fw_version, 0444, gfx.rlc_srlc_fw_version);
+FW_VERSION_ATTR(rlc_srlg_fw_version, 0444, gfx.rlc_srlg_fw_version);
+FW_VERSION_ATTR(rlc_srls_fw_version, 0444, gfx.rlc_srls_fw_version);
+FW_VERSION_ATTR(mec_fw_version, 0444, gfx.mec_fw_version);
+FW_VERSION_ATTR(mec2_fw_version, 0444, gfx.mec2_fw_version);
+FW_VERSION_ATTR(sos_fw_version, 0444, psp.sos_fw_version);
+FW_VERSION_ATTR(asd_fw_version, 0444, psp.asd_fw_version);
+FW_VERSION_ATTR(ta_ras_fw_version, 0444, psp.ta_fw_version);
+FW_VERSION_ATTR(ta_xgmi_fw_version, 0444, psp.ta_fw_version);
+FW_VERSION_ATTR(smc_fw_version, 0444, pm.fw_version);
+FW_VERSION_ATTR(sdma_fw_version, 0444, sdma.instance[0].fw_version);
+FW_VERSION_ATTR(sdma2_fw_version, 0444, sdma.instance[1].fw_version);
+FW_VERSION_ATTR(vcn_fw_version, 0444, vcn.fw_version);
+FW_VERSION_ATTR(dmcu_fw_version, 0444, dm.dmcu_fw_version);
+
+static struct attribute *fw_attrs[] = {
+	&dev_attr_vce_fw_version.attr, &dev_attr_uvd_fw_version.attr,
+	&dev_attr_mc_fw_version.attr, &dev_attr_me_fw_version.attr,
+	&dev_attr_pfp_fw_version.attr, &dev_attr_ce_fw_version.attr,
+	&dev_attr_rlc_fw_version.attr, &dev_attr_rlc_srlc_fw_version.attr,
+	&dev_attr_rlc_srlg_fw_version.attr, &dev_attr_rlc_srls_fw_version.attr,
+	&dev_attr_mec_fw_version.attr, &dev_attr_mec2_fw_version.attr,
+	&dev_attr_sos_fw_version.attr, &dev_attr_asd_fw_version.attr,
+	&dev_attr_ta_ras_fw_version.attr, &dev_attr_ta_xgmi_fw_version.attr,
+	&dev_attr_smc_fw_version.attr, &dev_attr_sdma_fw_version.attr,
+	&dev_attr_sdma2_fw_version.attr, &dev_attr_vcn_fw_version.attr,
+	&dev_attr_dmcu_fw_version.attr, NULL
+};
+
+static const struct attribute_group fw_attr_group = {
+	.name = "fw_version",
+	.attrs = fw_attrs
+};
+
+int amdgpu_ucode_sysfs_init(struct amdgpu_device *adev)
+{
+	return sysfs_create_group(&adev->dev->kobj, &fw_attr_group);
+}
+
+void amdgpu_ucode_sysfs_fini(struct amdgpu_device *adev)
+{
+	sysfs_remove_group(&adev->dev->kobj, &fw_attr_group);
 }
 
 static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,

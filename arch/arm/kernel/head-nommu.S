@@ -133,9 +133,9 @@ __secondary_data:
  */
 	.text
 __after_proc_init:
-#ifdef CONFIG_ARM_MPU
 M_CLASS(movw	r12, #:lower16:BASEADDR_V7M_SCB)
 M_CLASS(movt	r12, #:upper16:BASEADDR_V7M_SCB)
+#ifdef CONFIG_ARM_MPU
 M_CLASS(ldr	r3, [r12, 0x50])
 AR_CLASS(mrc	p15, 0, r3, c0, c1, 4)          @ Read ID_MMFR0
 	and	r3, r3, #(MMFR0_PMSA)           @ PMSA field

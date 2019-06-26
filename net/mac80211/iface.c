@@ -1133,8 +1133,7 @@ static void ieee80211_uninit(struct net_device *dev)
 
 static u16 ieee80211_netdev_select_queue(struct net_device *dev,
 					 struct sk_buff *skb,
-					 struct net_device *sb_dev,
-					 select_queue_fallback_t fallback)
+					 struct net_device *sb_dev)
 {
 	return ieee80211_select_queue(IEEE80211_DEV_TO_SUB_IF(dev), skb);
 }
@@ -1179,8 +1178,7 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 
 static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 					  struct sk_buff *skb,
-					  struct net_device *sb_dev,
-					  select_queue_fallback_t fallback)
+					  struct net_device *sb_dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
@@ -1227,6 +1225,7 @@ static void ieee80211_if_setup(struct net_device *dev)
 static void ieee80211_if_setup_no_queue(struct net_device *dev)
 {
 	ieee80211_if_setup(dev);
+	dev->features |= NETIF_F_LLTX;
 	dev->priv_flags |= IFF_NO_QUEUE;
 }
 
@@ -1764,13 +1763,13 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			txq_size += sizeof(struct txq_info) +
 				    local->hw.txq_data_size;
 
-		if (local->ops->wake_tx_queue)
+		if (local->ops->wake_tx_queue) {
 			if_setup = ieee80211_if_setup_no_queue;
-		else
+		} else {
 			if_setup = ieee80211_if_setup;
-
-		if (local->hw.queues >= IEEE80211_NUM_ACS)
-			txqs = IEEE80211_NUM_ACS;
+			if (local->hw.queues >= IEEE80211_NUM_ACS)
+				txqs = IEEE80211_NUM_ACS;
+		}
 
 		ndev = alloc_netdev_mqs(size + txq_size,
 					name, name_assign_type,
@@ -1907,6 +1906,9 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 	mutex_lock(&sdata->local->iflist_mtx);
 	list_del_rcu(&sdata->list);
 	mutex_unlock(&sdata->local->iflist_mtx);
+
+	if (sdata->vif.txq)
+		ieee80211_txq_purge(sdata->local, to_txq_info(sdata->vif.txq));
 
 	synchronize_rcu();
 

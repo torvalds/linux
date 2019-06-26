@@ -403,8 +403,7 @@ static void compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 		if (ka->sa.sa_flags & SA_SIGINFO)
 			idx += 3;
 
-		retcode = AARCH32_VECTORS_BASE +
-			  AARCH32_KERN_SIGRET_CODE_OFFSET +
+		retcode = (unsigned long)current->mm->context.vdso +
 			  (idx << 2) + thumb;
 	}
 

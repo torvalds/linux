@@ -43,14 +43,15 @@ mt76_queues_read(struct seq_file *s, void *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_tx); i++) {
-		struct mt76_queue *q = &dev->q_tx[i];
+		struct mt76_sw_queue *q = &dev->q_tx[i];
 
-		if (!q->ndesc)
+		if (!q->q)
 			continue;
 
 		seq_printf(s,
 			   "%d:	queued=%d head=%d tail=%d swq_queued=%d\n",
-			   i, q->queued, q->head, q->tail, q->swq_queued);
+			   i, q->q->queued, q->q->head, q->q->tail,
+			   q->swq_queued);
 	}
 
 	return 0;

@@ -49,7 +49,11 @@ int pcie_dpc_init(void);
 static inline int pcie_dpc_init(void) { return 0; }
 #endif
 
+#ifdef CONFIG_PCIE_BW
 int pcie_bandwidth_notification_init(void);
+#else
+static inline int pcie_bandwidth_notification_init(void) { return 0; }
+#endif
 
 /* Port Type */
 #define PCIE_ANY_PORT			(~0)

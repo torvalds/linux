@@ -1735,6 +1735,10 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	if (rc == 0 || rc != -EBUSY)
 		goto do_rename_exit;
 
+	/* Don't fall back to using SMB on SMB 2+ mount */
+	if (server->vals->protocol_id != 0)
+		goto do_rename_exit;
+
 	/* open-file renames don't work across directories */
 	if (to_dentry->d_parent != from_dentry->d_parent)
 		goto do_rename_exit;
@@ -2110,6 +2114,43 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 			stat->gid = current_fsgid();
 	}
 	return rc;
+}
+
+int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
+		u64 len)
+{
+	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cifs_i->vfs_inode.i_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct TCP_Server_Info *server = tcon->ses->server;
+	struct cifsFileInfo *cfile;
+	int rc;
+
+	/*
+	 * We need to be sure that all dirty pages are written as they
+	 * might fill holes on the server.
+	 */
+	if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
+	    inode->i_mapping->nrpages != 0) {
+		rc = filemap_fdatawait(inode->i_mapping);
+		if (rc) {
+			mapping_set_error(inode->i_mapping, rc);
+			return rc;
+		}
+	}
+
+	cfile = find_readable_file(cifs_i, false);
+	if (cfile == NULL)
+		return -EINVAL;
+
+	if (server->ops->fiemap) {
+		rc = server->ops->fiemap(tcon, cfile, fei, start, len);
+		cifsFileInfo_put(cfile);
+		return rc;
+	}
+
+	cifsFileInfo_put(cfile);
+	return -ENOTSUPP;
 }
 
 static int cifs_truncate_page(struct address_space *mapping, loff_t from)

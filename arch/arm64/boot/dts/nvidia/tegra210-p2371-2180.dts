@@ -99,4 +99,16 @@
 		pinctrl-0 = <&dvfs_pwm_active_state>;
 		pinctrl-1 = <&dvfs_pwm_inactive_state>;
 	};
+
+	aconnect@702c0000 {
+		status = "okay";
+
+		dma@702e2000 {
+			status = "okay";
+		};
+
+		agic@702f9000 {
+			status = "okay";
+		};
+	};
 };

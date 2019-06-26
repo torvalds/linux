@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -393,6 +394,9 @@ static void tcp_fastopen_synack_timer(struct sock *sk)
 		tcp_write_err(sk);
 		return;
 	}
+	/* Lower cwnd after certain SYNACK timeout like tcp_init_transfer() */
+	if (icsk->icsk_retransmits == 1)
+		tcp_enter_loss(sk);
 	/* XXX (TFO) - Unlike regular SYN-ACK retransmit, we ignore error
 	 * returned from rtx_syn_ack() to make it more persistent like
 	 * regular retransmit because if the child socket has been accepted

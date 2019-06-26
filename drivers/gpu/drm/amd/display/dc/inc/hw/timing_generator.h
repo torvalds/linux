@@ -70,14 +70,6 @@ enum crtc_state {
 	CRTC_STATE_VACTIVE
 };
 
-struct _dlg_otg_param {
-	int vstartup_start;
-	int vupdate_offset;
-	int vupdate_width;
-	int vready_offset;
-	enum signal_type signal;
-};
-
 struct vupdate_keepout_params {
 	int start_offset;
 	int end_offset;
@@ -126,7 +118,6 @@ struct timing_generator {
 	const struct timing_generator_funcs *funcs;
 	struct dc_bios *bp;
 	struct dc_context *ctx;
-	struct _dlg_otg_param dlg_otg_param;
 	int inst;
 };
 
@@ -140,7 +131,13 @@ struct timing_generator_funcs {
 							const struct dc_crtc_timing *timing);
 	void (*program_timing)(struct timing_generator *tg,
 							const struct dc_crtc_timing *timing,
-							bool use_vbios);
+							int vready_offset,
+							int vstartup_start,
+							int vupdate_offset,
+							int vupdate_width,
+							const enum signal_type signal,
+							bool use_vbios
+	);
 	void (*setup_vertical_interrupt0)(
 			struct timing_generator *optc,
 			uint32_t start_line,
@@ -210,7 +207,11 @@ struct timing_generator_funcs {
 
 	bool (*arm_vert_intr)(struct timing_generator *tg, uint8_t width);
 
-	void (*program_global_sync)(struct timing_generator *tg);
+	void (*program_global_sync)(struct timing_generator *tg,
+			int vready_offset,
+			int vstartup_start,
+			int vupdate_offset,
+			int vupdate_width);
 	void (*enable_optc_clock)(struct timing_generator *tg, bool enable);
 	void (*program_stereo)(struct timing_generator *tg,
 		const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags);
@@ -237,6 +238,11 @@ struct timing_generator_funcs {
 	bool (*get_crc)(struct timing_generator *tg,
 			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
 
+	void (*program_manual_trigger)(struct timing_generator *optc);
+	void (*setup_manual_trigger)(struct timing_generator *optc);
+
+	void (*set_vtg_params)(struct timing_generator *optc,
+			const struct dc_crtc_timing *dc_crtc_timing);
 };
 
 #endif

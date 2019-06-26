@@ -321,8 +321,6 @@ static void fm10k_mask_aer_comp_abort(struct pci_dev *pdev)
 	pci_read_config_dword(pdev, pos + PCI_ERR_UNCOR_MASK, &err_mask);
 	err_mask |= PCI_ERR_UNC_COMP_ABORT;
 	pci_write_config_dword(pdev, pos + PCI_ERR_UNCOR_MASK, err_mask);
-
-	mmiowb();
 }
 
 int fm10k_iov_resume(struct pci_dev *pdev)

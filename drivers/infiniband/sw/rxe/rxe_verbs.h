@@ -71,8 +71,8 @@ struct rxe_pd {
 };
 
 struct rxe_ah {
-	struct rxe_pool_entry	pelem;
 	struct ib_ah		ibah;
+	struct rxe_pool_entry	pelem;
 	struct rxe_pd		*pd;
 	struct rxe_av		av;
 };
@@ -120,8 +120,8 @@ struct rxe_rq {
 };
 
 struct rxe_srq {
-	struct rxe_pool_entry	pelem;
 	struct ib_srq		ibsrq;
+	struct rxe_pool_entry	pelem;
 	struct rxe_pd		*pd;
 	struct rxe_rq		rq;
 	u32			srq_num;

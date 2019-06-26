@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1992-1997, 2000-2003 Silicon Graphics, Inc.
  * Copyright (C) 2004 Christoph Hellwig.
- *	Released under GPL v2.
  *
  * Support functions for the HUB ASIC - mostly PIO mapping related.
  */

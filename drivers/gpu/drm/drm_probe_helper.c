@@ -32,14 +32,15 @@
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_client.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fourcc.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_sysfs.h>
 
 #include "drm_crtc_helper_internal.h"
 
@@ -479,6 +480,13 @@ retry:
 
 	count = (*connector_funcs->get_modes)(connector);
 
+	/*
+	 * Fallback for when DDC probe failed in drm_get_edid() and thus skipped
+	 * override/firmware EDID.
+	 */
+	if (count == 0 && connector->status == connector_status_connected)
+		count = drm_add_override_edid_modes(connector);
+
 	if (count == 0 && connector->status == connector_status_connected)
 		count = drm_add_modes_noedid(connector, 1024, 768);
 	count += drm_helper_probe_add_cmdline_mode(connector);
@@ -573,6 +581,9 @@ static void output_poll_execute(struct work_struct *work)
 	struct drm_connector_list_iter conn_iter;
 	enum drm_connector_status old_status;
 	bool repoll = false, changed;
+
+	if (!dev->mode_config.poll_enabled)
+		return;
 
 	/* Pick up any changes detected by the probe functions. */
 	changed = dev->mode_config.delayed_event;
@@ -728,7 +739,11 @@ EXPORT_SYMBOL(drm_kms_helper_poll_init);
  */
 void drm_kms_helper_poll_fini(struct drm_device *dev)
 {
-	drm_kms_helper_poll_disable(dev);
+	if (!dev->mode_config.poll_enabled)
+		return;
+
+	dev->mode_config.poll_enabled = false;
+	cancel_delayed_work_sync(&dev->mode_config.output_poll_work);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 

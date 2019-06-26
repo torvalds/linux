@@ -285,7 +285,7 @@ static void rcu_qs(void)
 				       TPS("cpuqs"));
 		__this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
 		barrier(); /* Coordinate with rcu_flavor_sched_clock_irq(). */
-		current->rcu_read_unlock_special.b.need_qs = false;
+		WRITE_ONCE(current->rcu_read_unlock_special.b.need_qs, false);
 	}
 }
 
@@ -643,100 +643,6 @@ static void rcu_read_unlock_special(struct task_struct *t)
 }
 
 /*
- * Dump detailed information for all tasks blocking the current RCU
- * grace period on the specified rcu_node structure.
- */
-static void rcu_print_detail_task_stall_rnp(struct rcu_node *rnp)
-{
-	unsigned long flags;
-	struct task_struct *t;
-
-	raw_spin_lock_irqsave_rcu_node(rnp, flags);
-	if (!rcu_preempt_blocked_readers_cgp(rnp)) {
-		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-		return;
-	}
-	t = list_entry(rnp->gp_tasks->prev,
-		       struct task_struct, rcu_node_entry);
-	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
-		/*
-		 * We could be printing a lot while holding a spinlock.
-		 * Avoid triggering hard lockup.
-		 */
-		touch_nmi_watchdog();
-		sched_show_task(t);
-	}
-	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-}
-
-/*
- * Dump detailed information for all tasks blocking the current RCU
- * grace period.
- */
-static void rcu_print_detail_task_stall(void)
-{
-	struct rcu_node *rnp = rcu_get_root();
-
-	rcu_print_detail_task_stall_rnp(rnp);
-	rcu_for_each_leaf_node(rnp)
-		rcu_print_detail_task_stall_rnp(rnp);
-}
-
-static void rcu_print_task_stall_begin(struct rcu_node *rnp)
-{
-	pr_err("\tTasks blocked on level-%d rcu_node (CPUs %d-%d):",
-	       rnp->level, rnp->grplo, rnp->grphi);
-}
-
-static void rcu_print_task_stall_end(void)
-{
-	pr_cont("\n");
-}
-
-/*
- * Scan the current list of tasks blocked within RCU read-side critical
- * sections, printing out the tid of each.
- */
-static int rcu_print_task_stall(struct rcu_node *rnp)
-{
-	struct task_struct *t;
-	int ndetected = 0;
-
-	if (!rcu_preempt_blocked_readers_cgp(rnp))
-		return 0;
-	rcu_print_task_stall_begin(rnp);
-	t = list_entry(rnp->gp_tasks->prev,
-		       struct task_struct, rcu_node_entry);
-	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
-		pr_cont(" P%d", t->pid);
-		ndetected++;
-	}
-	rcu_print_task_stall_end();
-	return ndetected;
-}
-
-/*
- * Scan the current list of tasks blocked within RCU read-side critical
- * sections, printing out the tid of each that is blocking the current
- * expedited grace period.
- */
-static int rcu_print_task_exp_stall(struct rcu_node *rnp)
-{
-	struct task_struct *t;
-	int ndetected = 0;
-
-	if (!rnp->exp_tasks)
-		return 0;
-	t = list_entry(rnp->exp_tasks->prev,
-		       struct task_struct, rcu_node_entry);
-	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
-		pr_cont(" P%d", t->pid);
-		ndetected++;
-	}
-	return ndetected;
-}
-
-/*
  * Check that the list of blocked tasks for the newly completed grace
  * period is in fact empty.  It is a serious bug to complete a grace
  * period that still has RCU readers blocked!  This function must be
@@ -804,19 +710,25 @@ static void rcu_flavor_sched_clock_irq(int user)
 
 /*
  * Check for a task exiting while in a preemptible-RCU read-side
- * critical section, clean up if so.  No need to issue warnings,
- * as debug_check_no_locks_held() already does this if lockdep
- * is enabled.
+ * critical section, clean up if so.  No need to issue warnings, as
+ * debug_check_no_locks_held() already does this if lockdep is enabled.
+ * Besides, if this function does anything other than just immediately
+ * return, there was a bug of some sort.  Spewing warnings from this
+ * function is like as not to simply obscure important prior warnings.
  */
 void exit_rcu(void)
 {
 	struct task_struct *t = current;
 
-	if (likely(list_empty(&current->rcu_node_entry)))
+	if (unlikely(!list_empty(&current->rcu_node_entry))) {
+		t->rcu_read_lock_nesting = 1;
+		barrier();
+		WRITE_ONCE(t->rcu_read_unlock_special.b.blocked, true);
+	} else if (unlikely(t->rcu_read_lock_nesting)) {
+		t->rcu_read_lock_nesting = 1;
+	} else {
 		return;
-	t->rcu_read_lock_nesting = 1;
-	barrier();
-	t->rcu_read_unlock_special.b.blocked = true;
+	}
 	__rcu_read_unlock();
 	rcu_preempt_deferred_qs(current);
 }
@@ -978,33 +890,6 @@ static bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 	return false;
 }
 static void rcu_preempt_deferred_qs(struct task_struct *t) { }
-
-/*
- * Because preemptible RCU does not exist, we never have to check for
- * tasks blocked within RCU read-side critical sections.
- */
-static void rcu_print_detail_task_stall(void)
-{
-}
-
-/*
- * Because preemptible RCU does not exist, we never have to check for
- * tasks blocked within RCU read-side critical sections.
- */
-static int rcu_print_task_stall(struct rcu_node *rnp)
-{
-	return 0;
-}
-
-/*
- * Because preemptible RCU does not exist, we never have to check for
- * tasks blocked within RCU read-side critical sections that are
- * blocking the current expedited grace period.
- */
-static int rcu_print_task_exp_stall(struct rcu_node *rnp)
-{
-	return 0;
-}
 
 /*
  * Because there is no preemptible RCU, there can be no readers blocked,
@@ -1185,8 +1070,6 @@ static int rcu_boost_kthread(void *arg)
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 	__releases(rnp->lock)
 {
-	struct task_struct *t;
-
 	raw_lockdep_assert_held_rcu_node(rnp);
 	if (!rcu_preempt_blocked_readers_cgp(rnp) && rnp->exp_tasks == NULL) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -1200,9 +1083,8 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 		if (rnp->exp_tasks == NULL)
 			rnp->boost_tasks = rnp->gp_tasks;
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-		t = rnp->boost_kthread_task;
-		if (t)
-			rcu_wake_cond(t, rnp->boost_kthread_status);
+		rcu_wake_cond(rnp->boost_kthread_task,
+			      rnp->boost_kthread_status);
 	} else {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
@@ -1649,98 +1531,6 @@ static void rcu_cleanup_after_idle(void)
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
-#ifdef CONFIG_RCU_FAST_NO_HZ
-
-static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
-{
-	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
-
-	sprintf(cp, "last_accelerate: %04lx/%04lx, Nonlazy posted: %c%c%c",
-		rdp->last_accelerate & 0xffff, jiffies & 0xffff,
-		".l"[rdp->all_lazy],
-		".L"[!rcu_segcblist_n_nonlazy_cbs(&rdp->cblist)],
-		".D"[!rdp->tick_nohz_enabled_snap]);
-}
-
-#else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
-
-static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
-{
-	*cp = '\0';
-}
-
-#endif /* #else #ifdef CONFIG_RCU_FAST_NO_HZ */
-
-/* Initiate the stall-info list. */
-static void print_cpu_stall_info_begin(void)
-{
-	pr_cont("\n");
-}
-
-/*
- * Print out diagnostic information for the specified stalled CPU.
- *
- * If the specified CPU is aware of the current RCU grace period, then
- * print the number of scheduling clock interrupts the CPU has taken
- * during the time that it has been aware.  Otherwise, print the number
- * of RCU grace periods that this CPU is ignorant of, for example, "1"
- * if the CPU was aware of the previous grace period.
- *
- * Also print out idle and (if CONFIG_RCU_FAST_NO_HZ) idle-entry info.
- */
-static void print_cpu_stall_info(int cpu)
-{
-	unsigned long delta;
-	char fast_no_hz[72];
-	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-	char *ticks_title;
-	unsigned long ticks_value;
-
-	/*
-	 * We could be printing a lot while holding a spinlock.  Avoid
-	 * triggering hard lockup.
-	 */
-	touch_nmi_watchdog();
-
-	ticks_value = rcu_seq_ctr(rcu_state.gp_seq - rdp->gp_seq);
-	if (ticks_value) {
-		ticks_title = "GPs behind";
-	} else {
-		ticks_title = "ticks this GP";
-		ticks_value = rdp->ticks_this_gp;
-	}
-	print_cpu_stall_fast_no_hz(fast_no_hz, cpu);
-	delta = rcu_seq_ctr(rdp->mynode->gp_seq - rdp->rcu_iw_gp_seq);
-	pr_err("\t%d-%c%c%c%c: (%lu %s) idle=%03x/%ld/%#lx softirq=%u/%u fqs=%ld %s\n",
-	       cpu,
-	       "O."[!!cpu_online(cpu)],
-	       "o."[!!(rdp->grpmask & rdp->mynode->qsmaskinit)],
-	       "N."[!!(rdp->grpmask & rdp->mynode->qsmaskinitnext)],
-	       !IS_ENABLED(CONFIG_IRQ_WORK) ? '?' :
-			rdp->rcu_iw_pending ? (int)min(delta, 9UL) + '0' :
-				"!."[!delta],
-	       ticks_value, ticks_title,
-	       rcu_dynticks_snap(rdp) & 0xfff,
-	       rdp->dynticks_nesting, rdp->dynticks_nmi_nesting,
-	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
-	       READ_ONCE(rcu_state.n_force_qs) - rcu_state.n_force_qs_gpstart,
-	       fast_no_hz);
-}
-
-/* Terminate the stall-info list. */
-static void print_cpu_stall_info_end(void)
-{
-	pr_err("\t");
-}
-
-/* Zero ->ticks_this_gp and snapshot the number of RCU softirq handlers. */
-static void zero_cpu_stall_ticks(struct rcu_data *rdp)
-{
-	rdp->ticks_this_gp = 0;
-	rdp->softirq_snap = kstat_softirqs_cpu(RCU_SOFTIRQ, smp_processor_id());
-	WRITE_ONCE(rdp->last_fqs_resched, jiffies);
-}
-
 #ifdef CONFIG_RCU_NOCB_CPU
 
 /*
@@ -1766,11 +1556,22 @@ static void zero_cpu_stall_ticks(struct rcu_data *rdp)
  */
 
 
-/* Parse the boot-time rcu_nocb_mask CPU list from the kernel parameters. */
+/*
+ * Parse the boot-time rcu_nocb_mask CPU list from the kernel parameters.
+ * The string after the "rcu_nocbs=" is either "all" for all CPUs, or a
+ * comma-separated list of CPUs and/or CPU ranges.  If an invalid list is
+ * given, a warning is emitted and all CPUs are offloaded.
+ */
 static int __init rcu_nocb_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&rcu_nocb_mask);
-	cpulist_parse(str, rcu_nocb_mask);
+	if (!strcasecmp(str, "all"))
+		cpumask_setall(rcu_nocb_mask);
+	else
+		if (cpulist_parse(str, rcu_nocb_mask)) {
+			pr_warn("rcu_nocbs= bad CPU range, all CPUs set\n");
+			cpumask_setall(rcu_nocb_mask);
+		}
 	return 1;
 }
 __setup("rcu_nocbs=", rcu_nocb_setup);

@@ -28,6 +28,10 @@
 
 #define DRIVER_NAME "spi_imx"
 
+static bool use_dma = true;
+module_param(use_dma, bool, 0644);
+MODULE_PARM_DESC(use_dma, "Enable usage of DMA when available (default)");
+
 #define MXC_CSPIRXDATA		0x00
 #define MXC_CSPITXDATA		0x04
 #define MXC_CSPICTRL		0x08
@@ -218,6 +222,9 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 			 struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
+
+	if (!use_dma)
+		return false;
 
 	if (!master->dma_rx)
 		return false;
@@ -1494,7 +1501,7 @@ static int spi_imx_transfer(struct spi_device *spi,
 
 	/* flush rxfifo before transfer */
 	while (spi_imx->devtype_data->rx_available(spi_imx))
-		spi_imx->rx(spi_imx);
+		readl(spi_imx->base + MXC_CSPIRXDATA);
 
 	if (spi_imx->slave_mode)
 		return spi_imx_pio_transfer_slave(spi, transfer);

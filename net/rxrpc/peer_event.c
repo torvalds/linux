@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Peer event handling, typically ICMP messages.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -156,6 +152,11 @@ void rxrpc_error_report(struct sock *sk)
 	struct sk_buff *skb;
 
 	_enter("%p{%d}", sk, local->debug_id);
+
+	/* Clear the outstanding error value on the socket so that it doesn't
+	 * cause kernel_sendmsg() to return it later.
+	 */
+	sock_error(sk);
 
 	skb = sock_dequeue_err_skb(sk);
 	if (!skb) {

@@ -103,8 +103,6 @@ Required properties:
 
 Optional properties:
 - dma-coherent: Present if dma operations are coherent
-- mac-address: See ethernet.txt in the same directory
-- local-mac-address: See ethernet.txt in the same directory
 - phy-reset-gpios: Phandle and specifier for any GPIO used to reset the PHY.
   See ../gpio/gpio.txt.
 - snps,en-lpi: If present it enables use of the AXI low-power interface
@@ -132,6 +130,9 @@ Optional properties:
     - reg: phy id used to communicate to phy.
     - device_type: Must be "ethernet-phy".
     - fixed-mode device tree subnode: see fixed-link.txt in the same directory
+
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Examples:
 ethernet2@40010000 {

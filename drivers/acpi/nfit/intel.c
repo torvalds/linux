@@ -122,9 +122,8 @@ static int intel_security_change_key(struct nvdimm *nvdimm,
 	if (!test_bit(cmd, &nfit_mem->dsm_mask))
 		return -ENOTTY;
 
-	if (old_data)
-		memcpy(nd_cmd.cmd.old_pass, old_data->data,
-				sizeof(nd_cmd.cmd.old_pass));
+	memcpy(nd_cmd.cmd.old_pass, old_data->data,
+			sizeof(nd_cmd.cmd.old_pass));
 	memcpy(nd_cmd.cmd.new_pass, new_data->data,
 			sizeof(nd_cmd.cmd.new_pass));
 	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
@@ -336,9 +335,8 @@ static int __maybe_unused intel_security_overwrite(struct nvdimm *nvdimm,
 
 	/* flush all cache before we erase DIMM */
 	nvdimm_invalidate_cache();
-	if (nkey)
-		memcpy(nd_cmd.cmd.passphrase, nkey->data,
-				sizeof(nd_cmd.cmd.passphrase));
+	memcpy(nd_cmd.cmd.passphrase, nkey->data,
+			sizeof(nd_cmd.cmd.passphrase));
 	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
 	if (rc < 0)
 		return rc;

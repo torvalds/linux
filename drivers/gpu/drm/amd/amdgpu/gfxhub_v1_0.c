@@ -71,12 +71,12 @@ static void gfxhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 	uint64_t value;
 
 	/* Program the AGP BAR */
-	WREG32_SOC15(GC, 0, mmMC_VM_AGP_BASE, 0);
-	WREG32_SOC15(GC, 0, mmMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
-	WREG32_SOC15(GC, 0, mmMC_VM_AGP_TOP, adev->gmc.agp_end >> 24);
+	WREG32_SOC15_RLC(GC, 0, mmMC_VM_AGP_BASE, 0);
+	WREG32_SOC15_RLC(GC, 0, mmMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
+	WREG32_SOC15_RLC(GC, 0, mmMC_VM_AGP_TOP, adev->gmc.agp_end >> 24);
 
 	/* Program the system aperture low logical page number. */
-	WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
+	WREG32_SOC15_RLC(GC, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
 		     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 
 	if (adev->asic_type == CHIP_RAVEN && adev->rev_id >= 0x8)
@@ -86,11 +86,11 @@ static void gfxhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 		 * workaround that increase system aperture high address (add 1)
 		 * to get rid of the VM fault and hardware hang.
 		 */
-		WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+		WREG32_SOC15_RLC(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
 			     max((adev->gmc.fb_end >> 18) + 0x1,
 				 adev->gmc.agp_end >> 18));
 	else
-		WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+		WREG32_SOC15_RLC(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
 			     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 	/* Set default page address. */
@@ -129,7 +129,7 @@ static void gfxhub_v1_0_init_tlb_regs(struct amdgpu_device *adev)
 			    MTYPE, MTYPE_UC);/* XXX for emulation. */
 	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ATC_EN, 1);
 
-	WREG32_SOC15(GC, 0, mmMC_VM_MX_L1_TLB_CNTL, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmMC_VM_MX_L1_TLB_CNTL, tmp);
 }
 
 static void gfxhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
@@ -146,12 +146,12 @@ static void gfxhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 0);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, IDENTITY_MODE_FRAGMENT_SIZE, 0);
-	WREG32_SOC15(GC, 0, mmVM_L2_CNTL, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL, tmp);
 
 	tmp = RREG32_SOC15(GC, 0, mmVM_L2_CNTL2);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
-	WREG32_SOC15(GC, 0, mmVM_L2_CNTL2, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL2, tmp);
 
 	tmp = mmVM_L2_CNTL3_DEFAULT;
 	if (adev->gmc.translate_further) {
@@ -163,12 +163,12 @@ static void gfxhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3,
 				    L2_CACHE_BIGK_FRAGMENT_SIZE, 6);
 	}
-	WREG32_SOC15(GC, 0, mmVM_L2_CNTL3, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL3, tmp);
 
 	tmp = mmVM_L2_CNTL4_DEFAULT;
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PDE_REQUEST_PHYSICAL, 0);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
-	WREG32_SOC15(GC, 0, mmVM_L2_CNTL4, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL4, tmp);
 }
 
 static void gfxhub_v1_0_enable_system_domain(struct amdgpu_device *adev)
@@ -267,9 +267,9 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 		 * VF copy registers so vbios post doesn't program them, for
 		 * SRIOV driver need to program them
 		 */
-		WREG32_SOC15(GC, 0, mmMC_VM_FB_LOCATION_BASE,
+		WREG32_SOC15_RLC(GC, 0, mmMC_VM_FB_LOCATION_BASE,
 			     adev->gmc.vram_start >> 24);
-		WREG32_SOC15(GC, 0, mmMC_VM_FB_LOCATION_TOP,
+		WREG32_SOC15_RLC(GC, 0, mmMC_VM_FB_LOCATION_TOP,
 			     adev->gmc.vram_end >> 24);
 	}
 
@@ -303,7 +303,7 @@ void gfxhub_v1_0_gart_disable(struct amdgpu_device *adev)
 				MC_VM_MX_L1_TLB_CNTL,
 				ENABLE_ADVANCED_DRIVER_MODEL,
 				0);
-	WREG32_SOC15(GC, 0, mmMC_VM_MX_L1_TLB_CNTL, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmMC_VM_MX_L1_TLB_CNTL, tmp);
 
 	/* Setup L2 cache */
 	WREG32_FIELD15(GC, 0, VM_L2_CNTL, ENABLE_L2_CACHE, 0);

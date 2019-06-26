@@ -13,10 +13,15 @@
 #include <net/netfilter/nf_nat_helper.h>
 #include <linux/netfilter/nf_conntrack_tftp.h>
 
+#define NAT_HELPER_NAME "tftp"
+
 MODULE_AUTHOR("Magnus Boden <mb@ozaba.mine.nu>");
 MODULE_DESCRIPTION("TFTP NAT helper");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("ip_nat_tftp");
+MODULE_ALIAS_NF_NAT_HELPER(NAT_HELPER_NAME);
+
+static struct nf_conntrack_nat_helper nat_helper_tftp =
+	NF_CT_NAT_HELPER_INIT(NAT_HELPER_NAME);
 
 static unsigned int help(struct sk_buff *skb,
 			 enum ip_conntrack_info ctinfo,
@@ -37,6 +42,7 @@ static unsigned int help(struct sk_buff *skb,
 
 static void __exit nf_nat_tftp_fini(void)
 {
+	nf_nat_helper_unregister(&nat_helper_tftp);
 	RCU_INIT_POINTER(nf_nat_tftp_hook, NULL);
 	synchronize_rcu();
 }
@@ -44,6 +50,7 @@ static void __exit nf_nat_tftp_fini(void)
 static int __init nf_nat_tftp_init(void)
 {
 	BUG_ON(nf_nat_tftp_hook != NULL);
+	nf_nat_helper_register(&nat_helper_tftp);
 	RCU_INIT_POINTER(nf_nat_tftp_hook, help);
 	return 0;
 }

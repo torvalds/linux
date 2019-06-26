@@ -4,287 +4,468 @@
 #include "hclge_err.h"
 
 static const struct hclge_hw_error hclge_imp_tcm_ecc_int[] = {
-	{ .int_msk = BIT(1), .msg = "imp_itcm0_ecc_mbit_err" },
-	{ .int_msk = BIT(3), .msg = "imp_itcm1_ecc_mbit_err" },
-	{ .int_msk = BIT(5), .msg = "imp_itcm2_ecc_mbit_err" },
-	{ .int_msk = BIT(7), .msg = "imp_itcm3_ecc_mbit_err" },
-	{ .int_msk = BIT(9), .msg = "imp_dtcm0_mem0_ecc_mbit_err" },
-	{ .int_msk = BIT(11), .msg = "imp_dtcm0_mem1_ecc_mbit_err" },
-	{ .int_msk = BIT(13), .msg = "imp_dtcm1_mem0_ecc_mbit_err" },
-	{ .int_msk = BIT(15), .msg = "imp_dtcm1_mem1_ecc_mbit_err" },
-	{ .int_msk = BIT(17), .msg = "imp_itcm4_ecc_mbit_err" },
+	{ .int_msk = BIT(1), .msg = "imp_itcm0_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(3), .msg = "imp_itcm1_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(5), .msg = "imp_itcm2_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(7), .msg = "imp_itcm3_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(9), .msg = "imp_dtcm0_mem0_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(11), .msg = "imp_dtcm0_mem1_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(13), .msg = "imp_dtcm1_mem0_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(15), .msg = "imp_dtcm1_mem1_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(17), .msg = "imp_itcm4_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_cmdq_nic_mem_ecc_int[] = {
-	{ .int_msk = BIT(1), .msg = "cmdq_nic_rx_depth_ecc_mbit_err" },
-	{ .int_msk = BIT(3), .msg = "cmdq_nic_tx_depth_ecc_mbit_err" },
-	{ .int_msk = BIT(5), .msg = "cmdq_nic_rx_tail_ecc_mbit_err" },
-	{ .int_msk = BIT(7), .msg = "cmdq_nic_tx_tail_ecc_mbit_err" },
-	{ .int_msk = BIT(9), .msg = "cmdq_nic_rx_head_ecc_mbit_err" },
-	{ .int_msk = BIT(11), .msg = "cmdq_nic_tx_head_ecc_mbit_err" },
-	{ .int_msk = BIT(13), .msg = "cmdq_nic_rx_addr_ecc_mbit_err" },
-	{ .int_msk = BIT(15), .msg = "cmdq_nic_tx_addr_ecc_mbit_err" },
-	{ .int_msk = BIT(17), .msg = "cmdq_rocee_rx_depth_ecc_mbit_err" },
-	{ .int_msk = BIT(19), .msg = "cmdq_rocee_tx_depth_ecc_mbit_err" },
-	{ .int_msk = BIT(21), .msg = "cmdq_rocee_rx_tail_ecc_mbit_err" },
-	{ .int_msk = BIT(23), .msg = "cmdq_rocee_tx_tail_ecc_mbit_err" },
-	{ .int_msk = BIT(25), .msg = "cmdq_rocee_rx_head_ecc_mbit_err" },
-	{ .int_msk = BIT(27), .msg = "cmdq_rocee_tx_head_ecc_mbit_err" },
-	{ .int_msk = BIT(29), .msg = "cmdq_rocee_rx_addr_ecc_mbit_err" },
-	{ .int_msk = BIT(31), .msg = "cmdq_rocee_tx_addr_ecc_mbit_err" },
+	{ .int_msk = BIT(1), .msg = "cmdq_nic_rx_depth_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(3), .msg = "cmdq_nic_tx_depth_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(5), .msg = "cmdq_nic_rx_tail_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(7), .msg = "cmdq_nic_tx_tail_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(9), .msg = "cmdq_nic_rx_head_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(11), .msg = "cmdq_nic_tx_head_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(13), .msg = "cmdq_nic_rx_addr_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(15), .msg = "cmdq_nic_tx_addr_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(17), .msg = "cmdq_rocee_rx_depth_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(19), .msg = "cmdq_rocee_tx_depth_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(21), .msg = "cmdq_rocee_rx_tail_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(23), .msg = "cmdq_rocee_tx_tail_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(25), .msg = "cmdq_rocee_rx_head_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(27), .msg = "cmdq_rocee_tx_head_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(29), .msg = "cmdq_rocee_rx_addr_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(31), .msg = "cmdq_rocee_tx_addr_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_tqp_int_ecc_int[] = {
-	{ .int_msk = BIT(6), .msg = "tqp_int_cfg_even_ecc_mbit_err" },
-	{ .int_msk = BIT(7), .msg = "tqp_int_cfg_odd_ecc_mbit_err" },
-	{ .int_msk = BIT(8), .msg = "tqp_int_ctrl_even_ecc_mbit_err" },
-	{ .int_msk = BIT(9), .msg = "tqp_int_ctrl_odd_ecc_mbit_err" },
-	{ .int_msk = BIT(10), .msg = "tx_que_scan_int_ecc_mbit_err" },
-	{ .int_msk = BIT(11), .msg = "rx_que_scan_int_ecc_mbit_err" },
+	{ .int_msk = BIT(6), .msg = "tqp_int_cfg_even_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(7), .msg = "tqp_int_cfg_odd_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(8), .msg = "tqp_int_ctrl_even_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(9), .msg = "tqp_int_ctrl_odd_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(10), .msg = "tx_que_scan_int_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(11), .msg = "rx_que_scan_int_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_msix_sram_ecc_int[] = {
-	{ .int_msk = BIT(1), .msg = "msix_nic_ecc_mbit_err" },
-	{ .int_msk = BIT(3), .msg = "msix_rocee_ecc_mbit_err" },
+	{ .int_msk = BIT(1), .msg = "msix_nic_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(3), .msg = "msix_rocee_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_igu_int[] = {
-	{ .int_msk = BIT(0), .msg = "igu_rx_buf0_ecc_mbit_err" },
-	{ .int_msk = BIT(2), .msg = "igu_rx_buf1_ecc_mbit_err" },
+	{ .int_msk = BIT(0), .msg = "igu_rx_buf0_ecc_mbit_err",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(2), .msg = "igu_rx_buf1_ecc_mbit_err",
+	  .reset_level = HNAE3_CORE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_igu_egu_tnl_int[] = {
-	{ .int_msk = BIT(0), .msg = "rx_buf_overflow" },
-	{ .int_msk = BIT(1), .msg = "rx_stp_fifo_overflow" },
-	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_undeflow" },
-	{ .int_msk = BIT(3), .msg = "tx_buf_overflow" },
-	{ .int_msk = BIT(4), .msg = "tx_buf_underrun" },
-	{ .int_msk = BIT(5), .msg = "rx_stp_buf_overflow" },
+	{ .int_msk = BIT(0), .msg = "rx_buf_overflow",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(1), .msg = "rx_stp_fifo_overflow",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_undeflow",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(3), .msg = "tx_buf_overflow",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(4), .msg = "tx_buf_underrun",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(5), .msg = "rx_stp_buf_overflow",
+	  .reset_level = HNAE3_CORE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ncsi_err_int[] = {
-	{ .int_msk = BIT(1), .msg = "ncsi_tx_ecc_mbit_err" },
+	{ .int_msk = BIT(1), .msg = "ncsi_tx_ecc_mbit_err",
+	  .reset_level = HNAE3_NONE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ppp_mpf_abnormal_int_st1[] = {
-	{ .int_msk = BIT(0), .msg = "vf_vlan_ad_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(1), .msg = "umv_mcast_group_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(2), .msg = "umv_key_mem0_ecc_mbit_err" },
-	{ .int_msk = BIT(3), .msg = "umv_key_mem1_ecc_mbit_err" },
-	{ .int_msk = BIT(4), .msg = "umv_key_mem2_ecc_mbit_err" },
-	{ .int_msk = BIT(5), .msg = "umv_key_mem3_ecc_mbit_err" },
-	{ .int_msk = BIT(6), .msg = "umv_ad_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(7), .msg = "rss_tc_mode_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(8), .msg = "rss_idt_mem0_ecc_mbit_err" },
-	{ .int_msk = BIT(9), .msg = "rss_idt_mem1_ecc_mbit_err" },
-	{ .int_msk = BIT(10), .msg = "rss_idt_mem2_ecc_mbit_err" },
-	{ .int_msk = BIT(11), .msg = "rss_idt_mem3_ecc_mbit_err" },
-	{ .int_msk = BIT(12), .msg = "rss_idt_mem4_ecc_mbit_err" },
-	{ .int_msk = BIT(13), .msg = "rss_idt_mem5_ecc_mbit_err" },
-	{ .int_msk = BIT(14), .msg = "rss_idt_mem6_ecc_mbit_err" },
-	{ .int_msk = BIT(15), .msg = "rss_idt_mem7_ecc_mbit_err" },
-	{ .int_msk = BIT(16), .msg = "rss_idt_mem8_ecc_mbit_err" },
-	{ .int_msk = BIT(17), .msg = "rss_idt_mem9_ecc_mbit_err" },
-	{ .int_msk = BIT(18), .msg = "rss_idt_mem10_ecc_m1bit_err" },
-	{ .int_msk = BIT(19), .msg = "rss_idt_mem11_ecc_mbit_err" },
-	{ .int_msk = BIT(20), .msg = "rss_idt_mem12_ecc_mbit_err" },
-	{ .int_msk = BIT(21), .msg = "rss_idt_mem13_ecc_mbit_err" },
-	{ .int_msk = BIT(22), .msg = "rss_idt_mem14_ecc_mbit_err" },
-	{ .int_msk = BIT(23), .msg = "rss_idt_mem15_ecc_mbit_err" },
-	{ .int_msk = BIT(24), .msg = "port_vlan_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(25), .msg = "mcast_linear_table_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(26), .msg = "mcast_result_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(27),
-		.msg = "flow_director_ad_mem0_ecc_mbit_err" },
-	{ .int_msk = BIT(28),
-		.msg = "flow_director_ad_mem1_ecc_mbit_err" },
-	{ .int_msk = BIT(29),
-		.msg = "rx_vlan_tag_memory_ecc_mbit_err" },
-	{ .int_msk = BIT(30),
-		.msg = "Tx_UP_mapping_config_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(0), .msg = "vf_vlan_ad_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(1), .msg = "umv_mcast_group_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(2), .msg = "umv_key_mem0_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "umv_key_mem1_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(4), .msg = "umv_key_mem2_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(5), .msg = "umv_key_mem3_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(6), .msg = "umv_ad_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(7), .msg = "rss_tc_mode_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(8), .msg = "rss_idt_mem0_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(9), .msg = "rss_idt_mem1_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(10), .msg = "rss_idt_mem2_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(11), .msg = "rss_idt_mem3_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(12), .msg = "rss_idt_mem4_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(13), .msg = "rss_idt_mem5_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(14), .msg = "rss_idt_mem6_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(15), .msg = "rss_idt_mem7_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(16), .msg = "rss_idt_mem8_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(17), .msg = "rss_idt_mem9_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(18), .msg = "rss_idt_mem10_ecc_m1bit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(19), .msg = "rss_idt_mem11_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(20), .msg = "rss_idt_mem12_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(21), .msg = "rss_idt_mem13_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(22), .msg = "rss_idt_mem14_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(23), .msg = "rss_idt_mem15_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(24), .msg = "port_vlan_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(25), .msg = "mcast_linear_table_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(26), .msg = "mcast_result_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(27), .msg = "flow_director_ad_mem0_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(28), .msg = "flow_director_ad_mem1_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(29), .msg = "rx_vlan_tag_memory_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(30), .msg = "Tx_UP_mapping_config_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ppp_pf_abnormal_int[] = {
-	{ .int_msk = BIT(0), .msg = "tx_vlan_tag_err" },
-	{ .int_msk = BIT(1), .msg = "rss_list_tc_unassigned_queue_err" },
+	{ .int_msk = BIT(0), .msg = "tx_vlan_tag_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(1), .msg = "rss_list_tc_unassigned_queue_err",
+	  .reset_level = HNAE3_NONE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ppp_mpf_abnormal_int_st3[] = {
-	{ .int_msk = BIT(0), .msg = "hfs_fifo_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(1), .msg = "rslt_descr_fifo_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(2), .msg = "tx_vlan_tag_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(3), .msg = "FD_CN0_memory_ecc_mbit_err" },
-	{ .int_msk = BIT(4), .msg = "FD_CN1_memory_ecc_mbit_err" },
-	{ .int_msk = BIT(5), .msg = "GRO_AD_memory_ecc_mbit_err" },
+	{ .int_msk = BIT(0), .msg = "hfs_fifo_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(1), .msg = "rslt_descr_fifo_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(2), .msg = "tx_vlan_tag_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "FD_CN0_memory_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(4), .msg = "FD_CN1_memory_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(5), .msg = "GRO_AD_memory_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_tm_sch_rint[] = {
-	{ .int_msk = BIT(1), .msg = "tm_sch_ecc_mbit_err" },
-	{ .int_msk = BIT(2), .msg = "tm_sch_port_shap_sub_fifo_wr_err" },
-	{ .int_msk = BIT(3), .msg = "tm_sch_port_shap_sub_fifo_rd_err" },
-	{ .int_msk = BIT(4), .msg = "tm_sch_pg_pshap_sub_fifo_wr_err" },
-	{ .int_msk = BIT(5), .msg = "tm_sch_pg_pshap_sub_fifo_rd_err" },
-	{ .int_msk = BIT(6), .msg = "tm_sch_pg_cshap_sub_fifo_wr_err" },
-	{ .int_msk = BIT(7), .msg = "tm_sch_pg_cshap_sub_fifo_rd_err" },
-	{ .int_msk = BIT(8), .msg = "tm_sch_pri_pshap_sub_fifo_wr_err" },
-	{ .int_msk = BIT(9), .msg = "tm_sch_pri_pshap_sub_fifo_rd_err" },
-	{ .int_msk = BIT(10), .msg = "tm_sch_pri_cshap_sub_fifo_wr_err" },
-	{ .int_msk = BIT(11), .msg = "tm_sch_pri_cshap_sub_fifo_rd_err" },
-	{ .int_msk = BIT(12),
-	  .msg = "tm_sch_port_shap_offset_fifo_wr_err" },
-	{ .int_msk = BIT(13),
-	  .msg = "tm_sch_port_shap_offset_fifo_rd_err" },
-	{ .int_msk = BIT(14),
-	  .msg = "tm_sch_pg_pshap_offset_fifo_wr_err" },
-	{ .int_msk = BIT(15),
-	  .msg = "tm_sch_pg_pshap_offset_fifo_rd_err" },
-	{ .int_msk = BIT(16),
-	  .msg = "tm_sch_pg_cshap_offset_fifo_wr_err" },
-	{ .int_msk = BIT(17),
-	  .msg = "tm_sch_pg_cshap_offset_fifo_rd_err" },
-	{ .int_msk = BIT(18),
-	  .msg = "tm_sch_pri_pshap_offset_fifo_wr_err" },
-	{ .int_msk = BIT(19),
-	  .msg = "tm_sch_pri_pshap_offset_fifo_rd_err" },
-	{ .int_msk = BIT(20),
-	  .msg = "tm_sch_pri_cshap_offset_fifo_wr_err" },
-	{ .int_msk = BIT(21),
-	  .msg = "tm_sch_pri_cshap_offset_fifo_rd_err" },
-	{ .int_msk = BIT(22), .msg = "tm_sch_rq_fifo_wr_err" },
-	{ .int_msk = BIT(23), .msg = "tm_sch_rq_fifo_rd_err" },
-	{ .int_msk = BIT(24), .msg = "tm_sch_nq_fifo_wr_err" },
-	{ .int_msk = BIT(25), .msg = "tm_sch_nq_fifo_rd_err" },
-	{ .int_msk = BIT(26), .msg = "tm_sch_roce_up_fifo_wr_err" },
-	{ .int_msk = BIT(27), .msg = "tm_sch_roce_up_fifo_rd_err" },
-	{ .int_msk = BIT(28), .msg = "tm_sch_rcb_byte_fifo_wr_err" },
-	{ .int_msk = BIT(29), .msg = "tm_sch_rcb_byte_fifo_rd_err" },
-	{ .int_msk = BIT(30), .msg = "tm_sch_ssu_byte_fifo_wr_err" },
-	{ .int_msk = BIT(31), .msg = "tm_sch_ssu_byte_fifo_rd_err" },
+	{ .int_msk = BIT(1), .msg = "tm_sch_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(2), .msg = "tm_sch_port_shap_sub_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "tm_sch_port_shap_sub_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(4), .msg = "tm_sch_pg_pshap_sub_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(5), .msg = "tm_sch_pg_pshap_sub_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(6), .msg = "tm_sch_pg_cshap_sub_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(7), .msg = "tm_sch_pg_cshap_sub_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(8), .msg = "tm_sch_pri_pshap_sub_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(9), .msg = "tm_sch_pri_pshap_sub_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(10), .msg = "tm_sch_pri_cshap_sub_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(11), .msg = "tm_sch_pri_cshap_sub_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(12), .msg = "tm_sch_port_shap_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(13), .msg = "tm_sch_port_shap_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(14), .msg = "tm_sch_pg_pshap_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(15), .msg = "tm_sch_pg_pshap_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(16), .msg = "tm_sch_pg_cshap_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(17), .msg = "tm_sch_pg_cshap_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(18), .msg = "tm_sch_pri_pshap_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(19), .msg = "tm_sch_pri_pshap_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(20), .msg = "tm_sch_pri_cshap_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(21), .msg = "tm_sch_pri_cshap_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(22), .msg = "tm_sch_rq_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(23), .msg = "tm_sch_rq_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(24), .msg = "tm_sch_nq_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(25), .msg = "tm_sch_nq_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(26), .msg = "tm_sch_roce_up_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(27), .msg = "tm_sch_roce_up_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(28), .msg = "tm_sch_rcb_byte_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(29), .msg = "tm_sch_rcb_byte_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(30), .msg = "tm_sch_ssu_byte_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(31), .msg = "tm_sch_ssu_byte_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_qcn_fifo_rint[] = {
-	{ .int_msk = BIT(0), .msg = "qcn_shap_gp0_sch_fifo_rd_err" },
-	{ .int_msk = BIT(1), .msg = "qcn_shap_gp0_sch_fifo_wr_err" },
-	{ .int_msk = BIT(2), .msg = "qcn_shap_gp1_sch_fifo_rd_err" },
-	{ .int_msk = BIT(3), .msg = "qcn_shap_gp1_sch_fifo_wr_err" },
-	{ .int_msk = BIT(4), .msg = "qcn_shap_gp2_sch_fifo_rd_err" },
-	{ .int_msk = BIT(5), .msg = "qcn_shap_gp2_sch_fifo_wr_err" },
-	{ .int_msk = BIT(6), .msg = "qcn_shap_gp3_sch_fifo_rd_err" },
-	{ .int_msk = BIT(7), .msg = "qcn_shap_gp3_sch_fifo_wr_err" },
-	{ .int_msk = BIT(8), .msg = "qcn_shap_gp0_offset_fifo_rd_err" },
-	{ .int_msk = BIT(9), .msg = "qcn_shap_gp0_offset_fifo_wr_err" },
-	{ .int_msk = BIT(10), .msg = "qcn_shap_gp1_offset_fifo_rd_err" },
-	{ .int_msk = BIT(11), .msg = "qcn_shap_gp1_offset_fifo_wr_err" },
-	{ .int_msk = BIT(12), .msg = "qcn_shap_gp2_offset_fifo_rd_err" },
-	{ .int_msk = BIT(13), .msg = "qcn_shap_gp2_offset_fifo_wr_err" },
-	{ .int_msk = BIT(14), .msg = "qcn_shap_gp3_offset_fifo_rd_err" },
-	{ .int_msk = BIT(15), .msg = "qcn_shap_gp3_offset_fifo_wr_err" },
-	{ .int_msk = BIT(16), .msg = "qcn_byte_info_fifo_rd_err" },
-	{ .int_msk = BIT(17), .msg = "qcn_byte_info_fifo_wr_err" },
+	{ .int_msk = BIT(0), .msg = "qcn_shap_gp0_sch_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(1), .msg = "qcn_shap_gp0_sch_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(2), .msg = "qcn_shap_gp1_sch_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "qcn_shap_gp1_sch_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(4), .msg = "qcn_shap_gp2_sch_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(5), .msg = "qcn_shap_gp2_sch_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(6), .msg = "qcn_shap_gp3_sch_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(7), .msg = "qcn_shap_gp3_sch_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(8), .msg = "qcn_shap_gp0_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(9), .msg = "qcn_shap_gp0_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(10), .msg = "qcn_shap_gp1_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(11), .msg = "qcn_shap_gp1_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(12), .msg = "qcn_shap_gp2_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(13), .msg = "qcn_shap_gp2_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(14), .msg = "qcn_shap_gp3_offset_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(15), .msg = "qcn_shap_gp3_offset_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(16), .msg = "qcn_byte_info_fifo_rd_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(17), .msg = "qcn_byte_info_fifo_wr_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_qcn_ecc_rint[] = {
-	{ .int_msk = BIT(1), .msg = "qcn_byte_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(3), .msg = "qcn_time_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(5), .msg = "qcn_fb_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(7), .msg = "qcn_link_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(9), .msg = "qcn_rate_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(11), .msg = "qcn_tmplt_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(13), .msg = "qcn_shap_cfg_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(15), .msg = "qcn_gp0_barrel_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(17), .msg = "qcn_gp1_barrel_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(19), .msg = "qcn_gp2_barrel_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(21), .msg = "qcn_gp3_barral_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(1), .msg = "qcn_byte_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "qcn_time_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(5), .msg = "qcn_fb_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(7), .msg = "qcn_link_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(9), .msg = "qcn_rate_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(11), .msg = "qcn_tmplt_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(13), .msg = "qcn_shap_cfg_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(15), .msg = "qcn_gp0_barrel_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(17), .msg = "qcn_gp1_barrel_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(19), .msg = "qcn_gp2_barrel_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(21), .msg = "qcn_gp3_barral_mem_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
-	{ .int_msk = BIT(0), .msg = "egu_cge_afifo_ecc_1bit_err" },
-	{ .int_msk = BIT(1), .msg = "egu_cge_afifo_ecc_mbit_err" },
-	{ .int_msk = BIT(2), .msg = "egu_lge_afifo_ecc_1bit_err" },
-	{ .int_msk = BIT(3), .msg = "egu_lge_afifo_ecc_mbit_err" },
-	{ .int_msk = BIT(4), .msg = "cge_igu_afifo_ecc_1bit_err" },
-	{ .int_msk = BIT(5), .msg = "cge_igu_afifo_ecc_mbit_err" },
-	{ .int_msk = BIT(6), .msg = "lge_igu_afifo_ecc_1bit_err" },
-	{ .int_msk = BIT(7), .msg = "lge_igu_afifo_ecc_mbit_err" },
-	{ .int_msk = BIT(8), .msg = "cge_igu_afifo_overflow_err" },
-	{ .int_msk = BIT(9), .msg = "lge_igu_afifo_overflow_err" },
-	{ .int_msk = BIT(10), .msg = "egu_cge_afifo_underrun_err" },
-	{ .int_msk = BIT(11), .msg = "egu_lge_afifo_underrun_err" },
-	{ .int_msk = BIT(12), .msg = "egu_ge_afifo_underrun_err" },
-	{ .int_msk = BIT(13), .msg = "ge_igu_afifo_overflow_err" },
+	{ .int_msk = BIT(0), .msg = "egu_cge_afifo_ecc_1bit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(1), .msg = "egu_cge_afifo_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(2), .msg = "egu_lge_afifo_ecc_1bit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(3), .msg = "egu_lge_afifo_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(4), .msg = "cge_igu_afifo_ecc_1bit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(5), .msg = "cge_igu_afifo_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(6), .msg = "lge_igu_afifo_ecc_1bit_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(7), .msg = "lge_igu_afifo_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(8), .msg = "cge_igu_afifo_overflow_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(9), .msg = "lge_igu_afifo_overflow_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(10), .msg = "egu_cge_afifo_underrun_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(11), .msg = "egu_lge_afifo_underrun_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(12), .msg = "egu_ge_afifo_underrun_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(13), .msg = "ge_igu_afifo_overflow_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st2[] = {
-	{ .int_msk = BIT(13), .msg = "rpu_rx_pkt_bit32_ecc_mbit_err" },
-	{ .int_msk = BIT(14), .msg = "rpu_rx_pkt_bit33_ecc_mbit_err" },
-	{ .int_msk = BIT(15), .msg = "rpu_rx_pkt_bit34_ecc_mbit_err" },
-	{ .int_msk = BIT(16), .msg = "rpu_rx_pkt_bit35_ecc_mbit_err" },
-	{ .int_msk = BIT(17), .msg = "rcb_tx_ring_ecc_mbit_err" },
-	{ .int_msk = BIT(18), .msg = "rcb_rx_ring_ecc_mbit_err" },
-	{ .int_msk = BIT(19), .msg = "rcb_tx_fbd_ecc_mbit_err" },
-	{ .int_msk = BIT(20), .msg = "rcb_rx_ebd_ecc_mbit_err" },
-	{ .int_msk = BIT(21), .msg = "rcb_tso_info_ecc_mbit_err" },
-	{ .int_msk = BIT(22), .msg = "rcb_tx_int_info_ecc_mbit_err" },
-	{ .int_msk = BIT(23), .msg = "rcb_rx_int_info_ecc_mbit_err" },
-	{ .int_msk = BIT(24), .msg = "tpu_tx_pkt_0_ecc_mbit_err" },
-	{ .int_msk = BIT(25), .msg = "tpu_tx_pkt_1_ecc_mbit_err" },
-	{ .int_msk = BIT(26), .msg = "rd_bus_err" },
-	{ .int_msk = BIT(27), .msg = "wr_bus_err" },
-	{ .int_msk = BIT(28), .msg = "reg_search_miss" },
-	{ .int_msk = BIT(29), .msg = "rx_q_search_miss" },
-	{ .int_msk = BIT(30), .msg = "ooo_ecc_err_detect" },
-	{ .int_msk = BIT(31), .msg = "ooo_ecc_err_multpl" },
+	{ .int_msk = BIT(13), .msg = "rpu_rx_pkt_bit32_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(14), .msg = "rpu_rx_pkt_bit33_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(15), .msg = "rpu_rx_pkt_bit34_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(16), .msg = "rpu_rx_pkt_bit35_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(17), .msg = "rcb_tx_ring_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(18), .msg = "rcb_rx_ring_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(19), .msg = "rcb_tx_fbd_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(20), .msg = "rcb_rx_ebd_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(21), .msg = "rcb_tso_info_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(22), .msg = "rcb_tx_int_info_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(23), .msg = "rcb_rx_int_info_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(24), .msg = "tpu_tx_pkt_0_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(25), .msg = "tpu_tx_pkt_1_ecc_mbit_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(26), .msg = "rd_bus_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(27), .msg = "wr_bus_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(28), .msg = "reg_search_miss",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(29), .msg = "rx_q_search_miss",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(30), .msg = "ooo_ecc_err_detect",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(31), .msg = "ooo_ecc_err_multpl",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st3[] = {
-	{ .int_msk = BIT(4), .msg = "gro_bd_ecc_mbit_err" },
-	{ .int_msk = BIT(5), .msg = "gro_context_ecc_mbit_err" },
-	{ .int_msk = BIT(6), .msg = "rx_stash_cfg_ecc_mbit_err" },
-	{ .int_msk = BIT(7), .msg = "axi_rd_fbd_ecc_mbit_err" },
+	{ .int_msk = BIT(4), .msg = "gro_bd_ecc_mbit_err",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(5), .msg = "gro_context_ecc_mbit_err",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(6), .msg = "rx_stash_cfg_ecc_mbit_err",
+	  .reset_level = HNAE3_CORE_RESET },
+	{ .int_msk = BIT(7), .msg = "axi_rd_fbd_ecc_mbit_err",
+	  .reset_level = HNAE3_CORE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ppu_pf_abnormal_int[] = {
-	{ .int_msk = BIT(0), .msg = "over_8bd_no_fe" },
-	{ .int_msk = BIT(1), .msg = "tso_mss_cmp_min_err" },
-	{ .int_msk = BIT(2), .msg = "tso_mss_cmp_max_err" },
-	{ .int_msk = BIT(3), .msg = "tx_rd_fbd_poison" },
-	{ .int_msk = BIT(4), .msg = "rx_rd_ebd_poison" },
-	{ .int_msk = BIT(5), .msg = "buf_wait_timeout" },
+	{ .int_msk = BIT(0), .msg = "over_8bd_no_fe",
+	  .reset_level = HNAE3_FUNC_RESET },
+	{ .int_msk = BIT(1), .msg = "tso_mss_cmp_min_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(2), .msg = "tso_mss_cmp_max_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(3), .msg = "tx_rd_fbd_poison",
+	  .reset_level = HNAE3_FUNC_RESET },
+	{ .int_msk = BIT(4), .msg = "rx_rd_ebd_poison",
+	  .reset_level = HNAE3_FUNC_RESET },
+	{ .int_msk = BIT(5), .msg = "buf_wait_timeout",
+	  .reset_level = HNAE3_NONE_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ssu_com_err_int[] = {
-	{ .int_msk = BIT(0), .msg = "buf_sum_err" },
-	{ .int_msk = BIT(1), .msg = "ppp_mb_num_err" },
-	{ .int_msk = BIT(2), .msg = "ppp_mbid_err" },
-	{ .int_msk = BIT(3), .msg = "ppp_rlt_mac_err" },
-	{ .int_msk = BIT(4), .msg = "ppp_rlt_host_err" },
-	{ .int_msk = BIT(5), .msg = "cks_edit_position_err" },
-	{ .int_msk = BIT(6), .msg = "cks_edit_condition_err" },
-	{ .int_msk = BIT(7), .msg = "vlan_edit_condition_err" },
-	{ .int_msk = BIT(8), .msg = "vlan_num_ot_err" },
-	{ .int_msk = BIT(9), .msg = "vlan_num_in_err" },
+	{ .int_msk = BIT(0), .msg = "buf_sum_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(1), .msg = "ppp_mb_num_err",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(2), .msg = "ppp_mbid_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "ppp_rlt_mac_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(4), .msg = "ppp_rlt_host_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(5), .msg = "cks_edit_position_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(6), .msg = "cks_edit_condition_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(7), .msg = "vlan_edit_condition_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(8), .msg = "vlan_num_ot_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(9), .msg = "vlan_num_in_err",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 #define HCLGE_SSU_MEM_ECC_ERR(x) \
-	{ .int_msk = BIT(x), .msg = "ssu_mem" #x "_ecc_mbit_err" }
+	{ .int_msk = BIT(x), .msg = "ssu_mem" #x "_ecc_mbit_err", \
+	  .reset_level = HNAE3_GLOBAL_RESET }
 
 static const struct hclge_hw_error hclge_ssu_mem_ecc_err_int[] = {
 	HCLGE_SSU_MEM_ECC_ERR(0),
@@ -323,62 +504,106 @@ static const struct hclge_hw_error hclge_ssu_mem_ecc_err_int[] = {
 };
 
 static const struct hclge_hw_error hclge_ssu_port_based_err_int[] = {
-	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port" },
-	{ .int_msk = BIT(1), .msg = "tpu_pkt_without_key_port" },
-	{ .int_msk = BIT(2), .msg = "igu_pkt_without_key_port" },
-	{ .int_msk = BIT(3), .msg = "roc_eof_mis_match_port" },
-	{ .int_msk = BIT(4), .msg = "tpu_eof_mis_match_port" },
-	{ .int_msk = BIT(5), .msg = "igu_eof_mis_match_port" },
-	{ .int_msk = BIT(6), .msg = "roc_sof_mis_match_port" },
-	{ .int_msk = BIT(7), .msg = "tpu_sof_mis_match_port" },
-	{ .int_msk = BIT(8), .msg = "igu_sof_mis_match_port" },
-	{ .int_msk = BIT(11), .msg = "ets_rd_int_rx_port" },
-	{ .int_msk = BIT(12), .msg = "ets_wr_int_rx_port" },
-	{ .int_msk = BIT(13), .msg = "ets_rd_int_tx_port" },
-	{ .int_msk = BIT(14), .msg = "ets_wr_int_tx_port" },
+	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(1), .msg = "tpu_pkt_without_key_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(2), .msg = "igu_pkt_without_key_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "roc_eof_mis_match_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(4), .msg = "tpu_eof_mis_match_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(5), .msg = "igu_eof_mis_match_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(6), .msg = "roc_sof_mis_match_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(7), .msg = "tpu_sof_mis_match_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(8), .msg = "igu_sof_mis_match_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(11), .msg = "ets_rd_int_rx_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(12), .msg = "ets_wr_int_rx_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(13), .msg = "ets_rd_int_tx_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(14), .msg = "ets_wr_int_tx_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ssu_fifo_overflow_int[] = {
-	{ .int_msk = BIT(0), .msg = "ig_mac_inf_int" },
-	{ .int_msk = BIT(1), .msg = "ig_host_inf_int" },
-	{ .int_msk = BIT(2), .msg = "ig_roc_buf_int" },
-	{ .int_msk = BIT(3), .msg = "ig_host_data_fifo_int" },
-	{ .int_msk = BIT(4), .msg = "ig_host_key_fifo_int" },
-	{ .int_msk = BIT(5), .msg = "tx_qcn_fifo_int" },
-	{ .int_msk = BIT(6), .msg = "rx_qcn_fifo_int" },
-	{ .int_msk = BIT(7), .msg = "tx_pf_rd_fifo_int" },
-	{ .int_msk = BIT(8), .msg = "rx_pf_rd_fifo_int" },
-	{ .int_msk = BIT(9), .msg = "qm_eof_fifo_int" },
-	{ .int_msk = BIT(10), .msg = "mb_rlt_fifo_int" },
-	{ .int_msk = BIT(11), .msg = "dup_uncopy_fifo_int" },
-	{ .int_msk = BIT(12), .msg = "dup_cnt_rd_fifo_int" },
-	{ .int_msk = BIT(13), .msg = "dup_cnt_drop_fifo_int" },
-	{ .int_msk = BIT(14), .msg = "dup_cnt_wrb_fifo_int" },
-	{ .int_msk = BIT(15), .msg = "host_cmd_fifo_int" },
-	{ .int_msk = BIT(16), .msg = "mac_cmd_fifo_int" },
-	{ .int_msk = BIT(17), .msg = "host_cmd_bitmap_empty_int" },
-	{ .int_msk = BIT(18), .msg = "mac_cmd_bitmap_empty_int" },
-	{ .int_msk = BIT(19), .msg = "dup_bitmap_empty_int" },
-	{ .int_msk = BIT(20), .msg = "out_queue_bitmap_empty_int" },
-	{ .int_msk = BIT(21), .msg = "bank2_bitmap_empty_int" },
-	{ .int_msk = BIT(22), .msg = "bank1_bitmap_empty_int" },
-	{ .int_msk = BIT(23), .msg = "bank0_bitmap_empty_int" },
+	{ .int_msk = BIT(0), .msg = "ig_mac_inf_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(1), .msg = "ig_host_inf_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(2), .msg = "ig_roc_buf_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "ig_host_data_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(4), .msg = "ig_host_key_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(5), .msg = "tx_qcn_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(6), .msg = "rx_qcn_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(7), .msg = "tx_pf_rd_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(8), .msg = "rx_pf_rd_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(9), .msg = "qm_eof_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(10), .msg = "mb_rlt_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(11), .msg = "dup_uncopy_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(12), .msg = "dup_cnt_rd_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(13), .msg = "dup_cnt_drop_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(14), .msg = "dup_cnt_wrb_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(15), .msg = "host_cmd_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(16), .msg = "mac_cmd_fifo_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(17), .msg = "host_cmd_bitmap_empty_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(18), .msg = "mac_cmd_bitmap_empty_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(19), .msg = "dup_bitmap_empty_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(20), .msg = "out_queue_bitmap_empty_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(21), .msg = "bank2_bitmap_empty_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(22), .msg = "bank1_bitmap_empty_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(23), .msg = "bank0_bitmap_empty_int",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ssu_ets_tcg_int[] = {
-	{ .int_msk = BIT(0), .msg = "ets_rd_int_rx_tcg" },
-	{ .int_msk = BIT(1), .msg = "ets_wr_int_rx_tcg" },
-	{ .int_msk = BIT(2), .msg = "ets_rd_int_tx_tcg" },
-	{ .int_msk = BIT(3), .msg = "ets_wr_int_tx_tcg" },
+	{ .int_msk = BIT(0), .msg = "ets_rd_int_rx_tcg",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(1), .msg = "ets_wr_int_rx_tcg",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(2), .msg = "ets_rd_int_tx_tcg",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(3), .msg = "ets_wr_int_tx_tcg",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_ssu_port_based_pf_int[] = {
-	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port" },
-	{ .int_msk = BIT(9), .msg = "low_water_line_err_port" },
-	{ .int_msk = BIT(10), .msg = "hi_water_line_err_port" },
+	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
+	{ .int_msk = BIT(9), .msg = "low_water_line_err_port",
+	  .reset_level = HNAE3_NONE_RESET },
+	{ .int_msk = BIT(10), .msg = "hi_water_line_err_port",
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
@@ -406,16 +631,29 @@ static const struct hclge_hw_error hclge_rocee_qmm_ovf_err_int[] = {
 	{ /* sentinel */ }
 };
 
-static void hclge_log_error(struct device *dev, char *reg,
-			    const struct hclge_hw_error *err,
-			    u32 err_sts)
+static enum hnae3_reset_type hclge_log_error(struct device *dev, char *reg,
+					     const struct hclge_hw_error *err,
+					     u32 err_sts)
 {
+	enum hnae3_reset_type reset_level = HNAE3_FUNC_RESET;
+	bool need_reset = false;
+
 	while (err->msg) {
-		if (err->int_msk & err_sts)
+		if (err->int_msk & err_sts) {
 			dev_warn(dev, "%s %s found [error status=0x%x]\n",
 				 reg, err->msg, err_sts);
+			if (err->reset_level != HNAE3_NONE_RESET &&
+			    err->reset_level >= reset_level) {
+				reset_level = err->reset_level;
+				need_reset = true;
+			}
+		}
 		err++;
 	}
+	if (need_reset)
+		return reset_level;
+	else
+		return HNAE3_NONE_RESET;
 }
 
 /* hclge_cmd_query_error: read the error information
@@ -452,6 +690,16 @@ static int hclge_cmd_query_error(struct hclge_dev *hdev,
 		dev_err(dev, "query error cmd failed (%d)\n", ret);
 
 	return ret;
+}
+
+static int hclge_clear_mac_tnl_int(struct hclge_dev *hdev)
+{
+	struct hclge_desc desc;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CLEAR_MAC_TNL_INT, false);
+	desc.data[0] = cpu_to_le32(HCLGE_MAC_TNL_INT_CLR);
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
 static int hclge_config_common_hw_err_int(struct hclge_dev *hdev, bool en)
@@ -673,6 +921,21 @@ static int hclge_config_mac_err_int(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
+int hclge_config_mac_tnl_int(struct hclge_dev *hdev, bool en)
+{
+	struct hclge_desc desc;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_TNL_INT_EN, false);
+	if (en)
+		desc.data[0] = cpu_to_le32(HCLGE_MAC_TNL_INT_EN);
+	else
+		desc.data[0] = 0;
+
+	desc.data[1] = cpu_to_le32(HCLGE_MAC_TNL_INT_EN_MASK);
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
 static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 					     bool en)
 {
@@ -826,6 +1089,7 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 				      int num)
 {
 	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
+	enum hnae3_reset_type reset_level;
 	struct device *dev = &hdev->pdev->dev;
 	__le32 *desc_data;
 	u32 status;
@@ -845,78 +1109,94 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	/* log HNS common errors */
 	status = le32_to_cpu(desc[0].data[0]);
 	if (status) {
-		hclge_log_error(dev, "IMP_TCM_ECC_INT_STS",
-				&hclge_imp_tcm_ecc_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+		reset_level = hclge_log_error(dev, "IMP_TCM_ECC_INT_STS",
+					      &hclge_imp_tcm_ecc_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	status = le32_to_cpu(desc[0].data[1]);
 	if (status) {
-		hclge_log_error(dev, "CMDQ_MEM_ECC_INT_STS",
-				&hclge_cmdq_nic_mem_ecc_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+		reset_level = hclge_log_error(dev, "CMDQ_MEM_ECC_INT_STS",
+					      &hclge_cmdq_nic_mem_ecc_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	if ((le32_to_cpu(desc[0].data[2])) & BIT(0)) {
 		dev_warn(dev, "imp_rd_data_poison_err found\n");
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_NONE_RESET);
 	}
 
 	status = le32_to_cpu(desc[0].data[3]);
 	if (status) {
-		hclge_log_error(dev, "TQP_INT_ECC_INT_STS",
-				&hclge_tqp_int_ecc_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level = hclge_log_error(dev, "TQP_INT_ECC_INT_STS",
+					      &hclge_tqp_int_ecc_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	status = le32_to_cpu(desc[0].data[4]);
 	if (status) {
-		hclge_log_error(dev, "MSIX_ECC_INT_STS",
-				&hclge_msix_sram_ecc_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level = hclge_log_error(dev, "MSIX_ECC_INT_STS",
+					      &hclge_msix_sram_ecc_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	/* log SSU(Storage Switch Unit) errors */
 	desc_data = (__le32 *)&desc[2];
 	status = le32_to_cpu(*(desc_data + 2));
 	if (status) {
-		hclge_log_error(dev, "SSU_ECC_MULTI_BIT_INT_0",
-				&hclge_ssu_mem_ecc_err_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level = hclge_log_error(dev, "SSU_ECC_MULTI_BIT_INT_0",
+					      &hclge_ssu_mem_ecc_err_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	status = le32_to_cpu(*(desc_data + 3)) & BIT(0);
 	if (status) {
 		dev_warn(dev, "SSU_ECC_MULTI_BIT_INT_1 ssu_mem32_ecc_mbit_err found [error status=0x%x]\n",
 			 status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
 	}
 
 	status = le32_to_cpu(*(desc_data + 4)) & HCLGE_SSU_COMMON_ERR_INT_MASK;
 	if (status) {
-		hclge_log_error(dev, "SSU_COMMON_ERR_INT",
-				&hclge_ssu_com_err_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+		reset_level = hclge_log_error(dev, "SSU_COMMON_ERR_INT",
+					      &hclge_ssu_com_err_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	/* log IGU(Ingress Unit) errors */
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_IGU_INT_MASK;
-	if (status)
-		hclge_log_error(dev, "IGU_INT_STS",
-				&hclge_igu_int[0], status);
+	if (status) {
+		reset_level = hclge_log_error(dev, "IGU_INT_STS",
+					      &hclge_igu_int[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
+	}
 
 	/* log PPP(Programmable Packet Process) errors */
 	desc_data = (__le32 *)&desc[4];
 	status = le32_to_cpu(*(desc_data + 1));
-	if (status)
-		hclge_log_error(dev, "PPP_MPF_ABNORMAL_INT_ST1",
-				&hclge_ppp_mpf_abnormal_int_st1[0], status);
+	if (status) {
+		reset_level =
+			hclge_log_error(dev, "PPP_MPF_ABNORMAL_INT_ST1",
+					&hclge_ppp_mpf_abnormal_int_st1[0],
+					status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
+	}
 
 	status = le32_to_cpu(*(desc_data + 3)) & HCLGE_PPP_MPF_INT_ST3_MASK;
-	if (status)
-		hclge_log_error(dev, "PPP_MPF_ABNORMAL_INT_ST3",
-				&hclge_ppp_mpf_abnormal_int_st3[0], status);
+	if (status) {
+		reset_level =
+			hclge_log_error(dev, "PPP_MPF_ABNORMAL_INT_ST3",
+					&hclge_ppp_mpf_abnormal_int_st3[0],
+					status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
+	}
 
 	/* log PPU(RCB) errors */
 	desc_data = (__le32 *)&desc[5];
@@ -924,55 +1204,60 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	if (status) {
 		dev_warn(dev, "PPU_MPF_ABNORMAL_INT_ST1 %s found\n",
 			 "rpu_rx_pkt_ecc_mbit_err");
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
 	}
 
 	status = le32_to_cpu(*(desc_data + 2));
 	if (status) {
-		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST2",
-				&hclge_ppu_mpf_abnormal_int_st2[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level =
+			hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST2",
+					&hclge_ppu_mpf_abnormal_int_st2[0],
+					status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	status = le32_to_cpu(*(desc_data + 3)) & HCLGE_PPU_MPF_INT_ST3_MASK;
 	if (status) {
-		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST3",
-				&hclge_ppu_mpf_abnormal_int_st3[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level =
+			hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST3",
+					&hclge_ppu_mpf_abnormal_int_st3[0],
+					status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	/* log TM(Traffic Manager) errors */
 	desc_data = (__le32 *)&desc[6];
 	status = le32_to_cpu(*desc_data);
 	if (status) {
-		hclge_log_error(dev, "TM_SCH_RINT",
-				&hclge_tm_sch_rint[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level = hclge_log_error(dev, "TM_SCH_RINT",
+					      &hclge_tm_sch_rint[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	/* log QCN(Quantized Congestion Control) errors */
 	desc_data = (__le32 *)&desc[7];
 	status = le32_to_cpu(*desc_data) & HCLGE_QCN_FIFO_INT_MASK;
 	if (status) {
-		hclge_log_error(dev, "QCN_FIFO_RINT",
-				&hclge_qcn_fifo_rint[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level = hclge_log_error(dev, "QCN_FIFO_RINT",
+					      &hclge_qcn_fifo_rint[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	status = le32_to_cpu(*(desc_data + 1)) & HCLGE_QCN_ECC_INT_MASK;
 	if (status) {
-		hclge_log_error(dev, "QCN_ECC_RINT",
-				&hclge_qcn_ecc_rint[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level = hclge_log_error(dev, "QCN_ECC_RINT",
+					      &hclge_qcn_ecc_rint[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	/* log NCSI errors */
 	desc_data = (__le32 *)&desc[9];
 	status = le32_to_cpu(*desc_data) & HCLGE_NCSI_ECC_INT_MASK;
 	if (status) {
-		hclge_log_error(dev, "NCSI_ECC_INT_RPT",
-				&hclge_ncsi_err_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+		reset_level = hclge_log_error(dev, "NCSI_ECC_INT_RPT",
+					      &hclge_ncsi_err_int[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	/* clear all main PF RAS errors */
@@ -1000,6 +1285,7 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 {
 	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
 	struct device *dev = &hdev->pdev->dev;
+	enum hnae3_reset_type reset_level;
 	__le32 *desc_data;
 	u32 status;
 	int ret;
@@ -1018,38 +1304,47 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	/* log SSU(Storage Switch Unit) errors */
 	status = le32_to_cpu(desc[0].data[0]);
 	if (status) {
-		hclge_log_error(dev, "SSU_PORT_BASED_ERR_INT",
-				&hclge_ssu_port_based_err_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+		reset_level = hclge_log_error(dev, "SSU_PORT_BASED_ERR_INT",
+					      &hclge_ssu_port_based_err_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	status = le32_to_cpu(desc[0].data[1]);
 	if (status) {
-		hclge_log_error(dev, "SSU_FIFO_OVERFLOW_INT",
-				&hclge_ssu_fifo_overflow_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+		reset_level = hclge_log_error(dev, "SSU_FIFO_OVERFLOW_INT",
+					      &hclge_ssu_fifo_overflow_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	status = le32_to_cpu(desc[0].data[2]);
 	if (status) {
-		hclge_log_error(dev, "SSU_ETS_TCG_INT",
-				&hclge_ssu_ets_tcg_int[0], status);
-		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+		reset_level = hclge_log_error(dev, "SSU_ETS_TCG_INT",
+					      &hclge_ssu_ets_tcg_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
 	}
 
 	/* log IGU(Ingress Unit) EGU(Egress Unit) TNL errors */
 	desc_data = (__le32 *)&desc[1];
 	status = le32_to_cpu(*desc_data) & HCLGE_IGU_EGU_TNL_INT_MASK;
-	if (status)
-		hclge_log_error(dev, "IGU_EGU_TNL_INT_STS",
-				&hclge_igu_egu_tnl_int[0], status);
+	if (status) {
+		reset_level = hclge_log_error(dev, "IGU_EGU_TNL_INT_STS",
+					      &hclge_igu_egu_tnl_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
+	}
 
 	/* log PPU(RCB) errors */
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_RAS_MASK;
-	if (status)
-		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST0",
-				&hclge_ppu_pf_abnormal_int[0], status);
+	if (status) {
+		reset_level = hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST0",
+					      &hclge_ppu_pf_abnormal_int[0],
+					      status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(reset_level);
+	}
 
 	/* clear all PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
@@ -1341,16 +1636,15 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests)
 {
+	struct hclge_mac_tnl_stats mac_tnl_stats;
 	struct device *dev = &hdev->pdev->dev;
 	u32 mpf_bd_num, pf_bd_num, bd_num;
+	enum hnae3_reset_type reset_level;
 	struct hclge_desc desc_bd;
 	struct hclge_desc *desc;
 	__le32 *desc_data;
-	int ret = 0;
 	u32 status;
-
-	/* set default handling */
-	set_bit(HNAE3_FUNC_RESET, reset_requests);
+	int ret;
 
 	/* query the number of bds for the MSIx int status */
 	hclge_cmd_setup_basic_desc(&desc_bd, HCLGE_QUERY_MSIX_INT_STS_BD_NUM,
@@ -1359,8 +1653,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "fail(%d) to query msix int status bd num\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		return ret;
 	}
 
@@ -1381,8 +1673,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "query all mpf msix int cmd failed (%d)\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
 	}
 
@@ -1390,9 +1680,10 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	desc_data = (__le32 *)&desc[1];
 	status = le32_to_cpu(*desc_data);
 	if (status) {
-		hclge_log_error(dev, "MAC_AFIFO_TNL_INT_R",
-				&hclge_mac_afifo_tnl_int[0], status);
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+		reset_level = hclge_log_error(dev, "MAC_AFIFO_TNL_INT_R",
+					      &hclge_mac_afifo_tnl_int[0],
+					      status);
+		set_bit(reset_level, reset_requests);
 	}
 
 	/* log PPU(RCB) MPF errors */
@@ -1400,9 +1691,11 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	status = le32_to_cpu(*(desc_data + 2)) &
 			HCLGE_PPU_MPF_INT_ST2_MSIX_MASK;
 	if (status) {
-		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST2",
-				&hclge_ppu_mpf_abnormal_int_st2[0], status);
-		set_bit(HNAE3_CORE_RESET, reset_requests);
+		reset_level =
+			hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST2",
+					&hclge_ppu_mpf_abnormal_int_st2[0],
+					status);
+		set_bit(reset_level, reset_requests);
 	}
 
 	/* clear all main PF MSIx errors */
@@ -1413,8 +1706,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "clear all mpf msix int cmd failed (%d)\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
 	}
 
@@ -1428,32 +1719,37 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "query all pf msix int cmd failed (%d)\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
 	}
 
 	/* log SSU PF errors */
 	status = le32_to_cpu(desc[0].data[0]) & HCLGE_SSU_PORT_INT_MSIX_MASK;
 	if (status) {
-		hclge_log_error(dev, "SSU_PORT_BASED_ERR_INT",
-				&hclge_ssu_port_based_pf_int[0], status);
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+		reset_level = hclge_log_error(dev, "SSU_PORT_BASED_ERR_INT",
+					      &hclge_ssu_port_based_pf_int[0],
+					      status);
+		set_bit(reset_level, reset_requests);
 	}
 
 	/* read and log PPP PF errors */
 	desc_data = (__le32 *)&desc[2];
 	status = le32_to_cpu(*desc_data);
-	if (status)
-		hclge_log_error(dev, "PPP_PF_ABNORMAL_INT_ST0",
-				&hclge_ppp_pf_abnormal_int[0], status);
+	if (status) {
+		reset_level = hclge_log_error(dev, "PPP_PF_ABNORMAL_INT_ST0",
+					      &hclge_ppp_pf_abnormal_int[0],
+					      status);
+		set_bit(reset_level, reset_requests);
+	}
 
 	/* log PPU(RCB) PF errors */
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_MSIX_MASK;
-	if (status)
-		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST",
-				&hclge_ppu_pf_abnormal_int[0], status);
+	if (status) {
+		reset_level = hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST",
+					      &hclge_ppu_pf_abnormal_int[0],
+					      status);
+		set_bit(reset_level, reset_requests);
+	}
 
 	/* clear all PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
@@ -1463,8 +1759,31 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "clear all pf msix int cmd failed (%d)\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+	}
+
+	/* query and clear mac tnl interruptions */
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_MAC_TNL_INT,
+				   true);
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], 1);
+	if (ret) {
+		dev_err(dev, "query mac tnl int cmd failed (%d)\n", ret);
+		goto msi_error;
+	}
+
+	status = le32_to_cpu(desc->data[0]);
+	if (status) {
+		/* When mac tnl interrupt occurs, we record current time and
+		 * register status here in a fifo, then clear the status. So
+		 * that if link status changes suddenly at some time, we can
+		 * query them by debugfs.
+		 */
+		mac_tnl_stats.time = local_clock();
+		mac_tnl_stats.status = status;
+		kfifo_put(&hdev->mac_tnl_log, mac_tnl_stats);
+		ret = hclge_clear_mac_tnl_int(hdev);
+		if (ret)
+			dev_err(dev, "clear mac tnl int failed (%d)\n", ret);
+		set_bit(HNAE3_NONE_RESET, reset_requests);
 	}
 
 msi_error:

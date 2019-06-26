@@ -58,12 +58,12 @@ static int mmio_offset_compare(void *priv,
 static inline int mmio_diff_handler(struct intel_gvt *gvt,
 				    u32 offset, void *data)
 {
-	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	struct drm_i915_private *i915 = gvt->dev_priv;
 	struct mmio_diff_param *param = data;
 	struct diff_mmio *node;
 	u32 preg, vreg;
 
-	preg = I915_READ_NOTRACE(_MMIO(offset));
+	preg = intel_uncore_read_notrace(&i915->uncore, _MMIO(offset));
 	vreg = vgpu_vreg(param->vgpu, offset);
 
 	if (preg != vreg) {
@@ -196,9 +196,9 @@ DEFINE_SIMPLE_ATTRIBUTE(vgpu_scan_nonprivbb_fops,
 int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 {
 	struct dentry *ent;
-	char name[10] = "";
+	char name[16] = "";
 
-	sprintf(name, "vgpu%d", vgpu->id);
+	snprintf(name, 16, "vgpu%d", vgpu->id);
 	vgpu->debugfs = debugfs_create_dir(name, vgpu->gvt->debugfs_root);
 	if (!vgpu->debugfs)
 		return -ENOMEM;

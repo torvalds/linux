@@ -1,21 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * x64 SIMD accelerated ChaCha and XChaCha stream ciphers,
  * including ChaCha20 (RFC7539)
  *
  * Copyright (C) 2015 Martin Willi
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <crypto/algapi.h>
 #include <crypto/chacha.h>
+#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/fpu/api.h>
 #include <asm/simd.h>
 
 #define CHACHA_STATE_ALIGN 16
@@ -170,7 +166,7 @@ static int chacha_simd(struct skcipher_request *req)
 	struct skcipher_walk walk;
 	int err;
 
-	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !irq_fpu_usable())
+	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !crypto_simd_usable())
 		return crypto_chacha_crypt(req);
 
 	err = skcipher_walk_virt(&walk, req, true);
@@ -193,7 +189,7 @@ static int xchacha_simd(struct skcipher_request *req)
 	u8 real_iv[16];
 	int err;
 
-	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !irq_fpu_usable())
+	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !crypto_simd_usable())
 		return crypto_xchacha_crypt(req);
 
 	err = skcipher_walk_virt(&walk, req, true);

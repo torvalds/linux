@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2015 Jiri Pirko <jiri@resnulli.us>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -293,7 +289,8 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	if (!nla)
 		return -EINVAL;
 
-	ret = nla_parse_nested(tb, TCA_ACT_BPF_MAX, nla, act_bpf_policy, NULL);
+	ret = nla_parse_nested_deprecated(tb, TCA_ACT_BPF_MAX, nla,
+					  act_bpf_policy, NULL);
 	if (ret < 0)
 		return ret;
 

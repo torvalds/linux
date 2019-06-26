@@ -235,6 +235,9 @@ reset_coalesce:
 	BNXT_TX_STATS_PRI_ENTRY(counter, 6),		\
 	BNXT_TX_STATS_PRI_ENTRY(counter, 7)
 
+#define BNXT_PCIE_STATS_ENTRY(counter)	\
+	{ BNXT_PCIE_STATS_OFFSET(counter), __stringify(counter) }
+
 enum {
 	RX_TOTAL_DISCARDS,
 	TX_TOTAL_DISCARDS,
@@ -345,6 +348,10 @@ static const struct {
 	BNXT_RX_STATS_EXT_ENTRY(resume_roce_pause_events),
 	BNXT_RX_STATS_EXT_COS_ENTRIES,
 	BNXT_RX_STATS_EXT_PFC_ENTRIES,
+	BNXT_RX_STATS_EXT_ENTRY(rx_bits),
+	BNXT_RX_STATS_EXT_ENTRY(rx_buffer_passed_threshold),
+	BNXT_RX_STATS_EXT_ENTRY(rx_pcs_symbol_err),
+	BNXT_RX_STATS_EXT_ENTRY(rx_corrected_bits),
 };
 
 static const struct {
@@ -383,6 +390,24 @@ static const struct {
 	BNXT_TX_STATS_PRI_ENTRIES(tx_packets),
 };
 
+static const struct {
+	long offset;
+	char string[ETH_GSTRING_LEN];
+} bnxt_pcie_stats_arr[] = {
+	BNXT_PCIE_STATS_ENTRY(pcie_pl_signal_integrity),
+	BNXT_PCIE_STATS_ENTRY(pcie_dl_signal_integrity),
+	BNXT_PCIE_STATS_ENTRY(pcie_tl_signal_integrity),
+	BNXT_PCIE_STATS_ENTRY(pcie_link_integrity),
+	BNXT_PCIE_STATS_ENTRY(pcie_tx_traffic_rate),
+	BNXT_PCIE_STATS_ENTRY(pcie_rx_traffic_rate),
+	BNXT_PCIE_STATS_ENTRY(pcie_tx_dllp_statistics),
+	BNXT_PCIE_STATS_ENTRY(pcie_rx_dllp_statistics),
+	BNXT_PCIE_STATS_ENTRY(pcie_equalization_time),
+	BNXT_PCIE_STATS_ENTRY(pcie_ltssm_histogram[0]),
+	BNXT_PCIE_STATS_ENTRY(pcie_ltssm_histogram[2]),
+	BNXT_PCIE_STATS_ENTRY(pcie_recovery_histogram),
+};
+
 #define BNXT_NUM_SW_FUNC_STATS	ARRAY_SIZE(bnxt_sw_func_stats)
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
 #define BNXT_NUM_STATS_PRI			\
@@ -390,6 +415,7 @@ static const struct {
 	 ARRAY_SIZE(bnxt_rx_pkts_pri_arr) +	\
 	 ARRAY_SIZE(bnxt_tx_bytes_pri_arr) +	\
 	 ARRAY_SIZE(bnxt_tx_pkts_pri_arr))
+#define BNXT_NUM_PCIE_STATS ARRAY_SIZE(bnxt_pcie_stats_arr)
 
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
@@ -406,6 +432,9 @@ static int bnxt_get_num_stats(struct bnxt *bp)
 		if (bp->pri2cos_valid)
 			num_stats += BNXT_NUM_STATS_PRI;
 	}
+
+	if (bp->flags & BNXT_FLAG_PCIE_STATS)
+		num_stats += BNXT_NUM_PCIE_STATS;
 
 	return num_stats;
 }
@@ -509,6 +538,14 @@ skip_ring_stats:
 			}
 		}
 	}
+	if (bp->flags & BNXT_FLAG_PCIE_STATS) {
+		__le64 *pcie_stats = (__le64 *)bp->hw_pcie_stats;
+
+		for (i = 0; i < BNXT_NUM_PCIE_STATS; i++, j++) {
+			buf[j] = le64_to_cpu(*(pcie_stats +
+					       bnxt_pcie_stats_arr[i].offset));
+		}
+	}
 }
 
 static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -607,6 +644,12 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 					       bnxt_tx_pkts_pri_arr[i].string);
 					buf += ETH_GSTRING_LEN;
 				}
+			}
+		}
+		if (bp->flags & BNXT_FLAG_PCIE_STATS) {
+			for (i = 0; i < BNXT_NUM_PCIE_STATS; i++) {
+				strcpy(buf, bnxt_pcie_stats_arr[i].string);
+				buf += ETH_GSTRING_LEN;
 			}
 		}
 		break;
@@ -788,7 +831,7 @@ static int bnxt_set_channels(struct net_device *dev,
 			 */
 		}
 	} else {
-		rc = bnxt_reserve_rings(bp);
+		rc = bnxt_reserve_rings(bp, true);
 	}
 
 	return rc;
@@ -3262,7 +3305,8 @@ void bnxt_ethtool_init(struct bnxt *bp)
 	struct net_device *dev = bp->dev;
 	int i, rc;
 
-	bnxt_get_pkgver(dev);
+	if (!(bp->fw_cap & BNXT_FW_CAP_PKG_VER))
+		bnxt_get_pkgver(dev);
 
 	if (bp->hwrm_spec_code < 0x10704 || !BNXT_SINGLE_PF(bp))
 		return;

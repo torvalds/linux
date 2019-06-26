@@ -41,7 +41,7 @@ struct max77650_regulator_desc {
 	unsigned int regB;
 };
 
-static const u32 max77651_sbb1_regulator_volt_table[] = {
+static const unsigned int max77651_sbb1_regulator_volt_table[] = {
 	2400000, 3200000, 4000000, 4800000,
 	2450000, 3250000, 4050000, 4850000,
 	2500000, 3300000, 4100000, 4900000,

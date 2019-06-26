@@ -14,6 +14,7 @@ config X86_32
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select CLKSRC_I8253
 	select CLONE_BACKWARDS
+	select HAVE_DEBUG_STACKOVERFLOW
 	select MODULES_USE_ELF_REL
 	select OLD_SIGACTION
 
@@ -21,16 +22,26 @@ config X86_64
 	def_bool y
 	depends on 64BIT
 	# Options that are inherently 64-bit kernel only:
-	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
+	select ARCH_HAS_GIGANTIC_PAGE
 	select ARCH_SUPPORTS_INT128
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_ARCH_SOFT_DIRTY
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
 	select SWIOTLB
-	select X86_DEV_DMA_OPS
 	select ARCH_HAS_SYSCALL_WRAPPER
 
+config FORCE_DYNAMIC_FTRACE
+	def_bool y
+	depends on X86_32
+	depends on FUNCTION_TRACER
+	select DYNAMIC_FTRACE
+	help
+	 We keep the static function tracing (!DYNAMIC_FTRACE) around
+	 in order to test the non static function tracing in the
+	 generic code, as other architectures still use it. But we
+	 only need to keep it around for x86_64. No need to keep it
+	 for x86_32. For x86_32, force DYNAMIC_FTRACE. 
 #
 # Arch settings
 #
@@ -44,11 +55,9 @@ config X86
 	#
 	select ACPI_LEGACY_TABLES_LOOKUP	if ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT	if ACPI
-	select ANON_INODES
 	select ARCH_32BIT_OFF_T			if X86_32
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_CLOCKSOURCE_INIT
-	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
@@ -65,6 +74,7 @@ config X86
 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
 	select ARCH_HAS_UACCESS_MCSAFE		if X86_64 && X86_MCE
 	select ARCH_HAS_SET_MEMORY
+	select ARCH_HAS_SET_DIRECT_MAP
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
@@ -74,6 +84,7 @@ config X86
 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ACPI
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
@@ -138,7 +149,6 @@ config X86
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
@@ -183,7 +193,6 @@ config X86
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_RCU_TABLE_FREE		if PARAVIRT
-	select HAVE_RCU_TABLE_INVALIDATE	if HAVE_RCU_TABLE_FREE
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RELIABLE_STACKTRACE		if X86_64 && (UNWINDER_FRAME_POINTER || UNWINDER_ORC) && STACK_VALIDATION
 	select HAVE_FUNCTION_ARG_ACCESS_API
@@ -261,15 +270,9 @@ config GENERIC_BUG
 config GENERIC_BUG_RELATIVE_POINTERS
 	bool
 
-config GENERIC_HWEIGHT
-	def_bool y
-
 config ARCH_MAY_HAVE_PC_FDC
 	def_bool y
 	depends on ISA_DMA_API
-
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
@@ -309,9 +312,6 @@ config ZONE_DMA32
 
 config AUDIT_ARCH
 	def_bool y if X86_64
-
-config ARCH_SUPPORTS_OPTIMIZED_INLINING
-	def_bool y
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
@@ -703,8 +703,6 @@ config STA2X11
 	bool "STA2X11 Companion Chip Support"
 	depends on X86_32_NON_STANDARD && PCI
 	select ARCH_HAS_PHYS_TO_DMA
-	select X86_DEV_DMA_OPS
-	select X86_DMA_REMAP
 	select SWIOTLB
 	select MFD_STA2X11
 	select GPIOLIB
@@ -782,14 +780,6 @@ config PARAVIRT_SPINLOCKS
 	  benefit on paravirtualized KVM / Xen kernels.
 
 	  If you are unsure how to answer this question, answer Y.
-
-config QUEUED_LOCK_STAT
-	bool "Paravirt queued spinlock statistics"
-	depends on PARAVIRT_SPINLOCKS && DEBUG_FS
-	---help---
-	  Enable the collection of statistical data on the slowpath
-	  behavior of paravirtualized queued spinlocks and report
-	  them on debugfs.
 
 source "arch/x86/xen/Kconfig"
 
@@ -1330,8 +1320,16 @@ config MICROCODE_AMD
 	  processors will be enabled.
 
 config MICROCODE_OLD_INTERFACE
-	def_bool y
+	bool "Ancient loading interface (DEPRECATED)"
+	default n
 	depends on MICROCODE
+	---help---
+	  DO NOT USE THIS! This is the ancient /dev/cpu/microcode interface
+	  which was used by userspace tools like iucode_tool and microcode.ctl.
+	  It is inadequate because it runs too late to be able to properly
+	  load microcode on a machine and it needs special tools. Instead, you
+	  should've switched to the early loading method with the initrd or
+	  builtin microcode by now: Documentation/x86/microcode.txt
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
@@ -1499,7 +1497,7 @@ config X86_CPA_STATISTICS
 	depends on DEBUG_FS
 	---help---
 	  Expose statistics about the Change Page Attribute mechanims, which
-	  helps to determine the effectivness of preserving large and huge
+	  helps to determine the effectiveness of preserving large and huge
 	  page mappings when mapping protections are changed.
 
 config ARCH_HAS_MEM_ENCRYPT
@@ -1606,12 +1604,9 @@ config ARCH_FLATMEM_ENABLE
 	depends on X86_32 && !NUMA
 
 config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
+	def_bool n
 	depends on NUMA && X86_32
-
-config ARCH_DISCONTIGMEM_DEFAULT
-	def_bool y
-	depends on NUMA && X86_32
+	depends on BROKEN
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
@@ -1620,8 +1615,7 @@ config ARCH_SPARSEMEM_ENABLE
 	select SPARSEMEM_VMEMMAP_ENABLE if X86_64
 
 config ARCH_SPARSEMEM_DEFAULT
-	def_bool y
-	depends on X86_64
+	def_bool X86_64 || (NUMA && X86_32)
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
@@ -2878,11 +2872,6 @@ config HAVE_ATOMIC_IOMAP
 
 config X86_DEV_DMA_OPS
 	bool
-	depends on X86_64 || STA2X11
-
-config X86_DMA_REMAP
-	bool
-	depends on STA2X11
 
 config HAVE_GENERIC_GUP
 	def_bool y

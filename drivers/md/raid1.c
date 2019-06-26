@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * raid1.c : Multiple Devices driver for Linux
  *
@@ -20,15 +21,6 @@
  *
  * Additions to bitmap code, (C) 2003-2004 Paul Clements, SteelEye Technology:
  * - persistent bitmap code
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * You should have received a copy of the GNU General Public License
- * (for example /usr/src/linux/COPYING); if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/slab.h>
@@ -2110,7 +2102,7 @@ static void process_checks(struct r1bio *r1_bio)
 		}
 	r1_bio->read_disk = primary;
 	for (i = 0; i < conf->raid_disks * 2; i++) {
-		int j;
+		int j = 0;
 		struct bio *pbio = r1_bio->bios[primary];
 		struct bio *sbio = r1_bio->bios[i];
 		blk_status_t status = sbio->bi_status;
@@ -2125,8 +2117,8 @@ static void process_checks(struct r1bio *r1_bio)
 		/* Now we can 'fixup' the error value */
 		sbio->bi_status = 0;
 
-		bio_for_each_segment_all(bi, sbio, j, iter_all)
-			page_len[j] = bi->bv_len;
+		bio_for_each_segment_all(bi, sbio, iter_all)
+			page_len[j++] = bi->bv_len;
 
 		if (!status) {
 			for (j = vcnt; j-- ; ) {

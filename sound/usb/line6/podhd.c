@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Line 6 Pod HD
  *
  * Copyright (C) 2011 Stefan Hajnoczi <stefanha@gmail.com>
  * Copyright (C) 2015 Andrej Krutak <dev@andree.sk>
  * Copyright (C) 2017 Hans P. Moller <hmoller@uc.cl>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/usb.h>
@@ -225,9 +221,13 @@ static void podhd_startup_start_workqueue(struct timer_list *t)
 static int podhd_dev_start(struct usb_line6_podhd *pod)
 {
 	int ret;
-	u8 init_bytes[8];
+	u8 *init_bytes;
 	int i;
 	struct usb_device *usbdev = pod->line6.usbdev;
+
+	init_bytes = kmalloc(8, GFP_KERNEL);
+	if (!init_bytes)
+		return -ENOMEM;
 
 	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0),
 					0x67, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
@@ -235,18 +235,18 @@ static int podhd_dev_start(struct usb_line6_podhd *pod)
 					NULL, 0, LINE6_TIMEOUT * HZ);
 	if (ret < 0) {
 		dev_err(pod->line6.ifcdev, "read request failed (error %d)\n", ret);
-		return ret;
+		goto exit;
 	}
 
 	/* NOTE: looks like some kind of ping message */
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0), 0x67,
 					USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 					0x11, 0x0,
-					&init_bytes, 3, LINE6_TIMEOUT * HZ);
+					init_bytes, 3, LINE6_TIMEOUT * HZ);
 	if (ret < 0) {
 		dev_err(pod->line6.ifcdev,
 			"receive length failed (error %d)\n", ret);
-		return ret;
+		goto exit;
 	}
 
 	pod->firmware_version =
@@ -255,7 +255,7 @@ static int podhd_dev_start(struct usb_line6_podhd *pod)
 	for (i = 0; i <= 16; i++) {
 		ret = line6_read_data(&pod->line6, 0xf000 + 0x08 * i, init_bytes, 8);
 		if (ret < 0)
-			return ret;
+			goto exit;
 	}
 
 	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0),
@@ -263,10 +263,9 @@ static int podhd_dev_start(struct usb_line6_podhd *pod)
 					USB_TYPE_STANDARD | USB_RECIP_DEVICE | USB_DIR_OUT,
 					1, 0,
 					NULL, 0, LINE6_TIMEOUT * HZ);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+exit:
+	kfree(init_bytes);
+	return ret;
 }
 
 static void podhd_startup_workqueue(struct work_struct *work)

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
  * Copyright (c) 2016 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 
 #include <linux/bpf.h>
@@ -205,10 +197,11 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			 * part of the ldimm64 insn is accessible.
 			 */
 			u64 imm = ((u64)(insn + 1)->imm << 32) | (u32)insn->imm;
-			bool map_ptr = insn->src_reg == BPF_PSEUDO_MAP_FD;
+			bool is_ptr = insn->src_reg == BPF_PSEUDO_MAP_FD ||
+				      insn->src_reg == BPF_PSEUDO_MAP_VALUE;
 			char tmp[64];
 
-			if (map_ptr && !allow_ptr_leaks)
+			if (is_ptr && !allow_ptr_leaks)
 				imm = 0;
 
 			verbose(cbs->private_data, "(%02x) r%d = %s\n",

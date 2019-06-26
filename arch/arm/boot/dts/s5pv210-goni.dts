@@ -376,7 +376,7 @@
 		vdd_core-supply = <&ldo14_reg>;
 
 		clock-frequency = <16000000>;
-		clocks = <&clock_cam 0>;
+		clocks = <&camera 0>;
 		clock-names = "mclk";
 		nreset-gpios = <&gpb 2 0>;
 		nstby-gpios = <&gpb 0 0>;

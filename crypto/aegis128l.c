@@ -512,7 +512,7 @@ static void __exit crypto_aegis128l_module_exit(void)
 	crypto_unregister_aead(&crypto_aegis128l_alg);
 }
 
-module_init(crypto_aegis128l_module_init);
+subsys_initcall(crypto_aegis128l_module_init);
 module_exit(crypto_aegis128l_module_exit);
 
 MODULE_LICENSE("GPL");

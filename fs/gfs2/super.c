@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -45,6 +42,7 @@
 #include "util.h"
 #include "sys.h"
 #include "xattr.h"
+#include "lops.h"
 
 #define args_neq(a1, a2, x) ((a1)->ar_##x != (a2)->ar_##x)
 
@@ -425,7 +423,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 
 	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 
-	error = gfs2_find_jhead(sdp->sd_jdesc, &head);
+	error = gfs2_find_jhead(sdp->sd_jdesc, &head, false);
 	if (error)
 		goto fail;
 
@@ -680,7 +678,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 		error = gfs2_jdesc_check(jd);
 		if (error)
 			break;
-		error = gfs2_find_jhead(jd, &lh);
+		error = gfs2_find_jhead(jd, &lh, false);
 		if (error)
 			break;
 		if (!(lh.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
@@ -973,8 +971,7 @@ void gfs2_freeze_func(struct work_struct *work)
 	if (error) {
 		printk(KERN_INFO "GFS2: couldn't get freeze lock : %d\n", error);
 		gfs2_assert_withdraw(sdp, 0);
-	}
-	else {
+	} else {
 		atomic_set(&sdp->sd_freeze_state, SFS_UNFROZEN);
 		error = thaw_super(sb);
 		if (error) {
@@ -987,6 +984,8 @@ void gfs2_freeze_func(struct work_struct *work)
 		gfs2_glock_dq_uninit(&freeze_gh);
 	}
 	deactivate_super(sb);
+	clear_bit_unlock(SDF_FS_FROZEN, &sdp->sd_flags);
+	wake_up_bit(&sdp->sd_flags, SDF_FS_FROZEN);
 	return;
 }
 
@@ -1029,6 +1028,7 @@ static int gfs2_freeze(struct super_block *sb)
 		msleep(1000);
 	}
 	error = 0;
+	set_bit(SDF_FS_FROZEN, &sdp->sd_flags);
 out:
 	mutex_unlock(&sdp->sd_freeze_mutex);
 	return error;
@@ -1053,7 +1053,7 @@ static int gfs2_unfreeze(struct super_block *sb)
 
 	gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 	mutex_unlock(&sdp->sd_freeze_mutex);
-	return 0;
+	return wait_on_bit(&sdp->sd_flags, SDF_FS_FROZEN, TASK_INTERRUPTIBLE);
 }
 
 /**
@@ -1630,8 +1630,6 @@ alloc_failed:
 			goto out_truncate;
 	}
 
-	/* Case 1 starts here */
-
 	if (S_ISDIR(inode->i_mode) &&
 	    (ip->i_diskflags & GFS2_DIF_EXHASH)) {
 		error = gfs2_dir_exhash_dealloc(ip);
@@ -1670,7 +1668,6 @@ out_truncate:
 	write_inode_now(inode, 1);
 	gfs2_ail_flush(ip->i_gl, 0);
 
-	/* Case 2 starts here */
 	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 	if (error)
 		goto out_unlock;
@@ -1680,7 +1677,6 @@ out_truncate:
 	gfs2_trans_end(sdp);
 
 out_unlock:
-	/* Error path for case 1 */
 	if (gfs2_rs_active(&ip->i_res))
 		gfs2_rs_deltree(&ip->i_res);
 
@@ -1699,7 +1695,6 @@ out_unlock:
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:
-	/* Case 3 starts here */
 	truncate_inode_pages_final(&inode->i_data);
 	gfs2_rsqa_delete(ip, NULL);
 	gfs2_ordered_del_inode(ip);
@@ -1736,20 +1731,14 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 	return &ip->i_inode;
 }
 
-static void gfs2_i_callback(struct rcu_head *head)
+static void gfs2_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	kmem_cache_free(gfs2_inode_cachep, inode);
-}
-
-static void gfs2_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, gfs2_i_callback);
+	kmem_cache_free(gfs2_inode_cachep, GFS2_I(inode));
 }
 
 const struct super_operations gfs2_super_ops = {
 	.alloc_inode		= gfs2_alloc_inode,
-	.destroy_inode		= gfs2_destroy_inode,
+	.free_inode		= gfs2_free_inode,
 	.write_inode		= gfs2_write_inode,
 	.dirty_inode		= gfs2_dirty_inode,
 	.evict_inode		= gfs2_evict_inode,

@@ -132,7 +132,7 @@ version that should be applied. If there is any doubt, the maintainer
 will reply and ask what should be done.
 
 Q: I made changes to only a few patches in a patch series should I resend only those changed?
---------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------
 A: No, please resend the entire patch series and make sure you do number your
 patches such that it is clear this is the latest and greatest set of patches
 that can be applied.

@@ -26,6 +26,7 @@
 #ifndef _DCN_CALC_AUTO_H_
 #define _DCN_CALC_AUTO_H_
 
+#include "dc.h"
 #include "dcn_calcs.h"
 
 void scaler_settings_calculation(struct dcn_bw_internal_vars *v);

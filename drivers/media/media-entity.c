@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Media entity
  *
@@ -5,19 +6,9 @@
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitmap.h>
-#include <linux/module.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <media/media-entity.h>
@@ -436,7 +427,10 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 
 		entity->stream_count++;
 
-		if (WARN_ON(entity->pipe && entity->pipe != pipe)) {
+		if (entity->pipe && entity->pipe != pipe) {
+			pr_err("Pipe active for %s. Can't start for %s\n",
+				entity->name,
+				entity_err->name);
 			ret = -EBUSY;
 			goto error;
 		}
@@ -586,33 +580,6 @@ void media_pipeline_stop(struct media_entity *entity)
 	mutex_unlock(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_pipeline_stop);
-
-/* -----------------------------------------------------------------------------
- * Module use count
- */
-
-struct media_entity *media_entity_get(struct media_entity *entity)
-{
-	if (entity == NULL)
-		return NULL;
-
-	if (entity->graph_obj.mdev->dev &&
-	    !try_module_get(entity->graph_obj.mdev->dev->driver->owner))
-		return NULL;
-
-	return entity;
-}
-EXPORT_SYMBOL_GPL(media_entity_get);
-
-void media_entity_put(struct media_entity *entity)
-{
-	if (entity == NULL)
-		return;
-
-	if (entity->graph_obj.mdev->dev)
-		module_put(entity->graph_obj.mdev->dev->driver->owner);
-}
-EXPORT_SYMBOL_GPL(media_entity_put);
 
 /* -----------------------------------------------------------------------------
  * Links management

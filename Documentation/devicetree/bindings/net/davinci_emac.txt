@@ -23,6 +23,9 @@ Optional properties:
 - ti,davinci-rmii-en: 1 byte, 1 means use RMII
 - ti,davinci-no-bd-ram: boolean, does EMAC have BD RAM?
 
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
+
 Example (enbw_cmc board):
 	eth0: emac@1e20000 {
 		compatible = "ti,davinci-dm6467-emac";

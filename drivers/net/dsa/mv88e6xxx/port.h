@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Marvell 88E6xxx Switch Port Registers support
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _MV88E6XXX_PORT_H
@@ -52,7 +48,6 @@
 #define MV88E6185_PORT_STS_CMODE_1000BASE_X	0x0005
 #define MV88E6185_PORT_STS_CMODE_PHY		0x0006
 #define MV88E6185_PORT_STS_CMODE_DISABLED	0x0007
-#define MV88E6XXX_PORT_STS_CMODE_INVALID	0xff
 
 /* Offset 0x01: MAC (or PCS or Physical) Control Register */
 #define MV88E6XXX_PORT_MAC_CTL				0x01

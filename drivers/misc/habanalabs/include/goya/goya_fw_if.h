@@ -8,6 +8,8 @@
 #ifndef GOYA_FW_IF_H
 #define GOYA_FW_IF_H
 
+#define GOYA_EVENT_QUEUE_MSIX_IDX	5
+
 #define CPU_BOOT_ADDR		0x7FF8040000ull
 
 #define UBOOT_FW_OFFSET		0x100000		/* 1MB in SRAM */

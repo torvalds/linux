@@ -549,6 +549,15 @@ xfs_inobt_max_size(
 	if (mp->m_inobt_mxr[0] == 0)
 		return 0;
 
+	/*
+	 * The log is permanently allocated, so the space it occupies will
+	 * never be available for the kinds of things that would require btree
+	 * expansion.  We therefore can pretend the space isn't there.
+	 */
+	if (mp->m_sb.sb_logstart &&
+	    XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart) == agno)
+		agblocks -= mp->m_sb.sb_logblocks;
+
 	return xfs_btree_calc_size(mp->m_inobt_mnr,
 				(uint64_t)agblocks * mp->m_sb.sb_inopblock /
 					XFS_INODES_PER_CHUNK);

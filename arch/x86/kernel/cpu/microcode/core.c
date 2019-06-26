@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CPU Microcode Update Driver for Linux
  *
@@ -12,11 +13,6 @@
  *		  (C) 2015 Borislav Petkov <bp@alien8.de>
  *
  * This driver allows to upgrade microcode on x86 processors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "microcode: " fmt
@@ -418,8 +414,9 @@ static int do_microcode_update(const void __user *buf, size_t size)
 		if (ustate == UCODE_ERROR) {
 			error = -1;
 			break;
-		} else if (ustate == UCODE_OK)
+		} else if (ustate == UCODE_NEW) {
 			apply_microcode_on_target(cpu);
+		}
 	}
 
 	return error;
@@ -427,7 +424,7 @@ static int do_microcode_update(const void __user *buf, size_t size)
 
 static int microcode_open(struct inode *inode, struct file *file)
 {
-	return capable(CAP_SYS_RAWIO) ? nonseekable_open(inode, file) : -EPERM;
+	return capable(CAP_SYS_RAWIO) ? stream_open(inode, file) : -EPERM;
 }
 
 static ssize_t microcode_write(struct file *file, const char __user *buf,
@@ -875,7 +872,7 @@ int __init microcode_init(void)
 		goto out_ucode_group;
 
 	register_syscore_ops(&mc_syscore_ops);
-	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "x86/microcode:online",
+	cpuhp_setup_state_nocalls(CPUHP_AP_MICROCODE_LOADER, "x86/microcode:online",
 				  mc_cpu_online, mc_cpu_down_prep);
 
 	pr_info("Microcode Update Driver: v%s.", DRIVER_VERSION);

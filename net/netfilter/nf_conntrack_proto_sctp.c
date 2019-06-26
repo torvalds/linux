@@ -520,7 +520,7 @@ static int sctp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	struct nlattr *nest_parms;
 
 	spin_lock_bh(&ct->lock);
-	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_SCTP | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_SCTP);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -563,8 +563,8 @@ static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
 	if (!attr)
 		return 0;
 
-	err = nla_parse_nested(tb, CTA_PROTOINFO_SCTP_MAX, attr,
-			       sctp_nla_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, CTA_PROTOINFO_SCTP_MAX, attr,
+					  sctp_nla_policy, NULL);
 	if (err < 0)
 		return err;
 

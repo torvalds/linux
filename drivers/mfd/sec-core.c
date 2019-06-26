@@ -28,45 +28,33 @@
 #include <linux/regmap.h>
 
 static const struct mfd_cell s5m8751_devs[] = {
-	{
-		.name = "s5m8751-pmic",
-	}, {
-		.name = "s5m-charger",
-	}, {
-		.name = "s5m8751-codec",
-	},
+	{ .name = "s5m8751-pmic", },
+	{ .name = "s5m-charger", },
+	{ .name = "s5m8751-codec", },
 };
 
 static const struct mfd_cell s5m8763_devs[] = {
-	{
-		.name = "s5m8763-pmic",
-	}, {
-		.name = "s5m-rtc",
-	}, {
-		.name = "s5m-charger",
-	},
+	{ .name = "s5m8763-pmic", },
+	{ .name = "s5m-rtc", },
+	{ .name = "s5m-charger", },
 };
 
 static const struct mfd_cell s5m8767_devs[] = {
+	{ .name = "s5m8767-pmic", },
+	{ .name = "s5m-rtc", },
 	{
-		.name = "s5m8767-pmic",
-	}, {
-		.name = "s5m-rtc",
-	}, {
 		.name = "s5m8767-clk",
 		.of_compatible = "samsung,s5m8767-clk",
-	}
+	},
 };
 
 static const struct mfd_cell s2mps11_devs[] = {
+	{ .name = "s2mps11-regulator", },
+	{ .name = "s2mps14-rtc", },
 	{
-		.name = "s2mps11-regulator",
-	}, {
-		.name = "s2mps14-rtc",
-	}, {
 		.name = "s2mps11-clk",
 		.of_compatible = "samsung,s2mps11-clk",
-	}
+	},
 };
 
 static const struct mfd_cell s2mps13_devs[] = {
@@ -79,37 +67,30 @@ static const struct mfd_cell s2mps13_devs[] = {
 };
 
 static const struct mfd_cell s2mps14_devs[] = {
+	{ .name = "s2mps14-regulator", },
+	{ .name = "s2mps14-rtc", },
 	{
-		.name = "s2mps14-regulator",
-	}, {
-		.name = "s2mps14-rtc",
-	}, {
 		.name = "s2mps14-clk",
 		.of_compatible = "samsung,s2mps14-clk",
-	}
+	},
 };
 
 static const struct mfd_cell s2mps15_devs[] = {
+	{ .name = "s2mps15-regulator", },
+	{ .name = "s2mps15-rtc", },
 	{
-		.name = "s2mps15-regulator",
-	}, {
-		.name = "s2mps15-rtc",
-	}, {
 		.name = "s2mps13-clk",
 		.of_compatible = "samsung,s2mps13-clk",
 	},
 };
 
 static const struct mfd_cell s2mpa01_devs[] = {
-	{
-		.name = "s2mpa01-pmic",
-	},
+	{ .name = "s2mpa01-pmic", },
+	{ .name = "s2mps14-rtc", },
 };
 
 static const struct mfd_cell s2mpu02_devs[] = {
-	{
-		.name = "s2mpu02-regulator",
-	},
+	{ .name = "s2mpu02-regulator", },
 };
 
 #ifdef CONFIG_OF

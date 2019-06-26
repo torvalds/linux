@@ -227,11 +227,42 @@ static inline void pm_set_resume_via_firmware(void)
 	pm_suspend_global_flags |= PM_SUSPEND_FLAG_FW_RESUME;
 }
 
+/**
+ * pm_suspend_via_firmware - Check if platform firmware will suspend the system.
+ *
+ * To be called during system-wide power management transitions to sleep states
+ * or during the subsequent system-wide transitions back to the working state.
+ *
+ * Return 'true' if the platform firmware is going to be invoked at the end of
+ * the system-wide power management transition (to a sleep state) in progress in
+ * order to complete it, or if the platform firmware has been invoked in order
+ * to complete the last (or preceding) transition of the system to a sleep
+ * state.
+ *
+ * This matters if the caller needs or wants to carry out some special actions
+ * depending on whether or not control will be passed to the platform firmware
+ * subsequently (for example, the device may need to be reset before letting the
+ * platform firmware manipulate it, which is not necessary when the platform
+ * firmware is not going to be invoked) or when such special actions may have
+ * been carried out during the preceding transition of the system to a sleep
+ * state (as they may need to be taken into account).
+ */
 static inline bool pm_suspend_via_firmware(void)
 {
 	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_FW_SUSPEND);
 }
 
+/**
+ * pm_resume_via_firmware - Check if platform firmware has woken up the system.
+ *
+ * To be called during system-wide power management transitions from sleep
+ * states.
+ *
+ * Return 'true' if the platform firmware has passed control to the kernel at
+ * the beginning of the system-wide power management transition in progress, so
+ * the event that woke up the system from sleep has been handled by the platform
+ * firmware.
+ */
 static inline bool pm_resume_via_firmware(void)
 {
 	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_FW_RESUME);
@@ -359,7 +390,7 @@ extern void mark_free_pages(struct zone *zone);
  *	platforms which require special recovery actions in that situation.
  */
 struct platform_hibernation_ops {
-	int (*begin)(void);
+	int (*begin)(pm_message_t stage);
 	void (*end)(void);
 	int (*pre_snapshot)(void);
 	void (*finish)(void);
@@ -425,6 +456,7 @@ void restore_processor_state(void);
 /* kernel/power/main.c */
 extern int register_pm_notifier(struct notifier_block *nb);
 extern int unregister_pm_notifier(struct notifier_block *nb);
+extern void ksys_sync_helper(void);
 
 #define pm_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
@@ -461,6 +493,8 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
+
+static inline void ksys_sync_helper(void) {}
 
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
 

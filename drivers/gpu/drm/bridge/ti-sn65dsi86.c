@@ -3,22 +3,24 @@
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  */
 
-#include <drm/drmP.h>
+#include <linux/clk.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/iopoll.h>
+#include <linux/module.h>
+#include <linux/of_graph.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-#include <linux/clk.h>
-#include <linux/gpio/consumer.h>
-#include <linux/i2c.h>
-#include <linux/iopoll.h>
-#include <linux/of_graph.h>
-#include <linux/pm_runtime.h>
-#include <linux/regmap.h>
-#include <linux/regulator/consumer.h>
 
 #define SN_DEVICE_REV_REG			0x08
 #define SN_DPPLL_SRC_REG			0x0A

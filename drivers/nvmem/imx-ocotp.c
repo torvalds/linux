@@ -444,6 +444,12 @@ static const struct ocotp_params imx7ulp_params = {
 	.bank_address_words = 0,
 };
 
+static const struct ocotp_params imx8mq_params = {
+	.nregs = 256,
+	.bank_address_words = 4,
+	.set_timing = imx_ocotp_set_imx7_timing,
+};
+
 static const struct of_device_id imx_ocotp_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-ocotp",  .data = &imx6q_params },
 	{ .compatible = "fsl,imx6sl-ocotp", .data = &imx6sl_params },
@@ -453,6 +459,7 @@ static const struct of_device_id imx_ocotp_dt_ids[] = {
 	{ .compatible = "fsl,imx7d-ocotp",  .data = &imx7d_params },
 	{ .compatible = "fsl,imx6sll-ocotp", .data = &imx6sll_params },
 	{ .compatible = "fsl,imx7ulp-ocotp", .data = &imx7ulp_params },
+	{ .compatible = "fsl,imx8mq-ocotp", .data = &imx8mq_params },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, imx_ocotp_dt_ids);
@@ -460,7 +467,6 @@ MODULE_DEVICE_TABLE(of, imx_ocotp_dt_ids);
 static int imx_ocotp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct ocotp_priv *priv;
 	struct nvmem_device *nvmem;
 
@@ -470,8 +476,7 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

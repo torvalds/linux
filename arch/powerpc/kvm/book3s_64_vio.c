@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright 2010 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  * Copyright 2011 David Gibson, IBM Corporation <dwg@au1.ibm.com>
@@ -228,9 +217,31 @@ static void release_spapr_tce_table(struct rcu_head *head)
 	unsigned long i, npages = kvmppc_tce_pages(stt->size);
 
 	for (i = 0; i < npages; i++)
-		__free_page(stt->pages[i]);
+		if (stt->pages[i])
+			__free_page(stt->pages[i]);
 
 	kfree(stt);
+}
+
+static struct page *kvm_spapr_get_tce_page(struct kvmppc_spapr_tce_table *stt,
+		unsigned long sttpage)
+{
+	struct page *page = stt->pages[sttpage];
+
+	if (page)
+		return page;
+
+	mutex_lock(&stt->alloc_lock);
+	page = stt->pages[sttpage];
+	if (!page) {
+		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		WARN_ON_ONCE(!page);
+		if (page)
+			stt->pages[sttpage] = page;
+	}
+	mutex_unlock(&stt->alloc_lock);
+
+	return page;
 }
 
 static vm_fault_t kvm_spapr_tce_fault(struct vm_fault *vmf)
@@ -241,7 +252,10 @@ static vm_fault_t kvm_spapr_tce_fault(struct vm_fault *vmf)
 	if (vmf->pgoff >= kvmppc_tce_pages(stt->size))
 		return VM_FAULT_SIGBUS;
 
-	page = stt->pages[vmf->pgoff];
+	page = kvm_spapr_get_tce_page(stt, vmf->pgoff);
+	if (!page)
+		return VM_FAULT_OOM;
+
 	get_page(page);
 	vmf->page = page;
 	return 0;
@@ -296,7 +310,6 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	struct kvmppc_spapr_tce_table *siter;
 	unsigned long npages, size = args->size;
 	int ret = -ENOMEM;
-	int i;
 
 	if (!args->size || args->page_shift < 12 || args->page_shift > 34 ||
 		(args->offset + args->size > (ULLONG_MAX >> args->page_shift)))
@@ -318,13 +331,8 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	stt->offset = args->offset;
 	stt->size = size;
 	stt->kvm = kvm;
+	mutex_init(&stt->alloc_lock);
 	INIT_LIST_HEAD_RCU(&stt->iommu_tables);
-
-	for (i = 0; i < npages; i++) {
-		stt->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
-		if (!stt->pages[i])
-			goto fail;
-	}
 
 	mutex_lock(&kvm->lock);
 
@@ -352,15 +360,26 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	if (ret >= 0)
 		return ret;
 
- fail:
-	for (i = 0; i < npages; i++)
-		if (stt->pages[i])
-			__free_page(stt->pages[i]);
-
 	kfree(stt);
  fail_acct:
 	kvmppc_account_memlimit(kvmppc_stt_pages(npages), false);
 	return ret;
+}
+
+static long kvmppc_tce_to_ua(struct kvm *kvm, unsigned long tce,
+		unsigned long *ua)
+{
+	unsigned long gfn = tce >> PAGE_SHIFT;
+	struct kvm_memory_slot *memslot;
+
+	memslot = search_memslots(kvm_memslots(kvm), gfn);
+	if (!memslot)
+		return -EINVAL;
+
+	*ua = __gfn_to_hva_memslot(memslot, gfn) |
+		(tce & ~(PAGE_MASK | TCE_PCI_READ | TCE_PCI_WRITE));
+
+	return 0;
 }
 
 static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
@@ -378,7 +397,7 @@ static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 	if (iommu_tce_check_gpa(stt->page_shift, gpa))
 		return H_TOO_HARD;
 
-	if (kvmppc_tce_to_ua(stt->kvm, tce, &ua, NULL))
+	if (kvmppc_tce_to_ua(stt->kvm, tce, &ua))
 		return H_TOO_HARD;
 
 	list_for_each_entry_rcu(stit, &stt->iommu_tables, next) {
@@ -395,6 +414,36 @@ static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 	}
 
 	return H_SUCCESS;
+}
+
+/*
+ * Handles TCE requests for emulated devices.
+ * Puts guest TCE values to the table and expects user space to convert them.
+ * Cannot fail so kvmppc_tce_validate must be called before it.
+ */
+static void kvmppc_tce_put(struct kvmppc_spapr_tce_table *stt,
+		unsigned long idx, unsigned long tce)
+{
+	struct page *page;
+	u64 *tbl;
+	unsigned long sttpage;
+
+	idx -= stt->offset;
+	sttpage = idx / TCES_PER_PAGE;
+	page = stt->pages[sttpage];
+
+	if (!page) {
+		/* We allow any TCE, not just with read|write permissions */
+		if (!tce)
+			return;
+
+		page = kvm_spapr_get_tce_page(stt, sttpage);
+		if (!page)
+			return;
+	}
+	tbl = page_to_virt(page);
+
+	tbl[idx % TCES_PER_PAGE] = tce;
 }
 
 static void kvmppc_clear_tce(struct mm_struct *mm, struct iommu_table *tbl,
@@ -543,15 +592,15 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	if (ret != H_SUCCESS)
 		return ret;
 
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	ret = kvmppc_tce_validate(stt, tce);
 	if (ret != H_SUCCESS)
-		return ret;
+		goto unlock_exit;
 
 	dir = iommu_tce_direction(tce);
 
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
-
-	if ((dir != DMA_NONE) && kvmppc_tce_to_ua(vcpu->kvm, tce, &ua, NULL)) {
+	if ((dir != DMA_NONE) && kvmppc_tce_to_ua(vcpu->kvm, tce, &ua)) {
 		ret = H_PARAMETER;
 		goto unlock_exit;
 	}
@@ -612,7 +661,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 		return ret;
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	if (kvmppc_tce_to_ua(vcpu->kvm, tce_list, &ua, NULL)) {
+	if (kvmppc_tce_to_ua(vcpu->kvm, tce_list, &ua)) {
 		ret = H_TOO_HARD;
 		goto unlock_exit;
 	}
@@ -647,7 +696,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 		}
 		tce = be64_to_cpu(tce);
 
-		if (kvmppc_tce_to_ua(vcpu->kvm, tce, &ua, NULL))
+		if (kvmppc_tce_to_ua(vcpu->kvm, tce, &ua))
 			return H_PARAMETER;
 
 		list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {

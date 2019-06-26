@@ -1043,7 +1043,7 @@ static int vector_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vector_send(vp->tx_queue);
 		return NETDEV_TX_OK;
 	}
-	if (skb->xmit_more) {
+	if (netdev_xmit_more()) {
 		mod_timer(&vp->tl, vp->coalesce);
 		return NETDEV_TX_OK;
 	}

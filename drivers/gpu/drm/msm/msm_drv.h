@@ -33,7 +33,7 @@
 #include <linux/types.h>
 #include <linux/of_graph.h>
 #include <linux/of_device.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <linux/kthread.h>
 
 #include <drm/drmP.h>

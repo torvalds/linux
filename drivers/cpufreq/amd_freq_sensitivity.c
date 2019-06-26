@@ -124,7 +124,7 @@ static int __init amd_freq_sensitivity_init(void)
 			PCI_DEVICE_ID_AMD_KERNCZ_SMBUS, NULL);
 
 	if (!pcidev) {
-		if (!static_cpu_has(X86_FEATURE_PROC_FEEDBACK))
+		if (!boot_cpu_has(X86_FEATURE_PROC_FEEDBACK))
 			return -ENODEV;
 	}
 

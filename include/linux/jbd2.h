@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * linux/include/linux/jbd2.h
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>
  *
  * Copyright 1998-2000 Red Hat, Inc --- All Rights Reserved
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  *
  * Definitions for transaction data structures for the buffer cache
  * filesystem journaling support.
@@ -1318,7 +1315,7 @@ extern void		__wait_on_journal (journal_t *);
 
 /* Transaction cache support */
 extern void jbd2_journal_destroy_transaction_cache(void);
-extern int  jbd2_journal_init_transaction_cache(void);
+extern int __init jbd2_journal_init_transaction_cache(void);
 extern void jbd2_journal_free_transaction(transaction_t *);
 
 /*
@@ -1446,8 +1443,10 @@ static inline void jbd2_free_inode(struct jbd2_inode *jinode)
 /* Primary revoke support */
 #define JOURNAL_REVOKE_DEFAULT_HASH 256
 extern int	   jbd2_journal_init_revoke(journal_t *, int);
-extern void	   jbd2_journal_destroy_revoke_caches(void);
-extern int	   jbd2_journal_init_revoke_caches(void);
+extern void	   jbd2_journal_destroy_revoke_record_cache(void);
+extern void	   jbd2_journal_destroy_revoke_table_cache(void);
+extern int __init jbd2_journal_init_revoke_record_cache(void);
+extern int __init jbd2_journal_init_revoke_table_cache(void);
 
 extern void	   jbd2_journal_destroy_revoke(journal_t *);
 extern int	   jbd2_journal_revoke (handle_t *, unsigned long long, struct buffer_head *);
@@ -1606,7 +1605,6 @@ static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 		JBD_MAX_CHECKSUM_SIZE);
 
 	desc.shash.tfm = journal->j_chksum_driver;
-	desc.shash.flags = 0;
 	*(u32 *)desc.ctx = crc;
 
 	err = crypto_shash_update(&desc.shash, address, length);

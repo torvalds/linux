@@ -1643,8 +1643,7 @@ of_get_next_endpoint(const struct device_node *parent,
 static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 {
 	struct platform_device *pdev = ctx->dev->pdev;
-	struct device_node *ep_node, *port, *remote_ep,
-			*sensor_node, *parent;
+	struct device_node *ep_node, *port, *sensor_node, *parent;
 	struct v4l2_fwnode_endpoint *endpoint;
 	struct v4l2_async_subdev *asd;
 	u32 regval = 0;
@@ -1657,7 +1656,6 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 
 	ep_node = NULL;
 	port = NULL;
-	remote_ep = NULL;
 	sensor_node = NULL;
 	ret = -EINVAL;
 
@@ -1703,12 +1701,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
 	asd->match.fwnode = of_fwnode_handle(sensor_node);
 
-	remote_ep = of_graph_get_remote_endpoint(ep_node);
-	if (!remote_ep) {
-		ctx_dbg(3, ctx, "can't get remote-endpoint\n");
-		goto cleanup_exit;
-	}
-	v4l2_fwnode_endpoint_parse(of_fwnode_handle(remote_ep), endpoint);
+	v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_node), endpoint);
 
 	if (endpoint->bus_type != V4L2_MBUS_CSI2_DPHY) {
 		ctx_err(ctx, "Port:%d sub-device %pOFn is not a CSI2 device\n",
@@ -1759,7 +1752,6 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	sensor_node = NULL;
 
 cleanup_exit:
-	of_node_put(remote_ep);
 	of_node_put(sensor_node);
 	of_node_put(ep_node);
 	of_node_put(port);

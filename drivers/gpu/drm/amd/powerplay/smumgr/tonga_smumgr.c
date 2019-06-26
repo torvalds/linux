@@ -23,6 +23,7 @@
 #include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gfp.h>
 
@@ -2611,6 +2612,8 @@ static uint32_t tonga_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU72_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU72_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU72_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU72_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:

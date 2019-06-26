@@ -229,10 +229,10 @@ static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 }
 
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies, size_t ies_len,
+	      u8 *ch_freq_list, u8 ch_list_len,
 	      void (*scan_result_fn)(enum scan_event,
 				     struct wilc_rcvd_net_info *, void *),
-	      void *user_arg, struct wilc_probe_ssid *search)
+	      void *user_arg, struct cfg80211_scan_request *request)
 {
 	int result = 0;
 	struct wid wid_list[5];
@@ -258,9 +258,9 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 
 	hif_drv->usr_scan_req.ch_cnt = 0;
 
-	if (search) {
-		for (i = 0; i < search->n_ssids; i++)
-			valuesize += ((search->ssid_info[i].ssid_len) + 1);
+	if (request->n_ssids) {
+		for (i = 0; i < request->n_ssids; i++)
+			valuesize += ((request->ssids[i].ssid_len) + 1);
 		search_ssid_vals = kmalloc(valuesize + 1, GFP_KERNEL);
 		if (search_ssid_vals) {
 			wid_list[index].id = WID_SSID_PROBE_REQ;
@@ -268,13 +268,13 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 			wid_list[index].val = search_ssid_vals;
 			buffer = wid_list[index].val;
 
-			*buffer++ = search->n_ssids;
+			*buffer++ = request->n_ssids;
 
-			for (i = 0; i < search->n_ssids; i++) {
-				*buffer++ = search->ssid_info[i].ssid_len;
-				memcpy(buffer, search->ssid_info[i].ssid,
-				       search->ssid_info[i].ssid_len);
-				buffer += search->ssid_info[i].ssid_len;
+			for (i = 0; i < request->n_ssids; i++) {
+				*buffer++ = request->ssids[i].ssid_len;
+				memcpy(buffer, request->ssids[i].ssid,
+				       request->ssids[i].ssid_len);
+				buffer += request->ssids[i].ssid_len;
 			}
 			wid_list[index].size = (s32)(valuesize + 1);
 			index++;
@@ -283,8 +283,8 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 
 	wid_list[index].id = WID_INFO_ELEMENT_PROBE;
 	wid_list[index].type = WID_BIN_DATA;
-	wid_list[index].val = (s8 *)ies;
-	wid_list[index].size = ies_len;
+	wid_list[index].val = (s8 *)request->ie;
+	wid_list[index].size = request->ie_len;
 	index++;
 
 	wid_list[index].id = WID_SCAN_TYPE;
@@ -313,6 +313,9 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	wid_list[index].val = (s8 *)&scan_source;
 	index++;
 
+	hif_drv->usr_scan_req.scan_result = scan_result_fn;
+	hif_drv->usr_scan_req.arg = user_arg;
+
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
 				      index,
 				      wilc_get_vif_idx(vif));
@@ -321,17 +324,13 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 		goto error;
 	}
 
-	hif_drv->usr_scan_req.scan_result = scan_result_fn;
-	hif_drv->usr_scan_req.arg = user_arg;
 	hif_drv->scan_timer_vif = vif;
 	mod_timer(&hif_drv->scan_timer,
 		  jiffies + msecs_to_jiffies(WILC_HIF_SCAN_TIMEOUT_MS));
 
 error:
-	if (search) {
-		kfree(search->ssid_info);
-		kfree(search_ssid_vals);
-	}
+
+	kfree(search_ssid_vals);
 
 	return result;
 }
@@ -775,7 +774,7 @@ int wilc_disconnect(struct wilc_vif *vif)
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result) {
-		netdev_err(vif->ndev, "Failed to send dissconect\n");
+		netdev_err(vif->ndev, "Failed to send disconnect\n");
 		return result;
 	}
 
@@ -1358,17 +1357,14 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 int wilc_set_pmkid_info(struct wilc_vif *vif, struct wilc_pmkid_attr *pmkid)
 {
 	struct wid wid;
-	int result;
 
 	wid.id = WID_PMKID_INFO;
 	wid.type = WID_STR;
 	wid.size = (pmkid->numpmkid * sizeof(struct wilc_pmkid)) + 1;
 	wid.val = (u8 *)pmkid;
 
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-
-	return result;
+	return wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				    wilc_get_vif_idx(vif));
 }
 
 int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
@@ -1402,10 +1398,8 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ies,
 	if (ies) {
 		conn_info->req_ies_len = ies_len;
 		conn_info->req_ies = kmemdup(ies, ies_len, GFP_KERNEL);
-		if (!conn_info->req_ies) {
-			result = -ENOMEM;
-			return result;
-		}
+		if (!conn_info->req_ies)
+			return -ENOMEM;
 	}
 
 	result = wilc_send_connect_wid(vif);
@@ -1570,7 +1564,6 @@ int wilc_hif_set_cfg(struct wilc_vif *vif, struct cfg_param_attr *param)
 {
 	struct wid wid_list[4];
 	int i = 0;
-	int result;
 
 	if (param->flag & WILC_CFG_PARAM_RETRY_SHORT) {
 		wid_list[i].id = WID_SHORT_RETRY_LIMIT;
@@ -1601,10 +1594,8 @@ int wilc_hif_set_cfg(struct wilc_vif *vif, struct cfg_param_attr *param)
 		i++;
 	}
 
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
-				      i, wilc_get_vif_idx(vif));
-
-	return result;
+	return wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
+				    i, wilc_get_vif_idx(vif));
 }
 
 static void get_periodic_rssi(struct timer_list *t)
@@ -2121,7 +2112,6 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, u32 enabled, u32 count,
 
 int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power)
 {
-	int ret;
 	struct wid wid;
 
 	wid.id = WID_TX_POWER;
@@ -2129,15 +2119,12 @@ int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power)
 	wid.val = &tx_power;
 	wid.size = sizeof(char);
 
-	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+	return wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
-
-	return ret;
 }
 
 int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
 {
-	int ret;
 	struct wid wid;
 
 	wid.id = WID_TX_POWER;
@@ -2145,8 +2132,6 @@ int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
 	wid.val = tx_power;
 	wid.size = sizeof(char);
 
-	ret = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	return ret;
+	return wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
+				    wilc_get_vif_idx(vif));
 }

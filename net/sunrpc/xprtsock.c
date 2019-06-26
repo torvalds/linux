@@ -2017,6 +2017,7 @@ static void xs_local_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		 * we'll need to figure out how to pass a namespace to
 		 * connect.
 		 */
+		task->tk_rpc_status = -ENOTCONN;
 		rpc_exit(task, -ENOTCONN);
 		return;
 	}
@@ -2690,7 +2691,7 @@ static const struct rpc_xprt_ops xs_local_ops = {
 	.buf_free		= rpc_free,
 	.prepare_request	= xs_stream_prepare_request,
 	.send_request		= xs_local_send_request,
-	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
+	.wait_for_reply_request	= xprt_wait_for_reply_request_def,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
 	.print_stats		= xs_local_print_stats,
@@ -2710,7 +2711,7 @@ static const struct rpc_xprt_ops xs_udp_ops = {
 	.buf_alloc		= rpc_malloc,
 	.buf_free		= rpc_free,
 	.send_request		= xs_udp_send_request,
-	.set_retrans_timeout	= xprt_set_retrans_timeout_rtt,
+	.wait_for_reply_request	= xprt_wait_for_reply_request_rtt,
 	.timer			= xs_udp_timer,
 	.release_request	= xprt_release_rqst_cong,
 	.close			= xs_close,
@@ -2733,7 +2734,7 @@ static const struct rpc_xprt_ops xs_tcp_ops = {
 	.buf_free		= rpc_free,
 	.prepare_request	= xs_stream_prepare_request,
 	.send_request		= xs_tcp_send_request,
-	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
+	.wait_for_reply_request	= xprt_wait_for_reply_request_def,
 	.close			= xs_tcp_shutdown,
 	.destroy		= xs_destroy,
 	.set_connect_timeout	= xs_tcp_set_connect_timeout,
@@ -2761,7 +2762,7 @@ static const struct rpc_xprt_ops bc_tcp_ops = {
 	.buf_alloc		= bc_malloc,
 	.buf_free		= bc_free,
 	.send_request		= bc_send_request,
-	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
+	.wait_for_reply_request	= xprt_wait_for_reply_request_def,
 	.close			= bc_close,
 	.destroy		= bc_destroy,
 	.print_stats		= xs_tcp_print_stats,

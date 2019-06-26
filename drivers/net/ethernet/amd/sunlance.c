@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* $Id: sunlance.c,v 1.112 2002/01/15 06:48:55 davem Exp $
  * lance.c: Linux/Sparc/Lance driver
  *

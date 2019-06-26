@@ -26,8 +26,11 @@
 #ifndef __AMDGPU_DM_H__
 #define __AMDGPU_DM_H__
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_plane.h>
 
 /*
  * This file contains the definition for amdgpu_display_manager
@@ -304,7 +307,6 @@ struct dm_connector_state {
 	enum amdgpu_rmx_type scaling;
 	uint8_t underscan_vborder;
 	uint8_t underscan_hborder;
-	uint8_t max_bpc;
 	bool underscan_enable;
 	bool freesync_capable;
 	uint8_t abm_level;

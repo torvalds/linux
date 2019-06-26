@@ -351,7 +351,7 @@ static int synquacer_i2c_doxfer(struct synquacer_i2c *i2c,
 	/* wait 2 clock periods to ensure the stop has been through the bus */
 	udelay(DIV_ROUND_UP(2 * 1000, i2c->speed_khz));
 
-	return 0;
+	return ret;
 }
 
 static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
@@ -597,6 +597,8 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 	i2c->adapter = synquacer_i2c_ops;
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	i2c->adapter.dev.parent = &pdev->dev;
+	i2c->adapter.dev.of_node = pdev->dev.of_node;
+	ACPI_COMPANION_SET(&i2c->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	i2c->adapter.nr = pdev->id;
 	init_completion(&i2c->completion);
 

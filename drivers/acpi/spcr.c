@@ -28,7 +28,7 @@ EXPORT_SYMBOL(qdf2400_e44_present);
 
 /*
  * Some Qualcomm Datacenter Technologies SoCs have a defective UART BUSY bit.
- * Detect them by examining the OEM fields in the SPCR header, similiar to PCI
+ * Detect them by examining the OEM fields in the SPCR header, similar to PCI
  * quirk detection in pci_mcfg.c.
  */
 static bool qdf2400_erratum_44_present(struct acpi_table_header *h)

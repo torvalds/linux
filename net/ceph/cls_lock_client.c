@@ -271,7 +271,7 @@ static int decode_locker(void **p, void *end, struct ceph_locker *locker)
 
 	dout("%s %s%llu cookie %s addr %s\n", __func__,
 	     ENTITY_NAME(locker->id.name), locker->id.cookie,
-	     ceph_pr_addr(&locker->info.addr.in_addr));
+	     ceph_pr_addr(&locker->info.addr));
 	return 0;
 }
 

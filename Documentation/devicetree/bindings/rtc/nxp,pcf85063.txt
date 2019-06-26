@@ -1,7 +1,11 @@
 * NXP PCF85063 Real Time Clock
 
 Required properties:
-- compatible: Should contain "nxp,pcf85063".
+- compatible: Should one of contain:
+	"nxp,pcf85063",
+	"nxp,pcf85063a",
+	"nxp,pcf85063tp",
+	"microcrystal,rv8263"
 - reg: I2C address for chip.
 
 Optional property:

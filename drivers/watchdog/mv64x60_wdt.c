@@ -133,7 +133,7 @@ static int mv64x60_wdt_open(struct inode *inode, struct file *file)
 
 	mv64x60_wdt_handler_enable();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int mv64x60_wdt_release(struct inode *inode, struct file *file)

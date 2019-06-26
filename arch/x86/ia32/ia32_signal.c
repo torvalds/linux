@@ -61,9 +61,8 @@
 } while (0)
 
 #define RELOAD_SEG(seg)		{		\
-	unsigned int pre = GET_SEG(seg);	\
+	unsigned int pre = (seg) | 3;		\
 	unsigned int cur = get_user_seg(seg);	\
-	pre |= 3;				\
 	if (pre != cur)				\
 		set_user_seg(seg, pre);		\
 }
@@ -72,6 +71,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 				   struct sigcontext_32 __user *sc)
 {
 	unsigned int tmpflags, err = 0;
+	u16 gs, fs, es, ds;
 	void __user *buf;
 	u32 tmp;
 
@@ -79,16 +79,10 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	current->restart_block.fn = do_no_restart_syscall;
 
 	get_user_try {
-		/*
-		 * Reload fs and gs if they have changed in the signal
-		 * handler.  This does not handle long fs/gs base changes in
-		 * the handler, but does not clobber them at least in the
-		 * normal case.
-		 */
-		RELOAD_SEG(gs);
-		RELOAD_SEG(fs);
-		RELOAD_SEG(ds);
-		RELOAD_SEG(es);
+		gs = GET_SEG(gs);
+		fs = GET_SEG(fs);
+		ds = GET_SEG(ds);
+		es = GET_SEG(es);
 
 		COPY(di); COPY(si); COPY(bp); COPY(sp); COPY(bx);
 		COPY(dx); COPY(cx); COPY(ip); COPY(ax);
@@ -105,6 +99,17 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 		get_user_ex(tmp, &sc->fpstate);
 		buf = compat_ptr(tmp);
 	} get_user_catch(err);
+
+	/*
+	 * Reload fs and gs if they have changed in the signal
+	 * handler.  This does not handle long fs/gs base changes in
+	 * the handler, but does not clobber them at least in the
+	 * normal case.
+	 */
+	RELOAD_SEG(gs);
+	RELOAD_SEG(fs);
+	RELOAD_SEG(ds);
+	RELOAD_SEG(es);
 
 	err |= fpu__restore_sig(buf, 1);
 
@@ -216,8 +221,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 				 size_t frame_size,
 				 void __user **fpstate)
 {
-	struct fpu *fpu = &current->thread.fpu;
-	unsigned long sp;
+	unsigned long sp, fx_aligned, math_size;
 
 	/* Default to using normal stack */
 	sp = regs->sp;
@@ -231,15 +235,11 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		 ksig->ka.sa.sa_restorer)
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;
 
-	if (fpu->initialized) {
-		unsigned long fx_aligned, math_size;
-
-		sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
-		*fpstate = (struct _fpstate_32 __user *) sp;
-		if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
-				    math_size) < 0)
-			return (void __user *) -1L;
-	}
+	sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
+	*fpstate = (struct _fpstate_32 __user *) sp;
+	if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
+				     math_size) < 0)
+		return (void __user *) -1L;
 
 	sp -= frame_size;
 	/* Align the stack pointer according to the i386 ABI,

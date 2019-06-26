@@ -148,14 +148,16 @@ static int mlx5_fpga_tls_alloc_swid(struct idr *idr, spinlock_t *idr_spinlock,
 	return ret;
 }
 
-static void mlx5_fpga_tls_release_swid(struct idr *idr,
-				       spinlock_t *idr_spinlock, u32 swid)
+static void *mlx5_fpga_tls_release_swid(struct idr *idr,
+					spinlock_t *idr_spinlock, u32 swid)
 {
 	unsigned long flags;
+	void *ptr;
 
 	spin_lock_irqsave(idr_spinlock, flags);
-	idr_remove(idr, swid);
+	ptr = idr_remove(idr, swid);
 	spin_unlock_irqrestore(idr_spinlock, flags);
+	return ptr;
 }
 
 static void mlx_tls_kfree_complete(struct mlx5_fpga_conn *conn,
@@ -165,20 +167,12 @@ static void mlx_tls_kfree_complete(struct mlx5_fpga_conn *conn,
 	kfree(buf);
 }
 
-struct mlx5_teardown_stream_context {
-	struct mlx5_fpga_tls_command_context cmd;
-	u32 swid;
-};
-
 static void
 mlx5_fpga_tls_teardown_completion(struct mlx5_fpga_conn *conn,
 				  struct mlx5_fpga_device *fdev,
 				  struct mlx5_fpga_tls_command_context *cmd,
 				  struct mlx5_fpga_dma_buf *resp)
 {
-	struct mlx5_teardown_stream_context *ctx =
-		    container_of(cmd, struct mlx5_teardown_stream_context, cmd);
-
 	if (resp) {
 		u32 syndrome = MLX5_GET(tls_resp, resp->sg[0].data, syndrome);
 
@@ -186,14 +180,6 @@ mlx5_fpga_tls_teardown_completion(struct mlx5_fpga_conn *conn,
 			mlx5_fpga_err(fdev,
 				      "Teardown stream failed with syndrome = %d",
 				      syndrome);
-		else if (MLX5_GET(tls_cmd, cmd->buf.sg[0].data, direction_sx))
-			mlx5_fpga_tls_release_swid(&fdev->tls->tx_idr,
-						   &fdev->tls->tx_idr_spinlock,
-						   ctx->swid);
-		else
-			mlx5_fpga_tls_release_swid(&fdev->tls->rx_idr,
-						   &fdev->tls->rx_idr_spinlock,
-						   ctx->swid);
 	}
 	mlx5_fpga_tls_put_command_ctx(cmd);
 }
@@ -217,22 +203,22 @@ int mlx5_fpga_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
 	void *cmd;
 	int ret;
 
-	rcu_read_lock();
-	flow = idr_find(&mdev->fpga->tls->rx_idr, ntohl(handle));
-	rcu_read_unlock();
-
-	if (!flow) {
-		WARN_ONCE(1, "Received NULL pointer for handle\n");
-		return -EINVAL;
-	}
-
 	buf = kzalloc(size, GFP_ATOMIC);
 	if (!buf)
 		return -ENOMEM;
 
 	cmd = (buf + 1);
 
+	rcu_read_lock();
+	flow = idr_find(&mdev->fpga->tls->rx_idr, ntohl(handle));
+	if (unlikely(!flow)) {
+		rcu_read_unlock();
+		WARN_ONCE(1, "Received NULL pointer for handle\n");
+		kfree(buf);
+		return -EINVAL;
+	}
 	mlx5_fpga_tls_flow_to_cmd(flow, cmd);
+	rcu_read_unlock();
 
 	MLX5_SET(tls_cmd, cmd, swid, ntohl(handle));
 	MLX5_SET64(tls_cmd, cmd, tls_rcd_sn, be64_to_cpu(rcd_sn));
@@ -253,7 +239,7 @@ int mlx5_fpga_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
 static void mlx5_fpga_tls_send_teardown_cmd(struct mlx5_core_dev *mdev,
 					    void *flow, u32 swid, gfp_t flags)
 {
-	struct mlx5_teardown_stream_context *ctx;
+	struct mlx5_fpga_tls_command_context *ctx;
 	struct mlx5_fpga_dma_buf *buf;
 	void *cmd;
 
@@ -261,7 +247,7 @@ static void mlx5_fpga_tls_send_teardown_cmd(struct mlx5_core_dev *mdev,
 	if (!ctx)
 		return;
 
-	buf = &ctx->cmd.buf;
+	buf = &ctx->buf;
 	cmd = (ctx + 1);
 	MLX5_SET(tls_cmd, cmd, command_type, CMD_TEARDOWN_STREAM);
 	MLX5_SET(tls_cmd, cmd, swid, swid);
@@ -272,8 +258,7 @@ static void mlx5_fpga_tls_send_teardown_cmd(struct mlx5_core_dev *mdev,
 	buf->sg[0].data = cmd;
 	buf->sg[0].size = MLX5_TLS_COMMAND_SIZE;
 
-	ctx->swid = swid;
-	mlx5_fpga_tls_cmd_send(mdev->fpga, &ctx->cmd,
+	mlx5_fpga_tls_cmd_send(mdev->fpga, ctx,
 			       mlx5_fpga_tls_teardown_completion);
 }
 
@@ -283,13 +268,14 @@ void mlx5_fpga_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
 	struct mlx5_fpga_tls *tls = mdev->fpga->tls;
 	void *flow;
 
-	rcu_read_lock();
 	if (direction_sx)
-		flow = idr_find(&tls->tx_idr, swid);
+		flow = mlx5_fpga_tls_release_swid(&tls->tx_idr,
+						  &tls->tx_idr_spinlock,
+						  swid);
 	else
-		flow = idr_find(&tls->rx_idr, swid);
-
-	rcu_read_unlock();
+		flow = mlx5_fpga_tls_release_swid(&tls->rx_idr,
+						  &tls->rx_idr_spinlock,
+						  swid);
 
 	if (!flow) {
 		mlx5_fpga_err(mdev->fpga, "No flow information for swid %u\n",
@@ -297,6 +283,7 @@ void mlx5_fpga_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
 		return;
 	}
 
+	synchronize_rcu(); /* before kfree(flow) */
 	mlx5_fpga_tls_send_teardown_cmd(mdev, flow, swid, flags);
 }
 

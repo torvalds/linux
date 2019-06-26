@@ -81,6 +81,11 @@ fib_multipath_hash_policy - INTEGER
 	0 - Layer 3
 	1 - Layer 4
 
+fib_sync_mem - UNSIGNED INTEGER
+	Amount of dirty memory from fib entries that can be backlogged before
+	synchronize_rcu is forced.
+	  Default: 512kB   Minimum: 64kB   Maximum: 64MB
+
 ip_forward_update_priority - INTEGER
 	Whether to update SKB priority from "TOS" field in IPv4 header after it
 	is forwarded. The new SKB priority is mapped from TOS field value
@@ -422,6 +427,7 @@ tcp_min_rtt_wlen - INTEGER
 	minimum RTT when it is moved to a longer path (e.g., due to traffic
 	engineering). A longer window makes the filter more resistant to RTT
 	inflations such as transient congestion. The unit is seconds.
+	Possible values: 0 - 86400 (1 day)
 	Default: 300
 
 tcp_moderate_rcvbuf - BOOLEAN
@@ -554,10 +560,10 @@ tcp_comp_sack_delay_ns - LONG INTEGER
 	Default : 1,000,000 ns (1 ms)
 
 tcp_comp_sack_nr - INTEGER
-	Max numer of SACK that can be compressed.
+	Max number of SACK that can be compressed.
 	Using 0 disables SACK compression.
 
-	Detault : 44
+	Default : 44
 
 tcp_slow_start_after_idle - BOOLEAN
 	If set, provide RFC2861 behavior and time out the congestion
@@ -1336,6 +1342,7 @@ tag - INTEGER
 	Default value is 0.
 
 xfrm4_gc_thresh - INTEGER
+	(Obsolete since linux-4.14)
 	The threshold at which we will start garbage collecting for IPv4
 	destination cache entries.  At twice this value the system will
 	refuse new allocations.
@@ -1908,17 +1915,43 @@ enhanced_dad - BOOLEAN
 
 icmp/*:
 ratelimit - INTEGER
-	Limit the maximal rates for sending ICMPv6 packets.
+	Limit the maximal rates for sending ICMPv6 messages.
 	0 to disable any limiting,
 	otherwise the minimal space between responses in milliseconds.
 	Default: 1000
+
+ratemask - list of comma separated ranges
+	For ICMPv6 message types matching the ranges in the ratemask, limit
+	the sending of the message according to ratelimit parameter.
+
+	The format used for both input and output is a comma separated
+	list of ranges (e.g. "0-127,129" for ICMPv6 message type 0 to 127 and
+	129). Writing to the file will clear all previous ranges of ICMPv6
+	message types and update the current list with the input.
+
+	Refer to: https://www.iana.org/assignments/icmpv6-parameters/icmpv6-parameters.xhtml
+	for numerical values of ICMPv6 message types, e.g. echo request is 128
+	and echo reply is 129.
+
+	Default: 0-1,3-127 (rate limit ICMPv6 errors except Packet Too Big)
 
 echo_ignore_all - BOOLEAN
 	If set non-zero, then the kernel will ignore all ICMP ECHO
 	requests sent to it over the IPv6 protocol.
 	Default: 0
 
+echo_ignore_multicast - BOOLEAN
+	If set non-zero, then the kernel will ignore all ICMP ECHO
+	requests sent to it over the IPv6 protocol via multicast.
+	Default: 0
+
+echo_ignore_anycast - BOOLEAN
+	If set non-zero, then the kernel will ignore all ICMP ECHO
+	requests sent to it over the IPv6 protocol destined to anycast address.
+	Default: 0
+
 xfrm6_gc_thresh - INTEGER
+	(Obsolete since linux-4.14)
 	The threshold at which we will start garbage collecting for IPv6
 	destination cache entries.  At twice this value the system will
 	refuse new allocations.

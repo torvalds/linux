@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics st_lsm6dsx sensor driver
  *
@@ -5,8 +6,6 @@
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef ST_LSM6DSX_H
@@ -20,6 +19,9 @@
 #define ST_LSM6DSM_DEV_NAME	"lsm6dsm"
 #define ST_ISM330DLC_DEV_NAME	"ism330dlc"
 #define ST_LSM6DSO_DEV_NAME	"lsm6dso"
+#define ST_ASM330LHH_DEV_NAME	"asm330lhh"
+#define ST_LSM6DSOX_DEV_NAME	"lsm6dsox"
+#define ST_LSM6DSR_DEV_NAME	"lsm6dsr"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
@@ -28,6 +30,9 @@ enum st_lsm6dsx_hw_id {
 	ST_LSM6DSM_ID,
 	ST_ISM330DLC_ID,
 	ST_LSM6DSO_ID,
+	ST_ASM330LHH_ID,
+	ST_LSM6DSOX_ID,
+	ST_LSM6DSR_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 

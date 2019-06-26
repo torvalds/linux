@@ -48,6 +48,10 @@
 	};
 };
 
+&adsp_pas {
+	status = "okay";
+};
+
 &apps_rsc {
 	pm8998-rpmh-regulators {
 		compatible = "qcom,pm8998-rpmh-regulators";
@@ -342,6 +346,10 @@
 			regulator-max-microvolt = <600000>;
 		};
 	};
+};
+
+&cdsp_pas {
+	status = "okay";
 };
 
 &gcc {

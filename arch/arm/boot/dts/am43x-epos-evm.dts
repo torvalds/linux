@@ -80,6 +80,7 @@
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&matrix_keypad_default>;
 		pinctrl-1 = <&matrix_keypad_sleep>;
+		wakeup-source;
 
 		row-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH		/* Bank0, pin12 */
 			     &gpio0 13 GPIO_ACTIVE_HIGH		/* Bank0, pin13 */
@@ -620,6 +621,12 @@
 			regulator-name = "vdcdc3";
 			regulator-boot-on;
 			regulator-always-on;
+			regulator-state-mem {
+				regulator-on-in-suspend;
+			};
+			regulator-state-disk {
+				regulator-off-in-suspend;
+			};
 		};
 
 		dcdc4: regulator-dcdc4 {
@@ -634,12 +641,16 @@
 			regulator-name = "v1_0bat";
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
+			regulator-boot-on;
+			regulator-always-on;
 		};
 
 		dcdc6: regulator-dcdc6 {
 			regulator-name = "v1_8bat";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+			regulator-boot-on;
+			regulator-always-on;
 		};
 
 		ldo1: regulator-ldo1 {

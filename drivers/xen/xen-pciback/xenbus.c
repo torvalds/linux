@@ -697,7 +697,7 @@ static int xen_pcibk_xenbus_probe(struct xenbus_device *dev,
 	/* We need to force a call to our callback here in case
 	 * xend already configured us!
 	 */
-	xen_pcibk_be_watch(&pdev->be_watch, NULL, 0);
+	xen_pcibk_be_watch(&pdev->be_watch, NULL, NULL);
 
 out:
 	return err;

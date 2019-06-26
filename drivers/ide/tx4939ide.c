@@ -156,7 +156,6 @@ static u16 tx4939ide_check_error_ints(ide_hwif_t *hwif)
 		u16 sysctl = tx4939ide_readw(base, TX4939IDE_Sys_Ctl);
 
 		tx4939ide_writew(sysctl | 0x4000, base, TX4939IDE_Sys_Ctl);
-		mmiowb();
 		/* wait 12GBUSCLK (typ. 60ns @ GBUS200MHz, max 270ns) */
 		ndelay(270);
 		tx4939ide_writew(sysctl, base, TX4939IDE_Sys_Ctl);
@@ -396,7 +395,6 @@ static void tx4939ide_init_hwif(ide_hwif_t *hwif)
 
 	/* Soft Reset */
 	tx4939ide_writew(0x8000, base, TX4939IDE_Sys_Ctl);
-	mmiowb();
 	/* at least 20 GBUSCLK (typ. 100ns @ GBUS200MHz, max 450ns) */
 	ndelay(450);
 	tx4939ide_writew(0x0000, base, TX4939IDE_Sys_Ctl);

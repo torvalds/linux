@@ -1449,7 +1449,6 @@ static void __exit omap_system_dma_exit(void)
 
 MODULE_DESCRIPTION("OMAP SYSTEM DMA DRIVER");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Texas Instruments Inc");
 
 /*

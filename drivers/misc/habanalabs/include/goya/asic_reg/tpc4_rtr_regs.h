@@ -320,4 +320,3 @@
 #define mmTPC4_RTR_NON_LIN_SCRAMB                                    0xF00604
 
 #endif /* ASIC_REG_TPC4_RTR_REGS_H_ */
-

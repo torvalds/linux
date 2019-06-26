@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/video/console/sticore.c -
  *	core code for console driver using HP's STI firmware

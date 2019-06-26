@@ -34,6 +34,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include "irqs.h"
+
 #define NAS100D_SDA_PIN		5
 #define NAS100D_SCL_PIN		6
 
@@ -278,9 +280,6 @@ static void __init nas100d_init(void)
 	int i;
 
 	ixp4xx_sys_init();
-
-	/* gpio 14 and 15 are _not_ clocks */
-	*IXP4XX_GPIO_GPCLKR = 0;
 
 	nas100d_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
 	nas100d_flash_resource.end =

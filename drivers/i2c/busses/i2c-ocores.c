@@ -26,8 +26,6 @@
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
 
-#define OCORES_FLAG_POLL BIT(0)
-
 /*
  * 'process_lock' exists because ocores_process() and ocores_process_timeout()
  * can't run in parallel.
@@ -37,7 +35,6 @@ struct ocores_i2c {
 	int iobase;
 	u32 reg_shift;
 	u32 reg_io_width;
-	unsigned long flags;
 	wait_queue_head_t wait;
 	struct i2c_adapter adap;
 	struct i2c_msg *msg;
@@ -403,11 +400,7 @@ static int ocores_xfer_polling(struct i2c_adapter *adap,
 static int ocores_xfer(struct i2c_adapter *adap,
 		       struct i2c_msg *msgs, int num)
 {
-	struct ocores_i2c *i2c = i2c_get_adapdata(adap);
-
-	if (i2c->flags & OCORES_FLAG_POLL)
-		return ocores_xfer_polling(adap, msgs, num);
-	return ocores_xfer_core(i2c, msgs, num, false);
+	return ocores_xfer_core(i2c_get_adapdata(adap), msgs, num, false);
 }
 
 static int ocores_init(struct device *dev, struct ocores_i2c *i2c)
@@ -447,8 +440,9 @@ static u32 ocores_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static const struct i2c_algorithm ocores_algorithm = {
+static struct i2c_algorithm ocores_algorithm = {
 	.master_xfer = ocores_xfer,
+	.master_xfer_atomic = ocores_xfer_polling,
 	.functionality = ocores_func,
 };
 
@@ -673,13 +667,13 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq == -ENXIO) {
-		i2c->flags |= OCORES_FLAG_POLL;
+		ocores_algorithm.master_xfer = ocores_xfer_polling;
 	} else {
 		if (irq < 0)
 			return irq;
 	}
 
-	if (!(i2c->flags & OCORES_FLAG_POLL)) {
+	if (ocores_algorithm.master_xfer != ocores_xfer_polling) {
 		ret = devm_request_irq(&pdev->dev, irq, ocores_isr, 0,
 				       pdev->name, i2c);
 		if (ret) {

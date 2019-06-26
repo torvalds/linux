@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hardware monitoring driver for PMBus devices
  *
  * Copyright (c) 2010, 2011 Ericsson AB.
  * Copyright (c) 2012 Guenter Roeck
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/debugfs.h>
@@ -103,7 +90,7 @@ struct pmbus_data {
 	int max_attributes;
 	int num_attributes;
 	struct attribute_group group;
-	const struct attribute_group *groups[2];
+	const struct attribute_group **groups;
 	struct dentry *debugfs;		/* debugfs device directory */
 
 	struct pmbus_sensor *sensors;
@@ -1073,7 +1060,7 @@ static int pmbus_add_boolean(struct pmbus_data *data,
 		 name, seq, type);
 	boolean->s1 = s1;
 	boolean->s2 = s2;
-	pmbus_attr_init(a, boolean->name, S_IRUGO, pmbus_show_boolean, NULL,
+	pmbus_attr_init(a, boolean->name, 0444, pmbus_show_boolean, NULL,
 			(reg << 16) | mask);
 
 	return pmbus_add_attribute(data, &a->dev_attr.attr);
@@ -1107,7 +1094,7 @@ static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 	sensor->update = update;
 	sensor->convert = convert;
 	pmbus_dev_attr_init(a, sensor->name,
-			    readonly ? S_IRUGO : S_IRUGO | S_IWUSR,
+			    readonly ? 0444 : 0644,
 			    pmbus_show_sensor, pmbus_set_sensor);
 
 	if (pmbus_add_attribute(data, &a->attr))
@@ -1139,7 +1126,7 @@ static int pmbus_add_label(struct pmbus_data *data,
 		snprintf(label->label, sizeof(label->label), "%s%d", lstring,
 			 index);
 
-	pmbus_dev_attr_init(a, label->name, S_IRUGO, pmbus_show_label, NULL);
+	pmbus_dev_attr_init(a, label->name, 0444, pmbus_show_label, NULL);
 	return pmbus_add_attribute(data, &a->attr);
 }
 
@@ -1230,7 +1217,8 @@ static int pmbus_add_sensor_attrs_one(struct i2c_client *client,
 				      const struct pmbus_driver_info *info,
 				      const char *name,
 				      int index, int page,
-				      const struct pmbus_sensor_attr *attr)
+				      const struct pmbus_sensor_attr *attr,
+				      bool paged)
 {
 	struct pmbus_sensor *base;
 	bool upper = !!(attr->gbit & 0xff00);	/* need to check STATUS_WORD */
@@ -1238,7 +1226,7 @@ static int pmbus_add_sensor_attrs_one(struct i2c_client *client,
 
 	if (attr->label) {
 		ret = pmbus_add_label(data, name, index, attr->label,
-				      attr->paged ? page + 1 : 0);
+				      paged ? page + 1 : 0);
 		if (ret)
 			return ret;
 	}
@@ -1271,6 +1259,30 @@ static int pmbus_add_sensor_attrs_one(struct i2c_client *client,
 	return 0;
 }
 
+static bool pmbus_sensor_is_paged(const struct pmbus_driver_info *info,
+				  const struct pmbus_sensor_attr *attr)
+{
+	int p;
+
+	if (attr->paged)
+		return true;
+
+	/*
+	 * Some attributes may be present on more than one page despite
+	 * not being marked with the paged attribute. If that is the case,
+	 * then treat the sensor as being paged and add the page suffix to the
+	 * attribute name.
+	 * We don't just add the paged attribute to all such attributes, in
+	 * order to maintain the un-suffixed labels in the case where the
+	 * attribute is only on page 0.
+	 */
+	for (p = 1; p < info->pages; p++) {
+		if (info->func[p] & attr->func)
+			return true;
+	}
+	return false;
+}
+
 static int pmbus_add_sensor_attrs(struct i2c_client *client,
 				  struct pmbus_data *data,
 				  const char *name,
@@ -1284,14 +1296,15 @@ static int pmbus_add_sensor_attrs(struct i2c_client *client,
 	index = 1;
 	for (i = 0; i < nattrs; i++) {
 		int page, pages;
+		bool paged = pmbus_sensor_is_paged(info, attrs);
 
-		pages = attrs->paged ? info->pages : 1;
+		pages = paged ? info->pages : 1;
 		for (page = 0; page < pages; page++) {
 			if (!(info->func[page] & attrs->func))
 				continue;
 			ret = pmbus_add_sensor_attrs_one(client, data, info,
 							 name, index, page,
-							 attrs);
+							 attrs, paged);
 			if (ret)
 				return ret;
 			index++;
@@ -1901,6 +1914,115 @@ static int pmbus_add_fan_attributes(struct i2c_client *client,
 	return 0;
 }
 
+struct pmbus_samples_attr {
+	int reg;
+	char *name;
+};
+
+struct pmbus_samples_reg {
+	int page;
+	struct pmbus_samples_attr *attr;
+	struct device_attribute dev_attr;
+};
+
+static struct pmbus_samples_attr pmbus_samples_registers[] = {
+	{
+		.reg = PMBUS_VIRT_SAMPLES,
+		.name = "samples",
+	}, {
+		.reg = PMBUS_VIRT_IN_SAMPLES,
+		.name = "in_samples",
+	}, {
+		.reg = PMBUS_VIRT_CURR_SAMPLES,
+		.name = "curr_samples",
+	}, {
+		.reg = PMBUS_VIRT_POWER_SAMPLES,
+		.name = "power_samples",
+	}, {
+		.reg = PMBUS_VIRT_TEMP_SAMPLES,
+		.name = "temp_samples",
+	}
+};
+
+#define to_samples_reg(x) container_of(x, struct pmbus_samples_reg, dev_attr)
+
+static ssize_t pmbus_show_samples(struct device *dev,
+				  struct device_attribute *devattr, char *buf)
+{
+	int val;
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_samples_reg *reg = to_samples_reg(devattr);
+
+	val = _pmbus_read_word_data(client, reg->page, reg->attr->reg);
+	if (val < 0)
+		return val;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
+static ssize_t pmbus_set_samples(struct device *dev,
+				 struct device_attribute *devattr,
+				 const char *buf, size_t count)
+{
+	int ret;
+	long val;
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_samples_reg *reg = to_samples_reg(devattr);
+	struct pmbus_data *data = i2c_get_clientdata(client);
+
+	if (kstrtol(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	ret = _pmbus_write_word_data(client, reg->page, reg->attr->reg, val);
+	mutex_unlock(&data->update_lock);
+
+	return ret ? : count;
+}
+
+static int pmbus_add_samples_attr(struct pmbus_data *data, int page,
+				  struct pmbus_samples_attr *attr)
+{
+	struct pmbus_samples_reg *reg;
+
+	reg = devm_kzalloc(data->dev, sizeof(*reg), GFP_KERNEL);
+	if (!reg)
+		return -ENOMEM;
+
+	reg->attr = attr;
+	reg->page = page;
+
+	pmbus_dev_attr_init(&reg->dev_attr, attr->name, 0644,
+			    pmbus_show_samples, pmbus_set_samples);
+
+	return pmbus_add_attribute(data, &reg->dev_attr.attr);
+}
+
+static int pmbus_add_samples_attributes(struct i2c_client *client,
+					struct pmbus_data *data)
+{
+	const struct pmbus_driver_info *info = data->info;
+	int s;
+
+	if (!(info->func[0] & PMBUS_HAVE_SAMPLES))
+		return 0;
+
+	for (s = 0; s < ARRAY_SIZE(pmbus_samples_registers); s++) {
+		struct pmbus_samples_attr *attr;
+		int ret;
+
+		attr = &pmbus_samples_registers[s];
+		if (!pmbus_check_word_register(client, 0, attr->reg))
+			continue;
+
+		ret = pmbus_add_samples_attr(data, 0, attr);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int pmbus_find_attributes(struct i2c_client *client,
 				 struct pmbus_data *data)
 {
@@ -1932,6 +2054,10 @@ static int pmbus_find_attributes(struct i2c_client *client,
 
 	/* Fans */
 	ret = pmbus_add_fan_attributes(client, data);
+	if (ret)
+		return ret;
+
+	ret = pmbus_add_samples_attributes(client, data);
 	return ret;
 }
 
@@ -2305,6 +2431,7 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	struct device *dev = &client->dev;
 	const struct pmbus_platform_data *pdata = dev_get_platdata(dev);
 	struct pmbus_data *data;
+	size_t groups_num = 0;
 	int ret;
 
 	if (!info)
@@ -2317,6 +2444,15 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
+		return -ENOMEM;
+
+	if (info->groups)
+		while (info->groups[groups_num])
+			groups_num++;
+
+	data->groups = devm_kcalloc(dev, groups_num + 2, sizeof(void *),
+				    GFP_KERNEL);
+	if (!data->groups)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
@@ -2346,6 +2482,7 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	}
 
 	data->groups[0] = &data->group;
+	memcpy(data->groups + 1, info->groups, sizeof(void *) * groups_num);
 	data->hwmon_dev = hwmon_device_register_with_groups(dev, client->name,
 							    data, data->groups);
 	if (IS_ERR(data->hwmon_dev)) {

@@ -9,6 +9,8 @@ config DRM_PANFROST
 	select IOMMU_SUPPORT
 	select IOMMU_IO_PGTABLE_LPAE
 	select DRM_GEM_SHMEM_HELPER
+	select PM_DEVFREQ
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	help
 	  DRM driver for ARM Mali Midgard (T6xx, T7xx, T8xx) and
 	  Bifrost (G3x, G5x, G7x) GPUs.

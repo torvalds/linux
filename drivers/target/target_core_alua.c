@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_alua.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -1760,8 +1747,10 @@ void core_alua_free_tg_pt_gp(
 	 * can be made while we are releasing struct t10_alua_tg_pt_gp.
 	 */
 	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
-	list_del(&tg_pt_gp->tg_pt_gp_list);
-	dev->t10_alua.alua_tg_pt_gps_counter--;
+	if (tg_pt_gp->tg_pt_gp_valid_id) {
+		list_del(&tg_pt_gp->tg_pt_gp_list);
+		dev->t10_alua.alua_tg_pt_gps_count--;
+	}
 	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
 	/*

@@ -410,7 +410,8 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	/* cpuid 7.0.edx*/
 	const u32 kvm_cpuid_7_0_edx_x86_features =
 		F(AVX512_4VNNIW) | F(AVX512_4FMAPS) | F(SPEC_CTRL) |
-		F(SPEC_CTRL_SSBD) | F(ARCH_CAPABILITIES) | F(INTEL_STIBP);
+		F(SPEC_CTRL_SSBD) | F(ARCH_CAPABILITIES) | F(INTEL_STIBP) |
+		F(MD_CLEAR);
 
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
@@ -455,8 +456,9 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		}
 		break;
 	}
-	/* function 4 has additional index. */
-	case 4: {
+	/* functions 4 and 0x8000001d have additional index. */
+	case 4:
+	case 0x8000001d: {
 		int i, cache_type;
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
@@ -700,8 +702,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->ecx = entry->edx = 0;
 		break;
 	case 0x8000001a:
-		break;
-	case 0x8000001d:
+	case 0x8000001e:
 		break;
 	/*Add support for Centaur's CPUID instruction*/
 	case 0xC0000000:
@@ -962,13 +963,13 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
-	eax = kvm_register_read(vcpu, VCPU_REGS_RAX);
-	ecx = kvm_register_read(vcpu, VCPU_REGS_RCX);
+	eax = kvm_rax_read(vcpu);
+	ecx = kvm_rcx_read(vcpu);
 	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
-	kvm_register_write(vcpu, VCPU_REGS_RAX, eax);
-	kvm_register_write(vcpu, VCPU_REGS_RBX, ebx);
-	kvm_register_write(vcpu, VCPU_REGS_RCX, ecx);
-	kvm_register_write(vcpu, VCPU_REGS_RDX, edx);
+	kvm_rax_write(vcpu, eax);
+	kvm_rbx_write(vcpu, ebx);
+	kvm_rcx_write(vcpu, ecx);
+	kvm_rdx_write(vcpu, edx);
 	return kvm_skip_emulated_instruction(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);

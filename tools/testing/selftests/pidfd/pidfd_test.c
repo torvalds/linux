@@ -16,6 +16,10 @@
 
 #include "../kselftest.h"
 
+#ifndef __NR_pidfd_send_signal
+#define __NR_pidfd_send_signal -1
+#endif
+
 static inline int sys_pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
 					unsigned int flags)
 {
@@ -371,6 +375,7 @@ static int test_pidfd_send_signal_syscall_support(void)
 int main(int argc, char **argv)
 {
 	ksft_print_header();
+	ksft_set_plan(4);
 
 	test_pidfd_send_signal_syscall_support();
 	test_pidfd_send_signal_simple_success();

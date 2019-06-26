@@ -29,7 +29,6 @@ struct ipmi_file_private
 	struct ipmi_user     *user;
 	spinlock_t           recv_msg_lock;
 	struct list_head     recv_msgs;
-	struct file          *file;
 	struct fasync_struct *fasync_queue;
 	wait_queue_head_t    wait;
 	struct mutex	     recv_mutex;
@@ -94,8 +93,6 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	priv->file = file;
 
 	rv = ipmi_create_user(if_num,
 			      &ipmi_hndlrs,

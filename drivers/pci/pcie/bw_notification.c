@@ -107,11 +107,25 @@ static void pcie_bandwidth_notification_remove(struct pcie_device *srv)
 	free_irq(srv->irq, srv);
 }
 
+static int pcie_bandwidth_notification_suspend(struct pcie_device *srv)
+{
+	pcie_disable_link_bandwidth_notification(srv->port);
+	return 0;
+}
+
+static int pcie_bandwidth_notification_resume(struct pcie_device *srv)
+{
+	pcie_enable_link_bandwidth_notification(srv->port);
+	return 0;
+}
+
 static struct pcie_port_service_driver pcie_bandwidth_notification_driver = {
 	.name		= "pcie_bw_notification",
 	.port_type	= PCIE_ANY_PORT,
 	.service	= PCIE_PORT_SERVICE_BWNOTIF,
 	.probe		= pcie_bandwidth_notification_probe,
+	.suspend	= pcie_bandwidth_notification_suspend,
+	.resume		= pcie_bandwidth_notification_resume,
 	.remove		= pcie_bandwidth_notification_remove,
 };
 

@@ -208,7 +208,7 @@ static struct sysrq_key_op sysrq_showlocks_op = {
 #endif
 
 #ifdef CONFIG_SMP
-static DEFINE_SPINLOCK(show_lock);
+static DEFINE_RAW_SPINLOCK(show_lock);
 
 static void showacpu(void *dummy)
 {
@@ -218,10 +218,10 @@ static void showacpu(void *dummy)
 	if (idle_cpu(smp_processor_id()))
 		return;
 
-	spin_lock_irqsave(&show_lock, flags);
+	raw_spin_lock_irqsave(&show_lock, flags);
 	pr_info("CPU%d:\n", smp_processor_id());
 	show_stack(NULL, NULL);
-	spin_unlock_irqrestore(&show_lock, flags);
+	raw_spin_unlock_irqrestore(&show_lock, flags);
 }
 
 static void sysrq_showregs_othercpus(struct work_struct *dummy)
@@ -527,7 +527,11 @@ void __handle_sysrq(int key, bool check_mask)
 {
 	struct sysrq_key_op *op_p;
 	int orig_log_level;
+	int orig_suppress_printk;
 	int i;
+
+	orig_suppress_printk = suppress_printk;
+	suppress_printk = 0;
 
 	rcu_sysrq_start();
 	rcu_read_lock();
@@ -574,6 +578,8 @@ void __handle_sysrq(int key, bool check_mask)
 	}
 	rcu_read_unlock();
 	rcu_sysrq_end();
+
+	suppress_printk = orig_suppress_printk;
 }
 
 void handle_sysrq(int key)

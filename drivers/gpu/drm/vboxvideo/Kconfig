@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
 config DRM_VBOXVIDEO
 	tristate "Virtual Box Graphics Card"
 	depends on DRM && X86 && PCI
 	select DRM_KMS_HELPER
-	select DRM_TTM
+	select DRM_VRAM_HELPER
 	select GENERIC_ALLOCATOR
 	help
 	  This is a KMS driver for the virtual Graphics Card used in

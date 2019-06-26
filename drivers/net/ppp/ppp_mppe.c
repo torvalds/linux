@@ -222,7 +222,6 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 		goto out_free;
 	}
 	state->sha1->tfm = shash;
-	state->sha1->flags = 0;
 
 	digestsize = crypto_shash_digestsize(shash);
 	if (digestsize < MPPE_MAX_KEY_LEN)

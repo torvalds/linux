@@ -32,10 +32,11 @@
 #include <linux/kernel.h>
 #include <linux/crc32.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 
 #include <asm/cpufeatures.h>
 #include <asm/cpu_device_id.h>
-#include <asm/fpu/api.h>
+#include <asm/simd.h>
 
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
@@ -54,7 +55,7 @@ static u32 __attribute__((pure))
 	unsigned int iremainder;
 	unsigned int prealign;
 
-	if (len < PCLMUL_MIN_LEN + SCALE_F_MASK || !irq_fpu_usable())
+	if (len < PCLMUL_MIN_LEN + SCALE_F_MASK || !crypto_simd_usable())
 		return crc32_le(crc, p, len);
 
 	if ((long)p & SCALE_F_MASK) {

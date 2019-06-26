@@ -1,17 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/cls_api.c	Packet classifier API.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
  * Changes:
  *
  * Eduardo J. Blanco <ejbs@netlabs.com.uy> :990222: kmod support
- *
  */
 
 #include <linux/module.h>
@@ -37,6 +32,8 @@
 #include <net/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_csum.h>
 #include <net/tc_act/tc_gact.h>
+#include <net/tc_act/tc_police.h>
+#include <net/tc_act/tc_sample.h>
 #include <net/tc_act/tc_skbedit.h>
 
 extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
@@ -2006,7 +2003,8 @@ static int tc_new_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 replay:
 	tp_created = 0;
 
-	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, rtm_tca_policy, extack);
+	err = nlmsg_parse_deprecated(n, sizeof(*t), tca, TCA_MAX,
+				     rtm_tca_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -2217,7 +2215,8 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, rtm_tca_policy, extack);
+	err = nlmsg_parse_deprecated(n, sizeof(*t), tca, TCA_MAX,
+				     rtm_tca_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -2366,7 +2365,8 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	int err;
 	bool rtnl_held = false;
 
-	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, rtm_tca_policy, extack);
+	err = nlmsg_parse_deprecated(n, sizeof(*t), tca, TCA_MAX,
+				     rtm_tca_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -2558,8 +2558,8 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return skb->len;
 
-	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, NULL,
-			  cb->extack);
+	err = nlmsg_parse_deprecated(cb->nlh, sizeof(*tcm), tca, TCA_MAX,
+				     NULL, cb->extack);
 	if (err)
 		return err;
 
@@ -2806,7 +2806,8 @@ static int tc_ctl_chain(struct sk_buff *skb, struct nlmsghdr *n,
 		return -EPERM;
 
 replay:
-	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, rtm_tca_policy, extack);
+	err = nlmsg_parse_deprecated(n, sizeof(*t), tca, TCA_MAX,
+				     rtm_tca_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -2937,8 +2938,8 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return skb->len;
 
-	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, rtm_tca_policy,
-			  cb->extack);
+	err = nlmsg_parse_deprecated(cb->nlh, sizeof(*tcm), tca, TCA_MAX,
+				     rtm_tca_policy, cb->extack);
 	if (err)
 		return err;
 
@@ -3111,7 +3112,7 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 		 * tc data even if iproute2  was newer - jhs
 		 */
 		if (exts->type != TCA_OLD_COMPAT) {
-			nest = nla_nest_start(skb, exts->action);
+			nest = nla_nest_start_noflag(skb, exts->action);
 			if (nest == NULL)
 				goto nla_put_failure;
 
@@ -3120,7 +3121,7 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 			nla_nest_end(skb, nest);
 		} else if (exts->police) {
 			struct tc_action *act = tcf_exts_first_act(exts);
-			nest = nla_nest_start(skb, exts->police);
+			nest = nla_nest_start_noflag(skb, exts->police);
 			if (nest == NULL || !act)
 				goto nla_put_failure;
 			if (tcf_action_dump_old(skb, act, 0, 0) < 0)
@@ -3229,7 +3230,6 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			entry->tunnel = tcf_tunnel_info(act);
 		} else if (is_tcf_tunnel_release(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_DECAP;
-			entry->tunnel = tcf_tunnel_info(act);
 		} else if (is_tcf_pedit(act)) {
 			for (k = 0; k < tcf_pedit_nkeys(act); k++) {
 				switch (tcf_pedit_cmd(act, k)) {
@@ -3254,6 +3254,18 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 		} else if (is_tcf_skbedit_mark(act)) {
 			entry->id = FLOW_ACTION_MARK;
 			entry->mark = tcf_skbedit_mark(act);
+		} else if (is_tcf_sample(act)) {
+			entry->id = FLOW_ACTION_SAMPLE;
+			entry->sample.psample_group =
+				tcf_sample_psample_group(act);
+			entry->sample.trunc_size = tcf_sample_trunc_size(act);
+			entry->sample.truncate = tcf_sample_truncate(act);
+			entry->sample.rate = tcf_sample_rate(act);
+		} else if (is_tcf_police(act)) {
+			entry->id = FLOW_ACTION_POLICE;
+			entry->police.burst = tcf_police_tcfp_burst(act);
+			entry->police.rate_bytes_ps =
+				tcf_police_rate_bytes_ps(act);
 		} else {
 			goto err_out;
 		}

@@ -1,10 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Android"
 
 if ANDROID
 
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
-	default n
 	depends on SHMEM
 	help
 	  The ashmem subsystem is a new shared memory allocator, similar to
@@ -16,7 +16,6 @@ config ASHMEM
 
 config ANDROID_VSOC
 	tristate "Android Virtual SoC support"
-	default n
 	depends on PCI_MSI
 	help
 	  This option adds support for the Virtual SoC driver needed to boot

@@ -1,16 +1,10 @@
-/*
-* Regulator driver for DA9055 PMIC
-*
-* Copyright(c) 2012 Dialog Semiconductor Ltd.
-*
-* Author: David Dajun Chen <dchen@diasemi.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
-*
-*/
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Regulator driver for DA9055 PMIC
+//
+// Copyright(c) 2012 Dialog Semiconductor Ltd.
+//
+// Author: David Dajun Chen <dchen@diasemi.com>
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -338,6 +332,8 @@ static const struct regulator_ops da9055_ldo_ops = {
 {\
 	.reg_desc = {\
 		.name = #_id,\
+		.of_match = of_match_ptr(#_id),\
+		.regulators_node = of_match_ptr("regulators"),\
 		.ops = &da9055_ldo_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9055_ID_##_id,\
@@ -366,6 +362,8 @@ static const struct regulator_ops da9055_ldo_ops = {
 {\
 	.reg_desc = {\
 		.name = #_id,\
+		.of_match = of_match_ptr(#_id),\
+		.regulators_node = of_match_ptr("regulators"),\
 		.ops = &da9055_buck_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9055_ID_##_id,\
@@ -487,8 +485,10 @@ static irqreturn_t da9055_ldo5_6_oc_irq(int irq, void *data)
 {
 	struct da9055_regulator *regulator = data;
 
+	regulator_lock(regulator->rdev);
 	regulator_notifier_call_chain(regulator->rdev,
 				      REGULATOR_EVENT_OVER_CURRENT, NULL);
+	regulator_unlock(regulator->rdev);
 
 	return IRQ_HANDLED;
 }
@@ -506,59 +506,6 @@ static inline struct da9055_regulator_info *find_regulator_info(int id)
 
 	return NULL;
 }
-
-#ifdef CONFIG_OF
-static struct of_regulator_match da9055_reg_matches[] = {
-	{ .name = "BUCK1", },
-	{ .name = "BUCK2", },
-	{ .name = "LDO1", },
-	{ .name = "LDO2", },
-	{ .name = "LDO3", },
-	{ .name = "LDO4", },
-	{ .name = "LDO5", },
-	{ .name = "LDO6", },
-};
-
-static int da9055_regulator_dt_init(struct platform_device *pdev,
-				    struct da9055_regulator *regulator,
-				    struct regulator_config *config,
-				    int regid)
-{
-	struct device_node *nproot, *np;
-	int ret;
-
-	nproot = of_node_get(pdev->dev.parent->of_node);
-	if (!nproot)
-		return -ENODEV;
-
-	np = of_get_child_by_name(nproot, "regulators");
-	if (!np)
-		return -ENODEV;
-
-	ret = of_regulator_match(&pdev->dev, np, &da9055_reg_matches[regid], 1);
-	of_node_put(nproot);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Error matching regulator: %d\n", ret);
-		return ret;
-	}
-
-	config->init_data = da9055_reg_matches[regid].init_data;
-	config->of_node = da9055_reg_matches[regid].of_node;
-
-	if (!config->of_node)
-		return -ENODEV;
-
-	return 0;
-}
-#else
-static inline int da9055_regulator_dt_init(struct platform_device *pdev,
-				       struct da9055_regulator *regulator,
-				       struct regulator_config *config,
-				       int regid)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_OF */
 
 static int da9055_regulator_probe(struct platform_device *pdev)
 {
@@ -580,18 +527,12 @@ static int da9055_regulator_probe(struct platform_device *pdev)
 	}
 
 	regulator->da9055 = da9055;
-	config.dev = &pdev->dev;
+	config.dev = da9055->dev;
 	config.driver_data = regulator;
 	config.regmap = da9055->regmap;
 
-	if (pdata) {
+	if (pdata)
 		config.init_data = pdata->regulators[pdev->id];
-	} else {
-		ret = da9055_regulator_dt_init(pdev, regulator, &config,
-					       pdev->id);
-		if (ret < 0)
-			return ret;
-	}
 
 	ret = da9055_gpio_init(regulator, &config, pdata, pdev->id);
 	if (ret < 0)

@@ -2522,7 +2522,6 @@ static int kdb_summary(int argc, const char **argv)
 	kdb_printf("machine    %s\n", init_uts_ns.name.machine);
 	kdb_printf("nodename   %s\n", init_uts_ns.name.nodename);
 	kdb_printf("domainname %s\n", init_uts_ns.name.domainname);
-	kdb_printf("ccversion  %s\n", __stringify(CCVERSION));
 
 	now = __ktime_get_real_seconds();
 	time64_to_tm(now, 0, &tm);
@@ -2584,7 +2583,7 @@ static int kdb_per_cpu(int argc, const char **argv)
 		diag = kdbgetularg(argv[3], &whichcpu);
 		if (diag)
 			return diag;
-		if (!cpu_online(whichcpu)) {
+		if (whichcpu >= nr_cpu_ids || !cpu_online(whichcpu)) {
 			kdb_printf("cpu %ld is not online\n", whichcpu);
 			return KDB_BADCPUNUM;
 		}

@@ -36,6 +36,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/spi.h>
+EXPORT_TRACEPOINT_SYMBOL(spi_transfer_start);
+EXPORT_TRACEPOINT_SYMBOL(spi_transfer_stop);
 
 #include "internals.h"
 
@@ -1039,6 +1041,8 @@ static int spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 		if (max_tx || max_rx) {
 			list_for_each_entry(xfer, &msg->transfers,
 					    transfer_list) {
+				if (!xfer->len)
+					continue;
 				if (!xfer->tx_buf)
 					xfer->tx_buf = ctlr->dummy_tx;
 				if (!xfer->rx_buf)
@@ -1303,10 +1307,15 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 		ret = ctlr->prepare_transfer_hardware(ctlr);
 		if (ret) {
 			dev_err(&ctlr->dev,
-				"failed to prepare transfer hardware\n");
+				"failed to prepare transfer hardware: %d\n",
+				ret);
 
 			if (ctlr->auto_runtime_pm)
 				pm_runtime_put(ctlr->dev.parent);
+
+			ctlr->cur_msg->status = ret;
+			spi_finalize_current_message(ctlr);
+
 			mutex_unlock(&ctlr->io_mutex);
 			return;
 		}
@@ -2195,6 +2204,8 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 		 */
 		cs[i] = devm_gpiod_get_index_optional(dev, "cs", i,
 						      GPIOD_OUT_LOW);
+		if (IS_ERR(cs[i]))
+			return PTR_ERR(cs[i]);
 
 		if (cs[i]) {
 			/*
@@ -2261,7 +2272,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 {
 	struct device		*dev = ctlr->dev.parent;
 	struct boardinfo	*bi;
-	int			status = -ENODEV;
+	int			status;
 	int			id, first_dynamic;
 
 	if (!dev)
@@ -2274,24 +2285,6 @@ int spi_register_controller(struct spi_controller *ctlr)
 	status = spi_controller_check_ops(ctlr);
 	if (status)
 		return status;
-
-	if (!spi_controller_is_slave(ctlr)) {
-		if (ctlr->use_gpio_descriptors) {
-			status = spi_get_gpio_descs(ctlr);
-			if (status)
-				return status;
-			/*
-			 * A controller using GPIO descriptors always
-			 * supports SPI_CS_HIGH if need be.
-			 */
-			ctlr->mode_bits |= SPI_CS_HIGH;
-		} else {
-			/* Legacy code path for GPIOs from DT */
-			status = of_spi_register_master(ctlr);
-			if (status)
-				return status;
-		}
-	}
 
 	/* even if it's just one always-selected device, there must
 	 * be at least one chipselect
@@ -2349,6 +2342,25 @@ int spi_register_controller(struct spi_controller *ctlr)
 	 * registration fails if the bus ID is in use.
 	 */
 	dev_set_name(&ctlr->dev, "spi%u", ctlr->bus_num);
+
+	if (!spi_controller_is_slave(ctlr)) {
+		if (ctlr->use_gpio_descriptors) {
+			status = spi_get_gpio_descs(ctlr);
+			if (status)
+				return status;
+			/*
+			 * A controller using GPIO descriptors always
+			 * supports SPI_CS_HIGH if need be.
+			 */
+			ctlr->mode_bits |= SPI_CS_HIGH;
+		} else {
+			/* Legacy code path for GPIOs from DT */
+			status = of_spi_register_master(ctlr);
+			if (status)
+				return status;
+		}
+	}
+
 	status = device_add(&ctlr->dev);
 	if (status < 0) {
 		/* free bus id */
@@ -2781,11 +2793,6 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 	size_t offset;
 	size_t count, i;
 
-	/* warn once about this fact that we are splitting a transfer */
-	dev_warn_once(&msg->spi->dev,
-		      "spi_transfer of length %i exceed max length of %zu - needed to split transfers\n",
-		      xfer->len, maxsize);
-
 	/* calculate how many we have to replace */
 	count = DIV_ROUND_UP(xfer->len, maxsize);
 
@@ -2943,6 +2950,11 @@ int spi_setup(struct spi_device *spi)
 	 * so it is ignored here.
 	 */
 	bad_bits = spi->mode & ~(spi->controller->mode_bits | SPI_CS_WORD);
+	/* nothing prevents from working with active-high CS in case if it
+	 * is driven by GPIO.
+	 */
+	if (gpio_is_valid(spi->cs_gpio))
+		bad_bits &= ~SPI_CS_HIGH;
 	ugly_bits = bad_bits &
 		    (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL |
 		     SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL);
@@ -2987,6 +2999,21 @@ int spi_setup(struct spi_device *spi)
 	return status;
 }
 EXPORT_SYMBOL_GPL(spi_setup);
+
+/**
+ * spi_set_cs_timing - configure CS setup, hold, and inactive delays
+ * @spi: the device that requires specific CS timing configuration
+ * @setup: CS setup time in terms of clock count
+ * @hold: CS hold time in terms of clock count
+ * @inactive_dly: CS inactive delay between transfers in terms of clock count
+ */
+void spi_set_cs_timing(struct spi_device *spi, u8 setup, u8 hold,
+		       u8 inactive_dly)
+{
+	if (spi->controller->set_cs_timing)
+		spi->controller->set_cs_timing(spi, setup, hold, inactive_dly);
+}
+EXPORT_SYMBOL_GPL(spi_set_cs_timing);
 
 static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 {
@@ -3062,8 +3089,6 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 
 		if (!xfer->speed_hz)
 			xfer->speed_hz = spi->max_speed_hz;
-		if (!xfer->speed_hz)
-			xfer->speed_hz = ctlr->max_speed_hz;
 
 		if (ctlr->max_speed_hz && xfer->speed_hz > ctlr->max_speed_hz)
 			xfer->speed_hz = ctlr->max_speed_hz;

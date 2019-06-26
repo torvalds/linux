@@ -63,8 +63,6 @@
  * @lock: Spinlock protecting some lock members.
  * @rw: Read-write lock counter. Protected by @lock.
  * @flags: Lock state. Protected by @lock.
- * @kill_takers: Boolean whether to kill takers of the lock.
- * @signal: Signal to send when kill_takers is true.
  */
 
 struct ttm_lock {
@@ -73,9 +71,6 @@ struct ttm_lock {
 	spinlock_t lock;
 	int32_t rw;
 	uint32_t flags;
-	bool kill_takers;
-	int signal;
-	struct ttm_object_file *vt_holder;
 };
 
 
@@ -219,30 +214,5 @@ extern void ttm_write_unlock(struct ttm_lock *lock);
  * -ERESTARTSYS If interrupted by a signal and interruptible is true.
  */
 extern int ttm_write_lock(struct ttm_lock *lock, bool interruptible);
-
-/**
- * ttm_lock_set_kill
- *
- * @lock: Pointer to a struct ttm_lock
- * @val: Boolean whether to kill processes taking the lock.
- * @signal: Signal to send to the process taking the lock.
- *
- * The kill-when-taking-lock functionality is used to kill processes that keep
- * on using the TTM functionality when its resources has been taken down, for
- * example when the X server exits. A typical sequence would look like this:
- * - X server takes lock in write mode.
- * - ttm_lock_set_kill() is called with @val set to true.
- * - As part of X server exit, TTM resources are taken down.
- * - X server releases the lock on file release.
- * - Another dri client wants to render, takes the lock and is killed.
- *
- */
-static inline void ttm_lock_set_kill(struct ttm_lock *lock, bool val,
-				     int signal)
-{
-	lock->kill_takers = val;
-	if (val)
-		lock->signal = signal;
-}
 
 #endif

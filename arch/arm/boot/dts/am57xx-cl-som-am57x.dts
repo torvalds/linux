@@ -13,7 +13,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "dra74x.dtsi"
+#include "am5728.dtsi"
 
 / {
 	model = "CompuLab CL-SOM-AM57x";

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/etherdevice.h>
@@ -22,10 +14,9 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	int ret;
 
 	cancel_delayed_work_sync(&dev->cal_work);
-	if (mt76_is_mmio(dev)) {
-		tasklet_disable(&dev->pre_tbtt_tasklet);
+	dev->beacon_ops->pre_tbtt_enable(dev, false);
+	if (mt76_is_mmio(dev))
 		tasklet_disable(&dev->dfs_pd.dfs_tasklet);
-	}
 
 	mt76_set_channel(&dev->mt76);
 	ret = mt76x0_phy_set_channel(dev, chandef);
@@ -38,9 +29,10 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 
 	if (mt76_is_mmio(dev)) {
 		mt76x02_dfs_init_params(dev);
-		tasklet_enable(&dev->pre_tbtt_tasklet);
 		tasklet_enable(&dev->dfs_pd.dfs_tasklet);
 	}
+	dev->beacon_ops->pre_tbtt_enable(dev, true);
+
 	mt76_txq_schedule_all(&dev->mt76);
 
 	return ret;

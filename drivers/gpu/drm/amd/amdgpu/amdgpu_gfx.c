@@ -22,7 +22,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_rlc.h"

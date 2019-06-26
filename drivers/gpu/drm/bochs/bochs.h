@@ -10,9 +10,9 @@
 #include <drm/drm_simple_kms_helper.h>
 
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_vram_helper.h>
 
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_page_alloc.h>
+#include <drm/drm_vram_mm_helper.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -73,37 +73,7 @@ struct bochs_device {
 	struct drm_device *dev;
 	struct drm_simple_display_pipe pipe;
 	struct drm_connector connector;
-
-	/* ttm */
-	struct {
-		struct ttm_bo_device bdev;
-		bool initialized;
-	} ttm;
 };
-
-struct bochs_bo {
-	struct ttm_buffer_object bo;
-	struct ttm_placement placement;
-	struct ttm_bo_kmap_obj kmap;
-	struct drm_gem_object gem;
-	struct ttm_place placements[3];
-	int pin_count;
-};
-
-static inline struct bochs_bo *bochs_bo(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct bochs_bo, bo);
-}
-
-static inline struct bochs_bo *gem_to_bochs_bo(struct drm_gem_object *gem)
-{
-	return container_of(gem, struct bochs_bo, gem);
-}
-
-static inline u64 bochs_bo_mmap_offset(struct bochs_bo *bo)
-{
-	return drm_vma_node_offset_addr(&bo->bo.vma_node);
-}
 
 /* ---------------------------------------------------------------------- */
 
@@ -122,26 +92,6 @@ int bochs_hw_load_edid(struct bochs_device *bochs);
 /* bochs_mm.c */
 int bochs_mm_init(struct bochs_device *bochs);
 void bochs_mm_fini(struct bochs_device *bochs);
-int bochs_mmap(struct file *filp, struct vm_area_struct *vma);
-
-int bochs_gem_create(struct drm_device *dev, u32 size, bool iskernel,
-		     struct drm_gem_object **obj);
-int bochs_gem_init_object(struct drm_gem_object *obj);
-void bochs_gem_free_object(struct drm_gem_object *obj);
-int bochs_dumb_create(struct drm_file *file, struct drm_device *dev,
-		      struct drm_mode_create_dumb *args);
-int bochs_dumb_mmap_offset(struct drm_file *file, struct drm_device *dev,
-			   uint32_t handle, uint64_t *offset);
-
-int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag);
-int bochs_bo_unpin(struct bochs_bo *bo);
-
-int bochs_gem_prime_pin(struct drm_gem_object *obj);
-void bochs_gem_prime_unpin(struct drm_gem_object *obj);
-void *bochs_gem_prime_vmap(struct drm_gem_object *obj);
-void bochs_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
-int bochs_gem_prime_mmap(struct drm_gem_object *obj,
-			 struct vm_area_struct *vma);
 
 /* bochs_kms.c */
 int bochs_kms_init(struct bochs_device *bochs);

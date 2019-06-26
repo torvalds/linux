@@ -248,15 +248,9 @@ static struct inode *adfs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void adfs_i_callback(struct rcu_head *head)
+static void adfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
-}
-
-static void adfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, adfs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -290,7 +284,7 @@ static void destroy_inodecache(void)
 
 static const struct super_operations adfs_sops = {
 	.alloc_inode	= adfs_alloc_inode,
-	.destroy_inode	= adfs_destroy_inode,
+	.free_inode	= adfs_free_inode,
 	.drop_inode	= generic_delete_inode,
 	.write_inode	= adfs_write_inode,
 	.put_super	= adfs_put_super,

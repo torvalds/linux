@@ -97,7 +97,7 @@ int ap_open_output_file(char *pathname)
 
 int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 {
-	char filename[ACPI_NAME_SIZE + 16];
+	char filename[ACPI_NAMESEG_SIZE + 16];
 	char instance_str[16];
 	ACPI_FILE file;
 	acpi_size actual;
@@ -110,16 +110,16 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	/* Construct lower-case filename from the table local signature */
 
 	if (ACPI_VALIDATE_RSDP_SIG(table->signature)) {
-		ACPI_MOVE_NAME(filename, ACPI_RSDP_NAME);
+		ACPI_COPY_NAMESEG(filename, ACPI_RSDP_NAME);
 	} else {
-		ACPI_MOVE_NAME(filename, table->signature);
+		ACPI_COPY_NAMESEG(filename, table->signature);
 	}
 
 	filename[0] = (char)tolower((int)filename[0]);
 	filename[1] = (char)tolower((int)filename[1]);
 	filename[2] = (char)tolower((int)filename[2]);
 	filename[3] = (char)tolower((int)filename[3]);
-	filename[ACPI_NAME_SIZE] = 0;
+	filename[ACPI_NAMESEG_SIZE] = 0;
 
 	/* Handle multiple SSDts - create different filenames for each */
 

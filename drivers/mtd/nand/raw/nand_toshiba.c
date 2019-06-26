@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 Free Electrons
  * Copyright (C) 2017 NextThing Co
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "internals.h"
@@ -101,6 +92,9 @@ static void toshiba_nand_benand_init(struct nand_chip *chip)
 static void toshiba_nand_decode_id(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	nand_decode_ext_id(chip);
 
@@ -114,8 +108,10 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 	 */
 	if (chip->id.len >= 6 && nand_is_slc(chip) &&
 	    (chip->id.data[5] & 0x7) == 0x6 /* 24nm */ &&
-	    !(chip->id.data[4] & 0x80) /* !BENAND */)
-		mtd->oobsize = 32 * mtd->writesize >> 9;
+	    !(chip->id.data[4] & 0x80) /* !BENAND */) {
+		memorg->oobsize = 32 * memorg->pagesize >> 9;
+		mtd->oobsize = memorg->oobsize;
+	}
 
 	/*
 	 * Extract ECC requirements from 6th id byte.
@@ -125,20 +121,20 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 	 *  - 24nm: 8 bit ECC for each 512Byte is required.
 	 */
 	if (chip->id.len >= 6 && nand_is_slc(chip)) {
-		chip->ecc_step_ds = 512;
+		chip->base.eccreq.step_size = 512;
 		switch (chip->id.data[5] & 0x7) {
 		case 0x4:
-			chip->ecc_strength_ds = 1;
+			chip->base.eccreq.strength = 1;
 			break;
 		case 0x5:
-			chip->ecc_strength_ds = 4;
+			chip->base.eccreq.strength = 4;
 			break;
 		case 0x6:
-			chip->ecc_strength_ds = 8;
+			chip->base.eccreq.strength = 8;
 			break;
 		default:
 			WARN(1, "Could not get ECC info");
-			chip->ecc_step_ds = 0;
+			chip->base.eccreq.step_size = 0;
 			break;
 		}
 	}
@@ -147,7 +143,7 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 static int toshiba_nand_init(struct nand_chip *chip)
 {
 	if (nand_is_slc(chip))
-		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
+		chip->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE;
 
 	/* Check that chip is BENAND and ECC mode is on-die */
 	if (nand_is_slc(chip) && chip->ecc.mode == NAND_ECC_ON_DIE &&

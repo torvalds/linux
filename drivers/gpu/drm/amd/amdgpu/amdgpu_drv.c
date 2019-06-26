@@ -22,21 +22,23 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_vblank.h>
 #include "amdgpu_drv.h"
 
 #include <drm/drm_pciids.h>
 #include <linux/console.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 #include <drm/drm_probe_helper.h>
 
 #include "amdgpu.h"
 #include "amdgpu_irq.h"
-#include "amdgpu_gem.h"
+#include "amdgpu_dma_buf.h"
 
 #include "amdgpu_amdkfd.h"
 
@@ -81,6 +83,8 @@
 #define KMS_DRIVER_MINOR	32
 #define KMS_DRIVER_PATCHLEVEL	0
 
+#define AMDGPU_MAX_TIMEOUT_PARAM_LENTH	256
+
 int amdgpu_vram_limit = 0;
 int amdgpu_vis_vram_limit = 0;
 int amdgpu_gart_size = -1; /* auto */
@@ -93,7 +97,7 @@ int amdgpu_disp_priority = 0;
 int amdgpu_hw_i2c = 0;
 int amdgpu_pcie_gen2 = -1;
 int amdgpu_msi = -1;
-int amdgpu_lockup_timeout = 10000;
+char amdgpu_lockup_timeout[AMDGPU_MAX_TIMEOUT_PARAM_LENTH];
 int amdgpu_dpm = -1;
 int amdgpu_fw_load_type = -1;
 int amdgpu_aspm = -1;
@@ -227,12 +231,21 @@ MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(msi, amdgpu_msi, int, 0444);
 
 /**
- * DOC: lockup_timeout (int)
- * Set GPU scheduler timeout value in ms. Value 0 is invalidated, will be adjusted to 10000.
- * Negative values mean 'infinite timeout' (MAX_JIFFY_OFFSET). The default is 10000.
+ * DOC: lockup_timeout (string)
+ * Set GPU scheduler timeout value in ms.
+ *
+ * The format can be [Non-Compute] or [GFX,Compute,SDMA,Video]. That is there can be one or
+ * multiple values specified. 0 and negative values are invalidated. They will be adjusted
+ * to default timeout.
+ *  - With one value specified, the setting will apply to all non-compute jobs.
+ *  - With multiple values specified, the first one will be for GFX. The second one is for Compute.
+ *    And the third and fourth ones are for SDMA and Video.
+ * By default(with no lockup_timeout settings), the timeout for all non-compute(GFX, SDMA and Video)
+ * jobs is 10000. And there is no timeout enforced on compute jobs.
  */
-MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms > 0 (default 10000)");
-module_param_named(lockup_timeout, amdgpu_lockup_timeout, int, 0444);
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: 10000 for non-compute jobs and no timeout for compute jobs), "
+		"format is [Non-Compute] or [GFX,Compute,SDMA,Video]");
+module_param_string(lockup_timeout, amdgpu_lockup_timeout, sizeof(amdgpu_lockup_timeout), 0444);
 
 /**
  * DOC: dpm (int)
@@ -655,6 +668,16 @@ MODULE_PARM_DESC(noretry,
 int halt_if_hws_hang;
 module_param(halt_if_hws_hang, int, 0644);
 MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (default), 1 = on)");
+
+/**
+ * DOC: hws_gws_support(bool)
+ * Whether HWS support gws barriers. Default value: false (not supported)
+ * This will be replaced with a MEC firmware version check once firmware
+ * is ready
+ */
+bool hws_gws_support;
+module_param(hws_gws_support, bool, 0444);
+MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supported (Default), true = supported)");
 #endif
 
 /**
@@ -1214,6 +1237,62 @@ int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv)
 	file = filp->private_data;
 	*fpriv = file->driver_priv;
 	return 0;
+}
+
+int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
+{
+	char *input = amdgpu_lockup_timeout;
+	char *timeout_setting = NULL;
+	int index = 0;
+	long timeout;
+	int ret = 0;
+
+	/*
+	 * By default timeout for non compute jobs is 10000.
+	 * And there is no timeout enforced on compute jobs.
+	 */
+	adev->gfx_timeout = adev->sdma_timeout = adev->video_timeout = 10000;
+	adev->compute_timeout = MAX_SCHEDULE_TIMEOUT;
+
+	if (strnlen(input, AMDGPU_MAX_TIMEOUT_PARAM_LENTH)) {
+		while ((timeout_setting = strsep(&input, ",")) &&
+				strnlen(timeout_setting, AMDGPU_MAX_TIMEOUT_PARAM_LENTH)) {
+			ret = kstrtol(timeout_setting, 0, &timeout);
+			if (ret)
+				return ret;
+
+			/* Invalidate 0 and negative values */
+			if (timeout <= 0) {
+				index++;
+				continue;
+			}
+
+			switch (index++) {
+			case 0:
+				adev->gfx_timeout = timeout;
+				break;
+			case 1:
+				adev->compute_timeout = timeout;
+				break;
+			case 2:
+				adev->sdma_timeout = timeout;
+				break;
+			case 3:
+				adev->video_timeout = timeout;
+				break;
+			default:
+				break;
+			}
+		}
+		/*
+		 * There is only one value specified and
+		 * it should apply to all non-compute jobs.
+		 */
+		if (index == 1)
+			adev->sdma_timeout = adev->video_timeout = adev->gfx_timeout;
+	}
+
+	return ret;
 }
 
 static bool

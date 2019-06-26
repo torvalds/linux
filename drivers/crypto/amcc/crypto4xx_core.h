@@ -1,18 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /**
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
  * All rights reserved. James Hsiao <jhsiao@amcc.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * This is the header file for AMCC Crypto offload Linux device driver for
  * use with Linux CryptoAPI.
@@ -64,7 +55,6 @@ union shadow_sa_buf {
 struct pd_uinfo {
 	struct crypto4xx_device *dev;
 	u32   state;
-	u32 using_sd;
 	u32 first_gd;		/* first gather discriptor
 				used by this packet */
 	u32 num_gd;             /* number of gather discriptor
@@ -131,7 +121,7 @@ struct crypto4xx_ctx {
 	__le32 iv_nonce;
 	u32 sa_len;
 	union {
-		struct crypto_skcipher *cipher;
+		struct crypto_sync_skcipher *cipher;
 		struct crypto_aead *aead;
 	} sw_cipher;
 };

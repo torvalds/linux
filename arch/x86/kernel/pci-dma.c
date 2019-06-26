@@ -51,14 +51,6 @@ int iommu_pass_through __read_mostly;
 
 extern struct iommu_table_entry __iommu_table[], __iommu_table_end[];
 
-/* Dummy device used for NULL arguments (normally ISA). */
-struct device x86_dma_fallback_dev = {
-	.init_name = "fallback device",
-	.coherent_dma_mask = ISA_DMA_BIT_MASK,
-	.dma_mask = &x86_dma_fallback_dev.coherent_dma_mask,
-};
-EXPORT_SYMBOL(x86_dma_fallback_dev);
-
 void __init pci_iommu_alloc(void)
 {
 	struct iommu_table_entry *p;
@@ -76,18 +68,6 @@ void __init pci_iommu_alloc(void)
 		}
 	}
 }
-
-bool arch_dma_alloc_attrs(struct device **dev)
-{
-	if (!*dev)
-		*dev = &x86_dma_fallback_dev;
-
-	if (!is_device_dma_capable(*dev))
-		return false;
-	return true;
-
-}
-EXPORT_SYMBOL(arch_dma_alloc_attrs);
 
 /*
  * See <Documentation/x86/x86_64/boot-options.txt> for the iommu kernel

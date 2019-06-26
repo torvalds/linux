@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/sort.h>
 #include <asm/ptrace.h>

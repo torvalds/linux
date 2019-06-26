@@ -172,7 +172,6 @@ struct dc_stream_update {
 	struct periodic_interrupt_config *periodic_interrupt0;
 	struct periodic_interrupt_config *periodic_interrupt1;
 
-	struct dc_crtc_timing_adjust *adjust;
 	struct dc_info_packet *vrr_infopacket;
 	struct dc_info_packet *vsc_infopacket;
 	struct dc_info_packet *vsp_infopacket;

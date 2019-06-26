@@ -30,13 +30,11 @@ static int bpfilter_mbox_request(struct sock *sk, int optname,
 	mutex_lock(&bpfilter_ops.lock);
 	if (!bpfilter_ops.sockopt) {
 		mutex_unlock(&bpfilter_ops.lock);
-		err = request_module("bpfilter");
+		request_module("bpfilter");
 		mutex_lock(&bpfilter_ops.lock);
 
-		if (err)
-			goto out;
 		if (!bpfilter_ops.sockopt) {
-			err = -ECHILD;
+			err = -ENOPROTOOPT;
 			goto out;
 		}
 	}
@@ -77,5 +75,4 @@ static int __init bpfilter_sockopt_init(void)
 
 	return 0;
 }
-
-module_init(bpfilter_sockopt_init);
+device_initcall(bpfilter_sockopt_init);

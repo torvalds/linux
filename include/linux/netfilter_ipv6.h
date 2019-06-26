@@ -87,6 +87,21 @@ static inline int nf_ip6_route(struct net *net, struct dst_entry **dst,
 }
 
 int ip6_route_me_harder(struct net *net, struct sk_buff *skb);
+
+static inline int nf_ip6_route_me_harder(struct net *net, struct sk_buff *skb)
+{
+#if IS_MODULE(CONFIG_IPV6)
+	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
+
+	if (!v6_ops)
+		return -EHOSTUNREACH;
+
+	return v6_ops->route_me_harder(net, skb);
+#else
+	return ip6_route_me_harder(net, skb);
+#endif
+}
+
 __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 			unsigned int dataoff, u_int8_t protocol);
 

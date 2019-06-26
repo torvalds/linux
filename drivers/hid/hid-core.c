@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID support for Linux
  *
@@ -8,10 +9,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -218,13 +215,14 @@ static unsigned hid_lookup_collection(struct hid_parser *parser, unsigned type)
  * Add a usage to the temporary parser table.
  */
 
-static int hid_add_usage(struct hid_parser *parser, unsigned usage)
+static int hid_add_usage(struct hid_parser *parser, unsigned usage, u8 size)
 {
 	if (parser->local.usage_index >= HID_MAX_USAGES) {
 		hid_err(parser->device, "usage index exceeded\n");
 		return -1;
 	}
 	parser->local.usage[parser->local.usage_index] = usage;
+	parser->local.usage_size[parser->local.usage_index] = size;
 	parser->local.collection_index[parser->local.usage_index] =
 		parser->collection_stack_ptr ?
 		parser->collection_stack[parser->collection_stack_ptr - 1] : 0;
@@ -486,10 +484,7 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 			return 0;
 		}
 
-		if (item->size <= 2)
-			data = (parser->global.usage_page << 16) + data;
-
-		return hid_add_usage(parser, data);
+		return hid_add_usage(parser, data, item->size);
 
 	case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
 
@@ -497,9 +492,6 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 			dbg_hid("alternative usage ignored\n");
 			return 0;
 		}
-
-		if (item->size <= 2)
-			data = (parser->global.usage_page << 16) + data;
 
 		parser->local.usage_minimum = data;
 		return 0;
@@ -510,9 +502,6 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 			dbg_hid("alternative usage ignored\n");
 			return 0;
 		}
-
-		if (item->size <= 2)
-			data = (parser->global.usage_page << 16) + data;
 
 		count = data - parser->local.usage_minimum;
 		if (count + parser->local.usage_index >= HID_MAX_USAGES) {
@@ -533,7 +522,7 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 		}
 
 		for (n = parser->local.usage_minimum; n <= data; n++)
-			if (hid_add_usage(parser, n)) {
+			if (hid_add_usage(parser, n, item->size)) {
 				dbg_hid("hid_add_usage failed\n");
 				return -1;
 			}
@@ -548,6 +537,22 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 }
 
 /*
+ * Concatenate Usage Pages into Usages where relevant:
+ * As per specification, 6.2.2.8: "When the parser encounters a main item it
+ * concatenates the last declared Usage Page with a Usage to form a complete
+ * usage value."
+ */
+
+static void hid_concatenate_usage_page(struct hid_parser *parser)
+{
+	int i;
+
+	for (i = 0; i < parser->local.usage_index; i++)
+		if (parser->local.usage_size[i] <= 2)
+			parser->local.usage[i] += parser->global.usage_page << 16;
+}
+
+/*
  * Process a main item.
  */
 
@@ -555,6 +560,8 @@ static int hid_parser_main(struct hid_parser *parser, struct hid_item *item)
 {
 	__u32 data;
 	int ret;
+
+	hid_concatenate_usage_page(parser);
 
 	data = item_udata(item);
 
@@ -764,6 +771,8 @@ static int hid_scan_main(struct hid_parser *parser, struct hid_item *item)
 {
 	__u32 data;
 	int i;
+
+	hid_concatenate_usage_page(parser);
 
 	data = item_udata(item);
 
@@ -1301,10 +1310,10 @@ static u32 __extract(u8 *report, unsigned offset, int n)
 u32 hid_field_extract(const struct hid_device *hid, u8 *report,
 			unsigned offset, unsigned n)
 {
-	if (n > 256) {
-		hid_warn(hid, "hid_field_extract() called with n (%d) > 256! (%s)\n",
+	if (n > 32) {
+		hid_warn(hid, "hid_field_extract() called with n (%d) > 32! (%s)\n",
 			 n, current->comm);
-		n = 256;
+		n = 32;
 	}
 
 	return __extract(report, offset, n);
@@ -1624,7 +1633,7 @@ static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
  * Implement a generic .request() callback, using .raw_request()
  * DO NOT USE in hid drivers directly, but through hid_hw_request instead.
  */
-void __hid_request(struct hid_device *hid, struct hid_report *report,
+int __hid_request(struct hid_device *hid, struct hid_report *report,
 		int reqtype)
 {
 	char *buf;
@@ -1633,7 +1642,7 @@ void __hid_request(struct hid_device *hid, struct hid_report *report,
 
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
 	if (!buf)
-		return;
+		return -ENOMEM;
 
 	len = hid_report_len(report);
 
@@ -1650,8 +1659,11 @@ void __hid_request(struct hid_device *hid, struct hid_report *report,
 	if (reqtype == HID_REQ_GET_REPORT)
 		hid_input_report(hid, report->type, buf, ret, 0);
 
+	ret = 0;
+
 out:
 	kfree(buf);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__hid_request);
 

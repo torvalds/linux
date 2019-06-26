@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/mm/memory.c
  *
@@ -356,7 +357,7 @@ void free_pgd_range(struct mmu_gather *tlb,
 	 * We add page table cache pages with PAGE_SIZE,
 	 * (see pte_free_tlb()), flush the tlb if we need
 	 */
-	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
+	tlb_change_page_size(tlb, PAGE_SIZE);
 	pgd = pgd_offset(tlb->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
@@ -519,7 +520,7 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 		dump_page(page, "bad pte");
 	pr_alert("addr:%p vm_flags:%08lx anon_vma:%p mapping:%p index:%lx\n",
 		 (void *)addr, vma->vm_flags, vma->anon_vma, mapping, index);
-	pr_alert("file:%pD fault:%pf mmap:%pf readpage:%pf\n",
+	pr_alert("file:%pD fault:%ps mmap:%ps readpage:%ps\n",
 		 vma->vm_file,
 		 vma->vm_ops ? vma->vm_ops->fault : NULL,
 		 vma->vm_file ? vma->vm_file->f_op->mmap : NULL,
@@ -1010,7 +1011,8 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	is_cow = is_cow_mapping(vma->vm_flags);
 
 	if (is_cow) {
-		mmu_notifier_range_init(&range, src_mm, addr, end);
+		mmu_notifier_range_init(&range, MMU_NOTIFY_PROTECTION_PAGE,
+					0, vma, src_mm, addr, end);
 		mmu_notifier_invalidate_range_start(&range);
 	}
 
@@ -1046,7 +1048,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 	pte_t *pte;
 	swp_entry_t entry;
 
-	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
+	tlb_change_page_size(tlb, PAGE_SIZE);
 again:
 	init_rss_vec(rss);
 	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
@@ -1155,7 +1157,7 @@ again:
 	 */
 	if (force_flush) {
 		force_flush = 0;
-		tlb_flush_mmu_free(tlb);
+		tlb_flush_mmu(tlb);
 		if (addr != end)
 			goto again;
 	}
@@ -1334,7 +1336,8 @@ void unmap_vmas(struct mmu_gather *tlb,
 {
 	struct mmu_notifier_range range;
 
-	mmu_notifier_range_init(&range, vma->vm_mm, start_addr, end_addr);
+	mmu_notifier_range_init(&range, MMU_NOTIFY_UNMAP, 0, vma, vma->vm_mm,
+				start_addr, end_addr);
 	mmu_notifier_invalidate_range_start(&range);
 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
 		unmap_single_vma(tlb, vma, start_addr, end_addr, NULL);
@@ -1356,7 +1359,8 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
 	struct mmu_gather tlb;
 
 	lru_add_drain();
-	mmu_notifier_range_init(&range, vma->vm_mm, start, start + size);
+	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, vma->vm_mm,
+				start, start + size);
 	tlb_gather_mmu(&tlb, vma->vm_mm, start, range.end);
 	update_hiwater_rss(vma->vm_mm);
 	mmu_notifier_invalidate_range_start(&range);
@@ -1382,7 +1386,8 @@ static void zap_page_range_single(struct vm_area_struct *vma, unsigned long addr
 	struct mmu_gather tlb;
 
 	lru_add_drain();
-	mmu_notifier_range_init(&range, vma->vm_mm, address, address + size);
+	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, vma->vm_mm,
+				address, address + size);
 	tlb_gather_mmu(&tlb, vma->vm_mm, address, range.end);
 	update_hiwater_rss(vma->vm_mm);
 	mmu_notifier_invalidate_range_start(&range);
@@ -1522,6 +1527,87 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
 	return insert_page(vma, addr, page, vma->vm_page_prot);
 }
 EXPORT_SYMBOL(vm_insert_page);
+
+/*
+ * __vm_map_pages - maps range of kernel pages into user vma
+ * @vma: user vma to map to
+ * @pages: pointer to array of source kernel pages
+ * @num: number of pages in page array
+ * @offset: user's requested vm_pgoff
+ *
+ * This allows drivers to map range of kernel pages into a user vma.
+ *
+ * Return: 0 on success and error code otherwise.
+ */
+static int __vm_map_pages(struct vm_area_struct *vma, struct page **pages,
+				unsigned long num, unsigned long offset)
+{
+	unsigned long count = vma_pages(vma);
+	unsigned long uaddr = vma->vm_start;
+	int ret, i;
+
+	/* Fail if the user requested offset is beyond the end of the object */
+	if (offset > num)
+		return -ENXIO;
+
+	/* Fail if the user requested size exceeds available object size */
+	if (count > num - offset)
+		return -ENXIO;
+
+	for (i = 0; i < count; i++) {
+		ret = vm_insert_page(vma, uaddr, pages[offset + i]);
+		if (ret < 0)
+			return ret;
+		uaddr += PAGE_SIZE;
+	}
+
+	return 0;
+}
+
+/**
+ * vm_map_pages - maps range of kernel pages starts with non zero offset
+ * @vma: user vma to map to
+ * @pages: pointer to array of source kernel pages
+ * @num: number of pages in page array
+ *
+ * Maps an object consisting of @num pages, catering for the user's
+ * requested vm_pgoff
+ *
+ * If we fail to insert any page into the vma, the function will return
+ * immediately leaving any previously inserted pages present.  Callers
+ * from the mmap handler may immediately return the error as their caller
+ * will destroy the vma, removing any successfully inserted pages. Other
+ * callers should make their own arrangements for calling unmap_region().
+ *
+ * Context: Process context. Called by mmap handlers.
+ * Return: 0 on success and error code otherwise.
+ */
+int vm_map_pages(struct vm_area_struct *vma, struct page **pages,
+				unsigned long num)
+{
+	return __vm_map_pages(vma, pages, num, vma->vm_pgoff);
+}
+EXPORT_SYMBOL(vm_map_pages);
+
+/**
+ * vm_map_pages_zero - map range of kernel pages starts with zero offset
+ * @vma: user vma to map to
+ * @pages: pointer to array of source kernel pages
+ * @num: number of pages in page array
+ *
+ * Similar to vm_map_pages(), except that it explicitly sets the offset
+ * to 0. This function is intended for the drivers that did not consider
+ * vm_pgoff.
+ *
+ * Context: Process context. Called by mmap handlers.
+ * Return: 0 on success and error code otherwise.
+ */
+int vm_map_pages_zero(struct vm_area_struct *vma, struct page **pages,
+				unsigned long num)
+{
+	return __vm_map_pages(vma, pages, num, 0);
+}
+EXPORT_SYMBOL(vm_map_pages_zero);
 
 static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 			pfn_t pfn, pgprot_t prot, bool mkwrite)
@@ -1946,18 +2032,17 @@ int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long
 }
 EXPORT_SYMBOL(vm_iomap_memory);
 
-static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
-				     unsigned long addr, unsigned long end,
-				     pte_fn_t fn, void *data)
+static int apply_to_pte_range(struct pfn_range_apply *closure, pmd_t *pmd,
+			      unsigned long addr, unsigned long end)
 {
 	pte_t *pte;
 	int err;
 	pgtable_t token;
 	spinlock_t *uninitialized_var(ptl);
 
-	pte = (mm == &init_mm) ?
+	pte = (closure->mm == &init_mm) ?
 		pte_alloc_kernel(pmd, addr) :
-		pte_alloc_map_lock(mm, pmd, addr, &ptl);
+		pte_alloc_map_lock(closure->mm, pmd, addr, &ptl);
 	if (!pte)
 		return -ENOMEM;
 
@@ -1968,86 +2053,109 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 	token = pmd_pgtable(*pmd);
 
 	do {
-		err = fn(pte++, token, addr, data);
+		err = closure->ptefn(pte++, token, addr, closure);
 		if (err)
 			break;
 	} while (addr += PAGE_SIZE, addr != end);
 
 	arch_leave_lazy_mmu_mode();
 
-	if (mm != &init_mm)
+	if (closure->mm != &init_mm)
 		pte_unmap_unlock(pte-1, ptl);
 	return err;
 }
 
-static int apply_to_pmd_range(struct mm_struct *mm, pud_t *pud,
-				     unsigned long addr, unsigned long end,
-				     pte_fn_t fn, void *data)
+static int apply_to_pmd_range(struct pfn_range_apply *closure, pud_t *pud,
+			      unsigned long addr, unsigned long end)
 {
 	pmd_t *pmd;
 	unsigned long next;
-	int err;
+	int err = 0;
 
 	BUG_ON(pud_huge(*pud));
 
-	pmd = pmd_alloc(mm, pud, addr);
+	pmd = pmd_alloc(closure->mm, pud, addr);
 	if (!pmd)
 		return -ENOMEM;
+
 	do {
 		next = pmd_addr_end(addr, end);
-		err = apply_to_pte_range(mm, pmd, addr, next, fn, data);
+		if (!closure->alloc && pmd_none_or_clear_bad(pmd))
+			continue;
+		err = apply_to_pte_range(closure, pmd, addr, next);
 		if (err)
 			break;
 	} while (pmd++, addr = next, addr != end);
 	return err;
 }
 
-static int apply_to_pud_range(struct mm_struct *mm, p4d_t *p4d,
-				     unsigned long addr, unsigned long end,
-				     pte_fn_t fn, void *data)
+static int apply_to_pud_range(struct pfn_range_apply *closure, p4d_t *p4d,
+			      unsigned long addr, unsigned long end)
 {
 	pud_t *pud;
 	unsigned long next;
-	int err;
+	int err = 0;
 
-	pud = pud_alloc(mm, p4d, addr);
+	pud = pud_alloc(closure->mm, p4d, addr);
 	if (!pud)
 		return -ENOMEM;
+
 	do {
 		next = pud_addr_end(addr, end);
-		err = apply_to_pmd_range(mm, pud, addr, next, fn, data);
+		if (!closure->alloc && pud_none_or_clear_bad(pud))
+			continue;
+		err = apply_to_pmd_range(closure, pud, addr, next);
 		if (err)
 			break;
 	} while (pud++, addr = next, addr != end);
 	return err;
 }
 
-static int apply_to_p4d_range(struct mm_struct *mm, pgd_t *pgd,
-				     unsigned long addr, unsigned long end,
-				     pte_fn_t fn, void *data)
+static int apply_to_p4d_range(struct pfn_range_apply *closure, pgd_t *pgd,
+			      unsigned long addr, unsigned long end)
 {
 	p4d_t *p4d;
 	unsigned long next;
-	int err;
+	int err = 0;
 
-	p4d = p4d_alloc(mm, pgd, addr);
+	p4d = p4d_alloc(closure->mm, pgd, addr);
 	if (!p4d)
 		return -ENOMEM;
+
 	do {
 		next = p4d_addr_end(addr, end);
-		err = apply_to_pud_range(mm, p4d, addr, next, fn, data);
+		if (!closure->alloc && p4d_none_or_clear_bad(p4d))
+			continue;
+		err = apply_to_pud_range(closure, p4d, addr, next);
 		if (err)
 			break;
 	} while (p4d++, addr = next, addr != end);
 	return err;
 }
 
-/*
- * Scan a region of virtual memory, filling in page tables as necessary
- * and calling a provided function on each leaf page table.
+/**
+ * apply_to_pfn_range - Scan a region of virtual memory, calling a provided
+ * function on each leaf page table entry
+ * @closure: Details about how to scan and what function to apply
+ * @addr: Start virtual address
+ * @size: Size of the region
+ *
+ * If @closure->alloc is set to 1, the function will fill in the page table
+ * as necessary. Otherwise it will skip non-present parts.
+ * Note: The caller must ensure that the range does not contain huge pages.
+ * The caller must also assure that the proper mmu_notifier functions are
+ * called before and after the call to apply_to_pfn_range.
+ *
+ * WARNING: Do not use this function unless you know exactly what you are
+ * doing. It is lacking support for huge pages and transparent huge pages.
+ *
+ * Return: Zero on success. If the provided function returns a non-zero status,
+ * the page table walk will terminate and that status will be returned.
+ * If @closure->alloc is set to 1, then this function may also return memory
+ * allocation errors arising from allocating page table memory.
  */
-int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
-			unsigned long size, pte_fn_t fn, void *data)
+int apply_to_pfn_range(struct pfn_range_apply *closure,
+		       unsigned long addr, unsigned long size)
 {
 	pgd_t *pgd;
 	unsigned long next;
@@ -2057,15 +2165,64 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
 	if (WARN_ON(addr >= end))
 		return -EINVAL;
 
-	pgd = pgd_offset(mm, addr);
+	pgd = pgd_offset(closure->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		err = apply_to_p4d_range(mm, pgd, addr, next, fn, data);
+		if (!closure->alloc && pgd_none_or_clear_bad(pgd))
+			continue;
+		err = apply_to_p4d_range(closure, pgd, addr, next);
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
 
 	return err;
+}
+
+/**
+ * struct page_range_apply - Closure structure for apply_to_page_range()
+ * @pter: The base closure structure we derive from
+ * @fn: The leaf pte function to call
+ * @data: The leaf pte function closure
+ */
+struct page_range_apply {
+	struct pfn_range_apply pter;
+	pte_fn_t fn;
+	void *data;
+};
+
+/*
+ * Callback wrapper to enable use of apply_to_pfn_range for
+ * the apply_to_page_range interface
+ */
+static int apply_to_page_range_wrapper(pte_t *pte, pgtable_t token,
+				       unsigned long addr,
+				       struct pfn_range_apply *pter)
+{
+	struct page_range_apply *pra =
+		container_of(pter, typeof(*pra), pter);
+
+	return pra->fn(pte, token, addr, pra->data);
+}
+
+/*
+ * Scan a region of virtual memory, filling in page tables as necessary
+ * and calling a provided function on each leaf page table.
+ *
+ * WARNING: Do not use this function unless you know exactly what you are
+ * doing. It is lacking support for huge pages and transparent huge pages.
+ */
+int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+			unsigned long size, pte_fn_t fn, void *data)
+{
+	struct page_range_apply pra = {
+		.pter = {.mm = mm,
+			 .alloc = 1,
+			 .ptefn = apply_to_page_range_wrapper },
+		.fn = fn,
+		.data = data
+	};
+
+	return apply_to_pfn_range(&pra.pter, addr, size);
 }
 EXPORT_SYMBOL_GPL(apply_to_page_range);
 
@@ -2152,7 +2309,7 @@ static vm_fault_t do_page_mkwrite(struct vm_fault *vmf)
 	ret = vmf->vma->vm_ops->page_mkwrite(vmf);
 	/* Restore original flags so that caller is not surprised */
 	vmf->flags = old_flags;
-	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
 		return ret;
 	if (unlikely(!(ret & VM_FAULT_LOCKED))) {
 		lock_page(page);
@@ -2279,7 +2436,8 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 
 	__SetPageUptodate(new_page);
 
-	mmu_notifier_range_init(&range, mm, vmf->address & PAGE_MASK,
+	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm,
+				vmf->address & PAGE_MASK,
 				(vmf->address & PAGE_MASK) + PAGE_SIZE);
 	mmu_notifier_invalidate_range_start(&range);
 
@@ -2428,7 +2586,7 @@ static vm_fault_t wp_pfn_shared(struct vm_fault *vmf)
 		pte_unmap_unlock(vmf->pte, vmf->ptl);
 		vmf->flags |= FAULT_FLAG_MKWRITE;
 		ret = vma->vm_ops->pfn_mkwrite(vmf);
-		if (ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))
+		if (ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY))
 			return ret;
 		return finish_mkwrite_fault(vmf);
 	}
@@ -2449,7 +2607,8 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
 		pte_unmap_unlock(vmf->pte, vmf->ptl);
 		tmp = do_page_mkwrite(vmf);
 		if (unlikely(!tmp || (tmp &
-				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
+				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
+				       VM_FAULT_RETRY)))) {
 			put_page(vmf->page);
 			return tmp;
 		}
@@ -3514,7 +3673,8 @@ static vm_fault_t do_shared_fault(struct vm_fault *vmf)
 		unlock_page(vmf->page);
 		tmp = do_page_mkwrite(vmf);
 		if (unlikely(!tmp ||
-				(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
+				(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
+					VM_FAULT_RETRY)))) {
 			put_page(vmf->page);
 			return tmp;
 		}
@@ -4104,8 +4264,9 @@ static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
 			goto out;
 
 		if (range) {
-			mmu_notifier_range_init(range, mm, address & PMD_MASK,
-					     (address & PMD_MASK) + PMD_SIZE);
+			mmu_notifier_range_init(range, MMU_NOTIFY_CLEAR, 0,
+						NULL, mm, address & PMD_MASK,
+						(address & PMD_MASK) + PMD_SIZE);
 			mmu_notifier_invalidate_range_start(range);
 		}
 		*ptlp = pmd_lock(mm, pmd);
@@ -4122,8 +4283,9 @@ static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
 		goto out;
 
 	if (range) {
-		mmu_notifier_range_init(range, mm, address & PAGE_MASK,
-				     (address & PAGE_MASK) + PAGE_SIZE);
+		mmu_notifier_range_init(range, MMU_NOTIFY_CLEAR, 0, NULL, mm,
+					address & PAGE_MASK,
+					(address & PAGE_MASK) + PAGE_SIZE);
 		mmu_notifier_invalidate_range_start(range);
 	}
 	ptep = pte_offset_map_lock(mm, pmd, address, ptlp);

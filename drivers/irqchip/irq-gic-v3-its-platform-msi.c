@@ -117,7 +117,7 @@ static int __init its_pmsi_init_one(struct fwnode_handle *fwnode,
 
 #ifdef CONFIG_ACPI
 static int __init
-its_pmsi_parse_madt(struct acpi_subtable_header *header,
+its_pmsi_parse_madt(union acpi_subtable_headers *header,
 			const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;

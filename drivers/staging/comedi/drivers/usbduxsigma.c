@@ -1577,6 +1577,8 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 	usbduxsigma_free_usb_buffers(dev);
 
 	mutex_unlock(&devpriv->mut);
+
+	mutex_destroy(&devpriv->mut);
 }
 
 static struct comedi_driver usbduxsigma_driver = {

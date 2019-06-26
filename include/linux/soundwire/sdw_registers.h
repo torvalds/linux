@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-// Copyright(c) 2015-17 Intel Corporation.
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* Copyright(c) 2015-17 Intel Corporation. */
 
 #ifndef __SDW_REGISTERS_H
 #define __SDW_REGISTERS_H
@@ -72,7 +72,6 @@
 #define SDW_SCP_INTSTAT2			0x42
 #define SDW_SCP_INTSTAT2_SCP3_CASCADE		BIT(7)
 #define SDW_SCP_INTSTAT2_PORT4_10		GENMASK(6, 0)
-
 
 #define SDW_SCP_INTSTAT3			0x43
 #define SDW_SCP_INTSTAT3_PORT11_14		GENMASK(3, 0)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Quick & dirty crypto testing module.
  *
@@ -14,12 +15,6 @@
  *             Gabriele Paoloni <gabriele.paoloni@intel.com>
  *             Tadeusz Struk (tadeusz.struk@intel.com)
  *             Copyright (c) 2010, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -3053,7 +3048,7 @@ err_free_tv:
  */
 static void __exit tcrypt_mod_fini(void) { }
 
-module_init(tcrypt_mod_init);
+subsys_initcall(tcrypt_mod_init);
 module_exit(tcrypt_mod_fini);
 
 module_param(alg, charp, 0);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 Samsung Electronics
  *
@@ -10,20 +11,6 @@
  *    Erik Gilling <konkers@android.com>
  *    Shankar Bandal <shankar.b@samsung.com>
  *    Dharam Kumar <dharam.kr@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program
- *
  */
 #include <drm/bridge/mhl.h>
 #include <drm/drm_crtc.h>
@@ -828,7 +815,7 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 static int sii9234_init_resources(struct sii9234 *ctx,
 				  struct i2c_client *client)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	int ret;
 
 	if (!ctx->dev->of_node) {
@@ -910,7 +897,7 @@ static const struct drm_bridge_funcs sii9234_bridge_funcs = {
 static int sii9234_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct sii9234 *ctx;
 	struct device *dev = &client->dev;
 	int ret;

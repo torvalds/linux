@@ -258,7 +258,7 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 static void lima_sched_handle_error_task(struct lima_sched_pipe *pipe,
 					 struct lima_sched_task *task)
 {
-	drm_sched_stop(&pipe->base);
+	drm_sched_stop(&pipe->base, &task->base);
 
 	if (task)
 		drm_sched_increase_karma(&task->base);
@@ -329,19 +329,16 @@ static void lima_sched_error_work(struct work_struct *work)
 
 int lima_sched_pipe_init(struct lima_sched_pipe *pipe, const char *name)
 {
-	long timeout;
-
-	if (lima_sched_timeout_ms <= 0)
-		timeout = MAX_SCHEDULE_TIMEOUT;
-	else
-		timeout = msecs_to_jiffies(lima_sched_timeout_ms);
+	unsigned int timeout = lima_sched_timeout_ms > 0 ?
+			       lima_sched_timeout_ms : 500;
 
 	pipe->fence_context = dma_fence_context_alloc(1);
 	spin_lock_init(&pipe->fence_lock);
 
 	INIT_WORK(&pipe->error_work, lima_sched_error_work);
 
-	return drm_sched_init(&pipe->base, &lima_sched_ops, 1, 0, timeout, name);
+	return drm_sched_init(&pipe->base, &lima_sched_ops, 1, 0,
+			      msecs_to_jiffies(timeout), name);
 }
 
 void lima_sched_pipe_fini(struct lima_sched_pipe *pipe)

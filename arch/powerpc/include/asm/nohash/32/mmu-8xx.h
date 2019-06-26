@@ -35,11 +35,18 @@
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
  * Therefore, we define 2 APG groups. lsb is _PMD_USER
- * 0 => No user => 01 (all accesses performed according to page definition)
+ * 0 => Kernel => 01 (all accesses performed according to page definition)
  * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
- * We define all 16 groups so that all other bits of APG can take any value
+ * 2-16 => NA => 11 (all accesses performed as user iaw page definition)
  */
-#define MI_APG_INIT	0x44444444
+#define MI_APG_INIT	0x4fffffff
+
+/*
+ * 0 => Kernel => 01 (all accesses performed according to page definition)
+ * 1 => User => 10 (all accesses performed according to swaped page definition)
+ * 2-16 => NA => 11 (all accesses performed as user iaw page definition)
+ */
+#define MI_APG_KUEP	0x6fffffff
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MI_RPN is written, bits in
@@ -108,11 +115,18 @@
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
  * Therefore, we define 2 APG groups. lsb is _PMD_USER
- * 0 => No user => 01 (all accesses performed according to page definition)
+ * 0 => Kernel => 01 (all accesses performed according to page definition)
  * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
- * We define all 16 groups so that all other bits of APG can take any value
+ * 2-16 => NA => 11 (all accesses performed as user iaw page definition)
  */
-#define MD_APG_INIT	0x44444444
+#define MD_APG_INIT	0x4fffffff
+
+/*
+ * 0 => No user => 01 (all accesses performed according to page definition)
+ * 1 => User => 10 (all accesses performed according to swaped page definition)
+ * 2-16 => NA => 11 (all accesses performed as user iaw page definition)
+ */
+#define MD_APG_KUAP	0x6fffffff
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MD_RPN is written, bits in
@@ -167,9 +181,26 @@
 #ifdef CONFIG_PPC_MM_SLICES
 #include <asm/nohash/32/slice.h>
 #define SLICE_ARRAY_SIZE	(1 << (32 - SLICE_LOW_SHIFT - 1))
+#define LOW_SLICE_ARRAY_SZ	SLICE_ARRAY_SIZE
 #endif
 
+#if defined(CONFIG_PPC_4K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_4K
+#elif defined(CONFIG_PPC_16K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_16K
+#define PTE_FRAG_NR		4
+#define PTE_FRAG_SIZE_SHIFT	12
+#define PTE_FRAG_SIZE		(1UL << 12)
+#else
+#error "Unsupported PAGE_SIZE"
+#endif
+
+#define mmu_linear_psize	MMU_PAGE_8M
+
 #ifndef __ASSEMBLY__
+
+#include <linux/mmdebug.h>
+
 struct slice_mask {
 	u64 low_slices;
 	DECLARE_BITMAP(high_slices, 0);
@@ -185,13 +216,55 @@ typedef struct {
 	unsigned char high_slices_psize[0];
 	unsigned long slb_addr_limit;
 	struct slice_mask mask_base_psize; /* 4k or 16k */
-# ifdef CONFIG_HUGETLB_PAGE
 	struct slice_mask mask_512k;
 	struct slice_mask mask_8m;
-# endif
 #endif
 	void *pte_frag;
 } mm_context_t;
+
+#ifdef CONFIG_PPC_MM_SLICES
+static inline u16 mm_ctx_user_psize(mm_context_t *ctx)
+{
+	return ctx->user_psize;
+}
+
+static inline void mm_ctx_set_user_psize(mm_context_t *ctx, u16 user_psize)
+{
+	ctx->user_psize = user_psize;
+}
+
+static inline unsigned char *mm_ctx_low_slices(mm_context_t *ctx)
+{
+	return ctx->low_slices_psize;
+}
+
+static inline unsigned char *mm_ctx_high_slices(mm_context_t *ctx)
+{
+	return ctx->high_slices_psize;
+}
+
+static inline unsigned long mm_ctx_slb_addr_limit(mm_context_t *ctx)
+{
+	return ctx->slb_addr_limit;
+}
+
+static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long limit)
+{
+	ctx->slb_addr_limit = limit;
+}
+
+static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
+{
+	if (psize == MMU_PAGE_512K)
+		return &ctx->mask_512k;
+	if (psize == MMU_PAGE_8M)
+		return &ctx->mask_8m;
+
+	BUG_ON(psize != mmu_virtual_psize);
+
+	return &ctx->mask_base_psize;
+}
+#endif /* CONFIG_PPC_MM_SLICE */
 
 #define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
 #define VIRT_IMMR_BASE (__fix_to_virt(FIX_IMMR_BASE))
@@ -241,18 +314,5 @@ extern s32 patch__dtlbmiss_exit_1, patch__dtlbmiss_exit_2, patch__dtlbmiss_exit_
 extern s32 patch__itlbmiss_perf, patch__dtlbmiss_perf;
 
 #endif /* !__ASSEMBLY__ */
-
-#if defined(CONFIG_PPC_4K_PAGES)
-#define mmu_virtual_psize	MMU_PAGE_4K
-#elif defined(CONFIG_PPC_16K_PAGES)
-#define mmu_virtual_psize	MMU_PAGE_16K
-#define PTE_FRAG_NR		4
-#define PTE_FRAG_SIZE_SHIFT	12
-#define PTE_FRAG_SIZE		(1UL << 12)
-#else
-#error "Unsupported PAGE_SIZE"
-#endif
-
-#define mmu_linear_psize	MMU_PAGE_8M
 
 #endif /* _ASM_POWERPC_MMU_8XX_H_ */

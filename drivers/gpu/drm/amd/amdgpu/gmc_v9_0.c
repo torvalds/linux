@@ -20,8 +20,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
 #include <linux/firmware.h>
+#include <linux/pci.h>
+
 #include <drm/drm_cache.h>
+
 #include "amdgpu.h"
 #include "gmc_v9_0.h"
 #include "amdgpu_atomfirmware.h"
@@ -624,8 +628,8 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	 */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		return true;
 	case CHIP_RAVEN:
+		return true;
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	default:
@@ -686,8 +690,25 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 		return 0;
 	}
 	/* handle resume path. */
-	if (*ras_if)
+	if (*ras_if) {
+		/* resend ras TA enable cmd during resume.
+		 * prepare to handle failure.
+		 */
+		ih_info.head = **ras_if;
+		r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
+		if (r) {
+			if (r == -EAGAIN) {
+				/* request a gpu reset. will run again. */
+				amdgpu_ras_request_reset_on_boot(adev,
+						AMDGPU_RAS_BLOCK__UMC);
+				return 0;
+			}
+			/* fail to enable ras, cleanup all. */
+			goto irq;
+		}
+		/* enable successfully. continue. */
 		goto resume;
+	}
 
 	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
 	if (!*ras_if)
@@ -696,8 +717,14 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 	**ras_if = ras_block;
 
 	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-	if (r)
+	if (r) {
+		if (r == -EAGAIN) {
+			amdgpu_ras_request_reset_on_boot(adev,
+					AMDGPU_RAS_BLOCK__UMC);
+			r = 0;
+		}
 		goto feature;
+	}
 
 	ih_info.head = **ras_if;
 	fs_info.head = **ras_if;
@@ -730,7 +757,7 @@ interrupt:
 feature:
 	kfree(*ras_if);
 	*ras_if = NULL;
-	return -EINVAL;
+	return r;
 }
 
 
@@ -812,8 +839,16 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	int chansize, numchan;
 	int r;
 
-	if (amdgpu_emu_mode != 1)
+	if (amdgpu_sriov_vf(adev)) {
+		/* For Vega10 SR-IOV, vram_width can't be read from ATOM as RAVEN,
+		 * and DF related registers is not readable, seems hardcord is the
+		 * only way to set the correct vram_width
+		 */
+		adev->gmc.vram_width = 2048;
+	} else if (amdgpu_emu_mode != 1) {
 		adev->gmc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
+	}
+
 	if (!adev->gmc.vram_width) {
 		/* hbm memory channel size */
 		if (adev->flags & AMD_IS_APU)
@@ -1091,6 +1126,9 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+		if (amdgpu_virt_support_skip_setting(adev))
+			break;
+		/* fall through */
 	case CHIP_VEGA20:
 		soc15_program_register_sequence(adev,
 						golden_settings_mmhub_1_0_0,
@@ -1154,6 +1192,9 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	tmp = RREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL);
 	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
+
+	WREG32_SOC15(HDP, 0, mmHDP_NONSURFACE_BASE, (adev->gmc.vram_start >> 8));
+	WREG32_SOC15(HDP, 0, mmHDP_NONSURFACE_BASE_HI, (adev->gmc.vram_start >> 40));
 
 	/* After HDP is initialized, flush HDP.*/
 	adev->nbio_funcs->hdp_flush(adev, NULL);

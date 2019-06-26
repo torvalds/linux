@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (c) ????		Jochen Schäuble <psionic@psionic.de>
  * Copyright (c) 2003-2004	Joern Engel <joern@wh.fh-wedel.de>
@@ -147,8 +148,10 @@ static int parse_num64(uint64_t *num64, char *token)
 			switch (token[len - 2]) {
 			case 'G':
 				shift += 10;
+				/* fall through */
 			case 'M':
 				shift += 10;
+				/* fall through */
 			case 'k':
 				shift += 10;
 				token[len - 2] = 0;

@@ -1,23 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*=============================================================================
  *
  * A  PCMCIA client driver for the Raylink wireless LAN card.
  * The starting point for this module was the skeleton.c in the
  * PCMCIA 2.9.12 package written by David Hinds, dahinds@users.sourceforge.net
  *
- *
  * Copyright (c) 1998  Corey Thomas (corey@world.std.com)
- *
- * This driver is free software; you can redistribute it and/or modify
- * it under the terms of version 2 only of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * It is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Changes:
  * Arnaldo Carvalho de Melo <acme@conectiva.com.br> - 08/08/2000
@@ -2795,6 +2783,8 @@ static int __init init_ray_cs(void)
 	rc = pcmcia_register_driver(&ray_driver);
 	pr_debug("raylink init_module register_pcmcia_driver returns 0x%x\n",
 	      rc);
+	if (rc)
+		return rc;
 
 #ifdef CONFIG_PROC_FS
 	proc_mkdir("driver/ray_cs", NULL);
@@ -2818,11 +2808,7 @@ static void __exit exit_ray_cs(void)
 	pr_debug("ray_cs: cleanup_module\n");
 
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("driver/ray_cs/ray_cs", NULL);
-	remove_proc_entry("driver/ray_cs/essid", NULL);
-	remove_proc_entry("driver/ray_cs/net_type", NULL);
-	remove_proc_entry("driver/ray_cs/translate", NULL);
-	remove_proc_entry("driver/ray_cs", NULL);
+	remove_proc_subtree("driver/ray_cs", NULL);
 #endif
 
 	pcmcia_unregister_driver(&ray_driver);

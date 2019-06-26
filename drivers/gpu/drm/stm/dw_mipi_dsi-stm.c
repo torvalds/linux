@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
 #include <drm/drmP.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/bridge/dw_mipi_dsi.h>
@@ -76,6 +77,7 @@ struct dw_mipi_dsi_stm {
 	u32 hw_version;
 	int lane_min_kbps;
 	int lane_max_kbps;
+	struct regulator *vdd_supply;
 };
 
 static inline void dsi_write(struct dw_mipi_dsi_stm *dsi, u32 reg, u32 val)
@@ -208,10 +210,27 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 	if (ret)
 		DRM_DEBUG_DRIVER("!TIMEOUT! waiting PLL, let's continue\n");
 
+	return 0;
+}
+
+static void dw_mipi_dsi_phy_power_on(void *priv_data)
+{
+	struct dw_mipi_dsi_stm *dsi = priv_data;
+
+	DRM_DEBUG_DRIVER("\n");
+
 	/* Enable the DSI wrapper */
 	dsi_set(dsi, DSI_WCR, WCR_DSIEN);
+}
 
-	return 0;
+static void dw_mipi_dsi_phy_power_off(void *priv_data)
+{
+	struct dw_mipi_dsi_stm *dsi = priv_data;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	/* Disable the DSI wrapper */
+	dsi_clear(dsi, DSI_WCR, WCR_DSIEN);
 }
 
 static int
@@ -225,7 +244,6 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 	u32 val;
 
 	/* Update lane capabilities according to hw version */
-	dsi->hw_version = dsi_read(dsi, DSI_VERSION) & VERSION;
 	dsi->lane_min_kbps = LANE_MIN_KBPS;
 	dsi->lane_max_kbps = LANE_MAX_KBPS;
 	if (dsi->hw_version == HWVER_131) {
@@ -286,6 +304,8 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 
 static const struct dw_mipi_dsi_phy_ops dw_mipi_dsi_stm_phy_ops = {
 	.init = dw_mipi_dsi_phy_init,
+	.power_on = dw_mipi_dsi_phy_power_on,
+	.power_off = dw_mipi_dsi_phy_power_off,
 	.get_lane_mbps = dw_mipi_dsi_get_lane_mbps,
 };
 
@@ -304,6 +324,7 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_mipi_dsi_stm *dsi;
+	struct clk *pclk;
 	struct resource *res;
 	int ret;
 
@@ -314,21 +335,58 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dsi->base)) {
-		DRM_ERROR("Unable to get dsi registers\n");
-		return PTR_ERR(dsi->base);
+		ret = PTR_ERR(dsi->base);
+		DRM_ERROR("Unable to get dsi registers %d\n", ret);
+		return ret;
+	}
+
+	dsi->vdd_supply = devm_regulator_get(dev, "phy-dsi");
+	if (IS_ERR(dsi->vdd_supply)) {
+		ret = PTR_ERR(dsi->vdd_supply);
+		if (ret != -EPROBE_DEFER)
+			DRM_ERROR("Failed to request regulator: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_enable(dsi->vdd_supply);
+	if (ret) {
+		DRM_ERROR("Failed to enable regulator: %d\n", ret);
+		return ret;
 	}
 
 	dsi->pllref_clk = devm_clk_get(dev, "ref");
 	if (IS_ERR(dsi->pllref_clk)) {
 		ret = PTR_ERR(dsi->pllref_clk);
-		dev_err(dev, "Unable to get pll reference clock: %d\n", ret);
-		return ret;
+		DRM_ERROR("Unable to get pll reference clock: %d\n", ret);
+		goto err_clk_get;
 	}
 
 	ret = clk_prepare_enable(dsi->pllref_clk);
 	if (ret) {
-		dev_err(dev, "%s: Failed to enable pllref_clk\n", __func__);
-		return ret;
+		DRM_ERROR("Failed to enable pllref_clk: %d\n", ret);
+		goto err_clk_get;
+	}
+
+	pclk = devm_clk_get(dev, "pclk");
+	if (IS_ERR(pclk)) {
+		ret = PTR_ERR(pclk);
+		DRM_ERROR("Unable to get peripheral clock: %d\n", ret);
+		goto err_dsi_probe;
+	}
+
+	ret = clk_prepare_enable(pclk);
+	if (ret) {
+		DRM_ERROR("%s: Failed to enable peripheral clk\n", __func__);
+		goto err_dsi_probe;
+	}
+
+	dsi->hw_version = dsi_read(dsi, DSI_VERSION) & VERSION;
+	clk_disable_unprepare(pclk);
+
+	if (dsi->hw_version != HWVER_130 && dsi->hw_version != HWVER_131) {
+		ret = -ENODEV;
+		DRM_ERROR("bad dsi hardware version\n");
+		goto err_dsi_probe;
 	}
 
 	dw_mipi_dsi_stm_plat_data.base = dsi->base;
@@ -338,20 +396,28 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 
 	dsi->dsi = dw_mipi_dsi_probe(pdev, &dw_mipi_dsi_stm_plat_data);
 	if (IS_ERR(dsi->dsi)) {
-		DRM_ERROR("Failed to initialize mipi dsi host\n");
-		clk_disable_unprepare(dsi->pllref_clk);
-		return PTR_ERR(dsi->dsi);
+		ret = PTR_ERR(dsi->dsi);
+		DRM_ERROR("Failed to initialize mipi dsi host: %d\n", ret);
+		goto err_dsi_probe;
 	}
 
 	return 0;
+
+err_dsi_probe:
+	clk_disable_unprepare(dsi->pllref_clk);
+err_clk_get:
+	regulator_disable(dsi->vdd_supply);
+
+	return ret;
 }
 
 static int dw_mipi_dsi_stm_remove(struct platform_device *pdev)
 {
 	struct dw_mipi_dsi_stm *dsi = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(dsi->pllref_clk);
 	dw_mipi_dsi_remove(dsi->dsi);
+	clk_disable_unprepare(dsi->pllref_clk);
+	regulator_disable(dsi->vdd_supply);
 
 	return 0;
 }
@@ -363,6 +429,7 @@ static int __maybe_unused dw_mipi_dsi_stm_suspend(struct device *dev)
 	DRM_DEBUG_DRIVER("\n");
 
 	clk_disable_unprepare(dsi->pllref_clk);
+	regulator_disable(dsi->vdd_supply);
 
 	return 0;
 }
@@ -370,10 +437,22 @@ static int __maybe_unused dw_mipi_dsi_stm_suspend(struct device *dev)
 static int __maybe_unused dw_mipi_dsi_stm_resume(struct device *dev)
 {
 	struct dw_mipi_dsi_stm *dsi = dw_mipi_dsi_stm_plat_data.priv_data;
+	int ret;
 
 	DRM_DEBUG_DRIVER("\n");
 
-	clk_prepare_enable(dsi->pllref_clk);
+	ret = regulator_enable(dsi->vdd_supply);
+	if (ret) {
+		DRM_ERROR("Failed to enable regulator: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(dsi->pllref_clk);
+	if (ret) {
+		regulator_disable(dsi->vdd_supply);
+		DRM_ERROR("Failed to enable pllref_clk: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }

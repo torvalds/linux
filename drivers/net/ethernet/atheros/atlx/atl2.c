@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright(c) 2006 - 2007 Atheros Corporation. All rights reserved.
  * Copyright(c) 2007 - 2008 Chris Snook <csnook@redhat.com>
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/atomic.h>
@@ -553,7 +540,7 @@ static void atl2_intr_tx(struct atl2_adapter *adapter)
 			netdev->stats.tx_aborted_errors++;
 		if (txs->late_col)
 			netdev->stats.tx_window_errors++;
-		if (txs->underun)
+		if (txs->underrun)
 			netdev->stats.tx_fifo_errors++;
 	} while (1);
 
@@ -908,7 +895,6 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 	ATL2_WRITE_REGW(&adapter->hw, REG_MB_TXD_WR_IDX,
 		(adapter->txd_write_ptr >> 2));
 
-	mmiowb();
 	dev_consume_skb_any(skb);
 	return NETDEV_TX_OK;
 }

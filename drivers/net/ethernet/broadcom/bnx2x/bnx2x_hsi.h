@@ -3024,7 +3024,7 @@ struct afex_stats {
 
 #define BCM_5710_FW_MAJOR_VERSION			7
 #define BCM_5710_FW_MINOR_VERSION			13
-#define BCM_5710_FW_REVISION_VERSION		1
+#define BCM_5710_FW_REVISION_VERSION		11
 #define BCM_5710_FW_ENGINEERING_VERSION		0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
@@ -3639,8 +3639,10 @@ struct client_init_rx_data {
 #define CLIENT_INIT_RX_DATA_TPA_EN_IPV6_SHIFT 1
 #define CLIENT_INIT_RX_DATA_TPA_MODE (0x1<<2)
 #define CLIENT_INIT_RX_DATA_TPA_MODE_SHIFT 2
-#define CLIENT_INIT_RX_DATA_RESERVED5 (0x1F<<3)
-#define CLIENT_INIT_RX_DATA_RESERVED5_SHIFT 3
+#define CLIENT_INIT_RX_DATA_TPA_OVER_VLAN_DISABLE (0x1<<3)
+#define CLIENT_INIT_RX_DATA_TPA_OVER_VLAN_DISABLE_SHIFT 3
+#define CLIENT_INIT_RX_DATA_RESERVED5 (0xF<<4)
+#define CLIENT_INIT_RX_DATA_RESERVED5_SHIFT 4
 	u8 vmqueue_mode_en_flg;
 	u8 extra_data_over_sgl_en_flg;
 	u8 cache_line_alignment_log_size;
@@ -3831,7 +3833,7 @@ struct eth_classify_cmd_header {
  */
 struct eth_classify_header {
 	u8 rule_cnt;
-	u8 reserved0;
+	u8 warning_on_error;
 	__le16 reserved1;
 	__le32 echo;
 };
@@ -4752,6 +4754,8 @@ struct tpa_update_ramrod_data {
 	__le32 sge_page_base_hi;
 	__le16 sge_pause_thr_low;
 	__le16 sge_pause_thr_high;
+	u8 tpa_over_vlan_disable;
+	u8 reserved[7];
 };
 
 
@@ -4946,7 +4950,7 @@ struct fairness_vars_per_port {
 	u32 upper_bound;
 	u32 fair_threshold;
 	u32 fairness_timeout;
-	u32 reserved0;
+	u32 size_thr;
 };
 
 /*
@@ -5415,7 +5419,9 @@ struct function_start_data {
 	u8 sd_vlan_force_pri_val;
 	u8 c2s_pri_tt_valid;
 	u8 c2s_pri_default;
-	u8 reserved2[6];
+	u8 tx_vlan_filtering_enable;
+	u8 tx_vlan_filtering_use_pvid;
+	u8 reserved2[4];
 	struct c2s_pri_trans_table_entry c2s_pri_trans_table;
 };
 
@@ -5448,7 +5454,8 @@ struct function_update_data {
 	u8 reserved1;
 	__le16 sd_vlan_tag;
 	__le16 sd_vlan_eth_type;
-	__le16 reserved0;
+	u8 tx_vlan_filtering_pvid_change_flg;
+	u8 reserved0;
 	__le32 reserved2;
 };
 

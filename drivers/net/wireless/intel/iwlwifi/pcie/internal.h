@@ -106,7 +106,6 @@ struct iwl_host_cmd;
  * @page: driver's pointer to the rxb page
  * @invalid: rxb is in driver ownership - not owned by HW
  * @vid: index of this rxb in the global table
- * @size: size used from the buffer
  */
 struct iwl_rx_mem_buffer {
 	dma_addr_t page_dma;
@@ -114,7 +113,6 @@ struct iwl_rx_mem_buffer {
 	u16 vid;
 	bool invalid;
 	struct list_head list;
-	u32 size;
 };
 
 /**
@@ -135,46 +133,32 @@ struct isr_statistics {
 	u32 unhandled;
 };
 
-#define IWL_RX_TD_TYPE_MSK	0xff000000
-#define IWL_RX_TD_SIZE_MSK	0x00ffffff
-#define IWL_RX_TD_SIZE_2K	BIT(11)
-#define IWL_RX_TD_TYPE		0
-
 /**
  * struct iwl_rx_transfer_desc - transfer descriptor
- * @type_n_size: buffer type (bit 0: external buff valid,
- *	bit 1: optional footer valid, bit 2-7: reserved)
- *	and buffer size
  * @addr: ptr to free buffer start address
  * @rbid: unique tag of the buffer
  * @reserved: reserved
  */
 struct iwl_rx_transfer_desc {
-	__le32 type_n_size;
-	__le64 addr;
 	__le16 rbid;
-	__le16 reserved;
+	__le16 reserved[3];
+	__le64 addr;
 } __packed;
 
-#define IWL_RX_CD_SIZE		0xffffff00
+#define IWL_RX_CD_FLAGS_FRAGMENTED	BIT(0)
 
 /**
  * struct iwl_rx_completion_desc - completion descriptor
- * @type: buffer type (bit 0: external buff valid,
- *	bit 1: optional footer valid, bit 2-7: reserved)
- * @status: status of the completion
  * @reserved1: reserved
  * @rbid: unique tag of the received buffer
- * @size: buffer size, masked by IWL_RX_CD_SIZE
+ * @flags: flags (0: fragmented, all others: reserved)
  * @reserved2: reserved
  */
 struct iwl_rx_completion_desc {
-	u8 type;
-	u8 status;
-	__le16 reserved1;
+	__le32 reserved1;
 	__le16 rbid;
-	__le32 size;
-	u8 reserved2[22];
+	u8 flags;
+	u8 reserved2[25];
 } __packed;
 
 /**
@@ -305,10 +289,6 @@ struct iwl_cmd_meta {
 	u32 flags;
 	u32 tbs;
 };
-
-
-#define TFD_TX_CMD_SLOTS 256
-#define TFD_CMD_SLOTS 32
 
 /*
  * The FH will write back to the first TB only, so we need to copy some data
@@ -556,7 +536,7 @@ struct iwl_trans_pcie {
 	int ict_index;
 	bool use_ict;
 	bool is_down, opmode_down;
-	bool debug_rfkill;
+	s8 debug_rfkill;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
@@ -1002,7 +982,7 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 
 	lockdep_assert_held(&trans_pcie->mutex);
 
-	if (trans_pcie->debug_rfkill)
+	if (trans_pcie->debug_rfkill == 1)
 		return true;
 
 	return !(iwl_read32(trans, CSR_GP_CNTRL) &
@@ -1043,15 +1023,12 @@ static inline bool iwl_pcie_dbg_on(struct iwl_trans *trans)
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans);
-void iwl_trans_sync_nmi(struct iwl_trans *trans);
+void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
+void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
 #else
-static inline int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
-{
-	return 0;
-}
+static inline void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans) { }
 #endif
 
 int iwl_pci_fw_exit_d0i3(struct iwl_trans *trans);

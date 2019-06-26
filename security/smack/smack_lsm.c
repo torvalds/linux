@@ -59,6 +59,7 @@ DEFINE_MUTEX(smack_ipv6_lock);
 static LIST_HEAD(smk_ipv6_port_list);
 #endif
 static struct kmem_cache *smack_inode_cache;
+struct kmem_cache *smack_rule_cache;
 int smack_enabled;
 
 #define A(s) {"smack"#s, sizeof("smack"#s) - 1, Opt_##s}
@@ -67,6 +68,7 @@ static struct {
 	int len;
 	int opt;
 } smk_mount_opts[] = {
+	{"smackfsdef", sizeof("smackfsdef") - 1, Opt_fsdefault},
 	A(fsdefault), A(fsfloor), A(fshat), A(fsroot), A(fstransmute)
 };
 #undef A
@@ -354,7 +356,7 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 	int rc = 0;
 
 	list_for_each_entry_rcu(orp, ohead, list) {
-		nrp = kzalloc(sizeof(struct smack_rule), gfp);
+		nrp = kmem_cache_zalloc(smack_rule_cache, gfp);
 		if (nrp == NULL) {
 			rc = -ENOMEM;
 			break;
@@ -681,11 +683,12 @@ static int smack_fs_context_dup(struct fs_context *fc,
 }
 
 static const struct fs_parameter_spec smack_param_specs[] = {
-	fsparam_string("fsdefault",	Opt_fsdefault),
-	fsparam_string("fsfloor",	Opt_fsfloor),
-	fsparam_string("fshat",		Opt_fshat),
-	fsparam_string("fsroot",	Opt_fsroot),
-	fsparam_string("fstransmute",	Opt_fstransmute),
+	fsparam_string("smackfsdef",		Opt_fsdefault),
+	fsparam_string("smackfsdefault",	Opt_fsdefault),
+	fsparam_string("smackfsfloor",		Opt_fsfloor),
+	fsparam_string("smackfshat",		Opt_fshat),
+	fsparam_string("smackfsroot",		Opt_fsroot),
+	fsparam_string("smackfstransmute",	Opt_fstransmute),
 	{}
 };
 
@@ -1931,7 +1934,7 @@ static void smack_cred_free(struct cred *cred)
 	list_for_each_safe(l, n, &tsp->smk_rules) {
 		rp = list_entry(l, struct smack_rule, list);
 		list_del(&rp->list);
-		kfree(rp);
+		kmem_cache_free(smack_rule_cache, rp);
 	}
 }
 
@@ -2805,13 +2808,17 @@ static int smack_socket_socketpair(struct socket *socka,
  *
  * Records the label bound to a port.
  *
- * Returns 0
+ * Returns 0 on success, and error code otherwise
  */
 static int smack_socket_bind(struct socket *sock, struct sockaddr *address,
 				int addrlen)
 {
-	if (sock->sk != NULL && sock->sk->sk_family == PF_INET6)
+	if (sock->sk != NULL && sock->sk->sk_family == PF_INET6) {
+		if (addrlen < SIN6_LEN_RFC2133 ||
+		    address->sa_family != AF_INET6)
+			return -EINVAL;
 		smk_ipv6_port_label(sock, address);
+	}
 	return 0;
 }
 #endif /* SMACK_IPV6_PORT_LABELING */
@@ -2847,12 +2854,13 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 
 	switch (sock->sk->sk_family) {
 	case PF_INET:
-		if (addrlen < sizeof(struct sockaddr_in))
+		if (addrlen < sizeof(struct sockaddr_in) ||
+		    sap->sa_family != AF_INET)
 			return -EINVAL;
 		rc = smack_netlabel_send(sock->sk, (struct sockaddr_in *)sap);
 		break;
 	case PF_INET6:
-		if (addrlen < sizeof(struct sockaddr_in6))
+		if (addrlen < SIN6_LEN_RFC2133 || sap->sa_family != AF_INET6)
 			return -EINVAL;
 #ifdef SMACK_IPV6_SECMARK_LABELING
 		rsp = smack_ipv6host_label(sip);
@@ -3682,9 +3690,16 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	switch (sock->sk->sk_family) {
 	case AF_INET:
+		if (msg->msg_namelen < sizeof(struct sockaddr_in) ||
+		    sip->sin_family != AF_INET)
+			return -EINVAL;
 		rc = smack_netlabel_send(sock->sk, sip);
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
+		if (msg->msg_namelen < SIN6_LEN_RFC2133 ||
+		    sap->sin6_family != AF_INET6)
+			return -EINVAL;
 #ifdef SMACK_IPV6_SECMARK_LABELING
 		rsp = smack_ipv6host_label(sap);
 		if (rsp != NULL)
@@ -3694,6 +3709,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 #ifdef SMACK_IPV6_PORT_LABELING
 		rc = smk_ipv6_port_check(sock->sk, sap, SMK_SENDING);
 #endif
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 		break;
 	}
 	return rc;
@@ -3906,6 +3922,8 @@ access_check:
 #ifdef SMACK_IPV6_SECMARK_LABELING
 		if (skb && skb->secmark != 0)
 			skp = smack_from_secid(skb->secmark);
+		else if (smk_ipv6_localhost(&sadd))
+			break;
 		else
 			skp = smack_ipv6host_label(&sadd);
 		if (skp == NULL)
@@ -4757,6 +4775,12 @@ static __init int smack_init(void)
 	smack_inode_cache = KMEM_CACHE(inode_smack, 0);
 	if (!smack_inode_cache)
 		return -ENOMEM;
+
+	smack_rule_cache = KMEM_CACHE(smack_rule, 0);
+	if (!smack_rule_cache) {
+		kmem_cache_destroy(smack_inode_cache);
+		return -ENOMEM;
+	}
 
 	/*
 	 * Set the security state for the initial task.

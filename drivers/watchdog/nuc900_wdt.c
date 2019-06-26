@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2009 Nuvoton technology corporation.
  *
  * Wan ZongShun <mcuos.com@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;version 2 of the License.
- *
  */
 
 #include <linux/bitops.h>
@@ -131,7 +127,7 @@ static int nuc900_wdt_open(struct inode *inode, struct file *file)
 
 	nuc900_wdt_start();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int nuc900_wdt_close(struct inode *inode, struct file *file)
@@ -242,7 +238,6 @@ static struct miscdevice nuc900wdt_miscdev = {
 
 static int nuc900wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	int ret = 0;
 
 	nuc900_wdt = devm_kzalloc(&pdev->dev, sizeof(*nuc900_wdt),
@@ -254,8 +249,7 @@ static int nuc900wdt_probe(struct platform_device *pdev)
 
 	spin_lock_init(&nuc900_wdt->wdt_lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	nuc900_wdt->wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	nuc900_wdt->wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(nuc900_wdt->wdt_base))
 		return PTR_ERR(nuc900_wdt->wdt_base);
 

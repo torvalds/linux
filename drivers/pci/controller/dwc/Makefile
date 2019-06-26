@@ -28,5 +28,6 @@ obj-$(CONFIG_PCIE_UNIPHIER) += pcie-uniphier.o
 # depending on whether ACPI, the DT driver, or both are enabled.
 
 ifdef CONFIG_PCI
+obj-$(CONFIG_ARM64) += pcie-al.o
 obj-$(CONFIG_ARM64) += pcie-hisi.o
 endif

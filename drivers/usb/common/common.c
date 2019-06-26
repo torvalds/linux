@@ -16,6 +16,22 @@
 #include <linux/usb/otg.h>
 #include <linux/of_platform.h>
 
+static const char *const ep_type_names[] = {
+	[USB_ENDPOINT_XFER_CONTROL] = "ctrl",
+	[USB_ENDPOINT_XFER_ISOC] = "isoc",
+	[USB_ENDPOINT_XFER_BULK] = "bulk",
+	[USB_ENDPOINT_XFER_INT] = "intr",
+};
+
+const char *usb_ep_type_string(int ep_type)
+{
+	if (ep_type < 0 || ep_type >= ARRAY_SIZE(ep_type_names))
+		return "unknown";
+
+	return ep_type_names[ep_type];
+}
+EXPORT_SYMBOL_GPL(usb_ep_type_string);
+
 const char *usb_otg_state_string(enum usb_otg_state state)
 {
 	static const char *const names[] = {

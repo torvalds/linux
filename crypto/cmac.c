@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CMAC: Cipher Block Mode for Authentication
  *
@@ -8,12 +9,6 @@
  * Based on crypto/xcbc.c:
  *  Copyright © 2006 USAGI/WIDE Project,
  *   Author: Kazunori Miyazawa <miyazawa@linux-ipv6.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <crypto/internal/hash.h>
@@ -313,7 +308,7 @@ static void __exit crypto_cmac_module_exit(void)
 	crypto_unregister_template(&crypto_cmac_tmpl);
 }
 
-module_init(crypto_cmac_module_init);
+subsys_initcall(crypto_cmac_module_init);
 module_exit(crypto_cmac_module_exit);
 
 MODULE_LICENSE("GPL");

@@ -92,6 +92,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	hwmgr_set_user_specify_caps(hwmgr);
 	hwmgr->fan_ctrl_is_in_default_mode = true;
 	hwmgr_init_workload_prority(hwmgr);
+	hwmgr->gfxoff_state_changed_by_workload = false;
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CI:

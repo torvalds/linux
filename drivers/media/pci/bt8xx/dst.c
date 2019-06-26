@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Frontend/Card driver for TwinHan DST Frontend
 	Copyright (C) 2003 Jamie Honan
 	Copyright (C) 2004, 2005 Manu Abraham (manu@kromtek.com)
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1100,7 +1088,8 @@ static int dst_get_device_id(struct dst_state *state)
 			/*	Card capabilities	*/
 			state->dst_hw_cap = p_dst_type->dst_feature;
 			pr_err("Recognise [%s]\n", p_dst_type->device_id);
-			strncpy(&state->fw_name[0], p_dst_type->device_id, 6);
+			strscpy(state->fw_name, p_dst_type->device_id,
+			        sizeof(state->fw_name));
 			/*	Multiple tuners		*/
 			if (p_dst_type->tuner_type & TUNER_TYPE_MULTI) {
 				switch (use_dst_type) {

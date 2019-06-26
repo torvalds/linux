@@ -170,6 +170,7 @@ struct hfi1_qp_priv {
 	struct tid_flow_state flow_state;
 	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
+	u16 s_running_pkt_size;
 	u8 hdr_type; /* 9B or 16B */
 	struct rvt_sge_state tid_ss;       /* SGE state pointer for 2nd leg */
 	atomic_t n_requests;               /* # of TID RDMA requests in the */

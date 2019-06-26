@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # ALSA USB drivers
 
 menuconfig SND_USB
@@ -15,12 +16,16 @@ config SND_USB_AUDIO
 	select SND_RAWMIDI
 	select SND_PCM
 	select BITREVERSE
+	select SND_USB_AUDIO_USE_MEDIA_CONTROLLER if MEDIA_CONTROLLER && (MEDIA_SUPPORT=y || MEDIA_SUPPORT=SND_USB_AUDIO)
 	help
 	  Say Y here to include support for USB audio and USB MIDI
 	  devices.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-usb-audio.
+
+config SND_USB_AUDIO_USE_MEDIA_CONTROLLER
+	bool
 
 config SND_USB_UA101
 	tristate "Edirol UA-101/UA-1000 driver"

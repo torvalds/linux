@@ -25,6 +25,7 @@
 #include <linux/fb.h>
 #include "linux/delay.h"
 #include <linux/types.h>
+#include <linux/pci.h>
 
 #include "smumgr.h"
 #include "pp_debug.h"
@@ -2254,6 +2255,8 @@ static uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU7_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU7_SoftRegisters, AverageGraphicsA);
+		case AverageMemoryActivity:
+			return offsetof(SMU7_SoftRegisters, AverageMemoryA);
 		case PreVBlankGap:
 			return offsetof(SMU7_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:

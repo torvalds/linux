@@ -82,6 +82,7 @@ static struct rpc_clnt *nsm_create(struct net *net, const char *nodename)
 		.version		= NSM_VERSION,
 		.authflavor		= RPC_AUTH_NULL,
 		.flags			= RPC_CLNT_CREATE_NOPING,
+		.cred			= current_cred(),
 	};
 
 	return rpc_create(&args);

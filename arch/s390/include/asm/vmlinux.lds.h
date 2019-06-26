@@ -18,3 +18,16 @@
 		*(SORT_BY_ALIGNMENT(SORT_BY_NAME(.boot.data*)))		\
 		__boot_data_end = .;					\
 	}
+
+/*
+ * .boot.preserved.data is similar to .boot.data, but it is not part of the
+ * .init section and thus will be preserved for later use in the decompressed
+ * kernel.
+ */
+#define BOOT_DATA_PRESERVED						\
+	. = ALIGN(PAGE_SIZE);						\
+	.boot.preserved.data : {					\
+		__boot_data_preserved_start = .;			\
+		*(SORT_BY_ALIGNMENT(SORT_BY_NAME(.boot.preserved.data*))) \
+		__boot_data_preserved_end = .;				\
+	}

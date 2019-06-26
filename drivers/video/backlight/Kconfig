@@ -1,14 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Backlight & LCD drivers configuration
 #
 
-menuconfig BACKLIGHT_LCD_SUPPORT
-	bool "Backlight & LCD device support"
-	help
-	  Enable this to be able to choose the drivers for controlling the
-	  backlight and the LCD panel on some platforms, for example on PDAs.
-
-if BACKLIGHT_LCD_SUPPORT
+menu "Backlight & LCD device support"
 
 #
 # LCD
@@ -199,7 +194,6 @@ config BACKLIGHT_IPAQ_MICRO
 
 config BACKLIGHT_LM3533
 	tristate "Backlight Driver for LM3533"
-	depends on BACKLIGHT_CLASS_DEVICE
 	depends on MFD_LM3533
 	help
 	  Say Y to enable the backlight driver for National Semiconductor / TI
@@ -323,7 +317,7 @@ config BACKLIGHT_ADP5520
 
 config BACKLIGHT_ADP8860
 	tristate "Backlight Driver for ADP8860/ADP8861/ADP8863 using WLED"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on I2C
 	select NEW_LEDS
 	select LEDS_CLASS
 	help
@@ -335,7 +329,7 @@ config BACKLIGHT_ADP8860
 
 config BACKLIGHT_ADP8870
 	tristate "Backlight Driver for ADP8870 using WLED"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on I2C
 	select NEW_LEDS
 	select LEDS_CLASS
 	help
@@ -353,28 +347,28 @@ config BACKLIGHT_88PM860X
 
 config BACKLIGHT_PCF50633
 	tristate "Backlight driver for NXP PCF50633 MFD"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_PCF50633
+	depends on MFD_PCF50633
 	help
 	  If you have a backlight driven by a NXP PCF50633 MFD, say Y here to
 	  enable its driver.
 
 config BACKLIGHT_AAT2870
 	tristate "AnalogicTech AAT2870 Backlight"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_AAT2870_CORE
+	depends on MFD_AAT2870_CORE
 	help
 	  If you have a AnalogicTech AAT2870 say Y to enable the
 	  backlight driver.
 
 config BACKLIGHT_LM3630A
 	tristate "Backlight Driver for LM3630A"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
+	depends on I2C && PWM
 	select REGMAP_I2C
 	help
 	  This supports TI LM3630A Backlight Driver
 
 config BACKLIGHT_LM3639
 	tristate "Backlight Driver for LM3639"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on I2C
 	select REGMAP_I2C
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -383,20 +377,20 @@ config BACKLIGHT_LM3639
 
 config BACKLIGHT_LP855X
 	tristate "Backlight driver for TI LP855X"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
+	depends on I2C && PWM
 	help
 	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8555, LP8556 and
 	  LP8557 backlight driver.
 
 config BACKLIGHT_LP8788
 	tristate "Backlight driver for TI LP8788 MFD"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788 && PWM
+	depends on MFD_LP8788 && PWM
 	help
 	  This supports TI LP8788 backlight driver.
 
 config BACKLIGHT_OT200
 	tristate "Backlight driver for ot200 visualisation device"
-	depends on BACKLIGHT_CLASS_DEVICE && CS5535_MFGPT && GPIO_CS5535
+	depends on CS5535_MFGPT && GPIO_CS5535
 	help
 	  To compile this driver as a module, choose M here: the module will be
 	  called ot200_bl.
@@ -410,7 +404,7 @@ config BACKLIGHT_PANDORA
 
 config BACKLIGHT_SKY81452
 	tristate "Backlight driver for SKY81452"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_SKY81452
+	depends on MFD_SKY81452
 	help
 	  If you have a Skyworks SKY81452, say Y to enable the
 	  backlight driver.
@@ -420,14 +414,14 @@ config BACKLIGHT_SKY81452
 
 config BACKLIGHT_TPS65217
 	tristate "TPS65217 Backlight"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_TPS65217
+	depends on MFD_TPS65217
 	help
 	  If you have a Texas Instruments TPS65217 say Y to enable the
 	  backlight driver.
 
 config BACKLIGHT_AS3711
 	tristate "AS3711 Backlight"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_AS3711
+	depends on MFD_AS3711
 	help
 	  If you have an Austrian Microsystems AS3711 say Y to enable the
 	  backlight driver.
@@ -466,4 +460,4 @@ config BACKLIGHT_RAVE_SP
 
 endif # BACKLIGHT_CLASS_DEVICE
 
-endif # BACKLIGHT_LCD_SUPPORT
+endmenu

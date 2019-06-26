@@ -697,15 +697,14 @@ void r8712_ResetPhyRxPktCount(struct _adapter *pAdapter)
 static u32 GetPhyRxPktCounts(struct _adapter *pAdapter, u32 selbit)
 {
 	/*selection*/
-	u32 phyrx_set = 0, count = 0;
+	u32 phyrx_set = 0;
 	u32 SelectBit;
 
 	SelectBit = selbit << 28;
 	phyrx_set |= (SelectBit & 0xF0000000);
 	r8712_write32(pAdapter, RXERR_RPT, phyrx_set);
 	/*Read packet count*/
-	count = r8712_read32(pAdapter, RXERR_RPT) & RPTMaxCount;
-	return count;
+	return r8712_read32(pAdapter, RXERR_RPT) & RPTMaxCount;
 }
 
 u32 r8712_GetPhyRxPktReceived(struct _adapter *pAdapter)

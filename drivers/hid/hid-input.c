@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *  Copyright (c) 2006-2010 Jiri Kosina
@@ -6,19 +7,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
@@ -680,6 +668,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 		}
 
+		if ((usage->hid & 0xf0) == 0xb0) {	/* SC - Display */
+			switch (usage->hid & 0xf) {
+			case 0x05: map_key_clear(KEY_SWITCHVIDEOMODE); break;
+			default: goto ignore;
+			}
+			break;
+		}
+
 		/*
 		 * Some lazy vendors declare 255 usages for System Control,
 		 * leading to the creation of ABS_X|Y axis and too many others.
@@ -902,7 +898,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x06a: map_key_clear(KEY_GREEN);		break;
 		case 0x06b: map_key_clear(KEY_BLUE);		break;
 		case 0x06c: map_key_clear(KEY_YELLOW);		break;
-		case 0x06d: map_key_clear(KEY_ZOOM);		break;
+		case 0x06d: map_key_clear(KEY_ASPECT_RATIO);	break;
 
 		case 0x06f: map_key_clear(KEY_BRIGHTNESSUP);		break;
 		case 0x070: map_key_clear(KEY_BRIGHTNESSDOWN);		break;
@@ -910,6 +906,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x073: map_key_clear(KEY_BRIGHTNESS_MIN);		break;
 		case 0x074: map_key_clear(KEY_BRIGHTNESS_MAX);		break;
 		case 0x075: map_key_clear(KEY_BRIGHTNESS_AUTO);		break;
+
+		case 0x079: map_key_clear(KEY_KBDILLUMUP);	break;
+		case 0x07a: map_key_clear(KEY_KBDILLUMDOWN);	break;
+		case 0x07c: map_key_clear(KEY_KBDILLUMTOGGLE);	break;
 
 		case 0x082: map_key_clear(KEY_VIDEO_NEXT);	break;
 		case 0x083: map_key_clear(KEY_LAST);		break;
@@ -1022,6 +1022,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x22d: map_key_clear(KEY_ZOOMIN);		break;
 		case 0x22e: map_key_clear(KEY_ZOOMOUT);		break;
 		case 0x22f: map_key_clear(KEY_ZOOMRESET);	break;
+		case 0x232: map_key_clear(KEY_FULL_SCREEN);	break;
 		case 0x233: map_key_clear(KEY_SCROLLUP);	break;
 		case 0x234: map_key_clear(KEY_SCROLLDOWN);	break;
 		case 0x238: /* AC Pan */
@@ -1038,12 +1039,16 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x28b: map_key_clear(KEY_FORWARDMAIL);	break;
 		case 0x28c: map_key_clear(KEY_SEND);		break;
 
+		case 0x29d: map_key_clear(KEY_KBD_LAYOUT_NEXT);	break;
+
 		case 0x2c7: map_key_clear(KEY_KBDINPUTASSIST_PREV);		break;
 		case 0x2c8: map_key_clear(KEY_KBDINPUTASSIST_NEXT);		break;
 		case 0x2c9: map_key_clear(KEY_KBDINPUTASSIST_PREVGROUP);		break;
 		case 0x2ca: map_key_clear(KEY_KBDINPUTASSIST_NEXTGROUP);		break;
 		case 0x2cb: map_key_clear(KEY_KBDINPUTASSIST_ACCEPT);	break;
 		case 0x2cc: map_key_clear(KEY_KBDINPUTASSIST_CANCEL);	break;
+
+		case 0x29f: map_key_clear(KEY_SCALE);		break;
 
 		default: map_key_clear(KEY_UNKNOWN);
 		}
@@ -1542,52 +1547,71 @@ static void hidinput_close(struct input_dev *dev)
 	hid_hw_close(hid);
 }
 
+static bool __hidinput_change_resolution_multipliers(struct hid_device *hid,
+		struct hid_report *report, bool use_logical_max)
+{
+	struct hid_usage *usage;
+	bool update_needed = false;
+	int i, j;
+
+	if (report->maxfield == 0)
+		return false;
+
+	/*
+	 * If we have more than one feature within this report we
+	 * need to fill in the bits from the others before we can
+	 * overwrite the ones for the Resolution Multiplier.
+	 */
+	if (report->maxfield > 1) {
+		hid_hw_request(hid, report, HID_REQ_GET_REPORT);
+		hid_hw_wait(hid);
+	}
+
+	for (i = 0; i < report->maxfield; i++) {
+		__s32 value = use_logical_max ?
+			      report->field[i]->logical_maximum :
+			      report->field[i]->logical_minimum;
+
+		/* There is no good reason for a Resolution
+		 * Multiplier to have a count other than 1.
+		 * Ignore that case.
+		 */
+		if (report->field[i]->report_count != 1)
+			continue;
+
+		for (j = 0; j < report->field[i]->maxusage; j++) {
+			usage = &report->field[i]->usage[j];
+
+			if (usage->hid != HID_GD_RESOLUTION_MULTIPLIER)
+				continue;
+
+			report->field[i]->value[j] = value;
+			update_needed = true;
+		}
+	}
+
+	return update_needed;
+}
+
 static void hidinput_change_resolution_multipliers(struct hid_device *hid)
 {
 	struct hid_report_enum *rep_enum;
 	struct hid_report *rep;
-	struct hid_usage *usage;
-	int i, j;
+	int ret;
 
 	rep_enum = &hid->report_enum[HID_FEATURE_REPORT];
 	list_for_each_entry(rep, &rep_enum->report_list, list) {
-		bool update_needed = false;
+		bool update_needed = __hidinput_change_resolution_multipliers(hid,
+								     rep, true);
 
-		if (rep->maxfield == 0)
-			continue;
-
-		/*
-		 * If we have more than one feature within this report we
-		 * need to fill in the bits from the others before we can
-		 * overwrite the ones for the Resolution Multiplier.
-		 */
-		if (rep->maxfield > 1) {
-			hid_hw_request(hid, rep, HID_REQ_GET_REPORT);
-			hid_hw_wait(hid);
-		}
-
-		for (i = 0; i < rep->maxfield; i++) {
-			__s32 logical_max = rep->field[i]->logical_maximum;
-
-			/* There is no good reason for a Resolution
-			 * Multiplier to have a count other than 1.
-			 * Ignore that case.
-			 */
-			if (rep->field[i]->report_count != 1)
-				continue;
-
-			for (j = 0; j < rep->field[i]->maxusage; j++) {
-				usage = &rep->field[i]->usage[j];
-
-				if (usage->hid != HID_GD_RESOLUTION_MULTIPLIER)
-					continue;
-
-				*rep->field[i]->value = logical_max;
-				update_needed = true;
+		if (update_needed) {
+			ret = __hid_request(hid, rep, HID_REQ_SET_REPORT);
+			if (ret) {
+				__hidinput_change_resolution_multipliers(hid,
+								    rep, false);
+				return;
 			}
 		}
-		if (update_needed)
-			hid_hw_request(hid, rep, HID_REQ_SET_REPORT);
 	}
 
 	/* refresh our structs */

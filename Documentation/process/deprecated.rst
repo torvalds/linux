@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _deprecated:
+
 =====================================================================
 Deprecated Interfaces, Language Features, Attributes, and Conventions
 =====================================================================

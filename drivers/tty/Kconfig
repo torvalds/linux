@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config TTY
 	bool "Enable TTY" if EXPERT
 	default y
@@ -83,7 +84,6 @@ config HW_CONSOLE
 config VT_HW_CONSOLE_BINDING
        bool "Support for binding and unbinding console drivers"
        depends on HW_CONSOLE
-       default n
        ---help---
          The virtual terminal is the device that interacts with the physical
          terminal through console drivers. On these systems, at least one
@@ -175,7 +175,7 @@ config ROCKETPORT
 	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
           These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
           modems.  For information about the RocketPort/RocketModem  boards
-          and this driver read <file:Documentation/serial/rocket.txt>.
+          and this driver read <file:Documentation/serial/rocket.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rocket.
@@ -193,7 +193,7 @@ config CYCLADES
 	  your Linux box, for instance in order to become a dial-in server.
 
 	  For information about the Cyclades-Z card, read
-	  <file:Documentation/serial/README.cycladesZ>.
+	  <file:Documentation/serial/cyclades_z.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyclades.
@@ -312,7 +312,6 @@ config N_GSM
 config TRACE_ROUTER
 	tristate "Trace data router for MIPI P1149.7 cJTAG standard"
 	depends on TRACE_SINK
-	default n
 	help
 	  The trace router uses the Linux tty line discipline framework to
 	  route trace data coming from a tty port (say UART for example) to
@@ -328,7 +327,6 @@ config TRACE_ROUTER
 
 config TRACE_SINK
 	tristate "Trace data sink for MIPI P1149.7 cJTAG standard"
-	default n
 	help
 	  The trace sink uses the Linux line discipline framework to receive
 	  trace data coming from the trace router line discipline driver
@@ -375,6 +373,20 @@ config PPC_EARLY_DEBUG_EHV_BC_HANDLE
 	  If the number you specify is not a valid byte channel handle, then
 	  there simply will be no early console output.  This is true also
 	  if you don't boot under a hypervisor at all.
+
+config NULL_TTY
+	tristate "NULL TTY driver"
+	help
+	  Say Y here if you want a NULL TTY which simply discards messages.
+
+	  This is useful to allow userspace applications which expect a console
+	  device to work without modifications even when no console is
+	  available or desired.
+
+	  In order to use this driver, you should redirect the console to this
+	  TTY, or boot the kernel with console=ttynull.
+
+	  If unsure, say N.
 
 config GOLDFISH_TTY
 	tristate "Goldfish TTY Driver"

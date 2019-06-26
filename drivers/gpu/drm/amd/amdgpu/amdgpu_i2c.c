@@ -23,9 +23,10 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <linux/export.h>
 
-#include <drm/drmP.h>
+#include <linux/export.h>
+#include <linux/pci.h>
+
 #include <drm/drm_edid.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"

@@ -333,6 +333,19 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
 			mapping_gfp_mask(mapping));
 }
 
+static inline struct page *find_subpage(struct page *page, pgoff_t offset)
+{
+	unsigned long mask;
+
+	if (PageHuge(page))
+		return page;
+
+	VM_BUG_ON_PAGE(PageTail(page), page);
+
+	mask = (1UL << compound_order(page)) - 1;
+	return page + (offset & mask);
+}
+
 struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
 struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset);
 unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
@@ -360,9 +373,6 @@ static inline unsigned find_get_pages_tag(struct address_space *mapping,
 	return find_get_pages_range_tag(mapping, index, (pgoff_t)-1, tag,
 					nr_pages, pages);
 }
-unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-			xa_mark_t tag, unsigned int nr_entries,
-			struct page **entries, pgoff_t *indices);
 
 struct page *grab_cache_page_write_begin(struct address_space *mapping,
 			pgoff_t index, unsigned flags);
@@ -527,15 +537,7 @@ static inline int wait_on_page_locked_killable(struct page *page)
 
 extern void put_and_wait_on_page_locked(struct page *page);
 
-/* 
- * Wait for a page to complete writeback
- */
-static inline void wait_on_page_writeback(struct page *page)
-{
-	if (PageWriteback(page))
-		wait_on_page_bit(page, PG_writeback);
-}
-
+void wait_on_page_writeback(struct page *page);
 extern void end_page_writeback(struct page *page);
 void wait_for_stable_page(struct page *page);
 

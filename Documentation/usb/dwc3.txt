@@ -1,6 +1,11 @@
+===========
+DWC3 driver
+===========
 
- TODO
-~~~~~~
+
+TODO
+~~~~
+
 Please pick something while reading :)
 
 - Convert interrupt handler to per-ep-thread-irq
@@ -9,6 +14,7 @@ Please pick something while reading :)
   until the command completes which is bad.
 
   Implementation idea:
+
   - dwc core implements a demultiplexing irq chip for interrupts per
     endpoint. The interrupt numbers are allocated during probe and belong
     to the device. If MSI provides per-endpoint interrupt this dummy
@@ -19,6 +25,7 @@ Please pick something while reading :)
   - dwc3_send_gadget_ep_cmd() will sleep in wait_for_completion_timeout()
     until the command completes.
   - the interrupt handler is split into the following pieces:
+
     - primary handler of the device
       goes through every event and calls generic_handle_irq() for event
       it. On return from generic_handle_irq() in acknowledges the event
@@ -40,6 +47,7 @@ Please pick something while reading :)
       for command completion.
 
   Latency:
+
    There should be no increase in latency since the interrupt-thread has a
    high priority and will be run before an average task in user land
    (except the user changed priorities).

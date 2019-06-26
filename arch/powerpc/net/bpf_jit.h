@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * bpf_jit.h: BPF JIT compiler for PPC
  *
  * Copyright 2011 Matt Evans <matt@ozlabs.org>, IBM Corporation
  * 	     2016 Naveen N. Rao <naveen.n.rao@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #ifndef _BPF_JIT_H
 #define _BPF_JIT_H

@@ -7,7 +7,7 @@
 #ifndef __QLA_NX_H
 #define __QLA_NX_H
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <scsi/scsi.h>
 
 /*
  * Following are the states of the Phantom. Phantom will set them and

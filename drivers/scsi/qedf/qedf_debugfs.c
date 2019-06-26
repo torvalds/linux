@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  QLogic FCoE Offload Driver
  *  Copyright (c) 2016-2018 QLogic Corporation
- *
- *  This software is available under the terms of the GNU General Public License
- *  (GPL) Version 2, available from the file COPYING in the main directory of
- *  this source tree.
  */
 #ifdef CONFIG_DEBUG_FS
 
@@ -293,6 +290,33 @@ qedf_dbg_io_trace_open(struct inode *inode, struct file *file)
 	return single_open(file, qedf_io_trace_show, qedf);
 }
 
+/* Based on fip_state enum from libfcoe.h */
+static char *fip_state_names[] = {
+	"FIP_ST_DISABLED",
+	"FIP_ST_LINK_WAIT",
+	"FIP_ST_AUTO",
+	"FIP_ST_NON_FIP",
+	"FIP_ST_ENABLED",
+	"FIP_ST_VNMP_START",
+	"FIP_ST_VNMP_PROBE1",
+	"FIP_ST_VNMP_PROBE2",
+	"FIP_ST_VNMP_CLAIM",
+	"FIP_ST_VNMP_UP",
+};
+
+/* Based on fc_rport_state enum from libfc.h */
+static char *fc_rport_state_names[] = {
+	"RPORT_ST_INIT",
+	"RPORT_ST_FLOGI",
+	"RPORT_ST_PLOGI_WAIT",
+	"RPORT_ST_PLOGI",
+	"RPORT_ST_PRLI",
+	"RPORT_ST_RTV",
+	"RPORT_ST_READY",
+	"RPORT_ST_ADISC",
+	"RPORT_ST_DELETE",
+};
+
 static int
 qedf_driver_stats_show(struct seq_file *s, void *unused)
 {
@@ -300,10 +324,28 @@ qedf_driver_stats_show(struct seq_file *s, void *unused)
 	struct qedf_rport *fcport;
 	struct fc_rport_priv *rdata;
 
+	seq_printf(s, "Host WWNN/WWPN: %016llx/%016llx\n",
+		   qedf->wwnn, qedf->wwpn);
+	seq_printf(s, "Host NPortID: %06x\n", qedf->lport->port_id);
+	seq_printf(s, "Link State: %s\n", atomic_read(&qedf->link_state) ?
+	    "Up" : "Down");
+	seq_printf(s, "Logical Link State: %s\n", qedf->lport->link_up ?
+	    "Up" : "Down");
+	seq_printf(s, "FIP state: %s\n", fip_state_names[qedf->ctlr.state]);
+	seq_printf(s, "FIP VLAN ID: %d\n", qedf->vlan_id & 0xfff);
+	seq_printf(s, "FIP 802.1Q Priority: %d\n", qedf->prio);
+	if (qedf->ctlr.sel_fcf) {
+		seq_printf(s, "FCF WWPN: %016llx\n",
+			   qedf->ctlr.sel_fcf->switch_name);
+		seq_printf(s, "FCF MAC: %pM\n", qedf->ctlr.sel_fcf->fcf_mac);
+	} else {
+		seq_puts(s, "FCF not selected\n");
+	}
+
+	seq_puts(s, "\nSGE stats:\n\n");
 	seq_printf(s, "cmg_mgr free io_reqs: %d\n",
 	    atomic_read(&qedf->cmd_mgr->free_list_cnt));
 	seq_printf(s, "slow SGEs: %d\n", qedf->slow_sge_ios);
-	seq_printf(s, "single SGEs: %d\n", qedf->single_sge_ios);
 	seq_printf(s, "fast SGEs: %d\n\n", qedf->fast_sge_ios);
 
 	seq_puts(s, "Offloaded ports:\n\n");
@@ -313,9 +355,12 @@ qedf_driver_stats_show(struct seq_file *s, void *unused)
 		rdata = fcport->rdata;
 		if (rdata == NULL)
 			continue;
-		seq_printf(s, "%06x: free_sqes: %d, num_active_ios: %d\n",
-		    rdata->ids.port_id, atomic_read(&fcport->free_sqes),
-		    atomic_read(&fcport->num_active_ios));
+		seq_printf(s, "%016llx/%016llx/%06x: state=%s, free_sqes=%d, num_active_ios=%d\n",
+			   rdata->rport->node_name, rdata->rport->port_name,
+			   rdata->ids.port_id,
+			   fc_rport_state_names[rdata->rp_state],
+			   atomic_read(&fcport->free_sqes),
+			   atomic_read(&fcport->num_active_ios));
 	}
 	rcu_read_unlock();
 
@@ -361,7 +406,6 @@ qedf_dbg_clear_stats_cmd_write(struct file *filp,
 
 	/* Clear stat counters exposed by 'stats' node */
 	qedf->slow_sge_ios = 0;
-	qedf->single_sge_ios = 0;
 	qedf->fast_sge_ios = 0;
 
 	return count;

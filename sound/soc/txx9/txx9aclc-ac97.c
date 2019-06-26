@@ -102,7 +102,6 @@ static void txx9aclc_ac97_cold_reset(struct snd_ac97 *ac97)
 	u32 ready = ACINT_CODECRDY(ac97->num) | ACINT_REGACCRDY;
 
 	__raw_writel(ACCTL_ENLINK, base + ACCTLDIS);
-	mmiowb();
 	udelay(1);
 	__raw_writel(ACCTL_ENLINK, base + ACCTLEN);
 	/* wait for primary codec ready status */

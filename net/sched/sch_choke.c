@@ -358,7 +358,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_CHOKE_MAX, opt, choke_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_CHOKE_MAX, opt,
+					  choke_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -452,7 +453,7 @@ static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.Scell_log	= q->parms.Scell_log,
 	};
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 

@@ -875,7 +875,7 @@ static void __exit khazad_mod_fini(void)
 }
 
 
-module_init(khazad_mod_init);
+subsys_initcall(khazad_mod_init);
 module_exit(khazad_mod_fini);
 
 MODULE_LICENSE("GPL");

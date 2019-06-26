@@ -859,6 +859,8 @@ struct dwc2_hregs_backup {
  * @gadget_enabled:	Peripheral mode sub-driver initialization indicator.
  * @ll_hw_enabled:	Status of low-level hardware resources.
  * @hibernated:		True if core is hibernated
+ * @reset_phy_on_wake:	Quirk saying that we should assert PHY reset on a
+ *			remote wakeup.
  * @frame_number:       Frame number read from the core. For both device
  *			and host modes. The value ranges are from 0
  *			to HFNUM_MAX_FRNUM.
@@ -869,7 +871,6 @@ struct dwc2_hregs_backup {
  *                      removed once all SoCs support usb transceiver.
  * @supplies:           Definition of USB power supplies
  * @vbus_supply:        Regulator supplying vbus.
- * @phyif:              PHY interface width
  * @lock:		Spinlock that protects all the driver data structures
  * @priv:		Stores a pointer to the struct usb_hcd
  * @queuing_high_bandwidth: True if multiple packets of a high-bandwidth
@@ -972,6 +973,7 @@ struct dwc2_hregs_backup {
  * @status_buf_dma:     DMA address for status_buf
  * @start_work:         Delayed work for handling host A-cable connection
  * @reset_work:         Delayed work for handling a port reset
+ * @phy_reset_work:     Work structure for doing a PHY reset
  * @otg_port:           OTG port number
  * @frame_list:         Frame list
  * @frame_list_dma:     Frame list DMA address
@@ -991,6 +993,7 @@ struct dwc2_hregs_backup {
  * @ctrl_buff:          Buffer for EP0 control requests.
  * @ctrl_req:           Request for EP0 control packets.
  * @ep0_state:          EP0 control transfers state
+ * @delayed_status:		true when gadget driver asks for delayed status
  * @test_mode:          USB test mode requested by the host
  * @remote_wakeup_allowed: True if device is allowed to wake-up host by
  *                      remote-wakeup signalling
@@ -1045,6 +1048,7 @@ struct dwc2_hsotg {
 	unsigned int gadget_enabled:1;
 	unsigned int ll_hw_enabled:1;
 	unsigned int hibernated:1;
+	unsigned int reset_phy_on_wake:1;
 	u16 frame_number;
 
 	struct phy *phy;
@@ -1052,7 +1056,6 @@ struct dwc2_hsotg {
 	struct dwc2_hsotg_plat *plat;
 	struct regulator_bulk_data supplies[DWC2_NUM_SUPPLIES];
 	struct regulator *vbus_supply;
-	u32 phyif;
 
 	spinlock_t lock;
 	void *priv;
@@ -1147,6 +1150,7 @@ struct dwc2_hsotg {
 
 	struct delayed_work start_work;
 	struct delayed_work reset_work;
+	struct work_struct phy_reset_work;
 	u8 otg_port;
 	u32 *frame_list;
 	dma_addr_t frame_list_dma;
@@ -1172,6 +1176,7 @@ struct dwc2_hsotg {
 	void *ep0_buff;
 	void *ctrl_buff;
 	enum dwc2_ep0_state ep0_state;
+	unsigned delayed_status : 1;
 	u8 test_mode;
 
 	dma_addr_t setup_desc_dma[2];
@@ -1283,6 +1288,8 @@ int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore);
 int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg, int is_host);
 int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, int rem_wakeup,
 		int reset, int is_host);
+void dwc2_init_fs_ls_pclk_sel(struct dwc2_hsotg *hsotg);
+int dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy);
 
 void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host);
 void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
@@ -1431,6 +1438,8 @@ int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg);
 int dwc2_host_enter_hibernation(struct dwc2_hsotg *hsotg);
 int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg,
 			       int rem_wakeup, int reset);
+static inline void dwc2_host_schedule_phy_reset(struct dwc2_hsotg *hsotg)
+{ schedule_work(&hsotg->phy_reset_work); }
 #else
 static inline int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 { return 0; }
@@ -1454,6 +1463,7 @@ static inline int dwc2_host_enter_hibernation(struct dwc2_hsotg *hsotg)
 static inline int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg,
 					     int rem_wakeup, int reset)
 { return 0; }
+static inline void dwc2_host_schedule_phy_reset(struct dwc2_hsotg *hsotg) {}
 
 #endif
 

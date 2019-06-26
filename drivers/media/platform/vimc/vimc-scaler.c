@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vimc-scaler.c Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/component.h>
@@ -34,6 +24,12 @@ MODULE_PARM_DESC(sca_mult, " the image size multiplier");
 #define IS_SINK(pad)	(!pad)
 #define IS_SRC(pad)	(pad)
 #define MAX_ZOOM	8
+
+static const u32 vimc_sca_supported_pixfmt[] = {
+	V4L2_PIX_FMT_BGR24,
+	V4L2_PIX_FMT_RGB24,
+	V4L2_PIX_FMT_ARGB32,
+};
 
 struct vimc_sca_device {
 	struct vimc_ent_device ved;
@@ -57,6 +53,16 @@ static const struct v4l2_mbus_framefmt sink_fmt_default = {
 	.colorspace = V4L2_COLORSPACE_DEFAULT,
 };
 
+static bool vimc_sca_is_pixfmt_supported(u32 pixelformat)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(vimc_sca_supported_pixfmt); i++)
+		if (vimc_sca_supported_pixfmt[i] == pixelformat)
+			return true;
+	return false;
+}
+
 static int vimc_sca_init_cfg(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg)
 {
@@ -76,33 +82,11 @@ static int vimc_sca_init_cfg(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int vimc_sca_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
-				   struct v4l2_subdev_mbus_code_enum *code)
-{
-	const struct vimc_pix_map *vpix = vimc_pix_map_by_index(code->index);
-
-	/* We don't support bayer format */
-	if (!vpix || vpix->bayer)
-		return -EINVAL;
-
-	code->code = vpix->code;
-
-	return 0;
-}
-
 static int vimc_sca_enum_frame_size(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_pad_config *cfg,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
-	const struct vimc_pix_map *vpix;
-
 	if (fse->index)
-		return -EINVAL;
-
-	/* Only accept code in the pix map table in non bayer format */
-	vpix = vimc_pix_map_by_code(fse->code);
-	if (!vpix || vpix->bayer)
 		return -EINVAL;
 
 	fse->min_width = VIMC_FRAME_MIN_WIDTH;
@@ -141,13 +125,6 @@ static int vimc_sca_get_fmt(struct v4l2_subdev *sd,
 
 static void vimc_sca_adjust_sink_fmt(struct v4l2_mbus_framefmt *fmt)
 {
-	const struct vimc_pix_map *vpix;
-
-	/* Only accept code in the pix map table in non bayer format */
-	vpix = vimc_pix_map_by_code(fmt->code);
-	if (!vpix || vpix->bayer)
-		fmt->code = sink_fmt_default.code;
-
 	fmt->width = clamp_t(u32, fmt->width, VIMC_FRAME_MIN_WIDTH,
 			     VIMC_FRAME_MAX_WIDTH) & ~1;
 	fmt->height = clamp_t(u32, fmt->height, VIMC_FRAME_MIN_HEIGHT,
@@ -165,6 +142,9 @@ static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *sink_fmt;
+
+	if (!vimc_mbus_code_supported(fmt->format.code))
+		fmt->format.code = sink_fmt_default.code;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Do not change the format while stream is on */
@@ -208,7 +188,7 @@ static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_pad_ops vimc_sca_pad_ops = {
 	.init_cfg		= vimc_sca_init_cfg,
-	.enum_mbus_code		= vimc_sca_enum_mbus_code,
+	.enum_mbus_code		= vimc_enum_mbus_code,
 	.enum_frame_size	= vimc_sca_enum_frame_size,
 	.get_fmt		= vimc_sca_get_fmt,
 	.set_fmt		= vimc_sca_set_fmt,
@@ -219,15 +199,22 @@ static int vimc_sca_s_stream(struct v4l2_subdev *sd, int enable)
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
 
 	if (enable) {
-		const struct vimc_pix_map *vpix;
+		u32 pixelformat = vsca->ved.stream->producer_pixfmt;
+		const struct v4l2_format_info *pix_info;
 		unsigned int frame_size;
 
 		if (vsca->src_frame)
 			return 0;
 
+		if (!vimc_sca_is_pixfmt_supported(pixelformat)) {
+			dev_err(vsca->dev, "pixfmt (0x%08x) is not supported\n",
+				pixelformat);
+			return -EINVAL;
+		}
+
 		/* Save the bytes per pixel of the sink */
-		vpix = vimc_pix_map_by_code(vsca->sink_fmt.code);
-		vsca->bpp = vpix->bpp;
+		pix_info = v4l2_format_info(pixelformat);
+		vsca->bpp = pix_info->bpp[0];
 
 		/* Calculate the width in bytes of the src frame */
 		vsca->src_line_size = vsca->sink_fmt.width *
@@ -348,6 +335,18 @@ static void *vimc_sca_process_frame(struct vimc_ent_device *ved,
 	return vsca->src_frame;
 };
 
+static void vimc_sca_release(struct v4l2_subdev *sd)
+{
+	struct vimc_sca_device *vsca =
+				container_of(sd, struct vimc_sca_device, sd);
+
+	kfree(vsca);
+}
+
+static const struct v4l2_subdev_internal_ops vimc_sca_int_ops = {
+	.release = vimc_sca_release,
+};
+
 static void vimc_sca_comp_unbind(struct device *comp, struct device *master,
 				 void *master_data)
 {
@@ -356,7 +355,6 @@ static void vimc_sca_comp_unbind(struct device *comp, struct device *master,
 						    ved);
 
 	vimc_ent_sd_unregister(ved, &vsca->sd);
-	kfree(vsca);
 }
 
 
@@ -379,7 +377,7 @@ static int vimc_sca_comp_bind(struct device *comp, struct device *master,
 				   MEDIA_ENT_F_PROC_VIDEO_SCALER, 2,
 				   (const unsigned long[2]) {MEDIA_PAD_FL_SINK,
 				   MEDIA_PAD_FL_SOURCE},
-				   &vimc_sca_ops);
+				   &vimc_sca_int_ops, &vimc_sca_ops);
 	if (ret) {
 		kfree(vsca);
 		return ret;

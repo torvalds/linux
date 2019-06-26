@@ -234,13 +234,13 @@ kernel, can be broken down into:
 
 |
 
-2. Not recommended licenses:
+2. Deprecated licenses:
 
    These licenses should only be used for existing code or for importing
    code from a different project.  These licenses are available from the
    directory::
 
-      LICENSES/other/
+      LICENSES/deprecated/
 
    in the kernel source tree.
 
@@ -250,14 +250,14 @@ kernel, can be broken down into:
 
    Examples::
 
-      LICENSES/other/ISC
+      LICENSES/deprecated/ISC
 
    Contains the Internet Systems Consortium license text and the required
    metatags::
 
-      LICENSES/other/ZLib
+      LICENSES/deprecated/GPL-1.0
 
-   Contains the ZLIB license text and the required metatags.
+   Contains the GPL version 1 license text and the required metatags.
 
    Metatags:
 
@@ -281,7 +281,56 @@ kernel, can be broken down into:
 
 |
 
-3. _`Exceptions`:
+3. Dual Licensing Only
+
+   These licenses should only be used to dual license code with another
+   license in addition to a preferred license.  These licenses are available
+   from the directory::
+
+      LICENSES/dual/
+
+   in the kernel source tree.
+
+   The files in this directory contain the full license text and
+   `Metatags`_.  The file names are identical to the SPDX license
+   identifier which shall be used for the license in source files.
+
+   Examples::
+
+      LICENSES/dual/MPL-1.1
+
+   Contains the Mozilla Public License version 1.1 license text and the
+   required metatags::
+
+      LICENSES/dual/Apache-2.0
+
+   Contains the Apache License version 2.0 license text and the required
+   metatags.
+
+   Metatags:
+
+   The metatag requirements for 'other' licenses are identical to the
+   requirements of the `Preferred licenses`_.
+
+   File format example::
+
+      Valid-License-Identifier: MPL-1.1
+      SPDX-URL: https://spdx.org/licenses/MPL-1.1.html
+      Usage-Guide:
+        Do NOT use. The MPL-1.1 is not GPL2 compatible. It may only be used for
+        dual-licensed files where the other license is GPL2 compatible.
+        If you end up using this it MUST be used together with a GPL2 compatible
+        license using "OR".
+        To use the Mozilla Public License version 1.1 put the following SPDX
+        tag/value pair into a comment according to the placement guidelines in
+        the licensing rules documentation:
+      SPDX-License-Identifier: MPL-1.1
+      License-Text:
+        Full license text
+
+|
+
+4. _`Exceptions`:
 
    Some licenses can be amended with exceptions which grant certain rights
    which the original license does not.  These exceptions are available

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics accelerometers driver
  *
@@ -5,7 +6,6 @@
  *
  * Denis Ciocca <denis.ciocca@st.com>
  * v. 1.0.0
- * Licensed under the GPL-2.
  */
 
 #ifndef ST_ACCEL_H
@@ -34,6 +34,7 @@ enum st_accel_type {
 	LIS3LV02DL,
 	LIS2DW12,
 	LIS3DHH,
+	LIS2DE12,
 	ST_ACCEL_MAX,
 };
 
@@ -57,6 +58,7 @@ enum st_accel_type {
 #define LIS2DW12_ACCEL_DEV_NAME		"lis2dw12"
 #define LIS3DHH_ACCEL_DEV_NAME		"lis3dhh"
 #define LIS3DE_ACCEL_DEV_NAME		"lis3de"
+#define LIS2DE12_ACCEL_DEV_NAME		"lis2de12"
 
 /**
 * struct st_sensors_platform_data - default accel platform data

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/snappercl15.c
  * Bluewater Systems Snapper CL15 system module
@@ -8,12 +9,6 @@
  * NAND code adapted from driver by:
  *   Andre Renaud <andre@bluewatersys.com>
  *   James R. McKaskill
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
  */
 
 #include <linux/platform_device.h>
@@ -25,9 +20,9 @@
 
 #include <linux/mtd/platnand.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <linux/platform_data/video-ep93xx.h>
-#include <mach/gpio-ep93xx.h>
+#include "gpio-ep93xx.h"
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

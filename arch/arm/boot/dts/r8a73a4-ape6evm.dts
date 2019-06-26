@@ -19,7 +19,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -166,6 +166,33 @@
 };
 
 &bsc {
+	flash@0 {
+		compatible = "cfi-flash", "mtd-rom";
+		reg = <0x0 0x08000000>;
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "uboot-env";
+				reg = <0x00040000 0x00040000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "flash";
+				reg = <0x00080000 0x07f80000>;
+			};
+		};
+	};
+
 	ethernet@8000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x08000000 0x1000>;

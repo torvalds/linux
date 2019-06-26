@@ -64,7 +64,22 @@ struct dcn_dpp_state {
 	uint32_t gamut_remap_c33_c34;
 };
 
+struct CM_bias_params {
+	uint32_t cm_bias_cr_r;
+	uint32_t cm_bias_y_g;
+	uint32_t cm_bias_cb_b;
+	uint32_t cm_bias_format;
+};
+
 struct dpp_funcs {
+
+	void (*dpp_program_cm_dealpha)(struct dpp *dpp_base,
+		uint32_t enable, uint32_t additive_blending);
+
+	void (*dpp_program_cm_bias)(
+		struct dpp *dpp_base,
+		struct CM_bias_params *bias_params);
+
 	void (*dpp_read_state)(struct dpp *dpp, struct dcn_dpp_state *s);
 
 	void (*dpp_reset)(struct dpp *dpp);
@@ -155,9 +170,11 @@ struct dpp_funcs {
 			uint32_t width,
 			uint32_t height
 			);
+
 	void (*dpp_set_hdr_multiplier)(
 			struct dpp *dpp_base,
 			uint32_t multiplier);
+
 	void (*set_optional_cursor_attributes)(
 			struct dpp *dpp_base,
 			struct dpp_cursor_attributes *attr);

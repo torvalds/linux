@@ -2069,7 +2069,7 @@ int __init dm_early_create(struct dm_ioctl *dmi,
 	/* alloc table */
 	r = dm_table_create(&t, get_mode(dmi), dmi->target_count, md);
 	if (r)
-		goto err_destroy_dm;
+		goto err_hash_remove;
 
 	/* add targets */
 	for (i = 0; i < dmi->target_count; i++) {
@@ -2116,6 +2116,10 @@ int __init dm_early_create(struct dm_ioctl *dmi,
 
 err_destroy_table:
 	dm_table_destroy(t);
+err_hash_remove:
+	(void) __hash_remove(__get_name_cell(dmi->name));
+	/* release reference from __get_name_cell */
+	dm_put(md);
 err_destroy_dm:
 	dm_put(md);
 	dm_destroy(md);

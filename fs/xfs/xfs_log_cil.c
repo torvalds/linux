@@ -582,6 +582,19 @@ xlog_cil_committed(
 	struct xfs_cil_ctx	*ctx = args;
 	struct xfs_mount	*mp = ctx->cil->xc_log->l_mp;
 
+	/*
+	 * If the I/O failed, we're aborting the commit and already shutdown.
+	 * Wake any commit waiters before aborting the log items so we don't
+	 * block async log pushers on callbacks. Async log pushers explicitly do
+	 * not wait on log force completion because they may be holding locks
+	 * required to unpin items.
+	 */
+	if (abort) {
+		spin_lock(&ctx->cil->xc_push_lock);
+		wake_up_all(&ctx->cil->xc_commit_wait);
+		spin_unlock(&ctx->cil->xc_push_lock);
+	}
+
 	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, ctx->lv_chain,
 					ctx->start_lsn, abort);
 
@@ -589,15 +602,7 @@ xlog_cil_committed(
 	xfs_extent_busy_clear(mp, &ctx->busy_extents,
 			     (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
 
-	/*
-	 * If we are aborting the commit, wake up anyone waiting on the
-	 * committing list.  If we don't, then a shutdown we can leave processes
-	 * waiting in xlog_cil_force_lsn() waiting on a sequence commit that
-	 * will never happen because we aborted it.
-	 */
 	spin_lock(&ctx->cil->xc_push_lock);
-	if (abort)
-		wake_up_all(&ctx->cil->xc_commit_wait);
 	list_del(&ctx->committing);
 	spin_unlock(&ctx->cil->xc_push_lock);
 

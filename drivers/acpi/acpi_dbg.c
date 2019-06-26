@@ -390,7 +390,7 @@ again:
 	return size > 0 ? size : ret;
 }
 
-static int acpi_aml_thread(void *unsed)
+static int acpi_aml_thread(void *unused)
 {
 	acpi_osd_exec_callback function = NULL;
 	void *context;

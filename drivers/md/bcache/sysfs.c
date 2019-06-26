@@ -431,8 +431,13 @@ STORE(bch_cached_dev)
 			bch_writeback_queue(dc);
 	}
 
+	/*
+	 * Only set BCACHE_DEV_WB_RUNNING when cached device attached to
+	 * a cache set, otherwise it doesn't make sense.
+	 */
 	if (attr == &sysfs_writeback_percent)
-		if (!test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
+		if ((dc->disk.c != NULL) &&
+		    (!test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags)))
 			schedule_delayed_work(&dc->writeback_rate_update,
 				      dc->writeback_rate_update_seconds * HZ);
 
@@ -995,8 +1000,6 @@ SHOW(__bch_cache)
 		while (n &&
 		       !cached[n - 1])
 			--n;
-
-		unused = ca->sb.nbuckets - n;
 
 		while (cached < p + n &&
 		       *cached == BTREE_PRIO)

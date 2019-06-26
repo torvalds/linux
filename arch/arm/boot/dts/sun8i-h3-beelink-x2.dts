@@ -142,7 +142,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&r_ir_rx_pin>;
 	status = "okay";
 };
 
@@ -193,13 +193,13 @@
 
 &spdif {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdif_tx_pins_a>;
+	pinctrl-0 = <&spdif_tx_pin>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

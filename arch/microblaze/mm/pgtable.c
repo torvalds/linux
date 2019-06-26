@@ -75,7 +75,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		p >= memory_start && p < virt_to_phys(high_memory) &&
 		!(p >= __virt_to_phys((phys_addr_t)__bss_stop) &&
 		p < __virt_to_phys((phys_addr_t)__bss_stop))) {
-		pr_warn("__ioremap(): phys addr "PTE_FMT" is RAM lr %pf\n",
+		pr_warn("__ioremap(): phys addr "PTE_FMT" is RAM lr %ps\n",
 			(unsigned long)p, __builtin_return_address(0));
 		return NULL;
 	}

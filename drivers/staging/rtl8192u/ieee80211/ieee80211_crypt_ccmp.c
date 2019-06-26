@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Host AP crypt: host-based CCMP encryption implementation for Host AP driver
  *
  * Copyright (c) 2003-2004, Jouni Malinen <jkmaline@cc.hut.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
 #include <linux/module.h>
@@ -216,7 +212,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[5];
 	*pos++ = key->tx_pn[4];
 	*pos++ = 0;
-	*pos++ = (key->key_idx << 6) | (1 << 5) /* Ext IV included */;
+	*pos++ = (key->key_idx << 6) | BIT(5) /* Ext IV included */;
 	*pos++ = key->tx_pn[3];
 	*pos++ = key->tx_pn[2];
 	*pos++ = key->tx_pn[1];
@@ -274,7 +270,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
-	if (!(keyidx & (1 << 5))) {
+	if (!(keyidx & BIT(5))) {
 		if (net_ratelimit()) {
 			netdev_dbg(skb->dev, "CCMP: received packet without ExtIV flag from %pM\n",
 				   hdr->addr2);

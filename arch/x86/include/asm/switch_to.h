@@ -46,6 +46,7 @@ struct inactive_task_frame {
 	unsigned long r13;
 	unsigned long r12;
 #else
+	unsigned long flags;
 	unsigned long si;
 	unsigned long di;
 #endif

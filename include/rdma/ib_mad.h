@@ -198,7 +198,7 @@ struct ib_sa_hdr {
 	__be16			attr_offset;
 	__be16			reserved;
 	ib_sa_comp_mask		comp_mask;
-} __attribute__ ((packed));
+} __packed;
 
 struct ib_mad {
 	struct ib_mad_hdr	mad_hdr;
@@ -227,7 +227,7 @@ struct ib_sa_mad {
 	struct ib_rmpp_hdr	rmpp_hdr;
 	struct ib_sa_hdr	sa_hdr;
 	u8			data[IB_MGMT_SA_DATA];
-} __attribute__ ((packed));
+} __packed;
 
 struct ib_vendor_mad {
 	struct ib_mad_hdr	mad_hdr;

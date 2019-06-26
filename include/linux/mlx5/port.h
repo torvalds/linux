@@ -60,6 +60,7 @@ enum mlx5_an_status {
 #define MLX5_I2C_ADDR_LOW		0x50
 #define MLX5_I2C_ADDR_HIGH		0x51
 #define MLX5_EEPROM_PAGE_LENGTH		256
+#define MLX5_EEPROM_HIGH_PAGE_LENGTH	128
 
 enum mlx5e_link_mode {
 	MLX5E_1000BASE_CX_SGMII	 = 0,

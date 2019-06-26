@@ -117,7 +117,7 @@ struct fsnotify_ops {
 	int (*handle_event)(struct fsnotify_group *group,
 			    struct inode *inode,
 			    u32 mask, const void *data, int data_type,
-			    const unsigned char *file_name, u32 cookie,
+			    const struct qstr *file_name, u32 cookie,
 			    struct fsnotify_iter_info *iter_info);
 	void (*free_group_priv)(struct fsnotify_group *group);
 	void (*freeing_mark)(struct fsnotify_mark *mark, struct fsnotify_group *group);
@@ -350,11 +350,12 @@ struct fsnotify_mark {
 
 /* main fsnotify call to send events */
 extern int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
-		    const unsigned char *name, u32 cookie);
+		    const struct qstr *name, u32 cookie);
 extern int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
 extern void fsnotify_sb_delete(struct super_block *sb);
+extern void fsnotify_nameremove(struct dentry *dentry, int isdir);
 extern u32 fsnotify_get_cookie(void);
 
 static inline int fsnotify_inode_watches_children(struct inode *inode)
@@ -505,7 +506,7 @@ static inline void fsnotify_init_event(struct fsnotify_event *event,
 #else
 
 static inline int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
-			   const unsigned char *name, u32 cookie)
+			   const struct qstr *name, u32 cookie)
 {
 	return 0;
 }
@@ -522,6 +523,9 @@ static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 {}
 
 static inline void fsnotify_sb_delete(struct super_block *sb)
+{}
+
+static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
 {}
 
 static inline void fsnotify_update_flags(struct dentry *dentry)

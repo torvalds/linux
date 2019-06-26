@@ -1,25 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
  * Copyright (c) 2011, Microsoft Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
  *
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
  *   K. Y. Srinivasan <kys@microsoft.com>
- *
  */
 
 #ifndef _HYPERV_H
@@ -141,6 +128,11 @@ struct hv_ring_buffer_info {
 
 	u32 ring_datasize;		/* < ring_size */
 	u32 priv_read_index;
+	/*
+	 * The ring buffer mutex lock. This lock prevents the ring buffer from
+	 * being freed while the ring buffer is being accessed.
+	 */
+	struct mutex ring_buffer_mutex;
 };
 
 
@@ -1206,7 +1198,7 @@ struct hv_ring_buffer_debug_info {
 };
 
 
-int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
+int hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 				struct hv_ring_buffer_debug_info *debug_info);
 
 /* Vmbus interface */

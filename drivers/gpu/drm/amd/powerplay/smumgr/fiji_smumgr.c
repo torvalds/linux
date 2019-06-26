@@ -2304,6 +2304,8 @@ static uint32_t fiji_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU73_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU73_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU73_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU73_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:

@@ -46,7 +46,7 @@ static int monmap_show(struct seq_file *s, void *p)
 
 		seq_printf(s, "\t%s%lld\t%s\n",
 			   ENTITY_NAME(inst->name),
-			   ceph_pr_addr(&inst->addr.in_addr));
+			   ceph_pr_addr(&inst->addr));
 	}
 	return 0;
 }
@@ -82,7 +82,7 @@ static int osdmap_show(struct seq_file *s, void *p)
 		char sb[64];
 
 		seq_printf(s, "osd%d\t%s\t%3d%%\t(%s)\t%3d%%\n",
-			   i, ceph_pr_addr(&addr->in_addr),
+			   i, ceph_pr_addr(addr),
 			   ((map->osd_weight[i]*100) >> 16),
 			   ceph_osdmap_state_str(sb, sizeof(sb), state),
 			   ((ceph_get_primary_affinity(map, i)*100) >> 16));

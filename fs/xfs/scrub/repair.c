@@ -46,8 +46,7 @@
 int
 xrep_attempt(
 	struct xfs_inode	*ip,
-	struct xfs_scrub	*sc,
-	bool			*fixed)
+	struct xfs_scrub	*sc)
 {
 	int			error = 0;
 
@@ -66,13 +65,13 @@ xrep_attempt(
 		 * scrub so that we can tell userspace if we fixed the problem.
 		 */
 		sc->sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
-		*fixed = true;
+		sc->flags |= XREP_ALREADY_FIXED;
 		return -EAGAIN;
 	case -EDEADLOCK:
 	case -EAGAIN:
 		/* Tell the caller to try again having grabbed all the locks. */
-		if (!sc->try_harder) {
-			sc->try_harder = true;
+		if (!(sc->flags & XCHK_TRY_HARDER)) {
+			sc->flags |= XCHK_TRY_HARDER;
 			return -EAGAIN;
 		}
 		/*
@@ -137,10 +136,16 @@ xrep_roll_ag_trans(
 	if (sc->sa.agfl_bp)
 		xfs_trans_bhold(sc->tp, sc->sa.agfl_bp);
 
-	/* Roll the transaction. */
+	/*
+	 * Roll the transaction.  We still own the buffer and the buffer lock
+	 * regardless of whether or not the roll succeeds.  If the roll fails,
+	 * the buffers will be released during teardown on our way out of the
+	 * kernel.  If it succeeds, we join them to the new transaction and
+	 * move on.
+	 */
 	error = xfs_trans_roll(&sc->tp);
 	if (error)
-		goto out_release;
+		return error;
 
 	/* Join AG headers to the new transaction. */
 	if (sc->sa.agi_bp)
@@ -151,21 +156,6 @@ xrep_roll_ag_trans(
 		xfs_trans_bjoin(sc->tp, sc->sa.agfl_bp);
 
 	return 0;
-
-out_release:
-	/*
-	 * Rolling failed, so release the hold on the buffers.  The
-	 * buffers will be released during teardown on our way out
-	 * of the kernel.
-	 */
-	if (sc->sa.agi_bp)
-		xfs_trans_bhold_release(sc->tp, sc->sa.agi_bp);
-	if (sc->sa.agf_bp)
-		xfs_trans_bhold_release(sc->tp, sc->sa.agf_bp);
-	if (sc->sa.agfl_bp)
-		xfs_trans_bhold_release(sc->tp, sc->sa.agfl_bp);
-
-	return error;
 }
 
 /*

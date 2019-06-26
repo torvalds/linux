@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0)
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright © 2019 Intel Corporation
  *
@@ -576,7 +576,7 @@ static int mei_hdcp_verify_mprime(struct device *dev,
 
 	memcpy(verify_mprime_in.m_prime, stream_ready->m_prime,
 	       HDCP_2_2_MPRIME_LEN);
-	drm_hdcp2_u32_to_seq_num(verify_mprime_in.seq_num_m, data->seq_num_m);
+	drm_hdcp_cpu_to_be24(verify_mprime_in.seq_num_m, data->seq_num_m);
 	memcpy(verify_mprime_in.streams, data->streams,
 	       (data->k * sizeof(struct hdcp2_streamid_type)));
 

@@ -473,6 +473,7 @@ struct iscsi_cmd {
 	struct timer_list	dataout_timer;
 	/* Iovecs for SCSI data payload RX/TX w/ kernel level sockets */
 	struct kvec		*iov_data;
+	void			*overflow_buf;
 	/* Iovecs for miscellaneous purposes */
 #define ISCSI_MISC_IOVECS			5
 	struct kvec		iov_misc[ISCSI_MISC_IOVECS];

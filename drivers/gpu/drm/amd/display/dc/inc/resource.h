@@ -30,6 +30,8 @@
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
 
+#define MEMORY_TYPE_MULTIPLIER_CZ 4
+
 enum dce_version resource_parse_asic_id(
 		struct hw_asic_id asic_id);
 

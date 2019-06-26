@@ -1,13 +1,9 @@
-/* sound/soc/samsung/i2s.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * ALSA SoC Audio Layer - Samsung I2S Controller driver
  *
  * Copyright (c) 2010 Samsung Electronics Co. Ltd.
  *	Jaswinder Singh <jassisinghbrar@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __SND_SOC_SAMSUNG_I2S_H

@@ -142,7 +142,7 @@ static int ks8695_wdt_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	ks8695_wdt_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /*

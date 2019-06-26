@@ -267,13 +267,14 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_set_vf_mac		= nfp_app_set_vf_mac,
 	.ndo_set_vf_vlan	= nfp_app_set_vf_vlan,
 	.ndo_set_vf_spoofchk	= nfp_app_set_vf_spoofchk,
+	.ndo_set_vf_trust	= nfp_app_set_vf_trust,
 	.ndo_get_vf_config	= nfp_app_get_vf_config,
 	.ndo_set_vf_link_state	= nfp_app_set_vf_link_state,
 	.ndo_fix_features	= nfp_repr_fix_features,
 	.ndo_set_features	= nfp_port_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
 	.ndo_get_port_parent_id	= nfp_port_get_port_parent_id,
-	.ndo_get_devlink	= nfp_devlink_get_devlink,
+	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };
 
 void

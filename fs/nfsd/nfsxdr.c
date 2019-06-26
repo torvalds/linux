@@ -71,7 +71,7 @@ decode_filename(__be32 *p, char **namp, unsigned int *lenp)
 }
 
 static __be32 *
-decode_sattr(__be32 *p, struct iattr *iap)
+decode_sattr(__be32 *p, struct iattr *iap, struct user_namespace *userns)
 {
 	u32	tmp, tmp1;
 
@@ -86,12 +86,12 @@ decode_sattr(__be32 *p, struct iattr *iap)
 		iap->ia_mode = tmp;
 	}
 	if ((tmp = ntohl(*p++)) != (u32)-1) {
-		iap->ia_uid = make_kuid(&init_user_ns, tmp);
+		iap->ia_uid = make_kuid(userns, tmp);
 		if (uid_valid(iap->ia_uid))
 			iap->ia_valid |= ATTR_UID;
 	}
 	if ((tmp = ntohl(*p++)) != (u32)-1) {
-		iap->ia_gid = make_kgid(&init_user_ns, tmp);
+		iap->ia_gid = make_kgid(userns, tmp);
 		if (gid_valid(iap->ia_gid))
 			iap->ia_valid |= ATTR_GID;
 	}
@@ -129,6 +129,7 @@ static __be32 *
 encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	     struct kstat *stat)
 {
+	struct user_namespace *userns = nfsd_user_namespace(rqstp);
 	struct dentry	*dentry = fhp->fh_dentry;
 	int type;
 	struct timespec64 time;
@@ -139,8 +140,8 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	*p++ = htonl(nfs_ftypes[type >> 12]);
 	*p++ = htonl((u32) stat->mode);
 	*p++ = htonl((u32) stat->nlink);
-	*p++ = htonl((u32) from_kuid(&init_user_ns, stat->uid));
-	*p++ = htonl((u32) from_kgid(&init_user_ns, stat->gid));
+	*p++ = htonl((u32) from_kuid_munged(userns, stat->uid));
+	*p++ = htonl((u32) from_kgid_munged(userns, stat->gid));
 
 	if (S_ISLNK(type) && stat->size > NFS_MAXPATHLEN) {
 		*p++ = htonl(NFS_MAXPATHLEN);
@@ -216,7 +217,7 @@ nfssvc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
-	p = decode_sattr(p, &args->attrs);
+	p = decode_sattr(p, &args->attrs, nfsd_user_namespace(rqstp));
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -319,7 +320,7 @@ nfssvc_decode_createargs(struct svc_rqst *rqstp, __be32 *p)
 	if (   !(p = decode_fh(p, &args->fh))
 	    || !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
-	p = decode_sattr(p, &args->attrs);
+	p = decode_sattr(p, &args->attrs, nfsd_user_namespace(rqstp));
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -398,7 +399,7 @@ nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 			return 0;
 		p += xdrlen;
 	}
-	decode_sattr(p, &args->attrs);
+	decode_sattr(p, &args->attrs, nfsd_user_namespace(rqstp));
 
 	return 1;
 }

@@ -2374,6 +2374,157 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 	return ret;
 }
 
+static int vega20_get_enabled_smc_features(struct smu_context *smu,
+		uint64_t *features_enabled)
+{
+	uint32_t feature_mask[2] = {0, 0};
+	int ret = 0;
+
+	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	if (ret)
+		return ret;
+
+	*features_enabled = ((((uint64_t)feature_mask[0] << SMU_FEATURES_LOW_SHIFT) & SMU_FEATURES_LOW_MASK) |
+			(((uint64_t)feature_mask[1] << SMU_FEATURES_HIGH_SHIFT) & SMU_FEATURES_HIGH_MASK));
+
+	return ret;
+}
+
+static int vega20_enable_smc_features(struct smu_context *smu,
+		bool enable, uint64_t feature_mask)
+{
+	uint32_t smu_features_low, smu_features_high;
+	int ret = 0;
+
+	smu_features_low = (uint32_t)((feature_mask & SMU_FEATURES_LOW_MASK) >> SMU_FEATURES_LOW_SHIFT);
+	smu_features_high = (uint32_t)((feature_mask & SMU_FEATURES_HIGH_MASK) >> SMU_FEATURES_HIGH_SHIFT);
+
+	if (enable) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesLow,
+						  smu_features_low);
+		if (ret)
+			return ret;
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesHigh,
+						  smu_features_high);
+		if (ret)
+			return ret;
+	} else {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesLow,
+						  smu_features_low);
+		if (ret)
+			return ret;
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesHigh,
+						  smu_features_high);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+
+}
+
+static int vega20_get_ppfeature_status(struct smu_context *smu, char *buf)
+{
+	static const char *ppfeature_name[] = {
+				"DPM_PREFETCHER",
+				"GFXCLK_DPM",
+				"UCLK_DPM",
+				"SOCCLK_DPM",
+				"UVD_DPM",
+				"VCE_DPM",
+				"ULV",
+				"MP0CLK_DPM",
+				"LINK_DPM",
+				"DCEFCLK_DPM",
+				"GFXCLK_DS",
+				"SOCCLK_DS",
+				"LCLK_DS",
+				"PPT",
+				"TDC",
+				"THERMAL",
+				"GFX_PER_CU_CG",
+				"RM",
+				"DCEFCLK_DS",
+				"ACDC",
+				"VR0HOT",
+				"VR1HOT",
+				"FW_CTF",
+				"LED_DISPLAY",
+				"FAN_CONTROL",
+				"GFX_EDC",
+				"GFXOFF",
+				"CG",
+				"FCLK_DPM",
+				"FCLK_DS",
+				"MP1CLK_DS",
+				"MP0CLK_DS",
+				"XGMI",
+				"ECC"};
+	static const char *output_title[] = {
+				"FEATURES",
+				"BITMASK",
+				"ENABLEMENT"};
+	uint64_t features_enabled;
+	int i;
+	int ret = 0;
+	int size = 0;
+
+	ret = vega20_get_enabled_smc_features(smu, &features_enabled);
+	if (ret)
+		return ret;
+
+	size += sprintf(buf + size, "Current ppfeatures: 0x%016llx\n", features_enabled);
+	size += sprintf(buf + size, "%-19s %-22s %s\n",
+				output_title[0],
+				output_title[1],
+				output_title[2]);
+	for (i = 0; i < GNLD_FEATURES_MAX; i++) {
+		size += sprintf(buf + size, "%-19s 0x%016llx %6s\n",
+					ppfeature_name[i],
+					1ULL << i,
+					(features_enabled & (1ULL << i)) ? "Y" : "N");
+	}
+
+	return size;
+}
+
+static int vega20_set_ppfeature_status(struct smu_context *smu, uint64_t new_ppfeature_masks)
+{
+	uint64_t features_enabled;
+	uint64_t features_to_enable;
+	uint64_t features_to_disable;
+	int ret = 0;
+
+	if (new_ppfeature_masks >= (1ULL << GNLD_FEATURES_MAX))
+		return -EINVAL;
+
+	ret = vega20_get_enabled_smc_features(smu, &features_enabled);
+	if (ret)
+		return ret;
+
+	features_to_disable =
+		features_enabled & ~new_ppfeature_masks;
+	features_to_enable =
+		~features_enabled & new_ppfeature_masks;
+
+	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
+	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
+
+	if (features_to_disable) {
+		ret = vega20_enable_smc_features(smu, false, features_to_disable);
+		if (ret)
+			return ret;
+	}
+
+	if (features_to_enable) {
+		ret = vega20_enable_smc_features(smu, true, features_to_enable);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -2404,6 +2555,8 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.unforce_dpm_levels = vega20_unforce_dpm_levels,
 	.upload_dpm_level = vega20_upload_dpm_level,
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
+	.set_ppfeature_status = vega20_set_ppfeature_status,
+	.get_ppfeature_status = vega20_get_ppfeature_status,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

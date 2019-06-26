@@ -1684,21 +1684,24 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	raw_spin_lock_init(&cci_pmu->hw_events.pmu_lock);
 	mutex_init(&cci_pmu->reserve_mutex);
 	atomic_set(&cci_pmu->active_events, 0);
-	cci_pmu->cpu = get_cpu();
 
-	ret = cci_pmu_init(cci_pmu, pdev);
-	if (ret) {
-		put_cpu();
-		return ret;
-	}
-
+	cci_pmu->cpu = raw_smp_processor_id();
+	g_cci_pmu = cci_pmu;
 	cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
 				  "perf/arm/cci:online", NULL,
 				  cci_pmu_offline_cpu);
-	put_cpu();
-	g_cci_pmu = cci_pmu;
+
+	ret = cci_pmu_init(cci_pmu, pdev);
+	if (ret)
+		goto error_pmu_init;
+
 	pr_info("ARM %s PMU driver probed", cci_pmu->model->name);
 	return 0;
+
+error_pmu_init:
+	cpuhp_remove_state(CPUHP_AP_PERF_ARM_CCI_ONLINE);
+	g_cci_pmu = NULL;
+	return ret;
 }
 
 static int cci_pmu_remove(struct platform_device *pdev)

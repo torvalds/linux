@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig SND_X86
 	bool "X86 sound devices"
 	depends on X86

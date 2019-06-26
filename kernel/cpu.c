@@ -9,6 +9,7 @@
 #include <linux/notifier.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/hotplug.h>
+#include <linux/sched/isolation.h>
 #include <linux/sched/task.h>
 #include <linux/sched/smt.h>
 #include <linux/unistd.h>
@@ -860,6 +861,8 @@ static int take_cpu_down(void *_param)
 
 	/* Give up timekeeping duties */
 	tick_handover_do_timer();
+	/* Remove CPU from timer broadcasting */
+	tick_offline_cpu(cpu);
 	/* Park the stopper thread */
 	stop_machine_park(cpu);
 	return 0;
@@ -1199,8 +1202,15 @@ int freeze_secondary_cpus(int primary)
 	int cpu, error = 0;
 
 	cpu_maps_update_begin();
-	if (!cpu_online(primary))
+	if (primary == -1) {
 		primary = cpumask_first(cpu_online_mask);
+		if (!housekeeping_cpu(primary, HK_FLAG_TIMER))
+			primary = housekeeping_any_cpu(HK_FLAG_TIMER);
+	} else {
+		if (!cpu_online(primary))
+			primary = cpumask_first(cpu_online_mask);
+	}
+
 	/*
 	 * We take down all of the non-boot CPUs in one shot to avoid races
 	 * with the userspace trying to use the CPU hotplug at the same time
@@ -2033,19 +2043,6 @@ static const struct attribute_group cpuhp_cpu_root_attr_group = {
 
 #ifdef CONFIG_HOTPLUG_SMT
 
-static const char *smt_states[] = {
-	[CPU_SMT_ENABLED]		= "on",
-	[CPU_SMT_DISABLED]		= "off",
-	[CPU_SMT_FORCE_DISABLED]	= "forceoff",
-	[CPU_SMT_NOT_SUPPORTED]		= "notsupported",
-};
-
-static ssize_t
-show_smt_control(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE - 2, "%s\n", smt_states[cpu_smt_control]);
-}
-
 static void cpuhp_offline_cpu_device(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
@@ -2064,7 +2061,7 @@ static void cpuhp_online_cpu_device(unsigned int cpu)
 	kobject_uevent(&dev->kobj, KOBJ_ONLINE);
 }
 
-static int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval)
+int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval)
 {
 	int cpu, ret = 0;
 
@@ -2096,7 +2093,7 @@ static int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval)
 	return ret;
 }
 
-static int cpuhp_smt_enable(void)
+int cpuhp_smt_enable(void)
 {
 	int cpu, ret = 0;
 
@@ -2116,9 +2113,10 @@ static int cpuhp_smt_enable(void)
 	return ret;
 }
 
+
 static ssize_t
-store_smt_control(struct device *dev, struct device_attribute *attr,
-		  const char *buf, size_t count)
+__store_smt_control(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
 {
 	int ctrlval, ret;
 
@@ -2156,14 +2154,44 @@ store_smt_control(struct device *dev, struct device_attribute *attr,
 	unlock_device_hotplug();
 	return ret ? ret : count;
 }
+
+#else /* !CONFIG_HOTPLUG_SMT */
+static ssize_t
+__store_smt_control(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_HOTPLUG_SMT */
+
+static const char *smt_states[] = {
+	[CPU_SMT_ENABLED]		= "on",
+	[CPU_SMT_DISABLED]		= "off",
+	[CPU_SMT_FORCE_DISABLED]	= "forceoff",
+	[CPU_SMT_NOT_SUPPORTED]		= "notsupported",
+	[CPU_SMT_NOT_IMPLEMENTED]	= "notimplemented",
+};
+
+static ssize_t
+show_smt_control(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	const char *state = smt_states[cpu_smt_control];
+
+	return snprintf(buf, PAGE_SIZE - 2, "%s\n", state);
+}
+
+static ssize_t
+store_smt_control(struct device *dev, struct device_attribute *attr,
+		  const char *buf, size_t count)
+{
+	return __store_smt_control(dev, attr, buf, count);
+}
 static DEVICE_ATTR(control, 0644, show_smt_control, store_smt_control);
 
 static ssize_t
 show_smt_active(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	bool active = topology_max_smt_threads() > 1;
-
-	return snprintf(buf, PAGE_SIZE - 2, "%d\n", active);
+	return snprintf(buf, PAGE_SIZE - 2, "%d\n", sched_smt_active());
 }
 static DEVICE_ATTR(active, 0444, show_smt_active, NULL);
 
@@ -2179,21 +2207,17 @@ static const struct attribute_group cpuhp_smt_attr_group = {
 	NULL
 };
 
-static int __init cpu_smt_state_init(void)
+static int __init cpu_smt_sysfs_init(void)
 {
 	return sysfs_create_group(&cpu_subsys.dev_root->kobj,
 				  &cpuhp_smt_attr_group);
 }
 
-#else
-static inline int cpu_smt_state_init(void) { return 0; }
-#endif
-
 static int __init cpuhp_sysfs_init(void)
 {
 	int cpu, ret;
 
-	ret = cpu_smt_state_init();
+	ret = cpu_smt_sysfs_init();
 	if (ret)
 		return ret;
 
@@ -2214,7 +2238,7 @@ static int __init cpuhp_sysfs_init(void)
 	return 0;
 }
 device_initcall(cpuhp_sysfs_init);
-#endif
+#endif /* CONFIG_SYSFS && CONFIG_HOTPLUG_CPU */
 
 /*
  * cpu_bit_bitmap[] is a special, "compressed" data structure that
@@ -2304,3 +2328,18 @@ void __init boot_cpu_hotplug_init(void)
 #endif
 	this_cpu_write(cpuhp_state.state, CPUHP_ONLINE);
 }
+
+enum cpu_mitigations cpu_mitigations __ro_after_init = CPU_MITIGATIONS_AUTO;
+
+static int __init mitigations_parse_cmdline(char *arg)
+{
+	if (!strcmp(arg, "off"))
+		cpu_mitigations = CPU_MITIGATIONS_OFF;
+	else if (!strcmp(arg, "auto"))
+		cpu_mitigations = CPU_MITIGATIONS_AUTO;
+	else if (!strcmp(arg, "auto,nosmt"))
+		cpu_mitigations = CPU_MITIGATIONS_AUTO_NOSMT;
+
+	return 0;
+}
+early_param("mitigations", mitigations_parse_cmdline);

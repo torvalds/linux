@@ -129,12 +129,9 @@
 				#size-cells = <0>;
 
 				mixer0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 
-					mixer0_out_tcon0: endpoint@0 {
-						reg = <0>;
+					mixer0_out_tcon0: endpoint {
 						remote-endpoint = <&tcon0_in_mixer0>;
 					};
 				};
@@ -150,6 +147,7 @@
 			clock-names = "ahb",
 				      "tcon-ch0";
 			clock-output-names = "tcon-pixel-clock";
+			#clock-cells = <0>;
 			resets = <&ccu RST_BUS_TCON0>;
 			reset-names = "lcd";
 			status = "disabled";
@@ -159,12 +157,9 @@
 				#size-cells = <0>;
 
 				tcon0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					tcon0_in_mixer0: endpoint@0 {
-						reg = <0>;
+					tcon0_in_mixer0: endpoint {
 						remote-endpoint = <&mixer0_out_tcon0>;
 					};
 				};
@@ -419,7 +414,7 @@
 		};
 
 		gic: interrupt-controller@1c81000 {
-			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
+			compatible = "arm,gic-400";
 			reg = <0x01c81000 0x1000>,
 			      <0x01c82000 0x1000>,
 			      <0x01c84000 0x2000>,

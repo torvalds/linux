@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/clocksource.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 
@@ -23,6 +24,35 @@
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL_GPL(rtc_lock);
+
+static u64 atari_read_clk(struct clocksource *cs);
+
+static struct clocksource atari_clk = {
+	.name   = "mfp",
+	.rating = 100,
+	.read   = atari_read_clk,
+	.mask   = CLOCKSOURCE_MASK(32),
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static u32 clk_total;
+static u8 last_timer_count;
+
+static irqreturn_t mfp_timer_c_handler(int irq, void *dev_id)
+{
+	irq_handler_t timer_routine = dev_id;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	do {
+		last_timer_count = st_mfp.tim_dt_c;
+	} while (last_timer_count == 1);
+	clk_total += INT_TICKS;
+	timer_routine(0, NULL);
+	local_irq_restore(flags);
+
+	return IRQ_HANDLED;
+}
 
 void __init
 atari_sched_init(irq_handler_t timer_routine)
@@ -32,31 +62,33 @@ atari_sched_init(irq_handler_t timer_routine)
     /* start timer C, div = 1:100 */
     st_mfp.tim_ct_cd = (st_mfp.tim_ct_cd & 15) | 0x60;
     /* install interrupt service routine for MFP Timer C */
-    if (request_irq(IRQ_MFP_TIMC, timer_routine, 0, "timer", timer_routine))
+    if (request_irq(IRQ_MFP_TIMC, mfp_timer_c_handler, IRQF_TIMER, "timer",
+                    timer_routine))
 	pr_err("Couldn't register timer interrupt\n");
+
+    clocksource_register_hz(&atari_clk, INT_CLK);
 }
 
 /* ++andreas: gettimeoffset fixed to check for pending interrupt */
 
-#define TICK_SIZE 10000
-
-/* This is always executed with interrupts disabled.  */
-u32 atari_gettimeoffset(void)
+static u64 atari_read_clk(struct clocksource *cs)
 {
-  u32 ticks, offset = 0;
+	unsigned long flags;
+	u8 count;
+	u32 ticks;
 
-  /* read MFP timer C current value */
-  ticks = st_mfp.tim_dt_c;
-  /* The probability of underflow is less than 2% */
-  if (ticks > INT_TICKS - INT_TICKS / 50)
-    /* Check for pending timer interrupt */
-    if (st_mfp.int_pn_b & (1 << 5))
-      offset = TICK_SIZE;
+	local_irq_save(flags);
+	/* Ensure that the count is monotonically decreasing, even though
+	 * the result may briefly stop changing after counter wrap-around.
+	 */
+	count = min(st_mfp.tim_dt_c, last_timer_count);
+	last_timer_count = count;
 
-  ticks = INT_TICKS - ticks;
-  ticks = ticks * 10000L / INT_TICKS;
+	ticks = INT_TICKS - count;
+	ticks += clk_total;
+	local_irq_restore(flags);
 
-  return (ticks + offset) * 1000;
+	return ticks;
 }
 
 

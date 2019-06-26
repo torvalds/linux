@@ -9,7 +9,6 @@
  *  more details.
  */
 
-#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/fb.h>
 
@@ -88,25 +87,3 @@ void atafb_mfb_linefill(struct fb_info *info, u_long next_line,
 		*dest++ = *data++;
 	}
 }
-
-#ifdef MODULE
-MODULE_LICENSE("GPL");
-
-int init_module(void)
-{
-	return 0;
-}
-
-void cleanup_module(void)
-{
-}
-#endif /* MODULE */
-
-
-    /*
-     *  Visible symbols for modules
-     */
-
-EXPORT_SYMBOL(atafb_mfb_copyarea);
-EXPORT_SYMBOL(atafb_mfb_fillrect);
-EXPORT_SYMBOL(atafb_mfb_linefill);

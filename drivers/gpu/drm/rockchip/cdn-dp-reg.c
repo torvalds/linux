@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author: Chris Zhong <zyw@rock-chips.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -543,7 +535,7 @@ static int cdn_dp_get_training_status(struct cdn_dp_device *dp)
 	if (ret)
 		goto err_get_training_status;
 
-	dp->link.rate = status[0];
+	dp->link.rate = drm_dp_bw_code_to_link_rate(status[0]);
 	dp->link.num_lanes = status[1];
 
 err_get_training_status:
@@ -647,7 +639,7 @@ int cdn_dp_config_video(struct cdn_dp_device *dp)
 	bit_per_pix = (video->color_fmt == YCBCR_4_2_2) ?
 		      (video->color_depth * 2) : (video->color_depth * 3);
 
-	link_rate = drm_dp_bw_code_to_link_rate(dp->link.rate) / 1000;
+	link_rate = dp->link.rate / 1000;
 
 	ret = cdn_dp_reg_write(dp, BND_HSYNC2VSYNC, VIF_BYPASS_INTERLACE);
 	if (ret)

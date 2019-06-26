@@ -819,7 +819,6 @@
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges;
-			num-lanes = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc0 0>,
 					<0 0 0 2 &pcie_intc0 1>,
@@ -840,7 +839,6 @@
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges;
-			num-lanes = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc1 0>,
 					<0 0 0 2 &pcie_intc1 1>,

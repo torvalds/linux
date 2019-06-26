@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * AES CTR routines supporting VMX instructions on the Power 8
  *
  * Copyright (C) 2015 International Business Machines Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 only.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Author: Marcelo Henrique Cerri <mhcerri@br.ibm.com>
  */
@@ -23,9 +11,10 @@
 #include <linux/err.h>
 #include <linux/crypto.h>
 #include <linux/delay.h>
-#include <linux/hardirq.h>
+#include <asm/simd.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
+#include <crypto/internal/simd.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
 
@@ -83,8 +72,9 @@ static int p8_aes_ctr_setkey(struct crypto_tfm *tfm, const u8 *key,
 	pagefault_enable();
 	preempt_enable();
 
-	ret += crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
-	return ret;
+	ret |= crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
+
+	return ret ? -EINVAL : 0;
 }
 
 static void p8_aes_ctr_final(struct p8_aes_ctr_ctx *ctx,
@@ -118,7 +108,7 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 	struct p8_aes_ctr_ctx *ctx =
 		crypto_tfm_ctx(crypto_blkcipher_tfm(desc->tfm));
 
-	if (in_interrupt()) {
+	if (!crypto_simd_usable()) {
 		SYNC_SKCIPHER_REQUEST_ON_STACK(req, ctx->fallback);
 		skcipher_request_set_sync_tfm(req, ctx->fallback);
 		skcipher_request_set_callback(req, desc->flags, NULL, NULL);

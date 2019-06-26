@@ -656,6 +656,7 @@ static void xhci_unmap_td_bounce_buffer(struct xhci_hcd *xhci,
 	struct device *dev = xhci_to_hcd(xhci)->self.controller;
 	struct xhci_segment *seg = td->bounce_seg;
 	struct urb *urb = td->urb;
+	size_t len;
 
 	if (!ring || !seg || !urb)
 		return;
@@ -666,11 +667,14 @@ static void xhci_unmap_td_bounce_buffer(struct xhci_hcd *xhci,
 		return;
 	}
 
-	/* for in tranfers we need to copy the data from bounce to sg */
-	sg_pcopy_from_buffer(urb->sg, urb->num_mapped_sgs, seg->bounce_buf,
-			     seg->bounce_len, seg->bounce_offs);
 	dma_unmap_single(dev, seg->bounce_dma, ring->bounce_buf_len,
 			 DMA_FROM_DEVICE);
+	/* for in tranfers we need to copy the data from bounce to sg */
+	len = sg_pcopy_from_buffer(urb->sg, urb->num_sgs, seg->bounce_buf,
+			     seg->bounce_len, seg->bounce_offs);
+	if (len != seg->bounce_len)
+		xhci_warn(xhci, "WARN Wrong bounce buffer read length: %zu != %d\n",
+				len, seg->bounce_len);
 	seg->bounce_len = 0;
 	seg->bounce_offs = 0;
 }
@@ -1569,18 +1573,19 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			  "WARN: xHC returned failed port status event\n");
 
 	port_id = GET_PORT_ID(le32_to_cpu(event->generic.field[0]));
-	xhci_dbg(xhci, "Port Status Change Event for port %d\n", port_id);
-
 	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
+
 	if ((port_id <= 0) || (port_id > max_ports)) {
-		xhci_warn(xhci, "Invalid port id %d\n", port_id);
+		xhci_warn(xhci, "Port change event with invalid port ID %d\n",
+			  port_id);
 		inc_deq(xhci, xhci->event_ring);
 		return;
 	}
 
 	port = &xhci->hw_ports[port_id - 1];
 	if (!port || !port->rhub || port->hcd_portnum == DUPLICATE_ENTRY) {
-		xhci_warn(xhci, "Event for invalid port %u\n", port_id);
+		xhci_warn(xhci, "Port change event, no port for port ID %u\n",
+			  port_id);
 		bogus_port_status = true;
 		goto cleanup;
 	}
@@ -1596,6 +1601,9 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	bus_state = &port->rhub->bus_state;
 	hcd_portnum = port->hcd_portnum;
 	portsc = readl(port->addr);
+
+	xhci_dbg(xhci, "Port change event, %d-%d, id %d, portsc: 0x%x\n",
+		 hcd->self.busnum, hcd_portnum + 1, port_id, portsc);
 
 	trace_xhci_handle_port_status(hcd_portnum, portsc);
 
@@ -3123,6 +3131,7 @@ static int xhci_align_td(struct xhci_hcd *xhci, struct urb *urb, u32 enqd_len,
 	unsigned int unalign;
 	unsigned int max_pkt;
 	u32 new_buff_len;
+	size_t len;
 
 	max_pkt = usb_endpoint_maxp(&urb->ep->desc);
 	unalign = (enqd_len + *trb_buff_len) % max_pkt;
@@ -3153,8 +3162,12 @@ static int xhci_align_td(struct xhci_hcd *xhci, struct urb *urb, u32 enqd_len,
 
 	/* create a max max_pkt sized bounce buffer pointed to by last trb */
 	if (usb_urb_dir_out(urb)) {
-		sg_pcopy_to_buffer(urb->sg, urb->num_mapped_sgs,
+		len = sg_pcopy_to_buffer(urb->sg, urb->num_sgs,
 				   seg->bounce_buf, new_buff_len, enqd_len);
+		if (len != seg->bounce_len)
+			xhci_warn(xhci,
+				"WARN Wrong bounce buffer write length: %zu != %d\n",
+				len, seg->bounce_len);
 		seg->bounce_dma = dma_map_single(dev, seg->bounce_buf,
 						 max_pkt, DMA_TO_DEVICE);
 	} else {
@@ -3275,6 +3288,12 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			field |= TRB_IOC;
 			more_trbs_coming = false;
 			td->last_trb = ring->enqueue;
+
+			if (xhci_urb_suitable_for_idt(urb)) {
+				memcpy(&send_addr, urb->transfer_buffer,
+				       trb_buff_len);
+				field |= TRB_IDT;
+			}
 		}
 
 		/* Only set interrupt on short packet for IN endpoints */
@@ -3413,6 +3432,15 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	if (urb->transfer_buffer_length > 0) {
 		u32 length_field, remainder;
+		u64 addr;
+
+		if (xhci_urb_suitable_for_idt(urb)) {
+			memcpy(&addr, urb->transfer_buffer,
+			       urb->transfer_buffer_length);
+			field |= TRB_IDT;
+		} else {
+			addr = (u64) urb->transfer_dma;
+		}
 
 		remainder = xhci_td_remainder(xhci, 0,
 				urb->transfer_buffer_length,
@@ -3424,8 +3452,8 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		if (setup->bRequestType & USB_DIR_IN)
 			field |= TRB_DIR_IN;
 		queue_trb(xhci, ep_ring, true,
-				lower_32_bits(urb->transfer_dma),
-				upper_32_bits(urb->transfer_dma),
+				lower_32_bits(addr),
+				upper_32_bits(addr),
 				length_field,
 				field | ep_ring->cycle_state);
 	}

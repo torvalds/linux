@@ -21,6 +21,8 @@ struct btf;
 struct btf_ext;
 struct btf_type;
 
+struct bpf_object;
+
 /*
  * The .BTF.ext ELF section layout defined as
  *   struct btf_ext_header
@@ -57,6 +59,7 @@ struct btf_ext_header {
 
 LIBBPF_API void btf__free(struct btf *btf);
 LIBBPF_API struct btf *btf__new(__u8 *data, __u32 size);
+LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);

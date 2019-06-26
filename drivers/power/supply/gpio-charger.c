@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2010, Lars-Peter Clausen <lars@metafoo.de>
  *  Driver for chargers which report their online status through a GPIO pin
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/device.h>
@@ -29,11 +20,13 @@
 
 struct gpio_charger {
 	unsigned int irq;
+	unsigned int charge_status_irq;
 	bool wakeup_enabled;
 
 	struct power_supply *charger;
 	struct power_supply_desc charger_desc;
 	struct gpio_desc *gpiod;
+	struct gpio_desc *charge_status;
 };
 
 static irqreturn_t gpio_charger_irq(int irq, void *devid)
@@ -58,6 +51,12 @@ static int gpio_charger_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = gpiod_get_value_cansleep(gpio_charger->gpiod);
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		if (gpiod_get_value_cansleep(gpio_charger->charge_status))
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else
+			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		break;
 	default:
 		return -EINVAL;
@@ -93,8 +92,29 @@ static enum power_supply_type gpio_charger_get_type(struct device *dev)
 	return POWER_SUPPLY_TYPE_UNKNOWN;
 }
 
+static int gpio_charger_get_irq(struct device *dev, void *dev_id,
+				struct gpio_desc *gpio)
+{
+	int ret, irq = gpiod_to_irq(gpio);
+
+	if (irq > 0) {
+		ret = devm_request_any_context_irq(dev, irq, gpio_charger_irq,
+						   IRQF_TRIGGER_RISING |
+						   IRQF_TRIGGER_FALLING,
+						   dev_name(dev),
+						   dev_id);
+		if (ret < 0) {
+			dev_warn(dev, "Failed to request irq: %d\n", ret);
+			irq = 0;
+		}
+	}
+
+	return irq;
+}
+
 static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_STATUS /* Must always be last in the array. */
 };
 
 static int gpio_charger_probe(struct platform_device *pdev)
@@ -104,8 +124,10 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	struct gpio_charger *gpio_charger;
 	struct power_supply_desc *charger_desc;
+	struct gpio_desc *charge_status;
+	int charge_status_irq;
 	unsigned long flags;
-	int irq, ret;
+	int ret;
 
 	if (!pdata && !dev->of_node) {
 		dev_err(dev, "No platform data\n");
@@ -151,9 +173,17 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		return PTR_ERR(gpio_charger->gpiod);
 	}
 
+	charge_status = devm_gpiod_get_optional(dev, "charge-status", GPIOD_IN);
+	gpio_charger->charge_status = charge_status;
+	if (IS_ERR(gpio_charger->charge_status))
+		return PTR_ERR(gpio_charger->charge_status);
+
 	charger_desc = &gpio_charger->charger_desc;
 	charger_desc->properties = gpio_charger_properties;
 	charger_desc->num_properties = ARRAY_SIZE(gpio_charger_properties);
+	/* Remove POWER_SUPPLY_PROP_STATUS from the supported properties. */
+	if (!gpio_charger->charge_status)
+		charger_desc->num_properties -= 1;
 	charger_desc->get_property = gpio_charger_get_property;
 
 	psy_cfg.of_node = dev->of_node;
@@ -180,16 +210,12 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	irq = gpiod_to_irq(gpio_charger->gpiod);
-	if (irq > 0) {
-		ret = devm_request_any_context_irq(dev, irq, gpio_charger_irq,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				dev_name(dev), gpio_charger->charger);
-		if (ret < 0)
-			dev_warn(dev, "Failed to request irq: %d\n", ret);
-		else
-			gpio_charger->irq = irq;
-	}
+	gpio_charger->irq = gpio_charger_get_irq(dev, gpio_charger->charger,
+						 gpio_charger->gpiod);
+
+	charge_status_irq = gpio_charger_get_irq(dev, gpio_charger->charger,
+						 gpio_charger->charge_status);
+	gpio_charger->charge_status_irq = charge_status_irq;
 
 	platform_set_drvdata(pdev, gpio_charger);
 

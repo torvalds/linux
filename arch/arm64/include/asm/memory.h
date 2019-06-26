@@ -26,7 +26,7 @@
 #include <linux/types.h>
 #include <asm/bug.h>
 #include <asm/page-def.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 /*
  * Size of the PCI I/O space. This must remain a power of two so that
@@ -302,7 +302,7 @@ static inline void *phys_to_virt(phys_addr_t x)
  */
 #define ARCH_PFN_OFFSET		((unsigned long)PHYS_PFN_OFFSET)
 
-#ifndef CONFIG_SPARSEMEM_VMEMMAP
+#if !defined(CONFIG_SPARSEMEM_VMEMMAP) || defined(CONFIG_DEBUG_VIRTUAL)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define _virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 #else

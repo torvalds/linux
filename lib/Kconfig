@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Library configuration
 #
@@ -18,6 +19,23 @@ config RAID6_PQ_BENCHMARK
 	  Benchmark all available RAID6 PQ functions on init and choose the
 	  fastest one.
 
+config PACKING
+	bool "Generic bitfield packing and unpacking"
+	default n
+	help
+	  This option provides the packing() helper function, which permits
+	  converting bitfields between a CPU-usable representation and a
+	  memory representation that can have any combination of these quirks:
+	    - Is little endian (bytes are reversed within a 32-bit group)
+	    - The least-significant 32-bit word comes first (within a 64-bit
+	      group)
+	    - The most significant bit of a byte is at its right (bit 0 of a
+	      register description is numerically 2^7).
+	  Drivers may use these helpers to match the bit indices as described
+	  in the data sheets of the peripherals they are in control of.
+
+	  When in doubt, say N.
+
 config BITREVERSE
 	tristate
 
@@ -28,9 +46,6 @@ config HAVE_ARCH_BITREVERSE
 	help
 	  This option enables the use of hardware bit-reversal instructions on
 	  architectures which support such operations.
-
-config RATIONAL
-	bool
 
 config GENERIC_STRNCPY_FROM_USER
 	bool
@@ -43,6 +58,8 @@ config GENERIC_NET_UTILS
 
 config GENERIC_FIND_FIRST_BIT
 	bool
+
+source "lib/math/Kconfig"
 
 config NO_GENERIC_PCI_IOPORT_MAP
 	bool
@@ -514,12 +531,6 @@ config LRU_CACHE
 config CLZ_TAB
 	bool
 
-config CORDIC
-	tristate "CORDIC algorithm"
-	help
-	  This option provides an implementation of the CORDIC algorithm;
-	  calculations are in fixed point. Module will be called cordic.
-
 config DDR
 	bool "JEDEC DDR data"
 	help
@@ -591,11 +602,19 @@ config ARCH_NO_SG_CHAIN
 config ARCH_HAS_PMEM_API
 	bool
 
+# use memcpy to implement user copies for nommu architectures
+config UACCESS_MEMCPY
+	bool
+
 config ARCH_HAS_UACCESS_FLUSHCACHE
 	bool
 
 config ARCH_HAS_UACCESS_MCSAFE
 	bool
+
+# Temporary. Goes away when all archs are cleaned up
+config ARCH_STACKWALK
+       bool
 
 config STACKDEPOT
 	bool
@@ -606,9 +625,6 @@ config SBITMAP
 
 config PARMAN
 	tristate "parman" if COMPILE_TEST
-
-config PRIME_NUMBERS
-	tristate
 
 config STRING_SELFTEST
 	tristate "Test string functions"

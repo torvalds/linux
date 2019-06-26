@@ -78,7 +78,6 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	struct acpi_device *acpi_dev;
 	acpi_handle handle = ACPI_HANDLE(dev);
 	struct pt_gpio_chip *pt_gpio;
-	struct resource *res_mem;
 	int ret = 0;
 
 	if (acpi_bus_get_device(handle, &acpi_dev)) {
@@ -90,12 +89,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	if (!pt_gpio)
 		return -ENOMEM;
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem) {
-		dev_err(&pdev->dev, "Failed to get MMIO resource for PT GPIO.\n");
-		return -EINVAL;
-	}
-	pt_gpio->reg_base = devm_ioremap_resource(dev, res_mem);
+	pt_gpio->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pt_gpio->reg_base)) {
 		dev_err(&pdev->dev, "Failed to map MMIO resource for PT GPIO.\n");
 		return PTR_ERR(pt_gpio->reg_base);

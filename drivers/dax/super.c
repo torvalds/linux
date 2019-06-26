@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2017 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/pagemap.h>
 #include <linux/module.h>
@@ -73,22 +65,12 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
 #endif
 
-/**
- * __bdev_dax_supported() - Check if the device supports dax for filesystem
- * @bdev: block device to check
- * @blocksize: The block size of the device
- *
- * This is a library function for filesystems to check if the block device
- * can be mounted with dax option.
- *
- * Return: true if supported, false if unsupported
- */
-bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
+bool __generic_fsdax_supported(struct dax_device *dax_dev,
+		struct block_device *bdev, int blocksize, sector_t start,
+		sector_t sectors)
 {
-	struct dax_device *dax_dev;
 	bool dax_enabled = false;
 	pgoff_t pgoff, pgoff_end;
-	struct request_queue *q;
 	char buf[BDEVNAME_SIZE];
 	void *kaddr, *end_kaddr;
 	pfn_t pfn, end_pfn;
@@ -102,31 +84,17 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 		return false;
 	}
 
-	q = bdev_get_queue(bdev);
-	if (!q || !blk_queue_dax(q)) {
-		pr_debug("%s: error: request queue doesn't support dax\n",
-				bdevname(bdev, buf));
-		return false;
-	}
-
-	err = bdev_dax_pgoff(bdev, 0, PAGE_SIZE, &pgoff);
+	err = bdev_dax_pgoff(bdev, start, PAGE_SIZE, &pgoff);
 	if (err) {
 		pr_debug("%s: error: unaligned partition for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
 
-	last_page = PFN_DOWN(i_size_read(bdev->bd_inode) - 1) * 8;
+	last_page = PFN_DOWN((start + sectors - 1) * 512) * PAGE_SIZE / 512;
 	err = bdev_dax_pgoff(bdev, last_page, PAGE_SIZE, &pgoff_end);
 	if (err) {
 		pr_debug("%s: error: unaligned partition for dax\n",
-				bdevname(bdev, buf));
-		return false;
-	}
-
-	dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
-	if (!dax_dev) {
-		pr_debug("%s: error: device does not support dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -135,8 +103,6 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 	len = dax_direct_access(dax_dev, pgoff, 1, &kaddr, &pfn);
 	len2 = dax_direct_access(dax_dev, pgoff_end, 1, &end_kaddr, &end_pfn);
 	dax_read_unlock(id);
-
-	put_dax(dax_dev);
 
 	if (len < 1 || len2 < 1) {
 		pr_debug("%s: error: dax access failed (%ld)\n",
@@ -177,6 +143,49 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 		return false;
 	}
 	return true;
+}
+EXPORT_SYMBOL_GPL(__generic_fsdax_supported);
+
+/**
+ * __bdev_dax_supported() - Check if the device supports dax for filesystem
+ * @bdev: block device to check
+ * @blocksize: The block size of the device
+ *
+ * This is a library function for filesystems to check if the block device
+ * can be mounted with dax option.
+ *
+ * Return: true if supported, false if unsupported
+ */
+bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
+{
+	struct dax_device *dax_dev;
+	struct request_queue *q;
+	char buf[BDEVNAME_SIZE];
+	bool ret;
+	int id;
+
+	q = bdev_get_queue(bdev);
+	if (!q || !blk_queue_dax(q)) {
+		pr_debug("%s: error: request queue doesn't support dax\n",
+				bdevname(bdev, buf));
+		return false;
+	}
+
+	dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
+	if (!dax_dev) {
+		pr_debug("%s: error: device does not support dax\n",
+				bdevname(bdev, buf));
+		return false;
+	}
+
+	id = dax_read_lock();
+	ret = dax_supported(dax_dev, bdev, blocksize, 0,
+			i_size_read(bdev->bd_inode) / 512);
+	dax_read_unlock(id);
+
+	put_dax(dax_dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__bdev_dax_supported);
 #endif
@@ -303,6 +312,15 @@ long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
 }
 EXPORT_SYMBOL_GPL(dax_direct_access);
 
+bool dax_supported(struct dax_device *dax_dev, struct block_device *bdev,
+		int blocksize, sector_t start, sector_t len)
+{
+	if (!dax_alive(dax_dev))
+		return false;
+
+	return dax_dev->ops->dax_supported(dax_dev, bdev, blocksize, start, len);
+}
+
 size_t dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 		size_t bytes, struct iov_iter *i)
 {
@@ -412,11 +430,9 @@ static struct dax_device *to_dax_dev(struct inode *inode)
 	return container_of(inode, struct dax_device, inode);
 }
 
-static void dax_i_callback(struct rcu_head *head)
+static void dax_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct dax_device *dax_dev = to_dax_dev(inode);
-
 	kfree(dax_dev->host);
 	dax_dev->host = NULL;
 	if (inode->i_rdev)
@@ -427,16 +443,15 @@ static void dax_i_callback(struct rcu_head *head)
 static void dax_destroy_inode(struct inode *inode)
 {
 	struct dax_device *dax_dev = to_dax_dev(inode);
-
 	WARN_ONCE(test_bit(DAXDEV_ALIVE, &dax_dev->flags),
 			"kill_dax() must be called before final iput()\n");
-	call_rcu(&inode->i_rcu, dax_i_callback);
 }
 
 static const struct super_operations dax_sops = {
 	.statfs = simple_statfs,
 	.alloc_inode = dax_alloc_inode,
 	.destroy_inode = dax_destroy_inode,
+	.free_inode = dax_free_inode,
 	.drop_inode = generic_delete_inode,
 };
 

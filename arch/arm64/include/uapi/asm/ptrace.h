@@ -176,6 +176,10 @@ struct user_sve_header {
  *	FPCR	uint32_t			FPCR
  *
  * Additional data might be appended in the future.
+ *
+ * The Z-, P- and FFR registers are represented in memory in an endianness-
+ * invariant layout which differs from the layout used for the FPSIMD
+ * V-registers on big-endian systems: see sigcontext.h for more explanation.
  */
 
 #define SVE_PT_SVE_ZREG_SIZE(vq)	__SVE_ZREG_SIZE(vq)

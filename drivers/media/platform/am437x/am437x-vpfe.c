@@ -1540,7 +1540,7 @@ static int vpfe_enum_fmt(struct file *file, void  *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	strncpy(f->description, fmt->name, sizeof(f->description) - 1);
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 	f->type = vpfe->fmt.type;
 

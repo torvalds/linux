@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Cavium ethernet device configuration
 #
@@ -68,6 +69,7 @@ config LIQUIDIO
 	imply PTP_1588_CLOCK
 	select FW_LOADER
 	select LIBCRC32C
+	select NET_DEVLINK
 	---help---
 	  This driver supports Cavium LiquidIO Intelligent Server Adapters
 	  based on CN66XX, CN68XX and CN23XX chips.

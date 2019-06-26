@@ -233,20 +233,21 @@ static int mlxreg_wdt_init_timeout(struct mlxreg_wdt *wdt,
 
 static int mlxreg_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct mlxreg_core_platform_data *pdata;
 	struct mlxreg_wdt *wdt;
 	int rc;
 
-	pdata = dev_get_platdata(&pdev->dev);
+	pdata = dev_get_platdata(dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "Failed to get platform data.\n");
+		dev_err(dev, "Failed to get platform data.\n");
 		return -EINVAL;
 	}
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
-	wdt->wdd.parent = &pdev->dev;
+	wdt->wdd.parent = dev;
 	wdt->regmap = pdata->regmap;
 	mlxreg_wdt_config(wdt, pdata);
 
@@ -266,12 +267,11 @@ static int mlxreg_wdt_probe(struct platform_device *pdev)
 		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
 	}
 	mlxreg_wdt_check_card_reset(wdt);
-	rc = devm_watchdog_register_device(&pdev->dev, &wdt->wdd);
+	rc = devm_watchdog_register_device(dev, &wdt->wdd);
 
 register_error:
 	if (rc)
-		dev_err(&pdev->dev,
-			"Cannot register watchdog device (err=%d)\n", rc);
+		dev_err(dev, "Cannot register watchdog device (err=%d)\n", rc);
 	return rc;
 }
 

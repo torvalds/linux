@@ -12,8 +12,8 @@
  */
 
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * void *memset(void *dst, int c, size_t length)

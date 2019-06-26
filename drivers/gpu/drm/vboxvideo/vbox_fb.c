@@ -51,9 +51,9 @@ int vboxfb_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb;
 	struct fb_info *info;
 	struct drm_gem_object *gobj;
-	struct vbox_bo *bo;
+	struct drm_gem_vram_object *gbo;
 	int size, ret;
-	u64 gpu_addr;
+	s64 gpu_addr;
 	u32 pitch;
 
 	mode_cmd.width = sizes->surface_width;
@@ -75,9 +75,9 @@ int vboxfb_create(struct drm_fb_helper *helper,
 	if (ret)
 		return ret;
 
-	bo = gem_to_vbox_bo(gobj);
+	gbo = drm_gem_vram_of_gem(gobj);
 
-	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM);
+	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 	if (ret)
 		return ret;
 
@@ -86,7 +86,7 @@ int vboxfb_create(struct drm_fb_helper *helper,
 		return PTR_ERR(info);
 
 	info->screen_size = size;
-	info->screen_base = (char __iomem *)vbox_bo_kmap(bo);
+	info->screen_base = (char __iomem *)drm_gem_vram_kmap(gbo, true, NULL);
 	if (IS_ERR(info->screen_base))
 		return PTR_ERR(info->screen_base);
 
@@ -104,7 +104,9 @@ int vboxfb_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_info(info, helper, sizes);
 
-	gpu_addr = vbox_bo_gpu_offset(bo);
+	gpu_addr = drm_gem_vram_offset(gbo);
+	if (gpu_addr < 0)
+		return (int)gpu_addr;
 	info->fix.smem_start = info->apertures->ranges[0].base + gpu_addr;
 	info->fix.smem_len = vbox->available_vram_size - gpu_addr;
 
@@ -132,12 +134,10 @@ void vbox_fbdev_fini(struct vbox_private *vbox)
 	drm_fb_helper_unregister_fbi(&vbox->fb_helper);
 
 	if (afb->obj) {
-		struct vbox_bo *bo = gem_to_vbox_bo(afb->obj);
+		struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(afb->obj);
 
-		vbox_bo_kunmap(bo);
-
-		if (bo->pin_count)
-			vbox_bo_unpin(bo);
+		drm_gem_vram_kunmap(gbo);
+		drm_gem_vram_unpin(gbo);
 
 		drm_gem_object_put_unlocked(afb->obj);
 		afb->obj = NULL;

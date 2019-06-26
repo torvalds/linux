@@ -45,6 +45,27 @@
 #define VCN_ENC_CMD_REG_WRITE		0x0000000b
 #define VCN_ENC_CMD_REG_WAIT		0x0000000c
 
+#define RREG32_SOC15_DPG_MODE(ip, inst, reg, mask, sram_sel) 				\
+	({	WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
+		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL, 				\
+			UVD_DPG_LMA_CTL__MASK_EN_MASK | 				\
+			((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) 	\
+			<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) | 			\
+			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
+		RREG32_SOC15(ip, inst, mmUVD_DPG_LMA_DATA); 				\
+	})
+
+#define WREG32_SOC15_DPG_MODE(ip, inst, reg, value, mask, sram_sel) 			\
+	do { 										\
+		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_DATA, value); 			\
+		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
+		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL, 				\
+			UVD_DPG_LMA_CTL__READ_WRITE_MASK | 				\
+			((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) 	\
+			<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) | 			\
+			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
+	} while (0)
+
 enum engine_status_constants {
 	UVD_PGFSM_STATUS__UVDM_UVDU_PWR_ON = 0x2AAAA0,
 	UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON = 0x00000002,
@@ -81,6 +102,8 @@ struct amdgpu_vcn {
 	unsigned		num_enc_rings;
 	enum amd_powergating_state cur_state;
 	struct dpg_pause_state pause_state;
+	int (*pause_dpg_mode)(struct amdgpu_device *adev,
+		struct dpg_pause_state *new_state);
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);

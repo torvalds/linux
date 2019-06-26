@@ -410,8 +410,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_QFQ_MAX, tca[TCA_OPTIONS], qfq_policy,
-			       NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_QFQ_MAX, tca[TCA_OPTIONS],
+					  qfq_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -619,7 +619,7 @@ static int qfq_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle	= cl->common.classid;
 	tcm->tcm_info	= cl->qdisc->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_u32(skb, TCA_QFQ_WEIGHT, cl->agg->class_weight) ||

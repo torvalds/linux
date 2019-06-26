@@ -2155,9 +2155,9 @@ static int savage_init_fb_info(struct fb_info *info, struct pci_dev *dev,
 
 		err = fb_alloc_cmap(&info->cmap, NR_PALETTE, 0);
 		if (!err)
-		info->flags |= FBINFO_HWACCEL_COPYAREA |
-	                       FBINFO_HWACCEL_FILLRECT |
-		               FBINFO_HWACCEL_IMAGEBLIT;
+			info->flags |= FBINFO_HWACCEL_COPYAREA |
+				       FBINFO_HWACCEL_FILLRECT |
+				       FBINFO_HWACCEL_IMAGEBLIT;
 	}
 #endif
 	return err;
@@ -2333,14 +2333,7 @@ static void savagefb_remove(struct pci_dev *dev)
 	DBG("savagefb_remove");
 
 	if (info) {
-		/*
-		 * If unregister_framebuffer fails, then
-		 * we will be leaving hooks that could cause
-		 * oopsen laying around.
-		 */
-		if (unregister_framebuffer(info))
-			printk(KERN_WARNING "savagefb: danger danger! "
-			       "Oopsen imminent!\n");
+		unregister_framebuffer(info);
 
 #ifdef CONFIG_FB_SAVAGE_I2C
 		savagefb_delete_i2c_busses(info);

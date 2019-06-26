@@ -44,6 +44,7 @@
 #include <asm/page.h>
 #include <asm/pat.h>
 #include <asm/cmpxchg.h>
+#include <asm/e820/api.h>
 #include <asm/io.h>
 #include <asm/vmx.h>
 #include <asm/kvm_page_track.h>
@@ -487,16 +488,24 @@ static void kvm_mmu_reset_all_pte_masks(void)
 	 * If the CPU has 46 or less physical address bits, then set an
 	 * appropriate mask to guard against L1TF attacks. Otherwise, it is
 	 * assumed that the CPU is not vulnerable to L1TF.
+	 *
+	 * Some Intel CPUs address the L1 cache using more PA bits than are
+	 * reported by CPUID. Use the PA width of the L1 cache when possible
+	 * to achieve more effective mitigation, e.g. if system RAM overlaps
+	 * the most significant bits of legal physical address space.
 	 */
-	low_phys_bits = boot_cpu_data.x86_phys_bits;
-	if (boot_cpu_data.x86_phys_bits <
+	shadow_nonpresent_or_rsvd_mask = 0;
+	low_phys_bits = boot_cpu_data.x86_cache_bits;
+	if (boot_cpu_data.x86_cache_bits <
 	    52 - shadow_nonpresent_or_rsvd_mask_len) {
 		shadow_nonpresent_or_rsvd_mask =
-			rsvd_bits(boot_cpu_data.x86_phys_bits -
+			rsvd_bits(boot_cpu_data.x86_cache_bits -
 				  shadow_nonpresent_or_rsvd_mask_len,
-				  boot_cpu_data.x86_phys_bits - 1);
+				  boot_cpu_data.x86_cache_bits - 1);
 		low_phys_bits -= shadow_nonpresent_or_rsvd_mask_len;
-	}
+	} else
+		WARN_ON_ONCE(boot_cpu_has_bug(X86_BUG_L1TF));
+
 	shadow_nonpresent_or_rsvd_lower_gfn_mask =
 		GENMASK_ULL(low_phys_bits - 1, PAGE_SHIFT);
 }
@@ -2007,7 +2016,7 @@ static int is_empty_shadow_page(u64 *spt)
  * aggregate version in order to make the slab shrinker
  * faster
  */
-static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, int nr)
+static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, unsigned long nr)
 {
 	kvm->arch.n_used_mmu_pages += nr;
 	percpu_counter_add(&kvm_total_used_mmu_pages, nr);
@@ -2238,7 +2247,7 @@ static bool kvm_mmu_remote_flush_or_zap(struct kvm *kvm,
 					struct list_head *invalid_list,
 					bool remote_flush)
 {
-	if (!remote_flush && !list_empty(invalid_list))
+	if (!remote_flush && list_empty(invalid_list))
 		return false;
 
 	if (!list_empty(invalid_list))
@@ -2763,7 +2772,7 @@ static bool prepare_zap_oldest_mmu_page(struct kvm *kvm,
  * Changing the number of mmu pages allocated to the vm
  * Note: if goal_nr_mmu_pages is too small, you will get dead lock
  */
-void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int goal_nr_mmu_pages)
+void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned long goal_nr_mmu_pages)
 {
 	LIST_HEAD(invalid_list);
 
@@ -2892,7 +2901,9 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 			 */
 			(!pat_enabled() || pat_pfn_immune_to_uc_mtrr(pfn));
 
-	return true;
+	return !e820__mapped_raw_any(pfn_to_hpa(pfn),
+				     pfn_to_hpa(pfn + 1) - 1,
+				     E820_TYPE_RAM);
 }
 
 /* Bits which may be returned by set_spte() */
@@ -4781,6 +4792,7 @@ static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu)
 	union kvm_mmu_extended_role ext = {0};
 
 	ext.cr0_pg = !!is_paging(vcpu);
+	ext.cr4_pae = !!is_pae(vcpu);
 	ext.cr4_smep = !!kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
 	ext.cr4_smap = !!kvm_read_cr4_bits(vcpu, X86_CR4_SMAP);
 	ext.cr4_pse = !!is_pse(vcpu);
@@ -6031,10 +6043,10 @@ out:
 /*
  * Calculate mmu pages needed for kvm.
  */
-unsigned int kvm_mmu_calculate_default_mmu_pages(struct kvm *kvm)
+unsigned long kvm_mmu_calculate_default_mmu_pages(struct kvm *kvm)
 {
-	unsigned int nr_mmu_pages;
-	unsigned int  nr_pages = 0;
+	unsigned long nr_mmu_pages;
+	unsigned long nr_pages = 0;
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 	int i;
@@ -6047,8 +6059,7 @@ unsigned int kvm_mmu_calculate_default_mmu_pages(struct kvm *kvm)
 	}
 
 	nr_mmu_pages = nr_pages * KVM_PERMILLE_MMU_PAGES / 1000;
-	nr_mmu_pages = max(nr_mmu_pages,
-			   (unsigned int) KVM_MIN_ALLOC_MMU_PAGES);
+	nr_mmu_pages = max(nr_mmu_pages, KVM_MIN_ALLOC_MMU_PAGES);
 
 	return nr_mmu_pages;
 }

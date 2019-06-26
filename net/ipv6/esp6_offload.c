@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPV6 GSO/GRO offload support
  * Linux INET implementation
  *
  * Copyright (C) 2016 secunet Security Networks AG
  * Author: Steffen Klassert <steffen.klassert@secunet.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  *
  * ESP GRO support
  */
@@ -74,13 +71,13 @@ static struct sk_buff *esp6_gro_receive(struct list_head *head,
 			goto out;
 
 		if (sp->len == XFRM_MAX_DEPTH)
-			goto out;
+			goto out_reset;
 
 		x = xfrm_state_lookup(dev_net(skb->dev), skb->mark,
 				      (xfrm_address_t *)&ipv6_hdr(skb)->daddr,
 				      spi, IPPROTO_ESP, AF_INET6);
 		if (!x)
-			goto out;
+			goto out_reset;
 
 		sp->xvec[sp->len++] = x;
 		sp->olen++;
@@ -88,7 +85,7 @@ static struct sk_buff *esp6_gro_receive(struct list_head *head,
 		xo = xfrm_offload(skb);
 		if (!xo) {
 			xfrm_state_put(x);
-			goto out;
+			goto out_reset;
 		}
 	}
 
@@ -109,6 +106,8 @@ static struct sk_buff *esp6_gro_receive(struct list_head *head,
 	xfrm_input(skb, IPPROTO_ESP, spi, -2);
 
 	return ERR_PTR(-EINPROGRESS);
+out_reset:
+	secpath_reset(skb);
 out:
 	skb_push(skb, offset);
 	NAPI_GRO_CB(skb)->same_flow = 0;
@@ -132,6 +131,44 @@ static void esp6_gso_encap(struct xfrm_state *x, struct sk_buff *skb)
 	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
 	xo->proto = proto;
+}
+
+static struct sk_buff *xfrm6_tunnel_gso_segment(struct xfrm_state *x,
+						struct sk_buff *skb,
+						netdev_features_t features)
+{
+	__skb_push(skb, skb->mac_len);
+	return skb_mac_gso_segment(skb, features);
+}
+
+static struct sk_buff *xfrm6_transport_gso_segment(struct xfrm_state *x,
+						   struct sk_buff *skb,
+						   netdev_features_t features)
+{
+	const struct net_offload *ops;
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct xfrm_offload *xo = xfrm_offload(skb);
+
+	skb->transport_header += x->props.header_len;
+	ops = rcu_dereference(inet6_offloads[xo->proto]);
+	if (likely(ops && ops->callbacks.gso_segment))
+		segs = ops->callbacks.gso_segment(skb, features);
+
+	return segs;
+}
+
+static struct sk_buff *xfrm6_outer_mode_gso_segment(struct xfrm_state *x,
+						    struct sk_buff *skb,
+						    netdev_features_t features)
+{
+	switch (x->outer_mode.encap) {
+	case XFRM_MODE_TUNNEL:
+		return xfrm6_tunnel_gso_segment(x, skb, features);
+	case XFRM_MODE_TRANSPORT:
+		return xfrm6_transport_gso_segment(x, skb, features);
+	}
+
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 static struct sk_buff *esp6_gso_segment(struct sk_buff *skb,
@@ -172,7 +209,7 @@ static struct sk_buff *esp6_gso_segment(struct sk_buff *skb,
 
 	xo->flags |= XFRM_GSO_SEGMENT;
 
-	return x->outer_mode->gso_segment(x, skb, esp_features);
+	return xfrm6_outer_mode_gso_segment(x, skb, esp_features);
 }
 
 static int esp6_input_tail(struct xfrm_state *x, struct sk_buff *skb)

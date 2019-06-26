@@ -58,6 +58,93 @@
 		status = "okay";
 	};
 
+	padctl@3520000 {
+		status = "disabled";
+
+		avdd-pll-erefeut-supply = <&vdd_1v8_pll>;
+		avdd-usb-supply = <&vdd_3v3_sys>;
+		dvdd-pex-supply = <&vdd_pex>;
+		dvdd-pex-pll-supply = <&vdd_pex>;
+		hvdd-pex-supply = <&vdd_1v8>;
+		hvdd-pex-pll-supply = <&vdd_1v8>;
+		vclamp-usb-supply = <&vdd_1v8>;
+		vddio-hsic-supply = <&gnd>;
+
+		pads {
+			usb2 {
+				status = "okay";
+
+				lanes {
+					usb2-0 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-1 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-2 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+				};
+			};
+
+			usb3 {
+				status = "okay";
+
+				lanes {
+					usb3-0 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb3-1 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb3-2 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+				};
+			};
+		};
+
+		ports {
+			usb2-0 {
+				status = "okay";
+				mode = "otg";
+
+				vbus-supply = <&vdd_usb0>;
+			};
+
+			usb2-1 {
+				status = "okay";
+				mode = "host";
+
+				vbus-supply = <&vdd_usb1>;
+			};
+
+			usb3-0 {
+				nvidia,usb2-companion = <1>;
+				status = "okay";
+			};
+		};
+	};
+
+	usb@3530000 {
+		status = "disabled";
+
+		phys = <&{/padctl@3520000/pads/usb2/lanes/usb2-0}>,
+		       <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,
+		       <&{/padctl@3520000/pads/usb3/lanes/usb3-0}>;
+		phy-names = "usb2-0", "usb2-1", "usb3-0";
+	};
+
 	pcie@10003000 {
 		status = "okay";
 
@@ -178,6 +265,34 @@
 			regulator-max-microvolt = <5000000>;
 
 			gpio = <&exp1 14 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		vdd_usb0: regulator@102 {
+			compatible = "regulator-fixed";
+			reg = <102>;
+
+			regulator-name = "VDD_USB0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+
+			gpio = <&gpio TEGRA_MAIN_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		vdd_usb1: regulator@103 {
+			compatible = "regulator-fixed";
+			reg = <103>;
+
+			regulator-name = "VDD_USB1";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+
+			gpio = <&gpio TEGRA_MAIN_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 
 			vin-supply = <&vdd_5v0_sys>;

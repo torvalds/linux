@@ -318,20 +318,20 @@ struct qla2xxx_fw_dump {
 				   * as compared to other log levels.
 				   */
 
-extern int ql_errlev;
+extern uint ql_errlev;
 
 void __attribute__((format (printf, 4, 5)))
-ql_dbg(uint32_t, scsi_qla_host_t *vha, int32_t, const char *fmt, ...);
+ql_dbg(uint, scsi_qla_host_t *vha, uint, const char *fmt, ...);
 void __attribute__((format (printf, 4, 5)))
-ql_dbg_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
+ql_dbg_pci(uint, struct pci_dev *pdev, uint, const char *fmt, ...);
 void __attribute__((format (printf, 4, 5)))
 ql_dbg_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);
 
 
 void __attribute__((format (printf, 4, 5)))
-ql_log(uint32_t, scsi_qla_host_t *vha, int32_t, const char *fmt, ...);
+ql_log(uint, scsi_qla_host_t *vha, uint, const char *fmt, ...);
 void __attribute__((format (printf, 4, 5)))
-ql_log_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
+ql_log_pci(uint, struct pci_dev *pdev, uint, const char *fmt, ...);
 
 void __attribute__((format (printf, 4, 5)))
 ql_log_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);

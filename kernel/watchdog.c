@@ -590,7 +590,7 @@ static void lockup_detector_reconfigure(void)
  * Create the watchdog thread infrastructure and configure the detector(s).
  *
  * The threads are not unparked as watchdog_allowed_mask is empty.  When
- * the threads are sucessfully initialized, take the proper locks and
+ * the threads are successfully initialized, take the proper locks and
  * unpark the threads in the watchdog_cpumask if the watchdog is enabled.
  */
 static __init void lockup_detector_setup(void)

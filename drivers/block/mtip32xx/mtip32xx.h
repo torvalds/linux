@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * mtip32xx.h - Header file for the P320 SSD Block Driver
  *   Copyright (C) 2011 Micron Technology, Inc.
@@ -5,17 +6,6 @@
  * Portions of this code were derived from works subjected to the
  * following copyright:
  *    Copyright (C) 2009 Integrated Device Technology, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __MTIP32XX_H__
@@ -192,21 +182,6 @@ struct mtip_work {
 		struct mtip_work *w = (struct mtip_work *) work;         \
 		mtip_workq_sdbfx(w->port, group, w->completed);     \
 	}
-
-#define MTIP_TRIM_TIMEOUT_MS		240000
-#define MTIP_MAX_TRIM_ENTRIES		8
-#define MTIP_MAX_TRIM_ENTRY_LEN		0xfff8
-
-struct mtip_trim_entry {
-	__le32 lba;   /* starting lba of region */
-	__le16 rsvd;  /* unused */
-	__le16 range; /* # of 512b blocks to trim */
-} __packed;
-
-struct mtip_trim {
-	/* Array of regions to trim */
-	struct mtip_trim_entry entry[MTIP_MAX_TRIM_ENTRIES];
-} __packed;
 
 /* Register Frame Information Structure (FIS), host to device. */
 struct host_to_dev_fis {
@@ -473,8 +448,6 @@ struct driver_data {
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
 
 	struct dentry *dfs_node;
-
-	bool trim_supp; /* flag indicating trim support */
 
 	bool sr;
 

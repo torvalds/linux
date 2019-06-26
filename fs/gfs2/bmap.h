@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __BMAP_DOT_H__
@@ -64,5 +61,6 @@ extern int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 extern int gfs2_map_journal_extents(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd);
 extern void gfs2_free_journal_extents(struct gfs2_jdesc *jd);
 extern int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length);
+extern int gfs2_lblk_to_dblk(struct inode *inode, u32 lblock, u64 *dblock);
 
 #endif /* __BMAP_DOT_H__ */

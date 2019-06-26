@@ -151,8 +151,6 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page;
 
-		if (!pfn_valid_within(pfn + i))
-			continue;
 		page = pfn_to_online_page(pfn + i);
 		if (!page)
 			continue;

@@ -1,9 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright 2011-2014 Autronica Fire and Security AS
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
@@ -51,5 +47,17 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 		      u16 *if1_seq,
 		      int *if2_age,
 		      u16 *if2_seq);
+
+struct hsr_node {
+	struct list_head	mac_list;
+	unsigned char		macaddress_A[ETH_ALEN];
+	unsigned char		macaddress_B[ETH_ALEN];
+	/* Local slave through which AddrB frames are received from this node */
+	enum hsr_port_type	addr_B_port;
+	unsigned long		time_in[HSR_PT_PORTS];
+	bool			time_in_stale[HSR_PT_PORTS];
+	u16			seq_out[HSR_PT_PORTS];
+	struct rcu_head		rcu_head;
+};
 
 #endif /* __HSR_FRAMEREG_H */

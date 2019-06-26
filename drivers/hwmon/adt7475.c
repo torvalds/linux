@@ -168,7 +168,7 @@ static const struct i2c_device_id adt7475_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adt7475_id);
 
-static const struct of_device_id adt7475_of_match[] = {
+static const struct of_device_id __maybe_unused adt7475_of_match[] = {
 	{
 		.compatible = "adi,adt7473",
 		.data = (void *)adt7473

@@ -6,7 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include "../hardware.h"
 #include "devices-common.h"

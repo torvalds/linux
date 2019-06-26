@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright (C) 2018 Netronome Systems, Inc.
+# Copyright (C) 2018-2019 Netronome Systems, Inc.
 
 # In case user attempts to run with Python 2.
 from __future__ import print_function
@@ -39,7 +39,7 @@ class Helper(object):
         Break down helper function protocol into smaller chunks: return type,
         name, distincts arguments.
         """
-        arg_re = re.compile('((const )?(struct )?(\w+|...))( (\**)(\w+))?$')
+        arg_re = re.compile('((\w+ )*?(\w+|...))( (\**)(\w+))?$')
         res = {}
         proto_re = re.compile('(.+) (\**)(\w+)\(((([^,]+)(, )?){1,5})\)$')
 
@@ -54,8 +54,8 @@ class Helper(object):
             capture = arg_re.match(a)
             res['args'].append({
                 'type' : capture.group(1),
-                'star' : capture.group(6),
-                'name' : capture.group(7)
+                'star' : capture.group(5),
+                'name' : capture.group(6)
             })
 
         return res

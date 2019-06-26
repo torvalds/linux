@@ -41,6 +41,7 @@ enum pp_smu_ver {
 	 */
 	PP_SMU_UNSUPPORTED,
 	PP_SMU_VER_RV,
+
 	PP_SMU_VER_MAX
 };
 
@@ -56,12 +57,31 @@ struct pp_smu {
 	const void *dm;
 };
 
+enum pp_smu_status {
+	PP_SMU_RESULT_UNDEFINED = 0,
+	PP_SMU_RESULT_OK = 1,
+	PP_SMU_RESULT_FAIL,
+	PP_SMU_RESULT_UNSUPPORTED
+};
+
+
+#define PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN 0x0
+#define PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX 0xFFFF
+
+enum wm_type {
+	WM_TYPE_PSTATE_CHG = 0,
+	WM_TYPE_RETRAINING = 1,
+};
+
+/* This structure is a copy of WatermarkRowGeneric_t defined by smuxx_driver_if.h*/
 struct pp_smu_wm_set_range {
-	unsigned int wm_inst;
-	uint32_t min_fill_clk_mhz;
-	uint32_t max_fill_clk_mhz;
-	uint32_t min_drain_clk_mhz;
-	uint32_t max_drain_clk_mhz;
+	uint16_t min_fill_clk_mhz;
+	uint16_t max_fill_clk_mhz;
+	uint16_t min_drain_clk_mhz;
+	uint16_t max_drain_clk_mhz;
+
+	uint8_t wm_inst;
+	uint8_t wm_type;
 };
 
 #define MAX_WATERMARK_SETS 4
@@ -80,6 +100,7 @@ struct pp_smu_funcs_rv {
 	/* PPSMC_MSG_SetDisplayCount
 	 * 0 triggers S0i2 optimization
 	 */
+
 	void (*set_display_count)(struct pp_smu *pp, int count);
 
 	/* reader and writer WM's are sent together as part of one table*/
@@ -115,13 +136,13 @@ struct pp_smu_funcs_rv {
 
 	/* PME w/a */
 	void (*set_pme_wa_enable)(struct pp_smu *pp);
-
 };
 
 struct pp_smu_funcs {
 	struct pp_smu ctx;
 	union {
 		struct pp_smu_funcs_rv rv_funcs;
+
 	};
 };
 

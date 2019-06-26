@@ -127,6 +127,7 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		dma-ranges;
 		ranges;
 
 		system-control@1c00000 {
@@ -181,6 +182,14 @@
 			};
 		};
 
+		mbus: dram-controller@1c01000 {
+			compatible = "allwinner,sun5i-a13-mbus";
+			reg = <0x01c01000 0x1000>;
+			clocks = <&ccu 99>;
+			dma-ranges = <0x00000000 0x40000000 0x20000000>;
+			#interconnect-cells = <1>;
+		};
+
 		dma: dma-controller@1c02000 {
 			compatible = "allwinner,sun4i-a10-dma";
 			reg = <0x01c02000 0x1000>;
@@ -189,7 +198,7 @@
 			#dma-cells = <2>;
 		};
 
-		nfc: nand@1c03000 {
+		nfc: nand-controller@1c03000 {
 			compatible = "allwinner,sun4i-a10-nand";
 			reg = <0x01c03000 0x1000>;
 			interrupts = <37>;
@@ -238,11 +247,8 @@
 			status = "disabled";
 
 			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				tve0_in_tcon0: endpoint@0 {
-					reg = <0>;
+				tve0_in_tcon0: endpoint {
 					remote-endpoint = <&tcon0_out_tve0>;
 				};
 			};
@@ -278,6 +284,7 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon-pixel-clock";
+			#clock-cells = <0>;
 			status = "disabled";
 
 			ports {
@@ -285,12 +292,9 @@
 				#size-cells = <0>;
 
 				tcon0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					tcon0_in_be0: endpoint@0 {
-						reg = <0>;
+					tcon0_in_be0: endpoint {
 						remote-endpoint = <&be0_out_tcon0>;
 					};
 				};
@@ -365,13 +369,14 @@
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
 			allwinner,sram = <&otg_sram 1>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
 		usbphy: phy@1c13400 {
 			#phy-cells = <1>;
 			compatible = "allwinner,sun5i-a13-usb-phy";
-			reg = <0x01c13400 0x10 0x01c14800 0x4>;
+			reg = <0x01c13400 0x10>, <0x01c14800 0x4>;
 			reg-names = "phy_ctrl", "pmu1";
 			clocks = <&ccu CLK_USB_PHY0>;
 			clock-names = "usb_phy";
@@ -386,7 +391,6 @@
 			interrupts = <39>;
 			clocks = <&ccu CLK_AHB_EHCI>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -396,7 +400,6 @@
 			interrupts = <40>;
 			clocks = <&ccu CLK_USB_OHCI>, <&ccu CLK_AHB_OHCI>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -501,18 +504,18 @@
 				bias-pull-up;
 			};
 
-			mmc2_8bit_pins: mmc2-8bit-pins {
+			mmc2_4bit_pc_pins: mmc2-4bit-pc-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
-				       "PC10", "PC11", "PC12", "PC13",
-				       "PC14", "PC15";
+				       "PC10", "PC11";
 				function = "mmc2";
 				drive-strength = <30>;
 				bias-pull-up;
 			};
 
-			mmc2_4bit_pc_pins: mmc2-4bit-pc-pins {
+			mmc2_8bit_pins: mmc2-8bit-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
-				       "PC10", "PC11";
+				       "PC10", "PC11", "PC12", "PC13",
+				       "PC14", "PC15";
 				function = "mmc2";
 				drive-strength = <30>;
 				bias-pull-up;
@@ -534,6 +537,11 @@
 			nand_rb0_pin: nand-rb0-pin {
 				pins = "PC6";
 				function = "nand0";
+			};
+
+			pwm0_pin: pwm0-pin {
+				pins = "PB2";
+				function = "pwm";
 			};
 
 			spi2_pe_pins: spi2-pe-pins {
@@ -574,11 +582,6 @@
 			uart3_cts_rts_pg_pins: uart3-cts-rts-pg-pins {
 				pins = "PG11", "PG12";
 				function = "uart3";
-			};
-
-			pwm0_pin: pwm0-pin {
-				pins = "PB2";
-				function = "pwm";
 			};
 		};
 
@@ -727,6 +730,8 @@
 			clock-names = "ahb", "mod",
 				      "ram";
 			resets = <&ccu RST_DE_FE>;
+			interconnects = <&mbus 19>;
+			interconnect-names = "dma-mem";
 			status = "disabled";
 
 			ports {
@@ -734,12 +739,9 @@
 				#size-cells = <0>;
 
 				fe0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 
-					fe0_out_be0: endpoint@0 {
-						reg = <0>;
+					fe0_out_be0: endpoint {
 						remote-endpoint = <&be0_in_fe0>;
 					};
 				};
@@ -755,6 +757,8 @@
 			clock-names = "ahb", "mod",
 				      "ram";
 			resets = <&ccu RST_DE_BE>;
+			interconnects = <&mbus 18>;
+			interconnect-names = "dma-mem";
 			status = "disabled";
 
 			assigned-clocks = <&ccu CLK_DE_BE>;
@@ -765,23 +769,17 @@
 				#size-cells = <0>;
 
 				be0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					be0_in_fe0: endpoint@0 {
-						reg = <0>;
+					be0_in_fe0: endpoint {
 						remote-endpoint = <&fe0_out_be0>;
 					};
 				};
 
 				be0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 
-					be0_out_tcon0: endpoint@0 {
-						reg = <0>;
+					be0_out_tcon0: endpoint {
 						remote-endpoint = <&tcon0_in_be0>;
 					};
 				};

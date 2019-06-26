@@ -74,8 +74,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&leds_opc>, <&leds_r_opc>;
 
 		pwr_led {
 			label = "orangepi:green:pwr";
@@ -91,8 +89,6 @@
 
 	r_gpio_keys {
 		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&sw_r_opc>;
 
 		sw4 {
 			label = "sw4";
@@ -126,7 +122,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&r_ir_rx_pin>;
 	status = "okay";
 };
 
@@ -160,28 +156,9 @@
 	status = "okay";
 };
 
-&pio {
-	leds_opc: led_pins {
-		pins = "PA15";
-		function = "gpio_out";
-	};
-};
-
-&r_pio {
-	leds_r_opc: led_pins {
-		pins = "PL10";
-		function = "gpio_out";
-	};
-
-	sw_r_opc: key_pins {
-		pins = "PL3";
-		function = "gpio_in";
-	};
-};
-
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

@@ -970,7 +970,7 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 	}
 }
 
-#define QED_PERIODIC_DB_REC_COUNT		100
+#define QED_PERIODIC_DB_REC_COUNT		10
 #define QED_PERIODIC_DB_REC_INTERVAL_MS		100
 #define QED_PERIODIC_DB_REC_INTERVAL \
 	msecs_to_jiffies(QED_PERIODIC_DB_REC_INTERVAL_MS)

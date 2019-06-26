@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -137,6 +129,26 @@ static struct class rmtfs_class = {
 	.name           = "rmtfs",
 };
 
+static int qcom_rmtfs_mem_mmap(struct file *filep, struct vm_area_struct *vma)
+{
+	struct qcom_rmtfs_mem *rmtfs_mem = filep->private_data;
+
+	if (vma->vm_end - vma->vm_start > rmtfs_mem->size) {
+		dev_dbg(&rmtfs_mem->dev,
+			"vm_end[%lu] - vm_start[%lu] [%lu] > mem->size[%pa]\n",
+			vma->vm_end, vma->vm_start,
+			(vma->vm_end - vma->vm_start), &rmtfs_mem->size);
+		return -EINVAL;
+	}
+
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	return remap_pfn_range(vma,
+			       vma->vm_start,
+			       rmtfs_mem->addr >> PAGE_SHIFT,
+			       vma->vm_end - vma->vm_start,
+			       vma->vm_page_prot);
+}
+
 static const struct file_operations qcom_rmtfs_mem_fops = {
 	.owner = THIS_MODULE,
 	.open = qcom_rmtfs_mem_open,
@@ -144,6 +156,7 @@ static const struct file_operations qcom_rmtfs_mem_fops = {
 	.write = qcom_rmtfs_mem_write,
 	.release = qcom_rmtfs_mem_release,
 	.llseek = default_llseek,
+	.mmap = qcom_rmtfs_mem_mmap,
 };
 
 static void qcom_rmtfs_mem_release_device(struct device *dev)

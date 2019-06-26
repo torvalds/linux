@@ -397,13 +397,16 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 	bool has_udp = false;
 	int i;
 
+	rc = rdma_read_gid_l2_fields(sgid_attr, &vlan_id, NULL);
+	if (rc)
+		return rc;
+
+	if (vlan_id < VLAN_CFI_MASK)
+		has_vlan = true;
+
 	send_size = 0;
 	for (i = 0; i < swr->num_sge; ++i)
 		send_size += swr->sg_list[i].length;
-
-	vlan_id = rdma_vlan_dev_vlan_id(sgid_attr->ndev);
-	if (vlan_id < VLAN_CFI_MASK)
-		has_vlan = true;
 
 	has_udp = (sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP);
 	if (!has_udp) {

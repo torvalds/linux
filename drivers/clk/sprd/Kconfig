@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SPRD_COMMON_CLK
 	tristate "Clock support for Spreadtrum SoCs"
 	depends on ARCH_SPRD || COMPILE_TEST

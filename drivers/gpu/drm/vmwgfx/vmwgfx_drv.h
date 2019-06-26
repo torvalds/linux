@@ -44,9 +44,9 @@
 #include <linux/sync_file.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
-#define VMWGFX_DRIVER_DATE "20180704"
+#define VMWGFX_DRIVER_DATE "20190328"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 15
+#define VMWGFX_DRIVER_MINOR 16
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -81,19 +81,30 @@
 #define VMW_RES_SHADER ttm_driver_type4
 
 struct vmw_fpriv {
-	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
 	bool gb_aware; /* user-space is guest-backed aware */
 };
 
+/**
+ * struct vmw_buffer_object - TTM buffer object with vmwgfx additions
+ * @base: The TTM buffer object
+ * @res_tree: RB tree of resources using this buffer object as a backing MOB
+ * @pin_count: pin depth
+ * @dx_query_ctx: DX context if this buffer object is used as a DX query MOB
+ * @map: Kmap object for semi-persistent mappings
+ * @res_prios: Eviction priority counts for attached resources
+ * @dirty: structure for user-space dirty-tracking
+ */
 struct vmw_buffer_object {
 	struct ttm_buffer_object base;
-	struct list_head res_list;
+	struct rb_root res_tree;
 	s32 pin_count;
 	/* Not ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
 	/* Protected by reservation */
 	struct ttm_bo_kmap_obj map;
+	u32 res_prios[TTM_MAX_BO_PRIORITY];
+	struct vmw_bo_dirty *dirty;
 };
 
 /**
@@ -124,7 +135,8 @@ struct vmw_res_func;
  * @res_dirty: Resource contains data not yet in the backup buffer. Protected
  * by resource reserved.
  * @backup_dirty: Backup buffer contains data not yet in the HW resource.
- * Protecte by resource reserved.
+ * Protected by resource reserved.
+ * @coherent: Emulate coherency by tracking vm accesses.
  * @backup: The backup buffer if any. Protected by resource reserved.
  * @backup_offset: Offset into the backup buffer if any. Protected by resource
  * reserved. Note that only a few resource types can have a @backup_offset
@@ -133,28 +145,32 @@ struct vmw_res_func;
  * pin-count greater than zero. It is not on the resource LRU lists and its
  * backup buffer is pinned. Hence it can't be evicted.
  * @func: Method vtable for this resource. Immutable.
+ * @mob_node; Node for the MOB backup rbtree. Protected by @backup reserved.
  * @lru_head: List head for the LRU list. Protected by @dev_priv::resource_lock.
- * @mob_head: List head for the MOB backup list. Protected by @backup reserved.
  * @binding_head: List head for the context binding list. Protected by
  * the @dev_priv::binding_mutex
  * @res_free: The resource destructor.
  * @hw_destroy: Callback to destroy the resource on the device, as part of
  * resource destruction.
  */
+struct vmw_resource_dirty;
 struct vmw_resource {
 	struct kref kref;
 	struct vmw_private *dev_priv;
 	int id;
+	u32 used_prio;
 	unsigned long backup_size;
-	bool res_dirty;
-	bool backup_dirty;
+	u32 res_dirty : 1;
+	u32 backup_dirty : 1;
+	u32 coherent : 1;
 	struct vmw_buffer_object *backup;
 	unsigned long backup_offset;
 	unsigned long pin_count;
 	const struct vmw_res_func *func;
+	struct rb_node mob_node;
 	struct list_head lru_head;
-	struct list_head mob_head;
 	struct list_head binding_head;
+	struct vmw_resource_dirty *dirty;
 	void (*res_free) (struct vmw_resource *res);
 	void (*hw_destroy) (struct vmw_resource *res);
 };
@@ -296,7 +312,7 @@ struct vmw_sg_table {
 struct vmw_piter {
 	struct page **pages;
 	const dma_addr_t *addrs;
-	struct sg_page_iter iter;
+	struct sg_dma_page_iter iter;
 	unsigned long i;
 	unsigned long num_pages;
 	bool (*next)(struct vmw_piter *);
@@ -375,10 +391,6 @@ struct vmw_sw_context{
 
 struct vmw_legacy_display;
 struct vmw_overlay;
-
-struct vmw_master {
-	struct ttm_lock lock;
-};
 
 struct vmw_vga_topology_state {
 	uint32_t width;
@@ -542,11 +554,8 @@ struct vmw_private {
 	spinlock_t svga_lock;
 
 	/**
-	 * Master management.
+	 * PM management.
 	 */
-
-	struct vmw_master *active_master;
-	struct vmw_master fbdev_master;
 	struct notifier_block pm_nb;
 	bool refuse_hibernation;
 	bool suspend_locked;
@@ -595,6 +604,9 @@ struct vmw_private {
 
 	/* Validation memory reservation */
 	struct vmw_validation_mem vvm;
+
+	/* VM operations */
+	struct vm_operations_struct vm_ops;
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -610,11 +622,6 @@ static inline struct vmw_private *vmw_priv(struct drm_device *dev)
 static inline struct vmw_fpriv *vmw_fpriv(struct drm_file *file_priv)
 {
 	return (struct vmw_fpriv *)file_priv->driver_priv;
-}
-
-static inline struct vmw_master *vmw_master(struct drm_master *master)
-{
-	return (struct vmw_master *) master->driver_priv;
 }
 
 /*
@@ -669,7 +676,8 @@ extern void vmw_resource_unreference(struct vmw_resource **p_res);
 extern struct vmw_resource *vmw_resource_reference(struct vmw_resource *res);
 extern struct vmw_resource *
 vmw_resource_reference_unless_doomed(struct vmw_resource *res);
-extern int vmw_resource_validate(struct vmw_resource *res, bool intr);
+extern int vmw_resource_validate(struct vmw_resource *res, bool intr,
+				 bool dirtying);
 extern int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
 				bool no_backup);
 extern bool vmw_resource_needs_backup(const struct vmw_resource *res);
@@ -709,6 +717,23 @@ extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
 extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
+void vmw_resource_mob_attach(struct vmw_resource *res);
+void vmw_resource_mob_detach(struct vmw_resource *res);
+void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
+			       pgoff_t end);
+int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
+			pgoff_t end, pgoff_t *num_prefault);
+
+/**
+ * vmw_resource_mob_attached - Whether a resource currently has a mob attached
+ * @res: The resource
+ *
+ * Return: true if the resource has a mob attached, false otherwise.
+ */
+static inline bool vmw_resource_mob_attached(const struct vmw_resource *res)
+{
+	return !RB_EMPTY_NODE(&res->mob_node);
+}
 
 /**
  * vmw_user_resource_noref_release - release a user resource pointer looked up
@@ -787,6 +812,54 @@ static inline void vmw_user_bo_noref_release(void)
 	ttm_base_object_noref_release();
 }
 
+/**
+ * vmw_bo_adjust_prio - Adjust the buffer object eviction priority
+ * according to attached resources
+ * @vbo: The struct vmw_buffer_object
+ */
+static inline void vmw_bo_prio_adjust(struct vmw_buffer_object *vbo)
+{
+	int i = ARRAY_SIZE(vbo->res_prios);
+
+	while (i--) {
+		if (vbo->res_prios[i]) {
+			vbo->base.priority = i;
+			return;
+		}
+	}
+
+	vbo->base.priority = 3;
+}
+
+/**
+ * vmw_bo_prio_add - Notify a buffer object of a newly attached resource
+ * eviction priority
+ * @vbo: The struct vmw_buffer_object
+ * @prio: The resource priority
+ *
+ * After being notified, the code assigns the highest resource eviction priority
+ * to the backing buffer object (mob).
+ */
+static inline void vmw_bo_prio_add(struct vmw_buffer_object *vbo, int prio)
+{
+	if (vbo->res_prios[prio]++ == 0)
+		vmw_bo_prio_adjust(vbo);
+}
+
+/**
+ * vmw_bo_prio_del - Notify a buffer object of a resource with a certain
+ * priority being removed
+ * @vbo: The struct vmw_buffer_object
+ * @prio: The resource priority
+ *
+ * After being notified, the code assigns the highest resource eviction priority
+ * to the backing buffer object (mob).
+ */
+static inline void vmw_bo_prio_del(struct vmw_buffer_object *vbo, int prio)
+{
+	if (--vbo->res_prios[prio] == 0)
+		vmw_bo_prio_adjust(vbo);
+}
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
@@ -1016,7 +1089,6 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 int vmw_kms_write_svga(struct vmw_private *vmw_priv,
 		       unsigned width, unsigned height, unsigned pitch,
 		       unsigned bpp, unsigned depth);
-void vmw_kms_idle_workqueues(struct vmw_master *vmaster);
 bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 				uint32_t pitch,
 				uint32_t height);
@@ -1337,6 +1409,25 @@ int vmw_host_log(const char *log);
  */
 #define VMW_DEBUG_USER(fmt, ...)                                              \
 	DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__)
+
+/**
+ * VMW_DEBUG_KMS - Debug output for kernel mode-setting
+ *
+ * This macro is for debugging vmwgfx mode-setting code.
+ */
+#define VMW_DEBUG_KMS(fmt, ...)                                               \
+	DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__)
+
+/* Resource dirtying - vmwgfx_page_dirty.c */
+void vmw_bo_dirty_scan(struct vmw_buffer_object *vbo);
+int vmw_bo_dirty_add(struct vmw_buffer_object *vbo);
+void vmw_bo_dirty_transfer_to_res(struct vmw_resource *res);
+void vmw_bo_dirty_clear_res(struct vmw_resource *res);
+void vmw_bo_dirty_release(struct vmw_buffer_object *vbo);
+void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
+			pgoff_t start, pgoff_t end);
+vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf);
+vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf);
 
 /**
  * Inline helper functions

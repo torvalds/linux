@@ -1593,7 +1593,7 @@ gic_acpi_register_redist(phys_addr_t phys_base, void __iomem *redist_base)
 }
 
 static int __init
-gic_acpi_parse_madt_redist(struct acpi_subtable_header *header,
+gic_acpi_parse_madt_redist(union acpi_subtable_headers *header,
 			   const unsigned long end)
 {
 	struct acpi_madt_generic_redistributor *redist =
@@ -1611,7 +1611,7 @@ gic_acpi_parse_madt_redist(struct acpi_subtable_header *header,
 }
 
 static int __init
-gic_acpi_parse_madt_gicc(struct acpi_subtable_header *header,
+gic_acpi_parse_madt_gicc(union acpi_subtable_headers *header,
 			 const unsigned long end)
 {
 	struct acpi_madt_generic_interrupt *gicc =
@@ -1653,14 +1653,14 @@ static int __init gic_acpi_collect_gicr_base(void)
 	return -ENODEV;
 }
 
-static int __init gic_acpi_match_gicr(struct acpi_subtable_header *header,
+static int __init gic_acpi_match_gicr(union acpi_subtable_headers *header,
 				  const unsigned long end)
 {
 	/* Subtable presence means that redist exists, that's it */
 	return 0;
 }
 
-static int __init gic_acpi_match_gicc(struct acpi_subtable_header *header,
+static int __init gic_acpi_match_gicc(union acpi_subtable_headers *header,
 				      const unsigned long end)
 {
 	struct acpi_madt_generic_interrupt *gicc =
@@ -1726,7 +1726,7 @@ static bool __init acpi_validate_gic_table(struct acpi_subtable_header *header,
 	return true;
 }
 
-static int __init gic_acpi_parse_virt_madt_gicc(struct acpi_subtable_header *header,
+static int __init gic_acpi_parse_virt_madt_gicc(union acpi_subtable_headers *header,
 						const unsigned long end)
 {
 	struct acpi_madt_generic_interrupt *gicc =

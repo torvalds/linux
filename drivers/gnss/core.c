@@ -42,7 +42,7 @@ static int gnss_open(struct inode *inode, struct file *file)
 
 	get_device(&gdev->dev);
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 	file->private_data = gdev;
 
 	down_write(&gdev->rwsem);

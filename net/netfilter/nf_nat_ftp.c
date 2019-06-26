@@ -21,12 +21,17 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <linux/netfilter/nf_conntrack_ftp.h>
 
+#define NAT_HELPER_NAME "ftp"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp NAT helper");
-MODULE_ALIAS("ip_nat_ftp");
+MODULE_ALIAS_NF_NAT_HELPER(NAT_HELPER_NAME);
 
 /* FIXME: Time out? --RR */
+
+static struct nf_conntrack_nat_helper nat_helper_ftp =
+	NF_CT_NAT_HELPER_INIT(NAT_HELPER_NAME);
 
 static int nf_nat_ftp_fmt_cmd(struct nf_conn *ct, enum nf_ct_ftp_type type,
 			      char *buffer, size_t buflen,
@@ -124,6 +129,7 @@ out:
 
 static void __exit nf_nat_ftp_fini(void)
 {
+	nf_nat_helper_unregister(&nat_helper_ftp);
 	RCU_INIT_POINTER(nf_nat_ftp_hook, NULL);
 	synchronize_rcu();
 }
@@ -131,6 +137,7 @@ static void __exit nf_nat_ftp_fini(void)
 static int __init nf_nat_ftp_init(void)
 {
 	BUG_ON(nf_nat_ftp_hook != NULL);
+	nf_nat_helper_register(&nat_helper_ftp);
 	RCU_INIT_POINTER(nf_nat_ftp_hook, nf_nat_ftp);
 	return 0;
 }

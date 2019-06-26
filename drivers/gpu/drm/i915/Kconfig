@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_I915
 	tristate "Intel 8xx/9xx/G3x/G4x/HD Graphics"
 	depends on DRM
@@ -15,7 +16,6 @@ config DRM_I915
 	select IRQ_WORK
 	# i915 depends on ACPI_VIDEO when ACPI is enabled
 	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
-	select BACKLIGHT_LCD_SUPPORT if ACPI
 	select BACKLIGHT_CLASS_DEVICE if ACPI
 	select INPUT if ACPI
 	select ACPI_VIDEO if ACPI
@@ -45,19 +45,28 @@ config DRM_I915
 config DRM_I915_ALPHA_SUPPORT
 	bool "Enable alpha quality support for new Intel hardware by default"
 	depends on DRM_I915
-	default n
 	help
-	  Choose this option if you have new Intel hardware and want to enable
-	  the alpha quality i915 driver support for the hardware in this kernel
-	  version. You can also enable the support at runtime using the module
-	  parameter i915.alpha_support=1; this option changes the default for
-	  that module parameter.
+	  This option is deprecated. Use DRM_I915_FORCE_PROBE option instead.
 
-	  It is recommended to upgrade to a kernel version with proper support
-	  as soon as it is available. Generally fixes for platforms with alpha
-	  support are not backported to older kernels.
+config DRM_I915_FORCE_PROBE
+	string "Force probe driver for selected new Intel hardware"
+	depends on DRM_I915
+	default "*" if DRM_I915_ALPHA_SUPPORT
+	help
+	  This is the default value for the i915.force_probe module
+	  parameter. Using the module parameter overrides this option.
 
-	  If in doubt, say "N".
+	  Force probe the driver for new Intel graphics devices that are
+	  recognized but not properly supported by this kernel version. It is
+	  recommended to upgrade to a kernel version with proper support as soon
+	  as it is available.
+
+	  Use "" to disable force probe. If in doubt, use this.
+
+	  Use "<pci-id>[,<pci-id>,...]" to force probe the driver for listed
+	  devices. For example, "4500" or "4500,4571".
+
+	  Use "*" to force probe the driver for all known devices.
 
 config DRM_I915_CAPTURE_ERROR
 	bool "Enable capturing GPU state following a hang"
@@ -132,4 +141,10 @@ menu "drm/i915 Debugging"
 depends on DRM_I915
 depends on EXPERT
 source "drivers/gpu/drm/i915/Kconfig.debug"
+endmenu
+
+menu "drm/i915 Profile Guided Optimisation"
+	visible if EXPERT
+	depends on DRM_I915
+	source "drivers/gpu/drm/i915/Kconfig.profile"
 endmenu

@@ -299,7 +299,6 @@ struct rcu_torture_ops {
 	int irq_capable;
 	int can_boost;
 	int extendables;
-	int ext_irq_conflict;
 	const char *name;
 };
 
@@ -592,12 +591,7 @@ static void srcu_torture_init(void)
 
 static void srcu_torture_cleanup(void)
 {
-	static DEFINE_TORTURE_RANDOM(rand);
-
-	if (torture_random(&rand) & 0x800)
-		cleanup_srcu_struct(&srcu_ctld);
-	else
-		cleanup_srcu_struct_quiesced(&srcu_ctld);
+	cleanup_srcu_struct(&srcu_ctld);
 	srcu_ctlp = &srcu_ctl; /* In case of a later rcutorture run. */
 }
 
@@ -1160,7 +1154,7 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 	unsigned long randmask2 = randmask1 >> 3;
 
 	WARN_ON_ONCE(mask >> RCUTORTURE_RDR_SHIFT);
-	/* Most of the time lots of bits, half the time only one bit. */
+	/* Mostly only one bit (need preemption!), sometimes lots of bits. */
 	if (!(randmask1 & 0x7))
 		mask = mask & randmask2;
 	else
@@ -1170,10 +1164,6 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 	    ((!(mask & RCUTORTURE_RDR_BH) && (oldmask & RCUTORTURE_RDR_BH)) ||
 	     (!(mask & RCUTORTURE_RDR_RBH) && (oldmask & RCUTORTURE_RDR_RBH))))
 		mask |= RCUTORTURE_RDR_BH | RCUTORTURE_RDR_RBH;
-	if ((mask & RCUTORTURE_RDR_IRQ) &&
-	    !(mask & cur_ops->ext_irq_conflict) &&
-	    (oldmask & cur_ops->ext_irq_conflict))
-		mask |= cur_ops->ext_irq_conflict; /* Or if readers object. */
 	return mask ?: RCUTORTURE_RDR_RCU;
 }
 
@@ -1848,7 +1838,7 @@ static int rcutorture_oom_notify(struct notifier_block *self,
 	WARN(1, "%s invoked upon OOM during forward-progress testing.\n",
 	     __func__);
 	rcu_torture_fwd_cb_hist();
-	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rcu_fwd_startat) / 2));
+	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rcu_fwd_startat)) / 2);
 	WRITE_ONCE(rcu_fwd_emergency_stop, true);
 	smp_mb(); /* Emergency stop before free and wait to avoid hangs. */
 	pr_info("%s: Freed %lu RCU callbacks.\n",
@@ -2094,6 +2084,10 @@ rcu_torture_cleanup(void)
 			cur_ops->cb_barrier();
 		return;
 	}
+	if (!cur_ops) {
+		torture_cleanup_end();
+		return;
+	}
 
 	rcu_torture_barrier_cleanup();
 	torture_stop_kthread(rcu_torture_fwd_prog, fwd_prog_task);
@@ -2267,6 +2261,7 @@ rcu_torture_init(void)
 		pr_cont("\n");
 		WARN_ON(!IS_MODULE(CONFIG_RCU_TORTURE_TEST));
 		firsterr = -EINVAL;
+		cur_ops = NULL;
 		goto unwind;
 	}
 	if (cur_ops->fqs == NULL && fqs_duration != 0) {

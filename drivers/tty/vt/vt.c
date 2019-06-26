@@ -1056,6 +1056,13 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	vc->vc_screenbuf_size = vc->vc_rows * vc->vc_size_row;
 }
 
+
+static void visual_deinit(struct vc_data *vc)
+{
+	vc->vc_sw->con_deinit(vc);
+	module_put(vc->vc_sw->owner);
+}
+
 int vc_allocate(unsigned int currcons)	/* return 0 on success */
 {
 	struct vt_notifier_param param;
@@ -1103,6 +1110,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 
 	return 0;
 err_free:
+	visual_deinit(vc);
 	kfree(vc);
 	vc_cons[currcons].d = NULL;
 	return -ENOMEM;
@@ -1331,9 +1339,8 @@ struct vc_data *vc_deallocate(unsigned int currcons)
 		param.vc = vc = vc_cons[currcons].d;
 		atomic_notifier_call_chain(&vt_notifier_list, VT_DEALLOCATE, &param);
 		vcs_remove_sysfs(currcons);
-		vc->vc_sw->con_deinit(vc);
+		visual_deinit(vc);
 		put_pid(vc->vt_pid);
-		module_put(vc->vc_sw->owner);
 		vc_uniscr_set(vc, NULL);
 		kfree(vc->vc_screenbuf);
 		vc_cons[currcons].d = NULL;
@@ -1520,7 +1527,8 @@ static void csi_J(struct vc_data *vc, int vpar)
 			return;
 	}
 	scr_memsetw(start, vc->vc_video_erase_char, 2 * count);
-	update_region(vc, (unsigned long) start, count);
+	if (con_should_update(vc))
+		do_update_region(vc, (unsigned long) start, count);
 	vc->vc_need_wrap = 0;
 }
 
@@ -1804,7 +1812,7 @@ void mouse_report(struct tty_struct *tty, int butt, int mrx, int mry)
 	respond_string(buf, tty->port);
 }
 
-/* invoked via ioctl(TIOCLINUX) and through set_selection */
+/* invoked via ioctl(TIOCLINUX) and through set_selection_user */
 int mouse_reporting(void)
 {
 	return vc_cons[fg_console].d->vc_report_mouse;
@@ -3008,7 +3016,7 @@ static struct console vt_console_driver = {
  * There are some functions which can sleep for arbitrary periods
  * (paste_selection) but we don't need the lock there anyway.
  *
- * set_selection has locking, and definitely needs it
+ * set_selection_user has locking, and definitely needs it
  */
 
 int tioclinux(struct tty_struct *tty, unsigned long arg)
@@ -3028,7 +3036,8 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	{
 		case TIOCL_SETSEL:
 			console_lock();
-			ret = set_selection((struct tiocl_selection __user *)(p+1), tty);
+			ret = set_selection_user((struct tiocl_selection
+						 __user *)(p+1), tty);
 			console_unlock();
 			break;
 		case TIOCL_PASTESEL:
@@ -3813,6 +3822,8 @@ int con_is_bound(const struct consw *csw)
 {
 	int i, bound = 0;
 
+	WARN_CONSOLE_UNLOCKED();
+
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		if (con_driver_map[i] == csw) {
 			bound = 1;
@@ -3823,6 +3834,20 @@ int con_is_bound(const struct consw *csw)
 	return bound;
 }
 EXPORT_SYMBOL(con_is_bound);
+
+/**
+ * con_is_visible - checks whether the current console is visible
+ * @vc: virtual console
+ *
+ * RETURNS: zero if not visible, nonzero if visible
+ */
+bool con_is_visible(const struct vc_data *vc)
+{
+	WARN_CONSOLE_UNLOCKED();
+
+	return *vc->vc_display_fg == vc;
+}
+EXPORT_SYMBOL(con_is_visible);
 
 /**
  * con_debug_enter - prepare the console for the kernel debugger
@@ -4157,6 +4182,8 @@ void do_blank_screen(int entering_gfx)
 	struct vc_data *vc = vc_cons[fg_console].d;
 	int i;
 
+	might_sleep();
+
 	WARN_CONSOLE_UNLOCKED();
 
 	if (console_blanked) {
@@ -4178,8 +4205,6 @@ void do_blank_screen(int entering_gfx)
 		return;
 	}
 
-	if (blank_state != blank_normal_wait)
-		return;
 	blank_state = blank_off;
 
 	/* don't blank graphics */

@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2012
  *
  * Battery temperature driver for AB8500
  *
- * License Terms: GNU General Public License v2
  * Author:
  *	Johan Palsson <johan.palsson@stericsson.com>
  *	Karl Komierowski <karl.komierowski@stericsson.com>

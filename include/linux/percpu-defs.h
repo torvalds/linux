@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/percpu-defs.h - basic definitions for percpu areas
  *

@@ -9,7 +9,7 @@
  * on the Melbourne quota system as used on BSD derived systems. The internal
  * implementation is based on one of the several variants of the LINUX
  * inode-subsystem with added complexity of the diskquota system.
- * 
+ *
  * Author:	Marco van Wieringen <mvw@planets.elm.net>
  *
  * Fixes:   Dmitry Gorodchanin <pgmdsg@ibi.com>, 11 Feb 96
@@ -51,7 +51,7 @@
  *		Added journalled quota support, fix lock inversion problems
  *		Jan Kara, <jack@suse.cz>, 2003,2004
  *
- * (C) Copyright 1994 - 1997 Marco van Wieringen 
+ * (C) Copyright 1994 - 1997 Marco van Wieringen
  */
 
 #include <linux/errno.h>
@@ -197,7 +197,7 @@ static struct quota_format_type *find_quota_format(int id)
 		int qm;
 
 		spin_unlock(&dq_list_lock);
-		
+
 		for (qm = 0; module_names[qm].qm_fmt_id &&
 			     module_names[qm].qm_fmt_id != id; qm++)
 			;
@@ -424,10 +424,11 @@ int dquot_acquire(struct dquot *dquot)
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
 	mutex_lock(&dquot->dq_lock);
-	if (!test_bit(DQ_READ_B, &dquot->dq_flags))
+	if (!test_bit(DQ_READ_B, &dquot->dq_flags)) {
 		ret = dqopt->ops[dquot->dq_id.type]->read_dqblk(dquot);
-	if (ret < 0)
-		goto out_iolock;
+		if (ret < 0)
+			goto out_iolock;
+	}
 	/* Make sure flags update is visible after dquot has been filled */
 	smp_mb__before_atomic();
 	set_bit(DQ_READ_B, &dquot->dq_flags);
@@ -1049,7 +1050,9 @@ static void remove_dquot_ref(struct super_block *sb, int type,
 		struct list_head *tofree_head)
 {
 	struct inode *inode;
+#ifdef CONFIG_QUOTA_DEBUG
 	int reserved = 0;
+#endif
 
 	spin_lock(&sb->s_inode_list_lock);
 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
@@ -1061,8 +1064,10 @@ static void remove_dquot_ref(struct super_block *sb, int type,
 		 */
 		spin_lock(&dq_data_lock);
 		if (!IS_NOQUOTA(inode)) {
+#ifdef CONFIG_QUOTA_DEBUG
 			if (unlikely(inode_get_rsv_space(inode) > 0))
 				reserved = 1;
+#endif
 			remove_inode_dquot_ref(inode, type, tofree_head);
 		}
 		spin_unlock(&dq_data_lock);
@@ -1663,7 +1668,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (!dquots[cnt])
 			continue;
-		if (flags & DQUOT_SPACE_RESERVE) {
+		if (reserve) {
 			ret = dquot_add_space(dquots[cnt], 0, number, flags,
 					      &warn[cnt]);
 		} else {
@@ -1676,13 +1681,11 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 				if (!dquots[cnt])
 					continue;
 				spin_lock(&dquots[cnt]->dq_dqb_lock);
-				if (flags & DQUOT_SPACE_RESERVE) {
-					dquots[cnt]->dq_dqb.dqb_rsvspace -=
-									number;
-				} else {
-					dquots[cnt]->dq_dqb.dqb_curspace -=
-									number;
-				}
+				if (reserve)
+					dquot_free_reserved_space(dquots[cnt],
+								  number);
+				else
+					dquot_decr_space(dquots[cnt], number);
 				spin_unlock(&dquots[cnt]->dq_dqb_lock);
 			}
 			spin_unlock(&inode->i_lock);
@@ -1733,7 +1736,7 @@ int dquot_alloc_inode(struct inode *inode)
 					continue;
 				/* Back out changes we already did */
 				spin_lock(&dquots[cnt]->dq_dqb_lock);
-				dquots[cnt]->dq_dqb.dqb_curinodes--;
+				dquot_decr_inodes(dquots[cnt], 1);
 				spin_unlock(&dquots[cnt]->dq_dqb_lock);
 			}
 			goto warn_put_all;
@@ -2397,7 +2400,7 @@ out_file_flags:
 out_fmt:
 	put_quota_format(fmt);
 
-	return error; 
+	return error;
 }
 
 /* Reenable quotas on remount RW */
@@ -2775,7 +2778,7 @@ int dquot_get_state(struct super_block *sb, struct qc_state *state)
 	struct qc_type_state *tstate;
 	struct quota_info *dqopt = sb_dqopt(sb);
 	int type;
-  
+
 	memset(state, 0, sizeof(*state));
 	for (type = 0; type < MAXQUOTAS; type++) {
 		if (!sb_has_quota_active(sb, type))

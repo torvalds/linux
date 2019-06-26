@@ -11,6 +11,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
 	rif_set_addr_test
+	rif_vrf_set_addr_test
 	rif_inherit_bridge_addr_test
 	rif_non_inherit_bridge_addr_test
 	vlan_interface_deletion_test
@@ -26,6 +27,7 @@ ALL_TESTS="
 	lag_dev_deletion_test
 	vlan_interface_uppers_test
 	bridge_extern_learn_test
+	neigh_offload_test
 	devlink_reload_test
 "
 NUM_NETIFS=2
@@ -96,6 +98,25 @@ rif_set_addr_test()
 
 	ip link set dev $swp2 addr $swp2_mac
 	ip link set dev $swp1 addr $swp1_mac
+}
+
+rif_vrf_set_addr_test()
+{
+	# Test that it is possible to set an IP address on a VRF upper despite
+	# its random MAC address.
+	RET=0
+
+	ip link add name vrf-test type vrf table 10
+	ip link set dev $swp1 master vrf-test
+
+	ip -4 address add 192.0.2.1/24 dev vrf-test
+	check_err $? "failed to set IPv4 address on VRF"
+	ip -6 address add 2001:db8:1::1/64 dev vrf-test
+	check_err $? "failed to set IPv6 address on VRF"
+
+	log_test "RIF - setting IP address on VRF"
+
+	ip link del dev vrf-test
 }
 
 rif_inherit_bridge_addr_test()
@@ -559,6 +580,31 @@ bridge_extern_learn_test()
 	log_test "externally learned fdb entry"
 
 	ip link del dev br0
+}
+
+neigh_offload_test()
+{
+	# Test that IPv4 and IPv6 neighbour entries are marked as offloaded
+	RET=0
+
+	ip -4 address add 192.0.2.1/24 dev $swp1
+	ip -6 address add 2001:db8:1::1/64 dev $swp1
+
+	ip -4 neigh add 192.0.2.2 lladdr de:ad:be:ef:13:37 nud perm dev $swp1
+	ip -6 neigh add 2001:db8:1::2 lladdr de:ad:be:ef:13:37 nud perm \
+		dev $swp1
+
+	ip -4 neigh show dev $swp1 | grep 192.0.2.2 | grep -q offload
+	check_err $? "ipv4 neigh entry not marked as offloaded when should"
+	ip -6 neigh show dev $swp1 | grep 2001:db8:1::2 | grep -q offload
+	check_err $? "ipv6 neigh entry not marked as offloaded when should"
+
+	log_test "neighbour offload indication"
+
+	ip -6 neigh del 2001:db8:1::2 dev $swp1
+	ip -4 neigh del 192.0.2.2 dev $swp1
+	ip -6 address del 2001:db8:1::1/64 dev $swp1
+	ip -4 address del 192.0.2.1/24 dev $swp1
 }
 
 devlink_reload_test()

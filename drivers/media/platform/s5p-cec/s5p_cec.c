@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/media/platform/s5p-cec/s5p_cec.c
  *
  * Samsung S5P CEC driver
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * This driver is based on the "cec interface driver for exynos soc" by
  * SangPil Moon.
@@ -178,22 +174,16 @@ static const struct cec_adap_ops s5p_cec_adap_ops = {
 static int s5p_cec_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
-	struct platform_device *hdmi_dev;
+	struct device *hdmi_dev;
 	struct resource *res;
 	struct s5p_cec_dev *cec;
 	bool needs_hpd = of_property_read_bool(pdev->dev.of_node, "needs-hpd");
 	int ret;
 
-	np = of_parse_phandle(pdev->dev.of_node, "hdmi-phandle", 0);
+	hdmi_dev = cec_notifier_parse_hdmi_phandle(dev);
 
-	if (!np) {
-		dev_err(&pdev->dev, "Failed to find hdmi node in device tree\n");
-		return -ENODEV;
-	}
-	hdmi_dev = of_find_device_by_node(np);
-	if (hdmi_dev == NULL)
-		return -EPROBE_DEFER;
+	if (IS_ERR(hdmi_dev))
+		return PTR_ERR(hdmi_dev);
 
 	cec = devm_kzalloc(&pdev->dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
@@ -224,7 +214,7 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	if (IS_ERR(cec->reg))
 		return PTR_ERR(cec->reg);
 
-	cec->notifier = cec_notifier_get(&hdmi_dev->dev);
+	cec->notifier = cec_notifier_get(hdmi_dev);
 	if (cec->notifier == NULL)
 		return -ENOMEM;
 

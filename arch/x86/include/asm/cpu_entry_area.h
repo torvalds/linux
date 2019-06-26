@@ -7,6 +7,64 @@
 #include <asm/processor.h>
 #include <asm/intel_ds.h>
 
+#ifdef CONFIG_X86_64
+
+/* Macro to enforce the same ordering and stack sizes */
+#define ESTACKS_MEMBERS(guardsize, db2_holesize)\
+	char	DF_stack_guard[guardsize];	\
+	char	DF_stack[EXCEPTION_STKSZ];	\
+	char	NMI_stack_guard[guardsize];	\
+	char	NMI_stack[EXCEPTION_STKSZ];	\
+	char	DB2_stack_guard[guardsize];	\
+	char	DB2_stack[db2_holesize];	\
+	char	DB1_stack_guard[guardsize];	\
+	char	DB1_stack[EXCEPTION_STKSZ];	\
+	char	DB_stack_guard[guardsize];	\
+	char	DB_stack[EXCEPTION_STKSZ];	\
+	char	MCE_stack_guard[guardsize];	\
+	char	MCE_stack[EXCEPTION_STKSZ];	\
+	char	IST_top_guard[guardsize];	\
+
+/* The exception stacks' physical storage. No guard pages required */
+struct exception_stacks {
+	ESTACKS_MEMBERS(0, 0)
+};
+
+/* The effective cpu entry area mapping with guard pages. */
+struct cea_exception_stacks {
+	ESTACKS_MEMBERS(PAGE_SIZE, EXCEPTION_STKSZ)
+};
+
+/*
+ * The exception stack ordering in [cea_]exception_stacks
+ */
+enum exception_stack_ordering {
+	ESTACK_DF,
+	ESTACK_NMI,
+	ESTACK_DB2,
+	ESTACK_DB1,
+	ESTACK_DB,
+	ESTACK_MCE,
+	N_EXCEPTION_STACKS
+};
+
+#define CEA_ESTACK_SIZE(st)					\
+	sizeof(((struct cea_exception_stacks *)0)->st## _stack)
+
+#define CEA_ESTACK_BOT(ceastp, st)				\
+	((unsigned long)&(ceastp)->st## _stack)
+
+#define CEA_ESTACK_TOP(ceastp, st)				\
+	(CEA_ESTACK_BOT(ceastp, st) + CEA_ESTACK_SIZE(st))
+
+#define CEA_ESTACK_OFFS(st)					\
+	offsetof(struct cea_exception_stacks, st## _stack)
+
+#define CEA_ESTACK_PAGES					\
+	(sizeof(struct cea_exception_stacks) / PAGE_SIZE)
+
+#endif
+
 /*
  * cpu_entry_area is a percpu region that contains things needed by the CPU
  * and early entry/exit code.  Real types aren't used for all fields here
@@ -32,12 +90,9 @@ struct cpu_entry_area {
 
 #ifdef CONFIG_X86_64
 	/*
-	 * Exception stacks used for IST entries.
-	 *
-	 * In the future, this should have a separate slot for each stack
-	 * with guard pages between them.
+	 * Exception stacks used for IST entries with guard pages.
 	 */
-	char exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ];
+	struct cea_exception_stacks estacks;
 #endif
 #ifdef CONFIG_CPU_SUP_INTEL
 	/*
@@ -57,6 +112,7 @@ struct cpu_entry_area {
 #define CPU_ENTRY_AREA_TOT_SIZE	(CPU_ENTRY_AREA_SIZE * NR_CPUS)
 
 DECLARE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
+DECLARE_PER_CPU(struct cea_exception_stacks *, cea_exception_stacks);
 
 extern void setup_cpu_entry_areas(void);
 extern void cea_set_pte(void *cea_vaddr, phys_addr_t pa, pgprot_t flags);
@@ -75,5 +131,8 @@ static inline struct entry_stack *cpu_entry_stack(int cpu)
 {
 	return &get_cpu_entry_area(cpu)->entry_stack_page.stack;
 }
+
+#define __this_cpu_ist_top_va(name)					\
+	CEA_ESTACK_TOP(__this_cpu_read(cea_exception_stacks), name)
 
 #endif

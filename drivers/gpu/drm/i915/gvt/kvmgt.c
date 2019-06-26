@@ -1576,7 +1576,7 @@ hw_id_show(struct device *dev, struct device_attribute *attr,
 		struct intel_vgpu *vgpu = (struct intel_vgpu *)
 			mdev_get_drvdata(mdev);
 		return sprintf(buf, "%u\n",
-			       vgpu->submission.shadow_ctx->hw_id);
+			       vgpu->submission.shadow[0]->gem_context->hw_id);
 	}
 	return sprintf(buf, "\n");
 }

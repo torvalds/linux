@@ -278,6 +278,8 @@ mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst);
 int mesh_path_add_gate(struct mesh_path *mpath);
 int mesh_path_send_to_gates(struct mesh_path *mpath);
 int mesh_gate_num(struct ieee80211_sub_if_data *sdata);
+u32 airtime_link_metric_get(struct ieee80211_local *local,
+			    struct sta_info *sta);
 
 /* Mesh plinks */
 void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,

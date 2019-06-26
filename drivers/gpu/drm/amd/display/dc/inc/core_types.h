@@ -82,7 +82,6 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option);
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
-#include "hw/clk_mgr.h"
 #include "transform.h"
 #include "dpp.h"
 
@@ -122,6 +121,11 @@ struct resource_funcs {
 				struct dc_stream_state *stream);
 	enum dc_status (*get_default_swizzle_mode)(
 			struct dc_plane_state *plane_state);
+
+	struct stream_encoder *(*find_first_free_match_stream_enc_for_link)(
+			struct resource_context *res_ctx,
+			const struct resource_pool *pool,
+			struct dc_stream_state *stream);
 
 };
 
@@ -173,7 +177,6 @@ struct resource_pool {
 	unsigned int audio_count;
 	struct audio_support audio_support;
 
-	struct clk_mgr *clk_mgr;
 	struct dccg *dccg;
 	struct irq_service *irqs;
 
@@ -212,6 +215,25 @@ struct plane_resource {
 	struct dcn_fe_bandwidth bw;
 };
 
+union pipe_update_flags {
+	struct {
+		uint32_t enable : 1;
+		uint32_t disable : 1;
+		uint32_t odm : 1;
+		uint32_t global_sync : 1;
+		uint32_t opp_changed : 1;
+		uint32_t tg_changed : 1;
+		uint32_t mpcc : 1;
+		uint32_t dppclk : 1;
+		uint32_t hubp_interdependent : 1;
+		uint32_t hubp_rq_dlg_ttu : 1;
+		uint32_t gamut_remap : 1;
+		uint32_t scaler : 1;
+		uint32_t viewport : 1;
+	} bits;
+	uint32_t raw;
+};
+
 struct pipe_ctx {
 	struct dc_plane_state *plane_state;
 	struct dc_stream_state *stream;
@@ -234,6 +256,7 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
 #endif
+	union pipe_update_flags update_flags;
 };
 
 struct resource_context {

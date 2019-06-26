@@ -383,6 +383,9 @@ struct iwl_csr_params {
  * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @min_txq_size: minimum number of slots required in a TX queue
  * @umac_prph_offset: offset to add to UMAC periphery address
+ * @uhb_supported: ultra high band channels supported
+ * @min_256_ba_txq_size: minimum number of slots required in a TX queue which
+ *	supports 256 BA aggregation
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -433,7 +436,8 @@ struct iwl_cfg {
 	    gen2:1,
 	    cdb:1,
 	    dbgc_supported:1,
-	    bisr_workaround:1;
+	    bisr_workaround:1,
+	    uhb_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
@@ -450,6 +454,12 @@ struct iwl_cfg {
 	u32 d3_debug_data_length;
 	u32 min_txq_size;
 	u32 umac_prph_offset;
+	u32 fw_mon_smem_write_ptr_addr;
+	u32 fw_mon_smem_write_ptr_msk;
+	u32 fw_mon_smem_cycle_cnt_ptr_addr;
+	u32 fw_mon_smem_cycle_cnt_ptr_msk;
+	u32 gp2_reg_addr;
+	u32 min_256_ba_txq_size;
 };
 
 extern const struct iwl_csr_params iwl_csr_v1;
@@ -549,8 +559,9 @@ extern const struct iwl_cfg iwl22000_2ac_cfg_hr;
 extern const struct iwl_cfg iwl22000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwl22000_2ac_cfg_jf;
 extern const struct iwl_cfg iwl_ax101_cfg_qu_hr;
+extern const struct iwl_cfg iwl_ax101_cfg_quz_hr;
 extern const struct iwl_cfg iwl22000_2ax_cfg_hr;
-extern const struct iwl_cfg iwl22260_2ax_cfg;
+extern const struct iwl_cfg iwl_ax200_cfg_cc;
 extern const struct iwl_cfg killer1650s_2ax_cfg_qu_b0_hr_b0;
 extern const struct iwl_cfg killer1650i_2ax_cfg_qu_b0_hr_b0;
 extern const struct iwl_cfg killer1650x_2ax_cfg;
@@ -567,11 +578,11 @@ extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0_f0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0;
 extern const struct iwl_cfg iwl9560_2ac_cfg_qnj_jf_b0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0;
-extern const struct iwl_cfg iwl22560_2ax_cfg_su_cdb;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_a0;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_hr_a0;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_gf_a0;
 extern const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0;
+extern const struct iwl_cfg iwlax210_2ax_cfg_so_gf4_a0;
 #endif /* CPTCFG_IWLMVM || CPTCFG_IWLFMAC */
 
 #endif /* __IWL_CONFIG_H__ */

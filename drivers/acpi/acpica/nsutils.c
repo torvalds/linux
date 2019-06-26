@@ -178,7 +178,7 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 		}
 	}
 
-	info->length = (ACPI_NAME_SIZE * info->num_segments) +
+	info->length = (ACPI_NAMESEG_SIZE * info->num_segments) +
 	    4 + info->num_carats;
 
 	info->next_external_char = next_external_char;
@@ -249,7 +249,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 	/* Build the name (minus path separators) */
 
 	for (; num_segments; num_segments--) {
-		for (i = 0; i < ACPI_NAME_SIZE; i++) {
+		for (i = 0; i < ACPI_NAMESEG_SIZE; i++) {
 			if (ACPI_IS_PATH_SEPARATOR(*external_name) ||
 			    (*external_name == 0)) {
 
@@ -274,7 +274,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 		/* Move on the next segment */
 
 		external_name++;
-		result += ACPI_NAME_SIZE;
+		result += ACPI_NAMESEG_SIZE;
 	}
 
 	/* Terminate the string */
@@ -489,12 +489,12 @@ acpi_ns_externalize_name(u32 internal_name_length,
 
 			/* Copy and validate the 4-char name segment */
 
-			ACPI_MOVE_NAME(&(*converted_name)[j],
-				       &internal_name[names_index]);
+			ACPI_COPY_NAMESEG(&(*converted_name)[j],
+					  &internal_name[names_index]);
 			acpi_ut_repair_name(&(*converted_name)[j]);
 
-			j += ACPI_NAME_SIZE;
-			names_index += ACPI_NAME_SIZE;
+			j += ACPI_NAMESEG_SIZE;
+			names_index += ACPI_NAMESEG_SIZE;
 		}
 	}
 

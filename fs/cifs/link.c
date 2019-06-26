@@ -648,9 +648,16 @@ cifs_get_link(struct dentry *direntry, struct inode *inode,
 		rc = query_mf_symlink(xid, tcon, cifs_sb, full_path,
 				      &target_path);
 
-	if (rc != 0 && server->ops->query_symlink)
-		rc = server->ops->query_symlink(xid, tcon, full_path,
-						&target_path, cifs_sb);
+	if (rc != 0 && server->ops->query_symlink) {
+		struct cifsInodeInfo *cifsi = CIFS_I(inode);
+		bool reparse_point = false;
+
+		if (cifsi->cifsAttrs & ATTR_REPARSE)
+			reparse_point = true;
+
+		rc = server->ops->query_symlink(xid, tcon, cifs_sb, full_path,
+						&target_path, reparse_point);
+	}
 
 	kfree(full_path);
 	free_xid(xid);

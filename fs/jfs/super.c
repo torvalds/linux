@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2004
  *   Portions Copyright (C) Christoph Hellwig, 2001-2002
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/fs.h>
@@ -124,27 +111,9 @@ static struct inode *jfs_alloc_inode(struct super_block *sb)
 	return &jfs_inode->vfs_inode;
 }
 
-static void jfs_i_callback(struct rcu_head *head)
+static void jfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	struct jfs_inode_info *ji = JFS_IP(inode);
-	kmem_cache_free(jfs_inode_cachep, ji);
-}
-
-static void jfs_destroy_inode(struct inode *inode)
-{
-	struct jfs_inode_info *ji = JFS_IP(inode);
-
-	BUG_ON(!list_empty(&ji->anon_inode_list));
-
-	spin_lock_irq(&ji->ag_lock);
-	if (ji->active_ag != -1) {
-		struct bmap *bmap = JFS_SBI(inode->i_sb)->bmap;
-		atomic_dec(&bmap->db_active[ji->active_ag]);
-		ji->active_ag = -1;
-	}
-	spin_unlock_irq(&ji->ag_lock);
-	call_rcu(&inode->i_rcu, jfs_i_callback);
+	kmem_cache_free(jfs_inode_cachep, JFS_IP(inode));
 }
 
 static int jfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -174,9 +143,11 @@ static int jfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = maxinodes;
 	buf->f_ffree = maxinodes - (atomic_read(&imap->im_numinos) -
 				    atomic_read(&imap->im_numfree));
-	buf->f_fsid.val[0] = (u32)crc32_le(0, sbi->uuid, sizeof(sbi->uuid)/2);
-	buf->f_fsid.val[1] = (u32)crc32_le(0, sbi->uuid + sizeof(sbi->uuid)/2,
-					sizeof(sbi->uuid)/2);
+	buf->f_fsid.val[0] = crc32_le(0, (char *)&sbi->uuid,
+				      sizeof(sbi->uuid)/2);
+	buf->f_fsid.val[1] = crc32_le(0,
+				      (char *)&sbi->uuid + sizeof(sbi->uuid)/2,
+				      sizeof(sbi->uuid)/2);
 
 	buf->f_namelen = JFS_NAME_MAX;
 	return 0;
@@ -912,7 +883,7 @@ out:
 
 static const struct super_operations jfs_super_operations = {
 	.alloc_inode	= jfs_alloc_inode,
-	.destroy_inode	= jfs_destroy_inode,
+	.free_inode	= jfs_free_inode,
 	.dirty_inode	= jfs_dirty_inode,
 	.write_inode	= jfs_write_inode,
 	.evict_inode	= jfs_evict_inode,

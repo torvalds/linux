@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright 2007-2010 Red Hat, Inc.
  *  by Peter Jones <pjones@redhat.com>
@@ -7,15 +8,6 @@
  *  by Konrad Rzeszutek <ketuzsezr@darnok.org>
  *
  * This code exposes the iSCSI Boot Format Table to userland via sysfs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Changelog:
  *
@@ -63,7 +55,6 @@
  *
  *  27 Aug 2007 - Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
  *   First version exposing iBFT data via a binary /sysfs. (v0.1)
- *
  */
 
 
@@ -425,7 +416,7 @@ static ssize_t ibft_attr_show_acpitbl(void *data, int type, char *buf)
 
 	switch (type) {
 	case ISCSI_BOOT_ACPITBL_SIGNATURE:
-		str += sprintf_string(str, ACPI_NAME_SIZE,
+		str += sprintf_string(str, ACPI_NAMESEG_SIZE,
 				      entry->header->header.signature);
 		break;
 	case ISCSI_BOOT_ACPITBL_OEM_ID:

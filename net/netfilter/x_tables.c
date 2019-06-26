@@ -227,7 +227,7 @@ xt_request_find_match(uint8_t nfproto, const char *name, uint8_t revision)
 EXPORT_SYMBOL_GPL(xt_request_find_match);
 
 /* Find target, grabs ref.  Returns ERR_PTR() on error. */
-struct xt_target *xt_find_target(u8 af, const char *name, u8 revision)
+static struct xt_target *xt_find_target(u8 af, const char *name, u8 revision)
 {
 	struct xt_target *t;
 	int err = -ENOENT;
@@ -255,7 +255,6 @@ struct xt_target *xt_find_target(u8 af, const char *name, u8 revision)
 
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL(xt_find_target);
 
 struct xt_target *xt_request_find_target(u8 af, const char *name, u8 revision)
 {

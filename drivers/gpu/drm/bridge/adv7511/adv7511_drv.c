@@ -1,25 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Analog Devices ADV7511 HDMI transmitter driver
  *
  * Copyright 2012 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
-#include <linux/clk.h>
 
-#include <drm/drmP.h>
+#include <media/cec.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-
-#include <media/cec.h>
 
 #include "adv7511.h"
 

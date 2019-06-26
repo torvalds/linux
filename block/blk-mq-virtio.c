@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 Christoph Hellwig.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #include <linux/device.h>
 #include <linux/blk-mq.h>
@@ -19,8 +11,8 @@
 
 /**
  * blk_mq_virtio_map_queues - provide a default queue mapping for virtio device
- * @set:	tagset to provide the mapping for
- * @vdev:	virtio device associated with @set.
+ * @qmap:	CPU to hardware queue map.
+ * @vdev:	virtio device to provide a mapping for.
  * @first_vec:	first interrupt vectors to use for queues (usually 0)
  *
  * This function assumes the virtio device @vdev has at least as many available

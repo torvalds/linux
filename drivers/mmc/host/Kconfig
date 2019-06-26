@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # MMC/SD host controller drivers
 #
@@ -92,6 +93,7 @@ config MMC_SDHCI_PCI
 	tristate "SDHCI support on PCI bus"
 	depends on MMC_SDHCI && PCI
 	select MMC_CQHCI
+	select IOSF_MBI if X86
 	help
 	  This selects the PCI Secure Digital Host Controller Interface.
 	  Most controllers found today are PCI devices.
@@ -437,7 +439,7 @@ config MMC_WBSD
 	depends on ISA_DMA_API
 	help
 	  This selects the Winbond(R) W83L51xD Secure digital and
-          Multimedia card Interface.
+	  Multimedia card Interface.
 	  If you have a machine with a integrated W83L518D or W83L519D
 	  SD/MMC card reader, say Y or M here.
 
@@ -515,7 +517,7 @@ config MMC_TIFM_SD
 	  'Misc devices: TI Flash Media PCI74xx/PCI76xx host adapter support
 	  (TIFM_7XX1)'.
 
-          To compile this driver as a module, choose M here: the
+	  To compile this driver as a module, choose M here: the
 	  module will be called tifm_sd.
 
 config MMC_MVSDIO
@@ -531,12 +533,12 @@ config MMC_MVSDIO
 	  module will be called mvsdio.
 
 config MMC_DAVINCI
-        tristate "TI DAVINCI Multimedia Card Interface support"
-        depends on ARCH_DAVINCI
-        help
-          This selects the TI DAVINCI Multimedia card Interface.
-          If you have an DAVINCI board with a Multimedia Card slot,
-          say Y or M here.  If unsure, say N.
+	tristate "TI DAVINCI Multimedia Card Interface support"
+	depends on ARCH_DAVINCI
+	help
+	  This selects the TI DAVINCI Multimedia card Interface.
+	  If you have an DAVINCI board with a Multimedia Card slot,
+	  say Y or M here.  If unsure, say N.
 
 config MMC_GOLDFISH
 	tristate "goldfish qemu Multimedia Card Interface support"
@@ -565,18 +567,18 @@ config MMC_S3C
 	depends on S3C24XX_DMAC
 	help
 	  This selects a driver for the MCI interface found in
-          Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
+	  Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
 	  If you have a board based on one of those and a MMC/SD
 	  slot, say Y or M here.
 
 	  If unsure, say N.
 
 config MMC_S3C_HW_SDIO_IRQ
-       bool "Hardware support for SDIO IRQ"
-       depends on MMC_S3C
-       help
-         Enable the hardware support for SDIO interrupts instead of using
-	 the generic polling code.
+	bool "Hardware support for SDIO IRQ"
+	depends on MMC_S3C
+	help
+	  Enable the hardware support for SDIO interrupts instead of using
+	  the generic polling code.
 
 choice
 	prompt "Samsung S3C SD/MMC transfer code"
@@ -941,6 +943,7 @@ config MMC_BCM2835
 config MMC_MTK
 	tristate "MediaTek SD/MMC Card Interface support"
 	depends on HAS_DMA
+	select REGULATOR
 	help
 	  This selects the MediaTek(R) Secure digital and Multimedia card Interface.
 	  If you have a machine with a integrated SD/MMC card reader, say Y or M here.
@@ -948,15 +951,16 @@ config MMC_MTK
 	  If unsure, say N.
 
 config MMC_SDHCI_MICROCHIP_PIC32
-        tristate "Microchip PIC32MZDA SDHCI support"
-        depends on MMC_SDHCI && PIC32MZDA && MMC_SDHCI_PLTFM
-        help
-          This selects the Secure Digital Host Controller Interface (SDHCI)
-          for PIC32MZDA platform.
+	tristate "Microchip PIC32MZDA SDHCI support"
+	depends on MMC_SDHCI && PIC32MZDA && MMC_SDHCI_PLTFM
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  for PIC32MZDA platform.
 
-          If you have a controller with this interface, say Y or M here.
+	  If you have a controller with this interface, say Y or M here.
 
-          If unsure, say N.
+	  If unsure, say N.
+
 config MMC_SDHCI_BRCMSTB
 	tristate "Broadcom SDIO/SD/MMC support"
 	depends on ARCH_BRCMSTB || BMIPS_GENERIC
@@ -993,6 +997,7 @@ config MMC_SDHCI_OMAP
 config MMC_SDHCI_AM654
 	tristate "Support for the SDHCI Controller in TI's AM654 SOCs"
 	depends on MMC_SDHCI_PLTFM && OF
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in TI's AM654 SOCs. The controller supports

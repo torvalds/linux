@@ -228,6 +228,7 @@ static void pblk_submit_rec(struct work_struct *work)
 	mempool_free(recovery, &pblk->rec_pool);
 
 	atomic_dec(&pblk->inflight_io);
+	pblk_write_kick(pblk);
 }
 
 

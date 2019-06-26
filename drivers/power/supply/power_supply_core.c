@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Universal power supply monitor class
  *
@@ -6,8 +7,6 @@
  *  Copyright © 2003  Ian Molton <spyro@f2s.com>
  *
  *  Modified: 2004, Oct     Szabolcs Gyurko
- *
- *  You may use this code as per GPL version 2
  */
 
 #include <linux/module.h>
@@ -598,10 +597,12 @@ int power_supply_get_battery_info(struct power_supply *psy,
 
 	err = of_property_read_string(battery_np, "compatible", &value);
 	if (err)
-		return err;
+		goto out_put_node;
 
-	if (strcmp("simple-battery", value))
-		return -ENODEV;
+	if (strcmp("simple-battery", value)) {
+		err = -ENODEV;
+		goto out_put_node;
+	}
 
 	/* The property and field names below must correspond to elements
 	 * in enum power_supply_property. For reasoning, see
@@ -620,19 +621,21 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			     &info->precharge_current_ua);
 	of_property_read_u32(battery_np, "charge-term-current-microamp",
 			     &info->charge_term_current_ua);
-	of_property_read_u32(battery_np, "constant_charge_current_max_microamp",
+	of_property_read_u32(battery_np, "constant-charge-current-max-microamp",
 			     &info->constant_charge_current_max_ua);
-	of_property_read_u32(battery_np, "constant_charge_voltage_max_microvolt",
+	of_property_read_u32(battery_np, "constant-charge-voltage-max-microvolt",
 			     &info->constant_charge_voltage_max_uv);
 	of_property_read_u32(battery_np, "factory-internal-resistance-micro-ohms",
 			     &info->factory_internal_resistance_uohm);
 
 	len = of_property_count_u32_elems(battery_np, "ocv-capacity-celsius");
 	if (len < 0 && len != -EINVAL) {
-		return len;
+		err = len;
+		goto out_put_node;
 	} else if (len > POWER_SUPPLY_OCV_TEMP_MAX) {
 		dev_err(&psy->dev, "Too many temperature values\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_put_node;
 	} else if (len > 0) {
 		of_property_read_u32_array(battery_np, "ocv-capacity-celsius",
 					   info->ocv_temp, len);
@@ -650,7 +653,8 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			dev_err(&psy->dev, "failed to get %s\n", propname);
 			kfree(propname);
 			power_supply_put_battery_info(psy, info);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_put_node;
 		}
 
 		kfree(propname);
@@ -661,16 +665,21 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			devm_kcalloc(&psy->dev, tab_len, sizeof(*table), GFP_KERNEL);
 		if (!info->ocv_table[index]) {
 			power_supply_put_battery_info(psy, info);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto out_put_node;
 		}
 
 		for (i = 0; i < tab_len; i++) {
-			table[i].ocv = be32_to_cpu(*list++);
-			table[i].capacity = be32_to_cpu(*list++);
+			table[i].ocv = be32_to_cpu(*list);
+			list++;
+			table[i].capacity = be32_to_cpu(*list);
+			list++;
 		}
 	}
 
-	return 0;
+out_put_node:
+	of_node_put(battery_np);
+	return err;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_battery_info);
 
@@ -899,7 +908,7 @@ static int ps_get_max_charge_cntl_limit(struct thermal_cooling_device *tcd,
 	return ret;
 }
 
-static int ps_get_cur_chrage_cntl_limit(struct thermal_cooling_device *tcd,
+static int ps_get_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
 					unsigned long *state)
 {
 	struct power_supply *psy;
@@ -934,7 +943,7 @@ static int ps_set_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
 
 static const struct thermal_cooling_device_ops psy_tcd_ops = {
 	.get_max_state = ps_get_max_charge_cntl_limit,
-	.get_cur_state = ps_get_cur_chrage_cntl_limit,
+	.get_cur_state = ps_get_cur_charge_cntl_limit,
 	.set_cur_state = ps_set_cur_charge_cntl_limit,
 };
 

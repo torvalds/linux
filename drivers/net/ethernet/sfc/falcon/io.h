@@ -108,7 +108,6 @@ static inline void ef4_writeo(struct ef4_nic *efx, const ef4_oword_t *value,
 	_ef4_writed(efx, value->u32[2], reg + 8);
 	_ef4_writed(efx, value->u32[3], reg + 12);
 #endif
-	mmiowb();
 	spin_unlock_irqrestore(&efx->biu_lock, flags);
 }
 
@@ -130,7 +129,6 @@ static inline void ef4_sram_writeq(struct ef4_nic *efx, void __iomem *membase,
 	__raw_writel((__force u32)value->u32[0], membase + addr);
 	__raw_writel((__force u32)value->u32[1], membase + addr + 4);
 #endif
-	mmiowb();
 	spin_unlock_irqrestore(&efx->biu_lock, flags);
 }
 

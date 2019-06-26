@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Derived from arch/i386/kernel/irq.c
  *    Copyright (C) 1992 Linus Torvalds
@@ -7,11 +8,6 @@
  *    Copyright (C) 1996-2001 Cort Dougan
  *  Adapted for Power Macintosh by Paul Mackerras
  *    Copyright (C) 1996 Paul Mackerras (paulus@cs.anu.edu.au)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * This file contains the code used by various IRQ handling routines:
  * asking for different IRQ's should be done through these routines
@@ -81,10 +77,7 @@
 DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
 
-int __irq_offset_value;
-
 #ifdef CONFIG_PPC32
-EXPORT_SYMBOL(__irq_offset_value);
 atomic_t ppc_n_lost_interrupts;
 
 #ifdef CONFIG_TAU_INT
@@ -261,16 +254,9 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	 */
 	irq_happened = get_irq_happened();
 	if (!irq_happened) {
-		/*
-		 * FIXME. Here we'd like to be able to do:
-		 *
-		 * #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-		 *   WARN_ON(!(mfmsr() & MSR_EE));
-		 * #endif
-		 *
-		 * But currently it hits in a few paths, we should fix those and
-		 * enable the warning.
-		 */
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+		WARN_ON(!(mfmsr() & MSR_EE));
+#endif
 		return;
 	}
 

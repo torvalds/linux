@@ -321,7 +321,7 @@ netdev_tx_t ef4_enqueue_skb(struct ef4_tx_queue *tx_queue, struct sk_buff *skb)
 	netdev_tx_sent_queue(tx_queue->core_txq, skb_len);
 
 	/* Pass off to hardware */
-	if (!skb->xmit_more || netif_xmit_stopped(tx_queue->core_txq)) {
+	if (!netdev_xmit_more() || netif_xmit_stopped(tx_queue->core_txq)) {
 		struct ef4_tx_queue *txq2 = ef4_tx_queue_partner(tx_queue);
 
 		/* There could be packets left on the partner queue if those
@@ -333,7 +333,7 @@ netdev_tx_t ef4_enqueue_skb(struct ef4_tx_queue *tx_queue, struct sk_buff *skb)
 
 		ef4_nic_push_buffers(tx_queue);
 	} else {
-		tx_queue->xmit_more_available = skb->xmit_more;
+		tx_queue->xmit_more_available = netdev_xmit_more();
 	}
 
 	tx_queue->tx_packets++;

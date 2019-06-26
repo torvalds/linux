@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include "util.h"
 #include "pmu.h"
+#include "evsel.h"
 #include "debug.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
@@ -45,6 +46,7 @@ static void inc_group_count(struct list_head *list,
 
 %token PE_START_EVENTS PE_START_TERMS
 %token PE_VALUE PE_VALUE_SYM_HW PE_VALUE_SYM_SW PE_RAW PE_TERM
+%token PE_VALUE_SYM_TOOL
 %token PE_EVENT_NAME
 %token PE_NAME
 %token PE_BPF_OBJECT PE_BPF_SOURCE
@@ -58,6 +60,7 @@ static void inc_group_count(struct list_head *list,
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_HW
 %type <num> PE_VALUE_SYM_SW
+%type <num> PE_VALUE_SYM_TOOL
 %type <num> PE_RAW
 %type <num> PE_TERM
 %type <str> PE_NAME
@@ -319,6 +322,15 @@ value_sym sep_slash_slash_dc
 
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_add_numeric(_parse_state, list, type, config, NULL));
+	$$ = list;
+}
+|
+PE_VALUE_SYM_TOOL sep_slash_slash_dc
+{
+	struct list_head *list;
+
+	ALLOC_LIST(list);
+	ABORT_ON(parse_events_add_tool(_parse_state, list, $1));
 	$$ = list;
 }
 

@@ -31,29 +31,23 @@ void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
 
 static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 {
-	struct uml_pt_regs *r;
+	struct uml_pt_regs r;
 	int save_errno = errno;
 
-	r = uml_kmalloc(sizeof(struct uml_pt_regs), UM_GFP_ATOMIC);
-	if (!r)
-		panic("out of memory");
-
-	r->is_user = 0;
+	r.is_user = 0;
 	if (sig == SIGSEGV) {
 		/* For segfaults, we want the data from the sigcontext. */
-		get_regs_from_mc(r, mc);
-		GET_FAULTINFO_FROM_MC(r->faultinfo, mc);
+		get_regs_from_mc(&r, mc);
+		GET_FAULTINFO_FROM_MC(r.faultinfo, mc);
 	}
 
 	/* enable signals if sig isn't IRQ signal */
 	if ((sig != SIGIO) && (sig != SIGWINCH) && (sig != SIGALRM))
 		unblock_signals();
 
-	(*sig_info[sig])(sig, si, r);
+	(*sig_info[sig])(sig, si, &r);
 
 	errno = save_errno;
-
-	free(r);
 }
 
 /*
@@ -91,17 +85,11 @@ void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 
 static void timer_real_alarm_handler(mcontext_t *mc)
 {
-	struct uml_pt_regs *regs;
-
-	regs = uml_kmalloc(sizeof(struct uml_pt_regs), UM_GFP_ATOMIC);
-	if (!regs)
-		panic("out of memory");
+	struct uml_pt_regs regs;
 
 	if (mc != NULL)
-		get_regs_from_mc(regs, mc);
-	timer_handler(SIGALRM, NULL, regs);
-
-	free(regs);
+		get_regs_from_mc(&regs, mc);
+	timer_handler(SIGALRM, NULL, &regs);
 }
 
 void timer_alarm_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)

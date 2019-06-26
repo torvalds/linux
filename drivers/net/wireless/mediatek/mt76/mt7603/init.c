@@ -167,7 +167,8 @@ mt7603_mac_init(struct mt7603_dev *dev)
 		FIELD_PREP(MT_AGG_RETRY_CONTROL_BAR_LIMIT, 1) |
 		FIELD_PREP(MT_AGG_RETRY_CONTROL_RTS_LIMIT, 15));
 
-	mt76_rmw(dev, MT_DMA_DCR0, ~0xfffc, 4096);
+	mt76_wr(dev, MT_DMA_DCR0, MT_DMA_DCR0_RX_VEC_DROP |
+		FIELD_PREP(MT_DMA_DCR0_MAX_RX_LEN, 4096));
 
 	mt76_rmw(dev, MT_DMA_VCFR0, BIT(0), BIT(13));
 	mt76_rmw(dev, MT_DMA_TMCFR0, BIT(0) | BIT(1), BIT(13));
@@ -488,6 +489,7 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 	for (i = 0; i < sband->n_channels; i++) {
 		chan = &sband->channels[i];
 		chan->max_power = target_power;
+		chan->orig_mpwr = target_power;
 	}
 }
 
@@ -510,8 +512,10 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	bus_ops->rmw = mt7603_rmw;
 	dev->mt76.bus = bus_ops;
 
-	INIT_DELAYED_WORK(&dev->mac_work, mt7603_mac_work);
-	tasklet_init(&dev->pre_tbtt_tasklet, mt7603_pre_tbtt_tasklet,
+	spin_lock_init(&dev->ps_lock);
+
+	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7603_mac_work);
+	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt7603_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
 	/* Check for 7688, which only has 1SS */
@@ -570,9 +574,9 @@ int mt7603_register_device(struct mt7603_dev *dev)
 
 void mt7603_unregister_device(struct mt7603_dev *dev)
 {
-	tasklet_disable(&dev->pre_tbtt_tasklet);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	mt76_unregister_device(&dev->mt76);
 	mt7603_mcu_exit(dev);
 	mt7603_dma_cleanup(dev);
-	ieee80211_free_hw(mt76_hw(dev));
+	mt76_free_device(&dev->mt76);
 }

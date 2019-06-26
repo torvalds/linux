@@ -33,7 +33,6 @@ int __ubifs_node_calc_hash(const struct ubifs_info *c, const void *node,
 	int err;
 
 	shash->tfm = c->hash_tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_digest(shash, node, le32_to_cpu(ch->len), hash);
 	if (err < 0)
@@ -56,7 +55,6 @@ static int ubifs_hash_calc_hmac(const struct ubifs_info *c, const u8 *hash,
 	int err;
 
 	shash->tfm = c->hmac_tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_digest(shash, hash, c->hash_len, hmac);
 	if (err < 0)
@@ -78,7 +76,6 @@ static int ubifs_hash_calc_hmac(const struct ubifs_info *c, const u8 *hash,
 int ubifs_prepare_auth_node(struct ubifs_info *c, void *node,
 			     struct shash_desc *inhash)
 {
-	SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
 	struct ubifs_auth_node *auth = node;
 	u8 *hash;
 	int err;
@@ -87,13 +84,16 @@ int ubifs_prepare_auth_node(struct ubifs_info *c, void *node,
 	if (!hash)
 		return -ENOMEM;
 
-	hash_desc->tfm = c->hash_tfm;
-	hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	ubifs_shash_copy_state(c, inhash, hash_desc);
+	{
+		SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
 
-	err = crypto_shash_final(hash_desc, hash);
-	if (err)
-		goto out;
+		hash_desc->tfm = c->hash_tfm;
+		ubifs_shash_copy_state(c, inhash, hash_desc);
+
+		err = crypto_shash_final(hash_desc, hash);
+		if (err)
+			goto out;
+	}
 
 	err = ubifs_hash_calc_hmac(c, hash, auth->hmac);
 	if (err)
@@ -123,7 +123,6 @@ static struct shash_desc *ubifs_get_desc(const struct ubifs_info *c,
 		return ERR_PTR(-ENOMEM);
 
 	desc->tfm = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_init(desc);
 	if (err) {
@@ -144,24 +143,6 @@ static struct shash_desc *ubifs_get_desc(const struct ubifs_info *c,
 struct shash_desc *__ubifs_hash_get_desc(const struct ubifs_info *c)
 {
 	return ubifs_get_desc(c, c->hash_tfm);
-}
-
-/**
- * __ubifs_shash_final - finalize shash
- * @c: UBIFS file-system description object
- * @desc: the descriptor
- * @out: the output hash
- *
- * Simple wrapper around crypto_shash_final(), safe to be called with
- * disabled authentication.
- */
-int __ubifs_shash_final(const struct ubifs_info *c, struct shash_desc *desc,
-			u8 *out)
-{
-	if (ubifs_authenticated(c))
-		return crypto_shash_final(desc, out);
-
-	return 0;
 }
 
 /**
@@ -364,7 +345,6 @@ static int ubifs_node_calc_hmac(const struct ubifs_info *c, const void *node,
 	ubifs_assert(c, ofs_hmac + hmac_len < len);
 
 	shash->tfm = c->hmac_tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_init(shash);
 	if (err)
@@ -483,7 +463,6 @@ int ubifs_hmac_wkm(struct ubifs_info *c, u8 *hmac)
 		return 0;
 
 	shash->tfm = c->hmac_tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_init(shash);
 	if (err)

@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2015 Atmel Corporation,
  *                     Nicolas Ferre <nicolas.ferre@atmel.com>
  *
  * Based on clk-programmable & clk-peripheral drivers by Boris BREZILLON.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
@@ -31,6 +27,7 @@ struct clk_generated {
 	spinlock_t *lock;
 	u32 id;
 	u32 gckdiv;
+	const struct clk_pcr_layout *layout;
 	u8 parent_id;
 	bool audio_pll_allowed;
 };
@@ -47,14 +44,14 @@ static int clk_generated_enable(struct clk_hw *hw)
 		 __func__, gck->gckdiv, gck->parent_id);
 
 	spin_lock_irqsave(gck->lock, flags);
-	regmap_write(gck->regmap, AT91_PMC_PCR,
-		     (gck->id & AT91_PMC_PCR_PID_MASK));
-	regmap_update_bits(gck->regmap, AT91_PMC_PCR,
-			   AT91_PMC_PCR_GCKDIV_MASK | AT91_PMC_PCR_GCKCSS_MASK |
-			   AT91_PMC_PCR_CMD | AT91_PMC_PCR_GCKEN,
-			   AT91_PMC_PCR_GCKCSS(gck->parent_id) |
-			   AT91_PMC_PCR_CMD |
-			   AT91_PMC_PCR_GCKDIV(gck->gckdiv) |
+	regmap_write(gck->regmap, gck->layout->offset,
+		     (gck->id & gck->layout->pid_mask));
+	regmap_update_bits(gck->regmap, gck->layout->offset,
+			   AT91_PMC_PCR_GCKDIV_MASK | gck->layout->gckcss_mask |
+			   gck->layout->cmd | AT91_PMC_PCR_GCKEN,
+			   field_prep(gck->layout->gckcss_mask, gck->parent_id) |
+			   gck->layout->cmd |
+			   FIELD_PREP(AT91_PMC_PCR_GCKDIV_MASK, gck->gckdiv) |
 			   AT91_PMC_PCR_GCKEN);
 	spin_unlock_irqrestore(gck->lock, flags);
 	return 0;
@@ -66,11 +63,11 @@ static void clk_generated_disable(struct clk_hw *hw)
 	unsigned long flags;
 
 	spin_lock_irqsave(gck->lock, flags);
-	regmap_write(gck->regmap, AT91_PMC_PCR,
-		     (gck->id & AT91_PMC_PCR_PID_MASK));
-	regmap_update_bits(gck->regmap, AT91_PMC_PCR,
-			   AT91_PMC_PCR_CMD | AT91_PMC_PCR_GCKEN,
-			   AT91_PMC_PCR_CMD);
+	regmap_write(gck->regmap, gck->layout->offset,
+		     (gck->id & gck->layout->pid_mask));
+	regmap_update_bits(gck->regmap, gck->layout->offset,
+			   gck->layout->cmd | AT91_PMC_PCR_GCKEN,
+			   gck->layout->cmd);
 	spin_unlock_irqrestore(gck->lock, flags);
 }
 
@@ -81,9 +78,9 @@ static int clk_generated_is_enabled(struct clk_hw *hw)
 	unsigned int status;
 
 	spin_lock_irqsave(gck->lock, flags);
-	regmap_write(gck->regmap, AT91_PMC_PCR,
-		     (gck->id & AT91_PMC_PCR_PID_MASK));
-	regmap_read(gck->regmap, AT91_PMC_PCR, &status);
+	regmap_write(gck->regmap, gck->layout->offset,
+		     (gck->id & gck->layout->pid_mask));
+	regmap_read(gck->regmap, gck->layout->offset, &status);
 	spin_unlock_irqrestore(gck->lock, flags);
 
 	return status & AT91_PMC_PCR_GCKEN ? 1 : 0;
@@ -259,19 +256,18 @@ static void clk_generated_startup(struct clk_generated *gck)
 	unsigned long flags;
 
 	spin_lock_irqsave(gck->lock, flags);
-	regmap_write(gck->regmap, AT91_PMC_PCR,
-		     (gck->id & AT91_PMC_PCR_PID_MASK));
-	regmap_read(gck->regmap, AT91_PMC_PCR, &tmp);
+	regmap_write(gck->regmap, gck->layout->offset,
+		     (gck->id & gck->layout->pid_mask));
+	regmap_read(gck->regmap, gck->layout->offset, &tmp);
 	spin_unlock_irqrestore(gck->lock, flags);
 
-	gck->parent_id = (tmp & AT91_PMC_PCR_GCKCSS_MASK)
-					>> AT91_PMC_PCR_GCKCSS_OFFSET;
-	gck->gckdiv = (tmp & AT91_PMC_PCR_GCKDIV_MASK)
-					>> AT91_PMC_PCR_GCKDIV_OFFSET;
+	gck->parent_id = field_get(gck->layout->gckcss_mask, tmp);
+	gck->gckdiv = FIELD_GET(AT91_PMC_PCR_GCKDIV_MASK, tmp);
 }
 
 struct clk_hw * __init
 at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
+			    const struct clk_pcr_layout *layout,
 			    const char *name, const char **parent_names,
 			    u8 num_parents, u8 id, bool pll_audio,
 			    const struct clk_range *range)
@@ -298,6 +294,7 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 	gck->lock = lock;
 	gck->range = *range;
 	gck->audio_pll_allowed = pll_audio;
+	gck->layout = layout;
 
 	clk_generated_startup(gck);
 	hw = &gck->hw;

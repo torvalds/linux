@@ -12,6 +12,9 @@
  *    Andrew Patterson <andrew.patterson@hp.com>
  */
 
+#define pr_fmt(fmt) "AER: " fmt
+#define dev_fmt pr_fmt
+
 #include <linux/cper.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
@@ -779,10 +782,11 @@ static void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info)
 	u8 bus = info->id >> 8;
 	u8 devfn = info->id & 0xff;
 
-	pci_info(dev, "AER: %s%s error received: %04x:%02x:%02x.%d\n",
-		info->multi_error_valid ? "Multiple " : "",
-		aer_error_severity_string[info->severity],
-		pci_domain_nr(dev->bus), bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
+	pci_info(dev, "%s%s error received: %04x:%02x:%02x.%d\n",
+		 info->multi_error_valid ? "Multiple " : "",
+		 aer_error_severity_string[info->severity],
+		 pci_domain_nr(dev->bus), bus, PCI_SLOT(devfn),
+		 PCI_FUNC(devfn));
 }
 
 #ifdef CONFIG_ACPI_APEI_PCIEAER
@@ -964,8 +968,7 @@ static bool find_source_device(struct pci_dev *parent,
 	pci_walk_bus(parent->subordinate, find_device_iter, e_info);
 
 	if (!e_info->error_dev_num) {
-		pci_printk(KERN_DEBUG, parent, "can't find device of ID%04x\n",
-			   e_info->id);
+		pci_info(parent, "can't find device of ID%04x\n", e_info->id);
 		return false;
 	}
 	return true;
@@ -1377,25 +1380,24 @@ static int aer_probe(struct pcie_device *dev)
 	int status;
 	struct aer_rpc *rpc;
 	struct device *device = &dev->device;
+	struct pci_dev *port = dev->port;
 
 	rpc = devm_kzalloc(device, sizeof(struct aer_rpc), GFP_KERNEL);
-	if (!rpc) {
-		dev_printk(KERN_DEBUG, device, "alloc AER rpc failed\n");
+	if (!rpc)
 		return -ENOMEM;
-	}
-	rpc->rpd = dev->port;
+
+	rpc->rpd = port;
 	set_service_data(dev, rpc);
 
 	status = devm_request_threaded_irq(device, dev->irq, aer_irq, aer_isr,
 					   IRQF_SHARED, "aerdrv", dev);
 	if (status) {
-		dev_printk(KERN_DEBUG, device, "request AER IRQ %d failed\n",
-			   dev->irq);
+		pci_err(port, "request AER IRQ %d failed\n", dev->irq);
 		return status;
 	}
 
 	aer_enable_rootport(rpc);
-	dev_info(device, "AER enabled with IRQ %d\n", dev->irq);
+	pci_info(port, "enabled with IRQ %d\n", dev->irq);
 	return 0;
 }
 
@@ -1419,7 +1421,7 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, reg32);
 
 	rc = pci_bus_error_reset(dev);
-	pci_printk(KERN_DEBUG, dev, "Root Port link has been reset\n");
+	pci_info(dev, "Root Port link has been reset\n");
 
 	/* Clear Root Error Status */
 	pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &reg32);

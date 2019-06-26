@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the SWIM3 (Super Woz Integrated Machine 3)
  * floppy controller found on Power Macintoshes.
  *
  * Copyright (C) 1996 Paul Mackerras.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -1216,6 +1212,7 @@ static int swim3_attach(struct macio_dev *mdev,
 	disk->first_minor = floppy_count;
 	disk->fops = &floppy_fops;
 	disk->private_data = fs;
+	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->flags |= GENHD_FL_REMOVABLE;
 	sprintf(disk->disk_name, "fd%d", floppy_count);
 	set_capacity(disk, 2880);

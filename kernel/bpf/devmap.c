@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017 Covalent IO, Inc. http://covalent.io
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 
 /* Devmaps primary use is as a backend map for XDP BPF helper call
@@ -163,6 +155,9 @@ static void dev_map_free(struct bpf_map *map)
 
 	bpf_clear_redirect_map(map);
 	synchronize_rcu();
+
+	/* Make sure prior __dev_map_entry_free() have completed. */
+	rcu_barrier();
 
 	/* To ensure all pending flush operations have completed wait for flush
 	 * bitmap to indicate all flush_needed bits to be zero on _all_ cpus.

@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
  * Author: Mattias Wallin <mattias.wallin@stericsson.com> for ST-Ericsson.
- * License Terms: GNU General Public License v2
  */
 /*
  * AB8500 register access
@@ -2587,7 +2587,7 @@ static ssize_t ab8500_unsubscribe_write(struct file *file,
 }
 
 /*
- * - several deubgfs nodes fops
+ * - several debugfs nodes fops
  */
 
 static const struct file_operations ab8500_bank_fops = {

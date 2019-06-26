@@ -7,7 +7,7 @@
 #ifndef _STI_AWG_UTILS_H_
 #define _STI_AWG_UTILS_H_
 
-#include <drm/drmP.h>
+#include <linux/types.h>
 
 #define AWG_MAX_INST 64
 

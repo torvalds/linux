@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_EP93XX_SOC
 	tristate "SoC Audio support for the Cirrus Logic EP93xx series"
 	depends on ARCH_EP93XX || COMPILE_TEST

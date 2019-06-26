@@ -75,6 +75,27 @@ struct cros_ec_spi {
 	unsigned int end_of_msg_delay;
 };
 
+typedef int (*cros_ec_xfer_fn_t) (struct cros_ec_device *ec_dev,
+				  struct cros_ec_command *ec_msg);
+
+/**
+ * struct cros_ec_xfer_work_params - params for our high priority workers
+ *
+ * @work: The work_struct needed to queue work
+ * @fn: The function to use to transfer
+ * @ec_dev: ChromeOS EC device
+ * @ec_msg: Message to transfer
+ * @ret: The return value of the function
+ */
+
+struct cros_ec_xfer_work_params {
+	struct work_struct work;
+	cros_ec_xfer_fn_t fn;
+	struct cros_ec_device *ec_dev;
+	struct cros_ec_command *ec_msg;
+	int ret;
+};
+
 static void debug_packet(struct device *dev, const char *name, u8 *ptr,
 			 int len)
 {
@@ -350,13 +371,13 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 }
 
 /**
- * cros_ec_pkt_xfer_spi - Transfer a packet over SPI and receive the reply
+ * do_cros_ec_pkt_xfer_spi - Transfer a packet over SPI and receive the reply
  *
  * @ec_dev: ChromeOS EC device
  * @ec_msg: Message to transfer
  */
-static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
-				struct cros_ec_command *ec_msg)
+static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
+				   struct cros_ec_command *ec_msg)
 {
 	struct ec_host_response *response;
 	struct cros_ec_spi *ec_spi = ec_dev->priv;
@@ -493,13 +514,13 @@ exit:
 }
 
 /**
- * cros_ec_cmd_xfer_spi - Transfer a message over SPI and receive the reply
+ * do_cros_ec_cmd_xfer_spi - Transfer a message over SPI and receive the reply
  *
  * @ec_dev: ChromeOS EC device
  * @ec_msg: Message to transfer
  */
-static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
-				struct cros_ec_command *ec_msg)
+static int do_cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
+				   struct cros_ec_command *ec_msg)
 {
 	struct cros_ec_spi *ec_spi = ec_dev->priv;
 	struct spi_transfer trans;
@@ -609,6 +630,53 @@ exit:
 		msleep(EC_REBOOT_DELAY_MS);
 
 	return ret;
+}
+
+static void cros_ec_xfer_high_pri_work(struct work_struct *work)
+{
+	struct cros_ec_xfer_work_params *params;
+
+	params = container_of(work, struct cros_ec_xfer_work_params, work);
+	params->ret = params->fn(params->ec_dev, params->ec_msg);
+}
+
+static int cros_ec_xfer_high_pri(struct cros_ec_device *ec_dev,
+				 struct cros_ec_command *ec_msg,
+				 cros_ec_xfer_fn_t fn)
+{
+	struct cros_ec_xfer_work_params params;
+
+	INIT_WORK_ONSTACK(&params.work, cros_ec_xfer_high_pri_work);
+	params.ec_dev = ec_dev;
+	params.ec_msg = ec_msg;
+	params.fn = fn;
+
+	/*
+	 * This looks a bit ridiculous.  Why do the work on a
+	 * different thread if we're just going to block waiting for
+	 * the thread to finish?  The key here is that the thread is
+	 * running at high priority but the calling context might not
+	 * be.  We need to be at high priority to avoid getting
+	 * context switched out for too long and the EC giving up on
+	 * the transfer.
+	 */
+	queue_work(system_highpri_wq, &params.work);
+	flush_work(&params.work);
+	destroy_work_on_stack(&params.work);
+
+	return params.ret;
+}
+
+static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
+				struct cros_ec_command *ec_msg)
+{
+	return cros_ec_xfer_high_pri(ec_dev, ec_msg, do_cros_ec_pkt_xfer_spi);
+}
+
+static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
+				struct cros_ec_command *ec_msg)
+{
+	return cros_ec_xfer_high_pri(ec_dev, ec_msg, do_cros_ec_cmd_xfer_spi);
 }
 
 static void cros_ec_spi_dt_probe(struct cros_ec_spi *ec_spi, struct device *dev)

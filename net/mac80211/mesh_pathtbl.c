@@ -23,7 +23,7 @@ static void mesh_path_free_rcu(struct mesh_table *tbl, struct mesh_path *mpath);
 static u32 mesh_table_hash(const void *addr, u32 len, u32 seed)
 {
 	/* Use last four bytes of hw addr as hash index */
-	return jhash_1word(*(u32 *)(addr+2), seed);
+	return jhash_1word(__get_unaligned_cpu32((u8 *)addr + 2), seed);
 }
 
 static const struct rhashtable_params mesh_rht_params = {
@@ -217,7 +217,7 @@ static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
 {
 	struct mesh_path *mpath;
 
-	mpath = rhashtable_lookup_fast(&tbl->rhead, dst, mesh_rht_params);
+	mpath = rhashtable_lookup(&tbl->rhead, dst, mesh_rht_params);
 
 	if (mpath && mpath_expired(mpath)) {
 		spin_lock_bh(&mpath->state_lock);

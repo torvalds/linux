@@ -765,6 +765,37 @@ Here is the list of current tracers that may be configured.
 	tracers from tracing simply echo "nop" into
 	current_tracer.
 
+Error conditions
+----------------
+
+  For most ftrace commands, failure modes are obvious and communicated
+  using standard return codes.
+
+  For other more involved commands, extended error information may be
+  available via the tracing/error_log file.  For the commands that
+  support it, reading the tracing/error_log file after an error will
+  display more detailed information about what went wrong, if
+  information is available.  The tracing/error_log file is a circular
+  error log displaying a small number (currently, 8) of ftrace errors
+  for the last (8) failed commands.
+
+  The extended error information and usage takes the form shown in
+  this example::
+
+    # echo xxx > /sys/kernel/debug/tracing/events/sched/sched_wakeup/trigger
+    echo: write error: Invalid argument
+
+    # cat /sys/kernel/debug/tracing/error_log
+    [ 5348.887237] location: error: Couldn't yyy: zzz
+      Command: xxx
+               ^
+    [ 7517.023364] location: error: Bad rrr: sss
+      Command: ppp qqq
+                   ^
+
+  To clear the error log, echo the empty string into it::
+
+    # echo > /sys/kernel/debug/tracing/error_log
 
 Examples of using the tracer
 ----------------------------
@@ -1404,6 +1435,7 @@ trace has provided some very helpful debugging information.
 
 If we prefer function graph output instead of function, we can set
 display-graph option::
+
  with echo 1 > options/display-graph
 
   # tracer: irqsoff

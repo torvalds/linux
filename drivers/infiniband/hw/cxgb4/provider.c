@@ -190,7 +190,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return ret;
 }
 
-static void c4iw_deallocate_pd(struct ib_pd *pd)
+static void c4iw_deallocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
@@ -204,8 +204,7 @@ static void c4iw_deallocate_pd(struct ib_pd *pd)
 	mutex_unlock(&rhp->rdev.stats.lock);
 }
 
-static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
-			    struct ib_udata *udata)
+static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct c4iw_pd *php = to_c4iw_pd(pd);
 	struct ib_device *ibdev = pd->device;
@@ -220,11 +219,11 @@ static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
 
 	php->pdid = pdid;
 	php->rhp = rhp;
-	if (context) {
+	if (udata) {
 		struct c4iw_alloc_pd_resp uresp = {.pdid = php->pdid};
 
 		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
-			c4iw_deallocate_pd(&php->ibpd);
+			c4iw_deallocate_pd(&php->ibpd, udata);
 			return -EFAULT;
 		}
 	}
@@ -483,24 +482,6 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 		 FW_HDR_FW_VER_BUILD_G(c4iw_dev->rdev.lldi.fw_vers));
 }
 
-static struct net_device *get_netdev(struct ib_device *dev, u8 port)
-{
-	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev, ibdev);
-	struct c4iw_rdev *rdev = &c4iw_dev->rdev;
-	struct net_device *ndev;
-
-	if (!port || port > rdev->lldi.nports)
-		return NULL;
-
-	rcu_read_lock();
-	ndev = rdev->lldi.ports[port - 1];
-	if (ndev)
-		dev_hold(ndev);
-	rcu_read_unlock();
-
-	return ndev;
-}
-
 static int fill_res_entry(struct sk_buff *msg, struct rdma_restrack_entry *res)
 {
 	return (res->type < ARRAY_SIZE(c4iw_restrack_funcs) &&
@@ -528,8 +509,15 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = c4iw_get_dma_mr,
 	.get_hw_stats = c4iw_get_mib,
-	.get_netdev = get_netdev,
 	.get_port_immutable = c4iw_port_immutable,
+	.iw_accept = c4iw_accept_cr,
+	.iw_add_ref = c4iw_qp_add_ref,
+	.iw_connect = c4iw_connect,
+	.iw_create_listen = c4iw_create_listen,
+	.iw_destroy_listen = c4iw_destroy_listen,
+	.iw_get_qp = c4iw_get_qp,
+	.iw_reject = c4iw_reject_cr,
+	.iw_rem_ref = c4iw_qp_rem_ref,
 	.map_mr_sg = c4iw_map_mr_sg,
 	.mmap = c4iw_mmap,
 	.modify_qp = c4iw_ib_modify_qp,
@@ -546,8 +534,23 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.reg_user_mr = c4iw_reg_user_mr,
 	.req_notify_cq = c4iw_arm_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, c4iw_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_srq, c4iw_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, c4iw_ucontext, ibucontext),
 };
+
+static int set_netdevs(struct ib_device *ib_dev, struct c4iw_rdev *rdev)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < rdev->lldi.nports; i++) {
+		ret = ib_device_set_netdev(ib_dev, rdev->lldi.ports[i],
+					   i + 1);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
 
 void c4iw_register_device(struct work_struct *work)
 {
@@ -593,33 +596,20 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.dev.parent = &dev->rdev.lldi.pdev->dev;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 
-	dev->ibdev.iwcm = kzalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
-	if (!dev->ibdev.iwcm) {
-		ret = -ENOMEM;
-		goto err_dealloc_ctx;
-	}
-
-	dev->ibdev.iwcm->connect = c4iw_connect;
-	dev->ibdev.iwcm->accept = c4iw_accept_cr;
-	dev->ibdev.iwcm->reject = c4iw_reject_cr;
-	dev->ibdev.iwcm->create_listen = c4iw_create_listen;
-	dev->ibdev.iwcm->destroy_listen = c4iw_destroy_listen;
-	dev->ibdev.iwcm->add_ref = c4iw_qp_add_ref;
-	dev->ibdev.iwcm->rem_ref = c4iw_qp_rem_ref;
-	dev->ibdev.iwcm->get_qp = c4iw_get_qp;
-	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.lldi.ports[0]->name,
-	       sizeof(dev->ibdev.iwcm->ifname));
+	memcpy(dev->ibdev.iw_ifname, dev->rdev.lldi.ports[0]->name,
+	       sizeof(dev->ibdev.iw_ifname));
 
 	rdma_set_device_sysfs_group(&dev->ibdev, &c4iw_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_CXGB4;
 	ib_set_device_ops(&dev->ibdev, &c4iw_dev_ops);
+	ret = set_netdevs(&dev->ibdev, &dev->rdev);
+	if (ret)
+		goto err_dealloc_ctx;
 	ret = ib_register_device(&dev->ibdev, "cxgb4_%d");
 	if (ret)
-		goto err_kfree_iwcm;
+		goto err_dealloc_ctx;
 	return;
 
-err_kfree_iwcm:
-	kfree(dev->ibdev.iwcm);
 err_dealloc_ctx:
 	pr_err("%s - Failed registering iwarp device: %d\n",
 	       pci_name(ctx->lldi.pdev), ret);
@@ -631,6 +621,5 @@ void c4iw_unregister_device(struct c4iw_dev *dev)
 {
 	pr_debug("c4iw_dev %p\n", dev);
 	ib_unregister_device(&dev->ibdev);
-	kfree(dev->ibdev.iwcm);
 	return;
 }

@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This is part of the rtl8192 driver
- * released under the GPL (See file COPYING for details).
  *
  * This files contains programming code for the rtl8256
  * radio frontend.

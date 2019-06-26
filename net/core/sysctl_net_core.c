@@ -95,12 +95,12 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 		if (sock_table != orig_sock_table) {
 			rcu_assign_pointer(rps_sock_flow_table, sock_table);
 			if (sock_table) {
-				static_key_slow_inc(&rps_needed);
-				static_key_slow_inc(&rfs_needed);
+				static_branch_inc(&rps_needed);
+				static_branch_inc(&rfs_needed);
 			}
 			if (orig_sock_table) {
-				static_key_slow_dec(&rps_needed);
-				static_key_slow_dec(&rfs_needed);
+				static_branch_dec(&rps_needed);
+				static_branch_dec(&rfs_needed);
 				synchronize_rcu();
 				vfree(orig_sock_table);
 			}

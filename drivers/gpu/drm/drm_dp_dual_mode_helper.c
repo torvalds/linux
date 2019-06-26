@@ -20,13 +20,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+
 #include <drm/drm_dp_dual_mode_helper.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
 
 /**
  * DOC: dp dual mode helpers

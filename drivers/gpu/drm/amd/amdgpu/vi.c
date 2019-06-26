@@ -20,8 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
+#include <linux/pci.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -987,6 +989,18 @@ static void vi_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	*count1 = RREG32_PCIE(ixPCIE_PERF_COUNT1_TXCLK) | (cnt1_of << 32);
 }
 
+static uint64_t vi_get_pcie_replay_count(struct amdgpu_device *adev)
+{
+	uint64_t nak_r, nak_g;
+
+	/* Get the number of NAKs received and generated */
+	nak_r = RREG32_PCIE(ixPCIE_RX_NUM_NAK);
+	nak_g = RREG32_PCIE(ixPCIE_RX_NUM_NAK_GENERATED);
+
+	/* Add the total number of NAKs, i.e the number of replays */
+	return (nak_r + nak_g);
+}
+
 static bool vi_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 clock_cntl, pc;
@@ -1021,6 +1035,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.init_doorbell_index = &legacy_doorbell_index_init,
 	.get_pcie_usage = &vi_get_pcie_usage,
 	.need_reset_on_init = &vi_need_reset_on_init,
+	.get_pcie_replay_count = &vi_get_pcie_replay_count,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \

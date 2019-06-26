@@ -97,6 +97,8 @@ enum state {
 
 #define TIMEOUT_MS	1000
 
+#define OVERRUN_ERROR_THRESHOLD	3
+
 struct dcmi_graph_entity {
 	struct device_node *node;
 
@@ -164,6 +166,9 @@ struct stm32_dcmi {
 	int				errors_count;
 	int				overrun_count;
 	int				buffers_count;
+
+	/* Ensure DMA operations atomicity */
+	struct mutex			dma_lock;
 };
 
 static inline struct stm32_dcmi *notifier_to_dcmi(struct v4l2_async_notifier *n)
@@ -314,6 +319,13 @@ static int dcmi_start_dma(struct stm32_dcmi *dcmi,
 		return ret;
 	}
 
+	/*
+	 * Avoid call of dmaengine_terminate_all() between
+	 * dmaengine_prep_slave_single() and dmaengine_submit()
+	 * by locking the whole DMA submission sequence
+	 */
+	mutex_lock(&dcmi->dma_lock);
+
 	/* Prepare a DMA transaction */
 	desc = dmaengine_prep_slave_single(dcmi->dma_chan, buf->paddr,
 					   buf->size,
@@ -322,6 +334,7 @@ static int dcmi_start_dma(struct stm32_dcmi *dcmi,
 	if (!desc) {
 		dev_err(dcmi->dev, "%s: DMA dmaengine_prep_slave_single failed for buffer phy=%pad size=%zu\n",
 			__func__, &buf->paddr, buf->size);
+		mutex_unlock(&dcmi->dma_lock);
 		return -EINVAL;
 	}
 
@@ -333,8 +346,11 @@ static int dcmi_start_dma(struct stm32_dcmi *dcmi,
 	dcmi->dma_cookie = dmaengine_submit(desc);
 	if (dma_submit_error(dcmi->dma_cookie)) {
 		dev_err(dcmi->dev, "%s: DMA submission failed\n", __func__);
+		mutex_unlock(&dcmi->dma_lock);
 		return -ENXIO;
 	}
+
+	mutex_unlock(&dcmi->dma_lock);
 
 	dma_async_issue_pending(dcmi->dma_chan);
 
@@ -432,11 +448,13 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 
 	spin_lock_irq(&dcmi->irqlock);
 
-	if ((dcmi->misr & IT_OVR) || (dcmi->misr & IT_ERR)) {
-		dcmi->errors_count++;
-		if (dcmi->misr & IT_OVR)
-			dcmi->overrun_count++;
+	if (dcmi->misr & IT_OVR) {
+		dcmi->overrun_count++;
+		if (dcmi->overrun_count > OVERRUN_ERROR_THRESHOLD)
+			dcmi->errors_count++;
 	}
+	if (dcmi->misr & IT_ERR)
+		dcmi->errors_count++;
 
 	if (dcmi->sd_format->fourcc == V4L2_PIX_FMT_JPEG &&
 	    dcmi->misr & IT_FRAME) {
@@ -570,9 +588,9 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	int ret;
 
 	ret = pm_runtime_get_sync(dcmi->dev);
-	if (ret) {
-		dev_err(dcmi->dev, "%s: Failed to start streaming, cannot get sync\n",
-			__func__);
+	if (ret < 0) {
+		dev_err(dcmi->dev, "%s: Failed to start streaming, cannot get sync (%d)\n",
+			__func__, ret);
 		goto err_release_buffers;
 	}
 
@@ -720,7 +738,9 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irq(&dcmi->irqlock);
 
 	/* Stop all pending DMA operations */
+	mutex_lock(&dcmi->dma_lock);
 	dmaengine_terminate_all(dcmi->dma_chan);
+	mutex_unlock(&dcmi->dma_lock);
 
 	pm_runtime_put(dcmi->dev);
 
@@ -811,6 +831,9 @@ static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 
 	sd_fmt = find_format_by_fourcc(dcmi, pix->pixelformat);
 	if (!sd_fmt) {
+		if (!dcmi->num_of_sd_formats)
+			return -ENODATA;
+
 		sd_fmt = dcmi->sd_formats[dcmi->num_of_sd_formats - 1];
 		pix->pixelformat = sd_fmt->fourcc;
 	}
@@ -989,6 +1012,9 @@ static int dcmi_set_sensor_format(struct stm32_dcmi *dcmi,
 
 	sd_fmt = find_format_by_fourcc(dcmi, pix->pixelformat);
 	if (!sd_fmt) {
+		if (!dcmi->num_of_sd_formats)
+			return -ENODATA;
+
 		sd_fmt = dcmi->sd_formats[dcmi->num_of_sd_formats - 1];
 		pix->pixelformat = sd_fmt->fourcc;
 	}
@@ -1595,7 +1621,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 	/* Parse the graph to extract a list of subdevice DT nodes. */
 	ret = dcmi_graph_parse(dcmi, dcmi->dev->of_node);
 	if (ret < 0) {
-		dev_err(dcmi->dev, "Graph parsing failed\n");
+		dev_err(dcmi->dev, "Failed to parse graph\n");
 		return ret;
 	}
 
@@ -1604,6 +1630,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 	ret = v4l2_async_notifier_add_subdev(&dcmi->notifier,
 					     &dcmi->entity.asd);
 	if (ret) {
+		dev_err(dcmi->dev, "Failed to add subdev notifier\n");
 		of_node_put(dcmi->entity.node);
 		return ret;
 	}
@@ -1612,7 +1639,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 	ret = v4l2_async_notifier_register(&dcmi->v4l2_dev, &dcmi->notifier);
 	if (ret < 0) {
-		dev_err(dcmi->dev, "Notifier registration failed\n");
+		dev_err(dcmi->dev, "Failed to register notifier\n");
 		v4l2_async_notifier_cleanup(&dcmi->notifier);
 		return ret;
 	}
@@ -1645,7 +1672,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	dcmi->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(dcmi->rstc)) {
 		dev_err(&pdev->dev, "Could not get reset control\n");
-		return -ENODEV;
+		return PTR_ERR(dcmi->rstc);
 	}
 
 	/* Get bus characteristics from devicetree */
@@ -1660,7 +1687,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	of_node_put(np);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not parse the endpoint\n");
-		return -ENODEV;
+		return ret;
 	}
 
 	if (ep.bus_type == V4L2_MBUS_CSI2_DPHY) {
@@ -1673,8 +1700,9 @@ static int dcmi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(&pdev->dev, "Could not get irq\n");
-		return -ENODEV;
+		if (irq != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Could not get irq\n");
+		return irq;
 	}
 
 	dcmi->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1694,12 +1722,13 @@ static int dcmi_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev), dcmi);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to request irq %d\n", irq);
-		return -ENODEV;
+		return ret;
 	}
 
 	mclk = devm_clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(mclk)) {
-		dev_err(&pdev->dev, "Unable to get mclk\n");
+		if (PTR_ERR(mclk) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Unable to get mclk\n");
 		return PTR_ERR(mclk);
 	}
 
@@ -1711,6 +1740,7 @@ static int dcmi_probe(struct platform_device *pdev)
 
 	spin_lock_init(&dcmi->irqlock);
 	mutex_init(&dcmi->lock);
+	mutex_init(&dcmi->dma_lock);
 	init_completion(&dcmi->complete);
 	INIT_LIST_HEAD(&dcmi->buffers);
 

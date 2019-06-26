@@ -139,8 +139,9 @@ static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
 		connector->force = mode->force;
 	}
 
-	DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
+	DRM_DEBUG_KMS("cmdline mode for connector %s %s %dx%d@%dHz%s%s%s\n",
 		      connector->name,
+		      mode->name ? mode->name : "",
 		      mode->xres, mode->yres,
 		      mode->refresh_specified ? mode->refresh : 60,
 		      mode->rb ? " reduced blanking" : "",
@@ -464,10 +465,7 @@ int drm_connector_register(struct drm_connector *connector)
 	if (ret)
 		goto unlock;
 
-	ret = drm_debugfs_connector_add(connector);
-	if (ret) {
-		goto err_sysfs;
-	}
+	drm_debugfs_connector_add(connector);
 
 	if (connector->funcs->late_register) {
 		ret = connector->funcs->late_register(connector);
@@ -482,7 +480,6 @@ int drm_connector_register(struct drm_connector *connector)
 
 err_debugfs:
 	drm_debugfs_connector_remove(connector);
-err_sysfs:
 	drm_sysfs_connector_remove(connector);
 unlock:
 	mutex_unlock(&connector->mutex);
@@ -823,13 +820,6 @@ static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
 
-static struct drm_prop_enum_list drm_cp_enum_list[] = {
-	{ DRM_MODE_CONTENT_PROTECTION_UNDESIRED, "Undesired" },
-	{ DRM_MODE_CONTENT_PROTECTION_DESIRED, "Desired" },
-	{ DRM_MODE_CONTENT_PROTECTION_ENABLED, "Enabled" },
-};
-DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
-
 static const struct drm_prop_enum_list hdmi_colorspaces[] = {
 	/* For Default case, driver will set the colorspace */
 	{ DRM_MODE_COLORIMETRY_DEFAULT, "Default" },
@@ -963,6 +953,47 @@ static const struct drm_prop_enum_list hdmi_colorspaces[] = {
  *	  is no longer protected and userspace should take appropriate action
  *	  (whatever that might be).
  *
+ * HDR_OUTPUT_METADATA:
+ *	Connector property to enable userspace to send HDR Metadata to
+ *	driver. This metadata is based on the composition and blending
+ *	policies decided by user, taking into account the hardware and
+ *	sink capabilities. The driver gets this metadata and creates a
+ *	Dynamic Range and Mastering Infoframe (DRM) in case of HDMI,
+ *	SDP packet (Non-audio INFOFRAME SDP v1.3) for DP. This is then
+ *	sent to sink. This notifies the sink of the upcoming frame's Color
+ *	Encoding and Luminance parameters.
+ *
+ *	Userspace first need to detect the HDR capabilities of sink by
+ *	reading and parsing the EDID. Details of HDR metadata for HDMI
+ *	are added in CTA 861.G spec. For DP , its defined in VESA DP
+ *	Standard v1.4. It needs to then get the metadata information
+ *	of the video/game/app content which are encoded in HDR (basically
+ *	using HDR transfer functions). With this information it needs to
+ *	decide on a blending policy and compose the relevant
+ *	layers/overlays into a common format. Once this blending is done,
+ *	userspace will be aware of the metadata of the composed frame to
+ *	be send to sink. It then uses this property to communicate this
+ *	metadata to driver which then make a Infoframe packet and sends
+ *	to sink based on the type of encoder connected.
+ *
+ *	Userspace will be responsible to do Tone mapping operation in case:
+ *		- Some layers are HDR and others are SDR
+ *		- HDR layers luminance is not same as sink
+ *
+ *	It will even need to do colorspace conversion and get all layers
+ *	to one common colorspace for blending. It can use either GL, Media
+ *	or display engine to get this done based on the capabilties of the
+ *	associated hardware.
+ *
+ *	Driver expects metadata to be put in &struct hdr_output_metadata
+ *	structure from userspace. This is received as blob and stored in
+ *	&drm_connector_state.hdr_output_metadata. It parses EDID and saves the
+ *	sink metadata in &struct hdr_sink_metadata, as
+ *	&drm_connector.hdr_sink_metadata.  Driver uses
+ *	drm_hdmi_infoframe_set_hdr_metadata() helper to set the HDR metadata,
+ *	hdmi_drm_infoframe_pack() to pack the infoframe as per spec, in case of
+ *	HDMI encoder.
+ *
  * max bpc:
  *	This range property is used by userspace to limit the bit depth. When
  *	used the driver would limit the bpc in accordance with the valid range
@@ -1057,6 +1088,12 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.non_desktop_property = prop;
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB,
+				   "HDR_OUTPUT_METADATA", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.hdr_output_metadata_property = prop;
 
 	return 0;
 }
@@ -1508,42 +1545,6 @@ int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_scaling_mode_property);
-
-/**
- * drm_connector_attach_content_protection_property - attach content protection
- * property
- *
- * @connector: connector to attach CP property on.
- *
- * This is used to add support for content protection on select connectors.
- * Content Protection is intentionally vague to allow for different underlying
- * technologies, however it is most implemented by HDCP.
- *
- * The content protection will be set to &drm_connector_state.content_protection
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
-int drm_connector_attach_content_protection_property(
-		struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-
-	prop = drm_property_create_enum(dev, 0, "Content Protection",
-					drm_cp_enum_list,
-					ARRAY_SIZE(drm_cp_enum_list));
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&connector->base, prop,
-				   DRM_MODE_CONTENT_PROTECTION_UNDESIRED);
-
-	connector->content_protection_property = prop;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_connector_attach_content_protection_property);
 
 /**
  * drm_mode_create_aspect_ratio_property - create aspect ratio property

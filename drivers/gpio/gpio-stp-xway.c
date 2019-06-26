@@ -210,7 +210,6 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 
 static int xway_stp_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	u32 shadow, groups, dsl, phy;
 	struct xway_stp *chip;
 	struct clk *clk;
@@ -220,8 +219,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->virt = devm_ioremap_resource(&pdev->dev, res);
+	chip->virt = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->virt))
 		return PTR_ERR(chip->virt);
 

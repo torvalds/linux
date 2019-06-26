@@ -48,16 +48,16 @@ process_jiffies_to_msecs(struct trace_seq *s, unsigned long long *args)
 	return jiffies;
 }
 
-int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 {
-	tep_register_print_function(pevent,
+	tep_register_print_function(tep,
 				    process_jbd2_dev_to_name,
 				    TEP_FUNC_ARG_STRING,
 				    "jbd2_dev_to_name",
 				    TEP_FUNC_ARG_INT,
 				    TEP_FUNC_ARG_VOID);
 
-	tep_register_print_function(pevent,
+	tep_register_print_function(tep,
 				    process_jiffies_to_msecs,
 				    TEP_FUNC_ARG_LONG,
 				    "jiffies_to_msecs",
@@ -66,11 +66,11 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 	return 0;
 }
 
-void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
 {
-	tep_unregister_print_function(pevent, process_jbd2_dev_to_name,
+	tep_unregister_print_function(tep, process_jbd2_dev_to_name,
 				      "jbd2_dev_to_name");
 
-	tep_unregister_print_function(pevent, process_jiffies_to_msecs,
+	tep_unregister_print_function(tep, process_jiffies_to_msecs,
 				      "jiffies_to_msecs");
 }

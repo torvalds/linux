@@ -12,8 +12,8 @@
  */
 
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * size_t __strnlen_user(const char *s, size_t len)

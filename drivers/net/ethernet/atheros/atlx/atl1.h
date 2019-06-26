@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
  * Copyright(c) 2006 - 2007 Chris Snook <csnook@redhat.com>
@@ -5,20 +6,6 @@
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #ifndef ATL1_H
@@ -681,7 +668,7 @@ struct atl1_sft_stats {
 	u64 scc;		/* packets TX after a single collision */
 	u64 mcc;		/* packets TX after multiple collisions */
 	u64 latecol;		/* TX packets w/ late collisions */
-	u64 tx_underun;		/* TX packets aborted due to TX FIFO underrun
+	u64 tx_underrun;	/* TX packets aborted due to TX FIFO underrun
 				 * or TRD FIFO underrun */
 	u64 tx_trunc;		/* TX packets truncated due to size > MTU */
 	u64 rx_pause;		/* num Pause packets received. */

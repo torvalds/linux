@@ -31,6 +31,10 @@ struct brcmf_dmi_data {
 
 /* NOTE: Please keep all entries sorted alphabetically */
 
+static const struct brcmf_dmi_data acepc_t8_data = {
+	BRCM_CC_4345_CHIP_ID, 6, "acepc-t8"
+};
+
 static const struct brcmf_dmi_data gpd_win_pocket_data = {
 	BRCM_CC_4356_CHIP_ID, 2, "gpd-win-pocket"
 };
@@ -48,6 +52,28 @@ static const struct brcmf_dmi_data pov_tab_p1006w_data = {
 };
 
 static const struct dmi_system_id dmi_platform_data[] = {
+	{
+		/* ACEPC T8 Cherry Trail Z8350 mini PC */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "To be filled by O.E.M."),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "T8"),
+			/* also match on somewhat unique bios-version */
+			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1.000"),
+		},
+		.driver_data = (void *)&acepc_t8_data,
+	},
+	{
+		/* ACEPC T11 Cherry Trail Z8350 mini PC, same wifi as the T8 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "To be filled by O.E.M."),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "T11"),
+			/* also match on somewhat unique bios-version */
+			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1.000"),
+		},
+		.driver_data = (void *)&acepc_t8_data,
+	},
 	{
 		/* Match for the GPDwin which unfortunately uses somewhat
 		 * generic dmi strings, which is why we test for 4 strings.

@@ -124,38 +124,11 @@ struct clcd_board {
 struct amba_device;
 struct clk;
 
-/**
- * struct clcd_vendor_data - holds hardware (IP-block) vendor-specific
- * variant information
- *
- * @clock_timregs: the CLCD needs to be clocked when accessing the
- * timer registers, or the hardware will hang.
- * @packed_24_bit_pixels: this variant supports 24bit packed pixel data,
- * so that RGB accesses 3 bytes at a time, not just on even 32bit
- * boundaries, packing the pixel data in memory. ST Microelectronics
- * have this.
- * @st_bitmux_control: ST Microelectronics have implemented output
- * bit line multiplexing into the CLCD control register. This indicates
- * that we need to use this.
- * @init_board: custom board init function for this variant
- * @init_panel: custom panel init function for this variant
- */
-struct clcd_vendor_data {
-	bool	clock_timregs;
-	bool	packed_24_bit_pixels;
-	bool	st_bitmux_control;
-	int	(*init_board)(struct amba_device *adev,
-			      struct clcd_board *board);
-	int	(*init_panel)(struct clcd_fb *fb,
-			      struct device_node *panel);
-};
-
 /* this data structure describes each frame buffer device we find */
 struct clcd_fb {
 	struct fb_info		fb;
 	struct amba_device	*dev;
 	struct clk		*clk;
-	struct clcd_vendor_data	*vendor;
 	struct clcd_panel	*panel;
 	struct clcd_board	*board;
 	void			*board_data;
@@ -256,10 +229,6 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 			val |= CNTL_LCDBPP16_565;
 		else
 			val |= CNTL_LCDBPP16_444;
-		break;
-	case 24:
-		/* Modified variant supporting 24 bit packed pixels */
-		val |= CNTL_ST_LCDBPP24_PACKED;
 		break;
 	case 32:
 		val |= CNTL_LCDBPP24;

@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* net/sched/sch_ingress.c - Ingress and clsact qdisc
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Authors:     Jamal Hadi Salim 1999
  */
@@ -106,7 +102,7 @@ static int ingress_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

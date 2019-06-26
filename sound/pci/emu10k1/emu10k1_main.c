@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Creative Labs, Inc.
@@ -8,27 +9,11 @@
  *  	Added EMU 1010 support.
  *  	General bug fixes and enhancements.
  *
- *
  *  BUGS:
  *    --
  *
  *  TODO:
  *    --
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/sched.h>
@@ -1882,22 +1867,8 @@ int snd_emu10k1_create(struct snd_card *card,
 			c->name, pci->vendor, pci->device,
 			emu->serial);
 
-	if (!*card->id && c->id) {
-		int i, n = 0;
+	if (!*card->id && c->id)
 		strlcpy(card->id, c->id, sizeof(card->id));
-		for (;;) {
-			for (i = 0; i < snd_ecards_limit; i++) {
-				if (snd_cards[i] && !strcmp(snd_cards[i]->id, card->id))
-					break;
-			}
-			if (i >= snd_ecards_limit)
-				break;
-			n++;
-			if (n >= SNDRV_CARDS)
-				break;
-			snprintf(card->id, sizeof(card->id), "%s_%d", c->id, n);
-		}
-	}
 
 	is_audigy = emu->audigy = c->emu10k2_chip;
 

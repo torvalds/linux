@@ -86,9 +86,9 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	if (IS_ENABLED(CONFIG_REGULATOR) &&
 	    (of_device_is_compatible(np, "regulator-fixed") ||
 	     of_device_is_compatible(np, "reg-fixed-voltage") ||
-	     (of_device_is_compatible(np, "regulator-gpio") &&
-	      !(strcmp(propname, "enable-gpio") &&
-	        strcmp(propname, "enable-gpios"))))) {
+	     (!(strcmp(propname, "enable-gpio") &&
+		strcmp(propname, "enable-gpios")) &&
+	      of_device_is_compatible(np, "regulator-gpio")))) {
 		/*
 		 * The regulator GPIO handles are specified such that the
 		 * presence or absence of "enable-active-high" solely controls
@@ -119,9 +119,8 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	 * property named "cs-gpios" we need to inspect the child node
 	 * to determine if the flags should have inverted semantics.
 	 */
-	if (IS_ENABLED(CONFIG_SPI_MASTER) &&
-	    of_property_read_bool(np, "cs-gpios") &&
-	    !strcmp(propname, "cs-gpios")) {
+	if (IS_ENABLED(CONFIG_SPI_MASTER) && !strcmp(propname, "cs-gpios") &&
+	    of_property_read_bool(np, "cs-gpios")) {
 		struct device_node *child;
 		u32 cs;
 		int ret;
@@ -288,8 +287,7 @@ static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *
 }
 
 struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-			       unsigned int idx,
-			       enum gpio_lookup_flags *flags)
+			       unsigned int idx, unsigned long *flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
 	enum of_gpio_flags of_flags;
@@ -362,8 +360,8 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
  * @chip:	GPIO chip whose hog is parsed
  * @idx:	Index of the GPIO to parse
  * @name:	GPIO line name
- * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
- *		of_parse_own_gpio()
+ * @lflags:	bitmask of gpio_lookup_flags GPIO_* values - returned from
+ *		of_find_gpio() or of_parse_own_gpio()
  * @dflags:	gpiod_flags - optional GPIO initialization flags
  *
  * Returns GPIO descriptor to use with Linux GPIO API, or one of the errno
@@ -372,7 +370,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 					   struct gpio_chip *chip,
 					   unsigned int idx, const char **name,
-					   enum gpio_lookup_flags *lflags,
+					   unsigned long *lflags,
 					   enum gpiod_flags *dflags)
 {
 	struct device_node *chip_np;
@@ -388,7 +386,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		return ERR_PTR(-EINVAL);
 
 	xlate_flags = 0;
-	*lflags = 0;
+	*lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 	*dflags = 0;
 
 	ret = of_property_read_u32(chip_np, "#gpio-cells", &tmp);
@@ -445,7 +443,7 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 	struct gpio_desc *desc = NULL;
 	struct device_node *np;
 	const char *name;
-	enum gpio_lookup_flags lflags;
+	unsigned long lflags;
 	enum gpiod_flags dflags;
 	unsigned int i;
 	int ret;

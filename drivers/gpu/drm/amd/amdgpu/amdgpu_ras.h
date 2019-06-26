@@ -93,6 +93,7 @@ struct amdgpu_ras {
 	struct dentry *ent;
 	/* sysfs */
 	struct device_attribute features_attr;
+	struct bin_attribute badpages_attr;
 	/* block array */
 	struct ras_manager *objs;
 
@@ -172,8 +173,16 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
+	if (block >= AMDGPU_RAS_BLOCK_COUNT)
+		return 0;
 	return ras && (ras->supported & (1 << block));
 }
+
+int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
+		unsigned int block);
+
+void amdgpu_ras_resume(struct amdgpu_device *adev);
+void amdgpu_ras_suspend(struct amdgpu_device *adev);
 
 int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce);
@@ -187,13 +196,10 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev);
 static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev,
 		bool is_baco)
 {
-	/* remove me when gpu reset works on vega20 A1. */
-#if 0
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
 		schedule_work(&ras->recovery_work);
-#endif
 	return 0;
 }
 
@@ -255,7 +261,6 @@ amdgpu_ras_error_to_ta(enum amdgpu_ras_error_type error) {
 
 /* called in ip_init and ip_fini */
 int amdgpu_ras_init(struct amdgpu_device *adev);
-void amdgpu_ras_post_init(struct amdgpu_device *adev);
 int amdgpu_ras_fini(struct amdgpu_device *adev);
 int amdgpu_ras_pre_fini(struct amdgpu_device *adev);
 

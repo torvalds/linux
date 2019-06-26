@@ -1402,6 +1402,7 @@ enum {
 	G_CRYP1,
 	G_HASH1,
 	G_BKPSRAM,
+	G_DDRPERFM,
 
 	G_LAST
 };
@@ -1488,6 +1489,7 @@ static struct stm32_gate_cfg per_gate_cfg[G_LAST] = {
 	K_GATE(G_STGENRO,	RCC_APB4ENSETR, 20, 0),
 	K_MGATE(G_USBPHY,	RCC_APB4ENSETR, 16, 0),
 	K_GATE(G_IWDG2,		RCC_APB4ENSETR, 15, 0),
+	K_GATE(G_DDRPERFM,	RCC_APB4ENSETR, 8, 0),
 	K_MGATE(G_DSI,		RCC_APB4ENSETR, 4, 0),
 	K_MGATE(G_LTDC,		RCC_APB4ENSETR, 0, 0),
 
@@ -1899,6 +1901,7 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	PCLK(CRC1, "crc1", "ck_axi", 0, G_CRC1),
 	PCLK(USBH, "usbh", "ck_axi", 0, G_USBH),
 	PCLK(ETHSTP, "ethstp", "ck_axi", 0, G_ETHSTP),
+	PCLK(DDRPERFM, "ddrperfm", "pclk4", 0, G_DDRPERFM),
 
 	/* Kernel clocks */
 	KCLK(SDMMC1_K, "sdmmc1_k", sdmmc12_src, 0, G_SDMMC1, M_SDMMC12),

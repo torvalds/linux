@@ -24,6 +24,8 @@
 #include <linux/firmware/xlnx-zynqmp.h>
 #include "zynqmp-debug.h"
 
+static const struct zynqmp_eemi_ops *eemi_ops_tbl;
+
 static const struct mfd_cell firmware_devs[] = {
 	{
 		.name = "zynqmp_power_controller",
@@ -538,6 +540,49 @@ static int zynqmp_pm_reset_get_status(const enum zynqmp_pm_reset reset,
 }
 
 /**
+ * zynqmp_pm_fpga_load - Perform the fpga load
+ * @address:	Address to write to
+ * @size:	pl bitstream size
+ * @flags:	Bitstream type
+ *	-XILINX_ZYNQMP_PM_FPGA_FULL:  FPGA full reconfiguration
+ *	-XILINX_ZYNQMP_PM_FPGA_PARTIAL: FPGA partial reconfiguration
+ *
+ * This function provides access to pmufw. To transfer
+ * the required bitstream into PL.
+ *
+ * Return: Returns status, either success or error+reason
+ */
+static int zynqmp_pm_fpga_load(const u64 address, const u32 size,
+			       const u32 flags)
+{
+	return zynqmp_pm_invoke_fn(PM_FPGA_LOAD, lower_32_bits(address),
+				   upper_32_bits(address), size, flags, NULL);
+}
+
+/**
+ * zynqmp_pm_fpga_get_status - Read value from PCAP status register
+ * @value: Value to read
+ *
+ * This function provides access to the pmufw to get the PCAP
+ * status
+ *
+ * Return: Returns status, either success or error+reason
+ */
+static int zynqmp_pm_fpga_get_status(u32 *value)
+{
+	u32 ret_payload[PAYLOAD_ARG_CNT];
+	int ret;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = zynqmp_pm_invoke_fn(PM_FPGA_GET_STATUS, 0, 0, 0, 0, ret_payload);
+	*value = ret_payload[1];
+
+	return ret;
+}
+
+/**
  * zynqmp_pm_init_finalize() - PM call to inform firmware that the caller
  *			       master has initialized its own power management
  *
@@ -640,6 +685,8 @@ static const struct zynqmp_eemi_ops eemi_ops = {
 	.request_node = zynqmp_pm_request_node,
 	.release_node = zynqmp_pm_release_node,
 	.set_requirement = zynqmp_pm_set_requirement,
+	.fpga_load = zynqmp_pm_fpga_load,
+	.fpga_get_status = zynqmp_pm_fpga_get_status,
 };
 
 /**
@@ -649,7 +696,11 @@ static const struct zynqmp_eemi_ops eemi_ops = {
  */
 const struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void)
 {
-	return &eemi_ops;
+	if (eemi_ops_tbl)
+		return eemi_ops_tbl;
+	else
+		return ERR_PTR(-EPROBE_DEFER);
+
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_get_eemi_ops);
 
@@ -693,6 +744,9 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 
 	pr_info("%s Trustzone version v%d.%d\n", __func__,
 		pm_tz_version >> 16, pm_tz_version & 0xFFFF);
+
+	/* Assign eemi_ops_table */
+	eemi_ops_tbl = &eemi_ops;
 
 	zynqmp_pm_api_debugfs_init();
 

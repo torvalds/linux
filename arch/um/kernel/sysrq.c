@@ -20,7 +20,7 @@
 
 static void _print_addr(void *data, unsigned long address, int reliable)
 {
-	pr_info(" [<%08lx>] %s%pF\n", address, reliable ? "" : "? ",
+	pr_info(" [<%08lx>] %s%pS\n", address, reliable ? "" : "? ",
 		(void *)address);
 }
 

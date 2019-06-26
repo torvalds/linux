@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Platform support for LPC32xx SoC
  *
@@ -5,44 +6,14 @@
  *
  * Copyright (C) 2012 Roland Stigge <stigge@antcom.de>
  * Copyright (C) 2010 NXP Semiconductors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/device.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/dma-mapping.h>
-#include <linux/gpio.h>
-#include <linux/amba/bus.h>
-#include <linux/amba/clcd.h>
 #include <linux/amba/pl08x.h>
-#include <linux/amba/mmci.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
-#include <linux/clk.h>
-#include <linux/mtd/lpc32xx_slc.h>
 #include <linux/mtd/lpc32xx_mlc.h>
+#include <linux/mtd/lpc32xx_slc.h>
+#include <linux/of_platform.h>
 
-#include <asm/setup.h>
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-
-#include <mach/hardware.h>
-#include <mach/platform.h>
-#include <mach/board.h>
 #include "common.h"
 
 static struct pl08x_channel_data pl08x_slave_channels[] = {
@@ -90,8 +61,6 @@ static struct lpc32xx_mlc_platform_data lpc32xx_mlc_data = {
 };
 
 static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
-	OF_DEV_AUXDATA("arm,pl022", 0x20084000, "dev:ssp0", NULL),
-	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", NULL),
 	OF_DEV_AUXDATA("arm,pl080", 0x31000000, "pl08xdmac", &pl08x_pd),
 	OF_DEV_AUXDATA("nxp,lpc3220-slc", 0x20020000, "20020000.flash",
 		       &lpc32xx_slc_data),
@@ -103,11 +72,6 @@ static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
 static void __init lpc3250_machine_init(void)
 {
 	lpc32xx_serial_init();
-
-	/* Test clock needed for UDA1380 initial init */
-	__raw_writel(LPC32XX_CLKPWR_TESTCLK2_SEL_MOSC |
-		LPC32XX_CLKPWR_TESTCLK_TESTCLK2_EN,
-		LPC32XX_CLKPWR_TEST_CLK_SEL);
 
 	of_platform_default_populate(NULL, lpc32xx_auxdata_lookup, NULL);
 }

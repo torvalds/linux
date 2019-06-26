@@ -917,7 +917,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 
 int tipc_group_fill_sock_diag(struct tipc_group *grp, struct sk_buff *skb)
 {
-	struct nlattr *group = nla_nest_start(skb, TIPC_NLA_SOCK_GROUP);
+	struct nlattr *group = nla_nest_start_noflag(skb, TIPC_NLA_SOCK_GROUP);
 
 	if (!group)
 		return -EMSGSIZE;

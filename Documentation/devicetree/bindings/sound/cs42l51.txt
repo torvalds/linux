@@ -1,6 +1,17 @@
 CS42L51 audio CODEC
 
+Required properties:
+
+  - compatible : "cirrus,cs42l51"
+
+  - reg : the I2C address of the device for I2C.
+
 Optional properties:
+  - VL-supply, VD-supply, VA-supply, VAHP-supply: power supplies for the device,
+    as covered in Documentation/devicetree/bindings/regulator/regulator.txt.
+
+  - reset-gpios : GPIO specification for the reset pin. If specified, it will be
+    deasserted before starting the communication with the codec.
 
   - clocks : a list of phandles + clock-specifiers, one for each entry in
     clock-names
@@ -14,4 +25,9 @@ cs42l51: cs42l51@4a {
 	reg = <0x4a>;
 	clocks = <&mclk_prov>;
 	clock-names = "MCLK";
+	VL-supply = <&reg_audio>;
+	VD-supply = <&reg_audio>;
+	VA-supply = <&reg_audio>;
+	VAHP-supply = <&reg_audio>;
+	reset-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
 };

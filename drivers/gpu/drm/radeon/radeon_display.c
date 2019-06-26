@@ -23,22 +23,27 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
-#include <drm/radeon_drm.h>
-#include "radeon.h"
-
-#include "atom.h"
-#include <asm/div64.h>
 
 #include <linux/pm_runtime.h>
+#include <linux/gcd.h>
+
+#include <asm/div64.h>
+
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_pci.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_edid.h>
+#include <drm/drm_vblank.h>
+#include <drm/radeon_drm.h>
 
-#include <linux/gcd.h>
+#include "atom.h"
+#include "radeon.h"
 
 static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 {
@@ -922,12 +927,12 @@ static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
 	ref_div_max = max(min(100 / post_div, ref_div_max), 1u);
 
 	/* get matching reference and feedback divider */
-	*ref_div = min(max(DIV_ROUND_CLOSEST(den, post_div), 1u), ref_div_max);
+	*ref_div = min(max(den/post_div, 1u), ref_div_max);
 	*fb_div = DIV_ROUND_CLOSEST(nom * *ref_div * post_div, den);
 
 	/* limit fb divider to its maximum */
 	if (*fb_div > fb_div_max) {
-		*ref_div = DIV_ROUND_CLOSEST(*ref_div * fb_div_max, *fb_div);
+		*ref_div = (*ref_div * fb_div_max)/(*fb_div);
 		*fb_div = fb_div_max;
 	}
 }

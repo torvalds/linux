@@ -1304,8 +1304,8 @@ static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       &mvpp2_ethtool_regs[i].string, ETH_GSTRING_LEN);
+			strscpy(data + i * ETH_GSTRING_LEN,
+			        mvpp2_ethtool_regs[i].string, ETH_GSTRING_LEN);
 	}
 }
 
@@ -1455,7 +1455,7 @@ static inline void mvpp2_xlg_max_rx_size_set(struct mvpp2_port *port)
 /* Set defaults to the MVPP2 port */
 static void mvpp2_defaults_set(struct mvpp2_port *port)
 {
-	int tx_port_num, val, queue, ptxq, lrxq;
+	int tx_port_num, val, queue, lrxq;
 
 	if (port->priv->hw_version == MVPP21) {
 		/* Update TX FIFO MIN Threshold */
@@ -1476,11 +1476,9 @@ static void mvpp2_defaults_set(struct mvpp2_port *port)
 	mvpp2_write(port->priv, MVPP2_TXP_SCHED_FIXED_PRIO_REG, 0);
 
 	/* Close bandwidth for all queues */
-	for (queue = 0; queue < MVPP2_MAX_TXQ; queue++) {
-		ptxq = mvpp2_txq_phys(port->id, queue);
+	for (queue = 0; queue < MVPP2_MAX_TXQ; queue++)
 		mvpp2_write(port->priv,
-			    MVPP2_TXQ_SCHED_TOKEN_CNTR_REG(ptxq), 0);
-	}
+			    MVPP2_TXQ_SCHED_TOKEN_CNTR_REG(queue), 0);
 
 	/* Set refill period to 1 usec, refill tokens
 	 * and bucket size to maximum
@@ -2336,7 +2334,7 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 	txq->descs_dma         = 0;
 
 	/* Set minimum bandwidth for disabled TXQs */
-	mvpp2_write(port->priv, MVPP2_TXQ_SCHED_TOKEN_CNTR_REG(txq->id), 0);
+	mvpp2_write(port->priv, MVPP2_TXQ_SCHED_TOKEN_CNTR_REG(txq->log_id), 0);
 
 	/* Set Tx descriptors queue starting address and size */
 	thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
@@ -3741,9 +3739,9 @@ static int mvpp2_set_features(struct net_device *dev,
 
 	if (changed & NETIF_F_RXHASH) {
 		if (features & NETIF_F_RXHASH)
-			mvpp22_rss_enable(port);
+			mvpp22_port_rss_enable(port);
 		else
-			mvpp22_rss_disable(port);
+			mvpp22_port_rss_disable(port);
 	}
 
 	return 0;
@@ -3937,7 +3935,7 @@ static int mvpp2_ethtool_get_rxnfc(struct net_device *dev,
 				   struct ethtool_rxnfc *info, u32 *rules)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
-	int ret = 0;
+	int ret = 0, i, loc = 0;
 
 	if (!mvpp22_rss_is_supported())
 		return -EOPNOTSUPP;
@@ -3948,6 +3946,18 @@ static int mvpp2_ethtool_get_rxnfc(struct net_device *dev,
 		break;
 	case ETHTOOL_GRXRINGS:
 		info->data = port->nrxqs;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt = port->n_rfs_rules;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		ret = mvpp2_ethtool_cls_rule_get(port, info);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		for (i = 0; i < MVPP2_N_RFS_RULES; i++) {
+			if (port->rfs_rules[i])
+				rules[loc++] = i;
+		}
 		break;
 	default:
 		return -ENOTSUPP;
@@ -3968,6 +3978,12 @@ static int mvpp2_ethtool_set_rxnfc(struct net_device *dev,
 	switch (info->cmd) {
 	case ETHTOOL_SRXFH:
 		ret = mvpp2_ethtool_rxfh_set(port, info);
+		break;
+	case ETHTOOL_SRXCLSRLINS:
+		ret = mvpp2_ethtool_cls_rule_ins(port, info);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = mvpp2_ethtool_cls_rule_del(port, info);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -4301,7 +4317,7 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 	mvpp2_cls_port_config(port);
 
 	if (mvpp22_rss_is_supported())
-		mvpp22_rss_port_init(port);
+		mvpp22_port_rss_init(port);
 
 	/* Provide an initial Rx packet size */
 	port->pkt_size = MVPP2_RX_PKT_SIZE(port->dev->mtu);
@@ -4848,6 +4864,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	struct mvpp2_port *port;
 	struct mvpp2_port_pcpu *port_pcpu;
 	struct device_node *port_node = to_of_node(port_fwnode);
+	netdev_features_t features;
 	struct net_device *dev;
 	struct resource *res;
 	struct phylink *phylink;
@@ -4856,7 +4873,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	unsigned long flags = 0;
 	bool has_tx_irqs;
 	u32 id;
-	int features;
 	int phy_mode;
 	int err, i;
 
@@ -5040,8 +5056,10 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	dev->hw_features |= features | NETIF_F_RXCSUM | NETIF_F_GRO |
 			    NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	if (mvpp22_rss_is_supported())
+	if (mvpp22_rss_is_supported()) {
 		dev->hw_features |= NETIF_F_RXHASH;
+		dev->features |= NETIF_F_NTUPLE;
+	}
 
 	if (port->pool_long->id == MVPP2_BM_JUMBO && port->id != 0) {
 		dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);

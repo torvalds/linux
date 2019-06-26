@@ -284,11 +284,9 @@ static int perf_spad_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_HDATA(perf->gidx),
 				    upper_32_bits(data));
-		mmiowb();
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_CMD(perf->gidx),
 				    cmd);
-		mmiowb();
 		ntb_peer_db_set(perf->ntb, PERF_SPAD_NOTIFY(peer->gidx));
 
 		dev_dbg(&perf->ntb->dev, "DB ring peer %#llx\n",
@@ -379,7 +377,6 @@ static int perf_msg_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 
 		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_HDATA,
 				   upper_32_bits(data));
-		mmiowb();
 
 		/* This call shall trigger peer message event */
 		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_CMD, cmd);

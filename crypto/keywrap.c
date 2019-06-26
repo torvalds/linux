@@ -310,7 +310,7 @@ static void __exit crypto_kw_exit(void)
 	crypto_unregister_template(&crypto_kw_tmpl);
 }
 
-module_init(crypto_kw_init);
+subsys_initcall(crypto_kw_init);
 module_exit(crypto_kw_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");

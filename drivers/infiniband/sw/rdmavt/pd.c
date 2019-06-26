@@ -51,15 +51,13 @@
 /**
  * rvt_alloc_pd - allocate a protection domain
  * @ibpd: PD
- * @context: optional user context
  * @udata: optional user data
  *
  * Allocate and keep track of a PD.
  *
  * Return: 0 on success
  */
-int rvt_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
-		 struct ib_udata *udata)
+int rvt_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ib_device *ibdev = ibpd->device;
 	struct rvt_dev_info *dev = ib_to_rvt(ibdev);
@@ -93,10 +91,11 @@ bail:
 /**
  * rvt_dealloc_pd - Free PD
  * @ibpd: Free up PD
+ * @udata: Valid user data or NULL for kernel object
  *
  * Return: always 0
  */
-void rvt_dealloc_pd(struct ib_pd *ibpd)
+void rvt_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct rvt_dev_info *dev = ib_to_rvt(ibpd->device);
 

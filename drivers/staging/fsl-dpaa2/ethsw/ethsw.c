@@ -1350,9 +1350,7 @@ static int ethsw_port_init(struct ethsw_port_priv *port_priv, u16 port)
 		return err;
 	}
 
-	err = ethsw_port_fdb_add_mc(port_priv, def_mcast);
-
-	return err;
+	return ethsw_port_fdb_add_mc(port_priv, def_mcast);
 }
 
 static void ethsw_unregister_notifier(struct device *dev)

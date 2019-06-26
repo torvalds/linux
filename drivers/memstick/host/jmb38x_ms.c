@@ -259,9 +259,11 @@ static unsigned int jmb38x_ms_write_data(struct jmb38x_ms_host *host,
 	case 3:
 		host->io_word[0] |= buf[off + 2] << 16;
 		host->io_pos++;
+		/* fall through */
 	case 2:
 		host->io_word[0] |= buf[off + 1] << 8;
 		host->io_pos++;
+		/* fall through */
 	case 1:
 		host->io_word[0] |= buf[off];
 		host->io_pos++;
@@ -368,7 +370,6 @@ static int jmb38x_ms_transfer_data(struct jmb38x_ms_host *host)
 static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 {
 	struct jmb38x_ms_host *host = memstick_priv(msh);
-	unsigned char *data;
 	unsigned int data_len, cmd, t_val;
 
 	if (!(STATUS_HAS_MEDIA & readl(host->addr + STATUS))) {
@@ -399,8 +400,6 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 		else
 			cmd |= TPC_WAIT_INT;
 	}
-
-	data = host->req->data;
 
 	if (!no_dma)
 		host->cmd_flags |= DMA_DATA;
@@ -644,7 +643,6 @@ static int jmb38x_ms_reset(struct jmb38x_ms_host *host)
 	writel(HOST_CONTROL_RESET_REQ | HOST_CONTROL_CLOCK_EN
 	       | readl(host->addr + HOST_CONTROL),
 	       host->addr + HOST_CONTROL);
-	mmiowb();
 
 	for (cnt = 0; cnt < 20; ++cnt) {
 		if (!(HOST_CONTROL_RESET_REQ
@@ -659,7 +657,6 @@ reset_next:
 	writel(HOST_CONTROL_RESET | HOST_CONTROL_CLOCK_EN
 	       | readl(host->addr + HOST_CONTROL),
 	       host->addr + HOST_CONTROL);
-	mmiowb();
 
 	for (cnt = 0; cnt < 20; ++cnt) {
 		if (!(HOST_CONTROL_RESET
@@ -672,7 +669,6 @@ reset_next:
 	return -EIO;
 
 reset_ok:
-	mmiowb();
 	writel(INT_STATUS_ALL, host->addr + INT_SIGNAL_ENABLE);
 	writel(INT_STATUS_ALL, host->addr + INT_STATUS_ENABLE);
 	return 0;
@@ -1009,7 +1005,6 @@ static void jmb38x_ms_remove(struct pci_dev *dev)
 		tasklet_kill(&host->notify);
 		writel(0, host->addr + INT_SIGNAL_ENABLE);
 		writel(0, host->addr + INT_STATUS_ENABLE);
-		mmiowb();
 		dev_dbg(&jm->pdev->dev, "interrupts off\n");
 		spin_lock_irqsave(&host->lock, flags);
 		if (host->req) {

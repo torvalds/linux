@@ -14,6 +14,7 @@
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
+#include "rcar_du_writeback.h"
 
 /**
  * struct rcar_du_wb_conn_state - Driver-specific writeback connector state

@@ -203,14 +203,18 @@ i40e_status i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 i40e_status i40e_aq_cfg_lldp_mib_change_event(struct i40e_hw *hw,
 				bool enable_update,
 				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code
+i40e_aq_restore_lldp(struct i40e_hw *hw, u8 *setting, bool restore,
+		     struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
+			      bool persist,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_dcb_parameters(struct i40e_hw *hw,
 				       bool dcb_enable,
 				       struct i40e_asq_cmd_details
 				       *cmd_details);
-i40e_status i40e_aq_start_lldp(struct i40e_hw *hw,
-				struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_start_lldp(struct i40e_hw *hw, bool persist,
+			       struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_get_cee_dcb_config(struct i40e_hw *hw,
 				       void *buff, u16 buff_size,
 				       struct i40e_asq_cmd_details *cmd_details);
@@ -429,9 +433,15 @@ i40e_status i40e_aq_get_ddp_list(struct i40e_hw *hw, void *buff,
 struct i40e_generic_seg_header *
 i40e_find_segment_in_package(u32 segment_type,
 			     struct i40e_package_header *pkg_header);
+struct i40e_profile_section_header *
+i40e_find_section_in_profile(u32 section_type,
+			     struct i40e_profile_segment *profile);
 enum i40e_status_code
 i40e_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *i40e_seg,
 		   u32 track_id);
+enum i40e_status_code
+i40e_rollback_profile(struct i40e_hw *hw, struct i40e_profile_segment *i40e_seg,
+		      u32 track_id);
 enum i40e_status_code
 i40e_add_pinfo_to_list(struct i40e_hw *hw,
 		       struct i40e_profile_segment *profile,

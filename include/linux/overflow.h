@@ -36,6 +36,12 @@
 #define type_max(T) ((T)((__type_half_max(T) - 1) + __type_half_max(T)))
 #define type_min(T) ((T)((T)-type_max(T)-(T)1))
 
+/*
+ * Avoids triggering -Wtype-limits compilation warning,
+ * while using unsigned data types to check a < 0.
+ */
+#define is_non_negative(a) ((a) > 0 || (a) == 0)
+#define is_negative(a) (!(is_non_negative(a)))
 
 #ifdef COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW
 /*
@@ -227,10 +233,10 @@
 	typeof(d) _d = d;						\
 	u64 _a_full = _a;						\
 	unsigned int _to_shift =					\
-		_s >= 0 && _s < 8 * sizeof(*d) ? _s : 0;		\
+		is_non_negative(_s) && _s < 8 * sizeof(*d) ? _s : 0;	\
 	*_d = (_a_full << _to_shift);					\
-	(_to_shift != _s || *_d < 0 || _a < 0 ||			\
-		(*_d >> _to_shift) != _a);				\
+	(_to_shift != _s || is_negative(*_d) || is_negative(_a) ||	\
+	(*_d >> _to_shift) != _a);					\
 })
 
 /**
@@ -278,11 +284,15 @@ static inline __must_check size_t array3_size(size_t a, size_t b, size_t c)
 	return bytes;
 }
 
-static inline __must_check size_t __ab_c_size(size_t n, size_t size, size_t c)
+/*
+ * Compute a*b+c, returning SIZE_MAX on overflow. Internal helper for
+ * struct_size() below.
+ */
+static inline __must_check size_t __ab_c_size(size_t a, size_t b, size_t c)
 {
 	size_t bytes;
 
-	if (check_mul_overflow(n, size, &bytes))
+	if (check_mul_overflow(a, b, &bytes))
 		return SIZE_MAX;
 	if (check_add_overflow(bytes, c, &bytes))
 		return SIZE_MAX;

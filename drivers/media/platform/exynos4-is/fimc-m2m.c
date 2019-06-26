@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung S5P/EXYNOS4 SoC series FIMC (video postprocessor) driver
  *
  * Copyright (C) 2012 - 2013 Samsung Electronics Co., Ltd.
  * Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation, either version 2 of the License,
- * or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -252,7 +248,7 @@ static int fimc_m2m_enum_fmt_mplane(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	strncpy(f->description, fmt->name, sizeof(f->description) - 1);
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 	return 0;
 }

@@ -673,9 +673,16 @@ static const struct i2c_device_id x1205_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, x1205_id);
 
+static const struct of_device_id x1205_dt_ids[] = {
+	{ .compatible = "xircom,x1205", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, x1205_dt_ids);
+
 static struct i2c_driver x1205_driver = {
 	.driver		= {
 		.name	= "rtc-x1205",
+		.of_match_table = x1205_dt_ids,
 	},
 	.probe		= x1205_probe,
 	.remove		= x1205_remove,

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * Authors: David Woodhouse <dwmw2@infradead.org>
  */
@@ -228,6 +220,7 @@ static LIST_HEAD(global_svm_list);
 int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_ops *ops)
 {
 	struct intel_iommu *iommu = intel_svm_device_to_iommu(dev);
+	struct device_domain_info *info;
 	struct intel_svm_dev *sdev;
 	struct intel_svm *svm = NULL;
 	struct mm_struct *mm = NULL;
@@ -291,13 +284,29 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 	}
 	sdev->dev = dev;
 
-	ret = intel_iommu_enable_pasid(iommu, sdev);
+	ret = intel_iommu_enable_pasid(iommu, dev);
 	if (ret || !pasid) {
 		/* If they don't actually want to assign a PASID, this is
 		 * just an enabling check/preparation. */
 		kfree(sdev);
 		goto out;
 	}
+
+	info = dev->archdata.iommu;
+	if (!info || !info->pasid_supported) {
+		kfree(sdev);
+		goto out;
+	}
+
+	sdev->did = FLPT_DEFAULT_DID;
+	sdev->sid = PCI_DEVID(info->bus, info->devfn);
+	if (info->ats_enabled) {
+		sdev->dev_iotlb = 1;
+		sdev->qdep = info->ats_qdep;
+		if (sdev->qdep >= QI_DEV_EIOTLB_MAX_INVS)
+			sdev->qdep = 0;
+	}
+
 	/* Finish the setup now we know we're keeping it */
 	sdev->users = 1;
 	sdev->ops = ops;

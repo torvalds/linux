@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/em_ipt.c IPtables matches Ematch
  *
  * (c) 2018 Eyal Birger <eyal.birger@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/gfp.h>
@@ -120,8 +116,8 @@ static int em_ipt_change(struct net *net, void *data, int data_len,
 	struct xt_match *match;
 	int mdata_len, ret;
 
-	ret = nla_parse(tb, TCA_EM_IPT_MAX, data, data_len, em_ipt_policy,
-			NULL);
+	ret = nla_parse_deprecated(tb, TCA_EM_IPT_MAX, data, data_len,
+				   em_ipt_policy, NULL);
 	if (ret < 0)
 		return ret;
 

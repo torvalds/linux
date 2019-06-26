@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OpenCores Keyboard Controller Driver
  * http://www.opencores.org/project,keyboardcontroller
  *
  * Copyright 2007-2009 HV Sistemas S.L.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/input.h>

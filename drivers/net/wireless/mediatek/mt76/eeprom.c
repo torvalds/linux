@@ -94,8 +94,8 @@ mt76_eeprom_override(struct mt76_dev *dev)
 		return;
 
 	mac = of_get_mac_address(np);
-	if (mac)
-		memcpy(dev->macaddr, mac, ETH_ALEN);
+	if (!IS_ERR(mac))
+		ether_addr_copy(dev->macaddr, mac);
 #endif
 
 	if (!is_valid_ether_addr(dev->macaddr)) {

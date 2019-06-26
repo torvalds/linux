@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *      sd.c Copyright (C) 1992 Drew Eckhardt
  *           Copyright (C) 1993, 1994, 1995, 1999 Eric Youngdale
@@ -2256,22 +2257,6 @@ static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
 
 #define READ_CAPACITY_RETRIES_ON_RESET	10
 
-/*
- * Ensure that we don't overflow sector_t when CONFIG_LBDAF is not set
- * and the reported logical block size is bigger than 512 bytes. Note
- * that last_sector is a u64 and therefore logical_to_sectors() is not
- * applicable.
- */
-static bool sd_addressable_capacity(u64 lba, unsigned int sector_size)
-{
-	u64 last_sector = (lba + 1ULL) << (ilog2(sector_size) - 9);
-
-	if (sizeof(sector_t) == 4 && last_sector > U32_MAX)
-		return false;
-
-	return true;
-}
-
 static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 						unsigned char *buffer)
 {
@@ -2335,14 +2320,6 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	if (sd_read_protection_type(sdkp, buffer) < 0) {
 		sdkp->capacity = 0;
 		return -ENODEV;
-	}
-
-	if (!sd_addressable_capacity(lba, sector_size)) {
-		sd_printk(KERN_ERR, sdkp, "Too big for this kernel. Use a "
-			"kernel compiled with support for large block "
-			"devices.\n");
-		sdkp->capacity = 0;
-		return -EOVERFLOW;
 	}
 
 	/* Logical blocks per physical block exponent */
@@ -2424,14 +2401,6 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		sdkp->capacity = 0;
 		sdkp->physical_block_size = sector_size;
 		return sector_size;
-	}
-
-	if (!sd_addressable_capacity(lba, sector_size)) {
-		sd_printk(KERN_ERR, sdkp, "Too big for this kernel. Use a "
-			"kernel compiled with support for large block "
-			"devices.\n");
-		sdkp->capacity = 0;
-		return -EOVERFLOW;
 	}
 
 	sdkp->capacity = lba + 1;
@@ -2603,7 +2572,6 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, unsigned char *buffer)
 	int res;
 	struct scsi_device *sdp = sdkp->device;
 	struct scsi_mode_data data;
-	int disk_ro = get_disk_ro(sdkp->disk);
 	int old_wp = sdkp->write_prot;
 
 	set_disk_ro(sdkp->disk, 0);
@@ -2644,7 +2612,7 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, unsigned char *buffer)
 			  "Test WP failed, assume Write Enabled\n");
 	} else {
 		sdkp->write_prot = ((data.device_specific & 0x80) != 0);
-		set_disk_ro(sdkp->disk, sdkp->write_prot || disk_ro);
+		set_disk_ro(sdkp->disk, sdkp->write_prot);
 		if (sdkp->first_scan || old_wp != sdkp->write_prot) {
 			sd_printk(KERN_NOTICE, sdkp, "Write Protect is %s\n",
 				  sdkp->write_prot ? "on" : "off");
@@ -3325,6 +3293,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	if (sdp->removable) {
 		gd->flags |= GENHD_FL_REMOVABLE;
 		gd->events |= DISK_EVENT_MEDIA_CHANGE;
+		gd->event_flags = DISK_EVENT_FLAG_POLL | DISK_EVENT_FLAG_UEVENT;
 	}
 
 	blk_pm_runtime_init(sdp->request_queue, dev);

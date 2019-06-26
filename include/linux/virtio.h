@@ -90,23 +90,6 @@ dma_addr_t virtqueue_get_desc_addr(struct virtqueue *vq);
 dma_addr_t virtqueue_get_avail_addr(struct virtqueue *vq);
 dma_addr_t virtqueue_get_used_addr(struct virtqueue *vq);
 
-/*
- * Legacy accessors -- in almost all cases, these are the wrong functions
- * to use.
- */
-static inline void *virtqueue_get_desc(struct virtqueue *vq)
-{
-	return virtqueue_get_vring(vq)->desc;
-}
-static inline void *virtqueue_get_avail(struct virtqueue *vq)
-{
-	return virtqueue_get_vring(vq)->avail;
-}
-static inline void *virtqueue_get_used(struct virtqueue *vq)
-{
-	return virtqueue_get_vring(vq)->used;
-}
-
 /**
  * virtio_device - representation of a device using virtio
  * @index: unique position on the virtio bus

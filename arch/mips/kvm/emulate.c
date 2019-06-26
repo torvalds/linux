@@ -1141,9 +1141,7 @@ enum emulation_result kvm_mips_emul_tlbwr(struct kvm_vcpu *vcpu)
 	unsigned long pc = vcpu->arch.pc;
 	int index;
 
-	get_random_bytes(&index, sizeof(index));
-	index &= (KVM_MIPS_GUEST_TLB_SIZE - 1);
-
+	index = prandom_u32_max(KVM_MIPS_GUEST_TLB_SIZE);
 	tlb = &vcpu->arch.guest_tlb[index];
 
 	kvm_mips_invalidate_guest_tlb(vcpu, tlb);

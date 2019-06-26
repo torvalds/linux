@@ -88,6 +88,14 @@
 		};
 	};
 
+	rtc32k_xtal: rtc32k-xtal-clk {
+		/* X2 in the schematics */
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "RTC32K";
+		#clock-cells = <0>;
+	};
+
 	usb_vbus: regulator-usb-vbus {
 		/*
 		 * Silergy SY6288CCAC-GP 2A Power Distribution Switch.
@@ -345,6 +353,12 @@
 	pinctrl-names = "default";
 	clocks = <&clkc CLKID_XTAL>;
 	clock-names = "clkin0";
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&rtc32k_xtal>;
+	vdd-supply = <&vcc_rtc>;
 };
 
 /* exposed through the pin headers labeled "URDUG1" on the top of the PCB */

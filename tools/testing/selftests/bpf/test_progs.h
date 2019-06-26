@@ -40,6 +40,7 @@ typedef __u16 __sum16;
 
 extern int error_cnt, pass_cnt;
 extern bool jit_enabled;
+extern bool verifier_stats;
 
 #define MAGIC_BYTES 123
 

@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* PTP classifier
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 
 /* The below program is the bpf_asm (tools/net/) representation of
@@ -185,9 +177,10 @@ void __init ptp_classifier_init(void)
 		{ 0x16,  0,  0, 0x00000000 },
 		{ 0x06,  0,  0, 0x00000000 },
 	};
-	struct sock_fprog_kern ptp_prog = {
-		.len = ARRAY_SIZE(ptp_filter), .filter = ptp_filter,
-	};
+	struct sock_fprog_kern ptp_prog;
+
+	ptp_prog.len = ARRAY_SIZE(ptp_filter);
+	ptp_prog.filter = ptp_filter;
 
 	BUG_ON(bpf_prog_create(&ptp_insns, &ptp_prog));
 }

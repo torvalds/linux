@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Internet Control Message Protocol (ICMPv6)
  *	Linux INET6 implementation
@@ -8,11 +9,6 @@
  *	Based on net/ipv4/icmp.c
  *
  *	RFC 1885
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -168,22 +164,21 @@ static bool is_ineligible(const struct sk_buff *skb)
 	return false;
 }
 
-static bool icmpv6_mask_allow(int type)
+static bool icmpv6_mask_allow(struct net *net, int type)
 {
-	/* Informational messages are not limited. */
-	if (type & ICMPV6_INFOMSG_MASK)
+	if (type > ICMPV6_MSG_MAX)
 		return true;
 
-	/* Do not limit pmtu discovery, it would break it. */
-	if (type == ICMPV6_PKT_TOOBIG)
+	/* Limit if icmp type is set in ratemask. */
+	if (!test_bit(type, net->ipv6.sysctl.icmpv6_ratemask))
 		return true;
 
 	return false;
 }
 
-static bool icmpv6_global_allow(int type)
+static bool icmpv6_global_allow(struct net *net, int type)
 {
-	if (icmpv6_mask_allow(type))
+	if (icmpv6_mask_allow(net, type))
 		return true;
 
 	if (icmp_global_allow())
@@ -202,7 +197,7 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 	struct dst_entry *dst;
 	bool res = false;
 
-	if (icmpv6_mask_allow(type))
+	if (icmpv6_mask_allow(net, type))
 		return true;
 
 	/*
@@ -511,7 +506,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	local_bh_disable();
 
 	/* Check global sysctl_icmp_msgs_per_sec ratelimit */
-	if (!(skb->dev->flags&IFF_LOOPBACK) && !icmpv6_global_allow(type))
+	if (!(skb->dev->flags & IFF_LOOPBACK) && !icmpv6_global_allow(net, type))
 		goto out_bh_enable;
 
 	mip6_addr_swap(skb);
@@ -683,12 +678,20 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct dst_entry *dst;
 	struct ipcm6_cookie ipc6;
 	u32 mark = IP6_REPLY_MARK(net, skb->mark);
+	bool acast;
+
+	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) &&
+	    net->ipv6.sysctl.icmpv6_echo_ignore_multicast)
+		return;
 
 	saddr = &ipv6_hdr(skb)->daddr;
 
+	acast = ipv6_anycast_destination(skb_dst(skb), saddr);
+	if (acast && net->ipv6.sysctl.icmpv6_echo_ignore_anycast)
+		return;
+
 	if (!ipv6_unicast_destination(skb) &&
-	    !(net->ipv6.sysctl.anycast_src_echo_reply &&
-	      ipv6_anycast_destination(skb_dst(skb), saddr)))
+	    !(net->ipv6.sysctl.anycast_src_echo_reply && acast))
 		saddr = NULL;
 
 	memcpy(&tmp_hdr, icmph, sizeof(tmp_hdr));
@@ -723,6 +726,11 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (IS_ERR(dst))
 		goto out;
 
+	/* Check the ratelimit */
+	if ((!(skb->dev->flags & IFF_LOOPBACK) && !icmpv6_global_allow(net, ICMPV6_ECHO_REPLY)) ||
+	    !icmpv6_xrlim_allow(sk, ICMPV6_ECHO_REPLY, &fl6))
+		goto out_dst_release;
+
 	idev = __in6_dev_get(skb->dev);
 
 	msg.skb = skb;
@@ -743,6 +751,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 		icmpv6_push_pending_frames(sk, &fl6, &tmp_hdr,
 					   skb->len + sizeof(struct icmp6hdr));
 	}
+out_dst_release:
 	dst_release(dst);
 out:
 	icmpv6_xmit_unlock(sk);
@@ -1115,6 +1124,27 @@ static struct ctl_table ipv6_icmp_table_template[] = {
 		.mode		= 0644,
 		.proc_handler = proc_dointvec,
 	},
+	{
+		.procname	= "echo_ignore_multicast",
+		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_multicast,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler = proc_dointvec,
+	},
+	{
+		.procname	= "echo_ignore_anycast",
+		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_anycast,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler = proc_dointvec,
+	},
+	{
+		.procname	= "ratemask",
+		.data		= &init_net.ipv6.sysctl.icmpv6_ratemask_ptr,
+		.maxlen		= ICMPV6_MSG_MAX + 1,
+		.mode		= 0644,
+		.proc_handler = proc_do_large_bitmap,
+	},
 	{ },
 };
 
@@ -1129,6 +1159,9 @@ struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
 	if (table) {
 		table[0].data = &net->ipv6.sysctl.icmpv6_time;
 		table[1].data = &net->ipv6.sysctl.icmpv6_echo_ignore_all;
+		table[2].data = &net->ipv6.sysctl.icmpv6_echo_ignore_multicast;
+		table[3].data = &net->ipv6.sysctl.icmpv6_echo_ignore_anycast;
+		table[4].data = &net->ipv6.sysctl.icmpv6_ratemask_ptr;
 	}
 	return table;
 }

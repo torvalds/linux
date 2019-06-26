@@ -46,15 +46,20 @@
  * The file takes a reference on the kref.
  */
 
-#include <drm/drmP.h>
+#include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/anon_inodes.h>
-#include <linux/sync_file.h>
 #include <linux/sched/signal.h>
+#include <linux/sync_file.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_print.h>
+#include <drm/drm_syncobj.h>
 
 #include "drm_internal.h"
-#include <drm/drm_syncobj.h>
 
 struct syncobj_wait_entry {
 	struct list_head node;
@@ -475,20 +480,19 @@ static int drm_syncobj_fd_to_handle(struct drm_file *file_private,
 				    int fd, u32 *handle)
 {
 	struct drm_syncobj *syncobj;
-	struct file *file;
+	struct fd f = fdget(fd);
 	int ret;
 
-	file = fget(fd);
-	if (!file)
+	if (!f.file)
 		return -EINVAL;
 
-	if (file->f_op != &drm_syncobj_file_fops) {
-		fput(file);
+	if (f.file->f_op != &drm_syncobj_file_fops) {
+		fdput(f);
 		return -EINVAL;
 	}
 
 	/* take a reference to put in the idr */
-	syncobj = file->private_data;
+	syncobj = f.file->private_data;
 	drm_syncobj_get(syncobj);
 
 	idr_preload(GFP_KERNEL);
@@ -503,7 +507,7 @@ static int drm_syncobj_fd_to_handle(struct drm_file *file_private,
 	} else
 		drm_syncobj_put(syncobj);
 
-	fput(file);
+	fdput(f);
 	return ret;
 }
 

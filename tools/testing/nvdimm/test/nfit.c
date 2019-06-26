@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/platform_device.h>
@@ -146,6 +138,7 @@ static int dimm_fail_cmd_code[ARRAY_SIZE(handle)];
 struct nfit_test_sec {
 	u8 state;
 	u8 ext_state;
+	u8 old_state;
 	u8 passphrase[32];
 	u8 master_passphrase[32];
 	u64 overwrite_end_time;
@@ -224,6 +217,8 @@ struct nfit_test {
 static struct workqueue_struct *nfit_wq;
 
 static struct gen_pool *nfit_pool;
+
+static const char zero_key[NVDIMM_PASSPHRASE_LEN];
 
 static struct nfit_test *to_nfit_test(struct device *dev)
 {
@@ -1059,8 +1054,7 @@ static int nd_intel_test_cmd_secure_erase(struct nfit_test *t,
 	struct device *dev = &t->pdev.dev;
 	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
 
-	if (!(sec->state & ND_INTEL_SEC_STATE_ENABLED) ||
-			(sec->state & ND_INTEL_SEC_STATE_FROZEN)) {
+	if (sec->state & ND_INTEL_SEC_STATE_FROZEN) {
 		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
 		dev_dbg(dev, "secure erase: wrong security state\n");
 	} else if (memcmp(nd_cmd->passphrase, sec->passphrase,
@@ -1068,6 +1062,12 @@ static int nd_intel_test_cmd_secure_erase(struct nfit_test *t,
 		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
 		dev_dbg(dev, "secure erase: wrong passphrase\n");
 	} else {
+		if (!(sec->state & ND_INTEL_SEC_STATE_ENABLED)
+				&& (memcmp(nd_cmd->passphrase, zero_key,
+					ND_INTEL_PASSPHRASE_SIZE) != 0)) {
+			dev_dbg(dev, "invalid zero key\n");
+			return 0;
+		}
 		memset(sec->passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
 		memset(sec->master_passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
 		sec->state = 0;
@@ -1093,7 +1093,7 @@ static int nd_intel_test_cmd_overwrite(struct nfit_test *t,
 		return 0;
 	}
 
-	memset(sec->passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
+	sec->old_state = sec->state;
 	sec->state = ND_INTEL_SEC_STATE_OVERWRITE;
 	dev_dbg(dev, "overwrite progressing.\n");
 	sec->overwrite_end_time = get_jiffies_64() + 5 * HZ;
@@ -1115,7 +1115,8 @@ static int nd_intel_test_cmd_query_overwrite(struct nfit_test *t,
 
 	if (time_is_before_jiffies64(sec->overwrite_end_time)) {
 		sec->overwrite_end_time = 0;
-		sec->state = 0;
+		sec->state = sec->old_state;
+		sec->old_state = 0;
 		sec->ext_state = ND_INTEL_SEC_ESTATE_ENABLED;
 		dev_dbg(dev, "overwrite is complete\n");
 	} else
@@ -3162,6 +3163,9 @@ static __init int nfit_test_init(void)
 	acpi_nfit_test();
 	device_dax_test();
 	mcsafe_test();
+	dax_pmem_test();
+	dax_pmem_core_test();
+	dax_pmem_compat_test();
 
 	nfit_test_setup(nfit_test_lookup, nfit_test_evaluate_dsm);
 

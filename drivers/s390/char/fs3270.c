@@ -463,7 +463,8 @@ fs3270_open(struct inode *inode, struct file *filp)
 
 	init_waitqueue_head(&fp->wait);
 	fp->fs_pid = get_pid(task_pid(current));
-	rc = raw3270_add_view(&fp->view, &fs3270_fn, minor);
+	rc = raw3270_add_view(&fp->view, &fs3270_fn, minor,
+			      RAW3270_VIEW_LOCK_BH);
 	if (rc) {
 		fs3270_free_view(&fp->view);
 		goto out;
@@ -485,7 +486,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 		raw3270_del_view(&fp->view);
 		goto out;
 	}
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 	filp->private_data = fp;
 out:
 	mutex_unlock(&fs3270_mutex);

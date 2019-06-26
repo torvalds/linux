@@ -23,11 +23,15 @@
 
 #define RTL821x_INSR				0x13
 
+#define RTL821x_EXT_PAGE_SELECT			0x1e
 #define RTL821x_PAGE_SELECT			0x1f
 
 #define RTL8211F_INSR				0x1d
 
 #define RTL8211F_TX_DELAY			BIT(8)
+#define RTL8211E_TX_DELAY			BIT(1)
+#define RTL8211E_RX_DELAY			BIT(2)
+#define RTL8211E_MODE_MII_GMII			BIT(3)
 
 #define RTL8201F_ISR				0x1e
 #define RTL8201F_IER				0x13
@@ -151,27 +155,77 @@ static int rtl8211_config_aneg(struct phy_device *phydev)
 static int rtl8211c_config_init(struct phy_device *phydev)
 {
 	/* RTL8211C has an issue when operating in Gigabit slave mode */
-	phy_set_bits(phydev, MII_CTRL1000,
-		     CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER);
-
-	return genphy_config_init(phydev);
+	return phy_set_bits(phydev, MII_CTRL1000,
+			    CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER);
 }
 
 static int rtl8211f_config_init(struct phy_device *phydev)
 {
-	int ret;
-	u16 val = 0;
+	u16 val;
 
-	ret = genphy_config_init(phydev);
-	if (ret < 0)
-		return ret;
-
-	/* enable TX-delay for rgmii-id and rgmii-txid, otherwise disable it */
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	    phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
+	/* enable TX-delay for rgmii-{id,txid}, and disable it for rgmii and
+	 * rgmii-rxid. The RX-delay can be enabled by the external RXDLY pin.
+	 */
+	switch (phydev->interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		val = 0;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		val = RTL8211F_TX_DELAY;
+		break;
+	default: /* the rest of the modes imply leaving delay as is. */
+		return 0;
+	}
 
 	return phy_modify_paged(phydev, 0xd08, 0x11, RTL8211F_TX_DELAY, val);
+}
+
+static int rtl8211e_config_init(struct phy_device *phydev)
+{
+	int ret = 0, oldpage;
+	u16 val;
+
+	/* enable TX/RX delay for rgmii-* modes, and disable them for rgmii. */
+	switch (phydev->interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+		val = 0;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		val = RTL8211E_TX_DELAY | RTL8211E_RX_DELAY;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		val = RTL8211E_RX_DELAY;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		val = RTL8211E_TX_DELAY;
+		break;
+	default: /* the rest of the modes imply leaving delays as is. */
+		return 0;
+	}
+
+	/* According to a sample driver there is a 0x1c config register on the
+	 * 0xa4 extension page (0x7) layout. It can be used to disable/enable
+	 * the RX/TX delays otherwise controlled by RXDLY/TXDLY pins. It can
+	 * also be used to customize the whole configuration register:
+	 * 8:6 = PHY Address, 5:4 = Auto-Negotiation, 3 = Interface Mode Select,
+	 * 2 = RX Delay, 1 = TX Delay, 0 = SELRGV (see original PHY datasheet
+	 * for details).
+	 */
+	oldpage = phy_select_page(phydev, 0x7);
+	if (oldpage < 0)
+		goto err_restore_page;
+
+	ret = __phy_write(phydev, RTL821x_EXT_PAGE_SELECT, 0xa4);
+	if (ret)
+		goto err_restore_page;
+
+	ret = __phy_modify(phydev, 0x1c, RTL8211E_TX_DELAY | RTL8211E_RX_DELAY,
+			   val);
+
+err_restore_page:
+	return phy_restore_page(phydev, oldpage, ret);
 }
 
 static int rtl8211b_suspend(struct phy_device *phydev)
@@ -192,10 +246,6 @@ static int rtl8366rb_config_init(struct phy_device *phydev)
 {
 	int ret;
 
-	ret = genphy_config_init(phydev);
-	if (ret < 0)
-		return ret;
-
 	ret = phy_set_bits(phydev, RTL8366RB_POWER_SAVE,
 			   RTL8366RB_POWER_SAVE_ON);
 	if (ret) {
@@ -210,11 +260,9 @@ static struct phy_driver realtek_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00008201),
 		.name           = "RTL8201CP Ethernet",
-		.features       = PHY_BASIC_FEATURES,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc816),
 		.name		= "RTL8201F Fast Ethernet",
-		.features	= PHY_BASIC_FEATURES,
 		.ack_interrupt	= &rtl8201_ack_interrupt,
 		.config_intr	= &rtl8201_config_intr,
 		.suspend	= genphy_suspend,
@@ -224,47 +272,52 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc910),
 		.name		= "RTL8211 Gigabit Ethernet",
-		.features	= PHY_GBIT_FEATURES,
 		.config_aneg	= rtl8211_config_aneg,
 		.read_mmd	= &genphy_read_mmd_unsupported,
 		.write_mmd	= &genphy_write_mmd_unsupported,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc912),
 		.name		= "RTL8211B Gigabit Ethernet",
-		.features	= PHY_GBIT_FEATURES,
 		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211b_config_intr,
 		.read_mmd	= &genphy_read_mmd_unsupported,
 		.write_mmd	= &genphy_write_mmd_unsupported,
 		.suspend	= rtl8211b_suspend,
 		.resume		= rtl8211b_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc913),
 		.name		= "RTL8211C Gigabit Ethernet",
-		.features	= PHY_GBIT_FEATURES,
 		.config_init	= rtl8211c_config_init,
 		.read_mmd	= &genphy_read_mmd_unsupported,
 		.write_mmd	= &genphy_write_mmd_unsupported,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc914),
 		.name		= "RTL8211DN Gigabit Ethernet",
-		.features	= PHY_GBIT_FEATURES,
 		.ack_interrupt	= rtl821x_ack_interrupt,
 		.config_intr	= rtl8211e_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc915),
 		.name		= "RTL8211E Gigabit Ethernet",
-		.features	= PHY_GBIT_FEATURES,
+		.config_init	= &rtl8211e_config_init,
 		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211e_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc916),
 		.name		= "RTL8211F Gigabit Ethernet",
-		.features	= PHY_GBIT_FEATURES,
 		.config_init	= &rtl8211f_config_init,
 		.ack_interrupt	= &rtl8211f_ack_interrupt,
 		.config_intr	= &rtl8211f_config_intr,
@@ -275,8 +328,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc800),
 		.name		= "Generic Realtek PHY",
-		.features	= PHY_GBIT_FEATURES,
-		.config_init	= genphy_config_init,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
@@ -284,7 +335,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc961),
 		.name		= "RTL8366RB Gigabit Ethernet",
-		.features	= PHY_GBIT_FEATURES,
 		.config_init	= &rtl8366rb_config_init,
 		/* These interrupts are handled by the irq controller
 		 * embedded inside the RTL8366RB, they get unmasked when the

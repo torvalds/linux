@@ -9,7 +9,8 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics"
+TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw"
+
 VERBOSE=0
 PAUSE_ON_FAIL=no
 PAUSE=no
@@ -48,6 +49,7 @@ setup()
 {
 	set -e
 	ip netns add ns1
+	ip netns set ns1 auto
 	$IP link set dev lo up
 	ip netns exec ns1 sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec ns1 sysctl -qw net.ipv6.conf.all.forwarding=1
@@ -605,6 +607,39 @@ run_cmd()
 	return $rc
 }
 
+check_expected()
+{
+	local out="$1"
+	local expected="$2"
+	local rc=0
+
+	[ "${out}" = "${expected}" ] && return 0
+
+	if [ -z "${out}" ]; then
+		if [ "$VERBOSE" = "1" ]; then
+			printf "\nNo route entry found\n"
+			printf "Expected:\n"
+			printf "    ${expected}\n"
+		fi
+		return 1
+	fi
+
+	# tricky way to convert output to 1-line without ip's
+	# messy '\'; this drops all extra white space
+	out=$(echo ${out})
+	if [ "${out}" != "${expected}" ]; then
+		rc=1
+		if [ "${VERBOSE}" = "1" ]; then
+			printf "    Unexpected route entry. Have:\n"
+			printf "        ${out}\n"
+			printf "    Expected:\n"
+			printf "        ${expected}\n\n"
+		fi
+	fi
+
+	return $rc
+}
+
 # add route for a prefix, flushing any existing routes first
 # expected to be the first step of a test
 add_route6()
@@ -652,31 +687,7 @@ check_route6()
 	pfx=$1
 
 	out=$($IP -6 ro ls match ${pfx} | sed -e 's/ pref medium//')
-	[ "${out}" = "${expected}" ] && return 0
-
-	if [ -z "${out}" ]; then
-		if [ "$VERBOSE" = "1" ]; then
-			printf "\nNo route entry found\n"
-			printf "Expected:\n"
-			printf "    ${expected}\n"
-		fi
-		return 1
-	fi
-
-	# tricky way to convert output to 1-line without ip's
-	# messy '\'; this drops all extra white space
-	out=$(echo ${out})
-	if [ "${out}" != "${expected}" ]; then
-		rc=1
-		if [ "${VERBOSE}" = "1" ]; then
-			printf "    Unexpected route entry. Have:\n"
-			printf "        ${out}\n"
-			printf "    Expected:\n"
-			printf "        ${expected}\n\n"
-		fi
-	fi
-
-	return $rc
+	check_expected "${out}" "${expected}"
 }
 
 route_cleanup()
@@ -698,6 +709,7 @@ route_setup()
 	set -e
 
 	ip netns add ns2
+	ip netns set ns2 auto
 	ip -netns ns2 link set dev lo up
 	ip netns exec ns2 sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec ns2 sysctl -qw net.ipv6.conf.all.forwarding=1
@@ -725,7 +737,7 @@ route_setup()
 	ip -netns ns2 addr add 172.16.103.2/24 dev veth4
 	ip -netns ns2 addr add 172.16.104.1/24 dev dummy1
 
-	set +ex
+	set +e
 }
 
 # assumption is that basic add of a single path route works
@@ -960,7 +972,8 @@ ipv6_addr_metric_test()
 	run_cmd "$IP li set dev dummy2 down"
 	rc=$?
 	if [ $rc -eq 0 ]; then
-		check_route6 ""
+		out=$($IP -6 ro ls match 2001:db8:104::/64)
+		check_expected "${out}" ""
 		rc=$?
 	fi
 	log_test $rc 0 "Prefix route removed on link down"
@@ -1091,38 +1104,13 @@ check_route()
 	local pfx
 	local expected="$1"
 	local out
-	local rc=0
 
 	set -- $expected
 	pfx=$1
 	[ "${pfx}" = "unreachable" ] && pfx=$2
 
 	out=$($IP ro ls match ${pfx})
-	[ "${out}" = "${expected}" ] && return 0
-
-	if [ -z "${out}" ]; then
-		if [ "$VERBOSE" = "1" ]; then
-			printf "\nNo route entry found\n"
-			printf "Expected:\n"
-			printf "    ${expected}\n"
-		fi
-		return 1
-	fi
-
-	# tricky way to convert output to 1-line without ip's
-	# messy '\'; this drops all extra white space
-	out=$(echo ${out})
-	if [ "${out}" != "${expected}" ]; then
-		rc=1
-		if [ "${VERBOSE}" = "1" ]; then
-			printf "    Unexpected route entry. Have:\n"
-			printf "        ${out}\n"
-			printf "    Expected:\n"
-			printf "        ${expected}\n\n"
-		fi
-	fi
-
-	return $rc
+	check_expected "${out}" "${expected}"
 }
 
 # assumption is that basic add of a single path route works
@@ -1387,7 +1375,8 @@ ipv4_addr_metric_test()
 	run_cmd "$IP li set dev dummy2 down"
 	rc=$?
 	if [ $rc -eq 0 ]; then
-		check_route ""
+		out=$($IP ro ls match 172.16.104.0/24)
+		check_expected "${out}" ""
 		rc=$?
 	fi
 	log_test $rc 0 "Prefix route removed on link down"
@@ -1442,6 +1431,70 @@ ipv4_route_metrics_test()
 	route_cleanup
 }
 
+ipv4_route_v6_gw_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 route with IPv6 gateway tests"
+
+	route_setup
+	sleep 2
+
+	#
+	# single path route
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 via inet6 2001:db8:101::2"
+	rc=$?
+	log_test $rc 0 "Single path route with IPv6 gateway"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 via inet6 2001:db8:101::2 dev veth1"
+	fi
+
+	run_cmd "ip netns exec ns1 ping -w1 -c1 172.16.104.1"
+	log_test $rc 0 "Single path route with IPv6 gateway - ping"
+
+	run_cmd "$IP ro del 172.16.104.0/24 via inet6 2001:db8:101::2"
+	rc=$?
+	log_test $rc 0 "Single path route delete"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.112.0/24"
+	fi
+
+	#
+	# multipath - v6 then v4
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	rc=$?
+	log_test $rc 0 "Multipath route add - v6 nexthop then v4"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	fi
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	log_test $? 2 "    Multipath route delete - nexthops in wrong order"
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	log_test $? 0 "    Multipath route delete exact match"
+
+	#
+	# multipath - v4 then v6
+	#
+	run_cmd "$IP ro add 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	rc=$?
+	log_test $rc 0 "Multipath route add - v4 nexthop then v6"
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 weight 1 nexthop via inet6 2001:db8:101::2 dev veth1 weight 1"
+	fi
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via inet6 2001:db8:101::2 dev veth1 nexthop via 172.16.103.2 dev veth3"
+	log_test $? 2 "    Multipath route delete - nexthops in wrong order"
+
+	run_cmd "$IP ro del 172.16.104.0/24 nexthop via 172.16.103.2 dev veth3 nexthop via inet6 2001:db8:101::2 dev veth1"
+	log_test $? 0 "    Multipath route delete exact match"
+
+	route_cleanup
+}
 
 ################################################################################
 # usage
@@ -1511,6 +1564,7 @@ do
 	ipv4_addr_metric)		ipv4_addr_metric_test;;
 	ipv6_route_metrics)		ipv6_route_metrics_test;;
 	ipv4_route_metrics)		ipv4_route_metrics_test;;
+	ipv4_route_v6_gw)		ipv4_route_v6_gw_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac

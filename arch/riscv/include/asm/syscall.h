@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2008-2009 Red Hat, Inc.  All rights reserved.
  * Copyright 2010 Tilera Corporation. All Rights Reserved.
  * Copyright 2015 Regents of the University of California, Berkeley
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation, version 2.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
  *
  * See asm-generic/syscall.h for descriptions of what we must do here.
  */
@@ -88,7 +80,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	memcpy(&regs->a1, args, 5 * sizeof(regs->a1));
 }
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
 #ifdef CONFIG_64BIT
 	return AUDIT_ARCH_RISCV64;

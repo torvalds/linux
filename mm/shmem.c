@@ -614,7 +614,7 @@ static int shmem_add_to_page_cache(struct page *page,
 		if (xas_error(&xas))
 			goto unlock;
 next:
-		xas_store(&xas, page + i);
+		xas_store(&xas, page);
 		if (++i < nr) {
 			xas_next(&xas);
 			goto next;
@@ -1081,9 +1081,14 @@ static void shmem_evict_inode(struct inode *inode)
 			}
 			spin_unlock(&sbinfo->shrinklist_lock);
 		}
-		if (!list_empty(&info->swaplist)) {
+		while (!list_empty(&info->swaplist)) {
+			/* Wait while shmem_unuse() is scanning this inode... */
+			wait_var_event(&info->stop_eviction,
+				       !atomic_read(&info->stop_eviction));
 			mutex_lock(&shmem_swaplist_mutex);
-			list_del_init(&info->swaplist);
+			/* ...but beware of the race if we peeked too early */
+			if (!atomic_read(&info->stop_eviction))
+				list_del_init(&info->swaplist);
 			mutex_unlock(&shmem_swaplist_mutex);
 		}
 	}
@@ -1099,10 +1104,11 @@ extern struct swap_info_struct *swap_info[];
 static int shmem_find_swap_entries(struct address_space *mapping,
 				   pgoff_t start, unsigned int nr_entries,
 				   struct page **entries, pgoff_t *indices,
-				   bool frontswap)
+				   unsigned int type, bool frontswap)
 {
 	XA_STATE(xas, &mapping->i_pages, start);
 	struct page *page;
+	swp_entry_t entry;
 	unsigned int ret = 0;
 
 	if (!nr_entries)
@@ -1116,13 +1122,12 @@ static int shmem_find_swap_entries(struct address_space *mapping,
 		if (!xa_is_value(page))
 			continue;
 
-		if (frontswap) {
-			swp_entry_t entry = radix_to_swp_entry(page);
-
-			if (!frontswap_test(swap_info[swp_type(entry)],
-					    swp_offset(entry)))
-				continue;
-		}
+		entry = radix_to_swp_entry(page);
+		if (swp_type(entry) != type)
+			continue;
+		if (frontswap &&
+		    !frontswap_test(swap_info[type], swp_offset(entry)))
+			continue;
 
 		indices[ret] = xas.xa_index;
 		entries[ret] = page;
@@ -1194,7 +1199,7 @@ static int shmem_unuse_inode(struct inode *inode, unsigned int type,
 
 		pvec.nr = shmem_find_swap_entries(mapping, start, nr_entries,
 						  pvec.pages, indices,
-						  frontswap);
+						  type, frontswap);
 		if (pvec.nr == 0) {
 			ret = 0;
 			break;
@@ -1227,36 +1232,27 @@ int shmem_unuse(unsigned int type, bool frontswap,
 		unsigned long *fs_pages_to_unuse)
 {
 	struct shmem_inode_info *info, *next;
-	struct inode *inode;
-	struct inode *prev_inode = NULL;
 	int error = 0;
 
 	if (list_empty(&shmem_swaplist))
 		return 0;
 
 	mutex_lock(&shmem_swaplist_mutex);
-
-	/*
-	 * The extra refcount on the inode is necessary to safely dereference
-	 * p->next after re-acquiring the lock. New shmem inodes with swap
-	 * get added to the end of the list and we will scan them all.
-	 */
 	list_for_each_entry_safe(info, next, &shmem_swaplist, swaplist) {
 		if (!info->swapped) {
 			list_del_init(&info->swaplist);
 			continue;
 		}
-
-		inode = igrab(&info->vfs_inode);
-		if (!inode)
-			continue;
-
+		/*
+		 * Drop the swaplist mutex while searching the inode for swap;
+		 * but before doing so, make sure shmem_evict_inode() will not
+		 * remove placeholder inode from swaplist, nor let it be freed
+		 * (igrab() would protect from unlink, but not from unmount).
+		 */
+		atomic_inc(&info->stop_eviction);
 		mutex_unlock(&shmem_swaplist_mutex);
-		if (prev_inode)
-			iput(prev_inode);
-		prev_inode = inode;
 
-		error = shmem_unuse_inode(inode, type, frontswap,
+		error = shmem_unuse_inode(&info->vfs_inode, type, frontswap,
 					  fs_pages_to_unuse);
 		cond_resched();
 
@@ -1264,13 +1260,12 @@ int shmem_unuse(unsigned int type, bool frontswap,
 		next = list_next_entry(info, swaplist);
 		if (!info->swapped)
 			list_del_init(&info->swaplist);
+		if (atomic_dec_and_test(&info->stop_eviction))
+			wake_up_var(&info->stop_eviction);
 		if (error)
 			break;
 	}
 	mutex_unlock(&shmem_swaplist_mutex);
-
-	if (prev_inode)
-		iput(prev_inode);
 
 	return error;
 }
@@ -2238,6 +2233,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 		info = SHMEM_I(inode);
 		memset(info, 0, (char *)inode - (char *)info);
 		spin_lock_init(&info->lock);
+		atomic_set(&info->stop_eviction, 0);
 		info->seals = F_SEAL_SEAL;
 		info->flags = flags & VM_NORESERVE;
 		INIT_LIST_HEAD(&info->shrinklist);
@@ -3635,9 +3631,8 @@ static struct inode *shmem_alloc_inode(struct super_block *sb)
 	return &info->vfs_inode;
 }
 
-static void shmem_destroy_callback(struct rcu_head *head)
+static void shmem_free_in_core_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	if (S_ISLNK(inode->i_mode))
 		kfree(inode->i_link);
 	kmem_cache_free(shmem_inode_cachep, SHMEM_I(inode));
@@ -3647,7 +3642,6 @@ static void shmem_destroy_inode(struct inode *inode)
 {
 	if (S_ISREG(inode->i_mode))
 		mpol_free_shared_policy(&SHMEM_I(inode)->policy);
-	call_rcu(&inode->i_rcu, shmem_destroy_callback);
 }
 
 static void shmem_init_inode(void *foo)
@@ -3738,6 +3732,7 @@ static const struct inode_operations shmem_special_inode_operations = {
 
 static const struct super_operations shmem_ops = {
 	.alloc_inode	= shmem_alloc_inode,
+	.free_inode	= shmem_free_in_core_inode,
 	.destroy_inode	= shmem_destroy_inode,
 #ifdef CONFIG_TMPFS
 	.statfs		= shmem_statfs,

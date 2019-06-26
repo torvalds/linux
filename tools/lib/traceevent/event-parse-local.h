@@ -92,8 +92,8 @@ struct tep_handle {
 void tep_free_event(struct tep_event *event);
 void tep_free_format_field(struct tep_format_field *field);
 
-unsigned short tep_data2host2(struct tep_handle *pevent, unsigned short data);
-unsigned int tep_data2host4(struct tep_handle *pevent, unsigned int data);
-unsigned long long tep_data2host8(struct tep_handle *pevent, unsigned long long data);
+unsigned short tep_data2host2(struct tep_handle *tep, unsigned short data);
+unsigned int tep_data2host4(struct tep_handle *tep, unsigned int data);
+unsigned long long tep_data2host8(struct tep_handle *tep, unsigned long long data);
 
 #endif /* _PARSE_EVENTS_INT_H */

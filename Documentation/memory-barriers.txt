@@ -1937,21 +1937,6 @@ There are some more advanced barrier functions:
      information on consistent memory.
 
 
-MMIO WRITE BARRIER
-------------------
-
-The Linux kernel also has a special barrier for use with memory-mapped I/O
-writes:
-
-	mmiowb();
-
-This is a variation on the mandatory write barrier that causes writes to weakly
-ordered I/O regions to be partially ordered.  Its effects may go beyond the
-CPU->Hardware interface and actually affect the hardware at some level.
-
-See the subsection "Acquires vs I/O accesses" for more information.
-
-
 ===============================
 IMPLICIT KERNEL MEMORY BARRIERS
 ===============================
@@ -2317,75 +2302,6 @@ But it won't see any of:
 	*E, *F or *G following RELEASE Q
 
 
-
-ACQUIRES VS I/O ACCESSES
-------------------------
-
-Under certain circumstances (especially involving NUMA), I/O accesses within
-two spinlocked sections on two different CPUs may be seen as interleaved by the
-PCI bridge, because the PCI bridge does not necessarily participate in the
-cache-coherence protocol, and is therefore incapable of issuing the required
-read memory barriers.
-
-For example:
-
-	CPU 1				CPU 2
-	===============================	===============================
-	spin_lock(Q)
-	writel(0, ADDR)
-	writel(1, DATA);
-	spin_unlock(Q);
-					spin_lock(Q);
-					writel(4, ADDR);
-					writel(5, DATA);
-					spin_unlock(Q);
-
-may be seen by the PCI bridge as follows:
-
-	STORE *ADDR = 0, STORE *ADDR = 4, STORE *DATA = 1, STORE *DATA = 5
-
-which would probably cause the hardware to malfunction.
-
-
-What is necessary here is to intervene with an mmiowb() before dropping the
-spinlock, for example:
-
-	CPU 1				CPU 2
-	===============================	===============================
-	spin_lock(Q)
-	writel(0, ADDR)
-	writel(1, DATA);
-	mmiowb();
-	spin_unlock(Q);
-					spin_lock(Q);
-					writel(4, ADDR);
-					writel(5, DATA);
-					mmiowb();
-					spin_unlock(Q);
-
-this will ensure that the two stores issued on CPU 1 appear at the PCI bridge
-before either of the stores issued on CPU 2.
-
-
-Furthermore, following a store by a load from the same device obviates the need
-for the mmiowb(), because the load forces the store to complete before the load
-is performed:
-
-	CPU 1				CPU 2
-	===============================	===============================
-	spin_lock(Q)
-	writel(0, ADDR)
-	a = readl(DATA);
-	spin_unlock(Q);
-					spin_lock(Q);
-					writel(4, ADDR);
-					b = readl(DATA);
-					spin_unlock(Q);
-
-
-See Documentation/driver-api/device-io.rst for more information.
-
-
 =================================
 WHERE ARE MEMORY BARRIERS NEEDED?
 =================================
@@ -2532,16 +2448,9 @@ the device to malfunction.
 Inside of the Linux kernel, I/O should be done through the appropriate accessor
 routines - such as inb() or writel() - which know how to make such accesses
 appropriately sequential.  While this, for the most part, renders the explicit
-use of memory barriers unnecessary, there are a couple of situations where they
-might be needed:
-
- (1) On some systems, I/O stores are not strongly ordered across all CPUs, and
-     so for _all_ general drivers locks should be used and mmiowb() must be
-     issued prior to unlocking the critical section.
-
- (2) If the accessor functions are used to refer to an I/O memory window with
-     relaxed memory access properties, then _mandatory_ memory barriers are
-     required to enforce ordering.
+use of memory barriers unnecessary, if the accessor functions are used to refer
+to an I/O memory window with relaxed memory access properties, then _mandatory_
+memory barriers are required to enforce ordering.
 
 See Documentation/driver-api/device-io.rst for more information.
 
@@ -2586,8 +2495,7 @@ explicit barriers are used.
 
 Normally this won't be a problem because the I/O accesses done inside such
 sections will include synchronous load operations on strictly ordered I/O
-registers that form implicit I/O barriers.  If this isn't sufficient then an
-mmiowb() may need to be used explicitly.
+registers that form implicit I/O barriers.
 
 
 A similar situation may occur between an interrupt routine and two routines
@@ -2599,71 +2507,114 @@ likely, then interrupt-disabling locks should be used to guarantee ordering.
 KERNEL I/O BARRIER EFFECTS
 ==========================
 
-When accessing I/O memory, drivers should use the appropriate accessor
-functions:
-
- (*) inX(), outX():
-
-     These are intended to talk to I/O space rather than memory space, but
-     that's primarily a CPU-specific concept.  The i386 and x86_64 processors
-     do indeed have special I/O space access cycles and instructions, but many
-     CPUs don't have such a concept.
-
-     The PCI bus, amongst others, defines an I/O space concept which - on such
-     CPUs as i386 and x86_64 - readily maps to the CPU's concept of I/O
-     space.  However, it may also be mapped as a virtual I/O space in the CPU's
-     memory map, particularly on those CPUs that don't support alternate I/O
-     spaces.
-
-     Accesses to this space may be fully synchronous (as on i386), but
-     intermediary bridges (such as the PCI host bridge) may not fully honour
-     that.
-
-     They are guaranteed to be fully ordered with respect to each other.
-
-     They are not guaranteed to be fully ordered with respect to other types of
-     memory and I/O operation.
+Interfacing with peripherals via I/O accesses is deeply architecture and device
+specific. Therefore, drivers which are inherently non-portable may rely on
+specific behaviours of their target systems in order to achieve synchronization
+in the most lightweight manner possible. For drivers intending to be portable
+between multiple architectures and bus implementations, the kernel offers a
+series of accessor functions that provide various degrees of ordering
+guarantees:
 
  (*) readX(), writeX():
 
-     Whether these are guaranteed to be fully ordered and uncombined with
-     respect to each other on the issuing CPU depends on the characteristics
-     defined for the memory window through which they're accessing.  On later
-     i386 architecture machines, for example, this is controlled by way of the
-     MTRR registers.
+	The readX() and writeX() MMIO accessors take a pointer to the
+	peripheral being accessed as an __iomem * parameter. For pointers
+	mapped with the default I/O attributes (e.g. those returned by
+	ioremap()), the ordering guarantees are as follows:
 
-     Ordinarily, these will be guaranteed to be fully ordered and uncombined,
-     provided they're not accessing a prefetchable device.
+	1. All readX() and writeX() accesses to the same peripheral are ordered
+	   with respect to each other. This ensures that MMIO register accesses
+	   by the same CPU thread to a particular device will arrive in program
+	   order.
 
-     However, intermediary hardware (such as a PCI bridge) may indulge in
-     deferral if it so wishes; to flush a store, a load from the same location
-     is preferred[*], but a load from the same device or from configuration
-     space should suffice for PCI.
+	2. A writeX() issued by a CPU thread holding a spinlock is ordered
+	   before a writeX() to the same peripheral from another CPU thread
+	   issued after a later acquisition of the same spinlock. This ensures
+	   that MMIO register writes to a particular device issued while holding
+	   a spinlock will arrive in an order consistent with acquisitions of
+	   the lock.
 
-     [*] NOTE! attempting to load from the same location as was written to may
-	 cause a malfunction - consider the 16550 Rx/Tx serial registers for
-	 example.
+	3. A writeX() by a CPU thread to the peripheral will first wait for the
+	   completion of all prior writes to memory either issued by, or
+	   propagated to, the same thread. This ensures that writes by the CPU
+	   to an outbound DMA buffer allocated by dma_alloc_coherent() will be
+	   visible to a DMA engine when the CPU writes to its MMIO control
+	   register to trigger the transfer.
 
-     Used with prefetchable I/O memory, an mmiowb() barrier may be required to
-     force stores to be ordered.
+	4. A readX() by a CPU thread from the peripheral will complete before
+	   any subsequent reads from memory by the same thread can begin. This
+	   ensures that reads by the CPU from an incoming DMA buffer allocated
+	   by dma_alloc_coherent() will not see stale data after reading from
+	   the DMA engine's MMIO status register to establish that the DMA
+	   transfer has completed.
 
-     Please refer to the PCI specification for more information on interactions
-     between PCI transactions.
+	5. A readX() by a CPU thread from the peripheral will complete before
+	   any subsequent delay() loop can begin execution on the same thread.
+	   This ensures that two MMIO register writes by the CPU to a peripheral
+	   will arrive at least 1us apart if the first write is immediately read
+	   back with readX() and udelay(1) is called prior to the second
+	   writeX():
 
- (*) readX_relaxed(), writeX_relaxed()
+		writel(42, DEVICE_REGISTER_0); // Arrives at the device...
+		readl(DEVICE_REGISTER_0);
+		udelay(1);
+		writel(42, DEVICE_REGISTER_1); // ...at least 1us before this.
 
-     These are similar to readX() and writeX(), but provide weaker memory
-     ordering guarantees.  Specifically, they do not guarantee ordering with
-     respect to normal memory accesses (e.g. DMA buffers) nor do they guarantee
-     ordering with respect to LOCK or UNLOCK operations.  If the latter is
-     required, an mmiowb() barrier can be used.  Note that relaxed accesses to
-     the same peripheral are guaranteed to be ordered with respect to each
-     other.
+	The ordering properties of __iomem pointers obtained with non-default
+	attributes (e.g. those returned by ioremap_wc()) are specific to the
+	underlying architecture and therefore the guarantees listed above cannot
+	generally be relied upon for accesses to these types of mappings.
 
- (*) ioreadX(), iowriteX()
+ (*) readX_relaxed(), writeX_relaxed():
 
-     These will perform appropriately for the type of access they're actually
-     doing, be it inX()/outX() or readX()/writeX().
+	These are similar to readX() and writeX(), but provide weaker memory
+	ordering guarantees. Specifically, they do not guarantee ordering with
+	respect to locking, normal memory accesses or delay() loops (i.e.
+	bullets 2-5 above) but they are still guaranteed to be ordered with
+	respect to other accesses from the same CPU thread to the same
+	peripheral when operating on __iomem pointers mapped with the default
+	I/O attributes.
+
+ (*) readsX(), writesX():
+
+	The readsX() and writesX() MMIO accessors are designed for accessing
+	register-based, memory-mapped FIFOs residing on peripherals that are not
+	capable of performing DMA. Consequently, they provide only the ordering
+	guarantees of readX_relaxed() and writeX_relaxed(), as documented above.
+
+ (*) inX(), outX():
+
+	The inX() and outX() accessors are intended to access legacy port-mapped
+	I/O peripherals, which may require special instructions on some
+	architectures (notably x86). The port number of the peripheral being
+	accessed is passed as an argument.
+
+	Since many CPU architectures ultimately access these peripherals via an
+	internal virtual memory mapping, the portable ordering guarantees
+	provided by inX() and outX() are the same as those provided by readX()
+	and writeX() respectively when accessing a mapping with the default I/O
+	attributes.
+
+	Device drivers may expect outX() to emit a non-posted write transaction
+	that waits for a completion response from the I/O peripheral before
+	returning. This is not guaranteed by all architectures and is therefore
+	not part of the portable ordering semantics.
+
+ (*) insX(), outsX():
+
+	As above, the insX() and outsX() accessors provide the same ordering
+	guarantees as readsX() and writesX() respectively when accessing a
+	mapping with the default I/O attributes.
+
+ (*) ioreadX(), iowriteX():
+
+	These will perform appropriately for the type of access they're actually
+	doing, be it inX()/outX() or readX()/writeX().
+
+With the exception of the string accessors (insX(), outsX(), readsX() and
+writesX()), all of the above assume that the underlying peripheral is
+little-endian and will therefore perform byte-swapping operations on big-endian
+architectures.
 
 
 ========================================

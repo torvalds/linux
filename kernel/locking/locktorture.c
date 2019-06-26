@@ -829,7 +829,9 @@ static void lock_torture_cleanup(void)
 						"End of test: SUCCESS");
 
 	kfree(cxt.lwsa);
+	cxt.lwsa = NULL;
 	kfree(cxt.lrsa);
+	cxt.lrsa = NULL;
 
 end:
 	torture_cleanup_end();

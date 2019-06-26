@@ -9,6 +9,7 @@ Required properties:
 
 - compatible	: Must be one of
 
+			"u-blox,neo-6m"
 			"u-blox,neo-8"
 			"u-blox,neo-m8"
 

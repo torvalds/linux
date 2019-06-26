@@ -16,7 +16,7 @@
 #include <linux/log2.h>
 #include "pci-sh4.h"
 #include <asm/mmu.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #if defined(CONFIG_CPU_BIG_ENDIAN)
 # define PCICR_ENDIANNESS SH4_PCICR_BSWP

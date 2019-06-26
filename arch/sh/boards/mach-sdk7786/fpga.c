@@ -8,7 +8,7 @@
 #include <linux/io.h>
 #include <linux/bcd.h>
 #include <mach/fpga.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #define FPGA_REGS_OFFSET	0x03fff800
 #define FPGA_REGS_SIZE		0x490

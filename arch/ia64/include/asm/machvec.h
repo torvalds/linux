@@ -30,7 +30,6 @@ typedef void ia64_mv_irq_init_t (void);
 typedef void ia64_mv_send_ipi_t (int, int, int, int);
 typedef void ia64_mv_timer_interrupt_t (int, void *);
 typedef void ia64_mv_global_tlb_purge_t (struct mm_struct *, unsigned long, unsigned long, unsigned long);
-typedef void ia64_mv_tlb_migrate_finish_t (struct mm_struct *);
 typedef u8 ia64_mv_irq_to_vector (int);
 typedef unsigned int ia64_mv_local_vector_to_irq (u8);
 typedef char *ia64_mv_pci_get_legacy_mem_t (struct pci_bus *);
@@ -80,11 +79,6 @@ machvec_noop (void)
 }
 
 static inline void
-machvec_noop_mm (struct mm_struct *mm)
-{
-}
-
-static inline void
 machvec_noop_task (struct task_struct *task)
 {
 }
@@ -96,7 +90,6 @@ machvec_noop_bus (struct pci_bus *bus)
 
 extern void machvec_setup (char **);
 extern void machvec_timer_interrupt (int, void *);
-extern void machvec_tlb_migrate_finish (struct mm_struct *);
 
 # if defined (CONFIG_IA64_HP_SIM)
 #  include <asm/machvec_hpsim.h>
@@ -124,7 +117,6 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  define platform_send_ipi	ia64_mv.send_ipi
 #  define platform_timer_interrupt	ia64_mv.timer_interrupt
 #  define platform_global_tlb_purge	ia64_mv.global_tlb_purge
-#  define platform_tlb_migrate_finish	ia64_mv.tlb_migrate_finish
 #  define platform_dma_init		ia64_mv.dma_init
 #  define platform_dma_get_ops		ia64_mv.dma_get_ops
 #  define platform_irq_to_vector	ia64_mv.irq_to_vector
@@ -167,7 +159,6 @@ struct ia64_machine_vector {
 	ia64_mv_send_ipi_t *send_ipi;
 	ia64_mv_timer_interrupt_t *timer_interrupt;
 	ia64_mv_global_tlb_purge_t *global_tlb_purge;
-	ia64_mv_tlb_migrate_finish_t *tlb_migrate_finish;
 	ia64_mv_dma_init *dma_init;
 	ia64_mv_dma_get_ops *dma_get_ops;
 	ia64_mv_irq_to_vector *irq_to_vector;
@@ -206,7 +197,6 @@ struct ia64_machine_vector {
 	platform_send_ipi,			\
 	platform_timer_interrupt,		\
 	platform_global_tlb_purge,		\
-	platform_tlb_migrate_finish,		\
 	platform_dma_init,			\
 	platform_dma_get_ops,			\
 	platform_irq_to_vector,			\
@@ -269,9 +259,6 @@ extern const struct dma_map_ops *dma_get_ops(struct device *);
 #endif
 #ifndef platform_global_tlb_purge
 # define platform_global_tlb_purge	ia64_global_tlb_purge /* default to architected version */
-#endif
-#ifndef platform_tlb_migrate_finish
-# define platform_tlb_migrate_finish	machvec_noop_mm
 #endif
 #ifndef platform_kernel_launch_event
 # define platform_kernel_launch_event	machvec_noop

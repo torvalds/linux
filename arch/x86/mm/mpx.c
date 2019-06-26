@@ -142,7 +142,7 @@ int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs)
 		goto err_out;
 	}
 	/* get bndregs field from current task's xsave area */
-	bndregs = get_xsave_field_ptr(XFEATURE_MASK_BNDREGS);
+	bndregs = get_xsave_field_ptr(XFEATURE_BNDREGS);
 	if (!bndregs) {
 		err = -EINVAL;
 		goto err_out;
@@ -190,7 +190,7 @@ static __user void *mpx_get_bounds_dir(void)
 	 * The bounds directory pointer is stored in a register
 	 * only accessible if we first do an xsave.
 	 */
-	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XFEATURE_BNDCSR);
 	if (!bndcsr)
 		return MPX_INVALID_BOUNDS_DIR;
 
@@ -376,7 +376,7 @@ static int do_mpx_bt_fault(void)
 	const struct mpx_bndcsr *bndcsr;
 	struct mm_struct *mm = current->mm;
 
-	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XFEATURE_BNDCSR);
 	if (!bndcsr)
 		return -EINVAL;
 	/*
@@ -881,9 +881,10 @@ static int mpx_unmap_tables(struct mm_struct *mm,
  * the virtual address region start...end have already been split if
  * necessary, and the 'vma' is the first vma in this range (start -> end).
  */
-void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
-		unsigned long start, unsigned long end)
+void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
+		      unsigned long end)
 {
+	struct vm_area_struct *vma;
 	int ret;
 
 	/*
@@ -902,11 +903,12 @@ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * which should not occur normally. Being strict about it here
 	 * helps ensure that we do not have an exploitable stack overflow.
 	 */
-	do {
+	vma = find_vma(mm, start);
+	while (vma && vma->vm_start < end) {
 		if (vma->vm_flags & VM_MPX)
 			return;
 		vma = vma->vm_next;
-	} while (vma && vma->vm_start < end);
+	}
 
 	ret = mpx_unmap_tables(mm, start, end);
 	if (ret)

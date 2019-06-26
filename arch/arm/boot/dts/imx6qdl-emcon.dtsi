@@ -77,8 +77,6 @@
 
 	pwm_fan: pwm-fan {
 		compatible = "pwm-fan";
-		cooling-min-state = <0>;
-		cooling-max-state = <4>;
 		#cooling-cells = <2>;
 		pwms = <&pwm4 0 50000>;
 		cooling-levels = <0 64 127 191 255>;

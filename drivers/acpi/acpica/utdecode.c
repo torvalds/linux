@@ -78,7 +78,7 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"IPMI",			/* 0x07 */
 	"GeneralPurposeIo",	/* 0x08 */
 	"GenericSerialBus",	/* 0x09 */
-	"PCC"			/* 0x0A */
+	"PlatformCommChannel"	/* 0x0A */
 };
 
 const char *acpi_ut_get_region_name(u8 space_id)
@@ -239,7 +239,7 @@ const char *acpi_ut_get_node_name(void *object)
 {
 	struct acpi_namespace_node *node = (struct acpi_namespace_node *)object;
 
-	/* Must return a string of exactly 4 characters == ACPI_NAME_SIZE */
+	/* Must return a string of exactly 4 characters == ACPI_NAMESEG_SIZE */
 
 	if (!object) {
 		return ("NULL");

@@ -1725,9 +1725,9 @@ static bool omap2_nand_ecc_check(struct omap_nand_info *info)
 		break;
 	}
 
-	if (ecc_needs_bch && !IS_ENABLED(CONFIG_MTD_NAND_ECC_BCH)) {
+	if (ecc_needs_bch && !IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_BCH)) {
 		dev_err(&info->pdev->dev,
-			"CONFIG_MTD_NAND_ECC_BCH not enabled\n");
+			"CONFIG_MTD_NAND_ECC_SW_BCH not enabled\n");
 		return false;
 	}
 	if (ecc_needs_omap_bch && !IS_ENABLED(CONFIG_MTD_NAND_OMAP_BCH)) {

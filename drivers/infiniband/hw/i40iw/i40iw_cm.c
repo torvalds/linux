@@ -3237,7 +3237,7 @@ void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf)
  * core
  * @iwdev: iwarp device structure
  */
-void i40iw_setup_cm_core(struct i40iw_device *iwdev)
+int i40iw_setup_cm_core(struct i40iw_device *iwdev)
 {
 	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
 
@@ -3256,9 +3256,19 @@ void i40iw_setup_cm_core(struct i40iw_device *iwdev)
 
 	cm_core->event_wq = alloc_ordered_workqueue("iwewq",
 						    WQ_MEM_RECLAIM);
+	if (!cm_core->event_wq)
+		goto error;
 
 	cm_core->disconn_wq = alloc_ordered_workqueue("iwdwq",
 						      WQ_MEM_RECLAIM);
+	if (!cm_core->disconn_wq)
+		goto error;
+
+	return 0;
+error:
+	i40iw_cleanup_cm_core(&iwdev->cm_core);
+
+	return -ENOMEM;
 }
 
 /**
@@ -3278,8 +3288,10 @@ void i40iw_cleanup_cm_core(struct i40iw_cm_core *cm_core)
 		del_timer_sync(&cm_core->tcp_timer);
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
-	destroy_workqueue(cm_core->event_wq);
-	destroy_workqueue(cm_core->disconn_wq);
+	if (cm_core->event_wq)
+		destroy_workqueue(cm_core->event_wq);
+	if (cm_core->disconn_wq)
+		destroy_workqueue(cm_core->disconn_wq);
 }
 
 /**
@@ -3478,7 +3490,8 @@ static void i40iw_qp_disconnect(struct i40iw_qp *iwqp)
 		/* Need to free the Last Streaming Mode Message */
 		if (iwqp->ietf_mem.va) {
 			if (iwqp->lsmm_mr)
-				iwibdev->ibdev.ops.dereg_mr(iwqp->lsmm_mr);
+				iwibdev->ibdev.ops.dereg_mr(iwqp->lsmm_mr,
+							    NULL);
 			i40iw_free_dma_mem(iwdev->sc_dev.hw, &iwqp->ietf_mem);
 		}
 	}

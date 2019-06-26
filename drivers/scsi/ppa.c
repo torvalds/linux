@@ -717,6 +717,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 			}
 			cmd->SCp.phase++;
 		}
+		/* fall through */
 
 	case 2:		/* Phase 2 - We are now talking to the scsi bus */
 		if (!ppa_select(dev, scmd_id(cmd))) {

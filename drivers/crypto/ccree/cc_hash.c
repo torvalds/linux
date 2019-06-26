@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -69,6 +69,7 @@ struct cc_hash_alg {
 struct hash_key_req_ctx {
 	u32 keylen;
 	dma_addr_t key_dma_addr;
+	u8 *key;
 };
 
 /* hash per-session context */
@@ -280,9 +281,13 @@ static void cc_update_complete(struct device *dev, void *cc_req, int err)
 
 	dev_dbg(dev, "req=%pK\n", req);
 
-	cc_unmap_hash_request(dev, state, req->src, false);
-	cc_unmap_req(dev, state, ctx);
-	req->base.complete(&req->base, err);
+	if (err != -EINPROGRESS) {
+		/* Not a BACKLOG notification */
+		cc_unmap_hash_request(dev, state, req->src, false);
+		cc_unmap_req(dev, state, ctx);
+	}
+
+	ahash_request_complete(req, err);
 }
 
 static void cc_digest_complete(struct device *dev, void *cc_req, int err)
@@ -295,10 +300,14 @@ static void cc_digest_complete(struct device *dev, void *cc_req, int err)
 
 	dev_dbg(dev, "req=%pK\n", req);
 
-	cc_unmap_hash_request(dev, state, req->src, false);
-	cc_unmap_result(dev, state, digestsize, req->result);
-	cc_unmap_req(dev, state, ctx);
-	req->base.complete(&req->base, err);
+	if (err != -EINPROGRESS) {
+		/* Not a BACKLOG notification */
+		cc_unmap_hash_request(dev, state, req->src, false);
+		cc_unmap_result(dev, state, digestsize, req->result);
+		cc_unmap_req(dev, state, ctx);
+	}
+
+	ahash_request_complete(req, err);
 }
 
 static void cc_hash_complete(struct device *dev, void *cc_req, int err)
@@ -311,10 +320,14 @@ static void cc_hash_complete(struct device *dev, void *cc_req, int err)
 
 	dev_dbg(dev, "req=%pK\n", req);
 
-	cc_unmap_hash_request(dev, state, req->src, false);
-	cc_unmap_result(dev, state, digestsize, req->result);
-	cc_unmap_req(dev, state, ctx);
-	req->base.complete(&req->base, err);
+	if (err != -EINPROGRESS) {
+		/* Not a BACKLOG notification */
+		cc_unmap_hash_request(dev, state, req->src, false);
+		cc_unmap_result(dev, state, digestsize, req->result);
+		cc_unmap_req(dev, state, ctx);
+	}
+
+	ahash_request_complete(req, err);
 }
 
 static int cc_fin_result(struct cc_hw_desc *desc, struct ahash_request *req,
@@ -730,13 +743,20 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 	ctx->key_params.keylen = keylen;
 	ctx->key_params.key_dma_addr = 0;
 	ctx->is_hmac = true;
+	ctx->key_params.key = NULL;
 
 	if (keylen) {
+		ctx->key_params.key = kmemdup(key, keylen, GFP_KERNEL);
+		if (!ctx->key_params.key)
+			return -ENOMEM;
+
 		ctx->key_params.key_dma_addr =
-			dma_map_single(dev, (void *)key, keylen, DMA_TO_DEVICE);
+			dma_map_single(dev, (void *)ctx->key_params.key, keylen,
+				       DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, ctx->key_params.key_dma_addr)) {
 			dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
-				key, keylen);
+				ctx->key_params.key, keylen);
+			kzfree(ctx->key_params.key);
 			return -ENOMEM;
 		}
 		dev_dbg(dev, "mapping key-buffer: key_dma_addr=%pad keylen=%u\n",
@@ -887,6 +907,9 @@ out:
 		dev_dbg(dev, "Unmapped key-buffer: key_dma_addr=%pad keylen=%u\n",
 			&ctx->key_params.key_dma_addr, ctx->key_params.keylen);
 	}
+
+	kzfree(ctx->key_params.key);
+
 	return rc;
 }
 
@@ -913,11 +936,16 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 
 	ctx->key_params.keylen = keylen;
 
+	ctx->key_params.key = kmemdup(key, keylen, GFP_KERNEL);
+	if (!ctx->key_params.key)
+		return -ENOMEM;
+
 	ctx->key_params.key_dma_addr =
-		dma_map_single(dev, (void *)key, keylen, DMA_TO_DEVICE);
+		dma_map_single(dev, ctx->key_params.key, keylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, ctx->key_params.key_dma_addr)) {
 		dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 			key, keylen);
+		kzfree(ctx->key_params.key);
 		return -ENOMEM;
 	}
 	dev_dbg(dev, "mapping key-buffer: key_dma_addr=%pad keylen=%u\n",
@@ -968,6 +996,8 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 			 ctx->key_params.keylen, DMA_TO_DEVICE);
 	dev_dbg(dev, "Unmapped key-buffer: key_dma_addr=%pad keylen=%u\n",
 		&ctx->key_params.key_dma_addr, ctx->key_params.keylen);
+
+	kzfree(ctx->key_params.key);
 
 	return rc;
 }
@@ -1621,7 +1651,7 @@ static struct cc_hash_template driver_hash[] = {
 			.setkey = cc_hash_setkey,
 			.halg = {
 				.digestsize = SHA224_DIGEST_SIZE,
-				.statesize = CC_STATE_SIZE(SHA224_DIGEST_SIZE),
+				.statesize = CC_STATE_SIZE(SHA256_DIGEST_SIZE),
 			},
 		},
 		.hash_mode = DRV_HASH_SHA224,
@@ -1648,7 +1678,7 @@ static struct cc_hash_template driver_hash[] = {
 			.setkey = cc_hash_setkey,
 			.halg = {
 				.digestsize = SHA384_DIGEST_SIZE,
-				.statesize = CC_STATE_SIZE(SHA384_DIGEST_SIZE),
+				.statesize = CC_STATE_SIZE(SHA512_DIGEST_SIZE),
 			},
 		},
 		.hash_mode = DRV_HASH_SHA384,

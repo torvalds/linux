@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pegasus Mobile Notetaker Pen input tablet driver
  *

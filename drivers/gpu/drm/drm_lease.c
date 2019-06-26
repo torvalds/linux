@@ -1,24 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright © 2017 Keith Packard <keithp@keithp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
+#include <linux/file.h>
+#include <linux/uaccess.h>
 
-#include <drm/drmP.h>
-#include "drm_internal.h"
-#include "drm_legacy.h"
-#include "drm_crtc_internal.h"
-#include <drm/drm_lease.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_lease.h>
+#include <drm/drm_print.h>
+
+#include "drm_crtc_internal.h"
+#include "drm_internal.h"
+#include "drm_legacy.h"
 
 #define drm_for_each_lessee(lessee, lessor) \
 	list_for_each_entry((lessee), &(lessor)->lessees, lessee_list)

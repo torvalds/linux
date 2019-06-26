@@ -52,7 +52,7 @@ prototypes:
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
-	const char *(*get_link) (struct dentry *, struct inode *, void **);
+	const char *(*get_link) (struct dentry *, struct inode *, struct delayed_call *);
 	void (*truncate) (struct inode *);
 	int (*permission) (struct inode *, int, unsigned int);
 	int (*get_acl)(struct inode *, int);
@@ -118,6 +118,7 @@ set:		exclusive
 --------------------------- super_operations ---------------------------
 prototypes:
 	struct inode *(*alloc_inode)(struct super_block *sb);
+	void (*free_inode)(struct inode *);
 	void (*destroy_inode)(struct inode *);
 	void (*dirty_inode) (struct inode *, int flags);
 	int (*write_inode) (struct inode *, struct writeback_control *wbc);
@@ -139,6 +140,7 @@ locking rules:
 	All may block [not true, see below]
 			s_umount
 alloc_inode:
+free_inode:				called from RCU callback
 destroy_inode:
 dirty_inode:
 write_inode:

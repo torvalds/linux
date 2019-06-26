@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -24,11 +16,12 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/ipv6_frag.h>
 
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 #include <net/netfilter/nf_nat.h>
 #endif
 
@@ -73,7 +66,8 @@ struct ovs_conntrack_info {
 	u32 eventmask;              /* Mask of 1 << IPCT_*. */
 	struct md_mark mark;
 	struct md_labels labels;
-#ifdef CONFIG_NF_NAT_NEEDED
+	char timeout[CTNL_TIMEOUT_NAME_MAX];
+#if IS_ENABLED(CONFIG_NF_NAT)
 	struct nf_nat_range2 range;  /* Only present for SRC NAT and DST NAT. */
 #endif
 };
@@ -719,7 +713,7 @@ static bool skb_nfct_cached(struct net *net,
 	return ct_executed;
 }
 
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 /* Modelled after nf_nat_ipv[46]_fn().
  * range is only used for new, uninitialized NAT state.
  * Returns either NF_ACCEPT or NF_DROP.
@@ -901,7 +895,7 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 
 	return err;
 }
-#else /* !CONFIG_NF_NAT_NEEDED */
+#else /* !CONFIG_NF_NAT */
 static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 		      const struct ovs_conntrack_info *info,
 		      struct sk_buff *skb, struct nf_conn *ct,
@@ -990,6 +984,12 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 							    GFP_ATOMIC);
 			if (err)
 				return err;
+
+			/* helper installed, add seqadj if NAT is required */
+			if (info->nat && !nfct_seqadj(ct)) {
+				if (!nfct_seqadj_ext_add(ct))
+					return -EINVAL;
+			}
 		}
 
 		/* Call the helper only if:
@@ -1299,6 +1299,7 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 {
 	struct nf_conntrack_helper *helper;
 	struct nf_conn_help *help;
+	int ret = 0;
 
 	helper = nf_conntrack_helper_try_module_get(name, info->family,
 						    key->ip.proto);
@@ -1313,16 +1314,24 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 		return -ENOMEM;
 	}
 
+#if IS_ENABLED(CONFIG_NF_NAT)
+	if (info->nat) {
+		ret = nf_nat_helper_try_module_get(name, info->family,
+						   key->ip.proto);
+		if (ret) {
+			nf_conntrack_helper_put(helper);
+			OVS_NLERR(log, "Failed to load \"%s\" NAT helper, error: %d",
+				  name, ret);
+			return ret;
+		}
+	}
+#endif
 	rcu_assign_pointer(help->helper, helper);
 	info->helper = helper;
-
-	if (info->nat)
-		request_module("ip_nat_%s", name);
-
-	return 0;
+	return ret;
 }
 
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 static int parse_nat(const struct nlattr *attr,
 		     struct ovs_conntrack_info *info, bool log)
 {
@@ -1459,12 +1468,14 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 				    .maxlen = sizeof(struct md_labels) },
 	[OVS_CT_ATTR_HELPER]	= { .minlen = 1,
 				    .maxlen = NF_CT_HELPER_NAME_LEN },
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 	/* NAT length is checked when parsing the nested attributes. */
 	[OVS_CT_ATTR_NAT]	= { .minlen = 0, .maxlen = INT_MAX },
 #endif
 	[OVS_CT_ATTR_EVENTMASK]	= { .minlen = sizeof(u32),
 				    .maxlen = sizeof(u32) },
+	[OVS_CT_ATTR_TIMEOUT] = { .minlen = 1,
+				  .maxlen = CTNL_TIMEOUT_NAME_MAX },
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
@@ -1537,7 +1548,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 				return -EINVAL;
 			}
 			break;
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 		case OVS_CT_ATTR_NAT: {
 			int err = parse_nat(a, info, log);
 
@@ -1550,6 +1561,15 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			info->have_eventmask = true;
 			info->eventmask = nla_get_u32(a);
 			break;
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+		case OVS_CT_ATTR_TIMEOUT:
+			memcpy(info->timeout, nla_data(a), nla_len(a));
+			if (!memchr(info->timeout, '\0', nla_len(a))) {
+				OVS_NLERR(log, "Invalid conntrack helper");
+				return -EINVAL;
+			}
+			break;
+#endif
 
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
@@ -1631,6 +1651,14 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		OVS_NLERR(log, "Failed to allocate conntrack template");
 		return -ENOMEM;
 	}
+
+	if (ct_info.timeout[0]) {
+		if (nf_ct_set_timeout(net, ct_info.ct, family, key->ip.proto,
+				      ct_info.timeout))
+			pr_info_ratelimited("Failed to associated timeout "
+					    "policy `%s'\n", ct_info.timeout);
+	}
+
 	if (helper) {
 		err = ovs_ct_add_helper(&ct_info, helper, key, log);
 		if (err)
@@ -1650,13 +1678,13 @@ err_free_ct:
 	return err;
 }
 
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 static bool ovs_ct_nat_to_attr(const struct ovs_conntrack_info *info,
 			       struct sk_buff *skb)
 {
 	struct nlattr *start;
 
-	start = nla_nest_start(skb, OVS_CT_ATTR_NAT);
+	start = nla_nest_start_noflag(skb, OVS_CT_ATTR_NAT);
 	if (!start)
 		return false;
 
@@ -1723,7 +1751,7 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 {
 	struct nlattr *start;
 
-	start = nla_nest_start(skb, OVS_ACTION_ATTR_CT);
+	start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_CT);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -1751,8 +1779,12 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 	if (ct_info->have_eventmask &&
 	    nla_put_u32(skb, OVS_CT_ATTR_EVENTMASK, ct_info->eventmask))
 		return -EMSGSIZE;
+	if (ct_info->timeout[0]) {
+		if (nla_put_string(skb, OVS_CT_ATTR_TIMEOUT, ct_info->timeout))
+			return -EMSGSIZE;
+	}
 
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 	if (ct_info->nat && !ovs_ct_nat_to_attr(ct_info, skb))
 		return -EMSGSIZE;
 #endif
@@ -1770,10 +1802,18 @@ void ovs_ct_free_action(const struct nlattr *a)
 
 static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 {
-	if (ct_info->helper)
+	if (ct_info->helper) {
+#if IS_ENABLED(CONFIG_NF_NAT)
+		if (ct_info->nat)
+			nf_nat_helper_put(ct_info->helper);
+#endif
 		nf_conntrack_helper_put(ct_info->helper);
-	if (ct_info->ct)
+	}
+	if (ct_info->ct) {
+		if (ct_info->timeout[0])
+			nf_ct_destroy_timeout(ct_info->ct);
 		nf_ct_tmpl_free(ct_info->ct);
+	}
 }
 
 #if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
@@ -2126,7 +2166,11 @@ static int ovs_ct_limit_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(reply))
 		return PTR_ERR(reply);
 
-	nla_reply = nla_nest_start(reply, OVS_CT_LIMIT_ATTR_ZONE_LIMIT);
+	nla_reply = nla_nest_start_noflag(reply, OVS_CT_LIMIT_ATTR_ZONE_LIMIT);
+	if (!nla_reply) {
+		err = -EMSGSIZE;
+		goto exit_err;
+	}
 
 	if (a[OVS_CT_LIMIT_ATTR_ZONE_LIMIT]) {
 		err = ovs_ct_limit_get_zone_limit(
@@ -2152,20 +2196,20 @@ exit_err:
 
 static struct genl_ops ct_limit_genl_ops[] = {
 	{ .cmd = OVS_CT_LIMIT_CMD_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   * privilege. */
-		.policy = ct_limit_policy,
 		.doit = ovs_ct_limit_cmd_set,
 	},
 	{ .cmd = OVS_CT_LIMIT_CMD_DEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   * privilege. */
-		.policy = ct_limit_policy,
 		.doit = ovs_ct_limit_cmd_del,
 	},
 	{ .cmd = OVS_CT_LIMIT_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,		  /* OK for unprivileged users. */
-		.policy = ct_limit_policy,
 		.doit = ovs_ct_limit_cmd_get,
 	},
 };
@@ -2179,6 +2223,7 @@ struct genl_family dp_ct_limit_genl_family __ro_after_init = {
 	.name = OVS_CT_LIMIT_FAMILY,
 	.version = OVS_CT_LIMIT_VERSION,
 	.maxattr = OVS_CT_LIMIT_ATTR_MAX,
+	.policy = ct_limit_policy,
 	.netnsok = true,
 	.parallel_ops = true,
 	.ops = ct_limit_genl_ops,

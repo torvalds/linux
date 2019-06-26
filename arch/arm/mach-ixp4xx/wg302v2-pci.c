@@ -27,6 +27,8 @@
 
 #include <asm/mach/pci.h>
 
+#include "irqs.h"
+
 void __init wg302v2_pci_preinit(void)
 {
 	irq_set_irq_type(IRQ_IXP4XX_GPIO8, IRQ_TYPE_LEVEL_LOW);

@@ -8,9 +8,11 @@
 
 #include <drm/drm_drv.h>
 
+#include "gt/intel_engine.h"
+
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "intel_drv.h"
-#include "intel_ringbuffer.h"
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM i915
@@ -861,10 +863,9 @@ TRACE_EVENT(i915_request_wait_begin,
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, blocking=%u, flags=0x%x",
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, flags=0x%x",
 		      __entry->dev, __entry->class, __entry->instance,
 		      __entry->hw_id, __entry->ctx, __entry->seqno,
-		      !!(__entry->flags & I915_WAIT_LOCKED),
 		      __entry->flags)
 );
 
@@ -975,7 +976,7 @@ DECLARE_EVENT_CLASS(i915_context,
 			__entry->dev = ctx->i915->drm.primary->index;
 			__entry->ctx = ctx;
 			__entry->hw_id = ctx->hw_id;
-			__entry->vm = ctx->ppgtt ? &ctx->ppgtt->vm : NULL;
+			__entry->vm = ctx->vm;
 	),
 
 	TP_printk("dev=%u, ctx=%p, ctx_vm=%p, hw_id=%u",

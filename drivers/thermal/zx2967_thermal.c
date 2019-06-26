@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ZTE's zx2967 family thermal sensor driver
  *
  * Copyright (C) 2017 ZTE Ltd.
  *
  * Author: Baoyou Xie <baoyou.xie@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/clk.h>

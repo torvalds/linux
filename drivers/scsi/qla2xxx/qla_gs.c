@@ -45,13 +45,11 @@ qla2x00_prep_ms_iocb(scsi_qla_host_t *vha, struct ct_arg *arg)
 	ms_pkt->rsp_bytecount = cpu_to_le32(arg->rsp_size);
 	ms_pkt->req_bytecount = cpu_to_le32(arg->req_size);
 
-	ms_pkt->dseg_req_address[0] = cpu_to_le32(LSD(arg->req_dma));
-	ms_pkt->dseg_req_address[1] = cpu_to_le32(MSD(arg->req_dma));
-	ms_pkt->dseg_req_length = ms_pkt->req_bytecount;
+	put_unaligned_le64(arg->req_dma, &ms_pkt->req_dsd.address);
+	ms_pkt->req_dsd.length = ms_pkt->req_bytecount;
 
-	ms_pkt->dseg_rsp_address[0] = cpu_to_le32(LSD(arg->rsp_dma));
-	ms_pkt->dseg_rsp_address[1] = cpu_to_le32(MSD(arg->rsp_dma));
-	ms_pkt->dseg_rsp_length = ms_pkt->rsp_bytecount;
+	put_unaligned_le64(arg->rsp_dma, &ms_pkt->rsp_dsd.address);
+	ms_pkt->rsp_dsd.length = ms_pkt->rsp_bytecount;
 
 	vha->qla_stats.control_requests++;
 
@@ -83,13 +81,11 @@ qla24xx_prep_ms_iocb(scsi_qla_host_t *vha, struct ct_arg *arg)
 	ct_pkt->rsp_byte_count = cpu_to_le32(arg->rsp_size);
 	ct_pkt->cmd_byte_count = cpu_to_le32(arg->req_size);
 
-	ct_pkt->dseg_0_address[0] = cpu_to_le32(LSD(arg->req_dma));
-	ct_pkt->dseg_0_address[1] = cpu_to_le32(MSD(arg->req_dma));
-	ct_pkt->dseg_0_len = ct_pkt->cmd_byte_count;
+	put_unaligned_le64(arg->req_dma, &ct_pkt->dsd[0].address);
+	ct_pkt->dsd[0].length = ct_pkt->cmd_byte_count;
 
-	ct_pkt->dseg_1_address[0] = cpu_to_le32(LSD(arg->rsp_dma));
-	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(arg->rsp_dma));
-	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
+	put_unaligned_le64(arg->rsp_dma, &ct_pkt->dsd[1].address);
+	ct_pkt->dsd[1].length = ct_pkt->rsp_byte_count;
 	ct_pkt->vp_index = vha->vp_idx;
 
 	vha->qla_stats.control_requests++;
@@ -152,8 +148,8 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 				    vha->d_id.b.area, vha->d_id.b.al_pa,
 				    comp_status, ct_rsp->header.response);
 				ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha,
-				    0x2078, (uint8_t *)&ct_rsp->header,
-				    sizeof(struct ct_rsp_hdr));
+				    0x2078, ct_rsp,
+				    offsetof(typeof(*ct_rsp), rsp));
 				rval = QLA_INVALID_COMMAND;
 			} else
 				rval = QLA_SUCCESS;
@@ -1000,8 +996,7 @@ qla2x00_prep_sns_cmd(scsi_qla_host_t *vha, uint16_t cmd, uint16_t scmd_len,
 	memset(sns_cmd, 0, sizeof(struct sns_cmd_pkt));
 	wc = data_size / 2;			/* Size in 16bit words. */
 	sns_cmd->p.cmd.buffer_length = cpu_to_le16(wc);
-	sns_cmd->p.cmd.buffer_address[0] = cpu_to_le32(LSD(ha->sns_cmd_dma));
-	sns_cmd->p.cmd.buffer_address[1] = cpu_to_le32(MSD(ha->sns_cmd_dma));
+	put_unaligned_le64(ha->sns_cmd_dma, &sns_cmd->p.cmd.buffer_address);
 	sns_cmd->p.cmd.subcommand_length = cpu_to_le16(scmd_len);
 	sns_cmd->p.cmd.subcommand = cpu_to_le16(cmd);
 	wc = (data_size - 16) / 4;		/* Size in 32bit words. */
@@ -1385,6 +1380,7 @@ qla2x00_mgmt_svr_login(scsi_qla_host_t *vha)
 	int ret, rval;
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	struct qla_hw_data *ha = vha->hw;
+
 	ret = QLA_SUCCESS;
 	if (vha->flags.management_server_logged_in)
 		return ret;
@@ -1423,6 +1419,7 @@ qla2x00_prep_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size,
 {
 	ms_iocb_entry_t *ms_pkt;
 	struct qla_hw_data *ha = vha->hw;
+
 	ms_pkt = ha->ms_iocb;
 	memset(ms_pkt, 0, sizeof(ms_iocb_entry_t));
 
@@ -1436,13 +1433,11 @@ qla2x00_prep_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size,
 	ms_pkt->rsp_bytecount = cpu_to_le32(rsp_size);
 	ms_pkt->req_bytecount = cpu_to_le32(req_size);
 
-	ms_pkt->dseg_req_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
-	ms_pkt->dseg_req_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
-	ms_pkt->dseg_req_length = ms_pkt->req_bytecount;
+	put_unaligned_le64(ha->ct_sns_dma, &ms_pkt->req_dsd.address);
+	ms_pkt->req_dsd.length = ms_pkt->req_bytecount;
 
-	ms_pkt->dseg_rsp_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
-	ms_pkt->dseg_rsp_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
-	ms_pkt->dseg_rsp_length = ms_pkt->rsp_bytecount;
+	put_unaligned_le64(ha->ct_sns_dma, &ms_pkt->rsp_dsd.address);
+	ms_pkt->rsp_dsd.length = ms_pkt->rsp_bytecount;
 
 	return ms_pkt;
 }
@@ -1474,13 +1469,11 @@ qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size,
 	ct_pkt->rsp_byte_count = cpu_to_le32(rsp_size);
 	ct_pkt->cmd_byte_count = cpu_to_le32(req_size);
 
-	ct_pkt->dseg_0_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
-	ct_pkt->dseg_0_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
-	ct_pkt->dseg_0_len = ct_pkt->cmd_byte_count;
+	put_unaligned_le64(ha->ct_sns_dma, &ct_pkt->dsd[0].address);
+	ct_pkt->dsd[0].length = ct_pkt->cmd_byte_count;
 
-	ct_pkt->dseg_1_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
-	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
-	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
+	put_unaligned_le64(ha->ct_sns_dma, &ct_pkt->dsd[1].address);
+	ct_pkt->dsd[1].length = ct_pkt->rsp_byte_count;
 	ct_pkt->vp_index = vha->vp_idx;
 
 	return ct_pkt;
@@ -1495,10 +1488,10 @@ qla2x00_update_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size)
 
 	if (IS_FWI2_CAPABLE(ha)) {
 		ct_pkt->cmd_byte_count = cpu_to_le32(req_size);
-		ct_pkt->dseg_0_len = ct_pkt->cmd_byte_count;
+		ct_pkt->dsd[0].length = ct_pkt->cmd_byte_count;
 	} else {
 		ms_pkt->req_bytecount = cpu_to_le32(req_size);
-		ms_pkt->dseg_req_length = ms_pkt->req_bytecount;
+		ms_pkt->req_dsd.length = ms_pkt->req_bytecount;
 	}
 
 	return ms_pkt;
@@ -1794,7 +1787,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *vha)
 	if (IS_CNA_CAPABLE(ha))
 		eiter->a.sup_speed = cpu_to_be32(
 		    FDMI_PORT_SPEED_10GB);
-	else if (IS_QLA27XX(ha))
+	else if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 		eiter->a.sup_speed = cpu_to_be32(
 		    FDMI_PORT_SPEED_32GB|
 		    FDMI_PORT_SPEED_16GB|
@@ -2373,7 +2366,7 @@ qla2x00_fdmiv2_rpa(scsi_qla_host_t *vha)
 	if (IS_CNA_CAPABLE(ha))
 		eiter->a.sup_speed = cpu_to_be32(
 		    FDMI_PORT_SPEED_10GB);
-	else if (IS_QLA27XX(ha))
+	else if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 		eiter->a.sup_speed = cpu_to_be32(
 		    FDMI_PORT_SPEED_32GB|
 		    FDMI_PORT_SPEED_16GB|
@@ -2446,7 +2439,7 @@ qla2x00_fdmiv2_rpa(scsi_qla_host_t *vha)
 	eiter->type = cpu_to_be16(FDMI_PORT_MAX_FRAME_SIZE);
 	eiter->len = cpu_to_be16(4 + 4);
 	eiter->a.max_frame_size = IS_FWI2_CAPABLE(ha) ?
-	    le16_to_cpu(icb24->frame_payload_size):
+	    le16_to_cpu(icb24->frame_payload_size) :
 	    le16_to_cpu(ha->init_cb->frame_payload_size);
 	eiter->a.max_frame_size = cpu_to_be32(eiter->a.max_frame_size);
 	size += 4 + 4;
@@ -2783,6 +2776,31 @@ qla24xx_prep_ct_fm_req(struct ct_sns_pkt *p, uint16_t cmd,
 	return &p->p.req;
 }
 
+static uint16_t
+qla2x00_port_speed_capability(uint16_t speed)
+{
+	switch (speed) {
+	case BIT_15:
+		return PORT_SPEED_1GB;
+	case BIT_14:
+		return PORT_SPEED_2GB;
+	case BIT_13:
+		return PORT_SPEED_4GB;
+	case BIT_12:
+		return PORT_SPEED_10GB;
+	case BIT_11:
+		return PORT_SPEED_8GB;
+	case BIT_10:
+		return PORT_SPEED_16GB;
+	case BIT_8:
+		return PORT_SPEED_32GB;
+	case BIT_7:
+		return PORT_SPEED_64GB;
+	default:
+		return PORT_SPEED_UNKNOWN;
+	}
+}
+
 /**
  * qla2x00_gpsc() - FCS Get Port Speed Capabilities (GPSC) query.
  * @vha: HA context
@@ -2855,31 +2873,8 @@ qla2x00_gpsc(scsi_qla_host_t *vha, sw_info_t *list)
 			}
 			rval = QLA_FUNCTION_FAILED;
 		} else {
-			/* Save port-speed */
-			switch (be16_to_cpu(ct_rsp->rsp.gpsc.speed)) {
-			case BIT_15:
-				list[i].fp_speed = PORT_SPEED_1GB;
-				break;
-			case BIT_14:
-				list[i].fp_speed = PORT_SPEED_2GB;
-				break;
-			case BIT_13:
-				list[i].fp_speed = PORT_SPEED_4GB;
-				break;
-			case BIT_12:
-				list[i].fp_speed = PORT_SPEED_10GB;
-				break;
-			case BIT_11:
-				list[i].fp_speed = PORT_SPEED_8GB;
-				break;
-			case BIT_10:
-				list[i].fp_speed = PORT_SPEED_16GB;
-				break;
-			case BIT_8:
-				list[i].fp_speed = PORT_SPEED_32GB;
-				break;
-			}
-
+			list->fp_speed = qla2x00_port_speed_capability(
+			    be16_to_cpu(ct_rsp->rsp.gpsc.speed));
 			ql_dbg(ql_dbg_disc, vha, 0x205b,
 			    "GPSC ext entry - fpn "
 			    "%8phN speeds=%04x speed=%04x.\n",
@@ -3031,6 +3026,8 @@ static void qla24xx_async_gpsc_sp_done(void *s, int res)
 	    "Async done-%s res %x, WWPN %8phC \n",
 	    sp->name, res, fcport->port_name);
 
+	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
+
 	if (res == QLA_FUNCTION_TIMEOUT)
 		return;
 
@@ -3048,29 +3045,8 @@ static void qla24xx_async_gpsc_sp_done(void *s, int res)
 			goto done;
 		}
 	} else {
-		switch (be16_to_cpu(ct_rsp->rsp.gpsc.speed)) {
-		case BIT_15:
-			fcport->fp_speed = PORT_SPEED_1GB;
-			break;
-		case BIT_14:
-			fcport->fp_speed = PORT_SPEED_2GB;
-			break;
-		case BIT_13:
-			fcport->fp_speed = PORT_SPEED_4GB;
-			break;
-		case BIT_12:
-			fcport->fp_speed = PORT_SPEED_10GB;
-			break;
-		case BIT_11:
-			fcport->fp_speed = PORT_SPEED_8GB;
-			break;
-		case BIT_10:
-			fcport->fp_speed = PORT_SPEED_16GB;
-			break;
-		case BIT_8:
-			fcport->fp_speed = PORT_SPEED_32GB;
-			break;
-		}
+		fcport->fp_speed = qla2x00_port_speed_capability(
+		    be16_to_cpu(ct_rsp->rsp.gpsc.speed));
 
 		ql_dbg(ql_dbg_disc, vha, 0x2054,
 		    "Async-%s OUT WWPN %8phC speeds=%04x speed=%04x.\n",
@@ -4370,6 +4346,7 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 done_free_sp:
 	sp->free(sp);
+	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	return rval;
 }

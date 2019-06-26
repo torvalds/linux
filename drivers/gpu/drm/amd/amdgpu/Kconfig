@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_AMDGPU_SI
 	bool "Enable amdgpu support for SI parts"
 	depends on DRM_AMDGPU
@@ -26,10 +27,11 @@ config DRM_AMDGPU_CIK
 config DRM_AMDGPU_USERPTR
 	bool "Always enable userptr write support"
 	depends on DRM_AMDGPU
-	select MMU_NOTIFIER
+	depends on ARCH_HAS_HMM
+	select HMM_MIRROR
 	help
-	  This option selects CONFIG_MMU_NOTIFIER if it isn't already
-	  selected to enabled full userptr support.
+	  This option selects CONFIG_HMM and CONFIG_HMM_MIRROR if it
+	  isn't already selected to enabled full userptr support.
 
 config DRM_AMDGPU_GART_DEBUGFS
 	bool "Allow GART access through debugfs"

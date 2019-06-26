@@ -1223,15 +1223,16 @@ static inline send_routine get_send_routine(struct rvt_qp *qp,
 	case IB_QPT_UD:
 		break;
 	case IB_QPT_UC:
-	case IB_QPT_RC: {
+	case IB_QPT_RC:
+		priv->s_running_pkt_size =
+			(tx->s_cur_size + priv->s_running_pkt_size) / 2;
 		if (piothreshold &&
-		    tx->s_cur_size <= min(piothreshold, qp->pmtu) &&
+		    priv->s_running_pkt_size <= min(piothreshold, qp->pmtu) &&
 		    (BIT(ps->opcode & OPMASK) & pio_opmask[ps->opcode >> 5]) &&
 		    iowait_sdma_pending(&priv->s_iowait) == 0 &&
 		    !sdma_txreq_built(&tx->txreq))
 			return dd->process_pio_send;
 		break;
-	}
 	default:
 		break;
 	}
@@ -1355,8 +1356,6 @@ static void hfi1_fill_device_attr(struct hfi1_devdata *dd)
 	rdi->dparms.props.max_cq = hfi1_max_cqs;
 	rdi->dparms.props.max_ah = hfi1_max_ahs;
 	rdi->dparms.props.max_cqe = hfi1_max_cqes;
-	rdi->dparms.props.max_mr = rdi->lkey_table.max;
-	rdi->dparms.props.max_fmr = rdi->lkey_table.max;
 	rdi->dparms.props.max_map_per_fmr = 32767;
 	rdi->dparms.props.max_pd = hfi1_max_pds;
 	rdi->dparms.props.max_qp_rd_atom = HFI1_MAX_RDMA_ATOMIC;
@@ -1739,15 +1738,15 @@ static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
 
 static u64 hfi1_sps_ints(void)
 {
-	unsigned long flags;
+	unsigned long index, flags;
 	struct hfi1_devdata *dd;
 	u64 sps_ints = 0;
 
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
-	list_for_each_entry(dd, &hfi1_dev_list, list) {
+	xa_lock_irqsave(&hfi1_dev_table, flags);
+	xa_for_each(&hfi1_dev_table, index, dd) {
 		sps_ints += get_all_cpu_total(dd->int_counter);
 	}
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	xa_unlock_irqrestore(&hfi1_dev_table, flags);
 	return sps_ints;
 }
 

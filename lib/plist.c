@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lib/plist.c
  *
@@ -14,8 +15,6 @@
  * Simplifications of the original code by
  * Oleg Nesterov <oleg@tv-sign.ru>
  *
- * Licensed under the FSF's GNU Public License v2 or later.
- *
  * Based on simple lists (include/linux/list.h).
  *
  * This file contains the add / del functions which are considered to
@@ -26,7 +25,7 @@
 #include <linux/bug.h>
 #include <linux/plist.h>
 
-#ifdef CONFIG_DEBUG_PI_LIST
+#ifdef CONFIG_DEBUG_PLIST
 
 static struct plist_head test_head;
 
@@ -173,7 +172,7 @@ void plist_requeue(struct plist_node *node, struct plist_head *head)
 	plist_check_head(head);
 }
 
-#ifdef CONFIG_DEBUG_PI_LIST
+#ifdef CONFIG_DEBUG_PLIST
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/module.h>

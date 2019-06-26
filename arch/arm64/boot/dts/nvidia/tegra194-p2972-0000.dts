@@ -57,8 +57,6 @@
 		pwms = <&pwm4 0 45334>;
 
 		cooling-levels = <0 64 128 255>;
-		cooling-min-state = <0>;
-		cooling-max-state = <3>;
 		#cooling-cells = <2>;
 	};
 

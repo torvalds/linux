@@ -197,7 +197,7 @@ struct pm8001_dispatch {
 	int (*chip_ioremap)(struct pm8001_hba_info *pm8001_ha);
 	void (*chip_iounmap)(struct pm8001_hba_info *pm8001_ha);
 	irqreturn_t (*isr)(struct pm8001_hba_info *pm8001_ha, u8 vec);
-	u32 (*is_our_interupt)(struct pm8001_hba_info *pm8001_ha);
+	u32 (*is_our_interrupt)(struct pm8001_hba_info *pm8001_ha);
 	int (*isr_process_oq)(struct pm8001_hba_info *pm8001_ha, u8 vec);
 	void (*interrupt_enable)(struct pm8001_hba_info *pm8001_ha, u8 vec);
 	void (*interrupt_disable)(struct pm8001_hba_info *pm8001_ha, u8 vec);

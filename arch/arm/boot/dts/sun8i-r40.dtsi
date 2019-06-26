@@ -273,7 +273,6 @@
 			clocks = <&ccu CLK_BUS_EHCI1>;
 			resets = <&ccu RST_BUS_EHCI1>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -285,7 +284,6 @@
 				 <&ccu CLK_USB_OHCI1>;
 			resets = <&ccu RST_BUS_OHCI1>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -296,7 +294,6 @@
 			clocks = <&ccu CLK_BUS_EHCI2>;
 			resets = <&ccu RST_BUS_EHCI2>;
 			phys = <&usbphy 2>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -308,7 +305,6 @@
 				 <&ccu CLK_USB_OHCI2>;
 			resets = <&ccu RST_BUS_OHCI2>;
 			phys = <&usbphy 2>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -562,9 +558,7 @@
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_SATA>, <&ccu CLK_SATA>;
 			resets = <&ccu RST_BUS_SATA>;
-			resets-name = "ahci";
-			#address-cells = <1>;
-			#size-cells = <0>;
+			reset-names = "ahci";
 			status = "disabled";
 
 		};
@@ -614,12 +608,9 @@
 				#size-cells = <0>;
 
 				tcon_top_mixer0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					tcon_top_mixer0_in_mixer0: endpoint@0 {
-						reg = <0>;
+					tcon_top_mixer0_in_mixer0: endpoint {
 						remote-endpoint = <&mixer0_out_tcon_top>;
 					};
 				};

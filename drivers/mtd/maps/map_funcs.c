@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Out-of-line map I/O functions for simple maps when CONFIG_COMPLEX_MAPPINGS
  * is enabled.

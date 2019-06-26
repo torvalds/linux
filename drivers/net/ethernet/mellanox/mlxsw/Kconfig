@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Mellanox switch drivers configuration
 #
 
 config MLXSW_CORE
 	tristate "Mellanox Technologies Switch ASICs support"
+	select NET_DEVLINK
 	---help---
 	  This driver supports Mellanox Technologies Switch ASICs family.
 
@@ -21,7 +23,6 @@ config MLXSW_CORE_HWMON
 config MLXSW_CORE_THERMAL
 	bool "Thermal zone support for Mellanox Technologies Switch ASICs"
 	depends on MLXSW_CORE && THERMAL
-	depends on !(MLXSW_CORE=y && THERMAL=m)
 	default y
 	---help---
 	 Say Y here if you want to automatically control fans speed according

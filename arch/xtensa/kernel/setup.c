@@ -310,7 +310,8 @@ extern char _SecondaryResetVector_text_start;
 extern char _SecondaryResetVector_text_end;
 #endif
 
-static inline int mem_reserve(unsigned long start, unsigned long end)
+static inline int __init_memblock mem_reserve(unsigned long start,
+					      unsigned long end)
 {
 	return memblock_reserve(start, end - start);
 }
@@ -650,6 +651,9 @@ c_show(struct seq_file *f, void *slot)
 #endif
 #if XCHAL_HAVE_S32C1I
 		     "s32c1i "
+#endif
+#if XCHAL_HAVE_EXCLUSIVE
+		     "exclusive "
 #endif
 		     "\n");
 

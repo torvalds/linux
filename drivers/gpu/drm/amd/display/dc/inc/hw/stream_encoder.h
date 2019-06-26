@@ -52,6 +52,19 @@ enum dp_component_depth {
 	DP_COMPONENT_PIXEL_DEPTH_16BPC		= 0x00000004
 };
 
+struct audio_clock_info {
+	/* pixel clock frequency*/
+	uint32_t pixel_clock_in_10khz;
+	/* N - 32KHz audio */
+	uint32_t n_32khz;
+	/* CTS - 32KHz audio*/
+	uint32_t cts_32khz;
+	uint32_t n_44khz;
+	uint32_t cts_44khz;
+	uint32_t n_48khz;
+	uint32_t cts_48khz;
+};
+
 struct encoder_info_frame {
 	/* auxiliary video information */
 	struct dc_info_packet avi;
@@ -63,8 +76,6 @@ struct encoder_info_frame {
 	struct dc_info_packet vsc;
 	/* HDR Static MetaData */
 	struct dc_info_packet hdrsmd;
-	/* custom sdp message */
-	struct dc_info_packet dpsdp;
 };
 
 struct encoder_unblank_param {
@@ -122,6 +133,11 @@ struct stream_encoder_funcs {
 	void (*update_dp_info_packets)(
 		struct stream_encoder *enc,
 		const struct encoder_info_frame *info_frame);
+
+	void (*send_immediate_sdp_message)(
+				struct stream_encoder *enc,
+				const uint8_t *custom_sdp_message,
+				unsigned int sdp_message_size);
 
 	void (*stop_dp_info_packets)(
 		struct stream_encoder *enc);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	UDP over IPv6
  *	Linux INET6 implementation
@@ -14,11 +15,6 @@
  *					a single port at the same time.
  *      Kazunori MIYAZAWA @USAGI:       change process style to use ip6_append_data
  *      YOSHIFUJI Hideaki @USAGI:	convert /proc/net/udp6 to seq_file.
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -36,6 +32,7 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <net/addrconf.h>
 #include <net/ndisc.h>
@@ -285,8 +282,7 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	struct inet_sock *inet = inet_sk(sk);
 	struct sk_buff *skb;
 	unsigned int ulen, copied;
-	int peeked, peeking, off;
-	int err;
+	int off, err, peeking = flags & MSG_PEEK;
 	int is_udplite = IS_UDPLITE(sk);
 	struct udp_mib __percpu *mib;
 	bool checksum_valid = false;
@@ -299,9 +295,8 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		return ipv6_recv_rxpmtu(sk, msg, len, addr_len);
 
 try_again:
-	peeking = flags & MSG_PEEK;
 	off = sk_peek_offset(sk, flags);
-	skb = __skb_recv_udp(sk, flags, noblock, &peeked, &off, &err);
+	skb = __skb_recv_udp(sk, flags, noblock, &off, &err);
 	if (!skb)
 		return err;
 
@@ -340,14 +335,14 @@ try_again:
 			goto csum_copy_err;
 	}
 	if (unlikely(err)) {
-		if (!peeked) {
+		if (!peeking) {
 			atomic_inc(&sk->sk_drops);
 			SNMP_INC_STATS(mib, UDP_MIB_INERRORS);
 		}
 		kfree_skb(skb);
 		return err;
 	}
-	if (!peeked)
+	if (!peeking)
 		SNMP_INC_STATS(mib, UDP_MIB_INDATAGRAMS);
 
 	sock_recv_ts_and_drops(msg, sk, skb);
@@ -982,7 +977,7 @@ static struct sock *__udp6_lib_demux_lookup(struct net *net,
 	return NULL;
 }
 
-static void udp_v6_early_demux(struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE void udp_v6_early_demux(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
 	const struct udphdr *uh;
@@ -1023,7 +1018,7 @@ static void udp_v6_early_demux(struct sk_buff *skb)
 	}
 }
 
-static __inline__ int udpv6_rcv(struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE int udpv6_rcv(struct sk_buff *skb)
 {
 	return __udp6_lib_rcv(skb, &udp_table, IPPROTO_UDP);
 }
@@ -1047,6 +1042,8 @@ static void udp_v6_flush_pending_frames(struct sock *sk)
 static int udpv6_pre_connect(struct sock *sk, struct sockaddr *uaddr,
 			     int addr_len)
 {
+	if (addr_len < offsetofend(struct sockaddr, sa_family))
+		return -EINVAL;
 	/* The following checks are replicated from __ip6_datagram_connect()
 	 * and intended to prevent BPF program called below from accessing
 	 * bytes that are out of the bound specified by user in addr_len.

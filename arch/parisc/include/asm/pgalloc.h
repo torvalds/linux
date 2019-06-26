@@ -41,6 +41,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 		__pgd_val_set(*pgd, PxD_FLAG_ATTACHED);
 #endif
 	}
+	spin_lock_init(pgd_spinlock(actual_pgd));
 	return actual_pgd;
 }
 

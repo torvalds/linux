@@ -297,8 +297,7 @@ out_alloc_disk:
 	blk_cleanup_queue(dev->queue);
 	dev->queue = NULL;
 out_alloc_queue:
-	simc_close(dev->fd);
-	return -EIO;
+	return -ENOMEM;
 }
 
 static int __init simdisk_init(void)

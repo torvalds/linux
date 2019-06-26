@@ -34,6 +34,7 @@
  */
 
 #include "i915_drv.h"
+#include "gt/intel_context.h"
 #include "gvt.h"
 #include "trace.h"
 
@@ -108,12 +109,13 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, GEN9_HALF_SLICE_CHICKEN5, 0xffff, true}, /* 0xe188 */
 	{RCS0, GEN9_HALF_SLICE_CHICKEN7, 0xffff, true}, /* 0xe194 */
 	{RCS0, GEN8_ROW_CHICKEN, 0xffff, true}, /* 0xe4f0 */
-	{RCS0, TRVATTL3PTRDW(0), 0, false}, /* 0x4de0 */
-	{RCS0, TRVATTL3PTRDW(1), 0, false}, /* 0x4de4 */
-	{RCS0, TRNULLDETCT, 0, false}, /* 0x4de8 */
-	{RCS0, TRINVTILEDETCT, 0, false}, /* 0x4dec */
-	{RCS0, TRVADR, 0, false}, /* 0x4df0 */
-	{RCS0, TRTTE, 0, false}, /* 0x4df4 */
+	{RCS0, TRVATTL3PTRDW(0), 0, true}, /* 0x4de0 */
+	{RCS0, TRVATTL3PTRDW(1), 0, true}, /* 0x4de4 */
+	{RCS0, TRNULLDETCT, 0, true}, /* 0x4de8 */
+	{RCS0, TRINVTILEDETCT, 0, true}, /* 0x4dec */
+	{RCS0, TRVADR, 0, true}, /* 0x4df0 */
+	{RCS0, TRTTE, 0, true}, /* 0x4df4 */
+	{RCS0, _MMIO(0x4dfc), 0, true},
 
 	{BCS0, RING_GFX_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2229c */
 	{BCS0, RING_MI_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2209c */
@@ -132,6 +134,7 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 
 	{RCS0, GEN9_GAMT_ECO_REG_RW_IA, 0x0, false}, /* 0x4ab0 */
 	{RCS0, GEN9_CSFE_CHICKEN1_RCS, 0xffff, false}, /* 0x20d4 */
+	{RCS0, _MMIO(0x20D8), 0xffff, true}, /* 0x20d8 */
 
 	{RCS0, GEN8_GARBCNTL, 0x0, false}, /* 0xb004 */
 	{RCS0, GEN7_FF_THREAD_MODE, 0x0, false}, /* 0x20a0 */
@@ -391,10 +394,7 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (ring_id == RCS0 &&
-	    (IS_KABYLAKE(dev_priv) ||
-	     IS_BROXTON(dev_priv) ||
-	     IS_COFFEELAKE(dev_priv)))
+	if (ring_id == RCS0 && IS_GEN(dev_priv, 9))
 		return;
 
 	if (!pre && !gen9_render_mocs.initialized)
@@ -469,11 +469,10 @@ static void switch_mmio(struct intel_vgpu *pre,
 			continue;
 		/*
 		 * No need to do save or restore of the mmio which is in context
-		 * state image on kabylake, it's initialized by lri command and
+		 * state image on gen9, it's initialized by lri command and
 		 * save or restore with context together.
 		 */
-		if ((IS_KABYLAKE(dev_priv) || IS_BROXTON(dev_priv)
-			|| IS_COFFEELAKE(dev_priv)) && mmio->in_context)
+		if (IS_GEN(dev_priv, 9) && mmio->in_context)
 			continue;
 
 		// save
@@ -495,8 +494,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 			 * itself.
 			 */
 			if (mmio->in_context &&
-			    !is_inhibit_context(intel_context_lookup(s->shadow_ctx,
-								     dev_priv->engine[ring_id])))
+			    !is_inhibit_context(s->shadow[ring_id]))
 				continue;
 
 			if (mmio->mask)

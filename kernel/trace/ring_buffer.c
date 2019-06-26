@@ -762,7 +762,7 @@ u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu)
 
 	preempt_disable_notrace();
 	time = rb_time_stamp(buffer);
-	preempt_enable_no_resched_notrace();
+	preempt_enable_notrace();
 
 	return time;
 }
@@ -4979,7 +4979,7 @@ static __init int rb_write_something(struct rb_test_data *data, bool nested)
 	cnt = data->cnt + (nested ? 27 : 0);
 
 	/* Multiply cnt by ~e, to make some unique increment */
-	size = (data->cnt * 68 / 25) % (sizeof(rb_string) - 1);
+	size = (cnt * 68 / 25) % (sizeof(rb_string) - 1);
 
 	len = size + sizeof(struct rb_item);
 

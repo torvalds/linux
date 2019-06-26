@@ -371,7 +371,6 @@ static unsigned int mite_get_status(struct mite_channel *mite_chan)
 		writel(CHOR_CLRDONE,
 		       mite->mmio + MITE_CHOR(mite_chan->channel));
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&mite->lock, flags);
 	return status;
 }
@@ -451,7 +450,6 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	mite_chan->done = 0;
 	/* arm */
 	writel(CHOR_START, mite->mmio + MITE_CHOR(mite_chan->channel));
-	mmiowb();
 	spin_unlock_irqrestore(&mite->lock, flags);
 }
 EXPORT_SYMBOL_GPL(mite_dma_arm);
@@ -638,7 +636,6 @@ void mite_release_channel(struct mite_channel *mite_chan)
 		       CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
 		       mite->mmio + MITE_CHCR(mite_chan->channel));
 		mite_chan->ring = NULL;
-		mmiowb();
 	}
 	spin_unlock_irqrestore(&mite->lock, flags);
 }

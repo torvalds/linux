@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/act_skbmod.c  skb data modifier
  *
  * Copyright (c) 2016 Jamal Hadi Salim <jhs@mojatatu.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
 */
 
 #include <linux/module.h>
@@ -102,7 +98,8 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	if (!nla)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_SKBMOD_MAX, nla, skbmod_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_SKBMOD_MAX, nla,
+					  skbmod_policy, NULL);
 	if (err < 0)
 		return err;
 

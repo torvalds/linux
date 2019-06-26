@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-w90x900/mach-nuc950evb.c
  *
@@ -7,12 +8,8 @@
  *
  * Wan ZongShun <mcuos.com@gmail.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation;version 2 of the License.
  *   history:
  *     Wang Qiang (rurality.linux@gmail.com) add LCD support
- *
  */
 
 #include <linux/platform_device.h>

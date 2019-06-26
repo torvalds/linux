@@ -8,6 +8,7 @@ R-Car VIN module, which provides the video capture capabilities.
 Mandatory properties
 --------------------
  - compatible: Must be one or more of the following
+   - "renesas,r8a774a1-csi2" for the R8A774A1 device.
    - "renesas,r8a774c0-csi2" for the R8A774C0 device.
    - "renesas,r8a7795-csi2" for the R8A7795 device.
    - "renesas,r8a7796-csi2" for the R8A7796 device.
@@ -18,7 +19,8 @@ Mandatory properties
 
  - reg: the register base and size for the device registers
  - interrupts: the interrupt for the device
- - clocks: reference to the parent clock
+ - clocks: A phandle + clock specifier for the module clock
+ - resets: A phandle + reset specifier for the module reset
 
 The device node shall contain two 'port' child nodes according to the
 bindings defined in Documentation/devicetree/bindings/media/

@@ -1,24 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * snappercl15.c -- SoC audio for Bluewater Systems Snapper CL15 module
  *
  * Copyright (C) 2008 Bluewater Systems Ltd
  * Author: Ryan Mallon
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/soc/cirrus/ep93xx.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 
 #include "../codecs/tlv320aic23.h"
 

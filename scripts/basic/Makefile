@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 ###
 # This Makefile lists the most basic programs used during the build process.
 # The programs listed herein are what are needed to do the basic stuff,

@@ -122,6 +122,9 @@ struct tipc_net {
 	/* Topology subscription server */
 	struct tipc_topsrv *topsrv;
 	atomic_t subscription_count;
+
+	/* Cluster capabilities */
+	u16 capabilities;
 };
 
 static inline struct tipc_net *tipc_net(struct net *net)

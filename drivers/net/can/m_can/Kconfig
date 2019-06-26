@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CAN_M_CAN
 	depends on HAS_IOMEM
 	tristate "Bosch M_CAN devices"

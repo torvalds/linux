@@ -115,36 +115,75 @@ following components are available
 
 		Section 2 Usage of the MOST Driver
 
-		Section 2.1 Configuration
+		Section 2.1 Configuration and Data Link
 
-See ABI/sysfs-bus-most.txt
+The driver is to be configured via configfs. Each loaded component kernel
+object (see section 1.3) registers a subsystem with configfs, which is used to
+configure and establish communiction pathways (links) to attached devices on
+the bus. To do so, the user has to descend into the component's configuration
+directory and create a new directory (child config itmes). The name of this
+directory will be used as a reference for the link and it will contain the
+following attributes:
+
+	- buffer_size
+	  configure the buffer size for this channel
+	- subbuffer_size
+	  configure the sub-buffer size for this channel (needed for
+	  synchronous and isochrnous data)
+	- num_buffers
+	  configure number of buffers used for this channel
+	- datatype
+	  configure type of data that will travel over this channel
+	- direction
+	  configure whether this link will be an input or output
+	- dbr_size
+	  configure DBR data buffer size (this is used for MediaLB communiction
+	  only)
+	- packets_per_xact
+	  configure the number of packets that will be collected from the
+	  network before being transmitted via USB (this is used for USB
+	  communiction only)
+	- device
+	  name of the device the link is to be attached to
+	- channel
+	  name of the channel the link is to be attached to
+	- comp_params
+	  pass parameters needed by some components
+	- create_link
+	  write '1' to this attribute to trigger the creation of the link. In
+	  case of speculative configuration, the creation is post-poned until
+	  a physical device is being attached to the bus.
+	- destroy_link
+	  write '1' to this attribute to destroy an already established link
 
 
-		Section 2.2 Routing Channels
-
-To connect a configured channel to a certain core component and make it
-accessible for user space applications, the driver attribute 'add_link' is
-used. The configuration string passed to it has the following format:
-
-	"device_name:channel_name:component_name:link_name[.param]"
-
-It is the concatenation of up to four substrings separated by a colon. The
-substrings contain the names of the MOST interface, the channel, the
-component driver and a custom name with which the link is going to be
-referenced with. Since some components need additional information, the
-link name can be extended with a component-specific parameter (separated by
-a dot). In case the character device component is loaded, the handle would
-also appear as a device node in the /dev directory.
-
-Cdev component example:
-        $ echo "mdev0:ep_81:cdev:my_rx_channel" >$(DRV_DIR)/add_link
+See ABI/sysfs-bus-most.txt and ABI/configfs-most.txt
 
 
-Sound component example:
+		Section 2.2 Configure a Sound Card
 
-The sound component needs additional parameters to determine the audio
-resolution that is going to be used and to trigger the registration of a
-sound card with ALSA. The following audio formats are available:
+Setting up synchronous channels to be mapped as an ALSA sound adapter is a two
+step process. Firstly, a directory (child config group) has to be created
+inside the most_sound's configuration directory. This adapter dir will
+represent the sound adapter. The name of the directory is for user reference
+only and has no further influence, as all sound adapters will be given a static
+name in ALSA. The sound adapter will have the following attribute:
+
+	- create_card
+	  write '1' to this attribute to trigger the registration of the card
+	  with the ALSA subsystem.
+	  In case of speculative configuration, the creation is post-poned
+	  until a physical device is being attached to the bus.
+
+Secondly, links will have to be created inside the adapter dir as described in
+section 2.1. These links will become the PCM devices of the sound card. The
+name of a PCM device will be inherited from the directory name. When all
+channels have been configured and created, the sound card itself can be created
+by writing '1' to the create_card attribute.
+
+The sound component needs an additional parameter to determine the audio
+resolution that is going to be used.
+The following audio formats are available:
 
 	- "1x8" (Mono)
 	- "2x16" (16-bit stereo)
@@ -152,18 +191,8 @@ sound card with ALSA. The following audio formats are available:
 	- "2x32" (32-bit stereo)
 	- "6x16" (16-bit surround 5.1)
 
-To make the sound module create a sound card and register it with ALSA the
-string "create" needs to be attached to the module parameter section of the
-configuration string. To create a sound card with with two playback devices
-(linked to channel ep01 and ep02) and one capture device (linked to channel
-ep83) the following is written to the add_link file:
-
-        $ echo "mdev0:ep01:sound:most51_playback.6x16" >$(DRV_DIR)/add_link
-        $ echo "mdev0:ep02:sound:most_playback.2x16" >$(DRV_DIR)/add_link
-        $ echo "mdev0:ep83:sound:most_capture.2x16.create" >$(DRV_DIR)/add_link
-
-The link names (most51_playback, most_playback and most_capture) will
-become the names of the PCM devices of the sound card.
+The resolution string has to be written to the link directory's comp_params
+attribute.
 
 		Section 2.3 USB Padding
 
@@ -174,13 +203,13 @@ hardware, which is for performance optimization purposes of the USB
 transmission.
 
 When transmitting synchronous data the allocated channel width needs to be
-written to 'set_subbuffer_size'. Additionally, the number of MOST frames
-that should travel to the host within one USB transaction need to be
-written to 'packets_per_xact'.
+written to 'subbuffer_size'. Additionally, the number of MOST frames that
+should travel to the host within one USB transaction need to be written to
+'packets_per_xact'.
 
 The driver, then, calculates the synchronous threshold as follows:
 
-	frame_size = set_subbuffer_size * packets_per_xact
+	frame_size = subbuffer_size * packets_per_xact
 
 In case 'packets_per_xact' is set to 0xFF the maximum number of packets,
 allocated within one MOST frame, is calculated that fit into _one_ 512 byte
@@ -192,15 +221,15 @@ This frame_size is the number of synchronous data within an USB
 transaction, which renders MTU_USB - frame_size bytes for padding.
 
 When transmitting isochronous AVP data the desired packet size needs to be
-written to 'set_subbuffer_size' and hardware will always expect two
-isochronous packets within one USB transaction. This renders
+written to 'subbuffer_size' and hardware will always expect two isochronous
+packets within one USB transaction. This renders
 
-	MTU_USB - (2 * set_subbuffer_size)
+	MTU_USB - (2 * subbuffer_size)
 
 bytes for padding.
 
-Note that at least (2 * set_subbuffer_size) bytes for isochronous data or
-(set_subbuffer_size * packts_per_xact) bytes for synchronous data need to
+Note that at least (2 * subbuffer_size) bytes for isochronous data or
+(subbuffer_size * packts_per_xact) bytes for synchronous data need to
 be put in the transmission buffer and passed to the driver.
 
 Since adapter drivers are allowed to change a chosen configuration to best

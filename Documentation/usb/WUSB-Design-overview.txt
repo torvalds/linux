@@ -1,7 +1,9 @@
-
+================================
 Linux UWB + Wireless USB + WiNET
+================================
 
-   (C) 2005-2006 Intel Corporation
+   Copyright (C) 2005-2006 Intel Corporation
+
    Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
 
    This program is free software; you can redistribute it and/or
@@ -29,6 +31,7 @@ drivers for the USB based UWB radio controllers defined in the
 Wireless USB 1.0 specification (including Wireless USB host controller
 and an Intel WiNET controller).
 
+.. Contents
    1. Introduction
          1. HWA: Host Wire adapters, your Wireless USB dongle
 
@@ -51,7 +54,8 @@ and an Intel WiNET controller).
    4. Glossary
 
 
-    Introduction
+Introduction
+============
 
 UWB is a wide-band communication protocol that is to serve also as the
 low-level protocol for others (much like TCP sits on IP). Currently
@@ -93,7 +97,8 @@ The different logical parts of this driver are:
       do the actual WUSB.
 
 
-      HWA: Host Wire adapters, your Wireless USB dongle
+HWA: Host Wire adapters, your Wireless USB dongle
+-------------------------------------------------
 
 WUSB also defines a device called a Host Wire Adaptor (HWA), which in
 mere terms is a USB dongle that enables your PC to have UWB and Wireless
@@ -125,7 +130,8 @@ The HWA itself is broken in two or three main interfaces:
       their type and kick into gear.
 
 
-      DWA: Device Wired Adaptor, a Wireless USB hub for wired devices
+DWA: Device Wired Adaptor, a Wireless USB hub for wired devices
+---------------------------------------------------------------
 
 These are the complement to HWAs. They are a USB host for connecting
 wired devices, but it is connected to your PC connected via Wireless
@@ -137,7 +143,8 @@ code with the HWA-RC driver; there is a bunch of factorization work that
 has been done to support that in upcoming releases.
 
 
-      WHCI: Wireless Host Controller Interface, the PCI WUSB host adapter
+WHCI: Wireless Host Controller Interface, the PCI WUSB host adapter
+-------------------------------------------------------------------
 
 This is your usual PCI device that implements WHCI. Similar in concept
 to EHCI, it allows your wireless USB devices (including DWAs) to connect
@@ -148,7 +155,8 @@ There is still no driver support for this, but will be in upcoming
 releases.
 
 
-    The UWB stack
+The UWB stack
+=============
 
 The main mission of the UWB stack is to keep a tally of which devices
 are in radio proximity to allow drivers to connect to them. As well, it
@@ -156,7 +164,8 @@ provides an API for controlling the local radio controllers (RCs from
 now on), such as to start/stop beaconing, scan, allocate bandwidth, etc.
 
 
-      Devices and hosts: the basic structure
+Devices and hosts: the basic structure
+--------------------------------------
 
 The main building block here is the UWB device (struct uwb_dev). For
 each device that pops up in radio presence (ie: the UWB host receives a
@@ -187,7 +196,8 @@ the USB connected HWA. Eventually, drivers/whci-rc.c will do the same
 for the PCI connected WHCI controller.
 
 
-      Host Controller life cycle
+Host Controller life cycle
+--------------------------
 
 So let's say we connect a dongle to the system: it is detected and
 firmware uploaded if needed [for Intel's i1480
@@ -209,7 +219,8 @@ When a dongle is disconnected, /drivers/uwb/hwa-rc.c:hwarc_disconnect()/
 takes time of tearing everything down safely (or not...).
 
 
-      On the air: beacons and enumerating the radio neighborhood
+On the air: beacons and enumerating the radio neighborhood
+----------------------------------------------------------
 
 So assuming we have devices and we have agreed for a channel to connect
 on (let's say 9), we put the new RC to beacon:
@@ -235,12 +246,14 @@ are received in some time, the device is considered gone and wiped out
 the beacon cache of dead devices].
 
 
-      Device lists
+Device lists
+------------
 
 All UWB devices are kept in the list of the struct bus_type uwb_bus_type.
 
 
-      Bandwidth allocation
+Bandwidth allocation
+--------------------
 
 The UWB stack maintains a local copy of DRP availability through
 processing of incoming *DRP Availability Change* notifications. This
@@ -260,7 +273,8 @@ completion. [Note: The bandwidth reservation work is in progress and
 subject to change.]
 
 
-    Wireless USB Host Controller drivers
+Wireless USB Host Controller drivers
+====================================
 
 *WARNING* This section needs a lot of work!
 
@@ -296,7 +310,8 @@ starts sending MMCs.
 
 Now it all depends on external stimuli.
 
-*New device connection*
+New device connection
+---------------------
 
 A new device pops up, it scans the radio looking for MMCs that give out
 the existence of Wireless USB channels. Once one (or more) are found,
@@ -322,7 +337,8 @@ has seen the port status changes, as we have been toggling them. It will
 start enumerating and doing transfers through usb_hcd->urb_enqueue() to
 read descriptors and move our data.
 
-*Device life cycle and keep alives*
+Device life cycle and keep alives
+---------------------------------
 
 Every time there is a successful transfer to/from a device, we update a
 per-device activity timestamp. If not, every now and then we check and
@@ -340,7 +356,8 @@ device list looking for whom needs refreshing.
 If the device wants to disconnect, it will either die (ugly) or send a
 /DN_Disconnect/ that will prompt a disconnection from the system.
 
-*Sending and receiving data*
+Sending and receiving data
+--------------------------
 
 Data is sent and received through /Remote Pipes/ (rpipes). An rpipe is
 /aimed/ at an endpoint in a WUSB device. This is the same for HWAs and
@@ -394,7 +411,8 @@ finalize the transfer.
 For IN xfers, we only issue URBs for the segments we want to read and
 then wait for the xfer result data.
 
-*URB mapping into xfers*
+URB mapping into xfers
+^^^^^^^^^^^^^^^^^^^^^^
 
 This is done by hwahc_op_urb_[en|de]queue(). In enqueue() we aim an
 rpipe to the endpoint where we have to transmit, create a transfer
@@ -407,7 +425,8 @@ and not yet done and when all that is done, the xfer callback will be
 called--this will call the URB callback.
 
 
-    Glossary
+Glossary
+========
 
 *DWA* -- Device Wire Adapter
 
@@ -436,4 +455,3 @@ the host.
 
 Design-overview.txt-1.8 (last edited 2006-11-04 12:22:24 by
 InakyPerezGonzalez)
-

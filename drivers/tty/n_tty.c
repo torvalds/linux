@@ -550,9 +550,9 @@ static ssize_t process_output_block(struct tty_struct *tty,
 	mutex_lock(&ldata->output_lock);
 
 	space = tty_write_room(tty);
-	if (!space) {
+	if (space <= 0) {
 		mutex_unlock(&ldata->output_lock);
-		return 0;
+		return space;
 	}
 	if (nr > space)
 		nr = space;

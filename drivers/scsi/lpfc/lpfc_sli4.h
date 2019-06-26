@@ -117,21 +117,6 @@ enum lpfc_sli4_queue_subtype {
 	LPFC_USOL
 };
 
-union sli4_qe {
-	void *address;
-	struct lpfc_eqe *eqe;
-	struct lpfc_cqe *cqe;
-	struct lpfc_mcqe *mcqe;
-	struct lpfc_wcqe_complete *wcqe_complete;
-	struct lpfc_wcqe_release *wcqe_release;
-	struct sli4_wcqe_xri_aborted *wcqe_xri_aborted;
-	struct lpfc_rcqe_complete *rcqe_complete;
-	struct lpfc_mqe *mqe;
-	union  lpfc_wqe *wqe;
-	union  lpfc_wqe128 *wqe128;
-	struct lpfc_rqe *rqe;
-};
-
 /* RQ buffer list */
 struct lpfc_rqb {
 	uint16_t entry_count;	  /* Current number of RQ slots */
@@ -157,6 +142,7 @@ struct lpfc_queue {
 	struct list_head cpu_list;
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
+	uint32_t entry_cnt_per_pg;
 	uint32_t notify_interval; /* Queue Notification Interval
 				   * For chip->host queues (EQ, CQ, RQ):
 				   *  specifies the interval (number of
@@ -254,17 +240,17 @@ struct lpfc_queue {
 	uint16_t last_cpu;	/* most recent cpu */
 	uint8_t	qe_valid;
 	struct lpfc_queue *assoc_qp;
-	union sli4_qe qe[1];	/* array to index entries (must be last) */
+	void **q_pgs;	/* array to index entries per page */
 };
 
 struct lpfc_sli4_link {
-	uint16_t speed;
+	uint32_t speed;
 	uint8_t duplex;
 	uint8_t status;
 	uint8_t type;
 	uint8_t number;
 	uint8_t fault;
-	uint16_t logical_speed;
+	uint32_t logical_speed;
 	uint16_t topology;
 };
 
@@ -543,8 +529,9 @@ struct lpfc_sli4_lnk_info {
 #define LPFC_LNK_DAT_INVAL	0
 #define LPFC_LNK_DAT_VAL	1
 	uint8_t lnk_tp;
-#define LPFC_LNK_GE	0x0 /* FCoE */
-#define LPFC_LNK_FC	0x1 /* FC   */
+#define LPFC_LNK_GE		0x0 /* FCoE */
+#define LPFC_LNK_FC		0x1 /* FC */
+#define LPFC_LNK_FC_TRUNKED	0x2 /* FC_Trunked */
 	uint8_t lnk_no;
 	uint8_t optic_state;
 };
@@ -907,6 +894,18 @@ struct lpfc_sli4_hba {
 #define lpfc_conf_trunk_port3_WORD	conf_trunk
 #define lpfc_conf_trunk_port3_SHIFT	3
 #define lpfc_conf_trunk_port3_MASK	0x1
+#define lpfc_conf_trunk_port0_nd_WORD	conf_trunk
+#define lpfc_conf_trunk_port0_nd_SHIFT	4
+#define lpfc_conf_trunk_port0_nd_MASK	0x1
+#define lpfc_conf_trunk_port1_nd_WORD	conf_trunk
+#define lpfc_conf_trunk_port1_nd_SHIFT	5
+#define lpfc_conf_trunk_port1_nd_MASK	0x1
+#define lpfc_conf_trunk_port2_nd_WORD	conf_trunk
+#define lpfc_conf_trunk_port2_nd_SHIFT	6
+#define lpfc_conf_trunk_port2_nd_MASK	0x1
+#define lpfc_conf_trunk_port3_nd_WORD	conf_trunk
+#define lpfc_conf_trunk_port3_nd_SHIFT	7
+#define lpfc_conf_trunk_port3_nd_MASK	0x1
 };
 
 enum lpfc_sge_type {
@@ -990,8 +989,10 @@ int lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *, struct lpfcMboxq *,
 			       uint16_t);
 
 void lpfc_sli4_hba_reset(struct lpfc_hba *);
-struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
-					 uint32_t, uint32_t);
+struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *phba,
+					 uint32_t page_size,
+					 uint32_t entry_size,
+					 uint32_t entry_count, int cpu);
 void lpfc_sli4_queue_free(struct lpfc_queue *);
 int lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
 void lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
@@ -1057,12 +1058,12 @@ void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);
 int lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *);
 int lpfc_sli4_get_iocb_cnt(struct lpfc_hba *phba);
 int lpfc_sli4_init_vpi(struct lpfc_vport *);
-inline void lpfc_sli4_eq_clr_intr(struct lpfc_queue *);
+void lpfc_sli4_eq_clr_intr(struct lpfc_queue *);
 void lpfc_sli4_write_cq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
 			   uint32_t count, bool arm);
 void lpfc_sli4_write_eq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
 			   uint32_t count, bool arm);
-inline void lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q);
+void lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q);
 void lpfc_sli4_if6_write_cq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
 			       uint32_t count, bool arm);
 void lpfc_sli4_if6_write_eq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
@@ -1079,3 +1080,8 @@ int lpfc_sli4_post_status_check(struct lpfc_hba *);
 uint8_t lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 uint8_t lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_ras_dma_free(struct lpfc_hba *phba);
+static inline void *lpfc_sli4_qe(struct lpfc_queue *q, uint16_t idx)
+{
+	return q->q_pgs[idx / q->entry_cnt_per_pg] +
+		(q->entry_size * (idx % q->entry_cnt_per_pg));
+}

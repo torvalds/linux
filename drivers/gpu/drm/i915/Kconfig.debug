@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_I915_WERROR
         bool "Force GCC to throw an error instead of a warning when compiling"
         # As this may inadvertently break the build, only allow the user
@@ -20,6 +21,7 @@ config DRM_I915_DEBUG
         depends on DRM_I915
         select DEBUG_FS
         select PREEMPT_COUNT
+        select REFCOUNT_FULL
         select I2C_CHARDEV
         select STACKDEPOT
         select DRM_DP_AUX_CHARDEV
@@ -31,6 +33,7 @@ config DRM_I915_DEBUG
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
 	select DRM_I915_DEBUG_RUNTIME_PM
+	select DRM_I915_DEBUG_MMIO
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -39,6 +42,19 @@ config DRM_I915_DEBUG
           Recommended for driver developers only.
 
           If in doubt, say "N".
+
+config DRM_I915_DEBUG_MMIO
+	bool "Always insert extra checks around mmio access by default"
+	default n
+	help
+	  By default, always enables the extra sanity checks (extra register
+	  reads) around every mmio (register) access that will slow the system
+	  down. This sets the default value of i915.mmio_debug to -1 and can
+	  be overridden at module load.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
 
 config DRM_I915_DEBUG_GEM
         bool "Insert extra checks into the GEM internals"

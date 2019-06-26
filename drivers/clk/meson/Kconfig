@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config COMMON_CLK_MESON_INPUT
 	tristate
 

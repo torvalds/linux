@@ -62,7 +62,7 @@ static void write_and_save_comm(struct tep_format_field *field,
 	comm = &s->buffer[len];
 
 	/* Help out the comm to ids. This will handle dups */
-	tep_register_comm(field->event->pevent, comm, pid);
+	tep_register_comm(field->event->tep, comm, pid);
 }
 
 static int sched_wakeup_handler(struct trace_seq *s,
@@ -135,27 +135,27 @@ static int sched_switch_handler(struct trace_seq *s,
 	return 0;
 }
 
-int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 {
-	tep_register_event_handler(pevent, -1, "sched", "sched_switch",
+	tep_register_event_handler(tep, -1, "sched", "sched_switch",
 				   sched_switch_handler, NULL);
 
-	tep_register_event_handler(pevent, -1, "sched", "sched_wakeup",
+	tep_register_event_handler(tep, -1, "sched", "sched_wakeup",
 				   sched_wakeup_handler, NULL);
 
-	tep_register_event_handler(pevent, -1, "sched", "sched_wakeup_new",
+	tep_register_event_handler(tep, -1, "sched", "sched_wakeup_new",
 				   sched_wakeup_handler, NULL);
 	return 0;
 }
 
-void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
 {
-	tep_unregister_event_handler(pevent, -1, "sched", "sched_switch",
+	tep_unregister_event_handler(tep, -1, "sched", "sched_switch",
 				     sched_switch_handler, NULL);
 
-	tep_unregister_event_handler(pevent, -1, "sched", "sched_wakeup",
+	tep_unregister_event_handler(tep, -1, "sched", "sched_wakeup",
 				     sched_wakeup_handler, NULL);
 
-	tep_unregister_event_handler(pevent, -1, "sched", "sched_wakeup_new",
+	tep_unregister_event_handler(tep, -1, "sched", "sched_wakeup_new",
 				     sched_wakeup_handler, NULL);
 }

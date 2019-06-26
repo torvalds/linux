@@ -6,6 +6,8 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
+struct drm_file;
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM drm
 #define TRACE_INCLUDE_FILE drm_trace

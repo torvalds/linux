@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * DaVinci MDIO Module driver
  *
@@ -7,22 +8,6 @@
  *
  * Copyright (C) 2009 Texas Instruments.
  *
- * ---------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- * ---------------------------------------------------------------------------
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -140,7 +125,7 @@ static void davinci_mdio_init_clk(struct davinci_mdio_data *data)
 static void davinci_mdio_enable(struct davinci_mdio_data *data)
 {
 	/* set enable and clock divider */
-	__raw_writel(data->clk_div | CONTROL_ENABLE, &data->regs->control);
+	writel(data->clk_div | CONTROL_ENABLE, &data->regs->control);
 }
 
 static int davinci_mdio_reset(struct mii_bus *bus)
@@ -159,7 +144,7 @@ static int davinci_mdio_reset(struct mii_bus *bus)
 	msleep(PHY_MAX_ADDR * data->access_time);
 
 	/* dump hardware version info */
-	ver = __raw_readl(&data->regs->version);
+	ver = readl(&data->regs->version);
 	dev_info(data->dev,
 		 "davinci mdio revision %d.%d, bus freq %ld\n",
 		 (ver >> 8) & 0xff, ver & 0xff,
@@ -169,7 +154,7 @@ static int davinci_mdio_reset(struct mii_bus *bus)
 		goto done;
 
 	/* get phy mask from the alive register */
-	phy_mask = __raw_readl(&data->regs->alive);
+	phy_mask = readl(&data->regs->alive);
 	if (phy_mask) {
 		/* restrict mdio bus to live phys only */
 		dev_info(data->dev, "detected phy mask %x\n", ~phy_mask);
@@ -196,11 +181,11 @@ static inline int wait_for_user_access(struct davinci_mdio_data *data)
 	u32 reg;
 
 	while (time_after(timeout, jiffies)) {
-		reg = __raw_readl(&regs->user[0].access);
+		reg = readl(&regs->user[0].access);
 		if ((reg & USERACCESS_GO) == 0)
 			return 0;
 
-		reg = __raw_readl(&regs->control);
+		reg = readl(&regs->control);
 		if ((reg & CONTROL_IDLE) == 0) {
 			usleep_range(100, 200);
 			continue;
@@ -216,7 +201,7 @@ static inline int wait_for_user_access(struct davinci_mdio_data *data)
 		return -EAGAIN;
 	}
 
-	reg = __raw_readl(&regs->user[0].access);
+	reg = readl(&regs->user[0].access);
 	if ((reg & USERACCESS_GO) == 0)
 		return 0;
 
@@ -263,7 +248,7 @@ static int davinci_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
 		if (ret < 0)
 			break;
 
-		__raw_writel(reg, &data->regs->user[0].access);
+		writel(reg, &data->regs->user[0].access);
 
 		ret = wait_for_user_access(data);
 		if (ret == -EAGAIN)
@@ -271,7 +256,7 @@ static int davinci_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
 		if (ret < 0)
 			break;
 
-		reg = __raw_readl(&data->regs->user[0].access);
+		reg = readl(&data->regs->user[0].access);
 		ret = (reg & USERACCESS_ACK) ? (reg & USERACCESS_DATA) : -EIO;
 		break;
 	}
@@ -307,7 +292,7 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 		if (ret < 0)
 			break;
 
-		__raw_writel(reg, &data->regs->user[0].access);
+		writel(reg, &data->regs->user[0].access);
 
 		ret = wait_for_user_access(data);
 		if (ret == -EAGAIN)
@@ -412,9 +397,9 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	data->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(data->regs))
-		return PTR_ERR(data->regs);
+	data->regs = devm_ioremap(dev, res->start, resource_size(res));
+	if (!data->regs)
+		return -ENOMEM;
 
 	davinci_mdio_init_clk(data);
 
@@ -472,9 +457,9 @@ static int davinci_mdio_runtime_suspend(struct device *dev)
 	u32 ctrl;
 
 	/* shutdown the scan state machine */
-	ctrl = __raw_readl(&data->regs->control);
+	ctrl = readl(&data->regs->control);
 	ctrl &= ~CONTROL_ENABLE;
-	__raw_writel(ctrl, &data->regs->control);
+	writel(ctrl, &data->regs->control);
 	wait_for_idle(data);
 
 	return 0;

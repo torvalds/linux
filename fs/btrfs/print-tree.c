@@ -189,7 +189,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 	btrfs_info(fs_info,
 		   "leaf %llu gen %llu total ptrs %d free space %d owner %llu",
 		   btrfs_header_bytenr(l), btrfs_header_generation(l), nr,
-		   btrfs_leaf_free_space(fs_info, l), btrfs_header_owner(l));
+		   btrfs_leaf_free_space(l), btrfs_header_owner(l));
 	print_eb_refs_lock(l);
 	for (i = 0 ; i < nr ; i++) {
 		item = btrfs_item_nr(i);

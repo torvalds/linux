@@ -60,6 +60,17 @@
 #define TLS_AAD_SPACE_SIZE		13
 #define TLS_DEVICE_NAME_MAX		32
 
+#define MAX_IV_SIZE			16
+
+/* For AES-CCM, the full 16-bytes of IV is made of '4' fields of given sizes.
+ *
+ * IV[16] = b0[1] || implicit nonce[4] || explicit nonce[8] || length[3]
+ *
+ * The field 'length' is encoded in field 'b0' as '(length width - 1)'.
+ * Hence b0 contains (3 - 1) = 2.
+ */
+#define TLS_AES_CCM_IV_B0_BYTE		2
+
 /*
  * This structure defines the routines for Inline TLS driver.
  * The following routines are optional and filled with a
@@ -123,8 +134,7 @@ struct tls_rec {
 	struct scatterlist sg_content_type;
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
-	u8 iv_data[TLS_CIPHER_AES_GCM_128_IV_SIZE +
-		   TLS_CIPHER_AES_GCM_128_SALT_SIZE];
+	u8 iv_data[MAX_IV_SIZE];
 	struct aead_request aead_req;
 	u8 aead_req_ctx[];
 };
@@ -199,6 +209,10 @@ struct tls_offload_context_tx {
 	(ALIGN(sizeof(struct tls_offload_context_tx), sizeof(void *)) +        \
 	 TLS_DRIVER_STATE_SIZE)
 
+enum tls_context_flags {
+	TLS_RX_SYNC_RUNNING = 0,
+};
+
 struct cipher_context {
 	char *iv;
 	char *rec_seq;
@@ -219,6 +233,7 @@ struct tls_prot_info {
 	u16 tag_size;
 	u16 overhead_size;
 	u16 iv_size;
+	u16 salt_size;
 	u16 rec_seq_size;
 	u16 aad_size;
 	u16 tail_size;
@@ -266,6 +281,23 @@ struct tls_context {
 	void (*unhash)(struct sock *sk);
 };
 
+enum tls_offload_ctx_dir {
+	TLS_OFFLOAD_CTX_DIR_RX,
+	TLS_OFFLOAD_CTX_DIR_TX,
+};
+
+struct tlsdev_ops {
+	int (*tls_dev_add)(struct net_device *netdev, struct sock *sk,
+			   enum tls_offload_ctx_dir direction,
+			   struct tls_crypto_info *crypto_info,
+			   u32 start_offload_tcp_sn);
+	void (*tls_dev_del)(struct net_device *netdev,
+			    struct tls_context *ctx,
+			    enum tls_offload_ctx_dir direction);
+	void (*tls_dev_resync_rx)(struct net_device *netdev,
+				  struct sock *sk, u32 seq, u64 rcd_sn);
+};
+
 struct tls_offload_context_rx {
 	/* sw must be the first member of tls_offload_context_rx */
 	struct tls_sw_context_rx sw;
@@ -306,7 +338,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx);
 int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_device_sendpage(struct sock *sk, struct page *page,
 			int offset, size_t size, int flags);
-void tls_device_sk_destruct(struct sock *sk);
+void tls_device_free_resources_tx(struct sock *sk);
 void tls_device_init(void);
 void tls_device_cleanup(void);
 int tls_tx_records(struct sock *sk, int flags);
@@ -324,12 +356,12 @@ static inline u32 tls_record_start_seq(struct tls_record_info *rec)
 	return rec->end_seq - rec->len;
 }
 
-void tls_sk_destruct(struct sock *sk, struct tls_context *ctx);
 int tls_push_sg(struct sock *sk, struct tls_context *ctx,
 		struct scatterlist *sg, u16 first_offset,
 		int flags);
 int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
 			    int flags);
+bool tls_free_partial_record(struct sock *sk, struct tls_context *ctx);
 
 static inline struct tls_msg *tls_msg(struct sk_buff *skb)
 {
@@ -379,7 +411,7 @@ tls_validate_xmit_skb(struct sock *sk, struct net_device *dev,
 static inline bool tls_is_sk_tx_device_offloaded(struct sock *sk)
 {
 #ifdef CONFIG_SOCK_VALIDATE_XMIT
-	return sk_fullsock(sk) &
+	return sk_fullsock(sk) &&
 	       (smp_load_acquire(&sk->sk_validate_xmit_skb) ==
 	       &tls_validate_xmit_skb);
 #else
@@ -534,7 +566,7 @@ static inline void tls_offload_rx_resync_request(struct sock *sk, __be32 seq)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *rx_ctx = tls_offload_ctx_rx(tls_ctx);
 
-	atomic64_set(&rx_ctx->resync_req, ((((uint64_t)seq) << 32) | 1));
+	atomic64_set(&rx_ctx->resync_req, ((u64)ntohl(seq) << 32) | 1);
 }
 
 

@@ -22,17 +22,49 @@
 #include <linux/iopoll.h>
 
 #include "mtu3.h"
+#include "mtu3_trace.h"
 
 #define QMU_CHECKSUM_LEN	16
 
 #define GPD_FLAGS_HWO	BIT(0)
 #define GPD_FLAGS_BDP	BIT(1)
 #define GPD_FLAGS_BPS	BIT(2)
+#define GPD_FLAGS_ZLP	BIT(6)
 #define GPD_FLAGS_IOC	BIT(7)
+#define GET_GPD_HWO(gpd)	(le32_to_cpu((gpd)->dw0_info) & GPD_FLAGS_HWO)
 
-#define GPD_EXT_FLAG_ZLP	BIT(5)
-#define GPD_EXT_NGP(x)		(((x) & 0xf) << 4)
-#define GPD_EXT_BUF(x)		(((x) & 0xf) << 0)
+#define GPD_RX_BUF_LEN_OG(x)	(((x) & 0xffff) << 16)
+#define GPD_RX_BUF_LEN_EL(x)	(((x) & 0xfffff) << 12)
+#define GPD_RX_BUF_LEN(mtu, x)	\
+({				\
+	typeof(x) x_ = (x);	\
+	((mtu)->gen2cp) ? GPD_RX_BUF_LEN_EL(x_) : GPD_RX_BUF_LEN_OG(x_); \
+})
+
+#define GPD_DATA_LEN_OG(x)	((x) & 0xffff)
+#define GPD_DATA_LEN_EL(x)	((x) & 0xfffff)
+#define GPD_DATA_LEN(mtu, x)	\
+({				\
+	typeof(x) x_ = (x);	\
+	((mtu)->gen2cp) ? GPD_DATA_LEN_EL(x_) : GPD_DATA_LEN_OG(x_); \
+})
+
+#define GPD_EXT_FLAG_ZLP	BIT(29)
+#define GPD_EXT_NGP_OG(x)	(((x) & 0xf) << 20)
+#define GPD_EXT_BUF_OG(x)	(((x) & 0xf) << 16)
+#define GPD_EXT_NGP_EL(x)	(((x) & 0xf) << 28)
+#define GPD_EXT_BUF_EL(x)	(((x) & 0xf) << 24)
+#define GPD_EXT_NGP(mtu, x)	\
+({				\
+	typeof(x) x_ = (x);	\
+	((mtu)->gen2cp) ? GPD_EXT_NGP_EL(x_) : GPD_EXT_NGP_OG(x_); \
+})
+
+#define GPD_EXT_BUF(mtu, x)	\
+({				\
+	typeof(x) x_ = (x);	\
+	((mtu)->gen2cp) ? GPD_EXT_BUF_EL(x_) : GPD_EXT_BUF_OG(x_); \
+})
 
 #define HILO_GEN64(hi, lo) (((u64)(hi) << 32) + (lo))
 #define HILO_DMA(hi, lo)	\
@@ -125,7 +157,7 @@ static void reset_gpd_list(struct mtu3_ep *mep)
 	struct qmu_gpd *gpd = ring->start;
 
 	if (gpd) {
-		gpd->flag &= ~GPD_FLAGS_HWO;
+		gpd->dw0_info &= cpu_to_le32(~GPD_FLAGS_HWO);
 		gpd_ring_init(ring, gpd);
 	}
 }
@@ -214,16 +246,14 @@ static int mtu3_prepare_tx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	struct mtu3_gpd_ring *ring = &mep->gpd_ring;
 	struct qmu_gpd *gpd = ring->enqueue;
 	struct usb_request *req = &mreq->request;
+	struct mtu3 *mtu = mep->mtu;
 	dma_addr_t enq_dma;
-	u16 ext_addr;
+	u32 ext_addr;
 
-	/* set all fields to zero as default value */
-	memset(gpd, 0, sizeof(*gpd));
-
+	gpd->dw0_info = 0;	/* SW own it */
 	gpd->buffer = cpu_to_le32(lower_32_bits(req->dma));
-	ext_addr = GPD_EXT_BUF(upper_32_bits(req->dma));
-	gpd->buf_len = cpu_to_le16(req->length);
-	gpd->flag |= GPD_FLAGS_IOC;
+	ext_addr = GPD_EXT_BUF(mtu, upper_32_bits(req->dma));
+	gpd->dw3_info = cpu_to_le32(GPD_DATA_LEN(mtu, req->length));
 
 	/* get the next GPD */
 	enq = advance_enq_gpd(ring);
@@ -231,17 +261,22 @@ static int mtu3_prepare_tx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	dev_dbg(mep->mtu->dev, "TX-EP%d queue gpd=%p, enq=%p, qdma=%pad\n",
 		mep->epnum, gpd, enq, &enq_dma);
 
-	enq->flag &= ~GPD_FLAGS_HWO;
+	enq->dw0_info &= cpu_to_le32(~GPD_FLAGS_HWO);
 	gpd->next_gpd = cpu_to_le32(lower_32_bits(enq_dma));
-	ext_addr |= GPD_EXT_NGP(upper_32_bits(enq_dma));
-	gpd->tx_ext_addr = cpu_to_le16(ext_addr);
+	ext_addr |= GPD_EXT_NGP(mtu, upper_32_bits(enq_dma));
+	gpd->dw0_info = cpu_to_le32(ext_addr);
 
-	if (req->zero)
-		gpd->ext_flag |= GPD_EXT_FLAG_ZLP;
+	if (req->zero) {
+		if (mtu->gen2cp)
+			gpd->dw0_info |= cpu_to_le32(GPD_FLAGS_ZLP);
+		else
+			gpd->dw3_info |= cpu_to_le32(GPD_EXT_FLAG_ZLP);
+	}
 
-	gpd->flag |= GPD_FLAGS_HWO;
+	gpd->dw0_info |= cpu_to_le32(GPD_FLAGS_IOC | GPD_FLAGS_HWO);
 
 	mreq->gpd = gpd;
+	trace_mtu3_prepare_gpd(mep, gpd);
 
 	return 0;
 }
@@ -252,16 +287,14 @@ static int mtu3_prepare_rx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	struct mtu3_gpd_ring *ring = &mep->gpd_ring;
 	struct qmu_gpd *gpd = ring->enqueue;
 	struct usb_request *req = &mreq->request;
+	struct mtu3 *mtu = mep->mtu;
 	dma_addr_t enq_dma;
-	u16 ext_addr;
+	u32 ext_addr;
 
-	/* set all fields to zero as default value */
-	memset(gpd, 0, sizeof(*gpd));
-
+	gpd->dw0_info = 0;	/* SW own it */
 	gpd->buffer = cpu_to_le32(lower_32_bits(req->dma));
-	ext_addr = GPD_EXT_BUF(upper_32_bits(req->dma));
-	gpd->data_buf_len = cpu_to_le16(req->length);
-	gpd->flag |= GPD_FLAGS_IOC;
+	ext_addr = GPD_EXT_BUF(mtu, upper_32_bits(req->dma));
+	gpd->dw0_info = cpu_to_le32(GPD_RX_BUF_LEN(mtu, req->length));
 
 	/* get the next GPD */
 	enq = advance_enq_gpd(ring);
@@ -269,13 +302,14 @@ static int mtu3_prepare_rx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	dev_dbg(mep->mtu->dev, "RX-EP%d queue gpd=%p, enq=%p, qdma=%pad\n",
 		mep->epnum, gpd, enq, &enq_dma);
 
-	enq->flag &= ~GPD_FLAGS_HWO;
+	enq->dw0_info &= cpu_to_le32(~GPD_FLAGS_HWO);
 	gpd->next_gpd = cpu_to_le32(lower_32_bits(enq_dma));
-	ext_addr |= GPD_EXT_NGP(upper_32_bits(enq_dma));
-	gpd->rx_ext_addr = cpu_to_le16(ext_addr);
-	gpd->flag |= GPD_FLAGS_HWO;
+	ext_addr |= GPD_EXT_NGP(mtu, upper_32_bits(enq_dma));
+	gpd->dw3_info = cpu_to_le32(ext_addr);
+	gpd->dw0_info |= cpu_to_le32(GPD_FLAGS_IOC | GPD_FLAGS_HWO);
 
 	mreq->gpd = gpd;
+	trace_mtu3_prepare_gpd(mep, gpd);
 
 	return 0;
 }
@@ -382,27 +416,25 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 	struct mtu3_gpd_ring *ring = &mep->gpd_ring;
 	void __iomem *mbase = mtu->mac_base;
 	struct qmu_gpd *gpd_current = NULL;
-	struct usb_request *req = NULL;
 	struct mtu3_request *mreq;
 	dma_addr_t cur_gpd_dma;
 	u32 txcsr = 0;
 	int ret;
 
 	mreq = next_request(mep);
-	if (mreq && mreq->request.length == 0)
-		req = &mreq->request;
-	else
+	if (mreq && mreq->request.length != 0)
 		return;
 
 	cur_gpd_dma = read_txq_cur_addr(mbase, epnum);
 	gpd_current = gpd_dma_to_virt(ring, cur_gpd_dma);
 
-	if (le16_to_cpu(gpd_current->buf_len) != 0) {
+	if (GPD_DATA_LEN(mtu, le32_to_cpu(gpd_current->dw3_info)) != 0) {
 		dev_err(mtu->dev, "TX EP%d buffer length error(!=0)\n", epnum);
 		return;
 	}
 
-	dev_dbg(mtu->dev, "%s send ZLP for req=%p\n", __func__, req);
+	dev_dbg(mtu->dev, "%s send ZLP for req=%p\n", __func__, mreq);
+	trace_mtu3_zlp_exp_gpd(mep, gpd_current);
 
 	mtu3_clrbits(mbase, MU3D_EP_TXCR0(mep->epnum), TX_DMAREQEN);
 
@@ -415,8 +447,7 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 	mtu3_setbits(mbase, MU3D_EP_TXCR0(mep->epnum), TX_TXPKTRDY);
 
 	/* by pass the current GDP */
-	gpd_current->flag |= GPD_FLAGS_BPS;
-	gpd_current->flag |= GPD_FLAGS_HWO;
+	gpd_current->dw0_info |= cpu_to_le32(GPD_FLAGS_BPS | GPD_FLAGS_HWO);
 
 	/*enable DMAREQEN, switch back to QMU mode */
 	mtu3_setbits(mbase, MU3D_EP_TXCR0(mep->epnum), TX_DMAREQEN);
@@ -448,7 +479,7 @@ static void qmu_done_tx(struct mtu3 *mtu, u8 epnum)
 	dev_dbg(mtu->dev, "%s EP%d, last=%p, current=%p, enq=%p\n",
 		__func__, epnum, gpd, gpd_current, ring->enqueue);
 
-	while (gpd != gpd_current && !(gpd->flag & GPD_FLAGS_HWO)) {
+	while (gpd != gpd_current && !GET_GPD_HWO(gpd)) {
 
 		mreq = next_request(mep);
 
@@ -458,7 +489,8 @@ static void qmu_done_tx(struct mtu3 *mtu, u8 epnum)
 		}
 
 		request = &mreq->request;
-		request->actual = le16_to_cpu(gpd->buf_len);
+		request->actual = GPD_DATA_LEN(mtu, le32_to_cpu(gpd->dw3_info));
+		trace_mtu3_complete_gpd(mep, gpd);
 		mtu3_req_complete(mep, request, 0);
 
 		gpd = advance_deq_gpd(ring);
@@ -486,7 +518,7 @@ static void qmu_done_rx(struct mtu3 *mtu, u8 epnum)
 	dev_dbg(mtu->dev, "%s EP%d, last=%p, current=%p, enq=%p\n",
 		__func__, epnum, gpd, gpd_current, ring->enqueue);
 
-	while (gpd != gpd_current && !(gpd->flag & GPD_FLAGS_HWO)) {
+	while (gpd != gpd_current && !GET_GPD_HWO(gpd)) {
 
 		mreq = next_request(mep);
 
@@ -496,7 +528,8 @@ static void qmu_done_rx(struct mtu3 *mtu, u8 epnum)
 		}
 		req = &mreq->request;
 
-		req->actual = le16_to_cpu(gpd->buf_len);
+		req->actual = GPD_DATA_LEN(mtu, le32_to_cpu(gpd->dw3_info));
+		trace_mtu3_complete_gpd(mep, gpd);
 		mtu3_req_complete(mep, req, 0);
 
 		gpd = advance_deq_gpd(ring);
@@ -574,6 +607,7 @@ irqreturn_t mtu3_qmu_isr(struct mtu3 *mtu)
 	dev_dbg(mtu->dev, "=== QMUdone[tx=%x, rx=%x] QMUexp[%x] ===\n",
 		(qmu_done_status & 0xFFFF), qmu_done_status >> 16,
 		qmu_status);
+	trace_mtu3_qmu_isr(qmu_done_status, qmu_status);
 
 	if (qmu_done_status)
 		qmu_done_isr(mtu, qmu_done_status);

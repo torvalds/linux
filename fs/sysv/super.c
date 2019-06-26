@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/sysv/inode.c
  *
@@ -312,7 +313,6 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 
 	flavour_setup[sbi->s_type](sbi, &sb->s_max_links);
 	
-	sbi->s_truncate = 1;
 	sbi->s_ndatazones = sbi->s_nzones - sbi->s_firstdatazone;
 	sbi->s_inodes_per_block = bsize >> 6;
 	sbi->s_inodes_per_block_1 = (bsize >> 6)-1;
@@ -334,8 +334,6 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 	sb->s_op = &sysv_sops;
 	if (sbi->s_forced_ro)
 		sb->s_flags |= SB_RDONLY;
-	if (sbi->s_truncate)
-		sb->s_d_op = &sysv_dentry_operations;
 	root_inode = sysv_iget(sb, SYSV_ROOT_INO);
 	if (IS_ERR(root_inode)) {
 		printk("SysV FS: get root inode failed\n");

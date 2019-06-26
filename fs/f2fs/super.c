@@ -1000,15 +1000,10 @@ static void f2fs_dirty_inode(struct inode *inode, int flags)
 	f2fs_inode_dirtied(inode, false);
 }
 
-static void f2fs_i_callback(struct rcu_head *head)
+static void f2fs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
+	fscrypt_free_inode(inode);
 	kmem_cache_free(f2fs_inode_cachep, F2FS_I(inode));
-}
-
-static void f2fs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, f2fs_i_callback);
 }
 
 static void destroy_percpu_info(struct f2fs_sb_info *sbi)
@@ -1024,7 +1019,7 @@ static void destroy_device_list(struct f2fs_sb_info *sbi)
 	for (i = 0; i < sbi->s_ndevs; i++) {
 		blkdev_put(FDEV(i).bdev, FMODE_EXCL);
 #ifdef CONFIG_BLK_DEV_ZONED
-		kvfree(FDEV(i).blkz_type);
+		kvfree(FDEV(i).blkz_seq);
 #endif
 	}
 	kvfree(sbi->devs);
@@ -1226,10 +1221,13 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = total_count - start_count;
 	buf->f_bfree = user_block_count - valid_user_blocks(sbi) -
 						sbi->current_reserved_blocks;
+
+	spin_lock(&sbi->stat_lock);
 	if (unlikely(buf->f_bfree <= sbi->unusable_block_count))
 		buf->f_bfree = 0;
 	else
 		buf->f_bfree -= sbi->unusable_block_count;
+	spin_unlock(&sbi->stat_lock);
 
 	if (buf->f_bfree > F2FS_OPTION(sbi).root_reserved_blocks)
 		buf->f_bavail = buf->f_bfree -
@@ -1504,9 +1502,15 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 	mutex_lock(&sbi->gc_mutex);
 	cpc.reason = CP_PAUSE;
 	set_sbi_flag(sbi, SBI_CP_DISABLED);
-	f2fs_write_checkpoint(sbi, &cpc);
+	err = f2fs_write_checkpoint(sbi, &cpc);
+	if (err)
+		goto out_unlock;
 
+	spin_lock(&sbi->stat_lock);
 	sbi->unusable_block_count = 0;
+	spin_unlock(&sbi->stat_lock);
+
+out_unlock:
 	mutex_unlock(&sbi->gc_mutex);
 restore_flag:
 	sbi->sb->s_flags = s_flags;	/* Restore MS_RDONLY status */
@@ -2166,8 +2170,8 @@ void f2fs_quota_off_umount(struct super_block *sb)
 
 static const struct super_operations f2fs_sops = {
 	.alloc_inode	= f2fs_alloc_inode,
+	.free_inode	= f2fs_free_inode,
 	.drop_inode	= f2fs_drop_inode,
-	.destroy_inode	= f2fs_destroy_inode,
 	.write_inode	= f2fs_write_inode,
 	.dirty_inode	= f2fs_dirty_inode,
 	.show_options	= f2fs_show_options,
@@ -2276,7 +2280,7 @@ static const struct export_operations f2fs_export_ops = {
 static loff_t max_file_blocks(void)
 {
 	loff_t result = 0;
-	loff_t leaf_count = ADDRS_PER_BLOCK;
+	loff_t leaf_count = DEF_ADDRS_PER_BLOCK;
 
 	/*
 	 * note: previously, result is equal to (DEF_ADDRS_PER_INODE -
@@ -2454,7 +2458,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 	/* Currently, support only 4KB page cache size */
 	if (F2FS_BLKSIZE != PAGE_SIZE) {
 		f2fs_msg(sb, KERN_INFO,
-			"Invalid page_cache_size (%lu), supports only 4KB\n",
+			"Invalid page_cache_size (%lu), supports only 4KB",
 			PAGE_SIZE);
 		return 1;
 	}
@@ -2463,7 +2467,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 	blocksize = 1 << le32_to_cpu(raw_super->log_blocksize);
 	if (blocksize != F2FS_BLKSIZE) {
 		f2fs_msg(sb, KERN_INFO,
-			"Invalid blocksize (%u), supports only 4KB\n",
+			"Invalid blocksize (%u), supports only 4KB",
 			blocksize);
 		return 1;
 	}
@@ -2471,7 +2475,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 	/* check log blocks per segment */
 	if (le32_to_cpu(raw_super->log_blocks_per_seg) != 9) {
 		f2fs_msg(sb, KERN_INFO,
-			"Invalid log blocks per segment (%u)\n",
+			"Invalid log blocks per segment (%u)",
 			le32_to_cpu(raw_super->log_blocks_per_seg));
 		return 1;
 	}
@@ -2592,7 +2596,8 @@ int f2fs_sanity_check_ckpt(struct f2fs_sb_info *sbi)
 	unsigned int log_blocks_per_seg;
 	unsigned int segment_count_main;
 	unsigned int cp_pack_start_sum, cp_payload;
-	block_t user_block_count;
+	block_t user_block_count, valid_user_blocks;
+	block_t avail_node_count, valid_node_count;
 	int i, j;
 
 	total = le32_to_cpu(raw_super->segment_count);
@@ -2624,6 +2629,24 @@ int f2fs_sanity_check_ckpt(struct f2fs_sb_info *sbi)
 			segment_count_main << log_blocks_per_seg) {
 		f2fs_msg(sbi->sb, KERN_ERR,
 			"Wrong user_block_count: %u", user_block_count);
+		return 1;
+	}
+
+	valid_user_blocks = le64_to_cpu(ckpt->valid_block_count);
+	if (valid_user_blocks > user_block_count) {
+		f2fs_msg(sbi->sb, KERN_ERR,
+			"Wrong valid_user_blocks: %u, user_block_count: %u",
+			valid_user_blocks, user_block_count);
+		return 1;
+	}
+
+	valid_node_count = le32_to_cpu(ckpt->valid_node_count);
+	avail_node_count = sbi->total_node_count - sbi->nquota_files -
+						F2FS_RESERVED_NODE_NUM;
+	if (valid_node_count > avail_node_count) {
+		f2fs_msg(sbi->sb, KERN_ERR,
+			"Wrong valid_node_count: %u, avail_node_count: %u",
+			valid_node_count, avail_node_count);
 		return 1;
 	}
 
@@ -2798,9 +2821,11 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 	if (nr_sectors & (bdev_zone_sectors(bdev) - 1))
 		FDEV(devi).nr_blkz++;
 
-	FDEV(devi).blkz_type = f2fs_kmalloc(sbi, FDEV(devi).nr_blkz,
-								GFP_KERNEL);
-	if (!FDEV(devi).blkz_type)
+	FDEV(devi).blkz_seq = f2fs_kzalloc(sbi,
+					BITS_TO_LONGS(FDEV(devi).nr_blkz)
+					* sizeof(unsigned long),
+					GFP_KERNEL);
+	if (!FDEV(devi).blkz_seq)
 		return -ENOMEM;
 
 #define F2FS_REPORT_NR_ZONES   4096
@@ -2827,7 +2852,8 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 		}
 
 		for (i = 0; i < nr_zones; i++) {
-			FDEV(devi).blkz_type[n] = zones[i].type;
+			if (zones[i].type != BLK_ZONE_TYPE_CONVENTIONAL)
+				set_bit(n, FDEV(devi).blkz_seq);
 			sector += zones[i].len;
 			n++;
 		}
@@ -3110,7 +3136,7 @@ try_onemore:
 #ifndef CONFIG_BLK_DEV_ZONED
 	if (f2fs_sb_has_blkzoned(sbi)) {
 		f2fs_msg(sb, KERN_ERR,
-			 "Zoned block device support is not enabled\n");
+			 "Zoned block device support is not enabled");
 		err = -EOPNOTSUPP;
 		goto free_sb_buf;
 	}
@@ -3355,10 +3381,17 @@ try_onemore:
 		 * mount should be failed, when device has readonly mode, and
 		 * previous checkpoint was not done by clean system shutdown.
 		 */
-		if (bdev_read_only(sb->s_bdev) &&
-				!is_set_ckpt_flags(sbi, CP_UMOUNT_FLAG)) {
-			err = -EROFS;
-			goto free_meta;
+		if (f2fs_hw_is_readonly(sbi)) {
+			if (!is_set_ckpt_flags(sbi, CP_UMOUNT_FLAG)) {
+				err = -EROFS;
+				f2fs_msg(sb, KERN_ERR,
+					"Need to recover fsync data, but "
+					"write access unavailable");
+				goto free_meta;
+			}
+			f2fs_msg(sbi->sb, KERN_INFO, "write access "
+				"unavailable, skipping recovery");
+			goto reset_checkpoint;
 		}
 
 		if (need_fsck)

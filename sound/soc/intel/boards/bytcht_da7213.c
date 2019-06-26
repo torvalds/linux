@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  bytcht-da7213.c - ASoc Machine driver for Intel Baytrail and
  *             Cherrytrail-based platforms, with Dialog DA7213 codec
@@ -6,15 +7,6 @@
  *  Author: Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
  *
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -226,7 +218,7 @@ static int bytcht_da7213_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
-	const char *i2c_name = NULL;
+	struct acpi_device *adev;
 	int dai_index = 0;
 	int ret_val = 0;
 	int i;
@@ -244,10 +236,11 @@ static int bytcht_da7213_probe(struct platform_device *pdev)
 	}
 
 	/* fixup codec name based on HID */
-	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
-	if (i2c_name) {
+	adev = acpi_dev_get_first_match_dev(mach->id, NULL, -1);
+	if (adev) {
 		snprintf(codec_name, sizeof(codec_name),
-			"%s%s", "i2c-", i2c_name);
+			 "i2c-%s", acpi_dev_name(adev));
+		put_device(&adev->dev);
 		dailink[dai_index].codec_name = codec_name;
 	}
 

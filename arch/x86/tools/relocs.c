@@ -11,7 +11,9 @@
 #define Elf_Shdr		ElfW(Shdr)
 #define Elf_Sym			ElfW(Sym)
 
-static Elf_Ehdr ehdr;
+static Elf_Ehdr		ehdr;
+static unsigned long	shnum;
+static unsigned int	shstrndx;
 
 struct relocs {
 	uint32_t	*offset;
@@ -241,9 +243,9 @@ static const char *sec_name(unsigned shndx)
 {
 	const char *sec_strtab;
 	const char *name;
-	sec_strtab = secs[ehdr.e_shstrndx].strtab;
+	sec_strtab = secs[shstrndx].strtab;
 	name = "<noname>";
-	if (shndx < ehdr.e_shnum) {
+	if (shndx < shnum) {
 		name = sec_strtab + secs[shndx].shdr.sh_name;
 	}
 	else if (shndx == SHN_ABS) {
@@ -271,7 +273,7 @@ static const char *sym_name(const char *sym_strtab, Elf_Sym *sym)
 static Elf_Sym *sym_lookup(const char *symname)
 {
 	int i;
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		struct section *sec = &secs[i];
 		long nsyms;
 		char *strtab;
@@ -366,27 +368,41 @@ static void read_ehdr(FILE *fp)
 	ehdr.e_shnum     = elf_half_to_cpu(ehdr.e_shnum);
 	ehdr.e_shstrndx  = elf_half_to_cpu(ehdr.e_shstrndx);
 
-	if ((ehdr.e_type != ET_EXEC) && (ehdr.e_type != ET_DYN)) {
+	shnum = ehdr.e_shnum;
+	shstrndx = ehdr.e_shstrndx;
+
+	if ((ehdr.e_type != ET_EXEC) && (ehdr.e_type != ET_DYN))
 		die("Unsupported ELF header type\n");
-	}
-	if (ehdr.e_machine != ELF_MACHINE) {
+	if (ehdr.e_machine != ELF_MACHINE)
 		die("Not for %s\n", ELF_MACHINE_NAME);
-	}
-	if (ehdr.e_version != EV_CURRENT) {
+	if (ehdr.e_version != EV_CURRENT)
 		die("Unknown ELF version\n");
-	}
-	if (ehdr.e_ehsize != sizeof(Elf_Ehdr)) {
+	if (ehdr.e_ehsize != sizeof(Elf_Ehdr))
 		die("Bad Elf header size\n");
-	}
-	if (ehdr.e_phentsize != sizeof(Elf_Phdr)) {
+	if (ehdr.e_phentsize != sizeof(Elf_Phdr))
 		die("Bad program header entry\n");
-	}
-	if (ehdr.e_shentsize != sizeof(Elf_Shdr)) {
+	if (ehdr.e_shentsize != sizeof(Elf_Shdr))
 		die("Bad section header entry\n");
+
+
+	if (shnum == SHN_UNDEF || shstrndx == SHN_XINDEX) {
+		Elf_Shdr shdr;
+
+		if (fseek(fp, ehdr.e_shoff, SEEK_SET) < 0)
+			die("Seek to %d failed: %s\n", ehdr.e_shoff, strerror(errno));
+
+		if (fread(&shdr, sizeof(shdr), 1, fp) != 1)
+			die("Cannot read initial ELF section header: %s\n", strerror(errno));
+
+		if (shnum == SHN_UNDEF)
+			shnum = elf_xword_to_cpu(shdr.sh_size);
+
+		if (shstrndx == SHN_XINDEX)
+			shstrndx = elf_word_to_cpu(shdr.sh_link);
 	}
-	if (ehdr.e_shstrndx >= ehdr.e_shnum) {
+
+	if (shstrndx >= shnum)
 		die("String table index out of bounds\n");
-	}
 }
 
 static void read_shdrs(FILE *fp)
@@ -394,20 +410,20 @@ static void read_shdrs(FILE *fp)
 	int i;
 	Elf_Shdr shdr;
 
-	secs = calloc(ehdr.e_shnum, sizeof(struct section));
+	secs = calloc(shnum, sizeof(struct section));
 	if (!secs) {
 		die("Unable to allocate %d section headers\n",
-		    ehdr.e_shnum);
+		    shnum);
 	}
 	if (fseek(fp, ehdr.e_shoff, SEEK_SET) < 0) {
 		die("Seek to %d failed: %s\n",
 			ehdr.e_shoff, strerror(errno));
 	}
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		struct section *sec = &secs[i];
 		if (fread(&shdr, sizeof(shdr), 1, fp) != 1)
 			die("Cannot read ELF section headers %d/%d: %s\n",
-			    i, ehdr.e_shnum, strerror(errno));
+			    i, shnum, strerror(errno));
 		sec->shdr.sh_name      = elf_word_to_cpu(shdr.sh_name);
 		sec->shdr.sh_type      = elf_word_to_cpu(shdr.sh_type);
 		sec->shdr.sh_flags     = elf_xword_to_cpu(shdr.sh_flags);
@@ -418,7 +434,7 @@ static void read_shdrs(FILE *fp)
 		sec->shdr.sh_info      = elf_word_to_cpu(shdr.sh_info);
 		sec->shdr.sh_addralign = elf_xword_to_cpu(shdr.sh_addralign);
 		sec->shdr.sh_entsize   = elf_xword_to_cpu(shdr.sh_entsize);
-		if (sec->shdr.sh_link < ehdr.e_shnum)
+		if (sec->shdr.sh_link < shnum)
 			sec->link = &secs[sec->shdr.sh_link];
 	}
 
@@ -427,7 +443,7 @@ static void read_shdrs(FILE *fp)
 static void read_strtabs(FILE *fp)
 {
 	int i;
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		struct section *sec = &secs[i];
 		if (sec->shdr.sh_type != SHT_STRTAB) {
 			continue;
@@ -452,7 +468,7 @@ static void read_strtabs(FILE *fp)
 static void read_symtabs(FILE *fp)
 {
 	int i,j;
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		struct section *sec = &secs[i];
 		if (sec->shdr.sh_type != SHT_SYMTAB) {
 			continue;
@@ -485,7 +501,7 @@ static void read_symtabs(FILE *fp)
 static void read_relocs(FILE *fp)
 {
 	int i,j;
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		struct section *sec = &secs[i];
 		if (sec->shdr.sh_type != SHT_REL_TYPE) {
 			continue;
@@ -528,7 +544,7 @@ static void print_absolute_symbols(void)
 
 	printf("Absolute symbols\n");
 	printf(" Num:    Value Size  Type       Bind        Visibility  Name\n");
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		struct section *sec = &secs[i];
 		char *sym_strtab;
 		int j;
@@ -566,7 +582,7 @@ static void print_absolute_relocs(void)
 	else
 		format = "%08"PRIx32" %08"PRIx32" %10s %08"PRIx32"  %s\n";
 
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		struct section *sec = &secs[i];
 		struct section *sec_applies, *sec_symtab;
 		char *sym_strtab;
@@ -650,7 +666,7 @@ static void walk_relocs(int (*process)(struct section *sec, Elf_Rel *rel,
 {
 	int i;
 	/* Walk through the relocations */
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		char *sym_strtab;
 		Elf_Sym *sh_symtab;
 		struct section *sec_applies, *sec_symtab;
@@ -706,7 +722,7 @@ static Elf_Addr per_cpu_load_addr;
 static void percpu_init(void)
 {
 	int i;
-	for (i = 0; i < ehdr.e_shnum; i++) {
+	for (i = 0; i < shnum; i++) {
 		ElfW(Sym) *sym;
 		if (strcmp(sec_name(i), ".data..percpu"))
 			continue;
@@ -738,7 +754,7 @@ static void percpu_init(void)
  *	__per_cpu_load
  *
  * The "gold" linker incorrectly associates:
- *	init_per_cpu__irq_stack_union
+ *	init_per_cpu__fixed_percpu_data
  *	init_per_cpu__gdt_page
  */
 static int is_percpu_sym(ElfW(Sym) *sym, const char *symname)

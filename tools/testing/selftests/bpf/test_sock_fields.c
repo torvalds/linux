@@ -35,6 +35,11 @@ enum bpf_linum_array_idx {
 	__NR_BPF_LINUM_ARRAY_IDX,
 };
 
+struct bpf_spinlock_cnt {
+	struct bpf_spin_lock lock;
+	__u32 cnt;
+};
+
 #define CHECK(condition, tag, format...) ({				\
 	int __ret = !!(condition);					\
 	if (__ret) {							\
@@ -50,6 +55,8 @@ enum bpf_linum_array_idx {
 #define DATA_LEN sizeof(DATA)
 
 static struct sockaddr_in6 srv_sa6, cli_sa6;
+static int sk_pkt_out_cnt10_fd;
+static int sk_pkt_out_cnt_fd;
 static int linum_map_fd;
 static int addr_map_fd;
 static int tp_map_fd;
@@ -220,21 +227,82 @@ static void check_result(void)
 	      "Unexpected listen_tp", "Check listen_tp output. ingress_linum:%u",
 	      ingress_linum);
 
-	CHECK(srv_tp.data_segs_out != 1 ||
+	CHECK(srv_tp.data_segs_out != 2 ||
 	      srv_tp.data_segs_in ||
 	      srv_tp.snd_cwnd != 10 ||
 	      srv_tp.total_retrans ||
-	      srv_tp.bytes_acked != DATA_LEN,
+	      srv_tp.bytes_acked != 2 * DATA_LEN,
 	      "Unexpected srv_tp", "Check srv_tp output. egress_linum:%u",
 	      egress_linum);
 
 	CHECK(cli_tp.data_segs_out ||
-	      cli_tp.data_segs_in != 1 ||
+	      cli_tp.data_segs_in != 2 ||
 	      cli_tp.snd_cwnd != 10 ||
 	      cli_tp.total_retrans ||
-	      cli_tp.bytes_received != DATA_LEN,
+	      cli_tp.bytes_received != 2 * DATA_LEN,
 	      "Unexpected cli_tp", "Check cli_tp output. egress_linum:%u",
 	      egress_linum);
+}
+
+static void check_sk_pkt_out_cnt(int accept_fd, int cli_fd)
+{
+	struct bpf_spinlock_cnt pkt_out_cnt = {}, pkt_out_cnt10 = {};
+	int err;
+
+	pkt_out_cnt.cnt = ~0;
+	pkt_out_cnt10.cnt = ~0;
+	err = bpf_map_lookup_elem(sk_pkt_out_cnt_fd, &accept_fd, &pkt_out_cnt);
+	if (!err)
+		err = bpf_map_lookup_elem(sk_pkt_out_cnt10_fd, &accept_fd,
+					  &pkt_out_cnt10);
+
+	/* The bpf prog only counts for fullsock and
+	 * passive conneciton did not become fullsock until 3WHS
+	 * had been finished.
+	 * The bpf prog only counted two data packet out but we
+	 * specially init accept_fd's pkt_out_cnt by 2 in
+	 * init_sk_storage().  Hence, 4 here.
+	 */
+	CHECK(err || pkt_out_cnt.cnt != 4 || pkt_out_cnt10.cnt != 40,
+	      "bpf_map_lookup_elem(sk_pkt_out_cnt, &accept_fd)",
+	      "err:%d errno:%d pkt_out_cnt:%u pkt_out_cnt10:%u",
+	      err, errno, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
+
+	pkt_out_cnt.cnt = ~0;
+	pkt_out_cnt10.cnt = ~0;
+	err = bpf_map_lookup_elem(sk_pkt_out_cnt_fd, &cli_fd, &pkt_out_cnt);
+	if (!err)
+		err = bpf_map_lookup_elem(sk_pkt_out_cnt10_fd, &cli_fd,
+					  &pkt_out_cnt10);
+	/* Active connection is fullsock from the beginning.
+	 * 1 SYN and 1 ACK during 3WHS
+	 * 2 Acks on data packet.
+	 *
+	 * The bpf_prog initialized it to 0xeB9F.
+	 */
+	CHECK(err || pkt_out_cnt.cnt != 0xeB9F + 4 ||
+	      pkt_out_cnt10.cnt != 0xeB9F + 40,
+	      "bpf_map_lookup_elem(sk_pkt_out_cnt, &cli_fd)",
+	      "err:%d errno:%d pkt_out_cnt:%u pkt_out_cnt10:%u",
+	      err, errno, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
+}
+
+static void init_sk_storage(int sk_fd, __u32 pkt_out_cnt)
+{
+	struct bpf_spinlock_cnt scnt = {};
+	int err;
+
+	scnt.cnt = pkt_out_cnt;
+	err = bpf_map_update_elem(sk_pkt_out_cnt_fd, &sk_fd, &scnt,
+				  BPF_NOEXIST);
+	CHECK(err, "bpf_map_update_elem(sk_pkt_out_cnt_fd)",
+	      "err:%d errno:%d", err, errno);
+
+	scnt.cnt *= 10;
+	err = bpf_map_update_elem(sk_pkt_out_cnt10_fd, &sk_fd, &scnt,
+				  BPF_NOEXIST);
+	CHECK(err, "bpf_map_update_elem(sk_pkt_out_cnt10_fd)",
+	      "err:%d errno:%d", err, errno);
 }
 
 static void test(void)
@@ -242,6 +310,7 @@ static void test(void)
 	int listen_fd, cli_fd, accept_fd, epfd, err;
 	struct epoll_event ev;
 	socklen_t addrlen;
+	int i;
 
 	addrlen = sizeof(struct sockaddr_in6);
 	ev.events = EPOLLIN;
@@ -308,24 +377,30 @@ static void test(void)
 	      accept_fd, errno);
 	close(listen_fd);
 
-	/* Send some data from accept_fd to cli_fd */
-	err = send(accept_fd, DATA, DATA_LEN, 0);
-	CHECK(err != DATA_LEN, "send(accept_fd)", "err:%d errno:%d",
-	      err, errno);
-
-	/* Have some timeout in recv(cli_fd). Just in case. */
 	ev.data.fd = cli_fd;
 	err = epoll_ctl(epfd, EPOLL_CTL_ADD, cli_fd, &ev);
 	CHECK(err, "epoll_ctl(EPOLL_CTL_ADD, cli_fd)", "err:%d errno:%d",
 	      err, errno);
 
-	err = epoll_wait(epfd, &ev, 1, 1000);
-	CHECK(err != 1 || ev.data.fd != cli_fd,
-	      "epoll_wait(cli_fd)", "err:%d errno:%d ev.data.fd:%d cli_fd:%d",
-	      err, errno, ev.data.fd, cli_fd);
+	init_sk_storage(accept_fd, 2);
 
-	err = recv(cli_fd, NULL, 0, MSG_TRUNC);
-	CHECK(err, "recv(cli_fd)", "err:%d errno:%d", err, errno);
+	for (i = 0; i < 2; i++) {
+		/* Send some data from accept_fd to cli_fd */
+		err = send(accept_fd, DATA, DATA_LEN, 0);
+		CHECK(err != DATA_LEN, "send(accept_fd)", "err:%d errno:%d",
+		      err, errno);
+
+		/* Have some timeout in recv(cli_fd). Just in case. */
+		err = epoll_wait(epfd, &ev, 1, 1000);
+		CHECK(err != 1 || ev.data.fd != cli_fd,
+		      "epoll_wait(cli_fd)", "err:%d errno:%d ev.data.fd:%d cli_fd:%d",
+		      err, errno, ev.data.fd, cli_fd);
+
+		err = recv(cli_fd, NULL, 0, MSG_TRUNC);
+		CHECK(err, "recv(cli_fd)", "err:%d errno:%d", err, errno);
+	}
+
+	check_sk_pkt_out_cnt(accept_fd, cli_fd);
 
 	close(epfd);
 	close(accept_fd);
@@ -394,6 +469,14 @@ int main(int argc, char **argv)
 	map = bpf_object__find_map_by_name(obj, "linum_map");
 	CHECK(!map, "cannot find linum_map", "(null)");
 	linum_map_fd = bpf_map__fd(map);
+
+	map = bpf_object__find_map_by_name(obj, "sk_pkt_out_cnt");
+	CHECK(!map, "cannot find sk_pkt_out_cnt", "(null)");
+	sk_pkt_out_cnt_fd = bpf_map__fd(map);
+
+	map = bpf_object__find_map_by_name(obj, "sk_pkt_out_cnt10");
+	CHECK(!map, "cannot find sk_pkt_out_cnt10", "(null)");
+	sk_pkt_out_cnt10_fd = bpf_map__fd(map);
 
 	test();
 

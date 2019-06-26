@@ -403,7 +403,6 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 	fm->eject = tifm_7xx1_dummy_eject;
 	fm->has_ms_pif = tifm_7xx1_dummy_has_ms_pif;
 	writel(TIFM_IRQ_SETALL, fm->addr + FM_CLEAR_INTERRUPT_ENABLE);
-	mmiowb();
 	free_irq(dev->irq, fm);
 
 	tifm_remove_adapter(fm);

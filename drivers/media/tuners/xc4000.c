@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Xceive XC4000 "QAM/8VSB single chip tuner"
  *
@@ -6,16 +7,6 @@
  *  Copyright (c) 2009 Devin Heitmueller <dheitmueller@kernellabs.com>
  *  Copyright (c) 2009 Davide Ferri <d.ferri@zero11.it>
  *  Copyright (c) 2010 Istvan Varga <istvan_v@mailbox.hu>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/module.h>

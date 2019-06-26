@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/block_dev.c
  *
@@ -29,8 +30,6 @@
 #include <linux/namei.h>
 #include <linux/log2.h>
 #include <linux/cleancache.h>
-#include <linux/dax.h>
-#include <linux/badblocks.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/falloc.h>
 #include <linux/uaccess.h>
@@ -210,7 +209,6 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	struct bio bio;
 	ssize_t ret;
 	blk_qc_t qc;
-	int i;
 	struct bvec_iter_all iter_all;
 
 	if ((pos | iov_iter_alignment(iter)) &
@@ -261,10 +259,11 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	}
 	__set_current_state(TASK_RUNNING);
 
-	bio_for_each_segment_all(bvec, &bio, i, iter_all) {
+	bio_for_each_segment_all(bvec, &bio, iter_all) {
 		if (should_dirty && !PageCompound(bvec->bv_page))
 			set_page_dirty_lock(bvec->bv_page);
-		put_page(bvec->bv_page);
+		if (!bio_flagged(&bio, BIO_NO_PAGE_REF))
+			put_page(bvec->bv_page);
 	}
 
 	if (unlikely(bio.bi_status))
@@ -339,9 +338,8 @@ static void blkdev_bio_end_io(struct bio *bio)
 		if (!bio_flagged(bio, BIO_NO_PAGE_REF)) {
 			struct bvec_iter_all iter_all;
 			struct bio_vec *bvec;
-			int i;
 
-			bio_for_each_segment_all(bvec, bio, i, iter_all)
+			bio_for_each_segment_all(bvec, bio, iter_all)
 				put_page(bvec->bv_page);
 		}
 		bio_put(bio);
@@ -789,17 +787,9 @@ static struct inode *bdev_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void bdev_i_callback(struct rcu_head *head)
+static void bdev_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	struct bdev_inode *bdi = BDEV_I(inode);
-
-	kmem_cache_free(bdev_cachep, bdi);
-}
-
-static void bdev_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, bdev_i_callback);
+	kmem_cache_free(bdev_cachep, BDEV_I(inode));
 }
 
 static void init_once(void *foo)
@@ -839,7 +829,7 @@ static void bdev_evict_inode(struct inode *inode)
 static const struct super_operations bdev_sops = {
 	.statfs = simple_statfs,
 	.alloc_inode = bdev_alloc_inode,
-	.destroy_inode = bdev_destroy_inode,
+	.free_inode = bdev_free_inode,
 	.drop_inode = generic_delete_inode,
 	.evict_inode = bdev_evict_inode,
 };
@@ -1416,20 +1406,27 @@ void check_disk_size_change(struct gendisk *disk, struct block_device *bdev,
  */
 int revalidate_disk(struct gendisk *disk)
 {
-	struct block_device *bdev;
 	int ret = 0;
 
 	if (disk->fops->revalidate_disk)
 		ret = disk->fops->revalidate_disk(disk);
-	bdev = bdget_disk(disk, 0);
-	if (!bdev)
-		return ret;
 
-	mutex_lock(&bdev->bd_mutex);
-	check_disk_size_change(disk, bdev, ret == 0);
-	bdev->bd_invalidated = 0;
-	mutex_unlock(&bdev->bd_mutex);
-	bdput(bdev);
+	/*
+	 * Hidden disks don't have associated bdev so there's no point in
+	 * revalidating it.
+	 */
+	if (!(disk->flags & GENHD_FL_HIDDEN)) {
+		struct block_device *bdev = bdget_disk(disk, 0);
+
+		if (!bdev)
+			return ret;
+
+		mutex_lock(&bdev->bd_mutex);
+		check_disk_size_change(disk, bdev, ret == 0);
+		bdev->bd_invalidated = 0;
+		mutex_unlock(&bdev->bd_mutex);
+		bdput(bdev);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(revalidate_disk);

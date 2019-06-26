@@ -291,11 +291,15 @@ static struct snd_soc_dai_driver mt8183_memif_dai_driver[] = {
 static const struct snd_kcontrol_new memif_ul1_ch1_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN21,
 				    I_ADDA_UL_CH1, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I2S0_CH1", AFE_CONN21,
+				    I_I2S0_CH1, 1, 0),
 };
 
 static const struct snd_kcontrol_new memif_ul1_ch2_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH2", AFE_CONN22,
 				    I_ADDA_UL_CH2, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I2S0_CH2", AFE_CONN21,
+				    I_I2S0_CH2, 1, 0),
 };
 
 static const struct snd_kcontrol_new memif_ul2_ch1_mix[] = {
@@ -307,6 +311,8 @@ static const struct snd_kcontrol_new memif_ul2_ch1_mix[] = {
 				    I_DL2_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("DL3_CH1", AFE_CONN5,
 				    I_DL3_CH1, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I2S2_CH1", AFE_CONN5,
+				    I_I2S2_CH1, 1, 0),
 };
 
 static const struct snd_kcontrol_new memif_ul2_ch2_mix[] = {
@@ -318,16 +324,22 @@ static const struct snd_kcontrol_new memif_ul2_ch2_mix[] = {
 				    I_DL2_CH2, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("DL3_CH2", AFE_CONN6,
 				    I_DL3_CH2, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I2S2_CH2", AFE_CONN6,
+				    I_I2S2_CH2, 1, 0),
 };
 
 static const struct snd_kcontrol_new memif_ul3_ch1_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN32,
 				    I_ADDA_UL_CH1, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I2S2_CH1", AFE_CONN32,
+				    I_I2S2_CH1, 1, 0),
 };
 
 static const struct snd_kcontrol_new memif_ul3_ch2_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH2", AFE_CONN33,
 				    I_ADDA_UL_CH2, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I2S2_CH2", AFE_CONN33,
+				    I_I2S2_CH2, 1, 0),
 };
 
 static const struct snd_kcontrol_new memif_ul4_ch1_mix[] = {
@@ -380,16 +392,22 @@ static const struct snd_soc_dapm_route mt8183_memif_routes[] = {
 	{"UL1", NULL, "UL1_CH2"},
 	{"UL1_CH1", "ADDA_UL_CH1", "ADDA Capture"},
 	{"UL1_CH2", "ADDA_UL_CH2", "ADDA Capture"},
+	{"UL1_CH1", "I2S0_CH1", "I2S0"},
+	{"UL1_CH2", "I2S0_CH2", "I2S0"},
 
 	{"UL2", NULL, "UL2_CH1"},
 	{"UL2", NULL, "UL2_CH2"},
 	{"UL2_CH1", "ADDA_UL_CH1", "ADDA Capture"},
 	{"UL2_CH2", "ADDA_UL_CH2", "ADDA Capture"},
+	{"UL2_CH1", "I2S2_CH1", "I2S2"},
+	{"UL2_CH2", "I2S2_CH2", "I2S2"},
 
 	{"UL3", NULL, "UL3_CH1"},
 	{"UL3", NULL, "UL3_CH2"},
 	{"UL3_CH1", "ADDA_UL_CH1", "ADDA Capture"},
 	{"UL3_CH2", "ADDA_UL_CH2", "ADDA Capture"},
+	{"UL3_CH1", "I2S2_CH1", "I2S2"},
+	{"UL3_CH2", "I2S2_CH2", "I2S2"},
 
 	{"UL4", NULL, "UL4_CH1"},
 	{"UL4", NULL, "UL4_CH2"},

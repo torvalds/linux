@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for the Tensilica xtavnet Emulation Board
 #
 # Note! Dependencies are done automagically by 'make dep', which also

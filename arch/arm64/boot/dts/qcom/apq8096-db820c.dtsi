@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "msm8996.dtsi"
@@ -18,6 +10,8 @@
 #include "apq8096-db820c-pmic-pins.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,q6asm.h>
 
 /*
  * GPIO name legend: proper name = the GPIO line is used as GPIO
@@ -63,6 +57,7 @@
 	};
 
 	clocks {
+		compatible = "simple-bus";
 		divclk4: divclk4 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -71,6 +66,15 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&divclk4_pin_a>;
+		};
+
+		div1_mclk: divclk1 {
+			compatible = "gpio-gate-clock";
+			pinctrl-0 = <&audio_mclk>;
+			pinctrl-names = "default";
+			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
+			#clock-cells = <0>;
+			enable-gpios = <&pm8994_gpios 15 0>;
 		};
 	};
 
@@ -452,6 +456,43 @@
 				perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
 			};
 		};
+
+		slim_msm: slim@91c0000 {
+			ngd@1 {
+				wcd9335: codec@1{
+					clock-names = "mclk", "slimbus";
+					clocks = <&div1_mclk>,
+						 <&rpmcc RPM_SMD_BB_CLK1>;
+				};
+			};
+		};
+
+		mdss@900000 {
+			status = "okay";
+
+			mdp@901000 {
+				status = "okay";
+			};
+
+			hdmi-phy@9a0600 {
+				status = "okay";
+
+				vddio-supply = <&pm8994_l12>;
+				vcca-supply = <&pm8994_l28>;
+				#phy-cells = <0>;
+			};
+
+			hdmi-tx@9a0000 {
+				status = "okay";
+
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&hdmi_hpd_active &hdmi_ddc_active>;
+				pinctrl-1 = <&hdmi_hpd_suspend &hdmi_ddc_suspend>;
+
+				core-vdda-supply = <&pm8994_l12>;
+				core-vcc-supply = <&pm8994_s4>;
+			};
+		};
 	};
 
 
@@ -636,6 +677,78 @@
 				bias-pull-up;
 				linux,code = <KEY_VOLUMEDOWN>;
 			};
+		};
+	};
+};
+
+&sound {
+	compatible = "qcom,apq8096-sndcard";
+	model = "DB820c";
+	audio-routing =	"RX_BIAS", "MCLK";
+
+	mm1-dai-link {
+		link-name = "MultiMedia1";
+		cpu {
+			sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA1>;
+		};
+	};
+
+	mm2-dai-link {
+		link-name = "MultiMedia2";
+		cpu {
+			sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA2>;
+		};
+	};
+
+	mm3-dai-link {
+		link-name = "MultiMedia3";
+		cpu {
+			sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA3>;
+		};
+	};
+
+	hdmi-dai-link {
+		link-name = "HDMI";
+		cpu {
+			sound-dai = <&q6afedai HDMI_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+
+		codec {
+			sound-dai = <&hdmi 0>;
+		};
+	};
+
+	slim-dai-link {
+		link-name = "SLIM Playback";
+		cpu {
+			sound-dai = <&q6afedai SLIMBUS_6_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+	};
+
+		codec {
+			sound-dai = <&wcd9335 6>;
+		};
+	};
+
+	slimcap-dai-link {
+		link-name = "SLIM Capture";
+		cpu {
+			sound-dai = <&q6afedai SLIMBUS_0_TX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+
+		codec {
+			sound-dai = <&wcd9335 1>;
 		};
 	};
 };

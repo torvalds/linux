@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2004-2006  Sebastian Witt <se.witt@gmx.net>
  *
- *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon reverse engineered information
  *
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*

@@ -571,7 +571,6 @@ static void rhine_ack_events(struct rhine_private *rp, u32 mask)
 	if (rp->quirks & rqStatusWBRace)
 		iowrite8(mask >> 16, ioaddr + IntrStatus2);
 	iowrite16(mask, ioaddr + IntrStatus);
-	mmiowb();
 }
 
 /*
@@ -863,7 +862,6 @@ static int rhine_napipoll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		iowrite16(enable_mask, ioaddr + IntrEnable);
-		mmiowb();
 	}
 	return work_done;
 }
@@ -1893,7 +1891,6 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 static void rhine_irq_disable(struct rhine_private *rp)
 {
 	iowrite16(0x0000, rp->base + IntrEnable);
-	mmiowb();
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up

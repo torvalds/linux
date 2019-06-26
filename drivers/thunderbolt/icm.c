@@ -42,7 +42,6 @@
 #define ICM_TIMEOUT			5000	/* ms */
 #define ICM_APPROVE_TIMEOUT		10000	/* ms */
 #define ICM_MAX_LINK			4
-#define ICM_MAX_DEPTH			6
 
 /**
  * struct icm - Internal connection manager private data
@@ -469,10 +468,15 @@ static void add_switch(struct tb_switch *parent_sw, u64 route,
 	pm_runtime_get_sync(&parent_sw->dev);
 
 	sw = tb_switch_alloc(parent_sw->tb, &parent_sw->dev, route);
-	if (!sw)
+	if (IS_ERR(sw))
 		goto out;
 
 	sw->uuid = kmemdup(uuid, sizeof(*uuid), GFP_KERNEL);
+	if (!sw->uuid) {
+		tb_sw_warn(sw, "cannot allocate memory for switch\n");
+		tb_switch_put(sw);
+		goto out;
+	}
 	sw->connection_id = connection_id;
 	sw->connection_key = connection_key;
 	sw->link = link;
@@ -709,7 +713,7 @@ icm_fr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
 		ICM_LINK_INFO_DEPTH_SHIFT;
 
-	if (link > ICM_MAX_LINK || depth > ICM_MAX_DEPTH) {
+	if (link > ICM_MAX_LINK || depth > TB_SWITCH_MAX_DEPTH) {
 		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
 		return;
 	}
@@ -739,7 +743,7 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
 		ICM_LINK_INFO_DEPTH_SHIFT;
 
-	if (link > ICM_MAX_LINK || depth > ICM_MAX_DEPTH) {
+	if (link > ICM_MAX_LINK || depth > TB_SWITCH_MAX_DEPTH) {
 		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
 		return;
 	}
@@ -793,9 +797,11 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	 * connected another host to the same port, remove the switch
 	 * first.
 	 */
-	sw = get_switch_at_route(tb->root_switch, route);
-	if (sw)
+	sw = tb_switch_find_by_route(tb, route);
+	if (sw) {
 		remove_switch(sw);
+		tb_switch_put(sw);
+	}
 
 	sw = tb_switch_find_by_link_depth(tb, link, depth);
 	if (!sw) {
@@ -1138,9 +1144,11 @@ icm_tr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	 * connected another host to the same port, remove the switch
 	 * first.
 	 */
-	sw = get_switch_at_route(tb->root_switch, route);
-	if (sw)
+	sw = tb_switch_find_by_route(tb, route);
+	if (sw) {
 		remove_switch(sw);
+		tb_switch_put(sw);
+	}
 
 	sw = tb_switch_find_by_route(tb, get_parent_route(route));
 	if (!sw) {
@@ -1191,6 +1199,8 @@ static struct pci_dev *get_upstream_port(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
 		return parent;
 	}
 
@@ -1560,7 +1570,7 @@ static int icm_firmware_start(struct tb *tb, struct tb_nhi *nhi)
 	if (val & REG_FW_STS_ICM_EN)
 		return 0;
 
-	dev_info(&nhi->pdev->dev, "starting ICM firmware\n");
+	dev_dbg(&nhi->pdev->dev, "starting ICM firmware\n");
 
 	ret = icm_firmware_reset(tb, nhi);
 	if (ret)
@@ -1753,16 +1763,10 @@ static void icm_unplug_children(struct tb_switch *sw)
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
 
-		if (tb_is_upstream_port(port))
-			continue;
-		if (port->xdomain) {
+		if (port->xdomain)
 			port->xdomain->is_unplugged = true;
-			continue;
-		}
-		if (!port->remote)
-			continue;
-
-		icm_unplug_children(port->remote->sw);
+		else if (tb_port_has_remote(port))
+			icm_unplug_children(port->remote->sw);
 	}
 }
 
@@ -1773,23 +1777,16 @@ static void icm_free_unplugged_children(struct tb_switch *sw)
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
 
-		if (tb_is_upstream_port(port))
-			continue;
-
 		if (port->xdomain && port->xdomain->is_unplugged) {
 			tb_xdomain_remove(port->xdomain);
 			port->xdomain = NULL;
-			continue;
-		}
-
-		if (!port->remote)
-			continue;
-
-		if (port->remote->sw->is_unplugged) {
-			tb_switch_remove(port->remote->sw);
-			port->remote = NULL;
-		} else {
-			icm_free_unplugged_children(port->remote->sw);
+		} else if (tb_port_has_remote(port)) {
+			if (port->remote->sw->is_unplugged) {
+				tb_switch_remove(port->remote->sw);
+				port->remote = NULL;
+			} else {
+				icm_free_unplugged_children(port->remote->sw);
+			}
 		}
 	}
 }
@@ -1853,8 +1850,8 @@ static int icm_start(struct tb *tb)
 		tb->root_switch = tb_switch_alloc_safe_mode(tb, &tb->dev, 0);
 	else
 		tb->root_switch = tb_switch_alloc(tb, &tb->dev, 0);
-	if (!tb->root_switch)
-		return -ENODEV;
+	if (IS_ERR(tb->root_switch))
+		return PTR_ERR(tb->root_switch);
 
 	/*
 	 * NVM upgrade has not been tested on Apple systems and they

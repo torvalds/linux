@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016 Yang Ling <gnaygnil@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/clk.h>
@@ -83,38 +79,44 @@ static const struct watchdog_ops ls1x_wdt_ops = {
 	.set_timeout = ls1x_wdt_set_timeout,
 };
 
+static void ls1x_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int ls1x_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct ls1x_wdt_drvdata *drvdata;
 	struct watchdog_device *ls1x_wdt;
 	unsigned long clk_rate;
-	struct resource *res;
 	int err;
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	drvdata->base = devm_ioremap_resource(&pdev->dev, res);
+	drvdata->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drvdata->base))
 		return PTR_ERR(drvdata->base);
 
-	drvdata->clk = devm_clk_get(&pdev->dev, pdev->name);
+	drvdata->clk = devm_clk_get(dev, pdev->name);
 	if (IS_ERR(drvdata->clk))
 		return PTR_ERR(drvdata->clk);
 
 	err = clk_prepare_enable(drvdata->clk);
 	if (err) {
-		dev_err(&pdev->dev, "clk enable failed\n");
+		dev_err(dev, "clk enable failed\n");
 		return err;
 	}
+	err = devm_add_action_or_reset(dev, ls1x_clk_disable_unprepare,
+				       drvdata->clk);
+	if (err)
+		return err;
 
 	clk_rate = clk_get_rate(drvdata->clk);
-	if (!clk_rate) {
-		err = -EINVAL;
-		goto err0;
-	}
+	if (!clk_rate)
+		return -EINVAL;
 	drvdata->clk_rate = clk_rate;
 
 	ls1x_wdt = &drvdata->wdt;
@@ -123,41 +125,27 @@ static int ls1x_wdt_probe(struct platform_device *pdev)
 	ls1x_wdt->timeout = DEFAULT_HEARTBEAT;
 	ls1x_wdt->min_timeout = 1;
 	ls1x_wdt->max_hw_heartbeat_ms = U32_MAX / clk_rate * 1000;
-	ls1x_wdt->parent = &pdev->dev;
+	ls1x_wdt->parent = dev;
 
-	watchdog_init_timeout(ls1x_wdt, heartbeat, &pdev->dev);
+	watchdog_init_timeout(ls1x_wdt, heartbeat, dev);
 	watchdog_set_nowayout(ls1x_wdt, nowayout);
 	watchdog_set_drvdata(ls1x_wdt, drvdata);
 
-	err = watchdog_register_device(&drvdata->wdt);
+	err = devm_watchdog_register_device(dev, &drvdata->wdt);
 	if (err) {
-		dev_err(&pdev->dev, "failed to register watchdog device\n");
-		goto err0;
+		dev_err(dev, "failed to register watchdog device\n");
+		return err;
 	}
 
 	platform_set_drvdata(pdev, drvdata);
 
-	dev_info(&pdev->dev, "Loongson1 Watchdog driver registered\n");
-
-	return 0;
-err0:
-	clk_disable_unprepare(drvdata->clk);
-	return err;
-}
-
-static int ls1x_wdt_remove(struct platform_device *pdev)
-{
-	struct ls1x_wdt_drvdata *drvdata = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&drvdata->wdt);
-	clk_disable_unprepare(drvdata->clk);
+	dev_info(dev, "Loongson1 Watchdog driver registered\n");
 
 	return 0;
 }
 
 static struct platform_driver ls1x_wdt_driver = {
 	.probe = ls1x_wdt_probe,
-	.remove = ls1x_wdt_remove,
 	.driver = {
 		.name = "ls1x-wdt",
 	},

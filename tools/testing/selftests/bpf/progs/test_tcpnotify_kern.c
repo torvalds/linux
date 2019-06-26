@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stddef.h>
 #include <string.h>
+#include <netinet/in.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
@@ -9,7 +10,6 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>
-#include <netinet/in.h>
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
 #include "test_tcpnotify.h"

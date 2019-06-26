@@ -694,14 +694,12 @@ end:
 
 static void dpu_crtc_reset(struct drm_crtc *crtc)
 {
-	struct dpu_crtc_state *cstate;
+	struct dpu_crtc_state *cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
 
 	if (crtc->state)
 		dpu_crtc_destroy_state(crtc, crtc->state);
 
-	crtc->state = kzalloc(sizeof(*cstate), GFP_KERNEL);
-	if (crtc->state)
-		crtc->state->crtc = crtc;
+	__drm_atomic_helper_crtc_reset(crtc, &cstate->base);
 }
 
 /**

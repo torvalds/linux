@@ -1,0 +1,195 @@
+Kernel driver max34440
+======================
+
+Supported chips:
+
+  * Maxim MAX34440
+
+    Prefixes: 'max34440'
+
+    Addresses scanned: -
+
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34440.pdf
+
+  * Maxim MAX34441
+
+    PMBus 5-Channel Power-Supply Manager and Intelligent Fan Controller
+
+    Prefixes: 'max34441'
+
+    Addresses scanned: -
+
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34441.pdf
+
+  * Maxim MAX34446
+
+    PMBus Power-Supply Data Logger
+
+    Prefixes: 'max34446'
+
+    Addresses scanned: -
+
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34446.pdf
+
+  * Maxim MAX34451
+
+    PMBus 16-Channel V/I Monitor and 12-Channel Sequencer/Marginer
+
+    Prefixes: 'max34451'
+
+    Addresses scanned: -
+
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34451.pdf
+
+  * Maxim MAX34460
+
+    PMBus 12-Channel Voltage Monitor & Sequencer
+
+    Prefix: 'max34460'
+
+    Addresses scanned: -
+
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34460.pdf
+
+  * Maxim MAX34461
+
+    PMBus 16-Channel Voltage Monitor & Sequencer
+
+    Prefix: 'max34461'
+
+    Addresses scanned: -
+
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34461.pdf
+
+Author: Guenter Roeck <linux@roeck-us.net>
+
+
+Description
+-----------
+
+This driver supports hardware monitoring for Maxim MAX34440 PMBus 6-Channel
+Power-Supply Manager, MAX34441 PMBus 5-Channel Power-Supply Manager
+and Intelligent Fan Controller, and MAX34446 PMBus Power-Supply Data Logger.
+It also supports the MAX34451, MAX34460, and MAX34461 PMBus Voltage Monitor &
+Sequencers. The MAX34451 supports monitoring voltage or current of 12 channels
+based on GIN pins. The MAX34460 supports 12 voltage channels, and the MAX34461
+supports 16 voltage channels.
+
+The driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices for
+details.
+
+For MAX34446, the value of the currX_crit attribute determines if current or
+voltage measurement is enabled for a given channel. Voltage measurement is
+enabled if currX_crit is set to 0; current measurement is enabled if the
+attribute is set to a positive value. Power measurement is only enabled if
+channel 1 (3) is configured for voltage measurement, and channel 2 (4) is
+configured for current measurement.
+
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data.
+
+
+Sysfs entries
+-------------
+
+The following attributes are supported. Limits are read-write; all other
+attributes are read-only.
+
+In
+~~
+
+======================= =======================================================
+in[1-6]_label		"vout[1-6]".
+in[1-6]_input		Measured voltage. From READ_VOUT register.
+in[1-6]_min		Minimum Voltage. From VOUT_UV_WARN_LIMIT register.
+in[1-6]_max		Maximum voltage. From VOUT_OV_WARN_LIMIT register.
+in[1-6]_lcrit		Critical minimum Voltage. VOUT_UV_FAULT_LIMIT register.
+in[1-6]_crit		Critical maximum voltage. From VOUT_OV_FAULT_LIMIT
+			register.
+in[1-6]_min_alarm	Voltage low alarm. From VOLTAGE_UV_WARNING status.
+in[1-6]_max_alarm	Voltage high alarm. From VOLTAGE_OV_WARNING status.
+in[1-6]_lcrit_alarm	Voltage critical low alarm. From VOLTAGE_UV_FAULT
+			status.
+in[1-6]_crit_alarm	Voltage critical high alarm. From VOLTAGE_OV_FAULT
+			status.
+in[1-6]_lowest		Historical minimum voltage.
+in[1-6]_highest		Historical maximum voltage.
+in[1-6]_reset_history	Write any value to reset history.
+======================= =======================================================
+
+.. note:: MAX34446 only supports in[1-4].
+
+Curr
+~~~~
+
+======================= ========================================================
+curr[1-6]_label		"iout[1-6]".
+curr[1-6]_input		Measured current. From READ_IOUT register.
+curr[1-6]_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
+curr[1-6]_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT
+			register.
+curr[1-6]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.
+curr[1-6]_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
+curr[1-4]_average	Historical average current (MAX34446/34451 only).
+curr[1-6]_highest	Historical maximum current.
+curr[1-6]_reset_history	Write any value to reset history.
+======================= ========================================================
+
+.. note::
+
+    - in6 and curr6 attributes only exist for MAX34440.
+    - MAX34446 only supports curr[1-4].
+
+Power
+~~~~~
+
+======================= ========================================================
+power[1,3]_label	"pout[1,3]"
+power[1,3]_input	Measured power.
+power[1,3]_average	Historical average power.
+power[1,3]_highest	Historical maximum power.
+======================= ========================================================
+
+.. note:: Power attributes only exist for MAX34446.
+
+Temp
+~~~~
+
+======================= ========================================================
+temp[1-8]_input		Measured temperatures. From READ_TEMPERATURE_1 register.
+			temp1 is the chip's internal temperature. temp2..temp5
+			are remote I2C temperature sensors. For MAX34441, temp6
+			is a remote thermal-diode sensor. For MAX34440, temp6..8
+			are remote I2C temperature sensors.
+temp[1-8]_max		Maximum temperature. From OT_WARN_LIMIT register.
+temp[1-8]_crit		Critical high temperature. From OT_FAULT_LIMIT register.
+temp[1-8]_max_alarm	Temperature high alarm.
+temp[1-8]_crit_alarm	Temperature critical high alarm.
+temp[1-8]_average	Historical average temperature (MAX34446 only).
+temp[1-8]_highest	Historical maximum temperature.
+temp[1-8]_reset_history	Write any value to reset history.
+======================= ========================================================
+
+
+.. note::
+   - temp7 and temp8 attributes only exist for MAX34440.
+   - MAX34446 only supports temp[1-3].
+
+
+.. note::
+
+   - MAX34451 supports attribute groups in[1-16] (or curr[1-16] based on
+     input pins) and temp[1-5].
+   - MAX34460 supports attribute groups in[1-12] and temp[1-5].
+   - MAX34461 supports attribute groups in[1-16] and temp[1-5].

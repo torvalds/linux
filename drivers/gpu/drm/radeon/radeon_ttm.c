@@ -29,19 +29,27 @@
  *    Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  *    Dave Airlie
  */
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_module.h>
-#include <drm/ttm/ttm_page_alloc.h>
-#include <drm/drmP.h>
-#include <drm/radeon_drm.h>
+
+#include <linux/dma-mapping.h>
+#include <linux/pagemap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/swiotlb.h>
 #include <linux/swap.h>
-#include <linux/pagemap.h>
-#include <linux/debugfs.h>
+#include <linux/swiotlb.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_prime.h>
+#include <drm/radeon_drm.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_page_alloc.h>
+#include <drm/ttm/ttm_placement.h>
+
 #include "radeon_reg.h"
 #include "radeon.h"
 

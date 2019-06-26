@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux WiMAX
  * Initialization, addition and removal of wimax devices
  *
- *
  * Copyright (C) 2005-2006 Intel Corporation <linux-wimax@intel.com>
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * This implements:
  *
@@ -419,26 +404,26 @@ static const struct nla_policy wimax_gnl_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 static const struct genl_ops wimax_gnl_ops[] = {
 	{
 		.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_msg_from_user,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RESET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_reset,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RFKILL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_rfkill,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_STATE_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_state_get,
 	},
 };
@@ -582,6 +567,7 @@ struct genl_family wimax_gnl_family __ro_after_init = {
 	.version = WIMAX_GNL_VERSION,
 	.hdrsize = 0,
 	.maxattr = WIMAX_GNL_ATTR_MAX,
+	.policy = wimax_gnl_policy,
 	.module = THIS_MODULE,
 	.ops = wimax_gnl_ops,
 	.n_ops = ARRAY_SIZE(wimax_gnl_ops),

@@ -1297,7 +1297,7 @@ int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
 /**
  * __irq_domain_alloc_irqs - Allocate IRQs from domain
  * @domain:	domain to allocate from
- * @irq_base:	allocate specified IRQ nubmer if irq_base >= 0
+ * @irq_base:	allocate specified IRQ number if irq_base >= 0
  * @nr_irqs:	number of IRQs to allocate
  * @node:	NUMA node id for memory allocation
  * @arg:	domain specific argument

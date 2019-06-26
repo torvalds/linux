@@ -459,7 +459,7 @@ static int find_slots(struct tcs_group *tcs, const struct tcs_request *msg,
 	do {
 		slot = bitmap_find_next_zero_area(tcs->slots, MAX_TCS_SLOTS,
 						  i, msg->num_cmds, 0);
-		if (slot == tcs->num_tcs * tcs->ncpt)
+		if (slot >= tcs->num_tcs * tcs->ncpt)
 			return -ENOMEM;
 		i += tcs->ncpt;
 	} while (slot + msg->num_cmds - 1 >= i);

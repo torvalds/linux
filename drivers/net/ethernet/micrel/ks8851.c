@@ -425,8 +425,8 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 	const u8 *mac_addr;
 
 	mac_addr = of_get_mac_address(ks->spidev->dev.of_node);
-	if (mac_addr) {
-		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr)) {
+		ether_addr_copy(dev->dev_addr, mac_addr);
 		ks8851_write_mac_addr(dev);
 		return;
 	}

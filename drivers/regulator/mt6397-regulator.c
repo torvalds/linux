@@ -1,16 +1,7 @@
-/*
- * Copyright (c) 2014 MediaTek Inc.
- * Author: Flora Fu <flora.fu@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2014 MediaTek Inc.
+// Author: Flora Fu <flora.fu@mediatek.com>
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -123,35 +114,35 @@ static const struct regulator_linear_range buck_volt_range3[] = {
 	REGULATOR_LINEAR_RANGE(1500000, 0, 0x1f, 20000),
 };
 
-static const u32 ldo_volt_table1[] = {
+static const unsigned int ldo_volt_table1[] = {
 	1500000, 1800000, 2500000, 2800000,
 };
 
-static const u32 ldo_volt_table2[] = {
+static const unsigned int ldo_volt_table2[] = {
 	1800000, 3300000,
 };
 
-static const u32 ldo_volt_table3[] = {
+static const unsigned int ldo_volt_table3[] = {
 	3000000, 3300000,
 };
 
-static const u32 ldo_volt_table4[] = {
+static const unsigned int ldo_volt_table4[] = {
 	1220000, 1300000, 1500000, 1800000, 2500000, 2800000, 3000000, 3300000,
 };
 
-static const u32 ldo_volt_table5[] = {
+static const unsigned int ldo_volt_table5[] = {
 	1200000, 1300000, 1500000, 1800000, 2500000, 2800000, 3000000, 3300000,
 };
 
-static const u32 ldo_volt_table5_v2[] = {
+static const unsigned int ldo_volt_table5_v2[] = {
 	1200000, 1000000, 1500000, 1800000, 2500000, 2800000, 3000000, 3300000,
 };
 
-static const u32 ldo_volt_table6[] = {
+static const unsigned int ldo_volt_table6[] = {
 	1200000, 1300000, 1500000, 1800000, 2500000, 2800000, 3000000, 2000000,
 };
 
-static const u32 ldo_volt_table7[] = {
+static const unsigned int ldo_volt_table7[] = {
 	1300000, 1500000, 1800000, 2000000, 2500000, 2800000, 3000000, 3300000,
 };
 

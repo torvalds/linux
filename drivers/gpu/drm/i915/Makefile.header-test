@@ -4,37 +4,22 @@
 # Test the headers are compilable as standalone units
 header_test := \
 	i915_active_types.h \
-	i915_gem_context_types.h \
+	i915_debugfs.h \
+	i915_drv.h \
+	i915_irq.h \
+	i915_params.h \
 	i915_priolist_types.h \
+	i915_reg.h \
 	i915_scheduler_types.h \
 	i915_timeline_types.h \
-	intel_atomic_plane.h \
-	intel_audio.h \
-	intel_cdclk.h \
-	intel_color.h \
-	intel_connector.h \
-	intel_context_types.h \
-	intel_crt.h \
+	i915_utils.h \
 	intel_csr.h \
-	intel_ddi.h \
-	intel_dp.h \
-	intel_dvo.h \
-	intel_engine_types.h \
-	intel_fbc.h \
-	intel_fbdev.h \
-	intel_frontbuffer.h \
-	intel_hdcp.h \
-	intel_hdmi.h \
-	intel_lspcon.h \
-	intel_lvds.h \
-	intel_panel.h \
-	intel_pipe_crc.h \
+	intel_drv.h \
 	intel_pm.h \
-	intel_psr.h \
-	intel_sdvo.h \
-	intel_sprite.h \
-	intel_tv.h \
-	intel_workarounds_types.h
+	intel_runtime_pm.h \
+	intel_sideband.h \
+	intel_uncore.h \
+	intel_wakeref.h
 
 quiet_cmd_header_test = HDRTEST $@
       cmd_header_test = echo "\#include \"$(<F)\"" > $@

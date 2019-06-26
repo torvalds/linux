@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
@@ -1199,7 +1196,6 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 	void __user *argp = (void __user *)arg;
-	int ret;
 
 	switch (cmd) {
 	case TIOCOUTQ: {
@@ -1224,18 +1220,6 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		release_sock(sk);
 		return put_user(amount, (int __user *)argp);
 	}
-
-	case SIOCGSTAMP:
-		lock_sock(sk);
-		ret = sock_get_timestamp(sk, argp);
-		release_sock(sk);
-		return ret;
-
-	case SIOCGSTAMPNS:
-		lock_sock(sk);
-		ret = sock_get_timestampns(sk, argp);
-		release_sock(sk);
-		return ret;
 
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
@@ -1362,6 +1346,7 @@ static const struct proto_ops nr_proto_ops = {
 	.getname	=	nr_getname,
 	.poll		=	datagram_poll,
 	.ioctl		=	nr_ioctl,
+	.gettstamp	=	sock_gettstamp,
 	.listen		=	nr_listen,
 	.shutdown	=	sock_no_shutdown,
 	.setsockopt	=	nr_setsockopt,
@@ -1392,18 +1377,22 @@ static int __init nr_proto_init(void)
 	int i;
 	int rc = proto_register(&nr_proto, 0);
 
-	if (rc != 0)
-		goto out;
+	if (rc)
+		return rc;
 
 	if (nr_ndevs > 0x7fffffff/sizeof(struct net_device *)) {
-		printk(KERN_ERR "NET/ROM: nr_proto_init - nr_ndevs parameter to large\n");
-		return -1;
+		pr_err("NET/ROM: %s - nr_ndevs parameter too large\n",
+		       __func__);
+		rc = -EINVAL;
+		goto unregister_proto;
 	}
 
 	dev_nr = kcalloc(nr_ndevs, sizeof(struct net_device *), GFP_KERNEL);
-	if (dev_nr == NULL) {
-		printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device array\n");
-		return -1;
+	if (!dev_nr) {
+		pr_err("NET/ROM: %s - unable to allocate device array\n",
+		       __func__);
+		rc = -ENOMEM;
+		goto unregister_proto;
 	}
 
 	for (i = 0; i < nr_ndevs; i++) {
@@ -1413,13 +1402,13 @@ static int __init nr_proto_init(void)
 		sprintf(name, "nr%d", i);
 		dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, nr_setup);
 		if (!dev) {
-			printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device structure\n");
+			rc = -ENOMEM;
 			goto fail;
 		}
 
 		dev->base_addr = i;
-		if (register_netdev(dev)) {
-			printk(KERN_ERR "NET/ROM: nr_proto_init - unable to register network device\n");
+		rc = register_netdev(dev);
+		if (rc) {
 			free_netdev(dev);
 			goto fail;
 		}
@@ -1427,36 +1416,64 @@ static int __init nr_proto_init(void)
 		dev_nr[i] = dev;
 	}
 
-	if (sock_register(&nr_family_ops)) {
-		printk(KERN_ERR "NET/ROM: nr_proto_init - unable to register socket family\n");
+	rc = sock_register(&nr_family_ops);
+	if (rc)
 		goto fail;
-	}
 
-	register_netdevice_notifier(&nr_dev_notifier);
+	rc = register_netdevice_notifier(&nr_dev_notifier);
+	if (rc)
+		goto out_sock;
 
 	ax25_register_pid(&nr_pid);
 	ax25_linkfail_register(&nr_linkfail_notifier);
 
 #ifdef CONFIG_SYSCTL
-	nr_register_sysctl();
+	rc = nr_register_sysctl();
+	if (rc)
+		goto out_sysctl;
 #endif
 
 	nr_loopback_init();
 
-	proc_create_seq("nr", 0444, init_net.proc_net, &nr_info_seqops);
-	proc_create_seq("nr_neigh", 0444, init_net.proc_net, &nr_neigh_seqops);
-	proc_create_seq("nr_nodes", 0444, init_net.proc_net, &nr_node_seqops);
-out:
-	return rc;
+	rc = -ENOMEM;
+	if (!proc_create_seq("nr", 0444, init_net.proc_net, &nr_info_seqops))
+		goto proc_remove1;
+	if (!proc_create_seq("nr_neigh", 0444, init_net.proc_net,
+			     &nr_neigh_seqops))
+		goto proc_remove2;
+	if (!proc_create_seq("nr_nodes", 0444, init_net.proc_net,
+			     &nr_node_seqops))
+		goto proc_remove3;
+
+	return 0;
+
+proc_remove3:
+	remove_proc_entry("nr_neigh", init_net.proc_net);
+proc_remove2:
+	remove_proc_entry("nr", init_net.proc_net);
+proc_remove1:
+
+	nr_loopback_clear();
+	nr_rt_free();
+
+#ifdef CONFIG_SYSCTL
+	nr_unregister_sysctl();
+out_sysctl:
+#endif
+	ax25_linkfail_release(&nr_linkfail_notifier);
+	ax25_protocol_release(AX25_P_NETROM);
+	unregister_netdevice_notifier(&nr_dev_notifier);
+out_sock:
+	sock_unregister(PF_NETROM);
 fail:
 	while (--i >= 0) {
 		unregister_netdev(dev_nr[i]);
 		free_netdev(dev_nr[i]);
 	}
 	kfree(dev_nr);
+unregister_proto:
 	proto_unregister(&nr_proto);
-	rc = -1;
-	goto out;
+	return rc;
 }
 
 module_init(nr_proto_init);

@@ -642,7 +642,7 @@ try:
  * be directed to disk.
  */
 int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
-			struct ppa_addr ppa, int bio_iter, bool advanced_bio)
+			struct ppa_addr ppa)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct pblk_rb_entry *entry;
@@ -673,15 +673,6 @@ int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 		ret = 0;
 		goto out;
 	}
-
-	/* Only advance the bio if it hasn't been advanced already. If advanced,
-	 * this bio is at least a partial bio (i.e., it has partially been
-	 * filled with data from the cache). If part of the data resides on the
-	 * media, we will read later on
-	 */
-	if (unlikely(!advanced_bio))
-		bio_advance(bio, bio_iter * PBLK_EXPOSED_PAGE_SIZE);
-
 	data = bio_data(bio);
 	memcpy(data, entry->data, rb->seg_size);
 
@@ -799,8 +790,8 @@ int pblk_rb_tear_down_check(struct pblk_rb *rb)
 	}
 
 out:
-	spin_unlock(&rb->w_lock);
 	spin_unlock_irq(&rb->s_lock);
+	spin_unlock(&rb->w_lock);
 
 	return ret;
 }

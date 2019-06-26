@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91-foxg20.dts - Device Tree file for Acme Systems FoxG20 board
  *
  * Based on DT files for at91sam9g20ek evaluation board (AT91SAM9G20 SoC)
  *
  * Copyright (C) 2013 Douglas Gilbert <dgilbert@interlog.com>
- *
- * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include "at91sam9g20.dtsi"

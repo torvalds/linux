@@ -806,7 +806,6 @@ static struct spi_board_info spi_bus[] = {
 		.platform_data	= &mmc_spi_info,
 		.max_speed_hz	= 5000000,
 		.mode		= SPI_MODE_0,
-		.controller_data = (void *) GPIO_PTM4,
 	},
 };
 
@@ -836,6 +835,14 @@ static struct platform_device msiof0_device = {
 	},
 	.num_resources	= ARRAY_SIZE(msiof0_resources),
 	.resource	= msiof0_resources,
+};
+
+static struct gpiod_lookup_table msiof_gpio_table = {
+	.dev_id = "spi_sh_msiof.0",
+	.table = {
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTM4, "cs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 #endif
@@ -1296,12 +1303,11 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_MSIOF0_TXD, NULL);
 	gpio_request(GPIO_FN_MSIOF0_RXD, NULL);
 	gpio_request(GPIO_FN_MSIOF0_TSCK, NULL);
-	gpio_request(GPIO_PTM4, NULL); /* software CS control of TSYNC pin */
-	gpio_direction_output(GPIO_PTM4, 1); /* active low CS */
 	gpio_request(GPIO_PTB6, NULL); /* 3.3V power control */
 	gpio_direction_output(GPIO_PTB6, 0); /* disable power by default */
 
 	gpiod_add_lookup_table(&mmc_spi_gpio_table);
+	gpiod_add_lookup_table(&msiof_gpio_table);
 	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 #endif
 

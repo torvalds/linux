@@ -15,50 +15,6 @@
 
 #include <linux/bitops.h>
 
-/* LM3532 */
-#define LM3532_REG_OUTPUT_CFG			0x10
-#define LM3532_ILED1_CFG_MASK			0x03
-#define LM3532_ILED2_CFG_MASK			0x0C
-#define LM3532_ILED3_CFG_MASK			0x30
-#define LM3532_ILED1_CFG_SHIFT			0
-#define LM3532_ILED2_CFG_SHIFT			2
-#define LM3532_ILED3_CFG_SHIFT			4
-
-#define LM3532_REG_RAMPUP			0x12
-#define LM3532_REG_RAMPDN			LM3532_REG_RAMPUP
-#define LM3532_RAMPUP_MASK			0x07
-#define LM3532_RAMPUP_SHIFT			0
-#define LM3532_RAMPDN_MASK			0x38
-#define LM3532_RAMPDN_SHIFT			3
-
-#define LM3532_REG_ENABLE			0x1D
-
-#define LM3532_REG_PWM_A_CFG			0x13
-#define LM3532_PWM_A_MASK			0x05	/* zone 0 */
-#define LM3532_PWM_ZONE_0			BIT(2)
-
-#define LM3532_REG_PWM_B_CFG			0x14
-#define LM3532_PWM_B_MASK			0x09	/* zone 1 */
-#define LM3532_PWM_ZONE_1			BIT(3)
-
-#define LM3532_REG_PWM_C_CFG			0x15
-#define LM3532_PWM_C_MASK			0x11	/* zone 2 */
-#define LM3532_PWM_ZONE_2			BIT(4)
-
-#define LM3532_REG_ZONE_CFG_A			0x16
-#define LM3532_REG_ZONE_CFG_B			0x18
-#define LM3532_REG_ZONE_CFG_C			0x1A
-#define LM3532_ZONE_MASK			(BIT(2) | BIT(3) | BIT(4))
-#define LM3532_ZONE_0				0
-#define LM3532_ZONE_1				BIT(2)
-#define LM3532_ZONE_2				BIT(3)
-
-#define LM3532_REG_BRT_A			0x70	/* zone 0 */
-#define LM3532_REG_BRT_B			0x76	/* zone 1 */
-#define LM3532_REG_BRT_C			0x7C	/* zone 2 */
-
-#define LM3532_MAX_REG				0x7E
-
 /* LM3631 */
 #define LM3631_REG_DEVCTRL			0x00
 #define LM3631_LCD_EN_MASK			BIT(1)

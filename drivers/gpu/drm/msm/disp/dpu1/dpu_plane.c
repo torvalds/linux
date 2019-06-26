@@ -557,14 +557,9 @@ static void _dpu_plane_setup_scaler(struct dpu_plane *pdpu,
 		struct dpu_plane_state *pstate,
 		const struct dpu_format *fmt, bool color_fill)
 {
-	uint32_t chroma_subsmpl_h, chroma_subsmpl_v;
+	const struct drm_format_info *info = drm_format_info(fmt->base.pixel_format);
 
 	/* don't chroma subsample if decimating */
-	chroma_subsmpl_h =
-		drm_format_horz_chroma_subsampling(fmt->base.pixel_format);
-	chroma_subsmpl_v =
-		drm_format_vert_chroma_subsampling(fmt->base.pixel_format);
-
 	/* update scaler. calculate default config for QSEED3 */
 	_dpu_plane_setup_scaler3(pdpu, pstate,
 			drm_rect_width(&pdpu->pipe_cfg.src_rect),
@@ -572,7 +567,7 @@ static void _dpu_plane_setup_scaler(struct dpu_plane *pdpu,
 			drm_rect_width(&pdpu->pipe_cfg.dst_rect),
 			drm_rect_height(&pdpu->pipe_cfg.dst_rect),
 			&pstate->scaler3_cfg, fmt,
-			chroma_subsmpl_h, chroma_subsmpl_v);
+			info->hsub, info->vsub);
 }
 
 /**

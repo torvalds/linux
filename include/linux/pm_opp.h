@@ -102,6 +102,8 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 
 struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					      unsigned long *freq);
+struct dev_pm_opp *dev_pm_opp_find_freq_ceil_by_volt(struct device *dev,
+						     unsigned long u_volt);
 
 struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 					     unsigned long *freq);
@@ -203,6 +205,12 @@ static inline struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 
 static inline struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					unsigned long *freq)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+
+static inline struct dev_pm_opp *dev_pm_opp_find_freq_ceil_by_volt(struct device *dev,
+					unsigned long u_volt)
 {
 	return ERR_PTR(-ENOTSUPP);
 }

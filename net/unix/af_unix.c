@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NET4:	Implementation of BSD Unix domain sockets.
  *
  * Authors:	Alan Cox, <alan@lxorguk.ukuu.org.uk>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Fixes:
  *		Linus Torvalds	:	Assorted bug cures.
@@ -48,7 +44,6 @@
  *	     Arnaldo C. Melo	:	Remove MOD_{INC,DEC}_USE_COUNT,
  *	     				the core infrastructure is doing that
  *	     				for all net proto families now (2.5.69+)
- *
  *
  * Known differences from reference BSD that was tested:
  *
@@ -2040,8 +2035,8 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg,
 	struct unix_sock *u = unix_sk(sk);
 	struct sk_buff *skb, *last;
 	long timeo;
+	int skip;
 	int err;
-	int peeked, skip;
 
 	err = -EOPNOTSUPP;
 	if (flags&MSG_OOB)
@@ -2053,8 +2048,8 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg,
 		mutex_lock(&u->iolock);
 
 		skip = sk_peek_offset(sk, flags);
-		skb = __skb_try_recv_datagram(sk, flags, NULL, &peeked, &skip,
-					      &err, &last);
+		skb = __skb_try_recv_datagram(sk, flags, NULL, &skip, &err,
+					      &last);
 		if (skb)
 			break;
 

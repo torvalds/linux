@@ -63,8 +63,6 @@ static const struct stacktrace_ops dump_ops = {
 static void __save_stack_trace(struct task_struct *tsk, struct stack_trace *trace)
 {
 	dump_trace(tsk, &dump_ops, trace);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 
 void save_stack_trace(struct stack_trace *trace)

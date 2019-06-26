@@ -22,7 +22,7 @@
  */
 
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_uvd.h"
 #include "soc15.h"
@@ -175,7 +175,7 @@ static void uvd_v7_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
 static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	uint32_t rptr = amdgpu_ring_get_rptr(ring);
+	uint32_t rptr;
 	unsigned i;
 	int r;
 
@@ -185,13 +185,16 @@ static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r)
 		return r;
+
+	rptr = amdgpu_ring_get_rptr(ring);
+
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_END);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -787,10 +790,13 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 							   0xFFFFFFFF, 0x00000004);
 			/* mc resume*/
 			if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-				MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
-							    lower_32_bits(adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].mc_addr));
-				MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
-							    upper_32_bits(adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].mc_addr));
+				MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i,
+							mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
+							adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].tmr_mc_addr_lo);
+				MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i,
+							mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
+							adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].tmr_mc_addr_hi);
+				MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_OFFSET0), 0);
 				offset = 0;
 			} else {
 				MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
@@ -798,10 +804,11 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 				MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
 							    upper_32_bits(adev->uvd.inst[i].gpu_addr));
 				offset = size;
+				MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_OFFSET0),
+							AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
+
 			}
 
-			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_OFFSET0),
-						    AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_SIZE0), size);
 
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, i, mmUVD_LMI_VCPU_CACHE1_64BIT_BAR_LOW),
@@ -1223,7 +1230,7 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32_SOC15(UVD, ring->me, mmUVD_CONTEXT_ID);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -1755,6 +1762,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
 	.support_64bit_ptrs = false,
+	.no_user_fence = true,
 	.vmhub = AMDGPU_MMHUB,
 	.get_rptr = uvd_v7_0_ring_get_rptr,
 	.get_wptr = uvd_v7_0_ring_get_wptr,
@@ -1787,6 +1795,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
 	.align_mask = 0x3f,
 	.nop = HEVC_ENC_CMD_NO_OP,
 	.support_64bit_ptrs = false,
+	.no_user_fence = true,
 	.vmhub = AMDGPU_MMHUB,
 	.get_rptr = uvd_v7_0_enc_ring_get_rptr,
 	.get_wptr = uvd_v7_0_enc_ring_get_wptr,

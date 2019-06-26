@@ -12,6 +12,7 @@
 
 #include <dt-bindings/clock/exynos5250.h>
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 

@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * A sensor driver for the magnetometer AK8975.
  *
  * Magnetic compass sensor driver for monitoring magnetic flux information.
  *
  * Copyright (c) 2010, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA	02110-1301, USA.
  */
 
 #include <linux/module.h>
@@ -746,12 +733,14 @@ static const struct iio_mount_matrix *
 ak8975_get_mount_matrix(const struct iio_dev *indio_dev,
 			const struct iio_chan_spec *chan)
 {
-	return &((struct ak8975_data *)iio_priv(indio_dev))->orientation;
+	struct ak8975_data *data = iio_priv(indio_dev);
+
+	return &data->orientation;
 }
 
 static const struct iio_chan_spec_ext_info ak8975_ext_info[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, ak8975_get_mount_matrix),
-	{ },
+	{ }
 };
 
 #define AK8975_CHANNEL(axis, index)					\
@@ -792,7 +781,7 @@ static const struct acpi_device_id ak_acpi_match[] = {
 	{"AK09911", AK09911},
 	{"AKM9911", AK09911},
 	{"AK09912", AK09912},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
 #endif
@@ -911,9 +900,8 @@ static int ak8975_probe(struct i2c_client *client,
 	data->eoc_irq = 0;
 
 	if (!pdata) {
-		err = of_iio_read_mount_matrix(&client->dev,
-					       "mount-matrix",
-					       &data->orientation);
+		err = iio_read_mount_matrix(&client->dev, "mount-matrix",
+					    &data->orientation);
 		if (err)
 			return err;
 	} else

@@ -193,13 +193,13 @@ static const u8 table_msbc_silence[SCO_PACKET_180] = {
 static void mtk_btcvsd_snd_irq_enable(struct mtk_btcvsd_snd *bt)
 {
 	regmap_update_bits(bt->infra, bt->infra_misc_offset,
-			   bt->conn_bt_cvsd_mask, bt->conn_bt_cvsd_mask);
+			   bt->conn_bt_cvsd_mask, 0);
 }
 
 static void mtk_btcvsd_snd_irq_disable(struct mtk_btcvsd_snd *bt)
 {
 	regmap_update_bits(bt->infra, bt->infra_misc_offset,
-			   bt->conn_bt_cvsd_mask, 0);
+			   bt->conn_bt_cvsd_mask, bt->conn_bt_cvsd_mask);
 }
 
 static void mtk_btcvsd_snd_set_state(struct mtk_btcvsd_snd *bt,

@@ -4104,6 +4104,9 @@ def_access_ibp_counter(seq_naks);
 
 static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 [C_RCV_OVF] = RXE32_DEV_CNTR_ELEM(RcvOverflow, RCV_BUF_OVFL_CNT, CNTR_SYNTH),
+[C_RX_LEN_ERR] = RXE32_DEV_CNTR_ELEM(RxLenErr, RCV_LENGTH_ERR_CNT, CNTR_SYNTH),
+[C_RX_ICRC_ERR] = RXE32_DEV_CNTR_ELEM(RxICrcErr, RCV_ICRC_ERR_CNT, CNTR_SYNTH),
+[C_RX_EBP] = RXE32_DEV_CNTR_ELEM(RxEbpCnt, RCV_EBP_CNT, CNTR_SYNTH),
 [C_RX_TID_FULL] = RXE32_DEV_CNTR_ELEM(RxTIDFullEr, RCV_TID_FULL_ERR_CNT,
 			CNTR_NORMAL),
 [C_RX_TID_INVALID] = RXE32_DEV_CNTR_ELEM(RxTIDInvalid, RCV_TID_VALID_ERR_CNT,
@@ -8365,7 +8368,6 @@ static inline void clear_recv_intr(struct hfi1_ctxtdata *rcd)
 	struct hfi1_devdata *dd = rcd->dd;
 	u32 addr = CCE_INT_CLEAR + (8 * rcd->ireg);
 
-	mmiowb();	/* make sure everything before is written */
 	write_csr(dd, addr, rcd->imask);
 	/* force the above write on the chip and get a value back */
 	(void)read_csr(dd, addr);
@@ -9848,6 +9850,7 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 
 	/* disable the port */
 	clear_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
+	cancel_work_sync(&ppd->freeze_work);
 }
 
 static inline int init_cpu_counters(struct hfi1_devdata *dd)
@@ -11803,12 +11806,10 @@ void update_usrhead(struct hfi1_ctxtdata *rcd, u32 hd, u32 updegr, u32 egrhd,
 			<< RCV_EGR_INDEX_HEAD_HEAD_SHIFT;
 		write_uctxt_csr(dd, ctxt, RCV_EGR_INDEX_HEAD, reg);
 	}
-	mmiowb();
 	reg = ((u64)rcv_intr_count << RCV_HDR_HEAD_COUNTER_SHIFT) |
 		(((u64)hd & RCV_HDR_HEAD_HEAD_MASK)
 			<< RCV_HDR_HEAD_HEAD_SHIFT);
 	write_uctxt_csr(dd, ctxt, RCV_HDR_HEAD, reg);
-	mmiowb();
 }
 
 u32 hdrqempty(struct hfi1_ctxtdata *rcd)
@@ -13297,15 +13298,18 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	/*
 	 * The RMT entries are currently allocated as shown below:
 	 * 1. QOS (0 to 128 entries);
-	 * 2. FECN for PSM (num_user_contexts + num_vnic_contexts);
+	 * 2. FECN (num_kernel_context - 1 + num_user_contexts +
+	 *    num_vnic_contexts);
 	 * 3. VNIC (num_vnic_contexts).
-	 * It should be noted that PSM FECN oversubscribe num_vnic_contexts
+	 * It should be noted that FECN oversubscribe num_vnic_contexts
 	 * entries of RMT because both VNIC and PSM could allocate any receive
 	 * context between dd->first_dyn_alloc_text and dd->num_rcv_contexts,
 	 * and PSM FECN must reserve an RMT entry for each possible PSM receive
 	 * context.
 	 */
 	rmt_count = qos_rmt_entries(dd, NULL, NULL) + (num_vnic_contexts * 2);
+	if (HFI1_CAP_IS_KSET(TID_RDMA))
+		rmt_count += num_kernel_contexts - 1;
 	if (rmt_count + n_usr_ctxts > NUM_MAP_ENTRIES) {
 		user_rmt_reduced = NUM_MAP_ENTRIES - rmt_count;
 		dd_dev_err(dd,
@@ -14288,37 +14292,43 @@ bail:
 	init_qpmap_table(dd, FIRST_KERNEL_KCTXT, dd->n_krcv_queues - 1);
 }
 
-static void init_user_fecn_handling(struct hfi1_devdata *dd,
-				    struct rsm_map_table *rmt)
+static void init_fecn_handling(struct hfi1_devdata *dd,
+			       struct rsm_map_table *rmt)
 {
 	struct rsm_rule_data rrd;
 	u64 reg;
-	int i, idx, regoff, regidx;
+	int i, idx, regoff, regidx, start;
 	u8 offset;
 	u32 total_cnt;
 
+	if (HFI1_CAP_IS_KSET(TID_RDMA))
+		/* Exclude context 0 */
+		start = 1;
+	else
+		start = dd->first_dyn_alloc_ctxt;
+
+	total_cnt = dd->num_rcv_contexts - start;
+
 	/* there needs to be enough room in the map table */
-	total_cnt = dd->num_rcv_contexts - dd->first_dyn_alloc_ctxt;
 	if (rmt->used + total_cnt >= NUM_MAP_ENTRIES) {
-		dd_dev_err(dd, "User FECN handling disabled - too many user contexts allocated\n");
+		dd_dev_err(dd, "FECN handling disabled - too many contexts allocated\n");
 		return;
 	}
 
 	/*
 	 * RSM will extract the destination context as an index into the
 	 * map table.  The destination contexts are a sequential block
-	 * in the range first_dyn_alloc_ctxt...num_rcv_contexts-1 (inclusive).
+	 * in the range start...num_rcv_contexts-1 (inclusive).
 	 * Map entries are accessed as offset + extracted value.  Adjust
 	 * the added offset so this sequence can be placed anywhere in
 	 * the table - as long as the entries themselves do not wrap.
 	 * There are only enough bits in offset for the table size, so
 	 * start with that to allow for a "negative" offset.
 	 */
-	offset = (u8)(NUM_MAP_ENTRIES + (int)rmt->used -
-						(int)dd->first_dyn_alloc_ctxt);
+	offset = (u8)(NUM_MAP_ENTRIES + rmt->used - start);
 
-	for (i = dd->first_dyn_alloc_ctxt, idx = rmt->used;
-				i < dd->num_rcv_contexts; i++, idx++) {
+	for (i = start, idx = rmt->used; i < dd->num_rcv_contexts;
+	     i++, idx++) {
 		/* replace with identity mapping */
 		regoff = (idx % 8) * 8;
 		regidx = idx / 8;
@@ -14440,7 +14450,7 @@ static void init_rxe(struct hfi1_devdata *dd)
 	rmt = alloc_rsm_map_table(dd);
 	/* set up QOS, including the QPN map table */
 	init_qos(dd, rmt);
-	init_user_fecn_handling(dd, rmt);
+	init_fecn_handling(dd, rmt);
 	complete_rsm_map_table(dd, rmt);
 	/* record number of used rsm map entries for vnic */
 	dd->vnic.rmt_start = rmt->used;
@@ -14666,8 +14676,8 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd)
  */
 static int init_asic_data(struct hfi1_devdata *dd)
 {
-	unsigned long flags;
-	struct hfi1_devdata *tmp, *peer = NULL;
+	unsigned long index;
+	struct hfi1_devdata *peer;
 	struct hfi1_asic_data *asic_data;
 	int ret = 0;
 
@@ -14676,14 +14686,12 @@ static int init_asic_data(struct hfi1_devdata *dd)
 	if (!asic_data)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
+	xa_lock_irq(&hfi1_dev_table);
 	/* Find our peer device */
-	list_for_each_entry(tmp, &hfi1_dev_list, list) {
-		if ((HFI_BASE_GUID(dd) == HFI_BASE_GUID(tmp)) &&
-		    dd->unit != tmp->unit) {
-			peer = tmp;
+	xa_for_each(&hfi1_dev_table, index, peer) {
+		if ((HFI_BASE_GUID(dd) == HFI_BASE_GUID(peer)) &&
+		    dd->unit != peer->unit)
 			break;
-		}
 	}
 
 	if (peer) {
@@ -14695,7 +14703,7 @@ static int init_asic_data(struct hfi1_devdata *dd)
 		mutex_init(&dd->asic_data->asic_resource_mutex);
 	}
 	dd->asic_data->dds[dd->hfi1_id] = dd; /* self back-pointer */
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	xa_unlock_irq(&hfi1_dev_table);
 
 	/* first one through - set up i2c devices */
 	if (!peer)

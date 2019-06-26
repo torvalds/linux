@@ -906,8 +906,8 @@ static int fuse_check_page(struct page *page)
 	       1 << PG_lru |
 	       1 << PG_active |
 	       1 << PG_reclaim))) {
-		printk(KERN_WARNING "fuse: trying to steal weird page\n");
-		printk(KERN_WARNING "  page=%p index=%li flags=%08lx, count=%i, mapcount=%i, mapping=%p\n", page, page->index, page->flags, page_count(page), page_mapcount(page), page->mapping);
+		pr_warn("trying to steal weird page\n");
+		pr_warn("  page=%p index=%li flags=%08lx, count=%i, mapcount=%i, mapping=%p\n", page, page->index, page->flags, page_count(page), page_mapcount(page), page->mapping);
 		return 1;
 	}
 	return 0;
@@ -1316,6 +1316,16 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	struct fuse_in *in;
 	unsigned reqsize;
 	unsigned int hash;
+
+	/*
+	 * Require sane minimum read buffer - that has capacity for fixed part
+	 * of any request header + negotated max_write room for data. If the
+	 * requirement is not satisfied return EINVAL to the filesystem server
+	 * to indicate that it is not following FUSE server/client contract.
+	 * Don't dequeue / abort any request.
+	 */
+	if (nbytes < max_t(size_t, FUSE_MIN_READ_BUFFER, 4096 + fc->max_write))
+		return -EINVAL;
 
  restart:
 	spin_lock(&fiq->waitq.lock);
@@ -1749,7 +1759,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	offset = outarg->offset & ~PAGE_MASK;
 	file_size = i_size_read(inode);
 
-	num = outarg->size;
+	num = min(outarg->size, fc->max_write);
 	if (outarg->offset > file_size)
 		num = 0;
 	else if (outarg->offset + num > file_size)

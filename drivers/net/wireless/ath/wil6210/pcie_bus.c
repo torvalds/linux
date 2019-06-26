@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -176,7 +176,7 @@ static void wil_remove_all_additional_vifs(struct wil6210_priv *wil)
 	struct wil6210_vif *vif;
 	int i;
 
-	for (i = 1; i < wil->max_vifs; i++) {
+	for (i = 1; i < GET_MAX_VIFS(wil); i++) {
 		vif = wil->vifs[i];
 		if (vif) {
 			wil_vif_prepare_stop(vif);

@@ -126,7 +126,7 @@ void secondary_start_kernel(void)
 
 	init_mmu();
 
-#ifdef CONFIG_DEBUG_KERNEL
+#ifdef CONFIG_DEBUG_MISC
 	if (boot_secondary_processors == 0) {
 		pr_debug("%s: boot_secondary_processors:%d; Hanging cpu:%d\n",
 			__func__, boot_secondary_processors, cpu);

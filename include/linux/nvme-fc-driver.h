@@ -17,12 +17,6 @@
 
 
 
-/* FC Port role bitmask - can merge with FC Port Roles in fc transport */
-#define FC_PORT_ROLE_NVME_INITIATOR	0x10
-#define FC_PORT_ROLE_NVME_TARGET	0x20
-#define FC_PORT_ROLE_NVME_DISCOVERY	0x40
-
-
 /**
  * struct nvme_fc_port_info - port-specific ids and FC connection-specific
  *                            data element used during NVME Host role

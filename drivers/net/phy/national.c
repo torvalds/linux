@@ -128,7 +128,7 @@ static struct phy_driver dp83865_driver[] = { {
 	.phy_id = DP83865_PHY_ID,
 	.phy_id_mask = 0xfffffff0,
 	.name = "NatSemi DP83865",
-	.features = PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.config_init = ns_config_init,
 	.ack_interrupt = ns_ack_interrupt,
 	.config_intr = ns_config_intr,

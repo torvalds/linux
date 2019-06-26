@@ -451,7 +451,9 @@ failed_out:
 /**
  *	ext2_alloc_branch - allocate and set up a chain of blocks.
  *	@inode: owner
- *	@num: depth of the chain (number of blocks to allocate)
+ *	@indirect_blks: depth of the chain (number of blocks to allocate)
+ *	@blks: number of allocated direct blocks
+ *	@goal: preferred place for allocation
  *	@offsets: offsets (in the blocks) to store the pointers to next.
  *	@branch: place to store the chain in.
  *

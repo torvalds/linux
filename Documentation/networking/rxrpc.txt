@@ -796,7 +796,9 @@ The kernel interface functions are as follows:
 				s64 tx_total_len,
 				gfp_t gfp,
 				rxrpc_notify_rx_t notify_rx,
-				bool upgrade);
+				bool upgrade,
+				bool intr,
+				unsigned int debug_id);
 
      This allocates the infrastructure to make a new RxRPC call and assigns
      call and connection numbers.  The call will be made on the UDP port that
@@ -823,6 +825,13 @@ The kernel interface functions are as follows:
      upgrade should be set to true if a client operation should request that
      the server upgrade the service to a better one.  The resultant service ID
      is returned by rxrpc_kernel_recv_data().
+
+     intr should be set to true if the call should be interruptible.  If this
+     is not set, this function may not return until a channel has been
+     allocated; if it is set, the function may return -ERESTARTSYS.
+
+     debug_id is the call debugging ID to be used for tracing.  This can be
+     obtained by atomically incrementing rxrpc_debug_id.
 
      If this function is successful, an opaque reference to the RxRPC call is
      returned.  The caller now holds a reference on this and it must be
@@ -1009,16 +1018,18 @@ The kernel interface functions are as follows:
 
  (*) Check call still alive.
 
-	u32 rxrpc_kernel_check_life(struct socket *sock,
-				    struct rxrpc_call *call);
+	bool rxrpc_kernel_check_life(struct socket *sock,
+				     struct rxrpc_call *call,
+				     u32 *_life);
 	void rxrpc_kernel_probe_life(struct socket *sock,
 				     struct rxrpc_call *call);
 
-     The first function returns a number that is updated when ACKs are received
-     from the peer (notably including PING RESPONSE ACKs which we can elicit by
-     sending PING ACKs to see if the call still exists on the server).  The
-     caller should compare the numbers of two calls to see if the call is still
-     alive after waiting for a suitable interval.
+     The first function passes back in *_life a number that is updated when
+     ACKs are received from the peer (notably including PING RESPONSE ACKs
+     which we can elicit by sending PING ACKs to see if the call still exists
+     on the server).  The caller should compare the numbers of two calls to see
+     if the call is still alive after waiting for a suitable interval.  It also
+     returns true as long as the call hasn't yet reached the completed state.
 
      This allows the caller to work out if the server is still contactable and
      if the call is still alive on the server while waiting for the server to
@@ -1053,6 +1064,16 @@ The kernel interface functions are as follows:
 
      This value can be used to determine if the remote client has been
      restarted as it shouldn't change otherwise.
+
+ (*) Set the maxmimum lifespan on a call.
+
+	void rxrpc_kernel_set_max_life(struct socket *sock,
+				       struct rxrpc_call *call,
+				       unsigned long hard_timeout)
+
+     This sets the maximum lifespan on a call to hard_timeout (which is in
+     jiffies).  In the event of the timeout occurring, the call will be
+     aborted and -ETIME or -ETIMEDOUT will be returned.
 
 
 =======================

@@ -16,6 +16,7 @@
 #include <linux/string.h>
 
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 
 #include <asm/hwcap.h>
 #include <asm/neon.h>
@@ -113,7 +114,7 @@ static int crc32_pmull_update(struct shash_desc *desc, const u8 *data,
 	u32 *crc = shash_desc_ctx(desc);
 	unsigned int l;
 
-	if (may_use_simd()) {
+	if (crypto_simd_usable()) {
 		if ((u32)data % SCALE_F) {
 			l = min_t(u32, length, SCALE_F - ((u32)data % SCALE_F));
 
@@ -147,7 +148,7 @@ static int crc32c_pmull_update(struct shash_desc *desc, const u8 *data,
 	u32 *crc = shash_desc_ctx(desc);
 	unsigned int l;
 
-	if (may_use_simd()) {
+	if (crypto_simd_usable()) {
 		if ((u32)data % SCALE_F) {
 			l = min_t(u32, length, SCALE_F - ((u32)data % SCALE_F));
 

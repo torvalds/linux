@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -5,7 +6,6 @@
  *
  *		Generic socket support routines. Memory allocators, socket lock/release
  *		handler for protocols to use and generic option handler.
- *
  *
  * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
@@ -81,12 +81,6 @@
  *		Arnaldo C. Melo :       cleanups, use skb_queue_purge
  *
  * To Fix:
- *
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -137,6 +131,7 @@
 
 #include <linux/filter.h>
 #include <net/sock_reuseport.h>
+#include <net/bpf_sk_storage.h>
 
 #include <trace/events/sock.h>
 
@@ -348,7 +343,7 @@ static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 		tv.tv_usec = ((timeo % HZ) * USEC_PER_SEC) / HZ;
 	}
 
-	if (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
+	if (old_timeval && in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct old_timeval32 tv32 = { tv.tv_sec, tv.tv_usec };
 		*(struct old_timeval32 *)optval = tv32;
 		return sizeof(tv32);
@@ -372,7 +367,7 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen, bool
 {
 	struct __kernel_sock_timeval tv;
 
-	if (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
+	if (old_timeval && in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct old_timeval32 tv32;
 
 		if (optlen < sizeof(tv32))
@@ -1709,6 +1704,10 @@ static void __sk_destruct(struct rcu_head *head)
 
 	sock_disable_timestamp(sk, SK_FLAGS_TIMESTAMP);
 
+#ifdef CONFIG_BPF_SYSCALL
+	bpf_sk_storage_free(sk);
+#endif
+
 	if (atomic_read(&sk->sk_omem_alloc))
 		pr_debug("%s: optmem leakage (%d bytes) detected\n",
 			 __func__, atomic_read(&sk->sk_omem_alloc));
@@ -2977,39 +2976,44 @@ bool lock_sock_fast(struct sock *sk)
 }
 EXPORT_SYMBOL(lock_sock_fast);
 
-int sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
+int sock_gettstamp(struct socket *sock, void __user *userstamp,
+		   bool timeval, bool time32)
 {
-	struct timeval tv;
+	struct sock *sk = sock->sk;
+	struct timespec64 ts;
 
 	sock_enable_timestamp(sk, SOCK_TIMESTAMP);
-	tv = ktime_to_timeval(sock_read_timestamp(sk));
-	if (tv.tv_sec == -1)
-		return -ENOENT;
-	if (tv.tv_sec == 0) {
-		ktime_t kt = ktime_get_real();
-		sock_write_timestamp(sk, kt);
-		tv = ktime_to_timeval(kt);
-	}
-	return copy_to_user(userstamp, &tv, sizeof(tv)) ? -EFAULT : 0;
-}
-EXPORT_SYMBOL(sock_get_timestamp);
-
-int sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
-{
-	struct timespec ts;
-
-	sock_enable_timestamp(sk, SOCK_TIMESTAMP);
-	ts = ktime_to_timespec(sock_read_timestamp(sk));
+	ts = ktime_to_timespec64(sock_read_timestamp(sk));
 	if (ts.tv_sec == -1)
 		return -ENOENT;
 	if (ts.tv_sec == 0) {
 		ktime_t kt = ktime_get_real();
-		sock_write_timestamp(sk, kt);
-		ts = ktime_to_timespec(sk->sk_stamp);
+		sock_write_timestamp(sk, kt);;
+		ts = ktime_to_timespec64(kt);
 	}
-	return copy_to_user(userstamp, &ts, sizeof(ts)) ? -EFAULT : 0;
+
+	if (timeval)
+		ts.tv_nsec /= 1000;
+
+#ifdef CONFIG_COMPAT_32BIT_TIME
+	if (time32)
+		return put_old_timespec32(&ts, userstamp);
+#endif
+#ifdef CONFIG_SPARC64
+	/* beware of padding in sparc64 timeval */
+	if (timeval && !in_compat_syscall()) {
+		struct __kernel_old_timeval __user tv = {
+			.tv_sec = ts.tv_sec,
+			.tv_usec = ts.tv_nsec,
+		};
+		if (copy_to_user(userstamp, &tv, sizeof(tv)))
+			return -EFAULT;
+		return 0;
+	}
+#endif
+	return put_timespec64(&ts, userstamp);
 }
-EXPORT_SYMBOL(sock_get_timestampns);
+EXPORT_SYMBOL(sock_gettstamp);
 
 void sock_enable_timestamp(struct sock *sk, int flag)
 {

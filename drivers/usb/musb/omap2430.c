@@ -531,6 +531,9 @@ static int omap2430_runtime_suspend(struct device *dev)
 
 	omap2430_low_level_exit(musb);
 
+	phy_power_off(musb->phy);
+	phy_exit(musb->phy);
+
 	return 0;
 }
 
@@ -541,6 +544,9 @@ static int omap2430_runtime_resume(struct device *dev)
 
 	if (!musb)
 		return 0;
+
+	phy_init(musb->phy);
+	phy_power_on(musb->phy);
 
 	omap2430_low_level_init(musb);
 	musb_writel(musb->mregs, OTG_INTERFSEL,

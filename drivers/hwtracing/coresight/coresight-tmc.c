@@ -8,10 +8,12 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
+#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -340,6 +342,8 @@ static inline bool tmc_etr_can_use_sg(struct tmc_drvdata *drvdata)
 static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 			     u32 devid, void *dev_caps)
 {
+	int rc;
+
 	u32 dma_mask = 0;
 
 	/* Set the unadvertised capabilities */
@@ -369,7 +373,10 @@ static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 		dma_mask = 40;
 	}
 
-	return dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(dma_mask));
+	rc = dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(dma_mask));
+	if (rc)
+		dev_err(drvdata->dev, "Failed to setup DMA mask: %d\n", rc);
+	return rc;
 }
 
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
@@ -415,6 +422,8 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
 	drvdata->config_type = BMVAL(devid, 6, 7);
 	drvdata->memwidth = tmc_get_memwidth(devid);
+	/* This device is not associated with a session */
+	drvdata->pid = -1;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		if (np)
@@ -426,8 +435,6 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	} else {
 		drvdata->size = readl_relaxed(drvdata->base + TMC_RSZ) * 4;
 	}
-
-	pm_runtime_put(&adev->dev);
 
 	desc.pdata = pdata;
 	desc.dev = dev;
@@ -447,6 +454,8 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 					 coresight_get_uci_data(id));
 		if (ret)
 			goto out;
+		idr_init(&drvdata->idr);
+		mutex_init(&drvdata->idr_mutex);
 		break;
 	case TMC_CONFIG_TYPE_ETF:
 		desc.type = CORESIGHT_DEV_TYPE_LINKSINK;
@@ -471,6 +480,8 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = misc_register(&drvdata->miscdev);
 	if (ret)
 		coresight_unregister(drvdata->csdev);
+	else
+		pm_runtime_put(&adev->dev);
 out:
 	return ret;
 }

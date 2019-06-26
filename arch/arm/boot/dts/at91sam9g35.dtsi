@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam9g35.dtsi - Device Tree Include file for AT91SAM9G35 SoC
  *
  * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2.
  */
 
 #include "at91sam9x5.dtsi"

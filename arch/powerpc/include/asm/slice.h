@@ -4,9 +4,7 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/slice.h>
-#elif defined(CONFIG_PPC64)
-#include <asm/nohash/64/slice.h>
-#elif defined(CONFIG_PPC_MMU_NOHASH)
+#elif defined(CONFIG_PPC_MMU_NOHASH_32)
 #include <asm/nohash/32/slice.h>
 #endif
 
@@ -37,6 +35,11 @@ void slice_setup_new_exec(void);
 #else /* CONFIG_PPC_MM_SLICES */
 
 static inline void slice_init_new_context_exec(struct mm_struct *mm) {}
+
+static inline unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
+{
+	return 0;
+}
 
 #endif /* CONFIG_PPC_MM_SLICES */
 

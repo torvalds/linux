@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
@@ -610,7 +611,7 @@ SYSFS_PMCSETUP(pa6t_pmc2, SPRN_PA6T_PMC2);
 SYSFS_PMCSETUP(pa6t_pmc3, SPRN_PA6T_PMC3);
 SYSFS_PMCSETUP(pa6t_pmc4, SPRN_PA6T_PMC4);
 SYSFS_PMCSETUP(pa6t_pmc5, SPRN_PA6T_PMC5);
-#ifdef CONFIG_DEBUG_KERNEL
+#ifdef CONFIG_DEBUG_MISC
 SYSFS_SPRSETUP(hid0, SPRN_HID0);
 SYSFS_SPRSETUP(hid1, SPRN_HID1);
 SYSFS_SPRSETUP(hid4, SPRN_HID4);
@@ -639,7 +640,7 @@ SYSFS_SPRSETUP(tsr0, SPRN_PA6T_TSR0);
 SYSFS_SPRSETUP(tsr1, SPRN_PA6T_TSR1);
 SYSFS_SPRSETUP(tsr2, SPRN_PA6T_TSR2);
 SYSFS_SPRSETUP(tsr3, SPRN_PA6T_TSR3);
-#endif /* CONFIG_DEBUG_KERNEL */
+#endif /* CONFIG_DEBUG_MISC */
 #endif /* HAS_PPC_PMC_PA6T */
 
 #ifdef HAS_PPC_PMC_IBM
@@ -680,7 +681,7 @@ static struct device_attribute pa6t_attrs[] = {
 	__ATTR(pmc3, 0600, show_pa6t_pmc3, store_pa6t_pmc3),
 	__ATTR(pmc4, 0600, show_pa6t_pmc4, store_pa6t_pmc4),
 	__ATTR(pmc5, 0600, show_pa6t_pmc5, store_pa6t_pmc5),
-#ifdef CONFIG_DEBUG_KERNEL
+#ifdef CONFIG_DEBUG_MISC
 	__ATTR(hid0, 0600, show_hid0, store_hid0),
 	__ATTR(hid1, 0600, show_hid1, store_hid1),
 	__ATTR(hid4, 0600, show_hid4, store_hid4),
@@ -709,7 +710,7 @@ static struct device_attribute pa6t_attrs[] = {
 	__ATTR(tsr1, 0600, show_tsr1, store_tsr1),
 	__ATTR(tsr2, 0600, show_tsr2, store_tsr2),
 	__ATTR(tsr3, 0600, show_tsr3, store_tsr3),
-#endif /* CONFIG_DEBUG_KERNEL */
+#endif /* CONFIG_DEBUG_MISC */
 };
 #endif /* HAS_PPC_PMC_PA6T */
 #endif /* HAS_PPC_PMC_CLASSIC */

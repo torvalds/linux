@@ -158,7 +158,7 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 		return -EINVAL;
 	}
 
-	n_planes = drm_format_num_planes(fb->format->format);
+	n_planes = fb->format->num_planes;
 	for (i = 0; i < n_planes; i++) {
 		struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(fb, i);
 		/* memory write buffers are never rotated */

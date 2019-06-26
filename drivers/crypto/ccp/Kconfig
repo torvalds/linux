@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CRYPTO_DEV_CCP_DD
 	tristate "Secure Processor device driver"
 	depends on CPU_SUP_AMD || ARM64

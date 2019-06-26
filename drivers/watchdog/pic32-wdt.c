@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PIC32 watchdog driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
  * Copyright (c) 2016, Microchip Technology Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -166,89 +162,77 @@ static const struct of_device_id pic32_wdt_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, pic32_wdt_dt_ids);
 
+static void pic32_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int pic32_wdt_drv_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
 	struct watchdog_device *wdd = &pic32_wdd;
 	struct pic32_wdt *wdt;
-	struct resource *mem;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->regs = devm_ioremap_resource(&pdev->dev, mem);
+	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->regs))
 		return PTR_ERR(wdt->regs);
 
-	wdt->rst_base = devm_ioremap(&pdev->dev, PIC32_BASE_RESET, 0x10);
+	wdt->rst_base = devm_ioremap(dev, PIC32_BASE_RESET, 0x10);
 	if (!wdt->rst_base)
 		return -ENOMEM;
 
-	wdt->clk = devm_clk_get(&pdev->dev, NULL);
+	wdt->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(wdt->clk)) {
-		dev_err(&pdev->dev, "clk not found\n");
+		dev_err(dev, "clk not found\n");
 		return PTR_ERR(wdt->clk);
 	}
 
 	ret = clk_prepare_enable(wdt->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "clk enable failed\n");
+		dev_err(dev, "clk enable failed\n");
 		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, pic32_clk_disable_unprepare,
+				       wdt->clk);
+	if (ret)
+		return ret;
 
 	if (pic32_wdt_is_win_enabled(wdt)) {
-		dev_err(&pdev->dev, "windowed-clear mode is not supported.\n");
-		ret = -ENODEV;
-		goto out_disable_clk;
+		dev_err(dev, "windowed-clear mode is not supported.\n");
+		return -ENODEV;
 	}
 
-	wdd->timeout = pic32_wdt_get_timeout_secs(wdt, &pdev->dev);
+	wdd->timeout = pic32_wdt_get_timeout_secs(wdt, dev);
 	if (!wdd->timeout) {
-		dev_err(&pdev->dev,
-			"failed to read watchdog register timeout\n");
-		ret = -EINVAL;
-		goto out_disable_clk;
+		dev_err(dev, "failed to read watchdog register timeout\n");
+		return -EINVAL;
 	}
 
-	dev_info(&pdev->dev, "timeout %d\n", wdd->timeout);
+	dev_info(dev, "timeout %d\n", wdd->timeout);
 
 	wdd->bootstatus = pic32_wdt_bootstatus(wdt) ? WDIOF_CARDRESET : 0;
 
 	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
 	watchdog_set_drvdata(wdd, wdt);
 
-	ret = watchdog_register_device(wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
 	if (ret) {
-		dev_err(&pdev->dev, "watchdog register failed, err %d\n", ret);
-		goto out_disable_clk;
+		dev_err(dev, "watchdog register failed, err %d\n", ret);
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, wdd);
-
-	return 0;
-
-out_disable_clk:
-	clk_disable_unprepare(wdt->clk);
-
-	return ret;
-}
-
-static int pic32_wdt_drv_remove(struct platform_device *pdev)
-{
-	struct watchdog_device *wdd = platform_get_drvdata(pdev);
-	struct pic32_wdt *wdt = watchdog_get_drvdata(wdd);
-
-	watchdog_unregister_device(wdd);
-	clk_disable_unprepare(wdt->clk);
 
 	return 0;
 }
 
 static struct platform_driver pic32_wdt_driver = {
 	.probe		= pic32_wdt_drv_probe,
-	.remove		= pic32_wdt_drv_remove,
 	.driver		= {
 		.name		= "pic32-wdt",
 		.of_match_table = of_match_ptr(pic32_wdt_dt_ids),

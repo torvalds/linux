@@ -168,6 +168,7 @@ void rds_ib_recv_free_caches(struct rds_ib_connection *ic)
 		list_del(&inc->ii_cache_entry);
 		WARN_ON(!list_empty(&inc->ii_frags));
 		kmem_cache_free(rds_ib_incoming_slab, inc);
+		atomic_dec(&rds_ib_allocation);
 	}
 
 	rds_ib_cache_xfer_to_ready(&ic->i_cache_frags);
@@ -772,7 +773,7 @@ static void rds_ib_cong_recv(struct rds_connection *conn,
 	unsigned long frag_off;
 	unsigned long to_copy;
 	unsigned long copied;
-	uint64_t uncongested = 0;
+	__le64 uncongested = 0;
 	void *addr;
 
 	/* catch completely corrupt packets */
@@ -789,7 +790,7 @@ static void rds_ib_cong_recv(struct rds_connection *conn,
 	copied = 0;
 
 	while (copied < RDS_CONG_MAP_BYTES) {
-		uint64_t *src, *dst;
+		__le64 *src, *dst;
 		unsigned int k;
 
 		to_copy = min(RDS_FRAG_SIZE - frag_off, PAGE_SIZE - map_off);
@@ -824,9 +825,7 @@ static void rds_ib_cong_recv(struct rds_connection *conn,
 	}
 
 	/* the congestion map is in little endian order */
-	uncongested = le64_to_cpu(uncongested);
-
-	rds_cong_map_updated(map, uncongested);
+	rds_cong_map_updated(map, le64_to_cpu(uncongested));
 }
 
 static void rds_ib_process_recv(struct rds_connection *conn,
@@ -1059,6 +1058,8 @@ out:
 
 void rds_ib_recv_exit(void)
 {
+	WARN_ON(atomic_read(&rds_ib_allocation));
+
 	kmem_cache_destroy(rds_ib_incoming_slab);
 	kmem_cache_destroy(rds_ib_frag_slab);
 }

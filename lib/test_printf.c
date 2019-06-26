@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Test cases for printf facility.
  */
@@ -20,6 +21,8 @@
 
 #include <linux/gfp.h>
 #include <linux/mm.h>
+
+#include "../tools/testing/selftests/kselftest_module.h"
 
 #define BUF_SIZE 256
 #define PAD_SIZE 16
@@ -239,6 +242,7 @@ plain_format(void)
 #define PTR ((void *)0x456789ab)
 #define PTR_STR "456789ab"
 #define PTR_VAL_NO_CRNG "(ptrval)"
+#define ZEROS ""
 
 static int __init
 plain_format(void)
@@ -267,7 +271,6 @@ plain_hash_to_buffer(const void *p, char *buf, size_t len)
 
 	return 0;
 }
-
 
 static int __init
 plain_hash(void)
@@ -323,6 +326,24 @@ test_hashed(const char *fmt, const void *p)
 		return;
 
 	test(buf, fmt, p);
+}
+
+static void __init
+null_pointer(void)
+{
+	test_hashed("%p", NULL);
+	test(ZEROS "00000000", "%px", NULL);
+	test("(null)", "%pE", NULL);
+}
+
+#define PTR_INVALID ((void *)0x000000ab)
+
+static void __init
+invalid_pointer(void)
+{
+	test_hashed("%p", PTR_INVALID);
+	test(ZEROS "000000ab", "%px", PTR_INVALID);
+	test("(efault)", "%pE", PTR_INVALID);
 }
 
 static void __init
@@ -462,8 +483,7 @@ struct_rtc_time(void)
 		.tm_year = 118,
 	};
 
-	test_hashed("%pt", &tm);
-
+	test("(%ptR?)", "%pt", &tm);
 	test("2018-11-26T05:35:43", "%ptR", &tm);
 	test("0118-10-26T05:35:43", "%ptRr", &tm);
 	test("05:35:43|2018-11-26", "%ptRt|%ptRd", &tm, &tm);
@@ -481,14 +501,14 @@ static void __init
 large_bitmap(void)
 {
 	const int nbits = 1 << 16;
-	unsigned long *bits = kcalloc(BITS_TO_LONGS(nbits), sizeof(long), GFP_KERNEL);
+	unsigned long *bits = bitmap_zalloc(nbits, GFP_KERNEL);
 	if (!bits)
 		return;
 
 	bitmap_set(bits, 1, 20);
 	bitmap_set(bits, 60000, 15);
 	test("1-20,60000-60014", "%*pbl", nbits, bits);
-	kfree(bits);
+	bitmap_free(bits);
 }
 
 static void __init
@@ -572,6 +592,8 @@ static void __init
 test_pointer(void)
 {
 	plain();
+	null_pointer();
+	invalid_pointer();
 	symbol_ptr();
 	kernel_ptr();
 	struct_resource();
@@ -590,12 +612,11 @@ test_pointer(void)
 	flags();
 }
 
-static int __init
-test_printf_init(void)
+static void __init selftest(void)
 {
 	alloced_buffer = kmalloc(BUF_SIZE + 2*PAD_SIZE, GFP_KERNEL);
 	if (!alloced_buffer)
-		return -ENOMEM;
+		return;
 	test_buffer = alloced_buffer + PAD_SIZE;
 
 	test_basic();
@@ -604,16 +625,8 @@ test_printf_init(void)
 	test_pointer();
 
 	kfree(alloced_buffer);
-
-	if (failed_tests == 0)
-		pr_info("all %u tests passed\n", total_tests);
-	else
-		pr_warn("failed %u out of %u tests\n", failed_tests, total_tests);
-
-	return failed_tests ? -EINVAL : 0;
 }
 
-module_init(test_printf_init);
-
+KSTM_MODULE_LOADERS(test_printf);
 MODULE_AUTHOR("Rasmus Villemoes <linux@rasmusvillemoes.dk>");
 MODULE_LICENSE("GPL");

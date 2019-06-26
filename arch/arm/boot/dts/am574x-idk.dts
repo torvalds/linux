@@ -6,14 +6,14 @@
 
 /dts-v1/;
 
-#include "dra76x.dtsi"
+#include "am5748.dtsi"
 #include "dra7-mmc-iodelay.dtsi"
 #include "dra76x-mmc-iodelay.dtsi"
 #include "am572x-idk-common.dtsi"
 
 / {
 	model = "TI AM5748 IDK";
-	compatible = "ti,am5728-idk", "ti,dra762", "ti,dra7";
+	compatible = "ti,am5748-idk", "ti,am5748", "ti,dra762", "ti,dra7";
 };
 
 &qspi {

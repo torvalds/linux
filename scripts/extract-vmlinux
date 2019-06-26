@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 # ----------------------------------------------------------------------
 # extract-vmlinux - Extract uncompressed vmlinux from a kernel image
 #
@@ -7,7 +8,6 @@
 #
 # (c) 2011      Corentin Chary <corentin.chary@gmail.com>
 #
-# Licensed under the GNU General Public License, version 2 (GPLv2).
 # ----------------------------------------------------------------------
 
 check_vmlinux()

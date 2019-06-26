@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_utils_fw2x.c: Definition of firmware 2.x functions for
@@ -38,6 +35,7 @@
 #define HW_ATL_FW2X_CTRL_WOL              BIT(CTRL_WOL)
 #define HW_ATL_FW2X_CTRL_LINK_DROP        BIT(CTRL_LINK_DROP)
 #define HW_ATL_FW2X_CTRL_PAUSE            BIT(CTRL_PAUSE)
+#define HW_ATL_FW2X_CTRL_TEMPERATURE      BIT(CTRL_TEMPERATURE)
 #define HW_ATL_FW2X_CTRL_ASYMMETRIC_PAUSE BIT(CTRL_ASYMMETRIC_PAUSE)
 #define HW_ATL_FW2X_CTRL_FORCE_RECONNECT  BIT(CTRL_FORCE_RECONNECT)
 
@@ -310,6 +308,40 @@ static int aq_fw2x_update_stats(struct aq_hw_s *self)
 	return hw_atl_utils_update_stats(self);
 }
 
+static int aq_fw2x_get_phy_temp(struct aq_hw_s *self, int *temp)
+{
+	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+	u32 temp_val = mpi_opts & HW_ATL_FW2X_CTRL_TEMPERATURE;
+	u32 phy_temp_offset;
+	u32 temp_res;
+	int err = 0;
+	u32 val;
+
+	phy_temp_offset = self->mbox_addr +
+			  offsetof(struct hw_atl_utils_mbox, info) +
+			  offsetof(struct hw_aq_info, phy_temperature);
+	/* Toggle statistics bit for FW to 0x36C.18 (CTRL_TEMPERATURE) */
+	mpi_opts = mpi_opts ^ HW_ATL_FW2X_CTRL_TEMPERATURE;
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+	/* Wait FW to report back */
+	err = readx_poll_timeout_atomic(aq_fw2x_state2_get, self, val,
+					temp_val !=
+					(val & HW_ATL_FW2X_CTRL_TEMPERATURE),
+					1U, 10000U);
+	err = hw_atl_utils_fw_downld_dwords(self, phy_temp_offset,
+					    &temp_res, 1);
+
+	if (err)
+		return err;
+
+	/* Convert PHY temperature from 1/256 degree Celsius
+	 * to 1/1000 degree Celsius.
+	 */
+	*temp = temp_res  * 1000 / 256;
+
+	return 0;
+}
+
 static int aq_fw2x_set_sleep_proxy(struct aq_hw_s *self, u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *rpc = NULL;
@@ -349,7 +381,7 @@ static int aq_fw2x_set_sleep_proxy(struct aq_hw_s *self, u8 *mac)
 	err = readx_poll_timeout_atomic(aq_fw2x_state2_get,
 					self, val,
 					val & HW_ATL_FW2X_CTRL_SLEEP_PROXY,
-					1U, 10000U);
+					1U, 100000U);
 
 err_exit:
 	return err;
@@ -368,6 +400,8 @@ static int aq_fw2x_set_wol_params(struct aq_hw_s *self, u8 *mac)
 		goto err_exit;
 
 	msg = (struct fw2x_msg_wol *)rpc;
+
+	memset(msg, 0, sizeof(*msg));
 
 	msg->msg_id = HAL_ATLANTIC_UTILS_FW2X_MSG_WOL;
 	msg->magic_packet_enabled = true;
@@ -509,6 +543,7 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.set_state = aq_fw2x_set_state,
 	.update_link_status = aq_fw2x_update_link_status,
 	.update_stats = aq_fw2x_update_stats,
+	.get_phy_temp = aq_fw2x_get_phy_temp,
 	.set_power = aq_fw2x_set_power,
 	.set_eee_rate = aq_fw2x_set_eee_rate,
 	.get_eee_rate = aq_fw2x_get_eee_rate,

@@ -1,10 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Industrial I/O subsystem configuration
 #
 
 menuconfig IIO
 	tristate "Industrial I/O support"
-	select ANON_INODES
 	help
 	  The industrial I/O subsystem provides a unified framework for
 	  drivers for many different types of embedded sensors using a
@@ -39,28 +39,28 @@ config IIO_TRIGGER
 	  data now' interrupt.
 
 config IIO_CONSUMERS_PER_TRIGGER
-       int "Maximum number of consumers per trigger"
-       depends on IIO_TRIGGER
-       default "2"
-       help
-	This value controls the maximum number of consumers that a
-	given trigger may handle. Default is 2.
+	int "Maximum number of consumers per trigger"
+	depends on IIO_TRIGGER
+	default "2"
+	help
+	  This value controls the maximum number of consumers that a
+	  given trigger may handle. Default is 2.
 
 config IIO_SW_DEVICE
 	tristate "Enable software IIO device support"
 	select IIO_CONFIGFS
 	help
-	 Provides IIO core support for software devices. A software
-	 device can be created via configfs or directly by a driver
-	 using the API provided.
+	  Provides IIO core support for software devices. A software
+	  device can be created via configfs or directly by a driver
+	  using the API provided.
 
 config IIO_SW_TRIGGER
 	tristate "Enable software triggers support"
 	select IIO_CONFIGFS
 	help
-	 Provides IIO core support for software triggers. A software
-	 trigger can be created via configfs or directly by a driver
-	 using the API provided.
+	  Provides IIO core support for software triggers. A software
+	  trigger can be created via configfs or directly by a driver
+	  using the API provided.
 
 config IIO_TRIGGERED_EVENT
 	tristate
@@ -74,7 +74,6 @@ source "drivers/iio/afe/Kconfig"
 source "drivers/iio/amplifiers/Kconfig"
 source "drivers/iio/chemical/Kconfig"
 source "drivers/iio/common/Kconfig"
-source "drivers/iio/counter/Kconfig"
 source "drivers/iio/dac/Kconfig"
 source "drivers/iio/dummy/Kconfig"
 source "drivers/iio/frequency/Kconfig"

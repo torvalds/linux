@@ -305,6 +305,19 @@ do {									\
 	__ret;								\
 })
 
+#define __wait_var_event_interruptible(var, condition)			\
+	___wait_var_event(var, condition, TASK_INTERRUPTIBLE, 0, 0,	\
+			  schedule())
+
+#define wait_var_event_interruptible(var, condition)			\
+({									\
+	int __ret = 0;							\
+	might_sleep();							\
+	if (!(condition))						\
+		__ret = __wait_var_event_interruptible(var, condition);	\
+	__ret;								\
+})
+
 /**
  * clear_and_wake_up_bit - clear a bit and wake up anyone waiting on that bit
  *

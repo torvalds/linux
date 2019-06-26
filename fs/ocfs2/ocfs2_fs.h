@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -6,20 +7,6 @@
  * On-disk structures for OCFS2.
  *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License, version 2,  as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #ifndef _OCFS2_FS_H
@@ -392,21 +379,6 @@ static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 #define OCFS2_HB_GLOBAL			"heartbeat=global"
 
 /*
- * OCFS2 directory file types.  Only the low 3 bits are used.  The
- * other bits are reserved for now.
- */
-#define OCFS2_FT_UNKNOWN	0
-#define OCFS2_FT_REG_FILE	1
-#define OCFS2_FT_DIR		2
-#define OCFS2_FT_CHRDEV		3
-#define OCFS2_FT_BLKDEV		4
-#define OCFS2_FT_FIFO		5
-#define OCFS2_FT_SOCK		6
-#define OCFS2_FT_SYMLINK	7
-
-#define OCFS2_FT_MAX		8
-
-/*
  * OCFS2_DIR_PAD defines the directory entries boundaries
  *
  * NOTE: It must be a multiple of 4
@@ -423,17 +395,6 @@ static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 #define	OCFS2_DX_LINK_MAX	((1U << 31) - 1U)
 #define	OCFS2_LINKS_HI_SHIFT	16
 #define	OCFS2_DX_ENTRIES_MAX	(0xffffffffU)
-
-#define S_SHIFT			12
-static unsigned char ocfs2_type_by_mode[S_IFMT >> S_SHIFT] = {
-	[S_IFREG >> S_SHIFT]  = OCFS2_FT_REG_FILE,
-	[S_IFDIR >> S_SHIFT]  = OCFS2_FT_DIR,
-	[S_IFCHR >> S_SHIFT]  = OCFS2_FT_CHRDEV,
-	[S_IFBLK >> S_SHIFT]  = OCFS2_FT_BLKDEV,
-	[S_IFIFO >> S_SHIFT]  = OCFS2_FT_FIFO,
-	[S_IFSOCK >> S_SHIFT] = OCFS2_FT_SOCK,
-	[S_IFLNK >> S_SHIFT]  = OCFS2_FT_SYMLINK,
-};
 
 
 /*
@@ -1629,7 +1590,7 @@ static inline int ocfs2_sprintf_system_inode_name(char *buf, int len,
 static inline void ocfs2_set_de_type(struct ocfs2_dir_entry *de,
 				    umode_t mode)
 {
-	de->file_type = ocfs2_type_by_mode[(mode & S_IFMT)>>S_SHIFT];
+	de->file_type = fs_umode_to_ftype(mode);
 }
 
 static inline int ocfs2_gd_is_discontig(struct ocfs2_group_desc *gd)

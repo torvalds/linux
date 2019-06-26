@@ -260,7 +260,7 @@ static int ovl_instantiate(struct dentry *dentry, struct inode *inode,
 		 * hashed directory inode aliases.
 		 */
 		inode = ovl_get_inode(dentry->d_sb, &oip);
-		if (WARN_ON(IS_ERR(inode)))
+		if (IS_ERR(inode))
 			return PTR_ERR(inode);
 	} else {
 		WARN_ON(ovl_inode_real(inode) != d_inode(newdentry));

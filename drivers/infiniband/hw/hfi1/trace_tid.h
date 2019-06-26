@@ -53,7 +53,7 @@ u16 hfi1_trace_get_tid_idx(u32 ent);
 			    "tid_r_comp %u pending_tid_r_segs %u " \
 			    "s_flags 0x%x ps_flags 0x%x iow_flags 0x%lx " \
 			    "s_state 0x%x hw_flow_index %u generation 0x%x " \
-			    "fpsn 0x%x flow_flags 0x%x"
+			    "fpsn 0x%x"
 
 #define TID_REQ_PRN "[%s] qpn 0x%x newreq %u opcode 0x%x psn 0x%x lpsn 0x%x " \
 		    "cur_seg %u comp_seg %u ack_seg %u alloc_seg %u " \
@@ -71,7 +71,7 @@ u16 hfi1_trace_get_tid_idx(u32 ent);
 			    "pending_tid_w_segs %u sync_pt %s " \
 			    "ps_nak_psn 0x%x ps_nak_state 0x%x " \
 			    "prnr_nak_state 0x%x hw_flow_index %u generation "\
-			    "0x%x fpsn 0x%x flow_flags 0x%x resync %s" \
+			    "0x%x fpsn 0x%x resync %s" \
 			    "r_next_psn_kdeth 0x%x"
 
 #define TID_WRITE_SENDER_PRN "[%s] qpn 0x%x newreq %u s_tid_cur %u " \
@@ -973,7 +973,6 @@ DECLARE_EVENT_CLASS(/* tid_read_sender */
 		__field(u32, hw_flow_index)
 		__field(u32, generation)
 		__field(u32, fpsn)
-		__field(u32, flow_flags)
 	),
 	TP_fast_assign(/* assign */
 		struct hfi1_qp_priv *priv = qp->priv;
@@ -991,7 +990,6 @@ DECLARE_EVENT_CLASS(/* tid_read_sender */
 		__entry->hw_flow_index = priv->flow_state.index;
 		__entry->generation = priv->flow_state.generation;
 		__entry->fpsn = priv->flow_state.psn;
-		__entry->flow_flags = priv->flow_state.flags;
 	),
 	TP_printk(/* print */
 		TID_READ_SENDER_PRN,
@@ -1007,8 +1005,7 @@ DECLARE_EVENT_CLASS(/* tid_read_sender */
 		__entry->s_state,
 		__entry->hw_flow_index,
 		__entry->generation,
-		__entry->fpsn,
-		__entry->flow_flags
+		__entry->fpsn
 	)
 );
 
@@ -1338,7 +1335,6 @@ DECLARE_EVENT_CLASS(/* tid_write_sp */
 		__field(u32, hw_flow_index)
 		__field(u32, generation)
 		__field(u32, fpsn)
-		__field(u32, flow_flags)
 		__field(bool, resync)
 		__field(u32, r_next_psn_kdeth)
 	),
@@ -1360,7 +1356,6 @@ DECLARE_EVENT_CLASS(/* tid_write_sp */
 		__entry->hw_flow_index = priv->flow_state.index;
 		__entry->generation = priv->flow_state.generation;
 		__entry->fpsn = priv->flow_state.psn;
-		__entry->flow_flags = priv->flow_state.flags;
 		__entry->resync = priv->resync;
 		__entry->r_next_psn_kdeth = priv->r_next_psn_kdeth;
 	),
@@ -1381,7 +1376,6 @@ DECLARE_EVENT_CLASS(/* tid_write_sp */
 		__entry->hw_flow_index,
 		__entry->generation,
 		__entry->fpsn,
-		__entry->flow_flags,
 		__entry->resync ? "yes" : "no",
 		__entry->r_next_psn_kdeth
 	)

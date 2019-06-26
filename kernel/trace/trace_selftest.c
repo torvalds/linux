@@ -792,7 +792,10 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	/* check the trace buffer */
 	ret = trace_test_buffer(&tr->trace_buffer, &count);
 
-	trace->reset(tr);
+	/* Need to also simulate the tr->reset to remove this fgraph_ops */
+	tracing_stop_cmdline_record();
+	unregister_ftrace_graph(&fgraph_ops);
+
 	tracing_start();
 
 	if (!ret && !count) {

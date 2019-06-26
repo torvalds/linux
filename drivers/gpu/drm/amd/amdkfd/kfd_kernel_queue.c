@@ -58,9 +58,10 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->nop_packet = nop.u32all;
 	switch (type) {
 	case KFD_QUEUE_TYPE_DIQ:
+		kq->mqd_mgr = dev->dqm->mqd_mgrs[KFD_MQD_TYPE_DIQ];
+		break;
 	case KFD_QUEUE_TYPE_HIQ:
-		kq->mqd_mgr = dev->dqm->ops.get_mqd_manager(dev->dqm,
-						KFD_MQD_TYPE_HIQ);
+		kq->mqd_mgr = dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ];
 		break;
 	default:
 		pr_err("Invalid queue type %d\n", type);
@@ -314,6 +315,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		kernel_queue_init_vi(&kq->ops_asic_specific);
 		break;
 

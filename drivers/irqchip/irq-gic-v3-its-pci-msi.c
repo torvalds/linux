@@ -159,7 +159,7 @@ static int __init its_pci_of_msi_init(void)
 #ifdef CONFIG_ACPI
 
 static int __init
-its_pci_msi_parse_madt(struct acpi_subtable_header *header,
+its_pci_msi_parse_madt(union acpi_subtable_headers *header,
 		       const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;

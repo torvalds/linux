@@ -70,6 +70,15 @@ do {							\
 	tlb_remove_page((tlb), (pte));			\
 } while (0)
 
+#if CONFIG_PGTABLE_LEVELS > 2
+#define __pmd_free_tlb(tlb, pmdp, addr)			\
+do {							\
+	struct page *page = virt_to_page(pmdp);		\
+	pgtable_pmd_page_dtor(page);			\
+	tlb_remove_page((tlb), page);			\
+} while (0);
+#endif
+
 static inline void check_pgt_cache(void)
 {
 	quicklist_trim(QUICK_PT, NULL, 25, 16);

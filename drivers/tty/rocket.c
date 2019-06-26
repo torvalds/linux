@@ -266,7 +266,7 @@ MODULE_PARM_DESC(pc104_3, "set interface types for ISA(PC104) board #3 (e.g. pc1
 module_param_array(pc104_4, ulong, NULL, 0);
 MODULE_PARM_DESC(pc104_4, "set interface types for ISA(PC104) board #4 (e.g. pc104_4=232,232,485,485,...");
 
-static int rp_init(void);
+static int __init rp_init(void);
 static void rp_cleanup_module(void);
 
 module_init(rp_init);
@@ -1283,23 +1283,29 @@ static int rp_ioctl(struct tty_struct *tty,
 		return -ENXIO;
 
 	switch (cmd) {
-	case RCKP_GET_STRUCT:
-		if (copy_to_user(argp, info, sizeof (struct r_port)))
-			ret = -EFAULT;
-		break;
 	case RCKP_GET_CONFIG:
+		dev_warn_ratelimited(tty->dev,
+					"RCKP_GET_CONFIG option is deprecated\n");
 		ret = get_config(info, argp);
 		break;
 	case RCKP_SET_CONFIG:
+		dev_warn_ratelimited(tty->dev,
+					"RCKP_SET_CONFIG option is deprecated\n");
 		ret = set_config(tty, info, argp);
 		break;
 	case RCKP_GET_PORTS:
+		dev_warn_ratelimited(tty->dev,
+					"RCKP_GET_PORTS option is deprecated\n");
 		ret = get_ports(info, argp);
 		break;
 	case RCKP_RESET_RM2:
+		dev_warn_ratelimited(tty->dev,
+					"RCKP_RESET_RM2 option is deprecated\n");
 		ret = reset_rm2(info, argp);
 		break;
 	case RCKP_GET_VERSION:
+		dev_warn_ratelimited(tty->dev,
+					"RCKP_GET_VERSION option is deprecated\n");
 		ret = get_version(info, argp);
 		break;
 	default:

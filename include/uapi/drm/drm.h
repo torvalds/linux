@@ -50,6 +50,7 @@ typedef unsigned int drm_handle_t;
 
 #else /* One of the BSDs */
 
+#include <stdint.h>
 #include <sys/ioccom.h>
 #include <sys/types.h>
 typedef int8_t   __s8;

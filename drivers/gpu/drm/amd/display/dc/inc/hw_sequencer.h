@@ -158,6 +158,11 @@ struct hw_sequencer_funcs {
 
 	void (*update_info_frame)(struct pipe_ctx *pipe_ctx);
 
+	void (*send_immediate_sdp_message)(
+				struct pipe_ctx *pipe_ctx,
+				const uint8_t *custom_sdp_message,
+				unsigned int sdp_message_size);
+
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
 
 	void (*disable_stream)(struct pipe_ctx *pipe_ctx,

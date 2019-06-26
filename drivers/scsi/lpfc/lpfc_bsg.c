@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2009-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1968,14 +1968,17 @@ link_diag_state_set_out:
 }
 
 /**
- * lpfc_sli4_bsg_set_internal_loopback - set sli4 internal loopback diagnostic
+ * lpfc_sli4_bsg_set_loopback_mode - set sli4 internal loopback diagnostic
  * @phba: Pointer to HBA context object.
+ * @mode: loopback mode to set
+ * @link_no: link number for loopback mode to set
  *
  * This function is responsible for issuing a sli4 mailbox command for setting
- * up internal loopback diagnostic.
+ * up loopback diagnostic for a link.
  */
 static int
-lpfc_sli4_bsg_set_internal_loopback(struct lpfc_hba *phba)
+lpfc_sli4_bsg_set_loopback_mode(struct lpfc_hba *phba, int mode,
+				uint32_t link_no)
 {
 	LPFC_MBOXQ_t *pmboxq;
 	uint32_t req_len, alloc_len;
@@ -1996,11 +1999,19 @@ lpfc_sli4_bsg_set_internal_loopback(struct lpfc_hba *phba)
 	}
 	link_diag_loopback = &pmboxq->u.mqe.un.link_diag_loopback;
 	bf_set(lpfc_mbx_set_diag_state_link_num,
-	       &link_diag_loopback->u.req, phba->sli4_hba.lnk_info.lnk_no);
-	bf_set(lpfc_mbx_set_diag_state_link_type,
-	       &link_diag_loopback->u.req, phba->sli4_hba.lnk_info.lnk_tp);
+	       &link_diag_loopback->u.req, link_no);
+
+	if (phba->sli4_hba.conf_trunk & (1 << link_no)) {
+		bf_set(lpfc_mbx_set_diag_state_link_type,
+		       &link_diag_loopback->u.req, LPFC_LNK_FC_TRUNKED);
+	} else {
+		bf_set(lpfc_mbx_set_diag_state_link_type,
+		       &link_diag_loopback->u.req,
+		       phba->sli4_hba.lnk_info.lnk_tp);
+	}
+
 	bf_set(lpfc_mbx_set_diag_lpbk_type, &link_diag_loopback->u.req,
-	       LPFC_DIAG_LOOPBACK_TYPE_INTERNAL);
+	       mode);
 
 	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO);
 	if ((mbxstatus != MBX_SUCCESS) || (pmboxq->u.mb.mbxStatus)) {
@@ -2054,7 +2065,7 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct bsg_job *job)
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
 	struct diag_mode_set *loopback_mode;
-	uint32_t link_flags, timeout;
+	uint32_t link_flags, timeout, link_no;
 	int i, rc = 0;
 
 	/* no data to return just the return code */
@@ -2069,12 +2080,39 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct bsg_job *job)
 				(int)(sizeof(struct fc_bsg_request) +
 				sizeof(struct diag_mode_set)));
 		rc = -EINVAL;
-		goto job_error;
+		goto job_done;
+	}
+
+	loopback_mode = (struct diag_mode_set *)
+		bsg_request->rqst_data.h_vendor.vendor_cmd;
+	link_flags = loopback_mode->type;
+	timeout = loopback_mode->timeout * 100;
+
+	if (loopback_mode->physical_link == -1)
+		link_no = phba->sli4_hba.lnk_info.lnk_no;
+	else
+		link_no = loopback_mode->physical_link;
+
+	if (link_flags == DISABLE_LOOP_BACK) {
+		rc = lpfc_sli4_bsg_set_loopback_mode(phba,
+					LPFC_DIAG_LOOPBACK_TYPE_DISABLE,
+					link_no);
+		if (!rc) {
+			/* Unset the need disable bit */
+			phba->sli4_hba.conf_trunk &= ~((1 << link_no) << 4);
+		}
+		goto job_done;
+	} else {
+		/* Check if we need to disable the loopback state */
+		if (phba->sli4_hba.conf_trunk & ((1 << link_no) << 4)) {
+			rc = -EPERM;
+			goto job_done;
+		}
 	}
 
 	rc = lpfc_bsg_diag_mode_enter(phba);
 	if (rc)
-		goto job_error;
+		goto job_done;
 
 	/* indicate we are in loobpack diagnostic mode */
 	spin_lock_irq(&phba->hbalock);
@@ -2084,15 +2122,11 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct bsg_job *job)
 	/* reset port to start frome scratch */
 	rc = lpfc_selective_reset(phba);
 	if (rc)
-		goto job_error;
+		goto job_done;
 
 	/* bring the link to diagnostic mode */
 	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 			"3129 Bring link to diagnostic state.\n");
-	loopback_mode = (struct diag_mode_set *)
-		bsg_request->rqst_data.h_vendor.vendor_cmd;
-	link_flags = loopback_mode->type;
-	timeout = loopback_mode->timeout * 100;
 
 	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 1);
 	if (rc) {
@@ -2120,13 +2154,54 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct bsg_job *job)
 	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 			"3132 Set up loopback mode:x%x\n", link_flags);
 
-	if (link_flags == INTERNAL_LOOP_BACK)
-		rc = lpfc_sli4_bsg_set_internal_loopback(phba);
-	else if (link_flags == EXTERNAL_LOOP_BACK)
-		rc = lpfc_hba_init_link_fc_topology(phba,
-						    FLAGS_TOPOLOGY_MODE_PT_PT,
-						    MBX_NOWAIT);
-	else {
+	switch (link_flags) {
+	case INTERNAL_LOOP_BACK:
+		if (phba->sli4_hba.conf_trunk & (1 << link_no)) {
+			rc = lpfc_sli4_bsg_set_loopback_mode(phba,
+					LPFC_DIAG_LOOPBACK_TYPE_INTERNAL,
+					link_no);
+		} else {
+			/* Trunk is configured, but link is not in this trunk */
+			if (phba->sli4_hba.conf_trunk) {
+				rc = -ELNRNG;
+				goto loopback_mode_exit;
+			}
+
+			rc = lpfc_sli4_bsg_set_loopback_mode(phba,
+					LPFC_DIAG_LOOPBACK_TYPE_INTERNAL,
+					link_no);
+		}
+
+		if (!rc) {
+			/* Set the need disable bit */
+			phba->sli4_hba.conf_trunk |= (1 << link_no) << 4;
+		}
+
+		break;
+	case EXTERNAL_LOOP_BACK:
+		if (phba->sli4_hba.conf_trunk & (1 << link_no)) {
+			rc = lpfc_sli4_bsg_set_loopback_mode(phba,
+				LPFC_DIAG_LOOPBACK_TYPE_EXTERNAL_TRUNKED,
+				link_no);
+		} else {
+			/* Trunk is configured, but link is not in this trunk */
+			if (phba->sli4_hba.conf_trunk) {
+				rc = -ELNRNG;
+				goto loopback_mode_exit;
+			}
+
+			rc = lpfc_sli4_bsg_set_loopback_mode(phba,
+						LPFC_DIAG_LOOPBACK_TYPE_SERDES,
+						link_no);
+		}
+
+		if (!rc) {
+			/* Set the need disable bit */
+			phba->sli4_hba.conf_trunk |= (1 << link_no) << 4;
+		}
+
+		break;
+	default:
 		rc = -EINVAL;
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 				"3141 Loopback mode:x%x not supported\n",
@@ -2185,7 +2260,7 @@ loopback_mode_exit:
 	}
 	lpfc_bsg_diag_mode_exit(phba);
 
-job_error:
+job_done:
 	/* make error code available to userspace */
 	bsg_reply->result = rc;
 	/* complete the job back to userspace if no error */

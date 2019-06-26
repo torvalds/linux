@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/atomic.h>
 #include <linux/rwsem.h>
 #include <linux/percpu.h>
@@ -6,6 +7,8 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
+
+#include "rwsem.h"
 
 int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
 			const char *name, struct lock_class_key *rwsem_key)

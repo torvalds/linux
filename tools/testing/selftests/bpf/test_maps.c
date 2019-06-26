@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Testsuite for eBPF maps
  *
  * Copyright (c) 2014 PLUMgrid, http://plumgrid.com
  * Copyright (c) 2016 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #include <stdio.h>
@@ -27,6 +24,7 @@
 
 #include "bpf_util.h"
 #include "bpf_rlimit.h"
+#include "test_maps.h"
 
 #ifndef ENOTSUPP
 #define ENOTSUPP 524
@@ -35,15 +33,6 @@
 static int skips;
 
 static int map_flags;
-
-#define CHECK(condition, tag, format...) ({				\
-	int __ret = !!(condition);					\
-	if (__ret) {							\
-		printf("%s(%d):FAIL:%s ", __func__, __LINE__, tag);	\
-		printf(format);						\
-		exit(-1);						\
-	}								\
-})
 
 static void test_hashmap(unsigned int task, void *data)
 {
@@ -1703,6 +1692,10 @@ static void run_all_tests(void)
 	test_map_in_map();
 }
 
+#define DECLARE
+#include <map_tests/tests.h>
+#undef DECLARE
+
 int main(void)
 {
 	srand(time(NULL));
@@ -1712,6 +1705,10 @@ int main(void)
 
 	map_flags = BPF_F_NO_PREALLOC;
 	run_all_tests();
+
+#define CALL
+#include <map_tests/tests.h>
+#undef CALL
 
 	printf("test_maps: OK, %d SKIPPED\n", skips);
 	return 0;

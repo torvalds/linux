@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INOTIFY_USER
 	bool "Inotify support for userspace"
-	select ANON_INODES
 	select FSNOTIFY
 	default y
 	---help---

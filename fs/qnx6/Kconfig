@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config QNX6FS_FS
 	tristate "QNX6 file system support (read only)"
 	depends on BLOCK && CRC32

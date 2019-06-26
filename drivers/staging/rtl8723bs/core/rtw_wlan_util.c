@@ -518,7 +518,7 @@ unsigned int decide_wait_for_beacon_timeout(unsigned int bcn_interval)
 	else if ((bcn_interval << 2) > WAIT_FOR_BCN_TO_MAX)
 		return WAIT_FOR_BCN_TO_MAX;
 	else
-		return ((bcn_interval << 2));
+		return bcn_interval << 2;
 }
 
 void invalidate_cam_all(struct adapter *padapter)

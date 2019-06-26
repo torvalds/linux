@@ -22,9 +22,11 @@ Required properties:
 -------------------
 - compatible:	should be "fsl,imx-scu".
 - mbox-names:	should include "tx0", "tx1", "tx2", "tx3",
-			       "rx0", "rx1", "rx2", "rx3".
-- mboxes:	List of phandle of 4 MU channels for tx and 4 MU channels
-		for rx. All 8 MU channels must be in the same MU instance.
+			       "rx0", "rx1", "rx2", "rx3";
+		include "gip3" if want to support general MU interrupt.
+- mboxes:	List of phandle of 4 MU channels for tx, 4 MU channels for
+		rx, and 1 optional MU channel for general interrupt.
+		All MU channels must be in the same MU instance.
 		Cross instances are not allowed. The MU instance can only
 		be one of LSIO MU0~M4 for imx8qxp and imx8qm. Users need
 		to make sure use the one which is not conflict with other
@@ -34,6 +36,7 @@ Required properties:
 		Channel 1 must be "tx1" or "rx1".
 		Channel 2 must be "tx2" or "rx2".
 		Channel 3 must be "tx3" or "rx3".
+		General interrupt rx channel must be "gip3".
 		e.g.
 		mboxes = <&lsio_mu1 0 0
 			  &lsio_mu1 0 1
@@ -42,9 +45,17 @@ Required properties:
 			  &lsio_mu1 1 0
 			  &lsio_mu1 1 1
 			  &lsio_mu1 1 2
-			  &lsio_mu1 1 3>;
+			  &lsio_mu1 1 3
+			  &lsio_mu1 3 3>;
 		See Documentation/devicetree/bindings/mailbox/fsl,mu.txt
 		for detailed mailbox binding.
+
+Note: Each mu which supports general interrupt should have an alias correctly
+numbered in "aliases" node.
+e.g.
+aliases {
+	mu1 = &lsio_mu1;
+};
 
 i.MX SCU Client Device Node:
 ============================================================
@@ -124,6 +135,10 @@ Required properties:
 
 Example (imx8qxp):
 -------------
+aliases {
+	mu1 = &lsio_mu1;
+};
+
 lsio_mu1: mailbox@5d1c0000 {
 	...
 	#mbox-cells = <2>;
@@ -133,7 +148,8 @@ firmware {
 	scu {
 		compatible = "fsl,imx-scu";
 		mbox-names = "tx0", "tx1", "tx2", "tx3",
-			     "rx0", "rx1", "rx2", "rx3";
+			     "rx0", "rx1", "rx2", "rx3",
+			     "gip3";
 		mboxes = <&lsio_mu1 0 0
 			  &lsio_mu1 0 1
 			  &lsio_mu1 0 2
@@ -141,7 +157,8 @@ firmware {
 			  &lsio_mu1 1 0
 			  &lsio_mu1 1 1
 			  &lsio_mu1 1 2
-			  &lsio_mu1 1 3>;
+			  &lsio_mu1 1 3
+			  &lsio_mu1 3 3>;
 
 		clk: clk {
 			compatible = "fsl,imx8qxp-clk", "fsl,scu-clk";

@@ -151,6 +151,13 @@
 			#clock-cells = <1>;
 		};
 
+		crg_rst: crg_rst_controller {
+			compatible = "hisilicon,hi3670-reset",
+				     "hisilicon,hi3660-reset";
+			#reset-cells = <2>;
+			hisi,rst-syscon = <&crg_ctrl>;
+		};
+
 		pctrl: pctrl@e8a09000 {
 			compatible = "hisilicon,hi3670-pctrl", "syscon";
 			reg = <0x0 0xe8a09000 0x0 0x1000>;
@@ -646,6 +653,61 @@
 			#interrupt-cells = <2>;
 			clocks = <&sctrl HI3670_PCLK_AO_GPIO6>;
 			clock-names = "apb_pclk";
+		};
+
+		/* UFS */
+		ufs: ufs@ff3c0000 {
+			compatible = "hisilicon,hi3670-ufs", "jedec,ufs-2.1";
+			/* 0: HCI standard */
+			/* 1: UFS SYS CTRL */
+			reg = <0x0 0xff3c0000 0x0 0x1000>,
+				<0x0 0xff3e0000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg_ctrl HI3670_CLK_GATE_UFSIO_REF>,
+				<&crg_ctrl HI3670_CLK_GATE_UFS_SUBSYS>;
+			clock-names = "ref_clk", "phy_clk";
+			freq-table-hz = <0 0>, <0 0>;
+			/* offset: 0x84; bit: 12 */
+			resets = <&crg_rst 0x84 12>;
+			reset-names = "rst";
+		};
+
+		/* SD */
+		dwmmc1: dwmmc1@ff37f000 {
+			compatible = "hisilicon,hi3670-dw-mshc",
+				     "hisilicon,hi3660-dw-mshc";
+			reg = <0x0 0xff37f000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg_ctrl HI3670_CLK_GATE_SD>,
+				<&crg_ctrl HI3670_HCLK_GATE_SD>;
+			clock-names = "ciu", "biu";
+			clock-frequency = <3200000>;
+			resets = <&crg_rst 0x94 18>;
+			reset-names = "reset";
+			hisilicon,peripheral-syscon = <&sctrl>;
+			card-detect-delay = <200>;
+			status = "disabled";
+		};
+
+		/* SDIO */
+		dwmmc2: dwmmc2@fc183000 {
+			compatible = "hisilicon,hi3670-dw-mshc",
+				     "hisilicon,hi3660-dw-mshc";
+			reg = <0x0 0xfc183000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg_ctrl HI3670_CLK_GATE_SDIO>,
+				<&crg_ctrl HI3670_HCLK_GATE_SDIO>;
+			clock-names = "ciu", "biu";
+			clock-frequency = <3200000>;
+			resets = <&crg_rst 0x94 20>;
+			reset-names = "reset";
+			card-detect-delay = <200>;
+			status = "disabled";
 		};
 	};
 };

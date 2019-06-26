@@ -13,6 +13,8 @@
 #define SLICE_NUM_HIGH		0ul
 #define GET_HIGH_SLICE_INDEX(addr)	(addr & 0)
 
+#define SLB_ADDR_LIMIT_DEFAULT	DEFAULT_MAP_WINDOW
+
 #endif /* CONFIG_PPC_MM_SLICES */
 
 #endif /* _ASM_POWERPC_NOHASH_32_SLICE_H */

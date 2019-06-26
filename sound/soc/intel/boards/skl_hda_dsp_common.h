@@ -15,7 +15,7 @@
 #include <sound/core.h>
 #include <sound/jack.h>
 
-#define HDA_DSP_MAX_BE_DAI_LINKS 5
+#define HDA_DSP_MAX_BE_DAI_LINKS 7
 
 struct skl_hda_hdmi_pcm {
 	struct list_head head;

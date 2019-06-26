@@ -23,6 +23,8 @@ struct mdev_parent {
 	struct list_head next;
 	struct kset *mdev_types_kset;
 	struct list_head type_list;
+	/* Synchronize device creation/removal with parent unregistration */
+	struct rw_semaphore unreg_sem;
 };
 
 struct mdev_device {
@@ -30,9 +32,9 @@ struct mdev_device {
 	struct mdev_parent *parent;
 	guid_t uuid;
 	void *driver_data;
-	struct kref ref;
 	struct list_head next;
 	struct kobject *type_kobj;
+	struct device *iommu_device;
 	bool active;
 };
 
@@ -60,6 +62,6 @@ void mdev_remove_sysfs_files(struct device *dev, struct mdev_type *type);
 
 int  mdev_device_create(struct kobject *kobj,
 			struct device *dev, const guid_t *uuid);
-int  mdev_device_remove(struct device *dev, bool force_remove);
+int  mdev_device_remove(struct device *dev);
 
 #endif /* MDEV_PRIVATE_H */

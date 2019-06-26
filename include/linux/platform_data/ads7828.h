@@ -4,7 +4,7 @@
  * Copyright (c) 2012 Savoir-faire Linux Inc.
  *          Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
- * For further information, see the Documentation/hwmon/ads7828 file.
+ * For further information, see the Documentation/hwmon/ads7828.rst file.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

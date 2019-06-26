@@ -195,6 +195,10 @@
 #include <linux/sizes.h>
 #include <linux/uuid.h>
 
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_pm.h"
+#include "gt/intel_lrc_reg.h"
+
 #include "i915_drv.h"
 #include "i915_oa_hsw.h"
 #include "i915_oa_bdw.h"
@@ -210,7 +214,6 @@
 #include "i915_oa_cflgt3.h"
 #include "i915_oa_cnl.h"
 #include "i915_oa_icl.h"
-#include "intel_lrc_reg.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -1202,28 +1205,35 @@ static int i915_oa_read(struct i915_perf_stream *stream,
 static struct intel_context *oa_pin_context(struct drm_i915_private *i915,
 					    struct i915_gem_context *ctx)
 {
-	struct intel_engine_cs *engine = i915->engine[RCS0];
+	struct i915_gem_engines_iter it;
 	struct intel_context *ce;
-	int ret;
+	int err;
 
-	ret = i915_mutex_lock_interruptible(&i915->drm);
-	if (ret)
-		return ERR_PTR(ret);
+	err = i915_mutex_lock_interruptible(&i915->drm);
+	if (err)
+		return ERR_PTR(err);
 
-	/*
-	 * As the ID is the gtt offset of the context's vma we
-	 * pin the vma to ensure the ID remains fixed.
-	 *
-	 * NB: implied RCS engine...
-	 */
-	ce = intel_context_pin(ctx, engine);
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		if (ce->engine->class != RENDER_CLASS)
+			continue;
+
+		/*
+		 * As the ID is the gtt offset of the context's vma we
+		 * pin the vma to ensure the ID remains fixed.
+		 */
+		err = intel_context_pin(ce);
+		if (err == 0) {
+			i915->perf.oa.pinned_ctx = ce;
+			break;
+		}
+	}
+	i915_gem_context_unlock_engines(ctx);
+
 	mutex_unlock(&i915->drm.struct_mutex);
-	if (IS_ERR(ce))
-		return ce;
+	if (err)
+		return ERR_PTR(err);
 
-	i915->perf.oa.pinned_ctx = ce;
-
-	return ce;
+	return i915->perf.oa.pinned_ctx;
 }
 
 /**
@@ -1365,7 +1375,7 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_oa_buffer(dev_priv);
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv, stream->wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, stream->wakeref);
 
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
@@ -1502,7 +1512,7 @@ static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
 	BUILD_BUG_ON_NOT_POWER_OF_2(OA_BUFFER_SIZE);
 	BUILD_BUG_ON(OA_BUFFER_SIZE < SZ_128K || OA_BUFFER_SIZE > SZ_16M);
 
-	bo = i915_gem_object_create(dev_priv, OA_BUFFER_SIZE);
+	bo = i915_gem_object_create_shmem(dev_priv, OA_BUFFER_SIZE);
 	if (IS_ERR(bo)) {
 		DRM_ERROR("Failed to allocate OA buffer\n");
 		ret = PTR_ERR(bo);
@@ -1679,7 +1689,7 @@ gen8_update_reg_state_unlocked(struct intel_context *ce,
 
 	CTX_REG(reg_state,
 		CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
-		gen8_make_rpcs(i915, &ce->sseu));
+		intel_sseu_make_rpcs(i915, &ce->sseu));
 }
 
 /*
@@ -1709,7 +1719,6 @@ gen8_update_reg_state_unlocked(struct intel_context *ce,
 static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				       const struct i915_oa_config *oa_config)
 {
-	struct intel_engine_cs *engine = dev_priv->engine[RCS0];
 	unsigned int map_type = i915_coherent_map_type(dev_priv);
 	struct i915_gem_context *ctx;
 	struct i915_request *rq;
@@ -1738,30 +1747,43 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		struct intel_context *ce = intel_context_lookup(ctx, engine);
-		u32 *regs;
+		struct i915_gem_engines_iter it;
+		struct intel_context *ce;
 
-		/* OA settings will be set upon first use */
-		if (!ce || !ce->state)
-			continue;
+		for_each_gem_engine(ce,
+				    i915_gem_context_lock_engines(ctx),
+				    it) {
+			u32 *regs;
 
-		regs = i915_gem_object_pin_map(ce->state->obj, map_type);
-		if (IS_ERR(regs))
-			return PTR_ERR(regs);
+			if (ce->engine->class != RENDER_CLASS)
+				continue;
 
-		ce->state->obj->mm.dirty = true;
-		regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
+			/* OA settings will be set upon first use */
+			if (!ce->state)
+				continue;
 
-		gen8_update_reg_state_unlocked(ce, regs, oa_config);
+			regs = i915_gem_object_pin_map(ce->state->obj,
+						       map_type);
+			if (IS_ERR(regs)) {
+				i915_gem_context_unlock_engines(ctx);
+				return PTR_ERR(regs);
+			}
 
-		i915_gem_object_unpin_map(ce->state->obj);
+			ce->state->obj->mm.dirty = true;
+			regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
+
+			gen8_update_reg_state_unlocked(ce, regs, oa_config);
+
+			i915_gem_object_unpin_map(ce->state->obj);
+		}
+		i915_gem_context_unlock_engines(ctx);
 	}
 
 	/*
 	 * Apply the configuration by doing one context restore of the edited
 	 * context image.
 	 */
-	rq = i915_request_alloc(engine, dev_priv->kernel_context);
+	rq = i915_request_create(dev_priv->engine[RCS0]->kernel_context);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
@@ -2090,7 +2112,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 *   In our case we are expecting that taking pm + FORCEWAKE
 	 *   references will effectively disable RC6.
 	 */
-	stream->wakeref = intel_runtime_pm_get(dev_priv);
+	stream->wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	ret = alloc_oa_buffer(dev_priv);
@@ -2126,7 +2148,7 @@ err_oa_buf_alloc:
 	put_oa_config(dev_priv, stream->oa_config);
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv, stream->wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, stream->wakeref);
 
 err_config:
 	if (stream->ctx)
@@ -3005,6 +3027,7 @@ static bool gen8_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 static bool gen10_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen8_is_valid_mux_addr(dev_priv, addr) ||
+		addr == i915_mmio_reg_offset(GEN10_NOA_WRITE_HIGH) ||
 		(addr >= i915_mmio_reg_offset(OA_PERFCNT3_LO) &&
 		 addr <= i915_mmio_reg_offset(OA_PERFCNT4_HI));
 }

@@ -82,7 +82,7 @@ enum qeth_card_types {
 #define IS_OSM(card)	((card)->info.type == QETH_CARD_TYPE_OSM)
 #define IS_OSN(card)	((card)->info.type == QETH_CARD_TYPE_OSN)
 #define IS_OSX(card)	((card)->info.type == QETH_CARD_TYPE_OSX)
-#define IS_VM_NIC(card)	((card)->info.guestlan)
+#define IS_VM_NIC(card)	((card)->info.is_vm_nic)
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
 /* only the first two bytes are looked at in qeth_get_cardname_short */

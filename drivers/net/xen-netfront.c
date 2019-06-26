@@ -543,8 +543,7 @@ static int xennet_count_skb_slots(struct sk_buff *skb)
 }
 
 static u16 xennet_select_queue(struct net_device *dev, struct sk_buff *skb,
-			       struct net_device *sb_dev,
-			       select_queue_fallback_t fallback)
+			       struct net_device *sb_dev)
 {
 	unsigned int num_queues = dev->real_num_tx_queues;
 	u32 hash;
@@ -2038,7 +2037,7 @@ static void netback_changed(struct xenbus_device *dev,
 	case XenbusStateClosed:
 		if (dev->state == XenbusStateClosed)
 			break;
-		/* Missed the backend's CLOSING state -- fallthrough */
+		/* Fall through - Missed the backend's CLOSING state. */
 	case XenbusStateClosing:
 		xenbus_frontend_closed(dev);
 		break;

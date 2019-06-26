@@ -1080,6 +1080,77 @@ static int qsfp2_debugfs_release(struct inode *in, struct file *fp)
 	return __qsfp_debugfs_release(in, fp, 1);
 }
 
+#define EXPROM_WRITE_ENABLE BIT_ULL(14)
+
+static bool exprom_wp_disabled;
+
+static int exprom_wp_set(struct hfi1_devdata *dd, bool disable)
+{
+	u64 gpio_val = 0;
+
+	if (disable) {
+		gpio_val = EXPROM_WRITE_ENABLE;
+		exprom_wp_disabled = true;
+		dd_dev_info(dd, "Disable Expansion ROM Write Protection\n");
+	} else {
+		exprom_wp_disabled = false;
+		dd_dev_info(dd, "Enable Expansion ROM Write Protection\n");
+	}
+
+	write_csr(dd, ASIC_GPIO_OUT, gpio_val);
+	write_csr(dd, ASIC_GPIO_OE, gpio_val);
+
+	return 0;
+}
+
+static ssize_t exprom_wp_debugfs_read(struct file *file, char __user *buf,
+				      size_t count, loff_t *ppos)
+{
+	return 0;
+}
+
+static ssize_t exprom_wp_debugfs_write(struct file *file,
+				       const char __user *buf, size_t count,
+				       loff_t *ppos)
+{
+	struct hfi1_pportdata *ppd = private2ppd(file);
+	char cdata;
+
+	if (count != 1)
+		return -EINVAL;
+	if (get_user(cdata, buf))
+		return -EFAULT;
+	if (cdata == '0')
+		exprom_wp_set(ppd->dd, false);
+	else if (cdata == '1')
+		exprom_wp_set(ppd->dd, true);
+	else
+		return -EINVAL;
+
+	return 1;
+}
+
+static unsigned long exprom_in_use;
+
+static int exprom_wp_debugfs_open(struct inode *in, struct file *fp)
+{
+	if (test_and_set_bit(0, &exprom_in_use))
+		return -EBUSY;
+
+	return 0;
+}
+
+static int exprom_wp_debugfs_release(struct inode *in, struct file *fp)
+{
+	struct hfi1_pportdata *ppd = private2ppd(fp);
+
+	if (exprom_wp_disabled)
+		exprom_wp_set(ppd->dd, false);
+	clear_bit(0, &exprom_in_use);
+
+	return 0;
+}
+
 #define DEBUGFS_OPS(nm, readroutine, writeroutine)	\
 { \
 	.name = nm, \
@@ -1119,6 +1190,9 @@ static const struct counter_info port_cntr_ops[] = {
 		     qsfp1_debugfs_open, qsfp1_debugfs_release),
 	DEBUGFS_XOPS("qsfp2", qsfp2_debugfs_read, qsfp2_debugfs_write,
 		     qsfp2_debugfs_open, qsfp2_debugfs_release),
+	DEBUGFS_XOPS("exprom_wp", exprom_wp_debugfs_read,
+		     exprom_wp_debugfs_write, exprom_wp_debugfs_open,
+		     exprom_wp_debugfs_release),
 	DEBUGFS_OPS("asic_flags", asic_flags_read, asic_flags_write),
 	DEBUGFS_OPS("dc8051_memory", dc8051_memory_read, NULL),
 	DEBUGFS_OPS("lcb", debugfs_lcb_read, debugfs_lcb_write),
@@ -1302,15 +1376,15 @@ static void _driver_stats_seq_stop(struct seq_file *s, void *v)
 
 static u64 hfi1_sps_ints(void)
 {
-	unsigned long flags;
+	unsigned long index, flags;
 	struct hfi1_devdata *dd;
 	u64 sps_ints = 0;
 
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
-	list_for_each_entry(dd, &hfi1_dev_list, list) {
+	xa_lock_irqsave(&hfi1_dev_table, flags);
+	xa_for_each(&hfi1_dev_table, index, dd) {
 		sps_ints += get_all_cpu_total(dd->int_counter);
 	}
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	xa_unlock_irqrestore(&hfi1_dev_table, flags);
 	return sps_ints;
 }
 

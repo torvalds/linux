@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_TEGRA
 
 # 32-bit ARM SoCs

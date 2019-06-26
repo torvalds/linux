@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_USB_V2
 	tristate "Support for various USB DVB devices v2"
 	depends on DVB_CORE && USB && I2C && (RC_CORE || RC_CORE=n)

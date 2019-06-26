@@ -124,6 +124,14 @@
 		io-channels = <&saradc 8>;
 	};
 
+	rtc32k_xtal: rtc32k-xtal-clk {
+		/* X3 in the schematics */
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "RTC32K";
+		#clock-cells = <0>;
+	};
+
 	vcc_1v8: regulator-vcc-1v8 {
 		/*
 		 * RICHTEK RT9179 configured for a fixed output voltage of
@@ -234,7 +242,59 @@
 	};
 };
 
+&gpio {
+	gpio-line-names = /* Bank GPIOX */
+			  "J2 Header Pin 35", "J2 Header Pin 36",
+			  "J2 Header Pin 32", "J2 Header Pin 31",
+			  "J2 Header Pin 29", "J2 Header Pin 18",
+			  "J2 Header Pin 22", "J2 Header Pin 16",
+			  "J2 Header Pin 23", "J2 Header Pin 21",
+			  "J2 Header Pin 19", "J2 Header Pin 33",
+			  "J2 Header Pin 8", "J2 Header Pin 10",
+			  "J2 Header Pin 15", "J2 Header Pin 13",
+			  "J2 Header Pin 24", "J2 Header Pin 26",
+			  /* Bank GPIOY */
+			  "Revision (upper)", "Revision (lower)",
+			  "J2 Header Pin 7", "", "J2 Header Pin 12",
+			  "J2 Header Pin 11", "", "", "",
+			  "TFLASH_VDD_EN", "", "",
+			  /* Bank GPIODV */
+			  "VCCK_PWM (PWM_C)", "I2CA_SDA", "I2CA_SCL",
+			  "I2CB_SDA", "I2CB_SCL", "VDDEE_PWM (PWM_D)",
+			  "",
+			  /* Bank GPIOH */
+			  "HDMI_HPD", "HDMI_I2C_SDA", "HDMI_I2C_SCL",
+			  "ETH_PHY_INTR", "ETH_PHY_NRST", "ETH_TXD1",
+			  "ETH_TXD0", "ETH_TXD3", "ETH_TXD2",
+			  "ETH_RGMII_TX_CLK",
+			  /* Bank CARD */
+			  "SD_DATA1 (SDB_D1)", "SD_DATA0 (SDB_D0)",
+			  "SD_CLK",  "SD_CMD", "SD_DATA3 (SDB_D3)",
+			  "SD_DATA2 (SDB_D2)", "SD_CDN (SD_DET_N)",
+			  /* Bank BOOT */
+			  "SDC_D0 (EMMC)", "SDC_D1 (EMMC)",
+			  "SDC_D2 (EMMC)", "SDC_D3 (EMMC)",
+			  "SDC_D4 (EMMC)", "SDC_D5 (EMMC)",
+			  "SDC_D6 (EMMC)", "SDC_D7 (EMMC)",
+			  "SDC_CLK (EMMC)", "SDC_RSTn (EMMC)",
+			  "SDC_CMD (EMMC)", "BOOT_SEL", "", "", "",
+			  "", "", "", "",
+			  /* Bank DIF */
+			  "ETH_RXD1", "ETH_RXD0", "ETH_RX_DV",
+			  "RGMII_RX_CLK", "ETH_RXD3", "ETH_RXD2",
+			  "ETH_TXEN", "ETH_PHY_REF_CLK_25MOUT",
+			  "ETH_MDC", "ETH_MDIO";
+};
+
 &gpio_ao {
+	gpio-line-names = "UART TX", "UART RX", "",
+			  "TF_3V3N_1V8_EN", "USB_HUB_RST_N",
+			  "USB_OTG_PWREN", "J7 Header Pin 2",
+			  "IR_IN", "J7 Header Pin 4",
+			  "J7 Header Pin 6", "J7 Header Pin 5",
+			  "J7 Header Pin 7", "HDMI_CEC",
+			  "SYS_LED", "", "";
+
 	/*
 	 * WARNING: The USB Hub on the Odroid-C1/C1+ needs a reset signal
 	 * to be turned high in order to be detected by the USB Controller.
@@ -291,6 +351,12 @@
 	pinctrl-names = "default";
 	clocks = <&clkc CLKID_XTAL>;
 	clock-names = "clkin0";
+};
+
+&rtc {
+	/* needs to be enabled manually when a battery is connected */
+	clocks = <&rtc32k_xtal>;
+	vdd-supply = <&vdd_rtc>;
 };
 
 &uart_AO {

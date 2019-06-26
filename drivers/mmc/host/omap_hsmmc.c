@@ -2077,7 +2077,7 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 	unsigned long flags;
 	int ret = 0;
 
-	host = platform_get_drvdata(to_platform_device(dev));
+	host = dev_get_drvdata(dev);
 	omap_hsmmc_context_save(host);
 	dev_dbg(dev, "disabled\n");
 
@@ -2118,7 +2118,7 @@ static int omap_hsmmc_runtime_resume(struct device *dev)
 	struct omap_hsmmc_host *host;
 	unsigned long flags;
 
-	host = platform_get_drvdata(to_platform_device(dev));
+	host = dev_get_drvdata(dev);
 	omap_hsmmc_context_restore(host);
 	dev_dbg(dev, "enabled\n");
 

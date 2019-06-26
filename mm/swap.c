@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/mm/swap.c
  *
@@ -867,7 +868,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 	SetPageLRU(page);
 	/*
 	 * Page becomes evictable in two ways:
-	 * 1) Within LRU lock [munlock_vma_pages() and __munlock_pagevec()].
+	 * 1) Within LRU lock [munlock_vma_page() and __munlock_pagevec()].
 	 * 2) Before acquiring LRU lock to put the page to correct LRU and then
 	 *   a) do PageLRU check with lock [check_move_unevictable_pages]
 	 *   b) do PageLRU check before lock [clear_page_mlock]

@@ -97,6 +97,7 @@ properties:
           - enum:
               - friendlyarm,nanopc-t4
               - friendlyarm,nanopi-m4
+              - friendlyarm,nanopi-neo4
           - const: rockchip,rk3399
 
       - description: GeekBuying GeekBox
@@ -146,7 +147,7 @@ properties:
           - const: google,gru
           - const: rockchip,rk3399
 
-      - description: Google Jaq (Haier Chromebook 11 and more)
+      - description: Google Jaq (Haier Chromebook 11 and more w/ uSD)
         items:
           - const: google,veyron-jaq-rev5
           - const: google,veyron-jaq-rev4
@@ -159,6 +160,12 @@ properties:
 
       - description: Google Jerry (Hisense Chromebook C11 and more)
         items:
+          - const: google,veyron-jerry-rev15
+          - const: google,veyron-jerry-rev14
+          - const: google,veyron-jerry-rev13
+          - const: google,veyron-jerry-rev12
+          - const: google,veyron-jerry-rev11
+          - const: google,veyron-jerry-rev10
           - const: google,veyron-jerry-rev7
           - const: google,veyron-jerry-rev6
           - const: google,veyron-jerry-rev5
@@ -196,6 +203,17 @@ properties:
           - const: google,veyron-mickey-rev1
           - const: google,veyron-mickey-rev0
           - const: google,veyron-mickey
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Mighty (Haier Chromebook 11 and more w/ SD)
+        items:
+          - const: google,veyron-mighty-rev5
+          - const: google,veyron-mighty-rev4
+          - const: google,veyron-mighty-rev3
+          - const: google,veyron-mighty-rev2
+          - const: google,veyron-mighty-rev1
+          - const: google,veyron-mighty
           - const: google,veyron
           - const: rockchip,rk3288
 
@@ -307,6 +325,11 @@ properties:
         items:
           - const: netxeon,r89
           - const: rockchip,rk3288
+
+      - description: Orange Pi RK3399 board
+        items:
+          - const: rockchip,rk3399-orangepi
+          - const: rockchip,rk3399
 
       - description: Phytec phyCORE-RK3288 Rapid Development Kit
         items:

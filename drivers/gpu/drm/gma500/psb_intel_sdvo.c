@@ -25,19 +25,20 @@
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
-#include <linux/module.h>
-#include <linux/i2c.h>
-#include <linux/slab.h>
+
 #include <linux/delay.h>
-#include <drm/drmP.h>
+#include <linux/i2c.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include "psb_intel_drv.h"
-#include <drm/gma_drm.h>
+
 #include "psb_drv.h"
-#include "psb_intel_sdvo_regs.h"
+#include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include <linux/kernel.h>
+#include "psb_intel_sdvo_regs.h"
 
 #define SDVO_TMDS_MASK (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)
 #define SDVO_RGB_MASK  (SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_RGB1)

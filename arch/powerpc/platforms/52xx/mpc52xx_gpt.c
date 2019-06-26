@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MPC5200 General Purpose Timer device driver
  *
  * Copyright (c) 2009 Secret Lab Technologies Ltd.
  * Copyright (c) 2008 Sascha Hauer <s.hauer@pengutronix.de>, Pengutronix
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * This file is a driver for the the General Purpose Timer (gpt) devices
  * found on the MPC5200 SoC.  Each timer has an IO pin which can be used
@@ -628,7 +624,7 @@ static int mpc52xx_wdt_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = mpc52xx_gpt_wdt;
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int mpc52xx_wdt_release(struct inode *inode, struct file *file)

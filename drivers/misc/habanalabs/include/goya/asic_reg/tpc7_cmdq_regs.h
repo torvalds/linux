@@ -136,4 +136,3 @@
 #define mmTPC7_CMDQ_CQ_BUF_RDATA                                     0xFC930C
 
 #endif /* ASIC_REG_TPC7_CMDQ_REGS_H_ */
-

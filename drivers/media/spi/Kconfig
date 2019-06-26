@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if VIDEO_V4L2
 
 menu "SPI helper chips"
@@ -6,7 +7,7 @@ menu "SPI helper chips"
 config VIDEO_GS1662
 	tristate "Gennum Serializers video"
 	depends on SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	---help---
+	help
 	  Enable the GS1662 driver which serializes video streams.
 
 endmenu

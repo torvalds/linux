@@ -320,7 +320,7 @@ out:
 	 * If we failed to lock the parent inode even after a retry, just mark
 	 * this scrub incomplete and return.
 	 */
-	if (sc->try_harder && error == -EDEADLOCK) {
+	if ((sc->flags & XCHK_TRY_HARDER) && error == -EDEADLOCK) {
 		error = 0;
 		xchk_set_incomplete(sc);
 	}

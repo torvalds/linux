@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Frame buffer driver for Trident TGUI, Blade and Image series
  *

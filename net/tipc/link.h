@@ -90,6 +90,8 @@ void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 			   int mtyp, struct sk_buff_head *xmitq);
 void tipc_link_create_dummy_tnl_msg(struct tipc_link *tnl,
 				    struct sk_buff_head *xmitq);
+void tipc_link_failover_prepare(struct tipc_link *l, struct tipc_link *tnl,
+				struct sk_buff_head *xmitq);
 void tipc_link_build_reset_msg(struct tipc_link *l, struct sk_buff_head *xmitq);
 int tipc_link_fsm_evt(struct tipc_link *l, int evt);
 bool tipc_link_is_up(struct tipc_link *l);

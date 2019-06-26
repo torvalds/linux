@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # PHY Layer Configuration
 #
@@ -75,6 +76,17 @@ config MDIO_BUS_MUX_GPIO
 	  are controlled via GPIO lines.  The multiplexer connects one of
 	  several child MDIO busses to a parent bus.  Child bus
 	  selection is under the control of GPIO lines.
+
+config MDIO_BUS_MUX_MESON_G12A
+	tristate "Amlogic G12a based MDIO bus multiplexer"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on OF_MDIO && HAS_IOMEM && COMMON_CLK
+	select MDIO_BUS_MUX
+	default m if ARCH_MESON
+	help
+	  This module provides a driver for the MDIO multiplexer/glue of
+	  the amlogic g12a SoC. The multiplexers connects either the external
+	  or the internal MDIO bus to the parent bus.
 
 config MDIO_BUS_MUX_MMIOREG
 	tristate "MMIO device-controlled MDIO bus multiplexers"
@@ -273,13 +285,13 @@ config BCM87XX_PHY
 	  Currently supports the BCM8706 and BCM8727 10G Ethernet PHYs.
 
 config BCM_CYGNUS_PHY
-	tristate "Broadcom Cygnus SoC internal PHY"
-	depends on ARCH_BCM_CYGNUS || COMPILE_TEST
+	tristate "Broadcom Cygnus/Omega SoC internal PHY"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on MDIO_BCM_IPROC
 	select BCM_NET_PHYLIB
 	---help---
 	  This PHY driver is for the 1G internal PHYs of the Broadcom
-	  Cygnus Family SoC.
+	  Cygnus and Omega Family SoC.
 
 	  Currently supports internal PHY's used in the BCM11300,
 	  BCM11320, BCM11350, BCM11360, BCM58300, BCM58302,
@@ -397,7 +409,7 @@ config MICROCHIP_T1_PHY
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	---help---
-	  Currently supports VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
+	  Currently supports VSC8514, VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"

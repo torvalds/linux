@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config FIREWIRE_SERIAL
        tristate "TTY over Firewire"
        depends on FIREWIRE && TTY

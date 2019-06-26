@@ -1,25 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_CORE_H
 #define __SOUND_CORE_H
 
 /*
  *  Main header file for the ALSA driver
  *  Copyright (c) 1994-2001 by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/device.h>
@@ -226,7 +211,6 @@ int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size
 
 /* init.c */
 
-extern struct snd_card *snd_cards[SNDRV_CARDS];
 int snd_card_locked(int card);
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 #define SND_MIXER_OSS_NOTIFY_REGISTER	0
@@ -251,7 +235,20 @@ int snd_card_add_dev_attr(struct snd_card *card,
 int snd_component_add(struct snd_card *card, const char *component);
 int snd_card_file_add(struct snd_card *card, struct file *file);
 int snd_card_file_remove(struct snd_card *card, struct file *file);
-#define snd_card_unref(card)	put_device(&(card)->card_dev)
+
+struct snd_card *snd_card_ref(int card);
+
+/**
+ * snd_card_unref - Unreference the card object
+ * @card: the card object to unreference
+ *
+ * Call this function for the card object that was obtained via snd_card_ref()
+ * or snd_lookup_minor_data().
+ */
+static inline void snd_card_unref(struct snd_card *card)
+{
+	put_device(&card->card_dev);
+}
 
 #define snd_card_set_dev(card, devptr) ((card)->dev = (devptr))
 

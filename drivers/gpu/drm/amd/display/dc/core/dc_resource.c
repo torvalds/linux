@@ -22,6 +22,9 @@
  * Authors: AMD
  *
  */
+
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "resource.h"
@@ -93,10 +96,8 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case FAMILY_RV:
 		dc_version = DCN_VERSION_1_0;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_1_01;
-#endif
 		break;
 #endif
 	default:
@@ -147,9 +148,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 	case DCN_VERSION_1_01:
-#endif
 		res_pool = dcn10_create_resource_pool(init_data, dc);
 		break;
 #endif
@@ -1184,24 +1183,27 @@ static int acquire_first_split_pipe(
 	int i;
 
 	for (i = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+		struct pipe_ctx *split_pipe = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->top_pipe &&
-				pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state) {
-			pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
-			if (pipe_ctx->bottom_pipe)
-				pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
+		if (split_pipe->top_pipe && !dc_res_is_odm_head_pipe(split_pipe) &&
+				split_pipe->top_pipe->plane_state == split_pipe->plane_state) {
+			split_pipe->top_pipe->bottom_pipe = split_pipe->bottom_pipe;
+			if (split_pipe->bottom_pipe)
+				split_pipe->bottom_pipe->top_pipe = split_pipe->top_pipe;
 
-			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
-			pipe_ctx->stream_res.tg = pool->timing_generators[i];
-			pipe_ctx->plane_res.hubp = pool->hubps[i];
-			pipe_ctx->plane_res.ipp = pool->ipps[i];
-			pipe_ctx->plane_res.dpp = pool->dpps[i];
-			pipe_ctx->stream_res.opp = pool->opps[i];
-			pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
-			pipe_ctx->pipe_idx = i;
+			if (split_pipe->top_pipe->plane_state)
+				resource_build_scaling_params(split_pipe->top_pipe);
 
-			pipe_ctx->stream = stream;
+			memset(split_pipe, 0, sizeof(*split_pipe));
+			split_pipe->stream_res.tg = pool->timing_generators[i];
+			split_pipe->plane_res.hubp = pool->hubps[i];
+			split_pipe->plane_res.ipp = pool->ipps[i];
+			split_pipe->plane_res.dpp = pool->dpps[i];
+			split_pipe->stream_res.opp = pool->opps[i];
+			split_pipe->plane_res.mpcc_inst = pool->dpps[i]->inst;
+			split_pipe->pipe_idx = i;
+
+			split_pipe->stream = stream;
 			return i;
 		}
 	}
@@ -1647,46 +1649,6 @@ static int acquire_first_free_pipe(
 	return -1;
 }
 
-static struct stream_encoder *find_first_free_match_stream_enc_for_link(
-		struct resource_context *res_ctx,
-		const struct resource_pool *pool,
-		struct dc_stream_state *stream)
-{
-	int i;
-	int j = -1;
-	struct dc_link *link = stream->link;
-
-	for (i = 0; i < pool->stream_enc_count; i++) {
-		if (!res_ctx->is_stream_enc_acquired[i] &&
-				pool->stream_enc[i]) {
-			/* Store first available for MST second display
-			 * in daisy chain use case */
-			j = i;
-			if (pool->stream_enc[i]->id ==
-					link->link_enc->preferred_engine)
-				return pool->stream_enc[i];
-		}
-	}
-
-	/*
-	 * below can happen in cases when stream encoder is acquired:
-	 * 1) for second MST display in chain, so preferred engine already
-	 * acquired;
-	 * 2) for another link, which preferred engine already acquired by any
-	 * MST configuration.
-	 *
-	 * If signal is of DP type and preferred engine not found, return last available
-	 *
-	 * TODO - This is just a patch up and a generic solution is
-	 * required for non DP connectors.
-	 */
-
-	if (j >= 0 && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)
-		return pool->stream_enc[j];
-
-	return NULL;
-}
-
 static struct audio *find_first_free_audio(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
@@ -1998,7 +1960,7 @@ enum dc_status resource_map_pool_resources(
 	pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
 
 	pipe_ctx->stream_res.stream_enc =
-		find_first_free_match_stream_enc_for_link(
+		dc->res_pool->funcs->find_first_free_match_stream_enc_for_link(
 			&context->res_ctx, pool, stream);
 
 	if (!pipe_ctx->stream_res.stream_enc)
@@ -2059,7 +2021,7 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
 {
-	dst_ctx->clk_mgr = dc->res_pool->clk_mgr;
+	dst_ctx->clk_mgr = dc->clk_mgr;
 }
 
 /**
@@ -2354,7 +2316,18 @@ static void set_avi_info_frame(
 			break;
 		}
 	}
+	/* If VIC >= 128, the Source shall use AVI InfoFrame Version 3*/
 	hdmi_info.bits.VIC0_VIC7 = vic;
+	if (vic >= 128)
+		hdmi_info.bits.header.version = 3;
+	/* If (C1, C0)=(1, 1) and (EC2, EC1, EC0)=(1, 1, 1),
+	 * the Source shall use 20 AVI InfoFrame Version 4
+	 */
+	if (hdmi_info.bits.C0_C1 == COLORIMETRY_EXTENDED &&
+			hdmi_info.bits.EC0_EC2 == COLORIMETRYEX_RESERVED) {
+		hdmi_info.bits.header.version = 4;
+		hdmi_info.bits.header.length = 14;
+	}
 
 	/* pixel repetition
 	 * PR0 - PR3 start from 0 whereas pHwPathMode->mode.timing.flags.pixel
@@ -2373,12 +2346,19 @@ static void set_avi_info_frame(
 	hdmi_info.bits.bar_right = (stream->timing.h_total
 			- stream->timing.h_border_right + 1);
 
+    /* Additional Colorimetry Extension
+     * Used in conduction with C0-C1 and EC0-EC2
+     * 0 = DCI-P3 RGB (D65)
+     * 1 = DCI-P3 RGB (theater)
+     */
+	hdmi_info.bits.ACE0_ACE3 = 0;
+
 	/* check_sum - Calculate AFMT_AVI_INFO0 ~ AFMT_AVI_INFO3 */
 	check_sum = &hdmi_info.packet_raw_data.sb[0];
 
-	*check_sum = HDMI_INFOFRAME_TYPE_AVI + HDMI_AVI_INFOFRAME_SIZE + 2;
+	*check_sum = HDMI_INFOFRAME_TYPE_AVI + hdmi_info.bits.header.length + hdmi_info.bits.header.version;
 
-	for (byte_index = 1; byte_index <= HDMI_AVI_INFOFRAME_SIZE; byte_index++)
+	for (byte_index = 1; byte_index <= hdmi_info.bits.header.length; byte_index++)
 		*check_sum += hdmi_info.packet_raw_data.sb[byte_index];
 
 	/* one byte complement */
@@ -2423,21 +2403,6 @@ static void set_spd_info_packet(
 		return;
 
 	*info_packet = stream->vrr_infopacket;
-}
-
-static void set_dp_sdp_info_packet(
-		struct dc_info_packet *info_packet,
-		struct dc_stream_state *stream)
-{
-	/* SPD info packet for custom sdp message */
-
-	/* Return if false. If true,
-	 * set the corresponding bit in the info packet
-	 */
-	if (!stream->dpsdp_infopacket.valid)
-		return;
-
-	*info_packet = stream->dpsdp_infopacket;
 }
 
 static void set_hdr_static_info_packet(
@@ -2495,7 +2460,6 @@ void dc_resource_state_copy_construct(
 
 		if (cur_pipe->bottom_pipe)
 			cur_pipe->bottom_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
-
 	}
 
 	for (i = 0; i < dst_ctx->stream_count; i++) {
@@ -2536,7 +2500,6 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->spd.valid = false;
 	info->hdrsmd.valid = false;
 	info->vsc.valid = false;
-	info->dpsdp.valid = false;
 
 	signal = pipe_ctx->stream->signal;
 
@@ -2556,8 +2519,6 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 
 		set_hdr_static_info_packet(&info->hdrsmd, pipe_ctx->stream);
-
-		set_dp_sdp_info_packet(&info->dpsdp, pipe_ctx->stream);
 	}
 
 	patch_gamut_packet_checksum(&info->gamut);
@@ -2642,6 +2603,10 @@ bool pipe_need_reprogram(
 		return true;
 
 	if (is_vsc_info_packet_changed(pipe_ctx_old->stream, pipe_ctx->stream))
+		return true;
+
+	if (false == pipe_ctx_old->stream->link->link_state_valid &&
+		false == pipe_ctx_old->stream->dpms_off)
 		return true;
 
 	return false;

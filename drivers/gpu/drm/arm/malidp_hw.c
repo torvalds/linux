@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
  * Author: Liviu Dudau <Liviu.Dudau@arm.com>
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
  *
  * ARM Mali DP500/DP550/DP650 hardware manipulation routines. This is where
  * the difference between various versions of the hardware is being dealt with
@@ -382,7 +378,8 @@ static void malidp500_modeset(struct malidp_hw_device *hwdev, struct videomode *
 
 int malidp_format_get_bpp(u32 fmt)
 {
-	int bpp = drm_format_plane_cpp(fmt, 0) * 8;
+	const struct drm_format_info *info = drm_format_info(fmt);
+	int bpp = info->cpp[0] * 8;
 
 	if (bpp == 0) {
 		switch (fmt) {

@@ -75,9 +75,6 @@ struct drm_i915_private;
 
 #define I915_GEM_IDLE_TIMEOUT (HZ / 5)
 
-void i915_gem_park(struct drm_i915_private *i915);
-void i915_gem_unpark(struct drm_i915_private *i915);
-
 static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
 {
 	if (!atomic_fetch_inc(&t->count))
@@ -92,6 +89,11 @@ static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
 static inline bool __tasklet_enable(struct tasklet_struct *t)
 {
 	return atomic_dec_and_test(&t->count);
+}
+
+static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
+{
+	return test_bit(TASKLET_STATE_SCHED, &t->state);
 }
 
 #endif /* __I915_GEM_H__ */

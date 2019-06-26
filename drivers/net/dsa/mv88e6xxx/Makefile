@@ -12,3 +12,4 @@ mv88e6xxx-objs += phy.o
 mv88e6xxx-objs += port.o
 mv88e6xxx-$(CONFIG_NET_DSA_MV88E6XXX_PTP) += ptp.o
 mv88e6xxx-objs += serdes.o
+mv88e6xxx-objs += smi.o

@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Setup code for SAMA5
  *
  *  Copyright (C) 2013 Atmel,
  *                2013 Ludovic Desroches <ludovic.desroches@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/of.h>

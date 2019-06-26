@@ -2,6 +2,7 @@
 #ifndef __POWERNV_PCI_H
 #define __POWERNV_PCI_H
 
+#include <linux/compiler.h>		/* for __printf */
 #include <linux/iommu.h>
 #include <asm/iommu.h>
 #include <asm/msi_bitmap.h>
@@ -204,6 +205,7 @@ extern unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
 		__u64 window_size, __u32 levels);
 extern int pnv_eeh_post_init(void);
 
+__printf(3, 4)
 extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			    const char *fmt, ...);
 #define pe_err(pe, fmt, ...)					\

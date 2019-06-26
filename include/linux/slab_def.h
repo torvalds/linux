@@ -61,9 +61,6 @@ struct kmem_cache {
 	atomic_t allocmiss;
 	atomic_t freehit;
 	atomic_t freemiss;
-#ifdef CONFIG_DEBUG_SLAB_LEAK
-	atomic_t store_user_clean;
-#endif
 
 	/*
 	 * If debugging is enabled, then the allocator can add additional

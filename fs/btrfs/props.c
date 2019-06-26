@@ -23,36 +23,6 @@ struct prop_handler {
 	int inheritable;
 };
 
-static int prop_compression_validate(const char *value, size_t len);
-static int prop_compression_apply(struct inode *inode,
-				  const char *value,
-				  size_t len);
-static const char *prop_compression_extract(struct inode *inode);
-
-static struct prop_handler prop_handlers[] = {
-	{
-		.xattr_name = XATTR_BTRFS_PREFIX "compression",
-		.validate = prop_compression_validate,
-		.apply = prop_compression_apply,
-		.extract = prop_compression_extract,
-		.inheritable = 1
-	},
-};
-
-void __init btrfs_props_init(void)
-{
-	int i;
-
-	hash_init(prop_handlers_ht);
-
-	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
-		struct prop_handler *p = &prop_handlers[i];
-		u64 h = btrfs_name_hash(p->xattr_name, strlen(p->xattr_name));
-
-		hash_add(prop_handlers_ht, &p->node, h);
-	}
-}
-
 static const struct hlist_head *find_prop_handlers_by_hash(const u64 hash)
 {
 	struct hlist_head *h;
@@ -85,15 +55,9 @@ find_prop_handler(const char *name,
 	return NULL;
 }
 
-static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
-			    struct inode *inode,
-			    const char *name,
-			    const char *value,
-			    size_t value_len,
-			    int flags)
+int btrfs_validate_prop(const char *name, const char *value, size_t value_len)
 {
 	const struct prop_handler *handler;
-	int ret;
 
 	if (strlen(name) <= XATTR_BTRFS_PREFIX_LEN)
 		return -EINVAL;
@@ -102,9 +66,26 @@ static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
 	if (!handler)
 		return -EINVAL;
 
+	if (value_len == 0)
+		return 0;
+
+	return handler->validate(value, value_len);
+}
+
+int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
+		   const char *name, const char *value, size_t value_len,
+		   int flags)
+{
+	const struct prop_handler *handler;
+	int ret;
+
+	handler = find_prop_handler(name, NULL);
+	if (!handler)
+		return -EINVAL;
+
 	if (value_len == 0) {
 		ret = btrfs_setxattr(trans, inode, handler->xattr_name,
-				       NULL, 0, flags);
+				     NULL, 0, flags);
 		if (ret)
 			return ret;
 
@@ -114,32 +95,20 @@ static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	ret = handler->validate(value, value_len);
-	if (ret)
-		return ret;
-	ret = btrfs_setxattr(trans, inode, handler->xattr_name,
-			       value, value_len, flags);
+	ret = btrfs_setxattr(trans, inode, handler->xattr_name, value,
+			     value_len, flags);
 	if (ret)
 		return ret;
 	ret = handler->apply(inode, value, value_len);
 	if (ret) {
-		btrfs_setxattr(trans, inode, handler->xattr_name,
-				 NULL, 0, flags);
+		btrfs_setxattr(trans, inode, handler->xattr_name, NULL,
+			       0, flags);
 		return ret;
 	}
 
 	set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
 
 	return 0;
-}
-
-int btrfs_set_prop(struct inode *inode,
-		   const char *name,
-		   const char *value,
-		   size_t value_len,
-		   int flags)
-{
-	return __btrfs_set_prop(NULL, inode, name, value, value_len, flags);
 }
 
 static int iterate_object_props(struct btrfs_root *root,
@@ -283,89 +252,11 @@ int btrfs_load_inode_props(struct inode *inode, struct btrfs_path *path)
 	return ret;
 }
 
-static int inherit_props(struct btrfs_trans_handle *trans,
-			 struct inode *inode,
-			 struct inode *parent)
-{
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	int ret;
-	int i;
-
-	if (!test_bit(BTRFS_INODE_HAS_PROPS,
-		      &BTRFS_I(parent)->runtime_flags))
-		return 0;
-
-	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
-		const struct prop_handler *h = &prop_handlers[i];
-		const char *value;
-		u64 num_bytes;
-
-		if (!h->inheritable)
-			continue;
-
-		value = h->extract(parent);
-		if (!value)
-			continue;
-
-		num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
-		ret = btrfs_block_rsv_add(root, trans->block_rsv,
-					  num_bytes, BTRFS_RESERVE_NO_FLUSH);
-		if (ret)
-			goto out;
-		ret = __btrfs_set_prop(trans, inode, h->xattr_name,
-				       value, strlen(value), 0);
-		btrfs_block_rsv_release(fs_info, trans->block_rsv, num_bytes);
-		if (ret)
-			goto out;
-	}
-	ret = 0;
-out:
-	return ret;
-}
-
-int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
-			      struct inode *inode,
-			      struct inode *dir)
-{
-	if (!dir)
-		return 0;
-
-	return inherit_props(trans, inode, dir);
-}
-
-int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
-			       struct btrfs_root *parent_root)
-{
-	struct super_block *sb = root->fs_info->sb;
-	struct btrfs_key key;
-	struct inode *parent_inode, *child_inode;
-	int ret;
-
-	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
-	key.type = BTRFS_INODE_ITEM_KEY;
-	key.offset = 0;
-
-	parent_inode = btrfs_iget(sb, &key, parent_root, NULL);
-	if (IS_ERR(parent_inode))
-		return PTR_ERR(parent_inode);
-
-	child_inode = btrfs_iget(sb, &key, root, NULL);
-	if (IS_ERR(child_inode)) {
-		iput(parent_inode);
-		return PTR_ERR(child_inode);
-	}
-
-	ret = inherit_props(trans, child_inode, parent_inode);
-	iput(child_inode);
-	iput(parent_inode);
-
-	return ret;
-}
-
 static int prop_compression_validate(const char *value, size_t len)
 {
+	if (!value)
+		return 0;
+
 	if (!strncmp("lzo", value, 3))
 		return 0;
 	else if (!strncmp("zlib", value, 4))
@@ -376,8 +267,7 @@ static int prop_compression_validate(const char *value, size_t len)
 	return -EINVAL;
 }
 
-static int prop_compression_apply(struct inode *inode,
-				  const char *value,
+static int prop_compression_apply(struct inode *inode, const char *value,
 				  size_t len)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -424,4 +314,140 @@ static const char *prop_compression_extract(struct inode *inode)
 	return NULL;
 }
 
+static struct prop_handler prop_handlers[] = {
+	{
+		.xattr_name = XATTR_BTRFS_PREFIX "compression",
+		.validate = prop_compression_validate,
+		.apply = prop_compression_apply,
+		.extract = prop_compression_extract,
+		.inheritable = 1
+	},
+};
+
+static int inherit_props(struct btrfs_trans_handle *trans,
+			 struct inode *inode,
+			 struct inode *parent)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	int ret;
+	int i;
+	bool need_reserve = false;
+
+	if (!test_bit(BTRFS_INODE_HAS_PROPS,
+		      &BTRFS_I(parent)->runtime_flags))
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
+		const struct prop_handler *h = &prop_handlers[i];
+		const char *value;
+		u64 num_bytes;
+
+		if (!h->inheritable)
+			continue;
+
+		value = h->extract(parent);
+		if (!value)
+			continue;
+
+		/*
+		 * This is not strictly necessary as the property should be
+		 * valid, but in case it isn't, don't propagate it futher.
+		 */
+		ret = h->validate(value, strlen(value));
+		if (ret)
+			continue;
+
+		/*
+		 * Currently callers should be reserving 1 item for properties,
+		 * since we only have 1 property that we currently support.  If
+		 * we add more in the future we need to try and reserve more
+		 * space for them.  But we should also revisit how we do space
+		 * reservations if we do add more properties in the future.
+		 */
+		if (need_reserve) {
+			num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
+			ret = btrfs_block_rsv_add(root, trans->block_rsv,
+					num_bytes, BTRFS_RESERVE_NO_FLUSH);
+			if (ret)
+				return ret;
+		}
+
+		ret = btrfs_setxattr(trans, inode, h->xattr_name, value,
+				     strlen(value), 0);
+		if (!ret) {
+			ret = h->apply(inode, value, strlen(value));
+			if (ret)
+				btrfs_setxattr(trans, inode, h->xattr_name,
+					       NULL, 0, 0);
+			else
+				set_bit(BTRFS_INODE_HAS_PROPS,
+					&BTRFS_I(inode)->runtime_flags);
+		}
+
+		if (need_reserve) {
+			btrfs_block_rsv_release(fs_info, trans->block_rsv,
+					num_bytes);
+			if (ret)
+				return ret;
+		}
+		need_reserve = true;
+	}
+
+	return 0;
+}
+
+int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
+			      struct inode *inode,
+			      struct inode *dir)
+{
+	if (!dir)
+		return 0;
+
+	return inherit_props(trans, inode, dir);
+}
+
+int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct btrfs_root *parent_root)
+{
+	struct super_block *sb = root->fs_info->sb;
+	struct btrfs_key key;
+	struct inode *parent_inode, *child_inode;
+	int ret;
+
+	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
+	key.type = BTRFS_INODE_ITEM_KEY;
+	key.offset = 0;
+
+	parent_inode = btrfs_iget(sb, &key, parent_root, NULL);
+	if (IS_ERR(parent_inode))
+		return PTR_ERR(parent_inode);
+
+	child_inode = btrfs_iget(sb, &key, root, NULL);
+	if (IS_ERR(child_inode)) {
+		iput(parent_inode);
+		return PTR_ERR(child_inode);
+	}
+
+	ret = inherit_props(trans, child_inode, parent_inode);
+	iput(child_inode);
+	iput(parent_inode);
+
+	return ret;
+}
+
+void __init btrfs_props_init(void)
+{
+	int i;
+
+	hash_init(prop_handlers_ht);
+
+	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
+		struct prop_handler *p = &prop_handlers[i];
+		u64 h = btrfs_name_hash(p->xattr_name, strlen(p->xattr_name));
+
+		hash_add(prop_handlers_ht, &p->node, h);
+	}
+}
 

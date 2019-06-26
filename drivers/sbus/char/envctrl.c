@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* envctrl.c: Temperature and Fan monitoring on Machines providing it.
  *
  * Copyright (C) 1998  Eddie C. Dost  (ecd@skynet.be)

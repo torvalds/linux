@@ -1,26 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Marvell 88SE64xx hardware specific
  *
  * Copyright 2007 Red Hat, Inc.
  * Copyright 2008 Marvell. <kewei@marvell.com>
  * Copyright 2009-2011 Marvell. <yuxiangl@marvell.com>
- *
- * This file is licensed under GPLv2.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
 */
 
 #include "mv_sas.h"
@@ -678,7 +662,8 @@ static u32 mvs_64xx_spi_read_data(struct mvs_info *mvi)
 static void mvs_64xx_spi_write_data(struct mvs_info *mvi, u32 data)
 {
 	void __iomem *regs = mvi->regs_ex;
-	 iow32(SPI_DATA_REG_64XX, data);
+
+	iow32(SPI_DATA_REG_64XX, data);
 }
 
 

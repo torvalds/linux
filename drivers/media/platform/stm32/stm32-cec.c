@@ -56,6 +56,13 @@
 #define ALL_TX_IT	(TXEND | TXBR | TXACKE | TXERR | TXUDR | ARBLST)
 #define ALL_RX_IT	(RXEND | RXBR | RXACKE | RXOVR)
 
+/*
+ * 400 ms is the time it takes for one 16 byte message to be
+ * transferred and 5 is the maximum number of retries. Add
+ * another 100 ms as a margin.
+ */
+#define CEC_XFER_TIMEOUT_MS (5 * 400 + 100)
+
 struct stm32_cec {
 	struct cec_adapter	*adap;
 	struct device		*dev;
@@ -188,7 +195,11 @@ static int stm32_cec_adap_log_addr(struct cec_adapter *adap, u8 logical_addr)
 {
 	struct stm32_cec *cec = adap->priv;
 	u32 oar = (1 << logical_addr) << 16;
+	u32 val;
 
+	/* Poll every 100µs the register CEC_CR to wait end of transmission */
+	regmap_read_poll_timeout(cec->regmap, CEC_CR, val, !(val & TXSOM),
+				 100, CEC_XFER_TIMEOUT_MS * 1000);
 	regmap_update_bits(cec->regmap, CEC_CR, CECEN, 0);
 
 	if (logical_addr == CEC_LOG_ADDR_INVALID)

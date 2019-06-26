@@ -112,10 +112,11 @@ static inline void __user *__uaccess_mask_range_ptr(const void __user *ptr,
 	unsigned long tmp;
 
 	asm volatile(
+	"	.syntax unified\n"
 	"	sub	%1, %3, #1\n"
 	"	subs	%1, %1, %0\n"
 	"	addhs	%1, %1, #1\n"
-	"	subhss	%1, %1, %2\n"
+	"	subshs	%1, %1, %2\n"
 	"	movlo	%0, #0\n"
 	: "+r" (safe_ptr), "=&r" (tmp)
 	: "r" (size), "r" (current_thread_info()->addr_limit)

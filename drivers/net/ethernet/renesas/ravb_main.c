@@ -111,7 +111,7 @@ static void ravb_set_buffer_align(struct sk_buff *skb)
  */
 static void ravb_read_mac_address(struct net_device *ndev, const u8 *mac)
 {
-	if (mac) {
+	if (!IS_ERR(mac)) {
 		ether_addr_copy(ndev->dev_addr, mac);
 	} else {
 		u32 mahr = ravb_read(ndev, MAHR);
@@ -728,7 +728,6 @@ static irqreturn_t ravb_emac_interrupt(int irq, void *dev_id)
 
 	spin_lock(&priv->lock);
 	ravb_emac_interrupt_unlocked(ndev);
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return IRQ_HANDLED;
 }
@@ -848,7 +847,6 @@ static irqreturn_t ravb_interrupt(int irq, void *dev_id)
 		result = IRQ_HANDLED;
 	}
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -881,7 +879,6 @@ static irqreturn_t ravb_multi_interrupt(int irq, void *dev_id)
 		result = IRQ_HANDLED;
 	}
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -898,7 +895,6 @@ static irqreturn_t ravb_dma_interrupt(int irq, void *dev_id, int q)
 	if (ravb_queue_interrupt(ndev, q))
 		result = IRQ_HANDLED;
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -943,7 +939,6 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 			ravb_write(ndev, ~(mask | TIS_RESERVED), TIS);
 			ravb_tx_free(ndev, q, true);
 			netif_wake_subqueue(ndev, q);
-			mmiowb();
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 	}
@@ -959,7 +954,6 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 		ravb_write(ndev, mask, RIE0);
 		ravb_write(ndev, mask, TIE);
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Receive error message handling */
@@ -1008,7 +1002,6 @@ static void ravb_adjust_link(struct net_device *ndev)
 	if (priv->no_avb_link && phydev->link)
 		ravb_rcv_snd_enable(ndev);
 
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (new_state && netif_msg_link(priv))
@@ -1601,7 +1594,6 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		netif_stop_subqueue(ndev, q);
 
 exit:
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return NETDEV_TX_OK;
 
@@ -1615,8 +1607,7 @@ drop:
 }
 
 static u16 ravb_select_queue(struct net_device *ndev, struct sk_buff *skb,
-			     struct net_device *sb_dev,
-			     select_queue_fallback_t fallback)
+			     struct net_device *sb_dev)
 {
 	/* If skb needs TX timestamp, it is handled in network control queue */
 	return (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) ? RAVB_NC :
@@ -1673,7 +1664,6 @@ static void ravb_set_rx_mode(struct net_device *ndev)
 	spin_lock_irqsave(&priv->lock, flags);
 	ravb_modify(ndev, ECMR, ECMR_PRM,
 		    ndev->flags & IFF_PROMISC ? ECMR_PRM : 0);
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
@@ -1970,6 +1960,13 @@ static void ravb_set_config_mode(struct net_device *ndev)
 	}
 }
 
+static const struct soc_device_attribute ravb_delay_mode_quirk_match[] = {
+	{ .soc_id = "r8a774c0" },
+	{ .soc_id = "r8a77990" },
+	{ .soc_id = "r8a77995" },
+	{ /* sentinel */ }
+};
+
 /* Set tx and rx clock internal delay modes */
 static void ravb_set_delay_mode(struct net_device *ndev)
 {
@@ -1981,8 +1978,12 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 		set |= APSR_DM_RDM;
 
 	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID)
-		set |= APSR_DM_TDM;
+	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) {
+		if (!WARN(soc_device_match(ravb_delay_mode_quirk_match),
+			  "phy-mode %s requires TX clock internal delay mode which is not supported by this hardware revision. Please update device tree",
+			  phy_modes(priv->phy_interface)))
+			set |= APSR_DM_TDM;
+	}
 
 	ravb_modify(ndev, APSR, APSR_DM, set);
 }

@@ -1441,7 +1441,7 @@ static void ath10k_pci_dump_registers(struct ath10k *ar,
 	__le32 reg_dump_values[REG_DUMP_COUNT_QCA988X] = {};
 	int i, ret;
 
-	lockdep_assert_held(&ar->data_lock);
+	lockdep_assert_held(&ar->dump_mutex);
 
 	ret = ath10k_pci_diag_read_hi(ar, &reg_dump_values[0],
 				      hi_failure_state,
@@ -1656,7 +1656,7 @@ static void ath10k_pci_dump_memory(struct ath10k *ar,
 	int ret, i;
 	u8 *buf;
 
-	lockdep_assert_held(&ar->data_lock);
+	lockdep_assert_held(&ar->dump_mutex);
 
 	if (!crash_data)
 		return;
@@ -1734,14 +1734,19 @@ static void ath10k_pci_dump_memory(struct ath10k *ar,
 	}
 }
 
-static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
+static void ath10k_pci_fw_dump_work(struct work_struct *work)
 {
+	struct ath10k_pci *ar_pci = container_of(work, struct ath10k_pci,
+						 dump_work);
 	struct ath10k_fw_crash_data *crash_data;
+	struct ath10k *ar = ar_pci->ar;
 	char guid[UUID_STRING_LEN + 1];
 
-	spin_lock_bh(&ar->data_lock);
+	mutex_lock(&ar->dump_mutex);
 
+	spin_lock_bh(&ar->data_lock);
 	ar->stats.fw_crash_counter++;
+	spin_unlock_bh(&ar->data_lock);
 
 	crash_data = ath10k_coredump_new(ar);
 
@@ -1756,9 +1761,16 @@ static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 	ath10k_ce_dump_registers(ar, crash_data);
 	ath10k_pci_dump_memory(ar, crash_data);
 
-	spin_unlock_bh(&ar->data_lock);
+	mutex_unlock(&ar->dump_mutex);
 
 	queue_work(ar->workqueue, &ar->restart_work);
+}
+
+static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	queue_work(ar->workqueue, &ar_pci->dump_work);
 }
 
 void ath10k_pci_hif_send_complete_check(struct ath10k *ar, u8 pipe,
@@ -3441,6 +3453,8 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 	spin_lock_init(&ce->ce_lock);
 	spin_lock_init(&ar_pci->ps_lock);
 	mutex_init(&ar_pci->ce_diag_mutex);
+
+	INIT_WORK(&ar_pci->dump_work, ath10k_pci_fw_dump_work);
 
 	timer_setup(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry, 0);
 

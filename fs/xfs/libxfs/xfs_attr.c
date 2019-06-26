@@ -224,10 +224,10 @@ xfs_attr_try_sf_addname(
  */
 int
 xfs_attr_set_args(
-	struct xfs_da_args	*args,
-	struct xfs_buf          **leaf_bp)
+	struct xfs_da_args	*args)
 {
 	struct xfs_inode	*dp = args->dp;
+	struct xfs_buf          *leaf_bp = NULL;
 	int			error;
 
 	/*
@@ -255,7 +255,7 @@ xfs_attr_set_args(
 		 * It won't fit in the shortform, transform to a leaf block.
 		 * GROT: another possible req'mt for a double-split btree op.
 		 */
-		error = xfs_attr_shortform_to_leaf(args, leaf_bp);
+		error = xfs_attr_shortform_to_leaf(args, &leaf_bp);
 		if (error)
 			return error;
 
@@ -263,23 +263,16 @@ xfs_attr_set_args(
 		 * Prevent the leaf buffer from being unlocked so that a
 		 * concurrent AIL push cannot grab the half-baked leaf
 		 * buffer and run into problems with the write verifier.
+		 * Once we're done rolling the transaction we can release
+		 * the hold and add the attr to the leaf.
 		 */
-		xfs_trans_bhold(args->trans, *leaf_bp);
-
+		xfs_trans_bhold(args->trans, leaf_bp);
 		error = xfs_defer_finish(&args->trans);
-		if (error)
+		xfs_trans_bhold_release(args->trans, leaf_bp);
+		if (error) {
+			xfs_trans_brelse(args->trans, leaf_bp);
 			return error;
-
-		/*
-		 * Commit the leaf transformation.  We'll need another
-		 * (linked) transaction to add the new attribute to the
-		 * leaf.
-		 */
-		error = xfs_trans_roll_inode(&args->trans, dp);
-		if (error)
-			return error;
-		xfs_trans_bjoin(args->trans, *leaf_bp);
-		*leaf_bp = NULL;
+		}
 	}
 
 	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
@@ -322,7 +315,6 @@ xfs_attr_set(
 	int			flags)
 {
 	struct xfs_mount	*mp = dp->i_mount;
-	struct xfs_buf		*leaf_bp = NULL;
 	struct xfs_da_args	args;
 	struct xfs_trans_res	tres;
 	int			rsvd = (flags & ATTR_ROOT) != 0;
@@ -381,9 +373,9 @@ xfs_attr_set(
 		goto out_trans_cancel;
 
 	xfs_trans_ijoin(args.trans, dp, 0);
-	error = xfs_attr_set_args(&args, &leaf_bp);
+	error = xfs_attr_set_args(&args);
 	if (error)
-		goto out_release_leaf;
+		goto out_trans_cancel;
 	if (!args.trans) {
 		/* shortform attribute has already been committed */
 		goto out_unlock;
@@ -408,9 +400,6 @@ out_unlock:
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 	return error;
 
-out_release_leaf:
-	if (leaf_bp)
-		xfs_trans_brelse(args.trans, leaf_bp);
 out_trans_cancel:
 	if (args.trans)
 		xfs_trans_cancel(args.trans);

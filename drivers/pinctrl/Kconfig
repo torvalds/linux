@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # PINCTRL infrastructure and drivers
 #
@@ -107,6 +108,14 @@ config PINCTRL_AMD
 
 	  Requires ACPI/FDT device enumeration code to set up a platform
 	  device.
+
+config PINCTRL_BM1880
+	bool "Bitmain BM1880 Pinctrl driver"
+	depends on OF && (ARCH_BITMAIN || COMPILE_TEST)
+	default ARCH_BITMAIN
+	select PINMUX
+	help
+	  Pinctrl driver for Bitmain BM1880 SoC.
 
 config PINCTRL_DA850_PUPD
 	tristate "TI DA850/OMAP-L138/AM18XX pullup/pulldown groups"
@@ -264,6 +273,20 @@ config PINCTRL_ST
 	select PINMUX
 	select PINCONF
 	select GPIOLIB_IRQCHIP
+
+config PINCTRL_STMFX
+	tristate "STMicroelectronics STMFX GPIO expander pinctrl driver"
+	depends on I2C
+	depends on OF_GPIO
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select MFD_STMFX
+	help
+	  Driver for STMicroelectronics Multi-Function eXpander (STMFX)
+	  GPIO expander.
+	  This provides a GPIO interface supporting inputs and outputs,
+	  and configuring push-pull, open-drain, and can also be used as
+	  interrupt-controller.
 
 config PINCTRL_U300
 	bool "U300 pin controller driver"

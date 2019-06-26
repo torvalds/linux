@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * processor_thermal_device.c
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -81,22 +72,13 @@ static ssize_t power_limit_##index##_##suffix##_show(struct device *dev, \
 					struct device_attribute *attr, \
 					char *buf) \
 { \
-	struct pci_dev *pci_dev; \
-	struct platform_device *pdev; \
-	struct proc_thermal_device *proc_dev; \
+	struct proc_thermal_device *proc_dev = dev_get_drvdata(dev); \
 	\
 	if (proc_thermal_emum_mode == PROC_THERMAL_NONE) { \
 		dev_warn(dev, "Attempted to get power limit before device was initialized!\n"); \
 		return 0; \
 	} \
 	\
-	if (proc_thermal_emum_mode == PROC_THERMAL_PLATFORM_DEV) { \
-		pdev = to_platform_device(dev); \
-		proc_dev = platform_get_drvdata(pdev); \
-	} else { \
-		pci_dev = to_pci_dev(dev); \
-		proc_dev = pci_get_drvdata(pci_dev); \
-	} \
 	return sprintf(buf, "%lu\n",\
 	(unsigned long)proc_dev->power_limits[index].suffix * 1000); \
 }
@@ -274,7 +256,7 @@ static void proc_thermal_notify(acpi_handle handle, u32 event, void *data)
 				THERMAL_DEVICE_POWER_CAPABILITY_CHANGED);
 		break;
 	default:
-		dev_err(proc_priv->dev, "Unsupported event [0x%x]\n", event);
+		dev_dbg(proc_priv->dev, "Unsupported event [0x%x]\n", event);
 		break;
 	}
 }

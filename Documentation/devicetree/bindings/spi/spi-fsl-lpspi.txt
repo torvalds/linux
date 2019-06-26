@@ -7,7 +7,11 @@ Required properties:
 - reg : address and length of the lpspi master registers
 - interrupt-parent : core interrupt controller
 - interrupts : lpspi interrupt
-- clocks : lpspi clock specifier
+- clocks : lpspi clock specifier. Its number and order need to correspond to the
+	   value in clock-names.
+- clock-names : Corresponding to per clock and ipg clock in "clocks"
+		respectively. In i.MX7ULP, it only has per clk, so use CLK_DUMMY
+		to fill the "ipg" blank.
 - spi-slave : spi slave mode support. In slave mode, add this attribute without
 	      value. In master mode, remove it.
 
@@ -18,6 +22,8 @@ lpspi2: lpspi@40290000 {
 	reg = <0x40290000 0x10000>;
 	interrupt-parent = <&intc>;
 	interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
-	clocks = <&clks IMX7ULP_CLK_LPSPI2>;
+	clocks = <&clks IMX7ULP_CLK_LPSPI2>,
+		 <&clks IMX7ULP_CLK_DUMMY>;
+	clock-names = "per", "ipg";
 	spi-slave;
 };

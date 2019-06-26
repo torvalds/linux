@@ -160,7 +160,7 @@ static int __init dm_parse_table(struct dm_device *dev, char *str)
 
 	while (table_entry) {
 		DMDEBUG("parsing table \"%s\"", str);
-		if (++dev->dmi.target_count >= DM_MAX_TARGETS) {
+		if (++dev->dmi.target_count > DM_MAX_TARGETS) {
 			DMERR("too many targets %u > %d",
 			      dev->dmi.target_count, DM_MAX_TARGETS);
 			return -EINVAL;
@@ -242,9 +242,9 @@ static int __init dm_parse_devices(struct list_head *devices, char *str)
 			return -ENOMEM;
 		list_add_tail(&dev->list, devices);
 
-		if (++ndev >= DM_MAX_DEVICES) {
-			DMERR("too many targets %u > %d",
-			      dev->dmi.target_count, DM_MAX_TARGETS);
+		if (++ndev > DM_MAX_DEVICES) {
+			DMERR("too many devices %lu > %d",
+			      ndev, DM_MAX_DEVICES);
 			return -EINVAL;
 		}
 

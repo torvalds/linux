@@ -21,6 +21,15 @@
 		serial0 = &uart0;
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 50000 0>;
+		power-supply = <&reg_dcdc1>;
+		brightness-levels = <0 5 7 10 14 20 28 40 56 80 112>;
+		default-brightness-level = <5>;
+		enable-gpios = <&pio 3 23 GPIO_ACTIVE_HIGH>; /* PD23 */
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 
@@ -128,6 +137,10 @@
 };
 
 &ohci1 {
+	status = "okay";
+};
+
+&pwm {
 	status = "okay";
 };
 

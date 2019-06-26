@@ -1,7 +1,6 @@
 [
     {
         "PublicDescription": "This event counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. \nNotes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. \nCounting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
-        "EventCode": "0x00",
         "Counter": "Fixed counter 0",
         "UMask": "0x1",
         "EventName": "INST_RETIRED.ANY",
@@ -11,7 +10,6 @@
     },
     {
         "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
-        "EventCode": "0x00",
         "Counter": "Fixed counter 1",
         "UMask": "0x2",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
@@ -20,7 +18,6 @@
         "CounterHTOff": "Fixed counter 1"
     },
     {
-        "EventCode": "0x00",
         "Counter": "Fixed counter 1",
         "UMask": "0x2",
         "AnyThread": "1",
@@ -31,7 +28,6 @@
     },
     {
         "PublicDescription": "This event counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. \nNote: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  This event is clocked by base clock (100 Mhz) on Sandy Bridge. The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
-        "EventCode": "0x00",
         "Counter": "Fixed counter 2",
         "UMask": "0x3",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
@@ -317,7 +313,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts stalls occurred due to changing prefix length (66, 67 or REX.W when they change the length of the decoded instruction). Occurrences counting is proportional to the number of prefixes in a 16B-line. This may result in the following penalties: three-cycle penalty for each LCP in a 16-byte chunk.",
+        "PublicDescription": "This event counts stalls occured due to changing prefix length (66, 67 or REX.W when they change the length of the decoded instruction). Occurrences counting is proportional to the number of prefixes in a 16B-line. This may result in the following penalties: three-cycle penalty for each LCP in a 16-byte chunk.",
         "EventCode": "0x87",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -786,8 +782,8 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts resource-related stall cycles. Reasons for stalls can be as follows:\n - *any* u-arch structure got full (LB, SB, RS, ROB, BOB, LM, Physical Register Reclaim Table (PRRT), or Physical History Table (PHT) slots)\n - *any* u-arch structure got empty (like INT/SIMD FreeLists)\n - FPU control word (FPCW), MXCSR\nand others. This counts cycles that the pipeline backend blocked uop delivery from the front end.",
-        "EventCode": "0xA2",
+        "PublicDescription": "This event counts resource-related stall cycles.",
+        "EventCode": "0xa2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "RESOURCE_STALLS.ANY",
@@ -973,6 +969,7 @@
         "CounterHTOff": "2"
     },
     {
+        "PublicDescription": "Number of Uops delivered by the LSD.",
         "EventCode": "0xA8",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -1147,7 +1144,8 @@
         "CounterHTOff": "1"
     },
     {
-        "PublicDescription": "This event counts FP operations retired. For X87 FP operations that have no exceptions counting also includes flows that have several X87, or flows that use X87 uops in the exception handling.",
+        "PEBS": "1",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts FP operations retired. For X87 FP operations that have no exceptions counting also includes flows that have several X87, or flows that use X87 uops in the exception handling.",
         "EventCode": "0xC0",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
@@ -1157,12 +1155,12 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PEBS": "1",
         "EventCode": "0xC1",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
         "EventName": "OTHER_ASSISTS.ANY_WB_ASSIST",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of times any microcode assist is invoked by HW upon uop writeback.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -1178,26 +1176,28 @@
         "Data_LA": "1"
     },
     {
-        "PublicDescription": "This event counts cycles without actually retired uops.",
+        "PEBS": "1",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts cycles without actually retired uops.",
         "EventCode": "0xC2",
         "Invert": "1",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "UOPS_RETIRED.STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles without actually retired uops.",
+        "BriefDescription": "Cycles no executable uops retired (Precise Event)",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     },
     {
-        "PublicDescription": "Number of cycles using always true condition (uops_ret < 16) applied to non PEBS uops retired event.",
+        "PEBS": "1",
+        "PublicDescription": "Number of cycles using always true condition (uops_ret < 16) applied to  PEBS uops retired event.",
         "EventCode": "0xC2",
         "Invert": "1",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles with less than 10 actually retired uops.",
+        "BriefDescription": "Number of cycles using always true condition applied to  PEBS uops retired event.",
         "CounterMask": "10",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1320,13 +1320,14 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts not taken branch instructions retired.",
+        "PEBS": "1",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts not taken branch instructions retired.",
         "EventCode": "0xC4",
         "Counter": "0,1,2,3",
         "UMask": "0x10",
         "EventName": "BR_INST_RETIRED.NOT_TAKEN",
         "SampleAfterValue": "400009",
-        "BriefDescription": "Not taken branch instructions retired.",
+        "BriefDescription": "Counts all not taken macro branch instructions retired. (Precise Event)",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -1341,14 +1342,15 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts far branch instructions retired.",
+        "PEBS": "1",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts far branch instructions retired.",
         "EventCode": "0xC4",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
         "Errata": "BDW98",
         "EventName": "BR_INST_RETIRED.FAR_BRANCH",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Far branch instructions retired.",
+        "BriefDescription": "Counts the number of far branch instructions retired.(Precise Event)",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

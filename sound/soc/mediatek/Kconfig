@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_SOC_MEDIATEK
 	tristate
 
@@ -113,6 +114,33 @@ config SND_SOC_MT8183
 	help
 	  This adds ASoC platform driver support for Mediatek MT8183 chip
 	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8183_MT6358_TS3A227E_MAX98357A
+	tristate "ASoC Audio driver for MT8183 with MT6358 TS3A227E MAX98357A codec"
+	depends on I2C
+	depends on SND_SOC_MT8183
+	select SND_SOC_MT6358
+	select SND_SOC_MAX98357A
+	select SND_SOC_BT_SCO
+	select SND_SOC_TS3A227E
+	help
+	  This adds ASoC driver for Mediatek MT8183 boards
+	  with the MT6358 TS3A227E MAX98357A audio codec.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8183_DA7219_MAX98357A
+	tristate "ASoC Audio driver for MT8183 with DA7219 MAX98357A codec"
+	depends on SND_SOC_MT8183 && I2C
+	select SND_SOC_MT6358
+	select SND_SOC_MAX98357A
+	select SND_SOC_DA7219
+	select SND_SOC_BT_SCO
+	help
+	  This adds ASoC driver for Mediatek MT8183 boards
+	  with the DA7219 MAX98357A audio codec.
 	  Select Y if you have such device.
 	  If unsure select "N".
 

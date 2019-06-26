@@ -24,9 +24,6 @@
 
 #define __read_mostly __attribute__((__section__(".data..read_mostly")))
 
-/* Read-only memory is marked before mark_rodata_ro() is called. */
-#define __ro_after_init	__read_mostly
-
 void parisc_cache_init(void);	/* initializes cache-flushing */
 void disable_sr_hashing_asm(int); /* low level support for above */
 void disable_sr_hashing(void);   /* turns off space register hashing */
@@ -44,22 +41,22 @@ void parisc_setup_cache_timing(void);
 
 #define pdtlb(addr)	asm volatile("pdtlb 0(%%sr1,%0)" \
 			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
-			: : "r" (addr))
+			: : "r" (addr) : "memory")
 #define pitlb(addr)	asm volatile("pitlb 0(%%sr1,%0)" \
 			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
 			ALTERNATIVE(ALT_COND_NO_SPLIT_TLB, INSN_NOP) \
-			: : "r" (addr))
+			: : "r" (addr) : "memory")
 #define pdtlb_kernel(addr)  asm volatile("pdtlb 0(%0)"   \
 			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
-			: : "r" (addr))
+			: : "r" (addr) : "memory")
 
 #define asm_io_fdc(addr) asm volatile("fdc %%r0(%0)" \
 			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
 			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) \
-			: : "r" (addr))
+			: : "r" (addr) : "memory")
 #define asm_io_sync()	asm volatile("sync" \
 			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
-			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) :: )
+			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) :::"memory")
 
 #endif /* ! __ASSEMBLY__ */
 

@@ -109,3 +109,15 @@ LOCALHOST=127.0.0.1
 yield() {
     ping $LOCALHOST -c 1 || sleep .001 || usleep 1 || sleep 1
 }
+
+ftrace_errlog_check() { # err-prefix command-with-error-pos-by-^ command-file
+    pos=$(echo -n "${2%^*}" | wc -c) # error position
+    command=$(echo "$2" | tr -d ^)
+    echo "Test command: $command"
+    echo > error_log
+    (! echo "$command" > "$3" ) 2> /dev/null
+    grep "$1: error:" -A 3 error_log
+    N=$(tail -n 1 error_log | wc -c)
+    # "  Command: " and "^\n" => 13
+    test $(expr 13 + $pos) -eq $N
+}

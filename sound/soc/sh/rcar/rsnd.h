@@ -446,6 +446,7 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct device_node *playback,
 		struct device_node *capture);
 
+int rsnd_channel_normalization(int chan);
 #define rsnd_runtime_channel_original(io) \
 	rsnd_runtime_channel_original_with_params(io, NULL)
 int rsnd_runtime_channel_original_with_params(struct rsnd_dai_stream *io,

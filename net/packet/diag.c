@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/sock_diag.h>
 #include <linux/net.h>
@@ -39,7 +40,7 @@ static int pdiag_put_mclist(const struct packet_sock *po, struct sk_buff *nlskb)
 	struct nlattr *mca;
 	struct packet_mclist *ml;
 
-	mca = nla_nest_start(nlskb, PACKET_DIAG_MCLIST);
+	mca = nla_nest_start_noflag(nlskb, PACKET_DIAG_MCLIST);
 	if (!mca)
 		return -EMSGSIZE;
 

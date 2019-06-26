@@ -77,6 +77,7 @@ enum imx_pllv3_type {
 	IMX_PLLV3_ENET_IMX7,
 	IMX_PLLV3_SYS_VF610,
 	IMX_PLLV3_DDR_IMX7,
+	IMX_PLLV3_AV_IMX7,
 };
 
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
@@ -134,11 +135,6 @@ static inline struct clk *imx_clk_fixed(const char *name, int rate)
 }
 
 static inline struct clk_hw *imx_clk_hw_fixed(const char *name, int rate)
-{
-	return clk_hw_register_fixed_rate(NULL, name, NULL, 0, rate);
-}
-
-static inline struct clk_hw *imx_get_clk_hw_fixed(const char *name, int rate)
 {
 	return clk_hw_register_fixed_rate(NULL, name, NULL, 0, rate);
 }

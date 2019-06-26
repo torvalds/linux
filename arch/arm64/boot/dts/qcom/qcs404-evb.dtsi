@@ -7,6 +7,7 @@
 / {
 	aliases {
 		serial0 = &blsp1_uart2;
+		serial1 = &blsp1_uart3;
 	};
 
 	chosen {
@@ -18,6 +19,52 @@
 		regulator-name = "vph_pwr";
 		regulator-always-on;
 		regulator-boot-on;
+	};
+
+	vdd_ch0_3p3:
+	vdd_esmps3_3p3: vdd-esmps3-3p3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "eSMPS3_3P3";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+};
+
+&blsp1_uart3 {
+	status = "okay";
+
+	bluetooth {
+		compatible = "qcom,wcn3990-bt";
+		vddio-supply = <&vreg_l6_1p8>;
+		vddxo-supply = <&vreg_l5_1p8>;
+		vddrf-supply = <&vreg_l1_1p3>;
+		vddch0-supply = <&vdd_ch0_3p3>;
+
+		local-bd-address = [ 02 00 00 00 5a ad ];
+
+		max-speed = <3200000>;
+	};
+};
+
+&blsp1_dma {
+	qcom,controlled-remotely;
+};
+
+&blsp2_dma {
+	qcom,controlled-remotely;
+};
+
+&pms405_spmi_regulators {
+	vdd_s3-supply = <&pms405_s3>;
+
+	pms405_s3: s3 {
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "vdd_apc";
+		regulator-min-microvolt = <1048000>;
+		regulator-max-microvolt = <1352000>;
 	};
 };
 
@@ -37,18 +84,18 @@
 	pms405-regulators {
 		compatible = "qcom,rpm-pms405-regulators";
 
-		vdd-s1-supply = <&vph_pwr>;
-		vdd-s2-supply = <&vph_pwr>;
-		vdd-s3-supply = <&vph_pwr>;
-		vdd-s4-supply = <&vph_pwr>;
-		vdd-s5-supply = <&vph_pwr>;
-		vdd-l1-l2-supply = <&vreg_s5_1p35>;
-		vdd-l3-l8-supply = <&vreg_s5_1p35>;
-		vdd-l4-supply = <&vreg_s5_1p35>;
-		vdd-l5-l6-supply = <&vreg_s4_1p8>;
-		vdd-l7-supply = <&vph_pwr>;
-		vdd-l9-supply = <&vreg_s5_1p35>;
-		vdd-l10-l11-l12-l13-supply = <&vph_pwr>;
+		vdd_s1-supply = <&vph_pwr>;
+		vdd_s2-supply = <&vph_pwr>;
+		vdd_s3-supply = <&vph_pwr>;
+		vdd_s4-supply = <&vph_pwr>;
+		vdd_s5-supply = <&vph_pwr>;
+		vdd_l1_l2-supply = <&vreg_s5_1p35>;
+		vdd_l3_l8-supply = <&vreg_s5_1p35>;
+		vdd_l4-supply = <&vreg_s5_1p35>;
+		vdd_l5_l6-supply = <&vreg_s4_1p8>;
+		vdd_l7-supply = <&vph_pwr>;
+		vdd_l9-supply = <&vreg_s5_1p35>;
+		vdd_l10_l11_l12_l13-supply = <&vph_pwr>;
 
 		vreg_s4_1p8: s4 {
 			regulator-min-microvolt = <1728000>;
@@ -56,8 +103,8 @@
 		};
 
 		vreg_s5_1p35: s5 {
-			regulator-min-microvolt = <>;
-			regulator-max-microvolt = <>;
+			regulator-min-microvolt = <1352000>;
+			regulator-max-microvolt = <1352000>;
 		};
 
 		vreg_l1_1p3: l1 {
@@ -71,7 +118,7 @@
 		};
 
 		vreg_l3_1p05: l3 {
-			regulator-min-microvolt = <976000>;
+			regulator-min-microvolt = <1050000>;
 			regulator-max-microvolt = <1160000>;
 		};
 
@@ -203,5 +250,23 @@
 	tx {
 		drive-strength = <2>;
 		bias-disable;
+	};
+};
+
+&blsp1_uart3_default {
+	cts {
+		pins = "gpio84";
+		bias-disable;
+	};
+
+	rts-tx {
+		pins = "gpio85", "gpio82";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	rx {
+		pins = "gpio83";
+		bias-pull-up;
 	};
 };

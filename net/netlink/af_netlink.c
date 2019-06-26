@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NETLINK      Kernel-user communication protocol.
  *
  * 		Authors:	Alan Cox <alan@lxorguk.ukuu.org.uk>
  * 				Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
  * 				Patrick McHardy <kaber@trash.net>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Tue Jun 26 14:36:48 MEST 2001 Herbert "herp" Rosmanith
  *                               added netlink_proto_exit
@@ -988,7 +984,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *nladdr = (struct sockaddr_nl *)addr;
 	int err = 0;
-	unsigned long groups = nladdr->nl_groups;
+	unsigned long groups;
 	bool bound;
 
 	if (addr_len < sizeof(struct sockaddr_nl))
@@ -996,6 +992,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 
 	if (nladdr->nl_family != AF_NETLINK)
 		return -EINVAL;
+	groups = nladdr->nl_groups;
 
 	/* Only superuser is allowed to listen multicasts */
 	if (groups) {
@@ -2641,7 +2638,7 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 		struct sock *s = v;
 		struct netlink_sock *nlk = nlk_sk(s);
 
-		seq_printf(seq, "%pK %-3d %-10u %08x %-8d %-8d %-5d %-8d %-8d %-8lu\n",
+		seq_printf(seq, "%pK %-3d %-10u %08x %-8d %-8d %-5d %-8d %-8u %-8lu\n",
 			   s,
 			   s->sk_protocol,
 			   nlk->portid,

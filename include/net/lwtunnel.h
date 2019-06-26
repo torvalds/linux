@@ -118,8 +118,8 @@ int lwtunnel_build_state(u16 encap_type,
 			 unsigned int family, const void *cfg,
 			 struct lwtunnel_state **lws,
 			 struct netlink_ext_ack *extack);
-int lwtunnel_fill_encap(struct sk_buff *skb,
-			struct lwtunnel_state *lwtstate);
+int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate,
+			int encap_attr, int encap_type_attr);
 int lwtunnel_get_encap_size(struct lwtunnel_state *lwtstate);
 struct lwtunnel_state *lwtunnel_state_alloc(int hdr_len);
 int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b);
@@ -219,7 +219,8 @@ static inline int lwtunnel_build_state(u16 encap_type,
 }
 
 static inline int lwtunnel_fill_encap(struct sk_buff *skb,
-				      struct lwtunnel_state *lwtstate)
+				      struct lwtunnel_state *lwtstate,
+				      int encap_attr, int encap_type_attr)
 {
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HD-audio codec driver binding
  * Copyright (c) Takashi Iwai <tiwai@suse.de>

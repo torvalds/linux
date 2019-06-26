@@ -25,6 +25,13 @@
 #define SMC_CMD_L2X0INVALL	(-24)
 #define SMC_CMD_L2X0DEBUG	(-25)
 
+/* For Accessing CP15/SFR (General) */
+#define SMC_CMD_REG		(-101)
+
+/* defines for SMC_CMD_REG */
+#define SMC_REG_CLASS_SFR_W	(0x1 << 30)
+#define SMC_REG_ID_SFR_W(addr)	(SMC_REG_CLASS_SFR_W | ((addr) >> 2))
+
 #ifndef __ASSEMBLY__
 
 extern void exynos_smc(u32 cmd, u32 arg1, u32 arg2, u32 arg3);

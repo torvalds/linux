@@ -884,4 +884,3 @@
 #define mmTPC6_CFG_FUNC_MBIST_MEM_9                                  0xF86E2C
 
 #endif /* ASIC_REG_TPC6_CFG_REGS_H_ */
-

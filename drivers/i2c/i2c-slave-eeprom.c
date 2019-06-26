@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C slave mode EEPROM simulator
  *
  * Copyright (C) 2014 by Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
  * Copyright (C) 2014 by Renesas Electronics Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License.
  *
  * Because most IP blocks can only detect one I2C slave address anyhow, this
  * driver does not support simulating EEPROM types which take more than one

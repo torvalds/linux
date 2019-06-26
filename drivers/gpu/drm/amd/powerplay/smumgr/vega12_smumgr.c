@@ -287,8 +287,26 @@ static int vega12_smu_init(struct pp_hwmgr *hwmgr)
 	priv->smu_tables.entry[TABLE_OVERDRIVE].version = 0x01;
 	priv->smu_tables.entry[TABLE_OVERDRIVE].size = sizeof(OverDriveTable_t);
 
+	/* allocate space for SMU_METRICS table */
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
+				      sizeof(SmuMetrics_t),
+				      PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM,
+				      &priv->smu_tables.entry[TABLE_SMU_METRICS].handle,
+				      &priv->smu_tables.entry[TABLE_SMU_METRICS].mc_addr,
+				      &priv->smu_tables.entry[TABLE_SMU_METRICS].table);
+	if (ret)
+		goto err4;
+
+	priv->smu_tables.entry[TABLE_SMU_METRICS].version = 0x01;
+	priv->smu_tables.entry[TABLE_SMU_METRICS].size = sizeof(SmuMetrics_t);
+
 	return 0;
 
+err4:
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[TABLE_OVERDRIVE].handle,
+				&priv->smu_tables.entry[TABLE_OVERDRIVE].mc_addr,
+				&priv->smu_tables.entry[TABLE_OVERDRIVE].table);
 err3:
 	amdgpu_bo_free_kernel(&priv->smu_tables.entry[TABLE_AVFS_FUSE_OVERRIDE].handle,
 				&priv->smu_tables.entry[TABLE_AVFS_FUSE_OVERRIDE].mc_addr,
@@ -334,6 +352,9 @@ static int vega12_smu_fini(struct pp_hwmgr *hwmgr)
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[TABLE_OVERDRIVE].handle,
 				      &priv->smu_tables.entry[TABLE_OVERDRIVE].mc_addr,
 				      &priv->smu_tables.entry[TABLE_OVERDRIVE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[TABLE_SMU_METRICS].handle,
+				      &priv->smu_tables.entry[TABLE_SMU_METRICS].mc_addr,
+				      &priv->smu_tables.entry[TABLE_SMU_METRICS].table);
 		kfree(hwmgr->smu_backend);
 		hwmgr->smu_backend = NULL;
 	}

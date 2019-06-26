@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) Icenowy Zheng <icenowy@aosc.io>
  *
@@ -6,11 +7,6 @@
  *   Copyright (C) 2015 NextThing Co
  *
  *   Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #ifndef _SUN8I_UI_LAYER_H_

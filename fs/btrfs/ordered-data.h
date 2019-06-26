@@ -167,8 +167,7 @@ int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,
 int btrfs_add_ordered_extent_compress(struct inode *inode, u64 file_offset,
 				      u64 start, u64 len, u64 disk_len,
 				      int type, int compress_type);
-void btrfs_add_ordered_sum(struct inode *inode,
-			   struct btrfs_ordered_extent *entry,
+void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 			   struct btrfs_ordered_sum *sum);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct inode *inode,
 							 u64 file_offset);

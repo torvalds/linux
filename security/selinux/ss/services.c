@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Implementation of the security services.
  *
@@ -35,9 +36,6 @@
  * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
  * Copyright (C) 2003 - 2004, 2006 Tresys Technology, LLC
  * Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation, version 2.
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -1318,14 +1316,11 @@ static int security_sid_to_context_core(struct selinux_state *state,
 		rc = -EINVAL;
 		goto out_unlock;
 	}
-	if (only_invalid && !context->len) {
-		scontext = NULL;
-		scontext_len = 0;
+	if (only_invalid && !context->len)
 		rc = 0;
-	} else {
+	else
 		rc = context_struct_to_string(policydb, context, scontext,
 					      scontext_len);
-	}
 out_unlock:
 	read_unlock(&state->ss->policy_rwlock);
 out:

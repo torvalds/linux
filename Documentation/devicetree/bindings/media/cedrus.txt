@@ -13,6 +13,7 @@ Required properties:
 			- "allwinner,sun8i-h3-video-engine"
 			- "allwinner,sun50i-a64-video-engine"
 			- "allwinner,sun50i-h5-video-engine"
+			- "allwinner,sun50i-h6-video-engine"
 - reg			: register base and length of VE;
 - clocks		: list of clock specifiers, corresponding to entries in
 			  the clock-names property;

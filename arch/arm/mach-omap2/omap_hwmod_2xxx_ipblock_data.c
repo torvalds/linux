@@ -96,7 +96,6 @@ static struct omap_hwmod_class_sysconfig omap2xxx_gpio_sysc = {
 struct omap_hwmod_class omap2xxx_gpio_hwmod_class = {
 	.name = "gpio",
 	.sysc = &omap2xxx_gpio_sysc,
-	.rev = 0,
 };
 
 /* system dma */

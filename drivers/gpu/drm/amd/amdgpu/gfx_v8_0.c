@@ -20,9 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "vi.h"
@@ -855,7 +859,7 @@ static int gfx_v8_0_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -2057,12 +2061,8 @@ static int gfx_v8_0_sw_init(void *handle)
 
 static int gfx_v8_0_sw_fini(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	amdgpu_bo_free_kernel(&adev->gds.oa_gfx_bo, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gds.gws_gfx_bo, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gds.gds_gfx_bo, NULL, NULL);
+	int i;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
@@ -7010,30 +7010,10 @@ static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev)
 static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev)
 {
 	/* init asci gds info */
-	adev->gds.mem.total_size = RREG32(mmGDS_VMID0_SIZE);
-	adev->gds.gws.total_size = 64;
-	adev->gds.oa.total_size = 16;
+	adev->gds.gds_size = RREG32(mmGDS_VMID0_SIZE);
+	adev->gds.gws_size = 64;
+	adev->gds.oa_size = 16;
 	adev->gds.gds_compute_max_wave_id = RREG32(mmGDS_COMPUTE_MAX_WAVE_ID);
-
-	if (adev->gds.mem.total_size == 64 * 1024) {
-		adev->gds.mem.gfx_partition_size = 4096;
-		adev->gds.mem.cs_partition_size = 4096;
-
-		adev->gds.gws.gfx_partition_size = 4;
-		adev->gds.gws.cs_partition_size = 4;
-
-		adev->gds.oa.gfx_partition_size = 4;
-		adev->gds.oa.cs_partition_size = 1;
-	} else {
-		adev->gds.mem.gfx_partition_size = 1024;
-		adev->gds.mem.cs_partition_size = 1024;
-
-		adev->gds.gws.gfx_partition_size = 16;
-		adev->gds.gws.cs_partition_size = 16;
-
-		adev->gds.oa.gfx_partition_size = 4;
-		adev->gds.oa.cs_partition_size = 4;
-	}
 }
 
 static void gfx_v8_0_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,

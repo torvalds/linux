@@ -12,7 +12,6 @@
  * Date: May 21, 1996
  *
  * Functions:
- *      MACbIsRegBitsOn - Test if All test Bits On
  *      MACbIsRegBitsOff - Test if All test Bits Off
  *      MACbIsIntDisable - Test if MAC interrupt disable
  *      MACvSetShortRetryLimit - Set 802.11 Short Retry limit
@@ -41,29 +40,6 @@
 
 #include "tmacro.h"
 #include "mac.h"
-
-/*
- * Description:
- *      Test if all test bits on
- *
- * Parameters:
- *  In:
- *      io_base    - Base Address for MAC
- *      byRegOfs    - Offset of MAC Register
- *      byTestBits  - Test bits
- *  Out:
- *      none
- *
- * Return Value: true if all test bits On; otherwise false
- *
- */
-bool MACbIsRegBitsOn(struct vnt_private *priv, unsigned char byRegOfs,
-		     unsigned char byTestBits)
-{
-	void __iomem *io_base = priv->PortOffset;
-
-	return (ioread8(io_base + byRegOfs) & byTestBits) == byTestBits;
-}
 
 /*
  * Description:
@@ -593,7 +569,6 @@ void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 curr_desc_addr)
 	iowrite32(curr_desc_addr, io_base + MAC_REG_RXDMAPTR1);
 	if (org_dma_ctl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_RXDMACTL1);
-
 }
 
 /*

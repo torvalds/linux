@@ -4,26 +4,49 @@
 Traduzione italiana
 ===================
 
+:manutentore: Federico Vaga <federico.vaga@vaga.pv.it>
+
+.. _it_disclaimer:
+
+Avvertenze
+==========
+
 L'obiettivo di questa traduzione è di rendere più facile la lettura e
-la comprensione per chi preferisce leggere in lingua italiana.
-Tenete presente che la documentazione di riferimento rimane comunque
-quella in lingua inglese: :ref:`linux_doc`
+la comprensione per chi non capisce l'inglese o ha dubbi sulla sua
+interpretazione, oppure semplicemente per chi preferisce leggere in lingua
+italiana. Tuttavia, tenete ben presente che l'*unica* documentazione
+ufficiale è quella in lingua inglese: :ref:`linux_doc`
 
-Questa traduzione cerca di essere il più fedele possibile all'originale ma
-è ovvio che alcune frasi vadano trasformate: non aspettatevi una traduzione
-letterale. Quando possibile, si eviteranno gli inglesismi ed al loro posto
-verranno utilizzate le corrispettive parole italiane.
+La propagazione simultanea a tutte le traduzioni di una modifica in
+:ref:`linux_doc` è altamente improbabile. I manutentori delle traduzioni -
+e i contributori - seguono l'evolversi della documentazione ufficiale e
+cercano di mantenere le rispettive traduzioni allineate nel limite del
+possibile.  Per questo motivo non c'è garanzia che una traduzione sia
+aggiornata all'ultima modifica.  Se quello che leggete in una traduzione
+non corrisponde a quello che leggete nel codice, informate il manutentore
+della traduzione e - se potete - verificate anche la documentazione in
+inglese.
 
-Se notate che la traduzione non è più aggiornata potete contattare
-direttamente il manutentore della traduzione italiana.
+Una traduzione non è un *fork* della documentazione ufficiale, perciò gli
+utenti non vi troveranno alcuna informazione diversa rispetto alla versione
+ufficiale.  Ogni aggiunta, rimozione o modifica dei contenuti deve essere
+fatta prima nei documenti in inglese. In seguito, e quando è possibile, la
+stessa modifica dovrebbe essere applicata anche alle traduzioni.  I manutentori
+delle traduzioni accettano contributi che interessano prettamente l'attività
+di traduzione (per esempio, nuove traduzioni, aggiornamenti, correzioni).
 
-Se notate che la documentazione contiene errori o dimenticanze, allora
-verificate la documentazione di riferimento in lingua inglese. Se il problema
-è presente anche nella documentazione di riferimento, contattate il suo
-manutentore. Se avete problemi a scrivere in inglese, potete comunque
-riportare il problema al manutentore della traduzione italiana.
+Le traduzioni cercano di essere il più possibile accurate ma non è possibile
+mappare direttamente una lingua in un'altra. Ogni lingua ha la sua grammatica
+e una sua cultura alle spalle, quindi la traduzione di una frase in inglese
+potrebbe essere modificata per adattarla all'italiano. Per questo motivo,
+quando leggete questa traduzione, potreste trovare alcune differenze di forma
+ma che trasmettono comunque il messaggio originale.  Nonostante la grande
+diffusione di inglesismi nella lingua parlata, quando possibile, questi
+verranno sostituiti dalle corrispettive parole italiane
 
-Manutentore della traduzione italiana: Federico Vaga <federico.vaga@vaga.pv.it>
+Se avete bisogno d'aiuto per comunicare con la comunità Linux ma non vi sentite
+a vostro agio nello scrivere in inglese, potete chiedere aiuto al manutentore
+della traduzione.
 
 La documentazione del kernel Linux
 ==================================
@@ -47,9 +70,7 @@ I seguenti documenti descrivono la licenza usata nei sorgenti del kernel Linux
 (GPLv2), come licenziare i singoli file; inoltre troverete i riferimenti al
 testo integrale della licenza.
 
-.. warning::
-
-    TODO ancora da tradurre
+* :ref:`it_kernel_licensing`
 
 Documentazione per gli utenti
 -----------------------------
@@ -89,10 +110,6 @@ vostre modifiche molto più semplice
    process/index
    doc-guide/index
    kernel-hacking/index
-
-.. warning::
-
-    TODO ancora da tradurre
 
 Documentazione della API del kernel
 -----------------------------------

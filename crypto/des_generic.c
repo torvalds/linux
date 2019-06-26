@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
  * DES & Triple DES EDE Cipher Algorithms.
  *
  * Copyright (c) 2005 Dag Arne Osvik <da@osvik.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <asm/byteorder.h>
@@ -862,14 +857,11 @@ static void des_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 int __des3_ede_setkey(u32 *expkey, u32 *flags, const u8 *key,
 		      unsigned int keylen)
 {
-	const u32 *K = (const u32 *)key;
+	int err;
 
-	if (unlikely(!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
-		     !((K[2] ^ K[4]) | (K[3] ^ K[5]))) &&
-		     (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
-		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		return -EINVAL;
-	}
+	err = __des3_verify_key(flags, key);
+	if (unlikely(err))
+		return err;
 
 	des_ekey(expkey, key); expkey += DES_EXPKEY_WORDS; key += DES_KEY_SIZE;
 	dkey(expkey, key); expkey += DES_EXPKEY_WORDS; key += DES_KEY_SIZE;
@@ -993,7 +985,7 @@ static void __exit des_generic_mod_fini(void)
 	crypto_unregister_algs(des_algs, ARRAY_SIZE(des_algs));
 }
 
-module_init(des_generic_mod_init);
+subsys_initcall(des_generic_mod_init);
 module_exit(des_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

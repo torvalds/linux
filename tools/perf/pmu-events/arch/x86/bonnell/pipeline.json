@@ -189,7 +189,7 @@
         "UMask": "0x8",
         "EventName": "BR_MISSP_TYPE_RETIRED.IND_CALL",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Mispredicted indirect calls, including both register and memory indirect. "
+        "BriefDescription": "Mispredicted indirect calls, including both register and memory indirect."
     },
     {
         "EventCode": "0x89",

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Lantiq cpu temperature sensor driver
  *
  * Copyright (C) 2017 Florian Eckert <fe@dev.tdt.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version
- *
- * This program is distributed in the hope that it will be useful
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>
  */
 
 #include <linux/bitops.h>
@@ -77,29 +65,11 @@ static umode_t ltq_is_visible(const void *_data, enum hwmon_sensor_types type,
 	}
 }
 
-static const u32 ltq_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0
-};
-
-static const struct hwmon_channel_info ltq_chip = {
-	.type = hwmon_chip,
-	.config = ltq_chip_config,
-};
-
-static const u32 ltq_temp_config[] = {
-	HWMON_T_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info ltq_temp = {
-	.type = hwmon_temp,
-	.config = ltq_temp_config,
-};
-
 static const struct hwmon_channel_info *ltq_info[] = {
-	&ltq_chip,
-	&ltq_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT),
 	NULL
 };
 

@@ -593,10 +593,6 @@ static int ast_vhub_epn_disable(struct usb_ep* u_ep)
 static int ast_vhub_epn_enable(struct usb_ep* u_ep,
 			       const struct usb_endpoint_descriptor *desc)
 {
-	static const char *ep_type_string[] __maybe_unused = { "ctrl",
-							       "isoc",
-							       "bulk",
-							       "intr" };
 	struct ast_vhub_ep *ep = to_ast_ep(u_ep);
 	struct ast_vhub_dev *dev;
 	struct ast_vhub *vhub;
@@ -646,7 +642,7 @@ static int ast_vhub_epn_enable(struct usb_ep* u_ep,
 	ep->epn.wedged = false;
 
 	EPDBG(ep, "Enabling [%s] %s num %d maxpacket=%d\n",
-	      ep->epn.is_in ? "in" : "out", ep_type_string[type],
+	      ep->epn.is_in ? "in" : "out", usb_ep_type_string(type),
 	      usb_endpoint_num(desc), maxpacket);
 
 	/* Can we use DMA descriptor mode ? */

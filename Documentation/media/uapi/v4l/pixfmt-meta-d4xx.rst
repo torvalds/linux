@@ -36,13 +36,16 @@ per frame, therefore their headers cannot be larger than 255 bytes.
 Below are proprietary Microsoft style metadata types, used by D4xx cameras,
 where all fields are in little endian order:
 
+.. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
+
+
 .. flat-table:: D4xx metadata
-    :widths: 1 4
+    :widths: 1 2
     :header-rows:  1
     :stub-columns: 0
 
-    * - Field
-      - Description
+    * - **Field**
+      - **Description**
     * - :cspan:`1` *Depth Control*
     * - __u32 ID
       - 0x80000000

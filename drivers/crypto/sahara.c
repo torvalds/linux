@@ -354,7 +354,7 @@ static void sahara_decode_status(struct sahara_dev *dev, unsigned int status)
 {
 	u8 state;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!__is_defined(DEBUG))
 		return;
 
 	state = SAHARA_STATUS_GET_STATE(status);
@@ -406,7 +406,7 @@ static void sahara_dump_descriptors(struct sahara_dev *dev)
 {
 	int i;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!__is_defined(DEBUG))
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_DESC; i++) {
@@ -427,7 +427,7 @@ static void sahara_dump_links(struct sahara_dev *dev)
 {
 	int i;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!__is_defined(DEBUG))
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_LINK; i++) {

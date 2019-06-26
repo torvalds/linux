@@ -45,6 +45,7 @@ static int vgpu_gem_get_pages(
 	int i, ret;
 	gen8_pte_t __iomem *gtt_entries;
 	struct intel_vgpu_fb_info *fb_info;
+	u32 page_num;
 
 	fb_info = (struct intel_vgpu_fb_info *)obj->gvt_info;
 	if (WARN_ON(!fb_info))
@@ -54,14 +55,15 @@ static int vgpu_gem_get_pages(
 	if (unlikely(!st))
 		return -ENOMEM;
 
-	ret = sg_alloc_table(st, fb_info->size, GFP_KERNEL);
+	page_num = obj->base.size >> PAGE_SHIFT;
+	ret = sg_alloc_table(st, page_num, GFP_KERNEL);
 	if (ret) {
 		kfree(st);
 		return ret;
 	}
 	gtt_entries = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm +
 		(fb_info->start >> PAGE_SHIFT);
-	for_each_sg(st->sgl, sg, fb_info->size, i) {
+	for_each_sg(st->sgl, sg, page_num, i) {
 		sg->offset = 0;
 		sg->length = PAGE_SIZE;
 		sg_dma_address(sg) =
@@ -158,7 +160,7 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 		return NULL;
 
 	drm_gem_private_object_init(dev, &obj->base,
-		info->size << PAGE_SHIFT);
+		roundup(info->size, PAGE_SIZE));
 	i915_gem_object_init(obj, &intel_vgpu_gem_ops);
 
 	obj->read_domains = I915_GEM_DOMAIN_GTT;
@@ -206,10 +208,11 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 		struct intel_vgpu_fb_info *info,
 		int plane_id)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_vgpu_primary_plane_format p;
 	struct intel_vgpu_cursor_plane_format c;
 	int ret, tile_height = 1;
+
+	memset(info, 0, sizeof(*info));
 
 	if (plane_id == DRM_PLANE_TYPE_PRIMARY) {
 		ret = intel_vgpu_decode_primary_plane(vgpu, &p);
@@ -267,8 +270,7 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	info->size = (info->stride * roundup(info->height, tile_height)
-		      + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	info->size = info->stride * roundup(info->height, tile_height);
 	if (info->size == 0) {
 		gvt_vgpu_err("fb size is zero\n");
 		return -EINVAL;
@@ -276,11 +278,6 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 
 	if (info->start & (PAGE_SIZE - 1)) {
 		gvt_vgpu_err("Not aligned fb address:0x%llx\n", info->start);
-		return -EFAULT;
-	}
-	if (((info->start >> PAGE_SHIFT) + info->size) >
-		ggtt_total_entries(&dev_priv->ggtt)) {
-		gvt_vgpu_err("Invalid GTT offset or size\n");
 		return -EFAULT;
 	}
 

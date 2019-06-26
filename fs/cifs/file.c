@@ -360,12 +360,30 @@ cifsFileInfo_get(struct cifsFileInfo *cifs_file)
 	return cifs_file;
 }
 
-/*
- * Release a reference on the file private data. This may involve closing
- * the filehandle out on the server. Must be called without holding
- * tcon->open_file_lock and cifs_file->file_info_lock.
+/**
+ * cifsFileInfo_put - release a reference of file priv data
+ *
+ * Always potentially wait for oplock handler. See _cifsFileInfo_put().
  */
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
+{
+	_cifsFileInfo_put(cifs_file, true);
+}
+
+/**
+ * _cifsFileInfo_put - release a reference of file priv data
+ *
+ * This may involve closing the filehandle @cifs_file out on the
+ * server. Must be called without holding tcon->open_file_lock and
+ * cifs_file->file_info_lock.
+ *
+ * If @wait_for_oplock_handler is true and we are releasing the last
+ * reference, wait for any running oplock break handler of the file
+ * and cancel any pending one. If calling this function from the
+ * oplock break handler, you need to pass false.
+ *
+ */
+void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_handler)
 {
 	struct inode *inode = d_inode(cifs_file->dentry);
 	struct cifs_tcon *tcon = tlink_tcon(cifs_file->tlink);
@@ -414,7 +432,8 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 
 	spin_unlock(&tcon->open_file_lock);
 
-	oplock_break_cancelled = cancel_work_sync(&cifs_file->oplock_break);
+	oplock_break_cancelled = wait_oplock_handler ?
+		cancel_work_sync(&cifs_file->oplock_break) : false;
 
 	if (!tcon->need_reconnect && !cifs_file->invalidHandle) {
 		struct TCP_Server_Info *server = tcon->ses->server;
@@ -2424,7 +2443,6 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	rc = file_write_and_wait_range(file, start, end);
 	if (rc)
 		return rc;
-	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2449,7 +2467,6 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	}
 
 	free_xid(xid);
-	inode_unlock(inode);
 	return rc;
 }
 
@@ -2461,12 +2478,10 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct TCP_Server_Info *server;
 	struct cifsFileInfo *smbfile = file->private_data;
 	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
-	struct inode *inode = file->f_mapping->host;
 
 	rc = file_write_and_wait_range(file, start, end);
 	if (rc)
 		return rc;
-	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2483,7 +2498,6 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	free_xid(xid);
-	inode_unlock(inode);
 	return rc;
 }
 
@@ -2858,7 +2872,6 @@ static void collect_uncached_write_data(struct cifs_aio_ctx *ctx)
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb;
 	struct dentry *dentry = ctx->cfile->dentry;
-	unsigned int i;
 	int rc;
 
 	tcon = tlink_tcon(ctx->cfile->tlink);
@@ -2921,10 +2934,6 @@ restart_loop:
 		list_del_init(&wdata->list);
 		kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 	}
-
-	if (!ctx->direct_io)
-		for (i = 0; i < ctx->npages; i++)
-			put_page(ctx->bv[i].bv_page);
 
 	cifs_stats_bytes_written(tcon, ctx->total_len);
 	set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(dentry->d_inode)->flags);
@@ -3207,7 +3216,9 @@ cifs_read_allocate_pages(struct cifs_readdata *rdata, unsigned int nr_pages)
 	}
 
 	if (rc) {
-		for (i = 0; i < nr_pages; i++) {
+		unsigned int nr_page_failed = i;
+
+		for (i = 0; i < nr_page_failed; i++) {
 			put_page(rdata->pages[i]);
 			rdata->pages[i] = NULL;
 		}
@@ -3563,7 +3574,6 @@ collect_uncached_read_data(struct cifs_aio_ctx *ctx)
 	struct iov_iter *to = &ctx->iter;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
-	unsigned int i;
 	int rc;
 
 	tcon = tlink_tcon(ctx->cfile->tlink);
@@ -3647,15 +3657,8 @@ again:
 		kref_put(&rdata->refcount, cifs_uncached_readdata_release);
 	}
 
-	if (!ctx->direct_io) {
-		for (i = 0; i < ctx->npages; i++) {
-			if (ctx->should_dirty)
-				set_page_dirty(ctx->bv[i].bv_page);
-			put_page(ctx->bv[i].bv_page);
-		}
-
+	if (!ctx->direct_io)
 		ctx->total_len = ctx->len - iov_iter_count(to);
-	}
 
 	/* mask nodata case */
 	if (rc == -ENODATA)
@@ -4603,6 +4606,7 @@ void cifs_oplock_break(struct work_struct *work)
 							     cinode);
 		cifs_dbg(FYI, "Oplock release rc = %d\n", rc);
 	}
+	_cifsFileInfo_put(cfile, false /* do not wait for ourself */);
 	cifs_done_oplock_break(cinode);
 }
 

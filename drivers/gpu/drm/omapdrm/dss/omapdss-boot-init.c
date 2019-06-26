@@ -198,6 +198,7 @@ static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
 	{ .compatible = "toppoly,td028ttec1" },
 	{ .compatible = "tpo,td028ttec1" },
 	{ .compatible = "tpo,td043mtea1" },
+	{},
 };
 
 static int __init omapdss_boot_init(void)

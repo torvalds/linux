@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Nuvoton NAU8825 audio codec driver
  *
@@ -5,8 +6,6 @@
  *  Author: Anatol Pomozov <anatol@chromium.org>
  * Copyright 2015 Nuvoton Technology Corp.
  *  Co-author: Meng-Huang Kuo <mhkuo@nuvoton.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>

@@ -693,7 +693,7 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 			ops->fence_client(ls);
 		else
 			nfsd4_cb_layout_fail(ls);
-		return -1;
+		return 1;
 	case -NFS4ERR_NOMATCHING_LAYOUT:
 		trace_nfsd_layout_recall_done(&ls->ls_stid.sc_stateid);
 		task->tk_status = 0;

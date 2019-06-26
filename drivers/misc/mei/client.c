@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
+ * Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/sched/signal.h>
@@ -679,7 +669,7 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 void mei_host_client_init(struct mei_device *dev)
 {
-	dev->dev_state = MEI_DEV_ENABLED;
+	mei_set_devstate(dev, MEI_DEV_ENABLED);
 	dev->reset_count = 0;
 
 	schedule_work(&dev->bus_rescan_work);

@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config RADIO_SI470X
         tristate "Silicon Labs Si470x FM Radio Receiver support"
         depends on VIDEO_V4L2
-	---help---
+	help
 	  This is a driver for devices with the Silicon Labs SI470x
 	  chip (either via USB or I2C buses).
 
@@ -15,7 +16,7 @@ config RADIO_SI470X
 config USB_SI470X
 	tristate "Silicon Labs Si470x FM Radio Receiver support with USB"
 	depends on USB && RADIO_SI470X
-	---help---
+	help
 	  This is a driver for USB devices with the Silicon Labs SI470x
 	  chip. Currently these devices are known to work:
 	  - 10c4:818a: Silicon Labs USB FM Radio Reference Design
@@ -40,7 +41,7 @@ config USB_SI470X
 config I2C_SI470X
 	tristate "Silicon Labs Si470x FM Radio Receiver support with I2C"
 	depends on I2C && RADIO_SI470X
-	---help---
+	help
 	  This is a driver for I2C devices with the Silicon Labs SI470x
 	  chip.
 

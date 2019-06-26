@@ -44,11 +44,12 @@
 
 enum {
 	FAULT_KMALLOC,
+	FAULT_READ_IO,
 	FAULT_MAX,
 };
 
 #ifdef CONFIG_EROFS_FAULT_INJECTION
-extern char *erofs_fault_name[FAULT_MAX];
+extern const char *erofs_fault_name[FAULT_MAX];
 #define IS_FAULT_SET(fi, type) ((fi)->inject_type & (1 << (type)))
 
 struct erofs_fault_info {
@@ -268,8 +269,15 @@ int erofs_try_to_free_cached_page(struct address_space *mapping,
 				  struct page *page);
 
 #define MNGD_MAPPING(sbi)	((sbi)->managed_cache->i_mapping)
+static inline bool erofs_page_is_managed(const struct erofs_sb_info *sbi,
+					 struct page *page)
+{
+	return page->mapping == MNGD_MAPPING(sbi);
+}
 #else
 #define MNGD_MAPPING(sbi)	(NULL)
+static inline bool erofs_page_is_managed(const struct erofs_sb_info *sbi,
+					 struct page *page) { return false; }
 #endif
 
 #define DEFAULT_MAX_SYNC_DECOMPRESS_PAGES	3
@@ -460,7 +468,7 @@ static inline int z_erofs_map_blocks_iter(struct inode *inode,
 /* data.c */
 static inline struct bio *
 erofs_grab_bio(struct super_block *sb,
-	       erofs_blk_t blkaddr, unsigned int nr_pages,
+	       erofs_blk_t blkaddr, unsigned int nr_pages, void *bi_private,
 	       bio_end_io_t endio, bool nofail)
 {
 	const gfp_t gfp = GFP_NOIO;
@@ -469,7 +477,7 @@ erofs_grab_bio(struct super_block *sb,
 	do {
 		if (nr_pages == 1) {
 			bio = bio_alloc(gfp | (nofail ? __GFP_NOFAIL : 0), 1);
-			if (unlikely(bio == NULL)) {
+			if (unlikely(!bio)) {
 				DBG_BUGON(nofail);
 				return ERR_PTR(-ENOMEM);
 			}
@@ -477,11 +485,12 @@ erofs_grab_bio(struct super_block *sb,
 		}
 		bio = bio_alloc(gfp, nr_pages);
 		nr_pages /= 2;
-	} while (unlikely(bio == NULL));
+	} while (unlikely(!bio));
 
 	bio->bi_end_io = endio;
 	bio_set_dev(bio, sb->s_bdev);
 	bio->bi_iter.bi_sector = (sector_t)blkaddr << LOG_SECTORS_PER_BLOCK;
+	bio->bi_private = bi_private;
 	return bio;
 }
 
@@ -565,7 +574,7 @@ static inline void *erofs_vmap(struct page **pages, unsigned int count)
 	while (1) {
 		void *addr = vm_map_ram(pages, count, -1, PAGE_KERNEL);
 		/* retry two more times (totally 3 times) */
-		if (addr != NULL || ++i >= 3)
+		if (addr || ++i >= 3)
 			return addr;
 		vm_unmap_aliases();
 	}

@@ -30,7 +30,7 @@
  * not do like this.
  */
 #define _INTEL_BIOS_PRIVATE
-#include "intel_vbt_defs.h"
+#include "display/intel_vbt_defs.h"
 
 #define OPREGION_SIGNATURE "IntelGraphicsMem"
 #define MBOX_VBT      (1<<3)

@@ -1840,13 +1840,14 @@ static int threedes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	struct iproc_ctx_s *ctx = crypto_ablkcipher_ctx(cipher);
 
 	if (keylen == (DES_KEY_SIZE * 3)) {
-		const u32 *K = (const u32 *)key;
-		u32 flags = CRYPTO_TFM_RES_BAD_KEY_SCHED;
+		u32 flags;
+		int ret;
 
-		if (!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
-		    !((K[2] ^ K[4]) | (K[3] ^ K[5]))) {
+		flags = crypto_ablkcipher_get_flags(cipher);
+		ret = __des3_verify_key(&flags, key);
+		if (unlikely(ret)) {
 			crypto_ablkcipher_set_flags(cipher, flags);
-			return -EINVAL;
+			return ret;
 		}
 
 		ctx->cipher_type = CIPHER_TYPE_3DES;
@@ -2139,7 +2140,6 @@ static int ahash_init(struct ahash_request *req)
 			goto err_hash;
 		}
 		ctx->shash->tfm = hash;
-		ctx->shash->flags = 0;
 
 		/* Set the key using data we already have from setkey */
 		if (ctx->authkeylen > 0) {
@@ -2885,13 +2885,13 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 		break;
 	case CIPHER_ALG_3DES:
 		if (ctx->enckeylen == (DES_KEY_SIZE * 3)) {
-			const u32 *K = (const u32 *)keys.enckey;
-			u32 flags = CRYPTO_TFM_RES_BAD_KEY_SCHED;
+			u32 flags;
 
-			if (!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
-			    !((K[2] ^ K[4]) | (K[3] ^ K[5]))) {
+			flags = crypto_aead_get_flags(cipher);
+			ret = __des3_verify_key(&flags, keys.enckey);
+			if (unlikely(ret)) {
 				crypto_aead_set_flags(cipher, flags);
-				return -EINVAL;
+				return ret;
 			}
 
 			ctx->cipher_type = CIPHER_TYPE_3DES;

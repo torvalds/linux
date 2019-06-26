@@ -5,6 +5,7 @@
 
 #include "rk3288.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/clock/rockchip,rk808.h>
 
 / {
 	chosen {
@@ -59,6 +60,16 @@
 			gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk808 RK808_CLKOUT1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable>;
+		reset-gpios = <&gpio4 RK_PD3 GPIO_ACTIVE_LOW>,
+			<&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
 	};
 
 	sound {
@@ -338,6 +349,7 @@
 	status = "okay";
 
 	sdcard-supply = <&vccio_sd>;
+	wifi-supply = <&vcc_18>;
 };
 
 &pinctrl {
@@ -352,68 +364,75 @@
 
 	backlight {
 		bl_en: bl-en {
-			rockchip,pins = <7 2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	buttons {
 		pwrbtn: pwrbtn {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	eth_phy {
 		eth_phy_pwr: eth-phy-pwr {
-			rockchip,pins = <0 6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	pmic {
 		pmic_int: pmic-int {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO \
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO \
 					&pcfg_pull_up>;
 		};
 
 		dvs_1: dvs-1 {
-			rockchip,pins = <RK_GPIO0 11 RK_FUNC_GPIO \
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO \
 					&pcfg_pull_down>;
 		};
 
 		dvs_2: dvs-2 {
-			rockchip,pins = <RK_GPIO0 12 RK_FUNC_GPIO \
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO \
 					&pcfg_pull_down>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_bus4: sdmmc-bus4 {
-			rockchip,pins = <6 16 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
-					<6 17 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
-					<6 18 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
-					<6 19 RK_FUNC_1 &pcfg_pull_up_drv_8ma>;
+			rockchip,pins = <6 RK_PC0 1 &pcfg_pull_up_drv_8ma>,
+					<6 RK_PC1 1 &pcfg_pull_up_drv_8ma>,
+					<6 RK_PC2 1 &pcfg_pull_up_drv_8ma>,
+					<6 RK_PC3 1 &pcfg_pull_up_drv_8ma>;
 		};
 
 		sdmmc_clk: sdmmc-clk {
-			rockchip,pins = <6 20 RK_FUNC_1 \
+			rockchip,pins = <6 RK_PC4 1 \
 					&pcfg_pull_none_drv_8ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
-			rockchip,pins = <6 21 RK_FUNC_1 &pcfg_pull_up_drv_8ma>;
+			rockchip,pins = <6 RK_PC5 1 &pcfg_pull_up_drv_8ma>;
 		};
 
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <7 11 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 14 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		pwr_3g: pwr-3g {
-			rockchip,pins = <7 8 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sdio {
+		wifi_enable: wifi-enable {
+			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
@@ -438,6 +457,24 @@
 	status = "okay";
 	vmmc-supply = <&vcc33_sd>;
 	vqmmc-supply = <&vccio_sd>;
+};
+
+&sdio0 {
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	max-frequency = <50000000>;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4>, <&sdio0_cmd>, <&sdio0_clk>, <&sdio0_int>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	vmmc-supply = <&vcc_io>;
+	vqmmc-supply = <&vcc_18>;
+	status = "okay";
 };
 
 &tsadc {

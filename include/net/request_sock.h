@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * NET		Generic infrastructure for Network protocols.
  *
@@ -6,11 +7,6 @@
  * Authors:	Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * 		From code originally in include/net/tcp.h
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _REQUEST_SOCK_H
 #define _REQUEST_SOCK_H
@@ -106,15 +102,19 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 	return req;
 }
 
-static inline void reqsk_free(struct request_sock *req)
+static inline void __reqsk_free(struct request_sock *req)
 {
-	WARN_ON_ONCE(refcount_read(&req->rsk_refcnt) != 0);
-
 	req->rsk_ops->destructor(req);
 	if (req->rsk_listener)
 		sock_put(req->rsk_listener);
 	kfree(req->saved_syn);
 	kmem_cache_free(req->rsk_ops->slab, req);
+}
+
+static inline void reqsk_free(struct request_sock *req)
+{
+	WARN_ON_ONCE(refcount_read(&req->rsk_refcnt) != 0);
+	__reqsk_free(req);
 }
 
 static inline void reqsk_put(struct request_sock *req)

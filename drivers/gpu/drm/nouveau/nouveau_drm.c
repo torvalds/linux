@@ -631,7 +631,8 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	/* We need to check that the chipset is supported before booting
 	 * fbdev off the hardware, as there's no way to put it back.
 	 */
-	ret = nvkm_device_pci_new(pdev, NULL, "error", true, false, 0, &device);
+	ret = nvkm_device_pci_new(pdev, nouveau_config, "error",
+				  true, false, 0, &device);
 	if (ret)
 		return ret;
 

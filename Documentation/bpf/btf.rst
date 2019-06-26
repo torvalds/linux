@@ -82,6 +82,8 @@ sequentially and type id is assigned to each recognized type starting from id
     #define BTF_KIND_RESTRICT       11      /* Restrict     */
     #define BTF_KIND_FUNC           12      /* Function     */
     #define BTF_KIND_FUNC_PROTO     13      /* Function Proto       */
+    #define BTF_KIND_VAR            14      /* Variable     */
+    #define BTF_KIND_DATASEC        15      /* Section      */
 
 Note that the type section encodes debug info, not just pure types.
 ``BTF_KIND_FUNC`` is not a type, and it represents a defined subprogram.
@@ -129,7 +131,7 @@ The following sections detail encoding of each kind.
 ``btf_type`` is followed by a ``u32`` with the following bits arrangement::
 
   #define BTF_INT_ENCODING(VAL)   (((VAL) & 0x0f000000) >> 24)
-  #define BTF_INT_OFFSET(VAL)     (((VAL  & 0x00ff0000)) >> 16)
+  #define BTF_INT_OFFSET(VAL)     (((VAL) & 0x00ff0000) >> 16)
   #define BTF_INT_BITS(VAL)       ((VAL)  & 0x000000ff)
 
 The ``BTF_INT_ENCODING`` has the following attributes::
@@ -393,6 +395,61 @@ refers to parameter type.
 If the function has variable arguments, the last parameter is encoded with
 ``name_off = 0`` and ``type = 0``.
 
+2.2.14 BTF_KIND_VAR
+~~~~~~~~~~~~~~~~~~~
+
+``struct btf_type`` encoding requirement:
+  * ``name_off``: offset to a valid C identifier
+  * ``info.kind_flag``: 0
+  * ``info.kind``: BTF_KIND_VAR
+  * ``info.vlen``: 0
+  * ``type``: the type of the variable
+
+``btf_type`` is followed by a single ``struct btf_variable`` with the
+following data::
+
+    struct btf_var {
+        __u32   linkage;
+    };
+
+``struct btf_var`` encoding:
+  * ``linkage``: currently only static variable 0, or globally allocated
+                 variable in ELF sections 1
+
+Not all type of global variables are supported by LLVM at this point.
+The following is currently available:
+
+  * static variables with or without section attributes
+  * global variables with section attributes
+
+The latter is for future extraction of map key/value type id's from a
+map definition.
+
+2.2.15 BTF_KIND_DATASEC
+~~~~~~~~~~~~~~~~~~~~~~~
+
+``struct btf_type`` encoding requirement:
+  * ``name_off``: offset to a valid name associated with a variable or
+                  one of .data/.bss/.rodata
+  * ``info.kind_flag``: 0
+  * ``info.kind``: BTF_KIND_DATASEC
+  * ``info.vlen``: # of variables
+  * ``size``: total section size in bytes (0 at compilation time, patched
+              to actual size by BPF loaders such as libbpf)
+
+``btf_type`` is followed by ``info.vlen`` number of ``struct btf_var_secinfo``.::
+
+    struct btf_var_secinfo {
+        __u32   type;
+        __u32   offset;
+        __u32   size;
+    };
+
+``struct btf_var_secinfo`` encoding:
+  * ``type``: the type of the BTF_KIND_VAR variable
+  * ``offset``: the in-section offset of the variable
+  * ``size``: the size of the variable in bytes
+
 3. BTF Kernel API
 *****************
 
@@ -521,6 +578,7 @@ For line_info, the line number and column number are defined as below:
     #define BPF_LINE_INFO_LINE_COL(line_col)        ((line_col) & 0x3ff)
 
 3.4 BPF_{PROG,MAP}_GET_NEXT_ID
+==============================
 
 In kernel, every loaded program, map or btf has a unique id. The id won't
 change during the lifetime of a program, map, or btf.
@@ -530,6 +588,7 @@ each command, to user space, for bpf program or maps, respectively, so an
 inspection tool can inspect all programs and maps.
 
 3.5 BPF_{PROG,MAP}_GET_FD_BY_ID
+===============================
 
 An introspection tool cannot use id to get details about program or maps.
 A file descriptor needs to be obtained first for reference-counting purpose.

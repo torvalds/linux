@@ -311,7 +311,7 @@ static inline bool dma_direct_possible(struct device *dev, dma_addr_t dma_addr,
 		size_t size)
 {
 	return swiotlb_force != SWIOTLB_FORCE &&
-		(!dev || dma_capable(dev, dma_addr, size));
+		dma_capable(dev, dma_addr, size);
 }
 
 dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,

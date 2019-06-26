@@ -1,0 +1,161 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SOC_SOF_TOPLEVEL
+	bool "Sound Open Firmware Support"
+	help
+	  This adds support for Sound Open Firmware (SOF). SOF is a free and
+	  generic open source audio DSP firmware for multiple devices.
+	  Say Y if you have such a device that is supported by SOF.
+	  If unsure select "N".
+
+if SND_SOC_SOF_TOPLEVEL
+
+config SND_SOC_SOF_PCI
+	tristate "SOF PCI enumeration support"
+	depends on PCI
+	select SND_SOC_SOF
+	select SND_SOC_ACPI if ACPI
+	select SND_SOC_SOF_OPTIONS
+	select SND_SOC_SOF_INTEL_PCI if SND_SOC_SOF_INTEL_TOPLEVEL
+	help
+	  This adds support for PCI enumeration. This option is
+	  required to enable Intel Skylake+ devices
+	  Say Y if you need this option
+	  If unsure select "N".
+
+config SND_SOC_SOF_ACPI
+	tristate "SOF ACPI enumeration support"
+	depends on ACPI || COMPILE_TEST
+	select SND_SOC_SOF
+	select SND_SOC_ACPI if ACPI
+	select SND_SOC_SOF_OPTIONS
+	select SND_SOC_SOF_INTEL_ACPI if SND_SOC_SOF_INTEL_TOPLEVEL
+	select IOSF_MBI if X86 && PCI
+	help
+	  This adds support for ACPI enumeration. This option is required
+	  to enable Intel Haswell/Broadwell/Baytrail/Cherrytrail devices
+	  Say Y if you need this option
+	  If unsure select "N".
+
+config SND_SOC_SOF_OPTIONS
+	tristate
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+
+if SND_SOC_SOF_OPTIONS
+
+config SND_SOC_SOF_NOCODEC
+	tristate
+
+config SND_SOC_SOF_NOCODEC_SUPPORT
+	bool "SOF nocodec mode support"
+	help
+	  This adds support for a dummy/nocodec machine driver fallback
+	  option if no known codec is detected. This is typically only
+	  enabled for developers or devices where the sound card is
+	  controlled externally
+	  Say Y if you need this nocodec fallback option
+	  If unsure select "N".
+
+config SND_SOC_SOF_STRICT_ABI_CHECKS
+	bool "SOF strict ABI checks"
+	help
+	  This option enables strict ABI checks for firmware and topology
+	  files.
+	  When these files are more recent than the kernel, the kernel
+	  will handle the functionality it supports and may report errors
+	  during topology creation or run-time usage if new functionality
+	  is invoked.
+	  This option will stop topology creation and firmware load upfront.
+	  It is intended for SOF CI/releases and not for users or distros.
+	  Say Y if you want strict ABI checks for an SOF release
+	  If you are not involved in SOF releases and CI development
+	  select "N".
+
+config SND_SOC_SOF_DEBUG
+	bool "SOF debugging features"
+	help
+	  This option can be used to enable or disable individual SOF firmware
+	  and driver debugging options.
+	  Say Y if you are debugging SOF FW or drivers.
+	  If unsure select "N".
+
+if SND_SOC_SOF_DEBUG
+
+config SND_SOC_SOF_FORCE_NOCODEC_MODE
+	bool "SOF force nocodec Mode"
+	depends on SND_SOC_SOF_NOCODEC_SUPPORT
+	help
+	  This forces SOF to use dummy/nocodec as machine driver, even
+	  though there is a codec detected on the real platform. This is
+	  typically only enabled for developers for debug purposes, before
+	  codec/machine driver is ready, or to exclude the impact of those
+	  drivers
+	  Say Y if you need this force nocodec mode option
+	  If unsure select "N".
+
+config SND_SOC_SOF_DEBUG_XRUN_STOP
+	bool "SOF stop on XRUN"
+	help
+	  This option forces PCMs to stop on any XRUN event. This is useful to
+	  preserve any trace data ond pipeline status prior to the XRUN.
+	  Say Y if you are debugging SOF FW pipeline XRUNs.
+	  If unsure select "N".
+
+config SND_SOC_SOF_DEBUG_VERBOSE_IPC
+	bool "SOF verbose IPC logs"
+	help
+	  This option enables more verbose IPC logs, with command types in
+	  human-readable form instead of just 32-bit hex dumps. This is useful
+	  if you are trying to debug IPC with the DSP firmware.
+	  If unsure select "N".
+
+config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
+	bool "SOF force to use IPC for position update on SKL+"
+	help
+	  This option force to handle stream position update IPCs and run pcm
+	  elapse to inform ALSA about that, on platforms (e.g. Intel SKL+) that
+	  with other approach (e.g. HDAC DPIB/posbuf) to elapse PCM.
+	  On platforms (e.g. Intel SKL-) where position update IPC is the only
+	  one choice, this setting won't impact anything.
+	  if you are trying to debug pointer update with position IPCs or where
+	  DPIB/posbuf is not ready, select "Y".
+	  If unsure select "N".
+
+config SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE
+	bool "SOF enable debugfs caching"
+	help
+	  This option enables caching of debugfs
+	  memory -> DSP resource (memory, register, etc)
+	  before the audio DSP is suspended. This will increase the suspend
+	  latency and therefore should be used for debug purposes only.
+	  Say Y if you want to enable caching the memory windows.
+	  If unsure, select "N".
+
+endif ## SND_SOC_SOF_DEBUG
+
+endif ## SND_SOC_SOF_OPTIONS
+
+config SND_SOC_SOF
+	tristate
+	select SND_SOC_TOPOLOGY
+	select SND_SOC_SOF_NOCODEC if SND_SOC_SOF_NOCODEC_SUPPORT
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+	  The selection is made at the top level and does not exactly follow
+	  module dependencies but since the module or built-in type is decided
+	  at the top level it doesn't matter.
+
+config SND_SOC_SOF_PROBE_WORK_QUEUE
+	bool
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+	  When selected, the probe is handled in two steps, for example to
+	  avoid lockdeps if request_module is used in the probe.
+
+source "sound/soc/sof/intel/Kconfig"
+source "sound/soc/sof/xtensa/Kconfig"
+
+endif

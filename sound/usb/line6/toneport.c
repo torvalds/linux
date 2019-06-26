@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *                         Emil Myhrman (emil.myhrman@gmail.com)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/wait.h>
@@ -53,9 +49,6 @@ struct usb_line6_toneport {
 
 	/* Firmware version (x 100) */
 	u8 firmware_version;
-
-	/* Timer for delayed PCM startup */
-	struct timer_list timer;
 
 	/* Device type */
 	enum line6_device_type type;
@@ -241,11 +234,8 @@ static int snd_toneport_source_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static void toneport_start_pcm(struct timer_list *t)
+static void toneport_startup(struct usb_line6 *line6)
 {
-	struct usb_line6_toneport *toneport = from_timer(toneport, t, timer);
-	struct usb_line6 *line6 = &toneport->line6;
-
 	line6_pcm_acquire(line6->line6pcm, LINE6_STREAM_MONITOR, true);
 }
 
@@ -291,8 +281,8 @@ static bool toneport_has_led(struct usb_line6_toneport *toneport)
 	}
 }
 
-static const char * const led_colors[2] = { "red", "green" };
-static const int led_init_vals[2] = { 0x00, 0x26 };
+static const char * const toneport_led_colors[2] = { "red", "green" };
+static const int toneport_led_init_vals[2] = { 0x00, 0x26 };
 
 static void toneport_update_led(struct usb_line6_toneport *toneport)
 {
@@ -320,9 +310,9 @@ static int toneport_init_leds(struct usb_line6_toneport *toneport)
 
 		led->toneport = toneport;
 		snprintf(led->name, sizeof(led->name), "%s::%s",
-			 dev_name(dev), led_colors[i]);
+			 dev_name(dev), toneport_led_colors[i]);
 		leddev->name = led->name;
-		leddev->brightness = led_init_vals[i];
+		leddev->brightness = toneport_led_init_vals[i];
 		leddev->max_brightness = 0x26;
 		leddev->brightness_set = toneport_led_brightness_set;
 		err = led_classdev_register(dev, leddev);
@@ -365,16 +355,21 @@ static bool toneport_has_source_select(struct usb_line6_toneport *toneport)
 /*
 	Setup Toneport device.
 */
-static void toneport_setup(struct usb_line6_toneport *toneport)
+static int toneport_setup(struct usb_line6_toneport *toneport)
 {
-	u32 ticks;
+	u32 *ticks;
 	struct usb_line6 *line6 = &toneport->line6;
 	struct usb_device *usbdev = line6->usbdev;
 
+	ticks = kmalloc(sizeof(*ticks), GFP_KERNEL);
+	if (!ticks)
+		return -ENOMEM;
+
 	/* sync time on device with host: */
 	/* note: 32-bit timestamps overflow in year 2106 */
-	ticks = (u32)ktime_get_real_seconds();
-	line6_write_data(line6, 0x80c6, &ticks, 4);
+	*ticks = (u32)ktime_get_real_seconds();
+	line6_write_data(line6, 0x80c6, ticks, 4);
+	kfree(ticks);
 
 	/* enable device: */
 	toneport_send_cmd(usbdev, 0x0301, 0x0000);
@@ -388,7 +383,9 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	if (toneport_has_led(toneport))
 		toneport_update_led(toneport);
 
-	mod_timer(&toneport->timer, jiffies + TONEPORT_PCM_DELAY * HZ);
+	schedule_delayed_work(&toneport->line6.startup_work,
+			      msecs_to_jiffies(TONEPORT_PCM_DELAY * 1000));
+	return 0;
 }
 
 /*
@@ -398,8 +395,6 @@ static void line6_toneport_disconnect(struct usb_line6 *line6)
 {
 	struct usb_line6_toneport *toneport =
 		(struct usb_line6_toneport *)line6;
-
-	del_timer_sync(&toneport->timer);
 
 	if (toneport_has_led(toneport))
 		toneport_remove_leds(toneport);
@@ -416,9 +411,9 @@ static int toneport_init(struct usb_line6 *line6,
 	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
 
 	toneport->type = id->driver_info;
-	timer_setup(&toneport->timer, toneport_start_pcm, 0);
 
 	line6->disconnect = line6_toneport_disconnect;
+	line6->startup = toneport_startup;
 
 	/* initialize PCM subsystem: */
 	err = line6_init_pcm(line6, &toneport_pcm_properties);
@@ -451,7 +446,9 @@ static int toneport_init(struct usb_line6 *line6,
 			return err;
 	}
 
-	toneport_setup(toneport);
+	err = toneport_setup(toneport);
+	if (err)
+		return err;
 
 	/* register audio system: */
 	return snd_card_register(line6->card);
@@ -463,7 +460,11 @@ static int toneport_init(struct usb_line6 *line6,
 */
 static int toneport_reset_resume(struct usb_interface *interface)
 {
-	toneport_setup(usb_get_intfdata(interface));
+	int err;
+
+	err = toneport_setup(usb_get_intfdata(interface));
+	if (err)
+		return err;
 	return line6_resume(interface);
 }
 #endif

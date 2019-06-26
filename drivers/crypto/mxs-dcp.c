@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale i.MX23/i.MX28 Data Co-Processor driver
  *
  * Copyright (C) 2013 Marek Vasut <marex@denx.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/dma-mapping.h>
@@ -471,7 +465,7 @@ static int mxs_dcp_aes_enqueue(struct ablkcipher_request *req, int enc, int ecb)
 
 	wake_up_process(sdcp->thread[actx->chan]);
 
-	return -EINPROGRESS;
+	return ret;
 }
 
 static int mxs_dcp_aes_ecb_decrypt(struct ablkcipher_request *req)
@@ -700,11 +694,7 @@ static int dcp_chan_thread_sha(void *data)
 
 	struct crypto_async_request *backlog;
 	struct crypto_async_request *arq;
-
-	struct dcp_sha_req_ctx *rctx;
-
-	struct ahash_request *req;
-	int ret, fini;
+	int ret;
 
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -725,11 +715,7 @@ static int dcp_chan_thread_sha(void *data)
 			backlog->complete(backlog, -EINPROGRESS);
 
 		if (arq) {
-			req = ahash_request_cast(arq);
-			rctx = ahash_request_ctx(req);
-
 			ret = dcp_sha_req_to_buf(arq);
-			fini = rctx->fini;
 			arq->complete(arq, ret);
 		}
 	}
@@ -797,7 +783,7 @@ static int dcp_sha_update_fx(struct ahash_request *req, int fini)
 	wake_up_process(sdcp->thread[actx->chan]);
 	mutex_unlock(&actx->mutex);
 
-	return -EINPROGRESS;
+	return ret;
 }
 
 static int dcp_sha_update(struct ahash_request *req)

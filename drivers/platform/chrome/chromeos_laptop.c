@@ -125,7 +125,7 @@ static bool chromeos_laptop_match_adapter_devid(struct device *dev, u32 devid)
 		return false;
 
 	pdev = to_pci_dev(dev);
-	return devid == PCI_DEVID(pdev->bus->number, pdev->devfn);
+	return devid == pci_dev_id(pdev);
 }
 
 static void chromeos_laptop_check_adapter(struct i2c_adapter *adapter)

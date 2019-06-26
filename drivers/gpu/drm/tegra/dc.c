@@ -26,6 +26,9 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
+static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
+					    struct drm_crtc_state *state);
+
 static void tegra_dc_stats_reset(struct tegra_dc_stats *stats)
 {
 	stats->frames = 0;
@@ -1155,20 +1158,12 @@ static void tegra_dc_destroy(struct drm_crtc *crtc)
 
 static void tegra_crtc_reset(struct drm_crtc *crtc)
 {
-	struct tegra_dc_state *state;
+	struct tegra_dc_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 
 	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+		tegra_crtc_atomic_destroy_state(crtc, crtc->state);
 
-	kfree(crtc->state);
-	crtc->state = NULL;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		crtc->state = &state->base;
-		crtc->state->crtc = crtc;
-	}
-
+	__drm_atomic_helper_crtc_reset(crtc, &state->base);
 	drm_crtc_vblank_reset(crtc);
 }
 

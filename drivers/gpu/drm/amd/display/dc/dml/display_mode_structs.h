@@ -219,6 +219,9 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	unsigned char xfc_enable;
 	unsigned char xfc_slave;
 	struct _vcs_dpi_display_xfc_params_st xfc_params;
+	//for vstartuplines calculation freesync
+	unsigned char v_total_min;
+	unsigned char v_total_max;
 };
 struct writeback_st {
 	int wb_src_height;
@@ -289,6 +292,8 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned char otg_inst;
 	unsigned char odm_combine;
 	unsigned char use_maximum_vstartup;
+	unsigned int vtotal_max;
+	unsigned int vtotal_min;
 };
 
 struct _vcs_dpi_display_pipe_params_st {

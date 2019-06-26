@@ -140,10 +140,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 	case OP(RDMA_READ_RESPONSE_LAST):
 	case OP(RDMA_READ_RESPONSE_ONLY):
 		e = &qp->s_ack_queue[qp->s_tail_ack_queue];
-		if (e->rdma_sge.mr) {
-			rvt_put_mr(e->rdma_sge.mr);
-			e->rdma_sge.mr = NULL;
-		}
+		release_rdma_sge_mr(e);
 		/* FALLTHROUGH */
 	case OP(ATOMIC_ACKNOWLEDGE):
 		/*
@@ -343,7 +340,8 @@ write_resp:
 			break;
 
 		e->sent = 1;
-		qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
+		/* Do not free e->rdma_sge until all data are received */
+		qp->s_ack_state = OP(ATOMIC_ACKNOWLEDGE);
 		break;
 
 	case TID_OP(READ_RESP):
@@ -1836,7 +1834,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah)
 		qp->s_last = s_last;
 		/* see post_send() */
 		barrier();
-		rvt_put_swqe(wqe);
+		rvt_put_qp_swqe(qp, wqe);
 		rvt_qp_swqe_complete(qp,
 				     wqe,
 				     ib_hfi1_wc_opcode[wqe->wr.opcode],
@@ -1884,7 +1882,7 @@ struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 		u32 s_last;
 
 		trdma_clean_swqe(qp, wqe);
-		rvt_put_swqe(wqe);
+		rvt_put_qp_swqe(qp, wqe);
 		rvt_qp_wqe_unreserve(qp, wqe);
 		s_last = qp->s_last;
 		trace_hfi1_qp_send_completion(qp, wqe, s_last);
@@ -2643,10 +2641,7 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 		len = be32_to_cpu(reth->length);
 		if (unlikely(offset + len != e->rdma_sge.sge_length))
 			goto unlock_done;
-		if (e->rdma_sge.mr) {
-			rvt_put_mr(e->rdma_sge.mr);
-			e->rdma_sge.mr = NULL;
-		}
+		release_rdma_sge_mr(e);
 		if (len != 0) {
 			u32 rkey = be32_to_cpu(reth->rkey);
 			u64 vaddr = get_ib_reth_vaddr(reth);
@@ -3088,10 +3083,7 @@ send_last:
 			update_ack_queue(qp, next);
 		}
 		e = &qp->s_ack_queue[qp->r_head_ack_queue];
-		if (e->rdma_sge.mr) {
-			rvt_put_mr(e->rdma_sge.mr);
-			e->rdma_sge.mr = NULL;
-		}
+		release_rdma_sge_mr(e);
 		reth = &ohdr->u.rc.reth;
 		len = be32_to_cpu(reth->length);
 		if (len) {
@@ -3166,10 +3158,7 @@ send_last:
 			update_ack_queue(qp, next);
 		}
 		e = &qp->s_ack_queue[qp->r_head_ack_queue];
-		if (e->rdma_sge.mr) {
-			rvt_put_mr(e->rdma_sge.mr);
-			e->rdma_sge.mr = NULL;
-		}
+		release_rdma_sge_mr(e);
 		/* Process OPFN special virtual address */
 		if (opfn) {
 			opfn_conn_response(qp, e, ateth);

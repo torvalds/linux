@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_nic.h: Declaration of common code for NIC. */
@@ -26,11 +23,13 @@ struct aq_nic_cfg_s {
 	u64 features;
 	u32 rxds;		/* rx ring size, descriptors # */
 	u32 txds;		/* tx ring size, descriptors # */
-	u32 vecs;		/* vecs==allocated irqs */
+	u32 vecs;		/* allocated rx/tx vectors */
+	u32 link_irq_vec;
 	u32 irq_type;
 	u32 itr;
 	u16 rx_itr;
 	u16 tx_itr;
+	u32 rxpageorder;
 	u32 num_rss_queues;
 	u32 mtu;
 	u32 flow_control;
@@ -91,6 +90,7 @@ struct aq_nic_s {
 	const struct aq_fw_ops *aq_fw_ops;
 	struct aq_nic_cfg_s aq_nic_cfg;
 	struct timer_list service_timer;
+	struct work_struct service_task;
 	struct timer_list polling_timer;
 	struct aq_hw_link_status_s link_status;
 	struct {
@@ -103,6 +103,8 @@ struct aq_nic_s {
 	struct pci_dev *pdev;
 	unsigned int msix_entry_mask;
 	u32 irqvecs;
+	/* mutex to serialize FW interface access operations */
+	struct mutex fwreq_mutex;
 	struct aq_hw_rx_fltrs_s aq_hw_rx_fltrs;
 };
 

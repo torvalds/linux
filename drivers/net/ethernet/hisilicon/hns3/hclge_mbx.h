@@ -43,6 +43,8 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_GET_QID_IN_PF,	/* (VF -> PF) get queue id in pf */
 	HCLGE_MBX_LINK_STAT_MODE,	/* (PF -> VF) link mode has changed */
 	HCLGE_MBX_GET_LINK_MODE,	/* (VF -> PF) get the link mode of pf */
+	HLCGE_MBX_PUSH_VLAN_INFO,	/* (PF -> VF) push port base vlan */
+	HCLGE_MBX_GET_MEDIA_TYPE,       /* (VF -> PF) get media type */
 
 	HCLGE_MBX_GET_VF_FLR_STATUS = 200, /* (M7 -> PF) get vf reset status */
 };
@@ -62,6 +64,8 @@ enum hclge_mbx_vlan_cfg_subcode {
 	HCLGE_MBX_VLAN_FILTER = 0,	/* set vlan filter */
 	HCLGE_MBX_VLAN_TX_OFF_CFG,	/* set tx side vlan offload */
 	HCLGE_MBX_VLAN_RX_OFF_CFG,	/* set rx side vlan offload */
+	HCLGE_MBX_PORT_BASE_VLAN_CFG,	/* set port based vlan configuration */
+	HCLGE_MBX_GET_PORT_BASE_VLAN_STATE,	/* get port based vlan state */
 };
 
 #define HCLGE_MBX_MAX_MSG_SIZE	16
@@ -80,11 +84,14 @@ struct hclgevf_mbx_resp_status {
 struct hclge_mbx_vf_to_pf_cmd {
 	u8 rsv;
 	u8 mbx_src_vfid; /* Auto filled by IMP */
-	u8 rsv1[2];
+	u8 mbx_need_resp;
+	u8 rsv1[1];
 	u8 msg_len;
 	u8 rsv2[3];
 	u8 msg[HCLGE_MBX_MAX_MSG_SIZE];
 };
+
+#define HCLGE_MBX_NEED_RESP_BIT		BIT(0)
 
 struct hclge_mbx_pf_to_vf_cmd {
 	u8 dest_vfid;
@@ -107,7 +114,7 @@ struct hclgevf_mbx_arq_ring {
 	struct hclgevf_dev *hdev;
 	u32 head;
 	u32 tail;
-	u32 count;
+	atomic_t count;
 	u16 msg_q[HCLGE_MBX_MAX_ARQ_MSG_NUM][HCLGE_MBX_MAX_ARQ_MSG_SIZE];
 };
 

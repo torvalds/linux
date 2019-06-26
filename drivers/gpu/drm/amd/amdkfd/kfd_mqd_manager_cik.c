@@ -66,6 +66,22 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 		m->compute_static_thread_mgmt_se3);
 }
 
+static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
+					struct queue_properties *q)
+{
+	struct kfd_mem_obj *mqd_mem_obj;
+
+	if (q->type == KFD_QUEUE_TYPE_HIQ)
+		return allocate_hiq_mqd(kfd);
+
+	if (kfd_gtt_sa_allocate(kfd, sizeof(struct cik_mqd),
+			&mqd_mem_obj))
+		return NULL;
+
+	return mqd_mem_obj;
+}
+
+
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 		struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
@@ -73,11 +89,10 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	uint64_t addr;
 	struct cik_mqd *m;
 	int retval;
+	struct kfd_dev *kfd = mm->dev;
 
-	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct cik_mqd),
-					mqd_mem_obj);
-
-	if (retval != 0)
+	*mqd_mem_obj = allocate_mqd(kfd, q);
+	if (!*mqd_mem_obj)
 		return -ENOMEM;
 
 	m = (struct cik_mqd *) (*mqd_mem_obj)->cpu_ptr;
@@ -136,12 +151,10 @@ static int init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 {
 	int retval;
 	struct cik_sdma_rlc_registers *m;
+	struct kfd_dev *dev = mm->dev;
 
-	retval = kfd_gtt_sa_allocate(mm->dev,
-					sizeof(struct cik_sdma_rlc_registers),
-					mqd_mem_obj);
-
-	if (retval != 0)
+	*mqd_mem_obj = allocate_sdma_mqd(dev, q);
+	if (!*mqd_mem_obj)
 		return -ENOMEM;
 
 	m = (struct cik_sdma_rlc_registers *) (*mqd_mem_obj)->cpu_ptr;
@@ -163,11 +176,6 @@ static void uninit_mqd(struct mqd_manager *mm, void *mqd,
 	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
 }
 
-static void uninit_mqd_sdma(struct mqd_manager *mm, void *mqd,
-				struct kfd_mem_obj *mqd_mem_obj)
-{
-	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
-}
 
 static int load_mqd(struct mqd_manager *mm, void *mqd, uint32_t pipe_id,
 		    uint32_t queue_id, struct queue_properties *p,
@@ -400,28 +408,43 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
+		mqd->mqd_size = sizeof(struct cik_mqd);
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
 		break;
 	case KFD_MQD_TYPE_HIQ:
 		mqd->init_mqd = init_mqd_hiq;
+		mqd->uninit_mqd = uninit_mqd_hiq_sdma;
+		mqd->load_mqd = load_mqd;
+		mqd->update_mqd = update_mqd_hiq;
+		mqd->destroy_mqd = destroy_mqd;
+		mqd->is_occupied = is_occupied;
+		mqd->mqd_size = sizeof(struct cik_mqd);
+#if defined(CONFIG_DEBUG_FS)
+		mqd->debugfs_show_mqd = debugfs_show_mqd;
+#endif
+		break;
+	case KFD_MQD_TYPE_DIQ:
+		mqd->init_mqd = init_mqd_hiq;
 		mqd->uninit_mqd = uninit_mqd;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd_hiq;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
+		mqd->mqd_size = sizeof(struct cik_mqd);
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
 		break;
 	case KFD_MQD_TYPE_SDMA:
 		mqd->init_mqd = init_mqd_sdma;
-		mqd->uninit_mqd = uninit_mqd_sdma;
+		mqd->uninit_mqd = uninit_mqd_hiq_sdma;
 		mqd->load_mqd = load_mqd_sdma;
 		mqd->update_mqd = update_mqd_sdma;
 		mqd->destroy_mqd = destroy_mqd_sdma;
 		mqd->is_occupied = is_occupied_sdma;
+		mqd->mqd_size = sizeof(struct cik_sdma_rlc_registers);
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
 #endif

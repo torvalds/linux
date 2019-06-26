@@ -402,7 +402,6 @@ static int derive_essiv_salt(const u8 *key, int keysize, u8 *salt)
 	{
 		SHASH_DESC_ON_STACK(desc, tfm);
 		desc->tfm = tfm;
-		desc->flags = 0;
 
 		return crypto_shash_digest(desc, key, keysize, salt);
 	}
@@ -509,7 +508,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	u8 *raw_key = NULL;
 	int res;
 
-	if (inode->i_crypt_info)
+	if (fscrypt_has_encryption_key(inode))
 		return 0;
 
 	res = fscrypt_initialize(inode->i_sb->s_cop->flags);
@@ -573,7 +572,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	if (res)
 		goto out;
 
-	if (cmpxchg(&inode->i_crypt_info, NULL, crypt_info) == NULL)
+	if (cmpxchg_release(&inode->i_crypt_info, NULL, crypt_info) == NULL)
 		crypt_info = NULL;
 out:
 	if (res == -ENOKEY)
@@ -584,9 +583,30 @@ out:
 }
 EXPORT_SYMBOL(fscrypt_get_encryption_info);
 
+/**
+ * fscrypt_put_encryption_info - free most of an inode's fscrypt data
+ *
+ * Free the inode's fscrypt_info.  Filesystems must call this when the inode is
+ * being evicted.  An RCU grace period need not have elapsed yet.
+ */
 void fscrypt_put_encryption_info(struct inode *inode)
 {
 	put_crypt_info(inode->i_crypt_info);
 	inode->i_crypt_info = NULL;
 }
 EXPORT_SYMBOL(fscrypt_put_encryption_info);
+
+/**
+ * fscrypt_free_inode - free an inode's fscrypt data requiring RCU delay
+ *
+ * Free the inode's cached decrypted symlink target, if any.  Filesystems must
+ * call this after an RCU grace period, just before they free the inode.
+ */
+void fscrypt_free_inode(struct inode *inode)
+{
+	if (IS_ENCRYPTED(inode) && S_ISLNK(inode->i_mode)) {
+		kfree(inode->i_link);
+		inode->i_link = NULL;
+	}
+}
+EXPORT_SYMBOL(fscrypt_free_inode);

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2009-2013  LSI Corporation
  *  Copyright (c) 2013-2016  Avago Technologies
  *  Copyright (c) 2016-2018  Broadcom Inc.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  FILE: megaraid_sas_fusion.c
  *
@@ -242,7 +230,6 @@ megasas_fire_cmd_fusion(struct megasas_instance *instance,
 		&instance->reg_set->inbound_low_queue_port);
 	writel(le32_to_cpu(req_desc->u.high),
 		&instance->reg_set->inbound_high_queue_port);
-	mmiowb();
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
 #endif
 }
@@ -4419,7 +4406,7 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 	if (!smid) {
 		ret = SUCCESS;
 		scmd_printk(KERN_NOTICE, scmd, "Command for which abort is"
-			" issued is not found in oustanding commands\n");
+			" issued is not found in outstanding commands\n");
 		mutex_unlock(&instance->reset_mutex);
 		goto out;
 	}

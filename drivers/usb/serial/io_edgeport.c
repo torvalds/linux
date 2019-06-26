@@ -1751,7 +1751,7 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 				edge_serial->rxState = EXPECT_HDR2;
 				break;
 			}
-			/* otherwise, drop on through */
+			/* Fall through */
 		case EXPECT_HDR2:
 			edge_serial->rxHeader2 = *buffer;
 			++buffer;
@@ -1790,29 +1790,20 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 						edge_serial->rxHeader2, 0);
 				edge_serial->rxState = EXPECT_HDR1;
 				break;
-			} else {
-				edge_serial->rxPort =
-				    IOSP_GET_HDR_PORT(edge_serial->rxHeader1);
-				edge_serial->rxBytesRemaining =
-				    IOSP_GET_HDR_DATA_LEN(
-						edge_serial->rxHeader1,
-						edge_serial->rxHeader2);
-				dev_dbg(dev, "%s - Data for Port %u Len %u\n",
-					__func__,
-					edge_serial->rxPort,
-					edge_serial->rxBytesRemaining);
-
-				/* ASSERT(DevExt->RxPort < DevExt->NumPorts);
-				 * ASSERT(DevExt->RxBytesRemaining <
-				 *		IOSP_MAX_DATA_LENGTH);
-				 */
-
-				if (bufferLength == 0) {
-					edge_serial->rxState = EXPECT_DATA;
-					break;
-				}
-				/* Else, drop through */
 			}
+
+			edge_serial->rxPort = IOSP_GET_HDR_PORT(edge_serial->rxHeader1);
+			edge_serial->rxBytesRemaining = IOSP_GET_HDR_DATA_LEN(edge_serial->rxHeader1,
+									      edge_serial->rxHeader2);
+			dev_dbg(dev, "%s - Data for Port %u Len %u\n", __func__,
+				edge_serial->rxPort,
+				edge_serial->rxBytesRemaining);
+
+			if (bufferLength == 0) {
+				edge_serial->rxState = EXPECT_DATA;
+				break;
+			}
+			/* Fall through */
 		case EXPECT_DATA: /* Expect data */
 			if (bufferLength < edge_serial->rxBytesRemaining) {
 				rxLen = bufferLength;

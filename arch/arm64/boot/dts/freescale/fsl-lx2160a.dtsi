@@ -33,6 +33,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster0_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@1 {
@@ -48,6 +49,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster0_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@100 {
@@ -63,6 +65,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster1_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@101 {
@@ -78,6 +81,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster1_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@200 {
@@ -93,6 +97,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster2_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@201 {
@@ -108,6 +113,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster2_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@300 {
@@ -123,6 +129,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster3_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@301 {
@@ -138,6 +145,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster3_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@400 {
@@ -153,6 +161,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster4_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@401 {
@@ -168,6 +177,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster4_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@500 {
@@ -183,6 +193,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster5_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@501 {
@@ -198,6 +209,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster5_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@600 {
@@ -213,6 +225,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster6_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@601 {
@@ -228,6 +241,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster6_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@700 {
@@ -243,6 +257,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster7_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cpu@701 {
@@ -258,6 +273,7 @@
 			i-cache-line-size = <64>;
 			i-cache-sets = <192>;
 			next-level-cache = <&cluster7_l2>;
+			cpu-idle-states = <&cpu_pw20>;
 		};
 
 		cluster0_l2: l2-cache0 {
@@ -323,6 +339,15 @@
 			cache-sets = <1024>;
 			cache-level = <2>;
 		};
+
+		cpu_pw20: cpu-pw20 {
+			compatible = "arm,idle-state";
+			idle-state-name = "PW20";
+			arm,psci-suspend-param = <0x0>;
+			entry-latency-us = <2000>;
+			exit-latency-us = <2000>;
+			min-residency-us = <6000>;
+		  };
 	};
 
 	gic: interrupt-controller@6000000 {
@@ -684,6 +709,50 @@
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
 			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+			status = "disabled";
+		};
+
+		sata0: sata@3200000 {
+			compatible = "fsl,lx2160a-ahci";
+			reg = <0x0 0x3200000 0x0 0x10000>,
+			      <0x7 0x100520 0x0 0x4>;
+			reg-names = "ahci", "sata-ecc";
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen 4 3>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		sata1: sata@3210000 {
+			compatible = "fsl,lx2160a-ahci";
+			reg = <0x0 0x3210000 0x0 0x10000>,
+			      <0x7 0x100520 0x0 0x4>;
+			reg-names = "ahci", "sata-ecc";
+			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen 4 3>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		sata2: sata@3220000 {
+			compatible = "fsl,lx2160a-ahci";
+			reg = <0x0 0x3220000 0x0 0x10000>,
+			      <0x7 0x100520 0x0 0x4>;
+			reg-names = "ahci", "sata-ecc";
+			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen 4 3>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		sata3: sata@3230000 {
+			compatible = "fsl,lx2160a-ahci";
+			reg = <0x0 0x3230000 0x0 0x10000>,
+			      <0x7 0x100520 0x0 0x4>;
+			reg-names = "ahci", "sata-ecc";
+			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen 4 3>;
+			dma-coherent;
 			status = "disabled";
 		};
 

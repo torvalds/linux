@@ -305,7 +305,7 @@ ENTRY(startup_kdump)
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
 	xc	0xf00(256),0xf00
-	lctlg	%c0,%c15,0x200(%r0)	# initialize control registers
+	lctlg	%c0,%c15,.Lctl-.LPG0(%r13)	# load control registers
 	stcke	__LC_BOOT_CLOCK
 	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
 	spt	6f-.LPG0(%r13)
@@ -319,20 +319,54 @@ ENTRY(startup_kdump)
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 
+.Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
+	.quad	0			# cr1: primary space segment table
+	.quad	.Lduct			# cr2: dispatchable unit control table
+	.quad	0			# cr3: instruction authorization
+	.quad	0xffff			# cr4: instruction authorization
+	.quad	.Lduct			# cr5: primary-aste origin
+	.quad	0			# cr6:	I/O interrupts
+	.quad	0			# cr7:	secondary space segment table
+	.quad	0			# cr8:	access registers translation
+	.quad	0			# cr9:	tracing off
+	.quad	0			# cr10: tracing off
+	.quad	0			# cr11: tracing off
+	.quad	0			# cr12: tracing off
+	.quad	0			# cr13: home space segment table
+	.quad	0xc0000000		# cr14: machine check handling off
+	.quad	.Llinkage_stack		# cr15: linkage stack operations
+
+	.section .dma.data,"aw",@progbits
+.Lduct: .long	0,.Laste,.Laste,0,.Lduald,0,0,0
+	.long	0,0,0,0,0,0,0,0
+.Llinkage_stack:
+	.long	0,0,0x89000000,0,0,0,0x8a000000,0
+	.align 64
+.Laste:	.quad	0,0xffffffffffffffff,0,0,0,0,0,0
+	.align	128
+.Lduald:.rept	8
+	.long	0x80000000,0,0,0	# invalid access-list entries
+	.endr
+	.previous
+
 #include "head_kdump.S"
 
 #
 # params at 10400 (setup.h)
+# Must be keept in sync with struct parmarea in setup.h
 #
 	.org	PARMAREA
-	.long	0,0			# IPL_DEVICE
-	.long	0,0			# INITRD_START
-	.long	0,0			# INITRD_SIZE
-	.long	0,0			# OLDMEM_BASE
-	.long	0,0			# OLDMEM_SIZE
+	.quad	0			# IPL_DEVICE
+	.quad	0			# INITRD_START
+	.quad	0			# INITRD_SIZE
+	.quad	0			# OLDMEM_BASE
+	.quad	0			# OLDMEM_SIZE
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"
 	.byte	0
 
-	.org	0x11000
+	.org	EARLY_SCCB_OFFSET
+	.fill	4096
+
+	.org	HEAD_END

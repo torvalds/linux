@@ -237,14 +237,23 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 	case WLAN_CIPHER_SUITE_CCMP_256:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		/* Disallow pairwise keys with non-zero index unless it's WEP
-		 * or a vendor specific cipher (because current deployments use
-		 * pairwise WEP keys with non-zero indices and for vendor
-		 * specific ciphers this should be validated in the driver or
-		 * hardware level - but 802.11i clearly specifies to use zero)
+		/* IEEE802.11-2016 allows only 0 and - when using Extended Key
+		 * ID - 1 as index for pairwise keys.
+		 * @NL80211_KEY_NO_TX is only allowed for pairwise keys when
+		 * the driver supports Extended Key ID.
+		 * @NL80211_KEY_SET_TX can't be set when installing and
+		 * validating a key.
 		 */
-		if (pairwise && key_idx)
+		if (params->mode == NL80211_KEY_NO_TX) {
+			if (!wiphy_ext_feature_isset(&rdev->wiphy,
+						     NL80211_EXT_FEATURE_EXT_KEY_ID))
+				return -EINVAL;
+			else if (!pairwise || key_idx < 0 || key_idx > 1)
+				return -EINVAL;
+		} else if ((pairwise && key_idx) ||
+			   params->mode == NL80211_KEY_SET_TX) {
 			return -EINVAL;
+		}
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
@@ -1220,9 +1229,11 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 	else if (rate->bw == RATE_INFO_BW_HE_RU &&
 		 rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_26)
 		result = rates_26[rate->he_gi];
-	else if (WARN(1, "invalid HE MCS: bw:%d, ru:%d\n",
-		      rate->bw, rate->he_ru_alloc))
+	else {
+		WARN(1, "invalid HE MCS: bw:%d, ru:%d\n",
+		     rate->bw, rate->he_ru_alloc);
 		return 0;
+	}
 
 	/* now scale to the appropriate MCS */
 	tmp = result;

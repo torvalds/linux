@@ -108,10 +108,14 @@ static const struct watchdog_ops tangox_wdt_ops = {
 	.restart	= tangox_wdt_restart,
 };
 
+static void tangox_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int tangox_wdt_probe(struct platform_device *pdev)
 {
 	struct tangox_wdt_device *dev;
-	struct resource *res;
 	u32 config;
 	int err;
 
@@ -119,8 +123,7 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->base = devm_ioremap_resource(&pdev->dev, res);
+	dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->base))
 		return PTR_ERR(dev->base);
 
@@ -131,12 +134,14 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(dev->clk);
 	if (err)
 		return err;
+	err = devm_add_action_or_reset(&pdev->dev,
+				       tangox_clk_disable_unprepare, dev->clk);
+	if (err)
+		return err;
 
 	dev->clk_rate = clk_get_rate(dev->clk);
-	if (!dev->clk_rate) {
-		err = -EINVAL;
-		goto err;
-	}
+	if (!dev->clk_rate)
+		return -EINVAL;
 
 	dev->wdt.parent = &pdev->dev;
 	dev->wdt.info = &tangox_wdt_info;
@@ -170,29 +175,14 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_restart_priority(&dev->wdt, 128);
 
-	err = watchdog_register_device(&dev->wdt);
+	watchdog_stop_on_unregister(&dev->wdt);
+	err = devm_watchdog_register_device(&pdev->dev, &dev->wdt);
 	if (err)
-		goto err;
+		return err;
 
 	platform_set_drvdata(pdev, dev);
 
 	dev_info(&pdev->dev, "SMP86xx/SMP87xx watchdog registered\n");
-
-	return 0;
-
- err:
-	clk_disable_unprepare(dev->clk);
-	return err;
-}
-
-static int tangox_wdt_remove(struct platform_device *pdev)
-{
-	struct tangox_wdt_device *dev = platform_get_drvdata(pdev);
-
-	tangox_wdt_stop(&dev->wdt);
-	clk_disable_unprepare(dev->clk);
-
-	watchdog_unregister_device(&dev->wdt);
 
 	return 0;
 }
@@ -206,7 +196,6 @@ MODULE_DEVICE_TABLE(of, tangox_wdt_dt_ids);
 
 static struct platform_driver tangox_wdt_driver = {
 	.probe	= tangox_wdt_probe,
-	.remove	= tangox_wdt_remove,
 	.driver	= {
 		.name		= "tangox-wdt",
 		.of_match_table	= tangox_wdt_dt_ids,

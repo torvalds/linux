@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Header file for:
  * Cypress TrueTouch(TM) Standard Product (TTSP) touchscreen drivers.
@@ -9,22 +10,7 @@
  * Copyright (C) 2009, 2010, 2011 Cypress Semiconductor, Inc.
  * Copyright (C) 2012 Javier Martinez Canillas <javier@dowhile0.org>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, and only version 2, as published by the
- * Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
  * Contact Cypress Semiconductor at www.cypress.com (kev@cypress.com)
- *
  */
 #ifndef _CYTTSP4_H_
 #define _CYTTSP4_H_

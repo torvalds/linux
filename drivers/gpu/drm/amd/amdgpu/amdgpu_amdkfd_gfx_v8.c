@@ -24,7 +24,7 @@
 #include <linux/fdtable.h>
 #include <linux/uaccess.h>
 #include <linux/mmu_context.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 #include "gfx_v8_0.h"
@@ -266,7 +266,7 @@ static inline uint32_t get_sdma_base_addr(struct vi_sdma_mqd *m)
 
 	retval = m->sdma_engine_id * SDMA1_REGISTER_OFFSET +
 		m->sdma_queue_id * KFD_VI_SDMA_QUEUE_OFFSET;
-	pr_debug("kfd: sdma base address: 0x%x\n", retval);
+	pr_debug("sdma base address: 0x%x\n", retval);
 
 	return retval;
 }

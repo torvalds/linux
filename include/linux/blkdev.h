@@ -535,7 +535,14 @@ struct request_queue {
 
 	struct mutex		sysfs_lock;
 
-	atomic_t		mq_freeze_depth;
+	/*
+	 * for reusing dead hctx instance in case of updating
+	 * nr_hw_queues
+	 */
+	struct list_head	unused_hctx_list;
+	spinlock_t		unused_hctx_lock;
+
+	int			mq_freeze_depth;
 
 #if defined(CONFIG_BLK_DEV_BSG)
 	struct bsg_class_device bsg_dev;
@@ -547,8 +554,12 @@ struct request_queue {
 #endif
 	struct rcu_head		rcu_head;
 	wait_queue_head_t	mq_freeze_wq;
+	/*
+	 * Protect concurrent access to q_usage_counter by
+	 * percpu_ref_kill() and percpu_ref_reinit().
+	 */
+	struct mutex		mq_freeze_lock;
 	struct percpu_ref	q_usage_counter;
-	struct list_head	all_q_node;
 
 	struct blk_mq_tag_set	*tag_set;
 	struct list_head	tag_set_list;
@@ -640,6 +651,13 @@ static inline bool blk_account_rq(struct request *rq)
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
 #define rq_data_dir(rq)		(op_is_write(req_op(rq)) ? WRITE : READ)
+
+#define rq_dma_dir(rq) \
+	(op_is_write(req_op(rq)) ? DMA_TO_DEVICE : DMA_FROM_DEVICE)
+
+#define dma_map_bvec(dev, bv, dir, attrs) \
+	dma_map_page_attrs(dev, (bv)->bv_page, (bv)->bv_offset, (bv)->bv_len, \
+	(dir), (attrs))
 
 static inline bool queue_is_mq(struct request_queue *q)
 {
@@ -932,6 +950,17 @@ static inline unsigned int blk_rq_payload_bytes(struct request *rq)
 	return blk_rq_bytes(rq);
 }
 
+/*
+ * Return the first full biovec in the request.  The caller needs to check that
+ * there are any bvecs before calling this helper.
+ */
+static inline struct bio_vec req_bvec(struct request *rq)
+{
+	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
+		return rq->special_vec;
+	return mp_bvec_iter_bvec(rq->bio->bi_io_vec, rq->bio->bi_iter);
+}
+
 static inline unsigned int blk_queue_get_max_sectors(struct request_queue *q,
 						     int op)
 {
@@ -1052,7 +1081,6 @@ extern int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
 extern void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 			      sector_t offset);
 extern void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b);
-extern void blk_queue_dma_pad(struct request_queue *, unsigned int);
 extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
 extern int blk_queue_dma_drain(struct request_queue *q,
 			       dma_drain_needed_fn *dma_drain_needed,
@@ -1548,6 +1576,17 @@ static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
 	return bio_integrity_intervals(bi, sectors) * bi->tuple_size;
 }
 
+/*
+ * Return the first bvec that contains integrity data.  Only drivers that are
+ * limited to a single integrity segment should use this helper.
+ */
+static inline struct bio_vec *rq_integrity_vec(struct request *rq)
+{
+	if (WARN_ON_ONCE(queue_max_integrity_segments(rq->q) > 1))
+		return NULL;
+	return rq->bio->bi_integrity->bip_vec;
+}
+
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
 struct bio;
@@ -1620,6 +1659,11 @@ static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
 					       unsigned int sectors)
 {
 	return 0;
+}
+
+static inline struct bio_vec *rq_integrity_vec(struct request *rq)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */

@@ -3791,7 +3791,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	struct btrfs_workqueue *scrub_parity = NULL;
 
 	if (btrfs_fs_closing(fs_info))
-		return -EINVAL;
+		return -EAGAIN;
 
 	if (fs_info->nodesize > BTRFS_STRIPE_LEN) {
 		/*
@@ -3999,9 +3999,9 @@ int btrfs_scrub_cancel(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-int btrfs_scrub_cancel_dev(struct btrfs_fs_info *fs_info,
-			   struct btrfs_device *dev)
+int btrfs_scrub_cancel_dev(struct btrfs_device *dev)
 {
+	struct btrfs_fs_info *fs_info = dev->fs_info;
 	struct scrub_ctx *sctx;
 
 	mutex_lock(&fs_info->scrub_lock);

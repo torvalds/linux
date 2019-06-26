@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Request a key from userspace
  *
  * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * See Documentation/security/keys/request-key.rst
  */
@@ -142,12 +138,10 @@ static int call_sbin_request_key(struct key *authkey, void *aux)
 		prkey = cred->process_keyring->serial;
 	sprintf(keyring_str[1], "%d", prkey);
 
-	rcu_read_lock();
-	session = rcu_dereference(cred->session_keyring);
+	session = cred->session_keyring;
 	if (!session)
 		session = cred->user->session_keyring;
 	sskey = session->serial;
-	rcu_read_unlock();
 
 	sprintf(keyring_str[2], "%d", sskey);
 
@@ -287,10 +281,7 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 
 			/* fall through */
 		case KEY_REQKEY_DEFL_SESSION_KEYRING:
-			rcu_read_lock();
-			dest_keyring = key_get(
-				rcu_dereference(cred->session_keyring));
-			rcu_read_unlock();
+			dest_keyring = key_get(cred->session_keyring);
 
 			if (dest_keyring)
 				break;
@@ -298,11 +289,12 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 			/* fall through */
 		case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
 			dest_keyring =
-				key_get(cred->user->session_keyring);
+				key_get(READ_ONCE(cred->user->session_keyring));
 			break;
 
 		case KEY_REQKEY_DEFL_USER_KEYRING:
-			dest_keyring = key_get(cred->user->uid_keyring);
+			dest_keyring =
+				key_get(READ_ONCE(cred->user->uid_keyring));
 			break;
 
 		case KEY_REQKEY_DEFL_GROUP_KEYRING:

@@ -168,10 +168,11 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		return;
 	}
 
+	rcu_read_lock();
 	for (i = 0; i < count; i++) {
 		ipv4_addr = payload->tun_info[i].ipv4;
 		port = be32_to_cpu(payload->tun_info[i].egress_port);
-		netdev = nfp_app_repr_get(app, port);
+		netdev = nfp_app_dev_get(app, port, NULL);
 		if (!netdev)
 			continue;
 
@@ -183,6 +184,7 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		neigh_event_send(n, NULL);
 		neigh_release(n);
 	}
+	rcu_read_unlock();
 }
 
 static int
@@ -270,9 +272,10 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 		    struct flowi4 *flow, struct neighbour *neigh, gfp_t flag)
 {
 	struct nfp_tun_neigh payload;
+	u32 port_id;
 
-	/* Only offload representor IPv4s for now. */
-	if (!nfp_netdev_is_nfp_repr(netdev))
+	port_id = nfp_flower_get_port_id_from_netdev(app, netdev);
+	if (!port_id)
 		return;
 
 	memset(&payload, 0, sizeof(struct nfp_tun_neigh));
@@ -290,7 +293,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 	payload.src_ipv4 = flow->saddr;
 	ether_addr_copy(payload.src_addr, netdev->dev_addr);
 	neigh_ha_snapshot(payload.dst_addr, neigh, netdev);
-	payload.port_id = cpu_to_be32(nfp_repr_get_port_id(netdev));
+	payload.port_id = cpu_to_be32(port_id);
 	/* Add destination of new route to NFP cache. */
 	nfp_tun_add_route_to_cache(app, payload.dst_ipv4);
 
@@ -366,9 +369,10 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
 
 	payload = nfp_flower_cmsg_get_data(skb);
 
-	netdev = nfp_app_repr_get(app, be32_to_cpu(payload->ingress_port));
+	rcu_read_lock();
+	netdev = nfp_app_dev_get(app, be32_to_cpu(payload->ingress_port), NULL);
 	if (!netdev)
-		goto route_fail_warning;
+		goto fail_rcu_unlock;
 
 	flow.daddr = payload->ipv4_addr;
 	flow.flowi4_proto = IPPROTO_UDP;
@@ -378,21 +382,23 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
 	rt = ip_route_output_key(dev_net(netdev), &flow);
 	err = PTR_ERR_OR_ZERO(rt);
 	if (err)
-		goto route_fail_warning;
+		goto fail_rcu_unlock;
 #else
-	goto route_fail_warning;
+	goto fail_rcu_unlock;
 #endif
 
 	/* Get the neighbour entry for the lookup */
 	n = dst_neigh_lookup(&rt->dst, &flow.daddr);
 	ip_rt_put(rt);
 	if (!n)
-		goto route_fail_warning;
-	nfp_tun_write_neigh(n->dev, app, &flow, n, GFP_KERNEL);
+		goto fail_rcu_unlock;
+	nfp_tun_write_neigh(n->dev, app, &flow, n, GFP_ATOMIC);
 	neigh_release(n);
+	rcu_read_unlock();
 	return;
 
-route_fail_warning:
+fail_rcu_unlock:
+	rcu_read_unlock();
 	nfp_flower_cmsg_warn(app, "Requested route not found.\n");
 }
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/kernel/signal.c
  *
@@ -43,6 +44,7 @@
 #include <linux/compiler.h>
 #include <linux/posix-timers.h>
 #include <linux/livepatch.h>
+#include <linux/cgroup.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -146,9 +148,10 @@ static inline bool has_pending_signals(sigset_t *signal, sigset_t *blocked)
 
 static bool recalc_sigpending_tsk(struct task_struct *t)
 {
-	if ((t->jobctl & JOBCTL_PENDING_MASK) ||
+	if ((t->jobctl & (JOBCTL_PENDING_MASK | JOBCTL_TRAP_FREEZE)) ||
 	    PENDING(&t->pending, &t->blocked) ||
-	    PENDING(&t->signal->shared_pending, &t->blocked)) {
+	    PENDING(&t->signal->shared_pending, &t->blocked) ||
+	    cgroup_task_frozen(t)) {
 		set_tsk_thread_flag(t, TIF_SIGPENDING);
 		return true;
 	}
@@ -838,6 +841,7 @@ static int check_kill_permission(int sig, struct kernel_siginfo *info,
 			 */
 			if (!sid || sid == task_session(current))
 				break;
+			/* fall through */
 		default:
 			return -EPERM;
 		}
@@ -2108,7 +2112,9 @@ static void ptrace_stop(int exit_code, int why, int clear_code, kernel_siginfo_t
 		preempt_disable();
 		read_unlock(&tasklist_lock);
 		preempt_enable_no_resched();
+		cgroup_enter_frozen();
 		freezable_schedule();
+		cgroup_leave_frozen(true);
 	} else {
 		/*
 		 * By the time we got the lock, our tracer went away.
@@ -2286,6 +2292,7 @@ static bool do_signal_stop(int signr)
 		}
 
 		/* Now we don't run again until woken by SIGCONT or SIGKILL */
+		cgroup_enter_frozen();
 		freezable_schedule();
 		return true;
 	} else {
@@ -2330,6 +2337,43 @@ static void do_jobctl_trap(void)
 		ptrace_stop(signr, CLD_STOPPED, 0, NULL);
 		current->exit_code = 0;
 	}
+}
+
+/**
+ * do_freezer_trap - handle the freezer jobctl trap
+ *
+ * Puts the task into frozen state, if only the task is not about to quit.
+ * In this case it drops JOBCTL_TRAP_FREEZE.
+ *
+ * CONTEXT:
+ * Must be called with @current->sighand->siglock held,
+ * which is always released before returning.
+ */
+static void do_freezer_trap(void)
+	__releases(&current->sighand->siglock)
+{
+	/*
+	 * If there are other trap bits pending except JOBCTL_TRAP_FREEZE,
+	 * let's make another loop to give it a chance to be handled.
+	 * In any case, we'll return back.
+	 */
+	if ((current->jobctl & (JOBCTL_PENDING_MASK | JOBCTL_TRAP_FREEZE)) !=
+	     JOBCTL_TRAP_FREEZE) {
+		spin_unlock_irq(&current->sighand->siglock);
+		return;
+	}
+
+	/*
+	 * Now we're sure that there is no pending fatal signal and no
+	 * pending traps. Clear TIF_SIGPENDING to not get out of schedule()
+	 * immediately (if there is a non-fatal signal pending), and
+	 * put the task into sleep.
+	 */
+	__set_current_state(TASK_INTERRUPTIBLE);
+	clear_thread_flag(TIF_SIGPENDING);
+	spin_unlock_irq(&current->sighand->siglock);
+	cgroup_enter_frozen();
+	freezable_schedule();
 }
 
 static int ptrace_signal(int signr, kernel_siginfo_t *info)
@@ -2441,6 +2485,8 @@ relock:
 	if (signal_group_exit(signal)) {
 		ksig->info.si_signo = signr = SIGKILL;
 		sigdelset(&current->pending.signal, SIGKILL);
+		trace_signal_deliver(SIGKILL, SEND_SIG_NOINFO,
+				&sighand->action[SIGKILL - 1]);
 		recalc_sigpending();
 		goto fatal;
 	}
@@ -2452,9 +2498,24 @@ relock:
 		    do_signal_stop(0))
 			goto relock;
 
-		if (unlikely(current->jobctl & JOBCTL_TRAP_MASK)) {
-			do_jobctl_trap();
+		if (unlikely(current->jobctl &
+			     (JOBCTL_TRAP_MASK | JOBCTL_TRAP_FREEZE))) {
+			if (current->jobctl & JOBCTL_TRAP_MASK) {
+				do_jobctl_trap();
+				spin_unlock_irq(&sighand->siglock);
+			} else if (current->jobctl & JOBCTL_TRAP_FREEZE)
+				do_freezer_trap();
+
+			goto relock;
+		}
+
+		/*
+		 * If the task is leaving the frozen state, let's update
+		 * cgroup counters and reset the frozen bit.
+		 */
+		if (unlikely(cgroup_task_frozen(current))) {
 			spin_unlock_irq(&sighand->siglock);
+			cgroup_leave_frozen(false);
 			goto relock;
 		}
 
@@ -2550,6 +2611,8 @@ relock:
 
 	fatal:
 		spin_unlock_irq(&sighand->siglock);
+		if (unlikely(cgroup_task_frozen(current)))
+			cgroup_leave_frozen(true);
 
 		/*
 		 * Anything else is fatal, maybe with a core dump.
@@ -3513,7 +3576,6 @@ SYSCALL_DEFINE2(kill, pid_t, pid, int, sig)
 	return kill_something_info(sig, &info, pid);
 }
 
-#ifdef CONFIG_PROC_FS
 /*
  * Verify that the signaler and signalee either are in the same pid namespace
  * or that the signaler's pid namespace is an ancestor of the signalee's pid
@@ -3550,13 +3612,20 @@ static int copy_siginfo_from_user_any(kernel_siginfo_t *kinfo, siginfo_t *info)
 	return copy_siginfo_from_user(kinfo, info);
 }
 
+static struct pid *pidfd_to_pid(const struct file *file)
+{
+	if (file->f_op == &pidfd_fops)
+		return file->private_data;
+
+	return tgid_pidfd_to_pid(file);
+}
+
 /**
- * sys_pidfd_send_signal - send a signal to a process through a task file
- *                          descriptor
- * @pidfd:  the file descriptor of the process
- * @sig:    signal to be sent
- * @info:   the signal info
- * @flags:  future flags to be passed
+ * sys_pidfd_send_signal - Signal a process through a pidfd
+ * @pidfd:  file descriptor of the process
+ * @sig:    signal to send
+ * @info:   signal info
+ * @flags:  future flags
  *
  * The syscall currently only signals via PIDTYPE_PID which covers
  * kill(<positive-pid>, <signal>. It does not signal threads or process
@@ -3581,12 +3650,12 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	if (flags)
 		return -EINVAL;
 
-	f = fdget_raw(pidfd);
+	f = fdget(pidfd);
 	if (!f.file)
 		return -EBADF;
 
 	/* Is this a pidfd? */
-	pid = tgid_pidfd_to_pid(f.file);
+	pid = pidfd_to_pid(f.file);
 	if (IS_ERR(pid)) {
 		ret = PTR_ERR(pid);
 		goto err;
@@ -3620,7 +3689,6 @@ err:
 	fdput(f);
 	return ret;
 }
-#endif /* CONFIG_PROC_FS */
 
 static int
 do_send_specific(pid_t tgid, pid_t pid, int sig, struct kernel_siginfo *info)

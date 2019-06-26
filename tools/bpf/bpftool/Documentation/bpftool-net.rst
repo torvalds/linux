@@ -55,7 +55,7 @@ OPTIONS
 	-h, --help
 		  Print short generic help message (similar to **bpftool help**).
 
-	-v, --version
+	-V, --version
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
@@ -143,4 +143,5 @@ SEE ALSO
 	**bpftool-map**\ (8),
 	**bpftool-cgroup**\ (8),
 	**bpftool-feature**\ (8),
-	**bpftool-perf**\ (8)
+	**bpftool-perf**\ (8),
+	**bpftool-btf**\ (8)
