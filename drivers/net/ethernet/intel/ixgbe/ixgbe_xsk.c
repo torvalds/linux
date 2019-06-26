@@ -571,8 +571,9 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 	union ixgbe_adv_tx_desc *tx_desc = NULL;
 	struct ixgbe_tx_buffer *tx_bi;
 	bool work_done = true;
-	u32 len, cmd_type;
+	struct xdp_desc desc;
 	dma_addr_t dma;
+	u32 cmd_type;
 
 	while (budget-- > 0) {
 		if (unlikely(!ixgbe_desc_unused(xdp_ring)) ||
@@ -581,14 +582,16 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 			break;
 		}
 
-		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &dma, &len))
+		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &desc))
 			break;
 
-		dma_sync_single_for_device(xdp_ring->dev, dma, len,
+		dma = xdp_umem_get_dma(xdp_ring->xsk_umem, desc.addr);
+
+		dma_sync_single_for_device(xdp_ring->dev, dma, desc.len,
 					   DMA_BIDIRECTIONAL);
 
 		tx_bi = &xdp_ring->tx_buffer_info[xdp_ring->next_to_use];
-		tx_bi->bytecount = len;
+		tx_bi->bytecount = desc.len;
 		tx_bi->xdpf = NULL;
 		tx_bi->gso_segs = 1;
 
@@ -599,10 +602,10 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 		cmd_type = IXGBE_ADVTXD_DTYP_DATA |
 			   IXGBE_ADVTXD_DCMD_DEXT |
 			   IXGBE_ADVTXD_DCMD_IFCS;
-		cmd_type |= len | IXGBE_TXD_CMD;
+		cmd_type |= desc.len | IXGBE_TXD_CMD;
 		tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type);
 		tx_desc->read.olinfo_status =
-			cpu_to_le32(len << IXGBE_ADVTXD_PAYLEN_SHIFT);
+			cpu_to_le32(desc.len << IXGBE_ADVTXD_PAYLEN_SHIFT);
 
 		xdp_ring->next_to_use++;
 		if (xdp_ring->next_to_use == xdp_ring->count)
