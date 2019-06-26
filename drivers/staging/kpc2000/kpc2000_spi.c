@@ -313,7 +313,7 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
 	list_for_each_entry(transfer, &m->transfers, transfer_list) {
 		const void *tx_buf = transfer->tx_buf;
 		void       *rx_buf = transfer->rx_buf;
-		unsigned    len = transfer->len;
+		unsigned int len = transfer->len;
 
 		if (transfer->speed_hz > KP_SPI_CLK ||
 		    (len && !(rx_buf || tx_buf))) {
@@ -359,7 +359,7 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
 		/* transfer */
 		if (transfer->len) {
 			unsigned int word_len = spidev->bits_per_word;
-			unsigned count;
+			unsigned int count;
 
 			/* set up the transfer... */
 			sc.reg = kp_spi_read_reg(cs, KP_SPI_REG_CONFIG);
