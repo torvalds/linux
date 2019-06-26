@@ -567,11 +567,6 @@ static int ice_alloc_vf_res(struct ice_vf *vf)
 	int tx_rx_queue_left;
 	int status;
 
-	/* setup VF VSI and necessary resources */
-	status = ice_alloc_vsi_res(vf);
-	if (status)
-		goto ice_alloc_vf_res_exit;
-
 	/* Update number of VF queues, in case VF had requested for queue
 	 * changes
 	 */
@@ -580,6 +575,11 @@ static int ice_alloc_vf_res(struct ice_vf *vf)
 	if (vf->num_req_qs && vf->num_req_qs <= tx_rx_queue_left &&
 	    vf->num_req_qs != vf->num_vf_qs)
 		vf->num_vf_qs = vf->num_req_qs;
+
+	/* setup VF VSI and necessary resources */
+	status = ice_alloc_vsi_res(vf);
+	if (status)
+		goto ice_alloc_vf_res_exit;
 
 	if (vf->trusted)
 		set_bit(ICE_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps);
