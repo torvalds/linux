@@ -16,6 +16,7 @@
 #include <linux/security.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
+#include <linux/user_namespace.h>
 #include <keys/keyring-type.h>
 #include <keys/user-type.h>
 #include <linux/assoc_array_priv.h>
@@ -27,11 +28,6 @@
  * set on how deep we're willing to go.
  */
 #define KEYRING_SEARCH_MAX_DEPTH 6
-
-/*
- * We keep all named keyrings in a hash to speed looking them up.
- */
-#define KEYRING_NAME_HASH_SIZE	(1 << 5)
 
 /*
  * We mark pointers we pass to the associative array with bit 1 set if
@@ -55,17 +51,20 @@ static inline void *keyring_key_to_ptr(struct key *key)
 	return key;
 }
 
-static struct list_head	keyring_name_hash[KEYRING_NAME_HASH_SIZE];
 static DEFINE_RWLOCK(keyring_name_lock);
 
-static inline unsigned keyring_hash(const char *desc)
+/*
+ * Clean up the bits of user_namespace that belong to us.
+ */
+void key_free_user_ns(struct user_namespace *ns)
 {
-	unsigned bucket = 0;
+	write_lock(&keyring_name_lock);
+	list_del_init(&ns->keyring_name_list);
+	write_unlock(&keyring_name_lock);
 
-	for (; *desc; desc++)
-		bucket += (unsigned char)*desc;
-
-	return bucket & (KEYRING_NAME_HASH_SIZE - 1);
+#ifdef CONFIG_PERSISTENT_KEYRINGS
+	key_put(ns->persistent_keyring_register);
+#endif
 }
 
 /*
@@ -104,23 +103,17 @@ static DEFINE_MUTEX(keyring_serialise_link_lock);
 
 /*
  * Publish the name of a keyring so that it can be found by name (if it has
- * one).
+ * one and it doesn't begin with a dot).
  */
 static void keyring_publish_name(struct key *keyring)
 {
-	int bucket;
+	struct user_namespace *ns = current_user_ns();
 
-	if (keyring->description) {
-		bucket = keyring_hash(keyring->description);
-
+	if (keyring->description &&
+	    keyring->description[0] &&
+	    keyring->description[0] != '.') {
 		write_lock(&keyring_name_lock);
-
-		if (!keyring_name_hash[bucket].next)
-			INIT_LIST_HEAD(&keyring_name_hash[bucket]);
-
-		list_add_tail(&keyring->name_link,
-			      &keyring_name_hash[bucket]);
-
+		list_add_tail(&keyring->name_link, &ns->keyring_name_list);
 		write_unlock(&keyring_name_lock);
 	}
 }
@@ -1097,50 +1090,44 @@ found:
  */
 struct key *find_keyring_by_name(const char *name, bool uid_keyring)
 {
+	struct user_namespace *ns = current_user_ns();
 	struct key *keyring;
-	int bucket;
 
 	if (!name)
 		return ERR_PTR(-EINVAL);
 
-	bucket = keyring_hash(name);
-
 	read_lock(&keyring_name_lock);
 
-	if (keyring_name_hash[bucket].next) {
-		/* search this hash bucket for a keyring with a matching name
-		 * that's readable and that hasn't been revoked */
-		list_for_each_entry(keyring,
-				    &keyring_name_hash[bucket],
-				    name_link
-				    ) {
-			if (!kuid_has_mapping(current_user_ns(), keyring->user->uid))
-				continue;
+	/* Search this hash bucket for a keyring with a matching name that
+	 * grants Search permission and that hasn't been revoked
+	 */
+	list_for_each_entry(keyring, &ns->keyring_name_list, name_link) {
+		if (!kuid_has_mapping(ns, keyring->user->uid))
+			continue;
 
-			if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
-				continue;
+		if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
+			continue;
 
-			if (strcmp(keyring->description, name) != 0)
-				continue;
+		if (strcmp(keyring->description, name) != 0)
+			continue;
 
-			if (uid_keyring) {
-				if (!test_bit(KEY_FLAG_UID_KEYRING,
-					      &keyring->flags))
-					continue;
-			} else {
-				if (key_permission(make_key_ref(keyring, 0),
-						   KEY_NEED_SEARCH) < 0)
-					continue;
-			}
-
-			/* we've got a match but we might end up racing with
-			 * key_cleanup() if the keyring is currently 'dead'
-			 * (ie. it has a zero usage count) */
-			if (!refcount_inc_not_zero(&keyring->usage))
+		if (uid_keyring) {
+			if (!test_bit(KEY_FLAG_UID_KEYRING,
+				      &keyring->flags))
 				continue;
-			keyring->last_used_at = ktime_get_real_seconds();
-			goto out;
+		} else {
+			if (key_permission(make_key_ref(keyring, 0),
+					   KEY_NEED_SEARCH) < 0)
+				continue;
 		}
+
+		/* we've got a match but we might end up racing with
+		 * key_cleanup() if the keyring is currently 'dead'
+		 * (ie. it has a zero usage count) */
+		if (!refcount_inc_not_zero(&keyring->usage))
+			continue;
+		keyring->last_used_at = ktime_get_real_seconds();
+		goto out;
 	}
 
 	keyring = ERR_PTR(-ENOKEY);

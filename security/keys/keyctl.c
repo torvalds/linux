@@ -30,7 +30,7 @@
 
 #define KEY_MAX_DESC_SIZE 4096
 
-static const unsigned char keyrings_capabilities[1] = {
+static const unsigned char keyrings_capabilities[2] = {
 	[0] = (KEYCTL_CAPS0_CAPABILITIES |
 	       (IS_ENABLED(CONFIG_PERSISTENT_KEYRINGS)	? KEYCTL_CAPS0_PERSISTENT_KEYRINGS : 0) |
 	       (IS_ENABLED(CONFIG_KEY_DH_OPERATIONS)	? KEYCTL_CAPS0_DIFFIE_HELLMAN : 0) |
@@ -40,6 +40,7 @@ static const unsigned char keyrings_capabilities[1] = {
 	       KEYCTL_CAPS0_RESTRICT_KEYRING |
 	       KEYCTL_CAPS0_MOVE
 	       ),
+	[1] = (KEYCTL_CAPS1_NS_KEYRING_NAME),
 };
 
 static int key_get_type_from_user(char *type,
