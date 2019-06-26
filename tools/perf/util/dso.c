@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <asm/bug.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -394,7 +395,7 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 				return -ENOMEM;
 		}
 
-		strxfrchar(m->name, '-', '_');
+		strreplace(m->name, '-', '_');
 	}
 
 	return 0;
