@@ -943,11 +943,6 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 
 void odm_TXPowerTrackingInit(struct odm_dm_struct *pDM_Odm)
 {
-	odm_TXPowerTrackingThermalMeterInit(pDM_Odm);
-}
-
-void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm)
-{
 	pDM_Odm->RFCalibrateInfo.bTXPowerTracking = true;
 	pDM_Odm->RFCalibrateInfo.TXPowercount = 0;
 	if (*(pDM_Odm->mp_mode) != 1)
