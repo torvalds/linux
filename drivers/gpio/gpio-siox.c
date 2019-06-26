@@ -246,24 +246,15 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
 
-	ret = gpiochip_add(&ddata->gchip);
+	ret = devm_gpiochip_add_data(dev, &ddata->gchip, NULL);
 	if (ret)
 		dev_err(dev, "Failed to register gpio chip (%d)\n", ret);
 
 	return ret;
 }
 
-static int gpio_siox_remove(struct siox_device *sdevice)
-{
-	struct gpio_siox_ddata *ddata = dev_get_drvdata(&sdevice->dev);
-
-	gpiochip_remove(&ddata->gchip);
-	return 0;
-}
-
 static struct siox_driver gpio_siox_driver = {
 	.probe = gpio_siox_probe,
-	.remove = gpio_siox_remove,
 	.set_data = gpio_siox_set_data,
 	.get_data = gpio_siox_get_data,
 	.driver = {
