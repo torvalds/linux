@@ -620,7 +620,7 @@ static int hists__fprintf_hierarchy_headers(struct hists *hists,
 
 			fmt->header(fmt, hpp, hists, 0, NULL);
 
-			header_width += fprintf(fp, "%s", trim(hpp->buf));
+			header_width += fprintf(fp, "%s", strim(hpp->buf));
 		}
 	}
 
