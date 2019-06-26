@@ -46,6 +46,8 @@
 #define MLX5E_DECLARE_TX_STAT(type, fld) "tx%d_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_XDPSQ_STAT(type, fld) "tx%d_xdp_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_RQ_XDPSQ_STAT(type, fld) "rx%d_xdp_tx_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XSKRQ_STAT(type, fld) "rx%d_xsk_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XSKSQ_STAT(type, fld) "tx%d_xsk_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_CH_STAT(type, fld) "ch%d_"#fld, offsetof(type, fld)
 
 struct counter_desc {
@@ -116,12 +118,39 @@ struct mlx5e_sw_stats {
 	u64 ch_poll;
 	u64 ch_arm;
 	u64 ch_aff_change;
+	u64 ch_force_irq;
 	u64 ch_eq_rearm;
 
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tx_tls_ooo;
 	u64 tx_tls_resync_bytes;
 #endif
+
+	u64 rx_xsk_packets;
+	u64 rx_xsk_bytes;
+	u64 rx_xsk_csum_complete;
+	u64 rx_xsk_csum_unnecessary;
+	u64 rx_xsk_csum_unnecessary_inner;
+	u64 rx_xsk_csum_none;
+	u64 rx_xsk_ecn_mark;
+	u64 rx_xsk_removed_vlan_packets;
+	u64 rx_xsk_xdp_drop;
+	u64 rx_xsk_xdp_redirect;
+	u64 rx_xsk_wqe_err;
+	u64 rx_xsk_mpwqe_filler_cqes;
+	u64 rx_xsk_mpwqe_filler_strides;
+	u64 rx_xsk_oversize_pkts_sw_drop;
+	u64 rx_xsk_buff_alloc_err;
+	u64 rx_xsk_cqe_compress_blks;
+	u64 rx_xsk_cqe_compress_pkts;
+	u64 rx_xsk_congst_umr;
+	u64 rx_xsk_arfs_err;
+	u64 tx_xsk_xmit;
+	u64 tx_xsk_mpwqe;
+	u64 tx_xsk_inlnw;
+	u64 tx_xsk_full;
+	u64 tx_xsk_err;
+	u64 tx_xsk_cqes;
 };
 
 struct mlx5e_qcounter_stats {
@@ -256,6 +285,7 @@ struct mlx5e_ch_stats {
 	u64 poll;
 	u64 arm;
 	u64 aff_change;
+	u64 force_irq;
 	u64 eq_rearm;
 };
 

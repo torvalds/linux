@@ -33,6 +33,7 @@
 #include <linux/irq.h>
 #include "en.h"
 #include "en/xdp.h"
+#include "en/xsk/tx.h"
 
 static inline bool mlx5e_channel_no_affinity_change(struct mlx5e_channel *c)
 {
@@ -87,7 +88,12 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
 					       napi);
 	struct mlx5e_ch_stats *ch_stats = c->stats;
+	struct mlx5e_xdpsq *xsksq = &c->xsksq;
+	struct mlx5e_rq *xskrq = &c->xskrq;
 	struct mlx5e_rq *rq = &c->rq;
+	bool xsk_open = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
+	bool aff_change = false;
+	bool busy_xsk = false;
 	bool busy = false;
 	int work_done = 0;
 	int i;
@@ -103,18 +109,32 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 		busy |= mlx5e_poll_xdpsq_cq(&c->rq_xdpsq.cq);
 
 	if (likely(budget)) { /* budget=0 means: don't poll rx rings */
-		work_done = mlx5e_poll_rx_cq(&rq->cq, budget);
+		if (xsk_open)
+			work_done = mlx5e_poll_rx_cq(&xskrq->cq, budget);
+
+		if (likely(budget - work_done))
+			work_done += mlx5e_poll_rx_cq(&rq->cq, budget - work_done);
+
 		busy |= work_done == budget;
 	}
 
 	mlx5e_poll_ico_cq(&c->icosq.cq);
 
 	busy |= rq->post_wqes(rq);
+	if (xsk_open) {
+		mlx5e_poll_ico_cq(&c->xskicosq.cq);
+		busy |= mlx5e_poll_xdpsq_cq(&xsksq->cq);
+		busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
+		busy_xsk |= xskrq->post_wqes(xskrq);
+	}
+
+	busy |= busy_xsk;
 
 	if (busy) {
 		if (likely(mlx5e_channel_no_affinity_change(c)))
 			return budget;
 		ch_stats->aff_change++;
+		aff_change = true;
 		if (budget && work_done == budget)
 			work_done--;
 	}
@@ -134,6 +154,18 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	mlx5e_cq_arm(&rq->cq);
 	mlx5e_cq_arm(&c->icosq.cq);
 	mlx5e_cq_arm(&c->xdpsq.cq);
+
+	if (xsk_open) {
+		mlx5e_handle_rx_dim(xskrq);
+		mlx5e_cq_arm(&c->xskicosq.cq);
+		mlx5e_cq_arm(&xsksq->cq);
+		mlx5e_cq_arm(&xskrq->cq);
+	}
+
+	if (unlikely(aff_change && busy_xsk)) {
+		mlx5e_trigger_irq(&c->icosq);
+		ch_stats->force_irq++;
+	}
 
 	return work_done;
 }
