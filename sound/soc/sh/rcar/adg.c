@@ -87,6 +87,7 @@ static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 		switch (id) {
 		case 1:
 		case 2:
+		case 9:
 			ws = 0;
 			break;
 		case 4:
