@@ -5240,9 +5240,6 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 	vmx = to_vmx(vcpu);
 	vmcs12 = get_vmcs12(vcpu);
 
-	if (nested_vmx_allowed(vcpu) && vmx->nested.enlightened_vmcs_enabled)
-		kvm_state.flags |= KVM_STATE_NESTED_EVMCS;
-
 	if (nested_vmx_allowed(vcpu) &&
 	    (vmx->nested.vmxon || vmx->nested.smm.vmxon)) {
 		kvm_state.hdr.vmx.vmxon_pa = vmx->nested.vmxon_ptr;
@@ -5250,6 +5247,9 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 
 		if (vmx_has_valid_vmcs12(vcpu)) {
 			kvm_state.size += sizeof(user_vmx_nested_state->vmcs12);
+
+			if (vmx->nested.hv_evmcs)
+				kvm_state.flags |= KVM_STATE_NESTED_EVMCS;
 
 			if (is_guest_mode(vcpu) &&
 			    nested_cpu_has_shadow_vmcs(vmcs12) &&
@@ -5350,6 +5350,15 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		if (kvm_state->hdr.vmx.vmcs12_pa != -1ull)
 			return -EINVAL;
 
+		/*
+		 * KVM_STATE_NESTED_EVMCS used to signal that KVM should
+		 * enable eVMCS capability on vCPU. However, since then
+		 * code was changed such that flag signals vmcs12 should
+		 * be copied into eVMCS in guest memory.
+		 *
+		 * To preserve backwards compatability, allow user
+		 * to set this flag even when there is no VMXON region.
+		 */
 		if (kvm_state->flags & ~KVM_STATE_NESTED_EVMCS)
 			return -EINVAL;
 	} else {
@@ -5358,7 +5367,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 
 		if (!page_address_valid(vcpu, kvm_state->hdr.vmx.vmxon_pa))
 			return -EINVAL;
-    	}
+	}
 
 	if ((kvm_state->hdr.vmx.smm.flags & KVM_STATE_NESTED_SMM_GUEST_MODE) &&
 	    (kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
@@ -5383,13 +5392,11 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	    !(kvm_state->hdr.vmx.smm.flags & KVM_STATE_NESTED_SMM_VMXON))
 		return -EINVAL;
 
-	vmx_leave_nested(vcpu);
-	if (kvm_state->flags & KVM_STATE_NESTED_EVMCS) {
-		if (!nested_vmx_allowed(vcpu))
+	if ((kvm_state->flags & KVM_STATE_NESTED_EVMCS) &&
+		(!nested_vmx_allowed(vcpu) || !vmx->nested.enlightened_vmcs_enabled))
 			return -EINVAL;
 
-		nested_enable_evmcs(vcpu, NULL);
-	}
+	vmx_leave_nested(vcpu);
 
 	if (kvm_state->hdr.vmx.vmxon_pa == -1ull)
 		return 0;
