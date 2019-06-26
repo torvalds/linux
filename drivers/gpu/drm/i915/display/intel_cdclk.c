@@ -1866,14 +1866,23 @@ static void icl_set_cdclk(struct drm_i915_private *dev_priv,
 	dev_priv->cdclk.hw.voltage_level = cdclk_state->voltage_level;
 }
 
-static u8 icl_calc_voltage_level(int cdclk)
+static u8 icl_calc_voltage_level(struct drm_i915_private *dev_priv, int cdclk)
 {
-	if (cdclk > 556800)
-		return 2;
-	else if (cdclk > 312000)
-		return 1;
-	else
-		return 0;
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		if (cdclk > 312000)
+			return 2;
+		else if (cdclk > 180000)
+			return 1;
+		else
+			return 0;
+	} else {
+		if (cdclk > 556800)
+			return 2;
+		else if (cdclk > 312000)
+			return 1;
+		else
+			return 0;
+	}
 }
 
 static void icl_get_cdclk(struct drm_i915_private *dev_priv,
@@ -1924,7 +1933,7 @@ out:
 	 * at least what the CDCLK frequency requires.
 	 */
 	cdclk_state->voltage_level =
-		icl_calc_voltage_level(cdclk_state->cdclk);
+		icl_calc_voltage_level(dev_priv, cdclk_state->cdclk);
 }
 
 static void icl_init_cdclk(struct drm_i915_private *dev_priv)
@@ -1959,7 +1968,8 @@ sanitize:
 	sanitized_state.vco = icl_calc_cdclk_pll_vco(dev_priv,
 						     sanitized_state.cdclk);
 	sanitized_state.voltage_level =
-				icl_calc_voltage_level(sanitized_state.cdclk);
+				icl_calc_voltage_level(dev_priv,
+						       sanitized_state.cdclk);
 
 	icl_set_cdclk(dev_priv, &sanitized_state, INVALID_PIPE);
 }
@@ -1970,7 +1980,8 @@ static void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
-	cdclk_state.voltage_level = icl_calc_voltage_level(cdclk_state.cdclk);
+	cdclk_state.voltage_level = icl_calc_voltage_level(dev_priv,
+							   cdclk_state.cdclk);
 
 	icl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
@@ -2561,7 +2572,7 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
 	state->cdclk.logical.voltage_level =
-		max(icl_calc_voltage_level(cdclk),
+		max(icl_calc_voltage_level(dev_priv, cdclk),
 		    cnl_compute_min_voltage_level(state));
 
 	if (!state->active_crtcs) {
@@ -2571,7 +2582,7 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 		state->cdclk.actual.vco = vco;
 		state->cdclk.actual.cdclk = cdclk;
 		state->cdclk.actual.voltage_level =
-			icl_calc_voltage_level(cdclk);
+			icl_calc_voltage_level(dev_priv, cdclk);
 	} else {
 		state->cdclk.actual = state->cdclk.logical;
 	}
