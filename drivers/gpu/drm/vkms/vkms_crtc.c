@@ -24,14 +24,14 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 	if (!ret)
 		DRM_ERROR("vkms failure on handling vblank");
 
-	state = output->crc_state;
-	if (state && output->crc_enabled) {
+	state = output->composer_state;
+	if (state && output->composer_enabled) {
 		u64 frame = drm_crtc_accurate_vblank_count(crtc);
 
-		/* update frame_start only if a queued vkms_crc_work_handle()
+		/* update frame_start only if a queued vkms_composer_worker()
 		 * has read the data
 		 */
-		spin_lock(&output->crc_lock);
+		spin_lock(&output->composer_lock);
 		if (!state->crc_pending)
 			state->frame_start = frame;
 		else
@@ -39,11 +39,11 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 					 state->frame_start, frame);
 		state->frame_end = frame;
 		state->crc_pending = true;
-		spin_unlock(&output->crc_lock);
+		spin_unlock(&output->composer_lock);
 
-		ret = queue_work(output->crc_workq, &state->crc_work);
+		ret = queue_work(output->composer_workq, &state->composer_work);
 		if (!ret)
-			DRM_DEBUG_DRIVER("vkms_crc_work_handle already queued\n");
+			DRM_DEBUG_DRIVER("Composer worker already queued\n");
 	}
 
 	spin_unlock(&output->lock);
@@ -114,7 +114,7 @@ vkms_atomic_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vkms_state->base);
 
-	INIT_WORK(&vkms_state->crc_work, vkms_crc_work_handle);
+	INIT_WORK(&vkms_state->composer_work, vkms_composer_worker);
 
 	return &vkms_state->base;
 }
@@ -126,7 +126,7 @@ static void vkms_atomic_crtc_destroy_state(struct drm_crtc *crtc,
 
 	__drm_atomic_helper_crtc_destroy_state(state);
 
-	WARN_ON(work_pending(&vkms_state->crc_work));
+	WARN_ON(work_pending(&vkms_state->composer_work));
 	kfree(vkms_state->active_planes);
 	kfree(vkms_state);
 }
@@ -141,7 +141,7 @@ static void vkms_atomic_crtc_reset(struct drm_crtc *crtc)
 
 	__drm_atomic_helper_crtc_reset(crtc, &vkms_state->base);
 	if (vkms_state)
-		INIT_WORK(&vkms_state->crc_work, vkms_crc_work_handle);
+		INIT_WORK(&vkms_state->composer_work, vkms_composer_worker);
 }
 
 static const struct drm_crtc_funcs vkms_crtc_funcs = {
@@ -222,7 +222,7 @@ static void vkms_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);
 
 	/* This lock is held across the atomic commit to block vblank timer
-	 * from scheduling vkms_crc_work_handle until the crc_data is updated
+	 * from scheduling vkms_composer_worker until the composer is updated
 	 */
 	spin_lock_irq(&vkms_output->lock);
 }
@@ -245,7 +245,7 @@ static void vkms_crtc_atomic_flush(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 	}
 
-	vkms_output->crc_state = to_vkms_crtc_state(crtc->state);
+	vkms_output->composer_state = to_vkms_crtc_state(crtc->state);
 
 	spin_unlock_irq(&vkms_output->lock);
 }
@@ -274,10 +274,10 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	drm_crtc_helper_add(crtc, &vkms_crtc_helper_funcs);
 
 	spin_lock_init(&vkms_out->lock);
-	spin_lock_init(&vkms_out->crc_lock);
+	spin_lock_init(&vkms_out->composer_lock);
 
-	vkms_out->crc_workq = alloc_ordered_workqueue("vkms_crc_workq", 0);
-	if (!vkms_out->crc_workq)
+	vkms_out->composer_workq = alloc_ordered_workqueue("vkms_composer", 0);
+	if (!vkms_out->composer_workq)
 		return -ENOMEM;
 
 	return ret;

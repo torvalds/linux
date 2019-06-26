@@ -56,7 +56,7 @@ static void vkms_release(struct drm_device *dev)
 	drm_atomic_helper_shutdown(&vkms->drm);
 	drm_mode_config_cleanup(&vkms->drm);
 	drm_dev_fini(&vkms->drm);
-	destroy_workqueue(vkms->output.crc_workq);
+	destroy_workqueue(vkms->output.composer_workq);
 }
 
 static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
@@ -82,7 +82,7 @@ static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
 		struct vkms_crtc_state *vkms_state =
 			to_vkms_crtc_state(old_crtc_state);
 
-		flush_work(&vkms_state->crc_work);
+		flush_work(&vkms_state->composer_work);
 	}
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
