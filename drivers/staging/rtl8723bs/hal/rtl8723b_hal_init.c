@@ -3579,14 +3579,12 @@ static void hw_var_set_mlme_join(struct adapter *padapter, u8 variable, u8 *val)
 	u32 val32;
 	u8 RetryLimit;
 	u8 type;
-	struct hal_com_data *pHalData;
 	struct mlme_priv *pmlmepriv;
 	struct eeprom_priv *pEEPROM;
 
 
 	RetryLimit = 0x30;
 	type = *(u8 *)val;
-	pHalData = GET_HAL_DATA(padapter);
 	pmlmepriv = &padapter->mlmepriv;
 	pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 
