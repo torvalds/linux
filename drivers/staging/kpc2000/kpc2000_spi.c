@@ -498,7 +498,6 @@ kp_spi_probe(struct platform_device *pldev)
 	default:
 		dev_err(&pldev->dev, "Unknown hardware, cant know what partition table to use!\n");
 		goto free_master;
-		break;
 	}
 
 	return status;
