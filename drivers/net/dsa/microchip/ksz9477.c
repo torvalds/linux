@@ -184,22 +184,14 @@ static int ksz9477_wait_alu_ready(struct ksz_device *dev)
 					val, !(val & ALU_START), 10, 1000);
 }
 
-static int ksz9477_wait_alu_sta_ready(struct ksz_device *dev, u32 waiton,
-				      int timeout)
+static int ksz9477_wait_alu_sta_ready(struct ksz_device *dev)
 {
-	u32 data;
+	unsigned int val;
 
-	do {
-		ksz_read32(dev, REG_SW_ALU_STAT_CTRL__4, &data);
-		if (!(data & waiton))
-			break;
-		usleep_range(1, 10);
-	} while (timeout-- > 0);
-
-	if (timeout <= 0)
-		return -ETIMEDOUT;
-
-	return 0;
+	return regmap_read_poll_timeout(dev->regmap[2],
+					REG_SW_ALU_STAT_CTRL__4,
+					val, !(val & ALU_STAT_START),
+					10, 1000);
 }
 
 static int ksz9477_reset_switch(struct ksz_device *dev)
@@ -821,7 +813,7 @@ static void ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 		ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 		/* wait to be finished */
-		if (ksz9477_wait_alu_sta_ready(dev, ALU_STAT_START, 1000) < 0) {
+		if (ksz9477_wait_alu_sta_ready(dev)) {
 			dev_dbg(dev->dev, "Failed to read ALU STATIC\n");
 			goto exit;
 		}
@@ -862,7 +854,7 @@ static void ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 	/* wait to be finished */
-	if (ksz9477_wait_alu_sta_ready(dev, ALU_STAT_START, 1000) < 0)
+	if (ksz9477_wait_alu_sta_ready(dev))
 		dev_dbg(dev->dev, "Failed to read ALU STATIC\n");
 
 exit:
@@ -892,8 +884,8 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 		ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 		/* wait to be finished */
-		ret = ksz9477_wait_alu_sta_ready(dev, ALU_STAT_START, 1000);
-		if (ret < 0) {
+		ret = ksz9477_wait_alu_sta_ready(dev);
+		if (ret) {
 			dev_dbg(dev->dev, "Failed to read ALU STATIC\n");
 			goto exit;
 		}
@@ -934,8 +926,8 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 	/* wait to be finished */
-	ret = ksz9477_wait_alu_sta_ready(dev, ALU_STAT_START, 1000);
-	if (ret < 0)
+	ret = ksz9477_wait_alu_sta_ready(dev);
+	if (ret)
 		dev_dbg(dev->dev, "Failed to read ALU STATIC\n");
 
 exit:
