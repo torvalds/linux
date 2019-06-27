@@ -643,7 +643,7 @@ Sysfs notes
 	2010.
 
 	rfkill controller switch "tpacpi_bluetooth_sw": refer to
-	Documentation/rfkill.txt for details.
+	Documentation/driver-api/rfkill.rst for details.
 
 
 Video output control -- /proc/acpi/ibm/video
@@ -1406,7 +1406,7 @@ Sysfs notes
 	2010.
 
 	rfkill controller switch "tpacpi_wwan_sw": refer to
-	Documentation/rfkill.txt for details.
+	Documentation/driver-api/rfkill.rst for details.
 
 
 EXPERIMENTAL: UWB
@@ -1426,7 +1426,7 @@ Sysfs notes
 ^^^^^^^^^^^
 
 	rfkill controller switch "tpacpi_uwb_sw": refer to
-	Documentation/rfkill.txt for details.
+	Documentation/driver-api/rfkill.rst for details.
 
 Adaptive keyboard
 -----------------

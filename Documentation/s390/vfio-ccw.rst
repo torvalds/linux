@@ -38,7 +38,7 @@ every detail. More information/reference could be found here:
   qemu/hw/s390x/css.c
 
 For vfio mediated device framework:
-- Documentation/vfio-mediated-device.txt
+- Documentation/driver-api/vfio-mediated-device.rst
 
 Motivation of vfio-ccw
 ----------------------
@@ -322,5 +322,5 @@ Reference
 2. ESA/390 Common I/O Device Commands manual (IBM Form. No. SA22-7204)
 3. https://en.wikipedia.org/wiki/Channel_I/O
 4. Documentation/s390/cds.rst
-5. Documentation/vfio.txt
-6. Documentation/vfio-mediated-device.txt
+5. Documentation/driver-api/vfio.rst
+6. Documentation/driver-api/vfio-mediated-device.rst

@@ -4642,7 +4642,7 @@ DELL SYSTEMS MANAGEMENT BASE DRIVER (dcdbas)
 M:	Stuart Hayes <stuart.w.hayes@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	Documentation/dcdbas.txt
+F:	Documentation/driver-api/dcdbas.rst
 F:	drivers/platform/x86/dcdbas.*
 
 DELL WMI NOTIFICATIONS DRIVER
@@ -8462,7 +8462,7 @@ F:	drivers/irqchip/
 ISA
 M:	William Breathitt Gray <vilhelm.gray@gmail.com>
 S:	Maintained
-F:	Documentation/isa.txt
+F:	Documentation/driver-api/isa.rst
 F:	drivers/base/isa.c
 F:	include/linux/isa.h
 
@@ -8477,7 +8477,7 @@ F:	drivers/media/radio/radio-isa*
 ISAPNP
 M:	Jaroslav Kysela <perex@perex.cz>
 S:	Maintained
-F:	Documentation/isapnp.txt
+F:	Documentation/driver-api/isapnp.rst
 F:	drivers/pnp/isapnp/
 F:	include/linux/isapnp.h
 
@@ -10353,7 +10353,7 @@ M:	Johannes Thumshirn <morbidrsa@gmail.com>
 S:	Maintained
 F:	drivers/mcb/
 F:	include/linux/mcb.h
-F:	Documentation/men-chameleon-bus.txt
+F:	Documentation/driver-api/men-chameleon-bus.rst
 
 MEN F21BMC (Board Management Controller)
 M:	Andreas Werner <andreas.werner@men.de>
@@ -12070,7 +12070,7 @@ F:	drivers/parport/
 F:	include/linux/parport*.h
 F:	drivers/char/ppdev.c
 F:	include/uapi/linux/ppdev.h
-F:	Documentation/parport*.txt
+F:	Documentation/driver-api/parport*.rst
 
 PARAVIRT_OPS INTERFACE
 M:	Juergen Gross <jgross@suse.com>
@@ -12245,7 +12245,7 @@ M:	Kurt Schwemmer <kurt.schwemmer@microsemi.com>
 M:	Logan Gunthorpe <logang@deltatee.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
-F:	Documentation/switchtec.txt
+F:	Documentation/driver-api/switchtec.rst
 F:	Documentation/ABI/testing/sysfs-class-switchtec
 F:	drivers/pci/switch/switchtec*
 F:	include/uapi/linux/switchtec_ioctl.h
@@ -13006,7 +13006,7 @@ M:	Thierry Reding <thierry.reding@gmail.com>
 L:	linux-pwm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/thierry.reding/linux-pwm.git
-F:	Documentation/pwm.txt
+F:	Documentation/driver-api/pwm.rst
 F:	Documentation/devicetree/bindings/pwm/
 F:	include/linux/pwm.h
 F:	drivers/pwm/
@@ -13620,7 +13620,7 @@ W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 S:	Maintained
-F:	Documentation/rfkill.txt
+F:	Documentation/driver-api/rfkill.rst
 F:	Documentation/ABI/stable/sysfs-class-rfkill
 F:	net/rfkill/
 F:	include/linux/rfkill.h
@@ -15343,7 +15343,7 @@ F:	drivers/dma-buf/dma-fence*
 F:	drivers/dma-buf/sw_sync.c
 F:	include/linux/sync_file.h
 F:	include/uapi/linux/sync_file.h
-F:	Documentation/sync_file.txt
+F:	Documentation/driver-api/sync_file.rst
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 SYNOPSYS ARC ARCHITECTURE
@@ -16839,7 +16839,7 @@ R:	Cornelia Huck <cohuck@redhat.com>
 L:	kvm@vger.kernel.org
 T:	git git://github.com/awilliam/linux-vfio.git
 S:	Maintained
-F:	Documentation/vfio.txt
+F:	Documentation/driver-api/vfio.rst
 F:	drivers/vfio/
 F:	include/linux/vfio.h
 F:	include/uapi/linux/vfio.h
@@ -16848,7 +16848,7 @@ VFIO MEDIATED DEVICE DRIVERS
 M:	Kirti Wankhede <kwankhede@nvidia.com>
 L:	kvm@vger.kernel.org
 S:	Maintained
-F:	Documentation/vfio-mediated-device.txt
+F:	Documentation/driver-api/vfio-mediated-device.rst
 F:	drivers/vfio/mdev/
 F:	include/linux/mdev.h
 F:	samples/vfio-mdev/

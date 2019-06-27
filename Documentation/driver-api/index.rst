@@ -68,7 +68,33 @@ available subsections can be seen below.
    fpga/index
    acpi/index
    backlight/lp855x-driver.rst
+   bt8xxgpio
+   connector
+   console
+   dcdbas
+   dell_rbu
+   edid
+   eisa
+   isa
+   isapnp
    generic-counter
+   lightnvm-pblk
+   men-chameleon-bus
+   ntb
+   nvmem
+   parport-lowlevel
+   pti_intel_mid
+   pwm
+   rfkill
+   sgi-ioc4
+   sm501
+   smsc_ece1099
+   switchtec
+   sync_file
+   vfio-mediated-device
+   vfio
+   xillybus
+   zorro
 
 .. only::  subproject and html
 
