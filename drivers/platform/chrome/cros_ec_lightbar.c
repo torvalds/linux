@@ -600,7 +600,7 @@ static int cros_ec_lightbar_remove(struct platform_device *pd)
 
 static int __maybe_unused cros_ec_lightbar_resume(struct device *dev)
 {
-	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev);
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 
 	if (userspace_control)
 		return 0;
@@ -610,7 +610,7 @@ static int __maybe_unused cros_ec_lightbar_resume(struct device *dev)
 
 static int __maybe_unused cros_ec_lightbar_suspend(struct device *dev)
 {
-	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev);
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 
 	if (userspace_control)
 		return 0;
