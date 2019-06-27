@@ -263,12 +263,8 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 static void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
 			      u64 *cnt)
 {
-	struct ksz_poll_ctx ctx = {
-		.dev = dev,
-		.port = port,
-		.offset = REG_PORT_MIB_CTRL_STAT__4,
-	};
 	struct ksz_port *p = &dev->ports[port];
+	unsigned int val;
 	u32 data;
 	int ret;
 
@@ -278,11 +274,11 @@ static void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
 	data |= (addr << MIB_COUNTER_INDEX_S);
 	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, data);
 
-	ret = readx_poll_timeout(ksz_pread32_poll, &ctx, data,
-				 !(data & MIB_COUNTER_READ), 10, 1000);
-
+	ret = regmap_read_poll_timeout(dev->regmap[2],
+			PORT_CTRL_ADDR(port, REG_PORT_MIB_CTRL_STAT__4),
+			val, !(val & MIB_COUNTER_READ), 10, 1000);
 	/* failed to read MIB. get out of loop */
-	if (ret < 0) {
+	if (ret) {
 		dev_dbg(dev->dev, "Failed to get MIB\n");
 		return;
 	}
