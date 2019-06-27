@@ -424,8 +424,14 @@ static void link_cache_lists(struct cache *smaller, struct cache *bigger)
 
 static void do_subsidiary_caches_debugcheck(struct cache *cache)
 {
-	WARN_ON_ONCE(cache->level != 1);
-	WARN_ON_ONCE(!of_node_is_type(cache->ofnode, "cpu"));
+	WARN_ONCE(cache->level != 1,
+		  "instantiating cache chain from L%d %s cache for "
+		  "%pOFP instead of an L1\n", cache->level,
+		  cache_type_string(cache), cache->ofnode);
+	WARN_ONCE(!of_node_is_type(cache->ofnode, "cpu"),
+		  "instantiating cache chain from node %pOFP of type '%s' "
+		  "instead of a cpu node\n", cache->ofnode,
+		  of_node_get_device_type(cache->ofnode));
 }
 
 static void do_subsidiary_caches(struct cache *cache)
