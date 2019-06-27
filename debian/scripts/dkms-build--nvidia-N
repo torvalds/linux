@@ -49,6 +49,7 @@ grep /usr/bin/ld.bfd "$log" | sed -e "s@$build/@@g" \
 	for ko in *.ko
 	do
 		echo "cat '$ko' '$ko.sig' >'../$ko'" >>"$pkgdir/bits/BUILD"
+		echo "rm -f '$ko'" >>"$pkgdir/bits/BUILD"
 		echo "rm -f '../$ko'" >>"$pkgdir/bits/CLEAN"
 	done
 
