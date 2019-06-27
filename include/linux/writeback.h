@@ -68,6 +68,15 @@ struct writeback_control {
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
 	unsigned for_sync:1;		/* sync(2) WB_SYNC_ALL writeback */
+
+	/*
+	 * When writeback IOs are bounced through async layers, only the
+	 * initial synchronous phase should be accounted towards inode
+	 * cgroup ownership arbitration to avoid confusion.  Later stages
+	 * can set the following flag to disable the accounting.
+	 */
+	unsigned no_cgroup_owner:1;
+
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct bdi_writeback *wb;	/* wb this writeback is issued under */
 	struct inode *inode;		/* inode being written out */
