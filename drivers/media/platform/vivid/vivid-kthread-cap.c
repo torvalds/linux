@@ -658,6 +658,8 @@ static void vivid_cap_update_frame_period(struct vivid_dev *dev)
 	u64 f_period;
 
 	f_period = (u64)dev->timeperframe_vid_cap.numerator * 1000000000;
+	if (WARN_ON(dev->timeperframe_vid_cap.denominator == 0))
+		dev->timeperframe_vid_cap.denominator = 1;
 	do_div(f_period, dev->timeperframe_vid_cap.denominator);
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE)
 		f_period >>= 1;
