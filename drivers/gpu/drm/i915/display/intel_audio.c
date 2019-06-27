@@ -212,13 +212,11 @@ static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_sta
 static int audio_config_hdmi_get_n(const struct intel_crtc_state *crtc_state,
 				   int rate)
 {
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_aud_ncts); i++) {
 		if (rate == hdmi_aud_ncts[i].sample_rate &&
-		    adjusted_mode->crtc_clock == hdmi_aud_ncts[i].clock) {
+		    crtc_state->port_clock == hdmi_aud_ncts[i].clock) {
 			return hdmi_aud_ncts[i].n;
 		}
 	}
