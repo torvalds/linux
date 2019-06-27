@@ -185,6 +185,19 @@ static int em_ipt_match(struct sk_buff *skb, struct tcf_ematch *em,
 	struct nf_hook_state state;
 	int ret;
 
+	switch (tc_skb_protocol(skb)) {
+	case htons(ETH_P_IP):
+		if (!pskb_network_may_pull(skb, sizeof(struct iphdr)))
+			return 0;
+		break;
+	case htons(ETH_P_IPV6):
+		if (!pskb_network_may_pull(skb, sizeof(struct ipv6hdr)))
+			return 0;
+		break;
+	default:
+		return 0;
+	}
+
 	rcu_read_lock();
 
 	if (skb->skb_iif)
