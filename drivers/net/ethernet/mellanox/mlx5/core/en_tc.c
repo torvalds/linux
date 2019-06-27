@@ -2647,6 +2647,10 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	family = ip_tunnel_info_af(tun_info);
 	key.ip_tun_key = &tun_info->key;
 	key.tc_tunnel = mlx5e_get_tc_tun(mirred_dev);
+	if (!key.tc_tunnel) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported tunnel");
+		return -EOPNOTSUPP;
+	}
 
 	hash_key = hash_encap_info(&key);
 
