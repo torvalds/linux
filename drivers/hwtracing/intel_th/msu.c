@@ -33,12 +33,14 @@
  * @entry:	window list linkage (msc::win_list)
  * @pgoff:	page offset into the buffer that this window starts at
  * @nr_blocks:	number of blocks (pages) in this window
+ * @nr_segs:	number of segments in this window (<= @nr_blocks)
  * @sgt:	array of block descriptors
  */
 struct msc_window {
 	struct list_head	entry;
 	unsigned long		pgoff;
 	unsigned int		nr_blocks;
+	unsigned int		nr_segs;
 	struct msc		*msc;
 	struct sg_table		sgt;
 };
@@ -141,6 +143,12 @@ msc_win_block(struct msc_window *win, unsigned int block)
 	return sg_virt(&win->sgt.sgl[block]);
 }
 
+static inline size_t
+msc_win_actual_bsz(struct msc_window *win, unsigned int block)
+{
+	return win->sgt.sgl[block].length;
+}
+
 static inline dma_addr_t
 msc_win_baddr(struct msc_window *win, unsigned int block)
 {
@@ -234,7 +242,7 @@ static unsigned int msc_win_oldest_block(struct msc_window *win)
 	 * with wrapping, last written block contains both the newest and the
 	 * oldest data for this window.
 	 */
-	for (blk = 0; blk < win->nr_blocks; blk++) {
+	for (blk = 0; blk < win->nr_segs; blk++) {
 		bdesc = msc_win_block(win, blk);
 
 		if (msc_block_last_written(bdesc))
@@ -366,7 +374,7 @@ static int msc_iter_block_advance(struct msc_iter *iter)
 		return msc_iter_win_advance(iter);
 
 	/* block advance */
-	if (++iter->block == iter->win->nr_blocks)
+	if (++iter->block == iter->win->nr_segs)
 		iter->block = 0;
 
 	/* no wrapping, sanity check in case there is no last written block */
@@ -478,7 +486,7 @@ static void msc_buffer_clear_hw_header(struct msc *msc)
 		size_t hw_sz = sizeof(struct msc_block_desc) -
 			offsetof(struct msc_block_desc, hw_tag);
 
-		for (blk = 0; blk < win->nr_blocks; blk++) {
+		for (blk = 0; blk < win->nr_segs; blk++) {
 			struct msc_block_desc *bdesc = msc_win_block(win, blk);
 
 			memset(&bdesc->hw_tag, 0, hw_sz);
@@ -734,17 +742,17 @@ static struct page *msc_buffer_contig_get_page(struct msc *msc,
 }
 
 static int __msc_buffer_win_alloc(struct msc_window *win,
-				  unsigned int nr_blocks)
+				  unsigned int nr_segs)
 {
 	struct scatterlist *sg_ptr;
 	void *block;
 	int i, ret;
 
-	ret = sg_alloc_table(&win->sgt, nr_blocks, GFP_KERNEL);
+	ret = sg_alloc_table(&win->sgt, nr_segs, GFP_KERNEL);
 	if (ret)
 		return -ENOMEM;
 
-	for_each_sg(win->sgt.sgl, sg_ptr, nr_blocks, i) {
+	for_each_sg(win->sgt.sgl, sg_ptr, nr_segs, i) {
 		block = dma_alloc_coherent(msc_dev(win->msc)->parent->parent,
 					  PAGE_SIZE, &sg_dma_address(sg_ptr),
 					  GFP_KERNEL);
@@ -754,7 +762,7 @@ static int __msc_buffer_win_alloc(struct msc_window *win,
 		sg_set_buf(sg_ptr, block, PAGE_SIZE);
 	}
 
-	return nr_blocks;
+	return nr_segs;
 
 err_nomem:
 	for (i--; i >= 0; i--)
@@ -768,11 +776,11 @@ err_nomem:
 }
 
 #ifdef CONFIG_X86
-static void msc_buffer_set_uc(struct msc_window *win, unsigned int nr_blocks)
+static void msc_buffer_set_uc(struct msc_window *win, unsigned int nr_segs)
 {
 	int i;
 
-	for (i = 0; i < nr_blocks; i++)
+	for (i = 0; i < nr_segs; i++)
 		/* Set the page as uncached */
 		set_memory_uc((unsigned long)msc_win_block(win, i), 1);
 }
@@ -781,13 +789,13 @@ static void msc_buffer_set_wb(struct msc_window *win)
 {
 	int i;
 
-	for (i = 0; i < win->nr_blocks; i++)
+	for (i = 0; i < win->nr_segs; i++)
 		/* Reset the page to write-back */
 		set_memory_wb((unsigned long)msc_win_block(win, i), 1);
 }
 #else /* !X86 */
 static inline void
-msc_buffer_set_uc(struct msc_window *win, unsigned int nr_blocks) {}
+msc_buffer_set_uc(struct msc_window *win, unsigned int nr_segs) {}
 static inline void msc_buffer_set_wb(struct msc_window *win) {}
 #endif /* CONFIG_X86 */
 
@@ -827,7 +835,6 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 							  struct msc_window,
 							  entry);
 
-		/* This works as long as blocks are page-sized */
 		win->pgoff = prev->pgoff + prev->nr_blocks;
 	}
 
@@ -837,7 +844,8 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 
 	msc_buffer_set_uc(win, ret);
 
-	win->nr_blocks = ret;
+	win->nr_segs = ret;
+	win->nr_blocks = nr_blocks;
 
 	if (list_empty(&msc->win_list)) {
 		msc->base = msc_win_block(win, 0);
@@ -860,7 +868,7 @@ static void __msc_buffer_win_free(struct msc *msc, struct msc_window *win)
 {
 	int i;
 
-	for (i = 0; i < win->nr_blocks; i++) {
+	for (i = 0; i < win->nr_segs; i++) {
 		struct page *page = sg_page(&win->sgt.sgl[i]);
 
 		page->mapping = NULL;
@@ -923,7 +931,7 @@ static void msc_buffer_relink(struct msc *msc)
 			next_win = list_next_entry(win, entry);
 		}
 
-		for (blk = 0; blk < win->nr_blocks; blk++) {
+		for (blk = 0; blk < win->nr_segs; blk++) {
 			struct msc_block_desc *bdesc = msc_win_block(win, blk);
 
 			memset(bdesc, 0, sizeof(*bdesc));
@@ -934,7 +942,7 @@ static void msc_buffer_relink(struct msc *msc)
 			 * Similarly to last window, last block should point
 			 * to the first one.
 			 */
-			if (blk == win->nr_blocks - 1) {
+			if (blk == win->nr_segs - 1) {
 				sw_tag |= MSC_SW_TAG_LASTBLK;
 				bdesc->next_blk = msc_win_bpfn(win, 0);
 			} else {
@@ -942,7 +950,7 @@ static void msc_buffer_relink(struct msc *msc)
 			}
 
 			bdesc->sw_tag = sw_tag;
-			bdesc->block_sz = PAGE_SIZE / 64;
+			bdesc->block_sz = msc_win_actual_bsz(win, blk) / 64;
 		}
 	}
 
@@ -1101,6 +1109,7 @@ static int msc_buffer_free_unless_used(struct msc *msc)
 static struct page *msc_buffer_get_page(struct msc *msc, unsigned long pgoff)
 {
 	struct msc_window *win;
+	unsigned int blk;
 
 	if (msc->mode == MSC_MODE_SINGLE)
 		return msc_buffer_contig_get_page(msc, pgoff);
@@ -1113,7 +1122,18 @@ static struct page *msc_buffer_get_page(struct msc *msc, unsigned long pgoff)
 
 found:
 	pgoff -= win->pgoff;
-	return sg_page(&win->sgt.sgl[pgoff]);
+
+	for (blk = 0; blk < win->nr_segs; blk++) {
+		struct page *page = sg_page(&win->sgt.sgl[blk]);
+		size_t pgsz = PFN_DOWN(msc_win_actual_bsz(win, blk));
+
+		if (pgoff < pgsz)
+			return page + pgoff;
+
+		pgoff -= pgsz;
+	}
+
+	return NULL;
 }
 
 /**
