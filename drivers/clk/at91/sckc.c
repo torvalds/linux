@@ -350,6 +350,14 @@ at91_clk_register_sam9x5_slow(void __iomem *sckcr,
 	return hw;
 }
 
+static void at91_clk_unregister_sam9x5_slow(struct clk_hw *hw)
+{
+	struct clk_sam9x5_slow *slowck = to_clk_sam9x5_slow(hw);
+
+	clk_hw_unregister(hw);
+	kfree(slowck);
+}
+
 static void __init at91sam9x5_sckc_register(struct device_node *np,
 					    unsigned int rc_osc_startup_us,
 					    const struct clk_slow_bits *bits)
