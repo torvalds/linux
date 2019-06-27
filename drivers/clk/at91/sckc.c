@@ -366,16 +366,17 @@ static void __init at91sam9x5_sckc_register(struct device_node *np,
 	void __iomem *regbase = of_iomap(np, 0);
 	struct device_node *child = NULL;
 	const char *xtal_name;
-	struct clk_hw *hw;
+	struct clk_hw *slow_rc, *slow_osc, *slowck;
 	bool bypass;
+	int ret;
 
 	if (!regbase)
 		return;
 
-	hw = at91_clk_register_slow_rc_osc(regbase, parent_names[0], 32768,
-					   50000000, rc_osc_startup_us,
-					   bits);
-	if (IS_ERR(hw))
+	slow_rc = at91_clk_register_slow_rc_osc(regbase, parent_names[0],
+						32768, 50000000,
+						rc_osc_startup_us, bits);
+	if (IS_ERR(slow_rc))
 		return;
 
 	xtal_name = of_clk_get_parent_name(np, 0);
@@ -383,7 +384,7 @@ static void __init at91sam9x5_sckc_register(struct device_node *np,
 		/* DT backward compatibility */
 		child = of_get_compatible_child(np, "atmel,at91sam9x5-clk-slow-osc");
 		if (!child)
-			return;
+			goto unregister_slow_rc;
 
 		xtal_name = of_clk_get_parent_name(child, 0);
 		bypass = of_property_read_bool(child, "atmel,osc-bypass");
@@ -394,23 +395,36 @@ static void __init at91sam9x5_sckc_register(struct device_node *np,
 	}
 
 	if (!xtal_name)
-		return;
+		goto unregister_slow_rc;
 
-	hw = at91_clk_register_slow_osc(regbase, parent_names[1], xtal_name,
-					1200000, bypass, bits);
-	if (IS_ERR(hw))
-		return;
+	slow_osc = at91_clk_register_slow_osc(regbase, parent_names[1],
+					      xtal_name, 1200000, bypass, bits);
+	if (IS_ERR(slow_osc))
+		goto unregister_slow_rc;
 
-	hw = at91_clk_register_sam9x5_slow(regbase, "slowck", parent_names, 2,
-					   bits);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
+	slowck = at91_clk_register_sam9x5_slow(regbase, "slowck", parent_names,
+					       2, bits);
+	if (IS_ERR(slowck))
+		goto unregister_slow_osc;
 
 	/* DT backward compatibility */
 	if (child)
-		of_clk_add_hw_provider(child, of_clk_hw_simple_get, hw);
+		ret = of_clk_add_hw_provider(child, of_clk_hw_simple_get,
+					     slowck);
+	else
+		ret = of_clk_add_hw_provider(np, of_clk_hw_simple_get, slowck);
+
+	if (WARN_ON(ret))
+		goto unregister_slowck;
+
+	return;
+
+unregister_slowck:
+	at91_clk_unregister_sam9x5_slow(slowck);
+unregister_slow_osc:
+	at91_clk_unregister_slow_osc(slow_osc);
+unregister_slow_rc:
+	at91_clk_unregister_slow_rc_osc(slow_rc);
 }
 
 static const struct clk_slow_bits at91sam9x5_bits = {
