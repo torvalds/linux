@@ -518,12 +518,17 @@ static void iwl_mvm_sync_nssn(struct iwl_mvm *mvm, u8 baid, u16 nssn)
 
 #define RX_REORDER_BUF_TIMEOUT_MQ (HZ / 10)
 
+enum iwl_mvm_release_flags {
+	IWL_MVM_RELEASE_SEND_RSS_SYNC = BIT(0),
+	IWL_MVM_RELEASE_FROM_RSS_SYNC = BIT(1),
+};
+
 static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 				   struct ieee80211_sta *sta,
 				   struct napi_struct *napi,
 				   struct iwl_mvm_baid_data *baid_data,
 				   struct iwl_mvm_reorder_buffer *reorder_buf,
-				   u16 nssn, bool sync_rss)
+				   u16 nssn, u32 flags)
 {
 	struct iwl_mvm_reorder_buf_entry *entries =
 		&baid_data->entries[reorder_buf->queue *
@@ -531,6 +536,18 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	u16 ssn = reorder_buf->head_sn;
 
 	lockdep_assert_held(&reorder_buf->lock);
+
+	/*
+	 * We keep the NSSN not too far behind, if we are sync'ing it and it
+	 * is more than 2048 ahead of us, it must be behind us. Discard it.
+	 * This can happen if the queue that hit the 0 / 2048 seqno was lagging
+	 * behind and this queue already processed packets. The next if
+	 * would have caught cases where this queue would have processed less
+	 * than 64 packets, but it may have processed more than 64 packets.
+	 */
+	if ((flags & IWL_MVM_RELEASE_FROM_RSS_SYNC) &&
+	    ieee80211_sn_less(nssn, ssn))
+		goto set_timer;
 
 	/* ignore nssn smaller than head sn - this can happen due to timeout */
 	if (iwl_mvm_is_sn_less(nssn, ssn, reorder_buf->buf_size))
@@ -542,7 +559,8 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 		struct sk_buff *skb;
 
 		ssn = ieee80211_sn_inc(ssn);
-		if (sync_rss && (ssn == 2048 || ssn == 0))
+		if ((flags & IWL_MVM_RELEASE_SEND_RSS_SYNC) &&
+		    (ssn == 2048 || ssn == 0))
 			iwl_mvm_sync_nssn(mvm, baid_data->baid, ssn);
 
 		/*
@@ -631,7 +649,7 @@ void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 		iwl_mvm_event_frame_timeout_callback(buf->mvm, mvmsta->vif,
 						     sta, baid_data->tid);
 		iwl_mvm_release_frames(buf->mvm, sta, NULL, baid_data,
-				       buf, sn, true);
+				       buf, sn, IWL_MVM_RELEASE_SEND_RSS_SYNC);
 		rcu_read_unlock();
 	} else {
 		/*
@@ -674,7 +692,7 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	iwl_mvm_release_frames(mvm, sta, NULL, ba_data, reorder_buf,
 			       ieee80211_sn_add(reorder_buf->head_sn,
 						reorder_buf->buf_size),
-			       false);
+			       0);
 	spin_unlock_bh(&reorder_buf->lock);
 	del_timer_sync(&reorder_buf->reorder_timer);
 
@@ -684,7 +702,8 @@ out:
 
 static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 					      struct napi_struct *napi,
-					      u8 baid, u16 nssn, int queue)
+					      u8 baid, u16 nssn, int queue,
+					      u32 flags)
 {
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_reorder_buffer *reorder_buf;
@@ -711,7 +730,7 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 
 	spin_lock_bh(&reorder_buf->lock);
 	iwl_mvm_release_frames(mvm, sta, napi, ba_data,
-			       reorder_buf, nssn, false);
+			       reorder_buf, nssn, flags);
 	spin_unlock_bh(&reorder_buf->lock);
 
 out:
@@ -723,7 +742,8 @@ static void iwl_mvm_nssn_sync(struct iwl_mvm *mvm,
 			      const struct iwl_mvm_nssn_sync_data *data)
 {
 	iwl_mvm_release_frames_from_notif(mvm, napi, data->baid,
-					  data->nssn, queue);
+					  data->nssn, queue,
+					  IWL_MVM_RELEASE_FROM_RSS_SYNC);
 }
 
 void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct napi_struct *napi,
@@ -851,7 +871,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	if (ieee80211_is_back_req(hdr->frame_control)) {
 		iwl_mvm_release_frames(mvm, sta, napi, baid_data,
-				       buffer, nssn, false);
+				       buffer, nssn, 0);
 		goto drop;
 	}
 
@@ -871,7 +891,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		u16 min_sn = ieee80211_sn_less(sn, nssn) ? sn : nssn;
 
 		iwl_mvm_release_frames(mvm, sta, napi, baid_data, buffer,
-				       min_sn, true);
+				       min_sn, IWL_MVM_RELEASE_SEND_RSS_SYNC);
 	}
 
 	/* drop any oudated packets */
@@ -963,7 +983,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 */
 	if (!amsdu || last_subframe)
 		iwl_mvm_release_frames(mvm, sta, napi, baid_data,
-				       buffer, nssn, true);
+				       buffer, nssn,
+				       IWL_MVM_RELEASE_SEND_RSS_SYNC);
 
 	spin_unlock_bh(&buffer->lock);
 	return true;
@@ -1936,5 +1957,6 @@ void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_frame_release *release = (void *)pkt->data;
 
 	iwl_mvm_release_frames_from_notif(mvm, napi, release->baid,
-					  le16_to_cpu(release->nssn), queue);
+					  le16_to_cpu(release->nssn),
+					  queue, 0);
 }
