@@ -630,12 +630,6 @@ struct qeth_ipacmd_diagass {
 
 /* VNICC header */
 struct qeth_ipacmd_vnicc_hdr {
-	u32 sup;
-	u32 cur;
-};
-
-/* VNICC sub command header */
-struct qeth_vnicc_sub_hdr {
 	u16 data_length;
 	u16 reserved;
 	u32 sub_command;
@@ -660,14 +654,17 @@ struct qeth_vnicc_getset_timeout {
 
 /* complete VNICC IPA command message */
 struct qeth_ipacmd_vnicc {
+	struct qeth_ipa_caps vnicc_cmds;
 	struct qeth_ipacmd_vnicc_hdr hdr;
-	struct qeth_vnicc_sub_hdr sub_hdr;
 	union {
 		struct qeth_vnicc_query_cmds query_cmds;
 		struct qeth_vnicc_set_char set_char;
 		struct qeth_vnicc_getset_timeout getset_timeout;
-	};
+	} data;
 };
+
+#define VNICC_DATA_SIZEOF(field)	FIELD_SIZEOF(struct qeth_ipacmd_vnicc,\
+						     data.field)
 
 /* SETBRIDGEPORT IPA Command:	 *********************************************/
 enum qeth_ipa_sbp_cmd {
