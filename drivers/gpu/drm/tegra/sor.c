@@ -3135,6 +3135,112 @@ static const struct drm_encoder_helper_funcs tegra_sor_dp_helpers = {
 	.atomic_check = tegra_sor_encoder_atomic_check,
 };
 
+static const struct tegra_sor_ops tegra_sor_edp_ops = {
+	.name = "eDP",
+};
+
+static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
+{
+	int err;
+
+	sor->avdd_io_supply = devm_regulator_get(sor->dev, "avdd-io");
+	if (IS_ERR(sor->avdd_io_supply)) {
+		dev_err(sor->dev, "cannot get AVDD I/O supply: %ld\n",
+			PTR_ERR(sor->avdd_io_supply));
+		return PTR_ERR(sor->avdd_io_supply);
+	}
+
+	err = regulator_enable(sor->avdd_io_supply);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to enable AVDD I/O supply: %d\n",
+			err);
+		return err;
+	}
+
+	sor->vdd_pll_supply = devm_regulator_get(sor->dev, "vdd-pll");
+	if (IS_ERR(sor->vdd_pll_supply)) {
+		dev_err(sor->dev, "cannot get VDD PLL supply: %ld\n",
+			PTR_ERR(sor->vdd_pll_supply));
+		return PTR_ERR(sor->vdd_pll_supply);
+	}
+
+	err = regulator_enable(sor->vdd_pll_supply);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to enable VDD PLL supply: %d\n",
+			err);
+		return err;
+	}
+
+	sor->hdmi_supply = devm_regulator_get(sor->dev, "hdmi");
+	if (IS_ERR(sor->hdmi_supply)) {
+		dev_err(sor->dev, "cannot get HDMI supply: %ld\n",
+			PTR_ERR(sor->hdmi_supply));
+		return PTR_ERR(sor->hdmi_supply);
+	}
+
+	err = regulator_enable(sor->hdmi_supply);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to enable HDMI supply: %d\n", err);
+		return err;
+	}
+
+	INIT_DELAYED_WORK(&sor->scdc, tegra_sor_hdmi_scdc_work);
+
+	return 0;
+}
+
+static int tegra_sor_hdmi_remove(struct tegra_sor *sor)
+{
+	regulator_disable(sor->hdmi_supply);
+	regulator_disable(sor->vdd_pll_supply);
+	regulator_disable(sor->avdd_io_supply);
+
+	return 0;
+}
+
+static const struct tegra_sor_ops tegra_sor_hdmi_ops = {
+	.name = "HDMI",
+	.probe = tegra_sor_hdmi_probe,
+	.remove = tegra_sor_hdmi_remove,
+};
+
+static int tegra_sor_dp_probe(struct tegra_sor *sor)
+{
+	int err;
+
+	sor->avdd_io_supply = devm_regulator_get(sor->dev, "avdd-io-hdmi-dp");
+	if (IS_ERR(sor->avdd_io_supply))
+		return PTR_ERR(sor->avdd_io_supply);
+
+	err = regulator_enable(sor->avdd_io_supply);
+	if (err < 0)
+		return err;
+
+	sor->vdd_pll_supply = devm_regulator_get(sor->dev, "vdd-hdmi-dp-pll");
+	if (IS_ERR(sor->vdd_pll_supply))
+		return PTR_ERR(sor->vdd_pll_supply);
+
+	err = regulator_enable(sor->vdd_pll_supply);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+static int tegra_sor_dp_remove(struct tegra_sor *sor)
+{
+	regulator_disable(sor->vdd_pll_supply);
+	regulator_disable(sor->avdd_io_supply);
+
+	return 0;
+}
+
+static const struct tegra_sor_ops tegra_sor_dp_ops = {
+	.name = "DP",
+	.probe = tegra_sor_dp_probe,
+	.remove = tegra_sor_dp_remove,
+};
+
 static int tegra_sor_init(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
@@ -3145,7 +3251,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	int err;
 
 	if (!sor->aux) {
-		if (sor->soc->supports_hdmi) {
+		if (sor->ops == &tegra_sor_hdmi_ops) {
 			connector = DRM_MODE_CONNECTOR_HDMIA;
 			encoder = DRM_MODE_ENCODER_TMDS;
 			helpers = &tegra_sor_hdmi_helpers;
@@ -3154,11 +3260,11 @@ static int tegra_sor_init(struct host1x_client *client)
 			encoder = DRM_MODE_ENCODER_LVDS;
 		}
 	} else {
-		if (sor->soc->supports_edp) {
+		if (sor->ops == &tegra_sor_edp_ops) {
 			connector = DRM_MODE_CONNECTOR_eDP;
 			encoder = DRM_MODE_ENCODER_TMDS;
 			helpers = &tegra_sor_edp_helpers;
-		} else if (sor->soc->supports_dp) {
+		} else {
 			connector = DRM_MODE_CONNECTOR_DisplayPort;
 			encoder = DRM_MODE_ENCODER_TMDS;
 			helpers = &tegra_sor_dp_helpers;
@@ -3276,112 +3382,6 @@ static int tegra_sor_exit(struct host1x_client *client)
 static const struct host1x_client_ops sor_client_ops = {
 	.init = tegra_sor_init,
 	.exit = tegra_sor_exit,
-};
-
-static const struct tegra_sor_ops tegra_sor_edp_ops = {
-	.name = "eDP",
-};
-
-static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
-{
-	int err;
-
-	sor->avdd_io_supply = devm_regulator_get(sor->dev, "avdd-io");
-	if (IS_ERR(sor->avdd_io_supply)) {
-		dev_err(sor->dev, "cannot get AVDD I/O supply: %ld\n",
-			PTR_ERR(sor->avdd_io_supply));
-		return PTR_ERR(sor->avdd_io_supply);
-	}
-
-	err = regulator_enable(sor->avdd_io_supply);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to enable AVDD I/O supply: %d\n",
-			err);
-		return err;
-	}
-
-	sor->vdd_pll_supply = devm_regulator_get(sor->dev, "vdd-pll");
-	if (IS_ERR(sor->vdd_pll_supply)) {
-		dev_err(sor->dev, "cannot get VDD PLL supply: %ld\n",
-			PTR_ERR(sor->vdd_pll_supply));
-		return PTR_ERR(sor->vdd_pll_supply);
-	}
-
-	err = regulator_enable(sor->vdd_pll_supply);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to enable VDD PLL supply: %d\n",
-			err);
-		return err;
-	}
-
-	sor->hdmi_supply = devm_regulator_get(sor->dev, "hdmi");
-	if (IS_ERR(sor->hdmi_supply)) {
-		dev_err(sor->dev, "cannot get HDMI supply: %ld\n",
-			PTR_ERR(sor->hdmi_supply));
-		return PTR_ERR(sor->hdmi_supply);
-	}
-
-	err = regulator_enable(sor->hdmi_supply);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to enable HDMI supply: %d\n", err);
-		return err;
-	}
-
-	INIT_DELAYED_WORK(&sor->scdc, tegra_sor_hdmi_scdc_work);
-
-	return 0;
-}
-
-static int tegra_sor_hdmi_remove(struct tegra_sor *sor)
-{
-	regulator_disable(sor->hdmi_supply);
-	regulator_disable(sor->vdd_pll_supply);
-	regulator_disable(sor->avdd_io_supply);
-
-	return 0;
-}
-
-static const struct tegra_sor_ops tegra_sor_hdmi_ops = {
-	.name = "HDMI",
-	.probe = tegra_sor_hdmi_probe,
-	.remove = tegra_sor_hdmi_remove,
-};
-
-static int tegra_sor_dp_probe(struct tegra_sor *sor)
-{
-	int err;
-
-	sor->avdd_io_supply = devm_regulator_get(sor->dev, "avdd-io-hdmi-dp");
-	if (IS_ERR(sor->avdd_io_supply))
-		return PTR_ERR(sor->avdd_io_supply);
-
-	err = regulator_enable(sor->avdd_io_supply);
-	if (err < 0)
-		return err;
-
-	sor->vdd_pll_supply = devm_regulator_get(sor->dev, "vdd-hdmi-dp-pll");
-	if (IS_ERR(sor->vdd_pll_supply))
-		return PTR_ERR(sor->vdd_pll_supply);
-
-	err = regulator_enable(sor->vdd_pll_supply);
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-
-static int tegra_sor_dp_remove(struct tegra_sor *sor)
-{
-	regulator_disable(sor->vdd_pll_supply);
-	regulator_disable(sor->avdd_io_supply);
-
-	return 0;
-}
-
-static const struct tegra_sor_ops tegra_sor_dp_ops = {
-	.name = "DP",
-	.probe = tegra_sor_dp_probe,
-	.remove = tegra_sor_dp_remove,
 };
 
 static const u8 tegra124_sor_xbar_cfg[5] = {
