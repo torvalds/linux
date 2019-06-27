@@ -834,6 +834,9 @@ struct gem_tx_ts {
 /* limit RX checksum offload to TCP and UDP packets */
 #define GEM_RX_CSUM_CHECKED_MASK		2
 
+/* Scaled PPM fraction */
+#define PPM_FRACTION	16
+
 /* struct macb_tx_skb - data about an skb which is being transmitted
  * @skb: skb currently being transmitted, only set for the last buffer
  *       of the frame

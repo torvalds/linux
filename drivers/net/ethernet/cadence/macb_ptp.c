@@ -135,7 +135,7 @@ static int gem_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	 * (temp / USEC_PER_SEC) + 0.5
 	 */
 	adj += (USEC_PER_SEC >> 1);
-	adj >>= GEM_SUBNSINCR_SIZE; /* remove fractions */
+	adj >>= PPM_FRACTION; /* remove fractions */
 	adj = div_u64(adj, USEC_PER_SEC);
 	adj = neg_adj ? (word - adj) : (word + adj);
 
