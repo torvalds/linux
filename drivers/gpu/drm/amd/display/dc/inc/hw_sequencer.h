@@ -294,6 +294,15 @@ struct hw_sequencer_funcs {
 	void (*disable_writeback)(struct dc *dc,
 			unsigned int dwb_pipe_inst);
 #endif
+	enum dc_status (*set_clock)(struct dc *dc,
+			enum dc_clock_type clock_type,
+			uint32_t clk_khz,
+			uint32_t stepping);
+
+	void (*get_clock)(struct dc *dc,
+			enum dc_clock_type clock_type,
+			struct dc_clock_config *clock_cfg);
+
 };
 
 void color_space_to_black_color(

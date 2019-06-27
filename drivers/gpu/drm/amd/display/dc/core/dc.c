@@ -2431,3 +2431,14 @@ void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx
 	info->fClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.fclk_khz;
 	info->phyClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.phyclk_khz;
 }
+enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping)
+{
+	if (dc->hwss.set_clock)
+		return dc->hwss.set_clock(dc, clock_type, clk_khz, stepping);
+	return DC_ERROR_UNEXPECTED;
+}
+void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg)
+{
+	if (dc->hwss.get_clock)
+		dc->hwss.get_clock(dc, clock_type, clock_cfg);
+}

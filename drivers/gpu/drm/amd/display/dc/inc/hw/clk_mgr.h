@@ -28,6 +28,9 @@
 
 #include "dc.h"
 
+#define DCN_MINIMUM_DISPCLK_Khz 100000
+#define DCN_MINIMUM_DPPCLK_Khz 100000
+
 /* Public interfaces */
 
 struct clk_states {
@@ -51,6 +54,10 @@ struct clk_mgr_funcs {
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
 
 	void (*enable_pme_wa) (struct clk_mgr *clk_mgr);
+	void (*get_clock)(struct clk_mgr *clk_mgr,
+			struct dc_state *context,
+			enum dc_clock_type clock_type,
+			struct dc_clock_config *clock_cfg);
 };
 
 struct clk_mgr {

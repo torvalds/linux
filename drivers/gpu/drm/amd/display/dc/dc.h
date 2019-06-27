@@ -252,7 +252,10 @@ enum wm_report_mode {
 struct dc_clocks {
 	int dispclk_khz;
 	int max_supported_dppclk_khz;
+	int max_supported_dispclk_khz;
 	int dppclk_khz;
+	int bw_dppclk_khz; /*a copy of dppclk_khz*/
+	int bw_dispclk_khz;
 	int dcfclk_khz;
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
@@ -1041,6 +1044,8 @@ unsigned int dc_get_target_backlight_pwm(struct dc *dc);
 
 bool dc_is_dmcu_initialized(struct dc *dc);
 
+enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
+void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);
 #if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
 /*******************************************************************************
  * DSC Interfaces

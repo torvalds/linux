@@ -3069,6 +3069,56 @@ static void dcn10_send_immediate_sdp_message(struct pipe_ctx *pipe_ctx,
 				sdp_message_size);
 	}
 }
+static enum dc_status dcn10_set_clock(struct dc *dc,
+			enum dc_clock_type clock_type,
+			uint32_t clk_khz,
+			uint32_t stepping)
+{
+	struct dc_state *context = dc->current_state;
+	struct dc_clock_config clock_cfg = {0};
+	struct dc_clocks *current_clocks = &context->bw_ctx.bw.dcn.clk;
+
+	if (dc->clk_mgr && dc->clk_mgr->funcs->get_clock)
+				dc->clk_mgr->funcs->get_clock(dc->clk_mgr,
+						context, clock_type, &clock_cfg);
+
+	if (!dc->clk_mgr->funcs->get_clock)
+		return DC_FAIL_UNSUPPORTED_1;
+
+	if (clk_khz > clock_cfg.max_clock_khz)
+		return DC_FAIL_CLK_EXCEED_MAX;
+
+	if (clk_khz < clock_cfg.min_clock_khz)
+		return DC_FAIL_CLK_BELOW_MIN;
+
+	if (clk_khz < clock_cfg.bw_requirequired_clock_khz)
+		return DC_FAIL_CLK_BELOW_CFG_REQUIRED;
+
+	/*update internal request clock for update clock use*/
+	if (clock_type == DC_CLOCK_TYPE_DISPCLK)
+		current_clocks->dispclk_khz = clk_khz;
+	else if (clock_type == DC_CLOCK_TYPE_DPPCLK)
+		current_clocks->dppclk_khz = clk_khz;
+	else
+		return DC_ERROR_UNEXPECTED;
+
+	if (dc->clk_mgr && dc->clk_mgr->funcs->update_clocks)
+				dc->clk_mgr->funcs->update_clocks(dc->clk_mgr,
+				context, true);
+	return DC_OK;
+
+}
+
+static void dcn10_get_clock(struct dc *dc,
+			enum dc_clock_type clock_type,
+			struct dc_clock_config *clock_cfg)
+{
+	struct dc_state *context = dc->current_state;
+
+	if (dc->clk_mgr && dc->clk_mgr->funcs->get_clock)
+				dc->clk_mgr->funcs->get_clock(dc->clk_mgr, context, clock_type, clock_cfg);
+
+}
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
@@ -3123,7 +3173,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.enable_stream_gating = NULL,
 	.setup_periodic_interrupt = dcn10_setup_periodic_interrupt,
 	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt,
-	.did_underflow_occur = dcn10_did_underflow_occur
+	.set_clock = dcn10_set_clock,
+	.get_clock = dcn10_get_clock,
 };
 
 

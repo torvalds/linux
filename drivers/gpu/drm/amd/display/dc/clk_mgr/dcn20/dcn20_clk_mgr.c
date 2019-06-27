@@ -316,11 +316,32 @@ void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	}
 }
 
+void dcn2_get_clock(struct clk_mgr *clk_mgr,
+		struct dc_state *context,
+			enum dc_clock_type clock_type,
+			struct dc_clock_config *clock_cfg)
+{
+
+	if (clock_type == DC_CLOCK_TYPE_DISPCLK) {
+		clock_cfg->max_clock_khz = context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz;
+		clock_cfg->min_clock_khz = DCN_MINIMUM_DISPCLK_Khz;
+		clock_cfg->current_clock_khz = clk_mgr->clks.dispclk_khz;
+		clock_cfg->bw_requirequired_clock_khz = context->bw_ctx.bw.dcn.clk.bw_dispclk_khz;
+	}
+	if (clock_type == DC_CLOCK_TYPE_DPPCLK) {
+		clock_cfg->max_clock_khz = context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz;
+		clock_cfg->min_clock_khz = DCN_MINIMUM_DPPCLK_Khz;
+		clock_cfg->current_clock_khz = clk_mgr->clks.dppclk_khz;
+		clock_cfg->bw_requirequired_clock_khz = context->bw_ctx.bw.dcn.clk.bw_dppclk_khz;
+	}
+}
+
 static struct clk_mgr_funcs dcn2_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn2_update_clocks,
 	.init_clocks = dcn2_init_clocks,
-	.enable_pme_wa = dcn2_enable_pme_wa
+	.enable_pme_wa = dcn2_enable_pme_wa,
+	.get_clock = dcn2_get_clock,
 };
 
 
