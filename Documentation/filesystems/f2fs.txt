@@ -804,3 +804,28 @@ WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
 WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
 WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
 WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
+
+Fallocate(2) Policy
+-------------------
+
+The default policy follows the below posix rule.
+
+Allocating disk space
+    The default operation (i.e., mode is zero) of fallocate() allocates
+    the disk space within the range specified by offset and len.  The
+    file size (as reported by stat(2)) will be changed if offset+len is
+    greater than the file size.  Any subregion within the range specified
+    by offset and len that did not contain data before the call will be
+    initialized to zero.  This default behavior closely resembles the
+    behavior of the posix_fallocate(3) library function, and is intended
+    as a method of optimally implementing that function.
+
+However, once F2FS receives ioctl(fd, F2FS_IOC_SET_PIN_FILE) in prior to
+fallocate(fd, DEFAULT_MODE), it allocates on-disk blocks addressess having
+zero or random data, which is useful to the below scenario where:
+ 1. create(fd)
+ 2. ioctl(fd, F2FS_IOC_SET_PIN_FILE)
+ 3. fallocate(fd, 0, 0, size)
+ 4. address = fibmap(fd, offset)
+ 5. open(blkdev)
+ 6. write(blkdev, address)
