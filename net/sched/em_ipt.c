@@ -182,6 +182,7 @@ static int em_ipt_match(struct sk_buff *skb, struct tcf_ematch *em,
 	const struct em_ipt_match *im = (const void *)em->data;
 	struct xt_action_param acpar = {};
 	struct net_device *indev = NULL;
+	u8 nfproto = im->match->family;
 	struct nf_hook_state state;
 	int ret;
 
@@ -189,10 +190,14 @@ static int em_ipt_match(struct sk_buff *skb, struct tcf_ematch *em,
 	case htons(ETH_P_IP):
 		if (!pskb_network_may_pull(skb, sizeof(struct iphdr)))
 			return 0;
+		if (nfproto == NFPROTO_UNSPEC)
+			nfproto = NFPROTO_IPV4;
 		break;
 	case htons(ETH_P_IPV6):
 		if (!pskb_network_may_pull(skb, sizeof(struct ipv6hdr)))
 			return 0;
+		if (nfproto == NFPROTO_UNSPEC)
+			nfproto = NFPROTO_IPV6;
 		break;
 	default:
 		return 0;
@@ -203,7 +208,7 @@ static int em_ipt_match(struct sk_buff *skb, struct tcf_ematch *em,
 	if (skb->skb_iif)
 		indev = dev_get_by_index_rcu(em->net, skb->skb_iif);
 
-	nf_hook_state_init(&state, im->hook, im->match->family,
+	nf_hook_state_init(&state, im->hook, nfproto,
 			   indev ?: skb->dev, skb->dev, NULL, em->net, NULL);
 
 	acpar.match = im->match;
