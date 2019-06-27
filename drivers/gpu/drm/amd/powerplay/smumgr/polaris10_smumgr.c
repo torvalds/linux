@@ -2094,6 +2094,10 @@ static int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 		return 0;
 	}
 
+	/* use hardware fan control */
+	if (hwmgr->thermal_controller.use_hw_fan_control)
+		return 0;
+
 	tmp64 = hwmgr->thermal_controller.advanceFanControlParameters.
 			usPWMMin * duty100;
 	do_div(tmp64, 10000);
