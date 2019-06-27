@@ -7,6 +7,8 @@
 #ifndef __KSZ_COMMON_H
 #define __KSZ_COMMON_H
 
+#include <linux/regmap.h>
+
 void ksz_port_cleanup(struct ksz_device *dev, int port);
 void ksz_update_port_member(struct ksz_device *dev, int port);
 void ksz_init_mib_timer(struct ksz_device *dev);
@@ -41,114 +43,44 @@ void ksz_disable_port(struct dsa_switch *ds, int port);
 
 static inline int ksz_read8(struct ksz_device *dev, u32 reg, u8 *val)
 {
-	int ret;
+	unsigned int value;
+	int ret = regmap_read(dev->regmap[0], reg, &value);
 
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read8(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
+	*val = value;
 	return ret;
 }
 
 static inline int ksz_read16(struct ksz_device *dev, u32 reg, u16 *val)
 {
-	int ret;
+	unsigned int value;
+	int ret = regmap_read(dev->regmap[1], reg, &value);
 
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read16(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_read24(struct ksz_device *dev, u32 reg, u32 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read24(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
+	*val = value;
 	return ret;
 }
 
 static inline int ksz_read32(struct ksz_device *dev, u32 reg, u32 *val)
 {
-	int ret;
+	unsigned int value;
+	int ret = regmap_read(dev->regmap[2], reg, &value);
 
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read32(dev, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
+	*val = value;
 	return ret;
 }
 
 static inline int ksz_write8(struct ksz_device *dev, u32 reg, u8 value)
 {
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write8(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
+	return regmap_write(dev->regmap[0], reg, value);
 }
 
 static inline int ksz_write16(struct ksz_device *dev, u32 reg, u16 value)
 {
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write16(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_write24(struct ksz_device *dev, u32 reg, u32 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write24(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
+	return regmap_write(dev->regmap[1], reg, value);
 }
 
 static inline int ksz_write32(struct ksz_device *dev, u32 reg, u32 value)
 {
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write32(dev, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_get(struct ksz_device *dev, u32 reg, void *data,
-			  size_t len)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->get(dev, reg, data, len);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int ksz_set(struct ksz_device *dev, u32 reg, void *data,
-			  size_t len)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->set(dev, reg, data, len);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
+	return regmap_write(dev->regmap[2], reg, value);
 }
 
 static inline void ksz_pread8(struct ksz_device *dev, int port, int offset,
@@ -187,35 +119,6 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 	ksz_write32(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
-static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
-{
-	u8 data;
-
-	ksz_read8(dev, addr, &data);
-	if (set)
-		data |= bits;
-	else
-		data &= ~bits;
-	ksz_write8(dev, addr, data);
-}
-
-static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
-			 bool set)
-{
-	u32 addr;
-	u8 data;
-
-	addr = dev->dev_ops->get_port_addr(port, offset);
-	ksz_read8(dev, addr, &data);
-
-	if (set)
-		data |= bits;
-	else
-		data &= ~bits;
-
-	ksz_write8(dev, addr, data);
-}
-
 struct ksz_poll_ctx {
 	struct ksz_device *dev;
 	int port;
@@ -229,5 +132,37 @@ static inline u32 ksz_pread32_poll(struct ksz_poll_ctx *ctx)
 	ksz_pread32(ctx->dev, ctx->port, ctx->offset, &data);
 	return data;
 }
+
+/* Regmap tables generation */
+#define KSZ_SPI_OP_RD		3
+#define KSZ_SPI_OP_WR		2
+
+#define KSZ_SPI_OP_FLAG_MASK(opcode, swp, regbits, regpad)		\
+	swab##swp((opcode) << ((regbits) + (regpad)))
+
+#define KSZ_REGMAP_ENTRY(width, swp, regbits, regpad, regalign)		\
+	{								\
+		.val_bits = (width),					\
+		.reg_stride = (width) / 8,				\
+		.reg_bits = (regbits) + (regalign),			\
+		.pad_bits = (regpad),					\
+		.max_register = BIT(regbits) - 1,			\
+		.cache_type = REGCACHE_NONE,				\
+		.read_flag_mask =					\
+			KSZ_SPI_OP_FLAG_MASK(KSZ_SPI_OP_RD, swp,	\
+					     regbits, regpad),		\
+		.write_flag_mask =					\
+			KSZ_SPI_OP_FLAG_MASK(KSZ_SPI_OP_WR, swp,	\
+					     regbits, regpad),		\
+		.reg_format_endian = REGMAP_ENDIAN_BIG,			\
+		.val_format_endian = REGMAP_ENDIAN_BIG			\
+	}
+
+#define KSZ_REGMAP_TABLE(ksz, swp, regbits, regpad, regalign)		\
+	static const struct regmap_config ksz##_regmap_config[] = {	\
+		KSZ_REGMAP_ENTRY(8, swp, (regbits), (regpad), (regalign)), \
+		KSZ_REGMAP_ENTRY(16, swp, (regbits), (regpad), (regalign)), \
+		KSZ_REGMAP_ENTRY(32, swp, (regbits), (regpad), (regalign)), \
+	}
 
 #endif
