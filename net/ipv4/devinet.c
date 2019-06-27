@@ -428,8 +428,9 @@ no_promotions:
 		if (prev_prom) {
 			struct in_ifaddr *last_sec;
 
-			last_sec = rtnl_dereference(last_prim->ifa_next);
 			rcu_assign_pointer(prev_prom->ifa_next, next_sec);
+
+			last_sec = rtnl_dereference(last_prim->ifa_next);
 			rcu_assign_pointer(promote->ifa_next, last_sec);
 			rcu_assign_pointer(last_prim->ifa_next, promote);
 		}
