@@ -80,6 +80,13 @@
 #define DP0_VIDSRC_DSI_RX		(1 << 0)
 #define DP0_VIDSRC_DPI_RX		(2 << 0)
 #define DP0_VIDSRC_COLOR_BAR		(3 << 0)
+#define SYSRSTENB		0x050c
+#define ENBI2C				(1 << 0)
+#define ENBLCD0				(1 << 2)
+#define ENBBM				(1 << 3)
+#define ENBDSIRX			(1 << 4)
+#define ENBREG				(1 << 5)
+#define ENBHDCP				(1 << 8)
 #define GPIOM			0x0540
 #define GPIOC			0x0544
 #define GPIOO			0x0548
@@ -1596,6 +1603,22 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	tc->assr = (tc->rev == 0x6601); /* Enable ASSR for eDP panels */
+
+	if (!tc->reset_gpio) {
+		/*
+		 * If the reset pin isn't present, do a software reset. It isn't
+		 * as thorough as the hardware reset, as we can't reset the I2C
+		 * communication block for obvious reasons, but it's getting the
+		 * chip into a defined state.
+		 */
+		regmap_update_bits(tc->regmap, SYSRSTENB,
+				ENBLCD0 | ENBBM | ENBDSIRX | ENBREG | ENBHDCP,
+				0);
+		regmap_update_bits(tc->regmap, SYSRSTENB,
+				ENBLCD0 | ENBBM | ENBDSIRX | ENBREG | ENBHDCP,
+				ENBLCD0 | ENBBM | ENBDSIRX | ENBREG | ENBHDCP);
+		usleep_range(5000, 10000);
+	}
 
 	if (tc->hpd_pin >= 0) {
 		u32 lcnt_reg = tc->hpd_pin == 0 ? INT_GP0_LCNT : INT_GP1_LCNT;
