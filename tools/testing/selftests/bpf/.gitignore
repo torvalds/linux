@@ -39,3 +39,6 @@ libbpf.so.*
 test_hashmap
 test_btf_dump
 xdping
+test_sockopt
+test_sockopt_sk
+test_sockopt_multi
