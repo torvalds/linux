@@ -255,6 +255,16 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 	 */
 	if (mode->clock > INT_MAX / 1000)
 		return MODE_BAD;
+	/*
+	 * If sink max TMDS clock < 340MHz, we should check the mode pixel
+	 * clock > 340MHz is YCbCr420 or not and whether the platform supports
+	 * YCbCr420.
+	 */
+	if (mode->clock > 340000 &&
+	    connector->display_info.max_tmds_clock < 340000 &&
+	    (!drm_mode_is_420(&connector->display_info, mode) ||
+	     !connector->ycbcr_420_allowed))
+		return MODE_BAD;
 
 	if (!encoder) {
 		const struct drm_connector_helper_funcs *funcs;
