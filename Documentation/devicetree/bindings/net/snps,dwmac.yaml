@@ -172,16 +172,19 @@ properties:
           * snps,priority, TX queue priority (Range 0x0 to 0xF)
 
   snps,reset-gpio:
+    deprecated: true
     maxItems: 1
     description:
       PHY Reset GPIO
 
   snps,reset-active-low:
+    deprecated: true
     $ref: /schemas/types.yaml#definitions/flag
     description:
       Indicates that the PHY Reset is active low
 
   snps,reset-delays-us:
+    deprecated: true
     allOf:
       - $ref: /schemas/types.yaml#definitions/uint32-array
       - minItems: 3
