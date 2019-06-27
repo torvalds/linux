@@ -269,6 +269,25 @@ kci_test_addrlft()
 	echo "PASS: preferred_lft addresses have expired"
 }
 
+kci_test_promote_secondaries()
+{
+	promote=$(sysctl -n net.ipv4.conf.$devdummy.promote_secondaries)
+
+	sysctl -q net.ipv4.conf.$devdummy.promote_secondaries=1
+
+	for i in $(seq 2 254);do
+		IP="10.23.11.$i"
+		ip -f inet addr add $IP/16 brd + dev "$devdummy"
+		ifconfig "$devdummy" $IP netmask 255.255.0.0
+	done
+
+	ip addr flush dev "$devdummy"
+
+	[ $promote -eq 0 ] && sysctl -q net.ipv4.conf.$devdummy.promote_secondaries=0
+
+	echo "PASS: promote_secondaries complete"
+}
+
 kci_test_addrlabel()
 {
 	ret=0
@@ -1161,6 +1180,7 @@ kci_test_rtnl()
 	kci_test_polrouting
 	kci_test_route_get
 	kci_test_addrlft
+	kci_test_promote_secondaries
 	kci_test_tc
 	kci_test_gre
 	kci_test_gretap
