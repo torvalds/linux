@@ -447,6 +447,9 @@ static int cros_ec_debugfs_probe(struct platform_device *pd)
 	debugfs_create_file("uptime", 0444, debug_info->dir, debug_info,
 			    &cros_ec_uptime_fops);
 
+	debugfs_create_x32("last_resume_result", 0444, debug_info->dir,
+			   &ec->ec_dev->last_resume_result);
+
 	ec->debug_info = debug_info;
 
 	dev_set_drvdata(&pd->dev, ec);

@@ -32,3 +32,25 @@ Description:
 		is used for synchronizing the AP host time with the EC
 		log. An error is returned if the command is not supported
 		by the EC or there is a communication problem.
+
+What:		/sys/kernel/debug/<cros-ec-device>/last_resume_result
+Date:		June 2019
+KernelVersion:	5.3
+Description:
+		Some ECs have a feature where they will track transitions to
+		the (Intel) processor's SLP_S0 line, in order to detect cases
+		where a system failed to go into S0ix. When the system resumes,
+		an EC with this feature will return a summary of SLP_S0
+		transitions that occurred. The last_resume_result file returns
+		the most recent response from the AP's resume message to the EC.
+
+		The bottom 31 bits contain a count of the number of SLP_S0
+		transitions that occurred since the suspend message was
+		received. Bit 31 is set if the EC attempted to wake the
+		system due to a timeout when watching for SLP_S0 transitions.
+		Callers can use this to detect a wake from the EC due to
+		S0ix timeouts. The result will be zero if no suspend
+		transitions have been attempted, or the EC does not support
+		this feature.
+
+		Output will be in the format: "0x%08x\n".
