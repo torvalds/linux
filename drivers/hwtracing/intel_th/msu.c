@@ -34,6 +34,7 @@
  * @pgoff:	page offset into the buffer that this window starts at
  * @nr_blocks:	number of blocks (pages) in this window
  * @nr_segs:	number of segments in this window (<= @nr_blocks)
+ * @_sgt:	array of block descriptors
  * @sgt:	array of block descriptors
  */
 struct msc_window {
@@ -42,7 +43,8 @@ struct msc_window {
 	unsigned int		nr_blocks;
 	unsigned int		nr_segs;
 	struct msc		*msc;
-	struct sg_table		sgt;
+	struct sg_table		_sgt;
+	struct sg_table		*sgt;
 };
 
 /**
@@ -140,19 +142,19 @@ static inline bool msc_block_is_empty(struct msc_block_desc *bdesc)
 static inline struct msc_block_desc *
 msc_win_block(struct msc_window *win, unsigned int block)
 {
-	return sg_virt(&win->sgt.sgl[block]);
+	return sg_virt(&win->sgt->sgl[block]);
 }
 
 static inline size_t
 msc_win_actual_bsz(struct msc_window *win, unsigned int block)
 {
-	return win->sgt.sgl[block].length;
+	return win->sgt->sgl[block].length;
 }
 
 static inline dma_addr_t
 msc_win_baddr(struct msc_window *win, unsigned int block)
 {
-	return sg_dma_address(&win->sgt.sgl[block]);
+	return sg_dma_address(&win->sgt->sgl[block]);
 }
 
 static inline unsigned long
@@ -748,11 +750,11 @@ static int __msc_buffer_win_alloc(struct msc_window *win,
 	void *block;
 	int i, ret;
 
-	ret = sg_alloc_table(&win->sgt, nr_segs, GFP_KERNEL);
+	ret = sg_alloc_table(win->sgt, nr_segs, GFP_KERNEL);
 	if (ret)
 		return -ENOMEM;
 
-	for_each_sg(win->sgt.sgl, sg_ptr, nr_segs, i) {
+	for_each_sg(win->sgt->sgl, sg_ptr, nr_segs, i) {
 		block = dma_alloc_coherent(msc_dev(win->msc)->parent->parent,
 					  PAGE_SIZE, &sg_dma_address(sg_ptr),
 					  GFP_KERNEL);
@@ -770,7 +772,7 @@ err_nomem:
 				  msc_win_block(win, i),
 				  msc_win_baddr(win, i));
 
-	sg_free_table(&win->sgt);
+	sg_free_table(win->sgt);
 
 	return -ENOMEM;
 }
@@ -829,6 +831,7 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 		return -ENOMEM;
 
 	win->msc = msc;
+	win->sgt = &win->_sgt;
 
 	if (!list_empty(&msc->win_list)) {
 		struct msc_window *prev = list_last_entry(&msc->win_list,
@@ -869,13 +872,13 @@ static void __msc_buffer_win_free(struct msc *msc, struct msc_window *win)
 	int i;
 
 	for (i = 0; i < win->nr_segs; i++) {
-		struct page *page = sg_page(&win->sgt.sgl[i]);
+		struct page *page = sg_page(&win->sgt->sgl[i]);
 
 		page->mapping = NULL;
 		dma_free_coherent(msc_dev(win->msc)->parent->parent, PAGE_SIZE,
 				  msc_win_block(win, i), msc_win_baddr(win, i));
 	}
-	sg_free_table(&win->sgt);
+	sg_free_table(win->sgt);
 }
 
 /**
@@ -1124,7 +1127,7 @@ found:
 	pgoff -= win->pgoff;
 
 	for (blk = 0; blk < win->nr_segs; blk++) {
-		struct page *page = sg_page(&win->sgt.sgl[blk]);
+		struct page *page = sg_page(&win->sgt->sgl[blk]);
 		size_t pgsz = PFN_DOWN(msc_win_actual_bsz(win, blk));
 
 		if (pgoff < pgsz)
