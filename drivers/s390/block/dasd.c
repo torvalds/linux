@@ -2523,6 +2523,15 @@ int dasd_sleep_on_queue(struct list_head *ccw_queue)
 EXPORT_SYMBOL(dasd_sleep_on_queue);
 
 /*
+ * Start requests from a ccw_queue and wait interruptible for their completion.
+ */
+int dasd_sleep_on_queue_interruptible(struct list_head *ccw_queue)
+{
+	return _dasd_sleep_on_queue(ccw_queue, 1);
+}
+EXPORT_SYMBOL(dasd_sleep_on_queue_interruptible);
+
+/*
  * Queue a request to the tail of the device ccw_queue and wait
  * interruptible for it's completion.
  */
