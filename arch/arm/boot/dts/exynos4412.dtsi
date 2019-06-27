@@ -716,6 +716,31 @@
 	cpu-offset = <0x4000>;
 };
 
+&gpu {
+	operating-points-v2 = <&gpu_opp_table>;
+
+	gpu_opp_table: opp_table {
+		compatible = "operating-points-v2";
+
+		opp-160000000 {
+			opp-hz = /bits/ 64 <160000000>;
+			opp-microvolt = <875000>;
+		};
+		opp-267000000 {
+			opp-hz = /bits/ 64 <267000000>;
+			opp-microvolt = <900000>;
+		};
+		opp-350000000 {
+			opp-hz = /bits/ 64 <350000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-440000000 {
+			opp-hz = /bits/ 64 <440000000>;
+			opp-microvolt = <1025000>;
+		};
+	};
+};
+
 &hdmi {
 	compatible = "samsung,exynos4212-hdmi";
 };
@@ -737,6 +762,8 @@
 
 &pmu {
 	interrupts = <2 2>, <3 2>, <18 2>, <19 2>;
+	interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	status = "okay";
 };
 
 &pmu_system_controller {

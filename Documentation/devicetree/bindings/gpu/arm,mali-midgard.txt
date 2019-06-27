@@ -16,6 +16,7 @@ Required properties:
     + "arm,mali-t880"
   * which must be preceded by one of the following vendor specifics:
     + "amlogic,meson-gxm-mali"
+    + "samsung,exynos5433-mali"
     + "rockchip,rk3288-mali"
     + "rockchip,rk3399-mali"
 
