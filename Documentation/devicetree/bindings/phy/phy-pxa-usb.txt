@@ -15,4 +15,4 @@ Example:
 	};
 
 This document explains the device tree binding. For general
-information about PHY subsystem refer to Documentation/phy.txt
+information about PHY subsystem refer to Documentation/driver-api/phy/phy.rst

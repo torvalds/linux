@@ -85,6 +85,7 @@ available subsections can be seen below.
    parport-lowlevel
    pps
    ptp
+   phy/index
    pti_intel_mid
    pwm
    rfkill
