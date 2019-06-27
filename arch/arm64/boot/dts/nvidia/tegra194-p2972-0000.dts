@@ -46,10 +46,39 @@
 				status = "okay";
 			};
 
+			dpaux@155c0000 {
+				status = "okay";
+			};
+
+			dpaux@155d0000 {
+				status = "okay";
+			};
+
 			dpaux@155e0000 {
 				status = "okay";
 			};
 
+			/* DP0 */
+			sor@15b00000 {
+				status = "okay";
+
+				avdd-io-hdmi-dp-supply = <&vdd_1v0>;
+				vdd-hdmi-dp-pll-supply = <&vdd_1v8hs>;
+
+				nvidia,dpaux = <&dpaux0>;
+			};
+
+			/* DP1 */
+			sor@15b40000 {
+				status = "okay";
+
+				avdd-io-hdmi-dp-supply = <&vdd_1v0>;
+				vdd-hdmi-dp-pll-supply = <&vdd_1v8hs>;
+
+				nvidia,dpaux = <&dpaux1>;
+			};
+
+			/* HDMI */
 			sor@15b80000 {
 				status = "okay";
 
