@@ -55,7 +55,7 @@ static struct key *nvdimm_request_key(struct nvdimm *nvdimm)
 	struct device *dev = &nvdimm->dev;
 
 	sprintf(desc, "%s%s", NVDIMM_PREFIX, nvdimm->dimm_id);
-	key = request_key(&key_type_encrypted, desc, "");
+	key = request_key(&key_type_encrypted, desc, "", NULL);
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) == -ENOKEY)
 			dev_dbg(dev, "request_key() found no key\n");

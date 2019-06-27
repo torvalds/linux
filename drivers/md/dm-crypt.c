@@ -2035,7 +2035,7 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 		return -ENOMEM;
 
 	key = request_key(key_string[0] == 'l' ? &key_type_logon : &key_type_user,
-			  key_desc + 1, NULL);
+			  key_desc + 1, NULL, NULL);
 	if (IS_ERR(key)) {
 		kzfree(new_key_string);
 		return PTR_ERR(key);

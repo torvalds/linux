@@ -88,8 +88,11 @@ extern struct rb_root key_serial_tree;
 extern spinlock_t key_serial_lock;
 extern struct mutex key_construction_mutex;
 extern wait_queue_head_t request_key_conswq;
+extern struct key_acl default_key_acl;
+extern struct key_acl joinable_keyring_acl;
 
 extern void key_set_index_key(struct keyring_index_key *index_key);
+
 extern struct key_type *key_type_lookup(const char *type);
 extern void key_type_put(struct key_type *ktype);
 
@@ -160,6 +163,7 @@ extern struct key *request_key_and_link(struct key_type *type,
 					const void *callout_info,
 					size_t callout_len,
 					void *aux,
+					struct key_acl *acl,
 					struct key *dest_keyring,
 					unsigned long flags);
 
@@ -183,7 +187,10 @@ extern void key_gc_keytype(struct key_type *ktype);
 
 extern int key_task_permission(const key_ref_t key_ref,
 			       const struct cred *cred,
-			       key_perm_t perm);
+			       u32 desired_perm);
+extern unsigned int key_acl_to_perm(const struct key_acl *acl);
+extern long key_set_acl(struct key *key, struct key_acl *acl);
+extern void key_put_acl(struct key_acl *acl);
 
 /*
  * Check to see whether permission is granted to use a key in the desired way.
@@ -230,7 +237,7 @@ extern long keyctl_keyring_search(key_serial_t, const char __user *,
 				  const char __user *, key_serial_t);
 extern long keyctl_read_key(key_serial_t, char __user *, size_t);
 extern long keyctl_chown_key(key_serial_t, uid_t, gid_t);
-extern long keyctl_setperm_key(key_serial_t, key_perm_t);
+extern long keyctl_setperm_key(key_serial_t, unsigned int);
 extern long keyctl_instantiate_key(key_serial_t, const void __user *,
 				   size_t, key_serial_t);
 extern long keyctl_negate_key(key_serial_t, unsigned, key_serial_t);

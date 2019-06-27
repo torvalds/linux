@@ -114,11 +114,13 @@ static struct key *find_ge_key(struct seq_file *p, key_serial_t id)
 }
 
 static void *proc_keys_start(struct seq_file *p, loff_t *_pos)
+	__acquires(rcu)
 	__acquires(key_serial_lock)
 {
 	key_serial_t pos = *_pos;
 	struct key *key;
 
+	rcu_read_lock();
 	spin_lock(&key_serial_lock);
 
 	if (*_pos > INT_MAX)
@@ -148,12 +150,15 @@ static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos)
 
 static void proc_keys_stop(struct seq_file *p, void *v)
 	__releases(key_serial_lock)
+	__releases(rcu)
 {
 	spin_unlock(&key_serial_lock);
+	rcu_read_unlock();
 }
 
 static int proc_keys_show(struct seq_file *m, void *v)
 {
+	const struct key_acl *acl;
 	struct rb_node *_p = v;
 	struct key *key = rb_entry(_p, struct key, serial_node);
 	unsigned long flags;
@@ -161,6 +166,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	time64_t now, expiry;
 	char xbuf[16];
 	short state;
+	bool check_pos;
 	u64 timo;
 	int rc;
 
@@ -174,15 +180,15 @@ static int proc_keys_show(struct seq_file *m, void *v)
 					   KEYRING_SEARCH_RECURSE),
 	};
 
-	key_ref = make_key_ref(key, 0);
+	acl = rcu_dereference(key->acl);
+	check_pos = acl->possessor_viewable;
 
 	/* determine if the key is possessed by this process (a test we can
 	 * skip if the key does not indicate the possessor can view it
 	 */
-	if (key->perm & KEY_POS_VIEW) {
-		rcu_read_lock();
+	key_ref = make_key_ref(key, 0);
+	if (check_pos) {
 		skey_ref = search_cred_keyrings_rcu(&ctx);
-		rcu_read_unlock();
 		if (!IS_ERR(skey_ref)) {
 			key_ref_put(skey_ref);
 			key_ref = make_key_ref(key, 1);
@@ -192,11 +198,9 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	/* check whether the current task is allowed to view the key */
 	rc = key_task_permission(key_ref, ctx.cred, KEY_NEED_VIEW);
 	if (rc < 0)
-		return 0;
+		goto out;
 
 	now = ktime_get_real_seconds();
-
-	rcu_read_lock();
 
 	/* come up with a suitable timeout value */
 	expiry = READ_ONCE(key->expiry);
@@ -236,7 +240,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		   showflag(flags, 'i', KEY_FLAG_INVALIDATED),
 		   refcount_read(&key->usage),
 		   xbuf,
-		   key->perm,
+		   key_acl_to_perm(acl),
 		   from_kuid_munged(seq_user_ns(m), key->uid),
 		   from_kgid_munged(seq_user_ns(m), key->gid),
 		   key->type->name);
@@ -247,7 +251,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		key->type->describe(key, m);
 	seq_putc(m, '\n');
 
-	rcu_read_unlock();
+out:
 	return 0;
 }
 

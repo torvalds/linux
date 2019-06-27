@@ -14,6 +14,15 @@
 #include <linux/slab.h>
 #include "../integrity.h"
 
+static struct key_acl platform_key_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.nr_ace	= 2,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE_SEARCH | KEY_ACE_READ),
+		KEY_OWNER_ACE(KEY_ACE_VIEW),
+	}
+};
+
 /**
  * add_to_platform_keyring - Add to platform keyring without validation.
  * @source: Source of key
@@ -26,13 +35,10 @@
 void __init add_to_platform_keyring(const char *source, const void *data,
 				    size_t len)
 {
-	key_perm_t perm;
 	int rc;
 
-	perm = (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW;
-
 	rc = integrity_load_cert(INTEGRITY_KEYRING_PLATFORM, source, data, len,
-				 perm);
+				 &platform_key_acl);
 	if (rc)
 		pr_info("Error adding keys to platform keyring %s\n", source);
 }

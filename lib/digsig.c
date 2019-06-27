@@ -227,7 +227,7 @@ int digsig_verify(struct key *keyring, const char *sig, int siglen,
 		else
 			key = key_ref_to_ptr(kref);
 	} else {
-		key = request_key(&key_type_user, name, NULL);
+		key = request_key(&key_type_user, name, NULL, NULL);
 	}
 	if (IS_ERR(key)) {
 		pr_err("key not found, id: %s\n", name);

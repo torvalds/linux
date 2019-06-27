@@ -11,14 +11,16 @@ The process starts by either the kernel requesting a service by calling
 
 	struct key *request_key(const struct key_type *type,
 				const char *description,
-				const char *callout_info);
+				const char *callout_info,
+				struct key_acl *acl);
 
 or::
 
 	struct key *request_key_tag(const struct key_type *type,
 				    const char *description,
 				    const struct key_tag *domain_tag,
-				    const char *callout_info);
+				    const char *callout_info,
+				    struct key_acl *acl);
 
 or::
 
@@ -27,7 +29,8 @@ or::
 					     const struct key_tag *domain_tag,
 					     const char *callout_info,
 					     size_t callout_len,
-					     void *aux);
+					     void *aux,
+					     struct key_acl *acl);
 
 or::
 
