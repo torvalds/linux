@@ -966,7 +966,6 @@ void bch2_write(struct closure *cl)
 	BUG_ON(!op->nr_replicas);
 	BUG_ON(!op->write_point.v);
 	BUG_ON(!bkey_cmp(op->pos, POS_MAX));
-	BUG_ON(bio_sectors(&op->wbio.bio) > U16_MAX);
 
 	op->start_time = local_clock();
 
