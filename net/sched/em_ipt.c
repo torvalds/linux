@@ -72,10 +72,24 @@ static int policy_validate_match_data(struct nlattr **tb, u8 mrev)
 	return 0;
 }
 
+static int addrtype_validate_match_data(struct nlattr **tb, u8 mrev)
+{
+	if (mrev != 1) {
+		pr_err("only addrtype match revision 1 supported");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct em_ipt_xt_match em_ipt_xt_matches[] = {
 	{
 		.match_name = "policy",
 		.validate_match_data = policy_validate_match_data
+	},
+	{
+		.match_name = "addrtype",
+		.validate_match_data = addrtype_validate_match_data
 	},
 	{}
 };
