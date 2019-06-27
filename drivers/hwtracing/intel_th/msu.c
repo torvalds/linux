@@ -189,17 +189,18 @@ static struct msc_window *msc_next_window(struct msc_window *win)
 }
 
 /**
- * msc_oldest_window() - locate the window with oldest data
+ * msc_find_window() - find a window matching a given sg_table
  * @msc:	MSC device
+ * @sgt:	SG table of the window
+ * @nonempty:	skip over empty windows
  *
- * This should only be used in multiblock mode. Caller should hold the
- * msc::user_count reference.
- *
- * Return:	the oldest window with valid data
+ * Return:	MSC window structure pointer or NULL if the window
+ *		could not be found.
  */
-static struct msc_window *msc_oldest_window(struct msc *msc)
+static struct msc_window *
+msc_find_window(struct msc *msc, struct sg_table *sgt, bool nonempty)
 {
-	struct msc_window *win, *next = msc_next_window(msc->cur_win);
+	struct msc_window *win;
 	unsigned int found = 0;
 
 	if (list_empty(&msc->win_list))
@@ -211,16 +212,39 @@ static struct msc_window *msc_oldest_window(struct msc *msc)
 	 * something like 2, in which case we're good
 	 */
 	list_for_each_entry(win, &msc->win_list, entry) {
-		if (win == next)
+		if (win->sgt == sgt)
 			found++;
 
 		/* skip the empty ones */
-		if (msc_block_is_empty(msc_win_block(win, 0)))
+		if (nonempty && msc_block_is_empty(msc_win_block(win, 0)))
 			continue;
 
 		if (found)
 			return win;
 	}
+
+	return NULL;
+}
+
+/**
+ * msc_oldest_window() - locate the window with oldest data
+ * @msc:	MSC device
+ *
+ * This should only be used in multiblock mode. Caller should hold the
+ * msc::user_count reference.
+ *
+ * Return:	the oldest window with valid data
+ */
+static struct msc_window *msc_oldest_window(struct msc *msc)
+{
+	struct msc_window *win;
+
+	if (list_empty(&msc->win_list))
+		return NULL;
+
+	win = msc_find_window(msc, msc_next_window(msc->cur_win)->sgt, true);
+	if (win)
+		return win;
 
 	return list_first_entry(&msc->win_list, struct msc_window, entry);
 }
