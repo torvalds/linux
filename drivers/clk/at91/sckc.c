@@ -596,7 +596,6 @@ static void __init of_sama5d4_sckc_setup(struct device_node *np)
 	osc->startup_usec = 1200000;
 	osc->bits = &at91sama5d4_bits;
 
-	hw = &osc->hw;
 	ret = clk_hw_register(NULL, &osc->hw);
 	if (ret) {
 		kfree(osc);
