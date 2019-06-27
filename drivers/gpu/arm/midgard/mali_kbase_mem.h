@@ -129,8 +129,6 @@ struct kbase_mem_phy_alloc {
 
 	unsigned long properties;
 
-	struct list_head       zone_cache;
-
 	/* member in union valid based on @a type */
 	union {
 #ifdef CONFIG_UMP
@@ -386,7 +384,6 @@ static inline struct kbase_mem_phy_alloc *kbase_alloc_create(size_t nr_pages, en
 	alloc->pages = (void *)(alloc + 1);
 	INIT_LIST_HEAD(&alloc->mappings);
 	alloc->type = type;
-	INIT_LIST_HEAD(&alloc->zone_cache);
 
 	if (type == KBASE_MEM_TYPE_IMPORTED_USER_BUF)
 		alloc->imported.user_buf.dma_addrs =
@@ -1067,38 +1064,5 @@ bool kbase_sticky_resource_release(struct kbase_context *kctx,
  * @kctx: kbase context
  */
 void kbase_sticky_resource_term(struct kbase_context *kctx);
-
-/**
- * kbase_zone_cache_update - Update the memory zone cache after new pages have
- * been added.
- * @alloc:        The physical memory allocation to build the cache for.
- * @start_offset: Offset to where the new pages start.
- *
- * Updates an existing memory zone cache, updating the counters for the
- * various zones.
- * If the memory allocation doesn't already have a zone cache assume that
- * one isn't created and thus don't do anything.
- *
- * Return: Zero cache was updated, negative error code on error.
- */
-int kbase_zone_cache_update(struct kbase_mem_phy_alloc *alloc,
-		size_t start_offset);
-
-/**
- * kbase_zone_cache_build - Build the memory zone cache.
- * @alloc:        The physical memory allocation to build the cache for.
- *
- * Create a new zone cache for the provided physical memory allocation if
- * one doesn't already exist, if one does exist then just return.
- *
- * Return: Zero if the zone cache was created, negative error code on error.
- */
-int kbase_zone_cache_build(struct kbase_mem_phy_alloc *alloc);
-
-/**
- * kbase_zone_cache_clear - Clear the memory zone cache.
- * @alloc:        The physical memory allocation to clear the cache on.
- */
-void kbase_zone_cache_clear(struct kbase_mem_phy_alloc *alloc);
 
 #endif				/* _KBASE_MEM_H_ */

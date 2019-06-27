@@ -1432,15 +1432,6 @@ int kbase_alloc_phy_pages_helper(
 			nr_pages_requested, alloc->pages + old_page_count) != 0)
 		goto no_alloc;
 
-	/*
-	 * Request a zone cache update, this scans only the new pages an
-	 * appends their information to the zone cache. if the update
-	 * fails then clear the cache so we fall-back to doing things
-	 * page by page.
-	 */
-	if (kbase_zone_cache_update(alloc, old_page_count) != 0)
-		kbase_zone_cache_clear(alloc);
-
 	KBASE_TLSTREAM_AUX_PAGESALLOC(
 			(u32)alloc->imported.kctx->id,
 			(u64)new_page_count);
@@ -1478,14 +1469,6 @@ int kbase_free_phy_pages_helper(
 	start_free = alloc->pages + alloc->nents - nr_pages_to_free;
 
 	syncback = alloc->properties & KBASE_MEM_PHY_ALLOC_ACCESSED_CACHED;
-
-	/*
-	 * Clear the zone cache, we don't expect JIT allocations to be
-	 * shrunk in parts so there is no point trying to optimize for that
-	 * by scanning for the changes caused by freeing this memory and
-	 * updating the existing cache entries.
-	 */
-	kbase_zone_cache_clear(alloc);
 
 	kbase_mem_pool_free_pages(&kctx->mem_pool,
 				  nr_pages_to_free,
