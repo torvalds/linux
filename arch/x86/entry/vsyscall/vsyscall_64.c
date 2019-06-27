@@ -117,7 +117,8 @@ static bool write_ok_or_segv(unsigned long ptr, size_t size)
 	}
 }
 
-bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
+bool emulate_vsyscall(unsigned long error_code,
+		      struct pt_regs *regs, unsigned long address)
 {
 	struct task_struct *tsk;
 	unsigned long caller;
@@ -125,6 +126,22 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	int prev_sig_on_uaccess_err;
 	long ret;
 	unsigned long orig_dx;
+
+	/* Write faults or kernel-privilege faults never get fixed up. */
+	if ((error_code & (X86_PF_WRITE | X86_PF_USER)) != X86_PF_USER)
+		return false;
+
+	if (!(error_code & X86_PF_INSTR)) {
+		/* Failed vsyscall read */
+		if (vsyscall_mode == EMULATE)
+			return false;
+
+		/*
+		 * User code tried and failed to read the vsyscall page.
+		 */
+		warn_bad_vsyscall(KERN_INFO, regs, "vsyscall read attempt denied -- look up the vsyscall kernel parameter if you need a workaround");
+		return false;
+	}
 
 	/*
 	 * No point in checking CS -- the only way to get here is a user mode

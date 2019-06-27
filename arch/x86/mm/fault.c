@@ -1369,16 +1369,15 @@ void do_user_addr_fault(struct pt_regs *regs,
 
 #ifdef CONFIG_X86_64
 	/*
-	 * Instruction fetch faults in the vsyscall page might need
-	 * emulation.  The vsyscall page is at a high address
-	 * (>PAGE_OFFSET), but is considered to be part of the user
-	 * address space.
+	 * Faults in the vsyscall page might need emulation.  The
+	 * vsyscall page is at a high address (>PAGE_OFFSET), but is
+	 * considered to be part of the user address space.
 	 *
 	 * The vsyscall page does not have a "real" VMA, so do this
 	 * emulation before we go searching for VMAs.
 	 */
-	if ((hw_error_code & X86_PF_INSTR) && is_vsyscall_vaddr(address)) {
-		if (emulate_vsyscall(regs, address))
+	if (is_vsyscall_vaddr(address)) {
+		if (emulate_vsyscall(hw_error_code, regs, address))
 			return;
 	}
 #endif
