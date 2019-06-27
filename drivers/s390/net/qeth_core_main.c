@@ -756,7 +756,7 @@ static void qeth_cancel_cmd(struct qeth_cmd_buffer *iob, int rc)
 	qeth_release_buffer(iob);
 }
 
-struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel)
+static struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel)
 {
 	struct qeth_cmd_buffer *buffer = NULL;
 	unsigned long flags;
@@ -766,11 +766,10 @@ struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel)
 	spin_unlock_irqrestore(&channel->iob_lock, flags);
 	return buffer;
 }
-EXPORT_SYMBOL_GPL(qeth_get_buffer);
 
-static struct qeth_cmd_buffer *qeth_alloc_cmd(struct qeth_channel *channel,
-					      unsigned int length,
-					      unsigned int ccws, long timeout)
+struct qeth_cmd_buffer *qeth_alloc_cmd(struct qeth_channel *channel,
+				       unsigned int length, unsigned int ccws,
+				       long timeout)
 {
 	struct qeth_cmd_buffer *iob;
 
@@ -795,6 +794,7 @@ static struct qeth_cmd_buffer *qeth_alloc_cmd(struct qeth_channel *channel,
 	iob->length = length;
 	return iob;
 }
+EXPORT_SYMBOL_GPL(qeth_alloc_cmd);
 
 void qeth_clear_cmd_buffers(struct qeth_channel *channel)
 {
@@ -2804,6 +2804,25 @@ struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *card,
 }
 EXPORT_SYMBOL_GPL(qeth_get_ipacmd_buffer);
 
+struct qeth_cmd_buffer *qeth_ipa_alloc_cmd(struct qeth_card *card,
+					   enum qeth_ipa_cmds cmd_code,
+					   enum qeth_prot_versions prot,
+					   unsigned int data_length)
+{
+	struct qeth_cmd_buffer *iob;
+
+	data_length += offsetof(struct qeth_ipa_cmd, data);
+	iob = qeth_alloc_cmd(&card->write, IPA_PDU_HEADER_SIZE + data_length, 1,
+			     QETH_IPA_TIMEOUT);
+	if (!iob)
+		return NULL;
+
+	qeth_prepare_ipa_cmd(card, iob, data_length);
+	qeth_fill_ipacmd_header(card, __ipa_cmd(iob), cmd_code, prot);
+	return iob;
+}
+EXPORT_SYMBOL_GPL(qeth_ipa_alloc_cmd);
+
 static int qeth_send_ipa_cmd_cb(struct qeth_card *card,
 				struct qeth_reply *reply, unsigned long data)
 {
@@ -2862,7 +2881,7 @@ static int qeth_send_startlan(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 2, "strtlan");
 
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_STARTLAN, 0);
+	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_STARTLAN, QETH_PROT_NONE, 0);
 	if (!iob)
 		return -ENOMEM;
 	return qeth_send_ipa_cmd(card, iob, qeth_send_startlan_cb, NULL);
@@ -2971,7 +2990,7 @@ static int qeth_query_ipassists(struct qeth_card *card,
 	struct qeth_cmd_buffer *iob;
 
 	QETH_CARD_TEXT_(card, 2, "qipassi%i", prot);
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_QIPASSIST, prot);
+	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_QIPASSIST, prot, 0);
 	if (!iob)
 		return -ENOMEM;
 	rc = qeth_send_ipa_cmd(card, iob, qeth_query_ipassists_cb, NULL);

@@ -377,7 +377,8 @@ static int qeth_l3_send_setdelmc(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "setdelmc");
 
-	iob = qeth_get_ipacmd_buffer(card, ipacmd, addr->proto);
+	iob = qeth_ipa_alloc_cmd(card, ipacmd, addr->proto,
+				 IPA_DATA_SIZEOF(setdelipm));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -429,7 +430,8 @@ static int qeth_l3_send_setdelip(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "setdelip");
 
-	iob = qeth_get_ipacmd_buffer(card, ipacmd, addr->proto);
+	iob = qeth_ipa_alloc_cmd(card, ipacmd, addr->proto,
+				 IPA_DATA_SIZEOF(setdelip6));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -461,7 +463,8 @@ static int qeth_l3_send_setrouting(struct qeth_card *card,
 	struct qeth_cmd_buffer *iob;
 
 	QETH_CARD_TEXT(card, 4, "setroutg");
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETRTG, prot);
+	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_SETRTG, prot,
+				 IPA_DATA_SIZEOF(setrtg));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -981,8 +984,8 @@ static int qeth_l3_iqd_read_initial_mac(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 2, "hsrmac");
 
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_CREATE_ADDR,
-				     QETH_PROT_IPV6);
+	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_CREATE_ADDR, QETH_PROT_IPV6,
+				 IPA_DATA_SIZEOF(create_destroy_addr));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -1025,8 +1028,8 @@ static int qeth_l3_get_unique_id(struct qeth_card *card)
 		return 0;
 	}
 
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_CREATE_ADDR,
-				     QETH_PROT_IPV6);
+	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_CREATE_ADDR, QETH_PROT_IPV6,
+				 IPA_DATA_SIZEOF(create_destroy_addr));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);

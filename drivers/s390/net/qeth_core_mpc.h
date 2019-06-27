@@ -806,6 +806,8 @@ struct qeth_ipa_cmd {
 	} data;
 } __attribute__ ((packed));
 
+#define IPA_DATA_SIZEOF(field)	FIELD_SIZEOF(struct qeth_ipa_cmd, data.field)
+
 /*
  * special command for ARP processing.
  * this is not included in setassparms command before, because we get

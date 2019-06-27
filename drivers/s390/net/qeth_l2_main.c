@@ -85,7 +85,8 @@ static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
 	struct qeth_cmd_buffer *iob;
 
 	QETH_CARD_TEXT(card, 2, "L2sdmac");
-	iob = qeth_get_ipacmd_buffer(card, ipacmd, QETH_PROT_IPV4);
+	iob = qeth_ipa_alloc_cmd(card, ipacmd, QETH_PROT_IPV4,
+				 IPA_DATA_SIZEOF(setdelmac));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -240,7 +241,8 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 	struct qeth_cmd_buffer *iob;
 
 	QETH_CARD_TEXT_(card, 4, "L2sdv%x", ipacmd);
-	iob = qeth_get_ipacmd_buffer(card, ipacmd, QETH_PROT_IPV4);
+	iob = qeth_ipa_alloc_cmd(card, ipacmd, QETH_PROT_IPV4,
+				 IPA_DATA_SIZEOF(setdelvlan));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -1040,6 +1042,8 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	struct qeth_cmd_buffer *iob;
 	struct qeth_card *card;
 
+	if (data_len < 0)
+		return -EINVAL;
 	if (!dev)
 		return -ENODEV;
 	card = dev->ml_priv;
@@ -1048,7 +1052,9 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	QETH_CARD_TEXT(card, 2, "osnsdmc");
 	if (!qeth_card_hw_is_reachable(card))
 		return -ENODEV;
-	iob = qeth_get_buffer(&card->write);
+
+	iob = qeth_alloc_cmd(&card->write, IPA_PDU_HEADER_SIZE + data_len, 1,
+			     QETH_IPA_TIMEOUT);
 	if (!iob)
 		return -ENOMEM;
 
