@@ -9,68 +9,11 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include "mgag200_drv.h"
 
-static void mga_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct mga_framebuffer *mga_fb = to_mga_framebuffer(fb);
-
-	drm_gem_object_put_unlocked(mga_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
-}
-
-static const struct drm_framebuffer_funcs mga_fb_funcs = {
-	.destroy = mga_user_framebuffer_destroy,
-};
-
-int mgag200_framebuffer_init(struct drm_device *dev,
-			     struct mga_framebuffer *gfb,
-			     const struct drm_mode_fb_cmd2 *mode_cmd,
-			     struct drm_gem_object *obj)
-{
-	int ret;
-
-	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
-	gfb->obj = obj;
-	ret = drm_framebuffer_init(dev, &gfb->base, &mga_fb_funcs);
-	if (ret) {
-		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-static struct drm_framebuffer *
-mgag200_user_framebuffer_create(struct drm_device *dev,
-				struct drm_file *filp,
-				const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct drm_gem_object *obj;
-	struct mga_framebuffer *mga_fb;
-	int ret;
-
-	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (obj == NULL)
-		return ERR_PTR(-ENOENT);
-
-	mga_fb = kzalloc(sizeof(*mga_fb), GFP_KERNEL);
-	if (!mga_fb) {
-		drm_gem_object_put_unlocked(obj);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	ret = mgag200_framebuffer_init(dev, mga_fb, mode_cmd, obj);
-	if (ret) {
-		drm_gem_object_put_unlocked(obj);
-		kfree(mga_fb);
-		return ERR_PTR(ret);
-	}
-	return &mga_fb->base;
-}
-
 static const struct drm_mode_config_funcs mga_mode_funcs = {
-	.fb_create = mgag200_user_framebuffer_create,
+	.fb_create = drm_gem_fb_create
 };
 
 static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)

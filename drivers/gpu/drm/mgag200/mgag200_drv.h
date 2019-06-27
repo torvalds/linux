@@ -100,16 +100,9 @@
 #define to_mga_crtc(x) container_of(x, struct mga_crtc, base)
 #define to_mga_encoder(x) container_of(x, struct mga_encoder, base)
 #define to_mga_connector(x) container_of(x, struct mga_connector, base)
-#define to_mga_framebuffer(x) container_of(x, struct mga_framebuffer, base)
-
-struct mga_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
-};
 
 struct mga_fbdev {
 	struct drm_fb_helper helper; /* must be first */
-	struct mga_framebuffer mfb;
 	void *sysram;
 	int size;
 	int x1, y1, x2, y2; /* dirty rect */
@@ -215,12 +208,6 @@ int mgag200_fbdev_init(struct mga_device *mdev);
 void mgag200_fbdev_fini(struct mga_device *mdev);
 
 				/* mgag200_main.c */
-int mgag200_framebuffer_init(struct drm_device *dev,
-			     struct mga_framebuffer *mfb,
-			     const struct drm_mode_fb_cmd2 *mode_cmd,
-			     struct drm_gem_object *obj);
-
-
 int mgag200_driver_load(struct drm_device *dev, unsigned long flags);
 void mgag200_driver_unload(struct drm_device *dev);
 int mgag200_gem_create(struct drm_device *dev,
