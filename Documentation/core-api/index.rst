@@ -35,6 +35,7 @@ Core utilities
    boot-time-mm
    memory-hotplug
    protection-keys
+   ../RCU/index
 
 
 Interfaces for kernel debugging
