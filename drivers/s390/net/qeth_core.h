@@ -60,7 +60,7 @@ struct qeth_dbf_info {
 	debug_info_t *id;
 };
 
-#define QETH_DBF_CTRL_LEN 256
+#define QETH_DBF_CTRL_LEN 256U
 
 #define QETH_DBF_TEXT(name, level, text) \
 	debug_text_event(qeth_dbf[QETH_DBF_##name].id, level, text)
@@ -525,11 +525,6 @@ struct qeth_qdio_info {
 };
 
 /**
- * buffer stuff for read channel
- */
-#define QETH_CMD_BUFFER_NO	8
-
-/**
  *  channel state machine
  */
 enum qeth_channel_states {
@@ -556,12 +551,6 @@ enum qeth_prot_versions {
 	QETH_PROT_IPV6 = 0x0006,
 };
 
-enum qeth_cmd_buffer_state {
-	BUF_STATE_FREE,
-	BUF_STATE_LOCKED,
-	BUF_STATE_MALLOC,
-};
-
 enum qeth_cq {
 	QETH_CQ_DISABLED = 0,
 	QETH_CQ_ENABLED = 1,
@@ -575,18 +564,20 @@ struct qeth_ipato {
 	struct list_head entries;
 };
 
-struct qeth_channel;
+struct qeth_channel {
+	struct ccw_device *ccwdev;
+	enum qeth_channel_states state;
+	atomic_t irq_pending;
+};
 
 struct qeth_cmd_buffer {
-	enum qeth_cmd_buffer_state state;
 	unsigned int length;
 	refcount_t ref_count;
 	struct qeth_channel *channel;
 	struct qeth_reply *reply;
 	long timeout;
 	unsigned char *data;
-	void (*finalize)(struct qeth_card *card, struct qeth_cmd_buffer *iob,
-			 unsigned int length);
+	void (*finalize)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
 	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
 };
 
@@ -600,25 +591,8 @@ static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
 	return (struct qeth_ipa_cmd *)(iob->data + IPA_PDU_HEADER_SIZE);
 }
 
-/**
- * definition of a qeth channel, used for read and write
- */
-struct qeth_channel {
-	enum qeth_channel_states state;
-	struct ccw1 *ccw;
-	spinlock_t iob_lock;
-	wait_queue_head_t wait_q;
-	struct ccw_device *ccwdev;
-/*command buffer for control data*/
-	struct qeth_cmd_buffer iob[QETH_CMD_BUFFER_NO];
-	atomic_t irq_pending;
-	int io_buf_no;
-};
-
 static inline struct ccw1 *__ccw_from_cmd(struct qeth_cmd_buffer *iob)
 {
-	if (iob->state != BUF_STATE_MALLOC)
-		return iob->channel->ccw;
 	return (struct ccw1 *)(iob->data + ALIGN(iob->length, 8));
 }
 
@@ -994,8 +968,6 @@ int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 		  int (*reply_cb)
 		  (struct qeth_card *, struct qeth_reply *, unsigned long),
 		  void *);
-struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *,
-			enum qeth_ipa_cmds, enum qeth_prot_versions);
 struct qeth_cmd_buffer *qeth_ipa_alloc_cmd(struct qeth_card *card,
 					   enum qeth_ipa_cmds cmd_code,
 					   enum qeth_prot_versions prot,
@@ -1011,6 +983,7 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 struct qeth_cmd_buffer *qeth_get_diag_cmd(struct qeth_card *card,
 					  enum qeth_diags_cmds sub_cmd,
 					  unsigned int data_length);
+void qeth_put_cmd(struct qeth_cmd_buffer *iob);
 
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qeth_qdio_buffer *, struct qdio_buffer_element **, int *,
@@ -1020,12 +993,10 @@ int qeth_poll(struct napi_struct *napi, int budget);
 void qeth_clear_ipacmd_list(struct qeth_card *);
 int qeth_qdio_clear_card(struct qeth_card *, int);
 void qeth_clear_working_pool_list(struct qeth_card *);
-void qeth_clear_cmd_buffers(struct qeth_channel *);
 void qeth_drain_output_queues(struct qeth_card *card);
 void qeth_setadp_promisc_mode(struct qeth_card *);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *);
-void qeth_release_buffer(struct qeth_cmd_buffer *iob);
 void qeth_notify_reply(struct qeth_reply *reply, int reason);
 void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			  u16 cmd_length);
