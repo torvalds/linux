@@ -6724,15 +6724,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->cp_cmd = RTL_R16(tp, CPlusCmd);
 
 	if (sizeof(dma_addr_t) > 4 && tp->mac_version >= RTL_GIGA_MAC_VER_18 &&
-	    !dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
+	    !dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
 		dev->features |= NETIF_F_HIGHDMA;
-	} else {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc < 0) {
-			dev_err(&pdev->dev, "DMA configuration failed\n");
-			return rc;
-		}
-	}
 
 	rtl_init_rxcfg(tp);
 
