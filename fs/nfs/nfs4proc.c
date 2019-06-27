@@ -1165,6 +1165,18 @@ static bool nfs4_clear_cap_atomic_open_v1(struct nfs_server *server,
 	return true;
 }
 
+static fmode_t _nfs4_ctx_to_accessmode(const struct nfs_open_context *ctx)
+{
+	 return ctx->mode & (FMODE_READ|FMODE_WRITE|FMODE_EXEC);
+}
+
+static fmode_t _nfs4_ctx_to_openmode(const struct nfs_open_context *ctx)
+{
+	fmode_t ret = ctx->mode & (FMODE_READ|FMODE_WRITE);
+
+	return (ctx->mode & FMODE_EXEC) ? FMODE_READ | ret : ret;
+}
+
 static u32
 nfs4_map_atomic_open_share(struct nfs_server *server,
 		fmode_t fmode, int openflags)
@@ -2900,14 +2912,13 @@ static unsigned nfs4_exclusive_attrset(struct nfs4_opendata *opendata,
 }
 
 static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
-		fmode_t fmode,
-		int flags,
-		struct nfs_open_context *ctx)
+		int flags, struct nfs_open_context *ctx)
 {
 	struct nfs4_state_owner *sp = opendata->owner;
 	struct nfs_server *server = sp->so_server;
 	struct dentry *dentry;
 	struct nfs4_state *state;
+	fmode_t acc_mode = _nfs4_ctx_to_accessmode(ctx);
 	unsigned int seq;
 	int ret;
 
@@ -2946,7 +2957,8 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	/* Parse layoutget results before we check for access */
 	pnfs_parse_lgopen(state->inode, opendata->lgp, ctx);
 
-	ret = nfs4_opendata_access(sp->so_cred, opendata, state, fmode, flags);
+	ret = nfs4_opendata_access(sp->so_cred, opendata, state,
+			acc_mode, flags);
 	if (ret != 0)
 		goto out;
 
@@ -2978,7 +2990,7 @@ static int _nfs4_do_open(struct inode *dir,
 	struct dentry *dentry = ctx->dentry;
 	const struct cred *cred = ctx->cred;
 	struct nfs4_threshold **ctx_th = &ctx->mdsthreshold;
-	fmode_t fmode = ctx->mode & (FMODE_READ|FMODE_WRITE|FMODE_EXEC);
+	fmode_t fmode = _nfs4_ctx_to_openmode(ctx);
 	enum open_claim_type4 claim = NFS4_OPEN_CLAIM_NULL;
 	struct iattr *sattr = c->sattr;
 	struct nfs4_label *label = c->label;
@@ -3024,7 +3036,7 @@ static int _nfs4_do_open(struct inode *dir,
 	if (d_really_is_positive(dentry))
 		opendata->state = nfs4_get_open_state(d_inode(dentry), sp);
 
-	status = _nfs4_open_and_get_state(opendata, fmode, flags, ctx);
+	status = _nfs4_open_and_get_state(opendata, flags, ctx);
 	if (status != 0)
 		goto err_free_label;
 	state = ctx->state;
@@ -3594,9 +3606,9 @@ static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 	if (ctx->state == NULL)
 		return;
 	if (is_sync)
-		nfs4_close_sync(ctx->state, ctx->mode);
+		nfs4_close_sync(ctx->state, _nfs4_ctx_to_openmode(ctx));
 	else
-		nfs4_close_state(ctx->state, ctx->mode);
+		nfs4_close_state(ctx->state, _nfs4_ctx_to_openmode(ctx));
 }
 
 #define FATTR4_WORD1_NFS40_MASK (2*FATTR4_WORD1_MOUNTED_ON_FILEID - 1UL)
