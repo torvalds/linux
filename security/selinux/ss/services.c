@@ -1584,6 +1584,7 @@ static int compute_sid_handle_invalid_context(
 	struct policydb *policydb = &state->ss->policydb;
 	char *s = NULL, *t = NULL, *n = NULL;
 	u32 slen, tlen, nlen;
+	struct audit_buffer *ab;
 
 	if (context_struct_to_string(policydb, scontext, &s, &slen))
 		goto out;
@@ -1591,12 +1592,14 @@ static int compute_sid_handle_invalid_context(
 		goto out;
 	if (context_struct_to_string(policydb, newcontext, &n, &nlen))
 		goto out;
-	audit_log(audit_context(), GFP_ATOMIC, AUDIT_SELINUX_ERR,
-		  "op=security_compute_sid invalid_context=%s"
-		  " scontext=%s"
-		  " tcontext=%s"
-		  " tclass=%s",
-		  n, s, t, sym_name(policydb, SYM_CLASSES, tclass-1));
+	ab = audit_log_start(audit_context(), GFP_ATOMIC, AUDIT_SELINUX_ERR);
+	audit_log_format(ab,
+			 "op=security_compute_sid invalid_context=");
+	/* no need to record the NUL with untrusted strings */
+	audit_log_n_untrustedstring(ab, n, nlen - 1);
+	audit_log_format(ab, " scontext=%s tcontext=%s tclass=%s",
+			 s, t, sym_name(policydb, SYM_CLASSES, tclass-1));
+	audit_log_end(ab);
 out:
 	kfree(s);
 	kfree(t);
@@ -3003,10 +3006,16 @@ int security_sid_mls_copy(struct selinux_state *state,
 		if (rc) {
 			if (!context_struct_to_string(policydb, &newcon, &s,
 						      &len)) {
-				audit_log(audit_context(),
-					  GFP_ATOMIC, AUDIT_SELINUX_ERR,
-					  "op=security_sid_mls_copy "
-					  "invalid_context=%s", s);
+				struct audit_buffer *ab;
+
+				ab = audit_log_start(audit_context(),
+						     GFP_ATOMIC,
+						     AUDIT_SELINUX_ERR);
+				audit_log_format(ab,
+						 "op=security_sid_mls_copy invalid_context=");
+				/* don't record NUL with untrusted strings */
+				audit_log_n_untrustedstring(ab, s, len - 1);
+				audit_log_end(ab);
 				kfree(s);
 			}
 			goto out_unlock;
