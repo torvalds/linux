@@ -599,6 +599,11 @@ struct qeth_ipacmd_diagass {
 	__u8   cdata[64];
 } __attribute__ ((packed));
 
+#define DIAG_HDR_LEN		offsetofend(struct qeth_ipacmd_diagass, ext)
+#define DIAG_SUB_HDR_LEN	(offsetofend(struct qeth_ipacmd_diagass, ext) -\
+				 offsetof(struct qeth_ipacmd_diagass, \
+					  subcmd_len))
+
 /* VNIC Characteristics IPA Command: *****************************************/
 /* IPA commands/sub commands for VNICC */
 #define IPA_VNICC_QUERY_CHARS		0x00000000L
