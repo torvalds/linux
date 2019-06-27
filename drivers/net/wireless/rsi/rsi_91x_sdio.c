@@ -844,11 +844,11 @@ static int rsi_init_sdio_interface(struct rsi_hw *adapter,
 				   struct sdio_func *pfunction)
 {
 	struct rsi_91x_sdiodev *rsi_91x_dev;
-	int status = -ENOMEM;
+	int status;
 
 	rsi_91x_dev = kzalloc(sizeof(*rsi_91x_dev), GFP_KERNEL);
 	if (!rsi_91x_dev)
-		return status;
+		return -ENOMEM;
 
 	adapter->rsi_dev = rsi_91x_dev;
 
@@ -890,7 +890,7 @@ static int rsi_init_sdio_interface(struct rsi_hw *adapter,
 #ifdef CONFIG_RSI_DEBUGFS
 	adapter->num_debugfs_entries = MAX_DEBUGFS_ENTRIES;
 #endif
-	return status;
+	return 0;
 fail:
 	sdio_disable_func(pfunction);
 	sdio_release_host(pfunction);
