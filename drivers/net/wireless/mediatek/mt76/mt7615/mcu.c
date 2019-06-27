@@ -713,7 +713,7 @@ mt7615_mcu_bss_info_ext_header(struct mt7615_vif *mvif, u8 *data)
 /* SIFS 20us + 512 byte beacon tranmitted by 1Mbps (3906us) */
 #define BCN_TX_ESTIMATE_TIME (4096 + 20)
 	struct bss_info_ext_bss *hdr = (struct bss_info_ext_bss *)data;
-	int ext_bss_idx;
+	int ext_bss_idx, tsf_offset;
 
 	ext_bss_idx = mvif->omac_idx - EXT_BSSID_START;
 	if (ext_bss_idx < 0)
@@ -721,7 +721,8 @@ mt7615_mcu_bss_info_ext_header(struct mt7615_vif *mvif, u8 *data)
 
 	hdr->tag = cpu_to_le16(BSS_INFO_EXT_BSS);
 	hdr->len = cpu_to_le16(sizeof(struct bss_info_ext_bss));
-	hdr->mbss_tsf_offset = ext_bss_idx * BCN_TX_ESTIMATE_TIME;
+	tsf_offset = ext_bss_idx * BCN_TX_ESTIMATE_TIME;
+	hdr->mbss_tsf_offset = cpu_to_le32(tsf_offset);
 }
 
 int mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
