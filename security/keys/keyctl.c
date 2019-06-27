@@ -41,7 +41,8 @@ static const unsigned char keyrings_capabilities[2] = {
 	       KEYCTL_CAPS0_MOVE
 	       ),
 	[1] = (KEYCTL_CAPS1_NS_KEYRING_NAME |
-	       KEYCTL_CAPS1_NS_KEY_TAG),
+	       KEYCTL_CAPS1_NS_KEY_TAG |
+	       KEYCTL_CAPS1_ACL_ALTERABLE),
 };
 
 static int key_get_type_from_user(char *type,
@@ -1891,6 +1892,11 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 					   (key_serial_t)arg3,
 					   (key_serial_t)arg4,
 					   (unsigned int)arg5);
+	case KEYCTL_GRANT_PERMISSION:
+		return keyctl_grant_permission((key_serial_t)arg2,
+					       (enum key_ace_subject_type)arg3,
+					       (unsigned int)arg4,
+					       (unsigned int)arg5);
 
 	case KEYCTL_CAPABILITIES:
 		return keyctl_capabilities((unsigned char __user *)arg2, (size_t)arg3);

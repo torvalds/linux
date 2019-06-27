@@ -342,6 +342,11 @@ static inline long keyctl_pkey_e_d_s(int op,
 
 extern long keyctl_capabilities(unsigned char __user *_buffer, size_t buflen);
 
+extern long keyctl_grant_permission(key_serial_t keyid,
+				    enum key_ace_subject_type type,
+				    unsigned int subject,
+				    unsigned int perm);
+
 /*
  * Debugging key validation
  */

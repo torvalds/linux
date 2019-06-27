@@ -278,3 +278,122 @@ long key_set_acl(struct key *key, struct key_acl *acl)
 	key_put_acl(acl);
 	return 0;
 }
+
+/*
+ * Allocate a new ACL with an extra ACE slot.
+ */
+static struct key_acl *key_alloc_acl(const struct key_acl *old_acl, int nr, int skip)
+{
+	struct key_acl *acl;
+	int nr_ace, i, j = 0;
+
+	nr_ace = old_acl->nr_ace + nr;
+	if (nr_ace > 16)
+		return ERR_PTR(-EINVAL);
+
+	acl = kzalloc(struct_size(acl, aces, nr_ace), GFP_KERNEL);
+	if (!acl)
+		return ERR_PTR(-ENOMEM);
+
+	refcount_set(&acl->usage, 1);
+	acl->nr_ace = nr_ace;
+	for (i = 0; i < old_acl->nr_ace; i++) {
+		if (i == skip)
+			continue;
+		acl->aces[j] = old_acl->aces[i];
+		j++;
+	}
+	return acl;
+}
+
+/*
+ * Generate the revised ACL.
+ */
+static long key_change_acl(struct key *key, struct key_ace *new_ace)
+{
+	struct key_acl *acl, *old;
+	int i;
+
+	old = rcu_dereference_protected(key->acl, lockdep_is_held(&key->sem));
+
+	for (i = 0; i < old->nr_ace; i++)
+		if (old->aces[i].type == new_ace->type &&
+		    old->aces[i].subject_id == new_ace->subject_id)
+			goto found_match;
+
+	if (new_ace->perm == 0)
+		return 0; /* No permissions to remove.  Add deny record? */
+
+	acl = key_alloc_acl(old, 1, -1);
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
+	acl->aces[i] = *new_ace;
+	goto change;
+
+found_match:
+	if (new_ace->perm == 0)
+		goto delete_ace;
+	if (new_ace->perm == old->aces[i].perm)
+		return 0;
+	acl = key_alloc_acl(old, 0, -1);
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
+	acl->aces[i].perm = new_ace->perm;
+	goto change;
+
+delete_ace:
+	acl = key_alloc_acl(old, -1, i);
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
+	goto change;
+
+change:
+	return key_set_acl(key, acl);
+}
+
+/*
+ * Add, alter or remove (if perm == 0) an ACE in a key's ACL.
+ */
+long keyctl_grant_permission(key_serial_t keyid,
+			     enum key_ace_subject_type type,
+			     unsigned int subject,
+			     unsigned int perm)
+{
+	struct key_ace new_ace;
+	struct key *key;
+	key_ref_t key_ref;
+	long ret;
+
+	new_ace.type = type;
+	new_ace.perm = perm;
+
+	switch (type) {
+	case KEY_ACE_SUBJ_STANDARD:
+		if (subject >= nr__key_ace_standard_subject)
+			return -ENOENT;
+		new_ace.subject_id = subject;
+		break;
+
+	default:
+		return -ENOENT;
+	}
+
+	key_ref = lookup_user_key(keyid, KEY_LOOKUP_PARTIAL, KEY_NEED_SETSEC);
+	if (IS_ERR(key_ref)) {
+		ret = PTR_ERR(key_ref);
+		goto error;
+	}
+
+	key = key_ref_to_ptr(key_ref);
+
+	down_write(&key->sem);
+
+	/* If we're not the sysadmin, we can only change a key that we own */
+	ret = -EACCES;
+	if (capable(CAP_SYS_ADMIN) || uid_eq(key->uid, current_fsuid()))
+		ret = key_change_acl(key, &new_ace);
+	up_write(&key->sem);
+	key_put(key);
+error:
+	return ret;
+}
