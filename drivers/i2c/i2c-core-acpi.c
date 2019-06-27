@@ -148,8 +148,17 @@ static int i2c_acpi_add_resource(struct acpi_resource *ares, void *data)
 	return 1; /* No need to add resource to the list */
 }
 
-static int i2c_acpi_get_irq(struct acpi_device *adev)
+/**
+ * i2c_acpi_get_irq - get device IRQ number from ACPI
+ * @client: Pointer to the I2C client device
+ *
+ * Find the IRQ number used by a specific client device.
+ *
+ * Return: The IRQ number or an error code.
+ */
+int i2c_acpi_get_irq(struct i2c_client *client)
 {
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
 	struct list_head resource_list;
 	int irq = -ENOENT;
 	int ret;
@@ -200,11 +209,6 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 	info->fwnode = acpi_fwnode_handle(adev);
 	if (adapter_handle)
 		*adapter_handle = lookup.adapter_handle;
-
-	/* Then fill IRQ number if any */
-	info->irq = i2c_acpi_get_irq(adev);
-	if (info->irq < 0)
-		return info->irq;
 
 	acpi_set_modalias(adev, dev_name(&adev->dev), info->type,
 			  sizeof(info->type));
