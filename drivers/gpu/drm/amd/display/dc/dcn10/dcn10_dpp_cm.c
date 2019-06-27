@@ -731,6 +731,10 @@ void dpp1_full_bypass(struct dpp *dpp_base)
 	/* COLOR_KEYER_CONTROL.COLOR_KEYER_EN = 0 this should be default */
 	if (dpp->tf_mask->CM_BYPASS_EN)
 		REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	else
+		REG_SET(CM_CONTROL, 0, CM_BYPASS, 1);
+#endif
 
 	/* Setting degamma bypass for now */
 	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);

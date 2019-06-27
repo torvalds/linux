@@ -38,6 +38,7 @@
 #define AMDGPU_GFX_CG_DISABLED_MODE		0x00000004L
 #define AMDGPU_GFX_LBPW_DISABLED_MODE		0x00000008L
 
+#define AMDGPU_MAX_GFX_QUEUES KGD_MAX_QUEUES
 #define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
 
 struct amdgpu_mec {
@@ -54,12 +55,41 @@ struct amdgpu_mec {
 	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 };
 
+enum amdgpu_unmap_queues_action {
+	PREEMPT_QUEUES = 0,
+	RESET_QUEUES,
+	DISABLE_PROCESS_QUEUES,
+	PREEMPT_QUEUES_NO_UNMAP,
+};
+
+struct kiq_pm4_funcs {
+	/* Support ASIC-specific kiq pm4 packets*/
+	void (*kiq_set_resources)(struct amdgpu_ring *kiq_ring,
+					uint64_t queue_mask);
+	void (*kiq_map_queues)(struct amdgpu_ring *kiq_ring,
+					struct amdgpu_ring *ring);
+	void (*kiq_unmap_queues)(struct amdgpu_ring *kiq_ring,
+				 struct amdgpu_ring *ring,
+				 enum amdgpu_unmap_queues_action action,
+				 u64 gpu_addr, u64 seq);
+	void (*kiq_query_status)(struct amdgpu_ring *kiq_ring,
+					struct amdgpu_ring *ring,
+					u64 addr,
+					u64 seq);
+	/* Packet sizes */
+	int set_resources_size;
+	int map_queues_size;
+	int unmap_queues_size;
+	int query_status_size;
+};
+
 struct amdgpu_kiq {
 	u64			eop_gpu_addr;
 	struct amdgpu_bo	*eop_obj;
 	spinlock_t              ring_lock;
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
+	const struct kiq_pm4_funcs *pmf;
 };
 
 /*
@@ -131,6 +161,10 @@ struct amdgpu_gfx_config {
 	uint32_t double_offchip_lds_buf;
 	/* cached value of DB_DEBUG2 */
 	uint32_t db_debug2;
+	/* gfx10 specific config */
+	uint32_t num_sc_per_sh;
+	uint32_t num_packer_per_sc;
+	uint32_t pa_sc_tile_steering_override;
 };
 
 struct amdgpu_cu_info {
@@ -191,10 +225,38 @@ struct sq_work {
 	unsigned ih_data;
 };
 
+struct amdgpu_pfp {
+	struct amdgpu_bo		*pfp_fw_obj;
+	uint64_t			pfp_fw_gpu_addr;
+	uint32_t			*pfp_fw_ptr;
+};
+
+struct amdgpu_ce {
+	struct amdgpu_bo		*ce_fw_obj;
+	uint64_t			ce_fw_gpu_addr;
+	uint32_t			*ce_fw_ptr;
+};
+
+struct amdgpu_me {
+	struct amdgpu_bo		*me_fw_obj;
+	uint64_t			me_fw_gpu_addr;
+	uint32_t			*me_fw_ptr;
+	uint32_t			num_me;
+	uint32_t			num_pipe_per_me;
+	uint32_t			num_queue_per_pipe;
+	void				*mqd_backup[AMDGPU_MAX_GFX_RINGS + 1];
+
+	/* These are the resources for which amdgpu takes ownership */
+	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
+};
+
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
 	struct amdgpu_gfx_config	config;
 	struct amdgpu_rlc		rlc;
+	struct amdgpu_pfp		pfp;
+	struct amdgpu_ce		ce;
+	struct amdgpu_me		me;
 	struct amdgpu_mec		mec;
 	struct amdgpu_kiq		kiq;
 	struct amdgpu_scratch		scratch;
@@ -297,17 +359,27 @@ void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev);
 int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
 			unsigned hpd_size);
 
-int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
-				   unsigned mqd_size);
-void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev);
+int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
+			   unsigned mqd_size);
+void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev);
+int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev);
+int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev);
 
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev);
-int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev, int mec,
-			    int pipe, int queue);
-void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
-			     int *mec, int *pipe, int *queue);
+void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev);
+
+int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
+				int pipe, int queue);
+void amdgpu_gfx_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
+				 int *mec, int *pipe, int *queue);
 bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int mec,
 				     int pipe, int queue);
+int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev, int me,
+			       int pipe, int queue);
+void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
+				int *me, int *pipe, int *queue);
+bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
+				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
 
 #endif

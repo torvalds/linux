@@ -535,22 +535,22 @@ static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
 
 	switch (flags & AMDGPU_VM_MTYPE_MASK) {
 	case AMDGPU_VM_MTYPE_DEFAULT:
-		pte_flag |= AMDGPU_PTE_MTYPE(MTYPE_NC);
+		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
 		break;
 	case AMDGPU_VM_MTYPE_NC:
-		pte_flag |= AMDGPU_PTE_MTYPE(MTYPE_NC);
+		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
 		break;
 	case AMDGPU_VM_MTYPE_WC:
-		pte_flag |= AMDGPU_PTE_MTYPE(MTYPE_WC);
+		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_WC);
 		break;
 	case AMDGPU_VM_MTYPE_CC:
-		pte_flag |= AMDGPU_PTE_MTYPE(MTYPE_CC);
+		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_CC);
 		break;
 	case AMDGPU_VM_MTYPE_UC:
-		pte_flag |= AMDGPU_PTE_MTYPE(MTYPE_UC);
+		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_UC);
 		break;
 	default:
-		pte_flag |= AMDGPU_PTE_MTYPE(MTYPE_NC);
+		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
 		break;
 	}
 
@@ -733,9 +733,7 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 	if (r)
 		goto interrupt;
 
-	r = amdgpu_ras_debugfs_create(adev, &fs_info);
-	if (r)
-		goto debugfs;
+	amdgpu_ras_debugfs_create(adev, &fs_info);
 
 	r = amdgpu_ras_sysfs_create(adev, &fs_info);
 	if (r)
@@ -750,7 +748,6 @@ irq:
 	amdgpu_ras_sysfs_remove(adev, *ras_if);
 sysfs:
 	amdgpu_ras_debugfs_remove(adev, *ras_if);
-debugfs:
 	amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
 interrupt:
 	amdgpu_ras_feature_enable(adev, *ras_if, 0);
@@ -919,7 +916,7 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 	if (r)
 		return r;
 	adev->gart.table_size = adev->gart.num_gpu_pages * 8;
-	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE(MTYPE_UC) |
+	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE_VG10(MTYPE_UC) |
 				 AMDGPU_PTE_EXECUTABLE;
 	return amdgpu_gart_table_vram_alloc(adev);
 }

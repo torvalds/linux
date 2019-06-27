@@ -35,6 +35,7 @@
 #include <linux/kfifo.h>
 #include <linux/seq_file.h>
 #include <linux/kref.h>
+#include <linux/sysfs.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -104,6 +105,8 @@
 
 #define KFD_KERNEL_QUEUE_SIZE 2048
 
+#define KFD_UNMAP_LATENCY_MS	(4000)
+
 /*
  * 512 = 0x200
  * The doorbell index distance between SDMA RLC (2*i) and (2*i+1) in the
@@ -166,11 +169,20 @@ extern int halt_if_hws_hang;
  */
 extern bool hws_gws_support;
 
+/*
+ * Queue preemption timeout in ms
+ */
+extern int queue_preemption_timeout_ms;
+
 enum cache_policy {
 	cache_policy_coherent,
 	cache_policy_noncoherent
 };
 
+#define KFD_IS_VI(chip) ((chip) >= CHIP_CARRIZO && (chip) <= CHIP_POLARIS11)
+#define KFD_IS_DGPU(chip) (((chip) >= CHIP_TONGA && \
+			   (chip) <= CHIP_NAVI10) || \
+			   (chip) == CHIP_HAWAII)
 #define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
 
 struct kfd_event_interrupt_class {
@@ -348,6 +360,11 @@ enum kfd_queue_format {
 	KFD_QUEUE_FORMAT_AQL
 };
 
+enum KFD_QUEUE_PRIORITY {
+	KFD_QUEUE_PRIORITY_MINIMUM = 0,
+	KFD_QUEUE_PRIORITY_MAXIMUM = 15
+};
+
 /**
  * struct queue_properties
  *
@@ -430,6 +447,11 @@ struct queue_properties {
 	uint32_t *cu_mask;
 };
 
+#define QUEUE_IS_ACTIVE(q) ((q).queue_size > 0 &&	\
+			    (q).queue_address != 0 &&	\
+			    (q).queue_percent > 0 &&	\
+			    !(q).is_evicted)
+
 /**
  * struct queue
  *
@@ -492,6 +514,12 @@ enum KFD_MQD_TYPE {
 	KFD_MQD_TYPE_SDMA,		/* for sdma queues */
 	KFD_MQD_TYPE_DIQ,		/* for diq */
 	KFD_MQD_TYPE_MAX
+};
+
+enum KFD_PIPE_PRIORITY {
+	KFD_PIPE_PRIORITY_CS_LOW = 0,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_HIGH
 };
 
 struct scheduling_resources {
@@ -702,6 +730,10 @@ struct kfd_process {
 	 * restored after an eviction
 	 */
 	unsigned long last_restore_timestamp;
+
+	/* Kobj for our procfs */
+	struct kobject *kobj;
+	struct attribute attr_pasid;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
@@ -804,6 +836,10 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj);
 
 extern struct device *kfd_device;
 
+/* KFD's procfs */
+void kfd_procfs_init(void);
+void kfd_procfs_shutdown(void);
+
 /* Topology */
 int kfd_topology_init(void);
 void kfd_topology_shutdown(void);
@@ -845,6 +881,8 @@ struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
@@ -884,8 +922,8 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 		       u32 *save_area_used_size);
 
 int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
-				unsigned int fence_value,
-				unsigned int timeout_ms);
+			      unsigned int fence_value,
+			      unsigned int timeout_ms);
 
 /* Packet Manager */
 
@@ -934,6 +972,7 @@ struct packet_manager_funcs {
 
 extern const struct packet_manager_funcs kfd_vi_pm_funcs;
 extern const struct packet_manager_funcs kfd_v9_pm_funcs;
+extern const struct packet_manager_funcs kfd_v10_pm_funcs;
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
 void pm_uninit(struct packet_manager *pm);
@@ -953,7 +992,8 @@ void pm_release_ib(struct packet_manager *pm);
 /* Following PM funcs can be shared among VI and AI */
 unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size);
 int pm_set_resources_vi(struct packet_manager *pm, uint32_t *buffer,
-				struct scheduling_resources *res);
+			struct scheduling_resources *res);
+
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 

@@ -2643,6 +2643,7 @@ static int fiji_update_dpm_settings(struct pp_hwmgr *hwmgr,
 }
 
 const struct pp_smumgr_func fiji_smu_funcs = {
+	.name = "fiji_smu",
 	.smu_init = &fiji_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &fiji_start_smu,

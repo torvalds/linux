@@ -46,10 +46,12 @@
 #define FIRMWARE_RAVEN		"amdgpu/raven_vcn.bin"
 #define FIRMWARE_PICASSO	"amdgpu/picasso_vcn.bin"
 #define FIRMWARE_RAVEN2		"amdgpu/raven2_vcn.bin"
+#define FIRMWARE_NAVI10 	"amdgpu/navi10_vcn.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
 MODULE_FIRMWARE(FIRMWARE_PICASSO);
 MODULE_FIRMWARE(FIRMWARE_RAVEN2);
+MODULE_FIRMWARE(FIRMWARE_NAVI10);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
@@ -71,6 +73,12 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			fw_name = FIRMWARE_PICASSO;
 		else
 			fw_name = FIRMWARE_RAVEN;
+		break;
+	case CHIP_NAVI10:
+		fw_name = FIRMWARE_NAVI10;
+		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
+		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
+			adev->vcn.indirect_sram = true;
 		break;
 	default:
 		return -EINVAL;
@@ -133,6 +141,16 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	if (adev->vcn.indirect_sram) {
+		r = amdgpu_bo_create_kernel(adev, 64 * 2 * 4, PAGE_SIZE,
+			    AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.dpg_sram_bo,
+			    &adev->vcn.dpg_sram_gpu_addr, &adev->vcn.dpg_sram_cpu_addr);
+		if (r) {
+			dev_err(adev->dev, "(%d) failed to allocate DPG bo\n", r);
+			return r;
+		}
+	}
+
 	return 0;
 }
 
@@ -141,6 +159,12 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	int i;
 
 	kvfree(adev->vcn.saved_bo);
+
+	if (adev->vcn.indirect_sram) {
+		amdgpu_bo_free_kernel(&adev->vcn.dpg_sram_bo,
+			      &adev->vcn.dpg_sram_gpu_addr,
+			      (void **)&adev->vcn.dpg_sram_cpu_addr);
+	}
 
 	amdgpu_bo_free_kernel(&adev->vcn.vcpu_bo,
 			      &adev->vcn.gpu_addr,
@@ -245,7 +269,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 
 	if (fences == 0) {
 		amdgpu_gfx_off_ctrl(adev, true);
-		if (adev->pm.dpm_enabled)
+		if (adev->asic_type < CHIP_NAVI10 && adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
 		else
 			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
@@ -262,7 +286,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 
 	if (set_clocks) {
 		amdgpu_gfx_off_ctrl(adev, false);
-		if (adev->pm.dpm_enabled)
+		if (adev->asic_type < CHIP_NAVI10 && adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, true);
 		else
 			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
@@ -308,17 +332,15 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0xCAFEDEAD);
+	WREG32(adev->vcn.external.scratch9, 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
 	if (r)
 		return r;
-
-	amdgpu_ring_write(ring,
-		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0));
+	amdgpu_ring_write(ring, PACKET0(adev->vcn.internal.scratch9, 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
+		tmp = RREG32(adev->vcn.external.scratch9);
 		if (tmp == 0xDEADBEEF)
 			break;
 		udelay(1);
@@ -347,14 +369,14 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 
 	ib = &job->ibs[0];
 	addr = amdgpu_bo_gpu_offset(bo);
-	ib->ptr[0] = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0);
+	ib->ptr[0] = PACKET0(adev->vcn.internal.data0, 0);
 	ib->ptr[1] = addr;
-	ib->ptr[2] = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1), 0);
+	ib->ptr[2] = PACKET0(adev->vcn.internal.data1, 0);
 	ib->ptr[3] = addr >> 32;
-	ib->ptr[4] = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0);
+	ib->ptr[4] = PACKET0(adev->vcn.internal.cmd, 0);
 	ib->ptr[5] = 0;
 	for (i = 6; i < 16; i += 2) {
-		ib->ptr[i] = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP), 0);
+		ib->ptr[i] = PACKET0(adev->vcn.internal.nop, 0);
 		ib->ptr[i+1] = 0;
 	}
 	ib->length_dw = 16;
@@ -629,19 +651,17 @@ int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0xCAFEDEAD);
+	WREG32(adev->vcn.external.jpeg_pitch, 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
-
 	if (r)
 		return r;
 
-	amdgpu_ring_write(ring,
-		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0, 0, 0));
+	amdgpu_ring_write(ring, PACKET0(adev->vcn.internal.jpeg_pitch, 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
+		tmp = RREG32(adev->vcn.external.jpeg_pitch);
 		if (tmp == 0xDEADBEEF)
 			break;
 		udelay(1);
@@ -669,7 +689,7 @@ static int amdgpu_vcn_jpeg_set_reg(struct amdgpu_ring *ring, uint32_t handle,
 
 	ib = &job->ibs[0];
 
-	ib->ptr[0] = PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0, 0, PACKETJ_TYPE0);
+	ib->ptr[0] = PACKETJ(adev->vcn.internal.jpeg_pitch, 0, 0, PACKETJ_TYPE0);
 	ib->ptr[1] = 0xDEADBEEF;
 	for (i = 2; i < 16; i += 2) {
 		ib->ptr[i] = PACKETJ(0, 0, 0, PACKETJ_TYPE6);
@@ -715,7 +735,7 @@ int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
+		tmp = RREG32(adev->vcn.external.jpeg_pitch);
 		if (tmp == 0xDEADBEEF)
 			break;
 		udelay(1);

@@ -34,8 +34,8 @@
  * GPU GFX IP block helpers function.
  */
 
-int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev, int mec,
-			    int pipe, int queue)
+int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
+				int pipe, int queue)
 {
 	int bit = 0;
 
@@ -47,8 +47,8 @@ int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev, int mec,
 	return bit;
 }
 
-void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
-			     int *mec, int *pipe, int *queue)
+void amdgpu_gfx_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
+				 int *mec, int *pipe, int *queue)
 {
 	*queue = bit % adev->gfx.mec.num_queue_per_pipe;
 	*pipe = (bit / adev->gfx.mec.num_queue_per_pipe)
@@ -61,8 +61,38 @@ void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
 bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev,
 				     int mec, int pipe, int queue)
 {
-	return test_bit(amdgpu_gfx_queue_to_bit(adev, mec, pipe, queue),
+	return test_bit(amdgpu_gfx_mec_queue_to_bit(adev, mec, pipe, queue),
 			adev->gfx.mec.queue_bitmap);
+}
+
+int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
+			       int me, int pipe, int queue)
+{
+	int bit = 0;
+
+	bit += me * adev->gfx.me.num_pipe_per_me
+		* adev->gfx.me.num_queue_per_pipe;
+	bit += pipe * adev->gfx.me.num_queue_per_pipe;
+	bit += queue;
+
+	return bit;
+}
+
+void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
+				int *me, int *pipe, int *queue)
+{
+	*queue = bit % adev->gfx.me.num_queue_per_pipe;
+	*pipe = (bit / adev->gfx.me.num_queue_per_pipe)
+		% adev->gfx.me.num_pipe_per_me;
+	*me = (bit / adev->gfx.me.num_queue_per_pipe)
+		/ adev->gfx.me.num_pipe_per_me;
+}
+
+bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
+				    int me, int pipe, int queue)
+{
+	return test_bit(amdgpu_gfx_me_queue_to_bit(adev, me, pipe, queue),
+			adev->gfx.me.queue_bitmap);
 }
 
 /**
@@ -199,6 +229,30 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 		adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
 }
 
+void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
+{
+	int i, queue, pipe, me;
+
+	for (i = 0; i < AMDGPU_MAX_GFX_QUEUES; ++i) {
+		queue = i % adev->gfx.me.num_queue_per_pipe;
+		pipe = (i / adev->gfx.me.num_queue_per_pipe)
+			% adev->gfx.me.num_pipe_per_me;
+		me = (i / adev->gfx.me.num_queue_per_pipe)
+		      / adev->gfx.me.num_pipe_per_me;
+
+		if (me >= adev->gfx.me.num_me)
+			break;
+		/* policy: amdgpu owns the first queue per pipe at this stage
+		 * will extend to mulitple queues per pipe later */
+		if (me == 0 && queue < 1)
+			set_bit(i, adev->gfx.me.queue_bitmap);
+	}
+
+	/* update the number of active graphics rings */
+	adev->gfx.num_gfx_rings =
+		bitmap_weight(adev->gfx.me.queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
+}
+
 static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring)
 {
@@ -213,7 +267,7 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
 			continue;
 
-		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
+		amdgpu_gfx_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
 
 		/*
 		 * 1. Using pipes 2/3 from MEC 2 seems cause problems.
@@ -306,9 +360,9 @@ int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-/* create MQD for each compute queue */
-int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
-				   unsigned mqd_size)
+/* create MQD for each compute/gfx queue */
+int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
+			   unsigned mqd_size)
 {
 	struct amdgpu_ring *ring = NULL;
 	int r, i;
@@ -335,6 +389,27 @@ int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 	}
 
+	if (adev->asic_type == CHIP_NAVI10 && amdgpu_async_gfx_ring) {
+		/* create MQD for each KGQ */
+		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+			ring = &adev->gfx.gfx_ring[i];
+			if (!ring->mqd_obj) {
+				r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
+							    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+							    &ring->mqd_gpu_addr, &ring->mqd_ptr);
+				if (r) {
+					dev_warn(adev->dev, "failed to create ring mqd bo (%d)", r);
+					return r;
+				}
+
+				/* prepare MQD backup */
+				adev->gfx.me.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
+				if (!adev->gfx.me.mqd_backup[i])
+					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+			}
+		}
+	}
+
 	/* create MQD for each KCQ */
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
@@ -343,7 +418,7 @@ int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
 						    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
 						    &ring->mqd_gpu_addr, &ring->mqd_ptr);
 			if (r) {
-				dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
+				dev_warn(adev->dev, "failed to create ring mqd bo (%d)", r);
 				return r;
 			}
 
@@ -357,10 +432,20 @@ int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev)
+void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = NULL;
 	int i;
+
+	if (adev->asic_type == CHIP_NAVI10 && amdgpu_async_gfx_ring) {
+		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+			ring = &adev->gfx.gfx_ring[i];
+			kfree(adev->gfx.me.mqd_backup[i]);
+			amdgpu_bo_free_kernel(&ring->mqd_obj,
+					      &ring->mqd_gpu_addr,
+					      &ring->mqd_ptr);
+		}
+	}
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
@@ -371,10 +456,79 @@ void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev)
 	}
 
 	ring = &adev->gfx.kiq.ring;
+	if (adev->asic_type == CHIP_NAVI10 && amdgpu_async_gfx_ring)
+		kfree(adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS]);
 	kfree(adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS]);
 	amdgpu_bo_free_kernel(&ring->mqd_obj,
 			      &ring->mqd_gpu_addr,
 			      &ring->mqd_ptr);
+}
+
+int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_ring *kiq_ring = &kiq->ring;
+	int i;
+
+	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
+		return -EINVAL;
+
+	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
+					adev->gfx.num_compute_rings))
+		return -ENOMEM;
+
+	for (i = 0; i < adev->gfx.num_compute_rings; i++)
+		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.compute_ring[i],
+					   RESET_QUEUES, 0, 0);
+
+	return amdgpu_ring_test_ring(kiq_ring);
+}
+
+int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	uint64_t queue_mask = 0;
+	int r, i;
+
+	if (!kiq->pmf || !kiq->pmf->kiq_map_queues || !kiq->pmf->kiq_set_resources)
+		return -EINVAL;
+
+	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
+		if (!test_bit(i, adev->gfx.mec.queue_bitmap))
+			continue;
+
+		/* This situation may be hit in the future if a new HW
+		 * generation exposes more than 64 queues. If so, the
+		 * definition of queue_mask needs updating */
+		if (WARN_ON(i > (sizeof(queue_mask)*8))) {
+			DRM_ERROR("Invalid KCQ enabled: %d\n", i);
+			break;
+		}
+
+		queue_mask |= (1ull << i);
+	}
+
+	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
+							kiq_ring->queue);
+
+	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
+					adev->gfx.num_compute_rings +
+					kiq->pmf->set_resources_size);
+	if (r) {
+		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+		return r;
+	}
+
+	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
+	for (i = 0; i < adev->gfx.num_compute_rings; i++)
+		kiq->pmf->kiq_map_queues(kiq_ring, &adev->gfx.compute_ring[i]);
+
+	r = amdgpu_ring_test_helper(kiq_ring);
+	if (r)
+		DRM_ERROR("KCQ enable failed\n");
+
+	return r;
 }
 
 /* amdgpu_gfx_off_ctrl - Handle gfx off feature enable/disable
@@ -393,7 +547,9 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 		return;
 
-	if (!adev->powerplay.pp_funcs || !adev->powerplay.pp_funcs->set_powergating_by_smu)
+	if (!is_support_sw_smu(adev) &&
+	    (!adev->powerplay.pp_funcs ||
+	     !adev->powerplay.pp_funcs->set_powergating_by_smu))
 		return;
 
 

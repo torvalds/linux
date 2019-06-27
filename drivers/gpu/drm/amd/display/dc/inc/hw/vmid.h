@@ -44,6 +44,7 @@ struct dcn_vmid_page_table_config {
 	uint64_t	page_table_end_addr;
 	enum dcn_hubbub_page_table_depth	depth;
 	enum dcn_hubbub_page_table_block_size	block_size;
+	uint64_t	page_table_base_addr;
 };
 
 #endif /* DAL_DC_INC_HW_VMID_H_ */

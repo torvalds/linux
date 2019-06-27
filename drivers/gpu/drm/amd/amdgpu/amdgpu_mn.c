@@ -519,7 +519,6 @@ void amdgpu_hmm_init_range(struct hmm_range *range)
 		range->flags = hmm_range_flags;
 		range->values = hmm_range_values;
 		range->pfn_shift = PAGE_SHIFT;
-		range->pfns = NULL;
 		INIT_LIST_HEAD(&range->list);
 	}
 }

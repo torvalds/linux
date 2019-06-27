@@ -101,6 +101,7 @@ struct psp_funcs
 	int (*ras_trigger_error)(struct psp_context *psp,
 			struct ta_ras_trigger_error_input *info);
 	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
+	int (*rlc_autoload_start)(struct psp_context *psp);
 };
 
 #define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
@@ -154,8 +155,10 @@ struct psp_context
 	uint32_t			sos_feature_version;
 	uint32_t			sys_bin_size;
 	uint32_t			sos_bin_size;
+	uint32_t			toc_bin_size;
 	uint8_t				*sys_start_addr;
 	uint8_t				*sos_start_addr;
+	uint8_t				*toc_start_addr;
 
 	/* tmr buffer */
 	struct amdgpu_bo		*tmr_bo;
@@ -184,6 +187,8 @@ struct psp_context
 
 	/* fence value associated with cmd buffer */
 	atomic_t			fence_value;
+	/* flag to mark whether gfx fw autoload is supported or not */
+	bool				autoload_supported;
 
 	/* xgmi ta firmware and buffer */
 	const struct firmware		*ta_fw;
@@ -234,6 +239,8 @@ struct amdgpu_psp_funcs {
 #define psp_xgmi_set_topology_info(psp, num_device, topology) \
 		((psp)->funcs->xgmi_set_topology_info ?	 \
 		(psp)->funcs->xgmi_set_topology_info((psp), (num_device), (topology)) : -EINVAL)
+#define psp_rlc_autoload(psp) \
+		((psp)->funcs->rlc_autoload_start ? (psp)->funcs->rlc_autoload_start((psp)) : 0)
 
 #define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
@@ -253,11 +260,16 @@ extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
 
 int psp_gpu_reset(struct amdgpu_device *adev);
+int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
+			uint64_t cmd_gpu_addr, int cmd_size);
+
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
+
+int psp_rlc_autoload_start(struct psp_context *psp);
 
 extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,

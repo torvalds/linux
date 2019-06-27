@@ -28,29 +28,21 @@
 
 #include "dc_types.h"
 
-#define MAX_VMID 16
 #define MAX_HUBP 6
 
 struct vmid_usage {
-	uint16_t vmid_usage[2];
+	int vmid_usage[2];
 };
 
 struct vm_helper {
 	unsigned int num_vmid;
-	unsigned int num_hubp;
-	unsigned int num_vmids_available;
-	uint64_t ptb_assigned_to_vmid[MAX_VMID];
 	struct vmid_usage hubp_vmid_usage[MAX_HUBP];
 };
 
-uint8_t get_vmid_for_ptb(
-		struct vm_helper *vm_helper,
-		int64_t ptb,
-		uint8_t pipe_idx);
+void vm_helper_mark_vmid_used(struct vm_helper *vm_helper, unsigned int pos, uint8_t hubp_idx);
 
-void init_vm_helper(
+void vm_helper_init(
 	struct vm_helper *vm_helper,
-	unsigned int num_vmid,
-	unsigned int num_hubp);
+	unsigned int num_vmid);
 
 #endif /* DC_INC_VM_HELPER_H_ */

@@ -147,6 +147,15 @@ static enum gpio_result set_config(
 					AUX_PAD1_MODE, 0);
 		}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		if (ddc->regs->dc_gpio_aux_ctrl_5 != 0) {
+				REG_UPDATE(dc_gpio_aux_ctrl_5, DDC_PAD_I2CMODE, 1);
+		}
+		//set  DC_IO_aux_rxsel = 2'b01
+		if (ddc->regs->phy_aux_cntl != 0) {
+				REG_UPDATE(phy_aux_cntl, AUX_PAD_RXSEL, 1);
+		}
+#endif
 		return GPIO_RESULT_OK;
 	case GPIO_DDC_CONFIG_TYPE_MODE_AUX:
 		/* set the AUX pad mode */
@@ -154,6 +163,12 @@ static enum gpio_result set_config(
 			REG_SET(gpio.MASK_reg, regval,
 					AUX_PAD1_MODE, 1);
 		}
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		if (ddc->regs->dc_gpio_aux_ctrl_5 != 0) {
+			REG_UPDATE(dc_gpio_aux_ctrl_5,
+					DDC_PAD_I2CMODE, 0);
+		}
+#endif
 
 		return GPIO_RESULT_OK;
 	case GPIO_DDC_CONFIG_TYPE_POLL_FOR_CONNECT:

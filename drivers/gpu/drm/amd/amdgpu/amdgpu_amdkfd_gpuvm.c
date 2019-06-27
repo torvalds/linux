@@ -1732,35 +1732,17 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 		ret = amdgpu_ttm_tt_get_user_pages(bo->tbo.ttm,
 						   bo->tbo.ttm->pages);
 		if (ret) {
-			bo->tbo.ttm->pages[0] = NULL;
-			pr_info("%s: Failed to get user pages: %d\n",
+			pr_debug("%s: Failed to get user pages: %d\n",
 				__func__, ret);
-			/* Pretend it succeeded. It will fail later
-			 * with a VM fault if the GPU tries to access
-			 * it. Better than hanging indefinitely with
-			 * stalled user mode queues.
-			 */
+
+			/* Return error -EBUSY or -ENOMEM, retry restore */
+			return ret;
 		}
+
+		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
 	}
 
 	return 0;
-}
-
-/* Remove invalid userptr BOs from hmm track list
- *
- * Stop HMM track the userptr update
- */
-static void untrack_invalid_user_pages(struct amdkfd_process_info *process_info)
-{
-	struct kgd_mem *mem, *tmp_mem;
-	struct amdgpu_bo *bo;
-
-	list_for_each_entry_safe(mem, tmp_mem,
-				 &process_info->userptr_inval_list,
-				 validate_list.head) {
-		bo = mem->bo;
-		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
-	}
 }
 
 /* Validate invalid userptr BOs
@@ -1841,13 +1823,6 @@ static int validate_invalid_user_pages(struct amdkfd_process_info *process_info)
 
 		list_move_tail(&mem->validate_list.head,
 			       &process_info->userptr_valid_list);
-
-		/* Stop HMM track the userptr update. We dont check the return
-		 * value for concurrent CPU page table update because we will
-		 * reschedule the restore worker if process_info->evicted_bos
-		 * is updated.
-		 */
-		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
 
 		/* Update mapping. If the BO was not validated
 		 * (because we couldn't get user pages), this will
@@ -1947,7 +1922,6 @@ static void amdgpu_amdkfd_restore_userptr_worker(struct work_struct *work)
 	}
 
 unlock_out:
-	untrack_invalid_user_pages(process_info);
 	mutex_unlock(&process_info->lock);
 	mmput(mm);
 	put_task_struct(usertask);
@@ -2153,12 +2127,16 @@ int amdgpu_amdkfd_add_gws_to_process(void *info, void *gws, struct kgd_mem **mem
 	 * Add process eviction fence to bo so they can
 	 * evict each other.
 	 */
+	ret = reservation_object_reserve_shared(gws_bo->tbo.resv, 1);
+	if (ret)
+		goto reserve_shared_fail;
 	amdgpu_bo_fence(gws_bo, &process_info->eviction_fence->base, true);
 	amdgpu_bo_unreserve(gws_bo);
 	mutex_unlock(&(*mem)->process_info->lock);
 
 	return ret;
 
+reserve_shared_fail:
 bo_validation_failure:
 	amdgpu_bo_unreserve(gws_bo);
 bo_reservation_failure:

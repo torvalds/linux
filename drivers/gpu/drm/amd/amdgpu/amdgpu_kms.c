@@ -712,7 +712,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.ids_flags = 0;
 		if (adev->flags & AMD_IS_APU)
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
-		if (amdgpu_sriov_vf(adev))
+		if (amdgpu_mcbp || amdgpu_sriov_vf(adev))
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
@@ -764,6 +764,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.gs_vgt_table_depth = adev->gfx.config.gs_vgt_table_depth;
 		dev_info.gs_prim_buffer_depth = adev->gfx.config.gs_prim_buffer_depth;
 		dev_info.max_gs_waves_per_vgt = adev->gfx.config.max_gs_threads;
+
+		if (adev->family >= AMDGPU_FAMILY_NV)
+			dev_info.pa_sc_tile_steering_override =
+				adev->gfx.config.pa_sc_tile_steering_override;
 
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;
@@ -1006,7 +1010,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		goto error_vm;
 	}
 
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		uint64_t csa_addr = amdgpu_csa_vaddr(adev) & AMDGPU_GMC_HOLE_MASK;
 
 		r = amdgpu_map_static_csa(adev, &fpriv->vm, adev->virt.csa_obj,
@@ -1069,7 +1073,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	amdgpu_vm_bo_rmv(adev, fpriv->prt_va);
 
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		/* TODO: how to handle reserve failure */
 		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, true));
 		amdgpu_vm_bo_rmv(adev, fpriv->csa_va);

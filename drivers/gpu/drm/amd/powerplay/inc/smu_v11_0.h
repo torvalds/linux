@@ -30,6 +30,7 @@
 #define MP0_SRAM			0x03900000
 #define MP1_Public			0x03b00000
 #define MP1_SRAM			0x03c00004
+#define MP1_SMC_SIZE		0x40000
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
@@ -38,6 +39,23 @@
 
 #define TEMP_RANGE_MIN			(0)
 #define TEMP_RANGE_MAX			(80 * 1000)
+
+#define SMU11_TOOL_SIZE			0x19000
+
+#define CLK_MAP(clk, index) \
+	[SMU_##clk] = index
+
+#define FEA_MAP(fea) \
+	[SMU_FEATURE_##fea##_BIT] = FEATURE_##fea##_BIT
+
+#define TAB_MAP(tab) \
+	[SMU_TABLE_##tab] = TABLE_##tab
+
+#define PWR_MAP(tab) \
+	[SMU_POWER_SOURCE_##tab] = POWER_SOURCE_##tab
+
+#define WORKLOAD_MAP(profile, workload) \
+	[profile] = workload
 
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;

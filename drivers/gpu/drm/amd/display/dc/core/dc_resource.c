@@ -49,6 +49,9 @@
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn10/dcn10_resource.h"
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#include "dcn20/dcn20_resource.h"
+#endif
 #include "dce120/dce120_resource.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -98,6 +101,12 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		dc_version = DCN_VERSION_1_0;
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_1_01;
+		break;
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	case FAMILY_NV:
+		dc_version = DCN_VERSION_2_0;
 		break;
 #endif
 	default:
@@ -153,6 +162,12 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 #endif
 
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	case DCN_VERSION_2_0:
+		res_pool = dcn20_create_resource_pool(init_data, dc);
+		break;
+#endif
 
 	default:
 		break;

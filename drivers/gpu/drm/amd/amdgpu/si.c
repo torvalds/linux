@@ -1340,8 +1340,8 @@ static void si_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
 	 * that may or may not be different from their GPU counterparts
 	 */
-        if (adev->flags & AMD_IS_APU)
-                return;
+	if (adev->flags & AMD_IS_APU)
+		return;
 
 	/* Set the 2 events that we wish to watch, defined above */
 	/* Reg 40 is # received msgs, Reg 104 is # of posted requests sent */

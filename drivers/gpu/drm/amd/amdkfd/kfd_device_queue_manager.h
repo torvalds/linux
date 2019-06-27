@@ -31,8 +31,6 @@
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
 
-#define KFD_UNMAP_LATENCY_MS			(4000)
-#define QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS (2 * KFD_UNMAP_LATENCY_MS + 1000)
 
 struct device_process_node {
 	struct qcm_process_device *qpd;
@@ -211,6 +209,8 @@ void device_queue_manager_init_vi(
 void device_queue_manager_init_vi_tonga(
 		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_v9(
+		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_v10_navi10(
 		struct device_queue_manager_asic_ops *asic_ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);

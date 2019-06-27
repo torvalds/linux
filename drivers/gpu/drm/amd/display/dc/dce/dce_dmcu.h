@@ -261,6 +261,14 @@ struct dmcu *dcn10_dmcu_create(
 	const struct dce_dmcu_shift *dmcu_shift,
 	const struct dce_dmcu_mask *dmcu_mask);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+struct dmcu *dcn20_dmcu_create(
+	struct dc_context *ctx,
+	const struct dce_dmcu_registers *regs,
+	const struct dce_dmcu_shift *dmcu_shift,
+	const struct dce_dmcu_mask *dmcu_mask);
+#endif
+
 void dce_dmcu_destroy(struct dmcu **dmcu);
 
 static const uint32_t abm_gain_stepsize = 0x0060;

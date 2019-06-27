@@ -27,12 +27,36 @@
 #define __DAL_CLK_MGR_INTERNAL_H__
 
 #include "clk_mgr.h"
+#include "dc.h"
 
 /*
  * only thing needed from here is MEMORY_TYPE_MULTIPLIER_CZ, which is also
  * used in resource, perhaps this should be defined somewhere more common.
  */
 #include "resource.h"
+
+
+/* Starting DID for each range */
+enum dentist_base_divider_id {
+	DENTIST_BASE_DID_1 = 0x08,
+	DENTIST_BASE_DID_2 = 0x40,
+	DENTIST_BASE_DID_3 = 0x60,
+	DENTIST_BASE_DID_4 = 0x7e,
+	DENTIST_MAX_DID = 0x7f
+};
+
+/* Starting point and step size for each divider range.*/
+enum dentist_divider_range {
+	DENTIST_DIVIDER_RANGE_1_START = 8,   /* 2.00  */
+	DENTIST_DIVIDER_RANGE_1_STEP  = 1,   /* 0.25  */
+	DENTIST_DIVIDER_RANGE_2_START = 64,  /* 16.00 */
+	DENTIST_DIVIDER_RANGE_2_STEP  = 2,   /* 0.50  */
+	DENTIST_DIVIDER_RANGE_3_START = 128, /* 32.00 */
+	DENTIST_DIVIDER_RANGE_3_STEP  = 4,   /* 1.00  */
+	DENTIST_DIVIDER_RANGE_4_START = 248, /* 62.00 */
+	DENTIST_DIVIDER_RANGE_4_STEP  = 264, /* 66.00 */
+	DENTIST_DIVIDER_RANGE_SCALE_FACTOR = 4
+};
 
 /*
  ***************************************************************************************
@@ -65,6 +89,18 @@
 #define CLK_COMMON_REG_LIST_DCN_BASE() \
 	SR(DENTIST_DISPCLK_CNTL)
 
+#define VBIOS_SMU_MSG_BOX_REG_LIST_RV() \
+	.MP1_SMN_C2PMSG_91 = mmMP1_SMN_C2PMSG_91, \
+	.MP1_SMN_C2PMSG_83 = mmMP1_SMN_C2PMSG_83, \
+	.MP1_SMN_C2PMSG_67 = mmMP1_SMN_C2PMSG_67
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+#define CLK_REG_LIST_NV10() \
+	SR(DENTIST_DISPCLK_CNTL), \
+	CLK_SRI(CLK3_CLK_PLL_REQ, CLK3, 0), \
+	CLK_SRI(CLK3_CLK2_DFS_CNTL, CLK3, 0)
+#endif
+
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
@@ -82,6 +118,17 @@
 	CLK_SF(MP1_SMN_C2PMSG_83, CONTENT, mask_sh),\
 	CLK_SF(MP1_SMN_C2PMSG_91, CONTENT, mask_sh),
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+#define CLK_COMMON_MASK_SH_LIST_DCN20_BASE(mask_sh) \
+	CLK_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh),\
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, mask_sh),\
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_CHG_DONE, mask_sh)
+
+#define CLK_MASK_SH_LIST_NV10(mask_sh) \
+	CLK_COMMON_MASK_SH_LIST_DCN20_BASE(mask_sh),\
+	CLK_SF(CLK3_0_CLK3_CLK_PLL_REQ, FbMult_int, mask_sh),\
+	CLK_SF(CLK3_0_CLK3_CLK_PLL_REQ, FbMult_frac, mask_sh)
+#endif
 
 #define CLK_REG_FIELD_LIST(type) \
 	type DPREFCLK_SRC_SEL; \
@@ -94,21 +141,46 @@
  ****************** Clock Manager Private Structures ***********************************
  ***************************************************************************************
  */
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+#define CLK20_REG_FIELD_LIST(type) \
+	type DENTIST_DPPCLK_WDIVIDER; \
+	type DENTIST_DPPCLK_CHG_DONE; \
+	type FbMult_int; \
+	type FbMult_frac;
+#endif
+
+#define VBIOS_SMU_REG_FIELD_LIST(type) \
+	type CONTENT;
+
+struct clk_mgr_shift {
+	CLK_REG_FIELD_LIST(uint8_t)
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	CLK20_REG_FIELD_LIST(uint8_t)
+#endif
+	VBIOS_SMU_REG_FIELD_LIST(uint32_t)
+};
+
+struct clk_mgr_mask {
+	CLK_REG_FIELD_LIST(uint32_t)
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	CLK20_REG_FIELD_LIST(uint32_t)
+#endif
+	VBIOS_SMU_REG_FIELD_LIST(uint32_t)
+};
 
 struct clk_mgr_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
 
-};
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	uint32_t CLK3_CLK2_DFS_CNTL;
+	uint32_t CLK3_CLK_PLL_REQ;
+#endif
 
-struct clk_mgr_shift {
-	CLK_REG_FIELD_LIST(uint8_t)
+	uint32_t MP1_SMN_C2PMSG_67;
+	uint32_t MP1_SMN_C2PMSG_83;
+	uint32_t MP1_SMN_C2PMSG_91;
 };
-
-struct clk_mgr_mask {
-	CLK_REG_FIELD_LIST(uint32_t)
-};
-
 
 struct state_dependent_clocks {
 	int display_clk_khz;
@@ -200,6 +272,12 @@ struct clk_mgr_internal_funcs {
 static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
 {
 	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
+}
+
+static inline bool should_update_pstate_support(bool safe_to_lower, bool calc_support, bool cur_support)
+{
+	// Whenever we are transitioning pstate support, we always want to notify prior to committing state
+	return (calc_support != cur_support) ? !safe_to_lower : false;
 }
 
 int clk_mgr_helper_get_active_display_cnt(

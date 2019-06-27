@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/delay.h>
 #include "dm_services.h"
 #include "core_types.h"
 #include "resource.h"
@@ -47,6 +48,10 @@
 #include "dccg.h"
 #include "clk_mgr.h"
 
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#include "dsc.h"
+#endif
 
 #define DC_LOGGER_INIT(logger)
 
@@ -345,6 +350,62 @@ void dcn10_log_hw_state(struct dc *dc,
 	}
 	DTN_INFO("\n");
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	DTN_INFO("DSC: CLOCK_EN  SLICE_WIDTH  Bytes_pp\n");
+	for (i = 0; i < pool->res_cap->num_dsc; i++) {
+		struct display_stream_compressor *dsc = pool->dscs[i];
+		struct dcn_dsc_state s = {0};
+
+		dsc->funcs->dsc_read_state(dsc, &s);
+		DTN_INFO("[%d]: %-9d %-12d %-10d\n",
+		dsc->inst,
+			s.dsc_clock_en,
+			s.dsc_slice_width,
+			s.dsc_bytes_per_pixel);
+		DTN_INFO("\n");
+	}
+	DTN_INFO("\n");
+
+	DTN_INFO("S_ENC: DSC_MODE  SEC_GSP7_LINE_NUM"
+			"  VBID6_LINE_REFERENCE  VBID6_LINE_NUM  SEC_GSP7_ENABLE  SEC_STREAM_ENABLE\n");
+	for (i = 0; i < pool->stream_enc_count; i++) {
+		struct stream_encoder *enc = pool->stream_enc[i];
+		struct enc_state s = {0};
+
+		if (enc->funcs->enc_read_state) {
+			enc->funcs->enc_read_state(enc, &s);
+			DTN_INFO("[%-3d]: %-9d %-18d %-21d %-15d %-16d %-17d\n",
+				enc->id,
+				s.dsc_mode,
+				s.sec_gsp_pps_line_num,
+				s.vbid6_line_reference,
+				s.vbid6_line_num,
+				s.sec_gsp_pps_enable,
+				s.sec_stream_enable);
+			DTN_INFO("\n");
+		}
+	}
+	DTN_INFO("\n");
+
+	DTN_INFO("L_ENC: DPHY_FEC_EN  DPHY_FEC_READY_SHADOW  DPHY_FEC_ACTIVE_STATUS\n");
+	for (i = 0; i < dc->link_count; i++) {
+		struct link_encoder *lenc = dc->links[i]->link_enc;
+
+		struct link_enc_state s = {0};
+
+		if (lenc->funcs->read_state) {
+			lenc->funcs->read_state(lenc, &s);
+			DTN_INFO("[%-3d]: %-12d %-22d %-22d\n",
+				i,
+				s.dphy_fec_en,
+				s.dphy_fec_ready_shadow,
+				s.dphy_fec_active_status);
+			DTN_INFO("\n");
+		}
+	}
+	DTN_INFO("\n");
+#endif
+
 	DTN_INFO("\nCALCULATED Clocks: dcfclk_khz:%d  dcfclk_deep_sleep_khz:%d  dispclk_khz:%d\n"
 		"dppclk_khz:%d  max_supported_dppclk_khz:%d  fclk_khz:%d  socclk_khz:%d\n\n",
 			dc->current_state->bw_ctx.bw.dcn.clk.dcfclk_khz,
@@ -358,6 +419,23 @@ void dcn10_log_hw_state(struct dc *dc,
 	log_mpc_crc(dc, log_ctx);
 
 	DTN_INFO_END();
+}
+
+bool dcn10_did_underflow_occur(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+	if (tg->funcs->is_optc_underflow_occurred(tg)) {
+		tg->funcs->clear_optc_underflow(tg);
+		return true;
+	}
+
+	if (hubp->funcs->hubp_get_underflow_status(hubp)) {
+		hubp->funcs->hubp_clear_underflow(hubp);
+		return true;
+	}
+	return false;
 }
 
 static void enable_power_gating_plane(
@@ -1025,7 +1103,7 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		pipe_ctx->plane_res.dpp = dpp;
 		pipe_ctx->plane_res.mpcc_inst = dpp->inst;
 		hubp->mpcc_id = dpp->inst;
-		hubp->opp_id = 0xf;
+		hubp->opp_id = OPP_ID_INVALID;
 		hubp->power_gated = false;
 
 		dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
@@ -1236,8 +1314,7 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
 			pipe_ctx->plane_res.hubp,
 			&plane_state->address,
-			plane_state->flip_immediate,
-			0);
+			plane_state->flip_immediate);
 
 	plane_state->status.requested_address = plane_state->address;
 
@@ -1951,7 +2028,12 @@ static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 			plane_state->format,
 			EXPANSION_MODE_ZERO,
 			plane_state->input_csc_color_matrix,
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+			plane_state->color_space,
+			NULL);
+#else
 			plane_state->color_space);
+#endif
 
 	//set scale and bias registers
 	dcn10_build_prescale_params(&bns_params, plane_state);
@@ -2153,7 +2235,7 @@ void update_dchubp_dpp(
 				pipe_ctx,
 				pipe_ctx->stream->output_color_space,
 				pipe_ctx->stream->csc_color_matrix.matrix,
-				hubp->opp_id);
+				pipe_ctx->stream_res.opp->inst);
 	}
 
 	if (plane_state->update_flags.bits.full_update ||
@@ -2333,6 +2415,7 @@ static void dcn10_apply_ctx_for_surface(
 {
 	int i;
 	struct timing_generator *tg;
+	uint32_t underflow_check_delay_us;
 	bool removed_pipe[4] = { false };
 	bool interdependent_update = false;
 	struct pipe_ctx *top_pipe_to_program =
@@ -2347,10 +2430,21 @@ static void dcn10_apply_ctx_for_surface(
 	interdependent_update = top_pipe_to_program->plane_state &&
 		top_pipe_to_program->plane_state->update_flags.bits.full_update;
 
+	underflow_check_delay_us = dc->debug.underflow_assert_delay_us;
+
+	if (underflow_check_delay_us != 0xFFFFFFFF && dc->hwss.did_underflow_occur)
+		ASSERT(dc->hwss.did_underflow_occur(dc, top_pipe_to_program));
+
 	if (interdependent_update)
 		lock_all_pipes(dc, context, true);
 	else
 		dcn10_pipe_control_lock(dc, top_pipe_to_program, true);
+
+	if (underflow_check_delay_us != 0xFFFFFFFF)
+		udelay(underflow_check_delay_us);
+
+	if (underflow_check_delay_us != 0xFFFFFFFF && dc->hwss.did_underflow_occur)
+		ASSERT(dc->hwss.did_underflow_occur(dc, top_pipe_to_program));
 
 	if (num_planes == 0) {
 		/* OTG blank before remove all front end */
@@ -2371,7 +2465,7 @@ static void dcn10_apply_ctx_for_surface(
 		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
 			if (old_pipe_ctx->stream_res.tg == tg &&
 			    old_pipe_ctx->plane_res.hubp &&
-			    old_pipe_ctx->plane_res.hubp->opp_id != 0xf)
+			    old_pipe_ctx->plane_res.hubp->opp_id != OPP_ID_INVALID)
 				dcn10_disable_plane(dc, old_pipe_ctx);
 		}
 
@@ -2391,6 +2485,11 @@ static void dcn10_apply_ctx_for_surface(
 	if (num_planes > 0)
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	/* Program secondary blending tree and writeback pipes */
+	if ((stream->num_wb_info > 0) && (dc->hwss.program_all_writeback_pipes_in_tree))
+		dc->hwss.program_all_writeback_pipes_in_tree(dc, stream, context);
+#endif
 	if (interdependent_update)
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
@@ -3023,7 +3122,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.disable_stream_gating = NULL,
 	.enable_stream_gating = NULL,
 	.setup_periodic_interrupt = dcn10_setup_periodic_interrupt,
-	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt
+	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt,
+	.did_underflow_occur = dcn10_did_underflow_occur
 };
 
 

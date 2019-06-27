@@ -138,6 +138,8 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 /* TODO - check & update Vega10 cache details */
 #define vega10_cache_info carrizo_cache_info
 #define raven_cache_info carrizo_cache_info
+/* TODO - check & update Navi10 cache details */
+#define navi10_cache_info carrizo_cache_info
 
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
@@ -666,6 +668,9 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	case CHIP_RAVEN:
 		pcache_info = raven_cache_info;
 		num_of_cache_types = ARRAY_SIZE(raven_cache_info);
+	case CHIP_NAVI10:
+		pcache_info = navi10_cache_info;
+		num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
 		break;
 	default:
 		return -EINVAL;

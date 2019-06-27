@@ -132,13 +132,14 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->queue->device = dev;
 	kq->queue->process = kfd_get_process(current);
 
-	retval = kq->mqd_mgr->init_mqd(kq->mqd_mgr, &kq->queue->mqd,
-					&kq->queue->mqd_mem_obj,
+	kq->queue->mqd_mem_obj = kq->mqd_mgr->allocate_mqd(kq->mqd_mgr->dev,
+					&kq->queue->properties);
+	if (!kq->queue->mqd_mem_obj)
+		goto err_allocate_mqd;
+	kq->mqd_mgr->init_mqd(kq->mqd_mgr, &kq->queue->mqd,
+					kq->queue->mqd_mem_obj,
 					&kq->queue->gart_mqd_addr,
 					&kq->queue->properties);
-	if (retval != 0)
-		goto err_init_mqd;
-
 	/* assign HIQ to HQD */
 	if (type == KFD_QUEUE_TYPE_HIQ) {
 		pr_debug("Assigning hiq to hqd\n");
@@ -164,7 +165,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 
 	return true;
 err_alloc_fence:
-err_init_mqd:
+	kq->mqd_mgr->free_mqd(kq->mqd_mgr, kq->queue->mqd, kq->queue->mqd_mem_obj);
+err_allocate_mqd:
 	uninit_queue(kq->queue);
 err_init_queue:
 	kfd_gtt_sa_free(dev, kq->wptr_mem);
@@ -193,7 +195,7 @@ static void uninitialize(struct kernel_queue *kq)
 	else if (kq->queue->properties.type == KFD_QUEUE_TYPE_DIQ)
 		kfd_gtt_sa_free(kq->dev, kq->fence_mem_obj);
 
-	kq->mqd_mgr->uninit_mqd(kq->mqd_mgr, kq->queue->mqd,
+	kq->mqd_mgr->free_mqd(kq->mqd_mgr, kq->queue->mqd,
 				kq->queue->mqd_mem_obj);
 
 	kfd_gtt_sa_free(kq->dev, kq->rptr_mem);
@@ -329,6 +331,9 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		kernel_queue_init_v9(&kq->ops_asic_specific);
+		break;
+	case CHIP_NAVI10:
+		kernel_queue_init_v10(&kq->ops_asic_specific);
 		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",

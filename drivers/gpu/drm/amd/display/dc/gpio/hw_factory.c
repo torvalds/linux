@@ -48,6 +48,9 @@
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn10/hw_factory_dcn10.h"
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#include "dcn20/hw_factory_dcn20.h"
+#endif
 
 #include "diagnostics/hw_factory_diag.h"
 
@@ -88,6 +91,12 @@ bool dal_hw_factory_init(
 	case DCN_VERSION_1_0:
 	case DCN_VERSION_1_01:
 		dal_hw_factory_dcn10_init(factory);
+		return true;
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	case DCN_VERSION_2_0:
+		dal_hw_factory_dcn20_init(factory);
 		return true;
 #endif
 

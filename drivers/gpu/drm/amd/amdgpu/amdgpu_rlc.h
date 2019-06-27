@@ -26,6 +26,94 @@
 
 #include "clearstate_defs.h"
 
+/* firmware ID used in rlc toc */
+typedef enum _FIRMWARE_ID_ {
+	FIRMWARE_ID_INVALID					= 0,
+	FIRMWARE_ID_RLC_G_UCODE					= 1,
+	FIRMWARE_ID_RLC_TOC					= 2,
+	FIRMWARE_ID_RLCG_SCRATCH                                = 3,
+	FIRMWARE_ID_RLC_SRM_ARAM                                = 4,
+	FIRMWARE_ID_RLC_SRM_INDEX_ADDR                          = 5,
+	FIRMWARE_ID_RLC_SRM_INDEX_DATA                          = 6,
+	FIRMWARE_ID_RLC_P_UCODE                                 = 7,
+	FIRMWARE_ID_RLC_V_UCODE                                 = 8,
+	FIRMWARE_ID_RLX6_UCODE                                  = 9,
+	FIRMWARE_ID_RLX6_DRAM_BOOT                              = 10,
+	FIRMWARE_ID_GLOBAL_TAP_DELAYS                           = 11,
+	FIRMWARE_ID_SE0_TAP_DELAYS                              = 12,
+	FIRMWARE_ID_SE1_TAP_DELAYS                              = 13,
+	FIRMWARE_ID_GLOBAL_SE0_SE1_SKEW_DELAYS                  = 14,
+	FIRMWARE_ID_SDMA0_UCODE                                 = 15,
+	FIRMWARE_ID_SDMA0_JT                                    = 16,
+	FIRMWARE_ID_SDMA1_UCODE                                 = 17,
+	FIRMWARE_ID_SDMA1_JT                                    = 18,
+	FIRMWARE_ID_CP_CE                                       = 19,
+	FIRMWARE_ID_CP_PFP                                      = 20,
+	FIRMWARE_ID_CP_ME                                       = 21,
+	FIRMWARE_ID_CP_MEC                                      = 22,
+	FIRMWARE_ID_CP_MES                                      = 23,
+	FIRMWARE_ID_MES_STACK                                   = 24,
+	FIRMWARE_ID_RLC_SRM_DRAM_SR                             = 25,
+	FIRMWARE_ID_RLCG_SCRATCH_SR                             = 26,
+	FIRMWARE_ID_RLCP_SCRATCH_SR                             = 27,
+	FIRMWARE_ID_RLCV_SCRATCH_SR                             = 28,
+	FIRMWARE_ID_RLX6_DRAM_SR                                = 29,
+	FIRMWARE_ID_SDMA0_PG_CONTEXT                            = 30,
+	FIRMWARE_ID_SDMA1_PG_CONTEXT                            = 31,
+	FIRMWARE_ID_GLOBAL_MUX_SELECT_RAM                       = 32,
+	FIRMWARE_ID_SE0_MUX_SELECT_RAM                          = 33,
+	FIRMWARE_ID_SE1_MUX_SELECT_RAM                          = 34,
+	FIRMWARE_ID_ACCUM_CTRL_RAM                              = 35,
+	FIRMWARE_ID_RLCP_CAM                                    = 36,
+	FIRMWARE_ID_RLC_SPP_CAM_EXT                             = 37,
+	FIRMWARE_ID_MAX                                         = 38,
+} FIRMWARE_ID;
+
+typedef struct _RLC_TABLE_OF_CONTENT {
+	union {
+		unsigned int	DW0;
+		struct {
+			unsigned int	offset		: 25;
+			unsigned int	id		: 7;
+		};
+	};
+
+	union {
+		unsigned int	DW1;
+		struct {
+			unsigned int	load_at_boot		: 1;
+			unsigned int	load_at_vddgfx		: 1;
+			unsigned int	load_at_reset		: 1;
+			unsigned int	memory_destination	: 2;
+			unsigned int	vfflr_image_code	: 4;
+			unsigned int	load_mode_direct	: 1;
+			unsigned int	save_for_vddgfx		: 1;
+			unsigned int	save_for_vfflr		: 1;
+			unsigned int	reserved		: 1;
+			unsigned int	signed_source		: 1;
+			unsigned int	size			: 18;
+		};
+	};
+
+	union {
+		unsigned int	DW2;
+		struct {
+			unsigned int	indirect_addr_reg	: 16;
+			unsigned int	index			: 16;
+		};
+	};
+
+	union {
+		unsigned int	DW3;
+		struct {
+			unsigned int	indirect_data_reg	: 16;
+			unsigned int	indirect_start_offset	: 16;
+		};
+	};
+} RLC_TABLE_OF_CONTENT;
+
+#define RLC_TOC_MAX_SIZE		64
+
 struct amdgpu_rlc_funcs {
 	bool (*is_rlc_enabled)(struct amdgpu_device *adev);
 	void (*set_safe_mode)(struct amdgpu_device *adev);
@@ -85,6 +173,16 @@ struct amdgpu_rlc {
 	u8 *save_restore_list_srm;
 
 	bool is_rlc_v2_1;
+
+	/* for rlc autoload */
+	struct amdgpu_bo	*rlc_autoload_bo;
+	u64			rlc_autoload_gpu_addr;
+	void			*rlc_autoload_ptr;
+
+	/* rlc toc buffer */
+	struct amdgpu_bo	*rlc_toc_bo;
+	uint64_t		rlc_toc_gpu_addr;
+	void			*rlc_toc_buf;
 };
 
 void amdgpu_gfx_rlc_enter_safe_mode(struct amdgpu_device *adev);

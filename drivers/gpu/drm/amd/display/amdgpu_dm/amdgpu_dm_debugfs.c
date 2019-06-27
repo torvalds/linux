@@ -675,6 +675,71 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 }
 
 /*
+ * Returns the current and maximum output bpc for the connector.
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/output_bpc
+ */
+static int output_bpc_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct drm_device *dev = connector->dev;
+	struct drm_crtc *crtc = NULL;
+	struct dm_crtc_state *dm_crtc_state = NULL;
+	int res = -ENODEV;
+	unsigned int bpc;
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+
+	if (connector->state == NULL)
+		goto unlock;
+
+	crtc = connector->state->crtc;
+	if (crtc == NULL)
+		goto unlock;
+
+	drm_modeset_lock(&crtc->mutex, NULL);
+	if (crtc->state == NULL)
+		goto unlock;
+
+	dm_crtc_state = to_dm_crtc_state(crtc->state);
+	if (dm_crtc_state->stream == NULL)
+		goto unlock;
+
+	switch (dm_crtc_state->stream->timing.display_color_depth) {
+	case COLOR_DEPTH_666:
+		bpc = 6;
+		break;
+	case COLOR_DEPTH_888:
+		bpc = 8;
+		break;
+	case COLOR_DEPTH_101010:
+		bpc = 10;
+		break;
+	case COLOR_DEPTH_121212:
+		bpc = 12;
+		break;
+	case COLOR_DEPTH_161616:
+		bpc = 16;
+		break;
+	default:
+		goto unlock;
+	}
+
+	seq_printf(m, "Current: %u\n", bpc);
+	seq_printf(m, "Maximum: %u\n", connector->display_info.bpc);
+	res = 0;
+
+unlock:
+	if (crtc)
+		drm_modeset_unlock(&crtc->mutex);
+
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return res;
+}
+
+/*
  * Returns the min and max vrr vfreq through the connector's debugfs file.
  * Example usage: cat /sys/kernel/debug/dri/0/DP-1/vrr_range
  */
@@ -731,8 +796,6 @@ static ssize_t dp_sdp_message_debugfs_write(struct file *f, const char __user *b
 
 	return write_size;
 }
-
-DEFINE_SHOW_ATTRIBUTE(vrr_range);
 
 static ssize_t dp_dpcd_address_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
@@ -816,6 +879,9 @@ static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
 	return read_size - r;
 }
 
+DEFINE_SHOW_ATTRIBUTE(output_bpc);
+DEFINE_SHOW_ATTRIBUTE(vrr_range);
+
 static const struct file_operations dp_link_settings_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.read = dp_link_settings_read,
@@ -868,6 +934,7 @@ static const struct {
 		{"link_settings", &dp_link_settings_debugfs_fops},
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops},
+		{"output_bpc", &output_bpc_fops},
 		{"vrr_range", &vrr_range_fops},
 		{"sdp_message", &sdp_message_fops},
 		{"aux_dpcd_address", &dp_dpcd_address_debugfs_fops},
@@ -875,25 +942,19 @@ static const struct {
 		{"aux_dpcd_data", &dp_dpcd_data_debugfs_fops}
 };
 
-int connector_debugfs_init(struct amdgpu_dm_connector *connector)
+void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
-	struct dentry *ent, *dir = connector->base.debugfs_entry;
+	struct dentry *dir = connector->base.debugfs_entry;
 
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
 		for (i = 0; i < ARRAY_SIZE(dp_debugfs_entries); i++) {
-			ent = debugfs_create_file(dp_debugfs_entries[i].name,
-						  0644,
-						  dir,
-						  connector,
-						  dp_debugfs_entries[i].fops);
-			if (IS_ERR(ent))
-				return PTR_ERR(ent);
+			debugfs_create_file(dp_debugfs_entries[i].name,
+					    0644, dir, connector,
+					    dp_debugfs_entries[i].fops);
 		}
 	}
-
-	return 0;
 }
 
 /*
@@ -1036,7 +1097,7 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 	};
 
 	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *root = minor->debugfs_root;
 	int ret;
 
 	ret = amdgpu_debugfs_add_files(adev, amdgpu_dm_debugfs_list,
@@ -1044,20 +1105,11 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
-	ent = debugfs_create_file(
-		"amdgpu_dm_dtn_log",
-		0644,
-		root,
-		adev,
-		&dtn_log_fops);
+	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
+			    &dtn_log_fops);
 
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-
-	ent = debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root,
-					 adev, &visual_confirm_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
+	debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root, adev,
+				   &visual_confirm_fops);
 
 	return 0;
 }

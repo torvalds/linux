@@ -276,10 +276,10 @@ int amdgpu_ras_sysfs_create(struct amdgpu_device *adev,
 int amdgpu_ras_sysfs_remove(struct amdgpu_device *adev,
 		struct ras_common_if *head);
 
-int amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
+void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 		struct ras_fs_if *head);
 
-int amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
+void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
 		struct ras_common_if *head);
 
 int amdgpu_ras_error_query(struct amdgpu_device *adev,

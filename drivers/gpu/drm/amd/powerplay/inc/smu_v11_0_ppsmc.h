@@ -60,6 +60,7 @@
 //BACO/BAMACO/BOMACO
 #define PPSMC_MSG_EnterBaco                      0x18
 #define PPSMC_MSG_ExitBaco                       0x19
+#define PPSMC_MSG_ArmD3						            	 0x46
 
 //DPM
 #define PPSMC_MSG_SetSoftMinByFreq               0x1A
@@ -71,26 +72,23 @@
 #define PPSMC_MSG_GetDpmFreqByIndex              0x20
 #define PPSMC_MSG_OverridePcieParameters         0x21
 #define PPSMC_MSG_SetMinDeepSleepDcefclk         0x22
-#define PPSMC_MSG_SetWorkloadMask                0x23 
-#define PPSMC_MSG_SetUclkFastSwitch              0x24
-#define PPSMC_MSG_GetAvfsVoltageByDpm            0x25
-#define PPSMC_MSG_SetVideoFps                    0x26
-#define PPSMC_MSG_GetDcModeMaxDpmFreq            0x27
+
+#define PPSMC_MSG_SetWorkloadMask                0x24 
+#define PPSMC_MSG_SetUclkFastSwitch              0x25
+#define PPSMC_MSG_GetVoltageByDpm                0x26
+#define PPSMC_MSG_SetVideoFps                    0x27
+#define PPSMC_MSG_GetDcModeMaxDpmFreq            0x28
 
 //Power Gating
-#define PPSMC_MSG_AllowGfxOff                    0x28
-#define PPSMC_MSG_DisallowGfxOff                 0x29
-#define PPSMC_MSG_PowerUpVcn					 0x2A
-#define PPSMC_MSG_PowerDownVcn					 0x2B	
-#define PPSMC_MSG_PowerUpJpeg                    0x2C
-#define PPSMC_MSG_PowerDownJpeg					 0x2D
-//reserve 0x2A to 0x2F for PG harvesting TBD
-
-//I2C Interface
-#define PPSMC_RequestI2cTransaction              0x30
+#define PPSMC_MSG_AllowGfxOff                    0x29
+#define PPSMC_MSG_DisallowGfxOff                 0x2A
+#define PPSMC_MSG_PowerUpVcn					           0x2B
+#define PPSMC_MSG_PowerDownVcn					         0x2C	
+#define PPSMC_MSG_PowerUpJpeg                    0x2D
+#define PPSMC_MSG_PowerDownJpeg					         0x2E
+//reserve 0x29 to 0x30 for PG harvesting TBD
 
 //Resets
-#define PPSMC_MSG_SoftReset                      0x31  //FIXME Need confirmation from driver
 #define PPSMC_MSG_PrepareMp1ForUnload            0x32
 #define PPSMC_MSG_PrepareMp1ForReset             0x33
 #define PPSMC_MSG_PrepareMp1ForShutdown          0x34
@@ -100,7 +98,6 @@
 #define PPSMC_MSG_GetPptLimit                    0x36
 #define PPSMC_MSG_ReenableAcDcInterrupt          0x37
 #define PPSMC_MSG_NotifyPowerSource              0x38
-//#define PPSMC_MSG_GfxDeviceDriverReset           0x39 //FIXME mode1 and 2 resets will go directly go PSP
 
 //BTC
 #define PPSMC_MSG_RunBtc                         0x3A
@@ -120,9 +117,15 @@
 #define PPSMC_MSG_SetGeminiApertureHigh          0x43
 #define PPSMC_MSG_SetGeminiApertureLow           0x44
 
-#define PPSMC_Message_Count                      0x45
+#define PPSMC_MSG_GetVoltageByDpmOverdrive       0x45
+#define PPSMC_MSG_BacoAudioD3PME                 0x48
+
+#define PPSMC_Message_Count                      0x49
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;
 
+//for use with PPSMC_MSG_GetVoltageByDpmOverdrive
+#define PPSMC_GET_AVFS_CURVE 0
+#define PPSMC_GET_OVERDRIVE_CURVE 1
 #endif

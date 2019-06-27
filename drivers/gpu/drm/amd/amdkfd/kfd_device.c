@@ -317,6 +317,23 @@ static const struct kfd_device_info vega20_device_info = {
 	.num_sdma_queues_per_engine = 8,
 };
 
+static const struct kfd_device_info navi10_device_info = {
+	.asic_family = CHIP_NAVI10,
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.needs_iommu_device = false,
+	.supports_cwsr = true,
+	.needs_pci_atomics = false,
+	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
+	.num_sdma_queues_per_engine = 8,
+};
+
 struct kfd_deviceid {
 	unsigned short did;
 	const struct kfd_device_info *device_info;
@@ -434,7 +451,13 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x66a3, &vega20_device_info },	/* Vega20 */
 	{ 0x66a4, &vega20_device_info },	/* Vega20 */
 	{ 0x66a7, &vega20_device_info },	/* Vega20 */
-	{ 0x66af, &vega20_device_info }		/* Vega20 */
+	{ 0x66af, &vega20_device_info },	/* Vega20 */
+	/* Navi10 */
+	{ 0x7310, &navi10_device_info },	/* Navi10 */
+	{ 0x7312, &navi10_device_info },	/* Navi10 */
+	{ 0x7318, &navi10_device_info },	/* Navi10 */
+	{ 0x731a, &navi10_device_info },	/* Navi10 */
+	{ 0x731f, &navi10_device_info },	/* Navi10 */
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
@@ -516,10 +539,14 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
-		} else {
+		} else if (kfd->device_info->asic_family < CHIP_NAVI10) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_hex);
+		} else {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx10_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx10_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx10_hex);
 		}
 
 		kfd->cwsr_enabled = true;
@@ -603,11 +630,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	if (kfd->kfd2kgd->get_hive_id)
 		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
 
-	if (kfd_topology_add_device(kfd)) {
-		dev_err(kfd_device, "Error adding device to topology\n");
-		goto kfd_topology_add_device_error;
-	}
-
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
 		goto kfd_interrupt_error;
@@ -631,6 +653,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->dbgmgr = NULL;
 
+	if (kfd_topology_add_device(kfd)) {
+		dev_err(kfd_device, "Error adding device to topology\n");
+		goto kfd_topology_add_device_error;
+	}
+
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device %x:%x\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
@@ -640,14 +667,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	goto out;
 
+kfd_topology_add_device_error:
 kfd_resume_error:
 device_iommu_error:
 	device_queue_manager_uninit(kfd->dqm);
 device_queue_manager_error:
 	kfd_interrupt_exit(kfd);
 kfd_interrupt_error:
-	kfd_topology_remove_device(kfd);
-kfd_topology_add_device_error:
 	kfd_doorbell_fini(kfd);
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);

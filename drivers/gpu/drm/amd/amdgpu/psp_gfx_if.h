@@ -80,6 +80,18 @@ struct psp_gfx_ctrl
 */
 #define GFX_FLAG_RESPONSE               0x80000000
 
+/* Gbr IH registers ID */
+enum ih_reg_id {
+	IH_RB		= 0,		// IH_RB_CNTL
+	IH_RB_RNG1	= 1,		// IH_RB_CNTL_RING1
+	IH_RB_RNG2	= 2,		// IH_RB_CNTL_RING2
+};
+
+/* Command to setup Gibraltar IH register */
+struct psp_gfx_cmd_gbr_ih_reg {
+	uint32_t		reg_value;	/* Value to be set to the IH_RB_CNTL... register*/
+	enum ih_reg_id		reg_id;		/* ID of the register */
+};
 
 /* TEE Gfx Command IDs for the ring buffer interface. */
 enum psp_gfx_cmd_id
@@ -95,8 +107,10 @@ enum psp_gfx_cmd_id
     GFX_CMD_ID_SETUP_VMR    = 0x00000009,   /* setup VMR region */
     GFX_CMD_ID_DESTROY_VMR  = 0x0000000A,   /* destroy VMR region */
     GFX_CMD_ID_PROG_REG     = 0x0000000B,   /* program regs */
+    /* IDs upto 0x1F are reserved for older programs (Raven, Vega 10/12/20) */
+    GFX_CMD_ID_LOAD_TOC     = 0x00000020,   /* Load TOC and obtain TMR size */
+    GFX_CMD_ID_AUTOLOAD_RLC = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
 };
-
 
 /* Command to load Trusted Application binary into PSP OS. */
 struct psp_gfx_cmd_load_ta
@@ -169,33 +183,59 @@ struct psp_gfx_cmd_setup_tmr
 
 
 /* FW types for GFX_CMD_ID_LOAD_IP_FW command. Limit 31. */
-enum psp_gfx_fw_type
-{
-    GFX_FW_TYPE_NONE        = 0,
-    GFX_FW_TYPE_CP_ME       = 1,
-    GFX_FW_TYPE_CP_PFP      = 2,
-    GFX_FW_TYPE_CP_CE       = 3,
-    GFX_FW_TYPE_CP_MEC      = 4,
-    GFX_FW_TYPE_CP_MEC_ME1  = 5,
-    GFX_FW_TYPE_CP_MEC_ME2  = 6,
-    GFX_FW_TYPE_RLC_V       = 7,
-    GFX_FW_TYPE_RLC_G       = 8,
-    GFX_FW_TYPE_SDMA0       = 9,
-    GFX_FW_TYPE_SDMA1       = 10,
-    GFX_FW_TYPE_DMCU_ERAM   = 11,
-    GFX_FW_TYPE_DMCU_ISR    = 12,
-    GFX_FW_TYPE_VCN         = 13,
-    GFX_FW_TYPE_UVD         = 14,
-    GFX_FW_TYPE_VCE         = 15,
-    GFX_FW_TYPE_ISP         = 16,
-    GFX_FW_TYPE_ACP         = 17,
-    GFX_FW_TYPE_SMU         = 18,
-    GFX_FW_TYPE_MMSCH       = 19,
-    GFX_FW_TYPE_RLC_RESTORE_LIST_GPM_MEM        = 20,
-    GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM        = 21,
-    GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_CNTL       = 22,
-    GFX_FW_TYPE_UVD1        = 23,
-    GFX_FW_TYPE_MAX         = 24
+enum psp_gfx_fw_type {
+	GFX_FW_TYPE_NONE        = 0,    /* */
+	GFX_FW_TYPE_CP_ME       = 1,    /* CP-ME                    VG + RV */
+	GFX_FW_TYPE_CP_PFP      = 2,    /* CP-PFP                   VG + RV */
+	GFX_FW_TYPE_CP_CE       = 3,    /* CP-CE                    VG + RV */
+	GFX_FW_TYPE_CP_MEC      = 4,    /* CP-MEC FW                VG + RV */
+	GFX_FW_TYPE_CP_MEC_ME1  = 5,    /* CP-MEC Jump Table 1      VG + RV */
+	GFX_FW_TYPE_CP_MEC_ME2  = 6,    /* CP-MEC Jump Table 2      VG      */
+	GFX_FW_TYPE_RLC_V       = 7,    /* RLC-V                    VG      */
+	GFX_FW_TYPE_RLC_G       = 8,    /* RLC-G                    VG + RV */
+	GFX_FW_TYPE_SDMA0       = 9,    /* SDMA0                    VG + RV */
+	GFX_FW_TYPE_SDMA1       = 10,   /* SDMA1                    VG      */
+	GFX_FW_TYPE_DMCU_ERAM   = 11,   /* DMCU-ERAM                VG + RV */
+	GFX_FW_TYPE_DMCU_ISR    = 12,   /* DMCU-ISR                 VG + RV */
+	GFX_FW_TYPE_VCN         = 13,   /* VCN                           RV */
+	GFX_FW_TYPE_UVD         = 14,   /* UVD                      VG      */
+	GFX_FW_TYPE_VCE         = 15,   /* VCE                      VG      */
+	GFX_FW_TYPE_ISP         = 16,   /* ISP                           RV */
+	GFX_FW_TYPE_ACP         = 17,   /* ACP                           RV */
+	GFX_FW_TYPE_SMU         = 18,   /* SMU                      VG      */
+	GFX_FW_TYPE_MMSCH       = 19,   /* MMSCH                    VG      */
+	GFX_FW_TYPE_RLC_RESTORE_LIST_GPM_MEM        = 20,   /* RLC GPM                  VG + RV */
+	GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM        = 21,   /* RLC SRM                  VG + RV */
+	GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_CNTL       = 22,   /* RLC CNTL                 VG + RV */
+	GFX_FW_TYPE_UVD1        = 23,   /* UVD1                     VG-20   */
+	GFX_FW_TYPE_TOC         = 24,   /* TOC                      NV-10   */
+	GFX_FW_TYPE_RLC_P                           = 25,   /* RLC P                    NV      */
+	GFX_FW_TYPE_RLX6                            = 26,   /* RLX6                     NV      */
+	GFX_FW_TYPE_GLOBAL_TAP_DELAYS               = 27,   /* GLOBAL TAP DELAYS        NV      */
+	GFX_FW_TYPE_SE0_TAP_DELAYS                  = 28,   /* SE0 TAP DELAYS           NV      */
+	GFX_FW_TYPE_SE1_TAP_DELAYS                  = 29,   /* SE1 TAP DELAYS           NV      */
+	GFX_FW_TYPE_GLOBAL_SE0_SE1_SKEW_DELAYS      = 30,   /* GLOBAL SE0/1 SKEW DELAYS NV      */
+	GFX_FW_TYPE_SDMA0_JT                        = 31,   /* SDMA0 JT                 NV      */
+	GFX_FW_TYPE_SDMA1_JT                        = 32,   /* SDNA1 JT                 NV      */
+	GFX_FW_TYPE_CP_MES                          = 33,   /* CP MES                   NV      */
+	GFX_FW_TYPE_MES_STACK                       = 34,   /* MES STACK                NV      */
+	GFX_FW_TYPE_RLC_SRM_DRAM_SR                 = 35,   /* RLC SRM DRAM             NV      */
+	GFX_FW_TYPE_RLCG_SCRATCH_SR                 = 36,   /* RLCG SCRATCH             NV      */
+	GFX_FW_TYPE_RLCP_SCRATCH_SR                 = 37,   /* RLCP SCRATCH             NV      */
+	GFX_FW_TYPE_RLCV_SCRATCH_SR                 = 38,   /* RLCV SCRATCH             NV      */
+	GFX_FW_TYPE_RLX6_DRAM_SR                    = 39,   /* RLX6 DRAM                NV      */
+	GFX_FW_TYPE_SDMA0_PG_CONTEXT                = 40,   /* SDMA0 PG CONTEXT         NV      */
+	GFX_FW_TYPE_SDMA1_PG_CONTEXT                = 41,   /* SDMA1 PG CONTEXT         NV      */
+	GFX_FW_TYPE_GLOBAL_MUX_SELECT_RAM           = 42,   /* GLOBAL MUX SEL RAM       NV      */
+	GFX_FW_TYPE_SE0_MUX_SELECT_RAM              = 43,   /* SE0 MUX SEL RAM          NV      */
+	GFX_FW_TYPE_SE1_MUX_SELECT_RAM              = 44,   /* SE1 MUX SEL RAM          NV      */
+	GFX_FW_TYPE_ACCUM_CTRL_RAM                  = 45,   /* ACCUM CTRL RAM           NV      */
+	GFX_FW_TYPE_RLCP_CAM                        = 46,   /* RLCP CAM                 NV      */
+	GFX_FW_TYPE_RLC_SPP_CAM_EXT                 = 47,   /* RLC SPP CAM EXT          NV      */
+	GFX_FW_TYPE_RLX6_DRAM_BOOT                  = 48,   /* RLX6 DRAM BOOT           NV      */
+	GFX_FW_TYPE_VCN0_RAM                        = 49,   /* VCN_RAM  NV */
+	GFX_FW_TYPE_VCN1_RAM                        = 50,   /* VCN_RAM  NV */
+	GFX_FW_TYPE_MAX
 };
 
 /* Command to load HW IP FW. */
@@ -224,6 +264,14 @@ struct psp_gfx_cmd_reg_prog {
 	uint32_t	reg_id;
 };
 
+/* Command to load TOC */
+struct psp_gfx_cmd_load_toc
+{
+    uint32_t        toc_phy_addr_lo;        /* bits [31:0] of GPU Virtual address of FW location (must be 4 KB aligned) */
+    uint32_t        toc_phy_addr_hi;        /* bits [63:32] of GPU Virtual address of FW location */
+    uint32_t        toc_size;               /* FW buffer size in bytes */
+};
+
 /* All GFX ring buffer commands. */
 union psp_gfx_commands
 {
@@ -234,8 +282,9 @@ union psp_gfx_commands
     struct psp_gfx_cmd_load_ip_fw       cmd_load_ip_fw;
     struct psp_gfx_cmd_save_restore_ip_fw cmd_save_restore_ip_fw;
     struct psp_gfx_cmd_reg_prog       cmd_setup_reg_prog;
+    struct psp_gfx_cmd_setup_tmr        cmd_setup_vmr;
+    struct psp_gfx_cmd_load_toc         cmd_load_toc;
 };
-
 
 /* Structure of GFX Response buffer.
 * For GPCOM I/F it is part of GFX_CMD_RESP buffer, for RBI
@@ -243,12 +292,13 @@ union psp_gfx_commands
 */
 struct psp_gfx_resp
 {
-    uint32_t    status;             /* +0  status of command execution */
-    uint32_t    session_id;         /* +4  session ID in response to LoadTa command */
-    uint32_t    fw_addr_lo;         /* +8  bits [31:0] of FW address within TMR (in response to cmd_load_ip_fw command) */
-    uint32_t    fw_addr_hi;         /* +12 bits [63:32] of FW address within TMR (in response to cmd_load_ip_fw command) */
+    uint32_t	status;		/* +0  status of command execution */
+    uint32_t	session_id;	/* +4  session ID in response to LoadTa command */
+    uint32_t	fw_addr_lo;	/* +8  bits [31:0] of FW address within TMR (in response to cmd_load_ip_fw command) */
+    uint32_t	fw_addr_hi;	/* +12 bits [63:32] of FW address within TMR (in response to cmd_load_ip_fw command) */
+    uint32_t	tmr_size;	/* +16 size of the TMR to be reserved including MM fw and Gfx fw in response to cmd_load_toc command */
 
-    uint32_t    reserved[4];
+    uint32_t	reserved[3];
 
     /* total 32 bytes */
 };

@@ -27,18 +27,50 @@
 
 
 #include "dml_common_defs.h"
-#include "dml1_display_rq_dlg_calc.h"
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+#include "display_mode_vba.h"
+#endif
 
 enum dml_project {
 	DML_PROJECT_UNDEFINED,
-	DML_PROJECT_RAVEN1
+	DML_PROJECT_RAVEN1,
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	DML_PROJECT_NAVI10,
+#endif
+};
+
+struct display_mode_lib;
+
+struct dml_funcs {
+	void (*rq_dlg_get_dlg_reg)(
+			struct display_mode_lib *mode_lib,
+			display_dlg_regs_st *dlg_regs,
+			display_ttu_regs_st *ttu_regs,
+			display_e2e_pipe_params_st *e2e_pipe_param,
+			const unsigned int num_pipes,
+			const unsigned int pipe_idx,
+			const bool cstate_en,
+			const bool pstate_en,
+			const bool vm_en,
+			const bool ignore_viewport_pos,
+			const bool immediate_flip_support);
+	void (*rq_dlg_get_rq_reg)(
+		struct display_mode_lib *mode_lib,
+		display_rq_regs_st *rq_regs,
+		const display_pipe_params_st pipe_param);
+	void (*recalculate)(struct display_mode_lib *mode_lib);
+	void (*validate)(struct display_mode_lib *mode_lib);
 };
 
 struct display_mode_lib {
 	struct _vcs_dpi_ip_params_st ip;
 	struct _vcs_dpi_soc_bounding_box_st soc;
 	enum dml_project project;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	struct vba_vars_st vba;
+#endif
 	struct dal_logger *logger;
+	struct dml_funcs funcs;
 };
 
 void dml_init_instance(struct display_mode_lib *lib,

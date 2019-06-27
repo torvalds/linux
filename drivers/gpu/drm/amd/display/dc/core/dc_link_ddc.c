@@ -93,6 +93,8 @@ union hdmi_scdc_status_flags_data {
 		uint8_t CH2_LOCKED:1;
 		uint8_t RESERVED:4;
 		uint8_t RESERVED2:8;
+		uint8_t RESERVED3:8;
+
 	} fields;
 };
 
@@ -109,14 +111,10 @@ union hdmi_scdc_ced_data {
 		uint8_t CH2_7HIGH:7;
 		uint8_t CH2_VALID:1;
 		uint8_t CHECKSUM:8;
-	} fields;
-};
-
-union hdmi_scdc_test_config_Data {
-	uint8_t byte;
-	struct {
-		uint8_t TEST_READ_REQUEST_DELAY:7;
-		uint8_t TEST_READ_REQUEST: 1;
+		uint8_t RESERVED:8;
+		uint8_t RESERVED2:8;
+		uint8_t RESERVED3:8;
+		uint8_t RESERVED4:4;
 	} fields;
 };
 

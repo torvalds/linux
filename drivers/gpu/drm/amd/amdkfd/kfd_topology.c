@@ -1321,6 +1321,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
+	case CHIP_NAVI10:
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
@@ -1330,17 +1331,24 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		     dev->gpu->device_info->asic_family);
 	}
 
+	/*
+	* Overwrite ATS capability according to needs_iommu_device to fix
+	* potential missing corresponding bit in CRAT of BIOS.
+	*/
+	if (dev->gpu->device_info->needs_iommu_device)
+		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
+	else
+		dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
+
 	/* Fix errors in CZ CRAT.
 	 * simd_count: Carrizo CRAT reports wrong simd_count, probably
 	 *		because it doesn't consider masked out CUs
 	 * max_waves_per_simd: Carrizo reports wrong max_waves_per_simd
-	 * capability flag: Carrizo CRAT doesn't report IOMMU flags
 	 */
 	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
 		dev->node_props.simd_count =
 			cu_info.simd_per_cu * cu_info.cu_active_number;
 		dev->node_props.max_waves_per_simd = 10;
-		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 	}
 
 	ctx = amdgpu_ras_get_context((struct amdgpu_device *)(dev->gpu->kgd));

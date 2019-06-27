@@ -2662,6 +2662,7 @@ static bool iceland_is_dpm_running(struct pp_hwmgr *hwmgr)
 }
 
 const struct pp_smumgr_func iceland_smu_funcs = {
+	.name = "iceland_smu",
 	.smu_init = &iceland_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &iceland_start_smu,

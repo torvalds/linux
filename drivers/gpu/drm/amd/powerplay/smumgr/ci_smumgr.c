@@ -2936,6 +2936,7 @@ static int ci_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 }
 
 const struct pp_smumgr_func ci_smu_funcs = {
+	.name = "ci_smu",
 	.smu_init = ci_smu_init,
 	.smu_fini = ci_smu_fini,
 	.start_smu = ci_start_smu,

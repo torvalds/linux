@@ -716,8 +716,7 @@ struct amdgpu_ttm_tt {
 	struct task_struct	*usertask;
 	uint32_t		userflags;
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
-	struct hmm_range	*ranges;
-	int			nr_ranges;
+	struct hmm_range	*range;
 #endif
 };
 
@@ -730,57 +729,36 @@ struct amdgpu_ttm_tt {
  */
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
 
-/* Support Userptr pages cross max 16 vmas */
-#define MAX_NR_VMAS	(16)
+#define MAX_RETRY_HMM_RANGE_FAULT	16
 
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	struct mm_struct *mm = gtt->usertask->mm;
 	unsigned long start = gtt->userptr;
-	unsigned long end = start + ttm->num_pages * PAGE_SIZE;
-	struct vm_area_struct *vma = NULL, *vmas[MAX_NR_VMAS];
-	struct hmm_range *ranges;
-	unsigned long nr_pages, i;
-	uint64_t *pfns, f;
+	struct vm_area_struct *vma;
+	struct hmm_range *range;
+	unsigned long i;
+	uint64_t *pfns;
+	int retry = 0;
 	int r = 0;
 
 	if (!mm) /* Happens during process shutdown */
 		return -ESRCH;
 
-	down_read(&mm->mmap_sem);
-
-	/* user pages may cross multiple VMAs */
-	gtt->nr_ranges = 0;
-	do {
-		unsigned long vm_start;
-
-		if (gtt->nr_ranges >= MAX_NR_VMAS) {
-			DRM_ERROR("Too many VMAs in userptr range\n");
-			r = -EFAULT;
-			goto out;
-		}
-
-		vm_start = vma ? vma->vm_end : start;
-		vma = find_vma(mm, vm_start);
-		if (unlikely(!vma || vm_start < vma->vm_start)) {
-			r = -EFAULT;
-			goto out;
-		}
-		vmas[gtt->nr_ranges++] = vma;
-	} while (end > vma->vm_end);
-
-	DRM_DEBUG_DRIVER("0x%lx nr_ranges %d pages 0x%lx\n",
-		start, gtt->nr_ranges, ttm->num_pages);
-
+	vma = find_vma(mm, start);
+	if (unlikely(!vma || start < vma->vm_start)) {
+		r = -EFAULT;
+		goto out;
+	}
 	if (unlikely((gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) &&
-		vmas[0]->vm_file)) {
+		vma->vm_file)) {
 		r = -EPERM;
 		goto out;
 	}
 
-	ranges = kvmalloc_array(gtt->nr_ranges, sizeof(*ranges), GFP_KERNEL);
-	if (unlikely(!ranges)) {
+	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	if (unlikely(!range)) {
 		r = -ENOMEM;
 		goto out;
 	}
@@ -791,61 +769,67 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 		goto out_free_ranges;
 	}
 
-	for (i = 0; i < gtt->nr_ranges; i++)
-		amdgpu_hmm_init_range(&ranges[i]);
+	amdgpu_hmm_init_range(range);
+	range->default_flags = range->flags[HMM_PFN_VALID];
+	range->default_flags |= amdgpu_ttm_tt_is_readonly(ttm) ?
+				0 : range->flags[HMM_PFN_WRITE];
+	range->pfn_flags_mask = 0;
+	range->pfns = pfns;
+	hmm_range_register(range, mm, start,
+			   start + ttm->num_pages * PAGE_SIZE, PAGE_SHIFT);
 
-	f = ranges[0].flags[HMM_PFN_VALID];
-	f |= amdgpu_ttm_tt_is_readonly(ttm) ?
-				0 : ranges[0].flags[HMM_PFN_WRITE];
-	memset64(pfns, f, ttm->num_pages);
+retry:
+	/*
+	 * Just wait for range to be valid, safe to ignore return value as we
+	 * will use the return value of hmm_range_fault() below under the
+	 * mmap_sem to ascertain the validity of the range.
+	 */
+	hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT);
 
-	for (nr_pages = 0, i = 0; i < gtt->nr_ranges; i++) {
-		ranges[i].vma = vmas[i];
-		ranges[i].start = max(start, vmas[i]->vm_start);
-		ranges[i].end = min(end, vmas[i]->vm_end);
-		ranges[i].pfns = pfns + nr_pages;
-		nr_pages += (ranges[i].end - ranges[i].start) / PAGE_SIZE;
+	down_read(&mm->mmap_sem);
 
-		r = hmm_vma_fault(&ranges[i], true);
-		if (unlikely(r))
-			break;
-	}
-	if (unlikely(r)) {
-		while (i--)
-			hmm_vma_range_done(&ranges[i]);
+	r = hmm_range_fault(range, true);
+	if (unlikely(r < 0)) {
+		if (likely(r == -EAGAIN)) {
+			/*
+			 * return -EAGAIN, mmap_sem is dropped
+			 */
+			if (retry++ < MAX_RETRY_HMM_RANGE_FAULT)
+				goto retry;
+			else
+				pr_err("Retry hmm fault too many times\n");
+		}
 
-		goto out_free_pfns;
+		goto out_up_read;
 	}
 
 	up_read(&mm->mmap_sem);
 
 	for (i = 0; i < ttm->num_pages; i++) {
-		pages[i] = hmm_pfn_to_page(&ranges[0], pfns[i]);
-		if (!pages[i]) {
+		pages[i] = hmm_device_entry_to_page(range, pfns[i]);
+		if (unlikely(!pages[i])) {
 			pr_err("Page fault failed for pfn[%lu] = 0x%llx\n",
 			       i, pfns[i]);
-			goto out_invalid_pfn;
+			r = -ENOMEM;
+
+			goto out_free_pfns;
 		}
 	}
-	gtt->ranges = ranges;
+
+	gtt->range = range;
 
 	return 0;
 
+out_up_read:
+	if (likely(r != -EAGAIN))
+		up_read(&mm->mmap_sem);
 out_free_pfns:
+	hmm_range_unregister(range);
 	kvfree(pfns);
 out_free_ranges:
-	kvfree(ranges);
+	kfree(range);
 out:
-	up_read(&mm->mmap_sem);
-
 	return r;
-
-out_invalid_pfn:
-	for (i = 0; i < gtt->nr_ranges; i++)
-		hmm_vma_range_done(&ranges[i]);
-	kvfree(pfns);
-	kvfree(ranges);
-	return -ENOMEM;
 }
 
 /**
@@ -858,23 +842,23 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	bool r = false;
-	int i;
 
 	if (!gtt || !gtt->userptr)
 		return false;
 
-	DRM_DEBUG_DRIVER("user_pages_done 0x%llx nr_ranges %d pages 0x%lx\n",
-		gtt->userptr, gtt->nr_ranges, ttm->num_pages);
+	DRM_DEBUG_DRIVER("user_pages_done 0x%llx pages 0x%lx\n",
+		gtt->userptr, ttm->num_pages);
 
-	WARN_ONCE(!gtt->ranges || !gtt->ranges[0].pfns,
+	WARN_ONCE(!gtt->range || !gtt->range->pfns,
 		"No user pages to check\n");
 
-	if (gtt->ranges) {
-		for (i = 0; i < gtt->nr_ranges; i++)
-			r |= hmm_vma_range_done(&gtt->ranges[i]);
-		kvfree(gtt->ranges[0].pfns);
-		kvfree(gtt->ranges);
-		gtt->ranges = NULL;
+	if (gtt->range) {
+		r = hmm_range_valid(gtt->range);
+		hmm_range_unregister(gtt->range);
+
+		kvfree(gtt->range->pfns);
+		kfree(gtt->range);
+		gtt->range = NULL;
 	}
 
 	return r;
@@ -958,9 +942,9 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	sg_free_table(ttm->sg);
 
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
-	if (gtt->ranges &&
-	    ttm->pages[0] == hmm_pfn_to_page(&gtt->ranges[0],
-					     gtt->ranges[0].pfns[0]))
+	if (gtt->range &&
+	    ttm->pages[0] == hmm_device_entry_to_page(gtt->range,
+						      gtt->range->pfns[0]))
 		WARN_ONCE(1, "Missing get_user_page_done\n");
 #endif
 }
@@ -983,8 +967,8 @@ int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 			goto gart_bind_fail;
 
 		/* Patch mtype of the second part BO */
-		flags &=  ~AMDGPU_PTE_MTYPE_MASK;
-		flags |= AMDGPU_PTE_MTYPE(AMDGPU_MTYPE_NC);
+		flags &= ~AMDGPU_PTE_MTYPE_VG10_MASK;
+		flags |= AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_NC);
 
 		r = amdgpu_gart_bind(adev,
 				gtt->offset + (page_idx << PAGE_SHIFT),

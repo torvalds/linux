@@ -650,7 +650,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	}
 
 	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true,
-				   &duplicates, true);
+				   &duplicates, false);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("ttm_eu_reserve_buffers failed.\n");
@@ -673,16 +673,12 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	}
 
 	r = amdgpu_cs_list_validate(p, &duplicates);
-	if (r) {
-		DRM_ERROR("amdgpu_cs_list_validate(duplicates) failed.\n");
+	if (r)
 		goto error_validate;
-	}
 
 	r = amdgpu_cs_list_validate(p, &p->validated);
-	if (r) {
-		DRM_ERROR("amdgpu_cs_list_validate(validated) failed.\n");
+	if (r)
 		goto error_validate;
-	}
 
 	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved,
 				     p->bytes_moved_vis);
@@ -878,7 +874,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		struct dma_fence *f;
 
 		bo_va = fpriv->csa_va;
@@ -967,7 +963,8 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
 			continue;
 
-		if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX && amdgpu_sriov_vf(adev)) {
+		if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX &&
+		    (amdgpu_mcbp || amdgpu_sriov_vf(adev))) {
 			if (chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
 				if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
 					ce_preempt++;
@@ -1385,7 +1382,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r) {
 		if (r == -ENOMEM)
 			DRM_ERROR("Not enough memory for command submission!\n");
-		else if (r != -ERESTARTSYS)
+		else if (r != -ERESTARTSYS && r != -EAGAIN)
 			DRM_ERROR("Failed to process the buffer list %d!\n", r);
 		goto out;
 	}

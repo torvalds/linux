@@ -36,7 +36,13 @@ struct dpp {
 	struct dpp_caps *caps;
 	struct pwl_params regamma_params;
 	struct pwl_params degamma_params;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	struct dpp_cursor_attributes cur_attr;
+#endif
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	struct pwl_params shaper_params;
+#endif
 };
 
 struct dpp_input_csc_matrix {
@@ -48,6 +54,34 @@ struct dpp_grph_csc_adjustment {
 	struct fixed31_32 temperature_matrix[CSC_TEMPERATURE_MATRIX_SIZE];
 	enum graphics_gamut_adjust_type gamut_adjust_type;
 };
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+struct cnv_color_keyer_params {
+	int color_keyer_en;
+	int color_keyer_mode;
+	int color_keyer_alpha_low;
+	int color_keyer_alpha_high;
+	int color_keyer_red_low;
+	int color_keyer_red_high;
+	int color_keyer_green_low;
+	int color_keyer_green_high;
+	int color_keyer_blue_low;
+	int color_keyer_blue_high;
+};
+
+/* new for dcn2: set the 8bit alpha values based on the 2 bit alpha
+ *ALPHA_2BIT_LUT. ALPHA_2BIT_LUT0   default: 0b00000000
+ *ALPHA_2BIT_LUT. ALPHA_2BIT_LUT1   default: 0b01010101
+ *ALPHA_2BIT_LUT. ALPHA_2BIT_LUT2   default: 0b10101010
+ *ALPHA_2BIT_LUT. ALPHA_2BIT_LUT3   default: 0b11111111
+ */
+struct cnv_alpha_2bit_lut {
+	int lut0;
+	int lut1;
+	int lut2;
+	int lut3;
+};
+#endif
 
 struct dcn_dpp_state {
 	uint32_t is_enabled;
@@ -155,7 +189,12 @@ struct dpp_funcs {
 			enum surface_pixel_format format,
 			enum expansion_mode mode,
 			struct dc_csc_transform input_csc_color_matrix,
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+			enum dc_color_space input_color_space,
+			struct cnv_alpha_2bit_lut *alpha_2bit_lut);
+#else
 			enum dc_color_space input_color_space);
+#endif
 
 	void (*dpp_full_bypass)(struct dpp *dpp_base);
 
@@ -184,6 +223,20 @@ struct dpp_funcs {
 			bool dppclk_div,
 			bool enable);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	bool (*dpp_program_blnd_lut)(
+			struct dpp *dpp,
+			const struct pwl_params *params);
+	bool (*dpp_program_shaper_lut)(
+			struct dpp *dpp,
+			const struct pwl_params *params);
+	bool (*dpp_program_3dlut)(
+			struct dpp *dpp,
+			struct tetrahedral_params *params);
+	void (*dpp_cnv_set_alpha_keyer)(
+			struct dpp *dpp_base,
+			struct cnv_color_keyer_params *color_keyer);
+#endif
 };
 
 

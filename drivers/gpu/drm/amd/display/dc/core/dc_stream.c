@@ -108,6 +108,17 @@ static void construct(struct dc_stream_state *stream,
 	/* EDID CAP translation for HDMI 2.0 */
 	stream->timing.flags.LTE_340MCSC_SCRAMBLE = dc_sink_data->edid_caps.lte_340mcsc_scramble;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	memset(&stream->timing.dsc_cfg, 0, sizeof(stream->timing.dsc_cfg));
+	stream->timing.dsc_cfg.num_slices_h = 0;
+	stream->timing.dsc_cfg.num_slices_v = 0;
+	stream->timing.dsc_cfg.bits_per_pixel = 128;
+	stream->timing.dsc_cfg.block_pred_enable = 1;
+	stream->timing.dsc_cfg.linebuf_depth = 9;
+	stream->timing.dsc_cfg.version_minor = 2;
+	stream->timing.dsc_cfg.ycbcr422_simple = 0;
+#endif
+
 	update_stream_signal(stream, dc_sink_data);
 
 	stream->out_transfer_func = dc_create_transfer_func();
@@ -358,6 +369,121 @@ bool dc_stream_set_cursor_position(
 	return true;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+bool dc_stream_add_writeback(struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_writeback_info *wb_info)
+{
+	bool isDrc = false;
+	int i = 0;
+	struct dwbc *dwb;
+
+	if (stream == NULL) {
+		dm_error("DC: dc_stream is NULL!\n");
+		return false;
+	}
+
+	if (wb_info == NULL) {
+		dm_error("DC: dc_writeback_info is NULL!\n");
+		return false;
+	}
+
+	if (wb_info->dwb_pipe_inst >= MAX_DWB_PIPES) {
+		dm_error("DC: writeback pipe is invalid!\n");
+		return false;
+	}
+
+	wb_info->dwb_params.out_transfer_func = stream->out_transfer_func;
+
+	dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+	dwb->dwb_is_drc = false;
+
+	/* recalculate and apply DML parameters */
+
+	for (i = 0; i < stream->num_wb_info; i++) {
+		/*dynamic update*/
+		if (stream->writeback_info[i].wb_enabled &&
+			stream->writeback_info[i].dwb_pipe_inst == wb_info->dwb_pipe_inst) {
+			stream->writeback_info[i] = *wb_info;
+			isDrc = true;
+		}
+	}
+
+	if (!isDrc) {
+		stream->writeback_info[stream->num_wb_info++] = *wb_info;
+	}
+
+	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
+		dm_error("DC: update_bandwidth failed!\n");
+		return false;
+	}
+
+	/* enable writeback */
+	if (dc->hwss.enable_writeback) {
+		struct dc_stream_status *stream_status = dc_stream_get_status(stream);
+		struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+
+		if (dwb->funcs->is_enabled(dwb)) {
+			/* writeback pipe already enabled, only need to update */
+			dc->hwss.update_writeback(dc, stream_status, wb_info);
+		} else {
+			/* Enable writeback pipe from scratch*/
+			dc->hwss.enable_writeback(dc, stream_status, wb_info);
+		}
+	}
+
+	return true;
+}
+
+bool dc_stream_remove_writeback(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t dwb_pipe_inst)
+{
+	int i = 0, j = 0;
+	if (stream == NULL) {
+		dm_error("DC: dc_stream is NULL!\n");
+		return false;
+	}
+
+	if (dwb_pipe_inst >= MAX_DWB_PIPES) {
+		dm_error("DC: writeback pipe is invalid!\n");
+		return false;
+	}
+
+//	stream->writeback_info[dwb_pipe_inst].wb_enabled = false;
+	for (i = 0; i < stream->num_wb_info; i++) {
+		/*dynamic update*/
+		if (stream->writeback_info[i].wb_enabled &&
+			stream->writeback_info[i].dwb_pipe_inst == dwb_pipe_inst) {
+			stream->writeback_info[i].wb_enabled = false;
+		}
+	}
+
+	/* remove writeback info for disabled writeback pipes from stream */
+	for (i = 0, j = 0; i < stream->num_wb_info; i++) {
+		if (stream->writeback_info[i].wb_enabled) {
+			if (i != j)
+				/* trim the array */
+				stream->writeback_info[j] = stream->writeback_info[i];
+			j++;
+		}
+	}
+	stream->num_wb_info = j;
+
+	/* recalculate and apply DML parameters */
+	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
+		dm_error("DC: update_bandwidth failed!\n");
+		return false;
+	}
+
+	/* disable writeback */
+	if (dc->hwss.disable_writeback)
+		dc->hwss.disable_writeback(dc, dwb_pipe_inst);
+
+	return true;
+}
+#endif
+
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 {
 	uint8_t i;
@@ -442,6 +568,77 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 
 	return ret;
 }
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream)
+{
+	bool status = true;
+	struct pipe_ctx *pipe = NULL;
+	int i;
+
+	if (!dc->hwss.dmdata_status_done)
+		return false;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream)
+			break;
+	}
+	/* Stream not found, by default we'll assume HUBP fetched dm data */
+	if (i == MAX_PIPES)
+		return true;
+
+	status = dc->hwss.dmdata_status_done(pipe);
+	return status;
+}
+
+bool dc_stream_set_dynamic_metadata(struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_dmdata_attributes *attr)
+{
+	struct pipe_ctx *pipe_ctx = NULL;
+	struct hubp *hubp;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx->stream == stream)
+			break;
+	}
+
+	if (i == MAX_PIPES)
+		return false;
+
+	hubp = pipe_ctx->plane_res.hubp;
+	if (hubp == NULL)
+		return false;
+
+	pipe_ctx->stream->dmdata_address = attr->address;
+
+	if (pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata != NULL) {
+		if (pipe_ctx->stream->dmdata_address.quad_part != 0) {
+			/* if using dynamic meta, don't set up generic infopackets */
+			pipe_ctx->stream_res.encoder_info_frame.hdrsmd.valid = false;
+			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata(
+					pipe_ctx->stream_res.stream_enc,
+					true, pipe_ctx->plane_res.hubp->inst,
+					dc_is_dp_signal(pipe_ctx->stream->signal) ?
+							dmdata_dp : dmdata_hdmi);
+		} else
+			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata(
+					pipe_ctx->stream_res.stream_enc,
+					false, pipe_ctx->plane_res.hubp->inst,
+					dc_is_dp_signal(pipe_ctx->stream->signal) ?
+							dmdata_dp : dmdata_hdmi);
+	}
+
+	if (hubp->funcs->dmdata_set_attributes != NULL &&
+			pipe_ctx->stream->dmdata_address.quad_part != 0) {
+		hubp->funcs->dmdata_set_attributes(hubp, attr);
+	}
+
+	return true;
+}
+#endif
 
 void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 {

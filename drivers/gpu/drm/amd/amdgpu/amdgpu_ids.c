@@ -364,8 +364,11 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		if (updates && (!flushed || dma_fence_is_later(updates, flushed)))
 			needs_flush = true;
 
-		/* Concurrent flushes are only possible starting with Vega10 */
-		if (adev->asic_type < CHIP_VEGA10 && needs_flush)
+		/* Concurrent flushes are only possible starting with Vega10 and
+		 * are broken on Navi10 and Navi14.
+		 */
+		if (needs_flush && (adev->asic_type < CHIP_VEGA10 ||
+				    adev->asic_type == CHIP_NAVI10))
 			continue;
 
 		/* Good, we can use this VMID. Remember this submission as

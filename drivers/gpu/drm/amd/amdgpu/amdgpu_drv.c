@@ -78,9 +78,10 @@
  * - 3.30.0 - Add AMDGPU_SCHED_OP_CONTEXT_PRIORITY_OVERRIDE.
  * - 3.31.0 - Add support for per-flip tiling attribute changes with DC
  * - 3.32.0 - Add syncobj timeline support to AMDGPU_CS.
+ * - 3.33.0 - Fixes for GDS ENOMEM failures in AMDGPU_CS.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	32
+#define KMS_DRIVER_MINOR	33
 #define KMS_DRIVER_PATCHLEVEL	0
 
 #define AMDGPU_MAX_TIMEOUT_PARAM_LENTH	256
@@ -110,7 +111,6 @@ int amdgpu_vm_fragment_size = -1;
 int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
 int amdgpu_vm_debug = 0;
-int amdgpu_vram_page_split = 512;
 int amdgpu_vm_update_mode = -1;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_dc = -1;
@@ -138,6 +138,10 @@ int amdgpu_emu_mode = 0;
 uint amdgpu_smu_memory_pool_size = 0;
 /* FBC (bit 0) disabled by default*/
 uint amdgpu_dc_feature_mask = 0;
+int amdgpu_async_gfx_ring = 1;
+int amdgpu_mcbp = 0;
+int amdgpu_discovery = 0;
+int amdgpu_mes = 0;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -249,7 +253,9 @@ module_param_string(lockup_timeout, amdgpu_lockup_timeout, sizeof(amdgpu_lockup_
 
 /**
  * DOC: dpm (int)
- * Override for dynamic power management setting (1 = enable, 0 = disable). The default is -1 (auto).
+ * Override for dynamic power management setting
+ * (0 = disable, 1 = enable, 2 = enable sw smu driver for vega20)
+ * The default is -1 (auto).
  */
 MODULE_PARM_DESC(dpm, "DPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(dpm, amdgpu_dpm, int, 0444);
@@ -343,13 +349,6 @@ module_param_named(vm_debug, amdgpu_vm_debug, int, 0644);
  */
 MODULE_PARM_DESC(vm_update_mode, "VM update using CPU (0 = never (default except for large BAR(LB)), 1 = Graphics only, 2 = Compute only (default for LB), 3 = Both");
 module_param_named(vm_update_mode, amdgpu_vm_update_mode, int, 0444);
-
-/**
- * DOC: vram_page_split (int)
- * Override the number of pages after we split VRAM allocations (default 512, -1 = disable). The default is 512.
- */
-MODULE_PARM_DESC(vram_page_split, "Number of pages after we split VRAM allocations (default 512, -1 = disable)");
-module_param_named(vram_page_split, amdgpu_vram_page_split, int, 0444);
 
 /**
  * DOC: exp_hw_support (int)
@@ -574,6 +573,26 @@ MODULE_PARM_DESC(smu_memory_pool_size,
 		"0x1 = 256Mbyte, 0x2 = 512Mbyte, 0x4 = 1 Gbyte, 0x8 = 2GByte");
 module_param_named(smu_memory_pool_size, amdgpu_smu_memory_pool_size, uint, 0444);
 
+/**
+ * DOC: async_gfx_ring (int)
+ * It is used to enable gfx rings that could be configured with different prioritites or equal priorities
+ */
+MODULE_PARM_DESC(async_gfx_ring,
+	"Asynchronous GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled, 1 = enabled (default))");
+module_param_named(async_gfx_ring, amdgpu_async_gfx_ring, int, 0444);
+
+MODULE_PARM_DESC(mcbp,
+	"Enable Mid-command buffer preemption (0 = disabled (default), 1 = enabled)");
+module_param_named(mcbp, amdgpu_mcbp, int, 0444);
+
+MODULE_PARM_DESC(discovery,
+	"Allow driver to discover hardware IPs from IP Discovery table at the top of VRAM");
+module_param_named(discovery, amdgpu_discovery, int, 0444);
+
+MODULE_PARM_DESC(mes,
+	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
+module_param_named(mes, amdgpu_mes, int, 0444);
+
 #ifdef CONFIG_HSA_AMD
 /**
  * DOC: sched_policy (int)
@@ -678,6 +697,14 @@ MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (defau
 bool hws_gws_support;
 module_param(hws_gws_support, bool, 0444);
 MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supported (Default), true = supported)");
+
+/**
+  * DOC: queue_preemption_timeout_ms (int)
+  * queue preemption timeout in ms (1 = Minimum, 9000 = default)
+  */
+int queue_preemption_timeout_ms;
+module_param(queue_preemption_timeout_ms, int, 0644);
+MODULE_PARM_DESC(queue_preemption_timeout_ms, "queue preemption timeout in ms (1 = Minimum, 9000 = default)");
 #endif
 
 /**
@@ -687,6 +714,22 @@ MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supp
  */
 MODULE_PARM_DESC(dcfeaturemask, "all stable DC features enabled (default))");
 module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
+
+/**
+ * DOC: abmlevel (uint)
+ * Override the default ABM (Adaptive Backlight Management) level used for DC
+ * enabled hardware. Requires DMCU to be supported and loaded.
+ * Valid levels are 0-4. A value of 0 indicates that ABM should be disabled by
+ * default. Values 1-4 control the maximum allowable brightness reduction via
+ * the ABM algorithm, with 1 being the least reduction and 4 being the most
+ * reduction.
+ *
+ * Defaults to 0, or disabled. Userspace can still override this level later
+ * after boot.
+ */
+uint amdgpu_dm_abm_level = 0;
+MODULE_PARM_DESC(abmlevel, "ABM level (0 = off (default), 1-4 = backlight reduction level) ");
+module_param_named(abmlevel, amdgpu_dm_abm_level, uint, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
@@ -944,6 +987,14 @@ static const struct pci_device_id pciidlist[] = {
 	/* Raven */
 	{0x1002, 0x15dd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
 	{0x1002, 0x15d8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
+	/* Navi10 */
+	{0x1002, 0x7310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
+	{0x1002, 0x7312, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
+	{0x1002, 0x7318, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
+	{0x1002, 0x7319, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
+	{0x1002, 0x731A, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
+	{0x1002, 0x731B, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
+	{0x1002, 0x731F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
 
 	{0, 0, 0}
 };

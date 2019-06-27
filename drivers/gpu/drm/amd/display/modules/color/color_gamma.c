@@ -1572,15 +1572,14 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 			output_tf->tf == TRANSFER_FUNCTION_SRGB) {
 		if (ramp == NULL)
 			return true;
-		if ((ramp->is_identity && ramp->type != GAMMA_CS_TFM_1D) ||
+		if ((ramp->is_logical_identity) ||
 				(!mapUserRamp && ramp->type == GAMMA_RGB_256))
 			return true;
 	}
 
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
 
-	if (ramp && ramp->type != GAMMA_CS_TFM_1D &&
-			(mapUserRamp || ramp->type != GAMMA_RGB_256)) {
+	if (ramp && (mapUserRamp || ramp->type != GAMMA_RGB_256)) {
 		rgb_user = kvcalloc(ramp->num_entries + _EXTRA_POINTS,
 			    sizeof(*rgb_user),
 			    GFP_KERNEL);

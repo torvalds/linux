@@ -237,6 +237,9 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	case CHIP_RAVEN:
 		pm->pmf = &kfd_v9_pm_funcs;
 		break;
+	case CHIP_NAVI10:
+		pm->pmf = &kfd_v10_pm_funcs;
+		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",
 		     dqm->dev->device_info->asic_family);
