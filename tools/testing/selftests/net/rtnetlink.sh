@@ -738,13 +738,17 @@ kci_test_ipsec_offload()
 	sysfsd=/sys/kernel/debug/netdevsim/netdevsim0/ports/0/
 	sysfsf=$sysfsd/ipsec
 	sysfsnet=/sys/bus/netdevsim/devices/netdevsim0/net/
+	probed=false
 
 	# setup netdevsim since dummydev doesn't have offload support
-	modprobe netdevsim
-	check_err $?
-	if [ $ret -ne 0 ]; then
-		echo "FAIL: ipsec_offload can't load netdevsim"
-		return 1
+	if [ ! -w /sys/bus/netdevsim/new_device ] ; then
+		modprobe -q netdevsim
+		check_err $?
+		if [ $ret -ne 0 ]; then
+			echo "SKIP: ipsec_offload can't load netdevsim"
+			return $ksft_skip
+		fi
+		probed=true
 	fi
 
 	echo "0" > /sys/bus/netdevsim/new_device
@@ -824,7 +828,7 @@ EOF
 	fi
 
 	# clean up any leftovers
-	rmmod netdevsim
+	$probed && rmmod netdevsim
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: ipsec_offload"
