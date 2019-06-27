@@ -7,6 +7,8 @@
  * Author: Nathan Lynch
  */
 
+#define pr_fmt(fmt) "cacheinfo: " fmt
+
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
