@@ -132,7 +132,7 @@ struct sja1105_l2_lookup_entry {
 	u64 mask_vlanid;
 	u64 mask_macaddr;
 	u64 iotag;
-	bool lockeds;
+	u64 lockeds;
 	union {
 		/* LOCKEDS=1: Static FDB entries */
 		struct {
@@ -151,6 +151,7 @@ struct sja1105_l2_lookup_entry {
 };
 
 struct sja1105_l2_lookup_params_entry {
+	u64 maxaddrp[5];     /* P/Q/R/S only */
 	u64 start_dynspc;    /* P/Q/R/S only */
 	u64 drpnolearn;      /* P/Q/R/S only */
 	u64 use_static;      /* P/Q/R/S only */

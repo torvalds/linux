@@ -3,6 +3,98 @@
  */
 #include "sja1105.h"
 
+/* In the dynamic configuration interface, the switch exposes a register-like
+ * view of some of the static configuration tables.
+ * Many times the field organization of the dynamic tables is abbreviated (not
+ * all fields are dynamically reconfigurable) and different from the static
+ * ones, but the key reason for having it is that we can spare a switch reset
+ * for settings that can be changed dynamically.
+ *
+ * This file creates a per-switch-family abstraction called
+ * struct sja1105_dynamic_table_ops and two operations that work with it:
+ * - sja1105_dynamic_config_write
+ * - sja1105_dynamic_config_read
+ *
+ * Compared to the struct sja1105_table_ops from sja1105_static_config.c,
+ * the dynamic accessors work with a compound buffer:
+ *
+ * packed_buf
+ *
+ * |
+ * V
+ * +-----------------------------------------+------------------+
+ * |              ENTRY BUFFER               |  COMMAND BUFFER  |
+ * +-----------------------------------------+------------------+
+ *
+ * <----------------------- packed_size ------------------------>
+ *
+ * The ENTRY BUFFER may or may not have the same layout, or size, as its static
+ * configuration table entry counterpart. When it does, the same packing
+ * function is reused (bar exceptional cases - see
+ * sja1105pqrs_dyn_l2_lookup_entry_packing).
+ *
+ * The reason for the COMMAND BUFFER being at the end is to be able to send
+ * a dynamic write command through a single SPI burst. By the time the switch
+ * reacts to the command, the ENTRY BUFFER is already populated with the data
+ * sent by the core.
+ *
+ * The COMMAND BUFFER is always SJA1105_SIZE_DYN_CMD bytes (one 32-bit word) in
+ * size.
+ *
+ * Sometimes the ENTRY BUFFER does not really exist (when the number of fields
+ * that can be reconfigured is small), then the switch repurposes some of the
+ * unused 32 bits of the COMMAND BUFFER to hold ENTRY data.
+ *
+ * The key members of struct sja1105_dynamic_table_ops are:
+ * - .entry_packing: A function that deals with packing an ENTRY structure
+ *		     into an SPI buffer, or retrieving an ENTRY structure
+ *		     from one.
+ *		     The @packed_buf pointer it's given does always point to
+ *		     the ENTRY portion of the buffer.
+ * - .cmd_packing: A function that deals with packing/unpacking the COMMAND
+ *		   structure to/from the SPI buffer.
+ *		   It is given the same @packed_buf pointer as .entry_packing,
+ *		   so most of the time, the @packed_buf points *behind* the
+ *		   COMMAND offset inside the buffer.
+ *		   To access the COMMAND portion of the buffer, the function
+ *		   knows its correct offset.
+ *		   Giving both functions the same pointer is handy because in
+ *		   extreme cases (see sja1105pqrs_dyn_l2_lookup_entry_packing)
+ *		   the .entry_packing is able to jump to the COMMAND portion,
+ *		   or vice-versa (sja1105pqrs_l2_lookup_cmd_packing).
+ * - .access: A bitmap of:
+ *	OP_READ: Set if the hardware manual marks the ENTRY portion of the
+ *		 dynamic configuration table buffer as R (readable) after
+ *		 an SPI read command (the switch will populate the buffer).
+ *	OP_WRITE: Set if the manual marks the ENTRY portion of the dynamic
+ *		  table buffer as W (writable) after an SPI write command
+ *		  (the switch will read the fields provided in the buffer).
+ *	OP_DEL: Set if the manual says the VALIDENT bit is supported in the
+ *		COMMAND portion of this dynamic config buffer (i.e. the
+ *		specified entry can be invalidated through a SPI write
+ *		command).
+ *	OP_SEARCH: Set if the manual says that the index of an entry can
+ *		   be retrieved in the COMMAND portion of the buffer based
+ *		   on its ENTRY portion, as a result of a SPI write command.
+ *		   Only the TCAM-based FDB table on SJA1105 P/Q/R/S supports
+ *		   this.
+ * - .max_entry_count: The number of entries, counting from zero, that can be
+ *		       reconfigured through the dynamic interface. If a static
+ *		       table can be reconfigured at all dynamically, this
+ *		       number always matches the maximum number of supported
+ *		       static entries.
+ * - .packed_size: The length in bytes of the compound ENTRY + COMMAND BUFFER.
+ *		   Note that sometimes the compound buffer may contain holes in
+ *		   it (see sja1105_vlan_lookup_cmd_packing). The @packed_buf is
+ *		   contiguous however, so @packed_size includes any unused
+ *		   bytes.
+ * - .addr: The base SPI address at which the buffer must be written to the
+ *	    switch's memory. When looking at the hardware manual, this must
+ *	    always match the lowest documented address for the ENTRY, and not
+ *	    that of the COMMAND, since the other 32-bit words will follow along
+ *	    at the correct addresses.
+ */
+
 #define SJA1105_SIZE_DYN_CMD					4
 
 #define SJA1105ET_SIZE_MAC_CONFIG_DYN_ENTRY			\
@@ -57,13 +149,11 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 {
 	u8 *p = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
 	const int size = SJA1105_SIZE_DYN_CMD;
-	u64 lockeds = 0;
 	u64 hostcmd;
 
 	sja1105_packing(p, &cmd->valid,    31, 31, size, op);
 	sja1105_packing(p, &cmd->rdwrset,  30, 30, size, op);
 	sja1105_packing(p, &cmd->errors,   29, 29, size, op);
-	sja1105_packing(p, &lockeds,       28, 28, size, op);
 	sja1105_packing(p, &cmd->valident, 27, 27, size, op);
 
 	/* VALIDENT is supposed to indicate "keep or not", but in SJA1105 E/T,
@@ -111,6 +201,64 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	 */
 	sja1105_packing(buf, &cmd->index, 15, 6,
 			SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY, op);
+}
+
+/* The switch is so retarded that it makes our command/entry abstraction
+ * crumble apart.
+ *
+ * On P/Q/R/S, the switch tries to say whether a FDB entry
+ * is statically programmed or dynamically learned via a flag called LOCKEDS.
+ * The hardware manual says about this fiels:
+ *
+ *   On write will specify the format of ENTRY.
+ *   On read the flag will be found cleared at times the VALID flag is found
+ *   set.  The flag will also be found cleared in response to a read having the
+ *   MGMTROUTE flag set.  In response to a read with the MGMTROUTE flag
+ *   cleared, the flag be set if the most recent access operated on an entry
+ *   that was either loaded by configuration or through dynamic reconfiguration
+ *   (as opposed to automatically learned entries).
+ *
+ * The trouble with this flag is that it's part of the *command* to access the
+ * dynamic interface, and not part of the *entry* retrieved from it.
+ * Otherwise said, for a sja1105_dynamic_config_read, LOCKEDS is supposed to be
+ * an output from the switch into the command buffer, and for a
+ * sja1105_dynamic_config_write, the switch treats LOCKEDS as an input
+ * (hence we can write either static, or automatically learned entries, from
+ * the core).
+ * But the manual contradicts itself in the last phrase where it says that on
+ * read, LOCKEDS will be set to 1 for all FDB entries written through the
+ * dynamic interface (therefore, the value of LOCKEDS from the
+ * sja1105_dynamic_config_write is not really used for anything, it'll store a
+ * 1 anyway).
+ * This means you can't really write a FDB entry with LOCKEDS=0 (automatically
+ * learned) into the switch, which kind of makes sense.
+ * As for reading through the dynamic interface, it doesn't make too much sense
+ * to put LOCKEDS into the command, since the switch will inevitably have to
+ * ignore it (otherwise a command would be like "read the FDB entry 123, but
+ * only if it's dynamically learned" <- well how am I supposed to know?) and
+ * just use it as an output buffer for its findings. But guess what... that's
+ * what the entry buffer is for!
+ * Unfortunately, what really breaks this abstraction is the fact that it
+ * wasn't designed having the fact in mind that the switch can output
+ * entry-related data as writeback through the command buffer.
+ * However, whether a FDB entry is statically or dynamically learned *is* part
+ * of the entry and not the command data, no matter what the switch thinks.
+ * In order to do that, we'll need to wrap around the
+ * sja1105pqrs_l2_lookup_entry_packing from sja1105_static_config.c, and take
+ * a peek outside of the caller-supplied @buf (the entry buffer), to reach the
+ * command buffer.
+ */
+static size_t
+sja1105pqrs_dyn_l2_lookup_entry_packing(void *buf, void *entry_ptr,
+					enum packing_op op)
+{
+	struct sja1105_l2_lookup_entry *entry = entry_ptr;
+	u8 *cmd = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(cmd, &entry->lockeds, 28, 28, size, op);
+
+	return sja1105pqrs_l2_lookup_entry_packing(buf, entry_ptr, op);
 }
 
 static void
@@ -393,7 +541,7 @@ struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
 /* SJA1105P/Q/R/S: Second generation */
 struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_L2_LOOKUP] = {
-		.entry_packing = sja1105pqrs_l2_lookup_entry_packing,
+		.entry_packing = sja1105pqrs_dyn_l2_lookup_entry_packing,
 		.cmd_packing = sja1105pqrs_l2_lookup_cmd_packing,
 		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
 		.max_entry_count = SJA1105_MAX_L2_LOOKUP_COUNT,
