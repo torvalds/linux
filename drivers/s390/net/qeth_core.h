@@ -25,6 +25,8 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
+#include <net/dst.h>
+#include <net/ip6_fib.h>
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
 #include <net/addrconf.h>
@@ -875,6 +877,17 @@ static inline int qeth_get_ether_cast_type(struct sk_buff *skb)
 		return is_broadcast_ether_addr(addr) ? RTN_BROADCAST :
 						       RTN_MULTICAST;
 	return RTN_UNICAST;
+}
+
+static inline struct dst_entry *qeth_dst_check_rcu(struct sk_buff *skb, int ipv)
+{
+	struct dst_entry *dst = skb_dst(skb);
+	struct rt6_info *rt;
+
+	rt = (struct rt6_info *) dst;
+	if (dst)
+		dst = dst_check(dst, (ipv == 6) ? rt6_get_cookie(rt) : 0);
+	return dst;
 }
 
 static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,

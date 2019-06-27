@@ -32,7 +32,6 @@
 #include <net/route.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
-#include <net/ip6_fib.h>
 #include <net/iucv/af_iucv.h>
 #include <linux/hashtable.h>
 
@@ -1878,26 +1877,17 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return rc;
 }
 
-static int qeth_l3_get_cast_type(struct sk_buff *skb)
+static int qeth_l3_get_cast_type_rcu(struct sk_buff *skb, struct dst_entry *dst,
+				     int ipv)
 {
-	int ipv = qeth_get_ip_version(skb);
 	struct neighbour *n = NULL;
-	struct dst_entry *dst;
 
-	rcu_read_lock();
-	dst = skb_dst(skb);
-	if (dst) {
-		struct rt6_info *rt = (struct rt6_info *) dst;
-
-		dst = dst_check(dst, (ipv == 6) ? rt6_get_cookie(rt) : 0);
-		if (dst)
-			n = dst_neigh_lookup_skb(dst, skb);
-	}
+	if (dst)
+		n = dst_neigh_lookup_skb(dst, skb);
 
 	if (n) {
 		int cast_type = n->type;
 
-		rcu_read_unlock();
 		neigh_release(n);
 		if ((cast_type == RTN_BROADCAST) ||
 		    (cast_type == RTN_MULTICAST) ||
@@ -1905,7 +1895,6 @@ static int qeth_l3_get_cast_type(struct sk_buff *skb)
 			return cast_type;
 		return RTN_UNICAST;
 	}
-	rcu_read_unlock();
 
 	/* no neighbour (eg AF_PACKET), fall back to target's IP address ... */
 	switch (ipv) {
@@ -1921,6 +1910,20 @@ static int qeth_l3_get_cast_type(struct sk_buff *skb)
 		/* ... and MAC address */
 		return qeth_get_ether_cast_type(skb);
 	}
+}
+
+static int qeth_l3_get_cast_type(struct sk_buff *skb)
+{
+	int ipv = qeth_get_ip_version(skb);
+	struct dst_entry *dst;
+	int cast_type;
+
+	rcu_read_lock();
+	dst = qeth_dst_check_rcu(skb, ipv);
+	cast_type = qeth_l3_get_cast_type_rcu(skb, dst, ipv);
+	rcu_read_unlock();
+
+	return cast_type;
 }
 
 static u8 qeth_l3_cast_type_to_flag(int cast_type)
@@ -1987,27 +1990,17 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 	}
 
 	rcu_read_lock();
-	dst = skb_dst(skb);
+	dst = qeth_dst_check_rcu(skb, ipv);
 
 	if (ipv == 4) {
-		struct rtable *rt;
-
-		if (dst)
-			dst = dst_check(dst, 0);
-		rt = (struct rtable *) dst;
+		struct rtable *rt = (struct rtable *) dst;
 
 		*((__be32 *) &hdr->hdr.l3.next_hop.ipv4.addr) = (rt) ?
 				rt_nexthop(rt, ip_hdr(skb)->daddr) :
 				ip_hdr(skb)->daddr;
 	} else {
 		/* IPv6 */
-		struct rt6_info *rt;
-
-		if (dst) {
-			rt = (struct rt6_info *) dst;
-			dst = dst_check(dst, rt6_get_cookie(rt));
-		}
-		rt = (struct rt6_info *) dst;
+		struct rt6_info *rt = (struct rt6_info *) dst;
 
 		if (rt && !ipv6_addr_any(&rt->rt6i_gateway))
 			l3_hdr->next_hop.ipv6_addr = rt->rt6i_gateway;
