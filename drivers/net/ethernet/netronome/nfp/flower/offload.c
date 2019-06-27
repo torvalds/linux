@@ -52,8 +52,7 @@
 
 #define NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R \
 	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS))
 
 #define NFP_FLOWER_MERGE_FIELDS \
 	(NFP_FLOWER_LAYER_PORT | \
@@ -285,27 +284,51 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			return -EOPNOTSUPP;
 		}
 
-		flow_rule_match_enc_ports(rule, &enc_ports);
-		if (enc_ports.mask->dst != cpu_to_be16(~0)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: only an exact match L4 destination port is supported");
-			return -EOPNOTSUPP;
-		}
-
 		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_OPTS))
 			flow_rule_match_enc_opts(rule, &enc_op);
 
 
-		err = nfp_flower_calc_udp_tun_layer(enc_ports.key, enc_op.key,
-						    &key_layer_two, &key_layer,
-						    &key_size, priv, tun_type,
-						    extack);
-		if (err)
-			return err;
+		if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
+			/* check if GRE, which has no enc_ports */
+			if (netif_is_gretap(netdev)) {
+				*tun_type = NFP_FL_TUNNEL_GRE;
+				key_layer |= NFP_FLOWER_LAYER_EXT_META;
+				key_size += sizeof(struct nfp_flower_ext_meta);
+				key_layer_two |= NFP_FLOWER_LAYER2_GRE;
+				key_size +=
+					sizeof(struct nfp_flower_ipv4_gre_tun);
 
-		/* Ensure the ingress netdev matches the expected tun type. */
-		if (!nfp_fl_netdev_is_tunnel_type(netdev, *tun_type)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress netdev does not match the expected tunnel type");
-			return -EOPNOTSUPP;
+				if (enc_op.key) {
+					NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options not supported on GRE tunnels");
+					return -EOPNOTSUPP;
+				}
+			} else {
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: an exact match on L4 destination port is required for non-GRE tunnels");
+				return -EOPNOTSUPP;
+			}
+		} else {
+			flow_rule_match_enc_ports(rule, &enc_ports);
+			if (enc_ports.mask->dst != cpu_to_be16(~0)) {
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: only an exact match L4 destination port is supported");
+				return -EOPNOTSUPP;
+			}
+
+			err = nfp_flower_calc_udp_tun_layer(enc_ports.key,
+							    enc_op.key,
+							    &key_layer_two,
+							    &key_layer,
+							    &key_size, priv,
+							    tun_type, extack);
+			if (err)
+				return err;
+
+			/* Ensure the ingress netdev matches the expected
+			 * tun type.
+			 */
+			if (!nfp_fl_netdev_is_tunnel_type(netdev, *tun_type)) {
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress netdev does not match the expected tunnel type");
+				return -EOPNOTSUPP;
+			}
 		}
 	}
 
