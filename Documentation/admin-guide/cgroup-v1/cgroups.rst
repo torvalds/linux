@@ -3,7 +3,7 @@ Control Groups
 ==============
 
 Written by Paul Menage <menage@google.com> based on
-Documentation/cgroup-v1/cpusets.rst
+Documentation/admin-guide/cgroup-v1/cpusets.rst
 
 Original copyright statements from cpusets.txt:
 
@@ -76,7 +76,7 @@ On their own, the only use for cgroups is for simple job
 tracking. The intention is that other subsystems hook into the generic
 cgroup support to provide new attributes for cgroups, such as
 accounting/limiting the resources which processes in a cgroup can
-access. For example, cpusets (see Documentation/cgroup-v1/cpusets.rst) allow
+access. For example, cpusets (see Documentation/admin-guide/cgroup-v1/cpusets.rst) allow
 you to associate a set of CPUs and a set of memory nodes with the
 tasks in each cgroup.
 

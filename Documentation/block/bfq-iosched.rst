@@ -547,7 +547,7 @@ As for cgroups-v1 (blkio controller), the exact set of stat files
 created, and kept up-to-date by bfq, depends on whether
 CONFIG_BFQ_CGROUP_DEBUG is set. If it is set, then bfq creates all
 the stat files documented in
-Documentation/cgroup-v1/blkio-controller.rst. If, instead,
+Documentation/admin-guide/cgroup-v1/blkio-controller.rst. If, instead,
 CONFIG_BFQ_CGROUP_DEBUG is not set, then bfq creates only the files::
 
   blkio.bfq.io_service_bytes

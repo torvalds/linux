@@ -49,7 +49,7 @@ hooks, beyond what is already present, required to manage dynamic
 job placement on large systems.
 
 Cpusets use the generic cgroup subsystem described in
-Documentation/cgroup-v1/cgroups.rst.
+Documentation/admin-guide/cgroup-v1/cgroups.rst.
 
 Requests by a task, using the sched_setaffinity(2) system call to
 include CPUs in its CPU affinity mask, and using the mbind(2) and
