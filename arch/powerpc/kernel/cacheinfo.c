@@ -168,7 +168,7 @@ static void release_cache_debugcheck(struct cache *cache)
 
 	list_for_each_entry(iter, &cache_list, list)
 		WARN_ONCE(iter->next_local == cache,
-			  "cache for %pOF(%s) refers to cache for %pOF(%s)\n",
+			  "cache for %pOFP(%s) refers to cache for %pOFP(%s)\n",
 			  iter->ofnode,
 			  cache_type_string(iter),
 			  cache->ofnode,
@@ -180,7 +180,7 @@ static void release_cache(struct cache *cache)
 	if (!cache)
 		return;
 
-	pr_debug("freeing L%d %s cache for %pOF\n", cache->level,
+	pr_debug("freeing L%d %s cache for %pOFP\n", cache->level,
 		 cache_type_string(cache), cache->ofnode);
 
 	release_cache_debugcheck(cache);
@@ -195,7 +195,7 @@ static void cache_cpu_set(struct cache *cache, int cpu)
 
 	while (next) {
 		WARN_ONCE(cpumask_test_cpu(cpu, &next->shared_cpu_map),
-			  "CPU %i already accounted in %pOF(%s)\n",
+			  "CPU %i already accounted in %pOFP(%s)\n",
 			  cpu, next->ofnode,
 			  cache_type_string(next));
 		cpumask_set_cpu(cpu, &next->shared_cpu_map);
@@ -354,7 +354,7 @@ static int cache_is_unified_d(const struct device_node *np)
 
 static struct cache *cache_do_one_devnode_unified(struct device_node *node, int level)
 {
-	pr_debug("creating L%d ucache for %pOF\n", level, node);
+	pr_debug("creating L%d ucache for %pOFP\n", level, node);
 
 	return new_cache(cache_is_unified_d(node), level, node);
 }
@@ -364,7 +364,7 @@ static struct cache *cache_do_one_devnode_split(struct device_node *node,
 {
 	struct cache *dcache, *icache;
 
-	pr_debug("creating L%d dcache and icache for %pOF\n", level,
+	pr_debug("creating L%d dcache and icache for %pOFP\n", level,
 		 node);
 
 	dcache = new_cache(CACHE_TYPE_DATA, level, node);
@@ -746,13 +746,13 @@ static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)
 		rc = attr->show(&dir->kobj, attr, buf);
 		if (rc <= 0) {
 			pr_debug("not creating %s attribute for "
-				 "%pOF(%s) (rc = %zd)\n",
+				 "%pOFP(%s) (rc = %zd)\n",
 				 attr->attr.name, cache->ofnode,
 				 cache_type, rc);
 			continue;
 		}
 		if (sysfs_create_file(&dir->kobj, &attr->attr))
-			pr_debug("could not create %s attribute for %pOF(%s)\n",
+			pr_debug("could not create %s attribute for %pOFP(%s)\n",
 				 attr->attr.name, cache->ofnode, cache_type);
 	}
 
@@ -868,7 +868,7 @@ static void cache_cpu_clear(struct cache *cache, int cpu)
 		struct cache *next = cache->next_local;
 
 		WARN_ONCE(!cpumask_test_cpu(cpu, &cache->shared_cpu_map),
-			  "CPU %i not accounted in %pOF(%s)\n",
+			  "CPU %i not accounted in %pOFP(%s)\n",
 			  cpu, cache->ofnode,
 			  cache_type_string(cache));
 
