@@ -715,7 +715,13 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 
 	switch (speed_mbps) {
 	case SPEED_UNKNOWN:
-		/* No speed update requested */
+		/* PHYLINK called sja1105_mac_config() to inform us about
+		 * the state->interface, but AN has not completed and the
+		 * speed is not yet valid. UM10944.pdf says that setting
+		 * SJA1105_SPEED_AUTO at runtime disables the port, so that is
+		 * ok for power consumption in case AN will never complete -
+		 * otherwise PHYLINK should come back with a new update.
+		 */
 		speed = SJA1105_SPEED_AUTO;
 		break;
 	case SPEED_10:
@@ -765,9 +771,6 @@ static void sja1105_mac_config(struct dsa_switch *ds, int port,
 			       const struct phylink_link_state *state)
 {
 	struct sja1105_private *priv = ds->priv;
-
-	if (!state->link)
-		return;
 
 	sja1105_adjust_port_config(priv, port, state->speed);
 }
