@@ -203,7 +203,7 @@ struct nfp_fl_pre_tunnel {
 	__be32 extra[3];
 };
 
-struct nfp_fl_set_ipv4_udp_tun {
+struct nfp_fl_set_ipv4_tun {
 	struct nfp_fl_act_head head;
 	__be16 reserved;
 	__be64 tun_id __packed;

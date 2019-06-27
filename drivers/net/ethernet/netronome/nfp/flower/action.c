@@ -171,8 +171,8 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 }
 
 static enum nfp_flower_tun_type
-nfp_fl_get_tun_from_act_l4_port(struct nfp_app *app,
-				const struct flow_action_entry *act)
+nfp_fl_get_tun_from_act(struct nfp_app *app,
+			const struct flow_action_entry *act)
 {
 	const struct ip_tunnel_info *tun = act->tunnel;
 	struct nfp_flower_priv *priv = app->priv;
@@ -281,15 +281,13 @@ nfp_fl_push_geneve_options(struct nfp_fl_payload *nfp_fl, int *list_len,
 }
 
 static int
-nfp_fl_set_ipv4_udp_tun(struct nfp_app *app,
-			struct nfp_fl_set_ipv4_udp_tun *set_tun,
-			const struct flow_action_entry *act,
-			struct nfp_fl_pre_tunnel *pre_tun,
-			enum nfp_flower_tun_type tun_type,
-			struct net_device *netdev,
-			struct netlink_ext_ack *extack)
+nfp_fl_set_ipv4_tun(struct nfp_app *app, struct nfp_fl_set_ipv4_tun *set_tun,
+		    const struct flow_action_entry *act,
+		    struct nfp_fl_pre_tunnel *pre_tun,
+		    enum nfp_flower_tun_type tun_type,
+		    struct net_device *netdev, struct netlink_ext_ack *extack)
 {
-	size_t act_size = sizeof(struct nfp_fl_set_ipv4_udp_tun);
+	size_t act_size = sizeof(struct nfp_fl_set_ipv4_tun);
 	const struct ip_tunnel_info *ip_tun = act->tunnel;
 	struct nfp_flower_priv *priv = app->priv;
 	u32 tmp_set_ip_tun_type_index = 0;
@@ -845,7 +843,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		       struct nfp_flower_pedit_acts *set_act,
 		       struct netlink_ext_ack *extack)
 {
-	struct nfp_fl_set_ipv4_udp_tun *set_tun;
+	struct nfp_fl_set_ipv4_tun *set_tun;
 	struct nfp_fl_pre_tunnel *pre_tun;
 	struct nfp_fl_push_vlan *psh_v;
 	struct nfp_fl_pop_vlan *pop_v;
@@ -898,7 +896,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 	case FLOW_ACTION_TUNNEL_ENCAP: {
 		const struct ip_tunnel_info *ip_tun = act->tunnel;
 
-		*tun_type = nfp_fl_get_tun_from_act_l4_port(app, act);
+		*tun_type = nfp_fl_get_tun_from_act(app, act);
 		if (*tun_type == NFP_FL_TUNNEL_NONE) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unsupported tunnel type in action list");
 			return -EOPNOTSUPP;
@@ -914,7 +912,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		 * If none, the packet falls back before applying other actions.
 		 */
 		if (*a_len + sizeof(struct nfp_fl_pre_tunnel) +
-		    sizeof(struct nfp_fl_set_ipv4_udp_tun) > NFP_FL_MAX_A_SIZ) {
+		    sizeof(struct nfp_fl_set_ipv4_tun) > NFP_FL_MAX_A_SIZ) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at tunnel encap");
 			return -EOPNOTSUPP;
 		}
@@ -928,11 +926,11 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 			return err;
 
 		set_tun = (void *)&nfp_fl->action_data[*a_len];
-		err = nfp_fl_set_ipv4_udp_tun(app, set_tun, act, pre_tun,
-					      *tun_type, netdev, extack);
+		err = nfp_fl_set_ipv4_tun(app, set_tun, act, pre_tun,
+					  *tun_type, netdev, extack);
 		if (err)
 			return err;
-		*a_len += sizeof(struct nfp_fl_set_ipv4_udp_tun);
+		*a_len += sizeof(struct nfp_fl_set_ipv4_tun);
 		}
 		break;
 	case FLOW_ACTION_TUNNEL_DECAP:
