@@ -580,7 +580,6 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 	struct drm_device *drm;
-	struct resource *mem;
 	void __iomem *base;
 	long parent_rate;
 	int ret, irq;
@@ -614,8 +613,7 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	drm->mode_config.max_height = 600;
 	drm->mode_config.funcs = &ingenic_drm_mode_config_funcs;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, mem);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
 		dev_err(dev, "Failed to get memory resource");
 		return PTR_ERR(base);
