@@ -940,12 +940,12 @@ static inline int qeth_is_diagass_supported(struct qeth_card *card,
 
 int qeth_send_simple_setassparms_prot(struct qeth_card *card,
 				      enum qeth_ipa_funcs ipa_func,
-				      u16 cmd_code, long data,
+				      u16 cmd_code, u32 *data,
 				      enum qeth_prot_versions prot);
 /* IPv4 variant */
 static inline int qeth_send_simple_setassparms(struct qeth_card *card,
 					       enum qeth_ipa_funcs ipa_func,
-					       u16 cmd_code, long data)
+					       u16 cmd_code, u32 *data)
 {
 	return qeth_send_simple_setassparms_prot(card, ipa_func, cmd_code,
 						 data, QETH_PROT_IPV4);
@@ -953,7 +953,7 @@ static inline int qeth_send_simple_setassparms(struct qeth_card *card,
 
 static inline int qeth_send_simple_setassparms_v6(struct qeth_card *card,
 						  enum qeth_ipa_funcs ipa_func,
-						  u16 cmd_code, long data)
+						  u16 cmd_code, u32 *data)
 {
 	return qeth_send_simple_setassparms_prot(card, ipa_func, cmd_code,
 						 data, QETH_PROT_IPV6);

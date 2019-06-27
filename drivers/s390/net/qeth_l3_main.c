@@ -770,7 +770,7 @@ static int qeth_l3_start_ipa_arp_processing(struct qeth_card *card)
 		return 0;
 	}
 	rc = qeth_send_simple_setassparms(card, IPA_ARP_PROCESSING,
-					  IPA_CMD_ASS_START, 0);
+					  IPA_CMD_ASS_START, NULL);
 	if (rc) {
 		dev_warn(&card->gdev->dev,
 			"Starting ARP processing support for %s failed\n",
@@ -793,7 +793,7 @@ static int qeth_l3_start_ipa_source_mac(struct qeth_card *card)
 	}
 
 	rc = qeth_send_simple_setassparms(card, IPA_SOURCE_MAC,
-					  IPA_CMD_ASS_START, 0);
+					  IPA_CMD_ASS_START, NULL);
 	if (rc)
 		dev_warn(&card->gdev->dev,
 			"Starting source MAC-address support for %s failed\n",
@@ -814,7 +814,7 @@ static int qeth_l3_start_ipa_vlan(struct qeth_card *card)
 	}
 
 	rc = qeth_send_simple_setassparms(card, IPA_VLAN_PRIO,
-					  IPA_CMD_ASS_START, 0);
+					  IPA_CMD_ASS_START, NULL);
 	if (rc) {
 		dev_warn(&card->gdev->dev,
 			"Starting VLAN support for %s failed\n",
@@ -839,7 +839,7 @@ static int qeth_l3_start_ipa_multicast(struct qeth_card *card)
 	}
 
 	rc = qeth_send_simple_setassparms(card, IPA_MULTICASTING,
-					  IPA_CMD_ASS_START, 0);
+					  IPA_CMD_ASS_START, NULL);
 	if (rc) {
 		dev_warn(&card->gdev->dev,
 			"Starting multicast support for %s failed\n",
@@ -853,6 +853,7 @@ static int qeth_l3_start_ipa_multicast(struct qeth_card *card)
 
 static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 {
+	u32 ipv6_data = 3;
 	int rc;
 
 	QETH_CARD_TEXT(card, 3, "softipv6");
@@ -860,16 +861,16 @@ static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 	if (IS_IQD(card))
 		goto out;
 
-	rc = qeth_send_simple_setassparms(card, IPA_IPV6,
-					  IPA_CMD_ASS_START, 3);
+	rc = qeth_send_simple_setassparms(card, IPA_IPV6, IPA_CMD_ASS_START,
+					  &ipv6_data);
 	if (rc) {
 		dev_err(&card->gdev->dev,
 			"Activating IPv6 support for %s failed\n",
 			QETH_CARD_IFNAME(card));
 		return rc;
 	}
-	rc = qeth_send_simple_setassparms_v6(card, IPA_IPV6,
-					     IPA_CMD_ASS_START, 0);
+	rc = qeth_send_simple_setassparms_v6(card, IPA_IPV6, IPA_CMD_ASS_START,
+					     NULL);
 	if (rc) {
 		dev_err(&card->gdev->dev,
 			"Activating IPv6 support for %s failed\n",
@@ -877,7 +878,7 @@ static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 		return rc;
 	}
 	rc = qeth_send_simple_setassparms_v6(card, IPA_PASSTHRU,
-					     IPA_CMD_ASS_START, 0);
+					     IPA_CMD_ASS_START, NULL);
 	if (rc) {
 		dev_warn(&card->gdev->dev,
 			"Enabling the passthrough mode for %s failed\n",
@@ -903,6 +904,7 @@ static int qeth_l3_start_ipa_ipv6(struct qeth_card *card)
 
 static int qeth_l3_start_ipa_broadcast(struct qeth_card *card)
 {
+	u32 filter_data = 1;
 	int rc;
 
 	QETH_CARD_TEXT(card, 3, "stbrdcst");
@@ -915,7 +917,7 @@ static int qeth_l3_start_ipa_broadcast(struct qeth_card *card)
 		goto out;
 	}
 	rc = qeth_send_simple_setassparms(card, IPA_FILTERING,
-					  IPA_CMD_ASS_START, 0);
+					  IPA_CMD_ASS_START, NULL);
 	if (rc) {
 		dev_warn(&card->gdev->dev, "Enabling broadcast filtering for "
 			"%s failed\n", QETH_CARD_IFNAME(card));
@@ -923,7 +925,7 @@ static int qeth_l3_start_ipa_broadcast(struct qeth_card *card)
 	}
 
 	rc = qeth_send_simple_setassparms(card, IPA_FILTERING,
-					  IPA_CMD_ASS_CONFIGURE, 1);
+					  IPA_CMD_ASS_CONFIGURE, &filter_data);
 	if (rc) {
 		dev_warn(&card->gdev->dev,
 			"Setting up broadcast filtering for %s failed\n",
@@ -933,7 +935,7 @@ static int qeth_l3_start_ipa_broadcast(struct qeth_card *card)
 	card->info.broadcast_capable = QETH_BROADCAST_WITH_ECHO;
 	dev_info(&card->gdev->dev, "Broadcast enabled\n");
 	rc = qeth_send_simple_setassparms(card, IPA_FILTERING,
-					  IPA_CMD_ASS_ENABLE, 1);
+					  IPA_CMD_ASS_ENABLE, &filter_data);
 	if (rc) {
 		dev_warn(&card->gdev->dev, "Setting up broadcast echo "
 			"filtering for %s failed\n", QETH_CARD_IFNAME(card));

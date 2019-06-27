@@ -437,6 +437,8 @@ struct qeth_ipacmd_setassparms {
 	} data;
 } __attribute__ ((packed));
 
+#define SETASS_DATA_SIZEOF(field) FIELD_SIZEOF(struct qeth_ipacmd_setassparms,\
+					       data.field)
 
 /* SETRTG IPA Command:    ****************************************************/
 struct qeth_set_routing {
