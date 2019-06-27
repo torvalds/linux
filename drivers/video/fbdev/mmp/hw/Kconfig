@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config MMP_DISP_CONTROLLER
 	bool "mmp display controller hw support"
-	depends on CPU_PXA910 || CPU_MMP2
+	depends on HAVE_CLK && HAS_IOMEM
+	depends on CPU_PXA910 || CPU_MMP2 || COMPILE_TEST
 	help
 		Marvell MMP display hw controller support
 		this controller is used on Marvell PXA910 and
