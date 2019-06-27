@@ -914,7 +914,19 @@ struct reparse_mount_point_data_buffer {
 	__u8	PathBuffer[0]; /* Variable Length */
 } __packed;
 
-/* See MS-FSCC 2.1.2.4 and cifspdu.h for struct reparse_symlink_data */
+#define SYMLINK_FLAG_RELATIVE 0x00000001
+
+struct reparse_symlink_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le16	SubstituteNameOffset;
+	__le16	SubstituteNameLength;
+	__le16	PrintNameOffset;
+	__le16	PrintNameLength;
+	__le32	Flags;
+	__u8	PathBuffer[0]; /* Variable Length */
+} __packed;
 
 /* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
 
