@@ -9,6 +9,7 @@ ARM topology binding description
 In an ARM system, the hierarchy of CPUs is defined through three entities that
 are used to describe the layout of physical CPUs in the system:
 
+- socket
 - cluster
 - core
 - thread
@@ -63,21 +64,23 @@ nodes are listed.
 
 	The cpu-map node's child nodes can be:
 
-	- one or more cluster nodes
+	- one or more cluster nodes or
+	- one or more socket nodes in a multi-socket system
 
 	Any other configuration is considered invalid.
 
-The cpu-map node can only contain three types of child nodes:
+The cpu-map node can only contain 4 types of child nodes:
 
+- socket node
 - cluster node
 - core node
 - thread node
 
 whose bindings are described in paragraph 3.
 
-The nodes describing the CPU topology (cluster/core/thread) can only
-be defined within the cpu-map node and every core/thread in the system
-must be defined within the topology.  Any other configuration is
+The nodes describing the CPU topology (socket/cluster/core/thread) can
+only be defined within the cpu-map node and every core/thread in the
+system must be defined within the topology.  Any other configuration is
 invalid and therefore must be ignored.
 
 ===========================================
@@ -85,26 +88,44 @@ invalid and therefore must be ignored.
 ===========================================
 
 cpu-map child nodes must follow a naming convention where the node name
-must be "clusterN", "coreN", "threadN" depending on the node type (ie
-cluster/core/thread) (where N = {0, 1, ...} is the node number; nodes which
-are siblings within a single common parent node must be given a unique and
+must be "socketN", "clusterN", "coreN", "threadN" depending on the node type
+(ie socket/cluster/core/thread) (where N = {0, 1, ...} is the node number; nodes
+which are siblings within a single common parent node must be given a unique and
 sequential N value, starting from 0).
 cpu-map child nodes which do not share a common parent node can have the same
 name (ie same number N as other cpu-map child nodes at different device tree
 levels) since name uniqueness will be guaranteed by the device tree hierarchy.
 
 ===========================================
-3 - cluster/core/thread node bindings
+3 - socket/cluster/core/thread node bindings
 ===========================================
 
-Bindings for cluster/cpu/thread nodes are defined as follows:
+Bindings for socket/cluster/cpu/thread nodes are defined as follows:
+
+- socket node
+
+	 Description: must be declared within a cpu-map node, one node
+		      per physical socket in the system. A system can
+		      contain single or multiple physical socket.
+		      The association of sockets and NUMA nodes is beyond
+		      the scope of this bindings, please refer [2] for
+		      NUMA bindings.
+
+	This node is optional for a single socket system.
+
+	The socket node name must be "socketN" as described in 2.1 above.
+	A socket node can not be a leaf node.
+
+	A socket node's child nodes must be one or more cluster nodes.
+
+	Any other configuration is considered invalid.
 
 - cluster node
 
 	 Description: must be declared within a cpu-map node, one node
 		      per cluster. A system can contain several layers of
-		      clustering and cluster nodes can be contained in parent
-		      cluster nodes.
+		      clustering within a single physical socket and cluster
+		      nodes can be contained in parent cluster nodes.
 
 	The cluster node name must be "clusterN" as described in 2.1 above.
 	A cluster node can not be a leaf node.
@@ -164,90 +185,93 @@ Bindings for cluster/cpu/thread nodes are defined as follows:
 4 - Example dts
 ===========================================
 
-Example 1 (ARM 64-bit, 16-cpu system, two clusters of clusters):
+Example 1 (ARM 64-bit, 16-cpu system, two clusters of clusters in a single
+physical socket):
 
 cpus {
 	#size-cells = <0>;
 	#address-cells = <2>;
 
 	cpu-map {
-		cluster0 {
+		socket0 {
 			cluster0 {
-				core0 {
-					thread0 {
-						cpu = <&CPU0>;
+				cluster0 {
+					core0 {
+						thread0 {
+							cpu = <&CPU0>;
+						};
+						thread1 {
+							cpu = <&CPU1>;
+						};
 					};
-					thread1 {
-						cpu = <&CPU1>;
+
+					core1 {
+						thread0 {
+							cpu = <&CPU2>;
+						};
+						thread1 {
+							cpu = <&CPU3>;
+						};
 					};
 				};
 
-				core1 {
-					thread0 {
-						cpu = <&CPU2>;
+				cluster1 {
+					core0 {
+						thread0 {
+							cpu = <&CPU4>;
+						};
+						thread1 {
+							cpu = <&CPU5>;
+						};
 					};
-					thread1 {
-						cpu = <&CPU3>;
+
+					core1 {
+						thread0 {
+							cpu = <&CPU6>;
+						};
+						thread1 {
+							cpu = <&CPU7>;
+						};
 					};
 				};
 			};
 
 			cluster1 {
-				core0 {
-					thread0 {
-						cpu = <&CPU4>;
+				cluster0 {
+					core0 {
+						thread0 {
+							cpu = <&CPU8>;
+						};
+						thread1 {
+							cpu = <&CPU9>;
+						};
 					};
-					thread1 {
-						cpu = <&CPU5>;
+					core1 {
+						thread0 {
+							cpu = <&CPU10>;
+						};
+						thread1 {
+							cpu = <&CPU11>;
+						};
 					};
 				};
 
-				core1 {
-					thread0 {
-						cpu = <&CPU6>;
+				cluster1 {
+					core0 {
+						thread0 {
+							cpu = <&CPU12>;
+						};
+						thread1 {
+							cpu = <&CPU13>;
+						};
 					};
-					thread1 {
-						cpu = <&CPU7>;
-					};
-				};
-			};
-		};
-
-		cluster1 {
-			cluster0 {
-				core0 {
-					thread0 {
-						cpu = <&CPU8>;
-					};
-					thread1 {
-						cpu = <&CPU9>;
-					};
-				};
-				core1 {
-					thread0 {
-						cpu = <&CPU10>;
-					};
-					thread1 {
-						cpu = <&CPU11>;
-					};
-				};
-			};
-
-			cluster1 {
-				core0 {
-					thread0 {
-						cpu = <&CPU12>;
-					};
-					thread1 {
-						cpu = <&CPU13>;
-					};
-				};
-				core1 {
-					thread0 {
-						cpu = <&CPU14>;
-					};
-					thread1 {
-						cpu = <&CPU15>;
+					core1 {
+						thread0 {
+							cpu = <&CPU14>;
+						};
+						thread1 {
+							cpu = <&CPU15>;
+						};
 					};
 				};
 			};
@@ -473,3 +497,5 @@ cpus {
 ===============================================================================
 [1] ARM Linux kernel documentation
     Documentation/devicetree/bindings/arm/cpus.yaml
+[2] Devicetree NUMA binding description
+    Documentation/devicetree/bindings/numa.txt
