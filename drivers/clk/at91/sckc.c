@@ -263,6 +263,14 @@ at91_clk_register_slow_rc_osc(void __iomem *sckcr,
 	return hw;
 }
 
+static void at91_clk_unregister_slow_rc_osc(struct clk_hw *hw)
+{
+	struct clk_slow_rc_osc *osc = to_clk_slow_rc_osc(hw);
+
+	clk_hw_unregister(hw);
+	kfree(osc);
+}
+
 static int clk_sam9x5_slow_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_sam9x5_slow *slowck = to_clk_sam9x5_slow(hw);
