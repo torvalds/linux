@@ -1564,7 +1564,8 @@ static int qeth_l3_arp_set_no_entries(struct qeth_card *card, int no_entries)
 	}
 
 	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
-				       IPA_CMD_ASS_ARP_SET_NO_ENTRIES, 4,
+				       IPA_CMD_ASS_ARP_SET_NO_ENTRIES,
+				       SETASS_DATA_SIZEOF(flags_32bit),
 				       QETH_PROT_IPV4);
 	if (!iob)
 		return -ENOMEM;
@@ -1710,9 +1711,7 @@ static int qeth_l3_query_arp_cache_info(struct qeth_card *card,
 
 	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
 				       IPA_CMD_ASS_ARP_QUERY_INFO,
-				       sizeof(struct qeth_arp_query_data)
-						- sizeof(char),
-				       prot);
+				       SETASS_DATA_SIZEOF(query_arp), prot);
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -1796,7 +1795,8 @@ static int qeth_l3_arp_modify_entry(struct qeth_card *card,
 	}
 
 	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING, arp_cmd,
-				       sizeof(*cmd_entry), QETH_PROT_IPV4);
+				       SETASS_DATA_SIZEOF(arp_entry),
+				       QETH_PROT_IPV4);
 	if (!iob)
 		return -ENOMEM;
 

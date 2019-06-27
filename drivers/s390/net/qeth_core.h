@@ -1003,6 +1003,11 @@ struct qeth_cmd_buffer *qeth_ipa_alloc_cmd(struct qeth_card *card,
 struct qeth_cmd_buffer *qeth_alloc_cmd(struct qeth_channel *channel,
 				       unsigned int length, unsigned int ccws,
 				       long timeout);
+struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
+						 enum qeth_ipa_funcs ipa_func,
+						 u16 cmd_code,
+						 unsigned int data_length,
+						 enum qeth_prot_versions prot);
 
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qeth_qdio_buffer *, struct qdio_buffer_element **, int *,
@@ -1037,10 +1042,6 @@ int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 void qeth_trace_features(struct qeth_card *);
 int qeth_setassparms_cb(struct qeth_card *, struct qeth_reply *, unsigned long);
-struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
-						 enum qeth_ipa_funcs,
-						 __u16, __u16,
-						 enum qeth_prot_versions);
 int qeth_set_features(struct net_device *, netdev_features_t);
 void qeth_enable_hw_features(struct net_device *dev);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);

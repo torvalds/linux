@@ -2915,21 +2915,24 @@ static int qeth_query_setadapterparms_cb(struct qeth_card *card,
 }
 
 static struct qeth_cmd_buffer *qeth_get_adapter_cmd(struct qeth_card *card,
-		__u32 command, __u32 cmdlen)
+						    enum qeth_ipa_setadp_cmd adp_cmd,
+						    unsigned int data_length)
 {
+	struct qeth_ipacmd_setadpparms_hdr *hdr;
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETADAPTERPARMS,
-				     QETH_PROT_IPV4);
-	if (iob) {
-		cmd = __ipa_cmd(iob);
-		cmd->data.setadapterparms.hdr.cmdlength = cmdlen;
-		cmd->data.setadapterparms.hdr.command_code = command;
-		cmd->data.setadapterparms.hdr.used_total = 1;
-		cmd->data.setadapterparms.hdr.seq_no = 1;
-	}
+	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_SETADAPTERPARMS, QETH_PROT_IPV4,
+				 data_length +
+				 offsetof(struct qeth_ipacmd_setadpparms,
+					  data));
+	if (!iob)
+		return NULL;
 
+	hdr = &__ipa_cmd(iob)->data.setadapterparms.hdr;
+	hdr->cmdlength = sizeof(*hdr) + data_length;
+	hdr->command_code = adp_cmd;
+	hdr->used_total = 1;
+	hdr->seq_no = 1;
 	return iob;
 }
 
@@ -2940,7 +2943,7 @@ static int qeth_query_setadapterparms(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 3, "queryadp");
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_COMMANDS_SUPPORTED,
-				   sizeof(struct qeth_ipacmd_setadpparms));
+				   SETADP_DATA_SIZEOF(query_cmds_supp));
 	if (!iob)
 		return -ENOMEM;
 	rc = qeth_send_ipa_cmd(card, iob, qeth_query_setadapterparms_cb, NULL);
@@ -3027,8 +3030,7 @@ int qeth_query_switch_attributes(struct qeth_card *card,
 		return -EOPNOTSUPP;
 	if (!netif_carrier_ok(card->dev))
 		return -ENOMEDIUM;
-	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_SWITCH_ATTRIBUTES,
-				sizeof(struct qeth_ipacmd_setadpparms_hdr));
+	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_SWITCH_ATTRIBUTES, 0);
 	if (!iob)
 		return -ENOMEM;
 	return qeth_send_ipa_cmd(card, iob,
@@ -4152,7 +4154,7 @@ void qeth_setadp_promisc_mode(struct qeth_card *card)
 	QETH_CARD_TEXT_(card, 4, "mode:%x", mode);
 
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_PROMISC_MODE,
-			sizeof(struct qeth_ipacmd_setadpparms_hdr) + 8);
+				   SETADP_DATA_SIZEOF(mode));
 	if (!iob)
 		return;
 	cmd = __ipa_cmd(iob);
@@ -4192,8 +4194,7 @@ int qeth_setadpparms_change_macaddr(struct qeth_card *card)
 	QETH_CARD_TEXT(card, 4, "chgmac");
 
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_ALTER_MAC_ADDRESS,
-				   sizeof(struct qeth_ipacmd_setadpparms_hdr) +
-				   sizeof(struct qeth_change_addr));
+				   SETADP_DATA_SIZEOF(change_addr));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -4302,8 +4303,7 @@ static int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
 	QETH_CARD_TEXT(card, 4, "setacctl");
 
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_ACCESS_CONTROL,
-				   sizeof(struct qeth_ipacmd_setadpparms_hdr) +
-				   sizeof(struct qeth_set_access_ctrl));
+				   SETADP_DATA_SIZEOF(set_access_ctrl));
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
@@ -4498,9 +4498,9 @@ static int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 	/* skip 4 bytes (data_len struct member) to get req_len */
 	if (copy_from_user(&req_len, udata + sizeof(int), sizeof(int)))
 		return -EFAULT;
-	if (req_len > (QETH_BUFSIZE - IPA_PDU_HEADER_SIZE -
-		       sizeof(struct qeth_ipacmd_hdr) -
-		       sizeof(struct qeth_ipacmd_setadpparms_hdr)))
+	if (req_len + offsetof(struct qeth_ipacmd_setadpparms, data) +
+	    offsetof(struct qeth_ipa_cmd, data) + IPA_PDU_HEADER_SIZE >
+	    QETH_BUFSIZE)
 		return -EINVAL;
 	ureq = memdup_user(udata, req_len + sizeof(struct qeth_snmp_ureq_hdr));
 	if (IS_ERR(ureq)) {
@@ -4515,15 +4515,11 @@ static int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 	}
 	qinfo.udata_offset = sizeof(struct qeth_snmp_ureq_hdr);
 
-	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_SNMP_CONTROL,
-				   QETH_SNMP_SETADP_CMDLENGTH + req_len);
+	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_SNMP_CONTROL, req_len);
 	if (!iob) {
 		rc = -ENOMEM;
 		goto out;
 	}
-
-	/* for large requests, fix-up the length fields: */
-	qeth_prepare_ipa_cmd(card, iob, QETH_SETADP_BASE_LEN + req_len);
 
 	cmd = __ipa_cmd(iob);
 	memcpy(&cmd->data.setadapterparms.data.snmp, &ureq->cmd, req_len);
@@ -4602,8 +4598,7 @@ static int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
 	}
 
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_OAT,
-				   sizeof(struct qeth_ipacmd_setadpparms_hdr) +
-				   sizeof(struct qeth_query_oat));
+				   SETADP_DATA_SIZEOF(query_oat));
 	if (!iob) {
 		rc = -ENOMEM;
 		goto out_free;
@@ -4665,8 +4660,7 @@ int qeth_query_card_info(struct qeth_card *card,
 	QETH_CARD_TEXT(card, 2, "qcrdinfo");
 	if (!qeth_adp_supported(card, IPA_SETADP_QUERY_CARD_INFO))
 		return -EOPNOTSUPP;
-	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_CARD_INFO,
-		sizeof(struct qeth_ipacmd_setadpparms_hdr));
+	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_CARD_INFO, 0);
 	if (!iob)
 		return -ENOMEM;
 	return qeth_send_ipa_cmd(card, iob, qeth_query_card_info_cb,
@@ -5333,22 +5327,28 @@ EXPORT_SYMBOL_GPL(qeth_setassparms_cb);
 
 struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 						 enum qeth_ipa_funcs ipa_func,
-						 __u16 cmd_code, __u16 len,
+						 u16 cmd_code,
+						 unsigned int data_length,
 						 enum qeth_prot_versions prot)
 {
+	struct qeth_ipacmd_setassparms *setassparms;
+	struct qeth_ipacmd_setassparms_hdr *hdr;
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 
 	QETH_CARD_TEXT(card, 4, "getasscm");
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETASSPARMS, prot);
+	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_SETASSPARMS, prot,
+				 data_length +
+				 offsetof(struct qeth_ipacmd_setassparms,
+					  data));
+	if (!iob)
+		return NULL;
 
-	if (iob) {
-		cmd = __ipa_cmd(iob);
-		cmd->data.setassparms.hdr.assist_no = ipa_func;
-		cmd->data.setassparms.hdr.length = 8 + len;
-		cmd->data.setassparms.hdr.command_code = cmd_code;
-	}
+	setassparms = &__ipa_cmd(iob)->data.setassparms;
+	setassparms->assist_no = ipa_func;
 
+	hdr = &setassparms->hdr;
+	hdr->length = sizeof(*hdr) + data_length;
+	hdr->command_code = cmd_code;
 	return iob;
 }
 EXPORT_SYMBOL_GPL(qeth_get_setassparms_cmd);
@@ -5916,7 +5916,8 @@ static int qeth_set_csum_on(struct qeth_card *card, enum qeth_ipa_funcs cstype,
 		return -EOPNOTSUPP;
 	}
 
-	iob = qeth_get_setassparms_cmd(card, cstype, IPA_CMD_ASS_ENABLE, 4,
+	iob = qeth_get_setassparms_cmd(card, cstype, IPA_CMD_ASS_ENABLE,
+				       SETASS_DATA_SIZEOF(flags_32bit),
 				       prot);
 	if (!iob) {
 		qeth_set_csum_off(card, cstype, prot);
@@ -5999,7 +6000,8 @@ static int qeth_set_tso_on(struct qeth_card *card,
 	}
 
 	iob = qeth_get_setassparms_cmd(card, IPA_OUTBOUND_TSO,
-				       IPA_CMD_ASS_ENABLE, sizeof(caps), prot);
+				       IPA_CMD_ASS_ENABLE,
+				       SETASS_DATA_SIZEOF(caps), prot);
 	if (!iob) {
 		qeth_set_tso_off(card, prot);
 		return -ENOMEM;

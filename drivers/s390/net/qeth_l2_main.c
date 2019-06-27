@@ -1427,22 +1427,25 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 
 static struct qeth_cmd_buffer *qeth_sbp_build_cmd(struct qeth_card *card,
 						  enum qeth_ipa_sbp_cmd sbp_cmd,
-						  unsigned int cmd_length)
+						  unsigned int data_length)
 {
 	enum qeth_ipa_cmds ipa_cmd = IS_IQD(card) ? IPA_CMD_SETBRIDGEPORT_IQD :
 						    IPA_CMD_SETBRIDGEPORT_OSA;
+	struct qeth_ipacmd_sbp_hdr *hdr;
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 
-	iob = qeth_get_ipacmd_buffer(card, ipa_cmd, 0);
+	iob = qeth_ipa_alloc_cmd(card, ipa_cmd, QETH_PROT_NONE,
+				 data_length +
+				 offsetof(struct qeth_ipacmd_setbridgeport,
+					  data));
 	if (!iob)
 		return iob;
-	cmd = __ipa_cmd(iob);
-	cmd->data.sbp.hdr.cmdlength = sizeof(struct qeth_ipacmd_sbp_hdr) +
-				      cmd_length;
-	cmd->data.sbp.hdr.command_code = sbp_cmd;
-	cmd->data.sbp.hdr.used_total = 1;
-	cmd->data.sbp.hdr.seq_no = 1;
+
+	hdr = &__ipa_cmd(iob)->data.sbp.hdr;
+	hdr->cmdlength = sizeof(*hdr) + data_length;
+	hdr->command_code = sbp_cmd;
+	hdr->used_total = 1;
+	hdr->seq_no = 1;
 	return iob;
 }
 
@@ -1477,7 +1480,7 @@ static void qeth_bridgeport_query_support(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 2, "brqsuppo");
 	iob = qeth_sbp_build_cmd(card, IPA_SBP_QUERY_COMMANDS_SUPPORTED,
-				 sizeof(struct qeth_sbp_query_cmds_supp));
+				 SBP_DATA_SIZEOF(query_cmds_supp));
 	if (!iob)
 		return;
 
@@ -1569,23 +1572,21 @@ static int qeth_bridgeport_set_cb(struct qeth_card *card,
  */
 int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 {
-	int cmdlength;
 	struct qeth_cmd_buffer *iob;
 	enum qeth_ipa_sbp_cmd setcmd;
+	unsigned int cmdlength = 0;
 
 	QETH_CARD_TEXT(card, 2, "brsetrol");
 	switch (role) {
 	case QETH_SBP_ROLE_NONE:
 		setcmd = IPA_SBP_RESET_BRIDGE_PORT_ROLE;
-		cmdlength = sizeof(struct qeth_sbp_reset_role);
 		break;
 	case QETH_SBP_ROLE_PRIMARY:
 		setcmd = IPA_SBP_SET_PRIMARY_BRIDGE_PORT;
-		cmdlength = sizeof(struct qeth_sbp_set_primary);
+		cmdlength = SBP_DATA_SIZEOF(set_primary);
 		break;
 	case QETH_SBP_ROLE_SECONDARY:
 		setcmd = IPA_SBP_SET_SECONDARY_BRIDGE_PORT;
-		cmdlength = sizeof(struct qeth_sbp_set_secondary);
 		break;
 	default:
 		return -EINVAL;
