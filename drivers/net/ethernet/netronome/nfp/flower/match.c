@@ -281,6 +281,42 @@ nfp_flower_compile_geneve_opt(void *ext, void *msk,
 }
 
 static void
+nfp_flower_compile_tun_ipv4_addrs(struct nfp_flower_tun_ipv4 *ext,
+				  struct nfp_flower_tun_ipv4 *msk,
+				  struct tc_cls_flower_offload *flow)
+{
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
+		struct flow_match_ipv4_addrs match;
+
+		flow_rule_match_enc_ipv4_addrs(rule, &match);
+		ext->src = match.key->src;
+		ext->dst = match.key->dst;
+		msk->src = match.mask->src;
+		msk->dst = match.mask->dst;
+	}
+}
+
+static void
+nfp_flower_compile_tun_ip_ext(struct nfp_flower_tun_ip_ext *ext,
+			      struct nfp_flower_tun_ip_ext *msk,
+			      struct tc_cls_flower_offload *flow)
+{
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IP)) {
+		struct flow_match_ip match;
+
+		flow_rule_match_enc_ip(rule, &match);
+		ext->tos = match.key->tos;
+		ext->ttl = match.key->ttl;
+		msk->tos = match.mask->tos;
+		msk->ttl = match.mask->ttl;
+	}
+}
+
+static void
 nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *ext,
 				struct nfp_flower_ipv4_udp_tun *msk,
 				struct tc_cls_flower_offload *flow)
@@ -301,25 +337,8 @@ nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *ext,
 		msk->tun_id = cpu_to_be32(temp_vni);
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
-		struct flow_match_ipv4_addrs match;
-
-		flow_rule_match_enc_ipv4_addrs(rule, &match);
-		ext->ip_src = match.key->src;
-		ext->ip_dst = match.key->dst;
-		msk->ip_src = match.mask->src;
-		msk->ip_dst = match.mask->dst;
-	}
-
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IP)) {
-		struct flow_match_ip match;
-
-		flow_rule_match_enc_ip(rule, &match);
-		ext->tos = match.key->tos;
-		ext->ttl = match.key->ttl;
-		msk->tos = match.mask->tos;
-		msk->ttl = match.mask->ttl;
-	}
+	nfp_flower_compile_tun_ipv4_addrs(&ext->ipv4, &msk->ipv4, flow);
+	nfp_flower_compile_tun_ip_ext(&ext->ip_ext, &msk->ip_ext, flow);
 }
 
 int nfp_flower_compile_flow_match(struct nfp_app *app,
@@ -411,7 +430,7 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 		__be32 tun_dst;
 
 		nfp_flower_compile_ipv4_udp_tun((void *)ext, (void *)msk, flow);
-		tun_dst = ((struct nfp_flower_ipv4_udp_tun *)ext)->ip_dst;
+		tun_dst = ((struct nfp_flower_ipv4_udp_tun *)ext)->ipv4.dst;
 		ext += sizeof(struct nfp_flower_ipv4_udp_tun);
 		msk += sizeof(struct nfp_flower_ipv4_udp_tun);
 

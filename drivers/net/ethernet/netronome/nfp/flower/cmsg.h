@@ -354,6 +354,16 @@ struct nfp_flower_ipv6 {
 	struct in6_addr ipv6_dst;
 };
 
+struct nfp_flower_tun_ipv4 {
+	__be32 src;
+	__be32 dst;
+};
+
+struct nfp_flower_tun_ip_ext {
+	u8 tos;
+	u8 ttl;
+};
+
 /* Flow Frame IPv4 UDP TUNNEL --> Tunnel details (4W/16B)
  * -----------------------------------------------------------------
  *    3                   2                   1
@@ -371,11 +381,9 @@ struct nfp_flower_ipv6 {
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 struct nfp_flower_ipv4_udp_tun {
-	__be32 ip_src;
-	__be32 ip_dst;
+	struct nfp_flower_tun_ipv4 ipv4;
 	__be16 reserved1;
-	u8 tos;
-	u8 ttl;
+	struct nfp_flower_tun_ip_ext ip_ext;
 	__be32 reserved2;
 	__be32 tun_id;
 };
