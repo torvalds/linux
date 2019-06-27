@@ -55,6 +55,7 @@ static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 static LIST_HEAD(all_blkcgs);		/* protected by blkcg_pol_mutex */
 
 static bool blkcg_debug_stats = false;
+static struct workqueue_struct *blkcg_punt_bio_wq;
 
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
@@ -89,6 +90,8 @@ static void __blkg_release(struct rcu_head *rcu)
 {
 	struct blkcg_gq *blkg = container_of(rcu, struct blkcg_gq, rcu_head);
 
+	WARN_ON(!bio_list_empty(&blkg->async_bios));
+
 	/* release the blkcg and parent blkg refs this blkg has been holding */
 	css_put(&blkg->blkcg->css);
 	if (blkg->parent)
@@ -112,6 +115,23 @@ static void blkg_release(struct percpu_ref *ref)
 	struct blkcg_gq *blkg = container_of(ref, struct blkcg_gq, refcnt);
 
 	call_rcu(&blkg->rcu_head, __blkg_release);
+}
+
+static void blkg_async_bio_workfn(struct work_struct *work)
+{
+	struct blkcg_gq *blkg = container_of(work, struct blkcg_gq,
+					     async_bio_work);
+	struct bio_list bios = BIO_EMPTY_LIST;
+	struct bio *bio;
+
+	/* as long as there are pending bios, @blkg can't go away */
+	spin_lock_bh(&blkg->async_bio_lock);
+	bio_list_merge(&bios, &blkg->async_bios);
+	bio_list_init(&blkg->async_bios);
+	spin_unlock_bh(&blkg->async_bio_lock);
+
+	while ((bio = bio_list_pop(&bios)))
+		submit_bio(bio);
 }
 
 /**
@@ -142,6 +162,9 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 
 	blkg->q = q;
 	INIT_LIST_HEAD(&blkg->q_node);
+	spin_lock_init(&blkg->async_bio_lock);
+	bio_list_init(&blkg->async_bios);
+	INIT_WORK(&blkg->async_bio_work, blkg_async_bio_workfn);
 	blkg->blkcg = blkcg;
 
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
@@ -1528,6 +1551,25 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(blkcg_policy_unregister);
 
+bool __blkcg_punt_bio_submit(struct bio *bio)
+{
+	struct blkcg_gq *blkg = bio->bi_blkg;
+
+	/* consume the flag first */
+	bio->bi_opf &= ~REQ_CGROUP_PUNT;
+
+	/* never bounce for the root cgroup */
+	if (!blkg->parent)
+		return false;
+
+	spin_lock_bh(&blkg->async_bio_lock);
+	bio_list_add(&blkg->async_bios, bio);
+	spin_unlock_bh(&blkg->async_bio_lock);
+
+	queue_work(blkcg_punt_bio_wq, &blkg->async_bio_work);
+	return true;
+}
+
 /*
  * Scale the accumulated delay based on how long it has been since we updated
  * the delay.  We only call this when we are adding delay, in case it's been a
@@ -1728,6 +1770,17 @@ void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta)
 	blkcg_scale_delay(blkg, now);
 	atomic64_add(delta, &blkg->delay_nsec);
 }
+
+static int __init blkcg_init(void)
+{
+	blkcg_punt_bio_wq = alloc_workqueue("blkcg_punt_bio",
+					    WQ_MEM_RECLAIM | WQ_FREEZABLE |
+					    WQ_UNBOUND | WQ_SYSFS, 0);
+	if (!blkcg_punt_bio_wq)
+		return -ENOMEM;
+	return 0;
+}
+subsys_initcall(blkcg_init);
 
 module_param(blkcg_debug_stats, bool, 0644);
 MODULE_PARM_DESC(blkcg_debug_stats, "True if you want debug stats, false if not");

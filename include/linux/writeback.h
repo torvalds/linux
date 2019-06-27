@@ -78,6 +78,8 @@ struct writeback_control {
 	 */
 	unsigned no_cgroup_owner:1;
 
+	unsigned punt_to_cgroup:1;	/* cgrp punting, see __REQ_CGROUP_PUNT */
+
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct bdi_writeback *wb;	/* wb this writeback is issued under */
 	struct inode *inode;		/* inode being written out */
@@ -94,12 +96,17 @@ struct writeback_control {
 
 static inline int wbc_to_write_flags(struct writeback_control *wbc)
 {
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		return REQ_SYNC;
-	else if (wbc->for_kupdate || wbc->for_background)
-		return REQ_BACKGROUND;
+	int flags = 0;
 
-	return 0;
+	if (wbc->punt_to_cgroup)
+		flags = REQ_CGROUP_PUNT;
+
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		flags |= REQ_SYNC;
+	else if (wbc->for_kupdate || wbc->for_background)
+		flags |= REQ_BACKGROUND;
+
+	return flags;
 }
 
 static inline struct cgroup_subsys_state *
