@@ -88,6 +88,7 @@ available subsections can be seen below.
    pti_intel_mid
    pwm
    rfkill
+   serial/index
    sgi-ioc4
    sm501
    smsc_ece1099
