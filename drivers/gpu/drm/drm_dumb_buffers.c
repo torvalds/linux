@@ -48,7 +48,7 @@
  * To support dumb objects drivers must implement the &drm_driver.dumb_create
  * operation. &drm_driver.dumb_destroy defaults to drm_gem_dumb_destroy() if
  * not set and &drm_driver.dumb_map_offset defaults to
- * drm_gem_dumb_map_offset(). See the callbacks for further details.
+ * drm_gem_map_offset(). See the callbacks for further details.
  *
  * Note that dumb objects may not be used for gpu acceleration, as has been
  * attempted on some ARM embedded platforms. Such drivers really must have
@@ -127,7 +127,7 @@ int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
 						    args->handle,
 						    &args->offset);
 	else
-		return drm_gem_dumb_map_offset(file_priv, dev, args->handle,
+		return drm_gem_map_offset(file_priv, dev, args->handle,
 					       &args->offset);
 }
 
