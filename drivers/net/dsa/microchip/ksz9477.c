@@ -89,22 +89,12 @@ static void ksz9477_port_cfg32(struct ksz_device *dev, int port, int offset,
 			   bits, set ? bits : 0);
 }
 
-static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev, u32 waiton,
-					int timeout)
+static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev)
 {
-	u8 data;
+	unsigned int val;
 
-	do {
-		ksz_read8(dev, REG_SW_VLAN_CTRL, &data);
-		if (!(data & waiton))
-			break;
-		usleep_range(1, 10);
-	} while (timeout-- > 0);
-
-	if (timeout <= 0)
-		return -ETIMEDOUT;
-
-	return 0;
+	return regmap_read_poll_timeout(dev->regmap[0], REG_SW_VLAN_CTRL,
+					val, !(val & VLAN_START), 10, 1000);
 }
 
 static int ksz9477_get_vlan_table(struct ksz_device *dev, u16 vid,
@@ -118,8 +108,8 @@ static int ksz9477_get_vlan_table(struct ksz_device *dev, u16 vid,
 	ksz_write8(dev, REG_SW_VLAN_CTRL, VLAN_READ | VLAN_START);
 
 	/* wait to be cleared */
-	ret = ksz9477_wait_vlan_ctrl_ready(dev, VLAN_START, 1000);
-	if (ret < 0) {
+	ret = ksz9477_wait_vlan_ctrl_ready(dev);
+	if (ret) {
 		dev_dbg(dev->dev, "Failed to read vlan table\n");
 		goto exit;
 	}
@@ -151,8 +141,8 @@ static int ksz9477_set_vlan_table(struct ksz_device *dev, u16 vid,
 	ksz_write8(dev, REG_SW_VLAN_CTRL, VLAN_START | VLAN_WRITE);
 
 	/* wait to be cleared */
-	ret = ksz9477_wait_vlan_ctrl_ready(dev, VLAN_START, 1000);
-	if (ret < 0) {
+	ret = ksz9477_wait_vlan_ctrl_ready(dev);
+	if (ret) {
 		dev_dbg(dev->dev, "Failed to write vlan table\n");
 		goto exit;
 	}
