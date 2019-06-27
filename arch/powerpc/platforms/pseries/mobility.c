@@ -67,6 +67,8 @@ static int delete_dt_node(__be32 phandle)
 	if (!dn)
 		return -ENOENT;
 
+	pr_debug("removing node %pOFfp\n", dn);
+
 	dlpar_detach_node(dn);
 	of_node_put(dn);
 	return 0;
@@ -125,6 +127,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	}
 
 	if (!more) {
+		pr_debug("updating node %pOF property %s\n", dn, name);
 		of_update_property(dn, new_prop);
 		*prop = NULL;
 	}
@@ -242,6 +245,8 @@ static int add_dt_node(__be32 parent_phandle, __be32 drc_index)
 	rc = dlpar_attach_node(dn, parent_dn);
 	if (rc)
 		dlpar_free_cc_nodes(dn);
+
+	pr_debug("added node %pOFfp\n", dn);
 
 	of_node_put(parent_dn);
 	return rc;
