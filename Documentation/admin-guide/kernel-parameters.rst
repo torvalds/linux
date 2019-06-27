@@ -9,11 +9,11 @@ and sorted into English Dictionary order (defined as ignoring all
 punctuation and sorting digits before letters in a case insensitive
 manner), and with descriptions where known.
 
-The kernel parses parameters from the kernel command line up to "--";
+The kernel parses parameters from the kernel command line up to "``--``";
 if it doesn't recognize a parameter and it doesn't contain a '.', the
 parameter gets passed to init: parameters with '=' go into init's
 environment, others are passed as command line arguments to init.
-Everything after "--" is passed as an argument to init.
+Everything after "``--``" is passed as an argument to init.
 
 Module parameters can be specified in two ways: via the kernel command
 line with a module name prefix, or via modprobe, e.g.::
