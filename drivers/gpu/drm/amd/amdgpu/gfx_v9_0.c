@@ -111,6 +111,19 @@ MODULE_FIRMWARE("amdgpu/arcturus_mec.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_mec2.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_rlc.bin");
 
+#define mmTCP_CHAN_STEER_0_ARCT								0x0b03
+#define mmTCP_CHAN_STEER_0_ARCT_BASE_IDX							0
+#define mmTCP_CHAN_STEER_1_ARCT								0x0b04
+#define mmTCP_CHAN_STEER_1_ARCT_BASE_IDX							0
+#define mmTCP_CHAN_STEER_2_ARCT								0x0b09
+#define mmTCP_CHAN_STEER_2_ARCT_BASE_IDX							0
+#define mmTCP_CHAN_STEER_3_ARCT								0x0b0a
+#define mmTCP_CHAN_STEER_3_ARCT_BASE_IDX							0
+#define mmTCP_CHAN_STEER_4_ARCT								0x0b0b
+#define mmTCP_CHAN_STEER_4_ARCT_BASE_IDX							0
+#define mmTCP_CHAN_STEER_5_ARCT								0x0b0c
+#define mmTCP_CHAN_STEER_5_ARCT_BASE_IDX							0
+
 static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000400),
@@ -278,6 +291,18 @@ static const struct soc15_reg_golden golden_settings_gc_9_2_1_vg12[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DEBUG, 0x00000000, 0x00008000)
 };
 
+static const struct soc15_reg_golden golden_settings_gc_9_4_1_arct[] =
+{
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0xffff77ff, 0x2a114042),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTA_CNTL_AUX, 0xfffffeef, 0x10b0000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_0_ARCT, 0x3fffffff, 0x346f0a4e),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_1_ARCT, 0x3fffffff, 0x1c642ca),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_2_ARCT, 0x3fffffff, 0x26f45098),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_3_ARCT, 0x3fffffff, 0x2ebd9fe3),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_4_ARCT, 0x3fffffff, 0xb90f5b1),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_5_ARCT, 0x3ff, 0x135),
+};
+
 static const u32 GFX_RLC_SRM_INDEX_CNTL_ADDR_OFFSETS[] =
 {
 	mmRLC_SRM_INDEX_CNTL_ADDR_0 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
@@ -346,6 +371,11 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_9_0_vg20,
 						ARRAY_SIZE(golden_settings_gc_9_0_vg20));
+		break;
+	case CHIP_ARCTURUS:
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_9_4_1_arct,
+						ARRAY_SIZE(golden_settings_gc_9_4_1_arct));
 		break;
 	case CHIP_RAVEN:
 		soc15_program_register_sequence(adev, golden_settings_gc_9_1,
