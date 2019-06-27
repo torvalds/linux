@@ -51,20 +51,6 @@
 		serial3 = &serial_3;
 	};
 
-	gpu: gpu@13000000 {
-		compatible = "samsung,exynos4210-mali", "arm,mali-400";
-		reg = <0x13000000 0x10000>;
-		/*
-		 * CLK_G3D is not actually bus clock but a IP-level clock.
-		 * The bus clock is not described in hardware manual.
-		 */
-		clocks = <&clock CLK_G3D>,
-			 <&clock CLK_SCLK_G3D>;
-		clock-names = "bus", "core";
-		power-domains = <&pd_g3d>;
-		status = "disabled";
-	};
-
 	pmu: pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupt-parent = <&combiner>;
@@ -427,6 +413,20 @@
 				phys = <&exynos_usbphy 1>;
 				status = "disabled";
 			};
+		};
+
+		gpu: gpu@13000000 {
+			compatible = "samsung,exynos4210-mali", "arm,mali-400";
+			reg = <0x13000000 0x10000>;
+			/*
+			 * CLK_G3D is not actually bus clock but a IP-level clock.
+			 * The bus clock is not described in hardware manual.
+			 */
+			clocks = <&clock CLK_G3D>,
+				 <&clock CLK_SCLK_G3D>;
+			clock-names = "bus", "core";
+			power-domains = <&pd_g3d>;
+			status = "disabled";
 		};
 
 		i2s1: i2s@13960000 {
