@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -30,9 +31,17 @@
 static DEFINE_MUTEX(dpaux_lock);
 static LIST_HEAD(dpaux_list);
 
+struct tegra_dpaux_soc {
+	unsigned int cmh;
+	unsigned int drvz;
+	unsigned int drvi;
+};
+
 struct tegra_dpaux {
 	struct drm_dp_aux aux;
 	struct device *dev;
+
+	const struct tegra_dpaux_soc *soc;
 
 	void __iomem *regs;
 	int irq;
@@ -322,9 +331,9 @@ static int tegra_dpaux_pad_config(struct tegra_dpaux *dpaux, unsigned function)
 
 	switch (function) {
 	case DPAUX_PADCTL_FUNC_AUX:
-		value = DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
-			DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
-			DPAUX_HYBRID_PADCTL_AUX_DRVI(0x18) |
+		value = DPAUX_HYBRID_PADCTL_AUX_CMH(dpaux->soc->cmh) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVZ(dpaux->soc->drvz) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVI(dpaux->soc->drvi) |
 			DPAUX_HYBRID_PADCTL_AUX_INPUT_RCV |
 			DPAUX_HYBRID_PADCTL_MODE_AUX;
 		break;
@@ -332,9 +341,9 @@ static int tegra_dpaux_pad_config(struct tegra_dpaux *dpaux, unsigned function)
 	case DPAUX_PADCTL_FUNC_I2C:
 		value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
 			DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
-			DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
-			DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
-			DPAUX_HYBRID_PADCTL_AUX_DRVI(0x18) |
+			DPAUX_HYBRID_PADCTL_AUX_CMH(dpaux->soc->cmh) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVZ(dpaux->soc->drvz) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVI(dpaux->soc->drvi) |
 			DPAUX_HYBRID_PADCTL_MODE_I2C;
 		break;
 
@@ -448,6 +457,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	if (!dpaux)
 		return -ENOMEM;
 
+	dpaux->soc = of_device_get_match_data(&pdev->dev);
 	INIT_WORK(&dpaux->work, tegra_dpaux_hotplug);
 	init_completion(&dpaux->complete);
 	INIT_LIST_HEAD(&dpaux->list);
@@ -655,11 +665,29 @@ static const struct dev_pm_ops tegra_dpaux_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra_dpaux_suspend, tegra_dpaux_resume, NULL)
 };
 
+static const struct tegra_dpaux_soc tegra124_dpaux_soc = {
+	.cmh = 0x02,
+	.drvz = 0x04,
+	.drvi = 0x18,
+};
+
+static const struct tegra_dpaux_soc tegra210_dpaux_soc = {
+	.cmh = 0x02,
+	.drvz = 0x04,
+	.drvi = 0x30,
+};
+
+static const struct tegra_dpaux_soc tegra194_dpaux_soc = {
+	.cmh = 0x02,
+	.drvz = 0x04,
+	.drvi = 0x2c,
+};
+
 static const struct of_device_id tegra_dpaux_of_match[] = {
-	{ .compatible = "nvidia,tegra194-dpaux", },
-	{ .compatible = "nvidia,tegra186-dpaux", },
-	{ .compatible = "nvidia,tegra210-dpaux", },
-	{ .compatible = "nvidia,tegra124-dpaux", },
+	{ .compatible = "nvidia,tegra194-dpaux", .data = &tegra194_dpaux_soc },
+	{ .compatible = "nvidia,tegra186-dpaux", .data = &tegra210_dpaux_soc },
+	{ .compatible = "nvidia,tegra210-dpaux", .data = &tegra210_dpaux_soc },
+	{ .compatible = "nvidia,tegra124-dpaux", .data = &tegra124_dpaux_soc },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_dpaux_of_match);
