@@ -169,7 +169,7 @@
 					in-ldo7-8-supply = <&vdd_1v8ls>;
 
 					vdd_1v0: sd0 {
-						regulator-name = "VDD_1V0";
+						regulator-name = "VDDIO_SYS_1V0";
 						regulator-min-microvolt = <1000000>;
 						regulator-max-microvolt = <1000000>;
 						regulator-always-on;
@@ -177,7 +177,7 @@
 					};
 
 					vdd_1v8hs: sd1 {
-						regulator-name = "VDD_1V8HS";
+						regulator-name = "VDDIO_SYS_1V8HS";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 						regulator-always-on;
@@ -185,7 +185,7 @@
 					};
 
 					vdd_1v8ls: sd2 {
-						regulator-name = "VDD_1V8LS";
+						regulator-name = "VDDIO_SYS_1V8LS";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 						regulator-always-on;
@@ -193,7 +193,7 @@
 					};
 
 					vdd_1v8ao: sd3 {
-						regulator-name = "VDD_1V8AO";
+						regulator-name = "VDDIO_AO_1V8";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 						regulator-always-on;
@@ -217,7 +217,7 @@
 					};
 
 					ldo2 {
-						regulator-name = "VDD_AO_3V3";
+						regulator-name = "VDDIO_AO_3V3";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 						regulator-always-on;
@@ -243,7 +243,7 @@
 					};
 
 					ldo7 {
-						regulator-name = "VDD_CSI_1V2";
+						regulator-name = "AVDD_CSI_1V2";
 						regulator-min-microvolt = <1200000>;
 						regulator-max-microvolt = <1200000>;
 					};
