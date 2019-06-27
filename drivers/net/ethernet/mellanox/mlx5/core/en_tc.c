@@ -56,6 +56,7 @@
 #include "en/tc_tun.h"
 #include "lib/devcom.h"
 #include "lib/geneve.h"
+#include "diag/en_tc_tracepoint.h"
 
 struct mlx5_nic_flow_attr {
 	u32 action;
@@ -3769,6 +3770,7 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 		goto out;
 	}
 
+	trace_mlx5e_configure_flower(f);
 	err = mlx5e_tc_add_flow(priv, f, flags, dev, &flow);
 	if (err)
 		goto out;
@@ -3818,6 +3820,7 @@ int mlx5e_delete_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	rhashtable_remove_fast(tc_ht, &flow->node, tc_ht_params);
 	rcu_read_unlock();
 
+	trace_mlx5e_delete_flower(f);
 	mlx5e_flow_put(priv, flow);
 
 	return 0;
@@ -3887,6 +3890,7 @@ no_peer_counter:
 	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 out:
 	flow_stats_update(&f->stats, bytes, packets, lastuse);
+	trace_mlx5e_stats_flower(f);
 errout:
 	mlx5e_flow_put(priv, flow);
 	return err;
