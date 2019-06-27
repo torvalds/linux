@@ -3727,6 +3727,11 @@ static const struct tegra_sor_soc tegra194_sor = {
 	.settings = tegra194_sor_hdmi_defaults,
 
 	.xbar_cfg = tegra210_sor_xbar_cfg,
+	.lane_map = tegra124_sor_lane_map,
+	.voltage_swing = tegra186_sor_voltage_swing,
+	.pre_emphasis = tegra186_sor_pre_emphasis,
+	.post_cursor = tegra124_sor_post_cursor,
+	.tx_pu = tegra124_sor_tx_pu,
 };
 
 static const struct of_device_id tegra_sor_of_match[] = {
