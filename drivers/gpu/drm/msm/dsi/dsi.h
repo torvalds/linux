@@ -71,7 +71,6 @@ struct msm_dsi {
 	 */
 	struct drm_panel *panel;
 	struct drm_bridge *external_bridge;
-	unsigned long device_flags;
 
 	struct device *phy_dev;
 	bool phy_enabled;
@@ -89,7 +88,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id);
 struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id);
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
 bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len);
-void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags);
+void msm_dsi_manager_setup_encoder(int id);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 bool msm_dsi_manager_validate_current_config(u8 id);
@@ -161,8 +160,8 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 int msm_dsi_host_power_off(struct mipi_dsi_host *host);
 int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 				  const struct drm_display_mode *mode);
-struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host,
-					unsigned long *panel_flags);
+struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host);
+unsigned long msm_dsi_host_get_mode_flags(struct mipi_dsi_host *host);
 struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host);
 int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer);
 void msm_dsi_host_unregister(struct mipi_dsi_host *host);

@@ -16,6 +16,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/interconnect.h>
 #include <linux/of_irq.h>
 
 #include "msm_drv.h"
@@ -1048,9 +1049,46 @@ static const struct component_ops mdp5_ops = {
 	.unbind = mdp5_unbind,
 };
 
+static int mdp5_setup_interconnect(struct platform_device *pdev)
+{
+	struct icc_path *path0 = of_icc_get(&pdev->dev, "mdp0-mem");
+	struct icc_path *path1 = of_icc_get(&pdev->dev, "mdp1-mem");
+	struct icc_path *path_rot = of_icc_get(&pdev->dev, "rotator-mem");
+
+	if (IS_ERR(path0))
+		return PTR_ERR(path0);
+
+	if (!path0) {
+		/* no interconnect support is not necessarily a fatal
+		 * condition, the platform may simply not have an
+		 * interconnect driver yet.  But warn about it in case
+		 * bootloader didn't setup bus clocks high enough for
+		 * scanout.
+		 */
+		dev_warn(&pdev->dev, "No interconnect support may cause display underflows!\n");
+		return 0;
+	}
+
+	icc_set_bw(path0, 0, MBps_to_icc(6400));
+
+	if (!IS_ERR_OR_NULL(path1))
+		icc_set_bw(path1, 0, MBps_to_icc(6400));
+	if (!IS_ERR_OR_NULL(path_rot))
+		icc_set_bw(path_rot, 0, MBps_to_icc(6400));
+
+	return 0;
+}
+
 static int mdp5_dev_probe(struct platform_device *pdev)
 {
+	int ret;
+
 	DBG("");
+
+	ret = mdp5_setup_interconnect(pdev);
+	if (ret)
+		return ret;
+
 	return component_add(&pdev->dev, &mdp5_ops);
 }
 

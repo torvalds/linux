@@ -145,6 +145,24 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 		.zapfw = "a530_zap.mdt",
 	}, {
+		.rev = ADRENO_REV(5, 4, 0, 2),
+		.revn = 540,
+		.name = "A540",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+			[ADRENO_FW_GPMU] = "a540_gpmu.fw2",
+		},
+		.gmem = SZ_1M,
+		/*
+		 * Increase inactive period to 250 to avoid bouncing
+		 * the GDSC which appears to make it grumpy
+		 */
+		.inactive_period = 250,
+		.quirks = ADRENO_QUIRK_LMLOADKILL_DISABLE,
+		.init = a5xx_gpu_init,
+		.zapfw = "a540_zap.mdt",
+	}, {
 		.rev = ADRENO_REV(6, 3, 0, ANY_ID),
 		.revn = 630,
 		.name = "A630",
@@ -351,7 +369,7 @@ static void adreno_unbind(struct device *dev, struct device *master,
 {
 	struct msm_gpu *gpu = dev_get_drvdata(dev);
 
-	gpu->funcs->pm_suspend(gpu);
+	pm_runtime_force_suspend(dev);
 	gpu->funcs->destroy(gpu);
 
 	set_gpu_pdev(dev_get_drvdata(master), NULL);

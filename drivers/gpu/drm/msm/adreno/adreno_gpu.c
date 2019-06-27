@@ -67,7 +67,6 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
 		return ret;
 
 	mem_phys = r.start;
-	mem_size = resource_size(&r);
 
 	/* Request the MDT file for the firmware */
 	fw = adreno_request_fw(to_adreno_gpu(gpu), fwname);
@@ -80,6 +79,13 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
 	mem_size = qcom_mdt_get_size(fw);
 	if (mem_size < 0) {
 		ret = mem_size;
+		goto out;
+	}
+
+	if (mem_size > resource_size(&r)) {
+		DRM_DEV_ERROR(dev,
+			"memory region is too small to load the MDT\n");
+		ret = -E2BIG;
 		goto out;
 	}
 
