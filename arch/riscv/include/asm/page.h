@@ -115,8 +115,4 @@ extern unsigned long min_low_pfn;
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
 
-/* vDSO support */
-/* We do define AT_SYSINFO_EHDR but don't use the gate mechanism */
-#define __HAVE_ARCH_GATE_AREA
-
 #endif /* _ASM_RISCV_PAGE_H */
