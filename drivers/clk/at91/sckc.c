@@ -509,13 +509,13 @@ static void __init of_sam9x60_sckc_setup(struct device_node *np)
 	return;
 
 unregister_td_slck:
-	clk_hw_unregister(clk_data->hws[1]);
+	at91_clk_unregister_sam9x5_slow(clk_data->hws[1]);
 unregister_md_slck:
 	clk_hw_unregister(clk_data->hws[0]);
 clk_data_free:
 	kfree(clk_data);
 unregister_slow_osc:
-	clk_hw_unregister(slow_osc);
+	at91_clk_unregister_slow_osc(slow_osc);
 unregister_slow_rc:
 	clk_hw_unregister(slow_rc);
 }
