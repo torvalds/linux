@@ -161,6 +161,14 @@ at91_clk_register_slow_osc(void __iomem *sckcr,
 	return hw;
 }
 
+static void at91_clk_unregister_slow_osc(struct clk_hw *hw)
+{
+	struct clk_slow_osc *osc = to_clk_slow_osc(hw);
+
+	clk_hw_unregister(hw);
+	kfree(osc);
+}
+
 static unsigned long clk_slow_rc_osc_recalc_rate(struct clk_hw *hw,
 						 unsigned long parent_rate)
 {
