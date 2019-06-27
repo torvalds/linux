@@ -619,7 +619,7 @@ static int context_init(struct drm_device *dev, struct drm_file *file)
 
 	msm_submitqueue_init(dev, ctx);
 
-	ctx->aspace = priv->gpu->aspace;
+	ctx->aspace = priv->gpu ? priv->gpu->aspace : NULL;
 	file->driver_priv = ctx;
 
 	return 0;
