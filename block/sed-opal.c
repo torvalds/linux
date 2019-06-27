@@ -2114,8 +2114,7 @@ static int opal_lock_unlock(struct opal_dev *dev,
 {
 	int ret;
 
-	if (lk_unlk->session.who < OPAL_ADMIN1 ||
-	    lk_unlk->session.who > OPAL_USER9)
+	if (lk_unlk->session.who > OPAL_USER9)
 		return -EINVAL;
 
 	mutex_lock(&dev->dev_lock);
@@ -2193,9 +2192,7 @@ static int opal_set_new_pw(struct opal_dev *dev, struct opal_new_pw *opal_pw)
 	};
 	int ret;
 
-	if (opal_pw->session.who < OPAL_ADMIN1 ||
-	    opal_pw->session.who > OPAL_USER9  ||
-	    opal_pw->new_user_pw.who < OPAL_ADMIN1 ||
+	if (opal_pw->session.who > OPAL_USER9  ||
 	    opal_pw->new_user_pw.who > OPAL_USER9)
 		return -EINVAL;
 
