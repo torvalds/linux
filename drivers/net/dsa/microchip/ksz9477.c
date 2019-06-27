@@ -197,16 +197,14 @@ static int ksz9477_wait_alu_sta_ready(struct ksz_device *dev)
 static int ksz9477_reset_switch(struct ksz_device *dev)
 {
 	u8 data8;
-	u16 data16;
 	u32 data32;
 
 	/* reset switch */
 	ksz_cfg(dev, REG_SW_OPERATION, SW_RESET, true);
 
 	/* turn off SPI DO Edge select */
-	ksz_read8(dev, REG_SW_GLOBAL_SERIAL_CTRL_0, &data8);
-	data8 &= ~SPI_AUTO_EDGE_DETECTION;
-	ksz_write8(dev, REG_SW_GLOBAL_SERIAL_CTRL_0, data8);
+	regmap_update_bits(dev->regmap[0], REG_SW_GLOBAL_SERIAL_CTRL_0,
+			   SPI_AUTO_EDGE_DETECTION, 0);
 
 	/* default configuration */
 	ksz_read8(dev, REG_SW_LUE_CTRL_1, &data8);
@@ -220,10 +218,10 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 	ksz_read32(dev, REG_SW_PORT_INT_STATUS__4, &data32);
 
 	/* set broadcast storm protection 10% rate */
-	ksz_read16(dev, REG_SW_MAC_CTRL_2, &data16);
-	data16 &= ~BROADCAST_STORM_RATE;
-	data16 |= (BROADCAST_STORM_VALUE * BROADCAST_STORM_PROT_RATE) / 100;
-	ksz_write16(dev, REG_SW_MAC_CTRL_2, data16);
+	regmap_update_bits(dev->regmap[1], REG_SW_MAC_CTRL_2,
+			   BROADCAST_STORM_RATE,
+			   (BROADCAST_STORM_VALUE *
+			   BROADCAST_STORM_PROT_RATE) / 100);
 
 	if (dev->synclko_125)
 		ksz_write8(dev, REG_SW_GLOBAL_OUTPUT_CTRL__1,
@@ -485,10 +483,10 @@ static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 {
 	u8 data;
 
-	ksz_read8(dev, REG_SW_LUE_CTRL_2, &data);
-	data &= ~(SW_FLUSH_OPTION_M << SW_FLUSH_OPTION_S);
-	data |= (SW_FLUSH_OPTION_DYN_MAC << SW_FLUSH_OPTION_S);
-	ksz_write8(dev, REG_SW_LUE_CTRL_2, data);
+	regmap_update_bits(dev->regmap[0], REG_SW_LUE_CTRL_2,
+			   SW_FLUSH_OPTION_M << SW_FLUSH_OPTION_S,
+			   SW_FLUSH_OPTION_DYN_MAC << SW_FLUSH_OPTION_S);
+
 	if (port < dev->mib_port_cnt) {
 		/* flush individual port */
 		ksz_pread8(dev, port, P_STP_CTRL, &data);
