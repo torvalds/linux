@@ -2689,7 +2689,7 @@ ATA OVER ETHERNET (AOE) DRIVER
 M:	"Justin Sanders" <justin@coraid.com>
 W:	http://www.openaoe.org/
 S:	Supported
-F:	Documentation/aoe/
+F:	Documentation/admin-guide/aoe/
 F:	drivers/block/aoe/
 
 ATHEROS 71XX/9XXX GPIO DRIVER

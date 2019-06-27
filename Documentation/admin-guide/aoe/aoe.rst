@@ -20,7 +20,7 @@ driver.  The aoetools are on sourceforge.
 
   http://aoetools.sourceforge.net/
 
-The scripts in this Documentation/aoe directory are intended to
+The scripts in this Documentation/admin-guide/aoe directory are intended to
 document the use of the driver and are not necessary if you install
 the aoetools.
 
@@ -86,7 +86,7 @@ Using sysfs
   a convenient way.  Users with aoetools should use the aoe-stat
   command::
 
-    root@makki root# sh Documentation/aoe/status.sh
+    root@makki root# sh Documentation/admin-guide/aoe/status.sh
        e10.0            eth3              up
        e10.1            eth3              up
        e10.2            eth3              up

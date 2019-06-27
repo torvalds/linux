@@ -83,6 +83,7 @@ configure specific aspects of kernel behavior to your liking.
    namespaces/index
    perf-security
    acpi/index
+   aoe/index
    device-mapper/index
    laptops/index
 
