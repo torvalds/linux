@@ -1307,6 +1307,7 @@ static int start_generic_opal_session(struct opal_dev *dev,
 		break;
 	case OPAL_ADMIN1_UID:
 	case OPAL_SID_UID:
+	case OPAL_PSID_UID:
 		add_token_u8(&err, dev, OPAL_STARTNAME);
 		add_token_u8(&err, dev, 0); /* HostChallenge */
 		add_token_bytestring(&err, dev, key, key_len);
@@ -1365,6 +1366,16 @@ static int start_admin1LSP_opal_session(struct opal_dev *dev, void *data)
 	return start_generic_opal_session(dev, OPAL_ADMIN1_UID,
 					  OPAL_LOCKINGSP_UID,
 					  key->key, key->key_len);
+}
+
+static int start_PSID_opal_session(struct opal_dev *dev, void *data)
+{
+	const struct opal_key *okey = data;
+
+	return start_generic_opal_session(dev, OPAL_PSID_UID,
+					  OPAL_ADMINSP_UID,
+					  okey->key,
+					  okey->key_len);
 }
 
 static int start_auth_opal_session(struct opal_dev *dev, void *data)
@@ -2030,17 +2041,28 @@ static int opal_add_user_to_lr(struct opal_dev *dev,
 	return ret;
 }
 
-static int opal_reverttper(struct opal_dev *dev, struct opal_key *opal)
+static int opal_reverttper(struct opal_dev *dev, struct opal_key *opal, bool psid)
 {
+	/* controller will terminate session */
 	const struct opal_step revert_steps[] = {
 		{ start_SIDASP_opal_session, opal },
-		{ revert_tper, } /* controller will terminate session */
+		{ revert_tper, }
 	};
+	const struct opal_step psid_revert_steps[] = {
+		{ start_PSID_opal_session, opal },
+		{ revert_tper, }
+	};
+
 	int ret;
 
 	mutex_lock(&dev->dev_lock);
 	setup_opal_dev(dev);
-	ret = execute_steps(dev, revert_steps, ARRAY_SIZE(revert_steps));
+	if (psid)
+		ret = execute_steps(dev, psid_revert_steps,
+				    ARRAY_SIZE(psid_revert_steps));
+	else
+		ret = execute_steps(dev, revert_steps,
+				    ARRAY_SIZE(revert_steps));
 	mutex_unlock(&dev->dev_lock);
 
 	/*
@@ -2280,7 +2302,7 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		ret = opal_activate_user(dev, p);
 		break;
 	case IOC_OPAL_REVERT_TPR:
-		ret = opal_reverttper(dev, p);
+		ret = opal_reverttper(dev, p, false);
 		break;
 	case IOC_OPAL_LR_SETUP:
 		ret = opal_setup_locking_range(dev, p);
@@ -2296,6 +2318,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_SECURE_ERASE_LR:
 		ret = opal_secure_erase_locking_range(dev, p);
+		break;
+	case IOC_OPAL_PSID_REVERT_TPR:
+		ret = opal_reverttper(dev, p, true);
 		break;
 	default:
 		break;
