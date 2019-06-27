@@ -3093,7 +3093,7 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 
 	if (wbc) {
 		wbc_init_bio(wbc, bio);
-		wbc_account_io(wbc, bh->b_page, bh->b_size);
+		wbc_account_cgroup_owner(wbc, bh->b_page, bh->b_size);
 	}
 
 	submit_bio(bio);
