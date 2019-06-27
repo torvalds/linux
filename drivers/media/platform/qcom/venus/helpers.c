@@ -463,6 +463,57 @@ static void return_buf_error(struct venus_inst *inst,
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 }
 
+static void
+put_ts_metadata(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
+{
+	struct vb2_buffer *vb = &vbuf->vb2_buf;
+	unsigned int i;
+	int slot = -1;
+	u64 ts_us = vb->timestamp;
+
+	for (i = 0; i < ARRAY_SIZE(inst->tss); i++) {
+		if (!inst->tss[i].used) {
+			slot = i;
+			break;
+		}
+	}
+
+	if (slot == -1) {
+		dev_dbg(inst->core->dev, "%s: no free slot\n", __func__);
+		return;
+	}
+
+	do_div(ts_us, NSEC_PER_USEC);
+
+	inst->tss[slot].used = true;
+	inst->tss[slot].flags = vbuf->flags;
+	inst->tss[slot].tc = vbuf->timecode;
+	inst->tss[slot].ts_us = ts_us;
+	inst->tss[slot].ts_ns = vb->timestamp;
+}
+
+void venus_helper_get_ts_metadata(struct venus_inst *inst, u64 timestamp_us,
+				  struct vb2_v4l2_buffer *vbuf)
+{
+	struct vb2_buffer *vb = &vbuf->vb2_buf;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(inst->tss); ++i) {
+		if (!inst->tss[i].used)
+			continue;
+
+		if (inst->tss[i].ts_us != timestamp_us)
+			continue;
+
+		inst->tss[i].used = false;
+		vbuf->flags |= inst->tss[i].flags;
+		vbuf->timecode = inst->tss[i].tc;
+		vb->timestamp = inst->tss[i].ts_ns;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(venus_helper_get_ts_metadata);
+
 static int
 session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 {
@@ -487,6 +538,9 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 
 		if (vbuf->flags & V4L2_BUF_FLAG_LAST || !fdata.filled_len)
 			fdata.flags |= HFI_BUFFERFLAG_EOS;
+
+		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
+			put_ts_metadata(inst, vbuf);
 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (inst->session_type == VIDC_SESSION_TYPE_ENC)
 			fdata.buffer_type = HFI_BUFFER_OUTPUT;

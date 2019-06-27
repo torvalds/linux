@@ -1135,6 +1135,8 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 		vbuf->sequence = inst->sequence_out++;
 	}
 
+	venus_helper_get_ts_metadata(inst, timestamp_us, vbuf);
+
 	if (hfi_flags & HFI_BUFFERFLAG_READONLY)
 		venus_helper_acquire_buf_ref(vbuf);
 

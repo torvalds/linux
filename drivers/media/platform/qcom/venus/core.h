@@ -220,6 +220,14 @@ enum venus_dec_state {
 	VENUS_DEC_STATE_DRC		= 7
 };
 
+struct venus_ts_metadata {
+	bool used;
+	u64 ts_ns;
+	u64 ts_us;
+	u32 flags;
+	struct v4l2_timecode tc;
+};
+
 /**
  * struct venus_inst - holds per instance parameters
  *
@@ -304,6 +312,7 @@ struct venus_inst {
 	wait_queue_head_t reconf_wait;
 	unsigned int subscriptions;
 	int buf_count;
+	struct venus_ts_metadata tss[VIDEO_MAX_FRAME];
 	u64 fps;
 	struct v4l2_fract timeperframe;
 	const struct venus_format *fmt_out;
