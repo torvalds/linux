@@ -1760,18 +1760,6 @@ void generic_end_io_acct(struct request_queue *q, int req_op,
 }
 EXPORT_SYMBOL(generic_end_io_acct);
 
-#if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
-void bio_flush_dcache_pages(struct bio *bi)
-{
-	struct bio_vec bvec;
-	struct bvec_iter iter;
-
-	bio_for_each_segment(bvec, bi, iter)
-		flush_dcache_page(bvec.bv_page);
-}
-EXPORT_SYMBOL(bio_flush_dcache_pages);
-#endif
-
 static inline bool bio_remaining_done(struct bio *bio)
 {
 	/*
