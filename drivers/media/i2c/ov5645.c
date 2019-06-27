@@ -34,10 +34,6 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define OV5645_VOLTAGE_ANALOG               2800000
-#define OV5645_VOLTAGE_DIGITAL_CORE         1500000
-#define OV5645_VOLTAGE_DIGITAL_IO           1800000
-
 #define OV5645_SYSTEM_CTRL0		0x3008
 #define		OV5645_SYSTEM_CTRL0_START	0x02
 #define		OV5645_SYSTEM_CTRL0_STOP	0x42
@@ -1156,40 +1152,16 @@ static int ov5645_probe(struct i2c_client *client,
 		return PTR_ERR(ov5645->io_regulator);
 	}
 
-	ret = regulator_set_voltage(ov5645->io_regulator,
-				    OV5645_VOLTAGE_DIGITAL_IO,
-				    OV5645_VOLTAGE_DIGITAL_IO);
-	if (ret < 0) {
-		dev_err(dev, "cannot set io voltage\n");
-		return ret;
-	}
-
 	ov5645->core_regulator = devm_regulator_get(dev, "vddd");
 	if (IS_ERR(ov5645->core_regulator)) {
 		dev_err(dev, "cannot get core regulator\n");
 		return PTR_ERR(ov5645->core_regulator);
 	}
 
-	ret = regulator_set_voltage(ov5645->core_regulator,
-				    OV5645_VOLTAGE_DIGITAL_CORE,
-				    OV5645_VOLTAGE_DIGITAL_CORE);
-	if (ret < 0) {
-		dev_err(dev, "cannot set core voltage\n");
-		return ret;
-	}
-
 	ov5645->analog_regulator = devm_regulator_get(dev, "vdda");
 	if (IS_ERR(ov5645->analog_regulator)) {
 		dev_err(dev, "cannot get analog regulator\n");
 		return PTR_ERR(ov5645->analog_regulator);
-	}
-
-	ret = regulator_set_voltage(ov5645->analog_regulator,
-				    OV5645_VOLTAGE_ANALOG,
-				    OV5645_VOLTAGE_ANALOG);
-	if (ret < 0) {
-		dev_err(dev, "cannot set analog voltage\n");
-		return ret;
 	}
 
 	ov5645->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
