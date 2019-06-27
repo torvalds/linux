@@ -11554,9 +11554,7 @@ void perf_event_delayed_put(struct task_struct *task)
 
 struct file *perf_event_get(unsigned int fd)
 {
-	struct file *file;
-
-	file = fget_raw(fd);
+	struct file *file = fget(fd);
 	if (!file)
 		return ERR_PTR(-EBADF);
 
