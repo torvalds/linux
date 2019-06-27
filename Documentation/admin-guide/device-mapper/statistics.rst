@@ -13,7 +13,7 @@ the range specified.
 
 The I/O statistics counters for each step-sized area of a region are
 in the same format as `/sys/block/*/stat` or `/proc/diskstats` (see:
-Documentation/iostats.txt).  But two extra counters (12 and 13) are
+Documentation/admin-guide/iostats.rst).  But two extra counters (12 and 13) are
 provided: total time spent reading and writing.  When the histogram
 argument is used, the 14th parameter is reported that represents the
 histogram of latencies.  All these counters may be accessed by sending
@@ -151,7 +151,7 @@ Messages
 	  The first 11 counters have the same meaning as
 	  `/sys/block/*/stat or /proc/diskstats`.
 
-	  Please refer to Documentation/iostats.txt for details.
+	  Please refer to Documentation/admin-guide/iostats.rst for details.
 
 	  1. the number of reads completed
 	  2. the number of reads merged

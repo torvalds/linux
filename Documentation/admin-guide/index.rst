@@ -85,8 +85,25 @@ configure specific aspects of kernel behavior to your liking.
    perf-security
    acpi/index
    aoe/index
+   btmrvl
+   clearing-warn-once
+   cpu-load
+   cputopology
    device-mapper/index
+   efi-stub
+   highuid
+   hw_random
+   iostats
+   kernel-per-CPU-kthreads
    laptops/index
+   lcd-panel-cgram
+   ldm
+   lockup-watchdogs
+   numastat
+   pnp
+   rtc
+   svga
+   video-output
 
 .. only::  subproject and html
 
