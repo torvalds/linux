@@ -113,12 +113,13 @@ Answer to Quick Quiz #1:
 Answer to Quick Quiz #2:
 	What locking restriction must RCU callbacks respect?
 
-	Any lock that is acquired within an RCU callback must be
-	acquired elsewhere using an _irq variant of the spinlock
-	primitive.  For example, if "mylock" is acquired by an
-	RCU callback, then a process-context acquisition of this
-	lock must use something like spin_lock_irqsave() to
-	acquire the lock.
+	Any lock that is acquired within an RCU callback must be acquired
+	elsewhere using an _bh variant of the spinlock primitive.
+	For example, if "mylock" is acquired by an RCU callback, then
+	a process-context acquisition of this lock must use something
+	like spin_lock_bh() to acquire the lock.  Please note that
+	it is also OK to use _irq variants of spinlocks, for example,
+	spin_lock_irqsave().
 
 	If the process-context code were to simply use spin_lock(),
 	then, since RCU callbacks can be invoked from softirq context,
