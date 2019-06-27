@@ -368,6 +368,11 @@ void apply_DEDCN20_305_wa(
 {
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 
+	if (mpc->ctx->dc->debug.cm_in_bypass) {
+		REG_SET(MPCC_OGAM_MODE[mpcc_id], 0, MPCC_OGAM_MODE, 0);
+		return;
+	}
+
 	if (mpc->ctx->dc->work_arounds.dedcn20_305_wa == false) {
 		/*hw fixed in new review*/
 		return;
@@ -390,10 +395,16 @@ void mpc2_set_output_gamma(
 	enum dc_lut_mode next_mode;
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 
+	if (mpc->ctx->dc->debug.cm_in_bypass) {
+		REG_SET(MPCC_OGAM_MODE[mpcc_id], 0, MPCC_OGAM_MODE, 0);
+		return;
+	}
+
 	if (params == NULL) {
 		REG_SET(MPCC_OGAM_MODE[mpcc_id], 0, MPCC_OGAM_MODE, 0);
 		return;
 	}
+
 	current_mode = mpc20_get_ogam_current(mpc, mpcc_id);
 	if (current_mode == LUT_BYPASS || current_mode == LUT_RAM_A)
 		next_mode = LUT_RAM_B;

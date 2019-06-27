@@ -379,6 +379,9 @@ struct dc_debug_options {
 	 */
 	unsigned int force_min_dcfclk_mhz;
 	bool disable_timing_sync;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	bool cm_in_bypass;
+#endif
 };
 
 struct dc_debug_data {

@@ -42,6 +42,7 @@ struct dpp {
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct pwl_params shaper_params;
+	bool cm_bypass_mode;
 #endif
 };
 
