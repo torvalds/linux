@@ -5785,7 +5785,6 @@ static struct sk_buff *rtl8169_try_rx_copy(void *data,
 	skb = napi_alloc_skb(&tp->napi, pkt_size);
 	if (skb)
 		skb_copy_to_linear_data(skb, data, pkt_size);
-	dma_sync_single_for_device(d, addr, pkt_size, DMA_FROM_DEVICE);
 
 	return skb;
 }
