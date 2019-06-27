@@ -4711,6 +4711,8 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 		err = PTR_ERR(chip->reset);
 		goto out;
 	}
+	if (chip->reset)
+		usleep_range(1000, 2000);
 
 	err = mv88e6xxx_detect(chip);
 	if (err)
