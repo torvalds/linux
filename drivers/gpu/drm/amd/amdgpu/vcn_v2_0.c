@@ -1010,8 +1010,8 @@ static int vcn_v2_0_start_dpg_mode(struct amdgpu_device *adev, bool indirect)
 
 	if (indirect)
 		psp_update_vcn_sram(adev, 0, adev->vcn.dpg_sram_gpu_addr,
-			(uint32_t)((uint64_t)adev->vcn.dpg_sram_curr_addr -
-			(uint64_t)adev->vcn.dpg_sram_cpu_addr));
+				    (uint32_t)((uintptr_t)adev->vcn.dpg_sram_curr_addr -
+					       (uintptr_t)adev->vcn.dpg_sram_cpu_addr));
 
 	/* force RBC into idle state */
 	rb_bufsz = order_base_2(ring->ring_size);
