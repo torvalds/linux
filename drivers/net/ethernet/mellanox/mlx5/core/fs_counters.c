@@ -58,6 +58,7 @@ struct mlx5_fc {
 	u64 lastpackets;
 	u64 lastbytes;
 
+	struct mlx5_fc_bulk *bulk;
 	u32 id;
 	bool aging;
 
@@ -411,4 +412,108 @@ void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
 
 	fc_stats->sampling_interval = min_t(unsigned long, interval,
 					    fc_stats->sampling_interval);
+}
+
+/* Flow counter bluks */
+
+struct mlx5_fc_bulk {
+	u32 base_id;
+	int bulk_len;
+	unsigned long *bitmask;
+	struct mlx5_fc fcs[0];
+};
+
+static void
+mlx5_fc_init(struct mlx5_fc *counter, struct mlx5_fc_bulk *bulk, u32 id)
+{
+	counter->bulk = bulk;
+	counter->id = id;
+}
+
+static int mlx5_fc_bulk_get_free_fcs_amount(struct mlx5_fc_bulk *bulk)
+{
+	return bitmap_weight(bulk->bitmask, bulk->bulk_len);
+}
+
+static struct mlx5_fc_bulk __attribute__((unused))
+*mlx5_fc_bulk_create(struct mlx5_core_dev *dev)
+{
+	enum mlx5_fc_bulk_alloc_bitmask alloc_bitmask;
+	struct mlx5_fc_bulk *bulk;
+	int err = -ENOMEM;
+	int bulk_len;
+	u32 base_id;
+	int i;
+
+	alloc_bitmask = MLX5_CAP_GEN(dev, flow_counter_bulk_alloc);
+	bulk_len = alloc_bitmask > 0 ? MLX5_FC_BULK_NUM_FCS(alloc_bitmask) : 1;
+
+	bulk = kzalloc(sizeof(*bulk) + bulk_len * sizeof(struct mlx5_fc),
+		       GFP_KERNEL);
+	if (!bulk)
+		goto err_alloc_bulk;
+
+	bulk->bitmask = kcalloc(BITS_TO_LONGS(bulk_len), sizeof(unsigned long),
+				GFP_KERNEL);
+	if (!bulk->bitmask)
+		goto err_alloc_bitmask;
+
+	err = mlx5_cmd_fc_bulk_alloc(dev, alloc_bitmask, &base_id);
+	if (err)
+		goto err_mlx5_cmd_bulk_alloc;
+
+	bulk->base_id = base_id;
+	bulk->bulk_len = bulk_len;
+	for (i = 0; i < bulk_len; i++) {
+		mlx5_fc_init(&bulk->fcs[i], bulk, base_id + i);
+		set_bit(i, bulk->bitmask);
+	}
+
+	return bulk;
+
+err_mlx5_cmd_bulk_alloc:
+	kfree(bulk->bitmask);
+err_alloc_bitmask:
+	kfree(bulk);
+err_alloc_bulk:
+	return ERR_PTR(err);
+}
+
+static int __attribute__((unused))
+mlx5_fc_bulk_destroy(struct mlx5_core_dev *dev, struct mlx5_fc_bulk *bulk)
+{
+	if (mlx5_fc_bulk_get_free_fcs_amount(bulk) < bulk->bulk_len) {
+		mlx5_core_err(dev, "Freeing bulk before all counters were released\n");
+		return -EBUSY;
+	}
+
+	mlx5_cmd_fc_free(dev, bulk->base_id);
+	kfree(bulk->bitmask);
+	kfree(bulk);
+
+	return 0;
+}
+
+static struct mlx5_fc __attribute__((unused))
+*mlx5_fc_bulk_acquire_fc(struct mlx5_fc_bulk *bulk)
+{
+	int free_fc_index = find_first_bit(bulk->bitmask, bulk->bulk_len);
+
+	if (free_fc_index >= bulk->bulk_len)
+		return ERR_PTR(-ENOSPC);
+
+	clear_bit(free_fc_index, bulk->bitmask);
+	return &bulk->fcs[free_fc_index];
+}
+
+static int __attribute__((unused))
+mlx5_fc_bulk_release_fc(struct mlx5_fc_bulk *bulk, struct mlx5_fc *fc)
+{
+	int fc_index = fc->id - bulk->base_id;
+
+	if (test_bit(fc_index, bulk->bitmask))
+		return -EINVAL;
+
+	set_bit(fc_index, bulk->bitmask);
+	return 0;
 }
