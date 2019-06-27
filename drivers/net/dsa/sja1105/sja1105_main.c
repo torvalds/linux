@@ -806,6 +806,11 @@ static void sja1105_mac_config(struct dsa_switch *ds, int port,
 	if (sja1105_phy_mode_mismatch(priv, port, state->interface))
 		return;
 
+	if (link_an_mode == MLO_AN_INBAND) {
+		dev_err(ds->dev, "In-band AN not supported!\n");
+		return;
+	}
+
 	sja1105_adjust_port_config(priv, port, state->speed);
 }
 
