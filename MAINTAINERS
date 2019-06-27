@@ -6665,15 +6665,15 @@ S:	Supported
 F:	drivers/uio/uio_pci_generic.c
 
 GENERIC VDSO LIBRARY:
-M:	Andy Lutomirksi <luto@kernel.org>
+M:	Andy Lutomirski <luto@kernel.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 M:	Vincenzo Frascino <vincenzo.frascino@arm.com>
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/vdso
 S:	Maintained
-F:	lib/vdso
+F:	lib/vdso/
 F:	kernel/time/vsyscall.c
-F:	include/vdso
+F:	include/vdso/
 F:	include/asm-generic/vdso/vsyscall.h
 
 GENWQE (IBM Generic Workqueue Card)
