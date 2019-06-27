@@ -38,9 +38,10 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_util.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_util.h>
 
 #include "ast_drv.h"
 
@@ -50,15 +51,16 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 	int i;
 	struct drm_gem_vram_object *gbo;
 	int src_offset, dst_offset;
-	int bpp = afbdev->afb.base.format->cpp[0];
 	int ret;
 	u8 *dst;
 	bool unmap = false;
 	bool store_for_later = false;
 	int x2, y2;
 	unsigned long flags;
+	struct drm_framebuffer *fb = afbdev->helper.fb;
+	int bpp = fb->format->cpp[0];
 
-	gbo = drm_gem_vram_of_gem(afbdev->afb.obj);
+	gbo = drm_gem_vram_of_gem(fb->obj[0]);
 
 	if (drm_can_sleep()) {
 		/* We pin the BO so it won't be moved during the
@@ -116,8 +118,7 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 
 	for (i = y; i <= y2; i++) {
 		/* assume equal stride for now */
-		src_offset = dst_offset =
-			i * afbdev->afb.base.pitches[0] + (x * bpp);
+		src_offset = dst_offset = i * fb->pitches[0] + (x * bpp);
 		memcpy_toio(dst + dst_offset, afbdev->sysram + src_offset,
 			    (x2 - x + 1) * bpp);
 	}
@@ -222,14 +223,15 @@ static int astfb_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	ret = ast_framebuffer_init(dev, &afbdev->afb, &mode_cmd, gobj);
-	if (ret)
+	fb = drm_gem_fbdev_fb_create(dev, sizes, 0, gobj, NULL);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
 		goto out;
+	}
 
 	afbdev->sysram = sysram;
 	afbdev->size = size;
 
-	fb = &afbdev->afb.base;
 	afbdev->helper.fb = fb;
 
 	info->fbops = &astfb_ops;
@@ -261,20 +263,13 @@ static const struct drm_fb_helper_funcs ast_fb_helper_funcs = {
 static void ast_fbdev_destroy(struct drm_device *dev,
 			      struct ast_fbdev *afbdev)
 {
-	struct ast_framebuffer *afb = &afbdev->afb;
-
 	drm_helper_force_disable_all(dev);
 	drm_fb_helper_unregister_fbi(&afbdev->helper);
 
-	if (afb->obj) {
-		drm_gem_object_put_unlocked(afb->obj);
-		afb->obj = NULL;
-	}
 	drm_fb_helper_fini(&afbdev->helper);
+	drm_framebuffer_put(afbdev->helper.fb);
 
 	vfree(afbdev->sysram);
-	drm_framebuffer_unregister_private(&afb->base);
-	drm_framebuffer_cleanup(&afb->base);
 }
 
 int ast_fbdev_init(struct drm_device *dev)

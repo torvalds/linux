@@ -526,27 +526,21 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 				int x, int y, int atomic)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	struct drm_gem_object *obj;
-	struct ast_framebuffer *ast_fb;
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	s64 gpu_addr;
 	void *base;
 
 	if (!atomic && fb) {
-		ast_fb = to_ast_framebuffer(fb);
-		obj = ast_fb->obj;
-		gbo = drm_gem_vram_of_gem(obj);
+		gbo = drm_gem_vram_of_gem(fb->obj[0]);
 
 		/* unmap if console */
-		if (&ast->fbdev->afb == ast_fb)
+		if (ast->fbdev->helper.fb == fb)
 			drm_gem_vram_kunmap(gbo);
 		drm_gem_vram_unpin(gbo);
 	}
 
-	ast_fb = to_ast_framebuffer(crtc->primary->fb);
-	obj = ast_fb->obj;
-	gbo = drm_gem_vram_of_gem(obj);
+	gbo = drm_gem_vram_of_gem(crtc->primary->fb->obj[0]);
 
 	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 	if (ret)
@@ -557,7 +551,7 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 		goto err_drm_gem_vram_unpin;
 	}
 
-	if (&ast->fbdev->afb == ast_fb) {
+	if (ast->fbdev->helper.fb == crtc->primary->fb) {
 		/* if pushing console in kmap it */
 		base = drm_gem_vram_kmap(gbo, true, NULL);
 		if (IS_ERR(base)) {
@@ -625,12 +619,12 @@ static void ast_crtc_disable(struct drm_crtc *crtc)
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
 		struct ast_private *ast = crtc->dev->dev_private;
-		struct ast_framebuffer *ast_fb = to_ast_framebuffer(crtc->primary->fb);
-		struct drm_gem_object *obj = ast_fb->obj;
-		struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(obj);
+		struct drm_framebuffer *fb = crtc->primary->fb;
+		struct drm_gem_vram_object *gbo =
+			drm_gem_vram_of_gem(fb->obj[0]);
 
 		/* unmap if console */
-		if (&ast->fbdev->afb == ast_fb)
+		if (ast->fbdev->helper.fb == fb)
 			drm_gem_vram_kunmap(gbo);
 		drm_gem_vram_unpin(gbo);
 	}
