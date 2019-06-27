@@ -183,6 +183,7 @@ static int lp87565_regulator_probe(struct platform_device *pdev)
 	case LP87565_DEVICE_TYPE_LP87561_Q1:
 		min_idx = LP87565_BUCK_3210;
 		max_idx = LP87565_BUCK_3210;
+		break;
 	default:
 		dev_err(lp87565->dev, "Invalid lp config %d\n",
 			lp87565->dev_type);
