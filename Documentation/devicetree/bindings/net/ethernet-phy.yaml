@@ -155,7 +155,6 @@ properties:
 
 required:
   - reg
-  - interrupts
 
 examples:
   - |
