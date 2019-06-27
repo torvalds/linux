@@ -576,7 +576,6 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 
 static int nv_common_early_init(void *handle)
 {
-	bool psp_enabled = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->smc_rreg = NULL;
@@ -592,10 +591,6 @@ static int nv_common_early_init(void *handle)
 	adev->didt_wreg = &nv_didt_wreg;
 
 	adev->asic_funcs = &nv_asic_funcs;
-
-	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP) &&
-	    (amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_PSP)))
-		psp_enabled = true;
 
 	adev->rev_id = nv_get_rev_id(adev);
 	adev->external_rev_id = 0xff;
