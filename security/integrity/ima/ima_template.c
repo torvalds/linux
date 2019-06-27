@@ -47,7 +47,13 @@ static const struct ima_template_field supported_fields[] = {
 	{.field_id = "buf", .field_init = ima_eventbuf_init,
 	 .field_show = ima_show_template_buf},
 };
-#define MAX_TEMPLATE_NAME_LEN 15
+
+/*
+ * Used when restoring measurements carried over from a kexec. 'd' and 'n' don't
+ * need to be accounted for since they shouldn't be defined in the same template
+ * description as 'd-ng' and 'n-ng' respectively.
+ */
+#define MAX_TEMPLATE_NAME_LEN sizeof("d-ng|n-ng|sig|buf")
 
 static struct ima_template_desc *ima_template;
 
