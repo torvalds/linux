@@ -6,6 +6,9 @@
  * Copyright (C) 2010 IBM Corporation
  */
 
+
+#define pr_fmt(fmt) "mobility: " fmt
+
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
@@ -396,11 +399,11 @@ static int __init mobility_sysfs_init(void)
 
 	rc = sysfs_create_file(mobility_kobj, &class_attr_migration.attr);
 	if (rc)
-		pr_err("mobility: unable to create migration sysfs file (%d)\n", rc);
+		pr_err("unable to create migration sysfs file (%d)\n", rc);
 
 	rc = sysfs_create_file(mobility_kobj, &class_attr_api_version.attr.attr);
 	if (rc)
-		pr_err("mobility: unable to create api_version sysfs file (%d)\n", rc);
+		pr_err("unable to create api_version sysfs file (%d)\n", rc);
 
 	return 0;
 }
