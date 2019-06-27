@@ -112,7 +112,9 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 		if (!conn)
 			break;
 		err = (int *)rdma_consumer_reject_data(cm_id, event, &len);
-		if (!err || (err && ((*err) == RDS_RDMA_REJ_INCOMPAT))) {
+		if (!err ||
+		    (err && len >= sizeof(*err) &&
+		     ((*err) <= RDS_RDMA_REJ_INCOMPAT))) {
 			pr_warn("RDS/RDMA: conn <%pI6c, %pI6c> rejected, dropping connection\n",
 				&conn->c_laddr, &conn->c_faddr);
 			conn->c_proposed_version = RDS_PROTOCOL_COMPAT_VERSION;
@@ -122,7 +124,6 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 		rdsdebug("Connection rejected: %s\n",
 			 rdma_reject_msg(cm_id, event->status));
 		break;
-		/* FALLTHROUGH */
 	case RDMA_CM_EVENT_ADDR_ERROR:
 	case RDMA_CM_EVENT_ROUTE_ERROR:
 	case RDMA_CM_EVENT_CONNECT_ERROR:
