@@ -863,7 +863,7 @@ static int navi10_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (ret)
 		return ret;
 
-	*value = metrics.CurrSocketPower << 8;
+	*value = metrics.AverageSocketPower << 8;
 
 	return 0;
 }
