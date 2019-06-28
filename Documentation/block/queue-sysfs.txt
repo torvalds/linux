@@ -52,6 +52,16 @@ large discards are issued, setting this value lower will make Linux issue
 smaller discards and potentially help reduce latencies induced by large
 discard operations.
 
+discard_zeroes_data (RO)
+------------------------
+Obsolete. Always zero.
+
+fua (RO)
+--------
+Whether or not the block driver supports the FUA flag for write requests.
+FUA stands for Force Unit Access. If the FUA flag is set that means that
+write requests must bypass the volatile cache of the storage device.
+
 hw_sector_size (RO)
 -------------------
 This is the hardware sector size of the device, in bytes.
@@ -91,6 +101,10 @@ disk.
 logical_block_size (RO)
 -----------------------
 This is the logical block size of the device, in bytes.
+
+max_discard_segments (RO)
+-------------------------
+The maximum number of DMA scatter/gather entries in a discard request.
 
 max_hw_sectors_kb (RO)
 ----------------------
@@ -217,6 +231,12 @@ This is the time window that blk-throttle samples data, in millisecond.
 blk-throttle makes decision based on the samplings. Lower time means cgroups
 have more smooth throughput, but higher CPU overhead. This exists only when
 CONFIG_BLK_DEV_THROTTLING_LOW is enabled.
+
+write_zeroes_max_bytes (RO)
+---------------------------
+For block drivers that support REQ_OP_WRITE_ZEROES, the maximum number of
+bytes that can be zeroed at once. The value 0 means that REQ_OP_WRITE_ZEROES
+is not supported.
 
 zoned (RO)
 ----------
