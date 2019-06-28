@@ -1,20 +1,11 @@
-/*
- * Copyright (C) 2016 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* Copyright (C) 2019 IBM Corp.  */
 
-#ifndef PINCTRL_ASPEED
-#define PINCTRL_ASPEED
+#ifndef ASPEED_PINMUX_H
+#define ASPEED_PINMUX_H
 
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/regmap.h>
+#include <stdbool.h>
 
 /*
  * The ASPEED SoCs provide typically more than 200 pins for GPIO and other
@@ -236,32 +227,6 @@
 #define ASPEED_IP_GFX		1
 #define ASPEED_IP_LPC		2
 #define ASPEED_NR_PINMUX_IPS	3
-
-/*
- * The "Multi-function Pins Mapping and Control" table in the SoC datasheet
- * references registers by the device/offset mnemonic. The register macros
- * below are named the same way to ease transcription and verification (as
- * opposed to naming them e.g. PINMUX_CTRL_[0-9]). Further, signal expressions
- * reference registers beyond those dedicated to pinmux, such as the system
- * reset control and MAC clock configuration registers. The AST2500 goes a step
- * further and references registers in the graphics IP block.
- */
-#define SCU2C           0x2C /* Misc. Control Register */
-#define SCU3C           0x3C /* System Reset Control/Status Register */
-#define SCU48           0x48 /* MAC Interface Clock Delay Setting */
-#define HW_STRAP1       0x70 /* AST2400 strapping is 33 bits, is split */
-#define HW_REVISION_ID  0x7C /* Silicon revision ID register */
-#define SCU80           0x80 /* Multi-function Pin Control #1 */
-#define SCU84           0x84 /* Multi-function Pin Control #2 */
-#define SCU88           0x88 /* Multi-function Pin Control #3 */
-#define SCU8C           0x8C /* Multi-function Pin Control #4 */
-#define SCU90           0x90 /* Multi-function Pin Control #5 */
-#define SCU94           0x94 /* Multi-function Pin Control #6 */
-#define SCUA0           0xA0 /* Multi-function Pin Control #7 */
-#define SCUA4           0xA4 /* Multi-function Pin Control #8 */
-#define SCUA8           0xA8 /* Multi-function Pin Control #9 */
-#define SCUAC           0xAC /* Multi-function Pin Control #10 */
-#define HW_STRAP2       0xD0 /* Strapping */
 
  /**
   * A signal descriptor, which describes the register, bits and the
@@ -514,72 +479,61 @@ struct aspeed_pin_desc {
 	SIG_EXPR_LIST_DECL_SINGLE(gpio, gpio); \
 	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(gpio))
 
-/**
- * @param The pinconf parameter type
- * @pins The pin range this config struct covers, [low, high]
- * @reg The register housing the configuration bits
- * @mask The mask to select the bits of interest in @reg
- */
-struct aspeed_pin_config {
-	enum pin_config_param param;
-	unsigned int pins[2];
-	unsigned int reg;
-	u8 bit;
-	u8 value;
-};
-
-#define ASPEED_PINCTRL_PIN(name_) \
-	[name_] = { \
-		.number = name_, \
-		.name = #name_, \
-		.drv_data = (void *) &(PIN_SYM(name_)) \
-	}
-
-struct aspeed_pinctrl_data {
-	struct regmap *scu;
-
-	const struct pinctrl_pin_desc *pins;
+struct aspeed_pin_group {
+	const char *name;
+	const unsigned int *pins;
 	const unsigned int npins;
-
-	const struct aspeed_pin_config *configs;
-	const unsigned int nconfigs;
-
-	struct aspeed_pinmux_data pinmux;
 };
 
-/* Aspeed pinctrl helpers */
-int aspeed_pinctrl_get_groups_count(struct pinctrl_dev *pctldev);
-const char *aspeed_pinctrl_get_group_name(struct pinctrl_dev *pctldev,
-		unsigned int group);
-int aspeed_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
-		unsigned int group, const unsigned int **pins,
-		unsigned int *npins);
-void aspeed_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
-		struct seq_file *s, unsigned int offset);
-int aspeed_pinmux_get_fn_count(struct pinctrl_dev *pctldev);
-const char *aspeed_pinmux_get_fn_name(struct pinctrl_dev *pctldev,
-		unsigned int function);
-int aspeed_pinmux_get_fn_groups(struct pinctrl_dev *pctldev,
-		unsigned int function, const char * const **groups,
-		unsigned int * const num_groups);
-int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
-		unsigned int group);
-int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
-		struct pinctrl_gpio_range *range,
-		unsigned int offset);
-int aspeed_pinctrl_probe(struct platform_device *pdev,
-		struct pinctrl_desc *pdesc,
-		struct aspeed_pinctrl_data *pdata);
-int aspeed_pin_config_get(struct pinctrl_dev *pctldev, unsigned int offset,
-		unsigned long *config);
-int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
-		unsigned long *configs, unsigned int num_configs);
-int aspeed_pin_config_group_get(struct pinctrl_dev *pctldev,
-		unsigned int selector,
-		unsigned long *config);
-int aspeed_pin_config_group_set(struct pinctrl_dev *pctldev,
-		unsigned int selector,
-		unsigned long *configs,
-		unsigned int num_configs);
+#define ASPEED_PINCTRL_GROUP(name_) { \
+	.name = #name_, \
+	.pins = &(PIN_GROUP_SYM(name_))[0], \
+	.npins = ARRAY_SIZE(PIN_GROUP_SYM(name_)), \
+}
 
-#endif /* PINCTRL_ASPEED */
+struct aspeed_pin_function {
+	const char *name;
+	const char *const *groups;
+	unsigned int ngroups;
+};
+
+#define ASPEED_PINCTRL_FUNC(name_, ...) { \
+	.name = #name_, \
+	.groups = &FUNC_GROUP_SYM(name_)[0], \
+	.ngroups = ARRAY_SIZE(FUNC_GROUP_SYM(name_)), \
+}
+
+struct aspeed_pinmux_data;
+
+struct aspeed_pinmux_ops {
+	int (*set)(const struct aspeed_pinmux_data *ctx,
+		   const struct aspeed_sig_expr *expr, bool enabled);
+};
+
+struct aspeed_pinmux_data {
+	struct regmap *maps[ASPEED_NR_PINMUX_IPS];
+
+	const struct aspeed_pinmux_ops *ops;
+
+	const struct aspeed_pin_group *groups;
+	const unsigned int ngroups;
+
+	const struct aspeed_pin_function *functions;
+	const unsigned int nfunctions;
+};
+
+int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc, bool enabled,
+			 struct regmap *map);
+
+int aspeed_sig_expr_eval(const struct aspeed_pinmux_data *ctx,
+			 const struct aspeed_sig_expr *expr,
+			 bool enabled);
+
+static inline int aspeed_sig_expr_set(const struct aspeed_pinmux_data *ctx,
+				      const struct aspeed_sig_expr *expr,
+				      bool enabled)
+{
+	return ctx->ops->set(ctx, expr, enabled);
+}
+
+#endif /* ASPEED_PINMUX_H */
