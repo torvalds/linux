@@ -409,6 +409,7 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 			const char **ids;
 			int idnum;
 			struct egroup *eg;
+			bool no_group = false;
 
 			pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
 
@@ -419,11 +420,25 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				strbuf_addf(events, ",");
 			for (j = 0; j < idnum; j++) {
 				pr_debug("found event %s\n", ids[j]);
+				/*
+				 * Duration time maps to a software event and can make
+				 * groups not count. Always use it outside a
+				 * group.
+				 */
+				if (!strcmp(ids[j], "duration_time")) {
+					if (j > 0)
+						strbuf_addf(events, "}:W,");
+					strbuf_addf(events, "duration_time");
+					no_group = true;
+					continue;
+				}
 				strbuf_addf(events, "%s%s",
-					j == 0 ? "{" : ",",
+					j == 0 || no_group ? "{" : ",",
 					ids[j]);
+				no_group = false;
 			}
-			strbuf_addf(events, "}:W");
+			if (!no_group)
+				strbuf_addf(events, "}:W");
 
 			eg = malloc(sizeof(struct egroup));
 			if (!eg) {
