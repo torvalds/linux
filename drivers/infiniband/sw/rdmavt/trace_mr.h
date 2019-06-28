@@ -54,6 +54,8 @@
 #include <rdma/rdma_vt.h>
 #include <rdma/rdmavt_mr.h>
 
+#include "mr.h"
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM rvt_mr
 DECLARE_EVENT_CLASS(
@@ -178,6 +180,40 @@ DEFINE_EVENT(
 	rvt_sge_template, rvt_sge_new,
 	TP_PROTO(struct rvt_sge *sge, struct ib_sge *isge),
 	TP_ARGS(sge, isge));
+
+TRACE_EVENT(
+	rvt_map_mr_sg,
+	TP_PROTO(struct ib_mr *ibmr, int sg_nents, unsigned int *sg_offset),
+	TP_ARGS(ibmr, sg_nents, sg_offset),
+	TP_STRUCT__entry(
+		RDI_DEV_ENTRY(ib_to_rvt(to_imr(ibmr)->mr.pd->device))
+		__field(u64, iova)
+		__field(u64, ibmr_iova)
+		__field(u64, user_base)
+		__field(u64, ibmr_length)
+		__field(int, sg_nents)
+		__field(uint, sg_offset)
+	),
+	TP_fast_assign(
+		RDI_DEV_ASSIGN(ib_to_rvt(to_imr(ibmr)->mr.pd->device))
+		__entry->ibmr_iova = ibmr->iova;
+		__entry->iova = to_imr(ibmr)->mr.iova;
+		__entry->user_base = to_imr(ibmr)->mr.user_base;
+		__entry->ibmr_length = to_imr(ibmr)->mr.length;
+		__entry->sg_nents = sg_nents;
+		__entry->sg_offset = sg_offset ? *sg_offset : 0;
+	),
+	TP_printk(
+		"[%s] ibmr_iova %llx iova %llx user_base %llx length %llx sg_nents %d sg_offset %u",
+		__get_str(dev),
+		__entry->ibmr_iova,
+		__entry->iova,
+		__entry->user_base,
+		__entry->ibmr_length,
+		__entry->sg_nents,
+		__entry->sg_offset
+	)
+);
 
 #endif /* __RVT_TRACE_MR_H */
 

@@ -642,6 +642,7 @@ int rvt_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 	mr->mr.iova = ibmr->iova;
 	mr->mr.offset = ibmr->iova - (u64)mr->mr.map[0]->segs[0].vaddr;
 	mr->mr.length = (size_t)ibmr->length;
+	trace_rvt_map_mr_sg(ibmr, sg_nents, sg_offset);
 	return ret;
 }
 
