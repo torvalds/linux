@@ -1231,8 +1231,6 @@ static void cached_dev_free(struct closure *cl)
 {
 	struct cached_dev *dc = container_of(cl, struct cached_dev, disk.cl);
 
-	mutex_lock(&bch_register_lock);
-
 	if (test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
 		cancel_writeback_rate_update_dwork(dc);
 
@@ -1242,6 +1240,8 @@ static void cached_dev_free(struct closure *cl)
 		destroy_workqueue(dc->writeback_write_wq);
 	if (!IS_ERR_OR_NULL(dc->status_update_thread))
 		kthread_stop(dc->status_update_thread);
+
+	mutex_lock(&bch_register_lock);
 
 	if (atomic_read(&dc->running))
 		bd_unlink_disk_holder(dc->bdev, dc->disk.disk);
