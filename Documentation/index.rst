@@ -35,6 +35,7 @@ trying to get it to work optimally on a given system.
    :maxdepth: 2
 
    admin-guide/index
+   kbuild/index
 
 Firmware-related documentation
 ------------------------------
@@ -77,6 +78,9 @@ merged much easier.
    kernel-hacking/index
    trace/index
    maintainer/index
+   fault-injection/index
+   livepatch/index
+
 
 Kernel API documentation
 ------------------------
@@ -94,11 +98,20 @@ needed).
    core-api/index
    accounting/index
    block/index
+   cdrom/index
+   ide/index
+   fb/index
+   fpga/index
    hid/index
    iio/index
    leds/index
    media/index
+   netlabel/index
    networking/index
+   pcmcia/index
+   target/index
+   timers/index
+   watchdog/index
    input/index
    hwmon/index
    gpu/index

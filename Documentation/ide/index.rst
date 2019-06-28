@@ -1,4 +1,4 @@
-:orphan:
+.. SPDX-License-Identifier: GPL-2.0
 
 ==================================
 Integrated Drive Electronics (IDE)
