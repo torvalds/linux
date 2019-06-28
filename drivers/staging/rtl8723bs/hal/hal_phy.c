@@ -8,30 +8,6 @@
 
 #include <drv_types.h>
 
-/**
-* Function:	PHY_CalculateBitShift
-*
-* OverView:	Get shifted position of the BitMask
-*
-* Input:
-*		u32 	BitMask,
-*
-* Output:	none
-* Return:		u32 	Return the shift bit bit position of the mask
-*/
-u32 PHY_CalculateBitShift(u32 BitMask)
-{
-	u32 i;
-
-	for (i = 0; i <= 31; i++) {
-		if (((BitMask>>i) &  0x1) == 1)
-			break;
-	}
-
-	return i;
-}
-
-
 /*  */
 /*  ==> RF shadow Operation API Code Section!!! */
 /*  */
