@@ -301,7 +301,8 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 SND_SOC_DAILINK_DEFS(aic34,
 	DAILINK_COMP_ARRAY(COMP_CPU("omap-mcbsp.2")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.2-0018",
-				      "tlv320aic3x-hifi")));
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("omap-mcbsp.2")));
 
 static struct snd_soc_dai_link rx51_dai[] = {
 	{
@@ -378,7 +379,9 @@ static int rx51_soc_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 		rx51_dai[0].cpus->dai_name = NULL;
+		rx51_dai[0].platforms->name = NULL;
 		rx51_dai[0].cpus->of_node = dai_node;
+		rx51_dai[0].platforms->of_node = dai_node;
 
 		dai_node = of_parse_phandle(np, "nokia,audio-codec", 0);
 		if (!dai_node) {
