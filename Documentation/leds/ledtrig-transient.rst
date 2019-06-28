@@ -1,3 +1,4 @@
+=====================
 LED Transient Trigger
 =====================
 
@@ -62,12 +63,13 @@ non-transient state. When driver gets suspended, irrespective of the transient
 state, the LED state changes to LED_OFF.
 
 Transient trigger can be enabled and disabled from user space on led class
-devices, that support this trigger as shown below:
+devices, that support this trigger as shown below::
 
-echo transient > trigger
-echo none > trigger
+	echo transient > trigger
+	echo none > trigger
 
-NOTE: Add a new property trigger state to control the state.
+NOTE:
+	Add a new property trigger state to control the state.
 
 This trigger exports three properties, activate, state, and duration. When
 transient trigger is activated these properties are set to default values.
@@ -79,7 +81,8 @@ transient trigger is activated these properties are set to default values.
 - state allows user to specify a transient state to be held for the specified
   duration.
 
-	activate - one shot timer activate mechanism.
+	activate
+	      - one shot timer activate mechanism.
 		1 when activated, 0 when deactivated.
 		default value is zero when transient trigger is enabled,
 		to allow duration to be set.
@@ -89,12 +92,14 @@ transient trigger is activated these properties are set to default values.
 		deactivated state indicates that there is no active timer
 		running.
 
-	duration - one shot timer value. When activate is set, duration value
+	duration
+	      - one shot timer value. When activate is set, duration value
 		is used to start a timer that runs once. This value doesn't
 		get changed by the trigger unless user does a set via
 		echo new_value > duration
 
-	state - transient state to be held. It has two values 0 or 1. 0 maps
+	state
+	      - transient state to be held. It has two values 0 or 1. 0 maps
 		to LED_OFF and 1 maps to LED_FULL. The specified state is
 		held for the duration of the one shot timer and then the
 		state gets changed to the non-transient state which is the
@@ -114,39 +119,49 @@ When timer expires activate goes back to deactivated state, duration is left
 at the set value to be used when activate is set at a future time. This will
 allow user app to set the time once and activate it to run it once for the
 specified value as needed. When timer expires, state is restored to the
-non-transient state which is the inverse of the transient state.
+non-transient state which is the inverse of the transient state:
 
-	echo 1 > activate - starts timer = duration when duration is not 0.
-	echo 0 > activate - cancels currently running timer.
-	echo n > duration - stores timer value to be used upon next
-                            activate. Currently active timer if
-                            any, continues to run for the specified time.
-	echo 0 > duration - stores timer value to be used upon next
-                            activate. Currently active timer if any,
-                            continues to run for the specified time.
-	echo 1 > state    - stores desired transient state LED_FULL to be
+	=================   ===============================================
+	echo 1 > activate   starts timer = duration when duration is not 0.
+	echo 0 > activate   cancels currently running timer.
+	echo n > duration   stores timer value to be used upon next
+			    activate. Currently active timer if
+			    any, continues to run for the specified time.
+	echo 0 > duration   stores timer value to be used upon next
+			    activate. Currently active timer if any,
+			    continues to run for the specified time.
+	echo 1 > state      stores desired transient state LED_FULL to be
 			    held for the specified duration.
-	echo 0 > state    - stores desired transient state LED_OFF to be
+	echo 0 > state      stores desired transient state LED_OFF to be
 			    held for the specified duration.
+	=================   ===============================================
 
-What is not supported:
-======================
+What is not supported
+=====================
+
 - Timer activation is one shot and extending and/or shortening the timer
   is not supported.
 
-Example use-case 1:
+Examples
+========
+
+use-case 1::
+
 	echo transient > trigger
 	echo n > duration
 	echo 1 > state
-repeat the following step as needed:
+
+repeat the following step as needed::
+
 	echo 1 > activate - start timer = duration to run once
 	echo 1 > activate - start timer = duration to run once
 	echo none > trigger
 
 This trigger is intended to be used for for the following example use cases:
+
  - Control of vibrate (phones, tablets etc.) hardware by user space app.
  - Use of LED by user space app as activity indicator.
  - Use of LED by user space app as a kind of watchdog indicator -- as
-       long as the app is alive, it can keep the LED illuminated, if it dies
-       the LED will be extinguished automatically.
+   long as the app is alive, it can keep the LED illuminated, if it dies
+   the LED will be extinguished automatically.
  - Use by any user space app that needs a transient GPIO output.

@@ -1,3 +1,4 @@
+====================
 USB port LED trigger
 ====================
 
@@ -10,14 +11,18 @@ listed as separated entries in a "ports" subdirectory. Selecting is handled by
 echoing "1" to a chosen port.
 
 Please note that this trigger allows selecting multiple USB ports for a single
-LED. This can be useful in two cases:
+LED.
+
+This can be useful in two cases:
 
 1) Device with single USB LED and few physical ports
+====================================================
 
 In such a case LED will be turned on as long as there is at least one connected
 USB device.
 
 2) Device with a physical port handled by few controllers
+=========================================================
 
 Some devices may have one controller per PHY standard. E.g. USB 3.0 physical
 port may be handled by ohci-platform, ehci-platform and xhci-hcd. If there is
@@ -25,14 +30,14 @@ only one LED user will most likely want to assign ports from all 3 hubs.
 
 
 This trigger can be activated from user space on led class devices as shown
-below:
+below::
 
   echo usbport > trigger
 
 This adds sysfs attributes to the LED that are documented in:
 Documentation/ABI/testing/sysfs-class-led-trigger-usbport
 
-Example use-case:
+Example use-case::
 
   echo usbport > trigger
   echo 1 > ports/usb1-port1

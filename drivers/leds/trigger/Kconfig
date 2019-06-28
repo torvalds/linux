@@ -14,7 +14,7 @@ config LEDS_TRIGGER_TIMER
 	  This allows LEDs to be controlled by a programmable timer
 	  via sysfs. Some LED hardware can be programmed to start
 	  blinking the LED without any further software interaction.
-	  For more details read Documentation/leds/leds-class.txt.
+	  For more details read Documentation/leds/leds-class.rst.
 
 	  If unsure, say Y.
 

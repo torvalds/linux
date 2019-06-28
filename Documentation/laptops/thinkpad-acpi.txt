@@ -679,7 +679,7 @@ status as "unknown". The available commands are:
 sysfs notes:
 
 The ThinkLight sysfs interface is documented by the LED class
-documentation, in Documentation/leds/leds-class.txt.  The ThinkLight LED name
+documentation, in Documentation/leds/leds-class.rst.  The ThinkLight LED name
 is "tpacpi::thinklight".
 
 Due to limitations in the sysfs LED class, if the status of the ThinkLight
@@ -779,7 +779,7 @@ All of the above can be turned on and off and can be made to blink.
 sysfs notes:
 
 The ThinkPad LED sysfs interface is described in detail by the LED class
-documentation, in Documentation/leds/leds-class.txt.
+documentation, in Documentation/leds/leds-class.rst.
 
 The LEDs are named (in LED ID order, from 0 to 12):
 "tpacpi::power", "tpacpi:orange:batt", "tpacpi:green:batt",

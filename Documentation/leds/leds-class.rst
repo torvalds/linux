@@ -1,4 +1,4 @@
-
+========================
 LED handling under Linux
 ========================
 
@@ -43,7 +43,7 @@ LED Device Naming
 
 Is currently of the form:
 
-"devicename:colour:function"
+	"devicename:colour:function"
 
 There have been calls for LED properties such as colour to be exported as
 individual led class attributes. As a solution which doesn't incur as much
@@ -57,9 +57,12 @@ Brightness setting API
 
 LED subsystem core exposes following API for setting brightness:
 
-    - led_set_brightness : it is guaranteed not to sleep, passing LED_OFF stops
+    - led_set_brightness:
+		it is guaranteed not to sleep, passing LED_OFF stops
 		blinking,
-    - led_set_brightness_sync : for use cases when immediate effect is desired -
+
+    - led_set_brightness_sync:
+		for use cases when immediate effect is desired -
 		it can block the caller for the time required for accessing
 		device registers and can sleep, passing LED_OFF stops hardware
 		blinking, returns -EBUSY if software blink fallback is enabled.
@@ -70,7 +73,7 @@ LED registration API
 
 A driver wanting to register a LED classdev for use by other drivers /
 userspace needs to allocate and fill a led_classdev struct and then call
-[devm_]led_classdev_register. If the non devm version is used the driver
+`[devm_]led_classdev_register`. If the non devm version is used the driver
 must call led_classdev_unregister from its remove function before
 free-ing the led_classdev struct.
 
@@ -94,7 +97,7 @@ with brightness value LED_OFF, which should stop any software
 timers that may have been required for blinking.
 
 The blink_set() function should choose a user friendly blinking value
-if it is called with *delay_on==0 && *delay_off==0 parameters. In this
+if it is called with `*delay_on==0` && `*delay_off==0` parameters. In this
 case the driver should give back the chosen value through delay_on and
 delay_off parameters to the leds subsystem.
 

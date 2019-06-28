@@ -10117,7 +10117,7 @@ L:	linux-leds@vger.kernel.org
 S:	Supported
 F:	drivers/leds/leds-mlxcpld.c
 F:	drivers/leds/leds-mlxreg.c
-F:	Documentation/leds/leds-mlxcpld.txt
+F:	Documentation/leds/leds-mlxcpld.rst
 
 MELLANOX PLATFORM DRIVER
 M:	Vadim Pasternak <vadimp@mellanox.com>
