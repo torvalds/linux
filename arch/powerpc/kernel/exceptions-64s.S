@@ -882,11 +882,8 @@ EXC_COMMON_BEGIN(system_reset_common)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	system_reset_exception
 
-	/* This (and MCE) can be simplified with mtmsrd L=1 */
 	/* Clear MSR_RI before setting SRR0 and SRR1. */
-	li	r0,MSR_RI
-	mfmsr	r9
-	andc	r9,r9,r0
+	li	r9,0
 	mtmsrd	r9,1
 
 	/*
@@ -1081,9 +1078,7 @@ EXC_COMMON_BEGIN(machine_check_common)
 
 #define MACHINE_CHECK_HANDLER_WINDUP			\
 	/* Clear MSR_RI before setting SRR0 and SRR1. */\
-	li	r0,MSR_RI;				\
-	mfmsr	r9;		/* get MSR value */	\
-	andc	r9,r9,r0;				\
+	li	r9,0;					\
 	mtmsrd	r9,1;		/* Clear MSR_RI */	\
 	/* Move original SRR0 and SRR1 into the respective regs */	\
 	ld	r9,_MSR(r1);				\
