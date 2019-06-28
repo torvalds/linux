@@ -79,7 +79,8 @@ static const struct snd_soc_dapm_route trimslice_audio_map[] = {
 
 SND_SOC_DAILINK_DEFS(single_dsp,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "tlv320aic23-hifi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "tlv320aic23-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link trimslice_tlv320aic23_dai = {
 	.name = "TLV320AIC23",
@@ -136,6 +137,9 @@ static int tegra_snd_trimslice_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
+
+	trimslice_tlv320aic23_dai.platforms->of_node =
+			trimslice_tlv320aic23_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
 	if (ret)
