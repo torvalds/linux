@@ -1399,7 +1399,7 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_eswitch_rep *rep;
 	u8 hw_id[ETH_ALEN], rep_type;
-	int vport;
+	int vport_index;
 
 	esw->offloads.vport_reps = kcalloc(total_vports,
 					   sizeof(struct mlx5_eswitch_rep),
@@ -1409,8 +1409,8 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 
 	mlx5_query_nic_vport_mac_address(dev, 0, hw_id);
 
-	mlx5_esw_for_all_reps(esw, vport, rep) {
-		rep->vport = mlx5_eswitch_index_to_vport_num(esw, vport);
+	mlx5_esw_for_all_reps(esw, vport_index, rep) {
+		rep->vport = mlx5_eswitch_index_to_vport_num(esw, vport_index);
 		ether_addr_copy(rep->hw_id, hw_id);
 
 		for (rep_type = 0; rep_type < NUM_REP_TYPES; rep_type++)
