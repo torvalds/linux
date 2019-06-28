@@ -519,11 +519,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
  *
  * There can be combinations, e.g., EXC_VIRT_OOL_MASKABLE_HV
  *
- * The one unusual case is __EXC_REAL_OOL_HV_DIRECT, which is
- * an OOL vector that branches to a specified handler rather than the usual
- * trampoline that goes to common. It, and other underscore macros, should
- * be used with care.
- *
  * KVM handlers come in the following verieties:
  * TRAMP_KVM
  * TRAMP_KVM_SKIP
@@ -613,12 +608,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 #define EXC_REAL_OOL_MASKABLE(name, start, size, bitmask)		\
 	__EXC_REAL_OOL_MASKABLE(name, start, size);			\
 	__TRAMP_REAL_OOL_MASKABLE(name, start, bitmask)
-
-#define __EXC_REAL_OOL_HV_DIRECT(name, start, size, handler)		\
-	EXC_REAL_BEGIN(name, start, size);				\
-	EXCEPTION_PROLOG_0 PACA_EXGEN ;					\
-	b	handler;						\
-	EXC_REAL_END(name, start, size)
 
 #define __EXC_REAL_OOL_HV(name, start, size)				\
 	__EXC_REAL_OOL(name, start, size)
@@ -1720,7 +1709,10 @@ EXC_COMMON(emulation_assist_common, 0xe40, emulation_assist_interrupt)
  * first, and then eventaully from there to the trampoline to get into virtual
  * mode.
  */
-__EXC_REAL_OOL_HV_DIRECT(hmi_exception, 0xe60, 0x20, hmi_exception_early)
+EXC_REAL_BEGIN(hmi_exception, 0xe60, 0x20)
+	EXCEPTION_PROLOG_0 PACA_EXGEN
+	b	hmi_exception_early
+EXC_REAL_END(hmi_exception, 0xe60, 0x20)
 __TRAMP_REAL_OOL_MASKABLE_HV(hmi_exception, 0xe60, IRQS_DISABLED)
 EXC_VIRT_NONE(0x4e60, 0x20)
 TRAMP_KVM_HV(PACA_EXGEN, 0xe60)
