@@ -1186,7 +1186,7 @@ static struct sta_info *rtw_joinbss_update_stainfo(struct adapter *padapter, str
 		rtw_hal_update_sta_rate_mask(padapter, psta);
 
 		psta->wireless_mode = pmlmeext->cur_wireless_mode;
-		psta->raid = rtw_hal_networktype_to_raid(padapter, psta);
+		psta->raid = networktype_to_raid_ex(padapter, psta);
 
 
 		/* sta mode */

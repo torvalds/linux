@@ -963,12 +963,6 @@ exit:
 	return ret;
 }
 
-
-u8  rtw_hal_networktype_to_raid(struct adapter *adapter, struct sta_info *psta)
-{
-	return networktype_to_raid_ex(adapter, psta);
-}
-
 u8 rtw_get_mgntframe_raid(struct adapter *adapter, unsigned char network_type)
 {
 
