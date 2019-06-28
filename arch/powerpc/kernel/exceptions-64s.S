@@ -909,8 +909,8 @@ EXC_COMMON_BEGIN(system_reset_common)
 	/* Move original SRR0 and SRR1 into the respective regs */
 	ld	r9,_MSR(r1)
 	mtspr	SPRN_SRR1,r9
-	ld	r3,_NIP(r1)
-	mtspr	SPRN_SRR0,r3
+	ld	r9,_NIP(r1)
+	mtspr	SPRN_SRR0,r9
 	ld	r9,_CTR(r1)
 	mtctr	r9
 	ld	r9,_XER(r1)
@@ -1083,8 +1083,8 @@ EXC_COMMON_BEGIN(machine_check_common)
 	/* Move original SRR0 and SRR1 into the respective regs */	\
 	ld	r9,_MSR(r1);				\
 	mtspr	SPRN_SRR1,r9;				\
-	ld	r3,_NIP(r1);				\
-	mtspr	SPRN_SRR0,r3;				\
+	ld	r9,_NIP(r1);				\
+	mtspr	SPRN_SRR0,r9;				\
 	ld	r9,_CTR(r1);				\
 	mtctr	r9;					\
 	ld	r9,_XER(r1);				\
@@ -1786,8 +1786,8 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	/* Move original HSRR0 and HSRR1 into the respective regs */
 	ld	r9,_MSR(r1)
 	mtspr	SPRN_HSRR1,r9
-	ld	r3,_NIP(r1)
-	mtspr	SPRN_HSRR0,r3
+	ld	r9,_NIP(r1)
+	mtspr	SPRN_HSRR0,r9
 	ld	r9,_CTR(r1)
 	mtctr	r9
 	ld	r9,_XER(r1)
