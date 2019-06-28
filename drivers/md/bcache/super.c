@@ -1189,6 +1189,14 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	ret = bch_cached_dev_run(dc);
 	if (ret && (ret != -EBUSY)) {
 		up_write(&dc->writeback_lock);
+		/*
+		 * bch_register_lock is held, bcache_device_stop() is not
+		 * able to be directly called. The kthread and kworker
+		 * created previously in bch_cached_dev_writeback_start()
+		 * have to be stopped manually here.
+		 */
+		kthread_stop(dc->writeback_thread);
+		cancel_writeback_rate_update_dwork(dc);
 		pr_err("Couldn't run cached device %s",
 		       dc->backing_dev_name);
 		return ret;
