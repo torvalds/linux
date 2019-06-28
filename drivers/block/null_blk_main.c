@@ -1198,7 +1198,7 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 	if (!cmd->error && dev->zoned) {
 		sector_t sector;
 		unsigned int nr_sectors;
-		int op;
+		enum req_opf op;
 
 		if (dev->queue_mode == NULL_Q_BIO) {
 			op = bio_op(cmd->bio);
