@@ -2083,9 +2083,7 @@ out:
 	kfree(host_work);
 }
 
-
-static int
-esw_functions_changed_event(struct notifier_block *nb, unsigned long type, void *data)
+int mlx5_esw_funcs_changed_handler(struct notifier_block *nb, unsigned long type, void *data)
 {
 	struct mlx5_esw_functions *esw_funcs;
 	struct mlx5_host_work *host_work;
@@ -2104,24 +2102,6 @@ esw_functions_changed_event(struct notifier_block *nb, unsigned long type, void 
 	queue_work(esw->work_queue, &host_work->work);
 
 	return NOTIFY_OK;
-}
-
-static void esw_functions_changed_event_init(struct mlx5_eswitch *esw)
-{
-	if (mlx5_eswitch_is_funcs_handler(esw->dev)) {
-		MLX5_NB_INIT(&esw->esw_funcs.nb, esw_functions_changed_event,
-			     ESW_FUNCTIONS_CHANGED);
-		mlx5_eq_notifier_register(esw->dev, &esw->esw_funcs.nb);
-	}
-}
-
-static void esw_functions_changed_event_cleanup(struct mlx5_eswitch *esw)
-{
-	if (!mlx5_eswitch_is_funcs_handler(esw->dev))
-		return;
-
-	mlx5_eq_notifier_unregister(esw->dev, &esw->esw_funcs.nb);
-	flush_workqueue(esw->work_queue);
 }
 
 int esw_offloads_init(struct mlx5_eswitch *esw)
@@ -2143,8 +2123,6 @@ int esw_offloads_init(struct mlx5_eswitch *esw)
 		goto err_reps;
 
 	esw_offloads_devcom_init(esw);
-
-	esw_functions_changed_event_init(esw);
 
 	mlx5_rdma_enable_roce(esw->dev);
 
@@ -2179,7 +2157,6 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 
 void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 {
-	esw_functions_changed_event_cleanup(esw);
 	mlx5_rdma_disable_roce(esw->dev);
 	esw_offloads_devcom_cleanup(esw);
 	esw_offloads_unload_all_reps(esw);
