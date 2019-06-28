@@ -9928,13 +9928,20 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	enum intel_dpll_id id;
 	u32 temp;
 
-	/* TODO: TBT pll not implemented. */
 	if (intel_port_is_combophy(dev_priv, port)) {
 		temp = I915_READ(DPCLKA_CFGCR0_ICL) &
 		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
 		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
 	} else if (intel_port_is_tc(dev_priv, port)) {
-		id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv, port));
+		u32 clk_sel = I915_READ(DDI_CLK_SEL(port)) & DDI_CLK_SEL_MASK;
+
+		if (clk_sel == DDI_CLK_SEL_MG) {
+			id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv,
+								    port));
+		} else {
+			WARN_ON(clk_sel < DDI_CLK_SEL_TBT_162);
+			id = DPLL_ID_ICL_TBTPLL;
+		}
 	} else {
 		WARN(1, "Invalid port %x\n", port);
 		return;
