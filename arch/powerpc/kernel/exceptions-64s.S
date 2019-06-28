@@ -917,13 +917,11 @@ EXC_COMMON_BEGIN(system_reset_common)
 	mtxer	r9
 	ld	r9,_LINK(r1)
 	mtlr	r9
-	REST_GPR(0, r1)
+	ld	r9,_CCR(r1)
+	mtcr	r9
 	REST_8GPRS(2, r1)
-	REST_GPR(10, r1)
-	ld	r11,_CCR(r1)
-	mtcr	r11
-	REST_GPR(11, r1)
-	REST_2GPRS(12, r1)
+	REST_4GPRS(10, r1)
+	REST_GPR(0, r1)
 	/* restore original r1. */
 	ld	r1,GPR1(r1)
 	RFI_TO_USER_OR_KERNEL
@@ -1095,13 +1093,11 @@ EXC_COMMON_BEGIN(machine_check_common)
 	mtxer	r9;					\
 	ld	r9,_LINK(r1);				\
 	mtlr	r9;					\
-	REST_GPR(0, r1);				\
+	ld	r9,_CCR(r1);				\
+	mtcr	r9;					\
 	REST_8GPRS(2, r1);				\
-	REST_GPR(10, r1);				\
-	ld	r11,_CCR(r1);				\
-	mtcr	r11;					\
-	REST_GPR(11, r1);				\
-	REST_2GPRS(12, r1);				\
+	REST_4GPRS(10, r1);				\
+	REST_GPR(0, r1);				\
 	/* restore original r1. */			\
 	ld	r1,GPR1(r1)
 
@@ -1795,13 +1791,11 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	mtxer	r9
 	ld	r9,_LINK(r1)
 	mtlr	r9
-	REST_GPR(0, r1)
+	ld	r9,_CCR(r1)
+	mtcr	r9
 	REST_8GPRS(2, r1)
-	REST_GPR(10, r1)
-	ld	r11,_CCR(r1)
-	REST_2GPRS(12, r1)
-	mtcr	r11
-	REST_GPR(11, r1)
+	REST_4GPRS(10, r1)
+	REST_GPR(0, r1)
 	ld	r1,GPR1(r1)
 	HRFI_TO_USER_OR_KERNEL
 
@@ -1816,13 +1810,11 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	mtxer	r9
 	ld	r9,_LINK(r1)
 	mtlr	r9
-	REST_GPR(0, r1)
+	ld	r9,_CCR(r1)
+	mtcr	r9
 	REST_8GPRS(2, r1)
-	REST_GPR(10, r1)
-	ld	r11,_CCR(r1)
-	REST_2GPRS(12, r1)
-	mtcr	r11
-	REST_GPR(11, r1)
+	REST_4GPRS(10, r1)
+	REST_GPR(0, r1)
 	ld	r1,GPR1(r1)
 
 	/*
