@@ -1,10 +1,15 @@
+========================
 Kernel driver ics932s401
-======================
+========================
 
 Supported chips:
+
   * IDT ICS932S401
+
     Prefix: 'ics932s401'
+
     Addresses scanned: I2C 0x69
+
     Datasheet: Publicly available at the IDT website
 
 Author: Darrick J. Wong

@@ -1,10 +1,15 @@
+======================
 Kernel driver isl29003
-=====================
+======================
 
 Supported chips:
+
 * Intersil ISL29003
+
 Prefix: 'isl29003'
+
 Addresses scanned: none
+
 Datasheet:
 http://www.intersil.com/data/fn/fn7464.pdf
 
@@ -37,25 +42,33 @@ Sysfs entries
 -------------
 
 range:
+        == ===========================
 	0: 0 lux to 1000 lux (default)
 	1: 0 lux to 4000 lux
 	2: 0 lux to 16,000 lux
 	3: 0 lux to 64,000 lux
+        == ===========================
 
 resolution:
+        == =====================
 	0: 2^16 cycles (default)
 	1: 2^12 cycles
 	2: 2^8 cycles
 	3: 2^4 cycles
+        == =====================
 
 mode:
+        == =================================================
 	0: diode1's current (unsigned 16bit) (default)
 	1: diode1's current (unsigned 16bit)
 	2: difference between diodes (l1 - l2, signed 15bit)
+        == =================================================
 
 power_state:
+        == =================================================
 	0: device is disabled (default)
 	1: device is enabled
+        == =================================================
 
 lux (read only):
 	returns the value from the last sensor reading

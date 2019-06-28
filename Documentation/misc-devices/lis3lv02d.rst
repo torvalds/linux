@@ -1,3 +1,4 @@
+=======================
 Kernel driver lis3lv02d
 =======================
 
@@ -8,8 +9,8 @@ Supported chips:
     LIS331DLH (16 bits)
 
 Authors:
-        Yan Burman <burman.yan@gmail.com>
-	Eric Piel <eric.piel@tremplin-utc.net>
+        - Yan Burman <burman.yan@gmail.com>
+	- Eric Piel <eric.piel@tremplin-utc.net>
 
 
 Description
@@ -25,11 +26,15 @@ neverball). The accelerometer data is readable via
 to mg values (1/1000th of earth gravity).
 
 Sysfs attributes under /sys/devices/platform/lis3lv02d/:
-position - 3D position that the accelerometer reports. Format: "(x,y,z)"
-rate - read reports the sampling rate of the accelerometer device in HZ.
+
+position
+      - 3D position that the accelerometer reports. Format: "(x,y,z)"
+rate
+      - read reports the sampling rate of the accelerometer device in HZ.
 	write changes sampling rate of the accelerometer device.
 	Only values which are supported by HW are accepted.
-selftest - performs selftest for the chip as specified by chip manufacturer.
+selftest
+      - performs selftest for the chip as specified by chip manufacturer.
 
 This driver also provides an absolute input class device, allowing
 the laptop to act as a pinball machine-esque joystick. Joystick device can be
@@ -69,11 +74,12 @@ Axes orientation
 For better compatibility between the various laptops. The values reported by
 the accelerometer are converted into a "standard" organisation of the axes
 (aka "can play neverball out of the box"):
+
  * When the laptop is horizontal the position reported is about 0 for X and Y
-	and a positive value for Z
+   and a positive value for Z
  * If the left side is elevated, X increases (becomes positive)
  * If the front side (where the touchpad is) is elevated, Y decreases
-	(becomes negative)
+   (becomes negative)
  * If the laptop is put upside-down, Z becomes negative
 
 If your laptop model is not recognized (cf "dmesg"), you can send an

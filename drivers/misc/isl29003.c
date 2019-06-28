@@ -3,7 +3,7 @@
  *  isl29003.c - Linux kernel module for
  * 	Intersil ISL29003 ambient light sensor
  *
- *  See file:Documentation/misc-devices/isl29003
+ *  See file:Documentation/misc-devices/isl29003.rst
  *
  *  Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
  *
