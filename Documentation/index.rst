@@ -96,6 +96,7 @@ needed).
 
    driver-api/index
    core-api/index
+   locking/index
    accounting/index
    block/index
    cdrom/index
