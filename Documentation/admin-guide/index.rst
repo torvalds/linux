@@ -91,6 +91,7 @@ configure specific aspects of kernel behavior to your liking.
    cputopology
    device-mapper/index
    efi-stub
+   gpio/index
    highuid
    hw_random
    iostats
