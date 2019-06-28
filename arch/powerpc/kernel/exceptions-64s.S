@@ -256,7 +256,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
  * load KBASE for a slight optimisation.
  */
 #define BRANCH_TO_C000(reg, label)					\
-	__LOAD_HANDLER(reg, label);					\
+	__LOAD_FAR_HANDLER(reg, label);					\
 	mtctr	reg;							\
 	bctr
 
@@ -822,15 +822,6 @@ EXC_VIRT_NONE(0x4000, 0x100)
 
 
 EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
-	EXCEPTION_PROLOG_0 PACA_EXNMI
-
-	/* This is EXCEPTION_PROLOG_1 with the idle feature section added */
-	OPT_SAVE_REG_TO_PACA(PACA_EXNMI+EX_PPR, r9, CPU_FTR_HAS_PPR)
-	OPT_SAVE_REG_TO_PACA(PACA_EXNMI+EX_CFAR, r10, CPU_FTR_CFAR)
-	INTERRUPT_TO_KERNEL
-	SAVE_CTR(r10, PACA_EXNMI)
-	mfcr	r9
-
 #ifdef CONFIG_PPC_P7_NAP
 	/*
 	 * If running native on arch 2.06 or later, check if we are waking up
@@ -838,43 +829,59 @@ EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
 	 * bits 46:47. A non-0 value indicates that we are coming from a power
 	 * saving state. The idle wakeup handler initially runs in real mode,
 	 * but we branch to the 0xc000... address so we can turn on relocation
-	 * with mtmsr.
+	 * with mtmsrd later, after SPRs are restored.
+	 *
+	 * Careful to minimise cost for the fast path (idle wakeup) while
+	 * also avoiding clobbering CFAR for the debug path (non-idle).
+	 *
+	 * For the idle wake case volatile registers can be clobbered, which
+	 * is why we use those initially. If it turns out to not be an idle
+	 * wake, carefully put everything back the way it was, so we can use
+	 * common exception macros to handle it.
 	 */
 BEGIN_FTR_SECTION
-	mfspr	r10,SPRN_SRR1
-	rlwinm.	r10,r10,47-31,30,31
-	beq-	1f
-	cmpwi	cr1,r10,2
+	SET_SCRATCH0(r13)
+	GET_PACA(r13)
+	std	r3,PACA_EXNMI+0*8(r13)
+	std	r4,PACA_EXNMI+1*8(r13)
+	std	r5,PACA_EXNMI+2*8(r13)
 	mfspr	r3,SPRN_SRR1
-	bltlr	cr1	/* no state loss, return to idle caller */
-	BRANCH_TO_C000(r10, system_reset_idle_common)
-1:
+	mfocrf	r4,0x80
+	rlwinm.	r5,r3,47-31,30,31
+	bne+	system_reset_idle_wake
+	/* Not powersave wakeup. Restore regs for regular interrupt handler. */
+	mtocrf	0x80,r4
+	ld	r3,PACA_EXNMI+0*8(r13)
+	ld	r4,PACA_EXNMI+1*8(r13)
+	ld	r5,PACA_EXNMI+2*8(r13)
+	GET_SCRATCH0(r13)
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #endif
 
-	KVMTEST EXC_STD 0x100
-	std	r11,PACA_EXNMI+EX_R11(r13)
-	std	r12,PACA_EXNMI+EX_R12(r13)
-	GET_SCRATCH0(r10)
-	std	r10,PACA_EXNMI+EX_R13(r13)
-
+	EXCEPTION_PROLOG_0 PACA_EXNMI
+	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXNMI, 1, 0x100, 0, 0, 0
 	EXCEPTION_PROLOG_2_REAL system_reset_common, EXC_STD, 0
 	/*
 	 * MSR_RI is not enabled, because PACA_EXNMI and nmi stack is
 	 * being used, so a nested NMI exception would corrupt it.
+	 *
+	 * In theory, we should not enable relocation here if it was disabled
+	 * in SRR1, because the MMU may not be configured to support it (e.g.,
+	 * SLB may have been cleared). In practice, there should only be a few
+	 * small windows where that's the case, and sreset is considered to
+	 * be dangerous anyway.
 	 */
-
 EXC_REAL_END(system_reset, 0x100, 0x100)
+
 EXC_VIRT_NONE(0x4100, 0x100)
 TRAMP_KVM(PACA_EXNMI, 0x100)
 
 #ifdef CONFIG_PPC_P7_NAP
-EXC_COMMON_BEGIN(system_reset_idle_common)
-	/*
-	 * This must be a direct branch (without linker branch stub) because
-	 * we can not use TOC at this point as r2 may not be restored yet.
-	 */
-	b	idle_return_gpr_loss
+TRAMP_REAL_BEGIN(system_reset_idle_wake)
+	/* We are waking up from idle, so may clobber any volatile register */
+	cmpwi	cr1,r5,2
+	bltlr	cr1	/* no state loss, return to idle caller with r3=SRR1 */
+	BRANCH_TO_C000(r12, DOTSYM(idle_return_gpr_loss))
 #endif
 
 EXC_COMMON_BEGIN(system_reset_common)
