@@ -91,11 +91,11 @@ static void dwxgmac2_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	value |= (axi->axi_rd_osr_lmt << XGMAC_RD_OSR_LMT_SHIFT) &
 		XGMAC_RD_OSR_LMT;
 
+	if (!axi->axi_fb)
+		value |= XGMAC_UNDEF;
+
 	value &= ~XGMAC_BLEN;
 	for (i = 0; i < AXI_BLEN; i++) {
-		if (axi->axi_blen[i])
-			value &= ~XGMAC_UNDEF;
-
 		switch (axi->axi_blen[i]) {
 		case 256:
 			value |= XGMAC_BLEN256;
