@@ -16,6 +16,7 @@ struct addr_location;
 struct map_symbol;
 struct mem_info;
 struct branch_info;
+struct block_info;
 struct symbol;
 
 enum hist_filter {
@@ -148,6 +149,10 @@ struct hist_entry *hists__add_entry_ops(struct hists *hists,
 					struct mem_info *mi,
 					struct perf_sample *sample,
 					bool sample_self);
+
+struct hist_entry *hists__add_entry_block(struct hists *hists,
+					  struct addr_location *al,
+					  struct block_info *bi);
 
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 			 int max_stack_depth, void *arg);
