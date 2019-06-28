@@ -128,6 +128,7 @@ BEGIN_FTR_SECTION_NESTED(943)						\
 END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 .macro EXCEPTION_PROLOG_0 area
+	SET_SCRATCH0(r13)			/* save r13 */
 	GET_PACA(r13)
 	std	r9,\area\()+EX_R9(r13)		/* save r9 */
 	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR)
@@ -547,7 +548,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define __EXC_REAL(name, start, size, area)				\
 	EXC_REAL_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);		/* save r13 */			\
 	EXCEPTION_PROLOG_0 area ;					\
 	EXCEPTION_PROLOG_1 EXC_STD, area, 1, start, 0, 0, 0 ;		\
 	EXCEPTION_PROLOG_2_REAL name##_common, EXC_STD, 1 ;		\
@@ -558,7 +558,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define __EXC_VIRT(name, start, size, realvec, area)			\
 	EXC_VIRT_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);    /* save r13 */				\
 	EXCEPTION_PROLOG_0 area ;					\
 	EXCEPTION_PROLOG_1 EXC_STD, area, 0, realvec, 0, 0, 0;		\
 	EXCEPTION_PROLOG_2_VIRT name##_common, EXC_STD ;		\
@@ -569,7 +568,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define EXC_REAL_MASKABLE(name, start, size, bitmask)			\
 	EXC_REAL_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);    /* save r13 */				\
 	EXCEPTION_PROLOG_0 PACA_EXGEN ;					\
 	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, start, 0, 0, bitmask ; \
 	EXCEPTION_PROLOG_2_REAL name##_common, EXC_STD, 1 ;		\
@@ -577,7 +575,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define EXC_VIRT_MASKABLE(name, start, size, realvec, bitmask)		\
 	EXC_VIRT_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);    /* save r13 */				\
 	EXCEPTION_PROLOG_0 PACA_EXGEN ;					\
 	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 0, realvec, 0, 0, bitmask ; \
 	EXCEPTION_PROLOG_2_VIRT name##_common, EXC_STD ;		\
@@ -585,7 +582,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define EXC_REAL_HV(name, start, size)					\
 	EXC_REAL_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);		/* save r13 */			\
 	EXCEPTION_PROLOG_0 PACA_EXGEN;					\
 	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, start, 0, 0, 0 ;	\
 	EXCEPTION_PROLOG_2_REAL name##_common, EXC_HV, 1 ;		\
@@ -593,7 +589,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define EXC_VIRT_HV(name, start, size, realvec)				\
 	EXC_VIRT_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);		/* save r13 */			\
 	EXCEPTION_PROLOG_0 PACA_EXGEN;					\
 	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, realvec, 0, 0, 0 ;	\
 	EXCEPTION_PROLOG_2_VIRT name##_common, EXC_HV ;			\
@@ -601,7 +596,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define __EXC_REAL_OOL(name, start, size)				\
 	EXC_REAL_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);						\
 	EXCEPTION_PROLOG_0 PACA_EXGEN ;					\
 	b	tramp_real_##name ;					\
 	EXC_REAL_END(name, start, size)
@@ -629,7 +623,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define __EXC_REAL_OOL_HV_DIRECT(name, start, size, handler)		\
 	EXC_REAL_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);						\
 	EXCEPTION_PROLOG_0 PACA_EXGEN ;					\
 	b	handler;						\
 	EXC_REAL_END(name, start, size)
@@ -660,7 +653,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define __EXC_VIRT_OOL(name, start, size)				\
 	EXC_VIRT_BEGIN(name, start, size);				\
-	SET_SCRATCH0(r13);						\
 	EXCEPTION_PROLOG_0 PACA_EXGEN ;					\
 	b	tramp_virt_##name;					\
 	EXC_VIRT_END(name, start, size)
@@ -837,7 +829,6 @@ EXC_VIRT_NONE(0x4000, 0x100)
 
 
 EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
-	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0 PACA_EXNMI
 
 	/* This is EXCEPTION_PROLOG_1 with the idle feature section added */
@@ -955,7 +946,6 @@ EXC_COMMON_BEGIN(system_reset_common)
  * Vectors for the FWNMI option.  Share common code.
  */
 TRAMP_REAL_BEGIN(system_reset_fwnmi)
-	SET_SCRATCH0(r13)		/* save r13 */
 	/* See comment at system_reset exception, don't turn on RI */
 	EXCEPTION_PROLOG_0 PACA_EXNMI
 	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXNMI, 0, 0x100, 0, 0, 0
@@ -969,7 +959,6 @@ EXC_REAL_BEGIN(machine_check, 0x200, 0x100)
 	 * some code path might still want to branch into the original
 	 * vector
 	 */
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXMC
 BEGIN_FTR_SECTION
 	b	machine_check_common_early
@@ -1058,7 +1047,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 TRAMP_REAL_BEGIN(machine_check_pSeries)
 	.globl machine_check_fwnmi
 machine_check_fwnmi:
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXMC
 BEGIN_FTR_SECTION
 	b	machine_check_common_early
@@ -1246,7 +1234,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 9:
 	/* Deliver the machine check to host kernel in V mode. */
 	MACHINE_CHECK_HANDLER_WINDUP
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXMC
 	b	machine_check_pSeries_0
 
@@ -1271,7 +1258,6 @@ EXC_COMMON_BEGIN(mce_return)
 	b	.
 
 EXC_REAL_BEGIN(data_access, 0x300, 0x80)
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	b	tramp_real_data_access
 EXC_REAL_END(data_access, 0x300, 0x80)
@@ -1281,7 +1267,6 @@ TRAMP_REAL_BEGIN(tramp_real_data_access)
 	EXCEPTION_PROLOG_2_REAL data_access_common, EXC_STD, 1
 
 EXC_VIRT_BEGIN(data_access, 0x4300, 0x80)
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 0, 0x300, 1, 1, 0
 EXCEPTION_PROLOG_2_VIRT data_access_common, EXC_STD
@@ -1312,7 +1297,6 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 
 EXC_REAL_BEGIN(data_access_slb, 0x380, 0x80)
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXSLB
 	b	tramp_real_data_access_slb
 EXC_REAL_END(data_access_slb, 0x380, 0x80)
@@ -1322,7 +1306,6 @@ TRAMP_REAL_BEGIN(tramp_real_data_access_slb)
 	EXCEPTION_PROLOG_2_REAL data_access_slb_common, EXC_STD, 1
 
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXSLB
 	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXSLB, 0, 0x380, 1, 0, 0
 	EXCEPTION_PROLOG_2_VIRT data_access_slb_common, EXC_STD
@@ -1406,7 +1389,6 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 
 EXC_REAL_BEGIN(hardware_interrupt, 0x500, 0x100)
-	SET_SCRATCH0(r13)	/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 BEGIN_FTR_SECTION
 	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, 0x500, 0, 0, IRQS_DISABLED
@@ -1418,7 +1400,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 EXC_REAL_END(hardware_interrupt, 0x500, 0x100)
 
 EXC_VIRT_BEGIN(hardware_interrupt, 0x4500, 0x100)
-	SET_SCRATCH0(r13)	/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 BEGIN_FTR_SECTION
 	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, 0x500, 0, 0, IRQS_DISABLED
@@ -1435,14 +1416,12 @@ EXC_COMMON_ASYNC(hardware_interrupt_common, 0x500, do_IRQ)
 
 
 EXC_REAL_BEGIN(alignment, 0x600, 0x100)
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, 0x600, 1, 1, 0
 	EXCEPTION_PROLOG_2_REAL alignment_common, EXC_STD, 1
 EXC_REAL_END(alignment, 0x600, 0x100)
 
 EXC_VIRT_BEGIN(alignment, 0x4600, 0x100)
-	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 0, 0x600, 1, 1, 0
 	EXCEPTION_PROLOG_2_VIRT alignment_common, EXC_STD
@@ -1766,7 +1745,6 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	 * firmware.
 	 */
 	EXCEPTION_RESTORE_REGS EXC_HV
-	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	b	tramp_real_hmi_exception
 
@@ -1925,7 +1903,6 @@ EXC_REAL_NONE(0x1400, 0x100)
 EXC_VIRT_NONE(0x5400, 0x100)
 
 EXC_REAL_BEGIN(denorm_exception_hv, 0x1500, 0x100)
-	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 0, 0x1500, 0, 0, 0
 
