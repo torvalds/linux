@@ -998,6 +998,7 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 		return PTR_ERR(isp_dev->base_addr);
 
 	match_data = match->data;
+	isp_dev->mipi_irq = -1;
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 					   match_data->irqs[0].name);
 	if (res) {
@@ -1011,6 +1012,9 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 				return irq;
 			}
 
+			if (!strcmp(match_data->irqs[i].name, "mipi_irq"))
+				isp_dev->mipi_irq = irq;
+
 			ret = devm_request_irq(dev, irq,
 					       match_data->irqs[i].irq_hdl,
 					       IRQF_SHARED,
@@ -1022,6 +1026,9 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 					ret);
 				return ret;
 			}
+
+			if (isp_dev->mipi_irq == irq)
+				disable_irq(isp_dev->mipi_irq);
 		}
 	} else {
 		/* no irq names in dts */
@@ -1138,6 +1145,10 @@ static int __maybe_unused rkisp1_runtime_suspend(struct device *dev)
 {
 	struct rkisp1_device *isp_dev = dev_get_drvdata(dev);
 
+	if (isp_dev->isp_ver == ISP_V12 || isp_dev->isp_ver == ISP_V13) {
+		if (isp_dev->mipi_irq >= 0)
+			disable_irq(isp_dev->mipi_irq);
+	}
 	rkisp1_disable_sys_clk(isp_dev);
 	return pinctrl_pm_select_sleep_state(dev);
 }
@@ -1151,6 +1162,14 @@ static int __maybe_unused rkisp1_runtime_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 	rkisp1_enable_sys_clk(isp_dev);
+
+	if (isp_dev->isp_ver == ISP_V12 || isp_dev->isp_ver == ISP_V13) {
+		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_MASK1);
+		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_MASK2);
+		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_MASK3);
+		if (isp_dev->mipi_irq >= 0)
+			enable_irq(isp_dev->mipi_irq);
+	}
 
 	return 0;
 }
