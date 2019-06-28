@@ -244,17 +244,18 @@ out:
 }
 
 static struct intel_shared_dpll *
-intel_find_shared_dpll(struct intel_crtc_state *crtc_state,
+intel_find_shared_dpll(struct intel_atomic_state *state,
+		       const struct intel_crtc *crtc,
+		       const struct intel_dpll_hw_state *pll_state,
 		       enum intel_dpll_id range_min,
 		       enum intel_dpll_id range_max)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll, *unused_pll = NULL;
 	struct intel_shared_dpll_state *shared_dpll;
 	enum intel_dpll_id i;
 
-	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
+	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
 	for (i = range_min; i <= range_max; i++) {
 		pll = &dev_priv->shared_dplls[i];
@@ -266,9 +267,9 @@ intel_find_shared_dpll(struct intel_crtc_state *crtc_state,
 			continue;
 		}
 
-		if (memcmp(&crtc_state->dpll_hw_state,
+		if (memcmp(pll_state,
 			   &shared_dpll[i].hw_state,
-			   sizeof(crtc_state->dpll_hw_state)) == 0) {
+			   sizeof(*pll_state)) == 0) {
 			DRM_DEBUG_KMS("[CRTC:%d:%s] sharing existing %s (crtc mask 0x%08x, active %x)\n",
 				      crtc->base.base.id, crtc->base.name,
 				      pll->info->name,
@@ -290,20 +291,19 @@ intel_find_shared_dpll(struct intel_crtc_state *crtc_state,
 }
 
 static void
-intel_reference_shared_dpll(struct intel_shared_dpll *pll,
-			    struct intel_crtc_state *crtc_state)
+intel_reference_shared_dpll(struct intel_atomic_state *state,
+			    const struct intel_crtc *crtc,
+			    const struct intel_shared_dpll *pll,
+			    const struct intel_dpll_hw_state *pll_state)
 {
 	struct intel_shared_dpll_state *shared_dpll;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	const enum intel_dpll_id id = pll->info->id;
 
-	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
+	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
 	if (shared_dpll[id].crtc_mask == 0)
-		shared_dpll[id].hw_state =
-			crtc_state->dpll_hw_state;
+		shared_dpll[id].hw_state = *pll_state;
 
-	crtc_state->shared_dpll = pll;
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->info->name,
 			 pipe_name(crtc->pipe));
 
@@ -463,7 +463,8 @@ static bool ibx_get_dpll(struct intel_atomic_state *state,
 			      crtc->base.base.id, crtc->base.name,
 			      pll->info->name);
 	} else {
-		pll = intel_find_shared_dpll(crtc_state,
+		pll = intel_find_shared_dpll(state, crtc,
+					     &crtc_state->dpll_hw_state,
 					     DPLL_ID_PCH_PLL_A,
 					     DPLL_ID_PCH_PLL_B);
 	}
@@ -472,7 +473,10 @@ static bool ibx_get_dpll(struct intel_atomic_state *state,
 		return false;
 
 	/* reference the pll */
-	intel_reference_shared_dpll(pll, crtc_state);
+	intel_reference_shared_dpll(state, crtc,
+				    pll, &crtc_state->dpll_hw_state);
+
+	crtc_state->shared_dpll = pll;
 
 	return true;
 }
@@ -791,8 +795,12 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 	*r2_out = best.r2;
 }
 
-static struct intel_shared_dpll *hsw_ddi_hdmi_get_dpll(struct intel_crtc_state *crtc_state)
+static struct intel_shared_dpll *
+hsw_ddi_hdmi_get_dpll(struct intel_atomic_state *state,
+		      struct intel_crtc *crtc)
 {
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_shared_dpll *pll;
 	u32 val;
 	unsigned int p, n2, r2;
@@ -805,7 +813,8 @@ static struct intel_shared_dpll *hsw_ddi_hdmi_get_dpll(struct intel_crtc_state *
 
 	crtc_state->dpll_hw_state.wrpll = val;
 
-	pll = intel_find_shared_dpll(crtc_state,
+	pll = intel_find_shared_dpll(state, crtc,
+				     &crtc_state->dpll_hw_state,
 				     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
 
 	if (!pll)
@@ -857,7 +866,7 @@ static bool hsw_get_dpll(struct intel_atomic_state *state,
 	       sizeof(crtc_state->dpll_hw_state));
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		pll = hsw_ddi_hdmi_get_dpll(crtc_state);
+		pll = hsw_ddi_hdmi_get_dpll(state, crtc);
 	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		pll = hsw_ddi_dp_get_dpll(crtc_state);
 	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
@@ -867,7 +876,8 @@ static bool hsw_get_dpll(struct intel_atomic_state *state,
 		crtc_state->dpll_hw_state.spll =
 			SPLL_PLL_ENABLE | SPLL_FREQ_1350MHz | SPLL_REF_MUXED_SSC;
 
-		pll = intel_find_shared_dpll(crtc_state,
+		pll = intel_find_shared_dpll(state, crtc,
+					     &crtc_state->dpll_hw_state,
 					     DPLL_ID_SPLL, DPLL_ID_SPLL);
 	} else {
 		return false;
@@ -876,7 +886,10 @@ static bool hsw_get_dpll(struct intel_atomic_state *state,
 	if (!pll)
 		return false;
 
-	intel_reference_shared_dpll(pll, crtc_state);
+	intel_reference_shared_dpll(state, crtc,
+				    pll, &crtc_state->dpll_hw_state);
+
+	crtc_state->shared_dpll = pll;
 
 	return true;
 }
@@ -1437,17 +1450,22 @@ static bool skl_get_dpll(struct intel_atomic_state *state,
 	}
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
-		pll = intel_find_shared_dpll(crtc_state,
+		pll = intel_find_shared_dpll(state, crtc,
+					     &crtc_state->dpll_hw_state,
 					     DPLL_ID_SKL_DPLL0,
 					     DPLL_ID_SKL_DPLL0);
 	else
-		pll = intel_find_shared_dpll(crtc_state,
+		pll = intel_find_shared_dpll(state, crtc,
+					     &crtc_state->dpll_hw_state,
 					     DPLL_ID_SKL_DPLL1,
 					     DPLL_ID_SKL_DPLL3);
 	if (!pll)
 		return false;
 
-	intel_reference_shared_dpll(pll, crtc_state);
+	intel_reference_shared_dpll(state, crtc,
+				    pll, &crtc_state->dpll_hw_state);
+
+	crtc_state->shared_dpll = pll;
 
 	return true;
 }
@@ -1880,7 +1898,10 @@ static bool bxt_get_dpll(struct intel_atomic_state *state,
 	DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
 		      crtc->base.base.id, crtc->base.name, pll->info->name);
 
-	intel_reference_shared_dpll(pll, crtc_state);
+	intel_reference_shared_dpll(state, crtc,
+				    pll, &crtc_state->dpll_hw_state);
+
+	crtc_state->shared_dpll = pll;
 
 	return true;
 }
@@ -2395,7 +2416,8 @@ static bool cnl_get_dpll(struct intel_atomic_state *state,
 		return false;
 	}
 
-	pll = intel_find_shared_dpll(crtc_state,
+	pll = intel_find_shared_dpll(state, crtc,
+				     &crtc_state->dpll_hw_state,
 				     DPLL_ID_SKL_DPLL0,
 				     DPLL_ID_SKL_DPLL2);
 	if (!pll) {
@@ -2403,7 +2425,10 @@ static bool cnl_get_dpll(struct intel_atomic_state *state,
 		return false;
 	}
 
-	intel_reference_shared_dpll(pll, crtc_state);
+	intel_reference_shared_dpll(state, crtc,
+				    pll, &crtc_state->dpll_hw_state);
+
+	crtc_state->shared_dpll = pll;
 
 	return true;
 }
@@ -2545,7 +2570,8 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 }
 
 static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
-				struct intel_encoder *encoder)
+				struct intel_encoder *encoder,
+				struct intel_dpll_hw_state *pll_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	u32 cfgcr0, cfgcr1;
@@ -2572,11 +2598,10 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 		 DPLL_CFGCR1_PDIV(pll_params.pdiv) |
 		 DPLL_CFGCR1_CENTRAL_FREQ_8400;
 
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
+	memset(pll_state, 0, sizeof(*pll_state));
 
-	crtc_state->dpll_hw_state.cfgcr0 = cfgcr0;
-	crtc_state->dpll_hw_state.cfgcr1 = cfgcr1;
+	pll_state->cfgcr0 = cfgcr0;
+	pll_state->cfgcr1 = cfgcr1;
 
 	return true;
 }
@@ -2666,10 +2691,10 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
  * The specification for this function uses real numbers, so the math had to be
  * adapted to integer-only calculation, that's why it looks so different.
  */
-static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state)
+static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
+				  struct intel_dpll_hw_state *pll_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
-	struct intel_dpll_hw_state *pll_state = &crtc_state->dpll_hw_state;
 	int refclk_khz = dev_priv->cdclk.hw.ref;
 	int clock = crtc_state->port_clock;
 	u32 dco_khz, m1div, m2div_int, m2div_rem, m2div_frac;
@@ -2847,7 +2872,8 @@ static bool icl_get_dplls(struct intel_atomic_state *state,
 	if (intel_port_is_combophy(dev_priv, port)) {
 		min = DPLL_ID_ICL_DPLL0;
 		max = DPLL_ID_ICL_DPLL1;
-		ret = icl_calc_dpll_state(crtc_state, encoder);
+		ret = icl_calc_dpll_state(crtc_state, encoder,
+					  &crtc_state->dpll_hw_state);
 	} else if (intel_port_is_tc(dev_priv, port)) {
 		if (encoder->type == INTEL_OUTPUT_DP_MST) {
 			struct intel_dp_mst_encoder *mst_encoder;
@@ -2861,14 +2887,16 @@ static bool icl_get_dplls(struct intel_atomic_state *state,
 		if (intel_dig_port->tc_mode == TC_PORT_TBT_ALT) {
 			min = DPLL_ID_ICL_TBTPLL;
 			max = min;
-			ret = icl_calc_dpll_state(crtc_state, encoder);
+			ret = icl_calc_dpll_state(crtc_state, encoder,
+						  &crtc_state->dpll_hw_state);
 		} else {
 			enum tc_port tc_port;
 
 			tc_port = intel_port_to_tc(dev_priv, port);
 			min = icl_tc_port_to_pll_id(tc_port);
 			max = min;
-			ret = icl_calc_mg_pll_state(crtc_state);
+			ret = icl_calc_mg_pll_state(crtc_state,
+						    &crtc_state->dpll_hw_state);
 		}
 	} else {
 		MISSING_CASE(port);
@@ -2881,13 +2909,18 @@ static bool icl_get_dplls(struct intel_atomic_state *state,
 	}
 
 
-	pll = intel_find_shared_dpll(crtc_state, min, max);
+	pll = intel_find_shared_dpll(state, crtc,
+				     &crtc_state->dpll_hw_state,
+				     min, max);
 	if (!pll) {
 		DRM_DEBUG_KMS("No PLL selected\n");
 		return false;
 	}
 
-	intel_reference_shared_dpll(pll, crtc_state);
+	intel_reference_shared_dpll(state, crtc,
+				    pll, &crtc_state->dpll_hw_state);
+
+	crtc_state->shared_dpll = pll;
 
 	return true;
 }
