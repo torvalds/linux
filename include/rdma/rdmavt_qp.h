@@ -820,6 +820,38 @@ struct rvt_qp_iter {
 	int n;
 };
 
+/**
+ * ib_cq_tail - Return tail index of cq buffer
+ * @send_cq - The cq for send
+ *
+ * This is called in qp_iter_print to get tail
+ * of cq buffer.
+ */
+static inline u32 ib_cq_tail(struct ib_cq *send_cq)
+{
+	struct rvt_cq *cq = ibcq_to_rvtcq(send_cq);
+
+	return ibcq_to_rvtcq(send_cq)->ip ?
+	       RDMA_READ_UAPI_ATOMIC(cq->queue->tail) :
+	       ibcq_to_rvtcq(send_cq)->kqueue->tail;
+}
+
+/**
+ * ib_cq_head - Return head index of cq buffer
+ * @send_cq - The cq for send
+ *
+ * This is called in qp_iter_print to get head
+ * of cq buffer.
+ */
+static inline u32 ib_cq_head(struct ib_cq *send_cq)
+{
+	struct rvt_cq *cq = ibcq_to_rvtcq(send_cq);
+
+	return ibcq_to_rvtcq(send_cq)->ip ?
+	       RDMA_READ_UAPI_ATOMIC(cq->queue->head) :
+	       ibcq_to_rvtcq(send_cq)->kqueue->head;
+}
+
 struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
 				     u64 v,
 				     void (*cb)(struct rvt_qp *qp, u64 v));
