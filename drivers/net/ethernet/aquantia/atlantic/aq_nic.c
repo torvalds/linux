@@ -128,6 +128,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	cfg->features = cfg->aq_hw_caps->hw_features;
 	cfg->is_vlan_rx_strip = !!(cfg->features & NETIF_F_HW_VLAN_CTAG_RX);
 	cfg->is_vlan_tx_insert = !!(cfg->features & NETIF_F_HW_VLAN_CTAG_TX);
+	cfg->is_vlan_force_promisc = true;
 }
 
 static int aq_nic_update_link_status(struct aq_nic_s *self)
