@@ -1891,6 +1891,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 
 	esw->dev = dev;
 	esw->manager_vport = mlx5_eswitch_manager_vport(dev);
+	esw->first_host_vport = mlx5_eswitch_first_host_vport_num(dev);
 
 	esw->work_queue = create_singlethread_workqueue("mlx5_esw_wq");
 	if (!esw->work_queue) {

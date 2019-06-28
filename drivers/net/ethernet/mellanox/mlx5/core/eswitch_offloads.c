@@ -344,10 +344,10 @@ mlx5_eswitch_del_fwd_rule(struct mlx5_eswitch *esw,
 static int esw_set_global_vlan_pop(struct mlx5_eswitch *esw, u8 val)
 {
 	struct mlx5_eswitch_rep *rep;
-	int vf_vport, err = 0;
+	int i, err = 0;
 
 	esw_debug(esw->dev, "%s applying global %s policy\n", __func__, val ? "pop" : "none");
-	mlx5_esw_for_each_vf_rep(esw, vf_vport, rep, esw->esw_funcs.num_vfs) {
+	mlx5_esw_for_each_host_func_rep(esw, i, rep, esw->esw_funcs.num_vfs) {
 		if (atomic_read(&rep->rep_data[REP_ETH].state) != REP_LOADED)
 			continue;
 
@@ -2330,7 +2330,7 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode,
 	if (err)
 		goto out;
 
-	mlx5_esw_for_each_vf_vport_num(esw, vport, esw->esw_funcs.num_vfs) {
+	mlx5_esw_for_each_host_func_vport(esw, vport, esw->esw_funcs.num_vfs) {
 		err = mlx5_modify_nic_vport_min_inline(dev, vport, mlx5_mode);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack,
@@ -2344,7 +2344,7 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode,
 
 revert_inline_mode:
 	num_vport = --vport;
-	mlx5_esw_for_each_vf_vport_num_reverse(esw, vport, num_vport)
+	mlx5_esw_for_each_host_func_vport_reverse(esw, vport, num_vport)
 		mlx5_modify_nic_vport_min_inline(dev,
 						 vport,
 						 esw->offloads.inline_mode);
@@ -2389,9 +2389,10 @@ int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, u8 *mode)
 	}
 
 query_vports:
-	mlx5_esw_for_each_vf_vport_num(esw, vport, esw->esw_funcs.num_vfs) {
+	mlx5_query_nic_vport_min_inline(dev, esw->first_host_vport, &prev_mlx5_mode);
+	mlx5_esw_for_each_host_func_vport(esw, vport, esw->esw_funcs.num_vfs) {
 		mlx5_query_nic_vport_min_inline(dev, vport, &mlx5_mode);
-		if (vport > 1 && prev_mlx5_mode != mlx5_mode)
+		if (prev_mlx5_mode != mlx5_mode)
 			return -EINVAL;
 		prev_mlx5_mode = mlx5_mode;
 	}

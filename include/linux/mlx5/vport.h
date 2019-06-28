@@ -58,6 +58,7 @@ enum {
 	MLX5_CAP_INLINE_MODE_NOT_REQUIRED,
 };
 
+/* Vport number for each function must keep unchanged */
 enum {
 	MLX5_VPORT_PF			= 0x0,
 	MLX5_VPORT_FIRST_VF		= 0x1,

@@ -227,6 +227,7 @@ struct mlx5_eswitch {
 	int                     mode;
 	int                     nvports;
 	u16                     manager_vport;
+	u16                     first_host_vport;
 	struct mlx5_esw_functions esw_funcs;
 };
 
@@ -422,6 +423,12 @@ static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)
 		MLX5_VPORT_ECPF : MLX5_VPORT_PF;
 }
 
+static inline u16 mlx5_eswitch_first_host_vport_num(struct mlx5_core_dev *dev)
+{
+	return mlx5_core_is_ecpf_esw_manager(dev) ?
+		MLX5_VPORT_PF : MLX5_VPORT_FIRST_VF;
+}
+
 static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev)
 {
 	/* Ideally device should have the functions changed supported
@@ -517,6 +524,25 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 
 #define mlx5_esw_for_each_vf_vport_num_reverse(esw, vport, nvfs)	\
 	for ((vport) = (nvfs); (vport) >= MLX5_VPORT_FIRST_VF; (vport)--)
+
+/* Includes host PF (vport 0) if it's not esw manager. */
+#define mlx5_esw_for_each_host_func_rep(esw, i, rep, nvfs)	\
+	for ((i) = (esw)->first_host_vport;			\
+	     (rep) = &(esw)->offloads.vport_reps[i],		\
+	     (i) <= (nvfs); (i)++)
+
+#define mlx5_esw_for_each_host_func_rep_reverse(esw, i, rep, nvfs)	\
+	for ((i) = (nvfs);						\
+	     (rep) = &(esw)->offloads.vport_reps[i],			\
+	     (i) >= (esw)->first_host_vport; (i)--)
+
+#define mlx5_esw_for_each_host_func_vport(esw, vport, nvfs)	\
+	for ((vport) = (esw)->first_host_vport;			\
+	     (vport) <= (nvfs); (vport)++)
+
+#define mlx5_esw_for_each_host_func_vport_reverse(esw, vport, nvfs)	\
+	for ((vport) = (nvfs);						\
+	     (vport) >= (esw)->first_host_vport; (vport)--)
 
 struct mlx5_vport *__must_check
 mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num);
