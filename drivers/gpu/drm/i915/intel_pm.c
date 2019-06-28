@@ -3736,11 +3736,10 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-bool intel_can_enable_sagv(struct drm_atomic_state *state)
+bool intel_can_enable_sagv(struct intel_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_device *dev = state->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct intel_crtc *crtc;
 	struct intel_plane *plane;
 	struct intel_crtc_state *cstate;
@@ -3761,18 +3760,18 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	/*
 	 * If there are no active CRTCs, no additional checks need be performed
 	 */
-	if (hweight32(intel_state->active_crtcs) == 0)
+	if (hweight32(state->active_crtcs) == 0)
 		return true;
 
 	/*
 	 * SKL+ workaround: bspec recommends we disable SAGV when we have
 	 * more then one pipe enabled
 	 */
-	if (hweight32(intel_state->active_crtcs) > 1)
+	if (hweight32(state->active_crtcs) > 1)
 		return false;
 
 	/* Since we're now guaranteed to only have one active CRTC... */
-	pipe = ffs(intel_state->active_crtcs) - 1;
+	pipe = ffs(state->active_crtcs) - 1;
 	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	cstate = to_intel_crtc_state(crtc->base.state);
 
