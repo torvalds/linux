@@ -1407,7 +1407,7 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 	if (!esw->offloads.vport_reps)
 		return -ENOMEM;
 
-	mlx5_query_nic_vport_mac_address(dev, 0, hw_id);
+	mlx5_query_mac_address(dev, hw_id);
 
 	mlx5_esw_for_all_reps(esw, vport_index, rep) {
 		rep->vport = mlx5_eswitch_index_to_vport_num(esw, vport_index);

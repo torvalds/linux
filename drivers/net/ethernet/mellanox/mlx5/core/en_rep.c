@@ -1394,7 +1394,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 		SET_NETDEV_DEV(netdev, mdev->device);
 		netdev->netdev_ops = &mlx5e_netdev_ops_uplink_rep;
 		/* we want a persistent mac for the uplink rep */
-		mlx5_query_nic_vport_mac_address(mdev, 0, netdev->dev_addr);
+		mlx5_query_mac_address(mdev, netdev->dev_addr);
 		netdev->ethtool_ops = &mlx5e_uplink_rep_ethtool_ops;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 		if (MLX5_CAP_GEN(mdev, qos))

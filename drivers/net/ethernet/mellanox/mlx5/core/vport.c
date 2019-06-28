@@ -155,11 +155,12 @@ int mlx5_modify_nic_vport_min_inline(struct mlx5_core_dev *mdev,
 }
 
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
-				     u16 vport, u8 *addr)
+				     u16 vport, bool other, u8 *addr)
 {
-	u32 *out;
 	int outlen = MLX5_ST_SZ_BYTES(query_nic_vport_context_out);
+	u32 in[MLX5_ST_SZ_DW(query_nic_vport_context_in)] = {};
 	u8 *out_addr;
+	u32 *out;
 	int err;
 
 	out = kvzalloc(outlen, GFP_KERNEL);
@@ -169,7 +170,12 @@ int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 	out_addr = MLX5_ADDR_OF(query_nic_vport_context_out, out,
 				nic_vport_context.permanent_address);
 
-	err = mlx5_query_nic_vport_context(mdev, vport, out, outlen);
+	MLX5_SET(query_nic_vport_context_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_NIC_VPORT_CONTEXT);
+	MLX5_SET(query_nic_vport_context_in, in, vport_number, vport);
+	MLX5_SET(query_nic_vport_context_in, in, other_vport, other);
+
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
 	if (!err)
 		ether_addr_copy(addr, &out_addr[2]);
 
@@ -177,6 +183,12 @@ int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_nic_vport_mac_address);
+
+int mlx5_query_mac_address(struct mlx5_core_dev *mdev, u8 *addr)
+{
+	return mlx5_query_nic_vport_mac_address(mdev, 0, false, addr);
+}
+EXPORT_SYMBOL_GPL(mlx5_query_mac_address);
 
 int mlx5_modify_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 				      u16 vport, u8 *addr)
@@ -194,9 +206,7 @@ int mlx5_modify_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 	MLX5_SET(modify_nic_vport_context_in, in,
 		 field_select.permanent_address, 1);
 	MLX5_SET(modify_nic_vport_context_in, in, vport_number, vport);
-
-	if (vport)
-		MLX5_SET(modify_nic_vport_context_in, in, other_vport, 1);
+	MLX5_SET(modify_nic_vport_context_in, in, other_vport, 1);
 
 	nic_vport_ctx = MLX5_ADDR_OF(modify_nic_vport_context_in,
 				     in, nic_vport_context);
@@ -291,9 +301,7 @@ int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
 		 MLX5_CMD_OP_QUERY_NIC_VPORT_CONTEXT);
 	MLX5_SET(query_nic_vport_context_in, in, allowed_list_type, list_type);
 	MLX5_SET(query_nic_vport_context_in, in, vport_number, vport);
-
-	if (vport)
-		MLX5_SET(query_nic_vport_context_in, in, other_vport, 1);
+	MLX5_SET(query_nic_vport_context_in, in, other_vport, 1);
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, out_sz);
 	if (err)
@@ -483,7 +491,7 @@ int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
 	MLX5_SET(modify_nic_vport_context_in, in,
 		 field_select.node_guid, 1);
 	MLX5_SET(modify_nic_vport_context_in, in, vport_number, vport);
-	MLX5_SET(modify_nic_vport_context_in, in, other_vport, !!vport);
+	MLX5_SET(modify_nic_vport_context_in, in, other_vport, 1);
 
 	nic_vport_context = MLX5_ADDR_OF(modify_nic_vport_context_in,
 					 in, nic_vport_context);

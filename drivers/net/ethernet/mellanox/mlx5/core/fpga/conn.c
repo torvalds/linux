@@ -867,7 +867,7 @@ struct mlx5_fpga_conn *mlx5_fpga_conn_create(struct mlx5_fpga_device *fdev,
 	conn->cb_arg = attr->cb_arg;
 
 	remote_mac = MLX5_ADDR_OF(fpga_qpc, conn->fpga_qpc, remote_mac_47_32);
-	err = mlx5_query_nic_vport_mac_address(fdev->mdev, 0, remote_mac);
+	err = mlx5_query_mac_address(fdev->mdev, remote_mac);
 	if (err) {
 		mlx5_fpga_err(fdev, "Failed to query local MAC: %d\n", err);
 		ret = ERR_PTR(err);

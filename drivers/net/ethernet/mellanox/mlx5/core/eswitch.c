@@ -897,7 +897,7 @@ static void esw_vport_change_handle_locked(struct mlx5_vport *vport)
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	u8 mac[ETH_ALEN];
 
-	mlx5_query_nic_vport_mac_address(dev, vport->vport, mac);
+	mlx5_query_nic_vport_mac_address(dev, vport->vport, true, mac);
 	esw_debug(dev, "vport[%d] Context Changed: perm mac: %pM\n",
 		  vport->vport, mac);
 
