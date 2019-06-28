@@ -468,7 +468,6 @@ struct mlx5_vf_context {
 struct mlx5_core_sriov {
 	struct mlx5_vf_context	*vfs_ctx;
 	int			num_vfs;
-	int			enabled_vfs;
 	u16			max_vfs;
 };
 
