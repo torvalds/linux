@@ -2996,8 +2996,7 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 	enum port port = intel_dig_port->base.port;
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	u32 ln0, ln1, lane_info;
+	u32 ln0, ln1, lane_mask;
 
 	if (intel_dig_port->tc_mode == TC_PORT_TBT_ALT)
 		return;
@@ -3010,11 +3009,9 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 		ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 		ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 
-		lane_info = (I915_READ(PORT_TX_DFLEXDPSP) &
-			     DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
-			    DP_LANE_ASSIGNMENT_SHIFT(tc_port);
+		lane_mask = intel_tc_port_get_lane_mask(intel_dig_port);
 
-		switch (lane_info) {
+		switch (lane_mask) {
 		case 0x1:
 		case 0x4:
 			break;
@@ -3039,7 +3036,7 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 			       MG_DP_MODE_CFG_DP_X2_MODE;
 			break;
 		default:
-			MISSING_CASE(lane_info);
+			MISSING_CASE(lane_mask);
 		}
 		break;
 

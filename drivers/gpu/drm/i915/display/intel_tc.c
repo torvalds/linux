@@ -21,25 +21,34 @@ static const char *tc_port_mode_name(enum tc_port_mode mode)
 	return names[mode];
 }
 
-int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
+u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	u32 lane_mask;
+
+	lane_mask = I915_READ(PORT_TX_DFLEXDPSP);
+
+	return (lane_mask & DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
+	       DP_LANE_ASSIGNMENT_SHIFT(tc_port);
+}
+
+int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	intel_wakeref_t wakeref;
-	u32 lane_info;
+	u32 lane_mask;
 
 	if (dig_port->tc_mode != TC_PORT_DP_ALT)
 		return 4;
 
-	lane_info = 0;
+	lane_mask = 0;
 	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref)
-		lane_info = (I915_READ(PORT_TX_DFLEXDPSP) &
-			     DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
-				DP_LANE_ASSIGNMENT_SHIFT(tc_port);
+		lane_mask = intel_tc_port_get_lane_mask(dig_port);
 
-	switch (lane_info) {
+	switch (lane_mask) {
 	default:
-		MISSING_CASE(lane_info);
+		MISSING_CASE(lane_mask);
 	case 1:
 	case 2:
 	case 4:
@@ -51,6 +60,76 @@ int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 	case 15:
 		return 4;
 	}
+}
+
+static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
+				      u32 live_status_mask)
+{
+	u32 valid_hpd_mask;
+
+	if (dig_port->tc_legacy_port)
+		valid_hpd_mask = BIT(TC_PORT_LEGACY);
+	else
+		valid_hpd_mask = BIT(TC_PORT_DP_ALT) |
+				 BIT(TC_PORT_TBT_ALT);
+
+	if (!(live_status_mask & ~valid_hpd_mask))
+		return;
+
+	/* If live status mismatches the VBT flag, trust the live status. */
+	DRM_ERROR("Port %s: live status %08x mismatches the legacy port flag, fix flag\n",
+		  dig_port->tc_port_name, live_status_mask);
+
+	dig_port->tc_legacy_port = !dig_port->tc_legacy_port;
+}
+
+static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	u32 mask = 0;
+	u32 val;
+
+	val = I915_READ(PORT_TX_DFLEXDPSP);
+
+	if (val & TC_LIVE_STATE_TBT(tc_port))
+		mask |= BIT(TC_PORT_TBT_ALT);
+	if (val & TC_LIVE_STATE_TC(tc_port))
+		mask |= BIT(TC_PORT_DP_ALT);
+
+	if (I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port))
+		mask |= BIT(TC_PORT_LEGACY);
+
+	/* The sink can be connected only in a single mode. */
+	if (!WARN_ON(hweight32(mask) > 1))
+		tc_port_fixup_legacy_flag(dig_port, mask);
+
+	return mask;
+}
+
+static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+
+	return I915_READ(PORT_TX_DFLEXDPPMS) &
+	       DP_PHY_MODE_STATUS_COMPLETED(tc_port);
+}
+
+static void icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
+				     bool enable)
+{
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	u32 val;
+
+	val = I915_READ(PORT_TX_DFLEXDPCSSS);
+
+	val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
+	if (!enable)
+		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
+
+	I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
 }
 
 /*
@@ -76,38 +155,31 @@ int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
  */
 static bool icl_tc_phy_connect(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
-	u32 val;
+	u32 live_status_mask;
 
 	if (dig_port->tc_mode != TC_PORT_LEGACY &&
 	    dig_port->tc_mode != TC_PORT_DP_ALT)
 		return true;
 
-	val = I915_READ(PORT_TX_DFLEXDPPMS);
-	if (!(val & DP_PHY_MODE_STATUS_COMPLETED(tc_port))) {
+	if (!icl_tc_phy_status_complete(dig_port)) {
 		DRM_DEBUG_KMS("Port %s: PHY not ready\n",
 			      dig_port->tc_port_name);
 		WARN_ON(dig_port->tc_legacy_port);
 		return false;
 	}
 
-	/*
-	 * This function may be called many times in a row without an HPD event
-	 * in between, so try to avoid the write when we can.
-	 */
-	val = I915_READ(PORT_TX_DFLEXDPCSSS);
-	if (!(val & DP_PHY_MODE_STATUS_NOT_SAFE(tc_port))) {
-		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
-		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
-	}
+	icl_tc_phy_set_safe_mode(dig_port, false);
+
+	if (dig_port->tc_mode == TC_PORT_LEGACY)
+		return true;
+
+	live_status_mask = tc_port_live_status_mask(dig_port);
 
 	/*
 	 * Now we have to re-check the live state, in case the port recently
 	 * became disconnected. Not necessary for legacy mode.
 	 */
-	if (dig_port->tc_mode == TC_PORT_DP_ALT &&
-	    !(I915_READ(PORT_TX_DFLEXDPSP) & TC_LIVE_STATE_TC(tc_port))) {
+	if (!(live_status_mask & BIT(TC_PORT_DP_ALT))) {
 		DRM_DEBUG_KMS("Port %s: PHY sudden disconnect\n",
 			      dig_port->tc_port_name);
 		icl_tc_phy_disconnect(dig_port);
@@ -123,45 +195,34 @@ static bool icl_tc_phy_connect(struct intel_digital_port *dig_port)
  */
 void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
-
-	/*
-	 * TBT disconnection flow is read the live status, what was done in
-	 * caller.
-	 */
-	if (dig_port->tc_mode == TC_PORT_DP_ALT ||
-	    dig_port->tc_mode == TC_PORT_LEGACY) {
-		u32 val;
-
-		val = I915_READ(PORT_TX_DFLEXDPCSSS);
-		val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
-		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
+	switch (dig_port->tc_mode) {
+	case TC_PORT_LEGACY:
+	case TC_PORT_DP_ALT:
+		icl_tc_phy_set_safe_mode(dig_port, true);
+		dig_port->tc_mode = TC_PORT_TBT_ALT;
+		break;
+	case TC_PORT_TBT_ALT:
+		/* Nothing to do, we stay in TBT-alt mode */
+		break;
+	default:
+		MISSING_CASE(dig_port->tc_mode);
 	}
 
 	DRM_DEBUG_KMS("Port %s: mode %s disconnected\n",
 		      dig_port->tc_port_name,
 		      tc_port_mode_name(dig_port->tc_mode));
-
-	dig_port->tc_mode = TC_PORT_TBT_ALT;
 }
 
 static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 				    struct intel_digital_port *intel_dig_port,
-				    bool is_legacy, bool is_typec, bool is_tbt)
+				    u32 live_status_mask)
 {
 	enum tc_port_mode old_mode = intel_dig_port->tc_mode;
 
-	WARN_ON(is_legacy + is_typec + is_tbt != 1);
-
-	if (is_legacy)
-		intel_dig_port->tc_mode = TC_PORT_LEGACY;
-	else if (is_typec)
-		intel_dig_port->tc_mode = TC_PORT_DP_ALT;
-	else if (is_tbt)
-		intel_dig_port->tc_mode = TC_PORT_TBT_ALT;
-	else
+	if (!live_status_mask)
 		return;
+
+	intel_dig_port->tc_mode = fls(live_status_mask) - 1;
 
 	if (old_mode != intel_dig_port->tc_mode)
 		DRM_DEBUG_KMS("Port %s: port has mode %s\n",
@@ -182,40 +243,19 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 bool intel_tc_port_connected(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	bool is_legacy, is_typec, is_tbt;
-	u32 dpsp;
-
-	/*
-	 * Complain if we got a legacy port HPD, but VBT didn't mark the port as
-	 * legacy. Treat the port as legacy from now on.
-	 */
-	if (!dig_port->tc_legacy_port &&
-	    I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port)) {
-		DRM_ERROR("Port %s: VBT incorrectly claims port is not TypeC legacy\n",
-			  dig_port->tc_port_name);
-		dig_port->tc_legacy_port = true;
-	}
-	is_legacy = dig_port->tc_legacy_port;
+	u32 live_status_mask = tc_port_live_status_mask(dig_port);
 
 	/*
 	 * The spec says we shouldn't be using the ISR bits for detecting
 	 * between TC and TBT. We should use DFLEXDPSP.
 	 */
-	dpsp = I915_READ(PORT_TX_DFLEXDPSP);
-	is_typec = dpsp & TC_LIVE_STATE_TC(tc_port);
-	is_tbt = dpsp & TC_LIVE_STATE_TBT(tc_port);
-
-	if (!is_legacy && !is_typec && !is_tbt) {
+	if (!live_status_mask && !dig_port->tc_legacy_port) {
 		icl_tc_phy_disconnect(dig_port);
 
 		return false;
 	}
 
-	icl_update_tc_port_type(dev_priv, dig_port, is_legacy, is_typec,
-				is_tbt);
-
+	icl_update_tc_port_type(dev_priv, dig_port, live_status_mask);
 	if (!icl_tc_phy_connect(dig_port))
 		return false;
 
