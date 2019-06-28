@@ -325,8 +325,11 @@ STORE(__cached_dev)
 		bch_cache_accounting_clear(&dc->accounting);
 
 	if (attr == &sysfs_running &&
-	    strtoul_or_return(buf))
-		bch_cached_dev_run(dc);
+	    strtoul_or_return(buf)) {
+		v = bch_cached_dev_run(dc);
+		if (v)
+			return v;
+	}
 
 	if (attr == &sysfs_cache_mode) {
 		v = sysfs_match_string(bch_cache_modes, buf);
