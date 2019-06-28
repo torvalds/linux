@@ -29,6 +29,8 @@ u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 
 	lane_mask = I915_READ(PORT_TX_DFLEXDPSP);
 
+	WARN_ON(lane_mask == 0xffffffff);
+
 	return (lane_mask & DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
 	       DP_LANE_ASSIGNMENT_SHIFT(tc_port);
 }
@@ -92,6 +94,12 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 
 	val = I915_READ(PORT_TX_DFLEXDPSP);
 
+	if (val == 0xffffffff) {
+		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, nothing connected\n",
+			      dig_port->tc_port_name);
+		return mask;
+	}
+
 	if (val & TC_LIVE_STATE_TBT(tc_port))
 		mask |= BIT(TC_PORT_TBT_ALT);
 	if (val & TC_LIVE_STATE_TC(tc_port))
@@ -111,12 +119,19 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	u32 val;
 
-	return I915_READ(PORT_TX_DFLEXDPPMS) &
-	       DP_PHY_MODE_STATUS_COMPLETED(tc_port);
+	val = I915_READ(PORT_TX_DFLEXDPPMS);
+	if (val == 0xffffffff) {
+		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assuming not complete\n",
+			      dig_port->tc_port_name);
+		return false;
+	}
+
+	return val & DP_PHY_MODE_STATUS_COMPLETED(tc_port);
 }
 
-static void icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
+static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 				     bool enable)
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
@@ -124,6 +139,13 @@ static void icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	u32 val;
 
 	val = I915_READ(PORT_TX_DFLEXDPCSSS);
+	if (val == 0xffffffff) {
+		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, can't set safe-mode to %s\n",
+			      dig_port->tc_port_name,
+			      enableddisabled(enable));
+
+		return false;
+	}
 
 	val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
 	if (!enable)
@@ -134,6 +156,8 @@ static void icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	if (enable && wait_for(!icl_tc_phy_status_complete(dig_port), 10))
 		DRM_DEBUG_KMS("Port %s: PHY complete clear timed out\n",
 			      dig_port->tc_port_name);
+
+	return true;
 }
 
 /*
@@ -172,7 +196,8 @@ static bool icl_tc_phy_connect(struct intel_digital_port *dig_port)
 		return false;
 	}
 
-	icl_tc_phy_set_safe_mode(dig_port, false);
+	if (!icl_tc_phy_set_safe_mode(dig_port, false))
+		return false;
 
 	if (dig_port->tc_mode == TC_PORT_LEGACY)
 		return true;
