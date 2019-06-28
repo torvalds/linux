@@ -1189,10 +1189,8 @@ static int s3c_fb_probe_win(struct s3c_fb *sfb, unsigned int win_no,
 
 	fbinfo = framebuffer_alloc(sizeof(struct s3c_fb_win) +
 				   palette_size * sizeof(u32), sfb->dev);
-	if (!fbinfo) {
-		dev_err(sfb->dev, "failed to allocate framebuffer\n");
+	if (!fbinfo)
 		return -ENOMEM;
-	}
 
 	windata = sfb->pdata->win[win_no];
 	initmode = *sfb->pdata->vtiming;

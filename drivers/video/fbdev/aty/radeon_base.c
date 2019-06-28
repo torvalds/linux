@@ -2294,8 +2294,6 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct radeonfb_info), &pdev->dev);
 	if (!info) {
-		printk (KERN_ERR "radeonfb (%s): could not allocate memory\n",
-			pci_name(pdev));
 		ret = -ENOMEM;
 		goto err_disable;
 	}

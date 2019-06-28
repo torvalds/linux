@@ -366,7 +366,6 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 
 	p = framebuffer_alloc(0, &dp->dev);
 	if (p == NULL) {
-		dev_err(&dp->dev, "Cannot allocate framebuffer structure\n");
 		rc = -ENOMEM;
 		goto err_disable;
 	}

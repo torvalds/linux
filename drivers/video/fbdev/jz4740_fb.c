@@ -528,10 +528,8 @@ static int jzfb_probe(struct platform_device *pdev)
 	}
 
 	fb = framebuffer_alloc(sizeof(struct jzfb), &pdev->dev);
-	if (!fb) {
-		dev_err(&pdev->dev, "Failed to allocate framebuffer device\n");
+	if (!fb)
 		return -ENOMEM;
-	}
 
 	fb->fbops = &jzfb_ops;
 	fb->flags = FBINFO_DEFAULT;

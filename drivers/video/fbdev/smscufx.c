@@ -1650,10 +1650,8 @@ static int ufx_usb_probe(struct usb_interface *interface,
 
 	/* allocates framebuffer driver structure, not framebuffer memory */
 	info = framebuffer_alloc(0, &usbdev->dev);
-	if (!info) {
-		dev_err(dev->gdev, "framebuffer_alloc failed\n");
+	if (!info)
 		goto e_nomem;
-	}
 
 	dev->info = info;
 	info->par = dev;

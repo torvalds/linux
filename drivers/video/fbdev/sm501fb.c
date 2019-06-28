@@ -1868,10 +1868,8 @@ static int sm501fb_probe_one(struct sm501fb_info *info,
 	}
 
 	fbi = framebuffer_alloc(sizeof(struct sm501fb_par), info->dev);
-	if (fbi == NULL) {
-		dev_err(info->dev, "cannot allocate %s framebuffer\n", name);
+	if (!fbi)
 		return -ENOMEM;
-	}
 
 	par = fbi->par;
 	par->info = info;

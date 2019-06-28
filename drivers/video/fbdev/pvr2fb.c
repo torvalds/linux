@@ -1072,12 +1072,8 @@ static int __init pvr2fb_init(void)
 #endif
 
 	fb_info = framebuffer_alloc(sizeof(struct pvr2fb_par), NULL);
-
-	if (!fb_info) {
-		printk(KERN_ERR "Failed to allocate memory for fb_info\n");
+	if (!fb_info)
 		return -ENOMEM;
-	}
-
 
 	currentpar = fb_info->par;
 

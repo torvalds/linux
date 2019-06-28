@@ -1502,8 +1502,6 @@ static int planes_init(struct omapfb_device *fbdev)
 		fbi = framebuffer_alloc(sizeof(struct omapfb_plane_struct),
 					fbdev->dev);
 		if (fbi == NULL) {
-			dev_err(fbdev->dev,
-				"unable to allocate memory for plane info\n");
 			planes_cleanup(fbdev);
 			return -ENOMEM;
 		}

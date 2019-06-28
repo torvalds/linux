@@ -1742,10 +1742,8 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 	viafbinfo = framebuffer_alloc(viafb_par_length +
 		ALIGN(sizeof(struct viafb_shared), BITS_PER_LONG/8),
 		&vdev->pdev->dev);
-	if (!viafbinfo) {
-		printk(KERN_ERR"Could not allocate memory for viafb_info.\n");
+	if (!viafbinfo)
 		return -ENOMEM;
-	}
 
 	viaparinfo = (struct viafb_par *)viafbinfo->par;
 	viaparinfo->shared = viafbinfo->par + viafb_par_length;
@@ -1820,8 +1818,6 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 		viafbinfo1 = framebuffer_alloc(viafb_par_length,
 				&vdev->pdev->dev);
 		if (!viafbinfo1) {
-			printk(KERN_ERR
-			"allocate the second framebuffer struct error\n");
 			rc = -ENOMEM;
 			goto out_fb_release;
 		}

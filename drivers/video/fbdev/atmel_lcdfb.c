@@ -1053,10 +1053,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 
 	ret = -ENOMEM;
 	info = framebuffer_alloc(sizeof(struct atmel_lcdfb_info), dev);
-	if (!info) {
-		dev_err(dev, "cannot allocate memory\n");
+	if (!info)
 		goto out;
-	}
 
 	sinfo = info->par;
 	sinfo->pdev = pdev;
