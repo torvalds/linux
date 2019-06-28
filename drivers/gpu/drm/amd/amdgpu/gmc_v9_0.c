@@ -645,6 +645,7 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
+	case CHIP_ARCTURUS:
 		return true;
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
@@ -945,7 +946,7 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 
 static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 {
-	u32 d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
+	u32 d1vga_control;
 	unsigned size;
 
 	/*
@@ -955,6 +956,7 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	if (gmc_v9_0_keep_stolen_memory(adev))
 		return 9 * 1024 * 1024;
 
+	d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
 	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
 		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
 	} else {
