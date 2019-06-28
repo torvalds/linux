@@ -158,8 +158,8 @@ static const int ov5640_framerates[] = {
 /* regulator supplies */
 static const char * const ov5640_supply_name[] = {
 	"DOVDD", /* Digital I/O (1.8V) supply */
-	"DVDD",  /* Digital Core (1.5V) supply */
 	"AVDD",  /* Analog (2.8V) supply */
+	"DVDD",  /* Digital Core (1.5V) supply */
 };
 
 #define OV5640_NUM_SUPPLIES ARRAY_SIZE(ov5640_supply_name)
