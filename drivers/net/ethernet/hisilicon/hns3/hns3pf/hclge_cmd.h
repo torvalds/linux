@@ -884,7 +884,7 @@ struct hclge_serdes_lb_cmd {
 #define HCLGE_TOTAL_PKT_BUF		0x108000 /* 1.03125M bytes */
 #define HCLGE_DEFAULT_DV		0xA000	 /* 40k byte */
 #define HCLGE_DEFAULT_NON_DCB_DV	0x7800	/* 30K byte */
-#define HCLGE_NON_DCB_ADDITIONAL_BUF	0x200	/* 512 byte */
+#define HCLGE_NON_DCB_ADDITIONAL_BUF	0x1400	/* 5120 byte */
 
 #define HCLGE_TYPE_CRQ			0
 #define HCLGE_TYPE_CSQ			1

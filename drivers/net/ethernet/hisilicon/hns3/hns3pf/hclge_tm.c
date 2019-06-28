@@ -58,7 +58,8 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 	u32 tick;
 
 	/* Calc tick */
-	if (shaper_level >= HCLGE_SHAPER_LVL_CNT)
+	if (shaper_level >= HCLGE_SHAPER_LVL_CNT ||
+	    ir > HCLGE_ETHER_MAX_RATE)
 		return -EINVAL;
 
 	tick = tick_array[shaper_level];
@@ -597,8 +598,10 @@ static void hclge_tm_tc_info_init(struct hclge_dev *hdev)
 		hdev->tm_info.prio_tc[i] =
 			(i >= hdev->tm_info.num_tc) ? 0 : i;
 
-	/* DCB is enabled if we have more than 1 TC */
-	if (hdev->tm_info.num_tc > 1)
+	/* DCB is enabled if we have more than 1 TC or pfc_en is
+	 * non-zero.
+	 */
+	if (hdev->tm_info.num_tc > 1 || hdev->tm_info.pfc_en)
 		hdev->flag |= HCLGE_FLAG_DCB_ENABLE;
 	else
 		hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
@@ -1136,6 +1139,9 @@ static int hclge_tm_schd_mode_vnet_base_cfg(struct hclge_vport *vport)
 	int ret;
 	u8 i;
 
+	if (vport->vport_id >= HNAE3_MAX_TC)
+		return -EINVAL;
+
 	ret = hclge_tm_pri_schd_mode_cfg(hdev, vport->vport_id);
 	if (ret)
 		return ret;
@@ -1386,6 +1392,19 @@ void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 	hdev->hw_tc_map = bit_map;
 
 	hclge_tm_schd_info_init(hdev);
+}
+
+void hclge_tm_pfc_info_update(struct hclge_dev *hdev)
+{
+	/* DCB is enabled if we have more than 1 TC or pfc_en is
+	 * non-zero.
+	 */
+	if (hdev->tm_info.num_tc > 1 || hdev->tm_info.pfc_en)
+		hdev->flag |= HCLGE_FLAG_DCB_ENABLE;
+	else
+		hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
+
+	hclge_pfc_info_init(hdev);
 }
 
 int hclge_tm_init_hw(struct hclge_dev *hdev, bool init)

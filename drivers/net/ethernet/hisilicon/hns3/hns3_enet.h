@@ -384,7 +384,6 @@ struct ring_stats {
 			u64 rx_err_cnt;
 			u64 reuse_pg_cnt;
 			u64 err_pkt_len;
-			u64 non_vld_descs;
 			u64 err_bd_num;
 			u64 l2_err;
 			u64 l3l4_csum_err;
@@ -444,25 +443,6 @@ enum hns3_flow_level_range {
 	HNS3_FLOW_MID = 1,
 	HNS3_FLOW_HIGH = 2,
 	HNS3_FLOW_ULTRA = 3,
-};
-
-enum hns3_link_mode_bits {
-	HNS3_LM_FIBRE_BIT = BIT(0),
-	HNS3_LM_AUTONEG_BIT = BIT(1),
-	HNS3_LM_TP_BIT = BIT(2),
-	HNS3_LM_PAUSE_BIT = BIT(3),
-	HNS3_LM_BACKPLANE_BIT = BIT(4),
-	HNS3_LM_10BASET_HALF_BIT = BIT(5),
-	HNS3_LM_10BASET_FULL_BIT = BIT(6),
-	HNS3_LM_100BASET_HALF_BIT = BIT(7),
-	HNS3_LM_100BASET_FULL_BIT = BIT(8),
-	HNS3_LM_1000BASET_FULL_BIT = BIT(9),
-	HNS3_LM_10000BASEKR_FULL_BIT = BIT(10),
-	HNS3_LM_25000BASEKR_FULL_BIT = BIT(11),
-	HNS3_LM_40000BASELR4_FULL_BIT = BIT(12),
-	HNS3_LM_50000BASEKR2_FULL_BIT = BIT(13),
-	HNS3_LM_100000BASEKR4_FULL_BIT = BIT(14),
-	HNS3_LM_COUNT = 15
 };
 
 #define HNS3_INT_GL_MAX			0x1FE0

@@ -28,8 +28,7 @@
 #define hns3_set_field(origin, shift, val)	((origin) |= ((val) << (shift)))
 #define hns3_tx_bd_count(S)	DIV_ROUND_UP(S, HNS3_MAX_BD_SIZE)
 
-static void hns3_clear_all_ring(struct hnae3_handle *h);
-static void hns3_force_clear_all_ring(struct hnae3_handle *h);
+static void hns3_clear_all_ring(struct hnae3_handle *h, bool force);
 static void hns3_remove_hw_addr(struct net_device *netdev);
 
 static const char hns3_driver_name[] = "hns3";
@@ -463,6 +462,20 @@ static int hns3_nic_net_open(struct net_device *netdev)
 	return 0;
 }
 
+static void hns3_reset_tx_queue(struct hnae3_handle *h)
+{
+	struct net_device *ndev = h->kinfo.netdev;
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct netdev_queue *dev_queue;
+	u32 i;
+
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		dev_queue = netdev_get_tx_queue(ndev,
+						priv->ring_data[i].queue_index);
+		netdev_tx_reset_queue(dev_queue);
+	}
+}
+
 static void hns3_nic_net_down(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -493,7 +506,9 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	 * to disable the ring through firmware when downing the netdev.
 	 */
 	if (!hns3_nic_resetting(netdev))
-		hns3_clear_all_ring(priv->ae_handle);
+		hns3_clear_all_ring(priv->ae_handle, false);
+
+	hns3_reset_tx_queue(priv->ae_handle);
 }
 
 static int hns3_nic_net_stop(struct net_device *netdev)
@@ -1475,12 +1490,10 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			rx_bytes += ring->stats.rx_bytes;
 			rx_pkts += ring->stats.rx_pkts;
-			rx_drop += ring->stats.non_vld_descs;
 			rx_drop += ring->stats.l2_err;
-			rx_errors += ring->stats.non_vld_descs;
 			rx_errors += ring->stats.l2_err;
+			rx_errors += ring->stats.l3l4_csum_err;
 			rx_crc_errors += ring->stats.l2_err;
-			rx_crc_errors += ring->stats.l3l4_csum_err;
 			rx_multicast += ring->stats.rx_multicast;
 			rx_length_errors += ring->stats.err_pkt_len;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
@@ -2754,14 +2767,6 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 					       vlan_tag);
 	}
 
-	if (unlikely(!(bd_base_info & BIT(HNS3_RXD_VLD_B)))) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.non_vld_descs++;
-		u64_stats_update_end(&ring->syncp);
-
-		return -EINVAL;
-	}
-
 	if (unlikely(!desc->rx.pkt_len || (l234info & (BIT(HNS3_RXD_TRUNCAT_B) |
 				  BIT(HNS3_RXD_L2E_B))))) {
 		u64_stats_update_begin(&ring->syncp);
@@ -3921,7 +3926,7 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_del_all_fd_rules(netdev, true);
 
-	hns3_force_clear_all_ring(handle);
+	hns3_clear_all_ring(handle, true);
 
 	hns3_nic_uninit_vector_data(priv);
 
@@ -4090,43 +4095,26 @@ static void hns3_force_clear_rx_ring(struct hns3_enet_ring *ring)
 	}
 }
 
-static void hns3_force_clear_all_ring(struct hnae3_handle *h)
-{
-	struct net_device *ndev = h->kinfo.netdev;
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hns3_enet_ring *ring;
-	u32 i;
-
-	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		ring = priv->ring_data[i].ring;
-		hns3_clear_tx_ring(ring);
-
-		ring = priv->ring_data[i + h->kinfo.num_tqps].ring;
-		hns3_force_clear_rx_ring(ring);
-	}
-}
-
-static void hns3_clear_all_ring(struct hnae3_handle *h)
+static void hns3_clear_all_ring(struct hnae3_handle *h, bool force)
 {
 	struct net_device *ndev = h->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	u32 i;
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		struct netdev_queue *dev_queue;
 		struct hns3_enet_ring *ring;
 
 		ring = priv->ring_data[i].ring;
 		hns3_clear_tx_ring(ring);
-		dev_queue = netdev_get_tx_queue(ndev,
-						priv->ring_data[i].queue_index);
-		netdev_tx_reset_queue(dev_queue);
 
 		ring = priv->ring_data[i + h->kinfo.num_tqps].ring;
 		/* Continue to clear other rings even if clearing some
 		 * rings failed.
 		 */
-		hns3_clear_rx_ring(ring);
+		if (force)
+			hns3_force_clear_rx_ring(ring);
+		else
+			hns3_clear_rx_ring(ring);
 	}
 }
 
@@ -4331,8 +4319,8 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 		return 0;
 	}
 
-	hns3_clear_all_ring(handle);
-	hns3_force_clear_all_ring(handle);
+	hns3_clear_all_ring(handle, true);
+	hns3_reset_tx_queue(priv->ae_handle);
 
 	hns3_nic_uninit_vector_data(priv);
 

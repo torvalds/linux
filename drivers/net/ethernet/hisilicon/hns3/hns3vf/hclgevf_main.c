@@ -11,6 +11,8 @@
 
 #define HCLGEVF_NAME	"hclgevf"
 
+#define HCLGEVF_RESET_MAX_FAIL_CNT	5
+
 static int hclgevf_reset_hdev(struct hclgevf_dev *hdev);
 static struct hnae3_ae_algo ae_algovf;
 
@@ -1481,6 +1483,24 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	return ret;
 }
 
+static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
+{
+	hdev->rst_stats.rst_fail_cnt++;
+	dev_err(&hdev->pdev->dev, "failed to reset VF(%d)\n",
+		hdev->rst_stats.rst_fail_cnt);
+
+	if (hdev->rst_stats.rst_fail_cnt < HCLGEVF_RESET_MAX_FAIL_CNT)
+		set_bit(hdev->reset_type, &hdev->reset_pending);
+
+	if (hclgevf_is_reset_pending(hdev)) {
+		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
+		hclgevf_reset_task_schedule(hdev);
+	} else {
+		hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG,
+				  HCLGEVF_NIC_CMQ_ENABLE);
+	}
+}
+
 static int hclgevf_reset(struct hclgevf_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
@@ -1537,19 +1557,13 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	hdev->last_reset_time = jiffies;
 	ae_dev->reset_type = HNAE3_NONE_RESET;
 	hdev->rst_stats.rst_done_cnt++;
+	hdev->rst_stats.rst_fail_cnt = 0;
 
 	return ret;
 err_reset_lock:
 	rtnl_unlock();
 err_reset:
-	/* When VF reset failed, only the higher level reset asserted by PF
-	 * can restore it, so re-initialize the command queue to receive
-	 * this higher reset event.
-	 */
-	hclgevf_cmd_init(hdev);
-	dev_err(&hdev->pdev->dev, "failed to reset VF\n");
-	if (hclgevf_is_reset_pending(hdev))
-		hclgevf_reset_task_schedule(hdev);
+	hclgevf_reset_err_handle(hdev);
 
 	return ret;
 }
