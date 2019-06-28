@@ -1727,10 +1727,10 @@ int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u32 *out, int outlen)
 
 static void mlx5_eswitch_event_handlers_register(struct mlx5_eswitch *esw)
 {
-	if (esw->mode == MLX5_ESWITCH_LEGACY) {
-		MLX5_NB_INIT(&esw->nb, eswitch_vport_event, NIC_VPORT_CHANGE);
-		mlx5_eq_notifier_register(esw->dev, &esw->nb);
-	} else if (mlx5_eswitch_is_funcs_handler(esw->dev)) {
+	MLX5_NB_INIT(&esw->nb, eswitch_vport_event, NIC_VPORT_CHANGE);
+	mlx5_eq_notifier_register(esw->dev, &esw->nb);
+
+	if (esw->mode == MLX5_ESWITCH_OFFLOADS && mlx5_eswitch_is_funcs_handler(esw->dev)) {
 		MLX5_NB_INIT(&esw->esw_funcs.nb, mlx5_esw_funcs_changed_handler,
 			     ESW_FUNCTIONS_CHANGED);
 		mlx5_eq_notifier_register(esw->dev, &esw->esw_funcs.nb);
@@ -1739,10 +1739,10 @@ static void mlx5_eswitch_event_handlers_register(struct mlx5_eswitch *esw)
 
 static void mlx5_eswitch_event_handlers_unregister(struct mlx5_eswitch *esw)
 {
-	if (esw->mode == MLX5_ESWITCH_LEGACY)
-		mlx5_eq_notifier_unregister(esw->dev, &esw->nb);
-	else if (mlx5_eswitch_is_funcs_handler(esw->dev))
+	if (esw->mode == MLX5_ESWITCH_OFFLOADS && mlx5_eswitch_is_funcs_handler(esw->dev))
 		mlx5_eq_notifier_unregister(esw->dev, &esw->esw_funcs.nb);
+
+	mlx5_eq_notifier_unregister(esw->dev, &esw->nb);
 
 	flush_workqueue(esw->work_queue);
 }
@@ -1789,11 +1789,8 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 	if (err)
 		esw_warn(esw->dev, "Failed to create eswitch TSAR");
 
-	/* Don't enable vport events when in MLX5_ESWITCH_OFFLOADS mode, since:
-	 * 1. L2 table (MPFS) is programmed by PF/VF representors netdevs set_rx_mode
-	 * 2. FDB/Eswitch is programmed by user space tools
-	 */
-	enabled_events = (mode == MLX5_ESWITCH_LEGACY) ? SRIOV_VPORT_EVENTS : 0;
+	enabled_events = (mode == MLX5_ESWITCH_LEGACY) ? SRIOV_VPORT_EVENTS :
+		UC_ADDR_CHANGE;
 
 	/* Enable PF vport */
 	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
