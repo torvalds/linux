@@ -287,14 +287,14 @@ struct drm_i915_display_funcs {
 			  enum pipe pipe);
 	int (*get_fifo_size)(struct drm_i915_private *dev_priv,
 			     enum i9xx_plane_id i9xx_plane);
-	int (*compute_pipe_wm)(struct intel_crtc_state *cstate);
-	int (*compute_intermediate_wm)(struct intel_crtc_state *newstate);
+	int (*compute_pipe_wm)(struct intel_crtc_state *crtc_state);
+	int (*compute_intermediate_wm)(struct intel_crtc_state *crtc_state);
 	void (*initial_watermarks)(struct intel_atomic_state *state,
-				   struct intel_crtc_state *cstate);
+				   struct intel_crtc_state *crtc_state);
 	void (*atomic_update_watermarks)(struct intel_atomic_state *state,
-					 struct intel_crtc_state *cstate);
+					 struct intel_crtc_state *crtc_state);
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
-				    struct intel_crtc_state *cstate);
+				    struct intel_crtc_state *crtc_state);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
 	void (*update_wm)(struct intel_crtc *crtc);
 	int (*modeset_calc_cdclk)(struct intel_atomic_state *state);
@@ -1646,7 +1646,7 @@ struct drm_i915_private {
 		/*
 		 * Should be held around atomic WM register writing; also
 		 * protects * intel_crtc->wm.active and
-		 * cstate->wm.need_postvbl_update.
+		 * crtc_state->wm.need_postvbl_update.
 		 */
 		struct mutex wm_mutex;
 
