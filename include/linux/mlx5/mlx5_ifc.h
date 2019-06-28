@@ -8542,7 +8542,7 @@ struct mlx5_ifc_mcam_access_reg_bits {
 	u8         mcda[0x1];
 	u8         mcc[0x1];
 	u8         mcqi[0x1];
-	u8         reserved_at_1f[0x1];
+	u8         mcqs[0x1];
 
 	u8         regs_95_to_87[0x9];
 	u8         mpegc[0x1];
@@ -9034,6 +9034,24 @@ struct mlx5_ifc_mtppse_reg_bits {
 	u8         reserved_at_40[0x40];
 };
 
+struct mlx5_ifc_mcqs_reg_bits {
+	u8         last_index_flag[0x1];
+	u8         reserved_at_1[0x7];
+	u8         fw_device[0x8];
+	u8         component_index[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         identifier[0x10];
+
+	u8         reserved_at_40[0x17];
+	u8         component_status[0x5];
+	u8         component_update_state[0x4];
+
+	u8         last_update_state_changer_type[0x4];
+	u8         last_update_state_changer_host_id[0x4];
+	u8         reserved_at_68[0x18];
+};
+
 struct mlx5_ifc_mcqi_cap_bits {
 	u8         supported_info_bitmask[0x20];
 
@@ -9054,6 +9072,43 @@ struct mlx5_ifc_mcqi_cap_bits {
 	u8         reserved_at_86[0x1a];
 };
 
+struct mlx5_ifc_mcqi_version_bits {
+	u8         reserved_at_0[0x2];
+	u8         build_time_valid[0x1];
+	u8         user_defined_time_valid[0x1];
+	u8         reserved_at_4[0x14];
+	u8         version_string_length[0x8];
+
+	u8         version[0x20];
+
+	u8         build_time[0x40];
+
+	u8         user_defined_time[0x40];
+
+	u8         build_tool_version[0x20];
+
+	u8         reserved_at_e0[0x20];
+
+	u8         version_string[92][0x8];
+};
+
+struct mlx5_ifc_mcqi_activation_method_bits {
+	u8         pending_server_ac_power_cycle[0x1];
+	u8         pending_server_dc_power_cycle[0x1];
+	u8         pending_server_reboot[0x1];
+	u8         pending_fw_reset[0x1];
+	u8         auto_activate[0x1];
+	u8         all_hosts_sync[0x1];
+	u8         device_hw_reset[0x1];
+	u8         reserved_at_7[0x19];
+};
+
+union mlx5_ifc_mcqi_reg_data_bits {
+	struct mlx5_ifc_mcqi_cap_bits               mcqi_caps;
+	struct mlx5_ifc_mcqi_version_bits           mcqi_version;
+	struct mlx5_ifc_mcqi_activation_method_bits mcqi_activation_mathod;
+};
+
 struct mlx5_ifc_mcqi_reg_bits {
 	u8         read_pending_component[0x1];
 	u8         reserved_at_1[0xf];
@@ -9071,7 +9126,7 @@ struct mlx5_ifc_mcqi_reg_bits {
 	u8         reserved_at_a0[0x10];
 	u8         data_size[0x10];
 
-	u8         data[0][0x20];
+	union mlx5_ifc_mcqi_reg_data_bits data[0];
 };
 
 struct mlx5_ifc_mcc_reg_bits {
