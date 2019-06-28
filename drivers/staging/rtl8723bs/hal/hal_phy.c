@@ -197,20 +197,3 @@ void PHY_RFShadowRecorverFlagSetAll(IN PADAPTER Adapter)
 	}
 
 }	/* PHY_RFShadowCompareFlagSetAll */
-
-void PHY_RFShadowRefresh(IN PADAPTER Adapter)
-{
-	u8 eRFPath = 0;
-	u32 Offset = 0, maxReg = GET_RF6052_REAL_MAX_REG(Adapter);
-
-	for (eRFPath = 0; eRFPath < RF6052_MAX_PATH; eRFPath++) {
-		for (Offset = 0; Offset < maxReg; Offset++) {
-			RF_Shadow[eRFPath][Offset].Value = 0;
-			RF_Shadow[eRFPath][Offset].Compare = false;
-			RF_Shadow[eRFPath][Offset].Recorver  = false;
-			RF_Shadow[eRFPath][Offset].ErrorOrNot = false;
-			RF_Shadow[eRFPath][Offset].Driver_Write = false;
-		}
-	}
-
-}	/* PHY_RFShadowRead */
