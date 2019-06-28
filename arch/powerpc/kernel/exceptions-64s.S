@@ -1638,10 +1638,8 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 	std	r10,PACA_EXGEN+EX_R10(r13)
 	INTERRUPT_TO_KERNEL
 	KVMTEST EXC_STD 0xc00 /* uses r10, branch to do_kvm_0xc00_system_call */
-	HMT_MEDIUM
 	mfctr	r9
 #else
-	HMT_MEDIUM
 	mr	r9,r13
 	GET_PACA(r13)
 	INTERRUPT_TO_KERNEL
@@ -1653,11 +1651,14 @@ BEGIN_FTR_SECTION
 	beq-	1f
 END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 #endif
-	/* We reach here with PACA in r13, r13 in r9, and HMT_MEDIUM. */
 
-	.if ! \virt
+	/* We reach here with PACA in r13, r13 in r9. */
 	mfspr	r11,SPRN_SRR0
 	mfspr	r12,SPRN_SRR1
+
+	HMT_MEDIUM
+
+	.if ! \virt
 	__LOAD_HANDLER(r10, system_call_common)
 	mtspr	SPRN_SRR0,r10
 	ld	r10,PACAKMSR(r13)
@@ -1665,24 +1666,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	RFI_TO_KERNEL
 	b	.	/* prevent speculative execution */
 	.else
-#ifdef CONFIG_RELOCATABLE
-	/*
-	 * We can't branch directly so we do it via the CTR which
-	 * is volatile across system calls.
-	 */
-	__LOAD_HANDLER(r10, system_call_common)
-	mtctr	r10
-	mfspr	r11,SPRN_SRR0
-	mfspr	r12,SPRN_SRR1
-	li	r10,MSR_RI
-	mtmsrd 	r10,1
-	bctr
-#else
-	/* We can branch directly */
-	mfspr	r11,SPRN_SRR0
-	mfspr	r12,SPRN_SRR1
 	li	r10,MSR_RI
 	mtmsrd 	r10,1			/* Set RI (EE=0) */
+#ifdef CONFIG_RELOCATABLE
+	__LOAD_HANDLER(r10, system_call_common)
+	mtctr	r10
+	bctr
+#else
 	b	system_call_common
 #endif
 	.endif
