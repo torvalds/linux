@@ -2026,6 +2026,7 @@ static void esw_functions_changed_event_handler(struct work_struct *work)
 	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {};
 	struct mlx5_host_work *host_work;
 	struct mlx5_eswitch *esw;
+	bool host_pf_disabled;
 	u16 num_vfs = 0;
 	int err;
 
@@ -2035,7 +2036,9 @@ static void esw_functions_changed_event_handler(struct work_struct *work)
 	err = mlx5_esw_query_functions(esw->dev, out, sizeof(out));
 	num_vfs = MLX5_GET(query_esw_functions_out, out,
 			   host_params_context.host_num_of_vfs);
-	if (err || num_vfs == esw->esw_funcs.num_vfs)
+	host_pf_disabled = MLX5_GET(query_esw_functions_out, out,
+				    host_params_context.host_pf_disabled);
+	if (err || host_pf_disabled || num_vfs == esw->esw_funcs.num_vfs)
 		goto out;
 
 	/* Number of VFs can only change from "0 to x" or "x to 0". */

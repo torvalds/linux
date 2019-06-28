@@ -9823,7 +9823,8 @@ struct mlx5_ifc_mtrc_ctrl_bits {
 
 struct mlx5_ifc_host_params_context_bits {
 	u8         host_number[0x8];
-	u8         reserved_at_8[0x8];
+	u8         reserved_at_8[0x7];
+	u8         host_pf_disabled[0x1];
 	u8         host_num_of_vfs[0x10];
 
 	u8         host_total_vfs[0x10];
