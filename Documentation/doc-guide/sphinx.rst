@@ -241,11 +241,14 @@ The C domain of the kernel-doc has some additional features. E.g. you can
 
 The func-name (e.g. ioctl) remains in the output but the ref-name changed from
 ``ioctl`` to ``VIDIOC_LOG_STATUS``. The index entry for this function is also
-changed to ``VIDIOC_LOG_STATUS`` and the function can now referenced by:
+changed to ``VIDIOC_LOG_STATUS``.
 
-.. code-block:: rst
-
-     :c:func:`VIDIOC_LOG_STATUS`
+Please note that there is no need to use ``c:func:`` to generate cross
+references to function documentation.  Due to some Sphinx extension magic,
+the documentation build system will automatically turn a reference to
+``function()`` into a cross reference if an index entry for the given
+function name exists.  If you see ``c:func:`` use in a kernel document,
+please feel free to remove it.
 
 
 list tables
