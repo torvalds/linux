@@ -248,7 +248,7 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 
 	dev_dbg(adev->dev, "Set xgmi pstate %d.\n", pstate);
 
-	if (is_support_sw_smu(adev))
+	if (is_support_sw_smu_xgmi(adev))
 		ret = smu_set_xgmi_pstate(&adev->smu, pstate);
 	if (ret)
 		dev_err(adev->dev,
