@@ -30,6 +30,9 @@
 #define HCLGE_BUF_SIZE_UNIT	256U
 #define HCLGE_BUF_MUL_BY	2
 #define HCLGE_BUF_DIV_BY	2
+#define NEED_RESERVE_TC_NUM	2
+#define BUF_MAX_PERCENT		100
+#define BUF_RESERVE_PERCENT	90
 
 #define HCLGE_RESET_MAX_FAIL_CNT	5
 
@@ -1694,10 +1697,14 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 	}
 
 	if (hnae3_dev_dcb_supported(hdev)) {
+		hi_thrd = shared_buf - hdev->dv_buf_size;
+
+		if (tc_num <= NEED_RESERVE_TC_NUM)
+			hi_thrd = hi_thrd * BUF_RESERVE_PERCENT
+					/ BUF_MAX_PERCENT;
+
 		if (tc_num)
-			hi_thrd = (shared_buf - hdev->dv_buf_size) / tc_num;
-		else
-			hi_thrd = shared_buf - hdev->dv_buf_size;
+			hi_thrd = hi_thrd / tc_num;
 
 		hi_thrd = max_t(u32, hi_thrd, HCLGE_BUF_MUL_BY * aligned_mps);
 		hi_thrd = rounddown(hi_thrd, HCLGE_BUF_SIZE_UNIT);
@@ -1837,6 +1844,55 @@ static bool hclge_drop_pfc_buf_till_fit(struct hclge_dev *hdev,
 	return hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all);
 }
 
+static int hclge_only_alloc_priv_buff(struct hclge_dev *hdev,
+				      struct hclge_pkt_buf_alloc *buf_alloc)
+{
+#define COMPENSATE_BUFFER	0x3C00
+#define COMPENSATE_HALF_MPS_NUM	5
+#define PRIV_WL_GAP		0x1800
+
+	u32 rx_priv = hdev->pkt_buf_size - hclge_get_tx_buff_alloced(buf_alloc);
+	u32 tc_num = hclge_get_tc_num(hdev);
+	u32 half_mps = hdev->mps >> 1;
+	u32 min_rx_priv;
+	unsigned int i;
+
+	if (tc_num)
+		rx_priv = rx_priv / tc_num;
+
+	if (tc_num <= NEED_RESERVE_TC_NUM)
+		rx_priv = rx_priv * BUF_RESERVE_PERCENT / BUF_MAX_PERCENT;
+
+	min_rx_priv = hdev->dv_buf_size + COMPENSATE_BUFFER +
+			COMPENSATE_HALF_MPS_NUM * half_mps;
+	min_rx_priv = round_up(min_rx_priv, HCLGE_BUF_SIZE_UNIT);
+	rx_priv = round_down(rx_priv, HCLGE_BUF_SIZE_UNIT);
+
+	if (rx_priv < min_rx_priv)
+		return false;
+
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
+		struct hclge_priv_buf *priv = &buf_alloc->priv_buf[i];
+
+		priv->enable = 0;
+		priv->wl.low = 0;
+		priv->wl.high = 0;
+		priv->buf_size = 0;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		priv->enable = 1;
+		priv->buf_size = rx_priv;
+		priv->wl.high = rx_priv - hdev->dv_buf_size;
+		priv->wl.low = priv->wl.high - PRIV_WL_GAP;
+	}
+
+	buf_alloc->s_buf.buf_size = 0;
+
+	return true;
+}
+
 /* hclge_rx_buffer_calc: calculate the rx private buffer size for all TCs
  * @hdev: pointer to struct hclge_dev
  * @buf_alloc: pointer to buffer calculation data
@@ -1855,6 +1911,9 @@ static int hclge_rx_buffer_calc(struct hclge_dev *hdev,
 
 		return 0;
 	}
+
+	if (hclge_only_alloc_priv_buff(hdev, buf_alloc))
+		return 0;
 
 	if (hclge_rx_buf_calc_all(hdev, true, buf_alloc))
 		return 0;
