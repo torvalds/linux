@@ -799,7 +799,7 @@ iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
 	if (old_size < pos)
 		pagecache_isize_extended(inode, old_size, pos);
 	if (page_ops && page_ops->page_done)
-		page_ops->page_done(inode, pos, copied, page, iomap);
+		page_ops->page_done(inode, pos, ret, page, iomap);
 	put_page(page);
 
 	if (ret < len)
