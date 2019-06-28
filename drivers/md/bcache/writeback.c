@@ -738,6 +738,10 @@ static int bch_writeback_thread(void *arg)
 		}
 	}
 
+	if (dc->writeback_write_wq) {
+		flush_workqueue(dc->writeback_write_wq);
+		destroy_workqueue(dc->writeback_write_wq);
+	}
 	cached_dev_put(dc);
 	wait_for_kthread_stop();
 

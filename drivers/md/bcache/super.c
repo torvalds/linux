@@ -1236,8 +1236,6 @@ static void cached_dev_free(struct closure *cl)
 
 	if (!IS_ERR_OR_NULL(dc->writeback_thread))
 		kthread_stop(dc->writeback_thread);
-	if (dc->writeback_write_wq)
-		destroy_workqueue(dc->writeback_write_wq);
 	if (!IS_ERR_OR_NULL(dc->status_update_thread))
 		kthread_stop(dc->status_update_thread);
 
