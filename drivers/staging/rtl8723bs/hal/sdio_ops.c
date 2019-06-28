@@ -795,41 +795,6 @@ void InitSysInterrupt8723BSdio(struct adapter *adapter)
 							0);
 }
 
-#ifdef CONFIG_WOWLAN
-/*  */
-/* 	Description: */
-/* 		Clear corresponding SDIO Host ISR interrupt service. */
-/*  */
-/* 	Assumption: */
-/* 		Using SDIO Local register ONLY for configuration. */
-/*  */
-/* 	Created by Roger, 2011.02.11. */
-/*  */
-void clearinterrupt8723bsdio(struct adapter *adapter)
-{
-	struct hal_com_data *haldata;
-	u8 *clear;
-
-	if (adapter->bSurpriseRemoved)
-		return;
-
-	haldata = GET_HAL_DATA(adapter);
-	clear = rtw_zmalloc(4);
-
-	if (!clear)
-		return;
-
-	/*  Clear corresponding HISR Content if needed */
-	*(__le32 *)clear = cpu_to_le32(haldata->sdio_hisr & MASK_SDIO_HISR_CLEAR);
-	if (*(__le32 *)clear) {
-		/*  Perform write one clear operation */
-		sdio_local_write(padapter, SDIO_REG_HISR, 4, clear);
-	}
-
-	kfree(clear);
-}
-#endif
-
 /*  */
 /* 	Description: */
 /* 		Enalbe SDIO Host Interrupt Mask configuration on SDIO local domain. */
