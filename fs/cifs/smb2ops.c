@@ -2374,6 +2374,39 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 }
 
 static int
+parse_reparse_posix(struct reparse_posix_data *symlink_buf,
+		      u32 plen, char **target_path,
+		      struct cifs_sb_info *cifs_sb)
+{
+	unsigned int len;
+
+	/* See MS-FSCC 2.1.2.6 for the 'NFS' style reparse tags */
+	len = le16_to_cpu(symlink_buf->ReparseDataLength);
+
+	if (len + sizeof(struct reparse_data_buffer) > plen) {
+		cifs_dbg(VFS, "srv returned malformed symlink buffer\n");
+		return -EINVAL;
+	}
+
+	if (le64_to_cpu(symlink_buf->InodeType) != NFS_SPECFILE_LNK) {
+		cifs_dbg(VFS, "%lld not a supported symlink type\n",
+			le64_to_cpu(symlink_buf->InodeType));
+		return -EOPNOTSUPP;
+	}
+
+	*target_path = cifs_strndup_from_utf16(
+				symlink_buf->PathBuffer,
+				len, true, cifs_sb->local_nls);
+	if (!(*target_path))
+		return -ENOMEM;
+
+	convert_delimiter(*target_path, '/');
+	cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
+
+	return 0;
+}
+
+static int
 parse_reparse_symlink(struct reparse_symlink_data_buffer *symlink_buf,
 		      u32 plen, char **target_path,
 		      struct cifs_sb_info *cifs_sb)
@@ -2381,11 +2414,7 @@ parse_reparse_symlink(struct reparse_symlink_data_buffer *symlink_buf,
 	unsigned int sub_len;
 	unsigned int sub_offset;
 
-	/* We only handle Symbolic Link : MS-FSCC 2.1.2.4 */
-	if (le32_to_cpu(symlink_buf->ReparseTag) != IO_REPARSE_TAG_SYMLINK) {
-		cifs_dbg(VFS, "srv returned invalid symlink buffer\n");
-		return -EIO;
-	}
+	/* We handle Symbolic Link reparse tag here. See: MS-FSCC 2.1.2.4 */
 
 	sub_offset = le16_to_cpu(symlink_buf->SubstituteNameOffset);
 	sub_len = le16_to_cpu(symlink_buf->SubstituteNameLength);
@@ -2405,6 +2434,25 @@ parse_reparse_symlink(struct reparse_symlink_data_buffer *symlink_buf,
 	cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
 
 	return 0;
+}
+
+static int
+parse_reparse_point(struct reparse_symlink_data_buffer *buf,
+		      u32 plen, char **target_path,
+		      struct cifs_sb_info *cifs_sb)
+{
+	/* See MS-FSCC 2.1.2 */
+	if (le32_to_cpu(buf->ReparseTag) == IO_REPARSE_TAG_NFS)
+		return parse_reparse_posix((struct reparse_posix_data *)buf,
+			plen, target_path, cifs_sb);
+	else if (le32_to_cpu(buf->ReparseTag) == IO_REPARSE_TAG_SYMLINK)
+		return parse_reparse_symlink(buf, plen, target_path,
+					cifs_sb);
+
+	cifs_dbg(VFS, "srv returned invalid symlink buffer tag:%d\n",
+		le32_to_cpu(buf->ReparseTag));
+
+	return -EIO;
 }
 
 #define SMB2_SYMLINK_STRUCT_SIZE \
@@ -2547,7 +2595,7 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 			goto querty_exit;
 		}
 
-		rc = parse_reparse_symlink(
+		rc = parse_reparse_point(
 			(struct reparse_symlink_data_buffer *)reparse_buf,
 			plen, target_path, cifs_sb);
 		goto querty_exit;
