@@ -3946,30 +3946,11 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static void intel_ddi_encoder_suspend(struct intel_encoder *encoder)
-{
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
-
-	intel_dp_encoder_suspend(encoder);
-
-	/*
-	 * TODO: disconnect also from USB DP alternate mode once we have a
-	 * way to handle the modeset restore in that mode during resume
-	 * even if the sink has disappeared while being suspended.
-	 */
-	if (dig_port->tc_legacy_port)
-		icl_tc_phy_disconnect(dig_port);
-}
-
 static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->dev);
 
 	intel_dp_encoder_flush_work(encoder);
-
-	if (intel_port_is_tc(i915, dig_port->base.port))
-		icl_tc_phy_disconnect(dig_port);
 
 	drm_encoder_cleanup(encoder);
 	kfree(dig_port);
@@ -4262,7 +4243,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->update_pipe = intel_ddi_update_pipe;
 	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 	intel_encoder->get_config = intel_ddi_get_config;
-	intel_encoder->suspend = intel_ddi_encoder_suspend;
+	intel_encoder->suspend = intel_dp_encoder_suspend;
 	intel_encoder->get_power_domains = intel_ddi_get_power_domains;
 	intel_encoder->type = INTEL_OUTPUT_DDI;
 	intel_encoder->power_domain = intel_port_to_power_domain(port);

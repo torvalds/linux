@@ -243,10 +243,12 @@ out_set_tbt_alt_mode:
  * See the comment at the connect function. This implements the Disconnect
  * Flow.
  */
-void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
+static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 {
 	switch (dig_port->tc_mode) {
 	case TC_PORT_LEGACY:
+		/* Nothing to do, we never disconnect from legacy mode */
+		break;
 	case TC_PORT_DP_ALT:
 		icl_tc_phy_set_safe_mode(dig_port, true);
 		dig_port->tc_mode = TC_PORT_TBT_ALT;
