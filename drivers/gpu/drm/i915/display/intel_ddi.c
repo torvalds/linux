@@ -3604,6 +3604,8 @@ static void intel_ddi_set_fia_lane_count(struct intel_encoder *encoder,
 	u32 val = I915_READ(PORT_TX_DFLEXDPMLE1);
 	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
 
+	WARN_ON(lane_reversal && dig_port->tc_mode != TC_PORT_LEGACY);
+
 	val &= ~DFLEXDPMLE1_DPMLETC_MASK(tc_port);
 	switch (pipe_config->lane_count) {
 	case 1:
