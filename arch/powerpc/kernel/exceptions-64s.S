@@ -260,17 +260,6 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mtctr	reg;							\
 	bctr
 
-#ifdef CONFIG_RELOCATABLE
-#define BRANCH_LINK_TO_FAR(label)					\
-	__LOAD_FAR_HANDLER(r12, label);					\
-	mtctr	r12;							\
-	bctrl
-
-#else
-#define BRANCH_LINK_TO_FAR(label)					\
-	bl	label
-#endif
-
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 /*
@@ -1713,22 +1702,26 @@ EXC_REAL_BEGIN(hmi_exception, 0xe60, 0x20)
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	b	hmi_exception_early
 EXC_REAL_END(hmi_exception, 0xe60, 0x20)
-__TRAMP_REAL_OOL_MASKABLE_HV(hmi_exception, 0xe60, IRQS_DISABLED)
 EXC_VIRT_NONE(0x4e60, 0x20)
 TRAMP_KVM_HV(PACA_EXGEN, 0xe60)
 TRAMP_REAL_BEGIN(hmi_exception_early)
 	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, 0xe60, 0, 0, 0
+	mfctr	r10			/* save ctr, even for !RELOCATABLE */
+	BRANCH_TO_C000(r11, hmi_exception_early_common)
+
+EXC_COMMON_BEGIN(hmi_exception_early_common)
+	mtctr	r10			/* Restore ctr */
+	mfspr	r11,SPRN_HSRR0		/* Save HSRR0 */
+	mfspr	r12,SPRN_HSRR1		/* Save HSRR1 */
 	mr	r10,r1			/* Save r1 */
 	ld	r1,PACAEMERGSP(r13)	/* Use emergency stack for realmode */
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame		*/
-	mfspr	r11,SPRN_HSRR0		/* Save HSRR0 */
-	mfspr	r12,SPRN_HSRR1		/* Save HSRR1 */
 	EXCEPTION_PROLOG_COMMON_1()
 	/* We don't touch AMR here, we never go to virtual mode */
 	EXCEPTION_PROLOG_COMMON_2(PACA_EXGEN)
 	EXCEPTION_PROLOG_COMMON_3(0xe60)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	BRANCH_LINK_TO_FAR(DOTSYM(hmi_exception_realmode)) /* Function call ABI */
+	bl	hmi_exception_realmode
 	cmpdi	cr0,r3,0
 	bne	1f
 
@@ -1742,7 +1735,8 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	 */
 	EXCEPTION_RESTORE_REGS EXC_HV
 	EXCEPTION_PROLOG_0 PACA_EXGEN
-	b	tramp_real_hmi_exception
+	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, 0xe60, 0, 0, IRQS_DISABLED
+	EXCEPTION_PROLOG_2_REAL hmi_exception_common, EXC_HV, 1
 
 EXC_COMMON_BEGIN(hmi_exception_common)
 	EXCEPTION_COMMON(PACA_EXGEN, 0xe60)
