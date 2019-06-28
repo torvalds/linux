@@ -5486,6 +5486,7 @@ static void gfx_v9_0_set_gds_init(struct amdgpu_device *adev)
 		adev->gds.gds_size = 0x10000;
 		break;
 	case CHIP_RAVEN:
+	case CHIP_ARCTURUS:
 		adev->gds.gds_size = 0x1000;
 		break;
 	default:
@@ -5506,6 +5507,9 @@ static void gfx_v9_0_set_gds_init(struct amdgpu_device *adev)
 			adev->gds.gds_compute_max_wave_id = 0x77; /* raven2 */
 		else
 			adev->gds.gds_compute_max_wave_id = 0x15f; /* raven1 */
+		break;
+	case CHIP_ARCTURUS:
+		adev->gds.gds_compute_max_wave_id = 0xfff;
 		break;
 	default:
 		/* this really depends on the chip */
