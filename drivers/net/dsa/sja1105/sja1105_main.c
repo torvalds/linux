@@ -715,7 +715,13 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 
 	switch (speed_mbps) {
 	case SPEED_UNKNOWN:
-		/* No speed update requested */
+		/* PHYLINK called sja1105_mac_config() to inform us about
+		 * the state->interface, but AN has not completed and the
+		 * speed is not yet valid. UM10944.pdf says that setting
+		 * SJA1105_SPEED_AUTO at runtime disables the port, so that is
+		 * ok for power consumption in case AN will never complete -
+		 * otherwise PHYLINK should come back with a new update.
+		 */
 		speed = SJA1105_SPEED_AUTO;
 		break;
 	case SPEED_10:
@@ -760,14 +766,50 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	return sja1105_clocking_setup_port(priv, port);
 }
 
+/* The SJA1105 MAC programming model is through the static config (the xMII
+ * Mode table cannot be dynamically reconfigured), and we have to program
+ * that early (earlier than PHYLINK calls us, anyway).
+ * So just error out in case the connected PHY attempts to change the initial
+ * system interface MII protocol from what is defined in the DT, at least for
+ * now.
+ */
+static bool sja1105_phy_mode_mismatch(struct sja1105_private *priv, int port,
+				      phy_interface_t interface)
+{
+	struct sja1105_xmii_params_entry *mii;
+	sja1105_phy_interface_t phy_mode;
+
+	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
+	phy_mode = mii->xmii_mode[port];
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_MII:
+		return (phy_mode != XMII_MODE_MII);
+	case PHY_INTERFACE_MODE_RMII:
+		return (phy_mode != XMII_MODE_RMII);
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		return (phy_mode != XMII_MODE_RGMII);
+	default:
+		return true;
+	}
+}
+
 static void sja1105_mac_config(struct dsa_switch *ds, int port,
 			       unsigned int link_an_mode,
 			       const struct phylink_link_state *state)
 {
 	struct sja1105_private *priv = ds->priv;
 
-	if (!state->link)
+	if (sja1105_phy_mode_mismatch(priv, port, state->interface))
 		return;
+
+	if (link_an_mode == MLO_AN_INBAND) {
+		dev_err(ds->dev, "In-band AN not supported!\n");
+		return;
+	}
 
 	sja1105_adjust_port_config(priv, port, state->speed);
 }
@@ -800,6 +842,16 @@ static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
 	struct sja1105_xmii_params_entry *mii;
 
 	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
+
+	/* include/linux/phylink.h says:
+	 *     When @state->interface is %PHY_INTERFACE_MODE_NA, phylink
+	 *     expects the MAC driver to return all supported link modes.
+	 */
+	if (state->interface != PHY_INTERFACE_MODE_NA &&
+	    sja1105_phy_mode_mismatch(priv, port, state->interface)) {
+		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		return;
+	}
 
 	/* The MAC does not support pause frames, and also doesn't
 	 * support half-duplex traffic modes.
