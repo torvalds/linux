@@ -430,6 +430,7 @@ static void btree_flush_write(struct cache_set *c)
 retry:
 	best = NULL;
 
+	mutex_lock(&c->bucket_lock);
 	for_each_cached_btree(b, c, i)
 		if (btree_current_write(b)->journal) {
 			if (!best)
@@ -442,15 +443,21 @@ retry:
 		}
 
 	b = best;
+	if (b)
+		set_btree_node_journal_flush(b);
+	mutex_unlock(&c->bucket_lock);
+
 	if (b) {
 		mutex_lock(&b->write_lock);
 		if (!btree_current_write(b)->journal) {
+			clear_bit(BTREE_NODE_journal_flush, &b->flags);
 			mutex_unlock(&b->write_lock);
 			/* We raced */
 			goto retry;
 		}
 
 		__bch_btree_node_write(b, NULL);
+		clear_bit(BTREE_NODE_journal_flush, &b->flags);
 		mutex_unlock(&b->write_lock);
 	}
 }
