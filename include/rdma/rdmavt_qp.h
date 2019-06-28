@@ -180,7 +180,9 @@ struct rvt_swqe {
 
 /**
  * struct rvt_krwq - kernel struct receive work request
+ * @p_lock: lock to protect producer of the kernel buffer
  * @head: index of next entry to fill
+ * @c_lock:lock to protect consumer of the kernel buffer
  * @tail: index of next entry to pull
  * @count: count is aproximate of total receive enteries posted
  * @rvt_rwqe: struct of receive work request queue entry
@@ -190,8 +192,13 @@ struct rvt_swqe {
  * mode user.
  */
 struct rvt_krwq {
+	spinlock_t p_lock;	/* protect producer */
 	u32 head;               /* new work requests posted to the head */
+
+	/* protect consumer */
+	spinlock_t c_lock ____cacheline_aligned_in_smp;
 	u32 tail;               /* receives pull requests from here. */
+	u32 count;		/* approx count of receive entries posted */
 	struct rvt_rwqe *curr_wq;
 	struct rvt_rwqe wq[];
 };

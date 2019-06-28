@@ -206,7 +206,7 @@ int rvt_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 				goto bail_free;
 		}
 
-		spin_lock_irq(&srq->rq.lock);
+		spin_lock_irq(&srq->rq.kwq->c_lock);
 		/*
 		 * validate head and tail pointer values and compute
 		 * the number of remaining WQEs.
@@ -261,7 +261,7 @@ int rvt_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		srq->rq.size = size;
 		if (attr_mask & IB_SRQ_LIMIT)
 			srq->limit = attr->srq_limit;
-		spin_unlock_irq(&srq->rq.lock);
+		spin_unlock_irq(&srq->rq.kwq->c_lock);
 
 		vfree(owq);
 		kvfree(okwq);
@@ -295,17 +295,17 @@ int rvt_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			spin_unlock_irq(&dev->pending_lock);
 		}
 	} else if (attr_mask & IB_SRQ_LIMIT) {
-		spin_lock_irq(&srq->rq.lock);
+		spin_lock_irq(&srq->rq.kwq->c_lock);
 		if (attr->srq_limit >= srq->rq.size)
 			ret = -EINVAL;
 		else
 			srq->limit = attr->srq_limit;
-		spin_unlock_irq(&srq->rq.lock);
+		spin_unlock_irq(&srq->rq.kwq->c_lock);
 	}
 	return ret;
 
 bail_unlock:
-	spin_unlock_irq(&srq->rq.lock);
+	spin_unlock_irq(&srq->rq.kwq->c_lock);
 bail_free:
 	rvt_free_rq(&tmp_rq);
 	return ret;
