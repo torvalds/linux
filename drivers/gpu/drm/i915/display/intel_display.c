@@ -15812,8 +15812,8 @@ static void sanitize_watermarks(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state;
 	struct intel_atomic_state *intel_state;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *cstate;
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 	int i;
@@ -15868,13 +15868,11 @@ retry:
 	}
 
 	/* Write calculated watermark values back */
-	for_each_new_crtc_in_state(state, crtc, cstate, i) {
-		struct intel_crtc_state *cs = to_intel_crtc_state(cstate);
+	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+		crtc_state->wm.need_postvbl_update = true;
+		dev_priv->display.optimize_watermarks(intel_state, crtc_state);
 
-		cs->wm.need_postvbl_update = true;
-		dev_priv->display.optimize_watermarks(intel_state, cs);
-
-		to_intel_crtc_state(crtc->state)->wm = cs->wm;
+		to_intel_crtc_state(crtc->base.state)->wm = crtc_state->wm;
 	}
 
 put_state:
