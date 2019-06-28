@@ -424,6 +424,38 @@ END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);			   \
 	EXCEPTION_PROLOG_COMMON_2(area);			\
 	EXCEPTION_PROLOG_COMMON_3(trap)
 
+/*
+ * Restore all registers including H/SRR0/1 saved in a stack frame of a
+ * standard exception.
+ */
+.macro EXCEPTION_RESTORE_REGS hsrr
+	/* Move original SRR0 and SRR1 into the respective regs */
+	ld	r9,_MSR(r1)
+	.if \hsrr
+	mtspr	SPRN_HSRR1,r9
+	.else
+	mtspr	SPRN_SRR1,r9
+	.endif
+	ld	r9,_NIP(r1)
+	.if \hsrr
+	mtspr	SPRN_HSRR0,r9
+	.else
+	mtspr	SPRN_SRR0,r9
+	.endif
+	ld	r9,_CTR(r1)
+	mtctr	r9
+	ld	r9,_XER(r1)
+	mtxer	r9
+	ld	r9,_LINK(r1)
+	mtlr	r9
+	ld	r9,_CCR(r1)
+	mtcr	r9
+	REST_8GPRS(2, r1)
+	REST_4GPRS(10, r1)
+	REST_GPR(0, r1)
+	/* restore original r1. */
+	ld	r1,GPR1(r1)
+.endm
 
 #define RUNLATCH_ON				\
 BEGIN_FTR_SECTION				\
@@ -901,29 +933,7 @@ EXC_COMMON_BEGIN(system_reset_common)
 	ld	r10,SOFTE(r1)
 	stb	r10,PACAIRQSOFTMASK(r13)
 
-	/*
-	 * Keep below code in synch with MACHINE_CHECK_HANDLER_WINDUP.
-	 * Should share common bits...
-	 */
-
-	/* Move original SRR0 and SRR1 into the respective regs */
-	ld	r9,_MSR(r1)
-	mtspr	SPRN_SRR1,r9
-	ld	r9,_NIP(r1)
-	mtspr	SPRN_SRR0,r9
-	ld	r9,_CTR(r1)
-	mtctr	r9
-	ld	r9,_XER(r1)
-	mtxer	r9
-	ld	r9,_LINK(r1)
-	mtlr	r9
-	ld	r9,_CCR(r1)
-	mtcr	r9
-	REST_8GPRS(2, r1)
-	REST_4GPRS(10, r1)
-	REST_GPR(0, r1)
-	/* restore original r1. */
-	ld	r1,GPR1(r1)
+	EXCEPTION_RESTORE_REGS EXC_STD
 	RFI_TO_USER_OR_KERNEL
 
 #ifdef CONFIG_PPC_PSERIES
@@ -1082,24 +1092,7 @@ EXC_COMMON_BEGIN(machine_check_common)
 	lhz	r12,PACA_IN_MCE(r13);			\
 	subi	r12,r12,1;				\
 	sth	r12,PACA_IN_MCE(r13);			\
-	/* Move original SRR0 and SRR1 into the respective regs */	\
-	ld	r9,_MSR(r1);				\
-	mtspr	SPRN_SRR1,r9;				\
-	ld	r9,_NIP(r1);				\
-	mtspr	SPRN_SRR0,r9;				\
-	ld	r9,_CTR(r1);				\
-	mtctr	r9;					\
-	ld	r9,_XER(r1);				\
-	mtxer	r9;					\
-	ld	r9,_LINK(r1);				\
-	mtlr	r9;					\
-	ld	r9,_CCR(r1);				\
-	mtcr	r9;					\
-	REST_8GPRS(2, r1);				\
-	REST_4GPRS(10, r1);				\
-	REST_GPR(0, r1);				\
-	/* restore original r1. */			\
-	ld	r1,GPR1(r1)
+	EXCEPTION_RESTORE_REGS EXC_STD
 
 #ifdef CONFIG_PPC_P7_NAP
 /*
@@ -1779,48 +1772,15 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	cmpdi	cr0,r3,0
 	bne	1f
 
-	/* Windup the stack. */
-	/* Move original HSRR0 and HSRR1 into the respective regs */
-	ld	r9,_MSR(r1)
-	mtspr	SPRN_HSRR1,r9
-	ld	r9,_NIP(r1)
-	mtspr	SPRN_HSRR0,r9
-	ld	r9,_CTR(r1)
-	mtctr	r9
-	ld	r9,_XER(r1)
-	mtxer	r9
-	ld	r9,_LINK(r1)
-	mtlr	r9
-	ld	r9,_CCR(r1)
-	mtcr	r9
-	REST_8GPRS(2, r1)
-	REST_4GPRS(10, r1)
-	REST_GPR(0, r1)
-	ld	r1,GPR1(r1)
+	EXCEPTION_RESTORE_REGS EXC_HV
 	HRFI_TO_USER_OR_KERNEL
 
 1:
-	ld	r9,_MSR(r1)
-	mtspr	SPRN_HSRR1,r9
-	ld	r9,_NIP(r1)
-	mtspr	SPRN_HSRR0,r9
-	ld	r9,_CTR(r1)
-	mtctr	r9
-	ld	r9,_XER(r1)
-	mtxer	r9
-	ld	r9,_LINK(r1)
-	mtlr	r9
-	ld	r9,_CCR(r1)
-	mtcr	r9
-	REST_8GPRS(2, r1)
-	REST_4GPRS(10, r1)
-	REST_GPR(0, r1)
-	ld	r1,GPR1(r1)
-
 	/*
 	 * Go to virtual mode and pull the HMI event information from
 	 * firmware.
 	 */
+	EXCEPTION_RESTORE_REGS EXC_HV
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	b	tramp_real_hmi_exception
