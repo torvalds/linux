@@ -1169,6 +1169,8 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	down_write(&dc->writeback_lock);
 	if (bch_cached_dev_writeback_start(dc)) {
 		up_write(&dc->writeback_lock);
+		pr_err("Couldn't start writeback facilities for %s",
+		       dc->disk.disk->disk_name);
 		return -ENOMEM;
 	}
 
@@ -1182,6 +1184,8 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	ret = bch_cached_dev_run(dc);
 	if (ret && (ret != -EBUSY)) {
 		up_write(&dc->writeback_lock);
+		pr_err("Couldn't run cached device %s",
+		       dc->backing_dev_name);
 		return ret;
 	}
 
