@@ -122,6 +122,9 @@ static void __update_writeback_rate(struct cached_dev *dc)
 static bool set_at_max_writeback_rate(struct cache_set *c,
 				       struct cached_dev *dc)
 {
+	/* Don't set max writeback rate if gc is running */
+	if (!c->gc_mark_valid)
+		return false;
 	/*
 	 * Idle_counter is increased everytime when update_writeback_rate() is
 	 * called. If all backing devices attached to the same cache set have
