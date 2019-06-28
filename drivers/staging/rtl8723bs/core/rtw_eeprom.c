@@ -118,25 +118,6 @@ _func_enter_;
 _func_exit_;
 }
 
-u16 wait_eeprom_cmd_done(_adapter *padapter)
-{
-	u8 x;
-	u16 i, res = false;
-_func_enter_;
-	standby(padapter);
-	for (i = 0; i < 200; i++) {
-		x = rtw_read8(padapter, EE_9346CR);
-		if (x & _EEDO) {
-			res = true;
-			goto exit;
-			}
-		udelay(CLOCK_RATE);
-	}
-exit:
-_func_exit_;
-	return res;
-}
-
 void eeprom_clean(_adapter *padapter)
 {
 	u16 x;
