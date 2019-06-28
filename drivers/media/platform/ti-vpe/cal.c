@@ -1612,6 +1612,7 @@ of_get_next_port(const struct device_node *parent,
 			}
 			prev = port;
 		} while (!of_node_name_eq(port, "port"));
+		of_node_put(ports);
 	}
 
 	return port;
