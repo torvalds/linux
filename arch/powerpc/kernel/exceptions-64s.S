@@ -1080,6 +1080,10 @@ EXC_COMMON_BEGIN(machine_check_common)
 	/* Clear MSR_RI before setting SRR0 and SRR1. */\
 	li	r9,0;					\
 	mtmsrd	r9,1;		/* Clear MSR_RI */	\
+	/* Decrement paca->in_mce now RI is clear. */	\
+	lhz	r12,PACA_IN_MCE(r13);			\
+	subi	r12,r12,1;				\
+	sth	r12,PACA_IN_MCE(r13);			\
 	/* Move original SRR0 and SRR1 into the respective regs */	\
 	ld	r9,_MSR(r1);				\
 	mtspr	SPRN_SRR1,r9;				\
@@ -1096,10 +1100,6 @@ EXC_COMMON_BEGIN(machine_check_common)
 	REST_GPR(10, r1);				\
 	ld	r11,_CCR(r1);				\
 	mtcr	r11;					\
-	/* Decrement paca->in_mce. */			\
-	lhz	r12,PACA_IN_MCE(r13);			\
-	subi	r12,r12,1;				\
-	sth	r12,PACA_IN_MCE(r13);			\
 	REST_GPR(11, r1);				\
 	REST_2GPRS(12, r1);				\
 	/* restore original r1. */			\
