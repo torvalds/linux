@@ -444,6 +444,18 @@ icl_program_input_csc(struct intel_plane *plane,
 			0x9EF8, 0x7800, 0xABF8,
 			0x0, 0x7800,  0x7ED8,
 		},
+		/*
+		 * BT.2020 full range YCbCr -> full range RGB
+		 * The matrix required is :
+		 * [1.000, 0.000, 1.474,
+		 *  1.000, -0.1645, -0.5713,
+		 *  1.000, 1.8814, 0.0000]
+		 */
+		[DRM_COLOR_YCBCR_BT2020] = {
+			0x7BC8, 0x7800, 0x0,
+			0x8928, 0x7800, 0xAA88,
+			0x0, 0x7800, 0x7F10,
+		},
 	};
 
 	/* Matrix for Limited Range to Full Range Conversion */
@@ -471,6 +483,18 @@ icl_program_input_csc(struct intel_plane *plane,
 			0x7EA8, 0x7950, 0x0,
 			0x8888, 0x7918, 0xADA8,
 			0x0, 0x7918,  0x6870,
+		},
+		/*
+		 * BT.2020 Limited range YCbCr -> full range RGB
+		 * The matrix required is :
+		 * [1.164, 0.000, 1.678,
+		 *  1.164, -0.1873, -0.6504,
+		 *  1.164, 2.1417, 0.0000]
+		 */
+		[DRM_COLOR_YCBCR_BT2020] = {
+			0x7D70, 0x7950, 0x0,
+			0x8A68, 0x7950, 0xAC00,
+			0x0, 0x7950, 0x6890,
 		},
 	};
 	const u16 *csc;
