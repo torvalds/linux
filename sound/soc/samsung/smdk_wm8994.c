@@ -102,11 +102,13 @@ static int smdk_wm8994_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 
 SND_SOC_DAILINK_DEFS(aif1,
 	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
-	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")));
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
 
 SND_SOC_DAILINK_DEFS(fifo_tx,
 	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s-sec")),
-	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")));
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s-sec")));
 
 static struct snd_soc_dai_link smdk_dai[] = {
 	{ /* Primary DAI i/f */
@@ -163,6 +165,9 @@ static int smdk_audio_probe(struct platform_device *pdev)
 			   "Property 'samsung,i2s-controller' missing or invalid\n");
 			ret = -EINVAL;
 		}
+
+		smdk_dai[0].platforms->name = NULL;
+		smdk_dai[0].platforms->of_node = smdk_dai[0].cpus->of_node;
 	}
 
 	id = of_match_device(of_match_ptr(samsung_wm8994_of_match), &pdev->dev);
