@@ -256,10 +256,14 @@ static int hinic_configure_max_qnum(struct hinic_dev *nic_dev)
 
 static int hinic_rss_init(struct hinic_dev *nic_dev)
 {
-	u32 indir_tbl[HINIC_RSS_INDIR_SIZE] = { 0 };
 	u8 default_rss_key[HINIC_RSS_KEY_SIZE];
 	u8 tmpl_idx = nic_dev->rss_tmpl_idx;
+	u32 *indir_tbl;
 	int err, i;
+
+	indir_tbl = kcalloc(HINIC_RSS_INDIR_SIZE, sizeof(u32), GFP_KERNEL);
+	if (!indir_tbl)
+		return -ENOMEM;
 
 	netdev_rss_key_fill(default_rss_key, sizeof(default_rss_key));
 	for (i = 0; i < HINIC_RSS_INDIR_SIZE; i++)
@@ -267,26 +271,28 @@ static int hinic_rss_init(struct hinic_dev *nic_dev)
 
 	err = hinic_rss_set_template_tbl(nic_dev, tmpl_idx, default_rss_key);
 	if (err)
-		return err;
+		goto out;
 
 	err = hinic_rss_set_indir_tbl(nic_dev, tmpl_idx, indir_tbl);
 	if (err)
-		return err;
+		goto out;
 
 	err = hinic_set_rss_type(nic_dev, tmpl_idx, nic_dev->rss_type);
 	if (err)
-		return err;
+		goto out;
 
 	err = hinic_rss_set_hash_engine(nic_dev, tmpl_idx,
 					nic_dev->rss_hash_engine);
 	if (err)
-		return err;
+		goto out;
 
 	err = hinic_rss_cfg(nic_dev, 1, tmpl_idx);
 	if (err)
-		return err;
+		goto out;
 
-	return 0;
+out:
+	kfree(indir_tbl);
+	return err;
 }
 
 static void hinic_rss_deinit(struct hinic_dev *nic_dev)
