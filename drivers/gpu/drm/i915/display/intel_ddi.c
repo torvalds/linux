@@ -2999,14 +2999,14 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
 	u32 ln0, ln1, lane_info;
 
-	if (tc_port == PORT_TC_NONE || intel_dig_port->tc_type == TC_PORT_TBT)
+	if (intel_dig_port->tc_mode == TC_PORT_TBT_ALT)
 		return;
 
 	ln0 = I915_READ(MG_DP_MODE(0, port));
 	ln1 = I915_READ(MG_DP_MODE(1, port));
 
-	switch (intel_dig_port->tc_type) {
-	case TC_PORT_TYPEC:
+	switch (intel_dig_port->tc_mode) {
+	case TC_PORT_DP_ALT:
 		ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 		ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 
@@ -3049,7 +3049,7 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 		break;
 
 	default:
-		MISSING_CASE(intel_dig_port->tc_type);
+		MISSING_CASE(intel_dig_port->tc_mode);
 		return;
 	}
 
@@ -3643,8 +3643,7 @@ intel_ddi_pre_pll_enable(struct intel_encoder *encoder,
 	 * Program the lane count for static/dynamic connections on Type-C ports.
 	 * Skip this step for TBT.
 	 */
-	if (dig_port->tc_type == TC_PORT_UNKNOWN ||
-	    dig_port->tc_type == TC_PORT_TBT)
+	if (dig_port->tc_mode == TC_PORT_TBT_ALT)
 		return;
 
 	intel_ddi_set_fia_lane_count(encoder, crtc_state, port);
