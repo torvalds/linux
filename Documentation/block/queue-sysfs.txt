@@ -98,8 +98,9 @@ This is the maximum number of kilobytes supported in a single data transfer.
 
 max_integrity_segments (RO)
 ---------------------------
-When read, this file shows the max limit of integrity segments as
-set by block layer which a hardware controller can handle.
+Maximum number of elements in a DMA scatter/gather list with integrity
+data that will be submitted by the block layer core to the associated
+block driver.
 
 max_sectors_kb (RW)
 -------------------
@@ -109,11 +110,12 @@ size allowed by the hardware.
 
 max_segments (RO)
 -----------------
-Maximum number of segments of the device.
+Maximum number of elements in a DMA scatter/gather list that is submitted
+to the associated block driver.
 
 max_segment_size (RO)
 ---------------------
-Maximum segment size of the device.
+Maximum size in bytes of a single element in a DMA scatter/gather list.
 
 minimum_io_size (RO)
 --------------------
