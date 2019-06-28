@@ -181,41 +181,43 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
  * will require a lot of coordination with user space and thorough testing for
  * the extra possible cases.
  */
-static bool icl_tc_phy_connect(struct intel_digital_port *dig_port)
+static void icl_tc_phy_connect(struct intel_digital_port *dig_port)
 {
-	u32 live_status_mask;
-
-	if (dig_port->tc_mode != TC_PORT_LEGACY &&
-	    dig_port->tc_mode != TC_PORT_DP_ALT)
-		return true;
-
 	if (!icl_tc_phy_status_complete(dig_port)) {
 		DRM_DEBUG_KMS("Port %s: PHY not ready\n",
 			      dig_port->tc_port_name);
-		WARN_ON(dig_port->tc_legacy_port);
-		return false;
+		goto out_set_tbt_alt_mode;
 	}
 
-	if (!icl_tc_phy_set_safe_mode(dig_port, false))
-		return false;
+	if (!icl_tc_phy_set_safe_mode(dig_port, false) &&
+	    !WARN_ON(dig_port->tc_legacy_port))
+		goto out_set_tbt_alt_mode;
 
-	if (dig_port->tc_mode == TC_PORT_LEGACY)
-		return true;
+	if (dig_port->tc_legacy_port) {
+		WARN_ON(intel_tc_port_fia_max_lane_count(dig_port) != 4);
+		dig_port->tc_mode = TC_PORT_LEGACY;
 
-	live_status_mask = tc_port_live_status_mask(dig_port);
+		return;
+	}
 
 	/*
 	 * Now we have to re-check the live state, in case the port recently
 	 * became disconnected. Not necessary for legacy mode.
 	 */
-	if (!(live_status_mask & BIT(TC_PORT_DP_ALT))) {
+	if (!(tc_port_live_status_mask(dig_port) & BIT(TC_PORT_DP_ALT))) {
 		DRM_DEBUG_KMS("Port %s: PHY sudden disconnect\n",
 			      dig_port->tc_port_name);
-		icl_tc_phy_disconnect(dig_port);
-		return false;
+		goto out_set_safe_mode;
 	}
 
-	return true;
+	dig_port->tc_mode = TC_PORT_DP_ALT;
+
+	return;
+
+out_set_safe_mode:
+	icl_tc_phy_set_safe_mode(dig_port, true);
+out_set_tbt_alt_mode:
+	dig_port->tc_mode = TC_PORT_TBT_ALT;
 }
 
 /*
@@ -236,27 +238,37 @@ void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 	default:
 		MISSING_CASE(dig_port->tc_mode);
 	}
+}
 
-	DRM_DEBUG_KMS("Port %s: mode %s disconnected\n",
+static enum tc_port_mode
+intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
+{
+	u32 live_status_mask = tc_port_live_status_mask(dig_port);
+
+	if (live_status_mask)
+		return fls(live_status_mask) - 1;
+
+	return icl_tc_phy_status_complete(dig_port) &&
+	       dig_port->tc_legacy_port ? TC_PORT_LEGACY :
+					  TC_PORT_TBT_ALT;
+}
+
+static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port)
+{
+	enum tc_port_mode old_tc_mode = dig_port->tc_mode;
+
+	icl_tc_phy_disconnect(dig_port);
+	icl_tc_phy_connect(dig_port);
+
+	DRM_DEBUG_KMS("Port %s: TC port mode reset (%s -> %s)\n",
 		      dig_port->tc_port_name,
+		      tc_port_mode_name(old_tc_mode),
 		      tc_port_mode_name(dig_port->tc_mode));
 }
 
-static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
-				    struct intel_digital_port *intel_dig_port,
-				    u32 live_status_mask)
+static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
 {
-	enum tc_port_mode old_mode = intel_dig_port->tc_mode;
-
-	if (!live_status_mask)
-		return;
-
-	intel_dig_port->tc_mode = fls(live_status_mask) - 1;
-
-	if (old_mode != intel_dig_port->tc_mode)
-		DRM_DEBUG_KMS("Port %s: port has mode %s\n",
-			      intel_dig_port->tc_port_name,
-			      tc_port_mode_name(intel_dig_port->tc_mode));
+	return intel_tc_port_get_target_mode(dig_port) != dig_port->tc_mode;
 }
 
 /*
@@ -271,24 +283,10 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
  */
 bool intel_tc_port_connected(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	u32 live_status_mask = tc_port_live_status_mask(dig_port);
+	if (intel_tc_port_needs_reset(dig_port))
+		intel_tc_port_reset_mode(dig_port);
 
-	/*
-	 * The spec says we shouldn't be using the ISR bits for detecting
-	 * between TC and TBT. We should use DFLEXDPSP.
-	 */
-	if (!live_status_mask && !dig_port->tc_legacy_port) {
-		icl_tc_phy_disconnect(dig_port);
-
-		return false;
-	}
-
-	icl_update_tc_port_type(dev_priv, dig_port, live_status_mask);
-	if (!icl_tc_phy_connect(dig_port))
-		return false;
-
-	return true;
+	return tc_port_live_status_mask(dig_port) & BIT(dig_port->tc_mode);
 }
 
 void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
