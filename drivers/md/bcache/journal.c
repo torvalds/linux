@@ -614,6 +614,7 @@ static void journal_reclaim(struct cache_set *c)
 		k->ptr[n++] = MAKE_PTR(0,
 				  bucket_to_sector(c, ca->sb.d[ja->cur_idx]),
 				  ca->sb.nr_this_dev);
+		atomic_long_inc(&c->reclaimed_journal_buckets);
 	}
 
 	if (n) {
