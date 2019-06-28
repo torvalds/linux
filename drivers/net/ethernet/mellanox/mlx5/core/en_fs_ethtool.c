@@ -426,7 +426,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	}
 
 	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria));
-	flow_act.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
+	spec->flow_context.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
 	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, dst ? 1 : 0);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);

@@ -2666,11 +2666,15 @@ int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 	}
 }
 
-static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
-			   u32 *match_v, const union ib_flow_spec *ib_spec,
+static int parse_flow_attr(struct mlx5_core_dev *mdev,
+			   struct mlx5_flow_spec *spec,
+			   const union ib_flow_spec *ib_spec,
 			   const struct ib_flow_attr *flow_attr,
 			   struct mlx5_flow_act *action, u32 prev_type)
 {
+	struct mlx5_flow_context *flow_context = &spec->flow_context;
+	u32 *match_c = spec->match_criteria;
+	u32 *match_v = spec->match_value;
 	void *misc_params_c = MLX5_ADDR_OF(fte_match_param, match_c,
 					   misc_parameters);
 	void *misc_params_v = MLX5_ADDR_OF(fte_match_param, match_v,
@@ -2989,8 +2993,8 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 		if (ib_spec->flow_tag.tag_id >= BIT(24))
 			return -EINVAL;
 
-		action->flow_tag = ib_spec->flow_tag.tag_id;
-		action->flags |= FLOW_ACT_HAS_TAG;
+		flow_context->flow_tag = ib_spec->flow_tag.tag_id;
+		flow_context->flags |= FLOW_CONTEXT_HAS_TAG;
 		break;
 	case IB_FLOW_SPEC_ACTION_DROP:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->drop,
@@ -3084,7 +3088,8 @@ is_valid_esp_aes_gcm(struct mlx5_core_dev *mdev,
 		return VALID_SPEC_NA;
 
 	return is_crypto && is_ipsec &&
-		(!egress || (!is_drop && !(flow_act->flags & FLOW_ACT_HAS_TAG))) ?
+		(!egress || (!is_drop &&
+			     !(spec->flow_context.flags & FLOW_CONTEXT_HAS_TAG))) ?
 		VALID_SPEC_VALID : VALID_SPEC_INVALID;
 }
 
@@ -3464,6 +3469,37 @@ free:
 	return ret;
 }
 
+static void mlx5_ib_set_rule_source_port(struct mlx5_ib_dev *dev,
+					 struct mlx5_flow_spec *spec,
+					 struct mlx5_eswitch_rep *rep)
+{
+	struct mlx5_eswitch *esw = dev->mdev->priv.eswitch;
+	void *misc;
+
+	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    misc_parameters_2);
+
+		MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0,
+			 mlx5_eswitch_get_vport_metadata_for_match(esw,
+								   rep->vport));
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    misc_parameters_2);
+
+		MLX5_SET_TO_ONES(fte_match_set_misc2, misc, metadata_reg_c_0);
+	} else {
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    misc_parameters);
+
+		MLX5_SET(fte_match_set_misc, misc, source_port, rep->vport);
+
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    misc_parameters);
+
+		MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+	}
+}
+
 static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 						      struct mlx5_ib_flow_prio *ft_prio,
 						      const struct ib_flow_attr *flow_attr,
@@ -3473,7 +3509,7 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 {
 	struct mlx5_flow_table	*ft = ft_prio->flow_table;
 	struct mlx5_ib_flow_handler *handler;
-	struct mlx5_flow_act flow_act = {.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG};
+	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_destination dest_arr[2] = {};
 	struct mlx5_flow_destination *rule_dst = dest_arr;
@@ -3504,8 +3540,7 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	}
 
 	for (spec_index = 0; spec_index < flow_attr->num_of_specs; spec_index++) {
-		err = parse_flow_attr(dev->mdev, spec->match_criteria,
-				      spec->match_value,
+		err = parse_flow_attr(dev->mdev, spec,
 				      ib_flow, flow_attr, &flow_act,
 				      prev_type);
 		if (err < 0)
@@ -3519,19 +3554,15 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 		set_underlay_qp(dev, spec, underlay_qpn);
 
 	if (dev->is_rep) {
-		void *misc;
+		struct mlx5_eswitch_rep *rep;
 
-		if (!dev->port[flow_attr->port - 1].rep) {
+		rep = dev->port[flow_attr->port - 1].rep;
+		if (!rep) {
 			err = -EINVAL;
 			goto free;
 		}
-		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
-				    misc_parameters);
-		MLX5_SET(fte_match_set_misc, misc, source_port,
-			 dev->port[flow_attr->port - 1].rep->vport);
-		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-				    misc_parameters);
-		MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+
+		mlx5_ib_set_rule_source_port(dev, spec, rep);
 	}
 
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
@@ -3572,11 +3603,11 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 					MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
 	}
 
-	if ((flow_act.flags & FLOW_ACT_HAS_TAG)  &&
+	if ((spec->flow_context.flags & FLOW_CONTEXT_HAS_TAG)  &&
 	    (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 	     flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT)) {
 		mlx5_ib_warn(dev, "Flow tag %u and attribute type %x isn't allowed in leftovers\n",
-			     flow_act.flow_tag, flow_attr->type);
+			     spec->flow_context.flow_tag, flow_attr->type);
 		err = -EINVAL;
 		goto free;
 	}
@@ -3947,6 +3978,7 @@ _create_raw_flow_rule(struct mlx5_ib_dev *dev,
 		      struct mlx5_ib_flow_prio *ft_prio,
 		      struct mlx5_flow_destination *dst,
 		      struct mlx5_ib_flow_matcher  *fs_matcher,
+		      struct mlx5_flow_context *flow_context,
 		      struct mlx5_flow_act *flow_act,
 		      void *cmd_in, int inlen,
 		      int dst_num)
@@ -3969,6 +4001,7 @@ _create_raw_flow_rule(struct mlx5_ib_dev *dev,
 	memcpy(spec->match_criteria, fs_matcher->matcher_mask.match_params,
 	       fs_matcher->mask_len);
 	spec->match_criteria_enable = fs_matcher->match_criteria_enable;
+	spec->flow_context = *flow_context;
 
 	handler->rule = mlx5_add_flow_rules(ft, spec,
 					    flow_act, dst, dst_num);
@@ -4033,6 +4066,7 @@ static bool raw_fs_is_multicast(struct mlx5_ib_flow_matcher *fs_matcher,
 struct mlx5_ib_flow_handler *
 mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 			struct mlx5_ib_flow_matcher *fs_matcher,
+			struct mlx5_flow_context *flow_context,
 			struct mlx5_flow_act *flow_act,
 			u32 counter_id,
 			void *cmd_in, int inlen, int dest_id,
@@ -4085,7 +4119,8 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 		dst_num++;
 	}
 
-	handler = _create_raw_flow_rule(dev, ft_prio, dst, fs_matcher, flow_act,
+	handler = _create_raw_flow_rule(dev, ft_prio, dst, fs_matcher,
+					flow_context, flow_act,
 					cmd_in, inlen, dst_num);
 
 	if (IS_ERR(handler)) {
