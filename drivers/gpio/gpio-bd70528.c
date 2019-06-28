@@ -36,7 +36,7 @@ static int bd70528_set_debounce(struct bd70528_gpio *bdgpio,
 		break;
 	default:
 		dev_err(bdgpio->chip.dev,
-			"Invalid debouce value %u\n", debounce);
+			"Invalid debounce value %u\n", debounce);
 		return -EINVAL;
 	}
 	return regmap_update_bits(bdgpio->chip.regmap, GPIO_IN_REG(offset),
