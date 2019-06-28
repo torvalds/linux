@@ -1014,47 +1014,23 @@ static const struct dev_pm_ops pmc_core_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(pmc_core_suspend, pmc_core_resume)
 };
 
+static const struct acpi_device_id pmc_core_acpi_ids[] = {
+	{"INT33A1", 0}, /* _HID for Intel Power Engine, _CID PNP0D80*/
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, pmc_core_acpi_ids);
+
 static struct platform_driver pmc_core_driver = {
 	.driver = {
 		.name = "intel_pmc_core",
+		.acpi_match_table = ACPI_PTR(pmc_core_acpi_ids),
 		.pm = &pmc_core_pm_ops,
 	},
 	.probe = pmc_core_probe,
 	.remove = pmc_core_remove,
 };
 
-static struct platform_device pmc_core_device = {
-	.name = "intel_pmc_core",
-};
-
-static int __init pmc_core_init(void)
-{
-	int ret;
-
-	if (!x86_match_cpu(intel_pmc_core_ids))
-		return -ENODEV;
-
-	ret = platform_driver_register(&pmc_core_driver);
-	if (ret)
-		return ret;
-
-	ret = platform_device_register(&pmc_core_device);
-	if (ret) {
-		platform_driver_unregister(&pmc_core_driver);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void __exit pmc_core_exit(void)
-{
-	platform_device_unregister(&pmc_core_device);
-	platform_driver_unregister(&pmc_core_driver);
-}
-
-module_init(pmc_core_init)
-module_exit(pmc_core_exit)
+module_platform_driver(pmc_core_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel PMC Core Driver");
