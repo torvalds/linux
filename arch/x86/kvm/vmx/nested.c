@@ -1783,27 +1783,22 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 						 bool from_launch)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct hv_vp_assist_page assist_page;
 	bool evmcs_gpa_changed = false;
+	u64 evmcs_gpa;
 
 	if (likely(!vmx->nested.enlightened_vmcs_enabled))
 		return 1;
 
-	if (unlikely(!kvm_hv_get_assist_page(vcpu, &assist_page)))
+	if (!nested_enlightened_vmentry(vcpu, &evmcs_gpa))
 		return 1;
 
-	if (unlikely(!assist_page.enlighten_vmentry))
-		return 1;
-
-	if (unlikely(assist_page.current_nested_vmcs !=
-		     vmx->nested.hv_evmcs_vmptr)) {
-
+	if (unlikely(evmcs_gpa != vmx->nested.hv_evmcs_vmptr)) {
 		if (!vmx->nested.hv_evmcs)
 			vmx->nested.current_vmptr = -1ull;
 
 		nested_release_evmcs(vcpu);
 
-		if (kvm_vcpu_map(vcpu, gpa_to_gfn(assist_page.current_nested_vmcs),
+		if (kvm_vcpu_map(vcpu, gpa_to_gfn(evmcs_gpa),
 				 &vmx->nested.hv_evmcs_map))
 			return 0;
 
@@ -1838,7 +1833,7 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 		}
 
 		vmx->nested.dirty_vmcs12 = true;
-		vmx->nested.hv_evmcs_vmptr = assist_page.current_nested_vmcs;
+		vmx->nested.hv_evmcs_vmptr = evmcs_gpa;
 
 		evmcs_gpa_changed = true;
 		/*
@@ -4436,6 +4431,7 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 zero = 0;
 	gpa_t vmptr;
+	u64 evmcs_gpa;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
@@ -4451,10 +4447,18 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 		return nested_vmx_failValid(vcpu,
 			VMXERR_VMCLEAR_VMXON_POINTER);
 
-	if (vmx->nested.hv_evmcs_map.hva) {
-		if (vmptr == vmx->nested.hv_evmcs_vmptr)
-			nested_release_evmcs(vcpu);
-	} else {
+	/*
+	 * When Enlightened VMEntry is enabled on the calling CPU we treat
+	 * memory area pointer by vmptr as Enlightened VMCS (as there's no good
+	 * way to distinguish it from VMCS12) and we must not corrupt it by
+	 * writing to the non-existent 'launch_state' field. The area doesn't
+	 * have to be the currently active EVMCS on the calling CPU and there's
+	 * nothing KVM has to do to transition it from 'active' to 'non-active'
+	 * state. It is possible that the area will stay mapped as
+	 * vmx->nested.hv_evmcs but this shouldn't be a problem.
+	 */
+	if (likely(!vmx->nested.enlightened_vmcs_enabled ||
+		   !nested_enlightened_vmentry(vcpu, &evmcs_gpa))) {
 		if (vmptr == vmx->nested.current_vmptr)
 			nested_release_vmcs12(vcpu);
 
