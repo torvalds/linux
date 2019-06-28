@@ -1784,6 +1784,7 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct hv_vp_assist_page assist_page;
+	bool evmcs_gpa_changed = false;
 
 	if (likely(!vmx->nested.enlightened_vmcs_enabled))
 		return 1;
@@ -1837,15 +1838,9 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 		}
 
 		vmx->nested.dirty_vmcs12 = true;
-		/*
-		 * As we keep L2 state for one guest only 'hv_clean_fields' mask
-		 * can't be used when we switch between them. Reset it here for
-		 * simplicity.
-		 */
-		vmx->nested.hv_evmcs->hv_clean_fields &=
-			~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL;
 		vmx->nested.hv_evmcs_vmptr = assist_page.current_nested_vmcs;
 
+		evmcs_gpa_changed = true;
 		/*
 		 * Unlike normal vmcs12, enlightened vmcs12 is not fully
 		 * reloaded from guest's memory (read only fields, fields not
@@ -1859,6 +1854,15 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 		}
 
 	}
+
+	/*
+	 * Clean fields data can't de used on VMLAUNCH and when we switch
+	 * between different L2 guests as KVM keeps a single VMCS12 per L1.
+	 */
+	if (from_launch || evmcs_gpa_changed)
+		vmx->nested.hv_evmcs->hv_clean_fields &=
+			~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL;
+
 	return 1;
 }
 
@@ -3092,7 +3096,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
 
-	if (!nested_vmx_handle_enlightened_vmptrld(vcpu, true))
+	if (!nested_vmx_handle_enlightened_vmptrld(vcpu, launch))
 		return 1;
 
 	if (!vmx->nested.hv_evmcs && vmx->nested.current_vmptr == -1ull)
