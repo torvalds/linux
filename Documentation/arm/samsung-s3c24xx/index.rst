@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 ﻿==========================
 Samsung S3C24XX SoC Family
 ==========================
