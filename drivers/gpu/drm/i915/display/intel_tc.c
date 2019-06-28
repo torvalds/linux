@@ -312,7 +312,10 @@ intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
 
 static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port)
 {
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum tc_port_mode old_tc_mode = dig_port->tc_mode;
+
+	intel_display_power_flush_work(dev_priv);
 
 	icl_tc_phy_disconnect(dig_port);
 	icl_tc_phy_connect(dig_port);
@@ -327,6 +330,8 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 {
 	struct intel_encoder *encoder = &dig_port->base;
 	int active_links = 0;
+
+	mutex_lock(&dig_port->tc_lock);
 
 	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
 	if (dig_port->dp.is_mst)
@@ -348,6 +353,8 @@ out:
 	DRM_DEBUG_KMS("Port %s: sanitize mode (%s)\n",
 		      dig_port->tc_port_name,
 		      tc_port_mode_name(dig_port->tc_mode));
+
+	mutex_unlock(&dig_port->tc_lock);
 }
 
 static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
@@ -367,10 +374,30 @@ static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
  */
 bool intel_tc_port_connected(struct intel_digital_port *dig_port)
 {
+	bool is_connected;
+
+	mutex_lock(&dig_port->tc_lock);
+
 	if (intel_tc_port_needs_reset(dig_port))
 		intel_tc_port_reset_mode(dig_port);
 
-	return tc_port_live_status_mask(dig_port) & BIT(dig_port->tc_mode);
+	is_connected = tc_port_live_status_mask(dig_port) &
+		       BIT(dig_port->tc_mode);
+
+	mutex_unlock(&dig_port->tc_lock);
+
+	return is_connected;
+}
+
+void intel_tc_port_lock(struct intel_digital_port *dig_port)
+{
+	mutex_lock(&dig_port->tc_lock);
+	/* TODO: reset the TypeC port mode if needed */
+}
+
+void intel_tc_port_unlock(struct intel_digital_port *dig_port)
+{
+	mutex_unlock(&dig_port->tc_lock);
 }
 
 void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
@@ -385,5 +412,6 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	snprintf(dig_port->tc_port_name, sizeof(dig_port->tc_port_name),
 		 "%c/TC#%d", port_name(port), tc_port + 1);
 
+	mutex_init(&dig_port->tc_lock);
 	dig_port->tc_legacy_port = is_legacy;
 }
