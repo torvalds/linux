@@ -3342,7 +3342,7 @@ mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 	if (!tc_can_offload_extack(priv->netdev, f->common.extack))
 		return -EOPNOTSUPP;
 
-	if (esw && esw->mode == SRIOV_OFFLOADS)
+	if (esw && esw->mode == MLX5_ESWITCH_OFFLOADS)
 		err = mlx5e_add_fdb_flow(priv, f, flow_flags,
 					 filter_dev, flow);
 	else

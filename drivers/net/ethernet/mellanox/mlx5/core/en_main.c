@@ -5115,7 +5115,7 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 
 #ifdef CONFIG_MLX5_ESWITCH
 	if (MLX5_ESWITCH_MANAGER(mdev) &&
-	    mlx5_eswitch_mode(mdev->priv.eswitch) == SRIOV_OFFLOADS) {
+	    mlx5_eswitch_mode(mdev->priv.eswitch) == MLX5_ESWITCH_OFFLOADS) {
 		mlx5e_rep_register_vport_reps(mdev);
 		return mdev;
 	}

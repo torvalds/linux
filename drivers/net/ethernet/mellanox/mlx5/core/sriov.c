@@ -77,7 +77,7 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 	if (!MLX5_ESWITCH_MANAGER(dev))
 		goto enable_vfs_hca;
 
-	err = mlx5_eswitch_enable_sriov(dev->priv.eswitch, num_vfs, SRIOV_LEGACY);
+	err = mlx5_eswitch_enable(dev->priv.eswitch, num_vfs, MLX5_ESWITCH_LEGACY);
 	if (err) {
 		mlx5_core_warn(dev,
 			       "failed to enable eswitch SRIOV (%d)\n", err);
@@ -126,7 +126,7 @@ static void mlx5_device_disable_sriov(struct mlx5_core_dev *dev)
 	}
 
 	if (MLX5_ESWITCH_MANAGER(dev))
-		mlx5_eswitch_disable_sriov(dev->priv.eswitch);
+		mlx5_eswitch_disable(dev->priv.eswitch);
 
 	if (mlx5_wait_for_pages(dev, &dev->priv.vfs_pages))
 		mlx5_core_warn(dev, "timeout reclaiming VFs pages\n");

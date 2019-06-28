@@ -147,7 +147,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	struct mlx5_flow_table *fdb;
 	int j, i = 0;
 
-	if (esw->mode != SRIOV_OFFLOADS)
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	flow_act.action = attr->action;
@@ -1358,19 +1358,19 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 {
 	int err, err1, num_vfs = esw->dev->priv.sriov.num_vfs;
 
-	if (esw->mode != SRIOV_LEGACY &&
+	if (esw->mode != MLX5_ESWITCH_LEGACY &&
 	    !mlx5_core_is_ecpf_esw_manager(esw->dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't set offloads mode, SRIOV legacy not enabled");
 		return -EINVAL;
 	}
 
-	mlx5_eswitch_disable_sriov(esw);
-	err = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_OFFLOADS);
+	mlx5_eswitch_disable(esw);
+	err = mlx5_eswitch_enable(esw, num_vfs, MLX5_ESWITCH_OFFLOADS);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Failed setting eswitch to offloads");
-		err1 = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_LEGACY);
+		err1 = mlx5_eswitch_enable(esw, num_vfs, MLX5_ESWITCH_LEGACY);
 		if (err1) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed setting eswitch back to legacy");
@@ -2174,11 +2174,11 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 {
 	int err, err1, num_vfs = esw->dev->priv.sriov.num_vfs;
 
-	mlx5_eswitch_disable_sriov(esw);
-	err = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_LEGACY);
+	mlx5_eswitch_disable(esw);
+	err = mlx5_eswitch_enable(esw, num_vfs, MLX5_ESWITCH_LEGACY);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed setting eswitch to legacy");
-		err1 = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_OFFLOADS);
+		err1 = mlx5_eswitch_enable(esw, num_vfs, MLX5_ESWITCH_OFFLOADS);
 		if (err1) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed setting eswitch back to offloads");
@@ -2203,10 +2203,10 @@ static int esw_mode_from_devlink(u16 mode, u16 *mlx5_mode)
 {
 	switch (mode) {
 	case DEVLINK_ESWITCH_MODE_LEGACY:
-		*mlx5_mode = SRIOV_LEGACY;
+		*mlx5_mode = MLX5_ESWITCH_LEGACY;
 		break;
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
-		*mlx5_mode = SRIOV_OFFLOADS;
+		*mlx5_mode = MLX5_ESWITCH_OFFLOADS;
 		break;
 	default:
 		return -EINVAL;
@@ -2218,10 +2218,10 @@ static int esw_mode_from_devlink(u16 mode, u16 *mlx5_mode)
 static int esw_mode_to_devlink(u16 mlx5_mode, u16 *mode)
 {
 	switch (mlx5_mode) {
-	case SRIOV_LEGACY:
+	case MLX5_ESWITCH_LEGACY:
 		*mode = DEVLINK_ESWITCH_MODE_LEGACY;
 		break;
-	case SRIOV_OFFLOADS:
+	case MLX5_ESWITCH_OFFLOADS:
 		*mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
 		break;
 	default:
@@ -2285,7 +2285,7 @@ static int mlx5_devlink_eswitch_check(struct devlink *devlink)
 	if(!MLX5_ESWITCH_MANAGER(dev))
 		return -EPERM;
 
-	if (dev->priv.eswitch->mode == SRIOV_NONE &&
+	if (dev->priv.eswitch->mode == MLX5_ESWITCH_NONE &&
 	    !mlx5_core_is_ecpf_esw_manager(dev))
 		return -EOPNOTSUPP;
 
@@ -2408,7 +2408,7 @@ int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
 	if (!MLX5_CAP_GEN(dev, vport_group_manager))
 		return -EOPNOTSUPP;
 
-	if (esw->mode == SRIOV_NONE)
+	if (esw->mode == MLX5_ESWITCH_NONE)
 		return -EOPNOTSUPP;
 
 	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
@@ -2455,7 +2455,7 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink,
 	if (encap && encap != DEVLINK_ESWITCH_ENCAP_MODE_BASIC)
 		return -EOPNOTSUPP;
 
-	if (esw->mode == SRIOV_LEGACY) {
+	if (esw->mode == MLX5_ESWITCH_LEGACY) {
 		esw->offloads.encap = encap;
 		return 0;
 	}
@@ -2522,7 +2522,7 @@ void mlx5_eswitch_unregister_vport_reps(struct mlx5_eswitch *esw, u8 rep_type)
 	struct mlx5_eswitch_rep *rep;
 	int i;
 
-	if (esw->mode == SRIOV_OFFLOADS)
+	if (esw->mode == MLX5_ESWITCH_OFFLOADS)
 		__unload_reps_all_vport(esw, max_vf, rep_type);
 
 	mlx5_esw_for_all_reps(esw, i, rep)
