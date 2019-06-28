@@ -219,6 +219,56 @@ struct rvt_krwq {
 	struct rvt_rwqe wq[];
 };
 
+/*
+ * rvt_get_swqe_ah - Return the pointer to the struct rvt_ah
+ * @swqe: valid Send WQE
+ *
+ */
+static inline struct rvt_ah *rvt_get_swqe_ah(struct rvt_swqe *swqe)
+{
+	return ibah_to_rvtah(swqe->ud_wr.wr.ah);
+}
+
+/**
+ * rvt_get_swqe_ah_attr - Return the cached ah attribute information
+ * @swqe: valid Send WQE
+ *
+ */
+static inline struct rdma_ah_attr *rvt_get_swqe_ah_attr(struct rvt_swqe *swqe)
+{
+	return swqe->ud_wr.attr;
+}
+
+/**
+ * rvt_get_swqe_remote_qpn - Access the remote QPN value
+ * @swqe: valid Send WQE
+ *
+ */
+static inline u32 rvt_get_swqe_remote_qpn(struct rvt_swqe *swqe)
+{
+	return swqe->ud_wr.wr.remote_qpn;
+}
+
+/**
+ * rvt_get_swqe_remote_qkey - Acces the remote qkey value
+ * @swqe: valid Send WQE
+ *
+ */
+static inline u32 rvt_get_swqe_remote_qkey(struct rvt_swqe *swqe)
+{
+	return swqe->ud_wr.wr.remote_qkey;
+}
+
+/**
+ * rvt_get_swqe_pkey_index - Access the pkey index
+ * @swqe: valid Send WQE
+ *
+ */
+static inline u16 rvt_get_swqe_pkey_index(struct rvt_swqe *swqe)
+{
+	return swqe->ud_wr.wr.pkey_index;
+}
+
 struct rvt_rq {
 	struct rvt_rwq *wq;
 	struct rvt_krwq *kwq;

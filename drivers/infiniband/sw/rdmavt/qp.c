@@ -2089,7 +2089,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	 */
 	log_pmtu = qp->log_pmtu;
 	if (qp->allowed_ops == IB_OPCODE_UD) {
-		struct rvt_ah *ah = ibah_to_rvtah(wqe->ud_wr.wr.ah);
+		struct rvt_ah *ah = rvt_get_swqe_ah(wqe);
 
 		log_pmtu = ah->log_pmtu;
 		rdma_copy_ah_attr(wqe->ud_wr.attr, &ah->attr);
