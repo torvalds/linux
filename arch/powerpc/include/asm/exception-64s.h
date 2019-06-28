@@ -48,13 +48,6 @@
  */
 #define MAX_MCE_DEPTH	4
 
-/*
- * EX_R3 is only used by the bad_stack handler. bad_stack reloads and
- * saves DAR from SPRN_DAR, and EX_DAR is not used. So EX_R3 can overlap
- * with EX_DAR.
- */
-#define EX_R3		EX_DAR
-
 #ifdef __ASSEMBLY__
 
 #define STF_ENTRY_BARRIER_SLOT						\
