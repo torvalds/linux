@@ -45,6 +45,7 @@
 #include "intel_lspcon.h"
 #include "intel_panel.h"
 #include "intel_psr.h"
+#include "intel_tc.h"
 #include "intel_vdsc.h"
 
 struct ddi_buf_trans {
@@ -3917,7 +3918,6 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 static void intel_ddi_encoder_suspend(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
 	intel_dp_encoder_suspend(encoder);
 
@@ -3927,7 +3927,7 @@ static void intel_ddi_encoder_suspend(struct intel_encoder *encoder)
 	 * even if the sink has disappeared while being suspended.
 	 */
 	if (dig_port->tc_legacy_port)
-		icl_tc_phy_disconnect(i915, dig_port);
+		icl_tc_phy_disconnect(dig_port);
 }
 
 static void intel_ddi_encoder_reset(struct drm_encoder *drm_encoder)
@@ -3949,7 +3949,7 @@ static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 	intel_dp_encoder_flush_work(encoder);
 
 	if (intel_port_is_tc(i915, dig_port->base.port))
-		icl_tc_phy_disconnect(i915, dig_port);
+		icl_tc_phy_disconnect(dig_port);
 
 	drm_encoder_cleanup(encoder);
 	kfree(dig_port);
