@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 - 2018 Intel Corporation.
+ * Copyright(c) 2016 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -969,6 +969,16 @@ static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
 }
 
 /**
+ * get_allowed_ops - Given a QP type return the appropriate allowed OP
+ * @type: valid, supported, QP type
+ */
+static u8 get_allowed_ops(enum ib_qp_type type)
+{
+	return type == IB_QPT_RC ? IB_OPCODE_RC : type == IB_QPT_UC ?
+		IB_OPCODE_UC : IB_OPCODE_UD;
+}
+
+/**
  * rvt_create_qp - create a queue pair for a device
  * @ibpd: the protection domain who's device we create the queue pair for
  * @init_attr: the attributes of the queue pair
@@ -1050,6 +1060,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				  rdi->dparms.node);
 		if (!qp)
 			goto bail_swq;
+		qp->allowed_ops = get_allowed_ops(init_attr->qp_type);
 
 		RCU_INIT_POINTER(qp->next, NULL);
 		if (init_attr->qp_type == IB_QPT_RC) {
@@ -1204,28 +1215,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	}
 
 	ret = &qp->ibqp;
-
-	/*
-	 * We have our QP and its good, now keep track of what types of opcodes
-	 * can be processed on this QP. We do this by keeping track of what the
-	 * 3 high order bits of the opcode are.
-	 */
-	switch (init_attr->qp_type) {
-	case IB_QPT_SMI:
-	case IB_QPT_GSI:
-	case IB_QPT_UD:
-		qp->allowed_ops = IB_OPCODE_UD;
-		break;
-	case IB_QPT_RC:
-		qp->allowed_ops = IB_OPCODE_RC;
-		break;
-	case IB_QPT_UC:
-		qp->allowed_ops = IB_OPCODE_UC;
-		break;
-	default:
-		ret = ERR_PTR(-EINVAL);
-		goto bail_ip;
-	}
 
 	return ret;
 
