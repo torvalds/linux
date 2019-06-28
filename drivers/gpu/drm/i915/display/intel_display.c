@@ -78,6 +78,7 @@
 #include "intel_quirks.h"
 #include "intel_sideband.h"
 #include "intel_sprite.h"
+#include "intel_tc.h"
 
 /* Primary plane formats for gen <= 3 */
 static const u32 i8xx_primary_formats[] = {
@@ -16799,6 +16800,15 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	intel_modeset_readout_hw_state(dev);
 
 	/* HW state is read out, now we need to sanitize this mess. */
+
+	/* Sanitize the TypeC port mode upfront, encoders depend on this */
+	for_each_intel_encoder(dev, encoder) {
+		/* We need to sanitize only the MST primary port. */
+		if (encoder->type != INTEL_OUTPUT_DP_MST &&
+		    intel_port_is_tc(dev_priv, encoder->port))
+			intel_tc_port_sanitize(enc_to_dig_port(&encoder->base));
+	}
+
 	get_encoder_power_domains(dev_priv);
 
 	if (HAS_PCH_IBX(dev_priv))

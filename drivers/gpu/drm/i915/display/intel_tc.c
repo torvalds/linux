@@ -4,6 +4,7 @@
  */
 
 #include "intel_display.h"
+#include "intel_dp_mst.h"
 #include "i915_drv.h"
 #include "intel_tc.h"
 
@@ -160,6 +161,22 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	return true;
 }
 
+static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	u32 val;
+
+	val = I915_READ(PORT_TX_DFLEXDPCSSS);
+	if (val == 0xffffffff) {
+		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assume safe mode\n",
+			      dig_port->tc_port_name);
+		return true;
+	}
+
+	return !(val & DP_PHY_MODE_STATUS_NOT_SAFE(tc_port));
+}
+
 /*
  * This function implements the first part of the Connect Flow described by our
  * specification, Gen11 TypeC Programming chapter. The rest of the flow (reading
@@ -240,6 +257,46 @@ void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 	}
 }
 
+static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
+{
+	if (!icl_tc_phy_status_complete(dig_port)) {
+		DRM_DEBUG_KMS("Port %s: PHY status not complete\n",
+			      dig_port->tc_port_name);
+		return dig_port->tc_mode == TC_PORT_TBT_ALT;
+	}
+
+	if (icl_tc_phy_is_in_safe_mode(dig_port)) {
+		DRM_DEBUG_KMS("Port %s: PHY still in safe mode\n",
+			      dig_port->tc_port_name);
+
+		return false;
+	}
+
+	return dig_port->tc_mode == TC_PORT_DP_ALT ||
+	       dig_port->tc_mode == TC_PORT_LEGACY;
+}
+
+static enum tc_port_mode
+intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
+{
+	u32 live_status_mask = tc_port_live_status_mask(dig_port);
+	bool in_safe_mode = icl_tc_phy_is_in_safe_mode(dig_port);
+	enum tc_port_mode mode;
+
+	if (in_safe_mode || WARN_ON(!icl_tc_phy_status_complete(dig_port)))
+		return TC_PORT_TBT_ALT;
+
+	mode = dig_port->tc_legacy_port ? TC_PORT_LEGACY : TC_PORT_DP_ALT;
+	if (live_status_mask) {
+		enum tc_port_mode live_mode = fls(live_status_mask) - 1;
+
+		if (!WARN_ON(live_mode == TC_PORT_TBT_ALT))
+			mode = live_mode;
+	}
+
+	return mode;
+}
+
 static enum tc_port_mode
 intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
 {
@@ -263,6 +320,33 @@ static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port)
 	DRM_DEBUG_KMS("Port %s: TC port mode reset (%s -> %s)\n",
 		      dig_port->tc_port_name,
 		      tc_port_mode_name(old_tc_mode),
+		      tc_port_mode_name(dig_port->tc_mode));
+}
+
+void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
+{
+	struct intel_encoder *encoder = &dig_port->base;
+	int active_links = 0;
+
+	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
+	if (dig_port->dp.is_mst)
+		active_links = intel_dp_mst_encoder_active_links(dig_port);
+	else if (encoder->base.crtc)
+		active_links = to_intel_crtc(encoder->base.crtc)->active;
+
+	if (active_links) {
+		if (!icl_tc_phy_is_connected(dig_port))
+			DRM_DEBUG_KMS("Port %s: PHY disconnected with %d active link(s)\n",
+				      dig_port->tc_port_name, active_links);
+		goto out;
+	}
+
+	if (dig_port->tc_legacy_port)
+		icl_tc_phy_connect(dig_port);
+
+out:
+	DRM_DEBUG_KMS("Port %s: sanitize mode (%s)\n",
+		      dig_port->tc_port_name,
 		      tc_port_mode_name(dig_port->tc_mode));
 }
 

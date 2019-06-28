@@ -3931,17 +3931,6 @@ static void intel_ddi_encoder_suspend(struct intel_encoder *encoder)
 		icl_tc_phy_disconnect(dig_port);
 }
 
-static void intel_ddi_encoder_reset(struct drm_encoder *drm_encoder)
-{
-	struct intel_digital_port *dig_port = enc_to_dig_port(drm_encoder);
-	struct drm_i915_private *i915 = to_i915(drm_encoder->dev);
-
-	if (intel_port_is_tc(i915, dig_port->base.port))
-		intel_digital_port_connected(&dig_port->base);
-
-	intel_dp_encoder_reset(drm_encoder);
-}
-
 static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
@@ -3957,7 +3946,7 @@ static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_funcs intel_ddi_funcs = {
-	.reset = intel_ddi_encoder_reset,
+	.reset = intel_dp_encoder_reset,
 	.destroy = intel_ddi_encoder_destroy,
 };
 
@@ -4327,9 +4316,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	}
 
 	intel_infoframe_init(intel_dig_port);
-
-	if (intel_port_is_tc(dev_priv, port))
-		intel_digital_port_connected(intel_encoder);
 
 	return;
 
