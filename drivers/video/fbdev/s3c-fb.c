@@ -1105,14 +1105,14 @@ static int s3c_fb_alloc_memory(struct s3c_fb *sfb, struct s3c_fb_win *win)
 
 	dev_dbg(sfb->dev, "want %u bytes for window\n", size);
 
-	fbi->screen_base = dma_alloc_wc(sfb->dev, size, &map_dma, GFP_KERNEL);
-	if (!fbi->screen_base)
+	fbi->screen_buffer = dma_alloc_wc(sfb->dev, size, &map_dma, GFP_KERNEL);
+	if (!fbi->screen_buffer)
 		return -ENOMEM;
 
 	dev_dbg(sfb->dev, "mapped %x to %p\n",
-		(unsigned int)map_dma, fbi->screen_base);
+		(unsigned int)map_dma, fbi->screen_buffer);
 
-	memset(fbi->screen_base, 0x0, size);
+	memset(fbi->screen_buffer, 0x0, size);
 	fbi->fix.smem_start = map_dma;
 
 	return 0;
@@ -1129,9 +1129,9 @@ static void s3c_fb_free_memory(struct s3c_fb *sfb, struct s3c_fb_win *win)
 {
 	struct fb_info *fbi = win->fbinfo;
 
-	if (fbi->screen_base)
+	if (fbi->screen_buffer)
 		dma_free_wc(sfb->dev, PAGE_ALIGN(fbi->fix.smem_len),
-		            fbi->screen_base, fbi->fix.smem_start);
+			    fbi->screen_buffer, fbi->fix.smem_start);
 }
 
 /**
