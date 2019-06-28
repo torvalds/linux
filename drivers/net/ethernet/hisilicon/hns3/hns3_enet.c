@@ -1494,8 +1494,8 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			rx_drop += ring->stats.l2_err;
 			rx_errors += ring->stats.non_vld_descs;
 			rx_errors += ring->stats.l2_err;
+			rx_errors += ring->stats.l3l4_csum_err;
 			rx_crc_errors += ring->stats.l2_err;
-			rx_crc_errors += ring->stats.l3l4_csum_err;
 			rx_multicast += ring->stats.rx_multicast;
 			rx_length_errors += ring->stats.err_pkt_len;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
