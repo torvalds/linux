@@ -452,10 +452,8 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		struct dentry *pd_dentry;
 
 		pd_dentry = dget_parent(dentry);
-		if (pd_dentry != NULL) {
-			nfs_zap_caches(d_inode(pd_dentry));
-			dput(pd_dentry);
-		}
+		nfs_zap_caches(d_inode(pd_dentry));
+		dput(pd_dentry);
 	}
 	nfs_free_fattr(res.fattr);
 	if (error < 0)
