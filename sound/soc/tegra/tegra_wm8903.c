@@ -197,7 +197,8 @@ static int tegra_wm8903_remove(struct snd_soc_card *card)
 
 SND_SOC_DAILINK_DEFS(hifi,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "wm8903-hifi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "wm8903-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link tegra_wm8903_dai = {
 	.name = "WM8903",
@@ -323,6 +324,8 @@ static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
+
+	tegra_wm8903_dai.platforms->of_node = tegra_wm8903_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)
