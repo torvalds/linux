@@ -953,9 +953,13 @@ static int stmmac_init_phy(struct net_device *dev)
 
 	node = priv->plat->phylink_node;
 
-	if (node) {
+	if (node)
 		ret = phylink_of_phy_connect(priv->phylink, node, 0);
-	} else {
+
+	/* Some DT bindings do not set-up the PHY handle. Let's try to
+	 * manually parse it
+	 */
+	if (!node || ret) {
 		int addr = priv->plat->phy_addr;
 		struct phy_device *phydev;
 
