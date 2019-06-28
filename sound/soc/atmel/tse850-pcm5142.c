@@ -296,7 +296,8 @@ static const struct snd_soc_dapm_route tse850_intercon[] = {
 
 SND_SOC_DAILINK_DEFS(pcm,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "pcm512x-hifi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "pcm512x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link tse850_dailink = {
 	.name = "TSE-850",
@@ -336,6 +337,7 @@ static int tse850_dt_init(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	dailink->cpus->of_node = cpu_np;
+	dailink->platforms->of_node = cpu_np;
 	of_node_put(cpu_np);
 
 	codec_np = of_parse_phandle(np, "axentia,audio-codec", 0);
