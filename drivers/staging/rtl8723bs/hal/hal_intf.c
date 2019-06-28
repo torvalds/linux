@@ -400,11 +400,6 @@ bool rtw_hal_c2h_valid(struct adapter *adapter, u8 *buf)
 	return c2h_evt_valid((struct c2h_evt_hdr_88xx *)buf);
 }
 
-s32 rtw_hal_c2h_evt_read(struct adapter *adapter, u8 *buf)
-{
-	return c2h_evt_read_88xx(adapter, buf);
-}
-
 s32 rtw_hal_c2h_handler(struct adapter *adapter, u8 *c2h_evt)
 {
 	s32 ret = _FAIL;
