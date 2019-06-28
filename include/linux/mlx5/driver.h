@@ -182,6 +182,11 @@ enum port_state_policy {
 	MLX5_POLICY_INVALID	= 0xffffffff
 };
 
+enum mlx5_coredev_type {
+	MLX5_COREDEV_PF,
+	MLX5_COREDEV_VF
+};
+
 struct mlx5_field_desc {
 	struct dentry	       *dent;
 	int			i;
@@ -567,7 +572,6 @@ struct mlx5_priv {
 	struct mlx5_core_sriov	sriov;
 	struct mlx5_lag		*lag;
 	struct mlx5_devcom	*devcom;
-	unsigned long		pci_dev_data;
 	struct mlx5_core_roce	roce;
 	struct mlx5_fc_stats		fc_stats;
 	struct mlx5_rl_table            rl_table;
@@ -646,6 +650,7 @@ struct mlx5_vxlan;
 
 struct mlx5_core_dev {
 	struct device *device;
+	enum mlx5_coredev_type coredev_type;
 	struct pci_dev	       *pdev;
 	/* sync pci state */
 	struct mutex		pci_status_mutex;
@@ -1079,9 +1084,9 @@ enum {
 	MLX5_PCI_DEV_IS_VF		= 1 << 0,
 };
 
-static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
+static inline bool mlx5_core_is_pf(struct mlx5_core_dev *dev)
 {
-	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
+	return dev->coredev_type == MLX5_COREDEV_PF;
 }
 
 static inline bool mlx5_core_is_ecpf(struct mlx5_core_dev *dev)
