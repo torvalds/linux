@@ -104,15 +104,19 @@ __be32 rvt_compute_aeth(struct rvt_qp *qp)
 	} else {
 		u32 min, max, x;
 		u32 credits;
-		struct rvt_rwq *wq = qp->r_rq.wq;
 		u32 head;
 		u32 tail;
 
 		/* sanity check pointers before trusting them */
-		head = wq->head;
+		if (qp->ip) {
+			head = RDMA_READ_UAPI_ATOMIC(qp->r_rq.wq->head);
+			tail = RDMA_READ_UAPI_ATOMIC(qp->r_rq.wq->tail);
+		} else {
+			head = READ_ONCE(qp->r_rq.kwq->head);
+			tail = READ_ONCE(qp->r_rq.kwq->tail);
+		}
 		if (head >= qp->r_rq.size)
 			head = 0;
-		tail = wq->tail;
 		if (tail >= qp->r_rq.size)
 			tail = 0;
 		/*

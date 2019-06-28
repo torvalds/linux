@@ -52,6 +52,7 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdmavt_cq.h>
+#include <rdma/rvt-abi.h>
 /*
  * Atomic bit definitions for r_aflags.
  */
@@ -177,33 +178,27 @@ struct rvt_swqe {
 	struct rvt_sge sg_list[0];
 };
 
-/*
- * Receive work request queue entry.
- * The size of the sg_list is determined when the QP (or SRQ) is created
- * and stored in qp->r_rq.max_sge (or srq->rq.max_sge).
+/**
+ * struct rvt_krwq - kernel struct receive work request
+ * @head: index of next entry to fill
+ * @tail: index of next entry to pull
+ * @count: count is aproximate of total receive enteries posted
+ * @rvt_rwqe: struct of receive work request queue entry
+ *
+ * This structure is used to contain the head pointer,
+ * tail pointer and receive work queue entries for kernel
+ * mode user.
  */
-struct rvt_rwqe {
-	u64 wr_id;
-	u8 num_sge;
-	struct ib_sge sg_list[0];
-};
-
-/*
- * This structure is used to contain the head pointer, tail pointer,
- * and receive work queue entries as a single memory allocation so
- * it can be mmap'ed into user space.
- * Note that the wq array elements are variable size so you can't
- * just index into the array to get the N'th element;
- * use get_rwqe_ptr() instead.
- */
-struct rvt_rwq {
+struct rvt_krwq {
 	u32 head;               /* new work requests posted to the head */
 	u32 tail;               /* receives pull requests from here. */
-	struct rvt_rwqe wq[0];
+	struct rvt_rwqe *curr_wq;
+	struct rvt_rwqe wq[];
 };
 
 struct rvt_rq {
 	struct rvt_rwq *wq;
+	struct rvt_krwq *kwq;
 	u32 size;               /* size of RWQE array */
 	u8 max_sge;
 	/* protect changes in this struct */
@@ -472,7 +467,7 @@ static inline struct rvt_swqe *rvt_get_swqe_ptr(struct rvt_qp *qp,
 static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 {
 	return (struct rvt_rwqe *)
-		((char *)rq->wq->wq +
+		((char *)rq->kwq->curr_wq +
 		 (sizeof(struct rvt_rwqe) +
 		  rq->max_sge * sizeof(struct ib_sge)) * n);
 }
@@ -850,6 +845,21 @@ static inline u32 ib_cq_head(struct ib_cq *send_cq)
 	return ibcq_to_rvtcq(send_cq)->ip ?
 	       RDMA_READ_UAPI_ATOMIC(cq->queue->head) :
 	       ibcq_to_rvtcq(send_cq)->kqueue->head;
+}
+
+/**
+ * rvt_free_rq - free memory allocated for rvt_rq struct
+ * @rvt_rq: request queue data structure
+ *
+ * This function should only be called if the rvt_mmap_info()
+ * has not succeeded.
+ */
+static inline void rvt_free_rq(struct rvt_rq *rq)
+{
+	kvfree(rq->kwq);
+	rq->kwq = NULL;
+	vfree(rq->wq);
+	rq->wq = NULL;
 }
 
 struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
