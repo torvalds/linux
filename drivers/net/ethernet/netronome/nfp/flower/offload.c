@@ -52,8 +52,7 @@
 
 #define NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R \
 	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS))
 
 #define NFP_FLOWER_MERGE_FIELDS \
 	(NFP_FLOWER_LAYER_PORT | \
@@ -141,18 +140,69 @@ static bool nfp_flower_check_higher_than_l3(struct tc_cls_flower_offload *f)
 }
 
 static int
-nfp_flower_calc_opt_layer(struct flow_match_enc_opts *enc_opts,
+nfp_flower_calc_opt_layer(struct flow_dissector_key_enc_opts *enc_opts,
 			  u32 *key_layer_two, int *key_size,
 			  struct netlink_ext_ack *extack)
 {
-	if (enc_opts->key->len > NFP_FL_MAX_GENEVE_OPT_KEY) {
+	if (enc_opts->len > NFP_FL_MAX_GENEVE_OPT_KEY) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: geneve options exceed maximum length");
 		return -EOPNOTSUPP;
 	}
 
-	if (enc_opts->key->len > 0) {
+	if (enc_opts->len > 0) {
 		*key_layer_two |= NFP_FLOWER_LAYER2_GENEVE_OP;
 		*key_size += sizeof(struct nfp_flower_geneve_options);
+	}
+
+	return 0;
+}
+
+static int
+nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
+			      struct flow_dissector_key_enc_opts *enc_op,
+			      u32 *key_layer_two, u8 *key_layer, int *key_size,
+			      struct nfp_flower_priv *priv,
+			      enum nfp_flower_tun_type *tun_type,
+			      struct netlink_ext_ack *extack)
+{
+	int err;
+
+	switch (enc_ports->dst) {
+	case htons(IANA_VXLAN_UDP_PORT):
+		*tun_type = NFP_FL_TUNNEL_VXLAN;
+		*key_layer |= NFP_FLOWER_LAYER_VXLAN;
+		*key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
+
+		if (enc_op) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options not supported on vxlan tunnels");
+			return -EOPNOTSUPP;
+		}
+		break;
+	case htons(GENEVE_UDP_PORT):
+		if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve offload");
+			return -EOPNOTSUPP;
+		}
+		*tun_type = NFP_FL_TUNNEL_GENEVE;
+		*key_layer |= NFP_FLOWER_LAYER_EXT_META;
+		*key_size += sizeof(struct nfp_flower_ext_meta);
+		*key_layer_two |= NFP_FLOWER_LAYER2_GENEVE;
+		*key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
+
+		if (!enc_op)
+			break;
+		if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE_OPT)) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve option offload");
+			return -EOPNOTSUPP;
+		}
+		err = nfp_flower_calc_opt_layer(enc_op, key_layer_two,
+						key_size, extack);
+		if (err)
+			return err;
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel type unknown");
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -234,58 +284,51 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			return -EOPNOTSUPP;
 		}
 
-		flow_rule_match_enc_ports(rule, &enc_ports);
-		if (enc_ports.mask->dst != cpu_to_be16(~0)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: only an exact match L4 destination port is supported");
-			return -EOPNOTSUPP;
-		}
-
 		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_OPTS))
 			flow_rule_match_enc_opts(rule, &enc_op);
 
-		switch (enc_ports.key->dst) {
-		case htons(IANA_VXLAN_UDP_PORT):
-			*tun_type = NFP_FL_TUNNEL_VXLAN;
-			key_layer |= NFP_FLOWER_LAYER_VXLAN;
-			key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
 
-			if (enc_op.key) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options not supported on vxlan tunnels");
-				return -EOPNOTSUPP;
-			}
-			break;
-		case htons(GENEVE_UDP_PORT):
-			if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve offload");
-				return -EOPNOTSUPP;
-			}
-			*tun_type = NFP_FL_TUNNEL_GENEVE;
-			key_layer |= NFP_FLOWER_LAYER_EXT_META;
-			key_size += sizeof(struct nfp_flower_ext_meta);
-			key_layer_two |= NFP_FLOWER_LAYER2_GENEVE;
-			key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
+		if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
+			/* check if GRE, which has no enc_ports */
+			if (netif_is_gretap(netdev)) {
+				*tun_type = NFP_FL_TUNNEL_GRE;
+				key_layer |= NFP_FLOWER_LAYER_EXT_META;
+				key_size += sizeof(struct nfp_flower_ext_meta);
+				key_layer_two |= NFP_FLOWER_LAYER2_GRE;
+				key_size +=
+					sizeof(struct nfp_flower_ipv4_gre_tun);
 
-			if (!enc_op.key)
-				break;
-			if (!(priv->flower_ext_feats &
-			      NFP_FL_FEATS_GENEVE_OPT)) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve option offload");
+				if (enc_op.key) {
+					NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options not supported on GRE tunnels");
+					return -EOPNOTSUPP;
+				}
+			} else {
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: an exact match on L4 destination port is required for non-GRE tunnels");
 				return -EOPNOTSUPP;
 			}
-			err = nfp_flower_calc_opt_layer(&enc_op, &key_layer_two,
-							&key_size, extack);
+		} else {
+			flow_rule_match_enc_ports(rule, &enc_ports);
+			if (enc_ports.mask->dst != cpu_to_be16(~0)) {
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: only an exact match L4 destination port is supported");
+				return -EOPNOTSUPP;
+			}
+
+			err = nfp_flower_calc_udp_tun_layer(enc_ports.key,
+							    enc_op.key,
+							    &key_layer_two,
+							    &key_layer,
+							    &key_size, priv,
+							    tun_type, extack);
 			if (err)
 				return err;
-			break;
-		default:
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel type unknown");
-			return -EOPNOTSUPP;
-		}
 
-		/* Ensure the ingress netdev matches the expected tun type. */
-		if (!nfp_fl_netdev_is_tunnel_type(netdev, *tun_type)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress netdev does not match the expected tunnel type");
-			return -EOPNOTSUPP;
+			/* Ensure the ingress netdev matches the expected
+			 * tun type.
+			 */
+			if (!nfp_fl_netdev_is_tunnel_type(netdev, *tun_type)) {
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress netdev does not match the expected tunnel type");
+				return -EOPNOTSUPP;
+			}
 		}
 	}
 
