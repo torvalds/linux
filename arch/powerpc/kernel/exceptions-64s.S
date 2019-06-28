@@ -1781,6 +1781,7 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	BRANCH_LINK_TO_FAR(DOTSYM(hmi_exception_realmode)) /* Function call ABI */
 	cmpdi	cr0,r3,0
+	bne	1f
 
 	/* Windup the stack. */
 	/* Move original HSRR0 and HSRR1 into the respective regs */
@@ -1799,13 +1800,28 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	REST_GPR(10, r1)
 	ld	r11,_CCR(r1)
 	REST_2GPRS(12, r1)
-	bne	1f
 	mtcr	r11
 	REST_GPR(11, r1)
 	ld	r1,GPR1(r1)
 	HRFI_TO_USER_OR_KERNEL
 
-1:	mtcr	r11
+1:
+	ld	r9,_MSR(r1)
+	mtspr	SPRN_HSRR1,r9
+	ld	r9,_NIP(r1)
+	mtspr	SPRN_HSRR0,r9
+	ld	r9,_CTR(r1)
+	mtctr	r9
+	ld	r9,_XER(r1)
+	mtxer	r9
+	ld	r9,_LINK(r1)
+	mtlr	r9
+	REST_GPR(0, r1)
+	REST_8GPRS(2, r1)
+	REST_GPR(10, r1)
+	ld	r11,_CCR(r1)
+	REST_2GPRS(12, r1)
+	mtcr	r11
 	REST_GPR(11, r1)
 	ld	r1,GPR1(r1)
 
@@ -1813,8 +1829,6 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	 * Go to virtual mode and pull the HMI event information from
 	 * firmware.
 	 */
-	.globl hmi_exception_after_realmode
-hmi_exception_after_realmode:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0 PACA_EXGEN
 	b	tramp_real_hmi_exception
