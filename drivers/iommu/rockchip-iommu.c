@@ -111,6 +111,7 @@ struct rk_iommu {
 struct rk_iommudata {
 	struct device_link *link; /* runtime PM link from IOMMU to master */
 	struct rk_iommu *iommu;
+	bool defer_attach;
 };
 
 static struct device *dma_dev;
@@ -1099,6 +1100,8 @@ static int rk_iommu_add_device(struct device *dev)
 	iommu_device_link(&iommu->iommu, dev);
 	data->link = device_link_add(dev, iommu->dev, DL_FLAG_PM_RUNTIME);
 
+	data->defer_attach = false;
+
 	return 0;
 }
 
@@ -1123,6 +1126,14 @@ static struct iommu_group *rk_iommu_device_group(struct device *dev)
 	return iommu_group_ref_get(iommu->group);
 }
 
+static bool rk_iommu_is_attach_deferred(struct iommu_domain *domain,
+					 struct device *dev)
+{
+	struct rk_iommudata *data = dev->archdata.iommu;
+
+	return data->defer_attach;
+}
+
 static int rk_iommu_of_xlate(struct device *dev,
 			     struct of_phandle_args *args)
 {
@@ -1136,6 +1147,10 @@ static int rk_iommu_of_xlate(struct device *dev,
 	iommu_dev = of_find_device_by_node(args->np);
 
 	data->iommu = platform_get_drvdata(iommu_dev);
+
+	if (strstr(dev_name(dev), "vop"))
+		data->defer_attach = true;
+
 	dev->archdata.iommu = data;
 
 	platform_device_put(iommu_dev);
@@ -1153,6 +1168,7 @@ static const struct iommu_ops rk_iommu_ops = {
 	.add_device = rk_iommu_add_device,
 	.remove_device = rk_iommu_remove_device,
 	.iova_to_phys = rk_iommu_iova_to_phys,
+	.is_attach_deferred = rk_iommu_is_attach_deferred,
 	.device_group = rk_iommu_device_group,
 	.pgsize_bitmap = RK_IOMMU_PGSIZE_BITMAP,
 	.of_xlate = rk_iommu_of_xlate,
