@@ -26,15 +26,8 @@ enum kvm_arch_timer_regs {
 struct arch_timer_context {
 	struct kvm_vcpu			*vcpu;
 
-	/* Registers: control register, timer value */
-	u32				cnt_ctl;
-	u64				cnt_cval;
-
 	/* Timer IRQ */
 	struct kvm_irq_level		irq;
-
-	/* Virtual offset */
-	u64				cntvoff;
 
 	/* Emulated Timer (may be unused) */
 	struct hrtimer			hrtimer;
@@ -108,5 +101,9 @@ void kvm_arm_timer_write_sysreg(struct kvm_vcpu *vcpu,
 				enum kvm_arch_timers tmr,
 				enum kvm_arch_timer_regs treg,
 				u64 val);
+
+/* Needed for tracing */
+u32 timer_get_ctl(struct arch_timer_context *ctxt);
+u64 timer_get_cval(struct arch_timer_context *ctxt);
 
 #endif
