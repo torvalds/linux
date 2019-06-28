@@ -1255,7 +1255,7 @@ __dentry_leases_walk(struct ceph_mds_client *mdsc,
 		if (!spin_trylock(&dentry->d_lock))
 			continue;
 
-		if (dentry->d_lockref.count < 0) {
+		if (__lockref_is_dead(&dentry->d_lockref)) {
 			list_del_init(&di->lease_list);
 			goto next;
 		}
