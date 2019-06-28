@@ -4265,9 +4265,12 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_dig_port->max_lanes = intel_ddi_max_lanes(intel_dig_port);
 	intel_dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
 
-	intel_dig_port->tc_legacy_port = intel_port_is_tc(dev_priv, port) &&
-					 !port_info->supports_typec_usb &&
-					 !port_info->supports_tbt;
+	if (intel_port_is_tc(dev_priv, port)) {
+		bool is_legacy = !port_info->supports_typec_usb &&
+				 !port_info->supports_tbt;
+
+		intel_tc_port_init(intel_dig_port, is_legacy);
+	}
 
 	switch (port) {
 	case PORT_A:
