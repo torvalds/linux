@@ -1549,12 +1549,11 @@ static int sysc_rstctrl_reset_deassert(struct sysc *ddata, bool reset)
  */
 static int sysc_reset(struct sysc *ddata)
 {
-	int sysc_offset, syss_offset, sysc_val, rstval, quirks, error = 0;
+	int sysc_offset, syss_offset, sysc_val, rstval, error = 0;
 	u32 sysc_mask, syss_done;
 
 	sysc_offset = ddata->offsets[SYSC_SYSCONFIG];
 	syss_offset = ddata->offsets[SYSC_SYSSTATUS];
-	quirks = ddata->cfg.quirks;
 
 	if (ddata->legacy_mode || sysc_offset < 0 ||
 	    ddata->cap->regbits->srst_shift < 0 ||
