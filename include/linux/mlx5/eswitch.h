@@ -46,6 +46,8 @@ struct mlx5_eswitch_rep {
 	u16		       vport;
 	u8		       hw_id[ETH_ALEN];
 	u16		       vlan;
+	/* Only IB rep is using vport_index */
+	u16		       vport_index;
 	u32		       vlan_refcount;
 };
 

@@ -14,7 +14,7 @@ mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	int vport_index;
 
 	ibdev = mlx5_ib_get_uplink_ibdev(dev->priv.eswitch);
-	vport_index = ibdev->free_port++;
+	vport_index = rep->vport_index;
 
 	ibdev->port[vport_index].rep = rep;
 	write_lock(&ibdev->port[vport_index].roce.netdev_lock);
@@ -50,7 +50,7 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	}
 
 	ibdev->is_rep = true;
-	vport_index = ibdev->free_port++;
+	vport_index = rep->vport_index;
 	ibdev->port[vport_index].rep = rep;
 	ibdev->port[vport_index].roce.netdev =
 		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
