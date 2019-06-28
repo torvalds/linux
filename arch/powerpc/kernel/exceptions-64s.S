@@ -183,19 +183,19 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	.endif
 	.if \hsrr
 	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
-	.else
-	mfspr	r11,SPRN_SRR0		/* save SRR0 */
-	.endif
-	LOAD_HANDLER(r12, \label\())
-	.if \hsrr
-	mtspr	SPRN_HSRR0,r12
 	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
 	mtspr	SPRN_HSRR1,r10
-	HRFI_TO_KERNEL
 	.else
-	mtspr	SPRN_SRR0,r12
+	mfspr	r11,SPRN_SRR0		/* save SRR0 */
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
 	mtspr	SPRN_SRR1,r10
+	.endif
+	LOAD_HANDLER(r10, \label\())
+	.if \hsrr
+	mtspr	SPRN_HSRR0,r10
+	HRFI_TO_KERNEL
+	.else
+	mtspr	SPRN_SRR0,r10
 	RFI_TO_KERNEL
 	.endif
 	b	.	/* prevent speculative execution */
