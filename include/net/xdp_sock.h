@@ -61,6 +61,11 @@ struct xdp_sock {
 	struct xsk_queue *tx ____cacheline_aligned_in_smp;
 	struct list_head list;
 	bool zc;
+	enum {
+		XSK_READY = 0,
+		XSK_BOUND,
+		XSK_UNBOUND,
+	} state;
 	/* Protects multiple processes in the control path */
 	struct mutex mutex;
 	/* Mutual exclusion of NAPI TX thread and sendmsg error paths

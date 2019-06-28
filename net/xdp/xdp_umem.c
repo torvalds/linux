@@ -140,10 +140,12 @@ out_rtnl_unlock:
 	return err;
 }
 
-static void xdp_umem_clear_dev(struct xdp_umem *umem)
+void xdp_umem_clear_dev(struct xdp_umem *umem)
 {
 	struct netdev_bpf bpf;
 	int err;
+
+	ASSERT_RTNL();
 
 	if (!umem->dev)
 		return;
@@ -153,17 +155,13 @@ static void xdp_umem_clear_dev(struct xdp_umem *umem)
 		bpf.xsk.umem = NULL;
 		bpf.xsk.queue_id = umem->queue_id;
 
-		rtnl_lock();
 		err = umem->dev->netdev_ops->ndo_bpf(umem->dev, &bpf);
-		rtnl_unlock();
 
 		if (err)
 			WARN(1, "failed to disable umem!\n");
 	}
 
-	rtnl_lock();
 	xdp_clear_umem_at_qid(umem->dev, umem->queue_id);
-	rtnl_unlock();
 
 	dev_put(umem->dev);
 	umem->dev = NULL;
@@ -195,7 +193,9 @@ static void xdp_umem_unaccount_pages(struct xdp_umem *umem)
 
 static void xdp_umem_release(struct xdp_umem *umem)
 {
+	rtnl_lock();
 	xdp_umem_clear_dev(umem);
+	rtnl_unlock();
 
 	ida_simple_remove(&umem_ida, umem->id);
 
