@@ -103,9 +103,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 			link->codecs	 = dlc;
 			link->num_codecs = 1;
 
-			link->platforms = NULL;
-			link->num_platforms = 0;
-
+			link->platforms->of_node = link->cpus->of_node;
 			link->codecs->dai_name = "snd-soc-dummy-dai";
 			link->codecs->name = "snd-soc-dummy";
 			link->dynamic = 1;
