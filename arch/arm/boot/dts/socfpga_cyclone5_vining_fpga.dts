@@ -96,10 +96,14 @@
 			rxd1-skew-ps = <0>;
 			rxd2-skew-ps = <0>;
 			rxd3-skew-ps = <0>;
+			txd0-skew-ps = <0>;
+			txd1-skew-ps = <0>;
+			txd2-skew-ps = <0>;
+			txd3-skew-ps = <0>;
 			txen-skew-ps = <0>;
-			txc-skew-ps = <2600>;
+			txc-skew-ps = <1860>;
 			rxdv-skew-ps = <0>;
-			rxc-skew-ps = <2000>;
+			rxc-skew-ps = <1860>;
 		};
 	};
 };
