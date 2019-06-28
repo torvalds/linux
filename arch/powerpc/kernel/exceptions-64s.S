@@ -884,6 +884,18 @@ TRAMP_REAL_BEGIN(system_reset_idle_wake)
 	BRANCH_TO_C000(r12, DOTSYM(idle_return_gpr_loss))
 #endif
 
+#ifdef CONFIG_PPC_PSERIES
+/*
+ * Vectors for the FWNMI option.  Share common code.
+ */
+TRAMP_REAL_BEGIN(system_reset_fwnmi)
+	/* See comment at system_reset exception, don't turn on RI */
+	EXCEPTION_PROLOG_0 PACA_EXNMI
+	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXNMI, 0, 0x100, 0, 0, 0
+	EXCEPTION_PROLOG_2_REAL system_reset_common, EXC_STD, 0
+
+#endif /* CONFIG_PPC_PSERIES */
+
 EXC_COMMON_BEGIN(system_reset_common)
 	/*
 	 * Increment paca->in_nmi then enable MSR_RI. SLB or MCE will be able
@@ -940,18 +952,6 @@ EXC_COMMON_BEGIN(system_reset_common)
 
 	EXCEPTION_RESTORE_REGS EXC_STD
 	RFI_TO_USER_OR_KERNEL
-
-#ifdef CONFIG_PPC_PSERIES
-/*
- * Vectors for the FWNMI option.  Share common code.
- */
-TRAMP_REAL_BEGIN(system_reset_fwnmi)
-	/* See comment at system_reset exception, don't turn on RI */
-	EXCEPTION_PROLOG_0 PACA_EXNMI
-	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXNMI, 0, 0x100, 0, 0, 0
-	EXCEPTION_PROLOG_2_REAL system_reset_common, EXC_STD, 0
-
-#endif /* CONFIG_PPC_PSERIES */
 
 
 EXC_REAL_BEGIN(machine_check, 0x200, 0x100)
