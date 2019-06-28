@@ -847,6 +847,7 @@ struct dwc3_hwparams {
  * @epnum: endpoint number to which this request refers
  * @trb: pointer to struct dwc3_trb
  * @trb_dma: DMA address of @trb
+ * @num_trbs: number of TRBs used by this request
  * @needs_extra_trb: true when request needs one extra TRB (either due to ZLP
  *	or unaligned OUT)
  * @direction: IN or OUT direction flag
@@ -866,6 +867,8 @@ struct dwc3_request {
 	u8			epnum;
 	struct dwc3_trb		*trb;
 	dma_addr_t		trb_dma;
+
+	unsigned		num_trbs;
 
 	unsigned		needs_extra_trb:1;
 	unsigned		direction:1;
