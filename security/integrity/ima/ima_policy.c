@@ -1258,6 +1258,12 @@ void ima_delete_rules(void)
 	}
 }
 
+#define __ima_hook_stringify(str)	(#str),
+
+const char *const func_tokens[] = {
+	__ima_hooks(__ima_hook_stringify)
+};
+
 #ifdef	CONFIG_IMA_READ_POLICY
 enum {
 	mask_exec = 0, mask_write, mask_read, mask_append
@@ -1268,12 +1274,6 @@ static const char *const mask_tokens[] = {
 	"^MAY_WRITE",
 	"^MAY_READ",
 	"^MAY_APPEND"
-};
-
-#define __ima_hook_stringify(str)	(#str),
-
-static const char *const func_tokens[] = {
-	__ima_hooks(__ima_hook_stringify)
 };
 
 void *ima_policy_start(struct seq_file *m, loff_t *pos)

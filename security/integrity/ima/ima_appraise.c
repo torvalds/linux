@@ -277,6 +277,33 @@ static int xattr_verify(enum ima_hooks func, struct integrity_iint_cache *iint,
 }
 
 /*
+ * modsig_verify - verify modsig signature
+ *
+ * Verify whether the signature matches the file contents.
+ *
+ * Return 0 on success, error code otherwise.
+ */
+static int modsig_verify(enum ima_hooks func, const struct modsig *modsig,
+			 enum integrity_status *status, const char **cause)
+{
+	int rc;
+
+	rc = integrity_modsig_verify(INTEGRITY_KEYRING_IMA, modsig);
+	if (IS_ENABLED(CONFIG_INTEGRITY_PLATFORM_KEYRING) && rc &&
+	    func == KEXEC_KERNEL_CHECK)
+		rc = integrity_modsig_verify(INTEGRITY_KEYRING_PLATFORM,
+					     modsig);
+	if (rc) {
+		*cause = "invalid-signature";
+		*status = INTEGRITY_FAIL;
+	} else {
+		*status = INTEGRITY_PASS;
+	}
+
+	return rc;
+}
+
+/*
  * ima_appraise_measurement - appraise file measurement
  *
  * Call evm_verifyxattr() to verify the integrity of 'security.ima'.
@@ -288,7 +315,7 @@ int ima_appraise_measurement(enum ima_hooks func,
 			     struct integrity_iint_cache *iint,
 			     struct file *file, const unsigned char *filename,
 			     struct evm_ima_xattr_data *xattr_value,
-			     int xattr_len)
+			     int xattr_len, const struct modsig *modsig)
 {
 	static const char op[] = "appraise_data";
 	const char *cause = "unknown";
@@ -296,11 +323,14 @@ int ima_appraise_measurement(enum ima_hooks func,
 	struct inode *inode = d_backing_inode(dentry);
 	enum integrity_status status = INTEGRITY_UNKNOWN;
 	int rc = xattr_len;
+	bool try_modsig = iint->flags & IMA_MODSIG_ALLOWED && modsig;
 
-	if (!(inode->i_opflags & IOP_XATTR))
+	/* If not appraising a modsig, we need an xattr. */
+	if (!(inode->i_opflags & IOP_XATTR) && !try_modsig)
 		return INTEGRITY_UNKNOWN;
 
-	if (rc <= 0) {
+	/* If reading the xattr failed and there's no modsig, error out. */
+	if (rc <= 0 && !try_modsig) {
 		if (rc && rc != -ENODATA)
 			goto out;
 
@@ -323,6 +353,10 @@ int ima_appraise_measurement(enum ima_hooks func,
 	case INTEGRITY_UNKNOWN:
 		break;
 	case INTEGRITY_NOXATTRS:	/* No EVM protected xattrs. */
+		/* It's fine not to have xattrs when using a modsig. */
+		if (try_modsig)
+			break;
+		/* fall through */
 	case INTEGRITY_NOLABEL:		/* No security.evm xattr. */
 		cause = "missing-HMAC";
 		goto out;
@@ -336,6 +370,15 @@ int ima_appraise_measurement(enum ima_hooks func,
 	if (xattr_value)
 		rc = xattr_verify(func, iint, xattr_value, xattr_len, &status,
 				  &cause);
+
+	/*
+	 * If we have a modsig and either no imasig or the imasig's key isn't
+	 * known, then try verifying the modsig.
+	 */
+	if (try_modsig &&
+	    (!xattr_value || xattr_value->type == IMA_XATTR_DIGEST_NG ||
+	     rc == -ENOKEY))
+		rc = modsig_verify(func, modsig, &status, &cause);
 
 out:
 	/*
@@ -353,7 +396,7 @@ out:
 				    op, cause, rc, 0);
 	} else if (status != INTEGRITY_PASS) {
 		/* Fix mode, but don't replace file signatures. */
-		if ((ima_appraise & IMA_APPRAISE_FIX) &&
+		if ((ima_appraise & IMA_APPRAISE_FIX) && !try_modsig &&
 		    (!xattr_value ||
 		     xattr_value->type != EVM_IMA_XATTR_DIGSIG)) {
 			if (!ima_fix_xattr(dentry, iint))

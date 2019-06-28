@@ -202,6 +202,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	int rc = 0, action, must_appraise = 0;
 	int pcr = CONFIG_IMA_MEASURE_PCR_IDX;
 	struct evm_ima_xattr_data *xattr_value = NULL;
+	struct modsig *modsig = NULL;
 	int xattr_len = 0;
 	bool violation_check;
 	enum hash_algo hash_algo;
@@ -302,9 +303,14 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	}
 
 	if ((action & IMA_APPRAISE_SUBMASK) ||
-		    strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) != 0)
+	    strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) != 0) {
 		/* read 'security.ima' */
 		xattr_len = ima_read_xattr(file_dentry(file), &xattr_value);
+
+		/* Read the appended modsig if allowed by the policy. */
+		if (iint->flags & IMA_MODSIG_ALLOWED)
+			ima_read_modsig(func, buf, size, &modsig);
+	}
 
 	hash_algo = ima_get_hash_algo(xattr_value, xattr_len);
 
@@ -322,7 +328,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if (rc == 0 && (action & IMA_APPRAISE_SUBMASK)) {
 		inode_lock(inode);
 		rc = ima_appraise_measurement(func, iint, file, pathname,
-					      xattr_value, xattr_len);
+					      xattr_value, xattr_len, modsig);
 		inode_unlock(inode);
 		if (!rc)
 			rc = mmap_violation_check(func, file, &pathbuf,
@@ -339,6 +345,7 @@ out_locked:
 		rc = -EACCES;
 	mutex_unlock(&iint->mutex);
 	kfree(xattr_value);
+	ima_free_modsig(modsig);
 out:
 	if (pathbuf)
 		__putname(pathbuf);
