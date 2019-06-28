@@ -115,6 +115,9 @@ struct intel_encoder {
 	int (*compute_config)(struct intel_encoder *,
 			      struct intel_crtc_state *,
 			      struct drm_connector_state *);
+	void (*update_prepare)(struct intel_atomic_state *,
+			       struct intel_encoder *,
+			       struct intel_crtc *);
 	void (*pre_pll_enable)(struct intel_encoder *,
 			       const struct intel_crtc_state *,
 			       const struct drm_connector_state *);
@@ -124,6 +127,9 @@ struct intel_encoder {
 	void (*enable)(struct intel_encoder *,
 		       const struct intel_crtc_state *,
 		       const struct drm_connector_state *);
+	void (*update_complete)(struct intel_atomic_state *,
+				struct intel_encoder *,
+				struct intel_crtc *);
 	void (*disable)(struct intel_encoder *,
 			const struct intel_crtc_state *,
 			const struct drm_connector_state *);
@@ -1234,6 +1240,8 @@ struct intel_digital_port {
 	enum aux_ch aux_ch;
 	enum intel_display_power_domain ddi_io_power_domain;
 	struct mutex tc_lock;	/* protects the TypeC port mode */
+	intel_wakeref_t tc_lock_wakeref;
+	int tc_link_refcount;
 	bool tc_legacy_port:1;
 	char tc_port_name[8];
 	enum tc_port_mode tc_mode;

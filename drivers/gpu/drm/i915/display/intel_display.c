@@ -6037,6 +6037,98 @@ static void intel_crtc_disable_planes(struct intel_atomic_state *state,
 	intel_frontbuffer_flip(dev_priv, fb_bits);
 }
 
+/*
+ * intel_connector_primary_encoder - get the primary encoder for a connector
+ * @connector: connector for which to return the encoder
+ *
+ * Returns the primary encoder for a connector. There is a 1:1 mapping from
+ * all connectors to their encoder, except for DP-MST connectors which have
+ * both a virtual and a primary encoder. These DP-MST primary encoders can be
+ * pointed to by as many DP-MST connectors as there are pipes.
+ */
+static struct intel_encoder *
+intel_connector_primary_encoder(struct intel_connector *connector)
+{
+	struct intel_encoder *encoder;
+
+	if (connector->mst_port)
+		return &dp_to_dig_port(connector->mst_port)->base;
+
+	encoder = intel_attached_encoder(&connector->base);
+	WARN_ON(!encoder);
+
+	return encoder;
+}
+
+static bool
+intel_connector_needs_modeset(struct intel_atomic_state *state,
+			      const struct drm_connector_state *old_conn_state,
+			      const struct drm_connector_state *new_conn_state)
+{
+	struct intel_crtc *old_crtc = old_conn_state->crtc ?
+				      to_intel_crtc(old_conn_state->crtc) : NULL;
+	struct intel_crtc *new_crtc = new_conn_state->crtc ?
+				      to_intel_crtc(new_conn_state->crtc) : NULL;
+
+	return new_crtc != old_crtc ||
+	       (new_crtc &&
+		needs_modeset(intel_atomic_get_new_crtc_state(state, new_crtc)));
+}
+
+static void intel_encoders_update_prepare(struct intel_atomic_state *state)
+{
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_connector *conn;
+	int i;
+
+	for_each_oldnew_connector_in_state(&state->base, conn,
+					   old_conn_state, new_conn_state, i) {
+		struct intel_encoder *encoder;
+		struct intel_crtc *crtc;
+
+		if (!intel_connector_needs_modeset(state,
+						   old_conn_state,
+						   new_conn_state))
+			continue;
+
+		encoder = intel_connector_primary_encoder(to_intel_connector(conn));
+		if (!encoder->update_prepare)
+			continue;
+
+		crtc = new_conn_state->crtc ?
+			to_intel_crtc(new_conn_state->crtc) : NULL;
+		encoder->update_prepare(state, encoder, crtc);
+	}
+}
+
+static void intel_encoders_update_complete(struct intel_atomic_state *state)
+{
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_connector *conn;
+	int i;
+
+	for_each_oldnew_connector_in_state(&state->base, conn,
+					   old_conn_state, new_conn_state, i) {
+		struct intel_encoder *encoder;
+		struct intel_crtc *crtc;
+
+		if (!intel_connector_needs_modeset(state,
+						   old_conn_state,
+						   new_conn_state))
+			continue;
+
+		encoder = intel_connector_primary_encoder(to_intel_connector(conn));
+		if (!encoder->update_complete)
+			continue;
+
+		crtc = new_conn_state->crtc ?
+			to_intel_crtc(new_conn_state->crtc) : NULL;
+		encoder->update_complete(state, encoder, crtc);
+	}
+}
+
 static void intel_encoders_pre_pll_enable(struct intel_crtc *crtc,
 					  struct intel_crtc_state *crtc_state,
 					  struct intel_atomic_state *state)
@@ -13859,14 +13951,20 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		}
 	}
 
+	if (state->modeset)
+		intel_encoders_update_prepare(state);
+
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display.update_crtcs(state);
 
-	if (state->modeset)
+	if (state->modeset) {
+		intel_encoders_update_complete(state);
+
 		intel_set_cdclk_post_plane_update(dev_priv,
 						  &state->cdclk.actual,
 						  &dev_priv->cdclk.actual,
 						  state->cdclk.pipe);
+	}
 
 	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here
 	 * already, but still need the state for the delayed optimization. To

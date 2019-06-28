@@ -188,19 +188,12 @@ static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
  * display, USB, etc. As a result, handshaking through FIA is required around
  * connect and disconnect to cleanly transfer ownership with the controller and
  * set the type-C power state.
- *
- * We could opt to only do the connect flow when we actually try to use the AUX
- * channels or do a modeset, then immediately run the disconnect flow after
- * usage, but there are some implications on this for a dynamic environment:
- * things may go away or change behind our backs. So for now our driver is
- * always trying to acquire ownership of the controller as soon as it gets an
- * interrupt (or polls state and sees a port is connected) and only gives it
- * back when it sees a disconnect. Implementation of a more fine-grained model
- * will require a lot of coordination with user space and thorough testing for
- * the extra possible cases.
  */
-static void icl_tc_phy_connect(struct intel_digital_port *dig_port)
+static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
+			       int required_lanes)
 {
+	int max_lanes;
+
 	if (!icl_tc_phy_status_complete(dig_port)) {
 		DRM_DEBUG_KMS("Port %s: PHY not ready\n",
 			      dig_port->tc_port_name);
@@ -211,8 +204,9 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port)
 	    !WARN_ON(dig_port->tc_legacy_port))
 		goto out_set_tbt_alt_mode;
 
+	max_lanes = intel_tc_port_fia_max_lane_count(dig_port);
 	if (dig_port->tc_legacy_port) {
-		WARN_ON(intel_tc_port_fia_max_lane_count(dig_port) != 4);
+		WARN_ON(max_lanes != 4);
 		dig_port->tc_mode = TC_PORT_LEGACY;
 
 		return;
@@ -225,6 +219,13 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port)
 	if (!(tc_port_live_status_mask(dig_port) & BIT(TC_PORT_DP_ALT))) {
 		DRM_DEBUG_KMS("Port %s: PHY sudden disconnect\n",
 			      dig_port->tc_port_name);
+		goto out_set_safe_mode;
+	}
+
+	if (max_lanes < required_lanes) {
+		DRM_DEBUG_KMS("Port %s: PHY max lanes %d < required lanes %d\n",
+			      dig_port->tc_port_name,
+			      max_lanes, required_lanes);
 		goto out_set_safe_mode;
 	}
 
@@ -311,7 +312,8 @@ intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
 					  TC_PORT_TBT_ALT;
 }
 
-static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port)
+static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
+				     int required_lanes)
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum tc_port_mode old_tc_mode = dig_port->tc_mode;
@@ -319,12 +321,20 @@ static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port)
 	intel_display_power_flush_work(dev_priv);
 
 	icl_tc_phy_disconnect(dig_port);
-	icl_tc_phy_connect(dig_port);
+	icl_tc_phy_connect(dig_port, required_lanes);
 
 	DRM_DEBUG_KMS("Port %s: TC port mode reset (%s -> %s)\n",
 		      dig_port->tc_port_name,
 		      tc_port_mode_name(old_tc_mode),
 		      tc_port_mode_name(dig_port->tc_mode));
+}
+
+static void
+intel_tc_port_link_init_refcount(struct intel_digital_port *dig_port,
+				 int refcount)
+{
+	WARN_ON(dig_port->tc_link_refcount);
+	dig_port->tc_link_refcount = refcount;
 }
 
 void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
@@ -344,11 +354,13 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 		if (!icl_tc_phy_is_connected(dig_port))
 			DRM_DEBUG_KMS("Port %s: PHY disconnected with %d active link(s)\n",
 				      dig_port->tc_port_name, active_links);
+		intel_tc_port_link_init_refcount(dig_port, active_links);
+
 		goto out;
 	}
 
 	if (dig_port->tc_legacy_port)
-		icl_tc_phy_connect(dig_port);
+		icl_tc_phy_connect(dig_port, 1);
 
 out:
 	DRM_DEBUG_KMS("Port %s: sanitize mode (%s)\n",
@@ -377,27 +389,60 @@ bool intel_tc_port_connected(struct intel_digital_port *dig_port)
 {
 	bool is_connected;
 
-	mutex_lock(&dig_port->tc_lock);
-
-	if (intel_tc_port_needs_reset(dig_port))
-		intel_tc_port_reset_mode(dig_port);
-
+	intel_tc_port_lock(dig_port);
 	is_connected = tc_port_live_status_mask(dig_port) &
 		       BIT(dig_port->tc_mode);
-
-	mutex_unlock(&dig_port->tc_lock);
+	intel_tc_port_unlock(dig_port);
 
 	return is_connected;
 }
 
+static void __intel_tc_port_lock(struct intel_digital_port *dig_port,
+				 int required_lanes)
+{
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	intel_wakeref_t wakeref;
+
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DISPLAY_CORE);
+
+	mutex_lock(&dig_port->tc_lock);
+
+	if (!dig_port->tc_link_refcount &&
+	    intel_tc_port_needs_reset(dig_port))
+		intel_tc_port_reset_mode(dig_port, required_lanes);
+
+	WARN_ON(dig_port->tc_lock_wakeref);
+	dig_port->tc_lock_wakeref = wakeref;
+}
+
 void intel_tc_port_lock(struct intel_digital_port *dig_port)
 {
-	mutex_lock(&dig_port->tc_lock);
-	/* TODO: reset the TypeC port mode if needed */
+	__intel_tc_port_lock(dig_port, 1);
 }
 
 void intel_tc_port_unlock(struct intel_digital_port *dig_port)
 {
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	intel_wakeref_t wakeref = fetch_and_zero(&dig_port->tc_lock_wakeref);
+
+	mutex_unlock(&dig_port->tc_lock);
+
+	intel_display_power_put_async(dev_priv, POWER_DOMAIN_DISPLAY_CORE,
+				      wakeref);
+}
+
+void intel_tc_port_get_link(struct intel_digital_port *dig_port,
+			    int required_lanes)
+{
+	__intel_tc_port_lock(dig_port, required_lanes);
+	dig_port->tc_link_refcount++;
+	intel_tc_port_unlock(dig_port);
+}
+
+void intel_tc_port_put_link(struct intel_digital_port *dig_port)
+{
+	mutex_lock(&dig_port->tc_lock);
+	dig_port->tc_link_refcount--;
 	mutex_unlock(&dig_port->tc_lock);
 }
 
@@ -415,4 +460,5 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 
 	mutex_init(&dig_port->tc_lock);
 	dig_port->tc_legacy_port = is_legacy;
+	dig_port->tc_link_refcount = 0;
 }

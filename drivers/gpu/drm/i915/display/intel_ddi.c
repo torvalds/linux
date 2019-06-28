@@ -3624,16 +3624,43 @@ static void intel_ddi_set_fia_lane_count(struct intel_encoder *encoder,
 }
 
 static void
+intel_ddi_update_prepare(struct intel_atomic_state *state,
+			 struct intel_encoder *encoder,
+			 struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		crtc ? intel_atomic_get_new_crtc_state(state, crtc) : NULL;
+	int required_lanes = crtc_state ? crtc_state->lane_count : 1;
+
+	WARN_ON(crtc && crtc->active);
+
+	intel_tc_port_get_link(enc_to_dig_port(&encoder->base), required_lanes);
+	if (crtc_state && crtc_state->base.active)
+		intel_update_active_dpll(state, crtc, encoder);
+}
+
+static void
+intel_ddi_update_complete(struct intel_atomic_state *state,
+			  struct intel_encoder *encoder,
+			  struct intel_crtc *crtc)
+{
+	intel_tc_port_put_link(enc_to_dig_port(&encoder->base));
+}
+
+static void
 intel_ddi_pre_pll_enable(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *crtc_state,
 			 const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	bool is_tc_port = intel_port_is_tc(dev_priv, encoder->port);
 	enum port port = encoder->port;
 
-	if (intel_crtc_has_dp_encoder(crtc_state) ||
-	    intel_port_is_tc(dev_priv, encoder->port))
+	if (is_tc_port)
+		intel_tc_port_get_link(dig_port, crtc_state->lane_count);
+
+	if (intel_crtc_has_dp_encoder(crtc_state) || is_tc_port)
 		intel_display_power_get(dev_priv,
 					intel_ddi_main_link_aux_domain(dig_port));
 
@@ -3658,11 +3685,14 @@ intel_ddi_post_pll_disable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	bool is_tc_port = intel_port_is_tc(dev_priv, encoder->port);
 
-	if (intel_crtc_has_dp_encoder(crtc_state) ||
-	    intel_port_is_tc(dev_priv, encoder->port))
+	if (intel_crtc_has_dp_encoder(crtc_state) || is_tc_port)
 		intel_display_power_put_unchecked(dev_priv,
 						  intel_ddi_main_link_aux_domain(dig_port));
+
+	if (is_tc_port)
+		intel_tc_port_put_link(dig_port);
 }
 
 static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
@@ -4256,6 +4286,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 				 !port_info->supports_tbt;
 
 		intel_tc_port_init(intel_dig_port, is_legacy);
+
+		intel_encoder->update_prepare = intel_ddi_update_prepare;
+		intel_encoder->update_complete = intel_ddi_update_complete;
 	}
 
 	switch (port) {
