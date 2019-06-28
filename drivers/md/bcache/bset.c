@@ -975,25 +975,17 @@ static struct bset_search_iter bset_search_tree(struct bset_tree *t,
 		j = n;
 		f = &t->tree[j];
 
-		/*
-		 * Similar bit trick, use subtract operation to avoid a branch
-		 * instruction.
-		 *
-		 * n = (f->mantissa > bfloat_mantissa())
-		 *	? j * 2
-		 *	: j * 2 + 1;
-		 *
-		 * We need to subtract 1 from f->mantissa for the sign bit trick
-		 * to work  - that's done in make_bfloat()
-		 */
-		if (likely(f->exponent != 127))
-			n = j * 2 + (((unsigned int)
-				      (f->mantissa -
-				       bfloat_mantissa(search, f))) >> 31);
-		else
-			n = (bkey_cmp(tree_to_bkey(t, j), search) > 0)
-				? j * 2
-				: j * 2 + 1;
+		if (likely(f->exponent != 127)) {
+			if (f->mantissa >= bfloat_mantissa(search, f))
+				n = j * 2;
+			else
+				n = j * 2 + 1;
+		} else {
+			if (bkey_cmp(tree_to_bkey(t, j), search) > 0)
+				n = j * 2;
+			else
+				n = j * 2 + 1;
+		}
 	} while (n < t->size);
 
 	inorder = to_inorder(j, t);
