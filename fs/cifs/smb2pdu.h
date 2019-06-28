@@ -641,6 +641,7 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2	"DH2Q"
 #define SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2	"DH2C"
 #define SMB2_CREATE_APP_INSTANCE_ID	0x45BCA66AEFA7F74A9008FA462E144D74
+#define SMB2_CREATE_APP_INSTANCE_VERSION 0xB982D0B73B56074FA07B524A8116A010
 #define SVHDX_OPEN_DEVICE_CONTEX	0x9CCBCF9E04C1E643980E158DA1F6EC83
 #define SMB2_CREATE_TAG_POSIX		0x93AD25509CB411E7B42383DE968BCD7C
 
@@ -805,6 +806,13 @@ struct durable_reconnect_context_v2 {
 	} Fid;
 	__u8 CreateGuid[16];
 	__le32 Flags; /* see above DHANDLE_FLAG_PERSISTENT */
+} __packed;
+
+/* See MS-SMB2 2.2.14.2.9 */
+struct on_disk_id {
+	__le64 DiskFileId;
+	__le64 VolumeId;
+	__u64  Reserved[4];
 } __packed;
 
 /* See MS-SMB2 2.2.14.2.12 */
