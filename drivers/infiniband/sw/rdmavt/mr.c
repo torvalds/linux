@@ -612,8 +612,8 @@ static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
 	n = mapped_segs % RVT_SEGSZ;
 	mr->mr.map[m]->segs[n].vaddr = (void *)addr;
 	mr->mr.map[m]->segs[n].length = ps;
-	trace_rvt_mr_page_seg(&mr->mr, m, n, (void *)addr, ps);
 	mr->mr.length += ps;
+	trace_rvt_mr_page_seg(&mr->mr, m, n, (void *)addr, ps);
 
 	return 0;
 }

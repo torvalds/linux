@@ -64,8 +64,12 @@ DECLARE_EVENT_CLASS(
 		RDI_DEV_ENTRY(ib_to_rvt(mr->pd->device))
 		__field(void *, vaddr)
 		__field(struct page *, page)
+		__field(u64, iova)
+		__field(u64, user_base)
 		__field(size_t, len)
+		__field(size_t, length)
 		__field(u32, lkey)
+		__field(u32, offset)
 		__field(u16, m)
 		__field(u16, n)
 	),
@@ -73,18 +77,28 @@ DECLARE_EVENT_CLASS(
 		RDI_DEV_ASSIGN(ib_to_rvt(mr->pd->device));
 		__entry->vaddr = v;
 		__entry->page = virt_to_page(v);
+		__entry->iova = mr->iova;
+		__entry->user_base = mr->user_base;
+		__entry->lkey = mr->lkey;
 		__entry->m = m;
 		__entry->n = n;
 		__entry->len = len;
+		__entry->length = mr->length;
+		__entry->offset = mr->offset;
 	),
 	TP_printk(
-		"[%s] vaddr %p page %p m %u n %u len %ld",
+		"[%s] lkey %x iova %llx user_base %llx mr_len %lu vaddr %llx page %p m %u n %u len %lu off %u",
 		__get_str(dev),
-		__entry->vaddr,
+		__entry->lkey,
+		__entry->iova,
+		__entry->user_base,
+		__entry->length,
+		(unsigned long long)__entry->vaddr,
 		__entry->page,
 		__entry->m,
 		__entry->n,
-		__entry->len
+		__entry->len,
+		__entry->offset
 	)
 );
 
