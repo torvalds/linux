@@ -197,11 +197,13 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 /* Digital audio interface glue - connects codec <--> CPU */
 SND_SOC_DAILINK_DEFS(hifi,
 	DAILINK_COMP_ARRAY(COMP_CPU("omap-mcbsp.2")),
-	DAILINK_COMP_ARRAY(COMP_CODEC("twl4030-codec", "twl4030-hifi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC("twl4030-codec", "twl4030-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("omap-mcbsp.2")));
 
 SND_SOC_DAILINK_DEFS(voice,
 	DAILINK_COMP_ARRAY(COMP_CPU("omap-mcbsp.3")),
-	DAILINK_COMP_ARRAY(COMP_CODEC("twl4030-codec", "twl4030-voice")));
+	DAILINK_COMP_ARRAY(COMP_CODEC("twl4030-codec", "twl4030-voice")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("omap-mcbsp.3")));
 
 static struct snd_soc_dai_link omap_twl4030_dai_links[] = {
 	{
@@ -263,12 +265,18 @@ static int omap_twl4030_probe(struct platform_device *pdev)
 		omap_twl4030_dai_links[0].cpus->dai_name  = NULL;
 		omap_twl4030_dai_links[0].cpus->of_node = dai_node;
 
+		omap_twl4030_dai_links[0].platforms->name  = NULL;
+		omap_twl4030_dai_links[0].platforms->of_node = dai_node;
+
 		dai_node = of_parse_phandle(node, "ti,mcbsp-voice", 0);
 		if (!dai_node) {
 			card->num_links = 1;
 		} else {
 			omap_twl4030_dai_links[1].cpus->dai_name  = NULL;
 			omap_twl4030_dai_links[1].cpus->of_node = dai_node;
+
+			omap_twl4030_dai_links[1].platforms->name  = NULL;
+			omap_twl4030_dai_links[1].platforms->of_node = dai_node;
 		}
 
 		priv->jack_detect = of_get_named_gpio(node,
