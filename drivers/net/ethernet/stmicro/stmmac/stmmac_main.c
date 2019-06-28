@@ -805,14 +805,43 @@ static void stmmac_validate(struct phylink_config *config,
 			    struct phylink_link_state *state)
 {
 	struct stmmac_priv *priv = netdev_priv(to_net_dev(config->dev));
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mac_supported) = { 0, };
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	int tx_cnt = priv->plat->tx_queues_to_use;
 	int max_speed = priv->plat->max_speed;
+
+	phylink_set(mac_supported, 10baseT_Half);
+	phylink_set(mac_supported, 10baseT_Full);
+	phylink_set(mac_supported, 100baseT_Half);
+	phylink_set(mac_supported, 100baseT_Full);
+
+	phylink_set(mac_supported, Autoneg);
+	phylink_set(mac_supported, Pause);
+	phylink_set(mac_supported, Asym_Pause);
+	phylink_set_port_modes(mac_supported);
+
+	if (priv->plat->has_gmac ||
+	    priv->plat->has_gmac4 ||
+	    priv->plat->has_xgmac) {
+		phylink_set(mac_supported, 1000baseT_Half);
+		phylink_set(mac_supported, 1000baseT_Full);
+		phylink_set(mac_supported, 1000baseKX_Full);
+	}
 
 	/* Cut down 1G if asked to */
 	if ((max_speed > 0) && (max_speed < 1000)) {
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
+	} else if (priv->plat->has_xgmac) {
+		phylink_set(mac_supported, 2500baseT_Full);
+		phylink_set(mac_supported, 5000baseT_Full);
+		phylink_set(mac_supported, 10000baseSR_Full);
+		phylink_set(mac_supported, 10000baseLR_Full);
+		phylink_set(mac_supported, 10000baseER_Full);
+		phylink_set(mac_supported, 10000baseLRM_Full);
+		phylink_set(mac_supported, 10000baseT_Full);
+		phylink_set(mac_supported, 10000baseKX4_Full);
+		phylink_set(mac_supported, 10000baseKR_Full);
 	}
 
 	/* Half-Duplex can only work with single queue */
@@ -822,7 +851,12 @@ static void stmmac_validate(struct phylink_config *config,
 		phylink_set(mask, 1000baseT_Half);
 	}
 
-	bitmap_andnot(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(supported, supported, mac_supported,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_andnot(supported, supported, mask,
+		      __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mac_supported,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
 	bitmap_andnot(state->advertising, state->advertising, mask,
 		      __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
@@ -842,18 +876,37 @@ static void stmmac_mac_config(struct phylink_config *config, unsigned int mode,
 	ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
 	ctrl &= ~priv->hw->link.speed_mask;
 
-	switch (state->speed) {
-	case SPEED_1000:
-		ctrl |= priv->hw->link.speed1000;
-		break;
-	case SPEED_100:
-		ctrl |= priv->hw->link.speed100;
-		break;
-	case SPEED_10:
-		ctrl |= priv->hw->link.speed10;
-		break;
-	default:
-		return;
+	if (state->interface == PHY_INTERFACE_MODE_USXGMII) {
+		switch (state->speed) {
+		case SPEED_10000:
+			ctrl |= priv->hw->link.xgmii.speed10000;
+			break;
+		case SPEED_5000:
+			ctrl |= priv->hw->link.xgmii.speed5000;
+			break;
+		case SPEED_2500:
+			ctrl |= priv->hw->link.xgmii.speed2500;
+			break;
+		default:
+			return;
+		}
+	} else {
+		switch (state->speed) {
+		case SPEED_2500:
+			ctrl |= priv->hw->link.speed2500;
+			break;
+		case SPEED_1000:
+			ctrl |= priv->hw->link.speed1000;
+			break;
+		case SPEED_100:
+			ctrl |= priv->hw->link.speed100;
+			break;
+		case SPEED_10:
+			ctrl |= priv->hw->link.speed10;
+			break;
+		default:
+			return;
+		}
 	}
 
 	priv->speed = state->speed;
@@ -896,7 +949,7 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	struct stmmac_priv *priv = netdev_priv(to_net_dev(config->dev));
 
 	stmmac_mac_set(priv, priv->ioaddr, true);
-	if (phy) {
+	if (phy && priv->dma_cap.eee) {
 		priv->eee_active = phy_init_eee(phy, 1) >= 0;
 		priv->eee_enabled = stmmac_eee_init(priv);
 		stmmac_set_eee_pls(priv, priv->hw, true);
@@ -2000,18 +2053,16 @@ static int stmmac_napi_check(struct stmmac_priv *priv, u32 chan)
 						 &priv->xstats, chan);
 	struct stmmac_channel *ch = &priv->channel[chan];
 
-	if (status)
-		status |= handle_rx | handle_tx;
-
 	if ((status & handle_rx) && (chan < priv->plat->rx_queues_to_use)) {
-		stmmac_disable_dma_irq(priv, priv->ioaddr, chan);
-		napi_schedule_irqoff(&ch->rx_napi);
+		if (napi_schedule_prep(&ch->rx_napi)) {
+			stmmac_disable_dma_irq(priv, priv->ioaddr, chan);
+			__napi_schedule_irqoff(&ch->rx_napi);
+			status |= handle_tx;
+		}
 	}
 
-	if ((status & handle_tx) && (chan < priv->plat->tx_queues_to_use)) {
-		stmmac_disable_dma_irq(priv, priv->ioaddr, chan);
+	if ((status & handle_tx) && (chan < priv->plat->tx_queues_to_use))
 		napi_schedule_irqoff(&ch->tx_napi);
-	}
 
 	return status;
 }
@@ -2516,9 +2567,9 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
 
 	if (priv->use_riwt) {
-		ret = stmmac_rx_watchdog(priv, priv->ioaddr, MAX_DMA_RIWT, rx_cnt);
+		ret = stmmac_rx_watchdog(priv, priv->ioaddr, MIN_DMA_RIWT, rx_cnt);
 		if (!ret)
-			priv->rx_riwt = MAX_DMA_RIWT;
+			priv->rx_riwt = MIN_DMA_RIWT;
 	}
 
 	if (priv->hw->pcs)
@@ -2721,7 +2772,7 @@ static int stmmac_release(struct net_device *dev)
  *  This function fills descriptor and request new descriptors according to
  *  buffer length to fill
  */
-static void stmmac_tso_allocator(struct stmmac_priv *priv, unsigned int des,
+static void stmmac_tso_allocator(struct stmmac_priv *priv, dma_addr_t des,
 				 int total_len, bool last_segment, u32 queue)
 {
 	struct stmmac_tx_queue *tx_q = &priv->tx_queue[queue];
@@ -2732,11 +2783,18 @@ static void stmmac_tso_allocator(struct stmmac_priv *priv, unsigned int des,
 	tmp_len = total_len;
 
 	while (tmp_len > 0) {
+		dma_addr_t curr_addr;
+
 		tx_q->cur_tx = STMMAC_GET_ENTRY(tx_q->cur_tx, DMA_TX_SIZE);
 		WARN_ON(tx_q->tx_skbuff[tx_q->cur_tx]);
 		desc = tx_q->dma_tx + tx_q->cur_tx;
 
-		desc->des0 = cpu_to_le32(des + (total_len - tmp_len));
+		curr_addr = des + (total_len - tmp_len);
+		if (priv->dma_cap.addr64 <= 32)
+			desc->des0 = cpu_to_le32(curr_addr);
+		else
+			stmmac_set_desc_addr(priv, desc, curr_addr);
+
 		buff_size = tmp_len >= TSO_MAX_BUFF_SIZE ?
 			    TSO_MAX_BUFF_SIZE : tmp_len;
 
@@ -2782,11 +2840,12 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	u32 queue = skb_get_queue_mapping(skb);
-	unsigned int first_entry, des;
+	unsigned int first_entry;
 	struct stmmac_tx_queue *tx_q;
 	int tmp_pay_len = 0;
 	u32 pay_len, mss;
 	u8 proto_hdr_len;
+	dma_addr_t des;
 	int i;
 
 	tx_q = &priv->tx_queue[queue];
@@ -2843,14 +2902,19 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_q->tx_skbuff_dma[first_entry].buf = des;
 	tx_q->tx_skbuff_dma[first_entry].len = skb_headlen(skb);
 
-	first->des0 = cpu_to_le32(des);
+	if (priv->dma_cap.addr64 <= 32) {
+		first->des0 = cpu_to_le32(des);
 
-	/* Fill start of payload in buff2 of first descriptor */
-	if (pay_len)
-		first->des1 = cpu_to_le32(des + proto_hdr_len);
+		/* Fill start of payload in buff2 of first descriptor */
+		if (pay_len)
+			first->des1 = cpu_to_le32(des + proto_hdr_len);
 
-	/* If needed take extra descriptors to fill the remaining payload */
-	tmp_pay_len = pay_len - TSO_MAX_BUFF_SIZE;
+		/* If needed take extra descriptors to fill the remaining payload */
+		tmp_pay_len = pay_len - TSO_MAX_BUFF_SIZE;
+	} else {
+		stmmac_set_desc_addr(priv, first, des);
+		tmp_pay_len = pay_len;
+	}
 
 	stmmac_tso_allocator(priv, des, tmp_pay_len, (nfrags == 0), queue);
 
@@ -2980,12 +3044,12 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, csum_insertion = 0, is_jumbo = 0;
 	u32 queue = skb_get_queue_mapping(skb);
 	int nfrags = skb_shinfo(skb)->nr_frags;
-	int entry;
-	unsigned int first_entry;
 	struct dma_desc *desc, *first;
 	struct stmmac_tx_queue *tx_q;
+	unsigned int first_entry;
 	unsigned int enh_desc;
-	unsigned int des;
+	dma_addr_t des;
+	int entry;
 
 	tx_q = &priv->tx_queue[queue];
 
@@ -3283,6 +3347,8 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 		entry = STMMAC_GET_ENTRY(entry, DMA_RX_SIZE);
 	}
 	rx_q->dirty_rx = entry;
+	rx_q->rx_tail_addr = rx_q->dma_rx_phy +
+			    (rx_q->dirty_rx * sizeof(struct dma_desc));
 	stmmac_set_rx_tail_ptr(priv, priv->ioaddr, rx_q->rx_tail_addr, queue);
 }
 
@@ -3517,8 +3583,8 @@ static int stmmac_napi_poll_tx(struct napi_struct *napi, int budget)
 	work_done = stmmac_tx_clean(priv, DMA_TX_SIZE, chan);
 	work_done = min(work_done, budget);
 
-	if (work_done < budget && napi_complete_done(napi, work_done))
-		stmmac_enable_dma_irq(priv, priv->ioaddr, chan);
+	if (work_done < budget)
+		napi_complete_done(napi, work_done);
 
 	/* Force transmission restart */
 	tx_q = &priv->tx_queue[chan];
@@ -4265,6 +4331,24 @@ int stmmac_dvr_probe(struct device *device,
 		priv->tso = true;
 		dev_info(priv->device, "TSO feature enabled\n");
 	}
+
+	if (priv->dma_cap.addr64) {
+		ret = dma_set_mask_and_coherent(device,
+				DMA_BIT_MASK(priv->dma_cap.addr64));
+		if (!ret) {
+			dev_info(priv->device, "Using %d bits DMA width\n",
+				 priv->dma_cap.addr64);
+		} else {
+			ret = dma_set_mask_and_coherent(device, DMA_BIT_MASK(32));
+			if (ret) {
+				dev_err(priv->device, "Failed to set DMA Mask\n");
+				goto error_hw_init;
+			}
+
+			priv->dma_cap.addr64 = 32;
+		}
+	}
+
 	ndev->features |= ndev->hw_features | NETIF_F_HIGHDMA;
 	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);
 #ifdef STMMAC_VLAN_TAG_USED

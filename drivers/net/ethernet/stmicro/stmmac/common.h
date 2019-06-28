@@ -246,7 +246,7 @@ struct stmmac_safety_stats {
 
 /* Max/Min RI Watchdog Timer count value */
 #define MAX_DMA_RIWT		0xff
-#define MIN_DMA_RIWT		0x20
+#define MIN_DMA_RIWT		0x10
 /* Tx coalesce parameters */
 #define STMMAC_COAL_TX_TIMER	1000
 #define STMMAC_MAX_COAL_TX_TICK	100000
@@ -351,6 +351,7 @@ struct dma_features {
 	unsigned int frpsel;
 	unsigned int frpbs;
 	unsigned int frpes;
+	unsigned int addr64;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
@@ -392,8 +393,12 @@ struct mac_link {
 	u32 speed100;
 	u32 speed1000;
 	u32 speed2500;
-	u32 speed10000;
 	u32 duplex;
+	struct {
+		u32 speed2500;
+		u32 speed5000;
+		u32 speed10000;
+	} xgmii;
 };
 
 struct mii_regs {

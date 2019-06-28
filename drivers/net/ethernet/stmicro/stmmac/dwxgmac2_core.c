@@ -36,7 +36,7 @@ static void dwxgmac2_core_init(struct mac_device_info *hw,
 
 		switch (hw->ps) {
 		case SPEED_10000:
-			tx |= hw->link.speed10000;
+			tx |= hw->link.xgmii.speed10000;
 			break;
 		case SPEED_2500:
 			tx |= hw->link.speed2500;
@@ -381,11 +381,13 @@ int dwxgmac2_setup(struct stmmac_priv *priv)
 		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
 
 	mac->link.duplex = 0;
-	mac->link.speed10 = 0;
-	mac->link.speed100 = 0;
-	mac->link.speed1000 = XGMAC_CONFIG_SS_1000;
-	mac->link.speed2500 = XGMAC_CONFIG_SS_2500;
-	mac->link.speed10000 = XGMAC_CONFIG_SS_10000;
+	mac->link.speed10 = XGMAC_CONFIG_SS_10_MII;
+	mac->link.speed100 = XGMAC_CONFIG_SS_100_MII;
+	mac->link.speed1000 = XGMAC_CONFIG_SS_1000_GMII;
+	mac->link.speed2500 = XGMAC_CONFIG_SS_2500_GMII;
+	mac->link.xgmii.speed2500 = XGMAC_CONFIG_SS_2500;
+	mac->link.xgmii.speed5000 = XGMAC_CONFIG_SS_5000;
+	mac->link.xgmii.speed10000 = XGMAC_CONFIG_SS_10000;
 	mac->link.speed_mask = XGMAC_CONFIG_SS_MASK;
 
 	mac->mii.addr = XGMAC_MDIO_ADDR;
