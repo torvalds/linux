@@ -353,7 +353,8 @@ static struct snd_soc_card da850_snd_soc_card = {
  */
 SND_SOC_DAILINK_DEFS(evm,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "tlv320aic3x-hifi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link evm_dai_tlv320aic3x = {
 	.name		= "TLV320AIC3X",
@@ -406,6 +407,8 @@ static int davinci_evm_probe(struct platform_device *pdev)
 	dai->cpus->of_node = of_parse_phandle(np, "ti,mcasp-controller", 0);
 	if (!dai->cpus->of_node)
 		return -EINVAL;
+
+	dai->platforms->of_node = dai->cpus->of_node;
 
 	evm_soc_card.dev = &pdev->dev;
 	ret = snd_soc_of_parse_card_name(&evm_soc_card, "ti,model");
