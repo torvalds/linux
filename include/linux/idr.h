@@ -191,14 +191,17 @@ static inline void idr_preload_end(void)
  * idr_for_each_entry_ul() - Iterate over an IDR's elements of a given type.
  * @idr: IDR handle.
  * @entry: The type * to use as cursor.
+ * @tmp: A temporary placeholder for ID.
  * @id: Entry ID.
  *
  * @entry and @id do not need to be initialized before the loop, and
  * after normal termination @entry is left with the value NULL.  This
  * is convenient for a "not found" value.
  */
-#define idr_for_each_entry_ul(idr, entry, id)			\
-	for (id = 0; ((entry) = idr_get_next_ul(idr, &(id))) != NULL; ++id)
+#define idr_for_each_entry_ul(idr, entry, tmp, id)			\
+	for (tmp = 0, id = 0;						\
+	     tmp <= id && ((entry) = idr_get_next_ul(idr, &(id))) != NULL; \
+	     tmp = id, ++id)
 
 /**
  * idr_for_each_entry_continue() - Continue iteration over an IDR's elements of a given type
