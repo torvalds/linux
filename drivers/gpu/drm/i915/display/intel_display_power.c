@@ -269,11 +269,17 @@ static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 	int pw_idx = power_well->desc->hsw.idx;
 
 	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
-	WARN_ON(intel_wait_for_register(&dev_priv->uncore,
-					regs->driver,
-					HSW_PWR_WELL_CTL_STATE(pw_idx),
-					HSW_PWR_WELL_CTL_STATE(pw_idx),
-					1));
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    regs->driver,
+				    HSW_PWR_WELL_CTL_STATE(pw_idx),
+				    HSW_PWR_WELL_CTL_STATE(pw_idx),
+				    1)) {
+		DRM_DEBUG_KMS("%s power well enable timeout\n",
+			      power_well->desc->name);
+
+		/* An AUX timeout is expected if the TBT DP tunnel is down. */
+		WARN_ON(!power_well->desc->hsw.is_tc_tbt);
+	}
 }
 
 static u32 hsw_power_well_requesters(struct drm_i915_private *dev_priv,
