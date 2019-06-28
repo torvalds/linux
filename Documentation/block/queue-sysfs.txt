@@ -14,6 +14,15 @@ add_random (RW)
 This file allows to turn off the disk entropy contribution. Default
 value of this file is '1'(on).
 
+chunk_sectors (RO)
+------------------
+This has different meaning depending on the type of the block device.
+For a RAID device (dm-raid), chunk_sectors indicates the size in 512B sectors
+of the RAID volume stripe segment. For a zoned block device, either host-aware
+or host-managed, chunk_sectors indicates the size in 512B sectors of the zones
+of the device, with the eventual exception of the last zone of the device which
+may be smaller.
+
 dax (RO)
 --------
 This file indicates whether the device supports Direct Access (DAX),
@@ -132,6 +141,12 @@ per-block-cgroup request pool.  IOW, if there are N block cgroups,
 each request queue may have up to N request pools, each independently
 regulated by nr_requests.
 
+nr_zones (RO)
+-------------
+For zoned block devices (zoned attribute indicating "host-managed" or
+"host-aware"), this indicates the total number of zones of the device.
+This is always 0 for regular block devices.
+
 optimal_io_size (RO)
 --------------------
 This is the optimal IO size reported by the device.
@@ -212,20 +227,5 @@ devices are described in the ZBC (Zoned Block Commands) and ZAC
 "drive-managed" zone model. However, since drive-managed zoned block devices
 do not support zone commands, they will be treated as regular block devices
 and zoned will report "none".
-
-nr_zones (RO)
--------------
-For zoned block devices (zoned attribute indicating "host-managed" or
-"host-aware"), this indicates the total number of zones of the device.
-This is always 0 for regular block devices.
-
-chunk_sectors (RO)
-------------------
-This has different meaning depending on the type of the block device.
-For a RAID device (dm-raid), chunk_sectors indicates the size in 512B sectors
-of the RAID volume stripe segment. For a zoned block device, either host-aware
-or host-managed, chunk_sectors indicates the size in 512B sectors of the zones
-of the device, with the eventual exception of the last zone of the device which
-may be smaller.
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009
