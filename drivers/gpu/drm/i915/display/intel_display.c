@@ -6610,6 +6610,25 @@ enum intel_display_power_domain intel_port_to_power_domain(enum port port)
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port)
 {
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+
+	if (intel_port_is_tc(dev_priv, dig_port->base.port) &&
+	    dig_port->tc_mode == TC_PORT_TBT_ALT) {
+		switch (dig_port->aux_ch) {
+		case AUX_CH_C:
+			return POWER_DOMAIN_AUX_TBT1;
+		case AUX_CH_D:
+			return POWER_DOMAIN_AUX_TBT2;
+		case AUX_CH_E:
+			return POWER_DOMAIN_AUX_TBT3;
+		case AUX_CH_F:
+			return POWER_DOMAIN_AUX_TBT4;
+		default:
+			MISSING_CASE(dig_port->aux_ch);
+			return POWER_DOMAIN_AUX_TBT1;
+		}
+	}
+
 	switch (dig_port->aux_ch) {
 	case AUX_CH_A:
 		return POWER_DOMAIN_AUX_A;
