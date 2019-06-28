@@ -179,21 +179,3 @@ void PHY_RFShadowCompareFlagSetAll(IN PADAPTER Adapter)
 	}
 
 }	/* PHY_RFShadowCompareFlagSetAll */
-
-
-void PHY_RFShadowRecorverFlagSetAll(IN PADAPTER Adapter)
-{
-	u8 eRFPath = 0;
-	u32 Offset = 0, maxReg = GET_RF6052_REAL_MAX_REG(Adapter);
-
-	for (eRFPath = 0; eRFPath < RF6052_MAX_PATH; eRFPath++) {
-		for (Offset = 0; Offset < maxReg; Offset++) {
-			/*  2008/11/20 MH For S3S4 test, we only check reg 26/27 now!!!! */
-			if (Offset != 0x26 && Offset != 0x27)
-				PHY_RFShadowRecorverFlagSet(Adapter, eRFPath, Offset, false);
-			else
-				PHY_RFShadowRecorverFlagSet(Adapter, eRFPath, Offset, true);
-		}
-	}
-
-}	/* PHY_RFShadowCompareFlagSetAll */
