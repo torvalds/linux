@@ -416,12 +416,6 @@ err:
 }
 
 /* Journalling */
-#define journal_max_cmp(l, r) \
-	(fifo_idx(&c->journal.pin, btree_current_write(l)->journal) < \
-	 fifo_idx(&(c)->journal.pin, btree_current_write(r)->journal))
-#define journal_min_cmp(l, r) \
-	(fifo_idx(&c->journal.pin, btree_current_write(l)->journal) > \
-	 fifo_idx(&(c)->journal.pin, btree_current_write(r)->journal))
 
 static void btree_flush_write(struct cache_set *c)
 {
@@ -429,35 +423,25 @@ static void btree_flush_write(struct cache_set *c)
 	 * Try to find the btree node with that references the oldest journal
 	 * entry, best is our current candidate and is locked if non NULL:
 	 */
-	struct btree *b;
-	int i;
+	struct btree *b, *best;
+	unsigned int i;
 
 	atomic_long_inc(&c->flush_write);
-
 retry:
-	spin_lock(&c->journal.lock);
-	if (heap_empty(&c->flush_btree)) {
-		for_each_cached_btree(b, c, i)
-			if (btree_current_write(b)->journal) {
-				if (!heap_full(&c->flush_btree))
-					heap_add(&c->flush_btree, b,
-						 journal_max_cmp);
-				else if (journal_max_cmp(b,
-					 heap_peek(&c->flush_btree))) {
-					c->flush_btree.data[0] = b;
-					heap_sift(&c->flush_btree, 0,
-						  journal_max_cmp);
-				}
+	best = NULL;
+
+	for_each_cached_btree(b, c, i)
+		if (btree_current_write(b)->journal) {
+			if (!best)
+				best = b;
+			else if (journal_pin_cmp(c,
+					btree_current_write(best)->journal,
+					btree_current_write(b)->journal)) {
+				best = b;
 			}
+		}
 
-		for (i = c->flush_btree.used / 2 - 1; i >= 0; --i)
-			heap_sift(&c->flush_btree, i, journal_min_cmp);
-	}
-
-	b = NULL;
-	heap_pop(&c->flush_btree, b, journal_min_cmp);
-	spin_unlock(&c->journal.lock);
-
+	b = best;
 	if (b) {
 		mutex_lock(&b->write_lock);
 		if (!btree_current_write(b)->journal) {
@@ -898,8 +882,7 @@ int bch_journal_alloc(struct cache_set *c)
 	j->w[0].c = c;
 	j->w[1].c = c;
 
-	if (!(init_heap(&c->flush_btree, 128, GFP_KERNEL)) ||
-	    !(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)) ||
+	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)) ||
 	    !(j->w[0].data = (void *) __get_free_pages(GFP_KERNEL, JSET_BITS)) ||
 	    !(j->w[1].data = (void *) __get_free_pages(GFP_KERNEL, JSET_BITS)))
 		return -ENOMEM;

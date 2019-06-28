@@ -113,8 +113,6 @@ do {									\
 
 #define heap_full(h)	((h)->used == (h)->size)
 
-#define heap_empty(h)	((h)->used == 0)
-
 #define DECLARE_FIFO(type, name)					\
 	struct {							\
 		size_t front, back, size, mask;				\
