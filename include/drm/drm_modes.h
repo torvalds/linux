@@ -537,7 +537,7 @@ void drm_connector_list_update(struct drm_connector *connector);
 /* parsing cmdline modes */
 bool
 drm_mode_parse_command_line_for_connector(const char *mode_option,
-					  struct drm_connector *connector,
+					  const struct drm_connector *connector,
 					  struct drm_cmdline_mode *mode);
 struct drm_display_mode *
 drm_mode_create_from_cmdline_mode(struct drm_device *dev,

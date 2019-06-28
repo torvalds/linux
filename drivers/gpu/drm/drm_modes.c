@@ -1448,7 +1448,7 @@ static int drm_mode_parse_cmdline_refresh(const char *str, char **end_ptr,
 }
 
 static int drm_mode_parse_cmdline_extra(const char *str, int length,
-					struct drm_connector *connector,
+					const struct drm_connector *connector,
 					struct drm_cmdline_mode *mode)
 {
 	int i;
@@ -1493,7 +1493,7 @@ static int drm_mode_parse_cmdline_extra(const char *str, int length,
 
 static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
 					   bool extras,
-					   struct drm_connector *connector,
+					   const struct drm_connector *connector,
 					   struct drm_cmdline_mode *mode)
 {
 	const char *str_start = str;
@@ -1555,7 +1555,7 @@ static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
 }
 
 static int drm_mode_parse_cmdline_options(char *str, size_t len,
-					  struct drm_connector *connector,
+					  const struct drm_connector *connector,
 					  struct drm_cmdline_mode *mode)
 {
 	unsigned int rotation = 0;
@@ -1689,7 +1689,7 @@ static int drm_mode_parse_cmdline_options(char *str, size_t len,
  * True if a valid modeline has been parsed, false otherwise.
  */
 bool drm_mode_parse_command_line_for_connector(const char *mode_option,
-					       struct drm_connector *connector,
+					       const struct drm_connector *connector,
 					       struct drm_cmdline_mode *mode)
 {
 	const char *name;
