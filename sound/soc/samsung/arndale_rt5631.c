@@ -52,7 +52,8 @@ static struct snd_soc_ops arndale_ops = {
 
 SND_SOC_DAILINK_DEFS(rt5631_hifi,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "rt5631-hifi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "rt5631-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link arndale_rt5631_dai[] = {
 	{
@@ -92,6 +93,9 @@ static int arndale_audio_probe(struct platform_device *pdev)
 				return -EINVAL;
 			}
 		}
+		if (!arndale_rt5631_dai[n].platforms->name)
+			arndale_rt5631_dai[n].platforms->of_node =
+					arndale_rt5631_dai[n].cpus->of_node;
 
 		arndale_rt5631_dai[n].codecs->name = NULL;
 		arndale_rt5631_dai[n].codecs->of_node = of_parse_phandle(np,
