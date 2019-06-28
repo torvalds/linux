@@ -10,7 +10,7 @@
 #include <net/net_namespace.h>
 
 /* TC action not accessible from user space */
-#define TC_ACT_REINSERT		(TC_ACT_VALUE_MAX + 1)
+#define TC_ACT_CONSUMED		(TC_ACT_VALUE_MAX + 1)
 
 /* Basic packet classifier frontend definitions. */
 
