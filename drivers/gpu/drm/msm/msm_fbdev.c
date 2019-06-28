@@ -170,6 +170,9 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
+	/* the fw fb could be anywhere in memory */
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "msm", false);
+
 	ret = drm_fb_helper_initial_config(helper, 32);
 	if (ret)
 		goto fini;
