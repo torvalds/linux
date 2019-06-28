@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2019 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation.  * All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -398,7 +398,7 @@ int qib_check_send_wqe(struct rvt_qp *qp,
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
-		ah = ibah_to_rvtah(wqe->ud_wr.ah);
+		ah = ibah_to_rvtah(wqe->ud_wr.wr.ah);
 		if (wqe->length > (1 << ah->log_pmtu))
 			return -EINVAL;
 		/* progress hint */

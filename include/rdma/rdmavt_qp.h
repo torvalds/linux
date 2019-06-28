@@ -2,7 +2,7 @@
 #define DEF_RDMAVT_INCQP_H
 
 /*
- * Copyright(c) 2016 - 2018 Intel Corporation.
+ * Copyright(c) 2016 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -157,6 +157,22 @@
 #define RVT_SEND_RESERVE_USED           IB_SEND_RESERVED_START
 #define RVT_SEND_COMPLETION_ONLY	(IB_SEND_RESERVED_START << 1)
 
+/**
+ * rvt_ud_wr - IB UD work plus AH cache
+ * @wr: valid IB work request
+ * @attr: pointer to an allocated AH attribute
+ *
+ * Special case the UD WR so we can keep track of the AH attributes.
+ *
+ * NOTE: This data structure is stricly ordered wr then attr. I.e the attr
+ * MUST come after wr.  The ib_ud_wr is sized and copied in rvt_post_one_wr.
+ * The copy assumes that wr is first.
+ */
+struct rvt_ud_wr {
+	struct ib_ud_wr wr;
+	struct rdma_ah_attr *attr;
+};
+
 /*
  * Send work request queue entry.
  * The size of the sg_list is determined when the QP is created and stored
@@ -165,7 +181,7 @@
 struct rvt_swqe {
 	union {
 		struct ib_send_wr wr;   /* don't use wr.sg_list */
-		struct ib_ud_wr ud_wr;
+		struct rvt_ud_wr ud_wr;
 		struct ib_reg_wr reg_wr;
 		struct ib_rdma_wr rdma_wr;
 		struct ib_atomic_wr atomic_wr;
@@ -700,7 +716,7 @@ static inline void rvt_put_qp_swqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
 {
 	rvt_put_swqe(wqe);
 	if (qp->allowed_ops == IB_OPCODE_UD)
-		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
+		rdma_destroy_ah_attr(wqe->ud_wr.attr);
 }
 
 /**

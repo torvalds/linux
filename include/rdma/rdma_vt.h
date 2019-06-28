@@ -2,7 +2,7 @@
 #define DEF_RDMA_VT_H
 
 /*
- * Copyright(c) 2016 - 2018 Intel Corporation.
+ * Copyright(c) 2016 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -202,7 +202,6 @@ struct rvt_pd {
 struct rvt_ah {
 	struct ib_ah ibah;
 	struct rdma_ah_attr attr;
-	atomic_t refcount;
 	u8 vl;
 	u8 log_pmtu;
 };

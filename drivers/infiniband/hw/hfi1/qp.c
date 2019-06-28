@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -348,7 +348,7 @@ int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 		break;
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
-		ah = ibah_to_rvtah(wqe->ud_wr.ah);
+		ah = ibah_to_rvtah(wqe->ud_wr.wr.ah);
 		if (wqe->length > (1 << ah->log_pmtu))
 			return -EINVAL;
 		if (ibp->sl_to_sc[rdma_ah_get_sl(&ah->attr)] == 0xf)

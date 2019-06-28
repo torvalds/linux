@@ -979,6 +979,51 @@ static u8 get_allowed_ops(enum ib_qp_type type)
 }
 
 /**
+ * free_ud_wq_attr - Clean up AH attribute cache for UD QPs
+ * @qp: Valid QP with allowed_ops set
+ *
+ * The rvt_swqe data structure being used is a union, so this is
+ * only valid for UD QPs.
+ */
+static void free_ud_wq_attr(struct rvt_qp *qp)
+{
+	struct rvt_swqe *wqe;
+	int i;
+
+	for (i = 0; qp->allowed_ops == IB_OPCODE_UD && i < qp->s_size; i++) {
+		wqe = rvt_get_swqe_ptr(qp, i);
+		kfree(wqe->ud_wr.attr);
+		wqe->ud_wr.attr = NULL;
+	}
+}
+
+/**
+ * alloc_ud_wq_attr - AH attribute cache for UD QPs
+ * @qp: Valid QP with allowed_ops set
+ * @node: Numa node for allocation
+ *
+ * The rvt_swqe data structure being used is a union, so this is
+ * only valid for UD QPs.
+ */
+static int alloc_ud_wq_attr(struct rvt_qp *qp, int node)
+{
+	struct rvt_swqe *wqe;
+	int i;
+
+	for (i = 0; qp->allowed_ops == IB_OPCODE_UD && i < qp->s_size; i++) {
+		wqe = rvt_get_swqe_ptr(qp, i);
+		wqe->ud_wr.attr = kzalloc_node(sizeof(*wqe->ud_wr.attr),
+					       GFP_KERNEL, node);
+		if (!wqe->ud_wr.attr) {
+			free_ud_wq_attr(qp);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
+/**
  * rvt_create_qp - create a queue pair for a device
  * @ibpd: the protection domain who's device we create the queue pair for
  * @init_attr: the attributes of the queue pair
@@ -1124,6 +1169,11 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		qp->s_max_sge = init_attr->cap.max_send_sge;
 		if (init_attr->sq_sig_type == IB_SIGNAL_REQ_WR)
 			qp->s_flags = RVT_S_SIGNAL_REQ_WR;
+		err = alloc_ud_wq_attr(qp, rdi->dparms.node);
+		if (err) {
+			ret = (ERR_PTR(err));
+			goto bail_driver_priv;
+		}
 
 		err = alloc_qpn(rdi, &rdi->qp_dev->qpn_table,
 				init_attr->qp_type,
@@ -1227,6 +1277,7 @@ bail_qpn:
 
 bail_rq_wq:
 	rvt_free_rq(&qp->r_rq);
+	free_ud_wq_attr(qp);
 
 bail_driver_priv:
 	rdi->driver_f.qp_priv_free(rdi, qp);
@@ -1671,6 +1722,7 @@ int rvt_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	kfree(qp->s_ack_queue);
 	rdma_destroy_ah_attr(&qp->remote_ah_attr);
 	rdma_destroy_ah_attr(&qp->alt_ah_attr);
+	free_ud_wq_attr(qp);
 	vfree(qp->s_wq);
 	kfree(qp);
 	return 0;
@@ -2037,10 +2089,10 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	 */
 	log_pmtu = qp->log_pmtu;
 	if (qp->allowed_ops == IB_OPCODE_UD) {
-		struct rvt_ah *ah = ibah_to_rvtah(wqe->ud_wr.ah);
+		struct rvt_ah *ah = ibah_to_rvtah(wqe->ud_wr.wr.ah);
 
 		log_pmtu = ah->log_pmtu;
-		atomic_inc(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
+		rdma_copy_ah_attr(wqe->ud_wr.attr, &ah->attr);
 	}
 
 	if (rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL) {
@@ -2085,7 +2137,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 
 bail_inval_free_ref:
 	if (qp->allowed_ops == IB_OPCODE_UD)
-		atomic_dec(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
+		rdma_destroy_ah_attr(wqe->ud_wr.attr);
 bail_inval_free:
 	/* release mr holds */
 	while (j) {
