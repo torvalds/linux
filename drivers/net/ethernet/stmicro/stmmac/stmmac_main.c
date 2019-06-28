@@ -2053,12 +2053,12 @@ static int stmmac_napi_check(struct stmmac_priv *priv, u32 chan)
 						 &priv->xstats, chan);
 	struct stmmac_channel *ch = &priv->channel[chan];
 
-	if (status)
-		status |= handle_rx | handle_tx;
-
 	if ((status & handle_rx) && (chan < priv->plat->rx_queues_to_use)) {
-		stmmac_disable_dma_irq(priv, priv->ioaddr, chan);
-		napi_schedule_irqoff(&ch->rx_napi);
+		if (napi_schedule_prep(&ch->rx_napi)) {
+			stmmac_disable_dma_irq(priv, priv->ioaddr, chan);
+			__napi_schedule_irqoff(&ch->rx_napi);
+			status |= handle_tx;
+		}
 	}
 
 	if ((status & handle_tx) && (chan < priv->plat->tx_queues_to_use))
