@@ -55,7 +55,9 @@ clear_bss_done:
 
 	/* Initialize page tables and relocate to virtual addresses */
 	la sp, init_thread_union + THREAD_SIZE
+	mv a0, s1
 	call setup_vm
+	la a0, early_pg_dir
 	call relocate
 
 	/* Restore C environment */
@@ -64,25 +66,23 @@ clear_bss_done:
 	la sp, init_thread_union + THREAD_SIZE
 
 	/* Start the kernel */
-	mv a0, s1
 	call parse_dtb
 	tail start_kernel
 
 relocate:
 	/* Relocate return address */
 	li a1, PAGE_OFFSET
-	la a0, _start
-	sub a1, a1, a0
+	la a2, _start
+	sub a1, a1, a2
 	add ra, ra, a1
 
 	/* Point stvec to virtual address of intruction after satp write */
-	la a0, 1f
-	add a0, a0, a1
-	csrw CSR_STVEC, a0
+	la a2, 1f
+	add a2, a2, a1
+	csrw CSR_STVEC, a2
 
 	/* Compute satp for kernel page tables, but don't load it yet */
-	la a2, swapper_pg_dir
-	srl a2, a2, PAGE_SHIFT
+	srl a2, a0, PAGE_SHIFT
 	li a1, SATP_MODE
 	or a2, a2, a1
 
@@ -148,6 +148,7 @@ relocate:
 	fence
 
 	/* Enable virtual memory and relocate to virtual address */
+	la a0, swapper_pg_dir
 	call relocate
 
 	tail smp_callin
