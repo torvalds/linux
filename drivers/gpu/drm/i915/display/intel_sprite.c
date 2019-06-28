@@ -441,7 +441,7 @@ icl_program_input_csc(struct intel_plane *plane,
 		 */
 		[DRM_COLOR_YCBCR_BT709] = {
 			0x7C98, 0x7800, 0x0,
-			0x9EF8, 0x7800, 0xABF8,
+			0x9EF8, 0x7800, 0xAC00,
 			0x0, 0x7800,  0x7ED8,
 		},
 		/*
@@ -463,26 +463,26 @@ icl_program_input_csc(struct intel_plane *plane,
 		/*
 		 * BT.601 Limted range YCbCr -> full range RGB
 		 * The matrix required is :
-		 * [1.164384, 0.000, 1.596370,
-		 *  1.138393, -0.382500, -0.794598,
-		 *  1.138393, 1.971696, 0.0000]
+		 * [1.164384, 0.000, 1.596027,
+		 *  1.164384, -0.39175, -0.812813,
+		 *  1.164384, 2.017232, 0.0000]
 		 */
 		[DRM_COLOR_YCBCR_BT601] = {
 			0x7CC8, 0x7950, 0x0,
-			0x8CB8, 0x7918, 0x9C40,
-			0x0, 0x7918, 0x7FC8,
+			0x8D00, 0x7950, 0x9C88,
+			0x0, 0x7950, 0x6810,
 		},
 		/*
 		 * BT.709 Limited range YCbCr -> full range RGB
 		 * The matrix required is :
-		 * [1.164, 0.000, 1.833671,
-		 *  1.138393, -0.213249, -0.532909,
-		 *  1.138393, 2.112402, 0.0000]
+		 * [1.164384, 0.000, 1.792741,
+		 *  1.164384, -0.213249, -0.532909,
+		 *  1.164384, 2.112402, 0.0000]
 		 */
 		[DRM_COLOR_YCBCR_BT709] = {
-			0x7EA8, 0x7950, 0x0,
-			0x8888, 0x7918, 0xADA8,
-			0x0, 0x7918,  0x6870,
+			0x7E58, 0x7950, 0x0,
+			0x8888, 0x7950, 0xADA8,
+			0x0, 0x7950,  0x6870,
 		},
 		/*
 		 * BT.2020 Limited range YCbCr -> full range RGB
