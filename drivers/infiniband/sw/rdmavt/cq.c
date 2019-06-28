@@ -60,8 +60,11 @@ static struct workqueue_struct *comp_vector_wq;
  * @solicited: true if @entry is solicited
  *
  * This may be called with qp->s_lock held.
+ *
+ * Return: return true on success, else return
+ * false if cq is full.
  */
-void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
+bool rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 {
 	struct ib_uverbs_wc *uqueue = NULL;
 	struct ib_wc *kqueue = NULL;
@@ -97,7 +100,12 @@ void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 		next = head + 1;
 	}
 
-	if (unlikely(next == tail)) {
+	if (unlikely(next == tail || cq->cq_full)) {
+		struct rvt_dev_info *rdi = cq->rdi;
+
+		if (!cq->cq_full)
+			rvt_pr_err_ratelimited(rdi, "CQ is full!\n");
+		cq->cq_full = true;
 		spin_unlock_irqrestore(&cq->lock, flags);
 		if (cq->ibcq.event_handler) {
 			struct ib_event ev;
@@ -107,7 +115,7 @@ void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 			ev.event = IB_EVENT_CQ_ERR;
 			cq->ibcq.event_handler(&ev, cq->ibcq.cq_context);
 		}
-		return;
+		return false;
 	}
 	trace_rvt_cq_enter(cq, entry, head);
 	if (uqueue) {
@@ -146,6 +154,7 @@ void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 	}
 
 	spin_unlock_irqrestore(&cq->lock, flags);
+	return true;
 }
 EXPORT_SYMBOL(rvt_cq_enter);
 

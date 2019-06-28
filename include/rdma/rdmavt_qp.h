@@ -718,6 +718,48 @@ rvt_qp_swqe_incr(struct rvt_qp *qp, u32 val)
 	return val;
 }
 
+int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
+
+/**
+ * rvt_recv_cq - add a new entry to completion queue
+ *			by receive queue
+ * @qp: receive queue
+ * @wc: work completion entry to add
+ * @solicited: true if @entry is solicited
+ *
+ * This is wrapper function for rvt_enter_cq function call by
+ * receive queue. If rvt_cq_enter return false, it means cq is
+ * full and the qp is put into error state.
+ */
+static inline void rvt_recv_cq(struct rvt_qp *qp, struct ib_wc *wc,
+			       bool solicited)
+{
+	struct rvt_cq *cq = ibcq_to_rvtcq(qp->ibqp.recv_cq);
+
+	if (unlikely(!rvt_cq_enter(cq, wc, solicited)))
+		rvt_error_qp(qp, IB_WC_LOC_QP_OP_ERR);
+}
+
+/**
+ * rvt_send_cq - add a new entry to completion queue
+ *                        by send queue
+ * @qp: send queue
+ * @wc: work completion entry to add
+ * @solicited: true if @entry is solicited
+ *
+ * This is wrapper function for rvt_enter_cq function call by
+ * send queue. If rvt_cq_enter return false, it means cq is
+ * full and the qp is put into error state.
+ */
+static inline void rvt_send_cq(struct rvt_qp *qp, struct ib_wc *wc,
+			       bool solicited)
+{
+	struct rvt_cq *cq = ibcq_to_rvtcq(qp->ibqp.send_cq);
+
+	if (unlikely(!rvt_cq_enter(cq, wc, solicited)))
+		rvt_error_qp(qp, IB_WC_LOC_QP_OP_ERR);
+}
+
 /**
  * rvt_qp_complete_swqe - insert send completion
  * @qp - the qp
@@ -768,9 +810,7 @@ rvt_qp_complete_swqe(struct rvt_qp *qp,
 			.qp = &qp->ibqp,
 			.byte_len = byte_len,
 		};
-
-		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &w,
-			     status != IB_WC_SUCCESS);
+		rvt_send_cq(qp, &w, status != IB_WC_SUCCESS);
 	}
 	return last;
 }
@@ -780,7 +820,6 @@ extern const int  ib_rvt_state_ops[];
 struct rvt_dev_info;
 int rvt_get_rwqe(struct rvt_qp *qp, bool wr_id_only);
 void rvt_comm_est(struct rvt_qp *qp);
-int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
 void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
 unsigned long rvt_rnr_tbl_to_usec(u32 index);
 enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t);

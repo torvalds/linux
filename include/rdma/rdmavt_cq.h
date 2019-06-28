@@ -93,6 +93,7 @@ struct rvt_cq {
 	spinlock_t lock; /* protect changes in this struct */
 	u8 notify;
 	u8 triggered;
+	u8 cq_full;
 	int comp_vector_cpu;
 	struct rvt_dev_info *rdi;
 	struct rvt_cq_wc *queue;
@@ -105,6 +106,6 @@ static inline struct rvt_cq *ibcq_to_rvtcq(struct ib_cq *ibcq)
 	return container_of(ibcq, struct rvt_cq, ibcq);
 }
 
-void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited);
+bool rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited);
 
 #endif          /* DEF_RDMAVT_INCCQH */
