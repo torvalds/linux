@@ -9947,6 +9947,7 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
 {
+	enum icl_port_dpll_id port_dpll_id;
 	enum intel_dpll_id id;
 	u32 temp;
 
@@ -9954,22 +9955,28 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 		temp = I915_READ(DPCLKA_CFGCR0_ICL) &
 		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
 		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
+		port_dpll_id = ICL_PORT_DPLL_DEFAULT;
 	} else if (intel_port_is_tc(dev_priv, port)) {
 		u32 clk_sel = I915_READ(DDI_CLK_SEL(port)) & DDI_CLK_SEL_MASK;
 
 		if (clk_sel == DDI_CLK_SEL_MG) {
 			id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv,
 								    port));
+			port_dpll_id = ICL_PORT_DPLL_MG_PHY;
 		} else {
 			WARN_ON(clk_sel < DDI_CLK_SEL_TBT_162);
 			id = DPLL_ID_ICL_TBTPLL;
+			port_dpll_id = ICL_PORT_DPLL_DEFAULT;
 		}
 	} else {
 		WARN(1, "Invalid port %x\n", port);
 		return;
 	}
 
-	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+	pipe_config->icl_port_dplls[port_dpll_id].pll =
+		intel_get_shared_dpll_by_id(dev_priv, id);
+
+	icl_set_active_port_dpll(pipe_config, port_dpll_id);
 }
 
 static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
@@ -12102,6 +12109,8 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	saved_state->scaler_state = crtc_state->scaler_state;
 	saved_state->shared_dpll = crtc_state->shared_dpll;
 	saved_state->dpll_hw_state = crtc_state->dpll_hw_state;
+	memcpy(saved_state->icl_port_dplls, crtc_state->icl_port_dplls,
+	       sizeof(saved_state->icl_port_dplls));
 	saved_state->crc_enabled = crtc_state->crc_enabled;
 	if (IS_G4X(dev_priv) ||
 	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))

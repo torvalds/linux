@@ -141,6 +141,13 @@ enum intel_dpll_id {
 };
 #define I915_NUM_PLLS 7
 
+enum icl_port_dpll_id {
+	ICL_PORT_DPLL_DEFAULT,
+	ICL_PORT_DPLL_MG_PHY,
+
+	ICL_PORT_DPLL_COUNT,
+};
+
 struct intel_dpll_hw_state {
 	/* i9xx, pch plls */
 	u32 dpll;
@@ -337,6 +344,8 @@ bool intel_reserve_shared_dplls(struct intel_atomic_state *state,
 				struct intel_encoder *encoder);
 void intel_release_shared_dplls(struct intel_atomic_state *state,
 				struct intel_crtc *crtc);
+void icl_set_active_port_dpll(struct intel_crtc_state *crtc_state,
+			      enum icl_port_dpll_id port_dpll_id);
 void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);

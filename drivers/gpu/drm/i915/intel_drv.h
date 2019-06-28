@@ -812,6 +812,15 @@ struct intel_crtc_state {
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
 	struct intel_dpll_hw_state dpll_hw_state;
 
+	/*
+	 * ICL reserved DPLLs for the CRTC/port. The active PLL is selected by
+	 * setting shared_dpll and dpll_hw_state to one of these reserved ones.
+	 */
+	struct icl_port_dpll {
+		struct intel_shared_dpll *pll;
+		struct intel_dpll_hw_state hw_state;
+	} icl_port_dplls[ICL_PORT_DPLL_COUNT];
+
 	/* DSI PLL registers */
 	struct {
 		u32 ctrl, div;

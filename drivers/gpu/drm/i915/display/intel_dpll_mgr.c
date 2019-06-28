@@ -2856,34 +2856,79 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	return true;
 }
 
+/**
+ * icl_set_active_port_dpll - select the active port DPLL for a given CRTC
+ * @crtc_state: state for the CRTC to select the DPLL for
+ * @port_dpll_id: the active @port_dpll_id to select
+ *
+ * Select the given @port_dpll_id instance from the DPLLs reserved for the
+ * CRTC.
+ */
+void icl_set_active_port_dpll(struct intel_crtc_state *crtc_state,
+			      enum icl_port_dpll_id port_dpll_id)
+{
+	struct icl_port_dpll *port_dpll =
+		&crtc_state->icl_port_dplls[port_dpll_id];
+
+	crtc_state->shared_dpll = port_dpll->pll;
+	crtc_state->dpll_hw_state = port_dpll->hw_state;
+}
+
+static void icl_update_active_dpll(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc,
+				   struct intel_encoder *encoder)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_digital_port *primary_port;
+	enum icl_port_dpll_id port_dpll_id;
+
+	primary_port = encoder->type == INTEL_OUTPUT_DP_MST ?
+		enc_to_mst(&encoder->base)->primary :
+		enc_to_dig_port(&encoder->base);
+
+	switch (primary_port->tc_mode) {
+	case TC_PORT_TBT_ALT:
+		port_dpll_id = ICL_PORT_DPLL_DEFAULT;
+		break;
+	case TC_PORT_DP_ALT:
+	case TC_PORT_LEGACY:
+		port_dpll_id = ICL_PORT_DPLL_MG_PHY;
+		break;
+	}
+
+	icl_set_active_port_dpll(crtc_state, port_dpll_id);
+}
+
 static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc,
 				   struct intel_encoder *encoder)
 {
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_shared_dpll *pll;
+	struct icl_port_dpll *port_dpll =
+		&crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
 
-	if (!icl_calc_dpll_state(crtc_state, encoder,
-				 &crtc_state->dpll_hw_state)) {
+	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
 		DRM_DEBUG_KMS("Could not calculate combo PHY PLL state.\n");
 
 		return false;
 	}
 
-	pll = intel_find_shared_dpll(state, crtc, &crtc_state->dpll_hw_state,
-				     DPLL_ID_ICL_DPLL0,
-				     DPLL_ID_ICL_DPLL1);
-	if (!pll) {
+	port_dpll->pll = intel_find_shared_dpll(state, crtc,
+						&port_dpll->hw_state,
+						DPLL_ID_ICL_DPLL0,
+						DPLL_ID_ICL_DPLL1);
+	if (!port_dpll->pll) {
 		DRM_DEBUG_KMS("No combo PHY PLL found for port %c\n",
 			      port_name(encoder->port));
 		return false;
 	}
 
 	intel_reference_shared_dpll(state, crtc,
-				    pll, &crtc_state->dpll_hw_state);
+				    port_dpll->pll, &port_dpll->hw_state);
 
-	crtc_state->shared_dpll = pll;
+	icl_update_active_dpll(state, crtc, encoder);
 
 	return true;
 }
@@ -2895,49 +2940,55 @@ static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
-	struct intel_digital_port *dig_port;
-	struct intel_shared_dpll *pll;
-	enum intel_dpll_id min, max;
-	bool ret;
+	struct icl_port_dpll *port_dpll;
+	enum intel_dpll_id dpll_id;
 
-	if (encoder->type == INTEL_OUTPUT_DP_MST)
-		dig_port = enc_to_mst(&encoder->base)->primary;
-	else
-		dig_port = enc_to_dig_port(&encoder->base);
-
-	if (dig_port->tc_mode == TC_PORT_TBT_ALT) {
-		min = DPLL_ID_ICL_TBTPLL;
-		max = min;
-		ret = icl_calc_dpll_state(crtc_state, encoder,
-					  &crtc_state->dpll_hw_state);
-	} else {
-		min = icl_tc_port_to_pll_id(tc_port);
-		max = min;
-		ret = icl_calc_mg_pll_state(crtc_state,
-					    &crtc_state->dpll_hw_state);
-	}
-
-	if (!ret) {
-		DRM_DEBUG_KMS("Could not calculate PLL state.\n");
+	port_dpll = &crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
+	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
+		DRM_DEBUG_KMS("Could not calculate TBT PLL state.\n");
 		return false;
 	}
 
-
-	pll = intel_find_shared_dpll(state, crtc,
-				     &crtc_state->dpll_hw_state,
-				     min, max);
-	if (!pll) {
-		DRM_DEBUG_KMS("No PLL selected\n");
+	port_dpll->pll = intel_find_shared_dpll(state, crtc,
+						&port_dpll->hw_state,
+						DPLL_ID_ICL_TBTPLL,
+						DPLL_ID_ICL_TBTPLL);
+	if (!port_dpll->pll) {
+		DRM_DEBUG_KMS("No TBT-ALT PLL found\n");
 		return false;
 	}
-
 	intel_reference_shared_dpll(state, crtc,
-				    pll, &crtc_state->dpll_hw_state);
+				    port_dpll->pll, &port_dpll->hw_state);
 
-	crtc_state->shared_dpll = pll;
+
+	port_dpll = &crtc_state->icl_port_dplls[ICL_PORT_DPLL_MG_PHY];
+	if (!icl_calc_mg_pll_state(crtc_state, &port_dpll->hw_state)) {
+		DRM_DEBUG_KMS("Could not calculate MG PHY PLL state.\n");
+		goto err_unreference_tbt_pll;
+	}
+
+	dpll_id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv,
+							 encoder->port));
+	port_dpll->pll = intel_find_shared_dpll(state, crtc,
+						&port_dpll->hw_state,
+						dpll_id,
+						dpll_id);
+	if (!port_dpll->pll) {
+		DRM_DEBUG_KMS("No MG PHY PLL found\n");
+		goto err_unreference_tbt_pll;
+	}
+	intel_reference_shared_dpll(state, crtc,
+				    port_dpll->pll, &port_dpll->hw_state);
+
+	icl_update_active_dpll(state, crtc, encoder);
 
 	return true;
+
+err_unreference_tbt_pll:
+	port_dpll = &crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
+	intel_unreference_shared_dpll(state, crtc, port_dpll->pll);
+
+	return false;
 }
 
 static bool icl_get_dplls(struct intel_atomic_state *state,
@@ -2955,6 +3006,26 @@ static bool icl_get_dplls(struct intel_atomic_state *state,
 	MISSING_CASE(port);
 
 	return false;
+}
+
+static void icl_put_dplls(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	enum icl_port_dpll_id id;
+
+	for (id = ICL_PORT_DPLL_DEFAULT; id < ICL_PORT_DPLL_COUNT; id++) {
+		struct icl_port_dpll *port_dpll =
+			&crtc_state->icl_port_dplls[id];
+
+		if (!port_dpll->pll)
+			continue;
+
+		intel_unreference_shared_dpll(state, crtc, port_dpll->pll);
+
+		/* FIXME: Clear the icl_port_dplls from the new crtc state */
+	}
 }
 
 static bool mg_pll_get_hw_state(struct drm_i915_private *dev_priv,
@@ -3330,7 +3401,7 @@ static const struct dpll_info icl_plls[] = {
 static const struct intel_dpll_mgr icl_pll_mgr = {
 	.dpll_info = icl_plls,
 	.get_dplls = icl_get_dplls,
-	.put_dplls = intel_put_dpll,
+	.put_dplls = icl_put_dplls,
 	.dump_hw_state = icl_dump_hw_state,
 };
 
@@ -3343,7 +3414,7 @@ static const struct dpll_info ehl_plls[] = {
 static const struct intel_dpll_mgr ehl_pll_mgr = {
 	.dpll_info = ehl_plls,
 	.get_dplls = icl_get_dplls,
-	.put_dplls = intel_put_dpll,
+	.put_dplls = icl_put_dplls,
 	.dump_hw_state = icl_dump_hw_state,
 };
 
