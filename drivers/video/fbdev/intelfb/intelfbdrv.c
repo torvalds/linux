@@ -493,7 +493,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	info = framebuffer_alloc(sizeof(struct intelfb_info), &pdev->dev);
 	if (!info) {
 		ERR_MSG("Could not allocate memory for intelfb_info.\n");
-		return -ENODEV;
+		return -ENOMEM;
 	}
 	if (fb_alloc_cmap(&info->cmap, 256, 1) < 0) {
 		ERR_MSG("Could not allocate cmap for intelfb_info.\n");
