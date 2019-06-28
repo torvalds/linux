@@ -524,24 +524,6 @@ static struct cls_fl_filter *__fl_get(struct cls_fl_head *head, u32 handle)
 	return f;
 }
 
-static struct cls_fl_filter *fl_get_next_filter(struct tcf_proto *tp,
-						unsigned long *handle)
-{
-	struct cls_fl_head *head = fl_head_dereference(tp);
-	struct cls_fl_filter *f;
-
-	rcu_read_lock();
-	while ((f = idr_get_next_ul(&head->handle_idr, handle))) {
-		/* don't return filters that are being deleted */
-		if (refcount_inc_not_zero(&f->refcnt))
-			break;
-		++(*handle);
-	}
-	rcu_read_unlock();
-
-	return f;
-}
-
 static int __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
 		       bool *last, bool rtnl_held,
 		       struct netlink_ext_ack *extack)
@@ -1691,20 +1673,25 @@ static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
 static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 		    bool rtnl_held)
 {
+	struct cls_fl_head *head = fl_head_dereference(tp);
+	unsigned long id = arg->cookie, tmp;
 	struct cls_fl_filter *f;
 
 	arg->count = arg->skip;
 
-	while ((f = fl_get_next_filter(tp, &arg->cookie)) != NULL) {
+	idr_for_each_entry_continue_ul(&head->handle_idr, f, tmp, id) {
+		/* don't return filters that are being deleted */
+		if (!refcount_inc_not_zero(&f->refcnt))
+			continue;
 		if (arg->fn(tp, f, arg) < 0) {
 			__fl_put(f);
 			arg->stop = 1;
 			break;
 		}
 		__fl_put(f);
-		arg->cookie++;
 		arg->count++;
 	}
+	arg->cookie = id;
 }
 
 static struct cls_fl_filter *

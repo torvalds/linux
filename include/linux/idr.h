@@ -216,6 +216,20 @@ static inline void idr_preload_end(void)
 	     entry;							\
 	     ++id, (entry) = idr_get_next((idr), &(id)))
 
+/**
+ * idr_for_each_entry_continue_ul() - Continue iteration over an IDR's elements of a given type
+ * @idr: IDR handle.
+ * @entry: The type * to use as a cursor.
+ * @tmp: A temporary placeholder for ID.
+ * @id: Entry ID.
+ *
+ * Continue to iterate over entries, continuing after the current position.
+ */
+#define idr_for_each_entry_continue_ul(idr, entry, tmp, id)		\
+	for (tmp = id;							\
+	     tmp <= id && ((entry) = idr_get_next_ul(idr, &(id))) != NULL; \
+	     tmp = id, ++id)
+
 /*
  * IDA - ID Allocator, use when translation from id to pointer isn't necessary.
  */
