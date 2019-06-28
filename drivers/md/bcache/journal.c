@@ -447,7 +447,6 @@ retry:
 		if (!btree_current_write(b)->journal) {
 			mutex_unlock(&b->write_lock);
 			/* We raced */
-			atomic_long_inc(&c->retry_flush_write);
 			goto retry;
 		}
 

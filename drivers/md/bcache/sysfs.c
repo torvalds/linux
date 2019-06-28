@@ -83,7 +83,6 @@ read_attribute(state);
 read_attribute(cache_read_races);
 read_attribute(reclaim);
 read_attribute(flush_write);
-read_attribute(retry_flush_write);
 read_attribute(writeback_keys_done);
 read_attribute(writeback_keys_failed);
 read_attribute(io_errors);
@@ -709,9 +708,6 @@ SHOW(__bch_cache_set)
 	sysfs_print(flush_write,
 		    atomic_long_read(&c->flush_write));
 
-	sysfs_print(retry_flush_write,
-		    atomic_long_read(&c->retry_flush_write));
-
 	sysfs_print(writeback_keys_done,
 		    atomic_long_read(&c->writeback_keys_done));
 	sysfs_print(writeback_keys_failed,
@@ -936,7 +932,6 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_cache_read_races,
 	&sysfs_reclaim,
 	&sysfs_flush_write,
-	&sysfs_retry_flush_write,
 	&sysfs_writeback_keys_done,
 	&sysfs_writeback_keys_failed,
 

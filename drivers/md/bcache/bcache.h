@@ -706,7 +706,6 @@ struct cache_set {
 
 	atomic_long_t		reclaim;
 	atomic_long_t		flush_write;
-	atomic_long_t		retry_flush_write;
 
 	enum			{
 		ON_ERROR_UNREGISTER,
