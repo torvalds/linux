@@ -23,7 +23,7 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 
 }
 
-static s32 odm_SignalScaleMapping_92CSeries(PDM_ODM_T pDM_Odm, s32 CurrSig)
+s32 odm_SignalScaleMapping(PDM_ODM_T pDM_Odm, s32 CurrSig)
 {
 	s32 RetSig = 0;
 
@@ -47,11 +47,6 @@ static s32 odm_SignalScaleMapping_92CSeries(PDM_ODM_T pDM_Odm, s32 CurrSig)
 	}
 
 	return RetSig;
-}
-
-s32 odm_SignalScaleMapping(PDM_ODM_T pDM_Odm, s32 CurrSig)
-{
-	return odm_SignalScaleMapping_92CSeries(pDM_Odm, CurrSig);
 }
 
 static u8 odm_EVMdbToPercentage(s8 Value)
