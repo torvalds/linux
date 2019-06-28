@@ -17,6 +17,7 @@
 #include "intel_drv.h"
 #include "intel_hotplug.h"
 #include "intel_sideband.h"
+#include "intel_tc.h"
 
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 					 enum i915_power_well_id power_well_id);
@@ -447,24 +448,104 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 #define ICL_TBT_AUX_PW_TO_CH(pw_idx)	\
 	((pw_idx) - ICL_PW_CTL_IDX_AUX_TBT1 + AUX_CH_C)
 
+static enum aux_ch icl_tc_phy_aux_ch(struct drm_i915_private *dev_priv,
+				     struct i915_power_well *power_well)
+{
+	int pw_idx = power_well->desc->hsw.idx;
+
+	return power_well->desc->hsw.is_tc_tbt ? ICL_TBT_AUX_PW_TO_CH(pw_idx) :
+						 ICL_AUX_PW_TO_CH(pw_idx);
+}
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+
+static u64 async_put_domains_mask(struct i915_power_domains *power_domains);
+
+static int power_well_async_ref_count(struct drm_i915_private *dev_priv,
+				      struct i915_power_well *power_well)
+{
+	int refs = hweight64(power_well->desc->domains &
+			     async_put_domains_mask(&dev_priv->power_domains));
+
+	WARN_ON(refs > power_well->count);
+
+	return refs;
+}
+
+static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	enum aux_ch aux_ch = icl_tc_phy_aux_ch(dev_priv, power_well);
+	struct intel_digital_port *dig_port = NULL;
+	struct intel_encoder *encoder;
+
+	/* Bypass the check if all references are released asynchronously */
+	if (power_well_async_ref_count(dev_priv, power_well) ==
+	    power_well->count)
+		return;
+
+	aux_ch = icl_tc_phy_aux_ch(dev_priv, power_well);
+
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		if (!intel_port_is_tc(dev_priv, encoder->port))
+			continue;
+
+		/* We'll check the MST primary port */
+		if (encoder->type == INTEL_OUTPUT_DP_MST)
+			continue;
+
+		dig_port = enc_to_dig_port(&encoder->base);
+		if (WARN_ON(!dig_port))
+			continue;
+
+		if (dig_port->aux_ch != aux_ch) {
+			dig_port = NULL;
+			continue;
+		}
+
+		break;
+	}
+
+	if (WARN_ON(!dig_port))
+		return;
+
+	WARN_ON(!intel_tc_port_ref_held(dig_port));
+}
+
+#else
+
+static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+}
+
+#endif
+
 static void
 icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 				 struct i915_power_well *power_well)
 {
-	int pw_idx = power_well->desc->hsw.idx;
-	bool is_tbt = power_well->desc->hsw.is_tc_tbt;
-	enum aux_ch aux_ch;
+	enum aux_ch aux_ch = icl_tc_phy_aux_ch(dev_priv, power_well);
 	u32 val;
 
-	aux_ch = is_tbt ? ICL_TBT_AUX_PW_TO_CH(pw_idx) :
-			  ICL_AUX_PW_TO_CH(pw_idx);
+	icl_tc_port_assert_ref_held(dev_priv, power_well);
+
 	val = I915_READ(DP_AUX_CH_CTL(aux_ch));
 	val &= ~DP_AUX_CH_CTL_TBT_IO;
-	if (is_tbt)
+	if (power_well->desc->hsw.is_tc_tbt)
 		val |= DP_AUX_CH_CTL_TBT_IO;
 	I915_WRITE(DP_AUX_CH_CTL(aux_ch), val);
 
 	hsw_power_well_enable(dev_priv, power_well);
+}
+
+static void
+icl_tc_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
+				  struct i915_power_well *power_well)
+{
+	icl_tc_port_assert_ref_held(dev_priv, power_well);
+
+	hsw_power_well_disable(dev_priv, power_well);
 }
 
 /*
@@ -3119,7 +3200,7 @@ static const struct i915_power_well_ops icl_combo_phy_aux_power_well_ops = {
 static const struct i915_power_well_ops icl_tc_phy_aux_power_well_ops = {
 	.sync_hw = hsw_power_well_sync_hw,
 	.enable = icl_tc_phy_aux_power_well_enable,
-	.disable = hsw_power_well_disable,
+	.disable = icl_tc_phy_aux_power_well_disable,
 	.is_enabled = hsw_power_well_enabled,
 };
 
