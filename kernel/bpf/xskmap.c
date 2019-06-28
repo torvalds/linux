@@ -145,8 +145,7 @@ void __xsk_map_flush(struct bpf_map *map)
 
 	list_for_each_entry_safe(xs, tmp, flush_list, flush_node) {
 		xsk_flush(xs);
-		__list_del(xs->flush_node.prev, xs->flush_node.next);
-		xs->flush_node.prev = NULL;
+		__list_del_clearprev(&xs->flush_node);
 	}
 }
 
