@@ -130,6 +130,10 @@ static void icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
 
 	I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
+
+	if (enable && wait_for(!icl_tc_phy_status_complete(dig_port), 10))
+		DRM_DEBUG_KMS("Port %s: PHY complete clear timed out\n",
+			      dig_port->tc_port_name);
 }
 
 /*
