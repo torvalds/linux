@@ -7,19 +7,18 @@
 #include "i915_drv.h"
 #include "intel_tc.h"
 
-static const char *tc_type_name(enum tc_port_type type)
+static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
 	static const char * const names[] = {
-		[TC_PORT_UNKNOWN] = "unknown",
+		[TC_PORT_TBT_ALT] = "tbt-alt",
+		[TC_PORT_DP_ALT] = "dp-alt",
 		[TC_PORT_LEGACY] = "legacy",
-		[TC_PORT_TYPEC] = "typec",
-		[TC_PORT_TBT] = "tbt",
 	};
 
-	if (WARN_ON(type >= ARRAY_SIZE(names)))
-		type = TC_PORT_UNKNOWN;
+	if (WARN_ON(mode >= ARRAY_SIZE(names)))
+		mode = TC_PORT_TBT_ALT;
 
-	return names[type];
+	return names[mode];
 }
 
 int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
@@ -29,7 +28,7 @@ int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 	intel_wakeref_t wakeref;
 	u32 lane_info;
 
-	if (tc_port == PORT_TC_NONE || dig_port->tc_type != TC_PORT_TYPEC)
+	if (dig_port->tc_mode != TC_PORT_DP_ALT)
 		return 4;
 
 	lane_info = 0;
@@ -81,8 +80,8 @@ static bool icl_tc_phy_connect(struct intel_digital_port *dig_port)
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
 	u32 val;
 
-	if (dig_port->tc_type != TC_PORT_LEGACY &&
-	    dig_port->tc_type != TC_PORT_TYPEC)
+	if (dig_port->tc_mode != TC_PORT_LEGACY &&
+	    dig_port->tc_mode != TC_PORT_DP_ALT)
 		return true;
 
 	val = I915_READ(PORT_TX_DFLEXDPPMS);
@@ -106,7 +105,7 @@ static bool icl_tc_phy_connect(struct intel_digital_port *dig_port)
 	 * Now we have to re-check the live state, in case the port recently
 	 * became disconnected. Not necessary for legacy mode.
 	 */
-	if (dig_port->tc_type == TC_PORT_TYPEC &&
+	if (dig_port->tc_mode == TC_PORT_DP_ALT &&
 	    !(I915_READ(PORT_TX_DFLEXDPSP) & TC_LIVE_STATE_TC(tc_port))) {
 		DRM_DEBUG_KMS("TC PHY %d sudden disconnect.\n", tc_port);
 		icl_tc_phy_disconnect(dig_port);
@@ -125,15 +124,12 @@ void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
 
-	if (dig_port->tc_type == TC_PORT_UNKNOWN)
-		return;
-
 	/*
 	 * TBT disconnection flow is read the live status, what was done in
 	 * caller.
 	 */
-	if (dig_port->tc_type == TC_PORT_TYPEC ||
-	    dig_port->tc_type == TC_PORT_LEGACY) {
+	if (dig_port->tc_mode == TC_PORT_DP_ALT ||
+	    dig_port->tc_mode == TC_PORT_LEGACY) {
 		u32 val;
 
 		val = I915_READ(PORT_TX_DFLEXDPCSSS);
@@ -143,9 +139,9 @@ void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 
 	DRM_DEBUG_KMS("Port %c TC type %s disconnected\n",
 		      port_name(dig_port->base.port),
-		      tc_type_name(dig_port->tc_type));
+		      tc_port_mode_name(dig_port->tc_mode));
 
-	dig_port->tc_type = TC_PORT_UNKNOWN;
+	dig_port->tc_mode = TC_PORT_TBT_ALT;
 }
 
 static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
@@ -153,26 +149,22 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 				    bool is_legacy, bool is_typec, bool is_tbt)
 {
 	enum port port = intel_dig_port->base.port;
-	enum tc_port_type old_type = intel_dig_port->tc_type;
+	enum tc_port_mode old_mode = intel_dig_port->tc_mode;
 
 	WARN_ON(is_legacy + is_typec + is_tbt != 1);
 
 	if (is_legacy)
-		intel_dig_port->tc_type = TC_PORT_LEGACY;
+		intel_dig_port->tc_mode = TC_PORT_LEGACY;
 	else if (is_typec)
-		intel_dig_port->tc_type = TC_PORT_TYPEC;
+		intel_dig_port->tc_mode = TC_PORT_DP_ALT;
 	else if (is_tbt)
-		intel_dig_port->tc_type = TC_PORT_TBT;
+		intel_dig_port->tc_mode = TC_PORT_TBT_ALT;
 	else
 		return;
 
-	/* Types are not supposed to be changed at runtime. */
-	WARN_ON(old_type != TC_PORT_UNKNOWN &&
-		old_type != intel_dig_port->tc_type);
-
-	if (old_type != intel_dig_port->tc_type)
+	if (old_mode != intel_dig_port->tc_mode)
 		DRM_DEBUG_KMS("Port %c has TC type %s\n", port_name(port),
-			      tc_type_name(intel_dig_port->tc_type));
+			      tc_port_mode_name(intel_dig_port->tc_mode));
 }
 
 /*

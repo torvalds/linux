@@ -1225,7 +1225,7 @@ struct intel_digital_port {
 	enum aux_ch aux_ch;
 	enum intel_display_power_domain ddi_io_power_domain;
 	bool tc_legacy_port:1;
-	enum tc_port_type tc_type;
+	enum tc_port_mode tc_mode;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,

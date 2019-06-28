@@ -2817,7 +2817,7 @@ icl_get_dpll(struct intel_crtc_state *crtc_state,
 			intel_dig_port = enc_to_dig_port(&encoder->base);
 		}
 
-		if (intel_dig_port->tc_type == TC_PORT_TBT) {
+		if (intel_dig_port->tc_mode == TC_PORT_TBT_ALT) {
 			min = DPLL_ID_ICL_TBTPLL;
 			max = min;
 			ret = icl_calc_dpll_state(crtc_state, encoder);
