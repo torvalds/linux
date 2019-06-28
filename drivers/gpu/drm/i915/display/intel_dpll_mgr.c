@@ -2856,51 +2856,66 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	return true;
 }
 
-static bool icl_get_dplls(struct intel_atomic_state *state,
-			  struct intel_crtc *crtc,
-			  struct intel_encoder *encoder)
+static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc,
+				   struct intel_encoder *encoder)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_shared_dpll *pll;
+
+	if (!icl_calc_dpll_state(crtc_state, encoder,
+				 &crtc_state->dpll_hw_state)) {
+		DRM_DEBUG_KMS("Could not calculate combo PHY PLL state.\n");
+
+		return false;
+	}
+
+	pll = intel_find_shared_dpll(state, crtc, &crtc_state->dpll_hw_state,
+				     DPLL_ID_ICL_DPLL0,
+				     DPLL_ID_ICL_DPLL1);
+	if (!pll) {
+		DRM_DEBUG_KMS("No combo PHY PLL found for port %c\n",
+			      port_name(encoder->port));
+		return false;
+	}
+
+	intel_reference_shared_dpll(state, crtc,
+				    pll, &crtc_state->dpll_hw_state);
+
+	crtc_state->shared_dpll = pll;
+
+	return true;
+}
+
+static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc,
+				 struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_digital_port *intel_dig_port;
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
+	struct intel_digital_port *dig_port;
 	struct intel_shared_dpll *pll;
-	enum port port = encoder->port;
 	enum intel_dpll_id min, max;
 	bool ret;
 
-	if (intel_port_is_combophy(dev_priv, port)) {
-		min = DPLL_ID_ICL_DPLL0;
-		max = DPLL_ID_ICL_DPLL1;
+	if (encoder->type == INTEL_OUTPUT_DP_MST)
+		dig_port = enc_to_mst(&encoder->base)->primary;
+	else
+		dig_port = enc_to_dig_port(&encoder->base);
+
+	if (dig_port->tc_mode == TC_PORT_TBT_ALT) {
+		min = DPLL_ID_ICL_TBTPLL;
+		max = min;
 		ret = icl_calc_dpll_state(crtc_state, encoder,
 					  &crtc_state->dpll_hw_state);
-	} else if (intel_port_is_tc(dev_priv, port)) {
-		if (encoder->type == INTEL_OUTPUT_DP_MST) {
-			struct intel_dp_mst_encoder *mst_encoder;
-
-			mst_encoder = enc_to_mst(&encoder->base);
-			intel_dig_port = mst_encoder->primary;
-		} else {
-			intel_dig_port = enc_to_dig_port(&encoder->base);
-		}
-
-		if (intel_dig_port->tc_mode == TC_PORT_TBT_ALT) {
-			min = DPLL_ID_ICL_TBTPLL;
-			max = min;
-			ret = icl_calc_dpll_state(crtc_state, encoder,
-						  &crtc_state->dpll_hw_state);
-		} else {
-			enum tc_port tc_port;
-
-			tc_port = intel_port_to_tc(dev_priv, port);
-			min = icl_tc_port_to_pll_id(tc_port);
-			max = min;
-			ret = icl_calc_mg_pll_state(crtc_state,
-						    &crtc_state->dpll_hw_state);
-		}
 	} else {
-		MISSING_CASE(port);
-		return false;
+		min = icl_tc_port_to_pll_id(tc_port);
+		max = min;
+		ret = icl_calc_mg_pll_state(crtc_state,
+					    &crtc_state->dpll_hw_state);
 	}
 
 	if (!ret) {
@@ -2923,6 +2938,23 @@ static bool icl_get_dplls(struct intel_atomic_state *state,
 	crtc_state->shared_dpll = pll;
 
 	return true;
+}
+
+static bool icl_get_dplls(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc,
+			  struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	enum port port = encoder->port;
+
+	if (intel_port_is_combophy(dev_priv, port))
+		return icl_get_combo_phy_dpll(state, crtc, encoder);
+	else if (intel_port_is_tc(dev_priv, port))
+		return icl_get_tc_phy_dplls(state, crtc, encoder);
+
+	MISSING_CASE(port);
+
+	return false;
 }
 
 static bool mg_pll_get_hw_state(struct drm_i915_private *dev_priv,
