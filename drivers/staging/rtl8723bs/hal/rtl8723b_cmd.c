@@ -991,7 +991,7 @@ void rtl8723b_set_FwMacIdConfig_cmd(struct adapter *padapter, u8 mac_id, u8 raid
 	FillH2CCmd8723B(padapter, H2C_8723B_MACID_CFG, H2C_MACID_CFG_LEN, u1H2CMacIdConfigParm);
 }
 
-static void rtl8723b_set_FwRssiSetting_cmd(struct adapter *padapter, u8 *param)
+void rtl8723b_set_rssi_cmd(struct adapter *padapter, u8 *param)
 {
 	u8 u1H2CRssiSettingParm[H2C_RSSI_SETTING_LEN] = {0};
 	u8 mac_id = *param;
@@ -2026,11 +2026,6 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 		v8 &= ~BIT(0); /*  ~ENSWBCN */
 		rtw_write8(padapter, REG_CR+1, v8);
 	}
-}
-
-void rtl8723b_set_rssi_cmd(struct adapter *padapter, u8 *param)
-{
-	rtl8723b_set_FwRssiSetting_cmd(padapter, param);
 }
 
 void rtl8723b_set_FwJoinBssRpt_cmd(struct adapter *padapter, u8 mstatus)
