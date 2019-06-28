@@ -187,6 +187,46 @@ static const struct dw_hdmi_mpll_config rockchip_mpll_cfg[] = {
 	}
 };
 
+static const struct dw_hdmi_mpll_config rockchip_mpll_cfg_420[] = {
+	{
+		30666000, {
+			{ 0x00b7, 0x0000 },
+			{ 0x2157, 0x0000 },
+			{ 0x40f7, 0x0000 },
+		},
+	},  {
+		92000000, {
+			{ 0x00b7, 0x0000 },
+			{ 0x2143, 0x0001 },
+			{ 0x40a3, 0x0001 },
+		},
+	},  {
+		184000000, {
+			{ 0x0073, 0x0001 },
+			{ 0x2146, 0x0002 },
+			{ 0x4062, 0x0002 },
+		},
+	},  {
+		340000000, {
+			{ 0x0052, 0x0003 },
+			{ 0x214d, 0x0003 },
+			{ 0x4065, 0x0003 },
+		},
+	},  {
+		600000000, {
+			{ 0x0041, 0x0003 },
+			{ 0x3b4d, 0x0003 },
+			{ 0x5a65, 0x0003 },
+		},
+	},  {
+		~0UL, {
+			{ 0x0000, 0x0000 },
+			{ 0x0000, 0x0000 },
+			{ 0x0000, 0x0000 },
+		},
+	}
+};
+
 static const struct dw_hdmi_curr_ctrl rockchip_cur_ctr[] = {
 	/*      pixelclk    bpp8    bpp10   bpp12 */
 	{
@@ -354,14 +394,21 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	struct drm_display_info *info = &conn_state->connector->display_info;
 
-	if (drm_mode_is_420(info, &crtc_state->mode)) {
+	if (conn_state->connector->ycbcr_420_allowed &&
+	    crtc_state->mode.crtc_clock > 340000 &&
+	    drm_mode_is_420(info, &crtc_state->mode)) {
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
 		s->bus_format = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
+		if (hdmi->phy)
+			phy_set_bus_width(hdmi->phy, 4);
 	} else {
 		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		if (hdmi->phy)
+			phy_set_bus_width(hdmi->phy, 8);
 	}
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
 
@@ -481,6 +528,7 @@ static struct rockchip_hdmi_chip_data rk3399_chip_data = {
 static const struct dw_hdmi_plat_data rk3399_hdmi_drv_data = {
 	.mode_valid = dw_hdmi_rockchip_mode_valid,
 	.mpll_cfg   = rockchip_mpll_cfg,
+	.mpll_cfg_420 = rockchip_mpll_cfg_420,
 	.cur_ctr    = rockchip_cur_ctr,
 	.phy_config = rockchip_phy_config,
 	.phy_data = &rk3399_chip_data,
