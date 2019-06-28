@@ -1,19 +1,26 @@
+==========================
 ALPS HID Touchpad Protocol
-----------------------
+==========================
 
 Introduction
 ------------
 Currently ALPS HID driver supports U1 Touchpad device.
 
-U1 devuce basic information.
+U1 device basic information.
+
+==========	======
 Vender ID	0x044E
 Product ID	0x120B
 Version ID	0x0121
+==========	======
 
 
 HID Descriptor
-------------
+--------------
+
+=======	====================	=====	=======================================
 Byte	Field			Value	Notes
+=======	====================	=====	=======================================
 0	wHIDDescLength		001E	Length of HID Descriptor : 30 bytes
 2	bcdVersion		0100	Compliant with Version 1.00
 4	wReportDescLength	00B2	Report Descriptor is 178 Bytes (0x00B2)
@@ -28,32 +35,42 @@ Byte	Field			Value	Notes
 22	wProductID		120B	Product ID 0x120B
 24	wVersionID		0121	Version 01.21
 26	RESERVED		0000	RESERVED
+=======	====================	=====	=======================================
 
 
 Report ID
-------------
-ReportID-1	(Input Reports)	(HIDUsage-Mouse) for TP&SP
-ReportID-2	(Input Reports)	(HIDUsage-keyboard) for TP
-ReportID-3	(Input Reports)	(Vendor Usage: Max 10 finger data) for TP
-ReportID-4	(Input Reports)	(Vendor Usage: ON bit data) for GP
-ReportID-5	(Feature Reports)	Feature Reports
-ReportID-6	(Input Reports)	(Vendor Usage: StickPointer data) for SP
-ReportID-7	(Feature Reports)	Flash update (Bootloader)
+---------
+
+==========	=================  =========================================
+ReportID-1	(Input Reports)	   (HIDUsage-Mouse) for TP&SP
+ReportID-2	(Input Reports)	   (HIDUsage-keyboard) for TP
+ReportID-3	(Input Reports)	   (Vendor Usage: Max 10 finger data) for TP
+ReportID-4	(Input Reports)	   (Vendor Usage: ON bit data) for GP
+ReportID-5	(Feature Reports)  Feature Reports
+ReportID-6	(Input Reports)	   (Vendor Usage: StickPointer data) for SP
+ReportID-7	(Feature Reports)  Flash update (Bootloader)
+==========	=================  =========================================
 
 
 Data pattern
 ------------
+
+=====	==========	=====	=================
 Case1	ReportID_1	TP/SP	Relative/Relative
 Case2	ReportID_3	TP	Absolute
 	ReportID_6	SP	Absolute
+=====	==========	=====	=================
 
 
 Command Read/Write
 ------------------
 To read/write to RAM, need to send a commands to the device.
+
 The command format is as below.
 
 DataByte(SET_REPORT)
+
+=====	======================
 Byte1	Command Byte
 Byte2	Address - Byte 0 (LSB)
 Byte3	Address - Byte 1
@@ -61,13 +78,19 @@ Byte4	Address - Byte 2
 Byte5	Address - Byte 3 (MSB)
 Byte6	Value Byte
 Byte7	Checksum
+=====	======================
 
 Command Byte is read=0xD1/write=0xD2 .
+
 Address is read/write RAM address.
+
 Value Byte is writing data when you send the write commands.
+
 When you read RAM, there is no meaning.
 
 DataByte(GET_REPORT)
+
+=====	======================
 Byte1	Response Byte
 Byte2	Address - Byte 0 (LSB)
 Byte3	Address - Byte 1
@@ -75,6 +98,7 @@ Byte4	Address - Byte 2
 Byte5	Address - Byte 3 (MSB)
 Byte6	Value Byte
 Byte7	Checksum
+=====	======================
 
 Read value is stored in Value Byte.
 
@@ -82,7 +106,11 @@ Read value is stored in Value Byte.
 Packet Format
 Touchpad data byte
 ------------------
-	b7	b6	b5	b4	b3	b2	b1	b0
+
+
+======= ======= ======= ======= ======= ======= ======= ======= =====
+-	b7	b6	b5	b4	b3	b2	b1	b0
+======= ======= ======= ======= ======= ======= ======= ======= =====
 1	0	0	SW6	SW5	SW4	SW3	SW2	SW1
 2	0	0	0	Fcv	Fn3	Fn2	Fn1	Fn0
 3	Xa0_7	Xa0_6	Xa0_5	Xa0_4	Xa0_3	Xa0_2	Xa0_1	Xa0_0
@@ -114,17 +142,25 @@ Touchpad data byte
 25	Ya4_7	Ya4_6	Ya4_5	Ya4_4	Ya4_3	Ya4_2	Ya4_1	Ya4_0
 26	Ya4_15	Ya4_14	Ya4_13	Ya4_12	Ya4_11	Ya4_10	Ya4_9	Ya4_8
 27	LFB4	Zs4_6	Zs4_5	Zs4_4	Zs4_3	Zs4_2	Zs4_1	Zs4_0
+======= ======= ======= ======= ======= ======= ======= ======= =====
 
 
-SW1-SW6:	SW ON/OFF status
-Xan_15-0(16bit):X Absolute data of the "n"th finger
-Yan_15-0(16bit):Y Absolute data of the "n"th finger
-Zsn_6-0(7bit):	Operation area of the "n"th finger
+SW1-SW6:
+	SW ON/OFF status
+Xan_15-0(16bit):
+	X Absolute data of the "n"th finger
+Yan_15-0(16bit):
+	Y Absolute data of the "n"th finger
+Zsn_6-0(7bit):
+	Operation area of the "n"th finger
 
 
 StickPointer data byte
-------------------
-	b7	b6	b5	b4	b3	b2	b1	b0
+----------------------
+
+======= ======= ======= ======= ======= ======= ======= ======= =====
+-	b7	b6	b5	b4	b3	b2	b1	b0
+======= ======= ======= ======= ======= ======= ======= ======= =====
 Byte1	1	1	1	0	1	SW3	SW2	SW1
 Byte2	X7	X6	X5	X4	X3	X2	X1	X0
 Byte3	X15	X14	X13	X12	X11	X10	X9	X8
@@ -132,8 +168,13 @@ Byte4	Y7	Y6	Y5	Y4	Y3	Y2	Y1	Y0
 Byte5	Y15	Y14	Y13	Y12	Y11	Y10	Y9	Y8
 Byte6	Z7	Z6	Z5	Z4	Z3	Z2	Z1	Z0
 Byte7	T&P	Z14	Z13	Z12	Z11	Z10	Z9	Z8
+======= ======= ======= ======= ======= ======= ======= ======= =====
 
-SW1-SW3:	SW ON/OFF status
-Xn_15-0(16bit):X Absolute data
-Yn_15-0(16bit):Y Absolute data
-Zn_14-0(15bit):Z
+SW1-SW3:
+	SW ON/OFF status
+Xn_15-0(16bit):
+	X Absolute data
+Yn_15-0(16bit):
+	Y Absolute data
+Zn_14-0(15bit):
+	Z

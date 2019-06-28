@@ -1,5 +1,6 @@
-                          HID I/O Transport Drivers
-                         ===========================
+=========================
+HID I/O Transport Drivers
+=========================
 
 The HID subsystem is independent of the underlying transport driver. Initially,
 only USB was supported, but other specifications adopted the HID design and
@@ -15,6 +16,8 @@ drivers on top of it. The transport drivers are responsible of raw data
 transport and device setup/management. HID core is responsible of
 report-parsing, report interpretation and the user-space API. Device specifics
 and quirks are handled by all layers depending on the quirk.
+
+::
 
  +-----------+  +-----------+            +-----------+  +-----------+
  | Device #1 |  | Device #i |            | Device #j |  | Device #k |
@@ -42,8 +45,9 @@ and quirks are handled by all layers depending on the quirk.
  +----------------+  +-----------+  +------------------+  +------------------+
 
 Example Drivers:
-  I/O: USB, I2C, Bluetooth-l2cap
-  Transport: USB-HID, I2C-HID, BT-HIDP
+
+  - I/O: USB, I2C, Bluetooth-l2cap
+  - Transport: USB-HID, I2C-HID, BT-HIDP
 
 Everything below "HID Core" is simplified in this graph as it is only of
 interest to HID device drivers. Transport drivers do not need to know the
@@ -183,7 +187,7 @@ Other ctrl-channel requests are supported by USB-HID but are not available
 -------------------
 
 Transport drivers normally use the following procedure to register a new device
-with HID core:
+with HID core::
 
 	struct hid_device *hid;
 	int ret;
@@ -215,7 +219,7 @@ Once hid_add_device() is entered, HID core might use the callbacks provided in
 "custom_ll_driver". Note that fields like "country" can be ignored by underlying
 transport-drivers if not supported.
 
-To unregister a device, use:
+To unregister a device, use::
 
 	hid_destroy_device(hid);
 
@@ -226,73 +230,110 @@ driver callbacks.
 -----------------------------
 
 The available HID callbacks are:
- - int (*start) (struct hid_device *hdev)
+
+   ::
+
+      int (*start) (struct hid_device *hdev)
+
    Called from HID device drivers once they want to use the device. Transport
    drivers can choose to setup their device in this callback. However, normally
    devices are already set up before transport drivers register them to HID core
    so this is mostly only used by USB-HID.
 
- - void (*stop) (struct hid_device *hdev)
+   ::
+
+      void (*stop) (struct hid_device *hdev)
+
    Called from HID device drivers once they are done with a device. Transport
    drivers can free any buffers and deinitialize the device. But note that
    ->start() might be called again if another HID device driver is loaded on the
    device.
+
    Transport drivers are free to ignore it and deinitialize devices after they
    destroyed them via hid_destroy_device().
 
- - int (*open) (struct hid_device *hdev)
+   ::
+
+      int (*open) (struct hid_device *hdev)
+
    Called from HID device drivers once they are interested in data reports.
    Usually, while user-space didn't open any input API/etc., device drivers are
    not interested in device data and transport drivers can put devices asleep.
    However, once ->open() is called, transport drivers must be ready for I/O.
    ->open() calls are nested for each client that opens the HID device.
 
- - void (*close) (struct hid_device *hdev)
+   ::
+
+      void (*close) (struct hid_device *hdev)
+
    Called from HID device drivers after ->open() was called but they are no
    longer interested in device reports. (Usually if user-space closed any input
    devices of the driver).
+
    Transport drivers can put devices asleep and terminate any I/O of all
    ->open() calls have been followed by a ->close() call. However, ->start() may
    be called again if the device driver is interested in input reports again.
 
- - int (*parse) (struct hid_device *hdev)
+   ::
+
+      int (*parse) (struct hid_device *hdev)
+
    Called once during device setup after ->start() has been called. Transport
    drivers must read the HID report-descriptor from the device and tell HID core
    about it via hid_parse_report().
 
- - int (*power) (struct hid_device *hdev, int level)
+   ::
+
+      int (*power) (struct hid_device *hdev, int level)
+
    Called by HID core to give PM hints to transport drivers. Usually this is
    analogical to the ->open() and ->close() hints and redundant.
 
- - void (*request) (struct hid_device *hdev, struct hid_report *report,
-                    int reqtype)
+   ::
+
+      void (*request) (struct hid_device *hdev, struct hid_report *report,
+		       int reqtype)
+
    Send an HID request on the ctrl channel. "report" contains the report that
    should be sent and "reqtype" the request type. Request-type can be
    HID_REQ_SET_REPORT or HID_REQ_GET_REPORT.
+
    This callback is optional. If not provided, HID core will assemble a raw
    report following the HID specs and send it via the ->raw_request() callback.
    The transport driver is free to implement this asynchronously.
 
- - int (*wait) (struct hid_device *hdev)
+   ::
+
+      int (*wait) (struct hid_device *hdev)
+
    Used by HID core before calling ->request() again. A transport driver can use
    it to wait for any pending requests to complete if only one request is
    allowed at a time.
 
- - int (*raw_request) (struct hid_device *hdev, unsigned char reportnum,
-                       __u8 *buf, size_t count, unsigned char rtype,
-                       int reqtype)
+   ::
+
+      int (*raw_request) (struct hid_device *hdev, unsigned char reportnum,
+                          __u8 *buf, size_t count, unsigned char rtype,
+                          int reqtype)
+
    Same as ->request() but provides the report as raw buffer. This request shall
    be synchronous. A transport driver must not use ->wait() to complete such
    requests. This request is mandatory and hid core will reject the device if
    it is missing.
 
- - int (*output_report) (struct hid_device *hdev, __u8 *buf, size_t len)
+   ::
+
+      int (*output_report) (struct hid_device *hdev, __u8 *buf, size_t len)
+
    Send raw output report via intr channel. Used by some HID device drivers
    which require high throughput for outgoing requests on the intr channel. This
    must not cause SET_REPORT calls! This must be implemented as asynchronous
    output report on the intr channel!
 
- - int (*idle) (struct hid_device *hdev, int report, int idle, int reqtype)
+   ::
+
+      int (*idle) (struct hid_device *hdev, int report, int idle, int reqtype)
+
    Perform SET/GET_IDLE request. Only used by USB-HID, do not implement!
 
 2.3) Data Path
@@ -314,4 +355,5 @@ transport driver and not passed to hid_input_report().
 Acknowledgements to SET_REPORT requests are not of interest to HID core.
 
 ----------------------------------------------------
+
 Written 2013, David Herrmann <dh.herrmann@gmail.com>
