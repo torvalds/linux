@@ -2516,9 +2516,9 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
 
 	if (priv->use_riwt) {
-		ret = stmmac_rx_watchdog(priv, priv->ioaddr, MAX_DMA_RIWT, rx_cnt);
+		ret = stmmac_rx_watchdog(priv, priv->ioaddr, MIN_DMA_RIWT, rx_cnt);
 		if (!ret)
-			priv->rx_riwt = MAX_DMA_RIWT;
+			priv->rx_riwt = MIN_DMA_RIWT;
 	}
 
 	if (priv->hw->pcs)
