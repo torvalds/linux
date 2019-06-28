@@ -89,7 +89,8 @@
 	SRI(DP_VID_STREAM_CNTL, DP, id), \
 	SRI(DP_VID_TIMING, DP, id), \
 	SRI(DP_SEC_AUD_N, DP, id), \
-	SRI(DP_SEC_TIMESTAMP, DP, id)
+	SRI(DP_SEC_TIMESTAMP, DP, id), \
+	SRI(DIG_CLOCK_PATTERN, DIG, id)
 
 #define SE_DCN_REG_LIST(id)\
 	SE_COMMON_DCN_REG_LIST(id)
@@ -170,6 +171,7 @@ struct dcn10_stream_enc_registers {
 	uint32_t HDMI_METADATA_PACKET_CONTROL;
 	uint32_t DP_SEC_FRAMING4;
 #endif
+	uint32_t DIG_CLOCK_PATTERN;
 };
 
 
@@ -298,7 +300,8 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DP0_DP_MSA_TIMING_PARAM4, DP_MSA_VHEIGHT, mask_sh),\
 	SE_SF(DIG0_HDMI_DB_CONTROL, HDMI_DB_DISABLE, mask_sh),\
 	SE_SF(DP0_DP_VID_TIMING, DP_VID_N_MUL, mask_sh),\
-	SE_SF(DIG0_DIG_FE_CNTL, DIG_SOURCE_SELECT, mask_sh)
+	SE_SF(DIG0_DIG_FE_CNTL, DIG_SOURCE_SELECT, mask_sh),\
+	SE_SF(DIG0_DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, mask_sh)
 
 #define SE_COMMON_MASK_SH_LIST_SOC(mask_sh)\
 	SE_COMMON_MASK_SH_LIST_SOC_BASE(mask_sh)
@@ -460,7 +463,8 @@ struct dcn10_stream_enc_registers {
 	type HDMI_DB_DISABLE;\
 	type DP_VID_N_MUL;\
 	type DP_VID_M_DOUBLE_VALUE_EN;\
-	type DIG_SOURCE_SELECT
+	type DIG_SOURCE_SELECT;\
+	type DIG_CLOCK_PATTERN
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define SE_REG_FIELD_LIST_DCN2_0(type) \
