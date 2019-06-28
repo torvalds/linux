@@ -9493,6 +9493,8 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 				       struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->base.state);
 	const struct intel_limit *limit;
 	int refclk = 120000;
 
@@ -9534,7 +9536,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 
 	ironlake_compute_dpll(crtc, crtc_state, NULL);
 
-	if (!intel_get_shared_dpll(crtc_state, NULL)) {
+	if (!intel_reserve_shared_dplls(state, crtc, NULL)) {
 		DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
 			      pipe_name(crtc->pipe));
 		return -EINVAL;
@@ -9915,7 +9917,7 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 		struct intel_encoder *encoder =
 			intel_get_crtc_new_encoder(state, crtc_state);
 
-		if (!intel_get_shared_dpll(crtc_state, encoder)) {
+		if (!intel_reserve_shared_dplls(state, crtc, encoder)) {
 			DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
 				      pipe_name(crtc->pipe));
 			return -EINVAL;
@@ -13171,27 +13173,20 @@ static void update_scanline_offset(const struct intel_crtc_state *crtc_state)
 static void intel_modeset_clear_plls(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int i;
 
 	if (!dev_priv->display.crtc_compute_clock)
 		return;
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
-		struct intel_shared_dpll *old_dpll =
-			old_crtc_state->shared_dpll;
-
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (!needs_modeset(new_crtc_state))
 			continue;
 
 		new_crtc_state->shared_dpll = NULL;
 
-		if (!old_dpll)
-			continue;
-
-		intel_release_shared_dpll(old_dpll, crtc, &state->base);
+		intel_release_shared_dplls(state, crtc);
 	}
 }
 

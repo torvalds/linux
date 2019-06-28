@@ -39,6 +39,7 @@
 struct drm_atomic_state;
 struct drm_device;
 struct drm_i915_private;
+struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_encoder;
@@ -195,7 +196,7 @@ struct intel_dpll_hw_state {
  * future state which would be applied by an atomic mode set (stored in
  * a struct &intel_atomic_state).
  *
- * See also intel_get_shared_dpll() and intel_release_shared_dpll().
+ * See also intel_reserve_shared_dplls() and intel_release_shared_dplls().
  */
 struct intel_shared_dpll_state {
 	/**
@@ -331,11 +332,11 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
-struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc_state *state,
-						struct intel_encoder *encoder);
-void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
-			       struct intel_crtc *crtc,
-			       struct drm_atomic_state *state);
+bool intel_reserve_shared_dplls(struct intel_atomic_state *state,
+				struct intel_crtc *crtc,
+				struct intel_encoder *encoder);
+void intel_release_shared_dplls(struct intel_atomic_state *state,
+				struct intel_crtc *crtc);
 void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
