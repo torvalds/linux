@@ -1018,7 +1018,6 @@ static void cached_dev_detach_finish(struct work_struct *w)
 	BUG_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
 	BUG_ON(refcount_read(&dc->count));
 
-	mutex_lock(&bch_register_lock);
 
 	if (test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
 		cancel_writeback_rate_update_dwork(dc);
@@ -1033,6 +1032,8 @@ static void cached_dev_detach_finish(struct work_struct *w)
 
 	bch_write_bdev_super(dc, &cl);
 	closure_sync(&cl);
+
+	mutex_lock(&bch_register_lock);
 
 	calc_cached_dev_sectors(dc->disk.c);
 	bcache_device_detach(&dc->disk);
