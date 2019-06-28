@@ -226,6 +226,7 @@ struct hclgevf_rst_stats {
 	u32 vf_rst_cnt;			/* the number of VF reset */
 	u32 rst_done_cnt;		/* the number of reset completed */
 	u32 hw_rst_done_cnt;		/* the number of HW reset completed */
+	u32 rst_fail_cnt;		/* the number of VF reset fail */
 };
 
 struct hclgevf_dev {
