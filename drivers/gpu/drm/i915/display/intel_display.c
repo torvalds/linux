@@ -11286,7 +11286,7 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
  *
  * Returns true or false.
  */
-static bool intel_wm_need_update(struct intel_plane_state *cur,
+static bool intel_wm_need_update(const struct intel_plane_state *cur,
 				 struct intel_plane_state *new)
 {
 	/* Update watermarks on tiling or size changes. */
@@ -11318,33 +11318,28 @@ static bool needs_scaling(const struct intel_plane_state *state)
 }
 
 int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
-				    struct drm_crtc_state *crtc_state,
+				    struct intel_crtc_state *crtc_state,
 				    const struct intel_plane_state *old_plane_state,
-				    struct drm_plane_state *plane_state)
+				    struct intel_plane_state *plane_state)
 {
-	struct intel_crtc_state *pipe_config = to_intel_crtc_state(crtc_state);
-	struct drm_crtc *crtc = crtc_state->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_plane *plane = to_intel_plane(plane_state->plane);
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	bool mode_changed = needs_modeset(pipe_config);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	bool mode_changed = needs_modeset(crtc_state);
 	bool was_crtc_enabled = old_crtc_state->base.active;
-	bool is_crtc_enabled = crtc_state->active;
+	bool is_crtc_enabled = crtc_state->base.active;
 	bool turn_off, turn_on, visible, was_visible;
-	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_framebuffer *fb = plane_state->base.fb;
 	int ret;
 
 	if (INTEL_GEN(dev_priv) >= 9 && plane->id != PLANE_CURSOR) {
-		ret = skl_update_scaler_plane(
-			to_intel_crtc_state(crtc_state),
-			to_intel_plane_state(plane_state));
+		ret = skl_update_scaler_plane(crtc_state, plane_state);
 		if (ret)
 			return ret;
 	}
 
 	was_visible = old_plane_state->base.visible;
-	visible = plane_state->visible;
+	visible = plane_state->base.visible;
 
 	if (!was_crtc_enabled && WARN_ON(was_visible))
 		was_visible = false;
@@ -11360,22 +11355,22 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	 * only combine the results from all planes in the current place?
 	 */
 	if (!is_crtc_enabled) {
-		plane_state->visible = visible = false;
-		to_intel_crtc_state(crtc_state)->active_planes &= ~BIT(plane->id);
-		to_intel_crtc_state(crtc_state)->data_rate[plane->id] = 0;
+		plane_state->base.visible = visible = false;
+		crtc_state->active_planes &= ~BIT(plane->id);
+		crtc_state->data_rate[plane->id] = 0;
 	}
 
 	if (!was_visible && !visible)
 		return 0;
 
 	if (fb != old_plane_state->base.fb)
-		pipe_config->fb_changed = true;
+		crtc_state->fb_changed = true;
 
 	turn_off = was_visible && (!visible || mode_changed);
 	turn_on = visible && (!was_visible || mode_changed);
 
 	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] has [PLANE:%d:%s] with fb %i\n",
-			 intel_crtc->base.base.id, intel_crtc->base.name,
+			 crtc->base.base.id, crtc->base.name,
 			 plane->base.base.id, plane->base.name,
 			 fb ? fb->base.id : -1);
 
@@ -11386,29 +11381,28 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 
 	if (turn_on) {
 		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
-			pipe_config->update_wm_pre = true;
+			crtc_state->update_wm_pre = true;
 
 		/* must disable cxsr around plane enable/disable */
 		if (plane->id != PLANE_CURSOR)
-			pipe_config->disable_cxsr = true;
+			crtc_state->disable_cxsr = true;
 	} else if (turn_off) {
 		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
-			pipe_config->update_wm_post = true;
+			crtc_state->update_wm_post = true;
 
 		/* must disable cxsr around plane enable/disable */
 		if (plane->id != PLANE_CURSOR)
-			pipe_config->disable_cxsr = true;
-	} else if (intel_wm_need_update(to_intel_plane_state(plane->base.state),
-					to_intel_plane_state(plane_state))) {
+			crtc_state->disable_cxsr = true;
+	} else if (intel_wm_need_update(old_plane_state, plane_state)) {
 		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv)) {
 			/* FIXME bollocks */
-			pipe_config->update_wm_pre = true;
-			pipe_config->update_wm_post = true;
+			crtc_state->update_wm_pre = true;
+			crtc_state->update_wm_post = true;
 		}
 	}
 
 	if (visible || was_visible)
-		pipe_config->fb_bits |= plane->frontbuffer_bit;
+		crtc_state->fb_bits |= plane->frontbuffer_bit;
 
 	/*
 	 * ILK/SNB DVSACNTR/Sprite Enable
@@ -11447,8 +11441,8 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	    (IS_GEN_RANGE(dev_priv, 5, 6) ||
 	     IS_IVYBRIDGE(dev_priv)) &&
 	    (turn_on || (!needs_scaling(old_plane_state) &&
-			 needs_scaling(to_intel_plane_state(plane_state)))))
-		pipe_config->disable_lp_wm = true;
+			 needs_scaling(plane_state))))
+		crtc_state->disable_lp_wm = true;
 
 	return 0;
 }
