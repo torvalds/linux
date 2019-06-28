@@ -1728,10 +1728,9 @@ int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u32 *out, int outlen)
 /* Public E-Switch API */
 #define ESW_ALLOWED(esw) ((esw) && MLX5_ESWITCH_MANAGER((esw)->dev))
 
-int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int nvfs, int mode)
+int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 {
 	struct mlx5_vport *vport;
-	int total_nvports = 0;
 	int err;
 	int i, enabled_events;
 
@@ -1747,13 +1746,6 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int nvfs, int mode)
 	if (!MLX5_CAP_ESW_EGRESS_ACL(esw->dev, ft_support))
 		esw_warn(esw->dev, "engress ACL is not supported by FW\n");
 
-	if (mode == MLX5_ESWITCH_OFFLOADS) {
-		if (mlx5_core_is_ecpf_esw_manager(esw->dev))
-			total_nvports = esw->total_vports;
-		else
-			total_nvports = nvfs + MLX5_SPECIAL_VPORTS(esw->dev);
-	}
-
 	esw->mode = mode;
 
 	mlx5_lag_update(esw->dev);
@@ -1765,7 +1757,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int nvfs, int mode)
 	} else {
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
-		err = esw_offloads_init(esw, nvfs, total_nvports);
+		err = esw_offloads_init(esw);
 	}
 
 	if (err)
@@ -1792,7 +1784,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int nvfs, int mode)
 	}
 
 	/* Enable VF vports */
-	mlx5_esw_for_each_vf_vport(esw, i, vport, nvfs)
+	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs)
 		esw_enable_vport(esw, vport, enabled_events);
 
 	if (mode == MLX5_ESWITCH_LEGACY) {
@@ -1802,7 +1794,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int nvfs, int mode)
 
 	esw_info(esw->dev, "Enable: mode(%s), nvfs(%d), active vports(%d)\n",
 		 mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
-		 nvfs, esw->enabled_vports);
+		 esw->esw_funcs.num_vfs, esw->enabled_vports);
 
 	return 0;
 
@@ -1829,7 +1821,7 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 
 	esw_info(esw->dev, "Disable: mode(%s), nvfs(%d), active vports(%d)\n",
 		 esw->mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
-		 esw->dev->priv.sriov.num_vfs, esw->enabled_vports);
+		 esw->esw_funcs.num_vfs, esw->enabled_vports);
 
 	mc_promisc = &esw->mc_promisc;
 
@@ -2514,4 +2506,22 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 {
 	return (dev0->priv.eswitch->mode == MLX5_ESWITCH_OFFLOADS &&
 		dev1->priv.eswitch->mode == MLX5_ESWITCH_OFFLOADS);
+}
+
+void mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, const int num_vfs)
+{
+	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {};
+	int err;
+
+	WARN_ON_ONCE(esw->mode != MLX5_ESWITCH_NONE);
+
+	if (!mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		esw->esw_funcs.num_vfs = num_vfs;
+		return;
+	}
+
+	err = mlx5_esw_query_functions(esw->dev, out, sizeof(out));
+	if (!err)
+		esw->esw_funcs.num_vfs = MLX5_GET(query_esw_functions_out, out,
+						  host_params_context.host_num_of_vfs);
 }

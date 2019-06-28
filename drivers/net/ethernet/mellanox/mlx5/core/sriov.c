@@ -77,7 +77,8 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 	if (!MLX5_ESWITCH_MANAGER(dev))
 		goto enable_vfs_hca;
 
-	err = mlx5_eswitch_enable(dev->priv.eswitch, num_vfs, MLX5_ESWITCH_LEGACY);
+	mlx5_eswitch_update_num_of_vfs(dev->priv.eswitch, num_vfs);
+	err = mlx5_eswitch_enable(dev->priv.eswitch, MLX5_ESWITCH_LEGACY);
 	if (err) {
 		mlx5_core_warn(dev,
 			       "failed to enable eswitch SRIOV (%d)\n", err);
