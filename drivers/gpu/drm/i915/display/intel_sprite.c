@@ -516,8 +516,11 @@ icl_program_input_csc(struct intel_plane *plane,
 
 	I915_WRITE_FW(PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 0),
 		      PREOFF_YUV_TO_RGB_HI);
-	I915_WRITE_FW(PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 1),
-		      PREOFF_YUV_TO_RGB_ME);
+	if (plane_state->base.color_range == DRM_COLOR_YCBCR_FULL_RANGE)
+		I915_WRITE_FW(PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 1), 0);
+	else
+		I915_WRITE_FW(PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 1),
+			      PREOFF_YUV_TO_RGB_ME);
 	I915_WRITE_FW(PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 2),
 		      PREOFF_YUV_TO_RGB_LO);
 	I915_WRITE_FW(PLANE_INPUT_CSC_POSTOFF(pipe, plane_id, 0), 0x0);
