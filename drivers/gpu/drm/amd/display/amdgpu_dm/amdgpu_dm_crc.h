@@ -29,15 +29,17 @@
 enum amdgpu_dm_pipe_crc_source {
 	AMDGPU_DM_PIPE_CRC_SOURCE_NONE = 0,
 	AMDGPU_DM_PIPE_CRC_SOURCE_CRTC,
+	AMDGPU_DM_PIPE_CRC_SOURCE_CRTC_DITHER,
 	AMDGPU_DM_PIPE_CRC_SOURCE_DPRX,
+	AMDGPU_DM_PIPE_CRC_SOURCE_DPRX_DITHER,
 	AMDGPU_DM_PIPE_CRC_SOURCE_MAX,
 	AMDGPU_DM_PIPE_CRC_SOURCE_INVALID = -1,
 };
 
 static inline bool amdgpu_dm_is_valid_crc_source(enum amdgpu_dm_pipe_crc_source source)
 {
-	return (source == AMDGPU_DM_PIPE_CRC_SOURCE_CRTC) ||
-		   (source == AMDGPU_DM_PIPE_CRC_SOURCE_DPRX);
+	return (source > AMDGPU_DM_PIPE_CRC_SOURCE_NONE) &&
+	       (source < AMDGPU_DM_PIPE_CRC_SOURCE_MAX);
 }
 
 /* amdgpu_dm_crc.c */
