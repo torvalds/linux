@@ -86,7 +86,8 @@ static bool icl_tc_phy_connect(struct intel_digital_port *dig_port)
 
 	val = I915_READ(PORT_TX_DFLEXDPPMS);
 	if (!(val & DP_PHY_MODE_STATUS_COMPLETED(tc_port))) {
-		DRM_DEBUG_KMS("DP PHY for TC port %d not ready\n", tc_port);
+		DRM_DEBUG_KMS("Port %s: PHY not ready\n",
+			      dig_port->tc_port_name);
 		WARN_ON(dig_port->tc_legacy_port);
 		return false;
 	}
@@ -107,7 +108,8 @@ static bool icl_tc_phy_connect(struct intel_digital_port *dig_port)
 	 */
 	if (dig_port->tc_mode == TC_PORT_DP_ALT &&
 	    !(I915_READ(PORT_TX_DFLEXDPSP) & TC_LIVE_STATE_TC(tc_port))) {
-		DRM_DEBUG_KMS("TC PHY %d sudden disconnect.\n", tc_port);
+		DRM_DEBUG_KMS("Port %s: PHY sudden disconnect\n",
+			      dig_port->tc_port_name);
 		icl_tc_phy_disconnect(dig_port);
 		return false;
 	}
@@ -137,8 +139,8 @@ void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
 	}
 
-	DRM_DEBUG_KMS("Port %c TC type %s disconnected\n",
-		      port_name(dig_port->base.port),
+	DRM_DEBUG_KMS("Port %s: mode %s disconnected\n",
+		      dig_port->tc_port_name,
 		      tc_port_mode_name(dig_port->tc_mode));
 
 	dig_port->tc_mode = TC_PORT_TBT_ALT;
@@ -148,7 +150,6 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 				    struct intel_digital_port *intel_dig_port,
 				    bool is_legacy, bool is_typec, bool is_tbt)
 {
-	enum port port = intel_dig_port->base.port;
 	enum tc_port_mode old_mode = intel_dig_port->tc_mode;
 
 	WARN_ON(is_legacy + is_typec + is_tbt != 1);
@@ -163,7 +164,8 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 		return;
 
 	if (old_mode != intel_dig_port->tc_mode)
-		DRM_DEBUG_KMS("Port %c has TC type %s\n", port_name(port),
+		DRM_DEBUG_KMS("Port %s: port has mode %s\n",
+			      intel_dig_port->tc_port_name,
 			      tc_port_mode_name(intel_dig_port->tc_mode));
 }
 
@@ -191,8 +193,8 @@ bool intel_tc_port_connected(struct intel_digital_port *dig_port)
 	 */
 	if (!dig_port->tc_legacy_port &&
 	    I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port)) {
-		DRM_ERROR("VBT incorrectly claims port %c is not TypeC legacy\n",
-			  port_name(port));
+		DRM_ERROR("Port %s: VBT incorrectly claims port is not TypeC legacy\n",
+			  dig_port->tc_port_name);
 		dig_port->tc_legacy_port = true;
 	}
 	is_legacy = dig_port->tc_legacy_port;
@@ -220,3 +222,17 @@ bool intel_tc_port_connected(struct intel_digital_port *dig_port)
 	return true;
 }
 
+void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum port port = dig_port->base.port;
+	enum tc_port tc_port = intel_port_to_tc(i915, port);
+
+	if (WARN_ON(tc_port == PORT_TC_NONE))
+		return;
+
+	snprintf(dig_port->tc_port_name, sizeof(dig_port->tc_port_name),
+		 "%c/TC#%d", port_name(port), tc_port + 1);
+
+	dig_port->tc_legacy_port = is_legacy;
+}
