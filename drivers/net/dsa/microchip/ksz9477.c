@@ -89,22 +89,12 @@ static void ksz9477_port_cfg32(struct ksz_device *dev, int port, int offset,
 			   bits, set ? bits : 0);
 }
 
-static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev, u32 waiton,
-					int timeout)
+static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev)
 {
-	u8 data;
+	unsigned int val;
 
-	do {
-		ksz_read8(dev, REG_SW_VLAN_CTRL, &data);
-		if (!(data & waiton))
-			break;
-		usleep_range(1, 10);
-	} while (timeout-- > 0);
-
-	if (timeout <= 0)
-		return -ETIMEDOUT;
-
-	return 0;
+	return regmap_read_poll_timeout(dev->regmap[0], REG_SW_VLAN_CTRL,
+					val, !(val & VLAN_START), 10, 1000);
 }
 
 static int ksz9477_get_vlan_table(struct ksz_device *dev, u16 vid,
@@ -118,8 +108,8 @@ static int ksz9477_get_vlan_table(struct ksz_device *dev, u16 vid,
 	ksz_write8(dev, REG_SW_VLAN_CTRL, VLAN_READ | VLAN_START);
 
 	/* wait to be cleared */
-	ret = ksz9477_wait_vlan_ctrl_ready(dev, VLAN_START, 1000);
-	if (ret < 0) {
+	ret = ksz9477_wait_vlan_ctrl_ready(dev);
+	if (ret) {
 		dev_dbg(dev->dev, "Failed to read vlan table\n");
 		goto exit;
 	}
@@ -151,8 +141,8 @@ static int ksz9477_set_vlan_table(struct ksz_device *dev, u16 vid,
 	ksz_write8(dev, REG_SW_VLAN_CTRL, VLAN_START | VLAN_WRITE);
 
 	/* wait to be cleared */
-	ret = ksz9477_wait_vlan_ctrl_ready(dev, VLAN_START, 1000);
-	if (ret < 0) {
+	ret = ksz9477_wait_vlan_ctrl_ready(dev);
+	if (ret) {
 		dev_dbg(dev->dev, "Failed to write vlan table\n");
 		goto exit;
 	}
@@ -186,55 +176,35 @@ static void ksz9477_write_table(struct ksz_device *dev, u32 *table)
 	ksz_write32(dev, REG_SW_ALU_VAL_D, table[3]);
 }
 
-static int ksz9477_wait_alu_ready(struct ksz_device *dev, u32 waiton,
-				  int timeout)
+static int ksz9477_wait_alu_ready(struct ksz_device *dev)
 {
-	u32 data;
+	unsigned int val;
 
-	do {
-		ksz_read32(dev, REG_SW_ALU_CTRL__4, &data);
-		if (!(data & waiton))
-			break;
-		usleep_range(1, 10);
-	} while (timeout-- > 0);
-
-	if (timeout <= 0)
-		return -ETIMEDOUT;
-
-	return 0;
+	return regmap_read_poll_timeout(dev->regmap[2], REG_SW_ALU_CTRL__4,
+					val, !(val & ALU_START), 10, 1000);
 }
 
-static int ksz9477_wait_alu_sta_ready(struct ksz_device *dev, u32 waiton,
-				      int timeout)
+static int ksz9477_wait_alu_sta_ready(struct ksz_device *dev)
 {
-	u32 data;
+	unsigned int val;
 
-	do {
-		ksz_read32(dev, REG_SW_ALU_STAT_CTRL__4, &data);
-		if (!(data & waiton))
-			break;
-		usleep_range(1, 10);
-	} while (timeout-- > 0);
-
-	if (timeout <= 0)
-		return -ETIMEDOUT;
-
-	return 0;
+	return regmap_read_poll_timeout(dev->regmap[2],
+					REG_SW_ALU_STAT_CTRL__4,
+					val, !(val & ALU_STAT_START),
+					10, 1000);
 }
 
 static int ksz9477_reset_switch(struct ksz_device *dev)
 {
 	u8 data8;
-	u16 data16;
 	u32 data32;
 
 	/* reset switch */
 	ksz_cfg(dev, REG_SW_OPERATION, SW_RESET, true);
 
 	/* turn off SPI DO Edge select */
-	ksz_read8(dev, REG_SW_GLOBAL_SERIAL_CTRL_0, &data8);
-	data8 &= ~SPI_AUTO_EDGE_DETECTION;
-	ksz_write8(dev, REG_SW_GLOBAL_SERIAL_CTRL_0, data8);
+	regmap_update_bits(dev->regmap[0], REG_SW_GLOBAL_SERIAL_CTRL_0,
+			   SPI_AUTO_EDGE_DETECTION, 0);
 
 	/* default configuration */
 	ksz_read8(dev, REG_SW_LUE_CTRL_1, &data8);
@@ -248,10 +218,10 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 	ksz_read32(dev, REG_SW_PORT_INT_STATUS__4, &data32);
 
 	/* set broadcast storm protection 10% rate */
-	ksz_read16(dev, REG_SW_MAC_CTRL_2, &data16);
-	data16 &= ~BROADCAST_STORM_RATE;
-	data16 |= (BROADCAST_STORM_VALUE * BROADCAST_STORM_PROT_RATE) / 100;
-	ksz_write16(dev, REG_SW_MAC_CTRL_2, data16);
+	regmap_update_bits(dev->regmap[1], REG_SW_MAC_CTRL_2,
+			   BROADCAST_STORM_RATE,
+			   (BROADCAST_STORM_VALUE *
+			   BROADCAST_STORM_PROT_RATE) / 100);
 
 	if (dev->synclko_125)
 		ksz_write8(dev, REG_SW_GLOBAL_OUTPUT_CTRL__1,
@@ -263,12 +233,8 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 static void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
 			      u64 *cnt)
 {
-	struct ksz_poll_ctx ctx = {
-		.dev = dev,
-		.port = port,
-		.offset = REG_PORT_MIB_CTRL_STAT__4,
-	};
 	struct ksz_port *p = &dev->ports[port];
+	unsigned int val;
 	u32 data;
 	int ret;
 
@@ -278,11 +244,11 @@ static void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
 	data |= (addr << MIB_COUNTER_INDEX_S);
 	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, data);
 
-	ret = readx_poll_timeout(ksz_pread32_poll, &ctx, data,
-				 !(data & MIB_COUNTER_READ), 10, 1000);
-
+	ret = regmap_read_poll_timeout(dev->regmap[2],
+			PORT_CTRL_ADDR(port, REG_PORT_MIB_CTRL_STAT__4),
+			val, !(val & MIB_COUNTER_READ), 10, 1000);
 	/* failed to read MIB. get out of loop */
-	if (ret < 0) {
+	if (ret) {
 		dev_dbg(dev->dev, "Failed to get MIB\n");
 		return;
 	}
@@ -517,10 +483,10 @@ static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 {
 	u8 data;
 
-	ksz_read8(dev, REG_SW_LUE_CTRL_2, &data);
-	data &= ~(SW_FLUSH_OPTION_M << SW_FLUSH_OPTION_S);
-	data |= (SW_FLUSH_OPTION_DYN_MAC << SW_FLUSH_OPTION_S);
-	ksz_write8(dev, REG_SW_LUE_CTRL_2, data);
+	regmap_update_bits(dev->regmap[0], REG_SW_LUE_CTRL_2,
+			   SW_FLUSH_OPTION_M << SW_FLUSH_OPTION_S,
+			   SW_FLUSH_OPTION_DYN_MAC << SW_FLUSH_OPTION_S);
+
 	if (port < dev->mib_port_cnt) {
 		/* flush individual port */
 		ksz_pread8(dev, port, P_STP_CTRL, &data);
@@ -647,8 +613,8 @@ static int ksz9477_port_fdb_add(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_CTRL__4, ALU_READ | ALU_START);
 
 	/* wait to be finished */
-	ret = ksz9477_wait_alu_ready(dev, ALU_START, 1000);
-	if (ret < 0) {
+	ret = ksz9477_wait_alu_ready(dev);
+	if (ret) {
 		dev_dbg(dev->dev, "Failed to read ALU\n");
 		goto exit;
 	}
@@ -671,8 +637,8 @@ static int ksz9477_port_fdb_add(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_CTRL__4, ALU_WRITE | ALU_START);
 
 	/* wait to be finished */
-	ret = ksz9477_wait_alu_ready(dev, ALU_START, 1000);
-	if (ret < 0)
+	ret = ksz9477_wait_alu_ready(dev);
+	if (ret)
 		dev_dbg(dev->dev, "Failed to write ALU\n");
 
 exit:
@@ -704,8 +670,8 @@ static int ksz9477_port_fdb_del(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_CTRL__4, ALU_READ | ALU_START);
 
 	/* wait to be finished */
-	ret = ksz9477_wait_alu_ready(dev, ALU_START, 1000);
-	if (ret < 0) {
+	ret = ksz9477_wait_alu_ready(dev);
+	if (ret) {
 		dev_dbg(dev->dev, "Failed to read ALU\n");
 		goto exit;
 	}
@@ -738,8 +704,8 @@ static int ksz9477_port_fdb_del(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_CTRL__4, ALU_WRITE | ALU_START);
 
 	/* wait to be finished */
-	ret = ksz9477_wait_alu_ready(dev, ALU_START, 1000);
-	if (ret < 0)
+	ret = ksz9477_wait_alu_ready(dev);
+	if (ret)
 		dev_dbg(dev->dev, "Failed to write ALU\n");
 
 exit:
@@ -845,7 +811,7 @@ static void ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 		ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 		/* wait to be finished */
-		if (ksz9477_wait_alu_sta_ready(dev, ALU_STAT_START, 1000) < 0) {
+		if (ksz9477_wait_alu_sta_ready(dev)) {
 			dev_dbg(dev->dev, "Failed to read ALU STATIC\n");
 			goto exit;
 		}
@@ -886,7 +852,7 @@ static void ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 	/* wait to be finished */
-	if (ksz9477_wait_alu_sta_ready(dev, ALU_STAT_START, 1000) < 0)
+	if (ksz9477_wait_alu_sta_ready(dev))
 		dev_dbg(dev->dev, "Failed to read ALU STATIC\n");
 
 exit:
@@ -916,8 +882,8 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 		ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 		/* wait to be finished */
-		ret = ksz9477_wait_alu_sta_ready(dev, ALU_STAT_START, 1000);
-		if (ret < 0) {
+		ret = ksz9477_wait_alu_sta_ready(dev);
+		if (ret) {
 			dev_dbg(dev->dev, "Failed to read ALU STATIC\n");
 			goto exit;
 		}
@@ -958,8 +924,8 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 	/* wait to be finished */
-	ret = ksz9477_wait_alu_sta_ready(dev, ALU_STAT_START, 1000);
-	if (ret < 0)
+	ret = ksz9477_wait_alu_sta_ready(dev);
+	if (ret)
 		dev_dbg(dev->dev, "Failed to read ALU STATIC\n");
 
 exit:

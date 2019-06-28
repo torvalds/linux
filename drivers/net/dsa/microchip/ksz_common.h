@@ -119,20 +119,6 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 	ksz_write32(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
-struct ksz_poll_ctx {
-	struct ksz_device *dev;
-	int port;
-	int offset;
-};
-
-static inline u32 ksz_pread32_poll(struct ksz_poll_ctx *ctx)
-{
-	u32 data;
-
-	ksz_pread32(ctx->dev, ctx->port, ctx->offset, &data);
-	return data;
-}
-
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3
 #define KSZ_SPI_OP_WR		2
