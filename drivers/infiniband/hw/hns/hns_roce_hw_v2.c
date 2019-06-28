@@ -1818,7 +1818,6 @@ static int hns_roce_init_link_table(struct hns_roce_dev *hr_dev,
 			goto err_alloc_buf_failed;
 
 		link_tbl->pg_list[i].map = t;
-		memset(link_tbl->pg_list[i].buf, 0, buf_chk_sz);
 
 		entry[i].blk_ba0 = (t >> 12) & 0xffffffff;
 		roce_set_field(entry[i].blk_ba1_nxt_ptr,
@@ -5466,8 +5465,6 @@ static int hns_roce_mhop_alloc_eq(struct hns_roce_dev *hr_dev,
 
 		eq->cur_eqe_ba = eq->l0_dma;
 		eq->nxt_eqe_ba = 0;
-
-		memset(eq->bt_l0, 0, eq->entries * eq->eqe_size);
 
 		return 0;
 	}
