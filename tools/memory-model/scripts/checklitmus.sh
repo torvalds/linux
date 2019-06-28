@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Run a herd test and invokes judgelitmus.sh to check the result against
+# Run a herd7 test and invokes judgelitmus.sh to check the result against
 # a "Result:" comment within the litmus test.  It also outputs verification
 # results to a file whose name is that of the specified litmus test, but
 # with ".out" appended.

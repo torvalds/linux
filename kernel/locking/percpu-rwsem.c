@@ -18,7 +18,7 @@ int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
 		return -ENOMEM;
 
 	/* ->rw_sem represents the whole percpu_rw_semaphore for lockdep */
-	rcu_sync_init(&sem->rss, RCU_SCHED_SYNC);
+	rcu_sync_init(&sem->rss);
 	__init_rwsem(&sem->rw_sem, name, rwsem_key);
 	rcuwait_init(&sem->writer);
 	sem->readers_block = 0;

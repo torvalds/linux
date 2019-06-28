@@ -3,3 +3,4 @@ rcutree.gp_preinit_delay=3
 rcutree.gp_init_delay=3
 rcutree.gp_cleanup_delay=3
 rcu_nocbs=0
+rcutorture.fwd_progress=0

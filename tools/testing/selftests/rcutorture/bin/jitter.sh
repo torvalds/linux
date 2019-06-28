@@ -34,10 +34,15 @@ do
 		exit 0;
 	fi
 
-	# Set affinity to randomly selected CPU
-	cpus=`ls /sys/devices/system/cpu/*/online |
-		sed -e 's,/[^/]*$,,' -e 's/^[^0-9]*//' |
-		grep -v '^0*$'`
+	# Set affinity to randomly selected online CPU
+	cpus=`grep 1 /sys/devices/system/cpu/*/online |
+		sed -e 's,/[^/]*$,,' -e 's/^[^0-9]*//'`
+
+	# Do not leave out poor old cpu0 which may not be hot-pluggable
+	if [ ! -f "/sys/devices/system/cpu/cpu0/online" ]; then
+		cpus="0 $cpus"
+	fi
+
 	cpumask=`awk -v cpus="$cpus" -v me=$me -v n=$n 'BEGIN {
 		srand(n + me + systime());
 		ncpus = split(cpus, ca);
