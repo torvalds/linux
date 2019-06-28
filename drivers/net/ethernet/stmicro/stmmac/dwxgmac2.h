@@ -177,6 +177,10 @@
 #define XGMAC_BLEN8			BIT(2)
 #define XGMAC_BLEN4			BIT(1)
 #define XGMAC_UNDEF			BIT(0)
+#define XGMAC_TX_EDMA_CTRL		0x00003040
+#define XGMAC_TDPS			GENMASK(29, 0)
+#define XGMAC_RX_EDMA_CTRL		0x00003044
+#define XGMAC_RDPS			GENMASK(29, 0)
 #define XGMAC_DMA_CH_CONTROL(x)		(0x00003100 + (0x80 * (x)))
 #define XGMAC_PBLx8			BIT(16)
 #define XGMAC_DMA_CH_TX_CONTROL(x)	(0x00003104 + (0x80 * (x)))
