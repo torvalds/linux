@@ -1490,9 +1490,7 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			rx_bytes += ring->stats.rx_bytes;
 			rx_pkts += ring->stats.rx_pkts;
-			rx_drop += ring->stats.non_vld_descs;
 			rx_drop += ring->stats.l2_err;
-			rx_errors += ring->stats.non_vld_descs;
 			rx_errors += ring->stats.l2_err;
 			rx_errors += ring->stats.l3l4_csum_err;
 			rx_crc_errors += ring->stats.l2_err;
@@ -2767,14 +2765,6 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 		if (hns3_parse_vlan_tag(ring, desc, l234info, &vlan_tag))
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       vlan_tag);
-	}
-
-	if (unlikely(!(bd_base_info & BIT(HNS3_RXD_VLD_B)))) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.non_vld_descs++;
-		u64_stats_update_end(&ring->syncp);
-
-		return -EINVAL;
 	}
 
 	if (unlikely(!desc->rx.pkt_len || (l234info & (BIT(HNS3_RXD_TRUNCAT_B) |
