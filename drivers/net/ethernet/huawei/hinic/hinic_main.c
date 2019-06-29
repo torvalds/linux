@@ -836,14 +836,14 @@ static const struct net_device_ops hinic_netdev_ops = {
 	.ndo_get_stats64 = hinic_get_stats64,
 	.ndo_fix_features = hinic_fix_features,
 	.ndo_set_features = hinic_set_features,
-
 };
 
 static void netdev_features_init(struct net_device *netdev)
 {
 	netdev->hw_features = NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM |
 			      NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6 |
-			      NETIF_F_RXCSUM | NETIF_F_LRO;
+			      NETIF_F_RXCSUM | NETIF_F_LRO |
+			      NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 
 	netdev->vlan_features = netdev->hw_features;
 
@@ -922,6 +922,11 @@ static int set_features(struct hinic_dev *nic_dev,
 					     HINIC_LRO_RX_TIMER_DEFAULT,
 					     HINIC_LRO_MAX_WQE_NUM_DEFAULT);
 	}
+
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
+		err = hinic_set_rx_vlan_offload(nic_dev,
+						!!(features &
+						   NETIF_F_HW_VLAN_CTAG_RX));
 
 	return err;
 }

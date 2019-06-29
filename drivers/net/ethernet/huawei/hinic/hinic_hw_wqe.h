@@ -222,6 +222,8 @@
 
 #define RQ_CQE_OFFOLAD_TYPE_PKT_TYPE_SHIFT		0
 #define RQ_CQE_OFFOLAD_TYPE_PKT_TYPE_MASK		0xFFFU
+#define RQ_CQE_OFFOLAD_TYPE_VLAN_EN_SHIFT		21
+#define RQ_CQE_OFFOLAD_TYPE_VLAN_EN_MASK		0x1U
 
 #define RQ_CQE_OFFOLAD_TYPE_GET(val, member)		(((val) >> \
 				RQ_CQE_OFFOLAD_TYPE_##member##_SHIFT) & \
@@ -229,6 +231,19 @@
 
 #define HINIC_GET_RX_PKT_TYPE(offload_type)	\
 			RQ_CQE_OFFOLAD_TYPE_GET(offload_type, PKT_TYPE)
+
+#define HINIC_GET_RX_VLAN_OFFLOAD_EN(offload_type)	\
+			RQ_CQE_OFFOLAD_TYPE_GET(offload_type, VLAN_EN)
+
+#define RQ_CQE_SGE_VLAN_MASK				0xFFFFU
+#define RQ_CQE_SGE_VLAN_SHIFT				0
+
+#define RQ_CQE_SGE_GET(val, member)			(((val) >> \
+					RQ_CQE_SGE_##member##_SHIFT) & \
+					RQ_CQE_SGE_##member##_MASK)
+
+#define HINIC_GET_RX_VLAN_TAG(vlan_len)	\
+		RQ_CQE_SGE_GET(vlan_len, VLAN)
 
 #define HINIC_RSS_TYPE_VALID_SHIFT			23
 #define HINIC_RSS_TYPE_TCP_IPV6_EXT_SHIFT		24

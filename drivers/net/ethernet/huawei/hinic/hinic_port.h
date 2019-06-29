@@ -223,6 +223,16 @@ struct hinic_lro_timer {
 	u32	timer;
 };
 
+struct hinic_vlan_cfg {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_id;
+	u8      vlan_rx_offload;
+	u8      rsvd1[5];
+};
+
 struct hinic_rss_template_mgmt {
 	u8	status;
 	u8	version;
@@ -558,4 +568,7 @@ int hinic_get_phy_port_stats(struct hinic_dev *nic_dev,
 
 int hinic_get_vport_stats(struct hinic_dev *nic_dev,
 			  struct hinic_vport_stats *stats);
+
+int hinic_set_rx_vlan_offload(struct hinic_dev *nic_dev, u8 en);
+
 #endif

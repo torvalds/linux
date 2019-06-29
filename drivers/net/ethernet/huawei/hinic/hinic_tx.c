@@ -407,10 +407,20 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 	return 1;
 }
 
+static void offload_vlan(struct hinic_sq_task *task, u32 *queue_info,
+			 u16 vlan_tag, u16 vlan_pri)
+{
+	task->pkt_info0 |= HINIC_SQ_TASK_INFO0_SET(vlan_tag, VLAN_TAG) |
+				HINIC_SQ_TASK_INFO0_SET(1U, VLAN_OFFLOAD);
+
+	*queue_info |= HINIC_SQ_CTRL_SET(vlan_pri, QUEUE_INFO_PRI);
+}
+
 static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 			    u32 *queue_info)
 {
 	enum hinic_offload_type offload = 0;
+	u16 vlan_tag;
 	int enabled;
 
 	enabled = offload_tso(task, queue_info, skb);
@@ -422,6 +432,13 @@ static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 			offload |= TX_OFFLOAD_CSUM;
 	} else {
 		return -EPROTONOSUPPORT;
+	}
+
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		vlan_tag = skb_vlan_tag_get(skb);
+		offload_vlan(task, queue_info, vlan_tag,
+			     vlan_tag >> VLAN_PRIO_SHIFT);
+		offload |= TX_OFFLOAD_VLAN;
 	}
 
 	if (offload)
