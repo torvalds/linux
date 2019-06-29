@@ -109,7 +109,7 @@
 #include <linux/pm_runtime.h>
 
 #if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_data/i2c-mux-gpio.h>
 #endif
 
@@ -278,6 +278,7 @@ struct i801_priv {
 #if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
 	const struct i801_mux_config *mux_drvdata;
 	struct platform_device *mux_pdev;
+	struct gpiod_lookup_table *lookup;
 #endif
 	struct platform_device *tco_pdev;
 
@@ -1406,7 +1407,8 @@ static int i801_add_mux(struct i801_priv *priv)
 	struct device *dev = &priv->adapter.dev;
 	const struct i801_mux_config *mux_config;
 	struct i2c_mux_gpio_platform_data gpio_data;
-	int err;
+	struct gpiod_lookup_table *lookup;
+	int err, i;
 
 	if (!priv->mux_drvdata)
 		return 0;
@@ -1418,17 +1420,36 @@ static int i801_add_mux(struct i801_priv *priv)
 	gpio_data.values = mux_config->values;
 	gpio_data.n_values = mux_config->n_values;
 	gpio_data.classes = mux_config->classes;
-	gpio_data.gpio_chip = mux_config->gpio_chip;
-	gpio_data.gpios = mux_config->gpios;
-	gpio_data.n_gpios = mux_config->n_gpios;
 	gpio_data.idle = I2C_MUX_GPIO_NO_IDLE;
 
-	/* Register the mux device */
+	/* Register GPIO descriptor lookup table */
+	lookup = devm_kzalloc(dev,
+			      struct_size(lookup, table, mux_config->n_gpios),
+			      GFP_KERNEL);
+	if (!lookup)
+		return -ENOMEM;
+	lookup->dev_id = "i2c-mux-gpio";
+	for (i = 0; i < mux_config->n_gpios; i++) {
+		lookup->table[i].chip_label = mux_config->gpio_chip;
+		lookup->table[i].chip_hwnum = mux_config->gpios[i];
+		lookup->table[i].con_id = "mux";
+	}
+	gpiod_add_lookup_table(lookup);
+	priv->lookup = lookup;
+
+	/*
+	 * Register the mux device, we use PLATFORM_DEVID_NONE here
+	 * because since we are referring to the GPIO chip by name we are
+	 * anyways in deep trouble if there is more than one of these
+	 * devices, and there should likely only be one platform controller
+	 * hub.
+	 */
 	priv->mux_pdev = platform_device_register_data(dev, "i2c-mux-gpio",
-				PLATFORM_DEVID_AUTO, &gpio_data,
+				PLATFORM_DEVID_NONE, &gpio_data,
 				sizeof(struct i2c_mux_gpio_platform_data));
 	if (IS_ERR(priv->mux_pdev)) {
 		err = PTR_ERR(priv->mux_pdev);
+		gpiod_remove_lookup_table(lookup);
 		priv->mux_pdev = NULL;
 		dev_err(dev, "Failed to register i2c-mux-gpio device\n");
 		return err;
@@ -1441,6 +1462,8 @@ static void i801_del_mux(struct i801_priv *priv)
 {
 	if (priv->mux_pdev)
 		platform_device_unregister(priv->mux_pdev);
+	if (priv->lookup)
+		gpiod_remove_lookup_table(priv->lookup);
 }
 
 static unsigned int i801_get_adapter_class(struct i801_priv *priv)
