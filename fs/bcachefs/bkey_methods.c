@@ -90,6 +90,9 @@ const char *__bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (btree_node_type_is_extents(type)) {
 		if ((k.k->size == 0) != bkey_deleted(k.k))
 			return "bad size field";
+
+		if (k.k->size > k.k->p.offset)
+			return "size greater than offset";
 	} else {
 		if (k.k->size)
 			return "nonzero size field";
