@@ -11,6 +11,7 @@
 #include <linux/io.h>
 
 #include <net/tcp.h>
+#include <net/page_pool.h>
 #include <net/ip6_checksum.h>
 
 #define NETSEC_REG_SOFT_RST			0x104
@@ -235,7 +236,8 @@
 #define DESC_NUM	256
 
 #define NETSEC_SKB_PAD (NET_SKB_PAD + NET_IP_ALIGN)
-#define NETSEC_RX_BUF_SZ 1536
+#define NETSEC_RX_BUF_NON_DATA (NETSEC_SKB_PAD + \
+				SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define DESC_SZ	sizeof(struct netsec_de)
 
@@ -258,6 +260,8 @@ struct netsec_desc_ring {
 	struct netsec_desc *desc;
 	void *vaddr;
 	u16 head, tail;
+	struct page_pool *page_pool;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct netsec_priv {
@@ -673,33 +677,27 @@ static void netsec_process_tx(struct netsec_priv *priv)
 }
 
 static void *netsec_alloc_rx_data(struct netsec_priv *priv,
-				  dma_addr_t *dma_handle, u16 *desc_len,
-				  bool napi)
+				  dma_addr_t *dma_handle, u16 *desc_len)
+
 {
-	size_t total_len = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	size_t payload_len = NETSEC_RX_BUF_SZ;
-	dma_addr_t mapping;
-	void *buf;
 
-	total_len += SKB_DATA_ALIGN(payload_len + NETSEC_SKB_PAD);
+	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
+	struct page *page;
 
-	buf = napi ? napi_alloc_frag(total_len) : netdev_alloc_frag(total_len);
-	if (!buf)
+	page = page_pool_dev_alloc_pages(dring->page_pool);
+	if (!page)
 		return NULL;
 
-	mapping = dma_map_single(priv->dev, buf + NETSEC_SKB_PAD, payload_len,
-				 DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(priv->dev, mapping)))
-		goto err_out;
+	/* page_pool API will map the whole page, skip
+	 * NET_SKB_PAD + NET_IP_ALIGN for the payload
+	 */
+	*dma_handle = page_pool_get_dma_addr(page) + NETSEC_SKB_PAD;
+	/* make sure the incoming payload fits in the page with the needed
+	 * NET_SKB_PAD + NET_IP_ALIGN + skb_shared_info
+	 */
+	*desc_len = PAGE_SIZE - NETSEC_RX_BUF_NON_DATA;
 
-	*dma_handle = mapping;
-	*desc_len = payload_len;
-
-	return buf;
-
-err_out:
-	skb_free_frag(buf);
-	return NULL;
+	return page_address(page);
 }
 
 static void netsec_rx_fill(struct netsec_priv *priv, u16 from, u16 num)
@@ -728,10 +726,10 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 		u16 idx = dring->tail;
 		struct netsec_de *de = dring->vaddr + (DESC_SZ * idx);
 		struct netsec_desc *desc = &dring->desc[idx];
+		struct page *page = virt_to_page(desc->addr);
 		u16 pkt_len, desc_len;
 		dma_addr_t dma_handle;
 		void *buf_addr;
-		u32 truesize;
 
 		if (de->attr & (1U << NETSEC_RX_PKT_OWN_FIELD)) {
 			/* reading the register clears the irq */
@@ -766,8 +764,8 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 		/* allocate a fresh buffer and map it to the hardware.
 		 * This will eventually replace the old buffer in the hardware
 		 */
-		buf_addr = netsec_alloc_rx_data(priv, &dma_handle, &desc_len,
-						true);
+		buf_addr = netsec_alloc_rx_data(priv, &dma_handle, &desc_len);
+
 		if (unlikely(!buf_addr))
 			break;
 
@@ -775,22 +773,19 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 					DMA_FROM_DEVICE);
 		prefetch(desc->addr);
 
-		truesize = SKB_DATA_ALIGN(desc->len + NETSEC_SKB_PAD) +
-			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-		skb = build_skb(desc->addr, truesize);
+		skb = build_skb(desc->addr, desc->len + NETSEC_RX_BUF_NON_DATA);
 		if (unlikely(!skb)) {
-			/* free the newly allocated buffer, we are not going to
-			 * use it
+			/* If skb fails recycle_direct will either unmap and
+			 * free the page or refill the cache depending on the
+			 * cache state. Since we paid the allocation cost if
+			 * building an skb fails try to put the page into cache
 			 */
-			dma_unmap_single(priv->dev, dma_handle, desc_len,
-					 DMA_FROM_DEVICE);
-			skb_free_frag(buf_addr);
+			page_pool_recycle_direct(dring->page_pool, page);
 			netif_err(priv, drv, priv->ndev,
 				  "rx failed to build skb\n");
 			break;
 		}
-		dma_unmap_single_attrs(priv->dev, desc->dma_addr, desc->len,
-				       DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+		page_pool_release_page(dring->page_pool, page);
 
 		/* Update the descriptor with the new buffer we allocated */
 		desc->len = desc_len;
@@ -980,19 +975,31 @@ static void netsec_uninit_pkt_dring(struct netsec_priv *priv, int id)
 
 	if (!dring->vaddr || !dring->desc)
 		return;
-
 	for (idx = 0; idx < DESC_NUM; idx++) {
 		desc = &dring->desc[idx];
 		if (!desc->addr)
 			continue;
 
-		dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
-				 id == NETSEC_RING_RX ? DMA_FROM_DEVICE :
-							      DMA_TO_DEVICE);
-		if (id == NETSEC_RING_RX)
-			skb_free_frag(desc->addr);
-		else if (id == NETSEC_RING_TX)
+		if (id == NETSEC_RING_RX) {
+			struct page *page = virt_to_page(desc->addr);
+
+			page_pool_put_page(dring->page_pool, page, false);
+		} else if (id == NETSEC_RING_TX) {
+			dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
+					 DMA_TO_DEVICE);
 			dev_kfree_skb(desc->skb);
+		}
+	}
+
+	/* Rx is currently using page_pool
+	 * since the pool is created during netsec_setup_rx_dring(), we need to
+	 * free the pool manually if the registration failed
+	 */
+	if (id == NETSEC_RING_RX) {
+		if (xdp_rxq_info_is_reg(&dring->xdp_rxq))
+			xdp_rxq_info_unreg(&dring->xdp_rxq);
+		else
+			page_pool_free(dring->page_pool);
 	}
 
 	memset(dring->desc, 0, sizeof(struct netsec_desc) * DESC_NUM);
@@ -1059,7 +1066,23 @@ static void netsec_setup_tx_dring(struct netsec_priv *priv)
 static int netsec_setup_rx_dring(struct netsec_priv *priv)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
-	int i;
+	struct page_pool_params pp_params = { 0 };
+	int i, err;
+
+	pp_params.order = 0;
+	/* internal DMA mapping in page_pool */
+	pp_params.flags = PP_FLAG_DMA_MAP;
+	pp_params.pool_size = DESC_NUM;
+	pp_params.nid = cpu_to_node(0);
+	pp_params.dev = priv->dev;
+	pp_params.dma_dir = DMA_FROM_DEVICE;
+
+	dring->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(dring->page_pool)) {
+		err = PTR_ERR(dring->page_pool);
+		dring->page_pool = NULL;
+		goto err_out;
+	}
 
 	for (i = 0; i < DESC_NUM; i++) {
 		struct netsec_desc *desc = &dring->desc[i];
@@ -1067,10 +1090,10 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 		void *buf;
 		u16 len;
 
-		buf = netsec_alloc_rx_data(priv, &dma_handle, &len,
-					   false);
+		buf = netsec_alloc_rx_data(priv, &dma_handle, &len);
+
 		if (!buf) {
-			netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
+			err = -ENOMEM;
 			goto err_out;
 		}
 		desc->dma_addr = dma_handle;
@@ -1079,11 +1102,20 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 	}
 
 	netsec_rx_fill(priv, 0, DESC_NUM);
+	err = xdp_rxq_info_reg(&dring->xdp_rxq, priv->ndev, 0);
+	if (err)
+		goto err_out;
+
+	err = xdp_rxq_info_reg_mem_model(&dring->xdp_rxq, MEM_TYPE_PAGE_POOL,
+					 dring->page_pool);
+	if (err)
+		goto err_out;
 
 	return 0;
 
 err_out:
-	return -ENOMEM;
+	netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
+	return err;
 }
 
 static int netsec_netdev_load_ucode_region(struct netsec_priv *priv, u32 reg,
