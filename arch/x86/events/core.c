@@ -561,14 +561,14 @@ int x86_pmu_hw_config(struct perf_event *event)
 	}
 
 	/* sample_regs_user never support XMM registers */
-	if (unlikely(event->attr.sample_regs_user & PEBS_XMM_REGS))
+	if (unlikely(event->attr.sample_regs_user & PERF_REG_EXTENDED_MASK))
 		return -EINVAL;
 	/*
 	 * Besides the general purpose registers, XMM registers may
 	 * be collected in PEBS on some platforms, e.g. Icelake
 	 */
-	if (unlikely(event->attr.sample_regs_intr & PEBS_XMM_REGS)) {
-		if (x86_pmu.pebs_no_xmm_regs)
+	if (unlikely(event->attr.sample_regs_intr & PERF_REG_EXTENDED_MASK)) {
+		if (!(event->pmu->capabilities & PERF_PMU_CAP_EXTENDED_REGS))
 			return -EINVAL;
 
 		if (!event->attr.precise_ip)

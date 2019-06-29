@@ -987,7 +987,7 @@ static u64 pebs_update_adaptive_cfg(struct perf_event *event)
 		pebs_data_cfg |= PEBS_DATACFG_GP;
 
 	if ((sample_type & PERF_SAMPLE_REGS_INTR) &&
-	    (attr->sample_regs_intr & PEBS_XMM_REGS))
+	    (attr->sample_regs_intr & PERF_REG_EXTENDED_MASK))
 		pebs_data_cfg |= PEBS_DATACFG_XMMS;
 
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
@@ -1964,10 +1964,9 @@ void __init intel_ds_init(void)
 	x86_pmu.bts  = boot_cpu_has(X86_FEATURE_BTS);
 	x86_pmu.pebs = boot_cpu_has(X86_FEATURE_PEBS);
 	x86_pmu.pebs_buffer_size = PEBS_BUFFER_SIZE;
-	if (x86_pmu.version <= 4) {
+	if (x86_pmu.version <= 4)
 		x86_pmu.pebs_no_isolation = 1;
-		x86_pmu.pebs_no_xmm_regs = 1;
-	}
+
 	if (x86_pmu.pebs) {
 		char pebs_type = x86_pmu.intel_cap.pebs_trap ?  '+' : '-';
 		char *pebs_qual = "";
@@ -2020,9 +2019,9 @@ void __init intel_ds_init(void)
 					PERF_SAMPLE_TIME;
 				x86_pmu.flags |= PMU_FL_PEBS_ALL;
 				pebs_qual = "-baseline";
+				x86_get_pmu()->capabilities |= PERF_PMU_CAP_EXTENDED_REGS;
 			} else {
 				/* Only basic record supported */
-				x86_pmu.pebs_no_xmm_regs = 1;
 				x86_pmu.large_pebs_flags &=
 					~(PERF_SAMPLE_ADDR |
 					  PERF_SAMPLE_TIME |
