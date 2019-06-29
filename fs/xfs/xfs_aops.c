@@ -300,9 +300,26 @@ xfs_ioend_can_merge(
 		return false;
 	if (ioend->io_offset + ioend->io_size != next->io_offset)
 		return false;
-	if (xfs_ioend_is_append(ioend) != xfs_ioend_is_append(next))
-		return false;
 	return true;
+}
+
+/*
+ * If the to be merged ioend has a preallocated transaction for file
+ * size updates we need to ensure the ioend it is merged into also
+ * has one.  If it already has one we can simply cancel the transaction
+ * as it is guaranteed to be clean.
+ */
+static void
+xfs_ioend_merge_append_transactions(
+	struct xfs_ioend	*ioend,
+	struct xfs_ioend	*next)
+{
+	if (!ioend->io_append_trans) {
+		ioend->io_append_trans = next->io_append_trans;
+		next->io_append_trans = NULL;
+	} else {
+		xfs_setfilesize_ioend(next, -ECANCELED);
+	}
 }
 
 /* Try to merge adjacent completions. */
@@ -313,7 +330,6 @@ xfs_ioend_try_merge(
 {
 	struct xfs_ioend	*next_ioend;
 	int			ioend_error;
-	int			error;
 
 	if (list_empty(more_ioends))
 		return;
@@ -327,10 +343,8 @@ xfs_ioend_try_merge(
 			break;
 		list_move_tail(&next_ioend->io_list, &ioend->io_list);
 		ioend->io_size += next_ioend->io_size;
-		if (ioend->io_append_trans) {
-			error = xfs_setfilesize_ioend(next_ioend, 1);
-			ASSERT(error == 1);
-		}
+		if (next_ioend->io_append_trans)
+			xfs_ioend_merge_append_transactions(ioend, next_ioend);
 	}
 }
 
