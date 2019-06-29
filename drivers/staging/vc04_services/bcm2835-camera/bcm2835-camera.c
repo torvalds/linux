@@ -388,6 +388,7 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 	} else {
 		buf->vb.vb2_buf.timestamp = ktime_get_ns();
 	}
+	buf->vb.sequence = dev->capture.sequence++;
 
 	vb2_set_plane_payload(&buf->vb.vb2_buf, 0, length);
 	if (mmal_flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME)
@@ -514,6 +515,9 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* enable frame capture */
 	dev->capture.frame_count = 1;
+
+	/* reset sequence number */
+	dev->capture.sequence = 0;
 
 	/* if the preview is not already running, wait for a few frames for AGC
 	 * to settle down.
