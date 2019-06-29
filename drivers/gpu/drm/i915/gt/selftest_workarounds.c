@@ -926,7 +926,12 @@ check_whitelisted_registers(struct intel_engine_cs *engine,
 
 	err = 0;
 	for (i = 0; i < engine->whitelist.count; i++) {
-		if (!fn(engine, a[i], b[i], engine->whitelist.list[i].reg))
+		const struct i915_wa *wa = &engine->whitelist.list[i];
+
+		if (i915_mmio_reg_offset(wa->reg) & RING_FORCE_TO_NONPRIV_RD)
+			continue;
+
+		if (!fn(engine, a[i], b[i], wa->reg))
 			err = -EINVAL;
 	}
 
