@@ -4,10 +4,11 @@
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
  *
- * Authors: Vincent Sanders <vincent.sanders@collabora.co.uk>
- *          Dave Stevenson <dsteve@broadcom.com>
- *          Simon Mellor <simellor@broadcom.com>
- *          Luke Diamand <luked@broadcom.com>
+ * Authors: Vincent Sanders @ Collabora
+ *          Dave Stevenson @ Broadcom
+ *		(now dave.stevenson@raspberrypi.org)
+ *          Simon Mellor @ Broadcom
+ *          Luke Diamand @ Broadcom
  */
 
 #include <linux/errno.h>
