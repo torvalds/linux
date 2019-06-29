@@ -334,7 +334,9 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		}
 		return;
-	} else if (length == 0) {
+	}
+
+	if (length == 0) {
 		/* stream ended */
 		if (buf) {
 			/* this should only ever happen if the port is
@@ -357,46 +359,48 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 			/* signal frame completion */
 			complete(&dev->capture.frame_cmplt);
 		}
+		return;
+	}
+
+	if (!dev->capture.frame_count) {
+		/* signal frame completion */
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		complete(&dev->capture.frame_cmplt);
+		return;
+	}
+
+	if (dev->capture.vc_start_timestamp != -1 && pts) {
+		ktime_t timestamp;
+		s64 runtime_us = pts -
+		    dev->capture.vc_start_timestamp;
+		timestamp = ktime_add_us(dev->capture.kernel_start_ts,
+					 runtime_us);
+		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+			 "Convert start time %llu and %llu with offset %llu to %llu\n",
+			 ktime_to_ns(dev->capture.kernel_start_ts),
+			 dev->capture.vc_start_timestamp, pts,
+			 ktime_to_ns(timestamp));
+		buf->vb.vb2_buf.timestamp = ktime_to_ns(timestamp);
 	} else {
-		if (dev->capture.frame_count) {
-			if (dev->capture.vc_start_timestamp != -1 && pts) {
-				ktime_t timestamp;
-				s64 runtime_us = pts -
-				    dev->capture.vc_start_timestamp;
-				timestamp = ktime_add_us(dev->capture.kernel_start_ts,
-							 runtime_us);
-				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-					 "Convert start time %llu and %llu with offset %llu to %llu\n",
-					 ktime_to_ns(dev->capture.kernel_start_ts),
-					 dev->capture.vc_start_timestamp, pts,
-					 ktime_to_ns(timestamp));
-				buf->vb.vb2_buf.timestamp = ktime_to_ns(timestamp);
-			} else {
-				buf->vb.vb2_buf.timestamp = ktime_get_ns();
-			}
+		buf->vb.vb2_buf.timestamp = ktime_get_ns();
+	}
 
-			vb2_set_plane_payload(&buf->vb.vb2_buf, 0, length);
-			if (mmal_flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME)
-				buf->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
+	vb2_set_plane_payload(&buf->vb.vb2_buf, 0, length);
+	if (mmal_flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME)
+		buf->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
 
-			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
-			if (mmal_flags & MMAL_BUFFER_HEADER_FLAG_EOS &&
-			    is_capturing(dev)) {
-				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-					 "Grab another frame as buffer has EOS");
-				vchiq_mmal_port_parameter_set(
-					instance,
-					dev->capture.camera_port,
-					MMAL_PARAMETER_CAPTURE,
-					&dev->capture.frame_count,
-					sizeof(dev->capture.frame_count));
-			}
-		} else {
-			/* signal frame completion */
-			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-			complete(&dev->capture.frame_cmplt);
-		}
+	if (mmal_flags & MMAL_BUFFER_HEADER_FLAG_EOS &&
+	    is_capturing(dev)) {
+		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+			 "Grab another frame as buffer has EOS");
+		vchiq_mmal_port_parameter_set(
+			instance,
+			dev->capture.camera_port,
+			MMAL_PARAMETER_CAPTURE,
+			&dev->capture.frame_count,
+			sizeof(dev->capture.frame_count));
 	}
 }
 
@@ -775,28 +779,28 @@ static int vidioc_overlay(struct file *file, void *f, unsigned int on)
 
 	ret = vchiq_mmal_port_set_format(dev->instance, src);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	ret = set_overlay_params(dev, dst);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	if (enable_camera(dev) < 0)
-		goto error;
+		return -EINVAL;
 
 	ret = vchiq_mmal_component_enable(
 			dev->instance,
 			dev->component[MMAL_COMPONENT_PREVIEW]);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev, "connecting %p to %p\n",
 		 src, dst);
 	ret = vchiq_mmal_port_connect_tunnel(dev->instance, src, dst);
-	if (!ret)
-		ret = vchiq_mmal_port_enable(dev->instance, src, NULL);
-error:
-	return ret;
+	if (ret)
+		return ret;
+
+	return vchiq_mmal_port_enable(dev->instance, src, NULL);
 }
 
 static int vidioc_g_fbuf(struct file *file, void *fh,
