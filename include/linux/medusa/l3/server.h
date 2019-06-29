@@ -11,8 +11,6 @@
 #include <linux/medusa/l3/constants.h>
 #include <linux/medusa/l3/kobject.h>
 
-#pragma GCC optimize ("Og")
-
 struct medusa_authserver_s {
 	char name[MEDUSA_SERVERNAME_MAX];
 	int use_count; /* don't modify this directly from L2/L4 code */

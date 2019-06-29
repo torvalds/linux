@@ -5,8 +5,6 @@
 /* configuration options */
 //#include <linux/config.h>
 
-#pragma GCC optimize ("Og")
-
 /* operating system */
 #define CONFIG_MEDUSA_VS 32
 

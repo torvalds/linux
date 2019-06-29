@@ -15,8 +15,6 @@
 #include <linux/medusa/l3/model.h>
 #include <linux/medusa/l3/constants.h>
 
-#pragma GCC optimize ("Og")
-
 /**
  * types of System V IPC objects
  */
