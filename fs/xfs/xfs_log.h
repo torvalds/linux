@@ -77,7 +77,7 @@ xlog_copy_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
  */
 typedef struct xfs_log_callback {
 	struct xfs_log_callback	*cb_next;
-	void			(*cb_func)(void *, int);
+	void			(*cb_func)(void *, bool);
 	void			*cb_arg;
 } xfs_log_callback_t;
 

@@ -577,7 +577,7 @@ xlog_discard_busy_extents(
 static void
 xlog_cil_committed(
 	void	*args,
-	int	abort)
+	bool	abort)
 {
 	struct xfs_cil_ctx	*ctx = args;
 	struct xfs_mount	*mp = ctx->cil->xc_log->l_mp;
@@ -864,7 +864,7 @@ out_skip:
 out_abort_free_ticket:
 	xfs_log_ticket_put(tic);
 out_abort:
-	xlog_cil_committed(ctx, XFS_LI_ABORTED);
+	xlog_cil_committed(ctx, true);
 	return -EIO;
 }
 

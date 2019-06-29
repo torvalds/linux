@@ -21,7 +21,7 @@ void	xfs_trans_free_items(struct xfs_trans *tp, xfs_lsn_t commit_lsn,
 void	xfs_trans_unreserve_and_mod_sb(struct xfs_trans *tp);
 
 void	xfs_trans_committed_bulk(struct xfs_ail *ailp, struct xfs_log_vec *lv,
-				xfs_lsn_t commit_lsn, int aborted);
+				xfs_lsn_t commit_lsn, bool aborted);
 /*
  * AIL traversal cursor.
  *
