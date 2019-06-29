@@ -133,8 +133,7 @@ xfs_setfilesize_trans_alloc(
 	struct xfs_trans	*tp;
 	int			error;
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0,
-				XFS_TRANS_NOFS, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
 	if (error)
 		return error;
 
@@ -235,7 +234,15 @@ xfs_end_ioend(
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
+	unsigned int		nofs_flag;
 	int			error;
+
+	/*
+	 * We can allocate memory here while doing writeback on behalf of
+	 * memory reclaim.  To avoid memory allocation deadlocks set the
+	 * task-wide nofs context for the following operations.
+	 */
+	nofs_flag = memalloc_nofs_save();
 
 	/*
 	 * Just clean up the in-memory strutures if the fs has been shut down.
@@ -277,6 +284,8 @@ done:
 		list_del_init(&ioend->io_list);
 		xfs_destroy_ioend(ioend, error);
 	}
+
+	memalloc_nofs_restore(nofs_flag);
 }
 
 /*
@@ -637,21 +646,19 @@ xfs_submit_ioend(
 	struct xfs_ioend	*ioend,
 	int			status)
 {
+	unsigned int		nofs_flag;
+
+	/*
+	 * We can allocate memory here while doing writeback on behalf of
+	 * memory reclaim.  To avoid memory allocation deadlocks set the
+	 * task-wide nofs context for the following operations.
+	 */
+	nofs_flag = memalloc_nofs_save();
+
 	/* Convert CoW extents to regular */
 	if (!status && ioend->io_fork == XFS_COW_FORK) {
-		/*
-		 * Yuk. This can do memory allocation, but is not a
-		 * transactional operation so everything is done in GFP_KERNEL
-		 * context. That can deadlock, because we hold pages in
-		 * writeback state and GFP_KERNEL allocations can block on them.
-		 * Hence we must operate in nofs conditions here.
-		 */
-		unsigned nofs_flag;
-
-		nofs_flag = memalloc_nofs_save();
 		status = xfs_reflink_convert_cow(XFS_I(ioend->io_inode),
 				ioend->io_offset, ioend->io_size);
-		memalloc_nofs_restore(nofs_flag);
 	}
 
 	/* Reserve log space if we might write beyond the on-disk inode size. */
@@ -661,6 +668,8 @@ xfs_submit_ioend(
 	    xfs_ioend_is_append(ioend) &&
 	    !ioend->io_append_trans)
 		status = xfs_setfilesize_trans_alloc(ioend);
+
+	memalloc_nofs_restore(nofs_flag);
 
 	ioend->io_bio->bi_private = ioend;
 	ioend->io_bio->bi_end_io = xfs_end_bio;

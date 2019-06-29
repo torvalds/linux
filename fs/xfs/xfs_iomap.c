@@ -776,7 +776,7 @@ xfs_iomap_write_unwritten(
 		 * complete here and might deadlock on the iolock.
 		 */
 		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0,
-				XFS_TRANS_RESERVE | XFS_TRANS_NOFS, &tp);
+				XFS_TRANS_RESERVE, &tp);
 		if (error)
 			return error;
 
