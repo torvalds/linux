@@ -238,22 +238,20 @@ static const struct xfs_item_ops xfs_rud_item_ops = {
 	.iop_release	= xfs_rud_item_release,
 };
 
-/*
- * Allocate and initialize an rud item with the given number of extents.
- */
 struct xfs_rud_log_item *
-xfs_rud_init(
-	struct xfs_mount		*mp,
+xfs_trans_get_rud(
+	struct xfs_trans		*tp,
 	struct xfs_rui_log_item		*ruip)
-
 {
-	struct xfs_rud_log_item	*rudp;
+	struct xfs_rud_log_item		*rudp;
 
 	rudp = kmem_zone_zalloc(xfs_rud_zone, KM_SLEEP);
-	xfs_log_item_init(mp, &rudp->rud_item, XFS_LI_RUD, &xfs_rud_item_ops);
+	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
+			  &xfs_rud_item_ops);
 	rudp->rud_ruip = ruip;
 	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
 
+	xfs_trans_add_item(tp, &rudp->rud_item);
 	return rudp;
 }
 

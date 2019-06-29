@@ -60,18 +60,6 @@ xfs_trans_set_rmap_flags(
 	}
 }
 
-struct xfs_rud_log_item *
-xfs_trans_get_rud(
-	struct xfs_trans		*tp,
-	struct xfs_rui_log_item		*ruip)
-{
-	struct xfs_rud_log_item		*rudp;
-
-	rudp = xfs_rud_init(tp->t_mountp, ruip);
-	xfs_trans_add_item(tp, &rudp->rud_item);
-	return rudp;
-}
-
 /*
  * Finish an rmap update and log it to the RUD. Note that the transaction is
  * marked dirty regardless of whether the rmap update succeeds or fails to
