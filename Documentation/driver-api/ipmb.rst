@@ -32,11 +32,11 @@ This driver works with the I2C driver and a userspace
 program such as OpenIPMI:
 
 1) It is an I2C slave backend driver. So, it defines a callback
-function to set the Satellite MC as an I2C slave.
-This callback function handles the received IPMI requests.
+   function to set the Satellite MC as an I2C slave.
+   This callback function handles the received IPMI requests.
 
 2) It defines the read and write functions to enable a user
-space program (such as OpenIPMI) to communicate with the kernel.
+   space program (such as OpenIPMI) to communicate with the kernel.
 
 
 Load the IPMB driver
@@ -48,34 +48,35 @@ CONFIG_IPMB_DEVICE_INTERFACE=y
 
 1) If you want the driver to be loaded at boot time:
 
-a) Add this entry to your ACPI table, under the appropriate SMBus:
+a) Add this entry to your ACPI table, under the appropriate SMBus::
 
-Device (SMB0) // Example SMBus host controller
-{
-  Name (_HID, "<Vendor-Specific HID>") // Vendor-Specific HID
-  Name (_UID, 0) // Unique ID of particular host controller
-  :
-  :
-    Device (IPMB)
-    {
-      Name (_HID, "IPMB0001") // IPMB device interface
-      Name (_UID, 0) // Unique device identifier
-    }
-}
+     Device (SMB0) // Example SMBus host controller
+     {
+     Name (_HID, "<Vendor-Specific HID>") // Vendor-Specific HID
+     Name (_UID, 0) // Unique ID of particular host controller
+     :
+     :
+       Device (IPMB)
+       {
+         Name (_HID, "IPMB0001") // IPMB device interface
+         Name (_UID, 0) // Unique device identifier
+       }
+     }
 
-b) Example for device tree:
+b) Example for device tree::
 
-&i2c2 {
-         status = "okay";
+     &i2c2 {
+            status = "okay";
 
-         ipmb@10 {
-                 compatible = "ipmb-dev";
-                 reg = <0x10>;
-         };
-};
+            ipmb@10 {
+                    compatible = "ipmb-dev";
+                    reg = <0x10>;
+            };
+     };
 
-2) Manually from Linux:
-modprobe ipmb-dev-int
+2) Manually from Linux::
+
+     modprobe ipmb-dev-int
 
 
 Instantiate the device
@@ -86,15 +87,16 @@ described in 'Documentation/i2c/instantiating-devices'.
 If you have multiple BMCs, each connected to your Satellite MC via
 a different I2C bus, you can instantiate a device for each of
 those BMCs.
-The name of the instantiated device contains the I2C bus number
-associated with it as follows:
 
-BMC1 ------ IPMB/I2C bus 1 ---------|   /dev/ipmb-1
+The name of the instantiated device contains the I2C bus number
+associated with it as follows::
+
+  BMC1 ------ IPMB/I2C bus 1 ---------|   /dev/ipmb-1
 				Satellite MC
-BMC1 ------ IPMB/I2C bus 2 ---------|   /dev/ipmb-2
+  BMC1 ------ IPMB/I2C bus 2 ---------|   /dev/ipmb-2
 
 For instance, you can instantiate the ipmb-dev-int device from
-user space at the 7 bit address 0x10 on bus 2:
+user space at the 7 bit address 0x10 on bus 2::
 
   # echo ipmb-dev 0x1010 > /sys/bus/i2c/devices/i2c-2/new_device
 
