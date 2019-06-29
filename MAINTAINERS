@@ -17357,7 +17357,13 @@ W:	http://xfs.org/
 T:	git git://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git
 S:	Supported
 F:	Documentation/filesystems/xfs.txt
+F:	Documentation/ABI/testing/sysfs-fs-xfs
+F:	Documentation/filesystems/xfs.txt
+F:	Documentation/filesystems/xfs-delayed-logging-design.txt
+F:	Documentation/filesystems/xfs-self-describing-metadata.txt
 F:	fs/xfs/
+F:	include/uapi/linux/dqblk_xfs.h
+F:	include/uapi/linux/fsmap.h
 
 XILINX AXI ETHERNET DRIVER
 M:	Anirudha Sarangi <anirudh@xilinx.com>
