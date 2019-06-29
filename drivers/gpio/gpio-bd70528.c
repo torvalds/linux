@@ -153,7 +153,7 @@ static int bd70528_gpio_get_i(struct bd70528_gpio *bdgpio, unsigned int offset)
 
 static int bd70528_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
-	int ret = -EINVAL;
+	int ret;
 	struct bd70528_gpio *bdgpio = gpiochip_get_data(chip);
 
 	/*
