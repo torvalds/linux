@@ -239,8 +239,8 @@ static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 	if (frmr->fr_state != FRMR_IS_INUSE)
 		goto out;
 
-	while (atomic_dec_return(&ibmr->ic->i_fastunreg_wrs) <= 0) {
-		atomic_inc(&ibmr->ic->i_fastunreg_wrs);
+	while (atomic_dec_return(&ibmr->ic->i_fastreg_wrs) <= 0) {
+		atomic_inc(&ibmr->ic->i_fastreg_wrs);
 		cpu_relax();
 	}
 
@@ -257,7 +257,7 @@ static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 	if (unlikely(ret)) {
 		frmr->fr_state = FRMR_IS_STALE;
 		frmr->fr_inv = false;
-		atomic_inc(&ibmr->ic->i_fastunreg_wrs);
+		atomic_inc(&ibmr->ic->i_fastreg_wrs);
 		pr_err("RDS/IB: %s returned error(%d)\n", __func__, ret);
 		goto out;
 	}
@@ -285,10 +285,9 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 	if (frmr->fr_inv) {
 		frmr->fr_state = FRMR_IS_FREE;
 		frmr->fr_inv = false;
-		atomic_inc(&ic->i_fastreg_wrs);
-	} else {
-		atomic_inc(&ic->i_fastunreg_wrs);
 	}
+
+	atomic_inc(&ic->i_fastreg_wrs);
 }
 
 void rds_ib_unreg_frmr(struct list_head *list, unsigned int *nfreed,
