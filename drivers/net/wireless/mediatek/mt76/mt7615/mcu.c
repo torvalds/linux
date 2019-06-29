@@ -1280,7 +1280,8 @@ int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 
 int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 {
-	struct cfg80211_chan_def *chdef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
 	struct {
 		u8 control_chan;
 		u8 center_chan;
@@ -1299,17 +1300,20 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 		u8 rsv1[3];
 		u8 txpower_sku[53];
 		u8 rsv2[3];
-	} req = {0};
+	} req = {
+		.control_chan = chandef->chan->hw_value,
+		.center_chan = ieee80211_frequency_to_channel(freq1),
+		.tx_streams = (dev->mt76.chainmask >> 8) & 0xf,
+		.rx_streams_mask = dev->mt76.antenna_mask,
+		.center_chan2 = ieee80211_frequency_to_channel(freq2),
+	};
 	int ret;
 
-	req.control_chan = chdef->chan->hw_value;
-	req.center_chan = ieee80211_frequency_to_channel(chdef->center_freq1);
-	req.tx_streams = (dev->mt76.chainmask >> 8) & 0xf;
-	req.rx_streams_mask = dev->mt76.antenna_mask;
-	req.switch_reason = CH_SWITCH_NORMAL;
-	req.band_idx = 0;
-	req.center_chan2 = ieee80211_frequency_to_channel(chdef->center_freq2);
-	req.txpower_drop = 0;
+	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
+	    chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
+		req.switch_reason = CH_SWITCH_DFS;
+	else
+		req.switch_reason = CH_SWITCH_NORMAL;
 
 	switch (dev->mt76.chandef.width) {
 	case NL80211_CHAN_WIDTH_40:
@@ -1334,6 +1338,7 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 	case NL80211_CHAN_WIDTH_20:
 	default:
 		req.bw = CMD_CBW_20MHZ;
+		break;
 	}
 	memset(req.txpower_sku, 0x3f, 49);
 
