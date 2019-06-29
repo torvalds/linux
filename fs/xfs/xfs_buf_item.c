@@ -672,13 +672,6 @@ xfs_buf_item_committed(
 	return lsn;
 }
 
-STATIC void
-xfs_buf_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		commit_lsn)
-{
-}
-
 /*
  * This is the ops vector shared by all buf log items.
  */
@@ -690,7 +683,6 @@ static const struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_unlock	= xfs_buf_item_unlock,
 	.iop_committed	= xfs_buf_item_committed,
 	.iop_push	= xfs_buf_item_push,
-	.iop_committing = xfs_buf_item_committing
 };
 
 STATIC int

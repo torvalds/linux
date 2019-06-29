@@ -246,7 +246,8 @@ xfs_cil_prepare_item(
 	 * shadow buffer, so update the the pointer to it appropriately.
 	 */
 	if (!old_lv) {
-		lv->lv_item->li_ops->iop_pin(lv->lv_item);
+		if (lv->lv_item->li_ops->iop_pin)
+			lv->lv_item->li_ops->iop_pin(lv->lv_item);
 		lv->lv_item->li_lv_shadow = NULL;
 	} else if (old_lv != lv) {
 		ASSERT(lv->lv_buf_len != XFS_LOG_VEC_ORDERED);

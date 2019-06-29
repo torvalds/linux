@@ -108,15 +108,6 @@ xfs_efi_item_format(
 
 
 /*
- * Pinning has no meaning for an efi item, so just return.
- */
-STATIC void
-xfs_efi_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
  * The unpin operation is the last place an EFI is manipulated in the log. It is
  * either inserted in the AIL or aborted in the event of a log I/O error. In
  * either case, the EFI transaction has been successfully committed to make it
@@ -134,21 +125,6 @@ xfs_efi_item_unpin(
 }
 
 /*
- * Efi items have no locking or pushing.  However, since EFIs are pulled from
- * the AIL when their corresponding EFDs are committed to disk, their situation
- * is very similar to being pinned.  Return XFS_ITEM_PINNED so that the caller
- * will eventually flush the log.  This should help in getting the EFI out of
- * the AIL.
- */
-STATIC uint
-xfs_efi_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	return XFS_ITEM_PINNED;
-}
-
-/*
  * The EFI has been either committed or aborted if the transaction has been
  * cancelled. If the transaction was cancelled, an EFD isn't going to be
  * constructed and thus we free the EFI here directly.
@@ -162,43 +138,13 @@ xfs_efi_item_unlock(
 }
 
 /*
- * The EFI is logged only once and cannot be moved in the log, so simply return
- * the lsn at which it's been logged.
- */
-STATIC xfs_lsn_t
-xfs_efi_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	return lsn;
-}
-
-/*
- * The EFI dependency tracking op doesn't do squat.  It can't because
- * it doesn't know where the free extent is coming from.  The dependency
- * tracking has to be handled by the "enclosing" metadata object.  For
- * example, for inodes, the inode is locked throughout the extent freeing
- * so the dependency should be recorded there.
- */
-STATIC void
-xfs_efi_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
-/*
  * This is the ops vector shared by all efi log items.
  */
 static const struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_size	= xfs_efi_item_size,
 	.iop_format	= xfs_efi_item_format,
-	.iop_pin	= xfs_efi_item_pin,
 	.iop_unpin	= xfs_efi_item_unpin,
 	.iop_unlock	= xfs_efi_item_unlock,
-	.iop_committed	= xfs_efi_item_committed,
-	.iop_push	= xfs_efi_item_push,
-	.iop_committing = xfs_efi_item_committing
 };
 
 
@@ -350,38 +296,6 @@ xfs_efd_item_format(
 }
 
 /*
- * Pinning has no meaning for an efd item, so just return.
- */
-STATIC void
-xfs_efd_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
- * Since pinning has no meaning for an efd item, unpinning does
- * not either.
- */
-STATIC void
-xfs_efd_item_unpin(
-	struct xfs_log_item	*lip,
-	int			remove)
-{
-}
-
-/*
- * There isn't much you can do to push on an efd item.  It is simply stuck
- * waiting for the log to be flushed to disk.
- */
-STATIC uint
-xfs_efd_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	return XFS_ITEM_PINNED;
-}
-
-/*
  * The EFD is either committed or aborted if the transaction is cancelled. If
  * the transaction is cancelled, drop our reference to the EFI and free the EFD.
  */
@@ -423,31 +337,13 @@ xfs_efd_item_committed(
 }
 
 /*
- * The EFD dependency tracking op doesn't do squat.  It can't because
- * it doesn't know where the free extent is coming from.  The dependency
- * tracking has to be handled by the "enclosing" metadata object.  For
- * example, for inodes, the inode is locked throughout the extent freeing
- * so the dependency should be recorded there.
- */
-STATIC void
-xfs_efd_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
-/*
  * This is the ops vector shared by all efd log items.
  */
 static const struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_size	= xfs_efd_item_size,
 	.iop_format	= xfs_efd_item_format,
-	.iop_pin	= xfs_efd_item_pin,
-	.iop_unpin	= xfs_efd_item_unpin,
 	.iop_unlock	= xfs_efd_item_unlock,
 	.iop_committed	= xfs_efd_item_committed,
-	.iop_push	= xfs_efd_item_push,
-	.iop_committing = xfs_efd_item_committing
 };
 
 /*

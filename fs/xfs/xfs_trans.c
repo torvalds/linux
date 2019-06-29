@@ -779,11 +779,14 @@ xfs_trans_free_items(
 
 	list_for_each_entry_safe(lip, next, &tp->t_items, li_trans) {
 		xfs_trans_del_item(lip);
-		if (commit_lsn != NULLCOMMITLSN)
+		if (commit_lsn != NULLCOMMITLSN &&
+		    lip->li_ops->iop_committing)
 			lip->li_ops->iop_committing(lip, commit_lsn);
 		if (abort)
 			set_bit(XFS_LI_ABORTED, &lip->li_flags);
-		lip->li_ops->iop_unlock(lip);
+
+		if (lip->li_ops->iop_unlock)
+			lip->li_ops->iop_unlock(lip);
 	}
 }
 
@@ -804,7 +807,8 @@ xfs_log_item_batch_insert(
 	for (i = 0; i < nr_items; i++) {
 		struct xfs_log_item *lip = log_items[i];
 
-		lip->li_ops->iop_unpin(lip, 0);
+		if (lip->li_ops->iop_unpin)
+			lip->li_ops->iop_unpin(lip, 0);
 	}
 }
 
@@ -852,7 +856,10 @@ xfs_trans_committed_bulk(
 
 		if (aborted)
 			set_bit(XFS_LI_ABORTED, &lip->li_flags);
-		item_lsn = lip->li_ops->iop_committed(lip, commit_lsn);
+		if (lip->li_ops->iop_committed)
+			item_lsn = lip->li_ops->iop_committed(lip, commit_lsn);
+		else
+			item_lsn = commit_lsn;
 
 		/* item_lsn of -1 means the item needs no further processing */
 		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
@@ -864,7 +871,8 @@ xfs_trans_committed_bulk(
 		 */
 		if (aborted) {
 			ASSERT(XFS_FORCED_SHUTDOWN(ailp->ail_mount));
-			lip->li_ops->iop_unpin(lip, 1);
+			if (lip->li_ops->iop_unpin)
+				lip->li_ops->iop_unpin(lip, 1);
 			continue;
 		}
 
@@ -882,7 +890,8 @@ xfs_trans_committed_bulk(
 				xfs_trans_ail_update(ailp, lip, item_lsn);
 			else
 				spin_unlock(&ailp->ail_lock);
-			lip->li_ops->iop_unpin(lip, 0);
+			if (lip->li_ops->iop_unpin)
+				lip->li_ops->iop_unpin(lip, 0);
 			continue;
 		}
 

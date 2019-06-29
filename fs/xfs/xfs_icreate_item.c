@@ -56,23 +56,6 @@ xfs_icreate_item_format(
 			sizeof(struct xfs_icreate_log));
 }
 
-
-/* Pinning has no meaning for the create item, so just return. */
-STATIC void
-xfs_icreate_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-
-/* pinning has no meaning for the create item, so just return. */
-STATIC void
-xfs_icreate_item_unpin(
-	struct xfs_log_item	*lip,
-	int			remove)
-{
-}
-
 STATIC void
 xfs_icreate_item_unlock(
 	struct xfs_log_item	*lip)
@@ -110,26 +93,15 @@ xfs_icreate_item_push(
 	return XFS_ITEM_SUCCESS;
 }
 
-/* Ordered buffers do the dependency tracking here, so this does nothing. */
-STATIC void
-xfs_icreate_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
 /*
  * This is the ops vector shared by all buf log items.
  */
 static const struct xfs_item_ops xfs_icreate_item_ops = {
 	.iop_size	= xfs_icreate_item_size,
 	.iop_format	= xfs_icreate_item_format,
-	.iop_pin	= xfs_icreate_item_pin,
-	.iop_unpin	= xfs_icreate_item_unpin,
 	.iop_push	= xfs_icreate_item_push,
 	.iop_unlock	= xfs_icreate_item_unlock,
 	.iop_committed	= xfs_icreate_item_committed,
-	.iop_committing = xfs_icreate_item_committing,
 };
 
 
