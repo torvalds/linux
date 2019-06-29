@@ -713,9 +713,16 @@ xfs_alloc_ag_vextent_small(
 	int			error = 0;
 	xfs_agblock_t		fbno = NULLAGBLOCK;
 	xfs_extlen_t		flen = 0;
-	int			i;
+	int			i = 0;
 
-	error = xfs_btree_decrement(ccur, 0, &i);
+	/*
+	 * If a cntbt cursor is provided, try to allocate the largest record in
+	 * the tree. Try the AGFL if the cntbt is empty, otherwise fail the
+	 * allocation. Make sure to respect minleft even when pulling from the
+	 * freelist.
+	 */
+	if (ccur)
+		error = xfs_btree_decrement(ccur, 0, &i);
 	if (error)
 		goto error;
 	if (i) {
