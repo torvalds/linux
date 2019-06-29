@@ -446,23 +446,22 @@ void mpc2_assert_mpcc_idle_before_connect(struct mpc *mpc, int mpcc_id)
 {
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 	unsigned int top_sel, mpc_busy, mpc_idle, mpc_disabled;
-	REG_GET(MPCC_STATUS[mpcc_id], MPCC_DISABLED, &mpc_disabled);
-
-	if (mpc_disabled) {
-		ASSERT(0);
-		return;
-	}
 
 	REG_GET(MPCC_TOP_SEL[mpcc_id],
 			MPCC_TOP_SEL, &top_sel);
 
-	if (top_sel == 0xf) {
-		REG_GET_2(MPCC_STATUS[mpcc_id],
-				MPCC_BUSY, &mpc_busy,
-				MPCC_IDLE, &mpc_idle);
+	REG_GET_3(MPCC_STATUS[mpcc_id],
+			MPCC_BUSY, &mpc_busy,
+			MPCC_IDLE, &mpc_idle,
+			MPCC_DISABLED, &mpc_disabled);
 
-		ASSERT(mpc_busy == 0);
-		ASSERT(mpc_idle == 1);
+	if (top_sel == 0xf) {
+		ASSERT(!mpc_busy);
+		ASSERT(mpc_idle);
+		ASSERT(mpc_disabled);
+	} else {
+		ASSERT(!mpc_disabled);
+		ASSERT(!mpc_idle);
 	}
 }
 
