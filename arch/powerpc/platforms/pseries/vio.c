@@ -524,7 +524,7 @@ static dma_addr_t vio_dma_iommu_map_page(struct device *dev, struct page *page,
 
 	if (vio_cmo_alloc(viodev, roundup(size, IOMMU_PAGE_SIZE(tbl))))
 		goto out_fail;
-	ret = iommu_map_page(dev, tbl, page, offset, size, device_to_mask(dev),
+	ret = iommu_map_page(dev, tbl, page, offset, size, dma_get_mask(dev),
 			direction, attrs);
 	if (unlikely(ret == DMA_MAPPING_ERROR))
 		goto out_deallocate;
@@ -564,7 +564,7 @@ static int vio_dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 
 	if (vio_cmo_alloc(viodev, alloc_size))
 		goto out_fail;
-	ret = ppc_iommu_map_sg(dev, tbl, sglist, nelems, device_to_mask(dev),
+	ret = ppc_iommu_map_sg(dev, tbl, sglist, nelems, dma_get_mask(dev),
 			direction, attrs);
 	if (unlikely(!ret))
 		goto out_deallocate;
