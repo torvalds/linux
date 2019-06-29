@@ -230,14 +230,6 @@ void		xfs_trans_dirty_buf(struct xfs_trans *, struct xfs_buf *);
 bool		xfs_trans_buf_is_dirty(struct xfs_buf *bp);
 void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
 
-struct xfs_efd_log_item	*xfs_trans_get_efd(struct xfs_trans *,
-				  struct xfs_efi_log_item *,
-				  uint);
-int		xfs_trans_free_extent(struct xfs_trans *,
-				      struct xfs_efd_log_item *, xfs_fsblock_t,
-				      xfs_extlen_t,
-				      const struct xfs_owner_info *,
-				      bool);
 int		xfs_trans_commit(struct xfs_trans *);
 int		xfs_trans_roll(struct xfs_trans **);
 int		xfs_trans_roll_inode(struct xfs_trans **, struct xfs_inode *);
