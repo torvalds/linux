@@ -332,8 +332,6 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 
 	/* store length */
 	msg_context->u.bulk.buffer_used = rd_len;
-	msg_context->u.bulk.mmal_flags =
-	    msg->u.buffer_from_host.buffer_header.flags;
 	msg_context->u.bulk.dts = msg->u.buffer_from_host.buffer_header.dts;
 	msg_context->u.bulk.pts = msg->u.buffer_from_host.buffer_header.pts;
 
@@ -460,6 +458,9 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 		pr_err("MMAL_MSG_TYPE_BUFFER_TO_HOST with bad magic\n");
 		return;
 	}
+
+	msg_context->u.bulk.mmal_flags =
+				msg->u.buffer_from_host.buffer_header.flags;
 
 	if (msg->h.status != MMAL_MSG_STATUS_SUCCESS) {
 		/* message reception had an error */
