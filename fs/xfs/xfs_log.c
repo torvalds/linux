@@ -1766,6 +1766,32 @@ xlog_write_iclog(
 }
 
 /*
+ * We need to bump cycle number for the part of the iclog that is
+ * written to the start of the log. Watch out for the header magic
+ * number case, though.
+ */
+static unsigned int
+xlog_split_iclog(
+	struct xlog		*log,
+	void			*data,
+	uint64_t		bno,
+	unsigned int		count)
+{
+	unsigned int		split_offset = BBTOB(log->l_logBBsize - bno);
+	unsigned int		i;
+
+	for (i = split_offset; i < count; i += BBSIZE) {
+		uint32_t cycle = get_unaligned_be32(data + i);
+
+		if (++cycle == XLOG_HEADER_MAGIC_NUM)
+			cycle++;
+		put_unaligned_be32(cycle, data + i);
+	}
+
+	return split_offset;
+}
+
+/*
  * Flush out the in-core log (iclog) to the on-disk log in an asynchronous 
  * fashion.  Previously, we should have moved the current iclog
  * ptr in the log to point to the next available iclog.  This allows further
@@ -1793,13 +1819,12 @@ xlog_sync(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog)
 {
-	int		i;
 	uint		count;		/* byte count of bwrite */
 	uint		count_init;	/* initial count before roundup */
 	int		roundoff;       /* roundoff to BB or stripe */
-	int		split = 0;	/* split write into two regions */
 	int		v2 = xfs_sb_version_haslogv2(&log->l_mp->m_sb);
 	uint64_t	bno;
+	unsigned int	split = 0;
 	int		size;
 	bool		need_flush = true;
 
@@ -1842,32 +1867,8 @@ xlog_sync(
 	bno = BLOCK_LSN(be64_to_cpu(iclog->ic_header.h_lsn));
 
 	/* Do we need to split this write into 2 parts? */
-	if (bno + BTOBB(count) > log->l_logBBsize) {
-		char		*dptr;
-
-		split = count - (BBTOB(log->l_logBBsize - bno));
-		count = BBTOB(log->l_logBBsize - bno);
-		iclog->ic_bwritecnt = 2;
-
-		/*
-		 * Bump the cycle numbers at the start of each block in the
-		 * part of the iclog that ends up in the buffer that gets
-		 * written to the start of the log.
-		 *
-		 * Watch out for the header magic number case, though.
-		 */
-		dptr = (char *)&iclog->ic_header + count;
-		for (i = 0; i < split; i += BBSIZE) {
-			uint32_t cycle = be32_to_cpu(*(__be32 *)dptr);
-			if (++cycle == XLOG_HEADER_MAGIC_NUM)
-				cycle++;
-			*(__be32 *)dptr = cpu_to_be32(cycle);
-
-			dptr += BBSIZE;
-		}
-	} else {
-		iclog->ic_bwritecnt = 1;
-	}
+	if (bno + BTOBB(count) > log->l_logBBsize)
+		split = xlog_split_iclog(log, &iclog->ic_header, bno, count);
 
 	/* calculcate the checksum */
 	iclog->ic_header.h_crc = xlog_cksum(log, &iclog->ic_header,
@@ -1902,14 +1903,16 @@ xlog_sync(
 		need_flush = false;
 	}
 
-	iclog->ic_bp->b_io_length = BTOBB(count);
+	iclog->ic_bp->b_io_length = BTOBB(split ? split : count);
+	iclog->ic_bwritecnt = split ? 2 : 1;
 
 	xlog_verify_iclog(log, iclog, count, true);
 	xlog_write_iclog(log, iclog, iclog->ic_bp, bno, need_flush);
 
 	if (split) {
 		xfs_buf_associate_memory(iclog->ic_log->l_xbuf,
-				(char *)&iclog->ic_header + count, split);
+				(char *)&iclog->ic_header + split,
+				count - split);
 		xlog_write_iclog(log, iclog, iclog->ic_log->l_xbuf, 0, false);
 	}
 }
