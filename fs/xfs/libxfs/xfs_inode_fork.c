@@ -3,7 +3,6 @@
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include <linux/log2.h>
 
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -20,12 +19,10 @@
 #include "xfs_bmap.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
-#include "xfs_attr_sf.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_attr_leaf.h"
-#include "xfs_shared.h"
 
 kmem_zone_t *xfs_ifork_zone;
 

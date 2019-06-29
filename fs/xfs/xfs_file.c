@@ -10,14 +10,11 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
-#include "xfs_error.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_ioctl.h"
@@ -28,9 +25,7 @@
 #include "xfs_iomap.h"
 #include "xfs_reflink.h"
 
-#include <linux/dcache.h>
 #include <linux/falloc.h>
-#include <linux/pagevec.h>
 #include <linux/backing-dev.h>
 #include <linux/mman.h>
 

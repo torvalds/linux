@@ -7,19 +7,10 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
-#include "xfs_log_format.h"
 #include "xfs_shared.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_inode.h"
-#include "xfs_btree.h"
-#include "xfs_rmap.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_ialloc.h"
 
 /* Find the size of the AG, in blocks. */
 xfs_agblock_t

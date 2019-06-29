@@ -15,12 +15,10 @@
 #include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
 #include "xfs_qm.h"
 #include "xfs_trans_space.h"
-#include "xfs_trace.h"
 
 #define _ALLOC	true
 #define _FREE	false

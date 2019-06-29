@@ -4,23 +4,7 @@
  * All Rights Reserved.
  */
 #include "xfs.h"
-#include <linux/stddef.h>
-#include <linux/errno.h>
-#include <linux/gfp.h>
-#include <linux/pagemap.h>
-#include <linux/init.h>
-#include <linux/vmalloc.h>
-#include <linux/bio.h>
-#include <linux/sysctl.h>
-#include <linux/proc_fs.h>
-#include <linux/workqueue.h>
-#include <linux/percpu.h>
-#include <linux/blkdev.h>
-#include <linux/hash.h>
-#include <linux/kthread.h>
-#include <linux/migrate.h>
 #include <linux/backing-dev.h>
-#include <linux/freezer.h>
 
 #include "xfs_shared.h"
 #include "xfs_format.h"

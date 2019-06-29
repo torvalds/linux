@@ -12,7 +12,6 @@
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
@@ -24,8 +23,6 @@
 #include "xfs_dquot.h"
 #include "xfs_reflink.h"
 
-#include <linux/kthread.h>
-#include <linux/freezer.h>
 #include <linux/iversion.h>
 
 /*

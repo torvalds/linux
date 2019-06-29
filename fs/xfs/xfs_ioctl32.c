@@ -3,11 +3,7 @@
  * Copyright (c) 2004-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include <linux/compat.h>
-#include <linux/ioctl.h>
 #include <linux/mount.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
 #include <linux/fsmap.h>
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -18,9 +14,7 @@
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_itable.h"
-#include "xfs_error.h"
 #include "xfs_fsops.h"
-#include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_attr.h"
 #include "xfs_ioctl.h"

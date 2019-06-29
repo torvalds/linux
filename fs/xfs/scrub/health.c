@@ -7,18 +7,10 @@
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
-#include "xfs_trans_resv.h"
-#include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_btree.h"
-#include "xfs_bit.h"
-#include "xfs_log_format.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_inode.h"
 #include "xfs_health.h"
 #include "scrub/scrub.h"
-#include "scrub/health.h"
 
 /*
  * Scrub and In-Core Filesystem Health Assessments

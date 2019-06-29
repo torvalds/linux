@@ -14,7 +14,6 @@
 #include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_buf_item.h"
 #include "xfs_extfree_item.h"
 #include "xfs_log.h"
 #include "xfs_btree.h"

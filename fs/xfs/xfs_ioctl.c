@@ -11,8 +11,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_ioctl.h"
-#include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
@@ -25,7 +23,6 @@
 #include "xfs_export.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
-#include "xfs_symlink.h"
 #include "xfs_trans.h"
 #include "xfs_acl.h"
 #include "xfs_btree.h"
@@ -36,14 +33,8 @@
 #include "xfs_ag.h"
 #include "xfs_health.h"
 
-#include <linux/capability.h>
-#include <linux/cred.h>
-#include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/pagemap.h>
-#include <linux/slab.h>
-#include <linux/exportfs.h>
 
 /*
  * xfs_find_handle maps from userspace xfs_fsop_handlereq structure to

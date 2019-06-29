@@ -9,26 +9,16 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_btree.h"
-#include "xfs_bit.h"
 #include "xfs_log_format.h"
-#include "xfs_trans.h"
-#include "xfs_sb.h"
 #include "xfs_inode.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
-#include "scrub/trace.h"
 
-#include <linux/posix_acl_xattr.h>
-#include <linux/xattr.h>
 
 /* Set us up to scrub an inode's extended attributes. */
 int

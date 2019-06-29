@@ -16,8 +16,6 @@
 #include "xfs_trans.h"
 #include "xfs_qm.h"
 #include "xfs_error.h"
-#include "xfs_cksum.h"
-#include "xfs_trace.h"
 
 int
 xfs_calc_dquots_per_chunk(

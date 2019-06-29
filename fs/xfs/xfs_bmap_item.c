@@ -15,12 +15,10 @@
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_buf_item.h"
 #include "xfs_bmap_item.h"
 #include "xfs_log.h"
 #include "xfs_bmap.h"
 #include "xfs_icache.h"
-#include "xfs_trace.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_trans_space.h"
 

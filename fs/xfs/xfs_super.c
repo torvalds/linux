@@ -11,18 +11,15 @@
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_alloc.h"
-#include "xfs_error.h"
 #include "xfs_fsops.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
-#include "xfs_da_btree.h"
 #include "xfs_dir2.h"
 #include "xfs_extfree_item.h"
 #include "xfs_mru_cache.h"
@@ -38,18 +35,8 @@
 #include "xfs_refcount_item.h"
 #include "xfs_bmap_item.h"
 #include "xfs_reflink.h"
-#include "xfs_defer.h"
 
-#include <linux/namei.h>
-#include <linux/dax.h>
-#include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/magic.h>
-#include <linux/mount.h>
-#include <linux/mempool.h>
-#include <linux/writeback.h>
-#include <linux/kthread.h>
-#include <linux/freezer.h>
 #include <linux/parser.h>
 
 static const struct super_operations xfs_super_operations;

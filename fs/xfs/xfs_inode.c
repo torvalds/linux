@@ -3,7 +3,6 @@
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include <linux/log2.h>
 #include <linux/iversion.h>
 
 #include "xfs.h"
@@ -16,10 +15,7 @@
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_inode.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_dir2.h"
-#include "xfs_attr_sf.h"
 #include "xfs_attr.h"
 #include "xfs_trans_space.h"
 #include "xfs_trans.h"
@@ -32,7 +28,6 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_filestream.h"
-#include "xfs_cksum.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
@@ -40,7 +35,6 @@
 #include "xfs_log.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_reflink.h"
-#include "xfs_dir2_priv.h"
 
 kmem_zone_t *xfs_inode_zone;
 

@@ -4,7 +4,6 @@
  * Copyright (c) 2016-2018 Christoph Hellwig.
  * All Rights Reserved.
  */
-#include <linux/iomap.h>
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
@@ -12,7 +11,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_bmap_btree.h"
@@ -25,7 +23,6 @@
 #include "xfs_inode_item.h"
 #include "xfs_iomap.h"
 #include "xfs_trace.h"
-#include "xfs_icache.h"
 #include "xfs_quota.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"

@@ -12,10 +12,8 @@
 #include "xfs_inode.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
-#include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_qm.h"
-#include <linux/quota.h>
 
 
 static void
