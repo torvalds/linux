@@ -68,6 +68,12 @@ struct mt7615_dev {
 	u32 vif_mask;
 	u32 omac_mask;
 
+	struct {
+		u8 n_pulses;
+		u32 period;
+		u16 width;
+		s16 power;
+	} radar_pattern;
 	u32 hw_pattern;
 	int dfs_state;
 
@@ -177,6 +183,7 @@ int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       u8 rx_sel, u8 val);
 int mt7615_dfs_start_radar_detector(struct mt7615_dev *dev);
 int mt7615_dfs_stop_radar_detector(struct mt7615_dev *dev);
+int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 
 static inline void mt7615_dfs_check_channel(struct mt7615_dev *dev)
 {
@@ -239,5 +246,7 @@ void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *txwi);
 int mt76_dfs_start_rdd(struct mt7615_dev *dev, bool force);
 int mt7615_dfs_init_radar_detector(struct mt7615_dev *dev);
+
+int mt7615_init_debugfs(struct mt7615_dev *dev);
 
 #endif

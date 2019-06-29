@@ -155,19 +155,6 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
-static int mt7615_init_debugfs(struct mt7615_dev *dev)
-{
-	struct dentry *dir;
-
-	dir = mt76_register_debugfs(&dev->mt76);
-	if (!dir)
-		return -ENOMEM;
-
-	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
-
-	return 0;
-}
-
 static void
 mt7615_init_txpower(struct mt7615_dev *dev,
 		    struct ieee80211_supported_band *sband)

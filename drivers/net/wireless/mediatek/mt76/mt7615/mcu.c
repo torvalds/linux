@@ -1294,6 +1294,37 @@ int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 				   &req, sizeof(req), true);
 }
 
+int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
+{
+	struct {
+		u8 pulse_num;
+		u8 rsv[3];
+		struct {
+			u32 start_time;
+			u16 width;
+			s16 power;
+		} pattern[32];
+	} req = {
+		.pulse_num = dev->radar_pattern.n_pulses,
+	};
+	u32 start_time = ktime_to_ms(ktime_get_boottime());
+	int i;
+
+	if (dev->radar_pattern.n_pulses > ARRAY_SIZE(req.pattern))
+		return -EINVAL;
+
+	/* TODO: add some noise here */
+	for (i = 0; i < dev->radar_pattern.n_pulses; i++) {
+		req.pattern[i].width = dev->radar_pattern.width;
+		req.pattern[i].power = dev->radar_pattern.power;
+		req.pattern[i].start_time = start_time +
+					    i * dev->radar_pattern.period;
+	}
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_PATTERN,
+				   &req, sizeof(req), false);
+}
+
 int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
