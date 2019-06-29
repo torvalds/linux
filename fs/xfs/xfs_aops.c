@@ -700,6 +700,7 @@ xfs_alloc_ioend(
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
 	bio->bi_write_hint = inode->i_write_hint;
+	wbc_init_bio(wbc, bio);
 
 	ioend = container_of(bio, struct xfs_ioend, io_inline_bio);
 	INIT_LIST_HEAD(&ioend->io_list);
@@ -727,7 +728,7 @@ xfs_chain_bio(
 	struct bio *new;
 
 	new = bio_alloc(GFP_NOFS, BIO_MAX_PAGES);
-	bio_copy_dev(new, prev);
+	bio_copy_dev(new, prev);/* also copies over blkcg information */
 	new->bi_iter.bi_sector = bio_end_sector(prev);
 	new->bi_opf = prev->bi_opf;
 	new->bi_write_hint = prev->bi_write_hint;
@@ -782,6 +783,7 @@ xfs_add_to_ioend(
 	}
 
 	wpc->ioend->io_size += len;
+	wbc_account_io(wbc, page, len);
 }
 
 STATIC void
