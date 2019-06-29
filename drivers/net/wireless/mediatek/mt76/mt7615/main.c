@@ -305,6 +305,18 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_unlock(&dev->mt76.mutex);
 }
 
+static void
+mt7615_channel_switch_beacon(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct cfg80211_chan_def *chandef)
+{
+	struct mt7615_dev *dev = hw->priv;
+
+	mutex_lock(&dev->mt76.mutex);
+	mt7615_mcu_set_bcn(dev, vif, true);
+	mutex_unlock(&dev->mt76.mutex);
+}
+
 int mt7615_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
@@ -496,4 +508,5 @@ const struct ieee80211_ops mt7615_ops = {
 	.sw_scan_complete = mt7615_sw_scan_complete,
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.get_txpower = mt76_get_txpower,
+	.channel_switch_beacon = mt7615_channel_switch_beacon,
 };
