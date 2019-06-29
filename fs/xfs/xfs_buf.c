@@ -934,17 +934,6 @@ xfs_buf_set_empty(
 	bp->b_maps[0].bm_len = bp->b_length;
 }
 
-static inline struct page *
-mem_to_page(
-	void			*addr)
-{
-	if ((!is_vmalloc_addr(addr))) {
-		return virt_to_page(addr);
-	} else {
-		return vmalloc_to_page(addr);
-	}
-}
-
 int
 xfs_buf_associate_memory(
 	xfs_buf_t		*bp,
@@ -977,7 +966,7 @@ xfs_buf_associate_memory(
 	bp->b_offset = offset;
 
 	for (i = 0; i < bp->b_page_count; i++) {
-		bp->b_pages[i] = mem_to_page((void *)pageaddr);
+		bp->b_pages[i] = kmem_to_page((void *)pageaddr);
 		pageaddr += PAGE_SIZE;
 	}
 
