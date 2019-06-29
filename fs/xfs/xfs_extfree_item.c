@@ -313,32 +313,35 @@ static const struct xfs_item_ops xfs_efd_item_ops = {
 };
 
 /*
- * Allocate and initialize an efd item with the given number of extents.
+ * Allocate an "extent free done" log item that will hold nextents worth of
+ * extents.  The caller must use all nextents extents, because we are not
+ * flexible about this at all.
  */
 struct xfs_efd_log_item *
-xfs_efd_init(
-	struct xfs_mount	*mp,
-	struct xfs_efi_log_item	*efip,
-	uint			nextents)
-
+xfs_trans_get_efd(
+	struct xfs_trans		*tp,
+	struct xfs_efi_log_item		*efip,
+	unsigned int			nextents)
 {
-	struct xfs_efd_log_item	*efdp;
-	uint			size;
+	struct xfs_efd_log_item		*efdp;
 
 	ASSERT(nextents > 0);
+
 	if (nextents > XFS_EFD_MAX_FAST_EXTENTS) {
-		size = (uint)(sizeof(xfs_efd_log_item_t) +
-			((nextents - 1) * sizeof(xfs_extent_t)));
-		efdp = kmem_zalloc(size, KM_SLEEP);
+		efdp = kmem_zalloc(sizeof(struct xfs_efd_log_item) +
+				(nextents - 1) * sizeof(struct xfs_extent),
+				KM_SLEEP);
 	} else {
 		efdp = kmem_zone_zalloc(xfs_efd_zone, KM_SLEEP);
 	}
 
-	xfs_log_item_init(mp, &efdp->efd_item, XFS_LI_EFD, &xfs_efd_item_ops);
+	xfs_log_item_init(tp->t_mountp, &efdp->efd_item, XFS_LI_EFD,
+			  &xfs_efd_item_ops);
 	efdp->efd_efip = efip;
 	efdp->efd_format.efd_nextents = nextents;
 	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;
 
+	xfs_trans_add_item(tp, &efdp->efd_item);
 	return efdp;
 }
 

@@ -20,32 +20,6 @@
 #include "xfs_trace.h"
 
 /*
- * This routine is called to allocate an "extent free done"
- * log item that will hold nextents worth of extents.  The
- * caller must use all nextents extents, because we are not
- * flexible about this at all.
- */
-struct xfs_efd_log_item *
-xfs_trans_get_efd(struct xfs_trans		*tp,
-		  struct xfs_efi_log_item	*efip,
-		  uint				nextents)
-{
-	struct xfs_efd_log_item			*efdp;
-
-	ASSERT(tp != NULL);
-	ASSERT(nextents > 0);
-
-	efdp = xfs_efd_init(tp->t_mountp, efip, nextents);
-	ASSERT(efdp != NULL);
-
-	/*
-	 * Get a log_item_desc to point at the new item.
-	 */
-	xfs_trans_add_item(tp, &efdp->efd_item);
-	return efdp;
-}
-
-/*
  * Free an extent and log it to the EFD. Note that the transaction is marked
  * dirty regardless of whether the extent free succeeds or fails to support the
  * EFI/EFD lifecycle rules.
