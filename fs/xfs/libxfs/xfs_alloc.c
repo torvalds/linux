@@ -758,8 +758,8 @@ xfs_alloc_ag_vextent_small(
 		}
 		xfs_trans_binval(args->tp, bp);
 	}
-	args->len = 1;
-	args->agbno = fbno;
+	*fbnop = args->agbno = fbno;
+	*flenp = args->len = 1;
 	XFS_WANT_CORRUPTED_GOTO(args->mp,
 		fbno < be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
 		error);
