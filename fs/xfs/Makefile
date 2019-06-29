@@ -108,7 +108,6 @@ xfs-y				+= xfs_log.o \
 				   xfs_trans_bmap.o \
 				   xfs_trans_buf.o \
 				   xfs_trans_inode.o \
-				   xfs_trans_refcount.o \
 				   xfs_trans_rmap.o \
 
 # optional features
