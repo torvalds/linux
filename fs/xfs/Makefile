@@ -62,6 +62,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_attr_inactive.o \
 				   xfs_attr_list.o \
 				   xfs_bmap_util.o \
+				   xfs_bio_io.o \
 				   xfs_buf.o \
 				   xfs_dir2_readdir.o \
 				   xfs_discard.o \
