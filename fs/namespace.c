@@ -795,15 +795,17 @@ static void __touch_mnt_namespace(struct mnt_namespace *ns)
 /*
  * vfsmount lock must be held for write
  */
-static void unhash_mnt(struct mount *mnt)
+static struct mountpoint *unhash_mnt(struct mount *mnt)
 {
+	struct mountpoint *mp;
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt_child);
 	hlist_del_init_rcu(&mnt->mnt_hash);
 	hlist_del_init(&mnt->mnt_mp_list);
-	put_mountpoint(mnt->mnt_mp);
+	mp = mnt->mnt_mp;
 	mnt->mnt_mp = NULL;
+	return mp;
 }
 
 /*
@@ -813,7 +815,7 @@ static void detach_mnt(struct mount *mnt, struct path *old_path)
 {
 	old_path->dentry = mnt->mnt_mountpoint;
 	old_path->mnt = &mnt->mnt_parent->mnt;
-	unhash_mnt(mnt);
+	put_mountpoint(unhash_mnt(mnt));
 }
 
 /*
@@ -823,7 +825,7 @@ static void umount_mnt(struct mount *mnt)
 {
 	/* old mountpoint will be dropped when we can do that */
 	mnt->mnt_ex_mountpoint = mnt->mnt_mountpoint;
-	unhash_mnt(mnt);
+	put_mountpoint(unhash_mnt(mnt));
 }
 
 /*
