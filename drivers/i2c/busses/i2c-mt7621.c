@@ -343,7 +343,6 @@ static struct platform_driver mtk_i2c_driver = {
 	.probe		= mtk_i2c_probe,
 	.remove		= mtk_i2c_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "i2c-mt7621",
 		.of_match_table = i2c_mtk_dt_ids,
 	},
