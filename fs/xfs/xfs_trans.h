@@ -244,17 +244,6 @@ void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 
 extern kmem_zone_t	*xfs_trans_zone;
 
-/* rmap updates */
-enum xfs_rmap_intent_type;
-
-struct xfs_rud_log_item *xfs_trans_get_rud(struct xfs_trans *tp,
-		struct xfs_rui_log_item *ruip);
-int xfs_trans_log_finish_rmap_update(struct xfs_trans *tp,
-		struct xfs_rud_log_item *rudp, enum xfs_rmap_intent_type type,
-		uint64_t owner, int whichfork, xfs_fileoff_t startoff,
-		xfs_fsblock_t startblock, xfs_filblks_t blockcount,
-		xfs_exntst_t state, struct xfs_btree_cur **pcur);
-
 /* mapping updates */
 enum xfs_bmap_intent_type;
 
