@@ -139,9 +139,12 @@ static int mt7621_gmac0_rgmii_adjust(struct mtk_eth *eth,
 {
 	u32 val;
 
-	/* Check DDR memory type. Currently DDR2 is not supported. */
+	/* Check DDR memory type.
+	 * Currently TRGMII mode with DDR2 memory is not supported.
+	 */
 	regmap_read(eth->ethsys, ETHSYS_SYSCFG, &val);
-	if (val & SYSCFG_DRAM_TYPE_DDR2) {
+	if (interface == PHY_INTERFACE_MODE_TRGMII &&
+	    val & SYSCFG_DRAM_TYPE_DDR2) {
 		dev_err(eth->dev,
 			"TRGMII mode with DDR2 memory is not supported!\n");
 		return -EOPNOTSUPP;
