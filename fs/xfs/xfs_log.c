@@ -1411,7 +1411,8 @@ xlog_alloc_log(
 	 */
 	ASSERT(log->l_iclog_size >= 4096);
 	for (i = 0; i < log->l_iclog_bufs; i++) {
-		size_t bvec_size = howmany(log->l_iclog_size, PAGE_SIZE);
+		size_t bvec_size = howmany(log->l_iclog_size, PAGE_SIZE) *
+				sizeof(struct bio_vec);
 
 		iclog = kmem_zalloc(sizeof(*iclog) + bvec_size, KM_MAYFAIL);
 		if (!iclog)
