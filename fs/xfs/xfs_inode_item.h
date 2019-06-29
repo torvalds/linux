@@ -14,7 +14,7 @@ struct xfs_inode;
 struct xfs_mount;
 
 typedef struct xfs_inode_log_item {
-	xfs_log_item_t		ili_item;	   /* common portion */
+	struct xfs_log_item	ili_item;	   /* common portion */
 	struct xfs_inode	*ili_inode;	   /* inode ptr */
 	xfs_lsn_t		ili_flush_lsn;	   /* lsn at last flush */
 	xfs_lsn_t		ili_last_lsn;	   /* lsn at last transaction */

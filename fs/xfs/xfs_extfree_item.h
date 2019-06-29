@@ -51,7 +51,7 @@ struct kmem_zone;
  * AIL, so at this point both the EFI and EFD are freed.
  */
 typedef struct xfs_efi_log_item {
-	xfs_log_item_t		efi_item;
+	struct xfs_log_item	efi_item;
 	atomic_t		efi_refcount;
 	atomic_t		efi_next_extent;
 	unsigned long		efi_flags;	/* misc flags */
@@ -64,7 +64,7 @@ typedef struct xfs_efi_log_item {
  * have been freed.
  */
 typedef struct xfs_efd_log_item {
-	xfs_log_item_t		efd_item;
+	struct xfs_log_item	efd_item;
 	xfs_efi_log_item_t	*efd_efip;
 	uint			efd_next_extent;
 	xfs_efd_log_format_t	efd_format;
