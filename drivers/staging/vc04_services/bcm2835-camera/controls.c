@@ -177,7 +177,7 @@ static int ctrl_set_rational(struct bm2835_mmal_dev *dev,
 	struct mmal_parameter_rational rational_value;
 	struct vchiq_mmal_port *control;
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	rational_value.num = ctrl->val;
 	rational_value.den = 100;
@@ -195,7 +195,7 @@ static int ctrl_set_value(struct bm2835_mmal_dev *dev,
 	u32 u32_value;
 	struct vchiq_mmal_port *control;
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	u32_value = ctrl->val;
 
@@ -220,7 +220,7 @@ static int ctrl_set_iso(struct bm2835_mmal_dev *dev,
 		dev->manual_iso_enabled =
 				(ctrl->val == V4L2_ISO_SENSITIVITY_MANUAL);
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	if (dev->manual_iso_enabled)
 		u32_value = dev->iso;
@@ -239,7 +239,7 @@ static int ctrl_set_value_ev(struct bm2835_mmal_dev *dev,
 	s32 s32_value;
 	struct vchiq_mmal_port *control;
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	s32_value = (ctrl->val - 12) * 2;	/* Convert from index to 1/6ths */
 
@@ -256,7 +256,7 @@ static int ctrl_set_rotate(struct bm2835_mmal_dev *dev,
 	u32 u32_value;
 	struct vchiq_mmal_component *camera;
 
-	camera = dev->component[MMAL_COMPONENT_CAMERA];
+	camera = dev->component[COMP_CAMERA];
 
 	u32_value = ((ctrl->val % 360) / 90) * 90;
 
@@ -290,7 +290,7 @@ static int ctrl_set_flip(struct bm2835_mmal_dev *dev,
 	else
 		dev->vflip = ctrl->val;
 
-	camera = dev->component[MMAL_COMPONENT_CAMERA];
+	camera = dev->component[COMP_CAMERA];
 
 	if (dev->hflip && dev->vflip)
 		u32_value = MMAL_PARAM_MIRROR_BOTH;
@@ -327,7 +327,7 @@ static int ctrl_set_exposure(struct bm2835_mmal_dev *dev,
 	struct vchiq_mmal_port *control;
 	int ret = 0;
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	if (mmal_ctrl->mmal_id == MMAL_PARAMETER_SHUTTER_SPEED)	{
 		/* V4L2 is in 100usec increments.
@@ -402,7 +402,7 @@ static int ctrl_set_metering_mode(struct bm2835_mmal_dev *dev,
 		struct vchiq_mmal_port *control;
 		u32 u32_value = dev->metering_mode;
 
-		control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+		control = &dev->component[COMP_CAMERA]->control;
 
 		return vchiq_mmal_port_parameter_set(dev->instance, control,
 					     mmal_ctrl->mmal_id,
@@ -418,7 +418,7 @@ static int ctrl_set_flicker_avoidance(struct bm2835_mmal_dev *dev,
 	u32 u32_value;
 	struct vchiq_mmal_port *control;
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	switch (ctrl->val) {
 	case V4L2_CID_POWER_LINE_FREQUENCY_DISABLED:
@@ -447,7 +447,7 @@ static int ctrl_set_awb_mode(struct bm2835_mmal_dev *dev,
 	u32 u32_value;
 	struct vchiq_mmal_port *control;
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	switch (ctrl->val) {
 	case V4L2_WHITE_BALANCE_MANUAL:
@@ -503,7 +503,7 @@ static int ctrl_set_awb_gains(struct bm2835_mmal_dev *dev,
 	struct vchiq_mmal_port *control;
 	struct mmal_parameter_awbgains gains;
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	if (ctrl->id == V4L2_CID_RED_BALANCE)
 		dev->red_gain = ctrl->val;
@@ -551,7 +551,7 @@ static int ctrl_set_image_effect(struct bm2835_mmal_dev *dev,
 					v4l2_to_mmal_effects_values[i].v;
 			}
 
-			control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+			control = &dev->component[COMP_CAMERA]->control;
 
 			ret = vchiq_mmal_port_parameter_set(
 					dev->instance, control,
@@ -584,7 +584,7 @@ static int ctrl_set_colfx(struct bm2835_mmal_dev *dev,
 	int ret;
 	struct vchiq_mmal_port *control;
 
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	dev->colourfx.enable = (ctrl->val & 0xff00) >> 8;
 	dev->colourfx.enable = ctrl->val & 0xff;
@@ -610,7 +610,7 @@ static int ctrl_set_bitrate(struct bm2835_mmal_dev *dev,
 
 	dev->capture.encode_bitrate = ctrl->val;
 
-	encoder_out = &dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->output[0];
+	encoder_out = &dev->component[COMP_VIDEO_ENCODE]->output[0];
 
 	ret = vchiq_mmal_port_parameter_set(dev->instance, encoder_out,
 					    mmal_ctrl->mmal_id, &ctrl->val,
@@ -636,7 +636,7 @@ static int ctrl_set_bitrate_mode(struct bm2835_mmal_dev *dev,
 	u32 bitrate_mode;
 	struct vchiq_mmal_port *encoder_out;
 
-	encoder_out = &dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->output[0];
+	encoder_out = &dev->component[COMP_VIDEO_ENCODE]->output[0];
 
 	dev->capture.encode_bitrate_mode = ctrl->val;
 	switch (ctrl->val) {
@@ -663,7 +663,7 @@ static int ctrl_set_image_encode_output(struct bm2835_mmal_dev *dev,
 	u32 u32_value;
 	struct vchiq_mmal_port *jpeg_out;
 
-	jpeg_out = &dev->component[MMAL_COMPONENT_IMAGE_ENCODE]->output[0];
+	jpeg_out = &dev->component[COMP_IMAGE_ENCODE]->output[0];
 
 	u32_value = ctrl->val;
 
@@ -679,7 +679,7 @@ static int ctrl_set_video_encode_param_output(struct bm2835_mmal_dev *dev,
 	u32 u32_value;
 	struct vchiq_mmal_port *vid_enc_ctl;
 
-	vid_enc_ctl = &dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->output[0];
+	vid_enc_ctl = &dev->component[COMP_VIDEO_ENCODE]->output[0];
 
 	u32_value = ctrl->val;
 
@@ -792,7 +792,7 @@ static int ctrl_set_video_encode_profile_level(struct bm2835_mmal_dev *dev,
 		}
 
 		ret = vchiq_mmal_port_parameter_set(dev->instance,
-						    &dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->output[0],
+						    &dev->component[COMP_VIDEO_ENCODE]->output[0],
 			mmal_ctrl->mmal_id,
 			&param, sizeof(param));
 	}
@@ -810,7 +810,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 	v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
 		 "scene mode selected %d, was %d\n", ctrl->val,
 		 dev->scene_mode);
-	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
+	control = &dev->component[COMP_CAMERA]->control;
 
 	if (ctrl->val == dev->scene_mode)
 		return 0;
@@ -1228,18 +1228,15 @@ int set_framerate_params(struct bm2835_mmal_dev *dev)
 		 fps_range.fps_high.den);
 
 	ret = vchiq_mmal_port_parameter_set(dev->instance,
-					    &dev->component[MMAL_COMPONENT_CAMERA]->
-					    output[MMAL_CAMERA_PORT_PREVIEW],
+					    &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW],
 					    MMAL_PARAMETER_FPS_RANGE,
 					    &fps_range, sizeof(fps_range));
 	ret += vchiq_mmal_port_parameter_set(dev->instance,
-					     &dev->component[MMAL_COMPONENT_CAMERA]->
-					     output[MMAL_CAMERA_PORT_VIDEO],
+					     &dev->component[COMP_CAMERA]->output[CAM_PORT_VIDEO],
 					     MMAL_PARAMETER_FPS_RANGE,
 					     &fps_range, sizeof(fps_range));
 	ret += vchiq_mmal_port_parameter_set(dev->instance,
-					     &dev->component[MMAL_COMPONENT_CAMERA]->
-					     output[MMAL_CAMERA_PORT_CAPTURE],
+					     &dev->component[COMP_CAMERA]->output[CAM_PORT_CAPTURE],
 					     MMAL_PARAMETER_FPS_RANGE,
 					     &fps_range, sizeof(fps_range));
 	if (ret)

@@ -16,18 +16,18 @@
 #define V4L2_CTRL_COUNT 29 /* number of v4l controls */
 
 enum {
-	MMAL_COMPONENT_CAMERA = 0,
-	MMAL_COMPONENT_PREVIEW,
-	MMAL_COMPONENT_IMAGE_ENCODE,
-	MMAL_COMPONENT_VIDEO_ENCODE,
-	MMAL_COMPONENT_COUNT
+	COMP_CAMERA = 0,
+	COMP_PREVIEW,
+	COMP_IMAGE_ENCODE,
+	COMP_VIDEO_ENCODE,
+	COMP_COUNT
 };
 
 enum {
-	MMAL_CAMERA_PORT_PREVIEW = 0,
-	MMAL_CAMERA_PORT_VIDEO,
-	MMAL_CAMERA_PORT_CAPTURE,
-	MMAL_CAMERA_PORT_COUNT
+	CAM_PORT_PREVIEW = 0,
+	CAM_PORT_VIDEO,
+	CAM_PORT_CAPTURE,
+	CAM_PORT_COUNT
 };
 
 #define PREVIEW_LAYER      2
@@ -61,7 +61,7 @@ struct bm2835_mmal_dev {
 
 	/* allocated mmal instance and components */
 	struct vchiq_mmal_instance   *instance;
-	struct vchiq_mmal_component  *component[MMAL_COMPONENT_COUNT];
+	struct vchiq_mmal_component  *component[COMP_COUNT];
 	int camera_use_count;
 
 	struct v4l2_window overlay;
