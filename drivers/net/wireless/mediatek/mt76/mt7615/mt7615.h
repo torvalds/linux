@@ -68,6 +68,9 @@ struct mt7615_dev {
 	u32 vif_mask;
 	u32 omac_mask;
 
+	u32 hw_pattern;
+	int dfs_state;
+
 	spinlock_t token_lock;
 	struct idr token;
 };
@@ -95,6 +98,30 @@ enum {
 	EXT_BSSID_14,
 	EXT_BSSID_15,
 	EXT_BSSID_END
+};
+
+enum {
+	MT_HW_RDD0,
+	MT_HW_RDD1,
+};
+
+enum {
+	MT_RX_SEL0,
+	MT_RX_SEL1,
+};
+
+enum mt7615_rdd_cmd {
+	RDD_STOP,
+	RDD_START,
+	RDD_DET_MODE,
+	RDD_DET_STOP,
+	RDD_CAC_START,
+	RDD_CAC_END,
+	RDD_NORMAL_START,
+	RDD_DISABLE_DFS_CAL,
+	RDD_PULSE_DBG,
+	RDD_READ_PULSE,
+	RDD_RESUME_BF,
 };
 
 extern const struct ieee80211_ops mt7615_ops;
@@ -144,6 +171,23 @@ int mt7615_mcu_set_rx_ba(struct mt7615_dev *dev,
 			 bool add);
 int mt7615_mcu_set_ht_cap(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta);
+void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
+int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
+		       enum mt7615_rdd_cmd cmd, u8 index,
+		       u8 rx_sel, u8 val);
+int mt7615_dfs_start_radar_detector(struct mt7615_dev *dev);
+int mt7615_dfs_stop_radar_detector(struct mt7615_dev *dev);
+
+static inline void mt7615_dfs_check_channel(struct mt7615_dev *dev)
+{
+	enum nl80211_chan_width width = dev->mt76.chandef.width;
+	u32 freq = dev->mt76.chandef.chan->center_freq;
+	struct ieee80211_hw *hw = mt76_hw(dev);
+
+	if (hw->conf.chandef.chan->center_freq != freq ||
+	    hw->conf.chandef.width != width)
+		dev->dfs_state = -1;
+}
 
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
 {
@@ -193,5 +237,7 @@ void mt7615_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 void mt7615_mac_work(struct work_struct *work);
 void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *txwi);
+int mt76_dfs_start_rdd(struct mt7615_dev *dev, bool force);
+int mt7615_dfs_init_radar_detector(struct mt7615_dev *dev);
 
 #endif

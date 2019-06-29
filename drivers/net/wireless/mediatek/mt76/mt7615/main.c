@@ -137,10 +137,16 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
+	mt7615_dfs_check_channel(dev);
+
 	mt76_set_channel(&dev->mt76);
 
 	ret = mt7615_mcu_set_channel(dev);
 	if (ret)
+		return ret;
+
+	ret = mt7615_dfs_init_radar_detector(dev);
+	if (ret < 0)
 		return ret;
 
 	clear_bit(MT76_RESET, &dev->mt76.state);

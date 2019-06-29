@@ -746,3 +746,91 @@ void mt7615_mac_work(struct work_struct *work)
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT7615_WATCHDOG_TIME);
 }
+
+int mt7615_dfs_stop_radar_detector(struct mt7615_dev *dev)
+{
+	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	int err;
+
+	err = mt7615_mcu_rdd_cmd(dev, RDD_STOP, MT_HW_RDD0,
+				 MT_RX_SEL0, 0);
+	if (err < 0)
+		return err;
+
+	if (chandef->width == NL80211_CHAN_WIDTH_160 ||
+	    chandef->width == NL80211_CHAN_WIDTH_80P80)
+		err = mt7615_mcu_rdd_cmd(dev, RDD_STOP, MT_HW_RDD1,
+					 MT_RX_SEL0, 0);
+	return err;
+}
+
+static int mt7615_dfs_start_rdd(struct mt7615_dev *dev, int chain)
+{
+	int err;
+
+	err = mt7615_mcu_rdd_cmd(dev, RDD_START, chain, MT_RX_SEL0, 0);
+	if (err < 0)
+		return err;
+
+	return mt7615_mcu_rdd_cmd(dev, RDD_DET_MODE, chain,
+				  MT_RX_SEL0, 1);
+}
+
+int mt7615_dfs_start_radar_detector(struct mt7615_dev *dev)
+{
+	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	int err;
+
+	/* start CAC */
+	err = mt7615_mcu_rdd_cmd(dev, RDD_CAC_START, MT_HW_RDD0,
+				 MT_RX_SEL0, 0);
+	if (err < 0)
+		return err;
+
+	/* TODO: DBDC support */
+
+	err = mt7615_dfs_start_rdd(dev, MT_HW_RDD0);
+	if (err < 0)
+		return err;
+
+	if (chandef->width == NL80211_CHAN_WIDTH_160 ||
+	    chandef->width == NL80211_CHAN_WIDTH_80P80) {
+		err = mt7615_dfs_start_rdd(dev, MT_HW_RDD1);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+int mt7615_dfs_init_radar_detector(struct mt7615_dev *dev)
+{
+	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	int err;
+
+	if (dev->mt76.region == NL80211_DFS_UNSET)
+		return 0;
+
+	if (test_bit(MT76_SCANNING, &dev->mt76.state))
+		return 0;
+
+	if (dev->dfs_state == chandef->chan->dfs_state)
+		return 0;
+
+	dev->dfs_state = chandef->chan->dfs_state;
+
+	if (chandef->chan->flags & IEEE80211_CHAN_RADAR) {
+		if (chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
+			return mt7615_dfs_start_radar_detector(dev);
+		else
+			return mt7615_mcu_rdd_cmd(dev, RDD_CAC_END, MT_HW_RDD0,
+						  MT_RX_SEL0, 0);
+	} else {
+		err = mt7615_mcu_rdd_cmd(dev, RDD_NORMAL_START,
+					 MT_HW_RDD0, MT_RX_SEL0, 0);
+		if (err < 0)
+			return err;
+
+		return mt7615_dfs_stop_radar_detector(dev);
+	}
+}
