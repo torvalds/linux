@@ -543,10 +543,11 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 		/* Flag to indicate just to rely on kernel timestamps */
 		dev->capture.vc_start_timestamp = -1;
-	} else
+	} else {
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 			 "Start time %lld size %d\n",
 			 dev->capture.vc_start_timestamp, parameter_size);
+	}
 
 	dev->capture.kernel_start_ts = ktime_get();
 
