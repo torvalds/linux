@@ -1694,45 +1694,4 @@ struct xfs_acl {
 #define SGI_ACL_FILE_SIZE	(sizeof(SGI_ACL_FILE)-1)
 #define SGI_ACL_DEFAULT_SIZE	(sizeof(SGI_ACL_DEFAULT)-1)
 
-struct xfs_ino_geometry {
-	/* Maximum inode count in this filesystem. */
-	uint64_t	maxicount;
-
-	/* Actual inode cluster buffer size, in bytes. */
-	unsigned int	inode_cluster_size;
-
-	/*
-	 * Desired inode cluster buffer size, in bytes.  This value is not
-	 * rounded up to at least one filesystem block, which is necessary for
-	 * the sole purpose of validating sb_spino_align.  Runtime code must
-	 * only ever use inode_cluster_size.
-	 */
-	unsigned int	inode_cluster_size_raw;
-
-	/* Inode cluster sizes, adjusted to be at least 1 fsb. */
-	unsigned int	inodes_per_cluster;
-	unsigned int	blocks_per_cluster;
-
-	/* Inode cluster alignment. */
-	unsigned int	cluster_align;
-	unsigned int	cluster_align_inodes;
-	unsigned int	inoalign_mask;	/* mask sb_inoalignmt if used */
-
-	unsigned int	inobt_mxr[2]; /* max inobt btree records */
-	unsigned int	inobt_mnr[2]; /* min inobt btree records */
-	unsigned int	inobt_maxlevels; /* max inobt btree levels. */
-
-	/* Size of inode allocations under normal operation. */
-	unsigned int	ialloc_inos;
-	unsigned int	ialloc_blks;
-
-	/* Minimum inode blocks for a sparse allocation. */
-	unsigned int	ialloc_min_blks;
-
-	/* stripe unit inode alignment */
-	unsigned int	ialloc_align;
-
-	unsigned int	agino_log;	/* #bits for agino in inum */
-};
-
 #endif /* __XFS_FORMAT_H__ */
