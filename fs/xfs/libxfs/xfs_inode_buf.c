@@ -77,7 +77,7 @@ xfs_inode_buf_verify(
 	struct xfs_buf	*bp,
 	bool		readahead)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount *mp = bp->b_mount;
 	xfs_agnumber_t	agno;
 	int		i;
 	int		ni;

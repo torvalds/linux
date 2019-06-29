@@ -244,6 +244,7 @@ _xfs_buf_alloc(
 	sema_init(&bp->b_sema, 0); /* held, no waiters */
 	spin_lock_init(&bp->b_lock);
 	bp->b_target = target;
+	bp->b_mount = target->bt_mount;
 	bp->b_flags = flags;
 
 	/*
@@ -268,7 +269,7 @@ _xfs_buf_alloc(
 	atomic_set(&bp->b_pin_count, 0);
 	init_waitqueue_head(&bp->b_waiters);
 
-	XFS_STATS_INC(target->bt_mount, xb_create);
+	XFS_STATS_INC(bp->b_mount, xb_create);
 	trace_xfs_buf_init(bp, _RET_IP_);
 
 	return bp;
@@ -425,12 +426,12 @@ retry:
 					current->comm, current->pid,
 					__func__, gfp_mask);
 
-			XFS_STATS_INC(bp->b_target->bt_mount, xb_page_retries);
+			XFS_STATS_INC(bp->b_mount, xb_page_retries);
 			congestion_wait(BLK_RW_ASYNC, HZ/50);
 			goto retry;
 		}
 
-		XFS_STATS_INC(bp->b_target->bt_mount, xb_page_found);
+		XFS_STATS_INC(bp->b_mount, xb_page_found);
 
 		nbytes = min_t(size_t, size, PAGE_SIZE - offset);
 		size -= nbytes;
@@ -1103,7 +1104,7 @@ xfs_buf_lock(
 	trace_xfs_buf_lock(bp, _RET_IP_);
 
 	if (atomic_read(&bp->b_pin_count) && (bp->b_flags & XBF_STALE))
-		xfs_log_force(bp->b_target->bt_mount, 0);
+		xfs_log_force(bp->b_mount, 0);
 	down(&bp->b_sema);
 
 	trace_xfs_buf_lock_done(bp, _RET_IP_);
@@ -1192,7 +1193,7 @@ xfs_buf_ioend_async(
 	struct xfs_buf	*bp)
 {
 	INIT_WORK(&bp->b_ioend_work, xfs_buf_ioend_work);
-	queue_work(bp->b_target->bt_mount->m_buf_workqueue, &bp->b_ioend_work);
+	queue_work(bp->b_mount->m_buf_workqueue, &bp->b_ioend_work);
 }
 
 void
@@ -1211,7 +1212,7 @@ xfs_buf_ioerror_alert(
 	struct xfs_buf		*bp,
 	const char		*func)
 {
-	xfs_alert(bp->b_target->bt_mount,
+	xfs_alert(bp->b_mount,
 "metadata I/O error in \"%s\" at daddr 0x%llx len %d error %d",
 			func, (uint64_t)XFS_BUF_ADDR(bp), bp->b_length,
 			-bp->b_error);
@@ -1230,10 +1231,8 @@ xfs_bwrite(
 			 XBF_WRITE_FAIL | XBF_DONE);
 
 	error = xfs_buf_submit(bp);
-	if (error) {
-		xfs_force_shutdown(bp->b_target->bt_mount,
-				   SHUTDOWN_META_IO_ERROR);
-	}
+	if (error)
+		xfs_force_shutdown(bp->b_mount, SHUTDOWN_META_IO_ERROR);
 	return error;
 }
 
@@ -1370,12 +1369,12 @@ _xfs_buf_ioapply(
 		if (bp->b_ops) {
 			bp->b_ops->verify_write(bp);
 			if (bp->b_error) {
-				xfs_force_shutdown(bp->b_target->bt_mount,
+				xfs_force_shutdown(bp->b_mount,
 						   SHUTDOWN_CORRUPT_INCORE);
 				return;
 			}
 		} else if (bp->b_bn != XFS_BUF_DADDR_NULL) {
-			struct xfs_mount *mp = bp->b_target->bt_mount;
+			struct xfs_mount *mp = bp->b_mount;
 
 			/*
 			 * non-crc filesystems don't attach verifiers during
@@ -1453,7 +1452,7 @@ __xfs_buf_submit(
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 
 	/* on shutdown we stale and complete the buffer immediately */
-	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
+	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
 		xfs_buf_ioerror(bp, -EIO);
 		bp->b_flags &= ~XBF_DONE;
 		xfs_buf_stale(bp);
@@ -2093,8 +2092,7 @@ void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 	 * This allows userspace to disrupt buffer caching for debug/testing
 	 * purposes.
 	 */
-	if (XFS_TEST_ERROR(false, bp->b_target->bt_mount,
-			   XFS_ERRTAG_BUF_LRU_REF))
+	if (XFS_TEST_ERROR(false, bp->b_mount, XFS_ERRTAG_BUF_LRU_REF))
 		lru_ref = 0;
 
 	atomic_set(&bp->b_lru_ref, lru_ref);
@@ -2110,7 +2108,7 @@ xfs_verify_magic(
 	struct xfs_buf		*bp,
 	__be32			dmagic)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	int			idx;
 
 	idx = xfs_sb_version_hascrc(&mp->m_sb);
@@ -2128,7 +2126,7 @@ xfs_verify_magic16(
 	struct xfs_buf		*bp,
 	__be16			dmagic)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	int			idx;
 
 	idx = xfs_sb_version_hascrc(&mp->m_sb);

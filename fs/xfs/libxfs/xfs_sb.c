@@ -686,7 +686,7 @@ xfs_sb_read_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_sb		sb;
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_dsb		*dsb = XFS_BUF_TO_SBP(bp);
 	int			error;
 
@@ -752,7 +752,7 @@ xfs_sb_write_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_sb		sb;
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	int			error;
 

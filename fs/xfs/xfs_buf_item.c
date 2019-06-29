@@ -521,7 +521,7 @@ xfs_buf_item_push(
 	/* has a previous flush failed due to IO errors? */
 	if ((bp->b_flags & XBF_WRITE_FAIL) &&
 	    ___ratelimit(&xfs_buf_write_fail_rl_state, "XFS: Failing async write")) {
-		xfs_warn(bp->b_target->bt_mount,
+		xfs_warn(bp->b_mount,
 "Failing async write on buffer block 0x%llx. Retrying async write.",
 			 (long long)bp->b_bn);
 	}
@@ -744,7 +744,7 @@ xfs_buf_item_init(
 	 * this buffer. If we do already have one, there is
 	 * nothing to do here so return.
 	 */
-	ASSERT(bp->b_target->bt_mount == mp);
+	ASSERT(bp->b_mount == mp);
 	if (bip) {
 		ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
 		ASSERT(!bp->b_transp);

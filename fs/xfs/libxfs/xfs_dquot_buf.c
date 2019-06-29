@@ -224,7 +224,7 @@ static xfs_failaddr_t
 xfs_dquot_buf_verify_struct(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 
 	return xfs_dquot_buf_verify(mp, bp, false);
 }
@@ -233,7 +233,7 @@ static void
 xfs_dquot_buf_read_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 
 	if (!xfs_dquot_buf_verify_crc(mp, bp, false))
 		return;
@@ -250,7 +250,7 @@ static void
 xfs_dquot_buf_readahead_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 
 	if (!xfs_dquot_buf_verify_crc(mp, bp, true) ||
 	    xfs_dquot_buf_verify(mp, bp, true) != NULL) {
@@ -268,7 +268,7 @@ static void
 xfs_dquot_buf_write_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 
 	xfs_dquot_buf_verify(mp, bp, false);
 }

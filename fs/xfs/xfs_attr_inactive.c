@@ -121,7 +121,7 @@ xfs_attr3_leaf_inactive(
 	int			size;
 	int			tmp;
 	int			i;
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 
 	leaf = bp->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);

@@ -51,14 +51,13 @@ __xfs_dir3_data_check(
 	int			i;		/* leaf index */
 	int			lastfree;	/* last entry was unused */
 	xfs_dir2_leaf_entry_t	*lep=NULL;	/* block leaf entries */
-	xfs_mount_t		*mp;		/* filesystem mount point */
+	struct xfs_mount	*mp = bp->b_mount;
 	char			*p;		/* current data position */
 	int			stale;		/* count of stale leaves */
 	struct xfs_name		name;
 	const struct xfs_dir_ops *ops;
 	struct xfs_da_geometry	*geo;
 
-	mp = bp->b_target->bt_mount;
 	geo = mp->m_dir_geo;
 
 	/*
@@ -250,7 +249,7 @@ static xfs_failaddr_t
 xfs_dir3_data_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
 	if (!xfs_verify_magic(bp, hdr3->magic))
@@ -299,7 +298,7 @@ static void
 xfs_dir3_data_read_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	xfs_failaddr_t		fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
@@ -316,7 +315,7 @@ static void
 xfs_dir3_data_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;

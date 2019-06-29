@@ -111,7 +111,7 @@ __xfs_attr3_rmt_read_verify(
 	bool		check_crc,
 	xfs_failaddr_t	*failaddr)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount *mp = bp->b_mount;
 	char		*ptr;
 	int		len;
 	xfs_daddr_t	bno;
@@ -175,7 +175,7 @@ static void
 xfs_attr3_rmt_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount *mp = bp->b_mount;
 	xfs_failaddr_t	fa;
 	int		blksize = mp->m_attr_geo->blksize;
 	char		*ptr;

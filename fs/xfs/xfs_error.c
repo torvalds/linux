@@ -354,7 +354,7 @@ xfs_buf_verifier_error(
 	size_t			bufsz,
 	xfs_failaddr_t		failaddr)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	xfs_failaddr_t		fa;
 	int			sz;
 
