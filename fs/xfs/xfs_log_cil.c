@@ -577,10 +577,9 @@ xlog_discard_busy_extents(
  */
 static void
 xlog_cil_committed(
-	void	*args,
-	bool	abort)
+	struct xfs_cil_ctx	*ctx,
+	bool			abort)
 {
-	struct xfs_cil_ctx	*ctx = args;
 	struct xfs_mount	*mp = ctx->cil->xc_log->l_mp;
 
 	/*
@@ -613,6 +612,20 @@ xlog_cil_committed(
 		xlog_discard_busy_extents(mp, ctx);
 	else
 		kmem_free(ctx);
+}
+
+void
+xlog_cil_process_committed(
+	struct list_head	*list,
+	bool			aborted)
+{
+	struct xfs_cil_ctx	*ctx;
+
+	while ((ctx = list_first_entry_or_null(list,
+			struct xfs_cil_ctx, iclog_entry))) {
+		list_del(&ctx->iclog_entry);
+		xlog_cil_committed(ctx, aborted);
+	}
 }
 
 /*
@@ -836,12 +849,15 @@ restart:
 	if (commit_lsn == -1)
 		goto out_abort;
 
-	/* attach all the transactions w/ busy extents to iclog */
-	ctx->log_cb.cb_func = xlog_cil_committed;
-	ctx->log_cb.cb_arg = ctx;
-	error = xfs_log_notify(commit_iclog, &ctx->log_cb);
-	if (error)
+	spin_lock(&commit_iclog->ic_callback_lock);
+	if (commit_iclog->ic_state & XLOG_STATE_IOERROR) {
+		spin_unlock(&commit_iclog->ic_callback_lock);
 		goto out_abort;
+	}
+	ASSERT_ALWAYS(commit_iclog->ic_state == XLOG_STATE_ACTIVE ||
+		      commit_iclog->ic_state == XLOG_STATE_WANT_SYNC);
+	list_add_tail(&ctx->iclog_entry, &commit_iclog->ic_callbacks);
+	spin_unlock(&commit_iclog->ic_callback_lock);
 
 	/*
 	 * now the checkpoint commit is complete and we've attached the

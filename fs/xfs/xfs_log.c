@@ -533,32 +533,6 @@ xfs_log_done(
 	return lsn;
 }
 
-/*
- * Attaches a new iclog I/O completion callback routine during
- * transaction commit.  If the log is in error state, a non-zero
- * return code is handed back and the caller is responsible for
- * executing the callback at an appropriate time.
- */
-int
-xfs_log_notify(
-	struct xlog_in_core	*iclog,
-	xfs_log_callback_t	*cb)
-{
-	int	abortflg;
-
-	spin_lock(&iclog->ic_callback_lock);
-	abortflg = (iclog->ic_state & XLOG_STATE_IOERROR);
-	if (!abortflg) {
-		ASSERT_ALWAYS((iclog->ic_state == XLOG_STATE_ACTIVE) ||
-			      (iclog->ic_state == XLOG_STATE_WANT_SYNC));
-		cb->cb_next = NULL;
-		*(iclog->ic_callback_tail) = cb;
-		iclog->ic_callback_tail = &(cb->cb_next);
-	}
-	spin_unlock(&iclog->ic_callback_lock);
-	return abortflg;
-}
-
 int
 xfs_log_release_iclog(
 	struct xfs_mount	*mp,
@@ -1473,7 +1447,7 @@ xlog_alloc_log(
 		iclog->ic_log = log;
 		atomic_set(&iclog->ic_refcnt, 0);
 		spin_lock_init(&iclog->ic_callback_lock);
-		iclog->ic_callback_tail = &(iclog->ic_callback);
+		INIT_LIST_HEAD(&iclog->ic_callbacks);
 		iclog->ic_datap = (char *)iclog->ic_data + log->l_iclog_hsize;
 
 		init_waitqueue_head(&iclog->ic_force_wait);
@@ -2552,7 +2526,7 @@ xlog_state_clean_log(
 		if (iclog->ic_state == XLOG_STATE_DIRTY) {
 			iclog->ic_state	= XLOG_STATE_ACTIVE;
 			iclog->ic_offset       = 0;
-			ASSERT(iclog->ic_callback == NULL);
+			ASSERT(list_empty_careful(&iclog->ic_callbacks));
 			/*
 			 * If the number of ops in this iclog indicate it just
 			 * contains the dummy transaction, we can
@@ -2648,7 +2622,6 @@ xlog_state_do_callback(
 	xlog_in_core_t	   *iclog;
 	xlog_in_core_t	   *first_iclog;	/* used to know when we've
 						 * processed all iclogs once */
-	xfs_log_callback_t *cb, *cb_next;
 	int		   flushcnt = 0;
 	xfs_lsn_t	   lowest_lsn;
 	int		   ioerrors;	/* counter: iclogs with errors */
@@ -2759,7 +2732,7 @@ xlog_state_do_callback(
 				 */
 				ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
 					be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
-				if (iclog->ic_callback)
+				if (!list_empty_careful(&iclog->ic_callbacks))
 					atomic64_set(&log->l_last_sync_lsn,
 						be64_to_cpu(iclog->ic_header.h_lsn));
 
@@ -2776,26 +2749,20 @@ xlog_state_do_callback(
 			 * callbacks being added.
 			 */
 			spin_lock(&iclog->ic_callback_lock);
-			cb = iclog->ic_callback;
-			while (cb) {
-				iclog->ic_callback_tail = &(iclog->ic_callback);
-				iclog->ic_callback = NULL;
-				spin_unlock(&iclog->ic_callback_lock);
+			while (!list_empty(&iclog->ic_callbacks)) {
+				LIST_HEAD(tmp);
 
-				/* perform callbacks in the order given */
-				for (; cb; cb = cb_next) {
-					cb_next = cb->cb_next;
-					cb->cb_func(cb->cb_arg, aborted);
-				}
+				list_splice_init(&iclog->ic_callbacks, &tmp);
+
+				spin_unlock(&iclog->ic_callback_lock);
+				xlog_cil_process_committed(&tmp, aborted);
 				spin_lock(&iclog->ic_callback_lock);
-				cb = iclog->ic_callback;
 			}
 
 			loopdidcallbacks++;
 			funcdidcallbacks++;
 
 			spin_lock(&log->l_icloglock);
-			ASSERT(iclog->ic_callback == NULL);
 			spin_unlock(&iclog->ic_callback_lock);
 			if (!(iclog->ic_state & XLOG_STATE_IOERROR))
 				iclog->ic_state = XLOG_STATE_DIRTY;

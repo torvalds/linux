@@ -10,7 +10,6 @@ struct xfs_buf;
 struct xlog;
 struct xlog_ticket;
 struct xfs_mount;
-struct xfs_log_callback;
 
 /*
  * Flags for log structure
@@ -179,8 +178,6 @@ typedef struct xlog_ticket {
  * - ic_forcewait is used to implement synchronous forcing of the iclog to disk.
  * - ic_next is the pointer to the next iclog in the ring.
  * - ic_log is a pointer back to the global log structure.
- * - ic_callback is a linked list of callback function/argument pairs to be
- *	called after an iclog finishes writing.
  * - ic_size is the full size of the log buffer, minus the cycle headers.
  * - ic_io_size is the size of the currently pending log buffer write, which
  *	might be smaller than ic_size
@@ -193,7 +190,7 @@ typedef struct xlog_ticket {
  * structure cacheline aligned. The following fields can be contended on
  * by independent processes:
  *
- *	- ic_callback_*
+ *	- ic_callbacks
  *	- ic_refcnt
  *	- fields protected by the global l_icloglock
  *
@@ -215,8 +212,7 @@ typedef struct xlog_in_core {
 
 	/* Callback structures need their own cacheline */
 	spinlock_t		ic_callback_lock ____cacheline_aligned_in_smp;
-	struct xfs_log_callback	*ic_callback;
-	struct xfs_log_callback	**ic_callback_tail;
+	struct list_head	ic_callbacks;
 
 	/* reference counts need their own cacheline */
 	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
@@ -249,7 +245,7 @@ struct xfs_cil_ctx {
 	int			space_used;	/* aggregate size of regions */
 	struct list_head	busy_extents;	/* busy extents in chkpt */
 	struct xfs_log_vec	*lv_chain;	/* logvecs being pushed */
-	struct xfs_log_callback	log_cb;		/* completion callback hook. */
+	struct list_head	iclog_entry;
 	struct list_head	committing;	/* ctx committing list */
 	struct work_struct	discard_endio_work;
 };
