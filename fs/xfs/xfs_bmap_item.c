@@ -120,11 +120,10 @@ xfs_bui_item_unpin(
  * constructed and thus we free the BUI here directly.
  */
 STATIC void
-xfs_bui_item_unlock(
+xfs_bui_item_release(
 	struct xfs_log_item	*lip)
 {
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
-		xfs_bui_release(BUI_ITEM(lip));
+	xfs_bui_release(BUI_ITEM(lip));
 }
 
 /*
@@ -134,7 +133,7 @@ static const struct xfs_item_ops xfs_bui_item_ops = {
 	.iop_size	= xfs_bui_item_size,
 	.iop_format	= xfs_bui_item_format,
 	.iop_unpin	= xfs_bui_item_unpin,
-	.iop_unlock	= xfs_bui_item_unlock,
+	.iop_release	= xfs_bui_item_release,
 };
 
 /*
@@ -201,15 +200,13 @@ xfs_bud_item_format(
  * BUD.
  */
 STATIC void
-xfs_bud_item_unlock(
+xfs_bud_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
 
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
-		xfs_bui_release(budp->bud_buip);
-		kmem_zone_free(xfs_bud_zone, budp);
-	}
+	xfs_bui_release(budp->bud_buip);
+	kmem_zone_free(xfs_bud_zone, budp);
 }
 
 /*
@@ -243,7 +240,7 @@ xfs_bud_item_committed(
 static const struct xfs_item_ops xfs_bud_item_ops = {
 	.iop_size	= xfs_bud_item_size,
 	.iop_format	= xfs_bud_item_format,
-	.iop_unlock	= xfs_bud_item_unlock,
+	.iop_release	= xfs_bud_item_release,
 	.iop_committed	= xfs_bud_item_committed,
 };
 

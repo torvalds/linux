@@ -57,14 +57,10 @@ xfs_icreate_item_format(
 }
 
 STATIC void
-xfs_icreate_item_unlock(
+xfs_icreate_item_release(
 	struct xfs_log_item	*lip)
 {
-	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
-
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
-		kmem_zone_free(xfs_icreate_zone, icp);
-	return;
+	kmem_zone_free(xfs_icreate_zone, ICR_ITEM(lip));
 }
 
 /*
@@ -89,7 +85,7 @@ xfs_icreate_item_committed(
 static const struct xfs_item_ops xfs_icreate_item_ops = {
 	.iop_size	= xfs_icreate_item_size,
 	.iop_format	= xfs_icreate_item_format,
-	.iop_unlock	= xfs_icreate_item_unlock,
+	.iop_release	= xfs_icreate_item_release,
 	.iop_committed	= xfs_icreate_item_committed,
 };
 

@@ -1024,8 +1024,6 @@ xfs_log_commit_cil(
 		xfs_trans_del_item(lip);
 		if (lip->li_ops->iop_committing)
 			lip->li_ops->iop_committing(lip, xc_commit_lsn);
-		if (lip->li_ops->iop_unlock)
-			lip->li_ops->iop_unlock(lip);
 	}
 	xlog_cil_push_background(log);
 

@@ -198,14 +198,8 @@ out_unlock:
 	return rval;
 }
 
-/*
- * Unlock the dquot associated with the log item.
- * Clear the fields of the dquot and dquot log item that
- * are specific to the current transaction.  If the
- * hold flags is set, do not unlock the dquot.
- */
 STATIC void
-xfs_qm_dquot_logitem_unlock(
+xfs_qm_dquot_logitem_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_dquot	*dqp = DQUOT_ITEM(lip)->qli_dquot;
@@ -221,6 +215,14 @@ xfs_qm_dquot_logitem_unlock(
 	xfs_dqunlock(dqp);
 }
 
+STATIC void
+xfs_qm_dquot_logitem_committing(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		commit_lsn)
+{
+	return xfs_qm_dquot_logitem_release(lip);
+}
+
 /*
  * This is the ops vector for dquots
  */
@@ -229,7 +231,8 @@ static const struct xfs_item_ops xfs_dquot_item_ops = {
 	.iop_format	= xfs_qm_dquot_logitem_format,
 	.iop_pin	= xfs_qm_dquot_logitem_pin,
 	.iop_unpin	= xfs_qm_dquot_logitem_unpin,
-	.iop_unlock	= xfs_qm_dquot_logitem_unlock,
+	.iop_release	= xfs_qm_dquot_logitem_release,
+	.iop_committing	= xfs_qm_dquot_logitem_committing,
 	.iop_push	= xfs_qm_dquot_logitem_push,
 	.iop_error	= xfs_dquot_item_error
 };

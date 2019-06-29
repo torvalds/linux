@@ -117,11 +117,10 @@ xfs_rui_item_unpin(
  * constructed and thus we free the RUI here directly.
  */
 STATIC void
-xfs_rui_item_unlock(
+xfs_rui_item_release(
 	struct xfs_log_item	*lip)
 {
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
-		xfs_rui_release(RUI_ITEM(lip));
+	xfs_rui_release(RUI_ITEM(lip));
 }
 
 /*
@@ -131,7 +130,7 @@ static const struct xfs_item_ops xfs_rui_item_ops = {
 	.iop_size	= xfs_rui_item_size,
 	.iop_format	= xfs_rui_item_format,
 	.iop_unpin	= xfs_rui_item_unpin,
-	.iop_unlock	= xfs_rui_item_unlock,
+	.iop_release	= xfs_rui_item_release,
 };
 
 /*
@@ -226,15 +225,13 @@ xfs_rud_item_format(
  * RUD.
  */
 STATIC void
-xfs_rud_item_unlock(
+xfs_rud_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
-		xfs_rui_release(rudp->rud_ruip);
-		kmem_zone_free(xfs_rud_zone, rudp);
-	}
+	xfs_rui_release(rudp->rud_ruip);
+	kmem_zone_free(xfs_rud_zone, rudp);
 }
 
 /*
@@ -268,7 +265,7 @@ xfs_rud_item_committed(
 static const struct xfs_item_ops xfs_rud_item_ops = {
 	.iop_size	= xfs_rud_item_size,
 	.iop_format	= xfs_rud_item_format,
-	.iop_unlock	= xfs_rud_item_unlock,
+	.iop_release	= xfs_rud_item_release,
 	.iop_committed	= xfs_rud_item_committed,
 };
 

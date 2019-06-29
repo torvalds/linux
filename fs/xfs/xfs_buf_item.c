@@ -595,7 +595,7 @@ xfs_buf_item_put(
  * free the item.
  */
 STATIC void
-xfs_buf_item_unlock(
+xfs_buf_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
@@ -610,7 +610,7 @@ xfs_buf_item_unlock(
 						   &lip->li_flags);
 #endif
 
-	trace_xfs_buf_item_unlock(bip);
+	trace_xfs_buf_item_release(bip);
 
 	/*
 	 * The bli dirty state should match whether the blf has logged segments
@@ -638,6 +638,14 @@ xfs_buf_item_unlock(
 		return;
 	ASSERT(!stale || aborted);
 	xfs_buf_relse(bp);
+}
+
+STATIC void
+xfs_buf_item_committing(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		commit_lsn)
+{
+	return xfs_buf_item_release(lip);
 }
 
 /*
@@ -680,7 +688,8 @@ static const struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_format	= xfs_buf_item_format,
 	.iop_pin	= xfs_buf_item_pin,
 	.iop_unpin	= xfs_buf_item_unpin,
-	.iop_unlock	= xfs_buf_item_unlock,
+	.iop_release	= xfs_buf_item_release,
+	.iop_committing	= xfs_buf_item_committing,
 	.iop_committed	= xfs_buf_item_committed,
 	.iop_push	= xfs_buf_item_push,
 };

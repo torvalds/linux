@@ -130,11 +130,10 @@ xfs_efi_item_unpin(
  * constructed and thus we free the EFI here directly.
  */
 STATIC void
-xfs_efi_item_unlock(
+xfs_efi_item_release(
 	struct xfs_log_item	*lip)
 {
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
-		xfs_efi_release(EFI_ITEM(lip));
+	xfs_efi_release(EFI_ITEM(lip));
 }
 
 /*
@@ -144,7 +143,7 @@ static const struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_size	= xfs_efi_item_size,
 	.iop_format	= xfs_efi_item_format,
 	.iop_unpin	= xfs_efi_item_unpin,
-	.iop_unlock	= xfs_efi_item_unlock,
+	.iop_release	= xfs_efi_item_release,
 };
 
 
@@ -300,15 +299,13 @@ xfs_efd_item_format(
  * the transaction is cancelled, drop our reference to the EFI and free the EFD.
  */
 STATIC void
-xfs_efd_item_unlock(
+xfs_efd_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
 
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
-		xfs_efi_release(efdp->efd_efip);
-		xfs_efd_item_free(efdp);
-	}
+	xfs_efi_release(efdp->efd_efip);
+	xfs_efd_item_free(efdp);
 }
 
 /*
@@ -342,7 +339,7 @@ xfs_efd_item_committed(
 static const struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_size	= xfs_efd_item_size,
 	.iop_format	= xfs_efd_item_format,
-	.iop_unlock	= xfs_efd_item_unlock,
+	.iop_release	= xfs_efd_item_release,
 	.iop_committed	= xfs_efd_item_committed,
 };
 

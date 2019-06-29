@@ -118,11 +118,10 @@ xfs_cui_item_unpin(
  * constructed and thus we free the CUI here directly.
  */
 STATIC void
-xfs_cui_item_unlock(
+xfs_cui_item_release(
 	struct xfs_log_item	*lip)
 {
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
-		xfs_cui_release(CUI_ITEM(lip));
+	xfs_cui_release(CUI_ITEM(lip));
 }
 
 /*
@@ -132,7 +131,7 @@ static const struct xfs_item_ops xfs_cui_item_ops = {
 	.iop_size	= xfs_cui_item_size,
 	.iop_format	= xfs_cui_item_format,
 	.iop_unpin	= xfs_cui_item_unpin,
-	.iop_unlock	= xfs_cui_item_unlock,
+	.iop_release	= xfs_cui_item_release,
 };
 
 /*
@@ -205,15 +204,13 @@ xfs_cud_item_format(
  * CUD.
  */
 STATIC void
-xfs_cud_item_unlock(
+xfs_cud_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
 
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
-		xfs_cui_release(cudp->cud_cuip);
-		kmem_zone_free(xfs_cud_zone, cudp);
-	}
+	xfs_cui_release(cudp->cud_cuip);
+	kmem_zone_free(xfs_cud_zone, cudp);
 }
 
 /*
@@ -247,7 +244,7 @@ xfs_cud_item_committed(
 static const struct xfs_item_ops xfs_cud_item_ops = {
 	.iop_size	= xfs_cud_item_size,
 	.iop_format	= xfs_cud_item_format,
-	.iop_unlock	= xfs_cud_item_unlock,
+	.iop_release	= xfs_cud_item_release,
 	.iop_committed	= xfs_cud_item_committed,
 };
 

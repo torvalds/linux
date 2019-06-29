@@ -72,9 +72,9 @@ struct xfs_item_ops {
 	void (*iop_pin)(xfs_log_item_t *);
 	void (*iop_unpin)(xfs_log_item_t *, int remove);
 	uint (*iop_push)(struct xfs_log_item *, struct list_head *);
-	void (*iop_unlock)(xfs_log_item_t *);
+	void (*iop_committing)(struct xfs_log_item *, xfs_lsn_t commit_lsn);
+	void (*iop_release)(struct xfs_log_item *);
 	xfs_lsn_t (*iop_committed)(xfs_log_item_t *, xfs_lsn_t);
-	void (*iop_committing)(xfs_log_item_t *, xfs_lsn_t);
 	void (*iop_error)(xfs_log_item_t *, xfs_buf_t *);
 };
 

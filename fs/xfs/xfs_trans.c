@@ -780,9 +780,8 @@ xfs_trans_free_items(
 		xfs_trans_del_item(lip);
 		if (abort)
 			set_bit(XFS_LI_ABORTED, &lip->li_flags);
-
-		if (lip->li_ops->iop_unlock)
-			lip->li_ops->iop_unlock(lip);
+		if (lip->li_ops->iop_release)
+			lip->li_ops->iop_release(lip);
 	}
 }
 
@@ -815,7 +814,7 @@ xfs_log_item_batch_insert(
  *
  * If we are called with the aborted flag set, it is because a log write during
  * a CIL checkpoint commit has failed. In this case, all the items in the
- * checkpoint have already gone through iop_committed and iop_unlock, which
+ * checkpoint have already gone through iop_committed and iop_committing, which
  * means that checkpoint commit abort handling is treated exactly the same
  * as an iclog write error even though we haven't started any IO yet. Hence in
  * this case all we need to do is iop_committed processing, followed by an

@@ -427,7 +427,7 @@ xfs_trans_brelse(
 
 /*
  * Mark the buffer as not needing to be unlocked when the buf item's
- * iop_unlock() routine is called.  The buffer must already be locked
+ * iop_committing() routine is called.  The buffer must already be locked
  * and associated with the given transaction.
  */
 /* ARGSUSED */
