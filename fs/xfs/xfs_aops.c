@@ -665,7 +665,6 @@ xfs_submit_ioend(
 
 	ioend->io_bio->bi_private = ioend;
 	ioend->io_bio->bi_end_io = xfs_end_bio;
-	ioend->io_bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
 
 	/*
 	 * If we are failing the IO now, just mark the ioend with an
@@ -679,7 +678,6 @@ xfs_submit_ioend(
 		return status;
 	}
 
-	ioend->io_bio->bi_write_hint = ioend->io_inode->i_write_hint;
 	submit_bio(ioend->io_bio);
 	return 0;
 }
@@ -691,7 +689,8 @@ xfs_alloc_ioend(
 	xfs_exntst_t		state,
 	xfs_off_t		offset,
 	struct block_device	*bdev,
-	sector_t		sector)
+	sector_t		sector,
+	struct writeback_control *wbc)
 {
 	struct xfs_ioend	*ioend;
 	struct bio		*bio;
@@ -699,6 +698,8 @@ xfs_alloc_ioend(
 	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, &xfs_ioend_bioset);
 	bio_set_dev(bio, bdev);
 	bio->bi_iter.bi_sector = sector;
+	bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
+	bio->bi_write_hint = inode->i_write_hint;
 
 	ioend = container_of(bio, struct xfs_ioend, io_inline_bio);
 	INIT_LIST_HEAD(&ioend->io_list);
@@ -719,24 +720,22 @@ xfs_alloc_ioend(
  * so that the bi_private linkage is set up in the right direction for the
  * traversal in xfs_destroy_ioend().
  */
-static void
+static struct bio *
 xfs_chain_bio(
-	struct xfs_ioend	*ioend,
-	struct writeback_control *wbc,
-	struct block_device	*bdev,
-	sector_t		sector)
+	struct bio		*prev)
 {
 	struct bio *new;
 
 	new = bio_alloc(GFP_NOFS, BIO_MAX_PAGES);
-	bio_set_dev(new, bdev);
-	new->bi_iter.bi_sector = sector;
-	bio_chain(ioend->io_bio, new);
-	bio_get(ioend->io_bio);		/* for xfs_destroy_ioend */
-	ioend->io_bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
-	ioend->io_bio->bi_write_hint = ioend->io_inode->i_write_hint;
-	submit_bio(ioend->io_bio);
-	ioend->io_bio = new;
+	bio_copy_dev(new, prev);
+	new->bi_iter.bi_sector = bio_end_sector(prev);
+	new->bi_opf = prev->bi_opf;
+	new->bi_write_hint = prev->bi_write_hint;
+
+	bio_chain(prev, new);
+	bio_get(prev);		/* for xfs_destroy_ioend */
+	submit_bio(prev);
+	return new;
 }
 
 /*
@@ -771,14 +770,14 @@ xfs_add_to_ioend(
 		if (wpc->ioend)
 			list_add(&wpc->ioend->io_list, iolist);
 		wpc->ioend = xfs_alloc_ioend(inode, wpc->fork,
-				wpc->imap.br_state, offset, bdev, sector);
+				wpc->imap.br_state, offset, bdev, sector, wbc);
 	}
 
 	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff, true)) {
 		if (iop)
 			atomic_inc(&iop->write_count);
 		if (bio_full(wpc->ioend->io_bio))
-			xfs_chain_bio(wpc->ioend, wbc, bdev, sector);
+			wpc->ioend->io_bio = xfs_chain_bio(wpc->ioend->io_bio);
 		bio_add_page(wpc->ioend->io_bio, page, len, poff);
 	}
 
