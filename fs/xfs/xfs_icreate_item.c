@@ -83,23 +83,12 @@ xfs_icreate_item_committed(
 	return (xfs_lsn_t)-1;
 }
 
-/* item can never get into the AIL */
-STATIC uint
-xfs_icreate_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	ASSERT(0);
-	return XFS_ITEM_SUCCESS;
-}
-
 /*
  * This is the ops vector shared by all buf log items.
  */
 static const struct xfs_item_ops xfs_icreate_item_ops = {
 	.iop_size	= xfs_icreate_item_size,
 	.iop_format	= xfs_icreate_item_format,
-	.iop_push	= xfs_icreate_item_push,
 	.iop_unlock	= xfs_icreate_item_unlock,
 	.iop_committed	= xfs_icreate_item_committed,
 };
