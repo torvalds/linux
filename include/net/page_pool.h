@@ -112,6 +112,15 @@ static inline struct page *page_pool_dev_alloc_pages(struct page_pool *pool)
 	return page_pool_alloc_pages(pool, gfp);
 }
 
+/* get the stored dma direction. A driver might decide to treat this locally and
+ * avoid the extra cache line from page_pool to determine the direction
+ */
+static
+inline enum dma_data_direction page_pool_get_dma_dir(struct page_pool *pool)
+{
+	return pool->p.dma_dir;
+}
+
 struct page_pool *page_pool_create(const struct page_pool_params *params);
 
 void __page_pool_free(struct page_pool *pool);
