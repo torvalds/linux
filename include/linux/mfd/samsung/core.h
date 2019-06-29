@@ -20,6 +20,7 @@
 #define MIN_850_MV		850000
 #define MIN_800_MV		800000
 #define MIN_750_MV		750000
+#define MIN_650_MV		650000
 #define MIN_600_MV		600000
 #define MIN_500_MV		500000
 
