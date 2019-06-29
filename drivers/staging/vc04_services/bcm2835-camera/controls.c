@@ -78,10 +78,10 @@ struct bm2835_mmal_v4l2_ctrl {
 	/* control minimum value or
 	 * mask for MMAL_CONTROL_TYPE_STD_MENU
 	 */
-	s32 min;
-	s32 max; /* maximum value of control */
-	s32 def;  /* default value of control */
-	s32 step; /* step size of the control */
+	s64 min;
+	s64 max; /* maximum value of control */
+	s64 def;  /* default value of control */
+	u64 step; /* step size of the control */
 	const s64 *imenu; /* integer menu array */
 	u32 mmal_id; /* mmal parameter id */
 	bm2835_mmal_v4l2_ctrl_cb *setter;
@@ -1250,7 +1250,7 @@ int bm2835_mmal_init_controls(struct bm2835_mmal_dev *dev,
 
 		case MMAL_CONTROL_TYPE_STD_MENU:
 		{
-			int mask = ctrl->min;
+			u64 mask = ctrl->min;
 
 			if (ctrl->id == V4L2_CID_SCENE_MODE) {
 				/* Special handling to work out the mask
@@ -1260,11 +1260,11 @@ int bm2835_mmal_init_controls(struct bm2835_mmal_dev *dev,
 				 */
 				int i;
 
-				mask = 1 << V4L2_SCENE_MODE_NONE;
+				mask = BIT(V4L2_SCENE_MODE_NONE);
 				for (i = 0;
 				     i < ARRAY_SIZE(scene_configs);
 				     i++) {
-					mask |= 1 << scene_configs[i].v4l2_scene;
+					mask |= BIT(scene_configs[i].v4l2_scene);
 				}
 				mask = ~mask;
 			}
