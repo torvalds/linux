@@ -2126,14 +2126,20 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 				goto next;
 		}
 
-		if (filter->dump_routes && !s_fa) {
-			err = fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
-					    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
-					    tb->tb_id, fa->fa_type,
-					    xkey, KEYLENGTH - fa->fa_slen,
-					    fa->fa_tos, fi, flags);
-			if (err < 0)
-				goto stop;
+		if (filter->dump_routes) {
+			if (!s_fa) {
+				err = fib_dump_info(skb,
+						    NETLINK_CB(cb->skb).portid,
+						    cb->nlh->nlmsg_seq,
+						    RTM_NEWROUTE,
+						    tb->tb_id, fa->fa_type,
+						    xkey,
+						    KEYLENGTH - fa->fa_slen,
+						    fa->fa_tos, fi, flags);
+				if (err < 0)
+					goto stop;
+			}
+
 			i_fa++;
 		}
 
