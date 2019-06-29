@@ -76,27 +76,6 @@ static inline bool rcu_segcblist_restempty(struct rcu_segcblist *rsclp, int seg)
 	return !*rsclp->tails[seg];
 }
 
-/*
- * Interim function to return rcu_segcblist head pointer.  Longer term, the
- * rcu_segcblist will be used more pervasively, removing the need for this
- * function.
- */
-static inline struct rcu_head *rcu_segcblist_head(struct rcu_segcblist *rsclp)
-{
-	return rsclp->head;
-}
-
-/*
- * Interim function to return rcu_segcblist head pointer.  Longer term, the
- * rcu_segcblist will be used more pervasively, removing the need for this
- * function.
- */
-static inline struct rcu_head **rcu_segcblist_tail(struct rcu_segcblist *rsclp)
-{
-	WARN_ON_ONCE(rcu_segcblist_empty(rsclp));
-	return rsclp->tails[RCU_NEXT_TAIL];
-}
-
 void rcu_segcblist_init(struct rcu_segcblist *rsclp);
 void rcu_segcblist_disable(struct rcu_segcblist *rsclp);
 bool rcu_segcblist_ready_cbs(struct rcu_segcblist *rsclp);
