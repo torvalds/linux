@@ -217,22 +217,20 @@ static const struct xfs_item_ops xfs_cud_item_ops = {
 	.iop_release	= xfs_cud_item_release,
 };
 
-/*
- * Allocate and initialize an cud item with the given number of extents.
- */
 struct xfs_cud_log_item *
-xfs_cud_init(
-	struct xfs_mount		*mp,
+xfs_trans_get_cud(
+	struct xfs_trans		*tp,
 	struct xfs_cui_log_item		*cuip)
-
 {
-	struct xfs_cud_log_item	*cudp;
+	struct xfs_cud_log_item		*cudp;
 
 	cudp = kmem_zone_zalloc(xfs_cud_zone, KM_SLEEP);
-	xfs_log_item_init(mp, &cudp->cud_item, XFS_LI_CUD, &xfs_cud_item_ops);
+	xfs_log_item_init(tp->t_mountp, &cudp->cud_item, XFS_LI_CUD,
+			  &xfs_cud_item_ops);
 	cudp->cud_cuip = cuip;
 	cudp->cud_format.cud_cui_id = cuip->cui_format.cui_id;
 
+	xfs_trans_add_item(tp, &cudp->cud_item);
 	return cudp;
 }
 

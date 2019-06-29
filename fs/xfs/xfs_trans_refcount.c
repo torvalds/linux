@@ -18,22 +18,6 @@
 #include "xfs_refcount.h"
 
 /*
- * This routine is called to allocate a "refcount update done"
- * log item.
- */
-struct xfs_cud_log_item *
-xfs_trans_get_cud(
-	struct xfs_trans		*tp,
-	struct xfs_cui_log_item		*cuip)
-{
-	struct xfs_cud_log_item		*cudp;
-
-	cudp = xfs_cud_init(tp->t_mountp, cuip);
-	xfs_trans_add_item(tp, &cudp->cud_item);
-	return cudp;
-}
-
-/*
  * Finish an refcount update and log it to the CUD. Note that the
  * transaction is marked dirty regardless of whether the refcount
  * update succeeds or fails to support the CUI/CUD lifecycle rules.
