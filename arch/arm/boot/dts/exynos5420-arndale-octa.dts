@@ -723,15 +723,15 @@
 
 			buck7_reg: BUCK7 {
 				regulator-name = "VIN_LLDO_1V4";
-				regulator-min-microvolt = <800000>;
+				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 			};
 
 			buck8_reg: BUCK8 {
 				regulator-name = "VIN_MLDO_2V0";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <2000000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <2100000>;
 				regulator-always-on;
 			};
 
