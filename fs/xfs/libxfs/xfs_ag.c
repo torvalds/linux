@@ -56,6 +56,21 @@ xfs_btroot_init(
 	xfs_btree_init_block(mp, bp, id->type, 0, 0, id->agno);
 }
 
+/* Finish initializing a free space btree. */
+static void
+xfs_freesp_init_recs(
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp,
+	struct aghdr_init_data	*id)
+{
+	struct xfs_alloc_rec	*arec;
+
+	arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
+	arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
+	arec->ar_blockcount = cpu_to_be32(id->agsize -
+					  be32_to_cpu(arec->ar_startblock));
+}
+
 /*
  * Alloc btree root block init functions
  */
@@ -65,13 +80,8 @@ xfs_bnoroot_init(
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	struct xfs_alloc_rec	*arec;
-
 	xfs_btree_init_block(mp, bp, XFS_BTNUM_BNO, 0, 1, id->agno);
-	arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
-	arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
-	arec->ar_blockcount = cpu_to_be32(id->agsize -
-					  be32_to_cpu(arec->ar_startblock));
+	xfs_freesp_init_recs(mp, bp, id);
 }
 
 static void
@@ -80,13 +90,8 @@ xfs_cntroot_init(
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	struct xfs_alloc_rec	*arec;
-
 	xfs_btree_init_block(mp, bp, XFS_BTNUM_CNT, 0, 1, id->agno);
-	arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
-	arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
-	arec->ar_blockcount = cpu_to_be32(id->agsize -
-					  be32_to_cpu(arec->ar_startblock));
+	xfs_freesp_init_recs(mp, bp, id);
 }
 
 /*
