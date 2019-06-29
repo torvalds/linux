@@ -1583,92 +1583,80 @@ out_nominleft:
 }
 
 /*
- * Deal with the case where only small freespaces remain.
- * Either return the contents of the last freespace record,
- * or allocate space from the freelist if there is nothing in the tree.
+ * Deal with the case where only small freespaces remain. Either return the
+ * contents of the last freespace record, or allocate space from the freelist if
+ * there is nothing in the tree.
  */
 STATIC int			/* error */
 xfs_alloc_ag_vextent_small(
-	xfs_alloc_arg_t	*args,	/* allocation argument structure */
-	xfs_btree_cur_t	*ccur,	/* by-size cursor */
-	xfs_agblock_t	*fbnop,	/* result block number */
-	xfs_extlen_t	*flenp,	/* result length */
-	int		*stat)	/* status: 0-freelist, 1-normal/none */
+	struct xfs_alloc_arg	*args,	/* allocation argument structure */
+	struct xfs_btree_cur	*ccur,	/* optional by-size cursor */
+	xfs_agblock_t		*fbnop,	/* result block number */
+	xfs_extlen_t		*flenp,	/* result length */
+	int			*stat)	/* status: 0-freelist, 1-normal/none */
 {
-	int		error;
-	xfs_agblock_t	fbno;
-	xfs_extlen_t	flen;
-	int		i;
+	int			error = 0;
+	xfs_agblock_t		fbno = NULLAGBLOCK;
+	xfs_extlen_t		flen = 0;
+	int			i;
 
-	if ((error = xfs_btree_decrement(ccur, 0, &i)))
-		goto error0;
+	error = xfs_btree_decrement(ccur, 0, &i);
+	if (error)
+		goto error;
 	if (i) {
-		if ((error = xfs_alloc_get_rec(ccur, &fbno, &flen, &i)))
-			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
-	}
-	/*
-	 * Nothing in the btree, try the freelist.  Make sure
-	 * to respect minleft even when pulling from the
-	 * freelist.
-	 */
-	else if (args->minlen == 1 && args->alignment == 1 &&
-		 args->resv != XFS_AG_RESV_AGFL &&
-		 (be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_flcount)
-		  > args->minleft)) {
-		error = xfs_alloc_get_freelist(args->tp, args->agbp, &fbno, 0);
+		error = xfs_alloc_get_rec(ccur, &fbno, &flen, &i);
 		if (error)
-			goto error0;
-		if (fbno != NULLAGBLOCK) {
-			xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
+			goto error;
+		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error);
+		goto out;
+	}
+
+	if (args->minlen != 1 || args->alignment != 1 ||
+	    args->resv == XFS_AG_RESV_AGFL ||
+	    (be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_flcount) <=
+	     args->minleft))
+		goto out;
+
+	error = xfs_alloc_get_freelist(args->tp, args->agbp, &fbno, 0);
+	if (error)
+		goto error;
+	if (fbno == NULLAGBLOCK)
+		goto out;
+
+	xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
 			      xfs_alloc_allow_busy_reuse(args->datatype));
 
-			if (xfs_alloc_is_userdata(args->datatype)) {
-				xfs_buf_t	*bp;
+	if (xfs_alloc_is_userdata(args->datatype)) {
+		struct xfs_buf	*bp;
 
-				bp = xfs_btree_get_bufs(args->mp, args->tp,
-					args->agno, fbno);
-				if (!bp) {
-					error = -EFSCORRUPTED;
-					goto error0;
-				}
-				xfs_trans_binval(args->tp, bp);
-			}
-			args->len = 1;
-			args->agbno = fbno;
-			XFS_WANT_CORRUPTED_GOTO(args->mp,
-				args->agbno + args->len <=
-				be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
-				error0);
-			args->wasfromfl = 1;
-			trace_xfs_alloc_small_freelist(args);
-
-			/*
-			 * If we're feeding an AGFL block to something that
-			 * doesn't live in the free space, we need to clear
-			 * out the OWN_AG rmap.
-			 */
-			error = xfs_rmap_free(args->tp, args->agbp, args->agno,
-					fbno, 1, &XFS_RMAP_OINFO_AG);
-			if (error)
-				goto error0;
-
-			*stat = 0;
-			return 0;
+		bp = xfs_btree_get_bufs(args->mp, args->tp, args->agno, fbno);
+		if (!bp) {
+			error = -EFSCORRUPTED;
+			goto error;
 		}
-		/*
-		 * Nothing in the freelist.
-		 */
-		else
-			flen = 0;
+		xfs_trans_binval(args->tp, bp);
 	}
+	args->len = 1;
+	args->agbno = fbno;
+	XFS_WANT_CORRUPTED_GOTO(args->mp,
+		fbno < be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
+		error);
+	args->wasfromfl = 1;
+	trace_xfs_alloc_small_freelist(args);
+
 	/*
-	 * Can't allocate from the freelist for some reason.
+	 * If we're feeding an AGFL block to something that doesn't live in the
+	 * free space, we need to clear out the OWN_AG rmap.
 	 */
-	else {
-		fbno = NULLAGBLOCK;
-		flen = 0;
-	}
+	error = xfs_rmap_free(args->tp, args->agbp, args->agno, fbno, 1,
+			      &XFS_RMAP_OINFO_AG);
+	if (error)
+		goto error;
+
+	*stat = 0;
+	return 0;
+
+out:
 	/*
 	 * Can't do the allocation, give up.
 	 */
@@ -1683,7 +1671,7 @@ xfs_alloc_ag_vextent_small(
 	trace_xfs_alloc_small_done(args);
 	return 0;
 
-error0:
+error:
 	trace_xfs_alloc_small_error(args);
 	return error;
 }
