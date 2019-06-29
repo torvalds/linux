@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/regulator/ab3100.c
  *
  * Copyright (C) 2008-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Low-level control of the AB3100 IC Low Dropout (LDO)
  * regulators, external regulator and buck converter
  * Author: Mattias Wallin <mattias.wallin@stericsson.com>

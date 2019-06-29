@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	xt_hashlimit - Netfilter module to limit the number of packets per time
  *	separately for each hashbucket (sourceip/sourceport/dstip/dstport)

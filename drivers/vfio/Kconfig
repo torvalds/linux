@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VFIO_IOMMU_TYPE1
 	tristate
 	depends on VFIO

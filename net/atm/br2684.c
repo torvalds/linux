@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ethernet netdevice using ATM AAL5 as underlying carrier
  * (RFC1483 obsoleted by RFC2684) for Linux

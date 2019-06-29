@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An rtc driver for the Dallas DS1511
  *
  * Copyright (C) 2006 Atsushi Nemoto <anemo@mba.ocn.ne.jp>
  * Copyright (C) 2007 Andrew Sharp <andy.sharp@lsi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Real time clock driver for the Dallas 1511 chip, which also
  * contains a watchdog timer.  There is a tiny amount of code that

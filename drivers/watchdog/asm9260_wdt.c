@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Watchdog driver for Alphascale ASM9260.
  *
  * Copyright (c) 2014 Oleksij Rempel <linux@rempel-privat.de>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/bitops.h>

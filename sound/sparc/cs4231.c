@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for CS4231 sound chips found on Sparcs.
  * Copyright (C) 2002, 2008 David S. Miller <davem@davemloft.net>

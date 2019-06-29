@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
+# SPDX-License-Identifier: GPL-2.0-only
 # (c) 2009, Tom Zanussi <tzanussi@gmail.com>
-# Licensed under the terms of the GNU GPL License version 2
 
 # Display r/w activity for files read/written to for a given program
 

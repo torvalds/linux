@@ -312,9 +312,7 @@ static struct hfi1_ctxtdata *qp_to_rcd(struct rvt_dev_info *rdi,
 	if (qp->ibqp.qp_num == 0)
 		ctxt = 0;
 	else
-		ctxt = ((qp->ibqp.qp_num >> dd->qos_shift) %
-			(dd->n_krcv_queues - 1)) + 1;
-
+		ctxt = hfi1_get_qp_map(dd, qp->ibqp.qp_num >> dd->qos_shift);
 	return dd->rcd[ctxt];
 }
 

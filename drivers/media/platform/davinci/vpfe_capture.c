@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2008-2009 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Driver name : VPFE Capture driver
  *    VPFE Capture driver allows applications to capture and stream video
@@ -23,7 +14,6 @@
  *    YUV data through an in-built analog encoder or Digital LCD port. This
  *    driver is for capture through VPFE. A typical EVM using these SoCs have
  *    following high level configuration.
- *
  *
  *    decoder(TVP5146/		YUV/
  *	     MT9T001)   -->  Raw Bayer RGB ---> MUX -> VPFE (CCDC/ISIF)

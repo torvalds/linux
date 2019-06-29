@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ARCH_HIGHBANK
 	bool "Calxeda ECX-1000/2000 (Highbank/Midway)"
 	depends on ARCH_MULTI_V7

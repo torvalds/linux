@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* MCP23S08 SPI/I2C GPIO driver */
 
 #include <linux/kernel.h>

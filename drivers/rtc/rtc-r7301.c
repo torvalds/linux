@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EPSON TOYOCOM RTC-7301SF/DG Driver
  *

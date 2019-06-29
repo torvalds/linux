@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mm_init.c - Memory initialisation verification and debugging
  *

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This header provides constants for AT91 pmc status.
  *
  * The constants defined in this header are being used in dts.
- *
- * Licensed under GPLv2 or later.
  */
 
 #ifndef _DT_BINDINGS_CLK_AT91_H

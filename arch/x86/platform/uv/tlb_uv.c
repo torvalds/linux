@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	SGI UltraViolet TLB flush routines.
  *
  *	(c) 2008-2014 Cliff Wickman <cpw@sgi.com>, SGI.
- *
- *	This code is released under the GNU General Public License version 2 or
- *	later.
  */
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>

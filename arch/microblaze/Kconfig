@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MICROBLAZE
 	def_bool y
 	select ARCH_32BIT_OFF_T

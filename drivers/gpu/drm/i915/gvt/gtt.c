@@ -53,13 +53,19 @@ static int preallocated_oos_pages = 8192;
  */
 bool intel_gvt_ggtt_validate_range(struct intel_vgpu *vgpu, u64 addr, u32 size)
 {
-	if ((!vgpu_gmadr_is_valid(vgpu, addr)) || (size
-			&& !vgpu_gmadr_is_valid(vgpu, addr + size - 1))) {
-		gvt_vgpu_err("invalid range gmadr 0x%llx size 0x%x\n",
-				addr, size);
-		return false;
-	}
-	return true;
+	if (size == 0)
+		return vgpu_gmadr_is_valid(vgpu, addr);
+
+	if (vgpu_gmadr_is_aperture(vgpu, addr) &&
+	    vgpu_gmadr_is_aperture(vgpu, addr + size - 1))
+		return true;
+	else if (vgpu_gmadr_is_hidden(vgpu, addr) &&
+		 vgpu_gmadr_is_hidden(vgpu, addr + size - 1))
+		return true;
+
+	gvt_dbg_mm("Invalid ggtt range at 0x%llx, size: 0x%x\n",
+		     addr, size);
+	return false;
 }
 
 /* translate a guest gmadr to host gmadr */
@@ -942,7 +948,16 @@ static int ppgtt_invalidate_spt_by_shadow_entry(struct intel_vgpu *vgpu,
 
 	if (e->type != GTT_TYPE_PPGTT_ROOT_L3_ENTRY
 		&& e->type != GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
-		cur_pt_type = get_next_pt_type(e->type) + 1;
+		cur_pt_type = get_next_pt_type(e->type);
+
+		if (!gtt_type_is_pt(cur_pt_type) ||
+				!gtt_type_is_pt(cur_pt_type + 1)) {
+			WARN(1, "Invalid page table type, cur_pt_type is: %d\n", cur_pt_type);
+			return -EINVAL;
+		}
+
+		cur_pt_type += 1;
+
 		if (ops->get_pfn(e) ==
 			vgpu->gtt.scratch_pt[cur_pt_type].page_mfn)
 			return 0;
@@ -1076,8 +1091,10 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 	} else {
 		int type = get_next_pt_type(we->type);
 
-		if (!gtt_type_is_pt(type))
+		if (!gtt_type_is_pt(type)) {
+			ret = -EINVAL;
 			goto err;
+		}
 
 		spt = ppgtt_alloc_spt_gfn(vgpu, type, ops->get_pfn(we), ips);
 		if (IS_ERR(spt)) {
@@ -1100,6 +1117,7 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 
 err_free_spt:
 	ppgtt_free_spt(spt);
+	spt = NULL;
 err:
 	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
 		     spt, we->val64, we->type);
@@ -2181,7 +2199,8 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	struct intel_gvt_gtt_pte_ops *ops = gvt->gtt.pte_ops;
 	unsigned long g_gtt_index = off >> info->gtt_entry_size_shift;
 	unsigned long gma, gfn;
-	struct intel_gvt_gtt_entry e, m;
+	struct intel_gvt_gtt_entry e = {.val64 = 0, .type = GTT_TYPE_GGTT_PTE};
+	struct intel_gvt_gtt_entry m = {.val64 = 0, .type = GTT_TYPE_GGTT_PTE};
 	dma_addr_t dma_addr;
 	int ret;
 	struct intel_gvt_partial_pte *partial_pte, *pos, *n;
@@ -2248,7 +2267,8 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 
 	if (!partial_update && (ops->test_present(&e))) {
 		gfn = ops->get_pfn(&e);
-		m = e;
+		m.val64 = e.val64;
+		m.type = e.type;
 
 		/* one PTE update may be issued in multiple writes and the
 		 * first write may not construct a valid gfn

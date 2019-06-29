@@ -15,7 +15,7 @@ Optional properties:
 	- power-supply: specifies the power source. It can either be a regulator
 	  or a gpio which enables a regulator, i.e. a regulator-fixed as
 	  described in
-	  Documentation/devicetree/bindings/regulator/fixed-regulator.txt
+	  Documentation/devicetree/bindings/regulator/fixed-regulator.yaml
 
 Example:
 

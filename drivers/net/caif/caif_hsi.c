@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:  Daniel Martensson
  *	    Dmitry.Tarnyagin  / dmitry.tarnyagin@lockless.no
- * License terms: GNU General Public License (GPL) version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME fmt

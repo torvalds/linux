@@ -822,7 +822,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	struct ap_message ap_msg;
 	unsigned int weight, pref_weight;
 	unsigned int func_code;
-	unsigned short *domain;
+	unsigned short *domain, tdom;
 	int qid = 0, rc = -ENODEV;
 	struct module *mod;
 
@@ -833,6 +833,17 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	rc = get_cprb_fc(xcRB, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
+
+	/*
+	 * If a valid target domain is set and this domain is NOT a usage
+	 * domain but a control only domain, use the default domain as target.
+	 */
+	tdom = *domain;
+	if (tdom >= 0 && tdom < AP_DOMAINS &&
+	    !ap_test_config_usage_domain(tdom) &&
+	    ap_test_config_ctrl_domain(tdom) &&
+	    ap_domain_index >= 0)
+		tdom = ap_domain_index;
 
 	pref_zc = NULL;
 	pref_zq = NULL;
@@ -856,8 +867,8 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 			/* check if device is online and eligible */
 			if (!zq->online ||
 			    !zq->ops->send_cprb ||
-			    ((*domain != (unsigned short) AUTOSELECT) &&
-			     (*domain != AP_QID_QUEUE(zq->queue->qid))))
+			    (tdom != (unsigned short) AUTOSELECT &&
+			     tdom != AP_QID_QUEUE(zq->queue->qid)))
 				continue;
 			/* check if device node has admission for this queue */
 			if (!zcrypt_check_queue(perms,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
 *                  QLOGIC LINUX SOFTWARE
 *
@@ -5,16 +6,6 @@
 * Copyright (C) 2000 Qlogic Corporation (www.qlogic.com)
 * Copyright (C) 2001-2004 Jes Sorensen, Wild Open Source Inc.
 * Copyright (C) 2003-2004 Christoph Hellwig
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2, or (at your option) any
-* later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
 *
 ******************************************************************************/
 #define QLA1280_VERSION      "3.27.1"

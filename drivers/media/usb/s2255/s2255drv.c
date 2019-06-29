@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  s2255drv.c - a driver for the Sensoray 2255 USB video capture device
  *
@@ -20,16 +21,6 @@
  * -half size, color mode YUYV or YUV422P: all 4 channels at once
  * -full size, color mode YUYV or YUV422P 1/2 frame rate: all 4 channels
  *  at once.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>

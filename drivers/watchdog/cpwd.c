@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* cpwd.c - driver implementation for hardware watchdog
  * timers found on Sun Microsystems CP1400 and CP1500 boards.
  *

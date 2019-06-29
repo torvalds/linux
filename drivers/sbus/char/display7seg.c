@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* display7seg.c - Driver implementation for the 7-segment display
  *                 present on Sun Microsystems CP1400 and CP1500
  *

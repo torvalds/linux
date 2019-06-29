@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* net/sched/sch_dsmark.c - Differentiated Services field marker */
 
 /* Written 1998-2000 by Werner Almesberger, EPFL ICA */

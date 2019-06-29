@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CE4100's SPI device is more or less the same one as found on PXA
  *

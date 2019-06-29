@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*======================================================================
 
   This driver provides a method to access memory not used by the kernel

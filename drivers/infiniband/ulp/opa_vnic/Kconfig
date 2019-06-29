@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_OPA_VNIC
 	tristate "Intel OPA VNIC support"
 	depends on X86_64 && INFINIBAND

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/watchdog/shwdt.c
  *
  * Watchdog driver for integrated watchdog in the SuperH processors.
  *
  * Copyright (C) 2001 - 2012  Paul Mundt <lethal@linux-sh.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * 14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
  *     Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT

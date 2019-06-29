@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OF-platform PATA driver
  *
  * Copyright (c) 2007  MontaVista Software, Inc.
  *                     Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

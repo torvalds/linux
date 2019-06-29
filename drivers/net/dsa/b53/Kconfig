@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig B53
 	tristate "Broadcom BCM53xx managed switch support"
 	depends on NET_DSA

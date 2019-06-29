@@ -652,16 +652,6 @@ static int sja1105_speed[] = {
 	[SJA1105_SPEED_1000MBPS] = 1000,
 };
 
-static sja1105_speed_t sja1105_get_speed_cfg(unsigned int speed_mbps)
-{
-	int i;
-
-	for (i = SJA1105_SPEED_AUTO; i <= SJA1105_SPEED_1000MBPS; i++)
-		if (sja1105_speed[i] == speed_mbps)
-			return i;
-	return -EINVAL;
-}
-
 /* Set link speed and enable/disable traffic I/O in the MAC configuration
  * for a specific port.
  *
@@ -684,8 +674,21 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
-	speed = sja1105_get_speed_cfg(speed_mbps);
-	if (speed_mbps && speed < 0) {
+	switch (speed_mbps) {
+	case 0:
+		/* No speed update requested */
+		speed = SJA1105_SPEED_AUTO;
+		break;
+	case 10:
+		speed = SJA1105_SPEED_10MBPS;
+		break;
+	case 100:
+		speed = SJA1105_SPEED_100MBPS;
+		break;
+	case 1000:
+		speed = SJA1105_SPEED_1000MBPS;
+		break;
+	default:
 		dev_err(dev, "Invalid speed %iMbps\n", speed_mbps);
 		return -EINVAL;
 	}
@@ -695,10 +698,7 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	 * and we no longer need to store it in the static config (already told
 	 * hardware we want auto during upload phase).
 	 */
-	if (speed_mbps)
-		mac[port].speed = speed;
-	else
-		mac[port].speed = SJA1105_SPEED_AUTO;
+	mac[port].speed = speed;
 
 	/* On P/Q/R/S, one can read from the device via the MAC reconfiguration
 	 * tables. On E/T, MAC reconfig tables are not readable, only writable.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Pixart PAC7302 driver
  *
@@ -7,16 +8,6 @@
  * Separated from Pixart PAC7311 library by Márton Németh
  * Camera button input handling by Márton Németh <nm127@freemail.hu>
  * Copyright (C) 2009-2010 Márton Németh <nm127@freemail.hu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 /*

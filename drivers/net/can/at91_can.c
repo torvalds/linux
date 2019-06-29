@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91_can.c - CAN network driver for AT91 SoC CAN controller
  *
  * (C) 2007 by Hans J. Koch <hjk@hansjkoch.de>
  * (C) 2008, 2009, 2010, 2011 by Marc Kleine-Budde <kernel@pengutronix.de>
- *
- * This software may be distributed under the terms of the GNU General
- * Public License ("GPL") version 2 as distributed in the 'COPYING'
- * file from the main directory of the linux kernel source.
- *
  */
 
 #include <linux/clk.h>

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) 2012 by Pablo Neira Ayuso <pablo@netfilter.org>
  * (C) 2012 by Vyatta Inc. <http://www.vyatta.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation (or any later at your option).
  */
 #include <linux/init.h>
 #include <linux/module.h>

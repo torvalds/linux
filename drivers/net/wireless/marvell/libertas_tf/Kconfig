@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config LIBERTAS_THINFIRM
 	tristate "Marvell 8xxx Libertas WLAN driver support with thin firmware"
 	depends on MAC80211

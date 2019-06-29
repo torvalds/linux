@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* $Id: aty128fb.c,v 1.1.1.1.36.1 1999/12/11 09:03:05 Exp $
  *  linux/drivers/video/aty128fb.c -- Frame buffer device for ATI Rage128
  *

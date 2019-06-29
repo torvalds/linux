@@ -902,6 +902,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 	hns_roce_ib_destroy_cq(&free_mr->mr_free_cq->ib_cq, NULL);
 	kfree(&free_mr->mr_free_cq->ib_cq);
 	hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd, NULL);
+	kfree(&free_mr->mr_free_pd->ibpd);
 }
 
 static int hns_roce_db_init(struct hns_roce_dev *hr_dev)

@@ -757,12 +757,14 @@ static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,
 }
 
 static void add_pinned_bytes(struct btrfs_fs_info *fs_info,
-			     struct btrfs_ref *ref)
+			     struct btrfs_ref *ref, int sign)
 {
 	struct btrfs_space_info *space_info;
-	s64 num_bytes = -ref->len;
+	s64 num_bytes;
 	u64 flags;
 
+	ASSERT(sign == 1 || sign == -1);
+	num_bytes = sign * ref->len;
 	if (ref->type == BTRFS_REF_METADATA) {
 		if (ref->tree_ref.root == BTRFS_CHUNK_TREE_OBJECTID)
 			flags = BTRFS_BLOCK_GROUP_SYSTEM;
@@ -2063,7 +2065,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	btrfs_ref_tree_mod(fs_info, generic_ref);
 
 	if (ret == 0 && old_ref_mod < 0 && new_ref_mod >= 0)
-		add_pinned_bytes(fs_info, generic_ref);
+		add_pinned_bytes(fs_info, generic_ref, -1);
 
 	return ret;
 }
@@ -3882,8 +3884,7 @@ static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 				    info->space_info_kobj, "%s",
 				    alloc_name(space_info->flags));
 	if (ret) {
-		percpu_counter_destroy(&space_info->total_bytes_pinned);
-		kfree(space_info);
+		kobject_put(&space_info->kobj);
 		return ret;
 	}
 
@@ -7190,7 +7191,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 	}
 out:
 	if (pin)
-		add_pinned_bytes(fs_info, &generic_ref);
+		add_pinned_bytes(fs_info, &generic_ref, 1);
 
 	if (last_ref) {
 		/*
@@ -7238,7 +7239,7 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_ref *ref)
 		btrfs_ref_tree_mod(fs_info, ref);
 
 	if (ret == 0 && old_ref_mod >= 0 && new_ref_mod < 0)
-		add_pinned_bytes(fs_info, ref);
+		add_pinned_bytes(fs_info, ref, 1);
 
 	return ret;
 }
@@ -10830,17 +10831,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	remove_em = (atomic_read(&block_group->trimming) == 0);
 	spin_unlock(&block_group->lock);
 
-	if (remove_em) {
-		struct extent_map_tree *em_tree;
-
-		em_tree = &fs_info->mapping_tree.map_tree;
-		write_lock(&em_tree->lock);
-		remove_extent_mapping(em_tree, em);
-		write_unlock(&em_tree->lock);
-		/* once for the tree */
-		free_extent_map(em);
-	}
-
 	mutex_unlock(&fs_info->chunk_mutex);
 
 	ret = remove_block_group_free_space(trans, block_group);
@@ -10857,6 +10847,19 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		goto out;
 
 	ret = btrfs_del_item(trans, root, path);
+	if (ret)
+		goto out;
+
+	if (remove_em) {
+		struct extent_map_tree *em_tree;
+
+		em_tree = &fs_info->mapping_tree.map_tree;
+		write_lock(&em_tree->lock);
+		remove_extent_mapping(em_tree, em);
+		write_unlock(&em_tree->lock);
+		/* once for the tree */
+		free_extent_map(em);
+	}
 out:
 	if (remove_rsv)
 		btrfs_delayed_refs_rsv_release(fs_info, 1);
@@ -11136,13 +11139,11 @@ int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
  * it while performing the free space search since we have already
  * held back allocations.
  */
-static int btrfs_trim_free_extents(struct btrfs_device *device,
-				   struct fstrim_range *range, u64 *trimmed)
+static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 {
-	u64 start, len = 0, end = 0;
+	u64 start = SZ_1M, len = 0, end = 0;
 	int ret;
 
-	start = max_t(u64, range->start, SZ_1M);
 	*trimmed = 0;
 
 	/* Discard not supported = nothing to do. */
@@ -11185,22 +11186,6 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 			break;
 		}
 
-		/* Keep going until we satisfy minlen or reach end of space */
-		if (len < range->minlen) {
-			mutex_unlock(&fs_info->chunk_mutex);
-			start += len;
-			continue;
-		}
-
-		/* If we are out of the passed range break */
-		if (start > range->start + range->len - 1) {
-			mutex_unlock(&fs_info->chunk_mutex);
-			break;
-		}
-
-		start = max(range->start, start);
-		len = min(range->len, len);
-
 		ret = btrfs_issue_discard(device->bdev, start, len,
 					  &bytes);
 		if (!ret)
@@ -11214,10 +11199,6 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 
 		start += len;
 		*trimmed += bytes;
-
-		/* We've trimmed enough */
-		if (*trimmed >= range->len)
-			break;
 
 		if (fatal_signal_pending(current)) {
 			ret = -ERESTARTSYS;
@@ -11302,7 +11283,7 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	devices = &fs_info->fs_devices->devices;
 	list_for_each_entry(device, devices, dev_list) {
-		ret = btrfs_trim_free_extents(device, range, &group_trimmed);
+		ret = btrfs_trim_free_extents(device, &group_trimmed);
 		if (ret) {
 			dev_failed++;
 			dev_ret = ret;

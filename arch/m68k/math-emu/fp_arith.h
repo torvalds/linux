@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 
    fp_arith.h: floating-point math routines for the Linux-m68k
@@ -8,9 +9,6 @@
    Somewhat based on the AlphaLinux floating point emulator, by David
    Mosberger-Tang.
 
-   You may copy, modify, and redistribute this file under the terms of
-   the GNU General Public License, version 2, or any later version, at
-   your convenience.
 
  */
 

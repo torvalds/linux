@@ -107,8 +107,26 @@ static void file_extent_err(const struct extent_buffer *eb, int slot,
 	(!IS_ALIGNED(btrfs_file_extent_##name((leaf), (fi)), (alignment)));   \
 })
 
+static u64 file_extent_end(struct extent_buffer *leaf,
+			   struct btrfs_key *key,
+			   struct btrfs_file_extent_item *extent)
+{
+	u64 end;
+	u64 len;
+
+	if (btrfs_file_extent_type(leaf, extent) == BTRFS_FILE_EXTENT_INLINE) {
+		len = btrfs_file_extent_ram_bytes(leaf, extent);
+		end = ALIGN(key->offset + len, leaf->fs_info->sectorsize);
+	} else {
+		len = btrfs_file_extent_num_bytes(leaf, extent);
+		end = key->offset + len;
+	}
+	return end;
+}
+
 static int check_extent_data_item(struct extent_buffer *leaf,
-				  struct btrfs_key *key, int slot)
+				  struct btrfs_key *key, int slot,
+				  struct btrfs_key *prev_key)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_file_extent_item *fi;
@@ -188,6 +206,28 @@ static int check_extent_data_item(struct extent_buffer *leaf,
 	    CHECK_FE_ALIGNED(leaf, slot, fi, offset, sectorsize) ||
 	    CHECK_FE_ALIGNED(leaf, slot, fi, num_bytes, sectorsize))
 		return -EUCLEAN;
+
+	/*
+	 * Check that no two consecutive file extent items, in the same leaf,
+	 * present ranges that overlap each other.
+	 */
+	if (slot > 0 &&
+	    prev_key->objectid == key->objectid &&
+	    prev_key->type == BTRFS_EXTENT_DATA_KEY) {
+		struct btrfs_file_extent_item *prev_fi;
+		u64 prev_end;
+
+		prev_fi = btrfs_item_ptr(leaf, slot - 1,
+					 struct btrfs_file_extent_item);
+		prev_end = file_extent_end(leaf, prev_key, prev_fi);
+		if (prev_end > key->offset) {
+			file_extent_err(leaf, slot - 1,
+"file extent end range (%llu) goes beyond start offset (%llu) of the next file extent",
+					prev_end, key->offset);
+			return -EUCLEAN;
+		}
+	}
+
 	return 0;
 }
 
@@ -774,14 +814,15 @@ static int check_inode_item(struct extent_buffer *leaf,
  * Common point to switch the item-specific validation.
  */
 static int check_leaf_item(struct extent_buffer *leaf,
-			   struct btrfs_key *key, int slot)
+			   struct btrfs_key *key, int slot,
+			   struct btrfs_key *prev_key)
 {
 	int ret = 0;
 	struct btrfs_chunk *chunk;
 
 	switch (key->type) {
 	case BTRFS_EXTENT_DATA_KEY:
-		ret = check_extent_data_item(leaf, key, slot);
+		ret = check_extent_data_item(leaf, key, slot, prev_key);
 		break;
 	case BTRFS_EXTENT_CSUM_KEY:
 		ret = check_csum_item(leaf, key, slot);
@@ -928,7 +969,7 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 			 * Check if the item size and content meet other
 			 * criteria
 			 */
-			ret = check_leaf_item(leaf, &key, slot);
+			ret = check_leaf_item(leaf, &key, slot, &prev_key);
 			if (ret < 0)
 				return ret;
 		}

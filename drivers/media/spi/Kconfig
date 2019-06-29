@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if VIDEO_V4L2
 
 menu "SPI helper chips"

@@ -441,6 +441,10 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_CREATE_GENERAL_OBJECT:
 	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
 	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_CREATE_UCTX:
+	case MLX5_CMD_OP_DESTROY_UCTX:
+	case MLX5_CMD_OP_CREATE_UMEM:
+	case MLX5_CMD_OP_DESTROY_UMEM:
 	case MLX5_CMD_OP_ALLOC_MEMIC:
 		*status = MLX5_DRIVER_STATUS_ABORTED;
 		*synd = MLX5_DRIVER_SYND;
@@ -629,6 +633,10 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(ALLOC_MEMIC);
 	MLX5_COMMAND_STR_CASE(DEALLOC_MEMIC);
 	MLX5_COMMAND_STR_CASE(QUERY_ESW_FUNCTIONS);
+	MLX5_COMMAND_STR_CASE(CREATE_UCTX);
+	MLX5_COMMAND_STR_CASE(DESTROY_UCTX);
+	MLX5_COMMAND_STR_CASE(CREATE_UMEM);
+	MLX5_COMMAND_STR_CASE(DESTROY_UMEM);
 	default: return "unknown command opcode";
 	}
 }
@@ -1604,7 +1612,27 @@ void mlx5_cmd_flush(struct mlx5_core_dev *dev)
 
 static int status_to_err(u8 status)
 {
-	return status ? -1 : 0; /* TBD more meaningful codes */
+	switch (status) {
+	case MLX5_CMD_DELIVERY_STAT_OK:
+	case MLX5_DRIVER_STATUS_ABORTED:
+		return 0;
+	case MLX5_CMD_DELIVERY_STAT_SIGNAT_ERR:
+	case MLX5_CMD_DELIVERY_STAT_TOK_ERR:
+		return -EBADR;
+	case MLX5_CMD_DELIVERY_STAT_BAD_BLK_NUM_ERR:
+	case MLX5_CMD_DELIVERY_STAT_OUT_PTR_ALIGN_ERR:
+	case MLX5_CMD_DELIVERY_STAT_IN_PTR_ALIGN_ERR:
+		return -EFAULT; /* Bad address */
+	case MLX5_CMD_DELIVERY_STAT_IN_LENGTH_ERR:
+	case MLX5_CMD_DELIVERY_STAT_OUT_LENGTH_ERR:
+	case MLX5_CMD_DELIVERY_STAT_CMD_DESCR_ERR:
+	case MLX5_CMD_DELIVERY_STAT_RES_FLD_NOT_CLR_ERR:
+		return -ENOMSG;
+	case MLX5_CMD_DELIVERY_STAT_FW_ERR:
+		return -EIO;
+	default:
+		return -EINVAL;
+	}
 }
 
 static struct mlx5_cmd_msg *alloc_msg(struct mlx5_core_dev *dev, int in_size,

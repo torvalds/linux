@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * scan.c - support for transforming the ACPI namespace into individual objects
  */

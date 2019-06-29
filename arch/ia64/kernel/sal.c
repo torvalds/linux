@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * System Abstraction Layer (SAL) interface routines.
  *

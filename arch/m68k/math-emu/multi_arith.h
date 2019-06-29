@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* multi_arith.h: multi-precision integer arithmetic functions, needed
    to do extended-precision floating point.
 
@@ -6,9 +7,7 @@
    Somewhat based on arch/alpha/math-emu/ieee-math.c, which is (c)
    David Mosberger-Tang.
 
-   You may copy, modify, and redistribute this file under the terms of
-   the GNU General Public License, version 2, or any later version, at
-   your convenience. */
+ */
 
 /* Note:
 

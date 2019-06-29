@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) STMicroelectronics 2009
  * Copyright (C) ST-Ericsson SA 2010
  *
- * License Terms: GNU General Public License v2
  * Author: Kumar Sanghvi <kumar.sanghvi@stericsson.com>
  *
  * PRCMU f/w APIs

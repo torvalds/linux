@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Keymile kmcoge4 Device Tree Source, based on the P2041RDB DTS
  *
@@ -5,11 +6,6 @@
  * Valentin Longchamp, Keymile AG, valentin.longchamp@keymile.com
  *
  * Copyright 2011 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 /include/ "p2041si-pre.dtsi"

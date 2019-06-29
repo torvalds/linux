@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config IMX_SCU
 	bool "IMX SCU Protocol driver"
 	depends on IMX_MBOX

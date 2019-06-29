@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam9263.dtsi - Device Tree Include file for AT91SAM9263 family SoC
  *
  *  Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2 only.
  */
 
 #include <dt-bindings/pinctrl/at91.h>

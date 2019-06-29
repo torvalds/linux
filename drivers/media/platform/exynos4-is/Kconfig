@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config VIDEO_SAMSUNG_EXYNOS4_IS
 	tristate "Samsung S5P/EXYNOS4 SoC series Camera Subsystem driver"

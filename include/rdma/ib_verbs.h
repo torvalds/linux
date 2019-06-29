@@ -2585,6 +2585,7 @@ struct ib_client {
 	const char *name;
 	void (*add)   (struct ib_device *);
 	void (*remove)(struct ib_device *, void *client_data);
+	void (*rename)(struct ib_device *dev, void *client_data);
 	int (*get_nl_info)(struct ib_device *ibdev, void *client_data,
 			   struct ib_client_nl_info *res);
 	int (*get_global_nl_info)(struct ib_client_nl_info *res);

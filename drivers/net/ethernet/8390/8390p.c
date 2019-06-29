@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 8390 core for ISA devices needing bus delays */
 
 static const char version[] =

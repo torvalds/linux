@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for TI ADC128D818 System Monitor with Temperature Sensor
  *
@@ -6,16 +7,6 @@
  * Derived from lm80.c
  * Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
  *			     and Philip Edelbrock <phil@netroedge.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>

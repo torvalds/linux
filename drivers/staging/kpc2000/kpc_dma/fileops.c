@@ -8,7 +8,7 @@
 #include <linux/errno.h>    /* error codes */
 #include <linux/types.h>    /* size_t */
 #include <linux/cdev.h>
-#include <asm/uaccess.h>    /* copy_*_user */
+#include <linux/uaccess.h>  /* copy_*_user */
 #include <linux/aio.h>      /* aio stuff */
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
@@ -116,13 +116,11 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
 	if (desc_needed >= ldev->desc_pool_cnt){
 		dev_warn(&priv->ldev->pldev->dev, "    mapped_entry_count = %d    num_descrs_needed = %d    num_descrs_avail = %d    TOO MANY to ever complete!\n", acd->mapped_entry_count, desc_needed, num_descrs_avail);
 		rv = -EAGAIN;
-		unlock_engine(ldev);
 		goto err_descr_too_many;
 	}
 	if (desc_needed > num_descrs_avail){
 		dev_warn(&priv->ldev->pldev->dev, "    mapped_entry_count = %d    num_descrs_needed = %d    num_descrs_avail = %d    Too many to complete right now.\n", acd->mapped_entry_count, desc_needed, num_descrs_avail);
 		rv = -EMSGSIZE;
-		unlock_engine(ldev);
 		goto err_descr_too_many;
 	}
 

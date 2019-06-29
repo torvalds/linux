@@ -280,7 +280,7 @@ int smu_feature_set_supported(struct smu_context *smu, int feature_id,
 
 	WARN_ON(feature_id > feature->feature_num);
 
-	mutex_unlock(&feature->mutex);
+	mutex_lock(&feature->mutex);
 	if (enable)
 		test_and_set_bit(feature_id, feature->supported);
 	else

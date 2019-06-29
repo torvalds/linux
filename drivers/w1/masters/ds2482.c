@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * ds2482.c - provides i2c to w1-master bridge(s)
  * Copyright (C) 2005  Ben Gardner <bgardner@wabtec.com>
@@ -7,10 +8,6 @@
  * There are two variations: -100 and -800, which have 1 or 8 1-wire ports.
  * The complete datasheet can be obtained from MAXIM's website at:
  *   http://www.maxim-ic.com/quick_view2.cfm/qv_pk/4382
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/module.h>

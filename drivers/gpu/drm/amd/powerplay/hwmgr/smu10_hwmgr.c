@@ -1258,21 +1258,46 @@ static int smu10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	return size;
 }
 
+static bool smu10_is_raven1_refresh(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+	if ((adev->asic_type == CHIP_RAVEN) &&
+	    (adev->rev_id != 0x15d8) &&
+	    (hwmgr->smu_version >= 0x41e2b))
+		return true;
+	else
+		return false;
+}
+
 static int smu10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
 {
 	int workload_type = 0;
+	int result = 0;
 
 	if (input[size] > PP_SMC_POWER_PROFILE_COMPUTE) {
 		pr_err("Invalid power profile mode %ld\n", input[size]);
 		return -EINVAL;
 	}
-	hwmgr->power_profile_mode = input[size];
+	if (hwmgr->power_profile_mode == input[size])
+		return 0;
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type =
-		conv_power_profile_to_pplib_workload(hwmgr->power_profile_mode);
-	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ActiveProcessNotify,
+		conv_power_profile_to_pplib_workload(input[size]);
+	if (workload_type &&
+	    smu10_is_raven1_refresh(hwmgr) &&
+	    !hwmgr->gfxoff_state_changed_by_workload) {
+		smu10_gfx_off_control(hwmgr, false);
+		hwmgr->gfxoff_state_changed_by_workload = true;
+	}
+	result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ActiveProcessNotify,
 						1 << workload_type);
+	if (!result)
+		hwmgr->power_profile_mode = input[size];
+	if (workload_type && hwmgr->gfxoff_state_changed_by_workload) {
+		smu10_gfx_off_control(hwmgr, true);
+		hwmgr->gfxoff_state_changed_by_workload = false;
+	}
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	HP300 Topcat framebuffer support (derived from macfb of all things)
  *	Phil Blundell <philb@gnu.org> 1998

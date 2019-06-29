@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Free Electrons
  *
- * License Terms: GNU General Public License v2
  * Author: Boris BREZILLON <boris.brezillon@free-electrons.com>
  *
  * Allwinner A31 AR100 clock driver
- *
  */
 
 #include <linux/bitops.h>

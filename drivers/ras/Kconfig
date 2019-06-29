@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig RAS
 	bool "Reliability, Availability and Serviceability (RAS) features"
 	help

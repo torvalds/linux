@@ -66,7 +66,8 @@ struct i915_dependency {
 	struct list_head wait_link;
 	struct list_head dfs_link;
 	unsigned long flags;
-#define I915_DEPENDENCY_ALLOC BIT(0)
+#define I915_DEPENDENCY_ALLOC		BIT(0)
+#define I915_DEPENDENCY_EXTERNAL	BIT(1)
 };
 
 #endif /* _I915_SCHEDULER_TYPES_H_ */

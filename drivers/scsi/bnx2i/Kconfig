@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SCSI_BNX2_ISCSI
 	tristate "QLogic NetXtreme II iSCSI support"
 	depends on NET

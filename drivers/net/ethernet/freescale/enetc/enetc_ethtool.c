@@ -570,6 +570,7 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_ringparam = enetc_get_ringparam,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_link = ethtool_op_get_link,
 };
 
 static const struct ethtool_ops enetc_vf_ethtool_ops = {
@@ -584,6 +585,7 @@ static const struct ethtool_ops enetc_vf_ethtool_ops = {
 	.get_rxfh = enetc_get_rxfh,
 	.set_rxfh = enetc_set_rxfh,
 	.get_ringparam = enetc_get_ringparam,
+	.get_link = ethtool_op_get_link,
 };
 
 void enetc_set_ethtool_ops(struct net_device *ndev)

@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.
  *
  * Author: Mikulas Patocka <mpatocka@redhat.com>
  *
  * Based on Chromium dm-verity driver (C) 2011 The Chromium OS Authors
- *
- * This file is released under the GPLv2.
  *
  * In the file "/sys/module/dm_verity/parameters/prefetch_cluster" you can set
  * default prefetch value. Data are read in "prefetch_cluster" chunks from the

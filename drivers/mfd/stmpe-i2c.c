@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST Microelectronics MFD: stmpe's i2c client specific driver
  *
  * Copyright (C) ST-Ericsson SA 2010
  * Copyright (C) ST Microelectronics SA 2011
  *
- * License Terms: GNU General Public License, version 2
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  * Author: Viresh Kumar <vireshk@kernel.org> for ST Microelectronics
  */

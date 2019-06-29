@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Mediated virtual PCI serial host device driver
  *
@@ -5,13 +6,8 @@
  *     Author: Neo Jia <cjia@nvidia.com>
  *             Kirti Wankhede <kwankhede@nvidia.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Sample driver that creates mdev device that simulates serial port over PCI
  * card.
- *
  */
 
 #include <linux/init.h>

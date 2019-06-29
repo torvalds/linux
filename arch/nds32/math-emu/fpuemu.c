@@ -113,6 +113,30 @@ static int fpu_emu(struct fpu_struct *fpu_reg, unsigned long insn)
 					func.b = fs2d;
 					ftype = S1D;
 					break;
+				case fs2si_op:
+					func.b = fs2si;
+					ftype = S1S;
+					break;
+				case fs2si_z_op:
+					func.b = fs2si_z;
+					ftype = S1S;
+					break;
+				case fs2ui_op:
+					func.b = fs2ui;
+					ftype = S1S;
+					break;
+				case fs2ui_z_op:
+					func.b = fs2ui_z;
+					ftype = S1S;
+					break;
+				case fsi2s_op:
+					func.b = fsi2s;
+					ftype = S1S;
+					break;
+				case fui2s_op:
+					func.b = fui2s;
+					ftype = S1S;
+					break;
 				case fsqrts_op:
 					func.b = fsqrts;
 					ftype = S1S;
@@ -180,6 +204,30 @@ static int fpu_emu(struct fpu_struct *fpu_reg, unsigned long insn)
 				switch (NDS32Insn_OPCODE_BIT1014(insn)) {
 				case fd2s_op:
 					func.b = fd2s;
+					ftype = D1S;
+					break;
+				case fd2si_op:
+					func.b = fd2si;
+					ftype = D1S;
+					break;
+				case fd2si_z_op:
+					func.b = fd2si_z;
+					ftype = D1S;
+					break;
+				case fd2ui_op:
+					func.b = fd2ui;
+					ftype = D1S;
+					break;
+				case fd2ui_z_op:
+					func.b = fd2ui_z;
+					ftype = D1S;
+					break;
+				case fsi2d_op:
+					func.b = fsi2d;
+					ftype = D1S;
+					break;
+				case fui2d_op:
+					func.b = fui2d;
 					ftype = D1S;
 					break;
 				case fsqrtd_op:
@@ -305,15 +353,15 @@ static int fpu_emu(struct fpu_struct *fpu_reg, unsigned long insn)
 	 * If an exception is required, generate a tidy SIGFPE exception.
 	 */
 #if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
-	if (((fpu_reg->fpcsr << 5) & fpu_reg->fpcsr & FPCSR_mskALLE_NO_UDFE) ||
-	    ((fpu_reg->fpcsr & FPCSR_mskUDF) && (fpu_reg->UDF_trap)))
+	if (((fpu_reg->fpcsr << 5) & fpu_reg->fpcsr & FPCSR_mskALLE_NO_UDF_IEXE)
+	    || ((fpu_reg->fpcsr << 5) & (fpu_reg->UDF_IEX_trap))) {
 #else
-	if ((fpu_reg->fpcsr << 5) & fpu_reg->fpcsr & FPCSR_mskALLE)
+	if ((fpu_reg->fpcsr << 5) & fpu_reg->fpcsr & FPCSR_mskALLE) {
 #endif
 		return SIGFPE;
+	}
 	return 0;
 }
-
 
 int do_fpuemu(struct pt_regs *regs, struct fpu_struct *fpu)
 {
@@ -336,6 +384,7 @@ int do_fpuemu(struct pt_regs *regs, struct fpu_struct *fpu)
 
 	if (NDS32Insn_OPCODE(insn) != cop0_op)
 		return SIGILL;
+
 	switch (NDS32Insn_OPCODE_COP0(insn)) {
 	case fs1_op:
 	case fs2_op:

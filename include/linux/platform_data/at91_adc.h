@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2011 Free Electrons
- *
- * Licensed under the GPLv2 or later.
  */
 
 #ifndef _AT91_ADC_H_

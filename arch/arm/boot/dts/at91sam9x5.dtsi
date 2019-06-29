@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9x5.dtsi - Device Tree Include file for AT91SAM9x5 family SoC
  *                   applies to AT91SAM9G15, AT91SAM9G25, AT91SAM9G35,
@@ -5,8 +6,6 @@
  *
  *  Copyright (C) 2012 Atmel,
  *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <dt-bindings/dma/at91.h>

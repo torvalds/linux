@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic hugetlb support.
  * (C) Nadia Yvette Chambers, April 2004

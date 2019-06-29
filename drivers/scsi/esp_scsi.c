@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* esp_scsi.c: ESP SCSI driver.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)

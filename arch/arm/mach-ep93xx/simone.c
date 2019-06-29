@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/simone.c
  * Simplemachines Sim.One support.
@@ -7,12 +8,6 @@
  * Based on the 2.6.24.7 support:
  *   Copyright (C) 2009 Simplemachines
  *   MMC support by Peter Ivanov <ivanovp@gmail.com>, 2007
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
  */
 
 #include <linux/kernel.h>

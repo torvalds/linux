@@ -24,16 +24,6 @@ tap_prefix()
 	fi
 }
 
-# If stdbuf is unavailable, we must fall back to line-at-a-time piping.
-tap_unbuffer()
-{
-	if ! which stdbuf >/dev/null ; then
-		"$@"
-	else
-		stdbuf -i0 -o0 -e0 "$@"
-	fi
-}
-
 run_one()
 {
 	DIR="$1"
@@ -54,7 +44,7 @@ run_one()
 		echo "not ok $test_num $TEST_HDR_MSG"
 	else
 		cd `dirname $TEST` > /dev/null
-		(((((tap_unbuffer ./$BASENAME_TEST 2>&1; echo $? >&3) |
+		(((((./$BASENAME_TEST 2>&1; echo $? >&3) |
 			tap_prefix >&4) 3>&1) |
 			(read xs; exit $xs)) 4>>"$logfile" &&
 		echo "ok $test_num $TEST_HDR_MSG") ||

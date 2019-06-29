@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Glue code for the SHA1 Secure Hash Algorithm assembler implementation using
  * ARM NEON instructions.
@@ -10,12 +11,6 @@
  *  Copyright (c) Jean-Francois Dive <jef@linuxbe.org>
  *  Copyright (c) Mathias Krause <minipli@googlemail.com>
  *  Copyright (c) Chandramouli Narayanan <mouli@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/hash.h>

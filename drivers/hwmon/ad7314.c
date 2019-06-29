@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AD7314 digital temperature sensor driver for AD7314, ADT7301 and ADT7302
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  *
  * Conversion to hwmon from IIO done by Jonathan Cameron <jic23@cam.ac.uk>
  */

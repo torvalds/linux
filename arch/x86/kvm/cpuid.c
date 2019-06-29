@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kernel-based Virtual Machine driver for Linux
  * cpuid support routines
@@ -6,10 +7,6 @@
  *
  * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  * Copyright IBM Corporation, 2008
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
  */
 
 #include <linux/kvm_host.h>
@@ -456,8 +453,9 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		}
 		break;
 	}
-	/* function 4 has additional index. */
-	case 4: {
+	/* functions 4 and 0x8000001d have additional index. */
+	case 4:
+	case 0x8000001d: {
 		int i, cache_type;
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
@@ -701,8 +699,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->ecx = entry->edx = 0;
 		break;
 	case 0x8000001a:
-		break;
-	case 0x8000001d:
+	case 0x8000001e:
 		break;
 	/*Add support for Centaur's CPUID instruction*/
 	case 0xC0000000:

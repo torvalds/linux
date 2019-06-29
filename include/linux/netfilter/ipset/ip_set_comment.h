@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _IP_SET_COMMENT_H
 #define _IP_SET_COMMENT_H
 
 /* Copyright (C) 2013 Oliver Smith <oliver@8.c.9.b.0.7.4.0.1.0.0.2.ip6.arpa>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifdef __KERNEL__

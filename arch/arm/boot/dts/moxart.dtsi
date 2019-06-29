@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* moxart.dtsi - Device Tree Include file for MOXA ART family SoC
  *
  * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>

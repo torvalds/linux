@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Based on arch/arm/kernel/traps.c
  *
  * Copyright (C) 1995-2009 Russell King
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bug.h>
@@ -168,7 +157,6 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 
 static int __die(const char *str, int err, struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
 	static int die_counter;
 	int ret;
 
@@ -181,9 +169,6 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 		return ret;
 
 	print_modules();
-	pr_emerg("Process %.*s (pid: %d, stack limit = 0x%p)\n",
-		 TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk),
-		 end_of_stack(tsk));
 	show_regs(regs);
 
 	if (!user_mode(regs))
@@ -256,7 +241,10 @@ void arm64_force_sig_fault(int signo, int code, void __user *addr,
 			   const char *str)
 {
 	arm64_show_signal(signo, str);
-	force_sig_fault(signo, code, addr, current);
+	if (signo == SIGKILL)
+		force_sig(SIGKILL, current);
+	else
+		force_sig_fault(signo, code, addr, current);
 }
 
 void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,

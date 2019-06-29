@@ -247,23 +247,23 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode);
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw);
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
-			       int vport, u8 mac[ETH_ALEN]);
+			       u16 vport, u8 mac[ETH_ALEN]);
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
-				 int vport, int link_state);
+				 u16 vport, int link_state);
 int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
-				int vport, u16 vlan, u8 qos);
+				u16 vport, u16 vlan, u8 qos);
 int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
-				    int vport, bool spoofchk);
+				    u16 vport, bool spoofchk);
 int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
-				 int vport_num, bool setting);
-int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, int vport,
+				 u16 vport_num, bool setting);
+int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, u16 vport,
 				u32 max_rate, u32 min_rate);
 int mlx5_eswitch_set_vepa(struct mlx5_eswitch *esw, u8 setting);
 int mlx5_eswitch_get_vepa(struct mlx5_eswitch *esw, u8 *setting);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
-				  int vport, struct ifla_vf_info *ivi);
+				  u16 vport, struct ifla_vf_info *ivi);
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
-				 int vport,
+				 u16 vport,
 				 struct ifla_vf_stats *vf_stats);
 void mlx5_eswitch_del_send_to_vport_rule(struct mlx5_flow_handle *rule);
 
@@ -297,7 +297,7 @@ u32
 mlx5_eswitch_get_chain_range(struct mlx5_eswitch *esw);
 
 struct mlx5_flow_handle *
-mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport,
+mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, u16 vport,
 				  struct mlx5_flow_destination *dest);
 
 enum {
@@ -369,7 +369,7 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
-				  int vport, u16 vlan, u8 qos, u8 set_flags);
+				  u16 vport, u16 vlan, u8 qos, u8 set_flags);
 
 static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev,
 						       u8 vlan_depth)
@@ -447,7 +447,7 @@ static inline int mlx5_eswitch_vport_num_to_index(struct mlx5_eswitch *esw,
 	return vport_num;
 }
 
-static inline int mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
+static inline u16 mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
 						  int index)
 {
 	if (index == mlx5_eswitch_ecpf_idx(esw) &&

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* arch/sparc64/kernel/traps.c
  *
  * Copyright (C) 1995,1997,2008,2009,2012 David S. Miller (davem@davemloft.net)

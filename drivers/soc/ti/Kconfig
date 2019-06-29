@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # 64-bit ARM SoCs from TI
 if ARM64
 

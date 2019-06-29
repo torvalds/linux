@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "DMABUF options"
 
 config SYNC_FILE

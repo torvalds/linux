@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config FUSE_FS
 	tristate "FUSE (Filesystem in Userspace) support"
 	select FS_POSIX_ACL

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kernel-based Virtual Machine driver for Linux
  *
@@ -10,10 +11,6 @@
  * Authors:
  *   Avi Kivity   <avi@qumranet.com>
  *   Yaniv Kamay  <yaniv@qumranet.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
  */
 
 #include <linux/frame.h>
@@ -113,6 +110,9 @@ static u64 __read_mostly host_xss;
 
 bool __read_mostly enable_pml = 1;
 module_param_named(pml, enable_pml, bool, S_IRUGO);
+
+static bool __read_mostly dump_invalid_vmcs = 0;
+module_param(dump_invalid_vmcs, bool, 0644);
 
 #define MSR_BITMAP_MODE_X2APIC		1
 #define MSR_BITMAP_MODE_X2APIC_APICV	2
@@ -5607,15 +5607,24 @@ static void vmx_dump_dtsel(char *name, uint32_t limit)
 
 void dump_vmcs(void)
 {
-	u32 vmentry_ctl = vmcs_read32(VM_ENTRY_CONTROLS);
-	u32 vmexit_ctl = vmcs_read32(VM_EXIT_CONTROLS);
-	u32 cpu_based_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
-	u32 pin_based_exec_ctrl = vmcs_read32(PIN_BASED_VM_EXEC_CONTROL);
-	u32 secondary_exec_control = 0;
-	unsigned long cr4 = vmcs_readl(GUEST_CR4);
-	u64 efer = vmcs_read64(GUEST_IA32_EFER);
+	u32 vmentry_ctl, vmexit_ctl;
+	u32 cpu_based_exec_ctrl, pin_based_exec_ctrl, secondary_exec_control;
+	unsigned long cr4;
+	u64 efer;
 	int i, n;
 
+	if (!dump_invalid_vmcs) {
+		pr_warn_ratelimited("set kvm_intel.dump_invalid_vmcs=1 to dump internal KVM state.\n");
+		return;
+	}
+
+	vmentry_ctl = vmcs_read32(VM_ENTRY_CONTROLS);
+	vmexit_ctl = vmcs_read32(VM_EXIT_CONTROLS);
+	cpu_based_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	pin_based_exec_ctrl = vmcs_read32(PIN_BASED_VM_EXEC_CONTROL);
+	cr4 = vmcs_readl(GUEST_CR4);
+	efer = vmcs_read64(GUEST_IA32_EFER);
+	secondary_exec_control = 0;
 	if (cpu_has_secondary_exec_ctrls())
 		secondary_exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
 

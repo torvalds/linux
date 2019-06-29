@@ -1248,7 +1248,7 @@ finished:
 	if (free_font)
 		vc->vc_font.data = NULL;
 
-	if (vc->vc_hi_font_mask)
+	if (vc->vc_hi_font_mask && vc->vc_screenbuf)
 		set_vc_hi_font(vc, false);
 
 	if (!con_is_bound(&fb_con))

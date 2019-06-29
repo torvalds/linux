@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/time.c
  *
  *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
  *  Modifications for ARM (C) 1994-2001 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This file contains the ARM-specific time handling details:
  *  reading the RTC at bootup, etc...

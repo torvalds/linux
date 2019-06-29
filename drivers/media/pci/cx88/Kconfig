@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
 	depends on VIDEO_DEV && PCI && I2C && RC_CORE

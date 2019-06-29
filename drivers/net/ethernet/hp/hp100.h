@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * hp100.h: Hewlett Packard HP10/100VG ANY LAN ethernet driver for Linux.
  *
@@ -7,11 +8,6 @@
  *           Siegfried Loeffler <floeff@tunix.mathematik.uni-stuttgart.de>
  *
  * This driver is based on the 'hpfepkt' crynwr packet driver.
- *
- * This source/code is public free; you can distribute it and/or modify
- * it under terms of the GNU General Public License (published by the
- * Free Software Foundation) either version two of this License, or any
- * later version.
  */
 
 /****************************************************************************

@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2010 ST-Ericsson
- * License terms: GNU General Public License (GPL) version 2
  * Low-level core for exclusive access to the AB3100 IC on the I2C bus
  * and some basic chip-configuration.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
