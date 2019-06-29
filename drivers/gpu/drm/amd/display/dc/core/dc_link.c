@@ -722,13 +722,6 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		return false;
 	}
 
-	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		/* On detect, we want to make sure current link settings are
-		 * up to date, especially if link was powered on by GOP.
-		 */
-		read_edp_current_link_settings_on_detect(link);
-	}
-
 	prev_sink = link->local_sink;
 	if (prev_sink != NULL) {
 		dc_sink_retain(prev_sink);
@@ -770,6 +763,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_EDP: {
+			read_edp_current_link_settings_on_detect(link);
 			detect_edp_sink_caps(link);
 			sink_caps.transaction_type =
 				DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
