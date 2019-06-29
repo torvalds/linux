@@ -405,6 +405,7 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 		buf->vb.vb2_buf.timestamp = ktime_get_ns();
 	}
 	buf->vb.sequence = dev->capture.sequence++;
+	buf->vb.field = V4L2_FIELD_NONE;
 
 	vb2_set_plane_payload(&buf->vb.vb2_buf, 0, length);
 	if (mmal_flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME)
