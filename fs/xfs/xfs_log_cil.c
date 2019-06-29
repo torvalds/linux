@@ -985,6 +985,7 @@ xfs_log_commit_cil(
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
+	struct xfs_log_item	*lip, *next;
 	xfs_lsn_t		xc_commit_lsn;
 
 	/*
@@ -1009,7 +1010,7 @@ xfs_log_commit_cil(
 
 	/*
 	 * Once all the items of the transaction have been copied to the CIL,
-	 * the items can be unlocked and freed.
+	 * the items can be unlocked and possibly freed.
 	 *
 	 * This needs to be done before we drop the CIL context lock because we
 	 * have to update state in the log items and unlock them before they go
@@ -1018,8 +1019,14 @@ xfs_log_commit_cil(
 	 * the log items. This affects (at least) processing of stale buffers,
 	 * inodes and EFIs.
 	 */
-	xfs_trans_free_items(tp, xc_commit_lsn, false);
-
+	trace_xfs_trans_commit_items(tp, _RET_IP_);
+	list_for_each_entry_safe(lip, next, &tp->t_items, li_trans) {
+		xfs_trans_del_item(lip);
+		if (lip->li_ops->iop_committing)
+			lip->li_ops->iop_committing(lip, xc_commit_lsn);
+		if (lip->li_ops->iop_unlock)
+			lip->li_ops->iop_unlock(lip);
+	}
 	xlog_cil_push_background(log);
 
 	up_read(&cil->xc_ctx_lock);
