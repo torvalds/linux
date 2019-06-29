@@ -75,8 +75,6 @@ extern struct kmem_zone	*xfs_bui_zone;
 extern struct kmem_zone	*xfs_bud_zone;
 
 struct xfs_bui_log_item *xfs_bui_init(struct xfs_mount *);
-struct xfs_bud_log_item *xfs_bud_init(struct xfs_mount *,
-		struct xfs_bui_log_item *);
 void xfs_bui_item_free(struct xfs_bui_log_item *);
 void xfs_bui_release(struct xfs_bui_log_item *);
 int xfs_bui_recover(struct xfs_trans *parent_tp, struct xfs_bui_log_item *buip);

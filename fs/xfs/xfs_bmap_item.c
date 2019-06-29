@@ -213,22 +213,20 @@ static const struct xfs_item_ops xfs_bud_item_ops = {
 	.iop_release	= xfs_bud_item_release,
 };
 
-/*
- * Allocate and initialize an bud item with the given number of extents.
- */
 struct xfs_bud_log_item *
-xfs_bud_init(
-	struct xfs_mount		*mp,
+xfs_trans_get_bud(
+	struct xfs_trans		*tp,
 	struct xfs_bui_log_item		*buip)
-
 {
-	struct xfs_bud_log_item	*budp;
+	struct xfs_bud_log_item		*budp;
 
 	budp = kmem_zone_zalloc(xfs_bud_zone, KM_SLEEP);
-	xfs_log_item_init(mp, &budp->bud_item, XFS_LI_BUD, &xfs_bud_item_ops);
+	xfs_log_item_init(tp->t_mountp, &budp->bud_item, XFS_LI_BUD,
+			  &xfs_bud_item_ops);
 	budp->bud_buip = buip;
 	budp->bud_format.bud_bui_id = buip->bui_format.bui_id;
 
+	xfs_trans_add_item(tp, &budp->bud_item);
 	return budp;
 }
 

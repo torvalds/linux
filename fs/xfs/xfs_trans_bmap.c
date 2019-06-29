@@ -19,22 +19,6 @@
 #include "xfs_inode.h"
 
 /*
- * This routine is called to allocate a "bmap update done"
- * log item.
- */
-struct xfs_bud_log_item *
-xfs_trans_get_bud(
-	struct xfs_trans		*tp,
-	struct xfs_bui_log_item		*buip)
-{
-	struct xfs_bud_log_item		*budp;
-
-	budp = xfs_bud_init(tp->t_mountp, buip);
-	xfs_trans_add_item(tp, &budp->bud_item);
-	return budp;
-}
-
-/*
  * Finish an bmap update and log it to the BUD. Note that the
  * transaction is marked dirty regardless of whether the bmap update
  * succeeds or fails to support the BUI/BUD lifecycle rules.
