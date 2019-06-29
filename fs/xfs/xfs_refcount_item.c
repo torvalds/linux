@@ -214,38 +214,13 @@ xfs_cud_item_release(
 }
 
 /*
- * When the cud item is committed to disk, all we need to do is delete our
- * reference to our partner cui item and then free ourselves. Since we're
- * freeing ourselves we must return -1 to keep the transaction code from
- * further referencing this item.
- */
-STATIC xfs_lsn_t
-xfs_cud_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
-
-	/*
-	 * Drop the CUI reference regardless of whether the CUD has been
-	 * aborted. Once the CUD transaction is constructed, it is the sole
-	 * responsibility of the CUD to release the CUI (even if the CUI is
-	 * aborted due to log I/O error).
-	 */
-	xfs_cui_release(cudp->cud_cuip);
-	kmem_zone_free(xfs_cud_zone, cudp);
-
-	return (xfs_lsn_t)-1;
-}
-
-/*
  * This is the ops vector shared by all cud log items.
  */
 static const struct xfs_item_ops xfs_cud_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_cud_item_size,
 	.iop_format	= xfs_cud_item_format,
 	.iop_release	= xfs_cud_item_release,
-	.iop_committed	= xfs_cud_item_committed,
 };
 
 /*

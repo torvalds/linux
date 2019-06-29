@@ -309,38 +309,13 @@ xfs_efd_item_release(
 }
 
 /*
- * When the efd item is committed to disk, all we need to do is delete our
- * reference to our partner efi item and then free ourselves. Since we're
- * freeing ourselves we must return -1 to keep the transaction code from further
- * referencing this item.
- */
-STATIC xfs_lsn_t
-xfs_efd_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
-
-	/*
-	 * Drop the EFI reference regardless of whether the EFD has been
-	 * aborted. Once the EFD transaction is constructed, it is the sole
-	 * responsibility of the EFD to release the EFI (even if the EFI is
-	 * aborted due to log I/O error).
-	 */
-	xfs_efi_release(efdp->efd_efip);
-	xfs_efd_item_free(efdp);
-
-	return (xfs_lsn_t)-1;
-}
-
-/*
  * This is the ops vector shared by all efd log items.
  */
 static const struct xfs_item_ops xfs_efd_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_efd_item_size,
 	.iop_format	= xfs_efd_item_format,
 	.iop_release	= xfs_efd_item_release,
-	.iop_committed	= xfs_efd_item_committed,
 };
 
 /*

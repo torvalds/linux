@@ -235,38 +235,13 @@ xfs_rud_item_release(
 }
 
 /*
- * When the rud item is committed to disk, all we need to do is delete our
- * reference to our partner rui item and then free ourselves. Since we're
- * freeing ourselves we must return -1 to keep the transaction code from
- * further referencing this item.
- */
-STATIC xfs_lsn_t
-xfs_rud_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
-
-	/*
-	 * Drop the RUI reference regardless of whether the RUD has been
-	 * aborted. Once the RUD transaction is constructed, it is the sole
-	 * responsibility of the RUD to release the RUI (even if the RUI is
-	 * aborted due to log I/O error).
-	 */
-	xfs_rui_release(rudp->rud_ruip);
-	kmem_zone_free(xfs_rud_zone, rudp);
-
-	return (xfs_lsn_t)-1;
-}
-
-/*
  * This is the ops vector shared by all rud log items.
  */
 static const struct xfs_item_ops xfs_rud_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_rud_item_size,
 	.iop_format	= xfs_rud_item_format,
 	.iop_release	= xfs_rud_item_release,
-	.iop_committed	= xfs_rud_item_committed,
 };
 
 /*

@@ -210,38 +210,13 @@ xfs_bud_item_release(
 }
 
 /*
- * When the bud item is committed to disk, all we need to do is delete our
- * reference to our partner bui item and then free ourselves. Since we're
- * freeing ourselves we must return -1 to keep the transaction code from
- * further referencing this item.
- */
-STATIC xfs_lsn_t
-xfs_bud_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
-
-	/*
-	 * Drop the BUI reference regardless of whether the BUD has been
-	 * aborted. Once the BUD transaction is constructed, it is the sole
-	 * responsibility of the BUD to release the BUI (even if the BUI is
-	 * aborted due to log I/O error).
-	 */
-	xfs_bui_release(budp->bud_buip);
-	kmem_zone_free(xfs_bud_zone, budp);
-
-	return (xfs_lsn_t)-1;
-}
-
-/*
  * This is the ops vector shared by all bud log items.
  */
 static const struct xfs_item_ops xfs_bud_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_bud_item_size,
 	.iop_format	= xfs_bud_item_format,
 	.iop_release	= xfs_bud_item_release,
-	.iop_committed	= xfs_bud_item_committed,
 };
 
 /*

@@ -64,29 +64,13 @@ xfs_icreate_item_release(
 }
 
 /*
- * Because we have ordered buffers being tracked in the AIL for the inode
- * creation, we don't need the create item after this. Hence we can free
- * the log item and return -1 to tell the caller we're done with the item.
- */
-STATIC xfs_lsn_t
-xfs_icreate_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
-
-	kmem_zone_free(xfs_icreate_zone, icp);
-	return (xfs_lsn_t)-1;
-}
-
-/*
  * This is the ops vector shared by all buf log items.
  */
 static const struct xfs_item_ops xfs_icreate_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_icreate_item_size,
 	.iop_format	= xfs_icreate_item_format,
 	.iop_release	= xfs_icreate_item_release,
-	.iop_committed	= xfs_icreate_item_committed,
 };
 
 
