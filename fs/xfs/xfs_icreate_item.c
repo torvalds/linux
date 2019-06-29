@@ -63,9 +63,6 @@ xfs_icreate_item_release(
 	kmem_zone_free(xfs_icreate_zone, ICR_ITEM(lip));
 }
 
-/*
- * This is the ops vector shared by all buf log items.
- */
 static const struct xfs_item_ops xfs_icreate_item_ops = {
 	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_icreate_item_size,
