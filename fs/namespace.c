@@ -2596,11 +2596,12 @@ static int do_move_mount(struct path *old_path, struct path *new_path)
 	if (!check_mnt(p))
 		goto out;
 
-	/* The thing moved should be either ours or completely unattached. */
-	if (attached && !check_mnt(old))
+	/* The thing moved must be mounted... */
+	if (!is_mounted(&old->mnt))
 		goto out;
 
-	if (!attached && !(ns && is_anon_ns(ns)))
+	/* ... and either ours or the root of anon namespace */
+	if (!(attached ? check_mnt(old) : is_anon_ns(ns)))
 		goto out;
 
 	if (old->mnt.mnt_flags & MNT_LOCKED)
