@@ -1307,7 +1307,6 @@ xlog_get_iclog_buffer_size(
 	struct xfs_mount	*mp,
 	struct xlog		*log)
 {
-	int size;
 	int xhdrs;
 
 	if (mp->m_logbufs <= 0)
@@ -1319,13 +1318,6 @@ xlog_get_iclog_buffer_size(
 	 * Buffer size passed in from mount system call.
 	 */
 	if (mp->m_logbsize > 0) {
-		size = log->l_iclog_size = mp->m_logbsize;
-		log->l_iclog_size_log = 0;
-		while (size != 1) {
-			log->l_iclog_size_log++;
-			size >>= 1;
-		}
-
 		if (xfs_sb_version_haslogv2(&mp->m_sb)) {
 			/* # headers = size / 32k
 			 * one header holds cycles from 32k of data
@@ -1346,7 +1338,6 @@ xlog_get_iclog_buffer_size(
 
 	/* All machines use 32kB buffers by default. */
 	log->l_iclog_size = XLOG_BIG_RECORD_BSIZE;
-	log->l_iclog_size_log = XLOG_BIG_RECORD_BSHIFT;
 
 	/* the default log size is 16k or 32k which is one header sector */
 	log->l_iclog_hsize = BBSIZE;
