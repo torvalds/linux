@@ -214,7 +214,7 @@ xfs_buf_free_maps(
 	}
 }
 
-struct xfs_buf *
+static struct xfs_buf *
 _xfs_buf_alloc(
 	struct xfs_buftarg	*target,
 	struct xfs_buf_map	*map,
@@ -910,72 +910,6 @@ xfs_buf_read_uncached(
 	return 0;
 }
 
-/*
- * Return a buffer allocated as an empty buffer and associated to external
- * memory via xfs_buf_associate_memory() back to it's empty state.
- */
-void
-xfs_buf_set_empty(
-	struct xfs_buf		*bp,
-	size_t			numblks)
-{
-	if (bp->b_pages)
-		_xfs_buf_free_pages(bp);
-
-	bp->b_pages = NULL;
-	bp->b_page_count = 0;
-	bp->b_addr = NULL;
-	bp->b_length = numblks;
-	bp->b_io_length = numblks;
-
-	ASSERT(bp->b_map_count == 1);
-	bp->b_bn = XFS_BUF_DADDR_NULL;
-	bp->b_maps[0].bm_bn = XFS_BUF_DADDR_NULL;
-	bp->b_maps[0].bm_len = bp->b_length;
-}
-
-int
-xfs_buf_associate_memory(
-	xfs_buf_t		*bp,
-	void			*mem,
-	size_t			len)
-{
-	int			rval;
-	int			i = 0;
-	unsigned long		pageaddr;
-	unsigned long		offset;
-	size_t			buflen;
-	int			page_count;
-
-	pageaddr = (unsigned long)mem & PAGE_MASK;
-	offset = (unsigned long)mem - pageaddr;
-	buflen = PAGE_ALIGN(len + offset);
-	page_count = buflen >> PAGE_SHIFT;
-
-	/* Free any previous set of page pointers */
-	if (bp->b_pages)
-		_xfs_buf_free_pages(bp);
-
-	bp->b_pages = NULL;
-	bp->b_addr = mem;
-
-	rval = _xfs_buf_get_pages(bp, page_count);
-	if (rval)
-		return rval;
-
-	bp->b_offset = offset;
-
-	for (i = 0; i < bp->b_page_count; i++) {
-		bp->b_pages[i] = kmem_to_page((void *)pageaddr);
-		pageaddr += PAGE_SIZE;
-	}
-
-	bp->b_io_length = BTOBB(len);
-	bp->b_length = BTOBB(buflen);
-
-	return 0;
-}
-
 xfs_buf_t *
 xfs_buf_get_uncached(
 	struct xfs_buftarg	*target,
@@ -1259,7 +1193,7 @@ xfs_buf_ioend_async(
 	struct xfs_buf	*bp)
 {
 	INIT_WORK(&bp->b_ioend_work, xfs_buf_ioend_work);
-	queue_work(bp->b_ioend_wq, &bp->b_ioend_work);
+	queue_work(bp->b_target->bt_mount->m_buf_workqueue, &bp->b_ioend_work);
 }
 
 void
@@ -1426,21 +1360,8 @@ _xfs_buf_ioapply(
 	 */
 	bp->b_error = 0;
 
-	/*
-	 * Initialize the I/O completion workqueue if we haven't yet or the
-	 * submitter has not opted to specify a custom one.
-	 */
-	if (!bp->b_ioend_wq)
-		bp->b_ioend_wq = bp->b_target->bt_mount->m_buf_workqueue;
-
 	if (bp->b_flags & XBF_WRITE) {
 		op = REQ_OP_WRITE;
-		if (bp->b_flags & XBF_SYNCIO)
-			op_flags = REQ_SYNC;
-		if (bp->b_flags & XBF_FUA)
-			op_flags |= REQ_FUA;
-		if (bp->b_flags & XBF_FLUSH)
-			op_flags |= REQ_PREFLUSH;
 
 		/*
 		 * Run the write verifier callback function if it exists. If

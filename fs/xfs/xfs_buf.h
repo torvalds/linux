@@ -30,11 +30,6 @@
 #define XBF_STALE	 (1 << 6) /* buffer has been staled, do not find it */
 #define XBF_WRITE_FAIL	 (1 << 7) /* async writes have failed on this buffer */
 
-/* I/O hints for the BIO layer */
-#define XBF_SYNCIO	 (1 << 10)/* treat this buffer as synchronous I/O */
-#define XBF_FUA		 (1 << 11)/* force cache write through mode */
-#define XBF_FLUSH	 (1 << 12)/* flush the disk cache before a write */
-
 /* flags used only as arguments to access routines */
 #define XBF_TRYLOCK	 (1 << 16)/* lock requested, but do not wait */
 #define XBF_UNMAPPED	 (1 << 17)/* do not map the buffer */
@@ -55,9 +50,6 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_STALE,		"STALE" }, \
 	{ XBF_WRITE_FAIL,	"WRITE_FAIL" }, \
-	{ XBF_SYNCIO,		"SYNCIO" }, \
-	{ XBF_FUA,		"FUA" }, \
-	{ XBF_FLUSH,		"FLUSH" }, \
 	{ XBF_TRYLOCK,		"TRYLOCK" },	/* should never be set */\
 	{ XBF_UNMAPPED,		"UNMAPPED" },	/* ditto */\
 	{ _XBF_PAGES,		"PAGES" }, \
@@ -156,7 +148,6 @@ typedef struct xfs_buf {
 	xfs_buftarg_t		*b_target;	/* buffer target (device) */
 	void			*b_addr;	/* virtual address of buffer */
 	struct work_struct	b_ioend_work;
-	struct workqueue_struct	*b_ioend_wq;	/* I/O completion wq */
 	xfs_buf_iodone_t	b_iodone;	/* I/O completion function */
 	struct completion	b_iowait;	/* queue for I/O waiters */
 	void			*b_log_item;
@@ -201,21 +192,6 @@ struct xfs_buf *xfs_buf_incore(struct xfs_buftarg *target,
 			   xfs_daddr_t blkno, size_t numblks,
 			   xfs_buf_flags_t flags);
 
-struct xfs_buf *_xfs_buf_alloc(struct xfs_buftarg *target,
-			       struct xfs_buf_map *map, int nmaps,
-			       xfs_buf_flags_t flags);
-
-static inline struct xfs_buf *
-xfs_buf_alloc(
-	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
-	size_t			numblks,
-	xfs_buf_flags_t		flags)
-{
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
-	return _xfs_buf_alloc(target, &map, 1, flags);
-}
-
 struct xfs_buf *xfs_buf_get_map(struct xfs_buftarg *target,
 			       struct xfs_buf_map *map, int nmaps,
 			       xfs_buf_flags_t flags);
@@ -259,9 +235,6 @@ xfs_buf_readahead(
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
 	return xfs_buf_readahead_map(target, &map, 1, ops);
 }
-
-void xfs_buf_set_empty(struct xfs_buf *bp, size_t numblks);
-int xfs_buf_associate_memory(struct xfs_buf *bp, void *mem, size_t length);
 
 struct xfs_buf *xfs_buf_get_uncached(struct xfs_buftarg *target, size_t numblks,
 				int flags);
