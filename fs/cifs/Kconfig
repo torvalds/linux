@@ -17,6 +17,7 @@ config CIFS
 	select CRYPTO_ECB
 	select CRYPTO_AES
 	select CRYPTO_DES
+	select KEYS
 	help
 	  This is the client VFS module for the SMB3 family of NAS protocols,
 	  (including support for the most recent, most secure dialect SMB3.1.1)
@@ -110,7 +111,7 @@ config CIFS_WEAK_PW_HASH
 
 config CIFS_UPCALL
 	bool "Kerberos/SPNEGO advanced session setup"
-	depends on CIFS && KEYS
+	depends on CIFS
 	select DNS_RESOLVER
 	help
 	  Enables an upcall mechanism for CIFS which accesses userspace helper
@@ -177,7 +178,7 @@ config CIFS_DEBUG_DUMP_KEYS
 
 config CIFS_DFS_UPCALL
 	bool "DFS feature support"
-	depends on CIFS && KEYS
+	depends on CIFS
 	select DNS_RESOLVER
 	help
 	  Distributed File System (DFS) support is used to access shares
