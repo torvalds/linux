@@ -1328,7 +1328,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 			IWL_DEBUG_RATE(mvm,
 				       "Too many rates mismatch. Send sync LQ. rs_state %d\n",
 				       lq_sta->rs_state);
-			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
+			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq);
 		}
 		/* Regardless, ignore this status info for outdated rate */
 		return;
@@ -1390,7 +1390,8 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 		if (info->status.ampdu_ack_len == 0)
 			info->status.ampdu_len = 1;
 
-		rs_collect_tlc_data(mvm, mvmsta, tid, curr_tbl, tx_resp_rate.index,
+		rs_collect_tlc_data(mvm, mvmsta, tid, curr_tbl,
+				    tx_resp_rate.index,
 				    info->status.ampdu_len,
 				    info->status.ampdu_ack_len);
 
@@ -1833,7 +1834,7 @@ static void rs_update_rate_tbl(struct iwl_mvm *mvm,
 			       struct iwl_scale_tbl_info *tbl)
 {
 	rs_fill_lq_cmd(mvm, sta, lq_sta, &tbl->rate);
-	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
+	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq);
 }
 
 static bool rs_tweak_rate_tbl(struct iwl_mvm *mvm,
@@ -2935,7 +2936,7 @@ void rs_update_last_rssi(struct iwl_mvm *mvm,
 static void rs_initialize_lq(struct iwl_mvm *mvm,
 			     struct ieee80211_sta *sta,
 			     struct iwl_lq_sta *lq_sta,
-			     enum nl80211_band band, bool update)
+			     enum nl80211_band band)
 {
 	struct iwl_scale_tbl_info *tbl;
 	struct rs_rate *rate;
@@ -2965,7 +2966,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_lq_cmd(mvm, sta, lq_sta, rate);
 	/* TODO restore station should remember the lq cmd */
-	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, !update);
+	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq);
 }
 
 static void rs_drv_get_rate(void *mvm_r, struct ieee80211_sta *sta,
@@ -3214,7 +3215,7 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
  * Called after adding a new station to initialize rate scaling
  */
 static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			     enum nl80211_band band, bool update)
+			     enum nl80211_band band)
 {
 	int i, j;
 	struct ieee80211_hw *hw = mvm->hw;
@@ -3294,7 +3295,7 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
-	rs_initialize_lq(mvm, sta, lq_sta, band, update);
+	rs_initialize_lq(mvm, sta, lq_sta, band);
 }
 
 static void rs_drv_rate_update(void *mvm_r,
@@ -3608,7 +3609,7 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 
 		bfersta_ss_params &= ~LQ_SS_BFER_ALLOWED;
 		bfersta_lq_cmd->ss_params = cpu_to_le32(bfersta_ss_params);
-		iwl_mvm_send_lq_cmd(mvm, bfersta_lq_cmd, false);
+		iwl_mvm_send_lq_cmd(mvm, bfersta_lq_cmd);
 
 		ss_params |= LQ_SS_BFER_ALLOWED;
 		IWL_DEBUG_RATE(mvm,
@@ -3774,7 +3775,7 @@ static void rs_program_fix_rate(struct iwl_mvm *mvm,
 
 	if (lq_sta->pers.dbg_fixed_rate) {
 		rs_fill_lq_cmd(mvm, NULL, lq_sta, NULL);
-		iwl_mvm_send_lq_cmd(lq_sta->pers.drv, &lq_sta->lq, false);
+		iwl_mvm_send_lq_cmd(lq_sta->pers.drv, &lq_sta->lq);
 	}
 }
 
@@ -4177,7 +4178,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		mutex_lock(&mvmsta->lq_sta.rs_drv.mutex);
-		rs_drv_rate_init(mvm, sta, band, update);
+		rs_drv_rate_init(mvm, sta, band);
 		mutex_unlock(&mvmsta->lq_sta.rs_drv.mutex);
 	}
 }
@@ -4209,7 +4210,7 @@ static int rs_drv_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			lq->flags &= ~LQ_FLAG_USE_RTS_MSK;
 	}
 
-	return iwl_mvm_send_lq_cmd(mvm, lq, false);
+	return iwl_mvm_send_lq_cmd(mvm, lq);
 }
 
 /**
