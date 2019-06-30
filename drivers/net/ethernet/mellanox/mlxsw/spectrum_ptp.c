@@ -117,9 +117,9 @@ mlxsw_sp1_ptp_phc_settime(struct mlxsw_sp_ptp_clock *clock, u64 nsec)
 	next_sec = div_u64(nsec, NSEC_PER_SEC) + 1;
 	next_sec_in_nsec = next_sec * NSEC_PER_SEC;
 
-	spin_lock(&clock->lock);
+	spin_lock_bh(&clock->lock);
 	cycles = mlxsw_sp1_ptp_ns2cycles(&clock->tc, next_sec_in_nsec);
-	spin_unlock(&clock->lock);
+	spin_unlock_bh(&clock->lock);
 
 	mlxsw_reg_mtpps_vpin_pack(mtpps_pl, cycles);
 	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtpps), mtpps_pl);
@@ -152,11 +152,11 @@ static int mlxsw_sp1_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	adj *= ppb;
 	diff = div_u64(adj, NSEC_PER_SEC);
 
-	spin_lock(&clock->lock);
+	spin_lock_bh(&clock->lock);
 	timecounter_read(&clock->tc);
 	clock->cycles.mult = neg_adj ? clock->nominal_c_mult - diff :
 				       clock->nominal_c_mult + diff;
-	spin_unlock(&clock->lock);
+	spin_unlock_bh(&clock->lock);
 
 	return mlxsw_sp1_ptp_phc_adjfreq(clock, neg_adj ? -ppb : ppb);
 }
@@ -167,10 +167,10 @@ static int mlxsw_sp1_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
 	u64 nsec;
 
-	spin_lock(&clock->lock);
+	spin_lock_bh(&clock->lock);
 	timecounter_adjtime(&clock->tc, delta);
 	nsec = timecounter_read(&clock->tc);
-	spin_unlock(&clock->lock);
+	spin_unlock_bh(&clock->lock);
 
 	return mlxsw_sp1_ptp_phc_settime(clock, nsec);
 }
@@ -183,10 +183,10 @@ static int mlxsw_sp1_ptp_gettimex(struct ptp_clock_info *ptp,
 		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
 	u64 cycles, nsec;
 
-	spin_lock(&clock->lock);
+	spin_lock_bh(&clock->lock);
 	cycles = __mlxsw_sp1_ptp_read_frc(clock, sts);
 	nsec = timecounter_cyc2time(&clock->tc, cycles);
-	spin_unlock(&clock->lock);
+	spin_unlock_bh(&clock->lock);
 
 	*ts = ns_to_timespec64(nsec);
 
@@ -200,10 +200,10 @@ static int mlxsw_sp1_ptp_settime(struct ptp_clock_info *ptp,
 		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
 	u64 nsec = timespec64_to_ns(ts);
 
-	spin_lock(&clock->lock);
+	spin_lock_bh(&clock->lock);
 	timecounter_init(&clock->tc, &clock->cycles, nsec);
 	nsec = timecounter_read(&clock->tc);
-	spin_unlock(&clock->lock);
+	spin_unlock_bh(&clock->lock);
 
 	return mlxsw_sp1_ptp_phc_settime(clock, nsec);
 }
@@ -225,9 +225,9 @@ static void mlxsw_sp1_ptp_clock_overflow(struct work_struct *work)
 
 	clock = container_of(dwork, struct mlxsw_sp_ptp_clock, overflow_work);
 
-	spin_lock(&clock->lock);
+	spin_lock_bh(&clock->lock);
 	timecounter_read(&clock->tc);
-	spin_unlock(&clock->lock);
+	spin_unlock_bh(&clock->lock);
 	mlxsw_core_schedule_dw(&clock->overflow_work, clock->overflow_period);
 }
 
