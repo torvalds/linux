@@ -418,4 +418,13 @@ enum mlxsw_devlink_param_id {
 	MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
 };
 
+struct mlxsw_skb_cb {
+};
+
+static inline struct mlxsw_skb_cb *mlxsw_skb_cb(struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(mlxsw_skb_cb) > sizeof(skb->cb));
+	return (struct mlxsw_skb_cb *) skb->cb;
+}
+
 #endif
