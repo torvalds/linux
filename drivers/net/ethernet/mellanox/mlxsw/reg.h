@@ -9185,6 +9185,115 @@ static inline void mlxsw_reg_mtpppc_pack(char *payload, u16 ing, u16 egr)
 	mlxsw_reg_mtpppc_egr_timestamp_message_type_set(payload, egr);
 }
 
+/* MTPPTR - Time Precision Packet Timestamping Reading
+ * ---------------------------------------------------
+ * The MTPPTR is used for reading the per port PTP timestamp FIFO.
+ * There is a trap for packets which are latched to the timestamp FIFO, thus the
+ * SW knows which FIFO to read. Note that packets enter the FIFO before been
+ * trapped. The sequence number is used to synchronize the timestamp FIFO
+ * entries and the trapped packets.
+ * Reserved when Spectrum-2.
+ */
+
+#define MLXSW_REG_MTPPTR_ID 0x9091
+#define MLXSW_REG_MTPPTR_BASE_LEN 0x10 /* base length, without records */
+#define MLXSW_REG_MTPPTR_REC_LEN 0x10 /* record length */
+#define MLXSW_REG_MTPPTR_REC_MAX_COUNT 4
+#define MLXSW_REG_MTPPTR_LEN (MLXSW_REG_MTPPTR_BASE_LEN +		\
+		    MLXSW_REG_MTPPTR_REC_LEN * MLXSW_REG_MTPPTR_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(mtpptr, MLXSW_REG_MTPPTR_ID, MLXSW_REG_MTPPTR_LEN);
+
+/* reg_mtpptr_local_port
+ * Not supported for CPU port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mtpptr, local_port, 0x00, 16, 8);
+
+enum mlxsw_reg_mtpptr_dir {
+	MLXSW_REG_MTPPTR_DIR_INGRESS,
+	MLXSW_REG_MTPPTR_DIR_EGRESS,
+};
+
+/* reg_mtpptr_dir
+ * Direction.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mtpptr, dir, 0x00, 0, 1);
+
+/* reg_mtpptr_clr
+ * Clear the records.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, mtpptr, clr, 0x04, 31, 1);
+
+/* reg_mtpptr_num_rec
+ * Number of valid records in the response
+ * Range 0.. cap_ptp_timestamp_fifo
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtpptr, num_rec, 0x08, 0, 4);
+
+/* reg_mtpptr_rec_message_type
+ * MessageType field as defined by IEEE 1588 Each bit corresponds to a value
+ * (e.g. Bit0: Sync, Bit1: Delay_Req)
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, mtpptr, rec_message_type,
+		     MLXSW_REG_MTPPTR_BASE_LEN, 8, 4,
+		     MLXSW_REG_MTPPTR_REC_LEN, 0, false);
+
+/* reg_mtpptr_rec_domain_number
+ * DomainNumber field as defined by IEEE 1588
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, mtpptr, rec_domain_number,
+		     MLXSW_REG_MTPPTR_BASE_LEN, 0, 8,
+		     MLXSW_REG_MTPPTR_REC_LEN, 0, false);
+
+/* reg_mtpptr_rec_sequence_id
+ * SequenceId field as defined by IEEE 1588
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, mtpptr, rec_sequence_id,
+		     MLXSW_REG_MTPPTR_BASE_LEN, 0, 16,
+		     MLXSW_REG_MTPPTR_REC_LEN, 0x4, false);
+
+/* reg_mtpptr_rec_timestamp_high
+ * Timestamp of when the PTP packet has passed through the port Units of PLL
+ * clock time.
+ * For Spectrum-1 the PLL clock is 156.25Mhz and PLL clock time is 6.4nSec.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, mtpptr, rec_timestamp_high,
+		     MLXSW_REG_MTPPTR_BASE_LEN, 0, 32,
+		     MLXSW_REG_MTPPTR_REC_LEN, 0x8, false);
+
+/* reg_mtpptr_rec_timestamp_low
+ * See rec_timestamp_high.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, mtpptr, rec_timestamp_low,
+		     MLXSW_REG_MTPPTR_BASE_LEN, 0, 32,
+		     MLXSW_REG_MTPPTR_REC_LEN, 0xC, false);
+
+static inline void mlxsw_reg_mtpptr_unpack(const char *payload,
+					   unsigned int rec,
+					   u8 *p_message_type,
+					   u8 *p_domain_number,
+					   u16 *p_sequence_id,
+					   u64 *p_timestamp)
+{
+	u32 timestamp_high, timestamp_low;
+
+	*p_message_type = mlxsw_reg_mtpptr_rec_message_type_get(payload, rec);
+	*p_domain_number = mlxsw_reg_mtpptr_rec_domain_number_get(payload, rec);
+	*p_sequence_id = mlxsw_reg_mtpptr_rec_sequence_id_get(payload, rec);
+	timestamp_high = mlxsw_reg_mtpptr_rec_timestamp_high_get(payload, rec);
+	timestamp_low = mlxsw_reg_mtpptr_rec_timestamp_low_get(payload, rec);
+	*p_timestamp = (u64)timestamp_high << 32 | timestamp_low;
+}
+
 /* MTPTPT - Monitoring Precision Time Protocol Trap Register
  * ---------------------------------------------------------
  * This register is used for configuring under which trap to deliver PTP
@@ -10292,6 +10401,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mgpc),
 	MLXSW_REG(mprs),
 	MLXSW_REG(mtpppc),
+	MLXSW_REG(mtpptr),
 	MLXSW_REG(mtptpt),
 	MLXSW_REG(mgpir),
 	MLXSW_REG(tngcr),
