@@ -11,6 +11,13 @@ struct mlxsw_sp;
 struct mlxsw_sp_port;
 struct mlxsw_sp_ptp_clock;
 
+enum {
+	MLXSW_SP_PTP_MESSAGE_TYPE_SYNC,
+	MLXSW_SP_PTP_MESSAGE_TYPE_DELAY_REQ,
+	MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_REQ,
+	MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_RESP,
+};
+
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 
 struct mlxsw_sp_ptp_clock *

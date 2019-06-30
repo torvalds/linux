@@ -718,9 +718,35 @@ static void mlxsw_sp1_ptp_ht_gc(struct work_struct *work)
 			       MLXSW_SP1_PTP_HT_GC_INTERVAL);
 }
 
+static int mlxsw_sp_ptp_mtptpt_set(struct mlxsw_sp *mlxsw_sp,
+				   enum mlxsw_reg_mtptpt_trap_id trap_id,
+				   u16 message_type)
+{
+	char mtptpt_pl[MLXSW_REG_MTPTPT_LEN];
+
+	mlxsw_reg_mtptptp_pack(mtptpt_pl, trap_id, message_type);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mtptpt), mtptpt_pl);
+}
+
+static int mlxsw_sp1_ptp_set_fifo_clr_on_trap(struct mlxsw_sp *mlxsw_sp,
+					      bool clr)
+{
+	char mogcr_pl[MLXSW_REG_MOGCR_LEN] = {0};
+	int err;
+
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(mogcr), mogcr_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mogcr_ptp_iftc_set(mogcr_pl, clr);
+	mlxsw_reg_mogcr_ptp_eftc_set(mogcr_pl, clr);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mogcr), mogcr_pl);
+}
+
 struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_ptp_state *ptp_state;
+	u16 message_type;
 	int err;
 
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
@@ -735,11 +761,38 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_hashtable_init;
 
+	/* Delive these message types as PTP0. */
+	message_type = BIT(MLXSW_SP_PTP_MESSAGE_TYPE_SYNC) |
+		       BIT(MLXSW_SP_PTP_MESSAGE_TYPE_DELAY_REQ) |
+		       BIT(MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_REQ) |
+		       BIT(MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_RESP);
+	err = mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0,
+				      message_type);
+	if (err)
+		goto err_mtptpt_set;
+
+	/* Everything else is PTP1. */
+	message_type = ~message_type;
+	err = mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1,
+				      message_type);
+	if (err)
+		goto err_mtptpt1_set;
+
+	err = mlxsw_sp1_ptp_set_fifo_clr_on_trap(mlxsw_sp, true);
+	if (err)
+		goto err_fifo_clr;
+
 	INIT_DELAYED_WORK(&ptp_state->ht_gc_dw, mlxsw_sp1_ptp_ht_gc);
 	mlxsw_core_schedule_dw(&ptp_state->ht_gc_dw,
 			       MLXSW_SP1_PTP_HT_GC_INTERVAL);
 	return ptp_state;
 
+err_fifo_clr:
+	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1, 0);
+err_mtptpt1_set:
+	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0, 0);
+err_mtptpt_set:
+	rhashtable_destroy(&ptp_state->unmatched_ht);
 err_hashtable_init:
 	kfree(ptp_state);
 	return ERR_PTR(err);
@@ -747,7 +800,12 @@ err_hashtable_init:
 
 void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 {
+	struct mlxsw_sp *mlxsw_sp = ptp_state->mlxsw_sp;
+
 	cancel_delayed_work_sync(&ptp_state->ht_gc_dw);
+	mlxsw_sp1_ptp_set_fifo_clr_on_trap(mlxsw_sp, false);
+	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1, 0);
+	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0, 0);
 	rhashtable_free_and_destroy(&ptp_state->unmatched_ht,
 				    &mlxsw_sp1_ptp_unmatched_free_fn, NULL);
 	kfree(ptp_state);
