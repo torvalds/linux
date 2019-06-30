@@ -97,7 +97,7 @@ IWL_EXPORT_SYMBOL(iwl_acpi_get_object);
 
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
-					 int data_size)
+					 int data_size, int *tbl_rev)
 {
 	int i;
 	union acpi_object *wifi_pkg;
@@ -113,15 +113,18 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 	/*
 	 * We need at least two packages, one for the revision and one
 	 * for the data itself.  Also check that the revision is valid
-	 * (i.e. it is an integer set to 0).
+	 * (i.e. it is an integer smaller than 2, as we currently support only
+	 * 2 revisions).
 	 */
 	if (data->type != ACPI_TYPE_PACKAGE ||
 	    data->package.count < 2 ||
 	    data->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    data->package.elements[0].integer.value != 0) {
+	    data->package.elements[0].integer.value > 1) {
 		IWL_DEBUG_DEV_RADIO(dev, "Unsupported packages structure\n");
 		return ERR_PTR(-EINVAL);
 	}
+
+	*tbl_rev = data->package.elements[0].integer.value;
 
 	/* loop through all the packages to find the one for WiFi */
 	for (i = 1; i < data->package.count; i++) {
@@ -151,14 +154,15 @@ int iwl_acpi_get_mcc(struct device *dev, char *mcc)
 {
 	union acpi_object *wifi_pkg, *data;
 	u32 mcc_val;
-	int ret;
+	int ret, tbl_rev;
 
 	data = iwl_acpi_get_object(dev, ACPI_WRDD_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data, ACPI_WRDD_WIFI_DATA_SIZE);
-	if (IS_ERR(wifi_pkg)) {
+	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data, ACPI_WRDD_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
 	}
@@ -185,6 +189,7 @@ u64 iwl_acpi_get_pwr_limit(struct device *dev)
 {
 	union acpi_object *data, *wifi_pkg;
 	u64 dflt_pwr_limit;
+	int tbl_rev;
 
 	data = iwl_acpi_get_object(dev, ACPI_SPLC_METHOD);
 	if (IS_ERR(data)) {
@@ -193,8 +198,8 @@ u64 iwl_acpi_get_pwr_limit(struct device *dev)
 	}
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data,
-					 ACPI_SPLC_WIFI_DATA_SIZE);
-	if (IS_ERR(wifi_pkg) ||
+					 ACPI_SPLC_WIFI_DATA_SIZE, &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev != 0 ||
 	    wifi_pkg->package.elements[1].integer.value != ACPI_TYPE_INTEGER) {
 		dflt_pwr_limit = 0;
 		goto out_free;
@@ -211,14 +216,15 @@ IWL_EXPORT_SYMBOL(iwl_acpi_get_pwr_limit);
 int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
 {
 	union acpi_object *wifi_pkg, *data;
-	int ret;
+	int ret, tbl_rev;
 
 	data = iwl_acpi_get_object(dev, ACPI_ECKV_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data, ACPI_ECKV_WIFI_DATA_SIZE);
-	if (IS_ERR(wifi_pkg)) {
+	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data, ACPI_ECKV_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
 	}

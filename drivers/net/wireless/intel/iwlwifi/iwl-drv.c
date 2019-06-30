@@ -1105,6 +1105,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				le32_to_cpu(recov_info->buf_size);
 			}
 			break;
+		case IWL_UCODE_TLV_FW_FSEQ_VERSION: {
+			struct {
+				u8 version[32];
+				u8 sha1[20];
+			} *fseq_ver = (void *)tlv_data;
+
+			if (tlv_len != sizeof(*fseq_ver))
+				goto invalid_tlv_len;
+			IWL_INFO(drv, "TLV_FW_FSEQ_VERSION: %s\n",
+				 fseq_ver->version);
+			}
+			break;
 		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
 			struct iwl_umac_debug_addrs *dbg_ptrs =
 				(void *)tlv_data;
@@ -1114,10 +1126,10 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (drv->trans->cfg->device_family <
 			    IWL_DEVICE_FAMILY_22000)
 				break;
-			drv->trans->umac_error_event_table =
+			drv->trans->dbg.umac_error_event_table =
 				le32_to_cpu(dbg_ptrs->error_info_addr) &
 				~FW_ADDR_CACHE_CONTROL;
-			drv->trans->error_event_table_tlv_status |=
+			drv->trans->dbg.error_event_table_tlv_status |=
 				IWL_ERROR_EVENT_TABLE_UMAC;
 			break;
 			}
@@ -1130,13 +1142,14 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (drv->trans->cfg->device_family <
 			    IWL_DEVICE_FAMILY_22000)
 				break;
-			drv->trans->lmac_error_event_table[0] =
+			drv->trans->dbg.lmac_error_event_table[0] =
 				le32_to_cpu(dbg_ptrs->error_event_table_ptr) &
 				~FW_ADDR_CACHE_CONTROL;
-			drv->trans->error_event_table_tlv_status |=
+			drv->trans->dbg.error_event_table_tlv_status |=
 				IWL_ERROR_EVENT_TABLE_LMAC1;
 			break;
 			}
+		case IWL_UCODE_TLV_TYPE_DEBUG_INFO:
 		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
 		case IWL_UCODE_TLV_TYPE_HCMD:
 		case IWL_UCODE_TLV_TYPE_REGIONS:
@@ -1744,7 +1757,7 @@ IWL_EXPORT_SYMBOL(iwl_opmode_deregister);
 
 static int __init iwl_drv_init(void)
 {
-	int i;
+	int i, err;
 
 	mutex_init(&iwlwifi_opmode_table_mtx);
 
@@ -1759,7 +1772,17 @@ static int __init iwl_drv_init(void)
 	iwl_dbgfs_root = debugfs_create_dir(DRV_NAME, NULL);
 #endif
 
-	return iwl_pci_register_driver();
+	err = iwl_pci_register_driver();
+	if (err)
+		goto cleanup_debugfs;
+
+	return 0;
+
+cleanup_debugfs:
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	debugfs_remove_recursive(iwl_dbgfs_root);
+#endif
+	return err;
 }
 module_init(iwl_drv_init);
 
