@@ -28,16 +28,17 @@
 #ifndef __AST_DRV_H__
 #define __AST_DRV_H__
 
-#include <drm/drm_encoder.h>
-#include <drm/drm_fb_helper.h>
-
-#include <drm/drm_gem.h>
-#include <drm/drm_gem_vram_helper.h>
-
-#include <drm/drm_vram_mm_helper.h>
-
+#include <linux/types.h>
+#include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_mode.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_fb_helper.h>
 
 #define DRIVER_AUTHOR		"Dave Airlie"
 

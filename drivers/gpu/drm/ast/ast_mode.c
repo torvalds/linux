@@ -27,14 +27,18 @@
 /*
  * Authors: Dave Airlie <airlied@redhat.com>
  */
+
 #include <linux/export.h>
-#include <drm/drmP.h>
+#include <linux/pci.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include "ast_drv.h"
 
+#include "ast_drv.h"
 #include "ast_tables.h"
 
 static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
