@@ -4114,6 +4114,9 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_NO_MARK(NVE_DECAP_ARP, TRAP_TO_CPU, ARP, false),
 };
 
+static const struct mlxsw_listener mlxsw_sp1_listener[] = {
+};
+
 static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 {
 	char qpcr_pl[MLXSW_REG_QPCR_LEN];
@@ -4302,12 +4305,28 @@ static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	return mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp_listener,
-				       ARRAY_SIZE(mlxsw_sp_listener));
+	err = mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp_listener,
+				      ARRAY_SIZE(mlxsw_sp_listener));
+	if (err)
+		return err;
+
+	err = mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp->listeners,
+				      mlxsw_sp->listeners_count);
+	if (err)
+		goto err_extra_traps_init;
+
+	return 0;
+
+err_extra_traps_init:
+	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
+				  ARRAY_SIZE(mlxsw_sp_listener));
+	return err;
 }
 
 static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp->listeners,
+				  mlxsw_sp->listeners_count);
 	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
 				  ARRAY_SIZE(mlxsw_sp_listener));
 }
@@ -4566,6 +4585,8 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->sb_vals = &mlxsw_sp1_sb_vals;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp1_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp1_ptp_ops;
+	mlxsw_sp->listeners = mlxsw_sp1_listener;
+	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp1_listener);
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
 }
