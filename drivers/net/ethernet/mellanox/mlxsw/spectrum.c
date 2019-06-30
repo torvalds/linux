@@ -4251,22 +4251,16 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return 0;
 }
 
-static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
+static int mlxsw_sp_traps_register(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_listener listeners[],
+				   size_t listeners_count)
 {
 	int i;
 	int err;
 
-	err = mlxsw_sp_cpu_policers_set(mlxsw_sp->core);
-	if (err)
-		return err;
-
-	err = mlxsw_sp_trap_groups_set(mlxsw_sp->core);
-	if (err)
-		return err;
-
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener); i++) {
+	for (i = 0; i < listeners_count; i++) {
 		err = mlxsw_core_trap_register(mlxsw_sp->core,
-					       &mlxsw_sp_listener[i],
+					       &listeners[i],
 					       mlxsw_sp);
 		if (err)
 			goto err_listener_register;
@@ -4277,21 +4271,45 @@ static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 err_listener_register:
 	for (i--; i >= 0; i--) {
 		mlxsw_core_trap_unregister(mlxsw_sp->core,
-					   &mlxsw_sp_listener[i],
+					   &listeners[i],
 					   mlxsw_sp);
 	}
 	return err;
 }
 
-static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
+static void mlxsw_sp_traps_unregister(struct mlxsw_sp *mlxsw_sp,
+				      const struct mlxsw_listener listeners[],
+				      size_t listeners_count)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener); i++) {
+	for (i = 0; i < listeners_count; i++) {
 		mlxsw_core_trap_unregister(mlxsw_sp->core,
-					   &mlxsw_sp_listener[i],
+					   &listeners[i],
 					   mlxsw_sp);
 	}
+}
+
+static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
+{
+	int err;
+
+	err = mlxsw_sp_cpu_policers_set(mlxsw_sp->core);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_trap_groups_set(mlxsw_sp->core);
+	if (err)
+		return err;
+
+	return mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp_listener,
+				       ARRAY_SIZE(mlxsw_sp_listener));
+}
+
+static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
+				  ARRAY_SIZE(mlxsw_sp_listener));
 }
 
 #define MLXSW_SP_LAG_SEED_INIT 0xcafecafe
