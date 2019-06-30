@@ -22,6 +22,8 @@
  * Authors: Andreas Pokorny
  */
 
+#include <drm/drm_prime.h>
+
 #include "virtgpu_drv.h"
 
 /* Empty Implementations as there should not be any other driver for a virtual

@@ -25,10 +25,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
-#include <drm/virtgpu_drm.h>
-#include <drm/ttm/ttm_execbuf_util.h>
+#include <linux/file.h>
 #include <linux/sync_file.h>
+
+#include <drm/drm_file.h>
+#include <drm/ttm/ttm_execbuf_util.h>
+#include <drm/virtgpu_drm.h>
 
 #include "virtgpu_drv.h"
 

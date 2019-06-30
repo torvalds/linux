@@ -25,7 +25,9 @@
 
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_file.h>
+
 #include "virtgpu_drv.h"
 
 static void virtio_gpu_config_changed_work_func(struct work_struct *work)

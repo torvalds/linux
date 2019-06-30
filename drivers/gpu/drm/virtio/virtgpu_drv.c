@@ -29,10 +29,13 @@
 #include <linux/module.h>
 #include <linux/console.h>
 #include <linux/pci.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
 
 #include "virtgpu_drv.h"
+
 static struct drm_driver driver;
 
 static int virtio_gpu_modeset = -1;

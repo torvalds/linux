@@ -31,16 +31,16 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_gpu.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_gem.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_placement.h>
 
 #define DRIVER_NAME "virtio_gpu"
 #define DRIVER_DESC "virtio GPU"
