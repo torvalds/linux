@@ -513,6 +513,10 @@ int acpi_device_fix_up_power(struct acpi_device *device);
 int acpi_bus_update_power(acpi_handle handle, int *state_p);
 int acpi_device_update_power(struct acpi_device *device, int *state_p);
 bool acpi_bus_power_manageable(acpi_handle handle);
+int acpi_device_power_add_dependent(struct acpi_device *adev,
+				    struct device *dev);
+void acpi_device_power_remove_dependent(struct acpi_device *adev,
+					struct device *dev);
 
 #ifdef CONFIG_PM
 bool acpi_bus_can_wakeup(acpi_handle handle);
