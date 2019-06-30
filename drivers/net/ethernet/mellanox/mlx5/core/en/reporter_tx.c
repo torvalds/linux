@@ -262,13 +262,13 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 
 		err = mlx5_core_query_sq_state(priv->mdev, sq->sqn, &state);
 		if (err)
-			break;
+			goto unlock;
 
 		err = mlx5e_tx_reporter_build_diagnose_output(fmsg, sq->sqn,
 							      state,
 							      netif_xmit_stopped(sq->txq));
 		if (err)
-			break;
+			goto unlock;
 	}
 	err = devlink_fmsg_arr_pair_nest_end(fmsg);
 	if (err)
