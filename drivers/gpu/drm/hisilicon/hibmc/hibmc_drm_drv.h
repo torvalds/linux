@@ -14,12 +14,11 @@
 #ifndef HIBMC_DRM_DRV_H
 #define HIBMC_DRM_DRV_H
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem.h>
-#include <drm/drm_gem_vram_helper.h>
-#include <drm/drm_vram_mm_helper.h>
+#include <drm/drm_framebuffer.h>
+
+struct drm_device;
+struct drm_gem_object;
 
 struct hibmc_framebuffer {
 	struct drm_framebuffer fb;
