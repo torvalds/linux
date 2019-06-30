@@ -2101,7 +2101,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	u32 trig_type = le32_to_cpu(desc->trig_desc.type);
 	int ret;
 
-	if (fwrt->trans->dbg.ini_valid) {
+	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
 		ret = iwl_fw_dbg_ini_collect(fwrt, trig_type);
 		if (!ret)
 			iwl_fw_free_dump_desc(fwrt);
@@ -2381,7 +2381,7 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	}
 
 	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection start\n");
-	if (fwrt->trans->dbg.ini_valid)
+	if (iwl_trans_dbg_ini_valid(fwrt->trans))
 		iwl_fw_error_ini_dump(fwrt, wk_idx);
 	else
 		iwl_fw_error_dump(fwrt);

@@ -1304,7 +1304,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
-	if (!mvm->trans->dbg.ini_valid) {
+	if (!iwl_trans_dbg_ini_valid(mvm->trans)) {
 		mvm->fwrt.dump.conf = FW_DBG_INVALID;
 		/* if we have a destination, assume EARLY START */
 		if (mvm->fw->dbg.dest_tlv)

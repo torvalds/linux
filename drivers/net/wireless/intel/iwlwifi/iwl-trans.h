@@ -1216,6 +1216,11 @@ static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 		trans->ops->sync_nmi(trans);
 }
 
+static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
+{
+	return trans->dbg.ini_valid;
+}
+
 /*****************************************************
  * transport helper functions
  *****************************************************/

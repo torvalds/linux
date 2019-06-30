@@ -896,7 +896,7 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg.dest_tlv;
 	int i;
 
-	if (trans->dbg.ini_valid) {
+	if (iwl_trans_dbg_ini_valid(trans)) {
 		if (!trans->dbg.num_blocks)
 			return;
 

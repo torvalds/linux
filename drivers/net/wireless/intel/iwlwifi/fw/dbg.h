@@ -202,7 +202,7 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
 
-	if (fwrt->trans->dbg.ini_valid)
+	if (iwl_trans_dbg_ini_valid(fwrt->trans))
 		return NULL;
 
 	if (!iwl_fw_dbg_trigger_enabled(fwrt->fw, id))
@@ -229,8 +229,9 @@ iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_trigger *trig;
 	u32 usec;
 
-	if (!fwrt->trans->dbg.ini_valid || id == IWL_FW_TRIGGER_ID_INVALID ||
-	    id >= IWL_FW_TRIGGER_ID_NUM || !fwrt->dump.active_trigs[id].active)
+	if (!iwl_trans_dbg_ini_valid(fwrt->trans) ||
+	    id == IWL_FW_TRIGGER_ID_INVALID || id >= IWL_FW_TRIGGER_ID_NUM ||
+	    !fwrt->dump.active_trigs[id].active)
 		return false;
 
 	trig = fwrt->dump.active_trigs[id].trig;
@@ -394,7 +395,7 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 
 static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 {
-	if (fwrt->trans->dbg.ini_valid && fwrt->trans->dbg.hw_error) {
+	if (iwl_trans_dbg_ini_valid(fwrt->trans) && fwrt->trans->dbg.hw_error) {
 		_iwl_fw_dbg_ini_collect(fwrt, IWL_FW_TRIGGER_ID_FW_HW_ERROR);
 		fwrt->trans->dbg.hw_error = false;
 	} else {
