@@ -3970,6 +3970,46 @@ static void mlxsw_sp_pude_event_func(const struct mlxsw_reg_info *reg,
 	}
 }
 
+static void mlxsw_sp1_ptp_fifo_event_func(struct mlxsw_sp *mlxsw_sp,
+					  char *mtpptr_pl, bool ingress)
+{
+	u8 local_port;
+	u8 num_rec;
+	int i;
+
+	local_port = mlxsw_reg_mtpptr_local_port_get(mtpptr_pl);
+	num_rec = mlxsw_reg_mtpptr_num_rec_get(mtpptr_pl);
+	for (i = 0; i < num_rec; i++) {
+		u8 domain_number;
+		u8 message_type;
+		u16 sequence_id;
+		u64 timestamp;
+
+		mlxsw_reg_mtpptr_unpack(mtpptr_pl, i, &message_type,
+					&domain_number, &sequence_id,
+					&timestamp);
+		mlxsw_sp1_ptp_got_timestamp(mlxsw_sp, ingress, local_port,
+					    message_type, domain_number,
+					    sequence_id, timestamp);
+	}
+}
+
+static void mlxsw_sp1_ptp_ing_fifo_event_func(const struct mlxsw_reg_info *reg,
+					      char *mtpptr_pl, void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp1_ptp_fifo_event_func(mlxsw_sp, mtpptr_pl, true);
+}
+
+static void mlxsw_sp1_ptp_egr_fifo_event_func(const struct mlxsw_reg_info *reg,
+					      char *mtpptr_pl, void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp1_ptp_fifo_event_func(mlxsw_sp, mtpptr_pl, false);
+}
+
 void mlxsw_sp_rx_listener_no_mark_func(struct sk_buff *skb,
 				       u8 local_port, void *priv)
 {
@@ -4151,6 +4191,9 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 };
 
 static const struct mlxsw_listener mlxsw_sp1_listener[] = {
+	/* Events */
+	MLXSW_EVENTL(mlxsw_sp1_ptp_egr_fifo_event_func, PTP_EGR_FIFO, SP_PTP0),
+	MLXSW_EVENTL(mlxsw_sp1_ptp_ing_fifo_event_func, PTP_ING_FIFO, SP_PTP0),
 };
 
 static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)

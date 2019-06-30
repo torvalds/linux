@@ -6,6 +6,10 @@
 #include <linux/timecounter.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
+#include <linux/rhashtable.h>
+#include <linux/ptp_classify.h>
+#include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 
 #include "spectrum.h"
 #include "spectrum_ptp.h"
@@ -293,6 +297,166 @@ void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
 	kfree(clock);
 }
 
+static int mlxsw_sp_ptp_parse(struct sk_buff *skb,
+			      u8 *p_domain_number,
+			      u8 *p_message_type,
+			      u16 *p_sequence_id)
+{
+	unsigned int offset = 0;
+	unsigned int ptp_class;
+	u8 *data;
+
+	data = skb_mac_header(skb);
+	ptp_class = ptp_classify_raw(skb);
+
+	switch (ptp_class & PTP_CLASS_VMASK) {
+	case PTP_CLASS_V1:
+	case PTP_CLASS_V2:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	if (ptp_class & PTP_CLASS_VLAN)
+		offset += VLAN_HLEN;
+
+	switch (ptp_class & PTP_CLASS_PMASK) {
+	case PTP_CLASS_IPV4:
+		offset += ETH_HLEN + IPV4_HLEN(data + offset) + UDP_HLEN;
+		break;
+	case PTP_CLASS_IPV6:
+		offset += ETH_HLEN + IP6_HLEN + UDP_HLEN;
+		break;
+	case PTP_CLASS_L2:
+		offset += ETH_HLEN;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	/* PTP header is 34 bytes. */
+	if (skb->len < offset + 34)
+		return -EINVAL;
+
+	*p_message_type = data[offset] & 0x0f;
+	*p_domain_number = data[offset + 4];
+	*p_sequence_id = (u16)(data[offset + 30]) << 8 | data[offset + 31];
+	return 0;
+}
+
+/* Returns NULL on successful insertion, a pointer on conflict, or an ERR_PTR on
+ * error.
+ */
+static struct mlxsw_sp1_ptp_unmatched *
+mlxsw_sp1_ptp_unmatched_save(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp1_ptp_key key,
+			     struct sk_buff *skb,
+			     u64 timestamp)
+{
+	struct mlxsw_sp_ptp_state *ptp_state = mlxsw_sp->ptp_state;
+	struct mlxsw_sp1_ptp_unmatched *unmatched;
+	struct mlxsw_sp1_ptp_unmatched *conflict;
+
+	unmatched = kzalloc(sizeof(*unmatched), GFP_ATOMIC);
+	if (!unmatched)
+		return ERR_PTR(-ENOMEM);
+
+	unmatched->key = key;
+	unmatched->skb = skb;
+	unmatched->timestamp = timestamp;
+
+	conflict = rhashtable_lookup_get_insert_fast(&ptp_state->unmatched_ht,
+					    &unmatched->ht_node,
+					    mlxsw_sp1_ptp_unmatched_ht_params);
+	if (conflict)
+		kfree(unmatched);
+
+	return conflict;
+}
+
+static struct mlxsw_sp1_ptp_unmatched *
+mlxsw_sp1_ptp_unmatched_lookup(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp1_ptp_key key)
+{
+	return rhashtable_lookup(&mlxsw_sp->ptp_state->unmatched_ht, &key,
+				 mlxsw_sp1_ptp_unmatched_ht_params);
+}
+
+static int
+mlxsw_sp1_ptp_unmatched_remove(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp1_ptp_unmatched *unmatched)
+{
+	return rhashtable_remove_fast(&mlxsw_sp->ptp_state->unmatched_ht,
+				      &unmatched->ht_node,
+				      mlxsw_sp1_ptp_unmatched_ht_params);
+}
+
+/* This function is called in the following scenarios:
+ *
+ * 1) When a packet is matched with its timestamp.
+ * 2) In several situation when it is necessary to immediately pass on
+ *    an SKB without a timestamp.
+ */
+static void mlxsw_sp1_ptp_packet_finish(struct mlxsw_sp *mlxsw_sp,
+					struct sk_buff *skb, u8 local_port,
+					bool ingress,
+					struct skb_shared_hwtstamps *hwtstamps)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+
+	/* Between capturing the packet and finishing it, there is a window of
+	 * opportunity for the originating port to go away (e.g. due to a
+	 * split). Also make sure the SKB device reference is still valid.
+	 */
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	if (!mlxsw_sp_port && (!skb->dev || skb->dev == mlxsw_sp_port->dev)) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
+	if (ingress) {
+		if (hwtstamps)
+			*skb_hwtstamps(skb) = *hwtstamps;
+		mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+	} else {
+		/* skb_tstamp_tx() allows hwtstamps to be NULL. */
+		skb_tstamp_tx(skb, hwtstamps);
+		dev_kfree_skb_any(skb);
+	}
+}
+
+static void mlxsw_sp1_packet_timestamp(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp1_ptp_key key,
+				       struct sk_buff *skb,
+				       u64 timestamp)
+{
+	struct skb_shared_hwtstamps hwtstamps;
+	u64 nsec;
+
+	spin_lock_bh(&mlxsw_sp->clock->lock);
+	nsec = timecounter_cyc2time(&mlxsw_sp->clock->tc, timestamp);
+	spin_unlock_bh(&mlxsw_sp->clock->lock);
+
+	hwtstamps.hwtstamp = ns_to_ktime(nsec);
+	mlxsw_sp1_ptp_packet_finish(mlxsw_sp, skb,
+				    key.local_port, key.ingress, &hwtstamps);
+}
+
+static void
+mlxsw_sp1_ptp_unmatched_finish(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp1_ptp_unmatched *unmatched)
+{
+	if (unmatched->skb && unmatched->timestamp)
+		mlxsw_sp1_packet_timestamp(mlxsw_sp, unmatched->key,
+					   unmatched->skb,
+					   unmatched->timestamp);
+	else if (unmatched->skb)
+		mlxsw_sp1_ptp_packet_finish(mlxsw_sp, unmatched->skb,
+					    unmatched->key.local_port,
+					    unmatched->key.ingress, NULL);
+	kfree_rcu(unmatched, rcu);
+}
+
 static void mlxsw_sp1_ptp_unmatched_free_fn(void *ptr, void *arg)
 {
 	struct mlxsw_sp1_ptp_unmatched *unmatched = ptr;
@@ -305,16 +469,172 @@ static void mlxsw_sp1_ptp_unmatched_free_fn(void *ptr, void *arg)
 	kfree_rcu(unmatched, rcu);
 }
 
+static void mlxsw_sp1_ptp_got_piece(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp1_ptp_key key,
+				    struct sk_buff *skb, u64 timestamp)
+{
+	struct mlxsw_sp1_ptp_unmatched *unmatched, *conflict;
+	int err;
+
+	rcu_read_lock();
+
+	unmatched = mlxsw_sp1_ptp_unmatched_lookup(mlxsw_sp, key);
+
+	spin_lock(&mlxsw_sp->ptp_state->unmatched_lock);
+
+	if (unmatched) {
+		/* There was an unmatched entry when we looked, but it may have
+		 * been removed before we took the lock.
+		 */
+		err = mlxsw_sp1_ptp_unmatched_remove(mlxsw_sp, unmatched);
+		if (err)
+			unmatched = NULL;
+	}
+
+	if (!unmatched) {
+		/* We have no unmatched entry, but one may have been added after
+		 * we looked, but before we took the lock.
+		 */
+		unmatched = mlxsw_sp1_ptp_unmatched_save(mlxsw_sp, key,
+							 skb, timestamp);
+		if (IS_ERR(unmatched)) {
+			if (skb)
+				mlxsw_sp1_ptp_packet_finish(mlxsw_sp, skb,
+							    key.local_port,
+							    key.ingress, NULL);
+			unmatched = NULL;
+		} else if (unmatched) {
+			/* Save just told us, under lock, that the entry is
+			 * there, so this has to work.
+			 */
+			err = mlxsw_sp1_ptp_unmatched_remove(mlxsw_sp,
+							     unmatched);
+			WARN_ON_ONCE(err);
+		}
+	}
+
+	/* If unmatched is non-NULL here, it comes either from the lookup, or
+	 * from the save attempt above. In either case the entry was removed
+	 * from the hash table. If unmatched is NULL, a new unmatched entry was
+	 * added to the hash table, and there was no conflict.
+	 */
+
+	if (skb && unmatched && unmatched->timestamp) {
+		unmatched->skb = skb;
+	} else if (timestamp && unmatched && unmatched->skb) {
+		unmatched->timestamp = timestamp;
+	} else if (unmatched) {
+		/* unmatched holds an older entry of the same type: either an
+		 * skb if we are handling skb, or a timestamp if we are handling
+		 * timestamp. We can't match that up, so save what we have.
+		 */
+		conflict = mlxsw_sp1_ptp_unmatched_save(mlxsw_sp, key,
+							skb, timestamp);
+		if (IS_ERR(conflict)) {
+			if (skb)
+				mlxsw_sp1_ptp_packet_finish(mlxsw_sp, skb,
+							    key.local_port,
+							    key.ingress, NULL);
+		} else {
+			/* Above, we removed an object with this key from the
+			 * hash table, under lock, so conflict can not be a
+			 * valid pointer.
+			 */
+			WARN_ON_ONCE(conflict);
+		}
+	}
+
+	spin_unlock(&mlxsw_sp->ptp_state->unmatched_lock);
+
+	if (unmatched)
+		mlxsw_sp1_ptp_unmatched_finish(mlxsw_sp, unmatched);
+
+	rcu_read_unlock();
+}
+
+static void mlxsw_sp1_ptp_got_packet(struct mlxsw_sp *mlxsw_sp,
+				     struct sk_buff *skb, u8 local_port,
+				     bool ingress)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp1_ptp_key key;
+	u8 types;
+	int err;
+
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	if (!mlxsw_sp_port)
+		goto immediate;
+
+	types = ingress ? mlxsw_sp_port->ptp.ing_types :
+			  mlxsw_sp_port->ptp.egr_types;
+	if (!types)
+		goto immediate;
+
+	memset(&key, 0, sizeof(key));
+	key.local_port = local_port;
+	key.ingress = ingress;
+
+	err = mlxsw_sp_ptp_parse(skb, &key.domain_number, &key.message_type,
+				 &key.sequence_id);
+	if (err)
+		goto immediate;
+
+	/* For packets whose timestamping was not enabled on this port, don't
+	 * bother trying to match the timestamp.
+	 */
+	if (!((1 << key.message_type) & types))
+		goto immediate;
+
+	mlxsw_sp1_ptp_got_piece(mlxsw_sp, key, skb, 0);
+	return;
+
+immediate:
+	mlxsw_sp1_ptp_packet_finish(mlxsw_sp, skb, local_port, ingress, NULL);
+}
+
+void mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
+				 u8 local_port, u8 message_type,
+				 u8 domain_number, u16 sequence_id,
+				 u64 timestamp)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp1_ptp_key key;
+	u8 types;
+
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	if (!mlxsw_sp_port)
+		return;
+
+	types = ingress ? mlxsw_sp_port->ptp.ing_types :
+			  mlxsw_sp_port->ptp.egr_types;
+
+	/* For message types whose timestamping was not enabled on this port,
+	 * don't bother with the timestamp.
+	 */
+	if (!((1 << message_type) & types))
+		return;
+
+	memset(&key, 0, sizeof(key));
+	key.local_port = local_port;
+	key.domain_number = domain_number;
+	key.message_type = message_type;
+	key.sequence_id = sequence_id;
+	key.ingress = ingress;
+
+	mlxsw_sp1_ptp_got_piece(mlxsw_sp, key, NULL, timestamp);
+}
+
 void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 			   u8 local_port)
 {
-	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+	skb_reset_mac_header(skb);
+	mlxsw_sp1_ptp_got_packet(mlxsw_sp, skb, local_port, true);
 }
 
 void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
 			       struct sk_buff *skb, u8 local_port)
 {
-	dev_kfree_skb_any(skb);
+	mlxsw_sp1_ptp_got_packet(mlxsw_sp, skb, local_port, false);
 }
 
 struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)

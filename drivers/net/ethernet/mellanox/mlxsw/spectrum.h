@@ -266,6 +266,11 @@ struct mlxsw_sp_port {
 	unsigned acl_rule_count;
 	struct mlxsw_sp_acl_block *ing_acl_block;
 	struct mlxsw_sp_acl_block *eg_acl_block;
+	struct {
+		struct hwtstamp_config hwtstamp_config;
+		u16 ing_types;
+		u16 egr_types;
+	} ptp;
 };
 
 struct mlxsw_sp_port_type_speed_ops {

@@ -84,6 +84,7 @@ config MLXSW_SPECTRUM
 	select OBJAGG
 	select MLXFW
 	imply PTP_1588_CLOCK
+	select NET_PTP_CLASSIFY if PTP_1588_CLOCK
 	default m
 	---help---
 	  This driver supports Mellanox Technologies Spectrum Ethernet
