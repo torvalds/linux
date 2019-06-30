@@ -19,9 +19,19 @@
 #define MLXSW_SP1_PTP_CLOCK_FREQ_KHZ		156257 /* 6.4nSec */
 #define MLXSW_SP1_PTP_CLOCK_MASK		64
 
+#define MLXSW_SP1_PTP_HT_GC_INTERVAL		500 /* ms */
+
+/* How long, approximately, should the unmatched entries stay in the hash table
+ * before they are collected. Should be evenly divisible by the GC interval.
+ */
+#define MLXSW_SP1_PTP_HT_GC_TIMEOUT		1000 /* ms */
+
 struct mlxsw_sp_ptp_state {
+	struct mlxsw_sp *mlxsw_sp;
 	struct rhashtable unmatched_ht;
 	spinlock_t unmatched_lock; /* protects the HT */
+	struct delayed_work ht_gc_dw;
+	u32 gc_cycle;
 };
 
 struct mlxsw_sp1_ptp_key {
@@ -38,6 +48,7 @@ struct mlxsw_sp1_ptp_unmatched {
 	struct rcu_head rcu;
 	struct sk_buff *skb;
 	u64 timestamp;
+	u32 gc_cycle;
 };
 
 static const struct rhashtable_params mlxsw_sp1_ptp_unmatched_ht_params = {
@@ -353,6 +364,7 @@ mlxsw_sp1_ptp_unmatched_save(struct mlxsw_sp *mlxsw_sp,
 			     struct sk_buff *skb,
 			     u64 timestamp)
 {
+	int cycles = MLXSW_SP1_PTP_HT_GC_TIMEOUT / MLXSW_SP1_PTP_HT_GC_INTERVAL;
 	struct mlxsw_sp_ptp_state *ptp_state = mlxsw_sp->ptp_state;
 	struct mlxsw_sp1_ptp_unmatched *unmatched;
 	struct mlxsw_sp1_ptp_unmatched *conflict;
@@ -364,6 +376,7 @@ mlxsw_sp1_ptp_unmatched_save(struct mlxsw_sp *mlxsw_sp,
 	unmatched->key = key;
 	unmatched->skb = skb;
 	unmatched->timestamp = timestamp;
+	unmatched->gc_cycle = mlxsw_sp->ptp_state->gc_cycle + cycles;
 
 	conflict = rhashtable_lookup_get_insert_fast(&ptp_state->unmatched_ht,
 					    &unmatched->ht_node,
@@ -396,6 +409,8 @@ mlxsw_sp1_ptp_unmatched_remove(struct mlxsw_sp *mlxsw_sp,
  * 1) When a packet is matched with its timestamp.
  * 2) In several situation when it is necessary to immediately pass on
  *    an SKB without a timestamp.
+ * 3) From GC indirectly through mlxsw_sp1_ptp_unmatched_finish().
+ *    This case is similar to 2) above.
  */
 static void mlxsw_sp1_ptp_packet_finish(struct mlxsw_sp *mlxsw_sp,
 					struct sk_buff *skb, u8 local_port,
@@ -637,6 +652,72 @@ void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp1_ptp_got_packet(mlxsw_sp, skb, local_port, false);
 }
 
+static void
+mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp_ptp_state *ptp_state,
+			    struct mlxsw_sp1_ptp_unmatched *unmatched)
+{
+	int err;
+
+	/* If an unmatched entry has an SKB, it has to be handed over to the
+	 * networking stack. This is usually done from a trap handler, which is
+	 * invoked in a softirq context. Here we are going to do it in process
+	 * context. If that were to be interrupted by a softirq, it could cause
+	 * a deadlock when an attempt is made to take an already-taken lock
+	 * somewhere along the sending path. Disable softirqs to prevent this.
+	 */
+	local_bh_disable();
+
+	spin_lock(&ptp_state->unmatched_lock);
+	err = rhashtable_remove_fast(&ptp_state->unmatched_ht,
+				     &unmatched->ht_node,
+				     mlxsw_sp1_ptp_unmatched_ht_params);
+	spin_unlock(&ptp_state->unmatched_lock);
+
+	if (err)
+		/* The packet was matched with timestamp during the walk. */
+		goto out;
+
+	/* mlxsw_sp1_ptp_unmatched_finish() invokes netif_receive_skb(). While
+	 * the comment at that function states that it can only be called in
+	 * soft IRQ context, this pattern of local_bh_disable() +
+	 * netif_receive_skb(), in process context, is seen elsewhere in the
+	 * kernel, notably in pktgen.
+	 */
+	mlxsw_sp1_ptp_unmatched_finish(ptp_state->mlxsw_sp, unmatched);
+
+out:
+	local_bh_enable();
+}
+
+static void mlxsw_sp1_ptp_ht_gc(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct mlxsw_sp1_ptp_unmatched *unmatched;
+	struct mlxsw_sp_ptp_state *ptp_state;
+	struct rhashtable_iter iter;
+	u32 gc_cycle;
+	void *obj;
+
+	ptp_state = container_of(dwork, struct mlxsw_sp_ptp_state, ht_gc_dw);
+	gc_cycle = ptp_state->gc_cycle++;
+
+	rhashtable_walk_enter(&ptp_state->unmatched_ht, &iter);
+	rhashtable_walk_start(&iter);
+	while ((obj = rhashtable_walk_next(&iter))) {
+		if (IS_ERR(obj))
+			continue;
+
+		unmatched = obj;
+		if (unmatched->gc_cycle <= gc_cycle)
+			mlxsw_sp1_ptp_ht_gc_collect(ptp_state, unmatched);
+	}
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
+
+	mlxsw_core_schedule_dw(&ptp_state->ht_gc_dw,
+			       MLXSW_SP1_PTP_HT_GC_INTERVAL);
+}
+
 struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_ptp_state *ptp_state;
@@ -645,6 +726,7 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
 	if (!ptp_state)
 		return ERR_PTR(-ENOMEM);
+	ptp_state->mlxsw_sp = mlxsw_sp;
 
 	spin_lock_init(&ptp_state->unmatched_lock);
 
@@ -653,6 +735,9 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_hashtable_init;
 
+	INIT_DELAYED_WORK(&ptp_state->ht_gc_dw, mlxsw_sp1_ptp_ht_gc);
+	mlxsw_core_schedule_dw(&ptp_state->ht_gc_dw,
+			       MLXSW_SP1_PTP_HT_GC_INTERVAL);
 	return ptp_state;
 
 err_hashtable_init:
@@ -662,6 +747,7 @@ err_hashtable_init:
 
 void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 {
+	cancel_delayed_work_sync(&ptp_state->ht_gc_dw);
 	rhashtable_free_and_destroy(&ptp_state->unmatched_ht,
 				    &mlxsw_sp1_ptp_unmatched_free_fn, NULL);
 	kfree(ptp_state);
