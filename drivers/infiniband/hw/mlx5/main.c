@@ -4726,7 +4726,7 @@ static int __get_port_caps(struct mlx5_ib_dev *dev, u8 port)
 	int err = -ENOMEM;
 	struct ib_udata uhw = {.inlen = 0, .outlen = 0};
 
-	pprops = kmalloc(sizeof(*pprops), GFP_KERNEL);
+	pprops = kzalloc(sizeof(*pprops), GFP_KERNEL);
 	if (!pprops)
 		goto out;
 
@@ -4740,7 +4740,6 @@ static int __get_port_caps(struct mlx5_ib_dev *dev, u8 port)
 		goto out;
 	}
 
-	memset(pprops, 0, sizeof(*pprops));
 	err = mlx5_ib_query_port(&dev->ib_dev, port, pprops);
 	if (err) {
 		mlx5_ib_warn(dev, "query_port %d failed %d\n",
