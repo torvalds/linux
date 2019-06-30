@@ -33,6 +33,17 @@ struct devx_async_data {
 	struct mlx5_ib_uapi_devx_async_cmd_hdr hdr;
 };
 
+struct devx_async_event_file {
+	struct ib_uobject uobj;
+	/* Head of events that are subscribed to this FD */
+	struct list_head subscribed_events_list;
+	spinlock_t lock;
+	wait_queue_head_t poll_wait;
+	struct list_head event_list;
+	struct mlx5_ib_dev *dev;
+	u8 omit_data:1;
+};
+
 #define MLX5_MAX_DESTROY_INBOX_SIZE_DW MLX5_ST_SZ_DW(delete_fte_in)
 struct devx_obj {
 	struct mlx5_core_dev	*mdev;
@@ -1365,6 +1376,37 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC)(
 	return 0;
 }
 
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_ASYNC_EVENT_FD_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_DEVX_ASYNC_EVENT_FD_ALLOC_HANDLE);
+	struct devx_async_event_file *ev_file;
+	struct mlx5_ib_ucontext *c = rdma_udata_to_drv_context(
+		&attrs->driver_udata, struct mlx5_ib_ucontext, ibucontext);
+	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
+	u32 flags;
+	int err;
+
+	err = uverbs_get_flags32(&flags, attrs,
+		MLX5_IB_ATTR_DEVX_ASYNC_EVENT_FD_ALLOC_FLAGS,
+		MLX5_IB_UAPI_DEVX_CR_EV_CH_FLAGS_OMIT_DATA);
+
+	if (err)
+		return err;
+
+	ev_file = container_of(uobj, struct devx_async_event_file,
+			       uobj);
+	spin_lock_init(&ev_file->lock);
+	INIT_LIST_HEAD(&ev_file->event_list);
+	init_waitqueue_head(&ev_file->poll_wait);
+	if (flags & MLX5_IB_UAPI_DEVX_CR_EV_CH_FLAGS_OMIT_DATA)
+		ev_file->omit_data = 1;
+	INIT_LIST_HEAD(&ev_file->subscribed_events_list);
+	ev_file->dev = dev;
+	return 0;
+}
+
 static void devx_query_callback(int status, struct mlx5_async_work *context)
 {
 	struct devx_async_data *async_data =
@@ -1719,6 +1761,32 @@ static const struct file_operations devx_async_cmd_event_fops = {
 	.llseek	 = no_llseek,
 };
 
+static ssize_t devx_async_event_read(struct file *filp, char __user *buf,
+				     size_t count, loff_t *pos)
+{
+	return -EINVAL;
+}
+
+static __poll_t devx_async_event_poll(struct file *filp,
+				      struct poll_table_struct *wait)
+{
+	return 0;
+}
+
+static int devx_async_event_close(struct inode *inode, struct file *filp)
+{
+	uverbs_close_fd(filp);
+	return 0;
+}
+
+static const struct file_operations devx_async_event_fops = {
+	.owner	 = THIS_MODULE,
+	.read	 = devx_async_event_read,
+	.poll    = devx_async_event_poll,
+	.release = devx_async_event_close,
+	.llseek	 = no_llseek,
+};
+
 static int devx_hot_unplug_async_cmd_event_file(struct ib_uobject *uobj,
 						   enum rdma_remove_reason why)
 {
@@ -1735,6 +1803,12 @@ static int devx_hot_unplug_async_cmd_event_file(struct ib_uobject *uobj,
 		wake_up_interruptible(&ev_queue->poll_wait);
 
 	mlx5_cmd_cleanup_async_ctx(&comp_ev_file->async_ctx);
+	return 0;
+};
+
+static int devx_hot_unplug_async_event_file(struct ib_uobject *uobj,
+					    enum rdma_remove_reason why)
+{
 	return 0;
 };
 
@@ -1903,6 +1977,24 @@ DECLARE_UVERBS_NAMED_OBJECT(
 			     O_RDONLY),
 	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC));
 
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_DEVX_ASYNC_EVENT_FD_ALLOC,
+	UVERBS_ATTR_FD(MLX5_IB_ATTR_DEVX_ASYNC_EVENT_FD_ALLOC_HANDLE,
+			MLX5_IB_OBJECT_DEVX_ASYNC_EVENT_FD,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_DEVX_ASYNC_EVENT_FD_ALLOC_FLAGS,
+			enum mlx5_ib_uapi_devx_create_event_channel_flags,
+			UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_OBJECT(
+	MLX5_IB_OBJECT_DEVX_ASYNC_EVENT_FD,
+	UVERBS_TYPE_ALLOC_FD(sizeof(struct devx_async_event_file),
+			     devx_hot_unplug_async_event_file,
+			     &devx_async_event_fops, "[devx_async_event]",
+			     O_RDONLY),
+	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_ASYNC_EVENT_FD_ALLOC));
+
 static bool devx_is_supported(struct ib_device *device)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
@@ -1922,6 +2014,9 @@ const struct uapi_definition mlx5_ib_devx_defs[] = {
 		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
 		MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
+		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		MLX5_IB_OBJECT_DEVX_ASYNC_EVENT_FD,
 		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
 	{},
 };

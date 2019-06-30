@@ -63,5 +63,9 @@ enum mlx5_ib_uapi_dm_type {
 	MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM,
 };
 
+enum mlx5_ib_uapi_devx_create_event_channel_flags {
+	MLX5_IB_UAPI_DEVX_CR_EV_CH_FLAGS_OMIT_DATA = 1 << 0,
+};
+
 #endif
 
