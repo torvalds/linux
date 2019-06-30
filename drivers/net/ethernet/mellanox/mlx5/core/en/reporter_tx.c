@@ -146,7 +146,7 @@ static int mlx5e_tx_reporter_recover(struct devlink_health_reporter *reporter,
 
 static int
 mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
-					struct mlx5e_txqsq *sq)
+					struct mlx5e_txqsq *sq, int tc)
 {
 	struct mlx5e_priv *priv = sq->channel->priv;
 	bool stopped = netif_xmit_stopped(sq->txq);
@@ -158,6 +158,18 @@ mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
 		return err;
 
 	err = devlink_fmsg_obj_nest_start(fmsg);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "channel ix", sq->ch_ix);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "tc", tc);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "txq ix", sq->txq_ix);
 	if (err)
 		return err;
 
@@ -173,6 +185,14 @@ mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
 	if (err)
 		return err;
 
+	err = devlink_fmsg_u32_pair_put(fmsg, "cc", sq->cc);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "pc", sq->pc);
+	if (err)
+		return err;
+
 	err = devlink_fmsg_obj_nest_end(fmsg);
 	if (err)
 		return err;
@@ -184,24 +204,57 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 				      struct devlink_fmsg *fmsg)
 {
 	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
-	int i, err = 0;
+	struct mlx5e_txqsq *generic_sq = priv->txq2sq[0];
+	u32 sq_stride, sq_sz;
+
+	int i, tc, err = 0;
 
 	mutex_lock(&priv->state_lock);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		goto unlock;
 
+	sq_sz = mlx5_wq_cyc_get_size(&generic_sq->wq);
+	sq_stride = MLX5_SEND_WQE_BB;
+
+	err = mlx5e_reporter_named_obj_nest_start(fmsg, "Common Config");
+	if (err)
+		goto unlock;
+
+	err = mlx5e_reporter_named_obj_nest_start(fmsg, "SQ");
+	if (err)
+		goto unlock;
+
+	err = devlink_fmsg_u64_pair_put(fmsg, "stride size", sq_stride);
+	if (err)
+		goto unlock;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "size", sq_sz);
+	if (err)
+		goto unlock;
+
+	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	if (err)
+		goto unlock;
+
+	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	if (err)
+		goto unlock;
+
 	err = devlink_fmsg_arr_pair_nest_start(fmsg, "SQs");
 	if (err)
 		goto unlock;
 
-	for (i = 0; i < priv->channels.num * priv->channels.params.num_tc;
-	     i++) {
-		struct mlx5e_txqsq *sq = priv->txq2sq[i];
+	for (i = 0; i < priv->channels.num; i++) {
+		struct mlx5e_channel *c = priv->channels.c[i];
 
-		err = mlx5e_tx_reporter_build_diagnose_output(fmsg, sq);
-		if (err)
-			goto unlock;
+		for (tc = 0; tc < priv->channels.params.num_tc; tc++) {
+			struct mlx5e_txqsq *sq = &c->sq[tc];
+
+			err = mlx5e_tx_reporter_build_diagnose_output(fmsg, sq, tc);
+			if (err)
+				goto unlock;
+		}
 	}
 	err = devlink_fmsg_arr_pair_nest_end(fmsg);
 	if (err)

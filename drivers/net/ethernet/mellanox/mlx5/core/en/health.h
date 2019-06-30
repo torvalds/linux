@@ -11,6 +11,9 @@ void mlx5e_reporter_tx_destroy(struct mlx5e_priv *priv);
 void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq);
 int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq);
 
+int mlx5e_reporter_named_obj_nest_start(struct devlink_fmsg *fmsg, char *name);
+int mlx5e_reporter_named_obj_nest_end(struct devlink_fmsg *fmsg);
+
 #define MLX5E_REPORTER_PER_Q_MAX_LEN 256
 
 struct mlx5e_err_ctx {
