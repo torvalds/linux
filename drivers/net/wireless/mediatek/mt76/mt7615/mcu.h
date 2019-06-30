@@ -70,6 +70,7 @@ enum {
 enum {
 	MCU_EXT_CMD_PM_STATE_CTRL = 0x07,
 	MCU_EXT_CMD_CHANNEL_SWITCH = 0x08,
+	MCU_EXT_CMD_SET_TX_POWER_CTRL = 0x11,
 	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
 	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
 	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
@@ -105,25 +106,19 @@ enum {
 #define STA_TYPE_STA		BIT(0)
 #define STA_TYPE_AP		BIT(1)
 #define STA_TYPE_ADHOC		BIT(2)
-#define STA_TYPE_TDLS		BIT(3)
 #define STA_TYPE_WDS		BIT(4)
 #define STA_TYPE_BC		BIT(5)
 
 #define NETWORK_INFRA		BIT(16)
 #define NETWORK_P2P		BIT(17)
 #define NETWORK_IBSS		BIT(18)
-#define NETWORK_MESH		BIT(19)
-#define NETWORK_BOW		BIT(20)
 #define NETWORK_WDS		BIT(21)
 
 #define CONNECTION_INFRA_STA	(STA_TYPE_STA | NETWORK_INFRA)
 #define CONNECTION_INFRA_AP	(STA_TYPE_AP | NETWORK_INFRA)
 #define CONNECTION_P2P_GC	(STA_TYPE_STA | NETWORK_P2P)
 #define CONNECTION_P2P_GO	(STA_TYPE_AP | NETWORK_P2P)
-#define CONNECTION_MESH_STA	(STA_TYPE_STA | NETWORK_MESH)
-#define CONNECTION_MESH_AP	(STA_TYPE_AP | NETWORK_MESH)
 #define CONNECTION_IBSS_ADHOC	(STA_TYPE_ADHOC | NETWORK_IBSS)
-#define CONNECTION_TDLS		(STA_TYPE_STA | NETWORK_INFRA | STA_TYPE_TDLS)
 #define CONNECTION_WDS		(STA_TYPE_WDS | NETWORK_WDS)
 #define CONNECTION_INFRA_BC	(STA_TYPE_BC | NETWORK_INFRA)
 
@@ -131,39 +126,9 @@ enum {
 #define CONN_STATE_CONNECT	1
 #define CONN_STATE_PORT_SECURE	2
 
-struct dev_info {
-	u8 omac_idx;
-	u8 omac_addr[ETH_ALEN];
-	u8 band_idx;
-	u8 enable;
-	u32 feature;
-};
-
 enum {
 	DEV_INFO_ACTIVE,
 	DEV_INFO_MAX_NUM
-};
-
-struct bss_info {
-	u8 bss_idx;
-	u8 bssid[ETH_ALEN];
-	u8 omac_idx;
-	u8 band_idx;
-	u8 bmc_tx_wlan_idx; /* for bmc tx (sta mode use uc entry) */
-	u8 wmm_idx;
-	u32 network_type;
-	u32 conn_type;
-	u16 bcn_interval;
-	u8 dtim_period;
-	u8 enable;
-	u32 feature;
-};
-
-struct bss_info_tag_handler {
-	u32 tag;
-	u32 len;
-	void (*handler)(struct mt7615_dev *dev,
-			struct bss_info *bss_info, struct sk_buff *skb);
 };
 
 struct bss_info_omac {
@@ -230,6 +195,13 @@ enum {
 	WTBL_QUERY,
 	WTBL_RESET_ALL
 };
+
+struct wtbl_req_hdr {
+	u8 wlan_idx;
+	u8 operation;
+	__le16 tlv_num;
+	u8 rsv[4];
+} __packed;
 
 struct wtbl_generic {
 	__le16 tag;
@@ -396,7 +368,8 @@ struct wtbl_raw {
 	__le32 val;
 } __packed;
 
-#define MT7615_WTBL_UPDATE_MAX_SIZE (sizeof(struct wtbl_generic) + \
+#define MT7615_WTBL_UPDATE_MAX_SIZE (sizeof(struct wtbl_req_hdr) + \
+				     sizeof(struct wtbl_generic) + \
 				     sizeof(struct wtbl_rx) + \
 				     sizeof(struct wtbl_ht) + \
 				     sizeof(struct wtbl_vht) + \
@@ -429,6 +402,15 @@ enum {
 	WTBL_SPE,
 	WTBL_MAX_NUM
 };
+
+struct sta_req_hdr {
+	u8 bss_idx;
+	u8 wlan_idx;
+	__le16 tlv_num;
+	u8 is_tlv_append;
+	u8 muar_idx;
+	u8 rsv[2];
+} __packed;
 
 struct sta_rec_basic {
 	__le16 tag;

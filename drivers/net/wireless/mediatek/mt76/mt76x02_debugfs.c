@@ -120,12 +120,16 @@ static int
 mt76_edcca_set(void *data, u64 val)
 {
 	struct mt76x02_dev *dev = data;
-	enum nl80211_dfs_regions region = dev->dfs_pd.region;
+	enum nl80211_dfs_regions region = dev->mt76.region;
+
+	mutex_lock(&dev->mt76.mutex);
 
 	dev->ed_monitor_enabled = !!val;
 	dev->ed_monitor = dev->ed_monitor_enabled &&
 			  region == NL80211_DFS_ETSI;
-	mt76x02_edcca_init(dev, true);
+	mt76x02_edcca_init(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
@@ -153,7 +157,7 @@ void mt76x02_init_debugfs(struct mt76x02_dev *dev)
 	debugfs_create_u8("temperature", 0400, dir, &dev->cal.temp);
 	debugfs_create_bool("tpc", 0600, dir, &dev->enable_tpc);
 
-	debugfs_create_file("edcca", 0400, dir, dev, &fops_edcca);
+	debugfs_create_file("edcca", 0600, dir, dev, &fops_edcca);
 	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("dfs_stats", 0400, dir, dev, &fops_dfs_stat);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower", dir,
