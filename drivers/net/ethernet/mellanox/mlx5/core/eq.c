@@ -389,7 +389,7 @@ int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 	return err;
 }
 
-int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
+void mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 {
 	struct mlx5_cq_table *table = &eq->cq_table;
 	struct mlx5_core_cq *tmp;
@@ -399,16 +399,14 @@ int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 	spin_unlock(&table->lock);
 
 	if (!tmp) {
-		mlx5_core_warn(eq->dev, "cq 0x%x not found in eq 0x%x tree\n", eq->eqn, cq->cqn);
-		return -ENOENT;
+		mlx5_core_dbg(eq->dev, "cq 0x%x not found in eq 0x%x tree\n",
+			      eq->eqn, cq->cqn);
+		return;
 	}
 
-	if (tmp != cq) {
-		mlx5_core_warn(eq->dev, "corruption on cqn 0x%x in eq 0x%x\n", eq->eqn, cq->cqn);
-		return -EINVAL;
-	}
-
-	return 0;
+	if (tmp != cq)
+		mlx5_core_dbg(eq->dev, "corruption on cqn 0x%x in eq 0x%x\n",
+			      eq->eqn, cq->cqn);
 }
 
 int mlx5_eq_table_init(struct mlx5_core_dev *dev)
