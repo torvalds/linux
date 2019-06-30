@@ -15,7 +15,7 @@ struct mlx5_core_dev;
 struct mlx5_eq_param {
 	u8             irq_index;
 	int            nent;
-	u64            mask;
+	u64            mask[4];
 };
 
 struct mlx5_eq *

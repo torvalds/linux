@@ -256,6 +256,7 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	int inlen;
 	u32 *in;
 	int err;
+	int i;
 
 	/* Init CQ table */
 	memset(cq_table, 0, sizeof(*cq_table));
@@ -283,10 +284,12 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	mlx5_fill_page_array(&eq->buf, pas);
 
 	MLX5_SET(create_eq_in, in, opcode, MLX5_CMD_OP_CREATE_EQ);
-	if (!param->mask && MLX5_CAP_GEN(dev, log_max_uctx))
+	if (!param->mask[0] && MLX5_CAP_GEN(dev, log_max_uctx))
 		MLX5_SET(create_eq_in, in, uid, MLX5_SHARED_RESOURCE_UID);
 
-	MLX5_SET64(create_eq_in, in, event_bitmask, param->mask);
+	for (i = 0; i < 4; i++)
+		MLX5_ARRAY_SET64(create_eq_in, in, event_bitmask, i,
+				 param->mask[i]);
 
 	eqc = MLX5_ADDR_OF(create_eq_in, in, eq_context_entry);
 	MLX5_SET(eqc, eqc, log_eq_size, ilog2(eq->nent));
@@ -507,7 +510,23 @@ static int cq_err_event_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static u64 gather_async_events_mask(struct mlx5_core_dev *dev)
+static void gather_user_async_events(struct mlx5_core_dev *dev, u64 mask[4])
+{
+	__be64 *user_unaffiliated_events;
+	__be64 *user_affiliated_events;
+	int i;
+
+	user_affiliated_events =
+		MLX5_CAP_DEV_EVENT(dev, user_affiliated_events);
+	user_unaffiliated_events =
+		MLX5_CAP_DEV_EVENT(dev, user_unaffiliated_events);
+
+	for (i = 0; i < 4; i++)
+		mask[i] |= be64_to_cpu(user_affiliated_events[i] |
+				       user_unaffiliated_events[i]);
+}
+
+static void gather_async_events_mask(struct mlx5_core_dev *dev, u64 mask[4])
 {
 	u64 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 
@@ -544,7 +563,10 @@ static u64 gather_async_events_mask(struct mlx5_core_dev *dev)
 		async_event_mask |=
 			(1ull << MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED);
 
-	return async_event_mask;
+	mask[0] = async_event_mask;
+
+	if (MLX5_CAP_GEN(dev, event_cap))
+		gather_user_async_events(dev, mask);
 }
 
 static int create_async_eqs(struct mlx5_core_dev *dev)
@@ -559,9 +581,10 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	table->cmd_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
-		.mask = 1ull << MLX5_EVENT_TYPE_CMD,
 		.nent = MLX5_NUM_CMD_EQE,
 	};
+
+	param.mask[0] = 1ull << MLX5_EVENT_TYPE_CMD;
 	err = create_async_eq(dev, &table->cmd_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create cmd EQ %d\n", err);
@@ -577,9 +600,10 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	table->async_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
-		.mask = gather_async_events_mask(dev),
 		.nent = MLX5_NUM_ASYNC_EQE,
 	};
+
+	gather_async_events_mask(dev, param.mask);
 	err = create_async_eq(dev, &table->async_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
@@ -595,9 +619,10 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	table->pages_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
-		.mask =  1 << MLX5_EVENT_TYPE_PAGE_REQUEST,
 		.nent = /* TODO: sriov max_vf + */ 1,
 	};
+
+	param.mask[0] = 1ull << MLX5_EVENT_TYPE_PAGE_REQUEST;
 	err = create_async_eq(dev, &table->pages_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create pages EQ %d\n", err);
@@ -789,7 +814,6 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param) {
 			.irq_index = vecidx,
-			.mask = 0,
 			.nent = nent,
 		};
 		err = create_map_eq(dev, &eq->core, &param);

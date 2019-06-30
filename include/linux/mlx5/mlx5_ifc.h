@@ -860,6 +860,12 @@ struct mlx5_ifc_device_mem_cap_bits {
 	u8         reserved_at_180[0x680];
 };
 
+struct mlx5_ifc_device_event_cap_bits {
+	u8         user_affiliated_events[4][0x40];
+
+	u8         user_unaffiliated_events[4][0x40];
+};
+
 enum {
 	MLX5_ATOMIC_CAPS_ATOMIC_SIZE_QP_1_BYTE     = 0x0,
 	MLX5_ATOMIC_CAPS_ATOMIC_SIZE_QP_2_BYTES    = 0x2,
@@ -1017,7 +1023,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         log_max_srq_sz[0x8];
 	u8         log_max_qp_sz[0x8];
-	u8         reserved_at_90[0x8];
+	u8         event_cap[0x1];
+	u8         reserved_at_91[0x7];
 	u8         prio_tag_required[0x1];
 	u8         reserved_at_99[0x2];
 	u8         log_max_qp[0x5];
@@ -7422,9 +7429,9 @@ struct mlx5_ifc_create_eq_in_bits {
 
 	u8         reserved_at_280[0x40];
 
-	u8         event_bitmask[0x40];
+	u8         event_bitmask[4][0x40];
 
-	u8         reserved_at_300[0x580];
+	u8         reserved_at_3c0[0x4c0];
 
 	u8         pas[0][0x40];
 };
