@@ -650,6 +650,19 @@ enum iwl_plat_pm_mode {
 	IWL_PLAT_PM_MODE_D3,
 };
 
+/**
+ * enum iwl_ini_cfg_state
+ * @IWL_INI_CFG_STATE_NOT_LOADED: no debug cfg was given
+ * @IWL_INI_CFG_STATE_LOADED: debug cfg was found and loaded
+ * @IWL_INI_CFG_STATE_CORRUPTED: debug cfg was found and some of the TLVs
+ *	are corrupted. The rest of the debug TLVs will still be used
+ */
+enum iwl_ini_cfg_state {
+	IWL_INI_CFG_STATE_NOT_LOADED,
+	IWL_INI_CFG_STATE_LOADED,
+	IWL_INI_CFG_STATE_CORRUPTED,
+};
+
 /* Max time to wait for nmi interrupt */
 #define IWL_TRANS_NMI_TIMEOUT (HZ / 4)
 
@@ -691,8 +704,8 @@ struct iwl_self_init_dram {
  * @umac_error_event_table: addr of umac error table
  * @error_event_table_tlv_status: bitmap that indicates what error table
  *	pointers was recevied via TLV. uses enum &iwl_error_event_table_status
- * @external_ini_loaded: indicates if an external ini cfg was given
- * @ini_valid: indicates if debug ini mode is on
+ * @internal_ini_cfg: internal debug cfg state. Uses &enum iwl_ini_cfg_state
+ * @external_ini_cfg: external debug cfg state. Uses &enum iwl_ini_cfg_state
  * @num_blocks: number of blocks in fw_mon
  * @fw_mon: address of the buffers for firmware monitor
  * @is_alloc: bit i is set if buffer i was allocated
@@ -711,8 +724,8 @@ struct iwl_trans_debug {
 	u32 umac_error_event_table;
 	unsigned int error_event_table_tlv_status;
 
-	bool external_ini_loaded;
-	bool ini_valid;
+	enum iwl_ini_cfg_state internal_ini_cfg;
+	enum iwl_ini_cfg_state external_ini_cfg;
 
 	struct iwl_apply_point_data apply_points[IWL_FW_INI_APPLY_NUM];
 	struct iwl_apply_point_data apply_points_ext[IWL_FW_INI_APPLY_NUM];
@@ -1218,7 +1231,8 @@ static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 
 static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
 {
-	return trans->dbg.ini_valid;
+	return trans->dbg.internal_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED ||
+		trans->dbg.external_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED;
 }
 
 /*****************************************************

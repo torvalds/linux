@@ -1739,7 +1739,7 @@ static void iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	dump->version = cpu_to_le32(IWL_INI_DUMP_VER);
 	dump->trigger_id = trigger->trigger_id;
 	dump->is_external_cfg =
-		cpu_to_le32(fwrt->trans->dbg.external_ini_loaded);
+		cpu_to_le32(fwrt->trans->dbg.external_ini_cfg);
 
 	dump->ver_type = cpu_to_le32(fwrt->dump.fw_ver.type);
 	dump->ver_subtype = cpu_to_le32(fwrt->dump.fw_ver.subtype);
@@ -2855,17 +2855,22 @@ static void iwl_fw_dbg_ini_reset_cfg(struct iwl_fw_runtime *fwrt)
 void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_apply_point apply_point)
 {
-	void *data = &fwrt->trans->dbg.apply_points[apply_point];
+	void *data;
 
 	IWL_DEBUG_FW(fwrt, "WRT: enabling apply point %d\n", apply_point);
 
 	if (apply_point == IWL_FW_INI_APPLY_EARLY)
 		iwl_fw_dbg_ini_reset_cfg(fwrt);
 
-	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, false);
+	if (fwrt->trans->dbg.internal_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED) {
+		data = &fwrt->trans->dbg.apply_points[apply_point];
+		_iwl_fw_dbg_apply_point(fwrt, data, apply_point, false);
+	}
 
-	data = &fwrt->trans->dbg.apply_points_ext[apply_point];
-	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, true);
+	if (fwrt->trans->dbg.external_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED) {
+		data = &fwrt->trans->dbg.apply_points_ext[apply_point];
+		_iwl_fw_dbg_apply_point(fwrt, data, apply_point, true);
+	}
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);
 
