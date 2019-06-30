@@ -140,17 +140,6 @@ struct iwl_fw_ini_hcmd_tlv {
 	struct iwl_fw_ini_hcmd hcmd;
 } __packed; /* FW_DEBUG_TLV_HCMD_API_S_VER_1 */
 
-/**
- * struct iwl_fw_ini_debug_flow_tlv - (IWL_UCODE_TLV_TYPE_DEBUG_FLOW)
- *
- * @header: header
- * @debug_flow_cfg: &enum iwl_fw_ini_debug_flow
- */
-struct iwl_fw_ini_debug_flow_tlv {
-	struct iwl_fw_ini_header header;
-	__le32 debug_flow_cfg;
-} __packed; /* FW_DEBUG_TLV_FLOW_TLV_S_VER_1 */
-
 #define IWL_FW_INI_MAX_REGION_ID	64
 #define IWL_FW_INI_MAX_NAME		32
 

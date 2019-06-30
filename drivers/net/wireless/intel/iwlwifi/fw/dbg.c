@@ -2820,8 +2820,6 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		case IWL_UCODE_TLV_TYPE_TRIGGERS:
 			iwl_fw_dbg_update_triggers(fwrt, ini_tlv, ext, pnt);
 			break;
-		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
-			break;
 		default:
 			WARN_ONCE(1,
 				  "WRT: ext=%d. Invalid TLV 0x%x for apply point\n",
