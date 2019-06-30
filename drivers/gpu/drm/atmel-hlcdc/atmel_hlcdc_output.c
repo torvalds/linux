@@ -19,9 +19,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/media-bus-format.h>
 #include <linux/of_graph.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_of.h>
 #include <drm/drm_bridge.h>
 
