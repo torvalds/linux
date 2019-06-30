@@ -91,6 +91,20 @@ enum {
 
 enum {
 	MLX5_OBJ_TYPE_GENEVE_TLV_OPT = 0x000b,
+	MLX5_OBJ_TYPE_MKEY = 0xff01,
+	MLX5_OBJ_TYPE_QP = 0xff02,
+	MLX5_OBJ_TYPE_PSV = 0xff03,
+	MLX5_OBJ_TYPE_RMP = 0xff04,
+	MLX5_OBJ_TYPE_XRC_SRQ = 0xff05,
+	MLX5_OBJ_TYPE_RQ = 0xff06,
+	MLX5_OBJ_TYPE_SQ = 0xff07,
+	MLX5_OBJ_TYPE_TIR = 0xff08,
+	MLX5_OBJ_TYPE_TIS = 0xff09,
+	MLX5_OBJ_TYPE_DCT = 0xff0a,
+	MLX5_OBJ_TYPE_XRQ = 0xff0b,
+	MLX5_OBJ_TYPE_RQT = 0xff0e,
+	MLX5_OBJ_TYPE_FLOW_COUNTER = 0xff0f,
+	MLX5_OBJ_TYPE_CQ = 0xff10,
 };
 
 enum {
@@ -9942,6 +9956,13 @@ struct mlx5_ifc_alloc_sf_in_bits {
 	u8         function_id[0x10];
 
 	u8         reserved_at_60[0x20];
+};
+
+struct mlx5_ifc_affiliated_event_header_bits {
+	u8         reserved_at_0[0x10];
+	u8         obj_type[0x10];
+
+	u8         obj_id[0x20];
 };
 
 #endif /* MLX5_IFC_H */
