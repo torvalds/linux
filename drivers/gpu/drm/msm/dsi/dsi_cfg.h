@@ -35,6 +35,7 @@ struct msm_dsi_config {
 };
 
 struct msm_dsi_host_cfg_ops {
+	int (*link_clk_set_rate)(struct msm_dsi_host *msm_host);
 	int (*link_clk_enable)(struct msm_dsi_host *msm_host);
 	void (*link_clk_disable)(struct msm_dsi_host *msm_host);
 	int (*clk_init_ver)(struct msm_dsi_host *msm_host);

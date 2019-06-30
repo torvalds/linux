@@ -168,6 +168,7 @@ static const struct msm_dsi_config sdm845_dsi_cfg = {
 };
 
 static const struct msm_dsi_host_cfg_ops msm_dsi_v2_host_ops = {
+	.link_clk_set_rate = dsi_link_clk_set_rate_v2,
 	.link_clk_enable = dsi_link_clk_enable_v2,
 	.link_clk_disable = dsi_link_clk_disable_v2,
 	.clk_init_ver = dsi_clk_init_v2,
@@ -179,6 +180,7 @@ static const struct msm_dsi_host_cfg_ops msm_dsi_v2_host_ops = {
 };
 
 static const struct msm_dsi_host_cfg_ops msm_dsi_6g_host_ops = {
+	.link_clk_set_rate = dsi_link_clk_set_rate_6g,
 	.link_clk_enable = dsi_link_clk_enable_6g,
 	.link_clk_disable = dsi_link_clk_disable_6g,
 	.clk_init_ver = NULL,
@@ -190,6 +192,7 @@ static const struct msm_dsi_host_cfg_ops msm_dsi_6g_host_ops = {
 };
 
 static const struct msm_dsi_host_cfg_ops msm_dsi_6g_v2_host_ops = {
+	.link_clk_set_rate = dsi_link_clk_set_rate_6g,
 	.link_clk_enable = dsi_link_clk_enable_6g,
 	.link_clk_disable = dsi_link_clk_disable_6g,
 	.clk_init_ver = dsi_clk_init_6g_v2,
