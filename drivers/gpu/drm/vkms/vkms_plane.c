@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include "vkms_drv.h"
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_plane_helper.h>
+
+#include "vkms_drv.h"
 
 static const u32 vkms_formats[] = {
 	DRM_FORMAT_XRGB8888,

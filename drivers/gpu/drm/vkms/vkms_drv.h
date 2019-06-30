@@ -3,11 +3,11 @@
 #ifndef _VKMS_DRV_H_
 #define _VKMS_DRV_H_
 
-#include <drm/drmP.h>
+#include <linux/hrtimer.h>
+
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_encoder.h>
-#include <linux/hrtimer.h>
 
 #define XRES_MIN    20
 #define YRES_MIN    20

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <linux/shmem_fs.h>
+#include <linux/vmalloc.h>
 
 #include "vkms_drv.h"
 

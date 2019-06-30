@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include "vkms_drv.h"
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+
+#include "vkms_drv.h"
 
 static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 {
