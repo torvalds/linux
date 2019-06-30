@@ -10,6 +10,7 @@
 #include <linux/ptp_classify.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/net_tstamp.h>
 
 #include "spectrum.h"
 #include "spectrum_ptp.h"
@@ -743,6 +744,15 @@ static int mlxsw_sp1_ptp_set_fifo_clr_on_trap(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mogcr), mogcr_pl);
 }
 
+static int mlxsw_sp1_ptp_mtpppc_set(struct mlxsw_sp *mlxsw_sp,
+				    u16 ing_types, u16 egr_types)
+{
+	char mtpppc_pl[MLXSW_REG_MTPPPC_LEN];
+
+	mlxsw_reg_mtpppc_pack(mtpppc_pl, ing_types, egr_types);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mtpppc), mtpppc_pl);
+}
+
 struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_ptp_state *ptp_state;
@@ -803,10 +813,123 @@ void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 	struct mlxsw_sp *mlxsw_sp = ptp_state->mlxsw_sp;
 
 	cancel_delayed_work_sync(&ptp_state->ht_gc_dw);
+	mlxsw_sp1_ptp_mtpppc_set(mlxsw_sp, 0, 0);
 	mlxsw_sp1_ptp_set_fifo_clr_on_trap(mlxsw_sp, false);
 	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1, 0);
 	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0, 0);
 	rhashtable_free_and_destroy(&ptp_state->unmatched_ht,
 				    &mlxsw_sp1_ptp_unmatched_free_fn, NULL);
 	kfree(ptp_state);
+}
+
+int mlxsw_sp1_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
+			       struct hwtstamp_config *config)
+{
+	*config = mlxsw_sp_port->ptp.hwtstamp_config;
+	return 0;
+}
+
+static int mlxsw_sp_ptp_get_message_types(const struct hwtstamp_config *config,
+					  u16 *p_ing_types, u16 *p_egr_types,
+					  enum hwtstamp_rx_filters *p_rx_filter)
+{
+	enum hwtstamp_rx_filters rx_filter = config->rx_filter;
+	enum hwtstamp_tx_types tx_type = config->tx_type;
+	u16 ing_types = 0x00;
+	u16 egr_types = 0x00;
+
+	switch (tx_type) {
+	case HWTSTAMP_TX_OFF:
+		egr_types = 0x00;
+		break;
+	case HWTSTAMP_TX_ON:
+		egr_types = 0xff;
+		break;
+	case HWTSTAMP_TX_ONESTEP_SYNC:
+		return -ERANGE;
+	}
+
+	switch (rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		ing_types = 0x00;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+		ing_types = 0x01;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		ing_types = 0x02;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		ing_types = 0x0f;
+		break;
+	case HWTSTAMP_FILTER_ALL:
+		ing_types = 0xff;
+		break;
+	case HWTSTAMP_FILTER_SOME:
+	case HWTSTAMP_FILTER_NTP_ALL:
+		return -ERANGE;
+	}
+
+	*p_ing_types = ing_types;
+	*p_egr_types = egr_types;
+	*p_rx_filter = rx_filter;
+	return 0;
+}
+
+static int mlxsw_sp1_ptp_mtpppc_update(struct mlxsw_sp_port *mlxsw_sp_port,
+				       u16 ing_types, u16 egr_types)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_port *tmp;
+	int i;
+
+	/* MTPPPC configures timestamping globally, not per port. Find the
+	 * configuration that contains all configured timestamping requests.
+	 */
+	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++) {
+		tmp = mlxsw_sp->ports[i];
+		if (tmp && tmp != mlxsw_sp_port) {
+			ing_types |= tmp->ptp.ing_types;
+			egr_types |= tmp->ptp.egr_types;
+		}
+	}
+
+	return mlxsw_sp1_ptp_mtpppc_set(mlxsw_sp_port->mlxsw_sp,
+				       ing_types, egr_types);
+}
+
+int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			       struct hwtstamp_config *config)
+{
+	enum hwtstamp_rx_filters rx_filter;
+	u16 ing_types;
+	u16 egr_types;
+	int err;
+
+	err = mlxsw_sp_ptp_get_message_types(config, &ing_types, &egr_types,
+					     &rx_filter);
+	if (err)
+		return err;
+
+	err = mlxsw_sp1_ptp_mtpppc_update(mlxsw_sp_port, ing_types, egr_types);
+	if (err)
+		return err;
+
+	mlxsw_sp_port->ptp.hwtstamp_config = *config;
+	mlxsw_sp_port->ptp.ing_types = ing_types;
+	mlxsw_sp_port->ptp.egr_types = egr_types;
+
+	/* Notify the ioctl caller what we are actually timestamping. */
+	config->rx_filter = rx_filter;
+
+	return 0;
 }
