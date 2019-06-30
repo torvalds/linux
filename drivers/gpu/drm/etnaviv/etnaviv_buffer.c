@@ -3,6 +3,8 @@
  * Copyright (C) 2014-2018 Etnaviv Project
  */
 
+#include <drm/drm_drv.h>
+
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"

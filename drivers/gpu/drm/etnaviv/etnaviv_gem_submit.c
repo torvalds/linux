@@ -3,9 +3,14 @@
  * Copyright (C) 2015 Etnaviv Project
  */
 
+#include <drm/drm_file.h>
 #include <linux/dma-fence-array.h>
+#include <linux/file.h>
 #include <linux/reservation.h>
 #include <linux/sync_file.h>
+#include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 #include "etnaviv_gpu.h"

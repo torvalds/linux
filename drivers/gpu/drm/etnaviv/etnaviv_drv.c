@@ -4,8 +4,16 @@
  */
 
 #include <linux/component.h>
+#include <linux/dma-mapping.h>
 #include <linux/of_platform.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_of.h>
+#include <drm/drm_prime.h>
 
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"

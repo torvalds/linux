@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2018 Etnaviv Project
  */
 
+#include <linux/scatterlist.h>
+
 #include "common.xml.h"
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"

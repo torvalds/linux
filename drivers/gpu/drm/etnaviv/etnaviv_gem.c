@@ -3,10 +3,13 @@
  * Copyright (C) 2015-2018 Etnaviv Project
  */
 
-#include <linux/spinlock.h>
-#include <linux/shmem_fs.h>
+#include <drm/drm_prime.h>
+#include <linux/dma-mapping.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/task.h>
+#include <linux/shmem_fs.h>
+#include <linux/spinlock.h>
+#include <linux/vmalloc.h>
 
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"

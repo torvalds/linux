@@ -5,7 +5,9 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/delay.h>
 #include <linux/dma-fence.h>
+#include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
