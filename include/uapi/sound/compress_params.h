@@ -428,6 +428,9 @@ struct snd_dec_pcm {
 	__u8 ch_map[MAX_PCM_DECODE_CHANNELS];
 } __attribute__((packed, aligned(4)));
 
+struct snd_dec_amrwb_plus {
+	__u32 bit_stream_fmt;
+};
 union snd_codec_options {
 	struct snd_enc_wma wma;
 	struct snd_enc_vorbis vorbis;
@@ -441,6 +444,7 @@ union snd_codec_options {
 	struct snd_dec_aptx aptx_dec;
 	struct snd_dec_thd truehd;
 	struct snd_dec_pcm pcm_dec;
+	struct snd_dec_amrwb_plus amrwbplus;
 };
 
 /** struct snd_codec_desc - description of codec capabilities
