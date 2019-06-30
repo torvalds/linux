@@ -193,6 +193,10 @@ mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
 	if (err)
 		return err;
 
+	err = mlx5e_reporter_cq_diagnose(&sq->cq, fmsg);
+	if (err)
+		return err;
+
 	err = devlink_fmsg_obj_nest_end(fmsg);
 	if (err)
 		return err;
@@ -230,6 +234,10 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 		goto unlock;
 
 	err = devlink_fmsg_u32_pair_put(fmsg, "size", sq_sz);
+	if (err)
+		goto unlock;
+
+	err = mlx5e_reporter_cq_common_diagnose(&generic_sq->cq, fmsg);
 	if (err)
 		goto unlock;
 
