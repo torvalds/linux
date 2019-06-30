@@ -278,36 +278,34 @@ static void efa_com_dealloc_ctx_id(struct efa_com_admin_queue *aq,
 static inline void efa_com_put_comp_ctx(struct efa_com_admin_queue *aq,
 					struct efa_comp_ctx *comp_ctx)
 {
-	u16 comp_id = comp_ctx->user_cqe->acq_common_descriptor.command &
-		      EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID_MASK;
+	u16 cmd_id = comp_ctx->user_cqe->acq_common_descriptor.command &
+		     EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID_MASK;
+	u16 ctx_id = cmd_id & (aq->depth - 1);
 
-	ibdev_dbg(aq->efa_dev, "Putting completion command_id %d\n", comp_id);
+	ibdev_dbg(aq->efa_dev, "Put completion command_id %#x\n", cmd_id);
 	comp_ctx->occupied = 0;
-	efa_com_dealloc_ctx_id(aq, comp_id);
+	efa_com_dealloc_ctx_id(aq, ctx_id);
 }
 
 static struct efa_comp_ctx *efa_com_get_comp_ctx(struct efa_com_admin_queue *aq,
-						 u16 command_id, bool capture)
+						 u16 cmd_id, bool capture)
 {
-	if (command_id >= aq->depth) {
-		ibdev_err(aq->efa_dev,
-			  "command id is larger than the queue size. cmd_id: %u queue size %d\n",
-			  command_id, aq->depth);
-		return NULL;
-	}
+	u16 ctx_id = cmd_id & (aq->depth - 1);
 
-	if (aq->comp_ctx[command_id].occupied && capture) {
-		ibdev_err(aq->efa_dev, "Completion context is occupied\n");
+	if (aq->comp_ctx[ctx_id].occupied && capture) {
+		ibdev_err(aq->efa_dev,
+			  "Completion context for command_id %#x is occupied\n",
+			  cmd_id);
 		return NULL;
 	}
 
 	if (capture) {
-		aq->comp_ctx[command_id].occupied = 1;
-		ibdev_dbg(aq->efa_dev, "Taking completion ctxt command_id %d\n",
-			  command_id);
+		aq->comp_ctx[ctx_id].occupied = 1;
+		ibdev_dbg(aq->efa_dev,
+			  "Take completion ctxt for command_id %#x\n", cmd_id);
 	}
 
-	return &aq->comp_ctx[command_id];
+	return &aq->comp_ctx[ctx_id];
 }
 
 static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
@@ -318,6 +316,7 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 {
 	struct efa_comp_ctx *comp_ctx;
 	u16 queue_size_mask;
+	u16 cmd_id;
 	u16 ctx_id;
 	u16 pi;
 
@@ -326,13 +325,16 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 
 	ctx_id = efa_com_alloc_ctx_id(aq);
 
+	/* cmd_id LSBs are the ctx_id and MSBs are entropy bits from pc */
+	cmd_id = ctx_id & queue_size_mask;
+	cmd_id |= aq->sq.pc & ~queue_size_mask;
+	cmd_id &= EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
+
+	cmd->aq_common_descriptor.command_id = cmd_id;
 	cmd->aq_common_descriptor.flags |= aq->sq.phase &
 		EFA_ADMIN_AQ_COMMON_DESC_PHASE_MASK;
 
-	cmd->aq_common_descriptor.command_id |= ctx_id &
-		EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
-
-	comp_ctx = efa_com_get_comp_ctx(aq, ctx_id, true);
+	comp_ctx = efa_com_get_comp_ctx(aq, cmd_id, true);
 	if (!comp_ctx) {
 		efa_com_dealloc_ctx_id(aq, ctx_id);
 		return ERR_PTR(-EINVAL);
