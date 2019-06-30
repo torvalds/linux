@@ -414,7 +414,8 @@ static void mlx5_fpga_conn_cq_tasklet(unsigned long data)
 	mlx5_fpga_conn_cqes(conn, MLX5_FPGA_CQ_BUDGET);
 }
 
-static void mlx5_fpga_conn_cq_complete(struct mlx5_core_cq *mcq)
+static void mlx5_fpga_conn_cq_complete(struct mlx5_core_cq *mcq,
+				       struct mlx5_eqe *eqe)
 {
 	struct mlx5_fpga_conn *conn;
 

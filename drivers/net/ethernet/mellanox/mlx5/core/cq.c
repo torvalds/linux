@@ -58,7 +58,7 @@ void mlx5_cq_tasklet_cb(unsigned long data)
 	list_for_each_entry_safe(mcq, temp, &ctx->process_list,
 				 tasklet_ctx.list) {
 		list_del_init(&mcq->tasklet_ctx.list);
-		mcq->tasklet_ctx.comp(mcq);
+		mcq->tasklet_ctx.comp(mcq, NULL);
 		mlx5_cq_put(mcq);
 		if (time_after(jiffies, end))
 			break;
@@ -68,7 +68,8 @@ void mlx5_cq_tasklet_cb(unsigned long data)
 		tasklet_schedule(&ctx->task);
 }
 
-static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq)
+static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
+				   struct mlx5_eqe *eqe)
 {
 	unsigned long flags;
 	struct mlx5_eq_tasklet *tasklet_ctx = cq->tasklet_ctx.priv;

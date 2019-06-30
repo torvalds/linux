@@ -136,7 +136,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-void mlx5e_completion_event(struct mlx5_core_cq *mcq)
+void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 

@@ -47,7 +47,7 @@ struct mlx5_core_cq {
 	struct completion	free;
 	unsigned		vector;
 	unsigned int		irqn;
-	void (*comp)		(struct mlx5_core_cq *);
+	void (*comp)(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe);
 	void (*event)		(struct mlx5_core_cq *, enum mlx5_event);
 	u32			cons_index;
 	unsigned		arm_sn;
@@ -55,7 +55,7 @@ struct mlx5_core_cq {
 	int			pid;
 	struct {
 		struct list_head list;
-		void (*comp)(struct mlx5_core_cq *);
+		void (*comp)(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe);
 		void		*priv;
 	} tasklet_ctx;
 	int			reset_notify_added;
