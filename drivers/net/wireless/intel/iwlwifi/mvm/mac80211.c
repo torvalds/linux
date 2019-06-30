@@ -1326,15 +1326,20 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 			goto out_unlock;
 		}
 
-		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
+		if (!fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD))
+			iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
 
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 
-		ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
-		if (ret)
-			goto out_unlock;
+		if (!fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD)) {
+			ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
+			if (ret)
+				goto out_unlock;
 
-		iwl_mvm_stop_session_protection(mvm, vif);
+			iwl_mvm_stop_session_protection(mvm, vif);
+		}
 	}
 
 	mvmvif->ps_disabled = false;
@@ -4421,6 +4426,42 @@ static int iwl_mvm_schedule_client_csa(struct iwl_mvm *mvm,
 				    0, sizeof(cmd), &cmd);
 }
 
+static int iwl_mvm_old_pre_chan_sw_sta(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_channel_switch *chsw)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 apply_time;
+
+	/* Schedule the time event to a bit before beacon 1,
+	 * to make sure we're in the new channel when the
+	 * GO/AP arrives. In case count <= 1 immediately schedule the
+	 * TE (this might result with some packet loss or connection
+	 * loss).
+	 */
+	if (chsw->count <= 1)
+		apply_time = 0;
+	else
+		apply_time = chsw->device_timestamp +
+			((vif->bss_conf.beacon_int * (chsw->count - 1) -
+			  IWL_MVM_CHANNEL_SWITCH_TIME_CLIENT) * 1024);
+
+	if (chsw->block_tx)
+		iwl_mvm_csa_client_absent(mvm, vif);
+
+	if (mvmvif->bf_data.bf_enabled) {
+		int ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+
+		if (ret)
+			return ret;
+	}
+
+	iwl_mvm_schedule_csa_period(mvm, vif, vif->bss_conf.beacon_int,
+				    apply_time);
+
+	return 0;
+}
+
 #define IWL_MAX_CSA_BLOCK_TX 1500
 static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
@@ -4429,7 +4470,6 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct ieee80211_vif *csa_vif;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	u32 apply_time;
 	int ret;
 
 	mutex_lock(&mvm->mutex);
@@ -4473,21 +4513,7 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 		break;
 	case NL80211_IFTYPE_STATION:
-		/* Schedule the time event to a bit before beacon 1,
-		 * to make sure we're in the new channel when the
-		 * GO/AP arrives. In case count <= 1 immediately schedule the
-		 * TE (this might result with some packet loss or connection
-		 * loss).
-		 */
-		if (chsw->count <= 1)
-			apply_time = 0;
-		else
-			apply_time = chsw->device_timestamp +
-				((vif->bss_conf.beacon_int * (chsw->count - 1) -
-				  IWL_MVM_CHANNEL_SWITCH_TIME_CLIENT) * 1024);
-
 		if (chsw->block_tx) {
-			iwl_mvm_csa_client_absent(mvm, vif);
 			/*
 			 * In case of undetermined / long time with immediate
 			 * quiet monitor status to gracefully disconnect
@@ -4499,19 +4525,14 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 						      msecs_to_jiffies(IWL_MAX_CSA_BLOCK_TX));
 		}
 
-		if (mvmvif->bf_data.bf_enabled) {
-			ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+		if (!fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD)) {
+			ret = iwl_mvm_old_pre_chan_sw_sta(mvm, vif, chsw);
 			if (ret)
 				goto out_unlock;
-		}
-
-		if (fw_has_capa(&mvm->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD))
+		} else {
 			iwl_mvm_schedule_client_csa(mvm, vif, chsw);
-		else
-			iwl_mvm_schedule_csa_period(mvm, vif,
-						    vif->bss_conf.beacon_int,
-						    apply_time);
+		}
 
 		mvmvif->csa_count = chsw->count;
 		mvmvif->csa_misbehave = false;
