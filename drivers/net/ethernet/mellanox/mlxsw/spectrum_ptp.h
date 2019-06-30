@@ -17,6 +17,9 @@ mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev);
 
 void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock);
 
+void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			   u8 local_port);
+
 #else
 
 static inline struct mlxsw_sp_ptp_clock *
@@ -29,6 +32,12 @@ static inline void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
 {
 }
 
+static inline void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp,
+					 struct sk_buff *skb, u8 local_port)
+{
+	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+}
+
 #endif
 
 static inline struct mlxsw_sp_ptp_clock *
@@ -39,6 +48,12 @@ mlxsw_sp2_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 
 static inline void mlxsw_sp2_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
 {
+}
+
+static inline void mlxsw_sp2_ptp_receive(struct mlxsw_sp *mlxsw_sp,
+					 struct sk_buff *skb, u8 local_port)
+{
+	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
 }
 
 #endif
