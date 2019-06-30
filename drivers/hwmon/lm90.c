@@ -459,6 +459,7 @@ struct lm90_data {
 
 	unsigned int update_interval; /* in milliseconds */
 
+	u8 config;		/* Current configuration register value */
 	u8 config_orig;		/* Original configuration register value */
 	u8 convrate_orig;	/* Original conversion rate register value */
 	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
@@ -554,17 +555,20 @@ static inline int lm90_select_remote_channel(struct i2c_client *client,
 					     struct lm90_data *data,
 					     int channel)
 {
-	int config;
-
 	if (data->kind == max6696) {
-		config = lm90_read_reg(client, LM90_REG_R_CONFIG1);
-		if (config < 0)
-			return config;
-		config &= ~0x08;
+		u8 config = data->config & ~0x08;
+		int err;
+
 		if (channel)
 			config |= 0x08;
-		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
-					  config);
+		if (data->config != config) {
+			err = i2c_smbus_write_byte_data(client,
+							LM90_REG_W_CONFIG1,
+							config);
+			if (err)
+				return err;
+			data->config = config;
+		}
 	}
 	return 0;
 }
@@ -572,19 +576,16 @@ static inline int lm90_select_remote_channel(struct i2c_client *client,
 static int lm90_write_convrate(struct i2c_client *client,
 			       struct lm90_data *data, int val)
 {
+	u8 config = data->config;
 	int err;
-	int config_orig, config_stop;
 
 	/* Save config and pause conversion */
 	if (data->flags & LM90_PAUSE_FOR_CONFIG) {
-		config_orig = lm90_read_reg(client, LM90_REG_R_CONFIG1);
-		if (config_orig < 0)
-			return config_orig;
-		config_stop = config_orig | 0x40;
-		if (config_orig != config_stop) {
+		config |= 0x40;
+		if (data->config != config) {
 			err = i2c_smbus_write_byte_data(client,
 							LM90_REG_W_CONFIG1,
-							config_stop);
+							config);
 			if (err < 0)
 				return err;
 		}
@@ -594,9 +595,9 @@ static int lm90_write_convrate(struct i2c_client *client,
 	err = i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE, val);
 
 	/* Revert change to config */
-	if (data->flags & LM90_PAUSE_FOR_CONFIG && config_orig != config_stop)
+	if (data->config != config)
 		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
-					  config_orig);
+					  data->config);
 
 	return err;
 }
@@ -802,15 +803,12 @@ static int lm90_update_device(struct device *dev)
 		 */
 		if (!(data->config_orig & 0x80) &&
 		    !(data->alarms & data->alert_alarms)) {
-			val = lm90_read_reg(client, LM90_REG_R_CONFIG1);
-			if (val < 0)
-				return val;
-
-			if (val & 0x80) {
+			if (data->config & 0x80) {
 				dev_dbg(&client->dev, "Re-enabling ALERT#\n");
+				data->config &= ~0x80;
 				i2c_smbus_write_byte_data(client,
 							  LM90_REG_W_CONFIG1,
-							  val & ~0x80);
+							  data->config);
 			}
 		}
 
@@ -1648,6 +1646,7 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	if (config < 0)
 		return config;
 	data->config_orig = config;
+	data->config = config;
 
 	lm90_set_convrate(client, data, 500); /* 500ms; 2Hz conversion rate */
 
@@ -1672,8 +1671,10 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 		config &= ~0x08;
 
 	config &= 0xBF;	/* run */
-	if (config != data->config_orig) /* Only write if changed */
+	if (config != data->config) {	/* Only write if changed */
 		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1, config);
+		data->config = config;
+	}
 
 	return devm_add_action_or_reset(&client->dev, lm90_restore_conf, data);
 }
@@ -1907,14 +1908,10 @@ static void lm90_alert(struct i2c_client *client, enum i2c_alert_protocol type,
 
 		if ((data->flags & LM90_HAVE_BROKEN_ALERT) &&
 		    (alarms & data->alert_alarms)) {
-			int config;
-
 			dev_dbg(&client->dev, "Disabling ALERT#\n");
-			config = lm90_read_reg(client, LM90_REG_R_CONFIG1);
-			if (config >= 0)
-				i2c_smbus_write_byte_data(client,
-							  LM90_REG_W_CONFIG1,
-							  config | 0x80);
+			data->config |= 0x80;
+			i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
+						  data->config);
 		}
 	} else {
 		dev_info(&client->dev, "Everything OK\n");
