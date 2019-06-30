@@ -48,6 +48,8 @@ bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 				  const struct mlxsw_tx_info *tx_info);
 int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    const struct mlxsw_tx_info *tx_info);
+void mlxsw_core_ptp_transmitted(struct mlxsw_core *mlxsw_core,
+				struct sk_buff *skb, u8 local_port);
 
 struct mlxsw_rx_listener {
 	void (*func)(struct sk_buff *skb, u8 local_port, void *priv);
@@ -296,6 +298,13 @@ struct mlxsw_driver {
 			     u64 *p_linear_size);
 	int (*params_register)(struct mlxsw_core *mlxsw_core);
 	void (*params_unregister)(struct mlxsw_core *mlxsw_core);
+
+	/* Notify a driver that a timestamped packet was transmitted. Driver
+	 * is responsible for freeing the passed-in SKB.
+	 */
+	void (*ptp_transmitted)(struct mlxsw_core *mlxsw_core,
+				struct sk_buff *skb, u8 local_port);
+
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
 	bool res_query_enabled;
@@ -419,6 +428,7 @@ enum mlxsw_devlink_param_id {
 };
 
 struct mlxsw_skb_cb {
+	struct mlxsw_tx_info tx_info;
 };
 
 static inline struct mlxsw_skb_cb *mlxsw_skb_cb(struct sk_buff *skb)

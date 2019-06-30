@@ -270,3 +270,9 @@ void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 {
 	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
 }
+
+void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
+			       struct sk_buff *skb, u8 local_port)
+{
+	dev_kfree_skb_any(skb);
+}
