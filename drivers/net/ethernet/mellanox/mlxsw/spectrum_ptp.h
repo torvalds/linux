@@ -5,9 +5,10 @@
 #define _MLXSW_SPECTRUM_PTP_H
 
 #include <linux/device.h>
+#include <linux/rhashtable.h>
 
-#include "spectrum.h"
-
+struct mlxsw_sp;
+struct mlxsw_sp_port;
 struct mlxsw_sp_ptp_clock;
 
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
@@ -16,6 +17,10 @@ struct mlxsw_sp_ptp_clock *
 mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev);
 
 void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock);
+
+struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp);
+
+void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state);
 
 void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 			   u8 local_port);
@@ -32,6 +37,16 @@ mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 }
 
 static inline void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
+{
+}
+
+static inline struct mlxsw_sp_ptp_state *
+mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return NULL;
+}
+
+static inline void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 {
 }
 
@@ -56,6 +71,16 @@ mlxsw_sp2_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 }
 
 static inline void mlxsw_sp2_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
+{
+}
+
+static inline struct mlxsw_sp_ptp_state *
+mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return NULL;
+}
+
+static inline void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 {
 }
 

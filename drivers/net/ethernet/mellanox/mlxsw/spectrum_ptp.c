@@ -7,12 +7,40 @@
 #include <linux/spinlock.h>
 #include <linux/device.h>
 
+#include "spectrum.h"
 #include "spectrum_ptp.h"
 #include "core.h"
 
 #define MLXSW_SP1_PTP_CLOCK_CYCLES_SHIFT	29
 #define MLXSW_SP1_PTP_CLOCK_FREQ_KHZ		156257 /* 6.4nSec */
 #define MLXSW_SP1_PTP_CLOCK_MASK		64
+
+struct mlxsw_sp_ptp_state {
+	struct rhashtable unmatched_ht;
+	spinlock_t unmatched_lock; /* protects the HT */
+};
+
+struct mlxsw_sp1_ptp_key {
+	u8 local_port;
+	u8 message_type;
+	u16 sequence_id;
+	u8 domain_number;
+	bool ingress;
+};
+
+struct mlxsw_sp1_ptp_unmatched {
+	struct mlxsw_sp1_ptp_key key;
+	struct rhash_head ht_node;
+	struct rcu_head rcu;
+	struct sk_buff *skb;
+	u64 timestamp;
+};
+
+static const struct rhashtable_params mlxsw_sp1_ptp_unmatched_ht_params = {
+	.key_len = sizeof_field(struct mlxsw_sp1_ptp_unmatched, key),
+	.key_offset = offsetof(struct mlxsw_sp1_ptp_unmatched, key),
+	.head_offset = offsetof(struct mlxsw_sp1_ptp_unmatched, ht_node),
+};
 
 struct mlxsw_sp_ptp_clock {
 	struct mlxsw_core *core;
@@ -265,6 +293,18 @@ void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
 	kfree(clock);
 }
 
+static void mlxsw_sp1_ptp_unmatched_free_fn(void *ptr, void *arg)
+{
+	struct mlxsw_sp1_ptp_unmatched *unmatched = ptr;
+
+	/* This is invoked at a point where the ports are gone already. Nothing
+	 * to do with whatever is left in the HT but to free it.
+	 */
+	if (unmatched->skb)
+		dev_kfree_skb_any(unmatched->skb);
+	kfree_rcu(unmatched, rcu);
+}
+
 void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 			   u8 local_port)
 {
@@ -275,4 +315,34 @@ void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
 			       struct sk_buff *skb, u8 local_port)
 {
 	dev_kfree_skb_any(skb);
+}
+
+struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_ptp_state *ptp_state;
+	int err;
+
+	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
+	if (!ptp_state)
+		return ERR_PTR(-ENOMEM);
+
+	spin_lock_init(&ptp_state->unmatched_lock);
+
+	err = rhashtable_init(&ptp_state->unmatched_ht,
+			      &mlxsw_sp1_ptp_unmatched_ht_params);
+	if (err)
+		goto err_hashtable_init;
+
+	return ptp_state;
+
+err_hashtable_init:
+	kfree(ptp_state);
+	return ERR_PTR(err);
+}
+
+void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
+{
+	rhashtable_free_and_destroy(&ptp_state->unmatched_ht,
+				    &mlxsw_sp1_ptp_unmatched_free_fn, NULL);
+	kfree(ptp_state);
 }

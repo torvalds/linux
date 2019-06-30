@@ -136,6 +136,7 @@ struct mlxsw_sp_acl_tcam_ops;
 struct mlxsw_sp_nve_ops;
 struct mlxsw_sp_sb_vals;
 struct mlxsw_sp_port_type_speed_ops;
+struct mlxsw_sp_ptp_state;
 struct mlxsw_sp_ptp_ops;
 
 struct mlxsw_sp {
@@ -157,6 +158,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_nve *nve;
 	struct notifier_block netdevice_nb;
 	struct mlxsw_sp_ptp_clock *clock;
+	struct mlxsw_sp_ptp_state *ptp_state;
 
 	struct mlxsw_sp_counter_pool *counter_pool;
 	struct {

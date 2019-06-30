@@ -152,6 +152,9 @@ struct mlxsw_sp_ptp_ops {
 		(*clock_init)(struct mlxsw_sp *mlxsw_sp, struct device *dev);
 	void (*clock_fini)(struct mlxsw_sp_ptp_clock *clock);
 
+	struct mlxsw_sp_ptp_state *(*init)(struct mlxsw_sp *mlxsw_sp);
+	void (*fini)(struct mlxsw_sp_ptp_state *ptp_state);
+
 	/* Notify a driver that a packet that might be PTP was received. Driver
 	 * is responsible for freeing the passed-in SKB.
 	 */
@@ -4429,6 +4432,8 @@ static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
 static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
 	.clock_init	= mlxsw_sp1_ptp_clock_init,
 	.clock_fini	= mlxsw_sp1_ptp_clock_fini,
+	.init		= mlxsw_sp1_ptp_init,
+	.fini		= mlxsw_sp1_ptp_fini,
 	.receive	= mlxsw_sp1_ptp_receive,
 	.transmitted	= mlxsw_sp1_ptp_transmitted,
 };
@@ -4436,6 +4441,8 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
 static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.clock_init	= mlxsw_sp2_ptp_clock_init,
 	.clock_fini	= mlxsw_sp2_ptp_clock_fini,
+	.init		= mlxsw_sp2_ptp_init,
+	.fini		= mlxsw_sp2_ptp_fini,
 	.receive	= mlxsw_sp2_ptp_receive,
 	.transmitted	= mlxsw_sp2_ptp_transmitted,
 };
@@ -4549,6 +4556,16 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		}
 	}
 
+	if (mlxsw_sp->clock) {
+		/* NULL is a valid return value from ptp_ops->init */
+		mlxsw_sp->ptp_state = mlxsw_sp->ptp_ops->init(mlxsw_sp);
+		if (IS_ERR(mlxsw_sp->ptp_state)) {
+			err = PTR_ERR(mlxsw_sp->ptp_state);
+			dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize PTP\n");
+			goto err_ptp_init;
+		}
+	}
+
 	/* Initialize netdevice notifier after router and SPAN is initialized,
 	 * so that the event handler can use router structures and call SPAN
 	 * respin.
@@ -4579,6 +4596,9 @@ err_ports_create:
 err_dpipe_init:
 	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
 err_netdev_notifier:
+	if (mlxsw_sp->clock)
+		mlxsw_sp->ptp_ops->fini(mlxsw_sp->ptp_state);
+err_ptp_init:
 	if (mlxsw_sp->clock)
 		mlxsw_sp->ptp_ops->clock_fini(mlxsw_sp->clock);
 err_ptp_clock_init:
@@ -4659,8 +4679,10 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_ports_remove(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
-	if (mlxsw_sp->clock)
+	if (mlxsw_sp->clock) {
+		mlxsw_sp->ptp_ops->fini(mlxsw_sp->ptp_state);
 		mlxsw_sp->ptp_ops->clock_fini(mlxsw_sp->clock);
+	}
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_nve_fini(mlxsw_sp);
