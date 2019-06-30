@@ -936,6 +936,13 @@ struct mlx5_ib_pf_eq {
 	mempool_t *pool;
 };
 
+struct mlx5_devx_event_table {
+	struct mlx5_nb devx_nb;
+	/* serialize updating the event_xa */
+	struct mutex event_xa_lock;
+	struct xarray event_xa;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
@@ -985,6 +992,7 @@ struct mlx5_ib_dev {
 	u16			devx_whitelist_uid;
 	struct mlx5_srq_table   srq_table;
 	struct mlx5_async_ctx   async_ctx;
+	struct mlx5_devx_event_table devx_event_table;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -1324,6 +1332,8 @@ void mlx5_ib_put_native_port_mdev(struct mlx5_ib_dev *dev,
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user);
 void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid);
+void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev);
+void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev);
 const struct uverbs_object_tree_def *mlx5_ib_get_devx_tree(void);
 extern const struct uapi_definition mlx5_ib_devx_defs[];
 extern const struct uapi_definition mlx5_ib_flow_defs[];
@@ -1341,6 +1351,8 @@ static inline int
 mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
 			   bool is_user) { return -EOPNOTSUPP; }
 static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid) {}
+static inline void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev) {}
+static inline void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev) {}
 static inline bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id,
 					     int *dest_type)
 {

@@ -1663,6 +1663,36 @@ static int devx_umem_cleanup(struct ib_uobject *uobject,
 	return 0;
 }
 
+static int devx_event_notifier(struct notifier_block *nb,
+			       unsigned long event_type, void *data)
+{
+	return NOTIFY_DONE;
+}
+
+void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_devx_event_table *table = &dev->devx_event_table;
+
+	xa_init(&table->event_xa);
+	mutex_init(&table->event_xa_lock);
+	MLX5_NB_INIT(&table->devx_nb, devx_event_notifier, NOTIFY_ANY);
+	mlx5_eq_notifier_register(dev->mdev, &table->devx_nb);
+}
+
+void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_devx_event_table *table = &dev->devx_event_table;
+	void *entry;
+	unsigned long id;
+
+	mlx5_eq_notifier_unregister(dev->mdev, &table->devx_nb);
+
+	xa_for_each(&table->event_xa, id, entry)
+		kfree(entry);
+
+	xa_destroy(&table->event_xa);
+}
+
 static ssize_t devx_async_cmd_event_read(struct file *filp, char __user *buf,
 					 size_t count, loff_t *pos)
 {

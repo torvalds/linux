@@ -6630,15 +6630,19 @@ static int mlx5_ib_stage_devx_init(struct mlx5_ib_dev *dev)
 	int uid;
 
 	uid = mlx5_ib_devx_create(dev, false);
-	if (uid > 0)
+	if (uid > 0) {
 		dev->devx_whitelist_uid = uid;
+		mlx5_ib_devx_init_event_table(dev);
+	}
 
 	return 0;
 }
 static void mlx5_ib_stage_devx_cleanup(struct mlx5_ib_dev *dev)
 {
-	if (dev->devx_whitelist_uid)
+	if (dev->devx_whitelist_uid) {
+		mlx5_ib_devx_cleanup_event_table(dev);
 		mlx5_ib_devx_destroy(dev, dev->devx_whitelist_uid);
+	}
 }
 
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
