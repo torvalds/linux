@@ -19,9 +19,13 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include <linux/delay.h>
+
+#include <trace/events/dma_fence.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
-#include <trace/events/dma_fence.h>
 
 /*
  * drawable cmd cache - allocate a bunch of VRAM pages, suballocate

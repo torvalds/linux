@@ -23,18 +23,20 @@
  *          Alon Levy
  */
 
+#include <linux/delay.h>
+
+#include <drm/drm.h>
+#include <drm/drm_file.h>
+#include <drm/drm_debugfs.h>
+#include <drm/qxl_drm.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_page_alloc.h>
 #include <drm/ttm/ttm_module.h>
-#include <drm/drmP.h>
-#include <drm/drm.h>
-#include <drm/qxl_drm.h>
+#include <drm/ttm/ttm_page_alloc.h>
+#include <drm/ttm/ttm_placement.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
-
-#include <linux/delay.h>
 
 static struct qxl_device *qxl_get_qdev(struct ttm_bo_device *bdev)
 {

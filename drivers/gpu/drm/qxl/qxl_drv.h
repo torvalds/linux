@@ -31,22 +31,21 @@
  */
 
 #include <linux/dma-fence.h>
-#include <linux/workqueue.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/workqueue.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_gem.h>
-#include <drm/drmP.h>
+#include <drm/qxl_drm.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-/* just for ttm_validate_buffer */
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_placement.h>
-#include <drm/qxl_drm.h>
 
 #include "qxl_dev.h"
 

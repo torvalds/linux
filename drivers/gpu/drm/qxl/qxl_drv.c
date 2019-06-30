@@ -28,14 +28,18 @@
  *    Alon Levy <alevy@redhat.com>
  */
 
-#include <linux/module.h>
-#include <linux/console.h>
-
-#include <drm/drmP.h>
-#include <drm/drm.h>
-#include <drm/drm_modeset_helper.h>
-#include <drm/drm_probe_helper.h>
 #include "qxl_drv.h"
+#include <linux/console.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
+#include <drm/drm.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_modeset_helper.h>
+#include <drm/drm_prime.h>
+#include <drm/drm_probe_helper.h>
+
 #include "qxl_object.h"
 
 static const struct pci_device_id pciidlist[] = {
