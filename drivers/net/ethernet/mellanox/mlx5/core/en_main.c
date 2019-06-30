@@ -1517,6 +1517,7 @@ static void mlx5e_free_cq(struct mlx5e_cq *cq)
 
 static int mlx5e_create_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 {
+	u32 out[MLX5_ST_SZ_DW(create_cq_out)];
 	struct mlx5_core_dev *mdev = cq->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
 
@@ -1551,7 +1552,7 @@ static int mlx5e_create_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 					    MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr,      cq->wq_ctrl.db.dma);
 
-	err = mlx5_core_create_cq(mdev, mcq, in, inlen);
+	err = mlx5_core_create_cq(mdev, mcq, in, inlen, out, sizeof(out));
 
 	kvfree(in);
 

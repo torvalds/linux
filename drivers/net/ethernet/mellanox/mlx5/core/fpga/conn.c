@@ -429,6 +429,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	struct mlx5_fpga_device *fdev = conn->fdev;
 	struct mlx5_core_dev *mdev = fdev->mdev;
 	u32 temp_cqc[MLX5_ST_SZ_DW(cqc)] = {0};
+	u32 out[MLX5_ST_SZ_DW(create_cq_out)];
 	struct mlx5_wq_param wqp;
 	struct mlx5_cqe64 *cqe;
 	int inlen, err, eqn;
@@ -476,7 +477,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas);
 	mlx5_fill_page_frag_array(&conn->cq.wq_ctrl.buf, pas);
 
-	err = mlx5_core_create_cq(mdev, &conn->cq.mcq, in, inlen);
+	err = mlx5_core_create_cq(mdev, &conn->cq.mcq, in, inlen, out, sizeof(out));
 	kvfree(in);
 
 	if (err)
