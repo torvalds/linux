@@ -32,6 +32,7 @@
 #include <linux/limits.h>
 #include <linux/perf_event.h>
 #include <linux/ring_buffer.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -3956,6 +3957,68 @@ int bpf_link__destroy(struct bpf_link *link)
 	free(link);
 
 	return err;
+}
+
+struct bpf_link_fd {
+	struct bpf_link link; /* has to be at the top of struct */
+	int fd; /* hook FD */
+};
+
+static int bpf_link__destroy_perf_event(struct bpf_link *link)
+{
+	struct bpf_link_fd *l = (void *)link;
+	int err;
+
+	err = ioctl(l->fd, PERF_EVENT_IOC_DISABLE, 0);
+	if (err)
+		err = -errno;
+
+	close(l->fd);
+	return err;
+}
+
+struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
+						int pfd)
+{
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link_fd *link;
+	int prog_fd, err;
+
+	if (pfd < 0) {
+		pr_warning("program '%s': invalid perf event FD %d\n",
+			   bpf_program__title(prog, false), pfd);
+		return ERR_PTR(-EINVAL);
+	}
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warning("program '%s': can't attach BPF program w/o FD (did you load it?)\n",
+			   bpf_program__title(prog, false));
+		return ERR_PTR(-EINVAL);
+	}
+
+	link = malloc(sizeof(*link));
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+	link->link.destroy = &bpf_link__destroy_perf_event;
+	link->fd = pfd;
+
+	if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
+		err = -errno;
+		free(link);
+		pr_warning("program '%s': failed to attach to pfd %d: %s\n",
+			   bpf_program__title(prog, false), pfd,
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return ERR_PTR(err);
+	}
+	if (ioctl(pfd, PERF_EVENT_IOC_ENABLE, 0) < 0) {
+		err = -errno;
+		free(link);
+		pr_warning("program '%s': failed to enable pfd %d: %s\n",
+			   bpf_program__title(prog, false), pfd,
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return ERR_PTR(err);
+	}
+	return (struct bpf_link *)link;
 }
 
 enum bpf_perf_event_ret

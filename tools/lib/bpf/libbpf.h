@@ -169,6 +169,9 @@ struct bpf_link;
 
 LIBBPF_API int bpf_link__destroy(struct bpf_link *link);
 
+LIBBPF_API struct bpf_link *
+bpf_program__attach_perf_event(struct bpf_program *prog, int pfd);
+
 struct bpf_insn;
 
 /*
