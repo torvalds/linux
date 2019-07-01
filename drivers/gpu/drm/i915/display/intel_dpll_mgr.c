@@ -347,25 +347,20 @@ static void intel_put_dpll(struct intel_atomic_state *state,
  * i.e. it also puts the current state into @state, even though there is no
  * need for that at this moment.
  */
-void intel_shared_dpll_swap_state(struct drm_atomic_state *state)
+void intel_shared_dpll_swap_state(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_shared_dpll_state *shared_dpll;
-	struct intel_shared_dpll *pll;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_shared_dpll_state *shared_dpll = state->shared_dpll;
 	enum intel_dpll_id i;
 
-	if (!to_intel_atomic_state(state)->dpll_set)
+	if (!state->dpll_set)
 		return;
 
-	shared_dpll = to_intel_atomic_state(state)->shared_dpll;
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll_state tmp;
+		struct intel_shared_dpll *pll =
+			&dev_priv->shared_dplls[i];
 
-		pll = &dev_priv->shared_dplls[i];
-
-		tmp = pll->state;
-		pll->state = shared_dpll[i];
-		shared_dpll[i] = tmp;
+		swap(pll->state, shared_dpll[i]);
 	}
 }
 
