@@ -6720,6 +6720,15 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/input/touchscreen/goodix.c
 
+GOOGLE ETHERNET DRIVERS
+M:	Catherine Sullivan <csully@google.com>
+R:	Sagi Shahar <sagis@google.com>
+R:	Jon Olson <jonolson@google.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	Documentation/networking/device_drivers/google/gve.txt
+F:	drivers/net/ethernet/google
+
 GPD POCKET FAN DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	platform-driver-x86@vger.kernel.org
