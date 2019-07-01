@@ -427,16 +427,20 @@
 			compatible = "mediatek,eth-mac";
 			reg = <1>;
 			status = "off";
-			phy-mode = "rgmii";
-			phy-handle = <&phy5>;
+			phy-mode = "rgmii-rxid";
+			phy-handle = <&phy_external>;
 		};
 		mdio-bus {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			phy5: ethernet-phy@5 {
+			phy_external: ethernet-phy@5 {
+				status = "off";
 				reg = <5>;
-				phy-mode = "rgmii";
+				phy-mode = "rgmii-rxid";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&rgmii2_pins>;
 			};
 
 			switch0: switch0@0 {
