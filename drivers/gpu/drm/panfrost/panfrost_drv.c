@@ -78,7 +78,6 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
-	int ret;
 	struct drm_gem_shmem_object *shmem;
 	struct drm_panfrost_create_bo *args = data;
 
@@ -90,17 +89,9 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 	if (IS_ERR(shmem))
 		return PTR_ERR(shmem);
 
-	ret = panfrost_mmu_map(to_panfrost_bo(&shmem->base));
-	if (ret)
-		goto err_free;
-
 	args->offset = to_panfrost_bo(&shmem->base)->node.start << PAGE_SHIFT;
 
 	return 0;
-
-err_free:
-	drm_gem_handle_delete(file, args->handle);
-	return ret;
 }
 
 /**

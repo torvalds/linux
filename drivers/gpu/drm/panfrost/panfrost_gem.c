@@ -19,13 +19,6 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_device *pfdev = obj->dev->dev_private;
 
-	if (bo->is_mapped)
-		panfrost_mmu_unmap(bo);
-
-	spin_lock(&pfdev->mm_lock);
-	drm_mm_remove_node(&bo->node);
-	spin_unlock(&pfdev->mm_lock);
-
 	mutex_lock(&pfdev->shrinker_lock);
 	if (!list_empty(&bo->base.madv_list))
 		list_del(&bo->base.madv_list);
@@ -34,8 +27,47 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	drm_gem_shmem_free_object(obj);
 }
 
+static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
+{
+	int ret;
+	size_t size = obj->size;
+	u64 align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+	struct panfrost_device *pfdev = obj->dev->dev_private;
+
+	spin_lock(&pfdev->mm_lock);
+	ret = drm_mm_insert_node_generic(&pfdev->mm, &bo->node,
+					 size >> PAGE_SHIFT, align, 0, 0);
+	if (ret)
+		goto out;
+
+	ret = panfrost_mmu_map(bo);
+	if (ret)
+		drm_mm_remove_node(&bo->node);
+
+out:
+	spin_unlock(&pfdev->mm_lock);
+	return ret;
+}
+
+static void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
+{
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+	struct panfrost_device *pfdev = obj->dev->dev_private;
+
+	if (bo->is_mapped)
+		panfrost_mmu_unmap(bo);
+
+	spin_lock(&pfdev->mm_lock);
+	if (drm_mm_node_allocated(&bo->node))
+		drm_mm_remove_node(&bo->node);
+	spin_unlock(&pfdev->mm_lock);
+}
+
 static const struct drm_gem_object_funcs panfrost_gem_funcs = {
 	.free = panfrost_gem_free_object,
+	.open = panfrost_gem_open,
+	.close = panfrost_gem_close,
 	.print_info = drm_gem_shmem_print_info,
 	.pin = drm_gem_shmem_pin,
 	.unpin = drm_gem_shmem_unpin,
@@ -55,10 +87,7 @@ static const struct drm_gem_object_funcs panfrost_gem_funcs = {
  */
 struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t size)
 {
-	int ret;
-	struct panfrost_device *pfdev = dev->dev_private;
 	struct panfrost_gem_object *obj;
-	u64 align;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
@@ -66,21 +95,7 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 
 	obj->base.base.funcs = &panfrost_gem_funcs;
 
-	size = roundup(size, PAGE_SIZE);
-	align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
-
-	spin_lock(&pfdev->mm_lock);
-	ret = drm_mm_insert_node_generic(&pfdev->mm, &obj->node,
-					 size >> PAGE_SHIFT, align, 0, 0);
-	spin_unlock(&pfdev->mm_lock);
-	if (ret)
-		goto free_obj;
-
 	return &obj->base.base;
-
-free_obj:
-	kfree(obj);
-	return ERR_PTR(ret);
 }
 
 struct drm_gem_object *
@@ -89,15 +104,10 @@ panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 				   struct sg_table *sgt)
 {
 	struct drm_gem_object *obj;
-	struct panfrost_gem_object *pobj;
 
 	obj = drm_gem_shmem_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
-
-	pobj = to_panfrost_bo(obj);
-
-	panfrost_mmu_map(pobj);
 
 	return obj;
 }
