@@ -29,6 +29,7 @@
 #include <linux/tcp.h>                  /* for tcphdr */
 #include <net/ip.h>
 #include <net/gue.h>
+#include <net/gre.h>
 #include <net/tcp.h>                    /* for csum_tcpudp_magic */
 #include <net/udp.h>
 #include <net/icmp.h>                   /* for icmp_send */
@@ -388,6 +389,12 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 			     IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM) &&
 			    skb->ip_summed == CHECKSUM_PARTIAL)
 				mtu -= GUE_PLEN_REMCSUM + GUE_LEN_PRIV;
+		} else if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+			__be16 tflags = 0;
+
+			if (dest->tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
+				tflags |= TUNNEL_CSUM;
+			mtu -= gre_calc_hlen(tflags);
 		}
 		if (mtu < 68) {
 			IP_VS_DBG_RL("%s(): mtu less than 68\n", __func__);
@@ -548,6 +555,12 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 			     IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM) &&
 			    skb->ip_summed == CHECKSUM_PARTIAL)
 				mtu -= GUE_PLEN_REMCSUM + GUE_LEN_PRIV;
+		} else if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+			__be16 tflags = 0;
+
+			if (dest->tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
+				tflags |= TUNNEL_CSUM;
+			mtu -= gre_calc_hlen(tflags);
 		}
 		if (mtu < IPV6_MIN_MTU) {
 			IP_VS_DBG_RL("%s(): mtu less than %d\n", __func__,
@@ -1079,6 +1092,24 @@ ipvs_gue_encap(struct net *net, struct sk_buff *skb,
 	return 0;
 }
 
+static void
+ipvs_gre_encap(struct net *net, struct sk_buff *skb,
+	       struct ip_vs_conn *cp, __u8 *next_protocol)
+{
+	__be16 proto = *next_protocol == IPPROTO_IPIP ?
+				htons(ETH_P_IP) : htons(ETH_P_IPV6);
+	__be16 tflags = 0;
+	size_t hdrlen;
+
+	if (cp->dest->tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
+		tflags |= TUNNEL_CSUM;
+
+	hdrlen = gre_calc_hlen(tflags);
+	gre_build_header(skb, hdrlen, tflags, proto, 0, 0);
+
+	*next_protocol = IPPROTO_GRE;
+}
+
 /*
  *   IP Tunneling transmitter
  *
@@ -1151,6 +1182,15 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		gue_hdrlen = sizeof(struct guehdr) + gue_optlen;
 
 		max_headroom += sizeof(struct udphdr) + gue_hdrlen;
+	} else if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+		size_t gre_hdrlen;
+		__be16 tflags = 0;
+
+		if (tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
+			tflags |= TUNNEL_CSUM;
+		gre_hdrlen = gre_calc_hlen(tflags);
+
+		max_headroom += gre_hdrlen;
 	}
 
 	/* We only care about the df field if sysctl_pmtu_disc(ipvs) is set */
@@ -1172,6 +1212,11 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		    skb->ip_summed == CHECKSUM_PARTIAL) {
 			gso_type |= SKB_GSO_TUNNEL_REMCSUM;
 		}
+	} else if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+		if (tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
+			gso_type |= SKB_GSO_GRE_CSUM;
+		else
+			gso_type |= SKB_GSO_GRE;
 	}
 
 	if (iptunnel_handle_offloads(skb, gso_type))
@@ -1192,8 +1237,8 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 			check = true;
 
 		udp_set_csum(!check, skb, saddr, cp->daddr.ip, skb->len);
-	}
-
+	} else if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE)
+		ipvs_gre_encap(net, skb, cp, &next_protocol);
 
 	skb_push(skb, sizeof(struct iphdr));
 	skb_reset_network_header(skb);
@@ -1287,6 +1332,15 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		gue_hdrlen = sizeof(struct guehdr) + gue_optlen;
 
 		max_headroom += sizeof(struct udphdr) + gue_hdrlen;
+	} else if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+		size_t gre_hdrlen;
+		__be16 tflags = 0;
+
+		if (tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
+			tflags |= TUNNEL_CSUM;
+		gre_hdrlen = gre_calc_hlen(tflags);
+
+		max_headroom += gre_hdrlen;
 	}
 
 	skb = ip_vs_prepare_tunneled_skb(skb, cp->af, max_headroom,
@@ -1306,6 +1360,11 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		    skb->ip_summed == CHECKSUM_PARTIAL) {
 			gso_type |= SKB_GSO_TUNNEL_REMCSUM;
 		}
+	} else if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+		if (tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
+			gso_type |= SKB_GSO_GRE_CSUM;
+		else
+			gso_type |= SKB_GSO_GRE;
 	}
 
 	if (iptunnel_handle_offloads(skb, gso_type))
@@ -1326,7 +1385,8 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 			check = true;
 
 		udp6_set_csum(!check, skb, &saddr, &cp->daddr.in6, skb->len);
-	}
+	} else if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE)
+		ipvs_gre_encap(net, skb, cp, &next_protocol);
 
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
