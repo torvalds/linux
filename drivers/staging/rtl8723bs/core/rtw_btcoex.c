@@ -77,11 +77,6 @@ u8 rtw_btcoex_IsBtControlLps(struct adapter *padapter)
 	return hal_btcoex_IsBtControlLps(padapter);
 }
 
-u8 rtw_btcoex_RpwmVal(struct adapter *padapter)
-{
-	return hal_btcoex_RpwmVal(padapter);
-}
-
 u8 rtw_btcoex_LpsVal(struct adapter *padapter)
 {
 	return hal_btcoex_LpsVal(padapter);
