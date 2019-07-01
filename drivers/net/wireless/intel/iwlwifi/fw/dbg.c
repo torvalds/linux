@@ -2381,38 +2381,13 @@ void iwl_fw_dbg_stop_sync(struct iwl_fw_runtime *fwrt)
 {
 	int i;
 
-	del_timer(&fwrt->dump.periodic_trig);
+	iwl_dbg_tlv_del_timers(fwrt->trans);
 	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
 		iwl_fw_dbg_collect_sync(fwrt, i);
 
 	iwl_fw_dbg_stop_restart_recording(fwrt, NULL, true);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_sync);
-
-void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t)
-{
-	struct iwl_fw_runtime *fwrt;
-	enum iwl_fw_ini_trigger_id id = IWL_FW_TRIGGER_ID_PERIODIC_TRIGGER;
-	int ret;
-	typeof(fwrt->dump) *dump_ptr = container_of(t, typeof(fwrt->dump),
-						    periodic_trig);
-
-	fwrt = container_of(dump_ptr, typeof(*fwrt), dump);
-
-	ret = _iwl_fw_dbg_ini_collect(fwrt, id);
-	if (!ret || ret == -EBUSY) {
-		struct iwl_fw_ini_trigger *trig =
-			fwrt->dump.active_trigs[id].trig;
-		u32 occur = le32_to_cpu(trig->occurrences);
-		u32 collect_interval = le32_to_cpu(trig->trigger_data);
-
-		if (!occur)
-			return;
-
-		mod_timer(&fwrt->dump.periodic_trig,
-			  jiffies + msecs_to_jiffies(collect_interval));
-	}
-}
 
 #define FSEQ_REG(x) { .addr = (x), .str = #x, }
 

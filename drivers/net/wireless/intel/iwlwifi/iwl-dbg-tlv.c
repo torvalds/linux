@@ -151,6 +151,12 @@ out_err:
 	*cfg_state = IWL_INI_CFG_STATE_CORRUPTED;
 }
 
+void iwl_dbg_tlv_del_timers(struct iwl_trans *trans)
+{
+	/* will be used later */
+}
+IWL_EXPORT_SYMBOL(iwl_dbg_tlv_del_timers);
+
 void iwl_dbg_tlv_free(struct iwl_trans *trans)
 {
 	/* will be used again later */

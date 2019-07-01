@@ -159,7 +159,6 @@ struct iwl_fw_runtime {
 		u32 umac_err_id;
 
 		struct iwl_txf_iter_data txf_iter_data;
-		struct timer_list periodic_trig;
 
 		u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
 		u8 internal_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];

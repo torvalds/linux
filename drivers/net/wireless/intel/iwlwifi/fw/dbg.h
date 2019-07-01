@@ -314,7 +314,7 @@ static inline void iwl_fw_flush_dumps(struct iwl_fw_runtime *fwrt)
 {
 	int i;
 
-	del_timer(&fwrt->dump.periodic_trig);
+	iwl_dbg_tlv_del_timers(fwrt->trans);
 	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
 		flush_delayed_work(&fwrt->dump.wks[i].wk);
 		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
@@ -325,7 +325,7 @@ static inline void iwl_fw_cancel_dumps(struct iwl_fw_runtime *fwrt)
 {
 	int i;
 
-	del_timer(&fwrt->dump.periodic_trig);
+	iwl_dbg_tlv_del_timers(fwrt->trans);
 	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
 		cancel_delayed_work_sync(&fwrt->dump.wks[i].wk);
 		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
@@ -399,8 +399,6 @@ static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
 	}
 }
-
-void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t);
 
 void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);
 
