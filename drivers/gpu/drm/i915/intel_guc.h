@@ -35,6 +35,8 @@
 #include "i915_utils.h"
 #include "i915_vma.h"
 
+struct __guc_ads_blob;
+
 struct guc_preempt_work {
 	struct work_struct work;
 	struct intel_engine_cs *engine;
@@ -65,6 +67,8 @@ struct intel_guc {
 	} interrupts;
 
 	struct i915_vma *ads_vma;
+	struct __guc_ads_blob *ads_blob;
+
 	struct i915_vma *stage_desc_pool;
 	void *stage_desc_pool_vaddr;
 	struct ida stage_ids;

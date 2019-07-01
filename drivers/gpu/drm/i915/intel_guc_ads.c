@@ -83,17 +83,13 @@ struct __guc_ads_blob {
 	u8 reg_state_buffer[GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE];
 } __packed;
 
-static int __guc_ads_init(struct intel_guc *guc)
+static void __guc_ads_init(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct __guc_ads_blob *blob;
+	struct __guc_ads_blob *blob = guc->ads_blob;
 	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
 	u32 base;
 	u8 engine_class;
-
-	blob = i915_gem_object_pin_map(guc->ads_vma->obj, I915_MAP_WB);
-	if (IS_ERR(blob))
-		return PTR_ERR(blob);
 
 	/* GuC scheduling policies */
 	guc_policies_init(&blob->policies);
@@ -144,9 +140,7 @@ static int __guc_ads_init(struct intel_guc *guc)
 	blob->ads.gt_system_info = base + ptr_offset(blob, system_info);
 	blob->ads.clients_info = base + ptr_offset(blob, clients_info);
 
-	i915_gem_object_unpin_map(guc->ads_vma->obj);
-
-	return 0;
+	i915_gem_object_flush_map(guc->ads_vma->obj);
 }
 
 /**
@@ -160,6 +154,7 @@ int intel_guc_ads_create(struct intel_guc *guc)
 {
 	const u32 size = PAGE_ALIGN(sizeof(struct __guc_ads_blob));
 	struct i915_vma *vma;
+	void *blob;
 	int ret;
 
 	GEM_BUG_ON(guc->ads_vma);
@@ -168,11 +163,16 @@ int intel_guc_ads_create(struct intel_guc *guc)
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	guc->ads_vma = vma;
-
-	ret = __guc_ads_init(guc);
-	if (ret)
+	blob = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(blob)) {
+		ret = PTR_ERR(blob);
 		goto err_vma;
+	}
+
+	guc->ads_vma = vma;
+	guc->ads_blob = blob;
+
+	__guc_ads_init(guc);
 
 	return 0;
 
@@ -183,7 +183,7 @@ err_vma:
 
 void intel_guc_ads_destroy(struct intel_guc *guc)
 {
-	i915_vma_unpin_and_release(&guc->ads_vma, 0);
+	i915_vma_unpin_and_release(&guc->ads_vma, I915_VMA_RELEASE_MAP);
 }
 
 /**
