@@ -759,7 +759,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 
 	err = dst_cache_init(&ub->rcast.dst_cache, GFP_ATOMIC);
 	if (err)
-		goto err;
+		goto free;
 
 	/**
 	 * The bcast media address port is used for all peers and the ip
@@ -771,13 +771,14 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	else
 		err = tipc_udp_rcast_add(b, &remote);
 	if (err)
-		goto err;
+		goto free;
 
 	return 0;
-err:
+
+free:
 	dst_cache_destroy(&ub->rcast.dst_cache);
-	if (ub->ubsock)
-		udp_tunnel_sock_release(ub->ubsock);
+	udp_tunnel_sock_release(ub->ubsock);
+err:
 	kfree(ub);
 	return err;
 }
@@ -795,8 +796,7 @@ static void cleanup_bearer(struct work_struct *work)
 	}
 
 	dst_cache_destroy(&ub->rcast.dst_cache);
-	if (ub->ubsock)
-		udp_tunnel_sock_release(ub->ubsock);
+	udp_tunnel_sock_release(ub->ubsock);
 	synchronize_net();
 	kfree(ub);
 }
@@ -811,8 +811,7 @@ static void tipc_udp_disable(struct tipc_bearer *b)
 		pr_err("UDP bearer instance not found\n");
 		return;
 	}
-	if (ub->ubsock)
-		sock_set_flag(ub->ubsock->sk, SOCK_DEAD);
+	sock_set_flag(ub->ubsock->sk, SOCK_DEAD);
 	RCU_INIT_POINTER(ub->bearer, NULL);
 
 	/* sock_release need to be done outside of rtnl lock */
