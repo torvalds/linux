@@ -123,7 +123,7 @@ static int mlx5_tx_health_report(struct devlink_health_reporter *tx_reporter,
 	return devlink_health_report(tx_reporter, err_str, err_ctx);
 }
 
-void mlx5e_tx_reporter_err_cqe(struct mlx5e_txqsq *sq)
+void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq)
 {
 	char err_str[MLX5E_TX_REPORTER_PER_SQ_MAX_LEN];
 	struct mlx5e_tx_err_ctx err_ctx = {0};
@@ -156,7 +156,7 @@ static int mlx5e_tx_reporter_timeout_recover(struct mlx5e_txqsq *sq)
 	return 0;
 }
 
-int mlx5e_tx_reporter_timeout(struct mlx5e_txqsq *sq)
+int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 {
 	char err_str[MLX5E_TX_REPORTER_PER_SQ_MAX_LEN];
 	struct mlx5e_tx_err_ctx err_ctx;
@@ -285,7 +285,7 @@ static const struct devlink_health_reporter_ops mlx5_tx_reporter_ops = {
 
 #define MLX5_REPORTER_TX_GRACEFUL_PERIOD 500
 
-int mlx5e_tx_reporter_create(struct mlx5e_priv *priv)
+int mlx5e_reporter_tx_create(struct mlx5e_priv *priv)
 {
 	struct devlink_health_reporter *reporter;
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -305,7 +305,7 @@ int mlx5e_tx_reporter_create(struct mlx5e_priv *priv)
 	return 0;
 }
 
-void mlx5e_tx_reporter_destroy(struct mlx5e_priv *priv)
+void mlx5e_reporter_tx_destroy(struct mlx5e_priv *priv)
 {
 	if (!priv->tx_reporter)
 		return;
