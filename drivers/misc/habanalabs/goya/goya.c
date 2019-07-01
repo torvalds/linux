@@ -4893,17 +4893,22 @@ int goya_armcp_info_get(struct hl_device *hdev)
 
 static bool goya_is_device_idle(struct hl_device *hdev, char *buf, size_t size)
 {
-	u64 offset, dma_qm_reg, tpc_qm_reg, tpc_cmdq_reg, tpc_cfg_reg;
+	u64 offset, dma_qm_reg, tpc_qm_reg, tpc_cmdq_reg, tpc_cfg_reg,
+		dma_core_sts;
 	int i;
 
 	offset = mmDMA_QM_1_GLBL_STS0 - mmDMA_QM_0_GLBL_STS0;
 
 	for (i = 0 ; i < DMA_MAX_NUM ; i++) {
 		dma_qm_reg = mmDMA_QM_0_GLBL_STS0 + i * offset;
+		dma_core_sts = mmDMA_CH_0_STS0 + i * offset;
 
 		if ((RREG32(dma_qm_reg) & DMA_QM_IDLE_MASK) !=
 				DMA_QM_IDLE_MASK)
 			return HL_ENG_BUSY(buf, size, "DMA%d_QM", i);
+
+		if (RREG32(dma_core_sts) & DMA_CH_0_STS0_DMA_BUSY_MASK)
+			return HL_ENG_BUSY(buf, size, "DMA%d_CORE", i);
 	}
 
 	offset = mmTPC1_QM_GLBL_STS0 - mmTPC0_QM_GLBL_STS0;
@@ -4937,9 +4942,6 @@ static bool goya_is_device_idle(struct hl_device *hdev, char *buf, size_t size)
 	if ((RREG32(mmMME_ARCH_STATUS) & MME_ARCH_IDLE_MASK) !=
 			MME_ARCH_IDLE_MASK)
 		return HL_ENG_BUSY(buf, size, "MME_ARCH");
-
-	if (RREG32(mmMME_SHADOW_0_STATUS) & MME_SHADOW_IDLE_MASK)
-		return HL_ENG_BUSY(buf, size, "MME");
 
 	return true;
 }
