@@ -77,11 +77,6 @@ s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 	return coexctrl;
 }
 
-void rtw_btcoex_SetManualControl(struct adapter *padapter, u8 manual)
-{
-	hal_btcoex_SetManualControl(padapter, manual);
-}
-
 u8 rtw_btcoex_IsBtControlLps(struct adapter *padapter)
 {
 	return hal_btcoex_IsBtControlLps(padapter);

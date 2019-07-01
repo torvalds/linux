@@ -24,7 +24,6 @@ void rtw_btcoex_HaltNotify(struct adapter *);
 u8 rtw_btcoex_IsBtDisabled(struct adapter *);
 void rtw_btcoex_Handler(struct adapter *);
 s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *);
-void rtw_btcoex_SetManualControl(struct adapter *, u8 bmanual);
 u8 rtw_btcoex_IsBtControlLps(struct adapter *);
 u8 rtw_btcoex_IsLpsOn(struct adapter *);
 u8 rtw_btcoex_RpwmVal(struct adapter *);

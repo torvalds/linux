@@ -10,6 +10,7 @@
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <rtw_mp.h>
+#include <hal_btcoex.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 
@@ -4536,10 +4537,10 @@ static int rtw_test(
 	}
 
 	if (strcmp(pch, "bton") == 0)
-		rtw_btcoex_SetManualControl(padapter, false);
+		hal_btcoex_SetManualControl(padapter, false);
 
 	if (strcmp(pch, "btoff") == 0)
-		rtw_btcoex_SetManualControl(padapter, true);
+		hal_btcoex_SetManualControl(padapter, true);
 
 	if (strcmp(pch, "h2c") == 0) {
 		u8 param[8];
