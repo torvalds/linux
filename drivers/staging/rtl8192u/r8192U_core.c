@@ -713,7 +713,7 @@ static u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
 		+ pstats->RxBufShift);
 }
 
-static void rtl8192_rx_initiate(struct net_device *dev)
+void rtl8192_rx_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct urb *entry;
@@ -806,12 +806,6 @@ void rtl8192_set_rxconf(struct net_device *dev)
 	rxconf = rxconf | RCR_ONLYERLPKT;
 
 	write_nic_dword(dev, RCR, rxconf);
-}
-
-/* wait to be removed */
-void rtl8192_rx_enable(struct net_device *dev)
-{
-	rtl8192_rx_initiate(dev);
 }
 
 void rtl8192_rtx_disable(struct net_device *dev)
