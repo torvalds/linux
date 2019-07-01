@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (C) 2013-2014, Linaro Ltd.
  *	Author: Al Stone <al.stone@linaro.org>
  *	Author: Graeme Gregory <graeme.gregory@linaro.org>
  *	Author: Hanjun Guo <hanjun.guo@linaro.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation;
  */
 
 #ifndef _ASM_ACPI_H

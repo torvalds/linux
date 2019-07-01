@@ -3020,6 +3020,11 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 			match->mask.vlan.vlan_id =
 				ntohs(ext_m_spec->vlan_tci) & 0x0fff;
 
+			match->key.vlan.vlan_dei =
+				!!(ext_h_spec->vlan_tci & htons(0x1000));
+			match->mask.vlan.vlan_dei =
+				!!(ext_m_spec->vlan_tci & htons(0x1000));
+
 			match->key.vlan.vlan_priority =
 				(ntohs(ext_h_spec->vlan_tci) & 0xe000) >> 13;
 			match->mask.vlan.vlan_priority =

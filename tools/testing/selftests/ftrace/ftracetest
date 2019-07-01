@@ -1,11 +1,11 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # ftracetest - Ftrace test shell scripts
 #
 # Copyright (C) Hitachi Ltd., 2014
 #  Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 #
-# Released under the terms of the GPL v2.
 
 usage() { # errno [message]
 [ ! -z "$2" ] && echo $2

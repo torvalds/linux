@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Toshiba T7L66XB core mfd support
  *
  * Copyright (c) 2005, 2007, 2008 Ian Molton
  * Copyright (c) 2008 Dmitry Baryshkov
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * T7L66 features:
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Basic general purpose allocator for managing special purpose
  * memory, for example, memory that is not managed by the regular
@@ -23,9 +24,6 @@
  * CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG.
  *
  * Copyright 2005 (C) Jes Sorensen <jes@trained-monkey.org>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #include <linux/slab.h>

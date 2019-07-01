@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/kernel/crunch-bits.S
  * Cirrus MaverickCrunch context switching and handling
@@ -6,10 +7,6 @@
  *
  * Shamelessly stolen from the iWMMXt code by Nicolas Pitre, which is
  * Copyright (c) 2003-2004, MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>

@@ -1645,14 +1645,16 @@ static int bpf_object__probe_btf_func(struct bpf_object *obj)
 		/* FUNC x */                                    /* [3] */
 		BTF_TYPE_ENC(5, BTF_INFO_ENC(BTF_KIND_FUNC, 0, 0), 2),
 	};
-	int res;
+	int btf_fd;
 
-	res = libbpf__probe_raw_btf((char *)types, sizeof(types),
-				    strs, sizeof(strs));
-	if (res < 0)
-		return res;
-	if (res > 0)
+	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types),
+				      strs, sizeof(strs));
+	if (btf_fd >= 0) {
 		obj->caps.btf_func = 1;
+		close(btf_fd);
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -1670,14 +1672,16 @@ static int bpf_object__probe_btf_datasec(struct bpf_object *obj)
 		BTF_TYPE_ENC(3, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
 		BTF_VAR_SECINFO_ENC(2, 0, 4),
 	};
-	int res;
+	int btf_fd;
 
-	res = libbpf__probe_raw_btf((char *)types, sizeof(types),
-				    strs, sizeof(strs));
-	if (res < 0)
-		return res;
-	if (res > 0)
+	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types),
+				      strs, sizeof(strs));
+	if (btf_fd >= 0) {
 		obj->caps.btf_datasec = 1;
+		close(btf_fd);
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -3206,6 +3210,10 @@ static const struct {
 						BPF_CGROUP_UDP4_SENDMSG),
 	BPF_EAPROG_SEC("cgroup/sendmsg6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
 						BPF_CGROUP_UDP6_SENDMSG),
+	BPF_EAPROG_SEC("cgroup/recvmsg4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_UDP4_RECVMSG),
+	BPF_EAPROG_SEC("cgroup/recvmsg6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_UDP6_RECVMSG),
 	BPF_EAPROG_SEC("cgroup/sysctl",		BPF_PROG_TYPE_CGROUP_SYSCTL,
 						BPF_CGROUP_SYSCTL),
 };

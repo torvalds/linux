@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  arch/arm/kernel/sys_oabi-compat.c
  *
@@ -7,10 +8,6 @@
  *  Author:	Nicolas Pitre
  *  Created:	Oct 7, 2005
  *  Copyright:	MontaVista Software, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 /*

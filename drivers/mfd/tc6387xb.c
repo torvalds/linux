@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Toshiba TC6387XB support
  * Copyright (c) 2005 Ian Molton
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * This file contains TC6387XB base support.
- *
  */
 
 #include <linux/module.h>

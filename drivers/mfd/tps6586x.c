@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for TI TPS6586x PMIC family
  *
@@ -9,10 +10,6 @@
  * Mike Rapoport <mike@compulab.co.il>
  * Copyright (C) 2006-2008 Marvell International Ltd.
  * Eric Miao <eric.miao@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>

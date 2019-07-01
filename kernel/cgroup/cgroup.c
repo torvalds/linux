@@ -215,7 +215,8 @@ static struct cftype cgroup_base_files[];
 
 static int cgroup_apply_control(struct cgroup *cgrp);
 static void cgroup_finalize_control(struct cgroup *cgrp, int ret);
-static void css_task_iter_advance(struct css_task_iter *it);
+static void css_task_iter_skip(struct css_task_iter *it,
+			       struct task_struct *task);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
 static struct cgroup_subsys_state *css_create(struct cgroup *cgrp,
 					      struct cgroup_subsys *ss);
@@ -738,6 +739,7 @@ struct css_set init_css_set = {
 	.dom_cset		= &init_css_set,
 	.tasks			= LIST_HEAD_INIT(init_css_set.tasks),
 	.mg_tasks		= LIST_HEAD_INIT(init_css_set.mg_tasks),
+	.dying_tasks		= LIST_HEAD_INIT(init_css_set.dying_tasks),
 	.task_iters		= LIST_HEAD_INIT(init_css_set.task_iters),
 	.threaded_csets		= LIST_HEAD_INIT(init_css_set.threaded_csets),
 	.cgrp_links		= LIST_HEAD_INIT(init_css_set.cgrp_links),
@@ -843,6 +845,21 @@ static void css_set_update_populated(struct css_set *cset, bool populated)
 		cgroup_update_populated(link->cgrp, populated);
 }
 
+/*
+ * @task is leaving, advance task iterators which are pointing to it so
+ * that they can resume at the next position.  Advancing an iterator might
+ * remove it from the list, use safe walk.  See css_task_iter_skip() for
+ * details.
+ */
+static void css_set_skip_task_iters(struct css_set *cset,
+				    struct task_struct *task)
+{
+	struct css_task_iter *it, *pos;
+
+	list_for_each_entry_safe(it, pos, &cset->task_iters, iters_node)
+		css_task_iter_skip(it, task);
+}
+
 /**
  * css_set_move_task - move a task from one css_set to another
  * @task: task being moved
@@ -868,22 +885,9 @@ static void css_set_move_task(struct task_struct *task,
 		css_set_update_populated(to_cset, true);
 
 	if (from_cset) {
-		struct css_task_iter *it, *pos;
-
 		WARN_ON_ONCE(list_empty(&task->cg_list));
 
-		/*
-		 * @task is leaving, advance task iterators which are
-		 * pointing to it so that they can resume at the next
-		 * position.  Advancing an iterator might remove it from
-		 * the list, use safe walk.  See css_task_iter_advance*()
-		 * for details.
-		 */
-		list_for_each_entry_safe(it, pos, &from_cset->task_iters,
-					 iters_node)
-			if (it->task_pos == &task->cg_list)
-				css_task_iter_advance(it);
-
+		css_set_skip_task_iters(from_cset, task);
 		list_del_init(&task->cg_list);
 		if (!css_set_populated(from_cset))
 			css_set_update_populated(from_cset, false);
@@ -1210,6 +1214,7 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	cset->dom_cset = cset;
 	INIT_LIST_HEAD(&cset->tasks);
 	INIT_LIST_HEAD(&cset->mg_tasks);
+	INIT_LIST_HEAD(&cset->dying_tasks);
 	INIT_LIST_HEAD(&cset->task_iters);
 	INIT_LIST_HEAD(&cset->threaded_csets);
 	INIT_HLIST_NODE(&cset->hlist);
@@ -4409,15 +4414,18 @@ static void css_task_iter_advance_css_set(struct css_task_iter *it)
 			it->task_pos = NULL;
 			return;
 		}
-	} while (!css_set_populated(cset));
+	} while (!css_set_populated(cset) && list_empty(&cset->dying_tasks));
 
 	if (!list_empty(&cset->tasks))
 		it->task_pos = cset->tasks.next;
-	else
+	else if (!list_empty(&cset->mg_tasks))
 		it->task_pos = cset->mg_tasks.next;
+	else
+		it->task_pos = cset->dying_tasks.next;
 
 	it->tasks_head = &cset->tasks;
 	it->mg_tasks_head = &cset->mg_tasks;
+	it->dying_tasks_head = &cset->dying_tasks;
 
 	/*
 	 * We don't keep css_sets locked across iteration steps and thus
@@ -4443,9 +4451,20 @@ static void css_task_iter_advance_css_set(struct css_task_iter *it)
 	list_add(&it->iters_node, &cset->task_iters);
 }
 
+static void css_task_iter_skip(struct css_task_iter *it,
+			       struct task_struct *task)
+{
+	lockdep_assert_held(&css_set_lock);
+
+	if (it->task_pos == &task->cg_list) {
+		it->task_pos = it->task_pos->next;
+		it->flags |= CSS_TASK_ITER_SKIPPED;
+	}
+}
+
 static void css_task_iter_advance(struct css_task_iter *it)
 {
-	struct list_head *next;
+	struct task_struct *task;
 
 	lockdep_assert_held(&css_set_lock);
 repeat:
@@ -4455,25 +4474,40 @@ repeat:
 		 * consumed first and then ->mg_tasks.  After ->mg_tasks,
 		 * we move onto the next cset.
 		 */
-		next = it->task_pos->next;
-
-		if (next == it->tasks_head)
-			next = it->mg_tasks_head->next;
-
-		if (next == it->mg_tasks_head)
-			css_task_iter_advance_css_set(it);
+		if (it->flags & CSS_TASK_ITER_SKIPPED)
+			it->flags &= ~CSS_TASK_ITER_SKIPPED;
 		else
-			it->task_pos = next;
+			it->task_pos = it->task_pos->next;
+
+		if (it->task_pos == it->tasks_head)
+			it->task_pos = it->mg_tasks_head->next;
+		if (it->task_pos == it->mg_tasks_head)
+			it->task_pos = it->dying_tasks_head->next;
+		if (it->task_pos == it->dying_tasks_head)
+			css_task_iter_advance_css_set(it);
 	} else {
 		/* called from start, proceed to the first cset */
 		css_task_iter_advance_css_set(it);
 	}
 
-	/* if PROCS, skip over tasks which aren't group leaders */
-	if ((it->flags & CSS_TASK_ITER_PROCS) && it->task_pos &&
-	    !thread_group_leader(list_entry(it->task_pos, struct task_struct,
-					    cg_list)))
-		goto repeat;
+	if (!it->task_pos)
+		return;
+
+	task = list_entry(it->task_pos, struct task_struct, cg_list);
+
+	if (it->flags & CSS_TASK_ITER_PROCS) {
+		/* if PROCS, skip over tasks which aren't group leaders */
+		if (!thread_group_leader(task))
+			goto repeat;
+
+		/* and dying leaders w/o live member threads */
+		if (!atomic_read(&task->signal->live))
+			goto repeat;
+	} else {
+		/* skip all dying ones */
+		if (task->flags & PF_EXITING)
+			goto repeat;
+	}
 }
 
 /**
@@ -4528,6 +4562,10 @@ struct task_struct *css_task_iter_next(struct css_task_iter *it)
 	}
 
 	spin_lock_irq(&css_set_lock);
+
+	/* @it may be half-advanced by skips, finish advancing */
+	if (it->flags & CSS_TASK_ITER_SKIPPED)
+		css_task_iter_advance(it);
 
 	if (it->task_pos) {
 		it->cur_task = list_entry(it->task_pos, struct task_struct,
@@ -6010,6 +6048,7 @@ void cgroup_exit(struct task_struct *tsk)
 	if (!list_empty(&tsk->cg_list)) {
 		spin_lock_irq(&css_set_lock);
 		css_set_move_task(tsk, cset, NULL, false);
+		list_add_tail(&tsk->cg_list, &cset->dying_tasks);
 		cset->nr_tasks--;
 
 		WARN_ON_ONCE(cgroup_task_frozen(tsk));
@@ -6035,6 +6074,13 @@ void cgroup_release(struct task_struct *task)
 	do_each_subsys_mask(ss, ssid, have_release_callback) {
 		ss->release(task);
 	} while_each_subsys_mask();
+
+	if (use_task_css_set_links) {
+		spin_lock_irq(&css_set_lock);
+		css_set_skip_task_iters(task_css_set(task), task);
+		list_del_init(&task->cg_list);
+		spin_unlock_irq(&css_set_lock);
+	}
 }
 
 void cgroup_free(struct task_struct *task)

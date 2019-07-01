@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Local APIC related interfaces to support IOAPIC, MSI, etc.
  *
@@ -5,10 +6,6 @@
  *	Moved from arch/x86/kernel/apic/io_apic.c.
  * Jiang Liu <jiang.liu@linux.intel.com>
  *	Enable support of hierarchical irqdomains
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/interrupt.h>
 #include <linux/irq.h>

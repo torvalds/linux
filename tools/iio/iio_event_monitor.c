@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Industrialio event test code.
  *
  * Copyright (c) 2011-2012 Lars-Peter Clausen <lars@metafoo.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * This program is primarily intended as an example application.
  * Reads the current buffer setup from sysfs and starts a short capture

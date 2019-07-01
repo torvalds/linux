@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
@@ -5,10 +6,6 @@
  * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/if_ether.h>
@@ -268,11 +265,9 @@ int ieee80211_set_tx_key(struct ieee80211_key *key)
 {
 	struct sta_info *sta = key->sta;
 	struct ieee80211_local *local = key->local;
-	struct ieee80211_key *old;
 
 	assert_key_lock(local);
 
-	old = key_mtx_dereference(local, sta->ptk[sta->ptk_idx]);
 	sta->ptk_idx = key->conf.keyidx;
 	ieee80211_check_fast_xmit(sta);
 

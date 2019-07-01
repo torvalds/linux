@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DMA Router driver for LPC18xx/43xx DMA MUX
  *
@@ -6,11 +7,6 @@
  * Based on TI DMA Crossbar driver by:
  *   Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com
  *   Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/err.h>

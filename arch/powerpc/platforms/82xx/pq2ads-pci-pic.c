@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PQ2 ADS-style PCI interrupt controller
  *
@@ -6,10 +7,6 @@
  *
  * Loosely based on mpc82xx ADS support by Vitaly Bordug <vbordug@ru.mvista.com>
  * Copyright (c) 2006 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/init.h>

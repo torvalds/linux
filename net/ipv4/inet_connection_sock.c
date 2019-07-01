@@ -752,10 +752,6 @@ drop:
 static void reqsk_queue_hash_req(struct request_sock *req,
 				 unsigned long timeout)
 {
-	req->num_retrans = 0;
-	req->num_timeout = 0;
-	req->sk = NULL;
-
 	timer_setup(&req->rsk_timer, reqsk_timer_handler, TIMER_PINNED);
 	mod_timer(&req->rsk_timer, jiffies + timeout);
 
