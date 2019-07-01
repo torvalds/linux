@@ -452,4 +452,8 @@ int gve_reset(struct gve_priv *priv, bool attempt_teardown);
 int gve_adjust_queues(struct gve_priv *priv,
 		      struct gve_queue_config new_rx_config,
 		      struct gve_queue_config new_tx_config);
+/* exported by ethtool.c */
+extern const struct ethtool_ops gve_ethtool_ops;
+/* needed by ethtool */
+extern const char gve_version_str[];
 #endif /* _GVE_H_ */
