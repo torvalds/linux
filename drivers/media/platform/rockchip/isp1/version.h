@@ -50,8 +50,12 @@
  *2. fix get zero data when start stream again;
  *3. add pipeline power management;
  *
+ *v0.1.5:
+ *1. fix kernel reboot in monkey test;
+ *2. fix raw patch wrong RG10 format;
+ *3. fix isp iommu work after suspend;
  */
 
-#define RKISP1_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x4)
+#define RKISP1_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x5)
 
 #endif
