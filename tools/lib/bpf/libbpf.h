@@ -178,6 +178,10 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_uprobe(struct bpf_program *prog, bool retprobe,
 			   pid_t pid, const char *binary_path,
 			   size_t func_offset);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_tracepoint(struct bpf_program *prog,
+			       const char *tp_category,
+			       const char *tp_name);
 
 struct bpf_insn;
 
