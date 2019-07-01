@@ -984,6 +984,11 @@ struct drm_connector {
 	 * need the CRTC driving this output, &drm_connector_state.crtc.
 	 */
 	struct drm_encoder *encoder;
+	/**
+	 * @loader_protect:
+	 * connector loader logo protect state.
+	 */
+	bool loader_protect;
 
 #define MAX_ELD_BYTES	128
 	/** @eld: EDID-like data, if present */

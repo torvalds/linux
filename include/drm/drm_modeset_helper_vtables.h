@@ -465,6 +465,11 @@ static inline void drm_crtc_helper_add(struct drm_crtc *crtc,
  */
 struct drm_encoder_helper_funcs {
 	/**
+	 * @loader_protect:
+	 * protect loader logo encoder's power.
+	 */
+	int (*loader_protect)(struct drm_encoder *encoder, bool on);
+	/**
 	 * @dpms:
 	 *
 	 * Callback to control power levels on the encoder.  If the mode passed in
@@ -780,6 +785,12 @@ static inline void drm_encoder_helper_add(struct drm_encoder *encoder,
  * probe helpers.
  */
 struct drm_connector_helper_funcs {
+	/**
+	 * @loader_protect:
+	 *
+	 * protect loader logo connector's power
+	 */
+	int (*loader_protect)(struct drm_connector *connector, bool on);
 	/**
 	 * @get_modes:
 	 *

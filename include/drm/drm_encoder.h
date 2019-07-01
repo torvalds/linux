@@ -167,6 +167,11 @@ struct drm_encoder {
 	uint32_t possible_clones;
 
 	/**
+	 * @loader_protect:
+	 * encoder loader logo protect state.
+	 */
+	bool loader_protect;
+	/**
 	 * @crtc: Currently bound CRTC, only really meaningful for non-atomic
 	 * drivers.  Atomic drivers should instead check
 	 * &drm_connector_state.crtc.
