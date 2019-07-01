@@ -77,7 +77,7 @@ for the external mdio-bus configuration:
 					ethernet = <&gmac1>;
 					phy-mode = "rgmii";
 					fixed-link {
-						speed = 1000;
+						speed = <1000>;
 						full-duplex;
 					};
 				};
@@ -135,7 +135,7 @@ for the internal master mdio-bus configuration:
 					ethernet = <&gmac1>;
 					phy-mode = "rgmii";
 					fixed-link {
-						speed = 1000;
+						speed = <1000>;
 						full-duplex;
 					};
 				};
