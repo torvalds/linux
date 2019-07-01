@@ -422,25 +422,18 @@ static int wil_debugfs_iomem_x32_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_iomem_x32, wil_debugfs_iomem_x32_get,
 			 wil_debugfs_iomem_x32_set, "0x%08llx\n");
 
-static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
-						   umode_t mode,
-						   struct dentry *parent,
-						   void *value,
-						   struct wil6210_priv *wil)
+static void wil_debugfs_create_iomem_x32(const char *name, umode_t mode,
+					 struct dentry *parent, void *value,
+					 struct wil6210_priv *wil)
 {
-	struct dentry *file;
 	struct wil_debugfs_iomem_data *data = &wil->dbg_data.data_arr[
 					      wil->dbg_data.iomem_data_count];
 
 	data->wil = wil;
 	data->offset = value;
 
-	file = debugfs_create_file_unsafe(name, mode, parent, data,
-					  &fops_iomem_x32);
-	if (!IS_ERR_OR_NULL(file))
-		wil->dbg_data.iomem_data_count++;
-
-	return file;
+	debugfs_create_file_unsafe(name, mode, parent, data, &fops_iomem_x32);
+	wil->dbg_data.iomem_data_count++;
 }
 
 static int wil_debugfs_ulong_set(void *data, u64 val)
@@ -458,14 +451,6 @@ static int wil_debugfs_ulong_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(wil_fops_ulong, wil_debugfs_ulong_get,
 			 wil_debugfs_ulong_set, "0x%llx\n");
 
-static struct dentry *wil_debugfs_create_ulong(const char *name, umode_t mode,
-					       struct dentry *parent,
-					       ulong *value)
-{
-	return debugfs_create_file_unsafe(name, mode, parent, value,
-					  &wil_fops_ulong);
-}
-
 /**
  * wil6210_debugfs_init_offset - create set of debugfs files
  * @wil - driver's context, used for printing
@@ -482,37 +467,30 @@ static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
 	int i;
 
 	for (i = 0; tbl[i].name; i++) {
-		struct dentry *f;
-
 		switch (tbl[i].type) {
 		case doff_u32:
-			f = debugfs_create_u32(tbl[i].name, tbl[i].mode, dbg,
-					       base + tbl[i].off);
+			debugfs_create_u32(tbl[i].name, tbl[i].mode, dbg,
+					   base + tbl[i].off);
 			break;
 		case doff_x32:
-			f = debugfs_create_x32(tbl[i].name, tbl[i].mode, dbg,
-					       base + tbl[i].off);
+			debugfs_create_x32(tbl[i].name, tbl[i].mode, dbg,
+					   base + tbl[i].off);
 			break;
 		case doff_ulong:
-			f = wil_debugfs_create_ulong(tbl[i].name, tbl[i].mode,
-						     dbg, base + tbl[i].off);
+			debugfs_create_file_unsafe(tbl[i].name, tbl[i].mode,
+						   dbg, base + tbl[i].off,
+						   &wil_fops_ulong);
 			break;
 		case doff_io32:
-			f = wil_debugfs_create_iomem_x32(tbl[i].name,
-							 tbl[i].mode, dbg,
-							 base + tbl[i].off,
-							 wil);
+			wil_debugfs_create_iomem_x32(tbl[i].name, tbl[i].mode,
+						     dbg, base + tbl[i].off,
+						     wil);
 			break;
 		case doff_u8:
-			f = debugfs_create_u8(tbl[i].name, tbl[i].mode, dbg,
-					      base + tbl[i].off);
+			debugfs_create_u8(tbl[i].name, tbl[i].mode, dbg,
+					  base + tbl[i].off);
 			break;
-		default:
-			f = ERR_PTR(-EINVAL);
 		}
-		if (IS_ERR_OR_NULL(f))
-			wil_err(wil, "Create file \"%s\": err %ld\n",
-				tbl[i].name, PTR_ERR(f));
 	}
 }
 
@@ -527,19 +505,14 @@ static const struct dbg_off isr_off[] = {
 	{},
 };
 
-static int wil6210_debugfs_create_ISR(struct wil6210_priv *wil,
-				      const char *name,
-				      struct dentry *parent, u32 off)
+static void wil6210_debugfs_create_ISR(struct wil6210_priv *wil,
+				       const char *name, struct dentry *parent,
+				       u32 off)
 {
 	struct dentry *d = debugfs_create_dir(name, parent);
 
-	if (IS_ERR_OR_NULL(d))
-		return -ENODEV;
-
 	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr + off,
 				    isr_off);
-
-	return 0;
 }
 
 static const struct dbg_off pseudo_isr_off[] = {
@@ -549,18 +522,13 @@ static const struct dbg_off pseudo_isr_off[] = {
 	{},
 };
 
-static int wil6210_debugfs_create_pseudo_ISR(struct wil6210_priv *wil,
-					     struct dentry *parent)
+static void wil6210_debugfs_create_pseudo_ISR(struct wil6210_priv *wil,
+					      struct dentry *parent)
 {
 	struct dentry *d = debugfs_create_dir("PSEUDO_ISR", parent);
 
-	if (IS_ERR_OR_NULL(d))
-		return -ENODEV;
-
 	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
 				    pseudo_isr_off);
-
-	return 0;
 }
 
 static const struct dbg_off lgc_itr_cnt_off[] = {
@@ -608,13 +576,9 @@ static int wil6210_debugfs_create_ITR_CNT(struct wil6210_priv *wil,
 	struct dentry *d, *dtx, *drx;
 
 	d = debugfs_create_dir("ITR_CNT", parent);
-	if (IS_ERR_OR_NULL(d))
-		return -ENODEV;
 
 	dtx = debugfs_create_dir("TX", d);
 	drx = debugfs_create_dir("RX", d);
-	if (IS_ERR_OR_NULL(dtx) || IS_ERR_OR_NULL(drx))
-		return -ENODEV;
 
 	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
 				    lgc_itr_cnt_off);
@@ -774,6 +738,44 @@ static ssize_t wil_write_file_rxon(struct file *file, const char __user *buf,
 
 static const struct file_operations fops_rxon = {
 	.write = wil_write_file_rxon,
+	.open  = simple_open,
+};
+
+static ssize_t wil_write_file_rbufcap(struct file *file,
+				      const char __user *buf,
+				      size_t count, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	int val;
+	int rc;
+
+	rc = kstrtoint_from_user(buf, count, 0, &val);
+	if (rc) {
+		wil_err(wil, "Invalid argument\n");
+		return rc;
+	}
+	/* input value: negative to disable, 0 to use system default,
+	 * 1..ring size to set descriptor threshold
+	 */
+	wil_info(wil, "%s RBUFCAP, descriptors threshold - %d\n",
+		 val < 0 ? "Disabling" : "Enabling", val);
+
+	if (!wil->ring_rx.va || val > wil->ring_rx.size) {
+		wil_err(wil, "Invalid descriptors threshold, %d\n", val);
+		return -EINVAL;
+	}
+
+	rc = wmi_rbufcap_cfg(wil, val < 0 ? 0 : 1, val < 0 ? 0 : val);
+	if (rc) {
+		wil_err(wil, "RBUFCAP config failed: %d\n", rc);
+		return rc;
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_rbufcap = {
+	.write = wil_write_file_rbufcap,
 	.open  = simple_open,
 };
 
@@ -938,9 +940,8 @@ static ssize_t wil_read_pmccfg(struct file *file, char __user *user_buf,
 	" - \"alloc <num descriptors> <descriptor_size>\" to allocate pmc\n"
 	" - \"free\" to free memory allocated for pmc\n";
 
-	sprintf(text, "Last command status: %d\n\n%s",
-		wil_pmc_last_cmd_status(wil),
-		help);
+	snprintf(text, sizeof(text), "Last command status: %d\n\n%s",
+		 wil_pmc_last_cmd_status(wil), help);
 
 	return simple_read_from_buffer(user_buf, count, ppos, text,
 				       strlen(text) + 1);
@@ -1297,7 +1298,7 @@ static int bf_show(struct seq_file *s, void *data)
 		rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, vif->mid,
 			      &cmd, sizeof(cmd),
 			      WMI_NOTIFY_REQ_DONE_EVENTID, &reply,
-			      sizeof(reply), 20);
+			      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
 		/* if reply is all-0, ignore this CID */
 		if (rc || is_all_zeros(&reply.evt, sizeof(reply.evt)))
 			continue;
@@ -1335,7 +1336,7 @@ static void print_temp(struct seq_file *s, const char *prefix, s32 t)
 {
 	switch (t) {
 	case 0:
-	case ~(u32)0:
+	case WMI_INVALID_TEMPERATURE:
 		seq_printf(s, "%s N/A\n", prefix);
 	break;
 	default:
@@ -1348,17 +1349,41 @@ static void print_temp(struct seq_file *s, const char *prefix, s32 t)
 static int temp_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	s32 t_m, t_r;
-	int rc = wmi_get_temperature(wil, &t_m, &t_r);
+	int rc, i;
 
-	if (rc) {
-		seq_puts(s, "Failed\n");
-		return 0;
+	if (test_bit(WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF,
+		     wil->fw_capabilities)) {
+		struct wmi_temp_sense_all_done_event sense_all_evt;
+
+		wil_dbg_misc(wil,
+			     "WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF is supported");
+		rc = wmi_get_all_temperatures(wil, &sense_all_evt);
+		if (rc) {
+			seq_puts(s, "Failed\n");
+			return 0;
+		}
+		print_temp(s, "T_mac   =",
+			   le32_to_cpu(sense_all_evt.baseband_t1000));
+		seq_printf(s, "Connected RFs [0x%08x]\n",
+			   sense_all_evt.rf_bitmap);
+		for (i = 0; i < WMI_MAX_XIF_PORTS_NUM; i++) {
+			seq_printf(s, "RF[%d]   = ", i);
+			print_temp(s, "",
+				   le32_to_cpu(sense_all_evt.rf_t1000[i]));
+		}
+	} else {
+		s32 t_m, t_r;
+
+		wil_dbg_misc(wil,
+			     "WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF is not supported");
+		rc = wmi_get_temperature(wil, &t_m, &t_r);
+		if (rc) {
+			seq_puts(s, "Failed\n");
+			return 0;
+		}
+		print_temp(s, "T_mac   =", t_m);
+		print_temp(s, "T_radio =", t_r);
 	}
-
-	print_temp(s, "T_mac   =", t_m);
-	print_temp(s, "T_radio =", t_r);
-
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(temp);
@@ -2364,6 +2389,7 @@ static const struct {
 	{"tx_latency",	0644,		&fops_tx_latency},
 	{"link_stats",	0644,		&fops_link_stats},
 	{"link_stats_global",	0644,	&fops_link_stats_global},
+	{"rbufcap",	0244,		&fops_rbufcap},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,

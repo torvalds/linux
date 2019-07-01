@@ -316,7 +316,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	u16 agg_timeout = le16_to_cpu(ba_timeout);
 	u16 seq_ctrl = le16_to_cpu(ba_seq_ctrl);
 	struct wil_sta_info *sta;
-	u16 agg_wsize = 0;
+	u16 agg_wsize;
 	/* bit 0: A-MSDU supported
 	 * bit 1: policy (should be 0 for us)
 	 * bits 2..5: TID
@@ -328,7 +328,6 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		test_bit(WMI_FW_CAPABILITY_AMSDU, wil->fw_capabilities) &&
 		wil->amsdu_en && (param_set & BIT(0));
 	int ba_policy = param_set & BIT(1);
-	u16 status = WLAN_STATUS_SUCCESS;
 	u16 ssn = seq_ctrl >> 4;
 	struct wil_tid_ampdu_rx *r;
 	int rc = 0;
@@ -355,27 +354,19 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		    agg_amsdu ? "+" : "-", !!ba_policy, dialog_token, ssn);
 
 	/* apply policies */
-	if (ba_policy) {
-		wil_err(wil, "BACK requested unsupported ba_policy == 1\n");
-		status = WLAN_STATUS_INVALID_QOS_PARAM;
-	}
-	if (status == WLAN_STATUS_SUCCESS) {
-		if (req_agg_wsize == 0) {
-			wil_dbg_misc(wil, "Suggest BACK wsize %d\n",
-				     wil->max_agg_wsize);
-			agg_wsize = wil->max_agg_wsize;
-		} else {
-			agg_wsize = min_t(u16,
-					  wil->max_agg_wsize, req_agg_wsize);
-		}
+	if (req_agg_wsize == 0) {
+		wil_dbg_misc(wil, "Suggest BACK wsize %d\n",
+			     wil->max_agg_wsize);
+		agg_wsize = wil->max_agg_wsize;
+	} else {
+		agg_wsize = min_t(u16, wil->max_agg_wsize, req_agg_wsize);
 	}
 
 	rc = wil->txrx_ops.wmi_addba_rx_resp(wil, mid, cid, tid, dialog_token,
-					     status, agg_amsdu, agg_wsize,
-					     agg_timeout);
-	if (rc || (status != WLAN_STATUS_SUCCESS)) {
-		wil_err(wil, "do not apply ba, rc(%d), status(%d)\n", rc,
-			status);
+					     WLAN_STATUS_SUCCESS, agg_amsdu,
+					     agg_wsize, agg_timeout);
+	if (rc) {
+		wil_err(wil, "do not apply ba, rc(%d)\n", rc);
 		goto out;
 	}
 

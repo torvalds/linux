@@ -35,6 +35,7 @@
 #define WMI_PROX_RANGE_NUM		(3)
 #define WMI_MAX_LOSS_DMG_BEACONS	(20)
 #define MAX_NUM_OF_SECTORS		(128)
+#define WMI_INVALID_TEMPERATURE		(0xFFFFFFFF)
 #define WMI_SCHED_MAX_ALLOCS_PER_CMD	(4)
 #define WMI_RF_DTYPE_LENGTH		(3)
 #define WMI_RF_ETYPE_LENGTH		(3)
@@ -64,6 +65,7 @@
 #define WMI_QOS_MAX_WEIGHT		50
 #define WMI_QOS_SET_VIF_PRIORITY	(0xFF)
 #define WMI_QOS_DEFAULT_PRIORITY	(WMI_QOS_NUM_OF_PRIORITY)
+#define WMI_MAX_XIF_PORTS_NUM		(8)
 
 /* Mailbox interface
  * used for commands and events
@@ -105,6 +107,7 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_TX_REQ_EXT			= 25,
 	WMI_FW_CAPABILITY_CHANNEL_4			= 26,
 	WMI_FW_CAPABILITY_IPA				= 27,
+	WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF		= 30,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -296,6 +299,7 @@ enum wmi_command_id {
 	WMI_SET_VRING_PRIORITY_WEIGHT_CMDID		= 0xA10,
 	WMI_SET_VRING_PRIORITY_CMDID			= 0xA11,
 	WMI_RBUFCAP_CFG_CMDID				= 0xA12,
+	WMI_TEMP_SENSE_ALL_CMDID			= 0xA13,
 	WMI_SET_MAC_ADDRESS_CMDID			= 0xF003,
 	WMI_ABORT_SCAN_CMDID				= 0xF007,
 	WMI_SET_PROMISCUOUS_MODE_CMDID			= 0xF041,
@@ -1411,12 +1415,7 @@ struct wmi_rf_xpm_write_cmd {
 	u8 data_bytes[0];
 } __packed;
 
-/* WMI_TEMP_SENSE_CMDID
- *
- * Measure MAC and radio temperatures
- *
- * Possible modes for temperature measurement
- */
+/* Possible modes for temperature measurement */
 enum wmi_temperature_measure_mode {
 	TEMPERATURE_USE_OLD_VALUE	= 0x01,
 	TEMPERATURE_MEASURE_NOW		= 0x02,
@@ -1942,6 +1941,14 @@ struct wmi_set_ap_slot_size_cmd {
 	__le32 slot_size;
 } __packed;
 
+/* WMI_TEMP_SENSE_ALL_CMDID */
+struct wmi_temp_sense_all_cmd {
+	u8 measure_baseband_en;
+	u8 measure_rf_en;
+	u8 measure_mode;
+	u8 reserved;
+} __packed;
+
 /* WMI Events
  * List of Events (target to host)
  */
@@ -2101,6 +2108,7 @@ enum wmi_event_id {
 	WMI_SET_VRING_PRIORITY_WEIGHT_EVENTID		= 0x1A10,
 	WMI_SET_VRING_PRIORITY_EVENTID			= 0x1A11,
 	WMI_RBUFCAP_CFG_EVENTID				= 0x1A12,
+	WMI_TEMP_SENSE_ALL_DONE_EVENTID			= 0x1A13,
 	WMI_SET_CHANNEL_EVENTID				= 0x9000,
 	WMI_ASSOC_REQ_EVENTID				= 0x9001,
 	WMI_EAPOL_RX_EVENTID				= 0x9002,
@@ -2784,11 +2792,13 @@ struct wmi_fixed_scheduling_ul_config_event {
  */
 struct wmi_temp_sense_done_event {
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000)
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 baseband_t1000;
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000)
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 rf_t1000;
 } __packed;
@@ -4138,6 +4148,27 @@ struct wmi_rbufcap_cfg_event {
 	/* enum wmi_fw_status */
 	u8 status;
 	u8 reserved[3];
+} __packed;
+
+/* WMI_TEMP_SENSE_ALL_DONE_EVENTID
+ * Measure MAC and all radio temperatures
+ */
+struct wmi_temp_sense_all_done_event {
+	/* enum wmi_fw_status */
+	u8 status;
+	/* Bitmap of connected RFs */
+	u8 rf_bitmap;
+	u8 reserved[2];
+	/* Temperature times 1000 (actual temperature will be achieved by
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
+	 */
+	__le32 rf_t1000[WMI_MAX_XIF_PORTS_NUM];
+	/* Temperature times 1000 (actual temperature will be achieved by
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
+	 */
+	__le32 baseband_t1000;
 } __packed;
 
 #endif /* __WILOCITY_WMI_H__ */

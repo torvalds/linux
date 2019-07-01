@@ -2158,13 +2158,14 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 	int num_mpdu_ranges;
 	size_t tot_hdr_len;
 	struct ieee80211_channel *ch;
+	bool pn_invalid;
 
 	peer_id = __le16_to_cpu(rx->hdr.peer_id);
 
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, peer_id);
 	spin_unlock_bh(&ar->data_lock);
-	if (!peer)
+	if (!peer && peer_id != HTT_INVALID_PEERID)
 		ath10k_warn(ar, "Got RX ind from invalid peer: %u\n", peer_id);
 
 	num_mpdu_ranges = MS(__le32_to_cpu(rx->hdr.info1),
@@ -2183,15 +2184,21 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 			    num_mpdu_ranges);
 
 	if (mpdu_ranges->mpdu_range_status !=
-	    HTT_RX_IND_MPDU_STATUS_OK) {
+	    HTT_RX_IND_MPDU_STATUS_OK &&
+	    mpdu_ranges->mpdu_range_status !=
+	    HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR) {
 		ath10k_warn(ar, "MPDU range status: %d\n",
 			    mpdu_ranges->mpdu_range_status);
 		goto err;
 	}
 
-	if (check_pn_type == HTT_RX_PN_CHECK &&
-	    ath10k_htt_rx_pn_check_replay_hl(ar, peer, rx))
-		goto err;
+	if (check_pn_type == HTT_RX_PN_CHECK) {
+		spin_lock_bh(&ar->data_lock);
+		pn_invalid = ath10k_htt_rx_pn_check_replay_hl(ar, peer, rx);
+		spin_unlock_bh(&ar->data_lock);
+		if (pn_invalid)
+			goto err;
+	}
 
 	/* Strip off all headers before the MAC header before delivery to
 	 * mac80211
@@ -2252,6 +2259,9 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 	if (tkip_mic_type == HTT_RX_TKIP_MIC)
 		rx_status->flag &= ~RX_FLAG_IV_STRIPPED &
 				   ~RX_FLAG_MMIC_STRIPPED;
+
+	if (mpdu_ranges->mpdu_range_status == HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR)
+		rx_status->flag |= RX_FLAG_MMIC_ERROR;
 
 	ieee80211_rx_ni(ar->hw, skb);
 
