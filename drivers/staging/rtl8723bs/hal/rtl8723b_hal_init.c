@@ -3463,7 +3463,7 @@ static void hw_var_set_correct_tsf(struct adapter *padapter, u8 variable, u8 *va
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
 
-	tsf = pmlmeext->TSFValue-rtw_modular64(pmlmeext->TSFValue, (pmlmeinfo->bcn_interval*1024))-1024; /* us */
+	tsf = pmlmeext->TSFValue-do_div(pmlmeext->TSFValue, (pmlmeinfo->bcn_interval*1024))-1024; /* us */
 
 	if (
 		((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) ||
