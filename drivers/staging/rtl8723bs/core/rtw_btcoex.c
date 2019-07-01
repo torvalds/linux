@@ -9,11 +9,6 @@
 #include <rtw_btcoex.h>
 #include <hal_btcoex.h>
 
-void rtw_btcoex_PowerOnSetting(struct adapter *padapter)
-{
-	hal_btcoex_PowerOnSetting(padapter);
-}
-
 void rtw_btcoex_HAL_Initialize(struct adapter *padapter, u8 bWifiOnly)
 {
 	hal_btcoex_InitHwConfig(padapter, bWifiOnly);

@@ -168,7 +168,7 @@ u8 _InitPowerOn_8723BS(struct adapter *padapter)
 	);
 	rtw_write16(padapter, REG_CR, value16);
 
-	rtw_btcoex_PowerOnSetting(padapter);
+	hal_btcoex_PowerOnSetting(padapter);
 
 	/*  external switch to S1 */
 	/*  0x38[11] = 0x1 */
