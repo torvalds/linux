@@ -6772,11 +6772,10 @@ intel_aux_power_domain(struct intel_digital_port *dig_port)
 	}
 }
 
-static u64 get_crtc_power_domains(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
+static u64 get_crtc_power_domains(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_encoder *encoder;
 	enum pipe pipe = crtc->pipe;
 	u64 mask;
@@ -6791,7 +6790,8 @@ static u64 get_crtc_power_domains(struct intel_crtc *crtc,
 	    crtc_state->pch_pfit.force_thru)
 		mask |= BIT_ULL(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
 
-	drm_for_each_encoder_mask(encoder, dev, crtc_state->base.encoder_mask) {
+	drm_for_each_encoder_mask(encoder, &dev_priv->drm,
+				  crtc_state->base.encoder_mask) {
 		struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
 		mask |= BIT_ULL(intel_encoder->power_domain);
@@ -6807,16 +6807,16 @@ static u64 get_crtc_power_domains(struct intel_crtc *crtc,
 }
 
 static u64
-modeset_get_crtc_power_domains(struct intel_crtc *crtc,
-			       struct intel_crtc_state *crtc_state)
+modeset_get_crtc_power_domains(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum intel_display_power_domain domain;
 	u64 domains, new_domains, old_domains;
 
 	old_domains = crtc->enabled_power_domains;
 	crtc->enabled_power_domains = new_domains =
-		get_crtc_power_domains(crtc, crtc_state);
+		get_crtc_power_domains(crtc_state);
 
 	domains = new_domains & ~old_domains;
 
@@ -13906,8 +13906,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		    new_crtc_state->update_pipe) {
 
 			put_domains[crtc->pipe] =
-				modeset_get_crtc_power_domains(crtc,
-					new_crtc_state);
+				modeset_get_crtc_power_domains(new_crtc_state);
 		}
 
 		if (!needs_modeset(new_crtc_state))
@@ -17011,7 +17010,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 		u64 put_domains;
 
 		crtc_state = to_intel_crtc_state(crtc->base.state);
-		put_domains = modeset_get_crtc_power_domains(crtc, crtc_state);
+		put_domains = modeset_get_crtc_power_domains(crtc_state);
 		if (WARN_ON(put_domains))
 			modeset_put_power_domains(dev_priv, put_domains);
 	}
