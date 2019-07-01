@@ -31,7 +31,6 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matt.Sickler@Daktronics.com");
-MODULE_SOFTDEP("pre: i2c-dev");
 
 struct i2c_device {
 	unsigned long           smba;
