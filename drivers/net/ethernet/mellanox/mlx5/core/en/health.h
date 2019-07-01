@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2019 Mellanox Technologies. */
 
-#ifndef __MLX5E_EN_REPORTER_H
-#define __MLX5E_EN_REPORTER_H
+#ifndef __MLX5E_EN_HEALTH_H
+#define __MLX5E_EN_HEALTH_H
 
 #include "en.h"
 

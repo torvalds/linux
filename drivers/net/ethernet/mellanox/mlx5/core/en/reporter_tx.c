@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2019 Mellanox Technologies. */
 
-#include "reporter.h"
+#include "health.h"
 #include "lib/eq.h"
 
 #define MLX5E_TX_REPORTER_PER_SQ_MAX_LEN 256
