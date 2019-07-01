@@ -18,7 +18,6 @@
 void rtw_btcoex_ScanNotify(struct adapter *, u8 type);
 void rtw_btcoex_ConnectNotify(struct adapter *, u8 action);
 void rtw_btcoex_MediaStatusNotify(struct adapter *, u8 mediaStatus);
-void rtw_btcoex_SpecialPacketNotify(struct adapter *, u8 pktType);
 void rtw_btcoex_BtInfoNotify(struct adapter *, u8 length, u8 *tmpBuf);
 void rtw_btcoex_SuspendNotify(struct adapter *, u8 state);
 void rtw_btcoex_HaltNotify(struct adapter *);
