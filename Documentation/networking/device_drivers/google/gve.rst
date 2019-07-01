@@ -42,6 +42,8 @@ The driver interacts with the device in the following ways:
     - See description below
  - Interrupts
     - See supported interrupts below
+ - Transmit and Receive Queues
+    - See description below
 
 Registers
 ---------
@@ -80,3 +82,31 @@ Notification Block Interrupts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The notification block interrupts are used to tell the driver to poll
 the queues associated with that interrupt.
+
+The handler for these irqs schedule the napi for that block to run
+and poll the queues.
+
+Traffic Queues
+--------------
+gVNIC's queues are composed of a descriptor ring and a buffer and are
+assigned to a notification block.
+
+The descriptor rings are power-of-two-sized ring buffers consisting of
+fixed-size descriptors. They advance their head pointer using a __be32
+doorbell located in Bar2. The tail pointers are advanced by consuming
+descriptors in-order and updating a __be32 counter. Both the doorbell
+and the counter overflow to zero.
+
+Each queue's buffers must be registered in advance with the device as a
+queue page list, and packet data can only be put in those pages.
+
+Transmit
+~~~~~~~~
+gve maps the buffers for transmit rings into a FIFO and copies the packets
+into the FIFO before sending them to the NIC.
+
+Receive
+~~~~~~~
+The buffers for receive rings are put into a data ring that is the same
+length as the descriptor ring and the head and tail pointers advance over
+the rings together.

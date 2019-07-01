@@ -190,6 +190,72 @@ int gve_adminq_deconfigure_device_resources(struct gve_priv *priv)
 	return gve_adminq_execute_cmd(priv, &cmd);
 }
 
+int gve_adminq_create_tx_queue(struct gve_priv *priv, u32 queue_index)
+{
+	struct gve_tx_ring *tx = &priv->tx[queue_index];
+	union gve_adminq_command cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_CREATE_TX_QUEUE);
+	cmd.create_tx_queue = (struct gve_adminq_create_tx_queue) {
+		.queue_id = cpu_to_be32(queue_index),
+		.reserved = 0,
+		.queue_resources_addr = cpu_to_be64(tx->q_resources_bus),
+		.tx_ring_addr = cpu_to_be64(tx->bus),
+		.queue_page_list_id = cpu_to_be32(tx->tx_fifo.qpl->id),
+		.ntfy_id = cpu_to_be32(tx->ntfy_id),
+	};
+
+	return gve_adminq_execute_cmd(priv, &cmd);
+}
+
+int gve_adminq_create_rx_queue(struct gve_priv *priv, u32 queue_index)
+{
+	struct gve_rx_ring *rx = &priv->rx[queue_index];
+	union gve_adminq_command cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_CREATE_RX_QUEUE);
+	cmd.create_rx_queue = (struct gve_adminq_create_rx_queue) {
+		.queue_id = cpu_to_be32(queue_index),
+		.index = cpu_to_be32(queue_index),
+		.reserved = 0,
+		.ntfy_id = cpu_to_be32(rx->ntfy_id),
+		.queue_resources_addr = cpu_to_be64(rx->q_resources_bus),
+		.rx_desc_ring_addr = cpu_to_be64(rx->desc.bus),
+		.rx_data_ring_addr = cpu_to_be64(rx->data.data_bus),
+		.queue_page_list_id = cpu_to_be32(rx->data.qpl->id),
+	};
+
+	return gve_adminq_execute_cmd(priv, &cmd);
+}
+
+int gve_adminq_destroy_tx_queue(struct gve_priv *priv, u32 queue_index)
+{
+	union gve_adminq_command cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_DESTROY_TX_QUEUE);
+	cmd.destroy_tx_queue = (struct gve_adminq_destroy_tx_queue) {
+		.queue_id = cpu_to_be32(queue_index),
+	};
+
+	return gve_adminq_execute_cmd(priv, &cmd);
+}
+
+int gve_adminq_destroy_rx_queue(struct gve_priv *priv, u32 queue_index)
+{
+	union gve_adminq_command cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_DESTROY_RX_QUEUE);
+	cmd.destroy_rx_queue = (struct gve_adminq_destroy_rx_queue) {
+		.queue_id = cpu_to_be32(queue_index),
+	};
+
+	return gve_adminq_execute_cmd(priv, &cmd);
+}
+
 int gve_adminq_describe_device(struct gve_priv *priv)
 {
 	struct gve_device_descriptor *descriptor;
@@ -215,6 +281,25 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	if (err)
 		goto free_device_descriptor;
 
+	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
+	if (priv->tx_desc_cnt * sizeof(priv->tx->desc[0]) < PAGE_SIZE) {
+		netif_err(priv, drv, priv->dev, "Tx desc count %d too low\n",
+			  priv->tx_desc_cnt);
+		err = -EINVAL;
+		goto free_device_descriptor;
+	}
+	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
+	if (priv->rx_desc_cnt * sizeof(priv->rx->desc.desc_ring[0])
+	    < PAGE_SIZE ||
+	    priv->rx_desc_cnt * sizeof(priv->rx->data.data_ring[0])
+	    < PAGE_SIZE) {
+		netif_err(priv, drv, priv->dev, "Rx desc count %d too low\n",
+			  priv->rx_desc_cnt);
+		err = -EINVAL;
+		goto free_device_descriptor;
+	}
+	priv->max_registered_pages =
+				be64_to_cpu(descriptor->max_registered_pages);
 	mtu = be16_to_cpu(descriptor->mtu);
 	if (mtu < ETH_MIN_MTU) {
 		netif_err(priv, drv, priv->dev, "MTU %d below minimum MTU\n",
@@ -227,11 +312,64 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	ether_addr_copy(priv->dev->dev_addr, descriptor->mac);
 	mac = descriptor->mac;
 	netif_info(priv, drv, priv->dev, "MAC addr: %pM\n", mac);
+	priv->tx_pages_per_qpl = be16_to_cpu(descriptor->tx_pages_per_qpl);
+	priv->rx_pages_per_qpl = be16_to_cpu(descriptor->rx_pages_per_qpl);
+	if (priv->rx_pages_per_qpl < priv->rx_desc_cnt) {
+		netif_err(priv, drv, priv->dev, "rx_pages_per_qpl cannot be smaller than rx_desc_cnt, setting rx_desc_cnt down to %d.\n",
+			  priv->rx_pages_per_qpl);
+		priv->rx_desc_cnt = priv->rx_pages_per_qpl;
+	}
+	priv->default_num_queues = be16_to_cpu(descriptor->default_num_queues);
 
 free_device_descriptor:
 	dma_free_coherent(&priv->pdev->dev, sizeof(*descriptor), descriptor,
 			  descriptor_bus);
 	return err;
+}
+
+int gve_adminq_register_page_list(struct gve_priv *priv,
+				  struct gve_queue_page_list *qpl)
+{
+	struct device *hdev = &priv->pdev->dev;
+	u32 num_entries = qpl->num_entries;
+	u32 size = num_entries * sizeof(qpl->page_buses[0]);
+	union gve_adminq_command cmd;
+	dma_addr_t page_list_bus;
+	__be64 *page_list;
+	int err;
+	int i;
+
+	memset(&cmd, 0, sizeof(cmd));
+	page_list = dma_alloc_coherent(hdev, size, &page_list_bus, GFP_KERNEL);
+	if (!page_list)
+		return -ENOMEM;
+
+	for (i = 0; i < num_entries; i++)
+		page_list[i] = cpu_to_be64(qpl->page_buses[i]);
+
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_REGISTER_PAGE_LIST);
+	cmd.reg_page_list = (struct gve_adminq_register_page_list) {
+		.page_list_id = cpu_to_be32(qpl->id),
+		.num_pages = cpu_to_be32(num_entries),
+		.page_address_list_addr = cpu_to_be64(page_list_bus),
+	};
+
+	err = gve_adminq_execute_cmd(priv, &cmd);
+	dma_free_coherent(hdev, size, page_list, page_list_bus);
+	return err;
+}
+
+int gve_adminq_unregister_page_list(struct gve_priv *priv, u32 page_list_id)
+{
+	union gve_adminq_command cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_UNREGISTER_PAGE_LIST);
+	cmd.unreg_page_list = (struct gve_adminq_unregister_page_list) {
+		.page_list_id = cpu_to_be32(page_list_id),
+	};
+
+	return gve_adminq_execute_cmd(priv, &cmd);
 }
 
 int gve_adminq_set_mtu(struct gve_priv *priv, u64 mtu)
