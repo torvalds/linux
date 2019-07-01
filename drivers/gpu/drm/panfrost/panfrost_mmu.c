@@ -145,27 +145,13 @@ static size_t get_pgsize(u64 addr, size_t size)
 	return SZ_2M;
 }
 
-int panfrost_mmu_map(struct panfrost_gem_object *bo)
+static int mmu_map_sg(struct panfrost_device *pfdev, u64 iova,
+		      int prot, struct sg_table *sgt)
 {
-	struct drm_gem_object *obj = &bo->base.base;
-	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
-	struct io_pgtable_ops *ops = pfdev->mmu->pgtbl_ops;
-	u64 iova = bo->node.start << PAGE_SHIFT;
 	unsigned int count;
 	struct scatterlist *sgl;
-	struct sg_table *sgt;
-	int ret;
-
-	if (WARN_ON(bo->is_mapped))
-		return 0;
-
-	sgt = drm_gem_shmem_get_pages_sgt(obj);
-	if (WARN_ON(IS_ERR(sgt)))
-		return PTR_ERR(sgt);
-
-	ret = pm_runtime_get_sync(pfdev->dev);
-	if (ret < 0)
-		return ret;
+	struct io_pgtable_ops *ops = pfdev->mmu->pgtbl_ops;
+	u64 start_iova = iova;
 
 	mutex_lock(&pfdev->mmu->lock);
 
@@ -178,17 +164,41 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 		while (len) {
 			size_t pgsize = get_pgsize(iova | paddr, len);
 
-			ops->map(ops, iova, paddr, pgsize, IOMMU_WRITE | IOMMU_READ);
+			ops->map(ops, iova, paddr, pgsize, prot);
 			iova += pgsize;
 			paddr += pgsize;
 			len -= pgsize;
 		}
 	}
 
-	mmu_hw_do_operation(pfdev, 0, bo->node.start << PAGE_SHIFT,
-			    bo->node.size << PAGE_SHIFT, AS_COMMAND_FLUSH_PT);
+	mmu_hw_do_operation(pfdev, 0, start_iova, iova - start_iova,
+			    AS_COMMAND_FLUSH_PT);
 
 	mutex_unlock(&pfdev->mmu->lock);
+
+	return 0;
+}
+
+int panfrost_mmu_map(struct panfrost_gem_object *bo)
+{
+	struct drm_gem_object *obj = &bo->base.base;
+	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
+	struct sg_table *sgt;
+	int ret;
+	int prot = IOMMU_READ | IOMMU_WRITE;
+
+	if (WARN_ON(bo->is_mapped))
+		return 0;
+
+	sgt = drm_gem_shmem_get_pages_sgt(obj);
+	if (WARN_ON(IS_ERR(sgt)))
+		return PTR_ERR(sgt);
+
+	ret = pm_runtime_get_sync(pfdev->dev);
+	if (ret < 0)
+		return ret;
+
+	mmu_map_sg(pfdev, bo->node.start << PAGE_SHIFT, prot, sgt);
 
 	pm_runtime_mark_last_busy(pfdev->dev);
 	pm_runtime_put_autosuspend(pfdev->dev);
