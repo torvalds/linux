@@ -171,6 +171,13 @@ LIBBPF_API int bpf_link__destroy(struct bpf_link *link);
 
 LIBBPF_API struct bpf_link *
 bpf_program__attach_perf_event(struct bpf_program *prog, int pfd);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_kprobe(struct bpf_program *prog, bool retprobe,
+			   const char *func_name);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_uprobe(struct bpf_program *prog, bool retprobe,
+			   pid_t pid, const char *binary_path,
+			   size_t func_offset);
 
 struct bpf_insn;
 
