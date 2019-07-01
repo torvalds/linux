@@ -506,7 +506,7 @@ static int engines_show(struct seq_file *s, void *data)
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 
-	hdev->asic_funcs->is_device_idle(hdev, s);
+	hdev->asic_funcs->is_device_idle(hdev, NULL, s);
 
 	return 0;
 }
