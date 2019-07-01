@@ -199,8 +199,11 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		 * fail due to alignment issues when using 16MB hugepages, so
 		 * fall back to system memory if the altmap allocation fail.
 		 */
-		if (altmap)
+		if (altmap) {
 			p = altmap_alloc_block_buf(page_size, altmap);
+			if (!p)
+				pr_debug("altmap block allocation failed, falling back to system memory");
+		}
 		if (!p)
 			p = vmemmap_alloc_block_buf(page_size, node);
 		if (!p)
