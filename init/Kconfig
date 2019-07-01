@@ -24,6 +24,9 @@ config CLANG_VERSION
 	int
 	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
 
+config CC_CAN_LINK
+	def_bool $(success,$(srctree)/scripts/cc-can-link.sh $(CC))
+
 config CC_HAS_ASM_GOTO
 	def_bool $(success,$(srctree)/scripts/gcc-goto.sh $(CC))
 
