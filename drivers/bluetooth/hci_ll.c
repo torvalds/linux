@@ -474,6 +474,32 @@ out:
 	return err ? err : version;
 }
 
+static int send_command_from_firmware(struct ll_device *lldev,
+				      struct hci_command *cmd)
+{
+	struct sk_buff *skb;
+
+	if (cmd->opcode == HCI_VS_UPDATE_UART_HCI_BAUDRATE) {
+		/* ignore remote change
+		 * baud rate HCI VS command
+		 */
+		bt_dev_warn(lldev->hu.hdev,
+			    "change remote baud rate command in firmware");
+		return 0;
+	}
+	if (cmd->prefix != 1)
+		bt_dev_dbg(lldev->hu.hdev, "command type %d", cmd->prefix);
+
+	skb = __hci_cmd_sync(lldev->hu.hdev, cmd->opcode, cmd->plen,
+			     &cmd->speed, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		bt_dev_err(lldev->hu.hdev, "send command failed");
+		return PTR_ERR(skb);
+	}
+	kfree_skb(skb);
+	return 0;
+}
+
 /**
  * download_firmware -
  *	internal function which parses through the .bts firmware
@@ -486,7 +512,6 @@ static int download_firmware(struct ll_device *lldev)
 	unsigned char *ptr, *action_ptr;
 	unsigned char bts_scr_name[40];	/* 40 char long bts scr name? */
 	const struct firmware *fw;
-	struct sk_buff *skb;
 	struct hci_command *cmd;
 
 	version = read_local_version(lldev->hu.hdev);
@@ -528,23 +553,9 @@ static int download_firmware(struct ll_device *lldev)
 		case ACTION_SEND_COMMAND:	/* action send */
 			bt_dev_dbg(lldev->hu.hdev, "S");
 			cmd = (struct hci_command *)action_ptr;
-			if (cmd->opcode == HCI_VS_UPDATE_UART_HCI_BAUDRATE) {
-				/* ignore remote change
-				 * baud rate HCI VS command
-				 */
-				bt_dev_warn(lldev->hu.hdev, "change remote baud rate command in firmware");
-				break;
-			}
-			if (cmd->prefix != 1)
-				bt_dev_dbg(lldev->hu.hdev, "command type %d", cmd->prefix);
-
-			skb = __hci_cmd_sync(lldev->hu.hdev, cmd->opcode, cmd->plen, &cmd->speed, HCI_INIT_TIMEOUT);
-			if (IS_ERR(skb)) {
-				bt_dev_err(lldev->hu.hdev, "send command failed");
-				err = PTR_ERR(skb);
+			err = send_command_from_firmware(lldev, cmd);
+			if (err)
 				goto out_rel_fw;
-			}
-			kfree_skb(skb);
 			break;
 		case ACTION_WAIT_EVENT:  /* wait */
 			/* no need to wait as command was synchronous */
