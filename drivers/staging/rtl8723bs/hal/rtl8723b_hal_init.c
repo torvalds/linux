@@ -3885,11 +3885,11 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 		switch (*val) {
 		case 0:
 			/*  prepare to join */
-			rtw_btcoex_ConnectNotify(padapter, true);
+			hal_btcoex_ConnectNotify(padapter, true);
 			break;
 		case 1:
 			/*  joinbss_event callback when join res < 0 */
-			rtw_btcoex_ConnectNotify(padapter, false);
+			hal_btcoex_ConnectNotify(padapter, false);
 			break;
 		case 2:
 			/*  sta add event callback */

@@ -14,11 +14,6 @@ void rtw_btcoex_ScanNotify(struct adapter *padapter, u8 type)
 	hal_btcoex_ScanNotify(padapter, type);
 }
 
-void rtw_btcoex_ConnectNotify(struct adapter *padapter, u8 action)
-{
-	hal_btcoex_ConnectNotify(padapter, action);
-}
-
 void rtw_btcoex_MediaStatusNotify(struct adapter *padapter, u8 mediaStatus)
 {
 	if ((mediaStatus == RT_MEDIA_CONNECT)
