@@ -44,11 +44,6 @@ void rtw_btcoex_SpecialPacketNotify(struct adapter *padapter, u8 pktType)
 	hal_btcoex_SpecialPacketNotify(padapter, pktType);
 }
 
-void rtw_btcoex_IQKNotify(struct adapter *padapter, u8 state)
-{
-	hal_btcoex_IQKNotify(padapter, state);
-}
-
 void rtw_btcoex_BtInfoNotify(struct adapter *padapter, u8 length, u8 *tmpBuf)
 {
 	hal_btcoex_BtInfoNotify(padapter, length, tmpBuf);

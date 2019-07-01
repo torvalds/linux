@@ -991,14 +991,14 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 				msleep(50);
 			} while (jiffies_to_msecs(jiffies - start_time) <= 400);
 
-			rtw_btcoex_IQKNotify(padapter, true);
+			hal_btcoex_IQKNotify(padapter, true);
 
 			restore_iqk_rst = pwrpriv->bips_processing;
 			b2Ant = pHalData->EEPROMBluetoothAntNum == Ant_x2;
 			PHY_IQCalibrate_8723B(padapter, false, restore_iqk_rst, b2Ant, pHalData->ant_path);
 			pHalData->odmpriv.RFCalibrateInfo.bIQKInitialized = true;
 
-			rtw_btcoex_IQKNotify(padapter, false);
+			hal_btcoex_IQKNotify(padapter, false);
 
 			/* Inform WiFi FW that it is the finish of IQK */
 			h2cCmdBuf = 0;
