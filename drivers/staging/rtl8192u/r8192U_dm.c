@@ -99,8 +99,7 @@ static	void	dm_dynamic_txpower(struct net_device *dev);
 static	void dm_send_rssi_tofw(struct net_device *dev);
 static	void	dm_ctstoself(struct net_device *dev);
 /*---------------------------Define function prototype------------------------*/
-/*
- * ================================================================================
+/* ================================================================================
  *	HW Dynamic mechanism interface.
  * ================================================================================
  *
@@ -178,8 +177,7 @@ void dm_CheckRxAggregation(struct net_device *dev)
 
 			ulValue = (pHTInfo->UsbRxFwAggrEn<<24) | (pHTInfo->UsbRxFwAggrPageNum<<16) |
 				(pHTInfo->UsbRxFwAggrPacketNum<<8) | (pHTInfo->UsbRxFwAggrTimeout);
-			/*
-			 * If usb rx firmware aggregation is enabled,
+			/* If usb rx firmware aggregation is enabled,
 			 * when anyone of three threshold conditions above is reached,
 			 * firmware will send aggregated packet to driver.
 			 */
@@ -219,8 +217,7 @@ void hal_dm_watchdog(struct net_device *dev)
 #endif
 }	/* HalDmWatchDog */
 
-/*
- * Decide Rate Adaptive Set according to distance (signal strength)
+/* Decide Rate Adaptive Set according to distance (signal strength)
  *	01/11/2008	MHC		Modify input arguments and RATR table level.
  *	01/16/2008	MHC		RF_Type is assigned in ReadAdapterInfo(). We must call
  *						the function after making sure RF_Type.
@@ -246,8 +243,7 @@ void init_rate_adaptive(struct net_device *dev)
 	pra->ping_rssi_thresh_for_ra = 15;
 
 	if (priv->rf_type == RF_2T4R) {
-		/*
-		 * 07/10/08 MH Modify for RA smooth scheme.
+		/* 07/10/08 MH Modify for RA smooth scheme.
 		 * 2008/01/11 MH Modify 2T RATR table for different RSSI. 080515 porting by amy from windows code.
 		 */
 		pra->upper_rssi_threshold_ratr		=	0x8f0f0000;
@@ -387,8 +383,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 			}
 		}
 
-		/*
-		 * 2008.04.01
+		/* 2008.04.01
 		 * For RTL819X, if pairwisekey = wep/tkip, we support only MCS0~7.
 		 */
 		if (priv->ieee80211->GetHalfNmodeSupportByAPsHandler(dev))
@@ -683,8 +678,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 		return;
 	}
 
-	/*
-	 * ==========================
+	/* ==========================
 	 * this is only for test, should be masked
 	 * ==========================
 	 */
@@ -850,8 +844,7 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 	priv->txbbgain_table[36].txbb_iq_amplifygain =		     -24;
 	priv->txbbgain_table[36].txbbgain_value = 0x10000040;
 
-	/*
-	 * ccktxbb_valuearray[0] is 0xA22 [1] is 0xA24 ...[7] is 0xA29
+	/* ccktxbb_valuearray[0] is 0xA22 [1] is 0xA24 ...[7] is 0xA29
 	 * This Table is for CH1~CH13
 	 */
 	priv->cck_txbbgain_table[0].ccktxbb_valuearray[0] = 0x36;
@@ -1061,8 +1054,7 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 	priv->cck_txbbgain_table[22].ccktxbb_valuearray[6] = 0x03;
 	priv->cck_txbbgain_table[22].ccktxbb_valuearray[7] = 0x01;
 
-	/*
-	 * ccktxbb_valuearray[0] is 0xA22 [1] is 0xA24 ...[7] is 0xA29
+	/* ccktxbb_valuearray[0] is 0xA22 [1] is 0xA24 ...[7] is 0xA29
 	 * This Table is for CH14
 	 */
 	priv->cck_txbbgain_ch14_table[0].ccktxbb_valuearray[0] = 0x36;
@@ -1282,8 +1274,7 @@ static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	/*
-	 * Tx Power tracking by Thermal Meter requires Firmware R/W 3-wire. This mechanism
+	/* Tx Power tracking by Thermal Meter requires Firmware R/W 3-wire. This mechanism
 	 * can be enabled only when Firmware R/W 3-wire is enabled. Otherwise, frequent r/w
 	 * 3-wire by driver causes RF to go into a wrong state.
 	 */
@@ -1330,8 +1321,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 	}
 
 	if (!TM_Trigger) {
-		/*
-		 * Attention!! You have to write all 12bits of data to RF, or it may cause RF to crash
+		/* Attention!! You have to write all 12bits of data to RF, or it may cause RF to crash
 		 * actually write reg0x02 bit1=0, then bit1=1.
 		 * DbgPrint("Trigger ThermalMeter, write RF reg0x2 = 0x4d to 0x4f\n");
 		 */
@@ -1761,8 +1751,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 		/*  1.3 Lower PD_TH for OFDM. */
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
-			/*
-			 * 2008/01/11 MH 40MHZ 90/92 register are not the same.
+			/* 2008/01/11 MH 40MHZ 90/92 register are not the same.
 			 * 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
 			 */
 			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
@@ -1802,8 +1791,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		dm_digtable.dig_state = DM_STA_DIG_ON;
 		/*DbgPrint("DIG ON\n\r");*/
 
-		/*
-		 * 2.1 Set initial gain.
+		/* 2.1 Set initial gain.
 		 * 2008/02/26 MH SD3-Jerry suggest to prevent dirty environment.
 		 */
 		if (reset_flag == 1) {
@@ -1820,8 +1808,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 		/* 2.2 Higher PD_TH for OFDM. */
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
-			/*
-			 * 2008/01/11 MH 40MHZ 90/92 register are not the same.
+			/* 2008/01/11 MH 40MHZ 90/92 register are not the same.
 			 * 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
 			 */
 			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
@@ -1838,8 +1825,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		/* 2.3 Higher CS ratio for CCK. */
 		write_nic_byte(dev, 0xa0a, 0xcd);
 
-		/*
-		 * 2.4 Lower EDCCA.
+		/* 2.4 Lower EDCCA.
 		 * 2008/01/11 MH 90/92 series are the same.
 		 */
 		/*PlatformEFIOWrite4Byte(pAdapter, rOFDM0_ECCAThreshold, 0x346);*/
@@ -1880,8 +1866,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 		(priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_power_highthresh))
 		return;
 
-	/*
-	 * 3. When RSSI >75% or <70%, it is a high power issue. We have to judge if
+	/* 3. When RSSI >75% or <70%, it is a high power issue. We have to judge if
 	 *    it is larger than a threshold and then execute the step below.
 	 *
 	 * 2008/02/05 MH SD3-Jerry Modify PD_TH for high power issue.
@@ -2030,8 +2015,7 @@ static void dm_pd_th(
 			if (dm_digtable.curpd_thstate == DIG_PD_AT_LOW_POWER) {
 				/*  Lower PD_TH for OFDM. */
 				if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
-					/*
-					 * 2008/01/11 MH 40MHZ 90/92 register are not the same.
+					/* 2008/01/11 MH 40MHZ 90/92 register are not the same.
 					 * 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
 					 */
 					write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
@@ -2043,8 +2027,7 @@ static void dm_pd_th(
 			} else if (dm_digtable.curpd_thstate == DIG_PD_AT_NORMAL_POWER) {
 				/* Higher PD_TH for OFDM. */
 				if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
-					/*
-					 * 2008/01/11 MH 40MHZ 90/92 register are not the same.
+					/* 2008/01/11 MH 40MHZ 90/92 register are not the same.
 					 * 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
 					 */
 					write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
@@ -2143,8 +2126,7 @@ static void dm_check_edca_turbo(
 	unsigned long				curTxOkCnt = 0;
 	unsigned long				curRxOkCnt = 0;
 
-	/*
-	 * Do not be Turbo if it's under WiFi config and Qos Enabled, because the EDCA parameters
+	/* Do not be Turbo if it's under WiFi config and Qos Enabled, because the EDCA parameters
 	 * should follow the settings from QAP. By Bruce, 2007-12-07.
 	 */
 	if (priv->ieee80211->state != IEEE80211_LINKED)
@@ -2176,8 +2158,7 @@ static void dm_check_edca_turbo(
 
 		priv->bcurrent_turbo_EDCA = true;
 	} else {
-		/*
-		 * Turn Off EDCA turbo here.
+		/* Turn Off EDCA turbo here.
 		 * Restore original EDCA according to the declaration of AP.
 		 */
 		if (priv->bcurrent_turbo_EDCA) {
@@ -2207,8 +2188,7 @@ static void dm_check_edca_turbo(
 			write_nic_dword(dev, EDCAPARA_BE, u4bAcParam);
 
 
-			/*
-			 * Check ACM bit.
+			/* Check ACM bit.
 			 * If it is set, immediately set ACM control bit to downgrading AC for passing WMM testplan. Annie, 2005-12-13.
 			 */
 			{
@@ -2307,8 +2287,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 		return;
 
 	if (tmp1byte & BIT(6) || tmp1byte & BIT(0)) {
-		/*
-		 * Here we only set bPbcPressed to TRUE
+		/* Here we only set bPbcPressed to TRUE
 		 * After trigger PBC, the variable will be set to FALSE
 		 */
 		RT_TRACE(COMP_IO, "CheckPbcGPIO - PBC is pressed\n");
@@ -2517,8 +2496,7 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 		}
 	}
 
-	/*
-	 * Set CCK Rx path
+	/* Set CCK Rx path
 	 * reg0xA07[3:2]=cck default rx path, reg0xa07[1:0]=cck optional rx path.
 	 */
 	update_cck_rx_path = 0;
@@ -3037,8 +3015,7 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	/*
-	 * If we test chariot, we should stop the TX command ?
+	/* If we test chariot, we should stop the TX command ?
 	 * Because 92E will always silent reset when we send tx command. We use register
 	 * 0x1e0(byte) to notify driver.
 	 */
