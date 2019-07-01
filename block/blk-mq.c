@@ -355,13 +355,13 @@ static struct request *blk_mq_get_request(struct request_queue *q,
 	struct elevator_queue *e = q->elevator;
 	struct request *rq;
 	unsigned int tag;
-	bool put_ctx_on_error = false;
+	bool clear_ctx_on_error = false;
 
 	blk_queue_enter_live(q);
 	data->q = q;
 	if (likely(!data->ctx)) {
 		data->ctx = blk_mq_get_ctx(q);
-		put_ctx_on_error = true;
+		clear_ctx_on_error = true;
 	}
 	if (likely(!data->hctx))
 		data->hctx = blk_mq_map_queue(q, data->cmd_flags,
@@ -387,10 +387,8 @@ static struct request *blk_mq_get_request(struct request_queue *q,
 
 	tag = blk_mq_get_tag(data);
 	if (tag == BLK_MQ_TAG_FAIL) {
-		if (put_ctx_on_error) {
-			blk_mq_put_ctx(data->ctx);
+		if (clear_ctx_on_error)
 			data->ctx = NULL;
-		}
 		blk_queue_exit(q);
 		return NULL;
 	}
@@ -426,8 +424,6 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 
 	if (!rq)
 		return ERR_PTR(-EWOULDBLOCK);
-
-	blk_mq_put_ctx(alloc_data.ctx);
 
 	rq->__data_len = 0;
 	rq->__sector = (sector_t) -1;
@@ -1977,7 +1973,6 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 	plug = current->plug;
 	if (unlikely(is_flush_fua)) {
-		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio, nr_segs);
 
 		/* bypass scheduler for flush rq */
@@ -1991,7 +1986,6 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		unsigned int request_count = plug->rq_count;
 		struct request *last = NULL;
 
-		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio, nr_segs);
 
 		if (!request_count)
@@ -2025,8 +2019,6 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		blk_add_rq_to_plug(plug, rq);
 		trace_block_plug(q);
 
-		blk_mq_put_ctx(data.ctx);
-
 		if (same_queue_rq) {
 			data.hctx = same_queue_rq->mq_hctx;
 			trace_block_unplug(q, 1, true);
@@ -2035,11 +2027,9 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		}
 	} else if ((q->nr_hw_queues > 1 && is_sync) || (!q->elevator &&
 			!data.hctx->dispatch_busy)) {
-		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio, nr_segs);
 		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
 	} else {
-		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio, nr_segs);
 		blk_mq_sched_insert_request(rq, false, true, true);
 	}
