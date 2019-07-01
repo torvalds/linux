@@ -13686,10 +13686,10 @@ static int intel_atomic_check(struct drm_device *dev,
 	return ret;
 }
 
-static int intel_atomic_prepare_commit(struct drm_device *dev,
-				       struct drm_atomic_state *state)
+static int intel_atomic_prepare_commit(struct intel_atomic_state *state)
 {
-	return drm_atomic_helper_prepare_planes(dev, state);
+	return drm_atomic_helper_prepare_planes(state->base.dev,
+						&state->base);
 }
 
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
@@ -14131,17 +14131,17 @@ static void intel_atomic_track_fbs(struct intel_atomic_state *state)
  * Zero for success or -errno.
  */
 static int intel_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state,
+			       struct drm_atomic_state *_state,
 			       bool nonblock)
 {
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
-	intel_state->wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	state->wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	drm_atomic_state_get(state);
-	i915_sw_fence_init(&intel_state->commit_ready,
+	drm_atomic_state_get(&state->base);
+	i915_sw_fence_init(&state->commit_ready,
 			   intel_atomic_commit_ready);
 
 	/*
@@ -14161,65 +14161,63 @@ static int intel_atomic_commit(struct drm_device *dev,
 	 * FIXME doing watermarks and fb cleanup from a vblank worker
 	 * (assuming we had any) would solve these problems.
 	 */
-	if (INTEL_GEN(dev_priv) < 9 && state->legacy_cursor_update) {
+	if (INTEL_GEN(dev_priv) < 9 && state->base.legacy_cursor_update) {
 		struct intel_crtc_state *new_crtc_state;
 		struct intel_crtc *crtc;
 		int i;
 
-		for_each_new_intel_crtc_in_state(intel_state, crtc, new_crtc_state, i)
+		for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
 			if (new_crtc_state->wm.need_postvbl_update ||
 			    new_crtc_state->update_wm_post)
-				state->legacy_cursor_update = false;
+				state->base.legacy_cursor_update = false;
 	}
 
-	ret = intel_atomic_prepare_commit(dev, state);
+	ret = intel_atomic_prepare_commit(state);
 	if (ret) {
 		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
-		i915_sw_fence_commit(&intel_state->commit_ready);
-		intel_runtime_pm_put(&dev_priv->runtime_pm, intel_state->wakeref);
+		i915_sw_fence_commit(&state->commit_ready);
+		intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
 		return ret;
 	}
 
-	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	ret = drm_atomic_helper_setup_commit(&state->base, nonblock);
 	if (!ret)
-		ret = drm_atomic_helper_swap_state(state, true);
+		ret = drm_atomic_helper_swap_state(&state->base, true);
 
 	if (ret) {
-		i915_sw_fence_commit(&intel_state->commit_ready);
+		i915_sw_fence_commit(&state->commit_ready);
 
-		drm_atomic_helper_cleanup_planes(dev, state);
-		intel_runtime_pm_put(&dev_priv->runtime_pm, intel_state->wakeref);
+		drm_atomic_helper_cleanup_planes(dev, &state->base);
+		intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
 		return ret;
 	}
 	dev_priv->wm.distrust_bios_wm = false;
-	intel_shared_dpll_swap_state(intel_state);
-	intel_atomic_track_fbs(intel_state);
+	intel_shared_dpll_swap_state(state);
+	intel_atomic_track_fbs(state);
 
-	if (intel_state->modeset) {
-		memcpy(dev_priv->min_cdclk, intel_state->min_cdclk,
-		       sizeof(intel_state->min_cdclk));
-		memcpy(dev_priv->min_voltage_level,
-		       intel_state->min_voltage_level,
-		       sizeof(intel_state->min_voltage_level));
-		dev_priv->active_crtcs = intel_state->active_crtcs;
-		dev_priv->cdclk.force_min_cdclk =
-			intel_state->cdclk.force_min_cdclk;
+	if (state->modeset) {
+		memcpy(dev_priv->min_cdclk, state->min_cdclk,
+		       sizeof(state->min_cdclk));
+		memcpy(dev_priv->min_voltage_level, state->min_voltage_level,
+		       sizeof(state->min_voltage_level));
+		dev_priv->active_crtcs = state->active_crtcs;
+		dev_priv->cdclk.force_min_cdclk = state->cdclk.force_min_cdclk;
 
-		intel_cdclk_swap_state(intel_state);
+		intel_cdclk_swap_state(state);
 	}
 
-	drm_atomic_state_get(state);
-	INIT_WORK(&state->commit_work, intel_atomic_commit_work);
+	drm_atomic_state_get(&state->base);
+	INIT_WORK(&state->base.commit_work, intel_atomic_commit_work);
 
-	i915_sw_fence_commit(&intel_state->commit_ready);
-	if (nonblock && intel_state->modeset) {
-		queue_work(dev_priv->modeset_wq, &state->commit_work);
+	i915_sw_fence_commit(&state->commit_ready);
+	if (nonblock && state->modeset) {
+		queue_work(dev_priv->modeset_wq, &state->base.commit_work);
 	} else if (nonblock) {
-		queue_work(system_unbound_wq, &state->commit_work);
+		queue_work(system_unbound_wq, &state->base.commit_work);
 	} else {
-		if (intel_state->modeset)
+		if (state->modeset)
 			flush_workqueue(dev_priv->modeset_wq);
-		intel_atomic_commit_tail(intel_state);
+		intel_atomic_commit_tail(state);
 	}
 
 	return 0;
