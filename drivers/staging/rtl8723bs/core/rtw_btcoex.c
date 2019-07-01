@@ -62,11 +62,6 @@ s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 	return coexctrl;
 }
 
-void rtw_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)
-{
-	hal_btcoex_SetBTCoexist(padapter, bBtExist);
-}
-
 void rtw_btcoex_SetChipType(struct adapter *padapter, u8 chipType)
 {
 	hal_btcoex_SetChipType(padapter, chipType);
