@@ -205,7 +205,16 @@ struct gve_priv {
 	u32 adminq_mask; /* masks prod_cnt to adminq size */
 	u32 adminq_prod_cnt; /* free-running count of AQ cmds executed */
 
+	struct workqueue_struct *gve_wq;
+	struct work_struct service_task;
+	unsigned long service_task_flags;
 	unsigned long state_flags;
+};
+
+enum gve_service_task_flags {
+	GVE_PRIV_FLAGS_DO_RESET			= BIT(1),
+	GVE_PRIV_FLAGS_RESET_IN_PROGRESS	= BIT(2),
+	GVE_PRIV_FLAGS_PROBE_IN_PROGRESS	= BIT(3),
 };
 
 enum gve_state_flags {
@@ -214,6 +223,53 @@ enum gve_state_flags {
 	GVE_PRIV_FLAGS_DEVICE_RINGS_OK		= BIT(3),
 	GVE_PRIV_FLAGS_NAPI_ENABLED		= BIT(4),
 };
+
+static inline bool gve_get_do_reset(struct gve_priv *priv)
+{
+	return test_bit(GVE_PRIV_FLAGS_DO_RESET, &priv->service_task_flags);
+}
+
+static inline void gve_set_do_reset(struct gve_priv *priv)
+{
+	set_bit(GVE_PRIV_FLAGS_DO_RESET, &priv->service_task_flags);
+}
+
+static inline void gve_clear_do_reset(struct gve_priv *priv)
+{
+	clear_bit(GVE_PRIV_FLAGS_DO_RESET, &priv->service_task_flags);
+}
+
+static inline bool gve_get_reset_in_progress(struct gve_priv *priv)
+{
+	return test_bit(GVE_PRIV_FLAGS_RESET_IN_PROGRESS,
+			&priv->service_task_flags);
+}
+
+static inline void gve_set_reset_in_progress(struct gve_priv *priv)
+{
+	set_bit(GVE_PRIV_FLAGS_RESET_IN_PROGRESS, &priv->service_task_flags);
+}
+
+static inline void gve_clear_reset_in_progress(struct gve_priv *priv)
+{
+	clear_bit(GVE_PRIV_FLAGS_RESET_IN_PROGRESS, &priv->service_task_flags);
+}
+
+static inline bool gve_get_probe_in_progress(struct gve_priv *priv)
+{
+	return test_bit(GVE_PRIV_FLAGS_PROBE_IN_PROGRESS,
+			&priv->service_task_flags);
+}
+
+static inline void gve_set_probe_in_progress(struct gve_priv *priv)
+{
+	set_bit(GVE_PRIV_FLAGS_PROBE_IN_PROGRESS, &priv->service_task_flags);
+}
+
+static inline void gve_clear_probe_in_progress(struct gve_priv *priv)
+{
+	clear_bit(GVE_PRIV_FLAGS_PROBE_IN_PROGRESS, &priv->service_task_flags);
+}
 
 static inline bool gve_get_admin_queue_ok(struct gve_priv *priv)
 {
@@ -390,4 +446,10 @@ int gve_rx_alloc_rings(struct gve_priv *priv);
 void gve_rx_free_rings(struct gve_priv *priv);
 bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 		       netdev_features_t feat);
+/* Reset */
+void gve_schedule_reset(struct gve_priv *priv);
+int gve_reset(struct gve_priv *priv, bool attempt_teardown);
+int gve_adjust_queues(struct gve_priv *priv,
+		      struct gve_queue_config new_rx_config,
+		      struct gve_queue_config new_tx_config);
 #endif /* _GVE_H_ */

@@ -40,6 +40,8 @@ The driver interacts with the device in the following ways:
     - See gve_register.h for more detail
  - Admin Queue
     - See description below
+ - Reset
+    - At any time the device can be reset
  - Interrupts
     - See supported interrupts below
  - Transmit and Receive Queues
@@ -69,6 +71,12 @@ the following (with proper locking):
 The device will update the status field in each AQ command reported as
 executed through the ADMIN_QUEUE_EVENT_COUNTER register.
 
+Device Resets
+-------------
+A device reset is triggered by writing 0x0 to the AQ PFN register.
+This causes the device to release all resources allocated by the
+driver, including the AQ itself.
+
 Interrupts
 ----------
 The following interrupts are supported by the driver:
@@ -77,6 +85,9 @@ Management Interrupt
 ~~~~~~~~~~~~~~~~~~~~
 The management interrupt is used by the device to tell the driver to
 look at the GVE_DEVICE_STATUS register.
+
+The handler for the management irq simply queues the service task in
+the workqueue to check the register and acks the irq.
 
 Notification Block Interrupts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

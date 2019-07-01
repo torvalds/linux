@@ -334,6 +334,9 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 #endif
 
 have_skb:
+	/* We didn't manage to allocate an skb but we haven't had any
+	 * reset worthy failures.
+	 */
 	if (!skb)
 		return true;
 
@@ -399,7 +402,7 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 			   rx->desc.seqno);
 		bytes += be16_to_cpu(desc->len) - GVE_RX_PAD;
 		if (!gve_rx(rx, desc, feat))
-			return false;
+			gve_schedule_reset(priv);
 		cnt++;
 		idx = cnt & rx->desc.mask;
 		desc = rx->desc.desc_ring + idx;
