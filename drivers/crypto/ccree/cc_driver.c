@@ -421,7 +421,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 			}
 			break;
 		default:
-			dev_err(dev, "Unsupported engines configration.\n");
+			dev_err(dev, "Unsupported engines configuration.\n");
 			rc = -EINVAL;
 			goto post_clk_err;
 		}
