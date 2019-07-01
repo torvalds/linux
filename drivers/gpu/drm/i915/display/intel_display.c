@@ -13382,15 +13382,16 @@ static int haswell_mode_set_planes_workaround(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int intel_lock_all_pipes(struct drm_atomic_state *state)
+static int intel_lock_all_pipes(struct intel_atomic_state *state)
 {
-	struct drm_crtc *crtc;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
 
 	/* Add all pipes to the state */
-	for_each_crtc(state->dev, crtc) {
-		struct drm_crtc_state *crtc_state;
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
 
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 	}
@@ -13398,32 +13399,35 @@ static int intel_lock_all_pipes(struct drm_atomic_state *state)
 	return 0;
 }
 
-static int intel_modeset_all_pipes(struct drm_atomic_state *state)
+static int intel_modeset_all_pipes(struct intel_atomic_state *state)
 {
-	struct drm_crtc *crtc;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
 
 	/*
 	 * Add all pipes to the state, and force
 	 * a modeset on all the active ones.
 	 */
-	for_each_crtc(state->dev, crtc) {
-		struct drm_crtc_state *crtc_state;
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
 		int ret;
 
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 
-		if (!crtc_state->active || needs_modeset(to_intel_crtc_state(crtc_state)))
+		if (!crtc_state->base.active || needs_modeset(crtc_state))
 			continue;
 
-		crtc_state->mode_changed = true;
+		crtc_state->base.mode_changed = true;
 
-		ret = drm_atomic_add_affected_connectors(state, crtc);
+		ret = drm_atomic_add_affected_connectors(&state->base,
+							 &crtc->base);
 		if (ret)
 			return ret;
 
-		ret = drm_atomic_add_affected_planes(state, crtc);
+		ret = drm_atomic_add_affected_planes(&state->base,
+						     &crtc->base);
 		if (ret)
 			return ret;
 	}
@@ -13485,7 +13489,7 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 		 */
 		if (intel_cdclk_changed(&dev_priv->cdclk.logical,
 					&state->cdclk.logical)) {
-			ret = intel_lock_all_pipes(&state->base);
+			ret = intel_lock_all_pipes(state);
 			if (ret < 0)
 				return ret;
 		}
@@ -13508,14 +13512,14 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 		    intel_cdclk_needs_cd2x_update(dev_priv,
 						  &dev_priv->cdclk.actual,
 						  &state->cdclk.actual)) {
-			ret = intel_lock_all_pipes(&state->base);
+			ret = intel_lock_all_pipes(state);
 			if (ret < 0)
 				return ret;
 
 			state->cdclk.pipe = pipe;
 		} else if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
 						     &state->cdclk.actual)) {
-			ret = intel_modeset_all_pipes(&state->base);
+			ret = intel_modeset_all_pipes(state);
 			if (ret < 0)
 				return ret;
 
