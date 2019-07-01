@@ -5,6 +5,7 @@
 #include <net/gre.h>
 #include <net/geneve.h>
 #include "en/tc_tun.h"
+#include "en_tc.h"
 
 struct mlx5e_tc_tunnel *mlx5e_get_tc_tun(struct net_device *tunnel_dev)
 {
@@ -47,7 +48,8 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 		*route_dev = dev;
 		if (is_vlan_dev(*route_dev))
 			*out_dev = uplink_dev;
-		else if (mlx5e_eswitch_rep(dev))
+		else if (mlx5e_eswitch_rep(dev) &&
+			 mlx5e_is_valid_eswitch_fwd_dev(priv, dev))
 			*out_dev = *route_dev;
 		else
 			return -EOPNOTSUPP;

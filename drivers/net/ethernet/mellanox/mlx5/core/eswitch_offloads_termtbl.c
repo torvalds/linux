@@ -49,8 +49,8 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 			    struct mlx5_termtbl_handle *tt,
 			    struct mlx5_flow_act *flow_act)
 {
+	static const struct mlx5_flow_spec spec = {};
 	struct mlx5_flow_namespace *root_ns;
-	struct mlx5_flow_spec spec = {};
 	int prio, flags;
 	int err;
 

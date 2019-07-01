@@ -61,17 +61,21 @@ enum {
 	MLX5_EQ_DOORBEL_OFFSET	= 0x40,
 };
 
-struct mlx5_irq_info {
-	cpumask_var_t mask;
-	char name[MLX5_MAX_IRQ_NAME];
-	void *context; /* dev_id provided to request_irq */
+/* budget must be smaller than MLX5_NUM_SPARE_EQE to guarantee that we update
+ * the ci before we polled all the entries in the EQ. MLX5_NUM_SPARE_EQE is
+ * used to set the EQ size, budget must be smaller than the EQ size.
+ */
+enum {
+	MLX5_EQ_POLLING_BUDGET	= 128,
 };
+
+static_assert(MLX5_EQ_POLLING_BUDGET <= MLX5_NUM_SPARE_EQE);
 
 struct mlx5_eq_table {
 	struct list_head        comp_eqs_list;
-	struct mlx5_eq          pages_eq;
-	struct mlx5_eq	        cmd_eq;
-	struct mlx5_eq          async_eq;
+	struct mlx5_eq_async    pages_eq;
+	struct mlx5_eq_async    cmd_eq;
+	struct mlx5_eq_async    async_eq;
 
 	struct atomic_notifier_head nh[MLX5_EVENT_TYPE_MAX];
 
@@ -79,11 +83,8 @@ struct mlx5_eq_table {
 	struct mlx5_nb          cq_err_nb;
 
 	struct mutex            lock; /* sync async eqs creations */
-	int			num_comp_vectors;
-	struct mlx5_irq_info	*irq_info;
-#ifdef CONFIG_RFS_ACCEL
-	struct cpu_rmap         *rmap;
-#endif
+	int			num_comp_eqs;
+	struct mlx5_irq_table	*irq_table;
 };
 
 #define MLX5_ASYNC_EVENT_MASK ((1ull << MLX5_EVENT_TYPE_PATH_MIG)	    | \
@@ -124,16 +125,24 @@ static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
 	return cq;
 }
 
-static irqreturn_t mlx5_eq_comp_int(int irq, void *eq_ptr)
+static int mlx5_eq_comp_int(struct notifier_block *nb,
+			    __always_unused unsigned long action,
+			    __always_unused void *data)
 {
-	struct mlx5_eq_comp *eq_comp = eq_ptr;
-	struct mlx5_eq *eq = eq_ptr;
+	struct mlx5_eq_comp *eq_comp =
+		container_of(nb, struct mlx5_eq_comp, irq_nb);
+	struct mlx5_eq *eq = &eq_comp->core;
 	struct mlx5_eqe *eqe;
-	int set_ci = 0;
+	int num_eqes = 0;
 	u32 cqn = -1;
 
-	while ((eqe = next_eqe_sw(eq))) {
+	eqe = next_eqe_sw(eq);
+	if (!eqe)
+		goto out;
+
+	do {
 		struct mlx5_core_cq *cq;
+
 		/* Make sure we read EQ entry contents after we've
 		 * checked the ownership bit.
 		 */
@@ -151,26 +160,16 @@ static irqreturn_t mlx5_eq_comp_int(int irq, void *eq_ptr)
 		}
 
 		++eq->cons_index;
-		++set_ci;
 
-		/* The HCA will think the queue has overflowed if we
-		 * don't tell it we've been processing events.  We
-		 * create our EQs with MLX5_NUM_SPARE_EQE extra
-		 * entries, so we must update our consumer index at
-		 * least that often.
-		 */
-		if (unlikely(set_ci >= MLX5_NUM_SPARE_EQE)) {
-			eq_update_ci(eq, 0);
-			set_ci = 0;
-		}
-	}
+	} while ((++num_eqes < MLX5_EQ_POLLING_BUDGET) && (eqe = next_eqe_sw(eq)));
 
+out:
 	eq_update_ci(eq, 1);
 
 	if (cqn != -1)
 		tasklet_schedule(&eq_comp->tasklet_ctx.task);
 
-	return IRQ_HANDLED;
+	return 0;
 }
 
 /* Some architectures don't latch interrupts when they are disabled, so using
@@ -184,25 +183,32 @@ u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq_comp *eq)
 
 	disable_irq(eq->core.irqn);
 	count_eqe = eq->core.cons_index;
-	mlx5_eq_comp_int(eq->core.irqn, eq);
+	mlx5_eq_comp_int(&eq->irq_nb, 0, NULL);
 	count_eqe = eq->core.cons_index - count_eqe;
 	enable_irq(eq->core.irqn);
 
 	return count_eqe;
 }
 
-static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
+static int mlx5_eq_async_int(struct notifier_block *nb,
+			     unsigned long action, void *data)
 {
-	struct mlx5_eq *eq = eq_ptr;
+	struct mlx5_eq_async *eq_async =
+		container_of(nb, struct mlx5_eq_async, irq_nb);
+	struct mlx5_eq *eq = &eq_async->core;
 	struct mlx5_eq_table *eqt;
 	struct mlx5_core_dev *dev;
 	struct mlx5_eqe *eqe;
-	int set_ci = 0;
+	int num_eqes = 0;
 
 	dev = eq->dev;
 	eqt = dev->priv.eq_table;
 
-	while ((eqe = next_eqe_sw(eq))) {
+	eqe = next_eqe_sw(eq);
+	if (!eqe)
+		goto out;
+
+	do {
 		/*
 		 * Make sure we read EQ entry contents after we've
 		 * checked the ownership bit.
@@ -217,23 +223,13 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 		atomic_notifier_call_chain(&eqt->nh[MLX5_EVENT_TYPE_NOTIFY_ANY], eqe->type, eqe);
 
 		++eq->cons_index;
-		++set_ci;
 
-		/* The HCA will think the queue has overflowed if we
-		 * don't tell it we've been processing events.  We
-		 * create our EQs with MLX5_NUM_SPARE_EQE extra
-		 * entries, so we must update our consumer index at
-		 * least that often.
-		 */
-		if (unlikely(set_ci >= MLX5_NUM_SPARE_EQE)) {
-			eq_update_ci(eq, 0);
-			set_ci = 0;
-		}
-	}
+	} while ((++num_eqes < MLX5_EQ_POLLING_BUDGET) && (eqe = next_eqe_sw(eq)));
 
+out:
 	eq_update_ci(eq, 1);
 
-	return IRQ_HANDLED;
+	return 0;
 }
 
 static void init_eq_buf(struct mlx5_eq *eq)
@@ -248,22 +244,18 @@ static void init_eq_buf(struct mlx5_eq *eq)
 }
 
 static int
-create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, const char *name,
+create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	      struct mlx5_eq_param *param)
 {
-	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	struct mlx5_cq_table *cq_table = &eq->cq_table;
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
-	u8 vecidx = param->index;
+	u8 vecidx = param->irq_index;
 	__be64 *pas;
 	void *eqc;
 	int inlen;
 	u32 *in;
 	int err;
-
-	if (eq_table->irq_info[vecidx].context)
-		return -EEXIST;
 
 	/* Init CQ table */
 	memset(cq_table, 0, sizeof(*cq_table));
@@ -307,33 +299,18 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, const char *name,
 	if (err)
 		goto err_in;
 
-	snprintf(eq_table->irq_info[vecidx].name, MLX5_MAX_IRQ_NAME, "%s@pci:%s",
-		 name, pci_name(dev->pdev));
-	eq_table->irq_info[vecidx].context = param->context;
-
 	eq->vecidx = vecidx;
 	eq->eqn = MLX5_GET(create_eq_out, out, eq_number);
 	eq->irqn = pci_irq_vector(dev->pdev, vecidx);
 	eq->dev = dev;
 	eq->doorbell = priv->uar->map + MLX5_EQ_DOORBEL_OFFSET;
-	err = request_irq(eq->irqn, param->handler, 0,
-			  eq_table->irq_info[vecidx].name, param->context);
-	if (err)
-		goto err_eq;
 
 	err = mlx5_debug_eq_add(dev, eq);
 	if (err)
-		goto err_irq;
-
-	/* EQs are created in ARMED state
-	 */
-	eq_update_ci(eq, 1);
+		goto err_eq;
 
 	kvfree(in);
 	return 0;
-
-err_irq:
-	free_irq(eq->irqn, eq);
 
 err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
@@ -346,18 +323,48 @@ err_buf:
 	return err;
 }
 
-static int destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
+/**
+ * mlx5_eq_enable - Enable EQ for receiving EQEs
+ * @dev - Device which owns the eq
+ * @eq - EQ to enable
+ * @nb - notifier call block
+ * mlx5_eq_enable - must be called after EQ is created in device.
+ */
+int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
+		   struct notifier_block *nb)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
-	struct mlx5_irq_info *irq_info;
 	int err;
 
-	irq_info = &eq_table->irq_info[eq->vecidx];
+	err = mlx5_irq_attach_nb(eq_table->irq_table, eq->vecidx, nb);
+	if (!err)
+		eq_update_ci(eq, 1);
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_eq_enable);
+
+/**
+ * mlx5_eq_disable - Enable EQ for receiving EQEs
+ * @dev - Device which owns the eq
+ * @eq - EQ to disable
+ * @nb - notifier call block
+ * mlx5_eq_disable - must be called before EQ is destroyed.
+ */
+void mlx5_eq_disable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
+		     struct notifier_block *nb)
+{
+	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
+
+	mlx5_irq_detach_nb(eq_table->irq_table, eq->vecidx, nb);
+}
+EXPORT_SYMBOL(mlx5_eq_disable);
+
+static int destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
+{
+	int err;
 
 	mlx5_debug_eq_remove(dev, eq);
-
-	free_irq(eq->irqn, irq_info->context);
-	irq_info->context = NULL;
 
 	err = mlx5_cmd_destroy_eq(dev, eq->eqn);
 	if (err)
@@ -423,6 +430,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 	for (i = 0; i < MLX5_EVENT_TYPE_MAX; i++)
 		ATOMIC_INIT_NOTIFIER_HEAD(&eq_table->nh[i]);
 
+	eq_table->irq_table = dev->priv.irq_table;
 	return 0;
 
 kvfree_eq_table:
@@ -439,19 +447,20 @@ void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev)
 
 /* Async EQs */
 
-static int create_async_eq(struct mlx5_core_dev *dev, const char *name,
+static int create_async_eq(struct mlx5_core_dev *dev,
 			   struct mlx5_eq *eq, struct mlx5_eq_param *param)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	int err;
 
 	mutex_lock(&eq_table->lock);
-	if (param->index >= MLX5_EQ_MAX_ASYNC_EQS) {
-		err = -ENOSPC;
+	/* Async EQs must share irq index 0 */
+	if (param->irq_index != 0) {
+		err = -EINVAL;
 		goto unlock;
 	}
 
-	err = create_map_eq(dev, eq, name, param);
+	err = create_map_eq(dev, eq, param);
 unlock:
 	mutex_unlock(&eq_table->lock);
 	return err;
@@ -480,7 +489,7 @@ static int cq_err_event_notifier(struct notifier_block *nb,
 	/* type == MLX5_EVENT_TYPE_CQ_ERROR */
 
 	eqt = mlx5_nb_cof(nb, struct mlx5_eq_table, cq_err_nb);
-	eq  = &eqt->async_eq;
+	eq  = &eqt->async_eq.core;
 	eqe = data;
 
 	cqn = be32_to_cpu(eqe->data.cq_err.cqn) & 0xffffff;
@@ -549,55 +558,73 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	MLX5_NB_INIT(&table->cq_err_nb, cq_err_event_notifier, CQ_ERROR);
 	mlx5_eq_notifier_register(dev, &table->cq_err_nb);
 
+	table->cmd_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
-		.index = MLX5_EQ_CMD_IDX,
+		.irq_index = 0,
 		.mask = 1ull << MLX5_EVENT_TYPE_CMD,
 		.nent = MLX5_NUM_CMD_EQE,
-		.context = &table->cmd_eq,
-		.handler = mlx5_eq_async_int,
 	};
-	err = create_async_eq(dev, "mlx5_cmd_eq", &table->cmd_eq, &param);
+	err = create_async_eq(dev, &table->cmd_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create cmd EQ %d\n", err);
 		goto err0;
 	}
-
-	mlx5_cmd_use_events(dev);
-
-	param = (struct mlx5_eq_param) {
-		.index = MLX5_EQ_ASYNC_IDX,
-		.mask = gather_async_events_mask(dev),
-		.nent = MLX5_NUM_ASYNC_EQE,
-		.context = &table->async_eq,
-		.handler = mlx5_eq_async_int,
-	};
-	err = create_async_eq(dev, "mlx5_async_eq", &table->async_eq, &param);
+	err = mlx5_eq_enable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
 	if (err) {
-		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
+		mlx5_core_warn(dev, "failed to enable cmd EQ %d\n", err);
 		goto err1;
 	}
+	mlx5_cmd_use_events(dev);
 
+	table->async_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
-		.index = MLX5_EQ_PAGEREQ_IDX,
+		.irq_index = 0,
+		.mask = gather_async_events_mask(dev),
+		.nent = MLX5_NUM_ASYNC_EQE,
+	};
+	err = create_async_eq(dev, &table->async_eq.core, &param);
+	if (err) {
+		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
+		goto err2;
+	}
+	err = mlx5_eq_enable(dev, &table->async_eq.core,
+			     &table->async_eq.irq_nb);
+	if (err) {
+		mlx5_core_warn(dev, "failed to enable async EQ %d\n", err);
+		goto err3;
+	}
+
+	table->pages_eq.irq_nb.notifier_call = mlx5_eq_async_int;
+	param = (struct mlx5_eq_param) {
+		.irq_index = 0,
 		.mask =  1 << MLX5_EVENT_TYPE_PAGE_REQUEST,
 		.nent = /* TODO: sriov max_vf + */ 1,
-		.context = &table->pages_eq,
-		.handler = mlx5_eq_async_int,
 	};
-	err = create_async_eq(dev, "mlx5_pages_eq", &table->pages_eq, &param);
+	err = create_async_eq(dev, &table->pages_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create pages EQ %d\n", err);
-		goto err2;
+		goto err4;
+	}
+	err = mlx5_eq_enable(dev, &table->pages_eq.core,
+			     &table->pages_eq.irq_nb);
+	if (err) {
+		mlx5_core_warn(dev, "failed to enable pages EQ %d\n", err);
+		goto err5;
 	}
 
 	return err;
 
+err5:
+	destroy_async_eq(dev, &table->pages_eq.core);
+err4:
+	mlx5_eq_disable(dev, &table->async_eq.core, &table->async_eq.irq_nb);
+err3:
+	destroy_async_eq(dev, &table->async_eq.core);
 err2:
-	destroy_async_eq(dev, &table->async_eq);
-
-err1:
 	mlx5_cmd_use_polling(dev);
-	destroy_async_eq(dev, &table->cmd_eq);
+	mlx5_eq_disable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
+err1:
+	destroy_async_eq(dev, &table->cmd_eq.core);
 err0:
 	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
 	return err;
@@ -608,19 +635,22 @@ static void destroy_async_eqs(struct mlx5_core_dev *dev)
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	int err;
 
-	err = destroy_async_eq(dev, &table->pages_eq);
+	mlx5_eq_disable(dev, &table->pages_eq.core, &table->pages_eq.irq_nb);
+	err = destroy_async_eq(dev, &table->pages_eq.core);
 	if (err)
 		mlx5_core_err(dev, "failed to destroy pages eq, err(%d)\n",
 			      err);
 
-	err = destroy_async_eq(dev, &table->async_eq);
+	mlx5_eq_disable(dev, &table->async_eq.core, &table->async_eq.irq_nb);
+	err = destroy_async_eq(dev, &table->async_eq.core);
 	if (err)
 		mlx5_core_err(dev, "failed to destroy async eq, err(%d)\n",
 			      err);
 
 	mlx5_cmd_use_polling(dev);
 
-	err = destroy_async_eq(dev, &table->cmd_eq);
+	mlx5_eq_disable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
+	err = destroy_async_eq(dev, &table->cmd_eq.core);
 	if (err)
 		mlx5_core_err(dev, "failed to destroy command eq, err(%d)\n",
 			      err);
@@ -630,24 +660,24 @@ static void destroy_async_eqs(struct mlx5_core_dev *dev)
 
 struct mlx5_eq *mlx5_get_async_eq(struct mlx5_core_dev *dev)
 {
-	return &dev->priv.eq_table->async_eq;
+	return &dev->priv.eq_table->async_eq.core;
 }
 
 void mlx5_eq_synchronize_async_irq(struct mlx5_core_dev *dev)
 {
-	synchronize_irq(dev->priv.eq_table->async_eq.irqn);
+	synchronize_irq(dev->priv.eq_table->async_eq.core.irqn);
 }
 
 void mlx5_eq_synchronize_cmd_irq(struct mlx5_core_dev *dev)
 {
-	synchronize_irq(dev->priv.eq_table->cmd_eq.irqn);
+	synchronize_irq(dev->priv.eq_table->cmd_eq.core.irqn);
 }
 
 /* Generic EQ API for mlx5_core consumers
  * Needed For RDMA ODP EQ for now
  */
 struct mlx5_eq *
-mlx5_eq_create_generic(struct mlx5_core_dev *dev, const char *name,
+mlx5_eq_create_generic(struct mlx5_core_dev *dev,
 		       struct mlx5_eq_param *param)
 {
 	struct mlx5_eq *eq = kvzalloc(sizeof(*eq), GFP_KERNEL);
@@ -656,7 +686,7 @@ mlx5_eq_create_generic(struct mlx5_core_dev *dev, const char *name,
 	if (!eq)
 		return ERR_PTR(-ENOMEM);
 
-	err = create_async_eq(dev, name, eq, param);
+	err = create_async_eq(dev, eq, param);
 	if (err) {
 		kvfree(eq);
 		eq = ERR_PTR(err);
@@ -714,84 +744,14 @@ void mlx5_eq_update_ci(struct mlx5_eq *eq, u32 cc, bool arm)
 }
 EXPORT_SYMBOL(mlx5_eq_update_ci);
 
-/* Completion EQs */
-
-static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
-{
-	struct mlx5_priv *priv  = &mdev->priv;
-	int vecidx = MLX5_EQ_VEC_COMP_BASE + i;
-	int irq = pci_irq_vector(mdev->pdev, vecidx);
-	struct mlx5_irq_info *irq_info = &priv->eq_table->irq_info[vecidx];
-
-	if (!zalloc_cpumask_var(&irq_info->mask, GFP_KERNEL)) {
-		mlx5_core_warn(mdev, "zalloc_cpumask_var failed");
-		return -ENOMEM;
-	}
-
-	cpumask_set_cpu(cpumask_local_spread(i, priv->numa_node),
-			irq_info->mask);
-
-	if (IS_ENABLED(CONFIG_SMP) &&
-	    irq_set_affinity_hint(irq, irq_info->mask))
-		mlx5_core_warn(mdev, "irq_set_affinity_hint failed, irq 0x%.4x", irq);
-
-	return 0;
-}
-
-static void clear_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
-{
-	int vecidx = MLX5_EQ_VEC_COMP_BASE + i;
-	struct mlx5_priv *priv  = &mdev->priv;
-	int irq = pci_irq_vector(mdev->pdev, vecidx);
-	struct mlx5_irq_info *irq_info = &priv->eq_table->irq_info[vecidx];
-
-	irq_set_affinity_hint(irq, NULL);
-	free_cpumask_var(irq_info->mask);
-}
-
-static int set_comp_irq_affinity_hints(struct mlx5_core_dev *mdev)
-{
-	int err;
-	int i;
-
-	for (i = 0; i < mdev->priv.eq_table->num_comp_vectors; i++) {
-		err = set_comp_irq_affinity_hint(mdev, i);
-		if (err)
-			goto err_out;
-	}
-
-	return 0;
-
-err_out:
-	for (i--; i >= 0; i--)
-		clear_comp_irq_affinity_hint(mdev, i);
-
-	return err;
-}
-
-static void clear_comp_irqs_affinity_hints(struct mlx5_core_dev *mdev)
-{
-	int i;
-
-	for (i = 0; i < mdev->priv.eq_table->num_comp_vectors; i++)
-		clear_comp_irq_affinity_hint(mdev, i);
-}
-
 static void destroy_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	struct mlx5_eq_comp *eq, *n;
 
-	clear_comp_irqs_affinity_hints(dev);
-
-#ifdef CONFIG_RFS_ACCEL
-	if (table->rmap) {
-		free_irq_cpu_rmap(table->rmap);
-		table->rmap = NULL;
-	}
-#endif
 	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
 		list_del(&eq->list);
+		mlx5_eq_disable(dev, &eq->core, &eq->irq_nb);
 		if (destroy_unmap_eq(dev, &eq->core))
 			mlx5_core_warn(dev, "failed to destroy comp EQ 0x%x\n",
 				       eq->core.eqn);
@@ -803,23 +763,17 @@ static void destroy_comp_eqs(struct mlx5_core_dev *dev)
 static int create_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	char name[MLX5_MAX_IRQ_NAME];
 	struct mlx5_eq_comp *eq;
-	int ncomp_vec;
+	int ncomp_eqs;
 	int nent;
 	int err;
 	int i;
 
 	INIT_LIST_HEAD(&table->comp_eqs_list);
-	ncomp_vec = table->num_comp_vectors;
+	ncomp_eqs = table->num_comp_eqs;
 	nent = MLX5_COMP_EQ_SIZE;
-#ifdef CONFIG_RFS_ACCEL
-	table->rmap = alloc_irq_cpu_rmap(ncomp_vec);
-	if (!table->rmap)
-		return -ENOMEM;
-#endif
-	for (i = 0; i < ncomp_vec; i++) {
-		int vecidx = i + MLX5_EQ_VEC_COMP_BASE;
+	for (i = 0; i < ncomp_eqs; i++) {
+		int vecidx = i + MLX5_IRQ_VEC_COMP_BASE;
 		struct mlx5_eq_param param = {};
 
 		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
@@ -834,31 +788,27 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		tasklet_init(&eq->tasklet_ctx.task, mlx5_cq_tasklet_cb,
 			     (unsigned long)&eq->tasklet_ctx);
 
-#ifdef CONFIG_RFS_ACCEL
-		irq_cpu_rmap_add(table->rmap, pci_irq_vector(dev->pdev, vecidx));
-#endif
-		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
+		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param) {
-			.index = vecidx,
+			.irq_index = vecidx,
 			.mask = 0,
 			.nent = nent,
-			.context = &eq->core,
-			.handler = mlx5_eq_comp_int
 		};
-		err = create_map_eq(dev, &eq->core, name, &param);
+		err = create_map_eq(dev, &eq->core, &param);
 		if (err) {
 			kfree(eq);
 			goto clean;
 		}
+		err = mlx5_eq_enable(dev, &eq->core, &eq->irq_nb);
+		if (err) {
+			destroy_unmap_eq(dev, &eq->core);
+			kfree(eq);
+			goto clean;
+		}
+
 		mlx5_core_dbg(dev, "allocated completion EQN %d\n", eq->core.eqn);
 		/* add tail, to keep the list ordered, for mlx5_vector2eqn to work */
 		list_add_tail(&eq->list, &table->comp_eqs_list);
-	}
-
-	err = set_comp_irq_affinity_hints(dev);
-	if (err) {
-		mlx5_core_err(dev, "Failed to alloc affinity hint cpumask\n");
-		goto clean;
 	}
 
 	return 0;
@@ -891,22 +841,24 @@ EXPORT_SYMBOL(mlx5_vector2eqn);
 
 unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev)
 {
-	return dev->priv.eq_table->num_comp_vectors;
+	return dev->priv.eq_table->num_comp_eqs;
 }
 EXPORT_SYMBOL(mlx5_comp_vectors_count);
 
 struct cpumask *
 mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 {
-	/* TODO: consider irq_get_affinity_mask(irq) */
-	return dev->priv.eq_table->irq_info[vector + MLX5_EQ_VEC_COMP_BASE].mask;
+	int vecidx = vector + MLX5_IRQ_VEC_COMP_BASE;
+
+	return mlx5_irq_get_affinity_mask(dev->priv.eq_table->irq_table,
+					  vecidx);
 }
 EXPORT_SYMBOL(mlx5_comp_irq_get_affinity_mask);
 
 #ifdef CONFIG_RFS_ACCEL
 struct cpu_rmap *mlx5_eq_table_get_rmap(struct mlx5_core_dev *dev)
 {
-	return dev->priv.eq_table->rmap;
+	return mlx5_irq_get_rmap(dev->priv.eq_table->irq_table);
 }
 #endif
 
@@ -927,82 +879,19 @@ struct mlx5_eq_comp *mlx5_eqn2comp_eq(struct mlx5_core_dev *dev, int eqn)
 void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	int i, max_eqs;
-
-	clear_comp_irqs_affinity_hints(dev);
-
-#ifdef CONFIG_RFS_ACCEL
-	if (table->rmap) {
-		free_irq_cpu_rmap(table->rmap);
-		table->rmap = NULL;
-	}
-#endif
 
 	mutex_lock(&table->lock); /* sync with create/destroy_async_eq */
-	max_eqs = table->num_comp_vectors + MLX5_EQ_VEC_COMP_BASE;
-	for (i = max_eqs - 1; i >= 0; i--) {
-		if (!table->irq_info[i].context)
-			continue;
-		free_irq(pci_irq_vector(dev->pdev, i), table->irq_info[i].context);
-		table->irq_info[i].context = NULL;
-	}
+	mlx5_irq_table_destroy(dev);
 	mutex_unlock(&table->lock);
-	pci_free_irq_vectors(dev->pdev);
-}
-
-static int alloc_irq_vectors(struct mlx5_core_dev *dev)
-{
-	struct mlx5_priv *priv = &dev->priv;
-	struct mlx5_eq_table *table = priv->eq_table;
-	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
-		      MLX5_CAP_GEN(dev, max_num_eqs) :
-		      1 << MLX5_CAP_GEN(dev, log_max_eq);
-	int nvec;
-	int err;
-
-	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
-	       MLX5_EQ_VEC_COMP_BASE;
-	nvec = min_t(int, nvec, num_eqs);
-	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
-		return -ENOMEM;
-
-	table->irq_info = kcalloc(nvec, sizeof(*table->irq_info), GFP_KERNEL);
-	if (!table->irq_info)
-		return -ENOMEM;
-
-	nvec = pci_alloc_irq_vectors(dev->pdev, MLX5_EQ_VEC_COMP_BASE + 1,
-				     nvec, PCI_IRQ_MSIX);
-	if (nvec < 0) {
-		err = nvec;
-		goto err_free_irq_info;
-	}
-
-	table->num_comp_vectors = nvec - MLX5_EQ_VEC_COMP_BASE;
-
-	return 0;
-
-err_free_irq_info:
-	kfree(table->irq_info);
-	return err;
-}
-
-static void free_irq_vectors(struct mlx5_core_dev *dev)
-{
-	struct mlx5_priv *priv = &dev->priv;
-
-	pci_free_irq_vectors(dev->pdev);
-	kfree(priv->eq_table->irq_info);
 }
 
 int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 {
+	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	int err;
 
-	err = alloc_irq_vectors(dev);
-	if (err) {
-		mlx5_core_err(dev, "alloc irq vectors failed\n");
-		return err;
-	}
+	eq_table->num_comp_eqs =
+		mlx5_irq_get_num_comp(eq_table->irq_table);
 
 	err = create_async_eqs(dev);
 	if (err) {
@@ -1020,7 +909,6 @@ int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 err_comp_eqs:
 	destroy_async_eqs(dev);
 err_async_eqs:
-	free_irq_vectors(dev);
 	return err;
 }
 
@@ -1028,7 +916,6 @@ void mlx5_eq_table_destroy(struct mlx5_core_dev *dev)
 {
 	destroy_comp_eqs(dev);
 	destroy_async_eqs(dev);
-	free_irq_vectors(dev);
 }
 
 int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb)

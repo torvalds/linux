@@ -584,7 +584,7 @@ err_ida_remove:
 }
 
 static struct fs_fte *alloc_fte(struct mlx5_flow_table *ft,
-				u32 *match_value,
+				const struct mlx5_flow_spec *spec,
 				struct mlx5_flow_act *flow_act)
 {
 	struct mlx5_flow_steering *steering = get_steering(&ft->node);
@@ -594,9 +594,10 @@ static struct fs_fte *alloc_fte(struct mlx5_flow_table *ft,
 	if (!fte)
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(fte->val, match_value, sizeof(fte->val));
+	memcpy(fte->val, &spec->match_value, sizeof(fte->val));
 	fte->node.type =  FS_TYPE_FLOW_ENTRY;
 	fte->action = *flow_act;
+	fte->flow_context = spec->flow_context;
 
 	tree_init_node(&fte->node, NULL, del_sw_fte);
 
@@ -612,7 +613,7 @@ static void dealloc_flow_group(struct mlx5_flow_steering *steering,
 
 static struct mlx5_flow_group *alloc_flow_group(struct mlx5_flow_steering *steering,
 						u8 match_criteria_enable,
-						void *match_criteria,
+						const void *match_criteria,
 						int start_index,
 						int end_index)
 {
@@ -642,7 +643,7 @@ static struct mlx5_flow_group *alloc_flow_group(struct mlx5_flow_steering *steer
 
 static struct mlx5_flow_group *alloc_insert_flow_group(struct mlx5_flow_table *ft,
 						       u8 match_criteria_enable,
-						       void *match_criteria,
+						       const void *match_criteria,
 						       int start_index,
 						       int end_index,
 						       struct list_head *prev)
@@ -1285,7 +1286,7 @@ free_handle:
 }
 
 static struct mlx5_flow_group *alloc_auto_flow_group(struct mlx5_flow_table  *ft,
-						     struct mlx5_flow_spec *spec)
+						     const struct mlx5_flow_spec *spec)
 {
 	struct list_head *prev = &ft->node.children;
 	struct mlx5_flow_group *fg;
@@ -1430,7 +1431,9 @@ static bool check_conflicting_actions(u32 action1, u32 action2)
 	return false;
 }
 
-static int check_conflicting_ftes(struct fs_fte *fte, const struct mlx5_flow_act *flow_act)
+static int check_conflicting_ftes(struct fs_fte *fte,
+				  const struct mlx5_flow_context *flow_context,
+				  const struct mlx5_flow_act *flow_act)
 {
 	if (check_conflicting_actions(flow_act->action, fte->action.action)) {
 		mlx5_core_warn(get_dev(&fte->node),
@@ -1438,12 +1441,12 @@ static int check_conflicting_ftes(struct fs_fte *fte, const struct mlx5_flow_act
 		return -EEXIST;
 	}
 
-	if ((flow_act->flags & FLOW_ACT_HAS_TAG) &&
-	    fte->action.flow_tag != flow_act->flow_tag) {
+	if ((flow_context->flags & FLOW_CONTEXT_HAS_TAG) &&
+	    fte->flow_context.flow_tag != flow_context->flow_tag) {
 		mlx5_core_warn(get_dev(&fte->node),
 			       "FTE flow tag %u already exists with different flow tag %u\n",
-			       fte->action.flow_tag,
-			       flow_act->flow_tag);
+			       fte->flow_context.flow_tag,
+			       flow_context->flow_tag);
 		return -EEXIST;
 	}
 
@@ -1451,7 +1454,7 @@ static int check_conflicting_ftes(struct fs_fte *fte, const struct mlx5_flow_act
 }
 
 static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
-					    u32 *match_value,
+					    const struct mlx5_flow_spec *spec,
 					    struct mlx5_flow_act *flow_act,
 					    struct mlx5_flow_destination *dest,
 					    int dest_num,
@@ -1462,7 +1465,7 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	int i;
 	int ret;
 
-	ret = check_conflicting_ftes(fte, flow_act);
+	ret = check_conflicting_ftes(fte, &spec->flow_context, flow_act);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -1536,7 +1539,7 @@ static void free_match_list(struct match_list_head *head)
 
 static int build_match_list(struct match_list_head *match_head,
 			    struct mlx5_flow_table *ft,
-			    struct mlx5_flow_spec *spec)
+			    const struct mlx5_flow_spec *spec)
 {
 	struct rhlist_head *tmp, *list;
 	struct mlx5_flow_group *g;
@@ -1589,7 +1592,7 @@ static u64 matched_fgs_get_version(struct list_head *match_head)
 
 static struct fs_fte *
 lookup_fte_locked(struct mlx5_flow_group *g,
-		  u32 *match_value,
+		  const u32 *match_value,
 		  bool take_write)
 {
 	struct fs_fte *fte_tmp;
@@ -1622,7 +1625,7 @@ out:
 static struct mlx5_flow_handle *
 try_add_to_existing_fg(struct mlx5_flow_table *ft,
 		       struct list_head *match_head,
-		       struct mlx5_flow_spec *spec,
+		       const struct mlx5_flow_spec *spec,
 		       struct mlx5_flow_act *flow_act,
 		       struct mlx5_flow_destination *dest,
 		       int dest_num,
@@ -1637,7 +1640,7 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 	u64  version;
 	int err;
 
-	fte = alloc_fte(ft, spec->match_value, flow_act);
+	fte = alloc_fte(ft, spec, flow_act);
 	if (IS_ERR(fte))
 		return  ERR_PTR(-ENOMEM);
 
@@ -1653,8 +1656,7 @@ search_again_locked:
 		fte_tmp = lookup_fte_locked(g, spec->match_value, take_write);
 		if (!fte_tmp)
 			continue;
-		rule = add_rule_fg(g, spec->match_value,
-				   flow_act, dest, dest_num, fte_tmp);
+		rule = add_rule_fg(g, spec, flow_act, dest, dest_num, fte_tmp);
 		up_write_ref_node(&fte_tmp->node, false);
 		tree_put_node(&fte_tmp->node, false);
 		kmem_cache_free(steering->ftes_cache, fte);
@@ -1701,8 +1703,7 @@ skip_search:
 
 		nested_down_write_ref_node(&fte->node, FS_LOCK_CHILD);
 		up_write_ref_node(&g->node, false);
-		rule = add_rule_fg(g, spec->match_value,
-				   flow_act, dest, dest_num, fte);
+		rule = add_rule_fg(g, spec, flow_act, dest, dest_num, fte);
 		up_write_ref_node(&fte->node, false);
 		tree_put_node(&fte->node, false);
 		return rule;
@@ -1715,7 +1716,7 @@ out:
 
 static struct mlx5_flow_handle *
 _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
-		     struct mlx5_flow_spec *spec,
+		     const struct mlx5_flow_spec *spec,
 		     struct mlx5_flow_act *flow_act,
 		     struct mlx5_flow_destination *dest,
 		     int dest_num)
@@ -1788,7 +1789,7 @@ search_again_locked:
 	if (err)
 		goto err_release_fg;
 
-	fte = alloc_fte(ft, spec->match_value, flow_act);
+	fte = alloc_fte(ft, spec, flow_act);
 	if (IS_ERR(fte)) {
 		err = PTR_ERR(fte);
 		goto err_release_fg;
@@ -1802,8 +1803,7 @@ search_again_locked:
 
 	nested_down_write_ref_node(&fte->node, FS_LOCK_CHILD);
 	up_write_ref_node(&g->node, false);
-	rule = add_rule_fg(g, spec->match_value, flow_act, dest,
-			   dest_num, fte);
+	rule = add_rule_fg(g, spec, flow_act, dest, dest_num, fte);
 	up_write_ref_node(&fte->node, false);
 	tree_put_node(&fte->node, false);
 	tree_put_node(&g->node, false);
@@ -1823,7 +1823,7 @@ static bool fwd_next_prio_supported(struct mlx5_flow_table *ft)
 
 struct mlx5_flow_handle *
 mlx5_add_flow_rules(struct mlx5_flow_table *ft,
-		    struct mlx5_flow_spec *spec,
+		    const struct mlx5_flow_spec *spec,
 		    struct mlx5_flow_act *flow_act,
 		    struct mlx5_flow_destination *dest,
 		    int num_dest)

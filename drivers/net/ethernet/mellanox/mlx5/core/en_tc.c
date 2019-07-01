@@ -717,18 +717,21 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow *flow,
 		      struct netlink_ext_ack *extack)
 {
+	struct mlx5_flow_context *flow_context = &parse_attr->spec.flow_context;
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	struct mlx5_core_dev *dev = priv->mdev;
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
-		.flow_tag = attr->flow_tag,
 		.reformat_id = 0,
-		.flags    = FLOW_ACT_HAS_TAG | FLOW_ACT_NO_APPEND,
+		.flags    = FLOW_ACT_NO_APPEND,
 	};
 	struct mlx5_fc *counter = NULL;
 	bool table_created = false;
 	int err, dest_ix = 0;
+
+	flow_context->flags |= FLOW_CONTEXT_HAS_TAG;
+	flow_context->flow_tag = attr->flow_tag;
 
 	if (flow->flags & MLX5E_TC_FLOW_HAIRPIN) {
 		err = mlx5e_hairpin_flow_add(priv, flow, parse_attr, extack);
@@ -2799,6 +2802,16 @@ static int add_vlan_pop_action(struct mlx5e_priv *priv,
 	return err;
 }
 
+bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
+				    struct net_device *out_dev)
+{
+	if (is_merged_eswitch_dev(priv, out_dev))
+		return true;
+
+	return mlx5e_eswitch_rep(out_dev) &&
+	       same_hw_devs(priv, netdev_priv(out_dev));
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow *flow,
@@ -2864,9 +2877,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			if (netdev_port_same_parent_id(priv->netdev,
-						       out_dev) ||
-			    is_merged_eswitch_dev(priv, out_dev)) {
+			if (netdev_port_same_parent_id(priv->netdev, out_dev)) {
 				struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 				struct net_device *uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 				struct net_device *uplink_upper = netdev_master_upper_dev_get(uplink_dev);
@@ -2883,6 +2894,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 					if (err)
 						return err;
 				}
+
 				if (is_vlan_dev(parse_attr->filter_dev)) {
 					err = add_vlan_pop_action(priv, attr,
 								  &action);
@@ -2890,8 +2902,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 						return err;
 				}
 
-				if (!mlx5e_eswitch_rep(out_dev))
+				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
+					NL_SET_ERR_MSG_MOD(extack,
+							   "devices are not on same switch HW, can't offload forwarding");
+					pr_err("devices %s %s not on same switch HW, can't offload forwarding\n",
+					       priv->netdev->name, out_dev->name);
 					return -EOPNOTSUPP;
+				}
 
 				out_priv = netdev_priv(out_dev);
 				rpriv = out_priv->ppriv;

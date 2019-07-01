@@ -768,7 +768,7 @@ static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
 	bcnt -= *bytes_committed;
 
 next_mr:
-	mmkey = __mlx5_mr_lookup(dev->mdev, mlx5_base_mkey(key));
+	mmkey = xa_load(&dev->mdev->priv.mkey_table, mlx5_base_mkey(key));
 	if (!mkey_is_eq(mmkey, key)) {
 		mlx5_ib_dbg(dev, "failed to find mkey %x\n", key);
 		ret = -EFAULT;
@@ -1488,9 +1488,11 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 	mlx5_eq_update_ci(eq->core, cc, 1);
 }
 
-static irqreturn_t mlx5_ib_eq_pf_int(int irq, void *eq_ptr)
+static int mlx5_ib_eq_pf_int(struct notifier_block *nb, unsigned long type,
+			     void *data)
 {
-	struct mlx5_ib_pf_eq *eq = eq_ptr;
+	struct mlx5_ib_pf_eq *eq =
+		container_of(nb, struct mlx5_ib_pf_eq, irq_nb);
 	unsigned long flags;
 
 	if (spin_trylock_irqsave(&eq->lock, flags)) {
@@ -1553,20 +1555,26 @@ mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 		goto err_mempool;
 	}
 
+	eq->irq_nb.notifier_call = mlx5_ib_eq_pf_int;
 	param = (struct mlx5_eq_param) {
-		.index = MLX5_EQ_PFAULT_IDX,
+		.irq_index = 0,
 		.mask = 1 << MLX5_EVENT_TYPE_PAGE_FAULT,
 		.nent = MLX5_IB_NUM_PF_EQE,
-		.context = eq,
-		.handler = mlx5_ib_eq_pf_int
 	};
-	eq->core = mlx5_eq_create_generic(dev->mdev, "mlx5_ib_page_fault_eq", &param);
+	eq->core = mlx5_eq_create_generic(dev->mdev, &param);
 	if (IS_ERR(eq->core)) {
 		err = PTR_ERR(eq->core);
 		goto err_wq;
 	}
+	err = mlx5_eq_enable(dev->mdev, eq->core, &eq->irq_nb);
+	if (err) {
+		mlx5_ib_err(dev, "failed to enable odp EQ %d\n", err);
+		goto err_eq;
+	}
 
 	return 0;
+err_eq:
+	mlx5_eq_destroy_generic(dev->mdev, eq->core);
 err_wq:
 	destroy_workqueue(eq->wq);
 err_mempool:
@@ -1579,6 +1587,7 @@ mlx5_ib_destroy_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 {
 	int err;
 
+	mlx5_eq_disable(dev->mdev, eq->core, &eq->irq_nb);
 	err = mlx5_eq_destroy_generic(dev->mdev, eq->core);
 	cancel_work_sync(&eq->work);
 	destroy_workqueue(eq->wq);
@@ -1677,8 +1686,8 @@ static void num_pending_prefetch_dec(struct mlx5_ib_dev *dev,
 		struct mlx5_core_mkey *mmkey;
 		struct mlx5_ib_mr *mr;
 
-		mmkey = __mlx5_mr_lookup(dev->mdev,
-					 mlx5_base_mkey(sg_list[i].lkey));
+		mmkey = xa_load(&dev->mdev->priv.mkey_table,
+				mlx5_base_mkey(sg_list[i].lkey));
 		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 		atomic_dec(&mr->num_pending_prefetch);
 	}
@@ -1697,8 +1706,8 @@ static bool num_pending_prefetch_inc(struct ib_pd *pd,
 		struct mlx5_core_mkey *mmkey;
 		struct mlx5_ib_mr *mr;
 
-		mmkey = __mlx5_mr_lookup(dev->mdev,
-					 mlx5_base_mkey(sg_list[i].lkey));
+		mmkey = xa_load(&dev->mdev->priv.mkey_table,
+				mlx5_base_mkey(sg_list[i].lkey));
 		if (!mmkey || mmkey->key != sg_list[i].lkey) {
 			ret = false;
 			break;

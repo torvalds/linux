@@ -391,30 +391,19 @@ static const struct ethtool_ops mlx5e_uplink_rep_ethtool_ops = {
 static int mlx5e_rep_get_port_parent_id(struct net_device *dev,
 					struct netdev_phys_item_id *ppid)
 {
-	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct net_device *uplink_upper = NULL;
-	struct mlx5e_priv *uplink_priv = NULL;
-	struct net_device *uplink_dev;
+	struct mlx5_eswitch *esw;
+	struct mlx5e_priv *priv;
+	u64 parent_id;
+
+	priv = netdev_priv(dev);
+	esw = priv->mdev->priv.eswitch;
 
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
-	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
-	if (uplink_dev) {
-		uplink_upper = netdev_master_upper_dev_get(uplink_dev);
-		uplink_priv = netdev_priv(uplink_dev);
-	}
-
-	ppid->id_len = ETH_ALEN;
-	if (uplink_upper && mlx5_lag_is_sriov(uplink_priv->mdev)) {
-		ether_addr_copy(ppid->id, uplink_upper->dev_addr);
-	} else {
-		struct mlx5e_rep_priv *rpriv = priv->ppriv;
-		struct mlx5_eswitch_rep *rep = rpriv->rep;
-
-		ether_addr_copy(ppid->id, rep->hw_id);
-	}
+	parent_id = mlx5_query_nic_system_image_guid(priv->mdev);
+	ppid->id_len = sizeof(parent_id);
+	memcpy(ppid->id, &parent_id, sizeof(parent_id));
 
 	return 0;
 }
@@ -1145,6 +1134,8 @@ static int mlx5e_rep_get_phys_port_name(struct net_device *dev,
 
 	if (rep->vport == MLX5_VPORT_UPLINK)
 		ret = snprintf(buf, len, "p%d", fn);
+	else if (rep->vport == MLX5_VPORT_PF)
+		ret = snprintf(buf, len, "pf%d", fn);
 	else
 		ret = snprintf(buf, len, "pf%dvf%d", fn, rep->vport - 1);
 
@@ -1636,6 +1627,11 @@ static void mlx5e_rep_enable(struct mlx5e_priv *priv)
 	mlx5e_set_netdev_mtu_boundaries(priv);
 }
 
+static int mlx5e_update_rep_rx(struct mlx5e_priv *priv)
+{
+	return 0;
+}
+
 static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5e_priv *priv = container_of(nb, struct mlx5e_priv, events_nb);
@@ -1711,6 +1707,7 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 	.init_tx		= mlx5e_init_rep_tx,
 	.cleanup_tx		= mlx5e_cleanup_rep_tx,
 	.enable		        = mlx5e_rep_enable,
+	.update_rx		= mlx5e_update_rep_rx,
 	.update_stats           = mlx5e_rep_update_hw_counters,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
@@ -1726,6 +1723,7 @@ static const struct mlx5e_profile mlx5e_uplink_rep_profile = {
 	.cleanup_tx		= mlx5e_cleanup_rep_tx,
 	.enable		        = mlx5e_uplink_rep_enable,
 	.disable	        = mlx5e_uplink_rep_disable,
+	.update_rx		= mlx5e_update_rep_rx,
 	.update_stats           = mlx5e_uplink_rep_update_hw_counters,
 	.update_carrier	        = mlx5e_update_carrier,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,

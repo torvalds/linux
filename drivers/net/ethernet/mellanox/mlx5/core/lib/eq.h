@@ -7,7 +7,6 @@
 #include <linux/mlx5/eq.h>
 #include <linux/mlx5/cq.h>
 
-#define MLX5_MAX_IRQ_NAME   (32)
 #define MLX5_EQE_SIZE       (sizeof(struct mlx5_eqe))
 
 struct mlx5_eq_tasklet {
@@ -36,8 +35,14 @@ struct mlx5_eq {
 	struct mlx5_rsc_debug   *dbg;
 };
 
+struct mlx5_eq_async {
+	struct mlx5_eq          core;
+	struct notifier_block   irq_nb;
+};
+
 struct mlx5_eq_comp {
-	struct mlx5_eq          core; /* Must be first */
+	struct mlx5_eq          core;
+	struct notifier_block   irq_nb;
 	struct mlx5_eq_tasklet  tasklet_ctx;
 	struct list_head        list;
 };

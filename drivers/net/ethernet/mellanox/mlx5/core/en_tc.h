@@ -74,6 +74,9 @@ int mlx5e_tc_num_filters(struct mlx5e_priv *priv, int flags);
 
 void mlx5e_tc_reoffload_flows_work(struct work_struct *work);
 
+bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
+				    struct net_device *out_dev);
+
 #else /* CONFIG_MLX5_ESWITCH */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}

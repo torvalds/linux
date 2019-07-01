@@ -41,7 +41,7 @@
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/radix-tree.h>
+#include <linux/xarray.h>
 #include <linux/workqueue.h>
 #include <linux/mempool.h>
 #include <linux/interrupt.h>
@@ -458,13 +458,6 @@ struct mlx5_qp_table {
 	struct radix_tree_root	tree;
 };
 
-struct mlx5_mkey_table {
-	/* protect radix tree
-	 */
-	rwlock_t		lock;
-	struct radix_tree_root	tree;
-};
-
 struct mlx5_vf_context {
 	int	enabled;
 	u64	port_guid;
@@ -476,6 +469,7 @@ struct mlx5_core_sriov {
 	struct mlx5_vf_context	*vfs_ctx;
 	int			num_vfs;
 	int			enabled_vfs;
+	u16			max_vfs;
 };
 
 struct mlx5_fc_stats {
@@ -497,6 +491,7 @@ struct mlx5_eswitch;
 struct mlx5_lag;
 struct mlx5_devcom;
 struct mlx5_eq_table;
+struct mlx5_irq_table;
 
 struct mlx5_rate_limit {
 	u32			rate;
@@ -526,6 +521,8 @@ struct mlx5_core_roce {
 };
 
 struct mlx5_priv {
+	/* IRQ table valid only for real pci devices PF or VF */
+	struct mlx5_irq_table   *irq_table;
 	struct mlx5_eq_table	*eq_table;
 
 	/* pages stuff */
@@ -548,9 +545,7 @@ struct mlx5_priv {
 	struct dentry	       *cmdif_debugfs;
 	/* end: qp staff */
 
-	/* start: mkey staff */
-	struct mlx5_mkey_table	mkey_table;
-	/* end: mkey staff */
+	struct xarray           mkey_table;
 
 	/* start: alloc staff */
 	/* protect buffer alocation according to numa node */
@@ -1112,13 +1107,9 @@ static inline bool mlx5_ecpf_vport_exists(struct mlx5_core_dev *dev)
 	return mlx5_core_is_pf(dev) && MLX5_CAP_ESW(dev, ecpf_vport_exists);
 }
 
-#define MLX5_HOST_PF_MAX_VFS	(127u)
 static inline u16 mlx5_core_max_vfs(struct mlx5_core_dev *dev)
 {
-	if (mlx5_core_is_ecpf_esw_manager(dev))
-		return MLX5_HOST_PF_MAX_VFS;
-	else
-		return pci_sriov_get_totalvfs(dev->pdev);
+	return dev->priv.sriov.max_vfs;
 }
 
 static inline int mlx5_get_gid_table_len(u16 param)

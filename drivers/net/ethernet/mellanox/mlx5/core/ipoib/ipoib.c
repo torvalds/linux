@@ -418,6 +418,7 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.cleanup_rx	   = mlx5i_cleanup_rx,
 	.enable		   = NULL, /* mlx5i_enable */
 	.disable	   = NULL, /* mlx5i_disable */
+	.update_rx	   = mlx5e_update_nic_rx,
 	.update_stats	   = NULL, /* mlx5i_update_stats */
 	.update_carrier    = NULL, /* no HW update in IB link */
 	.rx_handlers.handle_rx_cqe       = mlx5i_handle_rx_cqe,
@@ -526,7 +527,7 @@ static int mlx5i_open(struct net_device *netdev)
 	if (err)
 		goto err_remove_fs_underlay_qp;
 
-	mlx5e_refresh_tirs(epriv, false);
+	epriv->profile->update_rx(epriv);
 	mlx5e_activate_priv_channels(epriv);
 
 	mutex_unlock(&epriv->state_lock);
