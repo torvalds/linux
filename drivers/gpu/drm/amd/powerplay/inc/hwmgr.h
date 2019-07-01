@@ -782,6 +782,7 @@ struct pp_hwmgr {
 	uint32_t workload_mask;
 	uint32_t workload_prority[Workload_Policy_Max];
 	uint32_t workload_setting[Workload_Policy_Max];
+	bool gfxoff_state_changed_by_workload;
 };
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr);

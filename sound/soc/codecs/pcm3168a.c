@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCM3168A codec driver
  *
  * Copyright (C) 2015 Imagination Technologies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -411,9 +408,11 @@ static int pcm3168a_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		return -EINVAL;
 	}
 
-	pcm3168a->tdm_slots = slots;
-	pcm3168a->tdm_mask[SNDRV_PCM_STREAM_PLAYBACK] = tx_mask;
-	pcm3168a->tdm_mask[SNDRV_PCM_STREAM_CAPTURE] = rx_mask;
+	if (pcm3168a->tdm_slots && pcm3168a->tdm_slots != slots) {
+		dev_err(component->dev, "Not matching slots %d vs %d\n",
+			pcm3168a->tdm_slots, slots);
+		return -EINVAL;
+	}
 
 	if (pcm3168a->slot_width && pcm3168a->slot_width != slot_width) {
 		dev_err(component->dev, "Not matching slot_width %d vs %d\n",
@@ -421,7 +420,11 @@ static int pcm3168a_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		return -EINVAL;
 	}
 
+	pcm3168a->tdm_slots = slots;
 	pcm3168a->slot_width = slot_width;
+	pcm3168a->tdm_mask[SNDRV_PCM_STREAM_PLAYBACK] = tx_mask;
+	pcm3168a->tdm_mask[SNDRV_PCM_STREAM_CAPTURE] = rx_mask;
+
 	return 0;
 }
 
@@ -434,11 +437,10 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	bool tx, master_mode;
 	u32 val, mask, shift, reg;
 	unsigned int rate, fmt, ratio, max_ratio;
-	unsigned int chan;
-	int i, min_frame_size;
+	unsigned int tdm_slots;
+	int i, slot_width;
 
 	rate = params_rate(params);
-	chan = params_channels(params);
 
 	ratio = pcm3168a->sysclk / rate;
 
@@ -470,11 +472,11 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (pcm3168a->slot_width)
-		min_frame_size = pcm3168a->slot_width;
+		slot_width = pcm3168a->slot_width;
 	else
-		min_frame_size = params_width(params);
+		slot_width = params_width(params);
 
-	switch (min_frame_size) {
+	switch (slot_width) {
 	case 16:
 		if (master_mode || (fmt != PCM3168A_FMT_RIGHT_J)) {
 			dev_err(component->dev, "16-bit slots are supported only for slave mode using right justified\n");
@@ -491,12 +493,24 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	case 32:
 		break;
 	default:
-		dev_err(component->dev, "unsupported frame size: %d\n", min_frame_size);
+		dev_err(component->dev, "unsupported frame size: %d\n", slot_width);
 		return -EINVAL;
 	}
 
-	/* for TDM */
-	if (chan > 2) {
+	if (pcm3168a->tdm_slots)
+		tdm_slots = pcm3168a->tdm_slots;
+	else
+		tdm_slots = params_channels(params);
+
+	/*
+	 * Switch the codec to TDM mode when more than 2 TDM slots are needed
+	 * for the stream.
+	 * If pcm3168a->tdm_slots is not set or set to more than 2 (8/6 usually)
+	 * then DIN1/DOUT1 is used in TDM mode.
+	 * If pcm3168a->tdm_slots is set to 2 then DIN1/2/3/4 and DOUT1/2/3 is
+	 * used in normal mode, no need to switch to TDM modes.
+	 */
+	if (tdm_slots > 2) {
 		switch (fmt) {
 		case PCM3168A_FMT_I2S:
 		case PCM3168A_FMT_DSP_A:

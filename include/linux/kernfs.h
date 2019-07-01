@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * kernfs.h - pseudo filesystem decoupled from vfs locking
- *
- * This file is released under the GPLv2.
  */
 
 #ifndef __LINUX_KERNFS_H

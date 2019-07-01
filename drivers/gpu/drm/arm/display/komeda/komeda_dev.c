@@ -8,6 +8,7 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -249,6 +250,9 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		goto err_cleanup;
 	}
 
+	dev->dma_parms = &mdev->dma_parms;
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
 	err = sysfs_create_group(&dev->kobj, &komeda_sysfs_attr_group);
 	if (err) {
 		DRM_ERROR("create sysfs group failed.\n");
@@ -269,7 +273,7 @@ err_cleanup:
 void komeda_dev_destroy(struct komeda_dev *mdev)
 {
 	struct device *dev = mdev->dev;
-	struct komeda_dev_funcs *funcs = mdev->funcs;
+	const struct komeda_dev_funcs *funcs = mdev->funcs;
 	int i;
 
 	sysfs_remove_group(&dev->kobj, &komeda_sysfs_attr_group);

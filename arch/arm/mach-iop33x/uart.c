@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-iop33x/uart.c
  *
  * Author: Dave Jiang (dave.jiang@intel.com)
  * Copyright (C) 2004 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/mm.h>

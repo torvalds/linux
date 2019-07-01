@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * gpio-max3191x.c - GPIO driver for Maxim MAX3191x industrial serializer
  *
@@ -27,10 +28,6 @@
  * https://datasheets.maximintegrated.com/en/ds/MAX31912.pdf
  * https://datasheets.maximintegrated.com/en/ds/MAX31913.pdf
  * https://datasheets.maximintegrated.com/en/ds/MAX31953-MAX31963.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2) as
- * published by the Free Software Foundation.
  */
 
 #include <linux/bitmap.h>

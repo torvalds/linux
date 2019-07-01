@@ -346,9 +346,18 @@ EXPORT_SYMBOL_GPL(asoc_simple_dai_init);
 
 void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link)
 {
-	/* Assumes platform == cpu */
-	if (!dai_link->platforms->of_node)
-		dai_link->platforms->of_node = dai_link->cpus->of_node;
+	/*
+	 * no Platform
+	 *
+	 * It will be waste of memory, but not be memory leak.
+	 * see
+	 *	asoc_simple_init_priv()
+	 *	asoc_simple_priv
+	 */
+	if (!dai_link->platforms->of_node) {
+		dai_link->platforms	= NULL;
+		dai_link->num_platforms	= 0;
+	}
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 

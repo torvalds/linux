@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cht-bsw-nau8824.c - ASoc Machine driver for Intel Cherryview-based
  *          platforms Cherrytrail and Braswell, with nau8824 codec.
@@ -8,15 +9,6 @@
  *  Author: Wang, Joseph C <joequant@gmail.com>
  *  Co-author: John Hsu <KCHSU0@nuvoton.com>
  *  This file is based on cht_bsw_rt5672.c and cht-bsw-max98090.c
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  */
 
 #include <linux/module.h>

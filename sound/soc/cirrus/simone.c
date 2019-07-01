@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * simone.c -- ASoC audio for Simplemachines Sim.One board
  *
  * Copyright (c) 2010 Mika Westerberg
  *
  * Based on snappercl15 machine driver by Ryan Mallon.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>

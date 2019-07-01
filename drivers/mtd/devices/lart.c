@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * MTD driver for the 28F160F3 Flash Memory (non-CFI) on LART.
@@ -5,10 +6,6 @@
  * Author: Abraham vd Merwe <abraham@2d3d.co.za>
  *
  * Copyright (c) 2001, 2d3D, Inc.
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * References:
  *

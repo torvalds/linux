@@ -83,7 +83,6 @@ static inline int notify_page_fault(struct pt_regs *regs)
 
 /*
  * Find out which address space caused the exception.
- * Access register mode is impossible, ignore space == 3.
  */
 static enum fault_type get_fault_type(struct pt_regs *regs)
 {
@@ -107,6 +106,10 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 			return KERNEL_FAULT;
 		}
 		return VDSO_FAULT;
+	}
+	if (trans_exc_code == 1) {
+		/* access register mode, not used in the kernel */
+		return USER_FAULT;
 	}
 	/* home space exception -> access via kernel ASCE */
 	return KERNEL_FAULT;

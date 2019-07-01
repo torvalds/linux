@@ -1,10 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * syscalls.h - Linux syscall interfaces (arch-specific)
  *
  * Copyright (c) 2008 Jaswinder Singh Rajput
- *
- * This file is released under the GPLv2.
- * See the file COPYING for more details.
  */
 
 #ifndef _ASM_X86_SYSCALLS_H

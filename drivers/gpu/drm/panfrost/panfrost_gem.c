@@ -19,7 +19,8 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_device *pfdev = obj->dev->dev_private;
 
-	panfrost_mmu_unmap(bo);
+	if (bo->is_mapped)
+		panfrost_mmu_unmap(bo);
 
 	spin_lock(&pfdev->mm_lock);
 	drm_mm_remove_node(&bo->node);
