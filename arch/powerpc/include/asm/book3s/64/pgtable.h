@@ -283,7 +283,6 @@ static inline unsigned int ioremap_max_order(void)
 #define IOREMAP_MAX_ORDER ioremap_max_order()
 
 extern unsigned long __kernel_virt_start;
-extern unsigned long __kernel_virt_size;
 extern unsigned long __kernel_io_start;
 extern unsigned long __kernel_io_end;
 #define KERN_VIRT_START __kernel_virt_start
