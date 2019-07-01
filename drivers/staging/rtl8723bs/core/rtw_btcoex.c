@@ -77,11 +77,6 @@ u8 rtw_btcoex_IsBtControlLps(struct adapter *padapter)
 	return hal_btcoex_IsBtControlLps(padapter);
 }
 
-u8 rtw_btcoex_LpsVal(struct adapter *padapter)
-{
-	return hal_btcoex_LpsVal(padapter);
-}
-
 void rtw_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)
 {
 	hal_btcoex_SetBTCoexist(padapter, bBtExist);
@@ -151,7 +146,7 @@ void rtw_btcoex_LPS_Enter(struct adapter *padapter)
 	pwrpriv = adapter_to_pwrctl(padapter);
 
 	pwrpriv->bpower_saving = true;
-	lpsVal = rtw_btcoex_LpsVal(padapter);
+	lpsVal = hal_btcoex_LpsVal(padapter);
 	rtw_set_ps_mode(padapter, PS_MODE_MIN, 0, lpsVal, "BTCOEX");
 }
 

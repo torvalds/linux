@@ -485,7 +485,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 				&& (rtw_btcoex_IsBtControlLps(padapter) == true)) {
 				u8 val8;
 
-				val8 = rtw_btcoex_LpsVal(padapter);
+				val8 = hal_btcoex_LpsVal(padapter);
 				if (val8 & BIT(4))
 					pslv = PS_STATE_S2;
 			}
@@ -914,7 +914,7 @@ void rtw_unregister_task_alive(struct adapter *padapter, u32 task)
 		&& (rtw_btcoex_IsBtControlLps(padapter) == true)) {
 		u8 val8;
 
-		val8 = rtw_btcoex_LpsVal(padapter);
+		val8 = hal_btcoex_LpsVal(padapter);
 		if (val8 & BIT(4))
 			pslv = PS_STATE_S2;
 	}
@@ -1055,7 +1055,7 @@ void rtw_unregister_tx_alive(struct adapter *padapter)
 		&& (rtw_btcoex_IsBtControlLps(padapter) == true)) {
 		u8 val8;
 
-		val8 = rtw_btcoex_LpsVal(padapter);
+		val8 = hal_btcoex_LpsVal(padapter);
 		if (val8 & BIT(4))
 			pslv = PS_STATE_S2;
 	}
@@ -1097,7 +1097,7 @@ void rtw_unregister_cmd_alive(struct adapter *padapter)
 		&& (rtw_btcoex_IsBtControlLps(padapter) == true)) {
 		u8 val8;
 
-		val8 = rtw_btcoex_LpsVal(padapter);
+		val8 = hal_btcoex_LpsVal(padapter);
 		if (val8 & BIT(4))
 			pslv = PS_STATE_S2;
 	}
