@@ -2,14 +2,6 @@
 /* Copyright (c) 2019 Mellanox Technologies. */
 
 #include "health.h"
-#include "lib/eq.h"
-
-#define MLX5E_TX_REPORTER_PER_SQ_MAX_LEN 256
-
-struct mlx5e_tx_err_ctx {
-	int (*recover)(struct mlx5e_txqsq *sq);
-	struct mlx5e_txqsq *sq;
-};
 
 static int mlx5e_wait_for_sq_flush(struct mlx5e_txqsq *sq)
 {
@@ -39,41 +31,20 @@ static void mlx5e_reset_txqsq_cc_pc(struct mlx5e_txqsq *sq)
 	sq->pc = 0;
 }
 
-static int mlx5e_sq_to_ready(struct mlx5e_txqsq *sq, int curr_state)
+static int mlx5e_tx_reporter_err_cqe_recover(void *ctx)
 {
-	struct mlx5_core_dev *mdev = sq->channel->mdev;
-	struct net_device *dev = sq->channel->netdev;
-	struct mlx5e_modify_sq_param msp = {0};
-	int err;
-
-	msp.curr_state = curr_state;
-	msp.next_state = MLX5_SQC_STATE_RST;
-
-	err = mlx5e_modify_sq(mdev, sq->sqn, &msp);
-	if (err) {
-		netdev_err(dev, "Failed to move sq 0x%x to reset\n", sq->sqn);
-		return err;
-	}
-
-	memset(&msp, 0, sizeof(msp));
-	msp.curr_state = MLX5_SQC_STATE_RST;
-	msp.next_state = MLX5_SQC_STATE_RDY;
-
-	err = mlx5e_modify_sq(mdev, sq->sqn, &msp);
-	if (err) {
-		netdev_err(dev, "Failed to move sq 0x%x to ready\n", sq->sqn);
-		return err;
-	}
-
-	return 0;
-}
-
-static int mlx5e_tx_reporter_err_cqe_recover(struct mlx5e_txqsq *sq)
-{
-	struct mlx5_core_dev *mdev = sq->channel->mdev;
-	struct net_device *dev = sq->channel->netdev;
+	struct mlx5_core_dev *mdev;
+	struct net_device *dev;
+	struct mlx5e_txqsq *sq;
 	u8 state;
 	int err;
+
+	sq = ctx;
+	mdev = sq->channel->mdev;
+	dev = sq->channel->netdev;
+
+	if (!test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
+		return 0;
 
 	err = mlx5_core_query_sq_state(mdev, sq->sqn, &state);
 	if (err) {
@@ -96,7 +67,7 @@ static int mlx5e_tx_reporter_err_cqe_recover(struct mlx5e_txqsq *sq)
 	 * pending WQEs. SQ can safely reset the SQ.
 	 */
 
-	err = mlx5e_sq_to_ready(sq, state);
+	err = mlx5e_health_sq_to_ready(sq->channel, sq->sqn);
 	if (err)
 		goto out;
 
@@ -111,102 +82,66 @@ out:
 	return err;
 }
 
-static int mlx5_tx_health_report(struct devlink_health_reporter *tx_reporter,
-				 char *err_str,
-				 struct mlx5e_tx_err_ctx *err_ctx)
-{
-	if (!tx_reporter) {
-		netdev_err(err_ctx->sq->channel->netdev, err_str);
-		return err_ctx->recover(err_ctx->sq);
-	}
-
-	return devlink_health_report(tx_reporter, err_str, err_ctx);
-}
-
 void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq)
 {
-	char err_str[MLX5E_TX_REPORTER_PER_SQ_MAX_LEN];
-	struct mlx5e_tx_err_ctx err_ctx = {0};
+	struct mlx5e_priv *priv = sq->channel->priv;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_err_ctx err_ctx = {0};
 
-	err_ctx.sq       = sq;
-	err_ctx.recover  = mlx5e_tx_reporter_err_cqe_recover;
+	err_ctx.ctx = sq;
+	err_ctx.recover = mlx5e_tx_reporter_err_cqe_recover;
 	sprintf(err_str, "ERR CQE on SQ: 0x%x", sq->sqn);
 
-	mlx5_tx_health_report(sq->channel->priv->tx_reporter, err_str,
-			      &err_ctx);
+	mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 }
 
-static int mlx5e_tx_reporter_timeout_recover(struct mlx5e_txqsq *sq)
+static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 {
-	struct mlx5_eq_comp *eq = sq->cq.mcq.eq;
-	u32 eqe_count;
+	struct mlx5_eq_comp *eq;
+	struct mlx5e_txqsq *sq;
+	int err;
 
-	netdev_err(sq->channel->netdev, "EQ 0x%x: Cons = 0x%x, irqn = 0x%x\n",
-		   eq->core.eqn, eq->core.cons_index, eq->core.irqn);
-
-	eqe_count = mlx5_eq_poll_irq_disabled(eq);
-	if (!eqe_count) {
+	sq = ctx;
+	eq = sq->cq.mcq.eq;
+	err = mlx5e_health_channel_eq_recover(eq, sq->channel);
+	if (err)
 		clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
-		return -EIO;
-	}
 
-	netdev_err(sq->channel->netdev, "Recover %d eqes on EQ 0x%x\n",
-		   eqe_count, eq->core.eqn);
-	sq->channel->stats->eq_rearm++;
-	return 0;
+	return err;
 }
 
 int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 {
-	char err_str[MLX5E_TX_REPORTER_PER_SQ_MAX_LEN];
-	struct mlx5e_tx_err_ctx err_ctx;
+	struct mlx5e_priv *priv = sq->channel->priv;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_err_ctx err_ctx;
 
-	err_ctx.sq       = sq;
-	err_ctx.recover  = mlx5e_tx_reporter_timeout_recover;
+	err_ctx.ctx = sq;
+	err_ctx.recover = mlx5e_tx_reporter_timeout_recover;
 	sprintf(err_str,
 		"TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
 		sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
 		jiffies_to_usecs(jiffies - sq->txq->trans_start));
 
-	return mlx5_tx_health_report(sq->channel->priv->tx_reporter, err_str,
-				     &err_ctx);
+	return mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 }
 
 /* state lock cannot be grabbed within this function.
  * It can cause a dead lock or a read-after-free.
  */
-static int mlx5e_tx_reporter_recover_from_ctx(struct mlx5e_tx_err_ctx *err_ctx)
+static int mlx5e_tx_reporter_recover_from_ctx(struct mlx5e_err_ctx *err_ctx)
 {
-	return err_ctx->recover(err_ctx->sq);
-}
-
-static int mlx5e_tx_reporter_recover_all(struct mlx5e_priv *priv)
-{
-	int err = 0;
-
-	rtnl_lock();
-	mutex_lock(&priv->state_lock);
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		goto out;
-
-	err = mlx5e_safe_reopen_channels(priv);
-
-out:
-	mutex_unlock(&priv->state_lock);
-	rtnl_unlock();
-
-	return err;
+	return err_ctx->recover(err_ctx->ctx);
 }
 
 static int mlx5e_tx_reporter_recover(struct devlink_health_reporter *reporter,
 				     void *context)
 {
 	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
-	struct mlx5e_tx_err_ctx *err_ctx = context;
+	struct mlx5e_err_ctx *err_ctx = context;
 
 	return err_ctx ? mlx5e_tx_reporter_recover_from_ctx(err_ctx) :
-			 mlx5e_tx_reporter_recover_all(priv);
+			 mlx5e_health_recover_channels(priv);
 }
 
 static int
@@ -289,8 +224,9 @@ int mlx5e_reporter_tx_create(struct mlx5e_priv *priv)
 {
 	struct devlink_health_reporter *reporter;
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct devlink *devlink = priv_to_devlink(mdev);
+	struct devlink *devlink;
 
+	devlink = priv_to_devlink(mdev);
 	reporter =
 		devlink_health_reporter_create(devlink, &mlx5_tx_reporter_ops,
 					       MLX5_REPORTER_TX_GRACEFUL_PERIOD,
