@@ -231,7 +231,7 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 	}
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TIPC));
-	ub = rcu_dereference_rtnl(b->media_ptr);
+	ub = rcu_dereference(b->media_ptr);
 	if (!ub) {
 		err = -ENODEV;
 		goto out;
@@ -490,7 +490,7 @@ int tipc_udp_nl_dump_remoteip(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 	}
 
-	ub = rcu_dereference_rtnl(b->media_ptr);
+	ub = rtnl_dereference(b->media_ptr);
 	if (!ub) {
 		rtnl_unlock();
 		return -EINVAL;
@@ -532,7 +532,7 @@ int tipc_udp_nl_add_bearer_data(struct tipc_nl_msg *msg, struct tipc_bearer *b)
 	struct udp_bearer *ub;
 	struct nlattr *nest;
 
-	ub = rcu_dereference_rtnl(b->media_ptr);
+	ub = rtnl_dereference(b->media_ptr);
 	if (!ub)
 		return -ENODEV;
 
@@ -806,7 +806,7 @@ static void tipc_udp_disable(struct tipc_bearer *b)
 {
 	struct udp_bearer *ub;
 
-	ub = rcu_dereference_rtnl(b->media_ptr);
+	ub = rtnl_dereference(b->media_ptr);
 	if (!ub) {
 		pr_err("UDP bearer instance not found\n");
 		return;
