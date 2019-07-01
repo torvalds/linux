@@ -670,6 +670,8 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 
 	base_gfn = gw->gfn;
 
+	trace_kvm_mmu_spte_requested(addr, gw->level, pfn);
+
 	for (; shadow_walk_okay(&it); shadow_walk_next(&it)) {
 		clear_sp_write_flooding_count(it.sptep);
 		base_gfn = gw->gfn & ~(KVM_PAGES_PER_HPAGE(it.level) - 1);
