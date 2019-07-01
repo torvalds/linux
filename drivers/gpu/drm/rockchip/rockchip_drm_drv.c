@@ -203,7 +203,7 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 	struct rockchip_logo *logo;
 	void *start, *end;
 
-	if (!private || !private->logo/* || --private->logo->count*/)
+	if (!private || !private->logo || --private->logo->count)
 		return;
 
 	logo = private->logo;
@@ -448,10 +448,131 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 	return set;
 }
 
+static int rockchip_drm_fill_connector_modes(struct drm_connector *connector,
+					     uint32_t maxX, uint32_t maxY)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_display_mode *mode;
+	const struct drm_connector_helper_funcs *connector_funcs =
+		connector->helper_private;
+	int count = 0;
+	bool verbose_prune = true;
+	enum drm_connector_status old_status;
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
+		      connector->name);
+	/* set all modes to the unverified state */
+	list_for_each_entry(mode, &connector->modes, head)
+		mode->status = MODE_STALE;
+
+	if (connector->force) {
+		if (connector->force == DRM_FORCE_ON ||
+		    connector->force == DRM_FORCE_ON_DIGITAL)
+			connector->status = connector_status_connected;
+		else
+			connector->status = connector_status_disconnected;
+		if (connector->funcs->force)
+			connector->funcs->force(connector);
+	} else {
+		old_status = connector->status;
+
+		connector->status = connector->funcs->detect(connector, true);
+
+		/*
+		 * Normally either the driver's hpd code or the poll loop should
+		 * pick up any changes and fire the hotplug event. But if
+		 * userspace sneaks in a probe, we might miss a change. Hence
+		 * check here, and if anything changed start the hotplug code.
+		 */
+		if (old_status != connector->status) {
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+				      connector->base.id,
+				      connector->name,
+				      old_status, connector->status);
+
+			/*
+			 * The hotplug event code might call into the fb
+			 * helpers, and so expects that we do not hold any
+			 * locks. Fire up the poll struct instead, it will
+			 * disable itself again.
+			 */
+			dev->mode_config.delayed_event = true;
+			if (dev->mode_config.poll_enabled)
+				schedule_delayed_work(&dev->mode_config.output_poll_work,
+						      0);
+		}
+	}
+
+	/* Re-enable polling in case the global poll config changed. */
+	if (!dev->mode_config.poll_running)
+		drm_kms_helper_poll_enable(dev);
+
+	dev->mode_config.poll_running = true;
+
+	if (connector->status == connector_status_disconnected) {
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
+			      connector->base.id, connector->name);
+		drm_connector_update_edid_property(connector, NULL);
+		verbose_prune = false;
+		goto prune;
+	}
+
+	count = (*connector_funcs->get_modes)(connector);
+
+	if (count == 0 && connector->status == connector_status_connected)
+		count = drm_add_modes_noedid(connector, 1024, 768);
+	if (count == 0)
+		goto prune;
+
+	drm_connector_list_update(connector);
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_driver(dev, mode);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_size(mode, maxX, maxY);
+
+		/**
+		 * if (mode->status == MODE_OK)
+		 *	mode->status = drm_mode_validate_flag(mode, mode_flags);
+		 */
+		if (mode->status == MODE_OK && connector_funcs->mode_valid)
+			mode->status = connector_funcs->mode_valid(connector,
+								   mode);
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_ycbcr420(mode,
+								  connector);
+	}
+
+prune:
+	drm_mode_prune_invalid(dev, &connector->modes, verbose_prune);
+
+	if (list_empty(&connector->modes))
+		return 0;
+
+	list_for_each_entry(mode, &connector->modes, head)
+		mode->vrefresh = drm_mode_vrefresh(mode);
+
+	drm_mode_sort(&connector->modes);
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
+		      connector->name);
+	list_for_each_entry(mode, &connector->modes, head) {
+		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+		drm_mode_debug_printmodeline(mode);
+	}
+
+	return count;
+}
+
 static int setup_initial_state(struct drm_device *drm_dev,
 			       struct drm_atomic_state *state,
 			       struct rockchip_drm_mode_set *set)
 {
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
 	struct drm_connector *connector = set->connector;
 	struct drm_crtc *crtc = set->crtc;
 	struct drm_crtc_state *crtc_state;
@@ -459,6 +580,8 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	struct drm_plane_state *primary_state;
 	struct drm_display_mode *mode = NULL;
 	const struct drm_connector_helper_funcs *funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
+	int pipe = drm_crtc_index(crtc);
 	bool is_crtc_enabled = true;
 	int hdisplay, vdisplay;
 	int fb_width, fb_height;
@@ -475,17 +598,28 @@ static int setup_initial_state(struct drm_device *drm_dev,
 
 	funcs = connector->helper_private;
 	conn_state->best_encoder = funcs->best_encoder(connector);
-	num_modes = connector->funcs->fill_modes(connector, 4096, 4096);
+	if (funcs->loader_protect)
+		funcs->loader_protect(connector, true);
+	connector->loader_protect = true;
+	encoder_funcs = conn_state->best_encoder->helper_private;
+	if (encoder_funcs->loader_protect)
+		encoder_funcs->loader_protect(conn_state->best_encoder, true);
+	conn_state->best_encoder->loader_protect = true;
+	num_modes = rockchip_drm_fill_connector_modes(connector, 4096, 4096);
 	if (!num_modes) {
 		dev_err(drm_dev->dev, "connector[%s] can't found any modes\n",
 			connector->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error_conn;
 	}
 
 	list_for_each_entry(mode, &connector->modes, head) {
 		if (mode->hdisplay == set->hdisplay &&
 		    mode->vdisplay == set->vdisplay &&
-		    drm_mode_vrefresh(mode) == set->vrefresh) {
+		    mode->crtc_hsync_end == set->crtc_hsync_end &&
+		    mode->crtc_vsync_end == set->crtc_vsync_end &&
+		    drm_mode_vrefresh(mode) == set->vrefresh &&
+		    mode->flags == set->flags) {
 			found = 1;
 			match = 1;
 			break;
@@ -493,28 +627,16 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	}
 
 	if (!found) {
-		list_for_each_entry(mode, &connector->modes, head) {
-			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-				found = 1;
-				break;
-			}
-		}
-
-		if (!found) {
-			mode = list_first_entry_or_null(&connector->modes,
-							struct drm_display_mode,
-							head);
-			if (!mode) {
-				pr_err("failed to find available modes\n");
-				return -EINVAL;
-			}
-		}
+		ret = -EINVAL;
+		goto error_conn;
 	}
 
 	set->mode = mode;
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state))
-		return PTR_ERR(crtc_state);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto error_conn;
+	}
 
 	drm_mode_copy(&crtc_state->adjusted_mode, mode);
 	if (!match || !is_crtc_enabled) {
@@ -522,20 +644,28 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	} else {
 		ret = drm_atomic_set_crtc_for_connector(conn_state, crtc);
 		if (ret)
-			return ret;
+			goto error_conn;
 
 		ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
 		if (ret)
-			return ret;
+			goto error_conn;
 
 		crtc_state->active = true;
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->loader_protect)
+			priv->crtc_funcs[pipe]->loader_protect(crtc, true);
 	}
 
-	if (!set->fb)
-		return 0;
+	if (!set->fb) {
+		ret = 0;
+		goto error_crtc;
+	}
 	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
-	if (IS_ERR(primary_state))
-		return PTR_ERR(primary_state);
+	if (IS_ERR(primary_state)) {
+		ret = PTR_ERR(primary_state);
+		goto error_crtc;
+	}
 
 	hdisplay = mode->hdisplay;
 	vdisplay = mode->vdisplay;
@@ -571,6 +701,19 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	}
 
 	return 0;
+
+error_crtc:
+	if (priv->crtc_funcs[pipe] && priv->crtc_funcs[pipe]->loader_protect)
+		priv->crtc_funcs[pipe]->loader_protect(crtc, false);
+error_conn:
+	if (funcs->loader_protect)
+		funcs->loader_protect(connector, false);
+	connector->loader_protect = false;
+	if (encoder_funcs->loader_protect)
+		encoder_funcs->loader_protect(conn_state->best_encoder, false);
+	conn_state->best_encoder->loader_protect = false;
+
+	return ret;
 }
 
 static int update_state(struct drm_device *drm_dev,
