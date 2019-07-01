@@ -1208,7 +1208,7 @@ void rtw_dev_unload(struct adapter *padapter)
 		}
 
 		if (padapter->bSurpriseRemoved == false) {
-			rtw_btcoex_IpsNotify(padapter, pwrctl->ips_mode_req);
+			hal_btcoex_IpsNotify(padapter, pwrctl->ips_mode_req);
 #ifdef CONFIG_WOWLAN
 			if (pwrctl->bSupportRemoteWakeup == true &&
 				pwrctl->wowlan_mode == true) {

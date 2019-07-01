@@ -9,11 +9,6 @@
 #include <rtw_btcoex.h>
 #include <hal_btcoex.h>
 
-void rtw_btcoex_IpsNotify(struct adapter *padapter, u8 type)
-{
-	hal_btcoex_IpsNotify(padapter, type);
-}
-
 void rtw_btcoex_LpsNotify(struct adapter *padapter, u8 type)
 {
 	hal_btcoex_LpsNotify(padapter, type);

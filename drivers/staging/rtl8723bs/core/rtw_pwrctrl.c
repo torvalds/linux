@@ -43,7 +43,7 @@ void ips_enter(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 
 
-	rtw_btcoex_IpsNotify(padapter, pwrpriv->ips_mode_req);
+	hal_btcoex_IpsNotify(padapter, pwrpriv->ips_mode_req);
 
 	mutex_lock(&pwrpriv->lock);
 	_ips_enter(padapter);
@@ -90,7 +90,7 @@ int ips_leave(struct adapter *padapter)
 	mutex_unlock(&pwrpriv->lock);
 
 	if (_SUCCESS == ret)
-		rtw_btcoex_IpsNotify(padapter, IPS_NONE);
+		hal_btcoex_IpsNotify(padapter, IPS_NONE);
 
 	return ret;
 }
