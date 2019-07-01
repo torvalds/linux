@@ -297,9 +297,8 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC) && runtime_suspend)
 		/* enable controller wake up event */
-		snd_hdac_chip_writew(bus, WAKEEN,
-				     snd_hdac_chip_readw(bus, WAKEEN) |
-				     hda->hda_codec_mask);
+		snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK,
+				      hda->hda_codec_mask);
 
 	/* power down all hda link */
 	snd_hdac_ext_bus_link_power_down_all(bus);

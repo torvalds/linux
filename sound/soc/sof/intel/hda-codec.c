@@ -68,9 +68,7 @@ void hda_codec_jack_check(struct snd_sof_dev *sdev, int status)
 					      codec->jackpoll_interval);
 
 	/* disable controller Wake Up event*/
-	snd_hdac_chip_writew(bus, WAKEEN,
-			     snd_hdac_chip_readw(bus, WAKEEN) &
-			     ~hda->hda_codec_mask);
+	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, 0);
 }
 #else
 void hda_codec_jack_check(struct snd_sof_dev *sdev, int status) {}
