@@ -359,12 +359,26 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			entry->src_id, entry->ring_id, entry->vmid,
 			entry->pasid, task_info.process_name, task_info.tgid,
 			task_info.task_name, task_info.pid);
-		dev_err(adev->dev, "  in page starting at address 0x%016llx from %d\n",
+		dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
 			addr, entry->client_id);
-		if (!amdgpu_sriov_vf(adev))
+		if (!amdgpu_sriov_vf(adev)) {
 			dev_err(adev->dev,
 				"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 				status);
+			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
+			dev_err(adev->dev, "\t WALKER_ERROR: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, WALKER_ERROR));
+			dev_err(adev->dev, "\t PERMISSION_FAULTS: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, PERMISSION_FAULTS));
+			dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
+
+		}
 	}
 
 	return 0;
