@@ -3941,6 +3941,23 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 	return 0;
 }
 
+struct bpf_link {
+	int (*destroy)(struct bpf_link *link);
+};
+
+int bpf_link__destroy(struct bpf_link *link)
+{
+	int err;
+
+	if (!link)
+		return 0;
+
+	err = link->destroy(link);
+	free(link);
+
+	return err;
+}
+
 enum bpf_perf_event_ret
 bpf_perf_event_read_simple(void *mmap_mem, size_t mmap_size, size_t page_size,
 			   void **copy_mem, size_t *copy_size,

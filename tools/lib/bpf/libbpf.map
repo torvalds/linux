@@ -167,10 +167,11 @@ LIBBPF_0.0.3 {
 
 LIBBPF_0.0.4 {
 	global:
+		bpf_link__destroy;
+		bpf_object__load_xattr;
 		btf_dump__dump_type;
 		btf_dump__free;
 		btf_dump__new;
 		btf__parse_elf;
-		bpf_object__load_xattr;
 		libbpf_num_possible_cpus;
 } LIBBPF_0.0.3;
