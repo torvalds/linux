@@ -29,6 +29,12 @@
  * if the IOMMU page table format is equivalent.
  */
 #define IOMMU_PRIV	(1 << 5)
+/*
+ * Non-coherent masters on few Qualcomm SoCs can use this page protection flag
+ * to set correct cacheability attributes to use an outer level of cache -
+ * last level cache, aka system cache.
+ */
+#define IOMMU_QCOM_SYS_CACHE	(1 << 6)
 
 struct iommu_ops;
 struct iommu_group;
