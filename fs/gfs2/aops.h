@@ -8,7 +8,6 @@
 
 #include "incore.h"
 
-extern int stuffed_readpage(struct gfs2_inode *ip, struct page *page);
 extern void adjust_fs_space(struct inode *inode);
 extern void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 				   unsigned int from, unsigned int len);
