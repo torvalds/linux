@@ -421,7 +421,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			&& (((rtw_btcoex_IsBtControlLps(padapter) == false)
 					)
 				|| ((rtw_btcoex_IsBtControlLps(padapter) == true)
-					&& (rtw_btcoex_IsLpsOn(padapter) == false))
+					&& (hal_btcoex_IsLpsOn(padapter) == false))
 				)
 			) {
 			DBG_871X(FUNC_ADPT_FMT" Leave 802.11 power save - %s\n",
@@ -462,7 +462,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 	} else {
 		if ((PS_RDY_CHECK(padapter) && check_fwstate(&padapter->mlmepriv, WIFI_ASOC_STATE))
 			|| ((rtw_btcoex_IsBtControlLps(padapter) == true)
-				&& (rtw_btcoex_IsLpsOn(padapter) == true))
+				&& (hal_btcoex_IsLpsOn(padapter) == true))
 			) {
 			u8 pslv;
 
