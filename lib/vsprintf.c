@@ -1798,7 +1798,7 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 #ifdef CONFIG_COMMON_CLK
 		return string(buf, end, __clk_get_name(clk), spec);
 #else
-		return error_string(buf, end, "(%pC?)", spec);
+		return ptr_to_id(buf, end, clk, spec);
 #endif
 	}
 }
