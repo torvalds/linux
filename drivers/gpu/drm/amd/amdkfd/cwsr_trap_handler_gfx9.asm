@@ -197,13 +197,15 @@ var s_restore_spi_init_lo		    =	exec_lo
 var s_restore_spi_init_hi		    =	exec_hi
 
 var s_restore_mem_offset	=   ttmp12
+var s_restore_accvgpr_offset	=   ttmp13
 var s_restore_alloc_size	=   ttmp3
 var s_restore_tmp		=   ttmp2
 var s_restore_mem_offset_save	=   s_restore_tmp	//no conflict
+var s_restore_accvgpr_offset_save = ttmp7
 
 var s_restore_m0	    =	s_restore_alloc_size	//no conflict
 
-var s_restore_mode	    =	ttmp7
+var s_restore_mode	    =	s_restore_accvgpr_offset_save
 
 var s_restore_pc_lo	    =	ttmp0
 var s_restore_pc_hi	    =	ttmp1
@@ -226,7 +228,7 @@ var s_restore_ttmps_hi	    =	s_restore_alloc_size	//no conflict
 /* Shader Main*/
 
 shader main
-  asic(GFX9)
+  asic(DEFAULT)
   type(CS)
 
 
@@ -791,10 +793,48 @@ end
 
 L_SAVE_VGPR_END:
 
+if ASIC_TARGET_ARCTURUS
+    // Save ACC VGPRs
+    s_mov_b32 m0, 0x0 //VGPR initial index value =0
+    s_set_gpr_idx_on m0, 0x1 //M0[7:0] = M0[7:0] and M0[15:12] = 0x1
 
+if SAVE_AFTER_XNACK_ERROR
+    check_if_tcp_store_ok()
+    s_cbranch_scc1 L_SAVE_ACCVGPR_LOOP
 
+L_SAVE_ACCVGPR_LOOP_SQC:
+    for var vgpr = 0; vgpr < 4; ++ vgpr
+        v_accvgpr_read v[vgpr], acc[vgpr]  // v[N] = acc[N+m0]
+    end
 
+    write_vgprs_to_mem_with_sqc(v0, 4, s_save_buf_rsrc0, s_save_mem_offset)
 
+    s_add_u32 m0, m0, 4
+    s_cmp_lt_u32 m0, s_save_alloc_size
+    s_cbranch_scc1 L_SAVE_ACCVGPR_LOOP_SQC
+
+    s_set_gpr_idx_off
+    s_branch L_SAVE_ACCVGPR_END
+end
+
+L_SAVE_ACCVGPR_LOOP:
+    for var vgpr = 0; vgpr < 4; ++ vgpr
+        v_accvgpr_read v[vgpr], acc[vgpr]  // v[N] = acc[N+m0]
+    end
+
+    buffer_store_dword v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
+    buffer_store_dword v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256
+    buffer_store_dword v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256*2
+    buffer_store_dword v3, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256*3
+
+    s_add_u32 m0, m0, 4
+    s_add_u32 s_save_mem_offset, s_save_mem_offset, 256*4
+    s_cmp_lt_u32 m0, s_save_alloc_size
+    s_cbranch_scc1 L_SAVE_ACCVGPR_LOOP
+    s_set_gpr_idx_off
+
+L_SAVE_ACCVGPR_END:
+end
 
     /*	   S_PGM_END_SAVED  */				    //FIXME  graphics ONLY
     if ((EMU_RUN_HACK) && (!EMU_RUN_HACK_SAVE_NORMAL_EXIT))
@@ -921,6 +961,11 @@ end
     s_add_u32	    s_restore_alloc_size, s_restore_alloc_size, 1
     s_lshl_b32	    s_restore_alloc_size, s_restore_alloc_size, 2			    //Number of VGPRs = (vgpr_size + 1) * 4    (non-zero value)
     s_lshl_b32	    s_restore_buf_rsrc2,  s_restore_alloc_size, 8			    //NUM_RECORDS in bytes (64 threads*4)
+
+if ASIC_TARGET_ARCTURUS
+    s_mov_b32	    s_restore_accvgpr_offset, s_restore_buf_rsrc2                           //ACC VGPRs at end of VGPRs
+end
+
     if (SWIZZLE_EN)
 	s_add_u32	s_restore_buf_rsrc2, s_restore_buf_rsrc2, 0x0			    //FIXME need to use swizzle to enable bounds checking?
     else
@@ -958,6 +1003,10 @@ else
     // VGPR load using dw burst
     s_mov_b32	    s_restore_mem_offset_save, s_restore_mem_offset	// restore start with v1, v0 will be the last
     s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, 256*4
+if ASIC_TARGET_ARCTURUS
+    s_mov_b32	    s_restore_accvgpr_offset_save, s_restore_accvgpr_offset
+    s_add_u32	    s_restore_accvgpr_offset, s_restore_accvgpr_offset, 256*4
+end
     s_mov_b32	    m0, 4				//VGPR initial index value = 1
     s_set_gpr_idx_on  m0, 0x8			    //M0[7:0] = M0[7:0] and M0[15:12] = 0x8
     s_add_u32	    s_restore_alloc_size, s_restore_alloc_size, 0x8000			    //add 0x8000 since we compare m0 against it later
@@ -966,6 +1015,20 @@ else
     if(USE_MTBUF_INSTEAD_OF_MUBUF)
 	tbuffer_load_format_x v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset format:BUF_NUM_FORMAT_FLOAT format: BUF_DATA_FORMAT_32 slc:1 glc:1
     else
+
+if ASIC_TARGET_ARCTURUS
+	buffer_load_dword v0, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset slc:1 glc:1
+	buffer_load_dword v1, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset slc:1 glc:1 offset:256
+	buffer_load_dword v2, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset slc:1 glc:1 offset:256*2
+	buffer_load_dword v3, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset slc:1 glc:1 offset:256*3
+	s_add_u32 s_restore_accvgpr_offset, s_restore_accvgpr_offset, 256*4
+	s_waitcnt vmcnt(0)
+
+	for var vgpr = 0; vgpr < 4; ++ vgpr
+		v_accvgpr_write acc[vgpr], v[vgpr]
+	end
+end
+
 	buffer_load_dword v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1
 	buffer_load_dword v1, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:256
 	buffer_load_dword v2, v0, s_restore_buf_rsrc0, s_restore_mem_offset slc:1 glc:1 offset:256*2
@@ -982,6 +1045,18 @@ else
     s_cbranch_scc1  L_RESTORE_VGPR_LOOP							    //VGPR restore (except v0) is complete?
     s_set_gpr_idx_off
 											    /* VGPR restore on v0 */
+if ASIC_TARGET_ARCTURUS
+	buffer_load_dword v0, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset_save slc:1 glc:1
+	buffer_load_dword v1, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset_save slc:1 glc:1 offset:256
+	buffer_load_dword v2, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset_save slc:1 glc:1 offset:256*2
+	buffer_load_dword v3, v0, s_restore_buf_rsrc0, s_restore_accvgpr_offset_save slc:1 glc:1 offset:256*3
+	s_waitcnt vmcnt(0)
+
+	for var vgpr = 0; vgpr < 4; ++ vgpr
+		v_accvgpr_write acc[vgpr], v[vgpr]
+	end
+end
+
     if(USE_MTBUF_INSTEAD_OF_MUBUF)
 	tbuffer_load_format_x v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset_save format:BUF_NUM_FORMAT_FLOAT format: BUF_DATA_FORMAT_32 slc:1 glc:1
     else
@@ -1202,6 +1277,10 @@ function get_vgpr_size_bytes(s_vgpr_size_byte)
     s_getreg_b32   s_vgpr_size_byte, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)	 //vpgr_size
     s_add_u32	   s_vgpr_size_byte, s_vgpr_size_byte, 1
     s_lshl_b32	   s_vgpr_size_byte, s_vgpr_size_byte, (2+8) //Number of VGPRs = (vgpr_size + 1) * 4 * 64 * 4	(non-zero value)   //FIXME for GFX, zero is possible
+
+if ASIC_TARGET_ARCTURUS
+    s_lshl_b32     s_vgpr_size_byte, s_vgpr_size_byte, 1  // Double size for ACC VGPRs
+end
 end
 
 function get_sgpr_size_bytes(s_sgpr_size_byte)
