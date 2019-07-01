@@ -937,7 +937,7 @@ void bond_select_active_slave(struct bonding *bond)
 			return;
 
 		if (netif_carrier_ok(bond->dev))
-			slave_info(bond->dev, best_slave->dev, "active interface up!\n");
+			netdev_info(bond->dev, "active interface up!\n");
 		else
 			netdev_info(bond->dev, "now running without any active interface!\n");
 	}
