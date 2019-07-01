@@ -14,6 +14,7 @@
 #include <linux/rbtree.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
+#include <linux/sched/mm.h>
 
 #include "blk.h"
 
@@ -117,8 +118,7 @@ static bool blkdev_report_zone(struct block_device *bdev, struct blk_zone *rep)
 }
 
 static int blk_report_zones(struct gendisk *disk, sector_t sector,
-			    struct blk_zone *zones, unsigned int *nr_zones,
-			    gfp_t gfp_mask)
+			    struct blk_zone *zones, unsigned int *nr_zones)
 {
 	struct request_queue *q = disk->queue;
 	unsigned int z = 0, n, nrz = *nr_zones;
@@ -127,8 +127,7 @@ static int blk_report_zones(struct gendisk *disk, sector_t sector,
 
 	while (z < nrz && sector < capacity) {
 		n = nrz - z;
-		ret = disk->fops->report_zones(disk, sector, &zones[z], &n,
-					       gfp_mask);
+		ret = disk->fops->report_zones(disk, sector, &zones[z], &n);
 		if (ret)
 			return ret;
 		if (!n)
@@ -149,17 +148,18 @@ static int blk_report_zones(struct gendisk *disk, sector_t sector,
  * @sector:	Sector from which to report zones
  * @zones:	Array of zone structures where to return the zones information
  * @nr_zones:	Number of zone structures in the zone array
- * @gfp_mask:	Memory allocation flags (for bio_alloc)
  *
  * Description:
  *    Get zone information starting from the zone containing @sector.
  *    The number of zone information reported may be less than the number
  *    requested by @nr_zones. The number of zones actually reported is
  *    returned in @nr_zones.
+ *    The caller must use memalloc_noXX_save/restore() calls to control
+ *    memory allocations done within this function (zone array and command
+ *    buffer allocation by the device driver).
  */
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
-			struct blk_zone *zones, unsigned int *nr_zones,
-			gfp_t gfp_mask)
+			struct blk_zone *zones, unsigned int *nr_zones)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 	unsigned int i, nrz;
@@ -184,7 +184,7 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 	nrz = min(*nr_zones,
 		  __blkdev_nr_zones(q, bdev->bd_part->nr_sects - sector));
 	ret = blk_report_zones(bdev->bd_disk, get_start_sect(bdev) + sector,
-			       zones, &nrz, gfp_mask);
+			       zones, &nrz);
 	if (ret)
 		return ret;
 
@@ -305,9 +305,7 @@ int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!zones)
 		return -ENOMEM;
 
-	ret = blkdev_report_zones(bdev, rep.sector,
-				  zones, &rep.nr_zones,
-				  GFP_KERNEL);
+	ret = blkdev_report_zones(bdev, rep.sector, zones, &rep.nr_zones);
 	if (ret)
 		goto out;
 
@@ -415,6 +413,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	unsigned long *seq_zones_wlock = NULL, *seq_zones_bitmap = NULL;
 	unsigned int i, rep_nr_zones = 0, z = 0, nrz;
 	struct blk_zone *zones = NULL;
+	unsigned int noio_flag;
 	sector_t sector = 0;
 	int ret = 0;
 
@@ -426,6 +425,12 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 		q->nr_zones = nr_zones;
 		return 0;
 	}
+
+	/*
+	 * Ensure that all memory allocations in this context are done as
+	 * if GFP_NOIO was specified.
+	 */
+	noio_flag = memalloc_noio_save();
 
 	if (!blk_queue_is_zoned(q) || !nr_zones) {
 		nr_zones = 0;
@@ -449,7 +454,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 
 	while (z < nr_zones) {
 		nrz = min(nr_zones - z, rep_nr_zones);
-		ret = blk_report_zones(disk, sector, zones, &nrz, GFP_NOIO);
+		ret = blk_report_zones(disk, sector, zones, &nrz);
 		if (ret)
 			goto out;
 		if (!nrz)
@@ -480,6 +485,8 @@ update:
 	blk_mq_unfreeze_queue(q);
 
 out:
+	memalloc_noio_restore(noio_flag);
+
 	free_pages((unsigned long)zones,
 		   get_order(rep_nr_zones * sizeof(struct blk_zone)));
 	kfree(seq_zones_wlock);

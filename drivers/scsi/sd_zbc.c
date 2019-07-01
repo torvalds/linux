@@ -109,13 +109,11 @@ static int sd_zbc_do_report_zones(struct scsi_disk *sdkp, unsigned char *buf,
  * @sector: Start 512B sector of the report
  * @zones: Array of zone descriptors
  * @nr_zones: Number of descriptors in the array
- * @gfp_mask: Memory allocation mask
  *
  * Execute a report zones command on the target disk.
  */
 int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
-			struct blk_zone *zones, unsigned int *nr_zones,
-			gfp_t gfp_mask)
+			struct blk_zone *zones, unsigned int *nr_zones)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	unsigned int i, buflen, nrz = *nr_zones;
@@ -134,7 +132,7 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 	 */
 	buflen = min(queue_max_hw_sectors(disk->queue) << 9,
 		     roundup((nrz + 1) * 64, 512));
-	buf = kmalloc(buflen, gfp_mask);
+	buf = kmalloc(buflen, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
