@@ -292,8 +292,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
 		stats->packets += skb_shinfo(skb)->gso_segs;
 	} else {
-		u8 mode = mlx5e_transport_inline_tx_wqe(wqe) ?
-			MLX5_INLINE_MODE_TCP_UDP : sq->min_inline_mode;
+		u8 mode = mlx5e_tx_wqe_inline_mode(sq, &wqe->ctrl, skb);
 
 		opcode    = MLX5_OPCODE_SEND;
 		mss       = 0;
@@ -608,9 +607,11 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
 		stats->packets += skb_shinfo(skb)->gso_segs;
 	} else {
+		u8 mode = mlx5e_tx_wqe_inline_mode(sq, NULL, skb);
+
 		opcode    = MLX5_OPCODE_SEND;
 		mss       = 0;
-		ihs       = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
+		ihs       = mlx5e_calc_min_inline(mode, skb);
 		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
 		stats->packets++;
 	}
