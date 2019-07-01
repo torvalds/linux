@@ -440,35 +440,6 @@ static u32 hinic_get_rxfh_indir_size(struct net_device *netdev)
 
 #define ARRAY_LEN(arr) ((int)((int)sizeof(arr) / (int)sizeof(arr[0])))
 
-#define HINIC_NETDEV_STAT(_stat_item) { \
-	.name = #_stat_item, \
-	.size = FIELD_SIZEOF(struct rtnl_link_stats64, _stat_item), \
-	.offset = offsetof(struct rtnl_link_stats64, _stat_item) \
-}
-
-static struct hinic_stats hinic_netdev_stats[] = {
-	HINIC_NETDEV_STAT(rx_packets),
-	HINIC_NETDEV_STAT(tx_packets),
-	HINIC_NETDEV_STAT(rx_bytes),
-	HINIC_NETDEV_STAT(tx_bytes),
-	HINIC_NETDEV_STAT(rx_errors),
-	HINIC_NETDEV_STAT(tx_errors),
-	HINIC_NETDEV_STAT(rx_dropped),
-	HINIC_NETDEV_STAT(tx_dropped),
-	HINIC_NETDEV_STAT(multicast),
-	HINIC_NETDEV_STAT(collisions),
-	HINIC_NETDEV_STAT(rx_length_errors),
-	HINIC_NETDEV_STAT(rx_over_errors),
-	HINIC_NETDEV_STAT(rx_crc_errors),
-	HINIC_NETDEV_STAT(rx_frame_errors),
-	HINIC_NETDEV_STAT(rx_fifo_errors),
-	HINIC_NETDEV_STAT(rx_missed_errors),
-	HINIC_NETDEV_STAT(tx_aborted_errors),
-	HINIC_NETDEV_STAT(tx_carrier_errors),
-	HINIC_NETDEV_STAT(tx_fifo_errors),
-	HINIC_NETDEV_STAT(tx_heartbeat_errors),
-};
-
 #define HINIC_FUNC_STAT(_stat_item) {	\
 	.name = #_stat_item, \
 	.size = FIELD_SIZEOF(struct hinic_vport_stats, _stat_item), \
@@ -658,19 +629,10 @@ static void hinic_get_ethtool_stats(struct net_device *netdev,
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic_vport_stats vport_stats = {0};
-	const struct rtnl_link_stats64 *net_stats;
 	struct hinic_phy_port_stats *port_stats;
-	struct rtnl_link_stats64 temp;
 	u16 i = 0, j = 0;
 	char *p;
 	int err;
-
-	net_stats = dev_get_stats(netdev, &temp);
-	for (j = 0; j < ARRAY_LEN(hinic_netdev_stats); j++, i++) {
-		p = (char *)net_stats + hinic_netdev_stats[j].offset;
-		data[i] = (hinic_netdev_stats[j].size ==
-				sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-	}
 
 	err = hinic_get_vport_stats(nic_dev, &vport_stats);
 	if (err)
@@ -716,8 +678,7 @@ static int hinic_get_sset_count(struct net_device *netdev, int sset)
 	switch (sset) {
 	case ETH_SS_STATS:
 		q_num = nic_dev->num_qps;
-		count = ARRAY_LEN(hinic_netdev_stats) +
-			ARRAY_LEN(hinic_function_stats) +
+		count = ARRAY_LEN(hinic_function_stats) +
 			(ARRAY_LEN(hinic_tx_queue_stats) +
 			ARRAY_LEN(hinic_rx_queue_stats)) * q_num;
 
@@ -738,12 +699,6 @@ static void hinic_get_strings(struct net_device *netdev,
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < ARRAY_LEN(hinic_netdev_stats); i++) {
-			memcpy(p, hinic_netdev_stats[i].name,
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-
 		for (i = 0; i < ARRAY_LEN(hinic_function_stats); i++) {
 			memcpy(p, hinic_function_stats[i].name,
 			       ETH_GSTRING_LEN);
