@@ -443,7 +443,6 @@ static struct platform_driver brcm_usb_driver = {
 	.remove		= brcm_usb_phy_remove,
 	.driver		= {
 		.name	= "brcmstb-usb-phy",
-		.owner	= THIS_MODULE,
 		.pm = &brcm_usb_phy_pm_ops,
 		.of_match_table = brcm_usb_dt_ids,
 	},

@@ -4,3 +4,13 @@ config PHY_FSL_IMX8MQ_USB
 	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
 	default ARCH_MXC && ARM64
+
+config PHY_MIXEL_MIPI_DPHY
+	tristate "Mixel MIPI DSI PHY support"
+	depends on OF && HAS_IOMEM
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	select REGMAP_MMIO
+	help
+	  Enable this to add support for the Mixel DSI PHY as found
+	  on NXP's i.MX8 family of SOCs.
