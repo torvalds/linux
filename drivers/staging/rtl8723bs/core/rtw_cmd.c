@@ -1440,7 +1440,7 @@ static void dynamic_chk_wk_hdl(struct adapter *padapter)
 	/*  */
 	/*  BT-Coexist */
 	/*  */
-	rtw_btcoex_Handler(padapter);
+	hal_btcoex_Handler(padapter);
 
 
 	/* always call rtw_ps_processor() at last one. */

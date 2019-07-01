@@ -58,11 +58,6 @@ u8 rtw_btcoex_IsBtDisabled(struct adapter *padapter)
 	return hal_btcoex_IsBtDisabled(padapter);
 }
 
-void rtw_btcoex_Handler(struct adapter *padapter)
-{
-	hal_btcoex_Handler(padapter);
-}
-
 s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 {
 	s32 coexctrl;
