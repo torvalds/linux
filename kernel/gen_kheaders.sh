@@ -33,8 +33,8 @@ arch/$SRCARCH/include/
 # Uncomment it for debugging.
 # if [ ! -f /tmp/iter ]; then iter=1; echo 1 > /tmp/iter;
 # else iter=$(($(cat /tmp/iter) + 1)); echo $iter > /tmp/iter; fi
-# find $src_file_list -type f | xargs ls -lR > /tmp/src-ls-$iter
-# find $obj_file_list -type f | xargs ls -lR > /tmp/obj-ls-$iter
+# find $src_file_list -type f | xargs ls -l > /tmp/src-ls-$iter
+# find $obj_file_list -type f | xargs ls -l > /tmp/obj-ls-$iter
 
 # include/generated/compile.h is ignored because it is touched even when none
 # of the source files changed. This causes pointless regeneration, so let us
@@ -46,7 +46,7 @@ src_files_md5="$(find $src_file_list -type f                       |
 		grep -v "include/config/auto.conf"		   |
 		grep -v "include/config/auto.conf.cmd"		   |
 		grep -v "include/config/tristate.conf"		   |
-		xargs ls -lR | md5sum | cut -d ' ' -f1)"
+		xargs ls -l | md5sum | cut -d ' ' -f1)"
 popd > /dev/null
 obj_files_md5="$(find $obj_file_list -type f                       |
 		grep -v "include/generated/compile.h"		   |
@@ -54,7 +54,7 @@ obj_files_md5="$(find $obj_file_list -type f                       |
 		grep -v "include/config/auto.conf"                 |
 		grep -v "include/config/auto.conf.cmd"		   |
 		grep -v "include/config/tristate.conf"		   |
-		xargs ls -lR | md5sum | cut -d ' ' -f1)"
+		xargs ls -l | md5sum | cut -d ' ' -f1)"
 
 if [ -f $tarfile ]; then tarfile_md5="$(md5sum $tarfile | cut -d ' ' -f1)"; fi
 if [ -f kernel/kheaders.md5 ] &&
