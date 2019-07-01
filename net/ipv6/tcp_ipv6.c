@@ -989,7 +989,7 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		if (sk->sk_state == TCP_TIME_WAIT)
 			label = cpu_to_be32(inet_twsk(sk)->tw_flowlabel);
 	} else {
-		if (net->ipv6.sysctl.flowlabel_reflect & 2)
+		if (net->ipv6.sysctl.flowlabel_reflect & FLOWLABEL_REFLECT_TCP_RESET)
 			label = ip6_flowlabel(ipv6h);
 	}
 

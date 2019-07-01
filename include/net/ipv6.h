@@ -301,6 +301,13 @@ struct ipv6_txoptions {
 	/* Option buffer, as read by IPV6_PKTOPTIONS, starts here. */
 };
 
+/* flowlabel_reflect sysctl values */
+enum flowlabel_reflect {
+	FLOWLABEL_REFLECT_ESTABLISHED		= 1,
+	FLOWLABEL_REFLECT_TCP_RESET		= 2,
+	FLOWLABEL_REFLECT_ICMPV6_ECHO_REPLIES	= 4,
+};
+
 struct ip6_flowlabel {
 	struct ip6_flowlabel __rcu *next;
 	__be32			label;

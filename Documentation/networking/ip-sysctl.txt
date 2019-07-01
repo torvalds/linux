@@ -1452,7 +1452,7 @@ flowlabel_reflect - INTEGER
 	environments. See RFC 7690 and:
 	https://tools.ietf.org/html/draft-wang-6man-flow-label-reflection-01
 
-	This is a mask of two bits.
+	This is a bitmask.
 	1: enabled for established flows
 
 	Note that this prevents automatic flowlabel changes, as done
@@ -1462,6 +1462,8 @@ flowlabel_reflect - INTEGER
 	2: enabled for TCP RESET packets (no active listener)
 	If set, a RST packet sent in response to a SYN packet on a closed
 	port will reflect the incoming flow label.
+
+	4: enabled for ICMPv6 echo reply messages.
 
 	Default: 0
 

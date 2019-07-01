@@ -23,7 +23,7 @@
 
 static int zero;
 static int one = 1;
-static int three = 3;
+static int flowlabel_reflect_max = 0x7;
 static int auto_flowlabels_min;
 static int auto_flowlabels_max = IP6_AUTO_FLOW_LABEL_MAX;
 
@@ -116,7 +116,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 		.extra1		= &zero,
-		.extra2		= &three,
+		.extra2		= &flowlabel_reflect_max,
 	},
 	{
 		.procname	= "max_dst_opts_number",
