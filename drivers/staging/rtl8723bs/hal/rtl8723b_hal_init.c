@@ -2153,7 +2153,7 @@ static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_l
 
 	mask &= rate_bitmap;
 
-	rate_bitmap = rtw_btcoex_GetRaMask(padapter);
+	rate_bitmap = hal_btcoex_GetRaMask(padapter);
 	mask &= ~rate_bitmap;
 
 #ifdef CONFIG_CMCC_TEST

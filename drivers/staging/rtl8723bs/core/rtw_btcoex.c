@@ -67,11 +67,6 @@ void rtw_btcoex_SetSingleAntPath(struct adapter *padapter, u8 singleAntPath)
 	hal_btcoex_SetSingleAntPath(padapter, singleAntPath);
 }
 
-u32 rtw_btcoex_GetRaMask(struct adapter *padapter)
-{
-	return hal_btcoex_GetRaMask(padapter);
-}
-
 void rtw_btcoex_DisplayBtCoexInfo(struct adapter *padapter, u8 *pbuf, u32 bufsize)
 {
 	hal_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
