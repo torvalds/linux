@@ -55,6 +55,13 @@
 #include <net/net_namespace.h>
 #include <linux/u64_stats_sync.h>
 
+/* blackhole_netdev - a device used for dsts that are marked expired!
+ * This is global device (instead of per-net-ns) since it's not needed
+ * to be per-ns and gets initialized at boot time.
+ */
+struct net_device *blackhole_netdev;
+EXPORT_SYMBOL(blackhole_netdev);
+
 /* The higher levels take care of making this non-reentrant (it's
  * called with bh's disabled).
  */
@@ -150,12 +157,14 @@ static const struct net_device_ops loopback_ops = {
 	.ndo_set_mac_address = eth_mac_addr,
 };
 
-/* The loopback device is special. There is only one instance
- * per network namespace.
- */
-static void loopback_setup(struct net_device *dev)
+static void gen_lo_setup(struct net_device *dev,
+			 unsigned int mtu,
+			 const struct ethtool_ops *eth_ops,
+			 const struct header_ops *hdr_ops,
+			 const struct net_device_ops *dev_ops,
+			 void (*dev_destructor)(struct net_device *dev))
 {
-	dev->mtu		= 64 * 1024;
+	dev->mtu		= mtu;
 	dev->hard_header_len	= ETH_HLEN;	/* 14	*/
 	dev->min_header_len	= ETH_HLEN;	/* 14	*/
 	dev->addr_len		= ETH_ALEN;	/* 6	*/
@@ -174,11 +183,20 @@ static void loopback_setup(struct net_device *dev)
 		| NETIF_F_NETNS_LOCAL
 		| NETIF_F_VLAN_CHALLENGED
 		| NETIF_F_LOOPBACK;
-	dev->ethtool_ops	= &loopback_ethtool_ops;
-	dev->header_ops		= &eth_header_ops;
-	dev->netdev_ops		= &loopback_ops;
+	dev->ethtool_ops	= eth_ops;
+	dev->header_ops		= hdr_ops;
+	dev->netdev_ops		= dev_ops;
 	dev->needs_free_netdev	= true;
-	dev->priv_destructor	= loopback_dev_free;
+	dev->priv_destructor	= dev_destructor;
+}
+
+/* The loopback device is special. There is only one instance
+ * per network namespace.
+ */
+static void loopback_setup(struct net_device *dev)
+{
+	gen_lo_setup(dev, (64 * 1024), &loopback_ethtool_ops, &eth_header_ops,
+		     &loopback_ops, loopback_dev_free);
 }
 
 /* Setup and register the loopback device. */
@@ -213,3 +231,43 @@ out:
 struct pernet_operations __net_initdata loopback_net_ops = {
 	.init = loopback_net_init,
 };
+
+/* blackhole netdevice */
+static netdev_tx_t blackhole_netdev_xmit(struct sk_buff *skb,
+					 struct net_device *dev)
+{
+	kfree_skb(skb);
+	net_warn_ratelimited("%s(): Dropping skb.\n", __func__);
+	return NETDEV_TX_OK;
+}
+
+static const struct net_device_ops blackhole_netdev_ops = {
+	.ndo_start_xmit = blackhole_netdev_xmit,
+};
+
+/* This is a dst-dummy device used specifically for invalidated
+ * DSTs and unlike loopback, this is not per-ns.
+ */
+static void blackhole_netdev_setup(struct net_device *dev)
+{
+	gen_lo_setup(dev, ETH_MIN_MTU, NULL, NULL, &blackhole_netdev_ops, NULL);
+}
+
+/* Setup and register the blackhole_netdev. */
+static int __init blackhole_netdev_init(void)
+{
+	blackhole_netdev = alloc_netdev(0, "blackhole_dev", NET_NAME_UNKNOWN,
+					blackhole_netdev_setup);
+	if (!blackhole_netdev)
+		return -ENOMEM;
+
+	dev_init_scheduler(blackhole_netdev);
+	dev_activate(blackhole_netdev);
+
+	blackhole_netdev->flags |= IFF_UP | IFF_RUNNING;
+	dev_net_set(blackhole_netdev, &init_net);
+
+	return 0;
+}
+
+device_initcall(blackhole_netdev_init);
