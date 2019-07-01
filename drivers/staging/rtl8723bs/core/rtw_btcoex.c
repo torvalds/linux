@@ -53,11 +53,6 @@ void rtw_btcoex_HaltNotify(struct adapter *padapter)
 	hal_btcoex_HaltNotify(padapter);
 }
 
-u8 rtw_btcoex_IsBtDisabled(struct adapter *padapter)
-{
-	return hal_btcoex_IsBtDisabled(padapter);
-}
-
 s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 {
 	s32 coexctrl;

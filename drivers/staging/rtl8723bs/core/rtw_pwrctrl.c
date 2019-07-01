@@ -481,7 +481,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			if (pwrpriv->alives == 0)
 				pslv = PS_STATE_S0;
 
-			if ((rtw_btcoex_IsBtDisabled(padapter) == false)
+			if ((hal_btcoex_IsBtDisabled(padapter) == false)
 				&& (hal_btcoex_IsBtControlLps(padapter) == true)) {
 				u8 val8;
 
@@ -910,7 +910,7 @@ void rtw_unregister_task_alive(struct adapter *padapter, u32 task)
 	pwrctrl = adapter_to_pwrctl(padapter);
 	pslv = PS_STATE_S0;
 
-	if ((rtw_btcoex_IsBtDisabled(padapter) == false)
+	if ((hal_btcoex_IsBtDisabled(padapter) == false)
 		&& (hal_btcoex_IsBtControlLps(padapter) == true)) {
 		u8 val8;
 
@@ -1051,7 +1051,7 @@ void rtw_unregister_tx_alive(struct adapter *padapter)
 	pwrctrl = adapter_to_pwrctl(padapter);
 	pslv = PS_STATE_S0;
 
-	if ((rtw_btcoex_IsBtDisabled(padapter) == false)
+	if ((hal_btcoex_IsBtDisabled(padapter) == false)
 		&& (hal_btcoex_IsBtControlLps(padapter) == true)) {
 		u8 val8;
 
@@ -1093,7 +1093,7 @@ void rtw_unregister_cmd_alive(struct adapter *padapter)
 	pwrctrl = adapter_to_pwrctl(padapter);
 	pslv = PS_STATE_S0;
 
-	if ((rtw_btcoex_IsBtDisabled(padapter) == false)
+	if ((hal_btcoex_IsBtDisabled(padapter) == false)
 		&& (hal_btcoex_IsBtControlLps(padapter) == true)) {
 		u8 val8;
 
