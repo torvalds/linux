@@ -212,6 +212,9 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder)
 	int ret;
 	u32 val;
 
+	if (!dp->data->lcdsel_grf_reg)
+		return;
+
 	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
 	if (ret < 0)
 		return;
@@ -539,6 +542,10 @@ static const struct rockchip_dp_chip_data rk3399_edp = {
 	.chip_type = RK3399_EDP,
 };
 
+static const struct rockchip_dp_chip_data rk3368_edp = {
+	.chip_type = RK3368_EDP,
+};
+
 static const struct rockchip_dp_chip_data rk3288_dp = {
 	.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
 	.lcdsel_big = HIWORD_UPDATE(0, RK3288_EDP_LCDC_SEL),
@@ -548,6 +555,7 @@ static const struct rockchip_dp_chip_data rk3288_dp = {
 
 static const struct of_device_id rockchip_dp_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-dp", .data = &rk3288_dp },
+	{.compatible = "rockchip,rk3368-edp", .data = &rk3368_edp },
 	{.compatible = "rockchip,rk3399-edp", .data = &rk3399_edp },
 	{}
 };
