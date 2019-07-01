@@ -248,6 +248,7 @@ static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
 
 		data += cur_len;
 		len -= cur_len;
+		mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
 	}
 
 	return ret;
@@ -524,6 +525,8 @@ static int mt7615_load_firmware(struct mt7615_dev *dev)
 		dev_err(dev->mt76.dev, "Timeout for initializing firmware\n");
 		return -EIO;
 	}
+
+	mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
 
 	dev_dbg(dev->mt76.dev, "Firmware init done\n");
 
