@@ -994,21 +994,10 @@ static int pci_pm_freeze(struct device *dev)
 	return 0;
 }
 
-static int pci_pm_freeze_late(struct device *dev)
-{
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		return 0;
-
-	return pm_generic_freeze_late(dev);
-}
-
 static int pci_pm_freeze_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
-
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		return 0;
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_FREEZE);
@@ -1038,16 +1027,6 @@ static int pci_pm_thaw_noirq(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
 	int error = 0;
-
-	/*
-	 * If the device is in runtime suspend, the code below may not work
-	 * correctly with it, so skip that code and make the PM core skip all of
-	 * the subsequent "thaw" callbacks for the device.
-	 */
-	if (dev_pm_smart_suspend_and_suspended(dev)) {
-		dev_pm_skip_next_resume_phases(dev);
-		return 0;
-	}
 
 	if (pcibios_pm_ops.thaw_noirq) {
 		error = pcibios_pm_ops.thaw_noirq(dev);
@@ -1183,10 +1162,6 @@ static int pci_pm_restore_noirq(struct device *dev)
 	struct device_driver *drv = dev->driver;
 	int error = 0;
 
-	/* This is analogous to the pci_pm_resume_noirq() case. */
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		pm_runtime_set_active(dev);
-
 	if (pcibios_pm_ops.restore_noirq) {
 		error = pcibios_pm_ops.restore_noirq(dev);
 		if (error)
@@ -1235,7 +1210,6 @@ static int pci_pm_restore(struct device *dev)
 #else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define pci_pm_freeze		NULL
-#define pci_pm_freeze_late	NULL
 #define pci_pm_freeze_noirq	NULL
 #define pci_pm_thaw		NULL
 #define pci_pm_thaw_noirq	NULL
@@ -1361,7 +1335,6 @@ static const struct dev_pm_ops pci_dev_pm_ops = {
 	.suspend_late = pci_pm_suspend_late,
 	.resume = pci_pm_resume,
 	.freeze = pci_pm_freeze,
-	.freeze_late = pci_pm_freeze_late,
 	.thaw = pci_pm_thaw,
 	.poweroff = pci_pm_poweroff,
 	.poweroff_late = pci_pm_poweroff_late,
