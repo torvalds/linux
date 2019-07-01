@@ -268,6 +268,11 @@ struct kimage {
 	/* Information for loading purgatory */
 	struct purgatory_info purgatory_info;
 #endif
+
+        /* Used for KEXEC_RUN_PE  */
+        void          *raw_image;
+        void          *raw_image_start;
+        unsigned long raw_image_mem_base;
 };
 
 /* kexec interface functions */
@@ -294,9 +299,9 @@ extern int kexec_load_disabled;
 
 /* List of defined/legal kexec flags */
 #ifndef CONFIG_KEXEC_JUMP
-#define KEXEC_FLAGS    KEXEC_ON_CRASH
+#define KEXEC_FLAGS    (KEXEC_ON_CRASH | KEXEC_RUN_PE)
 #else
-#define KEXEC_FLAGS    (KEXEC_ON_CRASH | KEXEC_PRESERVE_CONTEXT)
+#define KEXEC_FLAGS    (KEXEC_ON_CRASH | KEXEC_PRESERVE_CONTEXT | KEXEC_RUN_PE)
 #endif
 
 /* List of defined/legal kexec file flags */
