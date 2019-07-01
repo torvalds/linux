@@ -82,15 +82,11 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 }
 
 /**
- * gfs2_writepage_common - Common bits of writepage
- * @page: The page to be written
+ * gfs2_writepage - Write page for writeback mappings
+ * @page: The page
  * @wbc: The writeback control
- *
- * Returns: 1 if writepage is ok, otherwise an error code or zero if no error.
  */
-
-static int gfs2_writepage_common(struct page *page,
-				 struct writeback_control *wbc)
+static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -109,30 +105,14 @@ static int gfs2_writepage_common(struct page *page,
 		page->mapping->a_ops->invalidatepage(page, 0, PAGE_SIZE);
 		goto out;
 	}
-	return 1;
+
+	return nobh_writepage(page, gfs2_get_block_noalloc, wbc);
+
 redirty:
 	redirty_page_for_writepage(wbc, page);
 out:
 	unlock_page(page);
 	return 0;
-}
-
-/**
- * gfs2_writepage - Write page for writeback mappings
- * @page: The page
- * @wbc: The writeback control
- *
- */
-
-static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
-{
-	int ret;
-
-	ret = gfs2_writepage_common(page, wbc);
-	if (ret <= 0)
-		return ret;
-
-	return nobh_writepage(page, gfs2_get_block_noalloc, wbc);
 }
 
 /* This is the same as calling block_write_full_page, but it also
