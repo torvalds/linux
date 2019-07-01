@@ -14,6 +14,8 @@
 #include <linux/percpu.h>
 #include <linux/cpumask.h>
 #include <linux/clockchips.h>
+#include <linux/clocksource.h>
+#include <linux/sched_clock.h>
 #include <linux/mm.h>
 #include <clocksource/hyperv_timer.h>
 #include <asm/hyperv-tlfs.h>
@@ -198,3 +200,140 @@ void hv_stimer_global_cleanup(void)
 	hv_stimer_free();
 }
 EXPORT_SYMBOL_GPL(hv_stimer_global_cleanup);
+
+/*
+ * Code and definitions for the Hyper-V clocksources.  Two
+ * clocksources are defined: one that reads the Hyper-V defined MSR, and
+ * the other that uses the TSC reference page feature as defined in the
+ * TLFS.  The MSR version is for compatibility with old versions of
+ * Hyper-V and 32-bit x86.  The TSC reference page version is preferred.
+ */
+
+struct clocksource *hyperv_cs;
+EXPORT_SYMBOL_GPL(hyperv_cs);
+
+#ifdef CONFIG_HYPERV_TSCPAGE
+
+static struct ms_hyperv_tsc_page *tsc_pg;
+
+struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
+{
+	return tsc_pg;
+}
+EXPORT_SYMBOL_GPL(hv_get_tsc_page);
+
+static u64 notrace read_hv_sched_clock_tsc(void)
+{
+	u64 current_tick = hv_read_tsc_page(tsc_pg);
+
+	if (current_tick == U64_MAX)
+		hv_get_time_ref_count(current_tick);
+
+	return current_tick;
+}
+
+static u64 read_hv_clock_tsc(struct clocksource *arg)
+{
+	return read_hv_sched_clock_tsc();
+}
+
+static struct clocksource hyperv_cs_tsc = {
+	.name	= "hyperv_clocksource_tsc_page",
+	.rating	= 400,
+	.read	= read_hv_clock_tsc,
+	.mask	= CLOCKSOURCE_MASK(64),
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+#endif
+
+static u64 notrace read_hv_sched_clock_msr(void)
+{
+	u64 current_tick;
+	/*
+	 * Read the partition counter to get the current tick count. This count
+	 * is set to 0 when the partition is created and is incremented in
+	 * 100 nanosecond units.
+	 */
+	hv_get_time_ref_count(current_tick);
+	return current_tick;
+}
+
+static u64 read_hv_clock_msr(struct clocksource *arg)
+{
+	return read_hv_sched_clock_msr();
+}
+
+static struct clocksource hyperv_cs_msr = {
+	.name	= "hyperv_clocksource_msr",
+	.rating	= 400,
+	.read	= read_hv_clock_msr,
+	.mask	= CLOCKSOURCE_MASK(64),
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+#ifdef CONFIG_HYPERV_TSCPAGE
+static bool __init hv_init_tsc_clocksource(void)
+{
+	u64		tsc_msr;
+	phys_addr_t	phys_addr;
+
+	if (!(ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE))
+		return false;
+
+	tsc_pg = vmalloc(PAGE_SIZE);
+	if (!tsc_pg)
+		return false;
+
+	hyperv_cs = &hyperv_cs_tsc;
+	phys_addr = page_to_phys(vmalloc_to_page(tsc_pg));
+
+	/*
+	 * The Hyper-V TLFS specifies to preserve the value of reserved
+	 * bits in registers. So read the existing value, preserve the
+	 * low order 12 bits, and add in the guest physical address
+	 * (which already has at least the low 12 bits set to zero since
+	 * it is page aligned). Also set the "enable" bit, which is bit 0.
+	 */
+	hv_get_reference_tsc(tsc_msr);
+	tsc_msr &= GENMASK_ULL(11, 0);
+	tsc_msr = tsc_msr | 0x1 | (u64)phys_addr;
+	hv_set_reference_tsc(tsc_msr);
+
+	hv_set_clocksource_vdso(hyperv_cs_tsc);
+	clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
+
+	/* sched_clock_register is needed on ARM64 but is a no-op on x86 */
+	sched_clock_register(read_hv_sched_clock_tsc, 64, HV_CLOCK_HZ);
+	return true;
+}
+#else
+static bool __init hv_init_tsc_clocksource(void)
+{
+	return false;
+}
+#endif
+
+
+void __init hv_init_clocksource(void)
+{
+	/*
+	 * Try to set up the TSC page clocksource. If it succeeds, we're
+	 * done. Otherwise, set up the MSR clocksoruce.  At least one of
+	 * these will always be available except on very old versions of
+	 * Hyper-V on x86.  In that case we won't have a Hyper-V
+	 * clocksource, but Linux will still run with a clocksource based
+	 * on the emulated PIT or LAPIC timer.
+	 */
+	if (hv_init_tsc_clocksource())
+		return;
+
+	if (!(ms_hyperv.features & HV_MSR_TIME_REF_COUNT_AVAILABLE))
+		return;
+
+	hyperv_cs = &hyperv_cs_msr;
+	clocksource_register_hz(&hyperv_cs_msr, NSEC_PER_SEC/100);
+
+	/* sched_clock_register is needed on ARM64 but is a no-op on x86 */
+	sched_clock_register(read_hv_sched_clock_msr, 64, HV_CLOCK_HZ);
+}
+EXPORT_SYMBOL_GPL(hv_init_clocksource);

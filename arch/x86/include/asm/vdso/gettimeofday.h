@@ -18,7 +18,7 @@
 #include <asm/unistd.h>
 #include <asm/msr.h>
 #include <asm/pvclock.h>
-#include <asm/mshyperv.h>
+#include <clocksource/hyperv_timer.h>
 
 #define __vdso_data (VVAR(_vdso_data))
 
