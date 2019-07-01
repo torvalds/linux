@@ -1544,24 +1544,6 @@ static void gfx_v10_0_constants_init(struct amdgpu_device *adev)
 
 	gfx_v10_0_init_compute_vmid(adev);
 
-	mutex_lock(&adev->grbm_idx_mutex);
-	/*
-	 * making sure that the following register writes will be broadcasted
-	 * to all the shaders
-	 */
-	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-
-	tmp = REG_SET_FIELD(0, PA_SC_FIFO_SIZE, SC_FRONTEND_PRIM_FIFO_SIZE,
-			    adev->gfx.config.sc_prim_fifo_size_frontend);
-	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_BACKEND_PRIM_FIFO_SIZE,
-			    adev->gfx.config.sc_prim_fifo_size_backend);
-	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_HIZ_TILE_FIFO_SIZE,
-			    adev->gfx.config.sc_hiz_tile_fifo_size);
-	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_EARLYZ_TILE_FIFO_SIZE,
-			    adev->gfx.config.sc_earlyz_tile_fifo_size);
-	WREG32_SOC15(GC, 0, mmPA_SC_FIFO_SIZE, tmp);
-
-	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
 static void gfx_v10_0_enable_gui_idle_interrupt(struct amdgpu_device *adev,
