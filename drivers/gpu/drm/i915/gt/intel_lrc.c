@@ -1279,6 +1279,30 @@ reset_in_progress(const struct intel_engine_execlists *execlists)
 	return unlikely(!__tasklet_is_enabled(&execlists->tasklet));
 }
 
+enum csb_step {
+	CSB_NOP,
+	CSB_PROMOTE,
+	CSB_PREEMPT,
+	CSB_COMPLETE,
+};
+
+static inline enum csb_step
+csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
+{
+	unsigned int status = *csb;
+
+	if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
+		return CSB_PROMOTE;
+
+	if (status & GEN8_CTX_STATUS_PREEMPTED)
+		return CSB_PREEMPT;
+
+	if (*execlists->active)
+		return CSB_COMPLETE;
+
+	return CSB_NOP;
+}
+
 static void process_csb(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -1316,8 +1340,6 @@ static void process_csb(struct intel_engine_cs *engine)
 	rmb();
 
 	do {
-		unsigned int status;
-
 		if (++head == num_entries)
 			head = 0;
 
@@ -1343,10 +1365,16 @@ static void process_csb(struct intel_engine_cs *engine)
 			  engine->name, head,
 			  buf[2 * head + 0], buf[2 * head + 1]);
 
-		status = buf[2 * head];
-		if (status & GEN8_CTX_STATUS_IDLE_ACTIVE) {
+		switch (csb_parse(execlists, buf + 2 * head)) {
+		case CSB_PREEMPT: /* cancel old inflight, prepare for switch */
+			trace_ports(execlists, "preempted", execlists->active);
+
+			while (*execlists->active)
+				execlists_schedule_out(*execlists->active++);
+
+			/* fallthrough */
+		case CSB_PROMOTE: /* switch pending to inflight */
 			GEM_BUG_ON(*execlists->active);
-promote:
 			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
 			execlists->active =
 				memcpy(execlists->inflight,
@@ -1355,25 +1383,17 @@ promote:
 				       sizeof(*execlists->pending));
 			execlists->pending[0] = NULL;
 
+			trace_ports(execlists, "promoted", execlists->active);
+
 			if (enable_timeslice(engine))
 				mod_timer(&execlists->timer, jiffies + 1);
 
 			if (!inject_preempt_hang(execlists))
 				ring_set_paused(engine, 0);
-		} else if (status & GEN8_CTX_STATUS_PREEMPTED) {
-			struct i915_request * const *port = execlists->active;
+			break;
 
-			trace_ports(execlists, "preempted", execlists->active);
-
-			while (*port)
-				execlists_schedule_out(*port++);
-
-			goto promote;
-		} else if (*execlists->active) {
-			struct i915_request *rq = *execlists->active++;
-
-			trace_ports(execlists, "completed",
-				    execlists->active - 1);
+		case CSB_COMPLETE: /* port0 completed, advanced to port1 */
+			trace_ports(execlists, "completed", execlists->active);
 
 			/*
 			 * We rely on the hardware being strongly
@@ -1381,11 +1401,15 @@ promote:
 			 * coherent (visible from the CPU) before the
 			 * user interrupt and CSB is processed.
 			 */
-			GEM_BUG_ON(!i915_request_completed(rq));
-			execlists_schedule_out(rq);
+			GEM_BUG_ON(!i915_request_completed(*execlists->active));
+			execlists_schedule_out(*execlists->active++);
 
 			GEM_BUG_ON(execlists->active - execlists->inflight >
 				   execlists_num_ports(execlists));
+			break;
+
+		case CSB_NOP:
+			break;
 		}
 	} while (head != tail);
 
