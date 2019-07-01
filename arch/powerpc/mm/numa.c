@@ -232,7 +232,7 @@ static int associativity_to_nid(const __be32 *associativity)
 {
 	int nid = NUMA_NO_NODE;
 
-	if (min_common_depth == -1)
+	if (min_common_depth == -1 || !numa_enabled)
 		goto out;
 
 	if (of_read_number(associativity, 1) >= min_common_depth)
@@ -440,7 +440,7 @@ static int of_drconf_to_nid_single(struct drmem_lmb *lmb)
 	int nid = default_nid;
 	int rc, index;
 
-	if (min_common_depth < 0)
+	if ((min_common_depth < 0) || !numa_enabled)
 		return default_nid;
 
 	rc = of_get_assoc_arrays(&aa);
@@ -830,7 +830,7 @@ static void __init find_possible_nodes(void)
 	struct device_node *rtas;
 	u32 numnodes, i;
 
-	if (min_common_depth <= 0)
+	if (min_common_depth <= 0 || !numa_enabled)
 		return;
 
 	rtas = of_find_node_by_path("/rtas");
