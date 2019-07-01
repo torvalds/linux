@@ -14101,16 +14101,17 @@ intel_atomic_commit_ready(struct i915_sw_fence *fence,
 	return NOTIFY_DONE;
 }
 
-static void intel_atomic_track_fbs(struct drm_atomic_state *state)
+static void intel_atomic_track_fbs(struct intel_atomic_state *state)
 {
-	struct drm_plane_state *old_plane_state, *new_plane_state;
-	struct drm_plane *plane;
+	struct intel_plane_state *old_plane_state, *new_plane_state;
+	struct intel_plane *plane;
 	int i;
 
-	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
-		i915_gem_track_fb(intel_fb_obj(old_plane_state->fb),
-				  intel_fb_obj(new_plane_state->fb),
-				  to_intel_plane(plane)->frontbuffer_bit);
+	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
+					     new_plane_state, i)
+		i915_gem_track_fb(intel_fb_obj(old_plane_state->base.fb),
+				  intel_fb_obj(new_plane_state->base.fb),
+				  plane->frontbuffer_bit);
 }
 
 /**
@@ -14188,7 +14189,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	}
 	dev_priv->wm.distrust_bios_wm = false;
 	intel_shared_dpll_swap_state(intel_state);
-	intel_atomic_track_fbs(state);
+	intel_atomic_track_fbs(intel_state);
 
 	if (intel_state->modeset) {
 		memcpy(dev_priv->min_cdclk, intel_state->min_cdclk,
