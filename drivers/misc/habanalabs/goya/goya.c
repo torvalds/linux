@@ -15,6 +15,7 @@
 #include <linux/hwmon.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iommu.h>
+#include <linux/seq_file.h>
 
 /*
  * GOYA security scheme:
@@ -89,6 +90,30 @@
 
 #define GOYA_CB_POOL_CB_CNT		512
 #define GOYA_CB_POOL_CB_SIZE		0x20000		/* 128KB */
+
+#define IS_QM_IDLE(engine, qm_glbl_sts0) \
+	(((qm_glbl_sts0) & engine##_QM_IDLE_MASK) == engine##_QM_IDLE_MASK)
+#define IS_DMA_QM_IDLE(qm_glbl_sts0)	IS_QM_IDLE(DMA, qm_glbl_sts0)
+#define IS_TPC_QM_IDLE(qm_glbl_sts0)	IS_QM_IDLE(TPC, qm_glbl_sts0)
+#define IS_MME_QM_IDLE(qm_glbl_sts0)	IS_QM_IDLE(MME, qm_glbl_sts0)
+
+#define IS_CMDQ_IDLE(engine, cmdq_glbl_sts0) \
+	(((cmdq_glbl_sts0) & engine##_CMDQ_IDLE_MASK) == \
+			engine##_CMDQ_IDLE_MASK)
+#define IS_TPC_CMDQ_IDLE(cmdq_glbl_sts0) \
+	IS_CMDQ_IDLE(TPC, cmdq_glbl_sts0)
+#define IS_MME_CMDQ_IDLE(cmdq_glbl_sts0) \
+	IS_CMDQ_IDLE(MME, cmdq_glbl_sts0)
+
+#define IS_DMA_IDLE(dma_core_sts0) \
+	!((dma_core_sts0) & DMA_CH_0_STS0_DMA_BUSY_MASK)
+
+#define IS_TPC_IDLE(tpc_cfg_sts) \
+	(((tpc_cfg_sts) & TPC_CFG_IDLE_MASK) == TPC_CFG_IDLE_MASK)
+
+#define IS_MME_IDLE(mme_arch_sts) \
+	(((mme_arch_sts) & MME_ARCH_IDLE_MASK) == MME_ARCH_IDLE_MASK)
+
 
 static const char goya_irq_name[GOYA_MSIX_ENTRIES][GOYA_MAX_STRING_LEN] = {
 		"goya cq 0", "goya cq 1", "goya cq 2", "goya cq 3",
@@ -2796,7 +2821,6 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	dma_addr_t fence_dma_addr;
 	struct hl_cb *cb;
 	u32 tmp, timeout;
-	char buf[16] = {};
 	int rc;
 
 	if (hdev->pldm)
@@ -2804,10 +2828,9 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	else
 		timeout = HL_DEVICE_TIMEOUT_USEC;
 
-	if (!hdev->asic_funcs->is_device_idle(hdev, buf, sizeof(buf))) {
+	if (!hdev->asic_funcs->is_device_idle(hdev, NULL)) {
 		dev_err_ratelimited(hdev->dev,
-			"Can't send KMD job on QMAN0 because %s is busy\n",
-			buf);
+			"Can't send KMD job on QMAN0 because the device is not idle\n");
 		return -EBUSY;
 	}
 
@@ -4891,59 +4914,75 @@ int goya_armcp_info_get(struct hl_device *hdev)
 	return 0;
 }
 
-static bool goya_is_device_idle(struct hl_device *hdev, char *buf, size_t size)
+static bool goya_is_device_idle(struct hl_device *hdev, struct seq_file *s)
 {
-	u64 offset, dma_qm_reg, tpc_qm_reg, tpc_cmdq_reg, tpc_cfg_reg,
-		dma_core_sts;
+	const char *fmt = "%-5d%-9s%#-14x%#-16x%#x\n";
+	const char *dma_fmt = "%-5d%-9s%#-14x%#x\n";
+	u32 qm_glbl_sts0, cmdq_glbl_sts0, dma_core_sts0, tpc_cfg_sts,
+		mme_arch_sts;
+	bool is_idle = true, is_eng_idle;
+	u64 offset;
 	int i;
+
+	if (s)
+		seq_puts(s, "\nDMA  is_idle  QM_GLBL_STS0  DMA_CORE_STS0\n"
+				"---  -------  ------------  -------------\n");
 
 	offset = mmDMA_QM_1_GLBL_STS0 - mmDMA_QM_0_GLBL_STS0;
 
 	for (i = 0 ; i < DMA_MAX_NUM ; i++) {
-		dma_qm_reg = mmDMA_QM_0_GLBL_STS0 + i * offset;
-		dma_core_sts = mmDMA_CH_0_STS0 + i * offset;
+		qm_glbl_sts0 = RREG32(mmDMA_QM_0_GLBL_STS0 + i * offset);
+		dma_core_sts0 = RREG32(mmDMA_CH_0_STS0 + i * offset);
+		is_eng_idle = IS_DMA_QM_IDLE(qm_glbl_sts0) &&
+				IS_DMA_IDLE(dma_core_sts0);
+		is_idle &= is_eng_idle;
 
-		if ((RREG32(dma_qm_reg) & DMA_QM_IDLE_MASK) !=
-				DMA_QM_IDLE_MASK)
-			return HL_ENG_BUSY(buf, size, "DMA%d_QM", i);
-
-		if (RREG32(dma_core_sts) & DMA_CH_0_STS0_DMA_BUSY_MASK)
-			return HL_ENG_BUSY(buf, size, "DMA%d_CORE", i);
+		if (s)
+			seq_printf(s, dma_fmt, i, is_eng_idle ? "Y" : "N",
+					qm_glbl_sts0, dma_core_sts0);
 	}
+
+	if (s)
+		seq_puts(s,
+			"\nTPC  is_idle  QM_GLBL_STS0  CMDQ_GLBL_STS0  CFG_STATUS\n"
+			"---  -------  ------------  --------------  ----------\n");
 
 	offset = mmTPC1_QM_GLBL_STS0 - mmTPC0_QM_GLBL_STS0;
 
 	for (i = 0 ; i < TPC_MAX_NUM ; i++) {
-		tpc_qm_reg = mmTPC0_QM_GLBL_STS0 + i * offset;
-		tpc_cmdq_reg = mmTPC0_CMDQ_GLBL_STS0 + i * offset;
-		tpc_cfg_reg = mmTPC0_CFG_STATUS + i * offset;
+		qm_glbl_sts0 = RREG32(mmTPC0_QM_GLBL_STS0 + i * offset);
+		cmdq_glbl_sts0 = RREG32(mmTPC0_CMDQ_GLBL_STS0 + i * offset);
+		tpc_cfg_sts = RREG32(mmTPC0_CFG_STATUS + i * offset);
+		is_eng_idle = IS_TPC_QM_IDLE(qm_glbl_sts0) &&
+				IS_TPC_CMDQ_IDLE(cmdq_glbl_sts0) &&
+				IS_TPC_IDLE(tpc_cfg_sts);
+		is_idle &= is_eng_idle;
 
-		if ((RREG32(tpc_qm_reg) & TPC_QM_IDLE_MASK) !=
-				TPC_QM_IDLE_MASK)
-			return HL_ENG_BUSY(buf, size, "TPC%d_QM", i);
-
-		if ((RREG32(tpc_cmdq_reg) & TPC_CMDQ_IDLE_MASK) !=
-				TPC_CMDQ_IDLE_MASK)
-			return HL_ENG_BUSY(buf, size, "TPC%d_CMDQ", i);
-
-		if ((RREG32(tpc_cfg_reg) & TPC_CFG_IDLE_MASK) !=
-				TPC_CFG_IDLE_MASK)
-			return HL_ENG_BUSY(buf, size, "TPC%d_CFG", i);
+		if (s)
+			seq_printf(s, fmt, i, is_eng_idle ? "Y" : "N",
+				qm_glbl_sts0, cmdq_glbl_sts0, tpc_cfg_sts);
 	}
 
-	if ((RREG32(mmMME_QM_GLBL_STS0) & MME_QM_IDLE_MASK) !=
-			MME_QM_IDLE_MASK)
-		return HL_ENG_BUSY(buf, size, "MME_QM");
+	if (s)
+		seq_puts(s,
+			"\nMME  is_idle  QM_GLBL_STS0  CMDQ_GLBL_STS0  ARCH_STATUS\n"
+			"---  -------  ------------  --------------  -----------\n");
 
-	if ((RREG32(mmMME_CMDQ_GLBL_STS0) & MME_CMDQ_IDLE_MASK) !=
-			MME_CMDQ_IDLE_MASK)
-		return HL_ENG_BUSY(buf, size, "MME_CMDQ");
+	qm_glbl_sts0 = RREG32(mmMME_QM_GLBL_STS0);
+	cmdq_glbl_sts0 = RREG32(mmMME_CMDQ_GLBL_STS0);
+	mme_arch_sts = RREG32(mmMME_ARCH_STATUS);
+	is_eng_idle = IS_MME_QM_IDLE(qm_glbl_sts0) &&
+			IS_MME_CMDQ_IDLE(cmdq_glbl_sts0) &&
+			IS_MME_IDLE(mme_arch_sts);
+	is_idle &= is_eng_idle;
 
-	if ((RREG32(mmMME_ARCH_STATUS) & MME_ARCH_IDLE_MASK) !=
-			MME_ARCH_IDLE_MASK)
-		return HL_ENG_BUSY(buf, size, "MME_ARCH");
+	if (s) {
+		seq_printf(s, fmt, 0, is_eng_idle ? "Y" : "N", qm_glbl_sts0,
+				cmdq_glbl_sts0, mme_arch_sts);
+		seq_puts(s, "\n");
+	}
 
-	return true;
+	return is_idle;
 }
 
 static void goya_hw_queues_lock(struct hl_device *hdev)

@@ -557,7 +557,7 @@ struct hl_asic_funcs {
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	int (*debug_coresight)(struct hl_device *hdev, void *data);
-	bool (*is_device_idle)(struct hl_device *hdev, char *buf, size_t size);
+	bool (*is_device_idle)(struct hl_device *hdev, struct seq_file *s);
 	int (*soft_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
@@ -1111,12 +1111,6 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	} \
 	(cond) ? 0 : -ETIMEDOUT; \
 })
-
-#define HL_ENG_BUSY(buf, size, fmt, ...) ({ \
-		if (buf) \
-			snprintf(buf, size, fmt, ##__VA_ARGS__); \
-		false; \
-	})
 
 struct hwmon_chip_info;
 

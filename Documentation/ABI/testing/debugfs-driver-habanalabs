@@ -51,6 +51,13 @@ Description:    Enables the root user to set the device to specific state.
                 Valid values are "disable", "enable", "suspend", "resume".
                 User can read this property to see the valid values
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/engines
+Date:           Jul 2019
+KernelVersion:  5.3
+Contact:        oded.gabbay@gmail.com
+Description:    Displays the status registers values of the device engines and
+                their derived idle status
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/i2c_addr
 Date:           Jan 2019
 KernelVersion:  5.1

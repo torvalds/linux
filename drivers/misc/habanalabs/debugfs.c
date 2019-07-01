@@ -500,6 +500,17 @@ err:
 	return -EINVAL;
 }
 
+static int engines_show(struct seq_file *s, void *data)
+{
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+
+	hdev->asic_funcs->is_device_idle(hdev, s);
+
+	return 0;
+}
+
 static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -893,6 +904,7 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"userptr", userptr_show, NULL},
 	{"vm", vm_show, NULL},
 	{"mmu", mmu_show, mmu_write},
+	{"engines", engines_show, NULL}
 };
 
 static int hl_debugfs_open(struct inode *inode, struct file *file)
