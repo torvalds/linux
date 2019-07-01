@@ -359,6 +359,7 @@ int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
 /**
  * devm_clk_bulk_get_optional - managed get multiple optional consumer clocks
  * @dev: device for clock "consumer"
+ * @num_clks: the number of clk_bulk_data
  * @clks: pointer to the clk_bulk_data table of consumer
  *
  * Behaves the same as devm_clk_bulk_get() except where there is no clock
