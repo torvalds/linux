@@ -108,6 +108,17 @@ config HEADER_TEST
 	  If you are a developer or tester and want to ensure the requested
 	  headers are self-contained, say Y here. Otherwise, choose N.
 
+config KERNEL_HEADER_TEST
+	bool "Compile test kernel headers"
+	depends on HEADER_TEST
+	help
+	  Headers in include/ are used to build external moduls.
+	  Compile test them to ensure they are self-contained, i.e.
+	  compilable as standalone units.
+
+	  If you are a developer or tester and want to ensure the headers
+	  in include/ are self-contained, say Y here. Otherwise, choose N.
+
 config UAPI_HEADER_TEST
 	bool "Compile test UAPI headers"
 	depends on HEADER_TEST && HEADERS_INSTALL && CC_CAN_LINK
