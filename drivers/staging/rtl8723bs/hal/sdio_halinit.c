@@ -764,7 +764,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 
-		rtw_btcoex_HAL_Initialize(padapter, false);
+		hal_btcoex_InitHwConfig(padapter, false);
 
 		return _SUCCESS;
 	}
@@ -1009,7 +1009,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	}
 
 	/*  Init BT hw config. */
-	rtw_btcoex_HAL_Initialize(padapter, false);
+	hal_btcoex_InitHwConfig(padapter, false);
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("-%s\n", __func__));
 

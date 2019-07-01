@@ -15,7 +15,6 @@
 #define	PACKET_ARP				2
 #define	PACKET_EAPOL			3
 
-void rtw_btcoex_HAL_Initialize(struct adapter *padapter, u8 bWifiOnly);
 void rtw_btcoex_IpsNotify(struct adapter *, u8 type);
 void rtw_btcoex_LpsNotify(struct adapter *, u8 type);
 void rtw_btcoex_ScanNotify(struct adapter *, u8 type);
