@@ -9,6 +9,7 @@
 #include <linux/etherdevice.h>
 #include <drv_types.h>
 #include <rtw_debug.h>
+#include <hal_btcoex.h>
 #include <linux/jiffies.h>
 
 extern u8 rtw_do_join(struct adapter *padapter);
@@ -1888,10 +1889,10 @@ void rtw_dynamic_check_timer_handler(struct adapter *adapter)
 		return;
 
 	if (is_primary_adapter(adapter))
-		DBG_871X("IsBtDisabled =%d, IsBtControlLps =%d\n", rtw_btcoex_IsBtDisabled(adapter), rtw_btcoex_IsBtControlLps(adapter));
+		DBG_871X("IsBtDisabled =%d, IsBtControlLps =%d\n", rtw_btcoex_IsBtDisabled(adapter), hal_btcoex_IsBtControlLps(adapter));
 
 	if ((adapter_to_pwrctl(adapter)->bFwCurrentInPSMode == true)
-		&& (rtw_btcoex_IsBtControlLps(adapter) == false)
+		&& (hal_btcoex_IsBtControlLps(adapter) == false)
 		) {
 		u8 bEnterPS;
 

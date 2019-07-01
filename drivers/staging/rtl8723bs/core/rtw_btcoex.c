@@ -67,11 +67,6 @@ s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 	return coexctrl;
 }
 
-u8 rtw_btcoex_IsBtControlLps(struct adapter *padapter)
-{
-	return hal_btcoex_IsBtControlLps(padapter);
-}
-
 void rtw_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)
 {
 	hal_btcoex_SetBTCoexist(padapter, bBtExist);
