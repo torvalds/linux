@@ -294,14 +294,14 @@ quiet_cmd_cc_lst_c = MKLST   $@
 $(obj)/%.lst: $(src)/%.c FORCE
 	$(call if_changed_dep,cc_lst_c)
 
-# Dummy C sources for header test (header-test-y target)
+# header test (header-test-y target)
 # ---------------------------------------------------------------------------
 
-quiet_cmd_header_test = HDRTEST $@
-      cmd_header_test = echo "\#include \"$*.h\"" > $@
+quiet_cmd_cc_s_h = CC      $@
+      cmd_cc_s_h = $(CC) $(c_flags) -S -o $@ -x c /dev/null -include $<
 
-$(obj)/%.hdrtest.c:
-	$(call cmd,header_test)
+$(obj)/%.h.s: $(src)/%.h FORCE
+	$(call if_changed_dep,cc_s_h)
 
 # Compile assembler sources (.S)
 # ---------------------------------------------------------------------------

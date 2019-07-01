@@ -22,7 +22,6 @@
 *.elf
 *.gcno
 *.gz
-*.hdrtest.c
 *.i
 *.ko
 *.lex.c

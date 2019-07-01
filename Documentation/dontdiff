@@ -19,7 +19,6 @@
 *.grep
 *.grp
 *.gz
-*.hdrtest.c
 *.html
 *.i
 *.jpeg

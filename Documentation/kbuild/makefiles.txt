@@ -1023,8 +1023,7 @@ When kbuild executes, the following steps are followed (roughly):
 	header-test-y specifies headers (*.h) in the current directory that
 	should be compile tested to ensure they are self-contained,
 	i.e. compilable as standalone units. If CONFIG_HEADER_TEST is enabled,
-	this autogenerates dummy sources to include the headers, and builds them
-	as part of extra-y.
+	this builds them as part of extra-y.
 
 --- 6.7 Commands useful for building a boot image
 
