@@ -107,11 +107,6 @@ u32 rtw_btcoex_GetRaMask(struct adapter *padapter)
 	return hal_btcoex_GetRaMask(padapter);
 }
 
-void rtw_btcoex_RecordPwrMode(struct adapter *padapter, u8 *pCmdBuf, u8 cmdLen)
-{
-	hal_btcoex_RecordPwrMode(padapter, pCmdBuf, cmdLen);
-}
-
 void rtw_btcoex_DisplayBtCoexInfo(struct adapter *padapter, u8 *pbuf, u32 bufsize)
 {
 	hal_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
