@@ -161,21 +161,105 @@ int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-/*
- * While performing reset, controller may not come back properly and causing
- * issues, so recommendation is to set CGCTL.MISCBDCGE to 0 then do reset
- * (init chip) and then again set CGCTL.MISCBDCGE to 1
- */
 int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	int ret;
+	struct hdac_stream *stream;
+	int sd_offset, ret = 0;
+
+	if (bus->chip_init)
+		return 0;
 
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
-	ret = snd_hdac_bus_init_chip(bus, full_reset);
+
+	if (full_reset) {
+		/* clear WAKESTS */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
+					SOF_HDA_WAKESTS_INT_MASK,
+					SOF_HDA_WAKESTS_INT_MASK);
+
+		/* reset HDA controller */
+		ret = hda_dsp_ctrl_link_reset(sdev, true);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: failed to reset HDA controller\n");
+			return ret;
+		}
+
+		usleep_range(500, 1000);
+
+		/* exit HDA controller reset */
+		ret = hda_dsp_ctrl_link_reset(sdev, false);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: failed to exit HDA controller reset\n");
+			return ret;
+		}
+
+		usleep_range(1000, 1200);
+	}
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* check to see if controller is ready */
+	if (!snd_hdac_chip_readb(bus, GCTL)) {
+		dev_dbg(bus->dev, "controller not ready!\n");
+		return -EBUSY;
+	}
+
+	/* Accept unsolicited responses */
+	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
+
+	/* detect codecs */
+	if (!bus->codec_mask) {
+		bus->codec_mask = snd_hdac_chip_readw(bus, STATESTS);
+		dev_dbg(bus->dev, "codec_mask = 0x%lx\n", bus->codec_mask);
+	}
+#endif
+
+	/* clear stream status */
+	list_for_each_entry(stream, &bus->stream_list, list) {
+		sd_offset = SOF_STREAM_SD_OFFSET(stream);
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
+					sd_offset +
+					SOF_HDA_ADSP_REG_CL_SD_STS,
+					SOF_HDA_CL_DMA_SD_INT_MASK,
+					SOF_HDA_CL_DMA_SD_INT_MASK);
+	}
+
+	/* clear WAKESTS */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
+				SOF_HDA_WAKESTS_INT_MASK,
+				SOF_HDA_WAKESTS_INT_MASK);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* clear rirb status */
+	snd_hdac_chip_writeb(bus, RIRBSTS, RIRB_INT_MASK);
+#endif
+
+	/* clear interrupt status register */
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS,
+			  SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_ALL_STREAM);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* initialize the codec command I/O */
+	snd_hdac_bus_init_cmd_io(bus);
+#endif
+
+	/* enable CIE and GIE interrupts */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
+				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN,
+				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* program the position buffer */
+	if (bus->use_posbuf && bus->posbuf.addr) {
+		snd_hdac_chip_writel(bus, DPLBASE, (u32)bus->posbuf.addr);
+		snd_hdac_chip_writel(bus, DPUBASE,
+				     upper_32_bits(bus->posbuf.addr));
+	}
+#endif
+
+	bus->chip_init = true;
+
 	hda_dsp_ctrl_misc_clock_gating(sdev, true);
 
 	return ret;
 }
-#endif

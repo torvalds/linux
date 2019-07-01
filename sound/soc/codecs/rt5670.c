@@ -2882,6 +2882,18 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 						 RT5670_DEV_GPIO |
 						 RT5670_JD_MODE3),
 	},
+	{
+		.callback = rt5670_quirk_cb,
+		.ident = "Aegex 10 tablet (RU2)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "AEGEX"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "RU2"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC2_INR |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE3),
+	},
 	{}
 };
 
