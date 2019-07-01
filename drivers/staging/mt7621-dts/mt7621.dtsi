@@ -43,6 +43,30 @@
 		clock-frequency = <220000000>;
 	};
 
+	mmc_clock: mmc_clock@0 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <48000000>;
+	};
+
+	mmc_fixed_3v3: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc_power";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-always-on;
+	  };
+
+	  mmc_fixed_1v8_io: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc_io";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
 	palmbus: palmbus@1E000000 {
 		compatible = "palmbus";
 		reg = <0x1E000000 0x100000>;
@@ -299,8 +323,23 @@
 	sdhci: sdhci@1E130000 {
 		status = "disabled";
 
-		compatible = "ralink,mt7620-sdhci";
+		compatible = "mediatek,mt7620-mmc";
 		reg = <0x1E130000 0x4000>;
+
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		vmmc-supply = <&mmc_fixed_3v3>;
+		vqmmc-supply = <&mmc_fixed_1v8_io>;
+		disable-wp;
+
+		pinctrl-names = "default", "state_uhs";
+		pinctrl-0 = <&sdhci_pins>;
+		pinctrl-1 = <&sdhci_pins>;
+
+		clocks = <&mmc_clock &mmc_clock>;
+		clock-names = "source", "hclk";
 
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 20 IRQ_TYPE_LEVEL_HIGH>;
