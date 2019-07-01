@@ -34,11 +34,6 @@ void rtw_btcoex_BtInfoNotify(struct adapter *padapter, u8 length, u8 *tmpBuf)
 	hal_btcoex_BtInfoNotify(padapter, length, tmpBuf);
 }
 
-void rtw_btcoex_SuspendNotify(struct adapter *padapter, u8 state)
-{
-	hal_btcoex_SuspendNotify(padapter, state);
-}
-
 void rtw_btcoex_HaltNotify(struct adapter *padapter)
 {
 	if (!padapter->bup) {

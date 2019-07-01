@@ -1475,10 +1475,10 @@ int rtw_suspend_common(struct adapter *padapter)
 
 	/*  wait for the latest FW to remove this condition. */
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
-		rtw_btcoex_SuspendNotify(padapter, 0);
+		hal_btcoex_SuspendNotify(padapter, 0);
 		DBG_871X("WIFI_AP_STATE\n");
 	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
-		rtw_btcoex_SuspendNotify(padapter, 1);
+		hal_btcoex_SuspendNotify(padapter, 1);
 		DBG_871X("STATION\n");
 	}
 
@@ -1829,7 +1829,7 @@ int rtw_resume_common(struct adapter *padapter)
 		rtw_resume_process_normal(padapter);
 	}
 
-	rtw_btcoex_SuspendNotify(padapter, 0);
+	hal_btcoex_SuspendNotify(padapter, 0);
 
 	if (pwrpriv) {
 		pwrpriv->bInSuspend = false;
