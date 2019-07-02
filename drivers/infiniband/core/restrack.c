@@ -349,3 +349,16 @@ out:
 	}
 }
 EXPORT_SYMBOL(rdma_restrack_del);
+
+bool rdma_is_visible_in_pid_ns(struct rdma_restrack_entry *res)
+{
+	/*
+	 * 1. Kern resources should be visible in init
+	 *    namespace only
+	 * 2. Present only resources visible in the current
+	 *     namespace
+	 */
+	if (rdma_is_kernel_res(res))
+		return task_active_pid_ns(current) == &init_pid_ns;
+	return task_active_pid_ns(current) == task_active_pid_ns(res->task);
+}
