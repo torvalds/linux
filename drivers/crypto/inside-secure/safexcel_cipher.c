@@ -92,25 +92,6 @@ static void safexcel_skcipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	token[0].instructions = EIP197_TOKEN_INS_LAST |
 				EIP197_TOKEN_INS_TYPE_CRYTO |
 				EIP197_TOKEN_INS_TYPE_OUTPUT;
-
-	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) {
-		u32 last = (EIP197_MAX_TOKENS - 1) - offset;
-
-		token[last].opcode = EIP197_TOKEN_OPCODE_CTX_ACCESS;
-		token[last].packet_length = EIP197_TOKEN_DIRECTION_EXTERNAL |
-					    EIP197_TOKEN_EXEC_IF_SUCCESSFUL|
-					    EIP197_TOKEN_CTX_OFFSET(0x2);
-		token[last].stat = EIP197_TOKEN_STAT_LAST_HASH |
-			EIP197_TOKEN_STAT_LAST_PACKET;
-		token[last].instructions =
-			EIP197_TOKEN_INS_ORIGIN_LEN(block_sz / sizeof(u32)) |
-			EIP197_TOKEN_INS_ORIGIN_IV0;
-
-		/* Store the updated IV values back in the internal context
-		 * registers.
-		 */
-		cdesc->control_data.control1 |= CONTEXT_CONTROL_CRYPTO_STORE;
-	}
 }
 
 static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
@@ -348,6 +329,9 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 				      struct safexcel_cipher_req *sreq,
 				      bool *should_complete, int *ret)
 {
+	struct skcipher_request *areq = skcipher_request_cast(async);
+	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(areq);
+	struct safexcel_cipher_ctx *ctx = crypto_skcipher_ctx(skcipher);
 	struct safexcel_result_desc *rdesc;
 	int ndesc = 0;
 
@@ -380,6 +364,18 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 		dma_unmap_sg(priv->dev, dst, sg_nents(dst), DMA_FROM_DEVICE);
 	}
 
+	/*
+	 * Update IV in req from last crypto output word for CBC modes
+	 */
+	if ((!ctx->aead) && (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) &&
+	    (sreq->direction == SAFEXCEL_ENCRYPT)) {
+		/* For encrypt take the last output word */
+		sg_pcopy_to_buffer(dst, sg_nents(dst), areq->iv,
+				   crypto_skcipher_ivsize(skcipher),
+				   (cryptlen -
+				    crypto_skcipher_ivsize(skcipher)));
+	}
+
 	*should_complete = true;
 
 	return ndesc;
@@ -392,6 +388,8 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 			     unsigned int digestsize, u8 *iv, int *commands,
 			     int *results)
 {
+	struct skcipher_request *areq = skcipher_request_cast(base);
+	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(areq);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(base->tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct safexcel_command_desc *cdesc;
@@ -400,6 +398,19 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 	unsigned int totlen = cryptlen + assoclen;
 	int nr_src, nr_dst, n_cdesc = 0, n_rdesc = 0, queued = totlen;
 	int i, ret = 0;
+
+	if ((!ctx->aead) && (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) &&
+	    (sreq->direction == SAFEXCEL_DECRYPT)) {
+		/*
+		 * Save IV from last crypto input word for CBC modes in decrypt
+		 * direction. Need to do this first in case of inplace operation
+		 * as it will be overwritten.
+		 */
+		sg_pcopy_to_buffer(src, sg_nents(src), areq->iv,
+				   crypto_skcipher_ivsize(skcipher),
+				   (totlen -
+				    crypto_skcipher_ivsize(skcipher)));
+	}
 
 	if (src == dst) {
 		nr_src = dma_map_sg(priv->dev, src, sg_nents(src),
@@ -570,7 +581,6 @@ static int safexcel_skcipher_handle_result(struct safexcel_crypto_priv *priv,
 {
 	struct skcipher_request *req = skcipher_request_cast(async);
 	struct safexcel_cipher_req *sreq = skcipher_request_ctx(req);
-	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(async->tfm);
 	int err;
 
 	if (sreq->needs_inv) {
@@ -581,24 +591,6 @@ static int safexcel_skcipher_handle_result(struct safexcel_crypto_priv *priv,
 		err = safexcel_handle_req_result(priv, ring, async, req->src,
 						 req->dst, req->cryptlen, sreq,
 						 should_complete, ret);
-
-		if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) {
-			u32 block_sz = 0;
-
-			switch (ctx->alg) {
-			case SAFEXCEL_DES:
-				block_sz = DES_BLOCK_SIZE;
-				break;
-			case SAFEXCEL_3DES:
-				block_sz = DES3_EDE_BLOCK_SIZE;
-				break;
-			case SAFEXCEL_AES:
-				block_sz = AES_BLOCK_SIZE;
-				break;
-			}
-
-			memcpy(req->iv, ctx->base.ctxr->data, block_sz);
-		}
 	}
 
 	return err;
@@ -656,12 +648,22 @@ static int safexcel_skcipher_send(struct crypto_async_request *async, int ring,
 
 	BUG_ON(!(priv->flags & EIP197_TRC_CACHE) && sreq->needs_inv);
 
-	if (sreq->needs_inv)
+	if (sreq->needs_inv) {
 		ret = safexcel_cipher_send_inv(async, ring, commands, results);
-	else
+	} else {
+		struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
+		u8 input_iv[AES_BLOCK_SIZE];
+
+		/*
+		 * Save input IV in case of CBC decrypt mode
+		 * Will be overwritten with output IV prior to use!
+		 */
+		memcpy(input_iv, req->iv, crypto_skcipher_ivsize(skcipher));
+
 		ret = safexcel_send_req(async, ring, sreq, req->src,
-					req->dst, req->cryptlen, 0, 0, req->iv,
+					req->dst, req->cryptlen, 0, 0, input_iv,
 					commands, results);
+	}
 
 	sreq->rdescs = *results;
 	return ret;
