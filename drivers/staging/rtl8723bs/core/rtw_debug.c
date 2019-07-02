@@ -1351,7 +1351,7 @@ int proc_get_btcoex_dbg(struct seq_file *m, void *v)
 	char buf[512] = {0};
 	padapter = (struct adapter *)rtw_netdev_priv(dev);
 
-	rtw_btcoex_GetDBG(padapter, buf, 512);
+	hal_btcoex_GetDBG(padapter, buf, 512);
 
 	DBG_871X_SEL(m, "%s", buf);
 

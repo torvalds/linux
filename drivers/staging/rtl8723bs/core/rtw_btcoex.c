@@ -43,11 +43,6 @@ void rtw_btcoex_DisplayBtCoexInfo(struct adapter *padapter, u8 *pbuf, u32 bufsiz
 	hal_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
 }
 
-u32 rtw_btcoex_GetDBG(struct adapter *padapter, u8 *pStrBuf, u32 bufSize)
-{
-	return hal_btcoex_GetDBG(padapter, pStrBuf, bufSize);
-}
-
 /*  ================================================== */
 /*  Below Functions are called by BT-Coex */
 /*  ================================================== */
