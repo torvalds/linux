@@ -38,15 +38,6 @@ void rtw_btcoex_HaltNotify(struct adapter *padapter)
 	hal_btcoex_HaltNotify(padapter);
 }
 
-s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
-{
-	s32 coexctrl;
-
-	coexctrl = hal_btcoex_IsBTCoexCtrlAMPDUSize(padapter);
-
-	return coexctrl;
-}
-
 void rtw_btcoex_DisplayBtCoexInfo(struct adapter *padapter, u8 *pbuf, u32 bufsize)
 {
 	hal_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);

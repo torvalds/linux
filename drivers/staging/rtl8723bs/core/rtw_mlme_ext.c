@@ -9,6 +9,7 @@
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <rtw_wifi_regd.h>
+#include <hal_btcoex.h>
 #include <linux/kernel.h>
 
 static struct mlme_handler mlme_sta_tbl[] = {
@@ -3944,7 +3945,7 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 			} while (pmlmeinfo->dialogToken == 0);
 			pframe = rtw_set_fixed_ie(pframe, 1, &(pmlmeinfo->dialogToken), &(pattrib->pktlen));
 
-			if (rtw_btcoex_IsBTCoexCtrlAMPDUSize(padapter)) {
+			if (hal_btcoex_IsBTCoexCtrlAMPDUSize(padapter)) {
 				/*  A-MSDU NOT Supported */
 				BA_para_set = 0;
 				/*  immediate Block Ack */
@@ -4000,7 +4001,7 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 			else
 				BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */
 
-			if (rtw_btcoex_IsBTCoexCtrlAMPDUSize(padapter) &&
+			if (hal_btcoex_IsBTCoexCtrlAMPDUSize(padapter) &&
 			    padapter->driver_rx_ampdu_factor == 0xFF) {
 				/*  max buffer size is 8 MSDU */
 				BA_para_set &= ~RTW_IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK;
