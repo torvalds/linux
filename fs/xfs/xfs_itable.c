@@ -18,6 +18,7 @@
 #include "xfs_error.h"
 #include "xfs_icache.h"
 #include "xfs_health.h"
+#include "xfs_iwalk.h"
 
 /*
  * Return stat information for one inode.
@@ -160,7 +161,7 @@ xfs_bulkstat_one(
  * Loop over all clusters in a chunk for a given incore inode allocation btree
  * record.  Do a readahead if there are any allocated inodes in that cluster.
  */
-STATIC void
+void
 xfs_bulkstat_ichunk_ra(
 	struct xfs_mount		*mp,
 	xfs_agnumber_t			agno,
@@ -194,7 +195,7 @@ xfs_bulkstat_ichunk_ra(
  * are some left allocated, update the data for the pointed-to record as well as
  * return the count of grabbed inodes.
  */
-STATIC int
+int
 xfs_bulkstat_grab_ichunk(
 	struct xfs_btree_cur		*cur,	/* btree cursor */
 	xfs_agino_t			agino,	/* starting inode of chunk */
