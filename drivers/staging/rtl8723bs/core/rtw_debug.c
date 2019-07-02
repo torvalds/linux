@@ -1429,7 +1429,7 @@ int proc_get_btcoex_info(struct seq_file *m, void *v)
 	if (!pbuf)
 		return -ENOMEM;
 
-	rtw_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
+	hal_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
 
 	DBG_871X_SEL(m, "%s\n", pbuf);
 

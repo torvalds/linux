@@ -17,7 +17,6 @@
 
 void rtw_btcoex_MediaStatusNotify(struct adapter *, u8 mediaStatus);
 void rtw_btcoex_HaltNotify(struct adapter *);
-void rtw_btcoex_DisplayBtCoexInfo(struct adapter *, u8 *pbuf, u32 bufsize);
 
 /*  ================================================== */
 /*  Below Functions are called by BT-Coex */

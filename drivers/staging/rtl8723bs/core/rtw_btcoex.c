@@ -38,11 +38,6 @@ void rtw_btcoex_HaltNotify(struct adapter *padapter)
 	hal_btcoex_HaltNotify(padapter);
 }
 
-void rtw_btcoex_DisplayBtCoexInfo(struct adapter *padapter, u8 *pbuf, u32 bufsize)
-{
-	hal_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
-}
-
 /*  ================================================== */
 /*  Below Functions are called by BT-Coex */
 /*  ================================================== */
