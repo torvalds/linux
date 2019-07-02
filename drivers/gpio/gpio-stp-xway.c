@@ -159,9 +159,9 @@ static int xway_stp_request(struct gpio_chip *gc, unsigned gpio)
 
 /**
  * xway_stp_hw_init() - Configure the STP unit and enable the clock gate
- * @virt: pointer to the remapped register range
+ * @chip: Pointer to the xway_stp chip structure
  */
-static int xway_stp_hw_init(struct xway_stp *chip)
+static void xway_stp_hw_init(struct xway_stp *chip)
 {
 	/* sane defaults */
 	xway_stp_w32(chip->virt, 0, XWAY_STP_AR);
@@ -204,8 +204,6 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 	if (chip->reserved)
 		xway_stp_w32_mask(chip->virt, XWAY_STP_UPD_MASK,
 			XWAY_STP_UPD_FPI, XWAY_STP_CON1);
-
-	return 0;
 }
 
 static int xway_stp_probe(struct platform_device *pdev)
@@ -268,14 +266,15 @@ static int xway_stp_probe(struct platform_device *pdev)
 	}
 	clk_enable(clk);
 
-	ret = xway_stp_hw_init(chip);
-	if (!ret)
-		ret = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
+	xway_stp_hw_init(chip);
 
-	if (!ret)
-		dev_info(&pdev->dev, "Init done\n");
+	ret = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
+	if (ret)
+		return ret;
 
-	return ret;
+	dev_info(&pdev->dev, "Init done\n");
+
+	return 0;
 }
 
 static const struct of_device_id xway_stp_match[] = {
