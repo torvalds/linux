@@ -257,7 +257,7 @@ static void mmu_tlb_sync_context(void *cookie)
 	// TODO: Wait 1000 GPU cycles for HW_ISSUE_6367/T60X
 }
 
-static const struct iommu_gather_ops mmu_tlb_ops = {
+static const struct iommu_flush_ops mmu_tlb_ops = {
 	.tlb_flush_all	= mmu_tlb_inv_context_s1,
 	.tlb_add_flush	= mmu_tlb_inv_range_nosync,
 	.tlb_sync	= mmu_tlb_sync_context,

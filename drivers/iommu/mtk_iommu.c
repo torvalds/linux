@@ -188,7 +188,7 @@ static void mtk_iommu_tlb_sync(void *cookie)
 	}
 }
 
-static const struct iommu_gather_ops mtk_iommu_gather_ops = {
+static const struct iommu_flush_ops mtk_iommu_flush_ops = {
 	.tlb_flush_all = mtk_iommu_tlb_flush_all,
 	.tlb_add_flush = mtk_iommu_tlb_add_flush_nosync,
 	.tlb_sync = mtk_iommu_tlb_sync,
@@ -267,7 +267,7 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom)
 		.pgsize_bitmap = mtk_iommu_ops.pgsize_bitmap,
 		.ias = 32,
 		.oas = 32,
-		.tlb = &mtk_iommu_gather_ops,
+		.tlb = &mtk_iommu_flush_ops,
 		.iommu_dev = data->dev,
 	};
 

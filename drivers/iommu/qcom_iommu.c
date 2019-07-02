@@ -164,7 +164,7 @@ static void qcom_iommu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 	}
 }
 
-static const struct iommu_gather_ops qcom_gather_ops = {
+static const struct iommu_flush_ops qcom_flush_ops = {
 	.tlb_flush_all	= qcom_iommu_tlb_inv_context,
 	.tlb_add_flush	= qcom_iommu_tlb_inv_range_nosync,
 	.tlb_sync	= qcom_iommu_tlb_sync,
@@ -215,7 +215,7 @@ static int qcom_iommu_init_domain(struct iommu_domain *domain,
 		.pgsize_bitmap	= qcom_iommu_ops.pgsize_bitmap,
 		.ias		= 32,
 		.oas		= 40,
-		.tlb		= &qcom_gather_ops,
+		.tlb		= &qcom_flush_ops,
 		.iommu_dev	= qcom_iommu->dev,
 	};
 

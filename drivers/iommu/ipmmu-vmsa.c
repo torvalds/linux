@@ -367,7 +367,7 @@ static void ipmmu_tlb_add_flush(unsigned long iova, size_t size,
 	/* The hardware doesn't support selective TLB flush. */
 }
 
-static const struct iommu_gather_ops ipmmu_gather_ops = {
+static const struct iommu_flush_ops ipmmu_flush_ops = {
 	.tlb_flush_all = ipmmu_tlb_flush_all,
 	.tlb_add_flush = ipmmu_tlb_add_flush,
 	.tlb_sync = ipmmu_tlb_flush_all,
@@ -480,7 +480,7 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	domain->cfg.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K;
 	domain->cfg.ias = 32;
 	domain->cfg.oas = 40;
-	domain->cfg.tlb = &ipmmu_gather_ops;
+	domain->cfg.tlb = &ipmmu_flush_ops;
 	domain->io_domain.geometry.aperture_end = DMA_BIT_MASK(32);
 	domain->io_domain.geometry.force_aperture = true;
 	/*

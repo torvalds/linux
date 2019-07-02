@@ -17,7 +17,7 @@ enum io_pgtable_fmt {
 };
 
 /**
- * struct iommu_gather_ops - IOMMU callbacks for TLB and page table management.
+ * struct iommu_flush_ops - IOMMU callbacks for TLB and page table management.
  *
  * @tlb_flush_all: Synchronously invalidate the entire TLB context.
  * @tlb_add_flush: Queue up a TLB invalidation for a virtual address range.
@@ -28,7 +28,7 @@ enum io_pgtable_fmt {
  * Note that these can all be called in atomic context and must therefore
  * not block.
  */
-struct iommu_gather_ops {
+struct iommu_flush_ops {
 	void (*tlb_flush_all)(void *cookie);
 	void (*tlb_add_flush)(unsigned long iova, size_t size, size_t granule,
 			      bool leaf, void *cookie);
@@ -84,7 +84,7 @@ struct io_pgtable_cfg {
 	unsigned int			ias;
 	unsigned int			oas;
 	bool				coherent_walk;
-	const struct iommu_gather_ops	*tlb;
+	const struct iommu_flush_ops	*tlb;
 	struct device			*iommu_dev;
 
 	/* Low-level data specific to the table format */

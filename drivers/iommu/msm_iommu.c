@@ -178,7 +178,7 @@ static void __flush_iotlb_sync(void *cookie)
 	 */
 }
 
-static const struct iommu_gather_ops msm_iommu_gather_ops = {
+static const struct iommu_flush_ops msm_iommu_flush_ops = {
 	.tlb_flush_all = __flush_iotlb,
 	.tlb_add_flush = __flush_iotlb_range,
 	.tlb_sync = __flush_iotlb_sync,
@@ -345,7 +345,7 @@ static int msm_iommu_domain_config(struct msm_priv *priv)
 		.pgsize_bitmap = msm_iommu_ops.pgsize_bitmap,
 		.ias = 32,
 		.oas = 32,
-		.tlb = &msm_iommu_gather_ops,
+		.tlb = &msm_iommu_flush_ops,
 		.iommu_dev = priv->dev,
 	};
 
