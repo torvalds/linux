@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Driver for the po1030 sensor.
  *
@@ -11,11 +12,6 @@
  * for SN9C10x PC Camera Controllers
  *
  * Register defines taken from Pascal Stangs Procyon Armlib
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
- *
  */
 
 #ifndef M5602_PO1030_H_

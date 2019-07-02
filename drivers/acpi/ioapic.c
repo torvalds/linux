@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IOAPIC/IOxAPIC/IOSAPIC driver
  *
@@ -5,10 +6,6 @@
  * (c) Copyright 2009 Hewlett-Packard Development Company, L.P.
  *
  * Copyright (C) 2014 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on original drivers/pci/ioapic.c
  *	Yinghai Lu <yinghai@kernel.org>

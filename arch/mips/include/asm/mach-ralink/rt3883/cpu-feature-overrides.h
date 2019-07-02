@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Ralink RT3662/RT3883 specific CPU feature overrides
  *
@@ -6,11 +7,6 @@
  * This file was derived from: include/asm-mips/cpu-features.h
  *	Copyright (C) 2003, 2004 Ralf Baechle
  *	Copyright (C) 2004 Maciej W. Rozycki
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
  */
 #ifndef _RT3883_CPU_FEATURE_OVERRIDES_H
 #define _RT3883_CPU_FEATURE_OVERRIDES_H

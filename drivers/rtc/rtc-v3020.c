@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/rtc/rtc-v3020.c
  *
  * Copyright (C) 2006 8D Technologies inc.
  * Copyright (C) 2004 Compulab Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Driver for the V3020 RTC
  *
@@ -17,7 +14,6 @@
  *
  *  ??-???-2004: Someone at Compulab
  *			- Initial driver creation.
- *
  */
 #include <linux/platform_device.h>
 #include <linux/module.h>

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * zopt2201.c - Support for IDT ZOPT2201 ambient light and UV B sensor
  *
  * Copyright 2017 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Datasheet: https://www.idt.com/document/dst/zopt2201-datasheet
  * 7-bit I2C slave addresses 0x53 (default) or 0x52 (programmed)

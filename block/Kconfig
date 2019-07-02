@@ -73,6 +73,7 @@ config BLK_DEV_INTEGRITY
 
 config BLK_DEV_ZONED
 	bool "Zoned block device support"
+	select MQ_IOSCHED_DEADLINE
 	---help---
 	Block layer zoned block device support. This option enables
 	support for ZAC/ZBC host-managed and host-aware zoned block devices.

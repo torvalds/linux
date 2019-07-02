@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PXA910 Power Management Routines
- *
- * This software program is licensed subject to the GNU General Public License
- * (GPL).Version 2,June 1991, available at http://www.fsf.org/copyleft/gpl.html
  *
  * (C) Copyright 2009 Marvell International Ltd.
  * All Rights Reserved

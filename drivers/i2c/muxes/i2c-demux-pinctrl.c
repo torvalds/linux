@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pinctrl based I2C DeMultiplexer
  *
  * Copyright (C) 2015-16 by Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
  * Copyright (C) 2015-16 by Renesas Electronics Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License.
  *
  * See the bindings doc for DTS setup and the sysfs doc for usage information.
  * (look for filenames containing 'i2c-demux-pinctrl' in Documentation/)

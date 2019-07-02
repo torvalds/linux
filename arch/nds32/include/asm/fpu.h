@@ -36,7 +36,7 @@ extern int do_fpuemu(struct pt_regs *regs, struct fpu_struct *fpu);
  * enabled by default and kerenl will re-execute it by fpu emulator
  * when getting underflow exception.
  */
-#define FPCSR_INIT  FPCSR_mskUDFE
+#define FPCSR_INIT  (FPCSR_mskUDFE | FPCSR_mskIEXE)
 #else
 #define FPCSR_INIT  0x0UL
 #endif

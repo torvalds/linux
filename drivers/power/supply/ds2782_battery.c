@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C client/driver for the Maxim/Dallas DS2782 Stand-Alone Fuel Gauge IC
  *
@@ -8,11 +9,6 @@
  * DS2786 added by Yulia Vilensky <vilensky@compulab.co.il>
  *
  * UEvent sending added by Evgeny Romanov <romanov@neurosoft.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>

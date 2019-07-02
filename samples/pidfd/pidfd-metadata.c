@@ -21,6 +21,10 @@
 #define CLONE_PIDFD 0x00001000
 #endif
 
+#ifndef __NR_pidfd_send_signal
+#define __NR_pidfd_send_signal -1
+#endif
+
 static int do_child(void *args)
 {
 	printf("%d\n", getpid());
@@ -79,7 +83,7 @@ static int pidfd_metadata_fd(pid_t pid, int pidfd)
 
 int main(int argc, char *argv[])
 {
-	int pidfd = 0, ret = EXIT_FAILURE;
+	int pidfd = -1, ret = EXIT_FAILURE;
 	char buf[4096] = { 0 };
 	pid_t pid;
 	int procfd, statusfd;
@@ -87,7 +91,11 @@ int main(int argc, char *argv[])
 
 	pid = pidfd_clone(CLONE_PIDFD, &pidfd);
 	if (pid < 0)
-		exit(ret);
+		err(ret, "CLONE_PIDFD");
+	if (pidfd == -1) {
+		warnx("CLONE_PIDFD is not supported by the kernel");
+		goto out;
+	}
 
 	procfd = pidfd_metadata_fd(pid, pidfd);
 	close(pidfd);

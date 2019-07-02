@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_utils.c: Definition of common functions for Atlantic hardware
@@ -335,13 +332,13 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 {
 	u32 val;
 	int err = 0;
-	bool is_locked;
 
-	is_locked = hw_atl_sem_ram_get(self);
-	if (!is_locked) {
-		err = -ETIME;
+	err = readx_poll_timeout_atomic(hw_atl_sem_ram_get, self,
+					val, val == 1U,
+					10U, 100000U);
+	if (err < 0)
 		goto err_exit;
-	}
+
 	if (IS_CHIP_FEATURE(REVISION_B1)) {
 		u32 offset = 0;
 
@@ -353,8 +350,8 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 			/* 1000 times by 10us = 10ms */
 			err = readx_poll_timeout_atomic(hw_atl_scrpad12_get,
 							self, val,
-							(val & 0xF0000000) ==
-							 0x80000000,
+							(val & 0xF0000000) !=
+							0x80000000,
 							10U, 10000U);
 		}
 	} else {

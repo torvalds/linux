@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * oxfw.c - a part of driver for OXFW970/971 based devices
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "oxfw.h"
@@ -147,9 +147,6 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 		/* No physical MIDI ports. */
 		oxfw->midi_input_ports = 0;
 		oxfw->midi_output_ports = 0;
-
-		/* Output stream exists but no data channels are useful. */
-		oxfw->has_output = false;
 
 		return snd_oxfw_scs1x_add(oxfw);
 	}

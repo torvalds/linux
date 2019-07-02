@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/linux/platform_data/pxa_sdhci.h
  *
@@ -5,10 +6,6 @@
  *	Zhangfei Gao <zhangfei.gao@marvell.com>
  *
  * PXA Platform - SDHCI platform data definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _PXA_SDHCI_H_

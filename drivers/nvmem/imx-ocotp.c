@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * i.MX6 OCOTP fusebox driver
  *
@@ -9,13 +10,6 @@
  *
  * Write support based on the fsl_otp driver,
  * Copyright (C) 2010-2013 Freescale Semiconductor, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/clk.h>

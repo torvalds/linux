@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Remove .owner field if calls are used which set it automatically
 ///
 // Confidence: High
-// Copyright: (C) 2014 Wolfram Sang. GPL v2.
+// Copyright: (C) 2014 Wolfram Sang.
 
 virtual patch
 virtual context

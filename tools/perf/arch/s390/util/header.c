@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Implementation of get_cpuid().
  *
  * Copyright IBM Corp. 2014, 2018
  * Author(s): Alexander Yarygin <yarygin@linux.vnet.ibm.com>
  *	      Thomas Richter <tmricht@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  */
 
 #include <sys/types.h>

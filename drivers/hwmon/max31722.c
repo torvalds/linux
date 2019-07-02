@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * max31722 - hwmon driver for Maxim Integrated MAX31722/MAX31723 SPI
  * digital thermometer and thermostats.
  *
  * Copyright (c) 2016, Intel Corporation.
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License. See the file COPYING in the main
- * directory of this archive for more details.
  */
 
 #include <linux/acpi.h>

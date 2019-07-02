@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* vmu-flash.c
  * Driver for SEGA Dreamcast Visual Memory Unit
  *
  * Copyright (c) Adrian McMenamin 2002 - 2009
  * Copyright (c) Paul Mundt 2001
- *
- * Licensed under version 2 of the
- * GNU General Public Licence
  */
 #include <linux/init.h>
 #include <linux/slab.h>
