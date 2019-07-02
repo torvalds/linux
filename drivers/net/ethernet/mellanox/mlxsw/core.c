@@ -1245,6 +1245,15 @@ int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(mlxsw_core_skb_transmit);
 
+void mlxsw_core_ptp_transmitted(struct mlxsw_core *mlxsw_core,
+				struct sk_buff *skb, u8 local_port)
+{
+	if (mlxsw_core->driver->ptp_transmitted)
+		mlxsw_core->driver->ptp_transmitted(mlxsw_core, skb,
+						    local_port);
+}
+EXPORT_SYMBOL(mlxsw_core_ptp_transmitted);
+
 static bool __is_rx_listener_equal(const struct mlxsw_rx_listener *rxl_a,
 				   const struct mlxsw_rx_listener *rxl_b)
 {

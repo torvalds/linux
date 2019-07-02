@@ -147,6 +147,34 @@ struct mlxsw_sp_mlxfw_dev {
 	struct mlxsw_sp *mlxsw_sp;
 };
 
+struct mlxsw_sp_ptp_ops {
+	struct mlxsw_sp_ptp_clock *
+		(*clock_init)(struct mlxsw_sp *mlxsw_sp, struct device *dev);
+	void (*clock_fini)(struct mlxsw_sp_ptp_clock *clock);
+
+	struct mlxsw_sp_ptp_state *(*init)(struct mlxsw_sp *mlxsw_sp);
+	void (*fini)(struct mlxsw_sp_ptp_state *ptp_state);
+
+	/* Notify a driver that a packet that might be PTP was received. Driver
+	 * is responsible for freeing the passed-in SKB.
+	 */
+	void (*receive)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			u8 local_port);
+
+	/* Notify a driver that a timestamped packet was transmitted. Driver
+	 * is responsible for freeing the passed-in SKB.
+	 */
+	void (*transmitted)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			    u8 local_port);
+
+	int (*hwtstamp_get)(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct hwtstamp_config *config);
+	int (*hwtstamp_set)(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct hwtstamp_config *config);
+	int (*get_ts_info)(struct mlxsw_sp *mlxsw_sp,
+			   struct ethtool_ts_info *info);
+};
+
 static int mlxsw_sp_component_query(struct mlxfw_dev *mlxfw_dev,
 				    u16 component_index, u32 *p_max_size,
 				    u8 *p_align_bits, u16 *p_max_write_size)
@@ -777,6 +805,8 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 	};
 	u64 len;
 	int err;
+
+	memset(skb->cb, 0, sizeof(struct mlxsw_skb_cb));
 
 	if (mlxsw_core_skb_transmit_busy(mlxsw_sp->core, &tx_info))
 		return NETDEV_TX_BUSY;
@@ -1785,6 +1815,65 @@ mlxsw_sp_port_get_devlink_port(struct net_device *dev)
 						mlxsw_sp_port->local_port);
 }
 
+static int mlxsw_sp_port_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	int err;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	err = mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_set(mlxsw_sp_port,
+							     &config);
+	if (err)
+		return err;
+
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int mlxsw_sp_port_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	int err;
+
+	err = mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_get(mlxsw_sp_port,
+							     &config);
+	if (err)
+		return err;
+
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static inline void mlxsw_sp_port_ptp_clear(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct hwtstamp_config config = {0};
+
+	mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_set(mlxsw_sp_port, &config);
+}
+
+static int
+mlxsw_sp_port_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return mlxsw_sp_port_hwtstamp_set(mlxsw_sp_port, ifr);
+	case SIOCGHWTSTAMP:
+		return mlxsw_sp_port_hwtstamp_get(mlxsw_sp_port, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_open		= mlxsw_sp_port_open,
 	.ndo_stop		= mlxsw_sp_port_stop,
@@ -1800,6 +1889,7 @@ static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= mlxsw_sp_port_kill_vid,
 	.ndo_set_features	= mlxsw_sp_set_features,
 	.ndo_get_devlink_port	= mlxsw_sp_port_get_devlink_port,
+	.ndo_do_ioctl		= mlxsw_sp_port_ioctl,
 };
 
 static void mlxsw_sp_port_get_drvinfo(struct net_device *dev,
@@ -3228,6 +3318,15 @@ static int mlxsw_sp_get_module_eeprom(struct net_device *netdev,
 	return err;
 }
 
+static int
+mlxsw_sp_get_ts_info(struct net_device *netdev, struct ethtool_ts_info *info)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+
+	return mlxsw_sp->ptp_ops->get_ts_info(mlxsw_sp, info);
+}
+
 static const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 	.get_drvinfo		= mlxsw_sp_port_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -3241,6 +3340,7 @@ static const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 	.set_link_ksettings	= mlxsw_sp_port_set_link_ksettings,
 	.get_module_info	= mlxsw_sp_get_module_info,
 	.get_module_eeprom	= mlxsw_sp_get_module_eeprom,
+	.get_ts_info		= mlxsw_sp_get_ts_info,
 };
 
 static int
@@ -3657,6 +3757,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
 
 	cancel_delayed_work_sync(&mlxsw_sp_port->periodic_hw_stats.update_dw);
+	mlxsw_sp_port_ptp_clear(mlxsw_sp_port);
 	mlxsw_core_port_clear(mlxsw_sp->core, local_port, mlxsw_sp);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp->ports[local_port] = NULL;
@@ -3947,8 +4048,48 @@ static void mlxsw_sp_pude_event_func(const struct mlxsw_reg_info *reg,
 	}
 }
 
-static void mlxsw_sp_rx_listener_no_mark_func(struct sk_buff *skb,
-					      u8 local_port, void *priv)
+static void mlxsw_sp1_ptp_fifo_event_func(struct mlxsw_sp *mlxsw_sp,
+					  char *mtpptr_pl, bool ingress)
+{
+	u8 local_port;
+	u8 num_rec;
+	int i;
+
+	local_port = mlxsw_reg_mtpptr_local_port_get(mtpptr_pl);
+	num_rec = mlxsw_reg_mtpptr_num_rec_get(mtpptr_pl);
+	for (i = 0; i < num_rec; i++) {
+		u8 domain_number;
+		u8 message_type;
+		u16 sequence_id;
+		u64 timestamp;
+
+		mlxsw_reg_mtpptr_unpack(mtpptr_pl, i, &message_type,
+					&domain_number, &sequence_id,
+					&timestamp);
+		mlxsw_sp1_ptp_got_timestamp(mlxsw_sp, ingress, local_port,
+					    message_type, domain_number,
+					    sequence_id, timestamp);
+	}
+}
+
+static void mlxsw_sp1_ptp_ing_fifo_event_func(const struct mlxsw_reg_info *reg,
+					      char *mtpptr_pl, void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp1_ptp_fifo_event_func(mlxsw_sp, mtpptr_pl, true);
+}
+
+static void mlxsw_sp1_ptp_egr_fifo_event_func(const struct mlxsw_reg_info *reg,
+					      char *mtpptr_pl, void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp1_ptp_fifo_event_func(mlxsw_sp, mtpptr_pl, false);
+}
+
+void mlxsw_sp_rx_listener_no_mark_func(struct sk_buff *skb,
+				       u8 local_port, void *priv)
 {
 	struct mlxsw_sp *mlxsw_sp = priv;
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
@@ -4022,6 +4163,14 @@ out:
 	consume_skb(skb);
 }
 
+static void mlxsw_sp_rx_listener_ptp(struct sk_buff *skb, u8 local_port,
+				     void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp->ptp_ops->receive(mlxsw_sp, skb, local_port);
+}
+
 #define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _trap_group, _is_ctrl)	\
 	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action,	\
 		  _is_ctrl, SP_##_trap_group, DISCARD)
@@ -4043,7 +4192,8 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* L2 traps */
 	MLXSW_SP_RXL_NO_MARK(STP, TRAP_TO_CPU, STP, true),
 	MLXSW_SP_RXL_NO_MARK(LACP, TRAP_TO_CPU, LACP, true),
-	MLXSW_SP_RXL_NO_MARK(LLDP, TRAP_TO_CPU, LLDP, true),
+	MLXSW_RXL(mlxsw_sp_rx_listener_ptp, LLDP, TRAP_TO_CPU,
+		  false, SP_LLDP, DISCARD),
 	MLXSW_SP_RXL_MARK(DHCP, MIRROR_TO_CPU, DHCP, false),
 	MLXSW_SP_RXL_MARK(IGMP_QUERY, MIRROR_TO_CPU, IGMP, false),
 	MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, TRAP_TO_CPU, IGMP, false),
@@ -4112,6 +4262,16 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* NVE traps */
 	MLXSW_SP_RXL_MARK(NVE_ENCAP_ARP, TRAP_TO_CPU, ARP, false),
 	MLXSW_SP_RXL_NO_MARK(NVE_DECAP_ARP, TRAP_TO_CPU, ARP, false),
+	/* PTP traps */
+	MLXSW_RXL(mlxsw_sp_rx_listener_ptp, PTP0, TRAP_TO_CPU,
+		  false, SP_PTP0, DISCARD),
+	MLXSW_SP_RXL_NO_MARK(PTP1, TRAP_TO_CPU, PTP1, false),
+};
+
+static const struct mlxsw_listener mlxsw_sp1_listener[] = {
+	/* Events */
+	MLXSW_EVENTL(mlxsw_sp1_ptp_egr_fifo_event_func, PTP_EGR_FIFO, SP_PTP0),
+	MLXSW_EVENTL(mlxsw_sp1_ptp_ing_fifo_event_func, PTP_ING_FIFO, SP_PTP0),
 };
 
 static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
@@ -4163,6 +4323,14 @@ static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 			rate = 1024;
 			burst_size = 7;
 			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0:
+			rate = 24 * 1024;
+			burst_size = 12;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1:
+			rate = 19 * 1024;
+			burst_size = 12;
+			break;
 		default:
 			continue;
 		}
@@ -4201,6 +4369,7 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PIM:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0:
 			priority = 5;
 			tc = 5;
 			break;
@@ -4218,6 +4387,7 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_ND:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_RPF:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1:
 			priority = 2;
 			tc = 2;
 			break;
@@ -4251,22 +4421,16 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return 0;
 }
 
-static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
+static int mlxsw_sp_traps_register(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_listener listeners[],
+				   size_t listeners_count)
 {
 	int i;
 	int err;
 
-	err = mlxsw_sp_cpu_policers_set(mlxsw_sp->core);
-	if (err)
-		return err;
-
-	err = mlxsw_sp_trap_groups_set(mlxsw_sp->core);
-	if (err)
-		return err;
-
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener); i++) {
+	for (i = 0; i < listeners_count; i++) {
 		err = mlxsw_core_trap_register(mlxsw_sp->core,
-					       &mlxsw_sp_listener[i],
+					       &listeners[i],
 					       mlxsw_sp);
 		if (err)
 			goto err_listener_register;
@@ -4277,21 +4441,61 @@ static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 err_listener_register:
 	for (i--; i >= 0; i--) {
 		mlxsw_core_trap_unregister(mlxsw_sp->core,
-					   &mlxsw_sp_listener[i],
+					   &listeners[i],
 					   mlxsw_sp);
 	}
 	return err;
 }
 
-static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
+static void mlxsw_sp_traps_unregister(struct mlxsw_sp *mlxsw_sp,
+				      const struct mlxsw_listener listeners[],
+				      size_t listeners_count)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener); i++) {
+	for (i = 0; i < listeners_count; i++) {
 		mlxsw_core_trap_unregister(mlxsw_sp->core,
-					   &mlxsw_sp_listener[i],
+					   &listeners[i],
 					   mlxsw_sp);
 	}
+}
+
+static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
+{
+	int err;
+
+	err = mlxsw_sp_cpu_policers_set(mlxsw_sp->core);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_trap_groups_set(mlxsw_sp->core);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp_listener,
+				      ARRAY_SIZE(mlxsw_sp_listener));
+	if (err)
+		return err;
+
+	err = mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp->listeners,
+				      mlxsw_sp->listeners_count);
+	if (err)
+		goto err_extra_traps_init;
+
+	return 0;
+
+err_extra_traps_init:
+	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
+				  ARRAY_SIZE(mlxsw_sp_listener));
+	return err;
+}
+
+static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp->listeners,
+				  mlxsw_sp->listeners_count);
+	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
+				  ARRAY_SIZE(mlxsw_sp_listener));
 }
 
 #define MLXSW_SP_LAG_SEED_INIT 0xcafecafe
@@ -4346,20 +4550,28 @@ static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
-struct mlxsw_sp_ptp_ops {
-	struct mlxsw_sp_ptp_clock *
-		(*clock_init)(struct mlxsw_sp *mlxsw_sp, struct device *dev);
-	void (*clock_fini)(struct mlxsw_sp_ptp_clock *clock);
-};
-
 static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
 	.clock_init	= mlxsw_sp1_ptp_clock_init,
 	.clock_fini	= mlxsw_sp1_ptp_clock_fini,
+	.init		= mlxsw_sp1_ptp_init,
+	.fini		= mlxsw_sp1_ptp_fini,
+	.receive	= mlxsw_sp1_ptp_receive,
+	.transmitted	= mlxsw_sp1_ptp_transmitted,
+	.hwtstamp_get	= mlxsw_sp1_ptp_hwtstamp_get,
+	.hwtstamp_set	= mlxsw_sp1_ptp_hwtstamp_set,
+	.get_ts_info	= mlxsw_sp1_ptp_get_ts_info,
 };
 
 static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.clock_init	= mlxsw_sp2_ptp_clock_init,
 	.clock_fini	= mlxsw_sp2_ptp_clock_fini,
+	.init		= mlxsw_sp2_ptp_init,
+	.fini		= mlxsw_sp2_ptp_fini,
+	.receive	= mlxsw_sp2_ptp_receive,
+	.transmitted	= mlxsw_sp2_ptp_transmitted,
+	.hwtstamp_get	= mlxsw_sp2_ptp_hwtstamp_get,
+	.hwtstamp_set	= mlxsw_sp2_ptp_hwtstamp_set,
+	.get_ts_info	= mlxsw_sp2_ptp_get_ts_info,
 };
 
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
@@ -4471,6 +4683,16 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		}
 	}
 
+	if (mlxsw_sp->clock) {
+		/* NULL is a valid return value from ptp_ops->init */
+		mlxsw_sp->ptp_state = mlxsw_sp->ptp_ops->init(mlxsw_sp);
+		if (IS_ERR(mlxsw_sp->ptp_state)) {
+			err = PTR_ERR(mlxsw_sp->ptp_state);
+			dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize PTP\n");
+			goto err_ptp_init;
+		}
+	}
+
 	/* Initialize netdevice notifier after router and SPAN is initialized,
 	 * so that the event handler can use router structures and call SPAN
 	 * respin.
@@ -4501,6 +4723,9 @@ err_ports_create:
 err_dpipe_init:
 	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
 err_netdev_notifier:
+	if (mlxsw_sp->clock)
+		mlxsw_sp->ptp_ops->fini(mlxsw_sp->ptp_state);
+err_ptp_init:
 	if (mlxsw_sp->clock)
 		mlxsw_sp->ptp_ops->clock_fini(mlxsw_sp->clock);
 err_ptp_clock_init:
@@ -4548,6 +4773,8 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->sb_vals = &mlxsw_sp1_sb_vals;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp1_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp1_ptp_ops;
+	mlxsw_sp->listeners = mlxsw_sp1_listener;
+	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp1_listener);
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
 }
@@ -4579,8 +4806,10 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_ports_remove(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
-	if (mlxsw_sp->clock)
+	if (mlxsw_sp->clock) {
+		mlxsw_sp->ptp_ops->fini(mlxsw_sp->ptp_state);
 		mlxsw_sp->ptp_ops->clock_fini(mlxsw_sp->clock);
+	}
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_nve_fini(mlxsw_sp);
@@ -4923,6 +5152,15 @@ static void mlxsw_sp2_params_unregister(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_params_unregister(mlxsw_core);
 }
 
+static void mlxsw_sp_ptp_transmitted(struct mlxsw_core *mlxsw_core,
+				     struct sk_buff *skb, u8 local_port)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	skb_pull(skb, MLXSW_TXHDR_LEN);
+	mlxsw_sp->ptp_ops->transmitted(mlxsw_sp, skb, local_port);
+}
+
 static struct mlxsw_driver mlxsw_sp1_driver = {
 	.kind				= mlxsw_sp1_driver_name,
 	.priv_size			= sizeof(struct mlxsw_sp),
@@ -4947,6 +5185,7 @@ static struct mlxsw_driver mlxsw_sp1_driver = {
 	.kvd_sizes_get			= mlxsw_sp_kvd_sizes_get,
 	.params_register		= mlxsw_sp_params_register,
 	.params_unregister		= mlxsw_sp_params_unregister,
+	.ptp_transmitted		= mlxsw_sp_ptp_transmitted,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp1_config_profile,
 	.res_query_enabled		= true,
@@ -4975,6 +5214,7 @@ static struct mlxsw_driver mlxsw_sp2_driver = {
 	.resources_register		= mlxsw_sp2_resources_register,
 	.params_register		= mlxsw_sp2_params_register,
 	.params_unregister		= mlxsw_sp2_params_unregister,
+	.ptp_transmitted		= mlxsw_sp_ptp_transmitted,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp2_config_profile,
 	.res_query_enabled		= true,
