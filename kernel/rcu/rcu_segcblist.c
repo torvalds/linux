@@ -24,6 +24,19 @@ void rcu_cblist_init(struct rcu_cblist *rclp)
 }
 
 /*
+ * Enqueue an rcu_head structure onto the specified callback list.
+ * This function assumes that the callback is non-lazy because it
+ * is intended for use by no-CBs CPUs, which do not distinguish
+ * between lazy and non-lazy RCU callbacks.
+ */
+void rcu_cblist_enqueue(struct rcu_cblist *rclp, struct rcu_head *rhp)
+{
+	*rclp->tail = rhp;
+	rclp->tail = &rhp->next;
+	WRITE_ONCE(rclp->len, rclp->len + 1);
+}
+
+/*
  * Dequeue the oldest rcu_head structure from the specified callback
  * list.  This function assumes that the callback is non-lazy, but
  * the caller can later invoke rcu_cblist_dequeued_lazy() if it
@@ -44,6 +57,67 @@ struct rcu_head *rcu_cblist_dequeue(struct rcu_cblist *rclp)
 	return rhp;
 }
 
+/* Set the length of an rcu_segcblist structure. */
+void rcu_segcblist_set_len(struct rcu_segcblist *rsclp, long v)
+{
+#ifdef CONFIG_RCU_NOCB_CPU
+	atomic_long_set(&rsclp->len, v);
+#else
+	WRITE_ONCE(rsclp->len, v);
+#endif
+}
+
+/*
+ * Increase the numeric length of an rcu_segcblist structure by the
+ * specified amount, which can be negative.  This can cause the ->len
+ * field to disagree with the actual number of callbacks on the structure.
+ * This increase is fully ordered with respect to the callers accesses
+ * both before and after.
+ */
+void rcu_segcblist_add_len(struct rcu_segcblist *rsclp, long v)
+{
+#ifdef CONFIG_RCU_NOCB_CPU
+	smp_mb__before_atomic(); /* Up to the caller! */
+	atomic_long_add(v, &rsclp->len);
+	smp_mb__after_atomic(); /* Up to the caller! */
+#else
+	smp_mb(); /* Up to the caller! */
+	WRITE_ONCE(rsclp->len, rsclp->len + v);
+	smp_mb(); /* Up to the caller! */
+#endif
+}
+
+/*
+ * Increase the numeric length of an rcu_segcblist structure by one.
+ * This can cause the ->len field to disagree with the actual number of
+ * callbacks on the structure.  This increase is fully ordered with respect
+ * to the callers accesses both before and after.
+ */
+void rcu_segcblist_inc_len(struct rcu_segcblist *rsclp)
+{
+	rcu_segcblist_add_len(rsclp, 1);
+}
+
+/*
+ * Exchange the numeric length of the specified rcu_segcblist structure
+ * with the specified value.  This can cause the ->len field to disagree
+ * with the actual number of callbacks on the structure.  This exchange is
+ * fully ordered with respect to the callers accesses both before and after.
+ */
+long rcu_segcblist_xchg_len(struct rcu_segcblist *rsclp, long v)
+{
+#ifdef CONFIG_RCU_NOCB_CPU
+	return atomic_long_xchg(&rsclp->len, v);
+#else
+	long ret = rsclp->len;
+
+	smp_mb(); /* Up to the caller! */
+	WRITE_ONCE(rsclp->len, v);
+	smp_mb(); /* Up to the caller! */
+	return ret;
+#endif
+}
+
 /*
  * Initialize an rcu_segcblist structure.
  */
@@ -56,7 +130,7 @@ void rcu_segcblist_init(struct rcu_segcblist *rsclp)
 	rsclp->head = NULL;
 	for (i = 0; i < RCU_CBLIST_NSEGS; i++)
 		rsclp->tails[i] = &rsclp->head;
-	rsclp->len = 0;
+	rcu_segcblist_set_len(rsclp, 0);
 	rsclp->len_lazy = 0;
 	rsclp->enabled = 1;
 }
@@ -151,7 +225,7 @@ bool rcu_segcblist_nextgp(struct rcu_segcblist *rsclp, unsigned long *lp)
 void rcu_segcblist_enqueue(struct rcu_segcblist *rsclp,
 			   struct rcu_head *rhp, bool lazy)
 {
-	WRITE_ONCE(rsclp->len, rsclp->len + 1); /* ->len sampled locklessly. */
+	rcu_segcblist_inc_len(rsclp);
 	if (lazy)
 		rsclp->len_lazy++;
 	smp_mb(); /* Ensure counts are updated before callback is enqueued. */
@@ -177,7 +251,7 @@ bool rcu_segcblist_entrain(struct rcu_segcblist *rsclp,
 
 	if (rcu_segcblist_n_cbs(rsclp) == 0)
 		return false;
-	WRITE_ONCE(rsclp->len, rsclp->len + 1);
+	rcu_segcblist_inc_len(rsclp);
 	if (lazy)
 		rsclp->len_lazy++;
 	smp_mb(); /* Ensure counts are updated before callback is entrained. */
@@ -204,9 +278,8 @@ void rcu_segcblist_extract_count(struct rcu_segcblist *rsclp,
 					       struct rcu_cblist *rclp)
 {
 	rclp->len_lazy += rsclp->len_lazy;
-	rclp->len += rsclp->len;
 	rsclp->len_lazy = 0;
-	WRITE_ONCE(rsclp->len, 0); /* ->len sampled locklessly. */
+	rclp->len = rcu_segcblist_xchg_len(rsclp, 0);
 }
 
 /*
@@ -259,8 +332,7 @@ void rcu_segcblist_insert_count(struct rcu_segcblist *rsclp,
 				struct rcu_cblist *rclp)
 {
 	rsclp->len_lazy += rclp->len_lazy;
-	/* ->len sampled locklessly. */
-	WRITE_ONCE(rsclp->len, rsclp->len + rclp->len);
+	rcu_segcblist_add_len(rsclp, rclp->len);
 	rclp->len_lazy = 0;
 	rclp->len = 0;
 }

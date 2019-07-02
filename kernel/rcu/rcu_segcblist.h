@@ -9,6 +9,12 @@
 
 #include <linux/rcu_segcblist.h>
 
+/* Return number of callbacks in the specified callback list. */
+static inline long rcu_cblist_n_cbs(struct rcu_cblist *rclp)
+{
+	return READ_ONCE(rclp->len);
+}
+
 /*
  * Account for the fact that a previously dequeued callback turned out
  * to be marked as lazy.
@@ -42,7 +48,11 @@ static inline bool rcu_segcblist_empty(struct rcu_segcblist *rsclp)
 /* Return number of callbacks in segmented callback list. */
 static inline long rcu_segcblist_n_cbs(struct rcu_segcblist *rsclp)
 {
+#ifdef CONFIG_RCU_NOCB_CPU
+	return atomic_long_read(&rsclp->len);
+#else
 	return READ_ONCE(rsclp->len);
+#endif
 }
 
 /* Return number of lazy callbacks in segmented callback list. */
@@ -54,7 +64,7 @@ static inline long rcu_segcblist_n_lazy_cbs(struct rcu_segcblist *rsclp)
 /* Return number of lazy callbacks in segmented callback list. */
 static inline long rcu_segcblist_n_nonlazy_cbs(struct rcu_segcblist *rsclp)
 {
-	return rsclp->len - rsclp->len_lazy;
+	return rcu_segcblist_n_cbs(rsclp) - rsclp->len_lazy;
 }
 
 /*

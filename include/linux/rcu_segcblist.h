@@ -68,7 +68,11 @@ struct rcu_segcblist {
 	struct rcu_head *head;
 	struct rcu_head **tails[RCU_CBLIST_NSEGS];
 	unsigned long gp_seq[RCU_CBLIST_NSEGS];
+#ifdef CONFIG_RCU_NOCB_CPU
+	atomic_long_t len;
+#else
 	long len;
+#endif
 	long len_lazy;
 	u8 enabled;
 	u8 offloaded;
