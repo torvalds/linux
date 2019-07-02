@@ -54,6 +54,7 @@ struct safexcel_cipher_req {
 	/* Number of result descriptors associated to the request */
 	unsigned int rdescs;
 	bool needs_inv;
+	int  nr_src, nr_dst;
 };
 
 static void safexcel_skcipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
@@ -358,10 +359,10 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 	safexcel_complete(priv, ring);
 
 	if (src == dst) {
-		dma_unmap_sg(priv->dev, src, sg_nents(src), DMA_BIDIRECTIONAL);
+		dma_unmap_sg(priv->dev, src, sreq->nr_src, DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(priv->dev, src, sg_nents(src), DMA_TO_DEVICE);
-		dma_unmap_sg(priv->dev, dst, sg_nents(dst), DMA_FROM_DEVICE);
+		dma_unmap_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
+		dma_unmap_sg(priv->dev, dst, sreq->nr_dst, DMA_FROM_DEVICE);
 	}
 
 	/*
@@ -370,7 +371,7 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 	if ((!ctx->aead) && (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) &&
 	    (sreq->direction == SAFEXCEL_ENCRYPT)) {
 		/* For encrypt take the last output word */
-		sg_pcopy_to_buffer(dst, sg_nents(dst), areq->iv,
+		sg_pcopy_to_buffer(dst, sreq->nr_dst, areq->iv,
 				   crypto_skcipher_ivsize(skcipher),
 				   (cryptlen -
 				    crypto_skcipher_ivsize(skcipher)));
@@ -393,63 +394,99 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(base->tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct safexcel_command_desc *cdesc;
+	struct safexcel_command_desc *first_cdesc = NULL;
 	struct safexcel_result_desc *rdesc, *first_rdesc = NULL;
 	struct scatterlist *sg;
-	unsigned int totlen = cryptlen + assoclen;
-	int nr_src, nr_dst, n_cdesc = 0, n_rdesc = 0, queued = totlen;
-	int i, ret = 0;
+	unsigned int totlen;
+	unsigned int totlen_src = cryptlen + assoclen;
+	unsigned int totlen_dst = totlen_src;
+	int n_cdesc = 0, n_rdesc = 0;
+	int queued, i, ret = 0;
+	bool first = true;
 
-	if ((!ctx->aead) && (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) &&
-	    (sreq->direction == SAFEXCEL_DECRYPT)) {
+	sreq->nr_src = sg_nents_for_len(src, totlen_src);
+
+	if (ctx->aead) {
+		/*
+		 * AEAD has auth tag appended to output for encrypt and
+		 * removed from the output for decrypt!
+		 */
+		if (sreq->direction == SAFEXCEL_DECRYPT)
+			totlen_dst -= digestsize;
+		else
+			totlen_dst += digestsize;
+
+		memcpy(ctx->base.ctxr->data + ctx->key_len / sizeof(u32),
+		       ctx->ipad, ctx->state_sz);
+		memcpy(ctx->base.ctxr->data + (ctx->key_len + ctx->state_sz) /
+		       sizeof(u32),
+		       ctx->opad, ctx->state_sz);
+	} else if ((ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) &&
+		   (sreq->direction == SAFEXCEL_DECRYPT)) {
 		/*
 		 * Save IV from last crypto input word for CBC modes in decrypt
 		 * direction. Need to do this first in case of inplace operation
 		 * as it will be overwritten.
 		 */
-		sg_pcopy_to_buffer(src, sg_nents(src), areq->iv,
+		sg_pcopy_to_buffer(src, sreq->nr_src, areq->iv,
 				   crypto_skcipher_ivsize(skcipher),
-				   (totlen -
+				   (totlen_src -
 				    crypto_skcipher_ivsize(skcipher)));
 	}
 
-	if (src == dst) {
-		nr_src = dma_map_sg(priv->dev, src, sg_nents(src),
-				    DMA_BIDIRECTIONAL);
-		nr_dst = nr_src;
-		if (!nr_src)
-			return -EINVAL;
-	} else {
-		nr_src = dma_map_sg(priv->dev, src, sg_nents(src),
-				    DMA_TO_DEVICE);
-		if (!nr_src)
-			return -EINVAL;
+	sreq->nr_dst = sg_nents_for_len(dst, totlen_dst);
 
-		nr_dst = dma_map_sg(priv->dev, dst, sg_nents(dst),
-				    DMA_FROM_DEVICE);
-		if (!nr_dst) {
-			dma_unmap_sg(priv->dev, src, nr_src, DMA_TO_DEVICE);
+	/*
+	 * Remember actual input length, source buffer length may be
+	 * updated in case of inline operation below.
+	 */
+	totlen = totlen_src;
+	queued = totlen_src;
+
+	if (src == dst) {
+		sreq->nr_src = max(sreq->nr_src, sreq->nr_dst);
+		sreq->nr_dst = sreq->nr_src;
+		if (unlikely((totlen_src || totlen_dst) &&
+		    (sreq->nr_src <= 0))) {
+			dev_err(priv->dev, "In-place buffer not large enough (need %d bytes)!",
+				max(totlen_src, totlen_dst));
 			return -EINVAL;
 		}
+		dma_map_sg(priv->dev, src, sreq->nr_src, DMA_BIDIRECTIONAL);
+	} else {
+		if (unlikely(totlen_src && (sreq->nr_src <= 0))) {
+			dev_err(priv->dev, "Source buffer not large enough (need %d bytes)!",
+				totlen_src);
+			return -EINVAL;
+		}
+		dma_map_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
+
+		if (unlikely(totlen_dst && (sreq->nr_dst <= 0))) {
+			dev_err(priv->dev, "Dest buffer not large enough (need %d bytes)!",
+				totlen_dst);
+			dma_unmap_sg(priv->dev, src, sreq->nr_src,
+				     DMA_TO_DEVICE);
+			return -EINVAL;
+		}
+		dma_map_sg(priv->dev, dst, sreq->nr_dst, DMA_FROM_DEVICE);
 	}
 
 	memcpy(ctx->base.ctxr->data, ctx->key, ctx->key_len);
 
-	if (ctx->aead) {
-		memcpy(ctx->base.ctxr->data + ctx->key_len / sizeof(u32),
-		       ctx->ipad, ctx->state_sz);
-		memcpy(ctx->base.ctxr->data + (ctx->key_len + ctx->state_sz) / sizeof(u32),
-		       ctx->opad, ctx->state_sz);
-	}
+	/* The EIP cannot deal with zero length input packets! */
+	if (totlen == 0)
+		totlen = 1;
 
 	/* command descriptors */
-	for_each_sg(src, sg, nr_src, i) {
+	for_each_sg(src, sg, sreq->nr_src, i) {
 		int len = sg_dma_len(sg);
 
 		/* Do not overflow the request */
 		if (queued - len < 0)
 			len = queued;
 
-		cdesc = safexcel_add_cdesc(priv, ring, !n_cdesc, !(queued - len),
+		cdesc = safexcel_add_cdesc(priv, ring, !n_cdesc,
+					   !(queued - len),
 					   sg_dma_address(sg), len, totlen,
 					   ctx->base.ctxr_dma);
 		if (IS_ERR(cdesc)) {
@@ -460,14 +497,7 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 		n_cdesc++;
 
 		if (n_cdesc == 1) {
-			safexcel_context_control(ctx, base, sreq, cdesc);
-			if (ctx->aead)
-				safexcel_aead_token(ctx, iv, cdesc,
-						    sreq->direction, cryptlen,
-						    assoclen, digestsize);
-			else
-				safexcel_skcipher_token(ctx, iv, cdesc,
-							cryptlen);
+			first_cdesc = cdesc;
 		}
 
 		queued -= len;
@@ -475,21 +505,81 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 			break;
 	}
 
+	if (unlikely(!n_cdesc)) {
+		/*
+		 * Special case: zero length input buffer.
+		 * The engine always needs the 1st command descriptor, however!
+		 */
+		first_cdesc = safexcel_add_cdesc(priv, ring, 1, 1, 0, 0, totlen,
+						 ctx->base.ctxr_dma);
+		n_cdesc = 1;
+	}
+
+	/* Add context control words and token to first command descriptor */
+	safexcel_context_control(ctx, base, sreq, first_cdesc);
+	if (ctx->aead)
+		safexcel_aead_token(ctx, iv, first_cdesc,
+				    sreq->direction, cryptlen,
+				    assoclen, digestsize);
+	else
+		safexcel_skcipher_token(ctx, iv, first_cdesc,
+					cryptlen);
+
 	/* result descriptors */
-	for_each_sg(dst, sg, nr_dst, i) {
-		bool first = !i, last = sg_is_last(sg);
+	for_each_sg(dst, sg, sreq->nr_dst, i) {
+		bool last = (i == sreq->nr_dst - 1);
 		u32 len = sg_dma_len(sg);
 
-		rdesc = safexcel_add_rdesc(priv, ring, first, last,
-					   sg_dma_address(sg), len);
+		/* only allow the part of the buffer we know we need */
+		if (len > totlen_dst)
+			len = totlen_dst;
+		if (unlikely(!len))
+			break;
+		totlen_dst -= len;
+
+		/* skip over AAD space in buffer - not written */
+		if (assoclen) {
+			if (assoclen >= len) {
+				assoclen -= len;
+				continue;
+			}
+			rdesc = safexcel_add_rdesc(priv, ring, first, last,
+						   sg_dma_address(sg) +
+						   assoclen,
+						   len - assoclen);
+			assoclen = 0;
+		} else {
+			rdesc = safexcel_add_rdesc(priv, ring, first, last,
+						   sg_dma_address(sg),
+						   len);
+		}
 		if (IS_ERR(rdesc)) {
 			/* No space left in the result descriptor ring */
 			ret = PTR_ERR(rdesc);
 			goto rdesc_rollback;
 		}
-		if (first)
+		if (first) {
 			first_rdesc = rdesc;
+			first = false;
+		}
 		n_rdesc++;
+	}
+
+	if (unlikely(first)) {
+		/*
+		 * Special case: AEAD decrypt with only AAD data.
+		 * In this case there is NO output data from the engine,
+		 * but the engine still needs a result descriptor!
+		 * Create a dummy one just for catching the result token.
+		 */
+		rdesc = safexcel_add_rdesc(priv, ring, true, true, 0, 0);
+		if (IS_ERR(rdesc)) {
+			/* No space left in the result descriptor ring */
+			ret = PTR_ERR(rdesc);
+			goto rdesc_rollback;
+		}
+		first_rdesc = rdesc;
+		n_rdesc = 1;
 	}
 
 	safexcel_rdr_req_set(priv, ring, first_rdesc, base);
@@ -506,10 +596,10 @@ cdesc_rollback:
 		safexcel_ring_rollback_wptr(priv, &priv->ring[ring].cdr);
 
 	if (src == dst) {
-		dma_unmap_sg(priv->dev, src, nr_src, DMA_BIDIRECTIONAL);
+		dma_unmap_sg(priv->dev, src, sreq->nr_src, DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(priv->dev, src, nr_src, DMA_TO_DEVICE);
-		dma_unmap_sg(priv->dev, dst, nr_dst, DMA_FROM_DEVICE);
+		dma_unmap_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
+		dma_unmap_sg(priv->dev, dst, sreq->nr_dst, DMA_FROM_DEVICE);
 	}
 
 	return ret;
