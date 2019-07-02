@@ -159,7 +159,7 @@ static int safexcel_skcipher_aes_setkey(struct crypto_skcipher *ctfm,
 	struct crypto_aes_ctx aes;
 	int ret, i;
 
-	ret = crypto_aes_expand_key(&aes, key, len);
+	ret = aes_expandkey(&aes, key, len);
 	if (ret) {
 		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return ret;
