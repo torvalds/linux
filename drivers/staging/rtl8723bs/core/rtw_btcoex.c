@@ -19,11 +19,6 @@ void rtw_btcoex_MediaStatusNotify(struct adapter *padapter, u8 mediaStatus)
 	hal_btcoex_MediaStatusNotify(padapter, mediaStatus);
 }
 
-void rtw_btcoex_BtInfoNotify(struct adapter *padapter, u8 length, u8 *tmpBuf)
-{
-	hal_btcoex_BtInfoNotify(padapter, length, tmpBuf);
-}
-
 void rtw_btcoex_HaltNotify(struct adapter *padapter)
 {
 	if (!padapter->bup) {

@@ -3693,7 +3693,7 @@ s32 c2h_handler_8723b(struct adapter *padapter, u8 *buf)
 		break;
 
 	case C2H_8723B_BT_INFO:
-		rtw_btcoex_BtInfoNotify(padapter, pC2hEvent->plen, pC2hEvent->payload);
+		hal_btcoex_BtInfoNotify(padapter, pC2hEvent->plen, pC2hEvent->payload);
 		break;
 
 	default:
@@ -3742,7 +3742,7 @@ static void process_c2h_event(struct adapter *padapter, PC2H_EVT_HDR pC2hEvent, 
 		break;
 
 	case C2H_8723B_BT_INFO:
-		rtw_btcoex_BtInfoNotify(padapter, pC2hEvent->CmdLen, c2hBuf);
+		hal_btcoex_BtInfoNotify(padapter, pC2hEvent->CmdLen, c2hBuf);
 		break;
 
 	default:
