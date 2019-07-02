@@ -852,7 +852,7 @@ static const unsigned BKEY_ALLOC_VAL_U64s_MAX =
 		     BCH_ALLOC_FIELDS(), sizeof(u64));
 #undef x
 
-static const unsigned BKEY_ALLOC_U64s_MAX = BKEY_U64s + BKEY_ALLOC_VAL_U64s_MAX;
+#define BKEY_ALLOC_U64s_MAX	(BKEY_U64s + BKEY_ALLOC_VAL_U64s_MAX)
 
 /* Quotas: */
 
