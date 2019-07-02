@@ -43,6 +43,10 @@ enum rdma_restrack_type {
 	 */
 	RDMA_RESTRACK_CTX,
 	/**
+	 * @RDMA_RESTRACK_COUNTER: Statistic Counter
+	 */
+	RDMA_RESTRACK_COUNTER,
+	/**
 	 * @RDMA_RESTRACK_MAX: Last entry, used for array dclarations
 	 */
 	RDMA_RESTRACK_MAX
