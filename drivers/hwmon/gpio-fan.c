@@ -510,13 +510,6 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, fan_data);
 	mutex_init(&fan_data->lock);
 
-	/* Configure alarm GPIO if available. */
-	if (fan_data->alarm_gpio) {
-		err = fan_alarm_init(fan_data);
-		if (err)
-			return err;
-	}
-
 	/* Configure control GPIOs if available. */
 	if (fan_data->gpios && fan_data->num_gpios > 0) {
 		if (!fan_data->speed || fan_data->num_speed <= 1)
@@ -536,6 +529,13 @@ static int gpio_fan_probe(struct platform_device *pdev)
 						       gpio_fan_groups);
 	if (IS_ERR(fan_data->hwmon_dev))
 		return PTR_ERR(fan_data->hwmon_dev);
+
+	/* Configure alarm GPIO if available. */
+	if (fan_data->alarm_gpio) {
+		err = fan_alarm_init(fan_data);
+		if (err)
+			return err;
+	}
 
 	/* Optional cooling device register for Device tree platforms */
 	fan_data->cdev = devm_thermal_of_cooling_device_register(dev, np,
