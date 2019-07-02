@@ -102,7 +102,8 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	     ring < priv->rx_cfg.num_queues; ring++) {
 		if (priv->rx) {
 			do {
-				u64_stats_fetch_begin(&priv->rx[ring].statss);
+				start =
+				  u64_stats_fetch_begin(&priv->rx[ring].statss);
 				rx_pkts += priv->rx[ring].rpackets;
 				rx_bytes += priv->rx[ring].rbytes;
 			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
@@ -113,7 +114,8 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	     ring < priv->tx_cfg.num_queues; ring++) {
 		if (priv->tx) {
 			do {
-				u64_stats_fetch_begin(&priv->tx[ring].statss);
+				start =
+				  u64_stats_fetch_begin(&priv->tx[ring].statss);
 				tx_pkts += priv->tx[ring].pkt_done;
 				tx_bytes += priv->tx[ring].bytes_done;
 			} while (u64_stats_fetch_retry(&priv->tx[ring].statss,
