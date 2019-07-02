@@ -328,7 +328,7 @@ __visible const u32 crypto_ft_tab[4][256] ____cacheline_aligned = {
 	}
 };
 
-__visible const u32 crypto_fl_tab[4][256] ____cacheline_aligned = {
+static const u32 crypto_fl_tab[4][256] ____cacheline_aligned = {
 	{
 		0x00000063, 0x0000007c, 0x00000077, 0x0000007b,
 		0x000000f2, 0x0000006b, 0x0000006f, 0x000000c5,
@@ -856,7 +856,7 @@ __visible const u32 crypto_it_tab[4][256] ____cacheline_aligned = {
 	}
 };
 
-__visible const u32 crypto_il_tab[4][256] ____cacheline_aligned = {
+static const u32 crypto_il_tab[4][256] ____cacheline_aligned = {
 	{
 		0x00000052, 0x00000009, 0x0000006a, 0x000000d5,
 		0x00000030, 0x00000036, 0x000000a5, 0x00000038,
@@ -1121,9 +1121,7 @@ __visible const u32 crypto_il_tab[4][256] ____cacheline_aligned = {
 };
 
 EXPORT_SYMBOL_GPL(crypto_ft_tab);
-EXPORT_SYMBOL_GPL(crypto_fl_tab);
 EXPORT_SYMBOL_GPL(crypto_it_tab);
-EXPORT_SYMBOL_GPL(crypto_il_tab);
 
 /**
  * crypto_aes_set_key - Set the AES key.
