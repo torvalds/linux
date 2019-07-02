@@ -3876,7 +3876,7 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_MLME_SITESURVEY:
 		hw_var_set_mlme_sitesurvey(padapter, variable,  val);
 
-		rtw_btcoex_ScanNotify(padapter, *val?true:false);
+		hal_btcoex_ScanNotify(padapter, *val?true:false);
 		break;
 
 	case HW_VAR_MLME_JOIN:
