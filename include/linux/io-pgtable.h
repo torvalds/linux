@@ -19,17 +19,31 @@ enum io_pgtable_fmt {
 /**
  * struct iommu_flush_ops - IOMMU callbacks for TLB and page table management.
  *
- * @tlb_flush_all: Synchronously invalidate the entire TLB context.
- * @tlb_add_flush: Queue up a TLB invalidation for a virtual address range.
- * @tlb_sync:      Ensure any queued TLB invalidation has taken effect, and
- *                 any corresponding page table updates are visible to the
- *                 IOMMU.
+ * @tlb_flush_all:  Synchronously invalidate the entire TLB context.
+ * @tlb_flush_walk: Synchronously invalidate all intermediate TLB state
+ *                  (sometimes referred to as the "walk cache") for a virtual
+ *                  address range.
+ * @tlb_flush_leaf: Synchronously invalidate all leaf TLB state for a virtual
+ *                  address range.
+ * @tlb_add_flush:  Optional callback to queue up leaf TLB invalidation for a
+ *                  virtual address range.  This function exists purely as an
+ *                  optimisation for IOMMUs that cannot batch TLB invalidation
+ *                  operations efficiently and are therefore better suited to
+ *                  issuing them early rather than deferring them until
+ *                  iommu_tlb_sync().
+ * @tlb_sync:       Ensure any queued TLB invalidation has taken effect, and
+ *                  any corresponding page table updates are visible to the
+ *                  IOMMU.
  *
  * Note that these can all be called in atomic context and must therefore
  * not block.
  */
 struct iommu_flush_ops {
 	void (*tlb_flush_all)(void *cookie);
+	void (*tlb_flush_walk)(unsigned long iova, size_t size, size_t granule,
+			       void *cookie);
+	void (*tlb_flush_leaf)(unsigned long iova, size_t size, size_t granule,
+			       void *cookie);
 	void (*tlb_add_flush)(unsigned long iova, size_t size, size_t granule,
 			      bool leaf, void *cookie);
 	void (*tlb_sync)(void *cookie);
