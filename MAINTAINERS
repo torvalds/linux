@@ -6477,6 +6477,19 @@ F:	fs/crypto/
 F:	include/linux/fscrypt*.h
 F:	Documentation/filesystems/fscrypt.rst
 
+FSI SUBSYSTEM
+M:	Jeremy Kerr <jk@ozlabs.org>
+M:	Joel Stanley <joel@jms.id.au>
+R:	Alistar Popple <alistair@popple.id.au>
+R:	Eddie James <eajames@linux.ibm.com>
+L:	linux-fsi@lists.ozlabs.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joel/fsi.git
+Q:	http://patchwork.ozlabs.org/project/linux-fsi/list/
+S:	Supported
+F:	drivers/fsi/
+F:	include/linux/fsi*.h
+F:	include/trace/events/fsi*.h
+
 FSI-ATTACHED I2C DRIVER
 M:	Eddie James <eajames@linux.ibm.com>
 L:	linux-i2c@vger.kernel.org
