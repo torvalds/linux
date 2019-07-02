@@ -696,7 +696,6 @@ static size_t unmap_unpin_fast(struct vfio_domain *domain,
 		if (!unmapped) {
 			kfree(entry);
 		} else {
-			iommu_tlb_range_add(domain->domain, *iova, unmapped);
 			entry->iova = *iova;
 			entry->phys = phys;
 			entry->len  = unmapped;
