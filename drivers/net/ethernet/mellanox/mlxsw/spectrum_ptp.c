@@ -425,7 +425,7 @@ static void mlxsw_sp1_ptp_packet_finish(struct mlxsw_sp *mlxsw_sp,
 	 * split). Also make sure the SKB device reference is still valid.
 	 */
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
-	if (!mlxsw_sp_port && (!skb->dev || skb->dev == mlxsw_sp_port->dev)) {
+	if (!(mlxsw_sp_port && (!skb->dev || skb->dev == mlxsw_sp_port->dev))) {
 		dev_kfree_skb_any(skb);
 		return;
 	}
