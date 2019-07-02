@@ -158,6 +158,20 @@ static int __rdma_counter_unbind_qp(struct ib_qp *qp)
 	return ret;
 }
 
+static void counter_history_stat_update(const struct rdma_counter *counter)
+{
+	struct ib_device *dev = counter->device;
+	struct rdma_port_counter *port_counter;
+	int i;
+
+	port_counter = &dev->port_data[counter->port].port_counter;
+	if (!port_counter->hstats)
+		return;
+
+	for (i = 0; i < counter->stats->num_counters; i++)
+		port_counter->hstats->value[i] += counter->stats->value[i];
+}
+
 /**
  * rdma_get_counter_auto_mode - Find the counter that @qp should be bound
  *     with in auto mode
@@ -215,6 +229,7 @@ static void counter_release(struct kref *kref)
 	struct rdma_counter *counter;
 
 	counter = container_of(kref, struct rdma_counter, kref);
+	counter_history_stat_update(counter);
 	counter->device->ops.counter_dealloc(counter);
 	rdma_counter_free(counter);
 }
@@ -299,6 +314,55 @@ int rdma_counter_query_stats(struct rdma_counter *counter)
 	return ret;
 }
 
+static u64 get_running_counters_hwstat_sum(struct ib_device *dev,
+					   u8 port, u32 index)
+{
+	struct rdma_restrack_entry *res;
+	struct rdma_restrack_root *rt;
+	struct rdma_counter *counter;
+	unsigned long id = 0;
+	u64 sum = 0;
+
+	rt = &dev->res[RDMA_RESTRACK_COUNTER];
+	xa_lock(&rt->xa);
+	xa_for_each(&rt->xa, id, res) {
+		if (!rdma_restrack_get(res))
+			continue;
+
+		xa_unlock(&rt->xa);
+
+		counter = container_of(res, struct rdma_counter, res);
+		if ((counter->device != dev) || (counter->port != port) ||
+		    rdma_counter_query_stats(counter))
+			goto next;
+
+		sum += counter->stats->value[index];
+
+next:
+		xa_lock(&rt->xa);
+		rdma_restrack_put(res);
+	}
+
+	xa_unlock(&rt->xa);
+	return sum;
+}
+
+/**
+ * rdma_counter_get_hwstat_value() - Get the sum value of all counters on a
+ *   specific port, including the running ones and history data
+ */
+u64 rdma_counter_get_hwstat_value(struct ib_device *dev, u8 port, u32 index)
+{
+	struct rdma_port_counter *port_counter;
+	u64 sum;
+
+	port_counter = &dev->port_data[port].port_counter;
+	sum = get_running_counters_hwstat_sum(dev, port, index);
+	sum += port_counter->hstats->value[index];
+
+	return sum;
+}
+
 void rdma_counter_init(struct ib_device *dev)
 {
 	struct rdma_port_counter *port_counter;
@@ -311,9 +375,34 @@ void rdma_counter_init(struct ib_device *dev)
 		port_counter = &dev->port_data[port].port_counter;
 		port_counter->mode.mode = RDMA_COUNTER_MODE_NONE;
 		mutex_init(&port_counter->lock);
+
+		port_counter->hstats = dev->ops.alloc_hw_stats(dev, port);
+		if (!port_counter->hstats)
+			goto fail;
 	}
+
+	return;
+
+fail:
+	rdma_for_each_port(dev, port) {
+		port_counter = &dev->port_data[port].port_counter;
+		kfree(port_counter->hstats);
+		port_counter->hstats = NULL;
+	}
+
+	return;
 }
 
 void rdma_counter_release(struct ib_device *dev)
 {
+	struct rdma_port_counter *port_counter;
+	u32 port;
+
+	if (!dev->ops.alloc_hw_stats)
+		return;
+
+	rdma_for_each_port(dev, port) {
+		port_counter = &dev->port_data[port].port_counter;
+		kfree(port_counter->hstats);
+	}
 }
