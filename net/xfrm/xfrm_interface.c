@@ -133,7 +133,7 @@ static void xfrmi_dev_free(struct net_device *dev)
 	free_percpu(dev->tstats);
 }
 
-static int xfrmi_create2(struct net_device *dev)
+static int xfrmi_create(struct net_device *dev)
 {
 	struct xfrm_if *xi = netdev_priv(dev);
 	struct net *net = dev_net(dev);
@@ -156,54 +156,7 @@ out:
 	return err;
 }
 
-static struct xfrm_if *xfrmi_create(struct net *net, struct xfrm_if_parms *p)
-{
-	struct net_device *dev;
-	struct xfrm_if *xi;
-	char name[IFNAMSIZ];
-	int err;
-
-	if (p->name[0]) {
-		strlcpy(name, p->name, IFNAMSIZ);
-	} else {
-		err = -EINVAL;
-		goto failed;
-	}
-
-	dev = alloc_netdev(sizeof(*xi), name, NET_NAME_UNKNOWN, xfrmi_dev_setup);
-	if (!dev) {
-		err = -EAGAIN;
-		goto failed;
-	}
-
-	dev_net_set(dev, net);
-
-	xi = netdev_priv(dev);
-	xi->p = *p;
-	xi->net = net;
-	xi->dev = dev;
-	xi->phydev = dev_get_by_index(net, p->link);
-	if (!xi->phydev) {
-		err = -ENODEV;
-		goto failed_free;
-	}
-
-	err = xfrmi_create2(dev);
-	if (err < 0)
-		goto failed_dev_put;
-
-	return xi;
-
-failed_dev_put:
-	dev_put(xi->phydev);
-failed_free:
-	free_netdev(dev);
-failed:
-	return ERR_PTR(err);
-}
-
-static struct xfrm_if *xfrmi_locate(struct net *net, struct xfrm_if_parms *p,
-				   int create)
+static struct xfrm_if *xfrmi_locate(struct net *net, struct xfrm_if_parms *p)
 {
 	struct xfrm_if __rcu **xip;
 	struct xfrm_if *xi;
@@ -211,17 +164,11 @@ static struct xfrm_if *xfrmi_locate(struct net *net, struct xfrm_if_parms *p,
 
 	for (xip = &xfrmn->xfrmi[0];
 	     (xi = rtnl_dereference(*xip)) != NULL;
-	     xip = &xi->next) {
-		if (xi->p.if_id == p->if_id) {
-			if (create)
-				return ERR_PTR(-EEXIST);
-
+	     xip = &xi->next)
+		if (xi->p.if_id == p->if_id)
 			return xi;
-		}
-	}
-	if (!create)
-		return ERR_PTR(-ENODEV);
-	return xfrmi_create(net, p);
+
+	return NULL;
 }
 
 static void xfrmi_dev_uninit(struct net_device *dev)
@@ -689,21 +636,33 @@ static int xfrmi_newlink(struct net *src_net, struct net_device *dev,
 			struct netlink_ext_ack *extack)
 {
 	struct net *net = dev_net(dev);
-	struct xfrm_if_parms *p;
+	struct xfrm_if_parms p;
 	struct xfrm_if *xi;
+	int err;
 
-	xi = netdev_priv(dev);
-	p = &xi->p;
-
-	xfrmi_netlink_parms(data, p);
+	xfrmi_netlink_parms(data, &p);
 
 	if (!tb[IFLA_IFNAME])
 		return -EINVAL;
 
-	nla_strlcpy(p->name, tb[IFLA_IFNAME], IFNAMSIZ);
+	nla_strlcpy(p.name, tb[IFLA_IFNAME], IFNAMSIZ);
 
-	xi = xfrmi_locate(net, p, 1);
-	return PTR_ERR_OR_ZERO(xi);
+	xi = xfrmi_locate(net, &p);
+	if (xi)
+		return -EEXIST;
+
+	xi = netdev_priv(dev);
+	xi->p = p;
+	xi->net = net;
+	xi->dev = dev;
+	xi->phydev = dev_get_by_index(net, p.link);
+	if (!xi->phydev)
+		return -ENODEV;
+
+	err = xfrmi_create(dev);
+	if (err < 0)
+		dev_put(xi->phydev);
+	return err;
 }
 
 static void xfrmi_dellink(struct net_device *dev, struct list_head *head)
@@ -720,9 +679,8 @@ static int xfrmi_changelink(struct net_device *dev, struct nlattr *tb[],
 
 	xfrmi_netlink_parms(data, &xi->p);
 
-	xi = xfrmi_locate(net, &xi->p, 0);
-
-	if (IS_ERR_OR_NULL(xi)) {
+	xi = xfrmi_locate(net, &xi->p);
+	if (!xi) {
 		xi = netdev_priv(dev);
 	} else {
 		if (xi->dev != dev)
