@@ -637,6 +637,8 @@ struct safexcel_context {
 	bool exit_inv;
 };
 
+#define HASH_CACHE_SIZE			SHA512_BLOCK_SIZE
+
 struct safexcel_ahash_export_state {
 	u64 len[2];
 	u64 processed[2];
@@ -644,7 +646,7 @@ struct safexcel_ahash_export_state {
 	u32 digest;
 
 	u32 state[SHA512_DIGEST_SIZE / sizeof(u32)];
-	u8 cache[SHA512_BLOCK_SIZE << 1];
+	u8 cache[HASH_CACHE_SIZE];
 };
 
 /*
