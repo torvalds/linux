@@ -29,6 +29,8 @@ struct safexcel_ahash_req {
 	bool finish;
 	bool hmac;
 	bool needs_inv;
+	bool hmac_zlen;
+	bool len_is_le;
 
 	int nents;
 	dma_addr_t result_dma;
@@ -117,7 +119,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 	if (req->finish) {
 		/* Compute digest count for hash/HMAC finish operations */
 		if ((req->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED) ||
-		    req->processed[1] ||
+		    req->hmac_zlen || req->processed[1] ||
 		    (req->processed[0] != req->block_sz)) {
 			count = req->processed[0] / EIP197_COUNTER_BLOCK_SIZE;
 			count += ((0x100000000ULL / EIP197_COUNTER_BLOCK_SIZE) *
@@ -136,6 +138,8 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 		}
 
 		if ((req->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED) ||
+		    /* Special case: zero length HMAC */
+		    req->hmac_zlen ||
 		    /* PE HW < 4.4 cannot do HMAC continue, fake using hash */
 		    ((req->processed[1] ||
 		      (req->processed[0] != req->block_sz)))) {
@@ -144,11 +148,18 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 				CONTEXT_CONTROL_SIZE((req->state_sz >> 2) + 1) |
 				CONTEXT_CONTROL_TYPE_HASH_OUT |
 				CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
+			/* For zero-len HMAC, don't finalize, already padded! */
+			if (req->hmac_zlen)
+				cdesc->control_data.control0 |=
+					CONTEXT_CONTROL_NO_FINISH_HASH;
 			cdesc->control_data.control1 |=
 				CONTEXT_CONTROL_DIGEST_CNT;
 			ctx->base.ctxr->data[req->state_sz >> 2] =
 				cpu_to_le32(count);
 			req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
+
+			/* Clear zero-length HMAC flag for next operation! */
+			req->hmac_zlen = false;
 		} else { /* HMAC */
 			/* Need outer digest for HMAC finalization */
 			memcpy(ctx->base.ctxr->data + (req->state_sz >> 2),
@@ -701,8 +712,37 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 	} else if (unlikely(req->hmac && !req->len[1] &&
 			    (req->len[0] == req->block_sz) &&
 			    !areq->nbytes)) {
-		/* TODO: add support for zero length HMAC */
-		return 0;
+		/*
+		 * If we have an overall 0 length *HMAC* request:
+		 * For HMAC, we need to finalize the inner digest
+		 * and then perform the outer hash.
+		 */
+
+		/* generate pad block in the cache */
+		/* start with a hash block of all zeroes */
+		memset(req->cache, 0, req->block_sz);
+		/* set the first byte to 0x80 to 'append a 1 bit' */
+		req->cache[0] = 0x80;
+		/* add the length in bits in the last 2 bytes */
+		if (req->len_is_le) {
+			/* Little endian length word (e.g. MD5) */
+			req->cache[req->block_sz-8] = (req->block_sz << 3) &
+						      255;
+			req->cache[req->block_sz-7] = (req->block_sz >> 5);
+		} else {
+			/* Big endian length word (e.g. any SHA) */
+			req->cache[req->block_sz-2] = (req->block_sz >> 5);
+			req->cache[req->block_sz-1] = (req->block_sz << 3) &
+						      255;
+		}
+
+		req->len[0] += req->block_sz; /* plus 1 hash block */
+
+		/* Set special zero-length HMAC flag */
+		req->hmac_zlen = true;
+
+		/* Finalize HMAC */
+		req->digest = CONTEXT_CONTROL_DIGEST_HMAC;
 	} else if (req->hmac) {
 		/* Finalize HMAC */
 		req->digest = CONTEXT_CONTROL_DIGEST_HMAC;
@@ -1667,6 +1707,7 @@ static int safexcel_hmac_md5_init(struct ahash_request *areq)
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
 	req->state_sz = MD5_DIGEST_SIZE;
 	req->block_sz = MD5_HMAC_BLOCK_SIZE;
+	req->len_is_le = true; /* MD5 is little endian! ... */
 	req->hmac = true;
 
 	return 0;
