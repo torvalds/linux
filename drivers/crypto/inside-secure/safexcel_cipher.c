@@ -91,7 +91,7 @@ static void safexcel_skcipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	token[0].stat = EIP197_TOKEN_STAT_LAST_PACKET |
 			EIP197_TOKEN_STAT_LAST_HASH;
 	token[0].instructions = EIP197_TOKEN_INS_LAST |
-				EIP197_TOKEN_INS_TYPE_CRYTO |
+				EIP197_TOKEN_INS_TYPE_CRYPTO |
 				EIP197_TOKEN_INS_TYPE_OUTPUT;
 }
 
@@ -117,14 +117,13 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 
 	token[0].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
 	token[0].packet_length = assoclen;
-	token[0].instructions = EIP197_TOKEN_INS_TYPE_HASH |
-				EIP197_TOKEN_INS_TYPE_OUTPUT;
+	token[0].instructions = EIP197_TOKEN_INS_TYPE_HASH;
 
 	token[1].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
 	token[1].packet_length = cryptlen;
 	token[1].stat = EIP197_TOKEN_STAT_LAST_HASH;
 	token[1].instructions = EIP197_TOKEN_INS_LAST |
-				EIP197_TOKEN_INS_TYPE_CRYTO |
+				EIP197_TOKEN_INS_TYPE_CRYPTO |
 				EIP197_TOKEN_INS_TYPE_HASH |
 				EIP197_TOKEN_INS_TYPE_OUTPUT;
 

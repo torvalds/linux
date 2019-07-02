@@ -458,7 +458,7 @@ static inline void eip197_noop_token(struct safexcel_token *token)
 #define EIP197_TOKEN_INS_ORIGIN_LEN(x)		((x) << 5)
 #define EIP197_TOKEN_INS_TYPE_OUTPUT		BIT(5)
 #define EIP197_TOKEN_INS_TYPE_HASH		BIT(6)
-#define EIP197_TOKEN_INS_TYPE_CRYTO		BIT(7)
+#define EIP197_TOKEN_INS_TYPE_CRYPTO		BIT(7)
 #define EIP197_TOKEN_INS_LAST			BIT(8)
 
 /* Processing Engine Control Data  */
