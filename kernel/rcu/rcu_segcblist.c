@@ -37,6 +37,36 @@ void rcu_cblist_enqueue(struct rcu_cblist *rclp, struct rcu_head *rhp)
 }
 
 /*
+ * Flush the second rcu_cblist structure onto the first one, obliterating
+ * any contents of the first.  If rhp is non-NULL, enqueue it as the sole
+ * element of the second rcu_cblist structure, but ensuring that the second
+ * rcu_cblist structure, if initially non-empty, always appears non-empty
+ * throughout the process.  If rdp is NULL, the second rcu_cblist structure
+ * is instead initialized to empty.
+ */
+void rcu_cblist_flush_enqueue(struct rcu_cblist *drclp,
+			      struct rcu_cblist *srclp,
+			      struct rcu_head *rhp)
+{
+	drclp->head = srclp->head;
+	if (drclp->head)
+		drclp->tail = srclp->tail;
+	else
+		drclp->tail = &drclp->head;
+	drclp->len = srclp->len;
+	drclp->len_lazy = srclp->len_lazy;
+	if (!rhp) {
+		rcu_cblist_init(srclp);
+	} else {
+		rhp->next = NULL;
+		srclp->head = rhp;
+		srclp->tail = &rhp->next;
+		WRITE_ONCE(srclp->len, 1);
+		srclp->len_lazy = 0;
+	}
+}
+
+/*
  * Dequeue the oldest rcu_head structure from the specified callback
  * list.  This function assumes that the callback is non-lazy, but
  * the caller can later invoke rcu_cblist_dequeued_lazy() if it

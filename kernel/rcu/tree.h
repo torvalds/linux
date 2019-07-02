@@ -200,18 +200,26 @@ struct rcu_data {
 	atomic_t nocb_lock_contended;	/* Contention experienced. */
 	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
 	struct timer_list nocb_timer;	/* Enforce finite deferral. */
+	unsigned long nocb_gp_adv_time;	/* Last call_rcu() CB adv (jiffies). */
+
+	/* The following fields are used by call_rcu, hence own cacheline. */
+	raw_spinlock_t nocb_bypass_lock ____cacheline_internodealigned_in_smp;
+	struct rcu_cblist nocb_bypass;	/* Lock-contention-bypass CB list. */
+	unsigned long nocb_bypass_first; /* Time (jiffies) of first enqueue. */
+	unsigned long nocb_nobypass_last; /* Last ->cblist enqueue (jiffies). */
+	int nocb_nobypass_count;	/* # ->cblist enqueues at ^^^ time. */
 
 	/* The following fields are used by GP kthread, hence own cacheline. */
 	raw_spinlock_t nocb_gp_lock ____cacheline_internodealigned_in_smp;
-	bool nocb_gp_sleep;
-					/* Is the nocb GP thread asleep? */
+	struct timer_list nocb_bypass_timer; /* Force nocb_bypass flush. */
+	bool nocb_gp_sleep;		/* Is the nocb GP thread asleep? */
 	struct swait_queue_head nocb_gp_wq; /* For nocb kthreads to sleep on. */
 	bool nocb_cb_sleep;		/* Is the nocb CB thread asleep? */
 	struct task_struct *nocb_cb_kthread;
 	struct rcu_data *nocb_next_cb_rdp;
 					/* Next rcu_data in wakeup chain. */
 
-	/* The following fields are used by CB kthread, hence new cachline. */
+	/* The following fields are used by CB kthread, hence new cacheline. */
 	struct rcu_data *nocb_gp_rdp ____cacheline_internodealigned_in_smp;
 					/* GP rdp takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
@@ -419,6 +427,10 @@ static void zero_cpu_stall_ticks(struct rcu_data *rdp);
 static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp);
 static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
 static void rcu_init_one_nocb(struct rcu_node *rnp);
+static bool rcu_nocb_flush_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
+				  unsigned long j);
+static bool rcu_nocb_try_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
+				bool *was_alldone, unsigned long flags);
 static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_empty,
 				 unsigned long flags);
 static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
@@ -430,19 +442,15 @@ static void rcu_nocb_lock(struct rcu_data *rdp);
 static void rcu_nocb_unlock(struct rcu_data *rdp);
 static void rcu_nocb_unlock_irqrestore(struct rcu_data *rdp,
 				       unsigned long flags);
+static void rcu_lockdep_assert_cblist_protected(struct rcu_data *rdp);
 #ifdef CONFIG_RCU_NOCB_CPU
 static void __init rcu_organize_nocb_kthreads(void);
 #define rcu_nocb_lock_irqsave(rdp, flags)				\
 do {									\
-	if (!rcu_segcblist_is_offloaded(&(rdp)->cblist)) {		\
+	if (!rcu_segcblist_is_offloaded(&(rdp)->cblist))		\
 		local_irq_save(flags);					\
-	} else if (!raw_spin_trylock_irqsave(&(rdp)->nocb_lock, (flags))) {\
-		atomic_inc(&(rdp)->nocb_lock_contended);		\
-		smp_mb__after_atomic(); /* atomic_inc() before lock. */	\
+	else								\
 		raw_spin_lock_irqsave(&(rdp)->nocb_lock, (flags));	\
-		smp_mb__before_atomic(); /* atomic_dec() after lock. */	\
-		atomic_dec(&(rdp)->nocb_lock_contended);		\
-	}								\
 } while (0)
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
 #define rcu_nocb_lock_irqsave(rdp, flags) local_irq_save(flags)
