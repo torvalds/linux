@@ -1239,7 +1239,7 @@ xfs_qm_exit(void)
 /*
  * Iterate every dquot of a particular type.  The caller must ensure that the
  * particular quota type is active.  iter_fn can return negative error codes,
- * or XFS_BTREE_QUERY_RANGE_ABORT to indicate that it wants to stop iterating.
+ * or XFS_ITER_ABORT to indicate that it wants to stop iterating.
  */
 int
 xfs_qm_dqiterate(

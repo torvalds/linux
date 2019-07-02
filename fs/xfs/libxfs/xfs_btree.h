@@ -465,8 +465,8 @@ uint xfs_btree_compute_maxlevels(uint *limits, unsigned long len);
 unsigned long long xfs_btree_calc_size(uint *limits, unsigned long long len);
 
 /* return codes */
-#define XFS_BTREE_QUERY_RANGE_CONTINUE	0	/* keep iterating */
-#define XFS_BTREE_QUERY_RANGE_ABORT	1	/* stop iterating */
+#define XFS_BTREE_QUERY_RANGE_CONTINUE	(XFS_ITER_CONTINUE) /* keep iterating */
+#define XFS_BTREE_QUERY_RANGE_ABORT	(XFS_ITER_ABORT)    /* stop iterating */
 typedef int (*xfs_btree_query_range_fn)(struct xfs_btree_cur *cur,
 		union xfs_btree_rec *rec, void *priv);
 
