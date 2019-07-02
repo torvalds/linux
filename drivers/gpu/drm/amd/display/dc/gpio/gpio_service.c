@@ -150,14 +150,10 @@ struct gpio *dal_gpio_service_create_generic_mux(
 	uint32_t en;
 	struct gpio *generic;
 
-	if (mask == 1)
-		en = GPIO_GENERIC_A;
-	else if (mask == 0x00000100L)
-		en = GPIO_GENERIC_B;
-	else
+	if (!service->translate.funcs->offset_to_id(offset, mask, &id, &en)) {
+		ASSERT_CRITICAL(false);
 		return NULL;
-
-	id = GPIO_ID_GENERIC;
+	}
 
 	generic = dal_gpio_create(
 		service, id, en, GPIO_PIN_OUTPUT_STATE_DEFAULT);
