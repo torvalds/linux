@@ -2698,7 +2698,7 @@ void Hal_EfuseParseBTCoexistInfo_8723B(
 	hal_btcoex_SetChipType(padapter, pHalData->EEPROMBluetoothType);
 	hal_btcoex_SetPgAntNum(padapter, pHalData->EEPROMBluetoothAntNum == Ant_x2 ? 2 : 1);
 	if (pHalData->EEPROMBluetoothAntNum == Ant_x1)
-		rtw_btcoex_SetSingleAntPath(padapter, pHalData->ant_path);
+		hal_btcoex_SetSingleAntPath(padapter, pHalData->ant_path);
 
 	DBG_8192C(
 		"%s: %s BT-coex, ant_num =%d\n",
