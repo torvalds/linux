@@ -189,7 +189,6 @@ static const struct iommu_flush_ops qcom_flush_ops = {
 	.tlb_flush_walk = qcom_iommu_tlb_flush_walk,
 	.tlb_flush_leaf = qcom_iommu_tlb_flush_leaf,
 	.tlb_add_page	= qcom_iommu_tlb_add_page,
-	.tlb_sync	= qcom_iommu_tlb_sync,
 };
 
 static irqreturn_t qcom_iommu_fault(int irq, void *dev)

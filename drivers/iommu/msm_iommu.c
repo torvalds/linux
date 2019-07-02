@@ -168,28 +168,16 @@ fail:
 	return;
 }
 
-static void __flush_iotlb_sync(void *cookie)
-{
-	/*
-	 * Nothing is needed here, the barrier to guarantee
-	 * completion of the tlb sync operation is implicitly
-	 * taken care when the iommu client does a writel before
-	 * kick starting the other master.
-	 */
-}
-
 static void __flush_iotlb_walk(unsigned long iova, size_t size,
 			       size_t granule, void *cookie)
 {
 	__flush_iotlb_range(iova, size, granule, false, cookie);
-	__flush_iotlb_sync(cookie);
 }
 
 static void __flush_iotlb_leaf(unsigned long iova, size_t size,
 			       size_t granule, void *cookie)
 {
 	__flush_iotlb_range(iova, size, granule, true, cookie);
-	__flush_iotlb_sync(cookie);
 }
 
 static void __flush_iotlb_page(unsigned long iova, size_t granule, void *cookie)
@@ -202,7 +190,6 @@ static const struct iommu_flush_ops msm_iommu_flush_ops = {
 	.tlb_flush_walk = __flush_iotlb_walk,
 	.tlb_flush_leaf = __flush_iotlb_leaf,
 	.tlb_add_page = __flush_iotlb_page,
-	.tlb_sync = __flush_iotlb_sync,
 };
 
 static int msm_iommu_alloc_ctx(unsigned long *map, int start, int end)
@@ -712,6 +699,13 @@ static struct iommu_ops msm_iommu_ops = {
 	.detach_dev = msm_iommu_detach_dev,
 	.map = msm_iommu_map,
 	.unmap = msm_iommu_unmap,
+	/*
+	 * Nothing is needed here, the barrier to guarantee
+	 * completion of the tlb sync operation is implicitly
+	 * taken care when the iommu client does a writel before
+	 * kick starting the other master.
+	 */
+	.iotlb_sync = NULL,
 	.iova_to_phys = msm_iommu_iova_to_phys,
 	.add_device = msm_iommu_add_device,
 	.remove_device = msm_iommu_remove_device,

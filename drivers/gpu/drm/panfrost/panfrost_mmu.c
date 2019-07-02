@@ -269,7 +269,6 @@ static const struct iommu_flush_ops mmu_tlb_ops = {
 	.tlb_flush_all	= mmu_tlb_inv_context_s1,
 	.tlb_flush_walk = mmu_tlb_flush_walk,
 	.tlb_flush_leaf = mmu_tlb_flush_leaf,
-	.tlb_sync	= mmu_tlb_sync_context,
 };
 
 static const char *access_type_name(struct panfrost_device *pfdev,

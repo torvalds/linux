@@ -213,7 +213,6 @@ static const struct iommu_flush_ops mtk_iommu_flush_ops = {
 	.tlb_flush_walk = mtk_iommu_tlb_flush_walk,
 	.tlb_flush_leaf = mtk_iommu_tlb_flush_leaf,
 	.tlb_add_page = mtk_iommu_tlb_flush_page_nosync,
-	.tlb_sync = mtk_iommu_tlb_sync,
 };
 
 static irqreturn_t mtk_iommu_isr(int irq, void *dev_id)

@@ -251,7 +251,8 @@ enum arm_smmu_domain_stage {
 struct arm_smmu_flush_ops {
 	struct iommu_flush_ops		tlb;
 	void (*tlb_inv_range)(unsigned long iova, size_t size, size_t granule,
-			      bool leaf, void *cookie)
+			      bool leaf, void *cookie);
+	void (*tlb_sync)(void *cookie);
 };
 
 struct arm_smmu_domain {
@@ -539,7 +540,7 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
  * On MMU-401 at least, the cost of firing off multiple TLBIVMIDs appears
  * almost negligible, but the benefit of getting the first one in as far ahead
  * of the sync as possible is significant, hence we don't just make this a
- * no-op and set .tlb_sync to arm_smmu_inv_context_s2() as you might think.
+ * no-op and set .tlb_sync to arm_smmu_tlb_inv_context_s2() as you might think.
  */
 static void arm_smmu_tlb_inv_vmid_nosync(unsigned long iova, size_t size,
 					 size_t granule, bool leaf, void *cookie)
@@ -560,7 +561,7 @@ static void arm_smmu_tlb_inv_walk(unsigned long iova, size_t size,
 	const struct arm_smmu_flush_ops *ops = smmu_domain->flush_ops;
 
 	ops->tlb_inv_range(iova, size, granule, false, cookie);
-	ops->tlb.tlb_sync(cookie);
+	ops->tlb_sync(cookie);
 }
 
 static void arm_smmu_tlb_inv_leaf(unsigned long iova, size_t size,
@@ -570,7 +571,7 @@ static void arm_smmu_tlb_inv_leaf(unsigned long iova, size_t size,
 	const struct arm_smmu_flush_ops *ops = smmu_domain->flush_ops;
 
 	ops->tlb_inv_range(iova, size, granule, true, cookie);
-	ops->tlb.tlb_sync(cookie);
+	ops->tlb_sync(cookie);
 }
 
 static void arm_smmu_tlb_add_page(unsigned long iova, size_t granule,
@@ -588,9 +589,9 @@ static const struct arm_smmu_flush_ops arm_smmu_s1_tlb_ops = {
 		.tlb_flush_walk	= arm_smmu_tlb_inv_walk,
 		.tlb_flush_leaf	= arm_smmu_tlb_inv_leaf,
 		.tlb_add_page	= arm_smmu_tlb_add_page,
-		.tlb_sync	= arm_smmu_tlb_sync_context,
 	},
 	.tlb_inv_range		= arm_smmu_tlb_inv_range_nosync,
+	.tlb_sync		= arm_smmu_tlb_sync_context,
 };
 
 static const struct arm_smmu_flush_ops arm_smmu_s2_tlb_ops_v2 = {
@@ -599,9 +600,9 @@ static const struct arm_smmu_flush_ops arm_smmu_s2_tlb_ops_v2 = {
 		.tlb_flush_walk	= arm_smmu_tlb_inv_walk,
 		.tlb_flush_leaf	= arm_smmu_tlb_inv_leaf,
 		.tlb_add_page	= arm_smmu_tlb_add_page,
-		.tlb_sync	= arm_smmu_tlb_sync_context,
 	},
 	.tlb_inv_range		= arm_smmu_tlb_inv_range_nosync,
+	.tlb_sync		= arm_smmu_tlb_sync_context,
 };
 
 static const struct arm_smmu_flush_ops arm_smmu_s2_tlb_ops_v1 = {
@@ -610,9 +611,9 @@ static const struct arm_smmu_flush_ops arm_smmu_s2_tlb_ops_v1 = {
 		.tlb_flush_walk	= arm_smmu_tlb_inv_walk,
 		.tlb_flush_leaf	= arm_smmu_tlb_inv_leaf,
 		.tlb_add_page	= arm_smmu_tlb_add_page,
-		.tlb_sync	= arm_smmu_tlb_sync_vmid,
 	},
 	.tlb_inv_range		= arm_smmu_tlb_inv_vmid_nosync,
+	.tlb_sync		= arm_smmu_tlb_sync_vmid,
 };
 
 static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
@@ -1387,7 +1388,7 @@ static void arm_smmu_iotlb_sync(struct iommu_domain *domain,
 
 	if (smmu_domain->flush_ops) {
 		arm_smmu_rpm_get(smmu);
-		smmu_domain->flush_ops->tlb.tlb_sync(smmu_domain);
+		smmu_domain->flush_ops->tlb_sync(smmu_domain);
 		arm_smmu_rpm_put(smmu);
 	}
 }

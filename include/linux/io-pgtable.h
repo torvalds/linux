@@ -30,9 +30,6 @@ enum io_pgtable_fmt {
  *                  for IOMMUs that cannot batch TLB invalidation operations
  *                  efficiently and are therefore better suited to issuing them
  *                  early rather than deferring them until iommu_tlb_sync().
- * @tlb_sync:       Ensure any queued TLB invalidation has taken effect, and
- *                  any corresponding page table updates are visible to the
- *                  IOMMU.
  *
  * Note that these can all be called in atomic context and must therefore
  * not block.
@@ -44,7 +41,6 @@ struct iommu_flush_ops {
 	void (*tlb_flush_leaf)(unsigned long iova, size_t size, size_t granule,
 			       void *cookie);
 	void (*tlb_add_page)(unsigned long iova, size_t granule, void *cookie);
-	void (*tlb_sync)(void *cookie);
 };
 
 /**
@@ -216,11 +212,6 @@ io_pgtable_tlb_add_page(struct io_pgtable *iop, unsigned long iova,
 {
 	if (iop->cfg.tlb->tlb_add_page)
 		iop->cfg.tlb->tlb_add_page(iova, granule, iop->cookie);
-}
-
-static inline void io_pgtable_tlb_sync(struct io_pgtable *iop)
-{
-	iop->cfg.tlb->tlb_sync(iop->cookie);
 }
 
 /**

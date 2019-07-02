@@ -813,17 +813,11 @@ static void dummy_tlb_add_page(unsigned long iova, size_t granule, void *cookie)
 	dummy_tlb_flush(iova, granule, granule, cookie);
 }
 
-static void dummy_tlb_sync(void *cookie)
-{
-	WARN_ON(cookie != cfg_cookie);
-}
-
 static const struct iommu_flush_ops dummy_tlb_ops = {
 	.tlb_flush_all	= dummy_tlb_flush_all,
 	.tlb_flush_walk	= dummy_tlb_flush,
 	.tlb_flush_leaf	= dummy_tlb_flush,
 	.tlb_add_page	= dummy_tlb_add_page,
-	.tlb_sync	= dummy_tlb_sync,
 };
 
 #define __FAIL(ops)	({				\
