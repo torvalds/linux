@@ -489,7 +489,8 @@ config GPIO_STA2X11
 
 config GPIO_STP_XWAY
 	bool "XWAY STP GPIOs"
-	depends on SOC_XWAY
+	depends on SOC_XWAY || COMPILE_TEST
+	depends on OF_GPIO
 	help
 	  This enables support for the Serial To Parallel (STP) unit found on
 	  XWAY SoC. The STP allows the SoC to drive a shift registers cascade,
