@@ -62,7 +62,18 @@ struct xfs_iwalk_ag {
 
 	/* Inode walk function and data pointer. */
 	xfs_iwalk_fn			iwalk_fn;
+	xfs_inobt_walk_fn		inobt_walk_fn;
 	void				*data;
+
+	/*
+	 * Make it look like the inodes up to startino are free so that
+	 * bulkstat can start its inode iteration at the correct place without
+	 * needing to special case everywhere.
+	 */
+	unsigned int			trim_start:1;
+
+	/* Skip empty inobt records? */
+	unsigned int			skip_empty:1;
 };
 
 /*
@@ -170,6 +181,16 @@ xfs_iwalk_ag_recs(
 		struct xfs_inobt_rec_incore	*irec = &iwag->recs[i];
 
 		trace_xfs_iwalk_ag_rec(mp, agno, irec);
+
+		if (iwag->inobt_walk_fn) {
+			error = iwag->inobt_walk_fn(mp, tp, agno, irec,
+					iwag->data);
+			if (error)
+				return error;
+		}
+
+		if (!iwag->iwalk_fn)
+			continue;
 
 		for (j = 0; j < XFS_INODES_PER_CHUNK; j++) {
 			/* Skip if this inode is free */
@@ -280,7 +301,8 @@ xfs_iwalk_ag_start(
 	 * If agino fell in the middle of the inode record, make it look like
 	 * the inodes up to agino are free so that we don't return them again.
 	 */
-	xfs_iwalk_adjust_start(agino, irec);
+	if (iwag->trim_start)
+		xfs_iwalk_adjust_start(agino, irec);
 
 	/*
 	 * The prefetch calculation is supposed to give us a large enough inobt
@@ -373,7 +395,7 @@ xfs_iwalk_ag(
 			break;
 
 		/* No allocated inodes in this chunk; skip it. */
-		if (irec->ir_freecount == irec->ir_count) {
+		if (iwag->skip_empty && irec->ir_freecount == irec->ir_count) {
 			error = xfs_btree_increment(cur, 0, &has_more);
 			if (error)
 				break;
@@ -384,7 +406,8 @@ xfs_iwalk_ag(
 		 * Start readahead for this inode chunk in anticipation of
 		 * walking the inodes.
 		 */
-		xfs_iwalk_ichunk_ra(mp, agno, irec);
+		if (iwag->iwalk_fn)
+			xfs_iwalk_ichunk_ra(mp, agno, irec);
 
 		/*
 		 * If there's space in the buffer for more records, increment
@@ -495,6 +518,89 @@ xfs_iwalk(
 		.data		= data,
 		.startino	= startino,
 		.sz_recs	= xfs_iwalk_prefetch(inode_records),
+		.trim_start	= 1,
+		.skip_empty	= 1,
+	};
+	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
+	int			error;
+
+	ASSERT(agno < mp->m_sb.sb_agcount);
+
+	error = xfs_iwalk_alloc(&iwag);
+	if (error)
+		return error;
+
+	for (; agno < mp->m_sb.sb_agcount; agno++) {
+		error = xfs_iwalk_ag(&iwag);
+		if (error)
+			break;
+		iwag.startino = XFS_AGINO_TO_INO(mp, agno + 1, 0);
+	}
+
+	xfs_iwalk_free(&iwag);
+	return error;
+}
+
+/*
+ * Allow callers to cache up to a page's worth of inobt records.  This reflects
+ * the existing inumbers prefetching behavior.  Since the inobt walk does not
+ * itself do anything with the inobt records, we can set a fairly high limit
+ * here.
+ */
+#define MAX_INOBT_WALK_PREFETCH	\
+	(PAGE_SIZE / sizeof(struct xfs_inobt_rec_incore))
+
+/*
+ * Given the number of records that the user wanted, set the number of inobt
+ * records that we buffer in memory.  Set the maximum if @inobt_records == 0.
+ */
+static inline unsigned int
+xfs_inobt_walk_prefetch(
+	unsigned int		inobt_records)
+{
+	/*
+	 * If the caller didn't tell us the number of inobt records they
+	 * wanted, assume the maximum prefetch possible for best performance.
+	 */
+	if (inobt_records == 0)
+		inobt_records = MAX_INOBT_WALK_PREFETCH;
+
+	/*
+	 * Allocate enough space to prefetch at least two inobt records so that
+	 * we can cache both the record where the iwalk started and the next
+	 * record.  This simplifies the AG inode walk loop setup code.
+	 */
+	inobt_records = max(inobt_records, 2U);
+
+	/*
+	 * Cap prefetch at that maximum so that we don't use an absurd amount
+	 * of memory.
+	 */
+	return min_t(unsigned int, inobt_records, MAX_INOBT_WALK_PREFETCH);
+}
+
+/*
+ * Walk all inode btree records in the filesystem starting from @startino.  The
+ * @inobt_walk_fn will be called for each btree record, being passed the incore
+ * record and @data.  @max_prefetch controls how many inobt records we try to
+ * cache ahead of time.
+ */
+int
+xfs_inobt_walk(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	xfs_ino_t		startino,
+	xfs_inobt_walk_fn	inobt_walk_fn,
+	unsigned int		inobt_records,
+	void			*data)
+{
+	struct xfs_iwalk_ag	iwag = {
+		.mp		= mp,
+		.tp		= tp,
+		.inobt_walk_fn	= inobt_walk_fn,
+		.data		= data,
+		.startino	= startino,
+		.sz_recs	= xfs_inobt_walk_prefetch(inobt_records),
 	};
 	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
 	int			error;
