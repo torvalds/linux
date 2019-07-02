@@ -574,7 +574,8 @@ static void arm_smmu_tlb_inv_leaf(unsigned long iova, size_t size,
 	ops->tlb_sync(cookie);
 }
 
-static void arm_smmu_tlb_add_page(unsigned long iova, size_t granule,
+static void arm_smmu_tlb_add_page(struct iommu_iotlb_gather *gather,
+				  unsigned long iova, size_t granule,
 				  void *cookie)
 {
 	struct arm_smmu_domain *smmu_domain = cookie;

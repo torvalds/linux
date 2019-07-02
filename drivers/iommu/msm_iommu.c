@@ -180,7 +180,8 @@ static void __flush_iotlb_leaf(unsigned long iova, size_t size,
 	__flush_iotlb_range(iova, size, granule, true, cookie);
 }
 
-static void __flush_iotlb_page(unsigned long iova, size_t granule, void *cookie)
+static void __flush_iotlb_page(struct iommu_iotlb_gather *gather,
+			       unsigned long iova, size_t granule, void *cookie)
 {
 	__flush_iotlb_range(iova, granule, granule, true, cookie);
 }

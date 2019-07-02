@@ -1596,7 +1596,8 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 	} while (size -= granule);
 }
 
-static void arm_smmu_tlb_inv_page_nosync(unsigned long iova, size_t granule,
+static void arm_smmu_tlb_inv_page_nosync(struct iommu_iotlb_gather *gather,
+					 unsigned long iova, size_t granule,
 					 void *cookie)
 {
 	arm_smmu_tlb_inv_range_nosync(iova, granule, granule, true, cookie);

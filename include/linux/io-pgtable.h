@@ -28,10 +28,10 @@ enum io_pgtable_fmt {
  * @tlb_flush_leaf: Synchronously invalidate all leaf TLB state for a virtual
  *                  address range.
  * @tlb_add_page:   Optional callback to queue up leaf TLB invalidation for a
- *                  single page. This function exists purely as an optimisation
- *                  for IOMMUs that cannot batch TLB invalidation operations
- *                  efficiently and are therefore better suited to issuing them
- *                  early rather than deferring them until iommu_tlb_sync().
+ *                  single page.  IOMMUs that cannot batch TLB invalidation
+ *                  operations efficiently will typically issue them here, but
+ *                  others may decide to update the iommu_iotlb_gather structure
+ *                  and defer the invalidation until iommu_tlb_sync() instead.
  *
  * Note that these can all be called in atomic context and must therefore
  * not block.
@@ -42,7 +42,8 @@ struct iommu_flush_ops {
 			       void *cookie);
 	void (*tlb_flush_leaf)(unsigned long iova, size_t size, size_t granule,
 			       void *cookie);
-	void (*tlb_add_page)(unsigned long iova, size_t granule, void *cookie);
+	void (*tlb_add_page)(struct iommu_iotlb_gather *gather,
+			     unsigned long iova, size_t granule, void *cookie);
 };
 
 /**
@@ -209,11 +210,12 @@ io_pgtable_tlb_flush_leaf(struct io_pgtable *iop, unsigned long iova,
 }
 
 static inline void
-io_pgtable_tlb_add_page(struct io_pgtable *iop, unsigned long iova,
+io_pgtable_tlb_add_page(struct io_pgtable *iop,
+			struct iommu_iotlb_gather * gather, unsigned long iova,
 			size_t granule)
 {
 	if (iop->cfg.tlb->tlb_add_page)
-		iop->cfg.tlb->tlb_add_page(iova, granule, iop->cookie);
+		iop->cfg.tlb->tlb_add_page(gather, iova, granule, iop->cookie);
 }
 
 /**

@@ -178,7 +178,8 @@ static void qcom_iommu_tlb_flush_leaf(unsigned long iova, size_t size,
 	qcom_iommu_tlb_sync(cookie);
 }
 
-static void qcom_iommu_tlb_add_page(unsigned long iova, size_t granule,
+static void qcom_iommu_tlb_add_page(struct iommu_iotlb_gather *gather,
+				    unsigned long iova, size_t granule,
 				    void *cookie)
 {
 	qcom_iommu_tlb_inv_range_nosync(iova, granule, granule, true, cookie);
