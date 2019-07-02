@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
+#include <linux/syscore_ops.h>
 
 struct rk808_reg_data {
 	int addr;
@@ -62,6 +63,27 @@ static bool rk808_is_volatile_reg(struct device *dev, unsigned int reg)
 	return false;
 }
 
+static bool rk817_is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	/*
+	 * Notes:
+	 * - Technically the ROUND_30s bit makes RTC_CTRL_REG volatile, but
+	 *   we don't use that feature.  It's better to cache.
+	 */
+
+	switch (reg) {
+	case RK817_SECONDS_REG ... RK817_WEEKS_REG:
+	case RK817_RTC_STATUS_REG:
+	case RK817_INT_STS_REG0:
+	case RK817_INT_STS_REG1:
+	case RK817_INT_STS_REG2:
+	case RK817_SYS_STS:
+		return true;
+	}
+
+	return true;
+}
+
 static const struct regmap_config rk818_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -86,12 +108,24 @@ static const struct regmap_config rk808_regmap_config = {
 	.volatile_reg = rk808_is_volatile_reg,
 };
 
+static const struct regmap_config rk817_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = RK817_GPIO_INT_CFG,
+	.cache_type = REGCACHE_NONE,
+	.volatile_reg = rk817_is_volatile_reg,
+};
+
 static struct resource rtc_resources[] = {
 	{
 		.start  = RK808_IRQ_RTC_ALARM,
 		.end    = RK808_IRQ_RTC_ALARM,
 		.flags  = IORESOURCE_IRQ,
 	}
+};
+
+static struct resource rk817_rtc_resources[] = {
+	DEFINE_RES_IRQ(RK817_IRQ_RTC_ALARM),
 };
 
 static struct resource rk805_key_resources[] = {
@@ -105,6 +139,11 @@ static struct resource rk805_key_resources[] = {
 		.end    = RK805_IRQ_PWRON_RISE,
 		.flags  = IORESOURCE_IRQ,
 	}
+};
+
+static struct resource rk817_pwrkey_resources[] = {
+	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
+	DEFINE_RES_IRQ(RK817_IRQ_PWRON_FALL),
 };
 
 static const struct mfd_cell rk805s[] = {
@@ -129,6 +168,21 @@ static const struct mfd_cell rk808s[] = {
 		.name = "rk808-rtc",
 		.num_resources = ARRAY_SIZE(rtc_resources),
 		.resources = rtc_resources,
+	},
+};
+
+static const struct mfd_cell rk817s[] = {
+	{ .name = "rk808-clkout",},
+	{ .name = "rk808-regulator",},
+	{
+		.name = "rk8xx-pwrkey",
+		.num_resources = ARRAY_SIZE(rk817_pwrkey_resources),
+		.resources = &rk817_pwrkey_resources[0],
+	},
+	{
+		.name = "rk808-rtc",
+		.num_resources = ARRAY_SIZE(rk817_rtc_resources),
+		.resources = &rk817_rtc_resources[0],
 	},
 };
 
@@ -165,6 +219,13 @@ static const struct rk808_reg_data rk808_pre_init_reg[] = {
 	{ RK808_DCDC_UV_ACT_REG,  BUCK_UV_ACT_MASK, BUCK_UV_ACT_DISABLE},
 	{ RK808_VB_MON_REG,       MASK_ALL,         VB_LO_ACT |
 						    VB_LO_SEL_3500MV },
+};
+
+static const struct rk808_reg_data rk817_pre_init_reg[] = {
+	{RK817_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
+	{RK817_GPIO_INT_CFG, RK817_INT_POL_MSK, RK817_INT_POL_H},
+	{RK817_SYS_CFG(1), RK817_HOTDIE_TEMP_MSK | RK817_TSD_TEMP_MSK,
+					   RK817_HOTDIE_105 | RK817_TSD_140},
 };
 
 static const struct rk808_reg_data rk818_pre_init_reg[] = {
@@ -332,6 +393,33 @@ static const struct regmap_irq rk818_irqs[] = {
 	},
 };
 
+static const struct regmap_irq rk817_irqs[RK817_IRQ_END] = {
+	REGMAP_IRQ_REG_LINE(0, 8),
+	REGMAP_IRQ_REG_LINE(1, 8),
+	REGMAP_IRQ_REG_LINE(2, 8),
+	REGMAP_IRQ_REG_LINE(3, 8),
+	REGMAP_IRQ_REG_LINE(4, 8),
+	REGMAP_IRQ_REG_LINE(5, 8),
+	REGMAP_IRQ_REG_LINE(6, 8),
+	REGMAP_IRQ_REG_LINE(7, 8),
+	REGMAP_IRQ_REG_LINE(8, 8),
+	REGMAP_IRQ_REG_LINE(9, 8),
+	REGMAP_IRQ_REG_LINE(10, 8),
+	REGMAP_IRQ_REG_LINE(11, 8),
+	REGMAP_IRQ_REG_LINE(12, 8),
+	REGMAP_IRQ_REG_LINE(13, 8),
+	REGMAP_IRQ_REG_LINE(14, 8),
+	REGMAP_IRQ_REG_LINE(15, 8),
+	REGMAP_IRQ_REG_LINE(16, 8),
+	REGMAP_IRQ_REG_LINE(17, 8),
+	REGMAP_IRQ_REG_LINE(18, 8),
+	REGMAP_IRQ_REG_LINE(19, 8),
+	REGMAP_IRQ_REG_LINE(20, 8),
+	REGMAP_IRQ_REG_LINE(21, 8),
+	REGMAP_IRQ_REG_LINE(22, 8),
+	REGMAP_IRQ_REG_LINE(23, 8)
+};
+
 static struct regmap_irq_chip rk805_irq_chip = {
 	.name = "rk805",
 	.irqs = rk805_irqs,
@@ -352,6 +440,18 @@ static const struct regmap_irq_chip rk808_irq_chip = {
 	.status_base = RK808_INT_STS_REG1,
 	.mask_base = RK808_INT_STS_MSK_REG1,
 	.ack_base = RK808_INT_STS_REG1,
+	.init_ack_masked = true,
+};
+
+static struct regmap_irq_chip rk817_irq_chip = {
+	.name = "rk817",
+	.irqs = rk817_irqs,
+	.num_irqs = ARRAY_SIZE(rk817_irqs),
+	.num_regs = 3,
+	.irq_reg_stride = 2,
+	.status_base = RK817_INT_STS_REG0,
+	.mask_base = RK817_INT_STS_MSK_REG0,
+	.ack_base = RK817_INT_STS_REG0,
 	.init_ack_masked = true,
 };
 
@@ -423,9 +523,33 @@ static void rk818_device_shutdown(void)
 		dev_err(&rk808_i2c_client->dev, "power off error!\n");
 }
 
+static void rk8xx_syscore_shutdown(void)
+{
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+	int ret;
+
+	if (system_state == SYSTEM_POWER_OFF &&
+	    (rk808->variant == RK809_ID || rk808->variant == RK817_ID)) {
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_SLPPIN_FUNC_MSK,
+					 SLPPIN_DN_FUN);
+		if (ret) {
+			dev_warn(&rk808_i2c_client->dev,
+				 "Cannot switch to power down function\n");
+		}
+	}
+}
+
+static struct syscore_ops rk808_syscore_ops = {
+	.shutdown = rk8xx_syscore_shutdown,
+};
+
 static const struct of_device_id rk808_of_match[] = {
 	{ .compatible = "rockchip,rk805" },
 	{ .compatible = "rockchip,rk808" },
+	{ .compatible = "rockchip,rk809" },
+	{ .compatible = "rockchip,rk817" },
 	{ .compatible = "rockchip,rk818" },
 	{ },
 };
@@ -438,10 +562,11 @@ static int rk808_probe(struct i2c_client *client,
 	struct rk808 *rk808;
 	const struct rk808_reg_data *pre_init_reg;
 	const struct mfd_cell *cells;
-	void (*pm_pwroff_fn)(void);
+	void (*pm_pwroff_fn)(void) = NULL;
 	int nr_pre_init_regs;
 	int nr_cells;
 	int pm_off = 0, msb, lsb;
+	unsigned char pmic_id_msb, pmic_id_lsb;
 	int ret;
 	int i;
 
@@ -449,15 +574,24 @@ static int rk808_probe(struct i2c_client *client,
 	if (!rk808)
 		return -ENOMEM;
 
+	if (of_device_is_compatible(np, "rockchip,rk817") ||
+	    of_device_is_compatible(np, "rockchip,rk809")) {
+		pmic_id_msb = RK817_ID_MSB;
+		pmic_id_lsb = RK817_ID_LSB;
+	} else {
+		pmic_id_msb = RK808_ID_MSB;
+		pmic_id_lsb = RK808_ID_LSB;
+	}
+
 	/* Read chip variant */
-	msb = i2c_smbus_read_byte_data(client, RK808_ID_MSB);
+	msb = i2c_smbus_read_byte_data(client, pmic_id_msb);
 	if (msb < 0) {
 		dev_err(&client->dev, "failed to read the chip id at 0x%x\n",
 			RK808_ID_MSB);
 		return msb;
 	}
 
-	lsb = i2c_smbus_read_byte_data(client, RK808_ID_LSB);
+	lsb = i2c_smbus_read_byte_data(client, pmic_id_lsb);
 	if (lsb < 0) {
 		dev_err(&client->dev, "failed to read the chip id at 0x%x\n",
 			RK808_ID_LSB);
@@ -494,6 +628,16 @@ static int rk808_probe(struct i2c_client *client,
 		cells = rk818s;
 		nr_cells = ARRAY_SIZE(rk818s);
 		pm_pwroff_fn = rk818_device_shutdown;
+		break;
+	case RK809_ID:
+	case RK817_ID:
+		rk808->regmap_cfg = &rk817_regmap_config;
+		rk808->regmap_irq_chip = &rk817_irq_chip;
+		pre_init_reg = rk817_pre_init_reg;
+		nr_pre_init_regs = ARRAY_SIZE(rk817_pre_init_reg);
+		cells = rk817s;
+		nr_cells = ARRAY_SIZE(rk817s);
+		register_syscore_ops(&rk808_syscore_ops);
 		break;
 	default:
 		dev_err(&client->dev, "Unsupported RK8XX ID %lu\n",
@@ -568,10 +712,52 @@ static int rk808_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int rk8xx_suspend(struct device *dev)
+{
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+	int ret = 0;
+
+	switch (rk808->variant) {
+	case RK809_ID:
+	case RK817_ID:
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_SLPPIN_FUNC_MSK,
+					 SLPPIN_SLP_FUN);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int rk8xx_resume(struct device *dev)
+{
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+	int ret = 0;
+
+	switch (rk808->variant) {
+	case RK809_ID:
+	case RK817_ID:
+		ret = regmap_update_bits(rk808->regmap,
+					 RK817_SYS_CFG(3),
+					 RK817_SLPPIN_FUNC_MSK,
+					 SLPPIN_NULL_FUN);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+SIMPLE_DEV_PM_OPS(rk8xx_pm_ops, rk8xx_suspend, rk8xx_resume);
+
 static struct i2c_driver rk808_i2c_driver = {
 	.driver = {
 		.name = "rk808",
 		.of_match_table = rk808_of_match,
+		.pm = &rk8xx_pm_ops,
 	},
 	.probe    = rk808_probe,
 	.remove   = rk808_remove,
