@@ -190,20 +190,20 @@ static int framebuffer_check(struct drm_device *dev,
 	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = fb_plane_width(r->width, info, i);
 		unsigned int height = fb_plane_height(r->height, info, i);
-		unsigned int cpp = info->cpp[i];
+		unsigned int bpp = info->bpp[i];
 
 		if (!r->handles[i]) {
 			DRM_DEBUG_KMS("no buffer object handle for plane %d\n", i);
 			return -EINVAL;
 		}
 
-		if ((uint64_t) width * cpp > UINT_MAX)
+		if ((uint64_t) width * bpp / 8 > UINT_MAX)
 			return -ERANGE;
 
 		if ((uint64_t) height * r->pitches[i] + r->offsets[i] > UINT_MAX)
 			return -ERANGE;
 
-		if (r->pitches[i] < width * cpp) {
+		if (r->pitches[i] < roundup(width * bpp, 8) / 8) {
 			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
 			return -EINVAL;
 		}
@@ -488,7 +488,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->height = fb->height;
 	r->width = fb->width;
 	r->depth = fb->format->depth;
-	r->bpp = fb->format->cpp[0] * 8;
+	r->bpp = fb->format->bpp[0];
 	r->pitch = fb->pitches[0];
 
 	/* GET_FB() is an unprivileged ioctl so we must not return a

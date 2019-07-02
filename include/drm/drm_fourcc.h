@@ -35,7 +35,7 @@ struct drm_mode_fb_cmd2;
  *	valid for a subset of RGB formats only. This is a legacy field, do not
  *	use in new code and set to 0 for new formats.
  * @num_planes: Number of color planes (1 to 3)
- * @cpp: Number of bytes per pixel (per plane)
+ * @bpp: Number of bits per pixel (per plane)
  * @hsub: Horizontal chroma subsampling factor
  * @vsub: Vertical chroma subsampling factor
  * @has_alpha: Does the format embeds an alpha component?
@@ -45,7 +45,7 @@ struct drm_format_info {
 	u32 format;
 	u8 depth;
 	u8 num_planes;
-	u8 cpp[3];
+	u8 bpp[3];
 	u8 hsub;
 	u8 vsub;
 	bool has_alpha;
