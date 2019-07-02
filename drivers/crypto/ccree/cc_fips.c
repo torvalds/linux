@@ -21,7 +21,13 @@ static bool cc_get_tee_fips_status(struct cc_drvdata *drvdata)
 	u32 reg;
 
 	reg = cc_ioread(drvdata, CC_REG(GPR_HOST));
-	return (reg == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK));
+	/* Did the TEE report status? */
+	if (reg & CC_FIPS_SYNC_TEE_STATUS)
+		/* Yes. Is it OK? */
+		return (reg & CC_FIPS_SYNC_MODULE_OK);
+
+	/* No. It's either not in use or will be reported later */
+	return true;
 }
 
 /*
