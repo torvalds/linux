@@ -3047,31 +3047,14 @@ static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv)
 {
 	u64 pat;
 
-	if (!HAS_PPGTT(dev_priv)) {
-		/* Spec: "For GGTT, there is NO pat_sel[2:0] from the entry,
-		 * so RTL will always use the value corresponding to
-		 * pat_sel = 000".
-		 * So let's disable cache for GGTT to avoid screen corruptions.
-		 * MOCS still can be used though.
-		 * - System agent ggtt writes (i.e. cpu gtt mmaps) already work
-		 * before this patch, i.e. the same uncached + snooping access
-		 * like on gen6/7 seems to be in effect.
-		 * - So this just fixes blitter/render access. Again it looks
-		 * like it's not just uncached access, but uncached + snooping.
-		 * So we can still hold onto all our assumptions wrt cpu
-		 * clflushing on LLC machines.
-		 */
-		pat = GEN8_PPAT(0, GEN8_PPAT_UC);
-	} else {
-		pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for normal objects, no eLLC */
-		      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) |	/* for something pointing to ptes? */
-		      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) |	/* for scanout with eLLC */
-		      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scanout */
-		      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
-		      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
-		      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
-		      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
-	}
+	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for normal objects, no eLLC */
+	      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) |	/* for something pointing to ptes? */
+	      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) |	/* for scanout with eLLC */
+	      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scanout */
+	      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
+	      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
+	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
+	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 
 	I915_WRITE(GEN8_PRIVATE_PAT_LO, lower_32_bits(pat));
 	I915_WRITE(GEN8_PRIVATE_PAT_HI, upper_32_bits(pat));
@@ -3123,6 +3106,8 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 
 static void setup_private_pat(struct drm_i915_private *dev_priv)
 {
+	GEM_BUG_ON(INTEL_GEN(dev_priv) < 8);
+
 	if (INTEL_GEN(dev_priv) >= 10)
 		cnl_setup_private_ppat(dev_priv);
 	else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
