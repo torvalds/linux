@@ -537,6 +537,12 @@ enum rdma_nl_counter_mode {
 	RDMA_COUNTER_MODE_AUTO,
 
 	/*
+	 * Which qp are bound with which counter is explicitly specified
+	 * by the user
+	 */
+	RDMA_COUNTER_MODE_MANUAL,
+
+	/*
 	 * Always the end
 	 */
 	RDMA_COUNTER_MODE_MAX,
