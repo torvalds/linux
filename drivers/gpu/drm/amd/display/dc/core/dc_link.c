@@ -554,8 +554,6 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 		msleep(8);
 	}
 
-	ASSERT(status == DC_OK);
-
 	// Read DPCD 00100h to find if standard link rates are set
 	core_link_read_dpcd(link, DP_LINK_BW_SET,
 			&link_bw_set, sizeof(link_bw_set));
