@@ -2159,7 +2159,7 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 		 * VF does not know about these additional VSIs and all
 		 * it cares is about its own queues. PF configures these queues
 		 * to its appropriate VSIs based on TC mapping
-		 **/
+		 */
 		if (vf->adq_enabled) {
 			if (idx >= ARRAY_SIZE(vf->ch)) {
 				aq_ret = I40E_ERR_NO_AVAILABLE_VSI;
