@@ -380,7 +380,7 @@ out:
 	return ret;
 }
 
-static u32 gen_dl_mode(u8 feature_set, bool is_cr4)
+static u32 mt7615_mcu_gen_dl_mode(u8 feature_set, bool is_cr4)
 {
 	u32 ret = 0;
 
@@ -394,14 +394,45 @@ static u32 gen_dl_mode(u8 feature_set, bool is_cr4)
 	return ret;
 }
 
+static int
+mt7615_mcu_send_ram_firmware(struct mt7615_dev *dev,
+			     const struct mt7615_fw_trailer *hdr,
+			     const u8 *data, bool is_cr4)
+{
+	int n_region = is_cr4 ? CR4_REGION_NUM : N9_REGION_NUM;
+	int err, i, offset = 0;
+	u32 len, addr, mode;
+
+	for (i = 0; i < n_region; i++) {
+		mode = mt7615_mcu_gen_dl_mode(hdr[i].feature_set, is_cr4);
+		len = le32_to_cpu(hdr[i].len) + IMG_CRC_LEN;
+		addr = le32_to_cpu(hdr[i].addr);
+
+		err = mt7615_mcu_init_download(dev, addr, len, mode);
+		if (err) {
+			dev_err(dev->mt76.dev, "Download request failed\n");
+			return err;
+		}
+
+		err = mt7615_mcu_send_firmware(dev, data + offset, len);
+		if (err) {
+			dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
+			return err;
+		}
+
+		offset += len;
+	}
+
+	return 0;
+}
+
 static int mt7615_load_ram(struct mt7615_dev *dev)
 {
 	const struct firmware *fw;
 	const struct mt7615_fw_trailer *hdr;
 	const char *n9_firmware = MT7615_FIRMWARE_N9;
 	const char *cr4_firmware = MT7615_FIRMWARE_CR4;
-	u32 n9_ilm_addr, offset;
-	int i, ret;
+	int ret;
 
 	ret = request_firmware(&fw, n9_firmware, dev->mt76.dev);
 	if (ret)
@@ -419,31 +450,12 @@ static int mt7615_load_ram(struct mt7615_dev *dev)
 	dev_info(dev->mt76.dev, "N9 Firmware Version: %.10s, Build Time: %.15s\n",
 		 hdr->fw_ver, hdr->build_date);
 
-	n9_ilm_addr = le32_to_cpu(hdr->addr);
+	ret = mt7615_mcu_send_ram_firmware(dev, hdr, fw->data, false);
+	if (ret)
+		goto out;
 
-	for (offset = 0, i = 0; i < N9_REGION_NUM; i++) {
-		u32 len, addr, mode;
-
-		len = le32_to_cpu(hdr[i].len) + IMG_CRC_LEN;
-		addr = le32_to_cpu(hdr[i].addr);
-		mode = gen_dl_mode(hdr[i].feature_set, false);
-
-		ret = mt7615_mcu_init_download(dev, addr, len, mode);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			goto out;
-		}
-
-		ret = mt7615_mcu_send_firmware(dev, fw->data + offset, len);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
-			goto out;
-		}
-
-		offset += len;
-	}
-
-	ret = mt7615_mcu_start_firmware(dev, n9_ilm_addr, FW_START_OVERRIDE);
+	ret = mt7615_mcu_start_firmware(dev, le32_to_cpu(hdr->addr),
+					FW_START_OVERRIDE);
 	if (ret) {
 		dev_err(dev->mt76.dev, "Failed to start N9 firmware\n");
 		goto out;
@@ -467,27 +479,9 @@ static int mt7615_load_ram(struct mt7615_dev *dev)
 	dev_info(dev->mt76.dev, "CR4 Firmware Version: %.10s, Build Time: %.15s\n",
 		 hdr->fw_ver, hdr->build_date);
 
-	for (offset = 0, i = 0; i < CR4_REGION_NUM; i++) {
-		u32 len, addr, mode;
-
-		len = le32_to_cpu(hdr[i].len) + IMG_CRC_LEN;
-		addr = le32_to_cpu(hdr[i].addr);
-		mode = gen_dl_mode(hdr[i].feature_set, true);
-
-		ret = mt7615_mcu_init_download(dev, addr, len, mode);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			goto out;
-		}
-
-		ret = mt7615_mcu_send_firmware(dev, fw->data + offset, len);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
-			goto out;
-		}
-
-		offset += len;
-	}
+	ret = mt7615_mcu_send_ram_firmware(dev, hdr, fw->data, true);
+	if (ret)
+		goto out;
 
 	ret = mt7615_mcu_start_firmware(dev, 0, FW_START_WORKING_PDA_CR4);
 	if (ret)
