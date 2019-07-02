@@ -160,11 +160,6 @@ typedef u64 gen8_ppgtt_pml4e_t;
 #define GEN8_PPAT_ELLC_OVERRIDE		(0<<2)
 #define GEN8_PPAT(i, x)			((u64)(x) << ((i) * 8))
 
-#define GEN8_PPAT_GET_CA(x) ((x) & 3)
-#define GEN8_PPAT_GET_TC(x) ((x) & (3 << 2))
-#define GEN8_PPAT_GET_AGE(x) ((x) & (3 << 4))
-#define CHV_PPAT_GET_SNOOP(x) ((x) & (1 << 6))
-
 #define GEN8_PDE_IPS_64K BIT(11)
 #define GEN8_PDE_PS_2M   BIT(7)
 
@@ -618,37 +613,6 @@ i915_vm_to_ppgtt(struct i915_address_space *vm)
 	GEM_BUG_ON(i915_is_ggtt(vm));
 	return container_of(vm, struct i915_ppgtt, vm);
 }
-
-#define INTEL_MAX_PPAT_ENTRIES 8
-#define INTEL_PPAT_PERFECT_MATCH (~0U)
-
-struct intel_ppat;
-
-struct intel_ppat_entry {
-	struct intel_ppat *ppat;
-	struct kref ref;
-	u8 value;
-};
-
-struct intel_ppat {
-	struct intel_ppat_entry entries[INTEL_MAX_PPAT_ENTRIES];
-	DECLARE_BITMAP(used, INTEL_MAX_PPAT_ENTRIES);
-	DECLARE_BITMAP(dirty, INTEL_MAX_PPAT_ENTRIES);
-	unsigned int max_entries;
-	u8 clear_value;
-	/*
-	 * Return a score to show how two PPAT values match,
-	 * a INTEL_PPAT_PERFECT_MATCH indicates a perfect match
-	 */
-	unsigned int (*match)(u8 src, u8 dst);
-	void (*update_hw)(struct drm_i915_private *i915);
-
-	struct drm_i915_private *i915;
-};
-
-const struct intel_ppat_entry *
-intel_ppat_get(struct drm_i915_private *i915, u8 value);
-void intel_ppat_put(const struct intel_ppat_entry *entry);
 
 int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_init_hw(struct drm_i915_private *dev_priv);

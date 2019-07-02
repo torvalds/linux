@@ -3028,203 +3028,26 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	return 0;
 }
 
-static struct intel_ppat_entry *
-__alloc_ppat_entry(struct intel_ppat *ppat, unsigned int index, u8 value)
+static void cnl_setup_private_ppat(struct drm_i915_private *dev_priv)
 {
-	struct intel_ppat_entry *entry = &ppat->entries[index];
-
-	GEM_BUG_ON(index >= ppat->max_entries);
-	GEM_BUG_ON(test_bit(index, ppat->used));
-
-	entry->ppat = ppat;
-	entry->value = value;
-	kref_init(&entry->ref);
-	set_bit(index, ppat->used);
-	set_bit(index, ppat->dirty);
-
-	return entry;
-}
-
-static void __free_ppat_entry(struct intel_ppat_entry *entry)
-{
-	struct intel_ppat *ppat = entry->ppat;
-	unsigned int index = entry - ppat->entries;
-
-	GEM_BUG_ON(index >= ppat->max_entries);
-	GEM_BUG_ON(!test_bit(index, ppat->used));
-
-	entry->value = ppat->clear_value;
-	clear_bit(index, ppat->used);
-	set_bit(index, ppat->dirty);
-}
-
-/**
- * intel_ppat_get - get a usable PPAT entry
- * @i915: i915 device instance
- * @value: the PPAT value required by the caller
- *
- * The function tries to search if there is an existing PPAT entry which
- * matches with the required value. If perfectly matched, the existing PPAT
- * entry will be used. If only partially matched, it will try to check if
- * there is any available PPAT index. If yes, it will allocate a new PPAT
- * index for the required entry and update the HW. If not, the partially
- * matched entry will be used.
- */
-const struct intel_ppat_entry *
-intel_ppat_get(struct drm_i915_private *i915, u8 value)
-{
-	struct intel_ppat *ppat = &i915->ppat;
-	struct intel_ppat_entry *entry = NULL;
-	unsigned int scanned, best_score;
-	int i;
-
-	GEM_BUG_ON(!ppat->max_entries);
-
-	scanned = best_score = 0;
-	for_each_set_bit(i, ppat->used, ppat->max_entries) {
-		unsigned int score;
-
-		score = ppat->match(ppat->entries[i].value, value);
-		if (score > best_score) {
-			entry = &ppat->entries[i];
-			if (score == INTEL_PPAT_PERFECT_MATCH) {
-				kref_get(&entry->ref);
-				return entry;
-			}
-			best_score = score;
-		}
-		scanned++;
-	}
-
-	if (scanned == ppat->max_entries) {
-		if (!entry)
-			return ERR_PTR(-ENOSPC);
-
-		kref_get(&entry->ref);
-		return entry;
-	}
-
-	i = find_first_zero_bit(ppat->used, ppat->max_entries);
-	entry = __alloc_ppat_entry(ppat, i, value);
-	ppat->update_hw(i915);
-	return entry;
-}
-
-static void release_ppat(struct kref *kref)
-{
-	struct intel_ppat_entry *entry =
-		container_of(kref, struct intel_ppat_entry, ref);
-	struct drm_i915_private *i915 = entry->ppat->i915;
-
-	__free_ppat_entry(entry);
-	entry->ppat->update_hw(i915);
-}
-
-/**
- * intel_ppat_put - put back the PPAT entry got from intel_ppat_get()
- * @entry: an intel PPAT entry
- *
- * Put back the PPAT entry got from intel_ppat_get(). If the PPAT index of the
- * entry is dynamically allocated, its reference count will be decreased. Once
- * the reference count becomes into zero, the PPAT index becomes free again.
- */
-void intel_ppat_put(const struct intel_ppat_entry *entry)
-{
-	struct intel_ppat *ppat = entry->ppat;
-	unsigned int index = entry - ppat->entries;
-
-	GEM_BUG_ON(!ppat->max_entries);
-
-	kref_put(&ppat->entries[index].ref, release_ppat);
-}
-
-static void cnl_private_pat_update_hw(struct drm_i915_private *dev_priv)
-{
-	struct intel_ppat *ppat = &dev_priv->ppat;
-	int i;
-
-	for_each_set_bit(i, ppat->dirty, ppat->max_entries) {
-		I915_WRITE(GEN10_PAT_INDEX(i), ppat->entries[i].value);
-		clear_bit(i, ppat->dirty);
-	}
-}
-
-static void bdw_private_pat_update_hw(struct drm_i915_private *dev_priv)
-{
-	struct intel_ppat *ppat = &dev_priv->ppat;
-	u64 pat = 0;
-	int i;
-
-	for (i = 0; i < ppat->max_entries; i++)
-		pat |= GEN8_PPAT(i, ppat->entries[i].value);
-
-	bitmap_clear(ppat->dirty, 0, ppat->max_entries);
-
-	I915_WRITE(GEN8_PRIVATE_PAT_LO, lower_32_bits(pat));
-	I915_WRITE(GEN8_PRIVATE_PAT_HI, upper_32_bits(pat));
-}
-
-static unsigned int bdw_private_pat_match(u8 src, u8 dst)
-{
-	unsigned int score = 0;
-	enum {
-		AGE_MATCH = BIT(0),
-		TC_MATCH = BIT(1),
-		CA_MATCH = BIT(2),
-	};
-
-	/* Cache attribute has to be matched. */
-	if (GEN8_PPAT_GET_CA(src) != GEN8_PPAT_GET_CA(dst))
-		return 0;
-
-	score |= CA_MATCH;
-
-	if (GEN8_PPAT_GET_TC(src) == GEN8_PPAT_GET_TC(dst))
-		score |= TC_MATCH;
-
-	if (GEN8_PPAT_GET_AGE(src) == GEN8_PPAT_GET_AGE(dst))
-		score |= AGE_MATCH;
-
-	if (score == (AGE_MATCH | TC_MATCH | CA_MATCH))
-		return INTEL_PPAT_PERFECT_MATCH;
-
-	return score;
-}
-
-static unsigned int chv_private_pat_match(u8 src, u8 dst)
-{
-	return (CHV_PPAT_GET_SNOOP(src) == CHV_PPAT_GET_SNOOP(dst)) ?
-		INTEL_PPAT_PERFECT_MATCH : 0;
-}
-
-static void cnl_setup_private_ppat(struct intel_ppat *ppat)
-{
-	ppat->max_entries = 8;
-	ppat->update_hw = cnl_private_pat_update_hw;
-	ppat->match = bdw_private_pat_match;
-	ppat->clear_value = GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3);
-
-	__alloc_ppat_entry(ppat, 0, GEN8_PPAT_WB | GEN8_PPAT_LLC);
-	__alloc_ppat_entry(ppat, 1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
-	__alloc_ppat_entry(ppat, 2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
-	__alloc_ppat_entry(ppat, 3, GEN8_PPAT_UC);
-	__alloc_ppat_entry(ppat, 4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0));
-	__alloc_ppat_entry(ppat, 5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1));
-	__alloc_ppat_entry(ppat, 6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2));
-	__alloc_ppat_entry(ppat, 7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
+	I915_WRITE(GEN10_PAT_INDEX(0), GEN8_PPAT_WB | GEN8_PPAT_LLC);
+	I915_WRITE(GEN10_PAT_INDEX(1), GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
+	I915_WRITE(GEN10_PAT_INDEX(2), GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
+	I915_WRITE(GEN10_PAT_INDEX(3), GEN8_PPAT_UC);
+	I915_WRITE(GEN10_PAT_INDEX(4), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0));
+	I915_WRITE(GEN10_PAT_INDEX(5), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1));
+	I915_WRITE(GEN10_PAT_INDEX(6), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2));
+	I915_WRITE(GEN10_PAT_INDEX(7), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 }
 
 /* The GGTT and PPGTT need a private PPAT setup in order to handle cacheability
  * bits. When using advanced contexts each context stores its own PAT, but
  * writing this data shouldn't be harmful even in those cases. */
-static void bdw_setup_private_ppat(struct intel_ppat *ppat)
+static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv)
 {
-	ppat->max_entries = 8;
-	ppat->update_hw = bdw_private_pat_update_hw;
-	ppat->match = bdw_private_pat_match;
-	ppat->clear_value = GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3);
+	u64 pat;
 
-	if (!HAS_PPGTT(ppat->i915)) {
+	if (!HAS_PPGTT(dev_priv)) {
 		/* Spec: "For GGTT, there is NO pat_sel[2:0] from the entry,
 		 * so RTL will always use the value corresponding to
 		 * pat_sel = 000".
@@ -3238,26 +3061,25 @@ static void bdw_setup_private_ppat(struct intel_ppat *ppat)
 		 * So we can still hold onto all our assumptions wrt cpu
 		 * clflushing on LLC machines.
 		 */
-		__alloc_ppat_entry(ppat, 0, GEN8_PPAT_UC);
-		return;
+		pat = GEN8_PPAT(0, GEN8_PPAT_UC);
+	} else {
+		pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for normal objects, no eLLC */
+		      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) |	/* for something pointing to ptes? */
+		      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) |	/* for scanout with eLLC */
+		      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scanout */
+		      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
+		      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
+		      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
+		      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 	}
 
-	__alloc_ppat_entry(ppat, 0, GEN8_PPAT_WB | GEN8_PPAT_LLC);      /* for normal objects, no eLLC */
-	__alloc_ppat_entry(ppat, 1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);  /* for something pointing to ptes? */
-	__alloc_ppat_entry(ppat, 2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);  /* for scanout with eLLC */
-	__alloc_ppat_entry(ppat, 3, GEN8_PPAT_UC);                      /* Uncached objects, mostly for scanout */
-	__alloc_ppat_entry(ppat, 4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0));
-	__alloc_ppat_entry(ppat, 5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1));
-	__alloc_ppat_entry(ppat, 6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2));
-	__alloc_ppat_entry(ppat, 7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
+	I915_WRITE(GEN8_PRIVATE_PAT_LO, lower_32_bits(pat));
+	I915_WRITE(GEN8_PRIVATE_PAT_HI, upper_32_bits(pat));
 }
 
-static void chv_setup_private_ppat(struct intel_ppat *ppat)
+static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 {
-	ppat->max_entries = 8;
-	ppat->update_hw = bdw_private_pat_update_hw;
-	ppat->match = chv_private_pat_match;
-	ppat->clear_value = CHV_PPAT_SNOOP;
+	u64 pat;
 
 	/*
 	 * Map WB on BDW to snooped on CHV.
@@ -3278,14 +3100,17 @@ static void chv_setup_private_ppat(struct intel_ppat *ppat)
 	 * in order to keep the global status page working.
 	 */
 
-	__alloc_ppat_entry(ppat, 0, CHV_PPAT_SNOOP);
-	__alloc_ppat_entry(ppat, 1, 0);
-	__alloc_ppat_entry(ppat, 2, 0);
-	__alloc_ppat_entry(ppat, 3, 0);
-	__alloc_ppat_entry(ppat, 4, CHV_PPAT_SNOOP);
-	__alloc_ppat_entry(ppat, 5, CHV_PPAT_SNOOP);
-	__alloc_ppat_entry(ppat, 6, CHV_PPAT_SNOOP);
-	__alloc_ppat_entry(ppat, 7, CHV_PPAT_SNOOP);
+	pat = GEN8_PPAT(0, CHV_PPAT_SNOOP) |
+	      GEN8_PPAT(1, 0) |
+	      GEN8_PPAT(2, 0) |
+	      GEN8_PPAT(3, 0) |
+	      GEN8_PPAT(4, CHV_PPAT_SNOOP) |
+	      GEN8_PPAT(5, CHV_PPAT_SNOOP) |
+	      GEN8_PPAT(6, CHV_PPAT_SNOOP) |
+	      GEN8_PPAT(7, CHV_PPAT_SNOOP);
+
+	I915_WRITE(GEN8_PRIVATE_PAT_LO, lower_32_bits(pat));
+	I915_WRITE(GEN8_PRIVATE_PAT_HI, upper_32_bits(pat));
 }
 
 static void gen6_gmch_remove(struct i915_address_space *vm)
@@ -3298,27 +3123,12 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 
 static void setup_private_pat(struct drm_i915_private *dev_priv)
 {
-	struct intel_ppat *ppat = &dev_priv->ppat;
-	int i;
-
-	ppat->i915 = dev_priv;
-
 	if (INTEL_GEN(dev_priv) >= 10)
-		cnl_setup_private_ppat(ppat);
+		cnl_setup_private_ppat(dev_priv);
 	else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
-		chv_setup_private_ppat(ppat);
+		chv_setup_private_ppat(dev_priv);
 	else
-		bdw_setup_private_ppat(ppat);
-
-	GEM_BUG_ON(ppat->max_entries > INTEL_MAX_PPAT_ENTRIES);
-
-	for_each_clear_bit(i, ppat->used, ppat->max_entries) {
-		ppat->entries[i].value = ppat->clear_value;
-		ppat->entries[i].ppat = ppat;
-		set_bit(i, ppat->dirty);
-	}
-
-	ppat->update_hw(dev_priv);
+		bdw_setup_private_ppat(dev_priv);
 }
 
 static int gen8_gmch_probe(struct i915_ggtt *ggtt)
@@ -3697,13 +3507,8 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *i915)
 {
 	ggtt_restore_mappings(&i915->ggtt);
 
-	if (INTEL_GEN(i915) >= 8) {
-		struct intel_ppat *ppat = &i915->ppat;
-
-		bitmap_set(ppat->dirty, 0, ppat->max_entries);
-		i915->ppat.update_hw(i915);
-		return;
-	}
+	if (INTEL_GEN(i915) >= 8)
+		setup_private_pat(i915);
 }
 
 static struct scatterlist *

@@ -1489,8 +1489,6 @@ struct drm_i915_private {
 	DECLARE_HASHTABLE(mm_structs, 7);
 	struct mutex mm_lock;
 
-	struct intel_ppat ppat;
-
 	/* Kernel Modesetting */
 
 	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
