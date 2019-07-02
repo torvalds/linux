@@ -82,6 +82,12 @@ static volatile const u8 __cacheline_aligned aes_inv_sbox[] = {
 	0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 };
 
+extern const u8 crypto_aes_sbox[256] __alias(aes_sbox);
+extern const u8 crypto_aes_inv_sbox[256] __alias(aes_inv_sbox);
+
+EXPORT_SYMBOL(crypto_aes_sbox);
+EXPORT_SYMBOL(crypto_aes_inv_sbox);
+
 static u32 mul_by_x(u32 w)
 {
 	u32 x = w & 0x7f7f7f7f;
