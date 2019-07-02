@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __IO_PGTABLE_H
 #define __IO_PGTABLE_H
+
 #include <linux/bitops.h>
+#include <linux/iommu.h>
 
 /*
  * Public API for use by IOMMU drivers
@@ -136,7 +138,7 @@ struct io_pgtable_ops {
 	int (*map)(struct io_pgtable_ops *ops, unsigned long iova,
 		   phys_addr_t paddr, size_t size, int prot);
 	size_t (*unmap)(struct io_pgtable_ops *ops, unsigned long iova,
-			size_t size);
+			size_t size, struct iommu_iotlb_gather *gather);
 	phys_addr_t (*iova_to_phys)(struct io_pgtable_ops *ops,
 				    unsigned long iova);
 };

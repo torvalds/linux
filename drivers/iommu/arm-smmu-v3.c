@@ -2015,7 +2015,7 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 	if (!ops)
 		return 0;
 
-	ret = ops->unmap(ops, iova, size);
+	ret = ops->unmap(ops, iova, size, gather);
 	if (ret && arm_smmu_atc_inv_domain(smmu_domain, 0, iova, size))
 		return 0;
 

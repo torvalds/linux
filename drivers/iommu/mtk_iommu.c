@@ -400,7 +400,7 @@ static size_t mtk_iommu_unmap(struct iommu_domain *domain,
 	size_t unmapsz;
 
 	spin_lock_irqsave(&dom->pgtlock, flags);
-	unmapsz = dom->iop->unmap(dom->iop, iova, size);
+	unmapsz = dom->iop->unmap(dom->iop, iova, size, gather);
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
 
 	return unmapsz;

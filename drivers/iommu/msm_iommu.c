@@ -523,7 +523,7 @@ static size_t msm_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->pgtlock, flags);
-	len = priv->iop->unmap(priv->iop, iova, len);
+	len = priv->iop->unmap(priv->iop, iova, len, gather);
 	spin_unlock_irqrestore(&priv->pgtlock, flags);
 
 	return len;

@@ -1362,7 +1362,7 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 		return 0;
 
 	arm_smmu_rpm_get(smmu);
-	ret = ops->unmap(ops, iova, size);
+	ret = ops->unmap(ops, iova, size, gather);
 	arm_smmu_rpm_put(smmu);
 
 	return ret;

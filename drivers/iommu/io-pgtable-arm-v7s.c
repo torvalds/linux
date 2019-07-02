@@ -666,7 +666,7 @@ static size_t __arm_v7s_unmap(struct arm_v7s_io_pgtable *data,
 }
 
 static size_t arm_v7s_unmap(struct io_pgtable_ops *ops, unsigned long iova,
-			    size_t size)
+			    size_t size, struct iommu_iotlb_gather *gather)
 {
 	struct arm_v7s_io_pgtable *data = io_pgtable_ops_to_data(ops);
 
@@ -892,7 +892,7 @@ static int __init arm_v7s_do_selftests(void)
 	size = 1UL << __ffs(cfg.pgsize_bitmap);
 	while (i < loopnr) {
 		iova_start = i * SZ_16M;
-		if (ops->unmap(ops, iova_start + size, size) != size)
+		if (ops->unmap(ops, iova_start + size, size, NULL) != size)
 			return __FAIL(ops);
 
 		/* Remap of partial unmap */
@@ -910,7 +910,7 @@ static int __init arm_v7s_do_selftests(void)
 	for_each_set_bit(i, &cfg.pgsize_bitmap, BITS_PER_LONG) {
 		size = 1UL << i;
 
-		if (ops->unmap(ops, iova, size) != size)
+		if (ops->unmap(ops, iova, size, NULL) != size)
 			return __FAIL(ops);
 
 		if (ops->iova_to_phys(ops, iova + 42))

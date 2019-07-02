@@ -222,7 +222,7 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 		size_t unmapped_page;
 		size_t pgsize = get_pgsize(iova, len - unmapped_len);
 
-		unmapped_page = ops->unmap(ops, iova, pgsize);
+		unmapped_page = ops->unmap(ops, iova, pgsize, NULL);
 		if (!unmapped_page)
 			break;
 

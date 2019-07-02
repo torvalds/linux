@@ -12,7 +12,6 @@
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/io-pgtable.h>
-#include <linux/iommu.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -642,7 +641,7 @@ static size_t __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 }
 
 static size_t arm_lpae_unmap(struct io_pgtable_ops *ops, unsigned long iova,
-			     size_t size)
+			     size_t size, struct iommu_iotlb_gather *gather)
 {
 	struct arm_lpae_io_pgtable *data = io_pgtable_ops_to_data(ops);
 	arm_lpae_iopte *ptep = data->pgd;
@@ -1167,7 +1166,7 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 
 		/* Partial unmap */
 		size = 1UL << __ffs(cfg->pgsize_bitmap);
-		if (ops->unmap(ops, SZ_1G + size, size) != size)
+		if (ops->unmap(ops, SZ_1G + size, size, NULL) != size)
 			return __FAIL(ops, i);
 
 		/* Remap of partial unmap */
@@ -1182,7 +1181,7 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 		for_each_set_bit(j, &cfg->pgsize_bitmap, BITS_PER_LONG) {
 			size = 1UL << j;
 
-			if (ops->unmap(ops, iova, size) != size)
+			if (ops->unmap(ops, iova, size, NULL) != size)
 				return __FAIL(ops, i);
 
 			if (ops->iova_to_phys(ops, iova + 42))

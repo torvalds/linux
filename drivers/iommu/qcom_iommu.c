@@ -455,7 +455,7 @@ static size_t qcom_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 	 */
 	pm_runtime_get_sync(qcom_domain->iommu->dev);
 	spin_lock_irqsave(&qcom_domain->pgtbl_lock, flags);
-	ret = ops->unmap(ops, iova, size);
+	ret = ops->unmap(ops, iova, size, gather);
 	spin_unlock_irqrestore(&qcom_domain->pgtbl_lock, flags);
 	pm_runtime_put_sync(qcom_domain->iommu->dev);
 
