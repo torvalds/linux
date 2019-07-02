@@ -1301,7 +1301,7 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 }
 
 static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
-			     size_t size)
+			     size_t size, struct iommu_iotlb_gather *gather)
 {
 	struct io_pgtable_ops *ops = to_smmu_domain(domain)->pgtbl_ops;
 	struct arm_smmu_device *smmu = to_smmu_domain(domain)->smmu;
@@ -1329,7 +1329,8 @@ static void arm_smmu_flush_iotlb_all(struct iommu_domain *domain)
 	}
 }
 
-static void arm_smmu_iotlb_sync(struct iommu_domain *domain)
+static void arm_smmu_iotlb_sync(struct iommu_domain *domain,
+				struct iommu_iotlb_gather *gather)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_device *smmu = smmu_domain->smmu;

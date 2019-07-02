@@ -1985,8 +1985,8 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	return ops->map(ops, iova, paddr, size, prot);
 }
 
-static size_t
-arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
+static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
+			     size_t size, struct iommu_iotlb_gather *gather)
 {
 	int ret;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -2010,7 +2010,8 @@ static void arm_smmu_flush_iotlb_all(struct iommu_domain *domain)
 		arm_smmu_tlb_inv_context(smmu_domain);
 }
 
-static void arm_smmu_iotlb_sync(struct iommu_domain *domain)
+static void arm_smmu_iotlb_sync(struct iommu_domain *domain,
+				struct iommu_iotlb_gather *gather)
 {
 	struct arm_smmu_device *smmu = to_smmu_domain(domain)->smmu;
 

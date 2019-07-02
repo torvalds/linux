@@ -417,7 +417,7 @@ static int qcom_iommu_map(struct iommu_domain *domain, unsigned long iova,
 }
 
 static size_t qcom_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			       size_t size)
+			       size_t size, struct iommu_iotlb_gather *gather)
 {
 	size_t ret;
 	unsigned long flags;
@@ -441,7 +441,7 @@ static size_t qcom_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 	return ret;
 }
 
-static void qcom_iommu_iotlb_sync(struct iommu_domain *domain)
+static void qcom_iommu_flush_iotlb_all(struct iommu_domain *domain)
 {
 	struct qcom_iommu_domain *qcom_domain = to_qcom_iommu_domain(domain);
 	struct io_pgtable *pgtable = container_of(qcom_domain->pgtbl_ops,
@@ -452,6 +452,12 @@ static void qcom_iommu_iotlb_sync(struct iommu_domain *domain)
 	pm_runtime_get_sync(qcom_domain->iommu->dev);
 	qcom_iommu_tlb_sync(pgtable->cookie);
 	pm_runtime_put_sync(qcom_domain->iommu->dev);
+}
+
+static void qcom_iommu_iotlb_sync(struct iommu_domain *domain,
+				  struct iommu_iotlb_gather *gather)
+{
+	qcom_iommu_flush_iotlb_all(domain);
 }
 
 static phys_addr_t qcom_iommu_iova_to_phys(struct iommu_domain *domain,
@@ -581,7 +587,7 @@ static const struct iommu_ops qcom_iommu_ops = {
 	.detach_dev	= qcom_iommu_detach_dev,
 	.map		= qcom_iommu_map,
 	.unmap		= qcom_iommu_unmap,
-	.flush_iotlb_all = qcom_iommu_iotlb_sync,
+	.flush_iotlb_all = qcom_iommu_flush_iotlb_all,
 	.iotlb_sync	= qcom_iommu_iotlb_sync,
 	.iova_to_phys	= qcom_iommu_iova_to_phys,
 	.add_device	= qcom_iommu_add_device,

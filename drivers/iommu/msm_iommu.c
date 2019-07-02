@@ -509,7 +509,7 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long iova,
 }
 
 static size_t msm_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			      size_t len)
+			      size_t len, struct iommu_iotlb_gather *gather)
 {
 	struct msm_priv *priv = to_msm_priv(domain);
 	unsigned long flags;
