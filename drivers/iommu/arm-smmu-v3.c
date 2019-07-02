@@ -309,6 +309,13 @@
 
 #define CMDQ_PROD_OWNED_FLAG		Q_OVERFLOW_FLAG
 
+/*
+ * This is used to size the command queue and therefore must be at least
+ * BITS_PER_LONG so that the valid_map works correctly (it relies on the
+ * total number of queue entries being a multiple of BITS_PER_LONG).
+ */
+#define CMDQ_BATCH_ENTRIES		BITS_PER_LONG
+
 #define CMDQ_0_OP			GENMASK_ULL(7, 0)
 #define CMDQ_0_SSV			(1UL << 11)
 
@@ -1940,15 +1947,17 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 	arm_smmu_cmdq_issue_sync(smmu);
 }
 
-static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
-					  size_t granule, bool leaf, void *cookie)
+static void arm_smmu_tlb_inv_range(unsigned long iova, size_t size,
+				   size_t granule, bool leaf,
+				   struct arm_smmu_domain *smmu_domain)
 {
-	struct arm_smmu_domain *smmu_domain = cookie;
+	u64 cmds[CMDQ_BATCH_ENTRIES * CMDQ_ENT_DWORDS];
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	unsigned long end = iova + size;
+	int i = 0;
 	struct arm_smmu_cmdq_ent cmd = {
 		.tlbi = {
 			.leaf	= leaf,
-			.addr	= iova,
 		},
 	};
 
@@ -1960,37 +1969,41 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 		cmd.tlbi.vmid	= smmu_domain->s2_cfg.vmid;
 	}
 
-	do {
-		arm_smmu_cmdq_issue_cmd(smmu, &cmd);
-		cmd.tlbi.addr += granule;
-	} while (size -= granule);
+	while (iova < end) {
+		if (i == CMDQ_BATCH_ENTRIES) {
+			arm_smmu_cmdq_issue_cmdlist(smmu, cmds, i, false);
+			i = 0;
+		}
+
+		cmd.tlbi.addr = iova;
+		arm_smmu_cmdq_build_cmd(&cmds[i * CMDQ_ENT_DWORDS], &cmd);
+		iova += granule;
+		i++;
+	}
+
+	arm_smmu_cmdq_issue_cmdlist(smmu, cmds, i, true);
 }
 
 static void arm_smmu_tlb_inv_page_nosync(struct iommu_iotlb_gather *gather,
 					 unsigned long iova, size_t granule,
 					 void *cookie)
 {
-	arm_smmu_tlb_inv_range_nosync(iova, granule, granule, true, cookie);
+	struct arm_smmu_domain *smmu_domain = cookie;
+	struct iommu_domain *domain = &smmu_domain->domain;
+
+	iommu_iotlb_gather_add_page(domain, gather, iova, granule);
 }
 
 static void arm_smmu_tlb_inv_walk(unsigned long iova, size_t size,
 				  size_t granule, void *cookie)
 {
-	struct arm_smmu_domain *smmu_domain = cookie;
-	struct arm_smmu_device *smmu = smmu_domain->smmu;
-
-	arm_smmu_tlb_inv_range_nosync(iova, size, granule, false, cookie);
-	arm_smmu_cmdq_issue_sync(smmu);
+	arm_smmu_tlb_inv_range(iova, size, granule, false, cookie);
 }
 
 static void arm_smmu_tlb_inv_leaf(unsigned long iova, size_t size,
 				  size_t granule, void *cookie)
 {
-	struct arm_smmu_domain *smmu_domain = cookie;
-	struct arm_smmu_device *smmu = smmu_domain->smmu;
-
-	arm_smmu_tlb_inv_range_nosync(iova, size, granule, true, cookie);
-	arm_smmu_cmdq_issue_sync(smmu);
+	arm_smmu_tlb_inv_range(iova, size, granule, true, cookie);
 }
 
 static const struct iommu_flush_ops arm_smmu_flush_ops = {
@@ -2404,10 +2417,10 @@ static void arm_smmu_flush_iotlb_all(struct iommu_domain *domain)
 static void arm_smmu_iotlb_sync(struct iommu_domain *domain,
 				struct iommu_iotlb_gather *gather)
 {
-	struct arm_smmu_device *smmu = to_smmu_domain(domain)->smmu;
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
-	if (smmu)
-		arm_smmu_cmdq_issue_sync(smmu);
+	arm_smmu_tlb_inv_range(gather->start, gather->end - gather->start,
+			       gather->pgsize, true, smmu_domain);
 }
 
 static phys_addr_t
@@ -3334,15 +3347,15 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	/* Queue sizes, capped to ensure natural alignment */
 	smmu->cmdq.q.llq.max_n_shift = min_t(u32, CMDQ_MAX_SZ_SHIFT,
 					     FIELD_GET(IDR1_CMDQS, reg));
-	if (smmu->cmdq.q.llq.max_n_shift < ilog2(BITS_PER_LONG)) {
+	if (smmu->cmdq.q.llq.max_n_shift <= ilog2(CMDQ_BATCH_ENTRIES)) {
 		/*
-		 * The cmdq valid_map relies on the total number of entries
-		 * being a multiple of BITS_PER_LONG. There's also no way
-		 * we can handle the weird alignment restrictions on the
-		 * base pointer for a unit-length queue.
+		 * We don't support splitting up batches, so one batch of
+		 * commands plus an extra sync needs to fit inside the command
+		 * queue. There's also no way we can handle the weird alignment
+		 * restrictions on the base pointer for a unit-length queue.
 		 */
-		dev_err(smmu->dev, "command queue size < %d entries not supported\n",
-			BITS_PER_LONG);
+		dev_err(smmu->dev, "command queue size <= %d entries not supported\n",
+			CMDQ_BATCH_ENTRIES);
 		return -ENXIO;
 	}
 
