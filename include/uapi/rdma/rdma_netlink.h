@@ -283,6 +283,8 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_STAT_SET,
 
+	RDMA_NLDEV_CMD_STAT_GET, /* can dump */
+
 	RDMA_NLDEV_NUM_OPS
 };
 
@@ -491,13 +493,6 @@ enum rdma_nldev_attr {
 	 */
 	RDMA_NLDEV_NET_NS_FD,			/* u32 */
 	/*
-	 * Counter-specific attributes.
-	 */
-	RDMA_NLDEV_ATTR_STAT_MODE,		/* u32 */
-	RDMA_NLDEV_ATTR_STAT_RES,		/* u32 */
-	RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK,	/* u32 */
-
-	/*
 	 * Information about a chardev.
 	 * CHARDEV_TYPE is the name of the chardev ABI (ie uverbs, umad, etc)
 	 * CHARDEV_ABI signals the ABI revision (historical)
@@ -509,6 +504,19 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_CHARDEV_ABI,		/* u64 */
 	RDMA_NLDEV_ATTR_CHARDEV,		/* u64 */
 	RDMA_NLDEV_ATTR_UVERBS_DRIVER_ID,       /* u64 */
+	/*
+	 * Counter-specific attributes.
+	 */
+	RDMA_NLDEV_ATTR_STAT_MODE,		/* u32 */
+	RDMA_NLDEV_ATTR_STAT_RES,		/* u32 */
+	RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK,	/* u32 */
+	RDMA_NLDEV_ATTR_STAT_COUNTER,		/* nested table */
+	RDMA_NLDEV_ATTR_STAT_COUNTER_ENTRY,	/* nested table */
+	RDMA_NLDEV_ATTR_STAT_COUNTER_ID,	/* u32 */
+	RDMA_NLDEV_ATTR_STAT_HWCOUNTERS,	/* nested table */
+	RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY,	/* nested table */
+	RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY_NAME,	/* string */
+	RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY_VALUE,	/* u64 */
 
 	/*
 	 * Always the end

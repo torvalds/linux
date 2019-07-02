@@ -59,7 +59,7 @@ static struct rdma_counter *rdma_counter_alloc(struct ib_device *dev, u8 port,
 {
 	struct rdma_counter *counter;
 
-	if (!dev->ops.counter_dealloc)
+	if (!dev->ops.counter_dealloc || !dev->ops.counter_alloc_stats)
 		return NULL;
 
 	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
@@ -69,16 +69,25 @@ static struct rdma_counter *rdma_counter_alloc(struct ib_device *dev, u8 port,
 	counter->device    = dev;
 	counter->port      = port;
 	counter->res.type  = RDMA_RESTRACK_COUNTER;
+	counter->stats     = dev->ops.counter_alloc_stats(counter);
+	if (!counter->stats)
+		goto err_stats;
+
 	counter->mode.mode = mode;
 	kref_init(&counter->kref);
 	mutex_init(&counter->lock);
 
 	return counter;
+
+err_stats:
+	kfree(counter);
+	return NULL;
 }
 
 static void rdma_counter_free(struct rdma_counter *counter)
 {
 	rdma_restrack_del(&counter->res);
+	kfree(counter->stats);
 	kfree(counter);
 }
 
@@ -273,6 +282,21 @@ int rdma_counter_unbind_qp(struct ib_qp *qp, bool force)
 
 	kref_put(&counter->kref, counter_release);
 	return 0;
+}
+
+int rdma_counter_query_stats(struct rdma_counter *counter)
+{
+	struct ib_device *dev = counter->device;
+	int ret;
+
+	if (!dev->ops.counter_update_stats)
+		return -EINVAL;
+
+	mutex_lock(&counter->lock);
+	ret = dev->ops.counter_update_stats(counter);
+	mutex_unlock(&counter->lock);
+
+	return ret;
 }
 
 void rdma_counter_init(struct ib_device *dev)

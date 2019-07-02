@@ -37,6 +37,7 @@ struct rdma_counter {
 	struct kref			kref;
 	struct rdma_counter_mode	mode;
 	struct mutex			lock;
+	struct rdma_hw_stats		*stats;
 	u8				port;
 };
 
@@ -46,5 +47,7 @@ int rdma_counter_set_auto_mode(struct ib_device *dev, u8 port,
 			       bool on, enum rdma_nl_counter_mask mask);
 int rdma_counter_bind_qp_auto(struct ib_qp *qp, u8 port);
 int rdma_counter_unbind_qp(struct ib_qp *qp, bool force);
+
+int rdma_counter_query_stats(struct rdma_counter *counter);
 
 #endif /* _RDMA_COUNTER_H_ */

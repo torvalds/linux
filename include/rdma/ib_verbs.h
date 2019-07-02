@@ -2503,6 +2503,16 @@ struct ib_device_ops {
 	 * counter_dealloc -De-allocate the hw counter
 	 */
 	int (*counter_dealloc)(struct rdma_counter *counter);
+	/**
+	 * counter_alloc_stats - Allocate a struct rdma_hw_stats and fill in
+	 * the driver initialized data.
+	 */
+	struct rdma_hw_stats *(*counter_alloc_stats)(
+		struct rdma_counter *counter);
+	/**
+	 * counter_update_stats - Query the stats value of this counter
+	 */
+	int (*counter_update_stats)(struct rdma_counter *counter);
 
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);
