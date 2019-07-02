@@ -507,6 +507,31 @@ static inline void iommu_tlb_sync(struct iommu_domain *domain,
 	iommu_iotlb_gather_init(iotlb_gather);
 }
 
+static inline void iommu_iotlb_gather_add_page(struct iommu_domain *domain,
+					       struct iommu_iotlb_gather *gather,
+					       unsigned long iova, size_t size)
+{
+	unsigned long start = iova, end = start + size;
+
+	/*
+	 * If the new page is disjoint from the current range or is mapped at
+	 * a different granularity, then sync the TLB so that the gather
+	 * structure can be rewritten.
+	 */
+	if (gather->pgsize != size ||
+	    end < gather->start || start > gather->end) {
+		if (gather->pgsize)
+			iommu_tlb_sync(domain, gather);
+		gather->pgsize = size;
+	}
+
+	if (gather->end < end)
+		gather->end = end;
+
+	if (gather->start > start)
+		gather->start = start;
+}
+
 /* PCI device grouping function */
 extern struct iommu_group *pci_device_group(struct device *dev);
 /* Generic device grouping function */
@@ -844,6 +869,12 @@ static inline struct iommu_device *dev_to_iommu_device(struct device *dev)
 }
 
 static inline void iommu_iotlb_gather_init(struct iommu_iotlb_gather *gather)
+{
+}
+
+static inline void iommu_iotlb_gather_add_page(struct iommu_domain *domain,
+					       struct iommu_iotlb_gather *gather,
+					       unsigned long iova, size_t size)
 {
 }
 
