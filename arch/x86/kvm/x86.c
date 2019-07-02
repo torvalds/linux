@@ -1176,6 +1176,26 @@ static u32 emulated_msrs[] = {
 	MSR_AMD64_VIRT_SPEC_CTRL,
 	MSR_IA32_POWER_CTL,
 
+	/*
+	 * The following list leaves out MSRs whose values are determined
+	 * by arch/x86/kvm/vmx/nested.c based on CPUID or other MSRs.
+	 * We always support the "true" VMX control MSRs, even if the host
+	 * processor does not, so I am putting these registers here rather
+	 * than in msrs_to_save.
+	 */
+	MSR_IA32_VMX_BASIC,
+	MSR_IA32_VMX_TRUE_PINBASED_CTLS,
+	MSR_IA32_VMX_TRUE_PROCBASED_CTLS,
+	MSR_IA32_VMX_TRUE_EXIT_CTLS,
+	MSR_IA32_VMX_TRUE_ENTRY_CTLS,
+	MSR_IA32_VMX_MISC,
+	MSR_IA32_VMX_CR0_FIXED0,
+	MSR_IA32_VMX_CR4_FIXED0,
+	MSR_IA32_VMX_VMCS_ENUM,
+	MSR_IA32_VMX_PROCBASED_CTLS2,
+	MSR_IA32_VMX_EPT_VPID_CAP,
+	MSR_IA32_VMX_VMFUNC,
+
 	MSR_K7_HWCR,
 	MSR_KVM_POLL_CONTROL,
 };
