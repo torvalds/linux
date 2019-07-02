@@ -1449,7 +1449,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	offset = (src->x1 >> 16) * fb->format->cpp[0];
+	offset = (src->x1 >> 16) * fb->format->bpp[0] / 8;
 	vop_plane_state->offset = offset + fb->offsets[0];
 	if (state->rotation & DRM_MODE_REFLECT_Y ||
 	    (rockchip_fb_is_logo(fb) && vop_plane_state->logo_ymirror))
@@ -1465,7 +1465,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		int hsub = drm_format_horz_chroma_subsampling(fb->format->format);
 		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
 
-		offset = (src->x1 >> 16) * fb->format->cpp[1] / hsub;
+		offset = (src->x1 >> 16) * fb->format->bpp[1] / hsub / 8;
 		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
 
 		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
@@ -2243,7 +2243,7 @@ static size_t vop_plane_line_bandwidth(struct drm_plane_state *pstate)
 	struct drm_framebuffer *fb = pstate->fb;
 	struct drm_rect *dest = &vop_plane_state->dest;
 	struct drm_rect *src = &vop_plane_state->src;
-	int bpp = fb->format->cpp[0];
+	int bpp = fb->format->bpp[0];
 	int src_width = drm_rect_width(src) >> 16;
 	int src_height = drm_rect_height(src) >> 16;
 	int dest_width = drm_rect_width(dest);
@@ -2255,7 +2255,7 @@ static size_t vop_plane_line_bandwidth(struct drm_plane_state *pstate)
 	    dest_height <= 0)
 		return 0;
 
-	bandwidth = src_width * bpp;
+	bandwidth = src_width * bpp / 8;
 
 	bandwidth = bandwidth * src_width / dest_width;
 	bandwidth = bandwidth * src_height / dest_height;
