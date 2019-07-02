@@ -426,6 +426,11 @@ static void tcf_mirred_put_dev(struct net_device *dev)
 	dev_put(dev);
 }
 
+static size_t tcf_mirred_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_mirred));
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.id		=	TCA_ID_MIRRED,
@@ -437,6 +442,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.init		=	tcf_mirred_init,
 	.walk		=	tcf_mirred_walker,
 	.lookup		=	tcf_mirred_search,
+	.get_fill_size	=	tcf_mirred_get_fill_size,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
 	.put_dev	=	tcf_mirred_put_dev,
