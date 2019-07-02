@@ -1698,6 +1698,9 @@ struct ib_qp {
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
 	struct rdma_restrack_entry     res;
+
+	/* The counter the qp is bind to */
+	struct rdma_counter    *counter;
 };
 
 struct ib_dm {
@@ -2485,6 +2488,21 @@ struct ib_device_ops {
 			 u8 pdata_len);
 	int (*iw_create_listen)(struct iw_cm_id *cm_id, int backlog);
 	int (*iw_destroy_listen)(struct iw_cm_id *cm_id);
+	/**
+	 * counter_bind_qp - Bind a QP to a counter.
+	 * @counter - The counter to be bound. If counter->id is zero then
+	 *   the driver needs to allocate a new counter and set counter->id
+	 */
+	int (*counter_bind_qp)(struct rdma_counter *counter, struct ib_qp *qp);
+	/**
+	 * counter_unbind_qp - Unbind the qp from the dynamically-allocated
+	 *   counter and bind it onto the default one
+	 */
+	int (*counter_unbind_qp)(struct ib_qp *qp);
+	/**
+	 * counter_dealloc -De-allocate the hw counter
+	 */
+	int (*counter_dealloc)(struct rdma_counter *counter);
 
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);

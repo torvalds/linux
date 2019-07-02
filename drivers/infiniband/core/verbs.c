@@ -1690,6 +1690,14 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 		}
 	}
 
+	/*
+	 * Bind this qp to a counter automatically based on the rdma counter
+	 * rules. This only set in RST2INIT with port specified
+	 */
+	if (!qp->counter && (attr_mask & IB_QP_PORT) &&
+	    ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_INIT))
+		rdma_counter_bind_qp_auto(qp, attr->port_num);
+
 	ret = ib_security_modify_qp(qp, attr, attr_mask, udata);
 	if (ret)
 		goto out;
@@ -1885,6 +1893,7 @@ int ib_destroy_qp_user(struct ib_qp *qp, struct ib_udata *udata)
 	if (!qp->uobject)
 		rdma_rw_cleanup_mrs(qp);
 
+	rdma_counter_unbind_qp(qp, true);
 	rdma_restrack_del(&qp->res);
 	ret = qp->device->ops.destroy_qp(qp, udata);
 	if (!ret) {
