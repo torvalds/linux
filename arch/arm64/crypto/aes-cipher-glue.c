@@ -10,10 +10,7 @@
 #include <linux/module.h>
 
 asmlinkage void __aes_arm64_encrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
-EXPORT_SYMBOL(__aes_arm64_encrypt);
-
 asmlinkage void __aes_arm64_decrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
-EXPORT_SYMBOL(__aes_arm64_decrypt);
 
 static void aes_arm64_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
