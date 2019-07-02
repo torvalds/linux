@@ -1150,7 +1150,22 @@ analogix_dp_best_encoder(struct drm_connector *connector)
 	return dp->encoder;
 }
 
+static int analogix_dp_loader_protect(struct drm_connector *connector, bool on)
+{
+	struct analogix_dp_device *dp = to_dp(connector);
+
+	if (dp->plat_data->panel)
+		drm_panel_loader_protect(dp->plat_data->panel, on);
+	if (on)
+		pm_runtime_get_sync(dp->dev);
+	else
+		pm_runtime_put(dp->dev);
+
+	return 0;
+}
+
 static const struct drm_connector_helper_funcs analogix_dp_connector_helper_funcs = {
+	.loader_protect = analogix_dp_loader_protect,
 	.get_modes = analogix_dp_get_modes,
 	.best_encoder = analogix_dp_best_encoder,
 };
@@ -1205,6 +1220,7 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge)
 	if (!dp->plat_data->skip_connector) {
 		connector = &dp->connector;
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
+		connector->port = dp->dev->of_node;
 
 		ret = drm_connector_init(dp->drm_dev, connector,
 					 &analogix_dp_connector_funcs,
