@@ -310,8 +310,8 @@ static void test_uc(struct rs_control *rs, int len, int errs,
 	stat->nwords += trials;
 }
 
-int ex_rs_helper(struct rs_control *rs, struct wspace *ws,
-		int len, int trials, int method)
+static int ex_rs_helper(struct rs_control *rs, struct wspace *ws,
+			int len, int trials, int method)
 {
 	static const char * const desc[] = {
 		"Testing correction buffer interface...",
@@ -346,8 +346,8 @@ int ex_rs_helper(struct rs_control *rs, struct wspace *ws,
 	return retval;
 }
 
-int exercise_rs(struct rs_control *rs, struct wspace *ws,
-		int len, int trials)
+static int exercise_rs(struct rs_control *rs, struct wspace *ws,
+		       int len, int trials)
 {
 
 	int retval = 0;
@@ -404,8 +404,8 @@ static void test_bc(struct rs_control *rs, int len, int errs,
 	stat->nwords += trials;
 }
 
-int exercise_rs_bc(struct rs_control *rs, struct wspace *ws,
-		int len, int trials)
+static int exercise_rs_bc(struct rs_control *rs, struct wspace *ws,
+			  int len, int trials)
 {
 	struct bcstat stat = {0, 0, 0, 0};
 	int nroots = rs->codec->nroots;
