@@ -1256,31 +1256,32 @@ END(paranoid_entry)
 ENTRY(paranoid_exit)
 	UNWIND_HINT_REGS
 	DISABLE_INTERRUPTS(CLBR_ANY)
-	TRACE_IRQS_OFF_DEBUG
 
-	/* Handle GS depending on FSGSBASE availability */
-	ALTERNATIVE "jmp .Lparanoid_exit_checkgs", "nop",X86_FEATURE_FSGSBASE
+	/*
+	 * The order of operations is important.  IRQ tracing requires
+	 * kernel GSBASE and CR3.  RESTORE_CR3 requires kernel GS base.
+	 *
+	 * NB to anyone to tries to optimize this code: this code does
+	 * not execute at all for exceptions coming from user mode.  Those
+	 * exceptions go through error_exit instead.
+	 */
+	TRACE_IRQS_IRETQ_DEBUG
+	RESTORE_CR3	scratch_reg=%rax save_reg=%r14
+
+	/* Handle the three GSBASE cases. */
+	ALTERNATIVE "jmp .Lparanoid_exit_checkgs", "", X86_FEATURE_FSGSBASE
 
 	/* With FSGSBASE enabled, unconditionally restore GSBASE */
 	wrgsbase	%rbx
-	jmp	.Lparanoid_exit_no_swapgs;
+	jmp	restore_regs_and_return_to_kernel
 
 .Lparanoid_exit_checkgs:
 	/* On non-FSGSBASE systems, conditionally do SWAPGS */
 	testl	%ebx, %ebx
-	jnz	.Lparanoid_exit_no_swapgs
-	TRACE_IRQS_IRETQ
-	/* Always restore stashed CR3 value (see paranoid_entry) */
-	RESTORE_CR3	scratch_reg=%rbx save_reg=%r14
+	jnz	restore_regs_and_return_to_kernel
+
+	/* We are returning to a context with user GSBASE. */
 	SWAPGS_UNSAFE_STACK
-	jmp	.Lparanoid_exit_restore
-
-.Lparanoid_exit_no_swapgs:
-	TRACE_IRQS_IRETQ_DEBUG
-	/* Always restore stashed CR3 value (see paranoid_entry) */
-	RESTORE_CR3	scratch_reg=%rbx save_reg=%r14
-
-.Lparanoid_exit_restore:
 	jmp	restore_regs_and_return_to_kernel
 END(paranoid_exit)
 
