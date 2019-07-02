@@ -181,8 +181,8 @@
 #define ARM_SMMU_MEMATTR_DEVICE_nGnRE	0x1
 #define ARM_SMMU_MEMATTR_OIWB		0xf
 
-#define Q_IDX(q, p)			((p) & ((1 << (q)->max_n_shift) - 1))
-#define Q_WRP(q, p)			((p) & (1 << (q)->max_n_shift))
+#define Q_IDX(q, p)			((p) & ((1 << (q)->llq.max_n_shift) - 1))
+#define Q_WRP(q, p)			((p) & (1 << (q)->llq.max_n_shift))
 #define Q_OVERFLOW_FLAG			(1 << 31)
 #define Q_OVF(p)			((p) & Q_OVERFLOW_FLAG)
 #define Q_ENT(q, p)			((q)->base +			\
@@ -478,7 +478,14 @@ struct arm_smmu_cmdq_ent {
 	};
 };
 
+struct arm_smmu_ll_queue {
+	u32				prod;
+	u32				cons;
+	u32				max_n_shift;
+};
+
 struct arm_smmu_queue {
+	struct arm_smmu_ll_queue	llq;
 	int				irq; /* Wired interrupt */
 
 	__le64				*base;
@@ -486,9 +493,6 @@ struct arm_smmu_queue {
 	u64				q_base;
 
 	size_t				ent_dwords;
-	u32				max_n_shift;
-	u32				prod;
-	u32				cons;
 
 	u32 __iomem			*prod_reg;
 	u32 __iomem			*cons_reg;
@@ -687,19 +691,19 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 /* Low-level queue manipulation functions */
 static bool queue_full(struct arm_smmu_queue *q)
 {
-	return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
-	       Q_WRP(q, q->prod) != Q_WRP(q, q->cons);
+	return Q_IDX(q, q->llq.prod) == Q_IDX(q, q->llq.cons) &&
+	       Q_WRP(q, q->llq.prod) != Q_WRP(q, q->llq.cons);
 }
 
 static bool queue_empty(struct arm_smmu_queue *q)
 {
-	return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
-	       Q_WRP(q, q->prod) == Q_WRP(q, q->cons);
+	return Q_IDX(q, q->llq.prod) == Q_IDX(q, q->llq.cons) &&
+	       Q_WRP(q, q->llq.prod) == Q_WRP(q, q->llq.cons);
 }
 
 static void queue_sync_cons_in(struct arm_smmu_queue *q)
 {
-	q->cons = readl_relaxed(q->cons_reg);
+	q->llq.cons = readl_relaxed(q->cons_reg);
 }
 
 static void queue_sync_cons_out(struct arm_smmu_queue *q)
@@ -709,13 +713,13 @@ static void queue_sync_cons_out(struct arm_smmu_queue *q)
 	 * are complete before we update the cons pointer.
 	 */
 	mb();
-	writel_relaxed(q->cons, q->cons_reg);
+	writel_relaxed(q->llq.cons, q->cons_reg);
 }
 
 static void queue_inc_cons(struct arm_smmu_queue *q)
 {
-	u32 cons = (Q_WRP(q, q->cons) | Q_IDX(q, q->cons)) + 1;
-	q->cons = Q_OVF(q->cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
+	u32 cons = (Q_WRP(q, q->llq.cons) | Q_IDX(q, q->llq.cons)) + 1;
+	q->llq.cons = Q_OVF(q->llq.cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
 }
 
 static int queue_sync_prod_in(struct arm_smmu_queue *q)
@@ -723,22 +727,22 @@ static int queue_sync_prod_in(struct arm_smmu_queue *q)
 	int ret = 0;
 	u32 prod = readl_relaxed(q->prod_reg);
 
-	if (Q_OVF(prod) != Q_OVF(q->prod))
+	if (Q_OVF(prod) != Q_OVF(q->llq.prod))
 		ret = -EOVERFLOW;
 
-	q->prod = prod;
+	q->llq.prod = prod;
 	return ret;
 }
 
 static void queue_sync_prod_out(struct arm_smmu_queue *q)
 {
-	writel(q->prod, q->prod_reg);
+	writel(q->llq.prod, q->prod_reg);
 }
 
 static void queue_inc_prod(struct arm_smmu_queue *q)
 {
-	u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + 1;
-	q->prod = Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+	u32 prod = (Q_WRP(q, q->llq.prod) | Q_IDX(q, q->llq.prod)) + 1;
+	q->llq.prod = Q_OVF(q->llq.prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
 }
 
 /*
@@ -787,7 +791,7 @@ static int queue_insert_raw(struct arm_smmu_queue *q, u64 *ent)
 	if (queue_full(q))
 		return -ENOSPC;
 
-	queue_write(Q_ENT(q, q->prod), ent, q->ent_dwords);
+	queue_write(Q_ENT(q, q->llq.prod), ent, q->ent_dwords);
 	queue_inc_prod(q);
 	queue_sync_prod_out(q);
 	return 0;
@@ -806,7 +810,7 @@ static int queue_remove_raw(struct arm_smmu_queue *q, u64 *ent)
 	if (queue_empty(q))
 		return -EAGAIN;
 
-	queue_read(ent, Q_ENT(q, q->cons), q->ent_dwords);
+	queue_read(ent, Q_ENT(q, q->llq.cons), q->ent_dwords);
 	queue_inc_cons(q);
 	queue_sync_cons_out(q);
 	return 0;
@@ -1334,7 +1338,8 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 	} while (!queue_empty(q));
 
 	/* Sync our overflow flag, as we believe we're up to speed */
-	q->cons = Q_OVF(q->prod) | Q_WRP(q, q->cons) | Q_IDX(q, q->cons);
+	q->llq.cons = Q_OVF(q->llq.prod) | Q_WRP(q, q->llq.cons) |
+		      Q_IDX(q, q->llq.cons);
 	return IRQ_HANDLED;
 }
 
@@ -1391,8 +1396,9 @@ static irqreturn_t arm_smmu_priq_thread(int irq, void *dev)
 	} while (!queue_empty(q));
 
 	/* Sync our overflow flag, as we believe we're up to speed */
-	q->cons = Q_OVF(q->prod) | Q_WRP(q, q->cons) | Q_IDX(q, q->cons);
-	writel(q->cons, q->cons_reg);
+	q->llq.cons = Q_OVF(q->llq.prod) | Q_WRP(q, q->llq.cons) |
+		      Q_IDX(q, q->llq.cons);
+	writel(q->llq.cons, q->cons_reg);
 	return IRQ_HANDLED;
 }
 
@@ -2316,13 +2322,13 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	size_t qsz;
 
 	do {
-		qsz = ((1 << q->max_n_shift) * dwords) << 3;
+		qsz = ((1 << q->llq.max_n_shift) * dwords) << 3;
 		q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma,
 					      GFP_KERNEL);
 		if (q->base || qsz < PAGE_SIZE)
 			break;
 
-		q->max_n_shift--;
+		q->llq.max_n_shift--;
 	} while (1);
 
 	if (!q->base) {
@@ -2334,7 +2340,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 
 	if (!WARN_ON(q->base_dma & (qsz - 1))) {
 		dev_info(smmu->dev, "allocated %u entries for %s\n",
-			 1 << q->max_n_shift, name);
+			 1 << q->llq.max_n_shift, name);
 	}
 
 	q->prod_reg	= arm_smmu_page1_fixup(prod_off, smmu);
@@ -2343,9 +2349,9 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 
 	q->q_base  = Q_BASE_RWA;
 	q->q_base |= q->base_dma & Q_BASE_ADDR_MASK;
-	q->q_base |= FIELD_PREP(Q_BASE_LOG2SIZE, q->max_n_shift);
+	q->q_base |= FIELD_PREP(Q_BASE_LOG2SIZE, q->llq.max_n_shift);
 
-	q->prod = q->cons = 0;
+	q->llq.prod = q->llq.cons = 0;
 	return 0;
 }
 
@@ -2738,8 +2744,8 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 
 	/* Command queue */
 	writeq_relaxed(smmu->cmdq.q.q_base, smmu->base + ARM_SMMU_CMDQ_BASE);
-	writel_relaxed(smmu->cmdq.q.prod, smmu->base + ARM_SMMU_CMDQ_PROD);
-	writel_relaxed(smmu->cmdq.q.cons, smmu->base + ARM_SMMU_CMDQ_CONS);
+	writel_relaxed(smmu->cmdq.q.llq.prod, smmu->base + ARM_SMMU_CMDQ_PROD);
+	writel_relaxed(smmu->cmdq.q.llq.cons, smmu->base + ARM_SMMU_CMDQ_CONS);
 
 	enables = CR0_CMDQEN;
 	ret = arm_smmu_write_reg_sync(smmu, enables, ARM_SMMU_CR0,
@@ -2766,9 +2772,9 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 
 	/* Event queue */
 	writeq_relaxed(smmu->evtq.q.q_base, smmu->base + ARM_SMMU_EVTQ_BASE);
-	writel_relaxed(smmu->evtq.q.prod,
+	writel_relaxed(smmu->evtq.q.llq.prod,
 		       arm_smmu_page1_fixup(ARM_SMMU_EVTQ_PROD, smmu));
-	writel_relaxed(smmu->evtq.q.cons,
+	writel_relaxed(smmu->evtq.q.llq.cons,
 		       arm_smmu_page1_fixup(ARM_SMMU_EVTQ_CONS, smmu));
 
 	enables |= CR0_EVTQEN;
@@ -2783,9 +2789,9 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 	if (smmu->features & ARM_SMMU_FEAT_PRI) {
 		writeq_relaxed(smmu->priq.q.q_base,
 			       smmu->base + ARM_SMMU_PRIQ_BASE);
-		writel_relaxed(smmu->priq.q.prod,
+		writel_relaxed(smmu->priq.q.llq.prod,
 			       arm_smmu_page1_fixup(ARM_SMMU_PRIQ_PROD, smmu));
-		writel_relaxed(smmu->priq.q.cons,
+		writel_relaxed(smmu->priq.q.llq.cons,
 			       arm_smmu_page1_fixup(ARM_SMMU_PRIQ_CONS, smmu));
 
 		enables |= CR0_PRIQEN;
@@ -2939,18 +2945,18 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	}
 
 	/* Queue sizes, capped to ensure natural alignment */
-	smmu->cmdq.q.max_n_shift = min_t(u32, CMDQ_MAX_SZ_SHIFT,
-					 FIELD_GET(IDR1_CMDQS, reg));
-	if (!smmu->cmdq.q.max_n_shift) {
+	smmu->cmdq.q.llq.max_n_shift = min_t(u32, CMDQ_MAX_SZ_SHIFT,
+					     FIELD_GET(IDR1_CMDQS, reg));
+	if (!smmu->cmdq.q.llq.max_n_shift) {
 		/* Odd alignment restrictions on the base, so ignore for now */
 		dev_err(smmu->dev, "unit-length command queue not supported\n");
 		return -ENXIO;
 	}
 
-	smmu->evtq.q.max_n_shift = min_t(u32, EVTQ_MAX_SZ_SHIFT,
-					 FIELD_GET(IDR1_EVTQS, reg));
-	smmu->priq.q.max_n_shift = min_t(u32, PRIQ_MAX_SZ_SHIFT,
-					 FIELD_GET(IDR1_PRIQS, reg));
+	smmu->evtq.q.llq.max_n_shift = min_t(u32, EVTQ_MAX_SZ_SHIFT,
+					     FIELD_GET(IDR1_EVTQS, reg));
+	smmu->priq.q.llq.max_n_shift = min_t(u32, PRIQ_MAX_SZ_SHIFT,
+					     FIELD_GET(IDR1_PRIQS, reg));
 
 	/* SID/SSID sizes */
 	smmu->ssid_bits = FIELD_GET(IDR1_SSIDSIZE, reg);
