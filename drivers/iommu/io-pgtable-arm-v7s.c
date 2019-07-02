@@ -493,9 +493,8 @@ static int arm_v7s_map(struct io_pgtable_ops *ops, unsigned long iova,
 	 * a chance for anything to kick off a table walk for the new iova.
 	 */
 	if (iop->cfg.quirks & IO_PGTABLE_QUIRK_TLBI_ON_MAP) {
-		io_pgtable_tlb_add_flush(iop, iova, size,
-					 ARM_V7S_BLOCK_SIZE(2), false);
-		io_pgtable_tlb_sync(iop);
+		io_pgtable_tlb_flush_walk(iop, iova, size,
+					  ARM_V7S_BLOCK_SIZE(2));
 	} else {
 		wmb();
 	}
@@ -541,8 +540,7 @@ static arm_v7s_iopte arm_v7s_split_cont(struct arm_v7s_io_pgtable *data,
 	__arm_v7s_pte_sync(ptep, ARM_V7S_CONT_PAGES, &iop->cfg);
 
 	size *= ARM_V7S_CONT_PAGES;
-	io_pgtable_tlb_add_flush(iop, iova, size, size, true);
-	io_pgtable_tlb_sync(iop);
+	io_pgtable_tlb_flush_leaf(iop, iova, size, size);
 	return pte;
 }
 
@@ -637,9 +635,8 @@ static size_t __arm_v7s_unmap(struct arm_v7s_io_pgtable *data,
 		for (i = 0; i < num_entries; i++) {
 			if (ARM_V7S_PTE_IS_TABLE(pte[i], lvl)) {
 				/* Also flush any partial walks */
-				io_pgtable_tlb_add_flush(iop, iova, blk_size,
-					ARM_V7S_BLOCK_SIZE(lvl + 1), false);
-				io_pgtable_tlb_sync(iop);
+				io_pgtable_tlb_flush_walk(iop, iova, blk_size,
+						ARM_V7S_BLOCK_SIZE(lvl + 1));
 				ptep = iopte_deref(pte[i], lvl);
 				__arm_v7s_free_table(ptep, lvl + 1, data);
 			} else if (iop->cfg.quirks & IO_PGTABLE_QUIRK_NON_STRICT) {
@@ -805,11 +802,17 @@ static void dummy_tlb_flush_all(void *cookie)
 	WARN_ON(cookie != cfg_cookie);
 }
 
-static void dummy_tlb_add_flush(unsigned long iova, size_t size,
-				size_t granule, bool leaf, void *cookie)
+static void dummy_tlb_flush(unsigned long iova, size_t size, size_t granule,
+			    void *cookie)
 {
 	WARN_ON(cookie != cfg_cookie);
 	WARN_ON(!(size & cfg_cookie->pgsize_bitmap));
+}
+
+static void dummy_tlb_add_flush(unsigned long iova, size_t size,
+				size_t granule, bool leaf, void *cookie)
+{
+	dummy_tlb_flush(iova, size, granule, cookie);
 }
 
 static void dummy_tlb_sync(void *cookie)
@@ -819,6 +822,8 @@ static void dummy_tlb_sync(void *cookie)
 
 static const struct iommu_flush_ops dummy_tlb_ops = {
 	.tlb_flush_all	= dummy_tlb_flush_all,
+	.tlb_flush_walk	= dummy_tlb_flush,
+	.tlb_flush_leaf	= dummy_tlb_flush,
 	.tlb_add_flush	= dummy_tlb_add_flush,
 	.tlb_sync	= dummy_tlb_sync,
 };
