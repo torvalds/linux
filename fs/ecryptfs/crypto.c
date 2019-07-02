@@ -875,13 +875,10 @@ static struct ecryptfs_flag_map_elem ecryptfs_flag_map[] = {
  * @crypt_stat: The cryptographic context
  * @page_virt: Source data to be parsed
  * @bytes_read: Updated with the number of bytes read
- *
- * Returns zero on success; non-zero if the flag set is invalid
  */
-static int ecryptfs_process_flags(struct ecryptfs_crypt_stat *crypt_stat,
+static void ecryptfs_process_flags(struct ecryptfs_crypt_stat *crypt_stat,
 				  char *page_virt, int *bytes_read)
 {
-	int rc = 0;
 	int i;
 	u32 flags;
 
@@ -894,7 +891,6 @@ static int ecryptfs_process_flags(struct ecryptfs_crypt_stat *crypt_stat,
 	/* Version is in top 8 bits of the 32-bit flag vector */
 	crypt_stat->file_version = ((flags >> 24) & 0xFF);
 	(*bytes_read) = 4;
-	return rc;
 }
 
 /**
@@ -1320,12 +1316,7 @@ static int ecryptfs_read_headers_virt(char *page_virt,
 	if (!(crypt_stat->flags & ECRYPTFS_I_SIZE_INITIALIZED))
 		ecryptfs_i_size_init(page_virt, d_inode(ecryptfs_dentry));
 	offset += MAGIC_ECRYPTFS_MARKER_SIZE_BYTES;
-	rc = ecryptfs_process_flags(crypt_stat, (page_virt + offset),
-				    &bytes_read);
-	if (rc) {
-		ecryptfs_printk(KERN_WARNING, "Error processing flags\n");
-		goto out;
-	}
+	ecryptfs_process_flags(crypt_stat, (page_virt + offset), &bytes_read);
 	if (crypt_stat->file_version > ECRYPTFS_SUPPORTED_FILE_VERSION) {
 		ecryptfs_printk(KERN_WARNING, "File version is [%d]; only "
 				"file version [%d] is supported by this "
