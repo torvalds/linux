@@ -41,11 +41,11 @@ struct safexcel_ahash_req {
 	u64 len[2];
 	u64 processed[2];
 
-	u8 cache[SHA512_BLOCK_SIZE << 1] __aligned(sizeof(u32));
+	u8 cache[SHA512_BLOCK_SIZE] __aligned(sizeof(u32));
 	dma_addr_t cache_dma;
 	unsigned int cache_sz;
 
-	u8 cache_next[SHA512_BLOCK_SIZE << 1] __aligned(sizeof(u32));
+	u8 cache_next[SHA512_BLOCK_SIZE] __aligned(sizeof(u32));
 };
 
 static inline u64 safexcel_queued_len(struct safexcel_ahash_req *req)
@@ -89,9 +89,6 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 	cdesc->control_data.control0 |= ctx->alg;
 	cdesc->control_data.control0 |= req->digest;
 
-	if (!req->finish)
-		cdesc->control_data.control0 |= CONTEXT_CONTROL_NO_FINISH_HASH;
-
 	if (req->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED) {
 		if (req->processed[0] || req->processed[1]) {
 			if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_MD5)
@@ -109,6 +106,9 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 		} else {
 			cdesc->control_data.control0 |= CONTEXT_CONTROL_RESTART_HASH;
 		}
+
+		if (!req->finish)
+			cdesc->control_data.control0 |= CONTEXT_CONTROL_NO_FINISH_HASH;
 
 		/*
 		 * Copy the input digest if needed, and setup the context
@@ -216,8 +216,6 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	u64 queued, len, cache_len, cache_max;
 
 	cache_max = crypto_ahash_blocksize(ahash);
-	if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC)
-		cache_max <<= 1;
 
 	queued = len = safexcel_queued_len(req);
 	if (queued <= cache_max)
@@ -229,17 +227,13 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		/* If this is not the last request and the queued data does not
 		 * fit into full blocks, cache it for the next send() call.
 		 */
-		extra = queued & (crypto_ahash_blocksize(ahash) - 1);
-
-		if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC &&
-		    extra < crypto_ahash_blocksize(ahash))
-			extra += crypto_ahash_blocksize(ahash);
+		extra = queued & (cache_max - 1);
 
 		/* If this is not the last request and the queued data
 		 * is a multiple of a block, cache the last one for now.
 		 */
 		if (!extra)
-			extra = crypto_ahash_blocksize(ahash);
+			extra = cache_max;
 
 		sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
 				   req->cache_next, extra,
@@ -247,6 +241,12 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 
 		queued -= extra;
 		len -= extra;
+
+		if (!queued) {
+			*commands = 0;
+			*results = 0;
+			return 0;
+		}
 	}
 
 	/* Add a command descriptor for the cached data, if any */
@@ -613,8 +613,6 @@ static int safexcel_ahash_update(struct ahash_request *areq)
 		req->len[1]++;
 
 	cache_max = crypto_ahash_blocksize(ahash);
-	if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC)
-		cache_max <<= 1;
 
 	safexcel_ahash_cache(areq, cache_max);
 
@@ -689,8 +687,6 @@ static int safexcel_ahash_export(struct ahash_request *areq, void *out)
 	u32 cache_sz;
 
 	cache_sz = crypto_ahash_blocksize(ahash);
-	if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC)
-		cache_sz <<= 1;
 
 	export->len[0] = req->len[0];
 	export->len[1] = req->len[1];
@@ -718,8 +714,6 @@ static int safexcel_ahash_import(struct ahash_request *areq, const void *in)
 		return ret;
 
 	cache_sz = crypto_ahash_blocksize(ahash);
-	if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC)
-		cache_sz <<= 1;
 
 	req->len[0] = export->len[0];
 	req->len[1] = export->len[1];
