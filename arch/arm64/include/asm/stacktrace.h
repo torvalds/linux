@@ -131,4 +131,14 @@ static inline bool on_accessible_stack(const struct task_struct *tsk,
 	return false;
 }
 
+static inline void start_backtrace(struct stackframe *frame,
+				   unsigned long fp, unsigned long pc)
+{
+	frame->fp = fp;
+	frame->pc = pc;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	frame->graph = 0;
+#endif
+}
+
 #endif	/* __ASM_STACKTRACE_H */

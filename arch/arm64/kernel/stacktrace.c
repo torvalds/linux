@@ -122,12 +122,7 @@ void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 	data.skip = trace->skip;
 	data.no_sched_functions = 0;
 
-	frame.fp = regs->regs[29];
-	frame.pc = regs->pc;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
-
+	start_backtrace(&frame, regs->regs[29], regs->pc);
 	walk_stackframe(current, &frame, save_trace, &data);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_regs);
@@ -146,17 +141,15 @@ static noinline void __save_stack_trace(struct task_struct *tsk,
 	data.no_sched_functions = nosched;
 
 	if (tsk != current) {
-		frame.fp = thread_saved_fp(tsk);
-		frame.pc = thread_saved_pc(tsk);
+		start_backtrace(&frame, thread_saved_fp(tsk),
+				thread_saved_pc(tsk));
 	} else {
 		/* We don't want this function nor the caller */
 		data.skip += 2;
-		frame.fp = (unsigned long)__builtin_frame_address(0);
-		frame.pc = (unsigned long)__save_stack_trace;
+		start_backtrace(&frame,
+				(unsigned long)__builtin_frame_address(0),
+				(unsigned long)__save_stack_trace);
 	}
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
 
 	walk_stackframe(tsk, &frame, save_trace, &data);
 

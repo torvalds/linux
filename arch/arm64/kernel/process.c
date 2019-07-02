@@ -498,11 +498,8 @@ unsigned long get_wchan(struct task_struct *p)
 	if (!stack_page)
 		return 0;
 
-	frame.fp = thread_saved_fp(p);
-	frame.pc = thread_saved_pc(p);
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
+	start_backtrace(&frame, thread_saved_fp(p), thread_saved_pc(p));
+
 	do {
 		if (unwind_frame(p, &frame))
 			goto out;
