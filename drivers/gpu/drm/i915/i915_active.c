@@ -287,7 +287,13 @@ int i915_active_wait(struct i915_active *ref)
 	}
 
 	__active_retire(ref);
-	return err;
+	if (err)
+		return err;
+
+	if (!i915_active_is_idle(ref))
+		return -EBUSY;
+
+	return 0;
 }
 
 int i915_request_await_active_request(struct i915_request *rq,
