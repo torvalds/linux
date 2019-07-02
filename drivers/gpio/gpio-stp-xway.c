@@ -259,18 +259,23 @@ static int xway_stp_probe(struct platform_device *pdev)
 	if (!of_find_property(pdev->dev.of_node, "lantiq,rising", NULL))
 		chip->edge = XWAY_STP_FALLING;
 
-	clk = clk_get(&pdev->dev, NULL);
+	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "Failed to get clock\n");
 		return PTR_ERR(clk);
 	}
-	clk_enable(clk);
+
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		return ret;
 
 	xway_stp_hw_init(chip);
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(clk);
 		return ret;
+	}
 
 	dev_info(&pdev->dev, "Init done\n");
 
