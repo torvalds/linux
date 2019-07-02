@@ -192,6 +192,23 @@ struct iommu_sva_ops {
 #ifdef CONFIG_IOMMU_API
 
 /**
+ * struct iommu_iotlb_gather - Range information for a pending IOTLB flush
+ *
+ * @start: IOVA representing the start of the range to be flushed
+ * @end: IOVA representing the end of the range to be flushed (exclusive)
+ * @pgsize: The interval at which to perform the flush
+ *
+ * This structure is intended to be updated by multiple calls to the
+ * ->unmap() function in struct iommu_ops before eventually being passed
+ * into ->iotlb_sync().
+ */
+struct iommu_iotlb_gather {
+	unsigned long		start;
+	unsigned long		end;
+	size_t			pgsize;
+};
+
+/**
  * struct iommu_ops - iommu ops and capabilities
  * @capable: check capability
  * @domain_alloc: allocate iommu domain
@@ -375,6 +392,13 @@ static inline struct iommu_device *dev_to_iommu_device(struct device *dev)
 	return (struct iommu_device *)dev_get_drvdata(dev);
 }
 
+static inline void iommu_iotlb_gather_init(struct iommu_iotlb_gather *gather)
+{
+	*gather = (struct iommu_iotlb_gather) {
+		.start	= ULONG_MAX,
+	};
+}
+
 #define IOMMU_GROUP_NOTIFY_ADD_DEVICE		1 /* Device added */
 #define IOMMU_GROUP_NOTIFY_DEL_DEVICE		2 /* Pre Device removed */
 #define IOMMU_GROUP_NOTIFY_BIND_DRIVER		3 /* Pre Driver bind */
@@ -399,7 +423,8 @@ extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
 extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 			  size_t size);
 extern size_t iommu_unmap_fast(struct iommu_domain *domain,
-			       unsigned long iova, size_t size);
+			       unsigned long iova, size_t size,
+			       struct iommu_iotlb_gather *iotlb_gather);
 extern size_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 			   struct scatterlist *sg,unsigned int nents, int prot);
 extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova);
@@ -473,10 +498,13 @@ static inline void iommu_flush_tlb_all(struct iommu_domain *domain)
 		domain->ops->flush_iotlb_all(domain);
 }
 
-static inline void iommu_tlb_sync(struct iommu_domain *domain)
+static inline void iommu_tlb_sync(struct iommu_domain *domain,
+				  struct iommu_iotlb_gather *iotlb_gather)
 {
 	if (domain->ops->iotlb_sync)
 		domain->ops->iotlb_sync(domain);
+
+	iommu_iotlb_gather_init(iotlb_gather);
 }
 
 /* PCI device grouping function */
@@ -557,6 +585,7 @@ struct iommu_group {};
 struct iommu_fwspec {};
 struct iommu_device {};
 struct iommu_fault_param {};
+struct iommu_iotlb_gather {};
 
 static inline bool iommu_present(struct bus_type *bus)
 {
@@ -611,7 +640,8 @@ static inline size_t iommu_unmap(struct iommu_domain *domain,
 }
 
 static inline size_t iommu_unmap_fast(struct iommu_domain *domain,
-				      unsigned long iova, int gfp_order)
+				      unsigned long iova, int gfp_order,
+				      struct iommu_iotlb_gather *iotlb_gather)
 {
 	return 0;
 }
@@ -627,7 +657,8 @@ static inline void iommu_flush_tlb_all(struct iommu_domain *domain)
 {
 }
 
-static inline void iommu_tlb_sync(struct iommu_domain *domain)
+static inline void iommu_tlb_sync(struct iommu_domain *domain,
+				  struct iommu_iotlb_gather *iotlb_gather)
 {
 }
 
@@ -810,6 +841,10 @@ static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
 static inline struct iommu_device *dev_to_iommu_device(struct device *dev)
 {
 	return NULL;
+}
+
+static inline void iommu_iotlb_gather_init(struct iommu_iotlb_gather *gather)
+{
 }
 
 static inline void iommu_device_unregister(struct iommu_device *iommu)
