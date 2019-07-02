@@ -383,6 +383,7 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
 		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
@@ -404,21 +405,6 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
 		if (adev->enable_mes)
 			amdgpu_device_ip_block_add(adev, &mes_v10_1_ip_block);
-		break;
-	case CHIP_NAVI14:
-		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
-		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
-		if (is_support_sw_smu(adev))
-			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
-		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
-			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
-		else if (amdgpu_device_has_dc_support(adev))
-			amdgpu_device_ip_block_add(adev, &dm_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v10_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &sdma_v5_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
 		break;
 	default:
 		return -EINVAL;
