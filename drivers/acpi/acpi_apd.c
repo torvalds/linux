@@ -57,7 +57,7 @@ struct apd_private_data {
 static int acpi_apd_setup(struct apd_private_data *pdata)
 {
 	const struct apd_device_desc *dev_desc = pdata->dev_desc;
-	struct clk *clk = ERR_PTR(-ENODEV);
+	struct clk *clk;
 
 	if (dev_desc->fixed_clk_rate) {
 		clk = clk_register_fixed_rate(&pdata->adev->dev,
