@@ -576,6 +576,19 @@ out:
 	return ret;
 }
 
+int rdma_counter_get_mode(struct ib_device *dev, u8 port,
+			  enum rdma_nl_counter_mode *mode,
+			  enum rdma_nl_counter_mask *mask)
+{
+	struct rdma_port_counter *port_counter;
+
+	port_counter = &dev->port_data[port].port_counter;
+	*mode = port_counter->mode.mode;
+	*mask = port_counter->mode.mask;
+
+	return 0;
+}
+
 void rdma_counter_init(struct ib_device *dev)
 {
 	struct rdma_port_counter *port_counter;

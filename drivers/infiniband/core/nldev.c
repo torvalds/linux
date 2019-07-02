@@ -1799,6 +1799,70 @@ err:
 	return ret;
 }
 
+static int stat_get_doit_qp(struct sk_buff *skb, struct nlmsghdr *nlh,
+			    struct netlink_ext_ack *extack, struct nlattr *tb[])
+
+{
+	static enum rdma_nl_counter_mode mode;
+	static enum rdma_nl_counter_mask mask;
+	struct ib_device *device;
+	struct sk_buff *msg;
+	u32 index, port;
+	int ret;
+
+	if (tb[RDMA_NLDEV_ATTR_STAT_COUNTER_ID])
+		return nldev_res_get_counter_doit(skb, nlh, extack);
+
+	if (!tb[RDMA_NLDEV_ATTR_STAT_MODE] ||
+	    !tb[RDMA_NLDEV_ATTR_DEV_INDEX] || !tb[RDMA_NLDEV_ATTR_PORT_INDEX])
+		return -EINVAL;
+
+	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+	device = ib_device_get_by_index(sock_net(skb->sk), index);
+	if (!device)
+		return -EINVAL;
+
+	port = nla_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
+	if (!rdma_is_port_valid(device, port)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
+			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV,
+					 RDMA_NLDEV_CMD_STAT_GET),
+			0, 0);
+
+	ret = rdma_counter_get_mode(device, port, &mode, &mask);
+	if (ret)
+		goto err_msg;
+
+	if (fill_nldev_handle(msg, device) ||
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, port) ||
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_MODE, mode))
+		goto err_msg;
+
+	if ((mode == RDMA_COUNTER_MODE_AUTO) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK, mask))
+		goto err_msg;
+
+	nlmsg_end(msg, nlh);
+	ib_device_put(device);
+	return rdma_nl_unicast(msg, NETLINK_CB(skb).portid);
+
+err_msg:
+	nlmsg_free(msg);
+err:
+	ib_device_put(device);
+	return ret;
+}
+
 static int nldev_stat_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 			       struct netlink_ext_ack *extack)
 {
@@ -1812,7 +1876,7 @@ static int nldev_stat_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	switch (nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_RES])) {
 	case RDMA_NLDEV_ATTR_RES_QP:
-		ret = nldev_res_get_counter_doit(skb, nlh, extack);
+		ret = stat_get_doit_qp(skb, nlh, extack, tb);
 		break;
 
 	default:
