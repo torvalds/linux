@@ -601,6 +601,13 @@ static int ll_setup(struct hci_uart *hu)
 
 	serdev_device_set_flow_control(serdev, true);
 
+	if (hu->oper_speed)
+		speed = hu->oper_speed;
+	else if (hu->proto->oper_speed)
+		speed = hu->proto->oper_speed;
+	else
+		speed = 0;
+
 	do {
 		/* Reset the Bluetooth device */
 		gpiod_set_value_cansleep(lldev->enable_gpio, 0);
@@ -610,6 +617,20 @@ static int ll_setup(struct hci_uart *hu)
 		if (err) {
 			bt_dev_err(hu->hdev, "Failed to get CTS");
 			return err;
+		}
+
+		if (speed) {
+			__le32 speed_le = cpu_to_le32(speed);
+			struct sk_buff *skb;
+
+			skb = __hci_cmd_sync(hu->hdev,
+					     HCI_VS_UPDATE_UART_HCI_BAUDRATE,
+					     sizeof(speed_le), &speed_le,
+					     HCI_INIT_TIMEOUT);
+			if (!IS_ERR(skb)) {
+				kfree_skb(skb);
+				serdev_device_set_baudrate(serdev, speed);
+			}
 		}
 
 		err = download_firmware(lldev);
@@ -636,25 +657,7 @@ static int ll_setup(struct hci_uart *hu)
 	}
 
 	/* Operational speed if any */
-	if (hu->oper_speed)
-		speed = hu->oper_speed;
-	else if (hu->proto->oper_speed)
-		speed = hu->proto->oper_speed;
-	else
-		speed = 0;
 
-	if (speed) {
-		__le32 speed_le = cpu_to_le32(speed);
-		struct sk_buff *skb;
-
-		skb = __hci_cmd_sync(hu->hdev, HCI_VS_UPDATE_UART_HCI_BAUDRATE,
-				     sizeof(speed_le), &speed_le,
-				     HCI_INIT_TIMEOUT);
-		if (!IS_ERR(skb)) {
-			kfree_skb(skb);
-			serdev_device_set_baudrate(serdev, speed);
-		}
-	}
 
 	return 0;
 }
