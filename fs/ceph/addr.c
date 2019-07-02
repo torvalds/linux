@@ -573,7 +573,7 @@ static u64 get_writepages_data_length(struct inode *inode,
 /*
  * Write a single page, but leave the page locked.
  *
- * If we get a write error, set the page error bit, but still adjust the
+ * If we get a write error, mark the mapping for error, but still adjust the
  * dirty page accounting (i.e., page is no longer dirty).
  */
 static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
@@ -648,7 +648,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 			fsc->blacklisted = true;
 		dout("writepage setting page/mapping error %d %p\n",
 		     err, page);
-		SetPageError(page);
 		mapping_set_error(&inode->i_data, err);
 		wbc->pages_skipped++;
 	} else {
