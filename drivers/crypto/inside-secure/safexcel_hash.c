@@ -641,8 +641,12 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 	req->last_req = true;
 	req->finish = true;
 
-	/* If we have an overall 0 length request */
-	if (!req->len[0] && !req->len[1] && !areq->nbytes) {
+	if (unlikely(!req->len[0] && !req->len[1] && !areq->nbytes)) {
+		/*
+		 * If we have an overall 0 length *hash* request:
+		 * The HW cannot do 0 length hash, so we provide the correct
+		 * result directly here.
+		 */
 		if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_MD5)
 			memcpy(areq->result, md5_zero_message_hash,
 			       MD5_DIGEST_SIZE);
@@ -750,12 +754,6 @@ static int safexcel_sha1_init(struct ahash_request *areq)
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 
 	memset(req, 0, sizeof(*req));
-
-	req->state[0] = SHA1_H0;
-	req->state[1] = SHA1_H1;
-	req->state[2] = SHA1_H2;
-	req->state[3] = SHA1_H3;
-	req->state[4] = SHA1_H4;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA1;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
@@ -1065,15 +1063,6 @@ static int safexcel_sha256_init(struct ahash_request *areq)
 
 	memset(req, 0, sizeof(*req));
 
-	req->state[0] = SHA256_H0;
-	req->state[1] = SHA256_H1;
-	req->state[2] = SHA256_H2;
-	req->state[3] = SHA256_H3;
-	req->state[4] = SHA256_H4;
-	req->state[5] = SHA256_H5;
-	req->state[6] = SHA256_H6;
-	req->state[7] = SHA256_H7;
-
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA256;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
 	req->state_sz = SHA256_DIGEST_SIZE;
@@ -1127,15 +1116,6 @@ static int safexcel_sha224_init(struct ahash_request *areq)
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 
 	memset(req, 0, sizeof(*req));
-
-	req->state[0] = SHA224_H0;
-	req->state[1] = SHA224_H1;
-	req->state[2] = SHA224_H2;
-	req->state[3] = SHA224_H3;
-	req->state[4] = SHA224_H4;
-	req->state[5] = SHA224_H5;
-	req->state[6] = SHA224_H6;
-	req->state[7] = SHA224_H7;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA224;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
@@ -1305,23 +1285,6 @@ static int safexcel_sha512_init(struct ahash_request *areq)
 
 	memset(req, 0, sizeof(*req));
 
-	req->state[0] = lower_32_bits(SHA512_H0);
-	req->state[1] = upper_32_bits(SHA512_H0);
-	req->state[2] = lower_32_bits(SHA512_H1);
-	req->state[3] = upper_32_bits(SHA512_H1);
-	req->state[4] = lower_32_bits(SHA512_H2);
-	req->state[5] = upper_32_bits(SHA512_H2);
-	req->state[6] = lower_32_bits(SHA512_H3);
-	req->state[7] = upper_32_bits(SHA512_H3);
-	req->state[8] = lower_32_bits(SHA512_H4);
-	req->state[9] = upper_32_bits(SHA512_H4);
-	req->state[10] = lower_32_bits(SHA512_H5);
-	req->state[11] = upper_32_bits(SHA512_H5);
-	req->state[12] = lower_32_bits(SHA512_H6);
-	req->state[13] = upper_32_bits(SHA512_H6);
-	req->state[14] = lower_32_bits(SHA512_H7);
-	req->state[15] = upper_32_bits(SHA512_H7);
-
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA512;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
 	req->state_sz = SHA512_DIGEST_SIZE;
@@ -1375,23 +1338,6 @@ static int safexcel_sha384_init(struct ahash_request *areq)
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 
 	memset(req, 0, sizeof(*req));
-
-	req->state[0] = lower_32_bits(SHA384_H0);
-	req->state[1] = upper_32_bits(SHA384_H0);
-	req->state[2] = lower_32_bits(SHA384_H1);
-	req->state[3] = upper_32_bits(SHA384_H1);
-	req->state[4] = lower_32_bits(SHA384_H2);
-	req->state[5] = upper_32_bits(SHA384_H2);
-	req->state[6] = lower_32_bits(SHA384_H3);
-	req->state[7] = upper_32_bits(SHA384_H3);
-	req->state[8] = lower_32_bits(SHA384_H4);
-	req->state[9] = upper_32_bits(SHA384_H4);
-	req->state[10] = lower_32_bits(SHA384_H5);
-	req->state[11] = upper_32_bits(SHA384_H5);
-	req->state[12] = lower_32_bits(SHA384_H6);
-	req->state[13] = upper_32_bits(SHA384_H6);
-	req->state[14] = lower_32_bits(SHA384_H7);
-	req->state[15] = upper_32_bits(SHA384_H7);
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA384;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
@@ -1560,11 +1506,6 @@ static int safexcel_md5_init(struct ahash_request *areq)
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 
 	memset(req, 0, sizeof(*req));
-
-	req->state[0] = MD5_H0;
-	req->state[1] = MD5_H1;
-	req->state[2] = MD5_H2;
-	req->state[3] = MD5_H3;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_MD5;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
