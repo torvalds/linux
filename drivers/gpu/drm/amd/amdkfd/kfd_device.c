@@ -487,7 +487,6 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	struct pci_dev *pdev, const struct kfd2kgd_calls *f2g)
 {
 	struct kfd_dev *kfd;
-	int ret;
 	const struct kfd_device_info *device_info =
 					lookup_device_info(pdev->device);
 
