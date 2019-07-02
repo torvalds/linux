@@ -157,7 +157,6 @@ armv8pmu_events_sysfs_show(struct device *dev,
 	return sprintf(page, "event=0x%03llx\n", pmu_attr->id);
 }
 
-#define ARMV8_EVENT_ATTR_RESOLVE(m) #m
 #define ARMV8_EVENT_ATTR(name, config) \
 	PMU_EVENT_ATTR(name, armv8_event_attr_##name, \
 		       config, armv8pmu_events_sysfs_show)
