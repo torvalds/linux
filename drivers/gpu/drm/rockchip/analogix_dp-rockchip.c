@@ -378,6 +378,8 @@ static int rockchip_dp_drm_create_encoder(struct rockchip_dp_device *dp)
 	struct device *dev = dp->dev;
 	int ret;
 
+	encoder->port = dev->of_node;
+
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
 	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
