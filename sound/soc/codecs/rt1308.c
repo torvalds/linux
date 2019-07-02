@@ -884,7 +884,6 @@ static void rt1308_i2c_shutdown(struct i2c_client *client)
 static struct i2c_driver rt1308_i2c_driver = {
 	.driver = {
 		.name = "rt1308",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rt1308_of_match),
 		.acpi_match_table = ACPI_PTR(rt1308_acpi_match),
 	},
