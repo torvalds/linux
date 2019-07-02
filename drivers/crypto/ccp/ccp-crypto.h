@@ -87,9 +87,6 @@ struct ccp_aes_ctx {
 	/* Fallback cipher for XTS with unsupported unit sizes */
 	struct crypto_sync_skcipher *tfm_skcipher;
 
-	/* Cipher used to generate CMAC K1/K2 keys */
-	struct crypto_cipher *tfm_cipher;
-
 	enum ccp_engine engine;
 	enum ccp_aes_type type;
 	enum ccp_aes_mode mode;

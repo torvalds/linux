@@ -30,6 +30,7 @@ config CRYPTO_DEV_CCP_CRYPTO
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_AUTHENC
 	select CRYPTO_RSA
+	select CRYPTO_LIB_AES
 	help
 	  Support for using the cryptographic API with the AMD Cryptographic
 	  Coprocessor. This module supports offload of SHA and AES algorithms.
