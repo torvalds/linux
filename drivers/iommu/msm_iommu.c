@@ -178,8 +178,24 @@ static void __flush_iotlb_sync(void *cookie)
 	 */
 }
 
+static void __flush_iotlb_walk(unsigned long iova, size_t size,
+			       size_t granule, void *cookie)
+{
+	__flush_iotlb_range(iova, size, granule, false, cookie);
+	__flush_iotlb_sync(cookie);
+}
+
+static void __flush_iotlb_leaf(unsigned long iova, size_t size,
+			       size_t granule, void *cookie)
+{
+	__flush_iotlb_range(iova, size, granule, true, cookie);
+	__flush_iotlb_sync(cookie);
+}
+
 static const struct iommu_flush_ops msm_iommu_flush_ops = {
 	.tlb_flush_all = __flush_iotlb,
+	.tlb_flush_walk = __flush_iotlb_walk,
+	.tlb_flush_leaf = __flush_iotlb_leaf,
 	.tlb_add_flush = __flush_iotlb_range,
 	.tlb_sync = __flush_iotlb_sync,
 };

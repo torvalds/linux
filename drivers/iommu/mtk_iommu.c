@@ -188,8 +188,24 @@ static void mtk_iommu_tlb_sync(void *cookie)
 	}
 }
 
+static void mtk_iommu_tlb_flush_walk(unsigned long iova, size_t size,
+				     size_t granule, void *cookie)
+{
+	mtk_iommu_tlb_add_flush_nosync(iova, size, granule, false, cookie);
+	mtk_iommu_tlb_sync(cookie);
+}
+
+static void mtk_iommu_tlb_flush_leaf(unsigned long iova, size_t size,
+				     size_t granule, void *cookie)
+{
+	mtk_iommu_tlb_add_flush_nosync(iova, size, granule, true, cookie);
+	mtk_iommu_tlb_sync(cookie);
+}
+
 static const struct iommu_flush_ops mtk_iommu_flush_ops = {
 	.tlb_flush_all = mtk_iommu_tlb_flush_all,
+	.tlb_flush_walk = mtk_iommu_tlb_flush_walk,
+	.tlb_flush_leaf = mtk_iommu_tlb_flush_leaf,
 	.tlb_add_flush = mtk_iommu_tlb_add_flush_nosync,
 	.tlb_sync = mtk_iommu_tlb_sync,
 };
