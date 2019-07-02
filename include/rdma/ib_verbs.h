@@ -62,6 +62,7 @@
 #include <linux/irqflags.h>
 #include <linux/preempt.h>
 #include <uapi/rdma/ib_user_verbs.h>
+#include <rdma/rdma_counter.h>
 #include <rdma/restrack.h>
 #include <rdma/signature.h>
 #include <uapi/rdma/rdma_user_ioctl.h>
@@ -2119,6 +2120,7 @@ struct ib_port_data {
 	spinlock_t netdev_lock;
 	struct net_device __rcu *netdev;
 	struct hlist_node ndev_hash_link;
+	struct rdma_port_counter port_counter;
 };
 
 /* rdma netdev type - specifies protocol type */

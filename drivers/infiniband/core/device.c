@@ -46,6 +46,7 @@
 #include <rdma/rdma_netlink.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
+#include <rdma/rdma_counter.h>
 
 #include "core_priv.h"
 #include "restrack.h"
@@ -492,10 +493,12 @@ static void ib_device_release(struct device *device)
 	if (dev->port_data) {
 		ib_cache_release_one(dev);
 		ib_security_release_port_pkey_list(dev);
+		rdma_counter_release(dev);
 		kfree_rcu(container_of(dev->port_data, struct ib_port_data_rcu,
 				       pdata[0]),
 			  rcu_head);
 	}
+
 	xa_destroy(&dev->compat_devs);
 	xa_destroy(&dev->client_data);
 	kfree_rcu(dev, rcu_head);
@@ -1315,6 +1318,8 @@ int ib_register_device(struct ib_device *device, const char *name)
 	}
 
 	ib_device_register_rdmacg(device);
+
+	rdma_counter_init(device);
 
 	/*
 	 * Ensure that ADD uevent is not fired because it
