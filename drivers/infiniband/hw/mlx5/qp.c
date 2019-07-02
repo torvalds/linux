@@ -34,6 +34,7 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/rdma_counter.h>
 #include <linux/mlx5/fs.h>
 #include "mlx5_ib.h"
 #include "ib_rep.h"
@@ -3380,6 +3381,35 @@ static unsigned int get_tx_affinity(struct mlx5_ib_dev *dev,
 	return tx_port_affinity;
 }
 
+static int __mlx5_ib_qp_set_counter(struct ib_qp *qp,
+				    struct rdma_counter *counter)
+{
+	struct mlx5_ib_dev *dev = to_mdev(qp->device);
+	struct mlx5_ib_qp *mqp = to_mqp(qp);
+	struct mlx5_qp_context context = {};
+	struct mlx5_ib_port *mibport = NULL;
+	struct mlx5_ib_qp_base *base;
+	u32 set_id;
+
+	if (!MLX5_CAP_GEN(dev->mdev, rts2rts_qp_counters_set_id))
+		return 0;
+
+	if (counter) {
+		set_id = counter->id;
+	} else {
+		mibport = &dev->port[mqp->port - 1];
+		set_id = mibport->cnts.set_id;
+	}
+
+	base = &mqp->trans_qp.base;
+	context.qp_counter_set_usr_page &= cpu_to_be32(0xffffff);
+	context.qp_counter_set_usr_page |= cpu_to_be32(set_id << 24);
+	return mlx5_core_qp_modify(dev->mdev,
+				   MLX5_CMD_OP_RTS2RTS_QP,
+				   MLX5_QP_OPTPAR_COUNTER_SET_ID,
+				   &context, &base->mqp);
+}
+
 static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       const struct ib_qp_attr *attr, int attr_mask,
 			       enum ib_qp_state cur_state,
@@ -3433,6 +3463,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	struct mlx5_ib_port *mibport = NULL;
 	enum mlx5_qp_state mlx5_cur, mlx5_new;
 	enum mlx5_qp_optpar optpar;
+	u32 set_id = 0;
 	int mlx5_st;
 	int err;
 	u16 op;
@@ -3595,8 +3626,12 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			port_num = 0;
 
 		mibport = &dev->port[port_num];
+		if (ibqp->counter)
+			set_id = ibqp->counter->id;
+		else
+			set_id = mibport->cnts.set_id;
 		context->qp_counter_set_usr_page |=
-			cpu_to_be32((u32)(mibport->cnts.set_id) << 24);
+			cpu_to_be32(set_id << 24);
 	}
 
 	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
@@ -3624,7 +3659,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 		raw_qp_param.operation = op;
 		if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
-			raw_qp_param.rq_q_ctr_id = mibport->cnts.set_id;
+			raw_qp_param.rq_q_ctr_id = set_id;
 			raw_qp_param.set_mask |= MLX5_RAW_QP_MOD_SET_RQ_Q_CTR_ID;
 		}
 
@@ -3699,6 +3734,12 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			qp->sq.cur_edge = get_sq_edge(&qp->sq, 0);
 		qp->db.db[MLX5_RCV_DBR] = 0;
 		qp->db.db[MLX5_SND_DBR] = 0;
+	}
+
+	if ((new_state == IB_QPS_RTS) && qp->counter_pending) {
+		err = __mlx5_ib_qp_set_counter(ibqp, ibqp->counter);
+		if (!err)
+			qp->counter_pending = 0;
 	}
 
 out:
@@ -6434,4 +6475,35 @@ void mlx5_ib_drain_rq(struct ib_qp *qp)
 	}
 
 	handle_drain_completion(cq, &rdrain, dev);
+}
+
+/**
+ * Bind a qp to a counter. If @counter is NULL then bind the qp to
+ * the default counter
+ */
+int mlx5_ib_qp_set_counter(struct ib_qp *qp, struct rdma_counter *counter)
+{
+	struct mlx5_ib_qp *mqp = to_mqp(qp);
+	int err = 0;
+
+	mutex_lock(&mqp->mutex);
+	if (mqp->state == IB_QPS_RESET) {
+		qp->counter = counter;
+		goto out;
+	}
+
+	if (mqp->state == IB_QPS_RTS) {
+		err = __mlx5_ib_qp_set_counter(qp, counter);
+		if (!err)
+			qp->counter = counter;
+
+		goto out;
+	}
+
+	mqp->counter_pending = 1;
+	qp->counter = counter;
+
+out:
+	mutex_unlock(&mqp->mutex);
+	return err;
 }

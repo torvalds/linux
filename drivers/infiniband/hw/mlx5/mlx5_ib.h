@@ -439,6 +439,10 @@ struct mlx5_ib_qp {
 	u32			flags_en;
 	/* storage for qp sub type when core qp type is IB_QPT_DRIVER */
 	enum ib_qp_type		qp_sub_type;
+	/* A flag to indicate if there's a new counter is configured
+	 * but not take effective
+	 */
+	u32                     counter_pending;
 };
 
 struct mlx5_ib_cq_buf {
@@ -1468,4 +1472,6 @@ void mlx5_ib_put_xlt_emergency_page(void);
 int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 			struct mlx5_bfreg_info *bfregi, u32 bfregn,
 			bool dyn_bfreg);
+
+int mlx5_ib_qp_set_counter(struct ib_qp *qp, struct rdma_counter *counter);
 #endif /* MLX5_IB_H */
