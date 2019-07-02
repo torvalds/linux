@@ -57,11 +57,6 @@ s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 	return coexctrl;
 }
 
-void rtw_btcoex_SetPGAntNum(struct adapter *padapter, u8 antNum)
-{
-	hal_btcoex_SetPgAntNum(padapter, antNum);
-}
-
 void rtw_btcoex_SetSingleAntPath(struct adapter *padapter, u8 singleAntPath)
 {
 	hal_btcoex_SetSingleAntPath(padapter, singleAntPath);

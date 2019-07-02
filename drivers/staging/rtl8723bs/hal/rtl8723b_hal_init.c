@@ -2696,7 +2696,7 @@ void Hal_EfuseParseBTCoexistInfo_8723B(
 
 	hal_btcoex_SetBTCoexist(padapter, pHalData->EEPROMBluetoothCoexist);
 	hal_btcoex_SetChipType(padapter, pHalData->EEPROMBluetoothType);
-	rtw_btcoex_SetPGAntNum(padapter, pHalData->EEPROMBluetoothAntNum == Ant_x2 ? 2 : 1);
+	hal_btcoex_SetPgAntNum(padapter, pHalData->EEPROMBluetoothAntNum == Ant_x2 ? 2 : 1);
 	if (pHalData->EEPROMBluetoothAntNum == Ant_x1)
 		rtw_btcoex_SetSingleAntPath(padapter, pHalData->ant_path);
 
