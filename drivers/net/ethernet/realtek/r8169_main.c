@@ -1528,7 +1528,7 @@ static int rtl8169_set_features(struct net_device *dev,
 static inline u32 rtl8169_tx_vlan_tag(struct sk_buff *skb)
 {
 	return (skb_vlan_tag_present(skb)) ?
-		TxVlanTag | htons(skb_vlan_tag_get(skb)) : 0x00;
+		TxVlanTag | swab16(skb_vlan_tag_get(skb)) : 0x00;
 }
 
 static void rtl8169_rx_vlan_tag(struct RxDesc *desc, struct sk_buff *skb)
@@ -1536,8 +1536,7 @@ static void rtl8169_rx_vlan_tag(struct RxDesc *desc, struct sk_buff *skb)
 	u32 opts2 = le32_to_cpu(desc->opts2);
 
 	if (opts2 & RxVlanTag)
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
-				       ntohs(opts2 & 0xffff));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), swab16(opts2 & 0xffff));
 }
 
 static void rtl8169_get_regs(struct net_device *dev, struct ethtool_regs *regs,
