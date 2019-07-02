@@ -385,6 +385,7 @@ struct dc_debug_options {
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	bool cm_in_bypass;
 #endif
+	int force_clock_mode;/*every mode change.*/
 };
 
 struct dc_debug_data {

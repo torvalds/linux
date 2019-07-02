@@ -151,7 +151,14 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool enter_display_off = false;
 	bool dpp_clock_lowered = false;
 	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
+	bool force_reset = false;
 
+	if (clk_mgr_base->clks.dispclk_khz == 0 ||
+		dc->debug.force_clock_mode & 0x1) {
+		//this is from resume or boot up, if forced_clock cfg option used, we bypass program dispclk and DPPCLK, but need set them for S3.
+		force_reset = true;
+		//force_clock_mode 0x1:  force reset the clock even it is the same clock as long as it is in Passive level.
+	}
 	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
 	if (dc->res_pool->pp_smu)
 		pp_smu = &dc->res_pool->pp_smu->nv_funcs;
@@ -223,7 +230,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		update_dispclk = true;
 	}
-	if (dc->config.forced_clocks == false) {
+	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
 			// if clock is being lowered, increase DTO before lowering refclk
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
