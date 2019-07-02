@@ -210,15 +210,6 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 
 	DRM_GEM_VRAM_DRIVER,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_pin = vbox_gem_prime_pin,
-	.gem_prime_unpin = vbox_gem_prime_unpin,
-	.gem_prime_get_sg_table = vbox_gem_prime_get_sg_table,
-	.gem_prime_import_sg_table = vbox_gem_prime_import_sg_table,
-	.gem_prime_vmap = vbox_gem_prime_vmap,
-	.gem_prime_vunmap = vbox_gem_prime_vunmap,
-	.gem_prime_mmap = vbox_gem_prime_mmap,
 };
 
 static int __init vbox_init(void)
