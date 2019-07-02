@@ -374,7 +374,7 @@ static int seq_show(struct seq_file *s, void *v)
 			continue;
 
 		logger = nft_log_dereference(loggers[*pos][i]);
-		seq_printf(s, "%s", logger->name);
+		seq_puts(s, logger->name);
 		if (i == 0 && loggers[*pos][i + 1] != NULL)
 			seq_puts(s, ",");
 
