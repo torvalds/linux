@@ -1532,7 +1532,6 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 
 void rt_flush_dev(struct net_device *dev)
 {
-	struct net *net = dev_net(dev);
 	struct rtable *rt;
 	int cpu;
 
@@ -1543,7 +1542,7 @@ void rt_flush_dev(struct net_device *dev)
 		list_for_each_entry(rt, &ul->head, rt_uncached) {
 			if (rt->dst.dev != dev)
 				continue;
-			rt->dst.dev = net->loopback_dev;
+			rt->dst.dev = blackhole_netdev;
 			dev_hold(rt->dst.dev);
 			dev_put(dev);
 		}
