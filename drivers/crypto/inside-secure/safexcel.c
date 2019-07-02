@@ -589,16 +589,31 @@ finalize:
 inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 				       struct safexcel_result_desc *rdesc)
 {
-	if (likely(!rdesc->result_data.error_code))
+	if (likely((!rdesc->descriptor_overflow) &&
+		   (!rdesc->buffer_overflow) &&
+		   (!rdesc->result_data.error_code)))
 		return 0;
 
-	if (rdesc->result_data.error_code & 0x407f) {
-		/* Fatal error (bits 0-7, 14) */
+	if (rdesc->descriptor_overflow)
+		dev_err(priv->dev, "Descriptor overflow detected");
+
+	if (rdesc->buffer_overflow)
+		dev_err(priv->dev, "Buffer overflow detected");
+
+	if (rdesc->result_data.error_code & 0x4067) {
+		/* Fatal error (bits 0,1,2,5,6 & 14) */
 		dev_err(priv->dev,
-			"cipher: result: result descriptor error (0x%x)\n",
+			"result descriptor error (%x)",
 			rdesc->result_data.error_code);
+		return -EIO;
+	} else if (rdesc->result_data.error_code &
+		   (BIT(7) | BIT(4) | BIT(3))) {
+		/*
+		 * Give priority over authentication fails:
+		 * Blocksize & overflow errors, something wrong with the input!
+		 */
 		return -EINVAL;
-	} else if (rdesc->result_data.error_code == BIT(9)) {
+	} else if (rdesc->result_data.error_code & BIT(9)) {
 		/* Authentication failed */
 		return -EBADMSG;
 	}
