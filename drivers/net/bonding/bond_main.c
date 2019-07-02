@@ -796,6 +796,8 @@ static bool bond_should_notify_peers(struct bonding *bond)
 		   slave ? slave->dev->name : "NULL");
 
 	if (!slave || !bond->send_peer_notif ||
+	    bond->send_peer_notif %
+	    max(1, bond->params.peer_notif_delay) != 0 ||
 	    !netif_carrier_ok(bond->dev) ||
 	    test_bit(__LINK_STATE_LINKWATCH_PENDING, &slave->dev->state))
 		return false;
@@ -886,15 +888,18 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 			if (netif_running(bond->dev)) {
 				bond->send_peer_notif =
-					bond->params.num_peer_notif;
+					bond->params.num_peer_notif *
+					max(1, bond->params.peer_notif_delay);
 				should_notify_peers =
 					bond_should_notify_peers(bond);
 			}
 
 			call_netdevice_notifiers(NETDEV_BONDING_FAILOVER, bond->dev);
-			if (should_notify_peers)
+			if (should_notify_peers) {
+				bond->send_peer_notif--;
 				call_netdevice_notifiers(NETDEV_NOTIFY_PEERS,
 							 bond->dev);
+			}
 		}
 	}
 
@@ -2279,6 +2284,7 @@ static void bond_mii_monitor(struct work_struct *work)
 	struct bonding *bond = container_of(work, struct bonding,
 					    mii_work.work);
 	bool should_notify_peers = false;
+	bool commit;
 	unsigned long delay;
 	struct slave *slave;
 	struct list_head *iter;
@@ -2289,12 +2295,19 @@ static void bond_mii_monitor(struct work_struct *work)
 		goto re_arm;
 
 	rcu_read_lock();
-
 	should_notify_peers = bond_should_notify_peers(bond);
-
-	if (bond_miimon_inspect(bond)) {
+	commit = !!bond_miimon_inspect(bond);
+	if (bond->send_peer_notif) {
 		rcu_read_unlock();
+		if (rtnl_trylock()) {
+			bond->send_peer_notif--;
+			rtnl_unlock();
+		}
+	} else {
+		rcu_read_unlock();
+	}
 
+	if (commit) {
 		/* Race avoidance with bond_close cancel of workqueue */
 		if (!rtnl_trylock()) {
 			delay = 1;
@@ -2308,8 +2321,7 @@ static void bond_mii_monitor(struct work_struct *work)
 		bond_miimon_commit(bond);
 
 		rtnl_unlock();	/* might sleep, hold no other locks */
-	} else
-		rcu_read_unlock();
+	}
 
 re_arm:
 	if (bond->params.miimon)
@@ -3064,10 +3076,6 @@ static int bond_master_netdev_event(unsigned long event,
 		break;
 	case NETDEV_REGISTER:
 		bond_create_proc_entry(event_bond);
-		break;
-	case NETDEV_NOTIFY_PEERS:
-		if (event_bond->send_peer_notif)
-			event_bond->send_peer_notif--;
 		break;
 	default:
 		break;
@@ -4691,6 +4699,7 @@ static int bond_check_params(struct bond_params *params)
 	params->arp_all_targets = arp_all_targets_value;
 	params->updelay = updelay;
 	params->downdelay = downdelay;
+	params->peer_notif_delay = 0;
 	params->use_carrier = use_carrier;
 	params->lacp_fast = lacp_fast;
 	params->primary[0] = 0;

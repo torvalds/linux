@@ -24,6 +24,8 @@ static int bond_option_updelay_set(struct bonding *bond,
 				   const struct bond_opt_value *newval);
 static int bond_option_downdelay_set(struct bonding *bond,
 				     const struct bond_opt_value *newval);
+static int bond_option_peer_notif_delay_set(struct bonding *bond,
+					    const struct bond_opt_value *newval);
 static int bond_option_use_carrier_set(struct bonding *bond,
 				       const struct bond_opt_value *newval);
 static int bond_option_arp_interval_set(struct bonding *bond,
@@ -424,6 +426,13 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.desc = "Number of peer notifications to send on failover event",
 		.values = bond_num_peer_notif_tbl,
 		.set = bond_option_num_peer_notif_set
+	},
+	[BOND_OPT_PEER_NOTIF_DELAY] = {
+		.id = BOND_OPT_PEER_NOTIF_DELAY,
+		.name = "peer_notif_delay",
+		.desc = "Delay between each peer notification on failover event, in milliseconds",
+		.values = bond_intmax_tbl,
+		.set = bond_option_peer_notif_delay_set
 	}
 };
 
@@ -841,6 +850,9 @@ static int bond_option_miimon_set(struct bonding *bond,
 	if (bond->params.downdelay)
 		netdev_dbg(bond->dev, "Note: Updating downdelay (to %d) since it is a multiple of the miimon value\n",
 			   bond->params.downdelay * bond->params.miimon);
+	if (bond->params.peer_notif_delay)
+		netdev_dbg(bond->dev, "Note: Updating peer_notif_delay (to %d) since it is a multiple of the miimon value\n",
+			   bond->params.peer_notif_delay * bond->params.miimon);
 	if (newval->value && bond->params.arp_interval) {
 		netdev_dbg(bond->dev, "MII monitoring cannot be used with ARP monitoring - disabling ARP monitoring...\n");
 		bond->params.arp_interval = 0;
@@ -864,52 +876,59 @@ static int bond_option_miimon_set(struct bonding *bond,
 	return 0;
 }
 
-/* Set up and down delays. These must be multiples of the
- * MII monitoring value, and are stored internally as the multiplier.
- * Thus, we must translate to MS for the real world.
+/* Set up, down and peer notification delays. These must be multiples
+ * of the MII monitoring value, and are stored internally as the
+ * multiplier. Thus, we must translate to MS for the real world.
  */
-static int bond_option_updelay_set(struct bonding *bond,
-				   const struct bond_opt_value *newval)
+static int _bond_option_delay_set(struct bonding *bond,
+				  const struct bond_opt_value *newval,
+				  const char *name,
+				  int *target)
 {
 	int value = newval->value;
 
 	if (!bond->params.miimon) {
-		netdev_err(bond->dev, "Unable to set up delay as MII monitoring is disabled\n");
+		netdev_err(bond->dev, "Unable to set %s as MII monitoring is disabled\n",
+			   name);
 		return -EPERM;
 	}
 	if ((value % bond->params.miimon) != 0) {
-		netdev_warn(bond->dev, "up delay (%d) is not a multiple of miimon (%d), updelay rounded to %d ms\n",
+		netdev_warn(bond->dev,
+			    "%s (%d) is not a multiple of miimon (%d), value rounded to %d ms\n",
+			    name,
 			    value, bond->params.miimon,
 			    (value / bond->params.miimon) *
 			    bond->params.miimon);
 	}
-	bond->params.updelay = value / bond->params.miimon;
-	netdev_dbg(bond->dev, "Setting up delay to %d\n",
-		   bond->params.updelay * bond->params.miimon);
+	*target = value / bond->params.miimon;
+	netdev_dbg(bond->dev, "Setting %s to %d\n",
+		   name,
+		   *target * bond->params.miimon);
 
 	return 0;
+}
+
+static int bond_option_updelay_set(struct bonding *bond,
+				   const struct bond_opt_value *newval)
+{
+	return _bond_option_delay_set(bond, newval, "up delay",
+				      &bond->params.updelay);
 }
 
 static int bond_option_downdelay_set(struct bonding *bond,
 				     const struct bond_opt_value *newval)
 {
-	int value = newval->value;
+	return _bond_option_delay_set(bond, newval, "down delay",
+				      &bond->params.downdelay);
+}
 
-	if (!bond->params.miimon) {
-		netdev_err(bond->dev, "Unable to set down delay as MII monitoring is disabled\n");
-		return -EPERM;
-	}
-	if ((value % bond->params.miimon) != 0) {
-		netdev_warn(bond->dev, "down delay (%d) is not a multiple of miimon (%d), delay rounded to %d ms\n",
-			    value, bond->params.miimon,
-			    (value / bond->params.miimon) *
-			    bond->params.miimon);
-	}
-	bond->params.downdelay = value / bond->params.miimon;
-	netdev_dbg(bond->dev, "Setting down delay to %d\n",
-		   bond->params.downdelay * bond->params.miimon);
-
-	return 0;
+static int bond_option_peer_notif_delay_set(struct bonding *bond,
+					    const struct bond_opt_value *newval)
+{
+	int ret = _bond_option_delay_set(bond, newval,
+					 "peer notification delay",
+					 &bond->params.peer_notif_delay);
+	return ret;
 }
 
 static int bond_option_use_carrier_set(struct bonding *bond,
