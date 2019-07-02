@@ -8,6 +8,7 @@
 
 #include <drv_types.h>
 #include <rtw_debug.h>
+#include <hal_btcoex.h>
 
 u32 GlobalDebugLevel = _drv_err_;
 
@@ -1410,7 +1411,7 @@ ssize_t proc_set_btcoex_dbg(struct file *file, const char __user *buffer, size_t
 
 	DBG_871X(FUNC_ADPT_FMT ": input 0x%08X 0x%08X\n",
 		FUNC_ADPT_ARG(padapter), module[0], module[1]);
-	rtw_btcoex_SetDBG(padapter, module);
+	hal_btcoex_SetDBG(padapter, module);
 
 	return count;
 }

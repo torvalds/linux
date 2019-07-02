@@ -43,11 +43,6 @@ void rtw_btcoex_DisplayBtCoexInfo(struct adapter *padapter, u8 *pbuf, u32 bufsiz
 	hal_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
 }
 
-void rtw_btcoex_SetDBG(struct adapter *padapter, u32 *pDbgModule)
-{
-	hal_btcoex_SetDBG(padapter, pDbgModule);
-}
-
 u32 rtw_btcoex_GetDBG(struct adapter *padapter, u8 *pStrBuf, u32 bufSize)
 {
 	return hal_btcoex_GetDBG(padapter, pStrBuf, bufSize);
