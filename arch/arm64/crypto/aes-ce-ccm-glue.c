@@ -43,8 +43,6 @@ asmlinkage void ce_aes_ccm_decrypt(u8 out[], u8 const in[], u32 cbytes,
 asmlinkage void ce_aes_ccm_final(u8 mac[], u8 const ctr[], u32 const rk[],
 				 u32 rounds);
 
-asmlinkage void __aes_arm64_encrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
-
 static int ccm_setkey(struct crypto_aead *tfm, const u8 *in_key,
 		      unsigned int key_len)
 {
@@ -124,8 +122,7 @@ static void ccm_update_mac(struct crypto_aes_ctx *key, u8 mac[], u8 const in[],
 		}
 
 		while (abytes >= AES_BLOCK_SIZE) {
-			__aes_arm64_encrypt(key->key_enc, mac, mac,
-					    num_rounds(key));
+			aes_encrypt(key, mac, mac);
 			crypto_xor(mac, in, AES_BLOCK_SIZE);
 
 			in += AES_BLOCK_SIZE;
@@ -133,8 +130,7 @@ static void ccm_update_mac(struct crypto_aes_ctx *key, u8 mac[], u8 const in[],
 		}
 
 		if (abytes > 0) {
-			__aes_arm64_encrypt(key->key_enc, mac, mac,
-					    num_rounds(key));
+			aes_encrypt(key, mac, mac);
 			crypto_xor(mac, in, abytes);
 			*macp = abytes;
 		}
@@ -206,10 +202,8 @@ static int ccm_crypt_fallback(struct skcipher_walk *walk, u8 mac[], u8 iv0[],
 				bsize = nbytes;
 
 			crypto_inc(walk->iv, AES_BLOCK_SIZE);
-			__aes_arm64_encrypt(ctx->key_enc, buf, walk->iv,
-					    num_rounds(ctx));
-			__aes_arm64_encrypt(ctx->key_enc, mac, mac,
-					    num_rounds(ctx));
+			aes_encrypt(ctx, buf, walk->iv);
+			aes_encrypt(ctx, mac, mac);
 			if (enc)
 				crypto_xor(mac, src, bsize);
 			crypto_xor_cpy(dst, src, buf, bsize);
@@ -224,8 +218,8 @@ static int ccm_crypt_fallback(struct skcipher_walk *walk, u8 mac[], u8 iv0[],
 	}
 
 	if (!err) {
-		__aes_arm64_encrypt(ctx->key_enc, buf, iv0, num_rounds(ctx));
-		__aes_arm64_encrypt(ctx->key_enc, mac, mac, num_rounds(ctx));
+		aes_encrypt(ctx, buf, iv0);
+		aes_encrypt(ctx, mac, mac);
 		crypto_xor(mac, buf, AES_BLOCK_SIZE);
 	}
 	return err;
