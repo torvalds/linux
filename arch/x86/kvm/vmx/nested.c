@@ -5750,10 +5750,15 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	msrs->secondary_ctls_low = 0;
 	msrs->secondary_ctls_high &=
 		SECONDARY_EXEC_DESC |
+		SECONDARY_EXEC_RDTSCP |
 		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+		SECONDARY_EXEC_WBINVD_EXITING |
 		SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
-		SECONDARY_EXEC_WBINVD_EXITING;
+		SECONDARY_EXEC_RDRAND_EXITING |
+		SECONDARY_EXEC_ENABLE_INVPCID |
+		SECONDARY_EXEC_RDSEED_EXITING |
+		SECONDARY_EXEC_XSAVES;
 
 	/*
 	 * We can emulate "VMCS shadowing," even if the hardware
