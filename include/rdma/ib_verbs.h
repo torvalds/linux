@@ -2124,6 +2124,7 @@ struct ib_port_data {
 	struct net_device __rcu *netdev;
 	struct hlist_node ndev_hash_link;
 	struct rdma_port_counter port_counter;
+	struct rdma_hw_stats *hw_stats;
 };
 
 /* rdma netdev type - specifies protocol type */

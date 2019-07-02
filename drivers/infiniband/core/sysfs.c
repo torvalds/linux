@@ -1003,6 +1003,8 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 			goto err;
 		port->hw_stats_ag = hsag;
 		port->hw_stats = stats;
+		if (device->port_data)
+			device->port_data[port_num].hw_stats = stats;
 	} else {
 		struct kobject *kobj = &device->dev.kobj;
 		ret = sysfs_create_group(kobj, hsag);
@@ -1293,6 +1295,8 @@ const struct attribute_group ib_dev_attr_group = {
 
 void ib_free_port_attrs(struct ib_core_device *coredev)
 {
+	struct ib_device *device = rdma_device_to_ibdev(&coredev->dev);
+	bool is_full_dev = &device->coredev == coredev;
 	struct kobject *p, *t;
 
 	list_for_each_entry_safe(p, t, &coredev->port_list, entry) {
@@ -1302,6 +1306,8 @@ void ib_free_port_attrs(struct ib_core_device *coredev)
 		if (port->hw_stats_ag)
 			free_hsag(&port->kobj, port->hw_stats_ag);
 		kfree(port->hw_stats);
+		if (device->port_data && is_full_dev)
+			device->port_data[port->port_num].hw_stats = NULL;
 
 		if (port->pma_table)
 			sysfs_remove_group(p, port->pma_table);
