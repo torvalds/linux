@@ -18,8 +18,6 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
-#include <lantiq_soc.h>
-
 /*
  * The Serial To Parallel (STP) is found on MIPS based Lantiq socs. It is a
  * peripheral controller used to drive external shift register cascades. At most
@@ -74,8 +72,7 @@
 #define xway_stp_r32(m, reg)		__raw_readl(m + reg)
 #define xway_stp_w32(m, val, reg)	__raw_writel(val, m + reg)
 #define xway_stp_w32_mask(m, clear, set, reg) \
-		ltq_w32((ltq_r32(m + reg) & ~(clear)) | (set), \
-		m + reg)
+		xway_stp_w32(m, (xway_stp_r32(m, reg) & ~(clear)) | (set), reg)
 
 struct xway_stp {
 	struct gpio_chip gc;
