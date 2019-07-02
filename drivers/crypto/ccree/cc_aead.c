@@ -239,28 +239,13 @@ static void cc_aead_complete(struct device *dev, void *cc_req, int err)
 			cc_zero_sgl(areq->dst, areq_ctx->cryptlen);
 			err = -EBADMSG;
 		}
-	} else { /*ENCRYPT*/
-		if (areq_ctx->is_icv_fragmented) {
-			u32 skip = areq->cryptlen + areq_ctx->dst_offset;
+	/*ENCRYPT*/
+	} else if (areq_ctx->is_icv_fragmented) {
+		u32 skip = areq->cryptlen + areq_ctx->dst_offset;
 
-			cc_copy_sg_portion(dev, areq_ctx->mac_buf,
-					   areq_ctx->dst_sgl, skip,
-					   (skip + ctx->authsize),
-					   CC_SG_FROM_BUF);
-		}
-
-		/* If an IV was generated, copy it back to the user provided
-		 * buffer.
-		 */
-		if (areq_ctx->backup_giv) {
-			if (ctx->cipher_mode == DRV_CIPHER_CTR)
-				memcpy(areq_ctx->backup_giv, areq_ctx->ctr_iv +
-				       CTR_RFC3686_NONCE_SIZE,
-				       CTR_RFC3686_IV_SIZE);
-			else if (ctx->cipher_mode == DRV_CIPHER_CCM)
-				memcpy(areq_ctx->backup_giv, areq_ctx->ctr_iv +
-				       CCM_BLOCK_IV_OFFSET, CCM_BLOCK_IV_SIZE);
-		}
+		cc_copy_sg_portion(dev, areq_ctx->mac_buf, areq_ctx->dst_sgl,
+				   skip, (skip + ctx->authsize),
+				   CC_SG_FROM_BUF);
 	}
 done:
 	aead_request_complete(areq, err);
@@ -1975,9 +1960,8 @@ static int cc_proc_aead(struct aead_request *req,
 		 */
 		memcpy(areq_ctx->ctr_iv, ctx->ctr_nonce,
 		       CTR_RFC3686_NONCE_SIZE);
-		if (!areq_ctx->backup_giv) /*User none-generated IV*/
-			memcpy(areq_ctx->ctr_iv + CTR_RFC3686_NONCE_SIZE,
-			       req->iv, CTR_RFC3686_IV_SIZE);
+		memcpy(areq_ctx->ctr_iv + CTR_RFC3686_NONCE_SIZE, req->iv,
+		       CTR_RFC3686_IV_SIZE);
 		/* Initialize counter portion of counter block */
 		*(__be32 *)(areq_ctx->ctr_iv + CTR_RFC3686_NONCE_SIZE +
 			    CTR_RFC3686_IV_SIZE) = cpu_to_be32(1);
@@ -2021,40 +2005,6 @@ static int cc_proc_aead(struct aead_request *req,
 	if (rc) {
 		dev_err(dev, "map_request() failed\n");
 		goto exit;
-	}
-
-	/* do we need to generate IV? */
-	if (areq_ctx->backup_giv) {
-		/* set the DMA mapped IV address*/
-		if (ctx->cipher_mode == DRV_CIPHER_CTR) {
-			cc_req.ivgen_dma_addr[0] =
-				areq_ctx->gen_ctx.iv_dma_addr +
-				CTR_RFC3686_NONCE_SIZE;
-			cc_req.ivgen_dma_addr_len = 1;
-		} else if (ctx->cipher_mode == DRV_CIPHER_CCM) {
-			/* In ccm, the IV needs to exist both inside B0 and
-			 * inside the counter.It is also copied to iv_dma_addr
-			 * for other reasons (like returning it to the user).
-			 * So, using 3 (identical) IV outputs.
-			 */
-			cc_req.ivgen_dma_addr[0] =
-				areq_ctx->gen_ctx.iv_dma_addr +
-				CCM_BLOCK_IV_OFFSET;
-			cc_req.ivgen_dma_addr[1] =
-				sg_dma_address(&areq_ctx->ccm_adata_sg) +
-				CCM_B0_OFFSET + CCM_BLOCK_IV_OFFSET;
-			cc_req.ivgen_dma_addr[2] =
-				sg_dma_address(&areq_ctx->ccm_adata_sg) +
-				CCM_CTR_COUNT_0_OFFSET + CCM_BLOCK_IV_OFFSET;
-			cc_req.ivgen_dma_addr_len = 3;
-		} else {
-			cc_req.ivgen_dma_addr[0] =
-				areq_ctx->gen_ctx.iv_dma_addr;
-			cc_req.ivgen_dma_addr_len = 1;
-		}
-
-		/* set the IV size (8/16 B long)*/
-		cc_req.ivgen_size = crypto_aead_ivsize(tfm);
 	}
 
 	/* STAT_PHASE_2: Create sequence */
@@ -2107,7 +2057,6 @@ static int cc_aead_encrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->backup_giv = NULL;
 	areq_ctx->is_gcm4543 = false;
 
 	areq_ctx->plaintext_authenticate_only = false;
@@ -2139,7 +2088,6 @@ static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->backup_giv = NULL;
 	areq_ctx->is_gcm4543 = true;
 
 	cc_proc_rfc4309_ccm(req);
@@ -2161,7 +2109,6 @@ static int cc_aead_decrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->backup_giv = NULL;
 	areq_ctx->is_gcm4543 = false;
 
 	areq_ctx->plaintext_authenticate_only = false;
@@ -2191,7 +2138,6 @@ static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->backup_giv = NULL;
 
 	areq_ctx->is_gcm4543 = true;
 	cc_proc_rfc4309_ccm(req);
@@ -2311,8 +2257,6 @@ static int cc_rfc4106_gcm_encrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->backup_giv = NULL;
-
 	areq_ctx->plaintext_authenticate_only = false;
 
 	cc_proc_rfc4_gcm(req);
@@ -2340,7 +2284,6 @@ static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->backup_giv = NULL;
 
 	cc_proc_rfc4_gcm(req);
 	areq_ctx->is_gcm4543 = true;
@@ -2372,8 +2315,6 @@ static int cc_rfc4106_gcm_decrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->backup_giv = NULL;
-
 	areq_ctx->plaintext_authenticate_only = false;
 
 	cc_proc_rfc4_gcm(req);
@@ -2401,7 +2342,6 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->backup_giv = NULL;
 
 	cc_proc_rfc4_gcm(req);
 	areq_ctx->is_gcm4543 = true;
