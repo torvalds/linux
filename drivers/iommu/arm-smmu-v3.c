@@ -697,17 +697,13 @@ static bool queue_empty(struct arm_smmu_queue *q)
 	       Q_WRP(q, q->prod) == Q_WRP(q, q->cons);
 }
 
-static void queue_sync_cons(struct arm_smmu_queue *q)
+static void queue_sync_cons_in(struct arm_smmu_queue *q)
 {
 	q->cons = readl_relaxed(q->cons_reg);
 }
 
-static void queue_inc_cons(struct arm_smmu_queue *q)
+static void queue_sync_cons_out(struct arm_smmu_queue *q)
 {
-	u32 cons = (Q_WRP(q, q->cons) | Q_IDX(q, q->cons)) + 1;
-
-	q->cons = Q_OVF(q, q->cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
-
 	/*
 	 * Ensure that all CPU accesses (reads and writes) to the queue
 	 * are complete before we update the cons pointer.
@@ -716,7 +712,13 @@ static void queue_inc_cons(struct arm_smmu_queue *q)
 	writel_relaxed(q->cons, q->cons_reg);
 }
 
-static int queue_sync_prod(struct arm_smmu_queue *q)
+static void queue_inc_cons(struct arm_smmu_queue *q)
+{
+	u32 cons = (Q_WRP(q, q->cons) | Q_IDX(q, q->cons)) + 1;
+	q->cons = Q_OVF(q, q->cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
+}
+
+static int queue_sync_prod_in(struct arm_smmu_queue *q)
 {
 	int ret = 0;
 	u32 prod = readl_relaxed(q->prod_reg);
@@ -728,12 +730,15 @@ static int queue_sync_prod(struct arm_smmu_queue *q)
 	return ret;
 }
 
+static void queue_sync_prod_out(struct arm_smmu_queue *q)
+{
+	writel(q->prod, q->prod_reg);
+}
+
 static void queue_inc_prod(struct arm_smmu_queue *q)
 {
 	u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + 1;
-
 	q->prod = Q_OVF(q, q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
-	writel(q->prod, q->prod_reg);
 }
 
 /*
@@ -750,7 +755,7 @@ static int queue_poll_cons(struct arm_smmu_queue *q, bool sync, bool wfe)
 					    ARM_SMMU_CMDQ_SYNC_TIMEOUT_US :
 					    ARM_SMMU_POLL_TIMEOUT_US);
 
-	while (queue_sync_cons(q), (sync ? !queue_empty(q) : queue_full(q))) {
+	while (queue_sync_cons_in(q), (sync ? !queue_empty(q) : queue_full(q))) {
 		if (ktime_compare(ktime_get(), timeout) > 0)
 			return -ETIMEDOUT;
 
@@ -784,6 +789,7 @@ static int queue_insert_raw(struct arm_smmu_queue *q, u64 *ent)
 
 	queue_write(Q_ENT(q, q->prod), ent, q->ent_dwords);
 	queue_inc_prod(q);
+	queue_sync_prod_out(q);
 	return 0;
 }
 
@@ -802,6 +808,7 @@ static int queue_remove_raw(struct arm_smmu_queue *q, u64 *ent)
 
 	queue_read(ent, Q_ENT(q, q->cons), q->ent_dwords);
 	queue_inc_cons(q);
+	queue_sync_cons_out(q);
 	return 0;
 }
 
@@ -1322,7 +1329,7 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 		 * Not much we can do on overflow, so scream and pretend we're
 		 * trying harder.
 		 */
-		if (queue_sync_prod(q) == -EOVERFLOW)
+		if (queue_sync_prod_in(q) == -EOVERFLOW)
 			dev_err(smmu->dev, "EVTQ overflow detected -- events lost\n");
 	} while (!queue_empty(q));
 
@@ -1379,7 +1386,7 @@ static irqreturn_t arm_smmu_priq_thread(int irq, void *dev)
 		while (!queue_remove_raw(q, evt))
 			arm_smmu_handle_ppr(smmu, evt);
 
-		if (queue_sync_prod(q) == -EOVERFLOW)
+		if (queue_sync_prod_in(q) == -EOVERFLOW)
 			dev_err(smmu->dev, "PRIQ overflow detected -- requests lost\n");
 	} while (!queue_empty(q));
 
@@ -1563,8 +1570,9 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 	/*
 	 * NOTE: when io-pgtable is in non-strict mode, we may get here with
 	 * PTEs previously cleared by unmaps on the current CPU not yet visible
-	 * to the SMMU. We are relying on the DSB implicit in queue_inc_prod()
-	 * to guarantee those are observed before the TLBI. Do be careful, 007.
+	 * to the SMMU. We are relying on the DSB implicit in
+	 * queue_sync_prod_out() to guarantee those are observed before the
+	 * TLBI. Do be careful, 007.
 	 */
 	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
 	arm_smmu_cmdq_issue_sync(smmu);
