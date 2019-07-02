@@ -5,6 +5,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/iopoll.h>
@@ -91,6 +92,7 @@ struct ti_sn_bridge {
 	struct drm_dp_aux		aux;
 	struct drm_bridge		bridge;
 	struct drm_connector		connector;
+	struct dentry			*debugfs;
 	struct device_node		*host_node;
 	struct mipi_dsi_device		*dsi;
 	struct clk			*refclk;
@@ -155,6 +157,42 @@ static int __maybe_unused ti_sn_bridge_suspend(struct device *dev)
 static const struct dev_pm_ops ti_sn_bridge_pm_ops = {
 	SET_RUNTIME_PM_OPS(ti_sn_bridge_suspend, ti_sn_bridge_resume, NULL)
 };
+
+static int status_show(struct seq_file *s, void *data)
+{
+	struct ti_sn_bridge *pdata = s->private;
+	unsigned int reg, val;
+
+	seq_puts(s, "STATUS REGISTERS:\n");
+
+	pm_runtime_get_sync(pdata->dev);
+
+	/* IRQ Status Registers, see Table 31 in datasheet */
+	for (reg = 0xf0; reg <= 0xf8; reg++) {
+		regmap_read(pdata->regmap, reg, &val);
+		seq_printf(s, "[0x%02x] = 0x%08x\n", reg, val);
+	}
+
+	pm_runtime_put(pdata->dev);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(status);
+
+static void ti_sn_debugfs_init(struct ti_sn_bridge *pdata)
+{
+	pdata->debugfs = debugfs_create_dir("ti_sn65dsi86", NULL);
+
+	debugfs_create_file("status", 0600, pdata->debugfs, pdata,
+			&status_fops);
+}
+
+static void ti_sn_debugfs_remove(struct ti_sn_bridge *pdata)
+{
+	debugfs_remove_recursive(pdata->debugfs);
+	pdata->debugfs = NULL;
+}
 
 /* Connector funcs */
 static struct ti_sn_bridge *
@@ -732,6 +770,8 @@ static int ti_sn_bridge_probe(struct i2c_client *client,
 
 	drm_bridge_add(&pdata->bridge);
 
+	ti_sn_debugfs_init(pdata);
+
 	return 0;
 }
 
@@ -741,6 +781,8 @@ static int ti_sn_bridge_remove(struct i2c_client *client)
 
 	if (!pdata)
 		return -EINVAL;
+
+	ti_sn_debugfs_remove(pdata);
 
 	of_node_put(pdata->host_node);
 
