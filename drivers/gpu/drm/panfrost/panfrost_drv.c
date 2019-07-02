@@ -448,6 +448,11 @@ static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 
 DEFINE_DRM_GEM_SHMEM_FOPS(panfrost_drm_driver_fops);
 
+/*
+ * Panfrost driver version:
+ * - 1.0 - initial interface
+ * - 1.1 - adds HEAP and NOEXEC flags for CREATE_BO
+ */
 static struct drm_driver panfrost_drm_driver = {
 	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open			= panfrost_open,
@@ -459,7 +464,7 @@ static struct drm_driver panfrost_drm_driver = {
 	.desc			= "panfrost DRM",
 	.date			= "20180908",
 	.major			= 1,
-	.minor			= 0,
+	.minor			= 1,
 
 	.gem_create_object	= panfrost_gem_create_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
