@@ -1,9 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Save registers before calling assembly functions. This avoids
  * disturbance of register allocation in some inline assembly constructs.
  * Copyright 2001,2002 by Andi Kleen, SuSE Labs.
  * Added trace_hardirqs callers - Copyright 2007 Steven Rostedt, Red Hat, Inc.
- * Subject to the GNU public license, v.2. No warranty of any kind.
  */
 #include <linux/linkage.h>
 #include "calling.h"

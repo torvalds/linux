@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * LMAC Interface specific definitions for mac80211 Prism54 drivers
  *
@@ -10,10 +11,6 @@
  *
  * - LMAC API interface header file for STLC4560 (lmac_longbow.h)
  *   Copyright (C) 2007 Conexant Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef LMAC_H

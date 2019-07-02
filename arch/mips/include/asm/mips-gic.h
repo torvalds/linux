@@ -311,6 +311,36 @@ static inline bool mips_gic_present(void)
 }
 
 /**
+ * mips_gic_vx_map_reg() - Return GIC_Vx_<intr>_MAP register offset
+ * @intr: A GIC local interrupt
+ *
+ * Determine the index of the GIC_VL_<intr>_MAP or GIC_VO_<intr>_MAP register
+ * within the block of GIC map registers. This is almost the same as the order
+ * of interrupts in the pending & mask registers, as used by enum
+ * mips_gic_local_interrupt, but moves the FDC interrupt & thus offsets the
+ * interrupts after it...
+ *
+ * Return: The map register index corresponding to @intr.
+ *
+ * The return value is suitable for use with the (read|write)_gic_v[lo]_map
+ * accessor functions.
+ */
+static inline unsigned int
+mips_gic_vx_map_reg(enum mips_gic_local_interrupt intr)
+{
+	/* WD, Compare & Timer are 1:1 */
+	if (intr <= GIC_LOCAL_INT_TIMER)
+		return intr;
+
+	/* FDC moves to after Timer... */
+	if (intr == GIC_LOCAL_INT_FDC)
+		return GIC_LOCAL_INT_TIMER + 1;
+
+	/* As a result everything else is offset by 1 */
+	return intr + 1;
+}
+
+/**
  * gic_get_c0_compare_int() - Return cp0 count/compare interrupt virq
  *
  * Determine the virq number to use for the coprocessor 0 count/compare

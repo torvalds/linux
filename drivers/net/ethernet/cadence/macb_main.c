@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cadence MACB/GEM Ethernet Controller driver
  *
  * Copyright (C) 2004-2006 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -4183,7 +4180,7 @@ static int macb_probe(struct platform_device *pdev)
 	if (PTR_ERR(mac) == -EPROBE_DEFER) {
 		err = -EPROBE_DEFER;
 		goto err_out_free_netdev;
-	} else if (!IS_ERR(mac)) {
+	} else if (!IS_ERR_OR_NULL(mac)) {
 		ether_addr_copy(bp->dev->dev_addr, mac);
 	} else {
 		macb_get_hwaddr(bp);

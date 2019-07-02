@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PPC64 code to handle Linux booting another kernel.
  *
  * Copyright (C) 2004-2005, IBM Corp.
  *
  * Created by: Milton D Miller II
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 

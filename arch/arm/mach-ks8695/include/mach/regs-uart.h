@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/mach-ks8695/include/mach/regs-uart.h
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2006 Simtec Electronics
  *
  * KS8695 - UART register and bit definitions.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef KS8695_UART_H

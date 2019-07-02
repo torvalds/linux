@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST's Remote Processor Control Driver
  *
  * Copyright (C) 2015 STMicroelectronics - All Rights Reserved
  *
  * Author: Ludovic Barre <ludovic.barre@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>

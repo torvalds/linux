@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for SBS compliant Smart Battery System Managers
  *
@@ -10,10 +11,6 @@
  * Datasheet LTC1760: http://cds.linear.com/docs/en/datasheet/1760fb.pdf
  *
  * Karl-Heinz Schneider <karl-heinz@schneider-inet.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/gpio.h>
