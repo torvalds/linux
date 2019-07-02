@@ -7,6 +7,8 @@
 #include <drm/drm_vram_mm_helper.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
+static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
+
 /**
  * DOC: overview
  *
@@ -79,6 +81,9 @@ static int drm_gem_vram_init(struct drm_device *dev,
 {
 	int ret;
 	size_t acc_size;
+
+	if (!gbo->gem.funcs)
+		gbo->gem.funcs = &drm_gem_vram_object_funcs;
 
 	ret = drm_gem_object_init(dev, &gbo->gem, size);
 	if (ret)
@@ -639,3 +644,15 @@ int drm_gem_vram_driver_gem_prime_mmap(struct drm_gem_object *gem,
 	return drm_gem_prime_mmap(gem, vma);
 }
 EXPORT_SYMBOL(drm_gem_vram_driver_gem_prime_mmap);
+
+/*
+ * GEM object funcs
+ */
+
+static const struct drm_gem_object_funcs drm_gem_vram_object_funcs = {
+	.free	= drm_gem_vram_driver_gem_free_object_unlocked,
+	.pin	= drm_gem_vram_driver_gem_prime_pin,
+	.unpin	= drm_gem_vram_driver_gem_prime_unpin,
+	.vmap	= drm_gem_vram_driver_gem_prime_vmap,
+	.vunmap	= drm_gem_vram_driver_gem_prime_vunmap
+};

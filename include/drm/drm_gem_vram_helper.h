@@ -127,7 +127,8 @@ int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
 	.gem_free_object_unlocked = \
 		drm_gem_vram_driver_gem_free_object_unlocked, \
 	.dumb_create		  = drm_gem_vram_driver_dumb_create, \
-	.dumb_map_offset	  = drm_gem_vram_driver_dumb_mmap_offset
+	.dumb_map_offset	  = drm_gem_vram_driver_dumb_mmap_offset, \
+	.gem_prime_mmap		  = drm_gem_prime_mmap
 
 /*
  * PRIME helpers for struct drm_driver
