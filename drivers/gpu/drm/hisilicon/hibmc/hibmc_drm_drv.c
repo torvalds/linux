@@ -51,10 +51,9 @@ static struct drm_driver hibmc_driver = {
 	.desc			= "hibmc drm driver",
 	.major			= 1,
 	.minor			= 0,
-	.gem_free_object_unlocked =
-		drm_gem_vram_driver_gem_free_object_unlocked,
 	.dumb_create            = hibmc_dumb_create,
 	.dumb_map_offset        = drm_gem_vram_driver_dumb_mmap_offset,
+	.gem_prime_mmap		= drm_gem_prime_mmap,
 	.irq_handler		= hibmc_drm_interrupt,
 };
 
