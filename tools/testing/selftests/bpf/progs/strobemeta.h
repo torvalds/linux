@@ -266,8 +266,8 @@ struct tls_index {
 	uint64_t offset;
 };
 
-static inline __attribute__((always_inline))
-void *calc_location(struct strobe_value_loc *loc, void *tls_base)
+static __always_inline void *calc_location(struct strobe_value_loc *loc,
+					   void *tls_base)
 {
 	/*
 	 * tls_mode value is:
@@ -327,10 +327,10 @@ void *calc_location(struct strobe_value_loc *loc, void *tls_base)
 		: NULL;
 }
 
-static inline __attribute__((always_inline))
-void read_int_var(struct strobemeta_cfg *cfg, size_t idx, void *tls_base,
-		  struct strobe_value_generic *value,
-		  struct strobemeta_payload *data)
+static __always_inline void read_int_var(struct strobemeta_cfg *cfg,
+					 size_t idx, void *tls_base,
+					 struct strobe_value_generic *value,
+					 struct strobemeta_payload *data)
 {
 	void *location = calc_location(&cfg->int_locs[idx], tls_base);
 	if (!location)
@@ -342,10 +342,11 @@ void read_int_var(struct strobemeta_cfg *cfg, size_t idx, void *tls_base,
 		data->int_vals_set_mask |= (1 << idx);
 }
 
-static inline __attribute__((always_inline))
-uint64_t read_str_var(struct strobemeta_cfg* cfg, size_t idx, void *tls_base,
-		      struct strobe_value_generic *value,
-		      struct strobemeta_payload *data, void *payload)
+static __always_inline uint64_t read_str_var(struct strobemeta_cfg *cfg,
+					     size_t idx, void *tls_base,
+					     struct strobe_value_generic *value,
+					     struct strobemeta_payload *data,
+					     void *payload)
 {
 	void *location;
 	uint32_t len;
@@ -371,10 +372,11 @@ uint64_t read_str_var(struct strobemeta_cfg* cfg, size_t idx, void *tls_base,
 	return len;
 }
 
-static inline __attribute__((always_inline))
-void *read_map_var(struct strobemeta_cfg *cfg, size_t idx, void *tls_base,
-		   struct strobe_value_generic *value,
-		   struct strobemeta_payload* data, void *payload)
+static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
+					  size_t idx, void *tls_base,
+					  struct strobe_value_generic *value,
+					  struct strobemeta_payload *data,
+					  void *payload)
 {
 	struct strobe_map_descr* descr = &data->map_descrs[idx];
 	struct strobe_map_raw map;
@@ -435,9 +437,9 @@ void *read_map_var(struct strobemeta_cfg *cfg, size_t idx, void *tls_base,
  * read_strobe_meta returns NULL, if no metadata was read; otherwise returns
  * pointer to *right after* payload ends
  */
-static inline __attribute__((always_inline))
-void *read_strobe_meta(struct task_struct* task,
-		       struct strobemeta_payload* data) {
+static __always_inline void *read_strobe_meta(struct task_struct *task,
+					      struct strobemeta_payload *data)
+{
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	struct strobe_value_generic value = {0};
 	struct strobemeta_cfg *cfg;

@@ -75,8 +75,7 @@ typedef struct {
 	void* co_name; // PyCodeObject.co_name
 } FrameData;
 
-static inline __attribute__((__always_inline__)) void*
-get_thread_state(void* tls_base, PidData* pidData)
+static __always_inline void *get_thread_state(void *tls_base, PidData *pidData)
 {
 	void* thread_state;
 	int key;
@@ -87,8 +86,8 @@ get_thread_state(void* tls_base, PidData* pidData)
 	return thread_state;
 }
 
-static inline __attribute__((__always_inline__)) bool
-get_frame_data(void* frame_ptr, PidData* pidData, FrameData* frame, Symbol* symbol)
+static __always_inline bool get_frame_data(void *frame_ptr, PidData *pidData,
+					   FrameData *frame, Symbol *symbol)
 {
 	// read data from PyFrameObject
 	bpf_probe_read(&frame->f_back,
@@ -161,7 +160,7 @@ struct bpf_elf_map SEC("maps") stackmap = {
 	.max_elem = 1000,
 };
 
-static inline __attribute__((__always_inline__)) int __on_event(struct pt_regs *ctx)
+static __always_inline int __on_event(struct pt_regs *ctx)
 {
 	uint64_t pid_tgid = bpf_get_current_pid_tgid();
 	pid_t pid = (pid_t)(pid_tgid >> 32);

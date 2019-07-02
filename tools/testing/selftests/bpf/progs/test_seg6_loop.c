@@ -54,7 +54,7 @@ struct sr6_tlv_t {
 	unsigned char value[0];
 } BPF_PACKET_HEADER;
 
-static __attribute__((always_inline)) struct ip6_srh_t *get_srh(struct __sk_buff *skb)
+static __always_inline struct ip6_srh_t *get_srh(struct __sk_buff *skb)
 {
 	void *cursor, *data_end;
 	struct ip6_srh_t *srh;
@@ -88,9 +88,9 @@ static __attribute__((always_inline)) struct ip6_srh_t *get_srh(struct __sk_buff
 	return srh;
 }
 
-static __attribute__((always_inline))
-int update_tlv_pad(struct __sk_buff *skb, uint32_t new_pad,
-		   uint32_t old_pad, uint32_t pad_off)
+static __always_inline int update_tlv_pad(struct __sk_buff *skb,
+					  uint32_t new_pad, uint32_t old_pad,
+					  uint32_t pad_off)
 {
 	int err;
 
@@ -118,10 +118,11 @@ int update_tlv_pad(struct __sk_buff *skb, uint32_t new_pad,
 	return 0;
 }
 
-static __attribute__((always_inline))
-int is_valid_tlv_boundary(struct __sk_buff *skb, struct ip6_srh_t *srh,
-			  uint32_t *tlv_off, uint32_t *pad_size,
-			  uint32_t *pad_off)
+static __always_inline int is_valid_tlv_boundary(struct __sk_buff *skb,
+						 struct ip6_srh_t *srh,
+						 uint32_t *tlv_off,
+						 uint32_t *pad_size,
+						 uint32_t *pad_off)
 {
 	uint32_t srh_off, cur_off;
 	int offset_valid = 0;
@@ -177,9 +178,9 @@ int is_valid_tlv_boundary(struct __sk_buff *skb, struct ip6_srh_t *srh,
 	return 0;
 }
 
-static __attribute__((always_inline))
-int add_tlv(struct __sk_buff *skb, struct ip6_srh_t *srh, uint32_t tlv_off,
-	    struct sr6_tlv_t *itlv, uint8_t tlv_size)
+static __always_inline int add_tlv(struct __sk_buff *skb,
+				   struct ip6_srh_t *srh, uint32_t tlv_off,
+				   struct sr6_tlv_t *itlv, uint8_t tlv_size)
 {
 	uint32_t srh_off = (char *)srh - (char *)(long)skb->data;
 	uint8_t len_remaining, new_pad;
