@@ -1749,13 +1749,13 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 			AA_DEBUG("label print error");
 			return;
 		}
-		seq_printf(f, "%s", str);
+		seq_puts(f, str);
 		kfree(str);
 	} else if (display_mode(ns, label, flags))
 		seq_printf(f, "%s (%s)", label->hname,
 			   label_modename(ns, label, flags));
 	else
-		seq_printf(f, "%s", label->hname);
+		seq_puts(f, label->hname);
 }
 
 void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
