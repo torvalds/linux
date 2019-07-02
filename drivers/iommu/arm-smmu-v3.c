@@ -181,12 +181,13 @@
 #define ARM_SMMU_MEMATTR_DEVICE_nGnRE	0x1
 #define ARM_SMMU_MEMATTR_OIWB		0xf
 
-#define Q_IDX(q, p)			((p) & ((1 << (q)->llq.max_n_shift) - 1))
-#define Q_WRP(q, p)			((p) & (1 << (q)->llq.max_n_shift))
+#define Q_IDX(llq, p)			((p) & ((1 << (llq)->max_n_shift) - 1))
+#define Q_WRP(llq, p)			((p) & (1 << (llq)->max_n_shift))
 #define Q_OVERFLOW_FLAG			(1 << 31)
 #define Q_OVF(p)			((p) & Q_OVERFLOW_FLAG)
 #define Q_ENT(q, p)			((q)->base +			\
-					 Q_IDX(q, p) * (q)->ent_dwords)
+					 Q_IDX(&((q)->llq), p) *	\
+					 (q)->ent_dwords)
 
 #define Q_BASE_RWA			(1UL << 62)
 #define Q_BASE_ADDR_MASK		GENMASK_ULL(51, 5)
@@ -689,16 +690,16 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_full(struct arm_smmu_queue *q)
+static bool queue_full(struct arm_smmu_ll_queue *q)
 {
-	return Q_IDX(q, q->llq.prod) == Q_IDX(q, q->llq.cons) &&
-	       Q_WRP(q, q->llq.prod) != Q_WRP(q, q->llq.cons);
+	return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
+	       Q_WRP(q, q->prod) != Q_WRP(q, q->cons);
 }
 
-static bool queue_empty(struct arm_smmu_queue *q)
+static bool queue_empty(struct arm_smmu_ll_queue *q)
 {
-	return Q_IDX(q, q->llq.prod) == Q_IDX(q, q->llq.cons) &&
-	       Q_WRP(q, q->llq.prod) == Q_WRP(q, q->llq.cons);
+	return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
+	       Q_WRP(q, q->prod) == Q_WRP(q, q->cons);
 }
 
 static void queue_sync_cons_in(struct arm_smmu_queue *q)
@@ -716,10 +717,10 @@ static void queue_sync_cons_out(struct arm_smmu_queue *q)
 	writel_relaxed(q->llq.cons, q->cons_reg);
 }
 
-static void queue_inc_cons(struct arm_smmu_queue *q)
+static void queue_inc_cons(struct arm_smmu_ll_queue *q)
 {
-	u32 cons = (Q_WRP(q, q->llq.cons) | Q_IDX(q, q->llq.cons)) + 1;
-	q->llq.cons = Q_OVF(q->llq.cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
+	u32 cons = (Q_WRP(q, q->cons) | Q_IDX(q, q->cons)) + 1;
+	q->cons = Q_OVF(q->cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
 }
 
 static int queue_sync_prod_in(struct arm_smmu_queue *q)
@@ -739,10 +740,10 @@ static void queue_sync_prod_out(struct arm_smmu_queue *q)
 	writel(q->llq.prod, q->prod_reg);
 }
 
-static void queue_inc_prod(struct arm_smmu_queue *q)
+static void queue_inc_prod(struct arm_smmu_ll_queue *q)
 {
-	u32 prod = (Q_WRP(q, q->llq.prod) | Q_IDX(q, q->llq.prod)) + 1;
-	q->llq.prod = Q_OVF(q->llq.prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+	u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + 1;
+	q->prod = Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
 }
 
 /*
@@ -759,7 +760,8 @@ static int queue_poll_cons(struct arm_smmu_queue *q, bool sync, bool wfe)
 					    ARM_SMMU_CMDQ_SYNC_TIMEOUT_US :
 					    ARM_SMMU_POLL_TIMEOUT_US);
 
-	while (queue_sync_cons_in(q), (sync ? !queue_empty(q) : queue_full(q))) {
+	while (queue_sync_cons_in(q),
+	      (sync ? !queue_empty(&q->llq) : queue_full(&q->llq))) {
 		if (ktime_compare(ktime_get(), timeout) > 0)
 			return -ETIMEDOUT;
 
@@ -788,11 +790,11 @@ static void queue_write(__le64 *dst, u64 *src, size_t n_dwords)
 
 static int queue_insert_raw(struct arm_smmu_queue *q, u64 *ent)
 {
-	if (queue_full(q))
+	if (queue_full(&q->llq))
 		return -ENOSPC;
 
 	queue_write(Q_ENT(q, q->llq.prod), ent, q->ent_dwords);
-	queue_inc_prod(q);
+	queue_inc_prod(&q->llq);
 	queue_sync_prod_out(q);
 	return 0;
 }
@@ -807,11 +809,11 @@ static void queue_read(__le64 *dst, u64 *src, size_t n_dwords)
 
 static int queue_remove_raw(struct arm_smmu_queue *q, u64 *ent)
 {
-	if (queue_empty(q))
+	if (queue_empty(&q->llq))
 		return -EAGAIN;
 
 	queue_read(ent, Q_ENT(q, q->llq.cons), q->ent_dwords);
-	queue_inc_cons(q);
+	queue_inc_cons(&q->llq);
 	queue_sync_cons_out(q);
 	return 0;
 }
@@ -1316,6 +1318,7 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 	int i;
 	struct arm_smmu_device *smmu = dev;
 	struct arm_smmu_queue *q = &smmu->evtq.q;
+	struct arm_smmu_ll_queue *llq = &q->llq;
 	u64 evt[EVTQ_ENT_DWORDS];
 
 	do {
@@ -1335,11 +1338,11 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 		 */
 		if (queue_sync_prod_in(q) == -EOVERFLOW)
 			dev_err(smmu->dev, "EVTQ overflow detected -- events lost\n");
-	} while (!queue_empty(q));
+	} while (!queue_empty(llq));
 
 	/* Sync our overflow flag, as we believe we're up to speed */
-	q->llq.cons = Q_OVF(q->llq.prod) | Q_WRP(q, q->llq.cons) |
-		      Q_IDX(q, q->llq.cons);
+	llq->cons = Q_OVF(llq->prod) | Q_WRP(llq, llq->cons) |
+		    Q_IDX(llq, llq->cons);
 	return IRQ_HANDLED;
 }
 
@@ -1385,6 +1388,7 @@ static irqreturn_t arm_smmu_priq_thread(int irq, void *dev)
 {
 	struct arm_smmu_device *smmu = dev;
 	struct arm_smmu_queue *q = &smmu->priq.q;
+	struct arm_smmu_ll_queue *llq = &q->llq;
 	u64 evt[PRIQ_ENT_DWORDS];
 
 	do {
@@ -1393,12 +1397,12 @@ static irqreturn_t arm_smmu_priq_thread(int irq, void *dev)
 
 		if (queue_sync_prod_in(q) == -EOVERFLOW)
 			dev_err(smmu->dev, "PRIQ overflow detected -- requests lost\n");
-	} while (!queue_empty(q));
+	} while (!queue_empty(llq));
 
 	/* Sync our overflow flag, as we believe we're up to speed */
-	q->llq.cons = Q_OVF(q->llq.prod) | Q_WRP(q, q->llq.cons) |
-		      Q_IDX(q, q->llq.cons);
-	writel(q->llq.cons, q->cons_reg);
+	llq->cons = Q_OVF(llq->prod) | Q_WRP(llq, llq->cons) |
+		      Q_IDX(llq, llq->cons);
+	queue_sync_cons_out(q);
 	return IRQ_HANDLED;
 }
 
