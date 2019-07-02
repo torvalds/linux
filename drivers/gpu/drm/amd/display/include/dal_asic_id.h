@@ -151,6 +151,14 @@
 
 #define FAMILY_NV 143 /* DCN 2*/
 
+enum {
+	NV_NAVI10_P_A0      = 1,
+	NV_NAVI14_M_A0      = 20,
+	NV_UNKNOWN          = 0xFF
+};
+
+#define ASICREV_IS_NAVI10_P(eChipRev)        (eChipRev < NV_NAVI14_M_A0)
+#define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
 #endif
 
 /*
