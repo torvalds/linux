@@ -6011,7 +6011,6 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 {
 	struct extent_map *em;
 	struct map_lookup *map;
-	u64 offset;
 	u64 stripe_offset;
 	u64 stripe_nr;
 	u64 stripe_len;
@@ -6046,7 +6045,6 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	map = em->map_lookup;
 
 	*length = geom.len;
-	offset = geom.offset;
 	stripe_len = geom.stripe_len;
 	stripe_nr = geom.stripe_nr;
 	stripe_offset = geom.stripe_offset;
