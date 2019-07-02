@@ -367,17 +367,10 @@ static void ipmmu_tlb_flush(unsigned long iova, size_t size,
 	ipmmu_tlb_flush_all(cookie);
 }
 
-static void ipmmu_tlb_add_flush(unsigned long iova, size_t size,
-				size_t granule, bool leaf, void *cookie)
-{
-	/* The hardware doesn't support selective TLB flush. */
-}
-
 static const struct iommu_flush_ops ipmmu_flush_ops = {
 	.tlb_flush_all = ipmmu_tlb_flush_all,
 	.tlb_flush_walk = ipmmu_tlb_flush,
 	.tlb_flush_leaf = ipmmu_tlb_flush,
-	.tlb_add_flush = ipmmu_tlb_add_flush,
 	.tlb_sync = ipmmu_tlb_flush_all,
 };
 

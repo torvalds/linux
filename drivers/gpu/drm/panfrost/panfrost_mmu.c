@@ -247,10 +247,6 @@ static void mmu_tlb_inv_context_s1(void *cookie)
 	mmu_hw_do_operation(pfdev, 0, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
 }
 
-static void mmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
-				     size_t granule, bool leaf, void *cookie)
-{}
-
 static void mmu_tlb_sync_context(void *cookie)
 {
 	//struct panfrost_device *pfdev = cookie;
@@ -273,7 +269,6 @@ static const struct iommu_flush_ops mmu_tlb_ops = {
 	.tlb_flush_all	= mmu_tlb_inv_context_s1,
 	.tlb_flush_walk = mmu_tlb_flush_walk,
 	.tlb_flush_leaf = mmu_tlb_flush_leaf,
-	.tlb_add_flush	= mmu_tlb_inv_range_nosync,
 	.tlb_sync	= mmu_tlb_sync_context,
 };
 

@@ -25,12 +25,11 @@ enum io_pgtable_fmt {
  *                  address range.
  * @tlb_flush_leaf: Synchronously invalidate all leaf TLB state for a virtual
  *                  address range.
- * @tlb_add_flush:  Optional callback to queue up leaf TLB invalidation for a
- *                  virtual address range.  This function exists purely as an
- *                  optimisation for IOMMUs that cannot batch TLB invalidation
- *                  operations efficiently and are therefore better suited to
- *                  issuing them early rather than deferring them until
- *                  iommu_tlb_sync().
+ * @tlb_add_page:   Optional callback to queue up leaf TLB invalidation for a
+ *                  single page. This function exists purely as an optimisation
+ *                  for IOMMUs that cannot batch TLB invalidation operations
+ *                  efficiently and are therefore better suited to issuing them
+ *                  early rather than deferring them until iommu_tlb_sync().
  * @tlb_sync:       Ensure any queued TLB invalidation has taken effect, and
  *                  any corresponding page table updates are visible to the
  *                  IOMMU.
@@ -44,8 +43,7 @@ struct iommu_flush_ops {
 			       void *cookie);
 	void (*tlb_flush_leaf)(unsigned long iova, size_t size, size_t granule,
 			       void *cookie);
-	void (*tlb_add_flush)(unsigned long iova, size_t size, size_t granule,
-			      bool leaf, void *cookie);
+	void (*tlb_add_page)(unsigned long iova, size_t granule, void *cookie);
 	void (*tlb_sync)(void *cookie);
 };
 
@@ -212,10 +210,12 @@ io_pgtable_tlb_flush_leaf(struct io_pgtable *iop, unsigned long iova,
 	iop->cfg.tlb->tlb_flush_leaf(iova, size, granule, iop->cookie);
 }
 
-static inline void io_pgtable_tlb_add_flush(struct io_pgtable *iop,
-		unsigned long iova, size_t size, size_t granule, bool leaf)
+static inline void
+io_pgtable_tlb_add_page(struct io_pgtable *iop, unsigned long iova,
+			size_t granule)
 {
-	iop->cfg.tlb->tlb_add_flush(iova, size, granule, leaf, iop->cookie);
+	if (iop->cfg.tlb->tlb_add_page)
+		iop->cfg.tlb->tlb_add_page(iova, granule, iop->cookie);
 }
 
 static inline void io_pgtable_tlb_sync(struct io_pgtable *iop)

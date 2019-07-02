@@ -178,11 +178,17 @@ static void qcom_iommu_tlb_flush_leaf(unsigned long iova, size_t size,
 	qcom_iommu_tlb_sync(cookie);
 }
 
+static void qcom_iommu_tlb_add_page(unsigned long iova, size_t granule,
+				    void *cookie)
+{
+	qcom_iommu_tlb_inv_range_nosync(iova, granule, granule, true, cookie);
+}
+
 static const struct iommu_flush_ops qcom_flush_ops = {
 	.tlb_flush_all	= qcom_iommu_tlb_inv_context,
 	.tlb_flush_walk = qcom_iommu_tlb_flush_walk,
 	.tlb_flush_leaf = qcom_iommu_tlb_flush_leaf,
-	.tlb_add_flush	= qcom_iommu_tlb_inv_range_nosync,
+	.tlb_add_page	= qcom_iommu_tlb_add_page,
 	.tlb_sync	= qcom_iommu_tlb_sync,
 };
 

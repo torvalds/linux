@@ -582,7 +582,7 @@ static size_t arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 
 		tablep = iopte_deref(pte, data);
 	} else if (unmap_idx >= 0) {
-		io_pgtable_tlb_add_flush(&data->iop, iova, size, size, true);
+		io_pgtable_tlb_add_page(&data->iop, iova, size);
 		return size;
 	}
 
@@ -623,7 +623,7 @@ static size_t __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 			 */
 			smp_wmb();
 		} else {
-			io_pgtable_tlb_add_flush(iop, iova, size, size, true);
+			io_pgtable_tlb_add_page(iop, iova, size);
 		}
 
 		return size;
@@ -1075,10 +1075,9 @@ static void dummy_tlb_flush(unsigned long iova, size_t size, size_t granule,
 	WARN_ON(!(size & cfg_cookie->pgsize_bitmap));
 }
 
-static void dummy_tlb_add_flush(unsigned long iova, size_t size,
-				size_t granule, bool leaf, void *cookie)
+static void dummy_tlb_add_page(unsigned long iova, size_t granule, void *cookie)
 {
-	dummy_tlb_flush(iova, size, granule, cookie);
+	dummy_tlb_flush(iova, granule, granule, cookie);
 }
 
 static void dummy_tlb_sync(void *cookie)
@@ -1090,7 +1089,7 @@ static const struct iommu_flush_ops dummy_tlb_ops __initconst = {
 	.tlb_flush_all	= dummy_tlb_flush_all,
 	.tlb_flush_walk	= dummy_tlb_flush,
 	.tlb_flush_leaf	= dummy_tlb_flush,
-	.tlb_add_flush	= dummy_tlb_add_flush,
+	.tlb_add_page	= dummy_tlb_add_page,
 	.tlb_sync	= dummy_tlb_sync,
 };
 

@@ -1603,6 +1603,12 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 	} while (size -= granule);
 }
 
+static void arm_smmu_tlb_inv_page_nosync(unsigned long iova, size_t granule,
+					 void *cookie)
+{
+	arm_smmu_tlb_inv_range_nosync(iova, granule, granule, true, cookie);
+}
+
 static void arm_smmu_tlb_inv_walk(unsigned long iova, size_t size,
 				  size_t granule, void *cookie)
 {
@@ -1627,7 +1633,7 @@ static const struct iommu_flush_ops arm_smmu_flush_ops = {
 	.tlb_flush_all	= arm_smmu_tlb_inv_context,
 	.tlb_flush_walk = arm_smmu_tlb_inv_walk,
 	.tlb_flush_leaf = arm_smmu_tlb_inv_leaf,
-	.tlb_add_flush	= arm_smmu_tlb_inv_range_nosync,
+	.tlb_add_page	= arm_smmu_tlb_inv_page_nosync,
 	.tlb_sync	= arm_smmu_tlb_sync,
 };
 
