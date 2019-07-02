@@ -1310,6 +1310,8 @@ int ext4_ci_compare(const struct inode *parent, const struct qstr *name,
 void ext4_fname_setup_ci_filename(struct inode *dir, const struct qstr *iname,
 				  struct fscrypt_str *cf_name)
 {
+	int len;
+
 	if (!IS_CASEFOLDED(dir)) {
 		cf_name->name = NULL;
 		return;
@@ -1319,13 +1321,16 @@ void ext4_fname_setup_ci_filename(struct inode *dir, const struct qstr *iname,
 	if (!cf_name->name)
 		return;
 
-	cf_name->len = utf8_casefold(EXT4_SB(dir->i_sb)->s_encoding,
-				     iname, cf_name->name,
-				     EXT4_NAME_LEN);
-	if (cf_name->len <= 0) {
+	len = utf8_casefold(EXT4_SB(dir->i_sb)->s_encoding,
+			    iname, cf_name->name,
+			    EXT4_NAME_LEN);
+	if (len <= 0) {
 		kfree(cf_name->name);
 		cf_name->name = NULL;
+		return;
 	}
+	cf_name->len = (unsigned) len;
+
 }
 #endif
 
