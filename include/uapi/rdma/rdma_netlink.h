@@ -285,6 +285,8 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_STAT_GET, /* can dump */
 
+	RDMA_NLDEV_CMD_STAT_DEL,
+
 	RDMA_NLDEV_NUM_OPS
 };
 

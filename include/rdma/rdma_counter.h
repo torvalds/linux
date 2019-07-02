@@ -58,5 +58,8 @@ int rdma_counter_bind_qpn_alloc(struct ib_device *dev, u8 port,
 				u32 qp_num, u32 *counter_id);
 int rdma_counter_unbind_qpn(struct ib_device *dev, u8 port,
 			    u32 qp_num, u32 counter_id);
+int rdma_counter_get_mode(struct ib_device *dev, u8 port,
+			  enum rdma_nl_counter_mode *mode,
+			  enum rdma_nl_counter_mask *mask);
 
 #endif /* _RDMA_COUNTER_H_ */
