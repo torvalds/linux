@@ -221,9 +221,7 @@ struct drm_gem_object_funcs
 GEM objects can now have a function table instead of having the callbacks on the
 DRM driver struct. This is now the preferred way and drivers can be moved over.
 
-DRM_GEM_CMA_VMAP_DRIVER_OPS, DRM_GEM_SHMEM_DRIVER_OPS already support this, but
-DRM_GEM_VRAM_DRIVER_PRIME does not yet and needs to be aligned with the previous
-two. We also need a 2nd version of the CMA define that doesn't require the
+We also need a 2nd version of the CMA define that doesn't require the
 vmapping to be present (different hook for prime importing). Plus this needs to
 be rolled out to all drivers using their own implementations, too.
 
