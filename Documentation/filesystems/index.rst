@@ -32,13 +32,3 @@ filesystem implementations.
 
    journalling
    fscrypt
-
-Filesystem-specific documentation
-=================================
-
-Documentation for individual filesystem types can be found here.
-
-.. toctree::
-   :maxdepth: 2
-
-   binderfs
