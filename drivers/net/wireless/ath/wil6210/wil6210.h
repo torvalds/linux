@@ -1144,7 +1144,7 @@ static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 /**
  * wil_cid_valid - check cid is valid
  */
-static inline bool wil_cid_valid(struct wil6210_priv *wil, u8 cid)
+static inline bool wil_cid_valid(struct wil6210_priv *wil, int cid)
 {
 	return (cid >= 0 && cid < wil->max_assoc_sta);
 }
