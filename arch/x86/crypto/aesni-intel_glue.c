@@ -26,7 +26,6 @@
 #include <crypto/gcm.h>
 #include <crypto/xts.h>
 #include <asm/cpu_device_id.h>
-#include <asm/crypto/aes.h>
 #include <asm/simd.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/aead.h>
@@ -329,7 +328,7 @@ static int aes_set_key_common(struct crypto_tfm *tfm, void *raw_ctx,
 	}
 
 	if (!crypto_simd_usable())
-		err = crypto_aes_expand_key(ctx, in_key, key_len);
+		err = aes_expandkey(ctx, in_key, key_len);
 	else {
 		kernel_fpu_begin();
 		err = aesni_set_key(ctx, in_key, key_len);
@@ -349,9 +348,9 @@ static void aesni_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct crypto_aes_ctx *ctx = aes_ctx(crypto_tfm_ctx(tfm));
 
-	if (!crypto_simd_usable())
-		crypto_aes_encrypt_x86(ctx, dst, src);
-	else {
+	if (!crypto_simd_usable()) {
+		aes_encrypt(ctx, dst, src);
+	} else {
 		kernel_fpu_begin();
 		aesni_enc(ctx, dst, src);
 		kernel_fpu_end();
@@ -362,9 +361,9 @@ static void aesni_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct crypto_aes_ctx *ctx = aes_ctx(crypto_tfm_ctx(tfm));
 
-	if (!crypto_simd_usable())
-		crypto_aes_decrypt_x86(ctx, dst, src);
-	else {
+	if (!crypto_simd_usable()) {
+		aes_decrypt(ctx, dst, src);
+	} else {
 		kernel_fpu_begin();
 		aesni_dec(ctx, dst, src);
 		kernel_fpu_end();
