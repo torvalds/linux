@@ -500,11 +500,6 @@ static inline struct bch_io_opts io_opts(struct bch_fs *c, struct bch_inode_info
 
 /* stored in page->private: */
 
-/*
- * bch_page_state has to (unfortunately) be manipulated with cmpxchg - we could
- * almost protected it with the page lock, except that bch2_writepage_io_done has
- * to update the sector counts (and from interrupt/bottom half context).
- */
 struct bch_page_state {
 union { struct {
 	/* existing data: */
@@ -550,6 +545,7 @@ static inline struct bch_page_state *page_state(struct page *page)
 {
 	struct bch_page_state *s = (void *) &page->private;
 
+	EBUG_ON(!PageLocked(page));
 	BUILD_BUG_ON(sizeof(*s) > sizeof(page->private));
 
 	if (!PagePrivate(page))
@@ -589,15 +585,20 @@ static void bch2_put_page_reservation(struct bch_fs *c, struct bch_inode_info *i
 	__bch2_put_page_reservation(c, inode, s);
 }
 
+static inline unsigned inode_nr_replicas(struct bch_fs *c, struct bch_inode_info *inode)
+{
+	/* XXX: this should not be open coded */
+	return inode->ei_inode.bi_data_replicas
+		? inode->ei_inode.bi_data_replicas - 1
+		: c->opts.data_replicas;
+}
+
 static int bch2_get_page_reservation(struct bch_fs *c, struct bch_inode_info *inode,
 				     struct page *page, bool check_enospc)
 {
 	struct bch_page_state *s = page_state(page), new;
 
-	/* XXX: this should not be open coded */
-	unsigned nr_replicas = inode->ei_inode.bi_data_replicas
-		? inode->ei_inode.bi_data_replicas - 1
-		: c->opts.data_replicas;
+	unsigned nr_replicas = inode_nr_replicas(c, inode);
 	struct disk_reservation disk_res;
 	struct quota_res quota_res = { 0 };
 	int ret;
@@ -655,7 +656,7 @@ static void bch2_clear_page_bits(struct page *page)
 	__bch2_put_page_reservation(c, inode, s);
 }
 
-bool bch2_dirty_folio(struct address_space *mapping, struct folio *folio)
+static void __bch2_set_page_dirty(struct address_space *mapping, struct folio *folio)
 {
 	struct bch_inode_info *inode = to_bch_ei(mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -673,8 +674,14 @@ bool bch2_dirty_folio(struct address_space *mapping, struct folio *folio)
 		i_sectors_acct(c, inode, &quota_res,
 			       new.dirty_sectors - old.dirty_sectors);
 	bch2_quota_reservation_put(c, inode, &quota_res);
+}
 
-	return filemap_dirty_folio(mapping, folio);
+static void bch2_set_page_dirty(struct address_space *mapping, struct page *page)
+{
+	struct folio *folio = page_folio(page);
+
+	__bch2_set_page_dirty(mapping, folio);
+	filemap_dirty_folio(mapping, folio);
 }
 
 vm_fault_t bch2_page_fault(struct vm_fault *vmf)
@@ -725,7 +732,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	}
 
 	if (!PageDirty(page))
-		set_page_dirty(page);
+		bch2_set_page_dirty(mapping, page);
 	wait_for_stable_page(page);
 out:
 	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
@@ -1210,10 +1217,12 @@ static int __bch2_writepage(struct folio *folio,
 	struct bch_inode_info *inode = to_bch_ei(page->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_writepage_state *w = data;
-	struct bch_page_state new, old;
+	struct bch_page_state *s;
 	unsigned offset, nr_replicas_this_write;
+	unsigned dirty_sectors, replicas_reserved;
 	loff_t i_size = i_size_read(&inode->v);
 	pgoff_t end_index = i_size >> PAGE_SHIFT;
+	int ret;
 
 	EBUG_ON(!PageUptodate(page));
 
@@ -1237,33 +1246,37 @@ static int __bch2_writepage(struct folio *folio,
 	 */
 	zero_user_segment(page, offset, PAGE_SIZE);
 do_io:
-	EBUG_ON(!PageLocked(page));
+	s = page_state(page);
+
+	ret = bch2_get_page_reservation(c, inode, page, true);
+	if (ret) {
+		SetPageError(page);
+		mapping_set_error(page->mapping, ret);
+		unlock_page(page);
+		return 0;
+	}
+
+	__bch2_set_page_dirty(page->mapping, page_folio(page));
+
+	nr_replicas_this_write =
+		max_t(unsigned,
+		      s->replicas_reserved,
+		      (s->sectors == PAGE_SECTORS
+		       ? s->nr_replicas : 0));
+
+	s->nr_replicas = w->opts.compression
+		? 0
+		: nr_replicas_this_write;
 
 	/* Before unlocking the page, transfer reservation to w->io: */
-	old = page_state_cmpxchg(page_state(page), new, {
-		/*
-		 * If we didn't get a reservation, we can only write out the
-		 * number of (fully allocated) replicas that currently exist,
-		 * and only if the entire page has been written:
-		 */
-		nr_replicas_this_write =
-			max_t(unsigned,
-			      new.replicas_reserved,
-			      (new.sectors == PAGE_SECTORS
-			       ? new.nr_replicas : 0));
+	replicas_reserved = s->replicas_reserved;
+	s->replicas_reserved = 0;
 
-		BUG_ON(!nr_replicas_this_write);
+	dirty_sectors = s->dirty_sectors;
+	s->dirty_sectors = 0;
 
-		new.nr_replicas = w->opts.compression
-			? 0
-			: nr_replicas_this_write;
-
-		new.replicas_reserved = 0;
-
-		new.sectors += new.dirty_sectors;
-		BUG_ON(new.sectors != PAGE_SECTORS);
-		new.dirty_sectors = 0;
-	});
+	s->sectors += dirty_sectors;
+	BUG_ON(s->sectors != PAGE_SECTORS);
 
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
@@ -1278,12 +1291,12 @@ do_io:
 		bch2_writepage_io_alloc(c, w, inode, page,
 					nr_replicas_this_write);
 
-	w->io->new_sectors += new.sectors - old.sectors;
+	w->io->new_sectors += dirty_sectors;
 
 	BUG_ON(inode != w->io->op.inode);
 	BUG_ON(bio_add_page_contig(&w->io->op.op.wbio.bio, page));
 
-	w->io->op.op.res.sectors += old.replicas_reserved * PAGE_SECTORS;
+	w->io->op.op.res.sectors += replicas_reserved * PAGE_SECTORS;
 	w->io->op.new_i_size = i_size;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
@@ -1421,7 +1434,7 @@ int bch2_write_end(struct file *file, struct address_space *mapping,
 		if (!PageUptodate(page))
 			SetPageUptodate(page);
 		if (!PageDirty(page))
-			set_page_dirty(page);
+			bch2_set_page_dirty(mapping, page);
 
 		inode->ei_last_dirtied = (unsigned long) current;
 	} else {
@@ -1538,7 +1551,7 @@ out:
 		if (!PageUptodate(pages[i]))
 			SetPageUptodate(pages[i]);
 		if (!PageDirty(pages[i]))
-			set_page_dirty(pages[i]);
+			bch2_set_page_dirty(mapping, pages[i]);
 		unlock_page(pages[i]);
 		put_page(pages[i]);
 	}
@@ -2212,7 +2225,7 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 		zero_user_segment(page, 0, end_offset);
 
 	if (!PageDirty(page))
-		set_page_dirty(page);
+		bch2_set_page_dirty(mapping, page);
 unlock:
 	unlock_page(page);
 	put_page(page);

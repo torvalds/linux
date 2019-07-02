@@ -9,8 +9,6 @@
 
 #include <linux/uio.h>
 
-bool bch2_dirty_folio(struct address_space *, struct folio *);
-
 int bch2_writepage(struct page *, struct writeback_control *);
 int bch2_read_folio(struct file *, struct folio *);
 
