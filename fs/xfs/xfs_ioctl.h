@@ -79,7 +79,9 @@ xfs_set_dmattrs(
 
 struct xfs_ibulk;
 struct xfs_bstat;
+struct xfs_inogrp;
 
 int xfs_bulkstat_one_fmt(struct xfs_ibulk *breq, const struct xfs_bstat *bstat);
+int xfs_inumbers_fmt(struct xfs_ibulk *breq, const struct xfs_inogrp *igrp);
 
 #endif

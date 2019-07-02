@@ -81,22 +81,17 @@ xfs_compat_growfs_rt_copyin(
 
 STATIC int
 xfs_inumbers_fmt_compat(
-	void			__user *ubuffer,
-	const struct xfs_inogrp	*buffer,
-	long			count,
-	long			*written)
+	struct xfs_ibulk	*breq,
+	const struct xfs_inogrp	*igrp)
 {
-	compat_xfs_inogrp_t	__user *p32 = ubuffer;
-	long			i;
+	struct compat_xfs_inogrp __user *p32 = breq->ubuffer;
 
-	for (i = 0; i < count; i++) {
-		if (put_user(buffer[i].xi_startino,   &p32[i].xi_startino) ||
-		    put_user(buffer[i].xi_alloccount, &p32[i].xi_alloccount) ||
-		    put_user(buffer[i].xi_allocmask,  &p32[i].xi_allocmask))
-			return -EFAULT;
-	}
-	*written = count * sizeof(*p32);
-	return 0;
+	if (put_user(igrp->xi_startino,   &p32->xi_startino) ||
+	    put_user(igrp->xi_alloccount, &p32->xi_alloccount) ||
+	    put_user(igrp->xi_allocmask,  &p32->xi_allocmask))
+		return -EFAULT;
+
+	return xfs_ibulk_advance(breq, sizeof(struct compat_xfs_inogrp));
 }
 
 #else
@@ -222,7 +217,7 @@ xfs_compat_ioc_bulkstat(
 	 * to userpace memory via bulkreq.ubuffer.  Normally the compat
 	 * functions and structure size are the correct ones to use ...
 	 */
-	inumbers_fmt_pf inumbers_func = xfs_inumbers_fmt_compat;
+	inumbers_fmt_pf		inumbers_func = xfs_inumbers_fmt_compat;
 	bulkstat_one_fmt_pf	bs_one_func = xfs_bulkstat_one_fmt_compat;
 
 #ifdef CONFIG_X86_X32
@@ -284,13 +279,9 @@ xfs_compat_ioc_bulkstat(
 	 * in filesystem".
 	 */
 	if (cmd == XFS_IOC_FSINUMBERS_32) {
-		int	count = breq.icount;
-
-		breq.startino = lastino;
-		error = xfs_inumbers(mp, &breq.startino, &count,
-				bulkreq.ubuffer, inumbers_func);
-		breq.ocount = count;
-		lastino = breq.startino;
+		breq.startino = lastino ? lastino + 1 : 0;
+		error = xfs_inumbers(&breq, inumbers_func);
+		lastino = breq.startino - 1;
 	} else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE_32) {
 		breq.startino = lastino;
 		breq.icount = 1;

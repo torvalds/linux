@@ -265,121 +265,81 @@ xfs_bulkstat(
 	return error;
 }
 
-int
-xfs_inumbers_fmt(
-	void			__user *ubuffer, /* buffer to write to */
-	const struct xfs_inogrp	*buffer,	/* buffer to read from */
-	long			count,		/* # of elements to read */
-	long			*written)	/* # of bytes written */
+struct xfs_inumbers_chunk {
+	inumbers_fmt_pf		formatter;
+	struct xfs_ibulk	*breq;
+};
+
+/*
+ * INUMBERS
+ * ========
+ * This is how we export inode btree records to userspace, so that XFS tools
+ * can figure out where inodes are allocated.
+ */
+
+/*
+ * Format the inode group structure and report it somewhere.
+ *
+ * Similar to xfs_bulkstat_one_int, lastino is the inode cursor as we walk
+ * through the filesystem so we move it forward unless there was a runtime
+ * error.  If the formatter tells us the buffer is now full we also move the
+ * cursor forward and abort the walk.
+ */
+STATIC int
+xfs_inumbers_walk(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		agno,
+	const struct xfs_inobt_rec_incore *irec,
+	void			*data)
 {
-	if (copy_to_user(ubuffer, buffer, count * sizeof(*buffer)))
-		return -EFAULT;
-	*written = count * sizeof(*buffer);
-	return 0;
+	struct xfs_inogrp	inogrp = {
+		.xi_startino	= XFS_AGINO_TO_INO(mp, agno, irec->ir_startino),
+		.xi_alloccount	= irec->ir_count - irec->ir_freecount,
+		.xi_allocmask	= ~irec->ir_free,
+	};
+	struct xfs_inumbers_chunk *ic = data;
+	xfs_agino_t		agino;
+	int			error;
+
+	error = ic->formatter(ic->breq, &inogrp);
+	if (error && error != XFS_IBULK_ABORT)
+		return error;
+
+	agino = irec->ir_startino + XFS_INODES_PER_CHUNK;
+	ic->breq->startino = XFS_AGINO_TO_INO(mp, agno, agino);
+	return error;
 }
 
 /*
  * Return inode number table for the filesystem.
  */
-int					/* error status */
+int
 xfs_inumbers(
-	struct xfs_mount	*mp,/* mount point for filesystem */
-	xfs_ino_t		*lastino,/* last inode returned */
-	int			*count,/* size of buffer/count returned */
-	void			__user *ubuffer,/* buffer with inode descriptions */
+	struct xfs_ibulk	*breq,
 	inumbers_fmt_pf		formatter)
 {
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, *lastino);
-	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, *lastino);
-	struct xfs_btree_cur	*cur = NULL;
-	struct xfs_buf		*agbp = NULL;
-	struct xfs_inogrp	*buffer;
-	int			bcount;
-	int			left = *count;
-	int			bufidx = 0;
+	struct xfs_inumbers_chunk ic = {
+		.formatter	= formatter,
+		.breq		= breq,
+	};
 	int			error = 0;
 
-	*count = 0;
-	if (agno >= mp->m_sb.sb_agcount ||
-	    *lastino != XFS_AGINO_TO_INO(mp, agno, agino))
-		return error;
+	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
+		return 0;
 
-	bcount = min(left, (int)(PAGE_SIZE / sizeof(*buffer)));
-	buffer = kmem_zalloc(bcount * sizeof(*buffer), KM_SLEEP);
-	do {
-		struct xfs_inobt_rec_incore	r;
-		int				stat;
+	error = xfs_inobt_walk(breq->mp, NULL, breq->startino,
+			xfs_inumbers_walk, breq->icount, &ic);
 
-		if (!agbp) {
-			error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
-			if (error)
-				break;
-
-			cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno,
-						    XFS_BTNUM_INO);
-			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_GE,
-						 &stat);
-			if (error)
-				break;
-			if (!stat)
-				goto next_ag;
-		}
-
-		error = xfs_inobt_get_rec(cur, &r, &stat);
-		if (error)
-			break;
-		if (!stat)
-			goto next_ag;
-
-		agino = r.ir_startino + XFS_INODES_PER_CHUNK - 1;
-		buffer[bufidx].xi_startino =
-			XFS_AGINO_TO_INO(mp, agno, r.ir_startino);
-		buffer[bufidx].xi_alloccount = r.ir_count - r.ir_freecount;
-		buffer[bufidx].xi_allocmask = ~r.ir_free;
-		if (++bufidx == bcount) {
-			long	written;
-
-			error = formatter(ubuffer, buffer, bufidx, &written);
-			if (error)
-				break;
-			ubuffer += written;
-			*count += bufidx;
-			bufidx = 0;
-		}
-		if (!--left)
-			break;
-
-		error = xfs_btree_increment(cur, 0, &stat);
-		if (error)
-			break;
-		if (stat)
-			continue;
-
-next_ag:
-		xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
-		cur = NULL;
-		xfs_buf_relse(agbp);
-		agbp = NULL;
-		agino = 0;
-		agno++;
-	} while (agno < mp->m_sb.sb_agcount);
-
-	if (!error) {
-		if (bufidx) {
-			long	written;
-
-			error = formatter(ubuffer, buffer, bufidx, &written);
-			if (!error)
-				*count += bufidx;
-		}
-		*lastino = XFS_AGINO_TO_INO(mp, agno, agino);
-	}
-
-	kmem_free(buffer);
-	if (cur)
-		xfs_btree_del_cursor(cur, error);
-	if (agbp)
-		xfs_buf_relse(agbp);
+	/*
+	 * We found some inode groups, so clear the error status and return
+	 * them.  The lastino pointer will point directly at the inode that
+	 * triggered any error that occurred, so on the next call the error
+	 * will be triggered again and propagated to userspace as there will be
+	 * no formatted inode groups in the buffer.
+	 */
+	if (breq->ocount > 0)
+		error = 0;
 
 	return error;
 }

@@ -724,6 +724,16 @@ xfs_bulkstat_one_fmt(
 	return xfs_ibulk_advance(breq, sizeof(struct xfs_bstat));
 }
 
+int
+xfs_inumbers_fmt(
+	struct xfs_ibulk	*breq,
+	const struct xfs_inogrp	*igrp)
+{
+	if (copy_to_user(breq->ubuffer, igrp, sizeof(*igrp)))
+		return -EFAULT;
+	return xfs_ibulk_advance(breq, sizeof(struct xfs_inogrp));
+}
+
 STATIC int
 xfs_ioc_bulkstat(
 	xfs_mount_t		*mp,
@@ -774,13 +784,9 @@ xfs_ioc_bulkstat(
 	 * in filesystem".
 	 */
 	if (cmd == XFS_IOC_FSINUMBERS) {
-		int	count = breq.icount;
-
-		breq.startino = lastino;
-		error = xfs_inumbers(mp, &breq.startino, &count,
-					bulkreq.ubuffer, xfs_inumbers_fmt);
-		breq.ocount = count;
-		lastino = breq.startino;
+		breq.startino = lastino ? lastino + 1 : 0;
+		error = xfs_inumbers(&breq, xfs_inumbers_fmt);
+		lastino = breq.startino - 1;
 	} else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE) {
 		breq.startino = lastino;
 		breq.icount = 1;

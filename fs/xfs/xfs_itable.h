@@ -43,25 +43,9 @@ typedef int (*bulkstat_one_fmt_pf)(struct xfs_ibulk *breq,
 int xfs_bulkstat_one(struct xfs_ibulk *breq, bulkstat_one_fmt_pf formatter);
 int xfs_bulkstat(struct xfs_ibulk *breq, bulkstat_one_fmt_pf formatter);
 
-typedef int (*inumbers_fmt_pf)(
-	void			__user *ubuffer, /* buffer to write to */
-	const xfs_inogrp_t	*buffer,	/* buffer to read from */
-	long			count,		/* # of elements to read */
-	long			*written);	/* # of bytes written */
+typedef int (*inumbers_fmt_pf)(struct xfs_ibulk *breq,
+		const struct xfs_inogrp *igrp);
 
-int
-xfs_inumbers_fmt(
-	void			__user *ubuffer, /* buffer to write to */
-	const xfs_inogrp_t	*buffer,	/* buffer to read from */
-	long			count,		/* # of elements to read */
-	long			*written);	/* # of bytes written */
-
-int					/* error status */
-xfs_inumbers(
-	xfs_mount_t		*mp,	/* mount point for filesystem */
-	xfs_ino_t		*last,	/* last inode returned */
-	int			*count,	/* size of buffer/count returned */
-	void			__user *buffer, /* buffer with inode info */
-	inumbers_fmt_pf		formatter);
+int xfs_inumbers(struct xfs_ibulk *breq, inumbers_fmt_pf formatter);
 
 #endif	/* __XFS_ITABLE_H__ */
