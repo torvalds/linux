@@ -580,7 +580,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 	gen6_disable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
-	synchronize_irq(dev_priv->drm.irq);
+	intel_synchronize_irq(dev_priv);
 
 	/* Now that we will not be generating any more work, flush any
 	 * outstanding tasks. As we are called on the RPS idle path,
@@ -627,7 +627,7 @@ void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv)
 	gen6_disable_pm_irq(dev_priv, dev_priv->pm_guc_events);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
-	synchronize_irq(dev_priv->drm.irq);
+	intel_synchronize_irq(dev_priv);
 
 	gen9_reset_guc_interrupts(dev_priv);
 }
@@ -663,7 +663,7 @@ void gen11_disable_guc_interrupts(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, 0);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
-	synchronize_irq(dev_priv->drm.irq);
+	intel_synchronize_irq(dev_priv);
 
 	gen11_reset_guc_interrupts(dev_priv);
 }
@@ -3680,7 +3680,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* make sure we're done processing display irqs */
-	synchronize_irq(dev_priv->drm.irq);
+	intel_synchronize_irq(dev_priv);
 }
 
 static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
@@ -4970,7 +4970,7 @@ void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
 {
 	intel_irq_reset(dev_priv);
 	dev_priv->runtime_pm.irqs_enabled = false;
-	synchronize_irq(dev_priv->drm.irq);
+	intel_synchronize_irq(dev_priv);
 }
 
 /**

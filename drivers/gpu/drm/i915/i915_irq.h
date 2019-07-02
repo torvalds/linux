@@ -102,6 +102,11 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 	return dev_priv->runtime_pm.irqs_enabled;
 }
 
+static inline void intel_synchronize_irq(struct drm_i915_private *i915)
+{
+	synchronize_irq(i915->drm.pdev->irq);
+}
+
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);

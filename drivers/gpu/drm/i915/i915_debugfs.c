@@ -4081,7 +4081,7 @@ static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
 	/* Synchronize with everything first in case there's been an HPD
 	 * storm, but we haven't finished handling it in the kernel yet
 	 */
-	synchronize_irq(dev_priv->drm.irq);
+	intel_synchronize_irq(dev_priv);
 	flush_work(&dev_priv->hotplug.dig_port_work);
 	flush_work(&dev_priv->hotplug.hotplug_work);
 

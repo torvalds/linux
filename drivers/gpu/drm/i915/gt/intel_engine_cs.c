@@ -1162,7 +1162,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (execlists_active(&engine->execlists)) {
 		struct tasklet_struct *t = &engine->execlists.tasklet;
 
-		synchronize_hardirq(engine->i915->drm.irq);
+		synchronize_hardirq(engine->i915->drm.pdev->irq);
 
 		local_bh_disable();
 		if (tasklet_trylock(t)) {

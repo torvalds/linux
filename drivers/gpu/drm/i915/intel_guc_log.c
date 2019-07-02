@@ -615,7 +615,7 @@ void intel_guc_log_relay_close(struct intel_guc_log *log)
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 
 	guc_log_disable_flush_events(log);
-	synchronize_irq(i915->drm.irq);
+	intel_synchronize_irq(i915);
 
 	flush_work(&log->relay.flush_work);
 
