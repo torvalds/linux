@@ -88,19 +88,19 @@
 
 	.macro		do_block, dround, fround
 	cmp		r3, #12			@ which key size?
-	vld1.8		{q10-q11}, [ip]!
+	vld1.32		{q10-q11}, [ip]!
 	\dround		q8, q9
-	vld1.8		{q12-q13}, [ip]!
+	vld1.32		{q12-q13}, [ip]!
 	\dround		q10, q11
-	vld1.8		{q10-q11}, [ip]!
+	vld1.32		{q10-q11}, [ip]!
 	\dround		q12, q13
-	vld1.8		{q12-q13}, [ip]!
+	vld1.32		{q12-q13}, [ip]!
 	\dround		q10, q11
 	blo		0f			@ AES-128: 10 rounds
-	vld1.8		{q10-q11}, [ip]!
+	vld1.32		{q10-q11}, [ip]!
 	\dround		q12, q13
 	beq		1f			@ AES-192: 12 rounds
-	vld1.8		{q12-q13}, [ip]
+	vld1.32		{q12-q13}, [ip]
 	\dround		q10, q11
 0:	\fround		q12, q13, q14
 	bx		lr
@@ -149,8 +149,8 @@ ENDPROC(aes_decrypt_3x)
 
 	.macro		prepare_key, rk, rounds
 	add		ip, \rk, \rounds, lsl #4
-	vld1.8		{q8-q9}, [\rk]		@ load first 2 round keys
-	vld1.8		{q14}, [ip]		@ load last round key
+	vld1.32		{q8-q9}, [\rk]		@ load first 2 round keys
+	vld1.32		{q14}, [ip]		@ load last round key
 	.endm
 
 	/*
@@ -505,8 +505,8 @@ ENDPROC(ce_aes_sub)
 	 *                                        operation on round key *src
 	 */
 ENTRY(ce_aes_invert)
-	vld1.8		{q0}, [r1]
+	vld1.32		{q0}, [r1]
 	aesimc.8	q0, q0
-	vst1.8		{q0}, [r0]
+	vst1.32		{q0}, [r0]
 	bx		lr
 ENDPROC(ce_aes_invert)
