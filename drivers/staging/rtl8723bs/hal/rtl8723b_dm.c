@@ -173,7 +173,7 @@ void rtl8723b_HalDmWatchDog(struct adapter *Adapter)
 	if (hw_init_completed == true) {
 		u8 bLinked = false;
 		u8 bsta_state = false;
-		u8 bBtDisabled = true;
+		bool bBtDisabled = true;
 
 		if (rtw_linked_check(Adapter)) {
 			bLinked = true;
