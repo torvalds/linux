@@ -32,12 +32,20 @@ static int recur_count = REC_NUM_DEFAULT;
 
 static DEFINE_SPINLOCK(lock_me_up);
 
-static int recursive_loop(int remaining)
+/*
+ * Make sure compiler does not optimize this function or stack frame away:
+ * - function marked noinline
+ * - stack variables are marked volatile
+ * - stack variables are written (memset()) and read (pr_info())
+ * - function has external effects (pr_info())
+ * */
+static int noinline recursive_loop(int remaining)
 {
-	char buf[REC_STACK_SIZE];
+	volatile char buf[REC_STACK_SIZE];
 
-	/* Make sure compiler does not optimize this away. */
-	memset(buf, (remaining & 0xff) | 0x1, REC_STACK_SIZE);
+	memset((void *)buf, remaining & 0xFF, sizeof(buf));
+	pr_info("loop %d/%d ...\n", (int)buf[remaining % sizeof(buf)],
+		recur_count);
 	if (!remaining)
 		return 0;
 	else
@@ -81,9 +89,12 @@ void lkdtm_LOOP(void)
 		;
 }
 
-void lkdtm_OVERFLOW(void)
+void lkdtm_EXHAUST_STACK(void)
 {
-	(void) recursive_loop(recur_count);
+	pr_info("Calling function with %d frame size to depth %d ...\n",
+		REC_STACK_SIZE, recur_count);
+	recursive_loop(recur_count);
+	pr_info("FAIL: survived without exhausting stack?!\n");
 }
 
 static noinline void __lkdtm_CORRUPT_STACK(void *stack)

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/acorn/scsi/acornscsi.c
  *
  *  Acorn SCSI 3 driver
  *  By R.M.King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Abandoned using the Select and Transfer command since there were
  * some nasty races between our software and the target devices that

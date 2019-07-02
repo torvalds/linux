@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST M48T86 / Dallas DS12887 RTC driver
  * Copyright (c) 2006 Tower Technologies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This drivers only supports the clock running in BCD and 24H mode.
  * If it will be ever adapted to binary and 12H mode, care must be taken

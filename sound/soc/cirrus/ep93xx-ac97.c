@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ASoC driver for Cirrus Logic EP93xx AC97 controller.
  *
  * Copyright (c) 2010 Mika Westerberg
  *
  * Based on s3c-ac97 ASoC driver by Jaswinder Singh.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>

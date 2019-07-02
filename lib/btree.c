@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lib/btree.c	- Simple In-memory B+Tree
- *
- * As should be obvious for Linux kernel code, license is GPLv2
  *
  * Copyright (c) 2007-2008 Joern Engel <joern@purestorage.com>
  * Bits and pieces stolen from Peter Zijlstra's code, which is
  * Copyright 2007, Red Hat Inc. Peter Zijlstra
- * GPLv2
  *
  * see http://programming.kicks-ass.net/kernel-patches/vma_lookup/btree.patch
  *

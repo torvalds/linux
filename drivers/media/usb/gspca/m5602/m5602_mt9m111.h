@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Driver for the mt9m111 sensor
  *
@@ -12,11 +13,6 @@
  *
  * Some defines taken from the mt9m111 sensor driver
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
- *
  */
 
 #ifndef M5602_MT9M111_H_

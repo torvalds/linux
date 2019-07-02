@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rx51.c  --  SoC audio for Nokia RX-51
  *
@@ -6,21 +7,6 @@
  * Contact: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *          Eduardo Valentin <eduardo.valentin@nokia.com>
  *          Jarkko Nikula <jarkko.nikula@bitmer.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/delay.h>
@@ -315,8 +301,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 SND_SOC_DAILINK_DEFS(aic34,
 	DAILINK_COMP_ARRAY(COMP_CPU("omap-mcbsp.2")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.2-0018",
-				      "tlv320aic3x-hifi")),
-	DAILINK_COMP_ARRAY(COMP_PLATFORM("omap-mcbsp.2")));
+				      "tlv320aic3x-hifi")));
 
 static struct snd_soc_dai_link rx51_dai[] = {
 	{
@@ -393,9 +378,7 @@ static int rx51_soc_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 		rx51_dai[0].cpus->dai_name = NULL;
-		rx51_dai[0].platforms->name = NULL;
 		rx51_dai[0].cpus->of_node = dai_node;
-		rx51_dai[0].platforms->of_node = dai_node;
 
 		dai_node = of_parse_phandle(np, "nokia,audio-codec", 0);
 		if (!dai_node) {

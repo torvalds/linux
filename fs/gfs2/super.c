@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1477,7 +1474,7 @@ static void gfs2_final_release_pages(struct gfs2_inode *ip)
 	truncate_inode_pages(gfs2_glock2aspace(ip->i_gl), 0);
 	truncate_inode_pages(&inode->i_data, 0);
 
-	if (!test_bit(GLF_REVOKES, &gl->gl_flags)) {
+	if (atomic_read(&gl->gl_revokes) == 0) {
 		clear_bit(GLF_LFLUSH, &gl->gl_flags);
 		clear_bit(GLF_DIRTY, &gl->gl_flags);
 	}

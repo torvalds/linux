@@ -97,6 +97,9 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 	sk_node_init(&req_to_sk(req)->sk_node);
 	sk_tx_queue_clear(req_to_sk(req));
 	req->saved_syn = NULL;
+	req->num_timeout = 0;
+	req->num_retrans = 0;
+	req->sk = NULL;
 	refcount_set(&req->rsk_refcnt, 0);
 
 	return req;

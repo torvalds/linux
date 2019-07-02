@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Device Tree Source for OMAP34XX/OMAP36XX clock data
  *
  * Copyright (C) 2013 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 &cm_clocks {
 	security_l4_ick2: security_l4_ick2 {

@@ -276,10 +276,8 @@ static void unregister_parent_src_clk(struct skl_clk_parent *pclk,
 
 static void unregister_src_clk(struct skl_clk_data *dclk)
 {
-	u8 cnt = dclk->avail_clk_cnt;
-
-	while (cnt--)
-		clkdev_drop(dclk->clk[cnt]->lookup);
+	while (dclk->avail_clk_cnt--)
+		clkdev_drop(dclk->clk[dclk->avail_clk_cnt]->lookup);
 }
 
 static int skl_register_parent_clks(struct device *dev,
@@ -381,13 +379,13 @@ static int skl_clk_dev_probe(struct platform_device *pdev)
 		if (clks[i].rate_cfg[0].rate == 0)
 			continue;
 
-		data->clk[i] = register_skl_clk(dev, &clks[i], clk_pdata, i);
-		if (IS_ERR(data->clk[i])) {
-			ret = PTR_ERR(data->clk[i]);
+		data->clk[data->avail_clk_cnt] = register_skl_clk(dev,
+				&clks[i], clk_pdata, i);
+
+		if (IS_ERR(data->clk[data->avail_clk_cnt])) {
+			ret = PTR_ERR(data->clk[data->avail_clk_cnt++]);
 			goto err_unreg_skl_clk;
 		}
-
-		data->avail_clk_cnt++;
 	}
 
 	platform_set_drvdata(pdev, data);

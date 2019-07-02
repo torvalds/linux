@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 1-wire client/driver for the Maxim/Dallas DS2781 Stand-Alone Fuel Gauge IC
  *
  * Author: Renata Sayakhova <renata@oktetlabs.ru>
  *
  * Based on ds2780_battery drivers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>

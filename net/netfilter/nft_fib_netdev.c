@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017 Pablo M. Bermudo Garay <pablombg@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This code is based on net/netfilter/nft_fib_inet.c, written by
  * Florian Westphal <fw@strlen.de>.

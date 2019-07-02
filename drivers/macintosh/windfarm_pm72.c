@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control.
  * Control loops for PowerMac7,2 and 7,3
  *
  * Copyright (C) 2012 Benjamin Herrenschmidt, IBM Corp.
- *
- * Use and redistribute under the terms of the GNU GPL v2.
  */
 #include <linux/types.h>
 #include <linux/errno.h>

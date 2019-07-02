@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VXLAN: Virtual eXtensible Local Area Network
  *
  * Copyright (c) 2012-2013 Vyatta Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1766,7 +1763,7 @@ static int vxlan_err_lookup(struct sock *sk, struct sk_buff *skb)
 	struct vxlanhdr *hdr;
 	__be32 vni;
 
-	if (skb->len < VXLAN_HLEN)
+	if (!pskb_may_pull(skb, skb_transport_offset(skb) + VXLAN_HLEN))
 		return -EINVAL;
 
 	hdr = vxlan_hdr(skb);

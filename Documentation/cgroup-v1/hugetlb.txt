@@ -32,14 +32,18 @@ Brief summary of control files
  hugetlb.<hugepagesize>.usage_in_bytes     # show current usage for "hugepagesize" hugetlb
  hugetlb.<hugepagesize>.failcnt		   # show the number of allocation failure due to HugeTLB limit
 
-For a system supporting two hugepage size (16M and 16G) the control
+For a system supporting three hugepage sizes (64k, 32M and 1G), the control
 files include:
 
-hugetlb.16GB.limit_in_bytes
-hugetlb.16GB.max_usage_in_bytes
-hugetlb.16GB.usage_in_bytes
-hugetlb.16GB.failcnt
-hugetlb.16MB.limit_in_bytes
-hugetlb.16MB.max_usage_in_bytes
-hugetlb.16MB.usage_in_bytes
-hugetlb.16MB.failcnt
+hugetlb.1GB.limit_in_bytes
+hugetlb.1GB.max_usage_in_bytes
+hugetlb.1GB.usage_in_bytes
+hugetlb.1GB.failcnt
+hugetlb.64KB.limit_in_bytes
+hugetlb.64KB.max_usage_in_bytes
+hugetlb.64KB.usage_in_bytes
+hugetlb.64KB.failcnt
+hugetlb.32MB.limit_in_bytes
+hugetlb.32MB.max_usage_in_bytes
+hugetlb.32MB.usage_in_bytes
+hugetlb.32MB.failcnt

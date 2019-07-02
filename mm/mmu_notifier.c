@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/mm/mmu_notifier.c
  *
  *  Copyright (C) 2008  Qumranet, Inc.
  *  Copyright (C) 2008  SGI
  *             Christoph Lameter <cl@linux.com>
- *
- *  This work is licensed under the terms of the GNU GPL, version 2. See
- *  the COPYING file in the top-level directory.
  */
 
 #include <linux/rculist.h>

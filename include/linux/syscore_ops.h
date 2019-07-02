@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  syscore_ops.h - System core operations.
  *
  *  Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
- *
- *  This file is released under the GPLv2.
  */
 
 #ifndef _LINUX_SYSCORE_OPS_H

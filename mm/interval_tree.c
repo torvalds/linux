@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mm/interval_tree.c - interval tree for mapping->i_mmap
  *
  * Copyright (C) 2012, Michel Lespinasse <walken@google.com>
- *
- * This file is released under the GPL v2.
  */
 
 #include <linux/mm.h>

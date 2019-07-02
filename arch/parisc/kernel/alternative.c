@@ -56,7 +56,8 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		 * time IO-PDIR is changed in Ike/Astro.
 		 */
 		if ((cond & ALT_COND_NO_IOC_FDC) &&
-			(boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC))
+			((boot_cpu_data.cpu_type <= pcxw_) ||
+			 (boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC)))
 			continue;
 
 		/* Want to replace pdtlb by a pdtlb,l instruction? */

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* nf_nat_helper.c - generic support functions for NAT helpers
  *
  * (C) 2000-2002 Harald Welte <laforge@netfilter.org>
  * (C) 2003-2006 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2007-2012 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/gfp.h>

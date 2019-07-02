@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * fs/kernfs/kernfs-internal.h - kernfs internal header file
  *
  * Copyright (c) 2001-3 Patrick Mochel
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007, 2013 Tejun Heo <teheo@suse.de>
- *
- * This file is released under the GPLv2.
  */
 
 #ifndef __KERNFS_INTERNAL_H

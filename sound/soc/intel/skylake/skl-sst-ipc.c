@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * skl-sst-ipc.c - Intel skl IPC Support
  *
  * Copyright (C) 2014-15, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/device.h>
 
@@ -344,6 +336,7 @@ static struct ipc_message *skl_ipc_reply_get_msg(struct sst_generic_ipc *ipc,
 
 	msg = list_first_entry(&ipc->rx_list, struct ipc_message, list);
 
+	list_del(&msg->list);
 out:
 	return msg;
 
@@ -488,7 +481,6 @@ void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 	}
 
 	spin_lock_irqsave(&ipc->dsp->spinlock, flags);
-	list_del(&msg->list);
 	sst_ipc_tx_msg_reply_complete(ipc, msg);
 	spin_unlock_irqrestore(&ipc->dsp->spinlock, flags);
 }
@@ -511,6 +503,7 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 
 	hipcie = sst_dsp_shim_read_unlocked(dsp, SKL_ADSP_REG_HIPCIE);
 	hipct = sst_dsp_shim_read_unlocked(dsp, SKL_ADSP_REG_HIPCT);
+	hipcte = sst_dsp_shim_read_unlocked(dsp, SKL_ADSP_REG_HIPCTE);
 
 	/* reply message from DSP */
 	if (hipcie & SKL_ADSP_REG_HIPCIE_DONE) {
@@ -530,7 +523,6 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 
 	/* New message from DSP */
 	if (hipct & SKL_ADSP_REG_HIPCT_BUSY) {
-		hipcte = sst_dsp_shim_read_unlocked(dsp, SKL_ADSP_REG_HIPCTE);
 		header.primary = hipct;
 		header.extension = hipcte;
 		dev_dbg(dsp->dev, "IPC irq: Firmware respond primary:%x\n",

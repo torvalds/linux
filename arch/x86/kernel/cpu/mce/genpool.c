@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MCE event pool management in MCE context
  *
  * Copyright (C) 2015 Intel Corp.
  * Author: Chen, Gong <gong.chen@linux.intel.com>
- *
- * This file is licensed under GPLv2.
  */
 #include <linux/smp.h>
 #include <linux/mm.h>

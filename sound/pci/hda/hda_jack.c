@@ -559,7 +559,7 @@ static void call_jack_callback(struct hda_codec *codec, unsigned int res,
 void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hda_jack_tbl *event;
-	int tag = (res >> AC_UNSOL_RES_TAG_SHIFT) & 0x7f;
+	int tag = (res & AC_UNSOL_RES_TAG) >> AC_UNSOL_RES_TAG_SHIFT;
 
 	event = snd_hda_jack_tbl_get_from_tag(codec, tag);
 	if (!event)

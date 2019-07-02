@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/adfs/dir_fplus.c
  *
  *  Copyright (C) 1997-1999 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
@@ -169,7 +166,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 		(struct adfs_bigdirheader *) dir->bh_fplus[0]->b_data;
 	struct adfs_bigdirentry bde;
 	unsigned int offset;
-	int i, ret = -ENOENT;
+	int ret = -ENOENT;
 
 	if (dir->pos >= le32_to_cpu(h->bigdirentries))
 		goto out;
@@ -193,27 +190,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	offset += le32_to_cpu(bde.bigdirobnameptr);
 
 	dir_memcpy(dir, offset, obj->name, obj->name_len);
-	for (i = 0; i < obj->name_len; i++)
-		if (obj->name[i] == '/')
-			obj->name[i] = '.';
-
-	obj->filetype = -1;
-
-	/*
-	 * object is a file and is filetyped and timestamped?
-	 * RISC OS 12-bit filetype is stored in load_address[19:8]
-	 */
-	if ((0 == (obj->attr & ADFS_NDA_DIRECTORY)) &&
-		(0xfff00000 == (0xfff00000 & obj->loadaddr))) {
-		obj->filetype = (__u16) ((0x000fff00 & obj->loadaddr) >> 8);
-
-		/* optionally append the ,xyz hex filetype suffix */
-		if (ADFS_SB(dir->sb)->s_ftsuffix)
-			obj->name_len +=
-				append_filetype_suffix(
-					&obj->name[obj->name_len],
-					obj->filetype);
-	}
+	adfs_object_fixup(dir, obj);
 
 	dir->pos += 1;
 	ret = 0;

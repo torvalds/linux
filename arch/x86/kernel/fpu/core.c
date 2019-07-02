@@ -102,7 +102,7 @@ static void __kernel_fpu_begin(void)
 
 	kernel_fpu_disable();
 
-	if (current->mm) {
+	if (!(current->flags & PF_KTHREAD)) {
 		if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
 			set_thread_flag(TIF_NEED_FPU_LOAD);
 			/*

@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* huawei_cdc_ncm.c - handles Huawei devices using the CDC NCM protocol as
  * transport layer.
  * Copyright (C) 2013	 Enrico Mioso <mrkiko.rs@gmail.com>
- *
  *
  * ABSTRACT:
  * This driver handles devices resembling the CDC NCM standard, but
@@ -11,10 +11,6 @@
  * This code has been heavily inspired by the cdc_mbim.c driver, which is
  * Copyright (c) 2012  Smith Micro Software, Inc.
  * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

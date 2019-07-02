@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Micro Crystal RV-3029 / RV-3049 rtc class driver
  *
@@ -5,11 +6,6 @@
  *         Michael Buesch <m@bues.ch>
  *
  * based on previously existing rtc class drivers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>

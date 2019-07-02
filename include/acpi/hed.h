@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * hed.h - ACPI Hardware Error Device
  *
  * Copyright (C) 2009, Intel Corp.
  *	Author: Huang Ying <ying.huang@intel.com>
- *
- * This file is released under the GPLv2.
  */
 
 #ifndef ACPI_HED_H

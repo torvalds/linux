@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cnl-sst.c - DSP library functions for CNL platform
  *
@@ -10,15 +11,6 @@
  *	Copyright (C) 2014-15, Intel Corporation.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -313,6 +305,7 @@ static irqreturn_t cnl_dsp_irq_thread_handler(int irq, void *context)
 
 	hipcida = sst_dsp_shim_read_unlocked(dsp, CNL_ADSP_REG_HIPCIDA);
 	hipctdr = sst_dsp_shim_read_unlocked(dsp, CNL_ADSP_REG_HIPCTDR);
+	hipctdd = sst_dsp_shim_read_unlocked(dsp, CNL_ADSP_REG_HIPCTDD);
 
 	/* reply message from dsp */
 	if (hipcida & CNL_ADSP_REG_HIPCIDA_DONE) {
@@ -332,7 +325,6 @@ static irqreturn_t cnl_dsp_irq_thread_handler(int irq, void *context)
 
 	/* new message from dsp */
 	if (hipctdr & CNL_ADSP_REG_HIPCTDR_BUSY) {
-		hipctdd = sst_dsp_shim_read_unlocked(dsp, CNL_ADSP_REG_HIPCTDD);
 		header.primary = hipctdr;
 		header.extension = hipctdd;
 		dev_dbg(dsp->dev, "IPC irq: Firmware respond primary:%x",
