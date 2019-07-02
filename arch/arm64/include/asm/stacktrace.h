@@ -64,8 +64,9 @@ static inline bool on_irq_stack(unsigned long sp,
 	return true;
 }
 
-static inline bool on_task_stack(struct task_struct *tsk, unsigned long sp,
-				struct stack_info *info)
+static inline bool on_task_stack(const struct task_struct *tsk,
+				 unsigned long sp,
+				 struct stack_info *info)
 {
 	unsigned long low = (unsigned long)task_stack_page(tsk);
 	unsigned long high = low + THREAD_SIZE;
@@ -112,9 +113,9 @@ static inline bool on_overflow_stack(unsigned long sp,
  * We can only safely access per-cpu stacks from current in a non-preemptible
  * context.
  */
-static inline bool on_accessible_stack(struct task_struct *tsk,
-					unsigned long sp,
-					struct stack_info *info)
+static inline bool on_accessible_stack(const struct task_struct *tsk,
+				       unsigned long sp,
+				       struct stack_info *info)
 {
 	if (on_task_stack(tsk, sp, info))
 		return true;
