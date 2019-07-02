@@ -2883,21 +2883,16 @@ static void icl_update_active_dpll(struct intel_atomic_state *state,
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_digital_port *primary_port;
-	enum icl_port_dpll_id port_dpll_id;
+	enum icl_port_dpll_id port_dpll_id = ICL_PORT_DPLL_DEFAULT;
 
 	primary_port = encoder->type == INTEL_OUTPUT_DP_MST ?
 		enc_to_mst(&encoder->base)->primary :
 		enc_to_dig_port(&encoder->base);
 
-	switch (primary_port->tc_mode) {
-	case TC_PORT_TBT_ALT:
-		port_dpll_id = ICL_PORT_DPLL_DEFAULT;
-		break;
-	case TC_PORT_DP_ALT:
-	case TC_PORT_LEGACY:
+	if (primary_port &&
+	    (primary_port->tc_mode == TC_PORT_DP_ALT ||
+	     primary_port->tc_mode == TC_PORT_LEGACY))
 		port_dpll_id = ICL_PORT_DPLL_MG_PHY;
-		break;
-	}
 
 	icl_set_active_port_dpll(crtc_state, port_dpll_id);
 }
