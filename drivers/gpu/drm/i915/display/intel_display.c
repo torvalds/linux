@@ -3716,10 +3716,27 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	return 0;
 }
 
+static bool i9xx_plane_has_windowing(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+
+	if (IS_CHERRYVIEW(dev_priv))
+		return i9xx_plane == PLANE_B;
+	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+		return false;
+	else if (IS_GEN(dev_priv, 4))
+		return i9xx_plane == PLANE_C;
+	else
+		return i9xx_plane == PLANE_B ||
+			i9xx_plane == PLANE_C;
+}
+
 static int
 i9xx_plane_check(struct intel_crtc_state *crtc_state,
 		 struct intel_plane_state *plane_state)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	int ret;
 
 	ret = chv_plane_check_rotation(plane_state);
@@ -3730,7 +3747,8 @@ i9xx_plane_check(struct intel_crtc_state *crtc_state,
 						  &crtc_state->base,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
-						  false, true);
+						  i9xx_plane_has_windowing(plane),
+						  true);
 	if (ret)
 		return ret;
 
@@ -3759,6 +3777,10 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	u32 linear_offset;
 	int x = plane_state->color_plane[0].x;
 	int y = plane_state->color_plane[0].y;
+	int crtc_x = plane_state->base.dst.x1;
+	int crtc_y = plane_state->base.dst.y1;
+	int crtc_w = drm_rect_width(&plane_state->base.dst);
+	int crtc_h = drm_rect_height(&plane_state->base.dst);
 	unsigned long irqflags;
 	u32 dspaddr_offset;
 	u32 dspcntr;
@@ -3777,18 +3799,18 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(DSPSTRIDE(i9xx_plane), plane_state->color_plane[0].stride);
 
 	if (INTEL_GEN(dev_priv) < 4) {
-		/* pipesrc and dspsize control the size that is scaled from,
-		 * which should always be the user's requested size.
+		/*
+		 * PLANE_A doesn't actually have a full window
+		 * generator but let's assume we still need to
+		 * program whatever is there.
 		 */
-		I915_WRITE_FW(DSPPOS(i9xx_plane), 0);
+		I915_WRITE_FW(DSPPOS(i9xx_plane), (crtc_y << 16) | crtc_x);
 		I915_WRITE_FW(DSPSIZE(i9xx_plane),
-			      ((crtc_state->pipe_src_h - 1) << 16) |
-			      (crtc_state->pipe_src_w - 1));
+			      ((crtc_h - 1) << 16) | (crtc_w - 1));
 	} else if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
-		I915_WRITE_FW(PRIMPOS(i9xx_plane), 0);
+		I915_WRITE_FW(PRIMPOS(i9xx_plane), (crtc_y << 16) | crtc_x);
 		I915_WRITE_FW(PRIMSIZE(i9xx_plane),
-			      ((crtc_state->pipe_src_h - 1) << 16) |
-			      (crtc_state->pipe_src_w - 1));
+			      ((crtc_h - 1) << 16) | (crtc_w - 1));
 		I915_WRITE_FW(PRIMCNSTALPHA(i9xx_plane), 0);
 	}
 
