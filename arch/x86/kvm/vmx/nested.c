@@ -2627,6 +2627,30 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 	    !kvm_pat_valid(vmcs12->host_ia32_pat))
 		return -EINVAL;
 
+	ia32e = (vmcs12->vm_exit_controls &
+		 VM_EXIT_HOST_ADDR_SPACE_SIZE) != 0;
+
+	if (vmcs12->host_cs_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK) ||
+	    vmcs12->host_ss_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK) ||
+	    vmcs12->host_ds_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK) ||
+	    vmcs12->host_es_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK) ||
+	    vmcs12->host_fs_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK) ||
+	    vmcs12->host_gs_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK) ||
+	    vmcs12->host_tr_selector & (SEGMENT_RPL_MASK | SEGMENT_TI_MASK) ||
+	    vmcs12->host_cs_selector == 0 ||
+	    vmcs12->host_tr_selector == 0 ||
+	    (vmcs12->host_ss_selector == 0 && !ia32e))
+		return -EINVAL;
+
+#ifdef CONFIG_X86_64
+	if (is_noncanonical_address(vmcs12->host_fs_base, vcpu) ||
+	    is_noncanonical_address(vmcs12->host_gs_base, vcpu) ||
+	    is_noncanonical_address(vmcs12->host_gdtr_base, vcpu) ||
+	    is_noncanonical_address(vmcs12->host_idtr_base, vcpu) ||
+	    is_noncanonical_address(vmcs12->host_tr_base, vcpu))
+		return -EINVAL;
+#endif
+
 	/*
 	 * If the load IA32_EFER VM-exit control is 1, bits reserved in the
 	 * IA32_EFER MSR must be 0 in the field for that register. In addition,
@@ -2634,8 +2658,6 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 	 * the host address-space size VM-exit control.
 	 */
 	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_EFER) {
-		ia32e = (vmcs12->vm_exit_controls &
-			 VM_EXIT_HOST_ADDR_SPACE_SIZE) != 0;
 		if (!kvm_valid_efer(vcpu, vmcs12->host_ia32_efer) ||
 		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LMA) ||
 		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME))
