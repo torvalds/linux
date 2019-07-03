@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <inttypes.h>
+#include <linux/string.h>
 #include <linux/time64.h>
 #include <math.h>
 #include "color.h"
@@ -10,7 +11,7 @@
 #include "thread_map.h"
 #include "cpumap.h"
 #include "string2.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include "cgroup.h"
 #include <math.h>
 #include <api/fs/fs.h>
@@ -211,13 +212,11 @@ static void print_metric_csv(struct perf_stat_config *config __maybe_unused,
 		return;
 	}
 	snprintf(buf, sizeof(buf), fmt, val);
-	ends = vals = ltrim(buf);
+	ends = vals = skip_spaces(buf);
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
 	*ends = 0;
-	while (isspace(*unit))
-		unit++;
-	fprintf(out, "%s%s%s%s", config->csv_sep, vals, config->csv_sep, unit);
+	fprintf(out, "%s%s%s%s", config->csv_sep, vals, config->csv_sep, skip_spaces(unit));
 }
 
 /* Filter out some columns that don't work well in metrics only mode */
@@ -281,7 +280,7 @@ static void print_metric_only_csv(struct perf_stat_config *config __maybe_unused
 		return;
 	unit = fixunit(tbuf, os->evsel, unit);
 	snprintf(buf, sizeof buf, fmt, val);
-	ends = vals = ltrim(buf);
+	ends = vals = skip_spaces(buf);
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
 	*ends = 0;
@@ -555,7 +554,8 @@ static void collect_all_aliases(struct perf_stat_config *config, struct perf_evs
 		    alias->scale != counter->scale ||
 		    alias->cgrp != counter->cgrp ||
 		    strcmp(alias->unit, counter->unit) ||
-		    perf_evsel__is_clock(alias) != perf_evsel__is_clock(counter))
+		    perf_evsel__is_clock(alias) != perf_evsel__is_clock(counter) ||
+		    !strcmp(alias->pmu_name, counter->pmu_name))
 			break;
 		alias->merged_stat = true;
 		cb(config, alias, data, false);

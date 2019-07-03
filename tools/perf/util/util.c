@@ -434,19 +434,6 @@ size_t hex_width(u64 v)
 	return n;
 }
 
-/*
- * While we find nice hex chars, build a long_val.
- * Return number of chars processed.
- */
-int hex2u64(const char *ptr, u64 *long_val)
-{
-	char *p;
-
-	*long_val = strtoull(ptr, &p, 16);
-
-	return p - ptr;
-}
-
 int perf_event_paranoid(void)
 {
 	int value;

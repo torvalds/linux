@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <linux/kernel.h>
+#include <linux/string.h>
 
 #include "util/dso.h"
 #include "util/util.h"
@@ -464,7 +465,7 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 		char *srcline;
 		struct symbol *inline_sym;
 
-		rtrim(funcname);
+		strim(funcname);
 
 		if (getline(&filename, &filelen, fp) == -1)
 			goto out;

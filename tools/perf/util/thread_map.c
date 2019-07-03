@@ -12,6 +12,7 @@
 #include "strlist.h"
 #include <string.h>
 #include <api/fs/fs.h>
+#include <linux/string.h>
 #include "asm/bug.h"
 #include "thread_map.h"
 #include "util.h"
@@ -392,7 +393,7 @@ static int get_comm(char **comm, pid_t pid)
 		 * mark the end of the string.
 		 */
 		(*comm)[size] = 0;
-		rtrim(*comm);
+		strim(*comm);
 	}
 
 	free(path);

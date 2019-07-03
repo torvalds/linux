@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
+#include <linux/ctype.h>
 
 #include "../../util/header.h"
 #include "../../util/util.h"

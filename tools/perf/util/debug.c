@@ -21,7 +21,7 @@
 #include "util.h"
 #include "target.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 int verbose;
 bool dump_trace = false, quiet = false;

@@ -35,10 +35,11 @@
 #include "debug.h"
 #include "trace-event.h"
 #include "stat.h"
+#include "string2.h"
 #include "memswap.h"
 #include "util/parse-branch-options.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 struct perf_missing_features perf_missing_features;
 

@@ -14,7 +14,8 @@
 #include "machine.h"
 #include "vdso.h"
 #include "debug.h"
-#include "sane_ctype.h"
+#include "util.h"
+#include <linux/ctype.h>
 #include <symbol/kallsyms.h>
 
 #ifndef EM_AARCH64

@@ -16,7 +16,7 @@
 #include "helpline.h"
 #include "keysyms.h"
 #include "../color.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 static int ui_browser__percent_color(struct ui_browser *browser,
 				     double percent, bool current)
@@ -594,7 +594,7 @@ static int ui_browser__color_config(const char *var, const char *value,
 			break;
 
 		*bg = '\0';
-		bg = ltrim(++bg);
+		bg = skip_spaces(bg + 1);
 		ui_browser__colorsets[i].bg = bg;
 		ui_browser__colorsets[i].fg = fg;
 		return 0;

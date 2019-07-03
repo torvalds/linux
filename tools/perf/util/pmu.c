@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/list.h>
 #include <linux/compiler.h>
+#include <linux/string.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -394,7 +395,7 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 	buf[ret] = 0;
 
 	/* Remove trailing newline from sysfs file */
-	rtrim(buf);
+	strim(buf);
 
 	return __perf_pmu__new_alias(list, dir, name, NULL, buf, NULL, NULL, NULL,
 				     NULL, NULL, NULL);
@@ -1339,7 +1340,7 @@ static void wordwrap(char *s, int start, int max, int corr)
 			break;
 		s += wlen;
 		column += n;
-		s = ltrim(s);
+		s = skip_spaces(s);
 	}
 }
 

@@ -64,7 +64,7 @@
 #include <fcntl.h>
 #include <sys/sysmacros.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #ifndef O_CLOEXEC
 # define O_CLOEXEC		02000000

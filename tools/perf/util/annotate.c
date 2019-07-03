@@ -35,6 +35,7 @@
 #include <pthread.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <bpf/libbpf.h>
 
 /* FIXME: For the HE_COLORSET */
@@ -49,7 +50,7 @@
 #define DARROW_CHAR	((unsigned char)'.')
 #define UARROW_CHAR	((unsigned char)'-')
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 struct annotation_options annotation__default_options = {
 	.use_offset     = true,
@@ -144,6 +145,7 @@ static int arch__associate_ins_ops(struct arch* arch, const char *name, struct i
 #include "arch/arc/annotate/instructions.c"
 #include "arch/arm/annotate/instructions.c"
 #include "arch/arm64/annotate/instructions.c"
+#include "arch/csky/annotate/instructions.c"
 #include "arch/x86/annotate/instructions.c"
 #include "arch/powerpc/annotate/instructions.c"
 #include "arch/s390/annotate/instructions.c"
@@ -161,6 +163,10 @@ static struct arch architectures[] = {
 	{
 		.name = "arm64",
 		.init = arm64__annotate_init,
+	},
+	{
+		.name = "csky",
+		.init = csky__annotate_init,
 	},
 	{
 		.name = "x86",
@@ -557,7 +563,7 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_sy
 	if (comment == NULL)
 		return 0;
 
-	comment = ltrim(comment);
+	comment = skip_spaces(comment);
 	comment__symbol(ops->source.raw, comment + 1, &ops->source.addr, &ops->source.name);
 	comment__symbol(ops->target.raw, comment + 1, &ops->target.addr, &ops->target.name);
 
@@ -602,7 +608,7 @@ static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops
 	if (comment == NULL)
 		return 0;
 
-	comment = ltrim(comment);
+	comment = skip_spaces(comment);
 	comment__symbol(ops->target.raw, comment + 1, &ops->target.addr, &ops->target.name);
 
 	return 0;
@@ -1098,7 +1104,7 @@ static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, str
 
 static int disasm_line__parse(char *line, const char **namep, char **rawp)
 {
-	char tmp, *name = ltrim(line);
+	char tmp, *name = skip_spaces(line);
 
 	if (name[0] == '\0')
 		return -1;
@@ -1116,7 +1122,7 @@ static int disasm_line__parse(char *line, const char **namep, char **rawp)
 		goto out_free_name;
 
 	(*rawp)[0] = tmp;
-	*rawp = ltrim(*rawp);
+	*rawp = skip_spaces(*rawp);
 
 	return 0;
 
@@ -1495,7 +1501,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 		return -1;
 
 	line_ip = -1;
-	parsed_line = rtrim(line);
+	parsed_line = strim(line);
 
 	/* /filename:linenr ? Save line number and ignore. */
 	if (regexec(&file_lineno, parsed_line, 2, match, 0) == 0) {
@@ -1503,7 +1509,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 		return 0;
 	}
 
-	tmp = ltrim(parsed_line);
+	tmp = skip_spaces(parsed_line);
 	if (*tmp) {
 		/*
 		 * Parse hexa addresses followed by ':'

@@ -40,6 +40,7 @@
 #include "util/cpumap.h"
 #include "util/xyarray.h"
 #include "util/sort.h"
+#include "util/string2.h"
 #include "util/term.h"
 #include "util/intlist.h"
 #include "util/parse-branch-options.h"
@@ -75,7 +76,7 @@
 #include <linux/time64.h>
 #include <linux/types.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 static volatile int done;
 static volatile int resize;

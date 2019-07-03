@@ -15,6 +15,7 @@
 #include "strlist.h"
 #include "thread.h"
 #include "vdso.h"
+#include "util.h"
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -24,7 +25,7 @@
 #include "asm/bug.h"
 #include "bpf-event.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include <symbol/kallsyms.h>
 #include <linux/mman.h>
 

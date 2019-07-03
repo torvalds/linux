@@ -47,7 +47,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include <signal.h>
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
@@ -941,8 +941,7 @@ parse_time_quantum(const struct option *opt, const char *arg,
 		pr_err("time quantum cannot be 0");
 		return -1;
 	}
-	while (isspace(*end))
-		end++;
+	end = skip_spaces(end);
 	if (*end == 0)
 		return 0;
 	if (!strcmp(end, "s")) {

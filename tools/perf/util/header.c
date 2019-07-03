@@ -13,6 +13,7 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/string.h>
 #include <linux/stringify.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
@@ -43,7 +44,7 @@
 #include "cputopo.h"
 #include "bpf-event.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 /*
  * magic2 = "PERFILE2"
@@ -416,10 +417,8 @@ static int __write_cpudesc(struct feat_fd *ff, const char *cpuinfo_proc)
 	while (*p) {
 		if (isspace(*p)) {
 			char *r = p + 1;
-			char *q = r;
+			char *q = skip_spaces(r);
 			*p = ' ';
-			while (*q && isspace(*q))
-				q++;
 			if (q != (p+1))
 				while ((*r++ = *q++));
 		}
@@ -1049,7 +1048,7 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 		return -1;
 
 	cache->type[len] = 0;
-	cache->type = rtrim(cache->type);
+	cache->type = strim(cache->type);
 
 	scnprintf(file, PATH_MAX, "%s/size", path);
 	if (sysfs__read_str(file, &cache->size, &len)) {
@@ -1058,7 +1057,7 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 	}
 
 	cache->size[len] = 0;
-	cache->size = rtrim(cache->size);
+	cache->size = strim(cache->size);
 
 	scnprintf(file, PATH_MAX, "%s/shared_cpu_list", path);
 	if (sysfs__read_str(file, &cache->map, &len)) {
@@ -1068,7 +1067,7 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 	}
 
 	cache->map[len] = 0;
-	cache->map = rtrim(cache->map);
+	cache->map = strim(cache->map);
 	return 0;
 }
 
@@ -1121,7 +1120,7 @@ static int build_caches(struct cpu_cache_level caches[], u32 size, u32 *cntp)
 	return 0;
 }
 
-#define MAX_CACHES 2000
+#define MAX_CACHES (MAX_NR_CPUS * 4)
 
 static int write_cache(struct feat_fd *ff,
 		       struct perf_evlist *evlist __maybe_unused)

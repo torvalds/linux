@@ -49,7 +49,7 @@
 #include <unistd.h>
 #include <subcmd/pager.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -2880,7 +2880,7 @@ static int read_script_info(struct script_desc *desc, const char *filename)
 		return -1;
 
 	while (fgets(line, sizeof(line), fp)) {
-		p = ltrim(line);
+		p = skip_spaces(line);
 		if (strlen(p) == 0)
 			continue;
 		if (*p != '#')
@@ -2889,19 +2889,19 @@ static int read_script_info(struct script_desc *desc, const char *filename)
 		if (strlen(p) && *p == '!')
 			continue;
 
-		p = ltrim(p);
+		p = skip_spaces(p);
 		if (strlen(p) && p[strlen(p) - 1] == '\n')
 			p[strlen(p) - 1] = '\0';
 
 		if (!strncmp(p, "description:", strlen("description:"))) {
 			p += strlen("description:");
-			desc->half_liner = strdup(ltrim(p));
+			desc->half_liner = strdup(skip_spaces(p));
 			continue;
 		}
 
 		if (!strncmp(p, "args:", strlen("args:"))) {
 			p += strlen("args:");
-			desc->args = strdup(ltrim(p));
+			desc->args = strdup(skip_spaces(p));
 			continue;
 		}
 	}
@@ -3008,7 +3008,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
 		return -1;
 
 	while (fgets(line, sizeof(line), fp)) {
-		p = ltrim(line);
+		p = skip_spaces(line);
 		if (*p == '#')
 			continue;
 
@@ -3018,7 +3018,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
 				break;
 
 			p += 2;
-			p = ltrim(p);
+			p = skip_spaces(p);
 			len = strcspn(p, " \t");
 			if (!len)
 				break;

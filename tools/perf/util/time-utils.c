@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdlib.h>
 #include <string.h>
+#include <linux/string.h>
 #include <sys/time.h>
 #include <linux/time64.h>
 #include <time.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
-#include <ctype.h>
+#include <linux/ctype.h>
 
 #include "perf.h"
 #include "debug.h"
@@ -141,10 +142,7 @@ static int perf_time__parse_strs(struct perf_time_interval *ptime,
 	for (i = 0, p = str; i < num - 1; i++) {
 		arg = p;
 		/* Find next comma, there must be one */
-		p = strchr(p, ',') + 1;
-		/* Skip white space */
-		while (isspace(*p))
-			p++;
+		p = skip_spaces(strchr(p, ',') + 1);
 		/* Skip the value, must not contain space or comma */
 		while (*p && !isspace(*p)) {
 			if (*p++ == ',') {
