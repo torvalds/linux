@@ -91,6 +91,7 @@
  * does not find a match for the requested function.
  */
 #define BYT_DEFAULT_GPIO_MUX	0
+#define BYT_ALTER_GPIO_MUX	1
 
 struct byt_gpio_pin_context {
 	u32 conf0;
@@ -932,14 +933,14 @@ static u32 byt_get_gpio_mux(struct byt_gpio *vg, unsigned int offset)
 	/* SCORE pin 92-93 */
 	if (!strcmp(vg->soc_data->uid, BYT_SCORE_ACPI_UID) &&
 	    offset >= 92 && offset <= 93)
-		return 1;
+		return BYT_ALTER_GPIO_MUX;
 
 	/* SUS pin 11-21 */
 	if (!strcmp(vg->soc_data->uid, BYT_SUS_ACPI_UID) &&
 	    offset >= 11 && offset <= 21)
-		return 1;
+		return BYT_ALTER_GPIO_MUX;
 
-	return 0;
+	return BYT_DEFAULT_GPIO_MUX;
 }
 
 static void byt_gpio_clear_triggering(struct byt_gpio *vg, unsigned int offset)
