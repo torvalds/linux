@@ -291,13 +291,11 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 	struct dpll_data *dd = NULL;
 	u8 dpll_mode = 0;
 
-	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
+	dd = kmemdup(ddt, sizeof(*dd), GFP_KERNEL);
 	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
 	init = kzalloc(sizeof(*init), GFP_KERNEL);
 	if (!dd || !clk_hw || !init)
 		goto cleanup;
-
-	memcpy(dd, ddt, sizeof(*dd));
 
 	clk_hw->dpll_data = dd;
 	clk_hw->ops = &clkhwops_omap3_dpll;
