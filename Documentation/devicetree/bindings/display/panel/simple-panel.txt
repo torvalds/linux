@@ -5,12 +5,33 @@ panel node
 ----------
 
 Required properties:
+- compatible: Should contain one of the following:
+	- "simple-panel": for common simple panel
+	- "simple-panel-dsi": for common simple dsi panel
+	- "vendor,panel": for vendor specific panel
 - power-supply: See panel-common.txt
 
 Optional properties:
 - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
 - enable-gpios: GPIO pin to enable or disable the panel
 - backlight: phandle of the backlight device attached to the panel
+- prepare-delay-ms: the time (in milliseconds) that it takes for the panel to
+		    become ready and start receiving video data
+- enable-delay-ms: the time (in milliseconds) that it takes for the panel to
+		   display the first valid frame after starting to receive
+		   video data
+- disable-delay-ms: the time (in milliseconds) that it takes for the panel to
+		    turn the display off (no content is visible)
+- unprepare-delay-ms: the time (in milliseconds) that it takes for the panel
+		      to power itself down completely
+- width-mm: width (in millimeters) of the panel's active display area
+- height-mm: height (in millimeters) of the panel's active display area
+- bpc: bits per color/component
+- bus-format: Pixel data format on the wire
+
+- dsi,lanes: number of active data lanes
+- dsi,format: pixel format for video mode
+- dsi,flags: DSI operation mode related flags
 
 Example:
 

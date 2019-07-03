@@ -34,6 +34,7 @@
 #include <drm/drm_panel.h>
 
 #include <video/display_timing.h>
+#include <video/of_display_timing.h>
 #include <video/videomode.h>
 
 struct panel_desc {
@@ -2325,6 +2326,9 @@ static const struct panel_desc winstar_wf35ltiacd = {
 
 static const struct of_device_id platform_of_match[] = {
 	{
+		.compatible = "simple-panel",
+		.data = NULL,
+	}, {
 		.compatible = "ampire,am-480272h3tmqw-t01h",
 		.data = &ampire_am_480272h3tmqw_t01h,
 	}, {
@@ -2579,15 +2583,65 @@ static const struct of_device_id platform_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, platform_of_match);
 
+static int panel_simple_of_get_desc_data(struct device *dev,
+					 struct panel_desc *desc)
+{
+	struct device_node *np = dev->of_node;
+	struct drm_display_mode *mode;
+	u32 bus_flags;
+	int ret;
+
+	mode = devm_kzalloc(dev, sizeof(*mode), GFP_KERNEL);
+	if (!mode)
+		return -ENOMEM;
+
+	ret = of_get_drm_display_mode(np, mode, &bus_flags, OF_USE_NATIVE_MODE);
+	if (ret)
+		return ret;
+
+	desc->modes = mode;
+	desc->num_modes = 1;
+	desc->bus_flags = bus_flags;
+
+	of_property_read_u32(np, "bpc", &desc->bpc);
+	of_property_read_u32(np, "width-mm", &desc->size.width);
+	of_property_read_u32(np, "height-mm", &desc->size.height);
+	of_property_read_u32(np, "prepare-delay-ms", &desc->delay.prepare);
+	of_property_read_u32(np, "enable-delay-ms", &desc->delay.enable);
+	of_property_read_u32(np, "disable-delay-ms", &desc->delay.disable);
+	of_property_read_u32(np, "unprepare-delay-ms", &desc->delay.unprepare);
+	of_property_read_u32(np, "bus-format", &desc->bus_format);
+
+	return 0;
+}
+
 static int panel_simple_platform_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	const struct of_device_id *id;
+	const struct panel_desc *desc;
+	struct panel_desc *d;
+	int err;
 
 	id = of_match_node(platform_of_match, pdev->dev.of_node);
 	if (!id)
 		return -ENODEV;
 
-	return panel_simple_probe(&pdev->dev, id->data);
+	if (!id->data) {
+		d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
+		if (!d)
+			return -ENOMEM;
+
+		err = panel_simple_of_get_desc_data(dev, d);
+		if (err) {
+			dev_err(dev, "failed to get desc data: %d\n", err);
+			return err;
+		}
+	}
+
+	desc = id->data ? id->data : d;
+
+	return panel_simple_probe(&pdev->dev, desc);
 }
 
 static int panel_simple_platform_remove(struct platform_device *pdev)
@@ -2763,6 +2817,9 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 
 static const struct of_device_id dsi_of_match[] = {
 	{
+		.compatible = "simple-panel-dsi",
+		.data = NULL,
+	}, {
 		.compatible = "auo,b080uan01",
 		.data = &auo_b080uan01
 	}, {
@@ -2783,9 +2840,32 @@ static const struct of_device_id dsi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dsi_of_match);
 
+static int panel_simple_dsi_of_get_desc_data(struct device *dev,
+					     struct panel_desc_dsi *desc)
+{
+	struct device_node *np = dev->of_node;
+	u32 val;
+	int err;
+
+	err = panel_simple_of_get_desc_data(dev, &desc->desc);
+	if (err)
+		return err;
+
+	if (!of_property_read_u32(np, "dsi,flags", &val))
+		desc->flags = val;
+	if (!of_property_read_u32(np, "dsi,format", &val))
+		desc->format = val;
+	if (!of_property_read_u32(np, "dsi,lanes", &val))
+		desc->lanes = val;
+
+	return 0;
+}
+
 static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 {
+	struct device *dev = &dsi->dev;
 	const struct panel_desc_dsi *desc;
+	struct panel_desc_dsi *d;
 	const struct of_device_id *id;
 	int err;
 
@@ -2793,7 +2873,19 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	if (!id)
 		return -ENODEV;
 
-	desc = id->data;
+	if (!id->data) {
+		d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
+		if (!d)
+			return -ENOMEM;
+
+		err = panel_simple_dsi_of_get_desc_data(dev, d);
+		if (err) {
+			dev_err(dev, "failed to get desc data: %d\n", err);
+			return err;
+		}
+	}
+
+	desc = id->data ? id->data : d;
 
 	err = panel_simple_probe(&dsi->dev, &desc->desc);
 	if (err < 0)
