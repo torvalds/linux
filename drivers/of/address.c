@@ -695,6 +695,16 @@ static struct device_node *__of_get_dma_parent(const struct device_node *np)
 	return of_node_get(args.np);
 }
 
+static struct device_node *of_get_next_dma_parent(struct device_node *np)
+{
+	struct device_node *parent;
+
+	parent = __of_get_dma_parent(np);
+	of_node_put(np);
+
+	return parent;
+}
+
 u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
 {
 	struct device_node *host;
