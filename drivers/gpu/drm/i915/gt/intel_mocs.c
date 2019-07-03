@@ -346,6 +346,9 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 	unsigned int index;
 	u32 unused_value;
 
+	/* Called under a blanket forcewake */
+	assert_forcewakes_active(uncore, FORCEWAKE_ALL);
+
 	if (!get_mocs_settings(gt, &table))
 		return;
 
@@ -355,16 +358,16 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 	for (index = 0; index < table.size; index++) {
 		u32 value = get_entry_control(&table, index);
 
-		intel_uncore_write(uncore,
-				   mocs_register(engine->id, index),
-				   value);
+		intel_uncore_write_fw(uncore,
+				      mocs_register(engine->id, index),
+				      value);
 	}
 
 	/* All remaining entries are also unused */
 	for (; index < table.n_entries; index++)
-		intel_uncore_write(uncore,
-				   mocs_register(engine->id, index),
-				   unused_value);
+		intel_uncore_write_fw(uncore,
+				      mocs_register(engine->id, index),
+				      unused_value);
 }
 
 /**
