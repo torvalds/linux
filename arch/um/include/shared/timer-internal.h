@@ -54,6 +54,8 @@ static inline void time_travel_set_timer(enum time_travel_timer_mode mode,
 					 unsigned long long expiry)
 {
 }
+
+#define time_travel_timer_mode TT_TMR_DISABLED
 #endif
 
 #endif
