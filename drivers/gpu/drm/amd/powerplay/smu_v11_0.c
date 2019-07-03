@@ -67,9 +67,9 @@ static int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg)
 static int smu_v11_0_wait_for_response(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t cur_value, i;
+	uint32_t cur_value, i, timeout = adev->usec_timeout * 10;
 
-	for (i = 0; i < adev->usec_timeout; i++) {
+	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
 			break;
@@ -77,7 +77,7 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 	}
 
 	/* timeout means wrong logic */
-	if (i == adev->usec_timeout)
+	if (i == timeout)
 		return -ETIME;
 
 	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
