@@ -397,7 +397,7 @@ static void hubp2_program_tiling(
 void hubp2_program_size(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	const union plane_size *plane_size,
+	const struct plane_size *plane_size,
 	struct dc_plane_dcc_param *dcc)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
@@ -410,16 +410,16 @@ void hubp2_program_size(
 	use_pitch_c = format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
 		&& format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END;
 	if (use_pitch_c) {
-		ASSERT(plane_size->video.chroma_pitch != 0);
+		ASSERT(plane_size->chroma_pitch != 0);
 		/* Chroma pitch zero can cause system hang! */
 
-		pitch = plane_size->video.luma_pitch - 1;
-		meta_pitch = dcc->video.meta_pitch_l - 1;
-		pitch_c = plane_size->video.chroma_pitch - 1;
-		meta_pitch_c = dcc->video.meta_pitch_c - 1;
+		pitch = plane_size->surface_pitch - 1;
+		meta_pitch = dcc->meta_pitch - 1;
+		pitch_c = plane_size->chroma_pitch - 1;
+		meta_pitch_c = dcc->meta_pitch_c - 1;
 	} else {
-		pitch = plane_size->grph.surface_pitch - 1;
-		meta_pitch = dcc->grph.meta_pitch - 1;
+		pitch = plane_size->surface_pitch - 1;
+		meta_pitch = dcc->meta_pitch - 1;
 		pitch_c = 0;
 		meta_pitch_c = 0;
 	}
@@ -592,7 +592,7 @@ void hubp2_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
-	union plane_size *plane_size,
+	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror,
@@ -600,7 +600,7 @@ void hubp2_program_surface_config(
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
-	hubp2_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
+	hubp2_dcc_control(hubp, dcc->enable, dcc->independent_64b_blks);
 	hubp2_program_tiling(hubp2, tiling_info, format);
 	hubp2_program_size(hubp, format, plane_size, dcc);
 	hubp2_program_rotation(hubp, rotation, horizontal_mirror);

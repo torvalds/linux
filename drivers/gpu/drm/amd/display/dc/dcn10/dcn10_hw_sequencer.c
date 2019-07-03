@@ -2132,7 +2132,7 @@ void update_dchubp_dpp(
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	union plane_size size = plane_state->plane_size;
+	struct plane_size size = plane_state->plane_size;
 	unsigned int compat_level = 0;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
@@ -2178,7 +2178,7 @@ void update_dchubp_dpp(
 			&pipe_ctx->ttu_regs);
 	}
 
-	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
+	size.surface_size = pipe_ctx->plane_res.scl_data.viewport;
 
 	if (plane_state->update_flags.bits.full_update ||
 		plane_state->update_flags.bits.bpp_change)

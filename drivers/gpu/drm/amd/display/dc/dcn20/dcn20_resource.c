@@ -1822,13 +1822,13 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.src.viewport_height = scl->viewport.height;
 			pipes[pipe_cnt].pipe.src.viewport_height_c = scl->viewport_c.height;
 			if (pln->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
-				pipes[pipe_cnt].pipe.src.data_pitch = pln->plane_size.video.luma_pitch;
-				pipes[pipe_cnt].pipe.src.data_pitch_c = pln->plane_size.video.chroma_pitch;
-				pipes[pipe_cnt].pipe.src.meta_pitch = pln->dcc.video.meta_pitch_l;
-				pipes[pipe_cnt].pipe.src.meta_pitch_c = pln->dcc.video.meta_pitch_c;
+				pipes[pipe_cnt].pipe.src.data_pitch = pln->plane_size.surface_pitch;
+				pipes[pipe_cnt].pipe.src.data_pitch_c = pln->plane_size.chroma_pitch;
+				pipes[pipe_cnt].pipe.src.meta_pitch = pln->dcc.meta_pitch;
+				pipes[pipe_cnt].pipe.src.meta_pitch_c = pln->dcc.meta_pitch_c;
 			} else {
-				pipes[pipe_cnt].pipe.src.data_pitch = pln->plane_size.grph.surface_pitch;
-				pipes[pipe_cnt].pipe.src.meta_pitch = pln->dcc.grph.meta_pitch;
+				pipes[pipe_cnt].pipe.src.data_pitch = pln->plane_size.surface_pitch;
+				pipes[pipe_cnt].pipe.src.meta_pitch = pln->dcc.meta_pitch;
 			}
 			pipes[pipe_cnt].pipe.src.dcc = pln->dcc.enable;
 			pipes[pipe_cnt].pipe.dest.recout_width = scl->recout.width;
