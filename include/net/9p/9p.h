@@ -336,6 +336,9 @@ enum p9_qid_t {
 #define P9_NOFID	(u32)(~0)
 #define P9_MAXWELEM	16
 
+/* Minimal header size: size[4] type[1] tag[2] */
+#define P9_HDRSZ	7
+
 /* ample room for Twrite/Rread header */
 #define P9_IOHDRSZ	24
 
@@ -558,6 +561,7 @@ struct p9_fcall {
 	size_t offset;
 	size_t capacity;
 
+	struct kmem_cache *cache;
 	u8 *sdata;
 };
 

@@ -1558,7 +1558,6 @@ call_reserveresult(struct rpc_task *task)
 	task->tk_status = 0;
 	if (status >= 0) {
 		if (task->tk_rqstp) {
-			xprt_request_init(task);
 			task->tk_action = call_refresh;
 			return;
 		}

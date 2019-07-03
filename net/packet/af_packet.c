@@ -2399,6 +2399,9 @@ static void tpacket_destruct_skb(struct sk_buff *skb)
 
 		ts = __packet_set_timestamp(po, ph, skb);
 		__packet_set_status(po, ph, TP_STATUS_AVAILABLE | ts);
+
+		if (!packet_read_pending(&po->tx_ring))
+			complete(&po->skb_completion);
 	}
 
 	sock_wfree(skb);
@@ -2594,7 +2597,7 @@ static int tpacket_parse_header(struct packet_sock *po, void *frame,
 
 static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct net_device *dev;
 	struct virtio_net_hdr *vnet_hdr = NULL;
 	struct sockcm_cookie sockc;
@@ -2609,6 +2612,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	int len_sum = 0;
 	int status = TP_STATUS_AVAILABLE;
 	int hlen, tlen, copylen = 0;
+	long timeo = 0;
 
 	mutex_lock(&po->pg_vec_lock);
 
@@ -2655,12 +2659,21 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	if ((size_max > dev->mtu + reserve + VLAN_HLEN) && !po->has_vnet_hdr)
 		size_max = dev->mtu + reserve + VLAN_HLEN;
 
+	reinit_completion(&po->skb_completion);
+
 	do {
 		ph = packet_current_frame(po, &po->tx_ring,
 					  TP_STATUS_SEND_REQUEST);
 		if (unlikely(ph == NULL)) {
-			if (need_wait && need_resched())
-				schedule();
+			if (need_wait && skb) {
+				timeo = sock_sndtimeo(&po->sk, msg->msg_flags & MSG_DONTWAIT);
+				timeo = wait_for_completion_interruptible_timeout(&po->skb_completion, timeo);
+				if (timeo <= 0) {
+					err = !timeo ? -ETIMEDOUT : -ERESTARTSYS;
+					goto out_put;
+				}
+			}
+			/* check for additional frames */
 			continue;
 		}
 
@@ -3216,6 +3229,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 	sock_init_data(sock, sk);
 
 	po = pkt_sk(sk);
+	init_completion(&po->skb_completion);
 	sk->sk_family = PF_PACKET;
 	po->num = proto;
 	po->xmit = dev_queue_xmit;
@@ -4302,7 +4316,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 				    req3->tp_sizeof_priv ||
 				    req3->tp_feature_req_word) {
 					err = -EINVAL;
-					goto out;
+					goto out_free_pg_vec;
 				}
 			}
 			break;
@@ -4366,6 +4380,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 			prb_shutdown_retire_blk_timer(po, rb_queue);
 	}
 
+out_free_pg_vec:
 	if (pg_vec)
 		free_pg_vec(pg_vec, order, req->tp_block_nr);
 out:
