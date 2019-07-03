@@ -528,7 +528,7 @@ config ARCH_RPC
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_USES_GETTIMEOFFSET
+	select ARM_HAS_SG_CHAIN
 	select CPU_SA110
 	select FIQ
 	select HAVE_IDE
