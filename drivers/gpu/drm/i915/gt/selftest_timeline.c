@@ -821,8 +821,6 @@ static int live_hwsp_recycle(void *arg)
 	}
 
 out:
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		err = -EIO;
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -841,5 +839,5 @@ int intel_timeline_live_selftests(struct drm_i915_private *i915)
 	if (i915_terminally_wedged(i915))
 		return 0;
 
-	return i915_subtests(tests, i915);
+	return i915_live_subtests(tests, i915);
 }

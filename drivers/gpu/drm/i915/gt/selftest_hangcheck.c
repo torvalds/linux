@@ -1744,7 +1744,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
 	drain_delayed_work(&i915->gpu_error.hangcheck_work); /* flush param */
 
-	err = i915_subtests(tests, i915);
+	err = i915_live_subtests(tests, i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	igt_flush_test(i915, I915_WAIT_LOCKED);

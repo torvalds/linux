@@ -1731,5 +1731,5 @@ int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 	if (i915_terminally_wedged(dev_priv))
 		return 0;
 
-	return i915_subtests(tests, dev_priv);
+	return i915_live_subtests(tests, dev_priv);
 }

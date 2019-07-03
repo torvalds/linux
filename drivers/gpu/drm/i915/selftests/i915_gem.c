@@ -154,8 +154,6 @@ static int igt_gem_suspend(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	err = switch_to_context(i915, ctx);
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
 out:
 	mock_file_free(i915, file);
@@ -195,8 +193,6 @@ static int igt_gem_hibernate(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	err = switch_to_context(i915, ctx);
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
 out:
 	mock_file_free(i915, file);
@@ -213,5 +209,5 @@ int i915_gem_live_selftests(struct drm_i915_private *i915)
 	if (i915_terminally_wedged(i915))
 		return 0;
 
-	return i915_subtests(tests, i915);
+	return i915_live_subtests(tests, i915);
 }
