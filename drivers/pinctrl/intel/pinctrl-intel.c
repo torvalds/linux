@@ -1313,15 +1313,12 @@ static int intel_pinctrl_probe(struct platform_device *pdev,
 
 	for (i = 0; i < pctrl->ncommunities; i++) {
 		struct intel_community *community = &pctrl->communities[i];
-		struct resource *res;
 		void __iomem *regs;
 		u32 padbar;
 
 		*community = pctrl->soc->communities[i];
 
-		res = platform_get_resource(pdev, IORESOURCE_MEM,
-					    community->barno);
-		regs = devm_ioremap_resource(&pdev->dev, res);
+		regs = devm_platform_ioremap_resource(pdev, community->barno);
 		if (IS_ERR(regs))
 			return PTR_ERR(regs);
 
