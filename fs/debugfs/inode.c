@@ -10,6 +10,8 @@
  *  See ./Documentation/core-api/kernel-api.rst for more details.
  */
 
+#define pr_fmt(fmt)	"debugfs: " fmt
+
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -286,7 +288,7 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	struct dentry *dentry;
 	int error;
 
-	pr_debug("debugfs: creating file '%s'\n",name);
+	pr_debug("creating file '%s'\n", name);
 
 	if (IS_ERR(parent))
 		return parent;
