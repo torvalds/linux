@@ -2857,8 +2857,6 @@
 	no5lvl		[X86-64] Disable 5-level paging mode. Forces
 			kernel to use 4-level paging instead.
 
-	nofsgsbase	[X86] Disables FSGSBASE instructions.
-
 	no_console_suspend
 			[HW] Never suspend the console
 			Disable suspending of consoles during suspend and
