@@ -860,18 +860,12 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				int x, int y, int atomic)
 {
-	struct mga_device *mdev = crtc->dev->dev_private;
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	s64 gpu_addr;
-	void *base;
 
 	if (!atomic && fb) {
 		gbo = drm_gem_vram_of_gem(fb->obj[0]);
-
-		/* unmap if console */
-		if (mdev->mfbdev->helper.fb == fb)
-			drm_gem_vram_kunmap(gbo);
 		drm_gem_vram_unpin(gbo);
 	}
 
@@ -884,15 +878,6 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 	if (gpu_addr < 0) {
 		ret = (int)gpu_addr;
 		goto err_drm_gem_vram_unpin;
-	}
-
-	if (mdev->mfbdev->helper.fb == crtc->primary->fb) {
-		/* if pushing console in kmap it */
-		base = drm_gem_vram_kmap(gbo, true, NULL);
-		if (IS_ERR(base)) {
-			ret = PTR_ERR(base);
-			DRM_ERROR("failed to kmap fbcon\n");
-		}
 	}
 
 	mga_set_start_address(crtc, (u32)gpu_addr);
@@ -1418,14 +1403,9 @@ static void mga_crtc_disable(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("\n");
 	mga_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
-		struct mga_device *mdev = crtc->dev->dev_private;
 		struct drm_framebuffer *fb = crtc->primary->fb;
 		struct drm_gem_vram_object *gbo =
 			drm_gem_vram_of_gem(fb->obj[0]);
-
-		/* unmap if console */
-		if (mdev->mfbdev->helper.fb == fb)
-			drm_gem_vram_kunmap(gbo);
 		drm_gem_vram_unpin(gbo);
 	}
 	crtc->primary->fb = NULL;
@@ -1718,7 +1698,6 @@ int mgag200_modeset_init(struct mga_device *mdev)
 {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	int ret;
 
 	mdev->mode_info.mode_config_initialized = true;
 
@@ -1742,12 +1721,6 @@ int mgag200_modeset_init(struct mga_device *mdev)
 	}
 
 	drm_connector_attach_encoder(connector, encoder);
-
-	ret = mgag200_fbdev_init(mdev);
-	if (ret) {
-		DRM_ERROR("mga_fbdev_init failed\n");
-		return ret;
-	}
 
 	return 0;
 }

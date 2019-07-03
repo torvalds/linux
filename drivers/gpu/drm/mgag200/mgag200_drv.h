@@ -99,14 +99,6 @@
 #define to_mga_encoder(x) container_of(x, struct mga_encoder, base)
 #define to_mga_connector(x) container_of(x, struct mga_connector, base)
 
-struct mga_fbdev {
-	struct drm_fb_helper helper; /* must be first */
-	void *sysram;
-	int size;
-	int x1, y1, x2, y2; /* dirty rect */
-	spinlock_t dirty_lock;
-};
-
 struct mga_crtc {
 	struct drm_crtc base;
 	u8 lut_r[256], lut_g[256], lut_b[256];
@@ -180,7 +172,6 @@ struct mga_device {
 	struct mga_mc			mc;
 	struct mga_mode_info		mode_info;
 
-	struct mga_fbdev *mfbdev;
 	struct mga_cursor cursor;
 
 	bool				suspended;
@@ -201,19 +192,9 @@ struct mga_device {
 int mgag200_modeset_init(struct mga_device *mdev);
 void mgag200_modeset_fini(struct mga_device *mdev);
 
-				/* mgag200_fb.c */
-int mgag200_fbdev_init(struct mga_device *mdev);
-void mgag200_fbdev_fini(struct mga_device *mdev);
-
 				/* mgag200_main.c */
 int mgag200_driver_load(struct drm_device *dev, unsigned long flags);
 void mgag200_driver_unload(struct drm_device *dev);
-int mgag200_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
-		       struct drm_gem_object **obj);
-int mgag200_dumb_create(struct drm_file *file,
-			struct drm_device *dev,
-			struct drm_mode_create_dumb *args);
 
 				/* mgag200_i2c.c */
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);

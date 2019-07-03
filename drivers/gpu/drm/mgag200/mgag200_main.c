@@ -162,7 +162,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_G200_SE(mdev) && mdev->mc.vram_size < (2048*1024))
 		dev->mode_config.preferred_depth = 16;
 	else
-		dev->mode_config.preferred_depth = 24;
+		dev->mode_config.preferred_depth = 32;
 	dev->mode_config.prefer_shadow = 1;
 
 	r = mgag200_modeset_init(mdev);
@@ -186,6 +186,10 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 	mdev->cursor.pixels_current = NULL;
 
+	r = drm_fbdev_generic_setup(mdev->dev, 0);
+	if (r)
+		goto err_modeset;
+
 	return 0;
 
 err_modeset:
@@ -204,32 +208,7 @@ void mgag200_driver_unload(struct drm_device *dev)
 	if (mdev == NULL)
 		return;
 	mgag200_modeset_fini(mdev);
-	mgag200_fbdev_fini(mdev);
 	drm_mode_config_cleanup(dev);
 	mgag200_mm_fini(mdev);
 	dev->dev_private = NULL;
-}
-
-int mgag200_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
-		   struct drm_gem_object **obj)
-{
-	struct drm_gem_vram_object *gbo;
-	int ret;
-
-	*obj = NULL;
-
-	size = roundup(size, PAGE_SIZE);
-	if (size == 0)
-		return -EINVAL;
-
-	gbo = drm_gem_vram_create(dev, &dev->vram_mm->bdev, size, 0, false);
-	if (IS_ERR(gbo)) {
-		ret = PTR_ERR(gbo);
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("failed to allocate GEM object\n");
-		return ret;
-	}
-	*obj = &gbo->gem;
-	return 0;
 }
