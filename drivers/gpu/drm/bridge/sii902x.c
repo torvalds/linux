@@ -158,6 +158,8 @@
 
 #define SII902X_I2C_BUS_ACQUISITION_TIMEOUT_MS	500
 
+#define SII902X_AUDIO_PORT_INDEX		3
+
 struct sii902x {
 	struct i2c_client *i2c;
 	struct regmap *regmap;
@@ -692,11 +694,32 @@ static int sii902x_audio_get_eld(struct device *dev, void *data,
 	return 0;
 }
 
+static int sii902x_audio_get_dai_id(struct snd_soc_component *component,
+				    struct device_node *endpoint)
+{
+	struct of_endpoint of_ep;
+	int ret;
+
+	ret = of_graph_parse_endpoint(endpoint, &of_ep);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * HDMI sound should be located at reg = <3>
+	 * Return expected DAI index 0.
+	 */
+	if (of_ep.port == SII902X_AUDIO_PORT_INDEX)
+		return 0;
+
+	return -EINVAL;
+}
+
 static const struct hdmi_codec_ops sii902x_audio_codec_ops = {
 	.hw_params = sii902x_audio_hw_params,
 	.audio_shutdown = sii902x_audio_shutdown,
 	.digital_mute = sii902x_audio_digital_mute,
 	.get_eld = sii902x_audio_get_eld,
+	.get_dai_id = sii902x_audio_get_dai_id,
 };
 
 static int sii902x_audio_codec_init(struct sii902x *sii902x,
