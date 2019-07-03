@@ -349,7 +349,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		return ret;
 
 	amba_set_drvdata(adev, pl061);
-	dev_info(dev, "PL061 GPIO chip %s registered\n", dev_name(dev));
+	dev_info(dev, "PL061 GPIO chip registered\n");
 
 	return 0;
 }
