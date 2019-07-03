@@ -1116,6 +1116,8 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
 		return 0;
 
+	cpp = plane_state->base.fb->format->cpp[0];
+
 	/*
 	 * Not 100% sure which way ELK should go here as the
 	 * spec only says CL/CTG should assume 32bpp and BW
@@ -1129,9 +1131,7 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	 */
 	if (IS_GM45(dev_priv) && plane->id == PLANE_PRIMARY &&
 	    level != G4X_WM_LEVEL_NORMAL)
-		cpp = 4;
-	else
-		cpp = plane_state->base.fb->format->cpp[0];
+		cpp = max(cpp, 4u);
 
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
