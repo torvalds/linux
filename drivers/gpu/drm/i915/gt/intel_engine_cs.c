@@ -688,9 +688,10 @@ void intel_engines_set_scheduler_caps(struct drm_i915_private *i915)
 		u8 engine;
 		u8 sched;
 	} map[] = {
-#define MAP(x, y) { ilog2(I915_ENGINE_HAS_##x), ilog2(I915_SCHEDULER_CAP_##y) }
-		MAP(PREEMPTION, PREEMPTION),
-		MAP(SEMAPHORES, SEMAPHORES),
+#define MAP(x, y) { ilog2(I915_ENGINE_##x), ilog2(I915_SCHEDULER_CAP_##y) }
+		MAP(HAS_PREEMPTION, PREEMPTION),
+		MAP(HAS_SEMAPHORES, SEMAPHORES),
+		MAP(SUPPORTS_STATS, ENGINE_BUSY_STATS),
 #undef MAP
 	};
 	struct intel_engine_cs *engine;
