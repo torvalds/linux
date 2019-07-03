@@ -105,7 +105,7 @@ examples:
 
   - |
     i2c@11000 {
-        compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+        compatible = "marvell,mv78230-i2c";
         reg = <0x11000 0x100>;
         interrupts = <29>;
         clock-frequency = <100000>;
