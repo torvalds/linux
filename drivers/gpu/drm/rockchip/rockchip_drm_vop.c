@@ -82,7 +82,7 @@
 		vop_get_intr_type(vop, &vop->data->intr->name, type)
 
 #define VOP_WIN_GET(vop, win, name) \
-		vop_read_reg(vop, win->offset, win->phy->name)
+		vop_read_reg(vop, win->base, &win->phy->name)
 
 #define VOP_WIN_HAS_REG(win, name) \
 	(!!(win->phy->name.mask))
