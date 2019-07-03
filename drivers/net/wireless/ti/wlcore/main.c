@@ -1434,7 +1434,7 @@ int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
 
 	field = &filter->fields[filter->num_fields];
 
-	field->pattern = kzalloc(len, GFP_KERNEL);
+	field->pattern = kmemdup(pattern, len, GFP_KERNEL);
 	if (!field->pattern) {
 		wl1271_warning("Failed to allocate RX filter pattern");
 		return -ENOMEM;
@@ -1445,7 +1445,6 @@ int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
 	field->offset = cpu_to_le16(offset);
 	field->flags = flags;
 	field->len = len;
-	memcpy(field->pattern, pattern, len);
 
 	return 0;
 }
