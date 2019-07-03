@@ -399,11 +399,10 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		ec_bio->idx			= idx;
 
 		ec_bio->bio.bi_iter.bi_sector	= ptr->offset + buf->offset + (offset >> 9);
-		ec_bio->bio.bi_iter.bi_size	= b;
 		ec_bio->bio.bi_end_io		= ec_block_endio;
 		ec_bio->bio.bi_private		= cl;
 
-		bch2_bio_map(&ec_bio->bio, buf->data[idx] + offset);
+		bch2_bio_map(&ec_bio->bio, buf->data[idx] + offset, b);
 
 		closure_get(cl);
 		percpu_ref_get(&ca->io_ref);

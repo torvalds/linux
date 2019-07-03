@@ -13,7 +13,6 @@
 
 void bch2_bio_free_pages_pool(struct bch_fs *, struct bio *);
 void bch2_bio_alloc_pages_pool(struct bch_fs *, struct bio *, size_t);
-void bch2_bio_alloc_more_pages_pool(struct bch_fs *, struct bio *, size_t);
 
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 void bch2_latency_acct(struct bch_dev *, u64, int);

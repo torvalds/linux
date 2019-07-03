@@ -70,8 +70,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 			       GFP_NOIO,
 			       &c->btree_bio);
 	bio->bi_iter.bi_sector	= pick.ptr.offset;
-	bio->bi_iter.bi_size	= btree_bytes(c);
-	bch2_bio_map(bio, n_sorted);
+	bch2_bio_map(bio, n_sorted, btree_bytes(c));
 
 	submit_bio_wait(bio);
 

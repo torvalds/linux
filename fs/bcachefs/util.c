@@ -506,33 +506,18 @@ size_t bch2_pd_controller_print_debug(struct bch_pd_controller *pd, char *buf)
 
 /* misc: */
 
-void bch2_bio_map(struct bio *bio, void *base)
+void bch2_bio_map(struct bio *bio, void *base, size_t size)
 {
-	size_t size = bio->bi_iter.bi_size;
-	struct bio_vec *bv = bio->bi_io_vec;
-
-	BUG_ON(!bio->bi_iter.bi_size);
-	BUG_ON(bio->bi_vcnt);
-	BUG_ON(!bio->bi_max_vecs);
-
-	bv->bv_offset = base ? offset_in_page(base) : 0;
-	goto start;
-
-	for (; size; bio->bi_vcnt++, bv++) {
-		BUG_ON(bio->bi_vcnt >= bio->bi_max_vecs);
-
-		bv->bv_offset	= 0;
-start:		bv->bv_len	= min_t(size_t, PAGE_SIZE - bv->bv_offset,
-					size);
-		if (base) {
-			bv->bv_page = is_vmalloc_addr(base)
+	while (size) {
+		struct page *page = is_vmalloc_addr(base)
 				? vmalloc_to_page(base)
 				: virt_to_page(base);
+		unsigned offset = offset_in_page(base);
+		unsigned len = min_t(size_t, PAGE_SIZE - offset, size);
 
-			base += bv->bv_len;
-		}
-
-		size -= bv->bv_len;
+		BUG_ON(!bio_add_page(bio, page, len, offset));
+		size -= len;
+		base += len;
 	}
 }
 

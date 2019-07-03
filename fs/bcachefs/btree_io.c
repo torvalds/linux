@@ -1037,10 +1037,9 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 	rb->pick		= pick;
 	INIT_WORK(&rb->work, btree_node_read_work);
 	bio->bi_iter.bi_sector	= pick.ptr.offset;
-	bio->bi_iter.bi_size	= btree_bytes(c);
 	bio->bi_end_io		= btree_node_read_endio;
 	bio->bi_private		= b;
-	bch2_bio_map(bio, b->data);
+	bch2_bio_map(bio, b->data, btree_bytes(c));
 
 	set_btree_node_read_in_flight(b);
 
@@ -1502,11 +1501,10 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 	wbio->data			= data;
 	wbio->wbio.order		= order;
 	wbio->wbio.used_mempool		= used_mempool;
-	wbio->wbio.bio.bi_iter.bi_size	= sectors_to_write << 9;
 	wbio->wbio.bio.bi_end_io	= btree_node_write_endio;
 	wbio->wbio.bio.bi_private	= b;
 
-	bch2_bio_map(&wbio->wbio.bio, data);
+	bch2_bio_map(&wbio->wbio.bio, data, sectors_to_write << 9);
 
 	/*
 	 * If we're appending to a leaf node, we don't technically need FUA -
