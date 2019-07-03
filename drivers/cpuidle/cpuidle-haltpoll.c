@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/sched/idle.h>
 #include <linux/kvm_para.h>
+#include <linux/cpuidle_haltpoll.h>
 
 static int default_enter_idle(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv, int index)
@@ -47,6 +48,7 @@ static struct cpuidle_driver haltpoll_driver = {
 
 static int __init haltpoll_init(void)
 {
+	int ret;
 	struct cpuidle_driver *drv = &haltpoll_driver;
 
 	cpuidle_poll_state_init(drv);
@@ -54,11 +56,16 @@ static int __init haltpoll_init(void)
 	if (!kvm_para_available())
 		return 0;
 
-	return cpuidle_register(&haltpoll_driver, NULL);
+	ret = cpuidle_register(&haltpoll_driver, NULL);
+	if (ret == 0)
+		arch_haltpoll_enable();
+
+	return ret;
 }
 
 static void __exit haltpoll_exit(void)
 {
+	arch_haltpoll_disable();
 	cpuidle_unregister(&haltpoll_driver);
 }
 
