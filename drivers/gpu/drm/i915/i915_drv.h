@@ -2473,6 +2473,7 @@ static inline void i915_gem_drain_workqueue(struct drm_i915_private *i915)
 	 */
 	int pass = 3;
 	do {
+		flush_workqueue(i915->wq);
 		rcu_barrier();
 		i915_gem_drain_freed_objects(i915);
 	} while (--pass);
