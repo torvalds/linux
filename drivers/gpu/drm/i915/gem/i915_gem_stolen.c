@@ -529,8 +529,6 @@ i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 
 	GEM_BUG_ON(!stolen);
 
-	__i915_gem_object_unpin_pages(obj);
-
 	i915_gem_stolen_remove_node(dev_priv, stolen);
 	kfree(stolen);
 }

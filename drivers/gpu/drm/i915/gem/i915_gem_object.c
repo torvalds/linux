@@ -152,6 +152,7 @@ static void __i915_gem_free_object_rcu(struct rcu_head *head)
 		container_of(head, typeof(*obj), rcu);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
+	reservation_object_fini(&obj->base._resv);
 	i915_gem_object_free(obj);
 
 	GEM_BUG_ON(!atomic_read(&i915->mm.free_count));
@@ -187,9 +188,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		GEM_BUG_ON(atomic_read(&obj->frontbuffer_bits));
 		GEM_BUG_ON(!list_empty(&obj->lut_list));
 
-		if (obj->ops->release)
-			obj->ops->release(obj);
-
 		atomic_set(&obj->mm.pages_pin_count, 0);
 		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
 		GEM_BUG_ON(i915_gem_object_has_pages(obj));
@@ -198,7 +196,10 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		if (obj->base.import_attach)
 			drm_prime_gem_destroy(&obj->base, NULL);
 
-		drm_gem_object_release(&obj->base);
+		drm_gem_free_mmap_offset(&obj->base);
+
+		if (obj->ops->release)
+			obj->ops->release(obj);
 
 		/* But keep the pointer alive for RCU-protected lookups */
 		call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
