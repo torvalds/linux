@@ -724,9 +724,6 @@ static inline void emit_ia32_lsh_r64(const u8 dst[], const u8 src[],
 {
 	u8 *prog = *pprog;
 	int cnt = 0;
-	static int jmp_label1 = -1;
-	static int jmp_label2 = -1;
-	static int jmp_label3 = -1;
 	u8 dreg_lo = dstk ? IA32_EAX : dst_lo;
 	u8 dreg_hi = dstk ? IA32_EDX : dst_hi;
 
@@ -745,78 +742,22 @@ static inline void emit_ia32_lsh_r64(const u8 dst[], const u8 src[],
 		/* mov ecx,src_lo */
 		EMIT2(0x8B, add_2reg(0xC0, src_lo, IA32_ECX));
 
+	/* shld dreg_hi,dreg_lo,cl */
+	EMIT3(0x0F, 0xA5, add_2reg(0xC0, dreg_hi, dreg_lo));
+	/* shl dreg_lo,cl */
+	EMIT2(0xD3, add_1reg(0xE0, dreg_lo));
+
+	/* if ecx >= 32, mov dreg_lo into dreg_hi and clear dreg_lo */
+
 	/* cmp ecx,32 */
 	EMIT3(0x83, add_1reg(0xF8, IA32_ECX), 32);
-	/* Jumps when >= 32 */
-	if (is_imm8(jmp_label(jmp_label1, 2)))
-		EMIT2(IA32_JAE, jmp_label(jmp_label1, 2));
-	else
-		EMIT2_off32(0x0F, IA32_JAE + 0x10, jmp_label(jmp_label1, 6));
+	/* skip the next two instructions (4 bytes) when < 32 */
+	EMIT2(IA32_JB, 4);
 
-	/* < 32 */
-	/* shl dreg_hi,cl */
-	EMIT2(0xD3, add_1reg(0xE0, dreg_hi));
-	/* mov ebx,dreg_lo */
-	EMIT2(0x8B, add_2reg(0xC0, dreg_lo, IA32_EBX));
-	/* shl dreg_lo,cl */
-	EMIT2(0xD3, add_1reg(0xE0, dreg_lo));
-
-	/* IA32_ECX = -IA32_ECX + 32 */
-	/* neg ecx */
-	EMIT2(0xF7, add_1reg(0xD8, IA32_ECX));
-	/* add ecx,32 */
-	EMIT3(0x83, add_1reg(0xC0, IA32_ECX), 32);
-
-	/* shr ebx,cl */
-	EMIT2(0xD3, add_1reg(0xE8, IA32_EBX));
-	/* or dreg_hi,ebx */
-	EMIT2(0x09, add_2reg(0xC0, dreg_hi, IA32_EBX));
-
-	/* goto out; */
-	if (is_imm8(jmp_label(jmp_label3, 2)))
-		EMIT2(0xEB, jmp_label(jmp_label3, 2));
-	else
-		EMIT1_off32(0xE9, jmp_label(jmp_label3, 5));
-
-	/* >= 32 */
-	if (jmp_label1 == -1)
-		jmp_label1 = cnt;
-
-	/* cmp ecx,64 */
-	EMIT3(0x83, add_1reg(0xF8, IA32_ECX), 64);
-	/* Jumps when >= 64 */
-	if (is_imm8(jmp_label(jmp_label2, 2)))
-		EMIT2(IA32_JAE, jmp_label(jmp_label2, 2));
-	else
-		EMIT2_off32(0x0F, IA32_JAE + 0x10, jmp_label(jmp_label2, 6));
-
-	/* >= 32 && < 64 */
-	/* sub ecx,32 */
-	EMIT3(0x83, add_1reg(0xE8, IA32_ECX), 32);
-	/* shl dreg_lo,cl */
-	EMIT2(0xD3, add_1reg(0xE0, dreg_lo));
 	/* mov dreg_hi,dreg_lo */
 	EMIT2(0x89, add_2reg(0xC0, dreg_hi, dreg_lo));
-
 	/* xor dreg_lo,dreg_lo */
 	EMIT2(0x33, add_2reg(0xC0, dreg_lo, dreg_lo));
-
-	/* goto out; */
-	if (is_imm8(jmp_label(jmp_label3, 2)))
-		EMIT2(0xEB, jmp_label(jmp_label3, 2));
-	else
-		EMIT1_off32(0xE9, jmp_label(jmp_label3, 5));
-
-	/* >= 64 */
-	if (jmp_label2 == -1)
-		jmp_label2 = cnt;
-	/* xor dreg_lo,dreg_lo */
-	EMIT2(0x33, add_2reg(0xC0, dreg_lo, dreg_lo));
-	/* xor dreg_hi,dreg_hi */
-	EMIT2(0x33, add_2reg(0xC0, dreg_hi, dreg_hi));
-
-	if (jmp_label3 == -1)
-		jmp_label3 = cnt;
 
 	if (dstk) {
 		/* mov dword ptr [ebp+off],dreg_lo */
@@ -836,9 +777,6 @@ static inline void emit_ia32_arsh_r64(const u8 dst[], const u8 src[],
 {
 	u8 *prog = *pprog;
 	int cnt = 0;
-	static int jmp_label1 = -1;
-	static int jmp_label2 = -1;
-	static int jmp_label3 = -1;
 	u8 dreg_lo = dstk ? IA32_EAX : dst_lo;
 	u8 dreg_hi = dstk ? IA32_EDX : dst_hi;
 
@@ -857,78 +795,22 @@ static inline void emit_ia32_arsh_r64(const u8 dst[], const u8 src[],
 		/* mov ecx,src_lo */
 		EMIT2(0x8B, add_2reg(0xC0, src_lo, IA32_ECX));
 
+	/* shrd dreg_lo,dreg_hi,cl */
+	EMIT3(0x0F, 0xAD, add_2reg(0xC0, dreg_lo, dreg_hi));
+	/* sar dreg_hi,cl */
+	EMIT2(0xD3, add_1reg(0xF8, dreg_hi));
+
+	/* if ecx >= 32, mov dreg_hi to dreg_lo and set/clear dreg_hi depending on sign */
+
 	/* cmp ecx,32 */
 	EMIT3(0x83, add_1reg(0xF8, IA32_ECX), 32);
-	/* Jumps when >= 32 */
-	if (is_imm8(jmp_label(jmp_label1, 2)))
-		EMIT2(IA32_JAE, jmp_label(jmp_label1, 2));
-	else
-		EMIT2_off32(0x0F, IA32_JAE + 0x10, jmp_label(jmp_label1, 6));
+	/* skip the next two instructions (5 bytes) when < 32 */
+	EMIT2(IA32_JB, 5);
 
-	/* < 32 */
-	/* lshr dreg_lo,cl */
-	EMIT2(0xD3, add_1reg(0xE8, dreg_lo));
-	/* mov ebx,dreg_hi */
-	EMIT2(0x8B, add_2reg(0xC0, dreg_hi, IA32_EBX));
-	/* ashr dreg_hi,cl */
-	EMIT2(0xD3, add_1reg(0xF8, dreg_hi));
-
-	/* IA32_ECX = -IA32_ECX + 32 */
-	/* neg ecx */
-	EMIT2(0xF7, add_1reg(0xD8, IA32_ECX));
-	/* add ecx,32 */
-	EMIT3(0x83, add_1reg(0xC0, IA32_ECX), 32);
-
-	/* shl ebx,cl */
-	EMIT2(0xD3, add_1reg(0xE0, IA32_EBX));
-	/* or dreg_lo,ebx */
-	EMIT2(0x09, add_2reg(0xC0, dreg_lo, IA32_EBX));
-
-	/* goto out; */
-	if (is_imm8(jmp_label(jmp_label3, 2)))
-		EMIT2(0xEB, jmp_label(jmp_label3, 2));
-	else
-		EMIT1_off32(0xE9, jmp_label(jmp_label3, 5));
-
-	/* >= 32 */
-	if (jmp_label1 == -1)
-		jmp_label1 = cnt;
-
-	/* cmp ecx,64 */
-	EMIT3(0x83, add_1reg(0xF8, IA32_ECX), 64);
-	/* Jumps when >= 64 */
-	if (is_imm8(jmp_label(jmp_label2, 2)))
-		EMIT2(IA32_JAE, jmp_label(jmp_label2, 2));
-	else
-		EMIT2_off32(0x0F, IA32_JAE + 0x10, jmp_label(jmp_label2, 6));
-
-	/* >= 32 && < 64 */
-	/* sub ecx,32 */
-	EMIT3(0x83, add_1reg(0xE8, IA32_ECX), 32);
-	/* ashr dreg_hi,cl */
-	EMIT2(0xD3, add_1reg(0xF8, dreg_hi));
 	/* mov dreg_lo,dreg_hi */
 	EMIT2(0x89, add_2reg(0xC0, dreg_lo, dreg_hi));
-
-	/* ashr dreg_hi,imm8 */
+	/* sar dreg_hi,31 */
 	EMIT3(0xC1, add_1reg(0xF8, dreg_hi), 31);
-
-	/* goto out; */
-	if (is_imm8(jmp_label(jmp_label3, 2)))
-		EMIT2(0xEB, jmp_label(jmp_label3, 2));
-	else
-		EMIT1_off32(0xE9, jmp_label(jmp_label3, 5));
-
-	/* >= 64 */
-	if (jmp_label2 == -1)
-		jmp_label2 = cnt;
-	/* ashr dreg_hi,imm8 */
-	EMIT3(0xC1, add_1reg(0xF8, dreg_hi), 31);
-	/* mov dreg_lo,dreg_hi */
-	EMIT2(0x89, add_2reg(0xC0, dreg_lo, dreg_hi));
-
-	if (jmp_label3 == -1)
-		jmp_label3 = cnt;
 
 	if (dstk) {
 		/* mov dword ptr [ebp+off],dreg_lo */
@@ -948,9 +830,6 @@ static inline void emit_ia32_rsh_r64(const u8 dst[], const u8 src[], bool dstk,
 {
 	u8 *prog = *pprog;
 	int cnt = 0;
-	static int jmp_label1 = -1;
-	static int jmp_label2 = -1;
-	static int jmp_label3 = -1;
 	u8 dreg_lo = dstk ? IA32_EAX : dst_lo;
 	u8 dreg_hi = dstk ? IA32_EDX : dst_hi;
 
@@ -969,76 +848,22 @@ static inline void emit_ia32_rsh_r64(const u8 dst[], const u8 src[], bool dstk,
 		/* mov ecx,src_lo */
 		EMIT2(0x8B, add_2reg(0xC0, src_lo, IA32_ECX));
 
+	/* shrd dreg_lo,dreg_hi,cl */
+	EMIT3(0x0F, 0xAD, add_2reg(0xC0, dreg_lo, dreg_hi));
+	/* shr dreg_hi,cl */
+	EMIT2(0xD3, add_1reg(0xE8, dreg_hi));
+
+	/* if ecx >= 32, mov dreg_hi to dreg_lo and clear dreg_hi */
+
 	/* cmp ecx,32 */
 	EMIT3(0x83, add_1reg(0xF8, IA32_ECX), 32);
-	/* Jumps when >= 32 */
-	if (is_imm8(jmp_label(jmp_label1, 2)))
-		EMIT2(IA32_JAE, jmp_label(jmp_label1, 2));
-	else
-		EMIT2_off32(0x0F, IA32_JAE + 0x10, jmp_label(jmp_label1, 6));
+	/* skip the next two instructions (4 bytes) when < 32 */
+	EMIT2(IA32_JB, 4);
 
-	/* < 32 */
-	/* lshr dreg_lo,cl */
-	EMIT2(0xD3, add_1reg(0xE8, dreg_lo));
-	/* mov ebx,dreg_hi */
-	EMIT2(0x8B, add_2reg(0xC0, dreg_hi, IA32_EBX));
-	/* shr dreg_hi,cl */
-	EMIT2(0xD3, add_1reg(0xE8, dreg_hi));
-
-	/* IA32_ECX = -IA32_ECX + 32 */
-	/* neg ecx */
-	EMIT2(0xF7, add_1reg(0xD8, IA32_ECX));
-	/* add ecx,32 */
-	EMIT3(0x83, add_1reg(0xC0, IA32_ECX), 32);
-
-	/* shl ebx,cl */
-	EMIT2(0xD3, add_1reg(0xE0, IA32_EBX));
-	/* or dreg_lo,ebx */
-	EMIT2(0x09, add_2reg(0xC0, dreg_lo, IA32_EBX));
-
-	/* goto out; */
-	if (is_imm8(jmp_label(jmp_label3, 2)))
-		EMIT2(0xEB, jmp_label(jmp_label3, 2));
-	else
-		EMIT1_off32(0xE9, jmp_label(jmp_label3, 5));
-
-	/* >= 32 */
-	if (jmp_label1 == -1)
-		jmp_label1 = cnt;
-	/* cmp ecx,64 */
-	EMIT3(0x83, add_1reg(0xF8, IA32_ECX), 64);
-	/* Jumps when >= 64 */
-	if (is_imm8(jmp_label(jmp_label2, 2)))
-		EMIT2(IA32_JAE, jmp_label(jmp_label2, 2));
-	else
-		EMIT2_off32(0x0F, IA32_JAE + 0x10, jmp_label(jmp_label2, 6));
-
-	/* >= 32 && < 64 */
-	/* sub ecx,32 */
-	EMIT3(0x83, add_1reg(0xE8, IA32_ECX), 32);
-	/* shr dreg_hi,cl */
-	EMIT2(0xD3, add_1reg(0xE8, dreg_hi));
 	/* mov dreg_lo,dreg_hi */
 	EMIT2(0x89, add_2reg(0xC0, dreg_lo, dreg_hi));
 	/* xor dreg_hi,dreg_hi */
 	EMIT2(0x33, add_2reg(0xC0, dreg_hi, dreg_hi));
-
-	/* goto out; */
-	if (is_imm8(jmp_label(jmp_label3, 2)))
-		EMIT2(0xEB, jmp_label(jmp_label3, 2));
-	else
-		EMIT1_off32(0xE9, jmp_label(jmp_label3, 5));
-
-	/* >= 64 */
-	if (jmp_label2 == -1)
-		jmp_label2 = cnt;
-	/* xor dreg_lo,dreg_lo */
-	EMIT2(0x33, add_2reg(0xC0, dreg_lo, dreg_lo));
-	/* xor dreg_hi,dreg_hi */
-	EMIT2(0x33, add_2reg(0xC0, dreg_hi, dreg_hi));
-
-	if (jmp_label3 == -1)
-		jmp_label3 = cnt;
 
 	if (dstk) {
 		/* mov dword ptr [ebp+off],dreg_lo */
@@ -1069,27 +894,10 @@ static inline void emit_ia32_lsh_i64(const u8 dst[], const u32 val,
 	}
 	/* Do LSH operation */
 	if (val < 32) {
-		/* shl dreg_hi,imm8 */
-		EMIT3(0xC1, add_1reg(0xE0, dreg_hi), val);
-		/* mov ebx,dreg_lo */
-		EMIT2(0x8B, add_2reg(0xC0, dreg_lo, IA32_EBX));
+		/* shld dreg_hi,dreg_lo,imm8 */
+		EMIT4(0x0F, 0xA4, add_2reg(0xC0, dreg_hi, dreg_lo), val);
 		/* shl dreg_lo,imm8 */
 		EMIT3(0xC1, add_1reg(0xE0, dreg_lo), val);
-
-		/* IA32_ECX = 32 - val */
-		/* mov ecx,val */
-		EMIT2(0xB1, val);
-		/* movzx ecx,ecx */
-		EMIT3(0x0F, 0xB6, add_2reg(0xC0, IA32_ECX, IA32_ECX));
-		/* neg ecx */
-		EMIT2(0xF7, add_1reg(0xD8, IA32_ECX));
-		/* add ecx,32 */
-		EMIT3(0x83, add_1reg(0xC0, IA32_ECX), 32);
-
-		/* shr ebx,cl */
-		EMIT2(0xD3, add_1reg(0xE8, IA32_EBX));
-		/* or dreg_hi,ebx */
-		EMIT2(0x09, add_2reg(0xC0, dreg_hi, IA32_EBX));
 	} else if (val >= 32 && val < 64) {
 		u32 value = val - 32;
 
@@ -1135,27 +943,10 @@ static inline void emit_ia32_rsh_i64(const u8 dst[], const u32 val,
 
 	/* Do RSH operation */
 	if (val < 32) {
-		/* shr dreg_lo,imm8 */
-		EMIT3(0xC1, add_1reg(0xE8, dreg_lo), val);
-		/* mov ebx,dreg_hi */
-		EMIT2(0x8B, add_2reg(0xC0, dreg_hi, IA32_EBX));
+		/* shrd dreg_lo,dreg_hi,imm8 */
+		EMIT4(0x0F, 0xAC, add_2reg(0xC0, dreg_lo, dreg_hi), val);
 		/* shr dreg_hi,imm8 */
 		EMIT3(0xC1, add_1reg(0xE8, dreg_hi), val);
-
-		/* IA32_ECX = 32 - val */
-		/* mov ecx,val */
-		EMIT2(0xB1, val);
-		/* movzx ecx,ecx */
-		EMIT3(0x0F, 0xB6, add_2reg(0xC0, IA32_ECX, IA32_ECX));
-		/* neg ecx */
-		EMIT2(0xF7, add_1reg(0xD8, IA32_ECX));
-		/* add ecx,32 */
-		EMIT3(0x83, add_1reg(0xC0, IA32_ECX), 32);
-
-		/* shl ebx,cl */
-		EMIT2(0xD3, add_1reg(0xE0, IA32_EBX));
-		/* or dreg_lo,ebx */
-		EMIT2(0x09, add_2reg(0xC0, dreg_lo, IA32_EBX));
 	} else if (val >= 32 && val < 64) {
 		u32 value = val - 32;
 
@@ -1200,27 +991,10 @@ static inline void emit_ia32_arsh_i64(const u8 dst[], const u32 val,
 	}
 	/* Do RSH operation */
 	if (val < 32) {
-		/* shr dreg_lo,imm8 */
-		EMIT3(0xC1, add_1reg(0xE8, dreg_lo), val);
-		/* mov ebx,dreg_hi */
-		EMIT2(0x8B, add_2reg(0xC0, dreg_hi, IA32_EBX));
+		/* shrd dreg_lo,dreg_hi,imm8 */
+		EMIT4(0x0F, 0xAC, add_2reg(0xC0, dreg_lo, dreg_hi), val);
 		/* ashr dreg_hi,imm8 */
 		EMIT3(0xC1, add_1reg(0xF8, dreg_hi), val);
-
-		/* IA32_ECX = 32 - val */
-		/* mov ecx,val */
-		EMIT2(0xB1, val);
-		/* movzx ecx,ecx */
-		EMIT3(0x0F, 0xB6, add_2reg(0xC0, IA32_ECX, IA32_ECX));
-		/* neg ecx */
-		EMIT2(0xF7, add_1reg(0xD8, IA32_ECX));
-		/* add ecx,32 */
-		EMIT3(0x83, add_1reg(0xC0, IA32_ECX), 32);
-
-		/* shl ebx,cl */
-		EMIT2(0xD3, add_1reg(0xE0, IA32_EBX));
-		/* or dreg_lo,ebx */
-		EMIT2(0x09, add_2reg(0xC0, dreg_lo, IA32_EBX));
 	} else if (val >= 32 && val < 64) {
 		u32 value = val - 32;
 
