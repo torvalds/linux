@@ -595,7 +595,6 @@ enum alloc_state {
  * gfs2_iomap_alloc - Build a metadata tree of the requested height
  * @inode: The GFS2 inode
  * @iomap: The iomap structure
- * @flags: iomap flags
  * @mp: The metapath, with proper height information calculated
  *
  * In this routine we may have to alloc:
@@ -622,7 +621,7 @@ enum alloc_state {
  */
 
 static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
-			    unsigned flags, struct metapath *mp)
+			    struct metapath *mp)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -1088,7 +1087,7 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
 		}
 
 		if (iomap->type == IOMAP_HOLE) {
-			ret = gfs2_iomap_alloc(inode, iomap, flags, mp);
+			ret = gfs2_iomap_alloc(inode, iomap, mp);
 			if (ret) {
 				gfs2_trans_end(sdp);
 				gfs2_inplace_release(ip);
@@ -1232,7 +1231,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	if (create) {
 		ret = gfs2_iomap_get(inode, pos, length, IOMAP_WRITE, &iomap, &mp);
 		if (!ret && iomap.type == IOMAP_HOLE)
-			ret = gfs2_iomap_alloc(inode, &iomap, IOMAP_WRITE, &mp);
+			ret = gfs2_iomap_alloc(inode, &iomap, &mp);
 		release_metapath(&mp);
 	} else {
 		ret = gfs2_iomap_get(inode, pos, length, 0, &iomap, &mp);
@@ -1462,7 +1461,7 @@ int gfs2_iomap_get_alloc(struct inode *inode, loff_t pos, loff_t length,
 
 	ret = gfs2_iomap_get(inode, pos, length, IOMAP_WRITE, iomap, &mp);
 	if (!ret && iomap->type == IOMAP_HOLE)
-		ret = gfs2_iomap_alloc(inode, iomap, IOMAP_WRITE, &mp);
+		ret = gfs2_iomap_alloc(inode, iomap, &mp);
 	release_metapath(&mp);
 	return ret;
 }
