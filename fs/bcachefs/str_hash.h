@@ -71,7 +71,7 @@ static inline void bch2_str_hash_init(struct bch_str_hash_ctx *ctx,
 		ctx->crc32c = crc32c(~0, &info->crc_key, sizeof(info->crc_key));
 		break;
 	case BCH_STR_HASH_CRC64:
-		ctx->crc64 = bch2_crc64_update(~0, &info->crc_key, sizeof(info->crc_key));
+		ctx->crc64 = crc64_be(~0, &info->crc_key, sizeof(info->crc_key));
 		break;
 	case BCH_STR_HASH_SIPHASH:
 		SipHash24_Init(&ctx->siphash, &info->siphash_key);
@@ -90,7 +90,7 @@ static inline void bch2_str_hash_update(struct bch_str_hash_ctx *ctx,
 		ctx->crc32c = crc32c(ctx->crc32c, data, len);
 		break;
 	case BCH_STR_HASH_CRC64:
-		ctx->crc64 = bch2_crc64_update(ctx->crc64, data, len);
+		ctx->crc64 = crc64_be(ctx->crc64, data, len);
 		break;
 	case BCH_STR_HASH_SIPHASH:
 		SipHash24_Update(&ctx->siphash, data, len);

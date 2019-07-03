@@ -62,7 +62,7 @@ static u64 bch2_checksum_update(unsigned type, u64 crc, const void *data, size_t
 		return crc32c(crc, data, len);
 	case BCH_CSUM_CRC64_NONZERO:
 	case BCH_CSUM_CRC64:
-		return bch2_crc64_update(crc, data, len);
+		return crc64_be(crc, data, len);
 	default:
 		BUG();
 	}
