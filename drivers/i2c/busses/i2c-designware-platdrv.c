@@ -363,10 +363,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	adap->class = I2C_CLASS_DEPRECATED;
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->dev.of_node = pdev->dev.of_node;
-	if (has_acpi_companion(&pdev->dev))
-		adap->nr = -1;
-	else
-		adap->nr = pdev->id;
+	adap->nr = -1;
 
 	dev_pm_set_driver_flags(&pdev->dev,
 				DPM_FLAG_SMART_PREPARE |
