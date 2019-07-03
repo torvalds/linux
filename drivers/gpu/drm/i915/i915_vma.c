@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/sched/mm.h>
 #include <drm/drm_gem.h>
 
 #include "display/intel_frontbuffer.h"
@@ -119,6 +120,13 @@ vma_create(struct drm_i915_gem_object *obj,
 	i915_active_init(vm->i915, &vma->active,
 			 __i915_vma_active, __i915_vma_retire);
 	INIT_ACTIVE_REQUEST(&vma->last_fence);
+
+	/* Declare ourselves safe for use inside shrinkers */
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		fs_reclaim_acquire(GFP_KERNEL);
+		might_lock(&vma->active.mutex);
+		fs_reclaim_release(GFP_KERNEL);
+	}
 
 	INIT_LIST_HEAD(&vma->closed_link);
 
