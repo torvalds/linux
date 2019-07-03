@@ -582,14 +582,27 @@ MODULE_PARM_DESC(async_gfx_ring,
 	"Asynchronous GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled, 1 = enabled (default))");
 module_param_named(async_gfx_ring, amdgpu_async_gfx_ring, int, 0444);
 
+/**
+ * DOC: mcbp (int)
+ * It is used to enable mid command buffer preemption. (0 = disabled (default), 1 = enabled)
+ */
 MODULE_PARM_DESC(mcbp,
 	"Enable Mid-command buffer preemption (0 = disabled (default), 1 = enabled)");
 module_param_named(mcbp, amdgpu_mcbp, int, 0444);
 
+/**
+ * DOC: discovery (int)
+ * Allow driver to discover hardware IP information from IP Discovery table at the top of VRAM.
+ */
 MODULE_PARM_DESC(discovery,
 	"Allow driver to discover hardware IPs from IP Discovery table at the top of VRAM");
 module_param_named(discovery, amdgpu_discovery, int, 0444);
 
+/**
+ * DOC: mes (int)
+ * Enable Micro Engine Scheduler. This is a new hw scheduling engine for gfx, sdma, and compute.
+ * (0 = disabled (default), 1 = enabled)
+ */
 MODULE_PARM_DESC(mes,
 	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
 module_param_named(mes, amdgpu_mes, int, 0444);
