@@ -1996,52 +1996,6 @@ static const u32 skl_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static const u32 icl_plane_formats[] = {
-	DRM_FORMAT_C8,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_ABGR8888,
-	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_XBGR2101010,
-	DRM_FORMAT_YUYV,
-	DRM_FORMAT_YVYU,
-	DRM_FORMAT_UYVY,
-	DRM_FORMAT_VYUY,
-	DRM_FORMAT_Y210,
-	DRM_FORMAT_Y212,
-	DRM_FORMAT_Y216,
-	DRM_FORMAT_XVYU2101010,
-	DRM_FORMAT_XVYU12_16161616,
-	DRM_FORMAT_XVYU16161616,
-};
-
-static const u32 icl_hdr_plane_formats[] = {
-	DRM_FORMAT_C8,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_ABGR8888,
-	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_XBGR2101010,
-	DRM_FORMAT_XRGB16161616F,
-	DRM_FORMAT_XBGR16161616F,
-	DRM_FORMAT_ARGB16161616F,
-	DRM_FORMAT_ABGR16161616F,
-	DRM_FORMAT_YUYV,
-	DRM_FORMAT_YVYU,
-	DRM_FORMAT_UYVY,
-	DRM_FORMAT_VYUY,
-	DRM_FORMAT_Y210,
-	DRM_FORMAT_Y212,
-	DRM_FORMAT_Y216,
-	DRM_FORMAT_XVYU2101010,
-	DRM_FORMAT_XVYU12_16161616,
-	DRM_FORMAT_XVYU16161616,
-};
-
 static const u32 skl_planar_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
@@ -2077,7 +2031,28 @@ static const u32 glk_planar_formats[] = {
 	DRM_FORMAT_P016,
 };
 
-static const u32 icl_planar_formats[] = {
+static const u32 icl_sdr_y_plane_formats[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+	DRM_FORMAT_Y210,
+	DRM_FORMAT_Y212,
+	DRM_FORMAT_Y216,
+	DRM_FORMAT_XVYU2101010,
+	DRM_FORMAT_XVYU12_16161616,
+	DRM_FORMAT_XVYU16161616,
+};
+
+static const u32 icl_sdr_uv_plane_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -2102,7 +2077,7 @@ static const u32 icl_planar_formats[] = {
 	DRM_FORMAT_XVYU16161616,
 };
 
-static const u32 icl_hdr_planar_formats[] = {
+static const u32 icl_hdr_plane_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -2345,9 +2320,6 @@ static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
 static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 				 enum pipe pipe, enum plane_id plane_id)
 {
-	if (INTEL_GEN(dev_priv) >= 11)
-		return plane_id <= PLANE_SPRITE3;
-
 	/* Display WA #0870: skl, bxt */
 	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return false;
@@ -2359,6 +2331,48 @@ static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 		return false;
 
 	return true;
+}
+
+static const u32 *skl_get_plane_formats(struct drm_i915_private *dev_priv,
+					enum pipe pipe, enum plane_id plane_id,
+					int *num_formats)
+{
+	if (skl_plane_has_planar(dev_priv, pipe, plane_id)) {
+		*num_formats = ARRAY_SIZE(skl_planar_formats);
+		return skl_planar_formats;
+	} else {
+		*num_formats = ARRAY_SIZE(skl_plane_formats);
+		return skl_plane_formats;
+	}
+}
+
+static const u32 *glk_get_plane_formats(struct drm_i915_private *dev_priv,
+					enum pipe pipe, enum plane_id plane_id,
+					int *num_formats)
+{
+	if (skl_plane_has_planar(dev_priv, pipe, plane_id)) {
+		*num_formats = ARRAY_SIZE(glk_planar_formats);
+		return glk_planar_formats;
+	} else {
+		*num_formats = ARRAY_SIZE(skl_plane_formats);
+		return skl_plane_formats;
+	}
+}
+
+static const u32 *icl_get_plane_formats(struct drm_i915_private *dev_priv,
+					enum pipe pipe, enum plane_id plane_id,
+					int *num_formats)
+{
+	if (icl_is_hdr_plane(dev_priv, plane_id)) {
+		*num_formats = ARRAY_SIZE(icl_hdr_plane_formats);
+		return icl_hdr_plane_formats;
+	} else if (icl_is_nv12_y_plane(plane_id)) {
+		*num_formats = ARRAY_SIZE(icl_sdr_y_plane_formats);
+		return icl_sdr_y_plane_formats;
+	} else {
+		*num_formats = ARRAY_SIZE(icl_sdr_uv_plane_formats);
+		return icl_sdr_uv_plane_formats;
+	}
 }
 
 static bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
@@ -2414,30 +2428,15 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	if (icl_is_nv12_y_plane(plane_id))
 		plane->update_slave = icl_update_slave;
 
-	if (skl_plane_has_planar(dev_priv, pipe, plane_id)) {
-		if (icl_is_hdr_plane(dev_priv, plane_id)) {
-			formats = icl_hdr_planar_formats;
-			num_formats = ARRAY_SIZE(icl_hdr_planar_formats);
-		} else if (INTEL_GEN(dev_priv) >= 11) {
-			formats = icl_planar_formats;
-			num_formats = ARRAY_SIZE(icl_planar_formats);
-		} else if (INTEL_GEN(dev_priv) == 10 || IS_GEMINILAKE(dev_priv)) {
-			formats = glk_planar_formats;
-			num_formats = ARRAY_SIZE(glk_planar_formats);
-		} else {
-			formats = skl_planar_formats;
-			num_formats = ARRAY_SIZE(skl_planar_formats);
-		}
-	} else if (icl_is_hdr_plane(dev_priv, plane_id)) {
-		formats = icl_hdr_plane_formats;
-		num_formats = ARRAY_SIZE(icl_hdr_plane_formats);
-	} else if (INTEL_GEN(dev_priv) >= 11) {
-		formats = icl_plane_formats;
-		num_formats = ARRAY_SIZE(icl_plane_formats);
-	} else {
-		formats = skl_plane_formats;
-		num_formats = ARRAY_SIZE(skl_plane_formats);
-	}
+	if (INTEL_GEN(dev_priv) >= 11)
+		formats = icl_get_plane_formats(dev_priv, pipe,
+						plane_id, &num_formats);
+	else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		formats = glk_get_plane_formats(dev_priv, pipe,
+						plane_id, &num_formats);
+	else
+		formats = skl_get_plane_formats(dev_priv, pipe,
+						plane_id, &num_formats);
 
 	plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
 	if (plane->has_ccs)
