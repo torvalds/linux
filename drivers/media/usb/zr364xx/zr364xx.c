@@ -197,11 +197,9 @@ static int send_control_msg(struct usb_device *udev, u8 request, u16 value,
 {
 	int status;
 
-	unsigned char *transfer_buffer = kmalloc(size, GFP_KERNEL);
+	unsigned char *transfer_buffer = kmemdup(cp, size, GFP_KERNEL);
 	if (!transfer_buffer)
 		return -ENOMEM;
-
-	memcpy(transfer_buffer, cp, size);
 
 	status = usb_control_msg(udev,
 				 usb_sndctrlpipe(udev, 0),
