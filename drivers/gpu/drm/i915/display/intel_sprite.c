@@ -683,6 +683,16 @@ skl_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static void i9xx_plane_linear_gamma(u16 gamma[8])
+{
+	/* The points are not evenly spaced. */
+	static const u8 in[8] = { 0, 1, 2, 4, 8, 16, 24, 32 };
+	int i;
+
+	for (i = 0; i < 8; i++)
+		gamma[i] = (in[i] << 8) / 32;
+}
+
 static void
 chv_update_csc(const struct intel_plane_state *plane_state)
 {
@@ -858,6 +868,31 @@ static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	return sprctl;
 }
 
+static void vlv_update_gamma(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum pipe pipe = plane->pipe;
+	enum plane_id plane_id = plane->id;
+	u16 gamma[8];
+	int i;
+
+	/* Seems RGB data bypasses the gamma always */
+	if (!fb->format->is_yuv)
+		return;
+
+	i9xx_plane_linear_gamma(gamma);
+
+	/* FIXME these register are single buffered :( */
+	/* The two end points are implicit (0.0 and 1.0) */
+	for (i = 1; i < 8 - 1; i++)
+		I915_WRITE_FW(SPGAMC(pipe, plane_id, i - 1),
+			      gamma[i] << 16 |
+			      gamma[i] << 8 |
+			      gamma[i]);
+}
+
 static void
 vlv_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
@@ -916,6 +951,7 @@ vlv_update_plane(struct intel_plane *plane,
 		      intel_plane_ggtt_offset(plane_state) + sprsurf_offset);
 
 	vlv_update_clrc(plane_state);
+	vlv_update_gamma(plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -1035,6 +1071,45 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	return sprctl;
 }
 
+static void ivb_sprite_linear_gamma(u16 gamma[18])
+{
+	int i;
+
+	for (i = 0; i < 17; i++)
+		gamma[i] = (i << 10) / 16;
+
+	gamma[i] = 3 << 10;
+	i++;
+}
+
+static void ivb_update_gamma(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+	u16 gamma[18];
+	int i;
+
+	ivb_sprite_linear_gamma(gamma);
+
+	/* FIXME these register are single buffered :( */
+	for (i = 0; i < 16; i++)
+		I915_WRITE_FW(SPRGAMC(pipe, i),
+			      gamma[i] << 20 |
+			      gamma[i] << 10 |
+			      gamma[i]);
+
+	I915_WRITE_FW(SPRGAMC16(pipe, 0), gamma[i]);
+	I915_WRITE_FW(SPRGAMC16(pipe, 1), gamma[i]);
+	I915_WRITE_FW(SPRGAMC16(pipe, 2), gamma[i]);
+	i++;
+
+	I915_WRITE_FW(SPRGAMC17(pipe, 0), gamma[i]);
+	I915_WRITE_FW(SPRGAMC17(pipe, 1), gamma[i]);
+	I915_WRITE_FW(SPRGAMC17(pipe, 2), gamma[i]);
+	i++;
+}
+
 static void
 ivb_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
@@ -1100,6 +1175,8 @@ ivb_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(SPRCTL(pipe), sprctl);
 	I915_WRITE_FW(SPRSURF(pipe),
 		      intel_plane_ggtt_offset(plane_state) + sprsurf_offset);
+
+	ivb_update_gamma(plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -1226,6 +1303,66 @@ static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	return dvscntr;
 }
 
+static void g4x_update_gamma(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum pipe pipe = plane->pipe;
+	u16 gamma[8];
+	int i;
+
+	/* Seems RGB data bypasses the gamma always */
+	if (!fb->format->is_yuv)
+		return;
+
+	i9xx_plane_linear_gamma(gamma);
+
+	/* FIXME these register are single buffered :( */
+	/* The two end points are implicit (0.0 and 1.0) */
+	for (i = 1; i < 8 - 1; i++)
+		I915_WRITE_FW(DVSGAMC_G4X(pipe, i - 1),
+			      gamma[i] << 16 |
+			      gamma[i] << 8 |
+			      gamma[i]);
+}
+
+static void ilk_sprite_linear_gamma(u16 gamma[17])
+{
+	int i;
+
+	for (i = 0; i < 17; i++)
+		gamma[i] = (i << 10) / 16;
+}
+
+static void ilk_update_gamma(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum pipe pipe = plane->pipe;
+	u16 gamma[17];
+	int i;
+
+	/* Seems RGB data bypasses the gamma always */
+	if (!fb->format->is_yuv)
+		return;
+
+	ilk_sprite_linear_gamma(gamma);
+
+	/* FIXME these register are single buffered :( */
+	for (i = 0; i < 16; i++)
+		I915_WRITE_FW(DVSGAMC_ILK(pipe, i),
+			      gamma[i] << 20 |
+			      gamma[i] << 10 |
+			      gamma[i]);
+
+	I915_WRITE_FW(DVSGAMCMAX_ILK(pipe, 0), gamma[i]);
+	I915_WRITE_FW(DVSGAMCMAX_ILK(pipe, 1), gamma[i]);
+	I915_WRITE_FW(DVSGAMCMAX_ILK(pipe, 2), gamma[i]);
+	i++;
+}
+
 static void
 g4x_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
@@ -1284,6 +1421,11 @@ g4x_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(DVSCNTR(pipe), dvscntr);
 	I915_WRITE_FW(DVSSURF(pipe),
 		      intel_plane_ggtt_offset(plane_state) + dvssurf_offset);
+
+	if (IS_G4X(dev_priv))
+		g4x_update_gamma(plane_state);
+	else
+		ilk_update_gamma(plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
