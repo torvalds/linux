@@ -530,21 +530,6 @@ static void dpm_watchdog_clear(struct dpm_watchdog *wd)
 /*------------------------- Resume routines -------------------------*/
 
 /**
- * dev_pm_skip_next_resume_phases - Skip next system resume phases for device.
- * @dev: Target device.
- *
- * Make the core skip the "early resume" and "resume" phases for @dev.
- *
- * This function can be called by middle-layer code during the "noirq" phase of
- * system resume if necessary, but not by device drivers.
- */
-void dev_pm_skip_next_resume_phases(struct device *dev)
-{
-	dev->power.is_late_suspended = false;
-	dev->power.is_suspended = false;
-}
-
-/**
  * suspend_event - Return a "suspend" message for given "resume" one.
  * @resume_msg: PM message representing a system-wide resume transition.
  */
@@ -681,6 +666,9 @@ Skip:
 	dev->power.is_noirq_suspended = false;
 
 	if (skip_resume) {
+		/* Make the next phases of resume skip the device. */
+		dev->power.is_late_suspended = false;
+		dev->power.is_suspended = false;
 		/*
 		 * The device is going to be left in suspend, but it might not
 		 * have been in runtime suspend before the system suspended, so
@@ -689,7 +677,6 @@ Skip:
 		 * device again.
 		 */
 		pm_runtime_set_suspended(dev);
-		dev_pm_skip_next_resume_phases(dev);
 	}
 
 Out:
