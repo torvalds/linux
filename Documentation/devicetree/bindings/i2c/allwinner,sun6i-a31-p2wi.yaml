@@ -51,7 +51,7 @@ examples:
         reg = <0x01f03400 0x400>;
         interrupts = <0 39 4>;
         clocks = <&apb0_gates 3>;
-        clock-frequency = <6000000>;
+        clock-frequency = <100000>;
         resets = <&apb0_rst 3>;
         #address-cells = <1>;
         #size-cells = <0>;
