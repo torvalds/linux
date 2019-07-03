@@ -254,7 +254,6 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 	struct drm_device *dev = client->dev;
 	struct drm_client_buffer *buffer;
 	struct drm_gem_object *obj;
-	void *vaddr;
 	int ret;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
@@ -281,12 +280,6 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 
 	buffer->gem = obj;
 
-	vaddr = drm_client_buffer_vmap(buffer);
-	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		goto err_delete;
-	}
-
 	return buffer;
 
 err_delete:
@@ -305,7 +298,7 @@ err_delete:
  * Client buffer mappings are not ref'counted. Each call to
  * drm_client_buffer_vmap() should be followed by a call to
  * drm_client_buffer_vunmap(); or the client buffer should be mapped
- * throughout its lifetime. The latter is the default.
+ * throughout its lifetime.
  *
  * Returns:
  *	The mapped memory's address
@@ -339,10 +332,9 @@ EXPORT_SYMBOL(drm_client_buffer_vmap);
  * drm_client_buffer_vunmap - Unmap DRM client buffer
  * @buffer: DRM client buffer
  *
- * This function removes a client buffer's memory mapping. This
- * function is only required by clients that manage their buffers
- * by themselves. By default, DRM client buffers are mapped throughout
- * their entire lifetime.
+ * This function removes a client buffer's memory mapping. Calling this
+ * function is only required by clients that manage their buffer mappings
+ * by themselves.
  */
 void drm_client_buffer_vunmap(struct drm_client_buffer *buffer)
 {
