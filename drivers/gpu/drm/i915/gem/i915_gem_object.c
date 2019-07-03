@@ -146,6 +146,18 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 	}
 }
 
+static void __i915_gem_free_object_rcu(struct rcu_head *head)
+{
+	struct drm_i915_gem_object *obj =
+		container_of(head, typeof(*obj), rcu);
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
+	i915_gem_object_free(obj);
+
+	GEM_BUG_ON(!atomic_read(&i915->mm.free_count));
+	atomic_dec(&i915->mm.free_count);
+}
+
 static void __i915_gem_free_objects(struct drm_i915_private *i915,
 				    struct llist_node *freed)
 {
@@ -168,22 +180,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		GEM_BUG_ON(!list_empty(&obj->vma.list));
 		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma.tree));
 
-		/*
-		 * This serializes freeing with the shrinker. Since the free
-		 * is delayed, first by RCU then by the workqueue, we want the
-		 * shrinker to be able to free pages of unreferenced objects,
-		 * or else we may oom whilst there are plenty of deferred
-		 * freed objects.
-		 */
-		if (i915_gem_object_has_pages(obj) &&
-		    i915_gem_object_is_shrinkable(obj)) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&i915->mm.obj_lock, flags);
-			list_del_init(&obj->mm.link);
-			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
-		}
-
 		mutex_unlock(&i915->drm.struct_mutex);
 
 		GEM_BUG_ON(atomic_read(&obj->bind_count));
@@ -197,19 +193,15 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		atomic_set(&obj->mm.pages_pin_count, 0);
 		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
 		GEM_BUG_ON(i915_gem_object_has_pages(obj));
+		bitmap_free(obj->bit_17);
 
 		if (obj->base.import_attach)
 			drm_prime_gem_destroy(&obj->base, NULL);
 
 		drm_gem_object_release(&obj->base);
 
-		bitmap_free(obj->bit_17);
-		i915_gem_object_free(obj);
-
-		GEM_BUG_ON(!atomic_read(&i915->mm.free_count));
-		atomic_dec(&i915->mm.free_count);
-
-		cond_resched();
+		/* But keep the pointer alive for RCU-protected lookups */
+		call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
 	}
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
@@ -260,18 +252,34 @@ static void __i915_gem_free_work(struct work_struct *work)
 	spin_unlock(&i915->mm.free_lock);
 }
 
-static void __i915_gem_free_object_rcu(struct rcu_head *head)
+void i915_gem_free_object(struct drm_gem_object *gem_obj)
 {
-	struct drm_i915_gem_object *obj =
-		container_of(head, typeof(*obj), rcu);
+	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
 	/*
-	 * We reuse obj->rcu for the freed list, so we had better not treat
-	 * it like a rcu_head from this point forwards. And we expect all
-	 * objects to be freed via this path.
+	 * Before we free the object, make sure any pure RCU-only
+	 * read-side critical sections are complete, e.g.
+	 * i915_gem_busy_ioctl(). For the corresponding synchronized
+	 * lookup see i915_gem_object_lookup_rcu().
 	 */
-	destroy_rcu_head(&obj->rcu);
+	atomic_inc(&i915->mm.free_count);
+
+	/*
+	 * This serializes freeing with the shrinker. Since the free
+	 * is delayed, first by RCU then by the workqueue, we want the
+	 * shrinker to be able to free pages of unreferenced objects,
+	 * or else we may oom whilst there are plenty of deferred
+	 * freed objects.
+	 */
+	if (i915_gem_object_has_pages(obj) &&
+	    i915_gem_object_is_shrinkable(obj)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&i915->mm.obj_lock, flags);
+		list_del_init(&obj->mm.link);
+		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
+	}
 
 	/*
 	 * Since we require blocking on struct_mutex to unbind the freed
@@ -285,20 +293,6 @@ static void __i915_gem_free_object_rcu(struct rcu_head *head)
 	 */
 	if (llist_add(&obj->freed, &i915->mm.free_list))
 		queue_work(i915->wq, &i915->mm.free_work);
-}
-
-void i915_gem_free_object(struct drm_gem_object *gem_obj)
-{
-	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
-
-	/*
-	 * Before we free the object, make sure any pure RCU-only
-	 * read-side critical sections are complete, e.g.
-	 * i915_gem_busy_ioctl(). For the corresponding synchronized
-	 * lookup see i915_gem_object_lookup_rcu().
-	 */
-	atomic_inc(&to_i915(obj->base.dev)->mm.free_count);
-	call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
 }
 
 static inline enum fb_op_origin

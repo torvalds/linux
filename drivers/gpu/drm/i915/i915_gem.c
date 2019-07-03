@@ -101,7 +101,8 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
+int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
+			   unsigned long flags)
 {
 	struct i915_vma *vma;
 	LIST_HEAD(still_in_list);
@@ -116,7 +117,10 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 		list_move_tail(&vma->obj_link, &still_in_list);
 		spin_unlock(&obj->vma.lock);
 
-		ret = i915_vma_unbind(vma);
+		ret = -EBUSY;
+		if (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
+		    !i915_vma_is_active(vma))
+			ret = i915_vma_unbind(vma);
 
 		spin_lock(&obj->vma.lock);
 	}

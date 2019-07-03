@@ -2444,18 +2444,17 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv);
 
 static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 {
-	if (!atomic_read(&i915->mm.free_count))
-		return;
-
-	/* A single pass should suffice to release all the freed objects (along
+	/*
+	 * A single pass should suffice to release all the freed objects (along
 	 * most call paths) , but be a little more paranoid in that freeing
 	 * the objects does take a little amount of time, during which the rcu
 	 * callbacks could have added new objects into the freed list, and
 	 * armed the work again.
 	 */
-	do {
+	while (atomic_read(&i915->mm.free_count)) {
+		flush_work(&i915->mm.free_work);
 		rcu_barrier();
-	} while (flush_work(&i915->mm.free_work));
+	}
 }
 
 static inline void i915_gem_drain_workqueue(struct drm_i915_private *i915)
@@ -2486,7 +2485,9 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 u64 alignment,
 			 u64 flags);
 
-int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
+int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
+			   unsigned long flags);
+#define I915_GEM_OBJECT_UNBIND_ACTIVE BIT(0)
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 

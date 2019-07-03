@@ -159,7 +159,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	if (obj->ops != &i915_gem_shmem_ops)
 		return -EINVAL;
 
-	err = i915_gem_object_unbind(obj);
+	err = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
 	if (err)
 		return err;
 

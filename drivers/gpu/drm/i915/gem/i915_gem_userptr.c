@@ -150,7 +150,8 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 			}
 		}
 
-		ret = i915_gem_object_unbind(obj);
+		ret = i915_gem_object_unbind(obj,
+					     I915_GEM_OBJECT_UNBIND_ACTIVE);
 		if (ret == 0)
 			ret = __i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
 		i915_gem_object_put(obj);
