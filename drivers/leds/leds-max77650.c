@@ -143,3 +143,4 @@ module_platform_driver(max77650_led_driver);
 MODULE_DESCRIPTION("MAXIM 77650/77651 LED driver");
 MODULE_AUTHOR("Bartosz Golaszewski <bgolaszewski@baylibre.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:max77650-led");
