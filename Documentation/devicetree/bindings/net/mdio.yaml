@@ -18,6 +18,9 @@ description:
   a device specific binding document.
 
 properties:
+  $nodename:
+    pattern: "^mdio(@.*)?"
+
   reset-gpios:
     maxItems: 1
     description:
