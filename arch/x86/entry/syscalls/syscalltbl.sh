@@ -27,8 +27,8 @@ emit() {
     compat="$4"
     umlentry=""
 
-    if [ "$abi" = "64" -a -n "$compat" ]; then
-	echo "a compat entry for a 64-bit syscall makes no sense" >&2
+    if [ "$abi" != "I386" -a -n "$compat" ]; then
+	echo "a compat entry ($abi: $compat) for a 64-bit syscall makes no sense" >&2
 	exit 1
     fi
 
