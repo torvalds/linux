@@ -139,7 +139,7 @@ examples:
       #size-cells = <1>;
       stdout-path = "display0";
       framebuffer0: framebuffer@1d385000 {
-        compatible = "simple-framebuffer";
+        compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
         reg = <0x1d385000 3840000>;
         width = <1600>;
         height = <1200>;
