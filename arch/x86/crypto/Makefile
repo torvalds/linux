@@ -39,12 +39,6 @@ obj-$(CONFIG_CRYPTO_AEGIS128_AESNI_SSE2) += aegis128-aesni.o
 obj-$(CONFIG_CRYPTO_AEGIS128L_AESNI_SSE2) += aegis128l-aesni.o
 obj-$(CONFIG_CRYPTO_AEGIS256_AESNI_SSE2) += aegis256-aesni.o
 
-obj-$(CONFIG_CRYPTO_MORUS640_GLUE) += morus640_glue.o
-obj-$(CONFIG_CRYPTO_MORUS1280_GLUE) += morus1280_glue.o
-
-obj-$(CONFIG_CRYPTO_MORUS640_SSE2) += morus640-sse2.o
-obj-$(CONFIG_CRYPTO_MORUS1280_SSE2) += morus1280-sse2.o
-
 obj-$(CONFIG_CRYPTO_NHPOLY1305_SSE2) += nhpoly1305-sse2.o
 obj-$(CONFIG_CRYPTO_NHPOLY1305_AVX2) += nhpoly1305-avx2.o
 
@@ -62,8 +56,6 @@ endif
 ifeq ($(avx2_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX2_X86_64) += camellia-aesni-avx2.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX2_X86_64) += serpent-avx2.o
-
-	obj-$(CONFIG_CRYPTO_MORUS1280_AVX2) += morus1280-avx2.o
 endif
 
 twofish-i586-y := twofish-i586-asm_32.o twofish_glue.o
@@ -80,9 +72,6 @@ serpent-sse2-x86_64-y := serpent-sse2-x86_64-asm_64.o serpent_sse2_glue.o
 aegis128-aesni-y := aegis128-aesni-asm.o aegis128-aesni-glue.o
 aegis128l-aesni-y := aegis128l-aesni-asm.o aegis128l-aesni-glue.o
 aegis256-aesni-y := aegis256-aesni-asm.o aegis256-aesni-glue.o
-
-morus640-sse2-y := morus640-sse2-asm.o morus640-sse2-glue.o
-morus1280-sse2-y := morus1280-sse2-asm.o morus1280-sse2-glue.o
 
 nhpoly1305-sse2-y := nh-sse2-x86_64.o nhpoly1305-sse2-glue.o
 
@@ -101,8 +90,6 @@ ifeq ($(avx2_supported),yes)
 	camellia-aesni-avx2-y := camellia-aesni-avx2-asm_64.o camellia_aesni_avx2_glue.o
 	chacha-x86_64-y += chacha-avx2-x86_64.o
 	serpent-avx2-y := serpent-avx2-asm_64.o serpent_avx2_glue.o
-
-	morus1280-avx2-y := morus1280-avx2-asm.o morus1280-avx2-glue.o
 
 	nhpoly1305-avx2-y := nh-avx2-x86_64.o nhpoly1305-avx2-glue.o
 endif

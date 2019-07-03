@@ -4769,18 +4769,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(michael_mic_tv_template)
 		}
 	}, {
-		.alg = "morus1280",
-		.test = alg_test_aead,
-		.suite = {
-			.aead = __VECS(morus1280_tv_template)
-		}
-	}, {
-		.alg = "morus640",
-		.test = alg_test_aead,
-		.suite = {
-			.aead = __VECS(morus640_tv_template)
-		}
-	}, {
 		.alg = "nhpoly1305",
 		.test = alg_test_hash,
 		.suite = {
