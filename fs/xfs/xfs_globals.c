@@ -40,4 +40,7 @@ struct xfs_globals xfs_globals = {
 #else
 	.bug_on_assert		=	false,	/* assert failures WARN() */
 #endif
+#ifdef DEBUG
+	.pwork_threads		=	-1,	/* automatic thread detection */
+#endif
 };
