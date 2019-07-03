@@ -134,7 +134,6 @@ populate_shared_memory:
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
 		orangefs_bufmap_put(buffer_index);
-		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
 			iov_iter_revert(iter, total_size);
 		gossip_debug(GOSSIP_FILE_DEBUG,
@@ -262,7 +261,6 @@ out:
 				"%s(%pU): PUT buffer_index %d\n",
 				__func__, handle, buffer_index);
 		}
-		buffer_index = -1;
 	}
 	op_release(new_op);
 	return ret;
