@@ -272,7 +272,8 @@ int exynos_drm_gem_map_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_exynos_gem_map *args = data;
 
-	return drm_gem_map_offset(file_priv, dev, args->handle, &args->offset);
+	return drm_gem_dumb_map_offset(file_priv, dev, args->handle,
+				       &args->offset);
 }
 
 struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
