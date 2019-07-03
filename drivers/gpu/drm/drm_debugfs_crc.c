@@ -66,9 +66,9 @@
  * the reported CRCs of frames that should have the same contents.
  *
  * On the driver side the implementation effort is minimal, drivers only need to
- * implement &drm_crtc_funcs.set_crc_source. The debugfs files are automatically
- * set up if that vfunc is set. CRC samples need to be captured in the driver by
- * calling drm_crtc_add_crc_entry().
+ * implement &drm_crtc_funcs.set_crc_source and &drm_crtc_funcs.verify_crc_source.
+ * The debugfs files are automatically set up if those vfuncs are set. CRC samples
+ * need to be captured in the driver by calling drm_crtc_add_crc_entry().
  */
 
 static int crc_control_show(struct seq_file *m, void *data)
