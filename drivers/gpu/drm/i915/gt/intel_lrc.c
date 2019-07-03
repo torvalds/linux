@@ -2076,22 +2076,23 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 
 static void enable_execlists(struct intel_engine_cs *engine)
 {
+	u32 mode;
+
+	assert_forcewakes_active(engine->uncore, FORCEWAKE_ALL);
+
 	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
 
 	if (INTEL_GEN(engine->i915) >= 11)
-		ENGINE_WRITE(engine,
-			     RING_MODE_GEN7,
-			     _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
+		mode = _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE);
 	else
-		ENGINE_WRITE(engine,
-			     RING_MODE_GEN7,
-			     _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
+		mode = _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE);
+	ENGINE_WRITE_FW(engine, RING_MODE_GEN7, mode);
 
-	ENGINE_WRITE(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
+	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 
-	ENGINE_WRITE(engine,
-		     RING_HWS_PGA,
-		     i915_ggtt_offset(engine->status_page.vma));
+	ENGINE_WRITE_FW(engine,
+			RING_HWS_PGA,
+			i915_ggtt_offset(engine->status_page.vma));
 	ENGINE_POSTING_READ(engine, RING_HWS_PGA);
 }
 
@@ -2099,7 +2100,7 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 {
 	bool unexpected = false;
 
-	if (ENGINE_READ(engine, RING_MI_MODE) & STOP_RING) {
+	if (ENGINE_READ_FW(engine, RING_MI_MODE) & STOP_RING) {
 		DRM_DEBUG_DRIVER("STOP_RING still set in RING_MI_MODE\n");
 		unexpected = true;
 	}
