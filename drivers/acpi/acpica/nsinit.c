@@ -55,14 +55,19 @@ acpi_status acpi_ns_initialize_objects(void)
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "**** Starting initialization of namespace objects ****\n"));
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "Completing Region/Field/Buffer/Package initialization:\n"));
+			      "Final data object initialization: "));
 
-	/* Set all init info to zero */
+	/* Clear the info block */
 
 	memset(&info, 0, sizeof(struct acpi_init_walk_info));
 
 	/* Walk entire namespace from the supplied root */
 
+	/*
+	 * TBD: will become ACPI_TYPE_PACKAGE as this type object
+	 * is now the only one that supports deferred initialization
+	 * (forward references).
+	 */
 	status = acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				     ACPI_UINT32_MAX, acpi_ns_init_one_object,
 				     NULL, &info, NULL);
@@ -71,13 +76,8 @@ acpi_status acpi_ns_initialize_objects(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "    Initialized %u/%u Regions %u/%u Fields %u/%u "
-			      "Buffers %u/%u Packages (%u nodes)\n",
-			      info.op_region_init, info.op_region_count,
-			      info.field_init, info.field_count,
-			      info.buffer_init, info.buffer_count,
-			      info.package_init, info.package_count,
-			      info.object_count));
+			      "Namespace contains %u (0x%X) objects\n",
+			      info.object_count, info.object_count));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "%u Control Methods found\n%u Op Regions found\n",
@@ -382,32 +382,16 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	acpi_ex_enter_interpreter();
 
 	/*
-	 * Each of these types can contain executable AML code within the
-	 * declaration.
+	 * Only initialization of Package objects can be deferred, in order
+	 * to support forward references.
 	 */
 	switch (type) {
-	case ACPI_TYPE_REGION:
-
-		info->op_region_init++;
-		status = acpi_ds_get_region_arguments(obj_desc);
-		break;
-
-	case ACPI_TYPE_BUFFER_FIELD:
-
-		info->field_init++;
-		status = acpi_ds_get_buffer_field_arguments(obj_desc);
-		break;
-
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
+
+		/* TBD: bank_fields do not require deferred init, remove this code */
 
 		info->field_init++;
 		status = acpi_ds_get_bank_field_arguments(obj_desc);
-		break;
-
-	case ACPI_TYPE_BUFFER:
-
-		info->buffer_init++;
-		status = acpi_ds_get_buffer_arguments(obj_desc);
 		break;
 
 	case ACPI_TYPE_PACKAGE:
@@ -421,8 +405,13 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 
 	default:
 
-		/* No other types can get here */
+		/* No other types should get here */
 
+		status = AE_TYPE;
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Opcode is not deferred [%4.4s] (%s)",
+				acpi_ut_get_node_name(node),
+				acpi_ut_get_type_name(type)));
 		break;
 	}
 
