@@ -107,6 +107,7 @@ will stay deactivated.
 Kernel Interfaces:
 ------------------
 
+.. kernel-doc:: arch/s390/kernel/debug.c
 .. kernel-doc:: arch/s390/include/asm/debug.h
 
 Predefined views:
