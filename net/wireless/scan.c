@@ -1368,6 +1368,7 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	struct cfg80211_internal_bss tmp = {}, *res;
 	int bss_type;
 	bool signal_valid;
+	unsigned long ts;
 
 	if (WARN_ON(!wiphy))
 		return NULL;
@@ -1390,8 +1391,11 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	tmp.ts_boottime = data->boottime_ns;
 	if (non_tx_data) {
 		tmp.pub.transmitted_bss = non_tx_data->tx_bss;
+		ts = bss_from_pub(non_tx_data->tx_bss)->ts;
 		tmp.pub.bssid_index = non_tx_data->bssid_index;
 		tmp.pub.max_bssid_indicator = non_tx_data->max_bssid_indicator;
+	} else {
+		ts = jiffies;
 	}
 
 	/*
@@ -1425,8 +1429,7 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 
 	signal_valid = abs(data->chan->center_freq - channel->center_freq) <=
 		wiphy->max_adj_channel_rssi_comp;
-	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid,
-				  jiffies);
+	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid, ts);
 	if (!res)
 		return NULL;
 
