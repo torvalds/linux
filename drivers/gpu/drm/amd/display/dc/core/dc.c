@@ -180,13 +180,25 @@ static bool create_links(
 		link = link_create(&link_init_params);
 
 		if (link) {
-			if (dc->config.edp_not_connected &&
-					link->connector_signal == SIGNAL_TYPE_EDP) {
-				link_destroy(&link);
-			} else {
+			bool should_destory_link = false;
+
+			if (link->connector_signal == SIGNAL_TYPE_EDP) {
+				if (dc->config.edp_not_connected)
+					should_destory_link = true;
+				else if (dc->debug.remove_disconnect_edp) {
+					enum dc_connection_type type;
+					dc_link_detect_sink(link, &type);
+					if (type == dc_connection_none)
+						should_destory_link = true;
+				}
+			}
+
+			if (!should_destory_link) {
 				dc->links[dc->link_count] = link;
 				link->dc = dc;
 				++dc->link_count;
+			} else {
+				link_destroy(&link);
 			}
 		}
 	}
