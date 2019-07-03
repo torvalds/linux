@@ -2074,11 +2074,10 @@ static int gfx_v9_1_init_rlc_save_restore_list(struct amdgpu_device *adev)
 	u32 tmp = 0;
 
 	u32 *register_list_format =
-		kmalloc(adev->gfx.rlc.reg_list_format_size_bytes, GFP_KERNEL);
+		kmemdup(adev->gfx.rlc.register_list_format,
+			adev->gfx.rlc.reg_list_format_size_bytes, GFP_KERNEL);
 	if (!register_list_format)
 		return -ENOMEM;
-	memcpy(register_list_format, adev->gfx.rlc.register_list_format,
-		adev->gfx.rlc.reg_list_format_size_bytes);
 
 	/* setup unique_indirect_regs array and indirect_start_offsets array */
 	unique_indirect_reg_count = ARRAY_SIZE(unique_indirect_regs);
