@@ -138,6 +138,7 @@ static ssize_t __nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 	struct nl4_server *nss = NULL;
 	nfs4_stateid *cnrs = NULL;
 	ssize_t ret;
+	bool sync = false;
 
 	/* Only offload copy if superblock is the same */
 	if (file_inode(file_in)->i_sb != file_inode(file_out)->i_sb)
@@ -146,8 +147,21 @@ static ssize_t __nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 		return -EOPNOTSUPP;
 	if (file_inode(file_in) == file_inode(file_out))
 		return -EOPNOTSUPP;
+	/* if the copy size if smaller than 2 RPC payloads, make it
+	 * synchronous
+	 */
+	if (count <= 2 * NFS_SERVER(file_inode(file_in))->rsize)
+		sync = true;
 retry:
 	if (!nfs42_files_from_same_server(file_in, file_out)) {
+		/* for inter copy, if copy size if smaller than 12 RPC
+		 * payloads, fallback to traditional copy. There are
+		 * 14 RPCs during an NFSv4.x mount between source/dest
+		 * servers.
+		 */
+		if (sync ||
+			count <= 14 * NFS_SERVER(file_inode(file_in))->rsize)
+			return -EOPNOTSUPP;
 		cn_resp = kzalloc(sizeof(struct nfs42_copy_notify_res),
 				GFP_NOFS);
 		if (unlikely(cn_resp == NULL))
@@ -162,7 +176,7 @@ retry:
 		cnrs = &cn_resp->cnr_stateid;
 	}
 	ret = nfs42_proc_copy(file_in, pos_in, file_out, pos_out, count,
-				nss, cnrs);
+				nss, cnrs, sync);
 out:
 	kfree(cn_resp);
 	if (ret == -EAGAIN)

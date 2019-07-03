@@ -357,7 +357,7 @@ out:
 ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 			struct file *dst, loff_t pos_dst, size_t count,
 			struct nl4_server *nss,
-			nfs4_stateid *cnr_stateid)
+			nfs4_stateid *cnr_stateid, bool sync)
 {
 	struct nfs_server *server = NFS_SERVER(file_inode(dst));
 	struct nfs_lock_context *src_lock;
@@ -368,7 +368,7 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 		.dst_fh		= NFS_FH(file_inode(dst)),
 		.dst_pos	= pos_dst,
 		.count		= count,
-		.sync		= false,
+		.sync		= sync,
 	};
 	struct nfs42_copy_res res;
 	struct nfs4_exception src_exception = {
