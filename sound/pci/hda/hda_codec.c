@@ -1016,7 +1016,7 @@ int snd_hda_codec_update_widgets(struct hda_codec *codec)
 	hda_nid_t fg;
 	int err;
 
-	err = snd_hdac_refresh_widgets(&codec->core, true);
+	err = snd_hdac_refresh_widgets(&codec->core);
 	if (err < 0)
 		return err;
 

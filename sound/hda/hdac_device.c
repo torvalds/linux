@@ -89,7 +89,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 
 	fg = codec->afg ? codec->afg : codec->mfg;
 
-	err = snd_hdac_refresh_widgets(codec, false);
+	err = snd_hdac_refresh_widgets(codec);
 	if (err < 0)
 		goto error;
 
@@ -394,9 +394,8 @@ static void setup_fg_nodes(struct hdac_device *codec)
 /**
  * snd_hdac_refresh_widgets - Reset the widget start/end nodes
  * @codec: the codec object
- * @sysfs: re-initialize sysfs tree, too
  */
-int snd_hdac_refresh_widgets(struct hdac_device *codec, bool sysfs)
+int snd_hdac_refresh_widgets(struct hdac_device *codec)
 {
 	hda_nid_t start_nid;
 	int nums, err = 0;
@@ -414,11 +413,9 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec, bool sysfs)
 		goto unlock;
 	}
 
-	if (sysfs) {
-		err = hda_widget_sysfs_reinit(codec, start_nid, nums);
-		if (err < 0)
-			goto unlock;
-	}
+	err = hda_widget_sysfs_reinit(codec, start_nid, nums);
+	if (err < 0)
+		goto unlock;
 
 	codec->num_nodes = nums;
 	codec->start_nid = start_nid;
