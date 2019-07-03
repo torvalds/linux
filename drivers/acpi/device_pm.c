@@ -53,6 +53,11 @@ const char *acpi_power_state_string(int state)
  * This function does not update the device's power.state field, but it may
  * update its parent's power.state field (when the parent's power state is
  * unknown and the device's power state turns out to be D0).
+ *
+ * Also, it does not update power resource reference counters to ensure that
+ * the power state returned by it will be persistent and it may return a power
+ * state shallower than previously set by acpi_device_set_power() for @device
+ * (if that power state depends on any power resources).
  */
 int acpi_device_get_power(struct acpi_device *device, int *state)
 {
@@ -118,7 +123,6 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 
 	return 0;
 }
-EXPORT_SYMBOL(acpi_device_get_power);
 
 static int acpi_dev_pm_explicit_set(struct acpi_device *adev, int state)
 {
