@@ -113,6 +113,10 @@ void register_dtl_buffer(int cpu)
 	}
 }
 
+#ifdef CONFIG_PPC_SPLPAR
+DEFINE_RWLOCK(dtl_access_lock);
+#endif /* CONFIG_PPC_SPLPAR */
+
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
