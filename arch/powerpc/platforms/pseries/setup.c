@@ -285,7 +285,7 @@ static int alloc_dispatch_logs(void)
 	if (!dtl_cache)
 		return 0;
 
-	alloc_dtl_buffers();
+	alloc_dtl_buffers(0);
 
 	/* Register the DTL for the current (boot) cpu */
 	register_dtl_buffer(smp_processor_id());

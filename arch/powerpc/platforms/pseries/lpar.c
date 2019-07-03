@@ -75,7 +75,7 @@ static u8 dtl_mask = DTL_LOG_PREEMPT;
 static u8 dtl_mask;
 #endif
 
-void alloc_dtl_buffers(void)
+void alloc_dtl_buffers(unsigned long *time_limit)
 {
 	int cpu;
 	struct paca_struct *pp;
@@ -99,6 +99,11 @@ void alloc_dtl_buffers(void)
 		pp->dispatch_log = dtl;
 		pp->dispatch_log_end = dtl + N_DISPATCH_LOG;
 		pp->dtl_curr = dtl;
+
+		if (time_limit && time_after(jiffies, *time_limit)) {
+			cond_resched();
+			*time_limit = jiffies + HZ;
+		}
 	}
 }
 
@@ -168,7 +173,7 @@ static int vcpudispatch_stats_freq = 50;
 static __be32 *vcpu_associativity, *pcpu_associativity;
 
 
-static void free_dtl_buffers(void)
+static void free_dtl_buffers(unsigned long *time_limit)
 {
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	int cpu;
@@ -183,6 +188,11 @@ static void free_dtl_buffers(void)
 		pp->dispatch_log = 0;
 		pp->dispatch_log_end = 0;
 		pp->dtl_curr = 0;
+
+		if (time_limit && time_after(jiffies, *time_limit)) {
+			cond_resched();
+			*time_limit = jiffies + HZ;
+		}
 	}
 #endif
 }
@@ -442,7 +452,7 @@ static void reset_global_dtl_mask(void)
 		lppaca_of(cpu).dtl_enable_mask = dtl_mask;
 }
 
-static int dtl_worker_enable(void)
+static int dtl_worker_enable(unsigned long *time_limit)
 {
 	int rc = 0, state;
 
@@ -454,13 +464,13 @@ static int dtl_worker_enable(void)
 	set_global_dtl_mask(DTL_LOG_ALL);
 
 	/* Setup dtl buffers and register those */
-	alloc_dtl_buffers();
+	alloc_dtl_buffers(time_limit);
 
 	state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "powerpc/dtl:online",
 					dtl_worker_online, dtl_worker_offline);
 	if (state < 0) {
 		pr_err("vcpudispatch_stats: unable to setup workqueue for DTL processing\n");
-		free_dtl_buffers();
+		free_dtl_buffers(time_limit);
 		reset_global_dtl_mask();
 		write_unlock(&dtl_access_lock);
 		rc = -EINVAL;
@@ -472,10 +482,10 @@ out:
 	return rc;
 }
 
-static void dtl_worker_disable(void)
+static void dtl_worker_disable(unsigned long *time_limit)
 {
 	cpuhp_remove_state(dtl_worker_state);
-	free_dtl_buffers();
+	free_dtl_buffers(time_limit);
 	reset_global_dtl_mask();
 	write_unlock(&dtl_access_lock);
 }
@@ -483,6 +493,7 @@ static void dtl_worker_disable(void)
 static ssize_t vcpudispatch_stats_write(struct file *file, const char __user *p,
 		size_t count, loff_t *ppos)
 {
+	unsigned long time_limit = jiffies + HZ;
 	struct vcpu_dispatch_data *disp;
 	int rc, cmd, cpu;
 	char buf[16];
@@ -517,13 +528,13 @@ static ssize_t vcpudispatch_stats_write(struct file *file, const char __user *p,
 			disp->last_disp_cpu = -1;
 		}
 
-		rc = dtl_worker_enable();
+		rc = dtl_worker_enable(&time_limit);
 		if (rc) {
 			destroy_cpu_associativity();
 			goto out;
 		}
 	} else {
-		dtl_worker_disable();
+		dtl_worker_disable(&time_limit);
 		destroy_cpu_associativity();
 	}
 

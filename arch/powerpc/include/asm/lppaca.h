@@ -201,7 +201,7 @@ extern rwlock_t dtl_access_lock;
 extern void (*dtl_consumer)(struct dtl_entry *entry, u64 index);
 
 extern void register_dtl_buffer(int cpu);
-extern void alloc_dtl_buffers(void);
+extern void alloc_dtl_buffers(unsigned long *time_limit);
 extern long hcall_vphn(unsigned long cpu, u64 flags, __be32 *associativity);
 
 #endif /* CONFIG_PPC_BOOK3S */
