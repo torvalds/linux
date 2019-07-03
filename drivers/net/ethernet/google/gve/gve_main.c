@@ -518,7 +518,7 @@ int gve_alloc_page(struct device *dev, struct page **page, dma_addr_t *dma,
 		   enum dma_data_direction dir)
 {
 	*page = alloc_page(GFP_KERNEL);
-	if (!page)
+	if (!*page)
 		return -ENOMEM;
 	*dma = dma_map_page(dev, *page, 0, PAGE_SIZE, dir);
 	if (dma_mapping_error(dev, *dma)) {
