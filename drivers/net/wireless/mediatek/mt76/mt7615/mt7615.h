@@ -151,7 +151,7 @@ int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 int mt7615_mcu_set_wtbl_key(struct mt7615_dev *dev, int wcid,
 			    struct ieee80211_key_conf *key,
 			    enum set_key_cmd cmd);
-void mt7615_mcu_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
+void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates);
 int mt7615_mcu_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif,
@@ -206,9 +206,6 @@ static inline void mt7615_irq_disable(struct mt7615_dev *dev, u32 mask)
 	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
-u16 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
-			   const struct ieee80211_tx_rate *rate,
-			   bool stbc, u8 *bw);
 int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,

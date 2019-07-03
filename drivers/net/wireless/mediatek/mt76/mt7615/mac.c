@@ -248,9 +248,10 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 		mt76_tx_complete_skb(mdev, e->skb);
 }
 
-u16 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
-			   const struct ieee80211_tx_rate *rate,
-			   bool stbc, u8 *bw)
+static u16
+mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
+		       const struct ieee80211_tx_rate *rate,
+		       bool stbc, u8 *bw)
 {
 	u8 phy, nss, rate_idx;
 	u16 rateval;
@@ -446,6 +447,95 @@ void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 				 le16_to_cpu(txp->len[i]), DMA_TO_DEVICE);
 }
 
+void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
+			  struct ieee80211_tx_rate *probe_rate,
+			  struct ieee80211_tx_rate *rates)
+{
+	int wcid = sta->wcid.idx;
+	u32 addr = MT_WTBL_BASE + wcid * MT_WTBL_ENTRY_SIZE;
+	bool stbc = false;
+	int n_rates = sta->n_rates;
+	u8 bw, bw_prev, bw_idx = 0;
+	u16 val[4];
+	u16 probe_val;
+	u32 w5, w27;
+	int i;
+
+	if (!mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000))
+		return;
+
+	for (i = n_rates; i < 4; i++)
+		rates[i] = rates[n_rates - 1];
+
+	val[0] = mt7615_mac_tx_rate_val(dev, &rates[0], stbc, &bw);
+	bw_prev = bw;
+
+	if (probe_rate) {
+		probe_val = mt7615_mac_tx_rate_val(dev, probe_rate, stbc, &bw);
+		if (bw)
+			bw_idx = 1;
+		else
+			bw_prev = 0;
+	} else {
+		probe_val = val[0];
+	}
+
+	val[1] = mt7615_mac_tx_rate_val(dev, &rates[1], stbc, &bw);
+	if (bw_prev) {
+		bw_idx = 3;
+		bw_prev = bw;
+	}
+
+	val[2] = mt7615_mac_tx_rate_val(dev, &rates[2], stbc, &bw);
+	if (bw_prev) {
+		bw_idx = 5;
+		bw_prev = bw;
+	}
+
+	val[3] = mt7615_mac_tx_rate_val(dev, &rates[3], stbc, &bw);
+	if (bw_prev)
+		bw_idx = 7;
+
+	w27 = mt76_rr(dev, addr + 27 * 4);
+	w27 &= ~MT_WTBL_W27_CC_BW_SEL;
+	w27 |= FIELD_PREP(MT_WTBL_W27_CC_BW_SEL, bw);
+
+	w5 = mt76_rr(dev, addr + 5 * 4);
+	w5 &= ~(MT_WTBL_W5_BW_CAP | MT_WTBL_W5_CHANGE_BW_RATE);
+	w5 |= FIELD_PREP(MT_WTBL_W5_BW_CAP, bw) |
+	      FIELD_PREP(MT_WTBL_W5_CHANGE_BW_RATE, bw_idx ? bw_idx - 1 : 7);
+
+	mt76_wr(dev, MT_WTBL_RIUCR0, w5);
+
+	mt76_wr(dev, MT_WTBL_RIUCR1,
+		FIELD_PREP(MT_WTBL_RIUCR1_RATE0, probe_val) |
+		FIELD_PREP(MT_WTBL_RIUCR1_RATE1, val[0]) |
+		FIELD_PREP(MT_WTBL_RIUCR1_RATE2_LO, val[0]));
+
+	mt76_wr(dev, MT_WTBL_RIUCR2,
+		FIELD_PREP(MT_WTBL_RIUCR2_RATE2_HI, val[0] >> 8) |
+		FIELD_PREP(MT_WTBL_RIUCR2_RATE3, val[1]) |
+		FIELD_PREP(MT_WTBL_RIUCR2_RATE4, val[1]) |
+		FIELD_PREP(MT_WTBL_RIUCR2_RATE5_LO, val[2]));
+
+	mt76_wr(dev, MT_WTBL_RIUCR3,
+		FIELD_PREP(MT_WTBL_RIUCR3_RATE5_HI, val[2] >> 4) |
+		FIELD_PREP(MT_WTBL_RIUCR3_RATE6, val[2]) |
+		FIELD_PREP(MT_WTBL_RIUCR3_RATE7, val[3]));
+
+	mt76_wr(dev, MT_WTBL_UPDATE,
+		FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, wcid) |
+		MT_WTBL_UPDATE_RATE_UPDATE |
+		MT_WTBL_UPDATE_TX_COUNT_CLEAR);
+
+	mt76_wr(dev, addr + 27 * 4, w27);
+
+	if (!(sta->wcid.tx_info & MT_WCID_TX_INFO_SET))
+		mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000);
+
+	sta->rate_count = 2 * MT7615_RATE_RETRY * n_rates;
+	sta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
+}
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
@@ -470,7 +560,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
 		spin_lock_bh(&dev->mt76.lock);
 		msta->rate_probe = true;
-		mt7615_mcu_set_rates(dev, msta, &info->control.rates[0],
+		mt7615_mac_set_rates(dev, msta, &info->control.rates[0],
 				     msta->rates);
 		spin_unlock_bh(&dev->mt76.lock);
 	}
@@ -645,7 +735,7 @@ static bool mt7615_mac_add_txs_skb(struct mt7615_dev *dev,
 		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
 			spin_lock_bh(&dev->mt76.lock);
 			if (sta->rate_probe) {
-				mt7615_mcu_set_rates(dev, sta, NULL,
+				mt7615_mac_set_rates(dev, sta, NULL,
 						     sta->rates);
 				sta->rate_probe = false;
 			}
