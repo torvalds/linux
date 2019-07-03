@@ -44,7 +44,7 @@ required:
   - interrupt-names
   - clocks
   - clock-names
-  - phy-connection-type
+  - phy-mode
 
 examples:
   - |
@@ -55,7 +55,7 @@ examples:
         interrupt-names = "macirq";
         clocks = <&ahb_gates 49>, <&gmac_tx>;
         clock-names = "stmmaceth", "allwinner_gmac_tx";
-        phy-connection-type = "mii";
+        phy-mode = "mii";
     };
 
 # FIXME: We should set it, but it would report all the generic

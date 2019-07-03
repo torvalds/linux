@@ -52,8 +52,8 @@ required:
   - clock-names
   - resets
   - reset-names
-  - phy-connection-type
   - phy-handle
+  - phy-mode
   - syscon
 
 allOf:
@@ -198,7 +198,7 @@ examples:
         clock-names = "stmmaceth";
 
         phy-handle = <&int_mii_phy>;
-        phy-connection-type = "mii";
+        phy-mode = "mii";
         allwinner,leds-active-low;
 
         mdio1: mdio {
@@ -249,7 +249,7 @@ examples:
         clock-names = "stmmaceth";
 
         phy-handle = <&ext_rgmii_phy>;
-        phy-connection-type = "rgmii";
+        phy-mode = "rgmii";
         allwinner,leds-active-low;
 
         mdio2: mdio {
@@ -301,7 +301,7 @@ examples:
         clocks = <&ccu 27>;
         clock-names = "stmmaceth";
         phy-handle = <&ext_rgmii_phy1>;
-        phy-connection-type = "rgmii";
+        phy-mode = "rgmii";
 
         mdio {
             compatible = "snps,dwmac-mdio";

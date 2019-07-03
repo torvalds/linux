@@ -261,7 +261,7 @@ required:
   - reg
   - interrupts
   - interrupt-names
-  - phy-connection-type
+  - phy-mode
 
 dependencies:
   snps,reset-active-low: ["snps,reset-gpio"]
@@ -384,7 +384,7 @@ examples:
         interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
         mac-address = [000000000000]; /* Filled in by U-Boot */
         max-frame-size = <3800>;
-        phy-connection-type = "gmii";
+        phy-mode = "gmii";
         snps,multicast-filter-bins = <256>;
         snps,perfect-filter-entries = <128>;
         rx-fifo-depth = <16384>;
