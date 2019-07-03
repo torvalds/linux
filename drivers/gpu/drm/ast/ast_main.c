@@ -502,7 +502,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_free;
 
-	ret = ast_fbdev_init(dev);
+	ret = drm_fbdev_generic_setup(dev, 32);
 	if (ret)
 		goto out_free;
 
@@ -520,7 +520,6 @@ void ast_driver_unload(struct drm_device *dev)
 	ast_release_firmware(dev);
 	kfree(ast->dp501_fw_addr);
 	ast_mode_fini(dev);
-	ast_fbdev_fini(dev);
 	drm_mode_config_cleanup(dev);
 
 	ast_mm_fini(ast);

@@ -525,18 +525,12 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				int x, int y, int atomic)
 {
-	struct ast_private *ast = crtc->dev->dev_private;
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	s64 gpu_addr;
-	void *base;
 
 	if (!atomic && fb) {
 		gbo = drm_gem_vram_of_gem(fb->obj[0]);
-
-		/* unmap if console */
-		if (ast->fbdev->helper.fb == fb)
-			drm_gem_vram_kunmap(gbo);
 		drm_gem_vram_unpin(gbo);
 	}
 
@@ -549,17 +543,6 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 	if (gpu_addr < 0) {
 		ret = (int)gpu_addr;
 		goto err_drm_gem_vram_unpin;
-	}
-
-	if (ast->fbdev->helper.fb == crtc->primary->fb) {
-		/* if pushing console in kmap it */
-		base = drm_gem_vram_kmap(gbo, true, NULL);
-		if (IS_ERR(base)) {
-			ret = PTR_ERR(base);
-			DRM_ERROR("failed to kmap fbcon\n");
-		} else {
-			ast_fbdev_set_base(ast, gpu_addr);
-		}
 	}
 
 	ast_set_offset_reg(crtc);
@@ -618,14 +601,10 @@ static void ast_crtc_disable(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("\n");
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
-		struct ast_private *ast = crtc->dev->dev_private;
 		struct drm_framebuffer *fb = crtc->primary->fb;
 		struct drm_gem_vram_object *gbo =
 			drm_gem_vram_of_gem(fb->obj[0]);
 
-		/* unmap if console */
-		if (ast->fbdev->helper.fb == fb)
-			drm_gem_vram_kunmap(gbo);
 		drm_gem_vram_unpin(gbo);
 	}
 	crtc->primary->fb = NULL;

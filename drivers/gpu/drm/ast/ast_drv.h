@@ -81,8 +81,6 @@ enum ast_tx_chip {
 #define AST_DRAM_4Gx16   7
 #define AST_DRAM_8Gx16   8
 
-struct ast_fbdev;
-
 struct ast_private {
 	struct drm_device *dev;
 
@@ -95,8 +93,6 @@ struct ast_private {
 	uint32_t dram_type;
 	uint32_t mclk;
 	uint32_t vram_size;
-
-	struct ast_fbdev *fbdev;
 
 	int fb_mtrr;
 
@@ -239,14 +235,6 @@ struct ast_encoder {
 	struct drm_encoder base;
 };
 
-struct ast_fbdev {
-	struct drm_fb_helper helper; /* must be first */
-	void *sysram;
-	int size;
-	int x1, y1, x2, y2; /* dirty rect */
-	spinlock_t dirty_lock;
-};
-
 #define to_ast_crtc(x) container_of(x, struct ast_crtc, base)
 #define to_ast_connector(x) container_of(x, struct ast_connector, base)
 #define to_ast_encoder(x) container_of(x, struct ast_encoder, base)
@@ -288,11 +276,6 @@ struct ast_vbios_mode_info {
 
 extern int ast_mode_init(struct drm_device *dev);
 extern void ast_mode_fini(struct drm_device *dev);
-
-int ast_fbdev_init(struct drm_device *dev);
-void ast_fbdev_fini(struct drm_device *dev);
-void ast_fbdev_set_suspend(struct drm_device *dev, int state);
-void ast_fbdev_set_base(struct ast_private *ast, unsigned long gpu_addr);
 
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
