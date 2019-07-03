@@ -96,7 +96,6 @@ struct teo_idle_state {
  * @time_span_ns: Time between idle state selection and post-wakeup update.
  * @sleep_length_ns: Time till the closest timer event (at the selection time).
  * @states: Idle states data corresponding to this CPU.
- * @last_state: Idle state entered by the CPU last time.
  * @interval_idx: Index of the most recent saved idle interval.
  * @intervals: Saved idle duration values.
  */
@@ -104,7 +103,6 @@ struct teo_cpu {
 	u64 time_span_ns;
 	u64 sleep_length_ns;
 	struct teo_idle_state states[CPUIDLE_STATE_MAX];
-	int last_state;
 	int interval_idx;
 	unsigned int intervals[INTERVALS];
 };
@@ -130,7 +128,9 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		 */
 		measured_us = sleep_length_us;
 	} else {
-		unsigned int lat = drv->states[cpu_data->last_state].exit_latency;
+		unsigned int lat;
+
+		lat = drv->states[dev->last_state_idx].exit_latency;
 
 		measured_us = ktime_to_us(cpu_data->time_span_ns);
 		/*
@@ -245,9 +245,9 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	int max_early_idx, idx, i;
 	ktime_t delta_tick;
 
-	if (cpu_data->last_state >= 0) {
+	if (dev->last_state_idx >= 0) {
 		teo_update(drv, dev);
-		cpu_data->last_state = -1;
+		dev->last_state_idx = -1;
 	}
 
 	cpu_data->time_span_ns = local_clock();
@@ -394,7 +394,7 @@ static void teo_reflect(struct cpuidle_device *dev, int state)
 {
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
 
-	cpu_data->last_state = state;
+	dev->last_state_idx = state;
 	/*
 	 * If the wakeup was not "natural", but triggered by one of the safety
 	 * nets, assume that the CPU might have been idle for the entire sleep

@@ -85,6 +85,7 @@ struct cpuidle_device {
 	unsigned int		cpu;
 	ktime_t			next_hrtimer;
 
+	int			last_state_idx;
 	int			last_residency;
 	u64			poll_limit_ns;
 	struct cpuidle_state_usage	states_usage[CPUIDLE_STATE_MAX];
