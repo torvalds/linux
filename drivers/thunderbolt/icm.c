@@ -56,6 +56,7 @@
  * @max_boot_acl: Maximum number of preboot ACL entries (%0 if not supported)
  * @rpm: Does the controller support runtime PM (RTD3)
  * @is_supported: Checks if we can support ICM on this controller
+ * @cio_reset: Trigger CIO reset
  * @get_mode: Read and return the ICM firmware mode (optional)
  * @get_route: Find a route string for given switch
  * @save_devices: Ask ICM to save devices to ACL when suspending (optional)
@@ -74,6 +75,7 @@ struct icm {
 	bool safe_mode;
 	bool rpm;
 	bool (*is_supported)(struct tb *tb);
+	int (*cio_reset)(struct tb *tb);
 	int (*get_mode)(struct tb *tb);
 	int (*get_route)(struct tb *tb, u8 link, u8 depth, u64 *route);
 	void (*save_devices)(struct tb *tb);
@@ -164,6 +166,65 @@ static inline u64 get_parent_route(u64 route)
 {
 	int depth = tb_route_length(route);
 	return depth ? route & ~(0xffULL << (depth - 1) * TB_ROUTE_SHIFT) : 0;
+}
+
+static int pci2cio_wait_completion(struct icm *icm, unsigned long timeout_msec)
+{
+	unsigned long end = jiffies + msecs_to_jiffies(timeout_msec);
+	u32 cmd;
+
+	do {
+		pci_read_config_dword(icm->upstream_port,
+				      icm->vnd_cap + PCIE2CIO_CMD, &cmd);
+		if (!(cmd & PCIE2CIO_CMD_START)) {
+			if (cmd & PCIE2CIO_CMD_TIMEOUT)
+				break;
+			return 0;
+		}
+
+		msleep(50);
+	} while (time_before(jiffies, end));
+
+	return -ETIMEDOUT;
+}
+
+static int pcie2cio_read(struct icm *icm, enum tb_cfg_space cs,
+			 unsigned int port, unsigned int index, u32 *data)
+{
+	struct pci_dev *pdev = icm->upstream_port;
+	int ret, vnd_cap = icm->vnd_cap;
+	u32 cmd;
+
+	cmd = index;
+	cmd |= (port << PCIE2CIO_CMD_PORT_SHIFT) & PCIE2CIO_CMD_PORT_MASK;
+	cmd |= (cs << PCIE2CIO_CMD_CS_SHIFT) & PCIE2CIO_CMD_CS_MASK;
+	cmd |= PCIE2CIO_CMD_START;
+	pci_write_config_dword(pdev, vnd_cap + PCIE2CIO_CMD, cmd);
+
+	ret = pci2cio_wait_completion(icm, 5000);
+	if (ret)
+		return ret;
+
+	pci_read_config_dword(pdev, vnd_cap + PCIE2CIO_RDDATA, data);
+	return 0;
+}
+
+static int pcie2cio_write(struct icm *icm, enum tb_cfg_space cs,
+			  unsigned int port, unsigned int index, u32 data)
+{
+	struct pci_dev *pdev = icm->upstream_port;
+	int vnd_cap = icm->vnd_cap;
+	u32 cmd;
+
+	pci_write_config_dword(pdev, vnd_cap + PCIE2CIO_WRDATA, data);
+
+	cmd = index;
+	cmd |= (port << PCIE2CIO_CMD_PORT_SHIFT) & PCIE2CIO_CMD_PORT_MASK;
+	cmd |= (cs << PCIE2CIO_CMD_CS_SHIFT) & PCIE2CIO_CMD_CS_MASK;
+	cmd |= PCIE2CIO_CMD_WRITE | PCIE2CIO_CMD_START;
+	pci_write_config_dword(pdev, vnd_cap + PCIE2CIO_CMD, cmd);
+
+	return pci2cio_wait_completion(icm, 5000);
 }
 
 static bool icm_match(const struct tb_cfg_request *req,
@@ -484,6 +545,7 @@ static void add_switch(struct tb_switch *parent_sw, u64 route,
 	sw->authorized = authorized;
 	sw->security_level = security_level;
 	sw->boot = boot;
+	init_completion(&sw->rpm_complete);
 
 	vss = parse_intel_vss(ep_name, ep_name_size);
 	if (vss)
@@ -523,6 +585,9 @@ static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
 
 	/* This switch still exists */
 	sw->is_unplugged = false;
+
+	/* Runtime resume is now complete */
+	complete(&sw->rpm_complete);
 }
 
 static void remove_switch(struct tb_switch *sw)
@@ -832,6 +897,11 @@ icm_fr_xdomain_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 		remove_xdomain(xd);
 		tb_xdomain_put(xd);
 	}
+}
+
+static int icm_tr_cio_reset(struct tb *tb)
+{
+	return pcie2cio_write(tb_priv(tb), TB_CFG_SWITCH, 0, 0x777, BIT(1));
 }
 
 static int
@@ -1240,6 +1310,11 @@ static bool icm_ar_is_supported(struct tb *tb)
 	return false;
 }
 
+static int icm_ar_cio_reset(struct tb *tb)
+{
+	return pcie2cio_write(tb_priv(tb), TB_CFG_SWITCH, 0, 0x50, BIT(9));
+}
+
 static int icm_ar_get_mode(struct tb *tb)
 {
 	struct tb_nhi *nhi = tb->nhi;
@@ -1477,65 +1552,6 @@ __icm_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 	return -ETIMEDOUT;
 }
 
-static int pci2cio_wait_completion(struct icm *icm, unsigned long timeout_msec)
-{
-	unsigned long end = jiffies + msecs_to_jiffies(timeout_msec);
-	u32 cmd;
-
-	do {
-		pci_read_config_dword(icm->upstream_port,
-				      icm->vnd_cap + PCIE2CIO_CMD, &cmd);
-		if (!(cmd & PCIE2CIO_CMD_START)) {
-			if (cmd & PCIE2CIO_CMD_TIMEOUT)
-				break;
-			return 0;
-		}
-
-		msleep(50);
-	} while (time_before(jiffies, end));
-
-	return -ETIMEDOUT;
-}
-
-static int pcie2cio_read(struct icm *icm, enum tb_cfg_space cs,
-			 unsigned int port, unsigned int index, u32 *data)
-{
-	struct pci_dev *pdev = icm->upstream_port;
-	int ret, vnd_cap = icm->vnd_cap;
-	u32 cmd;
-
-	cmd = index;
-	cmd |= (port << PCIE2CIO_CMD_PORT_SHIFT) & PCIE2CIO_CMD_PORT_MASK;
-	cmd |= (cs << PCIE2CIO_CMD_CS_SHIFT) & PCIE2CIO_CMD_CS_MASK;
-	cmd |= PCIE2CIO_CMD_START;
-	pci_write_config_dword(pdev, vnd_cap + PCIE2CIO_CMD, cmd);
-
-	ret = pci2cio_wait_completion(icm, 5000);
-	if (ret)
-		return ret;
-
-	pci_read_config_dword(pdev, vnd_cap + PCIE2CIO_RDDATA, data);
-	return 0;
-}
-
-static int pcie2cio_write(struct icm *icm, enum tb_cfg_space cs,
-			  unsigned int port, unsigned int index, u32 data)
-{
-	struct pci_dev *pdev = icm->upstream_port;
-	int vnd_cap = icm->vnd_cap;
-	u32 cmd;
-
-	pci_write_config_dword(pdev, vnd_cap + PCIE2CIO_WRDATA, data);
-
-	cmd = index;
-	cmd |= (port << PCIE2CIO_CMD_PORT_SHIFT) & PCIE2CIO_CMD_PORT_MASK;
-	cmd |= (cs << PCIE2CIO_CMD_CS_SHIFT) & PCIE2CIO_CMD_CS_MASK;
-	cmd |= PCIE2CIO_CMD_WRITE | PCIE2CIO_CMD_START;
-	pci_write_config_dword(pdev, vnd_cap + PCIE2CIO_CMD, cmd);
-
-	return pci2cio_wait_completion(icm, 5000);
-}
-
 static int icm_firmware_reset(struct tb *tb, struct tb_nhi *nhi)
 {
 	struct icm *icm = tb_priv(tb);
@@ -1556,7 +1572,7 @@ static int icm_firmware_reset(struct tb *tb, struct tb_nhi *nhi)
 	iowrite32(val, nhi->iobase + REG_FW_STS);
 
 	/* Trigger CIO reset now */
-	return pcie2cio_write(icm, TB_CFG_SWITCH, 0, 0x50, BIT(9));
+	return icm->cio_reset(tb);
 }
 
 static int icm_firmware_start(struct tb *tb, struct tb_nhi *nhi)
@@ -1770,6 +1786,32 @@ static void icm_unplug_children(struct tb_switch *sw)
 	}
 }
 
+static int complete_rpm(struct device *dev, void *data)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	if (sw)
+		complete(&sw->rpm_complete);
+	return 0;
+}
+
+static void remove_unplugged_switch(struct tb_switch *sw)
+{
+	pm_runtime_get_sync(sw->dev.parent);
+
+	/*
+	 * Signal this and switches below for rpm_complete because
+	 * tb_switch_remove() calls pm_runtime_get_sync() that then waits
+	 * for it.
+	 */
+	complete_rpm(&sw->dev, NULL);
+	bus_for_each_dev(&tb_bus_type, &sw->dev, NULL, complete_rpm);
+	tb_switch_remove(sw);
+
+	pm_runtime_mark_last_busy(sw->dev.parent);
+	pm_runtime_put_autosuspend(sw->dev.parent);
+}
+
 static void icm_free_unplugged_children(struct tb_switch *sw)
 {
 	unsigned int i;
@@ -1782,7 +1824,7 @@ static void icm_free_unplugged_children(struct tb_switch *sw)
 			port->xdomain = NULL;
 		} else if (tb_port_has_remote(port)) {
 			if (port->remote->sw->is_unplugged) {
-				tb_switch_remove(port->remote->sw);
+				remove_unplugged_switch(port->remote->sw);
 				port->remote = NULL;
 			} else {
 				icm_free_unplugged_children(port->remote->sw);
@@ -1828,6 +1870,24 @@ static void icm_complete(struct tb *tb)
 static int icm_runtime_suspend(struct tb *tb)
 {
 	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
+	return 0;
+}
+
+static int icm_runtime_suspend_switch(struct tb_switch *sw)
+{
+	if (tb_route(sw))
+		reinit_completion(&sw->rpm_complete);
+	return 0;
+}
+
+static int icm_runtime_resume_switch(struct tb_switch *sw)
+{
+	if (tb_route(sw)) {
+		if (!wait_for_completion_timeout(&sw->rpm_complete,
+						 msecs_to_jiffies(500))) {
+			dev_dbg(&sw->dev, "runtime resuming timed out\n");
+		}
+	}
 	return 0;
 }
 
@@ -1910,6 +1970,8 @@ static const struct tb_cm_ops icm_ar_ops = {
 	.complete = icm_complete,
 	.runtime_suspend = icm_runtime_suspend,
 	.runtime_resume = icm_runtime_resume,
+	.runtime_suspend_switch = icm_runtime_suspend_switch,
+	.runtime_resume_switch = icm_runtime_resume_switch,
 	.handle_event = icm_handle_event,
 	.get_boot_acl = icm_ar_get_boot_acl,
 	.set_boot_acl = icm_ar_set_boot_acl,
@@ -1930,6 +1992,8 @@ static const struct tb_cm_ops icm_tr_ops = {
 	.complete = icm_complete,
 	.runtime_suspend = icm_runtime_suspend,
 	.runtime_resume = icm_runtime_resume,
+	.runtime_suspend_switch = icm_runtime_suspend_switch,
+	.runtime_resume_switch = icm_runtime_resume_switch,
 	.handle_event = icm_handle_event,
 	.get_boot_acl = icm_ar_get_boot_acl,
 	.set_boot_acl = icm_ar_set_boot_acl,
@@ -1975,6 +2039,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_NHI:
 		icm->max_boot_acl = ICM_AR_PREBOOT_ACL_ENTRIES;
 		icm->is_supported = icm_ar_is_supported;
+		icm->cio_reset = icm_ar_cio_reset;
 		icm->get_mode = icm_ar_get_mode;
 		icm->get_route = icm_ar_get_route;
 		icm->save_devices = icm_fr_save_devices;
@@ -1990,6 +2055,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_NHI:
 		icm->max_boot_acl = ICM_AR_PREBOOT_ACL_ENTRIES;
 		icm->is_supported = icm_ar_is_supported;
+		icm->cio_reset = icm_tr_cio_reset;
 		icm->get_mode = icm_ar_get_mode;
 		icm->driver_ready = icm_tr_driver_ready;
 		icm->device_connected = icm_tr_device_connected;

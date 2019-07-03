@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Definitions for PCDP-defined console devices
  *
@@ -7,10 +8,6 @@
  * (c) Copyright 2002, 2004 Hewlett-Packard Development Company, L.P.
  *	Khalid Aziz <khalid.aziz@hp.com>
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define PCDP_CONSOLE			0

@@ -952,6 +952,22 @@ void sc_disable(struct send_context *sc)
 		}
 	}
 	spin_unlock(&sc->release_lock);
+
+	write_seqlock(&sc->waitlock);
+	while (!list_empty(&sc->piowait)) {
+		struct iowait *wait;
+		struct rvt_qp *qp;
+		struct hfi1_qp_priv *priv;
+
+		wait = list_first_entry(&sc->piowait, struct iowait, list);
+		qp = iowait_to_qp(wait);
+		priv = qp->priv;
+		list_del_init(&priv->s_iowait.list);
+		priv->s_iowait.lock = NULL;
+		hfi1_qp_wakeup(qp, RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
+	}
+	write_sequnlock(&sc->waitlock);
+
 	spin_unlock_irq(&sc->alloc_lock);
 }
 
@@ -1427,7 +1443,8 @@ void sc_stop(struct send_context *sc, int flag)
  * @cb: optional callback to call when the buffer is finished sending
  * @arg: argument for cb
  *
- * Return a pointer to a PIO buffer if successful, NULL if not enough room.
+ * Return a pointer to a PIO buffer, NULL if not enough room, -ECOMM
+ * when link is down.
  */
 struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
 				pio_release_cb cb, void *arg)
@@ -1443,7 +1460,7 @@ struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
 	spin_lock_irqsave(&sc->alloc_lock, flags);
 	if (!(sc->flags & SCF_ENABLED)) {
 		spin_unlock_irqrestore(&sc->alloc_lock, flags);
-		goto done;
+		return ERR_PTR(-ECOMM);
 	}
 
 retry:

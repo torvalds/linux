@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2009 Red Hat, Inc.
  * Copyright (C) 2006 Rusty Russell IBM Corporation
  *
@@ -5,8 +6,6 @@
  *
  * Inspiration, some code, and most witty comments come from
  * Documentation/virtual/lguest/lguest.c, by Rusty Russell
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Generic code for virtio server in host kernel.
  */

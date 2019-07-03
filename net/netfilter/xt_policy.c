@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* IP tables module for matching IPsec policy
  *
  * Copyright (c) 2004,2005 Patrick McHardy, <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/kernel.h>

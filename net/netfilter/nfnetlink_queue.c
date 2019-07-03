@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is a module which is used for queueing packets and communicating with
  * userspace via nfnetlink.
@@ -8,11 +9,6 @@
  * Based on the old ipv4-only ip_queue.c:
  * (C) 2000-2002 James Morris <jmorris@intercode.com.au>
  * (C) 2003-2005 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

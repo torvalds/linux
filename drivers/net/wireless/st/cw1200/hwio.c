@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Low-level device IO routines for ST-Ericsson CW1200 drivers
  *
@@ -8,10 +9,6 @@
  * ST-Ericsson UMAC CW1200 driver, which is
  * Copyright (c) 2010, ST-Ericsson
  * Author: Ajitpal Singh <ajitpal.singh@lockless.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/types.h>

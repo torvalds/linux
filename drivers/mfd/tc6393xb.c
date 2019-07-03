@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Toshiba TC6393XB SoC support
  *
@@ -8,10 +9,6 @@
  *
  * Based on code written by Sharp/Lineo for 2.4 kernels
  * Based on locomo.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
