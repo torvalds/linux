@@ -28,6 +28,7 @@
 #include <linux/types.h>
 
 #include "intel_display.h"
+#include "intel_wakeref.h"
 
 /*FIXME: Move this to a more appropriate place. */
 #define abs_diff(a, b) ({			\
@@ -118,6 +119,10 @@ enum intel_dpll_id {
 	 * @DPLL_ID_ICL_DPLL1: ICL combo PHY DPLL1
 	 */
 	DPLL_ID_ICL_DPLL1 = 1,
+	/**
+	 * @DPLL_ID_EHL_DPLL4: EHL combo PHY DPLL4
+	 */
+	DPLL_ID_EHL_DPLL4 = 2,
 	/**
 	 * @DPLL_ID_ICL_TBTPLL: ICL TBT PLL
 	 */
@@ -320,6 +325,7 @@ struct intel_shared_dpll {
 	 * @info: platform specific info
 	 */
 	const struct dpll_info *info;
+	intel_wakeref_t wakeref;
 };
 
 #define SKL_DPLL0 0

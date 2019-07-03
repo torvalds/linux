@@ -16675,6 +16675,13 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		pll->on = pll->info->funcs->get_hw_state(dev_priv, pll,
 							&pll->state.hw_state);
+
+		if (IS_ELKHARTLAKE(dev_priv) && pll->on &&
+		    pll->info->id == DPLL_ID_EHL_DPLL4) {
+			pll->wakeref = intel_display_power_get(dev_priv,
+							       POWER_DOMAIN_DPLL_DC_OFF);
+		}
+
 		pll->state.crtc_mask = 0;
 		for_each_intel_crtc(dev, crtc) {
 			struct intel_crtc_state *crtc_state =

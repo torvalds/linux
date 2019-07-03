@@ -2905,6 +2905,9 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct icl_port_dpll *port_dpll =
 		&crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum port port = encoder->port;
+	bool has_dpll4 = false;
 
 	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
 		DRM_DEBUG_KMS("Could not calculate combo PHY PLL state.\n");
@@ -2912,10 +2915,14 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 		return false;
 	}
 
+	if (IS_ELKHARTLAKE(dev_priv) && port != PORT_A)
+		has_dpll4 = true;
+
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
 						DPLL_ID_ICL_DPLL0,
-						DPLL_ID_ICL_DPLL1);
+						has_dpll4 ? DPLL_ID_EHL_DPLL4
+							  : DPLL_ID_ICL_DPLL1);
 	if (!port_dpll->pll) {
 		DRM_DEBUG_KMS("No combo PHY PLL found for port %c\n",
 			      port_name(encoder->port));
@@ -3119,8 +3126,14 @@ static bool combo_pll_get_hw_state(struct drm_i915_private *dev_priv,
 				   struct intel_shared_dpll *pll,
 				   struct intel_dpll_hw_state *hw_state)
 {
-	return icl_pll_get_hw_state(dev_priv, pll, hw_state,
-				    CNL_DPLL_ENABLE(pll->info->id));
+	i915_reg_t enable_reg = CNL_DPLL_ENABLE(pll->info->id);
+
+	if (IS_ELKHARTLAKE(dev_priv) &&
+	    pll->info->id == DPLL_ID_EHL_DPLL4) {
+		enable_reg = MG_PLL_ENABLE(0);
+	}
+
+	return icl_pll_get_hw_state(dev_priv, pll, hw_state, enable_reg);
 }
 
 static bool tbt_pll_get_hw_state(struct drm_i915_private *dev_priv,
@@ -3231,6 +3244,19 @@ static void combo_pll_enable(struct drm_i915_private *dev_priv,
 {
 	i915_reg_t enable_reg = CNL_DPLL_ENABLE(pll->info->id);
 
+	if (IS_ELKHARTLAKE(dev_priv) &&
+	    pll->info->id == DPLL_ID_EHL_DPLL4) {
+		enable_reg = MG_PLL_ENABLE(0);
+
+		/*
+		 * We need to disable DC states when this DPLL is enabled.
+		 * This can be done by taking a reference on DPLL4 power
+		 * domain.
+		 */
+		pll->wakeref = intel_display_power_get(dev_priv,
+						       POWER_DOMAIN_DPLL_DC_OFF);
+	}
+
 	icl_pll_power_enable(dev_priv, pll, enable_reg);
 
 	icl_dpll_write(dev_priv, pll);
@@ -3326,7 +3352,19 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 static void combo_pll_disable(struct drm_i915_private *dev_priv,
 			      struct intel_shared_dpll *pll)
 {
-	icl_pll_disable(dev_priv, pll, CNL_DPLL_ENABLE(pll->info->id));
+	i915_reg_t enable_reg = CNL_DPLL_ENABLE(pll->info->id);
+
+	if (IS_ELKHARTLAKE(dev_priv) &&
+	    pll->info->id == DPLL_ID_EHL_DPLL4) {
+		enable_reg = MG_PLL_ENABLE(0);
+		icl_pll_disable(dev_priv, pll, enable_reg);
+
+		intel_display_power_put(dev_priv, POWER_DOMAIN_DPLL_DC_OFF,
+					pll->wakeref);
+		return;
+	}
+
+	icl_pll_disable(dev_priv, pll, enable_reg);
 }
 
 static void tbt_pll_disable(struct drm_i915_private *dev_priv,
@@ -3406,6 +3444,7 @@ static const struct intel_dpll_mgr icl_pll_mgr = {
 static const struct dpll_info ehl_plls[] = {
 	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0, 0 },
 	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1, 0 },
+	{ "DPLL 4", &combo_pll_funcs, DPLL_ID_EHL_DPLL4, 0 },
 	{ },
 };
 
