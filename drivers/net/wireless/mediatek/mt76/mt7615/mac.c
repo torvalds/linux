@@ -501,7 +501,10 @@ void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 	w27 |= FIELD_PREP(MT_WTBL_W27_CC_BW_SEL, bw);
 
 	w5 = mt76_rr(dev, addr + 5 * 4);
-	w5 &= ~(MT_WTBL_W5_BW_CAP | MT_WTBL_W5_CHANGE_BW_RATE);
+	w5 &= ~(MT_WTBL_W5_BW_CAP | MT_WTBL_W5_CHANGE_BW_RATE |
+		MT_WTBL_W5_MPDU_OK_COUNT |
+		MT_WTBL_W5_MPDU_FAIL_COUNT |
+		MT_WTBL_W5_RATE_IDX);
 	w5 |= FIELD_PREP(MT_WTBL_W5_BW_CAP, bw) |
 	      FIELD_PREP(MT_WTBL_W5_CHANGE_BW_RATE, bw_idx ? bw_idx - 1 : 7);
 
