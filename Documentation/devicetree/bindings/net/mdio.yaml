@@ -21,6 +21,12 @@ properties:
   $nodename:
     pattern: "^mdio(@.*)?"
 
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
   reset-gpios:
     maxItems: 1
     description:
