@@ -126,6 +126,28 @@ required:
   # but usually they will be filled by the bootloader.
   - compatible
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: allwinner,simple-framebuffer
+
+    then:
+      required:
+        - allwinner,pipeline
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: amlogic,simple-framebuffer
+
+    then:
+      required:
+        - amlogic,pipeline
+
+
 additionalProperties: false
 
 examples:
@@ -140,6 +162,7 @@ examples:
       stdout-path = "display0";
       framebuffer0: framebuffer@1d385000 {
         compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+        allwinner,pipeline = "de_be0-lcd0";
         reg = <0x1d385000 3840000>;
         width = <1600>;
         height = <1200>;
