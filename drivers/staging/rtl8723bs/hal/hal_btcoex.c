@@ -1194,7 +1194,6 @@ void EXhalbtcoutsrc_SpecialPacketNotify(PBTC_COEXIST pBtCoexist, u8 pktType)
 	} else if (PACKET_ARP == pktType) {
 		packetType = BTC_PACKET_ARP;
 	} else {
-		packetType = BTC_PACKET_UNKNOWN;
 		return;
 	}
 
