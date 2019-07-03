@@ -292,12 +292,11 @@ static int asus_wmi_evaluate_method_agfn(const struct acpi_buffer args)
 	 * Copy to dma capable address otherwise memory corruption occurs as
 	 * bios has to be able to access it.
 	 */
-	input.pointer = kzalloc(args.length, GFP_DMA | GFP_KERNEL);
+	input.pointer = kmemdup(args.pointer, args.length, GFP_DMA | GFP_KERNEL);
 	input.length = args.length;
 	if (!input.pointer)
 		return -ENOMEM;
 	phys_addr = virt_to_phys(input.pointer);
-	memcpy(input.pointer, args.pointer, args.length);
 
 	status = asus_wmi_evaluate_method(ASUS_WMI_METHODID_AGFN,
 					phys_addr, 0, &retval);
