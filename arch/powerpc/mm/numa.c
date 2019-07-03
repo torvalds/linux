@@ -1067,9 +1067,6 @@ u64 memory_hotplug_max(void)
 
 /* Virtual Processor Home Node (VPHN) support */
 #ifdef CONFIG_PPC_SPLPAR
-
-#include "book3s64/vphn.h"
-
 struct topology_update_data {
 	struct topology_update_data *next;
 	unsigned int cpu;
@@ -1086,17 +1083,6 @@ static int prrn_enabled;
 static void reset_topology_timer(void);
 static int topology_timer_secs = 1;
 static int topology_inited;
-
-static long hcall_vphn(unsigned long cpu, u64 flags, __be32 *associativity)
-{
-	long rc;
-	long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
-
-	rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, retbuf, flags, cpu);
-	vphn_unpack_associativity(retbuf, associativity);
-
-	return rc;
-}
 
 /*
  * Change polling interval for associativity changes.
