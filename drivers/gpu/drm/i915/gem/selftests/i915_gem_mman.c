@@ -414,7 +414,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
 		resv.start = hole_start;
 		resv.size = hole_end - hole_start - 1; /* PAGE_SIZE units */
+		mutex_lock(&i915->drm.struct_mutex);
 		err = drm_mm_reserve_node(mm, &resv);
+		mutex_unlock(&i915->drm.struct_mutex);
 		if (err) {
 			pr_err("Failed to trim VMA manager, err=%d\n", err);
 			goto out_park;
@@ -478,7 +480,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	}
 
 out:
+	mutex_lock(&i915->drm.struct_mutex);
 	drm_mm_remove_node(&resv);
+	mutex_unlock(&i915->drm.struct_mutex);
 out_park:
 	restore_retire_worker(i915);
 	return err;
