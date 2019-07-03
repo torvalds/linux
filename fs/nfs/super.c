@@ -905,7 +905,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 			seq_printf(m, "%Lu ", totals.fscache[i]);
 	}
 #endif
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 
 	rpc_clnt_show_stats(m, nfss->client);
 
