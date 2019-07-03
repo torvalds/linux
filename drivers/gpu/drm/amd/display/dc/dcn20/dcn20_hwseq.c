@@ -2056,6 +2056,78 @@ static void dcn20_set_flip_control_gsl(
 
 }
 
+static void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
+{
+	enum dc_lane_count lane_count =
+		pipe_ctx->stream->link->cur_link_settings.lane_count;
+
+	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	struct dc_link *link = pipe_ctx->stream->link;
+
+	uint32_t active_total_with_borders;
+	uint32_t early_control = 0;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+	/* For MST, there are multiply stream go to only one link.
+	 * connect DIG back_end to front_end while enable_stream and
+	 * disconnect them during disable_stream
+	 * BY this, it is logic clean to separate stream and link
+	 */
+	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
+						    pipe_ctx->stream_res.stream_enc->id, true);
+
+	if (link->dc->hwss.program_dmdata_engine)
+		link->dc->hwss.program_dmdata_engine(pipe_ctx);
+
+	link->dc->hwss.update_info_frame(pipe_ctx);
+
+	/* enable early control to avoid corruption on DP monitor*/
+	active_total_with_borders =
+			timing->h_addressable
+				+ timing->h_border_left
+				+ timing->h_border_right;
+
+	if (lane_count != 0)
+		early_control = active_total_with_borders % lane_count;
+
+	if (early_control == 0)
+		early_control = lane_count;
+
+	tg->funcs->set_early_control(tg, early_control);
+
+	/* enable audio only within mode set */
+	if (pipe_ctx->stream_res.audio != NULL) {
+		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
+	}
+}
+
+static void dcn20_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
+{
+	struct dc_stream_state    *stream     = pipe_ctx->stream;
+	struct hubp               *hubp       = pipe_ctx->plane_res.hubp;
+	bool                       enable     = false;
+	struct stream_encoder     *stream_enc = pipe_ctx->stream_res.stream_enc;
+	enum dynamic_metadata_mode mode       = dc_is_dp_signal(stream->signal)
+							? dmdata_dp
+							: dmdata_hdmi;
+
+	/* if using dynamic meta, don't set up generic infopackets */
+	if (pipe_ctx->stream->dmdata_address.quad_part != 0) {
+		pipe_ctx->stream_res.encoder_info_frame.hdrsmd.valid = false;
+		enable = true;
+	}
+
+	if (!hubp)
+		return;
+
+	if (!stream_enc || !stream_enc->funcs->set_dynamic_metadata)
+		return;
+
+	stream_enc->funcs->set_dynamic_metadata(stream_enc, enable,
+						hubp->inst, mode);
+}
+
 void dcn20_hw_sequencer_construct(struct dc *dc)
 {
 	dcn10_hw_sequencer_construct(dc);
@@ -2080,6 +2152,8 @@ void dcn20_hw_sequencer_construct(struct dc *dc)
 	dc->hwss.update_odm = dcn20_update_odm;
 	dc->hwss.blank_pixel_data = dcn20_blank_pixel_data;
 	dc->hwss.dmdata_status_done = dcn20_dmdata_status_done;
+	dc->hwss.program_dmdata_engine = dcn20_program_dmdata_engine;
+	dc->hwss.enable_stream = dcn20_enable_stream;
 	dc->hwss.disable_stream = dcn20_disable_stream;
 	dc->hwss.init_sys_ctx = dcn20_init_sys_ctx;
 	dc->hwss.init_vm_ctx = dcn20_init_vm_ctx;

@@ -231,6 +231,7 @@ struct hw_sequencer_funcs {
 	bool (*update_bandwidth)(
 			struct dc *dc,
 			struct dc_state *context);
+	void (*program_dmdata_engine)(struct pipe_ctx *pipe_ctx);
 	bool (*dmdata_status_done)(struct pipe_ctx *pipe_ctx);
 #endif
 

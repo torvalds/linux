@@ -667,29 +667,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
 						    pipe_ctx->stream_res.stream_enc->id, true);
 
-	/* update AVI info frame (HDMI, DP)*/
-	/* TODO: FPGA may change to hwss.update_info_frame */
-
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	if (pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata != NULL &&
-			pipe_ctx->plane_res.hubp != NULL) {
-		if (pipe_ctx->stream->dmdata_address.quad_part != 0) {
-			/* if using dynamic meta, don't set up generic infopackets */
-			pipe_ctx->stream_res.encoder_info_frame.hdrsmd.valid = false;
-			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata(
-					pipe_ctx->stream_res.stream_enc,
-					true, pipe_ctx->plane_res.hubp->inst,
-					dc_is_dp_signal(pipe_ctx->stream->signal) ?
-							dmdata_dp : dmdata_hdmi);
-		} else
-			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata(
-					pipe_ctx->stream_res.stream_enc,
-					false, pipe_ctx->plane_res.hubp->inst,
-					dc_is_dp_signal(pipe_ctx->stream->signal) ?
-							dmdata_dp : dmdata_hdmi);
-	}
-#endif
-	dce110_update_info_frame(pipe_ctx);
+	link->dc->hwss.update_info_frame(pipe_ctx);
 
 	/* enable early control to avoid corruption on DP monitor*/
 	active_total_with_borders =
