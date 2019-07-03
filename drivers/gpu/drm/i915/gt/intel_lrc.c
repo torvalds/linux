@@ -899,7 +899,7 @@ need_timeslice(struct intel_engine_cs *engine, const struct i915_request *rq)
 	hint = max(rq_prio(list_next_entry(rq, sched.link)),
 		   engine->execlists.queue_priority_hint);
 
-	return hint >= rq_prio(rq);
+	return hint >= effective_prio(rq);
 }
 
 static bool
