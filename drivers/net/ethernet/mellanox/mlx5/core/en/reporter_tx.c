@@ -296,11 +296,13 @@ int mlx5e_tx_reporter_create(struct mlx5e_priv *priv)
 		devlink_health_reporter_create(devlink, &mlx5_tx_reporter_ops,
 					       MLX5_REPORTER_TX_GRACEFUL_PERIOD,
 					       true, priv);
-	if (IS_ERR(priv->tx_reporter))
+	if (IS_ERR(priv->tx_reporter)) {
 		netdev_warn(priv->netdev,
 			    "Failed to create tx reporter, err = %ld\n",
 			    PTR_ERR(priv->tx_reporter));
-	return IS_ERR_OR_NULL(priv->tx_reporter);
+		return PTR_ERR(priv->tx_reporter);
+	}
+	return 0;
 }
 
 void mlx5e_tx_reporter_destroy(struct mlx5e_priv *priv)
