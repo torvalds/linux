@@ -74,7 +74,7 @@ additionalProperties: false
 
 examples:
   - |
-    ehci@e0000300 {
+    usb@e0000300 {
         compatible = "ibm,usb-ehci-440epx", "generic-ehci";
         interrupt-parent = <&UIC0>;
         interrupts = <0x1a 4>;
@@ -89,7 +89,6 @@ examples:
         interrupts = <39>;
         clocks = <&ahb_gates 1>;
         phys = <&usbphy 1>;
-        phy-names = "usb";
     };
 
 ...
