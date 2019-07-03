@@ -175,6 +175,9 @@ extern struct kmem_cache *dtl_cache;
  */
 extern void (*dtl_consumer)(struct dtl_entry *entry, u64 index);
 
+extern void register_dtl_buffer(int cpu);
+extern void alloc_dtl_buffers(void);
+
 #endif /* CONFIG_PPC_BOOK3S */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_LPPACA_H */

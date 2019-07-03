@@ -65,13 +65,59 @@ EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
 
+void alloc_dtl_buffers(void)
+{
+	int cpu;
+	struct paca_struct *pp;
+	struct dtl_entry *dtl;
+
+	for_each_possible_cpu(cpu) {
+		pp = paca_ptrs[cpu];
+		dtl = kmem_cache_alloc(dtl_cache, GFP_KERNEL);
+		if (!dtl) {
+			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",
+				cpu);
+			pr_warn("Stolen time statistics will be unreliable\n");
+			break;
+		}
+
+		pp->dtl_ridx = 0;
+		pp->dispatch_log = dtl;
+		pp->dispatch_log_end = dtl + N_DISPATCH_LOG;
+		pp->dtl_curr = dtl;
+	}
+}
+
+void register_dtl_buffer(int cpu)
+{
+	long ret;
+	struct paca_struct *pp;
+	struct dtl_entry *dtl;
+	int hwcpu = get_hard_smp_processor_id(cpu);
+
+	pp = paca_ptrs[cpu];
+	dtl = pp->dispatch_log;
+	if (dtl) {
+		pp->dtl_ridx = 0;
+		pp->dtl_curr = dtl;
+		lppaca_of(cpu).dtl_idx = 0;
+
+		/* hypervisor reads buffer length from this field */
+		dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
+		ret = register_dtl(hwcpu, __pa(dtl));
+		if (ret)
+			pr_err("WARNING: DTL registration of cpu %d (hw %d) failed with %ld\n",
+			       cpu, hwcpu, ret);
+
+		lppaca_of(cpu).dtl_enable_mask = DTL_LOG_PREEMPT;
+	}
+}
+
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
 	unsigned long addr;
 	long ret;
-	struct paca_struct *pp;
-	struct dtl_entry *dtl;
 
 	/*
 	 * The spec says it "may be problematic" if CPU x registers the VPA of
@@ -112,22 +158,7 @@ void vpa_init(int cpu)
 	/*
 	 * Register dispatch trace log, if one has been allocated.
 	 */
-	pp = paca_ptrs[cpu];
-	dtl = pp->dispatch_log;
-	if (dtl) {
-		pp->dtl_ridx = 0;
-		pp->dtl_curr = dtl;
-		lppaca_of(cpu).dtl_idx = 0;
-
-		/* hypervisor reads buffer length from this field */
-		dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
-		ret = register_dtl(hwcpu, __pa(dtl));
-		if (ret)
-			pr_err("WARNING: DTL registration of cpu %d (hw %d) "
-			       "failed with %ld\n", smp_processor_id(),
-			       hwcpu, ret);
-		lppaca_of(cpu).dtl_enable_mask = DTL_LOG_PREEMPT;
-	}
+	register_dtl_buffer(cpu);
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
