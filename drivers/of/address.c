@@ -999,7 +999,7 @@ bool of_dma_is_coherent(struct device_node *np)
 			of_node_put(node);
 			return true;
 		}
-		node = of_get_next_parent(node);
+		node = of_get_next_dma_parent(node);
 	}
 	of_node_put(node);
 	return false;
