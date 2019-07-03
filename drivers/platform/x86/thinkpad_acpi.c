@@ -3647,22 +3647,19 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		goto err_exit;
 
 	/* Set up key map */
-	hotkey_keycode_map = kmalloc(TPACPI_HOTKEY_MAP_SIZE,
-					GFP_KERNEL);
-	if (!hotkey_keycode_map) {
-		pr_err("failed to allocate memory for key map\n");
-		res = -ENOMEM;
-		goto err_exit;
-	}
-
 	keymap_id = tpacpi_check_quirks(tpacpi_keymap_qtable,
 					ARRAY_SIZE(tpacpi_keymap_qtable));
 	BUG_ON(keymap_id >= ARRAY_SIZE(tpacpi_keymaps));
 	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 		   "using keymap number %lu\n", keymap_id);
 
-	memcpy(hotkey_keycode_map, &tpacpi_keymaps[keymap_id],
-		TPACPI_HOTKEY_MAP_SIZE);
+	hotkey_keycode_map = kmemdup(&tpacpi_keymaps[keymap_id],
+			TPACPI_HOTKEY_MAP_SIZE,	GFP_KERNEL);
+	if (!hotkey_keycode_map) {
+		pr_err("failed to allocate memory for key map\n");
+		res = -ENOMEM;
+		goto err_exit;
+	}
 
 	input_set_capability(tpacpi_inputdev, EV_MSC, MSC_SCAN);
 	tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
