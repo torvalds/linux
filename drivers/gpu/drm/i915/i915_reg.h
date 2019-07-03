@@ -6465,7 +6465,7 @@ enum {
 #define   SPRITE_YUV_ORDER_VYUY		(3 << 16)
 #define   SPRITE_ROTATE_180		(1 << 15)
 #define   SPRITE_TRICKLE_FEED_DISABLE	(1 << 14)
-#define   SPRITE_INT_GAMMA_ENABLE	(1 << 13)
+#define   SPRITE_INT_GAMMA_DISABLE	(1 << 13)
 #define   SPRITE_TILED			(1 << 10)
 #define   SPRITE_DEST_KEY		(1 << 2)
 #define _SPRA_LINOFF		0x70284

@@ -1013,6 +1013,8 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		return 0;
 	}
 
+	sprctl |= SPRITE_INT_GAMMA_DISABLE;
+
 	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
 		sprctl |= SPRITE_YUV_TO_RGB_CSC_FORMAT_BT709;
 
