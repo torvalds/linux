@@ -44,6 +44,8 @@
 /* Add/subtract the Adjustment_Value when making a Drift adjustment */
 #define QED_DRIFT_CNTR_DIRECTION_SHIFT		31
 #define QED_TIMESTAMP_MASK			BIT(16)
+/* Param mask for Hardware to detect/timestamp the unicast PTP packets */
+#define QED_PTP_UCAST_PARAM_MASK		0xF
 
 static enum qed_resc_lock qed_ptcdev_to_resc(struct qed_hwfn *p_hwfn)
 {
@@ -243,7 +245,8 @@ static int qed_ptp_hw_cfg_filters(struct qed_dev *cdev,
 		return -EINVAL;
 	}
 
-	qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_PTP_PARAM_MASK, 0);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_PTP_PARAM_MASK,
+	       QED_PTP_UCAST_PARAM_MASK);
 	qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_PTP_RULE_MASK, rule_mask);
 	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_PTP_EN, enable_cfg);
 
@@ -253,7 +256,8 @@ static int qed_ptp_hw_cfg_filters(struct qed_dev *cdev,
 		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_RULE_MASK, 0x3FFF);
 	} else {
 		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_PTP_EN, enable_cfg);
-		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_PARAM_MASK, 0);
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_PARAM_MASK,
+		       QED_PTP_UCAST_PARAM_MASK);
 		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_RULE_MASK, rule_mask);
 	}
 
