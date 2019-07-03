@@ -86,6 +86,7 @@ struct cpuidle_device {
 	ktime_t			next_hrtimer;
 
 	int			last_residency;
+	u64			poll_limit_ns;
 	struct cpuidle_state_usage	states_usage[CPUIDLE_STATE_MAX];
 	struct cpuidle_state_kobj *kobjs[CPUIDLE_STATE_MAX];
 	struct cpuidle_driver_kobj *kobj_driver;
@@ -132,6 +133,8 @@ extern int cpuidle_select(struct cpuidle_driver *drv,
 extern int cpuidle_enter(struct cpuidle_driver *drv,
 			 struct cpuidle_device *dev, int index);
 extern void cpuidle_reflect(struct cpuidle_device *dev, int index);
+extern u64 cpuidle_poll_time(struct cpuidle_driver *drv,
+			     struct cpuidle_device *dev);
 
 extern int cpuidle_register_driver(struct cpuidle_driver *drv);
 extern struct cpuidle_driver *cpuidle_get_driver(void);
@@ -166,6 +169,9 @@ static inline int cpuidle_enter(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev, int index)
 {return -ENODEV; }
 static inline void cpuidle_reflect(struct cpuidle_device *dev, int index) { }
+extern u64 cpuidle_poll_time(struct cpuidle_driver *drv,
+			     struct cpuidle_device *dev)
+{return 0; }
 static inline int cpuidle_register_driver(struct cpuidle_driver *drv)
 {return -ENODEV; }
 static inline struct cpuidle_driver *cpuidle_get_driver(void) {return NULL; }
