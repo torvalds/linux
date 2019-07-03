@@ -636,6 +636,10 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 	engine->sseu =
 		intel_sseu_from_device_info(&RUNTIME_INFO(engine->i915)->sseu);
 
+	intel_engine_init_workarounds(engine);
+	intel_engine_init_whitelist(engine);
+	intel_engine_init_ctx_wa(engine);
+
 	return 0;
 }
 

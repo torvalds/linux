@@ -2807,9 +2807,6 @@ int intel_execlists_submission_init(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	intel_engine_init_workarounds(engine);
-	intel_engine_init_whitelist(engine);
-
 	if (intel_init_workaround_bb(engine))
 		/*
 		 * We continue even if we fail to initialize WA batch

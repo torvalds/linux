@@ -1364,7 +1364,7 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *wal = &engine->wa_list;
 
-	if (GEM_WARN_ON(INTEL_GEN(engine->i915) < 8))
+	if (INTEL_GEN(engine->i915) < 8)
 		return;
 
 	wa_init_start(wal, engine->name);

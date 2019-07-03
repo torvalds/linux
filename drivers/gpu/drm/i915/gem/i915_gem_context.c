@@ -657,7 +657,6 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(dev_priv->kernel_context);
 	GEM_BUG_ON(dev_priv->preempt_context);
 
-	intel_engine_init_ctx_wa(dev_priv->engine[RCS0]);
 	init_contexts(dev_priv);
 
 	/* lowest priority; idle task */
