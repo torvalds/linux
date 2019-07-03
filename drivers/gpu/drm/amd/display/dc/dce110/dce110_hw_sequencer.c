@@ -1021,6 +1021,8 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
 	if (pipe_ctx->stream_res.audio) {
+		pipe_ctx->stream_res.audio->enabled = false;
+
 		if (dc->res_pool->pp_smu)
 			pp_smu = dc->res_pool->pp_smu;
 
@@ -1051,8 +1053,6 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 		/* dal_audio_disable_azalia_audio_jack_presence(stream->audio,
 		 * stream->stream_engine_id);
 		 */
-		if (pipe_ctx->stream_res.audio)
-			pipe_ctx->stream_res.audio->enabled = false;
 	}
 }
 
