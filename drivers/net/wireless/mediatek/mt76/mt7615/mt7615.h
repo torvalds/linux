@@ -42,12 +42,21 @@ enum mt7615_hw_txq_id {
 	MT7615_TXQ_FWDL,
 };
 
+struct mt7615_rate_set {
+	struct ieee80211_tx_rate probe_rate;
+	struct ieee80211_tx_rate rates[4];
+};
+
 struct mt7615_sta {
 	struct mt76_wcid wcid; /* must be first */
 
 	struct mt7615_vif *vif;
 
-	struct ieee80211_tx_rate rates[8];
+	struct ieee80211_tx_rate rates[4];
+
+	struct mt7615_rate_set rateset[2];
+	u32 rate_set_tsf;
+
 	u8 rate_count;
 	u8 n_rates;
 

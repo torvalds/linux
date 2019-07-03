@@ -187,6 +187,15 @@
 
 #define MT_WTBL_W27_CC_BW_SEL		GENMASK(6, 5)
 
+#define MT_LPON_BASE			0x24200
+#define MT_LPON(_n)			(MT_LPON_BASE + (_n))
+
+#define MT_LPON_T0CR			MT_LPON(0x010)
+#define MT_LPON_T0CR_MODE		GENMASK(1, 0)
+
+#define MT_LPON_UTTR0			MT_LPON(0x018)
+#define MT_LPON_UTTR1			MT_LPON(0x01c)
+
 #define MT_EFUSE_BASE			0x81070000
 #define MT_EFUSE_BASE_CTRL		0x000
 #define MT_EFUSE_BASE_CTRL_EMPTY	BIT(30)
