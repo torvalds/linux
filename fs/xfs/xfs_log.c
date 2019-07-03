@@ -769,16 +769,12 @@ xfs_log_mount_finish(
  * The mount has failed. Cancel the recovery if it hasn't completed and destroy
  * the log.
  */
-int
+void
 xfs_log_mount_cancel(
 	struct xfs_mount	*mp)
 {
-	int			error;
-
-	error = xlog_recover_cancel(mp->m_log);
+	xlog_recover_cancel(mp->m_log);
 	xfs_log_unmount(mp);
-
-	return error;
 }
 
 /*
