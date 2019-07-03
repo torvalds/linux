@@ -2614,7 +2614,7 @@ int snd_soc_dai_set_channel_map(struct snd_soc_dai *dai,
 		return dai->driver->ops->set_channel_map(dai, tx_num, tx_slot,
 			rx_num, rx_slot);
 	else
-		return -EINVAL;
+		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_channel_map);
 
