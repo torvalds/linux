@@ -532,11 +532,10 @@ bad_block:
 
 			unlock_buffer(bh);
 			ea_bdebug(bh, "cloning");
-			header = kmalloc(bh->b_size, GFP_KERNEL);
+			header = kmemdup(HDR(bh), bh->b_size, GFP_KERNEL);
 			error = -ENOMEM;
 			if (header == NULL)
 				goto cleanup;
-			memcpy(header, HDR(bh), bh->b_size);
 			header->h_refcount = cpu_to_le32(1);
 
 			offset = (char *)here - bh->b_data;
