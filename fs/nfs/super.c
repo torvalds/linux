@@ -587,7 +587,7 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 	}
 	default:
 		if (showdefaults)
-			seq_printf(m, ",mountaddr=unspecified");
+			seq_puts(m, ",mountaddr=unspecified");
 	}
 
 	if (nfss->mountd_version || showdefaults)
@@ -697,29 +697,29 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		nfs_show_nfsv4_options(m, nfss, showdefaults);
 
 	if (nfss->options & NFS_OPTION_FSCACHE)
-		seq_printf(m, ",fsc");
+		seq_puts(m, ",fsc");
 
 	if (nfss->options & NFS_OPTION_MIGRATION)
-		seq_printf(m, ",migration");
+		seq_puts(m, ",migration");
 
 	if (nfss->flags & NFS_MOUNT_LOOKUP_CACHE_NONEG) {
 		if (nfss->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
-			seq_printf(m, ",lookupcache=none");
+			seq_puts(m, ",lookupcache=none");
 		else
-			seq_printf(m, ",lookupcache=pos");
+			seq_puts(m, ",lookupcache=pos");
 	}
 
 	local_flock = nfss->flags & NFS_MOUNT_LOCAL_FLOCK;
 	local_fcntl = nfss->flags & NFS_MOUNT_LOCAL_FCNTL;
 
 	if (!local_flock && !local_fcntl)
-		seq_printf(m, ",local_lock=none");
+		seq_puts(m, ",local_lock=none");
 	else if (local_flock && local_fcntl)
-		seq_printf(m, ",local_lock=all");
+		seq_puts(m, ",local_lock=all");
 	else if (local_flock)
-		seq_printf(m, ",local_lock=flock");
+		seq_puts(m, ",local_lock=flock");
 	else
-		seq_printf(m, ",local_lock=posix");
+		seq_puts(m, ",local_lock=posix");
 }
 
 /*
@@ -756,7 +756,7 @@ static void show_lease(struct seq_file *m, struct nfs_server *server)
 static void show_sessions(struct seq_file *m, struct nfs_server *server)
 {
 	if (nfs4_has_session(server->nfs_client))
-		seq_printf(m, ",sessions");
+		seq_puts(m, ",sessions");
 }
 #else
 static void show_sessions(struct seq_file *m, struct nfs_server *server) {}
@@ -833,7 +833,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	/*
 	 * Display all mount option settings
 	 */
-	seq_printf(m, "\n\topts:\t");
+	seq_puts(m, "\n\topts:\t");
 	seq_puts(m, sb_rdonly(root->d_sb) ? "ro" : "rw");
 	seq_puts(m, root->d_sb->s_flags & SB_SYNCHRONOUS ? ",sync" : "");
 	seq_puts(m, root->d_sb->s_flags & SB_NOATIME ? ",noatime" : "");
@@ -844,7 +844,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 
 	show_implementation_id(m, nfss);
 
-	seq_printf(m, "\n\tcaps:\t");
+	seq_puts(m, "\n\tcaps:\t");
 	seq_printf(m, "caps=0x%x", nfss->caps);
 	seq_printf(m, ",wtmult=%u", nfss->wtmult);
 	seq_printf(m, ",dtsize=%u", nfss->dtsize);
@@ -853,7 +853,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 	if (nfss->nfs_client->rpc_ops->version == 4) {
-		seq_printf(m, "\n\tnfsv4:\t");
+		seq_puts(m, "\n\tnfsv4:\t");
 		seq_printf(m, "bm0=0x%x", nfss->attr_bitmask[0]);
 		seq_printf(m, ",bm1=0x%x", nfss->attr_bitmask[1]);
 		seq_printf(m, ",bm2=0x%x", nfss->attr_bitmask[2]);
@@ -892,15 +892,15 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 		preempt_enable();
 	}
 
-	seq_printf(m, "\n\tevents:\t");
+	seq_puts(m, "\n\tevents:\t");
 	for (i = 0; i < __NFSIOS_COUNTSMAX; i++)
 		seq_printf(m, "%lu ", totals.events[i]);
-	seq_printf(m, "\n\tbytes:\t");
+	seq_puts(m, "\n\tbytes:\t");
 	for (i = 0; i < __NFSIOS_BYTESMAX; i++)
 		seq_printf(m, "%Lu ", totals.bytes[i]);
 #ifdef CONFIG_NFS_FSCACHE
 	if (nfss->options & NFS_OPTION_FSCACHE) {
-		seq_printf(m, "\n\tfsc:\t");
+		seq_puts(m, "\n\tfsc:\t");
 		for (i = 0; i < __NFSIOS_FSCACHEMAX; i++)
 			seq_printf(m, "%Lu ", totals.fscache[i]);
 	}
