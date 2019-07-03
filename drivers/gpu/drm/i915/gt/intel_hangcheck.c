@@ -57,9 +57,6 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 	int slice;
 	int subslice;
 
-	if (engine->id != RCS0)
-		return true;
-
 	intel_engine_get_instdone(engine, &instdone);
 
 	/* There might be unstable subunit states even when
