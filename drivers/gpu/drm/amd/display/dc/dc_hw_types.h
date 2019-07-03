@@ -124,20 +124,6 @@ struct plane_size {
 	int chroma_pitch;
 	struct rect surface_size;
 	struct rect chroma_size;
-
-	union {
-		struct {
-			struct rect surface_size;
-			int surface_pitch;
-		} grph;
-
-		struct {
-			struct rect luma_size;
-			int luma_pitch;
-			struct rect chroma_size;
-			int chroma_pitch;
-		} video;
-	};
 };
 
 struct dc_plane_dcc_param {
@@ -148,21 +134,6 @@ struct dc_plane_dcc_param {
 
 	int meta_pitch_c;
 	bool independent_64b_blks_c;
-
-	union {
-		struct {
-			int meta_pitch;
-			bool independent_64b_blks;
-		} grph;
-
-		struct {
-			int meta_pitch_l;
-			bool independent_64b_blks_l;
-
-			int meta_pitch_c;
-			bool independent_64b_blks_c;
-		} video;
-	};
 };
 
 /*Displayable pixel format in fb*/
