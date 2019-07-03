@@ -268,6 +268,8 @@ int i915_active_wait(struct i915_active *ref)
 	int err;
 
 	might_sleep();
+	might_lock(&ref->mutex);
+
 	if (RB_EMPTY_ROOT(&ref->tree))
 		return 0;
 
