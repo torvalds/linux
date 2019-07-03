@@ -39,6 +39,20 @@ properties:
       and must therefore be appropriately determined based on all PHY
       requirements (maximum value of all per-PHY RESET pulse widths).
 
+patternProperties:
+  "^ethernet-phy@[0-9a-f]+$":
+    type: object
+
+    properties:
+      reg:
+        minimum: 0
+        maximum: 31
+        description:
+          The ID number for the PHY.
+
+    required:
+      - reg
+
 examples:
   - |
     davinci_mdio: mdio@5c030000 {
