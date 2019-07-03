@@ -108,67 +108,6 @@ static int max77650_regulator_disable(struct regulator_dev *rdev)
 				  MAX77650_REGULATOR_DISABLED);
 }
 
-static int max77650_regulator_set_voltage_sel(struct regulator_dev *rdev,
-					      unsigned int sel)
-{
-	struct max77650_regulator_desc *rdesc = rdev_get_drvdata(rdev);
-	int rv = 0, curr, diff;
-	bool ascending;
-
-	/*
-	 * If the regulator is disabled, we can program the desired
-	 * voltage right away.
-	 */
-	if (!max77650_regulator_is_enabled(rdev)) {
-		if (rdesc == &max77651_SBB1_desc)
-			return regulator_set_voltage_sel_pickable_regmap(rdev,
-									 sel);
-		else
-			return regulator_set_voltage_sel_regmap(rdev, sel);
-	}
-
-	/*
-	 * Otherwise we need to manually ramp the output voltage up/down
-	 * one step at a time.
-	 */
-
-	if (rdesc == &max77651_SBB1_desc)
-		curr = regulator_get_voltage_sel_pickable_regmap(rdev);
-	else
-		curr = regulator_get_voltage_sel_regmap(rdev);
-
-	if (curr < 0)
-		return curr;
-
-	diff = curr - sel;
-	if (diff == 0)
-		return 0; /* Already there. */
-	else if (diff > 0)
-		ascending = false;
-	else
-		ascending = true;
-
-	/*
-	 * Make sure we'll get to the right voltage and break the loop even if
-	 * the selector equals 0.
-	 */
-	for (ascending ? curr++ : curr--;; ascending ? curr++ : curr--) {
-		if (rdesc == &max77651_SBB1_desc)
-			rv = regulator_set_voltage_sel_pickable_regmap(rdev,
-								       curr);
-		else
-			rv = regulator_set_voltage_sel_regmap(rdev, curr);
-
-		if (rv)
-			return rv;
-
-		if (curr == sel)
-			break;
-	}
-
-	return 0;
-}
-
 static const struct regulator_ops max77650_regulator_LDO_ops = {
 	.is_enabled		= max77650_regulator_is_enabled,
 	.enable			= max77650_regulator_enable,
@@ -176,7 +115,7 @@ static const struct regulator_ops max77650_regulator_LDO_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.set_voltage_sel	= max77650_regulator_set_voltage_sel,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_active_discharge	= regulator_set_active_discharge_regmap,
 };
 
@@ -187,7 +126,7 @@ static const struct regulator_ops max77650_regulator_SBB_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.set_voltage_sel	= max77650_regulator_set_voltage_sel,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.get_current_limit	= regulator_get_current_limit_regmap,
 	.set_current_limit	= regulator_set_current_limit_regmap,
 	.set_active_discharge	= regulator_set_active_discharge_regmap,
@@ -200,7 +139,7 @@ static const struct regulator_ops max77651_SBB1_regulator_ops = {
 	.disable		= max77650_regulator_disable,
 	.list_voltage		= regulator_list_voltage_pickable_linear_range,
 	.get_voltage_sel	= regulator_get_voltage_sel_pickable_regmap,
-	.set_voltage_sel	= max77650_regulator_set_voltage_sel,
+	.set_voltage_sel	= regulator_set_voltage_sel_pickable_regmap,
 	.get_current_limit	= regulator_get_current_limit_regmap,
 	.set_current_limit	= regulator_set_current_limit_regmap,
 	.set_active_discharge	= regulator_set_active_discharge_regmap,
@@ -217,6 +156,7 @@ static struct max77650_regulator_desc max77650_LDO_desc = {
 		.min_uV			= 1350000,
 		.uV_step		= 12500,
 		.n_voltages		= 128,
+		.vsel_step		= 1,
 		.vsel_mask		= MAX77650_REGULATOR_V_LDO_MASK,
 		.vsel_reg		= MAX77650_REG_CNFG_LDO_A,
 		.active_discharge_off	= MAX77650_REGULATOR_AD_DISABLED,
@@ -242,6 +182,7 @@ static struct max77650_regulator_desc max77650_SBB0_desc = {
 		.min_uV			= 800000,
 		.uV_step		= 25000,
 		.n_voltages		= 64,
+		.vsel_step		= 1,
 		.vsel_mask		= MAX77650_REGULATOR_V_SBB_MASK,
 		.vsel_reg		= MAX77650_REG_CNFG_SBB0_A,
 		.active_discharge_off	= MAX77650_REGULATOR_AD_DISABLED,
@@ -271,6 +212,7 @@ static struct max77650_regulator_desc max77650_SBB1_desc = {
 		.min_uV			= 800000,
 		.uV_step		= 12500,
 		.n_voltages		= 64,
+		.vsel_step		= 1,
 		.vsel_mask		= MAX77650_REGULATOR_V_SBB_MASK,
 		.vsel_reg		= MAX77650_REG_CNFG_SBB1_A,
 		.active_discharge_off	= MAX77650_REGULATOR_AD_DISABLED,
@@ -301,6 +243,7 @@ static struct max77650_regulator_desc max77651_SBB1_desc = {
 		.linear_ranges		= max77651_sbb1_volt_ranges,
 		.n_linear_ranges	= ARRAY_SIZE(max77651_sbb1_volt_ranges),
 		.n_voltages		= 58,
+		.vsel_step		= 1,
 		.vsel_range_mask	= MAX77651_REGULATOR_V_SBB1_RANGE_MASK,
 		.vsel_range_reg		= MAX77650_REG_CNFG_SBB1_A,
 		.vsel_mask		= MAX77651_REGULATOR_V_SBB1_MASK,
@@ -332,6 +275,7 @@ static struct max77650_regulator_desc max77650_SBB2_desc = {
 		.min_uV			= 800000,
 		.uV_step		= 50000,
 		.n_voltages		= 64,
+		.vsel_step		= 1,
 		.vsel_mask		= MAX77650_REGULATOR_V_SBB_MASK,
 		.vsel_reg		= MAX77650_REG_CNFG_SBB2_A,
 		.active_discharge_off	= MAX77650_REGULATOR_AD_DISABLED,
@@ -361,6 +305,7 @@ static struct max77650_regulator_desc max77651_SBB2_desc = {
 		.min_uV			= 2400000,
 		.uV_step		= 50000,
 		.n_voltages		= 64,
+		.vsel_step		= 1,
 		.vsel_mask		= MAX77650_REGULATOR_V_SBB_MASK,
 		.vsel_reg		= MAX77650_REG_CNFG_SBB2_A,
 		.active_discharge_off	= MAX77650_REGULATOR_AD_DISABLED,
