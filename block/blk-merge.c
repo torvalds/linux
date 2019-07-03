@@ -105,7 +105,7 @@ static struct bio *blk_bio_discard_split(struct request_queue *q,
 static struct bio *blk_bio_write_zeroes_split(struct request_queue *q,
 		struct bio *bio, struct bio_set *bs, unsigned *nsegs)
 {
-	*nsegs = 1;
+	*nsegs = 0;
 
 	if (!q->limits.max_write_zeroes_sectors)
 		return NULL;
