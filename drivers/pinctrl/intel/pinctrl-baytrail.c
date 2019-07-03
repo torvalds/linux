@@ -1580,12 +1580,10 @@ static int byt_set_soc_data(struct byt_gpio *vg,
 
 	for (i = 0; i < soc_data->ncommunities; i++) {
 		struct byt_community *comm = vg->communities_copy + i;
-		struct resource *mem_rc;
 
 		*comm = vg->soc_data->communities[i];
 
-		mem_rc = platform_get_resource(vg->pdev, IORESOURCE_MEM, 0);
-		comm->reg_base = devm_ioremap_resource(&vg->pdev->dev, mem_rc);
+		comm->reg_base = devm_platform_ioremap_resource(vg->pdev, 0);
 		if (IS_ERR(comm->reg_base))
 			return PTR_ERR(comm->reg_base);
 	}
