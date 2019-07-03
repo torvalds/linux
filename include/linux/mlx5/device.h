@@ -351,7 +351,7 @@ enum mlx5_event {
 
 	MLX5_EVENT_TYPE_DEVICE_TRACER      = 0x26,
 
-	MLX5_EVENT_TYPE_MAX                = MLX5_EVENT_TYPE_DEVICE_TRACER + 1,
+	MLX5_EVENT_TYPE_MAX                = 0x100,
 };
 
 enum {
@@ -1077,6 +1077,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_DEBUG,
 	MLX5_CAP_RESERVED_14,
 	MLX5_CAP_DEV_MEM,
+	MLX5_CAP_DEV_EVENT = 0x14,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1254,6 +1255,9 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP64_DEV_MEM(mdev, cap)\
 	MLX5_GET64(device_mem_cap, mdev->caps.hca_cur[MLX5_CAP_DEV_MEM], cap)
+
+#define MLX5_CAP_DEV_EVENT(mdev, cap)\
+	MLX5_ADDR_OF(device_event_cap, (mdev)->caps.hca_cur[MLX5_CAP_DEV_EVENT], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,

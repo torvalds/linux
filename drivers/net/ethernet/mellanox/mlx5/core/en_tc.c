@@ -716,18 +716,21 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow *flow,
 		      struct netlink_ext_ack *extack)
 {
+	struct mlx5_flow_context *flow_context = &parse_attr->spec.flow_context;
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	struct mlx5_core_dev *dev = priv->mdev;
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
-		.flow_tag = attr->flow_tag,
 		.reformat_id = 0,
-		.flags    = FLOW_ACT_HAS_TAG | FLOW_ACT_NO_APPEND,
+		.flags    = FLOW_ACT_NO_APPEND,
 	};
 	struct mlx5_fc *counter = NULL;
 	bool table_created = false;
 	int err, dest_ix = 0;
+
+	flow_context->flags |= FLOW_CONTEXT_HAS_TAG;
+	flow_context->flow_tag = attr->flow_tag;
 
 	if (flow->flags & MLX5E_TC_FLOW_HAIRPIN) {
 		err = mlx5e_hairpin_flow_add(priv, flow, parse_attr, extack);
@@ -3349,7 +3352,7 @@ mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 	if (!tc_can_offload_extack(priv->netdev, f->common.extack))
 		return -EOPNOTSUPP;
 
-	if (esw && esw->mode == SRIOV_OFFLOADS)
+	if (esw && esw->mode == MLX5_ESWITCH_OFFLOADS)
 		err = mlx5e_add_fdb_flow(priv, f, flow_flags,
 					 filter_dev, flow);
 	else

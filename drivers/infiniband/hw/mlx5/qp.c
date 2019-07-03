@@ -6365,7 +6365,7 @@ static void handle_drain_completion(struct ib_cq *cq,
 		/* Run the CQ handler - this makes sure that the drain WR will
 		 * be processed if wasn't processed yet.
 		 */
-		mcq->mcq.comp(&mcq->mcq);
+		mcq->mcq.comp(&mcq->mcq, NULL);
 	}
 
 	wait_for_completion(&sdrain->done);

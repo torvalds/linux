@@ -396,7 +396,11 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	in_flow_context = MLX5_ADDR_OF(set_fte_in, in, flow_context);
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
 
-	MLX5_SET(flow_context, in_flow_context, flow_tag, fte->action.flow_tag);
+	MLX5_SET(flow_context, in_flow_context, flow_tag,
+		 fte->flow_context.flow_tag);
+	MLX5_SET(flow_context, in_flow_context, flow_source,
+		 fte->flow_context.flow_source);
+
 	MLX5_SET(flow_context, in_flow_context, extended_destination,
 		 extended_dest);
 	if (extended_dest) {
@@ -770,6 +774,10 @@ int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 	case MLX5_FLOW_NAMESPACE_EGRESS:
 		max_actions = MLX5_CAP_FLOWTABLE_NIC_TX(dev, max_modify_header_actions);
 		table_type = FS_FT_NIC_TX;
+		break;
+	case MLX5_FLOW_NAMESPACE_ESW_INGRESS:
+		max_actions = MLX5_CAP_ESW_INGRESS_ACL(dev, max_modify_header_actions);
+		table_type = FS_FT_ESW_INGRESS_ACL;
 		break;
 	default:
 		return -EOPNOTSUPP;

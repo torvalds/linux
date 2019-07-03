@@ -74,17 +74,11 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 	int err;
 	int vf;
 
-	if (sriov->enabled_vfs) {
-		mlx5_core_warn(dev,
-			       "failed to enable SRIOV on device, already enabled with %d vfs\n",
-			       sriov->enabled_vfs);
-		return -EBUSY;
-	}
-
 	if (!MLX5_ESWITCH_MANAGER(dev))
 		goto enable_vfs_hca;
 
-	err = mlx5_eswitch_enable_sriov(dev->priv.eswitch, num_vfs, SRIOV_LEGACY);
+	mlx5_eswitch_update_num_of_vfs(dev->priv.eswitch, num_vfs);
+	err = mlx5_eswitch_enable(dev->priv.eswitch, MLX5_ESWITCH_LEGACY);
 	if (err) {
 		mlx5_core_warn(dev,
 			       "failed to enable eswitch SRIOV (%d)\n", err);
@@ -99,7 +93,6 @@ enable_vfs_hca:
 			continue;
 		}
 		sriov->vfs_ctx[vf].enabled = 1;
-		sriov->enabled_vfs++;
 		if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_IB) {
 			err = sriov_restore_guids(dev, vf);
 			if (err) {
@@ -118,13 +111,11 @@ enable_vfs_hca:
 static void mlx5_device_disable_sriov(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
+	int num_vfs = pci_num_vf(dev->pdev);
 	int err;
 	int vf;
 
-	if (!sriov->enabled_vfs)
-		goto out;
-
-	for (vf = 0; vf < sriov->num_vfs; vf++) {
+	for (vf = num_vfs - 1; vf >= 0; vf--) {
 		if (!sriov->vfs_ctx[vf].enabled)
 			continue;
 		err = mlx5_core_disable_hca(dev, vf + 1);
@@ -133,12 +124,10 @@ static void mlx5_device_disable_sriov(struct mlx5_core_dev *dev)
 			continue;
 		}
 		sriov->vfs_ctx[vf].enabled = 0;
-		sriov->enabled_vfs--;
 	}
 
-out:
 	if (MLX5_ESWITCH_MANAGER(dev))
-		mlx5_eswitch_disable_sriov(dev->priv.eswitch);
+		mlx5_eswitch_disable(dev->priv.eswitch);
 
 	if (mlx5_wait_for_pages(dev, &dev->priv.vfs_pages))
 		mlx5_core_warn(dev, "timeout reclaiming VFs pages\n");
@@ -191,13 +180,11 @@ int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 
 int mlx5_sriov_attach(struct mlx5_core_dev *dev)
 {
-	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
-
-	if (!mlx5_core_is_pf(dev) || !sriov->num_vfs)
+	if (!mlx5_core_is_pf(dev) || !pci_num_vf(dev->pdev))
 		return 0;
 
 	/* If sriov VFs exist in PCI level, enable them in device level */
-	return mlx5_device_enable_sriov(dev, sriov->num_vfs);
+	return mlx5_device_enable_sriov(dev, pci_num_vf(dev->pdev));
 }
 
 void mlx5_sriov_detach(struct mlx5_core_dev *dev)
