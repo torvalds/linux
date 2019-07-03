@@ -2,7 +2,7 @@
 /*
  *  pkey device driver
  *
- *  Copyright IBM Corp. 2017
+ *  Copyright IBM Corp. 2017,2019
  *  Author(s): Harald Freudenberger
  */
 
@@ -71,9 +71,9 @@ struct protaeskeytoken {
 /*
  * Create a protected key from a clear key value.
  */
-int pkey_clr2protkey(u32 keytype,
-		     const struct pkey_clrkey *clrkey,
-		     struct pkey_protkey *protkey)
+static int pkey_clr2protkey(u32 keytype,
+			    const struct pkey_clrkey *clrkey,
+			    struct pkey_protkey *protkey)
 {
 	long fc;
 	int keysize;
@@ -122,13 +122,12 @@ int pkey_clr2protkey(u32 keytype,
 
 	return 0;
 }
-EXPORT_SYMBOL(pkey_clr2protkey);
 
 /*
  * Find card and transform secure key into protected key.
  */
-int pkey_skey2pkey(const struct pkey_seckey *seckey,
-		   struct pkey_protkey *pkey)
+static int pkey_skey2pkey(const struct pkey_seckey *seckey,
+			  struct pkey_protkey *pkey)
 {
 	u16 cardnr, domain;
 	int rc, verify;
@@ -157,14 +156,13 @@ int pkey_skey2pkey(const struct pkey_seckey *seckey,
 
 	return rc;
 }
-EXPORT_SYMBOL(pkey_skey2pkey);
 
 /*
  * Verify key and give back some info about the key.
  */
-int pkey_verifykey(const struct pkey_seckey *seckey,
-		   u16 *pcardnr, u16 *pdomain,
-		   u16 *pkeysize, u32 *pattributes)
+static int pkey_verifykey(const struct pkey_seckey *seckey,
+			  u16 *pcardnr, u16 *pdomain,
+			  u16 *pkeysize, u32 *pattributes)
 {
 	struct secaeskeytoken *t = (struct secaeskeytoken *) seckey;
 	u16 cardnr, domain;
@@ -201,12 +199,11 @@ out:
 	DEBUG_DBG("%s rc=%d\n", __func__, rc);
 	return rc;
 }
-EXPORT_SYMBOL(pkey_verifykey);
 
 /*
  * Generate a random protected key
  */
-int pkey_genprotkey(__u32 keytype, struct pkey_protkey *protkey)
+static int pkey_genprotkey(u32 keytype, struct pkey_protkey *protkey)
 {
 	struct pkey_clrkey clrkey;
 	int keysize;
@@ -241,12 +238,11 @@ int pkey_genprotkey(__u32 keytype, struct pkey_protkey *protkey)
 
 	return 0;
 }
-EXPORT_SYMBOL(pkey_genprotkey);
 
 /*
  * Verify if a protected key is still valid
  */
-int pkey_verifyprotkey(const struct pkey_protkey *protkey)
+static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 {
 	unsigned long fc;
 	struct {
@@ -287,12 +283,11 @@ int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 
 	return 0;
 }
-EXPORT_SYMBOL(pkey_verifyprotkey);
 
 /*
  * Transform a non-CCA key token into a protected key
  */
-static int pkey_nonccatok2pkey(const __u8 *key, __u32 keylen,
+static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 			       struct pkey_protkey *protkey)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
@@ -320,7 +315,7 @@ static int pkey_nonccatok2pkey(const __u8 *key, __u32 keylen,
 /*
  * Transform a CCA internal key token into a protected key
  */
-static int pkey_ccainttok2pkey(const __u8 *key, __u32 keylen,
+static int pkey_ccainttok2pkey(const u8 *key, u32 keylen,
 			       struct pkey_protkey *protkey)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
@@ -342,7 +337,7 @@ static int pkey_ccainttok2pkey(const __u8 *key, __u32 keylen,
 /*
  * Transform a key blob (of any type) into a protected key
  */
-int pkey_keyblob2pkey(const __u8 *key, __u32 keylen,
+int pkey_keyblob2pkey(const u8 *key, u32 keylen,
 		      struct pkey_protkey *protkey)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
@@ -507,8 +502,8 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	case PKEY_KBLOB2PROTK: {
 		struct pkey_kblob2pkey __user *utp = (void __user *) arg;
 		struct pkey_kblob2pkey ktp;
-		__u8 __user *ukey;
-		__u8 *kkey;
+		u8 __user *ukey;
+		u8 *kkey;
 
 		if (copy_from_user(&ktp, utp, sizeof(ktp)))
 			return -EFAULT;
