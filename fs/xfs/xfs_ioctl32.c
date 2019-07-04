@@ -112,11 +112,14 @@ xfs_ioctl32_bstime_copyin(
 	return 0;
 }
 
-/* xfs_bstat_t has differing alignment on intel, & bstime_t sizes everywhere */
+/*
+ * struct xfs_bstat has differing alignment on intel, & bstime_t sizes
+ * everywhere
+ */
 STATIC int
 xfs_ioctl32_bstat_copyin(
-	xfs_bstat_t		*bstat,
-	compat_xfs_bstat_t	__user *bstat32)
+	struct xfs_bstat		*bstat,
+	struct compat_xfs_bstat	__user	*bstat32)
 {
 	if (get_user(bstat->bs_ino,	&bstat32->bs_ino)	||
 	    get_user(bstat->bs_mode,	&bstat32->bs_mode)	||
@@ -200,7 +203,7 @@ STATIC int
 xfs_compat_ioc_bulkstat(
 	xfs_mount_t		  *mp,
 	unsigned int		  cmd,
-	compat_xfs_fsop_bulkreq_t __user *p32)
+	struct compat_xfs_fsop_bulkreq __user *p32)
 {
 	u32			addr;
 	struct xfs_fsop_bulkreq	bulkreq;
