@@ -113,8 +113,6 @@ source "drivers/usb/usbip/Kconfig"
 
 endif
 
-source "drivers/usb/cdns3/Kconfig"
-
 source "drivers/usb/mtu3/Kconfig"
 
 source "drivers/usb/musb/Kconfig"
