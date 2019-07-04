@@ -77,6 +77,18 @@ static int tpm_go_idle(struct tpm_chip *chip)
 	return chip->ops->go_idle(chip);
 }
 
+static void tpm_clk_enable(struct tpm_chip *chip)
+{
+	if (chip->ops->clk_enable)
+		chip->ops->clk_enable(chip, true);
+}
+
+static void tpm_clk_disable(struct tpm_chip *chip)
+{
+	if (chip->ops->clk_enable)
+		chip->ops->clk_enable(chip, false);
+}
+
 /**
  * tpm_chip_start() - power on the TPM
  * @chip:	a TPM chip to use
@@ -89,13 +101,12 @@ int tpm_chip_start(struct tpm_chip *chip)
 {
 	int ret;
 
-	if (chip->ops->clk_enable)
-		chip->ops->clk_enable(chip, true);
+	tpm_clk_enable(chip);
 
 	if (chip->locality == -1) {
 		ret = tpm_request_locality(chip);
 		if (ret) {
-			chip->ops->clk_enable(chip, false);
+			tpm_clk_disable(chip);
 			return ret;
 		}
 	}
@@ -103,8 +114,7 @@ int tpm_chip_start(struct tpm_chip *chip)
 	ret = tpm_cmd_ready(chip);
 	if (ret) {
 		tpm_relinquish_locality(chip);
-		if (chip->ops->clk_enable)
-			chip->ops->clk_enable(chip, false);
+		tpm_clk_disable(chip);
 		return ret;
 	}
 
@@ -124,8 +134,7 @@ void tpm_chip_stop(struct tpm_chip *chip)
 {
 	tpm_go_idle(chip);
 	tpm_relinquish_locality(chip);
-	if (chip->ops->clk_enable)
-		chip->ops->clk_enable(chip, false);
+	tpm_clk_disable(chip);
 }
 EXPORT_SYMBOL_GPL(tpm_chip_stop);
 
