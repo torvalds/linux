@@ -308,19 +308,6 @@ In the end no .c file should need to include ``drmP.h`` anymore.
 
 Contact: Daniel Vetter
 
-Add missing kerneldoc for exported functions
---------------------------------------------
-
-The DRM reference documentation is still lacking kerneldoc in a few areas. The
-task would be to clean up interfaces like moving functions around between
-files to better group them and improving the interfaces like dropping return
-values for functions that never fail. Then write kerneldoc for all exported
-functions and an overview section and integrate it all into the drm book.
-
-See https://dri.freedesktop.org/docs/drm/ for what's there already.
-
-Contact: Daniel Vetter
-
 Make panic handling work
 ------------------------
 
