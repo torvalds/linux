@@ -435,7 +435,6 @@ struct xfs_fsop_bulkreq {
 	__s32		__user *ocount;	/* output count pointer		*/
 };
 
-
 /*
  * Structures returned from xfs_inumbers routine (XFS_IOC_FSINUMBERS).
  */
@@ -456,6 +455,28 @@ struct xfs_inumbers {
 
 #define XFS_INUMBERS_VERSION_V1	(1)
 #define XFS_INUMBERS_VERSION_V5	(5)
+
+/* Header for bulk inode requests. */
+struct xfs_bulk_ireq {
+	uint64_t	ino;		/* I/O: start with this inode	*/
+	uint32_t	flags;		/* I/O: operation flags		*/
+	uint32_t	icount;		/* I: count of entries in buffer */
+	uint32_t	ocount;		/* O: count of entries filled out */
+	uint32_t	reserved32;	/* must be zero			*/
+	uint64_t	reserved[5];	/* must be zero			*/
+};
+
+#define XFS_BULK_IREQ_FLAGS_ALL	(0)
+
+/*
+ * ioctl structures for v5 bulkstat and inumbers requests
+ */
+struct xfs_bulkstat_req {
+	struct xfs_bulk_ireq	hdr;
+	struct xfs_bulkstat	bulkstat[];
+};
+#define XFS_BULKSTAT_REQ_SIZE(nr)	(sizeof(struct xfs_bulkstat_req) + \
+					 (nr) * sizeof(struct xfs_bulkstat))
 
 /*
  * Error injection.
@@ -758,6 +779,7 @@ struct xfs_scrub_metadata {
 #define XFS_IOC_FSGEOMETRY_V4	     _IOR ('X', 124, struct xfs_fsop_geom_v4)
 #define XFS_IOC_GOINGDOWN	     _IOR ('X', 125, uint32_t)
 #define XFS_IOC_FSGEOMETRY	     _IOR ('X', 126, struct xfs_fsop_geom)
+#define XFS_IOC_BULKSTAT	     _IOR ('X', 127, struct xfs_bulkstat_req)
 /*	XFS_IOC_GETFSUUID ---------- deprecated 140	 */
 
 

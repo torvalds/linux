@@ -818,6 +818,101 @@ xfs_ioc_fsbulkstat(
 	return 0;
 }
 
+/* Return 0 on success or positive error */
+static int
+xfs_bulkstat_fmt(
+	struct xfs_ibulk		*breq,
+	const struct xfs_bulkstat	*bstat)
+{
+	if (copy_to_user(breq->ubuffer, bstat, sizeof(struct xfs_bulkstat)))
+		return -EFAULT;
+	return xfs_ibulk_advance(breq, sizeof(struct xfs_bulkstat));
+}
+
+/*
+ * Check the incoming bulk request @hdr from userspace and initialize the
+ * internal @breq bulk request appropriately.  Returns 0 if the bulk request
+ * should proceed; XFS_ITER_ABORT if there's nothing to do; or the usual
+ * negative error code.
+ */
+static int
+xfs_bulk_ireq_setup(
+	struct xfs_mount	*mp,
+	struct xfs_bulk_ireq	*hdr,
+	struct xfs_ibulk	*breq,
+	void __user		*ubuffer)
+{
+	if (hdr->icount == 0 ||
+	    (hdr->flags & ~XFS_BULK_IREQ_FLAGS_ALL) ||
+	    hdr->reserved32 ||
+	    memchr_inv(hdr->reserved, 0, sizeof(hdr->reserved)))
+		return -EINVAL;
+
+	breq->startino = hdr->ino;
+	breq->ubuffer = ubuffer;
+	breq->icount = hdr->icount;
+	breq->ocount = 0;
+
+	/* Asking for an inode past the end of the FS?  We're done! */
+	if (XFS_INO_TO_AGNO(mp, breq->startino) >= mp->m_sb.sb_agcount)
+		return XFS_ITER_ABORT;
+
+	return 0;
+}
+
+/*
+ * Update the userspace bulk request @hdr to reflect the end state of the
+ * internal bulk request @breq.
+ */
+static void
+xfs_bulk_ireq_teardown(
+	struct xfs_bulk_ireq	*hdr,
+	struct xfs_ibulk	*breq)
+{
+	hdr->ino = breq->startino;
+	hdr->ocount = breq->ocount;
+}
+
+/* Handle the v5 bulkstat ioctl. */
+STATIC int
+xfs_ioc_bulkstat(
+	struct xfs_mount		*mp,
+	unsigned int			cmd,
+	struct xfs_bulkstat_req __user	*arg)
+{
+	struct xfs_bulk_ireq		hdr;
+	struct xfs_ibulk		breq = {
+		.mp			= mp,
+	};
+	int				error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
+
+	if (copy_from_user(&hdr, &arg->hdr, sizeof(hdr)))
+		return -EFAULT;
+
+	error = xfs_bulk_ireq_setup(mp, &hdr, &breq, arg->bulkstat);
+	if (error == XFS_ITER_ABORT)
+		goto out_teardown;
+	if (error < 0)
+		return error;
+
+	error = xfs_bulkstat(&breq, xfs_bulkstat_fmt);
+	if (error)
+		return error;
+
+out_teardown:
+	xfs_bulk_ireq_teardown(&hdr, &breq);
+	if (copy_to_user(&arg->hdr, &hdr, sizeof(hdr)))
+		return -EFAULT;
+
+	return 0;
+}
+
 STATIC int
 xfs_ioc_fsgeometry(
 	struct xfs_mount	*mp,
@@ -1981,6 +2076,9 @@ xfs_file_ioctl(
 	case XFS_IOC_FSBULKSTAT:
 	case XFS_IOC_FSINUMBERS:
 		return xfs_ioc_fsbulkstat(mp, cmd, arg);
+
+	case XFS_IOC_BULKSTAT:
+		return xfs_ioc_bulkstat(mp, cmd, arg);
 
 	case XFS_IOC_FSGEOMETRY_V1:
 		return xfs_ioc_fsgeometry(mp, arg, 3);
