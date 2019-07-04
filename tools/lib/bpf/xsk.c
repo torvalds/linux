@@ -65,6 +65,7 @@ struct xsk_socket {
 	int xsks_map_fd;
 	__u32 queue_id;
 	char ifname[IFNAMSIZ];
+	bool zc;
 };
 
 struct xsk_nl_info {
@@ -326,7 +327,8 @@ static int xsk_get_max_queues(struct xsk_socket *xsk)
 
 	channels.cmd = ETHTOOL_GCHANNELS;
 	ifr.ifr_data = (void *)&channels;
-	strncpy(ifr.ifr_name, xsk->ifname, IFNAMSIZ);
+	strncpy(ifr.ifr_name, xsk->ifname, IFNAMSIZ - 1);
+	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
 	err = ioctl(fd, SIOCETHTOOL, &ifr);
 	if (err && errno != EOPNOTSUPP) {
 		ret = -errno;
@@ -480,6 +482,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	void *rx_map = NULL, *tx_map = NULL;
 	struct sockaddr_xdp sxdp = {};
 	struct xdp_mmap_offsets off;
+	struct xdp_options opts;
 	struct xsk_socket *xsk;
 	socklen_t optlen;
 	int err;
@@ -597,6 +600,16 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	}
 
 	xsk->prog_fd = -1;
+
+	optlen = sizeof(opts);
+	err = getsockopt(xsk->fd, SOL_XDP, XDP_OPTIONS, &opts, &optlen);
+	if (err) {
+		err = -errno;
+		goto out_mmap_tx;
+	}
+
+	xsk->zc = opts.flags & XDP_OPTIONS_ZEROCOPY;
+
 	if (!(xsk->config.libbpf_flags & XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)) {
 		err = xsk_setup_xdp_prog(xsk);
 		if (err)

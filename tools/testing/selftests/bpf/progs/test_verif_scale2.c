@@ -2,7 +2,7 @@
 // Copyright (c) 2019 Facebook
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
-#define ATTR __attribute__((always_inline))
+#define ATTR __always_inline
 #include "test_jhash.h"
 
 SEC("scale90_inline")

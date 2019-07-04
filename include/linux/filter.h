@@ -578,8 +578,9 @@ struct bpf_skb_data_end {
 };
 
 struct bpf_redirect_info {
-	u32 ifindex;
 	u32 flags;
+	u32 tgt_index;
+	void *tgt_value;
 	struct bpf_map *map;
 	struct bpf_map *map_to_flush;
 	u32 kern_flags;
@@ -1197,6 +1198,16 @@ struct bpf_sysctl_kern {
 	loff_t *ppos;
 	/* Temporary "register" for indirect stores to ppos. */
 	u64 tmp_reg;
+};
+
+struct bpf_sockopt_kern {
+	struct sock	*sk;
+	u8		*optval;
+	u8		*optval_end;
+	s32		level;
+	s32		optname;
+	s32		optlen;
+	s32		retval;
 };
 
 #endif /* __LINUX_FILTER_H__ */

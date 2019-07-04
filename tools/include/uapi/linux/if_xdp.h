@@ -46,6 +46,7 @@ struct xdp_mmap_offsets {
 #define XDP_UMEM_FILL_RING		5
 #define XDP_UMEM_COMPLETION_RING	6
 #define XDP_STATISTICS			7
+#define XDP_OPTIONS			8
 
 struct xdp_umem_reg {
 	__u64 addr; /* Start of packet data area */
@@ -59,6 +60,13 @@ struct xdp_statistics {
 	__u64 rx_invalid_descs; /* Dropped due to invalid descriptor */
 	__u64 tx_invalid_descs; /* Dropped due to invalid descriptor */
 };
+
+struct xdp_options {
+	__u32 flags;
+};
+
+/* Flags for the flags field of struct xdp_options */
+#define XDP_OPTIONS_ZEROCOPY (1 << 0)
 
 /* Pgoff for mmaping the rings */
 #define XDP_PGOFF_RX_RING			  0

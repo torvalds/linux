@@ -77,10 +77,11 @@ int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 void xsk_flush(struct xdp_sock *xs);
 bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs);
 /* Used from netdev driver */
+bool xsk_umem_has_addrs(struct xdp_umem *umem, u32 cnt);
 u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr);
 void xsk_umem_discard_addr(struct xdp_umem *umem);
 void xsk_umem_complete_tx(struct xdp_umem *umem, u32 nb_entries);
-bool xsk_umem_consume_tx(struct xdp_umem *umem, dma_addr_t *dma, u32 *len);
+bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc);
 void xsk_umem_consume_tx_done(struct xdp_umem *umem);
 struct xdp_umem_fq_reuse *xsk_reuseq_prepare(u32 nentries);
 struct xdp_umem_fq_reuse *xsk_reuseq_swap(struct xdp_umem *umem,
@@ -99,6 +100,16 @@ static inline dma_addr_t xdp_umem_get_dma(struct xdp_umem *umem, u64 addr)
 }
 
 /* Reuse-queue aware version of FILL queue helpers */
+static inline bool xsk_umem_has_addrs_rq(struct xdp_umem *umem, u32 cnt)
+{
+	struct xdp_umem_fq_reuse *rq = umem->fq_reuse;
+
+	if (rq->length >= cnt)
+		return true;
+
+	return xsk_umem_has_addrs(umem, cnt - rq->length);
+}
+
 static inline u64 *xsk_umem_peek_addr_rq(struct xdp_umem *umem, u64 *addr)
 {
 	struct xdp_umem_fq_reuse *rq = umem->fq_reuse;
@@ -146,6 +157,11 @@ static inline bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 	return false;
 }
 
+static inline bool xsk_umem_has_addrs(struct xdp_umem *umem, u32 cnt)
+{
+	return false;
+}
+
 static inline u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 {
 	return NULL;
@@ -159,8 +175,8 @@ static inline void xsk_umem_complete_tx(struct xdp_umem *umem, u32 nb_entries)
 {
 }
 
-static inline bool xsk_umem_consume_tx(struct xdp_umem *umem, dma_addr_t *dma,
-				       u32 *len)
+static inline bool xsk_umem_consume_tx(struct xdp_umem *umem,
+				       struct xdp_desc *desc)
 {
 	return false;
 }
@@ -198,6 +214,11 @@ static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
 static inline dma_addr_t xdp_umem_get_dma(struct xdp_umem *umem, u64 addr)
 {
 	return 0;
+}
+
+static inline bool xsk_umem_has_addrs_rq(struct xdp_umem *umem, u32 cnt)
+{
+	return false;
 }
 
 static inline u64 *xsk_umem_peek_addr_rq(struct xdp_umem *umem, u64 *addr)

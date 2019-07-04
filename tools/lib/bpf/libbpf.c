@@ -778,7 +778,7 @@ static struct bpf_map *bpf_object__add_map(struct bpf_object *obj)
 	if (obj->nr_maps < obj->maps_cap)
 		return &obj->maps[obj->nr_maps++];
 
-	new_cap = max(4ul, obj->maps_cap * 3 / 2);
+	new_cap = max((size_t)4, obj->maps_cap * 3 / 2);
 	new_maps = realloc(obj->maps, new_cap * sizeof(*obj->maps));
 	if (!new_maps) {
 		pr_warning("alloc maps for object failed\n");
@@ -1169,7 +1169,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			pr_debug("map '%s': found key_size = %u.\n",
 				 map_name, sz);
 			if (map->def.key_size && map->def.key_size != sz) {
-				pr_warning("map '%s': conflictling key size %u != %u.\n",
+				pr_warning("map '%s': conflicting key size %u != %u.\n",
 					   map_name, map->def.key_size, sz);
 				return -EINVAL;
 			}
@@ -1197,7 +1197,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			pr_debug("map '%s': found key [%u], sz = %lld.\n",
 				 map_name, t->type, sz);
 			if (map->def.key_size && map->def.key_size != sz) {
-				pr_warning("map '%s': conflictling key size %u != %lld.\n",
+				pr_warning("map '%s': conflicting key size %u != %lld.\n",
 					   map_name, map->def.key_size, sz);
 				return -EINVAL;
 			}
@@ -1212,7 +1212,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			pr_debug("map '%s': found value_size = %u.\n",
 				 map_name, sz);
 			if (map->def.value_size && map->def.value_size != sz) {
-				pr_warning("map '%s': conflictling value size %u != %u.\n",
+				pr_warning("map '%s': conflicting value size %u != %u.\n",
 					   map_name, map->def.value_size, sz);
 				return -EINVAL;
 			}
@@ -1240,7 +1240,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			pr_debug("map '%s': found value [%u], sz = %lld.\n",
 				 map_name, t->type, sz);
 			if (map->def.value_size && map->def.value_size != sz) {
-				pr_warning("map '%s': conflictling value size %u != %lld.\n",
+				pr_warning("map '%s': conflicting value size %u != %lld.\n",
 					   map_name, map->def.value_size, sz);
 				return -EINVAL;
 			}
@@ -2646,6 +2646,7 @@ static bool bpf_prog_type__needs_kver(enum bpf_prog_type type)
 	case BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE:
 	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_CGROUP_SYSCTL:
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
 		return false;
 	case BPF_PROG_TYPE_KPROBE:
 	default:
@@ -3604,6 +3605,10 @@ static const struct {
 						BPF_CGROUP_UDP6_RECVMSG),
 	BPF_EAPROG_SEC("cgroup/sysctl",		BPF_PROG_TYPE_CGROUP_SYSCTL,
 						BPF_CGROUP_SYSCTL),
+	BPF_EAPROG_SEC("cgroup/getsockopt",	BPF_PROG_TYPE_CGROUP_SOCKOPT,
+						BPF_CGROUP_GETSOCKOPT),
+	BPF_EAPROG_SEC("cgroup/setsockopt",	BPF_PROG_TYPE_CGROUP_SOCKOPT,
+						BPF_CGROUP_SETSOCKOPT),
 };
 
 #undef BPF_PROG_SEC_IMPL
@@ -3867,10 +3872,7 @@ int bpf_prog_load(const char *file, enum bpf_prog_type type,
 int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 			struct bpf_object **pobj, int *prog_fd)
 {
-	struct bpf_object_open_attr open_attr = {
-		.file		= attr->file,
-		.prog_type	= attr->prog_type,
-	};
+	struct bpf_object_open_attr open_attr = {};
 	struct bpf_program *prog, *first_prog = NULL;
 	enum bpf_attach_type expected_attach_type;
 	enum bpf_prog_type prog_type;
@@ -3882,6 +3884,9 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		return -EINVAL;
 	if (!attr->file)
 		return -EINVAL;
+
+	open_attr.file = attr->file;
+	open_attr.prog_type = attr->prog_type;
 
 	obj = bpf_object__open_xattr(&open_attr);
 	if (IS_ERR_OR_NULL(obj))

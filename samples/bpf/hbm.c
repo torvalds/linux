@@ -62,6 +62,7 @@ bool loopback_flag;
 bool debugFlag;
 bool work_conserving_flag;
 bool no_cn_flag;
+bool edt_flag;
 
 static void Usage(void);
 static void read_trace_pipe2(void);
@@ -372,9 +373,14 @@ static int run_bpf_prog(char *prog, int cg_id)
 		fprintf(fout, "avg rtt:%d\n",
 			(int)(qstats.sum_rtt / (qstats.pkts_total + 1)));
 		// Average credit
-		fprintf(fout, "avg credit:%d\n",
-			(int)(qstats.sum_credit /
-			      (1500 * ((int)qstats.pkts_total) + 1)));
+		if (edt_flag)
+			fprintf(fout, "avg credit_ms:%.03f\n",
+				(qstats.sum_credit /
+				 (qstats.pkts_total + 1.0)) / 1000000.0);
+		else
+			fprintf(fout, "avg credit:%d\n",
+				(int)(qstats.sum_credit /
+				      (1500 * ((int)qstats.pkts_total ) + 1)));
 
 		// Return values stats
 		for (k = 0; k < RET_VAL_COUNT; k++) {
@@ -408,6 +414,7 @@ static void Usage(void)
 	       "  Where:\n"
 	       "    -o         indicates egress direction (default)\n"
 	       "    -d         print BPF trace debug buffer\n"
+	       "    --edt      use fq's Earliest Departure Time\n"
 	       "    -l         also limit flows using loopback\n"
 	       "    -n <#>     to create cgroup \"/hbm#\" and attach prog\n"
 	       "               Default is /hbm1\n"
@@ -433,6 +440,7 @@ int main(int argc, char **argv)
 	char *optstring = "iodln:r:st:wh";
 	struct option loptions[] = {
 		{"no_cn", 0, NULL, 1},
+		{"edt", 0, NULL, 2},
 		{NULL, 0, NULL, 0}
 	};
 
@@ -440,6 +448,10 @@ int main(int argc, char **argv)
 		switch (k) {
 		case 1:
 			no_cn_flag = true;
+			break;
+		case 2:
+			prog = "hbm_edt_kern.o";
+			edt_flag = true;
 			break;
 		case'o':
 			break;

@@ -37,6 +37,12 @@ bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 		READ_ONCE(xs->umem->fq);
 }
 
+bool xsk_umem_has_addrs(struct xdp_umem *umem, u32 cnt)
+{
+	return xskq_has_addrs(umem->fq, cnt);
+}
+EXPORT_SYMBOL(xsk_umem_has_addrs);
+
 u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 {
 	return xskq_peek_addr(umem->fq, addr);
@@ -166,21 +172,17 @@ void xsk_umem_consume_tx_done(struct xdp_umem *umem)
 }
 EXPORT_SYMBOL(xsk_umem_consume_tx_done);
 
-bool xsk_umem_consume_tx(struct xdp_umem *umem, dma_addr_t *dma, u32 *len)
+bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc)
 {
-	struct xdp_desc desc;
 	struct xdp_sock *xs;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
-		if (!xskq_peek_desc(xs->tx, &desc))
+		if (!xskq_peek_desc(xs->tx, desc))
 			continue;
 
-		if (xskq_produce_addr_lazy(umem->cq, desc.addr))
+		if (xskq_produce_addr_lazy(umem->cq, desc->addr))
 			goto out;
-
-		*dma = xdp_umem_get_dma(umem, desc.addr);
-		*len = desc.len;
 
 		xskq_discard_desc(xs->tx);
 		rcu_read_unlock();
@@ -638,6 +640,26 @@ static int xsk_getsockopt(struct socket *sock, int level, int optname,
 
 		len = sizeof(off);
 		if (copy_to_user(optval, &off, len))
+			return -EFAULT;
+		if (put_user(len, optlen))
+			return -EFAULT;
+
+		return 0;
+	}
+	case XDP_OPTIONS:
+	{
+		struct xdp_options opts = {};
+
+		if (len < sizeof(opts))
+			return -EINVAL;
+
+		mutex_lock(&xs->mutex);
+		if (xs->zc)
+			opts.flags |= XDP_OPTIONS_ZEROCOPY;
+		mutex_unlock(&xs->mutex);
+
+		len = sizeof(opts);
+		if (copy_to_user(optval, &opts, len))
 			return -EFAULT;
 		if (put_user(len, optlen))
 			return -EFAULT;

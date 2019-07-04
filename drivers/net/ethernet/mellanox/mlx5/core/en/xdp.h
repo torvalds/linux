@@ -39,11 +39,13 @@
 	(sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
 #define MLX5E_XDP_TX_DS_COUNT (MLX5E_XDP_TX_EMPTY_DS_COUNT + 1 /* SG DS */)
 
-int mlx5e_xdp_max_mtu(struct mlx5e_params *params);
+struct mlx5e_xsk_param;
+int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk);
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
-		      void *va, u16 *rx_headroom, u32 *len);
-bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq);
-void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq);
+		      void *va, u16 *rx_headroom, u32 *len, bool xsk);
+void mlx5e_xdp_mpwqe_complete(struct mlx5e_xdpsq *sq);
+bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq);
+void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq);
 void mlx5e_set_xmit_fp(struct mlx5e_xdpsq *sq, bool is_mpw);
 void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq);
 int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
@@ -64,6 +66,21 @@ static inline void mlx5e_xdp_tx_disable(struct mlx5e_priv *priv)
 static inline bool mlx5e_xdp_tx_is_enabled(struct mlx5e_priv *priv)
 {
 	return test_bit(MLX5E_STATE_XDP_TX_ENABLED, &priv->state);
+}
+
+static inline void mlx5e_xdp_set_open(struct mlx5e_priv *priv)
+{
+	set_bit(MLX5E_STATE_XDP_OPEN, &priv->state);
+}
+
+static inline void mlx5e_xdp_set_closed(struct mlx5e_priv *priv)
+{
+	clear_bit(MLX5E_STATE_XDP_OPEN, &priv->state);
+}
+
+static inline bool mlx5e_xdp_is_open(struct mlx5e_priv *priv)
+{
+	return test_bit(MLX5E_STATE_XDP_OPEN, &priv->state);
 }
 
 static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
@@ -97,15 +114,14 @@ static inline void mlx5e_xdp_update_inline_state(struct mlx5e_xdpsq *sq)
 }
 
 static inline void
-mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi,
+mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
+			 struct mlx5e_xdp_xmit_data *xdptxd,
 			 struct mlx5e_xdpsq_stats *stats)
 {
 	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
-	dma_addr_t dma_addr    = xdpi->dma_addr;
-	struct xdp_frame *xdpf = xdpi->xdpf;
 	struct mlx5_wqe_data_seg *dseg =
 		(struct mlx5_wqe_data_seg *)session->wqe + session->ds_count;
-	u16 dma_len = xdpf->len;
+	u32 dma_len = xdptxd->len;
 
 	session->pkt_count++;
 
@@ -124,7 +140,7 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi,
 		}
 
 		inline_dseg->byte_count = cpu_to_be32(dma_len | MLX5_INLINE_SEG);
-		memcpy(inline_dseg->data, xdpf->data, dma_len);
+		memcpy(inline_dseg->data, xdptxd->data, dma_len);
 
 		session->ds_count += ds_cnt;
 		stats->inlnw++;
@@ -132,7 +148,7 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi,
 	}
 
 no_inline:
-	dseg->addr       = cpu_to_be64(dma_addr);
+	dseg->addr       = cpu_to_be64(xdptxd->dma_addr);
 	dseg->byte_count = cpu_to_be32(dma_len);
 	dseg->lkey       = sq->mkey_be;
 	session->ds_count++;
