@@ -462,11 +462,17 @@ struct xfs_bulk_ireq {
 	uint32_t	flags;		/* I/O: operation flags		*/
 	uint32_t	icount;		/* I: count of entries in buffer */
 	uint32_t	ocount;		/* O: count of entries filled out */
-	uint32_t	reserved32;	/* must be zero			*/
+	uint32_t	agno;		/* I: see comment for IREQ_AGNO	*/
 	uint64_t	reserved[5];	/* must be zero			*/
 };
 
-#define XFS_BULK_IREQ_FLAGS_ALL	(0)
+/*
+ * Only return results from the specified @agno.  If @ino is zero, start
+ * with the first inode of @agno.
+ */
+#define XFS_BULK_IREQ_AGNO	(1 << 0)
+
+#define XFS_BULK_IREQ_FLAGS_ALL	(XFS_BULK_IREQ_AGNO)
 
 /*
  * ioctl structures for v5 bulkstat and inumbers requests

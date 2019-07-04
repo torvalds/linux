@@ -519,6 +519,7 @@ xfs_iwalk(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	xfs_ino_t		startino,
+	unsigned int		flags,
 	xfs_iwalk_fn		iwalk_fn,
 	unsigned int		inode_records,
 	void			*data)
@@ -538,6 +539,7 @@ xfs_iwalk(
 	int			error;
 
 	ASSERT(agno < mp->m_sb.sb_agcount);
+	ASSERT(!(flags & ~XFS_IWALK_FLAGS_ALL));
 
 	error = xfs_iwalk_alloc(&iwag);
 	if (error)
@@ -548,6 +550,8 @@ xfs_iwalk(
 		if (error)
 			break;
 		iwag.startino = XFS_AGINO_TO_INO(mp, agno + 1, 0);
+		if (flags & XFS_INOBT_WALK_SAME_AG)
+			break;
 	}
 
 	xfs_iwalk_free(&iwag);
@@ -586,6 +590,7 @@ int
 xfs_iwalk_threaded(
 	struct xfs_mount	*mp,
 	xfs_ino_t		startino,
+	unsigned int		flags,
 	xfs_iwalk_fn		iwalk_fn,
 	unsigned int		inode_records,
 	bool			polled,
@@ -597,6 +602,7 @@ xfs_iwalk_threaded(
 	int			error;
 
 	ASSERT(agno < mp->m_sb.sb_agcount);
+	ASSERT(!(flags & ~XFS_IWALK_FLAGS_ALL));
 
 	nr_threads = xfs_pwork_guess_datadev_parallelism(mp);
 	error = xfs_pwork_init(mp, &pctl, xfs_iwalk_ag_work, "xfs_iwalk",
@@ -618,6 +624,8 @@ xfs_iwalk_threaded(
 		iwag->sz_recs = xfs_iwalk_prefetch(inode_records);
 		xfs_pwork_queue(&pctl, &iwag->pwork);
 		startino = XFS_AGINO_TO_INO(mp, agno + 1, 0);
+		if (flags & XFS_INOBT_WALK_SAME_AG)
+			break;
 	}
 
 	if (polled)
@@ -674,6 +682,7 @@ xfs_inobt_walk(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	xfs_ino_t		startino,
+	unsigned int		flags,
 	xfs_inobt_walk_fn	inobt_walk_fn,
 	unsigned int		inobt_records,
 	void			*data)
@@ -691,6 +700,7 @@ xfs_inobt_walk(
 	int			error;
 
 	ASSERT(agno < mp->m_sb.sb_agcount);
+	ASSERT(!(flags & ~XFS_INOBT_WALK_FLAGS_ALL));
 
 	error = xfs_iwalk_alloc(&iwag);
 	if (error)
@@ -701,6 +711,8 @@ xfs_inobt_walk(
 		if (error)
 			break;
 		iwag.startino = XFS_AGINO_TO_INO(mp, agno + 1, 0);
+		if (flags & XFS_INOBT_WALK_SAME_AG)
+			break;
 	}
 
 	xfs_iwalk_free(&iwag);

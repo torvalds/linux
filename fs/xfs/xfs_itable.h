@@ -12,7 +12,11 @@ struct xfs_ibulk {
 	xfs_ino_t		startino; /* start with this inode */
 	unsigned int		icount;   /* number of elements in ubuffer */
 	unsigned int		ocount;   /* number of records returned */
+	unsigned int		flags;    /* see XFS_IBULK_FLAG_* */
 };
+
+/* Only iterate within the same AG as startino */
+#define XFS_IBULK_SAME_AG	(XFS_IWALK_SAME_AG)
 
 /* Return value that means we want to abort the walk. */
 #define XFS_IBULK_ABORT		(XFS_IWALK_ABORT)

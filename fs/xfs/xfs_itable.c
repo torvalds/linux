@@ -247,8 +247,8 @@ xfs_bulkstat(
 	if (!bc.buf)
 		return -ENOMEM;
 
-	error = xfs_iwalk(breq->mp, NULL, breq->startino, xfs_bulkstat_iwalk,
-			breq->icount, &bc);
+	error = xfs_iwalk(breq->mp, NULL, breq->startino, breq->flags,
+			xfs_bulkstat_iwalk, breq->icount, &bc);
 
 	kmem_free(bc.buf);
 
@@ -367,7 +367,7 @@ xfs_inumbers(
 	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
 		return 0;
 
-	error = xfs_inobt_walk(breq->mp, NULL, breq->startino,
+	error = xfs_inobt_walk(breq->mp, NULL, breq->startino, breq->flags,
 			xfs_inumbers_walk, breq->icount, &ic);
 
 	/*
