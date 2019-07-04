@@ -35,6 +35,8 @@
 static volatile sig_atomic_t want_segv;
 static volatile unsigned long segv_addr;
 
+static unsigned short *shared_scratch;
+
 static int nerrs;
 
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
@@ -242,16 +244,11 @@ static void do_remote_base()
 
 static __thread int set_thread_area_entry_number = -1;
 
-static void do_unexpected_base(void)
+static unsigned short load_gs(void)
 {
 	/*
-	 * The goal here is to try to arrange for GS == 0, GSBASE !=
-	 * 0, and for the the kernel the think that GSBASE == 0.
-	 *
-	 * To make the test as reliable as possible, this uses
-	 * explicit descriptors.  (This is not the only way.  This
-	 * could use ARCH_SET_GS with a low, nonzero base, but the
-	 * relevant side effect of ARCH_SET_GS could change.)
+	 * Sets GS != 0 and GSBASE != 0 but arranges for the kernel to think
+	 * that GSBASE == 0 (i.e. thread.gsbase == 0).
 	 */
 
 	/* Step 1: tell the kernel that we have GSBASE == 0. */
@@ -271,8 +268,9 @@ static void do_unexpected_base(void)
 		.useable         = 0
 	};
 	if (syscall(SYS_modify_ldt, 1, &desc, sizeof(desc)) == 0) {
-		printf("\tother thread: using LDT slot 0\n");
+		printf("\tusing LDT slot 0\n");
 		asm volatile ("mov %0, %%gs" : : "rm" ((unsigned short)0x7));
+		return 0x7;
 	} else {
 		/* No modify_ldt for us (configured out, perhaps) */
 
@@ -294,20 +292,15 @@ static void do_unexpected_base(void)
 
 		if (ret != 0) {
 			printf("[NOTE]\tcould not create a segment -- test won't do anything\n");
-			return;
+			return 0;
 		}
-		printf("\tother thread: using GDT slot %d\n", desc.entry_number);
+		printf("\tusing GDT slot %d\n", desc.entry_number);
 		set_thread_area_entry_number = desc.entry_number;
 
-		asm volatile ("mov %0, %%gs" : : "rm" ((unsigned short)((desc.entry_number << 3) | 0x3)));
+		unsigned short gs = (unsigned short)((desc.entry_number << 3) | 0x3);
+		asm volatile ("mov %0, %%gs" : : "rm" (gs));
+		return gs;
 	}
-
-	/*
-	 * Step 3: set the selector back to zero.  On AMD chips, this will
-	 * preserve GSBASE.
-	 */
-
-	asm volatile ("mov %0, %%gs" : : "rm" ((unsigned short)0));
 }
 
 void test_wrbase(unsigned short index, unsigned long base)
@@ -346,12 +339,19 @@ static void *threadproc(void *ctx)
 		if (ftx == 3)
 			return NULL;
 
-		if (ftx == 1)
+		if (ftx == 1) {
 			do_remote_base();
-		else if (ftx == 2)
-			do_unexpected_base();
-		else
+		} else if (ftx == 2) {
+			/*
+			 * On AMD chips, this causes GSBASE != 0, GS == 0, and
+			 * thread.gsbase == 0.
+			 */
+
+			load_gs();
+			asm volatile ("mov %0, %%gs" : : "rm" ((unsigned short)0));
+		} else {
 			errx(1, "helper thread got bad command");
+		}
 
 		ftx = 0;
 		syscall(SYS_futex, &ftx, FUTEX_WAKE, 0, NULL, NULL, 0);
@@ -453,12 +453,7 @@ static void test_ptrace_write_gsbase(void)
 	if (child == 0) {
 		printf("[RUN]\tPTRACE_POKE(), write GSBASE from ptracer\n");
 
-		/*
-		 * Use the LDT setup and fetch the GSBASE from the LDT
-		 * by switching to the (nonzero) selector (again)
-		 */
-		do_unexpected_base();
-		asm volatile ("mov %0, %%gs" : : "rm" ((unsigned short)0x7));
+		*shared_scratch = load_gs();
 
 		if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) != 0)
 			err(1, "PTRACE_TRACEME");
@@ -476,7 +471,7 @@ static void test_ptrace_write_gsbase(void)
 
 		gs = ptrace(PTRACE_PEEKUSER, child, gs_offset, NULL);
 
-		if (gs != 0x7) {
+		if (gs != *shared_scratch) {
 			nerrs++;
 			printf("[FAIL]\tGS is not prepared with nonzero\n");
 			goto END;
@@ -494,16 +489,24 @@ static void test_ptrace_write_gsbase(void)
 		 * selector value is changed or not by the GSBASE write in
 		 * a ptracer.
 		 */
-		if (gs != 0x7) {
+		if (gs != *shared_scratch) {
 			nerrs++;
 			printf("[FAIL]\tGS changed to %lx\n", gs);
+
+			/*
+			 * On older kernels, poking a nonzero value into the
+			 * base would zero the selector.  On newer kernels,
+			 * this behavior has changed -- poking the base
+			 * changes only the base and, if FSGSBASE is not
+			 * available, this may have no effect.
+			 */
+			if (gs == 0)
+				printf("\tNote: this is expected behavior on older kernels.\n");
 		} else if (have_fsgsbase && (base != 0xFF)) {
 			nerrs++;
 			printf("[FAIL]\tGSBASE changed to %lx\n", base);
 		} else {
-			printf("[OK]\tGS remained 0x7 %s");
-			if (have_fsgsbase)
-				printf("and GSBASE changed to 0xFF");
+			printf("[OK]\tGS remained 0x%hx%s", *shared_scratch, have_fsgsbase ? " and GSBASE changed to 0xFF" : "");
 			printf("\n");
 		}
 	}
@@ -515,6 +518,9 @@ END:
 int main()
 {
 	pthread_t thread;
+
+	shared_scratch = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
+			      MAP_ANONYMOUS | MAP_SHARED, -1, 0);
 
 	/* Probe FSGSBASE */
 	sethandler(SIGILL, sigill, 0);
