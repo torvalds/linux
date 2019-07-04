@@ -66,7 +66,7 @@ MODULE_PARM_DESC(resetmode,
 
 static struct {
 	unsigned short sch_wdtba;
-	struct spinlock unlock_sequence;
+	spinlock_t unlock_sequence;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
