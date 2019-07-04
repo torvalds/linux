@@ -64,12 +64,15 @@ struct panel_desc {
 	 *           turn the display off (no content is visible)
 	 * @unprepare: the time (in milliseconds) that it takes for the panel
 	 *             to power itself down completely
+	 * @reset: the time (in milliseconds) that it takes for the panel
+	 *         to reset itself completely
 	 */
 	struct {
 		unsigned int prepare;
 		unsigned int enable;
 		unsigned int disable;
 		unsigned int unprepare;
+		unsigned int reset;
 	} delay;
 
 	u32 bus_format;
@@ -89,6 +92,7 @@ struct panel_simple {
 	struct i2c_adapter *ddc;
 
 	struct gpio_desc *enable_gpio;
+	struct gpio_desc *reset_gpio;
 };
 
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
@@ -252,6 +256,8 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	if (!p->prepared)
 		return 0;
 
+	gpiod_direction_output(p->reset_gpio, 1);
+
 	gpiod_direction_output(p->enable_gpio, 0);
 
 	panel_simple_regulator_disable(panel);
@@ -282,6 +288,13 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 	if (p->desc->delay.prepare)
 		msleep(p->desc->delay.prepare);
+
+	gpiod_direction_output(p->reset_gpio, 1);
+
+	if (p->desc->delay.reset)
+		msleep(p->desc->delay.reset);
+
+	gpiod_direction_output(p->reset_gpio, 0);
 
 	p->prepared = true;
 
@@ -380,7 +393,15 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	if (IS_ERR(panel->enable_gpio)) {
 		err = PTR_ERR(panel->enable_gpio);
 		if (err != -EPROBE_DEFER)
-			dev_err(dev, "failed to request GPIO: %d\n", err);
+			dev_err(dev, "failed to get enable GPIO: %d\n", err);
+		return err;
+	}
+
+	panel->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
+	if (IS_ERR(panel->reset_gpio)) {
+		err = PTR_ERR(panel->reset_gpio);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev, "failed to get reset GPIO: %d\n", err);
 		return err;
 	}
 
@@ -2678,6 +2699,7 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 	of_property_read_u32(np, "enable-delay-ms", &desc->delay.enable);
 	of_property_read_u32(np, "disable-delay-ms", &desc->delay.disable);
 	of_property_read_u32(np, "unprepare-delay-ms", &desc->delay.unprepare);
+	of_property_read_u32(np, "reset-delay-ms", &desc->delay.reset);
 	of_property_read_u32(np, "bus-format", &desc->bus_format);
 
 	return 0;
