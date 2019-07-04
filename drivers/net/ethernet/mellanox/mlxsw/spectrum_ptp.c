@@ -952,6 +952,54 @@ static int mlxsw_sp1_ptp_mtpppc_update(struct mlxsw_sp_port *mlxsw_sp_port,
 				       ing_types, egr_types);
 }
 
+static bool mlxsw_sp1_ptp_hwtstamp_enabled(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	return mlxsw_sp_port->ptp.ing_types || mlxsw_sp_port->ptp.egr_types;
+}
+
+static int
+mlxsw_sp1_ptp_port_shaper_set(struct mlxsw_sp_port *mlxsw_sp_port, bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char qeec_pl[MLXSW_REG_QEEC_LEN];
+
+	mlxsw_reg_qeec_ptps_pack(qeec_pl, mlxsw_sp_port->local_port, enable);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qeec), qeec_pl);
+}
+
+static int mlxsw_sp1_ptp_port_shaper_check(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char ptys_pl[MLXSW_REG_PTYS_LEN];
+	u32 eth_proto_oper, speed;
+	bool ptps = false;
+	int err, i;
+
+	if (!mlxsw_sp1_ptp_hwtstamp_enabled(mlxsw_sp_port))
+		return mlxsw_sp1_ptp_port_shaper_set(mlxsw_sp_port, false);
+
+	port_type_speed_ops = mlxsw_sp->port_type_speed_ops;
+	port_type_speed_ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl,
+					       mlxsw_sp_port->local_port, 0,
+					       false);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
+	if (err)
+		return err;
+	port_type_speed_ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, NULL, NULL,
+						 &eth_proto_oper);
+
+	speed = port_type_speed_ops->from_ptys_speed(mlxsw_sp, eth_proto_oper);
+	for (i = 0; i < MLXSW_SP1_PTP_SHAPER_PARAMS_LEN; i++) {
+		if (mlxsw_sp1_ptp_shaper_params[i].ethtool_speed == speed) {
+			ptps = true;
+			break;
+		}
+	}
+
+	return mlxsw_sp1_ptp_port_shaper_set(mlxsw_sp_port, ptps);
+}
+
 int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			       struct hwtstamp_config *config)
 {
@@ -972,6 +1020,10 @@ int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->ptp.hwtstamp_config = *config;
 	mlxsw_sp_port->ptp.ing_types = ing_types;
 	mlxsw_sp_port->ptp.egr_types = egr_types;
+
+	err = mlxsw_sp1_ptp_port_shaper_check(mlxsw_sp_port);
+	if (err)
+		return err;
 
 	/* Notify the ioctl caller what we are actually timestamping. */
 	config->rx_filter = rx_filter;
