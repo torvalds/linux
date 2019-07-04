@@ -305,17 +305,17 @@ void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
 }
 
 static u32
-gen11_gt_engine_identity(struct drm_i915_private * const i915,
+gen11_gt_engine_identity(struct intel_gt *gt,
 			 const unsigned int bank, const unsigned int bit);
 
-static bool gen11_reset_one_iir(struct drm_i915_private * const i915,
+static bool gen11_reset_one_iir(struct intel_gt *gt,
 				const unsigned int bank,
 				const unsigned int bit)
 {
-	void __iomem * const regs = i915->uncore.regs;
+	void __iomem * const regs = gt->uncore->regs;
 	u32 dw;
 
-	lockdep_assert_held(&i915->irq_lock);
+	lockdep_assert_held(&gt->i915->irq_lock);
 
 	dw = raw_reg_read(regs, GEN11_GT_INTR_DW(bank));
 	if (dw & BIT(bit)) {
@@ -323,7 +323,7 @@ static bool gen11_reset_one_iir(struct drm_i915_private * const i915,
 		 * According to the BSpec, DW_IIR bits cannot be cleared without
 		 * first servicing the Selector & Shared IIR registers.
 		 */
-		gen11_gt_engine_identity(i915, bank, bit);
+		gen11_gt_engine_identity(gt, bank, bit);
 
 		/*
 		 * We locked GT INT DW by reading it. If we want to (try
@@ -528,7 +528,7 @@ void gen11_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 {
 	spin_lock_irq(&dev_priv->irq_lock);
 
-	while (gen11_reset_one_iir(dev_priv, 0, GEN11_GTPM))
+	while (gen11_reset_one_iir(&dev_priv->gt, 0, GEN11_GTPM))
 		;
 
 	dev_priv->gt_pm.rps.pm_iir = 0;
@@ -555,7 +555,7 @@ void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 	WARN_ON_ONCE(rps->pm_iir);
 
 	if (INTEL_GEN(dev_priv) >= 11)
-		WARN_ON_ONCE(gen11_reset_one_iir(dev_priv, 0, GEN11_GTPM));
+		WARN_ON_ONCE(gen11_reset_one_iir(&dev_priv->gt, 0, GEN11_GTPM));
 	else
 		WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
 
@@ -635,7 +635,7 @@ void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv)
 void gen11_reset_guc_interrupts(struct drm_i915_private *i915)
 {
 	spin_lock_irq(&i915->irq_lock);
-	gen11_reset_one_iir(i915, 0, GEN11_GUC);
+	gen11_reset_one_iir(&i915->gt, 0, GEN11_GUC);
 	spin_unlock_irq(&i915->irq_lock);
 }
 
@@ -646,7 +646,7 @@ void gen11_enable_guc_interrupts(struct drm_i915_private *dev_priv)
 		u32 events = REG_FIELD_PREP(ENGINE1_MASK,
 					    GEN11_GUC_INTR_GUC2HOST);
 
-		WARN_ON_ONCE(gen11_reset_one_iir(dev_priv, 0, GEN11_GUC));
+		WARN_ON_ONCE(gen11_reset_one_iir(&dev_priv->gt, 0, GEN11_GUC));
 		I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, events);
 		I915_WRITE(GEN11_GUC_SG_INTR_MASK, ~events);
 		dev_priv->guc.interrupts.enabled = true;
@@ -3033,14 +3033,14 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 }
 
 static u32
-gen11_gt_engine_identity(struct drm_i915_private * const i915,
+gen11_gt_engine_identity(struct intel_gt *gt,
 			 const unsigned int bank, const unsigned int bit)
 {
-	void __iomem * const regs = i915->uncore.regs;
+	void __iomem * const regs = gt->uncore->regs;
 	u32 timeout_ts;
 	u32 ident;
 
-	lockdep_assert_held(&i915->irq_lock);
+	lockdep_assert_held(&gt->i915->irq_lock);
 
 	raw_reg_write(regs, GEN11_IIR_REG_SELECTOR(bank), BIT(bit));
 
@@ -3067,9 +3067,11 @@ gen11_gt_engine_identity(struct drm_i915_private * const i915,
 }
 
 static void
-gen11_other_irq_handler(struct drm_i915_private * const i915,
-			const u8 instance, const u16 iir)
+gen11_other_irq_handler(struct intel_gt *gt, const u8 instance,
+			const u16 iir)
 {
+	struct drm_i915_private *i915 = gt->i915;
+
 	if (instance == OTHER_GUC_INSTANCE)
 		return gen11_guc_irq_handler(i915, iir);
 
@@ -3081,13 +3083,13 @@ gen11_other_irq_handler(struct drm_i915_private * const i915,
 }
 
 static void
-gen11_engine_irq_handler(struct drm_i915_private * const i915,
-			 const u8 class, const u8 instance, const u16 iir)
+gen11_engine_irq_handler(struct intel_gt *gt, const u8 class,
+			 const u8 instance, const u16 iir)
 {
 	struct intel_engine_cs *engine;
 
 	if (instance <= MAX_ENGINE_INSTANCE)
-		engine = i915->engine_class[class][instance];
+		engine = gt->i915->engine_class[class][instance];
 	else
 		engine = NULL;
 
@@ -3099,8 +3101,7 @@ gen11_engine_irq_handler(struct drm_i915_private * const i915,
 }
 
 static void
-gen11_gt_identity_handler(struct drm_i915_private * const i915,
-			  const u32 identity)
+gen11_gt_identity_handler(struct intel_gt *gt, const u32 identity)
 {
 	const u8 class = GEN11_INTR_ENGINE_CLASS(identity);
 	const u8 instance = GEN11_INTR_ENGINE_INSTANCE(identity);
@@ -3110,31 +3111,30 @@ gen11_gt_identity_handler(struct drm_i915_private * const i915,
 		return;
 
 	if (class <= COPY_ENGINE_CLASS)
-		return gen11_engine_irq_handler(i915, class, instance, intr);
+		return gen11_engine_irq_handler(gt, class, instance, intr);
 
 	if (class == OTHER_CLASS)
-		return gen11_other_irq_handler(i915, instance, intr);
+		return gen11_other_irq_handler(gt, instance, intr);
 
 	WARN_ONCE(1, "unknown interrupt class=0x%x, instance=0x%x, intr=0x%x\n",
 		  class, instance, intr);
 }
 
 static void
-gen11_gt_bank_handler(struct drm_i915_private * const i915,
-		      const unsigned int bank)
+gen11_gt_bank_handler(struct intel_gt *gt, const unsigned int bank)
 {
-	void __iomem * const regs = i915->uncore.regs;
+	void __iomem * const regs = gt->uncore->regs;
 	unsigned long intr_dw;
 	unsigned int bit;
 
-	lockdep_assert_held(&i915->irq_lock);
+	lockdep_assert_held(&gt->i915->irq_lock);
 
 	intr_dw = raw_reg_read(regs, GEN11_GT_INTR_DW(bank));
 
 	for_each_set_bit(bit, &intr_dw, 32) {
-		const u32 ident = gen11_gt_engine_identity(i915, bank, bit);
+		const u32 ident = gen11_gt_engine_identity(gt, bank, bit);
 
-		gen11_gt_identity_handler(i915, ident);
+		gen11_gt_identity_handler(gt, ident);
 	}
 
 	/* Clear must be after shared has been served for engine */
@@ -3142,25 +3142,25 @@ gen11_gt_bank_handler(struct drm_i915_private * const i915,
 }
 
 static void
-gen11_gt_irq_handler(struct drm_i915_private * const i915,
-		     const u32 master_ctl)
+gen11_gt_irq_handler(struct intel_gt *gt, const u32 master_ctl)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	unsigned int bank;
 
 	spin_lock(&i915->irq_lock);
 
 	for (bank = 0; bank < 2; bank++) {
 		if (master_ctl & GEN11_GT_DW_IRQ(bank))
-			gen11_gt_bank_handler(i915, bank);
+			gen11_gt_bank_handler(gt, bank);
 	}
 
 	spin_unlock(&i915->irq_lock);
 }
 
 static u32
-gen11_gu_misc_irq_ack(struct drm_i915_private *dev_priv, const u32 master_ctl)
+gen11_gu_misc_irq_ack(struct intel_gt *gt, const u32 master_ctl)
 {
-	void __iomem * const regs = dev_priv->uncore.regs;
+	void __iomem * const regs = gt->uncore->regs;
 	u32 iir;
 
 	if (!(master_ctl & GEN11_GU_MISC_IRQ))
@@ -3174,10 +3174,10 @@ gen11_gu_misc_irq_ack(struct drm_i915_private *dev_priv, const u32 master_ctl)
 }
 
 static void
-gen11_gu_misc_irq_handler(struct drm_i915_private *dev_priv, const u32 iir)
+gen11_gu_misc_irq_handler(struct intel_gt *gt, const u32 iir)
 {
 	if (iir & GEN11_GU_MISC_GSE)
-		intel_opregion_asle_intr(dev_priv);
+		intel_opregion_asle_intr(gt->i915);
 }
 
 static inline u32 gen11_master_intr_disable(void __iomem * const regs)
@@ -3202,6 +3202,7 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private * const i915 = arg;
 	void __iomem * const regs = i915->uncore.regs;
+	struct intel_gt *gt = &i915->gt;
 	u32 master_ctl;
 	u32 gu_misc_iir;
 
@@ -3215,7 +3216,7 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 	}
 
 	/* Find, clear, then process each source of interrupt. */
-	gen11_gt_irq_handler(i915, master_ctl);
+	gen11_gt_irq_handler(gt, master_ctl);
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	if (master_ctl & GEN11_DISPLAY_IRQ) {
@@ -3230,11 +3231,11 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 		enable_rpm_wakeref_asserts(&i915->runtime_pm);
 	}
 
-	gu_misc_iir = gen11_gu_misc_irq_ack(i915, master_ctl);
+	gu_misc_iir = gen11_gu_misc_irq_ack(gt, master_ctl);
 
 	gen11_master_intr_enable(regs);
 
-	gen11_gu_misc_irq_handler(i915, gu_misc_iir);
+	gen11_gu_misc_irq_handler(gt, gu_misc_iir);
 
 	return IRQ_HANDLED;
 }
@@ -3590,8 +3591,10 @@ static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 		ibx_irq_reset(dev_priv);
 }
 
-static void gen11_gt_irq_reset(struct drm_i915_private *dev_priv)
+static void gen11_gt_irq_reset(struct intel_gt *gt)
 {
+	struct drm_i915_private *dev_priv = gt->i915;
+
 	/* Disable RCS, BCS, VCS and VECS class engines. */
 	I915_WRITE(GEN11_RENDER_COPY_INTR_ENABLE, 0);
 	I915_WRITE(GEN11_VCS_VECS_INTR_ENABLE,	  0);
@@ -3616,7 +3619,7 @@ static void gen11_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen11_master_intr_disable(dev_priv->uncore.regs);
 
-	gen11_gt_irq_reset(dev_priv);
+	gen11_gt_irq_reset(&dev_priv->gt);
 
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, 0);
 
@@ -4222,8 +4225,9 @@ static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 	gen8_master_intr_enable(dev_priv->uncore.regs);
 }
 
-static void gen11_gt_irq_postinstall(struct drm_i915_private *dev_priv)
+static void gen11_gt_irq_postinstall(struct intel_gt *gt)
 {
+	struct drm_i915_private *dev_priv = gt->i915;
 	const u32 irqs = GT_RENDER_USER_INTERRUPT | GT_CONTEXT_SWITCH_INTERRUPT;
 
 	BUILD_BUG_ON(irqs & 0xffff0000);
@@ -4275,14 +4279,14 @@ static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		icp_irq_postinstall(dev_priv);
 
-	gen11_gt_irq_postinstall(dev_priv);
+	gen11_gt_irq_postinstall(&dev_priv->gt);
 	gen8_de_irq_postinstall(dev_priv);
 
 	GEN3_IRQ_INIT(uncore, GEN11_GU_MISC_, ~gu_misc_masked, gu_misc_masked);
 
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
-	gen11_master_intr_enable(dev_priv->uncore.regs);
+	gen11_master_intr_enable(uncore->regs);
 	POSTING_READ(GEN11_GFX_MSTR_IRQ);
 }
 
