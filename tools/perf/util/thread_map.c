@@ -13,9 +13,9 @@
 #include <string.h>
 #include <api/fs/fs.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include "asm/bug.h"
 #include "thread_map.h"
-#include "util.h"
 #include "debug.h"
 #include "event.h"
 

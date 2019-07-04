@@ -43,7 +43,6 @@
 #include "perf.h"
 #include "builtin.h"
 #include "util/cgroup.h"
-#include "util/util.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/pmu.h"
@@ -67,6 +66,7 @@
 #include "asm/bug.h"
 
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 #include <api/fs/fs.h>
 #include <errno.h>
 #include <signal.h>

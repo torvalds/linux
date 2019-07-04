@@ -8,7 +8,6 @@
  */
 #include "builtin.h"
 
-#include "util/util.h"
 #include "util/config.h"
 
 #include "util/annotate.h"
@@ -16,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/err.h>
+#include <linux/zalloc.h>
 #include "util/map.h"
 #include "util/symbol.h"
 #include "util/callchain.h"

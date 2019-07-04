@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "../util.h"
-#include "../../util/util.h"
 #include "../../util/debug.h"
 #include "gtk.h"
 
 #include <string.h>
-
+#include <linux/zalloc.h>
 
 struct perf_gtk_context *pgctx;
 

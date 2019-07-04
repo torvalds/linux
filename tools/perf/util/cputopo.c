@@ -4,10 +4,10 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <api/fs/fs.h>
+#include <linux/zalloc.h>
 
 #include "cputopo.h"
 #include "cpumap.h"
-#include "util.h"
 #include "env.h"
 
 #define CORE_SIB_FMT \

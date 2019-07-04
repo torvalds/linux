@@ -5,10 +5,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include "session.h"
 #include "thread.h"
 #include "thread-stack.h"
-#include "util.h"
 #include "debug.h"
 #include "namespaces.h"
 #include "comm.h"

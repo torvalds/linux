@@ -14,6 +14,7 @@
 #include <subcmd/help.h>
 #include "util/debug.h"
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <time.h>
 #include <stdlib.h>
+#include <linux/zalloc.h>
 
 #include "parse-events.h"
 #include "evlist.h"

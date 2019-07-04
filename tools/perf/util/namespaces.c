@@ -5,7 +5,6 @@
  */
 
 #include "namespaces.h"
-#include "util.h"
 #include "event.h"
 #include "get_current_dir_name.h"
 #include <sys/types.h>
@@ -18,6 +17,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <asm/bug.h>
+#include <linux/zalloc.h>
 
 struct namespaces *namespaces__new(struct namespaces_event *event)
 {

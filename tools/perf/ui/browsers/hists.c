@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <sys/ttydefaults.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 #include "../../util/callchain.h"
 #include "../../util/evsel.h"
@@ -18,7 +19,6 @@
 #include "../../util/symbol.h"
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
-#include "../../util/util.h"
 #include "../../util/top.h"
 #include "../../util/thread.h"
 #include "../../arch/common.h"

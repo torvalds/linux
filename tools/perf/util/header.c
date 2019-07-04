@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <inttypes.h>
-#include "util.h"
 #include "string2.h"
 #include <sys/param.h>
 #include <sys/types.h>
@@ -15,6 +14,7 @@
 #include <linux/bitops.h>
 #include <linux/string.h>
 #include <linux/stringify.h>
+#include <linux/zalloc.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <linux/time64.h>

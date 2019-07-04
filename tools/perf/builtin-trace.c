@@ -61,6 +61,7 @@
 #include <linux/random.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 #include <fcntl.h>
 #include <sys/sysmacros.h>
 

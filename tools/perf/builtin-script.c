@@ -14,7 +14,6 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/trace-event.h"
-#include "util/util.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/sort.h"
@@ -34,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 #include <sys/utsname.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"

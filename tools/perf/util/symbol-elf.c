@@ -17,6 +17,7 @@
 #include "debug.h"
 #include "util.h"
 #include <linux/ctype.h>
+#include <linux/zalloc.h>
 #include <symbol/kallsyms.h>
 
 #ifndef EM_AARCH64

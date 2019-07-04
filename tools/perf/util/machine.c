@@ -15,7 +15,6 @@
 #include "strlist.h"
 #include "thread.h"
 #include "vdso.h"
-#include "util.h"
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -28,6 +27,7 @@
 #include <linux/ctype.h>
 #include <symbol/kallsyms.h>
 #include <linux/mman.h>
+#include <linux/zalloc.h>
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
 

@@ -2,6 +2,7 @@
 #include <asm/bug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -21,7 +22,7 @@
 #include "dso.h"
 #include "machine.h"
 #include "auxtrace.h"
-#include "util.h"
+#include "util.h" /* O_CLOEXEC for older systems */
 #include "debug.h"
 #include "string2.h"
 #include "vdso.h"

@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <traceevent/event-parse.h>
 #include <api/fs/fs.h>
 
@@ -18,7 +19,6 @@
 #include "session.h"
 #include "tool.h"
 #include "sort.h"
-#include "util.h"
 #include "cpumap.h"
 #include "perf_regs.h"
 #include "asm/bug.h"

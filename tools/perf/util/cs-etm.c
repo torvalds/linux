@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/types.h>
+#include <linux/zalloc.h>
 
 #include <opencsd/ocsd_if_types.h>
 #include <stdlib.h>

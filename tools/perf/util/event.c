@@ -11,6 +11,7 @@
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include <api/fs/fs.h>
 #include <linux/perf_event.h>
+#include <linux/zalloc.h>
 #include "event.h"
 #include "debug.h"
 #include "hist.h"

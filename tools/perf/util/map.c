@@ -12,10 +12,10 @@
 #include "thread.h"
 #include "vdso.h"
 #include "build-id.h"
-#include "util.h"
 #include "debug.h"
 #include "machine.h"
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include "srcline.h"
 #include "namespaces.h"
 #include "unwind.h"

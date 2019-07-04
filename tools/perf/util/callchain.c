@@ -16,11 +16,11 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <math.h>
+#include <linux/zalloc.h>
 
 #include "asm/bug.h"
 
 #include "hist.h"
-#include "util.h"
 #include "sort.h"
 #include "machine.h"
 #include "map.h"

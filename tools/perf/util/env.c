@@ -2,7 +2,7 @@
 #include "cpumap.h"
 #include "env.h"
 #include <linux/ctype.h>
-#include "util.h"
+#include <linux/zalloc.h>
 #include "bpf-event.h"
 #include <errno.h>
 #include <sys/utsname.h>

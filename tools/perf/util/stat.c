@@ -6,6 +6,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
+#include <linux/zalloc.h>
 
 void update_stats(struct stats *stats, u64 val)
 {

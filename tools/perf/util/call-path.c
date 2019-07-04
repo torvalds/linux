@@ -6,8 +6,9 @@
 
 #include <linux/rbtree.h>
 #include <linux/list.h>
+#include <linux/zalloc.h>
+#include <stdlib.h>
 
-#include "util.h"
 #include "call-path.h"
 
 static void call_path__init(struct call_path *cp, struct call_path *parent,

@@ -6,7 +6,6 @@
 
 #include "util/evlist.h"
 #include "util/evsel.h"
-#include "util/util.h"
 #include "util/cache.h"
 #include "util/symbol.h"
 #include "util/thread.h"
@@ -30,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 
 static struct perf_session *session;
 

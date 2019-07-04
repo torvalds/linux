@@ -13,9 +13,9 @@
 #include <string.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 
 #include "../../util/header.h"
-#include "../../util/util.h"
 
 #define SYSINFO_MANU	"Manufacturer:"
 #define SYSINFO_TYPE	"Type:"

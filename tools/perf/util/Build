@@ -25,6 +25,7 @@ perf-y += rbtree.o
 perf-y += libstring.o
 perf-y += bitmap.o
 perf-y += hweight.o
+perf-y += zalloc.o
 perf-y += smt.o
 perf-y += strbuf.o
 perf-y += string.o
@@ -239,5 +240,9 @@ $(OUTPUT)util/hweight.o: ../lib/hweight.c FORCE
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/zalloc.o: ../lib/zalloc.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)

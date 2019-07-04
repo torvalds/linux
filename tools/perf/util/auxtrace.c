@@ -24,9 +24,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/list.h>
+#include <linux/zalloc.h>
 
 #include "../perf.h"
-#include "util.h"
 #include "evlist.h"
 #include "dso.h"
 #include "map.h"

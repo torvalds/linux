@@ -14,11 +14,11 @@
 #include "symbol.h"
 #include "map.h"
 #include "event.h"
-#include "util.h"
 #include "thread-stack.h"
 #include "callchain.h"
 #include "call-path.h"
 #include "db-export.h"
+#include <linux/zalloc.h>
 
 struct deferred_export {
 	struct list_head node;

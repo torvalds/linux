@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "callchain.h"
-#include "util.h"
 #include "build-id.h"
 #include "hist.h"
 #include "map.h"
@@ -20,6 +19,7 @@
 #include <inttypes.h>
 #include <sys/param.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he);

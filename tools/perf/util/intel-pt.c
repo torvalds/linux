@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/zalloc.h>
 
 #include "../perf.h"
 #include "session.h"
@@ -22,7 +23,6 @@
 #include "evsel.h"
 #include "map.h"
 #include "color.h"
-#include "util.h"
 #include "thread.h"
 #include "thread-stack.h"
 #include "symbol.h"
