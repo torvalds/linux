@@ -562,6 +562,8 @@ out_unlock:
 		mock_file_free(i915, file);
 		if (err)
 			return err;
+
+		i915_gem_drain_freed_objects(i915);
 	}
 
 	return 0;
@@ -672,6 +674,10 @@ static int igt_shared_ctx_exec(void *arg)
 
 			dw += rem;
 		}
+
+		mutex_unlock(&i915->drm.struct_mutex);
+		i915_gem_drain_freed_objects(i915);
+		mutex_lock(&i915->drm.struct_mutex);
 	}
 out_test:
 	if (igt_live_test_end(&t))
