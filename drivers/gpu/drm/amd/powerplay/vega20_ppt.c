@@ -3016,8 +3016,7 @@ static int vega20_get_fan_speed_percent(struct smu_context *smu,
 					uint32_t *speed)
 {
 	int ret = 0;
-	uint32_t percent = 0;
-	uint32_t current_rpm;
+	uint32_t current_rpm = 0, percent = 0;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
 	ret = smu_get_current_rpm(smu, &current_rpm);
