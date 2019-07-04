@@ -344,10 +344,7 @@ static void hsr_announce(struct timer_list *t)
 	rcu_read_unlock();
 }
 
-/* According to comments in the declaration of struct net_device, this function
- * is "Called from unregister, can be used to call free_netdev". Ok then...
- */
-static void hsr_dev_destroy(struct net_device *hsr_dev)
+void hsr_dev_destroy(struct net_device *hsr_dev)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *port;
@@ -357,15 +354,16 @@ static void hsr_dev_destroy(struct net_device *hsr_dev)
 
 	hsr_debugfs_term(hsr);
 
-	rtnl_lock();
 	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
 		hsr_del_port(port);
-	rtnl_unlock();
 
 	del_timer_sync(&hsr->prune_timer);
 	del_timer_sync(&hsr->announce_timer);
 
 	synchronize_rcu();
+
+	hsr_del_self_node(&hsr->self_node_db);
+	hsr_del_nodes(&hsr->node_db);
 }
 
 static const struct net_device_ops hsr_device_ops = {
@@ -392,7 +390,6 @@ void hsr_dev_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_NO_QUEUE;
 
 	dev->needs_free_netdev = true;
-	dev->priv_destructor = hsr_dev_destroy;
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
 			   NETIF_F_GSO_MASK | NETIF_F_HW_CSUM |
@@ -497,7 +494,7 @@ fail:
 	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
 		hsr_del_port(port);
 err_add_port:
-	hsr_del_node(&hsr->self_node_db);
+	hsr_del_self_node(&hsr->self_node_db);
 
 	return res;
 }
