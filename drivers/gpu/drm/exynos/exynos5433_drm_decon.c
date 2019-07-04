@@ -7,7 +7,6 @@
  *	Hyungwon Hwang <human.hwang@samsung.com>
  */
 
-#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/iopoll.h>
@@ -15,11 +14,15 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
-#include "exynos_drm_drv.h"
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "regs-decon5433.h"
