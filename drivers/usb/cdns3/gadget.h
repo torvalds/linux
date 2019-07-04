@@ -1079,7 +1079,6 @@ struct cdns3_trb {
 #define CDNS3_EP_ISO_SS_BURST		3
 #define CDNS3_MAX_NUM_DESCMISS_BUF	32
 #define CDNS3_DESCMIS_BUF_SIZE		2048	/* Bytes */
-#define CDNS3_WA2_NUM_BUFFERS		128
 /*-------------------------------------------------------------------------*/
 /* Used structs */
 
@@ -1090,15 +1089,11 @@ struct cdns3_device;
  * @endpoint: usb endpoint
  * @pending_req_list: list of requests queuing on transfer ring.
  * @deferred_req_list: list of requests waiting for queuing on transfer ring.
- * @wa2_descmiss_req_list: list of requests internally allocated by driver.
  * @trb_pool: transfer ring - array of transaction buffers
  * @trb_pool_dma: dma address of transfer ring
  * @cdns3_dev: device associated with this endpoint
  * @name: a human readable name e.g. ep1out
  * @flags: specify the current state of endpoint
- * @descmis_req: internal transfer object used for getting data from on-chip
- *     buffer. It can happen only if function driver doesn't send usb_request
- *     object on time.
  * @dir: endpoint direction
  * @num: endpoint number (1 - 15)
  * @type: set to bmAttributes & USB_ENDPOINT_XFERTYPE_MASK
@@ -1115,8 +1110,6 @@ struct cdns3_endpoint {
 	struct usb_ep		endpoint;
 	struct list_head	pending_req_list;
 	struct list_head	deferred_req_list;
-	struct list_head	wa2_descmiss_req_list;
-	int			wa2_counter;
 
 	struct cdns3_trb	*trb_pool;
 	dma_addr_t		trb_pool_dma;
@@ -1134,12 +1127,7 @@ struct cdns3_endpoint {
 #define EP_CLAIMED		BIT(7)
 #define EP_DEFERRED_DRDY	BIT(8)
 #define EP_QUIRK_ISO_OUT_EN	BIT(9)
-#define EP_QUIRK_EXTRA_BUF_DET	BIT(10)
-#define EP_QUIRK_EXTRA_BUF_EN	BIT(11)
-#define EP_QUIRK_END_TRANSFER	BIT(12)
 	u32			flags;
-
-	struct cdns3_request	*descmis_req;
 
 	u8			dir;
 	u8			num;
@@ -1188,7 +1176,6 @@ struct cdns3_aligned_buf {
  * @aligned_buf: object holds information about aligned buffer associated whit
  *               this endpoint
  * @flags: flag specifying special usage of request
- * @list: used by internally allocated request to add to wa2_descmiss_req_list.
  */
 struct cdns3_request {
 	struct usb_request		request;
