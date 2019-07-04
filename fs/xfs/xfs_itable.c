@@ -331,10 +331,11 @@ xfs_inumbers_walk(
 	const struct xfs_inobt_rec_incore *irec,
 	void			*data)
 {
-	struct xfs_inogrp	inogrp = {
+	struct xfs_inumbers	inogrp = {
 		.xi_startino	= XFS_AGINO_TO_INO(mp, agno, irec->ir_startino),
 		.xi_alloccount	= irec->ir_count - irec->ir_freecount,
 		.xi_allocmask	= ~irec->ir_free,
+		.xi_version	= XFS_INUMBERS_VERSION_V5,
 	};
 	struct xfs_inumbers_chunk *ic = data;
 	xfs_agino_t		agino;
@@ -380,4 +381,15 @@ xfs_inumbers(
 		error = 0;
 
 	return error;
+}
+
+/* Convert an inumbers (v5) struct to a inogrp (v1) struct. */
+void
+xfs_inumbers_to_inogrp(
+	struct xfs_inogrp		*ig1,
+	const struct xfs_inumbers	*ig)
+{
+	ig1->xi_startino = ig->xi_startino;
+	ig1->xi_alloccount = ig->xi_alloccount;
+	ig1->xi_allocmask = ig->xi_allocmask;
 }

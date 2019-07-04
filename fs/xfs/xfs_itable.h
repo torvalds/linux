@@ -46,8 +46,10 @@ void xfs_bulkstat_to_bstat(struct xfs_mount *mp, struct xfs_bstat *bs1,
 		const struct xfs_bulkstat *bstat);
 
 typedef int (*inumbers_fmt_pf)(struct xfs_ibulk *breq,
-		const struct xfs_inogrp *igrp);
+		const struct xfs_inumbers *igrp);
 
 int xfs_inumbers(struct xfs_ibulk *breq, inumbers_fmt_pf formatter);
+void xfs_inumbers_to_inogrp(struct xfs_inogrp *ig1,
+		const struct xfs_inumbers *ig);
 
 #endif	/* __XFS_ITABLE_H__ */

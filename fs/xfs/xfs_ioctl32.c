@@ -81,10 +81,14 @@ xfs_compat_growfs_rt_copyin(
 
 STATIC int
 xfs_fsinumbers_fmt_compat(
-	struct xfs_ibulk	*breq,
-	const struct xfs_inogrp	*igrp)
+	struct xfs_ibulk		*breq,
+	const struct xfs_inumbers	*ig)
 {
-	struct compat_xfs_inogrp __user *p32 = breq->ubuffer;
+	struct compat_xfs_inogrp __user	*p32 = breq->ubuffer;
+	struct xfs_inogrp		ig1;
+	struct xfs_inogrp		*igrp = &ig1;
+
+	xfs_inumbers_to_inogrp(&ig1, ig);
 
 	if (put_user(igrp->xi_startino,   &p32->xi_startino) ||
 	    put_user(igrp->xi_alloccount, &p32->xi_alloccount) ||
