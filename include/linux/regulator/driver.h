@@ -283,6 +283,11 @@ enum regulator_type {
  * @vsel_range_mask: Mask for register bitfield used for range selector
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
+ * @vsel_step: Specify the resolution of selector stepping when setting
+ *	       voltage. If 0, then no stepping is done (requested selector is
+ *	       set directly), if >0 then the regulator API will ramp the
+ *	       voltage up/down gradually each time increasing/decreasing the
+ *	       selector by the specified step value.
  * @csel_reg: Register for current limit selector using regmap set_current_limit
  * @csel_mask: Mask for register bitfield used for current limit selector
  * @apply_reg: Register for initiate voltage change on the output when
@@ -357,6 +362,7 @@ struct regulator_desc {
 	unsigned int vsel_range_mask;
 	unsigned int vsel_reg;
 	unsigned int vsel_mask;
+	unsigned int vsel_step;
 	unsigned int csel_reg;
 	unsigned int csel_mask;
 	unsigned int apply_reg;
