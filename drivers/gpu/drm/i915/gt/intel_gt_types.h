@@ -55,6 +55,9 @@ struct intel_gt {
 	ktime_t last_init_time;
 
 	struct i915_vma *scratch;
+
+	u32 pm_imr;
+	u32 pm_ier;
 };
 
 #endif /* __INTEL_GT_TYPES_H__ */

@@ -77,8 +77,8 @@ ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, u32 bits)
 
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
-void gen6_mask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
-void gen6_unmask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
+void gen6_mask_pm_irq(struct intel_gt *gt, u32 mask);
+void gen6_unmask_pm_irq(struct intel_gt *gt, u32 mask);
 void gen11_reset_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv);
