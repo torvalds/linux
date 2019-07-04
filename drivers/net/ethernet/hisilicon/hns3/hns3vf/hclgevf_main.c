@@ -994,6 +994,8 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 	u8 type;
 
 	req = (struct hclge_mbx_vf_to_pf_cmd *)desc.data;
+	type = en ? HCLGE_MBX_MAP_RING_TO_VECTOR :
+		HCLGE_MBX_UNMAP_RING_TO_VECTOR;
 
 	for (node = ring_chain; node; node = node->next) {
 		int idx_offset = HCLGE_MBX_RING_MAP_BASIC_MSG_NUM +
@@ -1003,9 +1005,6 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 			hclgevf_cmd_setup_basic_desc(&desc,
 						     HCLGEVF_OPC_MBX_VF_TO_PF,
 						     false);
-			type = en ?
-				HCLGE_MBX_MAP_RING_TO_VECTOR :
-				HCLGE_MBX_UNMAP_RING_TO_VECTOR;
 			req->msg[0] = type;
 			req->msg[1] = vector_id;
 		}
