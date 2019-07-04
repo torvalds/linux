@@ -141,10 +141,11 @@ id_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RO(id);
 
-static const struct attribute *port_hdr_attrs[] = {
+static struct attribute *port_hdr_attrs[] = {
 	&dev_attr_id.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(port_hdr);
 
 static int port_hdr_init(struct platform_device *pdev,
 			 struct dfl_feature *feature)
@@ -153,7 +154,7 @@ static int port_hdr_init(struct platform_device *pdev,
 
 	port_reset(pdev);
 
-	return sysfs_create_files(&pdev->dev.kobj, port_hdr_attrs);
+	return device_add_groups(&pdev->dev, port_hdr_groups);
 }
 
 static void port_hdr_uinit(struct platform_device *pdev,
@@ -161,7 +162,7 @@ static void port_hdr_uinit(struct platform_device *pdev,
 {
 	dev_dbg(&pdev->dev, "PORT HDR UInit.\n");
 
-	sysfs_remove_files(&pdev->dev.kobj, port_hdr_attrs);
+	device_remove_groups(&pdev->dev, port_hdr_groups);
 }
 
 static long
@@ -214,10 +215,11 @@ afu_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RO(afu_id);
 
-static const struct attribute *port_afu_attrs[] = {
+static struct attribute *port_afu_attrs[] = {
 	&dev_attr_afu_id.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(port_afu);
 
 static int port_afu_init(struct platform_device *pdev,
 			 struct dfl_feature *feature)
@@ -234,7 +236,7 @@ static int port_afu_init(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	return sysfs_create_files(&pdev->dev.kobj, port_afu_attrs);
+	return device_add_groups(&pdev->dev, port_afu_groups);
 }
 
 static void port_afu_uinit(struct platform_device *pdev,
@@ -242,7 +244,7 @@ static void port_afu_uinit(struct platform_device *pdev,
 {
 	dev_dbg(&pdev->dev, "PORT AFU UInit.\n");
 
-	sysfs_remove_files(&pdev->dev.kobj, port_afu_attrs);
+	device_remove_groups(&pdev->dev, port_afu_groups);
 }
 
 static const struct dfl_feature_ops port_afu_ops = {

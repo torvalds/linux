@@ -72,12 +72,13 @@ static ssize_t bitstream_metadata_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(bitstream_metadata);
 
-static const struct attribute *fme_hdr_attrs[] = {
+static struct attribute *fme_hdr_attrs[] = {
 	&dev_attr_ports_num.attr,
 	&dev_attr_bitstream_id.attr,
 	&dev_attr_bitstream_metadata.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(fme_hdr);
 
 static int fme_hdr_init(struct platform_device *pdev,
 			struct dfl_feature *feature)
@@ -89,7 +90,7 @@ static int fme_hdr_init(struct platform_device *pdev,
 	dev_dbg(&pdev->dev, "FME cap %llx.\n",
 		(unsigned long long)readq(base + FME_HDR_CAP));
 
-	ret = sysfs_create_files(&pdev->dev.kobj, fme_hdr_attrs);
+	ret = device_add_groups(&pdev->dev, fme_hdr_groups);
 	if (ret)
 		return ret;
 
@@ -100,7 +101,7 @@ static void fme_hdr_uinit(struct platform_device *pdev,
 			  struct dfl_feature *feature)
 {
 	dev_dbg(&pdev->dev, "FME HDR UInit.\n");
-	sysfs_remove_files(&pdev->dev.kobj, fme_hdr_attrs);
+	device_remove_groups(&pdev->dev, fme_hdr_groups);
 }
 
 static const struct dfl_feature_ops fme_hdr_ops = {
