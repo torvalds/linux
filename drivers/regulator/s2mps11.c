@@ -269,9 +269,10 @@ static const struct regulator_ops s2mps11_buck_ops = {
 	.ops		= &s2mps11_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
 	.owner		= THIS_MODULE,				\
-	.min_uV		= MIN_600_MV,				\
+	.min_uV		= MIN_650_MV,				\
 	.uV_step	= STEP_6_25_MV,				\
-	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
+	.linear_min_sel	= 8,					\
+	.n_voltages	= S2MPS11_BUCK12346_N_VOLTAGES,		\
 	.ramp_delay	= S2MPS11_RAMP_DELAY,			\
 	.vsel_reg	= S2MPS11_REG_B1CTRL2 + (num - 1) * 2,	\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
@@ -285,9 +286,10 @@ static const struct regulator_ops s2mps11_buck_ops = {
 	.ops		= &s2mps11_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
 	.owner		= THIS_MODULE,				\
-	.min_uV		= MIN_600_MV,				\
+	.min_uV		= MIN_650_MV,				\
 	.uV_step	= STEP_6_25_MV,				\
-	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
+	.linear_min_sel	= 8,					\
+	.n_voltages	= S2MPS11_BUCK5_N_VOLTAGES,		\
 	.ramp_delay	= S2MPS11_RAMP_DELAY,			\
 	.vsel_reg	= S2MPS11_REG_B5CTRL2,			\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
@@ -295,7 +297,7 @@ static const struct regulator_ops s2mps11_buck_ops = {
 	.enable_mask	= S2MPS11_ENABLE_MASK			\
 }
 
-#define regulator_desc_s2mps11_buck67810(num, min, step) {	\
+#define regulator_desc_s2mps11_buck67810(num, min, step, min_sel, voltages) {	\
 	.name		= "BUCK"#num,				\
 	.id		= S2MPS11_BUCK##num,			\
 	.ops		= &s2mps11_buck_ops,			\
@@ -303,7 +305,8 @@ static const struct regulator_ops s2mps11_buck_ops = {
 	.owner		= THIS_MODULE,				\
 	.min_uV		= min,					\
 	.uV_step	= step,					\
-	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
+	.linear_min_sel	= min_sel,				\
+	.n_voltages	= voltages,				\
 	.ramp_delay	= S2MPS11_RAMP_DELAY,			\
 	.vsel_reg	= S2MPS11_REG_B6CTRL2 + (num - 6) * 2,	\
 	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
@@ -371,11 +374,15 @@ static const struct regulator_desc s2mps11_regulators[] = {
 	regulator_desc_s2mps11_buck1_4(3),
 	regulator_desc_s2mps11_buck1_4(4),
 	regulator_desc_s2mps11_buck5,
-	regulator_desc_s2mps11_buck67810(6, MIN_600_MV, STEP_6_25_MV),
-	regulator_desc_s2mps11_buck67810(7, MIN_600_MV, STEP_12_5_MV),
-	regulator_desc_s2mps11_buck67810(8, MIN_600_MV, STEP_12_5_MV),
+	regulator_desc_s2mps11_buck67810(6, MIN_650_MV, STEP_6_25_MV, 8,
+					 S2MPS11_BUCK12346_N_VOLTAGES),
+	regulator_desc_s2mps11_buck67810(7, MIN_750_MV, STEP_12_5_MV, 0,
+					 S2MPS11_BUCK7810_N_VOLTAGES),
+	regulator_desc_s2mps11_buck67810(8, MIN_750_MV, STEP_12_5_MV, 0,
+					 S2MPS11_BUCK7810_N_VOLTAGES),
 	regulator_desc_s2mps11_buck9,
-	regulator_desc_s2mps11_buck67810(10, MIN_750_MV, STEP_12_5_MV),
+	regulator_desc_s2mps11_buck67810(10, MIN_750_MV, STEP_12_5_MV, 0,
+					 S2MPS11_BUCK7810_N_VOLTAGES),
 };
 
 static const struct regulator_ops s2mps14_reg_ops;
@@ -824,6 +831,7 @@ static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 		if (IS_ERR(gpio[reg])) {
 			dev_err(&pdev->dev, "Failed to get control GPIO for %d/%s\n",
 				reg, rdata[reg].name);
+			gpio[reg] = NULL;
 			continue;
 		}
 		if (gpio[reg])
