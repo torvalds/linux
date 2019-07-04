@@ -472,7 +472,18 @@ struct xfs_bulk_ireq {
  */
 #define XFS_BULK_IREQ_AGNO	(1 << 0)
 
-#define XFS_BULK_IREQ_FLAGS_ALL	(XFS_BULK_IREQ_AGNO)
+/*
+ * Return bulkstat information for a single inode, where @ino value is a
+ * special value, not a literal inode number.  See the XFS_BULK_IREQ_SPECIAL_*
+ * values below.  Not compatible with XFS_BULK_IREQ_AGNO.
+ */
+#define XFS_BULK_IREQ_SPECIAL	(1 << 1)
+
+#define XFS_BULK_IREQ_FLAGS_ALL	(XFS_BULK_IREQ_AGNO | \
+				 XFS_BULK_IREQ_SPECIAL)
+
+/* Operate on the root directory inode. */
+#define XFS_BULK_IREQ_SPECIAL_ROOT	(1)
 
 /*
  * ioctl structures for v5 bulkstat and inumbers requests

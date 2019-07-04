@@ -854,6 +854,25 @@ xfs_bulk_ireq_setup(
 	breq->flags = 0;
 
 	/*
+	 * The @ino parameter is a special value, so we must look it up here.
+	 * We're not allowed to have IREQ_AGNO, and we only return one inode
+	 * worth of data.
+	 */
+	if (hdr->flags & XFS_BULK_IREQ_SPECIAL) {
+		if (hdr->flags & XFS_BULK_IREQ_AGNO)
+			return -EINVAL;
+
+		switch (hdr->ino) {
+		case XFS_BULK_IREQ_SPECIAL_ROOT:
+			hdr->ino = mp->m_sb.sb_rootino;
+			break;
+		default:
+			return -EINVAL;
+		}
+		breq->icount = 1;
+	}
+
+	/*
 	 * The IREQ_AGNO flag means that we only want results from a given AG.
 	 * If @hdr->ino is zero, we start iterating in that AG.  If @hdr->ino is
 	 * beyond the specified AG then we return no results.
