@@ -4092,11 +4092,11 @@ int hclge_rss_init_hw(struct hclge_dev *hdev)
 	struct hclge_vport *vport = hdev->vport;
 	u8 *rss_indir = vport[0].rss_indirection_tbl;
 	u16 rss_size = vport[0].alloc_rss_size;
+	u16 tc_offset[HCLGE_MAX_TC_NUM] = {0};
+	u16 tc_size[HCLGE_MAX_TC_NUM] = {0};
 	u8 *key = vport[0].rss_hash_key;
 	u8 hfunc = vport[0].rss_algo;
-	u16 tc_offset[HCLGE_MAX_TC_NUM];
 	u16 tc_valid[HCLGE_MAX_TC_NUM];
-	u16 tc_size[HCLGE_MAX_TC_NUM];
 	u16 roundup_size;
 	unsigned int i;
 	int ret;
@@ -9036,12 +9036,12 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	u16 tc_offset[HCLGE_MAX_TC_NUM] = {0};
 	struct hclge_dev *hdev = vport->back;
+	u16 tc_size[HCLGE_MAX_TC_NUM] = {0};
 	int cur_rss_size = kinfo->rss_size;
 	int cur_tqps = kinfo->num_tqps;
-	u16 tc_offset[HCLGE_MAX_TC_NUM];
 	u16 tc_valid[HCLGE_MAX_TC_NUM];
-	u16 tc_size[HCLGE_MAX_TC_NUM];
 	u16 roundup_size;
 	u32 *rss_indir;
 	unsigned int i;
