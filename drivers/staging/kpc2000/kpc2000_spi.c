@@ -436,7 +436,7 @@ kp_spi_probe(struct platform_device *pldev)
 	}
 
 	master = spi_alloc_master(&pldev->dev, sizeof(struct kp_spi));
-	if (master == NULL) {
+	if (!master) {
 		dev_err(&pldev->dev, "%s: master allocation failed\n",
 			__func__);
 		return -ENOMEM;
@@ -460,7 +460,7 @@ kp_spi_probe(struct platform_device *pldev)
 		master->bus_num = pldev->id;
 
 	r = platform_get_resource(pldev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
+	if (!r) {
 		dev_err(&pldev->dev, "%s: Unable to get platform resources\n",
 			__func__);
 		status = -ENODEV;
