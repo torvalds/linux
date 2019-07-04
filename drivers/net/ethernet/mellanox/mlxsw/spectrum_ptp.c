@@ -767,6 +767,50 @@ struct mlxsw_sp1_ptp_shaper_params {
 
 static const struct mlxsw_sp1_ptp_shaper_params
 mlxsw_sp1_ptp_shaper_params[] = {
+	{
+		.ethtool_speed		= SPEED_100,
+		.port_speed		= MLXSW_REG_QPSC_PORT_SPEED_100M,
+		.shaper_time_exp	= 4,
+		.shaper_time_mantissa	= 12,
+		.shaper_inc		= 9,
+		.shaper_bs		= 1,
+		.port_to_shaper_credits	= 1,
+		.ing_timestamp_inc	= -313,
+		.egr_timestamp_inc	= 313,
+	},
+	{
+		.ethtool_speed		= SPEED_1000,
+		.port_speed		= MLXSW_REG_QPSC_PORT_SPEED_1G,
+		.shaper_time_exp	= 0,
+		.shaper_time_mantissa	= 12,
+		.shaper_inc		= 6,
+		.shaper_bs		= 0,
+		.port_to_shaper_credits	= 1,
+		.ing_timestamp_inc	= -35,
+		.egr_timestamp_inc	= 35,
+	},
+	{
+		.ethtool_speed		= SPEED_10000,
+		.port_speed		= MLXSW_REG_QPSC_PORT_SPEED_10G,
+		.shaper_time_exp	= 0,
+		.shaper_time_mantissa	= 2,
+		.shaper_inc		= 14,
+		.shaper_bs		= 1,
+		.port_to_shaper_credits	= 1,
+		.ing_timestamp_inc	= -11,
+		.egr_timestamp_inc	= 11,
+	},
+	{
+		.ethtool_speed		= SPEED_25000,
+		.port_speed		= MLXSW_REG_QPSC_PORT_SPEED_25G,
+		.shaper_time_exp	= 0,
+		.shaper_time_mantissa	= 0,
+		.shaper_inc		= 11,
+		.shaper_bs		= 1,
+		.port_to_shaper_credits	= 1,
+		.ing_timestamp_inc	= -14,
+		.egr_timestamp_inc	= 14,
+	},
 };
 
 #define MLXSW_SP1_PTP_SHAPER_PARAMS_LEN ARRAY_SIZE(mlxsw_sp1_ptp_shaper_params)
