@@ -790,26 +790,26 @@ static int rvin_open(struct file *file)
 	if (ret)
 		goto err_unlock;
 
-	if (vin->info->use_mc) {
+	if (vin->info->use_mc)
 		ret = v4l2_pipeline_pm_use(&vin->vdev.entity, 1);
-		if (ret < 0)
-			goto err_open;
-	} else {
-		if (v4l2_fh_is_singular_file(file)) {
-			ret = rvin_power_parallel(vin, true);
-			if (ret < 0)
-				goto err_open;
+	else if (v4l2_fh_is_singular_file(file))
+		ret = rvin_power_parallel(vin, true);
 
-			ret = v4l2_ctrl_handler_setup(&vin->ctrl_handler);
-			if (ret)
-				goto err_parallel;
-		}
-	}
+	if (ret < 0)
+		goto err_open;
+
+	ret = v4l2_ctrl_handler_setup(&vin->ctrl_handler);
+	if (ret)
+		goto err_power;
+
 	mutex_unlock(&vin->lock);
 
 	return 0;
-err_parallel:
-	rvin_power_parallel(vin, false);
+err_power:
+	if (vin->info->use_mc)
+		v4l2_pipeline_pm_use(&vin->vdev.entity, 0);
+	else if (v4l2_fh_is_singular_file(file))
+		rvin_power_parallel(vin, false);
 err_open:
 	v4l2_fh_release(file);
 err_unlock:
