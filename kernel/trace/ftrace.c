@@ -3095,6 +3095,10 @@ t_probe_next(struct seq_file *m, loff_t *pos)
 		hnd = &iter->probe_entry->hlist;
 
 	hash = iter->probe->ops.func_hash->filter_hash;
+
+	if (!hash)
+		return NULL;
+
 	size = 1 << hash->size_bits;
 
  retry:
