@@ -3719,6 +3719,10 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+		/* disable ras on ALL IPs */
+		if (amdgpu_device_ip_need_full_reset(tmp_adev))
+			amdgpu_ras_suspend(tmp_adev);
+
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
 
