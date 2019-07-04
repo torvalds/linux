@@ -486,6 +486,7 @@ again:
 					      prealloc, prealloc, &alloc_hint);
 	if (ret) {
 		btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc, true);
+		btrfs_delalloc_release_metadata(BTRFS_I(inode), prealloc, true);
 		goto out_put;
 	}
 
