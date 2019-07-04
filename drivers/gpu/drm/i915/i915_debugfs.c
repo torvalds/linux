@@ -1076,8 +1076,6 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_engine_cs *engine;
-	u64 acthd[I915_NUM_ENGINES];
-	struct intel_instdone instdone;
 	intel_wakeref_t wakeref;
 	enum intel_engine_id id;
 
@@ -1092,13 +1090,6 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
-		for_each_engine(engine, dev_priv, id)
-			acthd[id] = intel_engine_get_active_head(engine);
-
-		intel_engine_get_instdone(dev_priv->engine[RCS0], &instdone);
-	}
-
 	if (timer_pending(&dev_priv->gpu_error.hangcheck_work.timer))
 		seq_printf(m, "Hangcheck active, timer fires in %dms\n",
 			   jiffies_to_msecs(dev_priv->gpu_error.hangcheck_work.timer.expires -
@@ -1110,23 +1101,25 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 	seq_printf(m, "GT active? %s\n", yesno(dev_priv->gt.awake));
 
-	for_each_engine(engine, dev_priv, id) {
-		seq_printf(m, "%s: %d ms ago\n",
-			   engine->name,
-			   jiffies_to_msecs(jiffies -
-					    engine->hangcheck.action_timestamp));
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
+		for_each_engine(engine, dev_priv, id) {
+			struct intel_instdone instdone;
 
-		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
-			   (long long)engine->hangcheck.acthd,
-			   (long long)acthd[id]);
+			seq_printf(m, "%s: %d ms ago\n",
+				   engine->name,
+				   jiffies_to_msecs(jiffies -
+						    engine->hangcheck.action_timestamp));
 
-		if (engine->id == RCS0) {
+			seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
+				   (long long)engine->hangcheck.acthd,
+				   intel_engine_get_active_head(engine));
+
+			intel_engine_get_instdone(engine, &instdone);
+
 			seq_puts(m, "\tinstdone read =\n");
-
 			i915_instdone_info(dev_priv, m, &instdone);
 
 			seq_puts(m, "\tinstdone accu =\n");
-
 			i915_instdone_info(dev_priv, m,
 					   &engine->hangcheck.instdone);
 		}
