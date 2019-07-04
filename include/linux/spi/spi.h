@@ -735,6 +735,9 @@ extern void spi_res_release(struct spi_controller *ctlr,
  * @bits_per_word: select a bits_per_word other than the device default
  *      for this transfer. If 0 the default (from @spi_device) is used.
  * @cs_change: affects chipselect after this transfer completes
+ * @cs_change_delay: delay between cs deassert and assert when
+ *      @cs_change is set and @spi_transfer is not the last in @spi_message
+ * @cs_change_delay_unit: unit of cs_change_delay
  * @delay_usecs: microseconds to delay after this transfer before
  *	(optionally) changing the chipselect status, then starting
  *	the next transfer or completing this @spi_message.
@@ -742,6 +745,9 @@ extern void spi_res_release(struct spi_controller *ctlr,
  *	(set by bits_per_word) transmission.
  * @word_delay: clock cycles to inter word delay after each word size
  *	(set by bits_per_word) transmission.
+ * @effective_speed_hz: the effective SCK-speed that was used to
+ *      transfer this transfer. Set to 0 if the spi bus driver does
+ *      not support it.
  * @transfer_list: transfers are sequenced through @spi_message.transfers
  * @tx_sg: Scatterlist for transmit, currently not for client use
  * @rx_sg: Scatterlist for receive, currently not for client use
@@ -824,8 +830,15 @@ struct spi_transfer {
 	u8		bits_per_word;
 	u8		word_delay_usecs;
 	u16		delay_usecs;
+	u16		cs_change_delay;
+	u8		cs_change_delay_unit;
+#define SPI_DELAY_UNIT_USECS	0
+#define SPI_DELAY_UNIT_NSECS	1
+#define SPI_DELAY_UNIT_SCK	2
 	u32		speed_hz;
 	u16		word_delay;
+
+	u32		effective_speed_hz;
 
 	struct list_head transfer_list;
 };
@@ -967,6 +980,8 @@ static inline void spi_message_free(struct spi_message *m)
 	kfree(m);
 }
 
+extern void spi_set_cs_timing(struct spi_device *spi, u8 setup, u8 hold, u8 inactive_dly);
+
 extern int spi_setup(struct spi_device *spi);
 extern int spi_async(struct spi_device *spi, struct spi_message *message);
 extern int spi_async_locked(struct spi_device *spi,
@@ -995,6 +1010,26 @@ spi_max_transfer_size(struct spi_device *spi)
 
 	/* transfer size limit must not be greater than messsage size limit */
 	return min(tr_max, msg_max);
+}
+
+/**
+ * spi_is_bpw_supported - Check if bits per word is supported
+ * @spi: SPI device
+ * @bpw: Bits per word
+ *
+ * This function checks to see if the SPI controller supports @bpw.
+ *
+ * Returns:
+ * True if @bpw is supported, false otherwise.
+ */
+static inline bool spi_is_bpw_supported(struct spi_device *spi, u32 bpw)
+{
+	u32 bpw_mask = spi->master->bits_per_word_mask;
+
+	if (bpw == 8 || (bpw <= 32 && bpw_mask & SPI_BPW_MASK(bpw)))
+		return true;
+
+	return false;
 }
 
 /*---------------------------------------------------------------------------*/
