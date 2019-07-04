@@ -124,17 +124,6 @@ alternative_endif
 	.endm
 
 /*
- * Sanitise a 64-bit bounded index wrt speculation, returning zero if out
- * of bounds.
- */
-	.macro	mask_nospec64, idx, limit, tmp
-	sub	\tmp, \idx, \limit
-	bic	\tmp, \tmp, \idx
-	and	\idx, \idx, \tmp, asr #63
-	csdb
-	.endm
-
-/*
  * NOP sequence
  */
 	.macro	nops, num
