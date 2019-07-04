@@ -3479,12 +3479,12 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
 	if (IS_CHERRYVIEW(dev_priv))
-		I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
+		intel_uncore_write(uncore, DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 	else
-		I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
+		intel_uncore_write(uncore, DPINVGTT, DPINVGTT_STATUS_MASK);
 
 	i915_hotplug_interrupt_update_locked(dev_priv, 0xffffffff, 0);
-	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
+	intel_uncore_write(uncore, PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
@@ -3531,11 +3531,11 @@ static void ironlake_irq_reset(struct drm_i915_private *dev_priv)
 
 	GEN3_IRQ_RESET(uncore, DE);
 	if (IS_GEN(dev_priv, 7))
-		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
+		intel_uncore_write(uncore, GEN7_ERR_INT, 0xffffffff);
 
 	if (IS_HASWELL(dev_priv)) {
-		I915_WRITE(EDP_PSR_IMR, 0xffffffff);
-		I915_WRITE(EDP_PSR_IIR, 0xffffffff);
+		intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
+		intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
 	}
 
 	gen5_gt_irq_reset(dev_priv);
@@ -3575,8 +3575,8 @@ static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen8_gt_irq_reset(dev_priv);
 
-	I915_WRITE(EDP_PSR_IMR, 0xffffffff);
-	I915_WRITE(EDP_PSR_IIR, 0xffffffff);
+	intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
+	intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
 
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
@@ -3593,23 +3593,23 @@ static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 
 static void gen11_gt_irq_reset(struct intel_gt *gt)
 {
-	struct drm_i915_private *dev_priv = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
 
 	/* Disable RCS, BCS, VCS and VECS class engines. */
-	I915_WRITE(GEN11_RENDER_COPY_INTR_ENABLE, 0);
-	I915_WRITE(GEN11_VCS_VECS_INTR_ENABLE,	  0);
+	intel_uncore_write(uncore, GEN11_RENDER_COPY_INTR_ENABLE, 0);
+	intel_uncore_write(uncore, GEN11_VCS_VECS_INTR_ENABLE,	  0);
 
 	/* Restore masks irqs on RCS, BCS, VCS and VECS engines. */
-	I915_WRITE(GEN11_RCS0_RSVD_INTR_MASK,	~0);
-	I915_WRITE(GEN11_BCS_RSVD_INTR_MASK,	~0);
-	I915_WRITE(GEN11_VCS0_VCS1_INTR_MASK,	~0);
-	I915_WRITE(GEN11_VCS2_VCS3_INTR_MASK,	~0);
-	I915_WRITE(GEN11_VECS0_VECS1_INTR_MASK,	~0);
+	intel_uncore_write(uncore, GEN11_RCS0_RSVD_INTR_MASK,	~0);
+	intel_uncore_write(uncore, GEN11_BCS_RSVD_INTR_MASK,	~0);
+	intel_uncore_write(uncore, GEN11_VCS0_VCS1_INTR_MASK,	~0);
+	intel_uncore_write(uncore, GEN11_VCS2_VCS3_INTR_MASK,	~0);
+	intel_uncore_write(uncore, GEN11_VECS0_VECS1_INTR_MASK,	~0);
 
-	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
-	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
-	I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, 0);
-	I915_WRITE(GEN11_GUC_SG_INTR_MASK,  ~0);
+	intel_uncore_write(uncore, GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
+	intel_uncore_write(uncore, GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
+	intel_uncore_write(uncore, GEN11_GUC_SG_INTR_ENABLE, 0);
+	intel_uncore_write(uncore, GEN11_GUC_SG_INTR_MASK,  ~0);
 }
 
 static void gen11_irq_reset(struct drm_i915_private *dev_priv)
@@ -3621,10 +3621,10 @@ static void gen11_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen11_gt_irq_reset(&dev_priv->gt);
 
-	I915_WRITE(GEN11_DISPLAY_INT_CTL, 0);
+	intel_uncore_write(uncore, GEN11_DISPLAY_INT_CTL, 0);
 
-	I915_WRITE(EDP_PSR_IMR, 0xffffffff);
-	I915_WRITE(EDP_PSR_IIR, 0xffffffff);
+	intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
+	intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
 
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
@@ -4227,21 +4227,24 @@ static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static void gen11_gt_irq_postinstall(struct intel_gt *gt)
 {
-	struct drm_i915_private *dev_priv = gt->i915;
 	const u32 irqs = GT_RENDER_USER_INTERRUPT | GT_CONTEXT_SWITCH_INTERRUPT;
+	struct drm_i915_private *dev_priv = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
+	const u32 dmask = irqs << 16 | irqs;
+	const u32 smask = irqs << 16;
 
 	BUILD_BUG_ON(irqs & 0xffff0000);
 
 	/* Enable RCS, BCS, VCS and VECS class interrupts. */
-	I915_WRITE(GEN11_RENDER_COPY_INTR_ENABLE, irqs << 16 | irqs);
-	I915_WRITE(GEN11_VCS_VECS_INTR_ENABLE,	  irqs << 16 | irqs);
+	intel_uncore_write(uncore, GEN11_RENDER_COPY_INTR_ENABLE, dmask);
+	intel_uncore_write(uncore, GEN11_VCS_VECS_INTR_ENABLE, dmask);
 
 	/* Unmask irqs on RCS, BCS, VCS and VECS engines. */
-	I915_WRITE(GEN11_RCS0_RSVD_INTR_MASK,	~(irqs << 16));
-	I915_WRITE(GEN11_BCS_RSVD_INTR_MASK,	~(irqs << 16));
-	I915_WRITE(GEN11_VCS0_VCS1_INTR_MASK,	~(irqs | irqs << 16));
-	I915_WRITE(GEN11_VCS2_VCS3_INTR_MASK,	~(irqs | irqs << 16));
-	I915_WRITE(GEN11_VECS0_VECS1_INTR_MASK,	~(irqs | irqs << 16));
+	intel_uncore_write(uncore, GEN11_RCS0_RSVD_INTR_MASK, ~smask);
+	intel_uncore_write(uncore, GEN11_BCS_RSVD_INTR_MASK, ~smask);
+	intel_uncore_write(uncore, GEN11_VCS0_VCS1_INTR_MASK, ~dmask);
+	intel_uncore_write(uncore, GEN11_VCS2_VCS3_INTR_MASK, ~dmask);
+	intel_uncore_write(uncore, GEN11_VECS0_VECS1_INTR_MASK, ~dmask);
 
 	/*
 	 * RPS interrupts will get enabled/disabled on demand when RPS itself
@@ -4249,12 +4252,12 @@ static void gen11_gt_irq_postinstall(struct intel_gt *gt)
 	 */
 	dev_priv->pm_ier = 0x0;
 	dev_priv->pm_imr = ~dev_priv->pm_ier;
-	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
-	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
+	intel_uncore_write(uncore, GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
+	intel_uncore_write(uncore, GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
 
 	/* Same thing for GuC interrupts */
-	I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, 0);
-	I915_WRITE(GEN11_GUC_SG_INTR_MASK,  ~0);
+	intel_uncore_write(uncore, GEN11_GUC_SG_INTR_ENABLE, 0);
+	intel_uncore_write(uncore, GEN11_GUC_SG_INTR_MASK,  ~0);
 }
 
 static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
