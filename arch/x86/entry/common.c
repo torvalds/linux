@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * common.c - C code for kernel entry and exit
  * Copyright (c) 2015 Andrew Lutomirski
- * GPL v2
  *
  * Based on asm and ptrace code by many authors.  The code here originated
  * in ptrace.c and signal.c.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * jitdump.h: jitted code info encapsulation file format
  *

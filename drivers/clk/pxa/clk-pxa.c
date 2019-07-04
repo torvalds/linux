@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Marvell PXA family clocks
  *
  * Copyright (C) 2014 Robert Jarzmik
  *
  * Common clock code for PXA clocks ("CKEN" type clocks + DT)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
  */
 #include <linux/clk.h>
 #include <linux/clk-provider.h>

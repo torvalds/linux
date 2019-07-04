@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Marvell Armada-3700 SPI controller driver
  *
@@ -5,10 +6,6 @@
  *
  * Author: Wilson Ding <dingwei@marvell.com>
  * Author: Romain Perier <romain.perier@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>

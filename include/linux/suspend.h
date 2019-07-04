@@ -209,8 +209,9 @@ extern int suspend_valid_only_mem(suspend_state_t state);
 
 extern unsigned int pm_suspend_global_flags;
 
-#define PM_SUSPEND_FLAG_FW_SUSPEND	(1 << 0)
-#define PM_SUSPEND_FLAG_FW_RESUME	(1 << 1)
+#define PM_SUSPEND_FLAG_FW_SUSPEND	BIT(0)
+#define PM_SUSPEND_FLAG_FW_RESUME	BIT(1)
+#define PM_SUSPEND_FLAG_NO_PLATFORM	BIT(2)
 
 static inline void pm_suspend_clear_flags(void)
 {
@@ -227,14 +228,66 @@ static inline void pm_set_resume_via_firmware(void)
 	pm_suspend_global_flags |= PM_SUSPEND_FLAG_FW_RESUME;
 }
 
+static inline void pm_set_suspend_no_platform(void)
+{
+	pm_suspend_global_flags |= PM_SUSPEND_FLAG_NO_PLATFORM;
+}
+
+/**
+ * pm_suspend_via_firmware - Check if platform firmware will suspend the system.
+ *
+ * To be called during system-wide power management transitions to sleep states
+ * or during the subsequent system-wide transitions back to the working state.
+ *
+ * Return 'true' if the platform firmware is going to be invoked at the end of
+ * the system-wide power management transition (to a sleep state) in progress in
+ * order to complete it, or if the platform firmware has been invoked in order
+ * to complete the last (or preceding) transition of the system to a sleep
+ * state.
+ *
+ * This matters if the caller needs or wants to carry out some special actions
+ * depending on whether or not control will be passed to the platform firmware
+ * subsequently (for example, the device may need to be reset before letting the
+ * platform firmware manipulate it, which is not necessary when the platform
+ * firmware is not going to be invoked) or when such special actions may have
+ * been carried out during the preceding transition of the system to a sleep
+ * state (as they may need to be taken into account).
+ */
 static inline bool pm_suspend_via_firmware(void)
 {
 	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_FW_SUSPEND);
 }
 
+/**
+ * pm_resume_via_firmware - Check if platform firmware has woken up the system.
+ *
+ * To be called during system-wide power management transitions from sleep
+ * states.
+ *
+ * Return 'true' if the platform firmware has passed control to the kernel at
+ * the beginning of the system-wide power management transition in progress, so
+ * the event that woke up the system from sleep has been handled by the platform
+ * firmware.
+ */
 static inline bool pm_resume_via_firmware(void)
 {
 	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_FW_RESUME);
+}
+
+/**
+ * pm_suspend_no_platform - Check if platform may change device power states.
+ *
+ * To be called during system-wide power management transitions to sleep states
+ * or during the subsequent system-wide transitions back to the working state.
+ *
+ * Return 'true' if the power states of devices remain under full control of the
+ * kernel throughout the system-wide suspend and resume cycle in progress (that
+ * is, if a device is put into a certain power state during suspend, it can be
+ * expected to remain in that state during resume).
+ */
+static inline bool pm_suspend_no_platform(void)
+{
+	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_NO_PLATFORM);
 }
 
 /* Suspend-to-idle state machnine. */

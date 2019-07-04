@@ -230,11 +230,6 @@ static int proc_dostring_coredump(struct ctl_table *table, int write,
 #endif
 static int proc_dopipe_max_size(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos);
-#ifdef CONFIG_BPF_SYSCALL
-static int proc_dointvec_minmax_bpf_stats(struct ctl_table *table, int write,
-					  void __user *buffer, size_t *lenp,
-					  loff_t *ppos);
-#endif
 
 #ifdef CONFIG_MAGIC_SYSRQ
 /* Note: sysrq code uses its own private copy */
@@ -1253,12 +1248,10 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname	= "bpf_stats_enabled",
-		.data		= &sysctl_bpf_stats_enabled,
-		.maxlen		= sizeof(sysctl_bpf_stats_enabled),
+		.data		= &bpf_stats_enabled_key.key,
+		.maxlen		= sizeof(bpf_stats_enabled_key),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax_bpf_stats,
-		.extra1		= &zero,
-		.extra2		= &one,
+		.proc_handler	= proc_do_static_key,
 	},
 #endif
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU)
@@ -3374,26 +3367,35 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 
 #endif /* CONFIG_PROC_SYSCTL */
 
-#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_SYSCTL)
-static int proc_dointvec_minmax_bpf_stats(struct ctl_table *table, int write,
-					  void __user *buffer, size_t *lenp,
-					  loff_t *ppos)
+#if defined(CONFIG_SYSCTL)
+int proc_do_static_key(struct ctl_table *table, int write,
+		       void __user *buffer, size_t *lenp,
+		       loff_t *ppos)
 {
-	int ret, bpf_stats = *(int *)table->data;
-	struct ctl_table tmp = *table;
+	struct static_key *key = (struct static_key *)table->data;
+	static DEFINE_MUTEX(static_key_mutex);
+	int val, ret;
+	struct ctl_table tmp = {
+		.data   = &val,
+		.maxlen = sizeof(val),
+		.mode   = table->mode,
+		.extra1 = &zero,
+		.extra2 = &one,
+	};
 
 	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	tmp.data = &bpf_stats;
+	mutex_lock(&static_key_mutex);
+	val = static_key_enabled(key);
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 	if (write && !ret) {
-		*(int *)table->data = bpf_stats;
-		if (bpf_stats)
-			static_branch_enable(&bpf_stats_enabled_key);
+		if (val)
+			static_key_enable(key);
 		else
-			static_branch_disable(&bpf_stats_enabled_key);
+			static_key_disable(key);
 	}
+	mutex_unlock(&static_key_mutex);
 	return ret;
 }
 #endif

@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
  * Author: Liviu Dudau <Liviu.Dudau@arm.com>
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
  *
  * ARM Mali DP500/DP550/DP650 registers definition.
  */

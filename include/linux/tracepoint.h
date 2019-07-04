@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_TRACEPOINT_H
 #define _LINUX_TRACEPOINT_H
 
@@ -9,9 +10,6 @@
  * Copyright (C) 2008-2014 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  *
  * Heavily inspired from the Linux Kernel Markers.
- *
- * This file is released under the GPLv2.
- * See the file COPYING for more details.
  */
 
 #include <linux/smp.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * WSM host interface (HI) interface for ST-Ericsson CW1200 mac80211 drivers
  *
@@ -7,10 +8,6 @@
  * Based on CW1200 UMAC WSM API, which is
  * Copyright (C) ST-Ericsson SA 2010
  * Author: Stewart Mathers <stewart.mathers@stericsson.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef CW1200_WSM_H_INCLUDED

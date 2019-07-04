@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DDR PHY Front End (DPFE) driver for Broadcom set top box SoCs
  *
  * Copyright (c) 2017 Broadcom
- *
- * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  */
 
 /*

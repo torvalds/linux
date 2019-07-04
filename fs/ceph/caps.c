@@ -2738,15 +2738,13 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 		_got = 0;
 		ret = try_get_cap_refs(ci, need, want, endoff,
 				       false, &_got);
-		if (ret == -EAGAIN) {
+		if (ret == -EAGAIN)
 			continue;
-		} else if (!ret) {
-			int err;
-
+		if (!ret) {
 			DEFINE_WAIT_FUNC(wait, woken_wake_function);
 			add_wait_queue(&ci->i_cap_wq, &wait);
 
-			while (!(err = try_get_cap_refs(ci, need, want, endoff,
+			while (!(ret = try_get_cap_refs(ci, need, want, endoff,
 							true, &_got))) {
 				if (signal_pending(current)) {
 					ret = -ERESTARTSYS;
@@ -2756,14 +2754,16 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 			}
 
 			remove_wait_queue(&ci->i_cap_wq, &wait);
-			if (err == -EAGAIN)
+			if (ret == -EAGAIN)
 				continue;
 		}
-		if (ret == -ESTALE) {
-			/* session was killed, try renew caps */
-			ret = ceph_renew_caps(&ci->vfs_inode);
-			if (ret == 0)
-				continue;
+		if (ret < 0) {
+			if (ret == -ESTALE) {
+				/* session was killed, try renew caps */
+				ret = ceph_renew_caps(&ci->vfs_inode);
+				if (ret == 0)
+					continue;
+			}
 			return ret;
 		}
 
@@ -2992,8 +2992,10 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 	}
 	if (complete_capsnap)
 		wake_up_all(&ci->i_cap_wq);
-	while (put-- > 0)
-		iput(inode);
+	while (put-- > 0) {
+		/* avoid calling iput_final() in osd dispatch threads */
+		ceph_async_iput(inode);
+	}
 }
 
 /*
@@ -3964,8 +3966,9 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 done:
 	mutex_unlock(&session->s_mutex);
 done_unlocked:
-	iput(inode);
 	ceph_put_string(extra_info.pool_ns);
+	/* avoid calling iput_final() in mds dispatch threads */
+	ceph_async_iput(inode);
 	return;
 
 flush_cap_releases:
@@ -4011,7 +4014,8 @@ void ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
 		if (inode) {
 			dout("check_delayed_caps on %p\n", inode);
 			ceph_check_caps(ci, flags, NULL);
-			iput(inode);
+			/* avoid calling iput_final() in tick thread */
+			ceph_async_iput(inode);
 		}
 	}
 	spin_unlock(&mdsc->cap_delay_lock);

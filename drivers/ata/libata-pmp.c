@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * libata-pmp.c - libata port multiplier support
  *
  * Copyright (c) 2007  SUSE Linux Products GmbH
  * Copyright (c) 2007  Tejun Heo <teheo@suse.de>
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/kernel.h>

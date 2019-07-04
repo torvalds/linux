@@ -209,6 +209,10 @@ struct tls_offload_context_tx {
 	(ALIGN(sizeof(struct tls_offload_context_tx), sizeof(void *)) +        \
 	 TLS_DRIVER_STATE_SIZE)
 
+enum tls_context_flags {
+	TLS_RX_SYNC_RUNNING = 0,
+};
+
 struct cipher_context {
 	char *iv;
 	char *rec_seq;
@@ -367,21 +371,6 @@ static inline struct tls_msg *tls_msg(struct sk_buff *skb)
 static inline bool tls_is_partially_sent_record(struct tls_context *ctx)
 {
 	return !!ctx->partially_sent_record;
-}
-
-static inline int tls_complete_pending_work(struct sock *sk,
-					    struct tls_context *ctx,
-					    int flags, long *timeo)
-{
-	int rc = 0;
-
-	if (unlikely(sk->sk_write_pending))
-		rc = wait_on_pending_writer(sk, timeo);
-
-	if (!rc && tls_is_partially_sent_record(ctx))
-		rc = tls_push_partial_record(sk, ctx, flags);
-
-	return rc;
 }
 
 static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)

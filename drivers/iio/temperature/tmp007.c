@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tmp007.c - Support for TI TMP007 IR thermopile sensor with integrated math engine
  *
  * Copyright (c) 2017 Manivannan Sadhasivam <manivannanece23@gmail.com>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Driver for the Texas Instruments I2C 16-bit IR thermopile sensor
  *
@@ -15,7 +12,6 @@
  * 1. This driver assumes that the sensor has been calibrated beforehand
  * 2. Limit threshold events are enabled at the start
  * 3. Operating mode: INT
- *
  */
 
 #include <linux/err.h>

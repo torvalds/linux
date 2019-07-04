@@ -275,9 +275,9 @@ static void afs_break_one_callback(struct afs_server *server,
 			struct afs_super_info *as = AFS_FS_S(cbi->sb);
 			struct afs_volume *volume = as->volume;
 
-			write_lock(&volume->cb_break_lock);
+			write_lock(&volume->cb_v_break_lock);
 			volume->cb_v_break++;
-			write_unlock(&volume->cb_break_lock);
+			write_unlock(&volume->cb_v_break_lock);
 		} else {
 			data.volume = NULL;
 			data.fid = *fid;

@@ -475,14 +475,18 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 	return ret;
 }
 
+/* called in queue's release handler, tagset has gone away */
 static void blk_mq_sched_tags_teardown(struct request_queue *q)
 {
-	struct blk_mq_tag_set *set = q->tag_set;
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
-	queue_for_each_hw_ctx(q, hctx, i)
-		blk_mq_sched_free_tags(set, hctx, i);
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (hctx->sched_tags) {
+			blk_mq_free_rq_map(hctx->sched_tags);
+			hctx->sched_tags = NULL;
+		}
+	}
 }
 
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
@@ -523,6 +527,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 			ret = e->ops.init_hctx(hctx, i);
 			if (ret) {
 				eq = q->elevator;
+				blk_mq_sched_free_requests(q);
 				blk_mq_exit_sched(q, eq);
 				kobject_put(&eq->kobj);
 				return ret;
@@ -534,9 +539,27 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	return 0;
 
 err:
+	blk_mq_sched_free_requests(q);
 	blk_mq_sched_tags_teardown(q);
 	q->elevator = NULL;
 	return ret;
+}
+
+/*
+ * called in either blk_queue_cleanup or elevator_switch, tagset
+ * is required for freeing requests
+ */
+void blk_mq_sched_free_requests(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx;
+	int i;
+
+	lockdep_assert_held(&q->sysfs_lock);
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (hctx->sched_tags)
+			blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
+	}
 }
 
 void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)

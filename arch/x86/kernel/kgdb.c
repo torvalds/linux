@@ -758,7 +758,7 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 		       BREAK_INSTR_SIZE);
 	bpt->type = BP_POKE_BREAKPOINT;
 
-	return err;
+	return 0;
 }
 
 int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)

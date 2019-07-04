@@ -2912,7 +2912,8 @@ EXPORT_SYMBOL(set_compat_user_sigmask);
  * This is useful for syscalls such as ppoll, pselect, io_pgetevents and
  * epoll_pwait where a new sigmask is passed in from userland for the syscalls.
  */
-void restore_user_sigmask(const void __user *usigmask, sigset_t *sigsaved)
+void restore_user_sigmask(const void __user *usigmask, sigset_t *sigsaved,
+				bool interrupted)
 {
 
 	if (!usigmask)
@@ -2922,7 +2923,7 @@ void restore_user_sigmask(const void __user *usigmask, sigset_t *sigsaved)
 	 * Restoring sigmask here can lead to delivering signals that the above
 	 * syscalls are intended to block because of the sigmask passed in.
 	 */
-	if (signal_pending(current)) {
+	if (interrupted) {
 		current->saved_sigmask = *sigsaved;
 		set_restore_sigmask();
 		return;
@@ -3621,12 +3622,11 @@ static struct pid *pidfd_to_pid(const struct file *file)
 }
 
 /**
- * sys_pidfd_send_signal - send a signal to a process through a task file
- *                          descriptor
- * @pidfd:  the file descriptor of the process
- * @sig:    signal to be sent
- * @info:   the signal info
- * @flags:  future flags to be passed
+ * sys_pidfd_send_signal - Signal a process through a pidfd
+ * @pidfd:  file descriptor of the process
+ * @sig:    signal to send
+ * @info:   signal info
+ * @flags:  future flags
  *
  * The syscall currently only signals via PIDTYPE_PID which covers
  * kill(<positive-pid>, <signal>. It does not signal threads or process

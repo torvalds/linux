@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Linear Technology LTC4245 I2C Multiple Supply Hot Swap Controller
  *
  * Copyright (C) 2008 Ira W. Snyder <iws@ovro.caltech.edu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  *
  * This driver is based on the ds1621 and ina209 drivers.
  *

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/adfs/dir.c
  *
  *  Copyright (C) 1999-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Common directory handling for ADFS
  */
@@ -15,6 +12,50 @@
  * For future.  This should probably be per-directory.
  */
 static DEFINE_RWLOCK(adfs_dir_lock);
+
+void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
+{
+	unsigned int dots, i;
+
+	/*
+	 * RISC OS allows the use of '/' in directory entry names, so we need
+	 * to fix these up.  '/' is typically used for FAT compatibility to
+	 * represent '.', so do the same conversion here.  In any case, '.'
+	 * will never be in a RISC OS name since it is used as the pathname
+	 * separator.  Handle the case where we may generate a '.' or '..'
+	 * name, replacing the first character with '^' (the RISC OS "parent
+	 * directory" character.)
+	 */
+	for (i = dots = 0; i < obj->name_len; i++)
+		if (obj->name[i] == '/') {
+			obj->name[i] = '.';
+			dots++;
+		}
+
+	if (obj->name_len <= 2 && dots == obj->name_len)
+		obj->name[0] = '^';
+
+	obj->filetype = -1;
+
+	/*
+	 * object is a file and is filetyped and timestamped?
+	 * RISC OS 12-bit filetype is stored in load_address[19:8]
+	 */
+	if ((0 == (obj->attr & ADFS_NDA_DIRECTORY)) &&
+	    (0xfff00000 == (0xfff00000 & obj->loadaddr))) {
+		obj->filetype = (__u16) ((0x000fff00 & obj->loadaddr) >> 8);
+
+		/* optionally append the ,xyz hex filetype suffix */
+		if (ADFS_SB(dir->sb)->s_ftsuffix) {
+			__u16 filetype = obj->filetype;
+
+			obj->name[obj->name_len++] = ',';
+			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 8);
+			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 4);
+			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 0);
+		}
+	}
+}
 
 static int
 adfs_readdir(struct file *file, struct dir_context *ctx)
@@ -100,37 +141,36 @@ out:
 	return ret;
 }
 
-static int
-adfs_match(const struct qstr *name, struct object_info *obj)
+static unsigned char adfs_tolower(unsigned char c)
 {
-	int i;
-
-	if (name->len != obj->name_len)
-		return 0;
-
-	for (i = 0; i < name->len; i++) {
-		char c1, c2;
-
-		c1 = name->name[i];
-		c2 = obj->name[i];
-
-		if (c1 >= 'A' && c1 <= 'Z')
-			c1 += 'a' - 'A';
-		if (c2 >= 'A' && c2 <= 'Z')
-			c2 += 'a' - 'A';
-
-		if (c1 != c2)
-			return 0;
-	}
-	return 1;
+	if (c >= 'A' && c <= 'Z')
+		c += 'a' - 'A';
+	return c;
 }
 
-static int
-adfs_dir_lookup_byname(struct inode *inode, const struct qstr *name, struct object_info *obj)
+static int __adfs_compare(const unsigned char *qstr, u32 qlen,
+			  const char *str, u32 len)
+{
+	u32 i;
+
+	if (qlen != len)
+		return 1;
+
+	for (i = 0; i < qlen; i++)
+		if (adfs_tolower(qstr[i]) != adfs_tolower(str[i]))
+			return 1;
+
+	return 0;
+}
+
+static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
+				  struct object_info *obj)
 {
 	struct super_block *sb = inode->i_sb;
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
+	const unsigned char *name;
 	struct adfs_dir dir;
+	u32 name_len;
 	int ret;
 
 	ret = ops->read(sb, inode->i_ino, inode->i_size, &dir);
@@ -153,8 +193,10 @@ adfs_dir_lookup_byname(struct inode *inode, const struct qstr *name, struct obje
 		goto unlock_out;
 
 	ret = -ENOENT;
+	name = qstr->name;
+	name_len = qstr->len;
 	while (ops->getnext(&dir, obj) == 0) {
-		if (adfs_match(name, obj)) {
+		if (!__adfs_compare(name, name_len, obj->name, obj->name_len)) {
 			ret = 0;
 			break;
 		}
@@ -179,30 +221,18 @@ const struct file_operations adfs_dir_operations = {
 static int
 adfs_hash(const struct dentry *parent, struct qstr *qstr)
 {
-	const unsigned int name_len = ADFS_SB(parent->d_sb)->s_namelen;
 	const unsigned char *name;
 	unsigned long hash;
-	int i;
+	u32 len;
 
-	if (qstr->len < name_len)
-		return 0;
+	if (qstr->len > ADFS_SB(parent->d_sb)->s_namelen)
+		return -ENAMETOOLONG;
 
-	/*
-	 * Truncate the name in place, avoids
-	 * having to define a compare function.
-	 */
-	qstr->len = i = name_len;
+	len = qstr->len;
 	name = qstr->name;
 	hash = init_name_hash(parent);
-	while (i--) {
-		char c;
-
-		c = *name++;
-		if (c >= 'A' && c <= 'Z')
-			c += 'a' - 'A';
-
-		hash = partial_name_hash(c, hash);
-	}
+	while (len--)
+		hash = partial_name_hash(adfs_tolower(*name++), hash);
 	qstr->hash = end_name_hash(hash);
 
 	return 0;
@@ -212,30 +242,10 @@ adfs_hash(const struct dentry *parent, struct qstr *qstr)
  * Compare two names, taking note of the name length
  * requirements of the underlying filesystem.
  */
-static int
-adfs_compare(const struct dentry *dentry,
-		unsigned int len, const char *str, const struct qstr *name)
+static int adfs_compare(const struct dentry *dentry, unsigned int len,
+			const char *str, const struct qstr *qstr)
 {
-	int i;
-
-	if (len != name->len)
-		return 1;
-
-	for (i = 0; i < name->len; i++) {
-		char a, b;
-
-		a = str[i];
-		b = name->name[i];
-
-		if (a >= 'A' && a <= 'Z')
-			a += 'a' - 'A';
-		if (b >= 'A' && b <= 'Z')
-			b += 'a' - 'A';
-
-		if (a != b)
-			return 1;
-	}
-	return 0;
+	return __adfs_compare(qstr->name, qstr->len, str, len);
 }
 
 const struct dentry_operations adfs_dentry_operations = {

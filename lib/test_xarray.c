@@ -38,6 +38,12 @@ static void *xa_store_index(struct xarray *xa, unsigned long index, gfp_t gfp)
 	return xa_store(xa, index, xa_mk_index(index), gfp);
 }
 
+static void xa_insert_index(struct xarray *xa, unsigned long index)
+{
+	XA_BUG_ON(xa, xa_insert(xa, index, xa_mk_index(index),
+				GFP_KERNEL) != 0);
+}
+
 static void xa_alloc_index(struct xarray *xa, unsigned long index, gfp_t gfp)
 {
 	u32 id;
@@ -336,6 +342,37 @@ static noinline void check_xa_shrink(struct xarray *xa)
 		XA_BUG_ON(xa, xa->xa_head != node);
 		xa_erase_index(xa, 0);
 	}
+}
+
+static noinline void check_insert(struct xarray *xa)
+{
+	unsigned long i;
+
+	for (i = 0; i < 1024; i++) {
+		xa_insert_index(xa, i);
+		XA_BUG_ON(xa, xa_load(xa, i - 1) != NULL);
+		XA_BUG_ON(xa, xa_load(xa, i + 1) != NULL);
+		xa_erase_index(xa, i);
+	}
+
+	for (i = 10; i < BITS_PER_LONG; i++) {
+		xa_insert_index(xa, 1UL << i);
+		XA_BUG_ON(xa, xa_load(xa, (1UL << i) - 1) != NULL);
+		XA_BUG_ON(xa, xa_load(xa, (1UL << i) + 1) != NULL);
+		xa_erase_index(xa, 1UL << i);
+
+		xa_insert_index(xa, (1UL << i) - 1);
+		XA_BUG_ON(xa, xa_load(xa, (1UL << i) - 2) != NULL);
+		XA_BUG_ON(xa, xa_load(xa, 1UL << i) != NULL);
+		xa_erase_index(xa, (1UL << i) - 1);
+	}
+
+	xa_insert_index(xa, ~0UL);
+	XA_BUG_ON(xa, xa_load(xa, 0UL) != NULL);
+	XA_BUG_ON(xa, xa_load(xa, ~1UL) != NULL);
+	xa_erase_index(xa, ~0UL);
+
+	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
 static noinline void check_cmpxchg(struct xarray *xa)
@@ -1527,6 +1564,7 @@ static int xarray_checks(void)
 	check_xa_mark(&array);
 	check_xa_shrink(&array);
 	check_xas_erase(&array);
+	check_insert(&array);
 	check_cmpxchg(&array);
 	check_reserve(&array);
 	check_reserve(&xa0);

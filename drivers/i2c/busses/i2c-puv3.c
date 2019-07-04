@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C driver for PKUnity-v3 SoC
  * Code specific to PKUnity SoC and UniCore ISA
  *
  *	Maintained by GUAN Xue-tao <gxt@mprc.pku.edu.cn>
  *	Copyright (C) 2001-2010 Guan Xuetao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

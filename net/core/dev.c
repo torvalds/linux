@@ -4923,8 +4923,36 @@ skip_classify:
 	}
 
 	if (unlikely(skb_vlan_tag_present(skb))) {
-		if (skb_vlan_tag_get_id(skb))
+check_vlan_id:
+		if (skb_vlan_tag_get_id(skb)) {
+			/* Vlan id is non 0 and vlan_do_receive() above couldn't
+			 * find vlan device.
+			 */
 			skb->pkt_type = PACKET_OTHERHOST;
+		} else if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
+			   skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
+			/* Outer header is 802.1P with vlan 0, inner header is
+			 * 802.1Q or 802.1AD and vlan_do_receive() above could
+			 * not find vlan dev for vlan id 0.
+			 */
+			__vlan_hwaccel_clear_tag(skb);
+			skb = skb_vlan_untag(skb);
+			if (unlikely(!skb))
+				goto out;
+			if (vlan_do_receive(&skb))
+				/* After stripping off 802.1P header with vlan 0
+				 * vlan dev is found for inner header.
+				 */
+				goto another_round;
+			else if (unlikely(!skb))
+				goto out;
+			else
+				/* We have stripped outer 802.1P vlan 0 header.
+				 * But could not find vlan dev.
+				 * check again for vlan id to set OTHERHOST.
+				 */
+				goto check_vlan_id;
+		}
 		/* Note: we might in the future use prio bits
 		 * and set skb->priority like in vlan_do_receive()
 		 * For the time being, just ignore Priority Code Point
@@ -5021,12 +5049,12 @@ static inline void __netif_receive_skb_list_ptype(struct list_head *head,
 	if (list_empty(head))
 		return;
 	if (pt_prev->list_func != NULL)
-		pt_prev->list_func(head, pt_prev, orig_dev);
+		INDIRECT_CALL_INET(pt_prev->list_func, ipv6_list_rcv,
+				   ip_list_rcv, head, pt_prev, orig_dev);
 	else
 		list_for_each_entry_safe(skb, next, head, list) {
 			skb_list_del_init(skb);
-			INDIRECT_CALL_INET(pt_prev->func, ipv6_rcv, ip_rcv, skb,
-					   skb->dev, pt_prev, orig_dev);
+			pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 		}
 }
 

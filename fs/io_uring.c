@@ -579,6 +579,7 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 		state->cur_req++;
 	}
 
+	req->file = NULL;
 	req->ctx = ctx;
 	req->flags = 0;
 	/* one is dropped after submission, the other at completion */
@@ -1801,10 +1802,8 @@ static int io_req_set_file(struct io_ring_ctx *ctx, const struct sqe_submit *s,
 		req->sequence = ctx->cached_sq_head - 1;
 	}
 
-	if (!io_op_needs_file(s->sqe)) {
-		req->file = NULL;
+	if (!io_op_needs_file(s->sqe))
 		return 0;
-	}
 
 	if (flags & IOSQE_FIXED_FILE) {
 		if (unlikely(!ctx->user_files ||
@@ -2201,11 +2200,12 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 	}
 
 	ret = wait_event_interruptible(ctx->wait, io_cqring_events(ring) >= min_events);
-	if (ret == -ERESTARTSYS)
-		ret = -EINTR;
 
 	if (sig)
-		restore_user_sigmask(sig, &sigsaved);
+		restore_user_sigmask(sig, &sigsaved, ret == -ERESTARTSYS);
+
+	if (ret == -ERESTARTSYS)
+		ret = -EINTR;
 
 	return READ_ONCE(ring->r.head) == READ_ONCE(ring->r.tail) ? ret : 0;
 }
@@ -2777,8 +2777,10 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	io_eventfd_unregister(ctx);
 
 #if defined(CONFIG_UNIX)
-	if (ctx->ring_sock)
+	if (ctx->ring_sock) {
+		ctx->ring_sock->file = NULL; /* so that iput() is called */
 		sock_release(ctx->ring_sock);
+	}
 #endif
 
 	io_mem_free(ctx->sq_ring);
