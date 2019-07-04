@@ -1476,7 +1476,7 @@ static int nldev_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	nla_strlcpy(ndev_name, tb[RDMA_NLDEV_ATTR_NDEV_NAME],
 		    sizeof(ndev_name));
 
-	ndev = dev_get_by_name(&init_net, ndev_name);
+	ndev = dev_get_by_name(sock_net(skb->sk), ndev_name);
 	if (!ndev)
 		return -ENODEV;
 
