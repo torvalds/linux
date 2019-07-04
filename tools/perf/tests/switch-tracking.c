@@ -238,7 +238,7 @@ static void free_event_nodes(struct list_head *events)
 
 	while (!list_empty(events)) {
 		node = list_entry(events->next, struct event_node, list);
-		list_del(&node->list);
+		list_del_init(&node->list);
 		free(node);
 	}
 }

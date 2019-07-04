@@ -756,7 +756,7 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 	 */
 	if (err) {
 		sfq->buffer = NULL;
-		list_del(&buffer->list);
+		list_del_init(&buffer->list);
 		auxtrace_buffer__free(buffer);
 		if (err > 0)		/* Buffer done, no error */
 			err = 0;

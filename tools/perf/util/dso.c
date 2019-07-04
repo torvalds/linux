@@ -434,7 +434,7 @@ static void dso__list_add(struct dso *dso)
 
 static void dso__list_del(struct dso *dso)
 {
-	list_del(&dso->data.open_entry);
+	list_del_init(&dso->data.open_entry);
 	WARN_ONCE(dso__data_open_cnt <= 0,
 		  "DSO data fd counter out of bounds.");
 	dso__data_open_cnt--;

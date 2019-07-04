@@ -454,7 +454,7 @@ broken:
 		/* broken lock sequence, discard it */
 		ls->discard = 1;
 		bad_hist[BROKEN_ACQUIRE]++;
-		list_del(&seq->list);
+		list_del_init(&seq->list);
 		free(seq);
 		goto end;
 	default:
@@ -515,7 +515,7 @@ static int report_lock_acquired_event(struct perf_evsel *evsel,
 		/* broken lock sequence, discard it */
 		ls->discard = 1;
 		bad_hist[BROKEN_ACQUIRED]++;
-		list_del(&seq->list);
+		list_del_init(&seq->list);
 		free(seq);
 		goto end;
 	default:
@@ -570,7 +570,7 @@ static int report_lock_contended_event(struct perf_evsel *evsel,
 		/* broken lock sequence, discard it */
 		ls->discard = 1;
 		bad_hist[BROKEN_CONTENDED]++;
-		list_del(&seq->list);
+		list_del_init(&seq->list);
 		free(seq);
 		goto end;
 	default:
@@ -639,7 +639,7 @@ static int report_lock_release_event(struct perf_evsel *evsel,
 
 	ls->nr_release++;
 free_seq:
-	list_del(&seq->list);
+	list_del_init(&seq->list);
 	free(seq);
 end:
 	return 0;

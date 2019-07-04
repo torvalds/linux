@@ -829,7 +829,7 @@ static void
 bpf_map_op__delete(struct bpf_map_op *op)
 {
 	if (!list_empty(&op->list))
-		list_del(&op->list);
+		list_del_init(&op->list);
 	if (op->key_type == BPF_MAP_KEY_RANGES)
 		parse_events__clear_array(&op->k.array);
 	free(op);

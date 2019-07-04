@@ -2333,7 +2333,7 @@ static void kprobe_blacklist__delete(struct list_head *blacklist)
 	while (!list_empty(blacklist)) {
 		node = list_first_entry(blacklist,
 					struct kprobe_blacklist_node, list);
-		list_del(&node->list);
+		list_del_init(&node->list);
 		zfree(&node->symbol);
 		free(node);
 	}

@@ -652,7 +652,7 @@ static int add_bpf_event(const char *group, const char *event, int fd,
 		pr_debug("Failed to add BPF event %s:%s\n",
 			 group, event);
 		list_for_each_entry_safe(evsel, tmp, &new_evsels, node) {
-			list_del(&evsel->node);
+			list_del_init(&evsel->node);
 			perf_evsel__delete(evsel);
 		}
 		return err;

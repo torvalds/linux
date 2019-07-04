@@ -1298,7 +1298,7 @@ static void perf_evsel__free_config_terms(struct perf_evsel *evsel)
 	struct perf_evsel_config_term *term, *h;
 
 	list_for_each_entry_safe(term, h, &evsel->config_terms, list) {
-		list_del(&term->list);
+		list_del_init(&term->list);
 		free(term);
 	}
 }

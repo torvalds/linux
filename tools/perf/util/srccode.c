@@ -83,7 +83,7 @@ static void fill_lines(char **lines, int maxline, char *map, int maplen)
 
 static void free_srcfile(struct srcfile *sf)
 {
-	list_del(&sf->nd);
+	list_del_init(&sf->nd);
 	hlist_del(&sf->hash_nd);
 	map_total_sz -= sf->maplen;
 	munmap(sf->map, sf->maplen);

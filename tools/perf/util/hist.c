@@ -2741,10 +2741,10 @@ static void hists_evsel__exit(struct perf_evsel *evsel)
 
 	list_for_each_entry_safe(node, tmp, &hists->hpp_formats, list) {
 		perf_hpp_list__for_each_format_safe(&node->hpp, fmt, pos) {
-			list_del(&fmt->list);
+			list_del_init(&fmt->list);
 			free(fmt);
 		}
-		list_del(&node->list);
+		list_del_init(&node->list);
 		free(node);
 	}
 }

@@ -1478,7 +1478,7 @@ static void kcore_copy__free_phdrs(struct kcore_copy_info *kci)
 	struct phdr_data *p, *tmp;
 
 	list_for_each_entry_safe(p, tmp, &kci->phdrs, node) {
-		list_del(&p->node);
+		list_del_init(&p->node);
 		free(p);
 	}
 }
@@ -1501,7 +1501,7 @@ static void kcore_copy__free_syms(struct kcore_copy_info *kci)
 	struct sym_data *s, *tmp;
 
 	list_for_each_entry_safe(s, tmp, &kci->syms, node) {
-		list_del(&s->node);
+		list_del_init(&s->node);
 		free(s);
 	}
 }
@@ -2252,7 +2252,7 @@ int cleanup_sdt_note_list(struct list_head *sdt_notes)
 	int nr_free = 0;
 
 	list_for_each_entry_safe(pos, tmp, sdt_notes, note_list) {
-		list_del(&pos->note_list);
+		list_del_init(&pos->note_list);
 		zfree(&pos->name);
 		zfree(&pos->provider);
 		free(pos);

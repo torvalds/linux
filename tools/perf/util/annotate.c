@@ -1586,7 +1586,7 @@ static void delete_last_nop(struct symbol *sym)
 				return;
 		}
 
-		list_del(&dl->al.node);
+		list_del_init(&dl->al.node);
 		disasm_line__free(dl);
 	}
 }
@@ -2463,7 +2463,7 @@ void annotated_source__purge(struct annotated_source *as)
 	struct annotation_line *al, *n;
 
 	list_for_each_entry_safe(al, n, &as->source, node) {
-		list_del(&al->node);
+		list_del_init(&al->node);
 		disasm_line__free(disasm_line(al));
 	}
 }

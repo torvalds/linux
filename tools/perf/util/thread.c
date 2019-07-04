@@ -93,14 +93,14 @@ void thread__delete(struct thread *thread)
 	down_write(&thread->namespaces_lock);
 	list_for_each_entry_safe(namespaces, tmp_namespaces,
 				 &thread->namespaces_list, list) {
-		list_del(&namespaces->list);
+		list_del_init(&namespaces->list);
 		namespaces__free(namespaces);
 	}
 	up_write(&thread->namespaces_lock);
 
 	down_write(&thread->comm_lock);
 	list_for_each_entry_safe(comm, tmp_comm, &thread->comm_list, list) {
-		list_del(&comm->list);
+		list_del_init(&comm->list);
 		comm__free(comm);
 	}
 	up_write(&thread->comm_lock);

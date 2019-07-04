@@ -40,7 +40,7 @@ void call_path_root__free(struct call_path_root *cpr)
 	struct call_path_block *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &cpr->blocks, node) {
-		list_del(&pos->node);
+		list_del_init(&pos->node);
 		free(pos);
 	}
 	free(cpr);
