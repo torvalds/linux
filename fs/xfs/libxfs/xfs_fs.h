@@ -358,6 +358,52 @@ struct xfs_bstat {
 	__u16		bs_aextents;	/* attribute number of extents	*/
 };
 
+/* New bulkstat structure that reports v5 features and fixes padding issues */
+struct xfs_bulkstat {
+	uint64_t	bs_ino;		/* inode number			*/
+	uint64_t	bs_size;	/* file size			*/
+
+	uint64_t	bs_blocks;	/* number of blocks		*/
+	uint64_t	bs_xflags;	/* extended flags		*/
+
+	uint64_t	bs_atime;	/* access time, seconds		*/
+	uint64_t	bs_mtime;	/* modify time, seconds		*/
+
+	uint64_t	bs_ctime;	/* inode change time, seconds	*/
+	uint64_t	bs_btime;	/* creation time, seconds	*/
+
+	uint32_t	bs_gen;		/* generation count		*/
+	uint32_t	bs_uid;		/* user id			*/
+	uint32_t	bs_gid;		/* group id			*/
+	uint32_t	bs_projectid;	/* project id			*/
+
+	uint32_t	bs_atime_nsec;	/* access time, nanoseconds	*/
+	uint32_t	bs_mtime_nsec;	/* modify time, nanoseconds	*/
+	uint32_t	bs_ctime_nsec;	/* inode change time, nanoseconds */
+	uint32_t	bs_btime_nsec;	/* creation time, nanoseconds	*/
+
+	uint32_t	bs_blksize;	/* block size			*/
+	uint32_t	bs_rdev;	/* device value			*/
+	uint32_t	bs_cowextsize_blks; /* cow extent size hint, blocks */
+	uint32_t	bs_extsize_blks; /* extent size hint, blocks	*/
+
+	uint32_t	bs_nlink;	/* number of links		*/
+	uint32_t	bs_extents;	/* number of extents		*/
+	uint32_t	bs_aextents;	/* attribute number of extents	*/
+	uint16_t	bs_version;	/* structure version		*/
+	uint16_t	bs_forkoff;	/* inode fork offset in bytes	*/
+
+	uint16_t	bs_sick;	/* sick inode metadata		*/
+	uint16_t	bs_checked;	/* checked inode metadata	*/
+	uint16_t	bs_mode;	/* type and mode		*/
+	uint16_t	bs_pad2;	/* zeroed			*/
+
+	uint64_t	bs_pad[7];	/* zeroed			*/
+};
+
+#define XFS_BULKSTAT_VERSION_V1	(1)
+#define XFS_BULKSTAT_VERSION_V5	(5)
+
 /* bs_sick flags */
 #define XFS_BS_SICK_INODE	(1 << 0)  /* inode core */
 #define XFS_BS_SICK_BMBTD	(1 << 1)  /* data fork */
@@ -374,7 +420,7 @@ struct xfs_bstat {
  * to retain compatibility with "old" filesystems).
  */
 static inline uint32_t
-bstat_get_projid(struct xfs_bstat *bs)
+bstat_get_projid(const struct xfs_bstat *bs)
 {
 	return (uint32_t)bs->bs_projid_hi << 16 | bs->bs_projid_lo;
 }

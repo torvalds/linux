@@ -166,10 +166,14 @@ xfs_bstime_store_compat(
 /* Return 0 on success or positive error (to xfs_bulkstat()) */
 STATIC int
 xfs_fsbulkstat_one_fmt_compat(
-	struct xfs_ibulk	*breq,
-	const struct xfs_bstat	*buffer)
+	struct xfs_ibulk		*breq,
+	const struct xfs_bulkstat	*bstat)
 {
-	struct compat_xfs_bstat	__user *p32 = breq->ubuffer;
+	struct compat_xfs_bstat	__user	*p32 = breq->ubuffer;
+	struct xfs_bstat		bs1;
+	struct xfs_bstat		*buffer = &bs1;
+
+	xfs_bulkstat_to_bstat(breq->mp, &bs1, bstat);
 
 	if (put_user(buffer->bs_ino,	  &p32->bs_ino)		||
 	    put_user(buffer->bs_mode,	  &p32->bs_mode)	||

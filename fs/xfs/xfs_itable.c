@@ -24,7 +24,7 @@
  * Bulk Stat
  * =========
  *
- * Use the inode walking functions to fill out struct xfs_bstat for every
+ * Use the inode walking functions to fill out struct xfs_bulkstat for every
  * allocated inode, then pass the stat information to some externally provided
  * iteration function.
  */
@@ -32,7 +32,7 @@
 struct xfs_bstat_chunk {
 	bulkstat_one_fmt_pf	formatter;
 	struct xfs_ibulk	*breq;
-	struct xfs_bstat	*buf;
+	struct xfs_bulkstat	*buf;
 };
 
 /*
@@ -61,7 +61,7 @@ xfs_bulkstat_one_int(
 	struct xfs_icdinode	*dic;		/* dinode core info pointer */
 	struct xfs_inode	*ip;		/* incore inode pointer */
 	struct inode		*inode;
-	struct xfs_bstat	*buf = bc->buf;
+	struct xfs_bulkstat	*buf = bc->buf;
 	int			error = -EINVAL;
 
 	if (xfs_internal_inum(mp, ino))
@@ -84,37 +84,35 @@ xfs_bulkstat_one_int(
 	/* xfs_iget returns the following without needing
 	 * further change.
 	 */
-	buf->bs_projid_lo = dic->di_projid_lo;
-	buf->bs_projid_hi = dic->di_projid_hi;
+	buf->bs_projectid = xfs_get_projid(ip);
 	buf->bs_ino = ino;
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
 
 	buf->bs_nlink = inode->i_nlink;
-	buf->bs_atime.tv_sec = inode->i_atime.tv_sec;
-	buf->bs_atime.tv_nsec = inode->i_atime.tv_nsec;
-	buf->bs_mtime.tv_sec = inode->i_mtime.tv_sec;
-	buf->bs_mtime.tv_nsec = inode->i_mtime.tv_nsec;
-	buf->bs_ctime.tv_sec = inode->i_ctime.tv_sec;
-	buf->bs_ctime.tv_nsec = inode->i_ctime.tv_nsec;
+	buf->bs_atime = inode->i_atime.tv_sec;
+	buf->bs_atime_nsec = inode->i_atime.tv_nsec;
+	buf->bs_mtime = inode->i_mtime.tv_sec;
+	buf->bs_mtime_nsec = inode->i_mtime.tv_nsec;
+	buf->bs_ctime = inode->i_ctime.tv_sec;
+	buf->bs_ctime_nsec = inode->i_ctime.tv_nsec;
+	buf->bs_btime = dic->di_crtime.t_sec;
+	buf->bs_btime_nsec = dic->di_crtime.t_nsec;
 	buf->bs_gen = inode->i_generation;
 	buf->bs_mode = inode->i_mode;
 
 	buf->bs_xflags = xfs_ip2xflags(ip);
-	buf->bs_extsize = dic->di_extsize << mp->m_sb.sb_blocklog;
+	buf->bs_extsize_blks = dic->di_extsize;
 	buf->bs_extents = dic->di_nextents;
-	memset(buf->bs_pad, 0, sizeof(buf->bs_pad));
 	xfs_bulkstat_health(ip, buf);
-	buf->bs_dmevmask = dic->di_dmevmask;
-	buf->bs_dmstate = dic->di_dmstate;
 	buf->bs_aextents = dic->di_anextents;
 	buf->bs_forkoff = XFS_IFORK_BOFF(ip);
+	buf->bs_version = XFS_BULKSTAT_VERSION_V5;
 
 	if (dic->di_version == 3) {
 		if (dic->di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
-			buf->bs_cowextsize = dic->di_cowextsize <<
-					mp->m_sb.sb_blocklog;
+			buf->bs_cowextsize_blks = dic->di_cowextsize;
 	}
 
 	switch (dic->di_format) {
@@ -170,7 +168,8 @@ xfs_bulkstat_one(
 
 	ASSERT(breq->icount == 1);
 
-	bc.buf = kmem_zalloc(sizeof(struct xfs_bstat), KM_SLEEP | KM_MAYFAIL);
+	bc.buf = kmem_zalloc(sizeof(struct xfs_bulkstat),
+			KM_SLEEP | KM_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 
@@ -243,7 +242,8 @@ xfs_bulkstat(
 	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
 		return 0;
 
-	bc.buf = kmem_zalloc(sizeof(struct xfs_bstat), KM_SLEEP | KM_MAYFAIL);
+	bc.buf = kmem_zalloc(sizeof(struct xfs_bulkstat),
+			KM_SLEEP | KM_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 
@@ -263,6 +263,44 @@ xfs_bulkstat(
 		error = 0;
 
 	return error;
+}
+
+/* Convert bulkstat (v5) to bstat (v1). */
+void
+xfs_bulkstat_to_bstat(
+	struct xfs_mount		*mp,
+	struct xfs_bstat		*bs1,
+	const struct xfs_bulkstat	*bstat)
+{
+	memset(bs1, 0, sizeof(struct xfs_bstat));
+	bs1->bs_ino = bstat->bs_ino;
+	bs1->bs_mode = bstat->bs_mode;
+	bs1->bs_nlink = bstat->bs_nlink;
+	bs1->bs_uid = bstat->bs_uid;
+	bs1->bs_gid = bstat->bs_gid;
+	bs1->bs_rdev = bstat->bs_rdev;
+	bs1->bs_blksize = bstat->bs_blksize;
+	bs1->bs_size = bstat->bs_size;
+	bs1->bs_atime.tv_sec = bstat->bs_atime;
+	bs1->bs_mtime.tv_sec = bstat->bs_mtime;
+	bs1->bs_ctime.tv_sec = bstat->bs_ctime;
+	bs1->bs_atime.tv_nsec = bstat->bs_atime_nsec;
+	bs1->bs_mtime.tv_nsec = bstat->bs_mtime_nsec;
+	bs1->bs_ctime.tv_nsec = bstat->bs_ctime_nsec;
+	bs1->bs_blocks = bstat->bs_blocks;
+	bs1->bs_xflags = bstat->bs_xflags;
+	bs1->bs_extsize = XFS_FSB_TO_B(mp, bstat->bs_extsize_blks);
+	bs1->bs_extents = bstat->bs_extents;
+	bs1->bs_gen = bstat->bs_gen;
+	bs1->bs_projid_lo = bstat->bs_projectid & 0xFFFF;
+	bs1->bs_forkoff = bstat->bs_forkoff;
+	bs1->bs_projid_hi = bstat->bs_projectid >> 16;
+	bs1->bs_sick = bstat->bs_sick;
+	bs1->bs_checked = bstat->bs_checked;
+	bs1->bs_cowextsize = XFS_FSB_TO_B(mp, bstat->bs_cowextsize_blks);
+	bs1->bs_dmevmask = 0;
+	bs1->bs_dmstate = 0;
+	bs1->bs_aextents = bstat->bs_aextents;
 }
 
 struct xfs_inumbers_chunk {

@@ -369,7 +369,7 @@ static const struct ioctl_sick_map ino_map[] = {
 void
 xfs_bulkstat_health(
 	struct xfs_inode		*ip,
-	struct xfs_bstat		*bs)
+	struct xfs_bulkstat		*bs)
 {
 	const struct ioctl_sick_map	*m;
 	unsigned int			sick;

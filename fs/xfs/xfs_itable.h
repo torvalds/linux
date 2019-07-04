@@ -38,10 +38,12 @@ xfs_ibulk_advance(
  */
 
 typedef int (*bulkstat_one_fmt_pf)(struct xfs_ibulk *breq,
-		const struct xfs_bstat *bstat);
+		const struct xfs_bulkstat *bstat);
 
 int xfs_bulkstat_one(struct xfs_ibulk *breq, bulkstat_one_fmt_pf formatter);
 int xfs_bulkstat(struct xfs_ibulk *breq, bulkstat_one_fmt_pf formatter);
+void xfs_bulkstat_to_bstat(struct xfs_mount *mp, struct xfs_bstat *bs1,
+		const struct xfs_bulkstat *bstat);
 
 typedef int (*inumbers_fmt_pf)(struct xfs_ibulk *breq,
 		const struct xfs_inogrp *igrp);
