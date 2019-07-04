@@ -726,6 +726,7 @@ static void *netsec_alloc_rx_data(struct netsec_priv *priv,
 {
 
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
+	enum dma_data_direction dma_dir;
 	struct page *page;
 
 	page = page_pool_dev_alloc_pages(dring->page_pool);
@@ -741,6 +742,10 @@ static void *netsec_alloc_rx_data(struct netsec_priv *priv,
 	 * cases and reserve enough space for headroom + skb_shared_info
 	 */
 	*desc_len = PAGE_SIZE - NETSEC_RX_BUF_NON_DATA;
+	dma_dir = page_pool_get_dma_dir(dring->page_pool);
+	dma_sync_single_for_device(priv->dev,
+				   *dma_handle - NETSEC_RXBUF_HEADROOM,
+				   PAGE_SIZE, dma_dir);
 
 	return page_address(page);
 }
