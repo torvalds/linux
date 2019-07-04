@@ -401,7 +401,7 @@ struct nfp_net_r_vector {
 		struct {
 			struct tasklet_struct tasklet;
 			struct sk_buff_head queue;
-			struct spinlock lock;
+			spinlock_t lock;
 		};
 	};
 
