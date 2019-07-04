@@ -447,7 +447,7 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 		n = ip_neigh_gw4(dev, pkey);
 	}
 
-	if (n && !refcount_inc_not_zero(&n->refcnt))
+	if (!IS_ERR(n) && !refcount_inc_not_zero(&n->refcnt))
 		n = NULL;
 
 	rcu_read_unlock_bh();
