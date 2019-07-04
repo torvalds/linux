@@ -951,8 +951,9 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 static void hns3_set_txbd_baseinfo(u16 *bdtp_fe_sc_vld_ra_ri, int frag_end)
 {
 	/* Config bd buffer end */
-	hns3_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_FE_B, !!frag_end);
-	hns3_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_VLD_B, 1);
+	if (!!frag_end)
+		hns3_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_FE_B, 1U);
+	hns3_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_VLD_B, 1U);
 }
 
 static int hns3_fill_desc_vtags(struct sk_buff *skb,
@@ -2575,7 +2576,7 @@ static bool hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 	}
 }
 
-static int hns3_alloc_skb(struct hns3_enet_ring *ring, int length,
+static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 			  unsigned char *va)
 {
 #define HNS3_NEED_ADD_FRAG	1
@@ -2818,8 +2819,8 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	struct sk_buff *skb = ring->skb;
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc *desc;
+	unsigned int length;
 	u32 bd_base_info;
-	int length;
 	int ret;
 
 	desc = &ring->desc[ring->next_to_clean];
