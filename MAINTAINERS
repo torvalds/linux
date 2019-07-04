@@ -821,17 +821,11 @@ F:	drivers/iommu/amd_iommu*.[ch]
 F:	include/linux/amd-iommu.h
 
 AMD KFD
-M:	Oded Gabbay <oded.gabbay@gmail.com>
-L:	dri-devel@lists.freedesktop.org
-T:	git git://people.freedesktop.org/~gabbayo/linux.git
+M:	Felix Kuehling <Felix.Kuehling@amd.com>
+L:	amd-gfx@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~agd5f/linux
 S:	Supported
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd.h
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v9.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_fence.c
-F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c
+F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd*.[ch]
 F:	drivers/gpu/drm/amd/amdkfd/
 F:	drivers/gpu/drm/amd/include/cik_structs.h
 F:	drivers/gpu/drm/amd/include/kgd_kfd_interface.h
