@@ -30,55 +30,58 @@ static void usb_decode_get_status(__u8 bRequestType, __u16 wIndex,
 	}
 }
 
-static const char *usb_decode_device_feature(u16 wValue)
-{
-	switch (wValue) {
-	case USB_DEVICE_SELF_POWERED:
-		return "Self Powered";
-	case USB_DEVICE_REMOTE_WAKEUP:
-		return "Remote Wakeup";
-	case USB_DEVICE_TEST_MODE:
-		return "Test Mode";
-	case USB_DEVICE_U1_ENABLE:
-		return "U1 Enable";
-	case USB_DEVICE_U2_ENABLE:
-		return "U2 Enable";
-	case USB_DEVICE_LTM_ENABLE:
-		return "LTM Enable";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static const char *usb_decode_test_mode(u16 wIndex)
-{
-	switch (wIndex) {
-	case TEST_J:
-		return ": TEST_J";
-	case TEST_K:
-		return ": TEST_K";
-	case TEST_SE0_NAK:
-		return ": TEST_SE0_NAK";
-	case TEST_PACKET:
-		return ": TEST_PACKET";
-	case TEST_FORCE_EN:
-		return ": TEST_FORCE_EN";
-	default:
-		return ": UNKNOWN";
-	}
-}
-
-static void usb_decode_set_clear_feature(__u8 bRequestType,
-					 __u8 bRequest, __u16 wValue,
-					 __u16 wIndex, char *str, size_t size)
+static void usb_decode_set_clear_feature(__u8 bRequestType, __u8 bRequest,
+					 __u16 wValue, __u16 wIndex,
+					 char *str, size_t size)
 {
 	switch (bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
 		snprintf(str, size, "%s Device Feature(%s%s)",
 			 bRequest == USB_REQ_CLEAR_FEATURE ? "Clear" : "Set",
-			 usb_decode_device_feature(wValue),
+			 ({char *s;
+				switch (wValue) {
+				case USB_DEVICE_SELF_POWERED:
+					s = "Self Powered";
+					break;
+				case USB_DEVICE_REMOTE_WAKEUP:
+					s = "Remote Wakeup";
+					break;
+				case USB_DEVICE_TEST_MODE:
+					s = "Test Mode";
+					break;
+				case USB_DEVICE_U1_ENABLE:
+					s = "U1 Enable";
+					break;
+				case USB_DEVICE_U2_ENABLE:
+					s = "U2 Enable";
+					break;
+				case USB_DEVICE_LTM_ENABLE:
+					s = "LTM Enable";
+					break;
+				default:
+					s = "UNKNOWN";
+				} s; }),
 			 wValue == USB_DEVICE_TEST_MODE ?
-			 usb_decode_test_mode(wIndex) : "");
+			 ({ char *s;
+				switch (wIndex) {
+				case TEST_J:
+					s = ": TEST_J";
+					break;
+				case TEST_K:
+					s = ": TEST_K";
+					break;
+				case TEST_SE0_NAK:
+					s = ": TEST_SE0_NAK";
+					break;
+				case TEST_PACKET:
+					s = ": TEST_PACKET";
+					break;
+				case TEST_FORCE_EN:
+					s = ": TEST_FORCE_EN";
+					break;
+				default:
+					s = ": UNKNOWN";
+				} s; }) : "");
 		break;
 	case USB_RECIP_INTERFACE:
 		snprintf(str, size, "%s Interface Feature(%s)",
