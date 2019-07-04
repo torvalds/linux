@@ -148,20 +148,18 @@ static int regcache_lzo_init(struct regmap *map)
 	 * that register.
 	 */
 	bmp_size = map->num_reg_defaults_raw;
-	sync_bmp = kmalloc_array(BITS_TO_LONGS(bmp_size), sizeof(long),
-				 GFP_KERNEL);
+	sync_bmp = bitmap_zalloc(bmp_size, GFP_KERNEL);
 	if (!sync_bmp) {
 		ret = -ENOMEM;
 		goto err;
 	}
-	bitmap_zero(sync_bmp, bmp_size);
 
 	/* allocate the lzo blocks and initialize them */
 	for (i = 0; i < blkcount; i++) {
 		lzo_blocks[i] = kzalloc(sizeof **lzo_blocks,
 					GFP_KERNEL);
 		if (!lzo_blocks[i]) {
-			kfree(sync_bmp);
+			bitmap_free(sync_bmp);
 			ret = -ENOMEM;
 			goto err;
 		}
@@ -213,7 +211,7 @@ static int regcache_lzo_exit(struct regmap *map)
 	 * only once.
 	 */
 	if (lzo_blocks[0])
-		kfree(lzo_blocks[0]->sync_bmp);
+		bitmap_free(lzo_blocks[0]->sync_bmp);
 	for (i = 0; i < blkcount; i++) {
 		if (lzo_blocks[i]) {
 			kfree(lzo_blocks[i]->wmem);
