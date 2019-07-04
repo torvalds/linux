@@ -62,18 +62,20 @@ What:           /sys/class/habanalabs/hl<n>/ic_clk
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
-Description:    Allows the user to set the maximum clock frequency of the
-                Interconnect fabric. Writes to this parameter affect the device
-                only when the power management profile is set to "manual" mode.
-                The device IC clock might be set to lower value then the
+Description:    Allows the user to set the maximum clock frequency, in Hz, of
+                the Interconnect fabric. Writes to this parameter affect the
+                device only when the power management profile is set to "manual"
+                mode. The device IC clock might be set to lower value than the
                 maximum. The user should read the ic_clk_curr to see the actual
-                frequency value of the IC
+                frequency value of the IC. This property is valid only for the
+                Goya ASIC family
 
 What:           /sys/class/habanalabs/hl<n>/ic_clk_curr
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
-Description:    Displays the current clock frequency of the Interconnect fabric
+Description:    Displays the current clock frequency, in Hz, of the Interconnect
+                fabric. This property is valid only for the Goya ASIC family
 
 What:           /sys/class/habanalabs/hl<n>/infineon_ver
 Date:           Jan 2019
@@ -92,18 +94,20 @@ What:           /sys/class/habanalabs/hl<n>/mme_clk
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
-Description:    Allows the user to set the maximum clock frequency of the
-                MME compute engine. Writes to this parameter affect the device
-                only when the power management profile is set to "manual" mode.
-                The device MME clock might be set to lower value then the
+Description:    Allows the user to set the maximum clock frequency, in Hz, of
+                the MME compute engine. Writes to this parameter affect the
+                device only when the power management profile is set to "manual"
+                mode. The device MME clock might be set to lower value than the
                 maximum. The user should read the mme_clk_curr to see the actual
-                frequency value of the MME
+                frequency value of the MME. This property is valid only for the
+                Goya ASIC family
 
 What:           /sys/class/habanalabs/hl<n>/mme_clk_curr
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
-Description:    Displays the current clock frequency of the MME compute engine
+Description:    Displays the current clock frequency, in Hz, of the MME compute
+                engine. This property is valid only for the Goya ASIC family
 
 What:           /sys/class/habanalabs/hl<n>/pci_addr
 Date:           Jan 2019
@@ -163,18 +167,20 @@ What:           /sys/class/habanalabs/hl<n>/tpc_clk
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
-Description:    Allows the user to set the maximum clock frequency of the
-                TPC compute engines. Writes to this parameter affect the device
-                only when the power management profile is set to "manual" mode.
-                The device TPC clock might be set to lower value then the
+Description:    Allows the user to set the maximum clock frequency, in Hz, of
+                the TPC compute engines. Writes to this parameter affect the
+                device only when the power management profile is set to "manual"
+                mode. The device TPC clock might be set to lower value than the
                 maximum. The user should read the tpc_clk_curr to see the actual
-                frequency value of the TPC
+                frequency value of the TPC. This property is valid only for
+                Goya ASIC family
 
 What:           /sys/class/habanalabs/hl<n>/tpc_clk_curr
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
-Description:    Displays the current clock frequency of the TPC compute engines
+Description:    Displays the current clock frequency, in Hz, of the TPC compute
+                engines. This property is valid only for the Goya ASIC family
 
 What:           /sys/class/habanalabs/hl<n>/uboot_ver
 Date:           Jan 2019

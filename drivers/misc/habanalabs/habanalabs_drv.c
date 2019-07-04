@@ -105,9 +105,17 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		return -EPERM;
 	}
 
+	if (hdev->in_debug) {
+		dev_err_ratelimited(hdev->dev,
+			"Can't open %s because it is being debugged by another user\n",
+			dev_name(hdev->dev));
+		mutex_unlock(&hdev->fd_open_cnt_lock);
+		return -EPERM;
+	}
+
 	if (atomic_read(&hdev->fd_open_cnt)) {
 		dev_info_ratelimited(hdev->dev,
-			"Device %s is already attached to application\n",
+			"Can't open %s because another user is working on it\n",
 			dev_name(hdev->dev));
 		mutex_unlock(&hdev->fd_open_cnt_lock);
 		return -EBUSY;
@@ -164,6 +172,17 @@ close_device:
 	return rc;
 }
 
+static void set_driver_behavior_per_device(struct hl_device *hdev)
+{
+	hdev->mmu_enable = 1;
+	hdev->cpu_enable = 1;
+	hdev->fw_loading = 1;
+	hdev->cpu_queues_enable = 1;
+	hdev->heartbeat = 1;
+
+	hdev->reset_pcilink = 0;
+}
+
 /*
  * create_hdev - create habanalabs device instance
  *
@@ -188,38 +207,9 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	if (!hdev)
 		return -ENOMEM;
 
-	hdev->major = hl_major;
-	hdev->reset_on_lockup = reset_on_lockup;
-
-	/* Parameters for bring-up - set them to defaults */
-	hdev->mmu_enable = 1;
-	hdev->cpu_enable = 1;
-	hdev->reset_pcilink = 0;
-	hdev->cpu_queues_enable = 1;
-	hdev->fw_loading = 1;
-	hdev->pldm = 0;
-	hdev->heartbeat = 1;
-
-	/* If CPU is disabled, no point in loading FW */
-	if (!hdev->cpu_enable)
-		hdev->fw_loading = 0;
-
-	/* If we don't load FW, no need to initialize CPU queues */
-	if (!hdev->fw_loading)
-		hdev->cpu_queues_enable = 0;
-
-	/* If CPU queues not enabled, no way to do heartbeat */
-	if (!hdev->cpu_queues_enable)
-		hdev->heartbeat = 0;
-
-	if (timeout_locked)
-		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
-	else
-		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
-
-	hdev->disabled = true;
-	hdev->pdev = pdev; /* can be NULL in case of simulator device */
-
+	/* First, we must find out which ASIC are we handling. This is needed
+	 * to configure the behavior of the driver (kernel parameters)
+	 */
 	if (pdev) {
 		hdev->asic_type = get_asic_type(pdev->device);
 		if (hdev->asic_type == ASIC_INVALID) {
@@ -230,6 +220,20 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	} else {
 		hdev->asic_type = asic_type;
 	}
+
+	hdev->major = hl_major;
+	hdev->reset_on_lockup = reset_on_lockup;
+	hdev->pldm = 0;
+
+	set_driver_behavior_per_device(hdev);
+
+	if (timeout_locked)
+		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
+	else
+		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
+
+	hdev->disabled = true;
+	hdev->pdev = pdev; /* can be NULL in case of simulator device */
 
 	/* Set default DMA mask to 32 bits */
 	hdev->dma_mask = 32;
