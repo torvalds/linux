@@ -176,6 +176,7 @@ static void start_caching(struct btrfs_root *root)
 	if (!ret && objectid <= BTRFS_LAST_FREE_OBJECTID) {
 		__btrfs_add_free_space(fs_info, ctl, objectid,
 				       BTRFS_LAST_FREE_OBJECTID - objectid + 1);
+		wake_up(&root->ino_cache_wait);
 	}
 
 	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu",
