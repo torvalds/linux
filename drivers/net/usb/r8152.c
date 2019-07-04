@@ -28,7 +28,7 @@
 #define NETNEXT_VERSION		"09"
 
 /* Information for net */
-#define NET_VERSION		"9"
+#define NET_VERSION		"10"
 
 #define DRIVER_VERSION		"v1." NETNEXT_VERSION "." NET_VERSION
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
@@ -825,6 +825,14 @@ int set_registers(struct r8152 *tp, u16 value, u16 index, u16 size, void *data)
 	return ret;
 }
 
+static void rtl_set_unplug(struct r8152 *tp)
+{
+	if (tp->udev->state == USB_STATE_NOTATTACHED) {
+		set_bit(RTL8152_UNPLUG, &tp->flags);
+		smp_mb__after_atomic();
+	}
+}
+
 static int generic_ocp_read(struct r8152 *tp, u16 index, u16 size,
 			    void *data, u16 type)
 {
@@ -863,7 +871,7 @@ static int generic_ocp_read(struct r8152 *tp, u16 index, u16 size,
 	}
 
 	if (ret == -ENODEV)
-		set_bit(RTL8152_UNPLUG, &tp->flags);
+		rtl_set_unplug(tp);
 
 	return ret;
 }
@@ -933,7 +941,7 @@ static int generic_ocp_write(struct r8152 *tp, u16 index, u16 byteen,
 
 error1:
 	if (ret == -ENODEV)
-		set_bit(RTL8152_UNPLUG, &tp->flags);
+		rtl_set_unplug(tp);
 
 	return ret;
 }
@@ -1321,7 +1329,7 @@ static void read_bulk_callback(struct urb *urb)
 		napi_schedule(&tp->napi);
 		return;
 	case -ESHUTDOWN:
-		set_bit(RTL8152_UNPLUG, &tp->flags);
+		rtl_set_unplug(tp);
 		netif_device_detach(tp->netdev);
 		return;
 	case -ENOENT:
@@ -1441,7 +1449,7 @@ static void intr_callback(struct urb *urb)
 resubmit:
 	res = usb_submit_urb(urb, GFP_ATOMIC);
 	if (res == -ENODEV) {
-		set_bit(RTL8152_UNPLUG, &tp->flags);
+		rtl_set_unplug(tp);
 		netif_device_detach(tp->netdev);
 	} else if (res) {
 		netif_err(tp, intr, tp->netdev,
@@ -2036,7 +2044,7 @@ static void tx_bottom(struct r8152 *tp)
 			struct net_device *netdev = tp->netdev;
 
 			if (res == -ENODEV) {
-				set_bit(RTL8152_UNPLUG, &tp->flags);
+				rtl_set_unplug(tp);
 				netif_device_detach(netdev);
 			} else {
 				struct net_device_stats *stats = &netdev->stats;
@@ -2110,7 +2118,7 @@ int r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags)
 
 	ret = usb_submit_urb(agg->urb, mem_flags);
 	if (ret == -ENODEV) {
-		set_bit(RTL8152_UNPLUG, &tp->flags);
+		rtl_set_unplug(tp);
 		netif_device_detach(tp->netdev);
 	} else if (ret) {
 		struct urb *urb = agg->urb;
@@ -5355,10 +5363,7 @@ static void rtl8152_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (tp) {
-		struct usb_device *udev = tp->udev;
-
-		if (udev->state == USB_STATE_NOTATTACHED)
-			set_bit(RTL8152_UNPLUG, &tp->flags);
+		rtl_set_unplug(tp);
 
 		netif_napi_del(&tp->napi);
 		unregister_netdev(tp->netdev);
