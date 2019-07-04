@@ -1484,6 +1484,10 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 	goto out;
 
 unwind_pd:
+	if (alloc) {
+		free_pd(vm, alloc);
+		alloc = NULL;
+	}
 	spin_lock(&pdp->lock);
 	if (atomic_dec_and_test(&pd->used)) {
 		gen8_ppgtt_set_pdpe(pdp, vm->scratch_pd, pdpe);
@@ -1556,6 +1560,10 @@ static int gen8_ppgtt_alloc_4lvl(struct i915_address_space *vm,
 	goto out;
 
 unwind_pdp:
+	if (alloc) {
+		free_pd(vm, alloc);
+		alloc = NULL;
+	}
 	spin_lock(&pml4->lock);
 	if (atomic_dec_and_test(&pdp->used)) {
 		gen8_ppgtt_set_pml4e(pml4, vm->scratch_pdp, pml4e);
