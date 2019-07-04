@@ -1116,7 +1116,7 @@ static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy, unsigned int cp
 	return ret;
 }
 
-static void refresh_frequency_limits(struct cpufreq_policy *policy)
+void refresh_frequency_limits(struct cpufreq_policy *policy)
 {
 	struct cpufreq_policy new_policy;
 
@@ -1129,6 +1129,7 @@ static void refresh_frequency_limits(struct cpufreq_policy *policy)
 		cpufreq_set_policy(policy, &new_policy);
 	}
 }
+EXPORT_SYMBOL(refresh_frequency_limits);
 
 static void handle_update(struct work_struct *work)
 {
