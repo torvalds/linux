@@ -1089,7 +1089,7 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 					  uint32_t *value)
 {
 	int ret = 0;
-	uint32_t freq;
+	uint32_t freq = 0;
 
 	if (clk_id >= SMU_CLK_COUNT || !value)
 		return -EINVAL;
