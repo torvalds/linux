@@ -325,7 +325,7 @@ static int send_wqe_overhead(enum mlx4_ib_qp_type type, u32 flags)
 }
 
 static int set_rq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
-		       bool is_user, int has_rq, struct mlx4_ib_qp *qp,
+		       bool is_user, bool has_rq, struct mlx4_ib_qp *qp,
 		       u32 inl_recv_sz)
 {
 	/* Sanity check RQ size before proceeding */
@@ -506,10 +506,10 @@ static void free_proxy_bufs(struct ib_device *dev, struct mlx4_ib_qp *qp)
 	kfree(qp->sqp_proxy_rcv);
 }
 
-static int qp_has_rq(struct ib_qp_init_attr *attr)
+static bool qp_has_rq(struct ib_qp_init_attr *attr)
 {
 	if (attr->qp_type == IB_QPT_XRC_INI || attr->qp_type == IB_QPT_XRC_TGT)
-		return 0;
+		return false;
 
 	return !attr->srq;
 }
@@ -906,7 +906,7 @@ static int create_rq(struct ib_pd *pd, struct ib_qp_init_attr *init_attr,
 	if (init_attr->create_flags & IB_QP_CREATE_SCATTER_FCS)
 		qp->flags |= MLX4_IB_QP_SCATTER_FCS;
 
-	err = set_rq_size(dev, &init_attr->cap, true, 1, qp, qp->inl_recv_sz);
+	err = set_rq_size(dev, &init_attr->cap, true, true, qp, qp->inl_recv_sz);
 	if (err)
 		goto err;
 
