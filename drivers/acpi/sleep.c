@@ -79,7 +79,7 @@ static int acpi_sleep_prepare(u32 acpi_state)
 	return 0;
 }
 
-static bool acpi_sleep_state_supported(u8 sleep_state)
+bool acpi_sleep_state_supported(u8 sleep_state)
 {
 	acpi_status status;
 	u8 type_a, type_b;
