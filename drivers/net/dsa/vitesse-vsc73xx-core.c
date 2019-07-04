@@ -10,10 +10,6 @@
  * handling the switch in a memory-mapped manner by connecting to that external
  * CPU's memory bus.
  *
- * This driver (currently) only takes control of the switch chip over SPI and
- * configures it to route packages around when connected to a CPU port. The
- * chip has embedded PHYs and VLAN support so we model it using DSA.
- *
  * Copyright (C) 2018 Linus Wallej <linus.walleij@linaro.org>
  * Includes portions of code from the firmware uploader by:
  * Copyright (C) 2009 Gabor Juhos <juhosg@openwrt.org>
@@ -24,8 +20,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
-#include <linux/platform_device.h>
-#include <linux/spi/spi.h>
 #include <linux/bitops.h>
 #include <linux/if_bridge.h>
 #include <linux/etherdevice.h>
@@ -33,6 +27,8 @@
 #include <linux/gpio/driver.h>
 #include <linux/random.h>
 #include <net/dsa.h>
+
+#include "vitesse-vsc73xx.h"
 
 #define VSC73XX_BLOCK_MAC	0x1 /* Subblocks 0-4, 6 (CPU port) */
 #define VSC73XX_BLOCK_ANALYZER	0x2 /* Only subblock 0 */
@@ -255,13 +251,6 @@
 #define VSC73XX_GLORESET_PHY_RESET	BIT(1)
 #define VSC73XX_GLORESET_MASTER_RESET	BIT(0)
 
-#define VSC73XX_CMD_MODE_READ		0
-#define VSC73XX_CMD_MODE_WRITE		1
-#define VSC73XX_CMD_MODE_SHIFT		4
-#define VSC73XX_CMD_BLOCK_SHIFT		5
-#define VSC73XX_CMD_BLOCK_MASK		0x7
-#define VSC73XX_CMD_SUBBLOCK_MASK	0xf
-
 #define VSC7385_CLOCK_DELAY		((3 << 4) | 3)
 #define VSC7385_CLOCK_DELAY_MASK	((3 << 4) | 3)
 
@@ -273,20 +262,6 @@
 				 VSC73XX_ICPU_CTRL_BOOT_EN | \
 				 VSC73XX_ICPU_CTRL_CLK_EN | \
 				 VSC73XX_ICPU_CTRL_SRST)
-
-/**
- * struct vsc73xx - VSC73xx state container
- */
-struct vsc73xx {
-	struct device		*dev;
-	struct gpio_desc	*reset;
-	struct spi_device	*spi;
-	struct dsa_switch	*ds;
-	struct gpio_chip	gc;
-	u16			chipid;
-	u8			addr[ETH_ALEN];
-	struct mutex		lock; /* Protects SPI traffic */
-};
 
 #define IS_7385(a) ((a)->chipid == VSC73XX_CHIPID_ID_7385)
 #define IS_7388(a) ((a)->chipid == VSC73XX_CHIPID_ID_7388)
@@ -365,7 +340,7 @@ static const struct vsc73xx_counter vsc73xx_tx_counters[] = {
 	{ 29, "TxQoSClass3" }, /* non-standard counter */
 };
 
-static int vsc73xx_is_addr_valid(u8 block, u8 subblock)
+int vsc73xx_is_addr_valid(u8 block, u8 subblock)
 {
 	switch (block) {
 	case VSC73XX_BLOCK_MAC:
@@ -396,96 +371,18 @@ static int vsc73xx_is_addr_valid(u8 block, u8 subblock)
 
 	return 0;
 }
-
-static u8 vsc73xx_make_addr(u8 mode, u8 block, u8 subblock)
-{
-	u8 ret;
-
-	ret = (block & VSC73XX_CMD_BLOCK_MASK) << VSC73XX_CMD_BLOCK_SHIFT;
-	ret |= (mode & 1) << VSC73XX_CMD_MODE_SHIFT;
-	ret |= subblock & VSC73XX_CMD_SUBBLOCK_MASK;
-
-	return ret;
-}
+EXPORT_SYMBOL(vsc73xx_is_addr_valid);
 
 static int vsc73xx_read(struct vsc73xx *vsc, u8 block, u8 subblock, u8 reg,
 			u32 *val)
 {
-	struct spi_transfer t[2];
-	struct spi_message m;
-	u8 cmd[4];
-	u8 buf[4];
-	int ret;
-
-	if (!vsc73xx_is_addr_valid(block, subblock))
-		return -EINVAL;
-
-	spi_message_init(&m);
-
-	memset(&t, 0, sizeof(t));
-
-	t[0].tx_buf = cmd;
-	t[0].len = sizeof(cmd);
-	spi_message_add_tail(&t[0], &m);
-
-	t[1].rx_buf = buf;
-	t[1].len = sizeof(buf);
-	spi_message_add_tail(&t[1], &m);
-
-	cmd[0] = vsc73xx_make_addr(VSC73XX_CMD_MODE_READ, block, subblock);
-	cmd[1] = reg;
-	cmd[2] = 0;
-	cmd[3] = 0;
-
-	mutex_lock(&vsc->lock);
-	ret = spi_sync(vsc->spi, &m);
-	mutex_unlock(&vsc->lock);
-
-	if (ret)
-		return ret;
-
-	*val = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
-
-	return 0;
+	return vsc->ops->read(vsc, block, subblock, reg, val);
 }
 
 static int vsc73xx_write(struct vsc73xx *vsc, u8 block, u8 subblock, u8 reg,
 			 u32 val)
 {
-	struct spi_transfer t[2];
-	struct spi_message m;
-	u8 cmd[2];
-	u8 buf[4];
-	int ret;
-
-	if (!vsc73xx_is_addr_valid(block, subblock))
-		return -EINVAL;
-
-	spi_message_init(&m);
-
-	memset(&t, 0, sizeof(t));
-
-	t[0].tx_buf = cmd;
-	t[0].len = sizeof(cmd);
-	spi_message_add_tail(&t[0], &m);
-
-	t[1].tx_buf = buf;
-	t[1].len = sizeof(buf);
-	spi_message_add_tail(&t[1], &m);
-
-	cmd[0] = vsc73xx_make_addr(VSC73XX_CMD_MODE_WRITE, block, subblock);
-	cmd[1] = reg;
-
-	buf[0] = (val >> 24) & 0xff;
-	buf[1] = (val >> 16) & 0xff;
-	buf[2] = (val >> 8) & 0xff;
-	buf[3] = val & 0xff;
-
-	mutex_lock(&vsc->lock);
-	ret = spi_sync(vsc->spi, &m);
-	mutex_unlock(&vsc->lock);
-
-	return ret;
+	return vsc->ops->write(vsc, block, subblock, reg, val);
 }
 
 static int vsc73xx_update_bits(struct vsc73xx *vsc, u8 block, u8 subblock,
@@ -1245,20 +1142,10 @@ static int vsc73xx_gpio_probe(struct vsc73xx *vsc)
 	return 0;
 }
 
-static int vsc73xx_probe(struct spi_device *spi)
+int vsc73xx_probe(struct vsc73xx *vsc)
 {
-	struct device *dev = &spi->dev;
-	struct vsc73xx *vsc;
+	struct device *dev = vsc->dev;
 	int ret;
-
-	vsc = devm_kzalloc(dev, sizeof(*vsc), GFP_KERNEL);
-	if (!vsc)
-		return -ENOMEM;
-
-	spi_set_drvdata(spi, vsc);
-	vsc->spi = spi_dev_get(spi);
-	vsc->dev = dev;
-	mutex_init(&vsc->lock);
 
 	/* Release reset, if any */
 	vsc->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
@@ -1269,14 +1156,6 @@ static int vsc73xx_probe(struct spi_device *spi)
 	if (vsc->reset)
 		/* Wait 20ms according to datasheet table 245 */
 		msleep(20);
-
-	spi->mode = SPI_MODE_0;
-	spi->bits_per_word = 8;
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		dev_err(dev, "spi setup failed.\n");
-		return ret;
-	}
 
 	ret = vsc73xx_detect(vsc);
 	if (ret) {
@@ -1321,43 +1200,16 @@ static int vsc73xx_probe(struct spi_device *spi)
 
 	return 0;
 }
+EXPORT_SYMBOL(vsc73xx_probe);
 
-static int vsc73xx_remove(struct spi_device *spi)
+int vsc73xx_remove(struct vsc73xx *vsc)
 {
-	struct vsc73xx *vsc = spi_get_drvdata(spi);
-
 	dsa_unregister_switch(vsc->ds);
 	gpiod_set_value(vsc->reset, 1);
 
 	return 0;
 }
-
-static const struct of_device_id vsc73xx_of_match[] = {
-	{
-		.compatible = "vitesse,vsc7385",
-	},
-	{
-		.compatible = "vitesse,vsc7388",
-	},
-	{
-		.compatible = "vitesse,vsc7395",
-	},
-	{
-		.compatible = "vitesse,vsc7398",
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, vsc73xx_of_match);
-
-static struct spi_driver vsc73xx_driver = {
-	.probe = vsc73xx_probe,
-	.remove = vsc73xx_remove,
-	.driver = {
-		.name = "vsc73xx",
-		.of_match_table = vsc73xx_of_match,
-	},
-};
-module_spi_driver(vsc73xx_driver);
+EXPORT_SYMBOL(vsc73xx_remove);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_DESCRIPTION("Vitesse VSC7385/7388/7395/7398 driver");
