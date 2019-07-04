@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <linux/ctype.h>
+#include <linux/kernel.h>
 
 #include "../../util/header.h"
 #include "../../util/util.h"

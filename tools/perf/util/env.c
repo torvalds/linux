@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <sys/utsname.h>
 #include <bpf/libbpf.h>
+#include <stdlib.h>
 
 struct perf_env perf_env;
 

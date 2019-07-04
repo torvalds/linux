@@ -8,6 +8,8 @@
 #include "../../util/perf_regs.h"
 #include "../../util/debug.h"
 
+#include <linux/kernel.h>
+
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(r0, PERF_REG_POWERPC_R0),
 	SMPL_REG(r1, PERF_REG_POWERPC_R1),

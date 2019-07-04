@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/log2.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "thread.h"
 #include "event.h"
 #include "machine.h"

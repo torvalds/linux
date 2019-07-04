@@ -2,6 +2,7 @@
 #include <sys/param.h>
 #include <sys/utsname.h>
 #include <inttypes.h>
+#include <stdlib.h>
 #include <api/fs/fs.h>
 
 #include "cputopo.h"

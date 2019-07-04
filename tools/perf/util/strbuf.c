@@ -3,6 +3,7 @@
 #include "util.h"
 #include <linux/kernel.h>
 #include <errno.h>
+#include <stdlib.h>
 
 /*
  * Used as the default ->buf value, so that people can always assume

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdlib.h>
 #include <byteswap.h>
 #include <sys/stat.h>
 
