@@ -66,7 +66,7 @@ static struct bbuf __bio_map_or_bounce(struct bch_fs *c, struct bio *bio,
 	BUG_ON(bvec_iter_sectors(start) > c->sb.encoded_extent_max);
 
 #ifndef CONFIG_HIGHMEM
-	__bio_for_each_contig_segment(bv, bio, iter, start) {
+	__bio_for_each_bvec(bv, bio, iter, start) {
 		if (bv.bv_len == start.bi_size)
 			return (struct bbuf) {
 				.b = page_address(bv.bv_page) + bv.bv_offset,

@@ -630,35 +630,6 @@ static inline void memmove_u64s(void *dst, const void *src,
 		__memmove_u64s_up(dst, src, u64s);
 }
 
-static inline struct bio_vec next_contig_bvec(struct bio *bio,
-					      struct bvec_iter *iter)
-{
-	struct bio_vec bv = bio_iter_iovec(bio, *iter);
-
-	bio_advance_iter(bio, iter, bv.bv_len);
-#ifndef CONFIG_HIGHMEM
-	while (iter->bi_size) {
-		struct bio_vec next = bio_iter_iovec(bio, *iter);
-
-		if (page_address(bv.bv_page) + bv.bv_offset + bv.bv_len !=
-		    page_address(next.bv_page) + next.bv_offset)
-			break;
-
-		bv.bv_len += next.bv_len;
-		bio_advance_iter(bio, iter, next.bv_len);
-	}
-#endif
-	return bv;
-}
-
-#define __bio_for_each_contig_segment(bv, bio, iter, start)		\
-	for (iter = (start);						\
-	     (iter).bi_size &&						\
-		((bv = next_contig_bvec((bio), &(iter))), 1);)
-
-#define bio_for_each_contig_segment(bv, bio, iter)			\
-	__bio_for_each_contig_segment(bv, bio, iter, (bio)->bi_iter)
-
 void sort_cmp_size(void *base, size_t num, size_t size,
 	  int (*cmp_func)(const void *, const void *, size_t),
 	  void (*swap_func)(void *, void *, size_t));

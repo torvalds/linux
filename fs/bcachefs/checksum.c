@@ -200,7 +200,7 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 			kunmap_atomic(p);
 		}
 #else
-		__bio_for_each_contig_segment(bv, bio, *iter, *iter)
+		__bio_for_each_bvec(bv, bio, *iter, *iter)
 			crc = bch2_checksum_update(type, crc,
 				page_address(bv.bv_page) + bv.bv_offset,
 				bv.bv_len);
@@ -225,7 +225,7 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 			kunmap_atomic(p);
 		}
 #else
-		__bio_for_each_contig_segment(bv, bio, *iter, *iter)
+		__bio_for_each_bvec(bv, bio, *iter, *iter)
 			crypto_shash_update(desc,
 				page_address(bv.bv_page) + bv.bv_offset,
 				bv.bv_len);
