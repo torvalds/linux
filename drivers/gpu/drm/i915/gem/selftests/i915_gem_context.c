@@ -1025,7 +1025,6 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	       unsigned int flags)
 {
 	struct intel_engine_cs *engine = i915->engine[RCS0];
-	struct intel_sseu default_sseu = engine->sseu;
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
@@ -1033,26 +1032,26 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	struct drm_file *file;
 	int ret;
 
-	if (INTEL_GEN(i915) < 9)
+	if (INTEL_GEN(i915) < 9 || !engine)
 		return 0;
 
 	if (!RUNTIME_INFO(i915)->sseu.has_slice_pg)
 		return 0;
 
-	if (hweight32(default_sseu.slice_mask) < 2)
+	if (hweight32(engine->sseu.slice_mask) < 2)
 		return 0;
 
 	/*
 	 * Gen11 VME friendly power-gated configuration with half enabled
 	 * sub-slices.
 	 */
-	pg_sseu = default_sseu;
+	pg_sseu = engine->sseu;
 	pg_sseu.slice_mask = 1;
 	pg_sseu.subslice_mask =
-		~(~0 << (hweight32(default_sseu.subslice_mask) / 2));
+		~(~0 << (hweight32(engine->sseu.subslice_mask) / 2));
 
 	pr_info("SSEU subtest '%s', flags=%x, def_slices=%u, pg_slices=%u\n",
-		name, flags, hweight32(default_sseu.slice_mask),
+		name, flags, hweight32(engine->sseu.slice_mask),
 		hweight32(pg_sseu.slice_mask));
 
 	file = mock_file(i915);
@@ -1088,7 +1087,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 		goto out_context;
 
 	/* First set the default mask. */
-	ret = __sseu_test(i915, name, flags, ce, obj, default_sseu);
+	ret = __sseu_test(i915, name, flags, ce, obj, engine->sseu);
 	if (ret)
 		goto out_fail;
 
@@ -1098,7 +1097,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 		goto out_fail;
 
 	/* Back to defaults. */
-	ret = __sseu_test(i915, name, flags, ce, obj, default_sseu);
+	ret = __sseu_test(i915, name, flags, ce, obj, engine->sseu);
 	if (ret)
 		goto out_fail;
 

@@ -328,7 +328,8 @@ out:
 static int make_obj_busy(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_request *rq;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	struct i915_vma *vma;
 	int err;
 
@@ -340,17 +341,21 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 	if (err)
 		return err;
 
-	rq = i915_request_create(i915->engine[RCS0]->kernel_context);
-	if (IS_ERR(rq)) {
-		i915_vma_unpin(vma);
-		return PTR_ERR(rq);
+	for_each_engine(engine, i915, id) {
+		struct i915_request *rq;
+
+		rq = i915_request_create(engine->kernel_context);
+		if (IS_ERR(rq)) {
+			i915_vma_unpin(vma);
+			return PTR_ERR(rq);
+		}
+
+		i915_vma_lock(vma);
+		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+		i915_vma_unlock(vma);
+
+		i915_request_add(rq);
 	}
-
-	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
-
-	i915_request_add(rq);
 
 	i915_vma_unpin(vma);
 	i915_gem_object_put(obj); /* leave it only alive via its active ref */

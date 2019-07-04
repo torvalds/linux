@@ -1422,6 +1422,9 @@ static int igt_ppgtt_pin_update(void *arg)
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	unsigned int n;
 	int first, last;
 	int err;
 
@@ -1519,11 +1522,20 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * land in the now stale 2M page.
 	 */
 
-	err = gpu_write(vma, ctx, dev_priv->engine[RCS0], 0, 0xdeadbeaf);
-	if (err)
-		goto out_unpin;
+	n = 0;
+	for_each_engine(engine, dev_priv, id) {
+		if (!intel_engine_can_store_dword(engine))
+			continue;
 
-	err = cpu_check(obj, 0, 0xdeadbeaf);
+		err = gpu_write(vma, ctx, engine, n++, 0xdeadbeaf);
+		if (err)
+			goto out_unpin;
+	}
+	while (n--) {
+		err = cpu_check(obj, n, 0xdeadbeaf);
+		if (err)
+			goto out_unpin;
+	}
 
 out_unpin:
 	i915_vma_unpin(vma);
@@ -1599,8 +1611,11 @@ static int igt_shrink_thp(void *arg)
 	struct drm_i915_private *i915 = ctx->i915;
 	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct drm_i915_gem_object *obj;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER;
+	unsigned int n;
 	int err;
 
 	/*
@@ -1636,9 +1651,15 @@ static int igt_shrink_thp(void *arg)
 	if (err)
 		goto out_unpin;
 
-	err = gpu_write(vma, ctx, i915->engine[RCS0], 0, 0xdeadbeaf);
-	if (err)
-		goto out_unpin;
+	n = 0;
+	for_each_engine(engine, i915, id) {
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		err = gpu_write(vma, ctx, engine, n++, 0xdeadbeaf);
+		if (err)
+			goto out_unpin;
+	}
 
 	i915_vma_unpin(vma);
 
@@ -1663,7 +1684,12 @@ static int igt_shrink_thp(void *arg)
 	if (err)
 		goto out_close;
 
-	err = cpu_check(obj, 0, 0xdeadbeaf);
+	while (n--) {
+		err = cpu_check(obj, n, 0xdeadbeaf);
+		if (err)
+			goto out_unpin;
+	}
+
 
 out_unpin:
 	i915_vma_unpin(vma);

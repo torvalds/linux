@@ -250,6 +250,9 @@ static bool needs_mi_store_dword(struct drm_i915_private *i915)
 	if (i915_terminally_wedged(i915))
 		return false;
 
+	if (!HAS_ENGINE(i915, RCS0))
+		return false;
+
 	return intel_engine_can_store_dword(i915->engine[RCS0]);
 }
 
