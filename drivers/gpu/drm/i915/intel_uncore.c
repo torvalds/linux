@@ -738,6 +738,12 @@ void assert_forcewakes_inactive(struct intel_uncore *uncore)
 void assert_forcewakes_active(struct intel_uncore *uncore,
 			      enum forcewake_domains fw_domains)
 {
+	struct intel_uncore_forcewake_domain *domain;
+	unsigned int tmp;
+
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM))
+		return;
+
 	if (!uncore->funcs.force_wake_get)
 		return;
 
@@ -747,6 +753,24 @@ void assert_forcewakes_active(struct intel_uncore *uncore,
 	WARN(fw_domains & ~uncore->fw_domains_active,
 	     "Expected %08x fw_domains to be active, but %08x are off\n",
 	     fw_domains, fw_domains & ~uncore->fw_domains_active);
+
+	/*
+	 * Check that the caller has an explicit wakeref and we don't mistake
+	 * it for the auto wakeref.
+	 */
+	local_irq_disable();
+	for_each_fw_domain_masked(domain, fw_domains, uncore, tmp) {
+		unsigned int expect = 1;
+
+		if (hrtimer_active(&domain->timer) && READ_ONCE(domain->active))
+			expect++; /* pending automatic release */
+
+		if (WARN(domain->wake_count < expect,
+			 "Expected domain %d to be held awake by caller, count=%d\n",
+			 domain->id, domain->wake_count))
+			break;
+	}
+	local_irq_enable();
 }
 
 /* We give fast paths for the really cool registers */
