@@ -105,65 +105,62 @@ static void usb_decode_get_set_descriptor(__u8 bRequestType, __u8 bRequest,
 					  __u16 wValue, __u16 wIndex,
 					  __u16 wLength, char *str, size_t size)
 {
-	char *s;
-
-	switch (wValue >> 8) {
-	case USB_DT_DEVICE:
-		s = "Device";
-		break;
-	case USB_DT_CONFIG:
-		s = "Configuration";
-		break;
-	case USB_DT_STRING:
-		s = "String";
-		break;
-	case USB_DT_INTERFACE:
-		s = "Interface";
-		break;
-	case USB_DT_ENDPOINT:
-		s = "Endpoint";
-		break;
-	case USB_DT_DEVICE_QUALIFIER:
-		s = "Device Qualifier";
-		break;
-	case USB_DT_OTHER_SPEED_CONFIG:
-		s = "Other Speed Config";
-		break;
-	case USB_DT_INTERFACE_POWER:
-		s = "Interface Power";
-		break;
-	case USB_DT_OTG:
-		s = "OTG";
-		break;
-	case USB_DT_DEBUG:
-		s = "Debug";
-		break;
-	case USB_DT_INTERFACE_ASSOCIATION:
-		s = "Interface Association";
-		break;
-	case USB_DT_BOS:
-		s = "BOS";
-		break;
-	case USB_DT_DEVICE_CAPABILITY:
-		s = "Device Capability";
-		break;
-	case USB_DT_PIPE_USAGE:
-		s = "Pipe Usage";
-		break;
-	case USB_DT_SS_ENDPOINT_COMP:
-		s = "SS Endpoint Companion";
-		break;
-	case USB_DT_SSP_ISOC_ENDPOINT_COMP:
-		s = "SSP Isochronous Endpoint Companion";
-		break;
-	default:
-		s = "UNKNOWN";
-		break;
-	}
-
 	snprintf(str, size, "%s %s Descriptor(Index = %d, Length = %d)",
-		bRequest == USB_REQ_GET_DESCRIPTOR ? "Get" : "Set",
-		s, wValue & 0xff, wLength);
+		 bRequest == USB_REQ_GET_DESCRIPTOR ? "Get" : "Set",
+		 ({ char *s;
+			switch (wValue >> 8) {
+			case USB_DT_DEVICE:
+				s = "Device";
+				break;
+			case USB_DT_CONFIG:
+				s = "Configuration";
+				break;
+			case USB_DT_STRING:
+				s = "String";
+				break;
+			case USB_DT_INTERFACE:
+				s = "Interface";
+				break;
+			case USB_DT_ENDPOINT:
+				s = "Endpoint";
+				break;
+			case USB_DT_DEVICE_QUALIFIER:
+				s = "Device Qualifier";
+				break;
+			case USB_DT_OTHER_SPEED_CONFIG:
+				s = "Other Speed Config";
+				break;
+			case USB_DT_INTERFACE_POWER:
+				s = "Interface Power";
+				break;
+			case USB_DT_OTG:
+				s = "OTG";
+				break;
+			case USB_DT_DEBUG:
+				s = "Debug";
+				break;
+			case USB_DT_INTERFACE_ASSOCIATION:
+				s = "Interface Association";
+				break;
+			case USB_DT_BOS:
+				s = "BOS";
+				break;
+			case USB_DT_DEVICE_CAPABILITY:
+				s = "Device Capability";
+				break;
+			case USB_DT_PIPE_USAGE:
+				s = "Pipe Usage";
+				break;
+			case USB_DT_SS_ENDPOINT_COMP:
+				s = "SS Endpoint Companion";
+				break;
+			case USB_DT_SSP_ISOC_ENDPOINT_COMP:
+				s = "SSP Isochronous Endpoint Companion";
+				break;
+			default:
+				s = "UNKNOWN";
+				break;
+			} s; }), wValue & 0xff, wLength);
 }
 
 static void usb_decode_get_configuration(__u16 wLength, char *str, size_t size)
