@@ -1165,8 +1165,7 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 
 static int flexrm_debugfs_conf_show(struct seq_file *file, void *offset)
 {
-	struct platform_device *pdev = to_platform_device(file->private);
-	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
+	struct flexrm_mbox *mbox = dev_get_drvdata(file->private);
 
 	/* Write config in file */
 	flexrm_write_config_in_seqfile(mbox, file);
@@ -1176,8 +1175,7 @@ static int flexrm_debugfs_conf_show(struct seq_file *file, void *offset)
 
 static int flexrm_debugfs_stats_show(struct seq_file *file, void *offset)
 {
-	struct platform_device *pdev = to_platform_device(file->private);
-	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
+	struct flexrm_mbox *mbox = dev_get_drvdata(file->private);
 
 	/* Write stats in file */
 	flexrm_write_stats_in_seqfile(mbox, file);
