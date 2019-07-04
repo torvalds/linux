@@ -433,7 +433,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strscpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver));
 	strscpy(cap->card, MEM2MEM_NAME, sizeof(cap->card));
-	strscpy(cap->bus_info, MEM2MEM_NAME, sizeof(cap->card));
+	strscpy(cap->bus_info, MEM2MEM_NAME, sizeof(cap->bus_info));
 	return 0;
 }
 
