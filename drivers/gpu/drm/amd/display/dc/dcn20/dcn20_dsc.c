@@ -126,7 +126,7 @@ static void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock
 
 	/* Maximum total throughput with all the slices combined. This is different from how DP spec specifies it.
 	 * Our decoder's total throughput in Pix/s is equal to DISPCLK. This is then shared between slices.
-	 * The value below is the absolute maximum value. The actual througput may be lower, but it'll always
+	 * The value below is the absolute maximum value. The actual throughput may be lower, but it'll always
 	 * be sufficient to process the input pixel rate fed into a single DSC engine.
 	 */
 	dsc_enc_caps->max_total_throughput_mps = DCN20_MAX_DISPLAY_CLOCK_Mhz;

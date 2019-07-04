@@ -702,7 +702,7 @@ MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supp
   * DOC: queue_preemption_timeout_ms (int)
   * queue preemption timeout in ms (1 = Minimum, 9000 = default)
   */
-int queue_preemption_timeout_ms;
+int queue_preemption_timeout_ms = 9000;
 module_param(queue_preemption_timeout_ms, int, 0644);
 MODULE_PARM_DESC(queue_preemption_timeout_ms, "queue preemption timeout in ms (1 = Minimum, 9000 = default)");
 #endif

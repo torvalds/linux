@@ -47,7 +47,7 @@ static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_bl
 		*buff_block_size = 64 * 1024;
 		break;
 	default: {
-			dm_error("%s: DPCD DSC buffer size not recoginzed.\n", __func__);
+			dm_error("%s: DPCD DSC buffer size not recognized.\n", __func__);
 			return false;
 		}
 	}
@@ -63,7 +63,7 @@ static bool dsc_line_buff_depth_from_dpcd(int dpcd_line_buff_bit_depth, int *lin
 	else if (dpcd_line_buff_bit_depth == 8)
 		*line_buff_bit_depth = 8;
 	else {
-		dm_error("%s: DPCD DSC buffer depth not recoginzed.\n", __func__);
+		dm_error("%s: DPCD DSC buffer depth not recognized.\n", __func__);
 		return false;
 	}
 
@@ -123,7 +123,7 @@ static bool dsc_throughput_from_dpcd(int dpcd_throughput, int *throughput)
 		*throughput = 1000;
 		break;
 	default: {
-			dm_error("%s: DPCD DSC througput mode not recoginzed.\n", __func__);
+			dm_error("%s: DPCD DSC throughput mode not recognized.\n", __func__);
 			return false;
 		}
 	}
@@ -152,7 +152,7 @@ static bool dsc_bpp_increment_div_from_dpcd(int bpp_increment_dpcd, uint32_t *bp
 		*bpp_increment_div = 1;
 		break;
 	default: {
-		dm_error("%s: DPCD DSC bits-per-pixel increment not recoginzed.\n", __func__);
+		dm_error("%s: DPCD DSC bits-per-pixel increment not recognized.\n", __func__);
 		return false;
 	}
 	}

@@ -2624,9 +2624,6 @@ static int gfx_v10_0_cp_gfx_resume(struct amdgpu_device *adev)
 	rb_bufsz = order_base_2(ring->ring_size / 8);
 	tmp = REG_SET_FIELD(0, CP_RB1_CNTL, RB_BUFSZ, rb_bufsz);
 	tmp = REG_SET_FIELD(tmp, CP_RB1_CNTL, RB_BLKSZ, rb_bufsz - 2);
-#ifdef __BIG_ENDIAN
-	tmp = REG_SET_FIELD(tmp, CP_RB1_CNTL, BUF_SWAP, 1);
-#endif
 	WREG32_SOC15(GC, 0, mmCP_RB1_CNTL, tmp);
 	/* Initialize the ring buffer's write pointers */
 	ring->wptr = 0;
