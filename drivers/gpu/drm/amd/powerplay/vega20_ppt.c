@@ -992,7 +992,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_SOCCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_SOCCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_SOCCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current socclk Failed!");
 			return ret;
@@ -1013,7 +1013,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_FCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_FCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_FCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current fclk Failed!");
 			return ret;
@@ -1028,7 +1028,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_DCEFCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_DCEFCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_DCEFCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current dcefclk Failed!");
 			return ret;
