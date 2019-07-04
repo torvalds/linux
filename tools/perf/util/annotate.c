@@ -1235,8 +1235,7 @@ void disasm_line__free(struct disasm_line *dl)
 		dl->ins.ops->free(&dl->ops);
 	else
 		ins__delete(&dl->ops);
-	free((void *)dl->ins.name);
-	dl->ins.name = NULL;
+	zfree(&dl->ins.name);
 	annotation_line__delete(&dl->al);
 }
 

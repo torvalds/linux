@@ -1413,7 +1413,7 @@ void auxtrace_cache__free(struct auxtrace_cache *c)
 		return;
 
 	auxtrace_cache__drop(c);
-	free(c->hashtable);
+	zfree(&c->hashtable);
 	free(c);
 }
 
@@ -1459,12 +1459,11 @@ void *auxtrace_cache__lookup(struct auxtrace_cache *c, u32 key)
 
 static void addr_filter__free_str(struct addr_filter *filt)
 {
-	free(filt->str);
+	zfree(&filt->str);
 	filt->action   = NULL;
 	filt->sym_from = NULL;
 	filt->sym_to   = NULL;
 	filt->filename = NULL;
-	filt->str      = NULL;
 }
 
 static struct addr_filter *addr_filter__new(void)

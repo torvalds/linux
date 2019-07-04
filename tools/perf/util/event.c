@@ -856,7 +856,7 @@ free_threads:
 	free(synthesize_threads);
 free_dirent:
 	for (i = 0; i < n; i++)
-		free(dirent[i]);
+		zfree(&dirent[i]);
 	free(dirent);
 
 	return err;

@@ -133,7 +133,7 @@ static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 	struct perf_stat_evsel *ps = evsel->stats;
 
 	if (ps)
-		free(ps->group_data);
+		zfree(&ps->group_data);
 	zfree(&evsel->stats);
 }
 

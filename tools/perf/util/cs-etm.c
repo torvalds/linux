@@ -555,8 +555,7 @@ static void cs_etm__free_traceid_queues(struct cs_etm_queue *etmq)
 	etmq->traceid_queues_list = NULL;
 
 	/* finally free the traceid_queues array */
-	free(etmq->traceid_queues);
-	etmq->traceid_queues = NULL;
+	zfree(&etmq->traceid_queues);
 }
 
 static void cs_etm__free_queue(void *priv)
@@ -2569,7 +2568,7 @@ err_free_etm:
 err_free_metadata:
 	/* No need to check @metadata[j], free(NULL) is supported */
 	for (j = 0; j < num_cpu; j++)
-		free(metadata[j]);
+		zfree(&metadata[j]);
 	zfree(&metadata);
 err_free_traceid_list:
 	intlist__delete(traceid_list);

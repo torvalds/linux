@@ -1052,7 +1052,7 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 
 	scnprintf(file, PATH_MAX, "%s/size", path);
 	if (sysfs__read_str(file, &cache->size, &len)) {
-		free(cache->type);
+		zfree(&cache->type);
 		return -1;
 	}
 
@@ -1061,8 +1061,8 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 
 	scnprintf(file, PATH_MAX, "%s/shared_cpu_list", path);
 	if (sysfs__read_str(file, &cache->map, &len)) {
-		free(cache->map);
-		free(cache->type);
+		zfree(&cache->map);
+		zfree(&cache->type);
 		return -1;
 	}
 

@@ -472,16 +472,16 @@ static int hist_entry__init(struct hist_entry *he,
 	return 0;
 
 err_srcline:
-	free(he->srcline);
+	zfree(&he->srcline);
 
 err_rawdata:
-	free(he->raw_data);
+	zfree(&he->raw_data);
 
 err_infos:
 	if (he->branch_info) {
 		map__put(he->branch_info->from.map);
 		map__put(he->branch_info->to.map);
-		free(he->branch_info);
+		zfree(&he->branch_info);
 	}
 	if (he->mem_info) {
 		map__put(he->mem_info->iaddr.map);
@@ -489,7 +489,7 @@ err_infos:
 	}
 err:
 	map__zput(he->ms.map);
-	free(he->stat_acc);
+	zfree(&he->stat_acc);
 	return -ENOMEM;
 }
 
@@ -1254,10 +1254,10 @@ void hist_entry__delete(struct hist_entry *he)
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
 	if (he->srcfile && he->srcfile[0])
-		free(he->srcfile);
+		zfree(&he->srcfile);
 	free_callchain(he->callchain);
-	free(he->trace_output);
-	free(he->raw_data);
+	zfree(&he->trace_output);
+	zfree(&he->raw_data);
 	ops->free(he);
 }
 

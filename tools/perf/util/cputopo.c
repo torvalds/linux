@@ -344,7 +344,7 @@ void numa_topology__delete(struct numa_topology *tp)
 	u32 i;
 
 	for (i = 0; i < tp->nr; i++)
-		free(tp->nodes[i].cpus);
+		zfree(&tp->nodes[i].cpus);
 
 	free(tp);
 }

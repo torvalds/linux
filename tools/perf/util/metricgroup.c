@@ -18,6 +18,7 @@
 #include "strlist.h"
 #include <assert.h>
 #include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct perf_evsel *evsel,
@@ -235,7 +236,7 @@ static struct rb_node *mep_new(struct rblist *rl __maybe_unused,
 		goto out_name;
 	return &me->nd;
 out_name:
-	free((char *)me->name);
+	zfree(&me->name);
 out_me:
 	free(me);
 	return NULL;
@@ -263,7 +264,7 @@ static void mep_delete(struct rblist *rl __maybe_unused,
 	struct mep *me = container_of(nd, struct mep, nd);
 
 	strlist__delete(me->metrics);
-	free((void *)me->name);
+	zfree(&me->name);
 	free(me);
 }
 
@@ -489,8 +490,8 @@ static void metricgroup__free_egroups(struct list_head *group_list)
 
 	list_for_each_entry_safe (eg, egtmp, group_list, nd) {
 		for (i = 0; i < eg->idnum; i++)
-			free((char *)eg->ids[i]);
-		free(eg->ids);
+			zfree(&eg->ids[i]);
+		zfree(&eg->ids);
 		free(eg);
 	}
 }

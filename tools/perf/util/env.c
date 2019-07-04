@@ -187,7 +187,7 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->caches);
 
 	for (i = 0; i < env->nr_memory_nodes; i++)
-		free(env->memory_nodes[i].set);
+		zfree(&env->memory_nodes[i].set);
 	zfree(&env->memory_nodes);
 }
 
@@ -287,9 +287,9 @@ int perf_env__nr_cpus_avail(struct perf_env *env)
 
 void cpu_cache_level__free(struct cpu_cache_level *cache)
 {
-	free(cache->type);
-	free(cache->map);
-	free(cache->size);
+	zfree(&cache->type);
+	zfree(&cache->map);
+	zfree(&cache->size);
 }
 
 /*

@@ -1044,7 +1044,7 @@ static void s390_cpumsf_free(struct perf_session *session)
 	auxtrace_heap__free(&sf->heap);
 	s390_cpumsf_free_queues(session);
 	session->auxtrace = NULL;
-	free(sf->logdir);
+	zfree(&sf->logdir);
 	free(sf);
 }
 
@@ -1101,8 +1101,7 @@ static int s390_cpumsf__config(const char *var, const char *value, void *cb)
 	if (rc == -1 || !S_ISDIR(stbuf.st_mode)) {
 		pr_err("Missing auxtrace log directory %s,"
 		       " continue with current directory...\n", value);
-		free(sf->logdir);
-		sf->logdir = NULL;
+		zfree(&sf->logdir);
 	}
 	return 1;
 }
@@ -1162,7 +1161,7 @@ err_free_queues:
 	auxtrace_queues__free(&sf->queues);
 	session->auxtrace = NULL;
 err_free:
-	free(sf->logdir);
+	zfree(&sf->logdir);
 	free(sf);
 	return err;
 }

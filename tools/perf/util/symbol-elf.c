@@ -2133,11 +2133,11 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	return 0;
 
 out_free_args:
-	free(tmp->args);
+	zfree(&tmp->args);
 out_free_name:
-	free(tmp->name);
+	zfree(&tmp->name);
 out_free_prov:
-	free(tmp->provider);
+	zfree(&tmp->provider);
 out_free_note:
 	free(tmp);
 out_err:
@@ -2253,8 +2253,8 @@ int cleanup_sdt_note_list(struct list_head *sdt_notes)
 
 	list_for_each_entry_safe(pos, tmp, sdt_notes, note_list) {
 		list_del(&pos->note_list);
-		free(pos->name);
-		free(pos->provider);
+		zfree(&pos->name);
+		zfree(&pos->provider);
 		free(pos);
 		nr_free++;
 	}

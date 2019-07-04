@@ -4,7 +4,8 @@
  * Copyright (c) 2017, Intel Corporation.
  * Author: Andi Kleen
  */
-#include "linux/list.h"
+#include <linux/list.h>
+#include <linux/zalloc.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -86,8 +87,8 @@ static void free_srcfile(struct srcfile *sf)
 	hlist_del(&sf->hash_nd);
 	map_total_sz -= sf->maplen;
 	munmap(sf->map, sf->maplen);
-	free(sf->lines);
-	free(sf->fn);
+	zfree(&sf->lines);
+	zfree(&sf->fn);
 	free(sf);
 	num_srcfiles--;
 }
@@ -153,7 +154,7 @@ static struct srcfile *find_srcfile(char *fn)
 out_map:
 	munmap(h->map, sz);
 out_fn:
-	free(h->fn);
+	zfree(&h->fn);
 out_h:
 	free(h);
 	return NULL;

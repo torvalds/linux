@@ -1586,7 +1586,7 @@ static void runtime_stat_delete(struct perf_stat_config *config)
 	for (i = 0; i < config->stats_num; i++)
 		runtime_stat__exit(&config->stats[i]);
 
-	free(config->stats);
+	zfree(&config->stats);
 }
 
 static const char * const stat_report_usage[] = {
@@ -2003,7 +2003,7 @@ int cmd_stat(int argc, const char **argv)
 	perf_stat__exit_aggr_mode();
 	perf_evlist__free_stats(evsel_list);
 out:
-	free(stat_config.walltime_run);
+	zfree(&stat_config.walltime_run);
 
 	if (smi_cost && smi_reset)
 		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);

@@ -1353,7 +1353,7 @@ static void free_streams(struct ctf_writer *cw)
 	for (cpu = 0; cpu < cw->stream_cnt; cpu++)
 		ctf_stream__delete(cw->stream[cpu]);
 
-	free(cw->stream);
+	zfree(&cw->stream);
 }
 
 static int ctf_writer__setup_env(struct ctf_writer *cw,

@@ -124,7 +124,7 @@ static struct cgroup *cgroup__new(const char *name)
 	return cgroup;
 
 out_free_name:
-	free(cgroup->name);
+	zfree(&cgroup->name);
 out_err:
 	free(cgroup);
 	return NULL;

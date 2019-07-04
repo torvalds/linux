@@ -214,9 +214,9 @@ out:
 
 static void clear_perf_probe_point(struct perf_probe_point *pp)
 {
-	free(pp->file);
-	free(pp->function);
-	free(pp->lazy_line);
+	zfree(&pp->file);
+	zfree(&pp->function);
+	zfree(&pp->lazy_line);
 }
 
 static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
@@ -1175,12 +1175,11 @@ int show_available_vars(struct perf_probe_event *pevs __maybe_unused,
 
 void line_range__clear(struct line_range *lr)
 {
-	free(lr->function);
-	free(lr->file);
-	free(lr->path);
-	free(lr->comp_dir);
+	zfree(&lr->function);
+	zfree(&lr->file);
+	zfree(&lr->path);
+	zfree(&lr->comp_dir);
 	intlist__delete(lr->line_list);
-	memset(lr, 0, sizeof(*lr));
 }
 
 int line_range__init(struct line_range *lr)
@@ -2203,15 +2202,15 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 	struct perf_probe_arg_field *field, *next;
 	int i;
 
-	free(pev->event);
-	free(pev->group);
-	free(pev->target);
+	zfree(&pev->event);
+	zfree(&pev->group);
+	zfree(&pev->target);
 	clear_perf_probe_point(&pev->point);
 
 	for (i = 0; i < pev->nargs; i++) {
-		free(pev->args[i].name);
-		free(pev->args[i].var);
-		free(pev->args[i].type);
+		zfree(&pev->args[i].name);
+		zfree(&pev->args[i].var);
+		zfree(&pev->args[i].type);
 		field = pev->args[i].field;
 		while (field) {
 			next = field->next;
@@ -2220,8 +2219,7 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 			field = next;
 		}
 	}
-	free(pev->args);
-	memset(pev, 0, sizeof(*pev));
+	zfree(&pev->args);
 }
 
 #define strdup_or_goto(str, label)	\
@@ -2302,15 +2300,15 @@ void clear_probe_trace_event(struct probe_trace_event *tev)
 	struct probe_trace_arg_ref *ref, *next;
 	int i;
 
-	free(tev->event);
-	free(tev->group);
-	free(tev->point.symbol);
-	free(tev->point.realname);
-	free(tev->point.module);
+	zfree(&tev->event);
+	zfree(&tev->group);
+	zfree(&tev->point.symbol);
+	zfree(&tev->point.realname);
+	zfree(&tev->point.module);
 	for (i = 0; i < tev->nargs; i++) {
-		free(tev->args[i].name);
-		free(tev->args[i].value);
-		free(tev->args[i].type);
+		zfree(&tev->args[i].name);
+		zfree(&tev->args[i].value);
+		zfree(&tev->args[i].type);
 		ref = tev->args[i].ref;
 		while (ref) {
 			next = ref->next;
@@ -2318,8 +2316,7 @@ void clear_probe_trace_event(struct probe_trace_event *tev)
 			ref = next;
 		}
 	}
-	free(tev->args);
-	memset(tev, 0, sizeof(*tev));
+	zfree(&tev->args);
 }
 
 struct kprobe_blacklist_node {
@@ -2337,7 +2334,7 @@ static void kprobe_blacklist__delete(struct list_head *blacklist)
 		node = list_first_entry(blacklist,
 					struct kprobe_blacklist_node, list);
 		list_del(&node->list);
-		free(node->symbol);
+		zfree(&node->symbol);
 		free(node);
 	}
 }
