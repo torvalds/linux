@@ -753,11 +753,56 @@ static int mlxsw_sp1_ptp_mtpppc_set(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mtpppc), mtpppc_pl);
 }
 
+struct mlxsw_sp1_ptp_shaper_params {
+	u32 ethtool_speed;
+	enum mlxsw_reg_qpsc_port_speed port_speed;
+	u8 shaper_time_exp;
+	u8 shaper_time_mantissa;
+	u8 shaper_inc;
+	u8 shaper_bs;
+	u8 port_to_shaper_credits;
+	int ing_timestamp_inc;
+	int egr_timestamp_inc;
+};
+
+static const struct mlxsw_sp1_ptp_shaper_params
+mlxsw_sp1_ptp_shaper_params[] = {
+};
+
+#define MLXSW_SP1_PTP_SHAPER_PARAMS_LEN ARRAY_SIZE(mlxsw_sp1_ptp_shaper_params)
+
+static int mlxsw_sp1_ptp_shaper_params_set(struct mlxsw_sp *mlxsw_sp)
+{
+	const struct mlxsw_sp1_ptp_shaper_params *params;
+	char qpsc_pl[MLXSW_REG_QPSC_LEN];
+	int i, err;
+
+	for (i = 0; i < MLXSW_SP1_PTP_SHAPER_PARAMS_LEN; i++) {
+		params = &mlxsw_sp1_ptp_shaper_params[i];
+		mlxsw_reg_qpsc_pack(qpsc_pl, params->port_speed,
+				    params->shaper_time_exp,
+				    params->shaper_time_mantissa,
+				    params->shaper_inc, params->shaper_bs,
+				    params->port_to_shaper_credits,
+				    params->ing_timestamp_inc,
+				    params->egr_timestamp_inc);
+		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpsc), qpsc_pl);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_ptp_state *ptp_state;
 	u16 message_type;
 	int err;
+
+	err = mlxsw_sp1_ptp_shaper_params_set(mlxsw_sp);
+	if (err)
+		return ERR_PTR(err);
 
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
 	if (!ptp_state)
