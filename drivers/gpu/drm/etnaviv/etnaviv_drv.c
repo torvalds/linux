@@ -5,6 +5,7 @@
 
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/uaccess.h>
 

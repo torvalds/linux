@@ -6,17 +6,9 @@
 #ifndef __ETNAVIV_DRV_H__
 #define __ETNAVIV_DRV_H__
 
-#include <linux/clk.h>
-#include <linux/cpufreq.h>
-#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mm_types.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/pm.h>
-#include <linux/pm_runtime.h>
 #include <linux/sizes.h>
-#include <linux/slab.h>
 #include <linux/time64.h>
 #include <linux/types.h>
 

@@ -4,6 +4,8 @@
  */
 
 #include <linux/devcoredump.h>
+#include <linux/moduleparam.h>
+
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_dump.h"
 #include "etnaviv_gem.h"

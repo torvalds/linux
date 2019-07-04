@@ -3,7 +3,7 @@
  * Copyright (C) 2017 Etnaviv Project
  */
 
-#include <linux/kthread.h>
+#include <linux/moduleparam.h>
 
 #include "etnaviv_drv.h"
 #include "etnaviv_dump.h"
