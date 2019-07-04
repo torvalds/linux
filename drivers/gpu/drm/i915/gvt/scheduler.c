@@ -364,15 +364,12 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	wa_ctx->indirect_ctx.shadow_va = NULL;
 }
 
-static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
-					 struct i915_gem_context *ctx)
+static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
+					  struct i915_gem_context *ctx)
 {
 	struct intel_vgpu_mm *mm = workload->shadow_mm;
 	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ctx->vm);
 	int i = 0;
-
-	if (mm->type != INTEL_GVT_MM_PPGTT || !mm->ppgtt_mm.shadowed)
-		return -EINVAL;
 
 	if (mm->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
 		px_dma(ppgtt->pd) = mm->ppgtt_mm.shadow_pdps[0];
@@ -384,8 +381,6 @@ static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 			px_dma(pd) = mm->ppgtt_mm.shadow_pdps[i];
 		}
 	}
-
-	return 0;
 }
 
 static int
@@ -614,6 +609,8 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 static int prepare_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	int ring = workload->ring_id;
 	int ret = 0;
 
 	ret = intel_vgpu_pin_mm(workload->shadow_mm);
@@ -622,7 +619,15 @@ static int prepare_workload(struct intel_vgpu_workload *workload)
 		return ret;
 	}
 
+	if (workload->shadow_mm->type != INTEL_GVT_MM_PPGTT ||
+	    !workload->shadow_mm->ppgtt_mm.shadowed) {
+		gvt_vgpu_err("workload shadow ppgtt isn't ready\n");
+		return -EINVAL;
+	}
+
 	update_shadow_pdps(workload);
+
+	set_context_ppgtt_from_shadow(workload, s->shadow[ring]->gem_context);
 
 	ret = intel_vgpu_sync_oos_pages(workload->vgpu);
 	if (ret) {
@@ -674,7 +679,6 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct i915_request *rq;
 	int ring_id = workload->ring_id;
 	int ret;
@@ -684,13 +688,6 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 
 	mutex_lock(&vgpu->vgpu_lock);
 	mutex_lock(&dev_priv->drm.struct_mutex);
-
-	ret = set_context_ppgtt_from_shadow(workload,
-					    s->shadow[ring_id]->gem_context);
-	if (ret < 0) {
-		gvt_vgpu_err("workload shadow ppgtt isn't ready\n");
-		goto err_req;
-	}
 
 	ret = intel_gvt_workload_req_alloc(workload);
 	if (ret)
