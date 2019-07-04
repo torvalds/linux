@@ -135,13 +135,13 @@
 
 #include "gem/i915_gem_context.h"
 
-#include "gt/intel_gt.h"
 #include "i915_drv.h"
-#include "i915_gem_render_state.h"
 #include "i915_vgpu.h"
 #include "intel_engine_pm.h"
+#include "intel_gt.h"
 #include "intel_lrc_reg.h"
 #include "intel_mocs.h"
+#include "intel_renderstate.h"
 #include "intel_reset.h"
 #include "intel_workarounds.h"
 
@@ -2677,7 +2677,7 @@ static int gen8_init_rcs_context(struct i915_request *rq)
 	if (ret)
 		DRM_ERROR("MOCS failed to program: expect performance issues.\n");
 
-	return i915_gem_render_state_emit(rq);
+	return intel_renderstate_emit(rq);
 }
 
 static void execlists_park(struct intel_engine_cs *engine)

@@ -33,12 +33,11 @@
 
 #include "gem/i915_gem_context.h"
 
-#include "gt/intel_gt.h"
-
 #include "i915_drv.h"
-#include "i915_gem_render_state.h"
 #include "i915_trace.h"
 #include "intel_context.h"
+#include "intel_gt.h"
+#include "intel_renderstate.h"
 #include "intel_reset.h"
 #include "intel_workarounds.h"
 
@@ -813,7 +812,7 @@ static int intel_rcs_ctx_init(struct i915_request *rq)
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_render_state_emit(rq);
+	ret = intel_renderstate_emit(rq);
 	if (ret)
 		return ret;
 

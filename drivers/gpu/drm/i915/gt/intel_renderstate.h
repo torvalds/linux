@@ -21,10 +21,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _INTEL_RENDERSTATE_H
-#define _INTEL_RENDERSTATE_H
+#ifndef _INTEL_RENDERSTATE_H_
+#define _INTEL_RENDERSTATE_H_
 
 #include <linux/types.h>
+
+struct i915_request;
 
 struct intel_renderstate_rodata {
 	const u32 *reloc;
@@ -44,4 +46,6 @@ extern const struct intel_renderstate_rodata gen7_null_state;
 extern const struct intel_renderstate_rodata gen8_null_state;
 extern const struct intel_renderstate_rodata gen9_null_state;
 
-#endif /* INTEL_RENDERSTATE_H */
+int intel_renderstate_emit(struct i915_request *rq);
+
+#endif /* _INTEL_RENDERSTATE_H_ */
