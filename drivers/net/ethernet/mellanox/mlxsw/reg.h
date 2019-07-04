@@ -3515,6 +3515,18 @@ MLXSW_ITEM32(reg, qeec, next_element_index, 0x08, 0, 8);
  */
 MLXSW_ITEM32(reg, qeec, mise, 0x0C, 31, 1);
 
+/* reg_qeec_ptps
+ * PTP shaper
+ * 0: regular shaper mode
+ * 1: PTP oriented shaper
+ * Allowed only for hierarchy 0
+ * Not supported for CPU port
+ * Note that ptps mode may affect the shaper rates of all hierarchies
+ * Supported only on Spectrum-1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qeec, ptps, 0x0C, 29, 1);
+
 enum {
 	MLXSW_REG_QEEC_BYTES_MODE,
 	MLXSW_REG_QEEC_PACKETS_MODE,
@@ -3599,6 +3611,16 @@ static inline void mlxsw_reg_qeec_pack(char *payload, u8 local_port,
 	mlxsw_reg_qeec_element_hierarchy_set(payload, hr);
 	mlxsw_reg_qeec_element_index_set(payload, index);
 	mlxsw_reg_qeec_next_element_index_set(payload, next_index);
+}
+
+static inline void mlxsw_reg_qeec_ptps_pack(char *payload, u8 local_port,
+					    bool ptps)
+{
+	MLXSW_REG_ZERO(qeec, payload);
+	mlxsw_reg_qeec_local_port_set(payload, local_port);
+	mlxsw_reg_qeec_element_hierarchy_set(payload,
+					     MLXSW_REG_QEEC_HIERARCY_PORT);
+	mlxsw_reg_qeec_ptps_set(payload, ptps);
 }
 
 /* QRWE - QoS ReWrite Enable
