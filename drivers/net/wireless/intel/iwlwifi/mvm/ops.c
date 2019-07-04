@@ -389,6 +389,7 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(SCAN_ITERATION_COMPLETE_UMAC),
 	HCMD_NAME(REPLY_RX_PHY_CMD),
 	HCMD_NAME(REPLY_RX_MPDU_CMD),
+	HCMD_NAME(BAR_FRAME_RELEASE),
 	HCMD_NAME(FRAME_RELEASE),
 	HCMD_NAME(BA_NOTIF),
 	HCMD_NAME(MCC_UPDATE_CMD),
@@ -1060,6 +1061,8 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_queue_notif(mvm, napi, rxb, 0);
 	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
+	else if (cmd == WIDE_ID(LEGACY_GROUP, BAR_FRAME_RELEASE))
+		iwl_mvm_rx_bar_frame_release(mvm, napi, rxb, 0);
 	else if (cmd == WIDE_ID(DATA_PATH_GROUP, RX_NO_DATA_NOTIF))
 		iwl_mvm_rx_monitor_no_data(mvm, napi, rxb, 0);
 	else
