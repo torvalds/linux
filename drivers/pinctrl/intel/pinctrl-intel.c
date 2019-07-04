@@ -1418,8 +1418,6 @@ int intel_pinctrl_probe_by_uid(struct platform_device *pdev)
 		table = (const struct intel_pinctrl_soc_data **)id->driver_data;
 		data = table[pdev->id];
 	}
-	if (!data)
-		return -ENODEV;
 
 	return intel_pinctrl_probe(pdev, data);
 }
