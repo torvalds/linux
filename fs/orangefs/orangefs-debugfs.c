@@ -64,7 +64,7 @@ struct client_debug_mask {
 	__u64 mask2;
 };
 
-static int orangefs_kernel_debug_init(void);
+static void orangefs_kernel_debug_init(void);
 
 static int orangefs_debug_help_open(struct inode *, struct file *);
 static void *help_start(struct seq_file *, loff_t *);
@@ -150,10 +150,8 @@ static DEFINE_MUTEX(orangefs_help_file_lock);
  * initialize kmod debug operations, create orangefs debugfs dir and
  * ORANGEFS_KMOD_DEBUG_HELP_FILE.
  */
-int orangefs_debugfs_init(int debug_mask)
+void orangefs_debugfs_init(int debug_mask)
 {
-	int rc = -ENOMEM;
-
 	/* convert input debug mask to a 64-bit unsigned integer */
         orangefs_gossip_debug_mask = (unsigned long long)debug_mask;
 
@@ -188,20 +186,15 @@ int orangefs_debugfs_init(int debug_mask)
 
 	orangefs_debug_disabled = 0;
 
-	rc = orangefs_kernel_debug_init();
-
-out:
-
-	return rc;
+	orangefs_kernel_debug_init();
 }
 
 /*
  * initialize the kernel-debug file.
  */
-static int orangefs_kernel_debug_init(void)
+static void orangefs_kernel_debug_init(void)
 {
 	int rc = -ENOMEM;
-	struct dentry *ret;
 	char *k_buffer = NULL;
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
@@ -221,12 +214,8 @@ static int orangefs_kernel_debug_init(void)
 	debugfs_create_file(ORANGEFS_KMOD_DEBUG_FILE, 0444, debug_dir, k_buffer,
 			    &kernel_debug_fops);
 
-	rc = 0;
-
 out:
-
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
-	return rc;
 }
 
 
