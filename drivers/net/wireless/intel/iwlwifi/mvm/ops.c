@@ -468,6 +468,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
  */
 static const struct iwl_hcmd_names iwl_mvm_debug_names[] = {
 	HCMD_NAME(DBGC_SUSPEND_RESUME),
+	HCMD_NAME(BUFFER_ALLOCATION),
 	HCMD_NAME(MFU_ASSERT_DUMP_NTF),
 };
 

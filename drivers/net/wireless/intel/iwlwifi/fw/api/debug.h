@@ -88,6 +88,12 @@ enum iwl_debug_cmds {
 	 */
 	DBGC_SUSPEND_RESUME = 0x7,
 	/**
+	 * @BUFFER_ALLOCATION:
+	 * passes DRAM buffers to a DBGC
+	 * &struct iwl_buf_alloc_cmd
+	 */
+	BUFFER_ALLOCATION = 0x8,
+	/**
 	 * @MFU_ASSERT_DUMP_NTF:
 	 * &struct iwl_mfu_assert_dump_notif
 	 */
@@ -360,5 +366,31 @@ struct iwl_dbg_mem_access_rsp {
 struct iwl_dbg_suspend_resume_cmd {
 	__le32 operation;
 } __packed;
+
+#define BUF_ALLOC_MAX_NUM_FRAGS 16
+
+/**
+ * struct iwl_buf_alloc_frag - a DBGC fragment
+ * @addr: base address of the fragment
+ * @size: size of the fragment
+ */
+struct iwl_buf_alloc_frag {
+	__le64 addr;
+	__le32 size;
+} __packed; /* FRAGMENT_STRUCTURE_API_S_VER_1 */
+
+/**
+ * struct iwl_buf_alloc_cmd - buffer allocation command
+ * @alloc_id: &enum iwl_fw_ini_allocation_id
+ * @buf_location: &enum iwl_fw_ini_buffer_location
+ * @num_frags: number of fragments
+ * @frags: fragments array
+ */
+struct iwl_buf_alloc_cmd {
+	__le32 alloc_id;
+	__le32 buf_location;
+	__le32 num_frags;
+	struct iwl_buf_alloc_frag frags[BUF_ALLOC_MAX_NUM_FRAGS];
+} __packed; /* BUFFER_ALLOCATION_CMD_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_debug_h__ */
