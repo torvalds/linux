@@ -178,6 +178,8 @@ struct rvin_info {
  * @compose:		active composing
  * @source:		active size of the video source
  * @std:		active video standard of the video source
+ *
+ * @alpha:		Alpha component to fill in for supported pixel formats
  */
 struct rvin_dev {
 	struct device *dev;
@@ -215,6 +217,8 @@ struct rvin_dev {
 	struct v4l2_rect compose;
 	struct v4l2_rect source;
 	v4l2_std_id std;
+
+	unsigned int alpha;
 };
 
 #define vin_to_source(vin)		((vin)->parallel->subdev)
@@ -268,5 +272,6 @@ const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
 void rvin_crop_scale_comp(struct rvin_dev *vin);
 
 int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel);
+void rvin_set_alpha(struct rvin_dev *vin, unsigned int alpha);
 
 #endif

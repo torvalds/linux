@@ -1343,3 +1343,8 @@ int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
 
 	return 0;
 }
+
+void rvin_set_alpha(struct rvin_dev *vin, unsigned int alpha)
+{
+	vin->alpha = alpha;
+}
