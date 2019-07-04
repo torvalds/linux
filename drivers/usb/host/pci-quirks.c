@@ -132,7 +132,7 @@ static struct amd_chipset_info {
 	struct amd_chipset_type sb_type;
 	int isoc_reqs;
 	int probe_count;
-	int probe_result;
+	bool need_pll_quirk;
 } amd_chipset;
 
 static DEFINE_SPINLOCK(amd_lock);
@@ -201,11 +201,11 @@ void sb800_prefetch(struct device *dev, int on)
 }
 EXPORT_SYMBOL_GPL(sb800_prefetch);
 
-int usb_amd_find_chipset_info(void)
+static void usb_amd_find_chipset_info(void)
 {
 	unsigned long flags;
 	struct amd_chipset_info info;
-	int need_pll_quirk = 0;
+	info.need_pll_quirk = 0;
 
 	spin_lock_irqsave(&amd_lock, flags);
 
@@ -213,7 +213,7 @@ int usb_amd_find_chipset_info(void)
 	if (amd_chipset.probe_count > 0) {
 		amd_chipset.probe_count++;
 		spin_unlock_irqrestore(&amd_lock, flags);
-		return amd_chipset.probe_result;
+		return;
 	}
 	memset(&info, 0, sizeof(info));
 	spin_unlock_irqrestore(&amd_lock, flags);
@@ -224,19 +224,19 @@ int usb_amd_find_chipset_info(void)
 
 	switch (info.sb_type.gen) {
 	case AMD_CHIPSET_SB700:
-		need_pll_quirk = info.sb_type.rev <= 0x3B;
+		info.need_pll_quirk = info.sb_type.rev <= 0x3B;
 		break;
 	case AMD_CHIPSET_SB800:
 	case AMD_CHIPSET_HUDSON2:
 	case AMD_CHIPSET_BOLTON:
-		need_pll_quirk = 1;
+		info.need_pll_quirk = 1;
 		break;
 	default:
-		need_pll_quirk = 0;
+		info.need_pll_quirk = 0;
 		break;
 	}
 
-	if (!need_pll_quirk) {
+	if (!info.need_pll_quirk) {
 		if (info.smbus_dev) {
 			pci_dev_put(info.smbus_dev);
 			info.smbus_dev = NULL;
@@ -259,7 +259,6 @@ int usb_amd_find_chipset_info(void)
 		}
 	}
 
-	need_pll_quirk = info.probe_result = 1;
 	printk(KERN_DEBUG "QUIRK: Enable AMD PLL fix\n");
 
 commit:
@@ -270,7 +269,6 @@ commit:
 
 		/* Mark that we where here */
 		amd_chipset.probe_count++;
-		need_pll_quirk = amd_chipset.probe_result;
 
 		spin_unlock_irqrestore(&amd_lock, flags);
 
@@ -283,10 +281,7 @@ commit:
 		amd_chipset = info;
 		spin_unlock_irqrestore(&amd_lock, flags);
 	}
-
-	return need_pll_quirk;
 }
-EXPORT_SYMBOL_GPL(usb_amd_find_chipset_info);
 
 int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *pdev)
 {
@@ -321,6 +316,13 @@ bool usb_amd_prefetch_quirk(void)
 	return amd_chipset.sb_type.gen == AMD_CHIPSET_SB800;
 }
 EXPORT_SYMBOL_GPL(usb_amd_prefetch_quirk);
+
+bool usb_amd_quirk_pll_check(void)
+{
+	usb_amd_find_chipset_info();
+	return amd_chipset.need_pll_quirk;
+}
+EXPORT_SYMBOL_GPL(usb_amd_quirk_pll_check);
 
 /*
  * The hardware normally enables the A-link power management feature, which
@@ -527,7 +529,7 @@ void usb_amd_dev_put(void)
 	amd_chipset.nb_type = 0;
 	memset(&amd_chipset.sb_type, 0, sizeof(amd_chipset.sb_type));
 	amd_chipset.isoc_reqs = 0;
-	amd_chipset.probe_result = 0;
+	amd_chipset.need_pll_quirk = 0;
 
 	spin_unlock_irqrestore(&amd_lock, flags);
 
