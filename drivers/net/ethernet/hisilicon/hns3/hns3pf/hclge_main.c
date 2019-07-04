@@ -8179,8 +8179,9 @@ static void hclge_get_pauseparam(struct hnae3_handle *handle, u32 *auto_neg,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	struct phy_device *phydev = hdev->hw.mac.phydev;
 
-	*auto_neg = hclge_get_autoneg(handle);
+	*auto_neg = phydev ? hclge_get_autoneg(handle) : 0;
 
 	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
 		*rx_en = 0;
@@ -8211,11 +8212,13 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	u32 fc_autoneg;
 
-	fc_autoneg = hclge_get_autoneg(handle);
-	if (auto_neg != fc_autoneg) {
-		dev_info(&hdev->pdev->dev,
-			 "To change autoneg please use: ethtool -s <dev> autoneg <on|off>\n");
-		return -EOPNOTSUPP;
+	if (phydev) {
+		fc_autoneg = hclge_get_autoneg(handle);
+		if (auto_neg != fc_autoneg) {
+			dev_info(&hdev->pdev->dev,
+				 "To change autoneg please use: ethtool -s <dev> autoneg <on|off>\n");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
@@ -8226,16 +8229,13 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 
 	hclge_set_flowctrl_adv(hdev, rx_en, tx_en);
 
-	if (!fc_autoneg)
+	if (!auto_neg)
 		return hclge_cfg_pauseparam(hdev, rx_en, tx_en);
 
 	if (phydev)
 		return phy_start_aneg(phydev);
 
-	if (hdev->pdev->revision == 0x20)
-		return -EOPNOTSUPP;
-
-	return hclge_restart_autoneg(handle);
+	return -EOPNOTSUPP;
 }
 
 static void hclge_get_ksettings_an_result(struct hnae3_handle *handle,
