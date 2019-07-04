@@ -1255,6 +1255,41 @@ static int navi10_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
+static int navi10_thermal_get_temperature(struct smu_context *smu,
+					     enum amd_pp_sensors sensor,
+					     uint32_t *value)
+{
+	SmuMetrics_t metrics;
+	int ret = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		*value = metrics.TemperatureHotspot *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		*value = metrics.TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		*value = metrics.TemperatureMem *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving temp\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int navi10_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1274,6 +1309,12 @@ static int navi10_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = navi10_get_gpu_power(smu, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = navi10_thermal_get_temperature(smu, sensor, (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
