@@ -126,7 +126,8 @@ void nvme_mpath_clear_current_path(struct nvme_ns *ns)
 static bool nvme_path_is_disabled(struct nvme_ns *ns)
 {
 	return ns->ctrl->state != NVME_CTRL_LIVE ||
-		test_bit(NVME_NS_ANA_PENDING, &ns->flags);
+		test_bit(NVME_NS_ANA_PENDING, &ns->flags) ||
+		test_bit(NVME_NS_REMOVING, &ns->flags);
 }
 
 static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
