@@ -247,7 +247,7 @@ int  kpc_dma_open(struct inode *inode, struct file *filp)
 	struct dev_private_data *priv;
 	struct kpc_dma_device *ldev = kpc_dma_lookup_device(iminor(inode));
 
-	if (ldev == NULL)
+	if (!ldev)
 		return -ENODEV;
 
 	if (!atomic_dec_and_test(&ldev->open_count)) {
