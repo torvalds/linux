@@ -398,7 +398,7 @@ static int mlx5e_rep_get_port_parent_id(struct net_device *dev,
 	priv = netdev_priv(dev);
 	esw = priv->mdev->priv.eswitch;
 
-	if (esw->mode == SRIOV_NONE)
+	if (esw->mode == MLX5_ESWITCH_NONE)
 		return -EOPNOTSUPP;
 
 	parent_id = mlx5_query_nic_system_image_guid(priv->mdev);
@@ -414,7 +414,7 @@ static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 	struct mlx5e_rep_sq *rep_sq, *tmp;
 	struct mlx5e_rep_priv *rpriv;
 
-	if (esw->mode != SRIOV_OFFLOADS)
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
 		return;
 
 	rpriv = mlx5e_rep_to_rep_priv(rep);
@@ -435,7 +435,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 	int err;
 	int i;
 
-	if (esw->mode != SRIOV_OFFLOADS)
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
 		return 0;
 
 	rpriv = mlx5e_rep_to_rep_priv(rep);
@@ -1392,7 +1392,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 		SET_NETDEV_DEV(netdev, mdev->device);
 		netdev->netdev_ops = &mlx5e_netdev_ops_uplink_rep;
 		/* we want a persistent mac for the uplink rep */
-		mlx5_query_nic_vport_mac_address(mdev, 0, netdev->dev_addr);
+		mlx5_query_mac_address(mdev, netdev->dev_addr);
 		netdev->ethtool_ops = &mlx5e_uplink_rep_ethtool_ops;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 		if (MLX5_CAP_GEN(mdev, qos))
