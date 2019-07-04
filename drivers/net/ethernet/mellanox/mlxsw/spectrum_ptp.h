@@ -54,6 +54,8 @@ int mlxsw_sp1_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
 int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			       struct hwtstamp_config *config);
 
+void mlxsw_sp1_ptp_shaper_work(struct work_struct *work);
+
 int mlxsw_sp1_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 			      struct ethtool_ts_info *info);
 
@@ -113,6 +115,10 @@ mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return -EOPNOTSUPP;
 }
 
+static inline void mlxsw_sp1_ptp_shaper_work(struct work_struct *work)
+{
+}
+
 static inline int mlxsw_sp1_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 					    struct ethtool_ts_info *info)
 {
@@ -165,6 +171,10 @@ mlxsw_sp2_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct hwtstamp_config *config)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline void mlxsw_sp2_ptp_shaper_work(struct work_struct *work)
+{
 }
 
 static inline int mlxsw_sp2_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,

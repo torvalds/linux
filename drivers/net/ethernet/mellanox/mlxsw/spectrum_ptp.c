@@ -1000,6 +1000,23 @@ static int mlxsw_sp1_ptp_port_shaper_check(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_sp1_ptp_port_shaper_set(mlxsw_sp_port, ptps);
 }
 
+void mlxsw_sp1_ptp_shaper_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	int err;
+
+	mlxsw_sp_port = container_of(dwork, struct mlxsw_sp_port,
+				     ptp.shaper_dw);
+
+	if (!mlxsw_sp1_ptp_hwtstamp_enabled(mlxsw_sp_port))
+		return;
+
+	err = mlxsw_sp1_ptp_port_shaper_check(mlxsw_sp_port);
+	if (err)
+		netdev_err(mlxsw_sp_port->dev, "Failed to set up PTP shaper\n");
+}
+
 int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			       struct hwtstamp_config *config)
 {

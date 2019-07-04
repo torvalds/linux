@@ -267,6 +267,7 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp_acl_block *ing_acl_block;
 	struct mlxsw_sp_acl_block *eg_acl_block;
 	struct {
+		struct delayed_work shaper_dw;
 		struct hwtstamp_config hwtstamp_config;
 		u16 ing_types;
 		u16 egr_types;
