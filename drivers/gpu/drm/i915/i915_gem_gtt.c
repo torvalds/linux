@@ -1444,6 +1444,7 @@ unwind_pd:
 	spin_lock(&pdp->lock);
 	if (atomic_dec_and_test(&pd->used)) {
 		gen8_ppgtt_set_pdpe(pdp, vm->scratch_pd, pdpe);
+		pdp->entry[pdpe] = vm->scratch_pd;
 		GEM_BUG_ON(!atomic_read(&pdp->used));
 		atomic_dec(&pdp->used);
 		GEM_BUG_ON(alloc);
@@ -1516,6 +1517,7 @@ unwind_pdp:
 	spin_lock(&pml4->lock);
 	if (atomic_dec_and_test(&pdp->used)) {
 		gen8_ppgtt_set_pml4e(pml4, vm->scratch_pdp, pml4e);
+		pml4->entry[pml4e] = vm->scratch_pdp;
 		GEM_BUG_ON(alloc);
 		alloc = pdp; /* defer the free until after the lock */
 	}
