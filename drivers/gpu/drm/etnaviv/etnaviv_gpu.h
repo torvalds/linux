@@ -99,6 +99,7 @@ struct etnaviv_gpu {
 	enum etnaviv_sec_mode sec_mode;
 	struct workqueue_struct *wq;
 	struct drm_gpu_scheduler sched;
+	bool initialized;
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf buffer;

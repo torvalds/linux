@@ -799,17 +799,16 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	pm_runtime_mark_last_busy(gpu->dev);
 	pm_runtime_put_autosuspend(gpu->dev);
 
+	gpu->initialized = true;
+
 	return 0;
 
 free_buffer:
 	etnaviv_cmdbuf_free(&gpu->buffer);
-	gpu->buffer.suballoc = NULL;
 destroy_suballoc:
 	etnaviv_cmdbuf_suballoc_destroy(gpu->cmdbuf_suballoc);
-	gpu->cmdbuf_suballoc = NULL;
 destroy_iommu:
 	etnaviv_iommu_destroy(gpu->mmu);
-	gpu->mmu = NULL;
 fail:
 	pm_runtime_mark_last_busy(gpu->dev);
 	pm_runtime_put_autosuspend(gpu->dev);
@@ -1521,7 +1520,7 @@ int etnaviv_gpu_wait_idle(struct etnaviv_gpu *gpu, unsigned int timeout_ms)
 
 static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 {
-	if (gpu->buffer.suballoc) {
+	if (gpu->initialized) {
 		/* Replace the last WAIT with END */
 		mutex_lock(&gpu->lock);
 		etnaviv_buffer_end(gpu);
@@ -1680,17 +1679,11 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 	etnaviv_gpu_hw_suspend(gpu);
 #endif
 
-	if (gpu->buffer.suballoc)
+	if (gpu->initialized) {
 		etnaviv_cmdbuf_free(&gpu->buffer);
-
-	if (gpu->cmdbuf_suballoc) {
 		etnaviv_cmdbuf_suballoc_destroy(gpu->cmdbuf_suballoc);
-		gpu->cmdbuf_suballoc = NULL;
-	}
-
-	if (gpu->mmu) {
 		etnaviv_iommu_destroy(gpu->mmu);
-		gpu->mmu = NULL;
+		gpu->initialized = false;
 	}
 
 	gpu->drm = NULL;
@@ -1827,7 +1820,7 @@ static int etnaviv_gpu_rpm_resume(struct device *dev)
 		return ret;
 
 	/* Re-initialise the basic hardware state */
-	if (gpu->drm && gpu->buffer.suballoc) {
+	if (gpu->drm && gpu->initialized) {
 		ret = etnaviv_gpu_hw_resume(gpu);
 		if (ret) {
 			etnaviv_gpu_clk_disable(gpu);
