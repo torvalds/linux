@@ -811,7 +811,25 @@ __clear_pd_entry(struct i915_page_directory * const pd,
 	__set_pd_entry((pd), (pde), px_base(to), gen8_pde_encode)
 
 #define clear_pd_entry(pd, pde, to) \
-	__clear_pd_entry((pd), (pde), px_base(to), gen8_pde_encode)
+	__clear_pd_entry((pd), (pde), (to), gen8_pde_encode)
+
+static bool
+release_pd_entry(struct i915_page_directory * const pd,
+		 const unsigned short pde,
+		 atomic_t *counter,
+		 struct i915_page_dma * const scratch)
+{
+	bool free = false;
+
+	spin_lock(&pd->lock);
+	if (atomic_dec_and_test(counter)) {
+		clear_pd_entry(pd, pde, scratch);
+		free = true;
+	}
+	spin_unlock(&pd->lock);
+
+	return free;
+}
 
 /*
  * PDE TLBs are a pain to invalidate on GEN8+. When we modify
@@ -827,11 +845,11 @@ static void mark_tlbs_dirty(struct i915_ppgtt *ppgtt)
 /* Removes entries from a single page table, releasing it if it's empty.
  * Caller can use the return value to update higher-level entries.
  */
-static bool gen8_ppgtt_clear_pt(const struct i915_address_space *vm,
+static void gen8_ppgtt_clear_pt(const struct i915_address_space *vm,
 				struct i915_page_table *pt,
 				u64 start, u64 length)
 {
-	unsigned int num_entries = gen8_pte_count(start, length);
+	const unsigned int num_entries = gen8_pte_count(start, length);
 	gen8_pte_t *vaddr;
 
 	vaddr = kmap_atomic_px(pt);
@@ -839,10 +857,11 @@ static bool gen8_ppgtt_clear_pt(const struct i915_address_space *vm,
 	kunmap_atomic(vaddr);
 
 	GEM_BUG_ON(num_entries > atomic_read(&pt->used));
-	return !atomic_sub_return(num_entries, &pt->used);
+
+	atomic_sub(num_entries, &pt->used);
 }
 
-static bool gen8_ppgtt_clear_pd(struct i915_address_space *vm,
+static void gen8_ppgtt_clear_pd(struct i915_address_space *vm,
 				struct i915_page_directory *pd,
 				u64 start, u64 length)
 {
@@ -850,30 +869,20 @@ static bool gen8_ppgtt_clear_pd(struct i915_address_space *vm,
 	u32 pde;
 
 	gen8_for_each_pde(pt, pd, start, length, pde) {
-		bool free = false;
-
 		GEM_BUG_ON(pt == vm->scratch_pt);
 
-		if (!gen8_ppgtt_clear_pt(vm, pt, start, length))
-			continue;
-
-		spin_lock(&pd->lock);
-		if (!atomic_read(&pt->used)) {
-			clear_pd_entry(pd, pde, vm->scratch_pt);
-			free = true;
-		}
-		spin_unlock(&pd->lock);
-		if (free)
+		atomic_inc(&pt->used);
+		gen8_ppgtt_clear_pt(vm, pt, start, length);
+		if (release_pd_entry(pd, pde, &pt->used,
+				     px_base(vm->scratch_pt)))
 			free_pt(vm, pt);
 	}
-
-	return !atomic_read(&pd->used);
 }
 
 /* Removes entries from a single page dir pointer, releasing it if it's empty.
  * Caller can use the return value to update higher-level entries
  */
-static bool gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
+static void gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
 				 struct i915_page_directory * const pdp,
 				 u64 start, u64 length)
 {
@@ -881,24 +890,14 @@ static bool gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
 	unsigned int pdpe;
 
 	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
-		bool free = false;
-
 		GEM_BUG_ON(pd == vm->scratch_pd);
 
-		if (!gen8_ppgtt_clear_pd(vm, pd, start, length))
-			continue;
-
-		spin_lock(&pdp->lock);
-		if (!atomic_read(&pd->used)) {
-			clear_pd_entry(pdp, pdpe, vm->scratch_pd);
-			free = true;
-		}
-		spin_unlock(&pdp->lock);
-		if (free)
+		atomic_inc(&pd->used);
+		gen8_ppgtt_clear_pd(vm, pd, start, length);
+		if (release_pd_entry(pdp, pdpe, &pd->used,
+				     px_base(vm->scratch_pd)))
 			free_pd(vm, pd);
 	}
-
-	return !atomic_read(&pdp->used);
 }
 
 static void gen8_ppgtt_clear_3lvl(struct i915_address_space *vm,
@@ -922,19 +921,12 @@ static void gen8_ppgtt_clear_4lvl(struct i915_address_space *vm,
 	GEM_BUG_ON(!i915_vm_is_4lvl(vm));
 
 	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
-		bool free = false;
 		GEM_BUG_ON(pdp == vm->scratch_pdp);
 
-		if (!gen8_ppgtt_clear_pdp(vm, pdp, start, length))
-			continue;
-
-		spin_lock(&pml4->lock);
-		if (!atomic_read(&pdp->used)) {
-			clear_pd_entry(pml4, pml4e, vm->scratch_pdp);
-			free = true;
-		}
-		spin_unlock(&pml4->lock);
-		if (free)
+		atomic_inc(&pdp->used);
+		gen8_ppgtt_clear_pdp(vm, pdp, start, length);
+		if (release_pd_entry(pml4, pml4e, &pdp->used,
+				     px_base(vm->scratch_pdp)))
 			free_pd(vm, pdp);
 	}
 }
@@ -1457,17 +1449,8 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 	goto out;
 
 unwind_pd:
-	if (alloc) {
-		free_pd(vm, alloc);
-		alloc = NULL;
-	}
-	spin_lock(&pdp->lock);
-	if (atomic_dec_and_test(&pd->used)) {
-		GEM_BUG_ON(alloc);
-		alloc = pd; /* defer the free to after the lock */
-		clear_pd_entry(pdp, pdpe, vm->scratch_pd);
-	}
-	spin_unlock(&pdp->lock);
+	if (release_pd_entry(pdp, pdpe, &pd->used, px_base(vm->scratch_pd)))
+		free_pd(vm, pd);
 unwind:
 	gen8_ppgtt_clear_pdp(vm, pdp, from, start - from);
 out:
@@ -1530,17 +1513,8 @@ static int gen8_ppgtt_alloc_4lvl(struct i915_address_space *vm,
 	goto out;
 
 unwind_pdp:
-	if (alloc) {
-		free_pd(vm, alloc);
-		alloc = NULL;
-	}
-	spin_lock(&pml4->lock);
-	if (atomic_dec_and_test(&pdp->used)) {
-		GEM_BUG_ON(alloc);
-		alloc = pdp; /* defer the free until after the lock */
-		clear_pd_entry(pml4, pml4e, vm->scratch_pdp);
-	}
-	spin_unlock(&pml4->lock);
+	if (release_pd_entry(pml4, pml4e, &pdp->used, px_base(vm->scratch_pdp)))
+		free_pd(vm, pdp);
 unwind:
 	gen8_ppgtt_clear_4lvl(vm, from, start - from);
 out:
@@ -1570,11 +1544,7 @@ static int gen8_preallocate_top_level_pdp(struct i915_ppgtt *ppgtt)
 	return 0;
 
 unwind:
-	start -= from;
-	gen8_for_each_pdpe(pd, pdp, from, start, pdpe) {
-		clear_pd_entry(pdp, pdpe, vm->scratch_pd);
-		free_pd(vm, pd);
-	}
+	gen8_ppgtt_clear_pdp(vm, pdp, from, start - from);
 	atomic_set(&pdp->used, 0);
 	return -ENOMEM;
 }
