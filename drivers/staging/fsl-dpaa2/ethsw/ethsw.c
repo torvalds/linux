@@ -516,6 +516,19 @@ static int swdev_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static int port_get_phys_name(struct net_device *netdev, char *name,
+			      size_t len)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	int err;
+
+	err = snprintf(name, len, "p%d", port_priv->idx);
+	if (err >= len)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct net_device_ops ethsw_port_ops = {
 	.ndo_open		= port_open,
 	.ndo_stop		= port_stop,
@@ -528,6 +541,7 @@ static const struct net_device_ops ethsw_port_ops = {
 
 	.ndo_start_xmit		= port_dropframe,
 	.ndo_get_port_parent_id	= swdev_get_port_parent_id,
+	.ndo_get_phys_port_name = port_get_phys_name,
 };
 
 static void ethsw_links_state_update(struct ethsw_core *ethsw)
