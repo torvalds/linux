@@ -521,6 +521,7 @@ static const struct net_device_ops ethsw_port_ops = {
 	.ndo_stop		= port_stop,
 
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_get_stats64	= port_get_stats,
 	.ndo_change_mtu		= port_change_mtu,
 	.ndo_has_offload_stats	= port_has_offload_stats,
 	.ndo_get_offload_stats	= port_get_offload_stats,
@@ -1483,7 +1484,8 @@ static int ethsw_probe(struct fsl_mc_device *sw_dev)
 	ethsw->dev = dev;
 	dev_set_drvdata(dev, ethsw);
 
-	err = fsl_mc_portal_allocate(sw_dev, 0, &ethsw->mc_io);
+	err = fsl_mc_portal_allocate(sw_dev, FSL_MC_IO_ATOMIC_CONTEXT_PORTAL,
+				     &ethsw->mc_io);
 	if (err) {
 		if (err == -ENXIO)
 			err = -EPROBE_DEFER;
