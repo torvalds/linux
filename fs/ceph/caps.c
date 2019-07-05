@@ -2114,7 +2114,7 @@ retry_locked:
 		struct ceph_cap *cap = ci->i_auth_cap;
 		int delayed;
 
-		if (!session || session != cap->session) {
+		if (session != cap->session) {
 			spin_unlock(&ci->i_ceph_lock);
 			if (session)
 				mutex_unlock(&session->s_mutex);
