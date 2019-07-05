@@ -1395,7 +1395,7 @@ void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw)
 
 int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 {
-	int total_vports = MLX5_TOTAL_VPORTS(esw->dev);
+	int total_vports = esw->total_vports;
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_eswitch_rep *rep;
 	u8 hw_id[ETH_ALEN], rep_type;
@@ -2047,38 +2047,48 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	esw_destroy_offloads_acl_tables(esw);
 }
 
-static void esw_functions_changed_event_handler(struct work_struct *work)
+static void
+esw_vfs_changed_event_handler(struct mlx5_eswitch *esw, const u32 *out)
 {
-	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {};
-	struct mlx5_host_work *host_work;
-	struct mlx5_eswitch *esw;
 	bool host_pf_disabled;
-	u16 num_vfs = 0;
-	int err;
+	u16 new_num_vfs;
 
-	host_work = container_of(work, struct mlx5_host_work, work);
-	esw = host_work->esw;
-
-	err = mlx5_esw_query_functions(esw->dev, out, sizeof(out));
-	num_vfs = MLX5_GET(query_esw_functions_out, out,
-			   host_params_context.host_num_of_vfs);
+	new_num_vfs = MLX5_GET(query_esw_functions_out, out,
+			       host_params_context.host_num_of_vfs);
 	host_pf_disabled = MLX5_GET(query_esw_functions_out, out,
 				    host_params_context.host_pf_disabled);
-	if (err || host_pf_disabled || num_vfs == esw->esw_funcs.num_vfs)
-		goto out;
+
+	if (new_num_vfs == esw->esw_funcs.num_vfs || host_pf_disabled)
+		return;
 
 	/* Number of VFs can only change from "0 to x" or "x to 0". */
 	if (esw->esw_funcs.num_vfs > 0) {
 		esw_offloads_unload_vf_reps(esw, esw->esw_funcs.num_vfs);
 	} else {
-		err = esw_offloads_load_vf_reps(esw, num_vfs);
+		int err;
 
+		err = esw_offloads_load_vf_reps(esw, new_num_vfs);
 		if (err)
-			goto out;
+			return;
 	}
+	esw->esw_funcs.num_vfs = new_num_vfs;
+}
 
-	esw->esw_funcs.num_vfs = num_vfs;
+static void esw_functions_changed_event_handler(struct work_struct *work)
+{
+	struct mlx5_host_work *host_work;
+	struct mlx5_eswitch *esw;
+	const u32 *out;
 
+	host_work = container_of(work, struct mlx5_host_work, work);
+	esw = host_work->esw;
+
+	out = mlx5_esw_query_functions(esw->dev);
+	if (IS_ERR(out))
+		goto out;
+
+	esw_vfs_changed_event_handler(esw, out);
+	kvfree(out);
 out:
 	kfree(host_work);
 }

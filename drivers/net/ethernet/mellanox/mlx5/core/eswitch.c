@@ -1715,14 +1715,34 @@ static int eswitch_vport_event(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u32 *out, int outlen)
+/**
+ * mlx5_esw_query_functions - Returns raw output about functions state
+ * @dev:	Pointer to device to query
+ *
+ * mlx5_esw_query_functions() allocates and returns functions changed
+ * raw output memory pointer from device on success. Otherwise returns ERR_PTR.
+ * Caller must free the memory using kvfree() when valid pointer is returned.
+ */
+const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev)
 {
+	int outlen = MLX5_ST_SZ_BYTES(query_esw_functions_out);
 	u32 in[MLX5_ST_SZ_DW(query_esw_functions_in)] = {};
+	u32 *out;
+	int err;
+
+	out = kvzalloc(outlen, GFP_KERNEL);
+	if (!out)
+		return ERR_PTR(-ENOMEM);
 
 	MLX5_SET(query_esw_functions_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_ESW_FUNCTIONS);
 
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
+	if (!err)
+		return out;
+
+	kvfree(out);
+	return ERR_PTR(err);
 }
 
 static void mlx5_eswitch_event_handlers_register(struct mlx5_eswitch *esw)
@@ -1868,13 +1888,15 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
-	int total_vports = MLX5_TOTAL_VPORTS(dev);
 	struct mlx5_eswitch *esw;
 	struct mlx5_vport *vport;
+	int total_vports;
 	int err, i;
 
 	if (!MLX5_VPORT_MANAGER(dev))
 		return 0;
+
+	total_vports = mlx5_eswitch_get_total_vports(dev);
 
 	esw_info(dev,
 		 "Total vports %d, per vport: max uc(%d) max mc(%d)\n",
@@ -2525,8 +2547,7 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 
 void mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, const int num_vfs)
 {
-	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {};
-	int err;
+	const u32 *out;
 
 	WARN_ON_ONCE(esw->mode != MLX5_ESWITCH_NONE);
 
@@ -2535,8 +2556,11 @@ void mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, const int num_vfs)
 		return;
 	}
 
-	err = mlx5_esw_query_functions(esw->dev, out, sizeof(out));
-	if (!err)
-		esw->esw_funcs.num_vfs = MLX5_GET(query_esw_functions_out, out,
-						  host_params_context.host_num_of_vfs);
+	out = mlx5_esw_query_functions(esw->dev);
+	if (IS_ERR(out))
+		return;
+
+	esw->esw_funcs.num_vfs = MLX5_GET(query_esw_functions_out, out,
+					  host_params_context.host_num_of_vfs);
+	kvfree(out);
 }

@@ -44,9 +44,6 @@
 				   MLX5_VPORT_UPLINK_PLACEHOLDER +	\
 				   MLX5_VPORT_ECPF_PLACEHOLDER(mdev))
 
-#define MLX5_TOTAL_VPORTS(mdev)	(MLX5_SPECIAL_VPORTS(mdev) +		\
-				 mlx5_core_max_vfs(mdev))
-
 #define MLX5_VPORT_MANAGER(mdev)					\
 	(MLX5_CAP_GEN(mdev, vport_group_manager) &&			\
 	 (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&	\

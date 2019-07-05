@@ -197,22 +197,25 @@ void mlx5_sriov_detach(struct mlx5_core_dev *dev)
 
 static u16 mlx5_get_max_vfs(struct mlx5_core_dev *dev)
 {
-	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {};
 	u16 host_total_vfs;
-	int err;
+	const u32 *out;
 
 	if (mlx5_core_is_ecpf_esw_manager(dev)) {
-		err = mlx5_esw_query_functions(dev, out, sizeof(out));
-		host_total_vfs = MLX5_GET(query_esw_functions_out, out,
-					  host_params_context.host_total_vfs);
+		out = mlx5_esw_query_functions(dev);
 
 		/* Old FW doesn't support getting total_vfs from esw func
 		 * but supports getting it from pci_sriov.
 		 */
-		if (!err && host_total_vfs)
+		if (IS_ERR(out))
+			goto done;
+		host_total_vfs = MLX5_GET(query_esw_functions_out, out,
+					  host_params_context.host_total_vfs);
+		kvfree(out);
+		if (host_total_vfs)
 			return host_total_vfs;
 	}
 
+done:
 	return pci_sriov_get_totalvfs(dev->pdev);
 }
 

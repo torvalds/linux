@@ -1085,7 +1085,7 @@ enum {
 	MLX5_PCI_DEV_IS_VF		= 1 << 0,
 };
 
-static inline bool mlx5_core_is_pf(struct mlx5_core_dev *dev)
+static inline bool mlx5_core_is_pf(const struct mlx5_core_dev *dev)
 {
 	return dev->coredev_type == MLX5_COREDEV_PF;
 }
@@ -1095,17 +1095,18 @@ static inline bool mlx5_core_is_ecpf(struct mlx5_core_dev *dev)
 	return dev->caps.embedded_cpu;
 }
 
-static inline bool mlx5_core_is_ecpf_esw_manager(struct mlx5_core_dev *dev)
+static inline bool
+mlx5_core_is_ecpf_esw_manager(const struct mlx5_core_dev *dev)
 {
 	return dev->caps.embedded_cpu && MLX5_CAP_GEN(dev, eswitch_manager);
 }
 
-static inline bool mlx5_ecpf_vport_exists(struct mlx5_core_dev *dev)
+static inline bool mlx5_ecpf_vport_exists(const struct mlx5_core_dev *dev)
 {
 	return mlx5_core_is_pf(dev) && MLX5_CAP_ESW(dev, ecpf_vport_exists);
 }
 
-static inline u16 mlx5_core_max_vfs(struct mlx5_core_dev *dev)
+static inline u16 mlx5_core_max_vfs(const struct mlx5_core_dev *dev)
 {
 	return dev->priv.sriov.max_vfs;
 }

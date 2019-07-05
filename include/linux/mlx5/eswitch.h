@@ -66,6 +66,8 @@ struct mlx5_flow_handle *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw,
 				    u16 vport_num, u32 sqn);
 
+u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev);
+
 #ifdef CONFIG_MLX5_ESWITCH
 enum devlink_eswitch_encap_mode
 mlx5_eswitch_get_encap_mode(const struct mlx5_core_dev *dev);
@@ -93,4 +95,5 @@ mlx5_eswitch_get_vport_metadata_for_match(const struct mlx5_eswitch *esw,
 	return 0;
 };
 #endif /* CONFIG_MLX5_ESWITCH */
+
 #endif
