@@ -79,6 +79,9 @@ struct rockchip_hdmi {
 	struct dw_hdmi *hdmi;
 
 	struct phy *phy;
+	u32 max_tmdsclk;
+	bool unsupported_yuv_input;
+	bool unsupported_deep_color;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -256,6 +259,7 @@ static const struct dw_hdmi_phy_config rockchip_phy_config[] = {
 
 static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 {
+	int ret;
 	struct device_node *np = hdmi->dev->of_node;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
@@ -283,6 +287,21 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		DRM_DEV_ERROR(hdmi->dev, "failed to get grf clock\n");
 		return PTR_ERR(hdmi->grf_clk);
 	}
+
+	ret = of_property_read_u32(np, "max-tmdsclk",
+				   &hdmi->max_tmdsclk);
+	if (ret != -EINVAL && ret < 0) {
+		DRM_DEV_ERROR(hdmi->dev, "incorrect max tmdsclk\n");
+		return ret;
+	} else if (ret == -EINVAL) {
+		DRM_DEV_DEBUG(hdmi->dev,
+			      "max tmdsclk is not set, set to 594M\n");
+		hdmi->max_tmdsclk = 594000;
+	}
+	hdmi->unsupported_yuv_input =
+		of_property_read_bool(np, "unsupported-yuv-input");
+	hdmi->unsupported_deep_color =
+		of_property_read_bool(np, "unsupported-deep-color");
 
 	return 0;
 }

@@ -39,6 +39,9 @@ Optional properties
 - clock-names: May contain "vpll", external clock for some hdmi phy.
 - phys: from general PHY binding: the phandle for the PHY device.
 - phy-names: Should be "hdmi" if phys references an external phy.
+- max-tmdsclk: hdmi max tmdsclk, if this property is not set, set max tmdsclk to 594M.
+- unsupported-yuv-input: If yuv input is not supported, set this property.
+- unsupported-deep-color: If deep color mode is not supported, set this property.
 
 Example:
 
