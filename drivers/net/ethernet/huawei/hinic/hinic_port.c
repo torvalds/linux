@@ -1038,3 +1038,33 @@ out:
 
 	return err;
 }
+
+int hinic_get_mgmt_version(struct hinic_dev *nic_dev, u8 *mgmt_ver)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_version_info up_ver = {0};
+	struct hinic_hwif *hwif;
+	struct pci_dev *pdev;
+	u16 out_size;
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	hwif = hwdev->hwif;
+	pdev = hwif->pdev;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_MGMT_VERSION,
+				 &up_ver, sizeof(up_ver), &up_ver,
+				 &out_size);
+	if (err || !out_size || up_ver.status) {
+		dev_err(&pdev->dev,
+			"Failed to get mgmt version, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, up_ver.status, out_size);
+		return -EINVAL;
+	}
+
+	snprintf(mgmt_ver, HINIC_MGMT_VERSION_MAX_LEN, "%s", up_ver.ver);
+
+	return 0;
+}

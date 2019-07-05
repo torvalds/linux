@@ -117,11 +117,19 @@ static void hinic_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *info)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u8 mgmt_ver[HINIC_MGMT_VERSION_MAX_LEN] = {0};
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
+	int err;
 
 	strlcpy(info->driver, HINIC_DRV_NAME, sizeof(info->driver));
 	strlcpy(info->bus_info, pci_name(hwif->pdev), sizeof(info->bus_info));
+
+	err = hinic_get_mgmt_version(nic_dev, mgmt_ver);
+	if (err)
+		return;
+
+	snprintf(info->fw_version, sizeof(info->fw_version), "%s", mgmt_ver);
 }
 
 static void hinic_get_ringparam(struct net_device *netdev,
