@@ -455,8 +455,7 @@ static int mobiveil_pcie_parse_dt(struct mobiveil_pcie *pcie)
 static void program_ib_windows(struct mobiveil_pcie *pcie, int win_num,
 			       int pci_addr, u32 type, u64 size)
 {
-	int pio_ctrl_val;
-	int amap_ctrl_dw;
+	u32 value;
 	u64 size64 = ~(size - 1);
 
 	if ((pcie->ib_wins_configured + 1) > pcie->ppio_wins) {
@@ -465,15 +464,15 @@ static void program_ib_windows(struct mobiveil_pcie *pcie, int win_num,
 		return;
 	}
 
-	pio_ctrl_val = csr_readl(pcie, PAB_PEX_PIO_CTRL);
-	pio_ctrl_val |= 1 << PIO_ENABLE_SHIFT;
-	csr_writel(pcie, pio_ctrl_val, PAB_PEX_PIO_CTRL);
+	value = csr_readl(pcie, PAB_PEX_PIO_CTRL);
+	value |= 1 << PIO_ENABLE_SHIFT;
+	csr_writel(pcie, value, PAB_PEX_PIO_CTRL);
 
-	amap_ctrl_dw = csr_readl(pcie, PAB_PEX_AMAP_CTRL(win_num));
-	amap_ctrl_dw |= (type << AMAP_CTRL_TYPE_SHIFT) |
+	value = csr_readl(pcie, PAB_PEX_AMAP_CTRL(win_num));
+	value |= (type << AMAP_CTRL_TYPE_SHIFT) |
 			(1 << AMAP_CTRL_EN_SHIFT) |
 			lower_32_bits(size64);
-	csr_writel(pcie, amap_ctrl_dw, PAB_PEX_AMAP_CTRL(win_num));
+	csr_writel(pcie, value, PAB_PEX_AMAP_CTRL(win_num));
 
 	csr_writel(pcie, upper_32_bits(size64),
 		   PAB_EXT_PEX_AMAP_SIZEN(win_num));
@@ -488,11 +487,8 @@ static void program_ib_windows(struct mobiveil_pcie *pcie, int win_num,
  * routine to program the outbound windows
  */
 static void program_ob_windows(struct mobiveil_pcie *pcie, int win_num,
-			       u64 cpu_addr, u64 pci_addr,
-			       u32 config_io_bit, u64 size)
+			       u64 cpu_addr, u64 pci_addr, u32 type, u64 size)
 {
-
-	u32 value, type;
 	u64 size64 = ~(size - 1);
 
 	if ((pcie->ob_wins_configured + 1) > pcie->apio_wins) {
@@ -505,8 +501,6 @@ static void program_ob_windows(struct mobiveil_pcie *pcie, int win_num,
 	 * program Enable Bit to 1, Type Bit to (00) base 2, AXI Window Size Bit
 	 * to 4 KB in PAB_AXI_AMAP_CTRL register
 	 */
-	type = config_io_bit;
-	value = csr_readl(pcie, PAB_AXI_AMAP_CTRL(win_num));
 	csr_writel(pcie, 1 << WIN_ENABLE_SHIFT | type << WIN_TYPE_SHIFT |
 		   lower_32_bits(size64), PAB_AXI_AMAP_CTRL(win_num));
 
@@ -516,11 +510,8 @@ static void program_ob_windows(struct mobiveil_pcie *pcie, int win_num,
 	 * program AXI window base with appropriate value in
 	 * PAB_AXI_AMAP_AXI_WIN0 register
 	 */
-	value = csr_readl(pcie, PAB_AXI_AMAP_AXI_WIN(win_num));
 	csr_writel(pcie, cpu_addr & (~AXI_WINDOW_ALIGN_MASK),
 		   PAB_AXI_AMAP_AXI_WIN(win_num));
-
-	value = csr_readl(pcie, PAB_AXI_AMAP_PEX_WIN_H(win_num));
 
 	csr_writel(pcie, lower_32_bits(pci_addr),
 		   PAB_AXI_AMAP_PEX_WIN_L(win_num));
