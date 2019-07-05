@@ -485,8 +485,8 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 			wi = &sq->db.wqe_info[ci];
 			skb = wi->skb;
 
-			if (unlikely(!skb)) { /* nop */
-				sqcc++;
+			if (unlikely(!skb)) {
+				sqcc += wi->num_wqebbs;
 				continue;
 			}
 
