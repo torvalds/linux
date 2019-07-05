@@ -23,9 +23,13 @@
 /* Number of IRQs supported */
 #define DPSW_IRQ_NUM	2
 
+/* Port is member of VLAN */
 #define ETHSW_VLAN_MEMBER	1
+/* VLAN to be treated as untagged on egress */
 #define ETHSW_VLAN_UNTAGGED	2
+/* Untagged frames will be assigned to this VLAN */
 #define ETHSW_VLAN_PVID		4
+/* VLAN configured on the switch */
 #define ETHSW_VLAN_GLOBAL	8
 
 /* Maximum Frame Length supported by HW (currently 10k) */
