@@ -58,6 +58,24 @@ mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 	return wqe;
 }
 
+static inline struct mlx5e_tx_wqe *
+mlx5e_post_nop_fence(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
+{
+	u16                         pi   = mlx5_wq_cyc_ctr2ix(wq, *pc);
+	struct mlx5e_tx_wqe        *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
+	struct mlx5_wqe_ctrl_seg   *cseg = &wqe->ctrl;
+
+	memset(cseg, 0, sizeof(*cseg));
+
+	cseg->opmod_idx_opcode = cpu_to_be32((*pc << 8) | MLX5_OPCODE_NOP);
+	cseg->qpn_ds           = cpu_to_be32((sqn << 8) | 0x01);
+	cseg->fm_ce_se         = MLX5_FENCE_MODE_INITIATOR_SMALL;
+
+	(*pc)++;
+
+	return wqe;
+}
+
 static inline void
 mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq, struct mlx5_wq_cyc *wq,
 			u16 pi, u16 nnops)
