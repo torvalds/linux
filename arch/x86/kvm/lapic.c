@@ -71,6 +71,7 @@
 #define X2APIC_BROADCAST		0xFFFFFFFFul
 
 #define LAPIC_TIMER_ADVANCE_ADJUST_DONE 100
+#define LAPIC_TIMER_ADVANCE_ADJUST_INIT 1000
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
 
@@ -1546,8 +1547,8 @@ static inline void adjust_lapic_timer_advance(struct kvm_vcpu *vcpu,
 	if (abs(advance_expire_delta) < LAPIC_TIMER_ADVANCE_ADJUST_DONE)
 		apic->lapic_timer.timer_advance_adjust_done = true;
 	if (unlikely(timer_advance_ns > 5000)) {
-		timer_advance_ns = 0;
-		apic->lapic_timer.timer_advance_adjust_done = true;
+		timer_advance_ns = LAPIC_TIMER_ADVANCE_ADJUST_INIT;
+		apic->lapic_timer.timer_advance_adjust_done = false;
 	}
 	apic->lapic_timer.timer_advance_ns = timer_advance_ns;
 }
@@ -2344,7 +2345,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 		     HRTIMER_MODE_ABS_PINNED);
 	apic->lapic_timer.timer.function = apic_timer_fn;
 	if (timer_advance_ns == -1) {
-		apic->lapic_timer.timer_advance_ns = 1000;
+		apic->lapic_timer.timer_advance_ns = LAPIC_TIMER_ADVANCE_ADJUST_INIT;
 		apic->lapic_timer.timer_advance_adjust_done = false;
 	} else {
 		apic->lapic_timer.timer_advance_ns = timer_advance_ns;
