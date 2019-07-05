@@ -507,16 +507,15 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_DIR_ORDERED	(1 << 0)  /* dentries in dir are ordered */
 #define CEPH_I_NODELAY		(1 << 1)  /* do not delay cap release */
 #define CEPH_I_FLUSH		(1 << 2)  /* do not delay flush of dirty metadata */
-#define CEPH_I_NOFLUSH		(1 << 3)  /* do not flush dirty caps */
-#define CEPH_I_POOL_PERM	(1 << 4)  /* pool rd/wr bits are valid */
-#define CEPH_I_POOL_RD		(1 << 5)  /* can read from pool */
-#define CEPH_I_POOL_WR		(1 << 6)  /* can write to pool */
-#define CEPH_I_SEC_INITED	(1 << 7)  /* security initialized */
-#define CEPH_I_CAP_DROPPED	(1 << 8)  /* caps were forcibly dropped */
-#define CEPH_I_KICK_FLUSH	(1 << 9)  /* kick flushing caps */
-#define CEPH_I_FLUSH_SNAPS	(1 << 10) /* need flush snapss */
-#define CEPH_I_ERROR_WRITE	(1 << 11) /* have seen write errors */
-#define CEPH_I_ERROR_FILELOCK	(1 << 12) /* have seen file lock errors */
+#define CEPH_I_POOL_PERM	(1 << 3)  /* pool rd/wr bits are valid */
+#define CEPH_I_POOL_RD		(1 << 4)  /* can read from pool */
+#define CEPH_I_POOL_WR		(1 << 5)  /* can write to pool */
+#define CEPH_I_SEC_INITED	(1 << 6)  /* security initialized */
+#define CEPH_I_CAP_DROPPED	(1 << 7)  /* caps were forcibly dropped */
+#define CEPH_I_KICK_FLUSH	(1 << 8)  /* kick flushing caps */
+#define CEPH_I_FLUSH_SNAPS	(1 << 9) /* need flush snapss */
+#define CEPH_I_ERROR_WRITE	(1 << 10) /* have seen write errors */
+#define CEPH_I_ERROR_FILELOCK	(1 << 11) /* have seen file lock errors */
 
 
 /*

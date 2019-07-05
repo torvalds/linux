@@ -2003,11 +2003,6 @@ retry_locked:
 		}
 
 ack:
-		if (ci->i_ceph_flags & CEPH_I_NOFLUSH) {
-			dout(" skipping %p I_NOFLUSH set\n", inode);
-			continue;
-		}
-
 		if (session && session != cap->session) {
 			dout("oops, wrong session %p mutex\n", session);
 			mutex_unlock(&session->s_mutex);
@@ -2105,11 +2100,6 @@ static int try_flush_caps(struct inode *inode, u64 *ptid)
 retry:
 	spin_lock(&ci->i_ceph_lock);
 retry_locked:
-	if (ci->i_ceph_flags & CEPH_I_NOFLUSH) {
-		spin_unlock(&ci->i_ceph_lock);
-		dout("try_flush_caps skipping %p I_NOFLUSH set\n", inode);
-		goto out;
-	}
 	if (ci->i_dirty_caps && ci->i_auth_cap) {
 		struct ceph_cap *cap = ci->i_auth_cap;
 		int delayed;
