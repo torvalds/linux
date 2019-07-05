@@ -115,7 +115,6 @@ static void vfio_ap_wait_for_irqclear(int apqn)
  * Unregisters the ISC in the GIB when the saved ISC not invalid.
  * Unpin the guest's page holding the NIB when it exist.
  * Reset the saved_pfn and saved_isc to invalid values.
- * Clear the pointer to the matrix mediated device.
  *
  */
 static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
@@ -127,7 +126,6 @@ static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
 				 &q->saved_pfn, 1);
 	q->saved_pfn = 0;
 	q->saved_isc = VFIO_AP_ISC_INVALID;
-	q->matrix_mdev = NULL;
 }
 
 /**
@@ -179,6 +177,7 @@ struct ap_queue_status vfio_ap_irq_disable(struct vfio_ap_queue *q)
 		  status.response_code);
 end_free:
 	vfio_ap_free_aqic_resources(q);
+	q->matrix_mdev = NULL;
 	return status;
 }
 
