@@ -592,17 +592,18 @@ inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 	if (rdesc->buffer_overflow)
 		dev_err(priv->dev, "Buffer overflow detected");
 
-	if (rdesc->result_data.error_code & 0x4067) {
-		/* Fatal error (bits 0,1,2,5,6 & 14) */
+	if (rdesc->result_data.error_code & 0x4066) {
+		/* Fatal error (bits 1,2,5,6 & 14) */
 		dev_err(priv->dev,
 			"result descriptor error (%x)",
 			rdesc->result_data.error_code);
 		return -EIO;
 	} else if (rdesc->result_data.error_code &
-		   (BIT(7) | BIT(4) | BIT(3))) {
+		   (BIT(7) | BIT(4) | BIT(3) | BIT(0))) {
 		/*
 		 * Give priority over authentication fails:
-		 * Blocksize & overflow errors, something wrong with the input!
+		 * Blocksize, length & overflow errors,
+		 * something wrong with the input!
 		 */
 		return -EINVAL;
 	} else if (rdesc->result_data.error_code & BIT(9)) {
@@ -869,6 +870,11 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_authenc_hmac_sha384_cbc_aes,
 	&safexcel_alg_authenc_hmac_sha512_cbc_aes,
 	&safexcel_alg_authenc_hmac_sha1_cbc_des3_ede,
+	&safexcel_alg_authenc_hmac_sha1_ctr_aes,
+	&safexcel_alg_authenc_hmac_sha224_ctr_aes,
+	&safexcel_alg_authenc_hmac_sha256_ctr_aes,
+	&safexcel_alg_authenc_hmac_sha384_ctr_aes,
+	&safexcel_alg_authenc_hmac_sha512_ctr_aes,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
