@@ -299,6 +299,7 @@ static void __iomem *mobiveil_pcie_map_bus(struct pci_bus *bus,
 					   unsigned int devfn, int where)
 {
 	struct mobiveil_pcie *pcie = bus->sysdata;
+	u32 value;
 
 	if (!mobiveil_pcie_valid_device(bus, devfn))
 		return NULL;
@@ -313,10 +314,12 @@ static void __iomem *mobiveil_pcie_map_bus(struct pci_bus *bus,
 	 * (BDF) in PAB_AXI_AMAP_PEX_WIN_L0 Register.
 	 * Relies on pci_lock serialization
 	 */
-	csr_writel(pcie, bus->number << PAB_BUS_SHIFT |
-		   PCI_SLOT(devfn) << PAB_DEVICE_SHIFT |
-		   PCI_FUNC(devfn) << PAB_FUNCTION_SHIFT,
-		   PAB_AXI_AMAP_PEX_WIN_L(WIN_NUM_0));
+	value = bus->number << PAB_BUS_SHIFT |
+		PCI_SLOT(devfn) << PAB_DEVICE_SHIFT |
+		PCI_FUNC(devfn) << PAB_FUNCTION_SHIFT;
+
+	csr_writel(pcie, value, PAB_AXI_AMAP_PEX_WIN_L(WIN_NUM_0));
+
 	return pcie->config_axi_slave_base + where;
 }
 
@@ -463,19 +466,20 @@ static void program_ib_windows(struct mobiveil_pcie *pcie, int win_num,
 	}
 
 	pio_ctrl_val = csr_readl(pcie, PAB_PEX_PIO_CTRL);
-	csr_writel(pcie, pio_ctrl_val | (1 << PIO_ENABLE_SHIFT),
-		   PAB_PEX_PIO_CTRL);
-	amap_ctrl_dw = csr_readl(pcie, PAB_PEX_AMAP_CTRL(win_num));
-	amap_ctrl_dw = (amap_ctrl_dw | (type << AMAP_CTRL_TYPE_SHIFT));
-	amap_ctrl_dw = (amap_ctrl_dw | (1 << AMAP_CTRL_EN_SHIFT));
+	pio_ctrl_val |= 1 << PIO_ENABLE_SHIFT;
+	csr_writel(pcie, pio_ctrl_val, PAB_PEX_PIO_CTRL);
 
-	csr_writel(pcie, amap_ctrl_dw | lower_32_bits(size64),
-		   PAB_PEX_AMAP_CTRL(win_num));
+	amap_ctrl_dw = csr_readl(pcie, PAB_PEX_AMAP_CTRL(win_num));
+	amap_ctrl_dw |= (type << AMAP_CTRL_TYPE_SHIFT) |
+			(1 << AMAP_CTRL_EN_SHIFT) |
+			lower_32_bits(size64);
+	csr_writel(pcie, amap_ctrl_dw, PAB_PEX_AMAP_CTRL(win_num));
 
 	csr_writel(pcie, upper_32_bits(size64),
 		   PAB_EXT_PEX_AMAP_SIZEN(win_num));
 
 	csr_writel(pcie, pci_addr, PAB_PEX_AMAP_AXI_WIN(win_num));
+
 	csr_writel(pcie, pci_addr, PAB_PEX_AMAP_PEX_WIN_L(win_num));
 	csr_writel(pcie, 0, PAB_PEX_AMAP_PEX_WIN_H(win_num));
 }
@@ -575,16 +579,16 @@ static int mobiveil_host_init(struct mobiveil_pcie *pcie)
 	 * Space
 	 */
 	value = csr_readl(pcie, PCI_COMMAND);
-	csr_writel(pcie, value | PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
-		   PCI_COMMAND_MASTER, PCI_COMMAND);
+	value |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
+	csr_writel(pcie, value, PCI_COMMAND);
 
 	/*
 	 * program PIO Enable Bit to 1 (and PEX PIO Enable to 1) in PAB_CTRL
 	 * register
 	 */
 	pab_ctrl = csr_readl(pcie, PAB_CTRL);
-	csr_writel(pcie, pab_ctrl | (1 << AMBA_PIO_ENABLE_SHIFT) |
-		   (1 << PEX_PIO_ENABLE_SHIFT), PAB_CTRL);
+	pab_ctrl |= (1 << AMBA_PIO_ENABLE_SHIFT) | (1 << PEX_PIO_ENABLE_SHIFT);
+	csr_writel(pcie, pab_ctrl, PAB_CTRL);
 
 	csr_writel(pcie, (PAB_INTP_INTX_MASK | PAB_INTP_MSI_MASK),
 		   PAB_INTP_AMBA_MISC_ENB);
@@ -594,7 +598,8 @@ static int mobiveil_host_init(struct mobiveil_pcie *pcie)
 	 * PAB_AXI_PIO_CTRL Register
 	 */
 	value = csr_readl(pcie, PAB_AXI_PIO_CTRL);
-	csr_writel(pcie, value | APIO_EN_MASK, PAB_AXI_PIO_CTRL);
+	value |= APIO_EN_MASK;
+	csr_writel(pcie, value, PAB_AXI_PIO_CTRL);
 
 	/*
 	 * we'll program one outbound window for config reads and
@@ -649,7 +654,8 @@ static void mobiveil_mask_intx_irq(struct irq_data *data)
 	mask = 1 << ((data->hwirq + PAB_INTX_START) - 1);
 	raw_spin_lock_irqsave(&pcie->intx_mask_lock, flags);
 	shifted_val = csr_readl(pcie, PAB_INTP_AMBA_MISC_ENB);
-	csr_writel(pcie, (shifted_val & (~mask)), PAB_INTP_AMBA_MISC_ENB);
+	shifted_val &= ~mask;
+	csr_writel(pcie, shifted_val, PAB_INTP_AMBA_MISC_ENB);
 	raw_spin_unlock_irqrestore(&pcie->intx_mask_lock, flags);
 }
 
@@ -664,7 +670,8 @@ static void mobiveil_unmask_intx_irq(struct irq_data *data)
 	mask = 1 << ((data->hwirq + PAB_INTX_START) - 1);
 	raw_spin_lock_irqsave(&pcie->intx_mask_lock, flags);
 	shifted_val = csr_readl(pcie, PAB_INTP_AMBA_MISC_ENB);
-	csr_writel(pcie, (shifted_val | mask), PAB_INTP_AMBA_MISC_ENB);
+	shifted_val |= mask;
+	csr_writel(pcie, shifted_val, PAB_INTP_AMBA_MISC_ENB);
 	raw_spin_unlock_irqrestore(&pcie->intx_mask_lock, flags);
 }
 
