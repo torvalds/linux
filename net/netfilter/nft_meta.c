@@ -519,6 +519,10 @@ nft_meta_select_ops(const struct nft_ctx *ctx,
 	if (tb[NFTA_META_DREG] && tb[NFTA_META_SREG])
 		return ERR_PTR(-EINVAL);
 
+#ifdef CONFIG_NF_TABLES_BRIDGE
+	if (ctx->family == NFPROTO_BRIDGE)
+		return ERR_PTR(-EAGAIN);
+#endif
 	if (tb[NFTA_META_DREG])
 		return &nft_meta_get_ops;
 

@@ -2144,6 +2144,12 @@ static int nf_tables_expr_parse(const struct nft_ctx *ctx,
 				       (const struct nlattr * const *)info->tb);
 		if (IS_ERR(ops)) {
 			err = PTR_ERR(ops);
+#ifdef CONFIG_MODULES
+			if (err == -EAGAIN)
+				nft_expr_type_request_module(ctx->net,
+							     ctx->family,
+							     tb[NFTA_EXPR_NAME]);
+#endif
 			goto err1;
 		}
 	} else
