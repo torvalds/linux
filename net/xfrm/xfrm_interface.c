@@ -793,11 +793,6 @@ static void __net_exit xfrmi_destroy_interfaces(struct xfrmi_net *xfrmn)
 	unregister_netdevice_many(&list);
 }
 
-static int __net_init xfrmi_init_net(struct net *net)
-{
-	return 0;
-}
-
 static void __net_exit xfrmi_exit_net(struct net *net)
 {
 	struct xfrmi_net *xfrmn = net_generic(net, xfrmi_net_id);
@@ -808,7 +803,6 @@ static void __net_exit xfrmi_exit_net(struct net *net)
 }
 
 static struct pernet_operations xfrmi_net_ops = {
-	.init = xfrmi_init_net,
 	.exit = xfrmi_exit_net,
 	.id   = &xfrmi_net_id,
 	.size = sizeof(struct xfrmi_net),

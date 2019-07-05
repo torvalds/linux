@@ -312,9 +312,7 @@ static int __init esp4_offload_init(void)
 
 static void __exit esp4_offload_exit(void)
 {
-	if (xfrm_unregister_type_offload(&esp_type_offload, AF_INET) < 0)
-		pr_info("%s: can't remove xfrm type offload\n", __func__);
-
+	xfrm_unregister_type_offload(&esp_type_offload, AF_INET);
 	inet_del_offload(&esp4_offload, IPPROTO_ESP);
 }
 
