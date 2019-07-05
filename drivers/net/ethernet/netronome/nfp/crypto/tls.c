@@ -344,6 +344,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 
 	if (!reply->handle[0] && !reply->handle[1]) {
 		nn_dp_warn(&nn->dp, "FW returned NULL handle\n");
+		err = -EINVAL;
 		goto err_fw_remove;
 	}
 
