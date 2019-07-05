@@ -74,6 +74,11 @@ int mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev)
 	return mlx5_fpga_ipsec_init(mdev);
 }
 
+void mlx5_accel_ipsec_build_fs_cmds(void)
+{
+	mlx5_fpga_ipsec_build_fs_cmds();
+}
+
 void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev)
 {
 	mlx5_fpga_ipsec_cleanup(mdev);
