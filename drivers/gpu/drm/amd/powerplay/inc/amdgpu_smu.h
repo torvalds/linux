@@ -241,6 +241,7 @@ enum smu_message_type
 	SMU_MSG_PowerUpJpeg,
 	SMU_MSG_PowerDownJpeg,
 	SMU_MSG_BacoAudioD3PME,
+	SMU_MSG_ArmD3,
 	SMU_MSG_MAX_COUNT,
 };
 
@@ -489,6 +490,19 @@ struct mclock_latency_table {
 	struct mclk_latency_entries  entries[MAX_REGULAR_DPM_NUM];
 };
 
+enum smu_baco_state
+{
+	SMU_BACO_STATE_ENTER = 0,
+	SMU_BACO_STATE_EXIT,
+};
+
+struct smu_baco_context
+{
+	struct mutex mutex;
+	uint32_t state;
+	bool platform_support;
+};
+
 #define WORKLOAD_POLICY_MAX 7
 struct smu_context
 {
@@ -505,6 +519,7 @@ struct smu_context
 	struct smu_power_context	smu_power;
 	struct smu_feature		smu_feature;
 	struct amd_pp_display_configuration  *display_config;
+	struct smu_baco_context		smu_baco;
 	void *od_settings;
 
 	uint32_t pstate_sclk;
@@ -680,6 +695,11 @@ struct smu_funcs
 	int (*register_irq_handler)(struct smu_context *smu);
 	int (*set_azalia_d3_pme)(struct smu_context *smu);
 	int (*get_max_sustainable_clocks_by_dc)(struct smu_context *smu, struct pp_smu_nv_clock_table *max_clocks);
+	bool (*baco_is_support)(struct smu_context *smu);
+	enum smu_baco_state (*baco_get_state)(struct smu_context *smu);
+	int (*baco_set_state)(struct smu_context *smu, enum smu_baco_state state);
+	int (*baco_reset)(struct smu_context *smu);
+
 };
 
 #define smu_init_microcode(smu) \
@@ -892,6 +912,12 @@ struct smu_funcs
 	((smu)->funcs->get_max_sustainable_clocks_by_dc ? (smu)->funcs->get_max_sustainable_clocks_by_dc((smu), (max_clocks)) : 0)
 #define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
 	((smu)->ppt_funcs->get_uclk_dpm_states ? (smu)->ppt_funcs->get_uclk_dpm_states((smu), (clocks_in_khz), (num_states)) : 0)
+#define smu_baco_is_support(smu) \
+	((smu)->funcs->baco_is_support? (smu)->funcs->baco_is_support((smu)) : false)
+#define smu_baco_get_state(smu, state) \
+	((smu)->funcs->baco_get_state? (smu)->funcs->baco_get_state((smu), (state)) : 0)
+#define smu_baco_reset(smu) \
+	((smu)->funcs->baco_reset? (smu)->funcs->baco_reset((smu)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

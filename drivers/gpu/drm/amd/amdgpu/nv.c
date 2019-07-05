@@ -31,6 +31,7 @@
 #include "amdgpu_vce.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_psp.h"
+#include "amdgpu_smu.h"
 #include "atom.h"
 #include "amd_pcie.h"
 
@@ -266,8 +267,14 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 #endif
+	int ret = 0;
+	struct smu_context *smu = &adev->smu;
 
-	return 0;
+	if (smu_baco_is_support(smu)) {
+		ret = smu_baco_reset(smu);
+	}
+
+	return ret;
 }
 
 static int nv_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)

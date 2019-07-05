@@ -115,6 +115,7 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(PowerUpJpeg,		PPSMC_MSG_PowerUpJpeg),
 	MSG_MAP(PowerDownJpeg,		PPSMC_MSG_PowerDownJpeg),
 	MSG_MAP(BacoAudioD3PME,		PPSMC_MSG_BacoAudioD3PME),
+	MSG_MAP(ArmD3,			PPSMC_MSG_ArmD3),
 };
 
 static int navi10_clk_map[SMU_CLK_COUNT] = {
@@ -478,6 +479,7 @@ static int navi10_store_powerplay_table(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
 
 	if (!table_context->power_play_table)
 		return -EINVAL;
@@ -488,6 +490,12 @@ static int navi10_store_powerplay_table(struct smu_context *smu)
 	       sizeof(PPTable_t));
 
 	table_context->thermal_controller_type = powerplay_table->thermal_controller_type;
+
+	mutex_lock(&smu_baco->mutex);
+	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
+	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO)
+		smu_baco->platform_support = true;
+	mutex_unlock(&smu_baco->mutex);
 
 	return 0;
 }
