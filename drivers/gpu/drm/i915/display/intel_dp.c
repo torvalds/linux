@@ -6620,8 +6620,6 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 				    const struct intel_crtc_state *crtc_state,
 				    int refresh_rate)
 {
-	struct intel_encoder *encoder;
-	struct intel_digital_port *dig_port = NULL;
 	struct intel_dp *intel_dp = dev_priv->drrs.dp;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	enum drrs_refresh_rate_type index = DRRS_HIGH_RR;
@@ -6635,9 +6633,6 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("DRRS not supported.\n");
 		return;
 	}
-
-	dig_port = dp_to_dig_port(intel_dp);
-	encoder = &dig_port->base;
 
 	if (!intel_crtc) {
 		DRM_DEBUG_KMS("DRRS: intel_crtc not initialized\n");
