@@ -613,8 +613,8 @@ struct safexcel_context {
 #define HASH_CACHE_SIZE			SHA512_BLOCK_SIZE
 
 struct safexcel_ahash_export_state {
-	u64 len[2];
-	u64 processed[2];
+	u64 len;
+	u64 processed;
 
 	u32 digest;
 

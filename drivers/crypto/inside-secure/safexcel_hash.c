@@ -41,8 +41,8 @@ struct safexcel_ahash_req {
 	u8 block_sz;    /* block size, only set once */
 	u32 state[SHA512_DIGEST_SIZE / sizeof(u32)] __aligned(sizeof(u32));
 
-	u64 len[2];
-	u64 processed[2];
+	u64 len;
+	u64 processed;
 
 	u8 cache[HASH_CACHE_SIZE] __aligned(sizeof(u32));
 	dma_addr_t cache_dma;
@@ -53,12 +53,7 @@ struct safexcel_ahash_req {
 
 static inline u64 safexcel_queued_len(struct safexcel_ahash_req *req)
 {
-	u64 len, processed;
-
-	len = (0xffffffff * req->len[1]) + req->len[0];
-	processed = (0xffffffff * req->processed[1]) + req->processed[0];
-
-	return len - processed;
+	return req->len - req->processed;
 }
 
 static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
@@ -94,7 +89,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 	 * fields. Do this now as we need it to setup the first command
 	 * descriptor.
 	 */
-	if ((!req->processed[0]) && (!req->processed[1])) {
+	if (!req->processed) {
 		/* First - and possibly only - block of basic hash only */
 		if (req->finish) {
 			cdesc->control_data.control0 |=
@@ -119,11 +114,8 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 	if (req->finish) {
 		/* Compute digest count for hash/HMAC finish operations */
 		if ((req->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED) ||
-		    req->hmac_zlen || req->processed[1] ||
-		    (req->processed[0] != req->block_sz)) {
-			count = req->processed[0] / EIP197_COUNTER_BLOCK_SIZE;
-			count += ((0x100000000ULL / EIP197_COUNTER_BLOCK_SIZE) *
-				  req->processed[1]);
+		    req->hmac_zlen || (req->processed != req->block_sz)) {
+			count = req->processed / EIP197_COUNTER_BLOCK_SIZE;
 
 			/* This is a hardware limitation, as the
 			 * counter must fit into an u32. This represents
@@ -141,8 +133,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 		    /* Special case: zero length HMAC */
 		    req->hmac_zlen ||
 		    /* PE HW < 4.4 cannot do HMAC continue, fake using hash */
-		    ((req->processed[1] ||
-		      (req->processed[0] != req->block_sz)))) {
+		    (req->processed != req->block_sz)) {
 			/* Basic hash continue operation, need digest + cnt */
 			cdesc->control_data.control0 |=
 				CONTEXT_CONTROL_SIZE((req->state_sz >> 2) + 1) |
@@ -234,11 +225,9 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv,
 
 			memcpy(sreq->state, ctx->opad, sreq->state_sz);
 
-			sreq->len[0] = sreq->block_sz +
-				       crypto_ahash_digestsize(ahash);
-			sreq->len[1] = 0;
-			sreq->processed[0] = sreq->block_sz;
-			sreq->processed[1] = 0;
+			sreq->len = sreq->block_sz +
+				    crypto_ahash_digestsize(ahash);
+			sreq->processed = sreq->block_sz;
 			sreq->hmac = 0;
 
 			ctx->base.needs_inv = true;
@@ -393,9 +382,7 @@ send_command:
 
 	safexcel_rdr_req_set(priv, ring, rdesc, &areq->base);
 
-	req->processed[0] += len;
-	if (req->processed[0] < len)
-		req->processed[1]++;
+	req->processed += len;
 
 	*commands = n_cdesc;
 	*results = 1;
@@ -603,15 +590,14 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 
 	if (ctx->base.ctxr) {
 		if (priv->flags & EIP197_TRC_CACHE && !ctx->base.needs_inv &&
-		    (req->processed[0] || req->processed[1]) &&
+		    req->processed &&
 		    (/* invalidate for basic hash continuation finish */
 		     (req->finish &&
 		      (req->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED)) ||
 		     /* invalidate if (i)digest changed */
 		     memcmp(ctx->base.ctxr->data, req->state, req->state_sz) ||
 		     /* invalidate for HMAC continuation finish */
-		     (req->finish && (req->processed[1] ||
-		      (req->processed[0] != req->block_sz))) ||
+		     (req->finish && (req->processed != req->block_sz)) ||
 		     /* invalidate for HMAC finish with odigest changed */
 		     (req->finish &&
 		      memcmp(ctx->base.ctxr->data + (req->state_sz>>2),
@@ -662,9 +648,7 @@ static int safexcel_ahash_update(struct ahash_request *areq)
 	ret = safexcel_ahash_cache(areq);
 
 	/* Update total request length */
-	req->len[0] += areq->nbytes;
-	if (req->len[0] < areq->nbytes)
-		req->len[1]++;
+	req->len += areq->nbytes;
 
 	/* If not all data could fit into the cache, go process the excess.
 	 * Also go process immediately for an HMAC IV precompute, which
@@ -683,7 +667,7 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 
 	req->finish = true;
 
-	if (unlikely(!req->len[0] && !req->len[1] && !areq->nbytes)) {
+	if (unlikely(!req->len && !areq->nbytes)) {
 		/*
 		 * If we have an overall 0 length *hash* request:
 		 * The HW cannot do 0 length hash, so we provide the correct
@@ -709,8 +693,8 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 			       SHA512_DIGEST_SIZE);
 
 		return 0;
-	} else if (unlikely(req->hmac && !req->len[1] &&
-			    (req->len[0] == req->block_sz) &&
+	} else if (unlikely(req->hmac &&
+			    (req->len == req->block_sz) &&
 			    !areq->nbytes)) {
 		/*
 		 * If we have an overall 0 length *HMAC* request:
@@ -736,7 +720,7 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 						      255;
 		}
 
-		req->len[0] += req->block_sz; /* plus 1 hash block */
+		req->len += req->block_sz; /* plus 1 hash block */
 
 		/* Set special zero-length HMAC flag */
 		req->hmac_zlen = true;
@@ -766,10 +750,8 @@ static int safexcel_ahash_export(struct ahash_request *areq, void *out)
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	struct safexcel_ahash_export_state *export = out;
 
-	export->len[0] = req->len[0];
-	export->len[1] = req->len[1];
-	export->processed[0] = req->processed[0];
-	export->processed[1] = req->processed[1];
+	export->len = req->len;
+	export->processed = req->processed;
 
 	export->digest = req->digest;
 
@@ -789,10 +771,8 @@ static int safexcel_ahash_import(struct ahash_request *areq, const void *in)
 	if (ret)
 		return ret;
 
-	req->len[0] = export->len[0];
-	req->len[1] = export->len[1];
-	req->processed[0] = export->processed[0];
-	req->processed[1] = export->processed[1];
+	req->len = export->len;
+	req->processed = export->processed;
 
 	req->digest = export->digest;
 
@@ -903,8 +883,8 @@ static int safexcel_hmac_sha1_init(struct ahash_request *areq)
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA1_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
-	req->len[0]	  = SHA1_BLOCK_SIZE;
-	req->processed[0] = SHA1_BLOCK_SIZE;
+	req->len	= SHA1_BLOCK_SIZE;
+	req->processed	= SHA1_BLOCK_SIZE;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA1;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
@@ -1262,8 +1242,8 @@ static int safexcel_hmac_sha224_init(struct ahash_request *areq)
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA256_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
-	req->len[0]	  = SHA256_BLOCK_SIZE;
-	req->processed[0] = SHA256_BLOCK_SIZE;
+	req->len	= SHA256_BLOCK_SIZE;
+	req->processed	= SHA256_BLOCK_SIZE;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA224;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
@@ -1332,8 +1312,8 @@ static int safexcel_hmac_sha256_init(struct ahash_request *areq)
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA256_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
-	req->len[0]	  = SHA256_BLOCK_SIZE;
-	req->processed[0] = SHA256_BLOCK_SIZE;
+	req->len	= SHA256_BLOCK_SIZE;
+	req->processed	= SHA256_BLOCK_SIZE;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA256;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
@@ -1512,8 +1492,8 @@ static int safexcel_hmac_sha512_init(struct ahash_request *areq)
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA512_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
-	req->len[0]	  = SHA512_BLOCK_SIZE;
-	req->processed[0] = SHA512_BLOCK_SIZE;
+	req->len	= SHA512_BLOCK_SIZE;
+	req->processed	= SHA512_BLOCK_SIZE;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA512;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
@@ -1582,8 +1562,8 @@ static int safexcel_hmac_sha384_init(struct ahash_request *areq)
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, SHA512_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
-	req->len[0]	  = SHA512_BLOCK_SIZE;
-	req->processed[0] = SHA512_BLOCK_SIZE;
+	req->len	= SHA512_BLOCK_SIZE;
+	req->processed	= SHA512_BLOCK_SIZE;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA384;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
@@ -1700,8 +1680,8 @@ static int safexcel_hmac_md5_init(struct ahash_request *areq)
 	/* Start from ipad precompute */
 	memcpy(req->state, ctx->ipad, MD5_DIGEST_SIZE);
 	/* Already processed the key^ipad part now! */
-	req->len[0]	  = MD5_HMAC_BLOCK_SIZE;
-	req->processed[0] = MD5_HMAC_BLOCK_SIZE;
+	req->len	= MD5_HMAC_BLOCK_SIZE;
+	req->processed	= MD5_HMAC_BLOCK_SIZE;
 
 	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_MD5;
 	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
