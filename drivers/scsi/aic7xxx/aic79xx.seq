@@ -177,7 +177,7 @@ gsfifo_complete_normally:
 	 * Case 1 can be detected by noticing a non-zero FIFO active
 	 * count in the SCB.  In this case, we allow the routine servicing
 	 * the FIFO to complete the SCB.
-	 * 
+	 *
 	 * Case 2 implies either a pending or yet to occur save data
 	 * pointers for this same context in the other FIFO.  So, if
 	 * we detect case 1, we will properly defer the post of the SCB
@@ -263,7 +263,7 @@ qoutfifo_updated:
 	add	A, -1, INT_COALESCING_MINCMDS;
 	add	NONE, A, CMDS_PENDING;
 	jnc	issue_cmdcmplt;
-	
+
 	/*
 	 * If coalescing, only coalesce up to the limit
 	 * provided by the host driver.
@@ -362,20 +362,20 @@ fetch_new_scb_done:
 	 * immediately.  If the queue is not empty, we must
 	 * wait for it to empty before entering this SCB
 	 * into the waiting for selection queue.  Otherwise
-	 * our batching and round-robin selection scheme 
+	 * our batching and round-robin selection scheme
 	 * could allow commands to be queued out of order.
 	 * To simplify the implementation, we stop pulling
 	 * new commands from the host until the MK_MESSAGE
 	 * SCB can be queued to the waiting for selection
 	 * list.
 	 */
-	test	A, MK_MESSAGE jz batch_scb; 
+	test	A, MK_MESSAGE jz batch_scb;
 
 	/*
 	 * If the last SCB is also a MK_MESSAGE SCB, then
 	 * order is preserved even if we batch.
 	 */
-	test	SCB_CONTROL, MK_MESSAGE jz batch_scb; 
+	test	SCB_CONTROL, MK_MESSAGE jz batch_scb;
 
 	/*
 	 * Defer this SCB and stop fetching new SCBs until
@@ -549,7 +549,7 @@ BEGIN_CRITICAL;
 		 * 2) In a non QAS, protocol allowed phase change,
 		 *    the queue is shifted 1 too far.  LASTSCB is
 		 *    the last SCB that was correctly processed.
-		 * 
+		 *
 		 * 3) In the QAS case, if the full list of commands
 		 *    was successfully sent, NEXTSCB is NULL and neither
 		 *    CURRSCB nor LASTSCB can be trusted.  We must
@@ -893,7 +893,7 @@ p_command_from_host:
 	jmp	p_command_xfer;
 p_command_embedded:
 	bmov	SHCNT[0], SCB_CDB_LEN,  1;
-	bmov	DFDAT, SCB_CDB_STORE, 16; 
+	bmov	DFDAT, SCB_CDB_STORE, 16;
 	mvi	DFCNTRL, SCSIEN;
 p_command_xfer:
 	and	SEQ_FLAGS, ~NO_CDB_SENT;
@@ -955,7 +955,7 @@ p_status_okay:
  * associated with this target is set, we will also interrupt the host,
  * thereby allowing it to send a message on the next selection regardless
  * of the transaction being sent.
- * 
+ *
  * If MSG_OUT is == HOST_MSG, also interrupt the host and take a message.
  * This is done to allow the host to send messages outside of an identify
  * sequence while protecting the seqencer from testing the MK_MESSAGE bit
@@ -1388,7 +1388,7 @@ msgin_rdptrs_get_fifo:
 	call	allocate_fifo;
 	jmp	mesgin_done;
 
-phase_lock:     
+phase_lock:
 	if ((ahd->bugs & AHD_EARLY_REQ_BUG) != 0) {
 		/*
 		 * Don't ignore persistent REQ assertions just because
@@ -1631,7 +1631,7 @@ p_data:
 	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT	jz p_data_allowed;
 	SET_SEQINTCODE(PROTO_VIOLATION)
 p_data_allowed:
- 
+
 	test	SEQ_FLAGS, DPHASE	jz data_phase_initialize;
 
 	/*
@@ -1732,7 +1732,7 @@ data_phase_finish:
 	/*
 	 * If the target has left us in data phase, loop through
 	 * the dma code again.  We will only loop if there is a
-	 * data overrun.  
+	 * data overrun.
 	 */
 	if ((ahd->flags & AHD_TARGETROLE) != 0) {
 		test	SSTAT0, TARGET jnz data_phase_done;
@@ -1822,7 +1822,7 @@ sgptr_fixup:
 	test	SG_CACHE_SHADOW, 0x80 jz sgptr_fixup_done;
 	test	SCB_RESIDUAL_SGPTR[0], 0x80 jnz sgptr_fixup_done;
 	add	SCB_RESIDUAL_SGPTR[1], -1;
-	adc	SCB_RESIDUAL_SGPTR[2], -1; 
+	adc	SCB_RESIDUAL_SGPTR[2], -1;
 	adc	SCB_RESIDUAL_SGPTR[3], -1;
 sgptr_fixup_done:
 	and	SCB_RESIDUAL_SGPTR[0], SG_ADDR_MASK, SG_CACHE_SHADOW;
@@ -1866,7 +1866,7 @@ export seq_isr:
 		 * (DIRECTION set in DFCNTRL). The delay is performed by
 		 * disabling SCSIEN until we see the first REQ from the
 		 * target.
-		 * 
+		 *
 		 * First instruction in an ISR cannot be a branch on
 		 * Rev A.  Snapshot LQISTAT2 so the status is not missed
 		 * and deffer the test by one instruction.

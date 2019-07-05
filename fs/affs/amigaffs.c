@@ -157,7 +157,7 @@ affs_remove_link(struct dentry *dentry)
 	if (inode->i_ino == link_ino) {
 		/* we can't remove the head of the link, as its blocknr is still used as ino,
 		 * so we remove the block of the first link instead.
-		 */ 
+		 */
 		link_ino = be32_to_cpu(AFFS_TAIL(sb, bh)->link_chain);
 		link_bh = affs_bread(sb, link_ino);
 		if (!link_bh)

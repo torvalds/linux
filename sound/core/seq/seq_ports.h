@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *   ALSA sequencer Ports 
+ *   ALSA sequencer Ports
  *   Copyright (c) 1998 by Frank van de Pol <fvdpol@coil.demon.nl>
  */
 #ifndef __SND_SEQ_PORTS_H
@@ -12,8 +12,8 @@
 /* list of 'exported' ports */
 
 /* Client ports that are not exported are still accessible, but are
- anonymous ports. 
- 
+ anonymous ports.
+
  If a port supports SUBSCRIPTION, that port can send events to all
  subscribersto a special address, with address
  (queue==SNDRV_SEQ_ADDRESS_SUBSCRIBERS). The message is then send to all
@@ -22,7 +22,7 @@
  data. The port doesn't 'know' what other clients are interested in this
  message. If for instance a MIDI recording application would like to receive
  the events from that port, it will first have to subscribe with that port.
- 
+
 */
 
 struct snd_seq_subscribers {
@@ -46,7 +46,7 @@ struct snd_seq_client_port {
 
 	struct snd_seq_addr addr;	/* client/port number */
 	struct module *owner;		/* owner of this port */
-	char name[64];			/* port name */	
+	char name[64];			/* port name */
 	struct list_head list;		/* port list */
 	snd_use_lock_t use_lock;
 
@@ -62,7 +62,7 @@ struct snd_seq_client_port {
 	unsigned int timestamping: 1;
 	unsigned int time_real: 1;
 	int time_queue;
-	
+
 	/* capability, inport, output, sync */
 	unsigned int capability;	/* port capability bits */
 	unsigned int type;		/* port type bits */
@@ -71,7 +71,7 @@ struct snd_seq_client_port {
 	int midi_channels;
 	int midi_voices;
 	int synth_voices;
-		
+
 };
 
 struct snd_seq_client;
@@ -109,7 +109,7 @@ int snd_seq_port_connect(struct snd_seq_client *caller,
 			 struct snd_seq_client *d, struct snd_seq_client_port *dp,
 			 struct snd_seq_port_subscribe *info);
 
-/* remove subscriber from subscription list */ 
+/* remove subscriber from subscription list */
 int snd_seq_port_disconnect(struct snd_seq_client *caller,
 			    struct snd_seq_client *s, struct snd_seq_client_port *sp,
 			    struct snd_seq_client *d, struct snd_seq_client_port *dp,

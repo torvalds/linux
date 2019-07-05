@@ -52,17 +52,17 @@ struct kp2000_device {
     struct pci_dev     *pdev;
     struct miscdevice   miscdev;
     char                name[16];
-    
+
     unsigned int        card_num;
     struct mutex        sem;
-    
+
     void __iomem       *sysinfo_regs_base;
     void __iomem       *regs_bar_base;
     struct resource     regs_base_resource;
     void __iomem       *dma_bar_base;
     void __iomem       *dma_common_regs;
     struct resource     dma_base_resource;
-    
+
     // "System Registers"
     u32                 card_id;
     u32                 build_version;
@@ -74,10 +74,10 @@ struct kp2000_device {
     u8                  hardware_revision;
     u64                 ssid;
     u64                 ddna;
-    
+
     // IRQ stuff
     unsigned int        irq;
-    
+
     struct list_head    uio_devices_list;
 };
 

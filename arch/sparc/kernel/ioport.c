@@ -8,7 +8,7 @@
  * 1996: sparc_free_io, 1999: ioremap()/iounmap() by Pete Zaitcev.
  *
  * 2000/01/29
- * <rth> zait: as long as pci_alloc_consistent produces something addressable, 
+ * <rth> zait: as long as pci_alloc_consistent produces something addressable,
  *	things are ok.
  * <zaitcev> rth: no, it is relevant, because get_free_pages returns you a
  *	pointer into the big page mapping

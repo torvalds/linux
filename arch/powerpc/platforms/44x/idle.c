@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright 2008 IBM Corp. 
+ * Copyright 2008 IBM Corp.
  *
- * Based on arch/powerpc/platforms/pasemi/idle.c: 
+ * Based on arch/powerpc/platforms/pasemi/idle.c:
  * Copyright (C) 2006-2007 PA Semi, Inc
  *
  * Added by: Jerone Young <jyoung5@us.ibm.com>
@@ -30,7 +30,7 @@ static void ppc44x_idle(void)
 int __init ppc44x_idle_init(void)
 {
 	if (!mode_spin) {
-		/* If we are not setting spin mode 
+		/* If we are not setting spin mode
                    then we set to wait mode */
 		ppc_md.power_save = &ppc44x_idle;
 	}
@@ -41,7 +41,7 @@ int __init ppc44x_idle_init(void)
 arch_initcall(ppc44x_idle_init);
 
 static int __init idle_param(char *p)
-{ 
+{
 
 	if (!strcmp("spin", p)) {
 		mode_spin = 1;

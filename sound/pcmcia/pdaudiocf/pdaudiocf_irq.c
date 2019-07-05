@@ -209,7 +209,7 @@ static void pdacf_transfer(struct snd_pdacf *chip, unsigned int size, unsigned i
 				pdacf_transfer_mono24be((char *)chip->pcm_area + (off * 3), xor, size, rdp_port);
 			} else {
 				pdacf_transfer_stereo24be((char *)chip->pcm_area + (off * 6), xor, size, rdp_port);
-			}			
+			}
 		}
 		return;
 	}
@@ -251,7 +251,7 @@ irqreturn_t pdacf_threaded_irq(int irq, void *dev)
 
 	if ((chip->chip_status & (PDAUDIOCF_STAT_IS_STALE|PDAUDIOCF_STAT_IS_CONFIGURED)) != PDAUDIOCF_STAT_IS_CONFIGURED)
 		return IRQ_HANDLED;
-	
+
 	if (chip->pcm_substream == NULL || chip->pcm_substream->runtime == NULL || !snd_pcm_running(chip->pcm_substream))
 		return IRQ_HANDLED;
 

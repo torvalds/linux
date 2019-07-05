@@ -72,10 +72,10 @@
 static struct pci_driver amd756_driver;
 static unsigned short amd756_ioport;
 
-/* 
+/*
   SMBUS event = I/O 28-29 bit 11
      see E0 for the status bits and enabled in E2
-     
+
 */
 #define GS_ABRT_STS	(1 << 0)
 #define GS_COL_STS	(1 << 1)
@@ -316,7 +316,7 @@ static int amd756_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int nforce = (id->driver_data == NFORCE);
 	int error;
 	u8 temp;
-	
+
 	if (amd756_ioport) {
 		dev_err(&pdev->dev, "Only one device supported "
 		       "(you have a strange motherboard, btw)\n");

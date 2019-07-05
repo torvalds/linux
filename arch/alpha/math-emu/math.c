@@ -116,7 +116,7 @@ alpha_fp_emul (unsigned long pc)
 	func   = (insn >>  5) & 0xf;
 	src    = (insn >>  9) & 0x3;
 	mode   = (insn >> 11) & 0x3;
-	
+
 	fpcr = rdfpcr();
 	swcr = swcr_update_status(current_thread_info()->ieee_state, fpcr);
 
@@ -129,7 +129,7 @@ alpha_fp_emul (unsigned long pc)
 	case FOP_SRC_S:
 		va = alpha_read_fp_reg_s(fa);
 		vb = alpha_read_fp_reg_s(fb);
-		
+
 		FP_UNPACK_SP(SA, &va);
 		FP_UNPACK_SP(SB, &vb);
 

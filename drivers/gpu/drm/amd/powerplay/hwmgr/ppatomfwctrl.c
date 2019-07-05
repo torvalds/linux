@@ -158,7 +158,7 @@ int pp_atomfwctrl_get_voltage_table_v4(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
- 
+
 static struct atom_gpio_pin_lut_v2_1 *pp_atomfwctrl_get_gpio_lookup_table(
 		struct pp_hwmgr *hwmgr)
 {

@@ -29,10 +29,10 @@
 #define TUN_TYPE_MASK   0x000f
 
 /* Ioctl defines */
-#define TUNSETNOCSUM  _IOW('T', 200, int) 
-#define TUNSETDEBUG   _IOW('T', 201, int) 
-#define TUNSETIFF     _IOW('T', 202, int) 
-#define TUNSETPERSIST _IOW('T', 203, int) 
+#define TUNSETNOCSUM  _IOW('T', 200, int)
+#define TUNSETDEBUG   _IOW('T', 201, int)
+#define TUNSETIFF     _IOW('T', 202, int)
+#define TUNSETPERSIST _IOW('T', 203, int)
 #define TUNSETOWNER   _IOW('T', 204, int)
 #define TUNSETLINK    _IOW('T', 205, int)
 #define TUNSETGROUP   _IOW('T', 206, int)

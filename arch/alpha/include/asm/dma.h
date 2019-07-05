@@ -41,7 +41,7 @@
  *  - page registers for 5-7 don't use data bit 0, represent 128K pages
  *  - page registers for 0-3 use bit 0, represent 64K pages
  *
- * DMA transfers are limited to the lower 16MB of _physical_ memory.  
+ * DMA transfers are limited to the lower 16MB of _physical_ memory.
  * Note that addresses loaded into registers must be _physical_ addresses,
  * not logical addresses (which may differ if paging is active).
  *
@@ -51,7 +51,7 @@
  *    |  ...  |   |  ... |   |  ... |
  *    |  ...  |   |  ... |   |  ... |
  *    |  ...  |   |  ... |   |  ... |
- *   P7  ...  P0  A7 ... A0  A7 ... A0   
+ *   P7  ...  P0  A7 ... A0  A7 ... A0
  * |    Page    | Addr MSB | Addr LSB |   (DMA registers)
  *
  *  Address mapping for channels 5-7:
@@ -60,7 +60,7 @@
  *    |  ...  |   \   \   ... \  \  \  ... \  \
  *    |  ...  |    \   \   ... \  \  \  ... \  (not used)
  *    |  ...  |     \   \   ... \  \  \  ... \
- *   P7  ...  P1 (0) A7 A6  ... A0 A7 A6 ... A0   
+ *   P7  ...  P1 (0) A7 A6  ... A0 A7 A6 ... A0
  * |      Page      |  Addr MSB   |  Addr LSB  |   (DMA registers)
  *
  * Again, channels 5-7 transfer _physical_ words (16 bits), so addresses
@@ -69,7 +69,7 @@
  *
  * Transfer count (_not # bytes_) is limited to 64K, represented as actual
  * count - 1 : 64K => 0xFFFF, 1 => 0x0000.  Thus, count is always 1 or more,
- * and up to 128K bytes may be transferred on channels 5-7 in one operation. 
+ * and up to 128K bytes may be transferred on channels 5-7 in one operation.
  *
  */
 
@@ -354,7 +354,7 @@ static __inline__ int get_dma_residue(unsigned int dmanr)
 
 	count = 1 + dma_inb(io_port);
 	count += dma_inb(io_port) << 8;
-	
+
 	return (dmanr<=3)? count : (count<<1);
 }
 

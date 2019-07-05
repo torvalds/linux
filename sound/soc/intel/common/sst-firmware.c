@@ -327,7 +327,7 @@ static void sst_dma_free(struct sst_dma *dma)
 }
 
 /* create new generic firmware object */
-struct sst_fw *sst_fw_new(struct sst_dsp *dsp, 
+struct sst_fw *sst_fw_new(struct sst_dsp *dsp,
 	const struct firmware *fw, void *private)
 {
 	struct sst_fw *sst_fw;

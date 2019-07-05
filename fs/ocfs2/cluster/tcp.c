@@ -2036,7 +2036,7 @@ static int o2net_open_listening_sock(__be32 addr, __be16 port)
 	ret = sock->ops->bind(sock, (struct sockaddr *)&sin, sizeof(sin));
 	if (ret < 0) {
 		printk(KERN_ERR "o2net: Error %d while binding socket at "
-		       "%pI4:%u\n", ret, &addr, ntohs(port)); 
+		       "%pI4:%u\n", ret, &addr, ntohs(port));
 		goto out;
 	}
 

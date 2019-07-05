@@ -790,7 +790,7 @@ init_smp_config(void)
 }
 
 /*
- * identify_siblings(cpu) gets called from identify_cpu. This populates the 
+ * identify_siblings(cpu) gets called from identify_cpu. This populates the
  * information related to logical execution units in per_cpu_data structure.
  */
 void identify_siblings(struct cpuinfo_ia64 *c)

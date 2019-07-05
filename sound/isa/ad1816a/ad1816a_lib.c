@@ -727,7 +727,7 @@ static int snd_ad1816a_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	struct snd_ad1816a *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	unsigned short val;
-	
+
 	spin_lock_irqsave(&chip->lock, flags);
 	val = snd_ad1816a_read(chip, AD1816A_ADC_SOURCE_SEL);
 	spin_unlock_irqrestore(&chip->lock, flags);
@@ -742,7 +742,7 @@ static int snd_ad1816a_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	unsigned long flags;
 	unsigned short val;
 	int change;
-	
+
 	if (ucontrol->value.enumerated.item[0] > 6 ||
 	    ucontrol->value.enumerated.item[1] > 6)
 		return -EINVAL;
@@ -786,7 +786,7 @@ static int snd_ad1816a_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
-	
+
 	spin_lock_irqsave(&chip->lock, flags);
 	ucontrol->value.integer.value[0] = (snd_ad1816a_read(chip, reg) >> shift) & mask;
 	spin_unlock_irqrestore(&chip->lock, flags);
@@ -805,7 +805,7 @@ static int snd_ad1816a_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	int change;
 	unsigned short old_val, val;
-	
+
 	val = (ucontrol->value.integer.value[0] & mask);
 	if (invert)
 		val = mask - val;
@@ -853,7 +853,7 @@ static int snd_ad1816a_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	unsigned short val;
-	
+
 	spin_lock_irqsave(&chip->lock, flags);
 	val = snd_ad1816a_read(chip, reg);
 	ucontrol->value.integer.value[0] = (val >> shift_left) & mask;
@@ -877,7 +877,7 @@ static int snd_ad1816a_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	int change;
 	unsigned short old_val, val1, val2;
-	
+
 	val1 = ucontrol->value.integer.value[0] & mask;
 	val2 = ucontrol->value.integer.value[1] & mask;
 	if (invert) {
@@ -946,7 +946,7 @@ AD1816A_DOUBLE_TLV("Capture Volume", AD1816A_ADC_PGA, 8, 0, 15, 0,
 AD1816A_SINGLE("3D Control - Switch", AD1816A_3D_PHAT_CTRL, 15, 1, 1),
 AD1816A_SINGLE("3D Control - Level", AD1816A_3D_PHAT_CTRL, 0, 15, 0),
 };
-                                        
+
 int snd_ad1816a_mixer(struct snd_ad1816a *chip)
 {
 	struct snd_card *card;

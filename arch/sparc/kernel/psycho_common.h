@@ -4,7 +4,7 @@
 
 /* U2P Programmer's Manual, page 13-55, configuration space
  * address format:
- * 
+ *
  *  32             24 23 16 15    11 10       8 7   2  1 0
  * ---------------------------------------------------------
  * |0 0 0 0 0 0 0 0 1| bus | device | function | reg | 0 0 |

@@ -229,7 +229,7 @@ sclp_vt220_emit_current(void)
 
 	spin_lock_irqsave(&sclp_vt220_lock, flags);
 	if (sclp_vt220_current_request) {
-		sccb = (struct sclp_vt220_sccb *) 
+		sccb = (struct sclp_vt220_sccb *)
 				sclp_vt220_current_request->sclp_req.sccb;
 		/* Only emit buffers with content */
 		if (sccb->header.length != sizeof(struct sclp_vt220_sccb)) {
@@ -389,7 +389,7 @@ sclp_vt220_drop_buffer(void)
 	return 1;
 }
 
-/* 
+/*
  * Internal implementation of the write function. Write COUNT bytes of data
  * from memory at BUF
  * to the SCLP interface. In case that the data does not fit into the current
@@ -593,7 +593,7 @@ sclp_vt220_put_char(struct tty_struct *tty, unsigned char ch)
 
 /*
  * This routine is called by the kernel after it has written a
- * series of characters to the tty device using put_char().  
+ * series of characters to the tty device using put_char().
  */
 static void
 sclp_vt220_flush_chars(struct tty_struct *tty)

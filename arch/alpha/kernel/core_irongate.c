@@ -307,7 +307,7 @@ irongate_init_arch(void)
 #define GET_PAGE_DIR_OFF(addr) (addr >> 22)
 #define GET_PAGE_DIR_IDX(addr) (GET_PAGE_DIR_OFF(addr))
 
-#define GET_GATT_OFF(addr) ((addr & 0x003ff000) >> 12) 
+#define GET_GATT_OFF(addr) ((addr & 0x003ff000) >> 12)
 #define GET_GATT(addr) (gatt_pages[GET_PAGE_DIR_IDX(addr)])
 
 void __iomem *
@@ -323,16 +323,16 @@ irongate_ioremap(unsigned long addr, unsigned long size)
 		return (void __iomem *)(addr + IRONGATE_MEM);
 
 	gart_bus_addr = (unsigned long)IRONGATE0->bar0 &
-			PCI_BASE_ADDRESS_MEM_MASK; 
+			PCI_BASE_ADDRESS_MEM_MASK;
 
-	/* 
+	/*
 	 * Check for within the AGP aperture...
 	 */
 	do {
 		/*
 		 * Check the AGP area
 		 */
-		if (addr >= gart_bus_addr && addr + size - 1 < 
+		if (addr >= gart_bus_addr && addr + size - 1 <
 		    gart_bus_addr + alpha_agpgart_size)
 			break;
 
@@ -364,7 +364,7 @@ irongate_ioremap(unsigned long addr, unsigned long size)
 	printk("irongate_ioremap:  gart_aper_size 0x%lx\n", gart_aper_size);
 	printk("irongate_ioremap:  mmio_regs      %p\n", mmio_regs);
 	printk("irongate_ioremap:  gatt_pages     %p\n", gatt_pages);
-	
+
 	for(baddr = addr; baddr <= last; baddr += PAGE_SIZE)
 	{
 		cur_gatt = phys_to_virt(GET_GATT(baddr) & ~1);
@@ -380,8 +380,8 @@ irongate_ioremap(unsigned long addr, unsigned long size)
 	area = get_vm_area(size, VM_IOREMAP);
 	if (!area) return NULL;
 
-	for(baddr = addr, vaddr = (unsigned long)area->addr; 
-	    baddr <= last; 
+	for(baddr = addr, vaddr = (unsigned long)area->addr;
+	    baddr <= last;
 	    baddr += PAGE_SIZE, vaddr += PAGE_SIZE)
 	{
 		cur_gatt = phys_to_virt(GET_GATT(baddr) & ~1);
@@ -413,6 +413,6 @@ irongate_iounmap(volatile void __iomem *xaddr)
 	if (((long)addr >> 41) == -2)
 		return;	/* kseg map, nothing to do */
 	if (addr)
-		return vfree((void *)(PAGE_MASK & addr)); 
+		return vfree((void *)(PAGE_MASK & addr));
 }
 EXPORT_SYMBOL(irongate_iounmap);

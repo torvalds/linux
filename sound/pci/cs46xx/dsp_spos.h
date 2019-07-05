@@ -174,9 +174,9 @@ enum wide_opcode {
 static inline u8 _wrap_all_bits (u8 val)
 {
 	u8 wrapped;
-	
+
 	/* wrap all 8 bits */
-	wrapped = 
+	wrapped =
 		((val & 0x1 ) << 7) |
 		((val & 0x2 ) << 5) |
 		((val & 0x4 ) << 3) |
@@ -190,13 +190,13 @@ static inline u8 _wrap_all_bits (u8 val)
 }
 
 static inline void cs46xx_dsp_spos_update_scb (struct snd_cs46xx * chip,
-					       struct dsp_scb_descriptor * scb) 
+					       struct dsp_scb_descriptor * scb)
 {
 	/* update nextSCB and subListPtr in SCB */
 	snd_cs46xx_poke(chip,
 			(scb->address + SCBsubListPtr) << 2,
 			(scb->sub_list_ptr->address << 0x10) |
-			(scb->next_scb_ptr->address));	
+			(scb->next_scb_ptr->address));
 	scb->updated = 1;
 }
 

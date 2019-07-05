@@ -83,7 +83,7 @@ When the PLIP driver is used in IRQ mode, the timeout used for triggering a
 data transfer (the maximal time the PLIP driver would allow the other side
 before announcing a timeout, when trying to handshake a transfer of some
 data) is, by default, 500usec. As IRQ delivery is more or less immediate,
-this timeout is quite sufficient. 
+this timeout is quite sufficient.
 
 When in IRQ-less mode, the PLIP driver polls the parallel port HZ times
 per second (where HZ is typically 100 on most platforms, and 1024 on an
@@ -203,7 +203,7 @@ Each octet is sent as
 To start a transfer the transmitting machine outputs a nibble 0x08.
 That raises the ACK line, triggering an interrupt in the receiving
 machine.  The receiving machine disables interrupts and raises its own ACK
-line. 
+line.
 
 Restated:
 

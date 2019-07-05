@@ -112,7 +112,7 @@ extern int TSUNAMI_bootcpu;
 #define perror_m_addrh 0x7000000000000UL
 #define perror_m_cmd 0xF0000000000000UL
 #define perror_m_syn 0xFF00000000000000UL
-union TPchipPERROR {   
+union TPchipPERROR {
 	struct  {
 		unsigned int perror_v_lost : 1;
 		unsigned perror_v_serr : 1;
@@ -125,7 +125,7 @@ union TPchipPERROR {
 		unsigned perror_v_nds : 1;
 		unsigned perror_v_rto : 1;
 		unsigned perror_v_uecc : 1;
-		unsigned perror_v_cre : 1;                 
+		unsigned perror_v_cre : 1;
 		unsigned perror_v_rsvd1 : 4;
 		unsigned perror_v_addrl : 32;
 		unsigned perror_v_addrh : 3;
@@ -134,16 +134,16 @@ union TPchipPERROR {
 		unsigned perror_v_syn : 8;
 	} perror_r_bits;
 	int perror_q_whole [2];
-};                       
+};
 
 /*
  * TSUNAMI Pchip Window Space Base Address register.
  */
-#define wsba_m_ena 0x1                
+#define wsba_m_ena 0x1
 #define wsba_m_sg 0x2
 #define wsba_m_ptp 0x4
-#define wsba_m_addr 0xFFF00000  
-#define wmask_k_sz1gb 0x3FF00000                   
+#define wsba_m_addr 0xFFF00000
+#define wmask_k_sz1gb 0x3FF00000
 union TPchipWSBA {
 	struct  {
 		unsigned wsba_v_ena : 1;
@@ -230,7 +230,7 @@ union TPchipPCTL {
 #define perrmask_m_uecc 0x400
 #define perrmask_m_cre 0x800
 #define perrmask_m_rsvd 0xFFFFFFFFFFFFF000UL
-union TPchipPERRMASK {   
+union TPchipPERRMASK {
 	struct  {
 		unsigned int perrmask_v_lost : 1;
 		unsigned perrmask_v_serr : 1;
@@ -243,12 +243,12 @@ union TPchipPERRMASK {
 		unsigned perrmask_v_nds : 1;
 		unsigned perrmask_v_rto : 1;
 		unsigned perrmask_v_uecc : 1;
-		unsigned perrmask_v_cre : 1;                 
+		unsigned perrmask_v_cre : 1;
 		unsigned perrmask_v_rsvd1 : 20;
 		unsigned perrmask_v_rsvd2 : 32;
 	} perrmask_r_bits;
 	int perrmask_q_whole [2];
-};                       
+};
 
 /*
  * Memory spaces:
@@ -264,7 +264,7 @@ union TPchipPERRMASK {
 #define TSUNAMI_IACK_SC		_TSUNAMI_IACK_SC(0) /* hack! */
 
 
-/* 
+/*
  * The canonical non-remaped I/O and MEM addresses have these values
  * subtracted out.  This is arranged so that folks manipulating ISA
  * devices can use their familiar numbers and have them map to bus 0.

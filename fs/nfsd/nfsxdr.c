@@ -103,13 +103,13 @@ decode_sattr(__be32 *p, struct iattr *iap, struct user_namespace *userns)
 	if (tmp != (u32)-1 && tmp1 != (u32)-1) {
 		iap->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET;
 		iap->ia_atime.tv_sec = tmp;
-		iap->ia_atime.tv_nsec = tmp1 * 1000; 
+		iap->ia_atime.tv_nsec = tmp1 * 1000;
 	}
 	tmp  = ntohl(*p++); tmp1 = ntohl(*p++);
 	if (tmp != (u32)-1 && tmp1 != (u32)-1) {
 		iap->ia_valid |= ATTR_MTIME | ATTR_MTIME_SET;
 		iap->ia_mtime.tv_sec = tmp;
-		iap->ia_mtime.tv_nsec = tmp1 * 1000; 
+		iap->ia_mtime.tv_nsec = tmp1 * 1000;
 		/*
 		 * Passing the invalid value useconds=1000000 for mtime
 		 * is a Sun convention for "set both mtime and atime to
@@ -174,9 +174,9 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	*p++ = htonl((u32) stat->atime.tv_sec);
 	*p++ = htonl(stat->atime.tv_nsec ? stat->atime.tv_nsec / 1000 : 0);
 	time = stat->mtime;
-	lease_get_mtime(d_inode(dentry), &time); 
+	lease_get_mtime(d_inode(dentry), &time);
 	*p++ = htonl((u32) time.tv_sec);
-	*p++ = htonl(time.tv_nsec ? time.tv_nsec / 1000 : 0); 
+	*p++ = htonl(time.tv_nsec ? time.tv_nsec / 1000 : 0);
 	*p++ = htonl((u32) stat->ctime.tv_sec);
 	*p++ = htonl(stat->ctime.tv_nsec ? stat->ctime.tv_nsec / 1000 : 0);
 

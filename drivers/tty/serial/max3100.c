@@ -826,7 +826,7 @@ static int max3100_remove(struct spi_device *spi)
 		}
 
 	WARN_ON(i == MAX_MAX3100);
-	
+
 	/* check if this is the last chip we have */
 	for (i = 0; i < MAX_MAX3100; i++)
 		if (max3100s[i]) {

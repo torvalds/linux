@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
+ * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family
  * of PCI-SCSI IO processors.
  *
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
@@ -8,7 +8,7 @@
  * This driver is derived from the Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
- * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ * The sym53c8xx driver is derived from the ncr53c8xx driver that had been
  * a port of the FreeBSD ncr driver to Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
@@ -159,7 +159,7 @@ extern unsigned int sym_debug_flags;
  *  Max number of logical units.
  *  SPI-2 allows up to 64 logical units, but in real life, target
  *  that implements more that 7 logical units are pretty rare.
- *  Anyway, the cost of accepting up to 64 logical unit is low in 
+ *  Anyway, the cost of accepting up to 64 logical unit is low in
  *  this driver, thus going with the maximum is acceptable.
  */
 #ifndef SYM_CONF_MAX_LUN
@@ -169,10 +169,10 @@ extern unsigned int sym_debug_flags;
 /*
  *  Max number of IO control blocks queued to the controller.
  *  Each entry needs 8 bytes and the queues are allocated contiguously.
- *  Since we donnot want to allocate more than a page, the theorical 
- *  maximum is PAGE_SIZE/8. For safety, we announce a bit less to the 
+ *  Since we donnot want to allocate more than a page, the theorical
+ *  maximum is PAGE_SIZE/8. For safety, we announce a bit less to the
  *  access method. :)
- *  When not supplied, as it is suggested, the driver compute some 
+ *  When not supplied, as it is suggested, the driver compute some
  *  good value for this parameter.
  */
 /* #define SYM_CONF_MAX_START	(PAGE_SIZE/8 - 16) */
@@ -193,7 +193,7 @@ extern unsigned int sym_debug_flags;
 
 /*
  *  Returning wrong residuals may make problems.
- *  When zero, this define tells the driver to 
+ *  When zero, this define tells the driver to
  *  always return 0 as transfer residual.
  *  Btw, all my testings of residuals have succeeded.
  */

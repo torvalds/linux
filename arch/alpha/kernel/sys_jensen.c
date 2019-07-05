@@ -56,7 +56,7 @@
  * interrupts at all, and have only normal PCI interrupts from
  * devices.  Happily it's easy enough to do a sane mapping from the
  * Jensen.
- * 
+ *
  * Note that this means that we may have to do a hardware
  * "local_op" to a different interrupt than we report to the rest of the
  * world.
@@ -93,7 +93,7 @@ static struct irq_chip jensen_local_irq_type = {
 	.irq_mask_ack	= jensen_local_mask_ack,
 };
 
-static void 
+static void
 jensen_device_interrupt(unsigned long vector)
 {
 	int irq;

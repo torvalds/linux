@@ -32,7 +32,7 @@
 #include "machvec_impl.h"
 
 
-static void 
+static void
 miata_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
@@ -143,9 +143,9 @@ miata_init_irq(void)
  * 13       PCI on board slot 1 (SBU Riser)
  * 14       PCI on board slot 2 (SBU Riser)
  * 15       PCI on board slot 3 (SBU Riser)
- *   
  *
- * This two layered interrupt approach means that we allocate IRQ 16 and 
+ *
+ * This two layered interrupt approach means that we allocate IRQ 16 and
  * above for PCI interrupts.  The IRQ relates to which bit the interrupt
  * comes in on.  This makes interrupt processing much easier.
  */
@@ -177,8 +177,8 @@ miata_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 31,  PCI-PCI */
         };
 	const long min_idsel = 3, max_idsel = 20, irqs_per_slot = 5;
-	
-	/* the USB function of the 82c693 has it's interrupt connected to 
+
+	/* the USB function of the 82c693 has it's interrupt connected to
            the 2nd 8259 controller. So we have to check for it first. */
 
 	if((slot == 7) && (PCI_FUNC(dev->devfn) == 3)) {
@@ -204,13 +204,13 @@ miata_swizzle(struct pci_dev *dev, u8 *pinp)
 
 	if (dev->bus->number == 0) {
 		slot = PCI_SLOT(dev->devfn);
-	}		
+	}
 	/* Check for the built-in bridge.  */
 	else if ((PCI_SLOT(dev->bus->self->devfn) == 8) ||
 		 (PCI_SLOT(dev->bus->self->devfn) == 20)) {
 		slot = PCI_SLOT(dev->devfn) + 9;
 	}
-	else 
+	else
 	{
 		/* Must be a card-based bridge.  */
 		do {
@@ -247,10 +247,10 @@ miata_kill_arch(int mode)
 #ifndef ALPHA_RESTORE_SRM_SETUP
 	switch(mode) {
 	case LINUX_REBOOT_CMD_RESTART:
-		/* Who said DEC engineers have no sense of humor? ;-)  */ 
+		/* Who said DEC engineers have no sense of humor? ;-)  */
 		if (alpha_using_srm) {
-			*(vuip) PYXIS_RESET = 0x0000dead; 
-			mb(); 
+			*(vuip) PYXIS_RESET = 0x0000dead;
+			mb();
 		}
 		break;
 	case LINUX_REBOOT_CMD_HALT:

@@ -79,7 +79,7 @@ EXPORT_SYMBOL(memmove)
 	add		%o0, %o2, %o0
 	sub		%o1, 1, %o1
 	sub		%o0, 1, %o0
-	
+
 1:	/* reverse_bytes */
 
 	ldub		[%o1], %o4
@@ -323,7 +323,7 @@ EXPORT_SYMBOL(memcpy)
 	mov		32, %g2
 	be		4f
 	 sub		%g2, %g4, %l0
-	
+
 	blu		3f
 	 cmp		%g3, 0x8
 

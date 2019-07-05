@@ -210,7 +210,7 @@ chn_common_event(struct seq_oss_devinfo *dp, union evrec *q, struct snd_seq_even
 		/* conversion: 0:0x3fff -> -0x2000:0x1fff */
 		return set_control_event(dp, q->l.dev, SNDRV_SEQ_EVENT_PITCHBEND,
 					  q->l.chn, 0, q->l.val - 8192, ev);
-		
+
 	case MIDI_CHN_PRESSURE:
 		return set_control_event(dp, q->l.dev, SNDRV_SEQ_EVENT_CHANPRESS,
 					  q->l.chn, 0, q->l.val, ev);
@@ -232,7 +232,7 @@ timing_event(struct seq_oss_devinfo *dp, union evrec *q, struct snd_seq_event *e
 			/* XXX: only for little-endian! */
 			tmp.echo = (q->t.time << 8) | SEQ_ECHO;
 			return set_echo_event(dp, &tmp, ev);
-		} 
+		}
 
 	case TMR_STOP:
 		if (dp->seq_mode)
@@ -314,7 +314,7 @@ note_on_event(struct seq_oss_devinfo *dp, int dev, int ch, int note, int vel, st
 		if (vel) /* non-zero velocity - start the note now */
 			return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, note, vel, ev);
 		return -EINVAL;
-		
+
 	case SNDRV_SEQ_OSS_PASS_EVENTS:
 		/* pass the event anyway */
 		return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, note, vel, ev);
@@ -373,7 +373,7 @@ set_note_event(struct seq_oss_devinfo *dp, int dev, int type, int ch, int note, 
 {
 	if (!snd_seq_oss_synth_info(dp, dev))
 		return -ENXIO;
-	
+
 	ev->type = type;
 	snd_seq_oss_synth_addr(dp, dev, ev);
 	ev->data.note.channel = ch;
@@ -391,7 +391,7 @@ set_control_event(struct seq_oss_devinfo *dp, int dev, int type, int ch, int par
 {
 	if (!snd_seq_oss_synth_info(dp, dev))
 		return -ENXIO;
-	
+
 	ev->type = type;
 	snd_seq_oss_synth_addr(dp, dev, ev);
 	ev->data.control.channel = ch;
@@ -435,7 +435,7 @@ snd_seq_oss_event_input(struct snd_seq_event *ev, int direct, void *private_data
 	if (rec->s.code == SEQ_SYNCTIMER) {
 		/* sync echo back */
 		snd_seq_oss_writeq_wakeup(dp->writeq, rec->t.time);
-		
+
 	} else {
 		/* echo back event */
 		if (dp->readq == NULL)

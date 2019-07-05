@@ -2,7 +2,7 @@
 #ifndef _UAPI__LINUX_BRIDGE_NETFILTER_H
 #define _UAPI__LINUX_BRIDGE_NETFILTER_H
 
-/* bridge-specific defines for netfilter. 
+/* bridge-specific defines for netfilter.
  */
 
 #include <linux/in.h>

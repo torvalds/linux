@@ -215,7 +215,7 @@ __sa1100_setup:
 	 *  R
 	 * .RVI ZFRS BLDP WCAM
 	 * ..11 0001 ..11 1101
-	 * 
+	 *
 	 */
 	.type	sa1100_crval, #object
 sa1100_crval:

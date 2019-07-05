@@ -91,7 +91,7 @@
 #define VIKING_SBENABLE     0x00000400   /* Enable store buffer */
 #define VIKING_MMODE        0x00000800   /* MBUS mode */
 #define VIKING_PCENABLE     0x00001000   /* Enable parity checking */
-#define VIKING_BMODE        0x00002000   
+#define VIKING_BMODE        0x00002000
 #define VIKING_SPENABLE     0x00004000   /* Enable bus cache snooping */
 #define VIKING_ACENABLE     0x00008000   /* Enable alternate caching */
 #define VIKING_TCENABLE     0x00010000   /* Enable table-walks to be cached */

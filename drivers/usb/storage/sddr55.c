@@ -166,7 +166,7 @@ static int sddr55_status(struct us_data *us)
 		set_sense_info (4, 0, 0);	/* hardware error */
 		return USB_STOR_TRANSPORT_FAILED;
 	}
-	
+
 	/* check write protect status */
 	info->read_only = (status[0] & 0x20);
 
@@ -360,7 +360,7 @@ static int sddr55_write_data(struct us_data *us,
 
 		usb_stor_dbg(us, "Write %02X pages, to PBA %04X (LBA %04X) page %02X\n",
 			     pages, pba, lba, page);
-			
+
 		command[4] = 0;
 
 		if (pba == NOT_ALLOCATED) {
@@ -413,7 +413,7 @@ static int sddr55_write_data(struct us_data *us,
 		address = (pba << info->blockshift) + page;
 
 		command[1] = LSB_of(address>>16);
-		command[2] = LSB_of(address>>8); 
+		command[2] = LSB_of(address>>8);
 		command[3] = LSB_of(address);
 
 		/* set the lba into the command, modulo 1000 */
@@ -650,9 +650,9 @@ static int sddr55_read_map(struct us_data *us) {
 		return -1;
 
 	numblocks = info->capacity >> (info->blockshift + info->pageshift);
-	
+
 	buffer = kmalloc_array(numblocks, 2, GFP_NOIO );
-	
+
 	if (!buffer)
 		return -1;
 
@@ -721,23 +721,23 @@ static int sddr55_read_map(struct us_data *us) {
 			 * 1000 LBA's per zone. In other words, in PBA
 			 * 1024-2047 you will find LBA 0-999 which are
 			 * really LBA 1000-1999. Yes, this wastes 24
-			 * physical blocks per zone. Go figure. 
+			 * physical blocks per zone. Go figure.
 			 * These devices can have blocks go bad, so there
 			 * are 24 spare blocks to use when blocks do go bad.
 			 */
 
 			/*
-			 * SDDR55 returns 0xffff for a bad block, and 0x400 for the 
+			 * SDDR55 returns 0xffff for a bad block, and 0x400 for the
 			 * CIS block. (Is this true for cards 8MB or less??)
 			 * Record these in the physical to logical map
-			 */ 
+			 */
 
 		info->pba_to_lba[i] = lba;
 
 		if (lba >= max_lba) {
 			continue;
 		}
-		
+
 		if (info->lba_to_pba[lba + zone * 1000] != NOT_ALLOCATED &&
 		    !info->force_read_only) {
 			printk(KERN_WARNING

@@ -25,7 +25,7 @@
 	     "r" ((UDItype)(al)),		\
 	     "r" ((UDItype)(bl))		\
 	   : "cc")
-	   
+
 #define sub_ddmmss(sh, sl, ah, al, bh, bl) 	\
   __asm__ ("subcc %4,%5,%1\n\t"			\
   	   "sub %2,%3,%0\n\t"			\
@@ -72,7 +72,7 @@
 	     "r" ((UDItype)(v))				\
 	   : "cc");					\
   } while (0)
-  
+
 #define udiv_qrnnd(q, r, n1, n0, d) 			\
   do {                                                  \
     UWtype __d1, __d0, __q1, __q0, __r1, __r0, __m;     \
@@ -109,7 +109,7 @@
     (r) = __r0;                                         \
   } while (0)
 
-#define UDIV_NEEDS_NORMALIZATION 1  
+#define UDIV_NEEDS_NORMALIZATION 1
 
 #define abort() \
 	return 0

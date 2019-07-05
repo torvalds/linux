@@ -18,7 +18,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
-  
+
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -33,7 +33,7 @@
 /*
  *  Basic io plugin
  */
- 
+
 static snd_pcm_sframes_t io_playback_transfer(struct snd_pcm_plugin *plugin,
 				    const struct snd_pcm_plugin_channel *src_channels,
 				    struct snd_pcm_plugin_channel *dst_channels,
@@ -59,7 +59,7 @@ static snd_pcm_sframes_t io_playback_transfer(struct snd_pcm_plugin *plugin,
 		return pcm_writev(plugin->plug, bufs, frames);
 	}
 }
- 
+
 static snd_pcm_sframes_t io_capture_transfer(struct snd_pcm_plugin *plugin,
 				   const struct snd_pcm_plugin_channel *src_channels,
 				   struct snd_pcm_plugin_channel *dst_channels,
@@ -86,7 +86,7 @@ static snd_pcm_sframes_t io_capture_transfer(struct snd_pcm_plugin *plugin,
 	}
 	return 0;
 }
- 
+
 static snd_pcm_sframes_t io_src_channels(struct snd_pcm_plugin *plugin,
 			     snd_pcm_uframes_t frames,
 			     struct snd_pcm_plugin_channel **channels)

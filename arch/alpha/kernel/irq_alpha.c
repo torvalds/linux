@@ -41,7 +41,7 @@ EXPORT_SYMBOL(perf_irq);
  * The main interrupt entry point.
  */
 
-asmlinkage void 
+asmlinkage void
 do_entInt(unsigned long type, unsigned long vector,
 	  unsigned long la_ptr, struct pt_regs *regs)
 {
@@ -166,7 +166,7 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 	case 0x90: reason = "callsys in kernel mode"; break;
 	case 0x96: reason = "i-cache read retryable error"; break;
 	case 0x98: reason = "processor detected hard error"; break;
-	
+
 	/* System specific (these are for Alcor, at least): */
 	case 0x202: reason = "system detected hard error"; break;
 	case 0x203: reason = "system detected uncorrectable ECC error"; break;

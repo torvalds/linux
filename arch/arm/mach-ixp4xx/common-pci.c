@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * arch/arm/mach-ixp4xx/common-pci.c 
+ * arch/arm/mach-ixp4xx/common-pci.c
  *
  * IXP4XX PCI routines for all platforms
  *
@@ -33,7 +33,7 @@
 
 
 /*
- * IXP4xx PCI read function is dependent on whether we are 
+ * IXP4xx PCI read function is dependent on whether we are
  * running A0 or B0 (AppleGate) silicon.
  */
 int (*ixp4xx_pci_read)(u32 addr, u32 cmd, u32* data);
@@ -44,7 +44,7 @@ int (*ixp4xx_pci_read)(u32 addr, u32 cmd, u32* data);
 unsigned long ixp4xx_pci_reg_base = 0;
 
 /*
- * PCI cfg an I/O routines are done by programming a 
+ * PCI cfg an I/O routines are done by programming a
  * command/byte enable register, and then read/writing
  * the data from a data register. We need to ensure
  * these transactions are atomic or we will end up
@@ -68,7 +68,7 @@ static void crp_read(u32 ad_cbe, u32 *data)
  * Write to PCI config space
  */
 static void crp_write(u32 ad_cbe, u32 data)
-{ 
+{
 	unsigned long flags;
 	raw_spin_lock_irqsave(&ixp4xx_pci_lock, flags);
 	*PCI_CRP_AD_CBE = CRP_AD_CBE_WRITE | ad_cbe;
@@ -82,7 +82,7 @@ static inline int check_master_abort(void)
 	unsigned long isr = *PCI_ISR;
 
 	if (isr & PCI_ISR_PFE) {
-		/* make sure the Master Abort bit is reset */    
+		/* make sure the Master Abort bit is reset */
 		*PCI_ISR = PCI_ISR_PFE;
 		pr_debug("%s failed\n", __func__);
 		return 1;
@@ -101,8 +101,8 @@ int ixp4xx_pci_read_errata(u32 addr, u32 cmd, u32* data)
 
 	*PCI_NP_AD = addr;
 
-	/* 
-	 * PCI workaround  - only works if NP PCI space reads have 
+	/*
+	 * PCI workaround  - only works if NP PCI space reads have
 	 * no side effects!!! Read 8 times. last one will be good.
 	 */
 	for (i = 0; i < 8; i++) {
@@ -127,11 +127,11 @@ int ixp4xx_pci_read_no_errata(u32 addr, u32 cmd, u32* data)
 
 	*PCI_NP_AD = addr;
 
-	/* set up and execute the read */    
+	/* set up and execute the read */
 	*PCI_NP_CBE = cmd;
 
 	/* the result of the read is now in NP_RDATA */
-	*data = *PCI_NP_RDATA; 
+	*data = *PCI_NP_RDATA;
 
 	if(check_master_abort())
 		retval = 1;
@@ -141,7 +141,7 @@ int ixp4xx_pci_read_no_errata(u32 addr, u32 cmd, u32* data)
 }
 
 int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data)
-{    
+{
 	unsigned long flags;
 	int retval = 0;
 
@@ -167,11 +167,11 @@ static u32 ixp4xx_config_addr(u8 bus_num, u16 devfn, int where)
 	u32 addr;
 	if (!bus_num) {
 		/* type 0 */
-		addr = BIT(32-PCI_SLOT(devfn)) | ((PCI_FUNC(devfn)) << 8) | 
-		    (where & ~3);	
+		addr = BIT(32-PCI_SLOT(devfn)) | ((PCI_FUNC(devfn)) << 8) |
+		    (where & ~3);
 	} else {
 		/* type 1 */
-		addr = (bus_num << 16) | ((PCI_SLOT(devfn)) << 11) | 
+		addr = (bus_num << 16) | ((PCI_SLOT(devfn)) << 11) |
 			((PCI_FUNC(devfn)) << 8) | (where & ~3) | 1;
 	}
 	return addr;
@@ -201,7 +201,7 @@ static u32 local_byte_lane_enable_bits(u32 n, int size)
 }
 
 static int local_read_config(int where, int size, u32 *value)
-{ 
+{
 	u32 n, data;
 	pr_debug("local_read_config from %d size %d\n", where, size);
 	n = where % 4;
@@ -296,7 +296,7 @@ static int abort_handler(unsigned long addr, unsigned int fsr, struct pt_regs *r
 	pr_debug("PCI: abort_handler addr = %#lx, isr = %#x, "
 		"status = %#x\n", addr, isr, status);
 
-	/* make sure the Master Abort bit is reset */    
+	/* make sure the Master Abort bit is reset */
 	*PCI_ISR = PCI_ISR_PFE;
 	status |= PCI_STATUS_REC_MASTER_ABORT;
 	local_write_config(PCI_STATUS, 2, status);
@@ -398,8 +398,8 @@ void __init ixp4xx_pci_preinit(void)
 	/*
 	 * Set Initialize Complete in PCI Control Register: allow IXP4XX to
 	 * respond to PCI configuration cycles. Specify that the AHB bus is
-	 * operating in big endian mode. Set up byte lane swapping between 
-	 * little-endian PCI and the big-endian AHB bus 
+	 * operating in big endian mode. Set up byte lane swapping between
+	 * little-endian PCI and the big-endian AHB bus
 	 */
 #ifdef __ARMEB__
 	*PCI_CSR = PCI_CSR_IC | PCI_CSR_ABE | PCI_CSR_PDS | PCI_CSR_ADS;
@@ -419,7 +419,7 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 
 	res = kcalloc(2, sizeof(*res), GFP_KERNEL);
 	if (res == NULL) {
-		/* 
+		/*
 		 * If we're out of memory this early, something is wrong,
 		 * so we might as well catch it here.
 		 */

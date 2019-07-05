@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* 
+/*
  * CRC32C
  *@Article{castagnoli-crc,
  * author =       { Guy Castagnoli and Stefan Braeuer and Martin Herrman},

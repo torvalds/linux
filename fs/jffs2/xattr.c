@@ -435,7 +435,7 @@ static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datu
  * jffs2_xattr_delete_inode(c, ic)
  *   is called to remove xrefs related to obsolete inode when inode is unlinked.
  * jffs2_xattr_free_inode(c, ic)
- *   is called to release xattr related objects when unmounting. 
+ *   is called to release xattr related objects when unmounting.
  * check_xattr_ref_inode(c, ic)
  *   is used to confirm inode does not have duplicate xattr name/value pair.
  * jffs2_xattr_do_crccheck_inode(c, ic)

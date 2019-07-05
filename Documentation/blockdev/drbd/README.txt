@@ -9,7 +9,7 @@ Description
 
 The here included files are intended to help understand the implementation
 
-DRBD-8.3-data-packets.svg, DRBD-data-packets.svg  
+DRBD-8.3-data-packets.svg, DRBD-data-packets.svg
   relates some functions, and write packets.
 
 conn-states-8.dot, disk-states-8.dot, node-states-8.dot

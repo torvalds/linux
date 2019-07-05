@@ -55,7 +55,7 @@ rawhide_update_irq_hw(int hose, int mask)
 #define hose_exists(h) \
   (((h) < MCPCIA_MAX_HOSES) && (cached_irq_masks[(h)] != 0))
 
-static inline void 
+static inline void
 rawhide_enable_irq(struct irq_data *d)
 {
 	unsigned int mask, hose;
@@ -76,7 +76,7 @@ rawhide_enable_irq(struct irq_data *d)
 	spin_unlock(&rawhide_irq_lock);
 }
 
-static void 
+static void
 rawhide_disable_irq(struct irq_data *d)
 {
 	unsigned int mask, hose;
@@ -131,7 +131,7 @@ static struct irq_chip rawhide_irq_type = {
 	.irq_mask_ack	= rawhide_mask_and_ack_irq,
 };
 
-static void 
+static void
 rawhide_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
@@ -213,13 +213,13 @@ rawhide_init_irq(void)
  * 16       EISA interrupt (PCI 0) or SCSI interrupt (PCI 1)
  * 17-23    NA
  *
- * IdSel	
+ * IdSel
  *   1	 EISA bridge (PCI bus 0 only)
  *   2 	 PCI option slot 2
  *   3	 PCI option slot 3
  *   4   PCI option slot 4
  *   5   PCI option slot 5
- * 
+ *
  */
 
 static int

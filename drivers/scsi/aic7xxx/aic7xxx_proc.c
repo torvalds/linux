@@ -234,7 +234,7 @@ ahc_proc_write_seeprom(struct Scsi_Host *shost, char *buffer, int length)
 	if ((ahc->chip & AHC_VL) != 0) {
 		sd.sd_control_offset = SEECTL_2840;
 		sd.sd_status_offset = STATUS_2840;
-		sd.sd_dataout_offset = STATUS_2840;		
+		sd.sd_dataout_offset = STATUS_2840;
 		sd.sd_chip = C46;
 		sd.sd_MS = 0;
 		sd.sd_RDY = EEPROM_TF;

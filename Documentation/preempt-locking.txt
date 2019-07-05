@@ -16,7 +16,7 @@ requires explicit additional locking for very few additional situations.
 
 This document is for all kernel hackers.  Developing code in the kernel
 requires protecting these situations.
- 
+
 
 RULE #1: Per-CPU data structures need explicit protection
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

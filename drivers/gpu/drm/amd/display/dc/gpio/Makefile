@@ -35,7 +35,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_GPIO)
 ###############################################################################
 # all DCE8.x are derived from DCE8.0
 GPIO_DCE80 = hw_translate_dce80.o hw_factory_dce80.o
-	
+
 AMD_DAL_GPIO_DCE80 = $(addprefix $(AMDDALPATH)/dc/gpio/dce80/,$(GPIO_DCE80))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCE80)

@@ -377,7 +377,7 @@ void smp_callin(void)
 void smp_bogo(struct seq_file *m)
 {
 	int i;
-	
+
 	for_each_online_cpu(i) {
 		seq_printf(m,
 			   "Cpu%dBogo\t: %lu.%02lu\n",

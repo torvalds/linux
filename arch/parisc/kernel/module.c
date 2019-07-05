@@ -33,9 +33,9 @@
  *	However, SEGREL32 is used only for PARISC unwind entries, and we want
  *	those entries to have an absolute address, and not just an offset.
  *
- *	The unwind table mechanism has the ability to specify an offset for 
+ *	The unwind table mechanism has the ability to specify an offset for
  *	the unwind table; however, because we split off the init functions into
- *	a different piece of memory, it is not possible to do this using a 
+ *	a different piece of memory, it is not possible to do this using a
  *	single offset. Instead, we use the above hack for now.
  */
 
@@ -300,7 +300,7 @@ unsigned int arch_mod_section_prepend(struct module *mod,
 		* sizeof(struct stub_entry);
 }
 
-#define CONST 
+#define CONST
 int module_frob_arch_sections(CONST Elf_Ehdr *hdr,
 			      CONST Elf_Shdr *sechdrs,
 			      CONST char *secstrings,
@@ -604,7 +604,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			/* See note about special handling of SEGREL32 at
 			 * the beginning of this file.
 			 */
-			*loc = fsel(val, addend); 
+			*loc = fsel(val, addend);
 			break;
 		case R_PARISC_SECREL32:
 			/* 32-bit section relative address. */
@@ -775,7 +775,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 					val = get_stub(me, val, addend, ELF_STUB_GOT,
 						       loc0, targetsec);
 			}
-			DEBUGP("STUB FOR %s loc %lx, val %lx+%lx at %lx\n", 
+			DEBUGP("STUB FOR %s loc %lx, val %lx+%lx at %lx\n",
 			       strtab + sym->st_name, loc, sym->st_value,
 			       addend, val);
 			val = (val - dot - 8)/4;
@@ -799,7 +799,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			/* See note about special handling of SEGREL32 at
 			 * the beginning of this file.
 			 */
-			*loc = fsel(val, addend); 
+			*loc = fsel(val, addend);
 			break;
 		case R_PARISC_SECREL32:
 			/* 32-bit section relative address. */

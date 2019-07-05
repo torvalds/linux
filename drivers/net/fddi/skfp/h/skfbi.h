@@ -74,7 +74,7 @@
  * Note: The temperature and voltage sensors are relocated on a different
  *	 I2C bus.
  */
-#define I2C_ADDR_VPD	0xA0	/* I2C address for the VPD EEPROM */ 
+#define I2C_ADDR_VPD	0xA0	/* I2C address for the VPD EEPROM */
 
 /*
  * Define Bits and Values of the registers

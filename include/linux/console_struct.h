@@ -85,7 +85,7 @@ struct vc_data {
 	unsigned int	vc_x, vc_y;		/* Cursor position */
 	unsigned int	vc_saved_x, vc_saved_y;
 	unsigned long	vc_pos;			/* Cursor address */
-	/* fonts */	
+	/* fonts */
 	unsigned short	vc_hi_font_mask;	/* [#] Attribute set for upper 256 chars of font or 0 if not supported */
 	struct console_font vc_font;		/* Current VC font set */
 	unsigned short	vc_video_erase_char;	/* Background erase character */

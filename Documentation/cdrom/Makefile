@@ -13,9 +13,9 @@ all:
 	make sortofclean
 
 clean:
-	rm -f $(LATEXFILE).ps $(LATEXFILE).dvi $(LATEXFILE).aux $(LATEXFILE).log 
+	rm -f $(LATEXFILE).ps $(LATEXFILE).dvi $(LATEXFILE).aux $(LATEXFILE).log
 
 sortofclean:
-	rm -f $(LATEXFILE).aux $(LATEXFILE).log 
+	rm -f $(LATEXFILE).aux $(LATEXFILE).log
 
 

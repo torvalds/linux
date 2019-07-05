@@ -135,7 +135,7 @@ static int hard_dma_setup(char *addr, unsigned long size, int mode, int io)
 	doing_vdma = 0;
 	dir = (mode == DMA_MODE_READ) ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE;
 
-	if (bus_addr 
+	if (bus_addr
 	    && (addr != prev_addr || size != prev_size || dir != prev_dir)) {
 		/* different from last time -- unmap prev */
 		pci_unmap_single(isa_bridge_pcidev, bus_addr, prev_size, prev_dir);

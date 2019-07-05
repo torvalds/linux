@@ -595,7 +595,7 @@ struct dpst_guardband {
 #define PIPE_PIXEL_MASK		0x00ffffff
 #define PIPE_PIXEL_SHIFT	0
 
-#define FW_BLC_SELF		0x20e0 
+#define FW_BLC_SELF		0x20e0
 #define FW_BLC_SELF_EN          (1<<15)
 
 #define DSPARB			0x70030

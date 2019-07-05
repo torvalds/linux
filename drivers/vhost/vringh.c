@@ -96,7 +96,7 @@ static inline ssize_t vringh_iov_xfer(struct vringh_kiov *iov,
 			/* Fix up old iov element then increment. */
 			iov->iov[iov->i].iov_len = iov->consumed;
 			iov->iov[iov->i].iov_base -= iov->consumed;
-			
+
 			iov->consumed = 0;
 			iov->i++;
 		}

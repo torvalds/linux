@@ -2,7 +2,7 @@
 /*
  *	linux/arch/alpha/kernel/console.c
  *
- * Architecture-specific specific support for VGA device on 
+ * Architecture-specific specific support for VGA device on
  * non-0 I/O hose
  */
 
@@ -26,7 +26,7 @@ static struct resource alpha_vga = {
 	.end	= 0x3DF
 };
 
-static struct pci_controller * __init 
+static struct pci_controller * __init
 default_vga_hose_select(struct pci_controller *h1, struct pci_controller *h2)
 {
 	if (h2->index < h1->index)
@@ -35,7 +35,7 @@ default_vga_hose_select(struct pci_controller *h1, struct pci_controller *h2)
 	return h1;
 }
 
-void __init 
+void __init
 locate_and_init_vga(void *(*sel_func)(void *, void *))
 {
 	struct pci_controller *hose = NULL;

@@ -55,7 +55,7 @@
  *
  *      I welcome comments and suggestions.  This is my first try at Linux
  *      networking stuff, and there are probably lots of things that I did
- *      suboptimally.  
+ *      suboptimally.
  *
  ***/
 
@@ -67,7 +67,7 @@
  *
  * Revision 1.8  1997/01/28 05:44:54  bradford
  * Clean up for non-module a little.
- * Hacked about a bit to clean things up - Alan Cox 
+ * Hacked about a bit to clean things up - Alan Cox
  * Probably broken it from the origina 1.8
  *
 
@@ -183,12 +183,12 @@
 *	SW7	DMA 1
 *
 *
-*	I/O address -- choose one.  
+*	I/O address -- choose one.
 *
 *	SW8	220 / 240
 */
 
-/*	To have some stuff logged, do 
+/*	To have some stuff logged, do
 *	insmod ltpc.o debug=1
 *
 *	For a whole bunch of stuff, use higher numbers.
@@ -285,7 +285,7 @@ static void enQ(struct xmitQel *qel)
 {
 	unsigned long flags;
 	qel->next = NULL;
-	
+
 	spin_lock_irqsave(&txqueue_lock, flags);
 	if (xmQtl) {
 		xmQtl->next = qel;
@@ -304,7 +304,7 @@ static struct xmitQel *deQ(void)
 	unsigned long flags;
 	int i;
 	struct xmitQel *qel=NULL;
-	
+
 	spin_lock_irqsave(&txqueue_lock, flags);
 	if (xmQhd) {
 		qel = xmQhd;
@@ -409,7 +409,7 @@ static void handlefd(struct net_device *dev)
 
 	if ( wait_timeout(dev,0xfd) ) printk("timed out in handlefd\n");
 	sendup_buffer(dev);
-} 
+}
 
 static void handlewrite(struct net_device *dev)
 {
@@ -418,7 +418,7 @@ static void handlewrite(struct net_device *dev)
 	int dma = dev->dma;
 	int base = dev->base_addr;
 	unsigned long flags;
-	
+
 	flags=claim_dma_lock();
 	disable_dma(dma);
 	clear_dma_ff(dma);
@@ -427,7 +427,7 @@ static void handlewrite(struct net_device *dev)
 	set_dma_count(dma,800);
 	enable_dma(dma);
 	release_dma_lock(flags);
-	
+
 	inb_p(base+3);
 	inb_p(base+2);
 
@@ -447,7 +447,7 @@ static void handleread(struct net_device *dev)
 	int base = dev->base_addr;
 	unsigned long flags;
 
-	
+
 	flags=claim_dma_lock();
 	disable_dma(dma);
 	clear_dma_ff(dma);
@@ -480,7 +480,7 @@ static void handlecommand(struct net_device *dev)
 	inb_p(base+3);
 	inb_p(base+2);
 	if ( wait_timeout(dev,0xfa) ) printk("timed out in handlecommand\n");
-} 
+}
 
 /* ready made command for getting the result from the card */
 static unsigned char rescbuf[2] = {LT_GETRESULT,0};
@@ -518,7 +518,7 @@ static void idle(struct net_device *dev)
 	oops = 100;
 
 loop:
-	if (0>oops--) { 
+	if (0>oops--) {
 		printk("idle: looped too many times\n");
 		goto done;
 	}
@@ -530,12 +530,12 @@ loop:
 		case 0xfc:
 			/* incoming command */
 			if (debug & DEBUG_LOWER) printk("idle: fc\n");
-			handlefc(dev); 
+			handlefc(dev);
 			break;
 		case 0xfd:
 			/* incoming data */
 			if(debug & DEBUG_LOWER) printk("idle: fd\n");
-			handlefd(dev); 
+			handlefd(dev);
 			break;
 		case 0xf9:
 			/* result ready */
@@ -573,7 +573,7 @@ loop:
 				q=deQ();
 				memcpy(ltdmacbuf,q->cbuf,q->cbuflen);
 				ltdmacbuf[1] = q->mailbox;
-				if (debug>1) { 
+				if (debug>1) {
 					int n;
 					printk("ltpc: sent command     ");
 					n = q->cbuflen;
@@ -586,7 +586,7 @@ loop:
 					if(0xfa==inb_p(base+6)) {
 						/* we timed out, so return */
 						goto done;
-					} 
+					}
 			} else {
 				/* we don't seem to have a command */
 				if (!mboxinuse[0]) {
@@ -602,7 +602,7 @@ loop:
 					printk("trouble: response command already queued\n");
 					goto done;
 				}
-			} 
+			}
 			break;
 		case 0Xfb:
 			/* data transfer ready */
@@ -617,7 +617,7 @@ loop:
 				   requests */
 				if(q->mailbox) {
 					memcpy(q->dbuf,ltdmabuf,q->dbuflen);
-				} else { 
+				} else {
 					/* this was a result */
 					mailbox[ 0x0f & ltdmabuf[0] ] = ltdmabuf[1];
 					mboxinuse[0]=0;
@@ -720,7 +720,7 @@ static int sendup_buffer (struct net_device *dev)
 	/* on entry, command is in ltdmacbuf, data in ltdmabuf */
 	/* called from idle, non-reentrant */
 
-	int dnode, snode, llaptype, len; 
+	int dnode, snode, llaptype, len;
 	int sklen;
 	struct sk_buff *skb;
 	struct lt_rcvlap *ltc = (struct lt_rcvlap *) ltdmacbuf;
@@ -732,10 +732,10 @@ static int sendup_buffer (struct net_device *dev)
 	dnode = ltc->dnode;
 	snode = ltc->snode;
 	llaptype = ltc->laptype;
-	len = ltc->length; 
+	len = ltc->length;
 
 	sklen = len;
-	if (llaptype == 1) 
+	if (llaptype == 1)
 		sklen += 8;  /* correct for short ddp */
 	if(sklen > 800) {
 		printk(KERN_INFO "%s: nonsense length in ltpc command 0x14: 0x%08x\n",
@@ -750,7 +750,7 @@ static int sendup_buffer (struct net_device *dev)
 
 
 	skb = dev_alloc_skb(3+sklen);
-	if (skb == NULL) 
+	if (skb == NULL)
 	{
 		printk("%s: dropping packet due to memory squeeze.\n",
 			dev->name);
@@ -783,7 +783,7 @@ static int sendup_buffer (struct net_device *dev)
 }
 
 /* the handler for the board interrupt */
- 
+
 static irqreturn_t
 ltpc_interrupt(int irq, void *dev_id)
 {
@@ -797,8 +797,8 @@ ltpc_interrupt(int irq, void *dev_id)
 	inb_p(dev->base_addr+6);  /* disable further interrupts from board */
 
 	idle(dev); /* handle whatever is coming in */
- 
-	/* idle re-enables interrupts from board */ 
+
+	/* idle re-enables interrupts from board */
 
 	return IRQ_HANDLED;
 }
@@ -829,7 +829,7 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		case SIOCSIFADDR:
 
 			aa->s_net  = sa->sat_addr.s_net;
-      
+
 			/* this does the probe and returns the node addr */
 			c.command = LT_INIT;
 			c.hint = sa->sat_addr.s_node;
@@ -839,13 +839,13 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			/* get all llap frames raw */
 			ltflags = read_30(dev);
 			ltflags |= LT_FLAG_ALLLAP;
-			set_30 (dev,ltflags);  
+			set_30 (dev,ltflags);
 
 			dev->broadcast[0] = 0xFF;
 			dev->dev_addr[0] = aa->s_node;
 
 			dev->addr_len=1;
-   
+
 			return 0;
 
 		case SIOCGIFADDR:
@@ -855,7 +855,7 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 			return 0;
 
-		default: 
+		default:
 			return -EINVAL;
 	}
 }
@@ -929,13 +929,13 @@ static netdev_tx_t ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* initialization stuff */
-  
+
 static int __init ltpc_probe_dma(int base, int dma)
 {
 	int want = (dma == 3) ? 2 : (dma == 1) ? 1 : 3;
   	unsigned long timeout;
   	unsigned long f;
-  
+
   	if (want & 1) {
 		if (request_dma(1,"ltpc")) {
 			want &= ~1;
@@ -1025,7 +1025,7 @@ struct net_device * __init ltpc_probe(void)
 		goto out;
 
 	/* probe for the I/O port address */
-	
+
 	if (io != 0x240 && request_region(0x220,8,"ltpc")) {
 		x = inb_p(0x220+6);
 		if ( (x!=0xff) && (x>=0xf0) ) {
@@ -1036,12 +1036,12 @@ struct net_device * __init ltpc_probe(void)
 	}
 	if (io != 0x220 && request_region(0x240,8,"ltpc")) {
 		y = inb_p(0x240+6);
-		if ( (y!=0xff) && (y>=0xf0) ){ 
+		if ( (y!=0xff) && (y>=0xf0) ){
 			io = 0x240;
 			goto got_port;
 		}
 		release_region(0x240,8);
-	} 
+	}
 
 	/* give up in despair */
 	printk(KERN_ERR "LocalTalk card not found; 220 = %02x, 240 = %02x.\n", x,y);
@@ -1093,13 +1093,13 @@ struct net_device * __init ltpc_probe(void)
 	inb_p(io+0);
 	inb_p(io+2);
 	inb_p(io+7); /* clear reset */
-	inb_p(io+4); 
+	inb_p(io+4);
 	inb_p(io+5);
 	inb_p(io+5); /* enable dma */
 	inb_p(io+6); /* tri-state interrupt line */
 
 	ssleep(1);
-	
+
 	/* now, figure out which dma channel we're using, unless it's
 	   already been specified */
 	/* well, 0 is a legal DMA channel, but the LTPC card doesn't

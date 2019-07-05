@@ -27,7 +27,7 @@ static int snd_gf1_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	struct snd_gus_card *gus = snd_kcontrol_chip(kcontrol);
 	int shift = kcontrol->private_value & 0xff;
 	int invert = (kcontrol->private_value >> 8) & 1;
-	
+
 	ucontrol->value.integer.value[0] = (gus->mix_cntrl_reg >> shift) & 1;
 	if (invert)
 		ucontrol->value.integer.value[0] ^= 1;
@@ -42,7 +42,7 @@ static int snd_gf1_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	int invert = (kcontrol->private_value >> 8) & 1;
 	int change;
 	unsigned char oval, nval;
-	
+
 	nval = ucontrol->value.integer.value[0] & 1;
 	if (invert)
 		nval ^= 1;
@@ -78,7 +78,7 @@ static int snd_ics_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	unsigned long flags;
 	int addr = kcontrol->private_value & 0xff;
 	unsigned char left, right;
-	
+
 	spin_lock_irqsave(&gus->reg_lock, flags);
 	left = gus->gf1.ics_regs[addr][0];
 	right = gus->gf1.ics_regs[addr][1];
@@ -95,7 +95,7 @@ static int snd_ics_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	int addr = kcontrol->private_value & 0xff;
 	int change;
 	unsigned char val1, val2, oval1, oval2;
-	
+
 	val1 = ucontrol->value.integer.value[0] & 127;
 	val2 = ucontrol->value.integer.value[1] & 127;
 	spin_lock_irqsave(&gus->reg_lock, flags);

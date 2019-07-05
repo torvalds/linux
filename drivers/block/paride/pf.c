@@ -1,4 +1,4 @@
-/* 
+/*
         pf.c    (c) 1997-8  Grant R. Guenther <grant@torque.net>
                             Under the terms of the GNU General Public License.
 
@@ -13,7 +13,7 @@
         some parameters from the insmod command line.  The following
         parameters are adjustable:
 
-            drive0      These four arguments can be arrays of       
+            drive0      These four arguments can be arrays of
             drive1      1-7 integers as follows:
             drive2
             drive3      <prt>,<pro>,<uni>,<mod>,<slv>,<lun>,<dly>
@@ -45,14 +45,14 @@
 
 		<lun>   Some ATAPI devices support multiple LUNs.
                         One example is the ATAPI PD/CD drive from
-                        Matshita/Panasonic.  This device has a 
+                        Matshita/Panasonic.  This device has a
                         CD drive on LUN 0 and a PD drive on LUN 1.
                         By default, the driver will search for the
-                        first LUN with a supported device.  Set 
+                        first LUN with a supported device.  Set
                         this parameter to force it to use a specific
                         LUN.  (default -1)
 
-                <dly>   some parallel ports require the driver to 
+                <dly>   some parallel ports require the driver to
                         go more slowly.  -1 sets a default value that
                         should work with the chosen protocol.  Otherwise,
                         set this to a small integer, the larger it is
@@ -80,7 +80,7 @@
                         normal operation, 1 to see autoprobe progress
                         messages, or 2 to see additional debugging
                         output.  (default 0)
- 
+
 	    nice        This parameter controls the driver's use of
 			idle CPU time, at the expense of some speed.
 

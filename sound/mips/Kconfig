@@ -15,7 +15,7 @@ config SND_SGI_O2
 	depends on SGI_IP32
 	select SND_PCM
         help
-                Sound support for the SGI O2 Workstation. 
+                Sound support for the SGI O2 Workstation.
 
 config SND_SGI_HAL2
         tristate "SGI HAL2 Audio"

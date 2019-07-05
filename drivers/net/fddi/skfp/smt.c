@@ -61,7 +61,7 @@ static int mac_con_resource_index(struct s_smc *smc, int mac);
 static int phy_con_resource_index(struct s_smc *smc, int phy);
 static void smt_send_rdf(struct s_smc *smc, SMbuf *rej, int fc, int reason,
 			 int local);
-static void smt_send_nif(struct s_smc *smc, const struct fddi_addr *dest, 
+static void smt_send_nif(struct s_smc *smc, const struct fddi_addr *dest,
 			 int fc, u_long tid, int type, int local);
 static void smt_send_ecf(struct s_smc *smc, struct fddi_addr *dest, int fc,
                          u_long tid, int type, int len);
@@ -88,7 +88,7 @@ static void smt_fill_version(struct s_smc *smc, struct smt_p_version *vers);
 static void smt_fill_fsc(struct s_smc *smc, struct smt_p_fsc *fsc);
 static void smt_fill_mac_counter(struct s_smc *smc, struct smt_p_mac_counter *mc);
 static void smt_fill_mac_fnc(struct s_smc *smc, struct smt_p_mac_fnc *fnc);
-static void smt_fill_manufacturer(struct s_smc *smc, 
+static void smt_fill_manufacturer(struct s_smc *smc,
 				  struct smp_p_manufacturer *man);
 static void smt_fill_user(struct s_smc *smc, struct smp_p_user *user);
 static void smt_fill_setcount(struct s_smc *smc, struct smt_p_setcount *setcount);
@@ -109,7 +109,7 @@ static void	hwm_conv_can(struct s_smc *smc, char *data, int len);
 #endif
 
 
-static inline int is_my_addr(const struct s_smc *smc, 
+static inline int is_my_addr(const struct s_smc *smc,
 			     const struct fddi_addr *addr)
 {
 	return(*(short *)(&addr->a[0]) ==
@@ -132,7 +132,7 @@ static inline int is_individual(const struct fddi_addr *addr)
 	return !(addr->a[0] & GROUP_ADDR);
 }
 
-static inline int is_equal(const struct fddi_addr *addr1, 
+static inline int is_equal(const struct fddi_addr *addr1,
 			   const struct fddi_addr *addr2)
 {
 	return *(u_short *)(&addr1->a[0]) == *(u_short *)(&addr2->a[0]) &&
@@ -925,7 +925,7 @@ static void smt_send_rdf(struct s_smc *smc, SMbuf *rej, int fc, int reason,
 /*
  * generate and send NIF
  */
-static void smt_send_nif(struct s_smc *smc, const struct fddi_addr *dest, 
+static void smt_send_nif(struct s_smc *smc, const struct fddi_addr *dest,
 			 int fc, u_long tid, int type, int local)
 /* struct fddi_addr *dest;	dest address */
 /* int fc;			frame control */
@@ -1488,7 +1488,7 @@ static void smt_fill_mac_fnc(struct s_smc *smc, struct smt_p_mac_fnc *fnc)
 /*
  * fill manufacturer field
  */
-static void smt_fill_manufacturer(struct s_smc *smc, 
+static void smt_fill_manufacturer(struct s_smc *smc,
 				  struct smp_p_manufacturer *man)
 {
 	SMTSETPARA(man,SMT_P_MANUFACTURER) ;

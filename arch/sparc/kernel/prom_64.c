@@ -4,9 +4,9 @@
  *
  * Paul Mackerras	August 1996.
  * Copyright (C) 1996-2005 Paul Mackerras.
- * 
+ *
  *  Adapted for 64bit PowerPC by Dave Engebretsen and Peter Bergner.
- *    {engebret|bergner}@us.ibm.com 
+ *    {engebret|bergner}@us.ibm.com
  *
  *  Adapted for sparc64 by David S. Miller davem@davemloft.net
  */

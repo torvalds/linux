@@ -281,7 +281,7 @@ snd_emux_update_channel(struct snd_emux_port *port, struct snd_midi_channel *cha
 void
 snd_emux_update_port(struct snd_emux_port *port, int update)
 {
-	struct snd_emux *emu; 
+	struct snd_emux *emu;
 	struct snd_emux_voice *vp;
 	int i;
 	unsigned long flags;
@@ -321,7 +321,7 @@ snd_emux_control(void *p, int type, struct snd_midi_channel *chan)
 	case MIDI_CTL_MSB_EXPRESSION:
 		snd_emux_update_channel(port, chan, SNDRV_EMUX_UPDATE_VOLUME);
 		break;
-		
+
 	case MIDI_CTL_MSB_PAN:
 		snd_emux_update_channel(port, chan, SNDRV_EMUX_UPDATE_PAN);
 		break;
@@ -529,7 +529,7 @@ update_voice(struct snd_emux *emu, struct snd_emux_voice *vp, int update)
 
 #if 0 // not used
 /* table for volume target calculation */
-static unsigned short voltarget[16] = { 
+static unsigned short voltarget[16] = {
 	0xEAC0, 0xE0C8, 0xD740, 0xCE20, 0xC560, 0xBD08, 0xB500, 0xAD58,
 	0xA5F8, 0x9EF0, 0x9830, 0x91C0, 0x8B90, 0x85A8, 0x8000, 0x7A90
 };
@@ -873,7 +873,7 @@ get_bank(struct snd_emux_port *port, struct snd_midi_channel *chan)
 			return 128;
 		/* ignore LSB (bank map) */
 		return chan->control[MIDI_CTL_MSB_BANK];
-		
+
 	default:
 		if (chan->drum_channel)
 			return 128;

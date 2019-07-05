@@ -151,15 +151,15 @@ struct device_reg {
 	uint16_t flash_address;	/* Flash BIOS address */
 
 	uint16_t unused_1[0x06];
-	
+
 	/* cdma_* and ddma_* are 1040 only */
 	uint16_t cdma_cfg;
 #define CDMA_CONF_SENAB  BIT_3	/* SXP to DMA Data enable */
 #define CDMA_CONF_RIRQ   BIT_2	/* RISC interrupt enable */
 #define CDMA_CONF_BENAB  BIT_1	/* Bus burst enable */
 #define CDMA_CONF_DIR    BIT_0	/* DMA direction (0=fifo->host 1=host->fifo) */
-	uint16_t cdma_ctrl; 
-	uint16_t cdma_status;   
+	uint16_t cdma_ctrl;
+	uint16_t cdma_status;
 	uint16_t cdma_fifo_status;
 	uint16_t cdma_count;
 	uint16_t cdma_reserved;
@@ -176,14 +176,14 @@ struct device_reg {
 #define DDMA_CONF_BENAB  BIT_1	/* Bus burst enable */
 #define DDMA_CONF_DIR    BIT_0	/* DMA direction (0=fifo->host 1=host->fifo) */
 	uint16_t ddma_ctrl;
-	uint16_t ddma_status; 
+	uint16_t ddma_status;
 	uint16_t ddma_fifo_status;
 	uint16_t ddma_xfer_count_low;
 	uint16_t ddma_xfer_count_high;
 	uint16_t ddma_addr_count_0;
 	uint16_t ddma_addr_count_1;
 	uint16_t ddma_addr_count_2;
-	uint16_t ddma_addr_count_3; 
+	uint16_t ddma_addr_count_3;
 
 	uint16_t unused_3[0x0e];
 

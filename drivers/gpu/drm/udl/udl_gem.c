@@ -152,7 +152,7 @@ int udl_gem_vmap(struct udl_gem_object *obj)
 			return -ENOMEM;
 		return 0;
 	}
-		
+
 	ret = udl_gem_get_pages(obj);
 	if (ret)
 		return ret;

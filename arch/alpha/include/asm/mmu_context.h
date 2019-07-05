@@ -58,7 +58,7 @@ __reload_thread(struct pcb_struct *pcb)
  * in use) and the Valid bit set, then entries can also effectively be
  * made coherent by assigning a new, unused ASN to the currently
  * running process and not reusing the previous ASN before calling the
- * appropriate PALcode routine to invalidate the translation buffer (TB)". 
+ * appropriate PALcode routine to invalidate the translation buffer (TB)".
  *
  * In short, the EV4 has a "kind of" ASN capability, but it doesn't actually
  * work correctly and can thus not be used (explaining the lack of PAL-code

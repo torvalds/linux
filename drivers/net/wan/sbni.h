@@ -14,7 +14,7 @@
 
 
 /* We don't have official vendor id yet... */
-#define SBNI_PCI_VENDOR 	0x55 
+#define SBNI_PCI_VENDOR 	0x55
 #define SBNI_PCI_DEVICE 	0x9f
 
 #define ISA_MODE 0x00

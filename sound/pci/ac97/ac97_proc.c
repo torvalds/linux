@@ -174,7 +174,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 	ext = snd_ac97_read(ac97, AC97_EXTENDED_ID);
 	if (ext == 0)
 		goto __modem;
-		
+
 	snd_iprintf(buffer, "Extended ID      : codec=%i rev=%i%s%s%s%s DSA=%i%s%s%s%s\n",
 			(ext & AC97_EI_ADDR_MASK) >> AC97_EI_ADDR_SHIFT,
 			(ext & AC97_EI_REV_MASK) >> AC97_EI_REV_SHIFT,
@@ -285,7 +285,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 	mext = snd_ac97_read(ac97, AC97_EXTENDED_MID);
 	if (mext == 0)
 		return;
-	
+
 	snd_iprintf(buffer, "Extended modem ID: codec=%i%s%s%s%s%s\n",
 			(mext & AC97_MEI_ADDR_MASK) >> AC97_MEI_ADDR_SHIFT,
 			mext & AC97_MEI_CID2 ? " CID2" : "",
@@ -328,7 +328,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 static void snd_ac97_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	struct snd_ac97 *ac97 = entry->private_data;
-	
+
 	mutex_lock(&ac97->page_mutex);
 	if ((ac97->id & 0xffffff40) == AC97_ID_AD1881) {	// Analog Devices AD1881/85/86
 		int idx;
@@ -342,7 +342,7 @@ static void snd_ac97_proc_read(struct snd_info_entry *entry, struct snd_info_buf
 			}
 		/* select all codecs */
 		snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 0x7000, 0x7000);
-		
+
 		snd_iprintf(buffer, "\nAD18XX configuration\n");
 		snd_iprintf(buffer, "Unchained        : 0x%04x,0x%04x,0x%04x\n",
 			ac97->spec.ad18xx.unchained[0],
@@ -387,7 +387,7 @@ static void snd_ac97_proc_regs_read_main(struct snd_ac97 *ac97, struct snd_info_
 	}
 }
 
-static void snd_ac97_proc_regs_read(struct snd_info_entry *entry, 
+static void snd_ac97_proc_regs_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
 	struct snd_ac97 *ac97 = entry->private_data;
@@ -407,7 +407,7 @@ static void snd_ac97_proc_regs_read(struct snd_info_entry *entry,
 		snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 0x7000, 0x7000);
 	} else {
 		snd_ac97_proc_regs_read_main(ac97, buffer, 0);
-	}	
+	}
 	mutex_unlock(&ac97->page_mutex);
 }
 

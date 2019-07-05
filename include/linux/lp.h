@@ -3,7 +3,7 @@
  * usr/include/linux/lp.h c.1991-1992 James Wiegand
  * many modifications copyright (C) 1992 Michael K. Johnson
  * Interrupt support added 1993 Nigel Gamble
- * Removed 8255 status defines from inside __KERNEL__ Marcelo Tosatti 
+ * Removed 8255 status defines from inside __KERNEL__ Marcelo Tosatti
  */
 #ifndef _LINUX_LP_H
 #define _LINUX_LP_H
@@ -74,9 +74,9 @@ struct lp_struct {
  */
 
 
-/* 
+/*
  * defines for 8255 control port
- * base + 2 
+ * base + 2
  * accessed with LP_C(minor)
  */
 #define LP_PINTEN	0x10  /* high to read data in or-ed with data out */
@@ -85,10 +85,10 @@ struct lp_struct {
 #define LP_PAUTOLF	0x02  /* inverted output, active low */
 #define LP_PSTROBE	0x01  /* short high output on raising edge */
 
-/* 
- * the value written to ports to test existence. PC-style ports will 
+/*
+ * the value written to ports to test existence. PC-style ports will
  * return the value written. AT-style ports will return 0. so why not
- * make them the same ? 
+ * make them the same ?
  */
 #define LP_DUMMY	0x00
 

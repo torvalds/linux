@@ -81,7 +81,7 @@
 
 /*
  * Convert the software IEEE trap enable and status bits into the
- * hardware fpcr format. 
+ * hardware fpcr format.
  *
  * Digital Unix engineers receive my thanks for not defining the
  * software bits identical to the hardware bits.  The chip designers

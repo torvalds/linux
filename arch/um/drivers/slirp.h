@@ -13,7 +13,7 @@
  *
  * or why I can't typecast like this:
  *
- *   argv :  (char* [SLIRP_MAX_ARGS])(init->argv), 
+ *   argv :  (char* [SLIRP_MAX_ARGS])(init->argv),
  */
 struct arg_list_dummy_wrapper { char *argv[SLIRP_MAX_ARGS]; };
 

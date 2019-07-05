@@ -5,7 +5,7 @@
  *
  *  InterWave chips supports interleaved DMA, but this feature isn't used in
  *  this code.
- *  
+ *
  *  This code emulates autoinit DMA transfer for playback, recording by GF1
  *  chip doesn't support autoinit DMA.
  */
@@ -187,7 +187,7 @@ static void snd_gf1_pcm_interrupt_wave(struct snd_gus_card * gus,
 		snd_printd("snd_gf1_pcm: unknown wave irq?\n");
 		snd_gf1_smart_stop_voice(gus, pvoice->number);
 		return;
-	}		
+	}
 	gus = pcmp->gus;
 	runtime = pcmp->substream->runtime;
 
@@ -408,7 +408,7 @@ static int snd_gf1_pcm_playback_silence(struct snd_pcm_substream *substream,
 	struct gus_pcm_private *pcmp = runtime->private_data;
 	unsigned int len = count;
 	int bpos;
-	
+
 	bpos = get_bpos(pcmp, voice, pos, len);
 	if (bpos < 0)
 		return pos;
@@ -424,7 +424,7 @@ static int snd_gf1_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct gus_pcm_private *pcmp = runtime->private_data;
 	int err;
-	
+
 	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
 		return err;
 	if (err > 0) {	/* change */
@@ -599,7 +599,7 @@ static int snd_gf1_pcm_capture_trigger(struct snd_pcm_substream *substream,
 {
 	struct snd_gus_card *gus = snd_pcm_substream_chip(substream);
 	int val;
-	
+
 	if (cmd == SNDRV_PCM_TRIGGER_START) {
 		val = gus->gf1.pcm_rcntrl_reg;
 	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
@@ -628,7 +628,7 @@ static void snd_gf1_pcm_interrupt_dma_read(struct snd_gus_card * gus)
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_REC_DMA_CONTROL, 0);	/* disable sampling */
 	snd_gf1_i_look8(gus, SNDRV_GF1_GB_REC_DMA_CONTROL);	/* Sampling Control Register */
 	if (gus->pcm_cap_substream != NULL) {
-		snd_gf1_pcm_capture_prepare(gus->pcm_cap_substream); 
+		snd_gf1_pcm_capture_prepare(gus->pcm_cap_substream);
 		snd_gf1_pcm_capture_trigger(gus->pcm_cap_substream, SNDRV_PCM_TRIGGER_START);
 		gus->c_pos += gus->c_period_size;
 		snd_pcm_period_elapsed(gus->pcm_cap_substream);
@@ -714,11 +714,11 @@ static int snd_gf1_pcm_playback_close(struct snd_pcm_substream *substream)
 	struct snd_gus_card *gus = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct gus_pcm_private *pcmp = runtime->private_data;
-	
+
 	if (!wait_event_timeout(pcmp->sleep, (atomic_read(&pcmp->dma_count) <= 0), 2*HZ))
 		snd_printk(KERN_ERR "gf1 pcm - serious DMA problem\n");
 
-	snd_gf1_dma_done(gus);	
+	snd_gf1_dma_done(gus);
 	return 0;
 }
 
@@ -759,7 +759,7 @@ static int snd_gf1_pcm_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_
 {
 	struct snd_gus_card *gus = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&gus->pcm_volume_level_lock, flags);
 	ucontrol->value.integer.value[0] = gus->gf1.pcm_volume_level_left1;
 	ucontrol->value.integer.value[1] = gus->gf1.pcm_volume_level_right1;
@@ -776,7 +776,7 @@ static int snd_gf1_pcm_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	unsigned short val1, val2, vol;
 	struct gus_pcm_private *pcmp;
 	struct snd_gus_voice *pvoice;
-	
+
 	val1 = ucontrol->value.integer.value[0] & 127;
 	val2 = ucontrol->value.integer.value[1] & 127;
 	spin_lock_irqsave(&gus->pcm_volume_level_lock, flags);
@@ -878,7 +878,7 @@ int snd_gf1_pcm_new(struct snd_gus_card *gus, int pcm_dev, int control_index)
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
 					      card->dev,
 					      64*1024, gus->gf1.dma1 > 3 ? 128*1024 : 64*1024);
-	
+
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	if (capture) {

@@ -60,7 +60,7 @@ typedef fpswa_ret_t (*efi_fpswa_t) (unsigned long trap_type, void *bundle, unsig
 				    unsigned long *ifs, fp_state_t *fp_state);
 
 /**
- * This is the FPSWA library interface as defined by EFI.  We need to pass a 
+ * This is the FPSWA library interface as defined by EFI.  We need to pass a
  * pointer to the interface itself on a call to the assist library
  */
 typedef struct {

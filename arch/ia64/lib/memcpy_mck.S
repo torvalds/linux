@@ -378,14 +378,14 @@ EX(.ex_handler, (p6)	ld8	r27=[src1])
  * part of work is already done in the jump table code
  * we are at the following state.
  * src side:
- * 
+ *
  *   xxxxxx xx                   <----- r21 has xxxxxxxx already
  * -------- -------- --------
  * 0        8        16
  *          ^
  *          |
  *          src1
- * 
+ *
  * dst
  * -------- -------- --------
  * ^
@@ -616,7 +616,7 @@ EK(.ex_handler,  (p17)	st8	[dst1]=r39,8);						\
  * The remaining byte to copy is calculated as:
  *
  * A =	(faulting_addr - orig_src)	-> len to faulting ld address
- *	or 
+ *	or
  * 	(faulting_addr - orig_dst)	-> len to faulting st address
  * B =	(cur_dst - orig_dst)		-> len copied so far
  * C =	A - B				-> len need to be copied

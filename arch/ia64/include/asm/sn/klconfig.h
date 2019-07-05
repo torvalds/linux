@@ -33,7 +33,7 @@ typedef struct kl_config_hdr {
 
 /*
  * The KLCONFIG area is organized as a LINKED LIST of BOARDs. A BOARD
- * can be either 'LOCAL' or 'REMOTE'. LOCAL means it is attached to 
+ * can be either 'LOCAL' or 'REMOTE'. LOCAL means it is attached to
  * the LOCAL/current NODE. REMOTE means it is attached to a different
  * node.(TBD - Need a way to treat ROUTER boards.)
  *
@@ -43,20 +43,20 @@ typedef struct kl_config_hdr {
  * Figure below). The first byte of the rboard or lboard structure
  * is used to find out its type - no unions are used.
  * If it is a lboard, then the config info of this board will be found
- * on the local node. (LOCAL NODE BASE + offset value gives pointer to 
+ * on the local node. (LOCAL NODE BASE + offset value gives pointer to
  * the structure.
  * If it is a rboard, the local structure contains the node number
  * and the offset of the beginning of the LINKED LIST on the remote node.
  * The details of the hardware on a remote node can be built locally,
- * if required, by reading the LINKED LIST on the remote node and 
+ * if required, by reading the LINKED LIST on the remote node and
  * ignoring all the rboards on that node.
  *
- * The local node uses the REMOTE NODE NUMBER + OFFSET to point to the 
- * First board info on the remote node. The remote node list is 
+ * The local node uses the REMOTE NODE NUMBER + OFFSET to point to the
+ * First board info on the remote node. The remote node list is
  * traversed as the local list, using the REMOTE BASE ADDRESS and not
  * the local base address and ignoring all rboard values.
  *
- * 
+ *
  KLCONFIG
 
  +------------+      +------------+      +------------+      +------------+
@@ -83,7 +83,7 @@ typedef struct kl_config_hdr {
                       +--------------------------------+
 
  *
- * Each BOARD consists of COMPONENTs and the BOARD structure has 
+ * Each BOARD consists of COMPONENTs and the BOARD structure has
  * pointers (offsets) to its COMPONENT structure.
  * The COMPONENT structure has version info, size and speed info, revision,
  * error info and the NIC info. This structure can accommodate any
@@ -91,19 +91,19 @@ typedef struct kl_config_hdr {
  *
  * The ERRORINFO part of each BOARD has error information
  * that describes errors about the BOARD itself. It also has flags to
- * indicate the COMPONENT(s) on the board that have errors. The error 
- * information specific to the COMPONENT is present in the respective 
+ * indicate the COMPONENT(s) on the board that have errors. The error
+ * information specific to the COMPONENT is present in the respective
  * COMPONENT structure.
  *
- * The ERRORINFO structure is also treated like a COMPONENT, ie. the 
+ * The ERRORINFO structure is also treated like a COMPONENT, ie. the
  * BOARD has pointers(offset) to the ERRORINFO structure. The rboard
- * structure also has a pointer to the ERRORINFO structure. This is 
+ * structure also has a pointer to the ERRORINFO structure. This is
  * the place to store ERRORINFO about a REMOTE NODE, if the HUB on
- * that NODE is not working or if the REMOTE MEMORY is BAD. In cases where 
+ * that NODE is not working or if the REMOTE MEMORY is BAD. In cases where
  * only the CPU of the REMOTE NODE is disabled, the ERRORINFO pointer can
- * be a NODE NUMBER, REMOTE OFFSET combination, pointing to error info 
+ * be a NODE NUMBER, REMOTE OFFSET combination, pointing to error info
  * which is present on the REMOTE NODE.(TBD)
- * REMOTE ERRINFO can be stored on any of the nearest nodes 
+ * REMOTE ERRINFO can be stored on any of the nearest nodes
  * or on all the nearest nodes.(TBD)
  * Like BOARD structures, REMOTE ERRINFO structures can be built locally
  * using the rboard errinfo pointer.
@@ -112,9 +112,9 @@ typedef struct kl_config_hdr {
  * interface routines are provided (TBD). The important thing to remember while
  * manipulating the structures, is that, the NODE number information should
  * be used. If the NODE is non-zero (remote) then each offset should
- * be added to the REMOTE BASE ADDR else it should be added to the LOCAL BASE ADDR. 
+ * be added to the REMOTE BASE ADDR else it should be added to the LOCAL BASE ADDR.
  * This includes offsets for BOARDS, COMPONENTS and ERRORINFO.
- * 
+ *
  * Note that these structures do not provide much info about connectivity.
  * That info will be part of HWGRAPH, which is an extension of the cfg_t
  * data structure. (ref IP27prom/cfg.h) It has to be extended to include
@@ -128,11 +128,11 @@ typedef struct kl_config_hdr {
  * BOARD classes
  */
 
-#define KLCLASS_MASK	0xf0   
+#define KLCLASS_MASK	0xf0
 #define KLCLASS_NONE	0x00
 #define KLCLASS_NODE	0x10             /* CPU, Memory and HUB board */
-#define KLCLASS_CPU	KLCLASS_NODE	
-#define KLCLASS_IO	0x20             /* BaseIO, 4 ch SCSI, ethernet, FDDI 
+#define KLCLASS_CPU	KLCLASS_NODE
+#define KLCLASS_IO	0x20             /* BaseIO, 4 ch SCSI, ethernet, FDDI
 					    and the non-graphics widget boards */
 #define KLCLASS_ROUTER	0x30             /* Router board */
 #define KLCLASS_MIDPLANE 0x40            /* We need to treat this as a board
@@ -171,7 +171,7 @@ typedef struct kl_config_hdr {
 #define KLTYPE_GABRICK		(KLCLASS_IOBRICK | 0xd)
 
 
-/* 
+/*
  * board structures
  */
 
@@ -209,10 +209,10 @@ typedef struct lboard_s {
 } lboard_t;
 
 /*
- * Generic info structure. This stores common info about a 
+ * Generic info structure. This stores common info about a
  * component.
  */
- 
+
 typedef struct klinfo_s {                  /* Generic info */
         unsigned char   struct_type;       /* type of this structure */
         unsigned char   struct_version;    /* version of this structure */

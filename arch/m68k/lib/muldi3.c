@@ -1,4 +1,4 @@
-/* muldi3.c extracted from gcc-2.7.2.3/libgcc2.c and 
+/* muldi3.c extracted from gcc-2.7.2.3/libgcc2.c and
 			   gcc-2.7.2.3/longlong.h which is: */
 /* Copyright (C) 1989, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
 

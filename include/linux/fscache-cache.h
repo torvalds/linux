@@ -489,7 +489,7 @@ static inline void __fscache_use_cookie(struct fscache_cookie *cookie)
 /**
  * fscache_use_cookie - Request usage of cookie attached to an object
  * @object: Object description
- * 
+ *
  * Request usage of the cookie attached to an object.  NULL is returned if the
  * relinquishment had reduced the cookie usage count to 0.
  */
@@ -512,7 +512,7 @@ static inline void __fscache_wake_unused_cookie(struct fscache_cookie *cookie)
 /**
  * fscache_unuse_cookie - Cease usage of cookie attached to an object
  * @object: Object description
- * 
+ *
  * Cease usage of the cookie attached to an object.  When the users count
  * reaches zero then the cookie relinquishment will be permitted to proceed.
  */

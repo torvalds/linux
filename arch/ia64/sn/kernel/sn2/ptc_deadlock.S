@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
@@ -42,7 +42,7 @@ sn2_ptc_deadlock_recovery_core:
 	cmp.ne  p8,p9=r0,ptc1		// Test for shub type (ptc1 non-null on shub1)
 					// p8 = 1 if shub1, p9 = 1 if shub2
 
-	add	scr2=ALIAS_OFFSET,piowc	// Address of WRITE_STATUS alias register 
+	add	scr2=ALIAS_OFFSET,piowc	// Address of WRITE_STATUS alias register
 	mov	scr1=7;;		// Clear DEADLOCK, WRITE_ERROR, MULTI_WRITE_ERROR
 (p8)	st8.rel	[scr2]=scr1;;
 (p9)	ld8.acq	scr1=[scr2];;
@@ -52,7 +52,7 @@ sn2_ptc_deadlock_recovery_core:
 	and	scr2=scr1,mask;;	// mask of writecount bits
 	cmp.ne	p6,p0=zeroval,scr2
 (p6)	br.cond.sptk 5b
-	
+
 
 
 	////////////// BEGIN PHYSICAL MODE ////////////////////
@@ -70,7 +70,7 @@ sn2_ptc_deadlock_recovery_core:
 
 	tbit.nz	p8,p7=scr1,DEADLOCKBIT;;// Test for DEADLOCK
 (p7)	cmp.ne p7,p0=r0,ptc1;;		// Test for non-null ptc1
-	
+
 (p7)	st8.rel [ptc1]=data1;;		// Now write PTC1.
 
 5:	ld8.acq	scr1=[piowcphy];;	// Wait for PIOs to complete.
@@ -78,7 +78,7 @@ sn2_ptc_deadlock_recovery_core:
 	and	scr2=scr1,mask;;	// mask of writecount bits
 	cmp.ne	p6,p0=zeroval,scr2
 (p6)	br.cond.sptk 5b
-	
+
 	tbit.nz	p8,p0=scr1,DEADLOCKBIT;;// Test for DEADLOCK
 
 	mov psr.l=psrsave;;		// Reenable IC

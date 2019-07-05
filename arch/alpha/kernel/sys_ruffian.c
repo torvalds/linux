@@ -45,17 +45,17 @@ ruffian_init_irq(void)
 	outb(0x02,0xA1);
 	outb(0x01,0xA1);
 	outb(0xFF,0xA1);
-	
+
 	outb(0x11,0x20);
 	outb(0x00,0x21);
 	outb(0x04,0x21);
 	outb(0x01,0x21);
 	outb(0xFF,0x21);
-	
+
 	/* Finish writing the 82C59A PIC Operation Control Words */
 	outb(0x20,0xA0);
 	outb(0x20,0x20);
-	
+
 	init_i8259a_irqs();
 
 	/* Not interested in the bogus interrupts (0,3,6),
@@ -147,12 +147,12 @@ ruffian_swizzle(struct pci_dev *dev, u8 *pinp)
 
 	if (dev->bus->number == 0) {
 		slot = PCI_SLOT(dev->devfn);
-	}		
+	}
 	/* Check for the built-in bridge.  */
 	else if (PCI_SLOT(dev->bus->self->devfn) == 13) {
 		slot = PCI_SLOT(dev->devfn) + 10;
 	}
-	else 
+	else
 	{
 		/* Must be a card-based bridge.  */
 		do {

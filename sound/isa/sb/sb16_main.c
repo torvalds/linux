@@ -701,7 +701,7 @@ static int snd_sb16_dma_control_get(struct snd_kcontrol *kcontrol, struct snd_ct
 {
 	struct snd_sb *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.enumerated.item[0] = snd_sb16_get_dma_mode(chip);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -714,7 +714,7 @@ static int snd_sb16_dma_control_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	unsigned long flags;
 	unsigned char nval, oval;
 	int change;
-	
+
 	if ((nval = ucontrol->value.enumerated.item[0]) > 2)
 		return -EINVAL;
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -736,7 +736,7 @@ static const struct snd_kcontrol_new snd_sb16_dma_control = {
 /*
  *  Initialization part
  */
- 
+
 int snd_sb16dsp_configure(struct snd_sb * chip)
 {
 	unsigned long flags;

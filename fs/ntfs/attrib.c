@@ -723,7 +723,7 @@ int load_attribute_list(ntfs_volume *vol, runlist *runlist, u8 *al_start,
 	if (!rl) {
 		ntfs_error(sb, "Cannot read attribute list since runlist is "
 				"missing.");
-		goto err_out;	
+		goto err_out;
 	}
 	/* Read all clusters specified by the runlist one run at a time. */
 	while (rl->length) {

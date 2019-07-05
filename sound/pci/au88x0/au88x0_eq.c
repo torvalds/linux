@@ -5,7 +5,7 @@
  *
  *  Sun Jun  8 18:19:19 2003
  *  2003  Manuel Jander (mjander@users.sourceforge.net)
- *  
+ *
  *  02 July 2003: First time something works :)
  *  November 2003: A3D Bypass code completed but untested.
  *
@@ -20,7 +20,7 @@
 
 /*
  The Aureal Hardware EQ is found on AU8810 and AU8830 chips only.
- it has 4 inputs (2 for general mix, 2 for A3D) and 2 outputs (supposed 
+ it has 4 inputs (2 for general mix, 2 for A3D) and 2 outputs (supposed
  to be routed to the codec).
 */
 
@@ -585,7 +585,7 @@ vortex_Eqlzr_SetAllBands(vortex_t * vortex, u16 gains[], s32 count)
 	for (i = 0; i < count; i++) {
 		eq->this130[i] = gains[i];
 	}
-	
+
 	if (eq->this54)
 		return 0;
 	return vortex_Eqlzr_SetAllBandsFromActiveCoeffSet(vortex);
@@ -631,7 +631,7 @@ static void vortex_Eqlzr_ShutDownA3d(vortex_t * vortex)
 static void vortex_Eqlzr_SetBypass(vortex_t * vortex, u32 bp)
 {
 	eqlzr_t *eq = &(vortex->eq);
-	
+
 	if ((eq->this28) && (bp == 0)) {
 		/* EQ enabled */
 		vortex_Eqlzr_SetAllBandsFromActiveCoeffSet(vortex);

@@ -153,8 +153,8 @@ MODULE_VERSION(HVCS_DRIVER_VERSION);
 /*
  * The hcall interface involves putting 8 chars into each of two registers.
  * We load up those 2 registers (in arch/powerpc/platforms/pseries/hvconsole.c)
- * by casting char[16] to long[2].  It would work without __ALIGNED__, but a 
- * little (tiny) bit slower because an unaligned load is slower than aligned 
+ * by casting char[16] to long[2].  It would work without __ALIGNED__, but a
+ * little (tiny) bit slower because an unaligned load is slower than aligned
  * load.
  */
 #define __ALIGNED__	__attribute__((__aligned__(8)))

@@ -52,7 +52,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
 			if (Dbl_isnotnan(opnd2p1,opnd2p2)) {
 				/* invalid since first operand is infinity */
-				if (Is_invalidtrap_enabled()) 
+				if (Is_invalidtrap_enabled())
                                 	return(INVALIDEXCEPTION);
                                 Set_invalidflag();
                                 Dbl_makequietnan(resultp1,resultp2);
@@ -66,18 +66,18 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                  	 */
                 	if (Dbl_isone_signaling(opnd1p1)) {
                         	/* trap if INVALIDTRAP enabled */
-                        	if (Is_invalidtrap_enabled()) 
+                        	if (Is_invalidtrap_enabled())
                             		return(INVALIDEXCEPTION);
                         	/* make NaN quiet */
                         	Set_invalidflag();
                         	Dbl_set_quiet(opnd1p1);
                 	}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd2p1)) {
                         	/* trap if INVALIDTRAP enabled */
-                        	if (Is_invalidtrap_enabled()) 
+                        	if (Is_invalidtrap_enabled())
                             		return(INVALIDEXCEPTION);
                         	/* make NaN quiet */
                         	Set_invalidflag();
@@ -91,7 +91,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			Dbl_copytoptr(opnd1p1,opnd1p2,dstptr);
                 	return(NOEXCEPTION);
 		}
-	} 
+	}
 	/*
 	 * check second operand for NaN's or infinity
 	 */
@@ -131,12 +131,12 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		return(NOEXCEPTION);
 	}
 
-	/* 
+	/*
 	 * get sign of result
 	 */
-	resultp1 = opnd1p1;  
+	resultp1 = opnd1p1;
 
-	/* 
+	/*
 	 * check for denormalized operands
 	 */
 	if (opnd1_exponent == 0) {
@@ -172,15 +172,15 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		/*
 		 * check for opnd1/opnd2 > 1/2
 		 *
-		 * In this case n will round to 1, so 
-		 *    r = opnd1 - opnd2 
+		 * In this case n will round to 1, so
+		 *    r = opnd1 - opnd2
 		 */
-		if (stepcount == -1 && 
+		if (stepcount == -1 &&
 		    Dbl_isgreaterthan(opnd1p1,opnd1p2,opnd2p1,opnd2p2)) {
 			/* set sign */
 			Dbl_allp1(resultp1) = ~Dbl_allp1(resultp1);
 			/* align opnd2 with opnd1 */
-			Dbl_leftshiftby1(opnd2p1,opnd2p2); 
+			Dbl_leftshiftby1(opnd2p1,opnd2p2);
 			Dbl_subtract(opnd2p1,opnd2p2,opnd1p1,opnd1p2,
 			 opnd2p1,opnd2p2);
 			/* now normalize */
@@ -194,7 +194,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		/*
 		 * opnd1/opnd2 <= 1/2
 		 *
-		 * In this case n will round to zero, so 
+		 * In this case n will round to zero, so
 		 *    r = opnd1
 		 */
 		Dbl_set_exponentmantissa(resultp1,resultp2,opnd1p1,opnd1p2);
@@ -214,8 +214,8 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		Dbl_leftshiftby1(opnd1p1,opnd1p2);
 	}
 	/*
-	 * Do last subtract, then determine which way to round if remainder 
-	 * is exactly 1/2 of opnd2 
+	 * Do last subtract, then determine which way to round if remainder
+	 * is exactly 1/2 of opnd2
 	 */
 	if (Dbl_isnotlessthan(opnd1p1,opnd1p2,opnd2p1,opnd2p2)) {
 		Dbl_subtract(opnd1p1,opnd1p2,opnd2p1,opnd2p2,opnd1p1,opnd1p2);
@@ -228,8 +228,8 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		return(NOEXCEPTION);
 	}
 
-	/* 
-	 * Check for cases where opnd1/opnd2 < n 
+	/*
+	 * Check for cases where opnd1/opnd2 < n
 	 *
 	 * In this case the result's sign will be opposite that of
 	 * opnd1.  The mantissa also needs some correction.
@@ -241,7 +241,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		Dbl_subtract(opnd2p1,opnd2p2,opnd1p1,opnd1p2,opnd1p1,opnd1p2);
 	}
 	/* check for remainder being exactly 1/2 of opnd2 */
-	else if (Dbl_isequal(opnd1p1,opnd1p2,opnd2p1,opnd2p2) && roundup) { 
+	else if (Dbl_isequal(opnd1p1,opnd1p2,opnd2p1,opnd2p2) && roundup) {
 		Dbl_invert_sign(resultp1);
 	}
 
@@ -252,7 +252,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
         }
 	Dbl_set_exponentmantissa(resultp1,resultp2,opnd1p1,opnd1p2);
 
-        /* 
+        /*
          * Test for underflow
          */
     testforunderflow:

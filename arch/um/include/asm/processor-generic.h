@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
@@ -84,7 +84,7 @@ extern unsigned long stacksizelim;
  */
 #define TASK_UNMAPPED_BASE	(0x40000000)
 
-extern void start_thread(struct pt_regs *regs, unsigned long entry, 
+extern void start_thread(struct pt_regs *regs, unsigned long entry,
 			 unsigned long stack);
 
 struct cpuinfo_um {

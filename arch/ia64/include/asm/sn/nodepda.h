@@ -25,8 +25,8 @@
  *
  * One of these structures is allocated on each node of a NUMA system.
  *
- * This structure provides a convenient way of keeping together 
- * all per-node data structures. 
+ * This structure provides a convenient way of keeping together
+ * all per-node data structures.
  */
 struct phys_cpuid {
 	short			nasid;
@@ -44,10 +44,10 @@ struct nodepda_s {
 	struct timer_list	bte_recovery_timer;
 	spinlock_t		bte_recovery_lock;
 
-	/* 
+	/*
 	 * Array of pointers to the nodepdas for each node.
 	 */
-	struct nodepda_s	*pernode_pdaindr[MAX_COMPACT_NODES]; 
+	struct nodepda_s	*pernode_pdaindr[MAX_COMPACT_NODES];
 
 	/*
 	 * Array of physical cpu identifiers. Indexed by cpuid.
@@ -63,7 +63,7 @@ typedef struct nodepda_s nodepda_t;
  * Since there is one nodepda for each node, we need a convenient mechanism
  * to access these nodepdas without cluttering code with #ifdefs.
  * The next set of definitions provides this.
- * Routines are expected to use 
+ * Routines are expected to use
  *
  *	sn_nodepda   - to access node PDA for the node on which code is running
  *	NODEPDA(cnodeid)   - to access node PDA for cnodeid
@@ -75,7 +75,7 @@ DECLARE_PER_CPU(struct nodepda_s *, __sn_nodepda);
 
 /*
  * Check if given a compact node id the corresponding node has all the
- * cpus disabled. 
+ * cpus disabled.
  */
 #define is_headless_node(cnodeid)	(nr_cpus_node(cnodeid) == 0)
 

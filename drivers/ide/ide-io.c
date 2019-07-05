@@ -22,8 +22,8 @@
  * including keys needed to generate an equivalently functional executable
  * are deemed to be part of the source code.
  */
- 
- 
+
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -253,9 +253,9 @@ EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
  *	@drive: the drive to issue the command on
  *	@rq: the request structure holding the command
  *
- *	execute_drive_cmd() issues a special drive command,  usually 
+ *	execute_drive_cmd() issues a special drive command,  usually
  *	initiated by ioctl() from the external hdparm program. The
- *	command can be a drive command, drive task or taskfile 
+ *	command can be a drive command, drive task or taskfile
  *	operation. Weirdly you can call it with NULL to wait for
  *	all commands to finish. Don't do this as that is due to change
  */
@@ -312,7 +312,7 @@ static ide_startstop_t ide_special_rq(ide_drive_t *drive, struct request *rq)
  *
  *	FIXME: this function needs a rename
  */
- 
+
 static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
@@ -393,7 +393,7 @@ kill_rq:
  *	ide_stall_queue() can be used by a drive to give excess bandwidth back
  *	to the port by sleeping for timeout jiffies.
  */
- 
+
 void ide_stall_queue (ide_drive_t *drive, unsigned long timeout)
 {
 	if (timeout > WAIT_WORSTCASE)
@@ -512,7 +512,7 @@ repeat:
 		 * above to return us whatever is in the queue. Since we call
 		 * ide_do_request() ourselves, we end up taking requests while
 		 * the queue is blocked...
-		 * 
+		 *
 		 * We let requests forced at head of queue with ide-preempt
 		 * though. I hope that doesn't happen too much, hopefully not
 		 * unless the subdriver triggers such a thing in its own PM
@@ -615,7 +615,7 @@ static int drive_is_ready(ide_drive_t *drive)
  *	have an excessively incestuous relationship with the DMA
  *	logic that wants cleaning up.
  */
- 
+
 void ide_timer_expiry (struct timer_list *t)
 {
 	ide_hwif_t	*hwif = from_timer(hwif, t, timer);
@@ -719,10 +719,10 @@ void ide_timer_expiry (struct timer_list *t)
  *
  *	If an unexpected interrupt happens on irq15 while we are handling irq14
  *	and if the two interfaces are "serialized" (CMD640), then it looks like
- *	we could screw up by interfering with a new request being set up for 
+ *	we could screw up by interfering with a new request being set up for
  *	irq15.
  *
- *	In reality, this is a non-issue.  The new command is not sent unless 
+ *	In reality, this is a non-issue.  The new command is not sent unless
  *	the drive is ready to accept one, in which case we know the drive is
  *	not trying to interrupt us.  And ide_set_handler() is always invoked
  *	before completing the issuance of any new drive command, so we will not

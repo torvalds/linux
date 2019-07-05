@@ -130,7 +130,7 @@ static int snd_gusmax_mixer(struct snd_wss *chip)
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
 	int err;
-	
+
 	memset(&id1, 0, sizeof(id1));
 	memset(&id2, 0, sizeof(id2));
 	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -177,7 +177,7 @@ static int snd_gusmax_mixer(struct snd_wss *chip)
 static void snd_gusmax_free(struct snd_card *card)
 {
 	struct snd_gusmax *maxcard = card->private_data;
-	
+
 	if (maxcard == NULL)
 		return;
 	if (maxcard->irq >= 0)
@@ -207,7 +207,7 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	maxcard = card->private_data;
 	maxcard->card = card;
 	maxcard->irq = -1;
-	
+
 	xirq = irq[dev];
 	if (xirq == SNDRV_AUTO_IRQ) {
 		if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
@@ -282,7 +282,7 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 		goto _err;
 	}
 	maxcard->irq = xirq;
-	
+
 	err = snd_wss_create(card,
 			     gus->gf1.port + 0x10c, -1, xirq,
 			     xdma2 < 0 ? xdma1 : xdma2, xdma1,
@@ -325,7 +325,7 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	err = snd_card_register(card);
 	if (err < 0)
 		goto _err;
-		
+
 	maxcard->gus = gus;
 	maxcard->wss = wss;
 

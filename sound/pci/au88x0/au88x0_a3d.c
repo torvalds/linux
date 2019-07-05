@@ -233,10 +233,10 @@ static void a3dsrc_GetHrtfOutput(a3dsrc_t * a, short *left, short *right)
 
 #endif
 
-/* Interaural Time Difference. 
- * "The other main clue that humans use to locate sounds, is called 
- * Interaural Time Difference (ITD). The differences in distance from 
- * the sound source to a listeners ears means  that the sound will 
+/* Interaural Time Difference.
+ * "The other main clue that humans use to locate sounds, is called
+ * Interaural Time Difference (ITD). The differences in distance from
+ * the sound source to a listeners ears means  that the sound will
  * reach one ear slightly before the other....", found somewhere with google.*/
 static void a3dsrc_SetItdTarget(a3dsrc_t * a, short litd, short ritd)
 {
@@ -515,7 +515,7 @@ static void a3dsrc_ProgramPipe(a3dsrc_t * a)
 
 	/* Test: Sounds saturated. */
 	//a3dsrc_SetHrtfCurrent(a, A3dHrirSatTest, A3dHrirSatTest);
-	//a3dsrc_SetHrtfTarget(a, A3dHrirSatTest, A3dHrirSatTest);      
+	//a3dsrc_SetHrtfTarget(a, A3dHrirSatTest, A3dHrirSatTest);
 }
 
 /* VDB = Vortex audio Dataflow Bus */
@@ -606,12 +606,12 @@ static void vortex_Vort3D_disable(vortex_t * v)
 static void vortex_Vort3D_connect(vortex_t * v, int en)
 {
 	int i;
-	
+
 // Disable AU8810 routes, since they seem to be wrong (in au8810.h).
 #ifdef CHIP_AU8810
 	return;
 #endif
-	
+
 #if 1
 	/* Alloc Xtalk mixin resources */
 	v->mixxtlk[0] =
@@ -632,7 +632,7 @@ static void vortex_Vort3D_connect(vortex_t * v, int en)
 
 	/* Connect A3D -> XTALK */
 	for (i = 0; i < 4; i++) {
-		// 2 outputs per each A3D slice. 
+		// 2 outputs per each A3D slice.
 		vortex_route(v, en, 0x11, ADB_A3DOUT(i * 2), ADB_XTALKIN(i));
 		vortex_route(v, en, 0x11, ADB_A3DOUT(i * 2) + 1, ADB_XTALKIN(5 + i));
 	}

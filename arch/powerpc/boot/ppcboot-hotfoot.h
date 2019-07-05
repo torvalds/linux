@@ -4,15 +4,15 @@
  * Please do not imitate or extend this.
  */
 
-/* 
- * Unfortunately, the ESTeem Hotfoot board uses a mangled version of 
- * ppcboot.h for historical reasons, and in the interest of having a 
- * mainline kernel boot on the production board+bootloader, this was the 
+/*
+ * Unfortunately, the ESTeem Hotfoot board uses a mangled version of
+ * ppcboot.h for historical reasons, and in the interest of having a
+ * mainline kernel boot on the production board+bootloader, this was the
  * least-offensive solution.  Please direct all flames to:
  *
  *  Solomon Peachy <solomon@linux-wlan.com>
  *
- * (This header is identical to ppcboot.h except for the 
+ * (This header is identical to ppcboot.h except for the
  *  TARGET_HOTFOOT bits)
  */
 

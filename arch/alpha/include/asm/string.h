@@ -63,7 +63,7 @@ extern size_t strlen(const char *);
 extern void * memchr(const void *, int, size_t);
 
 /* The following routine is like memset except that it writes 16-bit
-   aligned values.  The DEST and COUNT parameters must be even for 
+   aligned values.  The DEST and COUNT parameters must be even for
    correct operation.  */
 
 #define __HAVE_ARCH_MEMSET16

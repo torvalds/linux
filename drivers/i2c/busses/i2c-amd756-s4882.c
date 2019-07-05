@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2004, 2008 Jean Delvare <jdelvare@suse.de>
  */
- 
+
 /*
  * We select the channels by sending commands to the Philips
  * PCA9556 chip at I2C address 0x18. The main adapter is used for

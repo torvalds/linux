@@ -1490,7 +1490,7 @@ static int vmw_pm_freeze(struct device *kdev)
 
 	vmw_fence_fifo_down(dev_priv->fman);
 	__vmw_svga_disable(dev_priv);
-	
+
 	vmw_release_device_late(dev_priv);
 	return 0;
 }

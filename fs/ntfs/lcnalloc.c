@@ -960,7 +960,7 @@ s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
 		/* Adjust the number of clusters left to free. */
 		if (count >= 0)
 			count -= to_free;
-	
+
 		/* Update the total done clusters. */
 		total_freed += to_free;
 	}

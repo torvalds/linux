@@ -6,7 +6,7 @@
  *  Routines for control of EMU10K1 chips - voice manager
  *
  *  Rewrote voice allocator for multichannel support - rlrevell 12/2004
- * 
+ *
  *  BUGS:
  *    --
  *
@@ -19,14 +19,14 @@
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 
-/* Previously the voice allocator started at 0 every time.  The new voice 
- * allocator uses a round robin scheme.  The next free voice is tracked in 
- * the card record and each allocation begins where the last left off.  The 
- * hardware requires stereo interleaved voices be aligned to an even/odd 
- * boundary.  For multichannel voice allocation we ensure than the block of 
- * voices does not cross the 32 voice boundary.  This simplifies the 
- * multichannel support and ensures we can use a single write to the 
- * (set|clear)_loop_stop registers.  Otherwise (for example) the voices would 
+/* Previously the voice allocator started at 0 every time.  The new voice
+ * allocator uses a round robin scheme.  The next free voice is tracked in
+ * the card record and each allocation begins where the last left off.  The
+ * hardware requires stereo interleaved voices be aligned to an even/odd
+ * boundary.  For multichannel voice allocation we ensure than the block of
+ * voices does not cross the 32 voice boundary.  This simplifies the
+ * multichannel support and ensures we can use a single write to the
+ * (set|clear)_loop_stop registers.  Otherwise (for example) the voices would
  * get out of sync when pausing/resuming a stream.
  *							--rlrevell
  */
@@ -51,7 +51,7 @@ static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 			i++;
 			continue;
 		}
-			
+
 		skip = 0;
 		for (k = 0; k < number; k++) {
 			voice = &emu->voices[(i+k) % NUM_G];
@@ -68,10 +68,10 @@ static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 			break;
 		}
 	}
-	
+
 	if (first_voice == last_voice)
 		return -ENOMEM;
-	
+
 	for (i = 0; i < number; i++) {
 		voice = &emu->voices[(first_voice + i) % NUM_G];
 		/*

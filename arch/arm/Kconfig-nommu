@@ -2,7 +2,7 @@
 #
 # Kconfig for uClinux(non-paged MM) depend configurations
 # Hyok S. Choi <hyok.choi@samsung.com>
-# 
+#
 
 config SET_MEM_PARAM
 	bool "Set flash/sdram size and base addr"

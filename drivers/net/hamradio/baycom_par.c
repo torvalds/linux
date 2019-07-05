@@ -535,7 +535,7 @@ static int __init init_baycompar(void)
 		dev = hdlcdrv_register(&par96_ops,
 				       sizeof(struct baycom_state),
 				       ifname, iobase[i], 0, 0);
-		if (IS_ERR(dev)) 
+		if (IS_ERR(dev))
 			break;
 
 		bc = netdev_priv(dev);

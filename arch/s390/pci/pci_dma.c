@@ -543,7 +543,7 @@ static void s390_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 		s->dma_length = 0;
 	}
 }
-	
+
 int zpci_dma_init_device(struct zpci_dev *zdev)
 {
 	int rc;

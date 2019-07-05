@@ -31,7 +31,7 @@ resolutions.
 
 You should compile in both vgacon (to boot if you remove your Rage128 from
 box) and aty128fb (for graphics mode). You should not compile-in vesafb
-unless you have primary display on non-Rage128 VBE2.0 device (see 
+unless you have primary display on non-Rage128 VBE2.0 device (see
 Documentation/fb/vesafb.txt for details).
 
 
@@ -49,7 +49,7 @@ Configuration
 
 You can pass kernel command line options to vesafb with
 `video=aty128fb:option1,option2:value2,option3' (multiple options should
-be separated by comma, values are separated from options by `:'). 
+be separated by comma, values are separated from options by `:').
 Accepted options:
 
 noaccel  - do not use acceleration engine. It is default.

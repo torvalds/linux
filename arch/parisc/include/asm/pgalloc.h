@@ -32,9 +32,9 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 		/* Populate first pmd with allocated memory.  We mark it
 		 * with PxD_FLAG_ATTACHED as a signal to the system that this
 		 * pmd entry may not be cleared. */
-		__pgd_val_set(*actual_pgd, (PxD_FLAG_PRESENT | 
-				        PxD_FLAG_VALID | 
-					PxD_FLAG_ATTACHED) 
+		__pgd_val_set(*actual_pgd, (PxD_FLAG_PRESENT |
+				        PxD_FLAG_VALID |
+					PxD_FLAG_ATTACHED)
 			+ (__u32)(__pa((unsigned long)pgd) >> PxD_VALUE_SHIFT));
 		/* The first pmd entry also is marked with PxD_FLAG_ATTACHED as
 		 * a signal that this pmd may not be freed */
@@ -110,11 +110,11 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
 		__pmd_val_set(*pmd, (PxD_FLAG_PRESENT |
 				 PxD_FLAG_VALID |
-				 PxD_FLAG_ATTACHED) 
+				 PxD_FLAG_ATTACHED)
 			+ (__u32)(__pa((unsigned long)pte) >> PxD_VALUE_SHIFT));
 	else
 #endif
-		__pmd_val_set(*pmd, (PxD_FLAG_PRESENT | PxD_FLAG_VALID) 
+		__pmd_val_set(*pmd, (PxD_FLAG_PRESENT | PxD_FLAG_VALID)
 			+ (__u32)(__pa((unsigned long)pte) >> PxD_VALUE_SHIFT));
 }
 

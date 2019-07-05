@@ -2120,7 +2120,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 
 		fll->k = (freq_out - (freq_in * fll->n)) / gcd_fll;
 		fll->lambda = freq_in / gcd_fll;
-		
+
 	}
 
 	return 0;

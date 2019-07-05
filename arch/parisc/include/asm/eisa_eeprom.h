@@ -14,9 +14,9 @@ extern void __iomem *eisa_eeprom_addr;
 
 #define HPEE_SLOT_INFO(slot) (20+(48*slot))
 
-struct eeprom_header 
+struct eeprom_header
 {
-   
+
 	u_int32_t num_writes;       /* number of writes */
  	u_int8_t  flags;            /* flags, usage? */
 	u_int8_t  ver_maj;
@@ -35,31 +35,31 @@ struct eeprom_eisa_slot_info
 	u_int16_t csum;
 	u_int16_t num_functions;
 	u_int16_t config_data_length;
-	
-	/* bits 0..3 are the duplicate slot id */ 
+
+	/* bits 0..3 are the duplicate slot id */
 #define HPEE_SLOT_INFO_EMBEDDED  0x10
 #define HPEE_SLOT_INFO_VIRTUAL   0x20
 #define HPEE_SLOT_INFO_NO_READID 0x40
 #define HPEE_SLOT_INFO_DUPLICATE 0x80
 	u_int8_t slot_info;
-	
+
 #define HPEE_SLOT_FEATURES_ENABLE         0x01
 #define HPEE_SLOT_FEATURES_IOCHK          0x02
 #define HPEE_SLOT_FEATURES_CFG_INCOMPLETE 0x80
 	u_int8_t slot_features;
-	
+
 	u_int8_t  ver_min;
 	u_int8_t  ver_maj;
-	
+
 #define HPEE_FUNCTION_INFO_HAVE_TYPE      0x01
 #define HPEE_FUNCTION_INFO_HAVE_MEMORY    0x02
 #define HPEE_FUNCTION_INFO_HAVE_IRQ       0x04
 #define HPEE_FUNCTION_INFO_HAVE_DMA       0x08
 #define HPEE_FUNCTION_INFO_HAVE_PORT      0x10
 #define HPEE_FUNCTION_INFO_HAVE_PORT_INIT 0x20
-/* I think there are two slighty different 
- * versions of the function_info field 
- * one int the fixed header and one optional 
+/* I think there are two slighty different
+ * versions of the function_info field
+ * one int the fixed header and one optional
  * in the parsed slot data area */
 #define HPEE_FUNCTION_INFO_HAVE_FUNCTION  0x01
 #define HPEE_FUNCTION_INFO_F_DISABLED     0x80

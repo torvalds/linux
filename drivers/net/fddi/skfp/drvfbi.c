@@ -386,7 +386,7 @@ void plc_clear_irq(struct s_smc *smc, int p)
  */
 static void led_indication(struct s_smc *smc, int led_event)
 {
-	/* use smc->hw.mac_ring_is_up == TRUE 
+	/* use smc->hw.mac_ring_is_up == TRUE
 	 * as indication for Ring Operational
 	 */
 	u_short			led_state ;
@@ -401,7 +401,7 @@ static void led_indication(struct s_smc *smc, int led_event)
 
 #ifdef	PCI
         led_state = 0 ;
-	
+
 	/* Ring up = yellow led OFF*/
 	if (led_event == LED_Y_ON) {
 		led_state |= LED_MY_ON ;
@@ -411,13 +411,13 @@ static void led_indication(struct s_smc *smc, int led_event)
 	}
 	else {	/* PCM state changed */
 		/* Link at Port A/S = green led A ON */
-		if (mib_a->fddiPORTPCMState == PC8_ACTIVE) {	
+		if (mib_a->fddiPORTPCMState == PC8_ACTIVE) {
 			led_state |= LED_GA_ON ;
 		}
 		else {
 			led_state |= LED_GA_OFF ;
 		}
-		
+
 		/* Link at Port B = green led B ON */
 		if (mib_b->fddiPORTPCMState == PC8_ACTIVE) {
 			led_state |= LED_GB_ON ;
@@ -441,7 +441,7 @@ void pcm_state_change(struct s_smc *smc, int plc, int p_state)
 	 * now after led_indication.
 	 */
 	DRV_PCM_STATE_CHANGE(smc,plc,p_state) ;
-	
+
 	led_indication(smc,0) ;
 }
 
@@ -487,12 +487,12 @@ static int is_equal_num(char comp1[], char comp2[], int num)
 
 /*
  * set the OEM ID defaults, and test the contents of the OEM data base
- * The default OEM is the first ACTIVE entry in the OEM data base 
+ * The default OEM is the first ACTIVE entry in the OEM data base
  *
  * returns:	0	success
  *		1	error in data base
  *		2	data base empty
- *		3	no active entry	
+ *		3	no active entry
  */
 int set_oi_id_def(struct s_smc *smc)
 {
@@ -505,7 +505,7 @@ int set_oi_id_def(struct s_smc *smc)
 	act_entries = FALSE ;
 	smc->hw.oem_id = 0 ;
 	smc->hw.oem_min_status = OI_STAT_ACTIVE ;
-	
+
 	/* check OEM data base */
 	while (oem_ids[i].oi_status) {
 		switch (oem_ids[i].oi_status) {

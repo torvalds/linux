@@ -36,7 +36,7 @@ struct snd_virmidi {
 /*
  * device record:
  * Each virtual midi device has one device instance.  It contains
- * common information and the linked-list of opened files, 
+ * common information and the linked-list of opened files,
  */
 struct snd_virmidi_dev {
 	struct snd_card *card;		/* associated card */

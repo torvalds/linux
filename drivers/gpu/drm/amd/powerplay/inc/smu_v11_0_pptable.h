@@ -126,14 +126,14 @@ struct smu_11_0_powerplay_table
       uint32_t golden_revision;
       uint16_t format_id;
       uint32_t platform_caps;                       //POWERPLAYABLE::ulPlatformCaps
-                                                    
+
       uint8_t  thermal_controller_type;             //one of SMU_11_0_PP_THERMALCONTROLLER
 
       uint16_t small_power_limit1;
       uint16_t small_power_limit2;
       uint16_t boost_power_limit;
-      uint16_t od_turbo_power_limit;                //Power limit setting for Turbo mode in Performance UI Tuning. 
-      uint16_t od_power_save_power_limit;           //Power limit setting for PowerSave/Optimal mode in Performance UI Tuning. 
+      uint16_t od_turbo_power_limit;                //Power limit setting for Turbo mode in Performance UI Tuning.
+      uint16_t od_power_save_power_limit;           //Power limit setting for PowerSave/Optimal mode in Performance UI Tuning.
       uint16_t software_shutdown_temp;
 
       uint16_t reserve[6];                          //Zero filled field reserved for future use

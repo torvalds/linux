@@ -37,7 +37,7 @@ int lcd_print(const char *str);
 #define lcd_print(str)
 #endif
 
-/* main LED initialization function (uses PDC) */ 
+/* main LED initialization function (uses PDC) */
 int __init led_init(void);
 
 #endif /* LED_H */

@@ -194,7 +194,7 @@ static __inline__ bool inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
 /*
  *	Check if a mask is acceptable.
  */
- 
+
 static __inline__ bool bad_mask(__be32 mask, __be32 addr)
 {
 	__u32 hmask;

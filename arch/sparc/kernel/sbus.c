@@ -230,7 +230,7 @@ static unsigned int sbus_build_irq(struct platform_device *op, unsigned int ino)
 		iclr = sysio_imap_to_iclr(imap);
 	} else {
 		int sbus_slot = (ino & 0x18)>>3;
-		
+
 		sbus_level = ino & 0x7;
 
 		switch(sbus_slot) {

@@ -120,7 +120,7 @@ config	IP_VS_RR
 
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.
- 
+
 config	IP_VS_WRR
 	tristate "weighted round-robin scheduling"
 	---help---
@@ -138,7 +138,7 @@ config	IP_VS_LC
         tristate "least-connection scheduling"
 	---help---
 	  The least-connection scheduling algorithm directs network
-	  connections to the server with the least number of active 
+	  connections to the server with the least number of active
 	  connections.
 
 	  If you want to compile it in kernel, say Y. To compile it as a
@@ -193,7 +193,7 @@ config  IP_VS_LBLCR
 	tristate "locality-based least-connection with replication scheduling"
 	---help---
 	  The locality-based least-connection with replication scheduling
-	  algorithm is also for destination IP load balancing. It is 
+	  algorithm is also for destination IP load balancing. It is
 	  usually used in cache cluster. It differs from the LBLC scheduling
 	  as follows: the load balancer maintains mappings from a target
 	  to a set of server nodes that can serve the target. Requests for
@@ -250,8 +250,8 @@ config	IP_VS_SED
 	tristate "shortest expected delay scheduling"
 	---help---
 	  The shortest expected delay scheduling algorithm assigns network
-	  connections to the server with the shortest expected delay. The 
-	  expected delay that the job will experience is (Ci + 1) / Ui if 
+	  connections to the server with the shortest expected delay. The
+	  expected delay that the job will experience is (Ci + 1) / Ui if
 	  sent to the ith server, in which Ci is the number of connections
 	  on the ith server and Ui is the fixed service rate (weight)
 	  of the ith server.

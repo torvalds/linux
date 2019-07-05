@@ -176,7 +176,7 @@ static const unsigned char page20[256] = {
 };
 
 static const unsigned char *const page_uni2charset[256] = {
-	page00, page01,	NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   
+	page00, page01,	NULL,   NULL,   NULL,   NULL,   NULL,   NULL,
 	NULL,	NULL,	NULL,	NULL,	NULL,	NULL,	NULL,	NULL,
 
 	NULL,	NULL,	NULL,	NULL,	NULL,	NULL,	NULL,	NULL,

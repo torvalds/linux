@@ -437,7 +437,7 @@ static int snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *chip)
 		return err;
 	strcpy(pcm->name, (chip->type == CMI8329) ? "CMI8329" : "CMI8330");
 	pcm->private_data = chip;
-	
+
 	/* SB16 */
 	ops = snd_sb16dsp_get_pcm_ops(CMI_SB_STREAM);
 	chip->streams[CMI_SB_STREAM].ops = *ops;
@@ -682,7 +682,7 @@ static int snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
 	}
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
-			       
+
 	res = snd_cmi8330_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
 		return res;

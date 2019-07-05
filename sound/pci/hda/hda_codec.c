@@ -1790,7 +1790,7 @@ typedef int (*map_slave_func_t)(struct hda_codec *, void *, struct snd_kcontrol 
 
 /* apply the function to all matching slave ctls in the mixer list */
 static int map_slaves(struct hda_codec *codec, const char * const *slaves,
-		      const char *suffix, map_slave_func_t func, void *data) 
+		      const char *suffix, map_slave_func_t func, void *data)
 {
 	struct hda_nid_item *items;
 	const char * const *s;

@@ -1,6 +1,6 @@
 /*
- * Device Tree Source for ACube Sam440ep  based off bamboo.dts code 
- * original copyrights below 
+ * Device Tree Source for ACube Sam440ep  based off bamboo.dts code
+ * original copyrights below
  *
  * Copyright (c) 2006, 2007 IBM Corp.
  * Josh Boyer <jwboyer@linux.vnet.ibm.com>
@@ -260,7 +260,7 @@
 				reg = <0xef601000 0x80>;
 				interrupts = <8 4 9 4>;
 				interrupt-parent = <&UIC1>;
-			};	
+			};
 		};
 
 		PCI0: pci@ec000000 {

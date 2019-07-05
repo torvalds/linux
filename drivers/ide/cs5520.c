@@ -2,7 +2,7 @@
  *	IDE tuning and bus mastering support for the CS5510/CS5520
  *	chipsets
  *
- *	The CS5510/CS5520 are slightly unusual devices. Unlike the 
+ *	The CS5510/CS5520 are slightly unusual devices. Unlike the
  *	typical IDE controllers they do bus mastering with the drive in
  *	PIO mode and smarter silicon.
  *
@@ -13,7 +13,7 @@
  *	*** This driver is strictly experimental ***
  *
  *	(c) Copyright Red Hat Inc 2002
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2, or (at your option) any
@@ -31,7 +31,7 @@
  * are deemed to be part of the source code.
  *
  */
- 
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -64,7 +64,7 @@ static void cs5520_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	/* 8bit CAT/CRT - 8bit command timing for channel */
-	pci_write_config_byte(pdev, 0x62 + controller, 
+	pci_write_config_byte(pdev, 0x62 + controller,
 		(cs5520_pio_clocks[pio].recovery << 4) |
 		(cs5520_pio_clocks[pio].assert));
 
@@ -104,10 +104,10 @@ static const struct ide_port_info cyrix_chipset = {
 
 /*
  *	The 5510/5520 are a bit weird. They don't quite set up the way
- *	the PCI helper layer expects so we must do much of the set up 
+ *	the PCI helper layer expects so we must do much of the set up
  *	work longhand.
  */
- 
+
 static int cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct ide_port_info *d = &cyrix_chipset;

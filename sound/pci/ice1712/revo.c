@@ -5,7 +5,7 @@
  *   Lowlevel functions for M-Audio Audiophile 192, Revolution 7.1 and 5.1
  *
  *	Copyright (c) 2003 Takashi Iwai <tiwai@suse.de>
- */      
+ */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -559,7 +559,7 @@ static int revo_init(struct snd_ice1712 *ice)
 		err = ap192_ak4114_init(ice);
 		if (err < 0)
 			return err;
-		
+
 		/* unmute all codecs */
 		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE,
 					    VT1724_REVO_MUTE);

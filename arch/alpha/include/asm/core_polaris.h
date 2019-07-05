@@ -58,7 +58,7 @@ struct el_POLARIS_sysdata_mcheck {
  * I/O functions:
  *
  * POLARIS, the PCI/memory support chipset for the PCA56 (21164PC)
- * processors, can use either a sparse address  mapping scheme, or the 
+ * processors, can use either a sparse address  mapping scheme, or the
  * so-called byte-word PCI address space, to get at PCI memory and I/O.
  *
  * However, we will support only the BWX form.

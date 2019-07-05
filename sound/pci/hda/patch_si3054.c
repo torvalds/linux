@@ -114,7 +114,7 @@ static int si3054_switch_put(struct snd_kcontrol *kcontrol,
 	.put  = si3054_switch_put, \
 	.private_value = PRIVATE_VALUE(reg,mask), \
 }
-		
+
 
 static const struct snd_kcontrol_new si3054_modem_mixer[] = {
 	SI3054_KCONTROL("Off-hook Switch", SI3054_GPIO_CONTROL, SI3054_GPIO_OH),

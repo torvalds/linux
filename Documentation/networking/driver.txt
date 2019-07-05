@@ -86,7 +86,7 @@ Close/stop guidelines:
 
 1) After the ndo_stop routine has been called, the hardware must
    not receive or transmit any data.  All in flight packets must
-   be aborted. If necessary, poll or wait for completion of 
+   be aborted. If necessary, poll or wait for completion of
    any reset commands.
 
 2) The ndo_stop routine will be called by unregister_netdevice

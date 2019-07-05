@@ -1,8 +1,8 @@
-/* 
+/*
         epia.c    (c) 1997-8  Grant R. Guenther <grant@torque.net>
                               Under the terms of the GNU General Public License.
 
-        epia.c is a low-level protocol driver for Shuttle Technologies 
+        epia.c is a low-level protocol driver for Shuttle Technologies
 	EPIA parallel to IDE adapter chip.  This device is now obsolete
 	and has been replaced with the EPAT chip, which is supported
 	by epat.c, however, some devices based on EPIA are still
@@ -60,13 +60,13 @@ static int epia_read_regr( PIA *pi, int cont, int regr )
                 return j44(a,b);
 
         case 1: r = regr^0x31;
-                w0(r); w2(1); w0(r&0x37); 
+                w0(r); w2(1); w0(r&0x37);
                 w2(3); w2(5); w0(r|0xf0);
                 a = r1(); b = r2(); w2(4);
                 return j53(a,b);
 
         case 2: r = regr^0x29;
-                w0(r); w2(1); w2(0X21); w2(0x23); 
+                w0(r); w2(1); w2(0X21); w2(0x23);
                 a = r0(); w2(4);
                 return a;
 
@@ -77,7 +77,7 @@ static int epia_read_regr( PIA *pi, int cont, int regr )
 
         }
         return -1;
-}       
+}
 
 static void epia_write_regr( PIA *pi, int cont, int regr, int val)
 
@@ -106,7 +106,7 @@ static void epia_write_regr( PIA *pi, int cont, int regr, int val)
 
 /* The use of register 0x84 is entirely unclear - it seems to control
    some EPP counters ...  currently we know about 3 different block
-   sizes:  the standard 512 byte reads and writes, 12 byte writes and 
+   sizes:  the standard 512 byte reads and writes, 12 byte writes and
    2048 byte reads (the last two being used in the CDrom drivers.
 */
 
@@ -117,11 +117,11 @@ static void epia_connect ( PIA *pi  )
 
         w2(4); w0(0xa0); w0(0x50); w0(0xc0); w0(0x30); w0(0xa0); w0(0);
         w2(1); w2(4);
-        if (pi->mode >= 3) { 
+        if (pi->mode >= 3) {
                 w0(0xa); w2(1); w2(4); w0(0x82); w2(4); w2(0xc); w2(4);
                 w2(0x24); w2(0x26); w2(4);
         }
-        WR(0x86,8);  
+        WR(0x86,8);
 }
 
 static void epia_disconnect ( PIA *pi )
@@ -131,7 +131,7 @@ static void epia_disconnect ( PIA *pi )
         w2(1); w2(4);
         w0(pi->saved_r0);
         w2(pi->saved_r2);
-} 
+}
 
 static void epia_read_block( PIA *pi, char * buf, int count )
 
@@ -146,12 +146,12 @@ static void epia_read_block( PIA *pi, char * buf, int count )
                         w2(4+ph); b = r1();
                         buf[k] = j44(a,b);
                         ph = 1 - ph;
-                } 
+                }
                 w0(0); w2(4);
                 break;
 
-        case 1: w0(0x91); w2(1); w0(0x10); w2(3); 
-                w0(0x51); w2(5); w0(0xd1); 
+        case 1: w0(0x91); w2(1); w0(0x10); w2(3);
+                w0(0x51); w2(5); w0(0xd1);
                 ph = 1;
                 for (k=0;k<count;k++) {
                         w2(4+ph);
@@ -162,7 +162,7 @@ static void epia_read_block( PIA *pi, char * buf, int count )
                 w0(0); w2(4);
                 break;
 
-        case 2: w0(0x89); w2(1); w2(0x23); w2(0x21); 
+        case 2: w0(0x89); w2(1); w2(0x23); w2(0x21);
                 ph = 1;
                 for (k=0;k<count;k++) {
                         w2(0x24+ph);
@@ -266,7 +266,7 @@ static int epia_test_proto( PIA *pi, char * scratch, int verbose )
             printk("%s: epia: port 0x%x, mode %d, test=(%d,%d,%d)\n",
                    pi->device,pi->port,pi->mode,e[0],e[1],f);
         }
-        
+
         return (e[0] && e[1]) || f;
 
 }

@@ -8,7 +8,7 @@
 /* The following comparison of this routine vs the normal copy_page.S
    was written by an unnamed ev6 hardware designer and forwarded to me
    via Steven Hobbs <hobbs@steven.zko.dec.com>.
- 
+
    First Problem: STQ overflows.
    -----------------------------
 
@@ -28,7 +28,7 @@
 	9 cycles but I was not able to get it to run that fast -- the initial
 	conditions were such that I could not reach this optimum rate on
 	(chaotic) EV6.  I wrote the code such that everything would issue
-	in order. 
+	in order.
 
    Second Problem: Dcache index matches.
    -------------------------------------
@@ -128,7 +128,7 @@ copy_page:
 	unop
 
 	/* This gives the extra cycle of aeration above the minimum.  */
-	unop			
+	unop
 	unop
 	unop
 	unop

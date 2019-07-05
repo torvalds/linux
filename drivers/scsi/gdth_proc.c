@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* gdth_proc.c 
+/* gdth_proc.c
  * $Id: gdth_proc.c,v 1.43 2006/01/11 16:15:00 achim Exp $
  */
 
@@ -23,7 +23,7 @@ int gdth_set_info(struct Scsi_Host *host, char *buffer, int length)
 
     return ret_val;
 }
-         
+
 static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
                         int length, gdth_ha_str *ha)
 {
@@ -181,8 +181,8 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
 
     TRACE2(("gdth_get_info() ha %d\n",ha->hanum));
 
-    
-    /* request is i.e. "cat /proc/scsi/gdth/0" */ 
+
+    /* request is i.e. "cat /proc/scsi/gdth/0" */
     /* format: %-15s\t%-10s\t%-15s\t%s */
     /* driver parameters */
     seq_puts(m, "Driver Parameters:\n");
@@ -191,7 +191,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
     else {
         hlen = sprintf(hrec, "%d", reserve_list[0]);
         for (i = 1;  i < MAX_RES_ARGS; i++) {
-            if (reserve_list[i] == 0xff) 
+            if (reserve_list[i] == 0xff)
                 break;
             hlen += snprintf(hrec + hlen , 161 - hlen, ",%d", reserve_list[i]);
         }
@@ -213,7 +213,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                    " Driver Ver.:  \t%-10s\tFirmware Ver.: \t",
                    GDTH_VERSION_STR);
     if (ha->more_proc)
-        seq_printf(m, "%d.%02d.%02d-%c%03X\n", 
+        seq_printf(m, "%d.%02d.%02d-%c%03X\n",
                 (u8)(ha->binfo.upd_fw_ver>>24),
                 (u8)(ha->binfo.upd_fw_ver>>16),
                 (u8)(ha->binfo.upd_fw_ver),
@@ -222,7 +222,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
     else
         seq_printf(m, "%d.%02d\n", (u8)(ha->cpar.version>>8),
                 (u8)(ha->cpar.version));
- 
+
     if (ha->more_proc)
         /* more information: 1. about controller */
         seq_printf(m,
@@ -235,13 +235,13 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         /* more information: 2. about physical devices */
         seq_puts(m, "\nPhysical Devices:");
         flag = FALSE;
-            
+
         buf = dma_alloc_coherent(&ha->pdev->dev, size, &paddr, GFP_KERNEL);
-        if (!buf) 
+        if (!buf)
             goto stop_output;
         for (i = 0; i < ha->bus_cnt; ++i) {
             /* 2.a statistics (and retries/reassigns) */
-            TRACE2(("pdr_statistics() chn %d\n",i));                
+            TRACE2(("pdr_statistics() chn %d\n",i));
             pds = (gdth_dskstat_str *)(buf + GDTH_SCRATCH/4);
             gdtcmd->Service = CACHESERVICE;
             gdtcmd->OpCode = GDT_IOCTL;
@@ -264,14 +264,14 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
             for (j = 0; j < ha->raw[i].pdev_cnt; ++j) {
                 /* 2.b drive info */
                 TRACE2(("scsi_drv_info() chn %d dev %d\n",
-                    i, ha->raw[i].id_list[j]));             
+                    i, ha->raw[i].id_list[j]));
                 pdi = (gdth_diskinfo_str *)buf;
                 gdtcmd->Service = CACHESERVICE;
                 gdtcmd->OpCode = GDT_IOCTL;
                 gdtcmd->u.ioctl.p_param = paddr;
                 gdtcmd->u.ioctl.param_size = sizeof(gdth_diskinfo_str);
                 gdtcmd->u.ioctl.subfunc = SCSI_DR_INFO | L_CTRL_PATTERN;
-                gdtcmd->u.ioctl.channel = 
+                gdtcmd->u.ioctl.channel =
                     ha->raw[i].address | ha->raw[i].id_list[j];
 
                 if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) == S_OK) {
@@ -295,7 +295,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 } else {
                     pdi->devtype = 0xff;
                 }
-                    
+
                 if (pdi->devtype == 0) {
                     /* search retries/reassigns */
                     for (k = 0; k < pds->count; ++k) {
@@ -310,14 +310,14 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                     }
                     /* 2.c grown defects */
                     TRACE2(("scsi_drv_defcnt() chn %d dev %d\n",
-                            i, ha->raw[i].id_list[j]));             
+                            i, ha->raw[i].id_list[j]));
                     pdef = (gdth_defcnt_str *)buf;
                     gdtcmd->Service = CACHESERVICE;
                     gdtcmd->OpCode = GDT_IOCTL;
                     gdtcmd->u.ioctl.p_param = paddr;
                     gdtcmd->u.ioctl.param_size = sizeof(gdth_defcnt_str);
                     gdtcmd->u.ioctl.subfunc = SCSI_DEF_CNT | L_CTRL_PATTERN;
-                    gdtcmd->u.ioctl.channel = 
+                    gdtcmd->u.ioctl.channel =
                         ha->raw[i].address | ha->raw[i].id_list[j];
                     pdef->sddc_type = 0x08;
 
@@ -367,7 +367,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 } else {
                     strcpy(hrec, "ok");
                 }
-                    
+
                 if (drv_no == i) {
                     seq_printf(m,
                                    "\n Number:       \t%-2d        \tStatus:        \t%s\n",
@@ -397,7 +397,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 }
                 drv_no = pcdi->ld_slave;
             } while (drv_no != -1);
-             
+
             if (is_mirr)
                 seq_printf(m,
                                " Missing Drv.: \t%-2d        \tInvalid Drv.:  \t%d\n",
@@ -409,7 +409,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 sprintf(hrec, "%d", ha->hdr[i].master_no);
             seq_printf(m,
                            " To Array Drv.:\t%s\n", hrec);
-        }       
+        }
 
         if (!flag)
             seq_puts(m, "\n --\n");
@@ -458,7 +458,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                     strcpy(hrec, "RAID-4");
                 else if (pai->ai_type == 5)
                     strcpy(hrec, "RAID-5");
-                else 
+                else
                     strcpy(hrec, "RAID-10");
                 seq_printf(m,
                                " Capacity [MB]:\t%-6d    \tType:          \t%s\n",
@@ -475,11 +475,11 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         flag = FALSE;
 
         for (i = 0; i < MAX_LDRIVES; ++i) {
-            if (!ha->hdr[i].is_logdrv || 
+            if (!ha->hdr[i].is_logdrv ||
                 (ha->hdr[i].is_arraydrv && !ha->hdr[i].is_master))
                 continue;
             /* 5.a get host drive list */
-            TRACE2(("host_get() drv_no %d\n",i));           
+            TRACE2(("host_get() drv_no %d\n",i));
             phg = (gdth_hget_str *)buf;
             gdtcmd->Service = CACHESERVICE;
             gdtcmd->OpCode = GDT_IOCTL;
@@ -488,7 +488,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
             gdtcmd->u.ioctl.subfunc = HOST_GET | LA_CTRL_PATTERN;
             gdtcmd->u.ioctl.channel = i;
             phg->entries = MAX_HDRIVES;
-            phg->offset = GDTOFFSOF(gdth_hget_str, entry[0]); 
+            phg->offset = GDTOFFSOF(gdth_hget_str, entry[0]);
             if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) == S_OK) {
                 ha->hdr[i].ldr_no = i;
                 ha->hdr[i].rw_attribs = 0;
@@ -509,7 +509,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         for (i = 0; i < MAX_HDRIVES; ++i) {
             if (!(ha->hdr[i].present))
                 continue;
-              
+
             seq_printf(m,
                            "\n Number:       \t%-2d        \tArr/Log. Drive:\t%d\n",
                            i, ha->hdr[i].ldr_no);
@@ -519,7 +519,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                            " Capacity [MB]:\t%-6d    \tStart Sector:  \t%d\n",
                            (u32)(ha->hdr[i].size/2048), ha->hdr[i].start_sec);
         }
-        
+
         if (!flag)
             seq_puts(m, "\n --\n");
     }
@@ -532,7 +532,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         if (estr->event_source == 0)
             break;
         if (estr->event_data.eu.driver.ionode == ha->hanum &&
-            estr->event_source == ES_ASYNC) { 
+            estr->event_source == ES_ASYNC) {
             gdth_log_event(&estr->event_data, hrec);
 
 	    /*
@@ -573,7 +573,7 @@ static void gdth_wait_completion(gdth_ha_str *ha, int busnum, int id)
 
         b = scp->device->channel;
         t = scp->device->id;
-        if (!SPECIAL_SCP(scp) && t == (u8)id && 
+        if (!SPECIAL_SCP(scp) && t == (u8)id &&
             b == (u8)busnum) {
             cmndinfo->wait_for_completion = 0;
             spin_unlock_irqrestore(&ha->smp_lock, flags);

@@ -10,30 +10,30 @@
 /* SPU Opcode Table
 
 -=-=-= FORMAT =-=-=-
-                                             		                                             
+
        +----+-------+-------+-------+-------+  		       +------------+-------+-------+-------+
 RRR    | op |  RC   |  RB   |  RA   |  RT   |		RI7    | op         |  I7   |  RA   |  RT   |
        +----+-------+-------+-------+-------+		       +------------+-------+-------+-------+
-        0  3       1       1       2       3		        0          1       1       2       3 
-                   0       7       4       1		                   0       7       4       1 
+        0  3       1       1       2       3		        0          1       1       2       3
+                   0       7       4       1		                   0       7       4       1
 
        +-----------+--------+-------+-------+		       +---------+----------+-------+-------+
 RI8    | op        |   I8   |  RA   |  RT   |		RI10   | op      |   I10    |  RA   |  RT   |
        +-----------+--------+-------+-------+		       +---------+----------+-------+-------+
-        0         9        1       2       3		        0       7          1       2       3 
-                           7       4       1		                           7       4       1 
+        0         9        1       2       3		        0       7          1       2       3
+                           7       4       1		                           7       4       1
 
        +----------+-----------------+-------+		       +--------+-------------------+-------+
 RI16   | op       |       I16       |  RT   |		RI18   | op     |       I18         |  RT   |
        +----------+-----------------+-------+		       +--------+-------------------+-------+
-        0        8                 2       3		        0      6                   2       3 
-                                   4       1		                                   4       1 
+        0        8                 2       3		        0      6                   2       3
+                                   4       1		                                   4       1
 
        +------------+-------+-------+-------+		       +-------+--+-----------------+-------+
 RR     | op         |  RB   |  RA   |  RT   |		LBT    | op    |RO|       I16       |  RO   |
        +------------+-------+-------+-------+		       +-------+--+-----------------+-------+
-        0          1       1       2       3		        0     6  8                 2       3 
-                   0       7       4       1		                                   4       1 
+        0          1       1       2       3		        0     6  8                 2       3
+                   0       7       4       1		                                   4       1
 
 							       +------------+----+--+-------+-------+
 							LBTI   | op         | // |RO|  RA   |  RO   |
@@ -49,25 +49,25 @@ since 0x700 -> 11'b11100000000, this means opcode is 4'b1110, and other 7bits ar
 
 -=-=-= ASM_FORMAT =-=-=-
 
-RRR category						RI7 category                               
+RRR category						RI7 category
 	ASM_RRR		mnemonic RC, RA, RB, RT		        ASM_RI4         mnemonic RT, RA, I4
 							        ASM_RI7         mnemonic RT, RA, I7
 
-RI8 category						RI10 category                               
-	ASM_RUI8	mnemonic RT, RA, UI8		        ASM_AI10        mnemonic RA, I10    
+RI8 category						RI10 category
+	ASM_RUI8	mnemonic RT, RA, UI8		        ASM_AI10        mnemonic RA, I10
 							        ASM_RI10        mnemonic RT, RA, R10
 							        ASM_RI10IDX     mnemonic RT, I10(RA)
 
-RI16 category						RI18 category                           
+RI16 category						RI18 category
 	ASM_I16W	mnemonic I16W			        ASM_RI18        mnemonic RT, I18
 	ASM_RI16	mnemonic RT, I16
 	ASM_RI16W	mnemonic RT, I16W
 
-RR category						LBT category                                    
-	ASM_MFSPR	mnemonic RT, SA			        ASM_LBT         mnemonic brinst, brtarg 
-	ASM_MTSPR	mnemonic SA, RT			                                                
-	ASM_NOOP	mnemonic			LBTI category                                   
-	ASM_RA		mnemonic RA			        ASM_LBTI        mnemonic brinst, RA     
+RR category						LBT category
+	ASM_MFSPR	mnemonic RT, SA			        ASM_LBT         mnemonic brinst, brtarg
+	ASM_MTSPR	mnemonic SA, RT
+	ASM_NOOP	mnemonic			LBTI category
+	ASM_RA		mnemonic RA			        ASM_LBTI        mnemonic brinst, RA
 	ASM_RAB		mnemonic RA, RB
 	ASM_RDCH	mnemonic RT, CA
 	ASM_RR		mnemonic RT, RA, RB

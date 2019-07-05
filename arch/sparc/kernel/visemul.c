@@ -151,7 +151,7 @@ static inline void maybe_flush_windows(unsigned int rs1, unsigned int rs2,
 static unsigned long fetch_reg(unsigned int reg, struct pt_regs *regs)
 {
 	unsigned long value, fp;
-	
+
 	if (reg < 16)
 		return (!reg ? 0 : regs->u_regs[reg]);
 

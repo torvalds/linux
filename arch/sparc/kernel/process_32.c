@@ -46,13 +46,13 @@
 
 #include "kernel.h"
 
-/* 
- * Power management idle function 
+/*
+ * Power management idle function
  * Set in pm platform drivers (apc.c and pmc.c)
  */
 void (*sparc_idle)(void);
 
-/* 
+/*
  * Power-off handler instantiation for pm.h compliance
  * This is done via auxio, but could be used as a fallback
  * handler when auxio is not present-- unused for now...
@@ -61,7 +61,7 @@ void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
 /*
- * sysctl - toggle power-off restriction for serial console 
+ * sysctl - toggle power-off restriction for serial console
  * systems in machine_power_off()
  */
 int scons_pwroff = 1;
@@ -92,7 +92,7 @@ void machine_halt(void)
 void machine_restart(char * cmd)
 {
 	char *p;
-	
+
 	local_irq_enable();
 	mdelay(8);
 	local_irq_disable();
@@ -244,7 +244,7 @@ clone_stackframe(struct sparc_stackf __user *dst,
 	fp = (unsigned long) tmp;
 	size = (fp - ((unsigned long) src));
 	fp = (unsigned long) dst;
-	sp = (struct sparc_stackf __user *)(fp - size); 
+	sp = (struct sparc_stackf __user *)(fp - size);
 
 	/* do_fork() grabs the parent semaphore, we must release it
 	 * temporarily so we can build the child clone stack frame

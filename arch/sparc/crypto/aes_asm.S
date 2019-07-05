@@ -293,7 +293,7 @@ ENTRY(aes_sparc64_key_expand)
 	ba,pt	%xcc, 80f
 	 std	%f58, [%o1 + 0xc8]
 
-1:	
+1:
 	/* 192-bit key expansion */
 	ld	[%o0 + 0x10], %f4
 	ld	[%o0 + 0x14], %f5

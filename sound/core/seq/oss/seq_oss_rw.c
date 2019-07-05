@@ -174,12 +174,12 @@ insert_queue(struct seq_oss_devinfo *dp, union evrec *rec, struct file *opt)
 						   !is_nonblock_mode(dp->file_mode));
 	return rc;
 }
-		
+
 
 /*
  * select / poll
  */
-  
+
 __poll_t
 snd_seq_oss_poll(struct seq_oss_devinfo *dp, struct file *file, poll_table * wait)
 {

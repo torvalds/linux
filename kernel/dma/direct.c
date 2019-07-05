@@ -270,7 +270,7 @@ void dma_direct_sync_sg_for_cpu(struct device *dev,
 	for_each_sg(sgl, sg, nents, i) {
 		if (!dev_is_dma_coherent(dev))
 			arch_sync_dma_for_cpu(dev, sg_phys(sg), sg->length, dir);
-	
+
 		if (unlikely(is_swiotlb_buffer(sg_phys(sg))))
 			swiotlb_tbl_sync_single(dev, sg_phys(sg), sg->length, dir,
 					SYNC_FOR_CPU);

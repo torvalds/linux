@@ -276,7 +276,7 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 	sd.sd_ahc = ahc;
 	sd.sd_control_offset = SEECTL_2840;
 	sd.sd_status_offset = STATUS_2840;
-	sd.sd_dataout_offset = STATUS_2840;		
+	sd.sd_dataout_offset = STATUS_2840;
 	sd.sd_chip = C46;
 	sd.sd_MS = 0;
 	sd.sd_RDY = EEPROM_TF;
@@ -340,7 +340,7 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 		if (sc->adapter_control & CFRESETB)
 			scsi_conf |= RESET_SCSI;
 
-		if (sc->bios_control & CF284XEXTEND)		
+		if (sc->bios_control & CF284XEXTEND)
 			ahc->flags |= AHC_EXTENDED_TRANS_A;
 		/* Set SCSICONF info */
 		ahc_outb(ahc, SCSICONF, scsi_conf);

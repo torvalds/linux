@@ -107,7 +107,7 @@ libdir_SQ = $(subst ','\'',$(libdir))
 libdir_relative_SQ = $(subst ','\'',$(libdir_relative))
 plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 
-CONFIG_INCLUDES = 
+CONFIG_INCLUDES =
 CONFIG_LIBS	=
 CONFIG_FLAGS	=
 

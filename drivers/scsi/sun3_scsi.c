@@ -174,7 +174,7 @@ static inline unsigned short sun3_udc_read(unsigned char reg)
 	udelay(SUN3_DMA_DELAY);
 	ret = dregs->udc_data;
 	udelay(SUN3_DMA_DELAY);
-	
+
 	return ret;
 }
 
@@ -230,25 +230,25 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 #else
 	addr = (void *)dvma_map((unsigned long) data, count);
 #endif
-		
+
 	sun3_dma_orig_addr = addr;
 	sun3_dma_orig_count = count;
 
 #ifndef SUN3_SCSI_VME
 	dregs->fifo_count = 0;
 	sun3_udc_write(UDC_RESET, UDC_CSR);
-	
+
 	/* reset fifo */
 	dregs->csr &= ~CSR_FIFO;
 	dregs->csr |= CSR_FIFO;
 #endif
-	
+
 	/* set direction */
 	if(write_flag)
 		dregs->csr |= CSR_SEND;
 	else
 		dregs->csr &= ~CSR_SEND;
-	
+
 #ifdef SUN3_SCSI_VME
 	dregs->csr |= CSR_PACK_ENABLE;
 
@@ -264,12 +264,12 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 	dregs->fifo_count = count;
 
 	sun3_udc_write(UDC_RESET, UDC_CSR);
-	
+
 	/* reset fifo */
 	dregs->csr &= ~CSR_FIFO;
 	dregs->csr |= CSR_FIFO;
-	
-	if(dregs->fifo_count != count) { 
+
+	if(dregs->fifo_count != count) {
 		shost_printk(KERN_ERR, hostdata->host,
 		             "FIFO mismatch %04x not %04x\n",
 		             dregs->fifo_count, (unsigned int) count);
@@ -290,10 +290,10 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 		udc_regs->mode_lo = UDC_MODE_LRECV;
 		udc_regs->rsel = UDC_RSEL_RECV;
 	}
-	
+
 	/* announce location of regs block */
 	sun3_udc_write(((dvma_vtob(udc_regs) & 0xff0000) >> 8),
-		       UDC_CHN_HI); 
+		       UDC_CHN_HI);
 
 	sun3_udc_write((dvma_vtob(udc_regs) & 0xffff), UDC_CHN_LO);
 
@@ -303,7 +303,7 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 	/* interrupt enable */
 	sun3_udc_write(UDC_INT_ENABLE, UDC_CSR);
 #endif
-	
+
        	return count;
 
 }
@@ -361,7 +361,7 @@ static inline int sun3scsi_dma_start(unsigned long count, unsigned char *data)
 #else
     sun3_udc_write(UDC_CHN_START, UDC_CSR);
 #endif
-    
+
     return 0;
 }
 
@@ -371,7 +371,7 @@ static int sun3scsi_dma_finish(int write_flag)
 	unsigned short __maybe_unused count;
 	unsigned short fifo;
 	int ret = 0;
-	
+
 	sun3_dma_active = 0;
 
 #ifdef SUN3_SCSI_VME
@@ -411,7 +411,7 @@ static int sun3scsi_dma_finish(int write_flag)
 	// check to empty the fifo on a read
 	if(!write_flag) {
 		int tmo = 20000; /* .2 sec */
-		
+
 		while(1) {
 			if(dregs->csr & CSR_FIFO_EMPTY)
 				break;
@@ -439,7 +439,7 @@ static int sun3scsi_dma_finish(int write_flag)
 
 		data = dregs->fifo_data;
 		vaddr = (unsigned char *)dvma_btov(sun3_dma_orig_addr);
-		
+
 		vaddr += (sun3_dma_orig_count - fifo);
 
 		vaddr[-2] = (data & 0xff00) >> 8;
@@ -470,13 +470,13 @@ static int sun3scsi_dma_finish(int write_flag)
 	dregs->csr &= ~CSR_FIFO;
 	dregs->csr |= CSR_FIFO;
 #endif
-	
+
 	sun3_dma_setup_done = NULL;
 
 	return ret;
 
 }
-	
+
 #include "NCR5380.c"
 
 #ifdef SUN3_SCSI_VME

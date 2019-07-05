@@ -17,7 +17,7 @@ GLOBAL_ENTRY(mca_handler_bhhook)
 	cover
 	;;
 	clrrrb
-	;;						
+	;;
 	alloc	r16=ar.pfs,0,2,3,0	// make a new frame
 	mov	ar.rsc=0
 	mov	r13=IA64_KR(CURRENT)	// current task pointer

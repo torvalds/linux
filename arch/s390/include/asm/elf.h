@@ -153,7 +153,7 @@ extern unsigned int vdso_enabled;
  */
 #define elf_check_arch(x) \
 	(((x)->e_machine == EM_S390 || (x)->e_machine == EM_S390_OLD) \
-         && (x)->e_ident[EI_CLASS] == ELF_CLASS) 
+         && (x)->e_ident[EI_CLASS] == ELF_CLASS)
 #define compat_elf_check_arch(x) \
 	(((x)->e_machine == EM_S390 || (x)->e_machine == EM_S390_OLD) \
 	 && (x)->e_ident[EI_CLASS] == ELF_CLASS)

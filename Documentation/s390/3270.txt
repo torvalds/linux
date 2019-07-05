@@ -257,7 +257,7 @@ command:
 
 Have a command you issue frequently?  Assign it to a PF or PA key!  Use
 the command
-	echo pf24="mkdir foobar; cd foobar" > /proc/tty/driver/tty3270 
+	echo pf24="mkdir foobar; cd foobar" > /proc/tty/driver/tty3270
 to execute the commands mkdir foobar and cd foobar immediately when you
 hit PF24.  Want to see the command line first, before you execute it?
 Use the -n option of the echo command:

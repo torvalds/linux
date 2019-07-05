@@ -647,14 +647,14 @@ mraid_mm_dealloc_kioc(mraid_mmadp_t *adp, uioc_t *kioc)
 		spin_lock_irqsave(&pool->lock, flags);
 
 		/*
-		 * While attaching the dma buffer, if we didn't get the 
-		 * required buffer from the pool, we would have allocated 
-		 * it at the run time and set the free_buf flag. We must 
-		 * free that buffer. Otherwise, just mark that the buffer is 
+		 * While attaching the dma buffer, if we didn't get the
+		 * required buffer from the pool, we would have allocated
+		 * it at the run time and set the free_buf flag. We must
+		 * free that buffer. Otherwise, just mark that the buffer is
 		 * not in use
 		 */
 		if (kioc->free_buf == 1)
-			dma_pool_free(pool->handle, kioc->buf_vaddr, 
+			dma_pool_free(pool->handle, kioc->buf_vaddr,
 							kioc->buf_paddr);
 		else
 			pool->in_use = 0;

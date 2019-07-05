@@ -78,7 +78,7 @@ struct scsi_sense_data
 #define	SSD_ERRCODE			0x7F
 #define		SSD_CURRENT_ERROR	0x70
 #define		SSD_DEFERRED_ERROR	0x71
-#define	SSD_ERRCODE_VALID	0x80	
+#define	SSD_ERRCODE_VALID	0x80
 	uint8_t segment;
 	uint8_t flags;
 #define	SSD_KEY				0x0F
@@ -93,11 +93,11 @@ struct scsi_sense_data
 #define		SSD_KEY_BLANK_CHECK	0x08
 #define		SSD_KEY_Vendor_Specific	0x09
 #define		SSD_KEY_COPY_ABORTED	0x0a
-#define		SSD_KEY_ABORTED_COMMAND	0x0b		
+#define		SSD_KEY_ABORTED_COMMAND	0x0b
 #define		SSD_KEY_EQUAL		0x0c
 #define		SSD_KEY_VOLUME_OVERFLOW	0x0d
 #define		SSD_KEY_MISCOMPARE	0x0e
-#define		SSD_KEY_RESERVED	0x0f			
+#define		SSD_KEY_RESERVED	0x0f
 #define	SSD_ILI		0x20
 #define	SSD_EOM		0x40
 #define	SSD_FILEMARK	0x80

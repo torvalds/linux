@@ -317,7 +317,7 @@ int __init find_via_pmu(void)
 			PMU_INT_SNDBRT |
 			PMU_INT_ADB |
 			PMU_INT_TICK;
-	
+
 	if (of_node_name_eq(vias->parent, "ohare") ||
 	    of_device_is_compatible(vias->parent, "ohare"))
 		pmu_kind = PMU_OHARE_BASED;
@@ -340,7 +340,7 @@ int __init find_via_pmu(void)
 				PMU_INT_ADB |
 				PMU_INT_TICK |
 				PMU_INT_ENVIRONMENT;
-		
+
 		gpiop = of_find_node_by_name(NULL, "gpio");
 		if (gpiop) {
 			reg = of_get_property(gpiop, "reg", NULL);
@@ -362,7 +362,7 @@ int __init find_via_pmu(void)
 		printk(KERN_ERR "via-pmu: Can't map address !\n");
 		goto fail_via_remap;
 	}
-	
+
 	out_8(&via1[IER], IER_CLR | 0x7f);	/* disable all intrs */
 	out_8(&via1[IFR], 0x7f);			/* clear IFR */
 
@@ -372,7 +372,7 @@ int __init find_via_pmu(void)
 		goto fail_init;
 
 	sys_ctrler = SYS_CTRLER_PMU;
-	
+
 	return 1;
 
  fail_init:
@@ -627,7 +627,7 @@ init_pmu(void)
 	pmu_wait_complete(&req);
 	if (req.reply_len > 0)
 		pmu_version = req.reply[0];
-	
+
 	/* Read server mode setting */
 	if (pmu_kind == PMU_KEYLARGO_BASED) {
 		pmu_request(&req, NULL, 2, PMU_POWER_EVENTS,
@@ -668,11 +668,11 @@ static void pmu_set_server_mode(int server_mode)
 	if (server_mode)
 		pmu_request(&req, NULL, 4, PMU_POWER_EVENTS,
 			    PMU_PWR_SET_POWERUP_EVENTS,
-			    req.reply[0], PMU_PWR_WAKEUP_AC_INSERT); 
+			    req.reply[0], PMU_PWR_WAKEUP_AC_INSERT);
 	else
 		pmu_request(&req, NULL, 4, PMU_POWER_EVENTS,
 			    PMU_PWR_CLR_POWERUP_EVENTS,
-			    req.reply[0], PMU_PWR_WAKEUP_AC_INSERT); 
+			    req.reply[0], PMU_PWR_WAKEUP_AC_INSERT);
 	pmu_wait_complete(&req);
 }
 
@@ -688,8 +688,8 @@ done_battery_state_ohare(struct adb_request* req)
 	 *    0x01 :  AC indicator
 	 *    0x02 :  charging
 	 *    0x04 :  battery exist
-	 *    0x08 :  
-	 *    0x10 :  
+	 *    0x08 :
+	 *    0x10 :
 	 *    0x20 :  full charged
 	 *    0x40 :  pcharge reset
 	 *    0x80 :  battery exist
@@ -712,7 +712,7 @@ done_battery_state_ohare(struct adb_request* req)
 		pmu_power_flags |= PMU_PWR_AC_PRESENT;
 	else
 		pmu_power_flags &= ~PMU_PWR_AC_PRESENT;
-	
+
 	if (mb == PMAC_TYPE_COMET) {
 		vmax_charged = 189;
 		vmax_charging = 213;
@@ -775,26 +775,26 @@ done_battery_state_smart(struct adb_request* req)
 	/* format:
 	 *  [0] : format of this structure (known: 3,4,5)
 	 *  [1] : flags
-	 *  
+	 *
 	 *  format 3 & 4:
-	 *  
+	 *
 	 *  [2] : charge
 	 *  [3] : max charge
 	 *  [4] : current
 	 *  [5] : voltage
-	 *  
+	 *
 	 *  format 5:
-	 *  
+	 *
 	 *  [2][3] : charge
 	 *  [4][5] : max charge
 	 *  [6][7] : current
 	 *  [8][9] : voltage
 	 */
-	 
+
 	unsigned int bat_flags = PMU_BATT_TYPE_SMART;
 	int amperage;
 	unsigned int capa, max, voltage;
-	
+
 	if (req->reply[1] & 0x01)
 		pmu_power_flags |= PMU_PWR_AC_PRESENT;
 	else
@@ -802,7 +802,7 @@ done_battery_state_smart(struct adb_request* req)
 
 
 	capa = max = amperage = voltage = 0;
-	
+
 	if (req->reply[1] & 0x04) {
 		bat_flags |= PMU_BATT_PRESENT;
 		switch(req->reply[0]) {
@@ -901,7 +901,7 @@ static int pmu_irqstats_proc_show(struct seq_file *m, void *v)
 static int pmu_battery_proc_show(struct seq_file *m, void *v)
 {
 	long batnum = (long)m->private;
-	
+
 	seq_putc(m, '\n');
 	seq_printf(m, "flags      : %08x\n", pmu_batteries[batnum].flags);
 	seq_printf(m, "charge     : %d\n", pmu_batteries[batnum].charge);
@@ -936,7 +936,7 @@ static ssize_t pmu_options_proc_write(struct file *file,
 	char tmp[33];
 	char *label, *val;
 	size_t fcount = count;
-	
+
 	if (!count)
 		return -EINVAL;
 	if (count > 32)
@@ -1309,7 +1309,7 @@ pmu_suspend(void)
 
 	if (pmu_state == uninitialized)
 		return;
-	
+
 	spin_lock_irqsave(&pmu_lock, flags);
 	pmu_suspended++;
 	if (pmu_suspended > 1) {
@@ -1435,7 +1435,7 @@ next:
 			      && data[1] == 0x2c && data[3] == 0xff
 			      && (data[2] & ~1) == 0xf4))
 				adb_input(data+1, len-1, 1);
-#endif /* CONFIG_ADB */		
+#endif /* CONFIG_ADB */
 		}
 		break;
 
@@ -1559,7 +1559,7 @@ pmu_sr_intr(void)
 			interrupt_data_len[int_data_last] = data_len;
 		} else {
 			req = current_req;
-			/* 
+			/*
 			 * For PMU sleep and freq change requests, we lock the
 			 * PMU until it's explicitly unlocked. This avoids any
 			 * spurrious event polling getting in
@@ -1594,7 +1594,7 @@ via_pmu_interrupt(int irq, void *arg)
 	/* This is a bit brutal, we can probably do better */
 	spin_lock_irqsave(&pmu_lock, flags);
 	++disable_poll;
-	
+
 	for (;;) {
 		/* On 68k Macs, VIA interrupts are dispatched individually.
 		 * Unless we are polling, the relevant IRQ flag has already
@@ -1658,7 +1658,7 @@ recheck:
 		} else if (current_req)
 			pmu_start();
 	}
-no_free_slot:			
+no_free_slot:
 	/* Mark the oldest buffer for flushing */
 	if (int_data_state[!int_data_last] == int_data_ready) {
 		int_data_state[!int_data_last] = int_data_flush;
@@ -1675,7 +1675,7 @@ no_free_slot:
 		pmu_done(req);
 		req = NULL;
 	}
-		
+
 	/* Deal with interrupt datas outside of the lock */
 	if (int_data >= 0) {
 		pmu_handle_data(interrupt_data[int_data], interrupt_data_len[int_data]);
@@ -1781,7 +1781,7 @@ pmu_restart(void)
 	local_irq_disable();
 
 	drop_interrupts = 1;
-	
+
 	if (pmu_kind != PMU_KEYLARGO_BASED) {
 		pmu_request(&req, NULL, 2, PMU_SET_INTR_MASK, PMU_INT_ADB |
 						PMU_INT_TICK );
@@ -1835,7 +1835,7 @@ pmu_present(void)
 /*
  * Put the powerbook to sleep.
  */
- 
+
 static u32 save_via[8];
 
 static void
@@ -1905,7 +1905,7 @@ static int powerbook_sleep_grackle(void)
 
 	pci_read_config_word(grackle, 0x70, &pmcr1);
 	/* Apparently, MacOS uses NAP mode for Grackle ??? */
-	pmcr1 &= ~(GRACKLE_DOZE|GRACKLE_SLEEP); 
+	pmcr1 &= ~(GRACKLE_DOZE|GRACKLE_SLEEP);
 	pmcr1 |= GRACKLE_PM|GRACKLE_NAP;
 	pci_write_config_word(grackle, 0x70, pmcr1);
 
@@ -1917,7 +1917,7 @@ static int powerbook_sleep_grackle(void)
 
 	/* We're awake again, stop grackle PM */
 	pci_read_config_word(grackle, 0x70, &pmcr1);
-	pmcr1 &= ~(GRACKLE_PM|GRACKLE_DOZE|GRACKLE_SLEEP|GRACKLE_NAP); 
+	pmcr1 &= ~(GRACKLE_PM|GRACKLE_DOZE|GRACKLE_SLEEP|GRACKLE_NAP);
 	pci_write_config_word(grackle, 0x70, pmcr1);
 
 	pci_dev_put(grackle);
@@ -1925,11 +1925,11 @@ static int powerbook_sleep_grackle(void)
 	/* Make sure the PMU is idle */
 	pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,0);
 	restore_via_state();
-	
+
 	/* Restore L2 cache */
 	if (save_l2cr != 0xffffffff && (save_l2cr & L2CR_L2E) != 0)
  		_set_L2CR(save_l2cr);
-	
+
 	/* Restore userland MMU context */
 	switch_mmu_context(NULL, current->active_mm, NULL);
 
@@ -1953,7 +1953,7 @@ powerbook_sleep_Core99(void)
 	unsigned long save_l2cr;
 	unsigned long save_l3cr;
 	struct adb_request req;
-	
+
 	if (pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) < 0) {
 		printk(KERN_ERR "Sleep mode not supported on this machine\n");
 		return -ENOSYS;
@@ -2018,7 +2018,7 @@ powerbook_sleep_Core99(void)
 	/* Restore L3 cache */
 	if (save_l3cr != 0xffffffff && (save_l3cr & L3CR_L3E) != 0)
  		_set_L3CR(save_l3cr);
-	
+
 	/* Restore userland MMU context */
 	switch_mmu_context(NULL, current->active_mm, NULL);
 
@@ -2177,7 +2177,7 @@ pmu_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t 
+static ssize_t
 pmu_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
 {
@@ -2225,7 +2225,7 @@ pmu_read(struct file *file, char __user *buf,
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&pp->wait, &wait);
 	spin_unlock_irqrestore(&pp->lock, flags);
-	
+
 	return ret;
 }
 
@@ -2242,7 +2242,7 @@ pmu_fpoll(struct file *filp, poll_table *wait)
 	struct pmu_private *pp = filp->private_data;
 	__poll_t mask = 0;
 	unsigned long flags;
-	
+
 	if (!pp)
 		return 0;
 	poll_wait(filp, &pp->wait, wait);
@@ -2506,7 +2506,7 @@ device_initcall(pmu_device_init);
 
 
 #ifdef DEBUG_SLEEP
-static inline void 
+static inline void
 polled_handshake(void)
 {
 	via2[B] &= ~TREQ; eieio();
@@ -2517,7 +2517,7 @@ polled_handshake(void)
 		;
 }
 
-static inline void 
+static inline void
 polled_send_byte(int x)
 {
 	via1[ACR] |= SR_OUT | SR_EXT; eieio();

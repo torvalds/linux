@@ -168,7 +168,7 @@ static inline bool elf_sec__is_data(const GElf_Shdr *shdr,
 
 static bool elf_sec__filter(GElf_Shdr *shdr, Elf_Data *secstrs)
 {
-	return elf_sec__is_text(shdr, secstrs) || 
+	return elf_sec__is_text(shdr, secstrs) ||
 	       elf_sec__is_data(shdr, secstrs);
 }
 

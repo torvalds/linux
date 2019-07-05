@@ -395,9 +395,9 @@ sddr09_readX(struct us_data *us, int x, unsigned long fromaddress,
 	command[0] = 0xE8;
 	command[1] = LUNBITS | x;
 	command[2] = MSB_of(fromaddress>>16);
-	command[3] = LSB_of(fromaddress>>16); 
+	command[3] = LSB_of(fromaddress>>16);
 	command[4] = MSB_of(fromaddress & 0xFFFF);
-	command[5] = LSB_of(fromaddress & 0xFFFF); 
+	command[5] = LSB_of(fromaddress & 0xFFFF);
 	command[6] = 0;
 	command[7] = 0;
 	command[8] = 0;
@@ -512,7 +512,7 @@ sddr09_read23(struct us_data *us, unsigned long fromaddress,
  * Erase Command: 12 bytes.
  * byte 0: opcode: EA
  * bytes 6-9: erase address (big-endian, counting shorts, sector aligned).
- * 
+ *
  * Always precisely one block is erased; bytes 2-5 and 10-11 are ignored.
  * The byte address being erased is 2*Eaddress.
  * The CIS cannot be erased.
@@ -798,7 +798,7 @@ sddr09_read_data(struct us_data *us,
 			usb_stor_dbg(us, "Read %d pages, from PBA %d (LBA %d) page %d\n",
 				     pages, pba, lba, page);
 
-			address = ((pba << info->blockshift) + page) << 
+			address = ((pba << info->blockshift) + page) <<
 				info->pageshift;
 
 			result = sddr09_read20(us, address>>1,
@@ -1729,7 +1729,7 @@ static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		return (result == USB_STOR_XFER_GOOD ?
 			USB_STOR_TRANSPORT_GOOD : USB_STOR_TRANSPORT_ERROR);
-	} 
+	}
 
 	return USB_STOR_TRANSPORT_GOOD;
 }

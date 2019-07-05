@@ -7,6 +7,6 @@ config SND_AOA_FABRIC_LAYOUT
 	This enables the layout-id fabric for the Apple Onboard
 	Audio driver, the module holding it all together
 	based on the device-tree's layout-id property.
-	
+
 	If you are unsure and have a later Apple machine,
 	compile it as a module.

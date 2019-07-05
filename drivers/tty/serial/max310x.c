@@ -387,7 +387,7 @@ static int max14830_detect(struct device *dev)
 			   MAX310X_EXTREG_ENBL);
 	if (ret)
 		return ret;
-	
+
 	regmap_read(s->regmap, MAX310X_REVID_EXTREG, &val);
 	regmap_write(s->regmap, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
 	if (((val & MAX310x_REV_MASK) != MAX14830_REV_ID)) {

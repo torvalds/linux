@@ -151,7 +151,7 @@ static ssize_t command_write(struct file *file, const char __user *buf,
 	struct uwb_rc *rc = file->private_data;
 	struct uwb_dbg_cmd cmd;
 	int ret = 0;
-	
+
 	if (len != sizeof(struct uwb_dbg_cmd))
 		return -EINVAL;
 

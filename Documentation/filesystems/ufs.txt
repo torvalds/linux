@@ -11,7 +11,7 @@ ufstype=type_of_ufs
 	UFS is a file system widely used in different operating systems.
 	The problem are differences among implementations. Features of
 	some implementations are undocumented, so its hard to recognize
-	type of ufs automatically. That's why user must specify type of 
+	type of ufs automatically. That's why user must specify type of
 	ufs manually by mount option ufstype. Possible values are:
 
 	old	old format of ufs

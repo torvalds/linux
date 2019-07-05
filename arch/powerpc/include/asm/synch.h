@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_SYNCH_H 
-#define _ASM_POWERPC_SYNCH_H 
+#ifndef _ASM_POWERPC_SYNCH_H
+#define _ASM_POWERPC_SYNCH_H
 #ifdef __KERNEL__
 
 #include <asm/feature-fixups.h>

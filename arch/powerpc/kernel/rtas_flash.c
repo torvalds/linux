@@ -21,7 +21,7 @@
 #define MODULE_VERS "1.0"
 #define MODULE_NAME "rtas_flash"
 
-#define FIRMWARE_FLASH_NAME "firmware_flash"   
+#define FIRMWARE_FLASH_NAME "firmware_flash"
 #define FIRMWARE_UPDATE_NAME "firmware_update"
 #define MANAGE_FLASH_NAME "manage_flash"
 #define VALIDATE_FLASH_NAME "validate_flash"
@@ -33,7 +33,7 @@
 
 /* Flash image status values */
 #define FLASH_AUTH           -9002 /* RTAS Not Service Authority Partition */
-#define FLASH_NO_OP          -1099 /* No operation initiated by user */	
+#define FLASH_NO_OP          -1099 /* No operation initiated by user */
 #define FLASH_IMG_SHORT	     -1005 /* Flash image shorter than expected */
 #define FLASH_IMG_BAD_LEN    -1004 /* Bad length value in flash list block */
 #define FLASH_IMG_NULL_DATA  -1003 /* Bad data value in flash list block */
@@ -84,7 +84,7 @@
 #define RTAS_COMMIT_TMP_IMG   1
 
 /* Array sizes */
-#define VALIDATE_BUF_SIZE 4096    
+#define VALIDATE_BUF_SIZE 4096
 #define VALIDATE_MSG_LEN  256
 #define RTAS_MSG_MAXLEN   64
 
@@ -126,7 +126,7 @@ static struct kmem_cache *flash_block_cache = NULL;
  * For convenience as we build the list we use virtual addrs,
  * we do not fill in the version number, and the length field
  * is treated as the number of entries currently in the block
- * (i.e. not a byte count).  This is all fixed when calling 
+ * (i.e. not a byte count).  This is all fixed when calling
  * the flash routine.
  */
 
@@ -146,7 +146,7 @@ struct rtas_manage_flash_t
 /* Status int must be first member of struct */
 struct rtas_validate_flash_t
 {
-	int status;		 	/* Returned status */	
+	int status;		 	/* Returned status */
 	char *buf;			/* Candidate image buffer */
 	unsigned int buf_size;		/* Size of image buf */
 	unsigned int update_results;	/* Update results token */
@@ -182,7 +182,7 @@ static int flash_list_valid(struct flash_block_list *flist)
 	}
 
 	if (image_size < (256 << 10)) {
-		if (image_size < 2) 
+		if (image_size < 2)
 			return FLASH_NO_OP;
 	}
 
@@ -211,7 +211,7 @@ static int rtas_flash_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&rtas_update_flash_mutex);
 
-	if (uf->flist) {    
+	if (uf->flist) {
 		/* File was opened in write mode for a new flash attempt */
 		/* Clear saved list */
 		if (rtas_firmware_flash_list) {
@@ -219,10 +219,10 @@ static int rtas_flash_release(struct inode *inode, struct file *file)
 			rtas_firmware_flash_list = NULL;
 		}
 
-		if (uf->status != FLASH_AUTH)  
+		if (uf->status != FLASH_AUTH)
 			uf->status = flash_list_valid(uf->flist);
 
-		if (uf->status == FLASH_IMG_READY) 
+		if (uf->status == FLASH_IMG_READY)
 			rtas_firmware_flash_list = uf->flist;
 		else
 			free_flash_list(uf->flist);
@@ -321,7 +321,7 @@ static ssize_t rtas_flash_write(struct file *file, const char __user *buffer,
 		goto out;	/* discard data */
 
 	/* In the case that the image is not ready for flashing, the memory
-	 * allocated for the block list will be freed upon the release of the 
+	 * allocated for the block list will be freed upon the release of the
 	 * proc file
 	 */
 	if (uf->flist == NULL) {
@@ -348,7 +348,7 @@ static ssize_t rtas_flash_write(struct file *file, const char __user *buffer,
 	p = kmem_cache_zalloc(flash_block_cache, GFP_KERNEL);
 	if (!p)
 		goto nomem;
-	
+
 	if(copy_from_user(p, buffer, count)) {
 		kmem_cache_free(flash_block_cache, p);
 		rc = -EFAULT;
@@ -411,19 +411,19 @@ static ssize_t manage_flash_write(struct file *file, const char __user *buf,
 
 	if ((args_buf->status == MANAGE_AUTH) || (count == 0))
 		goto out;
-		
+
 	op = -1;
 	if (buf) {
 		if (count > 9) count = 9;
 		rc = -EFAULT;
 		if (copy_from_user (stkbuf, buf, count))
 			goto error;
-		if (strncmp(stkbuf, reject_str, strlen(reject_str)) == 0) 
+		if (strncmp(stkbuf, reject_str, strlen(reject_str)) == 0)
 			op = RTAS_REJECT_TMP_IMG;
-		else if (strncmp(stkbuf, commit_str, strlen(commit_str)) == 0) 
+		else if (strncmp(stkbuf, commit_str, strlen(commit_str)) == 0)
 			op = RTAS_COMMIT_TMP_IMG;
 	}
-	
+
 	if (op == -1) {   /* buf is empty, or contains invalid string */
 		rc = -EINVAL;
 		goto error;
@@ -446,13 +446,13 @@ static void validate_flash(struct rtas_validate_flash_t *args_buf)
 {
 	int token = rtas_token("ibm,validate-flash-image");
 	int update_results;
-	s32 rc;	
+	s32 rc;
 
 	rc = 0;
 	do {
 		spin_lock(&rtas_data_buf_lock);
 		memcpy(rtas_data_buf, args_buf->buf, VALIDATE_BUF_SIZE);
-		rc = rtas_call(token, 2, 2, &update_results, 
+		rc = rtas_call(token, 2, 2, &update_results,
 			       (u32) __pa(rtas_data_buf), args_buf->buf_size);
 		memcpy(args_buf->buf, rtas_data_buf, VALIDATE_BUF_SIZE);
 		spin_unlock(&rtas_data_buf_lock);
@@ -462,12 +462,12 @@ static void validate_flash(struct rtas_validate_flash_t *args_buf)
 	args_buf->update_results = update_results;
 }
 
-static int get_validate_flash_msg(struct rtas_validate_flash_t *args_buf, 
+static int get_validate_flash_msg(struct rtas_validate_flash_t *args_buf,
 		                   char *msg, int msglen)
 {
 	int n;
 
-	if (args_buf->status >= VALIDATE_TMP_UPDATE) { 
+	if (args_buf->status >= VALIDATE_TMP_UPDATE) {
 		n = sprintf(msg, "%d\n", args_buf->update_results);
 		if ((args_buf->update_results >= VALIDATE_CUR_UNKNOWN) ||
 		    (args_buf->update_results == VALIDATE_TMP_UPDATE))
@@ -505,7 +505,7 @@ static ssize_t validate_flash_write(struct file *file, const char __user *buf,
 
 	/* We are only interested in the first 4K of the
 	 * candidate image */
-	if ((*off >= VALIDATE_BUF_SIZE) || 
+	if ((*off >= VALIDATE_BUF_SIZE) ||
 		(args_buf->status == VALIDATE_AUTH)) {
 		*off += count;
 		mutex_unlock(&rtas_validate_flash_mutex);
@@ -514,7 +514,7 @@ static ssize_t validate_flash_write(struct file *file, const char __user *buf,
 
 	if (*off + count >= VALIDATE_BUF_SIZE)  {
 		count = VALIDATE_BUF_SIZE - *off;
-		args_buf->status = VALIDATE_READY;	
+		args_buf->status = VALIDATE_READY;
 	} else {
 		args_buf->status = VALIDATE_INCOMPLETE;
 	}

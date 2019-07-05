@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  PowerPC version 
+ *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *  Rewritten by Cort Dougan (cort@cs.nmt.edu) for PReP
  *    Copyright (C) 1996 Cort Dougan <cort@cs.nmt.edu>
@@ -367,7 +367,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 .Lsyscall_enosys:
 	li	r3,-ENOSYS
 	b	.Lsyscall_exit
-	
+
 .Lsyscall_exit_work:
 	/* If TIF_RESTOREALL is set, don't scribble on either r3 or ccr.
 	 If TIF_NOERROR is set, just save r3 as it is. */
@@ -462,7 +462,7 @@ _GLOBAL(save_nvgprs)
 	blr
 _ASM_NOKPROBE_SYMBOL(save_nvgprs);
 
-	
+
 /*
  * The sigsuspend and rt_sigsuspend system calls can call do_signal
  * and thus put the process into the stopped state where we might
@@ -587,7 +587,7 @@ flush_count_cache:
  * the fork code also.
  *
  * The code which creates the new task context is in 'copy_thread'
- * in arch/powerpc/kernel/process.c 
+ * in arch/powerpc/kernel/process.c
  */
 	.align	7
 _GLOBAL(_switch)
@@ -1064,7 +1064,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bl	__check_irq_replay
 	cmpwi	cr0,r3,0
 	beq	.Lrestore_no_replay
- 
+
 	/*
 	 * We need to re-emit an interrupt. We do so by re-using our
 	 * existing exception frame. We first change the trap value,
@@ -1119,7 +1119,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bl	doorbell_exception
 #endif /* CONFIG_PPC_DOORBELL */
 1:	b	ret_from_except /* What else to do here ? */
- 
+
 .Lunrecov_restore:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unrecoverable_exception
@@ -1139,7 +1139,7 @@ _ASM_NOKPROBE_SYMBOL(fast_exception_return);
  * called with the MMU off.
  *
  * In addition, we need to be in 32b mode, at least for now.
- * 
+ *
  * Note: r3 is an input parameter to rtas, so don't trash it...
  */
 _GLOBAL(enter_rtas)
@@ -1195,7 +1195,7 @@ _GLOBAL(enter_rtas)
 	std	r1,PACAR1(r13)
         std	r6,PACASAVEDMSR(r13)
 
-	/* Setup our real return addr */	
+	/* Setup our real return addr */
 	LOAD_REG_ADDR(r4,rtas_return_loc)
 	clrldi	r4,r4,2			/* convert to realmode address */
        	mtlr	r4
@@ -1203,7 +1203,7 @@ _GLOBAL(enter_rtas)
 	li	r0,0
 	ori	r0,r0,MSR_EE|MSR_SE|MSR_BE|MSR_RI
 	andc	r0,r6,r0
-	
+
         li      r9,1
         rldicr  r9,r9,MSR_SF_LG,(63-MSR_SF_LG)
 	ori	r9,r9,MSR_IR|MSR_DR|MSR_FE0|MSR_FE1|MSR_FP|MSR_RI|MSR_LE
@@ -1216,7 +1216,7 @@ __enter_rtas:
 	LOAD_REG_ADDR(r4, rtas)
 	ld	r5,RTASENTRY(r4)	/* get the rtas->entry value */
 	ld	r4,RTASBASE(r4)		/* get the rtas->base value */
-	
+
 	mtspr	SPRN_SRR0,r5
 	mtspr	SPRN_SRR1,r6
 	RFI_TO_KERNEL

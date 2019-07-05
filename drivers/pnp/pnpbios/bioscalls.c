@@ -280,7 +280,7 @@ int pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
  * get_dev_node() and set_dev_node() with boot=1 rather than with boot=0.
  */
 
-/* 
+/*
  * Call PnP BIOS with function 0x01, "get system device node"
  * Input: *nodenum = desired node,
  *        boot = whether to get nonvolatile boot (!=0)
@@ -317,7 +317,7 @@ int pnp_bios_get_dev_node(u8 *nodenum, char boot, struct pnp_bios_node *data)
 
 /*
  * Call PnP BIOS with function 0x02, "set system device node"
- * Input: *nodenum = desired node, 
+ * Input: *nodenum = desired node,
  *        boot = whether to set nonvolatile boot (!=0)
  *               or volatile current (0) config
  */

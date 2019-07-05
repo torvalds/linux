@@ -416,7 +416,7 @@ __arm920_setup:
 	 *  R
 	 * .RVI ZFRS BLDP WCAM
 	 * ..11 0001 ..11 0101
-	 * 
+	 *
 	 */
 	.type	arm920_crval, #object
 arm920_crval:

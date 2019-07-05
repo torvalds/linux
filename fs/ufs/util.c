@@ -6,7 +6,7 @@
  * Daniel Pirkl <daniel.pirkl@email.cz>
  * Charles University, Faculty of Mathematics and Physics
  */
- 
+
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
@@ -129,12 +129,12 @@ void ubh_sync_block(struct ufs_buffer_head *ubh)
 void ubh_bforget (struct ufs_buffer_head * ubh)
 {
 	unsigned i;
-	if (!ubh) 
+	if (!ubh)
 		return;
-	for ( i = 0; i < ubh->count; i++ ) if ( ubh->bh[i] ) 
+	for ( i = 0; i < ubh->count; i++ ) if ( ubh->bh[i] )
 		bforget (ubh->bh[i]);
 }
- 
+
 int ubh_buffer_dirty (struct ufs_buffer_head * ubh)
 {
 	unsigned i;
@@ -146,7 +146,7 @@ int ubh_buffer_dirty (struct ufs_buffer_head * ubh)
 	return result;
 }
 
-void _ubh_ubhcpymem_(struct ufs_sb_private_info * uspi, 
+void _ubh_ubhcpymem_(struct ufs_sb_private_info * uspi,
 	unsigned char * mem, struct ufs_buffer_head * ubh, unsigned size)
 {
 	unsigned len, bhno;
@@ -162,7 +162,7 @@ void _ubh_ubhcpymem_(struct ufs_sb_private_info * uspi,
 	}
 }
 
-void _ubh_memcpyubh_(struct ufs_sb_private_info * uspi, 
+void _ubh_memcpyubh_(struct ufs_sb_private_info * uspi,
 	struct ufs_buffer_head * ubh, unsigned char * mem, unsigned size)
 {
 	unsigned len, bhno;

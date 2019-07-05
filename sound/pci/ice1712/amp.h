@@ -8,7 +8,7 @@
  *   Lowlevel functions for Advanced Micro Peripherals Ltd AUDIO2000
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- */      
+ */
 
 #define  AMP_AUDIO2000_DEVICE_DESC 	       "{AMP Ltd,AUDIO2000},"\
 					       "{Chaintech,AV-710},"

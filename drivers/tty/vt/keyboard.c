@@ -1769,7 +1769,7 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 					  ct * sizeof(struct kbdiacruc));
 			if (IS_ERR(buf))
 				return PTR_ERR(buf);
-		} 
+		}
 		spin_lock_irqsave(&kbd_event_lock, flags);
 		if (ct)
 			memcpy(accent_table, buf,

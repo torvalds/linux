@@ -98,7 +98,7 @@ next:
 	mov	r0, r6			@ save a copy
 	b	emulate			@ check condition and emulate
 
-	@ We need to be prepared for the instructions at .Lx1 and .Lx2 
+	@ We need to be prepared for the instructions at .Lx1 and .Lx2
 	@ to fault.  Emit the appropriate exception gunk to fix things up.
 	@ ??? For some reason, faults can happen at .Lx2 even with a
 	@ plain LDR instruction.  Weird, but it seems harmless.

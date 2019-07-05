@@ -134,7 +134,7 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		}
 	}
 	acard->chip = chip;
-			
+
 	if (chip->hardware >= SB_HW_16) {
 		if (chip->hardware == SB_HW_ALS100)
 			snd_printk(KERN_WARNING "ALS100 chip detected at 0x%lx, try snd-als100 module\n",
@@ -235,7 +235,7 @@ static struct isa_driver snd_sb8_driver = {
 	.resume		= snd_sb8_resume,
 #endif
 	.driver		= {
-		.name	= DEV_NAME 
+		.name	= DEV_NAME
 	},
 };
 

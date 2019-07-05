@@ -403,32 +403,32 @@ ccdbl:	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x00,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o
 ccslow:	cmp	%g1, 0
 	mov	0, %g5
 	bleu	4f
-	 andcc	%o0, 1, %o5		
+	 andcc	%o0, 1, %o5
 	be,a	1f
-	 srl	%g1, 1, %g4		
-	sub	%g1, 1, %g1	
+	 srl	%g1, 1, %g4
+	sub	%g1, 1, %g1
 	EX(ldub	[%o0], %g5, add %g1, 1)
-	add	%o0, 1, %o0	
+	add	%o0, 1, %o0
 	EX2(stb	%g5, [%o1])
 	srl	%g1, 1, %g4
 	add	%o1, 1, %o1
-1:	cmp	%g4, 0		
+1:	cmp	%g4, 0
 	be,a	3f
 	 andcc	%g1, 1, %g0
-	andcc	%o0, 2, %g0	
+	andcc	%o0, 2, %g0
 	be,a	1f
 	 srl	%g4, 1, %g4
 	EX(lduh	[%o0], %o4, add %g1, 0)
-	sub	%g1, 2, %g1	
+	sub	%g1, 2, %g1
 	srl	%o4, 8, %g2
-	sub	%g4, 1, %g4	
+	sub	%g4, 1, %g4
 	EX2(stb	%g2, [%o1])
 	add	%o4, %g5, %g5
 	EX2(stb	%o4, [%o1 + 1])
-	add	%o0, 2, %o0	
+	add	%o0, 2, %o0
 	srl	%g4, 1, %g4
 	add	%o1, 2, %o1
-1:	cmp	%g4, 0		
+1:	cmp	%g4, 0
 	be,a	2f
 	 andcc	%g1, 2, %g0
 	EX3(ld	[%o0], %o4)
@@ -450,21 +450,21 @@ ccslow:	cmp	%g1, 0
 	srl	%g5, 16, %g5
 	srl	%g2, 16, %g2
 	andcc	%g1, 2, %g0
-	add	%g2, %g5, %g5 
-2:	be,a	3f		
+	add	%g2, %g5, %g5
+2:	be,a	3f
 	 andcc	%g1, 1, %g0
 	EX(lduh	[%o0], %o4, and %g1, 3)
 	andcc	%g1, 1, %g0
 	srl	%o4, 8, %g2
-	add	%o0, 2, %o0	
+	add	%o0, 2, %o0
 	EX2(stb	%g2, [%o1])
 	add	%g5, %o4, %g5
 	EX2(stb	%o4, [%o1 + 1])
 	add	%o1, 2, %o1
-3:	be,a	1f		
+3:	be,a	1f
 	 sll	%g5, 16, %o4
 	EX(ldub	[%o0], %g2, add %g0, 1)
-	sll	%g2, 8, %o4	
+	sll	%g2, 8, %o4
 	EX2(stb	%g2, [%o1])
 	add	%g5, %o4, %g5
 	sll	%g5, 16, %o4
@@ -479,7 +479,7 @@ ccslow:	cmp	%g1, 0
 	sll	%g2, 8, %g2
 	or	%g2, %o4, %g5
 4:	addcc	%g7, %g5, %g7
-	retl	
+	retl
 	 addx	%g0, %g7, %o0
 __csum_partial_copy_end:
 
@@ -563,7 +563,7 @@ __csum_partial_copy_end:
         call    lookup_fault
 	 mov	%g7, %i4
 	cmp	%o0, 2
-	bne	1f	
+	bne	1f
 	 add	%g0, -EFAULT, %i5
 	tst	%i2
 	be	2f

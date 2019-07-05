@@ -76,7 +76,7 @@ static void floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
 
 		for (lcount = virtual_dma_count; lcount; lcount--) {
 			st = fd_inb(virtual_dma_port+4) & 0xa0 ;
-			if (st != 0xa0) 
+			if (st != 0xa0)
 				break;
 			if (virtual_dma_mode) {
 				fd_outb(*lptr, virtual_dma_port+5);
@@ -99,7 +99,7 @@ static void floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
 		virtual_dma_residue += virtual_dma_count;
 		virtual_dma_count = 0;
 #ifdef TRACE_FLPY_INT
-		printk("count=%x, residue=%x calls=%d bytes=%d dma_wait=%d\n", 
+		printk("count=%x, residue=%x calls=%d bytes=%d dma_wait=%d\n",
 		       virtual_dma_count, virtual_dma_residue, calls, bytes,
 		       dma_wait);
 		calls = 0;
@@ -169,10 +169,10 @@ static void _fd_dma_mem_free(unsigned long addr, unsigned long size)
 	if((unsigned int) addr >= (unsigned int) high_memory)
 		return vfree((void *)addr);
 	else
-		free_pages(addr, get_order(size));		
+		free_pages(addr, get_order(size));
 }
 
-#define fd_dma_mem_free(addr, size)  _fd_dma_mem_free(addr, size) 
+#define fd_dma_mem_free(addr, size)  _fd_dma_mem_free(addr, size)
 
 static void _fd_chose_dma_mode(char *addr, unsigned long size)
 {

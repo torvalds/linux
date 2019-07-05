@@ -22,7 +22,7 @@ struct evrec_short {
 	unsigned char dev;
 	unsigned char parm2;
 };
-	
+
 /* short note events (4bytes) */
 struct evrec_note {
 	unsigned char code;
@@ -30,7 +30,7 @@ struct evrec_note {
 	unsigned char note;
 	unsigned char vel;
 };
-	
+
 /* long timer events (8bytes) */
 struct evrec_timer {
 	unsigned char code;
@@ -57,7 +57,7 @@ struct evrec_long {
 	unsigned char p1, p2;
 	unsigned short val;
 };
-	
+
 /* channel voice events (8bytes) */
 struct evrec_voice {
 	unsigned char code;

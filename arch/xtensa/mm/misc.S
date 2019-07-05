@@ -97,8 +97,8 @@ ENDPROC(copy_page)
  * the virtual address. We use way 0 and 1 for temporary mappings in such cases.
  *
  * The temporary DTLB entries shouldn't be flushed by interrupts, but are
- * flushed by preemptive task switches. Special code in the 
- * fast_second_level_miss handler re-established the temporary mapping. 
+ * flushed by preemptive task switches. Special code in the
+ * fast_second_level_miss handler re-established the temporary mapping.
  * It requires that the PPNs for the destination and source addresses are
  * in a6, and a7, respectively.
  */
@@ -293,7 +293,7 @@ ENDPROC(__invalidate_dcache_page_alias)
 ENTRY(__tlbtemp_mapping_itlb)
 
 #if (ICACHE_WAY_SIZE > PAGE_SIZE)
-	
+
 ENTRY(__invalidate_icache_page_alias)
 
 	entry	sp, 16

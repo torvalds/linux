@@ -88,7 +88,7 @@ snd_seq_oss_process_timer_event(struct seq_oss_timer *rec, union evrec *ev)
 				rec->cur_tick = parm;
 			}
 			return 1;	/* skip this event */
-			
+
 		case TMR_START:
 			snd_seq_oss_timer_start(rec);
 			return 1;

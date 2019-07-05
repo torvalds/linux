@@ -21,7 +21,7 @@ perfmon_handler(struct task_struct *task, void *buf, pfm_ovfl_arg_t *arg,
                 struct pt_regs *regs, unsigned long stamp)
 {
 	int event = arg->pmd_eventid;
- 
+
 	arg->ovfl_ctrl.bits.reset_ovfl_pmds = 1;
 
 	/* the owner of the oprofile event buffer may have exited

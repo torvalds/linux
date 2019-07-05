@@ -184,7 +184,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size) {
 		truncate_setsize(inode, iattr->ia_size);
 		inode->i_blocks = (inode->i_size + 511) >> 9;
-	}	
+	}
 
 	return 0;
 }

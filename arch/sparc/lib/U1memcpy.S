@@ -311,7 +311,7 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 	 add		%o0, 0x8, %o0
 
 	/* Destination is 64-byte aligned.  */
-3:	
+3:
 	membar		  #LoadStore | #StoreStore | #StoreLoad
 
 	subcc		%o2, 0x40, %GLOBAL_SPARE
@@ -421,7 +421,7 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 	LOOP_CHUNK1(o1, o0, 1f)
 	FREG_FROB(f22,f24,f26,f28,f30,f32,f34,f36,f38)
 	LOOP_CHUNK2(o1, o0, 2f)
-	FREG_FROB(f38,f40,f42,f44,f46,f0, f2, f4, f6) 
+	FREG_FROB(f38,f40,f42,f44,f46,f0, f2, f4, f6)
 	LOOP_CHUNK3(o1, o0, 3f)
 	ba,pt		%xcc, 1b+4
 	 faligndata	%f6, %f8, %f48

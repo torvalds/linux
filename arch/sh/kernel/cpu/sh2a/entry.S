@@ -15,7 +15,7 @@
 #include <asm/unistd.h>
 #include <asm/errno.h>
 #include <asm/page.h>
-	
+
 /* Offsets to the stack */
 OFF_R0  =  0		/* Return value. New ABI also arg4 */
 OFF_R1  =  4     	/* New ABI: arg5 */
@@ -143,11 +143,11 @@ trap_entry:
 	cmp/ge	r8,r9		! vector 0x1f-0x2f is systemcall
 	bt	1f
 	mov     #0x1f,r9	! convert to unified SH2/3/4 trap number
-1:	
+1:
 	shll2	r9			! TRA
 	bra	system_call	! jump common systemcall entry
 	 mov	r9,r8
-	
+
 #if defined(CONFIG_SH_STANDARD_BIOS)
 	/* Unwind the stack and jmp to the debug entry */
 ENTRY(sh_bios_handler)
@@ -227,18 +227,18 @@ restore_all:
 	.align 2
 $current_thread_info:
 	.long	__current_thread_info
-$cpu_mode:	
+$cpu_mode:
 	.long	__cpu_mode
-		
+
 ! common exception handler
 #include "../../entry-common.S"
-	
+
 	.data
-! cpu operation mode 
+! cpu operation mode
 ! bit30 = MD (compatible SH3/4)
 __cpu_mode:
 	.long	0x40000000
-		
+
 	.section	.bss
 __current_thread_info:
 	.long	0

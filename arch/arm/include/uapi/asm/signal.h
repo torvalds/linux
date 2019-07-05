@@ -65,7 +65,7 @@ typedef unsigned long sigset_t;
  * SA_NOCLDSTOP		flag to turn off SIGCHLD when children stop.
  * SA_NOCLDWAIT		flag on SIGCHLD to inhibit zombies.
  * SA_SIGINFO		deliver the signal with SIGINFO structs
- * SA_THIRTYTWO		delivers the signal in 32-bit mode, even if the task 
+ * SA_THIRTYTWO		delivers the signal in 32-bit mode, even if the task
  *			is running in 26-bit.
  * SA_ONSTACK		allows alternate signal stacks (see sigaltstack(2)).
  * SA_RESTART		flag to get restarting signals (which were the default long ago)

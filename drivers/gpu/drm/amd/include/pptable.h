@@ -133,7 +133,7 @@ typedef struct _ATOM_PPLIB_EXTENDEDHEADER
     USHORT  usUVDTableOffset;   //points to ATOM_PPLIB_UVD_Table
     USHORT  usSAMUTableOffset;  //points to ATOM_PPLIB_SAMU_Table
     USHORT  usPPMTableOffset;   //points to ATOM_PPLIB_PPM_Table
-    USHORT  usACPTableOffset;  //points to ATOM_PPLIB_ACP_Table   
+    USHORT  usACPTableOffset;  //points to ATOM_PPLIB_ACP_Table
     /* points to ATOM_PPLIB_POWERTUNE_Table */
     USHORT  usPowerTuneTableOffset;
     /* points to ATOM_PPLIB_CLOCK_Voltage_Dependency_Table for sclkVddgfxTable */
@@ -223,14 +223,14 @@ typedef struct _ATOM_PPLIB_POWERPLAYTABLE3
 typedef struct _ATOM_PPLIB_POWERPLAYTABLE4
 {
     ATOM_PPLIB_POWERPLAYTABLE3 basicTable3;
-    ULONG                      ulGoldenPPID;                    // PPGen use only     
+    ULONG                      ulGoldenPPID;                    // PPGen use only
     ULONG                      ulGoldenRevision;                // PPGen use only
     USHORT                     usVddcDependencyOnSCLKOffset;
     USHORT                     usVddciDependencyOnMCLKOffset;
     USHORT                     usVddcDependencyOnMCLKOffset;
     USHORT                     usMaxClockVoltageOnDCOffset;
     USHORT                     usVddcPhaseShedLimitsTableOffset;    // Points to ATOM_PPLIB_PhaseSheddingLimits_Table
-    USHORT                     usMvddDependencyOnMCLKOffset;  
+    USHORT                     usMvddDependencyOnMCLKOffset;
 } ATOM_PPLIB_POWERPLAYTABLE4, *LPATOM_PPLIB_POWERPLAYTABLE4;
 
 typedef struct _ATOM_PPLIB_POWERPLAYTABLE5
@@ -374,23 +374,23 @@ typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
       UCHAR  ucPadding;                   // For proper alignment and size.
       USHORT usVDDC;                      // For the 780, use: None, Low, High, Variable
       UCHAR  ucMaxHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}
-      UCHAR  ucMinHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}. Effective only if CDLW enabled. Minimum down stream width could 
+      UCHAR  ucMinHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}. Effective only if CDLW enabled. Minimum down stream width could
       USHORT usHTLinkFreq;                // See definition ATOM_PPLIB_RS780_HTLINKFREQ_xxx or in MHz(>=200).
-      ULONG  ulFlags; 
+      ULONG  ulFlags;
 } ATOM_PPLIB_RS780_CLOCK_INFO;
 
-#define ATOM_PPLIB_RS780_VOLTAGE_NONE       0 
-#define ATOM_PPLIB_RS780_VOLTAGE_LOW        1 
-#define ATOM_PPLIB_RS780_VOLTAGE_HIGH       2 
-#define ATOM_PPLIB_RS780_VOLTAGE_VARIABLE   3 
+#define ATOM_PPLIB_RS780_VOLTAGE_NONE       0
+#define ATOM_PPLIB_RS780_VOLTAGE_LOW        1
+#define ATOM_PPLIB_RS780_VOLTAGE_HIGH       2
+#define ATOM_PPLIB_RS780_VOLTAGE_VARIABLE   3
 
 #define ATOM_PPLIB_RS780_SPMCLK_NONE        0   // We cannot change the side port memory clock, leave it as it is.
 #define ATOM_PPLIB_RS780_SPMCLK_LOW         1
 #define ATOM_PPLIB_RS780_SPMCLK_HIGH        2
 
-#define ATOM_PPLIB_RS780_HTLINKFREQ_NONE       0 
-#define ATOM_PPLIB_RS780_HTLINKFREQ_LOW        1 
-#define ATOM_PPLIB_RS780_HTLINKFREQ_HIGH       2 
+#define ATOM_PPLIB_RS780_HTLINKFREQ_NONE       0
+#define ATOM_PPLIB_RS780_HTLINKFREQ_LOW        1
+#define ATOM_PPLIB_RS780_HTLINKFREQ_HIGH       2
 
 typedef struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO
 {
@@ -432,14 +432,14 @@ typedef struct _ATOM_PPLIB_CI_CLOCK_INFO
 
       USHORT usMemoryClockLow;
       UCHAR  ucMemoryClockHigh;
-      
+
       UCHAR  ucPCIEGen;
       USHORT usPCIELane;
 } ATOM_PPLIB_CI_CLOCK_INFO;
 
 typedef struct _ATOM_PPLIB_SUMO_CLOCK_INFO{
       USHORT usEngineClockLow;  //clockfrequency & 0xFFFF. The unit is in 10khz
-      UCHAR  ucEngineClockHigh; //clockfrequency >> 16. 
+      UCHAR  ucEngineClockHigh; //clockfrequency >> 16.
       UCHAR  vddcIndex;         //2-bit vddc index;
       USHORT tdpLimit;
       //please initalize to 0
@@ -464,10 +464,10 @@ typedef struct _ATOM_PPLIB_CZ_CLOCK_INFO {
 
 typedef struct _ATOM_PPLIB_STATE_V2
 {
-      //number of valid dpm levels in this state; Driver uses it to calculate the whole 
+      //number of valid dpm levels in this state; Driver uses it to calculate the whole
       //size of the state: sizeof(ATOM_PPLIB_STATE_V2) + (ucNumDPMLevels - 1) * sizeof(UCHAR)
       UCHAR ucNumDPMLevels;
-      
+
       //a index to the array of nonClockInfos
       UCHAR nonClockInfoIndex;
       /**
@@ -477,9 +477,9 @@ typedef struct _ATOM_PPLIB_STATE_V2
 } ATOM_PPLIB_STATE_V2;
 
 typedef struct _StateArray{
-    //how many states we have 
+    //how many states we have
     UCHAR ucNumEntries;
-    
+
     ATOM_PPLIB_STATE_V2 states[1];
 }StateArray;
 
@@ -487,10 +487,10 @@ typedef struct _StateArray{
 typedef struct _ClockInfoArray{
     //how many clock levels we have
     UCHAR ucNumEntries;
-    
+
     //sizeof(ATOM_PPLIB_CLOCK_INFO)
     UCHAR ucEntrySize;
-    
+
     UCHAR clockInfo[1];
 }ClockInfoArray;
 
@@ -500,7 +500,7 @@ typedef struct _NonClockInfoArray{
     UCHAR ucNumEntries;
     //sizeof(ATOM_PPLIB_NONCLOCK_INFO)
     UCHAR ucEntrySize;
-    
+
     ATOM_PPLIB_NONCLOCK_INFO nonClockInfo[1];
 }NonClockInfoArray;
 
@@ -722,7 +722,7 @@ typedef struct _ATOM_PPLIB_PPM_Table
       ULONG  ulPlatformTDC;
       ULONG  ulSmallACPlatformTDC;
       ULONG  ulApuTDP;
-      ULONG  ulDGpuTDP;  
+      ULONG  ulDGpuTDP;
       ULONG  ulDGpuUlvPower;
       ULONG  ulTjmax;
 } ATOM_PPLIB_PPM_Table;

@@ -383,7 +383,7 @@ Documentation/filesystems/vfs.txt for more details.
 directory inodes on the way down a path walk (to check for exec permission). It
 must now be rcu-walk aware (mask & MAY_NOT_BLOCK).  See
 Documentation/filesystems/vfs.txt for more details.
- 
+
 --
 [mandatory]
 	In ->fallocate() you must check the mode option passed in.  If your
@@ -429,7 +429,7 @@ release it yourself.
 [mandatory]
 	d_alloc_root() is gone, along with a lot of bugs caused by code
 misusing it.  Replacement: d_make_root(inode).  The difference is,
-d_make_root() drops the reference to inode if dentry allocation fails.  
+d_make_root() drops the reference to inode if dentry allocation fails.
 
 --
 [mandatory]

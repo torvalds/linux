@@ -178,9 +178,9 @@ static int __init buddha_init(void)
 			buddha_num_hwifs = XSURF_NUM_HWIFS;
 			type=BOARD_XSURF;
 			d.port_ops = &xsurf_port_ops;
-		} else 
+		} else
 			continue;
-		
+
 		board = z->resource.start;
 
 		if(type != BOARD_XSURF) {
@@ -197,9 +197,9 @@ fail_base2:
 				release_mem_region(board+XSURF_BASE1, 0x1000);
 				continue;
 			}
-		}	  
+		}
 		buddha_board = (unsigned long)ZTWO_VADDR(board);
-		
+
 		/* write to BUDDHA_IRQ_MR to enable the board IRQ */
 		/* X-Surf doesn't have this.  IRQs are always on */
 		if (type != BOARD_XSURF)

@@ -33,7 +33,7 @@
  * We have mostly NULL's here: the current defaults are ok for
  * the ufs filesystem.
  */
- 
+
 const struct file_operations ufs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,

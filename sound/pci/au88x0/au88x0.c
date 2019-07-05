@@ -333,7 +333,7 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 				  &(chip->device))) < 0) {
 		snd_card_free(card);
 		return err;
-	}	
+	}
 	if ((err = pci_read_config_word(pci, PCI_VENDOR_ID,
 				  &(chip->vendor))) < 0) {
 		snd_card_free(card);

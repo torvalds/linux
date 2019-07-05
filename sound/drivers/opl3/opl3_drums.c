@@ -70,24 +70,24 @@ static void snd_opl3_drum_voice_set(struct snd_opl3 *opl3,
 	unsigned char op_offset = snd_opl3_regmap[data->voice][data->op];
 	unsigned char voice_offset = data->voice;
 	unsigned short opl3_reg;
-	
-	/* Set OPL3 AM_VIB register */ 
+
+	/* Set OPL3 AM_VIB register */
 	opl3_reg = OPL3_LEFT | (OPL3_REG_AM_VIB + op_offset);
 	opl3->command(opl3, opl3_reg, data->am_vib);
 
-	/* Set OPL3 KSL_LEVEL register */ 
+	/* Set OPL3 KSL_LEVEL register */
 	opl3_reg = OPL3_LEFT | (OPL3_REG_KSL_LEVEL + op_offset);
 	opl3->command(opl3, opl3_reg, data->ksl_level);
 
-	/* Set OPL3 ATTACK_DECAY register */ 
+	/* Set OPL3 ATTACK_DECAY register */
 	opl3_reg = OPL3_LEFT | (OPL3_REG_ATTACK_DECAY + op_offset);
 	opl3->command(opl3, opl3_reg, data->attack_decay);
 
-	/* Set OPL3 SUSTAIN_RELEASE register */ 
+	/* Set OPL3 SUSTAIN_RELEASE register */
 	opl3_reg = OPL3_LEFT | (OPL3_REG_SUSTAIN_RELEASE + op_offset);
 	opl3->command(opl3, opl3_reg, data->sustain_release);
 
-	/* Set OPL3 FEEDBACK_CONNECTION register */ 
+	/* Set OPL3 FEEDBACK_CONNECTION register */
 	opl3_reg = OPL3_LEFT | (OPL3_REG_FEEDBACK_CONNECTION + voice_offset);
 	opl3->command(opl3, opl3_reg, data->feedback_connection);
 
@@ -105,11 +105,11 @@ static void snd_opl3_drum_note_set(struct snd_opl3 *opl3,
 	unsigned char voice_offset = data->voice;
 	unsigned short opl3_reg;
 
-	/* Set OPL3 FNUM_LOW register */ 
+	/* Set OPL3 FNUM_LOW register */
 	opl3_reg = OPL3_LEFT | (OPL3_REG_FNUM_LOW + voice_offset);
 	opl3->command(opl3, opl3_reg, data->fnum);
 
-	/* Set OPL3 KEYON_BLOCK register */ 
+	/* Set OPL3 KEYON_BLOCK register */
 	opl3_reg = OPL3_LEFT | (OPL3_REG_KEYON_BLOCK + voice_offset);
 	opl3->command(opl3, opl3_reg, data->octave_f);
 }
@@ -126,13 +126,13 @@ static void snd_opl3_drum_vol_set(struct snd_opl3 *opl3,
 	unsigned char reg_val;
 	unsigned short opl3_reg;
 
-	/* Set OPL3 KSL_LEVEL register */ 
+	/* Set OPL3 KSL_LEVEL register */
 	reg_val = data->ksl_level;
 	snd_opl3_calc_volume(&reg_val, vel, chan);
 	opl3_reg = OPL3_LEFT | (OPL3_REG_KSL_LEVEL + op_offset);
 	opl3->command(opl3, opl3_reg, reg_val);
 
-	/* Set OPL3 FEEDBACK_CONNECTION register */ 
+	/* Set OPL3 FEEDBACK_CONNECTION register */
 	/* Set output voice connection */
 	reg_val = data->feedback_connection | OPL3_STEREO_BITS;
 	if (chan->gm_pan < 43)

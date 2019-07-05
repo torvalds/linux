@@ -134,7 +134,7 @@
 
 	backlight {
 		compatible = "gpio-backlight";
-		
+
 		pinctrl-names = "default";
 		pinctrl-0 = <&backlight_pins>;
 		gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;		/* gpio_145 */

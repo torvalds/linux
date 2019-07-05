@@ -12,7 +12,7 @@
  * This will set up the counters within the descriptor. You can call
  * trace_seq_init() more than once to reset the trace_seq to start
  * from scratch.
- * 
+ *
  * The buffer size is currently PAGE_SIZE, although it may become dynamic
  * in the future.
  *

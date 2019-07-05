@@ -422,7 +422,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 
 	/*
 	 * Verify that the fault happened in user space, that
-	 * we are not in an interrupt and that there is a 
+	 * we are not in an interrupt and that there is a
 	 * user context.
 	 */
 	fault = VM_FAULT_BADCONTEXT;
@@ -604,7 +604,7 @@ void do_dat_exception(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(do_dat_exception);
 
-#ifdef CONFIG_PFAULT 
+#ifdef CONFIG_PFAULT
 /*
  * 'pfault' pseudo page faults routines.
  */

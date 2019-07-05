@@ -427,7 +427,7 @@ static void tokenise(char *buffer, char *end)
 				}
 				memcpy(tokens[tix].content, start, tokens[tix].size);
 				tokens[tix].content[tokens[tix].size] = 0;
-				
+
 				/* If it begins with a lowercase letter then
 				 * it's an element name
 				 */

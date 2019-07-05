@@ -99,7 +99,7 @@ static const struct i2c_algo_bit_data matrox_i2c_algo_template =
 	.timeout	= 100,
 };
 
-static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo, 
+static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo,
 		unsigned int data, unsigned int clock, const char *name,
 		int class)
 {

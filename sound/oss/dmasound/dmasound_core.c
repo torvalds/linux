@@ -674,7 +674,7 @@ static __poll_t sq_poll(struct file *file, struct poll_table_struct *wait)
 {
 	__poll_t mask = 0;
 	int retVal;
-	
+
 	if (write_sq.locked == 0) {
 		if ((retVal = sq_setup(&write_sq)) < 0)
 			return retVal;

@@ -9,7 +9,7 @@
 
 #include "hpfs_fn.h"
 
-/* Remove external extended attributes. ano specifies whether a is a 
+/* Remove external extended attributes. ano specifies whether a is a
    direct sector where eas starts or an anode */
 
 void hpfs_ea_ext_remove(struct super_block *s, secno a, int ano, unsigned len)
@@ -181,7 +181,7 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
 	return NULL;
 }
 
-/* 
+/*
  * Update or create extended attribute 'key' with value 'data'. Note that
  * when this ea exists, it MUST have the same size as size of data.
  * This driver can't change sizes of eas ('cause I just don't need it).
@@ -365,4 +365,4 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 		else hpfs_free_sectors(s, le32_to_cpu(fnode->ea_secno) + ((le32_to_cpu(fnode->ea_size_l) + 511) >> 9), len - ((le32_to_cpu(fnode->ea_size_l) + 511) >> 9));
 	else fnode->ea_secno = fnode->ea_size_l = cpu_to_le32(0);
 }
-	
+

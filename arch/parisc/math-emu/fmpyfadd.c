@@ -59,20 +59,20 @@ dbl_fmpyfadd(
 	unsigned int signlessleft1, signlessright1, save;
 	register int result_exponent, diff_exponent;
 	int sign_save, jumpsize;
-	
+
 	Dbl_copyfromptr(src1ptr,opnd1p1,opnd1p2);
 	Dbl_copyfromptr(src2ptr,opnd2p1,opnd2p2);
 	Dbl_copyfromptr(src3ptr,opnd3p1,opnd3p2);
 
-	/* 
+	/*
 	 * set sign bit of result of multiply
 	 */
-	if (Dbl_sign(opnd1p1) ^ Dbl_sign(opnd2p1)) 
-		Dbl_setnegativezerop1(resultp1); 
+	if (Dbl_sign(opnd1p1) ^ Dbl_sign(opnd2p1))
+		Dbl_setnegativezerop1(resultp1);
 	else Dbl_setzerop1(resultp1);
 
 	/*
-	 * Generate multiply exponent 
+	 * Generate multiply exponent
 	 */
 	mpy_exponent = Dbl_exponent(opnd1p1) + Dbl_exponent(opnd2p1) - DBL_BIAS;
 
@@ -84,9 +84,9 @@ dbl_fmpyfadd(
 			if (Dbl_isnotnan(opnd2p1,opnd2p2) &&
 			    Dbl_isnotnan(opnd3p1,opnd3p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd2p1,opnd2p2)) {
-					/* 
-					 * invalid since operands are infinity 
-					 * and zero 
+					/*
+					 * invalid since operands are infinity
+					 * and zero
 					 */
 					if (Is_invalidtrap_enabled())
 						return(OPC_2E_INVALIDEXCEPTION);
@@ -101,7 +101,7 @@ dbl_fmpyfadd(
 				 */
 				if (Dbl_isinfinity(opnd3p1,opnd3p2) &&
 				    (Dbl_sign(resultp1) ^ Dbl_sign(opnd3p1))) {
-					/* 
+					/*
 					 * invalid since attempting a magnitude
 					 * subtraction of infinities
 					 */
@@ -127,14 +127,14 @@ dbl_fmpyfadd(
 		 	 */
 			if (Dbl_isone_signaling(opnd1p1)) {
 				/* trap if INVALIDTRAP enabled */
-				if (Is_invalidtrap_enabled()) 
+				if (Is_invalidtrap_enabled())
 			    		return(OPC_2E_INVALIDEXCEPTION);
 				/* make NaN quiet */
 				Set_invalidflag();
 				Dbl_set_quiet(opnd1p1);
 			}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd2p1)) {
 				/* trap if INVALIDTRAP enabled */
@@ -146,8 +146,8 @@ dbl_fmpyfadd(
 				Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
 				return(NOEXCEPTION);
 			}
-			/* 
-			 * is third operand a signaling NaN? 
+			/*
+			 * is third operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd3p1)) {
 				/* trap if INVALIDTRAP enabled */
@@ -174,7 +174,7 @@ dbl_fmpyfadd(
 		if (Dbl_iszero_mantissa(opnd2p1,opnd2p2)) {
 			if (Dbl_isnotnan(opnd3p1,opnd3p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd1p1,opnd1p2)) {
-					/* 
+					/*
 					 * invalid since multiply operands are
 					 * zero & infinity
 					 */
@@ -192,7 +192,7 @@ dbl_fmpyfadd(
 				 */
 				if (Dbl_isinfinity(opnd3p1,opnd3p2) &&
 				    (Dbl_sign(resultp1) ^ Dbl_sign(opnd3p1))) {
-					/* 
+					/*
 					 * invalid since attempting a magnitude
 					 * subtraction of infinities
 					 */
@@ -224,8 +224,8 @@ dbl_fmpyfadd(
 				Set_invalidflag();
 				Dbl_set_quiet(opnd2p1);
 			}
-			/* 
-			 * is third operand a signaling NaN? 
+			/*
+			 * is third operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd3p1)) {
 			       	/* trap if INVALIDTRAP enabled */
@@ -363,22 +363,22 @@ dbl_fmpyfadd(
 
 	/* Multiply the first two source mantissas together */
 
-	/* 
+	/*
 	 * The intermediate result will be kept in tmpres,
 	 * which needs enough room for 106 bits of mantissa,
 	 * so lets call it a Double extended.
 	 */
 	Dblext_setzero(tmpresp1,tmpresp2,tmpresp3,tmpresp4);
 
-	/* 
-	 * Four bits at a time are inspected in each loop, and a 
-	 * simple shift and add multiply algorithm is used. 
-	 */ 
+	/*
+	 * Four bits at a time are inspected in each loop, and a
+	 * simple shift and add multiply algorithm is used.
+	 */
 	for (count = DBL_P-1; count >= 0; count -= 4) {
 		Dblext_rightshiftby4(tmpresp1,tmpresp2,tmpresp3,tmpresp4);
 		if (Dbit28p2(opnd1p2)) {
 	 		/* Fourword_add should be an ADD followed by 3 ADDC's */
-			Fourword_add(tmpresp1, tmpresp2, tmpresp3, tmpresp4, 
+			Fourword_add(tmpresp1, tmpresp2, tmpresp3, tmpresp4,
 			 opnd2p1<<3 | opnd2p2>>29, opnd2p2<<3, 0, 0);
 		}
 		if (Dbit29p2(opnd1p2)) {
@@ -407,7 +407,7 @@ dbl_fmpyfadd(
 	 */
 	Dblext_set_sign(tmpresp1,Dbl_sign(resultp1));
 
-	/* 
+	/*
 	 * No rounding is required, since the result of the multiply
 	 * is exact in the extended format.
 	 */
@@ -442,8 +442,8 @@ dbl_fmpyfadd(
 			goto round;
 		}
 
-		/* 
-		 * Neither are zeroes.  
+		/*
+		 * Neither are zeroes.
 		 * Adjust exponent and normalize add operand.
 		 */
 		sign_save = Dbl_signextendedsign(opnd3p1);	/* save sign */
@@ -504,7 +504,7 @@ dbl_fmpyfadd(
 	Dblext_clear_sign(rightp1);
 	Dblext_right_align(rightp1,rightp2,rightp3,rightp4,
 		/*shifted by*/diff_exponent);
-	
+
 	/* Treat sum and difference of the operands separately. */
 	if ((int)save < 0) {
 		/*
@@ -521,13 +521,13 @@ dbl_fmpyfadd(
 		/* A straightforward algorithm would now shift the
 		 * result and extension left until the hidden bit
 		 * becomes one.  Not all of the extension bits need
-		 * participate in the shift.  Only the two most 
+		 * participate in the shift.  Only the two most
 		 * significant bits (round and guard) are needed.
 		 * If only a single shift is needed then the guard
 		 * bit becomes a significant low order bit and the
 		 * extension must participate in the rounding.
 		 * If more than a single shift is needed, then all
-		 * bits to the right of the guard bit are zeros, 
+		 * bits to the right of the guard bit are zeros,
 		 * and the guard bit may or may not be zero. */
 			Dblext_leftshiftby1(resultp1,resultp2,resultp3,
 				resultp4);
@@ -620,7 +620,7 @@ dbl_fmpyfadd(
 			result_exponent,is_tiny);
 	}
 	Dbl_set_sign(resultp1,/*using*/sign_save);
-	if (Dblext_isnotzero_mantissap3(resultp3) || 
+	if (Dblext_isnotzero_mantissap3(resultp3) ||
 	    Dblext_isnotzero_mantissap4(resultp4)) {
 		inexact = TRUE;
 		switch(Rounding_mode()) {
@@ -643,13 +643,13 @@ dbl_fmpyfadd(
 				Dbl_increment(resultp1,resultp2);
 			}
 			break;
-	    
+
 		case ROUNDMINUS:
 	    		if (Dbl_isone_sign(resultp1)) {
 				/* Round down negative results */
 				Dbl_increment(resultp1,resultp2);
 			}
-	    
+
 		case ROUNDZERO:;
 			/* truncate is simple */
 		} /* end switch... */
@@ -693,7 +693,7 @@ dbl_fmpyfadd(
 	}
 	else Dbl_set_exponent(resultp1,result_exponent);
 	Dbl_copytoptr(resultp1,resultp2,dstptr);
-	if (inexact) 
+	if (inexact)
 		if (Is_inexacttrap_enabled()) return(OPC_2E_INEXACTEXCEPTION);
 		else Set_inexactflag();
     	return(NOEXCEPTION);
@@ -718,21 +718,21 @@ unsigned int *status;
 	unsigned int signlessleft1, signlessright1, save;
 	register int result_exponent, diff_exponent;
 	int sign_save, jumpsize;
-	
+
 	Dbl_copyfromptr(src1ptr,opnd1p1,opnd1p2);
 	Dbl_copyfromptr(src2ptr,opnd2p1,opnd2p2);
 	Dbl_copyfromptr(src3ptr,opnd3p1,opnd3p2);
 
-	/* 
+	/*
 	 * set sign bit of result of multiply
 	 */
-	if (Dbl_sign(opnd1p1) ^ Dbl_sign(opnd2p1)) 
+	if (Dbl_sign(opnd1p1) ^ Dbl_sign(opnd2p1))
 		Dbl_setzerop1(resultp1);
 	else
-		Dbl_setnegativezerop1(resultp1); 
+		Dbl_setnegativezerop1(resultp1);
 
 	/*
-	 * Generate multiply exponent 
+	 * Generate multiply exponent
 	 */
 	mpy_exponent = Dbl_exponent(opnd1p1) + Dbl_exponent(opnd2p1) - DBL_BIAS;
 
@@ -744,9 +744,9 @@ unsigned int *status;
 			if (Dbl_isnotnan(opnd2p1,opnd2p2) &&
 			    Dbl_isnotnan(opnd3p1,opnd3p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd2p1,opnd2p2)) {
-					/* 
-					 * invalid since operands are infinity 
-					 * and zero 
+					/*
+					 * invalid since operands are infinity
+					 * and zero
 					 */
 					if (Is_invalidtrap_enabled())
 						return(OPC_2E_INVALIDEXCEPTION);
@@ -761,7 +761,7 @@ unsigned int *status;
 				 */
 				if (Dbl_isinfinity(opnd3p1,opnd3p2) &&
 				    (Dbl_sign(resultp1) ^ Dbl_sign(opnd3p1))) {
-					/* 
+					/*
 					 * invalid since attempting a magnitude
 					 * subtraction of infinities
 					 */
@@ -787,14 +787,14 @@ unsigned int *status;
 		 	 */
 			if (Dbl_isone_signaling(opnd1p1)) {
 				/* trap if INVALIDTRAP enabled */
-				if (Is_invalidtrap_enabled()) 
+				if (Is_invalidtrap_enabled())
 			    		return(OPC_2E_INVALIDEXCEPTION);
 				/* make NaN quiet */
 				Set_invalidflag();
 				Dbl_set_quiet(opnd1p1);
 			}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd2p1)) {
 				/* trap if INVALIDTRAP enabled */
@@ -806,8 +806,8 @@ unsigned int *status;
 				Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
 				return(NOEXCEPTION);
 			}
-			/* 
-			 * is third operand a signaling NaN? 
+			/*
+			 * is third operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd3p1)) {
 				/* trap if INVALIDTRAP enabled */
@@ -834,7 +834,7 @@ unsigned int *status;
 		if (Dbl_iszero_mantissa(opnd2p1,opnd2p2)) {
 			if (Dbl_isnotnan(opnd3p1,opnd3p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd1p1,opnd1p2)) {
-					/* 
+					/*
 					 * invalid since multiply operands are
 					 * zero & infinity
 					 */
@@ -852,7 +852,7 @@ unsigned int *status;
 				 */
 				if (Dbl_isinfinity(opnd3p1,opnd3p2) &&
 				    (Dbl_sign(resultp1) ^ Dbl_sign(opnd3p1))) {
-					/* 
+					/*
 					 * invalid since attempting a magnitude
 					 * subtraction of infinities
 					 */
@@ -884,8 +884,8 @@ unsigned int *status;
 				Set_invalidflag();
 				Dbl_set_quiet(opnd2p1);
 			}
-			/* 
-			 * is third operand a signaling NaN? 
+			/*
+			 * is third operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd3p1)) {
 			       	/* trap if INVALIDTRAP enabled */
@@ -1023,22 +1023,22 @@ unsigned int *status;
 
 	/* Multiply the first two source mantissas together */
 
-	/* 
+	/*
 	 * The intermediate result will be kept in tmpres,
 	 * which needs enough room for 106 bits of mantissa,
 	 * so lets call it a Double extended.
 	 */
 	Dblext_setzero(tmpresp1,tmpresp2,tmpresp3,tmpresp4);
 
-	/* 
-	 * Four bits at a time are inspected in each loop, and a 
-	 * simple shift and add multiply algorithm is used. 
-	 */ 
+	/*
+	 * Four bits at a time are inspected in each loop, and a
+	 * simple shift and add multiply algorithm is used.
+	 */
 	for (count = DBL_P-1; count >= 0; count -= 4) {
 		Dblext_rightshiftby4(tmpresp1,tmpresp2,tmpresp3,tmpresp4);
 		if (Dbit28p2(opnd1p2)) {
 	 		/* Fourword_add should be an ADD followed by 3 ADDC's */
-			Fourword_add(tmpresp1, tmpresp2, tmpresp3, tmpresp4, 
+			Fourword_add(tmpresp1, tmpresp2, tmpresp3, tmpresp4,
 			 opnd2p1<<3 | opnd2p2>>29, opnd2p2<<3, 0, 0);
 		}
 		if (Dbit29p2(opnd1p2)) {
@@ -1067,7 +1067,7 @@ unsigned int *status;
 	 */
 	Dblext_set_sign(tmpresp1,Dbl_sign(resultp1));
 
-	/* 
+	/*
 	 * No rounding is required, since the result of the multiply
 	 * is exact in the extended format.
 	 */
@@ -1102,8 +1102,8 @@ unsigned int *status;
 			goto round;
 		}
 
-		/* 
-		 * Neither are zeroes.  
+		/*
+		 * Neither are zeroes.
 		 * Adjust exponent and normalize add operand.
 		 */
 		sign_save = Dbl_signextendedsign(opnd3p1);	/* save sign */
@@ -1164,7 +1164,7 @@ unsigned int *status;
 	Dblext_clear_sign(rightp1);
 	Dblext_right_align(rightp1,rightp2,rightp3,rightp4,
 		/*shifted by*/diff_exponent);
-	
+
 	/* Treat sum and difference of the operands separately. */
 	if ((int)save < 0) {
 		/*
@@ -1181,13 +1181,13 @@ unsigned int *status;
 		/* A straightforward algorithm would now shift the
 		 * result and extension left until the hidden bit
 		 * becomes one.  Not all of the extension bits need
-		 * participate in the shift.  Only the two most 
+		 * participate in the shift.  Only the two most
 		 * significant bits (round and guard) are needed.
 		 * If only a single shift is needed then the guard
 		 * bit becomes a significant low order bit and the
 		 * extension must participate in the rounding.
 		 * If more than a single shift is needed, then all
-		 * bits to the right of the guard bit are zeros, 
+		 * bits to the right of the guard bit are zeros,
 		 * and the guard bit may or may not be zero. */
 			Dblext_leftshiftby1(resultp1,resultp2,resultp3,
 				resultp4);
@@ -1280,7 +1280,7 @@ unsigned int *status;
 			result_exponent,is_tiny);
 	}
 	Dbl_set_sign(resultp1,/*using*/sign_save);
-	if (Dblext_isnotzero_mantissap3(resultp3) || 
+	if (Dblext_isnotzero_mantissap3(resultp3) ||
 	    Dblext_isnotzero_mantissap4(resultp4)) {
 		inexact = TRUE;
 		switch(Rounding_mode()) {
@@ -1303,13 +1303,13 @@ unsigned int *status;
 				Dbl_increment(resultp1,resultp2);
 			}
 			break;
-	    
+
 		case ROUNDMINUS:
 	    		if (Dbl_isone_sign(resultp1)) {
 				/* Round down negative results */
 				Dbl_increment(resultp1,resultp2);
 			}
-	    
+
 		case ROUNDZERO:;
 			/* truncate is simple */
 		} /* end switch... */
@@ -1351,7 +1351,7 @@ unsigned int *status;
 	}
 	else Dbl_set_exponent(resultp1,result_exponent);
 	Dbl_copytoptr(resultp1,resultp2,dstptr);
-	if (inexact) 
+	if (inexact)
 		if (Is_inexacttrap_enabled()) return(OPC_2E_INEXACTEXCEPTION);
 		else Set_inexactflag();
     	return(NOEXCEPTION);
@@ -1376,20 +1376,20 @@ unsigned int *status;
 	unsigned int signlessleft1, signlessright1, save;
 	register int result_exponent, diff_exponent;
 	int sign_save, jumpsize;
-	
+
 	Sgl_copyfromptr(src1ptr,opnd1);
 	Sgl_copyfromptr(src2ptr,opnd2);
 	Sgl_copyfromptr(src3ptr,opnd3);
 
-	/* 
+	/*
 	 * set sign bit of result of multiply
 	 */
-	if (Sgl_sign(opnd1) ^ Sgl_sign(opnd2)) 
-		Sgl_setnegativezero(resultp1); 
+	if (Sgl_sign(opnd1) ^ Sgl_sign(opnd2))
+		Sgl_setnegativezero(resultp1);
 	else Sgl_setzero(resultp1);
 
 	/*
-	 * Generate multiply exponent 
+	 * Generate multiply exponent
 	 */
 	mpy_exponent = Sgl_exponent(opnd1) + Sgl_exponent(opnd2) - SGL_BIAS;
 
@@ -1400,9 +1400,9 @@ unsigned int *status;
 		if (Sgl_iszero_mantissa(opnd1)) {
 			if (Sgl_isnotnan(opnd2) && Sgl_isnotnan(opnd3)) {
 				if (Sgl_iszero_exponentmantissa(opnd2)) {
-					/* 
-					 * invalid since operands are infinity 
-					 * and zero 
+					/*
+					 * invalid since operands are infinity
+					 * and zero
 					 */
 					if (Is_invalidtrap_enabled())
 						return(OPC_2E_INVALIDEXCEPTION);
@@ -1417,7 +1417,7 @@ unsigned int *status;
 				 */
 				if (Sgl_isinfinity(opnd3) &&
 				    (Sgl_sign(resultp1) ^ Sgl_sign(opnd3))) {
-					/* 
+					/*
 					 * invalid since attempting a magnitude
 					 * subtraction of infinities
 					 */
@@ -1443,14 +1443,14 @@ unsigned int *status;
 		 	 */
 			if (Sgl_isone_signaling(opnd1)) {
 				/* trap if INVALIDTRAP enabled */
-				if (Is_invalidtrap_enabled()) 
+				if (Is_invalidtrap_enabled())
 			    		return(OPC_2E_INVALIDEXCEPTION);
 				/* make NaN quiet */
 				Set_invalidflag();
 				Sgl_set_quiet(opnd1);
 			}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Sgl_is_signalingnan(opnd2)) {
 				/* trap if INVALIDTRAP enabled */
@@ -1462,8 +1462,8 @@ unsigned int *status;
 				Sgl_copytoptr(opnd2,dstptr);
 				return(NOEXCEPTION);
 			}
-			/* 
-			 * is third operand a signaling NaN? 
+			/*
+			 * is third operand a signaling NaN?
 			 */
 			else if (Sgl_is_signalingnan(opnd3)) {
 				/* trap if INVALIDTRAP enabled */
@@ -1490,7 +1490,7 @@ unsigned int *status;
 		if (Sgl_iszero_mantissa(opnd2)) {
 			if (Sgl_isnotnan(opnd3)) {
 				if (Sgl_iszero_exponentmantissa(opnd1)) {
-					/* 
+					/*
 					 * invalid since multiply operands are
 					 * zero & infinity
 					 */
@@ -1508,7 +1508,7 @@ unsigned int *status;
 				 */
 				if (Sgl_isinfinity(opnd3) &&
 				    (Sgl_sign(resultp1) ^ Sgl_sign(opnd3))) {
-					/* 
+					/*
 					 * invalid since attempting a magnitude
 					 * subtraction of infinities
 					 */
@@ -1540,8 +1540,8 @@ unsigned int *status;
 				Set_invalidflag();
 				Sgl_set_quiet(opnd2);
 			}
-			/* 
-			 * is third operand a signaling NaN? 
+			/*
+			 * is third operand a signaling NaN?
 			 */
 			else if (Sgl_is_signalingnan(opnd3)) {
 			       	/* trap if INVALIDTRAP enabled */
@@ -1679,17 +1679,17 @@ unsigned int *status;
 
 	/* Multiply the first two source mantissas together */
 
-	/* 
+	/*
 	 * The intermediate result will be kept in tmpres,
 	 * which needs enough room for 106 bits of mantissa,
 	 * so lets call it a Double extended.
 	 */
 	Sglext_setzero(tmpresp1,tmpresp2);
 
-	/* 
-	 * Four bits at a time are inspected in each loop, and a 
-	 * simple shift and add multiply algorithm is used. 
-	 */ 
+	/*
+	 * Four bits at a time are inspected in each loop, and a
+	 * simple shift and add multiply algorithm is used.
+	 */
 	for (count = SGL_P-1; count >= 0; count -= 4) {
 		Sglext_rightshiftby4(tmpresp1,tmpresp2);
 		if (Sbit28(opnd1)) {
@@ -1721,7 +1721,7 @@ unsigned int *status;
 	 */
 	Sglext_set_sign(tmpresp1,Sgl_sign(resultp1));
 
-	/* 
+	/*
 	 * No rounding is required, since the result of the multiply
 	 * is exact in the extended format.
 	 */
@@ -1755,8 +1755,8 @@ unsigned int *status;
 			goto round;
 		}
 
-		/* 
-		 * Neither are zeroes.  
+		/*
+		 * Neither are zeroes.
 		 * Adjust exponent and normalize add operand.
 		 */
 		sign_save = Sgl_signextendedsign(opnd3);	/* save sign */
@@ -1815,7 +1815,7 @@ unsigned int *status;
 	/* Align right operand by shifting it to the right */
 	Sglext_clear_sign(rightp1);
 	Sglext_right_align(rightp1,rightp2,/*shifted by*/diff_exponent);
-	
+
 	/* Treat sum and difference of the operands separately. */
 	if ((int)save < 0) {
 		/*
@@ -1831,13 +1831,13 @@ unsigned int *status;
 		/* A straightforward algorithm would now shift the
 		 * result and extension left until the hidden bit
 		 * becomes one.  Not all of the extension bits need
-		 * participate in the shift.  Only the two most 
+		 * participate in the shift.  Only the two most
 		 * significant bits (round and guard) are needed.
 		 * If only a single shift is needed then the guard
 		 * bit becomes a significant low order bit and the
 		 * extension must participate in the rounding.
 		 * If more than a single shift is needed, then all
-		 * bits to the right of the guard bit are zeros, 
+		 * bits to the right of the guard bit are zeros,
 		 * and the guard bit may or may not be zero. */
 			Sglext_leftshiftby1(resultp1,resultp2);
 
@@ -1944,13 +1944,13 @@ unsigned int *status;
 				Sgl_increment(resultp1);
 			}
 			break;
-	    
+
 		case ROUNDMINUS:
 	    		if (Sgl_isone_sign(resultp1)) {
 				/* Round down negative results */
 				Sgl_increment(resultp1);
 			}
-	    
+
 		case ROUNDZERO:;
 			/* truncate is simple */
 		} /* end switch... */
@@ -1992,7 +1992,7 @@ unsigned int *status;
 	}
 	else Sgl_set_exponent(resultp1,result_exponent);
 	Sgl_copytoptr(resultp1,dstptr);
-	if (inexact) 
+	if (inexact)
 		if (Is_inexacttrap_enabled()) return(OPC_2E_INEXACTEXCEPTION);
 		else Set_inexactflag();
     	return(NOEXCEPTION);
@@ -2017,21 +2017,21 @@ unsigned int *status;
 	unsigned int signlessleft1, signlessright1, save;
 	register int result_exponent, diff_exponent;
 	int sign_save, jumpsize;
-	
+
 	Sgl_copyfromptr(src1ptr,opnd1);
 	Sgl_copyfromptr(src2ptr,opnd2);
 	Sgl_copyfromptr(src3ptr,opnd3);
 
-	/* 
+	/*
 	 * set sign bit of result of multiply
 	 */
-	if (Sgl_sign(opnd1) ^ Sgl_sign(opnd2)) 
+	if (Sgl_sign(opnd1) ^ Sgl_sign(opnd2))
 		Sgl_setzero(resultp1);
-	else 
-		Sgl_setnegativezero(resultp1); 
+	else
+		Sgl_setnegativezero(resultp1);
 
 	/*
-	 * Generate multiply exponent 
+	 * Generate multiply exponent
 	 */
 	mpy_exponent = Sgl_exponent(opnd1) + Sgl_exponent(opnd2) - SGL_BIAS;
 
@@ -2042,9 +2042,9 @@ unsigned int *status;
 		if (Sgl_iszero_mantissa(opnd1)) {
 			if (Sgl_isnotnan(opnd2) && Sgl_isnotnan(opnd3)) {
 				if (Sgl_iszero_exponentmantissa(opnd2)) {
-					/* 
-					 * invalid since operands are infinity 
-					 * and zero 
+					/*
+					 * invalid since operands are infinity
+					 * and zero
 					 */
 					if (Is_invalidtrap_enabled())
 						return(OPC_2E_INVALIDEXCEPTION);
@@ -2059,7 +2059,7 @@ unsigned int *status;
 				 */
 				if (Sgl_isinfinity(opnd3) &&
 				    (Sgl_sign(resultp1) ^ Sgl_sign(opnd3))) {
-					/* 
+					/*
 					 * invalid since attempting a magnitude
 					 * subtraction of infinities
 					 */
@@ -2085,14 +2085,14 @@ unsigned int *status;
 		 	 */
 			if (Sgl_isone_signaling(opnd1)) {
 				/* trap if INVALIDTRAP enabled */
-				if (Is_invalidtrap_enabled()) 
+				if (Is_invalidtrap_enabled())
 			    		return(OPC_2E_INVALIDEXCEPTION);
 				/* make NaN quiet */
 				Set_invalidflag();
 				Sgl_set_quiet(opnd1);
 			}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Sgl_is_signalingnan(opnd2)) {
 				/* trap if INVALIDTRAP enabled */
@@ -2104,8 +2104,8 @@ unsigned int *status;
 				Sgl_copytoptr(opnd2,dstptr);
 				return(NOEXCEPTION);
 			}
-			/* 
-			 * is third operand a signaling NaN? 
+			/*
+			 * is third operand a signaling NaN?
 			 */
 			else if (Sgl_is_signalingnan(opnd3)) {
 				/* trap if INVALIDTRAP enabled */
@@ -2132,7 +2132,7 @@ unsigned int *status;
 		if (Sgl_iszero_mantissa(opnd2)) {
 			if (Sgl_isnotnan(opnd3)) {
 				if (Sgl_iszero_exponentmantissa(opnd1)) {
-					/* 
+					/*
 					 * invalid since multiply operands are
 					 * zero & infinity
 					 */
@@ -2150,7 +2150,7 @@ unsigned int *status;
 				 */
 				if (Sgl_isinfinity(opnd3) &&
 				    (Sgl_sign(resultp1) ^ Sgl_sign(opnd3))) {
-					/* 
+					/*
 					 * invalid since attempting a magnitude
 					 * subtraction of infinities
 					 */
@@ -2182,8 +2182,8 @@ unsigned int *status;
 				Set_invalidflag();
 				Sgl_set_quiet(opnd2);
 			}
-			/* 
-			 * is third operand a signaling NaN? 
+			/*
+			 * is third operand a signaling NaN?
 			 */
 			else if (Sgl_is_signalingnan(opnd3)) {
 			       	/* trap if INVALIDTRAP enabled */
@@ -2321,17 +2321,17 @@ unsigned int *status;
 
 	/* Multiply the first two source mantissas together */
 
-	/* 
+	/*
 	 * The intermediate result will be kept in tmpres,
 	 * which needs enough room for 106 bits of mantissa,
 	 * so lets call it a Double extended.
 	 */
 	Sglext_setzero(tmpresp1,tmpresp2);
 
-	/* 
-	 * Four bits at a time are inspected in each loop, and a 
-	 * simple shift and add multiply algorithm is used. 
-	 */ 
+	/*
+	 * Four bits at a time are inspected in each loop, and a
+	 * simple shift and add multiply algorithm is used.
+	 */
 	for (count = SGL_P-1; count >= 0; count -= 4) {
 		Sglext_rightshiftby4(tmpresp1,tmpresp2);
 		if (Sbit28(opnd1)) {
@@ -2363,7 +2363,7 @@ unsigned int *status;
 	 */
 	Sglext_set_sign(tmpresp1,Sgl_sign(resultp1));
 
-	/* 
+	/*
 	 * No rounding is required, since the result of the multiply
 	 * is exact in the extended format.
 	 */
@@ -2397,8 +2397,8 @@ unsigned int *status;
 			goto round;
 		}
 
-		/* 
-		 * Neither are zeroes.  
+		/*
+		 * Neither are zeroes.
 		 * Adjust exponent and normalize add operand.
 		 */
 		sign_save = Sgl_signextendedsign(opnd3);	/* save sign */
@@ -2457,7 +2457,7 @@ unsigned int *status;
 	/* Align right operand by shifting it to the right */
 	Sglext_clear_sign(rightp1);
 	Sglext_right_align(rightp1,rightp2,/*shifted by*/diff_exponent);
-	
+
 	/* Treat sum and difference of the operands separately. */
 	if ((int)save < 0) {
 		/*
@@ -2473,13 +2473,13 @@ unsigned int *status;
 		/* A straightforward algorithm would now shift the
 		 * result and extension left until the hidden bit
 		 * becomes one.  Not all of the extension bits need
-		 * participate in the shift.  Only the two most 
+		 * participate in the shift.  Only the two most
 		 * significant bits (round and guard) are needed.
 		 * If only a single shift is needed then the guard
 		 * bit becomes a significant low order bit and the
 		 * extension must participate in the rounding.
 		 * If more than a single shift is needed, then all
-		 * bits to the right of the guard bit are zeros, 
+		 * bits to the right of the guard bit are zeros,
 		 * and the guard bit may or may not be zero. */
 			Sglext_leftshiftby1(resultp1,resultp2);
 
@@ -2586,13 +2586,13 @@ unsigned int *status;
 				Sgl_increment(resultp1);
 			}
 			break;
-	    
+
 		case ROUNDMINUS:
 	    		if (Sgl_isone_sign(resultp1)) {
 				/* Round down negative results */
 				Sgl_increment(resultp1);
 			}
-	    
+
 		case ROUNDZERO:;
 			/* truncate is simple */
 		} /* end switch... */
@@ -2634,7 +2634,7 @@ unsigned int *status;
 	}
 	else Sgl_set_exponent(resultp1,result_exponent);
 	Sgl_copytoptr(resultp1,dstptr);
-	if (inexact) 
+	if (inexact)
 		if (Is_inexacttrap_enabled()) return(OPC_2E_INEXACTEXCEPTION);
 		else Set_inexactflag();
     	return(NOEXCEPTION);

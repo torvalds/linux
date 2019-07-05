@@ -251,7 +251,7 @@ snd_emux_ioctl_seq_oss(struct snd_seq_oss_arg *arg, unsigned int cmd, unsigned l
 	case SNDCTL_SEQ_RESETSAMPLES:
 		snd_soundfont_remove_samples(emu->sflist);
 		return 0;
-			
+
 	case SNDCTL_SYNTH_MEMAVL:
 		if (emu->memhdr)
 			return snd_util_mem_avail(emu->memhdr);
@@ -345,7 +345,7 @@ emuspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 		if (chan)
 			snd_emux_send_effect_oss(port, chan, p1, p2);
 		break;
-		
+
 	case _EMUX_OSS_TERMINATE_ALL:
 		snd_emux_terminate_all(emu);
 		break;

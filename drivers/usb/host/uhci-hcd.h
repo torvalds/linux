@@ -354,7 +354,7 @@ struct uhci_td {
  * To prevent "bouncing" in the presence of electrical noise,
  * when there are no devices attached we delay for 1 second in the
  * RUNNING_NODEVS state before switching to the AUTO_STOPPED state.
- * 
+ *
  * (Note that the AUTO_STOPPED state won't be necessary once the hub
  * driver learns to autosuspend.)
  */

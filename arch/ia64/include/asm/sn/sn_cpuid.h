@@ -1,4 +1,4 @@
-/* 
+/*
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -19,7 +19,7 @@
 
 /*
  * Functions for converting between cpuids, nodeids and NASIDs.
- * 
+ *
  * These are for SGI platforms only.
  *
  */
@@ -40,7 +40,7 @@
  *		This is the same as 31:24 of the processor LID register
  *			hard_smp_processor_id()- cpu_physical_id of current processor
  *			cpu_physical_id(cpuid) - convert a <cpuid> to a <physical_cpuid>
- *			cpu_logical_id(phy_id) - convert a <physical_cpuid> to a <cpuid> 
+ *			cpu_logical_id(phy_id) - convert a <physical_cpuid> to a <cpuid>
  *				* not real efficient - don't use in perf critical code
  *
  *         SLICE - a number in the range of 0 - 3 (typically) that represents the
@@ -49,7 +49,7 @@
  *	   SUBNODE - (almost obsolete) the number of the FSB that a cpu is
  *		connected to. This is also the same as the PI number. Usually 0 or 1.
  *
- *	NOTE!!!: the value of the bits in the cpu physical id (SAPICid or LID) of a cpu has no 
+ *	NOTE!!!: the value of the bits in the cpu physical id (SAPICid or LID) of a cpu has no
  *	significance. The SAPIC id (LID) is a 16-bit cookie that has meaning only to the PROM.
  *
  *
@@ -64,7 +64,7 @@
  *            |       |               |       |
  *            |       |               |       |
  *          0 |       | 2           0 |       | 2       FSB SLOT
- *             -------                 -------  
+ *             -------                 -------
  *                |                       |
  *                |                       |
  *                |                       |
@@ -76,7 +76,7 @@
  *             |          |      |           |
  *             ------------      -------------
  *                   |                 |
- *                           
+ *
  *
  */
 
@@ -116,7 +116,7 @@ extern int nasid_slice_to_cpuid(int, int);
  * cnodeid_to_nasid - convert a cnodeid to a NASID
  */
 #define cnodeid_to_nasid(cnodeid)	(sn_cnodeid_to_nasid[cnodeid])
- 
+
 /*
  * nasid_to_cnodeid - convert a NASID to a cnodeid
  */

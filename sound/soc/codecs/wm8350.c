@@ -1264,7 +1264,7 @@ static void wm8350_hpr_work(struct work_struct *work)
 {
 	struct wm8350_data *priv =
 	    container_of(work, struct wm8350_data, hpr.work.work);
-	
+
 	wm8350_hp_work(priv, &priv->hpr, WM8350_JACK_R_LVL);
 }
 

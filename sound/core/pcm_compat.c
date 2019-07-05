@@ -295,7 +295,7 @@ static int snd_pcm_status_user_x32(struct snd_pcm_substream *substream,
 
 /* both for HW_PARAMS and HW_REFINE */
 static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
-					  int refine, 
+					  int refine,
 					  struct snd_pcm_hw_params32 __user *data32)
 {
 	struct snd_pcm_hw_params *data;

@@ -28,7 +28,7 @@
 /*
  *  Basic linear conversion plugin
  */
- 
+
 struct linear_priv {
 	int cvt_endian;		/* need endian conversion? */
 	unsigned int src_ofs;	/* byte offset in source format */

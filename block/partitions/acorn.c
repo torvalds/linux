@@ -74,7 +74,7 @@ static int riscix_partition(struct parsed_partitions *state,
 {
 	Sector sect;
 	struct riscix_record *rr;
-	
+
 	rr = read_part_sector(state, first_sect, &sect);
 	if (!rr)
 		return -1;

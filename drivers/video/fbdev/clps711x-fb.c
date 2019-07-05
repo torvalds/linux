@@ -346,7 +346,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 				       &clps711x_lcd_ops);
 	if (!IS_ERR(lcd))
 		return 0;
-	
+
 	ret = PTR_ERR(lcd);
 	unregister_framebuffer(info);
 

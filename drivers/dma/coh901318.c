@@ -1360,7 +1360,7 @@ static ssize_t coh901318_debugfs_read(struct file *file, char __user *buf,
 
 	tmp += sprintf(tmp, "Pool alloc nbr %d\n", pool_count);
 
-	ret = simple_read_from_buffer(buf, count, f_pos, dev_buf, 
+	ret = simple_read_from_buffer(buf, count, f_pos, dev_buf,
 					tmp - dev_buf);
 	kfree(dev_buf);
 	return ret;

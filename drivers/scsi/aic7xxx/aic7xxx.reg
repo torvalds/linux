@@ -170,7 +170,7 @@ register SCSISIGO {
 	dont_generate_debug_code
 }
 
-/* 
+/*
  * SCSI Rate Control (p. 3-17).
  * Contents of this register determine the Synchronous SCSI data transfer
  * rate and the maximum synchronous Req/Ack offset.  An offset of 0 in the
@@ -233,7 +233,7 @@ register SCSIDATH {
  * across the SCSI bus.  The counter is decremented only once
  * the data has been safely transferred.  SDONE in SSTAT0 is
  * set when STCNT goes to 0
- */ 
+ */
 register STCNT {
 	address			0x008
 	size	3
@@ -514,7 +514,7 @@ register SPIOCAP {
 	count		10
 	field	SOFT1		0x80
 	field	SOFT0		0x40
-	field	SOFTCMDEN	0x20	
+	field	SOFTCMDEN	0x20
 	field	EXT_BRDCTL	0x10	/* External Board control */
 	field	SEEPROM		0x08	/* External serial eeprom logic */
 	field	EEPROM		0x04	/* Writable external BIOS ROM */
@@ -552,19 +552,19 @@ register BRDCTL	{
  * port is not busy servicing another request, it reconfigures
  * to allow access to the serial EEPROM.  When this happens, SEERDY
  * gets set high to verify that the memory port access has been
- * granted.  
+ * granted.
  *
- * After successful arbitration for the memory port, the SEECS bit of 
- * the SEECTL register is connected to the chip select.  The SEECK, 
- * SEEDO, and SEEDI are connected to the clock, data out, and data in 
- * lines respectively.  The SEERDY bit of SEECTL is useful in that it 
- * gives us an 800 nsec timer.  After a write to the SEECTL register, 
- * the SEERDY goes high 800 nsec later.  The one exception to this is 
- * when we first request access to the memory port.  The SEERDY goes 
- * high to signify that access has been granted and, for this case, has 
+ * After successful arbitration for the memory port, the SEECS bit of
+ * the SEECTL register is connected to the chip select.  The SEECK,
+ * SEEDO, and SEEDI are connected to the clock, data out, and data in
+ * lines respectively.  The SEERDY bit of SEECTL is useful in that it
+ * gives us an 800 nsec timer.  After a write to the SEECTL register,
+ * the SEERDY goes high 800 nsec later.  The one exception to this is
+ * when we first request access to the memory port.  The SEERDY goes
+ * high to signify that access has been granted and, for this case, has
  * no implied timing.
  *
- * See 93cx6.c for detailed information on the protocol necessary to 
+ * See 93cx6.c for detailed information on the protocol necessary to
  * read the serial EEPROM.
  */
 register SEECTL {
@@ -876,7 +876,7 @@ register INTSTAT {
 	field	SEQINT    0x01
 	mask	BAD_PHASE	SEQINT		/* unknown scsi bus phase */
 	mask	SEND_REJECT	0x10|SEQINT	/* sending a message reject */
-	mask	PROTO_VIOLATION	0x20|SEQINT	/* SCSI protocol violation */ 
+	mask	PROTO_VIOLATION	0x20|SEQINT	/* SCSI protocol violation */
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
 	mask	IGN_WIDE_RES	0x40|SEQINT	/* Complex IGN Wide Res Msg */
 	mask	PDATA_REINIT	0x50|SEQINT	/*
@@ -909,7 +909,7 @@ register INTSTAT {
 	mask	MKMSG_FAILED	0xa0|SEQINT	/*
 						 * Target completed command
 						 * without honoring our ATN
-						 * request to issue a message. 
+						 * request to issue a message.
 						 */
 	mask	MISSED_BUSFREE	0xb0|SEQINT	/*
 						 * The sequencer never saw
@@ -1498,7 +1498,7 @@ scratch_ram {
 		dont_generate_debug_code
 	}
 	/*
-	 * The last bus phase as seen by the sequencer. 
+	 * The last bus phase as seen by the sequencer.
 	 */
 	LASTPHASE {
 		size		1
@@ -1702,7 +1702,7 @@ scratch_ram {
 		size		1
 		count		1
 		mask	BIOSMODE		0x30
-		mask	BIOSDISABLED		0x30	
+		mask	BIOSDISABLED		0x30
 		field	CHANNEL_B_PRIMARY	0x08
 		dont_generate_debug_code
 	}

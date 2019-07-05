@@ -564,7 +564,7 @@ out:
 			"direct & indirect"
 		};
 		if (def->flags == 0) {
-			def->shift = 0;	
+			def->shift = 0;
 			continue;
 		}
 		pr_info("  %8ld KB as %s\n", 1ul << (def->shift - 10),

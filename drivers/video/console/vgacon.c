@@ -1120,14 +1120,14 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	/* First, the Sequencer */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x1);
 	/* CPU writes only to map 2 */
-	vga_wseq(state->vgabase, VGA_SEQ_PLANE_WRITE, 0x04);	
+	vga_wseq(state->vgabase, VGA_SEQ_PLANE_WRITE, 0x04);
 	/* Sequential addressing */
-	vga_wseq(state->vgabase, VGA_SEQ_MEMORY_MODE, 0x07);	
+	vga_wseq(state->vgabase, VGA_SEQ_MEMORY_MODE, 0x07);
 	/* Clear synchronous reset */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x03);
 
 	/* Now, the graphics controller, select map 2 */
-	vga_wgfx(state->vgabase, VGA_GFX_PLANE_READ, 0x02);		
+	vga_wgfx(state->vgabase, VGA_GFX_PLANE_READ, 0x02);
 	/* disable odd-even addressing */
 	vga_wgfx(state->vgabase, VGA_GFX_MODE, 0x00);
 	/* map start at A000:0000 */
@@ -1169,7 +1169,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 
 	raw_spin_lock_irq(&vga_lock);
 	/* First, the sequencer, Synchronous reset */
-	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x01);	
+	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x01);
 	/* CPU writes to maps 0 and 1 */
 	vga_wseq(state->vgabase, VGA_SEQ_PLANE_WRITE, 0x03);
 	/* odd-even addressing */
@@ -1198,7 +1198,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 		/* Wilton (1987) mentions the following; I don't know what
 		   it means, but it works, and it appears necessary */
 		inb_p(video_port_status);
-		vga_wattr(state->vgabase, VGA_AR_ENABLE_DISPLAY, 0);	
+		vga_wattr(state->vgabase, VGA_AR_ENABLE_DISPLAY, 0);
 		clear_attribs = true;
 	}
 	raw_spin_unlock_irq(&vga_lock);

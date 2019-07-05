@@ -362,7 +362,7 @@ int main(int argc, char **argv)
 		case 'A':
 			autochannels = AUTOCHANNELS_ENABLED;
 			force_autochannels = true;
-			break;	
+			break;
 		case 'c':
 			errno = 0;
 			num_loops = strtoll(optarg, &dummy, 10);

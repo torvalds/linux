@@ -89,7 +89,7 @@ enum {
 /*11*/	EMUX_FX_ENV2_DECAY,	/* BYTE: lw DCYSUSV */
 /*12*/	EMUX_FX_ENV2_RELEASE,	/* BYTE: lw DCYSUSV */
 /*13*/	EMUX_FX_ENV2_SUSTAIN,	/* BYTE: up DCYSUSV */
-	
+
 /* LFO1 (tremolo & vibrato) parameters */
 /*14*/	EMUX_FX_LFO1_DELAY,	/* WORD: LFO1VAL */
 /*15*/	EMUX_FX_LFO1_FREQ,	/* BYTE: lo TREMFRQ */

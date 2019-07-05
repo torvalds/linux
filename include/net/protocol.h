@@ -16,7 +16,7 @@
  *		Alan Cox	:	Cleaned up, and sorted types.
  *		Pedro Roque	:	inet6 protocols
  */
- 
+
 #ifndef _PROTOCOL_H
 #define _PROTOCOL_H
 
@@ -87,7 +87,7 @@ struct inet_protosw {
 
 	struct proto	 *prot;
 	const struct proto_ops *ops;
-  
+
 	unsigned char	 flags;      /* See INET_PROTOSW_* below.  */
 };
 #define INET_PROTOSW_REUSE 0x01	     /* Are ports automatically reusable? */

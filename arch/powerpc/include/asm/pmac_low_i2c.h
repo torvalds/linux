@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* 
+/*
  *  include/asm-ppc/pmac_low_i2c.h
  *
  *  Copyright (C) 2003 Ben. Herrenschmidt (benh@kernel.crashing.org)

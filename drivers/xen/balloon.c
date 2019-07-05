@@ -329,7 +329,7 @@ static enum bp_state reserve_additional_memory(void)
          * If a failure occurs, the original (identity) p2m entries
          * are not restored since this region is now known not to
          * conflict with any devices.
-         */ 
+         */
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 		unsigned long pfn, i;
 

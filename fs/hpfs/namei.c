@@ -59,9 +59,9 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	hpfs_i(result)->i_parent_dir = dir->i_ino;
 	hpfs_i(result)->i_dno = dno;
 	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(dee.creation_date));
-	result->i_ctime.tv_nsec = 0; 
-	result->i_mtime.tv_nsec = 0; 
-	result->i_atime.tv_nsec = 0; 
+	result->i_ctime.tv_nsec = 0;
+	result->i_mtime.tv_nsec = 0;
+	result->i_atime.tv_nsec = 0;
 	hpfs_i(result)->i_ea_size = 0;
 	result->i_mode |= S_IFDIR;
 	result->i_op = &hpfs_dir_iops;
@@ -156,7 +156,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, b
 	result = new_inode(dir->i_sb);
 	if (!result)
 		goto bail1;
-	
+
 	hpfs_init_inode(result);
 	result->i_ino = fno;
 	result->i_mode |= S_IFREG;
@@ -506,7 +506,7 @@ fail:
 const struct address_space_operations hpfs_symlink_aops = {
 	.readpage	= hpfs_symlink_readpage
 };
-	
+
 static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		       struct inode *new_dir, struct dentry *new_dentry,
 		       unsigned int flags)
@@ -535,7 +535,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	hpfs_lock(i->i_sb);
 	/* order doesn't matter, due to VFS exclusion */
-	
+
 	/* Erm? Moving over the empty non-busy directory is perfectly legal */
 	if (new_inode && S_ISDIR(new_inode->i_mode)) {
 		err = -EINVAL;
@@ -577,7 +577,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (new_dir != old_dir) hpfs_brelse4(&qbh);
 		goto end1;
 	}
-	
+
 	if (new_dir == old_dir)
 		if (!(dep = map_dirent(old_dir, hpfs_i(old_dir)->i_dno, old_name, old_len, &dno, &qbh))) {
 			hpfs_error(i->i_sb, "lookup succeeded but map dirent failed at #2");

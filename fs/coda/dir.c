@@ -4,7 +4,7 @@
  * Directory operations for Coda filesystem
  * Original version: (C) 1996 P. Braam and M. Callahan
  * Rewritten for Linux 2.1. (C) 1997 Carnegie Mellon University
- * 
+ *
  * Carnegie Mellon encourages users to contribute improvements to
  * the Coda project. Contact Peter Braam (coda@cs.cmu.edu).
  */
@@ -81,7 +81,7 @@ int coda_permission(struct inode *inode, int mask)
 		return -ECHILD;
 
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
- 
+
 	if (!mask)
 		return 0;
 
@@ -92,7 +92,7 @@ int coda_permission(struct inode *inode, int mask)
 		return 0;
 
 	error = venus_access(inode->i_sb, coda_i2f(inode), mask);
-    
+
 	if (!error)
 		coda_cache_enter(inode, mask);
 
@@ -144,7 +144,7 @@ static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, bool 
 	if (is_root_inode(dir) && coda_iscontrol(name, length))
 		return -EPERM;
 
-	error = venus_create(dir->i_sb, coda_i2f(dir), name, length, 
+	error = venus_create(dir->i_sb, coda_i2f(dir), name, length,
 				0, mode, &newfid, &attrs);
 	if (error)
 		goto err_out;
@@ -177,11 +177,11 @@ static int coda_mkdir(struct inode *dir, struct dentry *de, umode_t mode)
 		return -EPERM;
 
 	attrs.va_mode = mode;
-	error = venus_mkdir(dir->i_sb, coda_i2f(dir), 
+	error = venus_mkdir(dir->i_sb, coda_i2f(dir),
 			       name, len, &newfid, &attrs);
 	if (error)
 		goto err_out;
-         
+
 	inode = coda_iget(dir->i_sb, &newfid, &attrs);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
@@ -198,8 +198,8 @@ err_out:
 	return error;
 }
 
-/* try to make de an entry in dir_inodde linked to source_de */ 
-static int coda_link(struct dentry *source_de, struct inode *dir_inode, 
+/* try to make de an entry in dir_inodde linked to source_de */
+static int coda_link(struct dentry *source_de, struct inode *dir_inode,
 	  struct dentry *de)
 {
 	struct inode *inode = d_inode(source_de);
@@ -474,7 +474,7 @@ static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 	shrink_dcache_parent(de);
 
 	/* propagate for a flush */
-	if (cii->c_flags & C_FLUSH) 
+	if (cii->c_flags & C_FLUSH)
 		coda_flag_inode_children(inode, C_FLUSH);
 
 	if (d_count(de) > 1)
@@ -499,7 +499,7 @@ static int coda_dentry_delete(const struct dentry * dentry)
 {
 	int flags;
 
-	if (d_really_is_negative(dentry)) 
+	if (d_really_is_negative(dentry))
 		return 0;
 
 	flags = (ITOC(d_inode(dentry))->c_flags) & C_PURGE;
@@ -514,8 +514,8 @@ static int coda_dentry_delete(const struct dentry * dentry)
 /*
  * This is called when we want to check if the inode has
  * changed on the server.  Coda makes this easy since the
- * cache manager Venus issues a downcall to the kernel when this 
- * happens 
+ * cache manager Venus issues a downcall to the kernel when this
+ * happens
  */
 int coda_revalidate_inode(struct inode *inode)
 {
@@ -534,7 +534,7 @@ int coda_revalidate_inode(struct inode *inode)
 			return -EIO;
 
 		/* this inode may be lost if:
-		   - it's ino changed 
+		   - it's ino changed
 		   - type changes must be permitted for repair and
 		   missing mount points.
 		*/
@@ -547,11 +547,11 @@ int coda_revalidate_inode(struct inode *inode)
 				inode->i_ino, coda_f2s(&(cii->c_fid)));
 		}
 
-		/* the following can happen when a local fid is replaced 
+		/* the following can happen when a local fid is replaced
 		   with a global one, here we lose and declare the inode bad */
 		if (inode->i_ino != old_ino)
 			return -EIO;
-		
+
 		coda_flag_inode_children(inode, C_FLUSH);
 
 		spin_lock(&cii->c_lock);

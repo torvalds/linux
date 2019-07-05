@@ -290,7 +290,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	}
 
 	return 0;
-	
+
 out_free_ilist:
 	iput(infp->vsi_fship);
 	iput(infp->vsi_ilist);

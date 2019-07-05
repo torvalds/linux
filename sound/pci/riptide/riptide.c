@@ -7,29 +7,29 @@
 /*
   History:
    - 02/15/2004 first release
-   
+
   This Driver is based on the OSS Driver version from Linuxant (riptide-0.6lnxtbeta03111100)
   credits from the original files:
-  
-  MODULE NAME:        cnxt_rt.h                       
+
+  MODULE NAME:        cnxt_rt.h
   AUTHOR:             K. Lazarev  (Transcribed by KNL)
   HISTORY:         Major Revision               Date        By
             -----------------------------     --------     -----
             Created                           02/1/2000     KNL
 
-  MODULE NAME:     int_mdl.c                       
+  MODULE NAME:     int_mdl.c
   AUTHOR:          Konstantin Lazarev    (Transcribed by KNL)
   HISTORY:         Major Revision               Date        By
             -----------------------------     --------     -----
             Created                           10/01/99      KNL
-	    
-  MODULE NAME:        riptide.h                       
+
+  MODULE NAME:        riptide.h
   AUTHOR:             O. Druzhinin  (Transcribed by OLD)
   HISTORY:         Major Revision               Date        By
             -----------------------------     --------     -----
             Created                           10/16/97      OLD
 
-  MODULE NAME:        Rp_Cmdif.cpp                       
+  MODULE NAME:        Rp_Cmdif.cpp
   AUTHOR:             O. Druzhinin  (Transcribed by OLD)
                       K. Lazarev    (Transcribed by KNL)
   HISTORY:         Major Revision               Date        By
@@ -37,7 +37,7 @@
             Adopted from NT4 driver            6/22/99      OLD
             Ported to Linux                    9/01/99      KNL
 
-  MODULE NAME:        rt_hw.c                       
+  MODULE NAME:        rt_hw.c
   AUTHOR:             O. Druzhinin  (Transcribed by OLD)
                       C. Lazarev    (Transcribed by CNL)
   HISTORY:         Major Revision               Date        By
@@ -59,13 +59,13 @@
             -----------------------------     --------     -----
             Created                           11/18/97      CNL
 
-  MODULE NAME:     rt_mdl.c                       
+  MODULE NAME:     rt_mdl.c
   AUTHOR:          Konstantin Lazarev    (Transcribed by KNL)
   HISTORY:         Major Revision               Date        By
             -----------------------------     --------     -----
             Created                           10/01/99      KNL
 
-  MODULE NAME:        mixer.h                        
+  MODULE NAME:        mixer.h
   AUTHOR:             K. Kenney
   HISTORY:         Major Revision                   Date          By
             -----------------------------          --------     -----

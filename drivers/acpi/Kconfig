@@ -13,17 +13,17 @@ menuconfig ACPI
 	select NLS
 	default y if X86
 	help
-	  Advanced Configuration and Power Interface (ACPI) support for 
+	  Advanced Configuration and Power Interface (ACPI) support for
 	  Linux requires an ACPI-compliant platform (hardware/firmware),
 	  and assumes the presence of OS-directed configuration and power
-	  management (OSPM) software.  This option will enlarge your 
+	  management (OSPM) software.  This option will enlarge your
 	  kernel by about 70K.
 
-	  Linux ACPI provides a robust functional replacement for several 
+	  Linux ACPI provides a robust functional replacement for several
 	  legacy configuration and power management interfaces, including
-	  the Plug-and-Play BIOS specification (PnP BIOS), the 
-	  MultiProcessor Specification (MPS), and the Advanced Power 
-	  Management (APM) specification.  If both ACPI and APM support 
+	  the Plug-and-Play BIOS specification (PnP BIOS), the
+	  MultiProcessor Specification (MPS), and the Advanced Power
+	  Management (APM) specification.  If both ACPI and APM support
 	  are configured, ACPI is used.
 
 	  The project home page for the Linux ACPI subsystem is here:
@@ -173,7 +173,7 @@ config ACPI_BATTERY
 	default y
 	help
 	  This driver adds support for battery information through
-	  /proc/acpi/battery. If you have a mobile system with a battery, 
+	  /proc/acpi/battery. If you have a mobile system with a battery,
 	  say Y.
 
 	  To compile this driver as a module, choose M here:

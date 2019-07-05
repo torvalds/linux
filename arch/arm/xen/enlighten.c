@@ -140,7 +140,7 @@ static int xen_starting_cpu(unsigned int cpu)
 	struct vcpu_info *vcpup;
 	int err;
 
-	/* 
+	/*
 	 * VCPUOP_register_vcpu_info cannot be called twice for the same
 	 * vcpu, so if vcpu_info is already registered, just get out. This
 	 * can happen with cpu-hotplug.
@@ -349,7 +349,7 @@ static int __init xen_guest_init(void)
 
 	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
 	 * page, we use it in the event channel upcall and in some pvclock
-	 * related functions. 
+	 * related functions.
 	 * The shared info contains exactly 1 CPU (the boot CPU). The guest
 	 * is required to use VCPUOP_register_vcpu_info to place vcpu info
 	 * for secondary CPUs as they are brought up.

@@ -13,7 +13,7 @@ If not set, fid is calculated from the current CPU speed and the FSB.
 min_fsb defaults to FSB at boot time - 50 MHz.
 
 IMPORTANT: The available range is limited downwards!
-           Also the minimum available FSB can differ, for systems 
+           Also the minimum available FSB can differ, for systems
            booting with 200 MHz, 150 should always work.
 
 

@@ -8,7 +8,7 @@
  *	2 of the License, or (at your option) any later version.
  *
  */
- 
+
 #ifndef _LINUX_IF_PLIP_H
 #define _LINUX_IF_PLIP_H
 

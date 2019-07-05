@@ -8,7 +8,7 @@
  *   Lowlevel functions for M-Audio Revolution 7.1
  *
  *	Copyright (c) 2003 Takashi Iwai <tiwai@suse.de>
- */      
+ */
 
 #define REVO_DEVICE_DESC \
 		"{MidiMan M Audio,Revolution 7.1},"\

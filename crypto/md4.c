@@ -1,4 +1,4 @@
-/* 
+/*
  * Cryptographic API.
  *
  * MD4 Message Digest Algorithm (RFC1320).

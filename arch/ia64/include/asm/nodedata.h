@@ -40,7 +40,7 @@ struct ia64_node_data {
  *
  * NODE_DATA 	- should be used in all code not related to system
  *		  initialization. It uses pernode data structures to minimize
- *		  offnode memory references. However, these structure are not 
+ *		  offnode memory references. However, these structure are not
  *		  present during boot. This macro can be used once cpu_init
  *		  completes.
  */

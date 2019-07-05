@@ -59,7 +59,7 @@ Traverse Technologie NETjet PCI S0 card and NETspider U card
 Ovislink ISDN sc100-p card (NETjet driver)
 Dr. Neuhaus Niccy PnP/PCI
 Siemens I-Surf 1.0
-Siemens I-Surf 2.0 (with IPAC, try type 12 asuscom) 
+Siemens I-Surf 2.0 (with IPAC, try type 12 asuscom)
 ACER P10
 HST Saphir
 Berkom Telekom A4T
@@ -188,8 +188,8 @@ Card types:
    27   AVM PnP (Fritz!PnP)      irq, io  (from isapnp setup)
    27   AVM PCI (Fritz!PCI)      no parameter
    28   Sedlbauer Speed Fax+     irq, io (from isapnp setup)
-   29	Siemens I-Surf 1.0       irq, io, memory (from isapnp setup)   
-   30	ACER P10                 irq, io (from isapnp setup)   
+   29	Siemens I-Surf 1.0       irq, io, memory (from isapnp setup)
+   30	ACER P10                 irq, io (from isapnp setup)
    31	HST Saphir               irq, io
    32	Telekom A4T              none
    33	Scitel Quadro		 subcontroller (4*S0, subctrl 1...4)
@@ -197,7 +197,7 @@ Card types:
    34	Gazel ISDN cards (PCI)   none
    35	HFC 2BDS0 PCI            none
    36	W6692 based PCI cards    none
-   37	HFC 2BDS0 S+, SP         irq,io 
+   37	HFC 2BDS0 S+, SP         irq,io
    38	NETspider U PCI card     none
    39	HFC 2BDS0 SP/PCMCIA      irq,io (set with cardmgr)
    40   hotplug interface
@@ -486,7 +486,7 @@ Appendix: Teles PCMCIA driver
 -----------------------------
 
 See
-   http://www.linux.no/teles_cs.txt 
+   http://www.linux.no/teles_cs.txt
 for instructions.
 
 Appendix: Linux and ISDN-leased lines

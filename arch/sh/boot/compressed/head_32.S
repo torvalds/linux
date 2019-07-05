@@ -85,7 +85,7 @@ l1:
 	mov.l	kernel_start_addr, r0
 	jmp	@r0
 	nop
-	
+
 	.align	2
 bss_start_addr:
 	.long	__bss_start

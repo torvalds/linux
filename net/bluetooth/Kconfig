@@ -29,7 +29,7 @@ menuconfig BT
 		L2CAP (Logical Link Control and Adaptation Protocol)
 		SMP (Security Manager Protocol) on LE (Low Energy) links
 	     HCI Device drivers (Interface to the hardware)
-	     RFCOMM Module (RFCOMM Protocol)  
+	     RFCOMM Module (RFCOMM Protocol)
 	     BNEP Module (Bluetooth Network Encapsulation Protocol)
 	     CMTP Module (CAPI Message Transport Protocol)
 	     HIDP Module (Human Interface Device Protocol)

@@ -1019,7 +1019,7 @@ static long agp_ioctl(struct file *file,
 	case AGPIOC_UNBIND:
 		ret_val = agpioc_unbind_wrap(curr_priv, (void __user *) arg);
 		break;
-	       
+
 	case AGPIOC_CHIPSET_FLUSH:
 		break;
 	}

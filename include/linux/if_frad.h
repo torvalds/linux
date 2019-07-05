@@ -36,7 +36,7 @@ struct frhdr
    unsigned char  OUI[3];
    __be16 PID;
 
-#define IP_NLPID pad 
+#define IP_NLPID pad
 } __packed;
 
 /* see RFC 1490 for the definition of the following */

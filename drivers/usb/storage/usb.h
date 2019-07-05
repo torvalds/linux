@@ -39,7 +39,7 @@ struct us_data;
 struct scsi_cmnd;
 
 /*
- * Unusual device list definitions 
+ * Unusual device list definitions
  */
 
 struct us_unusual_dev {

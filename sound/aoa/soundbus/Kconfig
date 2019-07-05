@@ -5,7 +5,7 @@ config SND_AOA_SOUNDBUS
 	---help---
 	This option enables the generic driver for the soundbus
 	support on Apple machines.
-	
+
 	It is required for the sound bus implementations.
 
 config SND_AOA_SOUNDBUS_I2S

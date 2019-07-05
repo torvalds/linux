@@ -127,7 +127,7 @@ static int pdacf_pcm_prepare(struct snd_pcm_substream *subs)
 
 	if (pdacf_pcm_clear_sram(chip) < 0)
 		return -EIO;
-	
+
 	val = nval = pdacf_reg_read(chip, PDAUDIOCF_REG_SCR);
 	nval &= ~(PDAUDIOCF_DATAFMT0|PDAUDIOCF_DATAFMT1);
 	switch (runtime->format) {
@@ -277,7 +277,7 @@ int snd_pdacf_pcm_new(struct snd_pdacf *chip)
 	err = snd_pcm_new(chip->card, "PDAudioCF", 0, 0, 1, &pcm);
 	if (err < 0)
 		return err;
-		
+
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pdacf_pcm_capture_ops);
 
 	pcm->private_data = chip;
@@ -285,7 +285,7 @@ int snd_pdacf_pcm_new(struct snd_pdacf *chip)
 	pcm->nonatomic = true;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;
-	
+
 	err = snd_ak4117_build(chip->ak4117, pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
 	if (err < 0)
 		return err;

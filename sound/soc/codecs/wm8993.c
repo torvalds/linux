@@ -1361,7 +1361,7 @@ static int wm8993_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		goto out;
 	}
 
-	/* Note that we allow configurations we can't handle ourselves - 
+	/* Note that we allow configurations we can't handle ourselves -
 	 * for example, we can generate clocks for slots 2 and up even if
 	 * we can't use those slots ourselves.
 	 */

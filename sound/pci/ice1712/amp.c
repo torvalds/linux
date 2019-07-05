@@ -5,7 +5,7 @@
  *   Lowlevel functions for Advanced Micro Peripherals Ltd AUDIO2000
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- */      
+ */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -29,7 +29,7 @@ static int snd_vt1724_amp_init(struct snd_ice1712 *ice)
 		WM_ATTEN_L,	0x0000,	/* 0 db */
 		WM_ATTEN_R,	0x0000,	/* 0 db */
 		WM_DAC_CTRL,	0x0008,	/* 24bit I2S */
-		WM_INT_CTRL,	0x0001, /* 24bit I2S */	
+		WM_INT_CTRL,	0x0001, /* 24bit I2S */
 	};
 
 	unsigned int i;

@@ -164,7 +164,7 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 	if (!jffs2_prealloc_raw_node_refs(c, jeb, 1)) {
 		uint32_t oldfree = jeb->free_size;
 
-		jffs2_link_node_ref(c, jeb, 
+		jffs2_link_node_ref(c, jeb,
 				    (jeb->offset+c->sector_size-oldfree) | REF_OBSOLETE,
 				    oldfree, NULL);
 		/* convert to wasted */
@@ -298,7 +298,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	for (next = raw = jeb->first_node; next; raw = next) {
 		next = ref_next(raw);
 
-		if (ref_obsolete(raw) || 
+		if (ref_obsolete(raw) ||
 		    (next && ref_offset(next) <= c->wbuf_ofs)) {
 			dbg_noderef("Skipping node at 0x%08x(%d)-0x%08x which is either before 0x%08x or obsolete\n",
 				    ref_offset(raw), ref_flags(raw),

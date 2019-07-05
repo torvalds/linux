@@ -70,7 +70,7 @@ The pixel value is broken up into red, green, and blue fields.
 
 Direct color (FB_VISUAL_DIRECTCOLOR)
 ------------------------------------
-The pixel value is broken up into red, green, and blue fields, each of which 
+The pixel value is broken up into red, green, and blue fields, each of which
 are looked up in separate red, green, and blue lookup tables.
 
 

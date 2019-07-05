@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
+ * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family
  * of PCI-SCSI IO processors.
  *
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
@@ -8,7 +8,7 @@
  * This driver is derived from the Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
- * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ * The sym53c8xx driver is derived from the ncr53c8xx driver that had been
  * a port of the FreeBSD ncr driver to Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
@@ -155,7 +155,7 @@ sym_fw2_patch(struct Scsi_Host *shost)
 
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 2
 	/*
-	 *  Remove useless 64 bit DMA specific SCRIPTS, 
+	 *  Remove useless 64 bit DMA specific SCRIPTS,
 	 *  when this feature is not available.
 	 */
 	if (!use_dac(np)) {
@@ -193,7 +193,7 @@ sym_fw2_patch(struct Scsi_Host *shost)
 	}
 
 	/*
-	 *  Remove a couple of work-arounds specific to C1010 if 
+	 *  Remove a couple of work-arounds specific to C1010 if
 	 *  they are not desirable. See `sym_fw2.h' for more details.
 	 */
 	if (!(pdev->device == PCI_DEVICE_ID_LSI_53C1010_66 &&
@@ -213,10 +213,10 @@ sym_fw2_patch(struct Scsi_Host *shost)
 	 *  These ones are loaded by the SCRIPTS processor.
 	 */
 	scriptb0->pm0_data_addr[0] =
-		cpu_to_scr(np->scripta_ba + 
+		cpu_to_scr(np->scripta_ba +
 			   offsetof(struct sym_fw2a_scr, pm0_data));
 	scriptb0->pm1_data_addr[0] =
-		cpu_to_scr(np->scripta_ba + 
+		cpu_to_scr(np->scripta_ba +
 			   offsetof(struct sym_fw2a_scr, pm1_data));
 }
 
@@ -241,7 +241,7 @@ sym_fw_fill_data (u32 *in, u32 *out)
  *  Setup useful script bus addresses.
  *  To be done for all firmwares.
  */
-static void 
+static void
 sym_fw_setup_bus_addresses(struct sym_hcb *np, struct sym_fw *fw)
 {
 	u32 *pa;
@@ -249,7 +249,7 @@ sym_fw_setup_bus_addresses(struct sym_hcb *np, struct sym_fw *fw)
 	int i;
 
 	/*
-	 *  Build the bus address table for script A 
+	 *  Build the bus address table for script A
 	 *  from the script A offset table.
 	 */
 	po = (u_short *) fw->a_ofs;
@@ -278,7 +278,7 @@ sym_fw_setup_bus_addresses(struct sym_hcb *np, struct sym_fw *fw)
 /*
  *  Setup routine for firmware #1.
  */
-static void 
+static void
 sym_fw1_setup(struct sym_hcb *np, struct sym_fw *fw)
 {
 	struct sym_fw1a_scr *scripta0;
@@ -300,7 +300,7 @@ sym_fw1_setup(struct sym_hcb *np, struct sym_fw *fw)
 /*
  *  Setup routine for firmware #2.
  */
-static void 
+static void
 sym_fw2_setup(struct sym_hcb *np, struct sym_fw *fw)
 {
 	struct sym_fw2a_scr *scripta0;
@@ -329,7 +329,7 @@ static struct sym_fw sym_fw2 = SYM_FW_ENTRY(sym_fw2, "LOAD/STORE-based");
 /*
  *  Find the most appropriate firmware for a chip.
  */
-struct sym_fw * 
+struct sym_fw *
 sym_find_firmware(struct sym_chip *chip)
 {
 	if (chip->features & FE_LDSTR)
@@ -412,7 +412,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 					sym_name(np), (int) (cur-start));
 			}
 			/*
-			 *  If PREFETCH feature not enabled, remove 
+			 *  If PREFETCH feature not enabled, remove
 			 *  the NO FLUSH bit if present.
 			 */
 			if ((opcode & SCR_NO_FLUSH) &&
@@ -485,7 +485,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 		*cur++ = cpu_to_scr(opcode);
 
 		/*
-		 *  If no relocation, assume 1 argument 
+		 *  If no relocation, assume 1 argument
 		 *  and just scriptize:) it.
 		 */
 		if (!relocs) {
@@ -516,7 +516,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 			case 0:
 				/*
 				 *  Don't relocate a 0 address.
-				 *  They are mostly used for patched or 
+				 *  They are mostly used for patched or
 				 *  script self-modified areas.
 				 */
 				if (old == 0) {

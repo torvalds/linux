@@ -29,7 +29,7 @@
 #if XTENSA_HAVE_COPROCESSORS
 
 /*
- * Macros for lazy context switch. 
+ * Macros for lazy context switch.
  */
 
 #define SAVE_CP_REGS(x)							\
@@ -112,7 +112,7 @@
  *                             a2        a3
  *
  * Save coprocessor registers for coprocessor 'index'.
- * The register values are saved to or loaded from the coprocessor area 
+ * The register values are saved to or loaded from the coprocessor area
  * inside the task_info structure.
  *
  * Note that this function doesn't update the coprocessor_owner information!
@@ -206,7 +206,7 @@ ENTRY(fast_coprocessor)
 	s32i	a5, a4, THREAD_CPENABLE
 
 	/*
-	 * Get context save area and 'call' save routine. 
+	 * Get context save area and 'call' save routine.
 	 * (a4 still holds previous owner (thread_info), a3 CP number)
 	 */
 

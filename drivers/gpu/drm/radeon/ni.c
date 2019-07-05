@@ -1433,7 +1433,7 @@ void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	if (ring->rptr_save_reg) {
 		uint32_t next_rptr = ring->wptr + 3 + 4 + 8;
 		radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-		radeon_ring_write(ring, ((ring->rptr_save_reg - 
+		radeon_ring_write(ring, ((ring->rptr_save_reg -
 					  PACKET3_SET_CONFIG_REG_START) >> 2));
 		radeon_ring_write(ring, next_rptr);
 	}

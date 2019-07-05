@@ -546,7 +546,7 @@
 				function = "eth_led";
 			};
 		};
-		
+
 		pwm_a_pins: pwm_a {
 			mux {
 				groups = "pwm_a";

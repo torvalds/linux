@@ -583,7 +583,7 @@ long hmi_handle_debugtrig(struct pt_regs *regs)
 	if (!((hmer & HMER_DEBUG_TRIG)
 	      && hmer_debug_trig_function != DTRIG_UNKNOWN))
 		return -1;
-		
+
 	hmer &= ~HMER_DEBUG_TRIG;
 	/* HMER is a write-AND register */
 	mtspr(SPRN_HMER, ~HMER_DEBUG_TRIG);
@@ -617,7 +617,7 @@ long hmi_handle_debugtrig(struct pt_regs *regs)
  * Return values:
  */
 long hmi_exception_realmode(struct pt_regs *regs)
-{	
+{
 	int ret;
 
 	__this_cpu_inc(irq_stat.hmi_exceptions);

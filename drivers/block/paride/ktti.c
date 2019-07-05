@@ -1,11 +1,11 @@
-/* 
+/*
         ktti.c        (c) 1998  Grant R. Guenther <grant@torque.net>
                           Under the terms of the GNU General Public License.
 
 	ktti.c is a low-level protocol driver for the KT Technology
-	parallel port adapter.  This adapter is used in the "PHd" 
+	parallel port adapter.  This adapter is used in the "PHd"
         portable hard-drives.  As far as I can tell, this device
-	supports 4-bit mode _only_.  
+	supports 4-bit mode _only_.
 
 */
 
@@ -23,8 +23,8 @@
 
 #define j44(a,b)                (((a>>4)&0x0f)|(b&0xf0))
 
-/* cont = 0 - access the IDE register file 
-   cont = 1 - access the IDE command set 
+/* cont = 0 - access the IDE register file
+   cont = 1 - access the IDE command set
 */
 
 static int  cont_map[2] = { 0x10, 0x08 };
@@ -35,7 +35,7 @@ static void  ktti_write_regr( PIA *pi, int cont, int regr, int val)
 
 	r = regr + cont_map[cont];
 
-	w0(r); w2(0xb); w2(0xa); w2(3); w2(6); 
+	w0(r); w2(0xb); w2(0xa); w2(3); w2(6);
 	w0(val); w2(3); w0(0); w2(6); w2(0xb);
 }
 
@@ -45,7 +45,7 @@ static int ktti_read_regr( PIA *pi, int cont, int regr )
 
         r = regr + cont_map[cont];
 
-        w0(r); w2(0xb); w2(0xa); w2(9); w2(0xc); w2(9); 
+        w0(r); w2(0xb); w2(0xa); w2(9); w2(0xc); w2(9);
 	a = r1(); w2(0xc);  b = r1(); w2(9); w2(0xc); w2(9);
 	return j44(a,b);
 
@@ -80,7 +80,7 @@ static void ktti_connect ( PIA *pi  )
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
-	w2(0xb); w2(0xa); w0(0); w2(3); w2(6);	
+	w2(0xb); w2(0xa); w0(0); w2(3); w2(6);
 }
 
 static void ktti_disconnect ( PIA *pi )
@@ -88,7 +88,7 @@ static void ktti_disconnect ( PIA *pi )
 {       w2(0xb); w2(0xa); w0(0xa0); w2(3); w2(4);
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
-} 
+}
 
 static void ktti_log_adapter( PIA *pi, char * scratch, int verbose )
 

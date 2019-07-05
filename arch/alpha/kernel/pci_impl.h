@@ -74,21 +74,21 @@ struct pci_iommu_arena;
 
 #define DEFAULT_AGP_APER_SIZE	(64*1024*1024)
 
-/* 
+/*
  * A small note about bridges and interrupts.  The DECchip 21050 (and
  * later) adheres to the PCI-PCI bridge specification.  This says that
  * the interrupts on the other side of a bridge are swizzled in the
  * following manner:
  *
- * Dev    Interrupt   Interrupt 
- *        Pin on      Pin on 
+ * Dev    Interrupt   Interrupt
+ *        Pin on      Pin on
  *        Device      Connector
  *
  *   4    A           A
  *        B           B
  *        C           C
  *        D           D
- * 
+ *
  *   5    A           B
  *        B           C
  *        C           D

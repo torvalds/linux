@@ -3,7 +3,7 @@
 #
 # Script which prints out the version to use for building cpupowerutils.
 # Must be called from tools/power/cpupower/
-# 
+#
 # Heavily based on tools/perf/util/PERF-VERSION-GEN .
 
 LF='

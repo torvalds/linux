@@ -30,7 +30,7 @@ extern int sn_ioif_inited;
  *      register available in 32-bit PCI space (which selects a contiguous 2G
  *	address space on some other widget), via "direct" addressing via 64-bit
  *      PCI space (all destination information comes from the PCI address,
- *      including transfer attributes), and via a "mapped" region that allows 
+ *      including transfer attributes), and via a "mapped" region that allows
  *      a bunch of different small mappings to be established with the PMU.
  *
  *      For efficiency, we most prefer to use the 32bit direct mapping facility,
@@ -221,16 +221,16 @@ pcibr_dma_unmap(struct pci_dev *hwdev, dma_addr_t dma_handle, int direction)
 }
 
 /*
- * On SN systems there is a race condition between a PIO read response and 
+ * On SN systems there is a race condition between a PIO read response and
  * DMA's.  In rare cases, the read response may beat the DMA, causing the
  * driver to think that data in memory is complete and meaningful.  This code
  * eliminates that race.  This routine is called by the PIO read routines
  * after doing the read.  For PIC this routine then forces a fake interrupt
  * on another line, which is logically associated with the slot that the PIO
  * is addressed to.  It then spins while watching the memory location that
- * the interrupt is targeted to.  When the interrupt response arrives, we 
+ * the interrupt is targeted to.  When the interrupt response arrives, we
  * are sure that the DMA has landed in memory and it is safe for the driver
- * to proceed.	For TIOCP use the Device(x) Write Request Buffer Flush 
+ * to proceed.	For TIOCP use the Device(x) Write Request Buffer Flush
  * Bridge register since it ensures the data has entered the coherence domain,
  * unlike the PIC Device(x) Write Request Buffer Flush register.
  */

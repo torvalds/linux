@@ -194,20 +194,20 @@ kp_spi_txrx_pio(struct spi_device *spidev, struct spi_transfer *transfer)
     struct kp_spi_controller_state *cs = spidev->controller_state;
     unsigned int count = transfer->len;
     unsigned int c = count;
-    
+
     int i;
     u8 *rx       = transfer->rx_buf;
     const u8 *tx = transfer->tx_buf;
     int processed = 0;
-    
+
     if (tx) {
         for (i = 0 ; i < c ; i++) {
             char val = *tx++;
-            
+
             if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS, KP_SPI_REG_STATUS_TXS) < 0) {
                 goto out;
             }
-            
+
             kp_spi_write_reg(cs, KP_SPI_REG_TXDATA, val);
             processed++;
         }
@@ -215,23 +215,23 @@ kp_spi_txrx_pio(struct spi_device *spidev, struct spi_transfer *transfer)
     else if(rx) {
         for (i = 0 ; i < c ; i++) {
             char test=0;
-            
+
             kp_spi_write_reg(cs, KP_SPI_REG_TXDATA, 0x00);
-            
+
             if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS, KP_SPI_REG_STATUS_RXS) < 0) {
                 goto out;
             }
-            
+
             test = kp_spi_read_reg(cs, KP_SPI_REG_RXDATA);
             *rx++ = test;
             processed++;
         }
     }
-    
+
     if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS, KP_SPI_REG_STATUS_EOT) < 0) {
         //TODO: Figure out how to abort transaction??  This has never happened in practice though...
     }
-    
+
  out:
     return processed;
 }
@@ -245,7 +245,7 @@ kp_spi_setup(struct spi_device *spidev)
     union kp_spi_config sc;
     struct kp_spi *kpspi = spi_master_get_devdata(spidev->master);
     struct kp_spi_controller_state *cs;
-    
+
     /* setup controller state */
     cs = spidev->controller_state;
     if (!cs) {
@@ -260,7 +260,7 @@ kp_spi_setup(struct spi_device *spidev)
         cs->conf_cache = -1;
         spidev->controller_state = cs;
     }
-    
+
     /* set config register */
     sc.bitfield.wl = spidev->bits_per_word - 1;
     sc.bitfield.cs = spidev->chip_select;
@@ -280,25 +280,25 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
     struct spi_transfer *transfer;
     union kp_spi_config sc;
     int status = 0;
-    
+
     spidev = m->spi;
     kpspi = spi_master_get_devdata(master);
     m->actual_length = 0;
     m->status = 0;
-    
+
     cs = spidev->controller_state;
-    
+
     /* reject invalid messages and transfers */
     if (list_empty(&m->transfers)) {
         return -EINVAL;
     }
-    
+
     /* validate input */
     list_for_each_entry(transfer, &m->transfers, transfer_list) {
         const void *tx_buf = transfer->tx_buf;
         void       *rx_buf = transfer->rx_buf;
         unsigned    len = transfer->len;
-        
+
         if (transfer->speed_hz > KP_SPI_CLK || (len && !(rx_buf || tx_buf))) {
             dev_dbg(kpspi->dev, "  transfer: %d Hz, %d %s%s, %d bpw\n",
                     transfer->speed_hz,
@@ -317,33 +317,33 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
             return -EINVAL;
         }
     }
-    
+
     /* assert chip select to start the sequence*/
     sc.reg = kp_spi_read_reg(cs, KP_SPI_REG_CONFIG);
     sc.bitfield.spi_en = 1;
     kp_spi_write_reg(cs, KP_SPI_REG_CONFIG, sc.reg);
-    
+
     /* work */
     if (kp_spi_wait_for_reg_bit(cs, KP_SPI_REG_STATUS, KP_SPI_REG_STATUS_EOT) < 0) {
         dev_info(kpspi->dev, "EOT timed out\n");
         goto out;
     }
-    
+
     /* do the transfers for this message */
     list_for_each_entry(transfer, &m->transfers, transfer_list) {
         if (transfer->tx_buf == NULL && transfer->rx_buf == NULL && transfer->len) {
             status = -EINVAL;
             break;
         }
-        
+
         /* transfer */
         if (transfer->len) {
             unsigned int word_len = spidev->bits_per_word;
             unsigned count;
-            
+
             /* set up the transfer... */
             sc.reg = kp_spi_read_reg(cs, KP_SPI_REG_CONFIG);
-            
+
             /* ...direction */
             if (transfer->tx_buf) {
                 sc.bitfield.trm = KP_SPI_REG_CONFIG_TRM_TX;
@@ -351,40 +351,40 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
             else if (transfer->rx_buf) {
                 sc.bitfield.trm = KP_SPI_REG_CONFIG_TRM_RX;
             }
-            
+
             /* ...word length */
             if (transfer->bits_per_word) {
                 word_len = transfer->bits_per_word;
             }
             cs->word_len = word_len;
             sc.bitfield.wl = word_len-1;
-            
+
             /* ...chip select */
             sc.bitfield.cs = spidev->chip_select;
-            
+
             /* ...and write the new settings */
             kp_spi_write_reg(cs, KP_SPI_REG_CONFIG, sc.reg);
-            
+
             /* do the transfer */
             count = kp_spi_txrx_pio(spidev, transfer);
             m->actual_length += count;
-            
+
             if (count != transfer->len) {
                 status = -EIO;
                 break;
             }
         }
-        
+
         if (transfer->delay_usecs) {
             udelay(transfer->delay_usecs);
         }
     }
-    
+
     /* de-assert chip select to end the sequence */
     sc.reg = kp_spi_read_reg(cs, KP_SPI_REG_CONFIG);
     sc.bitfield.spi_en = 0;
     kp_spi_write_reg(cs, KP_SPI_REG_CONFIG, sc.reg);
-    
+
  out:
     /* done work */
     spi_finalize_current_message(master);
@@ -420,54 +420,54 @@ kp_spi_probe(struct platform_device *pldev)
         dev_err(&pldev->dev, "kp_spi_probe: platform_data is NULL!\n");
         return -ENODEV;
     }
-    
+
     master = spi_alloc_master(&pldev->dev, sizeof(struct kp_spi));
     if (master == NULL) {
         dev_err(&pldev->dev, "kp_spi_probe: master allocation failed\n");
         return -ENOMEM;
     }
-    
+
     /* set up the spi functions */
     master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
     master->bits_per_word_mask = (unsigned int)SPI_BPW_RANGE_MASK(4, 32);
     master->setup = kp_spi_setup;
     master->transfer_one_message = kp_spi_transfer_one_message;
     master->cleanup = kp_spi_cleanup;
-    
+
     platform_set_drvdata(pldev, master);
-    
+
     kpspi = spi_master_get_devdata(master);
     kpspi->master = master;
     kpspi->dev = &pldev->dev;
-    
+
     master->num_chipselect = 4;
     if (pldev->id != -1) {
         master->bus_num = pldev->id;
     }
     kpspi->pin_dir = 0;
-    
+
     r = platform_get_resource(pldev, IORESOURCE_MEM, 0);
     if (r == NULL) {
         dev_err(&pldev->dev, "kp_spi_probe: Unable to get platform resources\n");
         status = -ENODEV;
         goto free_master;
     }
-    
+
     kpspi->phys = (unsigned long)ioremap_nocache(r->start, resource_size(r));
     kpspi->base = (u64 __iomem *)kpspi->phys;
-    
+
     status = spi_register_master(master);
     if (status < 0) {
         dev_err(&pldev->dev, "Unable to register SPI device\n");
         goto free_master;
     }
-    
+
     /* register the slave boards */
     #define NEW_SPI_DEVICE_FROM_BOARD_INFO_TABLE(table) \
         for (i = 0 ; i < ARRAY_SIZE(table) ; i++) { \
             spi_new_device(master, &(table[i])); \
         }
-    
+
     switch ((drvdata->card_id & 0xFFFF0000) >> 16){
         case PCI_DEVICE_ID_DAKTRONICS_KADOKA_P2KR0:
             NEW_SPI_DEVICE_FROM_BOARD_INFO_TABLE(p2kr0_board_info);
@@ -477,7 +477,7 @@ kp_spi_probe(struct platform_device *pldev)
             goto free_master;
             break;
     }
-    
+
     return status;
 
  free_master:

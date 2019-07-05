@@ -93,5 +93,5 @@ static inline int get_modid(void)
 	return (get_cpuid() | 0x8);
 }
 
-	
+
 #endif /* !(_SPARC_MBUS_H) */

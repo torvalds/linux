@@ -1,4 +1,4 @@
-/* 
+/*
  * tie.h -- compile-time HAL definitions dependent on CORE & TIE configuration
  *
  *  NOTE:  This header file is not meant to be included directly.

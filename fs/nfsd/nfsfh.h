@@ -170,7 +170,7 @@ static __inline__ struct svc_fh *
 fh_copy(struct svc_fh *dst, struct svc_fh *src)
 {
 	WARN_ON(src->fh_dentry || src->fh_locked);
-			
+
 	*dst = *src;
 	return dst;
 }

@@ -54,10 +54,10 @@ static int daca_init_client(struct pmac_keywest *i2c)
 static int daca_set_volume(struct pmac_daca *mix)
 {
 	unsigned char data[2];
-  
+
 	if (! mix->i2c.client)
 		return -ENODEV;
-  
+
 	if (mix->left_vol > DACA_VOL_MAX)
 		data[0] = DACA_VOL_MAX;
 	else

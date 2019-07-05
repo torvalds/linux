@@ -2,7 +2,7 @@
 /*
  * Glue code for SHA-256 implementation for SPE instructions (PPC)
  *
- * Based on generic implementation. The assembler module takes care 
+ * Based on generic implementation. The assembler module takes care
  * about the SPE registers so it can run from interrupt context.
  *
  * Copyright (c) 2015 Markus Stockhausen <stockhausen@collogia.de>

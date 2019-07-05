@@ -196,7 +196,7 @@ static void juli_akm_write(struct snd_akm4xxx *ak, int chip,
 			   unsigned char addr, unsigned char data)
 {
 	struct snd_ice1712 *ice = ak->private_data[0];
-	 
+
 	if (snd_BUG_ON(chip))
 		return;
 	snd_vt1724_write_i2c(ice, AK4358_ADDR, addr, data);

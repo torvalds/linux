@@ -18,7 +18,7 @@ http://lists.twibble.org/mailman/listinfo/dc395x/
 
 Parameters
 ----------
-The driver uses the settings from the EEPROM set in the SCSI BIOS 
+The driver uses the settings from the EEPROM set in the SCSI BIOS
 setup. If there is no EEPROM, the driver uses default values.
 Both can be overridden by command line parameters (module or kernel
 parameters).
@@ -75,7 +75,7 @@ The following parameters are available:
 
  - tags
    Default: 3, Acceptable values: 0-5
-   
+
    The number of tags is 1<<x, if x has been specified
 
  - reset_delay
@@ -95,8 +95,8 @@ License (GPL). Please read it, before using this driver. It should be
 included in your kernel sources and with your distribution. It carries the
 filename COPYING. If you don't have it, please ask me to send you one by
 email.
-Note: The GNU GPL says also something about warranty and liability. 
+Note: The GNU GPL says also something about warranty and liability.
 Please be aware the following: While we do my best to provide a working and
-reliable driver, there is a chance, that it will kill your valuable data. 
+reliable driver, there is a chance, that it will kill your valuable data.
 We refuse to take any responsibility for that. The driver is provided as-is
 and YOU USE IT AT YOUR OWN RESPONSIBILITY.

@@ -221,7 +221,7 @@
 #endif
 
 /*
- * PPR save/restore macros used in exceptions_64s.S  
+ * PPR save/restore macros used in exceptions_64s.S
  * Used for P7 or later processors
  */
 #define SAVE_PPR(area, ra)						\

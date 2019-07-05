@@ -432,7 +432,7 @@ cuda_send_request(struct adb_request *req, int sync)
 	req->complete = 1;
 	return -ENXIO;
     }
-  
+
     req->reply_expected = 1;
 
     i = cuda_write(req);
@@ -570,7 +570,7 @@ cuda_interrupt(int irq, void *arg)
     int ibuf_len = 0;
     int complete = 0;
     bool full;
-    
+
     spin_lock_irqsave(&cuda_lock, flags);
 
     /* On powermacs, this handler is registered for the VIA IRQ. But they use

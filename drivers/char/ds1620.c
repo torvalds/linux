@@ -310,7 +310,7 @@ ds1620_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		netwinder_set_fan(i);
 		break;
-		
+
 	default:
 		return -ENOIOCTLCMD;
 	}

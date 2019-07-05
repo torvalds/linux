@@ -12,9 +12,9 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/fs.h> 
-#include <linux/mm.h> 
-#include <linux/file.h> 
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/file.h>
 #include <linux/signal.h>
 #include <linux/resource.h>
 #include <linux/times.h>
@@ -56,7 +56,7 @@ unsigned long compat_sys_mmap2(unsigned long addr, size_t len,
 	return sys_mmap(addr, len, prot, flags, fd, pgoff << 12);
 }
 
-/* 
+/*
  * long long munging:
  * The 32 bit ABI passes long longs in an odd even register pair.
  */

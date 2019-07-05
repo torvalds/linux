@@ -83,7 +83,7 @@ obj-$(CONFIG_ALPHA_EB64P)	+= sys_eb64p.o irq_i8259.o
 obj-$(CONFIG_ALPHA_EB66)	+= sys_eb64p.o irq_i8259.o
 obj-$(CONFIG_ALPHA_EIGER)	+= sys_eiger.o irq_i8259.o
 obj-$(CONFIG_ALPHA_JENSEN)	+= sys_jensen.o pci-noop.o irq_i8259.o
-obj-$(CONFIG_ALPHA_MARVEL)	+= sys_marvel.o 
+obj-$(CONFIG_ALPHA_MARVEL)	+= sys_marvel.o
 obj-$(CONFIG_ALPHA_MIATA)	+= sys_miata.o irq_pyxis.o irq_i8259.o \
 				   es1888.o smc37c669.o
 obj-$(CONFIG_ALPHA_MIKASA)	+= sys_mikasa.o irq_i8259.o irq_srm.o

@@ -96,7 +96,7 @@ static int chk_if_allocated(struct super_block *s, secno sec, char *msg)
  * Check if sector(s) have proper number and additionally check if they're
  * allocated in bitmap.
  */
-	
+
 int hpfs_chk_sectors(struct super_block *s, secno start, int len, char *msg)
 {
 	if (start + len < start || start < 0x12 ||
@@ -231,7 +231,7 @@ secno hpfs_alloc_sector(struct super_block *s, secno near, unsigned n, int forwa
 		if (near_bmp+i < n_bmps && ((sec = alloc_in_bmp(s, (near_bmp+i) << 14, n, forward)))) {
 			sbi->sb_c_bitmap = near_bmp+i;
 			goto ret;
-		}	
+		}
 		if (!forward) {
 			if (near_bmp-i-1 >= 0 && ((sec = alloc_in_bmp(s, (near_bmp-i-1) << 14, n, forward)))) {
 				sbi->sb_c_bitmap = near_bmp-i-1;
@@ -328,7 +328,7 @@ void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
 	new_map:
 	if (!(bmp = hpfs_map_bitmap(s, sec >> 14, &qbh, "free"))) {
 		return;
-	}	
+	}
 	new_tst:
 	if ((le32_to_cpu(bmp[(sec & 0x3fff) >> 5]) >> (sec & 0x1f) & 1)) {
 		hpfs_error(s, "sector %08x not allocated", sec);
@@ -341,7 +341,7 @@ void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
 		hpfs_mark_4buffers_dirty(&qbh);
 		hpfs_brelse4(&qbh);
 		return;
-	}	
+	}
 	if (!(++sec & 0x3fff)) {
 		hpfs_mark_4buffers_dirty(&qbh);
 		hpfs_brelse4(&qbh);
@@ -459,7 +459,7 @@ struct fnode *hpfs_alloc_fnode(struct super_block *s, secno near, fnode_secno *f
 	if (!(f = hpfs_get_sector(s, *fno, bh))) {
 		hpfs_free_sectors(s, *fno, 1);
 		return NULL;
-	}	
+	}
 	memset(f, 0, 512);
 	f->magic = cpu_to_le32(FNODE_MAGIC);
 	f->ea_offs = cpu_to_le16(0xc4);

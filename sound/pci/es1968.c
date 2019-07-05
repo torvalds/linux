@@ -3,7 +3,7 @@
  *  Driver for ESS Maestro 1/2/2E Sound Card (started 21.8.99)
  *  Copyright (c) by Matze Braun <MatzeBraun@gmx.de>.
  *                   Takashi Iwai <tiwai@suse.de>
- *                  
+ *
  *  Most of the driver code comes from Zach Brown(zab@redhat.com)
  *	Alan Cox OSS Driver
  *  Rewritted from card-es1938.c source.
@@ -15,7 +15,7 @@
  *
  *  Hardware Description
  *
- *	A working Maestro setup contains the Maestro chip wired to a 
+ *	A working Maestro setup contains the Maestro chip wired to a
  *	codec or 2.  In the Maestro we have the APUs, the ASSP, and the
  *	Wavecache.  The APUs can be though of as virtual audio routing
  *	channels.  They can take data from a number of sources and perform
@@ -24,7 +24,7 @@
  *	APUs.  The ASSP is a wacky DSP like device that ESS is loth
  *	to release docs on.  Thankfully it isn't required on the Maestro
  *	until you start doing insane things like FM emulation and surround
- *	encoding.  The codecs are almost always AC-97 compliant codecs, 
+ *	encoding.  The codecs are almost always AC-97 compliant codecs,
  *	but it appears that early Maestros may have had PT101 (an ESS
  *	part?) wired to them.  The only real difference in the Maestro
  *	families is external goop like docking capability, memory for
@@ -62,7 +62,7 @@
  *	on open time.  The sonicvibes OSS routines we inherited really want
  *	power of 2 buffers, so we have all those next to each other, then
  *	512 byte regions for the recording wavecaches.  This ends up
- *	wasting quite a bit of memory.  The only fixes I can see would be 
+ *	wasting quite a bit of memory.  The only fixes I can see would be
  *	getting a kernel allocator that could work in zones, or figuring out
  *	just how to coerce the WP into doing what we want.
  *
@@ -72,7 +72,7 @@
  *	like the APU interface that is indirect registers gotten at through
  *	the main maestro indirection.  Ouch.  We spinlock around the actual
  *	ports on a per card basis.  This means spinlock activity at each IO
- *	operation, but the only IO operation clusters are in non critical 
+ *	operation, but the only IO operation clusters are in non critical
  *	paths and it makes the code far easier to follow.  Interrupts are
  *	blocked while holding the locks because the int handler has to
  *	get at some of them :(.  The mixer interface doesn't, however.
@@ -895,7 +895,7 @@ snd_es1968_calc_bob_rate(struct es1968 *chip, struct esschan *es,
 static u32 snd_es1968_compute_rate(struct es1968 *chip, u32 freq)
 {
 	u32 rate = (freq << 16) / chip->clock;
-#if 0 /* XXX: do we need this? */ 
+#if 0 /* XXX: do we need this? */
 	if (rate > 0x10000)
 		rate = 0x10000;
 #endif
@@ -1272,7 +1272,7 @@ static snd_pcm_uframes_t snd_es1968_pcm_pointer(struct snd_pcm_substream *substr
 	unsigned int ptr;
 
 	ptr = snd_es1968_get_dma_ptr(chip, es) << es->wav_shift;
-	
+
 	return bytes_to_frames(substream->runtime, ptr % es->dma_size);
 }
 
@@ -1490,7 +1490,7 @@ static int snd_es1968_hw_free(struct snd_pcm_substream *substream)
 	struct es1968 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct esschan *chan;
-	
+
 	if (runtime->private_data == NULL)
 		return 0;
 	chan = runtime->private_data;
@@ -1585,7 +1585,7 @@ static int snd_es1968_capture_open(struct snd_pcm_substream *substream)
 		snd_es1968_free_apu_pair(chip, apu1);
 		return apu2;
 	}
-	
+
 	es = kzalloc(sizeof(*es), GFP_KERNEL);
 	if (!es) {
 		snd_es1968_free_apu_pair(chip, apu1);
@@ -1852,7 +1852,7 @@ static void snd_es1968_update_pcm(struct es1968 *chip, struct esschan *es)
 	unsigned int hwptr;
 	unsigned int diff;
 	struct snd_pcm_substream *subs = es->substream;
-        
+
 	if (subs == NULL || !es->running)
 		return;
 
@@ -2172,15 +2172,15 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 
 	/* We used to muck around with pci config space that
 	 * we had no business messing with.  We don't know enough
-	 * about the machine to know which DMA mode is appropriate, 
+	 * about the machine to know which DMA mode is appropriate,
 	 * etc.  We were guessing wrong on some machines and making
 	 * them unhappy.  We now trust in the BIOS to do things right,
 	 * which almost certainly means a new host of problems will
-	 * arise with broken BIOS implementations.  screw 'em. 
+	 * arise with broken BIOS implementations.  screw 'em.
 	 * We're already intolerant of machines that don't assign
 	 * IRQs.
 	 */
-	
+
 	/* Config Reg A */
 	pci_read_config_word(pci, ESM_CONFIG_A, &w);
 
@@ -2190,7 +2190,7 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 	w |= POST_WRITE;	/* Posted write */
 	w |= PCI_TIMING;	/* PCI timing on */
 	/* XXX huh?  claims to be reserved.. */
-	w &= ~SWAP_LR;		/* swap left/right 
+	w &= ~SWAP_LR;		/* swap left/right
 				   seems to only have effect on SB
 				   Emulation */
 	w &= ~SUBTR_DECODE;	/* Subtractive decode off */
@@ -2241,7 +2241,7 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 	w|=1<<3;	/* Turn on 978 hardware volume control. */
 	w&=~(1<<11);	/* Turn on 978 mixer volume control. */
 	pci_write_config_word(pci, 0x58, w);
-	
+
 	/* Sound Reset */
 
 	snd_es1968_reset(chip);
@@ -2259,7 +2259,7 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 	/*
 	 *	Reset the CODEC
 	 */
-	 
+
 	snd_es1968_ac97_reset(chip);
 
 	/* Ring Bus Control B */
@@ -2324,7 +2324,7 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 
 	maestro_write(chip, 0x0D, 0x7632);
 
-	/* Wave cache control on - test off, sg off, 
+	/* Wave cache control on - test off, sg off,
 	   enable, enable extra chans 1Mb */
 
 	w = inw(iobase + WC_CONTROL);
@@ -2394,7 +2394,7 @@ static int es1968_resume(struct device *dev)
 
 	snd_es1968_chip_init(chip);
 
-	/* need to restore the base pointers.. */ 
+	/* need to restore the base pointers.. */
 	if (chip->dma.addr) {
 		/* set PCMBAR */
 		wave_set_register(chip, 0x01FC, chip->dma.addr >> 12);
@@ -2716,7 +2716,7 @@ static int snd_es1968_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
-	        
+
 	/* Clear Maestro_map */
 	for (i = 0; i < 32; i++)
 		chip->maestro_map[i] = 0;
@@ -2809,14 +2809,14 @@ static int snd_es1968_probe(struct pci_dev *pci,
 			   0, &card);
 	if (err < 0)
 		return err;
-                
+
 	if (total_bufsize[dev] < 128)
 		total_bufsize[dev] = 128;
 	if (total_bufsize[dev] > 4096)
 		total_bufsize[dev] = 4096;
 	if ((err = snd_es1968_create(card, pci,
 				     total_bufsize[dev] * 1024, /* in bytes */
-				     pcm_substreams_p[dev], 
+				     pcm_substreams_p[dev],
 				     pcm_substreams_c[dev],
 				     pci_id->driver_data,
 				     use_pm[dev],

@@ -328,7 +328,7 @@ static ssize_t aux_store(struct device *dev, struct device_attribute *dev_attr,
 	if (value < 0)
 		return -EINVAL;
 
-	result = sensor_set_auxtrip(attr->handle, idx, 
+	result = sensor_set_auxtrip(attr->handle, idx,
 				    CELSIUS_TO_DECI_KELVIN(value));
 	return result ? result : count;
 }

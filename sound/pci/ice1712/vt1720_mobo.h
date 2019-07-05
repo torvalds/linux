@@ -8,7 +8,7 @@
  *   Lowlevel functions for VT1720-based motherboards
  *
  *	Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
- */      
+ */
 
 #define VT1720_MOBO_DEVICE_DESC        "{Albatron,K8X800 Pro II},"\
 				       "{Chaintech,ZNF3-150},"\

@@ -84,7 +84,7 @@ static inline __sum16 csum_fold(__wsum csum)
 	sum += (sum << 16) + (sum >> 16);
 	return (__force __sum16)(~sum >> 16);
 }
- 
+
 static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
@@ -185,7 +185,7 @@ static __inline__ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 	return csum_fold(sum);
 }
 
-/* 
+/*
  *	Copy and checksum to user
  */
 #define HAVE_CSUM_COPY_USER
@@ -196,7 +196,7 @@ static __inline__ __wsum csum_and_copy_to_user(const void *src,
 {
 	/* code stolen from include/asm-mips64 */
 	sum = csum_partial(src, len, sum);
-	 
+
 	if (copy_to_user(dst, src, len)) {
 		*err_ptr = -EFAULT;
 		return (__force __wsum)-1;

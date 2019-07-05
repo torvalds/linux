@@ -2,7 +2,7 @@
  *  linux/drivers/video/i810_regs.h -- Intel 810/815 Register List
  *
  *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
- *      All Rights Reserved      
+ *      All Rights Reserved
  *
  *
  *  This file is subject to the terms and conditions of the GNU General Public
@@ -12,64 +12,64 @@
 
 
 /*
- * Intel 810 Chipset Family PRM 15 3.1 
- * GC Register Memory Address Map 
+ * Intel 810 Chipset Family PRM 15 3.1
+ * GC Register Memory Address Map
  *
  * Based on:
- * Intel (R) 810 Chipset Family 
- * Programmer s Reference Manual 
- * November 1999 
- * Revision 1.0 
+ * Intel (R) 810 Chipset Family
+ * Programmer s Reference Manual
+ * November 1999
+ * Revision 1.0
  * Order Number: 298026-001 R
  *
- * All GC registers are memory-mapped. In addition, the VGA and extended VGA registers 
- * are I/O mapped. 
+ * All GC registers are memory-mapped. In addition, the VGA and extended VGA registers
+ * are I/O mapped.
  */
- 
+
 #ifndef __I810_REGS_H__
 #define __I810_REGS_H__
 
 /*  Instruction and Interrupt Control Registers (01000h 02FFFh) */
-#define FENCE                 0x02000                
-#define PGTBL_CTL             0x02020 
-#define PGTBL_ER              0x02024               
+#define FENCE                 0x02000
+#define PGTBL_CTL             0x02020
+#define PGTBL_ER              0x02024
 #define    LRING              0x02030
 #define    IRING              0x02040
-#define HWS_PGA               0x02080 
+#define HWS_PGA               0x02080
 #define IPEIR                 0x02088
-#define IPEHR                 0x0208C 
-#define INSTDONE              0x02090 
+#define IPEHR                 0x0208C
+#define INSTDONE              0x02090
 #define NOPID                 0x02094
-#define HWSTAM                0x02098 
+#define HWSTAM                0x02098
 #define IER                   0x020A0
 #define IIR                   0x020A4
-#define IMR                   0x020A8 
-#define ISR                   0x020AC 
-#define EIR                   0x020B0 
-#define EMR                   0x020B4 
-#define ESR                   0x020B8 
+#define IMR                   0x020A8
+#define ISR                   0x020AC
+#define EIR                   0x020B0
+#define EMR                   0x020B4
+#define ESR                   0x020B8
 #define INSTPM                0x020C0
-#define INSTPS                0x020C4 
-#define BBP_PTR               0x020C8 
+#define INSTPS                0x020C4
+#define BBP_PTR               0x020C8
 #define ABB_SRT               0x020CC
 #define ABB_END               0x020D0
-#define DMA_FADD              0x020D4 
+#define DMA_FADD              0x020D4
 #define FW_BLC                0x020D8
-#define MEM_MODE              0x020DC        
+#define MEM_MODE              0x020DC
 
 /*  Memory Control Registers (03000h 03FFFh) */
 #define DRT                   0x03000
 #define DRAMCL                0x03001
 #define DRAMCH                0x03002
- 
+
 
 /* Span Cursor Registers (04000h 04FFFh) */
-#define UI_SC_CTL             0x04008 
+#define UI_SC_CTL             0x04008
 
 /* I/O Control Registers (05000h 05FFFh) */
-#define HVSYNC                0x05000 
+#define HVSYNC                0x05000
 #define GPIOA                 0x05010
-#define GPIOB                 0x05014 
+#define GPIOB                 0x05014
 #define GPIOC                 0x0501C
 
 /* Clock Control and Power Management Registers (06000h 06FFFh) */
@@ -81,7 +81,7 @@
 #define PWR_CLKC              0x06014
 
 /* Graphics Translation Table Range Definition (10000h 1FFFFh) */
-#define GTT                   0x10000  
+#define GTT                   0x10000
 
 /*  Overlay Registers (30000h 03FFFFh) */
 #define OVOADDR               0x30000
@@ -92,18 +92,18 @@
 #define OBUF_0U               0x30108
 #define OBUF_0V               0x3010C
 #define OBUF_1U               0x30110
-#define OBUF_1V               0x30114 
+#define OBUF_1V               0x30114
 #define OVOSTRIDE             0x30118
 #define YRGB_VPH              0x3011C
 #define UV_VPH                0x30120
 #define HORZ_PH               0x30124
 #define INIT_PH               0x30128
-#define DWINPOS               0x3012C 
+#define DWINPOS               0x3012C
 #define DWINSZ                0x30130
 #define SWID                  0x30134
 #define SWIDQW                0x30138
 #define SHEIGHT               0x3013F
-#define YRGBSCALE             0x30140 
+#define YRGBSCALE             0x30140
 #define UVSCALE               0x30144
 #define OVOCLRCO              0x30148
 #define OVOCLRC1              0x3014C
@@ -197,7 +197,7 @@
 #define CR41                  0x41
 #define CR42                  0x42
 #define CR70                  0x70
-#define CR80                  0x80 
+#define CR80                  0x80
 #define CR81                  0x82
 
 /* Extended VGA Registers */
@@ -223,7 +223,7 @@
 #define SR07                  0x07
 
 /* Graphics Controller Registers */
-#define GR00                  0x00   
+#define GR00                  0x00
 #define GR01                  0x01
 #define GR02                  0x02
 #define GR03                  0x03
@@ -231,7 +231,7 @@
 #define GR05                  0x05
 #define GR06                  0x06
 #define GR07                  0x07
-#define GR08                  0x08  
+#define GR08                  0x08
 
 /* Attribute Controller Registers */
 #define ATTR_WRITE              0x3C0

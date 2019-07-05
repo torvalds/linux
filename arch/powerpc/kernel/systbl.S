@@ -7,7 +7,7 @@
  * and Paul Mackerras.
  *
  * Adapted for iSeries by Mike Corrigan (mikejc@us.ibm.com)
- * PPC64 updates by Dave Engebretsen (engebret@us.ibm.com) 
+ * PPC64 updates by Dave Engebretsen (engebret@us.ibm.com)
  */
 
 #include <asm/ppc_asm.h>

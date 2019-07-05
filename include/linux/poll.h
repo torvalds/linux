@@ -31,7 +31,7 @@ extern struct ctl_table epoll_table[]; /* for sysctl */
 
 struct poll_table_struct;
 
-/* 
+/*
  * structures and helpers for f_op->poll implementations
  */
 typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);

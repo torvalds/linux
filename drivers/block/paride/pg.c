@@ -1,4 +1,4 @@
-/* 
+/*
 	pg.c    (c) 1998  Grant R. Guenther <grant@torque.net>
 			  Under the terms of the GNU General Public License.
 
@@ -31,7 +31,7 @@
 	port ATAPI device, but if their individual parameters are
 	specified, the driver can handle up to 4 devices.
 
-	To use this device, you must have the following device 
+	To use this device, you must have the following device
 	special files defined:
 
 		/dev/pg0 c 97 0
@@ -47,7 +47,7 @@
 	some parameters from the insmod command line.  The following
 	parameters are adjustable:
 
-	    drive0      These four arguments can be arrays of       
+	    drive0      These four arguments can be arrays of
 	    drive1      1-6 integers as follows:
 	    drive2
 	    drive3      <prt>,<pro>,<uni>,<mod>,<slv>,<dly>
@@ -77,7 +77,7 @@
 			choose the slave, -1 (the default) to choose the
 			first drive found.
 
-		<dly>   some parallel ports require the driver to 
+		<dly>   some parallel ports require the driver to
 			go more slowly.  -1 sets a default value that
 			should work with the chosen protocol.  Otherwise,
 			set this to a small integer, the larger it is
@@ -95,12 +95,12 @@
 			(default "pg").
 
 	    verbose     This parameter controls the amount of logging
-			that is done by the driver.  Set it to 0 for 
+			that is done by the driver.  Set it to 0 for
 			quiet operation, to 1 to enable progress
 			messages while the driver probes for devices,
 			or to 2 for full debug logging.  (default 0)
 
-	If this driver is built into the kernel, you can use 
+	If this driver is built into the kernel, you can use
 	the following command line parameters, with the same values
 	as the corresponding module parameters listed above:
 

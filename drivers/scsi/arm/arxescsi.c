@@ -137,7 +137,7 @@ arxescsi_dma_pseudo(struct Scsi_Host *host, struct scsi_pointer *SCp,
 			while (length > 0) {
 				if (readb(base + 0x80) & STAT_INT)
 					break;
-	 
+
 				if (!(readb(base + DMASTAT_OFFSET) & DMASTAT_DRQ))
 					continue;
 
@@ -160,7 +160,7 @@ arxescsi_dma_pseudo(struct Scsi_Host *host, struct scsi_pointer *SCp,
 					error = 1;
 					break;
 				}
-	    
+
 				if (!(readb(base + DMASTAT_OFFSET) & DMASTAT_DRQ))
 					continue;
 
@@ -292,7 +292,7 @@ static int arxescsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	info->info.dma.setup		= arxescsi_dma_setup;
 	info->info.dma.pseudo		= arxescsi_dma_pseudo;
 	info->info.dma.stop		= arxescsi_dma_stop;
-		
+
 	ec->irqaddr = base;
 	ec->irqmask = CSTATUS_IRQ;
 

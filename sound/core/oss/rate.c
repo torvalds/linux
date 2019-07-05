@@ -18,7 +18,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
-  
+
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -36,7 +36,7 @@ struct rate_channel {
 	signed short last_S1;
 	signed short last_S2;
 };
- 
+
 typedef void (*rate_f)(struct snd_pcm_plugin *plugin,
 		       const struct snd_pcm_plugin_channel *src_channels,
 		       struct snd_pcm_plugin_channel *dst_channels,
@@ -75,7 +75,7 @@ static void resample_expand(struct snd_pcm_plugin *plugin,
 	int src_frames1, dst_frames1;
 	struct rate_priv *data = (struct rate_priv *)plugin->extra_data;
 	struct rate_channel *rchannels = data->channels;
-	
+
 	for (channel = 0; channel < plugin->src_format.channels; channel++) {
 		pos = data->pos;
 		S1 = rchannels->last_S1;
@@ -193,7 +193,7 @@ static snd_pcm_sframes_t rate_src_frames(struct snd_pcm_plugin *plugin, snd_pcm_
 	if (plugin->src_format.rate < plugin->dst_format.rate) {
 		res = (((frames * data->pitch) + (BITS/2)) >> SHIFT);
 	} else {
-		res = (((frames << SHIFT) + (data->pitch / 2)) / data->pitch);		
+		res = (((frames << SHIFT) + (data->pitch / 2)) / data->pitch);
 	}
 	if (data->old_src_frames > 0) {
 		snd_pcm_sframes_t frames1 = frames, res1 = data->old_dst_frames;

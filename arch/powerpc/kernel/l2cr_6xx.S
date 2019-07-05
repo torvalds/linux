@@ -238,7 +238,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	oris	r3,r3,0x8000
 	mtspr	SPRN_L2CR,r3
 	sync
-	
+
 	/* Enable L2 HW prefetch on 744x/745x */
 BEGIN_FTR_SECTION
 	mfspr	r3,SPRN_MSSCR0

@@ -42,7 +42,7 @@ Supported adapters:
 On Intel Patsburg and later chipsets, both the normal host SMBus controller
 and the additional 'Integrated Device Function' controllers are supported.
 
-Authors: 
+Authors:
 	Mark Studebaker <mdsxyz123@yahoo.com>
 	Jean Delvare <jdelvare@suse.de>
 

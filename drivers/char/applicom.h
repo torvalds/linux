@@ -21,9 +21,9 @@
 #define NUMCARD_ACK_FROM_PC   0x010
 #define TYP_ACK_FROM_PC       0x011
 #define CONF_END_TEST         0x012
-#define ERROR_CODE            0x016 
-#define PARAMETER_ERROR       0x018 
-#define VERS                  0x01E 
+#define ERROR_CODE            0x016
+#define PARAMETER_ERROR       0x018
+#define VERS                  0x01E
 #define RAM_TO_PC             0x040
 #define RAM_FROM_PC           0x0170
 #define TYPE_CARD             0x03C0
@@ -52,7 +52,7 @@ struct mailbox{
 	u8   stjb_data[256];		/* offset 30 */
 	};
 
-struct st_ram_io 
+struct st_ram_io
 {
 	unsigned char data_to_pc_ready;
 	unsigned char tic_owner_to_pc;

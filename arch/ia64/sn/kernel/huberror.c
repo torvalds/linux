@@ -91,13 +91,13 @@ void hubiio_crb_free(struct hubdev_info *hubdev_info, int crbnum)
 /*
  * hubiio_crb_error_handler
  *
- *	This routine gets invoked when a hub gets an error 
+ *	This routine gets invoked when a hub gets an error
  *	interrupt. So, the routine is running in interrupt context
  *	at error interrupt level.
  * Action:
  *	It's responsible for identifying ALL the CRBs that are marked
- *	with error, and process them. 
- *	
+ *	with error, and process them.
+ *
  * 	If you find the CRB that's marked with error, map this to the
  *	reason it caused error, and invoke appropriate error handler.
  *
@@ -105,7 +105,7 @@ void hubiio_crb_free(struct hubdev_info *hubdev_info, int crbnum)
  *
  * NOTE:
  *	Use REMOTE_HUB_* macro instead of LOCAL_HUB_* so that the interrupt
- *	handler can be run on any node. (not necessarily the node 
+ *	handler can be run on any node. (not necessarily the node
  *	corresponding to the hub that encountered error).
  */
 

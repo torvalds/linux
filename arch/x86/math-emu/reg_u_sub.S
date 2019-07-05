@@ -42,7 +42,7 @@ ENTRY(FPU_u_sub)
 
 	movl	PARAM1,%esi	/* source 1 */
 	movl	PARAM2,%edi	/* source 2 */
-	
+
 	movl	PARAM6,%ecx
 	subl	PARAM7,%ecx	/* exp1 - exp2 */
 
@@ -184,8 +184,8 @@ L_subtr:
  *	 A rare case, the only one which is non-zero if we got here
  *         is:           1000000 .... 0000
  *                      -0111111 .... 1111 1
- *                       -------------------- 
- *                       0000000 .... 0000 1 
+ *                       --------------------
+ *                       0000000 .... 0000 1
  */
 
 	cmpl	$0x80000000,%edx
@@ -200,7 +200,7 @@ L_must_be_zero:
 #ifdef PARANOID
 	orl	%edx,%edx
 	jnz	L_bugged_3
-#endif /* PARANOID */ 
+#endif /* PARANOID */
 
 	/* The result is zero */
 	movw	$0,EXP(%edi)		/* exponent */

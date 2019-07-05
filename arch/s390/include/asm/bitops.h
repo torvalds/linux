@@ -158,7 +158,7 @@ static inline void __set_bit(unsigned long nr, volatile unsigned long *ptr)
 	*addr |= 1 << (nr & 7);
 }
 
-static inline void 
+static inline void
 __clear_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned char *addr = __bitops_byte(nr, ptr);

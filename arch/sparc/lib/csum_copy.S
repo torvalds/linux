@@ -75,7 +75,7 @@ FUNC_NAME:		/* %o0=src, %o1=dst, %o2=len, %o3=sum */
 	andcc		%g1, 0x3, %g0
 	bne,pn		%icc, 95f
 	 LOAD(prefetch, %o0 + 0x040, #n_reads)
-	
+
 	brz,pn		%o2, 70f
 	 andcc		%o0, 0x3, %g0
 
@@ -235,31 +235,31 @@ FUNC_NAME:		/* %o0=src, %o1=dst, %o2=len, %o3=sum */
 
 95:	mov		0, GLOBAL_SPARE
 	brlez,pn	%o2, 4f
-	 andcc		%o0, 1, %o5		
+	 andcc		%o0, 1, %o5
 	be,a,pt		%icc, 1f
-	 srl		%o2, 1, %g1		
-	sub		%o2, 1, %o2	
+	 srl		%o2, 1, %g1
+	sub		%o2, 1, %o2
 	EX_LD(LOAD(ldub, %o0, GLOBAL_SPARE))
-	add		%o0, 1, %o0	
+	add		%o0, 1, %o0
 	EX_ST(STORE(stb, GLOBAL_SPARE, %o1))
 	srl		%o2, 1, %g1
 	add		%o1, 1, %o1
 1:	brz,a,pn	%g1, 3f
 	 andcc		%o2, 1, %g0
-	andcc		%o0, 2, %g0	
+	andcc		%o0, 2, %g0
 	be,a,pt		%icc, 1f
 	 srl		%g1, 1, %g1
 	EX_LD(LOAD(lduh, %o0, %o4))
-	sub		%o2, 2, %o2	
+	sub		%o2, 2, %o2
 	srl		%o4, 8, %g2
-	sub		%g1, 1, %g1	
+	sub		%g1, 1, %g1
 	EX_ST(STORE(stb, %g2, %o1))
 	add		%o4, GLOBAL_SPARE, GLOBAL_SPARE
 	EX_ST(STORE(stb, %o4, %o1 + 1))
-	add		%o0, 2, %o0	
+	add		%o0, 2, %o0
 	srl		%g1, 1, %g1
 	add		%o1, 2, %o1
-1:	brz,a,pn	%g1, 2f		
+1:	brz,a,pn	%g1, 2f
 	 andcc		%o2, 2, %g0
 	EX_LD(LOAD(lduw, %o0, %o4))
 5:	srl		%o4, 24, %g2
@@ -280,21 +280,21 @@ FUNC_NAME:		/* %o0=src, %o1=dst, %o2=len, %o3=sum */
 	srl		GLOBAL_SPARE, 16, GLOBAL_SPARE
 	srl		%g2, 16, %g2
 	andcc		%o2, 2, %g0
-	add		%g2, GLOBAL_SPARE, GLOBAL_SPARE 
-2:	be,a,pt		%icc, 3f		
+	add		%g2, GLOBAL_SPARE, GLOBAL_SPARE
+2:	be,a,pt		%icc, 3f
 	 andcc		%o2, 1, %g0
 	EX_LD(LOAD(lduh, %o0, %o4))
 	andcc		%o2, 1, %g0
 	srl		%o4, 8, %g2
-	add		%o0, 2, %o0	
+	add		%o0, 2, %o0
 	EX_ST(STORE(stb, %g2, %o1))
 	add		GLOBAL_SPARE, %o4, GLOBAL_SPARE
 	EX_ST(STORE(stb, %o4, %o1 + 1))
 	add		%o1, 2, %o1
-3:	be,a,pt		%icc, 1f		
+3:	be,a,pt		%icc, 1f
 	 sll		GLOBAL_SPARE, 16, %o4
 	EX_LD(LOAD(ldub, %o0, %g2))
-	sll		%g2, 8, %o4	
+	sll		%g2, 8, %o4
 	EX_ST(STORE(stb, %g2, %o1))
 	add		GLOBAL_SPARE, %o4, GLOBAL_SPARE
 	sll		GLOBAL_SPARE, 16, %o4

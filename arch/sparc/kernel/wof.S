@@ -68,7 +68,7 @@ spnwin_patch3_7win:	and	%twin_tmp, 0x7f, %twin_tmp
 	 * be set in to mask.  If no user windows are active, the bitmask
 	 * will be all zeroes.
 	 */
-	.globl	spill_window_entry 
+	.globl	spill_window_entry
 	.globl	spnwin_patch1, spnwin_patch2, spnwin_patch3
 spill_window_entry:
 	/* LOCATION: Trap Window */
@@ -95,7 +95,7 @@ spnwin_patch2:	and	%glob_tmp, 0xff, %glob_tmp
 	andcc	%t_psr, PSR_PS, %g0
 	be,a	spwin_fromuser				! all user wins, branch
 	 save	%g0, %g0, %g0				! Go where saving will occur
-	
+
 	/* See if any user windows are active in the set. */
 	ld	[%curptr + TI_UWINMASK], %twin_tmp	! grab win mask
 	orcc	%g0, %twin_tmp, %g0			! check for set bits

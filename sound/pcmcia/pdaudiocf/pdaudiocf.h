@@ -98,7 +98,7 @@ struct snd_pdacf {
 	unsigned int pcm_tdone;
 	unsigned int pcm_hwptr;
 	void *pcm_area;
-	
+
 	/* pcmcia stuff */
 	struct pcmcia_device	*p_dev;
 };

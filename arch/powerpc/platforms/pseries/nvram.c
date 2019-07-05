@@ -59,13 +59,13 @@ static ssize_t pSeries_nvram_read(char *buf, size_t count, loff_t *index)
 		len = count;
 		if (len > NVRW_CNT)
 			len = NVRW_CNT;
-		
+
 		if ((rtas_call(nvram_fetch, 3, 2, &done, i, __pa(nvram_buf),
 			       len) != 0) || len != done) {
 			spin_unlock_irqrestore(&nvram_lock, flags);
 			return -EIO;
 		}
-		
+
 		memcpy(p, nvram_buf, len);
 
 		p += len;
@@ -73,7 +73,7 @@ static ssize_t pSeries_nvram_read(char *buf, size_t count, loff_t *index)
 	}
 
 	spin_unlock_irqrestore(&nvram_lock, flags);
-	
+
 	*index = i;
 	return p - buf;
 }
@@ -110,12 +110,12 @@ static ssize_t pSeries_nvram_write(char *buf, size_t count, loff_t *index)
 			spin_unlock_irqrestore(&nvram_lock, flags);
 			return -EIO;
 		}
-		
+
 		p += len;
 		i += len;
 	}
 	spin_unlock_irqrestore(&nvram_lock, flags);
-	
+
 	*index = i;
 	return p - buf;
 }
@@ -169,7 +169,7 @@ int nvram_clear_error_log(void)
 		return -1;
 
 	tmp_index = rtas_log_partition.index;
-	
+
 	rc = ppc_md.nvram_write((char *)&clear_word, sizeof(int), &tmp_index);
 	if (rc <= 0) {
 		printk(KERN_ERR "nvram_clear_error_log: Failed nvram_write (%d)\n", rc);

@@ -21,7 +21,7 @@ char brick_types[MAX_BRICK_TYPES + 1] = "cri.xdpn%#=vo^kjbf890123456789...";
  * There are three possible formats:
  *
  *   MODULE_FORMAT_BRIEF	is the brief 6-character format, including
- *				the actual brick-type as recorded in the 
+ *				the actual brick-type as recorded in the
  *				moduleid_t, eg. 002c15 for a C-brick, or
  *				101#17 for a PX-brick.
  *
@@ -52,7 +52,7 @@ format_module_id(char *buffer, moduleid_t m, int fmt)
 	/* Be sure we use the same brick type character as displayed
 	 * on the brick's LCD
 	 */
-	switch (brickchar) 
+	switch (brickchar)
 	{
 	case L1_BRICKTYPE_GA:
 	case L1_BRICKTYPE_OPUS_TIO:

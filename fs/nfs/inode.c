@@ -97,7 +97,7 @@ u64 nfs_compat_user_ino64(u64 fileid)
 {
 #ifdef CONFIG_COMPAT
 	compat_ulong_t ino;
-#else	
+#else
 	unsigned long ino;
 #endif
 

@@ -76,6 +76,6 @@ extern asmlinkage int brcm_pm_do_s3(void __iomem *aon_ctrl_base,
 extern int s3_reentry;
 #endif /* CONFIG_MIPS */
 
-#endif 
+#endif
 
 #endif /* __BRCMSTB_PM_H__ */

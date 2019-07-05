@@ -132,7 +132,7 @@ main(int argc, char *argv[])
 	/* Set Sentinal scope node */
 	sentinal = scope_alloc();
 	sentinal->type = SCOPE_ROOT;
-	
+
 	includes_search_curdir = 1;
 	appname = *argv;
 	regfile = NULL;
@@ -553,7 +553,7 @@ output_listing(char *ifilename)
 
 		if (func_values == NULL)
 			stop("Could not malloc", EX_OSERR);
-		
+
 		func_values[0] = 0; /* FALSE func */
 		func_count--;
 
@@ -561,13 +561,13 @@ output_listing(char *ifilename)
 		 * Ask the user to fill in the return values for
 		 * the rest of the functions.
 		 */
-		
-		
+
+
 		for (cur_func = SLIST_FIRST(&patch_functions);
 		     cur_func != NULL && SLIST_NEXT(cur_func, links) != NULL;
 		     cur_func = SLIST_NEXT(cur_func, links), func_count--) {
 			int input;
-			
+
 			fprintf(stdout, "\n(%s)\n", cur_func->symbol->name);
 			fprintf(stdout,
 				"Enter the return value for "
@@ -751,7 +751,7 @@ cs_alloc()
 	if (new_cs == NULL)
 		stop("Unable to malloc critical_section object", EX_SOFTWARE);
 	memset(new_cs, 0, sizeof(*new_cs));
-	
+
 	TAILQ_INSERT_TAIL(&cs_tailq, new_cs, links);
 	return new_cs;
 }
@@ -766,7 +766,7 @@ scope_alloc()
 		stop("Unable to malloc scope object", EX_SOFTWARE);
 	memset(new_scope, 0, sizeof(*new_scope));
 	TAILQ_INIT(&new_scope->inner_scope);
-	
+
 	if (SLIST_FIRST(&scope_stack) != NULL) {
 		TAILQ_INSERT_TAIL(&SLIST_FIRST(&scope_stack)->inner_scope,
 				  new_scope, scope_links);

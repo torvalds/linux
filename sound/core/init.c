@@ -400,7 +400,7 @@ int snd_card_disconnect(struct snd_card *card)
 		mfile->file->f_op = &snd_shutdown_f_ops;
 		fops_get(mfile->file->f_op);
 	}
-	spin_unlock(&card->files_lock);	
+	spin_unlock(&card->files_lock);
 
 	/* notify all connected devices about disconnection */
 	/* at this point, they cannot respond to any calls except release() */
@@ -428,7 +428,7 @@ int snd_card_disconnect(struct snd_card *card)
 #ifdef CONFIG_PM
 	wake_up(&card->power_sleep);
 #endif
-	return 0;	
+	return 0;
 }
 EXPORT_SYMBOL(snd_card_disconnect);
 
@@ -582,7 +582,7 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
 	int len, loops;
 	bool is_default = false;
 	char *id;
-	
+
 	copy_valid_id_string(card, src, nid);
 	id = card->id;
 
@@ -882,7 +882,7 @@ int __init snd_card_info_init(void)
  *
  *  Return: Zero otherwise a negative error code.
  */
-  
+
 int snd_component_add(struct snd_card *card, const char *component)
 {
 	char *ptr;

@@ -99,7 +99,7 @@ static int pnpc_registered;
 
 /* power management bits */
 #define OPL3SA2_PM_ADOWN		0x20
-#define OPL3SA2_PM_PSV		0x04		
+#define OPL3SA2_PM_PSV		0x04
 #define OPL3SA2_PM_PDN		0x02
 #define OPL3SA2_PM_PDX		0x01
 
@@ -364,7 +364,7 @@ static int snd_opl3sa2_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	int change;
 	unsigned short val, oval;
-	
+
 	val = (ucontrol->value.integer.value[0] & mask);
 	if (invert)
 		val = mask - val;
@@ -402,7 +402,7 @@ static int snd_opl3sa2_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int shift_right = (kcontrol->private_value >> 19) & 0x07;
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = (chip->ctlregs[left_reg] >> shift_left) & mask;
 	ucontrol->value.integer.value[1] = (chip->ctlregs[right_reg] >> shift_right) & mask;
@@ -426,7 +426,7 @@ static int snd_opl3sa2_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int invert = (kcontrol->private_value >> 22) & 1;
 	int change;
 	unsigned short val1, val2, oval1, oval2;
-	
+
 	val1 = ucontrol->value.integer.value[0] & mask;
 	val2 = ucontrol->value.integer.value[1] & mask;
 	if (invert) {
@@ -640,7 +640,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 	struct snd_opl3 *opl3;
 	int err;
 
-	/* initialise this card from supplied (or default) parameter*/ 
+	/* initialise this card from supplied (or default) parameter*/
 	chip = card->private_data;
 	chip->ymode = opl3sa3_ymode[dev] & 0x03 ;
 	chip->port = port[dev];

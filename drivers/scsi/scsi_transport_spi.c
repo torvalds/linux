@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* 
+/*
  *  Parallel SCSI (SPI) transport specific attributes exported to sysfs.
  *
  *  Copyright (c) 2003 Silicon Graphics, Inc.  All rights reserved.
@@ -33,7 +33,7 @@
 
 #define DV_LOOPS	3
 #define DV_TIMEOUT	(10*HZ)
-#define DV_RETRIES	3	/* should only need at most 
+#define DV_RETRIES	3	/* should only need at most
 				 * two cc/ua clears */
 
 /* Our blacklist flags */
@@ -647,7 +647,7 @@ spi_dv_device_echo_buffer(struct scsi_device *sdev, u8 *buffer,
 		 * 0xffff (test b) */
 		for ( ; j < min(len, k + 32); j += 2) {
 			u16 *word = (u16 *)&buffer[j];
-			
+
 			*word = (j & 0x02) ? 0x0000 : 0xffff;
 		}
 		k = j;
@@ -663,7 +663,7 @@ spi_dv_device_echo_buffer(struct scsi_device *sdev, u8 *buffer,
 		for ( ; j < min(len, k + 32); j += 4) {
 			u32 *word = (unsigned int *)&buffer[j];
 			u32 roll = (pattern & 0x80000000) ? 1 : 0;
-			
+
 			*word = pattern;
 			pattern = (pattern << 1) | roll;
 		}
@@ -720,7 +720,7 @@ spi_dv_device_compare_inquiry(struct scsi_device *sdev, u8 *buffer,
 
 		result = spi_execute(sdev, spi_inquiry, DMA_FROM_DEVICE,
 				     ptr, len, NULL);
-		
+
 		if(result || !scsi_device_online(sdev)) {
 			scsi_device_set_state(sdev, SDEV_QUIESCE);
 			return SPI_COMPARE_FAILURE;
@@ -743,12 +743,12 @@ spi_dv_device_compare_inquiry(struct scsi_device *sdev, u8 *buffer,
 
 static enum spi_compare_returns
 spi_dv_retrain(struct scsi_device *sdev, u8 *buffer, u8 *ptr,
-	       enum spi_compare_returns 
+	       enum spi_compare_returns
 	       (*compare_fn)(struct scsi_device *, u8 *, u8 *, int))
 {
 	struct spi_internal *i = to_spi_internal(sdev->host->transportt);
 	struct scsi_target *starget = sdev->sdev_target;
-	int period = 0, prevperiod = 0; 
+	int period = 0, prevperiod = 0;
 	enum spi_compare_returns retval;
 
 
@@ -804,11 +804,11 @@ spi_dv_device_get_echo_buffer(struct scsi_device *sdev, u8 *buffer)
 {
 	int l, result;
 
-	/* first off do a test unit ready.  This can error out 
+	/* first off do a test unit ready.  This can error out
 	 * because of reservations or some other reason.  If it
 	 * fails, the device won't let us write to the echo buffer
 	 * so just return failure */
-	
+
 	static const char spi_test_unit_ready[] = {
 		TEST_UNIT_READY, 0, 0, 0, 0, 0
 	};
@@ -817,14 +817,14 @@ spi_dv_device_get_echo_buffer(struct scsi_device *sdev, u8 *buffer)
 		READ_BUFFER, 0x0b, 0, 0, 0, 0, 0, 0, 4, 0
 	};
 
-	
-	/* We send a set of three TURs to clear any outstanding 
+
+	/* We send a set of three TURs to clear any outstanding
 	 * unit attention conditions if they exist (Otherwise the
 	 * buffer tests won't be happy).  If the TUR still fails
 	 * (reservation conflict, device not ready, etc) just
 	 * skip the write tests */
 	for (l = 0; ; l++) {
-		result = spi_execute(sdev, spi_test_unit_ready, DMA_NONE, 
+		result = spi_execute(sdev, spi_test_unit_ready, DMA_NONE,
 				     NULL, 0, NULL);
 
 		if(result) {
@@ -836,7 +836,7 @@ spi_dv_device_get_echo_buffer(struct scsi_device *sdev, u8 *buffer)
 		}
 	}
 
-	result = spi_execute(sdev, spi_read_buffer_descriptor, 
+	result = spi_execute(sdev, spi_read_buffer_descriptor,
 			     DMA_FROM_DEVICE, buffer, 4, NULL);
 
 	if (result)
@@ -1211,7 +1211,7 @@ EXPORT_SYMBOL_GPL(spi_populate_ppr_msg);
  * @cmd:	pointer to the scsi command for the tag
  *
  * Notes:
- *	designed to create the correct type of tag message for the 
+ *	designed to create the correct type of tag message for the
  *	particular request.  Returns the size of the tag message.
  *	May return 0 if TCQ is disabled for this device.
  **/
@@ -1230,10 +1230,10 @@ EXPORT_SYMBOL_GPL(spi_populate_tag_msg);
 #ifdef CONFIG_SCSI_CONSTANTS
 static const char * const one_byte_msgs[] = {
 /* 0x00 */ "Task Complete", NULL /* Extended Message */, "Save Pointers",
-/* 0x03 */ "Restore Pointers", "Disconnect", "Initiator Error", 
+/* 0x03 */ "Restore Pointers", "Disconnect", "Initiator Error",
 /* 0x06 */ "Abort Task Set", "Message Reject", "Nop", "Message Parity Error",
 /* 0x0a */ "Linked Command Complete", "Linked Command Complete w/flag",
-/* 0x0c */ "Target Reset", "Abort Task", "Clear Task Set", 
+/* 0x0c */ "Target Reset", "Abort Task", "Clear Task Set",
 /* 0x0f */ "Initiate Recovery", "Release Recovery",
 /* 0x11 */ "Terminate Process", "Continue Task", "Target Transfer Disable",
 /* 0x14 */ NULL, NULL, "Clear ACA", "LUN Reset"
@@ -1279,8 +1279,8 @@ int spi_print_msg(const unsigned char *msg)
 		if (len == 2)
 			len += 256;
 		if (msg[2] < ARRAY_SIZE(extended_msgs))
-			printk ("%s ", extended_msgs[msg[2]]); 
-		else 
+			printk ("%s ", extended_msgs[msg[2]]);
+		else
 			printk ("Extended Message, reserved code (0x%02x) ",
 				(int) msg[2]);
 		switch (msg[2]) {
@@ -1301,7 +1301,7 @@ int spi_print_msg(const unsigned char *msg)
 			print_ptr(msg, 7, "in");
 			break;
 		default:
-		for (i = 2; i < len; ++i) 
+		for (i = 2; i < len; ++i)
 			printk("%02x ", msg[i]);
 		}
 	/* Identify */
@@ -1321,13 +1321,13 @@ int spi_print_msg(const unsigned char *msg)
 	/* Two byte */
 	} else if (msg[0] <= 0x2f) {
 		if ((msg[0] - 0x20) < ARRAY_SIZE(two_byte_msgs))
-			printk("%s %02x ", two_byte_msgs[msg[0] - 0x20], 
+			printk("%s %02x ", two_byte_msgs[msg[0] - 0x20],
 				msg[1]);
-		else 
-			printk("reserved two byte (%02x %02x) ", 
+		else
+			printk("reserved two byte (%02x %02x) ",
 				msg[0], msg[1]);
 		len = 2;
-	} else 
+	} else
 		printk("reserved ");
 	return len;
 }
@@ -1355,7 +1355,7 @@ int spi_print_msg(const unsigned char *msg)
 	} else if (msg[0] <= 0x2f) {
 		printk("%02x %02x", msg[0], msg[1]);
 		len = 2;
-	} else 
+	} else
 		printk("%02x ", msg[0]);
 	return len;
 }

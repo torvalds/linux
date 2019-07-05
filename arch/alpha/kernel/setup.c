@@ -95,15 +95,15 @@ int boot_cpuid;
 
  * "srmcons" specified in the boot command arguments allows us to
  * see kernel messages during the period of time before the true
- * console device is "registered" during console_init(). 
+ * console device is "registered" during console_init().
  * As of this version (2.5.59), console_init() will call
  * disable_early_printk() as the last action before initializing
- * the console drivers. That's the last possible time srmcons can be 
+ * the console drivers. That's the last possible time srmcons can be
  * unregistered without interfering with console behavior.
  *
- * By default, OFF; set it with a bootcommand arg of "srmcons" or 
+ * By default, OFF; set it with a bootcommand arg of "srmcons" or
  * "console=srm". The meaning of these two args is:
- *     "srmcons"     - early callback prints 
+ *     "srmcons"     - early callback prints
  *     "console=srm" - full callback based console, including early prints
  */
 int srmcons_output = 0;
@@ -168,7 +168,7 @@ EXPORT_SYMBOL(__direct_map_size);
  * Declare all of the machine vectors.
  */
 
-/* GCC 2.7.2 (on alpha at least) is lame.  It does not support either 
+/* GCC 2.7.2 (on alpha at least) is lame.  It does not support either
    __attribute__((weak)) or #pragma weak.  Bypass it and talk directly
    to the assembler.  */
 
@@ -341,21 +341,21 @@ setup_memory(void *kernel_end)
 	}
 
 	/*
-	 * Except for the NUMA systems (wildfire, marvel) all of the 
+	 * Except for the NUMA systems (wildfire, marvel) all of the
 	 * Alpha systems we run on support 32GB of memory or less.
 	 * Since the NUMA systems introduce large holes in memory addressing,
 	 * we can get into a situation where there is not enough contiguous
-	 * memory for the memory map. 
+	 * memory for the memory map.
 	 *
-	 * Limit memory to the first 32GB to limit the NUMA systems to 
-	 * memory on their first node (wildfire) or 2 (marvel) to avoid 
-	 * not being able to produce the memory map. In order to access 
+	 * Limit memory to the first 32GB to limit the NUMA systems to
+	 * memory on their first node (wildfire) or 2 (marvel) to avoid
+	 * not being able to produce the memory map. In order to access
 	 * all of the memory on the NUMA systems, build with discontiguous
 	 * memory support.
 	 *
 	 * If the user specified a memory limit, let that memory limit stand.
 	 */
-	if (!mem_size_limit) 
+	if (!mem_size_limit)
 		mem_size_limit = (32ul * 1024 * 1024 * 1024) >> PAGE_SHIFT;
 
 	if (mem_size_limit && max_low_pfn >= mem_size_limit)
@@ -479,7 +479,7 @@ setup_arch(char **cmdline_p)
 	*/
 	kernel_end = callback_init(kernel_end);
 
-	/* 
+	/*
 	 * Locate the command line.
 	 */
 	/* Hack for Jensen... since we're restricted to 8 or 16 chars for
@@ -493,7 +493,7 @@ setup_arch(char **cmdline_p)
 	strcpy(boot_command_line, command_line);
 	*cmdline_p = command_line;
 
-	/* 
+	/*
 	 * Process command-line arguments.
 	 */
 	while ((p = strsep(&args, " \t")) != NULL) {
@@ -578,7 +578,7 @@ setup_arch(char **cmdline_p)
 	if (vec != &alpha_mv) {
 		alpha_mv = *vec;
 	}
-	
+
 	printk("Booting "
 #ifdef CONFIG_ALPHA_GENERIC
 	       "GENERIC "
@@ -622,7 +622,7 @@ setup_arch(char **cmdline_p)
 
 	printk("Command line: %s\n", command_line);
 
-	/* 
+	/*
 	 * Sync up the HAE.
 	 * Save the SRM's current value for restoration.
 	 */
@@ -647,7 +647,7 @@ setup_arch(char **cmdline_p)
 	/* Reserve standard resources.  */
 	reserve_std_resources();
 
-	/* 
+	/*
 	 * Give us a default console.  TGA users will see nothing until
 	 * chr_dev_init is called, rather late in the boot sequence.
 	 */
@@ -797,7 +797,7 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 		&nautilus_mv,
 	};
 
-	static struct alpha_machine_vector *alcor_vecs[] __initdata = 
+	static struct alpha_machine_vector *alcor_vecs[] __initdata =
 	{
 		&alcor_mv, &xlt_mv, &xlt_mv
 	};
@@ -1292,7 +1292,7 @@ determine_cpu_caches (unsigned int cpu_type)
 			L1I = CSHAPE(16*1024, 5, 1);
 		L1D = L1I;
 		L3 = -1;
-	
+
 		/* BIU_CTL is a write-only Abox register.  PALcode has a
 		   shadow copy, and may be available from some versions
 		   of the CSERVE PALcall.  If we can get it, then

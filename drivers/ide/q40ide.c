@@ -55,7 +55,7 @@ static int q40ide_default_irq(unsigned long base)
 static void q40_ide_setup_ports(struct ide_hw *hw, unsigned long base, int irq)
 {
 	memset(hw, 0, sizeof(*hw));
-	/* BIG FAT WARNING: 
+	/* BIG FAT WARNING:
 	   assumption: only DATA port is ever used in 16 bit mode */
 	hw->io_ports.data_addr = Q40_ISA_IO_W(base);
 	hw->io_ports.error_addr = Q40_ISA_IO_B(base + 1);
@@ -118,7 +118,7 @@ static const struct ide_port_info q40ide_port_info = {
 	.chipset		= ide_generic,
 };
 
-/* 
+/*
  * the static array is needed to have the name reported in /proc/ioports,
  * hwif->name unfortunately isn't available yet
  */

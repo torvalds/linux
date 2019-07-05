@@ -184,7 +184,7 @@ static irqreturn_t do_mac53c94_interrupt(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct Scsi_Host *dev = ((struct fsc_state *) dev_id)->current_req->device->host;
-	
+
 	spin_lock_irqsave(dev->host_lock, flags);
 	mac53c94_interrupt(irq, dev_id);
 	spin_unlock_irqrestore(dev->host_lock, flags);
@@ -533,7 +533,7 @@ static int mac53c94_remove(struct macio_dev *mdev)
 }
 
 
-static struct of_device_id mac53c94_match[] = 
+static struct of_device_id mac53c94_match[] =
 {
 	{
 	.name 		= "53c94",
@@ -542,7 +542,7 @@ static struct of_device_id mac53c94_match[] =
 };
 MODULE_DEVICE_TABLE (of, mac53c94_match);
 
-static struct macio_driver mac53c94_driver = 
+static struct macio_driver mac53c94_driver =
 {
 	.driver = {
 		.name 		= "mac53c94",

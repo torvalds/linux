@@ -9,7 +9,7 @@
  - fine-tune the allocation / GC thresholds
  - chattr support - turning on/off and tuning compression per-inode
  - checkpointing (do we need this? scan is quite fast)
- - make the scan code populate real inodes so read_inode just after 
+ - make the scan code populate real inodes so read_inode just after
 	mount doesn't have to read the flash twice for large files.
 	Make this a per-inode option, changeable with chattr, so you can
 	decide which inodes should be in-core immediately after mount.
@@ -25,11 +25,11 @@
 	nodes to a different one, we can separate clean nodes from those which
 	are likely to become dirty, and end up with blocks which are each far
 	closer to 100% or 0% clean, hence speeding up later GC progress dramatically.
-   - Stop keeping name in-core with struct jffs2_full_dirent. If we keep the hash in 
+   - Stop keeping name in-core with struct jffs2_full_dirent. If we keep the hash in
      the full dirent, we only need to go to the flash in lookup() when we think we've
-     got a match, and in readdir(). 
+     got a match, and in readdir().
    - Doubly-linked next_in_ino list to allow us to free obsoleted raw_node_refs immediately?
-   - Remove size from jffs2_raw_node_frag. 
+   - Remove size from jffs2_raw_node_frag.
 
 dedekind:
 1. __jffs2_flush_wbuf() has a strange 'pad' parameter. Eliminate.

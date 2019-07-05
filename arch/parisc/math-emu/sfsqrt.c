@@ -80,7 +80,7 @@ sgl_fsqrt(
 	}
 
         /*
-         * check for negative source operand 
+         * check for negative source operand
          */
 	if (Sgl_isone_sign(src)) {
 		/* trap if INVALIDTRAP enabled */
@@ -113,7 +113,7 @@ sgl_fsqrt(
 	}
 	/*
 	 * Add comment here.  Explain following algorithm.
-	 * 
+	 *
 	 * Trust me, it works.
 	 *
 	 */
@@ -136,7 +136,7 @@ sgl_fsqrt(
 
 	/* check for inexact */
 	if (Sgl_isnotzero(src)) {
-		if (!even_exponent && Sgl_islessthan(result,src)) 
+		if (!even_exponent && Sgl_islessthan(result,src))
 			Sgl_increment(result);
 		guardbit = Sgl_lowmantissa(result);
 		Sgl_rightshiftby1(result);
@@ -147,7 +147,7 @@ sgl_fsqrt(
 		     Sgl_increment(result);
 		     break;
 		case ROUNDNEAREST:
-		     /* stickybit is always true, so guardbit 
+		     /* stickybit is always true, so guardbit
 		      * is enough to determine rounding */
 		     if (guardbit) {
 			Sgl_increment(result);

@@ -322,7 +322,7 @@ usable? Or _last for that matter. I must be missing something>
 <SUP: What I meant here was that if the request doesn't have a bio, then
  end_that_request_first doesn't modify nr_sectors or current_nr_sectors,
  and hence can't be used for advancing request state settings on the
- completion of partial transfers. The driver has to modify these fields 
+ completion of partial transfers. The driver has to modify these fields
  directly by hand.
  This is because end_that_request_first only iterates over the bio list,
  and always returns 0 if there are none associated with the request.
@@ -484,7 +484,7 @@ which in turn means that only raw I/O uses it (direct i/o may not work
 right now). The intent however is to enable clustering of pages etc to
 become possible. The pagebuf abstraction layer from SGI also uses multi-page
 bios, but that is currently not included in the stock development kernels.
-The same is true of Andrew Morton's work-in-progress multipage bio writeout 
+The same is true of Andrew Morton's work-in-progress multipage bio writeout
 and readahead patches.
 
 2.3 Changes in the Request Structure
@@ -550,10 +550,10 @@ struct request {
 	struct bio *bio, *biotail;  /* bio list instead of bh */
 	struct request_list *rl;
 }
-	
+
 See the req_ops and req_flag_bits definitions for an explanation of the various
 flags available. Some bits are used by the block layer or i/o scheduler.
-	
+
 The behaviour of the various sector counts are almost the same as before,
 except that since we have multi-segment bios, current_nr_sectors refers
 to the numbers of sectors in the current segment being processed which could

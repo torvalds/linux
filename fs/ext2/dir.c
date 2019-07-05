@@ -239,7 +239,7 @@ static inline ext2_dirent *ext2_next_entry(ext2_dirent *p)
 			ext2_rec_len_from_disk(p->rec_len));
 }
 
-static inline unsigned 
+static inline unsigned
 ext2_validate_entry(char *base, unsigned offset, unsigned mask)
 {
 	ext2_dirent *de = (ext2_dirent*)(base + offset);
@@ -419,7 +419,7 @@ ino_t ext2_inode_by_name(struct inode *dir, const struct qstr *child)
 	ino_t res = 0;
 	struct ext2_dir_entry_2 *de;
 	struct page *page;
-	
+
 	de = ext2_find_entry (dir, child, &page);
 	if (de) {
 		res = le32_to_cpu(de->inode);

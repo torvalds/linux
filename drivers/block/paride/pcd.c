@@ -1,4 +1,4 @@
-/* 
+/*
 	pcd.c	(c) 1997-8  Grant R. Guenther <grant@torque.net>
 		            Under the terms of the GNU General Public License.
 
@@ -13,7 +13,7 @@
         some parameters from the insmod command line.  The following
         parameters are adjustable:
 
-            drive0      These four arguments can be arrays of       
+            drive0      These four arguments can be arrays of
             drive1      1-6 integers as follows:
             drive2
             drive3      <prt>,<pro>,<uni>,<mod>,<slv>,<dly>
@@ -43,13 +43,13 @@
                         choose the slave, -1 (the default) to choose the
 			first drive found.
 
-                <dly>   some parallel ports require the driver to 
+                <dly>   some parallel ports require the driver to
                         go more slowly.  -1 sets a default value that
                         should work with the chosen protocol.  Otherwise,
                         set this to a small integer, the larger it is
                         the slower the port i/o.  In some cases, setting
                         this to zero will speed up the device. (default -1)
-                        
+
             major       You may use this parameter to override the
                         default major number (46) that this driver
                         will use.  Be sure to change the device
@@ -65,10 +65,10 @@
                         normal operation, 1 to see autoprobe progress
                         messages, or 2 to see additional debugging
                         output.  (default 0)
-  
+
             nice        This parameter controls the driver's use of
                         idle CPU time, at the expense of some speed.
- 
+
 	If this driver is built into the kernel, you can use the
         following kernel command line parameters, with the same values
         as the corresponding module parameters listed above:
@@ -738,7 +738,7 @@ static int pcd_detect(void)
 				continue;
 			if (!pi_init(cd->pi, 0, conf[D_PRT], conf[D_MOD],
 				     conf[D_UNI], conf[D_PRO], conf[D_DLY],
-				     pcd_buffer, PI_PCD, verbose, cd->name)) 
+				     pcd_buffer, PI_PCD, verbose, cd->name))
 				continue;
 			if (!pcd_probe(cd, conf[D_SLV], id) && cd->disk) {
 				cd->present = 1;

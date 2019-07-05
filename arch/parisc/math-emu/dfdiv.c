@@ -45,11 +45,11 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 
 	Dbl_copyfromptr(srcptr1,opnd1p1,opnd1p2);
 	Dbl_copyfromptr(srcptr2,opnd2p1,opnd2p2);
-	/* 
-	 * set sign bit of result 
+	/*
+	 * set sign bit of result
 	 */
-	if (Dbl_sign(opnd1p1) ^ Dbl_sign(opnd2p1)) 
-		Dbl_setnegativezerop1(resultp1);  
+	if (Dbl_sign(opnd1p1) ^ Dbl_sign(opnd2p1))
+		Dbl_setnegativezerop1(resultp1);
 	else Dbl_setzerop1(resultp1);
 	/*
 	 * check first operand for NaN's or infinity
@@ -58,9 +58,9 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
 			if (Dbl_isnotnan(opnd2p1,opnd2p2)) {
 				if (Dbl_isinfinity(opnd2p1,opnd2p2)) {
-					/* 
-					 * invalid since both operands 
-					 * are infinity 
+					/*
+					 * invalid since both operands
+					 * are infinity
 					 */
 					if (Is_invalidtrap_enabled())
                                 		return(INVALIDEXCEPTION);
@@ -89,8 +89,8 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                         	Set_invalidflag();
                         	Dbl_set_quiet(opnd1p1);
                 	}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd2p1)) {
                         	/* trap if INVALIDTRAP enabled */
@@ -157,7 +157,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                 return(NOEXCEPTION);
         }
 	/*
-	 * Generate exponent 
+	 * Generate exponent
 	 */
 	dest_exponent = Dbl_exponent(opnd1p1) - Dbl_exponent(opnd2p1) + DBL_BIAS;
 
@@ -204,7 +204,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 
 	/* Divide the source mantissas */
 
-	/* 
+	/*
 	 * A non-restoring divide algorithm is used.
 	 */
 	Twoword_subtract(opnd1p1,opnd1p2,opnd2p1,opnd2p2);
@@ -248,22 +248,22 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	}
 	inexact = guardbit | stickybit;
 
-	/* 
-	 * round result 
+	/*
+	 * round result
 	 */
 	if (inexact && (dest_exponent > 0 || Is_underflowtrap_enabled())) {
 		Dbl_clear_signexponent(opnd3p1);
 		switch (Rounding_mode()) {
-			case ROUNDPLUS: 
-				if (Dbl_iszero_sign(resultp1)) 
+			case ROUNDPLUS:
+				if (Dbl_iszero_sign(resultp1))
 					Dbl_increment(opnd3p1,opnd3p2);
 				break;
-			case ROUNDMINUS: 
-				if (Dbl_isone_sign(resultp1)) 
+			case ROUNDMINUS:
+				if (Dbl_isone_sign(resultp1))
 					Dbl_increment(opnd3p1,opnd3p2);
 				break;
 			case ROUNDNEAREST:
-				if (guardbit && (stickybit || 
+				if (guardbit && (stickybit ||
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 			      		Dbl_increment(opnd3p1,opnd3p2);
 				}
@@ -272,7 +272,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	}
 	Dbl_set_mantissa(resultp1,resultp2,opnd3p1,opnd3p2);
 
-        /* 
+        /*
          * Test for overflow
          */
 	if (dest_exponent >= DBL_INFINITY_EXPONENT) {
@@ -283,7 +283,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                          */
                         Dbl_setwrapped_exponent(resultp1,dest_exponent,ovfl);
                         Dbl_copytoptr(resultp1,resultp2,dstptr);
-                        if (inexact) 
+                        if (inexact)
                             if (Is_inexacttrap_enabled())
                                 return(OVERFLOWEXCEPTION | INEXACTEXCEPTION);
                             else Set_inexactflag();
@@ -294,7 +294,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		Dbl_setoverflow(resultp1,resultp2);
 		inexact = TRUE;
 	}
-        /* 
+        /*
          * Test for underflow
          */
 	else if (dest_exponent <= 0) {
@@ -305,7 +305,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                          */
                         Dbl_setwrapped_exponent(resultp1,dest_exponent,unfl);
                         Dbl_copytoptr(resultp1,resultp2,dstptr);
-                        if (inexact) 
+                        if (inexact)
                             if (Is_inexacttrap_enabled())
                                 return(UNDERFLOWEXCEPTION | INEXACTEXCEPTION);
                             else Set_inexactflag();
@@ -316,7 +316,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		is_tiny = TRUE;
 		if (dest_exponent == 0 && inexact) {
 			switch (Rounding_mode()) {
-			case ROUNDPLUS: 
+			case ROUNDPLUS:
 				if (Dbl_iszero_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
 					if (Dbl_isone_hiddenoverflow(opnd3p1))
@@ -324,7 +324,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
 				break;
-			case ROUNDMINUS: 
+			case ROUNDMINUS:
 				if (Dbl_isone_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
 					if (Dbl_isone_hiddenoverflow(opnd3p1))
@@ -333,7 +333,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 				}
 				break;
 			case ROUNDNEAREST:
-				if (guardbit && (stickybit || 
+				if (guardbit && (stickybit ||
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 				      	Dbl_increment(opnd3p1,opnd3p2);
 					if (Dbl_isone_hiddenoverflow(opnd3p1))
@@ -351,7 +351,7 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		Dbl_denormalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
 		 stickybit,inexact);
 
-		/* return rounded number */ 
+		/* return rounded number */
 		if (inexact) {
 			switch (Rounding_mode()) {
 			case ROUNDPLUS:
@@ -359,13 +359,13 @@ dbl_fdiv (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 					Dbl_increment(opnd3p1,opnd3p2);
 				}
 				break;
-			case ROUNDMINUS: 
+			case ROUNDMINUS:
 				if (Dbl_isone_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
 				}
 				break;
 			case ROUNDNEAREST:
-				if (guardbit && (stickybit || 
+				if (guardbit && (stickybit ||
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 			      		Dbl_increment(opnd3p1,opnd3p2);
 				}

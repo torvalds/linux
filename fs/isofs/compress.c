@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- linux-c -*- ------------------------------------------------------- *
- *   
+ *
  *   Copyright 2001 H. Peter Anvin - All Rights Reserved
  *
  * ----------------------------------------------------------------------- */
@@ -104,7 +104,7 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 
 	stream.workspace = zisofs_zlib_workspace;
 	mutex_lock(&zisofs_zlib_lock);
-		
+
 	zerr = zlib_inflateInit(&stream);
 	if (zerr != Z_OK) {
 		if (zerr == Z_MEM_ERROR)
@@ -361,7 +361,7 @@ static int zisofs_readpage(struct file *file, struct page *page)
 			if (i != full_page)
 				put_page(pages[i]);
 		}
-	}			
+	}
 
 	/* At this point, err contains 0 or -EIO depending on the "critical" page */
 	kfree(pages);

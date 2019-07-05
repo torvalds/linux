@@ -1,11 +1,11 @@
 INTRODUCTION
 ------------
 
-Because not every I2C or SMBus adapter implements everything in the 
+Because not every I2C or SMBus adapter implements everything in the
 I2C specifications, a client can not trust that everything it needs
 is implemented when it is given the option to attach to an adapter:
 the client needs some way to check whether an adapter has the needed
-functionality. 
+functionality.
 
 
 FUNCTIONALITY CONSTANTS

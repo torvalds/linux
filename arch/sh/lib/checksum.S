@@ -32,7 +32,7 @@
  * computes a partial checksum, e.g. for TCP/UDP fragments
  */
 
-/*	
+/*
  * asmlinkage __wsum csum_partial(const void *buf, int len, __wsum sum);
  */
 
@@ -173,9 +173,9 @@ ENTRY(csum_partial)
 	 mov	r6, r0
 
 /*
-unsigned int csum_partial_copy_generic (const char *src, char *dst, int len, 
+unsigned int csum_partial_copy_generic (const char *src, char *dst, int len,
 					int sum, int *src_err_ptr, int *dst_err_ptr)
- */ 
+ */
 
 /*
  * Copy from ds while checksumming, otherwise like csum_partial
@@ -224,7 +224,7 @@ ENTRY(csum_partial_copy_generic)
 	bf	3f		! If not, do it the slow way
 
 	mov	#2,r0
-	tst	r0,r5		! Check dest alignment. 
+	tst	r0,r5		! Check dest alignment.
 	bt	2f		! Jump if alignment is ok.
 	add	#-2,r6		! Alignment uses up two bytes.
 	cmp/pz	r6		! Jump if we had at least two bytes.
@@ -275,7 +275,7 @@ DST(	mov.b	r0,@(1,r5)	)
 	! src and dest equally aligned, but to a two byte boundary.
 	! Handle first two bytes as a special case
 	.align	2
-1:	
+1:
 SRC(	mov.w	@r4+,r0		)
 DST(	mov.w	r0,@r5		)
 	add	#2,r5
@@ -291,7 +291,7 @@ DST(	mov.w	r0,@r5		)
 	bt/s	2f
 	 clrt
 	.align	2
-1:	
+1:
 SRC(	mov.l	@r4+,r0		)
 SRC(	mov.l	@r4+,r1		)
 	addc	r0,r7
@@ -334,7 +334,7 @@ DST(	mov.l	r1,@(28,r5)	)
 	bf/s	4f
 	 clrt
 	shlr2	r6
-3:	
+3:
 SRC(	mov.l	@r4+,r0	)
 	addc	r0,r7
 DST(	mov.l	r0,@r5	)
@@ -362,7 +362,7 @@ DST(	mov.w	r0,@r5	)
 	 clrt
 	shll16	r0
 	addc	r0,r7
-5:	
+5:
 SRC(	mov.b	@r4+,r0	)
 DST(	mov.b	r0,@r5	)
 	extu.b	r0,r0
@@ -376,7 +376,7 @@ DST(	mov.b	r0,@r5	)
 5000:
 
 # Exception handler:
-.section .fixup, "ax"							
+.section .fixup, "ax"
 
 6001:
 	mov.l	@(8,r15),r0			! src_err_ptr
@@ -384,7 +384,7 @@ DST(	mov.b	r0,@r5	)
 	mov.l	r1,@r0
 
 	! zero the complete destination - computing the rest
-	! is too much work 
+	! is too much work
 	mov.l	@(4,r15),r5		! dst
 	mov.l	@r15,r6			! len
 	mov	#0,r7

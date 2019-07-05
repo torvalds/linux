@@ -64,7 +64,7 @@ struct ck804xrom_map_info {
  * 64KiB window.
  *
  * The following applies to mcp55 only:
- * The 15 bits controlling the window size are distributed as follows: 
+ * The 15 bits controlling the window size are distributed as follows:
  * byte @0x88: bit 0..7
  * byte @0x8c: bit 8..15
  * word @0x90: bit 16..30

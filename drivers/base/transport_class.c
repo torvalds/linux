@@ -152,7 +152,7 @@ static int transport_add_class_device(struct attribute_container *cont,
 				      struct device *classdev)
 {
 	int error = attribute_container_add_class_device(classdev);
-	struct transport_container *tcont = 
+	struct transport_container *tcont =
 		attribute_container_to_transport_container(cont);
 
 	if (!error && tcont->statistics)
@@ -214,7 +214,7 @@ static int transport_remove_classdev(struct attribute_container *cont,
 				     struct device *dev,
 				     struct device *classdev)
 {
-	struct transport_container *tcont = 
+	struct transport_container *tcont =
 		attribute_container_to_transport_container(cont);
 	struct transport_class *tclass = class_to_transport_class(cont->class);
 

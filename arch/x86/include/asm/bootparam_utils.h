@@ -20,7 +20,7 @@
  */
 static void sanitize_boot_params(struct boot_params *boot_params)
 {
-	/* 
+	/*
 	 * IMPORTANT NOTE TO BOOTLOADER AUTHORS: do not simply clear
 	 * this field.  The purpose of this field is to guarantee
 	 * compliance with the x86 boot spec located in

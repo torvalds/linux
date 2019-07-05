@@ -287,6 +287,6 @@
 # Square bullet, non-spacing blank
 # Mapping U+fffd to the square bullet means it is the substitution
 # character
-# 
+#
 0xfe	U+25a0 U+fffd
 0xff	U+00a0

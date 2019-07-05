@@ -5,7 +5,7 @@
 
     Contributed by Shingo Fujimoto, shingo@flab.fujitsu.co.jp
 
-    TDK LAK-CD021 and CONTEC C-NET(PC)C support added by 
+    TDK LAK-CD021 and CONTEC C-NET(PC)C support added by
     Nobuhiro Katayama, kata-n@po.iijnet.or.jp
 
     The PCMCIA client code is based on code written by David Hinds.
@@ -17,15 +17,15 @@
 
     Copyright 1993 United States Government as represented by the
     Director, National Security Agency.
-    
+
     This software may be used and distributed according to the terms
     of the GNU General Public License, incorporated herein by reference.
-    
+
     The author may be reached as becker@scyld.com, or C/O
     Scyld Computing Corporation
     410 Severn Ave., Suite 210
     Annapolis MD 21403
-   
+
 ======================================================================*/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -120,8 +120,8 @@ struct local_info {
 #define MC_FILTERBREAK 64
 
 /*====================================================================*/
-/* 
-    ioport offset from the base address 
+/*
+    ioport offset from the base address
  */
 #define TX_STATUS               0 /* transmit status register */
 #define RX_STATUS               1 /* receive status register */
@@ -147,8 +147,8 @@ struct local_info {
 #define MAC_ID               0x1a /* hardware address */
 #define UNGERMANN_MAC_ID     0x18 /* UNGERMANN-BASS hardware address */
 
-/* 
-    control bits 
+/*
+    control bits
  */
 #define ENA_TMT_OK           0x80
 #define ENA_TMT_REC          0x20
@@ -378,9 +378,9 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	case MANFID_FUJITSU:
 	    if (link->config_base == 0x0fe0)
 		cardtype = MBH10302;
-	    else if (link->card_id == PRODID_FUJITSU_MBH10302) 
+	    else if (link->card_id == PRODID_FUJITSU_MBH10302)
                 /* RATOC REX-5588/9822/4886's PRODID are 0004(=MBH10302),
-                   but these are MBH10304 based card. */ 
+                   but these are MBH10304 based card. */
 		cardtype = MBH10304;
 	    else if (link->card_id == PRODID_FUJITSU_MBH10304)
 		cardtype = MBH10304;
@@ -417,7 +417,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     } else if (cardtype == UNGERMANN) {
 	ret = ungermann_try_io_port(link);
 	if (ret != 0) goto failed;
-    } else { 
+    } else {
 	    ret = pcmcia_request_io(link);
 	    if (ret)
 		    goto failed;
@@ -440,7 +440,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     ioaddr = dev->base_addr;
 
     /* Reset controller */
-    if (sram_config == 0) 
+    if (sram_config == 0)
 	outb(CONFIG0_RST, ioaddr + CONFIG_0);
     else
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
@@ -450,7 +450,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	outb(BANK_0, ioaddr + CONFIG_1);
     else
 	outb(BANK_0U, ioaddr + CONFIG_1);
-    
+
     /* Set hardware address */
     switch (cardtype) {
     case MBH10304:
@@ -489,7 +489,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	break;
     case UNGERMANN:
 	/* Read MACID from register */
-	for (i = 0; i < 6; i++) 
+	for (i = 0; i < 6; i++)
 	    dev->dev_addr[i] = inb(ioaddr + UNGERMANN_MAC_ID + i);
 	card_name = "Access/CARD";
 	break;
@@ -507,7 +507,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     case MBH10302:
     default:
 	/* Read MACID from register */
-	for (i = 0; i < 6; i++) 
+	for (i = 0; i < 6; i++)
 	    dev->dev_addr[i] = inb(ioaddr + MAC_ID + i);
 	card_name = "FMV-J181";
 	break;
@@ -527,7 +527,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		dev->base_addr, dev->irq, dev->dev_addr);
 
     return 0;
-    
+
 failed:
     fmvj18x_release(link);
     return -ENODEV;
@@ -559,9 +559,9 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
      *  22 0d xx xx xx 04 06 yy yy yy yy yy yy ff
      *  'xx' is garbage.
      *  'yy' is MAC address.
-    */ 
+    */
     for (i = 0; i < 0x200; i++) {
-	if (readb(base+i*2) == 0x22) {	
+	if (readb(base+i*2) == 0x22) {
 		if (readb(base+(i-1)*2) == 0xff &&
 		    readb(base+(i+5)*2) == 0x04 &&
 		    readb(base+(i+6)*2) == 0x06 &&
@@ -610,14 +610,14 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 	lp->base = NULL;
 	return -1;
     }
-    
+
     ioaddr = dev->base_addr;
     writeb(0x47, lp->base+0x800);	/* Config Option Register of LAN */
     writeb(0x0,  lp->base+0x802);	/* Config and Status Register */
 
     writeb(ioaddr & 0xff, lp->base+0x80a);	  /* I/O Base(Low) of LAN */
     writeb((ioaddr >> 8) & 0xff, lp->base+0x80c); /* I/O Base(High) of LAN */
-   
+
     writeb(0x45, lp->base+0x820);	/* Config Option Register of Modem */
     writeb(0x8,  lp->base+0x822);	/* Config and Status Register */
 
@@ -734,10 +734,10 @@ static irqreturn_t fjn_interrupt(int dummy, void *dev_id)
     /* clear status */
     outb(tx_stat, ioaddr + TX_STATUS);
     outb(rx_stat, ioaddr + RX_STATUS);
-    
+
     pr_debug("%s: interrupt, rx_status %02x.\n", dev->name, rx_stat);
     pr_debug("               tx_status %02x.\n", tx_stat);
-    
+
     if (rx_stat || (inb(ioaddr + RX_MODE) & F_BUF_EMP) == 0) {
 	/* there is packet(s) in rx buffer */
 	fjn_rx(dev);
@@ -809,7 +809,7 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
     struct local_info *lp = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
     short length = skb->len;
-    
+
     if (length < ETH_ZLEN)
     {
     	if (skb_padto(skb, ETH_ZLEN))
@@ -858,7 +858,7 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
 		    /* Yes, there is room for one more packet. */
 		    netif_start_queue(dev);
 	    } else {
-		if (lp->tx_queue_len < (8192 - (ETH_FRAME_LEN +2)) && 
+		if (lp->tx_queue_len < (8192 - (ETH_FRAME_LEN +2)) &&
 						lp->tx_queue < 127 )
 		    /* Yes, there is room for one more packet. */
 		    netif_start_queue(dev);
@@ -885,7 +885,7 @@ static void fjn_reset(struct net_device *dev)
     netdev_dbg(dev, "fjn_reset() called\n");
 
     /* Reset controller */
-    if( sram_config == 0 ) 
+    if( sram_config == 0 )
 	outb(CONFIG0_RST, ioaddr + CONFIG_0);
     else
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
@@ -902,7 +902,7 @@ static void fjn_reset(struct net_device *dev)
     outb(ID_MATCHED, ioaddr + RX_MODE);
 
     /* Set hardware address */
-    for (i = 0; i < 6; i++) 
+    for (i = 0; i < 6; i++)
         outb(dev->dev_addr[i], ioaddr + NODE_ID + i);
 
     /* (re)initialize the multicast table */
@@ -915,7 +915,7 @@ static void fjn_reset(struct net_device *dev)
 	outb(BANK_2U, ioaddr + CONFIG_1);
 
     /* set 16col ctrl bits */
-    if( lp->cardtype == TDK || lp->cardtype == CONTEC) 
+    if( lp->cardtype == TDK || lp->cardtype == CONTEC)
         outb(TDK_AUTO_MODE, ioaddr + COL_CTRL);
     else
         outb(AUTO_MODE, ioaddr + COL_CTRL);
@@ -1069,17 +1069,17 @@ static int fjn_open(struct net_device *dev)
 
     if (!pcmcia_dev_present(link))
 	return -ENODEV;
-    
+
     link->open++;
-    
+
     fjn_reset(dev);
-    
+
     lp->tx_started = 0;
     lp->tx_queue = 0;
     lp->tx_queue_len = 0;
     lp->open_time = jiffies;
     netif_start_queue(dev);
-    
+
     return 0;
 } /* fjn_open */
 
@@ -1097,7 +1097,7 @@ static int fjn_close(struct net_device *dev)
     netif_stop_queue(dev);
 
     /* Set configuration register 0 to disable Tx and Rx. */
-    if( sram_config == 0 ) 
+    if( sram_config == 0 )
 	outb(CONFIG0_RST ,ioaddr + CONFIG_0);
     else
 	outb(CONFIG0_RST_1 ,ioaddr + CONFIG_0);
@@ -1128,14 +1128,14 @@ static void set_rx_mode(struct net_device *dev)
     u_char mc_filter[8];		 /* Multicast hash filter */
     u_long flags;
     int i;
-    
+
     int saved_bank;
     int saved_config_0 = inb(ioaddr + CONFIG_0);
-     
-    local_irq_save(flags); 
+
+    local_irq_save(flags);
 
     /* Disable Tx and Rx */
-    if (sram_config == 0) 
+    if (sram_config == 0)
 	outb(CONFIG0_RST, ioaddr + CONFIG_0);
     else
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);

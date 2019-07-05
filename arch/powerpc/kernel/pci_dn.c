@@ -460,12 +460,12 @@ static void *add_pdn(struct device_node *dn, void *data)
 	return NULL;
 }
 
-/** 
+/**
  * pci_devs_phb_init_dynamic - setup pci devices under this PHB
  * phb: pci-to-host bridge (top-level bridge connecting to cpu)
  *
  * This routine is called both during boot, (before the memory
- * subsystem is set up, before kmalloc is valid) and during the 
+ * subsystem is set up, before kmalloc is valid) and during the
  * dynamic lpar operation of adding a PHB to a running system.
  */
 void pci_devs_phb_init_dynamic(struct pci_controller *phb)
@@ -486,11 +486,11 @@ void pci_devs_phb_init_dynamic(struct pci_controller *phb)
 	pci_traverse_device_nodes(dn, add_pdn, phb);
 }
 
-/** 
+/**
  * pci_devs_phb_init - Initialize phbs and pci devs under them.
- * 
+ *
  * This routine walks over all phb's (pci-host bridges) on the
- * system, and sets up assorted pci-related structures 
+ * system, and sets up assorted pci-related structures
  * (including pci info in the device node structs) for each
  * pci device found underneath.  This routine runs once,
  * early in the boot sequence.

@@ -405,7 +405,7 @@ static netdev_tx_t xircom_start_xmit(struct sk_buff *skb,
 
 			card->tx_buffer[4*desc+1] = cpu_to_le32(skb->len);
 			if (desc == NUMDESCRIPTORS - 1) /* bit 25: last descriptor of the ring */
-				card->tx_buffer[4*desc+1] |= cpu_to_le32(1<<25);  
+				card->tx_buffer[4*desc+1] |= cpu_to_le32(1<<25);
 
 			card->tx_buffer[4*desc+1] |= cpu_to_le32(0xF0000000);
 						 /* 0xF0... means want interrupts*/

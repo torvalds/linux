@@ -37,7 +37,7 @@
 /* To be used as: mdelay(pci_post_reset_delay);
  *
  * post_reset is the time the kernel should stall to prevent anyone from
- * accessing the PCI bus once #RESET is de-asserted. 
+ * accessing the PCI bus once #RESET is de-asserted.
  * PCI spec somewhere says 1 second but with multi-PCI bus systems,
  * this makes the boot time much longer than necessary.
  * 20ms seems to work for all the HP PCI implementations to date.

@@ -96,7 +96,7 @@
 /* Tokens for indicators */
 #define TONE_FREQUENCY		0x0001 /* 0 - 1000 (HZ)*/
 #define TONE_VOLUME		0x0002 /* 0 - 100 (%) */
-#define SYSTEM_POWER_STATE	0x0003 
+#define SYSTEM_POWER_STATE	0x0003
 #define WARNING_LIGHT		0x0004
 #define DISK_ACTIVITY_LIGHT	0x0005
 #define HEX_DISPLAY_UNIT	0x0006
@@ -109,7 +109,7 @@
 /* 9006 - 9999: Vendor specific */
 
 /* other */
-#define MAX_SENSORS		 17  /* I only know of 17 sensors */    
+#define MAX_SENSORS		 17  /* I only know of 17 sensors */
 #define MAX_LINELENGTH          256
 #define SENSOR_PREFIX		"ibm,sensor-"
 #define cel_to_fahr(x)		((x*9/5)+32)
@@ -292,11 +292,11 @@ static ssize_t ppc_rtas_poweron_write(struct file *file,
 
 	rtc_time64_to_tm(nowtime, &tm);
 
-	error = rtas_call(rtas_token("set-time-for-power-on"), 7, 1, NULL, 
+	error = rtas_call(rtas_token("set-time-for-power-on"), 7, 1, NULL,
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, 0 /* nano */);
 	if (error)
-		printk(KERN_WARNING "error: setting poweron time returned: %s\n", 
+		printk(KERN_WARNING "error: setting poweron time returned: %s\n",
 				ppc_rtas_process_error(error));
 	return count;
 }
@@ -355,11 +355,11 @@ static ssize_t ppc_rtas_clock_write(struct file *file,
 		return error;
 
 	rtc_time64_to_tm(nowtime, &tm);
-	error = rtas_call(rtas_token("set-time-of-day"), 7, 1, NULL, 
+	error = rtas_call(rtas_token("set-time-of-day"), 7, 1, NULL,
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, 0);
 	if (error)
-		printk(KERN_WARNING "error: setting the clock returned: %s\n", 
+		printk(KERN_WARNING "error: setting the clock returned: %s\n",
 				ppc_rtas_process_error(error));
 	return count;
 }
@@ -370,10 +370,10 @@ static int ppc_rtas_clock_show(struct seq_file *m, void *v)
 	int error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
 
 	if (error) {
-		printk(KERN_WARNING "error: reading the clock returned: %s\n", 
+		printk(KERN_WARNING "error: reading the clock returned: %s\n",
 				ppc_rtas_process_error(error));
 		seq_printf(m, "0");
-	} else { 
+	} else {
 		unsigned int year, mon, day, hour, min, sec;
 		year = ret[0]; mon  = ret[1]; day  = ret[2];
 		hour = ret[3]; min  = ret[4]; sec  = ret[5];
@@ -412,7 +412,7 @@ static int ppc_rtas_sensors_show(struct seq_file *m, void *v)
 
 		/* A sensor may have multiple instances */
 		for (j = 0, offs = 0; j <= p->quant; j++) {
-			error =	rtas_call(get_sensor_state, 2, 2, &state, 
+			error =	rtas_call(get_sensor_state, 2, 2, &state,
 				  	  p->token, j);
 
 			ppc_rtas_process_sensor(m, p, state, error, loc);
@@ -491,22 +491,22 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 	struct individual_sensor *s, int state, int error, const char *loc)
 {
 	/* Defined return vales */
-	const char * key_switch[]        = { "Off\t", "Normal\t", "Secure\t", 
+	const char * key_switch[]        = { "Off\t", "Normal\t", "Secure\t",
 						"Maintenance" };
 	const char * enclosure_switch[]  = { "Closed", "Open" };
 	const char * lid_status[]        = { " ", "Open", "Closed" };
-	const char * power_source[]      = { "AC\t", "Battery", 
+	const char * power_source[]      = { "AC\t", "Battery",
 		  				"AC & Battery" };
 	const char * battery_remaining[] = { "Very Low", "Low", "Mid", "High" };
-	const char * epow_sensor[]       = { 
+	const char * epow_sensor[]       = {
 		"EPOW Reset", "Cooling warning", "Power warning",
 		"System shutdown", "System halt", "EPOW main enclosure",
 		"EPOW power off" };
-	const char * battery_cyclestate[]  = { "None", "In progress", 
+	const char * battery_cyclestate[]  = { "None", "In progress",
 						"Requested" };
 	const char * battery_charging[]    = { "Charging", "Discharging",
 						"No current flow" };
-	const char * ibm_drconnector[]     = { "Empty", "Present", "Unusable", 
+	const char * ibm_drconnector[]     = { "Empty", "Present", "Unusable",
 						"Exchange" };
 
 	int have_strings = 0;
@@ -515,7 +515,7 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 	int unknown = 0;
 
 	/* What kind of sensor do we have here? */
-	
+
 	switch (s->token) {
 		case KEY_SWITCH:
 			seq_printf(m, "Key switch:\t");
@@ -529,7 +529,7 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 			seq_printf(m, "Enclosure switch:\t");
 			num_states = sizeof(enclosure_switch) / sizeof(char *);
 			if (state < num_states) {
-				seq_printf(m, "%s\t", 
+				seq_printf(m, "%s\t",
 						enclosure_switch[state]);
 				have_strings = 1;
 			}
@@ -550,7 +550,7 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 			seq_printf(m, "Power source:\t");
 			num_states = sizeof(power_source) / sizeof(char *);
 			if (state < num_states) {
-				seq_printf(m, "%s\t", 
+				seq_printf(m, "%s\t",
 						power_source[state]);
 				have_strings = 1;
 			}
@@ -563,7 +563,7 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 			num_states = sizeof(battery_remaining) / sizeof(char *);
 			if (state < num_states)
 			{
-				seq_printf(m, "%s\t", 
+				seq_printf(m, "%s\t",
 						battery_remaining[state]);
 				have_strings = 1;
 			}
@@ -581,10 +581,10 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 			break;
 		case BATTERY_CYCLESTATE:
 			seq_printf(m, "Battery cyclestate:\t");
-			num_states = sizeof(battery_cyclestate) / 
+			num_states = sizeof(battery_cyclestate) /
 				     	sizeof(char *);
 			if (state < num_states) {
-				seq_printf(m, "%s\t", 
+				seq_printf(m, "%s\t",
 						battery_cyclestate[state]);
 				have_strings = 1;
 			}
@@ -593,7 +593,7 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 			seq_printf(m, "Battery Charging:\t");
 			num_states = sizeof(battery_charging) / sizeof(char *);
 			if (state < num_states) {
-				seq_printf(m, "%s\t", 
+				seq_printf(m, "%s\t",
 						battery_charging[state]);
 				have_strings = 1;
 			}
@@ -611,7 +611,7 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 			seq_printf(m, "DR connector:\t");
 			num_states = sizeof(ibm_drconnector) / sizeof(char *);
 			if (state < num_states) {
-				seq_printf(m, "%s\t", 
+				seq_printf(m, "%s\t",
 						ibm_drconnector[state]);
 				have_strings = 1;
 			}
@@ -672,8 +672,8 @@ static void check_location(struct seq_file *m, const char *c)
 
 
 /* ****************************************************************** */
-/* 
- * Format: 
+/*
+ * Format:
  * ${LETTER}${NUMBER}[[-/]${LETTER}${NUMBER} [ ... ] ]
  * the '.' may be an abbreviation
  */
@@ -716,7 +716,7 @@ static ssize_t ppc_rtas_tone_freq_write(struct file *file,
 	error = rtas_call(rtas_token("set-indicator"), 3, 1, NULL,
 			TONE_FREQUENCY, 0, freq);
 	if (error)
-		printk(KERN_WARNING "error: setting tone frequency returned: %s\n", 
+		printk(KERN_WARNING "error: setting tone frequency returned: %s\n",
 				ppc_rtas_process_error(error));
 	return count;
 }
@@ -739,12 +739,12 @@ static ssize_t ppc_rtas_tone_volume_write(struct file *file,
 
 	if (volume > 100)
 		volume = 100;
-	
+
         rtas_tone_volume = volume; /* save it for later */
 	error = rtas_call(rtas_token("set-indicator"), 3, 1, NULL,
 			TONE_VOLUME, 0, volume);
 	if (error)
-		printk(KERN_WARNING "error: setting tone volume returned: %s\n", 
+		printk(KERN_WARNING "error: setting tone volume returned: %s\n",
 				ppc_rtas_process_error(error));
 	return count;
 }

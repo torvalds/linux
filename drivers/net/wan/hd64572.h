@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * hd64572.h	Description of the Hitachi HD64572 (SCA-II), valid for 
+ * hd64572.h	Description of the Hitachi HD64572 (SCA-II), valid for
  * 		CPU modes 0 & 2.
  *
  * Author:	Ivan Passos <ivan@cyclades.com>
@@ -82,17 +82,17 @@
 #define SA0	0x140	/* Syn Address reg 0 */
 #define SA1	0x141	/* Syn Address reg 1 */
 #define IDL	0x142	/* Idle register */
-#define TRBL	0x100	/* TX/RX buffer reg L */ 
-#define TRBK	0x101	/* TX/RX buffer reg K */ 
-#define TRBJ	0x102	/* TX/RX buffer reg J */ 
-#define TRBH	0x103	/* TX/RX buffer reg H */ 
-#define TRC0	0x148	/* TX Ready control reg 0 */ 
-#define TRC1	0x149	/* TX Ready control reg 1 */ 
-#define RRC	0x14a	/* RX Ready control reg */ 
-#define CST0	0x108	/* Current Status Register 0 */ 
-#define CST1	0x109	/* Current Status Register 1 */ 
-#define CST2	0x10a	/* Current Status Register 2 */ 
-#define CST3	0x10b	/* Current Status Register 3 */ 
+#define TRBL	0x100	/* TX/RX buffer reg L */
+#define TRBK	0x101	/* TX/RX buffer reg K */
+#define TRBJ	0x102	/* TX/RX buffer reg J */
+#define TRBH	0x103	/* TX/RX buffer reg H */
+#define TRC0	0x148	/* TX Ready control reg 0 */
+#define TRC1	0x149	/* TX Ready control reg 1 */
+#define RRC	0x14a	/* RX Ready control reg */
+#define CST0	0x108	/* Current Status Register 0 */
+#define CST1	0x109	/* Current Status Register 1 */
+#define CST2	0x10a	/* Current Status Register 2 */
+#define CST3	0x10b	/* Current Status Register 3 */
 #define GPO	0x131	/* General Purpose Output Pin Ctl Reg */
 #define TFS	0x14b	/* Tx Start Threshold Ctl Reg */
 #define TFN	0x143	/* Inter-transmit-frame Time Fill Ctl Reg */
@@ -171,7 +171,7 @@ typedef struct {
 	unsigned long	ptbuf;		/* buffer pointer */
 	unsigned short	len;		/* data length */
 	unsigned char	status;		/* status */
-	unsigned char	filler[5];	/* alignment filler (16 bytes) */ 
+	unsigned char	filler[5];	/* alignment filler (16 bytes) */
 } pcsca_bd_t;
 
 /* Block Descriptor Structure */
@@ -193,7 +193,7 @@ typedef struct {
 	6	-		Short Frame
 	5	-		Abort
 	4	-		Residual bit
-	3	Underrun	Overrun	
+	3	Underrun	Overrun
 	2	-		CRC
 	1	Ownership	Ownership
 	0	EOT		-

@@ -3,8 +3,8 @@
  *
  * Allocation pools for DMAable (coherent) memory.
  *
- * This file is licensed under  the terms of the GNU General Public 
- * License version 2. This program is licensed "as is" without any 
+ * This file is licensed under  the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
@@ -18,7 +18,7 @@ struct device;
 
 #ifdef CONFIG_HAS_DMA
 
-struct dma_pool *dma_pool_create(const char *name, struct device *dev, 
+struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 			size_t size, size_t align, size_t allocation);
 
 void dma_pool_destroy(struct dma_pool *pool);

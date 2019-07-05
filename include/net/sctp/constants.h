@@ -189,7 +189,7 @@ enum sctp_state {
  *   accept new associations, but it can initiate the creation of new ones.
  * - A socket in SCTP_SS_LISTENING state indicates that it is willing to
  *   accept new associations, but cannot initiate the creation of new ones.
- * - A socket in SCTP_SS_ESTABLISHED state indicates that it has a single 
+ * - A socket in SCTP_SS_ESTABLISHED state indicates that it has a single
  *   association.
  */
 enum sctp_sock_state {

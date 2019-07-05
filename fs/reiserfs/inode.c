@@ -2322,7 +2322,7 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 		error = err2;
   		goto out;
 	}
-	
+
 	if (update_timestamps) {
 		error = remove_save_link(inode, 1 /* truncate */);
 		if (error)

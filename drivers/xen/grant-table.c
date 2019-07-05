@@ -1099,7 +1099,7 @@ static void __gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item);
 static void gnttab_unmap_work(struct work_struct *work)
 {
 	struct gntab_unmap_queue_data
-		*unmap_data = container_of(work, 
+		*unmap_data = container_of(work,
 					   struct gntab_unmap_queue_data,
 					   gnttab_work.work);
 	if (unmap_data->age != UINT_MAX)

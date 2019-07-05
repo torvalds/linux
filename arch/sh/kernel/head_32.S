@@ -51,7 +51,7 @@ ENTRY(empty_zero_page)
  *   VBR may or may not be initialized.
  *   MMU may or may not be initialized.
  *   Cache may or may not be initialized.
- *   Hardware (including on-chip modules) may or may not be initialized. 
+ *   Hardware (including on-chip modules) may or may not be initialized.
  *
  */
 ENTRY(_stext)
@@ -67,7 +67,7 @@ ENTRY(_stext)
 #ifdef CONFIG_OF_FLATTREE
 	mov	r4, r12		! Store device tree blob pointer in r12
 #endif
-	
+
 	/*
 	 * Prefetch if possible to reduce cache miss penalty.
 	 *
@@ -298,12 +298,12 @@ ENTRY(_stext)
 	 * to be all zero on boot anyway.
 	 */
 				! Clear BSS area
-#ifdef CONFIG_SMP	
+#ifdef CONFIG_SMP
 	mov.l	3f, r0
 	cmp/eq	#0, r0		! skip clear if set to zero
 	bt	10f
 #endif
-	
+
 	mov.l	3f, r1
 	add	#4, r1
 	mov.l	4f, r2
@@ -312,7 +312,7 @@ ENTRY(_stext)
 	bf/s	9b		! while (r1 < r2)
 	 mov.l	r0,@-r2
 
-10:		
+10:
 #endif
 
 #ifdef CONFIG_OF_FLATTREE
@@ -327,7 +327,7 @@ ENTRY(_stext)
 	 nop
 
 	SYNCO()			! Wait for pending instructions..
-	
+
 	!			Start kernel
 	mov.l	5f, r0
 	jmp	@r0

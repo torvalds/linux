@@ -63,8 +63,8 @@
 
 2.12  Jan  24, 1998 -- Erik Andersen <andersee@debian.org>
   -- Fixed a bug in the IOCTL_IN and IOCTL_OUT macros.  It turns out that
-  copy_*_user does not return EFAULT on error, but instead returns the number 
-  of bytes not copied.  I was returning whatever non-zero stuff came back from 
+  copy_*_user does not return EFAULT on error, but instead returns the number
+  of bytes not copied.  I was returning whatever non-zero stuff came back from
   the copy_*_user functions directly, which would result in strange errors.
 
 2.13  July 17, 1998 -- Erik Andersen <andersee@debian.org>
@@ -78,7 +78,7 @@
 
   2.14 August 17, 1998 -- Erik Andersen <andersee@debian.org>
   -- Fixed a bug in cdrom_media_changed and handling of reporting that
-  the media had changed for devices that _don't_ implement media_changed.  
+  the media had changed for devices that _don't_ implement media_changed.
   Thanks to Grant R. Guenther <grant@torque.net> for spotting this bug.
   -- Made a few things more pedanticly correct.
 
@@ -86,12 +86,12 @@
   -- New maintainers! Erik was too busy to continue the work on the driver,
   so now Chris Zwilling <chris@cloudnet.com> and Jens Axboe <axboe@image.dk>
   will do their best to follow in his footsteps
-  
+
   2.51 Dec 20, 1998 - Jens Axboe <axboe@image.dk>
   -- Check if drive is capable of doing what we ask before blindly changing
   cdi->options in various ioctl.
   -- Added version to proc entry.
-  
+
   2.52 Jan 16, 1999 - Jens Axboe <axboe@image.dk>
   -- Fixed an error in open_for_data where we would sometimes not return
   the correct error value. Thanks Huba Gaspar <huba@softcell.hu>.
@@ -100,7 +100,7 @@
   modules had entries in dev. Feb 02 - real bug was in sysctl.c where
   dev would be removed even though it was used. cdrom.c just illuminated
   that bug.
-  
+
   2.53 Feb 22, 1999 - Jens Axboe <axboe@image.dk>
   -- Fixup of several ioctl calls, in particular CDROM_SET_OPTIONS has
   been "rewritten" because capabilities and options aren't in sync. They
@@ -110,16 +110,16 @@
   -- Added CDROM_DEBUG ioctl. Enable debug messages on-the-fly.
   -- Added CDROM_GET_CAPABILITY ioctl. This relieves userspace programs
   from parsing /proc/sys/dev/cdrom/info.
-  
+
   2.54 Mar 15, 1999 - Jens Axboe <axboe@image.dk>
   -- Check capability mask from low level driver when counting tracks as
   per suggestion from Corey J. Scotts <cstotts@blue.weeg.uiowa.edu>.
-  
+
   2.55 Apr 25, 1999 - Jens Axboe <axboe@image.dk>
   -- autoclose was mistakenly checked against CDC_OPEN_TRAY instead of
   CDC_CLOSE_TRAY.
   -- proc info didn't mask against capabilities mask.
-  
+
   3.00 Aug 5, 1999 - Jens Axboe <axboe@image.dk>
   -- Unified audio ioctl handling across CD-ROM drivers. A lot of the
   code was duplicated before. Drives that support the generic packet
@@ -137,13 +137,13 @@
   -- Now default to checking media type.
   -- CDROM_SEND_PACKET ioctl added. The infrastructure was in place for
   doing this anyway, with the generic_packet addition.
-  
+
   3.01 Aug 6, 1999 - Jens Axboe <axboe@image.dk>
   -- Fix up the sysctl handling so that the option flags get set
   correctly.
   -- Fix up ioctl handling so the device specific ones actually get
   called :).
-  
+
   3.02 Aug 8, 1999 - Jens Axboe <axboe@image.dk>
   -- Fixed volume control on SCSI drives (or others with longer audio
   page).
@@ -152,7 +152,7 @@
   DVD structures and ioctls in the first place! He designed the original
   DVD patches for ide-cd and while I rearranged and unified them, the
   interface is still the same.
-  
+
   3.03 Sep 1, 1999 - Jens Axboe <axboe@image.dk>
   -- Moved the rest of the audio ioctls from the CD-ROM drivers here. Only
   CDROMREADTOCENTRY and CDROMREADTOCHDR are left.
@@ -177,7 +177,7 @@
   for ide-cd to handle multisession discs.
   -- Export cdrom_mode_sense and cdrom_mode_select.
   -- init_cdrom_command() for setting up a cgc command.
-  
+
   3.05 Oct 24, 1999 - Jens Axboe <axboe@image.dk>
   -- Changed the interface for CDROM_SEND_PACKET. Before it was virtually
   impossible to send the drive data in a sensible way.
@@ -210,7 +210,7 @@
   DVD_HOST_SEND_RPC_STATE did not set buffer size in cdb, and
   dvd_do_auth passed uninitialized data to drive because init_cdrom_command
   did not clear a 0 sized buffer.
-  
+
   3.09 May 12, 2000 - Jens Axboe <axboe@suse.de>
   -- Fix Video-CD on SCSI drives that don't support READ_CD command. In
   that case switch block size and issue plain READ_10 again, then switch
@@ -273,7 +273,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/slab.h> 
+#include <linux/slab.h>
 #include <linux/cdrom.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
@@ -907,7 +907,7 @@ static int cdrom_open_write(struct cdrom_device_info *cdi)
 		ram_write = 1;
 	else
 		(void) cdrom_is_random_writable(cdi, &ram_write);
-	
+
 	if (mrw)
 		cdi->mask &= ~CDC_MRW;
 	else
@@ -1054,8 +1054,8 @@ int open_for_data(struct cdrom_device_info *cdi)
 					cd_dbg(CD_OPEN, "bummer. tried to close the tray but failed.\n");
 					/* Ignore the error from the low
 					level driver.  We don't care why it
-					couldn't close the tray.  We only care 
-					that there is no disc in the drive, 
+					couldn't close the tray.  We only care
+					that there is no disc in the drive,
 					since that is the _REAL_ problem here.*/
 					ret=-ENOMEDIUM;
 					goto clean_up_and_return;
@@ -1111,7 +1111,7 @@ int open_for_data(struct cdrom_device_info *cdi)
 	ret = cdo->open(cdi, 0); /* open for data */
 	cd_dbg(CD_OPEN, "opening the device gave me %d\n", ret);
 	/* After all this careful checking, we shouldn't have problems
-	   opening the device, but we don't want the device locked if 
+	   opening the device, but we don't want the device locked if
 	   this somehow fails... */
 	if (ret) {
 		cd_dbg(CD_OPEN, "open device failed\n");
@@ -1126,9 +1126,9 @@ int open_for_data(struct cdrom_device_info *cdi)
 
 	/* Something failed.  Try to unlock the drive, because some drivers
 	(notably ide-cd) lock the drive after every command.  This produced
-	a nasty bug where after mount failed, the drive would remain locked!  
-	This ensures that the drive gets unlocked after a mount fails.  This 
-	is a goto to avoid bloating the driver with redundant code. */ 
+	a nasty bug where after mount failed, the drive would remain locked!
+	This ensures that the drive gets unlocked after a mount fails.  This
+	is a goto to avoid bloating the driver with redundant code. */
 clean_up_and_return:
 	cd_dbg(CD_OPEN, "open failed\n");
 	if (CDROM_CAN(CDC_LOCK) && cdi->options & CDO_LOCK) {
@@ -1216,8 +1216,8 @@ static int check_for_audio_disc(struct cdrom_device_info *cdi,
 					cd_dbg(CD_OPEN, "bummer. tried to close tray but failed.\n");
 					/* Ignore the error from the low
 					level driver.  We don't care why it
-					couldn't close the tray.  We only care 
-					that there is no disc in the drive, 
+					couldn't close the tray.  We only care
+					that there is no disc in the drive,
 					since that is the _REAL_ problem here.*/
 					return -ENOMEDIUM;
 				}
@@ -1230,16 +1230,16 @@ static int check_for_audio_disc(struct cdrom_device_info *cdi,
 			if ((ret == CDS_NO_DISC) || (ret==CDS_TRAY_OPEN)) {
 				cd_dbg(CD_OPEN, "bummer. the tray is still not closed.\n");
 				return -ENOMEDIUM;
-			}	
+			}
 			if (ret!=CDS_DISC_OK) {
 				cd_dbg(CD_OPEN, "bummer. disc isn't ready.\n");
 				return -EIO;
-			}	
+			}
 			cd_dbg(CD_OPEN, "the tray is now closed\n");
-		}	
+		}
 	}
 	cdrom_count_tracks(cdi, &tracks);
-	if (tracks.error) 
+	if (tracks.error)
 		return(tracks.error);
 
 	if (tracks.audio==0)
@@ -1286,7 +1286,7 @@ void cdrom_release(struct cdrom_device_info *cdi, fmode_t mode)
 	}
 }
 
-static int cdrom_read_mech_status(struct cdrom_device_info *cdi, 
+static int cdrom_read_mech_status(struct cdrom_device_info *cdi,
 				  struct cdrom_changer_info *buf)
 {
 	struct packet_command cgc;
@@ -1326,7 +1326,7 @@ static int cdrom_slot_status(struct cdrom_device_info *cdi, int slot)
 	cd_dbg(CD_CHANGER, "entering cdrom_slot_status()\n");
 	if (cdi->sanyo_slot)
 		return CDS_NO_INFO;
-	
+
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
@@ -1344,10 +1344,10 @@ out_free:
 	return ret;
 }
 
-/* Return the number of slots for an ATAPI/SCSI cdrom, 
- * return 1 if not a changer. 
+/* Return the number of slots for an ATAPI/SCSI cdrom,
+ * return 1 if not a changer.
  */
-int cdrom_number_of_slots(struct cdrom_device_info *cdi) 
+int cdrom_number_of_slots(struct cdrom_device_info *cdi)
 {
 	int status;
 	int nslots = 1;
@@ -1355,7 +1355,7 @@ int cdrom_number_of_slots(struct cdrom_device_info *cdi)
 
 	cd_dbg(CD_CHANGER, "entering cdrom_number_of_slots()\n");
 	/* cdrom_read_mech_status requires a valid value for capacity: */
-	cdi->capacity = 0; 
+	cdi->capacity = 0;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -1370,7 +1370,7 @@ int cdrom_number_of_slots(struct cdrom_device_info *cdi)
 
 
 /* If SLOT < 0, unload the current slot.  Otherwise, try to load SLOT. */
-static int cdrom_load_unload(struct cdrom_device_info *cdi, int slot) 
+static int cdrom_load_unload(struct cdrom_device_info *cdi, int slot)
 {
 	struct packet_command cgc;
 
@@ -1384,7 +1384,7 @@ static int cdrom_load_unload(struct cdrom_device_info *cdi, int slot)
 	cgc.cmd[8] = slot;
 	cgc.timeout = 60 * HZ;
 
-	/* The Sanyo 3 CD changer uses byte 7 of the 
+	/* The Sanyo 3 CD changer uses byte 7 of the
 	GPCMD_TEST_UNIT_READY to command to switch CDs instead of
 	using the GPCMD_LOAD_UNLOAD opcode. */
 	if (cdi->sanyo_slot && -1 < slot) {
@@ -1440,7 +1440,7 @@ static int cdrom_select_disc(struct cdrom_device_info *cdi, int slot)
 
 	/* Specifying CDSL_CURRENT will attempt to load the currnet slot,
 	which is useful if it had been previously unloaded.
-	Whether it can or not, it returns the current slot. 
+	Whether it can or not, it returns the current slot.
 	Similarly,  if slot happens to be the current one, we still
 	try and load it. */
 	if (slot == CDSL_CURRENT)
@@ -1527,9 +1527,9 @@ int media_changed(struct cdrom_device_info *cdi, int queue)
 
 int cdrom_media_changed(struct cdrom_device_info *cdi)
 {
-	/* This talks to the VFS, which doesn't like errors - just 1 or 0.  
-	 * Returning "0" is always safe (media hasn't been changed). Do that 
-	 * if the low-level cdrom driver dosn't support media changed. */ 
+	/* This talks to the VFS, which doesn't like errors - just 1 or 0.
+	 * Returning "0" is always safe (media hasn't been changed). Do that
+	 * if the low-level cdrom driver dosn't support media changed. */
 	if (cdi == NULL || cdi->ops->media_changed == NULL)
 		return 0;
 	if (!CDROM_CAN(CDC_MEDIA_CHANGED))
@@ -1704,7 +1704,7 @@ static int dvd_do_auth(struct cdrom_device_info *cdi, dvd_authinfo *ai)
 	case DVD_LU_SEND_ASF:
 		cd_dbg(CD_DVD, "entering DVD_LU_SEND_ASF\n");
 		setup_report_key(&cgc, ai->lsasf.agid, 5);
-		
+
 		if ((ret = cdo->generic_packet(cdi, &cgc)))
 			return ret;
 
@@ -1979,7 +1979,7 @@ static int dvd_read_struct(struct cdrom_device_info *cdi, dvd_struct *s,
 
 	case DVD_STRUCT_MANUFACT:
 		return dvd_read_manufact(cdi, s, cgc);
-		
+
 	default:
 		cd_dbg(CD_WARNING, ": Invalid DVD structure read requested (%d)\n",
 		       s->type);
@@ -2105,7 +2105,7 @@ static int cdrom_read_block(struct cdrom_device_info *cdi,
 	cgc->cmd[7] = (nblocks >>  8) & 0xff;
 	cgc->cmd[8] = nblocks & 0xff;
 	cgc->buflen = blksize * nblocks;
-	
+
 	/* set the header info returned */
 	switch (blksize) {
 	case CD_FRAMESIZE_RAW0	: cgc->cmd[9] = 0x58; break;
@@ -2113,7 +2113,7 @@ static int cdrom_read_block(struct cdrom_device_info *cdi,
 	case CD_FRAMESIZE_RAW	: cgc->cmd[9] = 0xf8; break;
 	default			: cgc->cmd[9] = 0x10;
 	}
-	
+
 	return cdo->generic_packet(cdi, cgc);
 }
 
@@ -2282,7 +2282,7 @@ retry:
 
 	pr_info("dropping to old style cdda (sense=%x)\n", cdi->last_sense);
 	cdi->cdda_method = CDDA_OLD;
-	return cdrom_read_cdda_old(cdi, ubuf, lba, nframes);	
+	return cdrom_read_cdda_old(cdi, ubuf, lba, nframes);
 }
 
 static int cdrom_ioctl_multisession(struct cdrom_device_info *cdi,
@@ -3114,7 +3114,7 @@ static noinline int mmc_ioctl_cdrom_volume(struct cdrom_device_info *cdi,
 	ret = cdrom_mode_sense(cdi, cgc, GPMODE_AUDIO_CTL_PAGE, 0);
 	if (ret)
 		return ret;
-		
+
 	/* originally the code depended on buffer[1] to determine
 	   how much data is available for transfer. buffer[1] is
 	   unfortunately ambigious and the only reliable way seem
@@ -3149,7 +3149,7 @@ static noinline int mmc_ioctl_cdrom_volume(struct cdrom_device_info *cdi,
 			return -EFAULT;
 		return 0;
 	}
-		
+
 	/* get the volume mask */
 	cgc->buffer = mask;
 	ret = cdrom_mode_sense(cdi, cgc, GPMODE_AUDIO_CTL_PAGE, 1);
@@ -3490,7 +3490,7 @@ static int cdrom_sysctl_info(struct ctl_table *ctl, int write,
 	int pos;
 	char *info = cdrom_sysctl_settings.info;
 	const int max_size = sizeof(cdrom_sysctl_settings.info);
-	
+
 	if (!*lenp || (*ppos && !write)) {
 		*lenp = 0;
 		return 0;
@@ -3499,7 +3499,7 @@ static int cdrom_sysctl_info(struct ctl_table *ctl, int write,
 	mutex_lock(&cdrom_mutex);
 
 	pos = sprintf(info, "CD-ROM information, " VERSION "\n");
-	
+
 	if (cdrom_print_info("\ndrive name:\t", 0, info, &pos, CTL_NAME))
 		goto done;
 	if (cdrom_print_info("\ndrive speed:\t", 0, info, &pos, CTL_SPEED))
@@ -3601,11 +3601,11 @@ static int cdrom_sysctl_handler(struct ctl_table *ctl, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
-	
+
 	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
 
 	if (write) {
-	
+
 		/* we only care for 1 or 0. */
 		autoclose        = !!cdrom_sysctl_settings.autoclose;
 		autoeject        = !!cdrom_sysctl_settings.autoeject;
@@ -3626,7 +3626,7 @@ static int cdrom_sysctl_handler(struct ctl_table *ctl, int write,
 static struct ctl_table cdrom_table[] = {
 	{
 		.procname	= "info",
-		.data		= &cdrom_sysctl_settings.info, 
+		.data		= &cdrom_sysctl_settings.info,
 		.maxlen		= CDROM_STR_SIZE,
 		.mode		= 0444,
 		.proc_handler	= cdrom_sysctl_info,

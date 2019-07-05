@@ -114,7 +114,7 @@ aoa_fabric_unlink_codec(struct aoa_codec *codec);
 struct aoa_card {
 	struct snd_card *alsa_card;
 };
-        
+
 extern int aoa_snd_device_new(enum snd_device_type type,
 	void * device_data, struct snd_device_ops * ops);
 extern struct snd_card *aoa_get_card(void);

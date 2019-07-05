@@ -12,7 +12,7 @@
 #include "emux_voice.h"
 
 static void
-snd_emux_proc_info_read(struct snd_info_entry *entry, 
+snd_emux_proc_info_read(struct snd_info_entry *entry,
 			struct snd_info_buffer *buf)
 {
 	struct snd_emux *emu;

@@ -7,7 +7,7 @@
  * 	PMC PM5350 S/UNI 155 ULTRA
  * 	PMC PM5355 S/UNI 622
  */
- 
+
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
 #include <linux/module.h>

@@ -235,7 +235,7 @@ config BLK_DEV_CRYPTOLOOP
 	select CRYPTO_CBC
 	depends on BLK_DEV_LOOP
 	---help---
-	  Say Y here if you want to be able to use the ciphers that are 
+	  Say Y here if you want to be able to use the ciphers that are
 	  provided by the CryptoAPI as loop transformation. This might be
 	  used as hard disk encryption.
 
@@ -287,7 +287,7 @@ config BLK_DEV_SX8
 	tristate "Promise SATA SX8 support"
 	depends on PCI
 	---help---
-	  Saying Y or M here will enable support for the 
+	  Saying Y or M here will enable support for the
 	  Promise SATA SX8 controllers.
 
 	  Use devices /dev/sx8/$N and /dev/sx8/$Np$M.

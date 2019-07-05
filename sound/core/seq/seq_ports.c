@@ -19,7 +19,7 @@
  */
 
 
-/* 
+/*
 
 NOTE: the current implementation of the port structure as a linked list is
 not optimal for clients that have many ports. For sending messages to all
@@ -115,7 +115,7 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 {
 	struct snd_seq_client_port *new_port, *p;
 	int num = -1;
-	
+
 	/* sanity check */
 	if (snd_BUG_ON(!client))
 		return NULL;
@@ -247,7 +247,7 @@ static int port_delete(struct snd_seq_client *client,
 {
 	/* set closing flag and wait for all port access are gone */
 	port->closing = 1;
-	snd_use_lock_sync(&port->use_lock); 
+	snd_use_lock_sync(&port->use_lock);
 
 	/* clear subscribers info */
 	clear_subscriber_list(client, port, &port->c_src, true);
@@ -293,7 +293,7 @@ int snd_seq_delete_all_ports(struct snd_seq_client *client)
 {
 	struct list_head deleted_list;
 	struct snd_seq_client_port *port, *tmp;
-	
+
 	/* move the port list to deleted_list, and
 	 * clear the port list in the client data.
 	 */
@@ -328,10 +328,10 @@ int snd_seq_set_port_info(struct snd_seq_client_port * port,
 	/* set port name */
 	if (info->name[0])
 		strlcpy(port->name, info->name, sizeof(port->name));
-	
+
 	/* set capabilities */
 	port->capability = info->capability;
-	
+
 	/* get port type */
 	port->type = info->type;
 
@@ -357,7 +357,7 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
 
 	/* get port name */
 	strlcpy(info->name, port->name, sizeof(info->name));
-	
+
 	/* get capabilities */
 	info->capability = port->capability;
 
@@ -372,7 +372,7 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
 	/* get subscriber counts */
 	info->read_use = port->c_src.count;
 	info->write_use = port->c_dest.count;
-	
+
 	/* timestamping */
 	info->flags = 0;
 	if (port->timestamping) {

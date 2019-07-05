@@ -18,7 +18,7 @@
  */
 
 /*
- * r0, r1, r2, r3, r4, r5, r6, r7 --- scratch 
+ * r0, r1, r2, r3, r4, r5, r6, r7 --- scratch
  * r8 --- from + PAGE_SIZE
  * r9 --- not used
  * r10 --- to

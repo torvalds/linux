@@ -69,11 +69,11 @@ static int load_em86(struct linux_binprm *bprm)
 	 */
 	remove_arg_zero(bprm);
 	retval = copy_strings_kernel(1, &bprm->filename, bprm);
-	if (retval < 0) return retval; 
+	if (retval < 0) return retval;
 	bprm->argc++;
 	if (i_arg) {
 		retval = copy_strings_kernel(1, &i_arg, bprm);
-		if (retval < 0) return retval; 
+		if (retval < 0) return retval;
 		bprm->argc++;
 	}
 	retval = copy_strings_kernel(1, &i_name, bprm);

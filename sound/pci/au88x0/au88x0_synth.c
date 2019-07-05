@@ -63,7 +63,7 @@ static int vortex_wt_allocroute(vortex_t * vortex, int wt, int nr_ch)
 		vortex_wt_setstereo(vortex, wt, nr_ch - 1);
 	} else
 		vortex_fifo_setwtvalid(vortex, wt, 0);
-	
+
 	/* Set mixdown mode. */
 	vortex_wt_setdsout(vortex, wt, 1);
 	/* Set other parameter registers. */
@@ -165,7 +165,7 @@ vortex_wt_SetReg2(vortex_t * vortex, unsigned char reg, int wt,
 	   return 0;
 
 	   if ((reg - 0x20) > 0) {
-	   if ((reg - 0x21) != 0) 
+	   if ((reg - 0x21) != 0)
 	   return 0;
 	   eax = ((((b & 0xff) << 0xb) + (edx & 0xff)) << 4) + 0x208; // param 2
 	   } else {

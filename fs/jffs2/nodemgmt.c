@@ -57,8 +57,8 @@ static int jffs2_rp_can_write(struct jffs2_sb_info *c)
  *	@prio: Allocation type - ALLOC_{NORMAL,DELETION}
  *
  *	Requests a block of physical space on the flash. Returns zero for success
- *	and puts 'len' into the appropriate place, or returns -ENOSPC or other 
- *	error if appropriate. Doesn't return len since that's 
+ *	and puts 'len' into the appropriate place, or returns -ENOSPC or other
+ *	error if appropriate. Doesn't return len since that's
  *
  *	If it returns zero, jffs2_reserve_space() also downs the per-filesystem
  *	allocation semaphore, to prevent more than one allocation from being
@@ -509,7 +509,7 @@ struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
 	jffs2_dbg(1, "%s(): Node at 0x%x(%d), size 0x%x\n",
 		  __func__, ofs & ~3, ofs & 3, len);
 #if 1
-	/* Allow non-obsolete nodes only to be added at the end of c->nextblock, 
+	/* Allow non-obsolete nodes only to be added at the end of c->nextblock,
 	   if c->nextblock is set. Note that wbuf.c will file obsolete nodes
 	   even after refiling c->nextblock */
 	if ((c->nextblock || ((ofs & 3) != REF_OBSOLETE))

@@ -80,7 +80,7 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 	inode_index = inode->i_ino /
 		(EFS_BLOCKSIZE / sizeof(struct efs_dinode));
 
-	block = sb->fs_start + sb->first_block + 
+	block = sb->fs_start + sb->first_block +
 		(sb->group_size * (inode_index / sb->inode_blocks)) +
 		(inode_index % sb->inode_blocks);
 
@@ -95,7 +95,7 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 	}
 
 	efs_inode = (struct efs_dinode *) (bh->b_data + offset);
-    
+
 	inode->i_mode  = be16_to_cpu(efs_inode->di_mode);
 	set_nlink(inode, be16_to_cpu(efs_inode->di_nlink));
 	i_uid_write(inode, (uid_t)be16_to_cpu(efs_inode->di_uid));
@@ -142,9 +142,9 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 	pr_debug("efs_iget(): inode %lu, extents %d, mode %o\n",
 		 inode->i_ino, in->numextents, inode->i_mode);
 	switch (inode->i_mode & S_IFMT) {
-		case S_IFDIR: 
-			inode->i_op = &efs_dir_inode_operations; 
-			inode->i_fop = &efs_dir_operations; 
+		case S_IFDIR:
+			inode->i_op = &efs_dir_inode_operations;
+			inode->i_fop = &efs_dir_operations;
 			break;
 		case S_IFREG:
 			inode->i_fop = &generic_ro_fops;
@@ -168,7 +168,7 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 
 	unlock_new_inode(inode);
 	return inode;
-        
+
 read_inode_error:
 	pr_warn("failed to read inode %lu\n", inode->i_ino);
 	iget_failed(inode);
@@ -212,7 +212,7 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 		/* first check the last extent we returned */
 		if ((result = efs_extent_check(&in->extents[last], block, sb)))
 			return result;
-    
+
 		/* if we only have one extent then nothing can be found */
 		if (in->numextents == 1) {
 			pr_err("%s() failed to map (1 extent)\n", __func__);
@@ -265,7 +265,7 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 			if (bh) brelse(bh);
 			return 0;
 		}
-		
+
 		/* work out block number and offset of this indirect extent */
 		iblock = sb->fs_start + in->extents[dirext].cooked.ex_bn +
 			(cur - ibase) /
@@ -308,6 +308,6 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 	if (bh) brelse(bh);
 	pr_err("%s() failed to map block %u (indir)\n", __func__, block);
 	return 0;
-}  
+}
 
 MODULE_LICENSE("GPL");

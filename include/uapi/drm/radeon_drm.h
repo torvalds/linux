@@ -233,7 +233,7 @@ typedef union {
 #	define R300_WAIT_3D		0x2
 /* these two defines are DOING IT WRONG - however
  * we have userspace which relies on using these.
- * The wait interface is backwards compat new 
+ * The wait interface is backwards compat new
  * code should use the NEW_WAIT defines below
  * THESE ARE NOT BIT FIELDS
  */

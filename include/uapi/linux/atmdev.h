@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atmdev.h - ATM device driver declarations and various related items */
- 
+
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
- 
+
 
 #ifndef _UAPILINUX_ATMDEV_H
 #define _UAPILINUX_ATMDEV_H
@@ -113,7 +113,7 @@ struct atm_dev_stats {
  * above.  In the future we may support dynamic loading of these - for now,
  * they're just being used to share the ATMIOC_BACKEND ioctls
  */
-#define ATM_BACKEND_RAW		0	
+#define ATM_BACKEND_RAW		0
 #define ATM_BACKEND_PPP		1	/* PPPoATM - RFC2364 */
 #define ATM_BACKEND_BR2684	2	/* Bridged RFC1483/2684 */
 
@@ -165,7 +165,7 @@ struct atm_iobuf {
 /* for ATM_GETCIRANGE / ATM_SETCIRANGE */
 
 #define ATM_CI_MAX      -1              /* use maximum range of VPI/VCI */
- 
+
 struct atm_cirange {
 	signed char	vpi_bits;	/* 1..8, ATM_CI_MAX (-1) for maximum */
 	signed char	vci_bits;	/* 1..16, ATM_CI_MAX (-1) for maximum */

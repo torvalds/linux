@@ -154,7 +154,7 @@ arm_copy_to_user(void __user *to, const void *from, unsigned long n)
 	}
 	return n;
 }
-	
+
 static unsigned long noinline
 __clear_user_memset(void __user *addr, unsigned long n)
 {

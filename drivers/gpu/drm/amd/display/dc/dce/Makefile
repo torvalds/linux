@@ -23,7 +23,7 @@
 # Makefile for common 'dce' logic
 # HW object file under this folder follow similar pattern for HW programming
 #   - register offset and/or shift + mask stored in the dec_hw struct
-#   - register programming through common macros that look up register 
+#   - register programming through common macros that look up register
 #     offset/shift/mask stored in dce_hw struct
 
 DCE = dce_audio.o dce_stream_encoder.o dce_link_encoder.o dce_hwseq.o \

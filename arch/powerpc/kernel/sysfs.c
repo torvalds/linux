@@ -574,7 +574,7 @@ static ssize_t __used store_dscr_default(struct device *dev,
 {
 	unsigned long val;
 	int ret = 0;
-	
+
 	ret = sscanf(buf, "%lx", &val);
 	if (ret != 1)
 		return -EINVAL;

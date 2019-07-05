@@ -776,11 +776,11 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 		acb->completionQ_entry = acb->ioqueue_size / sizeof(struct deliver_completeQ);
 		acb->doneq_index = 0;
 		break;
-	}	
+	}
 	return 0;
 }
 
-static void arcmsr_message_isr_bh_fn(struct work_struct *work) 
+static void arcmsr_message_isr_bh_fn(struct work_struct *work)
 {
 	struct AdapterControlBlock *acb = container_of(work,
 		struct AdapterControlBlock, arcmsr_do_message_isr_bh);
@@ -1287,7 +1287,7 @@ static void arcmsr_report_sense_info(struct CommandControlBlock *ccb)
 static u32 arcmsr_disable_outbound_ints(struct AdapterControlBlock *acb)
 {
 	u32 orig_mask = 0;
-	switch (acb->adapter_type) {	
+	switch (acb->adapter_type) {
 	case ACB_ADAPTER_TYPE_A : {
 		struct MessageUnit_A __iomem *reg = acb->pmuA;
 		orig_mask = readl(&reg->outbound_intmask);
@@ -1325,7 +1325,7 @@ static u32 arcmsr_disable_outbound_ints(struct AdapterControlBlock *acb)
 	return orig_mask;
 }
 
-static void arcmsr_report_ccb_state(struct AdapterControlBlock *acb, 
+static void arcmsr_report_ccb_state(struct AdapterControlBlock *acb,
 			struct CommandControlBlock *ccb, bool error)
 {
 	uint8_t id, lun;
@@ -1607,7 +1607,7 @@ static void arcmsr_remove(struct pci_dev *pdev)
 		del_timer_sync(&acb->refresh_timer);
 	arcmsr_disable_outbound_ints(acb);
 	arcmsr_stop_adapter_bgrb(acb);
-	arcmsr_flush_adapter_cache(acb);	
+	arcmsr_flush_adapter_cache(acb);
 	acb->acb_flags |= ACB_F_SCSISTOPADAPTER;
 	acb->acb_flags &= ~ACB_F_IOP_INITED;
 
@@ -2519,7 +2519,7 @@ static void arcmsr_hbaE_postqueue_isr(struct AdapterControlBlock *acb)
 **********************************************************************************
 ** Handle a message interrupt
 **
-** The only message interrupt we expect is in response to a query for the current adapter config.  
+** The only message interrupt we expect is in response to a query for the current adapter config.
 ** We want this in order to compare the drivemap so that we can detect newly-attached drives.
 **********************************************************************************
 */
@@ -3425,7 +3425,7 @@ polling_hbb_ccb_retry:
 				, ccb
 				, atomic_read(&acb->ccboutstandingcount));
 			continue;
-		} 
+		}
 		error = (flag_ccb & ARCMSR_CCBREPLY_FLAG_ERROR_MODE0) ? true : false;
 		arcmsr_report_ccb_state(acb, ccb, error);
 	}

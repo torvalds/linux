@@ -870,7 +870,7 @@ static int floppy_locked_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct floppy_state *fs = bdev->bd_disk->private_data;
 	int err;
-		
+
 	if ((cmd & 0x80) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -1112,7 +1112,7 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 
 	if (mdev->media_bay == NULL)
 		pmac_call_feature(PMAC_FTR_SWIM3_ENABLE, swim, 0, 1);
-	
+
 	fs->state = idle;
 	fs->swim3 = (struct swim3 __iomem *)
 		ioremap(macio_resource_start(mdev, 0), 0x200);

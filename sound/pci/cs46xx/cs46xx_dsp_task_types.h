@@ -3,10 +3,10 @@
  *  The driver for the Cirrus Logic's Sound Fusion CS46XX based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- * NOTE: comments are copy/paste from cwcemb80.lst 
+ * NOTE: comments are copy/paste from cwcemb80.lst
  * provided by Tom Woller at Cirrus (my only
  * documentation about the SP OS running inside
- * the DSP) 
+ * the DSP)
  */
 
 #ifndef __CS46XX_DSP_TASK_TYPES_H__
@@ -26,13 +26,13 @@ Ptr____Call (c)
  -------------- (g)     -------------      -------------      -------------      -----
        |c                     |c                 |c                 |c
        |                      |                  |                  |
-      \/                  -------------      -------------      -------------   
+      \/                  -------------      -------------      -------------
                        | Foreground  |_\  | Middlegr'nd |_\  | Background  |_\
                        |     tree    |g/  |    tree     |g/  |     tree    |g/
-                        -------------      -------------      -------------   
+                        -------------      -------------      -------------
                               |c                 |c                 |c
-                              |                  |                  | 
-                             \/                 \/                 \/ 
+                              |                  |                  |
+                             \/                 \/                 \/
 
 *********************************************************************************************/
 
@@ -76,7 +76,7 @@ struct dsp_hf_save_area {
 	u32	rsd2_save;
 
        	___DSP_DUAL_16BIT_ALLOC(
-	      rsi2_save,	  /* See TaskTreeParameterBlock for 
+	      rsi2_save,	  /* See TaskTreeParameterBlock for
 				     remainder of registers  */
 	      rsa2Save
 	)
@@ -92,10 +92,10 @@ struct dsp_tree_link {
 	/* Pointer to child task control block */
 	    sub_ptr
 	)
-  
+
 	___DSP_DUAL_16BIT_ALLOC(
 	/* Pointer to code entry point */
-	    entry_point, 
+	    entry_point,
 	/* Pointer to local data */
 	    this_spb
 	)
@@ -110,29 +110,29 @@ struct dsp_task_tree_data {
 	    tock_count
 	)
 
-	/* Add to ActiveCount when TockCountLimit reached: 
+	/* Add to ActiveCount when TockCountLimit reached:
 	   Subtract on task tree termination */
 	___DSP_DUAL_16BIT_ALLOC(
-	    active_tncrement,		
+	    active_tncrement,
 	/* Number of pending activations for task tree */
 	    active_count
 	)
 
         ___DSP_DUAL_16BIT_ALLOC(
 	/* BitNumber to enable modification of correct bit in ActiveTaskFlags */
-	    active_bit,	    
+	    active_bit,
 	/* Pointer to OS location for indicating current activity on task level */
 	    active_task_flags_ptr
 	)
 
-	/* Data structure for controlling movement of memory blocks:- 
+	/* Data structure for controlling movement of memory blocks:-
 	   currently unused */
 	___DSP_DUAL_16BIT_ALLOC(
 	    mem_upd_ptr,
 	/* Data structure for controlling synchronous link update */
 	    link_upd_ptr
 	)
-  
+
 	___DSP_DUAL_16BIT_ALLOC(
 	/* Save area for remainder of full context. */
 	    save_area,
@@ -153,7 +153,7 @@ struct dsp_interval_timer_data
 
 	/* used for this data in the SPOS control block for SPOS 1.0 */
 	___DSP_DUAL_16BIT_ALLOC(
-	     num_FG_ticks_this_interval,        
+	     num_FG_ticks_this_interval,
 	     num_intervals
 	)
 };
@@ -186,12 +186,12 @@ struct dsp_task_tree_context_block {
 	     stack8
 	)
 
-	u32	  saverfe;					
+	u32	  saverfe;
 
 	/* Value may be overwritten by stack save algorithm.
 	   Retain the size of the stack data saved here if used */
 	___DSP_DUAL_16BIT_ALLOC(
-             reserved1,	
+             reserved1,
   	     stack_size
 	)
 	u32		saverba;	  /* (HFG) */
@@ -223,7 +223,7 @@ struct dsp_task_tree_context_block {
 	u32		savershouthl;
 	u32		savershoutxmacmode;
 };
-                
+
 
 struct dsp_task_tree_control_block {
 	struct dsp_hf_save_area			context;

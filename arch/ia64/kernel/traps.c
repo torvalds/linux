@@ -345,7 +345,7 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 			if (isr & 0x11) {
 				si_code = FPE_FLTINV;
 			} else if (isr & 0x22) {
-				/* denormal operand gets the same si_code as underflow 
+				/* denormal operand gets the same si_code as underflow
 				* see arch/i386/kernel/traps.c:math_error()  */
 				si_code = FPE_FLTUND;
 			} else if (isr & 0x44) {

@@ -82,7 +82,7 @@ extern struct list_head dmar_drhd_units;
 
 #define for_each_iommu(i, drhd)						\
 	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
-		if (i=drhd->iommu, 0) {} else 
+		if (i=drhd->iommu, 0) {} else
 
 static inline bool dmar_rcu_check(void)
 {

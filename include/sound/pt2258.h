@@ -3,7 +3,7 @@
  *   ALSA Driver for the PT2258 volume controller.
  *
  *	Copyright (c) 2006  Jochen Voss <voss@seehuhn.de>
- */      
+ */
 
 #ifndef __SOUND_PT2258_H
 #define __SOUND_PT2258_H

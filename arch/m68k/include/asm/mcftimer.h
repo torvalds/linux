@@ -5,7 +5,7 @@
  *	mcftimer.h -- ColdFire internal TIMER support defines.
  *
  *	(C) Copyright 1999-2006, Greg Ungerer <gerg@snapgear.com>
- * 	(C) Copyright 2000, Lineo Inc. (www.lineo.com) 
+ * 	(C) Copyright 2000, Lineo Inc. (www.lineo.com)
  */
 
 /****************************************************************************/

@@ -12,14 +12,14 @@
 
 /* This weird monster likes to use the very upper parts of
    36bit PA for these things :) */
-   
+
 /* CSR space (for each XDBUS)
  *  ------------------------------------------------------------------------
  *  |   0xFE  |   DEVID    |                | XDBUS ID |                   |
  *  ------------------------------------------------------------------------
  *  35      28 27        20 19            10 9        8 7                 0
  */
-   
+
 #define CSR_BASE_ADDR		0xe0000000
 #define CSR_CPU_SHIFT		(32 - 4 - 5)
 #define CSR_XDBUS_SHIFT		8
@@ -32,13 +32,13 @@
  *  ------------------------------------------------------------------------
  *  35     32 31        25 24                 				  0
  */
-   
+
 #define ECSR_BASE_ADDR		0x00000000
 #define ECSR_CPU_SHIFT		(32 - 5)
 #define ECSR_DEV_SHIFT		(32 - 8)
 
 #define ECSR_BASE(cpu) ((cpu) << ECSR_CPU_SHIFT)
-#define ECSR_DEV_BASE(devid) ((devid) << ECSR_DEV_SHIFT) 
+#define ECSR_DEV_BASE(devid) ((devid) << ECSR_DEV_SHIFT)
 
 /* Bus Watcher */
 #define BW_LOCAL_BASE		0xfff00000
@@ -102,7 +102,7 @@
 static inline int bw_get_intr_mask(int sbus_level)
 {
 	int mask;
-	
+
 	__asm__ __volatile__ ("lduha [%1] %2, %0" :
 			      "=r" (mask) :
 			      "r" (BW_LOCAL_BASE + BW_INTR_TABLE + (sbus_level << 3)),
@@ -121,7 +121,7 @@ static inline void bw_clear_intr_mask(int sbus_level, int mask)
 static inline unsigned int bw_get_prof_limit(int cpu)
 {
 	unsigned int limit;
-	
+
 	__asm__ __volatile__ ("lda [%1] %2, %0" :
 			      "=r" (limit) :
 			      "r" (CSR_BASE(cpu) + BW_PTIMER_LIMIT),
@@ -140,7 +140,7 @@ static inline void bw_set_prof_limit(int cpu, unsigned int limit)
 static inline unsigned int bw_get_ctrl(int cpu)
 {
 	unsigned int ctrl;
-	
+
 	__asm__ __volatile__ ("lda [%1] %2, %0" :
 			      "=r" (ctrl) :
 			      "r" (CSR_BASE(cpu) + BW_CTRL),
@@ -159,7 +159,7 @@ static inline void bw_set_ctrl(int cpu, unsigned int ctrl)
 static inline unsigned int cc_get_ipen(void)
 {
 	unsigned int pending;
-	
+
 	__asm__ __volatile__ ("lduha [%1] %2, %0" :
 			      "=r" (pending) :
 			      "r" (CC_IPEN),
@@ -178,7 +178,7 @@ static inline void cc_set_iclr(unsigned int clear)
 static inline unsigned int cc_get_imsk(void)
 {
 	unsigned int mask;
-	
+
 	__asm__ __volatile__ ("lduha [%1] %2, %0" :
 			      "=r" (mask) :
 			      "r" (CC_IMSK),
@@ -197,7 +197,7 @@ static inline void cc_set_imsk(unsigned int mask)
 static inline unsigned int cc_get_imsk_other(int cpuid)
 {
 	unsigned int mask;
-	
+
 	__asm__ __volatile__ ("lduha [%1] %2, %0" :
 			      "=r" (mask) :
 			      "r" (ECSR_BASE(cpuid) | CC_IMSK),

@@ -27,8 +27,8 @@ in the linux/drivers/atm directory for details and restrictions.
 Firmware Updates
 ----------------
 
-The FORE Systems 200E-series driver is shipped with firmware data being 
-uploaded to the ATM adapters at system boot time or at module loading time. 
+The FORE Systems 200E-series driver is shipped with firmware data being
+uploaded to the ATM adapters at system boot time or at module loading time.
 The supplied firmware images should work with all adapters.
 
 However, if you encounter problems (the firmware doesn't start or the driver

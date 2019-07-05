@@ -12,12 +12,12 @@
 
 /*
  *  Indirect control registers (CS4236B+)
- * 
+ *
  *  C0
  *     D8: WSS reset (all chips)
  *
  *  C1 (all chips except CS4236)
- *     D7-D5: version 
+ *     D7-D5: version
  *     D4-D0: chip id
  *             11101 - CS4235
  *             01011 - CS4236B
@@ -28,7 +28,7 @@
  *  C2
  *     D7-D4: 3D Space (CS4235,CS4237B,CS4238B,CS4239)
  *     D3-D0: 3D Center (CS4237B); 3D Volume (CS4238B)
- * 
+ *
  *  C3
  *     D7: 3D Enable (CS4237B)
  *     D6: 3D Mono Enable (CS4237B)
@@ -40,14 +40,14 @@
  *     D6: channels status block reset (CS4237B,CS4238B)
  *     D5: user bit in sub-frame of digital audio data (CS4237B,CS4238B)
  *     D4: validity bit bit in sub-frame of digital audio data (CS4237B,CS4238B)
- * 
+ *
  *  C5  lower channel status (digital serial data description) (CS4237B,CS4238B)
  *     D7-D6: first two bits of category code
  *     D5: lock
  *     D4-D3: pre-emphasis (0 = none, 1 = 50/15us)
  *     D2: copy/copyright (0 = copy inhibited)
  *     D1: 0 = digital audio / 1 = non-digital audio
- *     
+ *
  *  C6  upper channel status (digital serial data description) (CS4237B,CS4238B)
  *     D7-D6: sample frequency (0 = 44.1kHz)
  *     D5: generation status (0 = no indication, 1 = original/commercially precaptureed data)
@@ -171,7 +171,7 @@ static void snd_cs4236_playback_format(struct snd_wss *chip,
 {
 	unsigned long flags;
 	unsigned char rate = divisor_to_rate_register(params->rate_den);
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	/* set fast playback format change and clean playback FIFO */
 	snd_wss_out(chip, CS4231_ALT_FEATURE_1,
@@ -189,7 +189,7 @@ static void snd_cs4236_capture_format(struct snd_wss *chip,
 {
 	unsigned long flags;
 	unsigned char rate = divisor_to_rate_register(params->rate_den);
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	/* set fast capture format change and clean capture FIFO */
 	snd_wss_out(chip, CS4231_ALT_FEATURE_1,
@@ -207,7 +207,7 @@ static void snd_cs4236_suspend(struct snd_wss *chip)
 {
 	int reg;
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (reg = 0; reg < 32; reg++)
 		chip->image[reg] = snd_wss_in(chip, reg);
@@ -222,7 +222,7 @@ static void snd_cs4236_resume(struct snd_wss *chip)
 {
 	int reg;
 	unsigned long flags;
-	
+
 	snd_wss_mce_up(chip);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (reg = 0; reg < 32; reg++) {
@@ -365,7 +365,7 @@ int snd_cs4236_create(struct snd_card *card,
 int snd_cs4236_pcm(struct snd_wss *chip, int device)
 {
 	int err;
-	
+
 	err = snd_wss_pcm(chip, device);
 	if (err < 0)
 		return err;
@@ -410,7 +410,7 @@ static int snd_cs4236_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = (chip->eimage[CS4236_REG(reg)] >> shift) & mask;
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -429,7 +429,7 @@ static int snd_cs4236_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	int change;
 	unsigned short val;
-	
+
 	val = (ucontrol->value.integer.value[0] & mask);
 	if (invert)
 		val = mask - val;
@@ -456,7 +456,7 @@ static int snd_cs4236_get_singlec(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = (chip->cimage[reg] >> shift) & mask;
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -475,7 +475,7 @@ static int snd_cs4236_put_singlec(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	int change;
 	unsigned short val;
-	
+
 	val = (ucontrol->value.integer.value[0] & mask);
 	if (invert)
 		val = mask - val;
@@ -525,7 +525,7 @@ static int snd_cs4236_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int shift_right = (kcontrol->private_value >> 19) & 0x07;
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = (chip->eimage[CS4236_REG(left_reg)] >> shift_left) & mask;
 	ucontrol->value.integer.value[1] = (chip->eimage[CS4236_REG(right_reg)] >> shift_right) & mask;
@@ -549,7 +549,7 @@ static int snd_cs4236_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int invert = (kcontrol->private_value >> 22) & 1;
 	int change;
 	unsigned short val1, val2;
-	
+
 	val1 = ucontrol->value.integer.value[0] & mask;
 	val2 = ucontrol->value.integer.value[1] & mask;
 	if (invert) {
@@ -601,7 +601,7 @@ static int snd_cs4236_get_double1(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int shift_right = (kcontrol->private_value >> 19) & 0x07;
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = (chip->image[left_reg] >> shift_left) & mask;
 	ucontrol->value.integer.value[1] = (chip->eimage[CS4236_REG(right_reg)] >> shift_right) & mask;
@@ -625,7 +625,7 @@ static int snd_cs4236_put_double1(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	int invert = (kcontrol->private_value >> 22) & 1;
 	int change;
 	unsigned short val1, val2;
-	
+
 	val1 = ucontrol->value.integer.value[0] & mask;
 	val2 = ucontrol->value.integer.value[1] & mask;
 	if (invert) {
@@ -661,7 +661,7 @@ static int snd_cs4236_get_master_digital(struct snd_kcontrol *kcontrol, struct s
 {
 	struct snd_wss *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = snd_cs4236_mixer_master_digital_invert_volume(chip->eimage[CS4236_REG(CS4236_LEFT_MASTER)] & 0x7f);
 	ucontrol->value.integer.value[1] = snd_cs4236_mixer_master_digital_invert_volume(chip->eimage[CS4236_REG(CS4236_RIGHT_MASTER)] & 0x7f);
@@ -675,7 +675,7 @@ static int snd_cs4236_put_master_digital(struct snd_kcontrol *kcontrol, struct s
 	unsigned long flags;
 	int change;
 	unsigned short val1, val2;
-	
+
 	val1 = snd_cs4236_mixer_master_digital_invert_volume(ucontrol->value.integer.value[0] & 0x7f);
 	val2 = snd_cs4236_mixer_master_digital_invert_volume(ucontrol->value.integer.value[1] & 0x7f);
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -722,7 +722,7 @@ static int snd_cs4235_get_output_accu(struct snd_kcontrol *kcontrol, struct snd_
 {
 	struct snd_wss *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = snd_cs4235_mixer_output_accu_get_volume(chip->image[CS4235_LEFT_MASTER]);
 	ucontrol->value.integer.value[1] = snd_cs4235_mixer_output_accu_get_volume(chip->image[CS4235_RIGHT_MASTER]);
@@ -736,7 +736,7 @@ static int snd_cs4235_put_output_accu(struct snd_kcontrol *kcontrol, struct snd_
 	unsigned long flags;
 	int change;
 	unsigned short val1, val2;
-	
+
 	val1 = snd_cs4235_mixer_output_accu_set_volume(ucontrol->value.integer.value[0]);
 	val2 = snd_cs4235_mixer_output_accu_set_volume(ucontrol->value.integer.value[1]);
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -932,7 +932,7 @@ static int snd_cs4236_get_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 {
 	struct snd_wss *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = chip->image[CS4231_ALT_FEATURE_1] & 0x02 ? 1 : 0;
 #if 0
@@ -955,7 +955,7 @@ static int snd_cs4236_put_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	unsigned long flags;
 	int change;
 	unsigned short enable, val;
-	
+
 	enable = ucontrol->value.integer.value[0] & 1;
 
 	mutex_lock(&chip->mce_mutex);

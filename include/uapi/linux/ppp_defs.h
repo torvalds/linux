@@ -99,7 +99,7 @@ struct pppstat	{
     __u32	ppp_obytes;	/* raw bytes sent */
     __u32	ppp_ooctects;	/* frame bytes sent */
     __u32	ppp_opackets;	/* packets sent */
-    __u32	ppp_oerrors;	/* transmit errors */ 
+    __u32	ppp_oerrors;	/* transmit errors */
     __u32	ppp_olqrs;	/* # LQR frames sent */
 };
 

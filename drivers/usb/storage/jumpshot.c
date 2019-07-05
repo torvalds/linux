@@ -12,7 +12,7 @@
  *   Many thanks to Robert Baruch for the SanDisk SmartMedia reader driver
  *   which I used as a template for this driver.
  *
- *   Some bugfixes and scatter-gather code by Gregory P. Smith 
+ *   Some bugfixes and scatter-gather code by Gregory P. Smith
  *   (greg-usb@electricrain.com)
  *
  *   Fix for media change by Joerg Schneider (js@joergschneider.com)
@@ -21,11 +21,11 @@
  *
  *   (C) 2002 Alan Stern <stern@rowland.org>
  */
- 
+
  /*
-  * This driver attempts to support the Lexar Jumpshot USB CompactFlash 
+  * This driver attempts to support the Lexar Jumpshot USB CompactFlash
   * reader.  Like many other USB CompactFlash readers, the Jumpshot contains
-  * a USB-to-ATA chip. 
+  * a USB-to-ATA chip.
   *
   * This driver supports reading and writing.  If you're truly paranoid,
   * however, you can force the driver into a write-protected state by setting
@@ -102,7 +102,7 @@ struct jumpshot_info {
 };
 
 static inline int jumpshot_bulk_read(struct us_data *us,
-				     unsigned char *data, 
+				     unsigned char *data,
 				     unsigned int len)
 {
 	if (len == 0)
@@ -115,7 +115,7 @@ static inline int jumpshot_bulk_read(struct us_data *us,
 
 
 static inline int jumpshot_bulk_write(struct us_data *us,
-				      unsigned char *data, 
+				      unsigned char *data,
 				      unsigned int len)
 {
 	if (len == 0)
@@ -162,9 +162,9 @@ static int jumpshot_read_data(struct us_data *us,
 	unsigned int sg_offset = 0;
 	struct scatterlist *sg = NULL;
 
-	// we're working in LBA mode.  according to the ATA spec, 
+	// we're working in LBA mode.  according to the ATA spec,
 	// we can support up to 28-bit addressing.  I don't know if Jumpshot
-	// supports beyond 24-bit addressing.  It's kind of hard to test 
+	// supports beyond 24-bit addressing.  It's kind of hard to test
 	// since it requires > 8GB CF card.
 
 	if (sector > 0x0FFFFFFF)
@@ -239,9 +239,9 @@ static int jumpshot_write_data(struct us_data *us,
 	unsigned int sg_offset = 0;
 	struct scatterlist *sg = NULL;
 
-	// we're working in LBA mode.  according to the ATA spec, 
+	// we're working in LBA mode.  according to the ATA spec,
 	// we can support up to 28-bit addressing.  I don't know if Jumpshot
-	// supports beyond 24-bit addressing.  It's kind of hard to test 
+	// supports beyond 24-bit addressing.  It's kind of hard to test
 	// since it requires > 8GB CF card.
 	//
 	if (sector > 0x0FFFFFFF)
@@ -298,7 +298,7 @@ static int jumpshot_write_data(struct us_data *us,
 			if (result != USB_STOR_TRANSPORT_GOOD) {
 				// I have not experimented to find the smallest value.
 				//
-				msleep(50); 
+				msleep(50);
 			}
 		} while ((result != USB_STOR_TRANSPORT_GOOD) && (waitcount < 10));
 
@@ -363,7 +363,7 @@ static int jumpshot_id_device(struct us_data *us,
 }
 
 static int jumpshot_handle_mode_sense(struct us_data *us,
-				      struct scsi_cmnd * srb, 
+				      struct scsi_cmnd * srb,
 				      int sense_6)
 {
 	static unsigned char rw_err_page[12] = {

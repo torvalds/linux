@@ -84,7 +84,7 @@ unsigned char *hpfs_load_code_page(struct super_block *s, secno cps)
 		pr_err("Code page index out of array\n");
 		return NULL;
 	}
-	
+
 	if (!(cpd = hpfs_map_sector(s, cpds, &bh, 0))) return NULL;
 	if (le16_to_cpu(cpd->offs[cpi]) > 0x178) {
 		pr_err("Code page index out of sector\n");
@@ -105,7 +105,7 @@ unsigned char *hpfs_load_code_page(struct super_block *s, secno cps)
 	for (i=128; i<256; i++) cp_table[i]=i;
 	for (i=128; i<256; i++) if (cp_table[i-128]!=i && cp_table[i-128]>=128)
 		cp_table[cp_table[i-128]] = i;
-	
+
 	return cp_table;
 }
 
@@ -118,7 +118,7 @@ __le32 *hpfs_load_bitmap_directory(struct super_block *s, secno bmp)
 	if (!(b = kmalloc_array(n, 512, GFP_KERNEL))) {
 		pr_err("can't allocate memory for bitmap directory\n");
 		return NULL;
-	}	
+	}
 	for (i=0;i<n;i++) {
 		__le32 *d = hpfs_map_sector(s, bmp+i, &bh, n - i - 1);
 		if (!d) {
@@ -262,7 +262,7 @@ struct dnode *hpfs_map_dnode(struct super_block *s, unsigned secno,
 		if (secno & 3) {
 			hpfs_error(s, "dnode %08x not byte-aligned", secno);
 			return NULL;
-		}	
+		}
 	}
 	if ((dnode = hpfs_map_4sectors(s, secno, qbh, DNODE_RD_AHEAD)))
 		if (hpfs_sb(s)->sb_chk) {
@@ -299,7 +299,7 @@ struct dnode *hpfs_map_dnode(struct super_block *s, unsigned secno,
 					goto bail;
 				}
 				pp = p;
-				
+
 			}
 			if (p != le32_to_cpu(dnode->first_free)) {
 				hpfs_error(s, "size on last dirent does not match first_free; dnode %08x", secno);

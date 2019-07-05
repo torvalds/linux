@@ -11,7 +11,7 @@
  * the only obligation I put on you is a moral one: if you make any improvements
  * to the routine, please send me your improvements for me to use similarly.
  *
- * The scheduling comments are according to the EV5 documentation (and done by 
+ * The scheduling comments are according to the EV5 documentation (and done by
  * hand, so they might well be incorrect, please do tell me about it..)
  */
 #include <asm/export.h>

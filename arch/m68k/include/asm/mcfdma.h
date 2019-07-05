@@ -116,7 +116,7 @@
 #define MCFDMA_DIR_TE        0x0002 /* Transfer Error */
 #define MCFDMA_DIR_TC        0x0001 /* Transfer Complete */
 
-#endif /* !defined(CONFIG_M5272) */ 
+#endif /* !defined(CONFIG_M5272) */
 
 /****************************************************************************/
 #endif	/* mcfdma_h */

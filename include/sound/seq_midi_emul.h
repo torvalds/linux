@@ -22,7 +22,7 @@ struct snd_midi_channel {
 	int  port;		/* The port associated with this channel */
 
 	unsigned char midi_mode;	/* GM, GS, XG etc */
-	unsigned int 
+	unsigned int
 		drum_channel:1,		/* Drum channel */
 		param_type:1		/* RPN/NRPN */
 		;
@@ -155,22 +155,22 @@ struct snd_midi_op {
 #define SNDRV_MIDI_NOTE_ON		0x01
 #define SNDRV_MIDI_NOTE_RELEASED		0x02
 #define SNDRV_MIDI_NOTE_SOSTENUTO		0x04
- 
+
 #define SNDRV_MIDI_PARAM_TYPE_REGISTERED		0
 #define SNDRV_MIDI_PARAM_TYPE_NONREGISTERED	1
 
 /* SYSEX parse flag */
 enum {
 	SNDRV_MIDI_SYSEX_NOT_PARSED = 0,
-	SNDRV_MIDI_SYSEX_GM_ON,	
-	SNDRV_MIDI_SYSEX_GS_ON,	
-	SNDRV_MIDI_SYSEX_GS_RESET,	
+	SNDRV_MIDI_SYSEX_GM_ON,
+	SNDRV_MIDI_SYSEX_GS_ON,
+	SNDRV_MIDI_SYSEX_GS_RESET,
 	SNDRV_MIDI_SYSEX_GS_CHORUS_MODE,
 	SNDRV_MIDI_SYSEX_GS_REVERB_MODE,
 	SNDRV_MIDI_SYSEX_GS_MASTER_VOLUME,
 	SNDRV_MIDI_SYSEX_GS_PROGRAM,
 	SNDRV_MIDI_SYSEX_GS_DRUM_CHANNEL,
-	SNDRV_MIDI_SYSEX_XG_ON,	
+	SNDRV_MIDI_SYSEX_XG_ON,
 };
 
 /* Prototypes for midi_process.c */

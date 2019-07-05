@@ -197,7 +197,7 @@ ether3_addr(char *addr, struct expansion_card *ec)
 {
 	struct in_chunk_dir cd;
 	char *s;
-	
+
 	if (ecard_readchunk(&cd, ec, 0xf5, 0) && (s = strchr(cd.d.string, '('))) {
 		int i;
 		for (i = 0; i<6; i++) {

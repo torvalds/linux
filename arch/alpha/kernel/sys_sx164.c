@@ -87,7 +87,7 @@ sx164_init_irq(void)
  *22        Interrupt Line D from slot 1
  *23        Interrupt Line D from slot 0
  *
- * IdSel       
+ * IdSel
  *   5  32 bit PCI option slot 2
  *   6  64 bit PCI option slot 0
  *   7  64 bit PCI option slot 1

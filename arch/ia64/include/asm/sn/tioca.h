@@ -72,7 +72,7 @@ struct tioca {
  *
  * Fields consisting of a single bit have a single #define have a single
  * macro declaration to mask the bit.  Fields consisting of multiple bits
- * have two declarations: one to mask the proper bits in a register, and 
+ * have two declarations: one to mask the proper bits in a register, and
  * a second with the suffix "_SHFT" to identify how far the mask needs to
  * be shifted right to get its base value.
  */
@@ -183,7 +183,7 @@ struct tioca {
 #define CA_GART_AP_BASE_SHFT		22
 
 /* ==== ca_inta_dest_addr
-   ==== ca_intb_dest_addr 
+   ==== ca_intb_dest_addr
    ==== ca_err_int_dest_addr */
 	/* bits 2:0 unused */
 #define CA_INT_DEST_ADDR		(0x7ffffffffffffull << 3)
@@ -529,7 +529,7 @@ struct tioca {
  * 				| driver as the "graphics aperature"
  *	CA_AGP_MAPPED_BASE	+-----
  *				| PCI GART mapped
- *				| Space managed by this driver		
+ *				| Space managed by this driver
  *	CA_PCI32_MAPPED_BASE	+----
  *				| PCI32 direct
  *				| Space managed by this driver
@@ -564,7 +564,7 @@ struct tioca {
 /*
  * 11/24/03
  * CA has an addressing glitch w.r.t. PCI direct 32 bit DMA that makes it
- * generally unusable.  The problem is that for PCI direct 32 
+ * generally unusable.  The problem is that for PCI direct 32
  * DMA's, all 32 bits of the bus address are used to form the lower 32 bits
  * of the coretalk address, and coretalk bits 38:32 come from a register.
  * Since only PCI bus addresses 0xC0000000-0xFFFFFFFF (1GB) are available

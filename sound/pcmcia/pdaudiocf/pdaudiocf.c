@@ -159,7 +159,7 @@ static int snd_pdacf_assign_resources(struct snd_pdacf *pdacf, int port, int irq
 
 	err = snd_pdacf_ak4117_create(pdacf);
 	if (err < 0)
-		return err;	
+		return err;
 
 	strcpy(card->driver, "PDAudio-CF");
 	sprintf(card->shortname, "Core Sound %s", card->driver);

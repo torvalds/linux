@@ -946,7 +946,7 @@ static int write(struct tty_struct *tty,
 			    info->max_frame_size - info->tx_put));
 		if (c <= 0)
 			break;
-			
+
 		memcpy(info->tx_buf + info->tx_put, buf, c);
 
 		spin_lock_irqsave(&info->lock,flags);
@@ -1290,7 +1290,7 @@ static int ioctl(struct tty_struct *tty,
 		 */
 	case TIOCMIWAIT:
 		return modem_input_wait(info,(int)arg);
-		
+
 		/*
 		 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
 		 * Return: write counters to the user passed counter struct
@@ -2091,7 +2091,7 @@ static void isr_rxint(SLMP_INFO * info)
 
 	if (status2)
 		write_reg(info, SR2, status2);
-	
+
 	if ( debug_level >= DEBUG_LEVEL_ISR )
 		printk("%s(%d):%s isr_rxint status=%02X %02x\n",
 			__FILE__,__LINE__,info->device_name,status,status2);
@@ -4212,24 +4212,24 @@ static void tx_start(SLMP_INFO *info)
 
 			write_reg(info, TXDMA + DSR, 0); 		/* disable DMA channel */
 			write_reg(info, TXDMA + DCMD, SWABORT);	/* reset/init DMA channel */
-	
+
 			/* set TX CDA (current descriptor address) */
 			write_reg16(info, TXDMA + CDA,
 				info->tx_buf_list_ex[0].phys_entry);
-	
+
 			/* set TX EDA (last descriptor address) */
 			write_reg16(info, TXDMA + EDA,
 				info->tx_buf_list_ex[info->last_tx_buf].phys_entry);
-	
+
 			/* enable underrun IRQ */
 			info->ie1_value &= ~IDLE;
 			info->ie1_value |= UDRN;
 			write_reg(info, IE1, info->ie1_value);
 			write_reg(info, SR1, (unsigned char)(IDLE + UDRN));
-	
+
 			write_reg(info, TXDMA + DIR, 0x40);		/* enable Tx DMA interrupts (EOM) */
 			write_reg(info, TXDMA + DSR, 0xf2);		/* clear Tx DMA IRQs, enable Tx DMA */
-	
+
 			mod_timer(&info->tx_timer, jiffies +
 					msecs_to_jiffies(5000));
 		}

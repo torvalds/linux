@@ -1347,7 +1347,7 @@ static long g5_gmac_enable(struct device_node *node, long param, long value)
 		mb();
 		MACIO_BIC(KEYLARGO_FCR1, K2_FCR1_GMAC_CLK_ENABLE);
 	}
-	
+
 	UNLOCK(flags);
 	mdelay(1);
 
@@ -1372,7 +1372,7 @@ static long g5_fw_enable(struct device_node *node, long param, long value)
 		mb();
 		MACIO_BIC(KEYLARGO_FCR1, K2_FCR1_FW_CLK_ENABLE);
 	}
-	
+
 	UNLOCK(flags);
 	mdelay(1);
 
@@ -2935,7 +2935,7 @@ void __init pmac_check_ht_link(void)
 	if (px_hose == NULL) {
 		printk("PCI-X bridge found but not matched to host\n");
 		return;
-	}	
+	}
 	early_read_config_dword(px_hose, px_bus, px_devfn, 0xc4, &cfg);
 	early_read_config_dword(px_hose, px_bus, px_devfn, 0xcc, &freq);
 	dump_HT_speeds("PCI-X HT Uplink", cfg, freq);

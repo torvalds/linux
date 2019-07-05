@@ -565,7 +565,7 @@ static unsigned short snd_cs4281_ac97_read(struct snd_ac97 *ac97,
 
 	/*
 	 *  1. Write ACCAD = Command Address Register = 46Ch for AC97 register address
-	 *  2. Write ACCDA = Command Data Register = 470h    for data to write to AC97 
+	 *  2. Write ACCDA = Command Data Register = 470h    for data to write to AC97
 	 *  3. Write ACCTL = Control Register = 460h for initiating the write
 	 *  4. Read ACCTL = 460h, DCV should be reset by now and 460h = 17h
 	 *  5. if DCV not cleared, break and return error
@@ -614,7 +614,7 @@ static unsigned short snd_cs4281_ac97_read(struct snd_ac97 *ac97,
 		"AC'97 read problem (ACCTL_DCV), reg = 0x%x\n", reg);
 	result = 0xffff;
 	goto __end;
-	
+
       __ok1:
 	/*
 	 *  Wait for the valid status bit to go active.
@@ -629,7 +629,7 @@ static unsigned short snd_cs4281_ac97_read(struct snd_ac97 *ac97,
 			goto __ok2;
 		udelay(10);
 	}
-	
+
 	dev_err(chip->card->dev,
 		"AC'97 read problem (ACSTS_VSTS), reg = 0x%x\n", reg);
 	result = 0xffff;
@@ -695,7 +695,7 @@ static int snd_cs4281_trigger(struct snd_pcm_substream *substream, int cmd)
 static unsigned int snd_cs4281_rate(unsigned int rate, unsigned int *real_rate)
 {
 	unsigned int val = ~0;
-	
+
 	if (real_rate)
 		*real_rate = rate;
 	/* special "hardcoded" rates */
@@ -996,7 +996,7 @@ static int snd_cs4281_info_volume(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = CS_VOL_MASK;
 	return 0;
 }
- 
+
 static int snd_cs4281_get_volume(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
@@ -1044,9 +1044,9 @@ static const struct snd_kcontrol_new snd_cs4281_fm_vol =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Synth Playback Volume",
-	.info = snd_cs4281_info_volume, 
+	.info = snd_cs4281_info_volume,
 	.get = snd_cs4281_get_volume,
-	.put = snd_cs4281_put_volume, 
+	.put = snd_cs4281_put_volume,
 	.private_value = ((BA0_FMLVC << 16) | BA0_FMRVC),
 	.tlv = { .p = db_scale_dsp },
 };
@@ -1055,9 +1055,9 @@ static const struct snd_kcontrol_new snd_cs4281_pcm_vol =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Stream Playback Volume",
-	.info = snd_cs4281_info_volume, 
+	.info = snd_cs4281_info_volume,
 	.get = snd_cs4281_get_volume,
-	.put = snd_cs4281_put_volume, 
+	.put = snd_cs4281_put_volume,
 	.private_value = ((BA0_PPLVC << 16) | BA0_PPRVC),
 	.tlv = { .p = db_scale_dsp },
 };
@@ -1113,7 +1113,7 @@ static int snd_cs4281_mixer(struct cs4281 *chip)
  * proc interface
  */
 
-static void snd_cs4281_proc_read(struct snd_info_entry *entry, 
+static void snd_cs4281_proc_read(struct snd_info_entry *entry,
 				  struct snd_info_buffer *buffer)
 {
 	struct cs4281 *chip = entry->private_data;
@@ -1129,7 +1129,7 @@ static ssize_t snd_cs4281_BA0_read(struct snd_info_entry *entry,
 				   size_t count, loff_t pos)
 {
 	struct cs4281 *chip = entry->private_data;
-	
+
 	if (copy_to_user_fromio(buf, chip->ba0 + pos, count))
 		return -EFAULT;
 	return count;
@@ -1141,7 +1141,7 @@ static ssize_t snd_cs4281_BA1_read(struct snd_info_entry *entry,
 				   size_t count, loff_t pos)
 {
 	struct cs4281 *chip = entry->private_data;
-	
+
 	if (copy_to_user_fromio(buf, chip->ba1 + pos, count))
 		return -EFAULT;
 	return count;
@@ -1204,16 +1204,16 @@ static int snd_cs4281_gameport_cooked_read(struct gameport *gameport,
 {
 	struct cs4281 *chip = gameport_get_port_data(gameport);
 	unsigned js1, js2, jst;
-	
+
 	if (snd_BUG_ON(!chip))
 		return 0;
 
 	js1 = snd_cs4281_peekBA0(chip, BA0_JSC1);
 	js2 = snd_cs4281_peekBA0(chip, BA0_JSC2);
 	jst = snd_cs4281_peekBA0(chip, BA0_JSPT);
-	
-	*buttons = (~jst >> 4) & 0x0F; 
-	
+
+	*buttons = (~jst >> 4) & 0x0F;
+
 	axes[0] = ((js1 & JSC1_Y1V_MASK) >> JSC1_Y1V_SHIFT) & 0xFFFF;
 	axes[1] = ((js1 & JSC1_X1V_MASK) >> JSC1_X1V_SHIFT) & 0xFFFF;
 	axes[2] = ((js2 & JSC2_Y2V_MASK) >> JSC2_Y2V_SHIFT) & 0xFFFF;
@@ -1362,7 +1362,7 @@ static int snd_cs4281_create(struct snd_card *card,
 		snd_cs4281_free(chip);
 		return -ENOMEM;
 	}
-	
+
 	if (request_irq(pci->irq, snd_cs4281_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
@@ -1413,9 +1413,9 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 
 	/* Set the 'Configuration Write Protect' register
 	 * to 4281h.  Allows vendor-defined configuration
-         * space between 0e4h and 0ffh to be written. */	
+         * space between 0e4h and 0ffh to be written. */
 	snd_cs4281_pokeBA0(chip, BA0_CWPR, 0x4281);
-	
+
 	if ((tmp = snd_cs4281_peekBA0(chip, BA0_SERC1)) != (BA0_SERC1_SO1EN | BA0_SERC1_AC97)) {
 		dev_err(chip->card->dev,
 			"SERC1 AC'97 check failed (0x%x)\n", tmp);
@@ -1444,7 +1444,7 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
          * the Sync pulse on the AC97 link. */
 	snd_cs4281_pokeBA0(chip, BA0_ACCTL, 0);
 	udelay(50);
-                
+
 	/*  Drive the ARST# pin low for a minimum of 1uS (as defined in the AC97
 	 *  spec) and then drive it high.  This is done for non AC97 modes since
 	 *  there might be logic external to the CS4281 that uses the ARST# line
@@ -1828,7 +1828,7 @@ static irqreturn_t snd_cs4281_interrupt(int irq, void *dev_id)
 
 	if ((status & BA0_HISR_MIDI) && chip->rmidi) {
 		unsigned char c;
-		
+
 		spin_lock(&chip->reg_lock);
 		while ((snd_cs4281_peekBA0(chip, BA0_MIDSR) & BA0_MIDSR_RBE) == 0) {
 			c = snd_cs4281_peekBA0(chip, BA0_MIDRP);
@@ -2063,5 +2063,5 @@ static struct pci_driver cs4281_driver = {
 		.pm = CS4281_PM_OPS,
 	},
 };
-	
+
 module_pci_driver(cs4281_driver);

@@ -1008,7 +1008,7 @@ static int otg_a_alt_hnp_support(struct ci_hdrc *ci)
  * isr_setup_packet_handler: setup packet handler
  * @ci: UDC descriptor
  *
- * This function handles setup packet 
+ * This function handles setup packet
  */
 static void isr_setup_packet_handler(struct ci_hdrc *ci)
 __releases(ci->lock)

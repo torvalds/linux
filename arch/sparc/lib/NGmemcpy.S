@@ -385,7 +385,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	 add	%o0, 64, %o0
 	/* fall through */
 
-60:	
+60:
 	membar		#Sync
 
 	/* %i2 contains any final bytes still needed to be copied

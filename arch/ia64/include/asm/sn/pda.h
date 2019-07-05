@@ -17,8 +17,8 @@
  *
  * One of these structures is allocated for each cpu of a NUMA system.
  *
- * This structure provides a convenient way of keeping together 
- * all SN per-cpu data structures. 
+ * This structure provides a convenient way of keeping together
+ * all SN per-cpu data structures.
  */
 
 typedef struct pda_s {
@@ -32,7 +32,7 @@ typedef struct pda_s {
 	unsigned int	hb_count;
 
 	unsigned int	idle_flag;
-	
+
 	volatile unsigned long *bedrock_rev_id;
 	volatile unsigned long *pio_write_status_addr;
 	unsigned long pio_write_status_val;

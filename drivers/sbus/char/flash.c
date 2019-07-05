@@ -73,7 +73,7 @@ flash_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (io_remap_pfn_range(vma, vma->vm_start, addr, size, vma->vm_page_prot))
 		return -EAGAIN;
-		
+
 	return 0;
 }
 

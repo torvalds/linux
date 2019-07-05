@@ -82,7 +82,7 @@ FIRMWARE
 [As of 2.6.11, the firmware can be loaded automatically with hotplug
  when CONFIG_FW_LOADER is set.  The mixartloader is necessary only
  for older versions or when you build the driver into kernel.]
- 
+
 For loading the firmware automatically after the module is loaded, use a
 install command.  For example, add the following entry to
 /etc/modprobe.d/mixart.conf for miXart driver:

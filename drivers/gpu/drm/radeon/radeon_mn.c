@@ -176,7 +176,7 @@ static int radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 			radeon_bo_unreserve(bo);
 		}
 	}
-	
+
 out_unlock:
 	mutex_unlock(&rmn->lock);
 
@@ -221,7 +221,7 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
 	rmn->mn.ops = &radeon_mn_ops;
 	mutex_init(&rmn->lock);
 	rmn->objects = RB_ROOT_CACHED;
-	
+
 	r = __mmu_notifier_register(&rmn->mn, mm);
 	if (r)
 		goto free_rmn;

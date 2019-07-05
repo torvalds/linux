@@ -61,6 +61,6 @@ __muldi3:
 	add  %l0, %o0, %l0
 	mov  %l2, %i0
 	add  %l2, %l0, %i0
-	ret 
+	ret
 	restore  %g0, %l3, %o1
 EXPORT_SYMBOL(__muldi3)

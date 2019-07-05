@@ -1,7 +1,7 @@
 /* +++ deflate.c */
 /* deflate.c -- compress data using the deflation algorithm
  * Copyright (C) 1995-1996 Jean-loup Gailly.
- * For conditions of distribution and use, see copyright notice in zlib.h 
+ * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
 /*
@@ -255,7 +255,7 @@ int zlib_deflateReset(
 )
 {
     deflate_state *s;
-    
+
     if (strm == NULL || strm->state == NULL)
         return Z_STREAM_ERROR;
 
@@ -292,7 +292,7 @@ static void putShortMSB(
 {
     put_byte(s, (Byte)(b >> 8));
     put_byte(s, (Byte)(b & 0xff));
-}   
+}
 
 /* =========================================================================
  * Flush as much pending output as possible. All deflate() output goes
@@ -972,7 +972,7 @@ static block_state deflate_fast(
                      * always MIN_MATCH bytes ahead.
                      */
                 } while (--s->match_length != 0);
-                s->strstart++; 
+                s->strstart++;
             } else {
                 s->strstart += s->match_length;
                 s->match_length = 0;
@@ -990,7 +990,7 @@ static block_state deflate_fast(
             Tracevv((stderr,"%c", s->window[s->strstart]));
             bflush = zlib_tr_tally (s, 0, s->window[s->strstart]);
             s->lookahead--;
-            s->strstart++; 
+            s->strstart++;
         }
         if (bflush) FLUSH_BLOCK(s, 0);
     }

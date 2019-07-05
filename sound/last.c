@@ -11,7 +11,7 @@ static int __init alsa_sound_last_init(void)
 {
 	struct snd_card *card;
 	int idx, ok = 0;
-	
+
 	printk(KERN_INFO "ALSA device list:\n");
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
 		card = snd_card_ref(idx);

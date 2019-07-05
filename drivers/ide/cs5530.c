@@ -192,7 +192,7 @@ static int init_chipset_cs5530(struct pci_dev *dev)
 
 	pci_write_config_byte(master_0, 0x40, 0x1e);
 
-	/* 
+	/*
 	 * Set max PCI burst size (16-bytes seems to work best):
 	 *	   16bytes: set bit-1 at 0x41 (reg value of 0x16)
 	 *	all others: clear bit-1 at 0x41, and do:

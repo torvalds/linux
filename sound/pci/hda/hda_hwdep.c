@@ -36,7 +36,7 @@ static int get_wcap_ioctl(struct hda_codec *codec,
 			  struct hda_verb_ioctl __user *arg)
 {
 	u32 verb, res;
-	
+
 	if (get_user(verb, &arg->verb))
 		return -EFAULT;
 	/* open-code get_wcaps(verb>>24) with nospec */

@@ -64,7 +64,7 @@ EXPORT_SYMBOL(snd_vx_check_reg_bit);
  *
  * this triggers the specified IRQ request
  * returns 0 if successful, or a negative error code.
- * 
+ *
  */
 static int vx_send_irq_dsp(struct vx_core *chip, int num)
 {
@@ -222,13 +222,13 @@ static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
  *
  * returns 0 if successful, or a negative error code.
  * the error code can be VX-specific, retrieved via vx_get_error().
- * 
+ *
  * this function doesn't call mutex lock at all.
  */
 int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 {
 	int i, err;
-	
+
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return -EBUSY;
 
@@ -427,7 +427,7 @@ int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *boot)
 
 	/* reset dsp */
 	vx_reset_dsp(chip);
-	
+
 	udelay(END_OF_RESET_WAIT_TIME); /* another wait? */
 
 	/* download boot strap */
@@ -486,13 +486,13 @@ irqreturn_t snd_vx_threaded_irq_handler(int irq, void *dev)
 {
 	struct vx_core *chip = dev;
 	unsigned int events;
-		
+
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return IRQ_HANDLED;
 
 	if (vx_test_irq_src(chip, &events) < 0)
 		return IRQ_HANDLED;
-    
+
 #if 0
 	if (events & 0x000800)
 		printk(KERN_ERR "DSP Stream underrun ! IRQ events = 0x%x\n", events);
@@ -593,7 +593,7 @@ static void vx_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *b
 	static char *clock_mode[] = { "Auto", "Internal", "External" };
 	static char *clock_src[] = { "Internal", "External" };
 	static char *uer_type[] = { "Consumer", "Professional", "Not Present" };
-	
+
 	snd_iprintf(buffer, "%s\n", chip->card->longname);
 	snd_iprintf(buffer, "Xilinx Firmware: %s\n",
 		    chip->chip_status & VX_STAT_XILINX_LOADED ? "Loaded" : "No");

@@ -52,10 +52,10 @@ struct _snd_wavefront {
 	unsigned long    base;  /* low i/o port address */
 	struct resource	 *res_base; /* i/o port resource allocation */
 
-#define mpu_data_port    base 
+#define mpu_data_port    base
 #define mpu_command_port base + 1 /* write semantics */
 #define mpu_status_port  base + 1 /* read semantics */
-#define data_port        base + 2 
+#define data_port        base + 2
 #define status_port      base + 3 /* read semantics */
 #define control_port     base + 3 /* write semantics  */
 #define block_port       base + 4 /* 16 bit, writeonly */
@@ -67,20 +67,20 @@ struct _snd_wavefront {
 	   thing. Note: these are NOT documented by Turtle Beach.
 	*/
 
-#define fx_status       base + 8 
-#define fx_op           base + 8 
-#define fx_lcr          base + 9 
+#define fx_status       base + 8
+#define fx_op           base + 8
+#define fx_lcr          base + 9
 #define fx_dsp_addr     base + 0xa
-#define fx_dsp_page     base + 0xb 
-#define fx_dsp_lsb      base + 0xc 
-#define fx_dsp_msb      base + 0xd 
+#define fx_dsp_page     base + 0xb
+#define fx_dsp_lsb      base + 0xc
+#define fx_dsp_msb      base + 0xd
 #define fx_mod_addr     base + 0xe
-#define fx_mod_data     base + 0xf 
+#define fx_mod_data     base + 0xf
 
 	volatile int irq_ok;               /* set by interrupt handler */
         volatile int irq_cnt;              /* ditto */
 	char debug;                        /* debugging flags */
-	int freemem;                       /* installed RAM, in bytes */ 
+	int freemem;                       /* installed RAM, in bytes */
 
 	char fw_version[2];                /* major = [0], minor = [1] */
 	char hw_version[2];                /* major = [0], minor = [1] */
@@ -94,7 +94,7 @@ struct _snd_wavefront {
 	char interrupts_are_midi;          /* h/w MPU interrupts enabled ? */
 	char rom_samples_rdonly;           /* can we write on ROM samples */
 	spinlock_t irq_lock;
-	wait_queue_head_t interrupt_sleeper; 
+	wait_queue_head_t interrupt_sleeper;
 	snd_wavefront_midi_t midi;         /* ICS2115 MIDI interface */
 	struct snd_card *card;
 };
@@ -119,9 +119,9 @@ extern int  snd_wavefront_config_midi (snd_wavefront_t *dev) ;
 extern int  snd_wavefront_cmd (snd_wavefront_t *, int, unsigned char *,
 			       unsigned char *);
 
-extern int snd_wavefront_synth_ioctl   (struct snd_hwdep *, 
+extern int snd_wavefront_synth_ioctl   (struct snd_hwdep *,
 					struct file *,
-					unsigned int cmd, 
+					unsigned int cmd,
 					unsigned long arg);
 extern int  snd_wavefront_synth_open    (struct snd_hwdep *, struct file *);
 extern int  snd_wavefront_synth_release (struct snd_hwdep *, struct file *);
@@ -130,9 +130,9 @@ extern int  snd_wavefront_synth_release (struct snd_hwdep *, struct file *);
 
 extern int  snd_wavefront_fx_start  (snd_wavefront_t *);
 extern int  snd_wavefront_fx_detect (snd_wavefront_t *);
-extern int  snd_wavefront_fx_ioctl  (struct snd_hwdep *, 
+extern int  snd_wavefront_fx_ioctl  (struct snd_hwdep *,
 				     struct file *,
-				     unsigned int cmd, 
+				     unsigned int cmd,
 				     unsigned long arg);
 extern int snd_wavefront_fx_open    (struct snd_hwdep *, struct file *);
 extern int snd_wavefront_fx_release (struct snd_hwdep *, struct file *);

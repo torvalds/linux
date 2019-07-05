@@ -179,7 +179,7 @@ extern unsigned long __zero_page(void);
  * just working around a userspace bug.  The X server was intending to
  * provide the physical address but instead provided the KSEG address.
  * Or tried to, except it's not representable.
- * 
+ *
  * On Tsunami there's nothing meaningful at 0x40000000000, so this is
  * a safe thing to do.  Come the first core logic that does put something
  * in this area -- memory or whathaveyou -- then this hack will have

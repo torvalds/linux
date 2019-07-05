@@ -1,4 +1,4 @@
-  
+
 X.25 support within isdn4linux
 ==============================
 
@@ -22,15 +22,15 @@ more bugs as usual.
 
 - Monitor your isdn connections while using this software. This should
   prevent you from undesired phone bills in case of driver problems.
-  
- 
+
+
 
 
 How to configure the kernel
 ===========================
- 
+
 The ITU-T (former CCITT) X.25 network protocol layer has been implemented
-in the Linux source tree since version 2.1.16. The isdn subsystem might be 
+in the Linux source tree since version 2.1.16. The isdn subsystem might be
 useful to run X.25 on top of ISDN. If you want to try it, select
 
    "CCITT X.25 Packet Layer"
@@ -72,7 +72,7 @@ X.25 on top of isdn might be useful with two different scenarios:
   also allows using the D-channel) is not supported by isdn4linux.
   It should however be possible to establish such packet mode connections
   with certain active isdn cards provided that the firmware supports X.31
-  and the driver exports this functionality to the user. Currently, 
+  and the driver exports this functionality to the user. Currently,
   the AVM B1 driver is the only driver which does so. (It should be
   possible to access D-channel X.31 with active AVM cards using the
   CAPI interface of the AVM-B1 driver).
@@ -140,7 +140,7 @@ To test X.25 on top of isdn, you need to get
 - a recent version of the "isdnctrl" program that supports setting the new
   X.25 specific parameters.
 
-- the x25-utils-2.X package from 
+- the x25-utils-2.X package from
   ftp://ftp.hes.iki.fi/pub/ham/linux/ax25/x25utils-*
   (don't confuse the x25-utils with the ax25-utils)
 
@@ -149,7 +149,7 @@ To test X.25 on top of isdn, you need to get
 
 Before compiling the user level utilities make sure that the compiler/
 preprocessor will fetch the proper kernel header files of this kernel
-source tree. Either make /usr/include/linux a symbolic link pointing to 
+source tree. Either make /usr/include/linux a symbolic link pointing to
 this kernel's include/linux directory or set the appropriate compiler flags.
 
 When all drivers and interfaces are loaded and configured you need to
@@ -159,7 +159,7 @@ the usual ifconfig tool.
 ifconfig <iface-name> up
 
 But a special x25route tool (distributed with the x25-util package)
-is needed to set up X.25 routes. I.e. 
+is needed to set up X.25 routes. I.e.
 
 x25route add 01 <iface-name>
 
@@ -179,6 +179,6 @@ provide useful examples for setting up X.25 on top of isdn.
 
 The x25-utility package also contains an x25trace tool that can be
 used to monitor X.25 packets received by the network interfaces.
-The /proc/net/x25* files also contain useful information. 
+The /proc/net/x25* files also contain useful information.
 
 - Henner

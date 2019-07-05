@@ -21,7 +21,7 @@
  *   0.6 F6FBB 25.08.98  Added 1200Bds format
  *   0.7 F6FBB 12.09.98  Added to the kernel configuration
  *   0.8 F6FBB 14.10.98  Fixed slottime/persistence timing bug
- *       OK1ZIA 2.09.01  Fixed "kfree_skb on hard IRQ" 
+ *       OK1ZIA 2.09.01  Fixed "kfree_skb on hard IRQ"
  *                       using dev_kfree_skb_any(). (important in 2.4 kernel)
  */
 
@@ -454,7 +454,7 @@ static int fpga_download(int iobase, int bitrate)
 
 
 /************************************************************************
-* Serial port init 
+* Serial port init
 ************************************************************************/
 
 static void yam_set_uart(struct net_device *dev)
@@ -871,7 +871,7 @@ static int yam_open(struct net_device *dev)
 	yam_set_uart(dev);
 
 	netif_start_queue(dev);
-	
+
 	yp->slotcnt = yp->slot / 10;
 
 	/* Reset overruns for all ports - FPGA programming makes overruns */
@@ -1121,7 +1121,7 @@ static int __init yam_init_driver(void)
 
 	for (i = 0; i < NR_PORTS; i++) {
 		sprintf(name, "yam%d", i);
-		
+
 		dev = alloc_netdev(sizeof(struct yam_port), name,
 				   NET_NAME_UNKNOWN, yam_setup);
 		if (!dev) {
@@ -1129,7 +1129,7 @@ static int __init yam_init_driver(void)
 			err = -ENOMEM;
 			goto error;
 		}
-		
+
 		err = register_netdev(dev);
 		if (err) {
 			printk(KERN_WARNING "yam: cannot register net device %s\n", dev->name);

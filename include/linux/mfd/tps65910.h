@@ -272,7 +272,7 @@
 #define LDO_ST_MASK					0x03
 #define LDO_ST_SHIFT					0
 #define LDO_ST_ON_BIT					0x01
-#define LDO_ST_MODE_BIT					0x02	
+#define LDO_ST_MODE_BIT					0x02
 
 
 /* Registers LDO1 to LDO8 in tps65910 */

@@ -213,18 +213,18 @@ static int detect_sysv(struct sysv_sb_info *sbi, struct buffer_head *bh)
 		return 0;
 
 	type = fs32_to_cpu(sbi, sbd->s_type);
- 
+
  	if (fs16_to_cpu(sbi, sbd->s_nfree) == 0xffff) {
  		sbi->s_type = FSTYPE_AFS;
 		sbi->s_forced_ro = 1;
  		if (!sb_rdonly(sb)) {
- 			printk("SysV FS: SCO EAFS on %s detected, " 
- 				"forcing read-only mode.\n", 
+ 			printk("SysV FS: SCO EAFS on %s detected, "
+ 				"forcing read-only mode.\n",
  				sb->s_id);
  		}
  		return type;
  	}
- 
+
 	if (fs32_to_cpu(sbi, sbd->s_time) < JAN_1_1980) {
 		/* this is likely to happen on SystemV2 FS */
 		if (type > 3 || type < 1)
@@ -312,7 +312,7 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 	sbi->s_firstinodezone = 2;
 
 	flavour_setup[sbi->s_type](sbi, &sb->s_max_links);
-	
+
 	sbi->s_ndatazones = sbi->s_nzones - sbi->s_firstdatazone;
 	sbi->s_inodes_per_block = bsize >> 6;
 	sbi->s_inodes_per_block_1 = (bsize >> 6)-1;
@@ -353,7 +353,7 @@ static int sysv_fill_super(struct super_block *sb, void *data, int silent)
 	struct sysv_sb_info *sbi;
 	unsigned long blocknr;
 	int size = 0, i;
-	
+
 	BUILD_BUG_ON(1024 != sizeof (struct xenix_super_block));
 	BUILD_BUG_ON(512 != sizeof (struct sysv4_super_block));
 	BUILD_BUG_ON(512 != sizeof (struct sysv2_super_block));
@@ -487,7 +487,7 @@ static int v7_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_type = FSTYPE_V7;
 	mutex_init(&sbi->s_lock);
 	sb->s_fs_info = sbi;
-	
+
 	sb_set_blocksize(sb, 512);
 
 	if ((bh = sb_bread(sb, 1)) == NULL) {

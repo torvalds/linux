@@ -58,7 +58,7 @@ Now, your osst driver is inside the kernel or available as a module,
 depending on your choice during kernel config. You may still need to create
 the device nodes by calling the Makedevs.sh script (see below) manually.
 
-To load your module, you may use the command 
+To load your module, you may use the command
 modprobe osst
 as root. dmesg should show you, whether your OnStream tapes have been
 recognized.
@@ -68,7 +68,7 @@ add something like
 alias char-major-206 osst
 to a file under /etc/modprobe.d/ directory.
 
-You may find it convenient to create a symbolic link 
+You may find it convenient to create a symbolic link
 ln -s nosst0 /dev/tape
 to make programs assuming a default name of /dev/tape more convenient to
 use.
@@ -116,8 +116,8 @@ USB and IDE
 Via the SCSI emulation layers usb-storage and ide-scsi, you can also use the
 osst driver to drive the USB-30 and the DI-30 drives. (Unfortunately, there
 is no such layer for the parallel port, otherwise the DP-30 would work as
-well.) For the USB support, you need the latest 2.4.0-test kernels and the 
-latest usb-storage driver from 
+well.) For the USB support, you need the latest 2.4.0-test kernels and the
+latest usb-storage driver from
 http://www.linux-usb.org/
 http://sourceforge.net/cvs/?group_id=3581
 
@@ -132,7 +132,7 @@ Feedback and updates
 --------------------
 The driver development is coordinated through a mailing list
 <osst@linux1.onstream.nl>
-a CVS repository and some web pages. 
+a CVS repository and some web pages.
 The tester's pages which contain recent news and updated drivers to download
 can be found on
 http://sourceforge.net/projects/osst/
@@ -140,7 +140,7 @@ http://sourceforge.net/projects/osst/
 If you find any problems, please have a look at the tester's page in order
 to see whether the problem is already known and solved. Otherwise, please
 report it to the mailing list. Your feedback is welcome. (This holds also
-for reports of successful usage, of course.) 
+for reports of successful usage, of course.)
 In case of trouble, please do always provide the following info:
 * driver and kernel version used (see syslog)
 * driver messages (syslog)
@@ -167,7 +167,7 @@ Most of the development has been done by Willem Riede. The presence of the
 userspace program osg (onstreamsg) from Terry Hardie has been rather
 helpful. The same holds for Gadi Oxman's ide-tape support for the DI-30.
 I did add some patches to those drivers as well and coordinated things a
-little bit. 
+little bit.
 Note that most of them did mostly spend their spare time for the creation of
 this driver.
 The people from OnStream, especially Jack Bombeeck did support this project

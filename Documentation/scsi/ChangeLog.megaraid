@@ -171,11 +171,11 @@ Older Version	: 2.20.4.6 (scsi module), 2.20.2.6 (cmm module)
 	character node name change from 'megadev' to 'megadev_legacy' to avoid
 	conflict.
 	---
-	Hopefully we'll be getting the build restriction zapped much sooner, 
-	but we should also be thinking about totally removing the hardware 
+	Hopefully we'll be getting the build restriction zapped much sooner,
+	but we should also be thinking about totally removing the hardware
 	support overlap in the megaraid drivers.
 
-	This patch pencils in a date of Feb 06 for this, and performs some 
+	This patch pencils in a date of Feb 06 for this, and performs some
 	printk abuse in hope that existing legacy users might pick up on what's
 	going on.
 
@@ -232,9 +232,9 @@ Older Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
 	and it is unique value. So, all controllers with these IOPs have to be
 	supported by the driver regardless SSVID/SSID.
 
-6.	Date Thu, 27 Jan 2005 04:31:09 +0100 
-	From Herbert Poetzl <> 
-	Subject RFC: assert_spin_locked() for 2.6 
+6.	Date Thu, 27 Jan 2005 04:31:09 +0100
+	From Herbert Poetzl <>
+	Subject RFC: assert_spin_locked() for 2.6
 
 	Greetings!
 
@@ -249,11 +249,11 @@ Older Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
 	  BUG_ON(!spin_is_locked(&some_lock));
 
 	so what's wrong about that? nothing, unless you
-	compile the code with CONFIG_DEBUG_SPINLOCK but 
+	compile the code with CONFIG_DEBUG_SPINLOCK but
 	without CONFIG_SMP ... in which case the BUG()
 	will kill your kernel ...
 
-	maybe it's not advised to make such assertions, 
+	maybe it's not advised to make such assertions,
 	but here is a solution which works for me ...
 	(compile tested for sh, x86_64 and x86, boot/run
 	tested for x86 only)
@@ -336,12 +336,12 @@ Older Version	: 2.20.4.2 (scsi module), 2.20.2.4 (cmm module)
 		PCI_SUBSYS_ID_NEC, PCI_SUBSYS_ID_MEGARAID_NEC_ROMB_2E,
 
 5.	Fixed Tape drive issue : For any Direct CDB command to physical device
-	including tape, timeout value set by driver was 10 minutes. With this 
+	including tape, timeout value set by driver was 10 minutes. With this
 	value, most of command will return within timeout. However, for those
 	command like ERASE or FORMAT, it takes more than an hour depends on
-	capacity of the device and the command could be terminated before it 
+	capacity of the device and the command could be terminated before it
 	completes.
-	To address this issue, the 'timeout' field in the DCDB command will 
+	To address this issue, the 'timeout' field in the DCDB command will
 	have NO TIMEOUT (i.e., 4) value as its timeout on DCDB command.
 
 
@@ -353,10 +353,10 @@ Current Version	: 2.20.4.2 (scsi module), 2.20.2.4 (cmm module)
 Older Version	: 2.20.4.1 (scsi module), 2.20.2.3 (cmm module)
 
 i.	Introduced driver ioctl that returns scsi address for a given ld.
-	
+
 	"Why can't the existing sysfs interfaces be used to do this?"
 		- Brian King (brking@us.ibm.com)
-	
+
 	"I've looked into solving this another way, but I cannot see how
 	to get this driver-private mapping of logical drive number-> HCTL
 	without putting code something like this into the driver."
@@ -380,7 +380,7 @@ Older Version	: 2.20.4.0 (scsi module), 2.20.2.1 (cmm module)
 i.	Handle IOCTL cmd timeouts more properly.
 
 ii.	pci_dma_sync_{sg,single}_for_cpu was introduced into megaraid_mbox
-	incorrectly (instead of _for_device). Changed to appropriate 
+	incorrectly (instead of _for_device). Changed to appropriate
 	pci_dma_sync_{sg,single}_for_device.
 
 Release Date	: Wed Oct 06 11:15:29 EDT 2004 - Sreenivas Bagalkote <sreenib@lsil.com>

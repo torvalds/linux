@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SDLA		An implementation of a driver for the Sangoma S502/S508 series
- *		multi-protocol PC interface card.  Initial offering is with 
+ *		multi-protocol PC interface card.  Initial offering is with
  *		the DLCI driver, providing Frame Relay support for linux.
  *
  *		Global definitions for the Frame relay interface.
@@ -10,7 +10,7 @@
  *
  * Credits:	Sangoma Technologies, for the use of 2 cards for an extended
  *			period of time.
- *		David Mandelstam <dm@sangoma.com> for getting me started on 
+ *		David Mandelstam <dm@sangoma.com> for getting me started on
  *			this project, and incentive to complete it.
  *		Gene Kozen <74604.152@compuserve.com> for providing me with
  *			important information about the cards.
@@ -59,17 +59,17 @@ static const char* version = "SDLA driver v0.30, 12 Sep 1996, mike.mclagan@linux
 static unsigned int valid_port[] = { 0x250, 0x270, 0x280, 0x300, 0x350, 0x360, 0x380, 0x390};
 
 static unsigned int valid_mem[] = {
-				    0xA0000, 0xA2000, 0xA4000, 0xA6000, 0xA8000, 0xAA000, 0xAC000, 0xAE000, 
+				    0xA0000, 0xA2000, 0xA4000, 0xA6000, 0xA8000, 0xAA000, 0xAC000, 0xAE000,
                                     0xB0000, 0xB2000, 0xB4000, 0xB6000, 0xB8000, 0xBA000, 0xBC000, 0xBE000,
                                     0xC0000, 0xC2000, 0xC4000, 0xC6000, 0xC8000, 0xCA000, 0xCC000, 0xCE000,
                                     0xD0000, 0xD2000, 0xD4000, 0xD6000, 0xD8000, 0xDA000, 0xDC000, 0xDE000,
-                                    0xE0000, 0xE2000, 0xE4000, 0xE6000, 0xE8000, 0xEA000, 0xEC000, 0xEE000}; 
+                                    0xE0000, 0xE2000, 0xE4000, 0xE6000, 0xE8000, 0xEA000, 0xEC000, 0xEE000};
 
 static DEFINE_SPINLOCK(sdla_lock);
 
 /*********************************************************
  *
- * these are the core routines that access the card itself 
+ * these are the core routines that access the card itself
  *
  *********************************************************/
 
@@ -83,7 +83,7 @@ static void __sdla_read(struct net_device *dev, int addr, void *buf, short len)
 
 	temp = buf;
 	while(len)
-	{	
+	{
 		offset = addr & SDLA_ADDR_MASK;
 		bytes = offset + len > SDLA_WINDOW_SIZE ? SDLA_WINDOW_SIZE - offset : len;
 		base = (const void *) (dev->mem_start + offset);
@@ -94,7 +94,7 @@ static void __sdla_read(struct net_device *dev, int addr, void *buf, short len)
 		addr += bytes;
 		temp += bytes;
 		len  -= bytes;
-	}  
+	}
 }
 
 static void sdla_read(struct net_device *dev, int addr, void *buf, short len)
@@ -105,7 +105,7 @@ static void sdla_read(struct net_device *dev, int addr, void *buf, short len)
 	spin_unlock_irqrestore(&sdla_lock, flags);
 }
 
-static void __sdla_write(struct net_device *dev, int addr, 
+static void __sdla_write(struct net_device *dev, int addr,
 			 const void *buf, short len)
 {
 	const char    *temp;
@@ -128,7 +128,7 @@ static void __sdla_write(struct net_device *dev, int addr,
 	}
 }
 
-static void sdla_write(struct net_device *dev, int addr, 
+static void sdla_write(struct net_device *dev, int addr,
 		       const void *buf, short len)
 {
 	unsigned long flags;
@@ -145,7 +145,7 @@ static void sdla_clear(struct net_device *dev)
 	char          *base;
 	int           len, addr, bytes;
 
-	len = 65536;	
+	len = 65536;
 	addr = 0;
 	bytes = SDLA_WINDOW_SIZE;
 	base = (void *) dev->mem_start;
@@ -237,7 +237,7 @@ static void sdla_start(struct net_device *dev)
  *
  * this is used for the S502A/E cards to determine
  * the speed of the onboard CPU.  Calibration is
- * necessary for the Frame Relay code uploaded 
+ * necessary for the Frame Relay code uploaded
  * later.  Incorrect results cause timing problems
  * with link checks & status messages
  *
@@ -253,7 +253,7 @@ static int sdla_z80_poll(struct net_device *dev, int z80_addr, int jiffs, char r
 
 	temp = (void *)dev->mem_start;
 	temp += z80_addr & SDLA_ADDR_MASK;
-	
+
 	resp = ~resp1;
 	while (time_before(jiffies, done) && (resp != resp1) && (!resp2 || (resp != resp2)))
 	{
@@ -312,30 +312,30 @@ static int sdla_cpuspeed(struct net_device *dev, struct ifreq *ifr)
 		ifr->ifr_mtu = SDLA_CPU_5M;
 	else
 		ifr->ifr_mtu = SDLA_CPU_3M;
- 
+
 	return 0;
 }
 
 /************************************************
  *
- *  Direct interaction with the Frame Relay code 
+ *  Direct interaction with the Frame Relay code
  *  starts here.
  *
  ************************************************/
 
-struct _dlci_stat 
+struct _dlci_stat
 {
 	short dlci;
 	char  flags;
 } __packed;
 
-struct _frad_stat 
+struct _frad_stat
 {
 	char    flags;
 	struct _dlci_stat dlcis[SDLA_MAX_DLCI];
 };
 
-static void sdla_errors(struct net_device *dev, int cmd, int dlci, int ret, int len, void *data) 
+static void sdla_errors(struct net_device *dev, int cmd, int dlci, int ret, int len, void *data)
 {
 	struct _dlci_stat *pstatus;
 	short             *pdlci;
@@ -414,7 +414,7 @@ static void sdla_errors(struct net_device *dev, int cmd, int dlci, int ret, int 
 			if (cmd == SDLA_INFORMATION_WRITE)
 				break;
 
-		default: 
+		default:
 			netdev_dbg(dev, "Cmd 0x%02X generated return code 0x%02X\n",
 				   cmd, ret);
 			/* Further processing could be done here */
@@ -422,7 +422,7 @@ static void sdla_errors(struct net_device *dev, int cmd, int dlci, int ret, int 
 	}
 }
 
-static int sdla_cmd(struct net_device *dev, int cmd, short dlci, short flags, 
+static int sdla_cmd(struct net_device *dev, int cmd, short dlci, short flags,
                         void *inbuf, short inlen, void *outbuf, short *outlen)
 {
 	static struct _frad_stat status;
@@ -458,7 +458,7 @@ static int sdla_cmd(struct net_device *dev, int cmd, short dlci, short flags,
 	len = 0;
 	while (waiting && time_before_eq(jiffies, jiffs))
 	{
-		if (waiting++ % 3) 
+		if (waiting++ % 3)
 		{
 			spin_lock_irqsave(&sdla_lock, pflags);
 			SDLA_WINDOW(dev, window);
@@ -466,7 +466,7 @@ static int sdla_cmd(struct net_device *dev, int cmd, short dlci, short flags,
 			spin_unlock_irqrestore(&sdla_lock, pflags);
 		}
 	}
-	
+
 	if (!waiting)
 	{
 
@@ -499,7 +499,7 @@ static int sdla_cmd(struct net_device *dev, int cmd, short dlci, short flags,
 
 /***********************************************
  *
- * these functions are called by the DLCI driver 
+ * these functions are called by the DLCI driver
  *
  ***********************************************/
 
@@ -565,7 +565,7 @@ static int sdla_assoc(struct net_device *slave, struct net_device *master)
 			break;
 		if (abs(flp->dlci[i]) == *(short *)(master->dev_addr))
 			return -EADDRINUSE;
-	} 
+	}
 
 	if (i == CONFIG_DLCI_MAX)
 		return -EMLINK;  /* #### Alan: Comments on this ?? */
@@ -635,10 +635,10 @@ static int sdla_dlci_conf(struct net_device *slave, struct net_device *master, i
 	len = sizeof(struct dlci_conf);
 	if (netif_running(slave)) {
 		if (get)
-			ret = sdla_cmd(slave, SDLA_READ_DLCI_CONFIGURATION, abs(flp->dlci[i]), 0,  
+			ret = sdla_cmd(slave, SDLA_READ_DLCI_CONFIGURATION, abs(flp->dlci[i]), 0,
 			            NULL, 0, &dlp->config, &len);
 		else
-			ret = sdla_cmd(slave, SDLA_SET_DLCI_CONFIGURATION, abs(flp->dlci[i]), 0,  
+			ret = sdla_cmd(slave, SDLA_SET_DLCI_CONFIGURATION, abs(flp->dlci[i]), 0,
 			            &dlp->config, sizeof(struct dlci_conf) - 4 * sizeof(short), NULL, NULL);
 	}
 
@@ -647,7 +647,7 @@ static int sdla_dlci_conf(struct net_device *slave, struct net_device *master, i
 
 /**************************
  *
- * now for the Linux driver 
+ * now for the Linux driver
  *
  **************************/
 
@@ -738,7 +738,7 @@ static netdev_tx_t sdla_transmit(struct sk_buff *skb,
 	{
 		if(flp->master[i]!=NULL)
 			netif_wake_queue(flp->master[i]);
-	}		
+	}
 
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
@@ -821,7 +821,7 @@ static void sdla_receive(struct net_device *dev)
 	{
 		master = flp->master[i];
 		skb = dev_alloc_skb(len + sizeof(struct frhdr));
-		if (skb == NULL) 
+		if (skb == NULL)
 		{
 			netdev_notice(dev, "Memory squeeze, dropping packet\n");
 			dev->stats.rx_dropped++;
@@ -908,7 +908,7 @@ static irqreturn_t sdla_isr(int dummy, void *dev_id)
 			break;
 	}
 
-	/* the S502E requires a manual acknowledgement of the interrupt */ 
+	/* the S502E requires a manual acknowledgement of the interrupt */
 	if (flp->type == SDLA_S502E)
 	{
 		flp->state &= ~SDLA_S502E_INTACK;
@@ -953,7 +953,7 @@ static int sdla_close(struct net_device *dev)
 	if (flp->config.station == FRAD_STATION_NODE)
 	{
 		for(i=0;i<CONFIG_DLCI_MAX;i++)
-			if (flp->dlci[i] > 0) 
+			if (flp->dlci[i] > 0)
 				sdla_cmd(dev, SDLA_DEACTIVATE_DLCI, 0, 0, dlcis, len, NULL, NULL);
 		sdla_cmd(dev, SDLA_DELETE_DLCI, 0, 0, &flp->dlci[i], sizeof(flp->dlci[i]), NULL, NULL);
 	}
@@ -963,7 +963,7 @@ static int sdla_close(struct net_device *dev)
 	switch(flp->type)
 	{
 		case SDLA_S502A:
-			del_timer(&flp->timer); 
+			del_timer(&flp->timer);
 			break;
 
 		case SDLA_S502E:
@@ -985,7 +985,7 @@ static int sdla_close(struct net_device *dev)
 	sdla_cmd(dev, SDLA_DISABLE_COMMUNICATIONS, 0, 0, NULL, 0, NULL, NULL);
 
 	netif_stop_queue(dev);
-	
+
 	return 0;
 }
 
@@ -1086,7 +1086,7 @@ static int sdla_open(struct net_device *dev)
 		}
 
 	netif_start_queue(dev);
-	
+
 	return 0;
 }
 
@@ -1116,7 +1116,7 @@ static int sdla_config(struct net_device *dev, struct frad_conf __user *conf, in
 		if (data.config.flags & ~FRAD_VALID_FLAGS)
 			return -EINVAL;
 
-		if ((data.config.kbaud < 0) || 
+		if ((data.config.kbaud < 0) ||
 			 ((data.config.kbaud > 128) && (flp->type != SDLA_S508)))
 			return -EINVAL;
 
@@ -1195,9 +1195,9 @@ static int sdla_xfer(struct net_device *dev, struct sdla_mem __user *info, int r
 
 	if(copy_from_user(&mem, info, sizeof(mem)))
 		return -EFAULT;
-		
+
 	if (read)
-	{	
+	{
 		temp = kzalloc(mem.len, GFP_KERNEL);
 		if (!temp)
 			return -ENOMEM;
@@ -1250,7 +1250,7 @@ static int sdla_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	if(!capable(CAP_NET_ADMIN))
 		return -EPERM;
-		
+
 	flp = netdev_priv(dev);
 
 	if (!flp->initialized)
@@ -1337,7 +1337,7 @@ static int sdla_set_config(struct net_device *dev, struct ifmap *map)
 
 	for(i=0; i < ARRAY_SIZE(valid_port); i++)
 		if (valid_port[i] == map->base_addr)
-			break;   
+			break;
 
 	if (i == ARRAY_SIZE(valid_port))
 		return -EINVAL;
@@ -1352,12 +1352,12 @@ static int sdla_set_config(struct net_device *dev, struct ifmap *map)
 	/* these tests shut down the card completely, so clear the state */
 	flp->type = SDLA_UNKNOWN;
 	flp->state = 0;
-   
+
 	for(i=1;i<SDLA_IO_EXTENTS;i++)
 		if (inb(base + i) != 0xFF)
 			break;
 
-	if (i == SDLA_IO_EXTENTS) {   
+	if (i == SDLA_IO_EXTENTS) {
 		outb(SDLA_HALT, base + SDLA_REG_Z80_CONTROL);
 		if ((inb(base + SDLA_S502_STS) & 0x0F) == 0x08) {
 			outb(SDLA_S502E_INTACK, base + SDLA_REG_CONTROL);
@@ -1416,7 +1416,7 @@ got_type:
 	switch(base) {
 		case 0x270:
 		case 0x280:
-		case 0x380: 
+		case 0x380:
 		case 0x390:
 			if (flp->type != SDLA_S508 && flp->type != SDLA_S507)
 				goto fail;
@@ -1448,7 +1448,7 @@ got_type:
 	}
 
 	err = -EAGAIN;
-	if (request_irq(dev->irq, sdla_isr, 0, dev->name, dev)) 
+	if (request_irq(dev->irq, sdla_isr, 0, dev->name, dev))
 		goto fail;
 
 	if (flp->type == SDLA_S507) {
@@ -1482,7 +1482,7 @@ got_type:
 
 	for(i=0; i < ARRAY_SIZE(valid_mem); i++)
 		if (valid_mem[i] == map->mem_start)
-			break;   
+			break;
 
 	err = -EINVAL;
 	if (i == ARRAY_SIZE(valid_mem))
@@ -1581,7 +1581,7 @@ fail:
 	release_region(base, SDLA_IO_EXTENTS);
 	return err;
 }
- 
+
 static const struct net_device_ops sdla_netdev_ops = {
 	.ndo_open	= sdla_open,
 	.ndo_stop	= sdla_close,
@@ -1625,11 +1625,11 @@ static int __init init_sdla(void)
 
 	sdla = alloc_netdev(sizeof(struct frad_local), "sdla0",
 			    NET_NAME_UNKNOWN, setup_sdla);
-	if (!sdla) 
+	if (!sdla)
 		return -ENOMEM;
 
 	err = register_netdev(sdla);
-	if (err) 
+	if (err)
 		free_netdev(sdla);
 
 	return err;

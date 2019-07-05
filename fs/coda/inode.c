@@ -2,9 +2,9 @@
 /*
  * Super block/filesystem wide operations
  *
- * Copyright (C) 1996 Peter J. Braam <braam@maths.ox.ac.uk> and 
- * Michael Callahan <callahan@maths.ox.ac.uk> 
- * 
+ * Copyright (C) 1996 Peter J. Braam <braam@maths.ox.ac.uk> and
+ * Michael Callahan <callahan@maths.ox.ac.uk>
+ *
  * Rewritten for Linux 2.1.  Peter Braam <braam@cs.cmu.edu>
  * Copyright (C) Carnegie Mellon University
  */
@@ -160,7 +160,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	/* Ignore errors in data, for backward compatibility */
 	if(idx == -1)
 		idx = 0;
-	
+
 	pr_info("%s: device index: %i\n", __func__,  idx);
 
 	vc = &coda_comms[idx];
@@ -201,7 +201,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 		goto error;
 	}
 	pr_info("%s: rootfid is %s\n", __func__, coda_f2s(&fid));
-	
+
 	/* make root inode */
         root = coda_cnode_make(&fid, sb);
         if (IS_ERR(root)) {
@@ -209,7 +209,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 		pr_warn("Failure of coda_cnode_make for root: error %d\n",
 			error);
 		goto error;
-	} 
+	}
 
 	pr_info("%s: rootinode is %ld dev %s\n",
 		__func__, root->i_ino, root->i_sb->s_id);
@@ -262,7 +262,7 @@ int coda_setattr(struct dentry *de, struct iattr *iattr)
 	struct coda_vattr vattr;
 	int error;
 
-	memset(&vattr, 0, sizeof(vattr)); 
+	memset(&vattr, 0, sizeof(vattr));
 
 	inode->i_ctime = current_time(inode);
 	coda_iattr_to_vattr(iattr, &vattr);
@@ -272,7 +272,7 @@ int coda_setattr(struct dentry *de, struct iattr *iattr)
 	error = venus_setattr(inode->i_sb, coda_i2f(inode), &vattr);
 
 	if (!error) {
-	        coda_vattr_to_iattr(inode, &vattr); 
+	        coda_vattr_to_iattr(inode, &vattr);
 		coda_cache_clear_inode(inode);
 	}
 	return error;
@@ -287,7 +287,7 @@ const struct inode_operations coda_file_inode_operations = {
 static int coda_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int error;
-	
+
 	error = venus_statfs(dentry, buf);
 
 	if (error) {
@@ -304,7 +304,7 @@ static int coda_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = 4096;
 	buf->f_namelen = CODA_MAXNAMLEN;
 
-	return 0; 
+	return 0;
 }
 
 /* init_coda: used by filesystems.c to register coda */

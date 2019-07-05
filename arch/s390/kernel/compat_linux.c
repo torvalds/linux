@@ -3,12 +3,12 @@
  *  S390 version
  *    Copyright IBM Corp. 2000
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
- *               Gerhard Tonn (ton@de.ibm.com)   
+ *               Gerhard Tonn (ton@de.ibm.com)
  *               Thomas Spatzier (tspat@de.ibm.com)
  *
  *  Conversion between 31bit and 64bit native syscalls.
  *
- * Heavily inspired by the 32-bit Sparc compat code which is 
+ * Heavily inspired by the 32-bit Sparc compat code which is
  * Copyright (C) 1997,1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
  *
@@ -17,9 +17,9 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/fs.h> 
-#include <linux/mm.h> 
-#include <linux/file.h> 
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/file.h>
 #include <linux/signal.h>
 #include <linux/resource.h>
 #include <linux/times.h>
@@ -121,7 +121,7 @@ struct stat64_emu31 {
 	u32             st_ctime;
 	u32             __pad8;     /* will be high 32 bits of ctime someday */
 	unsigned long   st_ino;
-};	
+};
 
 static int cp_stat64(struct stat64_emu31 __user *ubuf, struct kstat *stat)
 {
@@ -144,7 +144,7 @@ static int cp_stat64(struct stat64_emu31 __user *ubuf, struct kstat *stat)
 	tmp.st_mtime = (u32)stat->mtime.tv_sec;
 	tmp.st_ctime = (u32)stat->ctime.tv_sec;
 
-	return copy_to_user(ubuf,&tmp,sizeof(tmp)) ? -EFAULT : 0; 
+	return copy_to_user(ubuf,&tmp,sizeof(tmp)) ? -EFAULT : 0;
 }
 
 COMPAT_SYSCALL_DEFINE2(s390_stat64, const char __user *, filename, struct stat64_emu31 __user *, statbuf)
@@ -225,7 +225,7 @@ COMPAT_SYSCALL_DEFINE1(s390_mmap2, struct mmap_arg_struct_emu31 __user *, arg)
 COMPAT_SYSCALL_DEFINE3(s390_read, unsigned int, fd, char __user *, buf, compat_size_t, count)
 {
 	if ((compat_ssize_t) count < 0)
-		return -EINVAL; 
+		return -EINVAL;
 
 	return ksys_read(fd, buf, count);
 }
@@ -233,7 +233,7 @@ COMPAT_SYSCALL_DEFINE3(s390_read, unsigned int, fd, char __user *, buf, compat_s
 COMPAT_SYSCALL_DEFINE3(s390_write, unsigned int, fd, const char __user *, buf, compat_size_t, count)
 {
 	if ((compat_ssize_t) count < 0)
-		return -EINVAL; 
+		return -EINVAL;
 
 	return ksys_write(fd, buf, count);
 }

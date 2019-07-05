@@ -265,7 +265,7 @@ $u_final:
 1:	stq_u	t0, 0(a0)	# e0    :
 	ret	(t9)		# .. e1 :
 
-	/* Got to end-of-count before end of string.  
+	/* Got to end-of-count before end of string.
 	   On entry to this basic block:
 	   t1 == the shifted high-order bits from the previous source word  */
 $u_eoc:

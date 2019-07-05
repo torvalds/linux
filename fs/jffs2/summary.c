@@ -493,7 +493,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				struct jffs2_sum_xattr_flash *spx;
 
 				spx = (struct jffs2_sum_xattr_flash *)sp;
-				dbg_summary("xattr at %#08x-%#08x (xid=%u, version=%u)\n", 
+				dbg_summary("xattr at %#08x-%#08x (xid=%u, version=%u)\n",
 					    jeb->offset + je32_to_cpu(spx->offset),
 					    jeb->offset + je32_to_cpu(spx->offset) + je32_to_cpu(spx->totlen),
 					    je32_to_cpu(spx->xid), je32_to_cpu(spx->version));
@@ -526,7 +526,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				spr = (struct jffs2_sum_xref_flash *)sp;
 				dbg_summary("xref at %#08x-%#08x\n",
 					    jeb->offset + je32_to_cpu(spr->offset),
-					    jeb->offset + je32_to_cpu(spr->offset) + 
+					    jeb->offset + je32_to_cpu(spr->offset) +
 					    (uint32_t)PAD(sizeof(struct jffs2_raw_xref)));
 
 				ref = jffs2_alloc_xattr_ref();

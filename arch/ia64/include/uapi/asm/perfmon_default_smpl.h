@@ -50,14 +50,14 @@ typedef struct {
 
 /*
  * Entry header in the sampling buffer.  The header is directly followed
- * with the values of the PMD registers of interest saved in increasing 
- * index order: PMD4, PMD5, and so on. How many PMDs are present depends 
+ * with the values of the PMD registers of interest saved in increasing
+ * index order: PMD4, PMD5, and so on. How many PMDs are present depends
  * on how the session was programmed.
  *
  * In the case where multiple counters overflow at the same time, multiple
  * entries are written consecutively.
  *
- * last_reset_value member indicates the initial value of the overflowed PMD. 
+ * last_reset_value member indicates the initial value of the overflowed PMD.
  */
 typedef struct {
         int             pid;                    /* thread id (for NPTL, this is gettid()) */

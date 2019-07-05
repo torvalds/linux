@@ -7,7 +7,7 @@
  * Copyright (C) 1999 Andrew R. Baker (andrewb@uab.edu)
  * Copyright (C) 2001 Florian Lohoff (flo@rfc822.org)
  * Copyright (C) 2003, 07 Ralf Baechle (ralf@linux-mips.org)
- * 
+ *
  * (In all truth, Jed Schimmel wrote all this code.)
  */
 

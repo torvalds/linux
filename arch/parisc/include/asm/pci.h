@@ -14,7 +14,7 @@
 ** E.g. 0, 8, 16, ...
 **
 ** Under a PCI bus, most HP platforms support PPBs up to two or three
-** levels deep. See "Bit3" product line. 
+** levels deep. See "Bit3" product line.
 */
 #define PCI_MAX_BUSSES	256
 
@@ -22,7 +22,7 @@
 /* To be used as: mdelay(pci_post_reset_delay);
  *
  * post_reset is the time the kernel should stall to prevent anyone from
- * accessing the PCI bus once #RESET is de-asserted. 
+ * accessing the PCI bus once #RESET is de-asserted.
  * PCI spec somewhere says 1 second but with multi-PCI bus systems,
  * this makes the boot time much longer than necessary.
  * 20ms seems to work for all the HP PCI implementations to date.
@@ -66,7 +66,7 @@ struct pci_hba_data {
 	char gmmio_name[HBA_NAME_SIZE];
 };
 
-/* 
+/*
 ** We support 2^16 I/O ports per HBA.  These are set up in the form
 ** 0xbbxxxx, where bb is the bus number and xxxx is the I/O port
 ** space address.

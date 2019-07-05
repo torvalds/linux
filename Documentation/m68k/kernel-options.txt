@@ -105,7 +105,7 @@ consequences: If, for example, you have a symbolic link from /dev/fd
 to /dev/fd0D720 as an abbreviation for floppy driver #0 in DD format,
 you cannot use this name for specifying the root device, because the
 kernel cannot see this symlink before mounting the root FS and it
-isn't in the table above. If you use it, the root device will not be 
+isn't in the table above. If you use it, the root device will not be
 set at all, without an error message. Another example: You cannot use a
 partition on e.g. the sixth SCSI disk as the root filesystem, if you
 want to specify it by name. This is, because only the devices up to
@@ -483,7 +483,7 @@ about the color register model of your gfx board. Currently, the types
 implemented.
 
   Parameter <xres_virtual> is required for ProMST or ET4000 cards where
-the physical linelength differs from the visible length. With ProMST, 
+the physical linelength differs from the visible length. With ProMST,
 xres_virtual must be set to 2048. For ET4000, xres_virtual depends on the
 initialisation of the video-card.
 If you're missing a corresponding yres_virtual: the external part is legacy,
@@ -563,7 +563,7 @@ Syntax: ataflop=<drive type>[,<trackbuffering>[,<steprateA>[,<steprateB>]]]
    no for the Medusa and yes for all others.
 
    With the two following parameters, you can change the default
-   steprate used for drive A and B, resp. 
+   steprate used for drive A and B, resp.
 
 
 4.4) atascsi=

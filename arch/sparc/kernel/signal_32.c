@@ -129,7 +129,7 @@ asmlinkage void do_sigreturn(struct pt_regs *regs)
 	err |= __get_user(set.sig[0], &sf->info.si_mask);
 	err |= __copy_from_user(&set.sig[1], &sf->extramask,
 			        (_NSIG_WORDS-1) * sizeof(unsigned int));
-			   
+
 	if (err)
 		goto segv_and_exit;
 
@@ -180,13 +180,13 @@ asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
 		err |= restore_fpu_state(regs, fpu_save);
 	err |= __copy_from_user(&set, &sf->mask, sizeof(sigset_t));
 	err |= restore_altstack(&sf->stack);
-	
+
 	if (err)
 		goto segv;
-		
+
 	regs->pc = pc;
 	regs->npc = npc;
-	
+
 	err |= __get_user(rwin_save, &sf->rwin_save);
 	if (!err && rwin_save) {
 		if (restore_rwin_state(rwin_save))
@@ -254,7 +254,7 @@ static int setup_frame(struct ksignal *ksig, struct pt_regs *regs,
 
 	/* 2. Save the current process state */
 	err = __copy_to_user(&sf->info.si_regs, regs, sizeof(struct pt_regs));
-	
+
 	err |= __put_user(0, &sf->extra_size);
 
 	if (used_math()) {
@@ -288,7 +288,7 @@ static int setup_frame(struct ksignal *ksig, struct pt_regs *regs,
 	}
 	if (err)
 		return err;
-	
+
 	/* 3. signal handler back-trampoline and parameters */
 	regs->u_regs[UREG_FP] = (unsigned long) sf;
 	regs->u_regs[UREG_I0] = ksig->sig;
@@ -370,10 +370,10 @@ static int setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs,
 		err |= __put_user(0, &sf->rwin_save);
 	}
 	err |= __copy_to_user(&sf->mask, &oldset->sig[0], sizeof(sigset_t));
-	
+
 	/* Setup sigaltstack */
 	err |= __save_altstack(&sf->stack, regs->u_regs[UREG_FP]);
-	
+
 	if (!wsaved) {
 		err |= __copy_to_user(sf, (char *) regs->u_regs[UREG_FP],
 				      sizeof(struct reg_window32));

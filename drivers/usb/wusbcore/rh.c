@@ -101,7 +101,7 @@ static int wusbhc_rh_port_reset(struct wusbhc *wusbhc, u8 port_idx)
 
 	port->status &= ~USB_PORT_STAT_RESET;
 	port->status |= USB_PORT_STAT_ENABLE;
-	port->change |= USB_PORT_STAT_C_RESET | USB_PORT_STAT_C_ENABLE;	
+	port->change |= USB_PORT_STAT_C_RESET | USB_PORT_STAT_C_ENABLE;
 
 	return result;
 }

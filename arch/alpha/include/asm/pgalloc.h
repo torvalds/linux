@@ -5,7 +5,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 
-/*      
+/*
  * Allocate and free page tables. The xxx_kernel() versions are
  * used to allocate a kernel page table - this turns on ASN bits
  * if any.

@@ -11,7 +11,7 @@
 hostprogs-y	:= tools/mkbb tools/objstrip
 targets		:= vmlinux.gz vmlinux \
 		   vmlinux.nh tools/lxboot tools/bootlx tools/bootph \
-		   tools/bootpzh bootloader bootpheader bootpzheader 
+		   tools/bootpzh bootloader bootpheader bootpzheader
 OBJSTRIP	:= $(obj)/tools/objstrip
 
 KBUILD_HOSTCFLAGS := -Wall -I$(objtree)/usr/include
@@ -19,7 +19,7 @@ BOOTCFLAGS	+= -I$(objtree)/$(obj) -I$(srctree)/$(obj)
 
 # SRM bootable image.  Copy to offset 512 of a partition.
 $(obj)/bootimage: $(addprefix $(obj)/tools/,mkbb lxboot bootlx) $(obj)/vmlinux.nh
-	( cat $(obj)/tools/lxboot $(obj)/tools/bootlx $(obj)/vmlinux.nh ) > $@ 
+	( cat $(obj)/tools/lxboot $(obj)/tools/bootlx $(obj)/vmlinux.nh ) > $@
 	$(obj)/tools/mkbb $@ $(obj)/tools/lxboot
 	@echo '  Bootimage $@ is ready'
 

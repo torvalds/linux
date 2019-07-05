@@ -25,20 +25,20 @@ static void hotfoot_fixups(void)
 {
 	u32 uart = mfdcr(DCRN_CPC0_UCR) & 0x7f;
 
-	dt_fixup_memory(bd.bi_memstart, bd.bi_memsize); 
+	dt_fixup_memory(bd.bi_memstart, bd.bi_memsize);
 
 	dt_fixup_cpu_clocks(bd.bi_procfreq, bd.bi_procfreq, 0);
 	dt_fixup_clock("/plb", bd.bi_plb_busfreq);
 	dt_fixup_clock("/plb/opb", bd.bi_opbfreq);
 	dt_fixup_clock("/plb/ebc", bd.bi_pci_busfreq);
-	dt_fixup_clock("/plb/opb/serial@ef600300", bd.bi_procfreq / uart); 
-	dt_fixup_clock("/plb/opb/serial@ef600400", bd.bi_procfreq / uart); 
-	
+	dt_fixup_clock("/plb/opb/serial@ef600300", bd.bi_procfreq / uart);
+	dt_fixup_clock("/plb/opb/serial@ef600400", bd.bi_procfreq / uart);
+
 	dt_fixup_mac_address_by_alias("ethernet0", bd.bi_enetaddr);
 	dt_fixup_mac_address_by_alias("ethernet1", bd.bi_enet1addr);
 
 	/* Is this a single eth/serial board? */
-	if ((bd.bi_enet1addr[0] == 0) && 
+	if ((bd.bi_enet1addr[0] == 0) &&
 	    (bd.bi_enet1addr[1] == 0) &&
 	    (bd.bi_enet1addr[2] == 0) &&
 	    (bd.bi_enet1addr[3] == 0) &&
@@ -69,14 +69,14 @@ static void hotfoot_fixups(void)
 			fatal("Can't find FDT node for nor_flash!??");
 
 		printf("Fixing devtree for 4M Flash\n");
-		
+
 		/* First fix up the base addresse */
 		getprop(devp, "reg", regs, sizeof(regs));
 		regs[0] = 0;
 		regs[1] = 0xffc00000;
 		regs[2] = 0x00400000;
 		setprop(devp, "reg", regs, sizeof(regs));
-		
+
 		/* Then the offsets */
 		devp = finddevice("/plb/ebc/nor_flash@0/partition@0");
 		if (!devp)

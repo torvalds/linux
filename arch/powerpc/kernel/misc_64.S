@@ -69,8 +69,8 @@ BEGIN_FTR_SECTION
 	blr
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 /*
- * Flush the data cache to memory 
- * 
+ * Flush the data cache to memory
+ *
  * Different systems have different cache line sizes
  * and in some cases i-cache and d-cache line sizes differ from
  * each other.
@@ -91,7 +91,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	sync
 
 /* Now invalidate the instruction cache */
-	
+
 	lwz	r7,ICACHEL1BLOCKSIZE(r10)	/* Get Icache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
@@ -119,8 +119,8 @@ EXPORT_SYMBOL(flush_icache_range)
 _GLOBAL_TOC(flush_dcache_range)
 
 /*
- * Flush the data cache to memory 
- * 
+ * Flush the data cache to memory
+ *
  * Different systems have different cache line sizes
  */
  	ld	r10,PPC64_CACHES@toc(r2)
@@ -170,8 +170,8 @@ _GLOBAL(flush_inval_dcache_range)
  */
 _GLOBAL(__flush_dcache_icache)
 /*
- * Flush the data cache to memory 
- * 
+ * Flush the data cache to memory
+ *
  * Different systems have different cache line sizes
  */
 
@@ -192,7 +192,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	bdnz	0b
 	sync
 
-/* Now invalidate the icache */	
+/* Now invalidate the icache */
 
 	lwz	r4,ICACHEL1BLOCKSPERPAGE(r7)	/* Get # icache blocks per page */
 	lwz	r5,ICACHEL1BLOCKSIZE(r7)	/* Get icache block size */

@@ -108,8 +108,8 @@ struct s_skfp_ioctl {
 	unsigned char __user *data;        /* Pointer to the data buffer */
 };
 
-/* 
-** Recognised ioctl commands for the driver 
+/*
+** Recognised ioctl commands for the driver
 */
 #define SKFP_GET_STATS		0x05 /* Get the driver statistics */
 #define SKFP_CLR_STATS		0x06 /* Zero out the driver statistics */
@@ -120,7 +120,7 @@ struct s_smt_os {
 	struct net_device *next_module;
 	u32	bus_type;		/* bus type (0 == PCI, 1 == EISA) */
 	struct pci_dev 	pdev;		/* PCI device structure */
-	
+
 	unsigned long base_addr;
 	unsigned char factory_mac_addr[8];
 	ulong	SharedMemSize;
@@ -143,16 +143,16 @@ struct s_smt_os {
 	// MAX_FRAME_SIZE bytes in size
 	unsigned char *LocalRxBuffer;
 	dma_addr_t LocalRxBufferDMA;
-	
+
 	// Version (required by SMT module).
 	u_long smc_version ;
 
 	// Required by Hardware Module (HWM).
 	struct hw_modul hwm ;
-	
+
 	// For SMP-savety
 	spinlock_t DriverLock;
-	
+
 };
 
 typedef struct s_smt_os skfddi_priv;

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * include/linux/nfsd/export.h
- * 
+ *
  * Public declarations for NFS exports. The definitions for the
  * syscall interface are in nfsctl.h
  *

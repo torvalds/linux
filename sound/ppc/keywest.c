@@ -63,7 +63,7 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 		keywest_ctx->client = NULL;
 		return -ENODEV;
 	}
-	
+
 	/*
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
@@ -112,7 +112,7 @@ void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c)
 int snd_pmac_tumbler_post_init(void)
 {
 	int err;
-	
+
 	if (!keywest_ctx || !keywest_ctx->client)
 		return -ENXIO;
 

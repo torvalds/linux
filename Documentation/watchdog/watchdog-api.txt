@@ -203,7 +203,7 @@ The watchdog can do pretimeouts.
 
 For those drivers that return any bits set in the option field, the
 GETSTATUS and GETBOOTSTATUS ioctls can be used to ask for the current
-status, and the status at the last reboot, respectively.  
+status, and the status at the last reboot, respectively.
 
     int flags;
     ioctl(fd, WDIOC_GETSTATUS, &flags);

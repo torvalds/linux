@@ -283,7 +283,7 @@ __EXTERN_INLINE void __iomem *wildfire_ioportmap(unsigned long addr)
 	return (void __iomem *)(addr + WILDFIRE_IO_BIAS);
 }
 
-__EXTERN_INLINE void __iomem *wildfire_ioremap(unsigned long addr, 
+__EXTERN_INLINE void __iomem *wildfire_ioremap(unsigned long addr,
 					       unsigned long size)
 {
 	return (void __iomem *)(addr + WILDFIRE_MEM_BIAS);

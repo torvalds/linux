@@ -39,7 +39,7 @@ ENTRY(v4t_late_abort)
 /* 2 */	b	.data_unknown
 /* 3 */	b	.data_unknown
 /* 4 */	b	.data_arm_lateldrpostconst	@ ldr	rd, [rn], #m
-/* 5 */	b	.data_arm_lateldrpreconst	@ ldr	rd, [rn, #m] 
+/* 5 */	b	.data_arm_lateldrpreconst	@ ldr	rd, [rn, #m]
 /* 6 */	b	.data_arm_lateldrpostreg	@ ldr	rd, [rn], rm
 /* 7 */	b	.data_arm_lateldrprereg		@ ldr	rd, [rn, rm]
 /* 8 */	b	.data_arm_ldmstm		@ ldm*a	rn, <rlist>

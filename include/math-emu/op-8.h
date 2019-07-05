@@ -5,7 +5,7 @@
    Contributed by Richard Henderson (rth@cygnus.com),
 		  Jakub Jelinek (jj@ultra.linux.cz) and
 		  Peter Maydell (pmaydell@chiark.greenend.org.uk).
-                                                         
+
    The GNU C Library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public License as
    published by the Free Software Foundation; either version 2 of the
@@ -72,7 +72,7 @@
   } while (0)
 
 
-/* Right shift with sticky-lsb. 
+/* Right shift with sticky-lsb.
  * What this actually means is that we do a standard right-shift,
  * but that if any of the bits that fall off the right hand side
  * were one then we always set the LSbit.

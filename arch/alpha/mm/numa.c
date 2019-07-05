@@ -68,7 +68,7 @@ setup_memory_node(int nid, void *kernel_end)
 	/* Find the bounds of current node */
 	node_pfn_start = (node_mem_start(nid)) >> PAGE_SHIFT;
 	node_pfn_end = node_pfn_start + (node_mem_size(nid) >> PAGE_SHIFT);
-	
+
 	/* Find free clusters, and init and free the bootmem accordingly.  */
 	memdesc = (struct memdesc_struct *)
 	  (hwrpb->mddt_offset + (unsigned long) hwrpb);

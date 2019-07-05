@@ -1,9 +1,9 @@
 /*-*- linux-c -*-
- *  linux/drivers/video/i810fb_main.h -- Intel 810 frame buffer device 
+ *  linux/drivers/video/i810fb_main.h -- Intel 810 frame buffer device
  *                                       main header file
  *
  *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
- *      All Rights Reserved      
+ *      All Rights Reserved
  *
  *
  *  This file is subject to the terms and conditions of the GNU General Public
@@ -22,11 +22,11 @@ extern u32 i810_get_watermark      (const struct fb_var_screeninfo *var,
 extern void i810fb_encode_registers(const struct fb_var_screeninfo *var,
 				    struct i810fb_par *par, u32 xres, u32 yres);
 extern void i810fb_fill_var_timings(struct fb_var_screeninfo *var);
-				    
+
 /* Accelerated Functions */
-extern void i810fb_fillrect (struct fb_info *p, 
+extern void i810fb_fillrect (struct fb_info *p,
 			     const struct fb_fillrect *rect);
-extern void i810fb_copyarea (struct fb_info *p, 
+extern void i810fb_copyarea (struct fb_info *p,
 			     const struct fb_copyarea *region);
 extern void i810fb_imageblit(struct fb_info *p, const struct fb_image *image);
 extern int  i810fb_sync     (struct fb_info *p);
@@ -58,7 +58,7 @@ static inline void flush_cache(void)
 }
 #else
 #define flush_cache() do { } while(0)
-#endif 
+#endif
 
 #ifdef CONFIG_FB_I810_GTF
 #define IS_DVT (0)

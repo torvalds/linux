@@ -29,20 +29,20 @@
 
 #include "float.h"
 #include "dbl_float.h"
-    
+
 /*
  * dbl_cmp: compare two values
  */
 int
 dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
 	  unsigned int cond, unsigned int *status)
-                                           
+
                        /* The predicate to be tested */
-                         
+
     {
     register unsigned int leftp1, leftp2, rightp1, rightp2;
     register int xorresult;
-        
+
     /* Create local copies of the numbers */
     Dbl_copyfromptr(leftptr,leftp1,leftp2);
     Dbl_copyfromptr(rightptr,rightp1,rightp2);
@@ -52,15 +52,15 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
     if(    (Dbl_exponent(leftp1) == DBL_INFINITY_EXPONENT)
         || (Dbl_exponent(rightp1) == DBL_INFINITY_EXPONENT) )
 	{
-	/* Check if a NaN is involved.  Signal an invalid exception when 
+	/* Check if a NaN is involved.  Signal an invalid exception when
 	 * comparing a signaling NaN or when comparing quiet NaNs and the
 	 * low bit of the condition is set */
         if( ((Dbl_exponent(leftp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(leftp1,leftp2) 
+	    && Dbl_isnotzero_mantissa(leftp1,leftp2)
 	    && (Exception(cond) || Dbl_isone_signaling(leftp1)))
 	   ||
 	    ((Dbl_exponent(rightp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(rightp1,rightp2) 
+	    && Dbl_isnotzero_mantissa(rightp1,rightp2)
 	    && (Exception(cond) || Dbl_isone_signaling(rightp1))) )
 	    {
 	    if( Is_invalidtrap_enabled() ) {
@@ -92,7 +92,7 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
         {
         /* left negative => less, left positive => greater.
          * equal is possible if both operands are zeros. */
-        if( Dbl_iszero_exponentmantissa(leftp1,leftp2) 
+        if( Dbl_iszero_exponentmantissa(leftp1,leftp2)
 	  && Dbl_iszero_exponentmantissa(rightp1,rightp2) )
             {
 	    Set_status_cbit(Equal(cond));
@@ -131,7 +131,7 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
 		{
 		Set_status_cbit(Lessthan(cond));
 		}
-	    else 
+	    else
 		{
 		Set_status_cbit(Greaterthan(cond));
 		}
@@ -158,7 +158,7 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
 		{
 		Set_status_cbit(Lessthan(cond));
 		}
-	    else 
+	    else
 		{
 		Set_status_cbit(Greaterthan(cond));
 		}

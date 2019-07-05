@@ -4,7 +4,7 @@
 
     (specifically, for the Quatech SPP-100 EPP card: other cards will
     probably require driver tweaks)
-    
+
     parport_cs.c 1.29 2002/10/11 06:57:41
 
     The contents of this file are subject to the Mozilla Public
@@ -31,7 +31,7 @@
     and other provisions required by the GPL.  If you do not delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
-    
+
 ======================================================================*/
 
 #include <linux/kernel.h>

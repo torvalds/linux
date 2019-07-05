@@ -39,7 +39,7 @@ d_automount:	no		no		yes		no
 d_manage:	no		no		yes (ref-walk)	maybe
 d_real		no		no		yes 		no
 
---------------------------- inode_operations --------------------------- 
+--------------------------- inode_operations ---------------------------
 prototypes:
 	int (*create) (struct inode *,struct dentry *,umode_t, bool);
 	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);

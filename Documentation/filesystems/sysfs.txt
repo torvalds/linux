@@ -1,5 +1,5 @@
 
-sysfs - _The_ filesystem for exporting kernel objects. 
+sysfs - _The_ filesystem for exporting kernel objects.
 
 Patrick Mochel	<mochel@osdl.org>
 Mike Murphy <mamurph@cs.clemson.edu>
@@ -12,12 +12,12 @@ What it is:
 ~~~~~~~~~~~
 
 sysfs is a ram-based filesystem initially based on ramfs. It provides
-a means to export kernel data structures, their attributes, and the 
-linkages between them to userspace. 
+a means to export kernel data structures, their attributes, and the
+linkages between them to userspace.
 
 sysfs is tied inherently to the kobject infrastructure. Please read
 Documentation/kobject.txt for more information concerning the kobject
-interface. 
+interface.
 
 
 Using sysfs
@@ -26,7 +26,7 @@ Using sysfs
 sysfs is always compiled in if CONFIG_SYSFS is defined. You can access
 it by doing:
 
-    mount -t sysfs sysfs /sys 
+    mount -t sysfs sysfs /sys
 
 
 Directory Creation
@@ -37,7 +37,7 @@ created for it in sysfs. That directory is created as a subdirectory
 of the kobject's parent, expressing internal object hierarchies to
 userspace. Top-level directories in sysfs represent the common
 ancestors of object hierarchies; i.e. the subsystems the objects
-belong to. 
+belong to.
 
 Sysfs internally stores a pointer to the kobject that implements a
 directory in the kernfs_node object associated with the directory. In
@@ -58,11 +58,11 @@ attributes.
 Attributes should be ASCII text files, preferably with only one value
 per file. It is noted that it may not be efficient to contain only one
 value per file, so it is socially acceptable to express an array of
-values of the same type. 
+values of the same type.
 
 Mixing types, expressing multiple lines of data, and doing fancy
 formatting of data is heavily frowned upon. Doing these things may get
-you publicly humiliated and your code rewritten without notice. 
+you publicly humiliated and your code rewritten without notice.
 
 
 An attribute definition is simply:
@@ -81,7 +81,7 @@ void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr);
 A bare attribute contains no means to read or write the value of the
 attribute. Subsystems are encouraged to define their own attribute
 structure and wrapper functions for adding and removing attributes for
-a specific object type. 
+a specific object type.
 
 For example, the driver model defines struct device_attribute like:
 
@@ -96,7 +96,7 @@ struct device_attribute {
 int device_create_file(struct device *, const struct device_attribute *);
 void device_remove_file(struct device *, const struct device_attribute *);
 
-It also defines this helper for defining device attributes: 
+It also defines this helper for defining device attributes:
 
 #define DEVICE_ATTR(_name, _mode, _show, _store) \
 struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
@@ -143,7 +143,7 @@ Subsystem-Specific Callbacks
 
 When a subsystem defines a new attribute type, it must implement a
 set of sysfs operations for forwarding read and write calls to the
-show and store methods of the attribute owners. 
+show and store methods of the attribute owners.
 
 struct sysfs_ops {
         ssize_t (*show)(struct kobject *, struct attribute *, char *);
@@ -157,7 +157,7 @@ stored. See the kobject documentation for more information. ]
 When a file is read or written, sysfs calls the appropriate method
 for the type. The method then translates the generic struct kobject
 and struct attribute pointers to the appropriate pointer types, and
-calls the associated methods. 
+calls the associated methods.
 
 
 To illustrate:
@@ -200,11 +200,11 @@ IOW, they should take only an object, an attribute, and a buffer as parameters.
 sysfs allocates a buffer of size (PAGE_SIZE) and passes it to the
 method. Sysfs will call the method exactly once for each read or
 write. This forces the following behavior on the method
-implementations: 
+implementations:
 
-- On read(2), the show() method should fill the entire buffer. 
+- On read(2), the show() method should fill the entire buffer.
   Recall that an attribute should only be exporting one value, or an
-  array of similar values, so this shouldn't be that expensive. 
+  array of similar values, so this shouldn't be that expensive.
 
   This allows userspace to do partial reads and forward seeks
   arbitrarily over the entire file at will. If userspace seeks back to
@@ -218,10 +218,10 @@ implementations:
 
   When writing sysfs files, userspace processes should first read the
   entire file, modify the values it wishes to change, then write the
-  entire buffer back. 
+  entire buffer back.
 
   Attribute method implementations should operate on an identical
-  buffer when reading and writing values. 
+  buffer when reading and writing values.
 
 Other notes:
 
@@ -229,7 +229,7 @@ Other notes:
   file position.
 
 - The buffer will always be PAGE_SIZE bytes in length. On i386, this
-  is 4096. 
+  is 4096.
 
 - show() methods should return the number of bytes printed into the
   buffer. This is the return value of scnprintf().
@@ -246,9 +246,9 @@ Other notes:
   through, be sure to return an error.
 
 - The object passed to the methods will be pinned in memory via sysfs
-  referencing counting its embedded object. However, the physical 
-  entity (e.g. device) the object represents may not be present. Be 
-  sure to have a way to check this, if necessary. 
+  referencing counting its embedded object. However, the physical
+  entity (e.g. device) the object represents may not be present. Be
+  sure to have a way to check this, if necessary.
 
 
 A very simple (and naive) implementation of a device attribute is:
@@ -270,7 +270,7 @@ static ssize_t store_name(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(name, S_IRUGO, show_name, store_name);
 
 
-(Note that the real implementation doesn't allow userspace to set the 
+(Note that the real implementation doesn't allow userspace to set the
 name for a device.)
 
 
@@ -278,7 +278,7 @@ Top Level Directory Layout
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The sysfs directory arrangement exposes the relationship of kernel
-data structures. 
+data structures.
 
 The top level sysfs directory looks like:
 
@@ -293,7 +293,7 @@ fs/
 
 devices/ contains a filesystem representation of the device tree. It maps
 directly to the internal kernel device tree, which is a hierarchy of
-struct device. 
+struct device.
 
 bus/ contains flat directory layout of the various bus types in the
 kernel. Each bus's directory contains two subdirectories:
@@ -319,7 +319,7 @@ quick way to lookup the sysfs interface for a device from the result of
 a stat(2) operation.
 
 More information can driver-model specific features can be found in
-Documentation/driver-model/. 
+Documentation/driver-model/.
 
 
 TODO: Finish this section.

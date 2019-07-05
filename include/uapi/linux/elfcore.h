@@ -94,7 +94,7 @@ struct elf_prpsinfo
 #ifndef __KERNEL__
 typedef struct elf_prstatus prstatus_t;
 typedef struct elf_prpsinfo prpsinfo_t;
-#define PRARGSZ ELF_PRARGSZ 
+#define PRARGSZ ELF_PRARGSZ
 #endif
 
 

@@ -247,7 +247,7 @@ tty3270_rebuild_update(struct tty3270 *tp)
 	struct string *s, *n;
 	int line, nr_up;
 
-	/* 
+	/*
 	 * Throw away update list and create a new one,
 	 * containing all lines that will fit on the screen.
 	 */
@@ -413,7 +413,7 @@ tty3270_update(struct timer_list *t)
 			updated |= TTY_UPDATE_INPUT;
 
 	sba = invalid_sba;
-	
+
 	if (tp->update_flags & TTY_UPDATE_LIST) {
 		/* Write strings in the update list to the screen. */
 		list_for_each_entry_safe(s, n, &tp->update, update) {
@@ -485,7 +485,7 @@ tty3270_rcl_backward(struct kbd_data *kbd)
 			tp->rcl_walk = tp->rcl_walk->prev;
 		else if (!list_empty(&tp->rcl_lines))
 			tp->rcl_walk = tp->rcl_lines.prev;
-		s = tp->rcl_walk ? 
+		s = tp->rcl_walk ?
 			list_entry(tp->rcl_walk, struct string, list) : NULL;
 		if (tp->rcl_walk) {
 			s = list_entry(tp->rcl_walk, struct string, list);

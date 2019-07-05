@@ -49,11 +49,11 @@ dbl_fmpy(
 	Dbl_copyfromptr(srcptr1,opnd1p1,opnd1p2);
 	Dbl_copyfromptr(srcptr2,opnd2p1,opnd2p2);
 
-	/* 
-	 * set sign bit of result 
+	/*
+	 * set sign bit of result
 	 */
-	if (Dbl_sign(opnd1p1) ^ Dbl_sign(opnd2p1)) 
-		Dbl_setnegativezerop1(resultp1); 
+	if (Dbl_sign(opnd1p1) ^ Dbl_sign(opnd2p1))
+		Dbl_setnegativezerop1(resultp1);
 	else Dbl_setzerop1(resultp1);
 	/*
 	 * check first operand for NaN's or infinity
@@ -62,9 +62,9 @@ dbl_fmpy(
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
 			if (Dbl_isnotnan(opnd2p1,opnd2p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd2p1,opnd2p2)) {
-					/* 
-					 * invalid since operands are infinity 
-					 * and zero 
+					/*
+					 * invalid since operands are infinity
+					 * and zero
 					 */
 					if (Is_invalidtrap_enabled())
                                 		return(INVALIDEXCEPTION);
@@ -87,14 +87,14 @@ dbl_fmpy(
                  	 */
                 	if (Dbl_isone_signaling(opnd1p1)) {
                         	/* trap if INVALIDTRAP enabled */
-                        	if (Is_invalidtrap_enabled()) 
+                        	if (Is_invalidtrap_enabled())
                             		return(INVALIDEXCEPTION);
                         	/* make NaN quiet */
                         	Set_invalidflag();
                         	Dbl_set_quiet(opnd1p1);
                 	}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Dbl_is_signalingnan(opnd2p1)) {
                         	/* trap if INVALIDTRAP enabled */
@@ -151,7 +151,7 @@ dbl_fmpy(
                 return(NOEXCEPTION);
 	}
 	/*
-	 * Generate exponent 
+	 * Generate exponent
 	 */
 	dest_exponent = Dbl_exponent(opnd1p1) + Dbl_exponent(opnd2p1) -DBL_BIAS;
 
@@ -196,20 +196,20 @@ dbl_fmpy(
 	/* make room for guard bits */
 	Dbl_leftshiftby7(opnd2p1,opnd2p2);
 	Dbl_setzero(opnd3p1,opnd3p2);
-        /* 
-         * Four bits at a time are inspected in each loop, and a 
-         * simple shift and add multiply algorithm is used. 
-         */ 
+        /*
+         * Four bits at a time are inspected in each loop, and a
+         * simple shift and add multiply algorithm is used.
+         */
 	for (count=1;count<=DBL_P;count+=4) {
 		stickybit |= Dlow4p2(opnd3p2);
 		Dbl_rightshiftby4(opnd3p1,opnd3p2);
 		if (Dbit28p2(opnd1p2)) {
 	 		/* Twoword_add should be an ADDC followed by an ADD. */
-                        Twoword_add(opnd3p1, opnd3p2, opnd2p1<<3 | opnd2p2>>29, 
+                        Twoword_add(opnd3p1, opnd3p2, opnd2p1<<3 | opnd2p2>>29,
 				    opnd2p2<<3);
 		}
 		if (Dbit29p2(opnd1p2)) {
-                        Twoword_add(opnd3p1, opnd3p2, opnd2p1<<2 | opnd2p2>>30, 
+                        Twoword_add(opnd3p1, opnd3p2, opnd2p1<<2 | opnd2p2>>30,
 				    opnd2p2<<2);
 		}
 		if (Dbit30p2(opnd1p2)) {
@@ -234,7 +234,7 @@ dbl_fmpy(
 		dest_exponent--;
 	}
 	/*
-	 * check for guard, sticky and inexact bits 
+	 * check for guard, sticky and inexact bits
 	 */
 	stickybit |= Dallp2(opnd3p2) << 25;
 	guardbit = (Dallp2(opnd3p2) << 24) >> 31;
@@ -243,18 +243,18 @@ dbl_fmpy(
 	/* align result mantissa */
 	Dbl_rightshiftby8(opnd3p1,opnd3p2);
 
-	/* 
-	 * round result 
+	/*
+	 * round result
 	 */
 	if (inexact && (dest_exponent>0 || Is_underflowtrap_enabled())) {
 		Dbl_clear_signexponent(opnd3p1);
 		switch (Rounding_mode()) {
-			case ROUNDPLUS: 
-				if (Dbl_iszero_sign(resultp1)) 
+			case ROUNDPLUS:
+				if (Dbl_iszero_sign(resultp1))
 					Dbl_increment(opnd3p1,opnd3p2);
 				break;
-			case ROUNDMINUS: 
-				if (Dbl_isone_sign(resultp1)) 
+			case ROUNDMINUS:
+				if (Dbl_isone_sign(resultp1))
 					Dbl_increment(opnd3p1,opnd3p2);
 				break;
 			case ROUNDNEAREST:
@@ -267,7 +267,7 @@ dbl_fmpy(
 	}
 	Dbl_set_mantissa(resultp1,resultp2,opnd3p1,opnd3p2);
 
-        /* 
+        /*
          * Test for overflow
          */
 	if (dest_exponent >= DBL_INFINITY_EXPONENT) {
@@ -278,7 +278,7 @@ dbl_fmpy(
                          */
 			Dbl_setwrapped_exponent(resultp1,dest_exponent,ovfl);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			if (inexact) 
+			if (inexact)
 			    if (Is_inexacttrap_enabled())
 				return (OVERFLOWEXCEPTION | INEXACTEXCEPTION);
 			    else Set_inexactflag();
@@ -289,7 +289,7 @@ dbl_fmpy(
                 /* set result to infinity or largest number */
 		Dbl_setoverflow(resultp1,resultp2);
 	}
-        /* 
+        /*
          * Test for underflow
          */
 	else if (dest_exponent <= 0) {
@@ -300,7 +300,7 @@ dbl_fmpy(
                          */
 			Dbl_setwrapped_exponent(resultp1,dest_exponent,unfl);
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
-			if (inexact) 
+			if (inexact)
 			    if (Is_inexacttrap_enabled())
 				return (UNDERFLOWEXCEPTION | INEXACTEXCEPTION);
 			    else Set_inexactflag();
@@ -311,7 +311,7 @@ dbl_fmpy(
 		is_tiny = TRUE;
 		if (dest_exponent == 0 && inexact) {
 			switch (Rounding_mode()) {
-			case ROUNDPLUS: 
+			case ROUNDPLUS:
 				if (Dbl_iszero_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
 					if (Dbl_isone_hiddenoverflow(opnd3p1))
@@ -319,7 +319,7 @@ dbl_fmpy(
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
 				break;
-			case ROUNDMINUS: 
+			case ROUNDMINUS:
 				if (Dbl_isone_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
 					if (Dbl_isone_hiddenoverflow(opnd3p1))
@@ -328,7 +328,7 @@ dbl_fmpy(
 				}
 				break;
 			case ROUNDNEAREST:
-				if (guardbit && (stickybit || 
+				if (guardbit && (stickybit ||
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 				      	Dbl_increment(opnd3p1,opnd3p2);
 					if (Dbl_isone_hiddenoverflow(opnd3p1))
@@ -349,18 +349,18 @@ dbl_fmpy(
 		/* return zero or smallest number */
 		if (inexact) {
 			switch (Rounding_mode()) {
-			case ROUNDPLUS: 
+			case ROUNDPLUS:
 				if (Dbl_iszero_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
 				}
 				break;
-			case ROUNDMINUS: 
+			case ROUNDMINUS:
 				if (Dbl_isone_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
 				}
 				break;
 			case ROUNDNEAREST:
-				if (guardbit && (stickybit || 
+				if (guardbit && (stickybit ||
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 			      		Dbl_increment(opnd3p1,opnd3p2);
 				}

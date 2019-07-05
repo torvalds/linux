@@ -211,7 +211,7 @@ dp264_device_interrupt(unsigned long vector)
 	}
 }
 
-static void 
+static void
 dp264_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
@@ -224,7 +224,7 @@ dp264_srm_device_interrupt(unsigned long vector)
 	 *	0x900 + (0x10 * DRIR-bit)
 	 *
 	 * So bit 16 shows up as IRQ 32, etc.
-	 * 
+	 *
 	 * On DP264/BRICK/MONET, we adjust it down by 16 because at least
 	 * that many of the low order bits of the DRIR are not used, and
 	 * so we don't count them.
@@ -235,7 +235,7 @@ dp264_srm_device_interrupt(unsigned long vector)
 	handle_irq(irq);
 }
 
-static void 
+static void
 clipper_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
@@ -248,7 +248,7 @@ clipper_srm_device_interrupt(unsigned long vector)
 	 *	0x900 + (0x10 * DRIR-bit)
 	 *
 	 * So bit 16 shows up as IRQ 32, etc.
-	 * 
+	 *
 	 * CLIPPER uses bits 8-47 for PCI interrupts, so we do not need
 	 * to scale down the vector reported, we just use it.
 	 *
@@ -348,7 +348,7 @@ clipper_init_irq(void)
  *62        PCI0 Bus Error
  *63        Reserved
  *
- * IdSel	
+ * IdSel
  *   5	 Cypress Bridge I/O
  *   6	 SCSI Adaptec builtin
  *   7	 64 bit PCI option slot 0 (all busses)

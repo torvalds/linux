@@ -61,7 +61,7 @@ memchr:
 	unop			#	:
 	sll	$17, 32, $2	#-e0    : $2 = chchchch00000000
 	or	$2, $17, $17	# e1	: $17 = chchchchchchchch
-	extql	$1, $16, $7	# e0    : 
+	extql	$1, $16, $7	# e0    :
 	beq	$4, $first_quad	# .. e1 :
 
 	ldq_u	$6, -1($5)	#-e1	: eight or less bytes to search

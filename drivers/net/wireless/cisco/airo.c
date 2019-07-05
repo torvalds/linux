@@ -315,8 +315,8 @@ static int do8bitIO /* = 0 */;
 #define CMD_DELTLV	0x002b
 #define CMD_FINDNEXTTLV	0x002c
 #define CMD_PSPNODES	0x0030
-#define CMD_SETCW	0x0031    
-#define CMD_SETPCF	0x0032    
+#define CMD_SETCW	0x0031
+#define CMD_SETPCF	0x0032
 #define CMD_SETPHYREG	0x003e
 #define CMD_TXTEST	0x003f
 #define MAC_ENABLETX	0x0101
@@ -1378,16 +1378,16 @@ static const u8 micsnap[] = {0xAA,0xAA,0x03,0x00,0x40,0x96,0x00,0x02};
 
 /*===========================================================================
  * Description: Mic a packet
- *    
+ *
  *      Inputs: etherHead * pointer to an 802.3 frame
- *    
+ *
  *     Returns: BOOLEAN if successful, otherwise false.
  *             PacketTxLen will be updated with the mic'd packets size.
  *
  *    Caveats: It is assumed that the frame buffer will already
  *             be big enough to hold the largets mic message possible.
  *            (No memory allocation is done here).
- *  
+ *
  *    Author: sbraneky (10/15/01)
  *    Merciless hacks by rwilcher (1/14/02)
  */
@@ -1403,7 +1403,7 @@ static int encapsulate(struct airo_info *ai ,etherHead *frame, MICBuffer *mic, i
 		context = &ai->mod[0].mCtx;
 	else
 		context = &ai->mod[0].uCtx;
-  
+
 	if (!context->valid)
 		return ERROR;
 
@@ -1438,11 +1438,11 @@ typedef enum {
 /*===========================================================================
  *  Description: Decapsulates a MIC'd packet and returns the 802.3 packet
  *               (removes the MIC stuff) if packet is a valid packet.
- *      
- *       Inputs: etherHead  pointer to the 802.3 packet             
- *     
+ *
+ *       Inputs: etherHead  pointer to the 802.3 packet
+ *
  *      Returns: BOOLEAN - TRUE if packet should be dropped otherwise FALSE
- *     
+ *
  *      Author: sbraneky (10/15/01)
  *    Merciless hacks by rwilcher (1/14/02)
  *---------------------------------------------------------------------------
@@ -1489,28 +1489,28 @@ static int decapsulate(struct airo_info *ai, MICBuffer *mic, etherHead *eth, u16
 
 	for (i = 0; i < NUM_MODULES; i++) {
 		int mcast = eth->da[0] & 1;
-		//Determine proper context 
+		//Determine proper context
 		context = mcast ? &ai->mod[i].mCtx : &ai->mod[i].uCtx;
-	
+
 		//Make sure context is valid
 		if (!context->valid) {
 			if (i == 0)
 				micError = NOMICPLUMMED;
-			continue;                
+			continue;
 		}
-	       	//DeMic it 
+	       	//DeMic it
 
 		if (!mic->typelen)
 			mic->typelen = htons(payLen + sizeof(MICBuffer) - 2);
-	
+
 		emmh32_init(&context->seed);
-		emmh32_update(&context->seed, eth->da, ETH_ALEN*2); 
-		emmh32_update(&context->seed, (u8 *)&mic->typelen, sizeof(mic->typelen)+sizeof(mic->u.snap)); 
-		emmh32_update(&context->seed, (u8 *)&mic->seq,sizeof(mic->seq));	
-		emmh32_update(&context->seed, (u8 *)(eth + 1),payLen);	
+		emmh32_update(&context->seed, eth->da, ETH_ALEN*2);
+		emmh32_update(&context->seed, (u8 *)&mic->typelen, sizeof(mic->typelen)+sizeof(mic->u.snap));
+		emmh32_update(&context->seed, (u8 *)&mic->seq,sizeof(mic->seq));
+		emmh32_update(&context->seed, (u8 *)(eth + 1),payLen);
 		//Calculate MIC
 		emmh32_final(&context->seed, digest);
-	
+
 		if (memcmp(digest, &mic->mic, 4)) { //Make sure the mics match
 		  //Invalid Mic
 			if (i == 0)
@@ -1541,11 +1541,11 @@ static int decapsulate(struct airo_info *ai, MICBuffer *mic, etherHead *eth, u16
 /*===========================================================================
  * Description:  Checks the Rx Seq number to make sure it is valid
  *               and hasn't already been received
- *   
+ *
  *     Inputs: miccntx - mic context to check seq against
  *             micSeq  - the Mic seq number
- *   
- *    Returns: TRUE if valid otherwise FALSE. 
+ *
+ *    Returns: TRUE if valid otherwise FALSE.
  *
  *    Author: sbraneky (10/15/01)
  *    Merciless hacks by rwilcher (1/14/02)
@@ -1556,7 +1556,7 @@ static int RxSeqValid (struct airo_info *ai,miccntx *context,int mcast,u32 micSe
 {
 	u32 seq,index;
 
-	//Allow for the ap being rebooted - if it is then use the next 
+	//Allow for the ap being rebooted - if it is then use the next
 	//sequence number of the current sequence number - might go backwards
 
 	if (mcast) {
@@ -1577,7 +1577,7 @@ static int RxSeqValid (struct airo_info *ai,miccntx *context,int mcast,u32 micSe
 	//Too old of a SEQ number to check.
 	if ((s32)seq < 0)
 		return ERROR;
-    
+
 	if ( seq > 64 ) {
 		//Window is infinite forward
 		MoveWindow(context,micSeq);
@@ -1607,7 +1607,7 @@ static void MoveWindow(miccntx *context, u32 micSeq)
 	//Move window if seq greater than the middle of the window
 	if (micSeq > context->window) {
 		shift = (micSeq - context->window) >> 1;
-    
+
 		    //Shift out old
 		if (shift < 32)
 			context->rx >>= shift;
@@ -1634,7 +1634,7 @@ static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen,
 {
   /* take the keying material, expand if necessary, truncate at 16-bytes */
   /* run through AES counter mode to generate context->coeff[] */
-  
+
 	int i,j;
 	u32 counter;
 	u8 *cipher, plain[16];
@@ -1669,11 +1669,11 @@ static void emmh32_init(emmh32_context *context)
 static void emmh32_update(emmh32_context *context, u8 *pOctets, int len)
 {
 	int	coeff_position, byte_position;
-  
+
 	if (len == 0) return;
-  
+
 	coeff_position = context->position >> 2;
-  
+
 	/* deal with partial 32-bit word left over from last update */
 	byte_position = context->position & 3;
 	if (byte_position) {
@@ -1712,12 +1712,12 @@ static void emmh32_final(emmh32_context *context, u8 digest[4])
 {
 	int	coeff_position, byte_position;
 	u32	val;
-  
+
 	u64 sum, utmp;
 	s64 stmp;
 
 	coeff_position = context->position >> 2;
-  
+
 	/* deal with partial 32-bit word left over from last update */
 	byte_position = context->position & 3;
 	if (byte_position) {
@@ -2662,7 +2662,7 @@ static void wifi_setup(struct net_device *dev)
 	dev->min_mtu            = 68;
 	dev->max_mtu            = MIC_MSGLEN_MAX;
 	dev->addr_len           = ETH_ALEN;
-	dev->tx_queue_len       = 100; 
+	dev->tx_queue_len       = 100;
 
 	eth_broadcast_addr(dev->broadcast);
 
@@ -4332,7 +4332,7 @@ static int transmit_802_3_packet(struct airo_info *ai, int len, char *pPacket)
 	}
 	len -= ETH_ALEN * 2;
 
-	if (test_bit(FLAG_MIC_CAPABLE, &ai->flags) && ai->micstats.enabled && 
+	if (test_bit(FLAG_MIC_CAPABLE, &ai->flags) && ai->micstats.enabled &&
 	    (ntohs(((__be16 *)pPacket)[6]) != 0x888E)) {
 		if (encapsulate(ai,(etherHead *)pPacket,&pMic,len) != SUCCESS)
 			return ERROR;
@@ -6599,7 +6599,7 @@ static int airo_get_encodeext(struct net_device *dev,
 	/* We can't return the key, so set the proper flag and return zero */
 	encoding->flags |= IW_ENCODE_NOKEY;
 	memset(extra, 0, 16);
-	
+
 	/* Copy the key to the user buffer */
 	wep_key_len = get_wep_key(local, idx, &buf[0], sizeof(buf));
 	if (wep_key_len < 0) {

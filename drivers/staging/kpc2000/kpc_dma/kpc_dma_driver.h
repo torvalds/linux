@@ -27,23 +27,23 @@ struct kpc_dma_device {
 	struct device              *kpc_dma_dev;
 	struct kobject              kobj;
 	char                        name[16];
-	
+
 	int                         dir; // DMA_FROM_DEVICE || DMA_TO_DEVICE
 	struct mutex                sem;
 	unsigned int                irq;
 	struct work_struct          irq_work;
-	
+
 	atomic_t                    open_count;
-	
+
 	size_t                      accumulated_bytes;
 	u32                         accumulated_flags;
-	
+
 	// Descriptor "Pool" housekeeping
 	u32                         desc_pool_cnt;
 	struct dma_pool            *desc_pool;
 	struct kpc_dma_descriptor  *desc_pool_first;
 	struct kpc_dma_descriptor  *desc_pool_last;
-	
+
 	struct kpc_dma_descriptor  *desc_next;
 	struct kpc_dma_descriptor  *desc_completed;
 };
@@ -90,7 +90,7 @@ struct aio_cb_data {
 	unsigned char       flags;
 	struct kiocb       *kcb;
 	size_t              len;
-	
+
 	unsigned int        page_count;
 	struct page       **user_pages;
 	struct sg_table     sgt;
@@ -119,10 +119,10 @@ struct kpc_dma_descriptor {
 		volatile u32  DescSystemAddrLS;
 		volatile u32  DescSystemAddrMS;
 		volatile u32  DescNextDescPtr;
-		
+
 		dma_addr_t    MyDMAAddr;
 		struct kpc_dma_descriptor   *Next;
-		
+
 		struct aio_cb_data  *acd;
 } __attribute__((packed));
 // DescControlFlags:

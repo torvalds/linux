@@ -91,7 +91,7 @@ struct usb_kbd {
 	unsigned char *leds;
 	dma_addr_t new_dma;
 	dma_addr_t leds_dma;
-	
+
 	spinlock_t leds_lock;
 	bool led_urb_submitted;
 
@@ -175,15 +175,15 @@ static int usb_kbd_event(struct input_dev *dev, unsigned int type,
 	}
 
 	*(kbd->leds) = kbd->newleds;
-	
+
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
 		pr_err("usb_submit_urb(leds) failed\n");
 	else
 		kbd->led_urb_submitted = true;
-	
+
 	spin_unlock_irqrestore(&kbd->leds_lock, flags);
-	
+
 	return 0;
 }
 
@@ -205,14 +205,14 @@ static void usb_kbd_led(struct urb *urb)
 	}
 
 	*(kbd->leds) = kbd->newleds;
-	
+
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC)){
 		hid_err(urb->dev, "usb_submit_urb(leds) failed\n");
 		kbd->led_urb_submitted = false;
 	}
 	spin_unlock_irqrestore(&kbd->leds_lock, flags);
-	
+
 }
 
 static int usb_kbd_open(struct input_dev *dev)
@@ -358,9 +358,9 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	device_set_wakeup_enable(&dev->dev, 1);
 	return 0;
 
-fail2:	
+fail2:
 	usb_kbd_free_mem(dev, kbd);
-fail1:	
+fail1:
 	input_free_device(input_dev);
 	kfree(kbd);
 	return error;

@@ -18,7 +18,7 @@ struct snd_seq_timer_tick {
 struct snd_seq_timer {
 	/* ... tempo / offset / running state */
 
-	unsigned int		running:1,	/* running state of queue */	
+	unsigned int		running:1,	/* running state of queue */
 				initialized:1;	/* timer is initialized */
 
 	unsigned int		tempo;		/* current tempo, us/tick */
@@ -27,7 +27,7 @@ struct snd_seq_timer {
 	snd_seq_real_time_t	cur_time;	/* current time */
 	struct snd_seq_timer_tick	tick;	/* current tick */
 	int tick_updated;
-	
+
 	int			type;		/* timer type */
 	struct snd_timer_id	alsa_id;	/* ALSA's timer ID */
 	struct snd_timer_instance	*timeri;	/* timer instance */

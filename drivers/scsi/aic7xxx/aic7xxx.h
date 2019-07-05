@@ -295,7 +295,7 @@ typedef enum {
 	AHC_PCI_MWI_BUG		= 0x20,
 	/*
 	 * An SCB upload using the SCB channel's
-	 * auto array entry copy feature may 
+	 * auto array entry copy feature may
 	 * corrupt data.  This appears to only
 	 * occur on 66MHz systems.
 	 */
@@ -450,7 +450,7 @@ struct hardware_scb {
  *	o residual_sgptr and sgptr refer to the "next" sg entry
  *	  and so may point beyond the last valid sg entry for the
  *	  transfer.
- */ 
+ */
 /*12*/	uint32_t dataptr;
 /*16*/	uint32_t datacnt;		/*
 					 * Byte 3 (numbered from 0) of
@@ -620,7 +620,7 @@ struct scb_data {
 struct target_cmd {
 	uint8_t scsiid;		/* Our ID and the initiator's ID */
 	uint8_t identify;	/* Identify message */
-	uint8_t bytes[22];	/* 
+	uint8_t bytes[22];	/*
 				 * Bytes contains any additional message
 				 * bytes terminated by 0xFF.  The remainder
 				 * is the cdb to execute.
@@ -658,7 +658,7 @@ struct ahc_tmode_event {
  * structure here so we can store arrays of them, etc. in OS neutral
  * data structures.
  */
-#ifdef AHC_TARGET_MODE 
+#ifdef AHC_TARGET_MODE
 struct ahc_tmode_lstate {
 	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
@@ -753,7 +753,7 @@ struct ahc_syncrate {
 /***************************** Lookup Tables **********************************/
 /*
  * Phase -> name and message out response
- * to parity errors in each phase table. 
+ * to parity errors in each phase table.
  */
 struct ahc_phase_table_entry {
         uint8_t phase;
@@ -791,9 +791,9 @@ struct seeprom_config {
 #define		CFBIOS_BUSSCAN	0x0008	/* Have the BIOS Scan the Bus */
 #define		CFSM2DRV	0x0010	/* support more than two drives */
 #define		CFSTPWLEVEL	0x0010	/* Termination level control */
-#define		CF284XEXTEND	0x0020	/* extended translation (284x cards) */	
-#define		CFCTRL_A	0x0020	/* BIOS displays Ctrl-A message */	
-#define		CFTERM_MENU	0x0040	/* BIOS displays termination menu */	
+#define		CF284XEXTEND	0x0020	/* extended translation (284x cards) */
+#define		CFCTRL_A	0x0020	/* BIOS displays Ctrl-A message */
+#define		CFTERM_MENU	0x0040	/* BIOS displays termination menu */
 #define		CFEXTEND	0x0080	/* extended translation enabled */
 #define		CFSCAMEN	0x0100	/* SCAM enable */
 #define		CFMSG_LEVEL	0x0600	/* BIOS Message Level */
@@ -806,7 +806,7 @@ struct seeprom_config {
 /*
  * Host Adapter Control Bits
  */
-	uint16_t adapter_control;	/* word 17 */	
+	uint16_t adapter_control;	/* word 17 */
 #define		CFAUTOTERM	0x0001	/* Perform Auto termination */
 #define		CFULTRAEN	0x0002	/* Ultra SCSI speed enable */
 #define		CF284XSELTO     0x0003	/* Selection timeout (284x cards) */
@@ -814,7 +814,7 @@ struct seeprom_config {
 #define		CFSTERM		0x0004	/* SCSI low byte termination */
 #define		CFWSTERM	0x0008	/* SCSI high byte termination */
 #define		CFSPARITY	0x0010	/* SCSI parity */
-#define		CF284XSTERM     0x0020	/* SCSI low byte term (284x cards) */	
+#define		CF284XSTERM     0x0020	/* SCSI low byte term (284x cards) */
 #define		CFMULTILUN	0x0020
 #define		CFRESETB	0x0040	/* reset SCSI bus at boot */
 #define		CFCLUSTERENB	0x0080	/* Cluster Enable */
@@ -836,7 +836,7 @@ struct seeprom_config {
 /*
  * Maximum targets
  */
-	uint16_t max_targets;		/* word 19 */	
+	uint16_t max_targets;		/* word 19 */
 #define		CFMAXTARG	0x00ff	/* maximum targets */
 #define		CFBOOTLUN	0x0f00	/* Lun to boot from */
 #define		CFBOOTID	0xf000	/* Target to boot from */
@@ -1161,7 +1161,7 @@ int			 ahc_init(struct ahc_softc *ahc);
 void			 ahc_intr_enable(struct ahc_softc *ahc, int enable);
 void			 ahc_pause_and_flushwork(struct ahc_softc *ahc);
 #ifdef CONFIG_PM
-int			 ahc_suspend(struct ahc_softc *ahc); 
+int			 ahc_suspend(struct ahc_softc *ahc);
 int			 ahc_resume(struct ahc_softc *ahc);
 #endif
 void			 ahc_set_unit(struct ahc_softc *, int);

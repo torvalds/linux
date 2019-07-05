@@ -74,11 +74,11 @@ uni_xlate=<bool> -- Translate unhandled Unicode characters to special
 
 nonumtail=<bool> -- When creating 8.3 aliases, normally the alias will
                  end in '~1' or tilde followed by some number.  If this
-                 option is set, then if the filename is 
+                 option is set, then if the filename is
                  "longfilename.txt" and "longfile.txt" does not
                  currently exist in the directory, 'longfile.txt' will
-                 be the short alias instead of 'longfi~1.txt'. 
-                  
+                 be the short alias instead of 'longfi~1.txt'.
+
 usefree       -- Use the "free clusters" value stored on FSINFO. It'll
                  be used to determine number of free clusters without
                  scanning disk. But it's not used by default, because
@@ -242,20 +242,20 @@ case characters as opposed to the traditional 8.3 short names.
 Here is the description of the traditional FAT entry in the current
 Windows 95 filesystem:
 
-        struct directory { // Short 8.3 names 
-                unsigned char name[8];          // file name 
-                unsigned char ext[3];           // file extension 
-                unsigned char attr;             // attribute byte 
+        struct directory { // Short 8.3 names
+                unsigned char name[8];          // file name
+                unsigned char ext[3];           // file extension
+                unsigned char attr;             // attribute byte
 		unsigned char lcase;		// Case for base and extension
 		unsigned char ctime_ms;		// Creation time, milliseconds
 		unsigned char ctime[2];		// Creation time
 		unsigned char cdate[2];		// Creation date
 		unsigned char adate[2];		// Last access date
-		unsigned char reserved[2];	// reserved values (ignored) 
-                unsigned char time[2];          // time stamp 
-                unsigned char date[2];          // date stamp 
-                unsigned char start[2];         // starting cluster number 
-                unsigned char size[4];          // size of the file 
+		unsigned char reserved[2];	// reserved values (ignored)
+                unsigned char time[2];          // time stamp
+                unsigned char date[2];          // date stamp
+                unsigned char start[2];         // starting cluster number
+                unsigned char size[4];          // size of the file
         };
 
 The lcase field specifies if the base and/or the extension of an 8.3
@@ -278,16 +278,16 @@ specially formatted directory entry which holds up to 13 characters of
 a file's extended name.  Think of slots as additional labeling for the
 directory entry of the file to which they correspond.  Microsoft
 prefers to refer to the 8.3 entry for a file as its alias and the
-extended slot directory entries as the file name. 
+extended slot directory entries as the file name.
 
 The C structure for a slot directory entry follows:
 
-        struct slot { // Up to 13 characters of a long name 
-                unsigned char id;               // sequence number for slot 
-                unsigned char name0_4[10];      // first 5 characters in name 
+        struct slot { // Up to 13 characters of a long name
+                unsigned char id;               // sequence number for slot
+                unsigned char name0_4[10];      // first 5 characters in name
                 unsigned char attr;             // attribute byte
-                unsigned char reserved;         // always 0 
-                unsigned char alias_checksum;   // checksum for 8.3 alias 
+                unsigned char reserved;         // always 0
+                unsigned char alias_checksum;   // checksum for 8.3 alias
                 unsigned char name5_10[12];     // 6 more characters in name
                 unsigned char start[2];         // starting cluster number
                 unsigned char name11_12[4];     // last 2 characters in name
@@ -339,8 +339,8 @@ the following:
                         sum = (((sum&1)<<7)|((sum&0xfe)>>1)) + name[i]
                 }
 
-	3) If there is free space in the final slot, a Unicode NULL (0x0000) 
-	   is stored after the final character.  After that, all unused 
+	3) If there is free space in the final slot, a Unicode NULL (0x0000)
+	   is stored after the final character.  After that, all unused
 	   characters in the final slot are set to Unicode 0xFFFF.
 
 Finally, note that the extended name is stored in Unicode.  Each Unicode

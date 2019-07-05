@@ -95,7 +95,7 @@ static ssize_t scom_debug_read(struct file *filp, char __user *ubuf,
 	struct scom_debug_entry *ent = filp->private_data;
 	u64 __user *ubuf64 = (u64 __user *)ubuf;
 	loff_t off = *ppos;
-	ssize_t done = 0; 
+	ssize_t done = 0;
 	u64 reg, reg_cnt, val;
 	scom_map_t map;
 	int rc;
@@ -132,7 +132,7 @@ static ssize_t scom_debug_write(struct file* filp, const char __user *ubuf,
 	struct scom_debug_entry *ent = filp->private_data;
 	u64 __user *ubuf64 = (u64 __user *)ubuf;
 	loff_t off = *ppos;
-	ssize_t done = 0; 
+	ssize_t done = 0;
 	u64 reg, reg_cnt, val;
 	scom_map_t map;
 	int rc;

@@ -83,7 +83,7 @@ config HISAX_MAX_CARDS
 	default "8"
 	help
 	  This option allows you to specify the maximum number of cards which
-	  the HiSax driver will be able to handle.  
+	  the HiSax driver will be able to handle.
 
 comment "HiSax supported cards"
 
@@ -353,7 +353,7 @@ config HISAX_DEBUG
 	bool "HiSax debugging"
 	help
 	  This enables debugging code in the new-style HiSax drivers, i.e.
-	  the ST5481 USB driver currently. 
+	  the ST5481 USB driver currently.
 	  If in doubt, say yes.
 
 comment "HiSax PCMCIA card service modules"

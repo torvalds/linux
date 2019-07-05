@@ -199,7 +199,7 @@ typedef struct {
 	io7_csr MSI_CLR[16];		/* 0x31.c800 */
 } io7_port7_csrs;
 
-/* 
+/*
  * IO7 DMA Window Base register (POx_WBASEx)
  */
 #define wbase_m_ena  0x1
@@ -211,7 +211,7 @@ union IO7_POx_WBASE {
 		unsigned ena : 1;	/* <0>			*/
 		unsigned sg : 1;	/* <1>			*/
 		unsigned dac : 1;	/* <2> -- window 3 only */
-		unsigned rsvd1 : 17; 
+		unsigned rsvd1 : 17;
 		unsigned addr : 12;	/* <31:20>		*/
 		unsigned rsvd2 : 32;
 	} bits;
@@ -233,7 +233,7 @@ union IO7_IID {
 		unsigned tpu_mask : 4;		/* <12:9> rsvd	*/
 		unsigned msi : 1;		/* 13		*/
 		unsigned ipe : 10;		/* <23:14>	*/
-		unsigned long rsvd : 40;		
+		unsigned long rsvd : 40;
 	} bits;
 	unsigned int as_long[2];
 	unsigned long as_quad;
@@ -272,8 +272,8 @@ union IO7_IID {
 #define IO7_MEM_SPACE		(2UL * 1024 * 1024 * 1024)	/* 2GB MEM */
 #define IO7_IO_SPACE		(8UL * 1024 * 1024)		/* 8MB I/O */
 
- 
-/* 
+
+/*
  * Offset between ram physical addresses and pci64 DAC addresses
  */
 #define IO7_DAC_OFFSET		(1UL << 49)

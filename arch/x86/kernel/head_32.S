@@ -66,7 +66,7 @@ RESERVE_BRK(pagetables, INIT_MAP_SIZE)
 __HEAD
 ENTRY(startup_32)
 	movl pa(initial_stack),%ecx
-	
+
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 		us to not reload segments */
 	testb $KEEP_SEGMENTS, BP_loadflags(%esi)
@@ -408,7 +408,7 @@ ENTRY(early_idt_handler_array)
 	.fill early_idt_handler_array + i*EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
 ENDPROC(early_idt_handler_array)
-	
+
 early_idt_handler_common:
 	/*
 	 * The stack is the hardware frame, an error code or zero, and the

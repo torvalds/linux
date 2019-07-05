@@ -40,8 +40,8 @@ static struct hppb_card hppb_card_head = {
  * hppb_probe - Determine if the hppb driver should claim this device.
  * @dev: The device which has been found
  *
- * Determine if hppb driver should claim this chip (return 0) or not 
- * (return 1). If so, initialize the chip and tell other partners in crime 
+ * Determine if hppb driver should claim this chip (return 0) or not
+ * (return 1). If so, initialize the chip and tell other partners in crime
  * they have work to do.
  */
 static int __init hppb_probe(struct parisc_device *dev)
@@ -97,7 +97,7 @@ static struct parisc_driver hppb_driver __refdata = {
 /**
  * hppb_init - HP-PB bus initialization procedure.
  *
- * Register this driver.   
+ * Register this driver.
  */
 void __init hppb_init(void)
 {

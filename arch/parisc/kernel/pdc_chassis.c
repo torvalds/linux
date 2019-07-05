@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* 
+/*
  *    interfaces to Chassis Codes via PDC (firmware)
  *
  *    Copyright (C) 2002 Laurent Canet <canetl@esiee.fr>
@@ -42,7 +42,7 @@ static unsigned int pdc_chassis_enabled __read_mostly = 1;
  * @str configuration param: 0 to disable chassis log
  * @return 1
  */
- 
+
 static int __init pdc_chassis_setup(char *str)
 {
 	/*panic_timeout = simple_strtoul(str, NULL, 0);*/
@@ -52,10 +52,10 @@ static int __init pdc_chassis_setup(char *str)
 __setup("pdcchassis=", pdc_chassis_setup);
 
 
-/** 
+/**
  * pdc_chassis_checkold() - Checks for old PDC_CHASSIS compatibility
  * @pdc_chassis_old: 1 if old pdc chassis style
- * 
+ *
  * Currently, only E class and A180 are known to work with this.
  * Inspired by Christoph Plattner
  */
@@ -88,7 +88,7 @@ static int pdc_chassis_panic_event(struct notifier_block *this,
 {
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
 		return NOTIFY_DONE;
-}   
+}
 
 
 static struct notifier_block pdc_chassis_panic_block = {
@@ -108,7 +108,7 @@ static int pdc_chassis_reboot_event(struct notifier_block *this,
 {
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_SHUTDOWN);
 		return NOTIFY_DONE;
-}   
+}
 
 
 static struct notifier_block pdc_chassis_reboot_block = {
@@ -144,17 +144,17 @@ void __init parisc_pdc_chassis_init(void)
 }
 
 
-/** 
+/**
  * pdc_chassis_send_status() - Sends a predefined message to the chassis,
  * and changes the front panel LEDs according to the new system state
  * @retval: PDC call return value.
  *
  * Only machines with 64 bits PDC PAT and those reported in
  * pdc_chassis_checkold() are supported atm.
- * 
+ *
  * returns 0 if no error, -1 if no supported PDC is present or invalid message,
  * else returns the appropriate PDC error code.
- * 
+ *
  * For a list of predefined messages, see asm-parisc/pdc_chassis.h
  */
 

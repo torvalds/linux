@@ -577,7 +577,7 @@ __xscale_setup:
 	 *  R
 	 * .RVI ZFRS BLDP WCAM
 	 * ..11 1.01 .... .101
-	 * 
+	 *
 	 */
 	.type	xscale_crval, #object
 xscale_crval:

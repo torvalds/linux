@@ -130,7 +130,7 @@ int macio_init(void)
 static int macio_adb_autopoll(int devs)
 {
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&macio_lock, flags);
 	out_8(&adb->active_hi.r, devs >> 8);
 	out_8(&adb->active_lo.r, devs);
@@ -167,14 +167,14 @@ static int macio_send_request(struct adb_request *req, int sync)
 {
 	unsigned long flags;
 	int i;
-	
+
 	if (req->data[0] != ADB_PACKET)
 		return -EINVAL;
-	
+
 	for (i = 0; i < req->nbytes - 1; ++i)
 		req->data[i] = req->data[i+1];
 	--req->nbytes;
-	
+
 	req->next = NULL;
 	req->sent = 0;
 	req->complete = 0;
@@ -189,7 +189,7 @@ static int macio_send_request(struct adb_request *req, int sync)
 		out_8(&adb->ctrl.r, in_8(&adb->ctrl.r) | TAR);
 	}
 	spin_unlock_irqrestore(&macio_lock, flags);
-	
+
 	if (sync) {
 		while (!req->complete)
 			macio_adb_poll();

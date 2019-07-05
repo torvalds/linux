@@ -71,8 +71,8 @@ static int radeon_parse_montype_prop(struct device_node *dp, u8 **out_EDID,
 	const u8 *pedid = NULL;
 	const u8 *pmt = NULL;
 	u8 *tmp;
-        int i, mt = MT_NONE;  
-	
+        int i, mt = MT_NONE;
+
 	pr_debug("analyzing OF properties...\n");
 	pmt = of_get_property(dp, "display-type", NULL);
 	if (!pmt)
@@ -239,7 +239,7 @@ static int radeon_get_panel_info_BIOS(struct radeonfb_info *rinfo)
 			pr_debug("  vOver_plus: %d\n", rinfo->panel_info.vOver_plus);
 			pr_debug("  vSync_width: %d\n", rinfo->panel_info.vSync_width);
 			pr_debug("  clock: %d\n", rinfo->panel_info.clock);
-				
+
 			return 1;
 		}
 	}
@@ -326,7 +326,7 @@ static int radeon_crt_is_connected(struct radeonfb_info *rinfo, int is_crt_dac)
 	ulData              = ulOrigCRTC_EXT_CNTL;
 	ulData             |= CRTC_CRT_ON;
 	OUTREG(CRTC_EXT_CNTL, ulData);
-   
+
 	ulOrigDAC_EXT_CNTL = INREG(DAC_EXT_CNTL);
 	ulData             = ulOrigDAC_EXT_CNTL;
 	ulData            &= ~DAC_FORCE_DATA_MASK;
@@ -353,7 +353,7 @@ static int radeon_crt_is_connected(struct radeonfb_info *rinfo, int is_crt_dac)
 
 	ulData     = INREG(DAC_CNTL);
 	connected =  (DAC_CMP_OUTPUT & ulData) ? 1 : 0;
-  
+
 	ulData    = ulOrigVCLK_ECP_CNTL;
 	ulMask    = 0xFFFFFFFFL;
 	OUTPLLP(VCLK_ECP_CNTL, ulData, ulMask);
@@ -438,7 +438,7 @@ void radeon_probe_screens(struct radeonfb_info *rinfo,
 			  const char *monitor_layout, int ignore_edid)
 {
 #ifdef CONFIG_FB_RADEON_I2C
-	int ddc_crt2_used = 0;	
+	int ddc_crt2_used = 0;
 #endif
 	int tmp, i;
 
@@ -482,7 +482,7 @@ void radeon_probe_screens(struct radeonfb_info *rinfo,
 		/*
 		 * Auto-detecting display type (well... trying to ...)
 		 */
-		
+
 		pr_debug("Starting monitor auto detection...\n");
 
 #if defined(DEBUG) && defined(CONFIG_FB_RADEON_I2C)
@@ -517,7 +517,7 @@ void radeon_probe_screens(struct radeonfb_info *rinfo,
 			if (rinfo->mon1_type == MT_NONE)
 				rinfo->mon1_type =
 					radeon_probe_i2c_connector(rinfo, ddc_crt2,
-								   &rinfo->mon1_EDID);	
+								   &rinfo->mon1_EDID);
 #endif /* CONFIG_FB_RADEON_I2C */
 			if (rinfo->mon1_type == MT_NONE)
 				rinfo->mon1_type = MT_CRT;
@@ -703,7 +703,7 @@ static void radeon_var_to_panel_info(struct radeonfb_info *rinfo, struct fb_var_
 	rinfo->panel_info.vAct_high =
 		(var->sync & FB_SYNC_VERT_HIGH_ACT) != 0;
 	rinfo->panel_info.valid = 1;
-	/* We use a default of 200ms for the panel power delay, 
+	/* We use a default of 200ms for the panel power delay,
 	 * I need to have a real schedule() instead of mdelay's in the panel code.
 	 * we might be possible to figure out a better power delay either from
 	 * MacOS OF tree or from the EDID block (proprietary extensions ?)
@@ -836,7 +836,7 @@ void radeon_check_modes(struct radeonfb_info *rinfo, const char *mode_option)
 		rinfo->mon1_dbsize = info->monspecs.modedb_len;
 	}
 
-	
+
 	/*
 	 * Finally, if we don't have panel infos we need to figure some (or
 	 * we try to read it from card), we try to pick a default mode
@@ -1018,7 +1018,7 @@ int  radeon_match_mode(struct radeonfb_info *rinfo,
 			int d;
 
 			if (db[i].yres < src->yres)
-				continue;	
+				continue;
 			if (db[i].xres < src->xres)
 				continue;
 			d = radeon_compare_modes(src, &db[i]);

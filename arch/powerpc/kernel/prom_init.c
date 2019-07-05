@@ -4,9 +4,9 @@
  *
  * Paul Mackerras	August 1996.
  * Copyright (C) 1996-2005 Paul Mackerras.
- * 
+ *
  *  Adapted for 64bit PowerPC by Dave Engebretsen and Peter Bergner.
- *    {engebret|bergner}@us.ibm.com 
+ *    {engebret|bergner}@us.ibm.com
  */
 
 #undef DEBUG_PROM
@@ -1417,7 +1417,7 @@ static unsigned long __init alloc_up(unsigned long size, unsigned long align)
 	else
 		base = alloc_bottom;
 
-	for(; (base + size) <= alloc_top; 
+	for(; (base + size) <= alloc_top;
 	    base = _ALIGN_UP(base + 0x100000, align)) {
 		prom_debug("    trying: 0x%lx\n\r", base);
 		addr = (unsigned long)prom_claim(base, size, 0);
@@ -2069,7 +2069,7 @@ static void __init prom_hold_cpus(void)
 			call_prom("start-cpu", 3, 0, node,
 				  secondary_hold, cpu_no);
 
-			for (i = 0; (i < 100000000) && 
+			for (i = 0; (i < 100000000) &&
 			     (*acknowledge == ((unsigned long)-1)); i++ )
 				mb();
 
@@ -2296,7 +2296,7 @@ static void __init prom_check_displays(void)
 			      sizeof(prom_scratch) - 10) == PROM_ERROR)
 			continue;
 		prom_printf("found display   : %s, opening... ", path);
-		
+
 		ih = call_prom("open", 1, 1, path);
 		if (ih == 0) {
 			prom_printf("failed\n");
@@ -2589,7 +2589,7 @@ static void __init flatten_device_tree(void)
 	if (root == (phandle)0)
 		prom_panic ("couldn't get device tree root\n");
 
-	/* Build header and make room for mem rsv map */ 
+	/* Build header and make room for mem rsv map */
 	mem_start = _ALIGN(mem_start, 4);
 	hdr = make_room(&mem_start, &mem_end,
 			sizeof(struct boot_param_header), 4);
@@ -2607,14 +2607,14 @@ static void __init flatten_device_tree(void)
 	mem_start = (unsigned long)namep + prom_strlen(namep) + 1;
 
 	/* Build string array */
-	prom_printf("Building dt strings...\n"); 
+	prom_printf("Building dt strings...\n");
 	scan_dt_build_strings(root, &mem_start, &mem_end);
 	dt_string_end = mem_start;
 
 	/* Build structure */
 	mem_start = PAGE_ALIGN(mem_start);
 	dt_struct_start = mem_start;
-	prom_printf("Building dt structure...\n"); 
+	prom_printf("Building dt structure...\n");
 	scan_dt_build_struct(root, &mem_start, &mem_end);
 	dt_push_token(OF_DT_END, &mem_start, &mem_end);
 	dt_struct_end = PAGE_ALIGN(mem_start);
@@ -3168,7 +3168,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 			       unsigned long pp,
 			       unsigned long r6, unsigned long r7,
 			       unsigned long kbase)
-{	
+{
 	unsigned long hdr;
 
 #ifdef CONFIG_PPC32
@@ -3250,7 +3250,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_find_boot_cpu();
 
-	/* 
+	/*
 	 * Initialize display devices
 	 */
 	prom_check_displays();

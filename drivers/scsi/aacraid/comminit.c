@@ -360,12 +360,12 @@ int aac_send_shutdown(struct aac_dev * dev)
  *	@dev:	Adapter to initialise
  *
  *	Initializes the data structures that are required for the FSA commuication
- *	interface to operate. 
+ *	interface to operate.
  *	Returns
  *		1 - if we were able to init the commuication interface.
  *		0 - If there were errors initing. This is a fatal error.
  */
- 
+
 static int aac_comm_init(struct aac_dev * dev)
 {
 	unsigned long hdrsize = (sizeof(u32) * NUMBER_OF_COMM_QUEUES) * 2;
@@ -375,7 +375,7 @@ static int aac_comm_init(struct aac_dev * dev)
 	unsigned long size;
 	struct aac_queue_block * comm = dev->queues;
 	/*
-	 *	Now allocate and initialize the zone structures used as our 
+	 *	Now allocate and initialize the zone structures used as our
 	 *	pool of FIB context records.  The size of the zone is based
 	 *	on the system memory size.  We also initialize the mutex used
 	 *	to protect the zone.
@@ -384,7 +384,7 @@ static int aac_comm_init(struct aac_dev * dev)
 
 	/*
 	 *	Allocate the physically contiguous space for the commuication
-	 *	queue headers. 
+	 *	queue headers.
 	 */
 
 	size = hdrsize + queuesize;
@@ -394,7 +394,7 @@ static int aac_comm_init(struct aac_dev * dev)
 
 	queues = (struct aac_entry *)(((ulong)headers) + hdrsize);
 
-	/* Adapter to Host normal priority Command queue */ 
+	/* Adapter to Host normal priority Command queue */
 	comm->queue[HostNormCmdQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[HostNormCmdQueue], headers, HOST_NORM_CMD_ENTRIES);
 	queues += HOST_NORM_CMD_ENTRIES;
@@ -403,21 +403,21 @@ static int aac_comm_init(struct aac_dev * dev)
 	/* Adapter to Host high priority command queue */
 	comm->queue[HostHighCmdQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[HostHighCmdQueue], headers, HOST_HIGH_CMD_ENTRIES);
-    
+
 	queues += HOST_HIGH_CMD_ENTRIES;
 	headers +=2;
 
 	/* Host to adapter normal priority command queue */
 	comm->queue[AdapNormCmdQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[AdapNormCmdQueue], headers, ADAP_NORM_CMD_ENTRIES);
-    
+
 	queues += ADAP_NORM_CMD_ENTRIES;
 	headers += 2;
 
 	/* host to adapter high priority command queue */
 	comm->queue[AdapHighCmdQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[AdapHighCmdQueue], headers, ADAP_HIGH_CMD_ENTRIES);
-    
+
 	queues += ADAP_HIGH_CMD_ENTRIES;
 	headers += 2;
 
@@ -430,7 +430,7 @@ static int aac_comm_init(struct aac_dev * dev)
 	/* adapter to host high priority response queue */
 	comm->queue[HostHighRespQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[HostHighRespQueue], headers, HOST_HIGH_RESP_ENTRIES);
-   
+
 	queues += HOST_HIGH_RESP_ENTRIES;
 	headers += 2;
 
@@ -440,8 +440,8 @@ static int aac_comm_init(struct aac_dev * dev)
 
 	queues += ADAP_NORM_RESP_ENTRIES;
 	headers += 2;
-	
-	/* host to adapter high priority response queue */ 
+
+	/* host to adapter high priority response queue */
 	comm->queue[AdapHighRespQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[AdapHighRespQueue], headers, ADAP_HIGH_RESP_ENTRIES);
 
@@ -647,7 +647,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		kfree(dev->queues);
 		return NULL;
 	}
-		
+
 	INIT_LIST_HEAD(&dev->fib_list);
 	INIT_LIST_HEAD(&dev->sync_fib_list);
 

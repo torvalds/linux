@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
+ * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family
  * of PCI-SCSI IO processors.
  *
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
@@ -8,7 +8,7 @@
  * This driver is derived from the Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
- * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ * The sym53c8xx driver is derived from the ncr53c8xx driver that had been
  * a port of the FreeBSD ncr driver to Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
@@ -30,18 +30,18 @@
  *  Simple power of two buddy-like generic allocator.
  *  Provides naturally aligned memory chunks.
  *
- *  This simple code is not intended to be fast, but to 
+ *  This simple code is not intended to be fast, but to
  *  provide power of 2 aligned memory allocations.
- *  Since the SCRIPTS processor only supplies 8 bit arithmetic, 
- *  this allocator allows simple and fast address calculations  
- *  from the SCRIPTS code. In addition, cache line alignment 
+ *  Since the SCRIPTS processor only supplies 8 bit arithmetic,
+ *  this allocator allows simple and fast address calculations
+ *  from the SCRIPTS code. In addition, cache line alignment
  *  is guaranteed for power of 2 cache line size.
  *
- *  This allocator has been developed for the Linux sym53c8xx  
- *  driver, since this O/S does not provide naturally aligned 
+ *  This allocator has been developed for the Linux sym53c8xx
+ *  driver, since this O/S does not provide naturally aligned
  *  allocations.
- *  It has the advantage of allowing the driver to use private 
- *  pages of memory that will be useful if we ever need to deal 
+ *  It has the advantage of allowing the driver to use private
+ *  pages of memory that will be useful if we ever need to deal
  *  with IO MMUs for PCI.
  */
 static void *___sym_malloc(m_pool_p mp, int size)
@@ -174,7 +174,7 @@ static void __sym_mfree(m_pool_p mp, void *ptr, int size, char *name)
 /*
  *  Default memory pool we donnot need to involve in DMA.
  *
- *  With DMA abstraction, we use functions (methods), to 
+ *  With DMA abstraction, we use functions (methods), to
  *  distinguish between non DMAable memory and DMAable memory.
  */
 static void *___mp0_get_mem_cluster(m_pool_p mp)
@@ -338,7 +338,7 @@ void __sym_mfree_dma(m_pool_ident_t dev_dmat, void *m, int size, char *name)
 }
 
 /*
- *  Actual virtual to bus physical address translator 
+ *  Actual virtual to bus physical address translator
  *  for 32 bit addressable DMAable memory.
  */
 dma_addr_t __vtobus(m_pool_ident_t dev_dmat, void *m)

@@ -97,7 +97,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 	}
 
 	if (!strncmp(oh_name, "mpu", 3))
-		/* 
+		/*
 		 * All current OMAPs share voltage rail and clock
 		 * source, so CPU0 is used to represent the MPU-SS.
 		 */

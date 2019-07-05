@@ -383,7 +383,7 @@ adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 	}
 
 	__adfs_dir_put(dir, ret, obj);
- 
+
 	/*
 	 * Increment directory sequence number
 	 */

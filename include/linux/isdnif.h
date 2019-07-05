@@ -5,7 +5,7 @@
  *
  * Copyright 1994,95,96 by Fritz Elfert (fritz@isdn4linux.de)
  * Copyright 1995,96    Thinking Objects Software GmbH Wuerzburg
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -19,29 +19,29 @@
 
 /***************************************************************************/
 /* Extensions made by Werner Cornelius (werner@ikt.de)                     */
-/*                                                                         */ 
+/*                                                                         */
 /* The proceed command holds a incoming call in a state to leave processes */
 /* enough time to check whether ist should be accepted.                    */
 /* The PROT_IO Command extends the interface to make protocol dependent    */
 /* features available (call diversion, call waiting...).                   */
-/*                                                                         */ 
+/*                                                                         */
 /* The PROT_IO Command is executed with the desired driver id and the arg  */
 /* parameter coded as follows:                                             */
 /* The lower 8 bits of arg contain the desired protocol from ISDN_PTYPE    */
 /* definitions. The upper 24 bits represent the protocol specific cmd/stat.*/
 /* Any additional data is protocol and command specific.                   */
-/* This mechanism also applies to the statcallb callback STAT_PROT.        */    
+/* This mechanism also applies to the statcallb callback STAT_PROT.        */
 /*                                                                         */
 /* This suggested extension permits an easy expansion of protocol specific */
 /* handling. Extensions may be added at any time without changing the HL   */
 /* driver code and not getting conflicts without certifications.           */
 /* The well known CAPI 2.0 interface handles such extensions in a similar  */
 /* way. Perhaps a protocol specific module may be added and separately     */
-/* loaded and linked to the basic isdn module for handling.                */                    
+/* loaded and linked to the basic isdn module for handling.                */
 /***************************************************************************/
 
 /*****************/
-/* DSS1 commands */ 
+/* DSS1 commands */
 /*****************/
 #define DSS1_CMD_INVOKE       ((0x00 << 8) | ISDN_PTYPE_EURO)   /* invoke a supplementary service */
 #define DSS1_CMD_INVOKE_ABORT ((0x01 << 8) | ISDN_PTYPE_EURO)   /* abort a invoke cmd */
@@ -82,11 +82,11 @@
 /*                                                                   */
 /* Broadcast invoke frames from the network are reported via the     */
 /* STAT_INVOKE_BRD callback. The ll_id is set to 0, the other fields */
-/* are supplied by the network and not by the HL.                    */   
+/* are supplied by the network and not by the HL.                    */
 /*********************************************************************/
 
 /*****************/
-/* NI1 commands */ 
+/* NI1 commands */
 /*****************/
 #define NI1_CMD_INVOKE       ((0x00 << 8) | ISDN_PTYPE_NI1)   /* invoke a supplementary service */
 #define NI1_CMD_INVOKE_ABORT ((0x01 << 8) | ISDN_PTYPE_NI1)   /* abort a invoke cmd */
@@ -105,9 +105,9 @@ typedef struct
     int hl_id;   /* ID supplied by HL when called       */
                  /* for executing a cmd and delivered   */
                  /* for results and errors              */
-                 /* must be supplied by LL when aborting*/  
+                 /* must be supplied by LL when aborting*/
     int proc;    /* invoke procedure used by CMD_INVOKE */
-                 /* returned by callback and broadcast  */ 
+                 /* returned by callback and broadcast  */
     int timeout; /* timeout for INVOKE CMD in ms        */
                  /* -1  in stat callback when timed out */
                  /* error value when error callback     */
@@ -375,7 +375,7 @@ typedef struct {
 		u_char num[50];	/* Additional Data			*/
 		setup_parm setup;/* For SETUP msg			*/
 		capi_msg cmsg;	/* For CAPI like messages		*/
-		char display[85];/* display message data		*/ 
+		char display[85];/* display message data		*/
 		isdn_cmd_stat isdn_io; /* ISDN IO-parameter/result	*/
 		aux_s aux;	/* for modem commands/indications	*/
 #ifdef CONFIG_ISDN_TTY_FAX
@@ -402,7 +402,7 @@ typedef struct {
    */
   int channels;
 
-  /* 
+  /*
    * Maximum Size of transmit/receive-buffer this driver supports.
    */
   int maxbufsize;

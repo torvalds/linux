@@ -29,7 +29,7 @@ static ssize_t snd_gf1_mem_proc_dump(struct snd_info_entry *entry,
 	if (err < 0)
 		return err;
 	return count;
-}			
+}
 
 static void snd_gf1_mem_proc_free(struct snd_info_entry *entry)
 {

@@ -39,7 +39,7 @@
 #define FIXUP_BRANCH_CLOBBER "r1"
 
 /* 1111 1100 0000 0000 0001 0011 1100 0000 */
-#define OPCODE1(a,b,c)	((a)<<26|(b)<<12|(c)<<6) 
+#define OPCODE1(a,b,c)	((a)<<26|(b)<<12|(c)<<6)
 #define OPCODE2(a,b)	((a)<<26|(b)<<1)
 #define OPCODE3(a,b)	((a)<<26|(b)<<2)
 #define OPCODE4(a)	((a)<<26)
@@ -124,7 +124,7 @@ static int emulate_ldh(struct pt_regs *regs, int toreg)
 	unsigned long val = 0;
 	int ret;
 
-	DPRINTF("load " RFMT ":" RFMT " to r%d for 2 bytes\n", 
+	DPRINTF("load " RFMT ":" RFMT " to r%d for 2 bytes\n",
 		regs->isr, regs->ior, toreg);
 
 	__asm__ __volatile__  (
@@ -158,7 +158,7 @@ static int emulate_ldw(struct pt_regs *regs, int toreg, int flop)
 	unsigned long val = 0;
 	int ret;
 
-	DPRINTF("load " RFMT ":" RFMT " to r%d for 4 bytes\n", 
+	DPRINTF("load " RFMT ":" RFMT " to r%d for 4 bytes\n",
 		regs->isr, regs->ior, toreg);
 
 	__asm__ __volatile__  (
@@ -197,7 +197,7 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 	__u64 val = 0;
 	int ret;
 
-	DPRINTF("load " RFMT ":" RFMT " to r%d for 8 bytes\n", 
+	DPRINTF("load " RFMT ":" RFMT " to r%d for 8 bytes\n",
 		regs->isr, regs->ior, toreg);
 #ifdef CONFIG_PA20
 
@@ -273,7 +273,7 @@ static int emulate_sth(struct pt_regs *regs, int frreg)
 	if (!frreg)
 		val = 0;
 
-	DPRINTF("store r%d (0x" RFMT ") to " RFMT ":" RFMT " for 2 bytes\n", frreg, 
+	DPRINTF("store r%d (0x" RFMT ") to " RFMT ":" RFMT " for 2 bytes\n", frreg,
 		val, regs->isr, regs->ior);
 
 	__asm__ __volatile__ (
@@ -308,7 +308,7 @@ static int emulate_stw(struct pt_regs *regs, int frreg, int flop)
 	else
 		val = 0;
 
-	DPRINTF("store r%d (0x" RFMT ") to " RFMT ":" RFMT " for 4 bytes\n", frreg, 
+	DPRINTF("store r%d (0x" RFMT ") to " RFMT ":" RFMT " for 4 bytes\n", frreg,
 		val, regs->isr, regs->ior);
 
 
@@ -354,7 +354,7 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 	else
 		val = 0;
 
-	DPRINTF("store r%d (0x%016llx) to " RFMT ":" RFMT " for 8 bytes\n", frreg, 
+	DPRINTF("store r%d (0x%016llx) to " RFMT ":" RFMT " for 8 bytes\n", frreg,
 		val,  regs->isr, regs->ior);
 
 #ifdef CONFIG_PA20
@@ -456,7 +456,7 @@ void handle_unaligned(struct pt_regs *regs)
 			printk(KERN_WARNING "%s", buf);
 #ifdef DEBUG_UNALIGNED
 			show_regs(regs);
-#endif		
+#endif
 		}
 
 		if (!unaligned_enabled)
@@ -685,7 +685,7 @@ force_sigbus:
 			force_sig_fault(SIGBUS, BUS_ADRALN,
 					(void __user *)regs->ior, current);
 		}
-		
+
 		return;
 	}
 

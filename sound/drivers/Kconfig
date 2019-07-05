@@ -43,7 +43,7 @@ menuconfig SND_DRIVERS
 	default y
 	help
 	  Support for generic sound devices.
-  
+
 if SND_DRIVERS
 
 config SND_PCSP
@@ -141,12 +141,12 @@ config SND_MTS64
 	depends on PARPORT
 	select SND_RAWMIDI
 	help
-	  The ESI Miditerminal 4140 is a 4 In 4 Out MIDI Interface with 
+	  The ESI Miditerminal 4140 is a 4 In 4 Out MIDI Interface with
           additional SMPTE Timecode capabilities for the parallel port.
 
 	  Say 'Y' to include support for this device.
 
-	  To compile this driver as a module, chose 'M' here: the module 
+	  To compile this driver as a module, chose 'M' here: the module
           will be called snd-mts64.
 
 config SND_SERIAL_U16550

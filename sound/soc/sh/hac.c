@@ -109,7 +109,7 @@ static int hac_get_codec_data(struct hac_priv *hac, unsigned short r,
 		     to1 && !(HACREG(HACRSR) & RSR_STARY);
 		     --to1)
 			udelay(1);
-		for (to2 = TMO_E4; 
+		for (to2 = TMO_E4;
 		     to2 && !(HACREG(HACRSR) & RSR_STDRY);
 		     --to2)
 			udelay(1);

@@ -83,7 +83,7 @@ struct s_queue {
 struct s_ecm {
 	u_char path_test ;		/* ECM path test variable */
 	u_char sb_flag ;		/* ECM stuck bypass */
-	u_char DisconnectFlag ;		/* jd 05-Aug-1999 Bug #10419 
+	u_char DisconnectFlag ;		/* jd 05-Aug-1999 Bug #10419
 					 * ECM disconnected */
 	u_char ecm_line_state ;		/* flag to dispatcher : line states */
 	u_long trace_prop ;		/* ECM Trace_Prop flag >= 16 bits !! */

@@ -50,7 +50,7 @@
 !
 	.global	__lshrsi3
 	.global	__lshrsi3_r0
-	
+
 	.align	2
 __lshrsi3:
 	mov	r5,r0

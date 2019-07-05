@@ -32,7 +32,7 @@
  *  HINT:
  *  Support of the soft power switch button may be enabled or disabled at
  *  runtime through the "/proc/sys/kernel/power" procfs entry.
- */ 
+ */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -62,11 +62,11 @@
 
 #define MFCPU_X(rDiagReg, t_ch, t_th, code) \
 	(DIAG_CODE(code) + ((rDiagReg)<<21) + ((t_ch)<<16) + ((t_th)<<0) )
-	
+
 #define MTCPU(dr, gr)		MFCPU_X(dr, gr,  0, 0x12)       /* move value of gr to dr[dr] */
 #define MFCPU_C(dr, gr)		MFCPU_X(dr, gr,  0, 0x30)	/* for dr0 and dr8 only ! */
 #define MFCPU_T(dr, gr)		MFCPU_X(dr,  0, gr, 0xa0)	/* all dr except dr0 and dr8 */
-	
+
 #define __getDIAG(dr) ( { 			\
         register unsigned long __res asm("r28");\
 	 __asm__ __volatile__ (			\
@@ -85,7 +85,7 @@ static void process_shutdown(void)
 		printk(KERN_ALERT KTHREAD_NAME ": Shutdown requested...\n");
 
 	shutdown_timer++;
-	
+
 	/* wait until the button was pressed for 1 second */
 	if (shutdown_timer == (POWERSWITCH_DOWN_SEC*POWERSWITCH_POLL_PER_SEC)) {
 		static const char msg[] = "Shutting down...";
@@ -135,7 +135,7 @@ static int kpowerswd(void *param)
 			button_not_pressed = (gsc_readl(soft_power_reg) & 0x1);
 		} else {
 			/*
-			 * On gecko style machines (e.g. 712/xx and 715/xx) 
+			 * On gecko style machines (e.g. 712/xx and 715/xx)
 			 * the power switch status is stored in Bit 0 ("the highest bit")
 			 * of CPU diagnose register 25.
 			 * Warning: Some machines never reset the DIAG flag, even if
@@ -161,7 +161,7 @@ static int kpowerswd(void *param)
 
 
 /*
- * powerfail interruption handler (irq IRQ_FROM_REGION(CPU_IRQ_REGION)+2) 
+ * powerfail interruption handler (irq IRQ_FROM_REGION(CPU_IRQ_REGION)+2)
  */
 #if 0
 static void powerfail_interrupt(int code, void *x)
@@ -176,7 +176,7 @@ static void powerfail_interrupt(int code, void *x)
 
 /* parisc_panic_event() is called by the panic handler.
  * As soon as a panic occurs, our tasklets above will not be
- * executed any longer. This function then re-enables the 
+ * executed any longer. This function then re-enables the
  * soft-power switch and allows the user to switch off the system
  */
 static int parisc_panic_event(struct notifier_block *this,
@@ -209,14 +209,14 @@ static int __init power_init(void)
 		ret = pdc_soft_power_button(1);
 	if (ret != PDC_OK)
 		soft_power_reg = -1UL;
-	
+
 	switch (soft_power_reg) {
 	case 0:		printk(KERN_INFO DRIVER_NAME ": Gecko-style soft power switch enabled.\n");
 			break;
-			
+
 	case -1UL:	printk(KERN_INFO DRIVER_NAME ": Soft power switch support not available.\n");
 			return -ENODEV;
-	
+
 	default:	printk(KERN_INFO DRIVER_NAME ": Soft power switch at 0x%08lx enabled.\n",
 				soft_power_reg);
 	}

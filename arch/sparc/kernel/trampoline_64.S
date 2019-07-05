@@ -303,7 +303,7 @@ after_lock_tlb:
 
 	call		hard_smp_processor_id
 	 nop
-	
+
 	call		sun4v_register_mondo_queues
 	 nop
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* 
+/*
  *    PDC Console support - ie use firmware to dump text via boot console
  *
  *    Copyright (C) 1999-2003 Matthew Wilcox <willy at parisc-linux.org>
@@ -17,7 +17,7 @@
  */
 
 /*
- *  The PDC console is a simple console, which can be used for debugging 
+ *  The PDC console is a simple console, which can be used for debugging
  *  boot related problems on HP PA-RISC machines. It is also useful when no
  *  other console works.
  *
@@ -25,7 +25,7 @@
  *  from and to PDC's boot path.
  */
 
-/* Define EARLY_BOOTUP_DEBUG to debug kernel related boot problems. 
+/* Define EARLY_BOOTUP_DEBUG to debug kernel related boot problems.
  * On production kernels EARLY_BOOTUP_DEBUG should be undefined. */
 #define EARLY_BOOTUP_DEBUG
 
@@ -220,7 +220,7 @@ static void pdc_console_init_force(void)
 	if (pdc_console_initialized)
 		return;
 	++pdc_console_initialized;
-	
+
 	/* If the console is duplex then copy the COUT parameters to CIN. */
 	if (PAGE0->mem_cons.cl_class == CL_DUPLEX)
 		memcpy(&PAGE0->mem_kbd, &PAGE0->mem_cons, sizeof(PAGE0->mem_cons));

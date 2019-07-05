@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2004 Keith M Wesolowski
  * Copyright (C) 2007 Kyle McMartin
- * 
+ *
  * Based on asm-parisc/atomic.h Copyright (C) 2000 Philipp Rumpf
  */
 

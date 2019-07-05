@@ -6,7 +6,7 @@
  *	Copyright (C) 1996 Jay A Estabrook
  *	Copyright (C) 1998, 1999 Richard Henderson
  *
- * Code supporting the NORITAKE (AlphaServer 1000A), 
+ * Code supporting the NORITAKE (AlphaServer 1000A),
  * CORELLE (AlphaServer 800), and ALCOR Primo (AlphaStation 600A).
  */
 
@@ -67,7 +67,7 @@ static struct irq_chip noritake_irq_type = {
 	.irq_mask_ack	= noritake_disable_irq,
 };
 
-static void 
+static void
 noritake_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;
@@ -94,7 +94,7 @@ noritake_device_interrupt(unsigned long vector)
 	}
 }
 
-static void 
+static void
 noritake_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
@@ -187,9 +187,9 @@ noritake_init_irq(void)
  * 11       PCI on board slot 0
  * 12       PCI on board slot 1
  * 13       PCI on board slot 2
- *   
  *
- * This two layered interrupt approach means that we allocate IRQ 16 and 
+ *
+ * This two layered interrupt approach means that we allocate IRQ 16 and
  * above for PCI interrupts.  The IRQ relates to which bit the interrupt
  * comes in on.  This makes interrupt processing much easier.
  */
@@ -210,7 +210,7 @@ noritake_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		{ 16+4,  16+4,  16+5,  32+4,  32+5},  /* IdSel 23,  slot 1 */
 		{ 16+6,  16+6,  16+7,  32+6,  32+7},  /* IdSel 24,  slot 2 */
 		{ 16+8,  16+8,  16+9,  32+8,  32+9},  /* IdSel 25,  slot 3 */
-		/* The following 5 are actually on PCI bus 1, which is 
+		/* The following 5 are actually on PCI bus 1, which is
 		   across the built-in bridge of the NORITAKE only.  */
 		{ 16+1,  16+1,  16+1,  16+1,  16+1},  /* IdSel 16,  QLOGIC */
 		{ 16+8,  16+8,  16+9,  32+8,  32+9},  /* IdSel 17,  slot 3 */

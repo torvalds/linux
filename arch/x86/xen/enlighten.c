@@ -14,7 +14,7 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/cpu.h>
-#include <asm/e820/api.h> 
+#include <asm/e820/api.h>
 
 #include "xen-ops.h"
 #include "smp.h"

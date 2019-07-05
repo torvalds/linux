@@ -85,7 +85,7 @@ wrap_mmu_context (struct mm_struct *mm)
 		flush_bit = xchg(&ia64_ctx.flushmap[i], 0);
 		ia64_ctx.bitmap[i] ^= flush_bit;
 	}
- 
+
 	/* use offset at 300 to skip daemons */
 	ia64_ctx.next = find_next_zero_bit(ia64_ctx.bitmap,
 				ia64_ctx.max_ctx, 300);

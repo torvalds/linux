@@ -100,4 +100,4 @@ struct tape390_kekl_pair {
  */
 #define TAPE390_KEKL_QUERY _IOR('d', 5, struct tape390_kekl_pair)
 
-#endif 
+#endif

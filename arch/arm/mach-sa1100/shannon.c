@@ -42,7 +42,7 @@ static struct mtd_partition shannon_partitions[] = {
 	},
 	{
 		.name		= "initrd",
-		.offset		= MTDPART_OFS_APPEND,	
+		.offset		= MTDPART_OFS_APPEND,
 		.size		= MTDPART_SIZ_FULL
 	}
 };

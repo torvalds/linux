@@ -380,11 +380,11 @@ void mpc52xx_lpbfifo_poll(void)
 	int write = req->flags & MPC52XX_LPBFIFO_FLAG_WRITE;
 
 	/*
-	 * For more information, see comments on the "Fat Lady" 
+	 * For more information, see comments on the "Fat Lady"
 	 */
 	if (dma && write)
 		mpc52xx_lpbfifo_irq(0, NULL);
-	else 
+	else
 		mpc52xx_lpbfifo_bcom_irq(0, NULL);
 }
 EXPORT_SYMBOL(mpc52xx_lpbfifo_poll);
@@ -550,7 +550,7 @@ static int mpc52xx_lpbfifo_remove(struct platform_device *op)
 	/* Release the bestcomm transmit task */
 	free_irq(bcom_get_task_irq(lpbfifo.bcom_tx_task), &lpbfifo);
 	bcom_gen_bd_tx_release(lpbfifo.bcom_tx_task);
-	
+
 	/* Release the bestcomm receive task */
 	free_irq(bcom_get_task_irq(lpbfifo.bcom_rx_task), &lpbfifo);
 	bcom_gen_bd_rx_release(lpbfifo.bcom_rx_task);

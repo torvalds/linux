@@ -212,32 +212,32 @@ jumbo=[0|1]			- Specifies the jumbo frame support. If jumbo=1,
 				  function is disabled.
 				  Jumbo frame usually improve the performance
 				  int gigabit.
-				  This feature need jumbo frame compatible 
+				  This feature need jumbo frame compatible
 				  remote.
-				  
+
 rx_coalesce=m			- Number of rx frame handled each interrupt.
-rx_timeout=n			- Rx DMA wait time for an interrupt. 
-				  If set rx_coalesce > 0, hardware only assert 
-				  an interrupt for m frames. Hardware won't 
+rx_timeout=n			- Rx DMA wait time for an interrupt.
+				  If set rx_coalesce > 0, hardware only assert
+				  an interrupt for m frames. Hardware won't
 				  assert rx interrupt until m frames received or
-				  reach timeout of n * 640 nano seconds. 
-				  Set proper rx_coalesce and rx_timeout can 
+				  reach timeout of n * 640 nano seconds.
+				  Set proper rx_coalesce and rx_timeout can
 				  reduce congestion collapse and overload which
 				  has been a bottleneck for high speed network.
-				  
+
 				  For example, rx_coalesce=10 rx_timeout=800.
-				  that is, hardware assert only 1 interrupt 
-				  for 10 frames received or timeout of 512 us. 
+				  that is, hardware assert only 1 interrupt
+				  for 10 frames received or timeout of 512 us.
 
 tx_coalesce=n			- Number of tx frame handled each interrupt.
-				  Set n > 1 can reduce the interrupts 
+				  Set n > 1 can reduce the interrupts
 				  congestion usually lower performance of
 				  high speed network card. Default is 16.
-				  
-tx_flow=[1|0]			- Specifies the Tx flow control. If tx_flow=0, 
+
+tx_flow=[1|0]			- Specifies the Tx flow control. If tx_flow=0,
 				  the Tx flow control disable else driver
 				  autodetect.
-rx_flow=[1|0]			- Specifies the Rx flow control. If rx_flow=0, 
+rx_flow=[1|0]			- Specifies the Rx flow control. If rx_flow=0,
 				  the Rx flow control enable else driver
 				  autodetect.
 

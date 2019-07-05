@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-/* This struct defines the way the registers are stored on the 
+/* This struct defines the way the registers are stored on the
  * stack during a system call.
  *
  * N.B. gdb/strace care about the size and offsets within this

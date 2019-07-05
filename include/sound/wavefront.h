@@ -17,7 +17,7 @@
      then WavePatch-format files cannot be read/written correctly.
      The method used to do this here ("__attribute__((packed)") is
      completely compiler dependent.
-     
+
      All other wavefront_* types end up aligned to 32 bit values and
      still have the same (correct) size.
 
@@ -26,17 +26,17 @@
      /* However, note that as of G++ 2.7.3.2, g++ was unable to
 	correctly parse *type* __attribute__ tags. It will do the
 	right thing if we use the "packed" attribute on each struct
-	member, which has the same semantics anyway. 
+	member, which has the same semantics anyway.
      */
 
 #endif /* __GNUC__ */
 
 /***************************** WARNING ********************************
-  PLEASE DO NOT MODIFY THIS FILE IN ANY WAY THAT AFFECTS ITS ABILITY TO 
+  PLEASE DO NOT MODIFY THIS FILE IN ANY WAY THAT AFFECTS ITS ABILITY TO
   BE USED WITH EITHER C *OR* C++.
  **********************************************************************/
 
-#ifndef NUM_MIDIKEYS 
+#ifndef NUM_MIDIKEYS
 #define NUM_MIDIKEYS 128
 #endif  /* NUM_MIDIKEYS */
 
@@ -48,8 +48,8 @@
    was developed on a 16 bit system, where sizeof(int) = 2
    bytes. Defining things like this makes the code much more portable, and
    easier to understand without having to toggle back and forth
-   between a 16-bit view of the world and a 32-bit one. 
- */   
+   between a 16-bit view of the world and a 32-bit one.
+ */
 
 #ifndef __KERNEL__
 /* keep them for compatibility */
@@ -165,7 +165,7 @@ typedef u8 UCHAR8;
 
 /* Magic MIDI bytes used to switch I/O streams on the ICS2115 MPU401
    emulation. Note these NEVER show up in output from the device and
-   should NEVER be used in input unless Virtual MIDI mode has been 
+   should NEVER be used in input unless Virtual MIDI mode has been
    disabled. If they do show up as input, the results are unpredictable.
 */
 
@@ -273,10 +273,10 @@ struct wf_patch
     u8 restart:1;
     u8 filterconfig:2; /* SDK says "not used" */
     u8 reuse:1;
-    u8 reset_lfo:1;    
+    u8 reset_lfo:1;
 
     u8 fm_src2:4;
-    u8 fm_src1:4;   
+    u8 fm_src1:4;
 
     s8 fm_amount1;
     s8 fm_amount2;
@@ -335,8 +335,8 @@ struct wf_sample_offset
     s32 Integer:20;
     s32 Unused:8;
 };
-typedef struct wf_sample_offset wavefront_sample_offset;          
-     
+typedef struct wf_sample_offset wavefront_sample_offset;
+
 /* Sample slot types */
 
 #define WF_ST_SAMPLE      0
@@ -379,19 +379,19 @@ typedef struct wf_sample_offset wavefront_sample_offset;
 #define WF_SAMPLE_IS_8BIT(smpl) ((smpl)->SampleResolution&2)
 
 
-/* 
+/*
 
   Because most/all of the sample data we pass in via pointers has
   never been copied (just mmap-ed into user space straight from the
   disk), it would be nice to allow handling of multi-channel sample
   data without forcing user-level extraction of the relevant bytes.
-  
+
   So, we need a way of specifying which channel to use (the WaveFront
   only handles mono samples in a given slot), and the only way to do
   this without using some struct other than wavefront_sample as the
   interface is the awful hack of using the unused bits in a
   wavefront_sample:
-  
+
   Val      Meaning
   ---      -------
   0        no channel selection (use channel 1, sample is MONO)
@@ -407,7 +407,7 @@ typedef struct wf_sample_offset wavefront_sample_offset;
   of sample data just to select one of them needs to find some tools
   like sox ...
 
-  NOTE: values 0, 1 and 2 correspond to WF_CH_* above. This is 
+  NOTE: values 0, 1 and 2 correspond to WF_CH_* above. This is
   important.
 
 */
@@ -415,11 +415,11 @@ typedef struct wf_sample_offset wavefront_sample_offset;
 #define WF_SET_CHANNEL(samp,chn) \
  (samp)->Unused1 = chn & 0x1; \
  (samp)->Unused2 = chn & 0x2; \
- (samp)->Unused3 = chn & 0x4 
-  
+ (samp)->Unused3 = chn & 0x4
+
 #define WF_GET_CHANNEL(samp) \
   (((samp)->Unused3 << 2)|((samp)->Unused2<<1)|(samp)->Unused1)
-  
+
 typedef struct wf_sample {
     struct wf_sample_offset sampleStartOffset;
     struct wf_sample_offset loopStartOffset;
@@ -457,13 +457,13 @@ typedef struct wf_alias {
     u8 Unused2:1;
     u8 Reverse:1;
     u8 Unused3:1;
-    
+
     /* This structure is meant to be padded only to 16 bits on their
        original. Of course, whoever wrote their documentation didn't
        realize that sizeof(struct) can be >=
        sum(sizeof(struct-fields)) and so thought that giving a C level
        description of the structs used in WavePatch files was
-       sufficient. I suppose it was, as long as you remember the 
+       sufficient. I suppose it was, as long as you remember the
        standard 16->32 bit issues.
     */
 
@@ -513,7 +513,7 @@ typedef union wf_any {
  */
 
 typedef struct wf_patch_info {
-    
+
     /* the first two fields are used by the OSS "patch loading" interface
        only, and are unused by the current user-level library.
     */
@@ -526,14 +526,14 @@ typedef struct wf_patch_info {
 
     u16  number;            /* patch/sample/prog number */
 
-    u32  size;              /* size of any data included in 
+    u32  size;              /* size of any data included in
 				  one of the fields in `hdrptr', or
 				  as `dataptr'.
 
 				  NOTE: for actual samples, this is
 				  the size of the *SELECTED CHANNEL*
 				  even if more data is actually available.
-				  
+
 				  So, a stereo sample (2 channels) of
 				  6000 bytes total has `size' = 3000.
 
@@ -544,7 +544,7 @@ typedef struct wf_patch_info {
     wavefront_any __user *hdrptr;      /* user-space ptr to hdr bytes */
     u16 __user *dataptr;            /* actual sample data */
 
-    wavefront_any hdr;          /* kernel-space copy of hdr bytes */         
+    wavefront_any hdr;          /* kernel-space copy of hdr bytes */
 } wavefront_patch_info;
 
 /* The maximum number of bytes we will ever move to or from user space
@@ -584,7 +584,7 @@ typedef struct wavefront_control {
 #define WF_MOD_RANDOM    8
 #define WF_MOD_PRESSURE  9
 #define WF_MOD_MOD_WHEEL 10
-#define WF_MOD_1         WF_MOD_MOD_WHEEL 
+#define WF_MOD_1         WF_MOD_MOD_WHEEL
 #define WF_MOD_BREATH    11
 #define WF_MOD_2         WF_MOD_BREATH
 #define WF_MOD_FOOT      12
@@ -603,8 +603,8 @@ typedef struct wf_fx_info {
     long data[4];             /* we don't need much */
 } wavefront_fx_info;
 
-/* support for each of these will be forthcoming once I or someone 
-   else has figured out which of the addresses on page 6 and page 7 of 
+/* support for each of these will be forthcoming once I or someone
+   else has figured out which of the addresses on page 6 and page 7 of
    the YSS225 control each parameter. Incidentally, these come from
    the Windows driver interface, but again, Turtle Beach didn't
    document the API to use them.
@@ -653,7 +653,7 @@ typedef struct wf_fx_info {
 #define WFFX_DEQSETALL		        44
 #define WFFX_DEQSETDEF		        46
 #define WFFX_MUTE		        47
-#define WFFX_FLANGESETBALANCE	        48	
+#define WFFX_FLANGESETBALANCE	        48
 #define WFFX_FLANGESETDELAY		49
 #define WFFX_FLANGESETDWFFX_TH		50
 #define WFFX_FLANGESETFBGAIN		51

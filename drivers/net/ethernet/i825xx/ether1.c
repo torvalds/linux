@@ -885,7 +885,7 @@ ether1_recv_done (struct net_device *dev)
 		ether1_writew(dev, 0, priv(dev)->rx_tail, rfd_t, rfd_command, NORMALIRQS);
 		ether1_writew(dev, 0, priv(dev)->rx_tail, rfd_t, rfd_status, NORMALIRQS);
 		ether1_writew(dev, 0, priv(dev)->rx_tail, rfd_t, rfd_rbdoffset, NORMALIRQS);
-	
+
 		priv(dev)->rx_tail = nexttail;
 		priv(dev)->rx_head = ether1_readw(dev, priv(dev)->rx_head, rfd_t, rfd_link, NORMALIRQS);
 	} while (1);
@@ -1031,7 +1031,7 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	printk(KERN_INFO "%s: ether1 in slot %d, %pM\n",
 		dev->name, ec->slot_no, dev->dev_addr);
-    
+
 	ecard_set_drvdata(ec, dev);
 	return 0;
 
@@ -1047,7 +1047,7 @@ static void ether1_remove(struct expansion_card *ec)
 {
 	struct net_device *dev = ecard_get_drvdata(ec);
 
-	ecard_set_drvdata(ec, NULL);	
+	ecard_set_drvdata(ec, NULL);
 
 	unregister_netdev(dev);
 	free_netdev(dev);

@@ -94,7 +94,7 @@ static void aac_sa_enable_interrupt (struct aac_dev *dev)
  *
  *	Notify the adapter of an event
  */
- 
+
 static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
 {
 	switch (event) {
@@ -137,11 +137,11 @@ static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
  *	@p1: first parameter
  *	@ret: adapter status
  *
- *	This routine will send a synchronous command to the adapter and wait 
+ *	This routine will send a synchronous command to the adapter and wait
  *	for its	completion.
  */
 
-static int sa_sync_cmd(struct aac_dev *dev, u32 command, 
+static int sa_sync_cmd(struct aac_dev *dev, u32 command,
 		u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6,
 		u32 *ret, u32 *r1, u32 *r2, u32 *r3, u32 *r4)
 {
@@ -178,7 +178,7 @@ static int sa_sync_cmd(struct aac_dev *dev, u32 command,
 		 */
 		udelay(5);
 		/*
-		 *	Mon110 will set doorbell0 bit when it has 
+		 *	Mon110 will set doorbell0 bit when it has
 		 *	completed the command.
 		 */
 		if(sa_readw(dev, DoorbellReg_p) & DOORBELL_0)  {
@@ -216,7 +216,7 @@ static int sa_sync_cmd(struct aac_dev *dev, u32 command,
  *
  *	Breakpoint an adapter.
  */
- 
+
 static void aac_sa_interrupt_adapter (struct aac_dev *dev)
 {
 	sa_sync_cmd(dev, BREAKPOINT_REQUEST, 0, 0, 0, 0, 0, 0,
@@ -239,7 +239,7 @@ static void aac_sa_start_adapter(struct aac_dev *dev)
 	init = dev->init;
 	init->r7.host_elapsed_seconds = cpu_to_le32(ktime_get_real_seconds());
 	/* We can only use a 32 bit address here */
-	sa_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, 
+	sa_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS,
 			(u32)(ulong)dev->init_pa, 0, 0, 0, 0, 0,
 			NULL, NULL, NULL, NULL, NULL);
 }
@@ -300,8 +300,8 @@ static int aac_sa_ioremap(struct aac_dev * dev, u32 size)
  *	aac_sa_init	-	initialize an ARM based AAC card
  *	@dev: device to configure
  *
- *	Allocate and set up resources for the ARM based AAC variants. The 
- *	device_interface in the commregion will be allocated and linked 
+ *	Allocate and set up resources for the ARM based AAC variants. The
+ *	device_interface in the commregion will be allocated and linked
  *	to the comm region.
  */
 
@@ -357,7 +357,7 @@ int aac_sa_init(struct aac_dev *dev)
 	while (!(sa_readl(dev, Mailbox7) & KERNEL_UP_AND_RUNNING)) {
 		if (time_after(jiffies, start+startup_timeout*HZ)) {
 			status = sa_readl(dev, Mailbox7);
-			printk(KERN_WARNING "%s%d: adapter kernel failed to start, init status = %lx.\n", 
+			printk(KERN_WARNING "%s%d: adapter kernel failed to start, init status = %lx.\n",
 					name, instance, status);
 			goto error_iounmap;
 		}
@@ -365,7 +365,7 @@ int aac_sa_init(struct aac_dev *dev)
 	}
 
 	/*
-	 *	First clear out all interrupts.  Then enable the one's that 
+	 *	First clear out all interrupts.  Then enable the one's that
 	 *	we can handle.
 	 */
 	aac_adapter_disable_int(dev);
@@ -387,7 +387,7 @@ int aac_sa_init(struct aac_dev *dev)
 	aac_adapter_enable_int(dev);
 
 	/*
-	 *	Tell the adapter that all is configure, and it can start 
+	 *	Tell the adapter that all is configure, and it can start
 	 *	accepting requests
 	 */
 	aac_sa_start_adapter(dev);

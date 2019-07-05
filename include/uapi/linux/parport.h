@@ -61,7 +61,7 @@ typedef enum {
 #define PARPORT_MODE_DMA	(1<<5) /* Hardware can DMA. */
 #define PARPORT_MODE_SAFEININT	(1<<6) /* SPP registers accessible in IRQ. */
 
-/* IEEE1284 modes: 
+/* IEEE1284 modes:
    Nibble mode, byte mode, ECP, ECPRLE and EPP are their own
    'extensibility request' values.  Others are special.
    'Real' ECP modes must have the IEEE1284_MODE_ECP bit set.  */

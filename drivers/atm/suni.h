@@ -2,7 +2,7 @@
 /*
  * drivers/atm/suni.h - S/UNI PHY driver
  */
- 
+
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
 #ifndef DRIVER_ATM_SUNI_H

@@ -21,7 +21,7 @@
 #include <asm/param.h>
 #include <asm/byteorder.h>
 
-/* 
+/*
  *  comp_t is a 16-bit "floating" point number with a 3-bit base 8
  *  exponent and a 13-bit fraction.
  *  comp2_t is 24-bit with 5-bit base 2 exponent and 20 bit fraction

@@ -4,7 +4,7 @@
 
 /*
  *   Copyright (C) 2003 Thomas Charbonnel (thomas@undata.org)
- *    
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; either version 2 of the License, or
@@ -63,7 +63,7 @@ struct hdsp_config_info {
 	unsigned char clock_source;
 	unsigned char autosync_ref;
 	unsigned char line_out;
-	unsigned char passthru; 
+	unsigned char passthru;
 	unsigned char da_gain;
 	unsigned char ad_gain;
 	unsigned char phone_gain;

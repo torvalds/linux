@@ -36,7 +36,7 @@
 
 /* These are just handy. */
 #define _SV	save	%sp, -STACKFRAME_SZ, %sp
-#define _RS     restore 
+#define _RS     restore
 
 #define FLUSH_ALL_KERNEL_WINDOWS \
 	_SV; _SV; _SV; _SV; _SV; _SV; _SV; \
@@ -189,7 +189,7 @@ floppy_dosoftint:
 	 add	%sp, STACKFRAME_SZ, %o2	! struct pt_regs *regs
 
 	RESTORE_ALL
-	
+
 #endif /* (CONFIG_BLK_DEV_FD) */
 
 	/* Bad trap handler */
@@ -205,7 +205,7 @@ bad_trap_handler:
 	 mov	%l7, %o1		! trap number
 
 	RESTORE_ALL
-	
+
 /* For now all IRQ's not registered get sent here. handler_irq() will
  * see if a routine is registered to handle this interrupt and if not
  * it will say so on the console.
@@ -537,7 +537,7 @@ fpe_trap_handler:
 	WRITE_PAUSE
 	jmp	%l5
 	 rett	%l5 + 4
-1:	
+1:
 	sethi	%hi(fpsave_catch), %l5
 	or	%l5, %lo(fpsave_catch), %l5
 	wr	%l0, 0x0, %psr
@@ -1028,7 +1028,7 @@ ret_sys_call:
 	/* System call success, clear Carry condition code. */
 	andn	%g3, %g2, %g3
 	clr	%l6
-	st	%g3, [%sp + STACKFRAME_SZ + PT_PSR]	
+	st	%g3, [%sp + STACKFRAME_SZ + PT_PSR]
 	bne	linux_syscall_trace2
 	 ld	[%sp + STACKFRAME_SZ + PT_NPC], %l1 /* pc = npc */
 	add	%l1, 0x4, %l2			/* npc = npc+4 */
@@ -1191,7 +1191,7 @@ delay_continue:
 1:
 	bne	1b
 	 subcc	%o0, 1, %o0
-	
+
 	ret
 	restore
 EXPORT_SYMBOL(__udelay)

@@ -16,19 +16,19 @@
  * mknod /dev/mustek c 180 32
  *
  * The driver supports only one camera.
- * 
+ *
  * Fix: mdc800 used sleep_on and slept with io_lock held.
  * Converted sleep_on to waitqueues with schedule_timeout and made io_lock
  * a semaphore from a spinlock.
  * by Oliver Neukum <oliver@neukum.name>
  * (02/12/2001)
- * 
+ *
  * Identify version on module load.
  * (08/04/2001) gb
  *
  * version 0.7.5
  * Fixed potential SMP races with Spinlocks.
- * Thanks to Oliver Neukum <oliver@neukum.name> who 
+ * Thanks to Oliver Neukum <oliver@neukum.name> who
  * noticed the race conditions.
  * (30/10/2000)
  *
@@ -170,7 +170,7 @@ struct mdc800_data
 /* Specification of the Endpoints */
 static struct usb_endpoint_descriptor mdc800_ed [4] =
 {
-	{ 
+	{
 		.bLength = 		0,
 		.bDescriptorType =	0,
 		.bEndpointAddress =	0x01,
@@ -344,7 +344,7 @@ static int mdc800_usb_waitForIRQ (int mode, int msec)
 		dev_err(&mdc800->dev->dev, "timeout waiting for camera.\n");
 		return -1;
 	}
-	
+
 	if (mdc800->state == NOT_CONNECTED)
 	{
 		printk(KERN_WARNING "mdc800: Camera gets disconnected "
@@ -352,7 +352,7 @@ static int mdc800_usb_waitForIRQ (int mode, int msec)
 		mdc800->camera_request_ready=0;
 		return -2;
 	}
-	
+
 	return 0;
 }
 
@@ -527,7 +527,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 	mdc800->state=READY;
 
 	mutex_unlock(&mdc800->io_lock);
-	
+
 	usb_set_intfdata(intf, mdc800);
 	return 0;
 }
@@ -609,7 +609,7 @@ static int mdc800_device_open (struct inode* inode, struct file *file)
 	int errn=0;
 
 	mutex_lock(&mdc800->io_lock);
-	
+
 	if (mdc800->state == NOT_CONNECTED)
 	{
 		errn=-EBUSY;
@@ -705,7 +705,7 @@ static ssize_t mdc800_device_read (struct file *file, char __user *buf, size_t l
 
 	while (left)
 	{
-		if (signal_pending (current)) 
+		if (signal_pending (current))
 		{
 			mutex_unlock(&mdc800->io_lock);
 			return -EINTR;
@@ -797,12 +797,12 @@ static ssize_t mdc800_device_write (struct file *file, const char __user *buf, s
 	while (i<len)
 	{
 		unsigned char c;
-		if (signal_pending (current)) 
+		if (signal_pending (current))
 		{
 			mutex_unlock(&mdc800->io_lock);
 			return -EINTR;
 		}
-		
+
 		if(get_user(c, buf+i))
 		{
 			mutex_unlock(&mdc800->io_lock);

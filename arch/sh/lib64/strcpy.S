@@ -76,7 +76,7 @@ shortstring2:
 	addi r0,1,r0
 	bnei/l r5,0,tr1
 	blink tr4,r63 // return
-	
+
 	.balign 8
 loop:
 	stlo.q r0, 0, r5

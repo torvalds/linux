@@ -62,7 +62,7 @@ static struct irq_chip eb64p_irq_type = {
 	.irq_mask_ack	= eb64p_disable_irq,
 };
 
-static void 
+static void
 eb64p_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;
@@ -161,9 +161,9 @@ eb64p_init_irq(void)
  *  7       PCI on board slot 1
  *  8       Intel SIO PCI-ISA bridge chip
  *  9       Tulip - DECchip 21040 Ethernet controller
- *   
  *
- * This two layered interrupt approach means that we allocate IRQ 16 and 
+ *
+ * This two layered interrupt approach means that we allocate IRQ 16 and
  * above for PCI interrupts.  The IRQ relates to which bit the interrupt
  * comes in on.  This makes interrupt processing much easier.
  */

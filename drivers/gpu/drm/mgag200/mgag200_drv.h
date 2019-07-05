@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2010 Matt Turner.
- * Copyright 2012 Red Hat 
+ * Copyright 2012 Red Hat
  *
  * Authors: Matthew Garrett
  * 	    Matt Turner

@@ -7,7 +7,7 @@ separate drivers as they did not share any code, and the driver
 and device names have changed.
 
 This document describes the Linux Kernel Drivers for simple Baycom style
-amateur radio modems. 
+amateur radio modems.
 
 The following drivers are available:
 
@@ -18,9 +18,9 @@ baycom_ser_fdx:
   serial port. Its devices are called bcsf0 through bcsf3.
   This is the recommended driver for SER12 type modems,
   however if you have a broken UART clone that does not have working
-  delta status bits, you may try baycom_ser_hdx. 
+  delta status bits, you may try baycom_ser_hdx.
 
-baycom_ser_hdx: 
+baycom_ser_hdx:
   This is an alternative driver for SER12 type modems.
   It only supports half duplex, and only 1200 baud. Its devices
   are called bcsh0 through bcsh3. Use this driver only if baycom_ser_fdx
@@ -50,7 +50,7 @@ par96:  This is a modem for 9600 baud FSK compatible to the G3RUH standard.
         Data is transferred from and to the PC via a shift register.
         The shift register is filled with 16 bits and an interrupt is signalled.
         The PC then empties the shift register in a burst. This modem connects
-        to the parallel port, hence the name. The modem leaves the 
+        to the parallel port, hence the name. The modem leaves the
         implementation of the HDLC protocol and the scrambler polynomial to
         the PC.
 
@@ -71,7 +71,7 @@ All of the above modems only support half duplex communications. However,
 the driver supports the KISS (see below) fullduplex command. It then simply
 starts to send as soon as there's a packet to transmit and does not care
 about DCD, i.e. it starts to send even if there's someone else on the channel.
-This command is required by some implementations of the DAMA channel 
+This command is required by some implementations of the DAMA channel
 access protocol.
 
 

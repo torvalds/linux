@@ -12,7 +12,7 @@
 #include <asm/feature-fixups.h>
 
 	.section	".text"
-	
+
 #ifdef CONFIG_TRACEPOINTS
 
 #ifndef CONFIG_JUMP_LABEL

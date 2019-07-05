@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  PowerPC version 
+ *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
  *  Derived from "arch/i386/kernel/signal.c"
@@ -46,7 +46,7 @@
 /*
  * When we have signals to deliver, we set up on the user stack,
  * going down from the original stack pointer:
- *	1) a rt_sigframe struct which contains the ucontext	
+ *	1) a rt_sigframe struct which contains the ucontext
  *	2) a gap of __SIGNAL_FRAMESIZE bytes which acts as a dummy caller
  *	   frame for the signal handler.
  */

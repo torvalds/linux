@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * 	connector.h
- * 
+ *
  * 2004-2005 Copyright (c) Evgeniy Polyakov <zbr@ioremap.net>
  * All rights reserved.
  */

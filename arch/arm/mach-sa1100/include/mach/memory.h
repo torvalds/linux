@@ -18,7 +18,7 @@
  *
  * The sparsemem banks are matched with the physical memory bank addresses
  * which are incidentally the same as virtual addresses.
- * 
+ *
  * 	node 0:  0xc0000000 - 0xc7ffffff
  * 	node 1:  0xc8000000 - 0xcfffffff
  * 	node 2:  0xd0000000 - 0xd7ffffff

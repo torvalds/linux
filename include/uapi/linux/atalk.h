@@ -14,7 +14,7 @@
  */
 #define ATPORT_FIRST	1
 #define ATPORT_RESERVED	128
-#define ATPORT_LAST	254		/* 254 is only legal on localtalk */ 
+#define ATPORT_LAST	254		/* 254 is only legal on localtalk */
 #define ATADDR_ANYNET	(__u16)0
 #define ATADDR_ANYNODE	(__u8)0
 #define ATADDR_ANYPORT  (__u8)0

@@ -21,10 +21,10 @@ function pd {
 cd /dev
 #
 for u in 0 1 2 3 ; do pd $u ; done
-for u in 0 1 2 3 ; do mkdev pcd$u b 46 $u ; done 
-for u in 0 1 2 3 ; do mkdev pf$u  b 47 $u ; done 
-for u in 0 1 2 3 ; do mkdev pt$u  c 96 $u ; done 
-for u in 0 1 2 3 ; do mkdev npt$u c 96 $[ $u + 128 ] ; done 
+for u in 0 1 2 3 ; do mkdev pcd$u b 46 $u ; done
+for u in 0 1 2 3 ; do mkdev pf$u  b 47 $u ; done
+for u in 0 1 2 3 ; do mkdev pt$u  c 96 $u ; done
+for u in 0 1 2 3 ; do mkdev npt$u c 96 $[ $u + 128 ] ; done
 for u in 0 1 2 3 ; do mkdev pg$u  c 97 $u ; done
 #
 # end of mkd

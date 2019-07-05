@@ -1,6 +1,6 @@
-/******************************************************************* 
+/*******************************************************************
  *
- * Copyright (c) 2000 ATecoM GmbH 
+ * Copyright (c) 2000 ATecoM GmbH
  *
  * The author may be reached at ecd@atecom.com.
  *
@@ -580,10 +580,10 @@ struct idt77252_dev
 #define SAR_STAT_FBQ2A      0x00000080 /* Free Buffer Queue 2 Attention   */
 #define SAR_STAT_RSQF       0x00000040 /* Receive Status Queue full       */
 #define SAR_STAT_EPDU       0x00000020 /* End Of PDU Flag                 */
-#define SAR_STAT_RAWCF      0x00000010 /* Raw Cell Flag                   */ 
+#define SAR_STAT_RAWCF      0x00000010 /* Raw Cell Flag                   */
 #define SAR_STAT_FBQ1A      0x00000008 /* Free Buffer Queue 1 Attention   */
 #define SAR_STAT_FBQ0A      0x00000004 /* Free Buffer Queue 0 Attention   */
-#define SAR_STAT_RSQAF      0x00000002 /* Receive Status Queue almost full*/  
+#define SAR_STAT_RSQAF      0x00000002 /* Receive Status Queue almost full*/
 #define SAR_STAT_RSVD2      0x00000001 /* Reserved                        */
 
 

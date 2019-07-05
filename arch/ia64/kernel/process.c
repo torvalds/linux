@@ -295,7 +295,7 @@ ia64_load_extra (struct task_struct *task)
 		pfm_load_regs(task);
 
 	info = __this_cpu_read(pfm_syst_info);
-	if (info & PFM_CPUINFO_SYST_WIDE) 
+	if (info & PFM_CPUINFO_SYST_WIDE)
 		pfm_syst_wide_update_task(task, info, 1);
 #endif
 }

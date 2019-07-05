@@ -49,12 +49,12 @@
 
 #define Sgl_leftshiftby1_withextent(left,right,result) \
     Shiftdouble(Sall(left),Extall(right),31,Sall(result))
-    
+
 #define Sgl_rightshiftby1_withextent(left,right,dst)		\
     Shiftdouble(Sall(left),Extall(right),1,Extall(right))
 #define Sgl_arithrightshiftby1(srcdst)	\
     Sall(srcdst) = (int)Sall(srcdst) >> 1
-    
+
 /* Sign extend the sign bit with an integer destination */
 #define Sgl_signextendedsign(value) Ssignedsign(value)
 
@@ -130,11 +130,11 @@
     Sall(sgl_value) >>= 4
 #define Sgl_rightshiftby8(sgl_value) \
     Sall(sgl_value) >>= 8
-    
+
 #define Sgl_ismagnitudeless(signlessleft,signlessright)			\
 /*  unsigned int signlessleft, signlessright; */			\
-      (signlessleft < signlessright)  
-    
+      (signlessleft < signlessright)
+
 
 #define Sgl_copytoint_exponentmantissa(source,dest)     \
     dest = Sexponentmantissa(source)
@@ -301,7 +301,7 @@
 		Sgl_setzero(opnd);					\
 	}
 
-/* 
+/*
  * The fused multiply add instructions requires a single extended format,
  * with 48 bits of mantissa.
  */
@@ -376,7 +376,7 @@
 #define Sglext_arithrightshiftby1(srcdstA,srcdstB)	\
     Shiftdouble(Sextallp1(srcdstA),Sextallp2(srcdstB),1,Sextallp2(srcdstB)); \
     Sextallp1(srcdstA) = (int)Sextallp1(srcdstA) >> 1
-   
+
 #define Sglext_leftshiftby8(valA,valB) \
     Shiftdouble(Sextallp1(valA),Sextallp2(valB),24,Sextallp1(valA)); \
     Sextallp2(valB) <<= 8
@@ -411,12 +411,12 @@
 #define Sglext_ismagnitudeless(signlessleft,signlessright) \
 	Sgl_ismagnitudeless(signlessleft,signlessright)
 
-#define Sglext_set_sign(dbl_value,sign)  Sgl_set_sign(dbl_value,sign)  
+#define Sglext_set_sign(dbl_value,sign)  Sgl_set_sign(dbl_value,sign)
 #define Sglext_clear_signexponent_set_hidden(srcdst) \
-	Sgl_clear_signexponent_set_hidden(srcdst) 
-#define Sglext_clear_signexponent(srcdst) Sgl_clear_signexponent(srcdst) 
-#define Sglext_clear_sign(srcdst) Sgl_clear_sign(srcdst) 
-#define Sglext_isone_hidden(dbl_value) Sgl_isone_hidden(dbl_value) 
+	Sgl_clear_signexponent_set_hidden(srcdst)
+#define Sglext_clear_signexponent(srcdst) Sgl_clear_signexponent(srcdst)
+#define Sglext_clear_sign(srcdst) Sgl_clear_sign(srcdst)
+#define Sglext_isone_hidden(dbl_value) Sgl_isone_hidden(dbl_value)
 
 #define Sglext_denormalize(opndp1,opndp2,exponent,is_tiny)		\
   {int sticky;								\

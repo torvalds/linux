@@ -97,7 +97,7 @@ static int snd_opl3_synth_use(void *private_data, struct snd_seq_port_subscribe 
 
 	if (use_internal_drums) {
 		/* Percussion mode */
-		opl3->voices[6].state = opl3->voices[7].state = 
+		opl3->voices[6].state = opl3->voices[7].state =
 			opl3->voices[8].state = SNDRV_OPL3_ST_NOT_AVAIL;
 		snd_opl3_load_drums(opl3);
 		opl3->drum_reg = OPL3_PERCUSSION_ENABLE;

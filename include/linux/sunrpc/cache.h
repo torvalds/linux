@@ -41,7 +41,7 @@
 
 /* Every cache item has a common header that is used
  * for expiring and refreshing entries.
- * 
+ *
  */
 struct cache_head {
 	struct hlist_node	cache_list;

@@ -381,7 +381,7 @@ static const struct ide_port_info piix_pci_info[] = {
  *	Called when the PCI registration layer (or the IDE initialization)
  *	finds a device matching our IDE device tables.
  */
- 
+
 static int piix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	return ide_pci_init_one(dev, &piix_pci_info[id->driver_data], NULL);
@@ -389,7 +389,7 @@ static int piix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 /**
  *	piix_check_450nx	-	Check for problem 450NX setup
- *	
+ *
  *	Check for the present of 450NX errata #19 and errata #25. If
  *	they are found, disable use of DMA IDE
  */
@@ -414,7 +414,7 @@ static void piix_check_450nx(void)
 		printk(KERN_WARNING DRV_NAME ": 450NX errata present, disabling IDE DMA.\n");
 	if(no_piix_dma == 2)
 		printk(KERN_WARNING DRV_NAME ": A BIOS update may resolve this.\n");
-}		
+}
 
 static const struct pci_device_id piix_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371FB_0),  1 },

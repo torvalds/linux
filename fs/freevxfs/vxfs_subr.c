@@ -78,9 +78,9 @@ vxfs_get_page(struct address_space *mapping, u_long n)
 		if (PageError(pp))
 			goto fail;
 	}
-	
+
 	return (pp);
-		 
+
 fail:
 	vxfs_put_page(pp);
 	return ERR_PTR(-EIO);
@@ -111,7 +111,7 @@ vxfs_bread(struct inode *ip, int block)
 }
 
 /**
- * vxfs_get_block - locate buffer for given inode,block tuple 
+ * vxfs_get_block - locate buffer for given inode,block tuple
  * @ip:		inode
  * @iblock:	logical block
  * @bp:		buffer skeleton
@@ -160,7 +160,7 @@ vxfs_readpage(struct file *file, struct page *page)
 {
 	return block_read_full_page(page, vxfs_getblk);
 }
- 
+
 /**
  * vxfs_bmap - perform logical to physical block mapping
  * @mapping:	logical to physical mapping to use

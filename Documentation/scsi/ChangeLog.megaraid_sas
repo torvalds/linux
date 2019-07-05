@@ -602,7 +602,7 @@ i.	Support for 1078 type (ppc IOP) controller, device id : 0x60 added.
 	xscale controllers.
 
 		-Sumant Patro <Sumant.Patro@lsil.com>
-		
+
 1 Release Date    : Fri Feb 03 14:16:25 PST 2006 - Sumant Patro
 							<Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.04

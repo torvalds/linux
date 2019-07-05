@@ -1,10 +1,10 @@
 Kernel driver i2c-nforce2
 
 Supported adapters:
-  * nForce2 MCP                10de:0064 
-  * nForce2 Ultra 400 MCP      10de:0084 
-  * nForce3 Pro150 MCP         10de:00D4 
-  * nForce3 250Gb MCP          10de:00E4 
+  * nForce2 MCP                10de:0064
+  * nForce2 Ultra 400 MCP      10de:0084
+  * nForce3 Pro150 MCP         10de:00D4
+  * nForce3 250Gb MCP          10de:00E4
   * nForce4 MCP                10de:0052
   * nForce4 MCP-04             10de:0034
   * nForce MCP51               10de:0264
@@ -21,9 +21,9 @@ Datasheet: not publicly available, but seems to be similar to the
 
 Authors:
 	Hans-Frieder Vogt <hfvogt@gmx.net>,
-	Thomas Leibold <thomas@plx.com>, 
+	Thomas Leibold <thomas@plx.com>,
         Patrick Dreker <patrick@dreker.de>
-	
+
 Description
 -----------
 

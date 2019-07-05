@@ -98,8 +98,8 @@ int mac_partition(struct parsed_partitions *state)
 
 			mac_fix_string(part->processor, 16);
 			mac_fix_string(part->name, 32);
-			mac_fix_string(part->type, 32);					
-		    
+			mac_fix_string(part->type, 32);
+
 			if ((be32_to_cpu(part->status) & MAC_STATUS_BOOTABLE)
 			    && strcasecmp(part->processor, "powerpc") == 0)
 				goodness++;

@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Copyright (C) 2015 Richard Weinberger (richard@nod.at)
  * Licensed under the GPL

@@ -432,7 +432,7 @@ struct drm_psb_private {
 	struct pci_dev *lpc_pdev; /* Currently only used by mrst */
 	const struct psb_ops *ops;
 	const struct psb_offset *regmap;
-	
+
 	struct child_device_config *child_dev;
 	int child_dev_num;
 
@@ -540,7 +540,7 @@ struct drm_psb_private {
 
 	/* Oaktrail HDMI state */
 	struct oaktrail_hdmi_dev *hdmi_priv;
-	
+
 	/* Register state */
 	struct psb_save_area regs;
 

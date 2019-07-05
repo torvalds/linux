@@ -33,7 +33,7 @@ config PCMCIA_NINJA_SCSI
 	  NinjaSCSI-3: (version string: "WBT","NinjaSCSI-3","R1.0")
 	    IO-DATA     PCSC-FP
 	    ALPHA DATA  AD-PCS201
-	    CyQ've      SFC-201  
+	    CyQ've      SFC-201
 	    LOGITECH    LPM-SCSI2E
 	    Pioneer PCR-PR24's card
 	    I-O DATA CDPS-PX24's card (PCSC-F)

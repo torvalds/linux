@@ -90,7 +90,7 @@ void queue_free (Queue_t *queue)
 		printk(KERN_WARNING "freeing non-empty queue %p\n", queue);
 	kfree(queue->alloc);
 }
-     
+
 
 /*
  * Function: int __queue_add(Queue_t *queue, struct scsi_cmnd *SCpnt, int head)

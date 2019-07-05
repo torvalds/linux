@@ -107,7 +107,7 @@ static int pci_conf2_read(unsigned int seg, unsigned int bus,
 	dev = PCI_SLOT(devfn);
 	fn = PCI_FUNC(devfn);
 
-	if (dev & 0x10) 
+	if (dev & 0x10)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	raw_spin_lock_irqsave(&pci_config_lock, flags);
@@ -141,13 +141,13 @@ static int pci_conf2_write(unsigned int seg, unsigned int bus,
 	int dev, fn;
 
 	WARN_ON(seg);
-	if ((bus > 255) || (devfn > 255) || (reg > 255)) 
+	if ((bus > 255) || (devfn > 255) || (reg > 255))
 		return -EINVAL;
 
 	dev = PCI_SLOT(devfn);
 	fn = PCI_FUNC(devfn);
 
-	if (dev & 0x10) 
+	if (dev & 0x10)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	raw_spin_lock_irqsave(&pci_config_lock, flags);
@@ -167,7 +167,7 @@ static int pci_conf2_write(unsigned int seg, unsigned int bus,
 		break;
 	}
 
-	outb(0, 0xCF8);    
+	outb(0, 0xCF8);
 
 	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 

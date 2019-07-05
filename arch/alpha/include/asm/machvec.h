@@ -8,7 +8,7 @@
  *	This file gets pulled in by asm/io.h from user space. We don't
  *	want most of this escaping.
  */
- 
+
 #ifdef __KERNEL__
 
 /* The following structure vectors all of the I/O and IRQ manipulation
@@ -27,7 +27,7 @@ struct rtc_time;
 struct alpha_machine_vector
 {
 	/* This "belongs" down below with the rest of the runtime
-	   variables, but it is convenient for entry.S if these 
+	   variables, but it is convenient for entry.S if these
 	   two slots are at the beginning of the struct.  */
 	unsigned long hae_cache;
 	unsigned long *hae_register;

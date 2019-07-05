@@ -62,7 +62,7 @@ SYSCALL_DEFINE1(osf_brk, unsigned long, brk)
 		retval = -ENOMEM;
 	return retval;
 }
- 
+
 /*
  * This is pure guess-work..
  */
@@ -182,7 +182,7 @@ SYSCALL_DEFINE6(osf_mmap, unsigned long, addr, unsigned long, len,
 
 #if 0
 	if (flags & (_MAP_HASSEMAPHORE | _MAP_INHERIT | _MAP_UNALIGNED))
-		printk("%s: unimplemented OSF mmap flags %04lx\n", 
+		printk("%s: unimplemented OSF mmap flags %04lx\n",
 			current->comm, flags);
 #endif
 	if ((off + PAGE_ALIGN(len)) < off)
@@ -347,7 +347,7 @@ SYSCALL_DEFINE3(osf_statfs, const char __user *, pathname,
 	int error = user_statfs(pathname, &linux_stat);
 	if (!error)
 		error = linux_to_osf_statfs(&linux_stat, buffer, bufsiz);
-	return error;	
+	return error;
 }
 
 SYSCALL_DEFINE2(osf_stat, char __user *, name, struct osf_stat __user *, buf)
@@ -703,7 +703,7 @@ SYSCALL_DEFINE2(osf_sigstack, struct sigstack __user *, uss,
 			goto out;
 
 		/* Since we don't know the extent of the stack, and we don't
-		   track onstack-ness, but rather calculate it, we must 
+		   track onstack-ness, but rather calculate it, we must
 		   presume a size.  Ho hum this interface is lossy.  */
 		current->sas_ss_sp = (unsigned long)ss_sp - SIGSTKSZ;
 		current->sas_ss_size = SIGSTKSZ;
@@ -823,7 +823,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 		unsigned long swcr, fpcr;
 		unsigned int *state;
 
-		/* 
+		/*
 		 * Alpha Architecture Handbook 4.7.7.3:
 		 * To be fully IEEE compiant, we must track the current IEEE
 		 * exception state in software, because spurious bits can be
@@ -895,7 +895,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
  	case SSI_NVPAIRS: {
 		unsigned __user *p = buffer;
 		unsigned i;
-		
+
 		for (i = 0, p = buffer; i < nbytes; ++i, p += 2) {
 			unsigned v, w, status;
 
@@ -908,14 +908,14 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 				status = (status & ~UAC_BITMASK) | w;
 				current_thread_info()->status = status;
  				break;
- 
+
  			default:
  				return -EOPNOTSUPP;
  			}
  		}
  		return 0;
 	}
- 
+
 	case SSI_LMF:
 		return 0;
 
@@ -1113,7 +1113,7 @@ SYSCALL_DEFINE5(osf_select, int, n, fd_set __user *, inp, fd_set __user *, outp,
 			return -EINVAL;
 
 		if (poll_select_set_timeout(to, tv.tv_sec, tv.tv_nsec))
-			return -EINVAL;		
+			return -EINVAL;
 
 	}
 
@@ -1215,7 +1215,7 @@ SYSCALL_DEFINE2(osf_usleep_thread, struct timeval32 __user *, sleep,
 		if (put_tv32(remain, &tmp))
 			goto fault;
 	}
-	
+
 	return 0;
  fault:
 	return -EFAULT;
@@ -1258,17 +1258,17 @@ SYSCALL_DEFINE1(old_adjtimex, struct timex32 __user *, txc_p)
 
 	/* copy relevant bits of struct timex. */
 	if (copy_from_user(&txc, txc_p, offsetof(struct timex32, time)) ||
-	    copy_from_user(&txc.tick, &txc_p->tick, sizeof(struct timex32) - 
+	    copy_from_user(&txc.tick, &txc_p->tick, sizeof(struct timex32) -
 			   offsetof(struct timex32, tick)))
 	  return -EFAULT;
 
-	ret = do_adjtimex(&txc);	
+	ret = do_adjtimex(&txc);
 	if (ret < 0)
 	  return ret;
-	
+
 	/* copy back to timex32 */
 	if (copy_to_user(txc_p, &txc, offsetof(struct timex32, time)) ||
-	    (copy_to_user(&txc_p->tick, &txc.tick, sizeof(struct timex32) - 
+	    (copy_to_user(&txc_p->tick, &txc.tick, sizeof(struct timex32) -
 			  offsetof(struct timex32, tick))) ||
 	    (put_user(txc.time.tv_sec, &txc_p->time.tv_sec)) ||
 	    (put_user(txc.time.tv_usec, &txc_p->time.tv_usec)))

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* 
+/*
  * Coda File System, Linux Kernel module
- * 
+ *
  * Original version, adapted from cfs_mach.c, (C) Carnegie Mellon University
  * Linux modifications (C) 1996, Peter J. Braam
  * Rewritten for Linux 2.1 (C) 1997 Carnegie Mellon University
@@ -24,7 +24,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#include <linux/wait.h>		
+#include <linux/wait.h>
 #include <linux/types.h>
 #include <linux/fs.h>
 #include "coda_fs_i.h"
@@ -100,6 +100,6 @@ static __inline__ void coda_flag_inode(struct inode *inode, int flag)
 	spin_lock(&cii->c_lock);
 	cii->c_flags |= flag;
 	spin_unlock(&cii->c_lock);
-}		
+}
 
 #endif

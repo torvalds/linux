@@ -4,17 +4,17 @@
 //
 // LICENSE TERMS
 //
-// The free distribution and use of this software in both source and binary 
+// The free distribution and use of this software in both source and binary
 // form is allowed (with or without changes) provided that:
 //
-//   1. distributions of this source code include the above copyright 
+//   1. distributions of this source code include the above copyright
 //      notice, this list of conditions and the following disclaimer//
 //
 //   2. distributions in binary form include the above copyright
 //      notice, this list of conditions and the following disclaimer
 //      in the documentation and/or other associated materials//
 //
-//   3. the copyright holder's name is not used to endorse products 
+//   3. the copyright holder's name is not used to endorse products
 //      built using this software without specific written permission.
 //
 //
@@ -28,7 +28,7 @@
 // DISCLAIMER
 //
 // This software is provided 'as is' with no explicit or implied warranties
-// in respect of its properties including, but not limited to, correctness 
+// in respect of its properties including, but not limited to, correctness
 // and fitness for purpose.
 // -------------------------------------------------------------------------
 // Issue Date: 29/07/2002
@@ -78,7 +78,7 @@
 // This macro takes a 32-bit word representing a column and uses
 // each of its four bytes to index into four tables of 256 32-bit
 // words to obtain values that are then xored into the appropriate
-// output registers r0, r1, r4 or r5.  
+// output registers r0, r1, r4 or r5.
 
 // Parameters:
 // table table base address
@@ -227,7 +227,7 @@ ENTRY(aes_enc_blk)
 	push    %ebp
 	mov     ctx(%esp),%ebp
 
-// CAUTION: the order and the values used in these assigns 
+// CAUTION: the order and the values used in these assigns
 // rely on the register mappings
 
 1:	push    %ebx
@@ -273,7 +273,7 @@ ENTRY(aes_enc_blk)
 	fwd_rnd1(+128(%ebp), crypto_ft_tab)
 	fwd_rnd2(+144(%ebp), crypto_fl_tab)	// last round uses a different table
 
-// move final values to the output array.  CAUTION: the 
+// move final values to the output array.  CAUTION: the
 // order of these assigns rely on the register mappings
 
 	add     $8,%esp
@@ -299,7 +299,7 @@ ENTRY(aes_dec_blk)
 	push    %ebp
 	mov     ctx(%esp),%ebp
 
-// CAUTION: the order and the values used in these assigns 
+// CAUTION: the order and the values used in these assigns
 // rely on the register mappings
 
 1:	push    %ebx
@@ -310,7 +310,7 @@ ENTRY(aes_dec_blk)
 #if dkey != 0
 	lea     dkey(%ebp),%ebp  // key pointer
 #endif
-	
+
 // input four columns and xor in first round key
 
 	mov     (%r2),%r0
@@ -345,7 +345,7 @@ ENTRY(aes_dec_blk)
 	inv_rnd1(+128(%ebp), crypto_it_tab)
 	inv_rnd2(+144(%ebp), crypto_il_tab)	// last round uses a different table
 
-// move final values to the output array.  CAUTION: the 
+// move final values to the output array.  CAUTION: the
 // order of these assigns rely on the register mappings
 
 	add     $8,%esp

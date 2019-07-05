@@ -119,7 +119,7 @@ static const struct ahd_pci_identity ahd_pci_ident_table[] =
 		"Adaptec 29320LP Ultra320 SCSI adapter",
 		ahd_aic7901A_setup
 	},
-	/* aic7902 based controllers */	
+	/* aic7902 based controllers */
 	{
 		ID_AHA_29320,
 		ID_ALL_MASK,
@@ -202,7 +202,7 @@ static const struct ahd_pci_identity ahd_pci_ident_table[] =
 };
 
 static const u_int ahd_num_pci_devs = ARRAY_SIZE(ahd_pci_ident_table);
-		
+
 #define	DEVCONFIG		0x40
 #define		PCIXINITPAT	0x0000E000ul
 #define			PCIXINIT_PCI33_66	0x0000E000ul
@@ -270,7 +270,7 @@ ahd_find_pci_device(ahd_dev_softc_t pci)
 	/*
 	 * Controllers, mask out the IROC/HostRAID bit
 	 */
-	
+
 	full_id &= ID_ALL_IROC_MASK;
 
 	for (i = 0; i < ahd_num_pci_devs; i++) {
@@ -290,7 +290,7 @@ ahd_pci_config(struct ahd_softc *ahd, const struct ahd_pci_identity *entry)
 {
 	u_int		 command;
 	uint32_t	 devconfig;
-	uint16_t	 subvendor; 
+	uint16_t	 subvendor;
 	int		 error;
 
 	ahd->description = entry->name;
@@ -305,7 +305,7 @@ ahd_pci_config(struct ahd_softc *ahd, const struct ahd_pci_identity *entry)
 	error = entry->setup(ahd);
 	if (error != 0)
 		return (error);
-	
+
 	devconfig = ahd_pci_read_config(ahd->dev_softc, DEVCONFIG, /*bytes*/4);
 	if ((devconfig & PCIXINITPAT) == PCIXINIT_PCI33_66) {
 		ahd->chip |= AHD_PCI;
@@ -338,7 +338,7 @@ ahd_pci_config(struct ahd_softc *ahd, const struct ahd_pci_identity *entry)
 		ahd_pci_write_config(ahd->dev_softc, DEVCONFIG,
 				     devconfig, /*bytes*/4);
 	}
-	
+
 	/* Ensure busmastering is enabled */
 	command = ahd_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/2);
 	command |= PCIM_CMD_BUSMASTEREN;
@@ -519,7 +519,7 @@ ahd_check_extport(struct ahd_softc *ahd)
 		/*
 		 * Fetch VPD for this function and parse it.
 		 */
-		if (bootverbose) 
+		if (bootverbose)
 			printk("%s: Reading VPD from SEEPROM...",
 			       ahd_name(ahd));
 
@@ -532,12 +532,12 @@ ahd_check_extport(struct ahd_softc *ahd)
 					 /*bytestream*/TRUE);
 		if (error == 0)
 			error = ahd_parse_vpddata(ahd, &vpd);
-		if (bootverbose) 
+		if (bootverbose)
 			printk("%s: VPD parsing %s\n",
 			       ahd_name(ahd),
 			       error == 0 ? "successful" : "failed");
 
-		if (bootverbose) 
+		if (bootverbose)
 			printk("%s: Reading SEEPROM...", ahd_name(ahd));
 
 		/* Address is always in units of 16bit words */
@@ -651,7 +651,7 @@ ahd_configure_termination(struct ahd_softc *ahd, u_int adapter_control)
 		printk("%s: STPWLEVEL is %s\n",
 		       ahd_name(ahd), (devconfig & STPWLEVEL) ? "on" : "off");
 	ahd_pci_write_config(ahd->dev_softc, DEVCONFIG, devconfig, /*bytes*/4);
- 
+
 	/* Make sure current sensing is off. */
 	if ((ahd->flags & AHD_CURRENT_SENSING) != 0) {
 		(void)ahd_write_flexport(ahd, FLXADDR_ROMSTAT_CURSENSECTL, 0);
@@ -788,7 +788,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 	u_int		intstat;
 	u_int		i;
 	u_int		reg;
-	
+
 	intstat = ahd_inb(ahd, INTSTAT);
 
 	if ((intstat & SPLTINT) != 0)
@@ -812,7 +812,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 
 	for (i = 0; i < 8; i++) {
 		u_int bit;
-	
+
 		if (i == 5)
 			continue;
 
@@ -826,7 +826,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 					s = "%s: Signaled Target Abort\n";
 				printk(s, ahd_name(ahd), pci_status_source[i]);
 			}
-		}	
+		}
 	}
 	pci_status1 = ahd_pci_read_config(ahd->dev_softc,
 					  PCIR_STATUS + 1, /*bytes*/1);

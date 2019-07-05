@@ -135,10 +135,10 @@ extern int TITAN_bootcpu;
  * TITAN PA-chip Window Space Base Address register.
  * (WSBA[0-2])
  */
-#define wsba_m_ena 0x1                
+#define wsba_m_ena 0x1
 #define wsba_m_sg 0x2
-#define wsba_m_addr 0xFFF00000  
-#define wmask_k_sz1gb 0x3FF00000                   
+#define wsba_m_addr 0xFFF00000
+#define wmask_k_sz1gb 0x3FF00000
 union TPAchipWSBA {
 	struct  {
 		unsigned wsba_v_ena : 1;
@@ -153,7 +153,7 @@ union TPAchipWSBA {
 /*
  * TITAN PA-chip Control Register
  * This definition covers both the G-Port GPCTL and the A-PORT APCTL.
- * Bits <51:0> are the same in both cases. APCTL<63:52> are only 
+ * Bits <51:0> are the same in both cases. APCTL<63:52> are only
  * applicable to AGP.
  */
 #define pctl_m_fbtb 			0x00000001
@@ -294,7 +294,7 @@ union TPAchipAGPERR {
  * 		2 - pachip 0 / A Port
  *      	3 - pachip 1 / A Port
  */
-#define TITAN_HOSE_SHIFT       (33) 
+#define TITAN_HOSE_SHIFT       (33)
 #define TITAN_HOSE(h)		(((unsigned long)(h)) << TITAN_HOSE_SHIFT)
 #define TITAN_BASE		(IDENT_ADDR + TI_BIAS)
 #define TITAN_MEM(h)	     	(TITAN_BASE+TITAN_HOSE(h)+0x000000000UL)
@@ -305,7 +305,7 @@ union TPAchipAGPERR {
 #define TITAN_HOSE_MASK		TITAN_HOSE(3)
 #define TITAN_IACK_SC	     	_TITAN_IACK_SC(0) /* hack! */
 
-/* 
+/*
  * The canonical non-remaped I/O and MEM addresses have these values
  * subtracted out.  This is arranged so that folks manipulating ISA
  * devices can use their familiar numbers and have them map to bus 0.
@@ -347,7 +347,7 @@ struct el_TITAN_sysdata_mcheck {
 };
 
 /*
- * System area for a privateer 680 environmental/system management mcheck 
+ * System area for a privateer 680 environmental/system management mcheck
  */
 struct el_PRIVATEER_envdata_mcheck {
 	u64 summary;	/* 0x00 */

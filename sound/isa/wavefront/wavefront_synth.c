@@ -5,7 +5,7 @@
  * copyright (C) by Hannu Savolainen 1993-1996
  */
 
-/*  
+/*
  * An ALSA lowlevel driver for Turtle Beach ICS2115 wavetable synth
  *                                             (Maui, Tropez, Tropez Plus)
  *
@@ -37,7 +37,7 @@ static int wf_raw = 0; /* we normally check for "raw state" to firmware
 			  state of the board is ignored, and we reset the
 			  board and load the firmware anyway.
 		       */
-		   
+
 static int fx_raw = 1; /* if this is zero, we'll leave the FX processor in
 			  whatever state it is when the driver is loaded.
 			  The default is to download the microprogram and
@@ -106,7 +106,7 @@ MODULE_PARM_DESC(osrun_time, "how many seconds to wait for the ICS2115 OS");
 
 /* if WF_DEBUG not defined, no run-time debugging messages will
    be available via the debug flag setting. Given the current
-   beta state of the driver, this will remain set until a future 
+   beta state of the driver, this will remain set until a future
    version.
 */
 
@@ -198,7 +198,7 @@ static struct wavefront_command wavefront_commands[] = {
 	{ WFC_DOWNLOAD_MULTISAMPLE, "download multisample", 0, 0, NEEDS_ACK },
 
 	/* This one is a hack as well. We just read the first byte of the
-	   response, don't fetch an ACK, and leave the rest to the 
+	   response, don't fetch an ACK, and leave the rest to the
 	   calling function. Ugly, ugly, ugly.
 	*/
 
@@ -242,7 +242,7 @@ wavefront_errorstr (int errnum)
 }
 
 static struct wavefront_command *
-wavefront_get_command (int cmd) 
+wavefront_get_command (int cmd)
 
 {
 	int i;
@@ -257,7 +257,7 @@ wavefront_get_command (int cmd)
 }
 
 static inline int
-wavefront_status (snd_wavefront_t *dev) 
+wavefront_status (snd_wavefront_t *dev)
 
 {
 	return inb (dev->status_port);
@@ -330,7 +330,7 @@ wavefront_write (snd_wavefront_t *dev, unsigned char data)
 }
 
 int
-snd_wavefront_cmd (snd_wavefront_t *dev, 
+snd_wavefront_cmd (snd_wavefront_t *dev,
 		   int cmd, unsigned char *rbuf, unsigned char *wbuf)
 
 {
@@ -358,13 +358,13 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 	DPRINT (WF_DEBUG_CMD, "0x%x [%s] (%d,%d,%d)\n",
 			       cmd, wfcmd->action, wfcmd->read_cnt,
 			       wfcmd->write_cnt, wfcmd->need_ack);
-    
-	if (wavefront_write (dev, cmd)) { 
+
+	if (wavefront_write (dev, cmd)) {
 		DPRINT ((WF_DEBUG_IO|WF_DEBUG_CMD), "cannot request "
 						     "0x%x [%s].\n",
 						     cmd, wfcmd->action);
 		return 1;
-	} 
+	}
 
 	if (wfcmd->write_cnt > 0) {
 		DPRINT (WF_DEBUG_DATA, "writing %d bytes "
@@ -399,8 +399,8 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 			}
 
 			/* Now handle errors. Lots of special cases here */
-	    
-			if (c == 0xff) { 
+
+			if (c == 0xff) {
 				if ((c = wavefront_read (dev)) == -1) {
 					DPRINT (WF_DEBUG_IO, "bad read for "
 							      "error byte at "
@@ -442,15 +442,15 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 					return 1;
 
 				}
-		
+
 		} else {
 				rbuf[i] = c;
 			}
-			
+
 			DPRINT (WF_DEBUG_DATA, "read[%d] = 0x%x\n",i, rbuf[i]);
 		}
 	}
-	
+
 	if ((wfcmd->read_cnt == 0 && wfcmd->write_cnt == 0) || wfcmd->need_ack) {
 
 		DPRINT (WF_DEBUG_CMD, "reading ACK for 0x%x\n", cmd);
@@ -458,23 +458,23 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 		/* Some commands need an ACK, but return zero instead
 		   of the standard value.
 		*/
-	    
+
 		if ((ack = wavefront_read (dev)) == 0) {
 			ack = WF_ACK;
 		}
-	
+
 		if (ack != WF_ACK) {
 			if (ack == -1) {
 				DPRINT (WF_DEBUG_IO, "cannot read ack for "
 						      "0x%x [%s].\n",
 						      cmd, wfcmd->action);
 				return 1;
-		
+
 			} else {
 				int err = -1; /* something unknown */
 
 				if (ack == 0xff) { /* explicit error */
-		    
+
 					if ((err = wavefront_read (dev)) == -1) {
 						DPRINT (WF_DEBUG_DATA,
 							"cannot read err "
@@ -482,16 +482,16 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 							cmd, wfcmd->action);
 					}
 				}
-				
+
 				DPRINT (WF_DEBUG_IO, "0x%x [%s] "
 					"failed (0x%x, 0x%x, %s)\n",
 					cmd, wfcmd->action, ack, err,
 					wavefront_errorstr (err));
-				
+
 				return -err;
 			}
 		}
-		
+
 		DPRINT (WF_DEBUG_DATA, "ack received "
 					"for 0x%x [%s]\n",
 					cmd, wfcmd->action);
@@ -504,14 +504,14 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 	}
 
 	return 0;
-	
+
 }
 
 /***********************************************************************
-WaveFront data munging   
+WaveFront data munging
 
-Things here are weird. All data written to the board cannot 
-have its most significant bit set. Any data item with values 
+Things here are weird. All data written to the board cannot
+have its most significant bit set. Any data item with values
 potentially > 0x7F (127) must be split across multiple bytes.
 
 Sometimes, we need to munge numeric values that are represented on
@@ -533,20 +533,20 @@ munge_int32 (unsigned int src,
 	for (i = 0; i < dst_size; i++) {
 		*dst = src & 0x7F;  /* Mask high bit of LSB */
 		src = src >> 7;     /* Rotate Right 7 bits  */
-	                            /* Note: we leave the upper bits in place */ 
+	                            /* Note: we leave the upper bits in place */
 
 		dst++;
 	}
 	return dst;
 };
 
-static int 
+static int
 demunge_int32 (unsigned char* src, int src_size)
 
 {
 	int i;
  	int outval = 0;
-	
+
  	for (i = src_size - 1; i >= 0; i--) {
 		outval=(outval<<7)+src[i];
 	}
@@ -554,7 +554,7 @@ demunge_int32 (unsigned char* src, int src_size)
 	return outval;
 };
 
-static 
+static
 unsigned char *
 munge_buf (unsigned char *src, unsigned char *dst, unsigned int dst_size)
 
@@ -569,14 +569,14 @@ munge_buf (unsigned char *src, unsigned char *dst, unsigned int dst_size)
 	return dst;
 }
 
-static 
+static
 unsigned char *
 demunge_buf (unsigned char *src, unsigned char *dst, unsigned int src_bytes)
 
 {
 	int i;
 	unsigned char *end = src + src_bytes;
-    
+
 	end = src + src_bytes;
 
 	/* NOTE: src and dst *CAN* point to the same address */
@@ -619,16 +619,16 @@ wavefront_get_sample_status (snd_wavefront_t *dev, int assume_rom)
 	unsigned int    sc_real, sc_alias, sc_multi;
 
 	/* check sample status */
-    
+
 	if (snd_wavefront_cmd (dev, WFC_GET_NSAMPLES, rbuf, wbuf)) {
 		snd_printk ("cannot request sample count.\n");
 		return -1;
-	} 
-    
+	}
+
 	sc_real = sc_alias = sc_multi = dev->samples_used = 0;
-    
+
 	for (i = 0; i < WF_MAX_SAMPLE; i++) {
-	
+
 		wbuf[0] = i & 0x7f;
 		wbuf[1] = i >> 7;
 
@@ -660,13 +660,13 @@ wavefront_get_sample_status (snd_wavefront_t *dev, int assume_rom)
 
 		default:
 			snd_printk ("unknown sample type for "
-				    "slot %d (0x%x)\n", 
+				    "slot %d (0x%x)\n",
 				    i, rbuf[0]);
 		}
 
 		if (rbuf[0] != WF_ST_EMPTY) {
 			dev->samples_used++;
-		} 
+		}
 	}
 
 	snd_printk ("%d samples used (%d real, %d aliases, %d multi), "
@@ -699,7 +699,7 @@ wavefront_get_patch_status (snd_wavefront_t *dev)
 			dev->sample_status
 				[p->sample_number|(p->sample_msb<<7)] |=
 				WF_SLOT_USED;
-	    
+
 		} else if (x == 3) { /* Bad patch number */
 			dev->patch_status[i] = 0;
 		} else {
@@ -719,7 +719,7 @@ wavefront_get_patch_status (snd_wavefront_t *dev)
 		if (dev->patch_status[i] & WF_SLOT_USED) {
 			cnt2++;
 		}
-	
+
 	}
 	snd_printk ("%d patch slots filled, %d in use\n", cnt, cnt2);
 
@@ -791,7 +791,7 @@ wavefront_send_patch (snd_wavefront_t *dev, wavefront_patch_info *header)
 	bptr = buf;
 	bptr = munge_int32 (header->number, buf, 2);
 	munge_buf ((unsigned char *)&header->hdr.p, bptr, WF_PATCH_BYTES);
-    
+
 	if (snd_wavefront_cmd (dev, WFC_DOWNLOAD_PATCH, NULL, buf)) {
 		snd_printk ("download patch failed\n");
 		return -EIO;
@@ -818,7 +818,7 @@ wavefront_send_program (snd_wavefront_t *dev, wavefront_patch_info *header)
 	/* XXX need to zero existing SLOT_USED bit for program_status[i]
 	   where `i' is the program that's being (potentially) overwritten.
 	*/
-    
+
 	for (i = 0; i < WF_NUM_LAYERS; i++) {
 		if (header->hdr.pr.layer[i].mute) {
 			dev->patch_status[header->hdr.pr.layer[i].patch_number] |=
@@ -832,9 +832,9 @@ wavefront_send_program (snd_wavefront_t *dev, wavefront_patch_info *header)
 
 	buf[0] = header->number;
 	munge_buf ((unsigned char *)&header->hdr.pr, &buf[1], WF_PROGRAM_BYTES);
-    
+
 	if (snd_wavefront_cmd (dev, WFC_DOWNLOAD_PROGRAM, NULL, buf)) {
-		snd_printk ("download patch failed\n");	
+		snd_printk ("download patch failed\n");
 		return -EIO;
 	}
 
@@ -856,7 +856,7 @@ wavefront_freemem (snd_wavefront_t *dev)
 }
 
 static int
-wavefront_send_sample (snd_wavefront_t *dev, 
+wavefront_send_sample (snd_wavefront_t *dev,
 		       wavefront_patch_info *header,
 		       u16 __user *dataptr,
 		       int data_is_unsigned)
@@ -887,7 +887,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 
 	DPRINT (WF_DEBUG_LOAD_PATCH, "sample %sdownload for slot %d, "
 				      "type %d, %d bytes from 0x%lx\n",
-				      header->size ? "" : "header ", 
+				      header->size ? "" : "header ",
 				      header->number, header->subkey,
 				      header->size,
 				      (unsigned long) header->dataptr);
@@ -923,7 +923,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 		   is done purely at user level: there is no WFB parser in
 		   this driver, and so a complete reset (back to General MIDI,
 		   or theoretically some other configuration) is the
-		   responsibility of the user level library. 
+		   responsibility of the user level library.
 
 		   To try to do this in the kernel would be a little
 		   crazy: we'd need 158K of kernel space just to hold
@@ -951,7 +951,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 				    header->size);
 			return -ENOMEM;
 		}
-	
+
 	}
 
 	skip = WF_GET_CHANNEL(&header->hdr.s);
@@ -997,7 +997,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 				      "initial skip = %d, skip = %d\n",
 				      WF_GET_CHANNEL (&header->hdr.s),
 				      initial_skip, skip);
-    
+
 	/* Be safe, and zero the "Unused" bits ... */
 
 	WF_SET_CHANNEL(&header->hdr.s, 0);
@@ -1034,23 +1034,23 @@ wavefront_send_sample (snd_wavefront_t *dev,
 			     shptr, 4);
 	shptr = munge_int32 (*((u32 *) &header->hdr.s.sampleEndOffset),
 			     shptr, 4);
-	
+
 	/* This one is truly weird. What kind of weirdo decided that in
 	   a system dominated by 16 and 32 bit integers, they would use
 	   a just 12 bits ?
 	*/
-	
+
 	shptr = munge_int32 (header->hdr.s.FrequencyBias, shptr, 3);
-	
-	/* Why is this nybblified, when the MSB is *always* zero ? 
+
+	/* Why is this nybblified, when the MSB is *always* zero ?
 	   Anyway, we can't take address of bitfield, so make a
 	   good-faith guess at where it starts.
 	*/
-	
+
 	shptr = munge_int32 (*(&header->hdr.s.FrequencyBias+1),
 			     shptr, 2);
 
-	if (snd_wavefront_cmd (dev, 
+	if (snd_wavefront_cmd (dev,
 			   header->size ?
 			   WFC_DOWNLOAD_SAMPLE : WFC_DOWNLOAD_SAMPLE_HEADER,
 			   NULL, sample_hdr)) {
@@ -1062,16 +1062,16 @@ wavefront_send_sample (snd_wavefront_t *dev,
 	if (header->size == 0) {
 		goto sent; /* Sorry. Just had to have one somewhere */
 	}
-    
+
 	data_end = dataptr + length;
 
 	/* Do any initial skip over an unused channel's data */
 
 	dataptr += initial_skip;
-    
+
 	for (written = 0, blocknum = 0;
 	     written < length; written += max_blksize, blocknum++) {
-	
+
 		if ((length - written) > max_blksize) {
 			blocksize = max_blksize;
 		} else {
@@ -1088,31 +1088,31 @@ wavefront_send_sample (snd_wavefront_t *dev,
 		for (i = 0; i < blocksize; i++) {
 
 			if (dataptr < data_end) {
-		
+
 				__get_user (sample_short, dataptr);
 				dataptr += skip;
-		
+
 				if (data_is_unsigned) { /* GUS ? */
 
 					if (WF_SAMPLE_IS_8BIT(&header->hdr.s)) {
-			
+
 						/* 8 bit sample
 						 resolution, sign
 						 extend both bytes.
 						*/
-			
+
 						((unsigned char*)
 						 &sample_short)[0] += 0x7f;
 						((unsigned char*)
 						 &sample_short)[1] += 0x7f;
-			
+
 					} else {
-			
+
 						/* 16 bit sample
 						 resolution, sign
 						 extend the MSB.
 						*/
-			
+
 						sample_short += 0x7fff;
 					}
 				}
@@ -1126,7 +1126,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 				   whatever the final value was.
 				*/
 			}
-	    
+
 			if (i < blocksize - 1) {
 				outw (sample_short, dev->block_port);
 			} else {
@@ -1137,7 +1137,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 		/* Get "DMA page acknowledge", even though its really
 		   nothing to do with DMA at all.
 		*/
-	
+
 		if ((dma_ack = wavefront_read (dev)) != WF_DMA_ACK) {
 			if (dma_ack == -1) {
 				snd_printk ("upload sample "
@@ -1172,7 +1172,7 @@ wavefront_send_alias (snd_wavefront_t *dev, wavefront_patch_info *header)
 				      "alias for %d\n",
 				      header->number,
 				      header->hdr.a.OriginalSample);
-    
+
 	munge_int32 (header->number, &alias_hdr[0], 2);
 	munge_int32 (header->hdr.a.OriginalSample, &alias_hdr[2], 2);
 	munge_int32 (*((unsigned int *)&header->hdr.a.sampleStartOffset),
@@ -1228,13 +1228,13 @@ wavefront_send_multisample (snd_wavefront_t *dev, wavefront_patch_info *header)
 		munge_int32 (header->hdr.ms.SampleNumber[i],
 		     &msample_hdr[3+(i*2)], 2);
 	}
-    
+
 	/* Need a hack here to pass in the number of bytes
 	   to be written to the synth. This is ugly, and perhaps
 	   one day, I'll fix it.
 	*/
 
-	if (snd_wavefront_cmd (dev, WFC_DOWNLOAD_MULTISAMPLE, 
+	if (snd_wavefront_cmd (dev, WFC_DOWNLOAD_MULTISAMPLE,
 			   (unsigned char *) (long) ((num_samples*2)+3),
 			   msample_hdr)) {
 		snd_printk ("download of multisample failed.\n");
@@ -1249,7 +1249,7 @@ wavefront_send_multisample (snd_wavefront_t *dev, wavefront_patch_info *header)
 }
 
 static int
-wavefront_fetch_multisample (snd_wavefront_t *dev, 
+wavefront_fetch_multisample (snd_wavefront_t *dev,
 			     wavefront_patch_info *header)
 {
 	int i;
@@ -1258,12 +1258,12 @@ wavefront_fetch_multisample (snd_wavefront_t *dev,
 	int num_samples;
 
 	munge_int32 (header->number, number, 2);
-    
+
 	if (snd_wavefront_cmd (dev, WFC_UPLOAD_MULTISAMPLE, log_ns, number)) {
 		snd_printk ("upload multisample failed.\n");
 		return -EIO;
 	}
-    
+
 	DPRINT (WF_DEBUG_DATA, "msample %d has %d samples\n",
 				header->number, log_ns[0]);
 
@@ -1272,11 +1272,11 @@ wavefront_fetch_multisample (snd_wavefront_t *dev,
 	/* get the number of samples ... */
 
 	num_samples = (1 << log_ns[0]);
-    
+
 	for (i = 0; i < num_samples; i++) {
 		char d[2];
 		int val;
-	
+
 		if ((val = wavefront_read (dev)) == -1) {
 			snd_printk ("upload multisample failed "
 				    "during sample loop.\n");
@@ -1290,10 +1290,10 @@ wavefront_fetch_multisample (snd_wavefront_t *dev,
 			return -EIO;
 		}
 		d[1] = val;
-	
+
 		header->hdr.ms.SampleNumber[i] =
 			demunge_int32 ((unsigned char *) d, 2);
-	
+
 		DPRINT (WF_DEBUG_DATA, "msample sample[%d] = %d\n",
 					i, header->hdr.ms.SampleNumber[i]);
 	}
@@ -1311,7 +1311,7 @@ wavefront_send_drum (snd_wavefront_t *dev, wavefront_patch_info *header)
 	int i;
 
 	DPRINT (WF_DEBUG_LOAD_PATCH, "downloading edrum for MIDI "
-		"note %d, patch = %d\n", 
+		"note %d, patch = %d\n",
 		header->number, drum->PatchNumber);
 
 	drumbuf[0] = header->number & 0x7f;
@@ -1328,7 +1328,7 @@ wavefront_send_drum (snd_wavefront_t *dev, wavefront_patch_info *header)
 	return (0);
 }
 
-static int 
+static int
 wavefront_find_free_sample (snd_wavefront_t *dev)
 
 {
@@ -1344,7 +1344,7 @@ wavefront_find_free_sample (snd_wavefront_t *dev)
 }
 
 #if 0
-static int 
+static int
 wavefront_find_free_patch (snd_wavefront_t *dev)
 
 {
@@ -1365,7 +1365,7 @@ wavefront_load_patch (snd_wavefront_t *dev, const char __user *addr)
 {
 	wavefront_patch_info *header;
 	int err;
-	
+
 	header = kmalloc(sizeof(*header), GFP_KERNEL);
 	if (! header)
 		return -ENOMEM;
@@ -1435,7 +1435,7 @@ wavefront_load_patch (snd_wavefront_t *dev, const char __user *addr)
 			err = -EFAULT;
 			break;
 		}
-		
+
 		err = wavefront_send_patch (dev, header);
 		break;
 
@@ -1475,7 +1475,7 @@ process_sample_hdr (u8 *buf)
 	ptr = buf;
 
 	/* The board doesn't send us an exact copy of a "wavefront_sample"
-	   in response to an Upload Sample Header command. Instead, we 
+	   in response to an Upload Sample Header command. Instead, we
 	   have to convert the data format back into our data structure,
 	   just as in the Download Sample command, where we have to do
 	   something very similar in the reverse direction.
@@ -1498,7 +1498,7 @@ process_sample_hdr (u8 *buf)
 }
 
 static int
-wavefront_synth_control (snd_wavefront_card_t *acard, 
+wavefront_synth_control (snd_wavefront_card_t *acard,
 			 wavefront_control *wc)
 
 {
@@ -1512,7 +1512,7 @@ wavefront_synth_control (snd_wavefront_card_t *acard,
 	/* Pre-handling of or for various commands */
 
 	switch (wc->cmd) {
-		
+
 	case WFC_DISABLE_INTERRUPTS:
 		snd_printk ("interrupts disabled.\n");
 		outb (0x80|0x20, dev->control_port);
@@ -1625,7 +1625,7 @@ wavefront_synth_control (snd_wavefront_card_t *acard,
 	return 0;
 }
 
-int 
+int
 snd_wavefront_synth_open (struct snd_hwdep *hw, struct file *file)
 
 {
@@ -1635,7 +1635,7 @@ snd_wavefront_synth_open (struct snd_hwdep *hw, struct file *file)
 	return 0;
 }
 
-int 
+int
 snd_wavefront_synth_release (struct snd_hwdep *hw, struct file *file)
 
 {
@@ -1664,7 +1664,7 @@ snd_wavefront_synth_ioctl (struct snd_hwdep *hw, struct file *file,
 
 	acard = card->private_data;
 	dev = &acard->wavefront;
-	
+
 	switch (cmd) {
 	case WFCTL_LOAD_SPP:
 		if (wavefront_load_patch (dev, argp) != 0) {
@@ -1734,7 +1734,7 @@ snd_wavefront_internal_interrupt (snd_wavefront_card_t *card)
 	wake_up(&dev->interrupt_sleeper);
 }
 
-/* STATUS REGISTER 
+/* STATUS REGISTER
 
 0 Host Rx Interrupt Enable (1=Enabled)
 1 Host Rx Register Full (1=Full)
@@ -1765,7 +1765,7 @@ snd_wavefront_interrupt_bits (int irq)
 	case 15:
 		bits = 0x18;
 		break;
-	
+
 	default:
 		snd_printk ("invalid IRQ %d\n", irq);
 		bits = -1;
@@ -1775,7 +1775,7 @@ snd_wavefront_interrupt_bits (int irq)
 }
 
 static void
-wavefront_should_cause_interrupt (snd_wavefront_t *dev, 
+wavefront_should_cause_interrupt (snd_wavefront_t *dev,
 				  int val, int port, unsigned long timeout)
 
 {
@@ -1806,22 +1806,22 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 
 	/* try reset of port */
 
-	outb (0x0, dev->control_port); 
-  
+	outb (0x0, dev->control_port);
+
 	/* At this point, the board is in reset, and the H/W initialization
 	   register is accessed at the same address as the data port.
-     
-	   Bit 7 - Enable IRQ Driver	
+
+	   Bit 7 - Enable IRQ Driver
 	   0 - Tri-state the Wave-Board drivers for the PC Bus IRQs
 	   1 - Enable IRQ selected by bits 5:3 to be driven onto the PC Bus.
-     
+
 	   Bit 6 - MIDI Interface Select
 
 	   0 - Use the MIDI Input from the 26-pin WaveBlaster
 	   compatible header as the serial MIDI source
 	   1 - Use the MIDI Input from the 9-pin D connector as the
 	   serial MIDI source.
-     
+
 	   Bits 5:3 - IRQ Selection
 	   0 0 0 - IRQ 2/9
 	   0 0 1 - IRQ 5
@@ -1831,21 +1831,21 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 	   1 0 1 - Reserved
 	   1 1 0 - Reserved
 	   1 1 1 - Reserved
-     
+
 	   Bits 2:1 - Reserved
 	   Bit 0 - Disable Boot ROM
 	   0 - memory accesses to 03FC30-03FFFFH utilize the internal Boot ROM
-	   1 - memory accesses to 03FC30-03FFFFH are directed to external 
+	   1 - memory accesses to 03FC30-03FFFFH are directed to external
 	   storage.
-     
+
 	*/
 
-	/* configure hardware: IRQ, enable interrupts, 
+	/* configure hardware: IRQ, enable interrupts,
 	   plus external 9-pin MIDI interface selected
 	*/
 
-	outb (0x80 | 0x40 | bits, dev->data_port);	
-  
+	outb (0x80 | 0x40 | bits, dev->data_port);
+
 	/* CONTROL REGISTER
 
 	   0 Host Rx Interrupt Enable (1=Enabled)      0x1
@@ -1858,7 +1858,7 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 	   7 Master Reset (0=Reset; 1=Run)            0x80
 
 	   Take us out of reset, mute output, master + TX + RX interrupts on.
-	   
+
 	   We'll get an interrupt presumably to tell us that the TX
 	   register is clear.
 	*/
@@ -1874,7 +1874,7 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 	if (!dev->irq_ok) {
 		snd_printk ("intr not received after h/w un-reset.\n");
 		goto gone_bad;
-	} 
+	}
 
 	/* Note: data port is now the data port, not the h/w initialization
 	   port.
@@ -1892,19 +1892,19 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 	   XXX Interesting question: why is no RX interrupt received first ?
 	*/
 
-	wavefront_should_cause_interrupt(dev, WFC_HARDWARE_VERSION, 
+	wavefront_should_cause_interrupt(dev, WFC_HARDWARE_VERSION,
 					 dev->data_port, ramcheck_time*HZ);
 
 	if (!dev->irq_ok) {
 		snd_printk ("post-RAM-check interrupt not received.\n");
 		goto gone_bad;
-	} 
+	}
 
 	if (!wavefront_wait (dev, STAT_CAN_READ)) {
 		snd_printk ("no response to HW version cmd.\n");
 		goto gone_bad;
 	}
-	
+
 	if ((hwv[0] = wavefront_read (dev)) == -1) {
 		snd_printk ("board not responding correctly.\n");
 		goto gone_bad;
@@ -1915,7 +1915,7 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 		/* Board's RAM test failed. Try to read error code,
 		   and tell us about it either way.
 		*/
-		
+
 		if ((hwv[0] = wavefront_read (dev)) == -1) {
 			snd_printk ("on-board RAM test failed "
 				    "(bad error code).\n");
@@ -1982,14 +1982,14 @@ wavefront_download_firmware (snd_wavefront_t *dev, char *path)
 		/* Send command */
 		if (wavefront_write(dev, WFC_DOWNLOAD_OS))
 			goto failure;
-	
+
 		for (; section_length; section_length--) {
 			if (wavefront_write(dev, *buf))
 				goto failure;
 			buf++;
 			len++;
 		}
-	
+
 		/* get ACK */
 		if (!wavefront_wait(dev, STAT_CAN_READ)) {
 			snd_printk(KERN_ERR "time out for firmware ACK.\n");
@@ -2039,7 +2039,7 @@ wavefront_do_reset (snd_wavefront_t *dev)
 		   this is non-obvious, and was determined by
 		   using port-IO tracing in DOSemu and some
 		   experimentation here.
-		   
+
 		   Rather than using timed waits, use interrupts creatively.
 		*/
 
@@ -2051,33 +2051,33 @@ wavefront_do_reset (snd_wavefront_t *dev)
 			snd_printk ("no post-OS interrupt.\n");
 			goto gone_bad;
 		}
-		
+
 		/* Now, do it again ! */
-		
+
 		wavefront_should_cause_interrupt (dev, WFC_NOOP,
 						  dev->data_port, (10*HZ));
-		
+
 		if (!dev->irq_ok) {
 			snd_printk ("no post-OS interrupt(2).\n");
 			goto gone_bad;
 		}
 
 		/* OK, no (RX/TX) interrupts any more, but leave mute
-		   in effect. 
+		   in effect.
 		*/
-		
-		outb (0x80|0x40, dev->control_port); 
+
+		outb (0x80|0x40, dev->control_port);
 	}
 
 	/* SETUPSND.EXE asks for sample memory config here, but since i
 	   have no idea how to interpret the result, we'll forget
 	   about it.
 	*/
-	
+
 	if ((dev->freemem = wavefront_freemem (dev)) < 0) {
 		goto gone_bad;
 	}
-		
+
 	snd_printk ("available DRAM %dk\n", dev->freemem / 1024);
 
 	if (wavefront_write (dev, 0xf0) ||
@@ -2113,7 +2113,7 @@ snd_wavefront_start (snd_wavefront_t *dev)
 	int samples_are_from_rom;
 
 	/* IMPORTANT: assumes that snd_wavefront_detect() and/or
-	   wavefront_reset_to_cleanliness() has already been called 
+	   wavefront_reset_to_cleanliness() has already been called
 	*/
 
 	if (dev->israw) {
@@ -2143,7 +2143,7 @@ snd_wavefront_start (snd_wavefront_t *dev)
 	/* Start normal operation: unreset, master interrupt enabled, no mute
 	*/
 
-	outb (0x80|0x40|0x20, dev->control_port); 
+	outb (0x80|0x40|0x20, dev->control_port);
 
 	return (0);
 }
@@ -2154,7 +2154,7 @@ snd_wavefront_detect (snd_wavefront_card_t *card)
 {
 	unsigned char   rbuf[4], wbuf[4];
 	snd_wavefront_t *dev = &card->wavefront;
-	
+
 	/* returns zero if a WaveFront card is successfully detected.
 	   negative otherwise.
 	*/
@@ -2175,7 +2175,7 @@ snd_wavefront_detect (snd_wavefront_card_t *card)
 			    rbuf[0], rbuf[1]);
 
 		/* check that a command actually works */
-      
+
 		if (snd_wavefront_cmd (dev, WFC_HARDWARE_VERSION,
 				       rbuf, wbuf) == 0) {
 			dev->hw_version[0] = rbuf[0];

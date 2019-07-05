@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * newport_con.c: Abscon for newport hardware
- * 
+ *
  * (C) 1998 Thomas Bogendoerfer (tsbogend@alpha.franken.de)
  * (C) 1999 Ulf Carlsson (ulfc@thepuffingruop.com)
- * 
+ *
  * This driver is based on sgicons.c and cons_newport.
- * 
+ *
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997 Miguel de Icaza (miguel@nuclecu.unam.mx)
  */

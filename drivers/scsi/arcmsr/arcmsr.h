@@ -306,7 +306,7 @@ struct FIRMWARE_INFO
 
 #define MEM_BASE0(x)	(u32 __iomem *)((unsigned long)acb->mem_base0 + x)
 #define MEM_BASE1(x)	(u32 __iomem *)((unsigned long)acb->mem_base1 + x)
-/* 
+/*
 ************************************************************************
 **                SPEC. for Areca HBC adapter
 ************************************************************************

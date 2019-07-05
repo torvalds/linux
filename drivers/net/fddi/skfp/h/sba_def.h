@@ -45,7 +45,7 @@
 /**************************** OTHERS *********************************/
 
 #define FIFTY_PERCENT		50		/* bytes per second */
-#define MAX_SESSIONS		150	
+#define MAX_SESSIONS		150
 #define TWO_MINUTES		13079		/* 9.175 ms/tick */
 #define FIFTY_BYTES		50
 #define SBA_DENIED		0x0000000D

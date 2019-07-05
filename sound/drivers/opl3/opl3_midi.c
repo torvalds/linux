@@ -369,7 +369,7 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 		voice = opl3_get_voice(opl3, instr_4op, chan);
 	} else {
 		/* remap OSS voice */
-		voice = snd_opl3_oss_map[chan->number];		
+		voice = snd_opl3_oss_map[chan->number];
 	}
 
 	if (voice < 0) {
@@ -463,22 +463,22 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 #endif
 		op_offset = snd_opl3_regmap[voice_offset][i];
 
-		/* Set OPL3 AM_VIB register of requested voice/operator */ 
+		/* Set OPL3 AM_VIB register of requested voice/operator */
 		reg_val = fm->op[i].am_vib;
 		opl3_reg = reg_side | (OPL3_REG_AM_VIB + op_offset);
 		opl3->command(opl3, opl3_reg, reg_val);
 
-		/* Set OPL3 KSL_LEVEL register of requested voice/operator */ 
+		/* Set OPL3 KSL_LEVEL register of requested voice/operator */
 		reg_val = vol_op[i];
 		opl3_reg = reg_side | (OPL3_REG_KSL_LEVEL + op_offset);
 		opl3->command(opl3, opl3_reg, reg_val);
 
-		/* Set OPL3 ATTACK_DECAY register of requested voice/operator */ 
+		/* Set OPL3 ATTACK_DECAY register of requested voice/operator */
 		reg_val = fm->op[i].attack_decay;
 		opl3_reg = reg_side | (OPL3_REG_ATTACK_DECAY + op_offset);
 		opl3->command(opl3, opl3_reg, reg_val);
 
-		/* Set OPL3 SUSTAIN_RELEASE register of requested voice/operator */ 
+		/* Set OPL3 SUSTAIN_RELEASE register of requested voice/operator */
 		reg_val = fm->op[i].sustain_release;
 		opl3_reg = reg_side | (OPL3_REG_SUSTAIN_RELEASE + op_offset);
 		opl3->command(opl3, opl3_reg, reg_val);
@@ -541,7 +541,7 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 #ifdef DEBUG_MIDI
 	snd_printk(KERN_DEBUG "  --> trigger voice %i\n", voice);
 #endif
-	/* Set OPL3 KEYON_BLOCK register of requested voice */ 
+	/* Set OPL3 KEYON_BLOCK register of requested voice */
 	opl3_reg = reg_side | (OPL3_REG_KEYON_BLOCK + voice_offset);
 	opl3->command(opl3, opl3_reg, blocknum);
 
@@ -682,7 +682,7 @@ static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
 	} else {
 		/* remap OSS voices */
 		if (chan->number < MAX_OPL3_VOICES) {
-			voice = snd_opl3_oss_map[chan->number];		
+			voice = snd_opl3_oss_map[chan->number];
 			snd_opl3_kill_voice(opl3, voice);
 		}
 	}
@@ -759,7 +759,7 @@ static void snd_opl3_update_pitch(struct snd_opl3 *opl3, int voice)
 	/* Set output sound flag */
 	blocknum |= OPL3_KEYON_BIT;
 
-	/* Set OPL3 KEYON_BLOCK register of requested voice */ 
+	/* Set OPL3 KEYON_BLOCK register of requested voice */
 	opl3_reg = reg_side | (OPL3_REG_KEYON_BLOCK + voice_offset);
 	opl3->command(opl3, opl3_reg, blocknum);
 
@@ -788,7 +788,7 @@ static void snd_opl3_pitch_ctrl(struct snd_opl3 *opl3, struct snd_midi_channel *
 	} else {
 		/* remap OSS voices */
 		if (chan->number < MAX_OPL3_VOICES) {
-			voice = snd_opl3_oss_map[chan->number];		
+			voice = snd_opl3_oss_map[chan->number];
 			snd_opl3_update_pitch(opl3, voice);
 		}
 	}
@@ -813,7 +813,7 @@ void snd_opl3_control(void *p, int type, struct snd_midi_channel *chan)
 	case MIDI_CTL_MSB_MODWHEEL:
 		if (chan->control[MIDI_CTL_MSB_MODWHEEL] > 63)
 			opl3->drum_reg |= OPL3_VIBRATO_DEPTH;
-		else 
+		else
 			opl3->drum_reg &= ~OPL3_VIBRATO_DEPTH;
 		opl3->command(opl3, OPL3_LEFT | OPL3_REG_PERCUSSION,
 				 opl3->drum_reg);
@@ -821,7 +821,7 @@ void snd_opl3_control(void *p, int type, struct snd_midi_channel *chan)
 	case MIDI_CTL_E2_TREMOLO_DEPTH:
 		if (chan->control[MIDI_CTL_E2_TREMOLO_DEPTH] > 63)
 			opl3->drum_reg |= OPL3_TREMOLO_DEPTH;
-		else 
+		else
 			opl3->drum_reg &= ~OPL3_TREMOLO_DEPTH;
 		opl3->command(opl3, OPL3_LEFT | OPL3_REG_PERCUSSION,
 				 opl3->drum_reg);

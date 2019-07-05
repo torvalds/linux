@@ -865,14 +865,14 @@ why a latency happened. Here is a typical trace::
   #  => ended at:   _raw_spin_unlock_irqrestore
   #
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
         ps-6143    2d...    0us!: trace_hardirqs_off <-__lock_task_sighand
         ps-6143    2d..1  259us+: trace_hardirqs_on <-_raw_spin_unlock_irqrestore
         ps-6143    2d..1  263us+: time_hardirqs_on <-_raw_spin_unlock_irqrestore
@@ -1321,14 +1321,14 @@ an example::
   #  => ended at:   run_timer_softirq
   #
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
     <idle>-0       0d.s2    0us+: _raw_spin_lock_irq <-run_timer_softirq
     <idle>-0       0dNs3   17us : _raw_spin_unlock_irq <-run_timer_softirq
     <idle>-0       0dNs3   17us+: trace_hardirqs_on <-run_timer_softirq
@@ -1372,14 +1372,14 @@ function-trace, we get a much larger output::
   #  => ended at:   ata_scsi_queuecmd
   #
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
       bash-2042    3d...    0us : _raw_spin_lock_irqsave <-ata_scsi_queuecmd
       bash-2042    3d...    0us : add_preempt_count <-_raw_spin_lock_irqsave
       bash-2042    3d..1    1us : ata_scsi_find_dev <-ata_scsi_queuecmd
@@ -1520,14 +1520,14 @@ is much like the irqsoff tracer.
   #  => ended at:   do_IRQ
   #
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
       sshd-1991    1d.h.    0us+: irq_enter <-do_IRQ
       sshd-1991    1d..1   46us : irq_exit <-do_IRQ
       sshd-1991    1d..1   47us+: trace_preempt_on <-do_IRQ
@@ -1558,14 +1558,14 @@ was over.
   #  => ended at:   task_rq_unlock
   #
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
       bash-1994    1d..1    0us : _raw_spin_lock_irqsave <-wake_up_new_task
       bash-1994    1d..1    0us : select_task_rq_fair <-select_task_rq
       bash-1994    1d..1    1us : __rcu_read_lock <-select_task_rq_fair
@@ -1672,14 +1672,14 @@ tracers.
   #  => ended at:   ata_scsi_queuecmd
   #
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
         ls-2230    3d...    0us+: _raw_spin_lock_irqsave <-ata_scsi_queuecmd
         ls-2230    3...1  100us : _raw_spin_unlock_irqrestore <-ata_scsi_queuecmd
         ls-2230    3...1  101us+: trace_preempt_on <-ata_scsi_queuecmd
@@ -1725,14 +1725,14 @@ Here is a trace with function-trace set::
   #  => ended at:   mutex_unlock
   #
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
   kworker/-59      3...1    0us : __schedule <-schedule
   kworker/-59      3d..1    0us : rcu_preempt_qs <-rcu_note_context_switch
   kworker/-59      3d..1    1us : add_preempt_count <-_raw_spin_lock_irq
@@ -1818,7 +1818,7 @@ wakeup
 One common case that people are interested in tracing is the
 time it takes for a task that is woken to actually wake up.
 Now for non Real-Time tasks, this can be arbitrary. But tracing
-it none the less can be interesting. 
+it none the less can be interesting.
 
 Without function tracing::
 
@@ -1838,14 +1838,14 @@ Without function tracing::
   #    | task: kworker/3:1H-312 (uid:0 nice:-20 policy:0 rt_prio:0)
   #    -----------------
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
     <idle>-0       3dNs7    0us :      0:120:R   + [003]   312:100:R kworker/3:1H
     <idle>-0       3dNs7    1us+: ttwu_do_activate.constprop.87 <-try_to_wake_up
     <idle>-0       3d..3   15us : __schedule <-schedule
@@ -1907,14 +1907,14 @@ Instead of performing an 'ls', we will run 'sleep 1' under
   #    | task: sleep-2389 (uid:0 nice:0 policy:1 rt_prio:5)
   #    -----------------
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
     <idle>-0       3d.h4    0us :      0:120:R   + [003]  2389: 94:R sleep
     <idle>-0       3d.h4    1us+: ttwu_do_activate.constprop.87 <-try_to_wake_up
     <idle>-0       3d..3    5us : __schedule <-schedule
@@ -1956,14 +1956,14 @@ Doing the same with chrt -r 5 and function-trace set.
   #    | task: sleep-2448 (uid:0 nice:0 policy:1 rt_prio:5)
   #    -----------------
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
     <idle>-0       3d.h4    1us+:      0:120:R   + [003]  2448: 94:R sleep
     <idle>-0       3d.h4    2us : ttwu_do_activate.constprop.87 <-try_to_wake_up
     <idle>-0       3d.h3    3us : check_preempt_curr <-ttwu_do_wakeup
@@ -2082,14 +2082,14 @@ events.
   #    | task: sleep-5882 (uid:0 nice:0 policy:1 rt_prio:5)
   #    -----------------
   #
-  #                  _------=> CPU#            
-  #                 / _-----=> irqs-off        
-  #                | / _----=> need-resched    
-  #                || / _---=> hardirq/softirq 
-  #                ||| / _--=> preempt-depth   
-  #                |||| /     delay             
-  #  cmd     pid   ||||| time  |   caller      
-  #     \   /      |||||  \    |   /           
+  #                  _------=> CPU#
+  #                 / _-----=> irqs-off
+  #                | / _----=> need-resched
+  #                || / _---=> hardirq/softirq
+  #                ||| / _--=> preempt-depth
+  #                |||| /     delay
+  #  cmd     pid   ||||| time  |   caller
+  #     \   /      |||||  \    |   /
     <idle>-0       2d.h4    0us :      0:120:R   + [002]  5882: 94:R sleep
     <idle>-0       2d.h4    0us : ttwu_do_activate.constprop.87 <-try_to_wake_up
     <idle>-0       2d.h4    1us : sched_wakeup: comm=sleep pid=5882 prio=94 success=1 target_cpu=002
@@ -3172,7 +3172,7 @@ with the number of entries.
 Or simply read buffer_total_size_kb
 ::
 
-  # cat buffer_total_size_kb 
+  # cat buffer_total_size_kb
   5632
 
 To modify the buffer, simple echo in a number (in 1024 byte segments).
@@ -3207,7 +3207,7 @@ at the top level will just show an X
 This is where the buffer_total_size_kb is useful:
 ::
 
-  # cat buffer_total_size_kb 
+  # cat buffer_total_size_kb
   12916
 
 Writing to the top level buffer_size_kb will reset all the buffers
@@ -3270,9 +3270,9 @@ Here is an example of using the snapshot feature.
             <idle>-0     [005] d...  2440.603828: sched_switch: prev_comm=swapper/5 prev_pid=0 prev_prio=120   prev_state=R ==> next_comm=snapshot-test-2 next_pid=2242 next_prio=120
              sleep-2242  [005] d...  2440.603846: sched_switch: prev_comm=snapshot-test-2 prev_pid=2242 prev_prio=120   prev_state=R ==> next_comm=kworker/5:1 next_pid=60 next_prio=120
   [...]
-          <idle>-0     [002] d...  2440.707230: sched_switch: prev_comm=swapper/2 prev_pid=0 prev_prio=120 prev_state=R ==> next_comm=snapshot-test-2 next_pid=2229 next_prio=120  
+          <idle>-0     [002] d...  2440.707230: sched_switch: prev_comm=swapper/2 prev_pid=0 prev_prio=120 prev_state=R ==> next_comm=snapshot-test-2 next_pid=2229 next_prio=120
 
-  # cat trace  
+  # cat trace
   # tracer: nop
   #
   # entries-in-buffer/entries-written: 77/77   #P:8

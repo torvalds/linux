@@ -1,6 +1,6 @@
-# install the aoe-specific udev rules from udev.txt into 
+# install the aoe-specific udev rules from udev.txt into
 # the system's udev configuration
-# 
+#
 
 me="`basename $0`"
 

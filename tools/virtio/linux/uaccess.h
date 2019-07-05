@@ -27,7 +27,7 @@ static inline void __chk_user_ptr(const volatile void *p, size_t size)
 	0;							\
 })
 
-static void volatile_memcpy(volatile char *to, const volatile char *from, 
+static void volatile_memcpy(volatile char *to, const volatile char *from,
 			    unsigned long n)
 {
 	while (n--)

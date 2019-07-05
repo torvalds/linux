@@ -54,12 +54,12 @@ sgl_to_sgl_fcnvuf(
 
 	src = *srcptr;
 
-	/* Check for zero */ 
-	if (src == 0) { 
-	       	Sgl_setzero(result); 
+	/* Check for zero */
+	if (src == 0) {
+	       	Sgl_setzero(result);
 		*dstptr = result;
-	       	return(NOEXCEPTION); 
-	} 
+	       	return(NOEXCEPTION);
+	}
 	/*
 	 * Generate exponent and normalized mantissa
 	 */
@@ -78,7 +78,7 @@ sgl_to_sgl_fcnvuf(
 	/* check for inexact */
 	if (Suint_isinexact_to_sgl(src)) {
 		switch (Rounding_mode()) {
-			case ROUNDPLUS: 
+			case ROUNDPLUS:
 				Sgl_increment(result);
 				break;
 			case ROUNDMINUS: /* never negative */
@@ -98,7 +98,7 @@ sgl_to_sgl_fcnvuf(
 }
 
 /*
- *  Single Unsigned Fixed to Double Floating-point 
+ *  Single Unsigned Fixed to Double Floating-point
  */
 
 int
@@ -139,7 +139,7 @@ sgl_to_dbl_fcnvuf(
 }
 
 /*
- *  Double Unsigned Fixed to Single Floating-point 
+ *  Double Unsigned Fixed to Single Floating-point
  */
 
 int
@@ -172,10 +172,10 @@ dbl_to_sgl_fcnvuf(
 		 */
 		Find_ms_one_bit(srcp2,dst_exponent);
 		/*  left justify source, with msb at bit position 0  */
-		srcp1 = srcp2 << dst_exponent+1;    
+		srcp1 = srcp2 << dst_exponent+1;
 		srcp2 = 0;
 		/*
-		 *  since msb set is in second word, need to 
+		 *  since msb set is in second word, need to
 		 *  adjust bit position count
 		 */
 		dst_exponent += 32;
@@ -191,7 +191,7 @@ dbl_to_sgl_fcnvuf(
 		/*  left justify source, with msb at bit position 0  */
 		if (dst_exponent >= 0) {
 			Variable_shift_double(srcp1,srcp2,(31-dst_exponent),
-			 srcp1); 
+			 srcp1);
 			srcp2 <<= dst_exponent+1;
 		}
 	}
@@ -201,7 +201,7 @@ dbl_to_sgl_fcnvuf(
 	/* check for inexact */
 	if (Duint_isinexact_to_sgl(srcp1,srcp2)) {
 		switch (Rounding_mode()) {
-			case ROUNDPLUS: 
+			case ROUNDPLUS:
 				Sgl_increment(result);
 				break;
 			case ROUNDMINUS: /* never negative */
@@ -221,7 +221,7 @@ dbl_to_sgl_fcnvuf(
 }
 
 /*
- *  Double Unsigned Fixed to Double Floating-point 
+ *  Double Unsigned Fixed to Double Floating-point
  */
 
 int
@@ -257,7 +257,7 @@ dbl_to_dbl_fcnvuf(
 		srcp1 = srcp2 << dst_exponent+1;
 		srcp2 = 0;
 		/*
-		 *  since msb set is in second word, need to 
+		 *  since msb set is in second word, need to
 		 *  adjust bit position count
 		 */
 		dst_exponent += 32;
@@ -272,7 +272,7 @@ dbl_to_dbl_fcnvuf(
 		/*  left justify source, with msb at bit position 0  */
 		if (dst_exponent >= 0) {
 			Variable_shift_double(srcp1,srcp2,(31-dst_exponent),
-			 srcp1); 
+			 srcp1);
 			srcp2 <<= dst_exponent+1;
 		}
 	}
@@ -283,7 +283,7 @@ dbl_to_dbl_fcnvuf(
 	/* check for inexact */
 	if (Duint_isinexact_to_dbl(srcp2)) {
 		switch (Rounding_mode()) {
-			case ROUNDPLUS: 
+			case ROUNDPLUS:
 				Dbl_increment(resultp1,resultp2);
 				break;
 			case ROUNDMINUS: /* never negative */

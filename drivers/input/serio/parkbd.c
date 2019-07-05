@@ -9,18 +9,18 @@
 /*
  * To connect an AT or XT keyboard to the parallel port, a fairly simple adapter
  * can be made:
- * 
+ *
  *  Parallel port            Keyboard port
  *
  *     +5V --------------------- +5V (4)
- *  
+ *
  *                 ______
  *     +5V -------|______|--.
  *                          |
  *     ACK (10) ------------|
  *                          |--- KBD CLOCK (5)
  *     STROBE (1) ---|<|----'
- *     
+ *
  *                 ______
  *     +5V -------|______|--.
  *                          |
@@ -29,7 +29,7 @@
  *     AUTOFD (14) --|<|----'
  *
  *     GND (18-25) ------------- GND (3)
- *     
+ *
  * The diodes can be fairly any type, and the resistors should be somewhere
  * around 5 kOhm, but the adapter will likely work without the resistors,
  * too.

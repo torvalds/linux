@@ -24,7 +24,7 @@
 #include <asm/processor.h>
 
 /* Debugging
- * 
+ *
  * #define APC_DEBUG_LED
  */
 
@@ -38,13 +38,13 @@ static int apc_no_idle = 0;
 #define apc_readb(offs)		(sbus_readb(regs+offs))
 #define apc_writeb(val, offs) 	(sbus_writeb(val, regs+offs))
 
-/* Specify "apc=noidle" on the kernel command line to 
+/* Specify "apc=noidle" on the kernel command line to
  * disable APC CPU standby support.  Certain prototype
  * systems (SPARCstation-Fox) do not play well with APC
- * CPU idle, so disable this if your system has APC and 
+ * CPU idle, so disable this if your system has APC and
  * crashes randomly.
  */
-static int __init apc_setup(char *str) 
+static int __init apc_setup(char *str)
 {
 	if(!strncmp(str, "noidle", strlen("noidle"))) {
 		apc_no_idle = 1;
@@ -54,22 +54,22 @@ static int __init apc_setup(char *str)
 }
 __setup("apc=", apc_setup);
 
-/* 
+/*
  * CPU idle callback function
  * See .../arch/sparc/kernel/process.c
  */
 static void apc_swift_idle(void)
 {
 #ifdef APC_DEBUG_LED
-	set_auxio(0x00, AUXIO_LED); 
+	set_auxio(0x00, AUXIO_LED);
 #endif
 
 	apc_writeb(apc_readb(APC_IDLE_REG) | APC_IDLE_ON, APC_IDLE_REG);
 
 #ifdef APC_DEBUG_LED
-	set_auxio(AUXIO_LED, 0x00); 
+	set_auxio(AUXIO_LED, 0x00);
 #endif
-} 
+}
 
 static inline void apc_free(struct platform_device *op)
 {
@@ -162,7 +162,7 @@ static int apc_probe(struct platform_device *op)
 	if (!apc_no_idle)
 		sparc_idle = apc_swift_idle;
 
-	printk(KERN_INFO "%s: power management initialized%s\n", 
+	printk(KERN_INFO "%s: power management initialized%s\n",
 	       APC_DEVNAME, apc_no_idle ? " (CPU idle disabled)" : "");
 
 	return 0;

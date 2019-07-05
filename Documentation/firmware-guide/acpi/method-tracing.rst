@@ -196,7 +196,7 @@ Where "string" should be one of the following:
 
 "enable"
   Enable the method tracing feature.
-  
+
   ACPICA debugging messages matching "trace_debug_layer/trace_debug_level"
   during any method execution will be logged.
 

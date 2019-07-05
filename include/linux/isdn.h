@@ -5,7 +5,7 @@
  * Copyright 1994,95,96 by Fritz Elfert (fritz@isdn4linux.de)
  * Copyright 1995,96    by Thinking Objects Software GmbH Wuerzburg
  * Copyright 1995,96    by Michael Hipp (Michael.Hipp@student.uni-tuebingen.de)
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -77,7 +77,7 @@
 
 /* Until now unused */
 #define ISDN_SERVICE_VOICE 1
-#define ISDN_SERVICE_AB    1<<1 
+#define ISDN_SERVICE_AB    1<<1
 #define ISDN_SERVICE_X21   1<<2
 #define ISDN_SERVICE_G4    1<<3
 #define ISDN_SERVICE_BTX   1<<4
@@ -111,7 +111,7 @@
 #define ISDN_TIMER_MODEMPLUS   2
 #define ISDN_TIMER_MODEMRING   4
 #define ISDN_TIMER_MODEMXMIT   8
-#define ISDN_TIMER_NETDIAL    16 
+#define ISDN_TIMER_NETDIAL    16
 #define ISDN_TIMER_NETHANGUP  32
 #define ISDN_TIMER_CARRIER   256 /* Wait for Carrier */
 #define ISDN_TIMER_FAST      (ISDN_TIMER_MODEMREAD | ISDN_TIMER_MODEMPLUS | \
@@ -147,7 +147,7 @@ typedef struct {
 /*
    Principles when extending structures for generic encapsulation protocol
    ("concap") support:
-   - Stuff which is hardware specific (here i4l-specific) goes in 
+   - Stuff which is hardware specific (here i4l-specific) goes in
      the netdev -> local structure (here: isdn_net_local)
    - Stuff which is encapsulation protocol specific goes in the structure
      which holds the linux device structure (here: isdn_net_device)
@@ -216,7 +216,7 @@ typedef struct isdn_net_local_s {
   struct sk_buff_head    super_tx_queue; /* List of supervisory frames to  */
 	                               /* be transmitted asap              */
   atomic_t frame_cnt;                  /* number of frames currently       */
-                        	       /* queued in HL driver              */    
+                        	       /* queued in HL driver              */
                                        /* Ptr to orig. hard_header_cache   */
   spinlock_t             xmit_lock;    /* used to protect the xmit path of */
                                        /* a particular channel (including  */

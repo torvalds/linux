@@ -9,7 +9,7 @@
  *
  *	It supports DMA using two DMA channels in SYNC mode. The driver doesn't
  *	use these facilities
- *	
+ *
  *	The control port is at io+1, the data at io+3 and turning off the DMA
  *	is done by writing 0 to io+4
  *

@@ -50,7 +50,7 @@ __smp_callin:
 
 	lda	$8,0x3fff	# Find "current".
 	bic	$30,$8,$8
-	
+
 	jsr	$26,smp_callin
 	call_pal PAL_halt
 	.end __smp_callin
@@ -85,7 +85,7 @@ cserve_dis:
 	.end	cserve_dis
 
 	#
-	# It is handy, on occasion, to make halt actually just loop. 
+	# It is handy, on occasion, to make halt actually just loop.
 	# Putting it here means we dont have to recompile the whole
 	# kernel.
 	#

@@ -136,7 +136,7 @@ SYSCALL_DEFINE0(nis_syscall)
 		return -ENOSYS;
 	printk ("%s[%d]: Unimplemented SPARC system call %d\n",
 		current->comm, task_pid_nr(current), (int)regs->u_regs[1]);
-#ifdef DEBUG_UNIMP_SYSCALL	
+#ifdef DEBUG_UNIMP_SYSCALL
 	show_regs (regs);
 #endif
 	return -ENOSYS;

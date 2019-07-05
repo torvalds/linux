@@ -485,7 +485,7 @@ lmc_ds3_get_link_status (lmc_softc_t * const sc)
 
     lmc_mii_writereg (sc, 0, 17, 9);
     link_status = lmc_mii_readreg (sc, 0, 18);
-    
+
     if(link_status & LMC_FRAMER_REG9_RBLUE){
         ret = 0;
         if(sc->last_led_err[1] != 1){
@@ -527,7 +527,7 @@ lmc_ds3_set_crc_length (lmc_softc_t * const sc, int state)
 static void
 lmc_ds3_watchdog (lmc_softc_t * const sc)
 {
-    
+
 }
 
 
@@ -756,7 +756,7 @@ lmc_ssi_get_link_status (lmc_softc_t * const sc)
   if(ret == 1) {
       lmc_led_on(sc, LMC_MII16_LED2); /* Over all good status? */
   }
-  
+
   return ret;
 }
 
@@ -1096,7 +1096,7 @@ lmc_t1_get_link_status (lmc_softc_t * const sc)
             lmc_led_off(sc, LMC_DS3_LED3);
         sc->last_led_err[3] = 0;
     }
-    
+
     if(link_status & T1F_RLOS){
         ret = 0;
         if(sc->last_led_err[2] != 1){
@@ -1120,7 +1120,7 @@ lmc_t1_get_link_status (lmc_softc_t * const sc)
     lmc_mii_writereg (sc, 0, 17, T1FRAMER_ALARM2_STATUS);
     sc->lmc_xinfo.t1_alarm2_status = lmc_mii_readreg (sc, 0, 18);
 
-    
+
     lmc_trace(sc->lmc_device, "lmc_t1_get_link_status out");
 
     return ret;
@@ -1144,7 +1144,7 @@ lmc_t1_set_circuit_type (lmc_softc_t * const sc, int ie)
   }
 
   lmc_mii_writereg (sc, 0, 16, sc->lmc_miireg16);
-  
+
 }
 
 /*

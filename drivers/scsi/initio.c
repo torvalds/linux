@@ -2507,7 +2507,7 @@ static irqreturn_t i91u_intr(int irqno, void *dev_id)
 	struct Scsi_Host *dev = dev_id;
 	unsigned long flags;
 	int r;
-	
+
 	spin_lock_irqsave(dev->host_lock, flags);
 	r = initio_isr((struct initio_host *)dev->hostdata);
 	spin_unlock_irqrestore(dev->host_lock, flags);

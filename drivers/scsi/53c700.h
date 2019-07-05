@@ -88,7 +88,7 @@ struct NCR_700_Device_Parameters {
 
 
 /* The SYNC negotiation sequence looks like:
- * 
+ *
  * If DEV_NEGOTIATED_SYNC not set, tack and SDTR message on to the
  * initial identify for the device and set DEV_BEGIN_SYNC_NEGOTIATION
  * If we get an SDTR reply, work out the SXFER parameters, squirrel
@@ -99,7 +99,7 @@ struct NCR_700_Device_Parameters {
  * 0:7	SXFER_REG negotiated value for this device
  * 8:15 Current queue depth
  * 16	negotiated SYNC flag
- * 17 begin SYNC negotiation flag 
+ * 17 begin SYNC negotiation flag
  * 18 device supports tag queueing */
 #define NCR_700_DEV_NEGOTIATED_SYNC	(1<<16)
 #define NCR_700_DEV_BEGIN_SYNC_NEGOTIATION	(1<<17)
@@ -404,7 +404,7 @@ struct NCR_700_Host_Parameters {
 #define		BURST_LENGTH_8		0xC0
 #define		DMODE_FC1		0x10
 #define		DMODE_FC2		0x20
-#define 	BW16			32 
+#define 	BW16			32
 #define 	MODE_286		16
 #define 	IO_XFER			8
 #define 	FIXED_ADDR		4
@@ -521,7 +521,7 @@ NCR_700_writel(__u32 value, struct Scsi_Host *host, __u32 reg)
 	BUG_ON((reg & 0x3) != 0);
 #endif
 
-	bEBus ? iowrite32be(value, hostdata->base + reg): 
+	bEBus ? iowrite32be(value, hostdata->base + reg):
 		iowrite32(value, hostdata->base + reg);
 }
 

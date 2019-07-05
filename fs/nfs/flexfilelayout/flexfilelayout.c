@@ -2415,7 +2415,7 @@ ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 		/* mirror refcount put in cleanup_layoutstats */
 		if (!refcount_inc_not_zero(&mirror->ref))
 			continue;
-		dev = &mirror->mirror_ds->id_node; 
+		dev = &mirror->mirror_ds->id_node;
 		memcpy(&devinfo->dev_id, &dev->deviceid, NFS4_DEVICEID4_SIZE);
 		devinfo->offset = 0;
 		devinfo->length = NFS4_MAX_UINT64;

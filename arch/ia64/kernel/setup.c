@@ -810,7 +810,7 @@ identify_cpu (struct cpuinfo_ia64 *c)
 #ifdef CONFIG_SMP
 	c->cpu = smp_processor_id();
 
-	/* below default values will be overwritten  by identify_siblings() 
+	/* below default values will be overwritten  by identify_siblings()
 	 * for Multi-Threading/Multi-Core capable CPUs
 	 */
 	c->threads_per_core = c->cores_per_socket = c->num_log = 1;

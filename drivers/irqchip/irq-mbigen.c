@@ -152,7 +152,7 @@ static void mbigen_write_msg(struct msi_desc *desc, struct msi_msg *msg)
 
 	if (!msg->address_lo && !msg->address_hi)
 		return;
- 
+
 	base += get_mbigen_vec_reg(d->hwirq);
 	val = readl_relaxed(base);
 

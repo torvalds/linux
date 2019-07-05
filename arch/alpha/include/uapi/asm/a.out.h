@@ -8,7 +8,7 @@
  * OSF/1 ECOFF header structs.  ECOFF files consist of:
  * 	- a file header (struct filehdr),
  *	- an a.out header (struct aouthdr),
- *	- one or more section headers (struct scnhdr). 
+ *	- one or more section headers (struct scnhdr).
  *	  The filhdr's "f_nscns" field contains the
  *	  number of section headers.
  */

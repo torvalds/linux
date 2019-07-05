@@ -1805,7 +1805,7 @@ xlog_bdstrat(
 }
 
 /*
- * Flush out the in-core log (iclog) to the on-disk log in an asynchronous 
+ * Flush out the in-core log (iclog) to the on-disk log in an asynchronous
  * fashion.  Previously, we should have moved the current iclog
  * ptr in the log to point to the next available iclog.  This allows further
  * write to continue while this code syncs out an iclog ready to go.
@@ -1859,10 +1859,10 @@ xlog_sync(
 	}
 	roundoff = count - count_init;
 	ASSERT(roundoff >= 0);
-	ASSERT((v2 && log->l_mp->m_sb.sb_logsunit > 1 && 
+	ASSERT((v2 && log->l_mp->m_sb.sb_logsunit > 1 &&
                 roundoff < log->l_mp->m_sb.sb_logsunit)
-		|| 
-		(log->l_mp->m_sb.sb_logsunit <= 1 && 
+		||
+		(log->l_mp->m_sb.sb_logsunit <= 1 &&
 		 roundoff < BBTOB(1)));
 
 	/* move grant heads by roundoff in sync */
@@ -1870,7 +1870,7 @@ xlog_sync(
 	xlog_grant_add_space(log, &log->l_write_head.grant, roundoff);
 
 	/* put cycle number in every block */
-	xlog_pack_data(log, iclog, roundoff); 
+	xlog_pack_data(log, iclog, roundoff);
 
 	/* real byte length */
 	size = iclog->ic_offset;

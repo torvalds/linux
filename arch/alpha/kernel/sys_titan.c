@@ -149,7 +149,7 @@ titan_cpu_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 static int
 titan_set_irq_affinity(struct irq_data *d, const struct cpumask *affinity,
 		       bool force)
-{ 
+{
 	unsigned int irq = d->irq;
 	spin_lock(&titan_irq_lock);
 	titan_cpu_set_irq_affinity(irq - 16, *affinity);
@@ -165,7 +165,7 @@ titan_device_interrupt(unsigned long vector)
 	printk("titan_device_interrupt: NOT IMPLEMENTED YET!!\n");
 }
 
-static void 
+static void
 titan_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
@@ -199,7 +199,7 @@ titan_intr_nop(int irq, void *dev_id)
       /*
        * This is a NOP interrupt handler for the purposes of
        * event counting -- just return.
-       */                                                                     
+       */
        return IRQ_HANDLED;
 }
 
@@ -215,7 +215,7 @@ titan_init_irq(void)
 
 	init_titan_irqs(&titan_irq_type, 16, 63 + 16);
 }
-  
+
 static void __init
 titan_legacy_init_irq(void)
 {
@@ -243,19 +243,19 @@ titan_dispatch_irqs(u64 mask)
 	mask &= titan_cpu_irq_affinity[smp_processor_id()];
 
 	/*
-	 * Dispatch all requested interrupts 
+	 * Dispatch all requested interrupts
 	 */
 	while (mask) {
 		/* convert to SRM vector... priority is <63> -> <0> */
 		vector = 63 - __kernel_ctlz(mask);
 		mask &= ~(1UL << vector);	/* clear it out 	 */
 		vector = 0x900 + (vector << 4);	/* convert to SRM vector */
-		
+
 		/* dispatch it */
 		alpha_mv.device_interrupt(vector);
 	}
 }
-  
+
 
 /*
  * Titan Family
@@ -277,7 +277,7 @@ static void __init
 titan_late_init(void)
 {
 	/*
-	 * Enable the system error interrupts. These interrupts are 
+	 * Enable the system error interrupts. These interrupts are
 	 * all reported to the kernel as machine checks, so the handler
 	 * is a nop so it can be called to count the individual events.
 	 */
@@ -292,7 +292,7 @@ titan_late_init(void)
 	titan_request_irq(59+16, titan_intr_nop, 0,
 		    "PChip 1 C_Error", NULL);
 
-	/* 
+	/*
 	 * Register our error handlers.
 	 */
 	titan_register_error_handlers();
@@ -317,7 +317,7 @@ titan_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
  	/* Is it explicitly routed through ISA?  */
  	if ((irq & 0xF0) == 0xE0)
  		return irq;
- 
+
  	/* Offset by 16 to make room for ISA interrupts 0 - 15.  */
  	return irq + 16;
 }
@@ -330,7 +330,7 @@ titan_init_pci(void)
  	 * that needs to be done after everything is basically up.
  	 */
  	titan_late_init();
- 
+
 	/* Indicate that we trust the console to configure things properly */
 	pci_set_flags(PCI_PROBE_ONLY);
 	common_init_pci();
@@ -416,5 +416,5 @@ struct alpha_machine_vector privateer_mv __initmv = {
 	.pci_map_irq		= titan_map_irq,
 	.pci_swizzle		= common_swizzle,
 };
-/* No alpha_mv alias for privateer since we compile it 
+/* No alpha_mv alias for privateer since we compile it
    in unconditionally with titan; setup_arch knows how to cope. */

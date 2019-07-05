@@ -6,8 +6,8 @@
  *
  * This driver is for the device MCT USB-RS232 Converter (25 pin, Model No.
  * U232-P25) from Magic Control Technology Corp. (there is also a 9 pin
- * Model No. U232-P9). See http://www.mct.com.tw/products/product_us232.html 
- * for further information. The properties of this device are listed at the end 
+ * Model No. U232-P9). See http://www.mct.com.tw/products/product_us232.html
+ * for further information. The properties of this device are listed at the end
  * of this file. This device was used in the Dlink DSB-S25.
  *
  * All of the information about the device was acquired by using SniffUSB

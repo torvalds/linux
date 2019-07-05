@@ -121,7 +121,7 @@
 #define _FP_MAXFRAC_2		(~(_FP_WS_TYPE)0), (~(_FP_WS_TYPE)0)
 
 /*
- * Internals 
+ * Internals
  */
 
 #define __FP_FRAC_SET_2(X,I1,I0)	(X##_f0 = I0, X##_f1 = I1)
@@ -324,7 +324,7 @@
    point multiplication.  This is useful if floating point
    multiplication has much bigger throughput than integer multiply.
    It is supposed to work for _FP_W_TYPE_SIZE 64 and wfracbits
-   between 106 and 120 only.  
+   between 106 and 120 only.
    Caller guarantees that X and Y has (1LLL << (wfracbits - 1)) set.
    SETFETZ is a macro which will disable all FPU exceptions and set rounding
    towards zero,  RESETFE should optionally reset it back.  */
@@ -520,7 +520,7 @@
  * We have just one right now, maybe Newton approximation
  * should be added for those machines where division is fast.
  */
- 
+
 #define _FP_SQRT_MEAT_2(R, S, T, X, q)			\
   do {							\
     while (q)						\
@@ -562,7 +562,7 @@
 
 
 /*
- * Assembly/disassembly for converting to/from integral types.  
+ * Assembly/disassembly for converting to/from integral types.
  * No shifting or overflow handled here.
  */
 

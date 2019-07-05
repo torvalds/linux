@@ -66,8 +66,8 @@ struct sccb_mgr_info {
 
 #define HARPOON_FAMILY        0x02
 
-/* SCCB struct used for both SCCB and UCB manager compiles! 
- * The UCB Manager treats the SCCB as it's 'native hardware structure' 
+/* SCCB struct used for both SCCB and UCB manager compiles!
+ * The UCB Manager treats the SCCB as it's 'native hardware structure'
  */
 
 /*#pragma pack(1)*/
@@ -4910,7 +4910,7 @@ static void FPT_autoCmdCmplt(u32 p_port, unsigned char p_card)
  *              bit to keep chaining SC transfer command.  Similarly,
  *              in Scatter/Gather mode, it checks Sccb_MGRFlag
  *              (F_HOST_XFER_ACT bit) for data transfer done.
- *              
+ *
  *---------------------------------------------------------------------*/
 
 static void FPT_dataXferProcessor(u32 port, struct sccb_card *pCurrCard)
@@ -5036,7 +5036,7 @@ static void FPT_busMstrSGDataXferStart(u32 p_port, struct sccb *pcurrSCCB)
  *
  * Function: BusMaster Data Transfer Start
  *
- * Description: 
+ * Description:
  *
  *---------------------------------------------------------------------*/
 static void FPT_busMstrDataXferStart(u32 p_port, struct sccb *pcurrSCCB)
@@ -7372,7 +7372,7 @@ static unsigned short FPT_utilEERead(u32 p_port,
 
 /*---------------------------------------------------------------------
  *
- * Function: Read EEPROM Original 
+ * Function: Read EEPROM Original
  *
  * Description: Read a word from the EEPROM at the desired
  *              address.

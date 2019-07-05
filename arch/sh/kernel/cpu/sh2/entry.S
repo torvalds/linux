@@ -15,7 +15,7 @@
 #include <asm/unistd.h>
 #include <asm/errno.h>
 #include <asm/page.h>
-	
+
 /* Offsets to the stack */
 OFF_R0  =  0		/* Return value. New ABI also arg4 */
 OFF_R1  =  4     	/* New ABI: arg5 */
@@ -114,11 +114,11 @@ ENTRY(exception_handler)
 	mov	r15,r2
 	sub	r0,r15
 	mov.l	@r2+,r0		! old R3
-	mov.l	r0,@-r15	
+	mov.l	r0,@-r15
 	mov.l	@r2+,r0		! old R2
-	mov.l	r0,@-r15	
+	mov.l	r0,@-r15
 	mov.l	@(4,r2),r0	! old R1
-	mov.l	r0,@-r15	
+	mov.l	r0,@-r15
 	mov.l	@r2,r0		! old R0
 	mov.l	r0,@-r15
 	add	#8,r2
@@ -197,11 +197,11 @@ trap_entry:
 	cmp/ge	r8,r9		! vector 0x1f-0x2f is systemcall
 	bt	1f
 	mov     #0x1f,r9	! convert to unified SH2/3/4 trap number
-1:	
+1:
 	shll2	r9			! TRA
 	bra	system_call	! jump common systemcall entry
 	 mov	r9,r8
-	
+
 #if defined(CONFIG_SH_STANDARD_BIOS)
 	/* Unwind the stack and jmp to the debug entry */
 ENTRY(sh_bios_handler)
@@ -225,7 +225,7 @@ ENTRY(sh_bios_handler)
 	stc	sr,r3
 	mov.l	r2,@r0
 	mov.l	r3,@(4,r0)
-	mov.l	r1,@(8,r0)	
+	mov.l	r1,@(8,r0)
 	mov.l	@r15+, r0
 	mov.l	@r15+, r1
 	mov.l	@r15+, r2
@@ -331,13 +331,13 @@ __md_bit:
 	.long	0x40000000
 $current_thread_info:
 	.long	__current_thread_info
-$cpu_mode:	
+$cpu_mode:
 	.long	__cpu_mode
 #ifdef CONFIG_SMP
 $cpuid:
 	.long sh2_cpuid_addr
 #endif
-		
+
 ! common exception handler
 #include "../../entry-common.S"
 
@@ -346,9 +346,9 @@ $cpuid:
 #else
 #define NR_CPUS 1
 #endif
-	
+
 	.data
-! cpu operation mode 
+! cpu operation mode
 ! bit30 = MD (compatible SH3/4)
 __cpu_mode:
 	.rept	NR_CPUS
@@ -362,7 +362,7 @@ sh2_cpuid_addr:
 dummy_cpuid:
 	.long	0
 #endif
-		
+
 	.section	.bss
 __current_thread_info:
 	.rept	NR_CPUS

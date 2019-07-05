@@ -99,7 +99,7 @@ reduced by the following measures or a combination thereof:
 (1) Drivers for kernel versions 2.4.x and above should always check the
     return value of netif_rx(). If it returns NET_RX_DROP, the
     driver's LAPB protocol must not confirm reception of the frame
-    to the peer. 
+    to the peer.
     This will reliably suppress packet loss. The LAPB protocol will
     automatically cause the peer to re-transmit the dropped packet
     later.

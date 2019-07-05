@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <asm/io.h>
 
-/* Out-of-line versions of the i/o routines that redirect into the 
+/* Out-of-line versions of the i/o routines that redirect into the
    platform-specific version.  Note that "platform-specific" may mean
    "generic", which bumps through the machine vector.  */
 
@@ -137,14 +137,14 @@ void __raw_writeq(u64 b, volatile void __iomem *addr)
 	IO_CONCAT(__IO_PREFIX,writeq)(b, addr);
 }
 
-EXPORT_SYMBOL(__raw_readb); 
-EXPORT_SYMBOL(__raw_readw); 
-EXPORT_SYMBOL(__raw_readl); 
-EXPORT_SYMBOL(__raw_readq); 
-EXPORT_SYMBOL(__raw_writeb); 
-EXPORT_SYMBOL(__raw_writew); 
-EXPORT_SYMBOL(__raw_writel); 
-EXPORT_SYMBOL(__raw_writeq); 
+EXPORT_SYMBOL(__raw_readb);
+EXPORT_SYMBOL(__raw_readw);
+EXPORT_SYMBOL(__raw_readl);
+EXPORT_SYMBOL(__raw_readq);
+EXPORT_SYMBOL(__raw_writeb);
+EXPORT_SYMBOL(__raw_writew);
+EXPORT_SYMBOL(__raw_writel);
+EXPORT_SYMBOL(__raw_writeq);
 
 u8 readb(const volatile void __iomem *addr)
 {

@@ -38,7 +38,7 @@ void ack_bad_irq(unsigned int irq)
 	printk(KERN_CRIT "Unexpected IRQ trap at vector %u\n", irq);
 }
 
-#ifdef CONFIG_SMP 
+#ifdef CONFIG_SMP
 static char irq_user_affinity[NR_IRQS];
 
 int irq_select_affinity(unsigned int irq)
@@ -94,8 +94,8 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 
 void
 handle_irq(int irq)
-{	
-	/* 
+{
+	/*
 	 * We ack quickly, we don't want the irq controller
 	 * thinking we're snobs just because some other CPU has
 	 * disabled global interrupts (we have already done the
@@ -107,7 +107,7 @@ handle_irq(int irq)
 	 */
 	static unsigned int illegal_count=0;
 	struct irq_desc *desc = irq_to_desc(irq);
-	
+
 	if (!desc || ((unsigned) irq > ACTUAL_NR_IRQS &&
 	    illegal_count < MAX_ILLEGAL_IRQS)) {
 		irq_err_count++;

@@ -126,7 +126,7 @@ fpu_reg_round:			/* Normal entry point */
 
 #ifndef NON_REENTRANT_FPU
 	pushl	%ebx		/* adjust the stack pointer */
-#endif /* NON_REENTRANT_FPU */ 
+#endif /* NON_REENTRANT_FPU */
 
 #ifdef PARANOID
 /* Cannot use this here yet */
@@ -160,11 +160,11 @@ Denorm_done:
 	je	LRound_To_64
 #ifdef PARANOID
 	jmp	L_bugged_denorm_486
-#endif /* PARANOID */ 
+#endif /* PARANOID */
 #else
 #ifdef PARANOID
 	jmp	L_bugged_denorm	/* There is no bug, just a bad control word */
-#endif /* PARANOID */ 
+#endif /* PARANOID */
 #endif /* PECULIAR_486 */
 
 
@@ -186,7 +186,7 @@ LRound_To_24:
 
 #ifdef PARANOID
 	jmp	L_bugged_round24
-#endif /* PARANOID */ 
+#endif /* PARANOID */
 
 LUp_24:
 	cmpb	SIGN_POS,PARAM5
@@ -266,7 +266,7 @@ LRound_To_53:
 
 #ifdef PARANOID
 	jmp	L_bugged_round53
-#endif /* PARANOID */ 
+#endif /* PARANOID */
 
 LUp_53:
 	cmpb	SIGN_POS,PARAM5
@@ -340,7 +340,7 @@ LRound_To_64:
 
 #ifdef PARANOID
 	jmp	L_bugged_round64
-#endif /* PARANOID */ 
+#endif /* PARANOID */
 
 LUp_64:
 	cmpb	SIGN_POS,PARAM5
@@ -430,7 +430,7 @@ fpu_reg_round_special_exit:
 
 #ifndef NON_REENTRANT_FPU
 	popl	%ebx		/* adjust the stack pointer */
-#endif /* NON_REENTRANT_FPU */ 
+#endif /* NON_REENTRANT_FPU */
 
 fpu_Arith_exit:
 	popl	%ebx
@@ -586,7 +586,7 @@ Normalise_result:
 #else
 	orl	%eax,%eax		/* ms bits */
 	js	L_Normalised		/* No longer a denormal */
-#endif /* PECULIAR_486 */ 
+#endif /* PECULIAR_486 */
 
 	jnz	LDenormal_adj_exponent
 
@@ -673,7 +673,7 @@ L_bugged_denorm:
 	call	EXCEPTION
 	popl	%ebx
 	jmp	L_exception_exit
-#endif /* PECULIAR_486 */ 
+#endif /* PECULIAR_486 */
 
 L_bugged_round24:
 	pushl	EX_INTERNAL|0x231
@@ -706,6 +706,6 @@ L_entry_bugged:
 L_exception_exit:
 	mov	$-1,%eax
 	jmp	fpu_reg_round_special_exit
-#endif /* PARANOID */ 
+#endif /* PARANOID */
 
 ENDPROC(FPU_round)

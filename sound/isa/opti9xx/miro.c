@@ -141,7 +141,7 @@ MODULE_DEVICE_TABLE(pnp_card, snd_miro_pnpids);
 
 #endif	/* CONFIG_PNP */
 
-/* 
+/*
  *  ACI control
  */
 
@@ -290,7 +290,7 @@ static int snd_miro_put_capture(struct snd_kcontrol *kcontrol,
 
 	change = (value != miro->aci->aci_solomode);
 	miro->aci->aci_solomode = value;
-	
+
 	return change;
 }
 
@@ -313,7 +313,7 @@ static int snd_miro_get_preamp(struct snd_kcontrol *kcontrol,
 
 	if (miro->aci->aci_version <= 176) {
 
-		/* 
+		/*
 		   OSS says it's not readable with versions < 176.
 		   But it doesn't work on my card,
 		   which is a PCM12 with aci_version = 176.
@@ -329,7 +329,7 @@ static int snd_miro_get_preamp(struct snd_kcontrol *kcontrol,
 			   value);
 		return value;
 	}
-	
+
 	ucontrol->value.integer.value[0] = value;
 
 	return 0;
@@ -397,7 +397,7 @@ static int snd_miro_put_amp(struct snd_kcontrol *kcontrol,
   .private_value = get_right_reg | (set_right_reg << 8) \
 }
 
-static int snd_miro_info_double(struct snd_kcontrol *kcontrol, 
+static int snd_miro_info_double(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
 	int reg = kcontrol->private_value & 0xff;
@@ -422,7 +422,7 @@ static int snd_miro_info_double(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_miro_get_double(struct snd_kcontrol *kcontrol, 
+static int snd_miro_get_double(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *uinfo)
 {
 	struct snd_miro *miro = snd_kcontrol_chip(kcontrol);
@@ -470,7 +470,7 @@ static int snd_miro_get_double(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_miro_put_double(struct snd_kcontrol *kcontrol, 
+static int snd_miro_put_double(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_miro *miro = snd_kcontrol_chip(kcontrol);
@@ -510,9 +510,9 @@ static int snd_miro_put_double(struct snd_kcontrol *kcontrol,
 		    right < -0x7f || right > 0x7f)
 			return -EINVAL;
 
-		if (left_old > 0x80) 
+		if (left_old > 0x80)
 			left_old = 0x80 - left_old;
-		if (right_old > 0x80) 
+		if (right_old > 0x80)
 			right_old = 0x80 - right_old;
 
 		if (left >= 0) {
@@ -587,7 +587,7 @@ MIRO_DOUBLE("PCM Playback Volume", 1, ACI_GET_PCM, ACI_SET_PCM),
 MIRO_DOUBLE("Aux Playback Volume", 2, ACI_GET_LINE2, ACI_SET_LINE2),
 };
 
-/* Equalizer with seven bands (only PCM20) 
+/* Equalizer with seven bands (only PCM20)
    from -12dB up to +12dB on each band */
 static struct snd_kcontrol_new snd_miro_eq_controls[] = {
 MIRO_DOUBLE("Tone Control - 28 Hz", 0, ACI_GET_EQ1, ACI_SET_EQ1),
@@ -691,7 +691,7 @@ static int snd_set_aci_init_values(struct snd_miro *miro)
 		error = aci_setvalue(aci, aci_init_values[idx][0],
 				     aci_init_values[idx][1]);
 		if (error < 0) {
-			snd_printk(KERN_ERR "aci_setvalue(%d) failed: %d\n", 
+			snd_printk(KERN_ERR "aci_setvalue(%d) failed: %d\n",
 				   aci_init_values[idx][0], error);
                         return error;
                 }
@@ -769,7 +769,7 @@ static int snd_miro_init(struct snd_miro *chip,
 	chip->hardware = hardware;
 	strcpy(chip->name, snd_opti9xx_names[hardware]);
 
-	chip->mc_base_size = opti9xx_mc_size[hardware];  
+	chip->mc_base_size = opti9xx_mc_size[hardware];
 
 	spin_lock_init(&chip->lock);
 
@@ -876,7 +876,7 @@ static void snd_miro_write(struct snd_miro *chip, unsigned char reg,
  *  Proc Interface
  */
 
-static void snd_miro_proc_read(struct snd_info_entry * entry, 
+static void snd_miro_proc_read(struct snd_info_entry * entry,
 			       struct snd_info_buffer *buffer)
 {
 	struct snd_miro *miro = (struct snd_miro *) entry->private_data;
@@ -972,7 +972,7 @@ static void snd_miro_proc_read(struct snd_info_entry * entry,
 
 	snd_iprintf(buffer, "  firmware: %d (0x%x)\n",
 		    aci->aci_version, aci->aci_version);
-	snd_iprintf(buffer, "  port    : 0x%lx-0x%lx\n", 
+	snd_iprintf(buffer, "  port    : 0x%lx-0x%lx\n",
 		    aci->aci_port, aci->aci_port+2);
 	snd_iprintf(buffer, "  wss     : 0x%x\n", wss);
 	snd_iprintf(buffer, "  ide     : 0x%x\n", ide);
@@ -1207,7 +1207,7 @@ static int snd_card_miro_aci_detect(struct snd_card *card,
 
 	miro->res_aci_port = request_region(aci->aci_port, 3, "miro aci");
 	if (miro->res_aci_port == NULL) {
-		snd_printk(KERN_ERR "aci i/o area 0x%lx-0x%lx already used.\n", 
+		snd_printk(KERN_ERR "aci i/o area 0x%lx-0x%lx already used.\n",
 			   aci->aci_port, aci->aci_port+2);
 		return -ENOMEM;
 	}
@@ -1229,7 +1229,7 @@ static int snd_card_miro_aci_detect(struct snd_card *card,
 
 	aci->aci_version = snd_aci_cmd(aci, ACI_READ_VERSION, -1, -1);
 	if (aci->aci_version < 0) {
-		snd_printk(KERN_ERR "can't read aci version on 0x%lx.\n", 
+		snd_printk(KERN_ERR "can't read aci version on 0x%lx.\n",
 			   aci->aci_port);
 		return -ENXIO;
 	}
@@ -1237,7 +1237,7 @@ static int snd_card_miro_aci_detect(struct snd_card *card,
 	if (snd_aci_cmd(aci, ACI_INIT, -1, -1) < 0 ||
 	    snd_aci_cmd(aci, ACI_ERROR_OP, ACI_ERROR_OP, ACI_ERROR_OP) < 0 ||
 	    snd_aci_cmd(aci, ACI_ERROR_OP, ACI_ERROR_OP, ACI_ERROR_OP) < 0) {
-		snd_printk(KERN_ERR "can't initialize aci.\n"); 
+		snd_printk(KERN_ERR "can't initialize aci.\n");
 		return -ENXIO;
 	}
 
@@ -1319,19 +1319,19 @@ static int snd_miro_probe(struct snd_card *card)
 		/* It looks like a miro sound card. */
 		switch (miro->aci->aci_product) {
 		case 'A':
-			sprintf(card->shortname, 
+			sprintf(card->shortname,
 				"miroSOUND PCM1 pro / PCM12");
 			break;
 		case 'B':
-			sprintf(card->shortname, 
+			sprintf(card->shortname,
 				"miroSOUND PCM12");
 			break;
 		case 'C':
-			sprintf(card->shortname, 
+			sprintf(card->shortname,
 				"miroSOUND PCM20 radio");
 			break;
 		default:
-			sprintf(card->shortname, 
+			sprintf(card->shortname,
 				"unknown miro");
 			snd_printk(KERN_INFO "unknown miro aci id\n");
 			break;

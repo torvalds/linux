@@ -345,7 +345,7 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 	if (msg->len != sizeof(*mc_op))
 		return;
 
-	/* 
+	/*
 	 * Events are reported with respect to the initial pid
 	 * and user namespaces so ignore requestors from
 	 * other namespaces.

@@ -1060,7 +1060,7 @@ static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
  *	passthrough command, so we use the following sense data:
  *	sk = RECOVERED ERROR
  *	asc,ascq = ATA PASS-THROUGH INFORMATION AVAILABLE
- *      
+ *
  *
  *	LOCKING:
  *	None.

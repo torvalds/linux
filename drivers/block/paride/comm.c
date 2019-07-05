@@ -1,4 +1,4 @@
-/* 
+/*
         comm.c    (c) 1997-8  Grant R. Guenther <grant@torque.net>
                               Under the terms of the GNU General Public License.
 
@@ -36,8 +36,8 @@
 #define P1	w2(5);w2(0xd);w2(0xd);w2(5);w2(4);
 #define P2	w2(5);w2(7);w2(7);w2(5);w2(4);
 
-/* cont = 0 - access the IDE register file 
-   cont = 1 - access the IDE command set 
+/* cont = 0 - access the IDE register file
+   cont = 1 - access the IDE command set
 */
 
 static int  cont_map[2] = { 0x08, 0x10 };
@@ -54,7 +54,7 @@ static int comm_read_regr( PIA *pi, int cont, int regr )
         	w2(6); l = r1(); w0(0x80); h = r1(); w2(4);
                 return j44(l,h);
 
-        case 1: w0(r+0x20); P1; 
+        case 1: w0(r+0x20); P1;
         	w0(0); w2(0x26); h = r0(); w2(4);
                 return h;
 
@@ -66,7 +66,7 @@ static int comm_read_regr( PIA *pi, int cont, int regr )
 
         }
         return -1;
-}       
+}
 
 static void comm_write_regr( PIA *pi, int cont, int regr, int val )
 
@@ -100,17 +100,17 @@ static void comm_connect ( PIA *pi  )
 
 static void comm_disconnect ( PIA *pi )
 
-{       w2(0); w2(0); w2(0); w2(4); 
+{       w2(0); w2(0); w2(0); w2(4);
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
-} 
+}
 
 static void comm_read_block( PIA *pi, char * buf, int count )
 
 {       int     i, l, h;
 
         switch (pi->mode) {
-        
+
         case 0: w0(0x48); P1;
                 for(i=0;i<count;i++) {
                         w0(0); w2(6); l = r1();
@@ -125,7 +125,7 @@ static void comm_read_block( PIA *pi, char * buf, int count )
                 }
 		w2(4);
 		break;
-		
+
 	case 2: w3(0x68); (void)r1(); w2(0x24);
 		for (i=0;i<count;i++) buf[i] = r4();
 		w2(4);
@@ -140,7 +140,7 @@ static void comm_read_block( PIA *pi, char * buf, int count )
                 for (i=0;i<count/4;i++) ((u32 *)buf)[i] = r4l();
                 w2(4);
                 break;
-		
+
 	}
 }
 

@@ -117,7 +117,7 @@ release_voice(struct snd_emux_voice *vp)
 {
 	int dcysusv;
 	struct snd_emu10k1 *hw;
-	
+
 	hw = vp->hw;
 	dcysusv = 0x8000 | (unsigned char)vp->reg.parm.modrelease;
 	snd_emu10k1_ptr_write(hw, DCYSUSM, vp->ch, dcysusv);
@@ -133,7 +133,7 @@ static void
 terminate_voice(struct snd_emux_voice *vp)
 {
 	struct snd_emu10k1 *hw;
-	
+
 	if (snd_BUG_ON(!vp))
 		return;
 	hw = vp->hw;
@@ -153,7 +153,7 @@ static void
 free_voice(struct snd_emux_voice *vp)
 {
 	struct snd_emu10k1 *hw;
-	
+
 	hw = vp->hw;
 	/* FIXME: emu10k1_synth is broken. */
 	/* This can get called with hw == 0 */
@@ -179,7 +179,7 @@ static void
 update_voice(struct snd_emux_voice *vp, int update)
 {
 	struct snd_emu10k1 *hw;
-	
+
 	hw = vp->hw;
 	if (update & SNDRV_EMUX_UPDATE_VOLUME)
 		snd_emu10k1_ptr_write(hw, IFATN_ATTENUATION, vp->ch, vp->avol);
@@ -312,7 +312,7 @@ start_voice(struct snd_emux_voice *vp)
 	struct snd_midi_channel *chan;
 	struct snd_emu10k1 *hw;
 	struct snd_emu10k1_memblk *emem;
-	
+
 	hw = vp->hw;
 	ch = vp->ch;
 	if (snd_BUG_ON(ch < 0))
@@ -336,11 +336,11 @@ start_voice(struct snd_emux_voice *vp)
 	/* set channel routing */
 	/* A = left(0), B = right(1), C = reverb(c), D = chorus(d) */
 	if (hw->audigy) {
-		temp = FXBUS_MIDI_LEFT | (FXBUS_MIDI_RIGHT << 8) | 
+		temp = FXBUS_MIDI_LEFT | (FXBUS_MIDI_RIGHT << 8) |
 			(FXBUS_MIDI_REVERB << 16) | (FXBUS_MIDI_CHORUS << 24);
 		snd_emu10k1_ptr_write(hw, A_FXRT1, ch, temp);
 	} else {
-		temp = (FXBUS_MIDI_LEFT << 16) | (FXBUS_MIDI_RIGHT << 20) | 
+		temp = (FXBUS_MIDI_LEFT << 16) | (FXBUS_MIDI_RIGHT << 20) |
 			(FXBUS_MIDI_REVERB << 24) | (FXBUS_MIDI_CHORUS << 28);
 		snd_emu10k1_ptr_write(hw, FXRT, ch, temp);
 	}
@@ -426,7 +426,7 @@ start_voice(struct snd_emux_voice *vp)
 		temp = ((unsigned int)hw->silent_page.addr << hw_address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 		snd_emu10k1_ptr_write(hw, MAPA, ch, temp);
 		snd_emu10k1_ptr_write(hw, MAPB, ch, temp);
-		
+
 		/* fill cache */
 		val -= 4;
 		val <<= 25;
@@ -465,7 +465,7 @@ trigger_voice(struct snd_emux_voice *vp)
 	unsigned int temp, ptarget;
 	struct snd_emu10k1 *hw;
 	struct snd_emu10k1_memblk *emem;
-	
+
 	hw = vp->hw;
 
 	emem = (struct snd_emu10k1_memblk *)vp->block;

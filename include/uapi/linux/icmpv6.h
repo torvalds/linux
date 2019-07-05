@@ -36,7 +36,7 @@ struct icmp6hdr {
                         		reserved:29;
 #else
 #error	"Please fix <asm/byteorder.h>"
-#endif						
+#endif
                 } u_nd_advt;
 
                 struct icmpv6_nd_ra {

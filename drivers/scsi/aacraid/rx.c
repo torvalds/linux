@@ -146,7 +146,7 @@ static void aac_rx_enable_interrupt_message(struct aac_dev *dev)
  *	@p1: first parameter
  *	@ret: adapter status
  *
- *	This routine will send a synchronous command to the adapter and wait 
+ *	This routine will send a synchronous command to the adapter and wait
  *	for its	completion.
  */
 
@@ -191,7 +191,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command,
 	/*
 	 *	Wait up to 30 seconds
 	 */
-	while (time_before(jiffies, start+30*HZ)) 
+	while (time_before(jiffies, start+30*HZ))
 	{
 		udelay(5);	/* Delay 5 microseconds to let Mon960 get info. */
 		/*
@@ -206,7 +206,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command,
 			break;
 		}
 		/*
-		 *	Yield the processor in case we are slow 
+		 *	Yield the processor in case we are slow
 		 */
 		msleep(1);
 	}
@@ -525,8 +525,8 @@ int aac_rx_select_comm(struct aac_dev *dev, int comm)
  *	aac_rx_init	-	initialize an i960 based AAC card
  *	@dev: device to configure
  *
- *	Allocate and set up resources for the i960 based AAC variants. The 
- *	device_interface in the commregion will be allocated and linked 
+ *	Allocate and set up resources for the i960 based AAC variants. The
+ *	device_interface in the commregion will be allocated and linked
  *	to the comm region.
  */
 
@@ -591,7 +591,7 @@ int _aac_rx_init(struct aac_dev *dev)
 		if ((restart &&
 		  (status & (KERNEL_PANIC|SELF_TEST_FAILED|MONITOR_PANIC))) ||
 		  time_after(jiffies, start+HZ*startup_timeout)) {
-			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %lx.\n", 
+			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %lx.\n",
 					dev->name, instance, status);
 			goto error_iounmap;
 		}

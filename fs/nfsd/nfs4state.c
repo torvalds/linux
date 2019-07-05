@@ -1059,8 +1059,8 @@ static void revoke_delegation(struct nfs4_delegation *dp)
 	destroy_unhashed_deleg(dp);
 }
 
-/* 
- * SETCLIENTID state 
+/*
+ * SETCLIENTID state
  */
 
 static unsigned int clientid_hashval(u32 id)
@@ -1831,7 +1831,7 @@ STALE_CLIENTID(clientid_t *clid, struct nfsd_net *nn)
 	return 1;
 }
 
-/* 
+/*
  * XXX Should we use a slab cache ?
  * This type of memory management is somewhat inefficient, but we use it
  * anyway since SETCLIENTID is not a common operation.
@@ -2029,8 +2029,8 @@ static void copy_verf(struct nfs4_client *target, nfs4_verifier *source)
 
 static void copy_clid(struct nfs4_client *target, struct nfs4_client *source)
 {
-	target->cl_clientid.cl_boot = source->cl_clientid.cl_boot; 
-	target->cl_clientid.cl_id = source->cl_clientid.cl_id; 
+	target->cl_clientid.cl_boot = source->cl_clientid.cl_boot;
+	target->cl_clientid.cl_id = source->cl_clientid.cl_id;
 }
 
 static int copy_cred(struct svc_cred *target, struct svc_cred *source)
@@ -2335,7 +2335,7 @@ find_unconfirmed_client(clientid_t *clid, bool sessions, struct nfsd_net *nn)
 static bool clp_used_exchangeid(struct nfs4_client *clp)
 {
 	return clp->cl_exchange_flags != 0;
-} 
+}
 
 static struct nfs4_client *
 find_confirmed_client_by_name(struct xdr_netobj *name, struct nfsd_net *nn)
@@ -3439,7 +3439,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			&u->setclientid_confirm;
 	struct nfs4_client *conf, *unconf;
 	struct nfs4_client *old = NULL;
-	nfs4_verifier confirm = setclientid_confirm->sc_confirm; 
+	nfs4_verifier confirm = setclientid_confirm->sc_confirm;
 	clientid_t * clid = &setclientid_confirm->sc_clientid;
 	__be32 status;
 	struct nfsd_net	*nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
@@ -4707,7 +4707,7 @@ nfsd4_renew(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 status;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
-	dprintk("process_renew(%08x/%08x): starting\n", 
+	dprintk("process_renew(%08x/%08x): starting\n",
 			clid->cl_boot, clid->cl_id);
 	status = lookup_clientid(clid, cstate, nn);
 	if (status)
@@ -5366,8 +5366,8 @@ static __be32 nfs4_seqid_op_checks(struct nfsd4_compound_state *cstate, stateid_
 	return status;
 }
 
-/* 
- * Checks for sequence id mutating operations. 
+/*
+ * Checks for sequence id mutating operations.
  */
 static __be32
 nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
@@ -5496,7 +5496,7 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 	struct nfs4_ol_stateid *stp;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
-	dprintk("NFSD: nfsd4_open_downgrade on file %pd\n", 
+	dprintk("NFSD: nfsd4_open_downgrade on file %pd\n",
 			cstate->current_fh.fh_dentry);
 
 	/* We don't yet support WANT bits: */
@@ -5507,7 +5507,7 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 	status = nfs4_preprocess_confirmed_seqid_op(cstate, od->od_seqid,
 					&od->od_stateid, &stp, nn);
 	if (status)
-		goto out; 
+		goto out;
 	status = nfserr_inval;
 	if (!test_access(od->od_share_access, stp)) {
 		dprintk("NFSD: access not a subset of current bitmap: 0x%hhx, input access=%08x\n",
@@ -5566,7 +5566,7 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct net *net = SVC_NET(rqstp);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	dprintk("NFSD: nfsd4_close on file %pd\n", 
+	dprintk("NFSD: nfsd4_close on file %pd\n",
 			cstate->current_fh.fh_dentry);
 
 	status = nfs4_preprocess_seqid_op(cstate, close->cl_seqid,
@@ -5575,7 +5575,7 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 					&stp, nn);
 	nfsd4_bump_seqid(cstate, status);
 	if (status)
-		goto out; 
+		goto out;
 
 	stp->st_stid.sc_type = NFS4_CLOSED_STID;
 
@@ -5742,7 +5742,7 @@ nevermind:
 	deny->ld_start = fl->fl_start;
 	deny->ld_length = NFS4_MAX_UINT64;
 	if (fl->fl_end != NFS4_MAX_UINT64)
-		deny->ld_length = fl->fl_end - fl->fl_start + 1;        
+		deny->ld_length = fl->fl_end - fl->fl_start + 1;
 	deny->ld_type = NFS4_READ_LT;
 	if (fl->fl_type != F_RDLCK)
 		deny->ld_type = NFS4_WRITE_LT;
@@ -5796,8 +5796,8 @@ static const struct nfs4_stateowner_operations lockowner_ops = {
 
 /*
  * Alloc a lock owner structure.
- * Called in nfsd4_lock - therefore, OPEN and OPEN_CONFIRM (if needed) has 
- * occurred. 
+ * Called in nfsd4_lock - therefore, OPEN and OPEN_CONFIRM (if needed) has
+ * occurred.
  *
  * strhashval = ownerstr_hashval
  */
@@ -5985,7 +5985,7 @@ out:
 }
 
 /*
- *  LOCK operation 
+ *  LOCK operation
  */
 __be32
 nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,

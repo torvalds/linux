@@ -466,7 +466,7 @@ qla1280_data_direction(struct scsi_cmnd *cmnd)
 		return 0;
 	}
 }
-		
+
 #if DEBUG_QLA1280
 static void __qla1280_print_scsi_cmd(struct scsi_cmnd * cmd);
 static void __qla1280_dump_buffer(char *, int);
@@ -1063,7 +1063,7 @@ qla1280_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 	return 0;
 }
 
- 
+
 /* disable risc and host interrupts */
 static inline void
 qla1280_disable_intrs(struct scsi_qla_host *ha)
@@ -1104,7 +1104,7 @@ qla1280_intr_handler(int irq, void *dev_id)
 
 	data = qla1280_debounce_register(&reg->istatus);
 	/* Check for pending interrupts. */
-	if (data & RISC_INT) {	
+	if (data & RISC_INT) {
 		qla1280_isr(ha, &ha->done_q);
 		handled = 1;
 	}
@@ -1261,7 +1261,7 @@ qla1280_done(struct scsi_qla_host *ha)
 		sp = list_entry(done_q->next, struct srb, list);
 
 		list_del(&sp->list);
-	
+
 		cmd = sp->cmd;
 		bus = SCSI_BUS_32(cmd);
 		target = SCSI_TCN_32(cmd);
@@ -2492,7 +2492,7 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	if (ha->mailbox_out[0] != MBS_CMD_CMP) {
 		printk(KERN_WARNING "qla1280_mailbox_command: Command failed, "
 		       "mailbox0 = 0x%04x, mailbox_out0 = 0x%04x, istatus = "
-		       "0x%04x\n", 
+		       "0x%04x\n",
 		       mb[0], ha->mailbox_out[0], RD_REG_WORD(&reg->istatus));
 		printk(KERN_WARNING "m0 %04x, m1 %04x, m2 %04x, m3 %04x\n",
 		       RD_REG_WORD(&reg->mailbox0), RD_REG_WORD(&reg->mailbox1),
@@ -3580,7 +3580,7 @@ qla1280_isr(struct scsi_qla_host *ha, struct list_head *done_q)
 			WRT_REG_WORD(&reg->mailbox5, ha->rsp_ring_index);
 		}
 	}
-	
+
  out:
 	LEAVE("qla1280_isr");
 }
@@ -3804,7 +3804,7 @@ qla1280_abort_isp(struct scsi_qla_host *ha)
 
 	if (ha->flags.abort_isp_active || !ha->flags.online)
 		goto out;
-	
+
 	ha->flags.abort_isp_active = 1;
 
 	/* Disable ISP interrupts. */
@@ -3839,11 +3839,11 @@ qla1280_abort_isp(struct scsi_qla_host *ha)
 	status = qla1280_init_rings(ha);
 	if (status)
 		goto out;
-		
+
 	/* Issue SCSI reset. */
 	for (bus = 0; bus < ha->ports; bus++)
 		qla1280_bus_reset(ha, bus);
-		
+
 	ha->flags.abort_isp_active = 0;
  out:
 	if (status) {
@@ -4063,7 +4063,7 @@ struct setup_tokens {
 	int val;
 };
 
-static struct setup_tokens setup_token[] __initdata = 
+static struct setup_tokens setup_token[] __initdata =
 {
 	{ "nvram", TOKEN_NVRAM },
 	{ "sync", TOKEN_SYNC },
@@ -4200,7 +4200,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	printk(KERN_INFO "qla1280: %s found on PCI bus %i, dev %i\n",
 	       bdp->name, pdev->bus->number, PCI_SLOT(pdev->devfn));
-	
+
 	if (pci_enable_device(pdev)) {
 		printk(KERN_WARNING
 		       "qla1280: Failed to enabled pci device, aborting.\n");

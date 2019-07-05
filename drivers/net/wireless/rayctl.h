@@ -62,10 +62,10 @@ typedef unsigned char UCHAR;
 #define C_DISASSOC_REASON_CODE_DEFAULT   8
 
 #define C_CRC_LEN                        4
-#define C_NUM_SUPPORTED_RATES            8 
+#define C_NUM_SUPPORTED_RATES            8
 /****** IEEE 802.11 mac header for type data packets *************************/
 struct mac_header {
-  UCHAR frame_ctl_1;                          
+  UCHAR frame_ctl_1;
   UCHAR frame_ctl_2;
   UCHAR duration_lsb;
   UCHAR duration_msb;
@@ -102,7 +102,7 @@ struct tim_element
   UCHAR id;
   UCHAR length;
   UCHAR dtim_count;
-  UCHAR dtim_period;    
+  UCHAR dtim_period;
   UCHAR bitmap_control;
   UCHAR tim[C_TIM_BITMAP_LENGTH];
 };
@@ -125,9 +125,9 @@ struct infra_beacon
     UCHAR timestamp[8];
     UCHAR beacon_intvl[2];
     UCHAR capability[2];
-    UCHAR elements[sizeof(struct essid_element) 
+    UCHAR elements[sizeof(struct essid_element)
                   + sizeof(struct rates_element)
-                  + sizeof(struct freq_hop_element) 
+                  + sizeof(struct freq_hop_element)
                   + sizeof(struct japan_call_sign_element)
                   + sizeof(struct tim_element)];
 };
@@ -136,9 +136,9 @@ struct adhoc_beacon
     UCHAR timestamp[8];
     UCHAR beacon_intvl[2];
     UCHAR capability[2];
-    UCHAR elements[sizeof(struct essid_element) 
+    UCHAR elements[sizeof(struct essid_element)
                   + sizeof(struct rates_element)
-                  + sizeof(struct freq_hop_element) 
+                  + sizeof(struct freq_hop_element)
                   + sizeof(struct japan_call_sign_element)
                   + sizeof(struct ibss_element)];
 };
@@ -179,8 +179,8 @@ struct adhoc_beacon
 #define JAPAN_TEST            9
 
 /* Hop pattern lengths */
-#define USA_HOP_MOD          79 
-#define EUROPE_HOP_MOD       79 
+#define USA_HOP_MOD          79
+#define EUROPE_HOP_MOD       79
 #define JAPAN_HOP_MOD        23
 #define KOREA_HOP_MOD        23
 #define SPAIN_HOP_MOD        27
@@ -421,7 +421,7 @@ struct status {
 
 /****** Host-to-ECF Data Area at Shared RAM offset 0x200 *********************/
 struct host_to_ecf_area {
-    
+
 };
 
 /****** ECF-to-Host Data Area at Shared RAM offset 0x0300 ********************/
@@ -482,7 +482,7 @@ struct join_network_cmd {
     UCHAR encryption;
 };
 struct tx_requested_cmd {
- 
+
     UCHAR tx_data_ptr[2];
     UCHAR tx_data_length[2];
     UCHAR host_reserved[2];
@@ -493,7 +493,7 @@ struct tx_requested_cmd {
     UCHAR antenna;
 };
 struct tx_requested_cmd_4 {
- 
+
     UCHAR tx_data_ptr[2];
     UCHAR tx_data_length[2];
     UCHAR dest_addr[ADDRLEN];
@@ -604,7 +604,7 @@ struct rcs {
     UCHAR link_field;
     /* command specific parameters      */
     union {
-        UCHAR reserved[13]; 
+        UCHAR reserved[13];
         struct rx_packet_cmd rx_packet;
         struct rejoin_net_cmplt_cmd rejoin_net_complete;
         struct japan_call_sign_rxd japan_call_sign;

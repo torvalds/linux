@@ -9,7 +9,7 @@
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *                    2002 Takashi Iwai <tiwai@suse.de>
- */      
+ */
 
 #define EWS_DEVICE_DESC \
 		"{TerraTec,EWX 24/96},"\

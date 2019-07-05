@@ -513,7 +513,7 @@ static void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw)
 				}
 				cpuhw->bhrb_entries[u_index].from = addr;
 			} else {
-				/* Branches to immediate field 
+				/* Branches to immediate field
 				   (ie I or B form) */
 				cpuhw->bhrb_entries[u_index].from = addr;
 				cpuhw->bhrb_entries[u_index].to =

@@ -204,14 +204,14 @@
 #define SPRN_TCR	0x154	/* Timer Control Register */
 #endif /* Book E */
 #ifdef CONFIG_40x
-#define SPRN_DBCR1	0x3BD	/* Debug Control Register 1 */		
+#define SPRN_DBCR1	0x3BD	/* Debug Control Register 1 */
 #define SPRN_ESR	0x3D4	/* Exception Syndrome Register */
 #define SPRN_DEAR	0x3D5	/* Data Error Address Register */
 #define SPRN_TSR	0x3D8	/* Timer Status Register */
 #define SPRN_TCR	0x3DA	/* Timer Control Register */
 #define SPRN_SRR2	0x3DE	/* Save/Restore Register 2 */
 #define SPRN_SRR3	0x3DF	/* Save/Restore Register 3 */
-#define SPRN_DBSR	0x3F0	/* Debug Status Register */		
+#define SPRN_DBSR	0x3F0	/* Debug Status Register */
 #define SPRN_DBCR0	0x3F2	/* Debug Control Register 0 */
 #define SPRN_DAC1	0x3F6	/* Data Address Compare 1 */
 #define SPRN_DAC2	0x3F7	/* Data Address Compare 2 */

@@ -27,12 +27,12 @@ static int snappercl15_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
 
-	err = snd_soc_dai_set_sysclk(codec_dai, 0, CODEC_CLOCK, 
+	err = snd_soc_dai_set_sysclk(codec_dai, 0, CODEC_CLOCK,
 				     SND_SOC_CLOCK_IN);
 	if (err)
 		return err;
 
-	err = snd_soc_dai_set_sysclk(cpu_dai, 0, CODEC_CLOCK, 
+	err = snd_soc_dai_set_sysclk(cpu_dai, 0, CODEC_CLOCK,
 				     SND_SOC_CLOCK_OUT);
 	if (err)
 		return err;

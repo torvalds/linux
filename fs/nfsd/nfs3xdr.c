@@ -328,8 +328,8 @@ nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 		return 0;
 	p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
 
-	if ((args->check_guard = ntohl(*p++)) != 0) { 
-		struct timespec time; 
+	if ((args->check_guard = ntohl(*p++)) != 0) {
+		struct timespec time;
 		p = decode_time3(p, &time);
 		args->guardtime = time.tv_sec;
 	}
@@ -900,7 +900,7 @@ out:
  * and readdirplus.
  * The normal readdir reply requires 2 (fileid) + 1 (stringlen)
  * + string + 2 (cookie) + 1 (next) words, i.e. 6 + strlen.
- * 
+ *
  * The readdirplus baggage is 1+21 words for post_op_attr, plus the
  * file handle.
  */

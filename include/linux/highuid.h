@@ -57,7 +57,7 @@ extern void __bad_gid(void);
 	(size >= sizeof(uid) ? (uid) : high2lowuid(uid))
 #define __convert_gid(size, gid) \
 	(size >= sizeof(gid) ? (gid) : high2lowgid(gid))
-	
+
 
 #else
 

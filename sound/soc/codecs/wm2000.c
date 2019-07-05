@@ -310,7 +310,7 @@ static int wm2000_exit_bypass(struct i2c_client *i2c, int analogue)
 
 	if (WARN_ON(wm2000->anc_mode != ANC_BYPASS))
 		return -EINVAL;
-	
+
 	wm2000_write(i2c, WM2000_REG_SYS_CTL1, 0);
 
 	if (analogue) {

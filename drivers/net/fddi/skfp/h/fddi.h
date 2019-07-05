@@ -59,7 +59,7 @@ struct fddi_mac {
 #define C_INDICATOR	(1<<0)
 #define A_INDICATOR	(1<<1)
 #define E_INDICATOR	(1<<2)
-#define I_INDICATOR	(1<<6)		/* SK specific */ 
+#define I_INDICATOR	(1<<6)		/* SK specific */
 #define L_INDICATOR	(1<<7)		/* SK specific */
 
 #endif	/* _FDDI_ */

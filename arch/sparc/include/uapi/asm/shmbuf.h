@@ -2,7 +2,7 @@
 #ifndef _SPARC_SHMBUF_H
 #define _SPARC_SHMBUF_H
 
-/* 
+/*
  * The shmid64_ds structure for sparc architecture.
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.

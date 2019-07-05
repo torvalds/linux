@@ -13,7 +13,7 @@
  *
  *
  * HighPoint has its own drivers (open source except for the RAID part)
- * available from http://www.highpoint-tech.com/USA_new/service_support.htm 
+ * available from http://www.highpoint-tech.com/USA_new/service_support.htm
  * This may be useful to anyone wanting to work on this driver, however  do not
  * trust  them too much since the code tends to become less and less meaningful
  * as the time passes... :-/
@@ -21,10 +21,10 @@
  * Note that final HPT370 support was done by force extraction of GPL.
  *
  * - add function for getting/setting power status of drive
- * - the HPT370's state machine can get confused. reset it before each dma 
+ * - the HPT370's state machine can get confused. reset it before each dma
  *   xfer to prevent that from happening.
  * - reset state engine whenever we get an error.
- * - check for busmaster state at end of dma. 
+ * - check for busmaster state at end of dma.
  * - use new highpoint timings.
  * - detect bus speed using highpoint register.
  * - use pll if we don't have a clock table. added a 66MHz table that's
@@ -44,7 +44,7 @@
  * fixup /proc output for multiple controllers
  *	Tim Hockin <thockin@sun.com>
  *
- * On hpt366: 
+ * On hpt366:
  * Reset the hpt366 on error, reset on dma
  * Fix disabling Fast Interrupt hpt366.
  * 	Mike Waychison <crlf@sun.com>
@@ -52,7 +52,7 @@
  * Added support for 372N clocking and clock switching. The 372N needs
  * different clocks on read/write. This requires overloading rw_disk and
  * other deeply crazy things. Thanks to <http://www.hoerstreich.de> for
- * keeping me sane. 
+ * keeping me sane.
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * - fix the clock turnaround code: it was writing to the wrong ports when

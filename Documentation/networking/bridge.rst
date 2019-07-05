@@ -16,6 +16,6 @@ The bridge-utilities are maintained at:
 Additionally, the iproute2 utilities can be used to configure
 bridge devices.
 
-If you still have questions, don't hesitate to post to the mailing list 
+If you still have questions, don't hesitate to post to the mailing list
 (more info https://lists.linux-foundation.org/mailman/listinfo/bridge).
 

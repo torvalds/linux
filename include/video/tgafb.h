@@ -2,7 +2,7 @@
  *  linux/drivers/video/tgafb.h -- DEC 21030 TGA frame buffer device
  *
  *  	Copyright (C) 1999,2000 Martin Lucina, Tom Zerucha
- *  
+ *
  *  $Id: tgafb.h,v 1.4.2.3 2000/04/04 06:44:56 mato Exp $
  *
  *  This file is subject to the terms and conditions of the GNU General Public
@@ -65,7 +65,7 @@
 #define	TGA_CMD_STAT_REG		0x01f8
 
 
-/* 
+/*
  * Useful defines for managing the registers
  */
 

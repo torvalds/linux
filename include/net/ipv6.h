@@ -90,7 +90,7 @@
 
 /*
  *	Addr type
- *	
+ *
  *	type	-	unicast | multicast
  *	scope	-	local	| site	    | global
  *	v4	-	compat

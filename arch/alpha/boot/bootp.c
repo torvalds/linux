@@ -49,7 +49,7 @@ find_pa(unsigned long *vptb, void *ptr)
 	result <<= 13;
 	result |= address & 0x1fff;
 	return (void *) result;
-}	
+}
 
 /*
  * This function moves into OSF/1 pal-code, and has a temporary
@@ -163,7 +163,7 @@ start_kernel(void)
 	}
 	pal_init();
 
-	/* The initrd must be page-aligned.  See below for the 
+	/* The initrd must be page-aligned.  See below for the
 	   cause of the magic number 5.  */
 	initrd_start = ((START_ADDR + 5*KERNEL_SIZE + PAGE_SIZE) |
 			(PAGE_SIZE-1)) + 1;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* 
+/*
  *    EISA "eeprom" support routines
  *
  *    Copyright (C) 2001 Thomas Bogendoerfer <tsbogend at parisc-linux.org>
@@ -28,10 +28,10 @@ static ssize_t eisa_eeprom_read(struct file * file,
 	unsigned char *tmp;
 	ssize_t ret;
 	int i;
-	
+
 	if (*ppos < 0 || *ppos >= HPEE_MAX_LENGTH)
 		return 0;
-	
+
 	count = *ppos + count < HPEE_MAX_LENGTH ? count : HPEE_MAX_LENGTH - *ppos;
 	tmp = kmalloc(count, GFP_KERNEL);
 	if (tmp) {
@@ -45,7 +45,7 @@ static ssize_t eisa_eeprom_read(struct file * file,
 		kfree (tmp);
 	} else
 		ret = -ENOMEM;
-	
+
 	return ret;
 }
 
@@ -53,7 +53,7 @@ static int eisa_eeprom_open(struct inode *inode, struct file *file)
 {
 	if (file->f_mode & FMODE_WRITE)
 		return -EINVAL;
-   
+
 	return 0;
 }
 

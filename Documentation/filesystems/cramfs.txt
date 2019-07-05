@@ -1,12 +1,12 @@
 
 	Cramfs - cram a filesystem onto a small ROM
 
-cramfs is designed to be simple and small, and to compress things well. 
+cramfs is designed to be simple and small, and to compress things well.
 
 It uses the zlib routines to compress a file one page at a time, and
 allows random page access.  The meta-data is not compressed, but is
 expressed in a very terse representation to make it use much less
-diskspace than traditional filesystems. 
+diskspace than traditional filesystems.
 
 You can't write to a cramfs filesystem (making it compressible and
 compact also makes it _very_ hard to update on-the-fly), so you have to

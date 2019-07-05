@@ -3,7 +3,7 @@
  * Inode operations for Coda filesystem
  * Original version: (C) 1996 P. Braam and M. Callahan
  * Rewritten for Linux 2.1. (C) 1997 Carnegie Mellon University
- * 
+ *
  * Carnegie Mellon encourages users to contribute improvements to
  * the Coda project. Contact Peter Braam (coda@cs.cmu.edu).
  */
@@ -37,14 +37,14 @@ char * coda_f2s(struct CodaFid *f)
 /* recognize special .CONTROL name */
 int coda_iscontrol(const char *name, size_t length)
 {
-	return ((CODA_CONTROLLEN == length) && 
+	return ((CODA_CONTROLLEN == length) &&
                 (strncmp(name, CODA_CONTROL, CODA_CONTROLLEN) == 0));
 }
 
 unsigned short coda_flags_to_cflags(unsigned short flags)
 {
 	unsigned short coda_flags = 0;
-	
+
 	if ((flags & O_ACCMODE) == O_RDONLY)
 		coda_flags |= C_O_READ;
 
@@ -71,7 +71,7 @@ unsigned short coda_flags_to_cflags(unsigned short flags)
 void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
 {
         int inode_type;
-        /* inode's i_flags, i_ino are set by iget 
+        /* inode's i_flags, i_ino are set by iget
            XXX: is this all we need ??
            */
         switch (attr->va_type) {
@@ -94,7 +94,7 @@ void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
 
 	if (attr->va_mode != (u_short) -1)
 	        inode->i_mode = attr->va_mode | inode_type;
-        if (attr->va_uid != -1) 
+        if (attr->va_uid != -1)
 	        inode->i_uid = make_kuid(&init_user_ns, (uid_t) attr->va_uid);
         if (attr->va_gid != -1)
 	        inode->i_gid = make_kgid(&init_user_ns, (gid_t) attr->va_gid);
@@ -104,7 +104,7 @@ void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
 	        inode->i_size = attr->va_size;
 	if (attr->va_size != -1)
 		inode->i_blocks = (attr->va_size + 511) >> 9;
-	if (attr->va_atime.tv_sec != -1) 
+	if (attr->va_atime.tv_sec != -1)
 		inode->i_atime = timespec_to_timespec64(attr->va_atime);
 	if (attr->va_mtime.tv_sec != -1)
 		inode->i_mtime = timespec_to_timespec64(attr->va_mtime);
@@ -113,10 +113,10 @@ void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
 }
 
 
-/* 
- * BSD sets attributes that need not be modified to -1. 
+/*
+ * BSD sets attributes that need not be modified to -1.
  * Linux uses the valid field to indicate what should be
- * looked at.  The BSD type field needs to be deduced from linux 
+ * looked at.  The BSD type field needs to be deduced from linux
  * mode.
  * So we have to do some translations here.
  */
@@ -125,9 +125,9 @@ void coda_iattr_to_vattr(struct iattr *iattr, struct coda_vattr *vattr)
 {
         unsigned int valid;
 
-        /* clean out */        
+        /* clean out */
 	vattr->va_mode = -1;
-        vattr->va_uid = (vuid_t) -1; 
+        vattr->va_uid = (vuid_t) -1;
         vattr->va_gid = (vgid_t) -1;
         vattr->va_size = (off_t) -1;
 	vattr->va_atime.tv_sec = (time_t) -1;
@@ -149,7 +149,7 @@ void coda_iattr_to_vattr(struct iattr *iattr, struct coda_vattr *vattr)
 #if 0
         mode = iattr->ia_mode;
                 if ( S_ISDIR(mode) ) {
-                vattr->va_type = C_VDIR; 
+                vattr->va_type = C_VDIR;
         } else if ( S_ISREG(mode) ) {
                 vattr->va_type = C_VREG;
         } else if ( S_ISLNK(mode) ) {
@@ -158,7 +158,7 @@ void coda_iattr_to_vattr(struct iattr *iattr, struct coda_vattr *vattr)
                 /* don't do others */
                 vattr->va_type = C_VNON;
         }
-#endif 
+#endif
 
         /* set those vattrs that need change */
         valid = iattr->ia_valid;

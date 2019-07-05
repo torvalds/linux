@@ -23,7 +23,7 @@
 #define GDTIOCTL_RESET_DRV  (GDTIOCTL_MASK |12) /* reset (remote) drv. res. */
 
 #define GDTIOCTL_MAGIC  0xaffe0004
-#define EVENT_SIZE      294 
+#define EVENT_SIZE      294
 #define GDTH_MAXSG      32                      /* max. s/g elements */
 
 #define MAX_LDRIVES     255                     /* max. log. drive count */
@@ -160,7 +160,7 @@ typedef struct {
         } __attribute__((packed)) test;
     } eu;
     u32                 severity;
-    u8                  event_string[256];          
+    u8                  event_string[256];
 } __attribute__((packed)) gdth_evt_data;
 
 typedef struct {
@@ -178,11 +178,11 @@ typedef struct {
 typedef struct {
     u16 ionode;                              /* controller number */
     u16 timeout;                             /* timeout */
-    u32 info;                               /* error info */ 
+    u32 info;                               /* error info */
     u16 status;                              /* status */
     unsigned long data_len;                             /* data buffer size */
     unsigned long sense_len;                            /* sense buffer size */
-    gdth_cmd_str command;                       /* command */                   
+    gdth_cmd_str command;                       /* command */
 } gdth_ioctl_general;
 
 /* GDTIOCTL_LOCKDRV */

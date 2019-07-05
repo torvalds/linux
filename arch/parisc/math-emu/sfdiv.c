@@ -44,10 +44,10 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 
 	opnd1 = *srcptr1;
 	opnd2 = *srcptr2;
-	/* 
-	 * set sign bit of result 
+	/*
+	 * set sign bit of result
 	 */
-	if (Sgl_sign(opnd1) ^ Sgl_sign(opnd2)) Sgl_setnegativezero(result);  
+	if (Sgl_sign(opnd1) ^ Sgl_sign(opnd2)) Sgl_setnegativezero(result);
 	else Sgl_setzero(result);
 	/*
 	 * check first operand for NaN's or infinity
@@ -56,11 +56,11 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		if (Sgl_iszero_mantissa(opnd1)) {
 			if (Sgl_isnotnan(opnd2)) {
 				if (Sgl_isinfinity(opnd2)) {
-					/* 
-					 * invalid since both operands 
-					 * are infinity 
+					/*
+					 * invalid since both operands
+					 * are infinity
 					 */
-					if (Is_invalidtrap_enabled()) 
+					if (Is_invalidtrap_enabled())
                                 		return(INVALIDEXCEPTION);
                                 	Set_invalidflag();
                                 	Sgl_makequietnan(result);
@@ -81,14 +81,14 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
                  	 */
                 	if (Sgl_isone_signaling(opnd1)) {
                         	/* trap if INVALIDTRAP enabled */
-                        	if (Is_invalidtrap_enabled()) 
+                        	if (Is_invalidtrap_enabled())
                             		return(INVALIDEXCEPTION);
                         	/* make NaN quiet */
                         	Set_invalidflag();
                         	Sgl_set_quiet(opnd1);
                 	}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Sgl_is_signalingnan(opnd2)) {
                         	/* trap if INVALIDTRAP enabled */
@@ -155,7 +155,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		return(NOEXCEPTION);
 	}
 	/*
-	 * Generate exponent 
+	 * Generate exponent
 	 */
 	dest_exponent = Sgl_exponent(opnd1) - Sgl_exponent(opnd2) + SGL_BIAS;
 
@@ -242,18 +242,18 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	}
 	inexact = guardbit | stickybit;
 
-	/* 
-	 * round result 
+	/*
+	 * round result
 	 */
 	if (inexact && (dest_exponent > 0 || Is_underflowtrap_enabled())) {
 		Sgl_clear_signexponent(opnd3);
 		switch (Rounding_mode()) {
-			case ROUNDPLUS: 
-				if (Sgl_iszero_sign(result)) 
+			case ROUNDPLUS:
+				if (Sgl_iszero_sign(result))
 					Sgl_increment_mantissa(opnd3);
 				break;
-			case ROUNDMINUS: 
-				if (Sgl_isone_sign(result)) 
+			case ROUNDMINUS:
+				if (Sgl_isone_sign(result))
 					Sgl_increment_mantissa(opnd3);
 				break;
 			case ROUNDNEAREST:
@@ -266,7 +266,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	}
 	Sgl_set_mantissa(result,opnd3);
 
-        /* 
+        /*
          * Test for overflow
          */
 	if (dest_exponent >= SGL_INFINITY_EXPONENT) {
@@ -277,7 +277,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
                          */
                         Sgl_setwrapped_exponent(result,dest_exponent,ovfl);
                         *dstptr = result;
-                        if (inexact) 
+                        if (inexact)
                             if (Is_inexacttrap_enabled())
                                 return(OVERFLOWEXCEPTION | INEXACTEXCEPTION);
                             else Set_inexactflag();
@@ -288,7 +288,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		Sgl_setoverflow(result);
 		inexact = TRUE;
 	}
-        /* 
+        /*
          * Test for underflow
          */
 	else if (dest_exponent <= 0) {
@@ -299,7 +299,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
                          */
                         Sgl_setwrapped_exponent(result,dest_exponent,unfl);
                         *dstptr = result;
-                        if (inexact) 
+                        if (inexact)
                             if (Is_inexacttrap_enabled())
                                 return(UNDERFLOWEXCEPTION | INEXACTEXCEPTION);
                             else Set_inexactflag();
@@ -310,7 +310,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		is_tiny = TRUE;
 		if (dest_exponent == 0 && inexact) {
 			switch (Rounding_mode()) {
-			case ROUNDPLUS: 
+			case ROUNDPLUS:
 				if (Sgl_iszero_sign(result)) {
 					Sgl_increment(opnd3);
 					if (Sgl_isone_hiddenoverflow(opnd3))
@@ -318,7 +318,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 					Sgl_decrement(opnd3);
 				}
 				break;
-			case ROUNDMINUS: 
+			case ROUNDMINUS:
 				if (Sgl_isone_sign(result)) {
 					Sgl_increment(opnd3);
 					if (Sgl_isone_hiddenoverflow(opnd3))
@@ -327,7 +327,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 				}
 				break;
 			case ROUNDNEAREST:
-				if (guardbit && (stickybit || 
+				if (guardbit && (stickybit ||
 				    Sgl_isone_lowmantissa(opnd3))) {
 				      	Sgl_increment(opnd3);
 					if (Sgl_isone_hiddenoverflow(opnd3))
@@ -344,7 +344,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		stickybit = inexact;
 		Sgl_denormalize(opnd3,dest_exponent,guardbit,stickybit,inexact);
 
-		/* return rounded number */ 
+		/* return rounded number */
 		if (inexact) {
 			switch (Rounding_mode()) {
 			case ROUNDPLUS:
@@ -352,13 +352,13 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 					Sgl_increment(opnd3);
 				}
 				break;
-			case ROUNDMINUS: 
+			case ROUNDMINUS:
 				if (Sgl_isone_sign(result))  {
 					Sgl_increment(opnd3);
 				}
 				break;
 			case ROUNDNEAREST:
-				if (guardbit && (stickybit || 
+				if (guardbit && (stickybit ||
 				    Sgl_isone_lowmantissa(opnd3))) {
 			      		Sgl_increment(opnd3);
 				}

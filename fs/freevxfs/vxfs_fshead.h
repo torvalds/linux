@@ -40,7 +40,7 @@
 
 
 /*
- * Fileset header 
+ * Fileset header
  */
 struct vxfs_fsh {
 	__fs32		fsh_version;		/* fileset header version */

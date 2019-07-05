@@ -51,7 +51,7 @@
 
 	.global	__ashlsi3
 	.global	__ashlsi3_r0
-	
+
 	.align	2
 __ashlsi3:
 	mov	r5,r0

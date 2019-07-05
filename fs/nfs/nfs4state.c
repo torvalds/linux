@@ -886,7 +886,7 @@ void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp
 static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_owner_t owner)
 {
 	struct nfs4_lock_state *lsp, *new = NULL;
-	
+
 	for(;;) {
 		spin_lock(&state->state_lock);
 		lsp = __nfs4_find_lock_state(state, owner, NULL);
@@ -1608,7 +1608,7 @@ static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp, const struct nfs
 	struct nfs4_state *state;
 	int status = 0;
 
-	/* Note: we rely on the sp->so_states list being ordered 
+	/* Note: we rely on the sp->so_states list being ordered
 	 * so that we always reclaim open(O_RDWR) and/or open(O_WRITE)
 	 * states first.
 	 * This is needed to ensure that the server won't give us any

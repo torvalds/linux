@@ -367,7 +367,7 @@ typedef struct _mace_private {
 
     char tx_free_frames; /* Number of free transmit frame buffers */
     char tx_irq_disabled; /* MACE TX interrupt disabled */
-    
+
     spinlock_t bank_lock; /* Must be held if you step off bank 0 */
 } mace_private;
 
@@ -444,7 +444,7 @@ static int nmclan_probe(struct pcmcia_device *link)
     lp = netdev_priv(dev);
     lp->p_dev = link;
     link->priv = dev;
-    
+
     spin_lock_init(&lp->bank_lock);
     link->resource[0]->end = 32;
     link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
@@ -1110,7 +1110,7 @@ static int mace_rx(struct net_device *dev, unsigned char RxCnt)
 	if (pkt_len & 1)
 	    *(skb_tail_pointer(skb) - 1) = inb(ioaddr + AM2150_RCV);
 	skb->protocol = eth_type_trans(skb, dev);
-	
+
 	netif_rx(skb); /* Send the packet to the upper (protocol) layers. */
 
 	dev->stats.rx_packets++;

@@ -78,7 +78,7 @@
      Sall(sgl_value) << (SGL_EXP_LENGTH + 2 + exponent) : FALSE)
 
 
-/* 
+/*
  * Double format macros
  */
 
@@ -183,7 +183,7 @@
 
 #define Dbl_isoverflow_to_int(exponent,dbl_valueA,dbl_valueB)		\
     ((exponent > SGL_FX_MAX_EXP + 1) || Dsign(dbl_valueA)==0 ||		\
-     Dmantissap1(dbl_valueA)!=0 || (Dallp2(dbl_valueB)>>21)!=0 ) 
+     Dmantissap1(dbl_valueA)!=0 || (Dallp2(dbl_valueB)>>21)!=0 )
 
 #define Dbl_isone_roundbit(dbl_valueA,dbl_valueB,exponent)              \
     ((exponent < (DBL_P - 33) ?						\
@@ -348,7 +348,7 @@
 #define Duint_setzero(dresultA,dresultB) 	\
     Dint_setzero(dresultA,dresultB)
 
-#define Duint_increment(dresultA,dresultB) Dint_increment(dresultA,dresultB) 
+#define Duint_increment(dresultA,dresultB) Dint_increment(dresultA,dresultB)
 
 #define Duint_isone_lowp2(dresultB)  Dint_isone_lowp2(dresultB)
 
@@ -360,4 +360,4 @@
     Dbl_isinexact_to_fix(dbl_valueA,dbl_valueB,exponent)
 
 #define Duint_from_dbl_mantissa(dbl_valueA,dbl_valueB,exponent,destA,destB) \
-    Dint_from_dbl_mantissa(dbl_valueA,dbl_valueB,exponent,destA,destB) 
+    Dint_from_dbl_mantissa(dbl_valueA,dbl_valueB,exponent,destA,destB)

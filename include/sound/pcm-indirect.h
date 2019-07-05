@@ -116,7 +116,7 @@ snd_pcm_indirect_capture_transfer(struct snd_pcm_substream *substream,
 		rec->sw_ready -= frames_to_bytes(runtime, diff);
 		rec->appl_ptr = appl_ptr;
 	}
-	while (rec->hw_ready > 0 && 
+	while (rec->hw_ready > 0 &&
 	       rec->sw_ready < (int)rec->sw_buffer_size) {
 		size_t hw_to_end = rec->hw_buffer_size - rec->hw_data;
 		size_t sw_to_end = rec->sw_buffer_size - rec->sw_data;

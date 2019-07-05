@@ -2,7 +2,7 @@
 /*
  * This file contains assembly-language implementations
  * of IP-style 1's complement checksum routines.
- *	
+ *
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
  * Severely hacked about by Paul Mackerras (paulus@cs.anu.edu.au).

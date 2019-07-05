@@ -2315,7 +2315,7 @@ static int vega10_acg_disable(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
 
-	if (data->smu_features[GNLD_ACG].supported && 
+	if (data->smu_features[GNLD_ACG].supported &&
 	    data->smu_features[GNLD_ACG].enabled)
 		if (!vega10_enable_smc_features(hwmgr, false,
 			data->smu_features[GNLD_ACG].smu_feature_bitmap))

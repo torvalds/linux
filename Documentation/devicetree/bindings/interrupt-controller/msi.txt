@@ -12,17 +12,17 @@ potentially including additional information.
 MSIs are distinguished by some combination of:
 
 - The doorbell (the MMIO address written to).
-  
+
   Devices may be configured by software to write to arbitrary doorbells which
   they can address. An MSI controller may feature a number of doorbells.
 
 - The payload (the value written to the doorbell).
-  
+
   Devices may be configured to write an arbitrary payload chosen by software.
   MSI controllers may have restrictions on permitted payloads.
 
 - Sideband information accompanying the write.
-  
+
   Typically this is neither configurable nor probeable, and depends on the path
   taken through the memory system (i.e. it is a property of the combination of
   MSI controller and device rather than a property of either in isolation).
@@ -48,7 +48,7 @@ Optional properties:
   not encode doorbells or payloads as these can be configured dynamically.
 
   The meaning of the msi-specifier is defined by the device tree binding of
-  the specific MSI controller. 
+  the specific MSI controller.
 
 
 MSI clients
@@ -117,7 +117,7 @@ Example
 		reg = <0x1 0xf00>;
 		compatible = "vendor-c,some-device";
 
-		/* 
+		/*
 		 * Can generate MSIs to either A or B.
 		 */
 		msi-parent = <&msi_a>, <&msi_b 0x17>;

@@ -144,7 +144,7 @@ static inline bool pfn_valid(unsigned long pfn)
  *   With RELOCATABLE && PPC32,  we support loading the kernel at any physical
  *   address without any restriction on the page alignment.
  *
- *   We find the runtime address of _stext and relocate ourselves based on 
+ *   We find the runtime address of _stext and relocate ourselves based on
  *   the following calculation:
  *
  *  	  virtual_base = ALIGN_DOWN(KERNELBASE,256M) +
@@ -164,7 +164,7 @@ static inline bool pfn_valid(unsigned long pfn)
  *
  *   This formula holds true iff, kernel load address is TLB page aligned.
  *
- *   In our case, we need to also account for the shift in the kernel Virtual 
+ *   In our case, we need to also account for the shift in the kernel Virtual
  *   address.
  *
  *   E.g.,
@@ -192,7 +192,7 @@ static inline bool pfn_valid(unsigned long pfn)
  * 	a new variable virt_phys_offset, which will hold :
  *
  * 	virt_phys_offset = Effective KERNELBASE - PHYSICAL_START
- * 			 = ALIGN_DOWN(KERNELBASE,256M) - 
+ * 			 = ALIGN_DOWN(KERNELBASE,256M) -
  * 			 	ALIGN_DOWN(PHYSICALSTART,256M)
  *
  * 	Hence :
@@ -203,7 +203,7 @@ static inline bool pfn_valid(unsigned long pfn)
  * 		and
  * 	__pa(x) = x + PHYSICAL_START - Effective KERNELBASE
  * 		= x - virt_phys_offset
- * 		
+ *
  * On non-Book-E PPC64 PAGE_OFFSET and MEMORY_START are constants so use
  * the other definitions for __va & __pa.
  */

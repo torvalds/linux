@@ -921,7 +921,7 @@ errbuf_failed:
 	return retval;
 }
 
-static void __exit uhci_hcd_cleanup(void) 
+static void __exit uhci_hcd_cleanup(void)
 {
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);

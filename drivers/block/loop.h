@@ -43,12 +43,12 @@ struct loop_device {
 	struct loop_func_table *lo_encryption;
 	__u32           lo_init[2];
 	kuid_t		lo_key_owner;	/* Who set the key */
-	int		(*ioctl)(struct loop_device *, int cmd, 
-				 unsigned long arg); 
+	int		(*ioctl)(struct loop_device *, int cmd,
+				 unsigned long arg);
 
 	struct file *	lo_backing_file;
 	struct block_device *lo_device;
-	void		*key_data; 
+	void		*key_data;
 
 	gfp_t		old_gfp_mask;
 
@@ -76,19 +76,19 @@ struct loop_cmd {
 
 /* Support for loadable transfer modules */
 struct loop_func_table {
-	int number;	/* filter type */ 
+	int number;	/* filter type */
 	int (*transfer)(struct loop_device *lo, int cmd,
 			struct page *raw_page, unsigned raw_off,
 			struct page *loop_page, unsigned loop_off,
 			int size, sector_t real_block);
-	int (*init)(struct loop_device *, const struct loop_info64 *); 
+	int (*init)(struct loop_device *, const struct loop_info64 *);
 	/* release is called from loop_unregister_transfer or clr_fd */
-	int (*release)(struct loop_device *); 
+	int (*release)(struct loop_device *);
 	int (*ioctl)(struct loop_device *, int cmd, unsigned long arg);
 	struct module *owner;
-}; 
+};
 
 int loop_register_transfer(struct loop_func_table *funcs);
-int loop_unregister_transfer(int number); 
+int loop_unregister_transfer(int number);
 
 #endif

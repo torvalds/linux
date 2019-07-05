@@ -63,7 +63,7 @@ titan_parse_c_misc(u64 c_misc, int print)
 		break;
 	}
 
-	printk("%s    Non-existent memory access from: %s %d\n", 
+	printk("%s    Non-existent memory access from: %s %d\n",
 	       err_print_prefix, src, nxs);
 #endif /* CONFIG_VERBOSE_MCHECK */
 
@@ -128,7 +128,7 @@ titan_parse_p_serror(int which, u64 serror, int print)
 	if (serror & TITAN__PCHIP_SERROR__NXIO)
 		printk("%s    Non Existent I/O Error\n", err_print_prefix);
 	if (serror & TITAN__PCHIP_SERROR__LOST_UECC)
-		printk("%s    Lost Uncorrectable ECC Error\n", 
+		printk("%s    Lost Uncorrectable ECC Error\n",
 		       err_print_prefix);
 	if (serror & TITAN__PCHIP_SERROR__LOST_CRE)
 		printk("%s    Lost Correctable ECC Error\n", err_print_prefix);
@@ -137,7 +137,7 @@ titan_parse_p_serror(int which, u64 serror, int print)
 	return status;
 }
 
-static int 
+static int
 titan_parse_p_perror(int which, int port, u64 perror, int print)
 {
 	int cmd;
@@ -194,7 +194,7 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 
 	/*
 	 * Initializing the BIOS on a video card on a bus without
-	 * a south bridge (subtractive decode agent) can result in 
+	 * a south bridge (subtractive decode agent) can result in
 	 * master aborts as the BIOS probes the capabilities of the
 	 * card. XFree86 does such initialization. If the error
 	 * is a master abort (No DevSel as PCI Master) and the command
@@ -214,11 +214,11 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	 * time the PALcode reads PERROR and the time it writes PERROR
 	 * to acknowledge the error. If this timing happens, a second
 	 * error will be signalled after the first, and if no additional
-	 * errors occur, will look like a Lost error with no additional 
+	 * errors occur, will look like a Lost error with no additional
 	 * errors on the same transaction as the previous error.
 	 */
-	if (((perror & TITAN__PCHIP_PERROR__NDS) || 
-	     ((perror & TITAN__PCHIP_PERROR__ERRMASK) == 
+	if (((perror & TITAN__PCHIP_PERROR__NDS) ||
+	     ((perror & TITAN__PCHIP_PERROR__ERRMASK) ==
 	      TITAN__PCHIP_PERROR__LOST)) &&
 	    ((((cmd & 0xE) == 2) && (addr < 0x1000)) ||
 	     (((cmd & 0xE) == 6) && (addr >= 0xA0000) && (addr < 0x100000)))) {
@@ -226,11 +226,11 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	}
 
 #ifdef CONFIG_VERBOSE_MCHECK
-	if (!print) 
+	if (!print)
 		return status;
 
 	printk("%s  PChip %d %cPERROR: %016llx\n",
-	       err_print_prefix, which, 
+	       err_print_prefix, which,
 	       port ? 'A' : 'G', perror);
 	if (perror & TITAN__PCHIP_PERROR__IPTPW)
 		printk("%s    Invalid Peer-to-Peer Write\n", err_print_prefix);
@@ -246,10 +246,10 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	if (perror & TITAN__PCHIP_PERROR__APE)
 		printk("%s    Address Parity Error\n", err_print_prefix);
 	if (perror & TITAN__PCHIP_PERROR__SGE)
-		printk("%s    Scatter-Gather Error, Invalid PTE\n", 
+		printk("%s    Scatter-Gather Error, Invalid PTE\n",
 		       err_print_prefix);
 	if (perror & TITAN__PCHIP_PERROR__DCRTO)
-		printk("%s    Delayed-Completion Retry Timeout\n", 
+		printk("%s    Delayed-Completion Retry Timeout\n",
 		       err_print_prefix);
 	if (perror & TITAN__PCHIP_PERROR__PERR)
 		printk("%s    PERR Asserted\n", err_print_prefix);
@@ -333,10 +333,10 @@ titan_parse_p_agperror(int which, u64 agperror, int print)
 	if (agperror & TITAN__PCHIP_AGPERROR__RESCMD)
 		printk("%s    Reserved Command\n", err_print_prefix);
 	if (agperror & TITAN__PCHIP_AGPERROR__HPQFULL)
-		printk("%s    HP Transaction Received while Queue Full\n", 
+		printk("%s    HP Transaction Received while Queue Full\n",
 		       err_print_prefix);
 	if (agperror & TITAN__PCHIP_AGPERROR__LPQFULL)
-		printk("%s    LP Transaction Received while Queue Full\n", 
+		printk("%s    LP Transaction Received while Queue Full\n",
 		       err_print_prefix);
 	if (agperror & TITAN__PCHIP_AGPERROR__LOST)
 		printk("%s    Lost Error\n", err_print_prefix);
@@ -352,10 +352,10 @@ titan_parse_p_agperror(int which, u64 agperror, int print)
 #endif /* CONFIG_VERBOSE_MCHECK */
 
 	return status;
-}	
+}
 
 static int
-titan_parse_p_chip(int which, u64 serror, u64 gperror, 
+titan_parse_p_chip(int which, u64 serror, u64 gperror,
 		   u64 aperror, u64 agperror, int print)
 {
 	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
@@ -376,10 +376,10 @@ titan_process_logout_frame(struct el_common *mchk_header, int print)
 
 	status |= titan_parse_c_misc(tmchk->c_misc, print);
 	status |= titan_parse_p_chip(0, tmchk->p0_serror, tmchk->p0_gperror,
-				     tmchk->p0_aperror, tmchk->p0_agperror, 
+				     tmchk->p0_aperror, tmchk->p0_agperror,
 				     print);
 	status |= titan_parse_p_chip(1, tmchk->p1_serror, tmchk->p1_gperror,
-				     tmchk->p1_aperror, tmchk->p1_agperror, 
+				     tmchk->p1_aperror, tmchk->p1_agperror,
 				     print);
 
 	return status;
@@ -410,42 +410,42 @@ titan_machine_check(unsigned long vector, unsigned long la_ptr)
 	 */
 	mb();
 	draina();
-	
+
 	/*
-	 * Only handle system errors here 
+	 * Only handle system errors here
 	 */
 	if ((vector != SCB_Q_SYSMCHK) && (vector != SCB_Q_SYSERR)) {
 		ev6_machine_check(vector, la_ptr);
 		return;
 	}
 
-	/* 
+	/*
 	 * It's a system error, handle it here
 	 *
 	 * The PALcode has already cleared the error, so just parse it
 	 */
-	
-	/* 
+
+	/*
 	 * Parse the logout frame without printing first. If the only error(s)
 	 * found are classified as "dismissable", then just dismiss them and
 	 * don't print any message
 	 */
-	if (titan_process_logout_frame(mchk_header, 0) != 
+	if (titan_process_logout_frame(mchk_header, 0) !=
 	    MCHK_DISPOSITION_DISMISS) {
 		char *saved_err_prefix = err_print_prefix;
 		err_print_prefix = KERN_CRIT;
 
 		/*
 		 * Either a nondismissable error was detected or no
-		 * recognized error was detected  in the logout frame 
+		 * recognized error was detected  in the logout frame
 		 * -- report the error in either case
 		 */
 		printk("%s"
-		       "*System %s Error (Vector 0x%x) reported on CPU %d:\n", 
+		       "*System %s Error (Vector 0x%x) reported on CPU %d:\n",
 		       err_print_prefix,
 		       (vector == SCB_Q_SYSERR)?"Correctable":"Uncorrectable",
 		       (unsigned int)vector, (int)smp_processor_id());
-		
+
 #ifdef CONFIG_VERBOSE_MCHECK
 		titan_process_logout_frame(mchk_header, alpha_verbose_mcheck);
 		if (alpha_verbose_mcheck)
@@ -460,11 +460,11 @@ titan_machine_check(unsigned long vector, unsigned long la_ptr)
 		 */
 		irqmask = tmchk->c_dirx & TITAN_MCHECK_INTERRUPT_MASK;
 		titan_dispatch_irqs(irqmask);
-	}	
+	}
 
 
-	/* 
-	 * Release the logout frame 
+	/*
+	 * Release the logout frame
 	 */
 	wrmces(0x7);
 	mb();
@@ -485,7 +485,7 @@ static char *el_titan_pchip0_extended_annotation[] = {
 	"P0_GWSBA2",		"P0_GWSBA3",	"P0_GWSM0",
 	"P0_GWSM1",		"P0_GWSM2",	"P0_GWSM3",
 	"P0_GTBA0",		"P0_GTBA1",	"P0_GTBA2",
-	"P0_GTBA3",		NULL 
+	"P0_GTBA3",		NULL
 };
 static char *el_titan_pchip1_extended_annotation[] = {
 	"Subpacket Header", 	"P1_SCTL",	"P1_SERREN",
@@ -499,13 +499,13 @@ static char *el_titan_pchip1_extended_annotation[] = {
 	"P1_GWSBA2",		"P1_GWSBA3",	"P1_GWSM0",
 	"P1_GWSM1",		"P1_GWSM2",	"P1_GWSM3",
 	"P1_GTBA0",		"P1_GTBA1",	"P1_GTBA2",
-	"P1_GTBA3",		NULL 
+	"P1_GTBA3",		NULL
 };
 static char *el_titan_memory_extended_annotation[] = {
 	"Subpacket Header", 	"AAR0",		"AAR1",
 	"AAR2",			"AAR3",		"P0_SCTL",
 	"P0_GPCTL",		"P0_APCTL",	"P1_SCTL",
-	"P1_GPCTL",		"P1_SCTL",	NULL 
+	"P1_GPCTL",		"P1_SCTL",	NULL
 };
 
 static struct el_subpacket_annotation el_titan_annotations[] = {
@@ -547,14 +547,14 @@ el_process_regatta_subpacket(struct el_subpacket *header)
 	case EL_TYPE__REGATTA__ENVIRONMENTAL_FRAME:
 	case EL_TYPE__REGATTA__PROCESSOR_DBL_ERROR_HALT:
 	case EL_TYPE__REGATTA__SYSTEM_DBL_ERROR_HALT:
-		printk("%s  ** Occurred on CPU %d:\n", 
+		printk("%s  ** Occurred on CPU %d:\n",
 		       err_print_prefix,
 		       (int)header->by_type.regatta_frame.cpuid);
 		privateer_process_logout_frame((struct el_common *)
 			header->by_type.regatta_frame.data_start, 1);
 		break;
 	default:
-		printk("%s  ** REGATTA TYPE %d SUBPACKET\n", 
+		printk("%s  ** REGATTA TYPE %d SUBPACKET\n",
 		       err_print_prefix, header->type);
 		el_annotate_subpacket(header);
 		break;
@@ -562,10 +562,10 @@ el_process_regatta_subpacket(struct el_subpacket *header)
 
 
 	return (struct el_subpacket *)((unsigned long)header + header->length);
-} 
+}
 
-static struct el_subpacket_handler titan_subpacket_handler = 
-	SUBPACKET_HANDLER_INIT(EL_CLASS__REGATTA_FAMILY, 
+static struct el_subpacket_handler titan_subpacket_handler =
+	SUBPACKET_HANDLER_INIT(EL_CLASS__REGATTA_FAMILY,
 			       el_process_regatta_subpacket);
 
 void __init
@@ -630,7 +630,7 @@ privateer_process_680_frame(struct el_common *mchk_header, int print)
 int
 privateer_process_logout_frame(struct el_common *mchk_header, int print)
 {
-	struct el_common_EV6_mcheck *ev6mchk = 
+	struct el_common_EV6_mcheck *ev6mchk =
 		(struct el_common_EV6_mcheck *)mchk_header;
 	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
 
@@ -682,20 +682,20 @@ privateer_process_logout_frame(struct el_common *mchk_header, int print)
 		status |= titan_process_logout_frame(mchk_header, print);
 		break;
 
-	/* 
+	/*
 	 * Vector 680 - System, Environmental
 	 */
 	case PRIVATEER_MCHK__SYS_ENVIRON:	/* System, Environmental */
 		status |= privateer_process_680_frame(mchk_header, print);
 		break;
 
-	/* 
+	/*
 	 * Unknown
 	 */
 	default:
 		status |= MCHK_DISPOSITION_REPORT;
 		if (print) {
-			printk("%s** Unknown Error, frame follows\n", 
+			printk("%s** Unknown Error, frame follows\n",
 			       err_print_prefix);
 			mchk_dump_logout_frame(mchk_header);
 		}
@@ -724,10 +724,10 @@ privateer_machine_check(unsigned long vector, unsigned long la_ptr)
 	mb();
 	draina();
 
-	/* 
+	/*
 	 * Only handle system events here.
 	 */
-	if (vector != SCB_Q_SYSEVENT) 
+	if (vector != SCB_Q_SYSEVENT)
 		return titan_machine_check(vector, la_ptr);
 
 	/*
@@ -736,13 +736,13 @@ privateer_machine_check(unsigned long vector, unsigned long la_ptr)
 	 * to normal status.
 	 */
 	err_print_prefix = KERN_CRIT;
-	printk("%s*System Event (Vector 0x%x) reported on CPU %d:\n", 
+	printk("%s*System Event (Vector 0x%x) reported on CPU %d:\n",
 	       err_print_prefix,
 	       (unsigned int)vector, (int)smp_processor_id());
 	privateer_process_680_frame(mchk_header, 1);
 	err_print_prefix = saved_err_prefix;
-	
-	/* 
+
+	/*
 	 * Convert any pending interrupts which report as 680 machine
 	 * checks to interrupts.
 	 */
@@ -753,7 +753,7 @@ privateer_machine_check(unsigned long vector, unsigned long la_ptr)
 	 */
 	titan_dispatch_irqs(irqmask);
 
-	/* 
+	/*
 	 * Release the logout frame.
 	 */
 	wrmces(0x7);

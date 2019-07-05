@@ -43,12 +43,12 @@
 /**
  *	generic_id		-	add a generic drive id
  *	@drive:	drive to make an ID block for
- *	
+ *
  *	Add a fake id field to the drive we are passed. This allows
- *	use to skip a ton of NULL checks (which people always miss) 
+ *	use to skip a ton of NULL checks (which people always miss)
  *	and make drive properties unconditional outside of this file
  */
- 
+
 static void generic_id(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
@@ -181,13 +181,13 @@ static void ide_classify_atapi_dev(ide_drive_t *drive)
 
 /**
  *	do_identify	-	identify a drive
- *	@drive: drive to identify 
+ *	@drive: drive to identify
  *	@cmd: command used
  *	@id: buffer for IDENTIFY data
  *
  *	Called when we have issued a drive identify command to
  *	read and parse the results. This function is run with
- *	interrupts disabled. 
+ *	interrupts disabled.
  */
 
 static void do_identify(ide_drive_t *drive, u8 cmd, u16 *id)
@@ -1014,7 +1014,7 @@ static int hwif_init(ide_hwif_t *hwif)
 	}
 
 	sg_init_table(hwif->sg_table, hwif->sg_max_nents);
-	
+
 	if (init_irq(hwif)) {
 		printk(KERN_ERR "%s: disabled, unable to get IRQ %d\n",
 			hwif->name, hwif->irq);

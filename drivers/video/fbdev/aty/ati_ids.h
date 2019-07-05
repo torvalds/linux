@@ -101,10 +101,10 @@
 #define PCI_CHIP_R300_NE		0x4E45
 #define PCI_CHIP_R300_NF		0x4E46
 #define PCI_CHIP_R300_NG		0x4E47
-#define PCI_CHIP_R350_NH                0x4E48  
-#define PCI_CHIP_R350_NI                0x4E49  
-#define PCI_CHIP_R360_NJ                0x4E4A  
-#define PCI_CHIP_R350_NK                0x4E4B  
+#define PCI_CHIP_R350_NH                0x4E48
+#define PCI_CHIP_R350_NI                0x4E49
+#define PCI_CHIP_R360_NJ                0x4E4A
+#define PCI_CHIP_R350_NK                0x4E4B
 #define PCI_CHIP_RV350_NP               0x4E50
 #define PCI_CHIP_RV350_NQ               0x4E51
 #define PCI_CHIP_RV350_NR               0x4E52

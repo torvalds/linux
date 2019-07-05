@@ -143,11 +143,11 @@ seen in /proc/ppc64/eeh (subject to change).  Normally, almost
 all of these occur during boot, when the PCI bus is scanned, where
 a large number of 0xff reads are part of the bus scan procedure.
 
-If a frozen slot is detected, code in 
-arch/powerpc/platforms/pseries/eeh.c will print a stack trace to 
-syslog (/var/log/messages).  This stack trace has proven to be very 
-useful to device-driver authors for finding out at what point the EEH 
-error was detected, as the error itself usually occurs slightly 
+If a frozen slot is detected, code in
+arch/powerpc/platforms/pseries/eeh.c will print a stack trace to
+syslog (/var/log/messages).  This stack trace has proven to be very
+useful to device-driver authors for finding out at what point the EEH
+error was detected, as the error itself usually occurs slightly
 beforehand.
 
 Next, it uses the Linux kernel notifier chain/work queue mechanism to

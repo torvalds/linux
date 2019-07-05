@@ -21,7 +21,7 @@ struct seq_oss_timer {
 	int running;
 	int tempo, ppq;	/* ALSA queue */
 	int oss_tempo, oss_timebase;
-};	
+};
 
 
 struct seq_oss_timer *snd_seq_oss_timer_new(struct seq_oss_devinfo *dp);

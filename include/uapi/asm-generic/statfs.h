@@ -37,7 +37,7 @@ struct statfs {
 
 /*
  * ARM needs to avoid the 32-bit padding at the end, for consistency
- * between EABI and OABI 
+ * between EABI and OABI
  */
 #ifndef ARCH_PACK_STATFS64
 #define ARCH_PACK_STATFS64
@@ -58,7 +58,7 @@ struct statfs64 {
 	__statfs_word f_spare[4];
 } ARCH_PACK_STATFS64;
 
-/* 
+/*
  * IA64 and x86_64 need to avoid the 32-bit padding at the end,
  * to be compatible with the i386 ABI
  */

@@ -256,7 +256,7 @@ static int vxp_load_dsp(struct vx_core *vx, int index, const struct firmware *fw
 		return -EINVAL;
 	}
 }
-		
+
 
 /*
  * vx_test_and_ack - test and acknowledge interrupt
@@ -275,7 +275,7 @@ static int vxp_test_and_ack(struct vx_core *_chip)
 
 	if (! (vx_inb(chip, DIALOG) & VXP_DLG_MEMIRQ_MASK))
 		return -EIO;
-	
+
 	/* ok, interrupts generated, now ack it */
 	/* set ACQUIT bit up and down */
 	vx_outb(chip, DIALOG, chip->regDIALOG | VXP_DLG_ACK_MEMIRQ_MASK);
@@ -438,11 +438,11 @@ static void vxp_write_codec_reg(struct vx_core *chip, int codec, unsigned int da
 		vx_inb(chip, LOFREQ);
 	else
 		vx_inb(chip, CODEC2);
-		
+
 	/* We have to send 24 bits (3 x 8 bits). Start with most signif. Bit */
 	for (i = 0; i < 24; i++, data <<= 1)
 		vx_outb(chip, DATA, ((data & 0x800000) ? VX_DATA_CODEC_MASK : 0));
-	
+
 	/* Terminate access to codec registers */
 	vx_inb(chip, HIFREQ);
 }

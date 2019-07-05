@@ -1801,7 +1801,7 @@ split_end:
 		rl->length = rl[1].vcn - start;
 		goto shrink_allocation;
 	}
-	/* 
+	/*
 	 * If @end is not in a hole there are still two cases to distinguish.
 	 * Either @end is or is not in the same run as @start.
 	 *

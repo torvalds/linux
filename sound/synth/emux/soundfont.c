@@ -236,7 +236,7 @@ open_patch(struct snd_sf_list *sflist, const char __user *data,
 	if (is_special_type(parm.type)) {
 		parm.type |= SNDRV_SFNT_PAT_SHARED;
 		sf = newsf(sflist, parm.type, NULL);
-	} else 
+	} else
 		sf = newsf(sflist, parm.type, parm.name);
 	if (sf == NULL) {
 		return -ENOMEM;
@@ -423,7 +423,7 @@ load_map(struct snd_sf_list *sflist, const void __user *data, int count)
 
 	if (map.map_instr < 0 || map.map_instr >= SF_MAX_INSTRUMENTS)
 		return -EINVAL;
-	
+
 	sf = newsf(sflist, SNDRV_SFNT_PAT_TYPE_MAP|SNDRV_SFNT_PAT_SHARED, NULL);
 	if (sf == NULL)
 		return -ENOMEM;
@@ -526,7 +526,7 @@ load_info(struct snd_sf_list *sflist, const void __user *data, long count)
 	}
 	if (copy_from_user((char*)&hdr, data, sizeof(hdr)))
 		return -EFAULT;
-	
+
 	data += sizeof(hdr);
 	count -= sizeof(hdr);
 
@@ -640,7 +640,7 @@ init_voice_parm(struct soundfont_voice_parm *pp)
 	pp->lfo2delay = 0x8000;
 
 	pp->cutoff = 0xff;
-}	
+}
 
 /* search the specified sample */
 static struct snd_sf_sample *
@@ -786,7 +786,7 @@ snd_sf_linear_to_log(unsigned int amount, int offset, int ratio)
 {
 	int v;
 	int s, low, bit;
-	
+
 	if (amount < 2)
 		return 0;
 	for (bit = 0; ! (amount & 0x80000000L); bit++)
@@ -951,7 +951,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	}
 	if (copy_from_user(&patch, data, sizeof(patch)))
 		return -EFAULT;
-	
+
 	count -= sizeof(patch);
 	data += sizeof(patch);
 
@@ -1056,7 +1056,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 		release += calc_gus_envelope_time
 			(patch.env_rate[5], patch.env_offset[4],
 			 patch.env_offset[5]);
-		zone->v.parm.volatkhld = 
+		zone->v.parm.volatkhld =
 			(snd_sf_calc_parm_hold(hold) << 8) |
 			snd_sf_calc_parm_attack(attack);
 		zone->v.parm.voldcysus = (calc_gus_sustain(patch.env_offset[2]) << 8) |
@@ -1088,7 +1088,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 		int rate = (patch.vibrato_rate * 1000 / 38) / 42;
 		zone->v.parm.fm2frq2 = ((patch.vibrato_depth / 6) << 8) | rate;
 	}
-	
+
 	/* scale_freq, scale_factor, volume, and fractions not implemented */
 
 	if (!(smp->v.mode_flags & SNDRV_SFNT_SAMPLE_SINGLESHOT))
@@ -1409,7 +1409,7 @@ snd_sf_free(struct snd_sf_list *sflist)
 {
 	if (sflist == NULL)
 		return;
-	
+
 	lock_preset(sflist);
 	if (sflist->callback.sample_reset)
 		sflist->callback.sample_reset(sflist->callback.private_data);

@@ -6,7 +6,7 @@
  *
  *	This is a "pseudo" network driver to allow LAPB over Ethernet.
  *
- *	This driver can use any ethernet destination address, and can be 
+ *	This driver can use any ethernet destination address, and can be
  *	limited to accept frames from one dedicated ethernet card only.
  *
  *	History
@@ -65,7 +65,7 @@ static struct lapbethdev *lapbeth_get_x25_dev(struct net_device *dev)
 	struct lapbethdev *lapbeth;
 
 	list_for_each_entry_rcu(lapbeth, &lapbeth_devices, node) {
-		if (lapbeth->ethdev == dev) 
+		if (lapbeth->ethdev == dev)
 			return lapbeth;
 	}
 	return NULL;
@@ -377,10 +377,10 @@ static int lapbeth_device_event(struct notifier_block *this,
 		if (lapbeth_get_x25_dev(dev) == NULL)
 			lapbeth_new_device(dev);
 		break;
-	case NETDEV_DOWN:	
+	case NETDEV_DOWN:
 		/* ethernet device closed -> close LAPB interface */
 		lapbeth = lapbeth_get_x25_dev(dev);
-		if (lapbeth) 
+		if (lapbeth)
 			dev_close(lapbeth->axdev);
 		break;
 	case NETDEV_UNREGISTER:

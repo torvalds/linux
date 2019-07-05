@@ -20,7 +20,7 @@ my $globl = sub {
     my $ret;
 
     $name =~ s|^[\.\_]||;
- 
+
     SWITCH: for ($flavour) {
 	/aix/		&& do { $name = ".$name";
 				last;

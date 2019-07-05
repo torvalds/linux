@@ -19,7 +19,7 @@ What's left to be done for 32-bit UIDs on all Linux architectures:
   underlying filesystem, because quota records are written at offsets
   corresponding to the UID in question.
   Further investigation is needed to see if the quota system can cope
-  properly with huge UIDs. If it can deal with 64-bit file offsets on all 
+  properly with huge UIDs. If it can deal with 64-bit file offsets on all
   architectures, this should not be a problem.
 
 - Decide whether or not to keep backwards compatibility with the system

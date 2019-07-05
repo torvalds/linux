@@ -350,7 +350,7 @@ static int do_one_mathemu(u32 insn, unsigned long *pfsr, unsigned long *fregs)
 	freg = (*pfsr >> 14) & 0xf;
 
 	*pfsr &= ~0x1c000;				/* clear the traptype bits */
-	
+
 	freg = ((insn >> 14) & 0x1f);
 	switch (type & 0x3) {				/* is rs1 single, double or quad? */
 	case 3:

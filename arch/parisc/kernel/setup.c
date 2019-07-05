@@ -229,7 +229,7 @@ static void __init parisc_proc_mkdir(void)
                 }
                 break;
 	default:
-		/* FIXME: this was added to prevent the compiler 
+		/* FIXME: this was added to prevent the compiler
 		 * complaining about missing pcx, pcxs and pcxt
 		 * I'm assuming they have neither gsc nor runway */
 		break;
@@ -263,24 +263,24 @@ static int __init parisc_init_resources(void)
 
 	result = request_resource(&iomem_resource, &central_bus);
 	if (result < 0) {
-		printk(KERN_ERR 
-		       "%s: failed to claim %s address space!\n", 
+		printk(KERN_ERR
+		       "%s: failed to claim %s address space!\n",
 		       __FILE__, central_bus.name);
 		return result;
 	}
 
 	result = request_resource(&iomem_resource, &local_broadcast);
 	if (result < 0) {
-		printk(KERN_ERR 
-		       "%s: failed to claim %saddress space!\n", 
+		printk(KERN_ERR
+		       "%s: failed to claim %saddress space!\n",
 		       __FILE__, local_broadcast.name);
 		return result;
 	}
 
 	result = request_resource(&iomem_resource, &global_broadcast);
 	if (result < 0) {
-		printk(KERN_ERR 
-		       "%s: failed to claim %s address space!\n", 
+		printk(KERN_ERR
+		       "%s: failed to claim %s address space!\n",
 		       __FILE__, global_broadcast.name);
 		return result;
 	}
@@ -307,13 +307,13 @@ static int __init parisc_init(void)
 	do_device_inventory();                  /* probe for hardware */
 
 	parisc_pdc_chassis_init();
-	
+
 	/* set up a new led state on systems shipped LED State panel */
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_BSTART);
 
 	/* tell PDC we're Linux. Nevermind failure. */
 	pdc_stable_write(0x40, &osid, sizeof(osid));
-	
+
 	/* start with known state */
 	flush_cache_all_local();
 	flush_tlb_all_local(NULL);

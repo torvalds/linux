@@ -55,7 +55,7 @@
 union _FP_UNION_Q
 {
    long double flt;
-   struct 
+   struct
    {
 #if __BYTE_ORDER == __BIG_ENDIAN
       unsigned sign : 1;

@@ -163,7 +163,7 @@ register SEQINTCODE {
 		MKMSG_FAILED,			/*
 						 * Target completed command
 						 * without honoring our ATN
-						 * request to issue a message. 
+						 * request to issue a message.
 						 */
 		MISSED_BUSFREE,			/*
 						 * The sequencer never saw
@@ -1133,7 +1133,7 @@ register SFUNCT {
 }
 
 /*
- * Data FIFO 0 PCI Status 
+ * Data FIFO 0 PCI Status
  */
 register DF0PCISTAT {
 	address			0x0A0
@@ -1152,7 +1152,7 @@ register DF0PCISTAT {
 }
 
 /*
- * Data FIFO 1 PCI Status 
+ * Data FIFO 1 PCI Status
  */
 register DF1PCISTAT {
 	address			0x0A1
@@ -1169,7 +1169,7 @@ register DF1PCISTAT {
 }
 
 /*
- * S/G PCI Status 
+ * S/G PCI Status
  */
 register SGPCISTAT {
 	address			0x0A2
@@ -1185,7 +1185,7 @@ register SGPCISTAT {
 }
 
 /*
- * CMC PCI Status 
+ * CMC PCI Status
  */
 register CMCPCISTAT {
 	address			0x0A3
@@ -1202,7 +1202,7 @@ register CMCPCISTAT {
 }
 
 /*
- * Overlay PCI Status 
+ * Overlay PCI Status
  */
 register OVLYPCISTAT {
 	address			0x0A4
@@ -1328,7 +1328,7 @@ register CMDLENPTR {
  * Task Attribute Pointer
  * Scb offset for the byte field specifying the attribute byte
  * to be used in command packets.
- */ 
+ */
 register ATTRPTR {
 	address			0x026
 	access_mode	RW
@@ -1341,7 +1341,7 @@ register ATTRPTR {
  * Task Management Flags Pointer
  * Scb offset for the byte field specifying the attribute flags
  * byte to be used in command packets.
- */ 
+ */
 register FLAGPTR {
 	address			0x027
 	access_mode	RW
@@ -3437,7 +3437,7 @@ register FLAGS {
 
 /*
  * Sequencer Interrupt Control
- */ 
+ */
 register SEQINTCTL {
 	address			0x0D9
 	access_mode RW
@@ -3588,7 +3588,7 @@ register DINDIR	 {
  * Function One
  * 2's complement to bit value conversion.  Write the 2's complement value
  * (0-7 only) to the top nibble and retrieve the bit indexed by that value
- * on the next read of this register. 
+ * on the next read of this register.
  * Example:
  *	Write	0x60
  *	Read	0x40
@@ -3856,7 +3856,7 @@ scratch_ram {
 		dont_generate_debug_code
 	}
 	/*
-	 * The last bus phase as seen by the sequencer. 
+	 * The last bus phase as seen by the sequencer.
 	 */
 	LASTPHASE {
 		size		1
@@ -4138,7 +4138,7 @@ scb {
 	SCB_TASK_ATTRIBUTE {
 		size	1
 		/*
-		 * Overloaded field for non-packetized 
+		 * Overloaded field for non-packetized
 		 * ignore wide residue message handling.
 		 */
 		field	SCB_XFERLEN_ODD	0x01

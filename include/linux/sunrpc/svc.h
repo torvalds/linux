@@ -287,8 +287,8 @@ struct svc_rqst {
 						 */
 	ktime_t			rq_stime;	/* start time */
 
-	struct cache_req	rq_chandle;	/* handle passed to caches for 
-						 * request delaying 
+	struct cache_req	rq_chandle;	/* handle passed to caches for
+						 * request delaying
 						 */
 	/* Catering to nfsd */
 	struct auth_domain *	rq_client;	/* RPC peer info */
@@ -437,7 +437,7 @@ struct svc_version {
 	bool			vs_need_cong_ctrl;
 
 	/* Override dispatch function (e.g. when caching replies).
-	 * A return value of 0 means drop the request. 
+	 * A return value of 0 means drop the request.
 	 * vs_dispatch == NULL means use default dispatcher.
 	 */
 	int			(*vs_dispatch)(struct svc_rqst *, __be32 *);

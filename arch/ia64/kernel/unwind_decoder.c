@@ -12,7 +12,7 @@
  * macros/constants before including this file:
  *
  *  Types:
- *	unw_word	Unsigned integer type with at least 64 bits 
+ *	unw_word	Unsigned integer type with at least 64 bits
  *
  *  Register names:
  *	UNW_REG_BSP

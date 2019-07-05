@@ -39,7 +39,7 @@
 #define TURBOSPARC_PSO          0x00000080
 #define TURBOSPARC_DCENABLE     0x00000100   /* Enable data cache */
 #define TURBOSPARC_ICENABLE     0x00000200   /* Enable instruction cache */
-#define TURBOSPARC_BMODE        0x00004000   
+#define TURBOSPARC_BMODE        0x00004000
 #define TURBOSPARC_PARITYODD	0x00020000   /* Parity odd, if enabled */
 #define TURBOSPARC_PCENABLE	0x00040000   /* Enable parity checking */
 

@@ -151,7 +151,7 @@ common_shutdown_1(void *generic_ptr)
 
 	if (! alpha_using_srm && how->mode != LINUX_REBOOT_CMD_RESTART) {
 		/* Unfortunately, since MILO doesn't currently understand
-		   the hwrpb bits above, we can't reliably halt the 
+		   the hwrpb bits above, we can't reliably halt the
 		   processor and keep it halted.  So just loop.  */
 		return;
 	}

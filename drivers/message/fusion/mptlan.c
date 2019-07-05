@@ -799,7 +799,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
  */
 {
 	struct mpt_lan_priv *priv = netdev_priv(dev);
-	
+
 	if (test_and_set_bit(0, &priv->post_buckets_active) == 0) {
 		if (priority) {
 			schedule_delayed_work(&priv->post_buckets_task, 0);
@@ -1113,22 +1113,22 @@ mpt_lan_receive_post_reply(struct net_device *dev,
 			"(priv->buckets_out = %d)\n",
 			IOC_AND_NETDEV_NAMES_s_s(dev),
 			remaining, atomic_read(&priv->buckets_out));
-	
+
 	if ((remaining < priv->bucketthresh) &&
 	    ((atomic_read(&priv->buckets_out) - remaining) >
 	     MPT_LAN_BUCKETS_REMAIN_MISMATCH_THRESH)) {
-		
+
 		printk (KERN_WARNING MYNAM " Mismatch between driver's "
 			"buckets_out count and fw's BucketsRemaining "
 			"count has crossed the threshold, issuing a "
 			"LanReset to clear the fw's hashtable. You may "
 			"want to check your /var/log/messages for \"CRC "
 			"error\" event notifications.\n");
-		
+
 		mpt_lan_reset(dev);
 		mpt_lan_wake_post_buckets_task(dev, 0);
 	}
-	
+
 	return mpt_lan_receive_skb(dev, skb);
 }
 
@@ -1409,14 +1409,14 @@ mptlan_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			       ioc->pfacts[i].PortNumber);
 			continue;
 		}
-		
+
 		printk(KERN_INFO MYNAM ": %s: Fusion MPT LAN device "
 		       "registered as '%s'\n", ioc->name, dev->name);
 		printk(KERN_INFO MYNAM ": %s/%s: "
 		       "LanAddr = %pM\n",
 		       IOC_AND_NETDEV_NAMES_s_s(dev),
 		       dev->dev_addr);
-	
+
 		ioc->netdev = dev;
 
 		return 0;
@@ -1463,7 +1463,7 @@ static int __init mpt_lan_init (void)
 	}
 
 	dlprintk((KERN_INFO MYNAM ": Registered for IOC reset notifications\n"));
-	
+
 	mpt_device_driver_register(&mptlan_driver, MPTLAN_DRIVER);
 	return 0;
 }

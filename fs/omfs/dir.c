@@ -248,7 +248,7 @@ static int omfs_remove(struct inode *dir, struct dentry *dentry)
 	ret = omfs_delete_entry(dentry);
 	if (ret)
 		return ret;
-	
+
 	clear_nlink(inode);
 	mark_inode_dirty(inode);
 	mark_inode_dirty(dir);

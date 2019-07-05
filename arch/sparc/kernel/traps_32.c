@@ -35,7 +35,7 @@
 static void instruction_dump(unsigned long *pc)
 {
 	int i;
-	
+
 	if((((unsigned long) pc) & 3))
                 return;
 
@@ -97,7 +97,7 @@ void do_hw_interrupt(struct pt_regs *regs, unsigned long type)
 		/* Sun OS's puke from bad traps, Linux survives! */
 		printk("Unimplemented Sparc TRAP, type = %02lx\n", type);
 		die_if_kernel("Whee... Hello Mr. Penguin", regs);
-	}	
+	}
 
 	if(regs->psr & PSR_PS)
 		die_if_kernel("Kernel bad trap", regs);
@@ -258,7 +258,7 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 		return;
 	}
 	/* nope, better SIGFPE the offending process... */
-	       
+
 #ifdef CONFIG_SMP
 	clear_tsk_thread_flag(fpt, TIF_USEDFPU);
 #endif

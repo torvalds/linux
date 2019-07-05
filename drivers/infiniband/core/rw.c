@@ -494,7 +494,7 @@ struct ib_send_wr *rdma_rw_ctx_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		rdma_rw_update_lkey(&ctx->sig->data, true);
 		if (ctx->sig->prot.mr)
 			rdma_rw_update_lkey(&ctx->sig->prot, true);
-	
+
 		ctx->sig->sig_mr->need_inval = true;
 		ib_update_fast_reg_key(ctx->sig->sig_mr,
 			ib_inc_rkey(ctx->sig->sig_mr->lkey));

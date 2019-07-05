@@ -41,7 +41,7 @@ void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new
 				dbg_dentlist("marking old dirent \"%s\", ino #%u obsolete\n",
 					(*prev)->name, (*prev)->ino);
 				new->next = (*prev)->next;
-				/* It may have been a 'placeholder' deletion dirent, 
+				/* It may have been a 'placeholder' deletion dirent,
 				   if jffs2_can_mark_obsolete() (see jffs2_do_unlink()) */
 				if ((*prev)->raw)
 					jffs2_mark_node_obsolete(c, ((*prev)->raw));
@@ -604,7 +604,7 @@ struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,
 			ref++;
 	}
 
-	dbg_noderef("New ref is %p (%08x becomes %08x,%p) len 0x%x\n", ref, 
+	dbg_noderef("New ref is %p (%08x becomes %08x,%p) len 0x%x\n", ref,
 		    ref->flash_offset, ofs, ref->next_in_ino, len);
 
 	ref->flash_offset = ofs;
@@ -617,7 +617,7 @@ struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,
 
 		JFFS2_ERROR("Adding new ref %p at (0x%08x-0x%08x) not immediately after previous (0x%08x-0x%08x)\n",
 			    ref, ref_offset(ref), ref_offset(ref)+len,
-			    ref_offset(jeb->last_node), 
+			    ref_offset(jeb->last_node),
 			    ref_offset(jeb->last_node)+last_len);
 		BUG();
 	}
@@ -734,7 +734,7 @@ uint32_t __jffs2_ref_totlen(struct jffs2_sb_info *c, struct jffs2_eraseblock *je
 			pr_crit("next %p (0x%08x-0x%08x)\n",
 				ref_next(ref), ref_offset(ref_next(ref)),
 				ref_offset(ref_next(ref)) + ref->__totlen);
-		} else 
+		} else
 			pr_crit("No next ref. jeb->last_node is %p\n",
 				jeb->last_node);
 

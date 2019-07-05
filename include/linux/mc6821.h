@@ -10,7 +10,7 @@
  * value of the register spacing.
  *
  * Data came from MFC-31-Developer Kit (from Ralph Seidel,
- * zodiac@darkness.gun.de) and Motorola Data Sheet (from 
+ * zodiac@darkness.gun.de) and Motorola Data Sheet (from
  * Richard Hirst, srh@gpt.co.uk)
  *
  * 6.11.95 copyright Joerg Dorchain (dorchain@mpi-sb.mpg.de)

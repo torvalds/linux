@@ -843,7 +843,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	DBG("smp_prepare_cpus\n");
 
-	/* 
+	/*
 	 * setup_cpu may need to be called on the boot cpu. We havent
 	 * spun any cpus up but lets be paranoid.
 	 */

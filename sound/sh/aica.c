@@ -158,7 +158,7 @@ static void spu_enable(void)
 	local_irq_restore(flags);
 }
 
-/* 
+/*
  * Halt the sound processor, clear the memory,
  * load some default ARM7 code, and then restart ARM7
 */

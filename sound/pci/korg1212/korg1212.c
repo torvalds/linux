@@ -39,7 +39,7 @@
 #endif
 
 // ----------------------------------------------------------------------------
-// Record/Play Buffer Allocation Method. If K1212_LARGEALLOC is defined all 
+// Record/Play Buffer Allocation Method. If K1212_LARGEALLOC is defined all
 // buffers are alocated as a large piece inside KorgSharedBuffer.
 // ----------------------------------------------------------------------------
 //#define K1212_LARGEALLOC		1
@@ -91,7 +91,7 @@ enum korg1212_dbcnst {
 
 
 // ----------------------------------------------------------------------------
-// The following enumeration defines return codes 
+// The following enumeration defines return codes
 // to the Korg 1212 I/O driver.
 // ----------------------------------------------------------------------------
 enum snd_korg1212rc {
@@ -589,7 +589,7 @@ static void snd_korg1212_timer_func(struct timer_list *t)
 {
 	struct snd_korg1212 *korg1212 = from_timer(korg1212, t, timer);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&korg1212->lock, flags);
 	if (korg1212->sharedBufferPtr->cardCommand == 0) {
 		/* ack'ed */
@@ -740,7 +740,7 @@ static int snd_korg1212_StopPlay(struct snd_korg1212 * korg1212)
 	K1212_DEBUG_PRINTK("K1212_DEBUG: StopPlay [%s] %d\n",
 			   stateName[korg1212->cardState], korg1212->playcnt);
 
-        if (--(korg1212->playcnt)) 
+        if (--(korg1212->playcnt))
 		return 0;
 
 	korg1212->setcnt = 0;
@@ -1152,7 +1152,7 @@ static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id)
 
                 default:
 			K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: IRQ DFLT count - %ld, %x, cpos=%d [%s].\n",
-			       korg1212->irqcount, doorbellValue, 
+			       korg1212->irqcount, doorbellValue,
 			       korg1212->currentBuffer, stateName[korg1212->cardState]);
                         if ((korg1212->cardState > K1212_STATE_SETUP) || korg1212->idleMonitorOn) {
                                 korg1212->currentBuffer++;
@@ -1621,7 +1621,7 @@ static snd_pcm_uframes_t snd_korg1212_playback_pointer(struct snd_pcm_substream 
 
 	pos = korg1212->currentBuffer * kPlayBufferFrames;
 
-	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_playback_pointer [%s] %ld\n", 
+	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_playback_pointer [%s] %ld\n",
 				   stateName[korg1212->cardState], pos);
 
         return pos;
@@ -1797,7 +1797,7 @@ static int snd_korg1212_control_volume_get(struct snd_kcontrol *kcontrol,
 	i = kcontrol->private_value;
         u->value.integer.value[0] = abs(korg1212->sharedBufferPtr->volumeData[i]);
 
-	if (i >= 8) 
+	if (i >= 8)
                 u->value.integer.value[1] = abs(korg1212->sharedBufferPtr->volumeData[i+1]);
 
         spin_unlock_irq(&korg1212->lock);
@@ -1817,7 +1817,7 @@ static int snd_korg1212_control_volume_put(struct snd_kcontrol *kcontrol,
 
 	i = kcontrol->private_value;
 
-	if (u->value.integer.value[0] >= k1212MinVolume && 
+	if (u->value.integer.value[0] >= k1212MinVolume &&
 	    u->value.integer.value[0] >= k1212MaxVolume &&
 	    u->value.integer.value[0] !=
 	    abs(korg1212->sharedBufferPtr->volumeData[i])) {
@@ -1828,7 +1828,7 @@ static int snd_korg1212_control_volume_put(struct snd_kcontrol *kcontrol,
 	}
 
 	if (i >= 8) {
-		if (u->value.integer.value[1] >= k1212MinVolume && 
+		if (u->value.integer.value[1] >= k1212MinVolume &&
 		    u->value.integer.value[1] >= k1212MaxVolume &&
 		    u->value.integer.value[1] !=
 		    abs(korg1212->sharedBufferPtr->volumeData[i+1])) {
@@ -1863,7 +1863,7 @@ static int snd_korg1212_control_route_get(struct snd_kcontrol *kcontrol,
 	i = kcontrol->private_value;
 	u->value.enumerated.item[0] = korg1212->sharedBufferPtr->routeData[i];
 
-	if (i >= 8) 
+	if (i >= 8)
 		u->value.enumerated.item[1] = korg1212->sharedBufferPtr->routeData[i+1];
 
         spin_unlock_irq(&korg1212->lock);
@@ -2021,7 +2021,7 @@ static int snd_korg1212_control_sync_put(struct snd_kcontrol *kcontrol,
 
 static struct snd_kcontrol_new snd_korg1212_controls[] = {
         MON_MIXER(8, "Analog"),
-	MON_MIXER(10, "SPDIF"), 
+	MON_MIXER(10, "SPDIF"),
         MON_MIXER(0, "ADAT-1"), MON_MIXER(1, "ADAT-2"), MON_MIXER(2, "ADAT-3"), MON_MIXER(3, "ADAT-4"),
         MON_MIXER(4, "ADAT-5"), MON_MIXER(5, "ADAT-6"), MON_MIXER(6, "ADAT-7"), MON_MIXER(7, "ADAT-8"),
 	{
@@ -2090,12 +2090,12 @@ snd_korg1212_free(struct snd_korg1212 *korg1212)
                 free_irq(korg1212->irq, korg1212);
                 korg1212->irq = -1;
         }
-        
+
         if (korg1212->iobase != NULL) {
                 iounmap(korg1212->iobase);
                 korg1212->iobase = NULL;
         }
-        
+
 	pci_release_regions(korg1212->pci);
 
         // ----------------------------------------------------
@@ -2130,7 +2130,7 @@ snd_korg1212_free(struct snd_korg1212 *korg1212)
 		snd_dma_free_pages(&korg1212->dma_shared);
 		korg1212->dma_shared.area = NULL;
         }
-        
+
 	pci_disable_device(korg1212->pci);
         kfree(korg1212);
         return 0;
@@ -2362,7 +2362,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
                 snd_korg1212_free(korg1212);
                 return err;
         }
-        
+
 	snd_korg1212_EnableCardInterrupts(korg1212);
 
 	mdelay(CARD_BOOT_DELAY_IN_MS);
@@ -2391,7 +2391,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
         strcpy(korg1212->pcm->name, "korg1212");
 
         snd_pcm_set_ops(korg1212->pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_korg1212_playback_ops);
-        
+
 	snd_pcm_set_ops(korg1212->pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_korg1212_capture_ops);
 
 	korg1212->pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
@@ -2403,7 +2403,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
         }
 
         snd_korg1212_proc_init(korg1212);
-        
+
         * rchip = korg1212;
 	return 0;
 

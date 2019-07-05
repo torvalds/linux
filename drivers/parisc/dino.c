@@ -15,14 +15,14 @@
 **	Dino interrupt handling is a bit complicated.
 **	Dino always writes to the broadcast EIR via irr0 for now.
 **	(BIG WARNING: using broadcast EIR is a really bad thing for SMP!)
-**	Only one processor interrupt is used for the 11 IRQ line 
+**	Only one processor interrupt is used for the 11 IRQ line
 **	inputs to dino.
 **
 **	The different between Built-in Dino and Card-Mode
 **	dino is in chip initialization and pci device initialization.
 **
 **	Linux drivers can only use Card-Mode Dino if pci devices I/O port
-**	BARs are configured and used by the driver. Programming MMIO address 
+**	BARs are configured and used by the driver. Programming MMIO address
 **	requires substantial knowledge of available Host I/O address ranges
 **	is currently not supported.  Port/Config accessor functions are the
 **	same. "BIOS" differences are handled within the existing routines.
@@ -30,7 +30,7 @@
 
 /*	Changes :
 **	2001-06-14 : Clement Moyroud (moyroudc@esiee.fr)
-**		- added support for the integrated RS232. 	
+**		- added support for the integrated RS232.
 */
 
 /*
@@ -142,9 +142,9 @@ struct dino_device
 {
 	struct pci_hba_data	hba;	/* 'C' inheritance - must be first */
 	spinlock_t		dinosaur_pen;
-	unsigned long		txn_addr; /* EIR addr to generate interrupt */ 
-	u32			txn_data; /* EIR data assign to each dino */ 
-	u32 			imr;	  /* IRQ's which are enabled */ 
+	unsigned long		txn_addr; /* EIR addr to generate interrupt */
+	u32			txn_data; /* EIR data assign to each dino */
+	u32 			imr;	  /* IRQ's which are enabled */
 	int			global_irq[DINO_LOCAL_IRQS]; /* map IMR bit to global irq */
 #ifdef DINO_DEBUG
 	unsigned int		dino_irr0; /* save most recent IRQ line stat */
@@ -164,7 +164,7 @@ static inline struct dino_device *DINO_DEV(struct pci_hba_data *hba)
 
 /*
  * keep the current highest bus count to assist in allocating busses.  This
- * tries to keep a global bus count total so that when we discover an 
+ * tries to keep a global bus count total so that when we discover an
  * entirely new bus, it can be given a unique bus number.
  */
 static int dino_current_bus = 0;
@@ -201,7 +201,7 @@ static int dino_cfg_read(struct pci_bus *bus, unsigned int devfn, int where,
 /*
  * Dino address stepping "feature":
  * When address stepping, Dino attempts to drive the bus one cycle too soon
- * even though the type of cycle (config vs. MMIO) might be different. 
+ * even though the type of cycle (config vs. MMIO) might be different.
  * The read of Ven/Prod ID is harmless and avoids Dino's address stepping.
  */
 static int dino_cfg_write(struct pci_bus *bus, unsigned int devfn, int where,
@@ -382,7 +382,7 @@ ilr_again:
 	} while (mask);
 
 	/* Support for level triggered IRQ lines.
-	** 
+	**
 	** Dropping this support would make this routine *much* faster.
 	** But since PCI requires level triggered IRQ line to share lines...
 	** device drivers may assume lines are level triggered (and not
@@ -463,14 +463,14 @@ dino_card_setup(struct pci_bus *bus, void __iomem *base_addr)
 
 	res = &dino_dev->hba.lmmio_space;
 	res->flags = IORESOURCE_MEM;
-	size = scnprintf(name, sizeof(name), "Dino LMMIO (%s)", 
+	size = scnprintf(name, sizeof(name), "Dino LMMIO (%s)",
 			 dev_name(bus->bridge));
 	res->name = kmalloc(size+1, GFP_KERNEL);
 	if(res->name)
 		strcpy((char *)res->name, name);
 	else
 		res->name = dino_dev->hba.lmmio_space.name;
-	
+
 
 	if (ccio_allocate_resource(dino_dev->hba.dev, res, _8MB,
 				F_EXTEND(0xf0000000UL) | _8MB,
@@ -483,7 +483,7 @@ dino_card_setup(struct pci_bus *bus, void __iomem *base_addr)
 		list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
 			list_del(&dev->bus_list);
 		}
-			
+
 		return;
 	}
 	bus->resource[1] = res;
@@ -517,8 +517,8 @@ dino_card_fixup(struct pci_dev *dev)
 	** Set Latency Timer to 0xff (not a shared bus)
 	** Set CACHELINE_SIZE.
 	*/
-	dino_cfg_write(dev->bus, dev->devfn, 
-		       PCI_CACHE_LINE_SIZE, 2, 0xff00 | L1_CACHE_BYTES/4); 
+	dino_cfg_write(dev->bus, dev->devfn,
+		       PCI_CACHE_LINE_SIZE, 2, 0xff00 | L1_CACHE_BYTES/4);
 
 	/*
 	** Program INT_LINE for card-mode devices.
@@ -529,13 +529,13 @@ dino_card_fixup(struct pci_dev *dev)
 	** "-1" converts INTA-D (1-4) to PCIINTA-D (0-3) range.
 	** The additional "-1" adjusts for skewing the IRQ<->slot.
 	*/
-	dino_cfg_read(dev->bus, dev->devfn, PCI_INTERRUPT_PIN, 1, &irq_pin); 
+	dino_cfg_read(dev->bus, dev->devfn, PCI_INTERRUPT_PIN, 1, &irq_pin);
 	dev->irq = pci_swizzle_interrupt_pin(dev, irq_pin) - 1;
 
 	/* Shouldn't really need to do this but it's in case someone tries
 	** to bypass PCI services and look at the card themselves.
 	*/
-	dino_cfg_write(dev->bus, dev->devfn, PCI_INTERRUPT_LINE, 1, dev->irq); 
+	dino_cfg_write(dev->bus, dev->devfn, PCI_INTERRUPT_LINE, 1, dev->irq);
 }
 
 /* The alignment contraints for PCI bridges under dino */
@@ -562,10 +562,10 @@ dino_fixup_bus(struct pci_bus *bus)
 
 
 		for(i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++) {
-			if((bus->self->resource[i].flags & 
+			if((bus->self->resource[i].flags &
 			    (IORESOURCE_IO | IORESOURCE_MEM)) == 0)
 				continue;
-			
+
 			if(bus->self->resource[i].flags & IORESOURCE_MEM) {
 				/* There's a quirk to alignment of
 				 * bridge memory resources: the start
@@ -575,9 +575,9 @@ dino_fixup_bus(struct pci_bus *bus)
 				 * need to take this into account */
 				bus->self->resource[i].end = bus->self->resource[i].end - bus->self->resource[i].start + DINO_BRIDGE_ALIGN;
 				bus->self->resource[i].start = DINO_BRIDGE_ALIGN;
-				
+
 			}
-					
+
 			DBG("DEBUG %s assigning %d [%pR]\n",
 			    dev_name(&bus->self->dev), i,
 			    &bus->self->resource[i]);
@@ -606,7 +606,7 @@ dino_fixup_bus(struct pci_bus *bus)
 		 * care about an expansion rom on parisc, since it
 		 * usually contains (x86) bios code) */
 		dev->resource[PCI_ROM_RESOURCE].flags = 0;
-				
+
 		if(dev->irq == 255) {
 
 #define DINO_FIX_UNASSIGNED_INTERRUPTS
@@ -619,13 +619,13 @@ dino_fixup_bus(struct pci_bus *bus)
 			 * and machine */
 
 			u32 irq_pin;
-			
-			dino_cfg_read(dev->bus, dev->devfn, 
+
+			dino_cfg_read(dev->bus, dev->devfn,
 				      PCI_INTERRUPT_PIN, 1, &irq_pin);
 			irq_pin = pci_swizzle_interrupt_pin(dev, irq_pin) - 1;
 			printk(KERN_WARNING "Device %s has undefined IRQ, "
 					"setting to %d\n", pci_name(dev), irq_pin);
-			dino_cfg_write(dev->bus, dev->devfn, 
+			dino_cfg_write(dev->bus, dev->devfn,
 				       PCI_INTERRUPT_LINE, 1, irq_pin);
 			dino_assign_irq(dino_dev, irq_pin, &dev->irq);
 #else
@@ -802,7 +802,7 @@ static int __init dino_common_init(struct parisc_device *dev,
 	dino_dev->txn_data = gsc_irq.txn_data;
 	eim = ((u32) gsc_irq.txn_addr) | gsc_irq.txn_data;
 
-	/* 
+	/*
 	** Dino needs a PA "IRQ" to get a processor's attention.
 	** arch/parisc/kernel/irq.c returns an EIRR bit.
 	*/
@@ -813,7 +813,7 @@ static int __init dino_common_init(struct parisc_device *dev,
 
 	status = request_irq(dev->irq, dino_isr, 0, name, dino_dev);
 	if (status) {
-		printk(KERN_WARNING "%s: request_irq() failed with %d\n", 
+		printk(KERN_WARNING "%s: request_irq() failed with %d\n",
 			name, status);
 		return 1;
 	}

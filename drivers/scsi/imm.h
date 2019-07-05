@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/*  Driver for the Iomega MatchMaker parallel port SCSI HBA embedded in 
+/*  Driver for the Iomega MatchMaker parallel port SCSI HBA embedded in
  * the Iomega ZIP Plus drive
- * 
+ *
  * (c) 1998     David Campbell
  *
  * Please note that I live in Perth, Western Australia. GMT+0800
@@ -13,7 +13,7 @@
 
 #define   IMM_VERSION   "2.05 (for Linux 2.4.0)"
 
-/* 
+/*
  * 10 Apr 1998 (Good Friday) - Received EN144302 by email from Iomega.
  * Scarry thing is the level of support from one of their managers.
  * The onus is now on us (the developers) to shut up and start coding.
@@ -83,7 +83,7 @@
 /* batteries not included :-) */
 
 /*
- * modes in which the driver can operate 
+ * modes in which the driver can operate
  */
 #define   IMM_AUTODETECT        0	/* Autodetect mode                */
 #define   IMM_NIBBLE            1	/* work in standard 4 bit mode    */

@@ -61,7 +61,7 @@ struct dn_ifaddr {
  *        device with DECnet.
  * down() - Called to turn device off when it goes down
  * timer3() - Called once for each ifaddr when timer 3 goes off
- * 
+ *
  * sysctl - Hook for sysctl things
  *
  */

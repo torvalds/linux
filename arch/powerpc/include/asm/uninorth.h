@@ -3,7 +3,7 @@
  * uninorth.h: definitions for using the "UniNorth" host bridge chip
  *             from Apple. This chip is used on "Core99" machines
  *	       This also includes U2 used on more recent MacRISC2/3
- *             machines and U3 (G5) 
+ *             machines and U3 (G5)
  *
  */
 #ifdef __KERNEL__

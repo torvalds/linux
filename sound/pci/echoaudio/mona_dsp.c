@@ -110,7 +110,7 @@ static u32 detect_input_clocks(const struct echoaudio *chip)
 
 
 
-/* Mona has an ASIC on the PCI card and another ASIC in the external box; 
+/* Mona has an ASIC on the PCI card and another ASIC in the external box;
 both need to be loaded. */
 static int load_asic(struct echoaudio *chip)
 {

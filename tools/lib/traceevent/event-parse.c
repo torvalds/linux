@@ -278,7 +278,7 @@ static int add_new_comm(struct tep_handle *tep,
 	}
 
 	cmdlines[tep->cmdline_count].pid = pid;
-		
+
 	if (cmdlines[tep->cmdline_count].comm)
 		tep->cmdline_count++;
 
@@ -1141,7 +1141,7 @@ static enum tep_event_type force_token(const char *str, char **tok)
 	unsigned long long save_input_buf_ptr;
 	unsigned long long save_input_buf_siz;
 	enum tep_event_type type;
-	
+
 	/* save off the current input pointers */
 	save_input_buf = input_buf;
 	save_input_buf_ptr = input_buf_ptr;
@@ -3273,7 +3273,7 @@ static int event_read_print(struct tep_event *event)
 		token = cat;
 		goto concat;
 	}
-			     
+
 	if (test_type_token(type, token, TEP_EVENT_DELIM, ","))
 		goto fail;
 
@@ -3585,7 +3585,7 @@ eval_num_arg(void *data, int size, struct tep_event *event, struct tep_print_arg
 			arg->field.field = tep_find_any_field(event, arg->field.name);
 			if (!arg->field.field)
 				goto out_warning_field;
-			
+
 		}
 		/* must be a number */
 		val = tep_read_number(tep, data + arg->field.field->offset,
@@ -4298,7 +4298,7 @@ static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, s
 	next = &arg->next;
 
 	arg->type = TEP_PRINT_ATOM;
-		
+
 	if (asprintf(&arg->atom.atom, "%lld", ip) < 0)
 		goto out_free;
 
@@ -6145,7 +6145,7 @@ enum tep_errno __tep_parse_format(struct tep_event **eventp,
 		if (strcmp(event->name, "bprint") == 0)
 			event->flags |= TEP_EVENT_FL_ISBPRINT;
 	}
-		
+
 	event->id = event_read_id();
 	if (event->id < 0) {
 		ret = TEP_ERRNO__READ_ID_FAILED;

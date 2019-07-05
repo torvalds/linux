@@ -106,15 +106,15 @@ static struct class *dsp56k_class;
 static int dsp56k_reset(void)
 {
 	u_char status;
-	
+
 	/* Power down the DSP */
 	sound_ym.rd_data_reg_sel = 14;
 	status = sound_ym.rd_data_reg_sel & 0xef;
 	sound_ym.wd_data = status;
 	sound_ym.wd_data = status | 0x10;
-  
+
 	udelay(10);
-  
+
 	/* Power up the DSP */
 	sound_ym.rd_data_reg_sel = 14;
 	sound_ym.wd_data = sound_ym.rd_data_reg_sel & 0xef;
@@ -164,7 +164,7 @@ static int dsp56k_upload(u_char __user *bin, int len)
 		dsp56k_host_interface.data.b[2] = 0;
 		dsp56k_host_interface.data.b[3] = 0;
 	}
-  
+
 	for (i = 0; i < len; i++) {
 		tx_wait(10);
 		get_user(dsp56k_host_interface.data.b[1], bin++);
@@ -319,12 +319,12 @@ static long dsp56k_ioctl(struct file *file, unsigned int cmd,
 			char __user *bin;
 			int r, len;
 			struct dsp56k_upload __user *binary = argp;
-    
+
 			if(get_user(len, &binary->len) < 0)
 				return -EFAULT;
 			if(get_user(bin, &binary->bin) < 0)
 				return -EFAULT;
-		
+
 			if (len <= 0) {
 				return -EINVAL;      /* nothing to upload?!? */
 			}
@@ -337,7 +337,7 @@ static long dsp56k_ioctl(struct file *file, unsigned int cmd,
 			if (r < 0) {
 				return r;
 			}
-    
+
 			break;
 		}
 		case DSP56K_SET_TX_WSIZE:
@@ -358,7 +358,7 @@ static long dsp56k_ioctl(struct file *file, unsigned int cmd,
 		{
 			int dir, out, status;
 			struct dsp56k_host_flags __user *hf = argp;
-    
+
 			if(get_user(dir, &hf->dir) < 0)
 				return -EFAULT;
 			if(get_user(out, &hf->out) < 0)
@@ -440,7 +440,7 @@ static int dsp56k_open(struct inode *inode, struct file *file)
 
 		dsp56k.timeout = TIMEOUT;
 		dsp56k.maxio = MAXIO;
-		dsp56k.rx_wsize = dsp56k.tx_wsize = 4; 
+		dsp56k.rx_wsize = dsp56k.tx_wsize = 4;
 
 		DSP56K_TX_INT_OFF;
 		DSP56K_RX_INT_OFF;

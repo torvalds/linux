@@ -24,7 +24,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 	struct vm_region *region;
 	struct rb_node *p;
 	unsigned long bytes = 0, sbytes = 0, slack = 0, size;
-        
+
 	down_read(&mm->mmap_sem);
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
@@ -53,7 +53,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 		sbytes += kobjsize(mm);
 	else
 		bytes += kobjsize(mm);
-	
+
 	if (current->fs && current->fs->users > 1)
 		sbytes += kobjsize(current->fs);
 	else

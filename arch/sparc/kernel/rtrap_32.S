@@ -156,7 +156,7 @@ ret_trap_userwins_ok:
 
 	jmp	%t_pc
 	rett	%t_npc
-	
+
 ret_trap_unaligned_pc:
 	ld	[%sp + STACKFRAME_SZ + PT_PC], %o1
 	ld	[%sp + STACKFRAME_SZ + PT_NPC], %o2

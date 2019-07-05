@@ -206,7 +206,7 @@ _GLOBAL(low_choose_7447a_dfs)
 	mfmsr	r7
 	rlwinm	r0,r7,0,17,15
 	mtmsr	r0
-	
+
 	/* Calc new HID1 value */
 	mfspr	r4,SPRN_HID1
 	insrwi	r4,r3,1,9	/* insert parameter into bit 9 */
@@ -507,7 +507,7 @@ EXPORT_SYMBOL(copy_page)
  * R5    has shift count
  * result in R3/R4
  *
- *  ashrdi3: arithmetic right shift (sign propagation)	
+ *  ashrdi3: arithmetic right shift (sign propagation)
  *  lshrdi3: logical right shift
  *  ashldi3: left shift
  */
@@ -602,7 +602,7 @@ _GLOBAL(start_secondary_resume)
 	bl	start_secondary
 	b	.
 #endif /* CONFIG_SMP */
-	
+
 /*
  * This routine is just here to keep GCC happy - sigh...
  */
@@ -652,7 +652,7 @@ relocate_new_kernel:
 	cmplwi	cr0,r3,PVR_476_ISS@h
 	beq	setup_map_47x
 #endif /* CONFIG_PPC_47x */
-	
+
 /*
  * Code for setting up 1:1 mapping for PPC440x for KEXEC
  *
@@ -669,7 +669,7 @@ relocate_new_kernel:
  *
  */
 
-	/* 
+	/*
 	 * Load the PID with kernel PID (0).
 	 * Also load our MSR_IS and TID to MMUCR for TLB search.
 	 */
@@ -846,7 +846,7 @@ setup_map_47x:
 	 * Invalidates all the tlb entries by writing to 256 RPNs(r4)
 	 * of 4k page size in all  4 ways (0-3 in r3).
 	 * This would invalidate the entire UTLB including the one we are
-	 * running from. However the shadow TLB entries would help us 
+	 * running from. However the shadow TLB entries would help us
 	 * to continue the execution, until we flush them (rfi/isync).
 	 */
 	addis	r3, 0, 0x8000			/* specify the way */
@@ -877,11 +877,11 @@ clear_utlb_entry:
 
 	insrwi	r24, r7, 1, 21			/* Change the TS in the saved TLB word 0 */
 
-	/* 
+	/*
 	 * write out the TLB entries for the tmp mapping
 	 * Use way '0' so that we could easily invalidate it later.
 	 */
-	lis	r3, 0x8000			/* Way '0' */ 
+	lis	r3, 0x8000			/* Way '0' */
 
 	tlbwe	r24, r3, 0
 	tlbwe	r25, r3, 1
@@ -898,7 +898,7 @@ clear_utlb_entry:
 	mtspr	SPRN_SRR1, r5
 	rfi
 
-	/* 
+	/*
 	 * Now we are in the tmp address space.
 	 * Create a 1:1 mapping for 0-2GiB in the original TS.
 	 */
@@ -931,7 +931,7 @@ write_utlb:
 	/* make sure we complete the TLB write up */
 	isync
 
-	/* 
+	/*
 	 * Prepare to jump to the 1:1 mapping.
 	 * 1) Extract page size of the tmp mapping
 	 *    DSIZ = TLB_Word0[22:27]
@@ -948,7 +948,7 @@ write_utlb:
 0:
 	/* Defaults to 256M */
 	lis	r10, 0x1000
-	
+
 	bl	1f
 1:	mflr	r4
 	addi	r4, r4, (2f-1b)			/* virtual address  of 2f */

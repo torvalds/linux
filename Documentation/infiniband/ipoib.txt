@@ -60,7 +60,7 @@ Stateless offloads
   on/off using ethtool calls.  Currently LRO is supported only for
   checksum offload capable devices.
 
-  Stateless offloads are supported only in datagram mode.  
+  Stateless offloads are supported only in datagram mode.
 
 Interrupt moderation
 
@@ -98,8 +98,8 @@ Debugging Information
 References
 
   Transmission of IP over InfiniBand (IPoIB) (RFC 4391)
-    http://ietf.org/rfc/rfc4391.txt 
+    http://ietf.org/rfc/rfc4391.txt
   IP over InfiniBand (IPoIB) Architecture (RFC 4392)
-    http://ietf.org/rfc/rfc4392.txt 
+    http://ietf.org/rfc/rfc4392.txt
   IP over InfiniBand: Connected Mode (RFC 4755)
     http://ietf.org/rfc/rfc4755.txt

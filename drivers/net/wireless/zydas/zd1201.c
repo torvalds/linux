@@ -76,7 +76,7 @@ static int zd1201_fw_upload(struct usb_device *dev, int apfw)
 		err = -ENOMEM;
 		goto exit;
 	}
-	
+
 	while (len > 0) {
 		int translen = (len > 1024) ? 1024 : len;
 		memcpy(buf, data, translen);
@@ -90,7 +90,7 @@ static int zd1201_fw_upload(struct usb_device *dev, int apfw)
 		len -= translen;
 		data += translen;
 	}
-                                        
+
 	err = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), 0x2,
 	    USB_DIR_OUT | 0x40, 0, 0, NULL, 0, ZD1201_FW_TIMEOUT);
 	if (err < 0)
@@ -130,7 +130,7 @@ static void zd1201_usbfree(struct urb *urb)
 		case -EPIPE:
 		case -EOVERFLOW:
 		case -ESHUTDOWN:
-			dev_warn(&zd->usb->dev, "%s: urb failed: %d\n", 
+			dev_warn(&zd->usb->dev, "%s: urb failed: %d\n",
 			    zd->dev->name, urb->status);
 	}
 
@@ -138,7 +138,7 @@ static void zd1201_usbfree(struct urb *urb)
 	usb_free_urb(urb);
 }
 
-/* cmdreq message: 
+/* cmdreq message:
 	u32 type
 	u16 cmd
 	u16 parm0
@@ -213,7 +213,7 @@ static void zd1201_usbrx(struct urb *urb)
 			free = 1;
 			goto exit;
 	}
-	
+
 	if (urb->status != 0 || urb->actual_length == 0)
 		goto resubmit;
 
@@ -321,7 +321,7 @@ static void zd1201_usbrx(struct urb *urb)
 				goto resubmit;
 			if (!(skb = dev_alloc_skb(datalen+24)))
 				goto resubmit;
-			
+
 			skb_put_data(skb, &data[datalen - 16], 2);
 			skb_put_data(skb, &data[datalen - 2], 2);
 			skb_put_data(skb, &data[datalen - 14], 6);
@@ -335,7 +335,7 @@ static void zd1201_usbrx(struct urb *urb)
 			netif_rx(skb);
 			goto resubmit;
 		}
-			
+
 		if ((seq & IEEE80211_SCTL_FRAG) ||
 		    (fc & IEEE80211_FCTL_MOREFRAGS)) {
 			struct zd1201_frag *frag = NULL;
@@ -444,7 +444,7 @@ static int zd1201_getconfig(struct zd1201 *zd, int rid, void *riddata,
 	}
 
 	zd->rxdatas = 0;
-	/* Issue SetRxRid commnd */			
+	/* Issue SetRxRid commnd */
 	err = zd1201_docmd(zd, ZD1201_CMDCODE_SETRXRID, rid, 0, length);
 	if (err)
 		return err;
@@ -488,7 +488,7 @@ static int zd1201_getconfig(struct zd1201 *zd, int rid, void *riddata,
 			pdata += 4;
 			actual_length -= 4;
 		}
-		
+
 		memcpy(riddata, pdata, actual_length);
 		riddata += actual_length;
 		pdata += actual_length;
@@ -564,7 +564,7 @@ static int zd1201_setconfig(struct zd1201 *zd, int rid, void *buf, int len, int 
 		return -ENOMEM;
 	}
 	*((__le32*)request) = cpu_to_le32(ZD1201_USB_CMDREQ);
-	*((__le16*)&request[4]) = 
+	*((__le16*)&request[4]) =
 	    cpu_to_le16(ZD1201_CMDCODE_ACCESS|ZD1201_ACCESSBIT);
 	*((__le16*)&request[6]) = cpu_to_le16(rid);
 	*((__le16*)&request[8]) = cpu_to_le16(0);
@@ -574,7 +574,7 @@ static int zd1201_setconfig(struct zd1201 *zd, int rid, void *buf, int len, int 
 	err = usb_submit_urb(urb, gfp_mask);
 	if (err)
 		goto err;
-	
+
 	if (wait) {
 		wait_event_interruptible(zd->rxdataq, zd->rxdatas);
 		if (!zd->rxlen || le16_to_cpu(*(__le16*)&zd->rxdata[6]) != rid) {
@@ -618,7 +618,7 @@ static int zd1201_drvr_start(struct zd1201 *zd)
 	if (!buffer)
 		return -ENOMEM;
 
-	usb_fill_bulk_urb(zd->rx_urb, zd->usb, 
+	usb_fill_bulk_urb(zd->rx_urb, zd->usb,
 	    usb_rcvbulkpipe(zd->usb, zd->endp_in), buffer, ZD1201_RXSIZE,
 	    zd1201_usbrx, zd);
 
@@ -729,7 +729,7 @@ static int zd1201_join(struct zd1201 *zd, char *essid, int essidlen)
 			return err;
 	}
 
-	err = zd1201_setconfig(zd, ZD1201_RID_CNFOWNMACADDR, 
+	err = zd1201_setconfig(zd, ZD1201_RID_CNFOWNMACADDR,
 	    zd->dev->dev_addr, zd->dev->addr_len, 1);
 	if (err)
 		return err;
@@ -766,7 +766,7 @@ static int zd1201_net_stop(struct net_device *dev)
 	(0x00, 0x00, 0x00). Zd requires an additional padding, copy
 	of ethernet addresses, length of the standard RFC 1042 packet
 	and a command byte (which is nul for tx).
-	
+
 	tx frame (from Wlan NG):
 	RFC 1042:
 		llc		0xAA 0xAA 0x03 (802.2 LLC)
@@ -776,7 +776,7 @@ static int zd1201_net_stop(struct net_device *dev)
 	Zydas specific:
 		padding		1B if (skb->len+8+1)%64==0
 		Eth MAC addr	12 bytes, Ethernet MAC addresses
-		length		2 bytes, RFC 1042 packet length 
+		length		2 bytes, RFC 1042 packet length
 				(llc+snap+type+payload)
 		zd		1 null byte, zd1201 packet type
  */
@@ -853,7 +853,7 @@ static int zd1201_set_mac_address(struct net_device *dev, void *p)
 	if (!zd)
 		return -ENODEV;
 
-	err = zd1201_setconfig(zd, ZD1201_RID_CNFOWNMACADDR, 
+	err = zd1201_setconfig(zd, ZD1201_RID_CNFOWNMACADDR,
 	    addr->sa_data, dev->addr_len, 1);
 	if (err)
 		return err;
@@ -886,7 +886,7 @@ static void zd1201_set_multicast(struct net_device *dev)
 			 netdev_mc_count(dev) * ETH_ALEN, 0);
 }
 
-static int zd1201_config_commit(struct net_device *dev, 
+static int zd1201_config_commit(struct net_device *dev,
     struct iw_request_info *info, struct iw_point *data, char *essid)
 {
 	struct zd1201 *zd = netdev_priv(dev);
@@ -1123,7 +1123,7 @@ static int zd1201_get_scan(struct net_device *dev,
 	zd1201_enable(zd);
 
 	zd->rxdatas = 0;
-	err = zd1201_docmd(zd, ZD1201_CMDCODE_INQUIRE, 
+	err = zd1201_docmd(zd, ZD1201_CMDCODE_INQUIRE,
 	     ZD1201_INQ_SCANRESULTS, 0, 0);
 	if (err)
 		return err;
@@ -1155,13 +1155,13 @@ static int zd1201_get_scan(struct net_device *dev,
 			iwe.u.mode = IW_MODE_ADHOC;
 		cev = iwe_stream_add_event(info, cev, end_buf,
 					   &iwe, IW_EV_UINT_LEN);
-		
+
 		iwe.cmd = SIOCGIWFREQ;
 		iwe.u.freq.m = zd->rxdata[i+0];
 		iwe.u.freq.e = 0;
 		cev = iwe_stream_add_event(info, cev, end_buf,
 					   &iwe, IW_EV_FREQ_LEN);
-		
+
 		iwe.cmd = SIOCGIWRATE;
 		iwe.u.bitrate.fixed = 0;
 		iwe.u.bitrate.disabled = 0;
@@ -1170,7 +1170,7 @@ static int zd1201_get_scan(struct net_device *dev,
 			cev = iwe_stream_add_event(info, cev, end_buf,
 						   &iwe, IW_EV_PARAM_LEN);
 		}
-		
+
 		iwe.cmd = SIOCGIWENCODE;
 		iwe.u.data.length = 0;
 		if (zd->rxdata[i+14]&0x10)
@@ -1178,7 +1178,7 @@ static int zd1201_get_scan(struct net_device *dev,
 		else
 			iwe.u.data.flags = IW_ENCODE_DISABLED;
 		cev = iwe_stream_add_point(info, cev, end_buf, &iwe, NULL);
-		
+
 		iwe.cmd = IWEVQUAL;
 		iwe.u.qual.qual = zd->rxdata[i+4];
 		iwe.u.qual.noise= zd->rxdata[i+2]/10-100;
@@ -1476,7 +1476,7 @@ static int zd1201_get_encode(struct net_device *dev,
 	return 0;
 }
 
-static int zd1201_set_power(struct net_device *dev, 
+static int zd1201_set_power(struct net_device *dev,
     struct iw_request_info *info, struct iw_param *vwrq, char *extra)
 {
 	struct zd1201 *zd = netdev_priv(dev);
@@ -1487,14 +1487,14 @@ static int zd1201_set_power(struct net_device *dev,
 	if (enabled) {
 		if (vwrq->flags & IW_POWER_PERIOD) {
 			duration = vwrq->value;
-			err = zd1201_setconfig16(zd, 
+			err = zd1201_setconfig16(zd,
 			    ZD1201_RID_CNFMAXSLEEPDURATION, duration);
 			if (err)
 				return err;
 			goto out;
 		}
 		if (vwrq->flags & IW_POWER_TIMEOUT) {
-			err = zd1201_getconfig16(zd, 
+			err = zd1201_getconfig16(zd,
 			    ZD1201_RID_CNFMAXSLEEPDURATION, &duration);
 			if (err)
 				return err;
@@ -1747,13 +1747,13 @@ static int zd1201_probe(struct usb_interface *interface,
 	zd->removed = 0;
 	init_waitqueue_head(&zd->rxdataq);
 	INIT_HLIST_HEAD(&zd->fraglist);
-	
+
 	err = zd1201_fw_upload(usb, zd->ap);
 	if (err) {
 		dev_err(&usb->dev, "zd1201 firmware upload failed: %d\n", err);
 		goto err_zd;
 	}
-	
+
 	zd->endp_in = 1;
 	zd->endp_out = 1;
 	zd->endp_out2 = 2;
@@ -1783,7 +1783,7 @@ static int zd1201_probe(struct usb_interface *interface,
 	dev->watchdog_timeo = ZD1201_TX_TIMEOUT;
 	strcpy(dev->name, "wlan%d");
 
-	err = zd1201_getconfig(zd, ZD1201_RID_CNFOWNMACADDR, 
+	err = zd1201_getconfig(zd, ZD1201_RID_CNFOWNMACADDR,
 	    dev->dev_addr, dev->addr_len);
 	if (err)
 		goto err_start;

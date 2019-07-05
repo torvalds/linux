@@ -32,7 +32,7 @@
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 		};
 
-		// PSC2 in spi master mode 
+		// PSC2 in spi master mode
 		psc@2200 {		// PSC2
 			compatible = "fsl,mpc5200b-psc-spi","fsl,mpc5200-psc-spi";
 			cell-index = <1>;

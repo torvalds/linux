@@ -39,7 +39,7 @@
  ************************************************************************/
 
 /*
- *  Single Floating-point to Single Unsigned Fixed 
+ *  Single Floating-point to Single Unsigned Fixed
  */
 /*ARGSUSED*/
 int
@@ -56,7 +56,7 @@ sgl_to_sgl_fcnvfu(
 	src = *srcptr;
 	src_exponent = Sgl_exponent(src) - SGL_BIAS;
 
-	/* 
+	/*
 	 * Test for overflow
 	 */
 	if (src_exponent > SGL_FX_MAX_EXP + 1) {
@@ -76,7 +76,7 @@ sgl_to_sgl_fcnvfu(
 	 * Generate result
 	 */
 	if (src_exponent >= 0) {
-		/* 
+		/*
 		 * Check sign.
 		 * If negative, trap unimplemented.
 		 */
@@ -160,7 +160,7 @@ sgl_to_sgl_fcnvfu(
 }
 
 /*
- *  Single Floating-point to Double Unsigned Fixed 
+ *  Single Floating-point to Double Unsigned Fixed
  */
 /*ARGSUSED*/
 int
@@ -177,7 +177,7 @@ sgl_to_dbl_fcnvfu(
 	src = *srcptr;
 	src_exponent = Sgl_exponent(src) - SGL_BIAS;
 
-	/* 
+	/*
 	 * Test for overflow
 	 */
 	if (src_exponent > DBL_FX_MAX_EXP + 1) {
@@ -197,7 +197,7 @@ sgl_to_dbl_fcnvfu(
 	 * Generate result
 	 */
 	if (src_exponent >= 0) {
-		/* 
+		/*
 		 * Check sign.
 		 * If negative, trap unimplemented.
 		 */
@@ -225,7 +225,7 @@ sgl_to_dbl_fcnvfu(
 				break;
 			case ROUNDNEAREST:
 				if (Sgl_isone_roundbit(src,src_exponent) &&
-				    (Sgl_isone_stickybit(src,src_exponent) || 
+				    (Sgl_isone_stickybit(src,src_exponent) ||
 				     Duint_isone_lowp2(resultp2))) {
 					Duint_increment(resultp1,resultp2);
 				}
@@ -281,7 +281,7 @@ sgl_to_dbl_fcnvfu(
 }
 
 /*
- *  Double Floating-point to Single Unsigned Fixed 
+ *  Double Floating-point to Single Unsigned Fixed
  */
 /*ARGSUSED*/
 int
@@ -295,7 +295,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 	Dbl_copyfromptr(srcptr,srcp1,srcp2);
 	src_exponent = Dbl_exponent(srcp1) - DBL_BIAS;
 
-	/* 
+	/*
 	 * Test for overflow
 	 */
 	if (src_exponent > SGL_FX_MAX_EXP + 1) {
@@ -315,7 +315,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 	 * Generate result
 	 */
 	if (src_exponent >= 0) {
-		/* 
+		/*
 		 * Check sign.
 		 * If negative, trap unimplemented.
 		 */
@@ -404,7 +404,7 @@ dbl_to_sgl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 }
 
 /*
- *  Double Floating-point to Double Unsigned Fixed 
+ *  Double Floating-point to Double Unsigned Fixed
  */
 /*ARGSUSED*/
 int
@@ -418,7 +418,7 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 	Dbl_copyfromptr(srcptr,srcp1,srcp2);
 	src_exponent = Dbl_exponent(srcp1) - DBL_BIAS;
 
-	/* 
+	/*
 	 * Test for overflow
 	 */
 	if (src_exponent > DBL_FX_MAX_EXP + 1) {
@@ -434,12 +434,12 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
     		Duint_copytoptr(resultp1,resultp2,dstptr);
 		return(NOEXCEPTION);
 	}
- 
+
 	/*
 	 * Generate result
 	 */
 	if (src_exponent >= 0) {
-		/* 
+		/*
 		 * Check sign.
 		 * If negative, trap unimplemented.
 		 */
@@ -468,10 +468,10 @@ dbl_to_dbl_fcnvfu (dbl_floating_point * srcptr, unsigned int *nullptr,
 				break;
 			case ROUNDNEAREST:
 				if(Dbl_isone_roundbit(srcp1,srcp2,src_exponent))
-				  if(Dbl_isone_stickybit(srcp1,srcp2,src_exponent) || 
+				  if(Dbl_isone_stickybit(srcp1,srcp2,src_exponent) ||
 				     Duint_isone_lowp2(resultp2))
 					Duint_increment(resultp1,resultp2);
-			} 
+			}
 		}
 	} else {
 		Duint_setzero(resultp1,resultp2);

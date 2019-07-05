@@ -5,7 +5,7 @@
  *	mcfuart.h -- ColdFire internal UART support defines.
  *
  *	(C) Copyright 1999-2003, Greg Ungerer (gerg@snapgear.com)
- * 	(C) Copyright 2000, Lineo Inc. (www.lineo.com) 
+ * 	(C) Copyright 2000, Lineo Inc. (www.lineo.com)
  */
 
 /****************************************************************************/

@@ -397,7 +397,7 @@ static int vx2_load_xilinx_binary(struct vx_core *chip, const struct firmware *x
 	return 0;
 }
 
-	
+
 /*
  * load the boot/dsp images
  */
@@ -441,7 +441,7 @@ static int vx2_test_and_ack(struct vx_core *chip)
 
 	if (! (vx_inl(chip, STATUS) & VX_STATUS_MEMIRQ_MASK))
 		return -EIO;
-	
+
 	/* ok, interrupts generated, now ack it */
 	/* set ACQUIT bit up and down */
 	vx_outl(chip, STATUS, 0);
@@ -735,7 +735,7 @@ static void vx2_reset_codec(struct vx_core *_chip)
 	msleep(5);  /* additionnel wait time for AKM's */
 
 	vx2_write_codec_reg(_chip, AKM_CODEC_POWER_CONTROL_CMD); /* DAC power up, ADC power up, Vref power down */
-	
+
 	vx2_write_codec_reg(_chip, AKM_CODEC_CLOCK_FORMAT_CMD); /* default */
 	vx2_write_codec_reg(_chip, AKM_CODEC_MUTE_CMD); /* Mute = ON ,Deemphasis = OFF */
 	vx2_write_codec_reg(_chip, AKM_CODEC_RESET_OFF_CMD); /* DAC and ADC normal operation */

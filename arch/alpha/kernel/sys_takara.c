@@ -106,7 +106,7 @@ takara_device_interrupt(unsigned long vector)
 	}
 }
 
-static void 
+static void
 takara_srm_device_interrupt(unsigned long vector)
 {
 	int irq = (vector - 0x800) >> 4;

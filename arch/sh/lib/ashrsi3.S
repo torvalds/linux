@@ -50,7 +50,7 @@
 
 	.global	__ashrsi3
 	.global	__ashrsi3_r0
-	
+
 	.align	2
 __ashrsi3:
 	mov	r5,r0

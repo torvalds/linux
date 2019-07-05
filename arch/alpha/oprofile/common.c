@@ -45,7 +45,7 @@ op_handle_interrupt(unsigned long which, struct pt_regs *regs)
 	if ((reg.need_reset >> which) & 1)
 		model->reset_ctr(&reg, which);
 }
- 
+
 static int
 op_axp_setup(void)
 {

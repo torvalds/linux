@@ -35,8 +35,8 @@ Socket 1:
 
 
 [2] Get the Linux kernel source, and extract it to /usr/src.
-    Because the NinjaSCSI driver requires some SCSI header files in Linux 
-    kernel source, I recommend rebuilding your kernel; this eliminates 
+    Because the NinjaSCSI driver requires some SCSI header files in Linux
+    kernel source, I recommend rebuilding your kernel; this eliminates
     some versioning problems.
 $ cd /usr/src
 $ tar -zxvf linux-x.x.x.tar.gz

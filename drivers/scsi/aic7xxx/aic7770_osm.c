@@ -70,7 +70,7 @@ aic7770_map_int(struct ahc_softc *ahc, u_int irq)
 	error = request_irq(irq, ahc_linux_isr, shared, "aic7xxx", ahc);
 	if (error == 0)
 		ahc->platform_data->irq = irq;
-	
+
 	return (-error);
 }
 
@@ -122,7 +122,7 @@ aic7770_remove(struct device *dev)
 	ahc_free(ahc);
 	return 0;
 }
- 
+
 static struct eisa_device_id aic7770_ids[] = {
 	{ "ADP7771", 0 }, /* AHA 274x */
 	{ "ADP7756", 1 }, /* AHA 284x BIOS enabled */
@@ -142,13 +142,13 @@ static struct eisa_driver aic7770_driver = {
 		.remove = aic7770_remove,
 	}
 };
-  
+
 int
 ahc_linux_eisa_init(void)
 {
 	return eisa_driver_register(&aic7770_driver);
 }
-  
+
 void
 ahc_linux_eisa_exit(void)
 {

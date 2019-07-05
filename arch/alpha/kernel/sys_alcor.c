@@ -175,9 +175,9 @@ alcor_init_irq(void)
  * 10       PCEB (PCI-EISA bridge)
  * 11       PCI on board slot 2
  * 12       PCI on board slot 1
- *   
  *
- * This two layered interrupt approach means that we allocate IRQ 16 and 
+ *
+ * This two layered interrupt approach means that we allocate IRQ 16 and
  * above for PCI interrupts.  The IRQ relates to which bit the interrupt
  * comes in on.  This makes interrupt processing much easier.
  */
@@ -240,7 +240,7 @@ alcor_init_pci(void)
 			      PCI_DEVICE_ID_DEC_TULIP,
 			      NULL);
 	if (dev && dev->devfn == PCI_DEVFN(6,0)) {
-		alpha_mv.sys.cia.gru_int_req_bits = XLT_GRU_INT_REQ_BITS; 
+		alpha_mv.sys.cia.gru_int_req_bits = XLT_GRU_INT_REQ_BITS;
 		printk(KERN_INFO "%s: Detected AS500 or XLT motherboard.\n",
 		       __func__);
 	}

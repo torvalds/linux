@@ -557,7 +557,7 @@ static void rmt_new_dup_actions(struct s_smc *smc)
 	smc->r.jm_flag = FALSE ;
 	/*
 	 * we have three options : change address, jam or leave
-	 * we leave the ring as default 
+	 * we leave the ring as default
 	 * Optionally it's possible to reinsert after leaving the Ring
 	 * but this will not conform with SMT Spec.
 	 */

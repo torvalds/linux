@@ -6,7 +6,7 @@ struct sigcontext {
 	/*
 	 * What should we have here? I'd probably better use the same
 	 * stack layout as OSF/1, just in case we ever want to try
-	 * running their binaries.. 
+	 * running their binaries..
 	 *
 	 * This is the basic layout, but I don't know if we'll ever
 	 * actually fill in all the values..

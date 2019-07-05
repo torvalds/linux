@@ -3,13 +3,13 @@
  *	Declarations of X.25 Packet Layer type objects.
  *
  * 	History
- *	nov/17/96	Jonathan Naylor	  Initial version.		
- *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities 
+ *	nov/17/96	Jonathan Naylor	  Initial version.
+ *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities
  *					  negotiation.
  */
 
 #ifndef _X25_H
-#define _X25_H 
+#define _X25_H
 #include <linux/x25.h>
 #include <linux/slab.h>
 #include <linux/refcount.h>
@@ -127,7 +127,7 @@ enum {
  *	@refcnt - reference counter
  */
 struct x25_route {
-	struct list_head	node;		
+	struct list_head	node;
 	struct x25_address	address;
 	unsigned int		sigdigits;
 	struct net_device	*dev;

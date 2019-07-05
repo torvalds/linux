@@ -40,7 +40,7 @@ Many thanks to Mattia Dongili who wrote the autotoolization and
 libtoolization, the manpages and the italian language file for cpupower;
 to Dave Jones for his feedback and his dump_psb tool; to Bruno Ducrot for his
 powernow-k8-decode and intel_gsic tools as well as the french language file;
-and to various others commenting on the previous (pre-)releases of 
+and to various others commenting on the previous (pre-)releases of
 cpupower.
 
 

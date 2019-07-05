@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* drivers/atm/idt77105.c - IDT77105 (PHY) driver */
- 
+
 /* Written 1999 by Greg Banks, NEC Australia <gnb@linuxfan.com>. Based on suni.c */
 
 
@@ -62,14 +62,14 @@ static struct idt77105_priv *idt77105_all = NULL;
 static u16 get_counter(struct atm_dev *dev, int counter)
 {
         u16 val;
-        
+
         /* write the counter bit into PHY register 6 */
         PUT(counter, CTRSEL);
         /* read the low 8 bits from register 4 */
         val = GET(CTRLO);
         /* read the high 8 bits from register 5 */
         val |= GET(CTRHI)<<8;
-        
+
         return val;
 }
 
@@ -90,7 +90,7 @@ static void idt77105_stats_timer_func(struct timer_list *unused)
         DPRINTK("IDT77105 gathering statistics\n");
 	for (walk = idt77105_all; walk; walk = walk->next) {
 		dev = walk->dev;
-                
+
 		stats = &walk->stats;
                 stats->symbol_errors += get_counter(dev, IDT77105_CTRSEL_SEC);
                 stats->tx_cells += get_counter(dev, IDT77105_CTRSEL_TCC);
@@ -119,10 +119,10 @@ static void idt77105_restart_timer_func(struct timer_list *unused)
         DPRINTK("IDT77105 checking for cable re-insertion\n");
 	for (walk = idt77105_all; walk; walk = walk->next) {
 		dev = walk->dev;
-                
+
                 if (dev->signal != ATM_PHY_SIG_LOST)
                     continue;
-                    
+
                 istat = GET(ISTAT); /* side effect: clears all interrupt status bits */
                 if (istat & IDT77105_ISTAT_GOODSIG) {
                     /* Found signal again */
@@ -176,7 +176,7 @@ static int set_loopback(struct atm_dev *dev,int mode)
 	PUT(diag,DIAG);
 	printk(KERN_NOTICE "%s(%d) Loopback mode is: %s\n", dev->type,
 	    dev->number,
-	    (mode == ATM_LM_NONE ? "NONE" : 
+	    (mode == ATM_LM_NONE ? "NONE" :
 	      (mode == ATM_LM_LOC_ATM ? "DIAG (local)" :
 		(mode == IDT77105_DIAG_LC_LINE_LOOPBACK ? "LOOP (remote)" :
 		  "unknown")))
@@ -213,11 +213,11 @@ static int idt77105_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 static void idt77105_int(struct atm_dev *dev)
 {
         unsigned char istat;
-        
+
         istat = GET(ISTAT); /* side effect: clears all interrupt status bits */
-     
+
         DPRINTK("IDT77105 generated an interrupt, istat=%02x\n", (unsigned)istat);
-                
+
         if (istat & IDT77105_ISTAT_RSCC) {
             /* Rx Signal Condition Change - line went up or down */
             if (istat & IDT77105_ISTAT_GOODSIG) {   /* signal detected again */
@@ -240,7 +240,7 @@ static void idt77105_int(struct atm_dev *dev)
                     dev->type,dev->number);
             }
         }
-        
+
         if (istat & IDT77105_ISTAT_RFO) {
             /* Rx FIFO Overrun -- perform a FIFO flush */
             PUT( GET(DIAG) | IDT77105_DIAG_RFLUSH, DIAG);
@@ -270,7 +270,7 @@ static int idt77105_start(struct atm_dev *dev)
 	idt77105_all = PRIV(dev);
 	spin_unlock_irqrestore(&idt77105_priv_lock, flags);
 	memset(&PRIV(dev)->stats,0,sizeof(struct idt77105_stats));
-        
+
         /* initialise dev->signal from Good Signal Bit */
 	atm_dev_signal_change(dev,
 		GET(ISTAT) & IDT77105_ISTAT_GOODSIG ?
@@ -291,7 +291,7 @@ static int idt77105_start(struct atm_dev *dev)
             PRIV(dev)->loop_mode = ATM_LM_RMT_ATM;
             break;
         }
-        
+
         /* enable interrupts, e.g. on loss of signal */
         PRIV(dev)->old_mcr = GET(MCR);
         if (dev->signal == ATM_PHY_SIG_FOUND) {
@@ -299,17 +299,17 @@ static int idt77105_start(struct atm_dev *dev)
 	    PUT(PRIV(dev)->old_mcr, MCR);
         }
 
-                    
+
 	idt77105_stats_timer_func(0); /* clear 77105 counters */
 	(void) fetch_stats(dev,NULL,1); /* clear kernel counters */
-        
+
 	spin_lock_irqsave(&idt77105_priv_lock, flags);
 	if (start_timer) {
 		start_timer = 0;
-                
+
 		stats_timer.expires = jiffies+IDT77105_STATS_TIMER_PERIOD;
 		add_timer(&stats_timer);
-                
+
 		restart_timer.expires = jiffies+IDT77105_RESTART_TIMER_PERIOD;
 		add_timer(&restart_timer);
 	}
@@ -323,10 +323,10 @@ static int idt77105_stop(struct atm_dev *dev)
 	struct idt77105_priv *walk, *prev;
 
         DPRINTK("%s(itf %d): stopping IDT77105\n",dev->type,dev->number);
-        
+
         /* disable interrupts */
 	PUT( GET(MCR) & ~IDT77105_MCR_EIP, MCR );
-        
+
         /* detach private struct from atm_dev & free */
 	for (prev = NULL, walk = idt77105_all ;
              walk != NULL;

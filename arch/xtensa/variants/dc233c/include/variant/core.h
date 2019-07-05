@@ -1,4 +1,4 @@
-/* 
+/*
  * xtensa/config/core-isa.h -- HAL definitions that are dependent on Xtensa
  *				processor CORE configuration
  *

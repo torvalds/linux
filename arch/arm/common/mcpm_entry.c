@@ -329,7 +329,7 @@ void mcpm_cpu_suspend(void)
 	if (platform_ops->cpu_suspend_prepare) {
 		unsigned int mpidr = read_cpuid_mpidr();
 		unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-		unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1); 
+		unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 		arch_spin_lock(&mcpm_lock);
 		platform_ops->cpu_suspend_prepare(cpu, cluster);
 		arch_spin_unlock(&mcpm_lock);

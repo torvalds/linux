@@ -12,7 +12,7 @@
  * that this code assumes is that the timebases have been synchronized
  * by firmware on SMP and are never stopped (never do sleep
  * on SMP then, nap and doze are OK).
- * 
+ *
  * Speeded up do_gettimeofday by getting rid of references to
  * xtime (which required locks for consistency). (mikejc@us.ibm.com)
  *
@@ -868,7 +868,7 @@ void read_persistent_clock64(struct timespec64 *ts)
 		ts->tv_sec = 0;
 		ts->tv_nsec = 0;
 	}
-		
+
 }
 
 /* clocksource code */

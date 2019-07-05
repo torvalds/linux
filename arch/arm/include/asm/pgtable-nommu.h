@@ -87,7 +87,7 @@ extern unsigned int kobjsize(const void *objp);
 
 #include <asm-generic/pgtable.h>
 
-#else 
+#else
 
 /*
  * dummy tlb and user structures.

@@ -22,18 +22,18 @@
  * the server side is allowed to DMA to and from the client.  The client
  * is never trusted to DMA to or from the server directly.
  *
- * Messages are sent between partitions on a "Command/Response Queue" 
- * (CRQ), which is just a buffer of 16 byte entries in the receiver's 
+ * Messages are sent between partitions on a "Command/Response Queue"
+ * (CRQ), which is just a buffer of 16 byte entries in the receiver's
  * Senders cannot access the buffer directly, but send messages by
  * making a hypervisor call and passing in the 16 bytes.  The hypervisor
  * puts the message in the next 16 byte space in round-robin fashion,
- * turns on the high order bit of the message (the valid bit), and 
- * generates an interrupt to the receiver (if interrupts are turned on.) 
+ * turns on the high order bit of the message (the valid bit), and
+ * generates an interrupt to the receiver (if interrupts are turned on.)
  * The receiver just turns off the valid bit when they have copied out
  * the message.
  *
  * The VSCSI client builds a SCSI Remote Protocol (SRP) Information Unit
- * (IU) (as defined in the T10 standard available at www.t10.org), gets 
+ * (IU) (as defined in the T10 standard available at www.t10.org), gets
  * a DMA address for the message, and sends it to the server as the
  * payload of a CRQ message.  The server DMAs the SRP IU and processes it,
  * including doing any additional data transfers.  When it is done, it
@@ -63,7 +63,7 @@
 #include <scsi/scsi_transport_srp.h>
 #include "ibmvscsi.h"
 
-/* The values below are somewhat arbitrary default values, but 
+/* The values below are somewhat arbitrary default values, but
  * OS/400 will use 3 busses (disks, CDs, tapes, I think.)
  * Note that there are 3 bits of channel value, 6 bits of id, and
  * 5 bits of LUN.
@@ -571,7 +571,7 @@ static struct srp_event_struct *get_event_struct(struct event_pool *pool)
 }
 
 /**
- * init_event_struct: Initialize fields in an event struct that are always 
+ * init_event_struct: Initialize fields in an event struct that are always
  *                    required.
  * @evt:        The event
  * @done:       Routine to call when the event is responded to
@@ -601,14 +601,14 @@ static void init_event_struct(struct srp_event_struct *evt_struct,
  *     the scsi_cmnd and the number of buffers
  */
 static void set_srp_direction(struct scsi_cmnd *cmd,
-			      struct srp_cmd *srp_cmd, 
+			      struct srp_cmd *srp_cmd,
 			      int numbuf)
 {
 	u8 fmt;
 
 	if (numbuf == 0)
 		return;
-	
+
 	if (numbuf == 1)
 		fmt = SRP_DATA_DESC_DIRECT;
 	else {
@@ -746,7 +746,7 @@ static int map_sg_data(struct scsi_cmnd *cmd,
  * @srp_cmd:	srp_cmd that contains the memory descriptor
  * @dev:	dma device for which to map dma memory
  *
- * Called by scsi_cmd_to_srp_cmd() when converting scsi cmds to srp cmds 
+ * Called by scsi_cmd_to_srp_cmd() when converting scsi cmds to srp cmds
  * Returns 1 on success.
 */
 static int map_data_for_srp_cmd(struct scsi_cmnd *cmd,
@@ -859,7 +859,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 
 	/* If we have exhausted our request limit, just fail this request,
 	 * unless it is for a reset or abort.
-	 * Note that there are rare cases involving driver generated requests 
+	 * Note that there are rare cases involving driver generated requests
 	 * (such as task management requests) that the mid layer may think we
 	 * can handle more requests (can_queue) when we actually can't
 	 */
@@ -909,8 +909,8 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	*evt_struct->xfer_iu = evt_struct->iu;
 	evt_struct->xfer_iu->srp.rsp.tag = (u64)evt_struct;
 
-	/* Add this to the sent list.  We need to do this 
-	 * before we actually send 
+	/* Add this to the sent list.  We need to do this
+	 * before we actually send
 	 * in case it comes back REALLY fast
 	 */
 	list_add_tail(&evt_struct->list, &hostdata->sent);
@@ -983,15 +983,15 @@ static void handle_cmd_rsp(struct srp_event_struct *evt_struct)
 			dev_warn(evt_struct->hostdata->dev,
 				 "bad SRP RSP type %#02x\n", rsp->opcode);
 	}
-	
+
 	if (cmnd) {
 		cmnd->result |= rsp->status;
 		if (((cmnd->result >> 1) & 0x1f) == CHECK_CONDITION)
 			memcpy(cmnd->sense_buffer,
 			       rsp->data,
 			       be32_to_cpu(rsp->sense_data_len));
-		unmap_cmd_data(&evt_struct->iu.srp.cmd, 
-			       evt_struct, 
+		unmap_cmd_data(&evt_struct->iu.srp.cmd,
+			       evt_struct,
 			       evt_struct->hostdata->dev);
 
 		if (rsp->flags & SRP_RSP_FLAG_DOOVER)
@@ -1016,7 +1016,7 @@ static inline u16 lun_from_dev(struct scsi_device *dev)
 }
 
 /**
- * ibmvscsi_queue: - The queuecommand function of the scsi template 
+ * ibmvscsi_queue: - The queuecommand function of the scsi template
  * @cmd:	struct scsi_cmnd to be executed
  * @done:	Callback function to be called when cmd is completed
 */
@@ -1378,11 +1378,11 @@ static void adapter_info_rsp(struct srp_event_struct *evt_struct)
 			 be32_to_cpu(hostdata->madapter_info.partition_number),
 			 be32_to_cpu(hostdata->madapter_info.os_type),
 			 be32_to_cpu(hostdata->madapter_info.port_max_txu[0]));
-		
-		if (hostdata->madapter_info.port_max_txu[0]) 
-			hostdata->host->max_sectors = 
+
+		if (hostdata->madapter_info.port_max_txu[0])
+			hostdata->host->max_sectors =
 				be32_to_cpu(hostdata->madapter_info.port_max_txu[0]) >> 9;
-		
+
 		if (be32_to_cpu(hostdata->madapter_info.os_type) == SRP_MAD_OS_AIX &&
 		    strcmp(hostdata->madapter_info.srp_version, "1.6a") <= 0) {
 			dev_err(hostdata->dev, "host (Ver. %s) doesn't support large transfers\n",
@@ -1407,7 +1407,7 @@ static void adapter_info_rsp(struct srp_event_struct *evt_struct)
  *      sysfs.  We COULD consider causing a failure if the
  *      returned SRP version doesn't match ours.
  * @hostdata:	ibmvscsi_host_data of host
- * 
+ *
  * Returns zero if successful.
 */
 static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
@@ -1423,10 +1423,10 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 			  adapter_info_rsp,
 			  VIOSRP_MAD_FORMAT,
 			  info_timeout);
-	
+
 	req = &evt_struct->iu.mad.adapter_info;
 	memset(req, 0x00, sizeof(*req));
-	
+
 	req->common.type = cpu_to_be32(VIOSRP_ADAPTER_INFO_TYPE);
 	req->common.length = cpu_to_be16(sizeof(hostdata->madapter_info));
 	req->buffer = cpu_to_be64(hostdata->adapter_info_addr);
@@ -1457,7 +1457,7 @@ static void sync_completion(struct srp_event_struct *evt_struct)
 	/* copy the response back */
 	if (evt_struct->sync_srp)
 		*evt_struct->sync_srp = *evt_struct->xfer_iu;
-	
+
 	complete(&evt_struct->comp);
 }
 
@@ -1503,14 +1503,14 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 				"failed to allocate abort event\n");
 			return FAILED;
 		}
-	
+
 		init_event_struct(evt,
 				  sync_completion,
 				  VIOSRP_SRP_FORMAT,
 				  abort_timeout);
 
 		tsk_mgmt = &evt->iu.srp.tsk_mgmt;
-	
+
 		/* Set up an abort SRP command */
 		memset(tsk_mgmt, 0x00, sizeof(*tsk_mgmt));
 		tsk_mgmt->opcode = SRP_TSK_MGMT;
@@ -1600,8 +1600,8 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 }
 
 /**
- * ibmvscsi_eh_device_reset_handler: Reset a single LUN...from scsi host 
- * template send this over to the server and wait synchronously for the 
+ * ibmvscsi_eh_device_reset_handler: Reset a single LUN...from scsi host
+ * template send this over to the server and wait synchronously for the
  * response
  */
 static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
@@ -1626,7 +1626,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 				"failed to allocate reset event\n");
 			return FAILED;
 		}
-	
+
 		init_event_struct(evt,
 				  sync_completion,
 				  VIOSRP_SRP_FORMAT,
@@ -2324,7 +2324,7 @@ static int ibmvscsi_resume(struct device *dev)
 }
 
 /**
- * ibmvscsi_device_table: Used by vio.c to match devices in the device tree we 
+ * ibmvscsi_device_table: Used by vio.c to match devices in the device tree we
  * support.
  */
 static const struct vio_device_id ibmvscsi_device_table[] = {

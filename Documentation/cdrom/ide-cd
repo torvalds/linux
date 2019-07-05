@@ -6,7 +6,7 @@ New maintainers (19 Oct 1998): Jens Axboe <axboe@image.dk>
 1. Introduction
 ---------------
 
-The ide-cd driver should work with all ATAPI ver 1.2 to ATAPI 2.6 compliant 
+The ide-cd driver should work with all ATAPI ver 1.2 to ATAPI 2.6 compliant
 CDROM drives which attach to an IDE interface.  Note that some CDROM vendors
 (including Mitsumi, Sony, Creative, Aztech, and Goldstar) have made
 both ATAPI-compliant drives and drives which use a proprietary
@@ -31,7 +31,7 @@ This driver provides the following features:
    from audio tracks.  The program cdda2wav can be used for this.
    Note, however, that only some drives actually support this.
 
- - There is now support for CDROM changers which comply with the 
+ - There is now support for CDROM changers which comply with the
    ATAPI 2.6 draft standard (such as the NEC CDR-251).  This additional
    functionality includes a function call to query which slot is the
    currently selected slot, a function call to query which slots contain
@@ -49,11 +49,11 @@ This driver provides the following features:
    driver.
 
 1. Make sure that the ide and ide-cd drivers are compiled into the
-   kernel you're using.  When configuring the kernel, in the section 
-   entitled "Floppy, IDE, and other block devices", say either `Y' 
+   kernel you're using.  When configuring the kernel, in the section
+   entitled "Floppy, IDE, and other block devices", say either `Y'
    (which will compile the support directly into the kernel) or `M'
    (to compile support as a module which can be loaded and unloaded)
-   to the options: 
+   to the options:
 
       ATA/ATAPI/MFM/RLL support
       Include IDE/ATAPI CDROM support
@@ -72,7 +72,7 @@ This driver provides the following features:
    address and an IRQ number, the standard assignments being
    0x1f0 and 14 for the primary interface and 0x170 and 15 for the
    secondary interface.  Each interface can control up to two devices,
-   where each device can be a hard drive, a CDROM drive, a floppy drive, 
+   where each device can be a hard drive, a CDROM drive, a floppy drive,
    or a tape drive.  The two devices on an interface are called `master'
    and `slave'; this is usually selectable via a jumper on the drive.
 
@@ -114,7 +114,7 @@ This driver provides the following features:
 3. Basic usage
 --------------
 
-An ISO 9660 CDROM can be mounted by putting the disc in the drive and 
+An ISO 9660 CDROM can be mounted by putting the disc in the drive and
 typing (as root)
 
   mount -t iso9660 /dev/cdrom /mnt/cdrom
@@ -185,7 +185,7 @@ a. Drive is not detected during booting.
    - If the autoprobing is not finding your drive, you can tell the
      driver to assume that one exists by using a lilo option of the
      form `hdX=cdrom', where X is the drive letter corresponding to
-     where your drive is installed.  Note that if you do this and you 
+     where your drive is installed.  Note that if you do this and you
      see a boot message like
 
        hdX: ATAPI cdrom (?)
@@ -240,16 +240,16 @@ b. Timeout/IRQ errors.
     there are hardware problems with the interrupt setup; they
     apparently don't use interrupts.
 
-  - If you own a Pioneer DR-A24X, you _will_ get nasty error messages 
+  - If you own a Pioneer DR-A24X, you _will_ get nasty error messages
     on boot such as "irq timeout: status=0x50 { DriveReady SeekComplete }"
     The Pioneer DR-A24X CDROM drives are fairly popular these days.
     Unfortunately, these drives seem to become very confused when we perform
     the standard Linux ATA disk drive probe. If you own one of these drives,
-    you can bypass the ATA probing which confuses these CDROM drives, by 
-    adding `append="hdX=noprobe hdX=cdrom"' to your lilo.conf file and running 
-    lilo (again where X is the drive letter corresponding to where your drive 
+    you can bypass the ATA probing which confuses these CDROM drives, by
+    adding `append="hdX=noprobe hdX=cdrom"' to your lilo.conf file and running
+    lilo (again where X is the drive letter corresponding to where your drive
     is installed.)
-    
+
 c. System hangups.
 
   - If the system locks up when you try to access the CDROM, the most
@@ -338,8 +338,8 @@ f. Data corruption.
 /*
  * cdchange.c  [-v]  <device>  [<slot>]
  *
- * This loads a CDROM from a specified slot in a changer, and displays 
- * information about the changer status.  The drive should be unmounted before 
+ * This loads a CDROM from a specified slot in a changer, and displays
+ * information about the changer status.  The drive should be unmounted before
  * using this program.
  *
  * Changer information is displayed if either the -v flag is specified
@@ -382,19 +382,19 @@ main (int argc, char **argv)
 		fprintf (stderr, "       Slots are numbered 1 -- n.\n");
 		exit (1);
 	}
- 
+
        if (strcmp (argv[0], "-v") == 0) {
                 verbose = 1;
                 ++argv;
                 --argc;
         }
- 
+
 	device = argv[0];
- 
+
 	if (argc == 2)
 		slot = atoi (argv[1]) - 1;
 
-	/* open device */ 
+	/* open device */
 	fd = open(device, O_RDONLY | O_NONBLOCK);
 	if (fd < 0) {
 		fprintf (stderr, "%s: open failed for `%s': %s\n",
@@ -402,7 +402,7 @@ main (int argc, char **argv)
 		exit (1);
 	}
 
-	/* Check CD player status */ 
+	/* Check CD player status */
 	total_slots_available = ioctl (fd, CDROM_CHANGER_NSLOTS);
 	if (total_slots_available <= 1 ) {
 		fprintf (stderr, "%s: Device `%s' is not an ATAPI "
@@ -418,7 +418,7 @@ main (int argc, char **argv)
 			exit (1);
 		}
 
-		/* load */ 
+		/* load */
 		slot=ioctl (fd, CDROM_SELECT_DISC, slot);
 		if (slot<0) {
 			fflush(stdout);
@@ -469,7 +469,7 @@ main (int argc, char **argv)
 			case CDS_DISC_OK:
 				printf ("Disc present.");
 				break;
-			case CDS_NO_DISC: 
+			case CDS_NO_DISC:
 				printf ("Empty slot.");
 				break;
 			case CDS_TRAY_OPEN:
@@ -529,6 +529,6 @@ main (int argc, char **argv)
 			 program, device, strerror (errno));
 		exit (1);
 	}
- 
+
 	exit (0);
 }

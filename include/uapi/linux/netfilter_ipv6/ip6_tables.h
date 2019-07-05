@@ -63,7 +63,7 @@
 /* Yes, Virginia, you have to zero the padding. */
 struct ip6t_ip6 {
 	/* Source and destination IP6 addr */
-	struct in6_addr src, dst;		
+	struct in6_addr src, dst;
 	/* Mask for src and dest IP6 addr */
 	struct in6_addr smsk, dmsk;
 	char iniface[IFNAMSIZ], outiface[IFNAMSIZ];
@@ -88,7 +88,7 @@ struct ip6t_ip6 {
 };
 
 /* Values for "flag" field in struct ip6t_ip6 (general ip6 structure). */
-#define IP6T_F_PROTO		0x01	/* Set if rule cares about upper 
+#define IP6T_F_PROTO		0x01	/* Set if rule cares about upper
 					   protocols */
 #define IP6T_F_TOS		0x02	/* Match the TOS. */
 #define IP6T_F_GOTO		0x04	/* Set if jump is a goto */

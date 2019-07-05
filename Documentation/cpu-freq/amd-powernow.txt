@@ -25,7 +25,7 @@ not supply these tables.
 8th Generation: powernow-k8: Athlon, Athlon 64, Opteron, Sempron.
 Documentation on this functionality in 8th generation processors
 is available in the "BIOS and Kernel Developer's Guide", publication
-26094, in chapter 9, available for download from www.amd.com. 
+26094, in chapter 9, available for download from www.amd.com.
 
 BIOS supplied data, for powernow-k7 and for powernow-k8, may be
 from either the PSB table or from ACPI objects. The ACPI support
@@ -34,5 +34,5 @@ The powernow-k8 driver will attempt to use ACPI if so configured,
 and fall back to PST if that fails.
 The powernow-k7 driver will try to use the PSB support first, and
 fall back to ACPI if the PSB support fails. A module parameter,
-acpi_force, is provided to force ACPI support to be used instead 
+acpi_force, is provided to force ACPI support to be used instead
 of PSB support.

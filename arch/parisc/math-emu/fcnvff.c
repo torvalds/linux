@@ -34,7 +34,7 @@
 #include "cnv_float.h"
 
 /*
- *  Single Floating-point to Double Floating-point 
+ *  Single Floating-point to Double Floating-point
  */
 /*ARGSUSED*/
 int
@@ -50,7 +50,7 @@ sgl_to_dbl_fcnvff(
 	src = *srcptr;
 	src_exponent = Sgl_exponent(src);
 	Dbl_allp1(resultp1) = Sgl_all(src);  /* set sign of result */
-	/* 
+	/*
  	 * Test for NaN or infinity
  	 */
 	if (src_exponent == SGL_INFINITY_EXPONENT) {
@@ -66,7 +66,7 @@ sgl_to_dbl_fcnvff(
 			return(NOEXCEPTION);
 		}
 		else {
-			/* 
+			/*
 			 * is NaN; signaling or quiet?
 			 */
 			if (Sgl_isone_signaling(src)) {
@@ -79,8 +79,8 @@ sgl_to_dbl_fcnvff(
 					Sgl_set_quiet(src);
 				}
 			}
-			/* 
-			 * NaN is quiet, return as double NaN 
+			/*
+			 * NaN is quiet, return as double NaN
 			 */
 			Dbl_setinfinity_exponent(resultp1);
 			Sgl_to_dbl_mantissa(src,resultp1,resultp2);
@@ -88,7 +88,7 @@ sgl_to_dbl_fcnvff(
 			return(NOEXCEPTION);
 		}
 	}
-	/* 
+	/*
  	 * Test for zero or denormalized
  	 */
 	if (src_exponent == 0) {
@@ -121,7 +121,7 @@ sgl_to_dbl_fcnvff(
 }
 
 /*
- *  Double Floating-point to Single Floating-point 
+ *  Double Floating-point to Single Floating-point
  */
 /*ARGSUSED*/
 int
@@ -140,7 +140,7 @@ dbl_to_sgl_fcnvff(
 	Dbl_copyfromptr(srcptr,srcp1,srcp2);
         src_exponent = Dbl_exponent(srcp1);
 	Sgl_all(result) = Dbl_allp1(srcp1);  /* set sign of result */
-        /* 
+        /*
          * Test for NaN or infinity
          */
         if (src_exponent == DBL_INFINITY_EXPONENT) {
@@ -155,7 +155,7 @@ dbl_to_sgl_fcnvff(
                         *dstptr = result;
                         return(NOEXCEPTION);
                 }
-                /* 
+                /*
                  * is NaN; signaling or quiet?
                  */
                 if (Dbl_isone_signaling(srcp1)) {
@@ -167,8 +167,8 @@ dbl_to_sgl_fcnvff(
                         	Dbl_set_quiet(srcp1);
 			}
                 }
-                /* 
-                 * NaN is quiet, return as single NaN 
+                /*
+                 * NaN is quiet, return as single NaN
                  */
                 Sgl_setinfinity_exponent(result);
 		Sgl_set_mantissa(result,Dallp1(srcp1)<<3 | Dallp2(srcp2)>>29);
@@ -181,7 +181,7 @@ dbl_to_sgl_fcnvff(
          */
         Dbl_to_sgl_exponent(src_exponent,dest_exponent);
 	if (dest_exponent > 0) {
-        	Dbl_to_sgl_mantissa(srcp1,srcp2,dest_mantissa,inexact,guardbit, 
+        	Dbl_to_sgl_mantissa(srcp1,srcp2,dest_mantissa,inexact,guardbit,
 		stickybit,lsb_odd);
 	}
 	else {
@@ -203,15 +203,15 @@ dbl_to_sgl_fcnvff(
 			is_tiny);
 		}
 	}
-        /* 
+        /*
          * Now round result if not exact
          */
         if (inexact) {
                 switch (Rounding_mode()) {
-                        case ROUNDPLUS: 
+                        case ROUNDPLUS:
                                 if (Sgl_iszero_sign(result)) dest_mantissa++;
                                 break;
-                        case ROUNDMINUS: 
+                        case ROUNDMINUS:
                                 if (Sgl_isone_sign(result)) dest_mantissa++;
                                 break;
                         case ROUNDNEAREST:
@@ -225,27 +225,27 @@ dbl_to_sgl_fcnvff(
         /*
          * check for mantissa overflow after rounding
          */
-        if ((dest_exponent>0 || Is_underflowtrap_enabled()) && 
+        if ((dest_exponent>0 || Is_underflowtrap_enabled()) &&
 	    Sgl_isone_hidden(result)) dest_exponent++;
 
-        /* 
+        /*
          * Test for overflow
          */
         if (dest_exponent >= SGL_INFINITY_EXPONENT) {
                 /* trap if OVERFLOWTRAP enabled */
                 if (Is_overflowtrap_enabled()) {
-                        /* 
+                        /*
                          * Check for gross overflow
                          */
-                        if (dest_exponent >= SGL_INFINITY_EXPONENT+SGL_WRAP) 
+                        if (dest_exponent >= SGL_INFINITY_EXPONENT+SGL_WRAP)
                         	return(UNIMPLEMENTEDEXCEPTION);
-                        
+
                         /*
                          * Adjust bias of result
                          */
 			Sgl_setwrapped_exponent(result,dest_exponent,ovfl);
 			*dstptr = result;
-			if (inexact) 
+			if (inexact)
 			    if (Is_inexacttrap_enabled())
 				return(OVERFLOWEXCEPTION|INEXACTEXCEPTION);
 			    else Set_inexactflag();
@@ -256,13 +256,13 @@ dbl_to_sgl_fcnvff(
 		/* set result to infinity or largest number */
 		Sgl_setoverflow(result);
         }
-        /* 
+        /*
          * Test for underflow
          */
         else if (dest_exponent <= 0) {
                 /* trap if UNDERFLOWTRAP enabled */
                 if (Is_underflowtrap_enabled()) {
-                        /* 
+                        /*
                          * Check for gross underflow
                          */
                         if (dest_exponent <= -(SGL_WRAP))
@@ -272,13 +272,13 @@ dbl_to_sgl_fcnvff(
                          */
 			Sgl_setwrapped_exponent(result,dest_exponent,unfl);
 			*dstptr = result;
-			if (inexact) 
+			if (inexact)
 			    if (Is_inexacttrap_enabled())
 				return(UNDERFLOWEXCEPTION|INEXACTEXCEPTION);
 			    else Set_inexactflag();
                         return(UNDERFLOWEXCEPTION);
                 }
-                 /* 
+                 /*
                   * result is denormalized or signed zero
                   */
                if (inexact && is_tiny) Set_underflowflag();
@@ -286,7 +286,7 @@ dbl_to_sgl_fcnvff(
         }
 	else Sgl_set_exponent(result,dest_exponent);
 	*dstptr = result;
-        /* 
+        /*
          * Trap if inexact trap is enabled
          */
         if (inexact)

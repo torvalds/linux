@@ -1,6 +1,6 @@
 /* [xirc2ps_cs.c wk 03.11.99] (1.40 1999/11/18 00:06:03)
  * Xircom CreditCard Ethernet Adapter IIps driver
- * Xircom Realport 10/100 (RE-100) driver 
+ * Xircom Realport 10/100 (RE-100) driver
  *
  * This driver supports various Xircom CreditCard Ethernet adapters
  * including the CE2, CE IIps, RE-10, CEM28, CEM33, CE33, CEM56,
@@ -10,7 +10,7 @@
  * autodetect the media properly. In this case use the
  * if_port=1 (for 10BaseT) or if_port=4 (for 100BaseT) options
  * to force the media type.
- * 
+ *
  * Written originally by Werner Koch based on David Hinds' skeleton of the
  * PCMCIA driver.
  *
@@ -1646,7 +1646,7 @@ init_mii(struct net_device *dev)
 	return 0; /* No MII */
 
     local->new_mii = (mii_rd(ioaddr, 0, 2) != 0xffff);
-    
+
     if (local->probe_port)
 	control = 0x1000; /* auto neg */
     else if (dev->if_port == 4)

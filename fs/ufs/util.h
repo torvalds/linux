@@ -2,7 +2,7 @@
 /*
  *  linux/fs/ufs/util.h
  *
- * Copyright (C) 1998 
+ * Copyright (C) 1998
  * Daniel Pirkl <daniel.pirkl@email.cz>
  * Charles University, Faculty of Mathematics and Physics
  */
@@ -263,7 +263,7 @@ extern int ufs_prepare_chunk(struct page *page, loff_t pos, unsigned len);
 /*
  * These functions manipulate ufs buffers
  */
-#define ubh_bread(sb,fragment,size) _ubh_bread_(uspi,sb,fragment,size)  
+#define ubh_bread(sb,fragment,size) _ubh_bread_(uspi,sb,fragment,size)
 extern struct ufs_buffer_head * _ubh_bread_(struct ufs_sb_private_info *, struct super_block *, u64 , u64);
 extern struct ufs_buffer_head * ubh_bread_uspi(struct ufs_sb_private_info *, struct super_block *, u64, u64);
 extern void ubh_brelse (struct ufs_buffer_head *);
@@ -296,7 +296,7 @@ static inline void *get_usb_offset(struct ufs_sb_private_info *uspi,
 				   unsigned int offset)
 {
 	unsigned int index;
-	
+
 	index = offset >> uspi->s_fshift;
 	offset &= ~uspi->s_fmask;
 	return uspi->s_ubh.bh[index]->b_data + offset;
@@ -411,7 +411,7 @@ static inline unsigned _ubh_find_next_zero_bit_(
 		offset = 0;
 	}
 	return (base << uspi->s_bpfshift) + pos - begin;
-} 	
+}
 
 static inline unsigned find_last_zero_bit (unsigned char * bitmap,
 	unsigned size, unsigned offset)
@@ -461,7 +461,7 @@ static inline unsigned _ubh_find_last_zero_bit_(
 		start = uspi->s_bpf;
 	}
 	return (base << uspi->s_bpfshift) + pos - begin;
-} 	
+}
 
 #define ubh_isblockclear(ubh,begin,block) (!_ubh_isblockset_(uspi,ubh,begin,block))
 
@@ -483,7 +483,7 @@ static inline int _ubh_isblockset_(struct ufs_sb_private_info * uspi,
 		mask = 0x01 << (block & 0x07);
 		return (*ubh_get_addr (ubh, begin + (block >> 3)) & mask) == mask;
 	}
-	return 0;	
+	return 0;
 }
 
 #define ubh_clrblock(ubh,begin,block) _ubh_clrblock_(uspi,ubh,begin,block)
@@ -493,7 +493,7 @@ static inline void _ubh_clrblock_(struct ufs_sb_private_info * uspi,
 	switch (uspi->s_fpb) {
 	case 8:
 	    	*ubh_get_addr (ubh, begin + block) = 0x00;
-	    	return; 
+	    	return;
 	case 4:
 		*ubh_get_addr (ubh, begin + (block >> 1)) &= ~(0x0f << ((block & 0x01) << 2));
 		return;
@@ -531,9 +531,9 @@ static inline void ufs_fragacct (struct super_block * sb, unsigned blockmap,
 {
 	struct ufs_sb_private_info * uspi;
 	unsigned fragsize, pos;
-	
+
 	uspi = UFS_SB(sb)->s_uspi;
-	
+
 	fragsize = 0;
 	for (pos = 0; pos < uspi->s_fpb; pos++) {
 		if (blockmap & (1 << pos)) {

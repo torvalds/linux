@@ -77,7 +77,7 @@
 
 #define MCPCIA_MID(m)		((unsigned long)(m) << 33)
 
-/* Dodge has PCI0 and PCI1 at MID 4 and 5 respectively. 
+/* Dodge has PCI0 and PCI1 at MID 4 and 5 respectively.
    Durango adds PCI2 and PCI3 at MID 6 and 7 respectively.  */
 #define MCPCIA_HOSE2MID(h)	((h) + 4)
 
@@ -175,7 +175,7 @@
 #endif
 #define MCPCIA_IACK_SC		_MCPCIA_IACK_SC(4)
 
-/* 
+/*
  * The canonical non-remaped I/O and MEM addresses have these values
  * subtracted out.  This is arranged so that folks manipulating ISA
  * devices can use their familiar numbers and have them map to bus 0.

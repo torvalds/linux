@@ -39,8 +39,8 @@
 
 #include <asm/types.h>
 
-/* Physical constants relevant to raw loop/device timing. 
- */ 
+/* Physical constants relevant to raw loop/device timing.
+ */
 
 #define HIL_CLOCK		8MHZ
 #define HIL_EK1_CLOCK		30HZ
@@ -53,7 +53,7 @@
 #define HIL_TIMEOUT_SELFTEST	200	/* ms */
 
 
-/* Actual wire line coding.  These will only be useful if someone is 
+/* Actual wire line coding.  These will only be useful if someone is
  * implementing a software MLC to run HIL devices on a non-parisc machine.
  */
 
@@ -98,16 +98,16 @@ enum hil_pkt_bitpos {
 	HIL_PKT_DATA_SHIFT	= 0
 };
 
-/* The HIL MLC also has several error/status/control bits.  We extend the 
+/* The HIL MLC also has several error/status/control bits.  We extend the
  * "packet" to include these when direct access to the MLC is available,
- * or emulate them in cases where they are not available. 
+ * or emulate them in cases where they are not available.
  *
  * This way the device driver knows that the underlying MLC driver
  * has had to deal with loop errors.
  */
 enum hil_error_bitpos {
-	HIL_ERR_OB	= 0x00000800, /* MLC is busy sending an auto-poll, 
-					 or we have filled up the output 
+	HIL_ERR_OB	= 0x00000800, /* MLC is busy sending an auto-poll,
+					 or we have filled up the output
 					 buffer and must wait. */
 	HIL_ERR_INT	= 0x00010000, /* A normal interrupt has occurred. */
 	HIL_ERR_NMI	= 0x00020000, /* An NMI has occurred. */
@@ -124,16 +124,16 @@ enum hil_control_bitpos {
 };
 
 /* Bits 30,31 are unused, we use them to control write behavior. */
-#define HIL_DO_ALTER_CTRL  0x40000000 /* Write MSW of packet to control 
+#define HIL_DO_ALTER_CTRL  0x40000000 /* Write MSW of packet to control
                                           before writing LSW to loop */
 #define HIL_CTRL_ONLY      0xc0000000 /* *Only* alter the control registers */
 
-/* This gives us a 32-bit "packet" 
+/* This gives us a 32-bit "packet"
  */
 typedef u32 hil_packet;
 
 
-/* HIL Loop commands 
+/* HIL Loop commands
  */
 enum hil_command {
 	HIL_CMD_IFC	= 0x00,	/* Interface Clear */
@@ -160,7 +160,7 @@ enum hil_command {
 	HIL_CMD_DKA	= 0x3d,	/* Disable Keyswitch Autorepeat */
 	HIL_CMD_EK1	= 0x3e,	/* Enable Keyswitch Autorepeat 1 */
 	HIL_CMD_EK2	= 0x3f,	/* Enable Keyswitch Autorepeat 2 */
-	HIL_CMD_PR1	= 0x40,	/* Prompt1 */  
+	HIL_CMD_PR1	= 0x40,	/* Prompt1 */
 	HIL_CMD_PR2	= 0x41,	/* Prompt2 */
 	HIL_CMD_PR3	= 0x42,	/* Prompt3 */
 	HIL_CMD_PR4	= 0x43,	/* Prompt4 */
@@ -168,7 +168,7 @@ enum hil_command {
 	HIL_CMD_PR6	= 0x45,	/* Prompt6 */
 	HIL_CMD_PR7	= 0x46,	/* Prompt7 */
 	HIL_CMD_PRM	= 0x47,	/* Prompt (General Purpose) */
-	HIL_CMD_AK1	= 0x48,	/* Acknowledge1 */  
+	HIL_CMD_AK1	= 0x48,	/* Acknowledge1 */
 	HIL_CMD_AK2	= 0x49,	/* Acknowledge2 */
 	HIL_CMD_AK3	= 0x4a,	/* Acknowledge3 */
 	HIL_CMD_AK4	= 0x4b,	/* Acknowledge4 */
@@ -191,11 +191,11 @@ enum hil_command {
 };
 
 
-/* 
+/*
  * Response "records" to HIL commands
  */
 
-/* Device ID byte 
+/* Device ID byte
  */
 #define HIL_IDD_DID_TYPE_MASK		0xe0	/* Primary type bits */
 #define HIL_IDD_DID_TYPE_KB_INTEGRAL	0xa0	/* Integral keyboard */
@@ -243,7 +243,7 @@ enum hil_command {
 #define HIL_IDD_DID_OTHER_RSVD3		0x20
 #define HIL_IDD_DID_TYPE_KEYPAD		0x00	/* Vectra Keyboard */
 
-/* IDD record header 
+/* IDD record header
  */
 #define HIL_IDD_HEADER_AXSET_MASK	0x03    /* Number of axis in a set */
 #define HIL_IDD_HEADER_RSC		0x04	/* Supports RSC command */
@@ -273,8 +273,8 @@ enum hil_command {
   2 * HIL_IDD_NUM_AXES_PER_SET(header_packet) *			\
  !!((header_packet) & HIL_IDD_HEADER_ABS))
 
-/* The following HIL_IDD_* macros assume you have an array of 
- * packets and/or unpacked 8-bit data in the order that they 
+/* The following HIL_IDD_* macros assume you have an array of
+ * packets and/or unpacked 8-bit data in the order that they
  * were received.
  */
 
@@ -345,10 +345,10 @@ enum hil_command {
  ((*(header_ptr + HIL_EXD_LEN(header_ptr) - 1 -				\
      !!(*header_ptr & HIL_EXD_HEADER_LOCALE)) & HIL_PKT_DATA_MASK) << 8))
 
-/* Device locale codes. */ 
+/* Device locale codes. */
 
 /* Last defined locale code.  Everything above this is "Reserved",
-   and note that this same table applies to the Device ID Byte where 
+   and note that this same table applies to the Device ID Byte where
    keyboards may have a nationality code which is only 5 bits. */
 #define HIL_LOCALE_MAX 0x1f
 

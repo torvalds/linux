@@ -2,7 +2,7 @@
 /*
  * linux/fs/lockd/svcproc.c
  *
- * Lockd server procedures. We don't implement the NLM_*_RES 
+ * Lockd server procedures. We don't implement the NLM_*_RES
  * procedures because we don't use the async procedures.
  *
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>

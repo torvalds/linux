@@ -226,7 +226,7 @@ struct atiixp_modem {
 	unsigned long addr;
 	void __iomem *remap_addr;
 	int irq;
-	
+
 	struct snd_ac97_bus *ac97_bus;
 	struct snd_ac97 *ac97[NUM_ATI_CODECS];
 
@@ -305,7 +305,7 @@ static int snd_atiixp_update_bits(struct atiixp_modem *chip, unsigned int reg,
  * list.  although we can change the list dynamically, in this version,
  * a static RING of buffer descriptors is used.
  *
- * the ring is built in this function, and is set up to the hardware. 
+ * the ring is built in this function, and is set up to the hardware.
  */
 static int atiixp_build_dma_packets(struct atiixp_modem *chip,
 				    struct atiixp_dma *dma,
@@ -429,7 +429,7 @@ static void snd_atiixp_codec_write(struct atiixp_modem *chip,
 				   unsigned short reg, unsigned short val)
 {
 	unsigned int data;
-    
+
 	if (snd_atiixp_acquire_codec(chip) < 0)
 		return;
 	data = ((unsigned int)val << ATI_REG_PHYS_OUT_DATA_SHIFT) |
@@ -444,7 +444,7 @@ static unsigned short snd_atiixp_ac97_read(struct snd_ac97 *ac97,
 {
 	struct atiixp_modem *chip = ac97->private_data;
 	return snd_atiixp_codec_read(chip, ac97->num, reg);
-    
+
 }
 
 static void snd_atiixp_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
@@ -475,7 +475,7 @@ static int snd_atiixp_aclink_reset(struct atiixp_modem *chip)
 	atiixp_read(chip, CMD);
 	udelay(10);
 	atiixp_update(chip, CMD, ATI_REG_CMD_AC_SOFT_RESET, 0);
-    
+
 	timeout = 10;
 	while (! (atiixp_read(chip, CMD) & ATI_REG_CMD_ACLINK_ACTIVE)) {
 		/* do a hard reset */
@@ -964,7 +964,7 @@ static const struct atiixp_dma_ops snd_atiixp_playback_dma_ops = {
 	.enable_transfer = atiixp_out_enable_transfer,
 	.flush_dma = atiixp_out_flush_dma,
 };
-	
+
 static const struct atiixp_dma_ops snd_atiixp_capture_dma_ops = {
 	.type = ATI_DMA_CAPTURE,
 	.llp_offset = ATI_REG_MODEM_IN_DMA_LINKPTR,
@@ -1272,7 +1272,7 @@ static int snd_atiixp_probe(struct pci_dev *pci,
 
 	if ((err = snd_atiixp_pcm_new(chip)) < 0)
 		goto __error;
-	
+
 	snd_atiixp_proc_init(chip);
 
 	snd_atiixp_chip_start(chip);

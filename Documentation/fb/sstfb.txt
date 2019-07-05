@@ -1,8 +1,8 @@
 
 Introduction
 
-	  This is a frame buffer device driver for 3dfx' Voodoo Graphics 
-	(aka voodoo 1, aka sst1) and Voodoo² (aka Voodoo 2, aka CVG) based 
+	  This is a frame buffer device driver for 3dfx' Voodoo Graphics
+	(aka voodoo 1, aka sst1) and Voodoo² (aka Voodoo 2, aka CVG) based
 	video boards. It's highly experimental code, but is guaranteed to work
 	on my computer, with my "Maxi Gamer 3D" and "Maxi Gamer 3d²" boards,
 	and with me "between chair and keyboard". Some people tested other
@@ -17,16 +17,16 @@ Introduction
 	(Ghozlane Toumi <gtoumi@laposte.net>).
 	  BTW, If you have only one monitor , and you don't feel like playing
 	with the vga passthrou cable, I can only suggest borrowing a screen
-	somewhere... 
+	somewhere...
 
 
-Installation 
+Installation
 
 	  This driver (should) work on ix86, with "late" 2.2.x kernel (tested
 	with x = 19) and "recent" 2.4.x kernel, as a module or compiled in.
 	  It has been included in mainstream kernel since the infamous 2.4.10.
 	  You can apply the patches found in sstfb/kernel/*-2.{2|4}.x.patch,
-	and copy sstfb.c to linux/drivers/video/, or apply a single patch, 
+	and copy sstfb.c to linux/drivers/video/, or apply a single patch,
 	sstfb/patch-2.{2|4}.x-sstfb-yymmdd to your linux source tree.
 
 	  Then configure your kernel as usual: choose "m" or "y" to 3Dfx Voodoo
@@ -35,7 +35,7 @@ Installation
 
 
 Module Usage
-	
+
 	Warnings.
 	# You should read completely this section before issuing any command.
 	# If you have only one monitor to play with, once you insmod the
@@ -48,7 +48,7 @@ Module Usage
 
 	Module insertion:
 	# insmod sstfb.o
-	  you should see some strange output from the board: 
+	  you should see some strange output from the board:
 	  a big blue square, a green and a red small squares and a vertical
 	  white rectangle. why? the function's name is self-explanatory:
 	  "sstfb_test()"...
@@ -56,8 +56,8 @@ Module Usage
 	  directly to the 2D videocard to see what you're typing)
 	# con2fb /dev/fbx /dev/ttyx
 	  bind a tty to the new frame buffer. if you already have a frame
-	  buffer driver, the voodoo fb will likely be /dev/fb1. if not, 
-	  the device will be /dev/fb0. You can check this by doing a 
+	  buffer driver, the voodoo fb will likely be /dev/fb1. if not,
+	  the device will be /dev/fb0. You can check this by doing a
 	  cat /proc/fb. You can find a copy of con2fb in tools/ directory.
 	  if you don't have another fb device, this step is superfluous,
 	  as the console subsystem automagicaly binds ttys to the fb.
@@ -72,11 +72,11 @@ Module Usage
 
 Kernel/Modules Options
 
-	You can pass some options to the sstfb module, and via the kernel 
+	You can pass some options to the sstfb module, and via the kernel
 	command line when the driver is compiled in:
 	for module : insmod sstfb.o option1=value1 option2=value2 ...
 	in kernel :  video=sstfb:option1,option2:value2,option3 ...
-	
+
 	sstfb supports the following options :
 
 Module		Kernel		Description
@@ -101,20 +101,20 @@ clipping=0	noclipping	With clipping enabled, all offscreen
 gfxclk=x	gfxclk:x	Force graphic clock frequency (in MHz).
 				Be careful with this option, it may be
 				DANGEROUS.
-				Default: auto 
+				Default: auto
 					50Mhz for Voodoo 1,
-					75MHz for Voodoo 2. 
+					75MHz for Voodoo 2.
 
 slowpci=1	fastpci		Enable or disable fast PCI read/writes.
 slowpci=1	slowpci		Default : fastpci
 
 dev=x		dev:x		Attach the driver to device number x.
-				0 is the first compatible board (in 
+				0 is the first compatible board (in
 				lspci order)
 
 Tools
 
-	These tools are mostly for debugging purposes, but you can 
+	These tools are mostly for debugging purposes, but you can
 	find some of these interesting :
 	 - con2fb , maps a tty to a fbramebuffer .
 		con2fb /dev/fb1 /dev/tty5
@@ -130,7 +130,7 @@ Bugs
 
 	- DO NOT use glide while the sstfb module is in, you'll most likely
 	hang your computer.
-	- If you see some artefacts (pixels not cleaning and stuff like that), 
+	- If you see some artefacts (pixels not cleaning and stuff like that),
 	try turning off clipping (clipping=0), and/or using slowpci
 	- the driver don't detect the 4Mb frame buffer voodoos, it seems that
 	the 2 last Mbs wrap around. looking into that .
@@ -161,12 +161,12 @@ Todo
 	- Buy more coffee.
 	- test/port to other arch.
 	- try to add panning using tweeks with front and back buffer .
-	- try to implement accel on voodoo2, this board can actually do a 
+	- try to implement accel on voodoo2, this board can actually do a
 	  lot in 2D even if it was sold as a 3D only board ...
 
 ghoz.
 
--- 
+--
 Ghozlane Toumi <gtoumi@laposte.net>
 
 

@@ -9,7 +9,7 @@
  *  This file is aha1740.c, written and
  *  Copyright (C) 1992,1993  Brad McLean
  *  brad@saturn.gaylord.com or brad@bradpc.gaylord.com.
- *  
+ *
  *  Modifications to makecode and queuecommand
  *  for proper handling of multiple devices courteously
  *  provided by Michael Weller, March, 1993
@@ -100,7 +100,7 @@ static inline dma_addr_t ecb_cpu_to_dma (struct Scsi_Host *host, void *cpu)
 {
 	struct aha1740_hostdata *hdata = HOSTDATA (host);
 	dma_addr_t offset;
-    
+
 	offset = (char *) cpu - (char *) hdata->ecb;
 
 	return hdata->ecb_dma_addr + offset;
@@ -198,7 +198,7 @@ static int aha1740_test_port(unsigned int base)
 {
 	if ( inb(PORTADR(base)) & PORTADDR_ENH )
 		return 1;   /* Okay, we're all set */
-	
+
 	printk("aha174x: Board detected, but not in enhanced mode, so disabled it.\n");
 	return 0;
 }
@@ -217,7 +217,7 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 	int handled = 0;
 	struct aha1740_sg *sgptr;
 	struct eisa_device *edev;
-	
+
 	if (!host)
 		panic("aha1740.c: Irq from unknown host!\n");
 	spin_lock_irqsave(host->host_lock, flags);
@@ -231,7 +231,7 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 		adapstat = inb(G2INTST(base));
 		ecbptr = ecb_dma_to_cpu (host, inl(MBOXIN0(base)));
 		outb(G2CNTRL_IRST,G2CNTRL(base)); /* interrupt reset */
-      
+
 		switch ( adapstat & G2INTST_MASK ) {
 		case	G2INTST_CCBRETRY:
 		case	G2INTST_CCBERROR:
@@ -259,14 +259,14 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 					   sizeof (struct aha1740_sg),
 					   SCtmp->host_scribble,
 					   sgptr->sg_dma_addr);
-	    
+
 			/* Fetch the sense data, and tuck it away, in
 			   the required slot.  The Adaptec
 			   automatically fetches it, and there is no
 			   guarantee that we will still have it in the
 			   cdb when we come back */
 			if ( (adapstat & G2INTST_MASK) == G2INTST_CCBERROR ) {
-				memcpy(SCtmp->sense_buffer, ecbptr->sense, 
+				memcpy(SCtmp->sense_buffer, ecbptr->sense,
 				       SCSI_SENSE_BUFFERSIZE);
 				errstatus = aha1740_makecode(ecbptr->sense,ecbptr->status);
 			} else
@@ -276,15 +276,15 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 				   errstatus));
 			SCtmp->result = errstatus;
 			my_done = ecbptr->done;
-			memset(ecbptr,0,sizeof(struct ecb)); 
+			memset(ecbptr,0,sizeof(struct ecb));
 			if ( my_done )
 				my_done(SCtmp);
 			break;
-			
+
 		case	G2INTST_HARDFAIL:
 			printk(KERN_ALERT "aha1740 hardware failure!\n");
 			panic("aha1740.c");	/* Goodbye */
-			
+
 		case	G2INTST_ASNEVENT:
 			printk("aha1740 asynchronous event: %02x %02x %02x %02x %02x\n",
 			       adapstat,
@@ -295,11 +295,11 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 			/* Host Ready -> Mailbox in complete */
 			outb(G2CNTRL_HRDY,G2CNTRL(base));
 			break;
-			
+
 		case	G2INTST_CMDGOOD:
 			/* set immediate command success flag here: */
 			break;
-			
+
 		case	G2INTST_CMDERROR:
 			/* Set immediate command failure flag here: */
 			break;
@@ -326,7 +326,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 
 	if(*cmd == REQUEST_SENSE) {
 		SCpnt->result = 0;
-		done(SCpnt); 
+		done(SCpnt);
 		return 0;
 	}
 
@@ -363,7 +363,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 	host->ecb[ecbno].cmdw = AHA1740CMD_INIT; /* SCSI Initiator Command
 						    doubles as reserved flag */
 
-	host->last_ecb_used = ecbno;    
+	host->last_ecb_used = ecbno;
 	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
 
 #ifdef DEBUG
@@ -557,7 +557,7 @@ static int aha1740_probe (struct device *dev)
 	struct eisa_device *edev = to_eisa_device (dev);
 
 	DEB(printk("aha1740_probe: \n"));
-	
+
 	slotbase = edev->base_addr + EISA_VENDOR_ID_OFFSET;
 	if (!request_region(slotbase, SLOTSIZE, "aha1740")) /* See if in use */
 		return -EBUSY;
@@ -595,7 +595,7 @@ static int aha1740_probe (struct device *dev)
 		scsi_host_put (shpnt);
 		goto err_host_put;
 	}
-	
+
 	DEB(printk("aha1740_probe: enable interrupt channel %d\n",irq_level));
 	if (request_irq(irq_level,aha1740_intr_handle,irq_type ? 0 : IRQF_SHARED,
 			"aha1740",shpnt)) {
@@ -632,14 +632,14 @@ static int aha1740_remove (struct device *dev)
 	struct aha1740_hostdata *host = HOSTDATA (shpnt);
 
 	scsi_remove_host(shpnt);
-	
+
 	free_irq (shpnt->irq, shpnt);
 	dma_unmap_single (dev, host->ecb_dma_addr,
 			  sizeof (host->ecb), DMA_BIDIRECTIONAL);
 	release_region (shpnt->io_port, SLOTSIZE);
 
 	scsi_host_put (shpnt);
-	
+
 	return 0;
 }
 

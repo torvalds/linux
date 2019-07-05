@@ -2,7 +2,7 @@
 /*
  * bitops.c: atomic operations which got too long to be inlined all over
  *      the place.
- * 
+ *
  * Copyright 1999 Philipp Rumpf (prumpf@tux.org)
  * Copyright 2000 Grant Grundler (grundler@cup.hp.com)
  */

@@ -166,7 +166,7 @@ do {						\
 #define dbg_xattr(fmt, ...)  JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
 #define dbg_xattr(fmt, ...)
-#endif 
+#endif
 
 /* "Sanity" checks */
 void

@@ -406,7 +406,7 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 		switch (chip->usb_id) {
 
 		case USB_ID(0x0763, 0x2003): /* M-Audio Audiophile USB */
-			if (chip->setup == 0x00 && 
+			if (chip->setup == 0x00 &&
 			    fp->altsetting == 6)
 				pcm_format = SNDRV_PCM_FORMAT_S16_BE;
 			else

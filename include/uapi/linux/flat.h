@@ -43,7 +43,7 @@ struct flat_hdr {
 	unsigned long reloc_start;  /* Offset of relocation records from
 	                               beginning of file */
 	unsigned long reloc_count;  /* Number of relocation records */
-	unsigned long flags;       
+	unsigned long flags;
 	unsigned long build_date;   /* When the program/library was built */
 	unsigned long filler[5];    /* Reservered, set to zero */
 };

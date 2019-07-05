@@ -594,7 +594,7 @@ static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
 	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
 	if (error)
 		goto do_toss;
-	
+
 	/*
 	 * rsb is active, so we can't check master_nodeid without lock_rsb.
 	 */
@@ -5745,7 +5745,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 		log_debug(ls, "dlm_recover_process_copy %x remote %d %x %d",
 			  lkid, rc->rc_header.h_nodeid, remid, result);
-	
+
 		dlm_send_rcom_lock(r, lkb);
 		goto out;
 	case -EEXIST:

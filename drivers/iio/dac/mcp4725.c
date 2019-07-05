@@ -482,7 +482,7 @@ static int mcp4725_probe(struct i2c_client *client,
 		if (err < 0)
 			goto err_disable_vref_reg;
 	}
- 
+
 	err = iio_device_register(indio_dev);
 	if (err)
 		goto err_disable_vref_reg;

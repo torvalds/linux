@@ -141,5 +141,5 @@ static void driveswap(int *ints, int dummy, int dummy2)
 }
 
 #define EXTRA_FLOPPY_PARAMS ,{ "driveswap", &driveswap, NULL, 0, 0 }
-	
+
 #endif

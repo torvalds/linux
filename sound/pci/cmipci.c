@@ -3,7 +3,7 @@
  * Driver for C-Media CMI8338 and 8738 PCI soundcards.
  * Copyright (c) 2000 by Takashi Iwai <tiwai@suse.de>
  */
- 
+
 /* Does not work. Warning may block system in capture mode */
 /* #define USE_VAR48KRATE */
 
@@ -112,7 +112,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_SPD24SEL		0x00020000	/* 24bit spdif: model 037 */
 /* #define CM_SPDIF_INVERSE	0x00010000 */ /* ??? */
 
-#define CM_ADCBITLEN_MASK	0x0000C000	
+#define CM_ADCBITLEN_MASK	0x0000C000
 #define CM_ADCBITLEN_16		0x00000000
 #define CM_ADCBITLEN_15		0x00004000
 #define CM_ADCBITLEN_14		0x00008000
@@ -242,7 +242,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_UPDDMA_2048		0x00000000
 #define CM_UPDDMA_1024		0x00000004
 #define CM_UPDDMA_512		0x00000008
-#define CM_UPDDMA_256		0x0000000C		
+#define CM_UPDDMA_256		0x0000000C
 #define CM_TWAIT_MASK		0x00000003	/* model 037 */
 #define CM_TWAIT1		0x00000002	/* FM i/o cycle, 0: 48, 1: 64 PCICLKs */
 #define CM_TWAIT0		0x00000001	/* i/o cycle, 0: 4, 1: 6 PCICLKs */
@@ -938,7 +938,7 @@ static snd_pcm_uframes_t snd_cmipci_pcm_pointer(struct cmipci *cm, struct cmipci
 		rem = snd_cmipci_read_w(cm, reg);
 		if (rem < rec->dma_size)
 			goto ok;
-	} 
+	}
 	dev_err(cm->card->dev, "invalid PCM pointer: %#x\n", rem);
 	return SNDRV_PCM_POS_XRUN;
 ok:
@@ -1194,7 +1194,7 @@ static void setup_ac3(struct cmipci *cm, struct snd_pcm_substream *subs, int do_
 		snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_AC3EN1);
 		/* AC3EN for 039 */
 		snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_AC3EN2);
-	
+
 		if (cm->can_ac3_hw) {
 			/* SPD24SEL for 037, 0x02 */
 			/* SPD24SEL for 039, 0x20, but cannot be set */
@@ -1289,7 +1289,7 @@ static int snd_cmipci_playback_prepare(struct snd_pcm_substream *substream)
 	do_spdif = (rate >= 44100 && rate <= 96000 &&
 		    substream->runtime->format == SNDRV_PCM_FORMAT_S16_LE &&
 		    substream->runtime->channels == 2);
-	if (do_spdif && cm->can_ac3_hw) 
+	if (do_spdif && cm->can_ac3_hw)
 		do_ac3 = cm->dig_pcm_status & IEC958_AES0_NONAUDIO;
 	if ((err = setup_spdif_playback(cm, substream, do_spdif, do_ac3)) < 0)
 		return err;
@@ -1302,7 +1302,7 @@ static int snd_cmipci_playback_spdif_prepare(struct snd_pcm_substream *substream
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
 	int err, do_ac3;
 
-	if (cm->can_ac3_hw) 
+	if (cm->can_ac3_hw)
 		do_ac3 = cm->dig_pcm_status & IEC958_AES0_NONAUDIO;
 	else
 		do_ac3 = 1; /* doesn't matter */
@@ -1330,7 +1330,7 @@ static void snd_cmipci_silence_hack(struct cmipci *cm, struct cmipci_pcm *rec)
 		reg = rec->ch ? CM_REG_CH1_FRAME2 : CM_REG_CH0_FRAME2;
 		val = ((PAGE_SIZE / 4) - 1) | (((PAGE_SIZE / 4) / 2 - 1) << 16);
 		snd_cmipci_write(cm, reg, val);
-	
+
 		/* configure for 16 bits, 2 channels, 8 kHz */
 		if (runtime->channels > 2)
 			set_dac_channels(cm, rec, 2);
@@ -1345,7 +1345,7 @@ static void snd_cmipci_silence_hack(struct cmipci *cm, struct cmipci_pcm *rec)
 		if (cm->can_96k)
 			val &= ~(CM_CH0_SRATE_MASK << (rec->ch * 2));
 		snd_cmipci_write(cm, CM_REG_CHFORMAT, val);
-	
+
 		/* start stream (we don't need interrupts) */
 		cm->ctrl |= CM_CHEN0 << rec->ch;
 		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl);
@@ -1431,7 +1431,7 @@ static irqreturn_t snd_cmipci_interrupt(int irq, void *dev_id)
 {
 	struct cmipci *cm = dev_id;
 	unsigned int status, mask = 0;
-	
+
 	/* fastpath out, to ease interrupt sharing */
 	status = snd_cmipci_read(cm, CM_REG_INT_STATUS);
 	if (!(status & CM_INTR))
@@ -2031,7 +2031,7 @@ static int snd_cmipci_info_volume(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = reg.mask;
 	return 0;
 }
- 
+
 static int snd_cmipci_get_volume(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
@@ -2113,7 +2113,7 @@ static int snd_cmipci_info_input_sw(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = 1;
 	return 0;
 }
- 
+
 static int snd_cmipci_get_input_sw(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
@@ -2381,7 +2381,7 @@ static int _snd_cmipci_uswitch_put(struct snd_kcontrol *kcontrol,
 		val = inb(cm->iobase + args->reg);
 	else
 		val = snd_cmipci_read(cm, args->reg);
-	change = (val & args->mask) != (ucontrol->value.integer.value[0] ? 
+	change = (val & args->mask) != (ucontrol->value.integer.value[0] ?
 			args->mask_on : (args->mask & ~args->mask_on));
 	if (change) {
 		val &= ~args->mask;
@@ -2416,7 +2416,7 @@ static struct cmipci_switch_args cmipci_switch_arg_##sname = { \
   .is_byte = xis_byte, \
   .ac3_sensitive = xac3, \
 }
-	
+
 #define DEFINE_BIT_SWITCH_ARG(sname, xreg, xmask, xis_byte, xac3) \
 	DEFINE_SWITCH_ARG(sname, xreg, xmask, xmask, xis_byte, xac3)
 
@@ -2566,7 +2566,7 @@ static int snd_cmipci_mic_in_mode_get(struct snd_kcontrol *kcontrol,
 	struct cmipci *cm = snd_kcontrol_chip(kcontrol);
 	/* same bit as spdi_phase */
 	spin_lock_irq(&cm->reg_lock);
-	ucontrol->value.enumerated.item[0] = 
+	ucontrol->value.enumerated.item[0] =
 		(snd_cmipci_read_b(cm, CM_REG_MISC) & CM_SPDIF_INVERSE) ? 1 : 0;
 	spin_unlock_irq(&cm->reg_lock);
 	return 0;
@@ -2759,12 +2759,12 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
  * proc interface
  */
 
-static void snd_cmipci_proc_read(struct snd_info_entry *entry, 
+static void snd_cmipci_proc_read(struct snd_info_entry *entry,
 				 struct snd_info_buffer *buffer)
 {
 	struct cmipci *cm = entry->private_data;
 	int i, v;
-	
+
 	snd_iprintf(buffer, "%s\n", cm->card->longname);
 	for (i = 0; i < 0x94; i++) {
 		if (i == 0x28)
@@ -3102,7 +3102,7 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 	switch (pci->device) {
 	case PCI_DEVICE_ID_CMEDIA_CM8738:
 	case PCI_DEVICE_ID_CMEDIA_CM8738B:
-		if (!pci_dev_present(intel_82437vx)) 
+		if (!pci_dev_present(intel_82437vx))
 			snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_TXVX);
 		break;
 	default:
@@ -3264,7 +3264,7 @@ static int snd_cmipci_probe(struct pci_dev *pci,
 			   0, &card);
 	if (err < 0)
 		return err;
-	
+
 	switch (pci->device) {
 	case PCI_DEVICE_ID_CMEDIA_CM8738:
 	case PCI_DEVICE_ID_CMEDIA_CM8738B:
@@ -3334,7 +3334,7 @@ static int snd_cmipci_suspend(struct device *dev)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	
+
 	/* save registers */
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		cm->saved_regs[i] = snd_cmipci_read(cm, saved_regs[i]);
@@ -3383,5 +3383,5 @@ static struct pci_driver cmipci_driver = {
 		.pm = SND_CMIPCI_PM_OPS,
 	},
 };
-	
+
 module_pci_driver(cmipci_driver);

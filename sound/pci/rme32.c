@@ -7,37 +7,37 @@
  *
  *      Thanks to :        Anders Torger <torger@ludd.luth.se>,
  *                         Henk Hesselink <henk@anda.nl>
- *                         for writing the digi96-driver 
+ *                         for writing the digi96-driver
  *                         and RME for all informations.
- * 
+ *
  * ****************************************************************************
- * 
+ *
  * Note #1 "Sek'd models" ................................... martin 2002-12-07
- * 
+ *
  * Identical soundcards by Sek'd were labeled:
  * RME Digi 32     = Sek'd Prodif 32
  * RME Digi 32 Pro = Sek'd Prodif 96
  * RME Digi 32/8   = Sek'd Prodif Gold
- * 
+ *
  * ****************************************************************************
- * 
+ *
  * Note #2 "full duplex mode" ............................... martin 2002-12-07
- * 
+ *
  * Full duplex doesn't work. All cards (32, 32/8, 32Pro) are working identical
  * in this mode. Rec data and play data are using the same buffer therefore. At
  * first you have got the playing bits in the buffer and then (after playing
- * them) they were overwitten by the captured sound of the CS8412/14. Both 
+ * them) they were overwitten by the captured sound of the CS8412/14. Both
  * modes (play/record) are running harmonically hand in hand in the same buffer
- * and you have only one start bit plus one interrupt bit to control this 
+ * and you have only one start bit plus one interrupt bit to control this
  * paired action.
  * This is opposite to the latter rme96 where playing and capturing is totally
- * separated and so their full duplex mode is supported by alsa (using two 
- * start bits and two interrupts for two different buffers). 
+ * separated and so their full duplex mode is supported by alsa (using two
+ * start bits and two interrupts for two different buffers).
  * But due to the wrong sequence of playing and capturing ALSA shows no solved
  * full duplex support for the rme32 at the moment. That's bad, but I'm not
  * able to solve it. Are you motivated enough to solve this problem now? Your
  * patch would be welcome!
- * 
+ *
  * ****************************************************************************
  *
  * "The story after the long seeking" -- tiwai
@@ -111,10 +111,10 @@ MODULE_SUPPORTED_DEVICE("{{RME,Digi32}," "{RME,Digi32/8}," "{RME,Digi32 PRO}}");
 #define RME32_WCR_MONO      (1 << 1)    /* 0=stereo, 1=mono
                                            Setting the whole card to mono
                                            doesn't seem to be very useful.
-                                           A software-solution can handle 
+                                           A software-solution can handle
                                            full-duplex with one direction in
-                                           stereo and the other way in mono. 
-                                           So, the hardware should work all 
+                                           stereo and the other way in mono.
+                                           So, the hardware should work all
                                            the time in stereo! */
 #define RME32_WCR_MODE24    (1 << 2)    /* 0=16bit, 1=32bit */
 #define RME32_WCR_SEL       (1 << 3)    /* 0=input on output, 1=normal playback/capture */
@@ -303,14 +303,14 @@ static int snd_rme32_capture_copy_kernel(struct snd_pcm_substream *substream,
 static const struct snd_pcm_hardware snd_rme32_spdif_info = {
 	.info =		(SNDRV_PCM_INFO_MMAP_IOMEM |
 			 SNDRV_PCM_INFO_MMAP_VALID |
-			 SNDRV_PCM_INFO_INTERLEAVED | 
+			 SNDRV_PCM_INFO_INTERLEAVED |
 			 SNDRV_PCM_INFO_PAUSE |
 			 SNDRV_PCM_INFO_SYNC_START |
 			 SNDRV_PCM_INFO_SYNC_APPLPTR),
-	.formats =	(SNDRV_PCM_FMTBIT_S16_LE | 
+	.formats =	(SNDRV_PCM_FMTBIT_S16_LE |
 			 SNDRV_PCM_FMTBIT_S32_LE),
 	.rates =	(SNDRV_PCM_RATE_32000 |
-			 SNDRV_PCM_RATE_44100 | 
+			 SNDRV_PCM_RATE_44100 |
 			 SNDRV_PCM_RATE_48000),
 	.rate_min =	32000,
 	.rate_max =	48000,
@@ -336,7 +336,7 @@ static const struct snd_pcm_hardware snd_rme32_adat_info =
 			      SNDRV_PCM_INFO_SYNC_START |
 			      SNDRV_PCM_INFO_SYNC_APPLPTR),
 	.formats=            SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =             (SNDRV_PCM_RATE_44100 | 
+	.rates =             (SNDRV_PCM_RATE_44100 |
 			      SNDRV_PCM_RATE_48000),
 	.rate_min =          44100,
 	.rate_max =          48000,
@@ -356,14 +356,14 @@ static const struct snd_pcm_hardware snd_rme32_adat_info =
 static const struct snd_pcm_hardware snd_rme32_spdif_fd_info = {
 	.info =		(SNDRV_PCM_INFO_MMAP |
 			 SNDRV_PCM_INFO_MMAP_VALID |
-			 SNDRV_PCM_INFO_INTERLEAVED | 
+			 SNDRV_PCM_INFO_INTERLEAVED |
 			 SNDRV_PCM_INFO_PAUSE |
 			 SNDRV_PCM_INFO_SYNC_START |
 			 SNDRV_PCM_INFO_SYNC_APPLPTR),
-	.formats =	(SNDRV_PCM_FMTBIT_S16_LE | 
+	.formats =	(SNDRV_PCM_FMTBIT_S16_LE |
 			 SNDRV_PCM_FMTBIT_S32_LE),
 	.rates =	(SNDRV_PCM_RATE_32000 |
-			 SNDRV_PCM_RATE_44100 | 
+			 SNDRV_PCM_RATE_44100 |
 			 SNDRV_PCM_RATE_48000),
 	.rate_min =	32000,
 	.rate_max =	48000,
@@ -389,7 +389,7 @@ static const struct snd_pcm_hardware snd_rme32_adat_fd_info =
 			      SNDRV_PCM_INFO_SYNC_START |
 			      SNDRV_PCM_INFO_SYNC_APPLPTR),
 	.formats=            SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =             (SNDRV_PCM_RATE_44100 | 
+	.rates =             (SNDRV_PCM_RATE_44100 |
 			      SNDRV_PCM_RATE_48000),
 	.rate_min =          44100,
 	.rate_max =          48000,
@@ -437,7 +437,7 @@ static int snd_rme32_capture_getrate(struct rme32 * rme32, int *is_adat)
 	int n;
 
 	*is_adat = 0;
-	if (rme32->rcreg & RME32_RCR_LOCK) { 
+	if (rme32->rcreg & RME32_RCR_LOCK) {
                 /* ADAT rate */
                 *is_adat = 1;
 	}
@@ -469,7 +469,7 @@ static int snd_rme32_capture_getrate(struct rme32 * rme32, int *is_adat)
 		default:
 			return -1;
 			break;
-		} 
+		}
 	else
 		switch (n) {	/* supporting the CS8412 */
 		case 0:
@@ -502,38 +502,38 @@ static int snd_rme32_playback_setrate(struct rme32 * rme32, int rate)
 	switch (rate) {
 	case 32000:
 		rme32->wcreg &= ~RME32_WCR_DS_BM;
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) & 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) &
 			~RME32_WCR_FREQ_1;
 		break;
 	case 44100:
 		rme32->wcreg &= ~RME32_WCR_DS_BM;
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_1) & 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_1) &
 			~RME32_WCR_FREQ_0;
 		break;
 	case 48000:
 		rme32->wcreg &= ~RME32_WCR_DS_BM;
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) | 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) |
 			RME32_WCR_FREQ_1;
 		break;
 	case 64000:
 		if (rme32->pci->device != PCI_DEVICE_ID_RME_DIGI32_PRO)
 			return -EINVAL;
 		rme32->wcreg |= RME32_WCR_DS_BM;
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) & 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) &
 			~RME32_WCR_FREQ_1;
 		break;
 	case 88200:
 		if (rme32->pci->device != PCI_DEVICE_ID_RME_DIGI32_PRO)
 			return -EINVAL;
 		rme32->wcreg |= RME32_WCR_DS_BM;
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_1) & 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_1) &
 			~RME32_WCR_FREQ_0;
 		break;
 	case 96000:
 		if (rme32->pci->device != PCI_DEVICE_ID_RME_DIGI32_PRO)
 			return -EINVAL;
 		rme32->wcreg |= RME32_WCR_DS_BM;
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) | 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) |
 			RME32_WCR_FREQ_1;
 		break;
 	default:
@@ -555,22 +555,22 @@ static int snd_rme32_setclockmode(struct rme32 * rme32, int mode)
 	switch (mode) {
 	case RME32_CLOCKMODE_SLAVE:
 		/* AutoSync */
-		rme32->wcreg = (rme32->wcreg & ~RME32_WCR_FREQ_0) & 
+		rme32->wcreg = (rme32->wcreg & ~RME32_WCR_FREQ_0) &
 			~RME32_WCR_FREQ_1;
 		break;
 	case RME32_CLOCKMODE_MASTER_32:
 		/* Internal 32.0kHz */
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) & 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) &
 			~RME32_WCR_FREQ_1;
 		break;
 	case RME32_CLOCKMODE_MASTER_44:
 		/* Internal 44.1kHz */
-		rme32->wcreg = (rme32->wcreg & ~RME32_WCR_FREQ_0) | 
+		rme32->wcreg = (rme32->wcreg & ~RME32_WCR_FREQ_0) |
 			RME32_WCR_FREQ_1;
 		break;
 	case RME32_CLOCKMODE_MASTER_48:
 		/* Internal 48.0kHz */
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) | 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_FREQ_0) |
 			RME32_WCR_FREQ_1;
 		break;
 	default:
@@ -590,19 +590,19 @@ static int snd_rme32_setinputtype(struct rme32 * rme32, int type)
 {
 	switch (type) {
 	case RME32_INPUT_OPTICAL:
-		rme32->wcreg = (rme32->wcreg & ~RME32_WCR_INP_0) & 
+		rme32->wcreg = (rme32->wcreg & ~RME32_WCR_INP_0) &
 			~RME32_WCR_INP_1;
 		break;
 	case RME32_INPUT_COAXIAL:
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_INP_0) & 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_INP_0) &
 			~RME32_WCR_INP_1;
 		break;
 	case RME32_INPUT_INTERNAL:
-		rme32->wcreg = (rme32->wcreg & ~RME32_WCR_INP_0) | 
+		rme32->wcreg = (rme32->wcreg & ~RME32_WCR_INP_0) |
 			RME32_WCR_INP_1;
 		break;
 	case RME32_INPUT_XLR:
-		rme32->wcreg = (rme32->wcreg | RME32_WCR_INP_0) | 
+		rme32->wcreg = (rme32->wcreg | RME32_WCR_INP_0) |
 			RME32_WCR_INP_1;
 		break;
 	default:
@@ -744,7 +744,7 @@ snd_rme32_capture_hw_params(struct snd_pcm_substream *substream,
 	if ((rate = snd_rme32_capture_getrate(rme32, &isadat)) > 0) {
                 if ((int)params_rate(params) != rate) {
 			spin_unlock_irq(&rme32->lock);
-                        return -EIO;                    
+                        return -EIO;
                 }
                 if ((isadat && runtime->hw.channels_min == 2) ||
                     (!isadat && runtime->hw.channels_min == 8)) {
@@ -878,7 +878,7 @@ static int snd_rme32_playback_spdif_open(struct snd_pcm_substream *substream)
 		runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
 		runtime->hw.rate_min = rate;
 		runtime->hw.rate_max = rate;
-	}       
+	}
 
 	snd_rme32_set_buffer_constraint(rme32, runtime);
 
@@ -933,10 +933,10 @@ snd_rme32_playback_adat_open(struct snd_pcm_substream *substream)
 	int rate, dummy;
 	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	
+
 	snd_pcm_set_sync(substream);
 
-	spin_lock_irq(&rme32->lock);	
+	spin_lock_irq(&rme32->lock);
         if (rme32->playback_substream != NULL) {
 		spin_unlock_irq(&rme32->lock);
                 return -EBUSY;
@@ -945,7 +945,7 @@ snd_rme32_playback_adat_open(struct snd_pcm_substream *substream)
 	writel(rme32->wcreg, rme32->iobase + RME32_IO_CONTROL_REGISTER);
 	rme32->playback_substream = substream;
 	spin_unlock_irq(&rme32->lock);
-	
+
 	if (rme32->fullduplex_mode)
 		runtime->hw = snd_rme32_adat_fd_info;
 	else
@@ -956,7 +956,7 @@ snd_rme32_playback_adat_open(struct snd_pcm_substream *substream)
                 runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
-	}        
+	}
 
 	snd_rme32_set_buffer_constraint(rme32, runtime);
 	return 0;
@@ -983,8 +983,8 @@ snd_rme32_capture_adat_open(struct snd_pcm_substream *substream)
         }
 
 	snd_pcm_set_sync(substream);
-        
-	spin_lock_irq(&rme32->lock);	
+
+	spin_lock_irq(&rme32->lock);
 	if (rme32->capture_substream != NULL) {
 		spin_unlock_irq(&rme32->lock);
 		return -EBUSY;
@@ -1093,7 +1093,7 @@ snd_rme32_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		}
 		snd_pcm_trigger_done(s, substream);
 	}
-	
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		if (rme32->running && ! RME32_ISWORKING(rme32))
@@ -1397,23 +1397,23 @@ static int snd_rme32_create(struct rme32 *rme32)
 				       1, 1, &rme32->adat_pcm)) < 0)
 		{
 			return err;
-		}		
+		}
 		rme32->adat_pcm->private_data = rme32;
 		rme32->adat_pcm->private_free = snd_rme32_free_adat_pcm;
 		strcpy(rme32->adat_pcm->name, "Digi32 ADAT");
 		if (rme32->fullduplex_mode) {
-			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_PLAYBACK, 
+			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_PLAYBACK,
 					&snd_rme32_playback_adat_fd_ops);
-			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_CAPTURE, 
+			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_CAPTURE,
 					&snd_rme32_capture_adat_fd_ops);
 			snd_pcm_lib_preallocate_pages_for_all(rme32->adat_pcm, SNDRV_DMA_TYPE_CONTINUOUS,
 							      snd_dma_continuous_data(GFP_KERNEL),
 							      0, RME32_MID_BUFFER_SIZE);
 			rme32->adat_pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
 		} else {
-			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_PLAYBACK, 
+			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_PLAYBACK,
 					&snd_rme32_playback_adat_ops);
-			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_CAPTURE, 
+			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_CAPTURE,
 					&snd_rme32_capture_adat_ops);
 			rme32->adat_pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
 		}
@@ -1684,8 +1684,8 @@ snd_rme32_info_clockmode_control(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
 	static const char * const texts[4] = { "AutoSync",
-				  "Internal 32.0kHz", 
-				  "Internal 44.1kHz", 
+				  "Internal 32.0kHz",
+				  "Internal 44.1kHz",
 				  "Internal 48.0kHz" };
 
 	return snd_ctl_enum_info(uinfo, 1, 4, texts);

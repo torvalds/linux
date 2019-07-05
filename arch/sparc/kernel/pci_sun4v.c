@@ -640,7 +640,7 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	pbm = dev->archdata.host_controller;
 	atu = iommu->atu;
 	devhandle = pbm->devhandle;
-	
+
 	local_irq_save(flags);
 
 	sg = sglist;

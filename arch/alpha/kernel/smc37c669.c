@@ -44,12 +44,12 @@
  * software on equipment which is not supplied by Digital.
  *
  *
- * Abstract:	
+ * Abstract:
  *
- *	This file contains header definitions for the SMC37c669 
- *	Super I/O controller. 
+ *	This file contains header definitions for the SMC37c669
+ *	Super I/O controller.
  *
- * Author:	
+ * Author:
  *
  *	Eric Rasmussen
  *
@@ -64,7 +64,7 @@
 /*
 ** Macros for handling device IRQs
 **
-** The mask acts as a flag used in mapping actual ISA IRQs (0 - 15) 
+** The mask acts as a flag used in mapping actual ISA IRQs (0 - 15)
 ** to device IRQs (A - H).
 */
 #define SMC37c669_DEVICE_IRQ_MASK	0x80000000
@@ -204,7 +204,7 @@
 /*
 ** Configuration Register Definitions
 **
-** The INDEX (write only) and DATA (read/write) ports are effective 
+** The INDEX (write only) and DATA (read/write) ports are effective
 ** only when the chip is in the Configuration State.
 */
 typedef struct _SMC37c669_CONFIG_REGS {
@@ -325,12 +325,12 @@ typedef union _SMC37c669_CR03 {
 **	11 - Reserved
 **
 **  MIDI1:
-**	Serial Clock Select: 
+**	Serial Clock Select:
 **	    A low level on this bit disables MIDI support,
-**	    clock = divide by 13.  A high level on this 
+**	    clock = divide by 13.  A high level on this
 **	    bit enables MIDI support, clock = divide by 12.
 **
-**	MIDI operates at 31.25 Kbps which can be derived 
+**	MIDI operates at 31.25 Kbps which can be derived
 **	from 125 KHz (24 MHz / 12 = 2 MHz, 2 MHz / 16 = 125 KHz)
 **
 **  ALT_IO:
@@ -860,27 +860,27 @@ typedef struct _SMC37c669_DRQ_TRANSLATION_ENTRY {
 ** External Interface Function Prototype Declarations
 */
 
-SMC37c669_CONFIG_REGS *SMC37c669_detect( 
+SMC37c669_CONFIG_REGS *SMC37c669_detect(
     int
 );
 
-unsigned int SMC37c669_enable_device( 
-    unsigned int func 
+unsigned int SMC37c669_enable_device(
+    unsigned int func
 );
 
-unsigned int SMC37c669_disable_device( 
-    unsigned int func 
+unsigned int SMC37c669_disable_device(
+    unsigned int func
 );
 
-unsigned int SMC37c669_configure_device( 
-    unsigned int func, 
-    int port, 
-    int irq, 
-    int drq 
+unsigned int SMC37c669_configure_device(
+    unsigned int func,
+    int port,
+    int irq,
+    int drq
 );
 
-void SMC37c669_display_device_info( 
-    void 
+void SMC37c669_display_device_info(
+    void
 );
 
 #endif	/* __SMC37c669_H */
@@ -921,12 +921,12 @@ void SMC37c669_display_device_info(
  *	Eric Rasmussen
  *
  *  CREATION DATE:
- *  
+ *
  *	28-Jan-1997
  *
  *  MODIFICATION HISTORY:
- *	
- *	er	01-May-1997	Fixed pointer conversion errors in 
+ *
+ *	er	01-May-1997	Fixed pointer conversion errors in
  *				SMC37c669_get_device_config().
  *      er	28-Jan-1997	Initial version.
  *
@@ -947,10 +947,10 @@ void SMC37c669_display_device_info(
 ** Local storage for device configuration information.
 **
 ** Since the SMC37c669 does not provide an explicit
-** mechanism for enabling/disabling individual device 
-** functions, other than unmapping the device, local 
-** storage for device configuration information is 
-** allocated here for use in implementing our own 
+** mechanism for enabling/disabling individual device
+** functions, other than unmapping the device, local
+** storage for device configuration information is
+** allocated here for use in implementing our own
 ** function enable/disable scheme.
 */
 static struct DEVICE_CONFIG {
@@ -978,43 +978,43 @@ static SMC37c669_CONFIG_REGS *SMC37c669 __initdata = NULL;
 /*
 ** IRQ Translation Table
 **
-** The IRQ translation table is a list of SMC37c669 device 
+** The IRQ translation table is a list of SMC37c669 device
 ** and standard ISA IRQs.
 **
 */
-static SMC37c669_IRQ_TRANSLATION_ENTRY *SMC37c669_irq_table __initdata; 
+static SMC37c669_IRQ_TRANSLATION_ENTRY *SMC37c669_irq_table __initdata;
 
 /*
-** The following definition is for the default IRQ 
+** The following definition is for the default IRQ
 ** translation table.
 */
 static SMC37c669_IRQ_TRANSLATION_ENTRY SMC37c669_default_irq_table[]
-__initdata = 
-    { 
-	{ SMC37c669_DEVICE_IRQ_A, -1 }, 
-	{ SMC37c669_DEVICE_IRQ_B, -1 }, 
-	{ SMC37c669_DEVICE_IRQ_C, 7 }, 
-	{ SMC37c669_DEVICE_IRQ_D, 6 }, 
-	{ SMC37c669_DEVICE_IRQ_E, 4 }, 
-	{ SMC37c669_DEVICE_IRQ_F, 3 }, 
-	{ SMC37c669_DEVICE_IRQ_H, -1 }, 
+__initdata =
+    {
+	{ SMC37c669_DEVICE_IRQ_A, -1 },
+	{ SMC37c669_DEVICE_IRQ_B, -1 },
+	{ SMC37c669_DEVICE_IRQ_C, 7 },
+	{ SMC37c669_DEVICE_IRQ_D, 6 },
+	{ SMC37c669_DEVICE_IRQ_E, 4 },
+	{ SMC37c669_DEVICE_IRQ_F, 3 },
+	{ SMC37c669_DEVICE_IRQ_H, -1 },
 	{ -1, -1 } /* End of table */
     };
 
 /*
-** The following definition is for the MONET (XP1000) IRQ 
+** The following definition is for the MONET (XP1000) IRQ
 ** translation table.
 */
 static SMC37c669_IRQ_TRANSLATION_ENTRY SMC37c669_monet_irq_table[]
-__initdata = 
-    { 
-	{ SMC37c669_DEVICE_IRQ_A, -1 }, 
-	{ SMC37c669_DEVICE_IRQ_B, -1 }, 
-	{ SMC37c669_DEVICE_IRQ_C, 6 }, 
-	{ SMC37c669_DEVICE_IRQ_D, 7 }, 
-	{ SMC37c669_DEVICE_IRQ_E, 4 }, 
-	{ SMC37c669_DEVICE_IRQ_F, 3 }, 
-	{ SMC37c669_DEVICE_IRQ_H, -1 }, 
+__initdata =
+    {
+	{ SMC37c669_DEVICE_IRQ_A, -1 },
+	{ SMC37c669_DEVICE_IRQ_B, -1 },
+	{ SMC37c669_DEVICE_IRQ_C, 6 },
+	{ SMC37c669_DEVICE_IRQ_D, 7 },
+	{ SMC37c669_DEVICE_IRQ_E, 4 },
+	{ SMC37c669_DEVICE_IRQ_F, 3 },
+	{ SMC37c669_DEVICE_IRQ_H, -1 },
 	{ -1, -1 } /* End of table */
     };
 
@@ -1022,7 +1022,7 @@ static SMC37c669_IRQ_TRANSLATION_ENTRY *SMC37c669_irq_tables[] __initdata =
     {
 	SMC37c669_default_irq_table,
 	SMC37c669_monet_irq_table
-    }; 
+    };
 
 /*
 ** DRQ Translation Table
@@ -1038,11 +1038,11 @@ static SMC37c669_DRQ_TRANSLATION_ENTRY *SMC37c669_drq_table __initdata;
 ** translation table.
 */
 static SMC37c669_DRQ_TRANSLATION_ENTRY SMC37c669_default_drq_table[]
-__initdata = 
-    { 
-	{ SMC37c669_DEVICE_DRQ_A, 2 }, 
-	{ SMC37c669_DEVICE_DRQ_B, 3 }, 
-	{ SMC37c669_DEVICE_DRQ_C, -1 }, 
+__initdata =
+    {
+	{ SMC37c669_DEVICE_DRQ_A, 2 },
+	{ SMC37c669_DEVICE_DRQ_B, 3 },
+	{ SMC37c669_DEVICE_DRQ_C, -1 },
 	{ -1, -1 } /* End of table */
     };
 
@@ -1050,30 +1050,30 @@ __initdata =
 ** Local Function Prototype Declarations
 */
 
-static unsigned int SMC37c669_is_device_enabled( 
-    unsigned int func 
+static unsigned int SMC37c669_is_device_enabled(
+    unsigned int func
 );
 
 #if 0
-static unsigned int SMC37c669_get_device_config( 
-    unsigned int func, 
-    int *port, 
-    int *irq, 
-    int *drq 
+static unsigned int SMC37c669_get_device_config(
+    unsigned int func,
+    int *port,
+    int *irq,
+    int *drq
 );
 #endif
 
-static void SMC37c669_config_mode( 
-    unsigned int enable 
+static void SMC37c669_config_mode(
+    unsigned int enable
 );
 
-static unsigned char SMC37c669_read_config( 
-    unsigned char index 
+static unsigned char SMC37c669_read_config(
+    unsigned char index
 );
 
-static void SMC37c669_write_config( 
-    unsigned char index, 
-    unsigned char data 
+static void SMC37c669_write_config(
+    unsigned char index,
+    unsigned char data
 );
 
 static void SMC37c669_init_local_config( void );
@@ -1083,11 +1083,11 @@ static struct DEVICE_CONFIG *SMC37c669_get_config(
 );
 
 static int SMC37c669_xlate_irq(
-    int irq 
+    int irq
 );
 
 static int SMC37c669_xlate_drq(
-    int drq 
+    int drq
 );
 
 static  __cacheline_aligned DEFINE_SPINLOCK(smc_lock);
@@ -1152,10 +1152,10 @@ SMC37c669_CONFIG_REGS * __init SMC37c669_detect( int index )
 /*
 ** erfix
 **
-** If the platform can't use the IRQ and DRQ defaults set up in this 
-** file, it should call a platform-specific external routine at this 
-** point to reset the IRQ and DRQ translation table pointers to point 
-** at the appropriate tables for the platform.  If the defaults are 
+** If the platform can't use the IRQ and DRQ defaults set up in this
+** file, it should call a platform-specific external routine at this
+** point to reset the IRQ and DRQ translation table pointers to point
+** at the appropriate tables for the platform.  If the defaults are
 ** acceptable, then the external routine should do nothing.
 */
 
@@ -1210,14 +1210,14 @@ SMC37c669_CONFIG_REGS * __init SMC37c669_detect( int index )
 **  DESIGN:
 **
 **      Enabling a device function in the SMC37c669 controller involves
-**	setting all of its mappings (port, irq, drq ...).  A local 
+**	setting all of its mappings (port, irq, drq ...).  A local
 **	"shadow" copy of the device configuration is kept so we can
 **	just set each mapping to what the local copy says.
 **
 **	This function ALWAYS updates the local shadow configuration of
 **	the device function being enabled, even if the device is always
 **	enabled.  To avoid replication of code, functions such as
-**	configure_device set up the local copy and then call this 
+**	configure_device set up the local copy and then call this
 **	function to the update the real device.
 **
 **--
@@ -1237,7 +1237,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 /*
 ** Enable the serial 1 IRQ mapping
 */
-	    	irq.as_uchar = 
+	    	irq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_SERIAL_IRQ_INDEX );
 
 		irq.by_field.uart1_irq =
@@ -1252,7 +1252,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 		base_addr.as_uchar = 0;
 		base_addr.by_field.addr9_3 = local_config[ func ].port1 >> 3;
 
-		SMC37c669_write_config( 
+		SMC37c669_write_config(
 		    SMC37c669_SERIAL0_BASE_ADDRESS_INDEX,
 		    base_addr.as_uchar
 		);
@@ -1266,7 +1266,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 /*
 ** Enable the serial 2 IRQ mapping
 */
-	    	irq.as_uchar = 
+	    	irq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_SERIAL_IRQ_INDEX );
 
 		irq.by_field.uart2_irq =
@@ -1281,7 +1281,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 		base_addr.as_uchar = 0;
 		base_addr.by_field.addr9_3 = local_config[ func ].port1 >> 3;
 
-		SMC37c669_write_config( 
+		SMC37c669_write_config(
 		    SMC37c669_SERIAL1_BASE_ADDRESS_INDEX,
 		    base_addr.as_uchar
 		);
@@ -1299,7 +1299,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 	    	drq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_PARALLEL_FDC_DRQ_INDEX );
 
-		drq.by_field.ppt_drq = 
+		drq.by_field.ppt_drq =
 		    SMC37c669_RAW_DEVICE_DRQ(
 			SMC37c669_xlate_drq( local_config[ func ].drq )
 		    );
@@ -1311,7 +1311,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 /*
 ** Enable the parallel port IRQ mapping
 */
-		irq.as_uchar = 
+		irq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_PARALLEL_FDC_IRQ_INDEX );
 
 		irq.by_field.ppt_irq =
@@ -1319,7 +1319,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 			SMC37c669_xlate_irq( local_config[ func ].irq )
 		    );
 
-		SMC37c669_write_config( 
+		SMC37c669_write_config(
 		    SMC37c669_PARALLEL_FDC_IRQ_INDEX,
 		    irq.as_uchar
 		);
@@ -1346,13 +1346,13 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 */
 	    	drq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_PARALLEL_FDC_DRQ_INDEX );
-		 
+
 		drq.by_field.fdc_drq =
 		    SMC37c669_RAW_DEVICE_DRQ(
 			SMC37c669_xlate_drq( local_config[ func ].drq )
 		    );
-		 
-		SMC37c669_write_config( 
+
+		SMC37c669_write_config(
 		    SMC37c669_PARALLEL_FDC_DRQ_INDEX,
 		    drq.as_uchar
 		);
@@ -1361,12 +1361,12 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 */
 		irq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_PARALLEL_FDC_IRQ_INDEX );
-		 
+
 		irq.by_field.fdc_irq =
 		    SMC37c669_RAW_DEVICE_IRQ(
 			SMC37c669_xlate_irq( local_config[ func ].irq )
 		    );
-		 
+
 		SMC37c669_write_config(
 		    SMC37c669_PARALLEL_FDC_IRQ_INDEX,
 		    irq.as_uchar
@@ -1376,7 +1376,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 */
 		base_addr.as_uchar = 0;
 		base_addr.by_field.addr9_4 = local_config[ func ].port1 >> 4;
-		 
+
 		SMC37c669_write_config(
 		    SMC37c669_FDC_BASE_ADDRESS_INDEX,
 		    base_addr.as_uchar
@@ -1392,7 +1392,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 */
 	    	ide_addr.as_uchar = 0;
 		ide_addr.by_field.addr9_4 = local_config[ func ].port2 >> 4;
-		 
+
 		SMC37c669_write_config(
 		    SMC37c669_IDE_ALTERNATE_ADDRESS_INDEX,
 		    ide_addr.as_uchar
@@ -1402,7 +1402,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 */
 		ide_addr.as_uchar = 0;
 		ide_addr.by_field.addr9_4 = local_config[ func ].port1 >> 4;
-		 
+
 		SMC37c669_write_config(
 		    SMC37c669_IDE_BASE_ADDRESS_INDEX,
 		    ide_addr.as_uchar
@@ -1466,7 +1466,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 /*
 ** Disable the serial 1 IRQ mapping
 */
-	    	irq.as_uchar = 
+	    	irq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_SERIAL_IRQ_INDEX );
 
 		irq.by_field.uart1_irq = 0;
@@ -1476,7 +1476,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 ** Disable the serial 1 port base address mapping
 */
 		base_addr.as_uchar = 0;
-		SMC37c669_write_config( 
+		SMC37c669_write_config(
 		    SMC37c669_SERIAL0_BASE_ADDRESS_INDEX,
 		    base_addr.as_uchar
 		);
@@ -1490,7 +1490,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 /*
 ** Disable the serial 2 IRQ mapping
 */
-	    	irq.as_uchar = 
+	    	irq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_SERIAL_IRQ_INDEX );
 
 		irq.by_field.uart2_irq = 0;
@@ -1501,7 +1501,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 */
 		base_addr.as_uchar = 0;
 
-		SMC37c669_write_config( 
+		SMC37c669_write_config(
 		    SMC37c669_SERIAL1_BASE_ADDRESS_INDEX,
 		    base_addr.as_uchar
 		);
@@ -1528,12 +1528,12 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 /*
 ** Disable the parallel port IRQ mapping
 */
-		irq.as_uchar = 
+		irq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_PARALLEL_FDC_IRQ_INDEX );
 
 		irq.by_field.ppt_irq = 0;
 
-		SMC37c669_write_config( 
+		SMC37c669_write_config(
 		    SMC37c669_PARALLEL_FDC_IRQ_INDEX,
 		    irq.as_uchar
 		);
@@ -1559,10 +1559,10 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 */
 	    	drq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_PARALLEL_FDC_DRQ_INDEX );
-		 
+
 		drq.by_field.fdc_drq = 0;
-		 
-		SMC37c669_write_config( 
+
+		SMC37c669_write_config(
 		    SMC37c669_PARALLEL_FDC_DRQ_INDEX,
 		    drq.as_uchar
 		);
@@ -1571,9 +1571,9 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 */
 		irq.as_uchar =
 		    SMC37c669_read_config( SMC37c669_PARALLEL_FDC_IRQ_INDEX );
-		 
+
 		irq.by_field.fdc_irq = 0;
-		 
+
 		SMC37c669_write_config(
 		    SMC37c669_PARALLEL_FDC_IRQ_INDEX,
 		    irq.as_uchar
@@ -1582,7 +1582,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 ** Disable the floppy controller base address mapping
 */
 		base_addr.as_uchar = 0;
-		 
+
 		SMC37c669_write_config(
 		    SMC37c669_FDC_BASE_ADDRESS_INDEX,
 		    base_addr.as_uchar
@@ -1597,7 +1597,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 ** Disable the IDE alternate status base address mapping
 */
 	    	ide_addr.as_uchar = 0;
-		 
+
 		SMC37c669_write_config(
 		    SMC37c669_IDE_ALTERNATE_ADDRESS_INDEX,
 		    ide_addr.as_uchar
@@ -1606,7 +1606,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 ** Disable the IDE controller base address mapping
 */
 		ide_addr.as_uchar = 0;
-		 
+
 		SMC37c669_write_config(
 		    SMC37c669_IDE_BASE_ADDRESS_INDEX,
 		    ide_addr.as_uchar
@@ -1628,26 +1628,26 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 **++
 **  FUNCTIONAL DESCRIPTION:
 **
-**      This function configures a device function within the 
+**      This function configures a device function within the
 **	SMC37c669 Super I/O controller.
 **
 **  FORMAL PARAMETERS:
 **
 **      func:
 **          Which device function
-**       
+**
 **      port:
 **          I/O port for the function to use
-**	 
+**
 **      irq:
 **          IRQ for the device function to use
-**	 
+**
 **      drq:
 **          DMA channel for the device function to use
 **
 **  RETURN VALUE:
 **
-**      Returns TRUE if the device function was configured, 
+**      Returns TRUE if the device function was configured,
 **	otherwise, FALSE.
 **
 **  SIDE EFFECTS:
@@ -1658,7 +1658,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 **
 **	If this function returns TRUE, the local shadow copy of
 **	the configuration is also updated.  If the device function
-**	is currently disabled, only the local shadow copy is 
+**	is currently disabled, only the local shadow copy is
 **	updated and the actual device function will be updated
 **	if/when it is enabled.
 **
@@ -1723,7 +1723,7 @@ unsigned int __init SMC37c669_configure_device (
 **
 **  DESIGN:
 **
-**      To check whether a device is enabled we will only look at 
+**      To check whether a device is enabled we will only look at
 **	the port base address mapping.  According to the SMC37c669
 **	specification, all of the port base address mappings are
 **	disabled if the addr<9:8> (bits <7:6> of the register) are
@@ -1740,7 +1740,7 @@ static unsigned int __init SMC37c669_is_device_enabled ( unsigned int func )
 ** Enter configuration mode
 */
     SMC37c669_config_mode( TRUE );
-     
+
     switch ( func ) {
     	case SERIAL_0:
 	    base_addr =
@@ -1774,13 +1774,13 @@ static unsigned int __init SMC37c669_is_device_enabled ( unsigned int func )
 */
     if ( ( dev_ok ) && ( ( base_addr & 0xC0 ) != 0 ) ) {
 /*
-** The mapping is not disabled, so assume that the function is 
+** The mapping is not disabled, so assume that the function is
 ** enabled.
 */
     	ret_val = TRUE;
     }
 /*
-** Exit configuration mode 
+** Exit configuration mode
 */
     SMC37c669_config_mode( FALSE );
 
@@ -1793,20 +1793,20 @@ static unsigned int __init SMC37c669_is_device_enabled ( unsigned int func )
 **++
 **  FUNCTIONAL DESCRIPTION:
 **
-**      This function retrieves the configuration information of a 
+**      This function retrieves the configuration information of a
 **	device function within the SMC37c699 Super I/O controller.
 **
 **  FORMAL PARAMETERS:
 **
 **      func:
 **          Which device function
-**       
+**
 **      port:
 **          I/O port returned
-**	 
+**
 **      irq:
 **          IRQ returned
-**	 
+**
 **      drq:
 **          DMA channel returned
 **
@@ -1959,7 +1959,7 @@ void __init SMC37c669_display_device_info ( void )
 **
 **--
 */
-static void __init SMC37c669_config_mode( 
+static void __init SMC37c669_config_mode(
     unsigned int enable )
 {
     if ( enable ) {
@@ -1967,7 +1967,7 @@ static void __init SMC37c669_config_mode(
 ** To enter configuration mode, two writes in succession to the index
 ** port are required.  If a write to another address or port occurs
 ** between these two writes, the chip does not enter configuration
-** mode.  Therefore, a spinlock is placed around the two writes to 
+** mode.  Therefore, a spinlock is placed around the two writes to
 ** guarantee that they complete uninterrupted.
 */
 	spin_lock(&smc_lock);
@@ -2003,7 +2003,7 @@ static void __init SMC37c669_config_mode(
 **
 **--
 */
-static unsigned char __init SMC37c669_read_config( 
+static unsigned char __init SMC37c669_read_config(
     unsigned char index )
 {
 	wb(&SMC37c669->index_port, index);
@@ -2022,7 +2022,7 @@ static unsigned char __init SMC37c669_read_config(
 **
 **      index:
 **          Index of configuration register to write
-**       
+**
 **      data:
 **          Data to be written
 **
@@ -2036,8 +2036,8 @@ static unsigned char __init SMC37c669_read_config(
 **
 **--
 */
-static void __init SMC37c669_write_config( 
-    unsigned char index, 
+static void __init SMC37c669_write_config(
+    unsigned char index,
     unsigned char data )
 {
     wb( &SMC37c669->index_port, index );
@@ -2081,35 +2081,35 @@ static void __init SMC37c669_init_local_config ( void )
     SMC37c669_IDE_ADDRESS_REGISTER ide_alt;
 
 /*
-** Get serial port 1 base address 
+** Get serial port 1 base address
 */
-    uart_base.as_uchar = 
+    uart_base.as_uchar =
 	SMC37c669_read_config( SMC37c669_SERIAL0_BASE_ADDRESS_INDEX );
 /*
 ** Get IRQs for serial ports 1 & 2
 */
-    uart_irqs.as_uchar = 
+    uart_irqs.as_uchar =
 	SMC37c669_read_config( SMC37c669_SERIAL_IRQ_INDEX );
 /*
 ** Store local configuration information for serial port 1
 */
     local_config[SERIAL_0].port1 = uart_base.by_field.addr9_3 << 3;
-    local_config[SERIAL_0].irq = 
-	SMC37c669_xlate_irq( 
-	    SMC37c669_DEVICE_IRQ( uart_irqs.by_field.uart1_irq ) 
+    local_config[SERIAL_0].irq =
+	SMC37c669_xlate_irq(
+	    SMC37c669_DEVICE_IRQ( uart_irqs.by_field.uart1_irq )
 	);
 /*
 ** Get serial port 2 base address
 */
-    uart_base.as_uchar = 
+    uart_base.as_uchar =
 	SMC37c669_read_config( SMC37c669_SERIAL1_BASE_ADDRESS_INDEX );
 /*
 ** Store local configuration information for serial port 2
 */
     local_config[SERIAL_1].port1 = uart_base.by_field.addr9_3 << 3;
-    local_config[SERIAL_1].irq = 
-	SMC37c669_xlate_irq( 
-	    SMC37c669_DEVICE_IRQ( uart_irqs.by_field.uart2_irq ) 
+    local_config[SERIAL_1].irq =
+	SMC37c669_xlate_irq(
+	    SMC37c669_DEVICE_IRQ( uart_irqs.by_field.uart2_irq )
 	);
 /*
 ** Get parallel port base address
@@ -2141,7 +2141,7 @@ static void __init SMC37c669_init_local_config ( void )
 /*
 ** Get floppy controller base address
 */
-    fdc_base.as_uchar = 
+    fdc_base.as_uchar =
 	SMC37c669_read_config( SMC37c669_FDC_BASE_ADDRESS_INDEX );
 /*
 ** Store local configuration information for floppy controller
@@ -2393,7 +2393,7 @@ int __init smcc669_read( struct FILE *fp, int size, int number, unsigned char *b
 
     SMC37c669_config_mode( TRUE );
     for ( i = 0; i < length; i++ ) {
-	if ( !inrange( *fp->offset, 0, ip->len[0] ) ) 
+	if ( !inrange( *fp->offset, 0, ip->len[0] ) )
 	    break;
 	*buf++ = SMC37c669_read_config( *fp->offset );
 	*fp->offset += 1;
@@ -2418,7 +2418,7 @@ int __init smcc669_write( struct FILE *fp, int size, int number, unsigned char *
 
     SMC37c669_config_mode( TRUE );
     for ( i = 0; i < length; i++ ) {
-	if ( !inrange( *fp->offset, 0, ip->len[0] ) ) 
+	if ( !inrange( *fp->offset, 0, ip->len[0] ) )
 	    break;
 	SMC37c669_write_config( *fp->offset, *buf );
 	*fp->offset += 1;
@@ -2512,7 +2512,7 @@ void __init SMC669_Init ( int index )
             FDC_DRQ
         );
         SMC37c669_enable_device( FLOPPY_0 );
-          
+
 	/* Wake up sometimes forgotten floppy, especially on DP264. */
 	outb(0xc, 0x3f2);
 

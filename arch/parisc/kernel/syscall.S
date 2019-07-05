@@ -1,6 +1,6 @@
-/* 
+/*
  * Linux/PA-RISC Project (http://www.parisc-linux.org/)
- * 
+ *
  * System call entry code / Linux gateway page
  * Copyright (c) Matthew Wilcox 1999 <willy@infradead.org>
  * Licensed under the GNU GPL.
@@ -85,7 +85,7 @@ lws_entry:
 	KILL_INSN
 	.endr
 
-	/* This function MUST be located at 0xe0 for glibc's threading 
+	/* This function MUST be located at 0xe0 for glibc's threading
 	mechanism to work. DO NOT MOVE THIS CODE EVER! */
 set_thread_pointer:
 	gate	.+8, %r0		/* increase privilege */
@@ -125,7 +125,7 @@ linux_gateway_entry:
 	depdi	0, 31, 32, %r23
 	depdi	0, 31, 32, %r22
 	depdi	0, 31, 32, %r21
-1:	
+1:
 #endif
 
 	/* We use a rsm/ssm pair to prevent sr3 from being clobbered
@@ -139,7 +139,7 @@ linux_gateway_entry:
 	xor     %r1,%r30,%r30                   /* ye olde xor trick */
 	xor     %r1,%r30,%r1
 	xor     %r1,%r30,%r30
-	
+
 	ldo     THREAD_SZ_ALGN+FRAME_SIZE(%r30),%r30  /* set up kernel stack */
 
 	/* N.B.: It is critical that we don't set sr7 to 0 until r30
@@ -173,7 +173,7 @@ linux_gateway_entry:
 #endif
 #endif
 	STREG	%r2,  TASK_PT_GR30(%r1)		/* ... and save it */
-	
+
 	STREG	%r20, TASK_PT_GR20(%r1)		/* Syscall number */
 	STREG	%r21, TASK_PT_GR21(%r1)
 	STREG	%r22, TASK_PT_GR22(%r1)
@@ -186,7 +186,7 @@ linux_gateway_entry:
 	STREG   %r0, TASK_PT_ORIG_R28(%r1)      /* don't prohibit restarts */
 	STREG	%r29, TASK_PT_GR29(%r1)		/* return value 1 */
 	STREG	%r31, TASK_PT_GR31(%r1)		/* preserve syscall return ptr */
-	
+
 	ldo	TASK_PT_FR0(%r1), %r27		/* save fpregs from the kernel */
 	save_fp	%r27				/* or potential task switch  */
 
@@ -211,7 +211,7 @@ linux_gateway_entry:
 	ldi	_TIF_SYSCALL_TRACE_MASK, %r19
 	and,COND(=) %r1, %r19, %r0
 	b,n	.Ltracesys
-	
+
 	/* Note!  We cannot use the syscall table that is mapped
 	nearby since the gateway page is mapped execute-only. */
 
@@ -224,10 +224,10 @@ linux_gateway_entry:
 	ldo	R%sys_call_table64(%r1), %r19
 #else
 	load32	sys_call_table, %r19
-#endif	
+#endif
 	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
 	b,n	.Lsyscall_nosys
-	
+
 	LDREGX  %r20(%r19), %r19
 
 	/* If this is a sys_rt_sigreturn call, and the signal was received
@@ -251,7 +251,7 @@ linux_gateway_entry:
 	calls to functions external to this file must be indirect.  To
 	be safe, we apply the opposite rule to functions within this
 	file, with local labels given to them to ensure correctness. */
-	
+
 .Lsyscall_nosys:
 syscall_nosys:
 	ldil	L%syscall_exit,%r1
@@ -319,7 +319,7 @@ tracesys:
 	ldil	L%tracesys_next,%r2
 	be	R%do_syscall_trace_enter(%sr7,%r1)
 	ldo	R%tracesys_next(%r2),%r2
-	
+
 tracesys_next:
 	/* do_syscall_trace_enter either returned the syscallno, or -1L,
 	 *  so we skip restoring the PT_GR20 below, since we pulled it from
@@ -383,7 +383,7 @@ tracesys_next:
 
 	/* Do *not* call this function on the gateway page, because it
 	makes a direct call to syscall_trace. */
-	
+
 tracesys_exit:
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
 	LDREG	TI_TASK(%r1), %r1
@@ -482,7 +482,7 @@ lws_start:
 
 	/* Clip LWS number to a 32-bit value for 32-bit processes */
 	depdi	0, 31, 32, %r20
-#endif	
+#endif
 
         /* Is the lws entry number valid? */
 	comiclr,>>	__NR_lws_entries, %r20, %r0
@@ -514,7 +514,7 @@ lws_exit:
 	be,n	0(%sr7, %r31)
 
 
-	
+
 	/***************************************************
 		Implementing 32bit CAS as an atomic operation:
 
@@ -529,7 +529,7 @@ lws_exit:
 		%r21 has the following meanings:
 
 		EAGAIN - CAS is busy, ldcw failed, try again.
-		EFAULT - Read or write failed.		
+		EFAULT - Read or write failed.
 
 		If debugging is enabled:
 
@@ -543,7 +543,7 @@ lws_exit:
 	****************************************************/
 
 	/* Do not enable LWS debugging */
-#define ENABLE_LWS_DEBUG 0 
+#define ENABLE_LWS_DEBUG 0
 
 	/* ELF64 Process entry path */
 lws_compare_and_swap64:
@@ -581,8 +581,8 @@ lws_compare_and_swap:
 	add	%r20, %r28, %r20
 
 # if ENABLE_LWS_DEBUG
-	/*	
-		DEBUG, check for deadlock! 
+	/*
+		DEBUG, check for deadlock!
 		If the thread register values are the same
 		then we were the one that locked it last and
 		this is a recurisve call that will deadlock.
@@ -655,7 +655,7 @@ cas_action:
 	b	lws_exit
 	copy	%r0, %r21
 
-3:		
+3:
 	/* Error occurred on load or store */
 	/* Free lock */
 #ifdef CONFIG_SMP
@@ -955,8 +955,8 @@ END(sys_call_table64)
 #undef __SYSCALL
 
 	/*
-		All light-weight-syscall atomic operations 
-		will use this set of locks 
+		All light-weight-syscall atomic operations
+		will use this set of locks
 
 		NOTE: The lws_lock_start symbol must be
 		at least 16-byte aligned for safe use
@@ -969,7 +969,7 @@ ENTRY(lws_lock_start)
 	.rept 16
 	/* Keep locks aligned at 16-bytes */
 	.word 1
-	.word 0 
+	.word 0
 	.word 0
 	.word 0
 	.endr

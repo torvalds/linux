@@ -213,8 +213,8 @@ static __inline__ void ser12_rx(struct net_device *dev, struct baycom_state *bc,
 	}
 	if (bc->modem.ser12.dcd_time <= 0) {
 		if (!bc->opt_dcd)
-			hdlcdrv_setdcd(&bc->hdrv, (bc->modem.ser12.dcd_sum0 + 
-						   bc->modem.ser12.dcd_sum1 + 
+			hdlcdrv_setdcd(&bc->hdrv, (bc->modem.ser12.dcd_sum0 +
+						   bc->modem.ser12.dcd_sum1 +
 						   bc->modem.ser12.dcd_sum2) < 0);
 		bc->modem.ser12.dcd_sum2 = bc->modem.ser12.dcd_sum1;
 		bc->modem.ser12.dcd_sum1 = bc->modem.ser12.dcd_sum0;
@@ -255,7 +255,7 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 	if (!bc || bc->hdrv.magic != HDLCDRV_MAGIC)
 		return IRQ_NONE;
 	/* fast way out for shared irq */
-	if ((iir = inb(IIR(dev->base_addr))) & 1) 	
+	if ((iir = inb(IIR(dev->base_addr))) & 1)
 		return IRQ_NONE;
 	/* get current time */
 	ktime_get_ts64(&ts);
@@ -268,11 +268,11 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 		case 6:
 			inb(LSR(dev->base_addr));
 			break;
-			
+
 		case 4:
 			inb(RBR(dev->base_addr));
 			break;
-			
+
 		case 2:
 			/*
 			 * make sure the next interrupt is generated;
@@ -291,11 +291,11 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 			else
 				outb(0x0d, MCR(dev->base_addr));       /* transmitter off */
 			break;
-			
+
 		default:
 			msr = inb(MSR(dev->base_addr));
 			/* delta DCD */
-			if ((msr & 8) && bc->opt_dcd) 
+			if ((msr & 8) && bc->opt_dcd)
 				hdlcdrv_setdcd(&bc->hdrv, !((msr ^ bc->opt_dcd) & 0x80));
 			break;
 		}
@@ -334,8 +334,8 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 
 enum uart { c_uart_unknown, c_uart_8250,
 	    c_uart_16450, c_uart_16550, c_uart_16550A};
-static const char *uart_str[] = { 
-	"unknown", "8250", "16450", "16550", "16550A" 
+static const char *uart_str[] = {
+	"unknown", "8250", "16450", "16550", "16550A"
 };
 
 static enum uart ser12_check_uart(unsigned int iobase)
@@ -607,10 +607,10 @@ static int __init init_baycomserfdx(void)
 		if (!set_hw)
 			iobase[i] = irq[i] = 0;
 
-		dev = hdlcdrv_register(&ser12_ops, 
+		dev = hdlcdrv_register(&ser12_ops,
 				       sizeof(struct baycom_state),
 				       ifname, iobase[i], irq[i], 0);
-		if (IS_ERR(dev)) 
+		if (IS_ERR(dev))
 			break;
 
 		bc = netdev_priv(dev);
@@ -632,7 +632,7 @@ static void __exit cleanup_baycomserfdx(void)
 
 	for(i = 0; i < NR_PORTS; i++) {
 		struct net_device *dev = baycom_device[i];
-		if (dev) 
+		if (dev)
 			hdlcdrv_unregister(dev);
 	}
 }

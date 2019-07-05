@@ -79,7 +79,7 @@ struct dn_fib_table {
 	struct hlist_node hlist;
 	u32 n;
 
-	int (*insert)(struct dn_fib_table *t, struct rtmsg *r, 
+	int (*insert)(struct dn_fib_table *t, struct rtmsg *r,
 			struct nlattr *attrs[], struct nlmsghdr *n,
 			struct netlink_skb_parms *req);
 	int (*delete)(struct dn_fib_table *t, struct rtmsg *r,

@@ -42,7 +42,7 @@ struct xen_hvm_pagetable_dying {
 };
 typedef struct xen_hvm_pagetable_dying xen_hvm_pagetable_dying_t;
 DEFINE_GUEST_HANDLE_STRUCT(xen_hvm_pagetable_dying_t);
- 
+
 enum hvmmem_type_t {
     HVMMEM_ram_rw,             /* Normal read/write guest RAM */
     HVMMEM_ram_ro,             /* Read-only; writes are discarded */

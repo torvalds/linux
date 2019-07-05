@@ -808,7 +808,7 @@ typedef struct SMU7_GfxCuPgScoreboard SMU7_GfxCuPgScoreboard;
 
 #define DB_Enable_MASK 0x1000000
 #define DB_IR_MASK 0x2000000
-#define DB_PCC_MASK 0x4000000 
+#define DB_PCC_MASK 0x4000000
 #define DB_EDC_MASK 0x8000000
 
 #define SQ_Enable_SHIFT 0
@@ -828,7 +828,7 @@ typedef struct SMU7_GfxCuPgScoreboard SMU7_GfxCuPgScoreboard;
 
 #define DB_Enable_SHIFT 24
 #define DB_IR_SHIFT 25
-#define DB_PCC_SHIFT 26 
+#define DB_PCC_SHIFT 26
 #define DB_EDC_SHIFT 27
 
 #define BTCGB0_Vdroop_Enable_MASK  0x1

@@ -195,7 +195,7 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 
 bail:
 	if (!IS_ERR(inode)) {
-		trace_ocfs2_iget_end(inode, 
+		trace_ocfs2_iget_end(inode,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno);
 	}
 
@@ -325,7 +325,7 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SYSTEM_FILE;
 		inode->i_flags |= S_NOQUOTA;
 	}
-  
+
 	if (fe->i_flags & cpu_to_le32(OCFS2_LOCAL_ALLOC_FL)) {
 		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_BITMAP;
 	} else if (fe->i_flags & cpu_to_le32(OCFS2_BITMAP_FL)) {

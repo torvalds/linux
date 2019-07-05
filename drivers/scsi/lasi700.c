@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2001 by James.Bottomley@HansenPartnership.com
 **-----------------------------------------------------------------------------
-**  
+**
 **
 **-----------------------------------------------------------------------------
  */
@@ -140,7 +140,7 @@ static int __exit
 lasi700_driver_remove(struct parisc_device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(&dev->dev);
-	struct NCR_700_Host_Parameters *hostdata = 
+	struct NCR_700_Host_Parameters *hostdata =
 		(struct NCR_700_Host_Parameters *)host->hostdata[0];
 
 	scsi_remove_host(host);

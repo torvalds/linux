@@ -211,7 +211,7 @@ static int check_gtod(const struct timeval *tv_sys1,
 	}
 
 	d1 = tv_diff(tv_other, tv_sys1);
-	d2 = tv_diff(tv_sys2, tv_other); 
+	d2 = tv_diff(tv_sys2, tv_other);
 	printf("\t%s time offsets: %lf %lf\n", which, d1, d2);
 
 	if (d1 < 0 || d2 < 0) {

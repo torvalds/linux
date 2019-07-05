@@ -4,7 +4,7 @@
 /*
  *	mcfdebug.h -- ColdFire Debug Module support.
  *
- * 	(C) Copyright 2001, Lineo Inc. (www.lineo.com) 
+ * 	(C) Copyright 2001, Lineo Inc. (www.lineo.com)
  */
 
 /****************************************************************************/

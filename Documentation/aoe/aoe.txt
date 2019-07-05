@@ -80,7 +80,7 @@ USING SYSFS
   a convenient way.  Users with aoetools should use the aoe-stat
   command.
 
-  root@makki root# sh Documentation/aoe/status.sh 
+  root@makki root# sh Documentation/aoe/status.sh
      e10.0            eth3              up
      e10.1            eth3              up
      e10.2            eth3              up

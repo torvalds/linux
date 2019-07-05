@@ -21,7 +21,7 @@
 /*****************************************************************************
  * Permedia2 registers used in the framebuffer
  *****************************************************************************/
- 
+
 #define PM2R_RESET_STATUS				0x0000
 #define PM2R_IN_FIFO_SPACE				0x0018
 #define PM2R_OUT_FIFO_WORDS				0x0020

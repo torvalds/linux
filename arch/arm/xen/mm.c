@@ -55,7 +55,7 @@ static void dma_cache_maint(dma_addr_t handle, unsigned long offset,
 
 	do {
 		size_t len = left;
-	
+
 		/* buffers in highmem or foreign pages cannot cross page
 		 * boundaries */
 		if (len + offset > XEN_PAGE_SIZE)

@@ -297,7 +297,7 @@ static long ipmi_ioctl(struct file   *file,
 	struct ipmi_file_private *priv = file->private_data;
 	void __user *arg = (void __user *)data;
 
-	switch (cmd) 
+	switch (cmd)
 	{
 	case IPMICTL_SEND_COMMAND:
 	{
@@ -610,7 +610,7 @@ static long ipmi_ioctl(struct file   *file,
 		rv = -ENOTTY;
 		break;
 	}
-  
+
 	return rv;
 }
 

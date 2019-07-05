@@ -400,7 +400,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 
 	mq->card = card;
 	mq->use_cqe = host->cqe_enabled;
-	
+
 	spin_lock_init(&mq->lock);
 
 	memset(&mq->tag_set, 0, sizeof(mq->tag_set));

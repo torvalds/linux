@@ -119,7 +119,7 @@ static void ht6560b_dev_select(ide_drive_t *drive)
 	static u8 current_select = 0;
 	static u8 current_timing = 0;
 	u8 select, timing;
-	
+
 	local_irq_save(flags);
 
 	select = HT_CONFIG(drive);
@@ -163,11 +163,11 @@ static int __init try_to_init_ht6560b(void)
 {
 	u8 orig_value;
 	int i;
-	
+
 	/* Autodetect ht6560b */
 	if ((orig_value = inb(HT_CONFIG_PORT)) == 0xff)
 		return 0;
-	
+
 	for (i=3;i>0;i--) {
 		outb(0x00, HT_CONFIG_PORT);
 		if (!( (~inb(HT_CONFIG_PORT)) & 0x3f )) {
@@ -228,18 +228,18 @@ static u8 ht_pio2timings(ide_drive_t *drive, const u8 pio)
 		if (recovery_cycles < 2)  recovery_cycles = 2;
 		if (active_cycles   > 15) active_cycles   = 15;
 		if (recovery_cycles > 15) recovery_cycles = 0;  /* 0==16 */
-		
+
 #ifdef DEBUG
 		printk("ht6560b: drive %s setting pio=%d recovery=%d (%dns) active=%d (%dns)\n", drive->name, pio, recovery_cycles, recovery_time, active_cycles, active_time);
 #endif
-		
+
 		return (u8)((recovery_cycles << 4) | active_cycles);
 	} else {
-		
+
 #ifdef DEBUG
 		printk("ht6560b: drive %s setting pio=0\n", drive->name);
 #endif
-		
+
 		return HT_TIMING_DEFAULT;    /* default setting */
 	}
 }
@@ -284,7 +284,7 @@ static void ht6560b_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	unsigned long flags, config;
 	const u8 pio = drive->pio_mode - XFER_PIO_0;
 	u8 timing;
-	
+
 	switch (pio) {
 	case 8:         /* set prefetch off */
 	case 9:         /* set prefetch on */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* 
+/*
  * Emagic EMI 2|6 usb audio interface firmware loader.
  * Copyright (C) 2002
  * 	Tapio Laxström (tapio.laxstrom@iptime.fi)
@@ -17,7 +17,7 @@
 
 /* FIXME: This is quick and dirty solution! */
 #define SPDIF	/* if you want SPDIF comment next line */
-//#undef SPDIF	/* if you want MIDI uncomment this line */ 
+//#undef SPDIF	/* if you want MIDI uncomment this line */
 
 #ifdef SPDIF
 #define FIRMWARE_FW "emi62/spdif.fw"
@@ -32,7 +32,7 @@
 #define ANCHOR_LOAD_EXTERNAL	0xA3	/* This command is not implemented in the core. Requires firmware */
 #define ANCHOR_LOAD_FPGA	0xA5	/* This command is not implemented in the core. Requires firmware. Emagic extension */
 #define MAX_INTERNAL_ADDRESS	0x1B3F	/* This is the highest internal RAM address for the AN2131Q */
-#define CPUCS_REG		0x7F92  /* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */ 
+#define CPUCS_REG		0x7F92  /* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */
 #define INTERNAL_RAM(address)   (address <= MAX_INTERNAL_ADDRESS)
 
 static int emi62_writememory(struct usb_device *dev, int address,
@@ -67,7 +67,7 @@ static int emi62_set_reset (struct usb_device *dev, unsigned char reset_bit)
 {
 	int response;
 	dev_info(&dev->dev, "%s - %d\n", __func__, reset_bit);
-	
+
 	response = emi62_writememory (dev, CPUCS_REG, &reset_bit, 1, 0xa0);
 	if (response < 0)
 		dev_err(&dev->dev, "set_reset (%d) failed\n", reset_bit);

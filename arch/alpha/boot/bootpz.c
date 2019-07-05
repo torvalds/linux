@@ -71,7 +71,7 @@ find_pa(unsigned long address)
 	result <<= 13;
 	result |= address & 0x1fff;
 	return result;
-}	
+}
 
 int
 check_range(unsigned long vstart, unsigned long vend,
@@ -200,14 +200,14 @@ extern char _end;
 
 	START_ADDR	KSEG address of the entry point of kernel code.
 
-	ZERO_PGE	KSEG address of page full of zeroes, but 
+	ZERO_PGE	KSEG address of page full of zeroes, but
 			upon entry to kerne cvan be expected
 			to hold the parameter list and possible
 			INTRD information.
 
    These are used in the local defines below.
 */
-  
+
 
 /* Virtual addresses for the BOOTP image. Note that this includes the
    bootstrapper code as well as the compressed kernel image, and
@@ -444,7 +444,7 @@ start_kernel(void)
 		memcpy((void *)K_KERNEL_IMAGE_START,
 		       (void *)uncompressed_image_start, KERNEL_SIZE);
 	}
-	
+
 	/* Clear the zero page, then move the argument list in. */
 #ifdef DEBUG_LAST_STEPS
 	srm_printk("Preparing ZERO_PGE...\n");

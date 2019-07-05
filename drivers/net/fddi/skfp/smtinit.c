@@ -88,7 +88,7 @@ int init_smt(struct s_smc *smc, u_char *mac_addr)
 		smc->y[p].mib = & smc->mib.p[p] ;
 	}
 
-	set_oem_spec_val(smc) ;	
+	set_oem_spec_val(smc) ;
 	(void) smt_set_mac_opvalues(smc) ;
 	init_fddi_driver(smc,mac_addr) ;	/* HW driver */
 	smt_fixup_mib(smc) ;		/* update values that depend on s.sas */

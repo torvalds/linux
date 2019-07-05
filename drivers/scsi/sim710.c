@@ -196,7 +196,7 @@ static int sim710_eisa_probe(struct device *dev)
 	}
 
 	irq = eisa_irqs[irq_index];
-		
+
 	return sim710_probe_common(dev, io_addr, irq, 50,
 				   differential, scsi_id);
 }

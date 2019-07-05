@@ -13,14 +13,14 @@
  *           Rearranged stuff here: SCSI-3 is included allways, support
  *           for NEC/TOSHIBA/HP commands is optional.
  *
- *   Gerd Knorr <kraxel@cs.tu-berlin.de> 
+ *   Gerd Knorr <kraxel@cs.tu-berlin.de>
  *
  * --------------------------------------------------------------------------
  *
  * support for XA/multisession-CD's
- * 
+ *
  *   - NEC:     Detection and support of multisession CD's.
- *     
+ *
  *   - TOSHIBA: Detection and support of multisession CD's.
  *              Some XA-Sector tweaking, required for older drives.
  *
@@ -71,7 +71,7 @@ void sr_vendor_init(Scsi_CD *cd)
 #else
 	const char *vendor = cd->device->vendor;
 	const char *model = cd->device->model;
-	
+
 	/* default */
 	cd->vendor = VENDOR_SCSI3;
 	if (cd->readcd_known)

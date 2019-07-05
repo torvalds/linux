@@ -39,7 +39,7 @@ int proc_setup_self(struct super_block *s)
 	struct pid_namespace *ns = proc_pid_ns(root_inode);
 	struct dentry *self;
 	int ret = -ENOMEM;
-	
+
 	inode_lock(root_inode);
 	self = d_alloc_name(s->s_root, "self");
 	if (self) {

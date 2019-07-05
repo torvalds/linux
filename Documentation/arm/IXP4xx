@@ -8,7 +8,7 @@ Maintained by Deepak Saxena <dsaxena@plexity.net>
 1. Overview
 
 Intel's IXP4xx network processor is a highly integrated SOC that
-is targeted for network applications, though it has become popular 
+is targeted for network applications, though it has become popular
 in industrial control and other areas due to low cost and power
 consumption. The IXP4xx family currently consists of several processors
 that support different network offload functions such as encryption,
@@ -20,7 +20,7 @@ For more information on the various versions of the CPU, see:
 
    http://developer.intel.com/design/network/products/npfamily/ixp4xx.htm
 
-Intel also made the IXCP1100 CPU for sometime which is an IXP4xx 
+Intel also made the IXCP1100 CPU for sometime which is an IXP4xx
 stripped of much of the network intelligence.
 
 2. Linux Support
@@ -31,7 +31,7 @@ Linux currently supports the following features on the IXP4xx chips:
 - PCI interface
 - Flash access (MTD/JFFS)
 - I2C through GPIO on IXP42x
-- GPIO for input/output/interrupts 
+- GPIO for input/output/interrupts
   See arch/arm/mach-ixp4xx/include/mach/platform.h for access functions.
 - Timers (watchdog, OS)
 
@@ -45,7 +45,7 @@ require the use of Intel's proprietary CSR software:
 If you need to use any of the above, you need to download Intel's
 software from:
 
-   http://developer.intel.com/design/network/products/npfamily/ixp425.htm    
+   http://developer.intel.com/design/network/products/npfamily/ixp425.htm
 
 DO NOT POST QUESTIONS TO THE LINUX MAILING LISTS REGARDING THE PROPRIETARY
 SOFTWARE.
@@ -54,9 +54,9 @@ There are several websites that provide directions/pointers on using
 Intel's software:
 
    http://sourceforge.net/projects/ixp4xx-osdg/
-   Open Source Developer's Guide for using uClinux and the Intel libraries 
+   Open Source Developer's Guide for using uClinux and the Intel libraries
 
-http://gatewaymaker.sourceforge.net/ 
+http://gatewaymaker.sourceforge.net/
    Simple one page summary of building a gateway using an IXP425 and Linux
 
 http://ixp425.sourceforge.net/
@@ -70,7 +70,7 @@ The IXP4xx family allows for up to 256MB of memory but the PCI interface
 can only expose 64MB of that memory to the PCI bus. This means that if
 you are running with > 64MB, all PCI buffers outside of the accessible
 range will be bounced using the routines in arch/arm/common/dmabounce.c.
-   
+
 3b. Limited outbound PCI window
 
 IXP4xx provides two methods of accessing PCI memory space:
@@ -79,15 +79,15 @@ IXP4xx provides two methods of accessing PCI memory space:
    To access PCI via this space, we simply ioremap() the BAR
    into the kernel and we can use the standard read[bwl]/write[bwl]
    macros. This is the preffered method due to speed but it
-   limits the system to just 64MB of PCI memory. This can be 
+   limits the system to just 64MB of PCI memory. This can be
    problamatic if using video cards and other memory-heavy devices.
-          
-2) If > 64MB of memory space is required, the IXP4xx can be 
-   configured to use indirect registers to access PCI This allows 
-   for up to 128MB (0x48000000 to 0x4fffffff) of memory on the bus. 
-   The disadvantage of this is that every PCI access requires 
-   three local register accesses plus a spinlock, but in some 
-   cases the performance hit is acceptable. In addition, you cannot 
+
+2) If > 64MB of memory space is required, the IXP4xx can be
+   configured to use indirect registers to access PCI This allows
+   for up to 128MB (0x48000000 to 0x4fffffff) of memory on the bus.
+   The disadvantage of this is that every PCI access requires
+   three local register accesses plus a spinlock, but in some
+   cases the performance hit is acceptable. In addition, you cannot
    mmap() PCI devices in this case due to the indirect nature
    of the PCI window.
 
@@ -96,14 +96,14 @@ you need more PCI memory, enable the IXP4XX_INDIRECT_PCI config option.
 
 3c. GPIO as Interrupts
 
-Currently the code only handles level-sensitive GPIO interrupts 
+Currently the code only handles level-sensitive GPIO interrupts
 
 4. Supported platforms
 
 ADI Engineering Coyote Gateway Reference Platform
 http://www.adiengineering.com/productsCoyote.html
 
-   The ADI Coyote platform is reference design for those building 
+   The ADI Coyote platform is reference design for those building
    small residential/office gateways. One NPE is connected to a 10/100
    interface, one to 4-port 10/100 switch, and the third to and ADSL
    interface. In addition, it also supports to POTs interfaces connected
@@ -119,9 +119,9 @@ http://www.gateworks.com/support/overview.php
    the expansion bus.
 
 Intel IXDP425 Development Platform
-http://www.intel.com/design/network/products/npfamily/ixdpg425.htm  
+http://www.intel.com/design/network/products/npfamily/ixdpg425.htm
 
-   This is Intel's standard reference platform for the IXDP425 and is 
+   This is Intel's standard reference platform for the IXDP425 and is
    also known as the Richfield board. It contains 4 PCI slots, 16MB
    of flash, two 10/100 ports and one ADSL port.
 
@@ -165,7 +165,7 @@ Lennerty Buytenhek
 Lutz Jaenicke
 Justin Mayfield
 Robert E. Ranslam
-[I know I've forgotten others, please email me to be added] 
+[I know I've forgotten others, please email me to be added]
 
 -------------------------------------------------------------------------
 

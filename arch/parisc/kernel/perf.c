@@ -622,7 +622,7 @@ static int perf_stop_counters(uint32_t *raddr)
 		perf_rdr_clear(15);
 
 		/*
-		 * Copy the counters 
+		 * Copy the counters
 		 */
 		raddr[0] = (uint32_t)((userbuf[0] >> 32) & 0x00000000ffffffffUL);
 		raddr[1] = (uint32_t)(userbuf[0] & 0x00000000ffffffffUL);

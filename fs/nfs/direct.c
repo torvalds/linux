@@ -481,11 +481,11 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 		size_t pgbase;
 		unsigned npages, i;
 
-		result = iov_iter_get_pages_alloc(iter, &pagevec, 
+		result = iov_iter_get_pages_alloc(iter, &pagevec,
 						  rsize, &pgbase);
 		if (result < 0)
 			break;
-	
+
 		bytes = result;
 		iov_iter_advance(iter, bytes);
 		npages = (result + pgbase + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -895,7 +895,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 		size_t pgbase;
 		unsigned npages, i;
 
-		result = iov_iter_get_pages_alloc(iter, &pagevec, 
+		result = iov_iter_get_pages_alloc(iter, &pagevec,
 						  wsize, &pgbase);
 		if (result < 0)
 			break;

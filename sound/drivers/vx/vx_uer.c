@@ -161,7 +161,7 @@ static int vx_calc_clock_from_freq(struct vx_core *chip, int freq)
 
 	if (hexfreq <= 0x03ff)
 		return hexfreq - 0x00000201;
-	if (hexfreq <= 0x07ff) 
+	if (hexfreq <= 0x07ff)
 		return (hexfreq / 2) - 1;
 	if (hexfreq <= 0x0fff)
 		return (hexfreq / 4) + 0x000001ff;

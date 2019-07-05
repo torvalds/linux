@@ -25,9 +25,9 @@
 #define ERR_BOOTSEQ_FAIL  1006 /* 2. stage boot seq handshake timeout */
 #define ERR_POF_TIMEOUT   1007 /* timeout waiting for card pof ready */
 #define ERR_NOT_BOOTED    1008 /* operation only allowed when booted */
-#define ERR_CONF_LONG     1009 /* conf line is too long */ 
-#define ERR_INV_CHAN      1010 /* invalid channel number */ 
-#define ERR_ASYNC_TIME    1011 /* timeout sending async data */ 
+#define ERR_CONF_LONG     1009 /* conf line is too long */
+#define ERR_INV_CHAN      1010 /* invalid channel number */
+#define ERR_ASYNC_TIME    1011 /* timeout sending async data */
 
 
 

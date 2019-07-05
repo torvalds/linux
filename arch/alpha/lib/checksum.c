@@ -9,7 +9,7 @@
  * accelerated versions (and 21264 assembly versions ) contributed by
  *	Rick Gorton	<rick.gorton@alpha-processor.com>
  */
- 
+
 #include <linux/module.h>
 #include <linux/string.h>
 
@@ -59,7 +59,7 @@ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 	result = (__force u64)saddr + (__force u64)daddr +
 		 (__force u64)sum + ((len + proto) << 8);
 
-	/* Fold down to 32-bits so we don't lose in the typedef-less 
+	/* Fold down to 32-bits so we don't lose in the typedef-less
 	   network stack.  */
 	/* 64 to 33 */
 	result = (result & 0xffffffff) + (result >> 32);

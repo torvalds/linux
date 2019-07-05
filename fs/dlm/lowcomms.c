@@ -765,7 +765,7 @@ static int tcp_accept_from_sock(struct connection *con)
 	if (addr_to_nodeid(&peeraddr, &nodeid)) {
 		unsigned char *b=(unsigned char *)&peeraddr;
 		log_print("connect from non cluster node");
-		print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE, 
+		print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE,
 				     b, sizeof(struct sockaddr_storage));
 		sock_release(newsock);
 		mutex_unlock(&con->sock_mutex);
@@ -1204,7 +1204,7 @@ out_err:
 	 */
 	if (result != -EHOSTUNREACH &&
 	    result != -ENETUNREACH &&
-	    result != -ENETDOWN && 
+	    result != -ENETDOWN &&
 	    result != -EINVAL &&
 	    result != -EPROTONOSUPPORT) {
 		log_print("connect %d try %d error %d", con->nodeid,

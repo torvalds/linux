@@ -1,11 +1,11 @@
 /******************************************************************************
-             Device driver for Interphase ATM PCI adapter cards 
-                    Author: Peter Wang  <pwang@iphase.com>            
-                   Interphase Corporation  <www.iphase.com>           
-                               Version: 1.0   
-               iphase.h:  This is the header file for iphase.c. 
+             Device driver for Interphase ATM PCI adapter cards
+                    Author: Peter Wang  <pwang@iphase.com>
+                   Interphase Corporation  <www.iphase.com>
+                               Version: 1.0
+               iphase.h:  This is the header file for iphase.c.
 *******************************************************************************
-      
+
       This software may be used and distributed according to the terms
       of the GNU General Public License (GPL), incorporated herein by reference.
       Drivers based on this skeleton fall under the GPL and must retain
@@ -15,14 +15,14 @@
       WITHOUT ANY WARRANTY; without even the implied warranty of
       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
       General Public License for more details.
-      
-      Modified from an incomplete driver for Interphase 5575 1KVC 1M card which 
-      was originally written by Monalisa Agrawal at UNH. Now this driver 
-      supports a variety of varients of Interphase ATM PCI (i)Chip adapter 
-      card family (See www.iphase.com/products/ClassSheet.cfm?ClassID=ATM) 
-      in terms of PHY type, the size of control memory and the size of 
+
+      Modified from an incomplete driver for Interphase 5575 1KVC 1M card which
+      was originally written by Monalisa Agrawal at UNH. Now this driver
+      supports a variety of varients of Interphase ATM PCI (i)Chip adapter
+      card family (See www.iphase.com/products/ClassSheet.cfm?ClassID=ATM)
+      in terms of PHY type, the size of control memory and the size of
       packet memory. The following are the change log and history:
-     
+
           Bugfix the Mona's UBR driver.
           Modify the basic memory allocation and dma logic.
           Port the driver to the latest kernel from 2.0.46.
@@ -31,7 +31,7 @@
           Add the CBR support.
 	  Add the flow control logic to the driver to allow rate-limit VC.
           Add 4K VC support to the board with 512K control memory.
-          Add the support of all the variants of the Interphase ATM PCI 
+          Add the support of all the variants of the Interphase ATM PCI
           (i)Chip adapter cards including x575 (155M OC3 and UTP155), x525
           (25M UTP25) and x531 (DS3 and E3).
           Add SMP support.
@@ -39,13 +39,13 @@
       Support and updates available at: ftp://ftp.iphase.com/pub/atm
 
 *******************************************************************************/
-  
-#ifndef IPHASE_H  
-#define IPHASE_H  
+
+#ifndef IPHASE_H
+#define IPHASE_H
 
 
 /************************ IADBG DEFINE *********************************/
-/* IADebugFlag Bit Map */ 
+/* IADebugFlag Bit Map */
 #define IF_IADBG_INIT_ADAPTER   0x00000001        // init adapter info
 #define IF_IADBG_TX             0x00000002        // debug TX
 #define IF_IADBG_RX             0x00000004        // debug RX
@@ -65,7 +65,7 @@
 #define IF_IADBG_ABR            0x00400000        //
 #define IF_IADBG_DESC           0x01000000        //
 #define IF_IADBG_SUNI_STAT      0x02000000        // suni statistics
-#define IF_IADBG_RESET          0x04000000        
+#define IF_IADBG_RESET          0x04000000
 
 #define IF_IADBG(f) if (IADebugFlag & (f))
 
@@ -113,18 +113,18 @@
 #define IF_RX(A)
 #define IF_TXDEBUG(A)
 #define IF_VC(A)
-#define IF_ERR(A) 
+#define IF_ERR(A)
 #define IF_CBR(A)
 #define IF_UBR(A)
 #define IF_ABR(A)
 #define IF_SHUTDOWN(A)
 #define DbgPrint(A)
 #define IF_EVENT(A)
-#define IF_TXPKT(A) 
+#define IF_TXPKT(A)
 #define IF_RXPKT(A)
-#endif /* CONFIG_ATM_IA_DEBUG */ 
+#endif /* CONFIG_ATM_IA_DEBUG */
 
-#define isprint(a) ((a >=' ')&&(a <= '~'))  
+#define isprint(a) ((a >=' ')&&(a <= '~'))
 #define ATM_DESC(skb) (skb->protocol)
 #define IA_SKB_STATE(skb) (skb->protocol)
 #define IA_DLED   1
@@ -155,48 +155,48 @@ typedef struct {
 /************************ IADBG DEFINE END ***************************/
 
 #define Boolean(x)    	((x) ? 1 : 0)
-#define NR_VCI 1024		/* number of VCIs */  
-#define NR_VCI_LD 10		/* log2(NR_VCI) */  
-#define NR_VCI_4K 4096 		/* number of VCIs */  
-#define NR_VCI_4K_LD 12		/* log2(NR_VCI) */  
-#define MEM_VALID 0xfffffff0	/* mask base address with this */  
-  
-#ifndef PCI_VENDOR_ID_IPHASE  
-#define PCI_VENDOR_ID_IPHASE 0x107e  
-#endif  
-#ifndef PCI_DEVICE_ID_IPHASE_5575  
-#define PCI_DEVICE_ID_IPHASE_5575 0x0008  
-#endif  
-#define DEV_LABEL 	"ia"  
-#define PCR	207692  
-#define ICR	100000  
-#define MCR	0  
-#define TBE	1000  
-#define FRTT	1  
-#define RIF	2		  
-#define RDF	4  
-#define NRMCODE 5	/* 0 - 7 */  
-#define TRMCODE	3	/* 0 - 7 */  
-#define CDFCODE	6  
-#define ATDFCODE 2	/* 0 - 15 */  
-  
-/*---------------------- Packet/Cell Memory ------------------------*/  
-#define TX_PACKET_RAM 	0x00000 /* start of Trasnmit Packet memory - 0 */  
-#define DFL_TX_BUF_SZ	10240	/* 10 K buffers */  
-#define DFL_TX_BUFFERS     50 	/* number of packet buffers for Tx   
-					- descriptor 0 unused */  
-#define REASS_RAM_SIZE 0x10000  /* for 64K 1K VC board */  
-#define RX_PACKET_RAM 	0x80000 /* start of Receive Packet memory - 512K */  
-#define DFL_RX_BUF_SZ	10240	/* 10k buffers */  
-#define DFL_RX_BUFFERS      50	/* number of packet buffers for Rx   
-					- descriptor 0 unused */  
-  
-struct cpcs_trailer 
-{  
-	u_short control;  
-	u_short length;  
-	u_int	crc32;  
-};  
+#define NR_VCI 1024		/* number of VCIs */
+#define NR_VCI_LD 10		/* log2(NR_VCI) */
+#define NR_VCI_4K 4096 		/* number of VCIs */
+#define NR_VCI_4K_LD 12		/* log2(NR_VCI) */
+#define MEM_VALID 0xfffffff0	/* mask base address with this */
+
+#ifndef PCI_VENDOR_ID_IPHASE
+#define PCI_VENDOR_ID_IPHASE 0x107e
+#endif
+#ifndef PCI_DEVICE_ID_IPHASE_5575
+#define PCI_DEVICE_ID_IPHASE_5575 0x0008
+#endif
+#define DEV_LABEL 	"ia"
+#define PCR	207692
+#define ICR	100000
+#define MCR	0
+#define TBE	1000
+#define FRTT	1
+#define RIF	2
+#define RDF	4
+#define NRMCODE 5	/* 0 - 7 */
+#define TRMCODE	3	/* 0 - 7 */
+#define CDFCODE	6
+#define ATDFCODE 2	/* 0 - 15 */
+
+/*---------------------- Packet/Cell Memory ------------------------*/
+#define TX_PACKET_RAM 	0x00000 /* start of Trasnmit Packet memory - 0 */
+#define DFL_TX_BUF_SZ	10240	/* 10 K buffers */
+#define DFL_TX_BUFFERS     50 	/* number of packet buffers for Tx
+					- descriptor 0 unused */
+#define REASS_RAM_SIZE 0x10000  /* for 64K 1K VC board */
+#define RX_PACKET_RAM 	0x80000 /* start of Receive Packet memory - 512K */
+#define DFL_RX_BUF_SZ	10240	/* 10k buffers */
+#define DFL_RX_BUFFERS      50	/* number of packet buffers for Rx
+					- descriptor 0 unused */
+
+struct cpcs_trailer
+{
+	u_short control;
+	u_short length;
+	u_int	crc32;
+};
 
 struct cpcs_trailer_desc
 {
@@ -204,437 +204,437 @@ struct cpcs_trailer_desc
 	dma_addr_t dma_addr;
 };
 
-struct ia_vcc 
-{ 
-	int rxing;	 
-	int txing;		 
+struct ia_vcc
+{
+	int rxing;
+	int txing;
         int NumCbrEntry;
         u32 pcr;
         u32 saved_tx_quota;
         int flow_inc;
-        struct sk_buff_head txing_skb; 
-        int  ltimeout;                  
-        u8  vc_desc_cnt;                
-                
-};  
-  
-struct abr_vc_table 
-{  
-	u_char status;  
-	u_char rdf;  
-	u_short air;  
-	u_int res[3];  
-	u_int req_rm_cell_data1;  
-	u_int req_rm_cell_data2;  
-	u_int add_rm_cell_data1;  
-	u_int add_rm_cell_data2;  
-};  
-    
-/* 32 byte entries */  
-struct main_vc 
-{  
-	u_short 	type;  
-#define ABR	0x8000  
-#define UBR 	0xc000  
-#define CBR	0x0000  
-	/* ABR fields */  
-	u_short 	nrm;	 
- 	u_short 	trm;	   
-	u_short 	rm_timestamp_hi;  
-	u_short 	rm_timestamp_lo:8,  
-			crm:8;		  
-	u_short 	remainder; 	/* ABR and UBR fields - last 10 bits*/  
-	u_short 	next_vc_sched;  
-	u_short 	present_desc;	/* all classes */  
-	u_short 	last_cell_slot;	/* ABR and UBR */  
-	u_short 	pcr;  
-	u_short 	fraction;  
-	u_short 	icr;  
-	u_short 	atdf;  
-	u_short 	mcr;  
-	u_short 	acr;		 
-	u_short 	unack:8,  
-			status:8;	/* all classes */  
-#define UIOLI 0x80  
-#define CRC_APPEND 0x40			/* for status field - CRC-32 append */  
-#define ABR_STATE 0x02  
-  
-};  
-  
-  
-/* 8 byte entries */  
-struct ext_vc 
-{  
-	u_short 	atm_hdr1;  
-	u_short 	atm_hdr2;  
-	u_short 	last_desc;  
-      	u_short 	out_of_rate_link;   /* reserved for UBR and CBR */  
-};  
-  
-  
-#define DLE_ENTRIES 256  
-#define DMA_INT_ENABLE 0x0002	/* use for both Tx and Rx */  
-#define TX_DLE_PSI 0x0001  
+        struct sk_buff_head txing_skb;
+        int  ltimeout;
+        u8  vc_desc_cnt;
+
+};
+
+struct abr_vc_table
+{
+	u_char status;
+	u_char rdf;
+	u_short air;
+	u_int res[3];
+	u_int req_rm_cell_data1;
+	u_int req_rm_cell_data2;
+	u_int add_rm_cell_data1;
+	u_int add_rm_cell_data2;
+};
+
+/* 32 byte entries */
+struct main_vc
+{
+	u_short 	type;
+#define ABR	0x8000
+#define UBR 	0xc000
+#define CBR	0x0000
+	/* ABR fields */
+	u_short 	nrm;
+ 	u_short 	trm;
+	u_short 	rm_timestamp_hi;
+	u_short 	rm_timestamp_lo:8,
+			crm:8;
+	u_short 	remainder; 	/* ABR and UBR fields - last 10 bits*/
+	u_short 	next_vc_sched;
+	u_short 	present_desc;	/* all classes */
+	u_short 	last_cell_slot;	/* ABR and UBR */
+	u_short 	pcr;
+	u_short 	fraction;
+	u_short 	icr;
+	u_short 	atdf;
+	u_short 	mcr;
+	u_short 	acr;
+	u_short 	unack:8,
+			status:8;	/* all classes */
+#define UIOLI 0x80
+#define CRC_APPEND 0x40			/* for status field - CRC-32 append */
+#define ABR_STATE 0x02
+
+};
+
+
+/* 8 byte entries */
+struct ext_vc
+{
+	u_short 	atm_hdr1;
+	u_short 	atm_hdr2;
+	u_short 	last_desc;
+      	u_short 	out_of_rate_link;   /* reserved for UBR and CBR */
+};
+
+
+#define DLE_ENTRIES 256
+#define DMA_INT_ENABLE 0x0002	/* use for both Tx and Rx */
+#define TX_DLE_PSI 0x0001
 #define DLE_TOTAL_SIZE (sizeof(struct dle)*DLE_ENTRIES)
-  
-/* Descriptor List Entries (DLE) */  
-struct dle 
-{  
-	u32 	sys_pkt_addr;  
-	u32 	local_pkt_addr;  
-	u32 	bytes;  
-	u16 	prq_wr_ptr_data;  
-	u16 	mode;  
-};  
-  
-struct dle_q 
-{  
-	struct dle 	*start;  
-	struct dle 	*end;  
-	struct dle 	*read;  
-	struct dle 	*write;  
-};  
-  
-struct free_desc_q 
-{  
-	int 	desc;	/* Descriptor number */  
-	struct free_desc_q *next;  
-};  
-  
-struct tx_buf_desc {  
-	unsigned short desc_mode;  
-	unsigned short vc_index;  
-	unsigned short res1;		/* reserved field */  
-	unsigned short bytes;  
-	unsigned short buf_start_hi;  
-	unsigned short buf_start_lo;  
-	unsigned short res2[10];	/* reserved field */  
-};  
-	  
-  
-struct rx_buf_desc { 
+
+/* Descriptor List Entries (DLE) */
+struct dle
+{
+	u32 	sys_pkt_addr;
+	u32 	local_pkt_addr;
+	u32 	bytes;
+	u16 	prq_wr_ptr_data;
+	u16 	mode;
+};
+
+struct dle_q
+{
+	struct dle 	*start;
+	struct dle 	*end;
+	struct dle 	*read;
+	struct dle 	*write;
+};
+
+struct free_desc_q
+{
+	int 	desc;	/* Descriptor number */
+	struct free_desc_q *next;
+};
+
+struct tx_buf_desc {
 	unsigned short desc_mode;
 	unsigned short vc_index;
-	unsigned short vpi; 
-	unsigned short bytes; 
-	unsigned short buf_start_hi;  
-	unsigned short buf_start_lo;  
-	unsigned short dma_start_hi;  
-	unsigned short dma_start_lo;  
-	unsigned short crc_upper;  
-	unsigned short crc_lower;  
-	unsigned short res:8, timeout:8;  
-	unsigned short res2[5];	/* reserved field */  
-};  
-  
-/*--------SAR stuff ---------------------*/  
-  
-#define EPROM_SIZE 0x40000	/* says 64K in the docs ??? */  
-#define MAC1_LEN	4	   					  
-#define MAC2_LEN	2  
-   
-/*------------ PCI Memory Space Map, 128K SAR memory ----------------*/  
-#define IPHASE5575_PCI_CONFIG_REG_BASE	0x0000  
-#define IPHASE5575_BUS_CONTROL_REG_BASE 0x1000	/* offsets 0x00 - 0x3c */  
-#define IPHASE5575_FRAG_CONTROL_REG_BASE 0x2000  
-#define IPHASE5575_REASS_CONTROL_REG_BASE 0x3000  
-#define IPHASE5575_DMA_CONTROL_REG_BASE	0x4000  
-#define IPHASE5575_FRONT_END_REG_BASE IPHASE5575_DMA_CONTROL_REG_BASE  
-#define IPHASE5575_FRAG_CONTROL_RAM_BASE 0x10000  
-#define IPHASE5575_REASS_CONTROL_RAM_BASE 0x20000  
-  
-/*------------ Bus interface control registers -----------------*/  
-#define IPHASE5575_BUS_CONTROL_REG	0x00  
-#define IPHASE5575_BUS_STATUS_REG	0x01	/* actual offset 0x04 */  
-#define IPHASE5575_MAC1			0x02  
-#define IPHASE5575_REV			0x03  
-#define IPHASE5575_MAC2			0x03	/*actual offset 0x0e-reg 0x0c*/  
-#define IPHASE5575_EXT_RESET		0x04  
-#define IPHASE5575_INT_RESET		0x05	/* addr 1c ?? reg 0x06 */  
-#define IPHASE5575_PCI_ADDR_PAGE	0x07	/* reg 0x08, 0x09 ?? */  
-#define IPHASE5575_EEPROM_ACCESS	0x0a	/* actual offset 0x28 */  
-#define IPHASE5575_CELL_FIFO_QUEUE_SZ	0x0b  
-#define IPHASE5575_CELL_FIFO_MARK_STATE	0x0c  
-#define IPHASE5575_CELL_FIFO_READ_PTR	0x0d  
-#define IPHASE5575_CELL_FIFO_WRITE_PTR	0x0e  
-#define IPHASE5575_CELL_FIFO_CELLS_AVL	0x0f	/* actual offset 0x3c */  
-  
-/* Bus Interface Control Register bits */  
-#define CTRL_FE_RST	0x80000000  
-#define CTRL_LED	0x40000000  
-#define CTRL_25MBPHY	0x10000000  
-#define CTRL_ENCMBMEM	0x08000000  
-#define CTRL_ENOFFSEG	0x01000000  
-#define CTRL_ERRMASK	0x00400000  
-#define CTRL_DLETMASK	0x00100000  
-#define CTRL_DLERMASK	0x00080000  
-#define CTRL_FEMASK	0x00040000  
-#define CTRL_SEGMASK	0x00020000  
-#define CTRL_REASSMASK	0x00010000  
-#define CTRL_CSPREEMPT	0x00002000  
-#define CTRL_B128	0x00000200  
-#define CTRL_B64	0x00000100  
-#define CTRL_B48	0x00000080  
-#define CTRL_B32	0x00000040  
-#define CTRL_B16	0x00000020  
-#define CTRL_B8		0x00000010  
-  
-/* Bus Interface Status Register bits */  
-#define STAT_CMEMSIZ	0xc0000000  
-#define STAT_ADPARCK	0x20000000  
-#define STAT_RESVD	0x1fffff80  
-#define STAT_ERRINT	0x00000040  
-#define STAT_MARKINT	0x00000020  
-#define STAT_DLETINT	0x00000010  
-#define STAT_DLERINT	0x00000008  
-#define STAT_FEINT	0x00000004  
-#define STAT_SEGINT	0x00000002  
-#define STAT_REASSINT	0x00000001  
-  
-  
-/*--------------- Segmentation control registers -----------------*/  
-/* The segmentation registers are 16 bits access and the addresses  
-	are defined as such so the addresses are the actual "offsets" */  
-#define IDLEHEADHI	0x00  
-#define IDLEHEADLO	0x01  
-#define MAXRATE		0x02  
-/* Values for MAXRATE register for 155Mbps and 25.6 Mbps operation */  
-#define RATE155		0x64b1 // 16 bits float format 
+	unsigned short res1;		/* reserved field */
+	unsigned short bytes;
+	unsigned short buf_start_hi;
+	unsigned short buf_start_lo;
+	unsigned short res2[10];	/* reserved field */
+};
+
+
+struct rx_buf_desc {
+	unsigned short desc_mode;
+	unsigned short vc_index;
+	unsigned short vpi;
+	unsigned short bytes;
+	unsigned short buf_start_hi;
+	unsigned short buf_start_lo;
+	unsigned short dma_start_hi;
+	unsigned short dma_start_lo;
+	unsigned short crc_upper;
+	unsigned short crc_lower;
+	unsigned short res:8, timeout:8;
+	unsigned short res2[5];	/* reserved field */
+};
+
+/*--------SAR stuff ---------------------*/
+
+#define EPROM_SIZE 0x40000	/* says 64K in the docs ??? */
+#define MAC1_LEN	4
+#define MAC2_LEN	2
+
+/*------------ PCI Memory Space Map, 128K SAR memory ----------------*/
+#define IPHASE5575_PCI_CONFIG_REG_BASE	0x0000
+#define IPHASE5575_BUS_CONTROL_REG_BASE 0x1000	/* offsets 0x00 - 0x3c */
+#define IPHASE5575_FRAG_CONTROL_REG_BASE 0x2000
+#define IPHASE5575_REASS_CONTROL_REG_BASE 0x3000
+#define IPHASE5575_DMA_CONTROL_REG_BASE	0x4000
+#define IPHASE5575_FRONT_END_REG_BASE IPHASE5575_DMA_CONTROL_REG_BASE
+#define IPHASE5575_FRAG_CONTROL_RAM_BASE 0x10000
+#define IPHASE5575_REASS_CONTROL_RAM_BASE 0x20000
+
+/*------------ Bus interface control registers -----------------*/
+#define IPHASE5575_BUS_CONTROL_REG	0x00
+#define IPHASE5575_BUS_STATUS_REG	0x01	/* actual offset 0x04 */
+#define IPHASE5575_MAC1			0x02
+#define IPHASE5575_REV			0x03
+#define IPHASE5575_MAC2			0x03	/*actual offset 0x0e-reg 0x0c*/
+#define IPHASE5575_EXT_RESET		0x04
+#define IPHASE5575_INT_RESET		0x05	/* addr 1c ?? reg 0x06 */
+#define IPHASE5575_PCI_ADDR_PAGE	0x07	/* reg 0x08, 0x09 ?? */
+#define IPHASE5575_EEPROM_ACCESS	0x0a	/* actual offset 0x28 */
+#define IPHASE5575_CELL_FIFO_QUEUE_SZ	0x0b
+#define IPHASE5575_CELL_FIFO_MARK_STATE	0x0c
+#define IPHASE5575_CELL_FIFO_READ_PTR	0x0d
+#define IPHASE5575_CELL_FIFO_WRITE_PTR	0x0e
+#define IPHASE5575_CELL_FIFO_CELLS_AVL	0x0f	/* actual offset 0x3c */
+
+/* Bus Interface Control Register bits */
+#define CTRL_FE_RST	0x80000000
+#define CTRL_LED	0x40000000
+#define CTRL_25MBPHY	0x10000000
+#define CTRL_ENCMBMEM	0x08000000
+#define CTRL_ENOFFSEG	0x01000000
+#define CTRL_ERRMASK	0x00400000
+#define CTRL_DLETMASK	0x00100000
+#define CTRL_DLERMASK	0x00080000
+#define CTRL_FEMASK	0x00040000
+#define CTRL_SEGMASK	0x00020000
+#define CTRL_REASSMASK	0x00010000
+#define CTRL_CSPREEMPT	0x00002000
+#define CTRL_B128	0x00000200
+#define CTRL_B64	0x00000100
+#define CTRL_B48	0x00000080
+#define CTRL_B32	0x00000040
+#define CTRL_B16	0x00000020
+#define CTRL_B8		0x00000010
+
+/* Bus Interface Status Register bits */
+#define STAT_CMEMSIZ	0xc0000000
+#define STAT_ADPARCK	0x20000000
+#define STAT_RESVD	0x1fffff80
+#define STAT_ERRINT	0x00000040
+#define STAT_MARKINT	0x00000020
+#define STAT_DLETINT	0x00000010
+#define STAT_DLERINT	0x00000008
+#define STAT_FEINT	0x00000004
+#define STAT_SEGINT	0x00000002
+#define STAT_REASSINT	0x00000001
+
+
+/*--------------- Segmentation control registers -----------------*/
+/* The segmentation registers are 16 bits access and the addresses
+	are defined as such so the addresses are the actual "offsets" */
+#define IDLEHEADHI	0x00
+#define IDLEHEADLO	0x01
+#define MAXRATE		0x02
+/* Values for MAXRATE register for 155Mbps and 25.6 Mbps operation */
+#define RATE155		0x64b1 // 16 bits float format
 #define MAX_ATM_155     352768 // Cells/second p.118
-#define RATE25		0x5f9d  
-  
-#define STPARMS		0x03  
-#define STPARMS_1K	0x008c  
-#define STPARMS_2K	0x0049  
-#define STPARMS_4K	0x0026  
-#define COMP_EN		0x4000  
-#define CBR_EN		0x2000  
-#define ABR_EN		0x0800  
-#define UBR_EN		0x0400  
-  
-#define ABRUBR_ARB	0x04  
-#define RM_TYPE		0x05  
-/*Value for RM_TYPE register for ATM Forum Traffic Mangement4.0 support*/  
-#define RM_TYPE_4_0	0x0100  
-  
-#define SEG_COMMAND_REG		0x17  
-/* Values for the command register */  
-#define RESET_SEG 0x0055  
-#define RESET_SEG_STATE	0x00aa  
-#define RESET_TX_CELL_CTR 0x00cc  
-  
-#define CBR_PTR_BASE	0x20  
-#define ABR_SBPTR_BASE	0x22  
-#define UBR_SBPTR_BASE  0x23  
-#define ABRWQ_BASE	0x26  
-#define UBRWQ_BASE	0x27  
-#define VCT_BASE	0x28  
-#define VCTE_BASE	0x29  
-#define CBR_TAB_BEG	0x2c  
-#define CBR_TAB_END	0x2d  
-#define PRQ_ST_ADR	0x30  
-#define PRQ_ED_ADR	0x31  
-#define PRQ_RD_PTR	0x32  
-#define PRQ_WR_PTR	0x33  
-#define TCQ_ST_ADR	0x34  
-#define TCQ_ED_ADR 	0x35  
-#define TCQ_RD_PTR	0x36  
-#define TCQ_WR_PTR	0x37  
-#define SEG_QUEUE_BASE	0x40  
-#define SEG_DESC_BASE	0x41  
-#define MODE_REG_0	0x45  
-#define T_ONLINE	0x0002		/* (i)chipSAR is online */  
-  
-#define MODE_REG_1	0x46  
-#define MODE_REG_1_VAL	0x0400		/*for propoer device operation*/  
-  
-#define SEG_INTR_STATUS_REG 0x47  
-#define SEG_MASK_REG	0x48  
+#define RATE25		0x5f9d
+
+#define STPARMS		0x03
+#define STPARMS_1K	0x008c
+#define STPARMS_2K	0x0049
+#define STPARMS_4K	0x0026
+#define COMP_EN		0x4000
+#define CBR_EN		0x2000
+#define ABR_EN		0x0800
+#define UBR_EN		0x0400
+
+#define ABRUBR_ARB	0x04
+#define RM_TYPE		0x05
+/*Value for RM_TYPE register for ATM Forum Traffic Mangement4.0 support*/
+#define RM_TYPE_4_0	0x0100
+
+#define SEG_COMMAND_REG		0x17
+/* Values for the command register */
+#define RESET_SEG 0x0055
+#define RESET_SEG_STATE	0x00aa
+#define RESET_TX_CELL_CTR 0x00cc
+
+#define CBR_PTR_BASE	0x20
+#define ABR_SBPTR_BASE	0x22
+#define UBR_SBPTR_BASE  0x23
+#define ABRWQ_BASE	0x26
+#define UBRWQ_BASE	0x27
+#define VCT_BASE	0x28
+#define VCTE_BASE	0x29
+#define CBR_TAB_BEG	0x2c
+#define CBR_TAB_END	0x2d
+#define PRQ_ST_ADR	0x30
+#define PRQ_ED_ADR	0x31
+#define PRQ_RD_PTR	0x32
+#define PRQ_WR_PTR	0x33
+#define TCQ_ST_ADR	0x34
+#define TCQ_ED_ADR 	0x35
+#define TCQ_RD_PTR	0x36
+#define TCQ_WR_PTR	0x37
+#define SEG_QUEUE_BASE	0x40
+#define SEG_DESC_BASE	0x41
+#define MODE_REG_0	0x45
+#define T_ONLINE	0x0002		/* (i)chipSAR is online */
+
+#define MODE_REG_1	0x46
+#define MODE_REG_1_VAL	0x0400		/*for propoer device operation*/
+
+#define SEG_INTR_STATUS_REG 0x47
+#define SEG_MASK_REG	0x48
 #define TRANSMIT_DONE 0x0200
-#define TCQ_NOT_EMPTY 0x1000	/* this can be used for both the interrupt   
-				status registers as well as the mask register */  
-  
-#define CELL_CTR_HIGH_AUTO 0x49  
-#define CELL_CTR_HIGH_NOAUTO 0xc9  
-#define CELL_CTR_LO_AUTO 0x4a  
-#define CELL_CTR_LO_NOAUTO 0xca  
-  
-/* Diagnostic registers */  
-#define NEXTDESC 	0x59  
-#define NEXTVC		0x5a  
-#define PSLOTCNT	0x5d  
-#define NEWDN		0x6a  
-#define NEWVC		0x6b  
-#define SBPTR		0x6c  
-#define ABRWQ_WRPTR	0x6f  
-#define ABRWQ_RDPTR	0x70  
-#define UBRWQ_WRPTR	0x71  
-#define UBRWQ_RDPTR	0x72  
-#define CBR_VC		0x73  
-#define ABR_SBVC	0x75  
-#define UBR_SBVC	0x76  
-#define ABRNEXTLINK	0x78  
-#define UBRNEXTLINK	0x79  
-  
-  
-/*----------------- Reassembly control registers ---------------------*/  
-/* The reassembly registers are 16 bits access and the addresses  
-	are defined as such so the addresses are the actual "offsets" */  
-#define MODE_REG	0x00  
-#define R_ONLINE	0x0002		/* (i)chip is online */  
+#define TCQ_NOT_EMPTY 0x1000	/* this can be used for both the interrupt
+				status registers as well as the mask register */
+
+#define CELL_CTR_HIGH_AUTO 0x49
+#define CELL_CTR_HIGH_NOAUTO 0xc9
+#define CELL_CTR_LO_AUTO 0x4a
+#define CELL_CTR_LO_NOAUTO 0xca
+
+/* Diagnostic registers */
+#define NEXTDESC 	0x59
+#define NEXTVC		0x5a
+#define PSLOTCNT	0x5d
+#define NEWDN		0x6a
+#define NEWVC		0x6b
+#define SBPTR		0x6c
+#define ABRWQ_WRPTR	0x6f
+#define ABRWQ_RDPTR	0x70
+#define UBRWQ_WRPTR	0x71
+#define UBRWQ_RDPTR	0x72
+#define CBR_VC		0x73
+#define ABR_SBVC	0x75
+#define UBR_SBVC	0x76
+#define ABRNEXTLINK	0x78
+#define UBRNEXTLINK	0x79
+
+
+/*----------------- Reassembly control registers ---------------------*/
+/* The reassembly registers are 16 bits access and the addresses
+	are defined as such so the addresses are the actual "offsets" */
+#define MODE_REG	0x00
+#define R_ONLINE	0x0002		/* (i)chip is online */
 #define IGN_RAW_FL     	0x0004
-  
-#define PROTOCOL_ID	0x01  
-#define REASS_MASK_REG	0x02  
-#define REASS_INTR_STATUS_REG	0x03  
-/* Interrupt Status register bits */  
-#define RX_PKT_CTR_OF	0x8000  
-#define RX_ERR_CTR_OF	0x4000  
-#define RX_CELL_CTR_OF	0x1000  
-#define RX_FREEQ_EMPT	0x0200  
-#define RX_EXCPQ_FL	0x0080  
-#define	RX_RAWQ_FL	0x0010  
-#define RX_EXCP_RCVD	0x0008  
-#define RX_PKT_RCVD	0x0004  
-#define RX_RAW_RCVD	0x0001  
-  
-#define DRP_PKT_CNTR	0x04  
-#define ERR_CNTR	0x05  
-#define RAW_BASE_ADR	0x08  
-#define CELL_CTR0	0x0c  
-#define CELL_CTR1	0x0d  
-#define REASS_COMMAND_REG	0x0f  
-/* Values for command register */  
-#define RESET_REASS	0x0055  
-#define RESET_REASS_STATE 0x00aa  
-#define RESET_DRP_PKT_CNTR 0x00f1  
-#define RESET_ERR_CNTR	0x00f2  
-#define RESET_CELL_CNTR 0x00f8  
-#define RESET_REASS_ALL_REGS 0x00ff  
-  
-#define REASS_DESC_BASE	0x10  
-#define VC_LKUP_BASE	0x11  
-#define REASS_TABLE_BASE 0x12  
-#define REASS_QUEUE_BASE 0x13  
-#define PKT_TM_CNT	0x16  
-#define TMOUT_RANGE	0x17  
-#define INTRVL_CNTR	0x18  
-#define TMOUT_INDX	0x19  
-#define VP_LKUP_BASE	0x1c  
-#define VP_FILTER	0x1d  
-#define ABR_LKUP_BASE	0x1e  
-#define FREEQ_ST_ADR	0x24  
-#define FREEQ_ED_ADR	0x25  
-#define FREEQ_RD_PTR	0x26  
-#define FREEQ_WR_PTR	0x27  
-#define PCQ_ST_ADR	0x28  
-#define PCQ_ED_ADR	0x29  
-#define PCQ_RD_PTR	0x2a  
-#define PCQ_WR_PTR	0x2b  
-#define EXCP_Q_ST_ADR	0x2c  
-#define EXCP_Q_ED_ADR	0x2d  
-#define EXCP_Q_RD_PTR	0x2e  
-#define EXCP_Q_WR_PTR	0x2f  
-#define CC_FIFO_ST_ADR	0x34  
-#define CC_FIFO_ED_ADR	0x35  
-#define CC_FIFO_RD_PTR	0x36  
-#define CC_FIFO_WR_PTR	0x37  
-#define STATE_REG	0x38  
-#define BUF_SIZE	0x42  
-#define XTRA_RM_OFFSET	0x44  
-#define DRP_PKT_CNTR_NC	0x84  
-#define ERR_CNTR_NC	0x85  
-#define CELL_CNTR0_NC	0x8c  
-#define CELL_CNTR1_NC	0x8d  
-  
-/* State Register bits */  
-#define EXCPQ_EMPTY	0x0040  
-#define PCQ_EMPTY	0x0010  
-#define FREEQ_EMPTY	0x0004  
-  
-  
-/*----------------- Front End registers/ DMA control --------------*/  
-/* There is a lot of documentation error regarding these offsets ???   
-	eg:- 2 offsets given 800, a00 for rx counter  
-	similarly many others  
-   Remember again that the offsets are to be 4*register number, so  
-	correct the #defines here   
-*/  
-#define IPHASE5575_TX_COUNTER		0x200	/* offset - 0x800 */  
-#define IPHASE5575_RX_COUNTER		0x280	/* offset - 0xa00 */  
-#define IPHASE5575_TX_LIST_ADDR		0x300	/* offset - 0xc00 */  
-#define IPHASE5575_RX_LIST_ADDR		0x380	/* offset - 0xe00 */  
-  
-/*--------------------------- RAM ---------------------------*/  
-/* These memory maps are actually offsets from the segmentation and reassembly  RAM base addresses */  
-  
-/* Segmentation Control Memory map */  
-#define TX_DESC_BASE	0x0000	/* Buffer Decriptor Table */  
-#define TX_COMP_Q	0x1000	/* Transmit Complete Queue */  
-#define PKT_RDY_Q	0x1400	/* Packet Ready Queue */  
-#define CBR_SCHED_TABLE	0x1800	/* CBR Table */  
-#define UBR_SCHED_TABLE	0x3000	/* UBR Table */  
-#define UBR_WAIT_Q	0x4000	/* UBR Wait Queue */  
-#define ABR_SCHED_TABLE	0x5000	/* ABR Table */  
-#define ABR_WAIT_Q	0x5800	/* ABR Wait Queue */  
-#define EXT_VC_TABLE	0x6000	/* Extended VC Table */  
-#define MAIN_VC_TABLE	0x8000	/* Main VC Table */  
-#define SCHEDSZ		1024	/* ABR and UBR Scheduling Table size */  
-#define TX_DESC_TABLE_SZ 128	/* Number of entries in the Transmit   
-					Buffer Descriptor Table */  
-  
-/* These are used as table offsets in Descriptor Table address generation */  
-#define DESC_MODE	0x0  
-#define VC_INDEX	0x1  
-#define BYTE_CNT	0x3  
-#define PKT_START_HI	0x4  
-#define PKT_START_LO	0x5  
-  
-/* Descriptor Mode Word Bits */  
-#define EOM_EN	0x0800  
-#define AAL5	0x0100  
-#define APP_CRC32 0x0400  
+
+#define PROTOCOL_ID	0x01
+#define REASS_MASK_REG	0x02
+#define REASS_INTR_STATUS_REG	0x03
+/* Interrupt Status register bits */
+#define RX_PKT_CTR_OF	0x8000
+#define RX_ERR_CTR_OF	0x4000
+#define RX_CELL_CTR_OF	0x1000
+#define RX_FREEQ_EMPT	0x0200
+#define RX_EXCPQ_FL	0x0080
+#define	RX_RAWQ_FL	0x0010
+#define RX_EXCP_RCVD	0x0008
+#define RX_PKT_RCVD	0x0004
+#define RX_RAW_RCVD	0x0001
+
+#define DRP_PKT_CNTR	0x04
+#define ERR_CNTR	0x05
+#define RAW_BASE_ADR	0x08
+#define CELL_CTR0	0x0c
+#define CELL_CTR1	0x0d
+#define REASS_COMMAND_REG	0x0f
+/* Values for command register */
+#define RESET_REASS	0x0055
+#define RESET_REASS_STATE 0x00aa
+#define RESET_DRP_PKT_CNTR 0x00f1
+#define RESET_ERR_CNTR	0x00f2
+#define RESET_CELL_CNTR 0x00f8
+#define RESET_REASS_ALL_REGS 0x00ff
+
+#define REASS_DESC_BASE	0x10
+#define VC_LKUP_BASE	0x11
+#define REASS_TABLE_BASE 0x12
+#define REASS_QUEUE_BASE 0x13
+#define PKT_TM_CNT	0x16
+#define TMOUT_RANGE	0x17
+#define INTRVL_CNTR	0x18
+#define TMOUT_INDX	0x19
+#define VP_LKUP_BASE	0x1c
+#define VP_FILTER	0x1d
+#define ABR_LKUP_BASE	0x1e
+#define FREEQ_ST_ADR	0x24
+#define FREEQ_ED_ADR	0x25
+#define FREEQ_RD_PTR	0x26
+#define FREEQ_WR_PTR	0x27
+#define PCQ_ST_ADR	0x28
+#define PCQ_ED_ADR	0x29
+#define PCQ_RD_PTR	0x2a
+#define PCQ_WR_PTR	0x2b
+#define EXCP_Q_ST_ADR	0x2c
+#define EXCP_Q_ED_ADR	0x2d
+#define EXCP_Q_RD_PTR	0x2e
+#define EXCP_Q_WR_PTR	0x2f
+#define CC_FIFO_ST_ADR	0x34
+#define CC_FIFO_ED_ADR	0x35
+#define CC_FIFO_RD_PTR	0x36
+#define CC_FIFO_WR_PTR	0x37
+#define STATE_REG	0x38
+#define BUF_SIZE	0x42
+#define XTRA_RM_OFFSET	0x44
+#define DRP_PKT_CNTR_NC	0x84
+#define ERR_CNTR_NC	0x85
+#define CELL_CNTR0_NC	0x8c
+#define CELL_CNTR1_NC	0x8d
+
+/* State Register bits */
+#define EXCPQ_EMPTY	0x0040
+#define PCQ_EMPTY	0x0010
+#define FREEQ_EMPTY	0x0004
+
+
+/*----------------- Front End registers/ DMA control --------------*/
+/* There is a lot of documentation error regarding these offsets ???
+	eg:- 2 offsets given 800, a00 for rx counter
+	similarly many others
+   Remember again that the offsets are to be 4*register number, so
+	correct the #defines here
+*/
+#define IPHASE5575_TX_COUNTER		0x200	/* offset - 0x800 */
+#define IPHASE5575_RX_COUNTER		0x280	/* offset - 0xa00 */
+#define IPHASE5575_TX_LIST_ADDR		0x300	/* offset - 0xc00 */
+#define IPHASE5575_RX_LIST_ADDR		0x380	/* offset - 0xe00 */
+
+/*--------------------------- RAM ---------------------------*/
+/* These memory maps are actually offsets from the segmentation and reassembly  RAM base addresses */
+
+/* Segmentation Control Memory map */
+#define TX_DESC_BASE	0x0000	/* Buffer Decriptor Table */
+#define TX_COMP_Q	0x1000	/* Transmit Complete Queue */
+#define PKT_RDY_Q	0x1400	/* Packet Ready Queue */
+#define CBR_SCHED_TABLE	0x1800	/* CBR Table */
+#define UBR_SCHED_TABLE	0x3000	/* UBR Table */
+#define UBR_WAIT_Q	0x4000	/* UBR Wait Queue */
+#define ABR_SCHED_TABLE	0x5000	/* ABR Table */
+#define ABR_WAIT_Q	0x5800	/* ABR Wait Queue */
+#define EXT_VC_TABLE	0x6000	/* Extended VC Table */
+#define MAIN_VC_TABLE	0x8000	/* Main VC Table */
+#define SCHEDSZ		1024	/* ABR and UBR Scheduling Table size */
+#define TX_DESC_TABLE_SZ 128	/* Number of entries in the Transmit
+					Buffer Descriptor Table */
+
+/* These are used as table offsets in Descriptor Table address generation */
+#define DESC_MODE	0x0
+#define VC_INDEX	0x1
+#define BYTE_CNT	0x3
+#define PKT_START_HI	0x4
+#define PKT_START_LO	0x5
+
+/* Descriptor Mode Word Bits */
+#define EOM_EN	0x0800
+#define AAL5	0x0100
+#define APP_CRC32 0x0400
 #define CMPL_INT  0x1000
-  
+
 #define TABLE_ADDRESS(db, dn, to) \
-	(((unsigned long)(db & 0x04)) << 16) | (dn << 5) | (to << 1)  
-  
-/* Reassembly Control Memory Map */  
-#define RX_DESC_BASE	0x0000	/* Buffer Descriptor Table */  
-#define VP_TABLE	0x5c00	/* VP Table */  
-#define EXCEPTION_Q	0x5e00	/* Exception Queue */  
-#define FREE_BUF_DESC_Q	0x6000	/* Free Buffer Descriptor Queue */  
-#define PKT_COMP_Q	0x6800	/* Packet Complete Queue */  
-#define REASS_TABLE	0x7000	/* Reassembly Table */  
-#define RX_VC_TABLE	0x7800	/* VC Table */  
-#define ABR_VC_TABLE	0x8000	/* ABR VC Table */  
-#define RX_DESC_TABLE_SZ 736	/* Number of entries in the Receive   
-					Buffer Descriptor Table */  
-#define VP_TABLE_SZ	256	 /* Number of entries in VPTable */   
-#define RX_VC_TABLE_SZ 	1024	/* Number of entries in VC Table */   
-#define REASS_TABLE_SZ 	1024	/* Number of entries in Reassembly Table */  
- /* Buffer Descriptor Table */  
-#define RX_ACT	0x8000  
-#define RX_VPVC	0x4000  
-#define RX_CNG	0x0040  
-#define RX_CER	0x0008  
-#define RX_PTE	0x0004  
-#define RX_OFL	0x0002  
+	(((unsigned long)(db & 0x04)) << 16) | (dn << 5) | (to << 1)
+
+/* Reassembly Control Memory Map */
+#define RX_DESC_BASE	0x0000	/* Buffer Descriptor Table */
+#define VP_TABLE	0x5c00	/* VP Table */
+#define EXCEPTION_Q	0x5e00	/* Exception Queue */
+#define FREE_BUF_DESC_Q	0x6000	/* Free Buffer Descriptor Queue */
+#define PKT_COMP_Q	0x6800	/* Packet Complete Queue */
+#define REASS_TABLE	0x7000	/* Reassembly Table */
+#define RX_VC_TABLE	0x7800	/* VC Table */
+#define ABR_VC_TABLE	0x8000	/* ABR VC Table */
+#define RX_DESC_TABLE_SZ 736	/* Number of entries in the Receive
+					Buffer Descriptor Table */
+#define VP_TABLE_SZ	256	 /* Number of entries in VPTable */
+#define RX_VC_TABLE_SZ 	1024	/* Number of entries in VC Table */
+#define REASS_TABLE_SZ 	1024	/* Number of entries in Reassembly Table */
+ /* Buffer Descriptor Table */
+#define RX_ACT	0x8000
+#define RX_VPVC	0x4000
+#define RX_CNG	0x0040
+#define RX_CER	0x0008
+#define RX_PTE	0x0004
+#define RX_OFL	0x0002
 #define NUM_RX_EXCP   32
 
-/* Reassembly Table */  
-#define NO_AAL5_PKT	0x0000  
-#define AAL5_PKT_REASSEMBLED 0x4000  
-#define AAL5_PKT_TERMINATED 0x8000  
-#define RAW_PKT		0xc000  
-#define REASS_ABR	0x2000  
-  
-/*-------------------- Base Registers --------------------*/  
-#define REG_BASE IPHASE5575_BUS_CONTROL_REG_BASE  
-#define RAM_BASE IPHASE5575_FRAG_CONTROL_RAM_BASE  
-#define PHY_BASE IPHASE5575_FRONT_END_REG_BASE  
-#define SEG_BASE IPHASE5575_FRAG_CONTROL_REG_BASE  
-#define REASS_BASE IPHASE5575_REASS_CONTROL_REG_BASE  
+/* Reassembly Table */
+#define NO_AAL5_PKT	0x0000
+#define AAL5_PKT_REASSEMBLED 0x4000
+#define AAL5_PKT_TERMINATED 0x8000
+#define RAW_PKT		0xc000
+#define REASS_ABR	0x2000
+
+/*-------------------- Base Registers --------------------*/
+#define REG_BASE IPHASE5575_BUS_CONTROL_REG_BASE
+#define RAM_BASE IPHASE5575_FRAG_CONTROL_RAM_BASE
+#define PHY_BASE IPHASE5575_FRONT_END_REG_BASE
+#define SEG_BASE IPHASE5575_FRAG_CONTROL_REG_BASE
+#define REASS_BASE IPHASE5575_REASS_CONTROL_REG_BASE
 
 typedef volatile u_int	ffreg_t;
 typedef u_int   rreg_t;
@@ -802,30 +802,30 @@ typedef struct {
         u_short         r_status_rdf;   /* status + RDF         */
         u_short         r_air;          /* AIR                  */
         u_short         reserved4[14];  /* Reserved             */
-} r_vc_abr_entry;   
+} r_vc_abr_entry;
 
 #define MRM 3
 
 typedef struct srv_cls_param {
         u32 class_type;         /* CBR/VBR/ABR/UBR; use the enum above */
-        u32 pcr;                /* Peak Cell Rate (24-bit) */ 
+        u32 pcr;                /* Peak Cell Rate (24-bit) */
         /* VBR parameters */
         u32 scr;                /* sustainable cell rate */
         u32 max_burst_size;     /* ?? cell rate or data rate */
- 
+
         /* ABR only UNI 4.0 Parameters */
         u32 mcr;                /* Min Cell Rate (24-bit) */
         u32 icr;                /* Initial Cell Rate (24-bit) */
         u32 tbe;                /* Transient Buffer Exposure (24-bit) */
         u32 frtt;               /* Fixed Round Trip Time (24-bit) */
- 
+
 #if 0   /* Additional Parameters of TM 4.0 */
 bits  31          30           29          28       27-25 24-22 21-19  18-9
 -----------------------------------------------------------------------------
 | NRM present | TRM prsnt | CDF prsnt | ADTF prsnt | NRM | TRM | CDF | ADTF |
 -----------------------------------------------------------------------------
 #endif /* 0 */
- 
+
         u8 nrm;                 /* Max # of Cells for each forward RM
                                         cell (3-bit) */
         u8 trm;                 /* Time between forward RM cells (3-bit) */
@@ -837,10 +837,10 @@ bits  31          30           29          28       27-25 24-22 21-19  18-9
 } srv_cls_param_t;
 
 struct testTable_t {
-	u16 lastTime; 
-	u16 fract; 
+	u16 lastTime;
+	u16 fract;
 	u8 vc_status;
-}; 
+};
 
 typedef struct {
 	u16 vci;
@@ -848,15 +848,15 @@ typedef struct {
 } RX_ERROR_Q;
 
 typedef struct {
-	u8 active: 1; 
-	u8 abr: 1; 
-	u8 ubr: 1; 
+	u8 active: 1;
+	u8 abr: 1;
+	u8 ubr: 1;
 	u8 cnt: 5;
 #define VC_ACTIVE 	0x01
 #define VC_ABR		0x02
 #define VC_UBR		0x04
 } vcstatus_t;
-  
+
 struct ia_rfL_t {
     	u32  fdq_st;     /* Free desc queue start address        */
         u32  fdq_ed;     /* Free desc queue end address          */
@@ -865,7 +865,7 @@ struct ia_rfL_t {
         u32  pcq_st;     /* Packet Complete queue start address  */
         u32  pcq_ed;     /* Packet Complete queue end address    */
         u32  pcq_rd;     /* Packet Complete queue read pointer   */
-        u32  pcq_wr;     /* Packet Complete queue write pointer  */ 
+        u32  pcq_wr;     /* Packet Complete queue write pointer  */
 };
 
 struct ia_ffL_t {
@@ -881,7 +881,7 @@ struct desc_tbl_t {
         u32 timestamp;
         struct ia_vcc *iavcc;
         struct sk_buff *txskb;
-}; 
+};
 
 typedef struct ia_rtn_q {
    struct desc_tbl_t data;
@@ -983,23 +983,23 @@ typedef struct _SUNI_STATS_
    u32 racp_fo_count;               // FIFO overrun count
    u32 racp_chcs_count;             // correctable HCS error count
    u32 racp_uchcs_count;            // uncorrectable HCS error count
-} IA_SUNI_STATS; 
+} IA_SUNI_STATS;
 
 typedef struct iadev_priv {
-	/*-----base pointers into (i)chipSAR+ address space */   
+	/*-----base pointers into (i)chipSAR+ address space */
 	u32 __iomem *phy;	/* Base pointer into phy (SUNI). */
 	u32 __iomem *dma;	/* Base pointer into DMA control registers. */
 	u32 __iomem *reg;	/* Base pointer to SAR registers. */
-	u32 __iomem *seg_reg;		/* base pointer to segmentation engine  
-						internal registers */  
-	u32 __iomem *reass_reg;		/* base pointer to reassemble engine  
-						internal registers */  
-	u32 __iomem *ram;		/* base pointer to SAR RAM */  
-	void __iomem *seg_ram;  
-	void __iomem *reass_ram;  
-	struct dle_q tx_dle_q;  
-	struct free_desc_q *tx_free_desc_qhead;  
-	struct sk_buff_head tx_dma_q, tx_backlog;  
+	u32 __iomem *seg_reg;		/* base pointer to segmentation engine
+						internal registers */
+	u32 __iomem *reass_reg;		/* base pointer to reassemble engine
+						internal registers */
+	u32 __iomem *ram;		/* base pointer to SAR RAM */
+	void __iomem *seg_ram;
+	void __iomem *reass_ram;
+	struct dle_q tx_dle_q;
+	struct free_desc_q *tx_free_desc_qhead;
+	struct sk_buff_head tx_dma_q, tx_backlog;
         spinlock_t            tx_lock;
         IARTN_Q               tx_return_q;
         u32                   close_pending;
@@ -1009,25 +1009,25 @@ typedef struct iadev_priv {
         u16 num_tx_desc, tx_buf_sz, rate_limit;
         u32 tx_cell_cnt, tx_pkt_cnt;
         void __iomem *MAIN_VC_TABLE_ADDR, *EXT_VC_TABLE_ADDR, *ABR_SCHED_TABLE_ADDR;
-	struct dle_q rx_dle_q;  
-	struct free_desc_q *rx_free_desc_qhead;  
-	struct sk_buff_head rx_dma_q;  
+	struct dle_q rx_dle_q;
+	struct free_desc_q *rx_free_desc_qhead;
+	struct sk_buff_head rx_dma_q;
 	spinlock_t rx_lock;
-	struct atm_vcc **rx_open;	/* list of all open VCs */  
+	struct atm_vcc **rx_open;	/* list of all open VCs */
         u16 num_rx_desc, rx_buf_sz, rxing;
         u32 rx_pkt_ram, rx_tmp_cnt;
         unsigned long rx_tmp_jif;
         void __iomem *RX_DESC_BASE_ADDR;
         u32 drop_rxpkt, drop_rxcell, rx_cell_cnt, rx_pkt_cnt;
-	struct atm_dev *next_board;	/* other iphase devices */  
-	struct pci_dev *pci;  
-	int mem;  
-	unsigned int real_base;	/* real and virtual base address */  
+	struct atm_dev *next_board;	/* other iphase devices */
+	struct pci_dev *pci;
+	int mem;
+	unsigned int real_base;	/* real and virtual base address */
 	void __iomem *base;
-	unsigned int pci_map_size;	/*pci map size of board */  
-	unsigned char irq;  
-	unsigned char bus;  
-	unsigned char dev_fn;  
+	unsigned int pci_map_size;	/*pci map size of board */
+	unsigned char irq;
+	unsigned char bus;
+	unsigned char dev_fn;
         u_short  phy_type;
         u_short  num_vc, memSize, memType;
         struct ia_ffL_t ffL;
@@ -1055,10 +1055,10 @@ typedef struct iadev_priv {
 	dma_addr_t tx_dle_dma;
 	dma_addr_t rx_dle_dma;
 } IADEV;
-  
-  
-#define INPH_IA_DEV(d) ((IADEV *) (d)->dev_data)  
-#define INPH_IA_VCC(v) ((struct ia_vcc *) (v)->dev_data)  
+
+
+#define INPH_IA_DEV(d) ((IADEV *) (d)->dev_data)
+#define INPH_IA_VCC(v) ((struct ia_vcc *) (v)->dev_data)
 
 /******************* IDT77105 25MB/s PHY DEFINE *****************************/
 enum ia_mb25 {
@@ -1085,7 +1085,7 @@ enum ia_mb25 {
 /*
  * Interrupt Status
  */
-#define	MB25_IS_GSB	0x40		/* GOOD Symbol Bit		     */	
+#define	MB25_IS_GSB	0x40		/* GOOD Symbol Bit		     */
 #define	MB25_IS_HECECR	0x20		/* HEC error cell received	     */
 #define	MB25_IS_SCR	0x10		/* "Short Cell" Received	     */
 #define	MB25_IS_TPE	0x08		/* Trnamsit Parity Error	     */
@@ -1096,7 +1096,7 @@ enum ia_mb25 {
 /*
  * Diagnostic Control
  */
-#define	MB25_DC_FTXCD	0x80		/* Force TxClav deassert	     */	
+#define	MB25_DC_FTXCD	0x80		/* Force TxClav deassert	     */
 #define	MB25_DC_RXCOS	0x40		/* RxClav operation select	     */
 #define	MB25_DC_ECEIO	0x20		/* Single/Multi-PHY config select    */
 #define	MB25_DC_RLFLUSH	0x10		/* Clear receive FIFO		     */
@@ -1106,16 +1106,16 @@ enum ia_mb25 {
 
 #define	MB25_DC_LL	0x03		/* Line Loopback		     */
 #define	MB25_DC_PL	0x02		/* PHY Loopback			     */
-#define	MB25_DC_NM	0x00		
+#define	MB25_DC_NM	0x00
 
 #define FE_MASK 	0x00F0
 #define FE_MULTI_MODE	0x0000
-#define FE_SINGLE_MODE  0x0010 
+#define FE_SINGLE_MODE  0x0010
 #define FE_UTP_OPTION  	0x0020
 #define FE_25MBIT_PHY	0x0040
 #define FE_DS3_PHY      0x0080          /* DS3 */
 #define FE_E3_PHY       0x0090          /* E3 */
-		     
+
 /*********************** SUNI_PM7345 PHY DEFINE HERE *********************/
 enum suni_pm7345 {
 	SUNI_CONFIG			= 0x000, /* SUNI Configuration */
@@ -1258,7 +1258,7 @@ enum suni_pm7345 {
 #define SUNI_DS3_AISE   0x04            /* Enable Alarm Indication signal intr*/
 #define SUNI_DS3_OOFE   0x02            /* Enable Out of frame intr     */
 #define SUNI_DS3_LOSE   0x01            /* Enable Loss of signal intr   */
- 
+
 /*
  * DS3 FRMR Status
  */
@@ -1356,12 +1356,12 @@ enum suni_pm7345 {
 
 /*
  * these bits duplicate the hw_flip.h register settings
- * note: how the data in / out bits are defined in the flipper specification 
+ * note: how the data in / out bits are defined in the flipper specification
  */
 
 #define	NVCE	0x02
 #define	NVSK	0x01
-#define	NVDO	0x08	
+#define	NVDO	0x08
 #define NVDI	0x04
 /***********************
  *

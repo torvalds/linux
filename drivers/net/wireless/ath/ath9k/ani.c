@@ -432,7 +432,7 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
 			aniState->ofdmsTurn = true;
 		} else
 			return;
-			
+
 		ath9k_ani_restart(ah);
 	}
 }

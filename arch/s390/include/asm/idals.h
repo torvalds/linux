@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* 
+/*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
@@ -52,7 +52,7 @@ static inline unsigned long *idal_create_words(unsigned long *idaws,
 	unsigned int cidaw;
 
 	paddr = __pa(vaddr);
-	cidaw = ((paddr & (IDA_BLOCK_SIZE-1)) + length + 
+	cidaw = ((paddr & (IDA_BLOCK_SIZE-1)) + length +
 		 (IDA_BLOCK_SIZE-1)) >> IDA_SIZE_LOG;
 	*idaws++ = paddr;
 	paddr &= -IDA_BLOCK_SIZE;

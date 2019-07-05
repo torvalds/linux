@@ -19,7 +19,7 @@
 #define GLB_SCC_3   3
 
 typedef void (int_routine)(unsigned short interrupt_event);
-typedef int_routine *int_routine_ptr; 
+typedef int_routine *int_routine_ptr;
 typedef void *(alloc_routine)(int length);
 typedef void (free_routine)(int scc_num, int channel_num, void *buf);
 typedef void (store_rx_buffer_routine)(int scc_num, int channel_num, void *buff, int length);

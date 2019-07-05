@@ -188,15 +188,15 @@ ahc_linux_pci_inherit_flags(struct ahc_softc *ahc)
 	if (master_pdev) {
 		struct ahc_softc *master = pci_get_drvdata(master_pdev);
 		if (master) {
-			ahc->flags &= ~AHC_BIOS_ENABLED; 
+			ahc->flags &= ~AHC_BIOS_ENABLED;
 			ahc->flags |= master->flags & AHC_BIOS_ENABLED;
 
-			ahc->flags &= ~AHC_PRIMARY_CHANNEL; 
+			ahc->flags &= ~AHC_PRIMARY_CHANNEL;
 			ahc->flags |= master->flags & AHC_PRIMARY_CHANNEL;
 		} else
 			printk(KERN_ERR "aic7xxx: no multichannel peer found!\n");
 		pci_dev_put(master_pdev);
-	} 
+	}
 }
 
 static int
@@ -465,7 +465,7 @@ ahc_pci_map_int(struct ahc_softc *ahc)
 			    IRQF_SHARED, "aic7xxx", ahc);
 	if (error == 0)
 		ahc->platform_data->irq = ahc->dev_softc->irq;
-	
+
 	return (-error);
 }
 

@@ -1,7 +1,7 @@
 #ifndef __DRIVERS_PARIDE_H__
 #define __DRIVERS_PARIDE_H__
 
-/* 
+/*
 	paride.h	(c) 1997-8  Grant R. Guenther <grant@torque.net>
    		                    Under the terms of the GPL.
 
@@ -58,7 +58,7 @@ typedef struct pi_adapter PIA;
 
 /* functions exported by paride to the high level drivers */
 
-extern int pi_init(PIA *pi, 
+extern int pi_init(PIA *pi,
 	int autoprobe,		/* 1 to autoprobe */
 	int port, 		/* base port address */
 	int mode, 		/* -1 for autoprobe */
@@ -139,7 +139,7 @@ struct pi_protocol {
 
 	int	max_mode;	/* max mode number */
 	int	epp_first;	/* modes >= this use 8 ports */
-	
+
 	int	default_delay;  /* delay parameter if not specified */
 	int	max_units;	/* max chained units probed for */
 
@@ -150,12 +150,12 @@ struct pi_protocol {
 
 	void (*connect)(PIA *);
 	void (*disconnect)(PIA *);
-	
+
 	int  (*test_port)(PIA *);
 	int  (*probe_unit)(PIA *);
 	int  (*test_proto)(PIA *,char *,int);
 	void (*log_adapter)(PIA *,char *,int);
-	
+
 	int (*init_proto)(PIA *);
 	void (*release_proto)(PIA *);
 	struct module *owner;

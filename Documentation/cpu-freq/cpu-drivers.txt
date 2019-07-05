@@ -3,7 +3,7 @@
 
 		         L i n u x    C P U F r e q
 
-			   C P U   D r i v e r s 
+			   C P U   D r i v e r s
 
 		       - information for developers -
 
@@ -49,7 +49,7 @@ function check whether this kernel runs on the right CPU and the right
 chipset. If so, register a struct cpufreq_driver with the CPUfreq core
 using cpufreq_register_driver()
 
-What shall this struct cpufreq_driver contain? 
+What shall this struct cpufreq_driver contain?
 
  .name - The name of this driver.
 
@@ -116,8 +116,8 @@ If necessary, activate the CPUfreq support on your CPU.
 Then, the driver must fill in the following values:
 
 policy->cpuinfo.min_freq _and_
-policy->cpuinfo.max_freq -	the minimum and maximum frequency 
-				(in kHz) which is supported by 
+policy->cpuinfo.max_freq -	the minimum and maximum frequency
+				(in kHz) which is supported by
 				this CPU
 policy->cpuinfo.transition_latency   the time it takes on this CPU to
 				switch between two frequencies in
@@ -126,8 +126,8 @@ policy->cpuinfo.transition_latency   the time it takes on this CPU to
 
 policy->cur			The current operating frequency of
 				this CPU (if appropriate)
-policy->min, 
-policy->max, 
+policy->min,
+policy->max,
 policy->policy and, if necessary,
 policy->governor		must contain the "default policy" for
 				this CPU. A few moments later,
@@ -163,7 +163,7 @@ policy->max first, and only if this is no solution, decrease policy->min.
 1.4 target or target_index or setpolicy or fast_switch?
 -------------------------------------------------------
 
-Most cpufreq drivers or even most cpu frequency scaling algorithms 
+Most cpufreq drivers or even most cpu frequency scaling algorithms
 only allow the CPU frequency to be set to predefined fixed values. For
 these, you use the ->target(), ->target_index() or ->fast_switch()
 callbacks.

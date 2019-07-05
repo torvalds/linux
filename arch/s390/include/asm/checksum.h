@@ -6,7 +6,7 @@
  *    Copyright IBM Corp. 1999
  *    Author(s): Ulrich Hild        (first version)
  *               Martin Schwidefsky (heavily optimized CKSM version)
- *               D.J. Barrow        (third attempt) 
+ *               D.J. Barrow        (third attempt)
  */
 
 #ifndef _S390_CHECKSUM_H

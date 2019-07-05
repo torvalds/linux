@@ -9,7 +9,7 @@
  *   for SiS735, so the code is not fully functional.
  *
 
- */      
+ */
 
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -253,7 +253,7 @@ enum {
 #define ALI_CSPSR_WRITE_OK	0x01
 
 /* interrupts for the whole chip by interrupt status register finish */
- 
+
 #define ALI_INT_MICIN2		(1<<26)
 #define ALI_INT_PCMIN2		(1<<25)
 #define ALI_INT_I2SIN		(1<<24)
@@ -297,7 +297,7 @@ enum {
 #define ICH_ALI_IF_PO		(1<<1)
 
 /*
- *  
+ *
  */
 
 enum {
@@ -398,7 +398,7 @@ struct intel8x0 {
 	unsigned int codec_ready_bits;
 
 	spinlock_t reg_lock;
-	
+
 	u32 bdbars_count;
 	struct snd_dma_buffer bdbars;
 	u32 int_sta_reg;		/* interrupt status register */
@@ -493,7 +493,7 @@ static inline void iaputword(struct intel8x0 *chip, u32 offset, u16 val)
 static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int codec)
 {
 	int time;
-	
+
 	if (codec > 2)
 		return -EIO;
 	if (chip->in_sdin_init) {
@@ -529,13 +529,13 @@ static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int code
 	/* I don't care about the semaphore */
 	return -EBUSY;
 }
- 
+
 static void snd_intel8x0_codec_write(struct snd_ac97 *ac97,
 				     unsigned short reg,
 				     unsigned short val)
 {
 	struct intel8x0 *chip = ac97->private_data;
-	
+
 	if (snd_intel8x0_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
 			dev_err(chip->card->dev,
@@ -653,7 +653,7 @@ static void snd_intel8x0_ali_codec_write(struct snd_ac97 *ac97, unsigned short r
 /*
  * DMA I/O
  */
-static void snd_intel8x0_setup_periods(struct intel8x0 *chip, struct ichdev *ichdev) 
+static void snd_intel8x0_setup_periods(struct intel8x0 *chip, struct ichdev *ichdev)
 {
 	int idx;
 	__le32 *bdbar = ichdev->bdbar;
@@ -792,7 +792,7 @@ static irqreturn_t snd_intel8x0_interrupt(int irq, void *dev_id)
 
 	/* ack them */
 	iputdword(chip, chip->int_sta_reg, status & chip->int_sta_mask);
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -858,8 +858,8 @@ static int snd_intel8x0_ali_trigger(struct snd_pcm_substream *substream, int cmd
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/* clear FIFO for synchronization of channels */
 			fifo = igetdword(chip, fiforeg[ichdev->ali_slot / 4]);
-			fifo &= ~(0xff << (ichdev->ali_slot % 4));  
-			fifo |= 0x83 << (ichdev->ali_slot % 4); 
+			fifo &= ~(0xff << (ichdev->ali_slot % 4));
+			fifo |= 0x83 << (ichdev->ali_slot % 4);
 			iputdword(chip, fiforeg[ichdev->ali_slot / 4], fifo);
 		}
 		iputbyte(chip, port + ICH_REG_OFF_CR, ICH_IOCE);
@@ -1650,7 +1650,7 @@ static int snd_intel8x0_pcm(struct intel8x0 *chip)
 	chip->pcm_devs = device;
 	return 0;
 }
-	
+
 
 /*
  *  Mixer part
@@ -2179,7 +2179,7 @@ static int snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	}
 
 	chip->in_ac97_init = 1;
-	
+
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
 	ac97.private_free = snd_intel8x0_mixer_free_ac97;
@@ -2520,7 +2520,7 @@ static int snd_intel8x0_chip_init(struct intel8x0 *chip, int probing)
 {
 	unsigned int i, timeout;
 	int err;
-	
+
 	if (chip->device_type != DEVICE_ALI) {
 		if ((err = snd_intel8x0_ich_chip_init(chip, probing)) < 0)
 			return err;
@@ -3230,7 +3230,7 @@ static int snd_intel8x0_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	
+
 	snd_intel8x0_proc_init(chip);
 
 	snprintf(card->longname, sizeof(card->longname),

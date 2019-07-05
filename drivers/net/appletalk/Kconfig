@@ -37,7 +37,7 @@ config DEV_APPLETALK
 	  on a network.  If your Linux box is connected to such a network, and wish
 	  to do IP over it, or you have a LocalTalk card and wish to use it to
 	  connect to the AppleTalk network, say Y.
-	  
+
 
 config LTPC
 	tristate "Apple/Farallon LocalTalk PC support"

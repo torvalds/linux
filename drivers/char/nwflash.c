@@ -167,7 +167,7 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 
 	if (count > gbFlashSize - p)
 		count = gbFlashSize - p;
-			
+
 	if (!access_ok(buf, count))
 		return -EFAULT;
 
@@ -491,7 +491,7 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 		*(volatile unsigned char *) (FLASH_BASE + 0x8000) = 0xFF;
 
 		/*
-		 * if hardware reports an error writing, and not timeout - 
+		 * if hardware reports an error writing, and not timeout -
 		 * reset the chip and retry
 		 */
 		if (c1 & 0x10) {

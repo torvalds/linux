@@ -60,7 +60,7 @@ struct vlan_ioctl_args {
 		unsigned int flag; /* Matches vlan_dev_priv flags */
         } u;
 
-	short vlan_qos;   
+	short vlan_qos;
 };
 
 #endif /* _UAPI_LINUX_IF_VLAN_H_ */

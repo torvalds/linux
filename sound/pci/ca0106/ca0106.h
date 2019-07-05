@@ -6,7 +6,7 @@
  *
  *  FEATURES currently supported:
  *    See ca0106_main.c for features.
- * 
+ *
  *  Changelog:
  *    Support interrupts per period.
  *    Removed noise from Center/LFE channel when in Analog mode.
@@ -159,10 +159,10 @@
 /********************************************************************************************************/
 /* CA0106 pointer-offset register set, accessed through the PTR and DATA registers                     */
 /********************************************************************************************************/
-                                                                                                                           
+
 /* Initially all registers from 0x00 to 0x3f have zero contents. */
 #define PLAYBACK_LIST_ADDR	0x00		/* Base DMA address of a list of pointers to each period/size */
-						/* One list entry: 4 bytes for DMA address, 
+						/* One list entry: 4 bytes for DMA address,
 						 * 4 bytes for period_size << 16.
 						 * One list entry is 8 bytes long.
 						 * One list entry for each period in the buffer.
@@ -204,7 +204,7 @@
 						 * Playback mixer in enable [27:24] (one bit per channel)
 						 * Playback mixer out enable [31:28] (one bit per channel)
 						 */
-/* The Digital out jack is shared with the Center/LFE Analogue output. 
+/* The Digital out jack is shared with the Center/LFE Analogue output.
  * The jack has 4 poles. I will call 1 - Tip, 2 - Next to 1, 3 - Next to 2, 4 - Next to 3
  * For Analogue: 1 -> Center Speaker, 2 -> Sub Woofer, 3 -> Ground, 4 -> Ground
  * For Digital: 1 -> Front SPDIF, 2 -> Rear SPDIF, 3 -> Center/Subwoofer SPDIF, 4 -> Ground.
@@ -217,7 +217,7 @@
  * Summary: For ALSA we use the Rear channel for SPDIF Digital AC3/DTS output
  */
 /* A standard 2 pole mono mini-jack to RCA plug can be used for SPDIF Stereo PCM output from the Front channel.
- * A standard 3 pole stereo mini-jack to 2 RCA plugs can be used for SPDIF AC3/DTS and Stereo PCM output utilising the Rear channel and just one of the RCA plugs. 
+ * A standard 3 pole stereo mini-jack to 2 RCA plugs can be used for SPDIF AC3/DTS and Stereo PCM output utilising the Rear channel and just one of the RCA plugs.
  */
 #define SPCS0			0x41		/* SPDIF output Channel Status 0 register. For Rear. default=0x02108004, non-audio=0x02108006	*/
 #define SPCS1			0x42		/* SPDIF output Channel Status 1 register. For Front */
@@ -316,7 +316,7 @@
 #define CAPTURE_SOURCE_CHANNEL2 0x00f00000      /* 1 - What you hear or . 2 - ?? */
 #define CAPTURE_SOURCE_CHANNEL3 0x000f0000	/* 3 - Mic in, Line in, TAD in, Aux in. */
 #define CAPTURE_SOURCE_RECORD_MAP 0x0000ffff	/* Default 0x00e4 */
-						/* Record Map [7:0] (2 bits per channel) 0=mapped to channel 0, 1=mapped to channel 1, 2=mapped to channel2, 3=mapped to channel3 
+						/* Record Map [7:0] (2 bits per channel) 0=mapped to channel 0, 1=mapped to channel 1, 2=mapped to channel2, 3=mapped to channel3
 						 * Record source select for channel 0 [18:16]
 						 * Record source select for channel 1 [22:20]
 						 * Record source select for channel 2 [26:24]
@@ -417,7 +417,7 @@
 						 * Sample input rate [3:2] (0=48kHz, 1=Not available, 2=96kHz, 3=192Khz)
 						 * SRC input source select [4] 0=Audio from digital mixer, 1=Audio from analog source.
 						 * Record rate [9:8] (0=48kHz, 1=Not available, 2=96kHz, 3=192Khz)
-						 * Record mixer output enable [12:10] 
+						 * Record mixer output enable [12:10]
 						 * I2S input rate master mode [15:14] (0=48kHz, 1=44.1kHz, 2=96kHz, 3=192Khz)
 						 * I2S output rate [17:16] (0=48kHz, 1=44.1kHz, 2=96kHz, 3=192Khz)
 						 * I2S output source select [18] (0=Audio from host, 1=Audio from SRC)
@@ -430,7 +430,7 @@
 						 * Not used [27]
 						 * Record Source 0 input [29:28] (0=SPDIF in, 1=I2S in, 2=AC97 Mic, 3=AC97 PCM)
 						 * Record Source 1 input [31:30] (0=SPDIF in, 1=I2S in, 2=AC97 Mic, 3=AC97 PCM)
-						 */ 
+						 */
 						/* Sample rate output control register Channel=1
 						 * I2S Input 0 volume Right [7:0]
 						 * I2S Input 0 volume Left [15:8]
@@ -452,7 +452,7 @@
 						 * AC97 output enable [5:0]
 						 * I2S output enable [19:16]
 						 * SPDIF output enable [27:24]
-						 */ 
+						 */
 #define UNKNOWN73               0x73            /* Unknown. Readonly. Default 0x0 */
 #define CHIP_VERSION            0x74            /* P17 Chip version. Channel_id 0 only. Default 00000071 */
 #define EXTENDED_INT_MASK       0x75            /* Used by both playback and capture interrupt handler */
@@ -487,14 +487,14 @@
 #define I2C_A_ADC_LAST_MASK	0x00000040	//Bit mask for Last word transaction
 #define I2C_A_ADC_BYTE_MASK	0x00000080	//Bit mask for Byte Mode
 
-#define I2C_A_ADC_ADD		0x00000034	//This is the Device address for ADC 
+#define I2C_A_ADC_ADD		0x00000034	//This is the Device address for ADC
 #define I2C_A_ADC_READ		0x00000001	//To perform a read operation
 #define I2C_A_ADC_START		0x00000100	//Start I2C transaction
 #define I2C_A_ADC_ABORT		0x00000200	//I2C transaction abort
 #define I2C_A_ADC_LAST		0x00000400	//I2C last transaction
 #define I2C_A_ADC_BYTE		0x00000800	//I2C one byte mode
 
-#define I2C_D_ADC_REG_MASK	0xfe000000  	//ADC address register 
+#define I2C_D_ADC_REG_MASK	0xfe000000  	//ADC address register
 #define I2C_D_ADC_DAT_MASK	0x01ff0000  	//ADC data register
 
 #define ADC_TIMEOUT		0x00000007	//ADC Timeout Clock Disable
@@ -704,13 +704,13 @@ struct snd_ca0106 {
 int snd_ca0106_mixer(struct snd_ca0106 *emu);
 int snd_ca0106_proc_init(struct snd_ca0106 * emu);
 
-unsigned int snd_ca0106_ptr_read(struct snd_ca0106 * emu, 
-				 unsigned int reg, 
+unsigned int snd_ca0106_ptr_read(struct snd_ca0106 * emu,
+				 unsigned int reg,
 				 unsigned int chn);
 
-void snd_ca0106_ptr_write(struct snd_ca0106 *emu, 
-			  unsigned int reg, 
-			  unsigned int chn, 
+void snd_ca0106_ptr_write(struct snd_ca0106 *emu,
+			  unsigned int reg,
+			  unsigned int chn,
 			  unsigned int data);
 
 int snd_ca0106_i2c_write(struct snd_ca0106 *emu, u32 reg, u32 value);

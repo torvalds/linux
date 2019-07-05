@@ -1,4 +1,4 @@
-/* 
+/*
         pseudo.h    (c) 1997-8  Grant R. Guenther <grant@torque.net>
                                 Under the terms of the GNU General Public License.
 
@@ -20,7 +20,7 @@
 	jiffy.  If nice is 0, the test will also be done whenever
 	the scheduler runs (by adding it to a task queue).  If
 	nice is greater than 1, the test will be done once every
-	(nice-1) jiffies. 
+	(nice-1) jiffies.
 
 */
 
@@ -29,7 +29,7 @@
 	1.01	1998.05.03	Switched from cli()/sti() to spinlocks
 	1.02    1998.12.14      Added support for nice > 1
 */
-	
+
 #define PS_VERSION	"1.02"
 
 #include <linux/sched.h>
@@ -47,7 +47,7 @@ static DEFINE_SPINLOCK(ps_spinlock __attribute__((unused)));
 
 static DECLARE_DELAYED_WORK(ps_tq, ps_tq_int);
 
-static void ps_set_intr(void (*continuation)(void), 
+static void ps_set_intr(void (*continuation)(void),
 			int (*ready)(void),
 			int timeout, int nice)
 {

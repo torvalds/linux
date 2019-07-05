@@ -58,8 +58,8 @@ static ssize_t  show_engine_regs(struct device *dev, struct device_attribute *at
 	if (!pldev) return 0;
 	ldev = platform_get_drvdata(pldev);
 	if (!ldev) return 0;
-	
-	return scnprintf(buf, PAGE_SIZE, 
+
+	return scnprintf(buf, PAGE_SIZE,
 		"EngineControlStatus      = 0x%08x\n"
 		"RegNextDescPtr           = 0x%08x\n"
 		"RegSWDescPtr             = 0x%08x\n"
@@ -95,25 +95,25 @@ int  kpc_dma_probe(struct platform_device *pldev)
 	struct resource *r = NULL;
 	int rv = 0;
 	dev_t dev;
-	
+
 	struct kpc_dma_device *ldev = kzalloc(sizeof(struct kpc_dma_device), GFP_KERNEL);
 	if (!ldev){
 		dev_err(&pldev->dev, "kpc_dma_probe: unable to kzalloc space for kpc_dma_device\n");
 		rv = -ENOMEM;
 		goto err_rv;
 	}
-	
+
 	dev_dbg(&pldev->dev, "kpc_dma_probe(pldev = [%p]) ldev = [%p]\n", pldev, ldev);
-	
+
 	INIT_LIST_HEAD(&ldev->list);
-	
+
 	ldev->pldev = pldev;
 	platform_set_drvdata(pldev, ldev);
 	atomic_set(&ldev->open_count, 1);
-	
+
 	mutex_init(&ldev->sem);
 	lock_engine(ldev);
-	
+
 	// Get Engine regs resource
 	r = platform_get_resource(pldev, IORESOURCE_MEM, 0);
 	if (!r){
@@ -127,7 +127,7 @@ int  kpc_dma_probe(struct platform_device *pldev)
 		rv = -ENXIO;
 		goto err_kfree;
 	}
-	
+
 	r = platform_get_resource(pldev, IORESOURCE_IRQ, 0);
 	if (!r){
 		dev_err(&ldev->pldev->dev, "kpc_dma_probe: didn't get the IRQ resource!\n");
@@ -135,7 +135,7 @@ int  kpc_dma_probe(struct platform_device *pldev)
 		goto err_kfree;
 	}
 	ldev->irq = r->start;
-	
+
 	// Setup miscdev struct
 	dev = MKDEV(assigned_major_num, pldev->id);
 	ldev->kpc_dma_dev = device_create(kpc_dma_class, &pldev->dev, dev, ldev, "kpc_dma%d", pldev->id);
@@ -143,25 +143,25 @@ int  kpc_dma_probe(struct platform_device *pldev)
 		dev_err(&ldev->pldev->dev, "kpc_dma_probe: device_create failed: %d\n", rv);
 		goto err_kfree;
 	}
-	
+
 	// Setup the DMA engine
 	rv = setup_dma_engine(ldev, 30);
 	if (rv){
 		dev_err(&ldev->pldev->dev, "kpc_dma_probe: failed to setup_dma_engine: %d\n", rv);
 		goto err_misc_dereg;
 	}
-	
+
 	// Setup the sysfs files
 	rv = sysfs_create_files(&(ldev->pldev->dev.kobj), ndd_attr_list);
 	if (rv){
 		dev_err(&ldev->pldev->dev, "kpc_dma_probe: Failed to add sysfs files: %d\n", rv);
 		goto err_destroy_eng;
 	}
-	
+
 	kpc_dma_add_device(ldev);
-	
+
 	return 0;
-	
+
  err_destroy_eng:
 	destroy_dma_engine(ldev);
  err_misc_dereg:
@@ -178,16 +178,16 @@ int  kpc_dma_remove(struct platform_device *pldev)
 	struct kpc_dma_device *ldev = platform_get_drvdata(pldev);
 	if (!ldev)
 		return -ENXIO;
-	
+
 	dev_dbg(&ldev->pldev->dev, "kpc_dma_remove(pldev = [%p]) ldev = [%p]\n", pldev, ldev);
-	
+
 	lock_engine(ldev);
 	sysfs_remove_files(&(ldev->pldev->dev.kobj), ndd_attr_list);
 	destroy_dma_engine(ldev);
 	kpc_dma_del_device(ldev);
 	device_destroy(kpc_dma_class, MKDEV(assigned_major_num, ldev->pldev->id));
 	kfree(ldev);
-	
+
 	return 0;
 }
 
@@ -206,29 +206,29 @@ static
 int __init  kpc_dma_driver_init(void)
 {
 	int err;
-	
+
 	err = __register_chrdev(KPC_DMA_CHAR_MAJOR, 0, KPC_DMA_NUM_MINORS, "kpc_dma", &kpc_dma_fops);
 	if (err < 0){
 		pr_err("Can't allocate a major number (%d) for kpc_dma (err = %d)\n", KPC_DMA_CHAR_MAJOR, err);
 		goto fail_chrdev_register;
 	}
 	assigned_major_num = err;
-	
+
 	kpc_dma_class = class_create(THIS_MODULE, "kpc_dma");
 	err = PTR_ERR(kpc_dma_class);
 	if (IS_ERR(kpc_dma_class)){
 		pr_err("Can't create class kpc_dma (err = %d)\n", err);
 		goto fail_class_create;
 	}
-	
+
 	err = platform_driver_register(&kpc_dma_plat_driver_i);
 	if (err){
 		pr_err("Can't register platform driver for kpc_dma (err = %d)\n", err);
 		goto fail_platdriver_register;
 	}
-	
+
 	return err;
-	
+
   fail_platdriver_register:
 	class_destroy(kpc_dma_class);
   fail_class_create:

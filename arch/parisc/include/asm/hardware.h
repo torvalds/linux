@@ -77,8 +77,8 @@ struct bc_module {
         volatile uint32_t io_io_high;
 };
 
-#define HPHW_NPROC     0 
-#define HPHW_MEMORY    1       
+#define HPHW_NPROC     0
+#define HPHW_MEMORY    1
 #define HPHW_B_DMA     2
 #define HPHW_OBSOLETE  3
 #define HPHW_A_DMA     4

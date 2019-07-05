@@ -576,7 +576,7 @@ static void __init bast_init(void)
 	simtec_audio_add(NULL, true, &bast_audio);
 
 	WARN_ON(gpio_request(S3C2410_GPA(21), "bast nreset"));
-	
+
 	s3c_cpufreq_setboard(&bast_cpufreq);
 }
 

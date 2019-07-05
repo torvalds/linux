@@ -7,7 +7,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <asm/mmu.h>	
+#include <asm/mmu.h>
 #include <asm/cputable.h>
 #include <asm/cputhreads.h>
 

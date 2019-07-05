@@ -132,7 +132,7 @@ int dmabrg_request_irq(unsigned int dmairq, void(*handler)(void*),
 
 	dmabrg_handlers[dmairq].handler = handler;
 	dmabrg_handlers[dmairq].data = data;
-	
+
 	dmabrg_enable_irq(dmairq);
 	return 0;
 }

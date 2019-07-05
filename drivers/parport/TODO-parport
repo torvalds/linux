@@ -10,7 +10,7 @@ Things to be done.
       the printer support it.
 
    b) Handle status readback automatically.  IEEE1284 printers can post status
-      bits when they have something to say.  We should read out and deal 
+      bits when they have something to say.  We should read out and deal
       with (maybe just log) whatever the printer wants to tell the world.
 
 3. Support more hardware (eg m68k, Sun bpp).

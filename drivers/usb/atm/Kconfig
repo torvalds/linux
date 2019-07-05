@@ -23,7 +23,7 @@ config USB_SPEEDTOUCH
 	select FW_LOADER
 	help
 	  Say Y here if you have an SpeedTouch USB or SpeedTouch 330
-	  modem.  In order to use your modem you will need to install the 
+	  modem.  In order to use your modem you will need to install the
 	  two parts of the firmware, extracted by the user space tools; see
 	  <http://www.linux-usb.org/SpeedTouch/> for details.
 

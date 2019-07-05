@@ -196,7 +196,7 @@ no_kprobe:
  * regs->tpc and regs->tnpc still hold the values of the
  * program counters at the time of trap due to the execution
  * of the BREAKPOINT_INSTRUCTION_2 at p->ainsn.insn[1]
- * 
+ *
  */
 static unsigned long __kprobes relbranch_fixup(u32 insn, struct kprobe *p,
 					       struct pt_regs *regs)

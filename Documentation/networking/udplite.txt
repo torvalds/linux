@@ -12,7 +12,7 @@
   For in-depth information, you can consult:
 
    o The UDP-Lite Homepage:
-	http://web.archive.org/web/*/http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/ 
+	http://web.archive.org/web/*/http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/
        From here you can also download some example application source code.
 
    o The UDP-Lite HOWTO on
@@ -28,7 +28,7 @@
   I) APPLICATIONS
 
   Several applications have been ported successfully to UDP-Lite. Ethereal
-  (now called wireshark) has UDP-Litev4/v6 support by default. 
+  (now called wireshark) has UDP-Litev4/v6 support by default.
   Porting applications to UDP-Lite is straightforward: only socket level and
   IPPROTO need to be changed; senders additionally set the checksum coverage
   length (default = header length = 8). Details are in the next section.

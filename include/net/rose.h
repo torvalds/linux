@@ -6,7 +6,7 @@
  */
 
 #ifndef _ROSE_H
-#define _ROSE_H 
+#define _ROSE_H
 
 #include <linux/rose.h>
 #include <net/sock.h>

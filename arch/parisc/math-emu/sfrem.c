@@ -51,7 +51,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		if (Sgl_iszero_mantissa(opnd1)) {
 			if (Sgl_isnotnan(opnd2)) {
 				/* invalid since first operand is infinity */
-				if (Is_invalidtrap_enabled()) 
+				if (Is_invalidtrap_enabled())
                                 	return(INVALIDEXCEPTION);
                                 Set_invalidflag();
                                 Sgl_makequietnan(result);
@@ -65,18 +65,18 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
                  	 */
                 	if (Sgl_isone_signaling(opnd1)) {
                         	/* trap if INVALIDTRAP enabled */
-                        	if (Is_invalidtrap_enabled()) 
+                        	if (Is_invalidtrap_enabled())
                             		return(INVALIDEXCEPTION);
                         	/* make NaN quiet */
                         	Set_invalidflag();
                         	Sgl_set_quiet(opnd1);
                 	}
-			/* 
-			 * is second operand a signaling NaN? 
+			/*
+			 * is second operand a signaling NaN?
 			 */
 			else if (Sgl_is_signalingnan(opnd2)) {
                         	/* trap if INVALIDTRAP enabled */
-                        	if (Is_invalidtrap_enabled()) 
+                        	if (Is_invalidtrap_enabled())
                             		return(INVALIDEXCEPTION);
                         	/* make NaN quiet */
                         	Set_invalidflag();
@@ -90,7 +90,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
                 	*dstptr = opnd1;
                 	return(NOEXCEPTION);
 		}
-	} 
+	}
 	/*
 	 * check second operand for NaN's or infinity
 	 */
@@ -130,12 +130,12 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		return(NOEXCEPTION);
 	}
 
-	/* 
+	/*
 	 * get sign of result
 	 */
-	result = opnd1;  
+	result = opnd1;
 
-	/* 
+	/*
 	 * check for denormalized operands
 	 */
 	if (opnd1_exponent == 0) {
@@ -171,13 +171,13 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		/*
 		 * check for opnd1/opnd2 > 1/2
 		 *
-		 * In this case n will round to 1, so 
-		 *    r = opnd1 - opnd2 
+		 * In this case n will round to 1, so
+		 *    r = opnd1 - opnd2
 		 */
 		if (stepcount == -1 && Sgl_isgreaterthan(opnd1,opnd2)) {
 			Sgl_all(result) = ~Sgl_all(result);   /* set sign */
 			/* align opnd2 with opnd1 */
-			Sgl_leftshiftby1(opnd2); 
+			Sgl_leftshiftby1(opnd2);
 			Sgl_subtract(opnd2,opnd1,opnd2);
 			/* now normalize */
                 	while (Sgl_iszero_hidden(opnd2)) {
@@ -190,7 +190,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		/*
 		 * opnd1/opnd2 <= 1/2
 		 *
-		 * In this case n will round to zero, so 
+		 * In this case n will round to zero, so
 		 *    r = opnd1
 		 */
 		Sgl_set_exponentmantissa(result,opnd1);
@@ -209,8 +209,8 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		Sgl_leftshiftby1(opnd1);
 	}
 	/*
-	 * Do last subtract, then determine which way to round if remainder 
-	 * is exactly 1/2 of opnd2 
+	 * Do last subtract, then determine which way to round if remainder
+	 * is exactly 1/2 of opnd2
 	 */
 	if (Sgl_isnotlessthan(opnd1,opnd2)) {
 		Sgl_subtract(opnd1,opnd2,opnd1);
@@ -223,8 +223,8 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		return(NOEXCEPTION);
 	}
 
-	/* 
-	 * Check for cases where opnd1/opnd2 < n 
+	/*
+	 * Check for cases where opnd1/opnd2 < n
 	 *
 	 * In this case the result's sign will be opposite that of
 	 * opnd1.  The mantissa also needs some correction.
@@ -235,7 +235,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		Sgl_subtract((opnd2<<1),opnd1,opnd1);
 	}
 	/* check for remainder being exactly 1/2 of opnd2 */
-	else if (Sgl_isequal(opnd1,opnd2) && roundup) { 
+	else if (Sgl_isequal(opnd1,opnd2) && roundup) {
 		Sgl_invert_sign(result);
 	}
 
@@ -246,7 +246,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
         }
 	Sgl_set_exponentmantissa(result,opnd1);
 
-        /* 
+        /*
          * Test for underflow
          */
     testforunderflow:

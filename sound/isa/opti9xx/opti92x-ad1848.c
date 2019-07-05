@@ -384,7 +384,7 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 		 * to the serial digital input of the OPTI931.
 		 */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(21), 0x82, 0xff);
-		/* 
+		/*
 		 * This bit sets OPTI931 to automaticaly select FM
 		 * or digital input signal.
 		 */

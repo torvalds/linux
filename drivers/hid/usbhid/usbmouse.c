@@ -190,11 +190,11 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	usb_set_intfdata(intf, mouse);
 	return 0;
 
-fail3:	
+fail3:
 	usb_free_urb(mouse->irq);
-fail2:	
+fail2:
 	usb_free_coherent(dev, 8, mouse->data, mouse->data_dma);
-fail1:	
+fail1:
 	input_free_device(input_dev);
 	kfree(mouse);
 	return error;

@@ -15,7 +15,7 @@
 int i2c_cdev_open(struct inode *inode, struct file *filp)
 {
   struct i2c_device *lddev;
-  
+
   if(NULL == inode) {
     //printk(KERN_WARNING "<pl_i2c> i2c_cdev_open: inode is a NULL pointer\n");
     DBG_PRINT(KERN_WARNING, "i2c_cdev_open: inode is a NULL pointer\n");
@@ -26,20 +26,20 @@ int i2c_cdev_open(struct inode *inode, struct file *filp)
     DBG_PRINT(KERN_WARNING, "i2c_cdev_open: filp is a NULL pointer\n");
     return -EINVAL;
   }
-  
+
   lddev = container_of(inode->i_cdev, struct i2c_device, cdev);
   //printk(KERN_DEBUG "<pl_i2c> i2c_cdev_open(filp = [%p], lddev = [%p])\n", filp, lddev);
   DBG_PRINT(KERN_DEBUG, "i2c_cdev_open(filp = [%p], lddev = [%p])\n", filp, lddev);
-  
+
   filp->private_data = lddev; /* so other methods can access it */
-  
+
   return 0;	/* success */
 }
 
 int i2c_cdev_close(struct inode *inode, struct file *filp)
 {
   struct i2c_device *lddev;
-  
+
   if(NULL == inode) {
     //printk(KERN_WARNING "<pl_i2c> i2c_cdev_close: inode is a NULL pointer\n");
     DBG_PRINT(KERN_WARNING, "i2c_cdev_close: inode is a NULL pointer\n");
@@ -50,11 +50,11 @@ int i2c_cdev_close(struct inode *inode, struct file *filp)
     DBG_PRINT(KERN_WARNING, "i2c_cdev_close: filp is a NULL pointer\n");
     return -EINVAL;
   }
-  
+
   lddev = filp->private_data;
   //printk(KERN_DEBUG "<pl_i2c> i2c_cdev_close(filp = [%p], lddev = [%p])\n", filp, lddev);
   DBG_PRINT(KERN_DEBUG, "i2c_cdev_close(filp = [%p], lddev = [%p])\n", filp, lddev);
-  
+
   return 0;
 }
 
@@ -99,7 +99,7 @@ ssize_t i2c_cdev_read(struct file *filp, char __user *buf, size_t count, loff_t 
   }
 
   down_read(&lddev->rw_sem);
-  
+
   read_val = *(lddev->regs + *f_pos);
   copy = clamp_t(size_t, count, 1, sizeof(tmp_buf));
   copy = scnprintf(tmp_buf, copy, "reg: 0x%x val: 0x%llx\n", (unsigned int)*f_pos, read_val);
@@ -112,9 +112,9 @@ ssize_t i2c_cdev_read(struct file *filp, char __user *buf, size_t count, loff_t 
 
   ret = (ssize_t)copy;
   (*f_pos)++;
-  
+
   up_read(&lddev->rw_sem);
-  
+
   return ret;
 }
 
@@ -150,7 +150,7 @@ ssize_t i2c_cdev_write(struct file *filp, const char __user *buf, size_t count, 
     if(copy_from_user(tmp, buf, 2)) {
       return -EFAULT;
     }
-    
+
     reg = tmp[0] - '0';
     val = tmp[1] - '0';
 

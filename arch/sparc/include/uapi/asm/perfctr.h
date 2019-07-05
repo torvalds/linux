@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*----------------------------------------
-  PERFORMANCE INSTRUMENTATION  
+  PERFORMANCE INSTRUMENTATION
   Guillaume Thouvenin           08/10/98
   David S. Miller               10/06/98
   ---------------------------------------*/

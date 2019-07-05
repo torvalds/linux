@@ -29,7 +29,7 @@ const struct inode_operations ext2_symlink_inode_operations = {
 	.listxattr	= ext2_listxattr,
 #endif
 };
- 
+
 const struct inode_operations ext2_fast_symlink_inode_operations = {
 	.get_link	= simple_get_link,
 	.getattr	= ext2_getattr,

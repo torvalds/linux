@@ -314,7 +314,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno,
  * @sdp: the filesystem
  * @page: the page to write
  * @size: the size of the data to write
- * @offset: the offset within the page 
+ * @offset: the offset within the page
  * @blkno: block number of the log entry
  *
  * Try and add the page segment to the current bio. If that fails,
@@ -343,7 +343,7 @@ void gfs2_log_write(struct gfs2_sbd *sdp, struct page *page,
  * gfs2_log_write_bh - write a buffer's content to the log
  * @sdp: The super block
  * @bh: The buffer pointing to the in-place location
- * 
+ *
  * This writes the content of the buffer to the next available location
  * in the log. The buffer will be unlocked once the i/o to the log has
  * completed.

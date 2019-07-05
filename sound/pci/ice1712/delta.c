@@ -6,7 +6,7 @@
  *			    Audiophile, Digigram VX442
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- */      
+ */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -51,7 +51,7 @@ static unsigned char ap_cs8427_read_byte(struct snd_ice1712 *ice, unsigned char 
 {
 	unsigned char data = 0;
 	int idx;
-	
+
 	for (idx = 7; idx >= 0; idx--) {
 		tmp &= ~ICE1712_DELTA_AP_CCLK;
 		snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp);
@@ -142,7 +142,7 @@ static int ap_cs8427_readbytes(struct snd_i2c_device *device, unsigned char *byt
 	struct snd_ice1712 *ice = device->bus->private_data;
 	int res = count;
 	unsigned char tmp;
-	
+
 	mutex_lock(&ice->gpio_mutex);
 	tmp = ap_cs8427_codec_select(ice);
 	ap_cs8427_write_byte(ice, (device->addr << 1) | 1, tmp); /* address + read mode */
@@ -331,7 +331,7 @@ static void delta_ak4524_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	mutex_lock(&ice->gpio_mutex);
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
 	mutex_unlock(&ice->gpio_mutex);
-	tmp2 = tmp & ~ICE1712_DELTA_DFS; 
+	tmp2 = tmp & ~ICE1712_DELTA_DFS;
 	if (rate > 48000)
 		tmp2 |= ICE1712_DELTA_DFS;
 	if (tmp == tmp2)

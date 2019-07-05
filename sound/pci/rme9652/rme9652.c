@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   ALSA driver for RME Digi9652 audio interfaces 
+ *   ALSA driver for RME Digi9652 audio interfaces
  *
  *	Copyright (c) 1999 IEM - Winfried Ritsch
  *      Copyright (c) 1999-2001  Paul Davis
@@ -46,7 +46,7 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
    capture, one for playback. Both the ADAT and S/PDIF channels appear
    to the host CPU in the same block of memory. There is no functional
    difference between them in terms of access.
-   
+
    The Hammerfall Light is identical to the Hammerfall, except that it
    has 2 sets 18 channels (16 ADAT + 2 S/PDIF) for capture and playback.
 */
@@ -101,7 +101,7 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
 
 /* Bits 31,30,29 are bits 5,4,3 of h/w pointer position on later
    Rev G EEPROMS and Rev 1.5 cards or later.
-*/ 
+*/
 
 #define RME9652_REV15_buf_pos(x) ((((x)&0xE0000000)>>26)|((x)&RME9652_buf_pos))
 
@@ -172,7 +172,7 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
 #define RME9652_CHANNEL_BUFFER_BYTES    (4*RME9652_CHANNEL_BUFFER_SAMPLES)
 
 /* the size of the area we need to allocate for DMA transfers. the
-   size is the same regardless of the number of channels - the 
+   size is the same regardless of the number of channels - the
    9636 still uses the same memory area.
 
    Note that we allocate 1 more channel than is apparently needed
@@ -190,7 +190,7 @@ struct snd_rme9652 {
 	int irq;
 	unsigned long port;
 	void __iomem *iobase;
-	
+
 	int precise_ptr;
 
 	u32 control_register;	/* cached value */
@@ -203,7 +203,7 @@ struct snd_rme9652 {
 
         size_t hw_offsetmask;     	/* &-with status register to get real hw_offset */
 	size_t prev_hw_offset;		/* previous hw offset */
-	size_t max_jitter;		/* maximum jitter in frames for 
+	size_t max_jitter;		/* maximum jitter in frames for
 					   hw pointer */
 	size_t period_bytes;		/* guess what this is */
 
@@ -252,7 +252,7 @@ static char channel_map_9652_ss[26] = {
 };
 
 static char channel_map_9636_ss[26] = {
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 	/* channels 16 and 17 are S/PDIF */
 	24, 25,
 	/* channels 18-25 don't exist */
@@ -347,7 +347,7 @@ static inline void rme9652_compute_period_size(struct snd_rme9652 *rme9652)
 
 	i = rme9652->control_register & RME9652_latency;
 	rme9652->period_bytes = 1 << ((rme9652_decode_latency(i) + 8));
-	rme9652->hw_offsetmask = 
+	rme9652->hw_offsetmask =
 		(rme9652->period_bytes * 2 - 1) & RME9652_buf_pos;
 	rme9652->max_jitter = 80;
 }
@@ -410,7 +410,7 @@ static inline void rme9652_reset_hw_pointer(struct snd_rme9652 *rme9652)
 	/* reset the FIFO pointer to zero. We do this by writing to 8
 	   registers, each of which is a 32bit wide register, and set
 	   them all to zero. Note that s->iobase is a pointer to
-	   int32, not pointer to char.  
+	   int32, not pointer to char.
 	*/
 
 	for (i = 0; i < 8; i++) {
@@ -478,9 +478,9 @@ static int rme9652_set_rate(struct snd_rme9652 *rme9652, int rate)
 
 	/* Changing from a "single speed" to a "double speed" rate is
 	   not allowed if any substreams are open. This is because
-	   such a change causes a shift in the location of 
+	   such a change causes a shift in the location of
 	   the DMA buffers and a reduction in the number of available
-	   buffers. 
+	   buffers.
 
 	   Note that a similar but essentially insoluble problem
 	   exists for externally-driven rate changes. All we can do
@@ -589,7 +589,7 @@ static void rme9652_set_thru(struct snd_rme9652 *rme9652, int channel, int enabl
 
 		rme9652_write(rme9652,
 			       RME9652_thru_base + mapped_channel * 4,
-			       enable ? 1 : 0);			       
+			       enable ? 1 : 0);
 	}
 }
 
@@ -603,7 +603,7 @@ static int rme9652_set_passthru(struct snd_rme9652 *rme9652, int onoff)
 		*/
 
 		rme9652->control_register =
-			RME9652_inp_0 | 
+			RME9652_inp_0 |
 			rme9652_encode_latency(7) |
 			RME9652_start_bit;
 
@@ -614,7 +614,7 @@ static int rme9652_set_passthru(struct snd_rme9652 *rme9652, int onoff)
 		rme9652->passthru = 1;
 	} else {
 		rme9652_set_thru(rme9652, -1, 0);
-		rme9652_stop(rme9652);		
+		rme9652_stop(rme9652);
 		rme9652->passthru = 0;
 	}
 
@@ -623,11 +623,11 @@ static int rme9652_set_passthru(struct snd_rme9652 *rme9652, int onoff)
 
 static void rme9652_spdif_set_bit (struct snd_rme9652 *rme9652, int mask, int onoff)
 {
-	if (onoff) 
+	if (onoff)
 		rme9652->control_register |= mask;
-	else 
+	else
 		rme9652->control_register &= ~mask;
-		
+
 	rme9652_write(rme9652, RME9652_control_register, rme9652->control_register);
 }
 
@@ -639,7 +639,7 @@ static void rme9652_spdif_write_byte (struct snd_rme9652 *rme9652, const int val
 	for (i = 0, mask = 0x80; i < 8; i++, mask >>= 1) {
 		if (val & mask)
 			rme9652_spdif_set_bit (rme9652, RME9652_SPDIF_WRITE, 1);
-		else 
+		else
 			rme9652_spdif_set_bit (rme9652, RME9652_SPDIF_WRITE, 0);
 
 		rme9652_spdif_set_bit (rme9652, RME9652_SPDIF_CLOCK, 1);
@@ -710,19 +710,19 @@ static inline int rme9652_spdif_sample_rate(struct snd_rme9652 *s)
 	if (rme9652_read(s, RME9652_status_register) & RME9652_ERF) {
 		return -1;	/* error condition */
 	}
-	
+
 	if (s->hw_rev == 15) {
 
 		int x, y, ret;
-		
+
 		x = rme9652_spdif_read_codec (s, 30);
 
-		if (x != 0) 
+		if (x != 0)
 			y = 48000 * 64 / x;
 		else
 			y = 0;
 
-		if      (y > 30400 && y < 33600)  ret = 32000; 
+		if      (y > 30400 && y < 33600)  ret = 32000;
 		else if (y > 41900 && y < 46000)  ret = 44100;
 		else if (y > 46000 && y < 50400)  ret = 48000;
 		else if (y > 60800 && y < 67200)  ret = 64000;
@@ -804,7 +804,7 @@ static int snd_rme9652_control_spdif_info(struct snd_kcontrol *kcontrol, struct 
 static int snd_rme9652_control_spdif_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
+
 	snd_rme9652_convert_to_aes(&ucontrol->value.iec958, rme9652->creg_spdif);
 	return 0;
 }
@@ -814,7 +814,7 @@ static int snd_rme9652_control_spdif_put(struct snd_kcontrol *kcontrol, struct s
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
 	int change;
 	u32 val;
-	
+
 	val = snd_rme9652_convert_from_aes(&ucontrol->value.iec958);
 	spin_lock_irq(&rme9652->lock);
 	change = val != rme9652->creg_spdif;
@@ -833,7 +833,7 @@ static int snd_rme9652_control_spdif_stream_info(struct snd_kcontrol *kcontrol, 
 static int snd_rme9652_control_spdif_stream_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
+
 	snd_rme9652_convert_to_aes(&ucontrol->value.iec958, rme9652->creg_spdif_stream);
 	return 0;
 }
@@ -843,7 +843,7 @@ static int snd_rme9652_control_spdif_stream_put(struct snd_kcontrol *kcontrol, s
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
 	int change;
 	u32 val;
-	
+
 	val = snd_rme9652_convert_from_aes(&ucontrol->value.iec958);
 	spin_lock_irq(&rme9652->lock);
 	change = val != rme9652->creg_spdif_stream;
@@ -876,7 +876,7 @@ static int snd_rme9652_control_spdif_mask_get(struct snd_kcontrol *kcontrol, str
 static unsigned int rme9652_adat1_in(struct snd_rme9652 *rme9652)
 {
 	if (rme9652->control_register & RME9652_ADAT1_INTERNAL)
-		return 1; 
+		return 1;
 	return 0;
 }
 
@@ -915,7 +915,7 @@ static int snd_rme9652_info_adat1_in(struct snd_kcontrol *kcontrol, struct snd_c
 static int snd_rme9652_get_adat1_in(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
+
 	spin_lock_irq(&rme9652->lock);
 	ucontrol->value.enumerated.item[0] = rme9652_adat1_in(rme9652);
 	spin_unlock_irq(&rme9652->lock);
@@ -927,7 +927,7 @@ static int snd_rme9652_put_adat1_in(struct snd_kcontrol *kcontrol, struct snd_ct
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
 	int change;
 	unsigned int val;
-	
+
 	if (!snd_rme9652_use_is_exclusive(rme9652))
 		return -EBUSY;
 	val = ucontrol->value.enumerated.item[0] % 2;
@@ -980,7 +980,7 @@ static int snd_rme9652_info_spdif_in(struct snd_kcontrol *kcontrol, struct snd_c
 static int snd_rme9652_get_spdif_in(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
+
 	spin_lock_irq(&rme9652->lock);
 	ucontrol->value.enumerated.item[0] = rme9652_spdif_in(rme9652);
 	spin_unlock_irq(&rme9652->lock);
@@ -992,7 +992,7 @@ static int snd_rme9652_put_spdif_in(struct snd_kcontrol *kcontrol, struct snd_ct
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
 	int change;
 	unsigned int val;
-	
+
 	if (!snd_rme9652_use_is_exclusive(rme9652))
 		return -EBUSY;
 	val = ucontrol->value.enumerated.item[0] % 3;
@@ -1042,7 +1042,7 @@ static int rme9652_set_spdif_output(struct snd_rme9652 *rme9652, int out)
 static int snd_rme9652_get_spdif_out(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
+
 	spin_lock_irq(&rme9652->lock);
 	ucontrol->value.integer.value[0] = rme9652_spdif_out(rme9652);
 	spin_unlock_irq(&rme9652->lock);
@@ -1054,7 +1054,7 @@ static int snd_rme9652_put_spdif_out(struct snd_kcontrol *kcontrol, struct snd_c
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
 	int change;
 	unsigned int val;
-	
+
 	if (!snd_rme9652_use_is_exclusive(rme9652))
 		return -EBUSY;
 	val = ucontrol->value.integer.value[0] & 1;
@@ -1125,7 +1125,7 @@ static int snd_rme9652_info_sync_mode(struct snd_kcontrol *kcontrol, struct snd_
 static int snd_rme9652_get_sync_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
+
 	spin_lock_irq(&rme9652->lock);
 	ucontrol->value.enumerated.item[0] = rme9652_sync_mode(rme9652);
 	spin_unlock_irq(&rme9652->lock);
@@ -1137,7 +1137,7 @@ static int snd_rme9652_put_sync_mode(struct snd_kcontrol *kcontrol, struct snd_c
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
 	int change;
 	unsigned int val;
-	
+
 	val = ucontrol->value.enumerated.item[0] % 3;
 	spin_lock_irq(&rme9652->lock);
 	change = (int)val != rme9652_sync_mode(rme9652);
@@ -1215,7 +1215,7 @@ static int snd_rme9652_info_sync_pref(struct snd_kcontrol *kcontrol, struct snd_
 static int snd_rme9652_get_sync_pref(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
+
 	spin_lock_irq(&rme9652->lock);
 	ucontrol->value.enumerated.item[0] = rme9652_sync_pref(rme9652);
 	spin_unlock_irq(&rme9652->lock);
@@ -1227,7 +1227,7 @@ static int snd_rme9652_put_sync_pref(struct snd_kcontrol *kcontrol, struct snd_c
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
 	int change, max;
 	unsigned int val;
-	
+
 	if (!snd_rme9652_use_is_exclusive(rme9652))
 		return -EBUSY;
 	max = rme9652->ss_channels == RME9652_NCHANNELS ? 4 : 3;
@@ -1275,7 +1275,7 @@ static int snd_rme9652_put_thru(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 		if (ucontrol->value.integer.value[chn])
 			thru_bits |= 1 << chn;
 	}
-	
+
 	spin_lock_irq(&rme9652->lock);
 	change = thru_bits ^ rme9652->thru_bits;
 	if (change) {
@@ -1346,7 +1346,7 @@ static int snd_rme9652_info_spdif_rate(struct snd_kcontrol *kcontrol, struct snd
 static int snd_rme9652_get_spdif_rate(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
+
 	spin_lock_irq(&rme9652->lock);
 	ucontrol->value.integer.value[0] = rme9652_spdif_sample_rate(rme9652);
 	spin_unlock_irq(&rme9652->lock);
@@ -1372,11 +1372,11 @@ static int snd_rme9652_get_adat_sync(struct snd_kcontrol *kcontrol, struct snd_c
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
 	unsigned int mask1, mask2, val;
-	
+
 	switch (kcontrol->private_value) {
-	case 0: mask1 = RME9652_lock_0; mask2 = RME9652_sync_0; break;	
-	case 1: mask1 = RME9652_lock_1; mask2 = RME9652_sync_1; break;	
-	case 2: mask1 = RME9652_lock_2; mask2 = RME9652_sync_2; break;	
+	case 0: mask1 = RME9652_lock_0; mask2 = RME9652_sync_0; break;
+	case 1: mask1 = RME9652_lock_1; mask2 = RME9652_sync_1; break;
+	case 2: mask1 = RME9652_lock_2; mask2 = RME9652_sync_2; break;
 	default: return -EINVAL;
 	}
 	val = rme9652_read(rme9652, RME9652_status_register);
@@ -1396,8 +1396,8 @@ static int snd_rme9652_get_adat_sync(struct snd_kcontrol *kcontrol, struct snd_c
 static int snd_rme9652_get_tc_valid(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_rme9652 *rme9652 = snd_kcontrol_chip(kcontrol);
-	
-	ucontrol->value.integer.value[0] = 
+
+	ucontrol->value.integer.value[0] =
 		(rme9652_read(rme9652, RME9652_status_register) & RME9652_tc_valid) ? 1 : 0;
 	return 0;
 }
@@ -1483,7 +1483,7 @@ static struct snd_kcontrol_new snd_rme9652_controls[] = {
 	.get =		snd_rme9652_control_spdif_mask_get,
 	.private_value = IEC958_AES0_NONAUDIO |
 			IEC958_AES0_PROFESSIONAL |
-			IEC958_AES0_CON_EMPHASIS,	                                                                                      
+			IEC958_AES0_CON_EMPHASIS,
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
@@ -1545,7 +1545,7 @@ static int snd_rme9652_create_controls(struct snd_card *card, struct snd_rme9652
 }
 
 /*------------------------------------------------------------
-   /proc interface 
+   /proc interface
  ------------------------------------------------------------*/
 
 static void
@@ -1569,10 +1569,10 @@ snd_rme9652_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 
 	snd_iprintf(buffer, "\n");
 
-	x = 1 << (6 + rme9652_decode_latency(rme9652->control_register & 
+	x = 1 << (6 + rme9652_decode_latency(rme9652->control_register &
 					     RME9652_latency));
 
-	snd_iprintf(buffer, "Latency: %d samples (2 periods of %lu bytes)\n", 
+	snd_iprintf(buffer, "Latency: %d samples (2 periods of %lu bytes)\n",
 		    x, (unsigned long) rme9652->period_bytes);
 	snd_iprintf(buffer, "Hardware pointer (frames): %ld\n",
 		    rme9652_hw_pointer(rme9652));
@@ -1618,7 +1618,7 @@ snd_rme9652_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 
 	snd_iprintf(buffer, "\n");
 
-	switch (rme9652_decode_spdif_in(rme9652->control_register & 
+	switch (rme9652_decode_spdif_in(rme9652->control_register &
 					RME9652_inp)) {
 	case RME9652_SPDIFIN_OPTICAL:
 		snd_iprintf(buffer, "IEC958 input: ADAT1\n");
@@ -1789,11 +1789,11 @@ static void snd_rme9652_set_defaults(struct snd_rme9652 *rme9652)
 
 	/* set defaults:
 
-	   SPDIF Input via Coax 
+	   SPDIF Input via Coax
 	   autosync clock mode
 	   maximum latency (7 = 8192 samples, 64Kbyte buffer,
 	   which implies 2 4096 sample, 32Kbyte periods).
-	   
+
 	   if rev 1.5, initialize the S/PDIF receiver.
 
 	 */
@@ -1854,11 +1854,11 @@ static char *rme9652_channel_buffer_location(struct snd_rme9652 *rme9652,
 
 	if (snd_BUG_ON(channel < 0 || channel >= RME9652_NCHANNELS))
 		return NULL;
-        
+
 	if ((mapped_channel = rme9652->channel_map[channel]) < 0) {
 		return NULL;
 	}
-	
+
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
 		return rme9652->capture_buffer +
 			(mapped_channel * RME9652_CHANNEL_BUFFER_BYTES);
@@ -2139,7 +2139,7 @@ static int snd_rme9652_trigger(struct snd_pcm_substream *substream,
 				rme9652_silence_playback(rme9652);
 		}
 	} else {
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) 
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 			rme9652_silence_playback(rme9652);
 	}
  _ok:
@@ -2175,9 +2175,9 @@ static const struct snd_pcm_hardware snd_rme9652_playback_subinfo =
 				 SNDRV_PCM_INFO_SYNC_START |
 				 SNDRV_PCM_INFO_DOUBLE),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		(SNDRV_PCM_RATE_44100 | 
-				 SNDRV_PCM_RATE_48000 | 
-				 SNDRV_PCM_RATE_88200 | 
+	.rates =		(SNDRV_PCM_RATE_44100 |
+				 SNDRV_PCM_RATE_48000 |
+				 SNDRV_PCM_RATE_88200 |
 				 SNDRV_PCM_RATE_96000),
 	.rate_min =		44100,
 	.rate_max =		96000,
@@ -2198,9 +2198,9 @@ static const struct snd_pcm_hardware snd_rme9652_capture_subinfo =
 				 SNDRV_PCM_INFO_NONINTERLEAVED |
 				 SNDRV_PCM_INFO_SYNC_START),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		(SNDRV_PCM_RATE_44100 | 
-				 SNDRV_PCM_RATE_48000 | 
-				 SNDRV_PCM_RATE_88200 | 
+	.rates =		(SNDRV_PCM_RATE_44100 |
+				 SNDRV_PCM_RATE_48000 |
+				 SNDRV_PCM_RATE_88200 |
 				 SNDRV_PCM_RATE_96000),
 	.rate_min =		44100,
 	.rate_max =		96000,
@@ -2478,7 +2478,7 @@ static int snd_rme9652_create(struct snd_card *card,
 			rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);
 		return -EBUSY;
 	}
-	
+
 	if (request_irq(pci->irq, snd_rme9652_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, rme9652)) {
 		dev_err(card->dev, "unable to request IRQ %d\n", pci->irq);
@@ -2503,7 +2503,7 @@ static int snd_rme9652_create(struct snd_card *card,
 	   "Light", which does not have the expansion board. This
 	   method comes from information received from Mathhias
 	   Clausen at RME. Display the EEPROM and h/w revID where
-	   relevant.  
+	   relevant.
 	*/
 
 	switch (rev) {

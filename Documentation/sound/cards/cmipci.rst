@@ -97,15 +97,15 @@ Line-In Mode
 	an enum control to change the behavior of line-in
 	jack.  Either "Line-In", "Rear Output" or "Bass Output" can
 	be selected.  The last item is available only with model 039
-	or newer. 
+	or newer.
 	When "Rear Output" is chosen, the surround channels 3 and 4
 	are output to line-in jack.
 Mic-In Mode
 	an enum control to change the behavior of mic-in
 	jack.  Either "Mic-In" or "Center/LFE Output" can be
-	selected. 
+	selected.
 	When "Center/LFE Output" is chosen, the center and bass
-	channels (channels 5 and 6) are output to mic-in jack. 
+	channels (channels 5 and 6) are output to mic-in jack.
 
 Digital I/O
 -----------

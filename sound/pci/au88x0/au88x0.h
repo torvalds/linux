@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  */
- 
+
 #ifndef __SOUND_AU88X0_H
 #define __SOUND_AU88X0_H
 

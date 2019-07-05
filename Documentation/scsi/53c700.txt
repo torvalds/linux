@@ -78,7 +78,7 @@ interrupt.
 Handling Interrupts
 -------------------
 
-In general, you should just plumb the card's interrupt line in with 
+In general, you should just plumb the card's interrupt line in with
 
 request_irq(irq, NCR_700_intr, <irq flags>, <driver name>, host);
 

@@ -144,9 +144,9 @@ int snd_gf1_dma_init(struct snd_gus_card * gus)
 		return 0;
 	}
 	gus->gf1.interrupt_handler_dma_write = snd_gf1_dma_interrupt;
-	gus->gf1.dma_data_pcm = 
+	gus->gf1.dma_data_pcm =
 	gus->gf1.dma_data_pcm_last =
-	gus->gf1.dma_data_synth = 
+	gus->gf1.dma_data_synth =
 	gus->gf1.dma_data_synth_last = NULL;
 	mutex_unlock(&gus->dma_mutex);
 	return 0;
@@ -207,7 +207,7 @@ int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 			gus->gf1.dma_data_synth_last->next = block;
 			gus->gf1.dma_data_synth_last = block;
 		} else {
-			gus->gf1.dma_data_synth = 
+			gus->gf1.dma_data_synth =
 			gus->gf1.dma_data_synth_last = block;
 		}
 	} else {
@@ -215,7 +215,7 @@ int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 			gus->gf1.dma_data_pcm_last->next = block;
 			gus->gf1.dma_data_pcm_last = block;
 		} else {
-			gus->gf1.dma_data_pcm = 
+			gus->gf1.dma_data_pcm =
 			gus->gf1.dma_data_pcm_last = block;
 		}
 	}

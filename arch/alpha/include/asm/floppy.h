@@ -34,7 +34,7 @@
 
 #define fd_dma_setup(addr,size,mode,io) alpha_fd_dma_setup(addr,size,mode,io)
 
-static __inline__ int 
+static __inline__ int
 alpha_fd_dma_setup(char *addr, unsigned long size, int mode, int io)
 {
 	static unsigned long prev_size;
@@ -45,7 +45,7 @@ alpha_fd_dma_setup(char *addr, unsigned long size, int mode, int io)
 
 	dir = (mode != DMA_MODE_READ) ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE;
 
-	if (bus_addr 
+	if (bus_addr
 	    && (addr != prev_addr || size != prev_size || dir != prev_dir)) {
 		/* different from last time -- unmap prev */
 		pci_unmap_single(isa_bridge, bus_addr, prev_size, prev_dir);

@@ -1,11 +1,11 @@
 
 
 
-#define Assert(err, str) 
-#define Trace(dummy) 
-#define Tracev(dummy) 
-#define Tracecv(err, dummy) 
-#define Tracevv(dummy) 
+#define Assert(err, str)
+#define Trace(dummy)
+#define Tracev(dummy)
+#define Tracecv(err, dummy)
+#define Tracevv(dummy)
 
 
 

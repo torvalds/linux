@@ -61,7 +61,7 @@ static pfm_reg_desc_t pfm_mont_pmc_desc[PMU_MAX_PMCS]={
 };
 
 static pfm_reg_desc_t pfm_mont_pmd_desc[PMU_MAX_PMDS]={
-/* pmd0  */ { PFM_REG_NOTIMPL, }, 
+/* pmd0  */ { PFM_REG_NOTIMPL, },
 /* pmd1  */ { PFM_REG_NOTIMPL, },
 /* pmd2  */ { PFM_REG_NOTIMPL, },
 /* pmd3  */ { PFM_REG_NOTIMPL, },
@@ -69,7 +69,7 @@ static pfm_reg_desc_t pfm_mont_pmd_desc[PMU_MAX_PMDS]={
 /* pmd5  */ { PFM_REG_COUNTING, 0, 0x0, -1, NULL, NULL, {0,0, 0, 0}, {RDEP(5),0, 0, 0}},
 /* pmd6  */ { PFM_REG_COUNTING, 0, 0x0, -1, NULL, NULL, {0,0, 0, 0}, {RDEP(6),0, 0, 0}},
 /* pmd7  */ { PFM_REG_COUNTING, 0, 0x0, -1, NULL, NULL, {0,0, 0, 0}, {RDEP(7),0, 0, 0}},
-/* pmd8  */ { PFM_REG_COUNTING, 0, 0x0, -1, NULL, NULL, {0,0, 0, 0}, {RDEP(8),0, 0, 0}}, 
+/* pmd8  */ { PFM_REG_COUNTING, 0, 0x0, -1, NULL, NULL, {0,0, 0, 0}, {RDEP(8),0, 0, 0}},
 /* pmd9  */ { PFM_REG_COUNTING, 0, 0x0, -1, NULL, NULL, {0,0, 0, 0}, {RDEP(9),0, 0, 0}},
 /* pmd10 */ { PFM_REG_COUNTING, 0, 0x0, -1, NULL, NULL, {0,0, 0, 0}, {RDEP(10),0, 0, 0}},
 /* pmd11 */ { PFM_REG_COUNTING, 0, 0x0, -1, NULL, NULL, {0,0, 0, 0}, {RDEP(11),0, 0, 0}},
@@ -185,7 +185,7 @@ pfm_mont_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cn
 	 */
 	DPRINT(("cnum=%u val=0x%lx, using_dbreg=%d loaded=%d\n", cnum, tmpval, ctx->ctx_fl_using_dbreg, is_loaded));
 
-	if (cnum == 41 && is_loaded 
+	if (cnum == 41 && is_loaded
 	    && (tmpval & 0x1e00000000000UL) && (tmpval & 0x18181818UL) != 0x18181818UL && ctx->ctx_fl_using_dbreg == 0) {
 
 		DPRINT(("pmc[%d]=0x%lx has active pmc41 settings, clearing dbr\n", cnum, tmpval));

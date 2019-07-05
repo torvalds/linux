@@ -114,12 +114,12 @@ Linux kernel into fpmodule.c.  Porting to NetBSD should only require modifying
 fpmodule.c to integrate with the NetBSD kernel (I hope!).
 
 [1/1/99: Not quite true any more unfortunately.  There is Linux-specific
-code to access data in user space in some other source files at the 
+code to access data in user space in some other source files at the
 moment (grep for get_user / put_user calls).  --philb]
 
 This function is called by the SoftFloat routines to raise a floating
 point exception.  We check the trap enable byte in the FPSR, and raise
-a SIGFPE exception if necessary.  If not the relevant bits in the 
+a SIGFPE exception if necessary.  If not the relevant bits in the
 cumulative exceptions flag byte are set and we return.
 */
 

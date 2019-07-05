@@ -76,7 +76,7 @@ module_param(enable, bool, 0444);
 #define   VIA_REG_CTRL_TERMINATE	0x40	/* WO */
 #define   VIA_REG_CTRL_AUTOSTART	0x20
 #define   VIA_REG_CTRL_PAUSE		0x08	/* RW */
-#define   VIA_REG_CTRL_INT_STOP		0x04		
+#define   VIA_REG_CTRL_INT_STOP		0x04
 #define   VIA_REG_CTRL_INT_EOL		0x02
 #define   VIA_REG_CTRL_INT_FLAG		0x01
 #define   VIA_REG_CTRL_RESET		0x01	/* RW - probably reset? undocumented */
@@ -355,17 +355,17 @@ static inline unsigned int snd_via82xx_codec_xread(struct via82xx_modem *chip)
 {
 	return inl(VIAREG(chip, AC97));
 }
- 
+
 static inline void snd_via82xx_codec_xwrite(struct via82xx_modem *chip, unsigned int val)
 {
 	outl(val, VIAREG(chip, AC97));
 }
- 
+
 static int snd_via82xx_codec_ready(struct via82xx_modem *chip, int secondary)
 {
 	unsigned int timeout = 1000;	/* 1ms */
 	unsigned int val;
-	
+
 	while (timeout-- > 0) {
 		udelay(1);
 		if (!((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY))
@@ -375,14 +375,14 @@ static int snd_via82xx_codec_ready(struct via82xx_modem *chip, int secondary)
 		   secondary, snd_via82xx_codec_xread(chip));
 	return -EIO;
 }
- 
+
 static int snd_via82xx_codec_valid(struct via82xx_modem *chip, int secondary)
 {
 	unsigned int timeout = 1000;	/* 1ms */
 	unsigned int val, val1;
 	unsigned int stat = !secondary ? VIA_REG_AC97_PRIMARY_VALID :
 					 VIA_REG_AC97_SECONDARY_VALID;
-	
+
 	while (timeout-- > 0) {
 		val = snd_via82xx_codec_xread(chip);
 		val1 = val & (VIA_REG_AC97_BUSY | stat);
@@ -392,7 +392,7 @@ static int snd_via82xx_codec_valid(struct via82xx_modem *chip, int secondary)
 	}
 	return -EIO;
 }
- 
+
 static void snd_via82xx_codec_wait(struct snd_ac97 *ac97)
 {
 	struct via82xx_modem *chip = ac97->private_data;
@@ -411,7 +411,7 @@ static void snd_via82xx_codec_write(struct snd_ac97 *ac97,
 	if(reg == AC97_GPIO_STATUS) {
 		outl(val, VIAREG(chip, GPI_STATUS));
 		return;
-	}	
+	}
 	xval = !ac97->num ? VIA_REG_AC97_CODEC_ID_PRIMARY : VIA_REG_AC97_CODEC_ID_SECONDARY;
 	xval <<= VIA_REG_AC97_CODEC_ID_SHIFT;
 	xval |= reg << VIA_REG_AC97_CMD_SHIFT;
@@ -740,7 +740,7 @@ static int snd_via82xx_modem_pcm_open(struct via82xx_modem *chip, struct viadev 
         };
 
 	runtime->hw = snd_via82xx_hw;
-	
+
         if ((err = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 					      &hw_constraints_rates)) < 0)
                 return err;
@@ -912,7 +912,7 @@ static void snd_via82xx_proc_read(struct snd_info_entry *entry, struct snd_info_
 {
 	struct via82xx_modem *chip = entry->private_data;
 	int i;
-	
+
 	snd_iprintf(buffer, "%s\n\n", chip->card->longname);
 	for (i = 0; i < 0xa0; i += 4) {
 		snd_iprintf(buffer, "%02x: %08x\n", i, inl(chip->port + i));
@@ -962,7 +962,7 @@ static int snd_via82xx_chip_init(struct via82xx_modem *chip)
 		pci_write_config_byte(chip->pci, VIA_ACLINK_CTRL, VIA_ACLINK_CTRL_INIT);
 		udelay(100);
 	}
-	
+
 	pci_read_config_byte(chip->pci, VIA_ACLINK_CTRL, &pval);
 	if ((pval & VIA_ACLINK_CTRL_INIT) != VIA_ACLINK_CTRL_INIT) {
 		/* ACLink on, deassert ACLink reset, VSR, SGD data out */
@@ -1162,7 +1162,7 @@ static int snd_via82xx_probe(struct pci_dev *pci,
 		err = -EINVAL;
 		goto __error;
 	}
-		
+
 	if ((err = snd_via82xx_create(card, pci, chip_type, pci->revision,
 				      ac97_clock, &chip)) < 0)
 		goto __error;

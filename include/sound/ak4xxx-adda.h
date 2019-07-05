@@ -7,7 +7,7 @@
  *   AD and DA converters
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- */      
+ */
 
 #ifndef AK4XXX_MAX_CHIPS
 #define AK4XXX_MAX_CHIPS	4

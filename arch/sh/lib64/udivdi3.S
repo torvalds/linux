@@ -109,7 +109,7 @@ no_lo_adj:
 	cmpgtu r5,r2,r5
 	sub r8,r5,r2
 	blink tr0,r63
-	
+
 /* Note 1: To shift the result of the second divide stage so that the result
    always fits into 32 bits, yet we still reduce the rest sufficiently
    would require a lot of instructions to do the shifts just right.  Using

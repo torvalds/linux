@@ -2,7 +2,7 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
- * 
+ *
  * Copyright (C) 2001-2003, 2006 Silicon Graphics, Inc. All rights reserved.
  *
  */
@@ -15,8 +15,8 @@
  * @flush_addr: identity mapped region 7 address to start flushing
  * @bytes: number of bytes to flush
  *
- * Flush a range of addresses from all caches including L4. 
- * All addresses fully or partially contained within 
+ * Flush a range of addresses from all caches including L4.
+ * All addresses fully or partially contained within
  * @flush_addr to @flush_addr + @bytes are flushed
  * from all caches.
  */

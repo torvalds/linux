@@ -177,7 +177,7 @@ init_audio(struct snd_emu8000 *emu)
 	/* turn off envelope engines */
 	for (ch = 0; ch < EMU8000_CHANNELS; ch++)
 		EMU8000_DCYSUSV_WRITE(emu, ch, 0x80);
-  
+
 	/* reset all other parameters to zero */
 	for (ch = 0; ch < EMU8000_CHANNELS; ch++) {
 		EMU8000_ENVVOL_WRITE(emu, ch, 0);
@@ -530,7 +530,7 @@ snd_emu8000_init_hw(struct snd_emu8000 *emu)
 	/* terminate all voices */
 	for (i = 0; i < EMU8000_DRAM_VOICES; i++)
 		EMU8000_DCYSUSV_WRITE(emu, 0, 0x807F);
-	
+
 	/* check DRAM memory size */
 	size_dram(emu);
 
@@ -829,7 +829,7 @@ static int mixer_bass_treble_info(struct snd_kcontrol *kcontrol, struct snd_ctl_
 static int mixer_bass_treble_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu8000 *emu = snd_kcontrol_chip(kcontrol);
-	
+
 	ucontrol->value.integer.value[0] = kcontrol->private_value ? emu->treble_level : emu->bass_level;
 	return 0;
 }
@@ -840,7 +840,7 @@ static int mixer_bass_treble_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	unsigned long flags;
 	int change;
 	unsigned short val1;
-	
+
 	val1 = ucontrol->value.integer.value[0] % 12;
 	spin_lock_irqsave(&emu->control_lock, flags);
 	if (kcontrol->private_value) {
@@ -890,7 +890,7 @@ static int mixer_chorus_reverb_info(struct snd_kcontrol *kcontrol, struct snd_ct
 static int mixer_chorus_reverb_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu8000 *emu = snd_kcontrol_chip(kcontrol);
-	
+
 	ucontrol->value.integer.value[0] = kcontrol->private_value ? emu->chorus_mode : emu->reverb_mode;
 	return 0;
 }
@@ -901,7 +901,7 @@ static int mixer_chorus_reverb_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 	unsigned long flags;
 	int change;
 	unsigned short val1;
-	
+
 	spin_lock_irqsave(&emu->control_lock, flags);
 	if (kcontrol->private_value) {
 		val1 = ucontrol->value.integer.value[0] % SNDRV_EMU8000_CHORUS_NUMBERS;
@@ -957,7 +957,7 @@ static int mixer_fm_depth_info(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 static int mixer_fm_depth_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu8000 *emu = snd_kcontrol_chip(kcontrol);
-	
+
 	ucontrol->value.integer.value[0] = kcontrol->private_value ? emu->fm_chorus_depth : emu->fm_reverb_depth;
 	return 0;
 }
@@ -968,7 +968,7 @@ static int mixer_fm_depth_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	unsigned long flags;
 	int change;
 	unsigned short val1;
-	
+
 	val1 = ucontrol->value.integer.value[0] % 256;
 	spin_lock_irqsave(&emu->control_lock, flags);
 	if (kcontrol->private_value) {
@@ -1120,7 +1120,7 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 		snd_emu8000_free(hw);
 		return err;
 	}
-	
+
 	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, hw, &ops)) < 0) {
 		snd_emu8000_free(hw);
 		return err;

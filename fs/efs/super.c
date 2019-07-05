@@ -243,8 +243,8 @@ static int efs_validate_super(struct efs_sb_info *sb, struct efs_super *super) {
 	sb->inode_free   = be32_to_cpu(super->fs_tinode);
 	sb->inode_blocks = be16_to_cpu(super->fs_cgisize);
 	sb->total_groups = be16_to_cpu(super->fs_ncg);
-    
-	return 0;    
+
+	return 0;
 }
 
 static int efs_fill_super(struct super_block *s, void *d, int silent)
@@ -257,14 +257,14 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	if (!sb)
 		return -ENOMEM;
 	s->s_fs_info = sb;
- 
+
 	s->s_magic		= EFS_SUPER_MAGIC;
 	if (!sb_set_blocksize(s, EFS_BLOCKSIZE)) {
 		pr_err("device does not support %d byte blocks\n",
 			EFS_BLOCKSIZE);
 		return -EINVAL;
 	}
-  
+
 	/* read the vh (volume header) block */
 	bh = sb_bread(s, 0);
 
@@ -290,7 +290,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 		pr_err("cannot read superblock\n");
 		return -EIO;
 	}
-		
+
 	if (efs_validate_super(sb, (struct efs_super *) bh->b_data)) {
 #ifdef DEBUG
 		pr_warn("invalid superblock at block %u\n",

@@ -145,7 +145,7 @@ int afs_open(struct inode *inode, struct file *file)
 
 	if (file->f_flags & O_TRUNC)
 		set_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
-	
+
 	file->private_data = af;
 	_leave(" = 0");
 	return 0;

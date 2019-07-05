@@ -89,12 +89,12 @@ c/ Helper routines to allocate anonymous dentries, and to help attach
       (such as an anonymous one created by d_obtain_alias), if appropriate.
       It returns NULL when the passed-in dentry is used, following the calling
       convention of ->lookup.
- 
+
 Filesystem Issues
 -----------------
 
 For a filesystem to be exportable it must:
- 
+
    1/ provide the filehandle fragment routines described below.
    2/ make sure that d_splice_alias is used rather than d_add
       when ->lookup finds an inode for a given parent and name.

@@ -212,7 +212,7 @@ fwin_user_finish_up:
 	/* LOCATION: Window 'T' */
 
 	wr	%t_psr, 0x0, %psr
-	WRITE_PAUSE	
+	WRITE_PAUSE
 
 	jmp	%t_pc
 	rett	%t_npc

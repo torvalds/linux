@@ -46,7 +46,7 @@
  *   AS: 2-bit Chiplet Identifier
  *     00: TIO LB (Indicates TIO MMR access.)
  *     01: TIO ICE (indicates coretalk space access.)
- * 
+ *
  *   NodeOffset: top bit must be set.
  *
  *
@@ -78,8 +78,8 @@
 #define AS_CAC_SPACE		(AS_CAC_VAL << AS_SHIFT)
 
 
-/* 
- * Virtual Mode Local & Global MMR space.  
+/*
+ * Virtual Mode Local & Global MMR space.
  */
 #define SH1_LOCAL_MMR_OFFSET	0x8000000000UL
 #define SH2_LOCAL_MMR_OFFSET	0x0200000000UL

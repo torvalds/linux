@@ -131,7 +131,7 @@
  * Functions prototype uses union iwreq_data
  * -----------------------------------------
  * Some would have preferred functions defined this way :
- *	static int mydriver_ioctl_setrate(struct net_device *dev, 
+ *	static int mydriver_ioctl_setrate(struct net_device *dev,
  *					  long rate, int auto)
  * 1) The kernel code doesn't "validate" the content of iwreq_data, and
  * can't do it (different hardware may have different notion of what a

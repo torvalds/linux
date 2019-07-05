@@ -49,7 +49,7 @@ static inline void shift_window_buffer(int first_win, int last_win, struct threa
 	}
 }
 
-/* Place as many of the user's current register windows 
+/* Place as many of the user's current register windows
  * on the stack that we can.  Even if the %sp is unaligned
  * we still copy the window there, the only case that we don't
  * succeed is if the %sp points to a bum mapping altogether.

@@ -2,7 +2,7 @@
 /*
  *    Copyright IBM Corp. 2000, 2006
  *    Author(s): Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
- *               Gerhard Tonn (ton@de.ibm.com)                  
+ *               Gerhard Tonn (ton@de.ibm.com)
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -32,7 +32,7 @@
 #include "compat_ptrace.h"
 #include "entry.h"
 
-typedef struct 
+typedef struct
 {
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE32];
 	struct sigcontext32 sc;
@@ -42,7 +42,7 @@ typedef struct
 	__u16 svc_insn;		/* Offset of svc_insn is NOT fixed! */
 } sigframe32;
 
-typedef struct 
+typedef struct
 {
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE32];
 	__u16 svc_insn;
@@ -219,7 +219,7 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 badframe:
 	force_sig(SIGSEGV, current);
 	return 0;
-}	
+}
 
 /*
  * Set up a signal frame.
@@ -410,7 +410,7 @@ static int setup_rt_frame32(struct ksignal *ksig, sigset_t *set,
 
 /*
  * OK, we're invoking a handler
- */	
+ */
 
 void handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		     struct pt_regs *regs)

@@ -119,7 +119,7 @@ The Linux rwxrwxrwx file mode is handled as follows:
 
   - All other flags (suid, sgid, ...) are ignored and will
     not be retained.
-    
+
 Newly created files and directories will get the user and group ID
 of the current user and a mode according to the umask.
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
+ * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family
  * of PCI-SCSI IO processors.
  *
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
@@ -8,7 +8,7 @@
  * This driver is derived from the Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
- * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ * The sym53c8xx driver is derived from the ncr53c8xx driver that had been
  * a port of the FreeBSD ncr driver to Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
@@ -37,7 +37,7 @@ static u_char Tekram_boot_delay[7] = {3, 5, 10, 20, 30, 60, 120};
 void sym_nvram_setup_host(struct Scsi_Host *shost, struct sym_hcb *np, struct sym_nvram *nvram)
 {
 	/*
-	 *  Get parity checking, host ID, verbose mode 
+	 *  Get parity checking, host ID, verbose mode
 	 *  and miscellaneous host flags from NVRAM.
 	 */
 	switch (nvram->type) {
@@ -113,7 +113,7 @@ sym_Tekram_setup_target(struct sym_tcb *tp, int target, Tekram_nvram *nvram)
 
 	if (tn->flags & TEKRAM_DISCONNECT_ENABLE)
 		tp->usrflags |= SYM_DISC_ENABLED;
- 
+
 	if (tn->flags & TEKRAM_SYNC_NEGO)
 		tp->usr_period = Tekram_sync[tn->sync_index & 0xf];
 	tp->usr_width = (tn->flags & TEKRAM_WIDE_NEGO) ? 1 : 0;
@@ -149,8 +149,8 @@ static void sym_display_Symbios_nvram(struct sym_device *np, Symbios_nvram *nvra
 		sym_name(np), nvram->host_id & 0x0f,
 		(nvram->flags  & SYMBIOS_SCAM_ENABLE)	? " SCAM"	:"",
 		(nvram->flags  & SYMBIOS_PARITY_ENABLE)	? " PARITY"	:"",
-		(nvram->flags  & SYMBIOS_VERBOSE_MSGS)	? " VERBOSE"	:"", 
-		(nvram->flags  & SYMBIOS_CHS_MAPPING)	? " CHS_ALT"	:"", 
+		(nvram->flags  & SYMBIOS_VERBOSE_MSGS)	? " VERBOSE"	:"",
+		(nvram->flags  & SYMBIOS_CHS_MAPPING)	? " CHS_ALT"	:"",
 		(nvram->flags2 & SYMBIOS_AVOID_BUS_RESET)?" NO_RESET"	:"",
 		(nvram->flags1 & SYMBIOS_SCAN_HI_LO)	? " HI_LO"	:"");
 
@@ -240,7 +240,7 @@ static void sym_display_Tekram_nvram(struct sym_device *np, Tekram_nvram *nvram)
 /*
  *  Set/clear data/clock bit in GPIO0
  */
-static void S24C16_set_bit(struct sym_device *np, u_char write_bit, u_char *gpreg, 
+static void S24C16_set_bit(struct sym_device *np, u_char write_bit, u_char *gpreg,
 			  int bit_mode)
 {
 	udelay(5);
@@ -288,7 +288,7 @@ static void S24C16_stop(struct sym_device *np, u_char *gpreg)
  *  Read or write a bit to the NVRAM,
  *  read if GPIO0 input else write if GPIO0 output
  */
-static void S24C16_do_bit(struct sym_device *np, u_char *read_bit, u_char write_bit, 
+static void S24C16_do_bit(struct sym_device *np, u_char *read_bit, u_char write_bit,
 			 u_char *gpreg)
 {
 	S24C16_set_bit(np, write_bit, gpreg, SET_BIT);
@@ -303,7 +303,7 @@ static void S24C16_do_bit(struct sym_device *np, u_char *read_bit, u_char write_
  *  Output an ACK to the NVRAM after reading,
  *  change GPIO0 to output and when done back to an input
  */
-static void S24C16_write_ack(struct sym_device *np, u_char write_bit, u_char *gpreg, 
+static void S24C16_write_ack(struct sym_device *np, u_char write_bit, u_char *gpreg,
 			    u_char *gpcntl)
 {
 	OUTB(np, nc_gpcntl, *gpcntl & 0xfe);
@@ -315,7 +315,7 @@ static void S24C16_write_ack(struct sym_device *np, u_char write_bit, u_char *gp
  *  Input an ACK from NVRAM after writing,
  *  change GPIO0 to input and when done back to an output
  */
-static void S24C16_read_ack(struct sym_device *np, u_char *read_bit, u_char *gpreg, 
+static void S24C16_read_ack(struct sym_device *np, u_char *read_bit, u_char *gpreg,
 			   u_char *gpcntl)
 {
 	OUTB(np, nc_gpcntl, *gpcntl | 0x01);
@@ -327,14 +327,14 @@ static void S24C16_read_ack(struct sym_device *np, u_char *read_bit, u_char *gpr
  *  WRITE a byte to the NVRAM and then get an ACK to see it was accepted OK,
  *  GPIO0 must already be set as an output
  */
-static void S24C16_write_byte(struct sym_device *np, u_char *ack_data, u_char write_data, 
+static void S24C16_write_byte(struct sym_device *np, u_char *ack_data, u_char write_data,
 			     u_char *gpreg, u_char *gpcntl)
 {
 	int x;
-	
+
 	for (x = 0; x < 8; x++)
 		S24C16_do_bit(np, NULL, (write_data >> (7 - x)) & 0x01, gpreg);
-		
+
 	S24C16_read_ack(np, ack_data, gpreg, gpcntl);
 }
 
@@ -342,7 +342,7 @@ static void S24C16_write_byte(struct sym_device *np, u_char *ack_data, u_char wr
  *  READ a byte from the NVRAM and then send an ACK to say we have got it,
  *  GPIO0 must already be set as an input
  */
-static void S24C16_read_byte(struct sym_device *np, u_char *read_data, u_char ack_data, 
+static void S24C16_read_byte(struct sym_device *np, u_char *read_data, u_char ack_data,
 			    u_char *gpreg, u_char *gpcntl)
 {
 	int x;
@@ -382,7 +382,7 @@ static int sym_write_S24C16_nvram(struct sym_device *np, int offset,
 	gpreg = old_gpreg;
 	S24C16_set_bit(np, 0, &gpreg, CLR_CLK);
 	S24C16_set_bit(np, 0, &gpreg, CLR_BIT);
-		
+
 	/* now set NVRAM inactive with GPIO0/1 both high */
 	S24C16_stop(np, &gpreg);
 
@@ -395,11 +395,11 @@ static int sym_write_S24C16_nvram(struct sym_device *np, int offset,
 					  &gpreg, &gpcntl);
 		} while (ack_data & 0x01);
 
-		S24C16_write_byte(np, &ack_data, (offset+x) & 0xff, 
+		S24C16_write_byte(np, &ack_data, (offset+x) & 0xff,
 				  &gpreg, &gpcntl);
 
 		for (y = 0; y < 16; y++)
-			S24C16_write_byte(np, &ack_data, data[x+y], 
+			S24C16_write_byte(np, &ack_data, data[x+y],
 					  &gpreg, &gpcntl);
 		S24C16_stop(np, &gpreg);
 	}
@@ -436,10 +436,10 @@ static int sym_read_S24C16_nvram(struct sym_device *np, int offset, u_char *data
 	gpreg = old_gpreg;
 	S24C16_set_bit(np, 0, &gpreg, CLR_CLK);
 	S24C16_set_bit(np, 0, &gpreg, CLR_BIT);
-		
+
 	/* now set NVRAM inactive with GPIO0/1 both high */
 	S24C16_stop(np, &gpreg);
-	
+
 	/* activate NVRAM */
 	S24C16_start(np, &gpreg);
 
@@ -457,7 +457,7 @@ static int sym_read_S24C16_nvram(struct sym_device *np, int offset, u_char *data
 
 	/* regenerate START state to set up for reading */
 	S24C16_start(np, &gpreg);
-	
+
 	/* rewrite device code and address MSB with read bit set (lsb = 0x01) */
 	S24C16_write_byte(np, &ack_data,
 		0xa1 | ((offset >> 7) & 0x0e), &gpreg, &gpcntl);
@@ -467,9 +467,9 @@ static int sym_read_S24C16_nvram(struct sym_device *np, int offset, u_char *data
 	/* now set up GPIO0 for inputting data */
 	gpcntl |= 0x01;
 	OUTB(np, nc_gpcntl, gpcntl);
-		
+
 	/* input all requested data - only part of total NVRAM */
-	for (x = 0; x < len; x++) 
+	for (x = 0; x < len; x++)
 		S24C16_read_byte(np, &data[x], (x == (len-1)), &gpreg, &gpcntl);
 
 	/* finally put NVRAM back in inactive mode */
@@ -543,7 +543,7 @@ static void T93C46_Clk(struct sym_device *np, u_char *gpreg)
 	OUTB(np, nc_gpreg, *gpreg);
 }
 
-/* 
+/*
  *  Read bit from NVRAM
  */
 static void T93C46_Read_Bit(struct sym_device *np, u_char *read_bit, u_char *gpreg)
@@ -562,9 +562,9 @@ static void T93C46_Write_Bit(struct sym_device *np, u_char write_bit, u_char *gp
 		*gpreg |= 0x02;
 	else
 		*gpreg &= 0xfd;
-		
+
 	*gpreg |= 0x10;
-		
+
 	OUTB(np, nc_gpreg, *gpreg);
 	INB(np, nc_mbox1);
 	udelay(2);
@@ -588,7 +588,7 @@ static void T93C46_Stop(struct sym_device *np, u_char *gpreg)
 /*
  *  Send read command and address to NVRAM
  */
-static void T93C46_Send_Command(struct sym_device *np, u_short write_data, 
+static void T93C46_Send_Command(struct sym_device *np, u_short write_data,
 				u_char *read_bit, u_char *gpreg)
 {
 	int x;
@@ -664,7 +664,7 @@ static int sym_read_T93C46_nvram(struct sym_device *np, Tekram_nvram *nvram)
 	/* input all of NVRAM, 64 words */
 	retv = T93C46_Read_Data(np, (u_short *) nvram,
 				sizeof(*nvram) / sizeof(short), &gpreg);
-	
+
 	/* return GPIO0/1/2/4 to original states after having accessed NVRAM */
 	OUTB(np, nc_gpcntl, old_gpcntl);
 	OUTB(np, nc_gpreg,  old_gpreg);

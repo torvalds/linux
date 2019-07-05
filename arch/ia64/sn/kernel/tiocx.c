@@ -152,7 +152,7 @@ struct bus_type tiocx_bus_type = {
 /**
  * cx_driver_register - Register the driver.
  * @cx_driver: driver table (cx_drv struct) from driver
- * 
+ *
  * Called from the driver init routine to register a driver.
  * The cx_drv struct contains the driver name, a pointer to
  * a table of part/mfg numbers and a pointer to the driver's

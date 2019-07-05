@@ -52,7 +52,7 @@ struct changer_vendor_params {
  */
 struct changer_move {
 	int cm_fromtype;	/* type/unit of source element */
-	int cm_fromunit;	
+	int cm_fromunit;
 	int cm_totype;	/* type/unit of destination element */
 	int cm_tounit;
 	int cm_flags;

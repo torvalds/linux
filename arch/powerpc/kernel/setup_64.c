@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * 
+ *
  * Common boot and setup code.
  *
  * Copyright (C) 2001 PPC64 Team, IBM Corp

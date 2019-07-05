@@ -148,7 +148,7 @@ bit definitions are the same as those used with MTSETDRVBUFFER in setting the
 options.
 
 A link named 'tape' is made from the SCSI device directory to the class
-directory corresponding to the mode 0 auto-rewind device (e.g., st0). 
+directory corresponding to the mode 0 auto-rewind device (e.g., st0).
 
 
 SYSFS AND STATISTICS FOR TAPE DEVICES
@@ -506,7 +506,7 @@ MTSETDRVBUFFER
 	   cleaning. The bits are device-dependent. The driver is
 	   given the number of the sense data byte (the lowest eight
 	   bits of the argument; must be >= 18 (values 1 - 17
-	   reserved) and <= the maximum requested sense data sixe), 
+	   reserved) and <= the maximum requested sense data sixe),
 	   a mask to select the relevant bits (the bits 9-16), and the
 	   bit pattern (bits 17-23). If the bit pattern is zero, one
 	   or more bits under the mask indicate cleaning request. If

@@ -528,7 +528,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 		goto not_found;
 
 	}
-	
+
 	if (likely(bits_wanted <= BITS_PER_LONG/2)) {
 		/*
 		** Search the resource bit map on well-aligned values.
@@ -545,7 +545,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 
 		DBG_RES("%s() o %ld %p", __func__, o, res_ptr);
 		for(; res_ptr < res_end ; res_ptr++)
-		{ 
+		{
 			DBG_RES("    %p %lx %lx\n", res_ptr, mask, *res_ptr);
 			ASSERT(0 != mask);
 			for (; mask ; mask <<= o, bitshiftcnt += o) {
@@ -735,7 +735,7 @@ sba_free_range(struct ioc *ioc, dma_addr_t iova, size_t size)
 	/* Round up to power-of-two size: see AR2305 note above */
 	bits_not_wanted = 1UL << get_iovp_order(bits_not_wanted << iovp_shift);
 	for (; bits_not_wanted > 0 ; res_ptr++) {
-		
+
 		if (unlikely(bits_not_wanted > BITS_PER_LONG)) {
 
 			/* these mappings start 64bit aligned */
@@ -1634,7 +1634,7 @@ ioc_iova_init(struct ioc *ioc)
 	** We program the next pdir index after we stop w/ a key for
 	** the GART code to handshake on.
 	*/
-	for_each_pci_dev(device)	
+	for_each_pci_dev(device)
 		agp_found |= pci_find_capability(device, PCI_CAP_ID_AGP);
 
 	if (agp_found && reserve_sba_gart) {

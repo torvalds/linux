@@ -30,7 +30,7 @@ static void snd_gf1_interrupt_midi_in(struct snd_gus_card * gus)
 		if (!(gus->gf1.uart_cmd & 0x80)) {
 			spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 			continue;
-		}			
+		}
 		if (stat & 0x10) {	/* framing error */
 			gus->gf1.uart_framing++;
 			spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);

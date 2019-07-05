@@ -9,26 +9,26 @@
  *
  *
  * From the MFC3 documentation:
- * 
+ *
  * Miscellaneous PIA Details
  * -------------------------
- * 
+ *
  * 	The two open-drain interrupt outputs /IRQA and /IRQB are routed to
  * /INT2 of the Z2 bus.
- * 
+ *
  * 	The CPU data bus of the PIA (D0-D7) is connected to D8-D15 on the Z2
  * bus. This means that any PIA registers are accessed at even addresses.
- * 
+ *
  * Centronics Pin Connections for the PIA
  * --------------------------------------
- * 
+ *
  * 	The following table shows the connections between the PIA and the
  * Centronics interface connector. These connections implement a single, but
  * very complete, Centronics type interface. The Pin column gives the pin
  * numbers of the PIA. The Centronics pin numbers can be found in the section
  * "Parallel Connectors".
- * 
- * 
+ *
+ *
  *    Pin | PIA | Dir | Centronics Names
  * -------+-----+-----+---------------------------------------------------------
  *     19 | CB2 | --> | /STROBE (aka /DRDY)
@@ -45,7 +45,7 @@
  *      5 | PA3 | <-- | /ACK (same as CB1!)
  *      2 | PA0 | <-- | BUSY (same as CA1!)
  * -------+-----+-----+---------------------------------------------------------
- * 
+ *
  * Should be enough to understand some of the driver.
  *
  * Per convention for normal use the port registers are visible.
@@ -114,7 +114,7 @@ static unsigned char control_pc_to_mfc3(unsigned char control)
 
 static unsigned char control_mfc3_to_pc(unsigned char control)
 {
-	unsigned char ret = PARPORT_CONTROL_STROBE 
+	unsigned char ret = PARPORT_CONTROL_STROBE
 			  | PARPORT_CONTROL_AUTOFD | PARPORT_CONTROL_SELECT;
 
 	if (control & 128) /* /INITP */
@@ -131,7 +131,7 @@ static void mfc3_write_control(struct parport *p, unsigned char control)
 DPRINTK(KERN_DEBUG "write_control %02x\n",control);
 	pia(p)->ppra = (pia(p)->ppra & 0x1f) | control_pc_to_mfc3(control);
 }
-	
+
 static unsigned char mfc3_read_control( struct parport *p)
 {
 DPRINTK(KERN_DEBUG "read_control \n");
@@ -261,8 +261,8 @@ static struct parport_operations pp_mfc3_ops = {
 	.enable_irq	= mfc3_enable_irq,
 	.disable_irq	= mfc3_disable_irq,
 
-	.data_forward	= mfc3_data_forward, 
-	.data_reverse	= mfc3_data_reverse, 
+	.data_forward	= mfc3_data_forward,
+	.data_reverse	= mfc3_data_reverse,
 
 	.init_state	= mfc3_init_state,
 	.save_state	= mfc3_save_state,
@@ -353,7 +353,7 @@ static void __exit parport_mfc3_exit(void)
 			continue;
 		parport_remove_port(this_port[i]);
 		if (this_port[i]->irq != PARPORT_IRQ_NONE) {
-			if (--use_cnt == 0) 
+			if (--use_cnt == 0)
 				free_irq(IRQ_AMIGA_PORTS, &pp_mfc3_ops);
 		}
 		release_mem_region(ZTWO_PADDR(this_port[i]->private_data), sizeof(struct pia));

@@ -403,7 +403,7 @@ is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci,
 	 */
 	if (psp->tc || psp->cc || psp->rc || psp->uc)
 		return MCA_IS_LOCAL;
-	
+
 	/*
 	 * Bus_Check structure with Bus_Check.ib (internal bus error) flag set
 	 * would be a global MCA. (e.g. a system bus address parity error)
@@ -756,7 +756,7 @@ mca_try_to_recover(void *rec, struct ia64_sal_os_state *sos)
 	/* Check whether MCA is global or not */
 	if (is_mca_global(&peidx, &pbci, sos))
 		return fatal_mca("global MCA");
-	
+
 	/* Try to recover a processor error */
 	return recover_from_processor_error(platform_err, &slidx, &peidx,
 					    &pbci, sos);
@@ -772,7 +772,7 @@ int __init mca_external_handler_init(void)
 		return -ENOMEM;
 
 	/* register external mca handlers */
-	if (ia64_reg_MCA_extension(mca_try_to_recover)) {	
+	if (ia64_reg_MCA_extension(mca_try_to_recover)) {
 		printk(KERN_ERR "ia64_reg_MCA_extension failed.\n");
 		kfree(slidx_pool.buffer);
 		return -EFAULT;

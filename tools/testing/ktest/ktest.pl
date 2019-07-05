@@ -1084,7 +1084,7 @@ sub __read_config {
 		    }
 		}
 	    }
-		
+
 	    if ( ! -r $file ) {
 		die "$name: $.: Can't read file $file\n$_";
 	    }
@@ -2363,7 +2363,7 @@ sub check_buildlog {
 	while (<IN>) {
 	    if (/$check_build_re/) {
 		my $warning = process_warning_line $_;
-		
+
 		$warnings_list{$warning} = 1;
 	    }
 	}
@@ -3497,7 +3497,7 @@ sub add_dep {
 	$depcount{$dep}++;
     } else {
 	$depcount{$dep} = 1;
-    } 
+    }
 }
 
 # taken from streamline_config.pl

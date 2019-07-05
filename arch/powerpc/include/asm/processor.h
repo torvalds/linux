@@ -434,7 +434,7 @@ extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
 
 #ifdef CONFIG_PPC64
 /*
- * We handle most unaligned accesses in hardware. On the other hand 
+ * We handle most unaligned accesses in hardware. On the other hand
  * unaligned DMA can be very expensive on some ppc64 IO chips (it does
  * powers of 2 writes until it reaches sufficient alignment).
  *

@@ -21,7 +21,7 @@ ENTRY(wakeup_long64)
 	jne	bogus_64_magic
 
 	movw	$__KERNEL_DS, %ax
-	movw	%ax, %ss	
+	movw	%ax, %ss
 	movw	%ax, %ds
 	movw	%ax, %es
 	movw	%ax, %fs

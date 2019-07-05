@@ -64,7 +64,7 @@ static struct irq_chip cabriolet_irq_type = {
 	.irq_mask_ack	= cabriolet_disable_irq,
 };
 
-static void 
+static void
 cabriolet_device_interrupt(unsigned long v)
 {
 	unsigned long pld;
@@ -131,7 +131,7 @@ cabriolet_init_irq(void)
 
    In an attempt to work around this, while processing interrupts,
    we do not allow the IPL to drop below what it is currently.  This
-   prevents the possibility of recursion.  
+   prevents the possibility of recursion.
 
    ??? Another option might be to force all PCI devices to use edge
    triggered rather than level triggered interrupts.  That might be
@@ -249,21 +249,21 @@ cia_cab_init_pci(void)
 /*
  * The PC164 and LX164 have 19 PCI interrupts, four from each of the four
  * PCI slots, the SIO, PCI/IDE, and USB.
- * 
+ *
  * Each of the interrupts can be individually masked. This is
  * accomplished by setting the appropriate bit in the mask register.
  * A bit is set by writing a "1" to the desired position in the mask
  * register and cleared by writing a "0". There are 3 mask registers
  * located at ISA address 804h, 805h and 806h.
- * 
+ *
  * An I/O read at ISA address 804h, 805h, 806h will return the
  * state of the 11 PCI interrupts and not the state of the MASKED
  * interrupts.
- * 
+ *
  * Note: A write to I/O 804h, 805h, and 806h the mask register will be
  * updated.
- * 
- * 
+ *
+ *
  * 				ISA DATA<7:0>
  * ISA     +--------------------------------------------------------------+
  * ADDRESS |   7   |   6   |   5   |   4   |   3   |   2  |   1   |   0   |
@@ -276,8 +276,8 @@ cia_cab_init_pci(void)
  *         +--------------------------------------------------------------+
  *         * Rsrv = reserved bits
  *         Note: The mask register is write-only.
- * 
- * IdSel	
+ *
+ * IdSel
  *   5	 32 bit PCI option slot 2
  *   6	 64 bit PCI option slot 0
  *   7	 64 bit PCI option slot 1
@@ -285,7 +285,7 @@ cia_cab_init_pci(void)
  *   9	 32 bit PCI option slot 3
  *  10	 USB
  *  11	 IDE
- * 
+ *
  */
 
 static inline int

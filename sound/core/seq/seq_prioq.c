@@ -14,7 +14,7 @@
 /* Implementation is a simple linked list for now...
 
    This priority queue orders the events on timestamp. For events with an
-   equeal timestamp the queue behaves as a FIFO. 
+   equeal timestamp the queue behaves as a FIFO.
 
    *
    *           +-------+
@@ -46,12 +46,12 @@ struct snd_seq_prioq *snd_seq_prioq_new(void)
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (!f)
 		return NULL;
-	
+
 	spin_lock_init(&f->lock);
 	f->head = NULL;
 	f->tail = NULL;
 	f->cells = 0;
-	
+
 	return f;
 }
 
@@ -68,13 +68,13 @@ void snd_seq_prioq_delete(struct snd_seq_prioq **fifo)
 
 	/* release resources...*/
 	/*....................*/
-	
+
 	if (f->cells > 0) {
 		/* drain prioQ */
 		while (f->cells > 0)
 			snd_seq_cell_free(snd_seq_prioq_cell_out(f, NULL));
 	}
-	
+
 	kfree(f);
 }
 
@@ -138,14 +138,14 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 
 	if (snd_BUG_ON(!f || !cell))
 		return -EINVAL;
-	
+
 	/* check flags */
 	prior = (cell->event.flags & SNDRV_SEQ_PRIORITY_MASK);
 
 	spin_lock_irqsave(&f->lock, flags);
 
-	/* check if this element needs to inserted at the end (ie. ordered 
-	   data is inserted) This will be very likeley if a sequencer 
+	/* check if this element needs to inserted at the end (ie. ordered
+	   data is inserted) This will be very likeley if a sequencer
 	   application or midi file player is feeding us (sequential) data */
 	if (f->tail && !prior) {
 		if (compare_timestamp(&cell->event, &f->tail->event)) {
@@ -313,9 +313,9 @@ void snd_seq_prioq_leave(struct snd_seq_prioq * f, int client, int timestamp)
 #endif
 			prev = cell;
 		}
-		cell = next;		
+		cell = next;
 	}
-	spin_unlock_irqrestore(&f->lock, flags);	
+	spin_unlock_irqrestore(&f->lock, flags);
 
 	/* remove selected cells */
 	while (freefirst) {
@@ -421,9 +421,9 @@ void snd_seq_prioq_remove_events(struct snd_seq_prioq * f, int client,
 		} else {
 			prev = cell;
 		}
-		cell = next;		
+		cell = next;
 	}
-	spin_unlock_irqrestore(&f->lock, flags);	
+	spin_unlock_irqrestore(&f->lock, flags);
 
 	/* remove selected cells */
 	while (freefirst) {

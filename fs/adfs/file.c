@@ -18,7 +18,7 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  adfs regular file handling primitives           
+ *  adfs regular file handling primitives
  */
 #include "adfs.h"
 

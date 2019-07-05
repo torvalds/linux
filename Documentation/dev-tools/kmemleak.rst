@@ -70,7 +70,7 @@ is configured via the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option.
 
 If CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
 disabled by default. Passing ``kmemleak=on`` on the kernel command
-line enables the function. 
+line enables the function.
 
 Basic Algorithm
 ---------------

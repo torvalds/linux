@@ -78,7 +78,7 @@
 /* Double precision floating-point definitions */
 #ifndef Dbl_decrement
 # define Dbl_decrement(dbl_valuep1,dbl_valuep2) \
-    if ((Dallp2(dbl_valuep2)--) == 0) Dallp1(dbl_valuep1)-- 
+    if ((Dallp2(dbl_valuep2)--) == 0) Dallp1(dbl_valuep1)--
 #endif
 
 
@@ -114,21 +114,21 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
      */
 
     /*
-     * Check for reserved-op exception.  A reserved-op exception does not 
+     * Check for reserved-op exception.  A reserved-op exception does not
      * set any exception registers nor does it set the T-bit.  If the T-bit
      * is not set then a reserved-op exception occurred.
      *
      * At some point, we may want to report reserved op exceptions as
      * illegal instructions.
      */
-    
+
     if (!Is_tbit_set()) {
 	update_trap_counts(Fpu_register, aflags, bflags, trap_counts);
 	return SIGNALCODE(SIGILL, ILL_COPROC);
     }
 
-    /* 
-     * Is a coprocessor op. 
+    /*
+     * Is a coprocessor op.
      *
      * Now we need to determine what type of exception occurred.
      */
@@ -143,14 +143,14 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 	if (excptype & UNIMPLEMENTEDEXCEPTION) {
 		/*
 		 * Clear T-bit and exception register so that
-		 * we can tell if a trap really occurs while 
+		 * we can tell if a trap really occurs while
 		 * emulating the instruction.
 		 */
 		Clear_tbit();
 		Clear_excp_register(exception_index);
 		/*
 		 * Now emulate this instruction.  If a trap occurs,
-		 * fpudispatch will return a non-zero number 
+		 * fpudispatch will return a non-zero number
 		 */
 		excp = fpudispatch(current_ir,excptype,0,Fpu_register);
 		/* accumulate the status flags, don't lose them as in hpux */
@@ -175,7 +175,7 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 			 	 * TIMEX extended unimplemented exception code
 			 	 */
 				excp = excptype;
-				update_trap_counts(Fpu_register, aflags, bflags, 
+				update_trap_counts(Fpu_register, aflags, bflags,
 					   trap_counts);
 				return SIGNALCODE(SIGILL, ILL_COPROC);
 			}
@@ -199,12 +199,12 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 	if (excptype & UNDERFLOWEXCEPTION) {
 		/* check for underflow trap enabled */
 		if (Is_underflowtrap_enabled()) {
-			update_trap_counts(Fpu_register, aflags, bflags, 
+			update_trap_counts(Fpu_register, aflags, bflags,
 					   trap_counts);
 			return SIGNALCODE(SIGFPE, FPE_FLTUND);
 		} else {
 		    /*
-		     * Isn't a real trap; we need to 
+		     * Isn't a real trap; we need to
 		     * return the default value.
 		     */
 		    target = current_ir & fivebits;
@@ -215,11 +215,11 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 		    switch (Excp_format()) {
 		      case SGL:
 		        /*
-		         * If ra (round-away) is set, will 
+		         * If ra (round-away) is set, will
 		         * want to undo the rounding done
 		         * by the hardware.
 		         */
-		        if (Rabit(Fpu_register[exception_index])) 
+		        if (Rabit(Fpu_register[exception_index]))
 				Sgl_decrement(Fpu_sgl(target));
 
 			/* now denormalize */
@@ -227,11 +227,11 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 		    	break;
 		      case DBL:
 		    	/*
-		    	 * If ra (round-away) is set, will 
+		    	 * If ra (round-away) is set, will
 		    	 * want to undo the rounding done
 		    	 * by the hardware.
 		    	 */
-		    	if (Rabit(Fpu_register[exception_index])) 
+		    	if (Rabit(Fpu_register[exception_index]))
 				Dbl_decrement(Fpu_dblp1(target),Fpu_dblp2(target));
 
 			/* now denormalize */
@@ -240,10 +240,10 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 		    	break;
 		    }
 		    if (inexact) Set_underflowflag();
-		    /* 
+		    /*
 		     * Underflow can generate an inexact
 		     * exception.  If inexact trap is enabled,
-		     * want to do an inexact trap, otherwise 
+		     * want to do an inexact trap, otherwise
 		     * set inexact flag.
 		     */
 		    if (inexact && Is_inexacttrap_enabled()) {
@@ -255,13 +255,13 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 		    	Set_exceptiontype(Fpu_register[exception_index],
 			 INEXACTEXCEPTION);
 			Set_parmfield(Fpu_register[exception_index],0);
-			update_trap_counts(Fpu_register, aflags, bflags, 
+			update_trap_counts(Fpu_register, aflags, bflags,
 					   trap_counts);
 			return SIGNALCODE(SIGFPE, FPE_FLTRES);
 		    }
 		    else {
 		    	/*
-		    	 * Exception register needs to be cleared.  
+		    	 * Exception register needs to be cleared.
 			 * Inexact flag needs to be set if inexact.
 		    	 */
 		    	Clear_excp_register(exception_index);
@@ -274,20 +274,20 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 	  case OVERFLOWEXCEPTION:
 	  case OVERFLOWEXCEPTION | INEXACTEXCEPTION:
 		/* check for overflow trap enabled */
-			update_trap_counts(Fpu_register, aflags, bflags, 
+			update_trap_counts(Fpu_register, aflags, bflags,
 					   trap_counts);
 		if (Is_overflowtrap_enabled()) {
-			update_trap_counts(Fpu_register, aflags, bflags, 
+			update_trap_counts(Fpu_register, aflags, bflags,
 					   trap_counts);
 			return SIGNALCODE(SIGFPE, FPE_FLTOVF);
 		} else {
 			/*
-			 * Isn't a real trap; we need to 
+			 * Isn't a real trap; we need to
 			 * return the default value.
 			 */
 			target = current_ir & fivebits;
 			switch (Excp_format()) {
-			  case SGL: 
+			  case SGL:
 				Sgl_setoverflow(Fpu_sgl(target));
 				break;
 			  case DBL:
@@ -295,10 +295,10 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 				break;
 			}
 			Set_overflowflag();
-			/* 
+			/*
 			 * Overflow always generates an inexact
 			 * exception.  If inexact trap is enabled,
-			 * want to do an inexact trap, otherwise 
+			 * want to do an inexact trap, otherwise
 			 * set inexact flag.
 			 */
 			if (Is_inexacttrap_enabled()) {
@@ -315,7 +315,7 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 			}
 			else {
 				/*
-				 * Exception register needs to be cleared.  
+				 * Exception register needs to be cleared.
 				 * Inexact flag needs to be set.
 				 */
 				Clear_excp_register(exception_index);
@@ -341,7 +341,7 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 		return SIGNALCODE(SIGILL, ILL_COPROC);
 	  case NOEXCEPTION:	/* no exception */
 		/*
-		 * Clear exception register in case 
+		 * Clear exception register in case
 		 * other fields are non-zero.
 		 */
 		Clear_excp_register(exception_index);

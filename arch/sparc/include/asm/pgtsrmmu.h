@@ -167,7 +167,7 @@ static inline int
 srmmu_get_pte (unsigned long addr)
 {
 	register unsigned long entry;
-        
+
 	__asm__ __volatile__("\n\tlda [%1] %2,%0\n\t" :
 				"=r" (entry):
 				"r" ((addr & 0xfffff000) | 0x400), "i" (ASI_M_FLUSH_PROBE));

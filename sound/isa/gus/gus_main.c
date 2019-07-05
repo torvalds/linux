@@ -46,7 +46,7 @@ static int snd_gus_joystick_info(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 static int snd_gus_joystick_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_gus_card *gus = snd_kcontrol_chip(kcontrol);
-	
+
 	ucontrol->value.integer.value[0] = gus->joystick_dac & 31;
 	return 0;
 }
@@ -57,7 +57,7 @@ static int snd_gus_joystick_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	unsigned long flags;
 	int change;
 	unsigned char nval;
-	
+
 	nval = ucontrol->value.integer.value[0] & 31;
 	spin_lock_irqsave(&gus->reg_lock, flags);
 	change = gus->joystick_dac != nval;

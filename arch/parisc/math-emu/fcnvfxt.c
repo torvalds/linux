@@ -55,15 +55,15 @@ sgl_to_sgl_fcnvfxt(
 	src = *srcptr;
 	src_exponent = Sgl_exponent(src) - SGL_BIAS;
 
-	/* 
+	/*
 	 * Test for overflow
 	 */
 	if (src_exponent > SGL_FX_MAX_EXP) {
 		/* check for MININT */
-		if ((src_exponent > SGL_FX_MAX_EXP + 1) || 
+		if ((src_exponent > SGL_FX_MAX_EXP + 1) ||
 		Sgl_isnotzero_mantissa(src) || Sgl_iszero_sign(src)) {
                         if (Sgl_iszero_sign(src)) result = 0x7fffffff;
-                        else result = 0x80000000; 
+                        else result = 0x80000000;
 
 	                if (Is_invalidtrap_enabled()) {
                             return(INVALIDEXCEPTION);
@@ -103,7 +103,7 @@ sgl_to_sgl_fcnvfxt(
 }
 
 /*
- *  Single Floating-point to Double Fixed-point 
+ *  Single Floating-point to Double Fixed-point
  */
 /*ARGSUSED*/
 int
@@ -119,19 +119,19 @@ sgl_to_dbl_fcnvfxt(
 	src = *srcptr;
 	src_exponent = Sgl_exponent(src) - SGL_BIAS;
 
-	/* 
+	/*
 	 * Test for overflow
 	 */
 	if (src_exponent > DBL_FX_MAX_EXP) {
 		/* check for MININT */
-		if ((src_exponent > DBL_FX_MAX_EXP + 1) || 
+		if ((src_exponent > DBL_FX_MAX_EXP + 1) ||
 		Sgl_isnotzero_mantissa(src) || Sgl_iszero_sign(src)) {
                         if (Sgl_iszero_sign(src)) {
                               resultp1 = 0x7fffffff;
 			      resultp2 = 0xffffffff;
 			}
                         else {
-			    resultp1 = 0x80000000; 
+			    resultp1 = 0x80000000;
 			    resultp2 = 0;
 			}
 	                if (Is_invalidtrap_enabled()) {
@@ -177,7 +177,7 @@ sgl_to_dbl_fcnvfxt(
 }
 
 /*
- *  Double Floating-point to Single Fixed-point 
+ *  Double Floating-point to Single Fixed-point
  */
 /*ARGSUSED*/
 int
@@ -193,14 +193,14 @@ dbl_to_sgl_fcnvfxt(
 	Dbl_copyfromptr(srcptr,srcp1,srcp2);
 	src_exponent = Dbl_exponent(srcp1) - DBL_BIAS;
 
-	/* 
+	/*
 	 * Test for overflow
 	 */
 	if (src_exponent > SGL_FX_MAX_EXP) {
 		/* check for MININT */
 		if (Dbl_isoverflow_to_int(src_exponent,srcp1,srcp2)) {
                         if (Dbl_iszero_sign(srcp1)) result = 0x7fffffff;
-                        else result = 0x80000000; 
+                        else result = 0x80000000;
 
 	                if (Is_invalidtrap_enabled()) {
                             return(INVALIDEXCEPTION);
@@ -242,7 +242,7 @@ dbl_to_sgl_fcnvfxt(
 }
 
 /*
- *  Double Floating-point to Double Fixed-point 
+ *  Double Floating-point to Double Fixed-point
  */
 /*ARGSUSED*/
 int
@@ -258,19 +258,19 @@ dbl_to_dbl_fcnvfxt(
 	Dbl_copyfromptr(srcptr,srcp1,srcp2);
 	src_exponent = Dbl_exponent(srcp1) - DBL_BIAS;
 
-	/* 
+	/*
 	 * Test for overflow
 	 */
 	if (src_exponent > DBL_FX_MAX_EXP) {
 		/* check for MININT */
-		if ((src_exponent > DBL_FX_MAX_EXP + 1) || 
+		if ((src_exponent > DBL_FX_MAX_EXP + 1) ||
 		Dbl_isnotzero_mantissa(srcp1,srcp2) || Dbl_iszero_sign(srcp1)) {
                         if (Dbl_iszero_sign(srcp1)) {
                               resultp1 = 0x7fffffff;
 			      resultp2 = 0xffffffff;
 			}
                         else {
-			    resultp1 = 0x80000000; 
+			    resultp1 = 0x80000000;
 			    resultp2 = 0;
 			}
 	                if (Is_invalidtrap_enabled()) {

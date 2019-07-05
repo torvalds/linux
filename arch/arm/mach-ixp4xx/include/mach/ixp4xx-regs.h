@@ -2,9 +2,9 @@
 /*
  * arch/arm/mach-ixp4xx/include/mach/ixp4xx-regs.h
  *
- * Register definitions for IXP4xx chipset. This file contains 
- * register location and bit definitions only. Platform specific 
- * definitions and helper function declarations are in platform.h 
+ * Register definitions for IXP4xx chipset. This file contains
+ * register location and bit definitions only. Platform specific
+ * definitions and helper function declarations are in platform.h
  * and machine-name.h.
  *
  * Copyright (C) 2002 Intel Corporation.
@@ -82,16 +82,16 @@
 
 #define IXP4XX_EXP_CS0      IXP4XX_EXP_REG(IXP4XX_EXP_CS0_OFFSET)
 #define IXP4XX_EXP_CS1      IXP4XX_EXP_REG(IXP4XX_EXP_CS1_OFFSET)
-#define IXP4XX_EXP_CS2      IXP4XX_EXP_REG(IXP4XX_EXP_CS2_OFFSET) 
+#define IXP4XX_EXP_CS2      IXP4XX_EXP_REG(IXP4XX_EXP_CS2_OFFSET)
 #define IXP4XX_EXP_CS3      IXP4XX_EXP_REG(IXP4XX_EXP_CS3_OFFSET)
 #define IXP4XX_EXP_CS4      IXP4XX_EXP_REG(IXP4XX_EXP_CS4_OFFSET)
 #define IXP4XX_EXP_CS5      IXP4XX_EXP_REG(IXP4XX_EXP_CS5_OFFSET)
-#define IXP4XX_EXP_CS6      IXP4XX_EXP_REG(IXP4XX_EXP_CS6_OFFSET)     
+#define IXP4XX_EXP_CS6      IXP4XX_EXP_REG(IXP4XX_EXP_CS6_OFFSET)
 #define IXP4XX_EXP_CS7      IXP4XX_EXP_REG(IXP4XX_EXP_CS7_OFFSET)
 
-#define IXP4XX_EXP_CFG0     IXP4XX_EXP_REG(IXP4XX_EXP_CFG0_OFFSET) 
-#define IXP4XX_EXP_CFG1     IXP4XX_EXP_REG(IXP4XX_EXP_CFG1_OFFSET) 
-#define IXP4XX_EXP_CFG2     IXP4XX_EXP_REG(IXP4XX_EXP_CFG2_OFFSET) 
+#define IXP4XX_EXP_CFG0     IXP4XX_EXP_REG(IXP4XX_EXP_CFG0_OFFSET)
+#define IXP4XX_EXP_CFG1     IXP4XX_EXP_REG(IXP4XX_EXP_CFG1_OFFSET)
+#define IXP4XX_EXP_CFG2     IXP4XX_EXP_REG(IXP4XX_EXP_CFG2_OFFSET)
 #define IXP4XX_EXP_CFG3     IXP4XX_EXP_REG(IXP4XX_EXP_CFG3_OFFSET)
 
 
@@ -168,7 +168,7 @@
 #define IXP4XX_OSST	IXP4XX_TIMER_REG(IXP4XX_OSST_OFFSET)
 
 /*
- * Timer register values and bit definitions 
+ * Timer register values and bit definitions
  */
 #define IXP4XX_OST_ENABLE		0x00000001
 #define IXP4XX_OST_ONE_SHOT		0x00000002
@@ -226,7 +226,7 @@
 #define PCI_CRP_AD_CBE          IXP4XX_PCI_CSR(PCI_CRP_AD_CBE_OFFSET)
 #define PCI_CRP_WDATA           IXP4XX_PCI_CSR(PCI_CRP_WDATA_OFFSET)
 #define PCI_CRP_RDATA           IXP4XX_PCI_CSR(PCI_CRP_RDATA_OFFSET)
-#define PCI_CSR                 IXP4XX_PCI_CSR(PCI_CSR_OFFSET) 
+#define PCI_CSR                 IXP4XX_PCI_CSR(PCI_CSR_OFFSET)
 #define PCI_ISR                 IXP4XX_PCI_CSR(PCI_ISR_OFFSET)
 #define PCI_INTEN               IXP4XX_PCI_CSR(PCI_INTEN_OFFSET)
 #define PCI_DMACTRL             IXP4XX_PCI_CSR(PCI_DMACTRL_OFFSET)
@@ -243,7 +243,7 @@
 #define PCI_ATPDMA1_LENADDR     IXP4XX_PCI_CSR(PCI_ATPDMA1_LENADDR_OFFSET)
 
 /*
- * PCI register values and bit definitions 
+ * PCI register values and bit definitions
  */
 
 /* CSR bit definitions */

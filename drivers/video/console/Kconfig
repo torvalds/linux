@@ -93,7 +93,7 @@ config SGI_NEWPORT_CONSOLE
 
 config DUMMY_CONSOLE
 	bool
-	depends on VGA_CONSOLE!=y || SGI_NEWPORT_CONSOLE!=y 
+	depends on VGA_CONSOLE!=y || SGI_NEWPORT_CONSOLE!=y
 	default y
 
 config DUMMY_CONSOLE_COLUMNS

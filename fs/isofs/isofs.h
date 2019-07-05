@@ -10,7 +10,7 @@ enum isofs_file_format {
 	isofs_file_sparse = 1,
 	isofs_file_compressed = 2,
 };
-	
+
 /*
  * iso fs inode data in memory
  */
@@ -35,7 +35,7 @@ struct isofs_sb_info {
 	unsigned long s_firstdatazone;
 	unsigned long s_log_zone_size;
 	unsigned long s_max_size;
-	
+
 	int           s_rock_offset; /* offset of SUSP fields within SU area */
 	s32           s_sbsector;
 	unsigned char s_joliet_level;

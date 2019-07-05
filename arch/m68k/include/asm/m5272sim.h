@@ -5,7 +5,7 @@
  *	m5272sim.h -- ColdFire 5272 System Integration Module support.
  *
  *	(C) Copyright 1999, Greg Ungerer (gerg@snapgear.com)
- * 	(C) Copyright 2000, Lineo Inc. (www.lineo.com) 
+ * 	(C) Copyright 2000, Lineo Inc. (www.lineo.com)
  */
 
 /****************************************************************************/

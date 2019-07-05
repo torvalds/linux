@@ -2,11 +2,11 @@
 /*
  *      sr.h by David Giller
  *      CD-ROM disk driver header file
- *      
+ *
  *      adapted from:
- *      sd.h Copyright (C) 1992 Drew Eckhardt 
+ *      sd.h Copyright (C) 1992 Drew Eckhardt
  *      SCSI disk driver header file by
- *              Drew Eckhardt 
+ *              Drew Eckhardt
  *
  *      <drew@colorado.edu>
  *

@@ -106,7 +106,7 @@ struct fbcon_ops {
 	((s) & 0x400)
 #define attr_blink(s) \
 	((s) & 0x8000)
-	
+
 
 static inline int mono_col(const struct fb_info *info)
 {
@@ -162,7 +162,7 @@ static inline int attr_col_ec(int shift, struct vc_data *vc,
     /*
      *  Scroll Method
      */
-     
+
 /* There are several methods fbcon can use to move text around the screen:
  *
  *                     Operation   Pan    Wrap

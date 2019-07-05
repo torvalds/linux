@@ -143,7 +143,7 @@ For board code writers, here are some guidelines:
    d) although PXA3xx MFP supports edge detection on each pin, the
    internal logic will only wakeup the system when those specific bits
    in ADxER registers are set, which can be well mapped to the
-   corresponding peripheral, thus set_irq_wake() can be called with 
+   corresponding peripheral, thus set_irq_wake() can be called with
    the peripheral IRQ to enable the wakeup.
 
 
@@ -198,7 +198,7 @@ make them effective there-after.
   --------------
 
   - arch/arm/mach-pxa/include/mach/mfp.h
-  
+
   for
     1. Unified pin definitions - enum constants for all configurable pins
     2. processor-neutral bit definitions for a possible MFP configuration
@@ -231,7 +231,7 @@ make them effective there-after.
 
   The following comments are copied from mfp.h (see the actual source code
   for most updated info)
-  
+
   /*
    * a possible MFP configuration is represented by a 32-bit integer
    *

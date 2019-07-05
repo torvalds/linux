@@ -30,7 +30,7 @@ static ssize_t  show_attr(struct device *dev, struct device_attribute *attr, cha
     if (!pdev)  return -ENXIO;
     pcard = pci_get_drvdata(pdev);
     if (!pcard)  return -ENXIO;
-    
+
     if (strcmp("ssid", attr->attr.name) == 0){         return scnprintf(buf, PAGE_SIZE, "%016llx\n", pcard->ssid);  } else
     if (strcmp("ddna", attr->attr.name) == 0){         return scnprintf(buf, PAGE_SIZE, "%016llx\n", pcard->ddna);  } else
     if (strcmp("card_id", attr->attr.name) == 0){      return scnprintf(buf, PAGE_SIZE, "%08x\n", pcard->card_id);  } else
@@ -67,11 +67,11 @@ static ssize_t cpld_reconfigure(struct device *dev, struct device_attribute *att
     if (!pdev)  return -ENXIO;
     pcard = pci_get_drvdata(pdev);
     if (!pcard)  return -ENXIO;
-    
+
     rv = kstrtol(buf, 0, &wr_val);
     if (rv < 0)  return rv;
     if (wr_val > 7)  return -EINVAL;
-    
+
     wr_val = wr_val << 8;
     wr_val |= 0x1; // Set the "Configure Go" bit
     writeq(wr_val, pcard->sysinfo_regs_base + REG_CPLD_CONFIG);
@@ -111,12 +111,12 @@ static void wait_and_read_ssid(struct kp2000_device *pcard)
 {
     u64 read_val = readq(pcard->sysinfo_regs_base + REG_FPGA_SSID);
     unsigned long timeout;
-    
+
     if (read_val & 0x8000000000000000){
         pcard->ssid = read_val;
         return;
     }
-    
+
     timeout = jiffies + (HZ * 2);
     do {
         read_val = readq(pcard->sysinfo_regs_base + REG_FPGA_SSID);
@@ -127,9 +127,9 @@ static void wait_and_read_ssid(struct kp2000_device *pcard)
         cpu_relax();
         //schedule();
     } while (time_before(jiffies, timeout));
-    
+
     dev_notice(&pcard->pdev->dev, "SSID didn't show up!\n");
-    
+
     #if 0
     // Timed out waiting for the SSID to show up, just use the DDNA instead?
     read_val = readq(pcard->sysinfo_regs_base + REG_FPGA_DDNA);
@@ -143,34 +143,34 @@ static void wait_and_read_ssid(struct kp2000_device *pcard)
 static int  read_system_regs(struct kp2000_device *pcard)
 {
     u64 read_val;
-    
+
     read_val = readq(pcard->sysinfo_regs_base + REG_MAGIC_NUMBER);
     if (read_val != KP2000_MAGIC_VALUE){
         dev_err(&pcard->pdev->dev, "Invalid magic!  Got: 0x%016llx  Want: 0x%016lx\n", read_val, KP2000_MAGIC_VALUE);
         return -EILSEQ;
     }
-    
+
     read_val = readq(pcard->sysinfo_regs_base + REG_CARD_ID_AND_BUILD);
     pcard->card_id = (read_val & 0xFFFFFFFF00000000) >> 32;
     pcard->build_version = (read_val & 0x00000000FFFFFFFF) >> 0;
-    
+
     read_val = readq(pcard->sysinfo_regs_base + REG_DATE_AND_TIME_STAMPS);
     pcard->build_datestamp = (read_val & 0xFFFFFFFF00000000) >> 32;
     pcard->build_timestamp = (read_val & 0x00000000FFFFFFFF) >> 0;
-    
+
     read_val = readq(pcard->sysinfo_regs_base + REG_CORE_TABLE_OFFSET);
     pcard->core_table_length = (read_val & 0xFFFFFFFF00000000) >> 32;
     pcard->core_table_offset = (read_val & 0x00000000FFFFFFFF) >> 0;
-    
+
     wait_and_read_ssid(pcard);
-    
+
     read_val = readq(pcard->sysinfo_regs_base + REG_FPGA_HW_ID);
     pcard->core_table_rev    = (read_val & 0x0000000000000F00) >> 8;
     pcard->hardware_revision = (read_val & 0x000000000000001F);
-    
+
     read_val = readq(pcard->sysinfo_regs_base + REG_FPGA_DDNA);
     pcard->ddna = read_val;
-    
+
     dev_info(&pcard->pdev->dev, "system_regs: %08x %08x %08x %08x  %02x  %d %d  %016llx  %016llx\n",
         pcard->card_id,
         pcard->build_version,
@@ -182,12 +182,12 @@ static int  read_system_regs(struct kp2000_device *pcard)
         pcard->ssid,
         pcard->ddna
     );
-    
+
     if (pcard->core_table_rev > 1){
         dev_err(&pcard->pdev->dev, "core table entry revision is higher than we can deal with, cannot continue with this card!\n");
         return 1;
     }
-    
+
     return 0;
 }
 
@@ -209,9 +209,9 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     unsigned long dma_bar_phys_addr;
     unsigned long dma_bar_phys_len;
     u16 regval;
- 
+
     dev_dbg(&pdev->dev, "kp2000_pcie_probe(pdev = [%p], id = [%p])\n", pdev, id);
-    
+
     //{ Step 1: Allocate a struct for the pcard
     pcard = kzalloc(sizeof(struct kp2000_device), GFP_KERNEL);
     if (NULL == pcard){
@@ -220,19 +220,19 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     }
     dev_dbg(&pdev->dev, "probe: allocated struct kp2000_device @ %p\n", pcard);
     //}
-    
+
     //{ Step 2: Initialize trivial pcard elements
     pcard->card_num = card_count;
     card_count++;
     scnprintf(pcard->name, 16, "kpcard%d", pcard->card_num);
-    
+
     mutex_init(&pcard->sem);
     lock_card(pcard);
-    
+
     pcard->pdev = pdev;
     pci_set_drvdata(pdev, pcard);
     //}
-    
+
     //{ Step 3: Enable PCI device
     err = pci_enable_device(pcard->pdev);
     if (err){
@@ -240,11 +240,11 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         goto out3;
     }
     //}
-    
+
     //{ Step 4: Setup the Register BAR
     reg_bar_phys_addr = pci_resource_start(pcard->pdev, REG_BAR);
     reg_bar_phys_len = pci_resource_len(pcard->pdev, REG_BAR);
-    
+
     pcard->regs_bar_base = ioremap_nocache(reg_bar_phys_addr, PAGE_SIZE);
     if (NULL == pcard->regs_bar_base){
         dev_err(&pcard->pdev->dev, "probe: REG_BAR could not remap memory to virtual space\n");
@@ -252,7 +252,7 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         goto out4;
     }
     dev_dbg(&pcard->pdev->dev, "probe: REG_BAR virt hardware address start [%p]\n", pcard->regs_bar_base);
-    
+
     err = pci_request_region(pcard->pdev, REG_BAR, KP_DRIVER_NAME_KP2000);
     if (err){
         iounmap(pcard->regs_bar_base);
@@ -260,16 +260,16 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         err = -ENODEV;
         goto out4;
     }
-    
+
     pcard->regs_base_resource.start = reg_bar_phys_addr;
     pcard->regs_base_resource.end   = reg_bar_phys_addr + reg_bar_phys_len - 1;
     pcard->regs_base_resource.flags = IORESOURCE_MEM;
     //}
-    
+
     //{ Step 5: Setup the DMA BAR
     dma_bar_phys_addr = pci_resource_start(pcard->pdev, DMA_BAR);
     dma_bar_phys_len = pci_resource_len(pcard->pdev, DMA_BAR);
-    
+
     pcard->dma_bar_base = ioremap_nocache(dma_bar_phys_addr, dma_bar_phys_len);
     if (NULL == pcard->dma_bar_base){
         dev_err(&pcard->pdev->dev, "probe: DMA_BAR could not remap memory to virtual space\n");
@@ -277,9 +277,9 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         goto out5;
     }
     dev_dbg(&pcard->pdev->dev, "probe: DMA_BAR virt hardware address start [%p]\n", pcard->dma_bar_base);
-    
+
     pcard->dma_common_regs = pcard->dma_bar_base + KPC_DMA_COMMON_OFFSET;
-    
+
     err = pci_request_region(pcard->pdev, DMA_BAR, "kp2000_pcie");
     if (err){
         iounmap(pcard->dma_bar_base);
@@ -287,22 +287,22 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         err = -ENODEV;
         goto out5;
     }
-    
+
     pcard->dma_base_resource.start = dma_bar_phys_addr;
     pcard->dma_base_resource.end   = dma_bar_phys_addr + dma_bar_phys_len - 1;
     pcard->dma_base_resource.flags = IORESOURCE_MEM;
     //}
-    
+
     //{ Step 6: System Regs
     pcard->sysinfo_regs_base = pcard->regs_bar_base;
     err = read_system_regs(pcard);
     if (err)
         goto out6;
-    
+
     // Disable all "user" interrupts because they're not used yet.
     writeq(0xFFFFFFFFFFFFFFFF, pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
     //}
-    
+
     //{ Step 7: Configure PCI thingies
     // let the card master PCIe
     pci_set_master(pcard->pdev);
@@ -310,19 +310,19 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     pci_read_config_word(pcard->pdev, PCI_COMMAND, &regval);
     regval |= (PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
     pci_write_config_word(pcard->pdev, PCI_COMMAND, regval);
-    
+
     // Clear relaxed ordering bit
     pcie_capability_clear_and_set_word(pcard->pdev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_RELAX_EN, 0);
-    
+
     // Set Max_Payload_Size and Max_Read_Request_Size
     regval = (0x0) << 5; // Max_Payload_Size = 128 B
     pcie_capability_clear_and_set_word(pcard->pdev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_PAYLOAD, regval);
     regval = (0x0) << 12; // Max_Read_Request_Size = 128 B
     pcie_capability_clear_and_set_word(pcard->pdev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_READRQ, regval);
-    
+
     // Enable error reporting for: Correctable Errors, Non-Fatal Errors, Fatal Errors, Unsupported Requests
     pcie_capability_clear_and_set_word(pcard->pdev, PCI_EXP_DEVCTL, 0, PCI_EXP_DEVCTL_CERE | PCI_EXP_DEVCTL_NFERE | PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE);
-    
+
     err = dma_set_mask(PCARD_TO_DEV(pcard), DMA_BIT_MASK(64));
     if (err){
         dev_err(&pcard->pdev->dev, "CANNOT use DMA mask %0llx\n", DMA_BIT_MASK(64));
@@ -330,19 +330,19 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     }
     dev_dbg(&pcard->pdev->dev, "Using DMA mask %0llx\n", dma_get_mask(PCARD_TO_DEV(pcard)));
     //}
-    
+
     //{ Step 8: Configure IRQs
     err = pci_enable_msi(pcard->pdev);
     if (err < 0)
         goto out8a;
-    
+
     rv = request_irq(pcard->pdev->irq, kp2000_irq_handler, IRQF_SHARED, pcard->name, pcard);
     if (rv){
         dev_err(&pcard->pdev->dev, "kp2000_pcie_probe: failed to request_irq: %d\n", rv);
         goto out8b;
     }
     //}
-    
+
     //{ Step 9: Setup sysfs attributes
     err = sysfs_create_files(&(pdev->dev.kobj), kp_attr_list);
     if (err){
@@ -350,30 +350,30 @@ int  kp2000_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         goto out9;
     }
     //}
-    
+
     //{ Step 10: Setup misc device
     pcard->miscdev.minor = MISC_DYNAMIC_MINOR;
     pcard->miscdev.fops = &kp2000_fops;
     pcard->miscdev.parent = &pcard->pdev->dev;
     pcard->miscdev.name = pcard->name;
-    
+
     err = misc_register(&pcard->miscdev);
     if (err){
         dev_err(&pcard->pdev->dev, "kp2000_pcie_probe: misc_register failed: %d\n", err);
         goto out10;
     }
     //}
-    
+
     //{ Step 11: Probe cores
     err = kp2000_probe_cores(pcard);
     if (err)
         goto out11;
     //}
-    
+
     //{ Step 12: Enable IRQs in HW
     SetBackEndControl(pcard->dma_common_regs, KPC_DMA_CARD_IRQ_ENABLE | KPC_DMA_CARD_USER_INTERRUPT_MODE);
     //}
-    
+
     dev_dbg(&pcard->pdev->dev, "kp2000_pcie_probe() complete!\n");
     unlock_card(pcard);
     return 0;
@@ -410,9 +410,9 @@ void  kp2000_pcie_remove(struct pci_dev *pdev)
     struct kp2000_device *pcard = pci_get_drvdata(pdev);
 
     dev_dbg(&pdev->dev, "kp2000_pcie_remove(pdev=%p)\n", pdev);
-    
+
     if (pcard == NULL)  return;
-    
+
     lock_card(pcard);
     kp2000_remove_cores(pcard);
     mfd_remove_devices(PCARD_TO_DEV(pcard));

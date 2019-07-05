@@ -12,4 +12,4 @@ obj-$(CONFIG_PPC_BESTCOMM)		+= bestcomm-core.o
 obj-$(CONFIG_PPC_BESTCOMM_ATA)		+= bestcomm-ata.o
 obj-$(CONFIG_PPC_BESTCOMM_FEC)		+= bestcomm-fec.o
 obj-$(CONFIG_PPC_BESTCOMM_GEN_BD)	+= bestcomm-gen-bd.o
- 
+

@@ -180,7 +180,7 @@ group number 12345, you must increment CN_NETLINK_USERS to that number.
 Additional 0xf numbers are allocated to be used by non-in-kernel users.
 
 Due to this limitation, group 0xffffffff does not work now, so one can
-not use add/remove connector's group notifications, but as far as I know, 
+not use add/remove connector's group notifications, but as far as I know,
 only cn_test.c test module used it.
 
 Some work in netlink area is still being done, so things can be changed in

@@ -105,7 +105,7 @@ main (int argc, char *argv[])
 
     if (primary) {
 	/* generate bootblock for primary loader */
-	
+
 	unsigned long bb[64], sum = 0;
 	struct stat st;
 	off_t size;

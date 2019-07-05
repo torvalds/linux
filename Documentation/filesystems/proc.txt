@@ -601,50 +601,50 @@ files are there, and which are missing.
 
 Table 1-5: Kernel info in /proc
 ..............................................................................
- File        Content                                           
- apm         Advanced power management info                    
+ File        Content
+ apm         Advanced power management info
  buddyinfo   Kernel memory allocator information (see text)	(2.5)
- bus         Directory containing bus specific information     
- cmdline     Kernel command line                               
- cpuinfo     Info about the CPU                                
- devices     Available devices (block and character)           
- dma         Used DMS channels                                 
- filesystems Supported filesystems                             
+ bus         Directory containing bus specific information
+ cmdline     Kernel command line
+ cpuinfo     Info about the CPU
+ devices     Available devices (block and character)
+ dma         Used DMS channels
+ filesystems Supported filesystems
  driver	     Various drivers grouped here, currently rtc (2.4)
  execdomains Execdomains, related to security			(2.4)
  fb	     Frame Buffer devices				(2.4)
  fs	     File system parameters, currently nfs/exports	(2.4)
- ide         Directory containing info about the IDE subsystem 
- interrupts  Interrupt usage                                   
+ ide         Directory containing info about the IDE subsystem
+ interrupts  Interrupt usage
  iomem	     Memory map						(2.4)
- ioports     I/O port usage                                    
+ ioports     I/O port usage
  irq	     Masks for irq to cpu affinity			(2.4)(smp?)
  isapnp	     ISA PnP (Plug&Play) Info				(2.4)
- kcore       Kernel core image (can be ELF or A.OUT(deprecated in 2.4))   
- kmsg        Kernel messages                                   
- ksyms       Kernel symbol table                               
- loadavg     Load average of last 1, 5 & 15 minutes                
- locks       Kernel locks                                      
- meminfo     Memory info                                       
- misc        Miscellaneous                                     
- modules     List of loaded modules                            
- mounts      Mounted filesystems                               
- net         Networking info (see text)                        
+ kcore       Kernel core image (can be ELF or A.OUT(deprecated in 2.4))
+ kmsg        Kernel messages
+ ksyms       Kernel symbol table
+ loadavg     Load average of last 1, 5 & 15 minutes
+ locks       Kernel locks
+ meminfo     Memory info
+ misc        Miscellaneous
+ modules     List of loaded modules
+ mounts      Mounted filesystems
+ net         Networking info (see text)
  pagetypeinfo Additional page allocator information (see text)  (2.5)
- partitions  Table of partitions known to the system           
+ partitions  Table of partitions known to the system
  pci	     Deprecated info of PCI bus (new way -> /proc/bus/pci/,
              decoupled by lspci					(2.4)
- rtc         Real time clock                                   
- scsi        SCSI info (see text)                              
- slabinfo    Slab pool info                                    
+ rtc         Real time clock
+ scsi        SCSI info (see text)
+ slabinfo    Slab pool info
  softirqs    softirq usage
- stat        Overall statistics                                
- swaps       Swap space utilization                            
- sys         See chapter 2                                     
+ stat        Overall statistics
+ swaps       Swap space utilization
+ sys         See chapter 2
  sysvipc     Info of SysVIPC Resources (msg, sem, shm)		(2.4)
  tty	     Info of tty drivers
  uptime      Wall clock since boot, combined idle time of all cpus
- version     Kernel version                                    
+ version     Kernel version
  video	     bttv info of video resources			(2.4)
  vmallocinfo Show vmalloced areas
 ..............................................................................
@@ -652,28 +652,28 @@ Table 1-5: Kernel info in /proc
 You can,  for  example,  check  which interrupts are currently in use and what
 they are used for by looking in the file /proc/interrupts:
 
-  > cat /proc/interrupts 
-             CPU0        
-    0:    8728810          XT-PIC  timer 
-    1:        895          XT-PIC  keyboard 
-    2:          0          XT-PIC  cascade 
-    3:     531695          XT-PIC  aha152x 
-    4:    2014133          XT-PIC  serial 
-    5:      44401          XT-PIC  pcnet_cs 
-    8:          2          XT-PIC  rtc 
-   11:          8          XT-PIC  i82365 
-   12:     182918          XT-PIC  PS/2 Mouse 
-   13:          1          XT-PIC  fpu 
-   14:    1232265          XT-PIC  ide0 
-   15:          7          XT-PIC  ide1 
-  NMI:          0 
+  > cat /proc/interrupts
+             CPU0
+    0:    8728810          XT-PIC  timer
+    1:        895          XT-PIC  keyboard
+    2:          0          XT-PIC  cascade
+    3:     531695          XT-PIC  aha152x
+    4:    2014133          XT-PIC  serial
+    5:      44401          XT-PIC  pcnet_cs
+    8:          2          XT-PIC  rtc
+   11:          8          XT-PIC  i82365
+   12:     182918          XT-PIC  PS/2 Mouse
+   13:          1          XT-PIC  fpu
+   14:    1232265          XT-PIC  ide0
+   15:          7          XT-PIC  ide1
+  NMI:          0
 
 In 2.4.* a couple of lines where added to this file LOC & ERR (this time is the
 output of a SMP machine):
 
-  > cat /proc/interrupts 
+  > cat /proc/interrupts
 
-             CPU0       CPU1       
+             CPU0       CPU1
     0:    1243498    1214548    IO-APIC-edge  timer
     1:       8949       8958    IO-APIC-edge  keyboard
     2:          0          0          XT-PIC  cascade
@@ -686,8 +686,8 @@ output of a SMP machine):
    15:       2183       2415    IO-APIC-edge  ide1
    17:      30564      30414   IO-APIC-level  eth0
    18:        177        164   IO-APIC-level  bttv
-  NMI:    2457961    2457959 
-  LOC:    2457882    2457881 
+  NMI:    2457961    2457959
+  LOC:    2457882    2457881
   ERR:       2155
 
 NMI is incremented in this case because every timer interrupt generates a NMI
@@ -734,7 +734,7 @@ IRQ to only one CPU, or to exclude a CPU of handling IRQs. The contents of the
 irq subdir is one subdir for each IRQ, and two files; default_smp_affinity and
 prof_cpu_mask.
 
-For example 
+For example
   > ls /proc/irq/
   0  10  12  14  16  18  2  4  6  8  prof_cpu_mask
   1  11  13  15  17  19  3  5  7  9  default_smp_affinity
@@ -797,14 +797,14 @@ Node 0, zone   Normal      1      0      0      1    101      8 ...
 Node 0, zone  HighMem      2      0      0      1      1      0 ...
 
 External fragmentation is a problem under some workloads, and buddyinfo is a
-useful tool for helping diagnose these problems.  Buddyinfo will give you a 
+useful tool for helping diagnose these problems.  Buddyinfo will give you a
 clue as to how big an area you can safely allocate, or why a previous
 allocation failed.
 
-Each column represents the number of pages of a certain order which are 
-available.  In this case, there are 0 chunks of 2^0*PAGE_SIZE available in 
-ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE 
-available in ZONE_NORMAL, etc... 
+Each column represents the number of pages of a certain order which are
+available.  In this case, there are 0 chunks of 2^0*PAGE_SIZE available in
+ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE
+available in ZONE_NORMAL, etc...
 
 More information relevant to external fragmentation can be found in
 pagetypeinfo.
@@ -1074,11 +1074,11 @@ directories contains the files shown in table 1-6.
 
 Table 1-6: IDE controller info in  /proc/ide/ide?
 ..............................................................................
- File    Content                                 
- channel IDE channel (0 or 1)                    
- config  Configuration (only for PCI/IDE bridge) 
- mate    Mate name                               
- model   Type/Chipset of IDE controller          
+ File    Content
+ channel IDE channel (0 or 1)
+ config  Configuration (only for PCI/IDE bridge)
+ mate    Mate name
+ model   Type/Chipset of IDE controller
 ..............................................................................
 
 Each device  connected  to  a  controller  has  a separate subdirectory in the
@@ -1088,41 +1088,41 @@ directories.
 
 Table 1-7: IDE device information
 ..............................................................................
- File             Content                                    
- cache            The cache                                  
- capacity         Capacity of the medium (in 512Byte blocks) 
- driver           driver and version                         
- geometry         physical and logical geometry              
- identify         device identify block                      
- media            media type                                 
- model            device identifier                          
- settings         device setup                               
- smart_thresholds IDE disk management thresholds             
- smart_values     IDE disk management values                 
+ File             Content
+ cache            The cache
+ capacity         Capacity of the medium (in 512Byte blocks)
+ driver           driver and version
+ geometry         physical and logical geometry
+ identify         device identify block
+ media            media type
+ model            device identifier
+ settings         device setup
+ smart_thresholds IDE disk management thresholds
+ smart_values     IDE disk management values
 ..............................................................................
 
 The most  interesting  file is settings. This file contains a nice overview of
 the drive parameters:
 
-  # cat /proc/ide/ide0/hda/settings 
-  name                    value           min             max             mode 
-  ----                    -----           ---             ---             ---- 
-  bios_cyl                526             0               65535           rw 
-  bios_head               255             0               255             rw 
-  bios_sect               63              0               63              rw 
-  breada_readahead        4               0               127             rw 
-  bswap                   0               0               1               r 
-  file_readahead          72              0               2097151         rw 
-  io_32bit                0               0               3               rw 
-  keepsettings            0               0               1               rw 
-  max_kb_per_request      122             1               127             rw 
-  multcount               0               0               8               rw 
-  nice1                   1               0               1               rw 
-  nowerr                  0               0               1               rw 
-  pio_mode                write-only      0               255             w 
-  slow                    0               0               1               rw 
-  unmaskirq               0               0               1               rw 
-  using_dma               0               0               1               rw 
+  # cat /proc/ide/ide0/hda/settings
+  name                    value           min             max             mode
+  ----                    -----           ---             ---             ----
+  bios_cyl                526             0               65535           rw
+  bios_head               255             0               255             rw
+  bios_sect               63              0               63              rw
+  breada_readahead        4               0               127             rw
+  bswap                   0               0               1               r
+  file_readahead          72              0               2097151         rw
+  io_32bit                0               0               3               rw
+  keepsettings            0               0               1               rw
+  max_kb_per_request      122             1               127             rw
+  multcount               0               0               8               rw
+  nice1                   1               0               1               rw
+  nowerr                  0               0               1               rw
+  pio_mode                write-only      0               255             w
+  slow                    0               0               1               rw
+  unmaskirq               0               0               1               rw
+  using_dma               0               0               1               rw
 
 
 1.4 Networking info in /proc/net
@@ -1135,65 +1135,65 @@ support this. Table 1-9 lists the files and their meaning.
 
 Table 1-8: IPv6 info in /proc/net
 ..............................................................................
- File       Content                                               
- udp6       UDP sockets (IPv6)                                    
- tcp6       TCP sockets (IPv6)                                    
- raw6       Raw device statistics (IPv6)                          
- igmp6      IP multicast addresses, which this host joined (IPv6) 
- if_inet6   List of IPv6 interface addresses                      
- ipv6_route Kernel routing table for IPv6                         
- rt6_stats  Global IPv6 routing tables statistics                 
- sockstat6  Socket statistics (IPv6)                              
- snmp6      Snmp data (IPv6)                                      
+ File       Content
+ udp6       UDP sockets (IPv6)
+ tcp6       TCP sockets (IPv6)
+ raw6       Raw device statistics (IPv6)
+ igmp6      IP multicast addresses, which this host joined (IPv6)
+ if_inet6   List of IPv6 interface addresses
+ ipv6_route Kernel routing table for IPv6
+ rt6_stats  Global IPv6 routing tables statistics
+ sockstat6  Socket statistics (IPv6)
+ snmp6      Snmp data (IPv6)
 ..............................................................................
 
 
 Table 1-9: Network info in /proc/net
 ..............................................................................
- File          Content                                                         
- arp           Kernel  ARP table                                               
- dev           network devices with statistics                                 
+ File          Content
+ arp           Kernel  ARP table
+ dev           network devices with statistics
  dev_mcast     the Layer2 multicast groups a device is listening too
                (interface index, label, number of references, number of bound
-               addresses). 
- dev_stat      network device status                                           
- ip_fwchains   Firewall chain linkage                                          
- ip_fwnames    Firewall chain names                                            
- ip_masq       Directory containing the masquerading tables                    
- ip_masquerade Major masquerading table                                        
- netstat       Network statistics                                              
- raw           raw device statistics                                           
- route         Kernel routing table                                            
- rpc           Directory containing rpc info                                   
- rt_cache      Routing cache                                                   
- snmp          SNMP data                                                       
- sockstat      Socket statistics                                               
- tcp           TCP  sockets                                                    
- udp           UDP sockets                                                     
- unix          UNIX domain sockets                                             
- wireless      Wireless interface data (Wavelan etc)                           
- igmp          IP multicast addresses, which this host joined                  
- psched        Global packet scheduler parameters.                             
- netlink       List of PF_NETLINK sockets                                      
- ip_mr_vifs    List of multicast virtual interfaces                            
- ip_mr_cache   List of multicast routing cache                                 
+               addresses).
+ dev_stat      network device status
+ ip_fwchains   Firewall chain linkage
+ ip_fwnames    Firewall chain names
+ ip_masq       Directory containing the masquerading tables
+ ip_masquerade Major masquerading table
+ netstat       Network statistics
+ raw           raw device statistics
+ route         Kernel routing table
+ rpc           Directory containing rpc info
+ rt_cache      Routing cache
+ snmp          SNMP data
+ sockstat      Socket statistics
+ tcp           TCP  sockets
+ udp           UDP sockets
+ unix          UNIX domain sockets
+ wireless      Wireless interface data (Wavelan etc)
+ igmp          IP multicast addresses, which this host joined
+ psched        Global packet scheduler parameters.
+ netlink       List of PF_NETLINK sockets
+ ip_mr_vifs    List of multicast virtual interfaces
+ ip_mr_cache   List of multicast routing cache
 ..............................................................................
 
 You can  use  this  information  to see which network devices are available in
 your system and how much traffic was routed over those devices:
 
-  > cat /proc/net/dev 
-  Inter-|Receive                                                   |[... 
-   face |bytes    packets errs drop fifo frame compressed multicast|[... 
-      lo:  908188   5596     0    0    0     0          0         0 [...         
-    ppp0:15475140  20721   410    0    0   410          0         0 [...  
-    eth0:  614530   7085     0    0    0     0          0         1 [... 
-   
-  ...] Transmit 
-  ...] bytes    packets errs drop fifo colls carrier compressed 
-  ...]  908188     5596    0    0    0     0       0          0 
-  ...] 1375103    17405    0    0    0     0       0          0 
-  ...] 1703981     5535    0    0    0     3       0          0 
+  > cat /proc/net/dev
+  Inter-|Receive                                                   |[...
+   face |bytes    packets errs drop fifo frame compressed multicast|[...
+      lo:  908188   5596     0    0    0     0          0         0 [...
+    ppp0:15475140  20721   410    0    0   410          0         0 [...
+    eth0:  614530   7085     0    0    0     0          0         1 [...
+
+  ...] Transmit
+  ...] bytes    packets errs drop fifo colls carrier compressed
+  ...]  908188     5596    0    0    0     0       0          0
+  ...] 1375103    17405    0    0    0     0       0          0
+  ...] 1703981     5535    0    0    0     3       0          0
 
 In addition, each Channel Bond interface has its own directory.  For
 example, the bond0 device will have a directory called /proc/net/bond0/.
@@ -1208,14 +1208,14 @@ If you  have  a  SCSI  host adapter in your system, you'll find a subdirectory
 named after  the driver for this adapter in /proc/scsi. You'll also see a list
 of all recognized SCSI devices in /proc/scsi:
 
-  >cat /proc/scsi/scsi 
-  Attached devices: 
-  Host: scsi0 Channel: 00 Id: 00 Lun: 00 
-    Vendor: IBM      Model: DGHS09U          Rev: 03E0 
-    Type:   Direct-Access                    ANSI SCSI revision: 03 
-  Host: scsi0 Channel: 00 Id: 06 Lun: 00 
-    Vendor: PIONEER  Model: CD-ROM DR-U06S   Rev: 1.04 
-    Type:   CD-ROM                           ANSI SCSI revision: 02 
+  >cat /proc/scsi/scsi
+  Attached devices:
+  Host: scsi0 Channel: 00 Id: 00 Lun: 00
+    Vendor: IBM      Model: DGHS09U          Rev: 03E0
+    Type:   Direct-Access                    ANSI SCSI revision: 03
+  Host: scsi0 Channel: 00 Id: 06 Lun: 00
+    Vendor: PIONEER  Model: CD-ROM DR-U06S   Rev: 1.04
+    Type:   CD-ROM                           ANSI SCSI revision: 02
 
 
 The directory  named  after  the driver has one file for each adapter found in
@@ -1224,44 +1224,44 @@ the used  IRQ  and  the  IO  address range. The amount of information shown is
 dependent on  the adapter you use. The example shows the output for an Adaptec
 AHA-2940 SCSI adapter:
 
-  > cat /proc/scsi/aic7xxx/0 
-   
-  Adaptec AIC7xxx driver version: 5.1.19/3.2.4 
-  Compile Options: 
-    TCQ Enabled By Default : Disabled 
-    AIC7XXX_PROC_STATS     : Disabled 
-    AIC7XXX_RESET_DELAY    : 5 
-  Adapter Configuration: 
-             SCSI Adapter: Adaptec AHA-294X Ultra SCSI host adapter 
-                             Ultra Wide Controller 
-      PCI MMAPed I/O Base: 0xeb001000 
-   Adapter SEEPROM Config: SEEPROM found and used. 
-        Adaptec SCSI BIOS: Enabled 
-                      IRQ: 10 
-                     SCBs: Active 0, Max Active 2, 
-                           Allocated 15, HW 16, Page 255 
-               Interrupts: 160328 
-        BIOS Control Word: 0x18b6 
-     Adapter Control Word: 0x005b 
-     Extended Translation: Enabled 
-  Disconnect Enable Flags: 0xffff 
-       Ultra Enable Flags: 0x0001 
-   Tag Queue Enable Flags: 0x0000 
-  Ordered Queue Tag Flags: 0x0000 
-  Default Tag Queue Depth: 8 
-      Tagged Queue By Device array for aic7xxx host instance 0: 
-        {255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255} 
-      Actual queue depth per device for aic7xxx host instance 0: 
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1} 
-  Statistics: 
-  (scsi0:0:0:0) 
-    Device using Wide/Sync transfers at 40.0 MByte/sec, offset 8 
-    Transinfo settings: current(12/8/1/0), goal(12/8/1/0), user(12/15/1/0) 
-    Total transfers 160151 (74577 reads and 85574 writes) 
-  (scsi0:0:6:0) 
-    Device using Narrow/Sync transfers at 5.0 MByte/sec, offset 15 
-    Transinfo settings: current(50/15/0/0), goal(50/15/0/0), user(50/15/0/0) 
-    Total transfers 0 (0 reads and 0 writes) 
+  > cat /proc/scsi/aic7xxx/0
+
+  Adaptec AIC7xxx driver version: 5.1.19/3.2.4
+  Compile Options:
+    TCQ Enabled By Default : Disabled
+    AIC7XXX_PROC_STATS     : Disabled
+    AIC7XXX_RESET_DELAY    : 5
+  Adapter Configuration:
+             SCSI Adapter: Adaptec AHA-294X Ultra SCSI host adapter
+                             Ultra Wide Controller
+      PCI MMAPed I/O Base: 0xeb001000
+   Adapter SEEPROM Config: SEEPROM found and used.
+        Adaptec SCSI BIOS: Enabled
+                      IRQ: 10
+                     SCBs: Active 0, Max Active 2,
+                           Allocated 15, HW 16, Page 255
+               Interrupts: 160328
+        BIOS Control Word: 0x18b6
+     Adapter Control Word: 0x005b
+     Extended Translation: Enabled
+  Disconnect Enable Flags: 0xffff
+       Ultra Enable Flags: 0x0001
+   Tag Queue Enable Flags: 0x0000
+  Ordered Queue Tag Flags: 0x0000
+  Default Tag Queue Depth: 8
+      Tagged Queue By Device array for aic7xxx host instance 0:
+        {255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255}
+      Actual queue depth per device for aic7xxx host instance 0:
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+  Statistics:
+  (scsi0:0:0:0)
+    Device using Wide/Sync transfers at 40.0 MByte/sec, offset 8
+    Transinfo settings: current(12/8/1/0), goal(12/8/1/0), user(12/15/1/0)
+    Total transfers 160151 (74577 reads and 85574 writes)
+  (scsi0:0:6:0)
+    Device using Narrow/Sync transfers at 5.0 MByte/sec, offset 15
+    Transinfo settings: current(50/15/0/0), goal(50/15/0/0), user(50/15/0/0)
+    Total transfers 0 (0 reads and 0 writes)
 
 
 1.6 Parallel port info in /proc/parport
@@ -1276,15 +1276,15 @@ These directories contain the four files shown in Table 1-10.
 
 Table 1-10: Files in /proc/parport
 ..............................................................................
- File      Content                                                             
- autoprobe Any IEEE-1284 device ID information that has been acquired.         
+ File      Content
+ autoprobe Any IEEE-1284 device ID information that has been acquired.
  devices   list of the device drivers using that port. A + will appear by the
            name of the device currently using the port (it might not appear
-           against any). 
- hardware  Parallel port's base address, IRQ line and DMA channel.             
+           against any).
+ hardware  Parallel port's base address, IRQ line and DMA channel.
  irq       IRQ that parport is using for that port. This is in a separate
            file to allow you to alter it by writing a new value in (IRQ
-           number or none). 
+           number or none).
 ..............................................................................
 
 1.7 TTY info in /proc/tty
@@ -1297,27 +1297,27 @@ this directory, as shown in Table 1-11.
 
 Table 1-11: Files in /proc/tty
 ..............................................................................
- File          Content                                        
- drivers       list of drivers and their usage                
- ldiscs        registered line disciplines                    
- driver/serial usage statistic and status of single tty lines 
+ File          Content
+ drivers       list of drivers and their usage
+ ldiscs        registered line disciplines
+ driver/serial usage statistic and status of single tty lines
 ..............................................................................
 
 To see  which  tty's  are  currently in use, you can simply look into the file
 /proc/tty/drivers:
 
-  > cat /proc/tty/drivers 
-  pty_slave            /dev/pts      136   0-255 pty:slave 
-  pty_master           /dev/ptm      128   0-255 pty:master 
-  pty_slave            /dev/ttyp       3   0-255 pty:slave 
-  pty_master           /dev/pty        2   0-255 pty:master 
-  serial               /dev/cua        5   64-67 serial:callout 
-  serial               /dev/ttyS       4   64-67 serial 
-  /dev/tty0            /dev/tty0       4       0 system:vtmaster 
-  /dev/ptmx            /dev/ptmx       5       2 system 
-  /dev/console         /dev/console    5       1 system:console 
-  /dev/tty             /dev/tty        5       0 system:/dev/tty 
-  unknown              /dev/tty        4    1-63 console 
+  > cat /proc/tty/drivers
+  pty_slave            /dev/pts      136   0-255 pty:slave
+  pty_master           /dev/ptm      128   0-255 pty:master
+  pty_slave            /dev/ttyp       3   0-255 pty:slave
+  pty_master           /dev/pty        2   0-255 pty:master
+  serial               /dev/cua        5   64-67 serial:callout
+  serial               /dev/ttyS       4   64-67 serial
+  /dev/tty0            /dev/tty0       4       0 system:vtmaster
+  /dev/ptmx            /dev/ptmx       5       2 system
+  /dev/console         /dev/console    5       1 system:console
+  /dev/tty             /dev/tty        5       0 system:/dev/tty
+  unknown              /dev/tty        4    1-63 console
 
 
 1.8 Miscellaneous kernel statistics in /proc/stat
@@ -1402,7 +1402,7 @@ in Table 1-12, below.
 
 Table 1-12: Files in /proc/fs/ext4/<devname>
 ..............................................................................
- File            Content                                        
+ File            Content
  mb_groups       details of multiblock allocator buddy cache of free blocks
 ..............................................................................
 

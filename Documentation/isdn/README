@@ -80,7 +80,7 @@ README for the ISDN-subsystem
    The functionality is almost the same as that of a serial device
    (the line-discs are handled by the kernel), which lets you run
    SLIP, CSLIP and asynchronous PPP through the devices. We have tested
-   Seyon, minicom, CSLIP (uri-dip) PPP, mgetty, XCept and Hylafax. 
+   Seyon, minicom, CSLIP (uri-dip) PPP, mgetty, XCept and Hylafax.
 
    The modem-emulation supports the following:
            1.3.1 Commands:
@@ -226,7 +226,7 @@ README for the ISDN-subsystem
                                           local ATA was given.
 			    Bit 7:    0 = Don't show display messages from net
                                       1 = Show display messages from net
-				          (S12 Bit 1 must be 0 too)      
+				          (S12 Bit 1 must be 0 too)
              14   0         Layer-2 protocol:
                                       0 = X75/LAPB with I-frames
                                       1 = X75/LAPB with UI-frames

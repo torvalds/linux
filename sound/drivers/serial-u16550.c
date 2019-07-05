@@ -8,7 +8,7 @@
  *
  *   This code is based on the code from ALSA 0.5.9, but heavily rewritten.
  *
- * Sat Mar 31 17:27:57 PST 2001 tim.mann@compaq.com 
+ * Sat Mar 31 17:27:57 PST 2001 tim.mann@compaq.com
  *      Added support for the Midiator MS-124T and for the MS-124W in
  *      Single Addressed (S/A) or Multiple Burst (M/B) mode, with
  *      power derived either parasitically from the serial port or
@@ -188,8 +188,8 @@ static inline void snd_uart16550_buffer_output(struct snd_uart16550 *uart)
 }
 
 /* This loop should be called with interrupts disabled
- * We don't want to interrupt this, 
- * as we're already handling an interrupt 
+ * We don't want to interrupt this,
+ * as we're already handling an interrupt
  */
 static void snd_uart16550_io_loop(struct snd_uart16550 * uart)
 {
@@ -261,7 +261,7 @@ static void snd_uart16550_io_loop(struct snd_uart16550 * uart)
 /* NOTES ON SERVICING INTERUPTS
  * ---------------------------
  * After receiving a interrupt, it is important to indicate to the UART that
- * this has been done. 
+ * this has been done.
  * For a Rx interrupt, this is done by reading the received byte.
  * For a Tx interrupt this is done by either:
  * a) Writing a byte
@@ -411,7 +411,7 @@ static void snd_uart16550_do_open(struct snd_uart16550 * uart)
 	case SNDRV_SERIAL_MS124W_SA:
 	case SNDRV_SERIAL_MS124W_MB:
 		/* MS-124W can draw power from RTS and DTR if they
-		   are in opposite states. */ 
+		   are in opposite states. */
 		outb(UART_MCR_RTS | (0&UART_MCR_DTR) | UART_MCR_OUT2,
 		     uart->base + UART_MCR);
 		break;
@@ -471,7 +471,7 @@ static void snd_uart16550_do_close(struct snd_uart16550 * uart)
 	case SNDRV_SERIAL_MS124W_SA:
 	case SNDRV_SERIAL_MS124W_MB:
 		/* MS-124W can draw power from RTS and DTR if they
-		   are in opposite states; leave it powered. */ 
+		   are in opposite states; leave it powered. */
 		outb(UART_MCR_RTS | (0&UART_MCR_DTR) | (0&UART_MCR_OUT2),
 		     uart->base + UART_MCR);
 		break;
@@ -639,7 +639,7 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 	char first;
 	static unsigned long lasttime = 0;
-	
+
 	/* Interrupts are disabled during the updating of the tx_buff,
 	 * since it is 'bad' to have two processes updating the same
 	 * variables (ie buff_in & buff_out)
@@ -828,7 +828,7 @@ static int snd_uart16550_create(struct snd_card *card,
 	case SNDRV_SERIAL_MS124W_SA:
 	case SNDRV_SERIAL_MS124W_MB:
 		/* MS-124W can draw power from RTS and DTR if they
-		   are in opposite states. */ 
+		   are in opposite states. */
 		outb(UART_MCR_RTS | (0&UART_MCR_DTR), uart->base + UART_MCR);
 		break;
 	case SNDRV_SERIAL_MS124T:

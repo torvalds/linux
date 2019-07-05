@@ -147,7 +147,7 @@ unsigned int sysfs_idlestate_read_file(unsigned int cpu, unsigned int idlestate,
 	return (unsigned int) numread;
 }
 
-/* 
+/*
  * helper function to write a new value to a /sys file
  * fname is a relative path under "../cpuX/cpuidle/cstateY/" dir
  *

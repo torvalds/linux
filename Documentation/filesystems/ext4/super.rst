@@ -133,12 +133,12 @@ The ext4 superblock is laid out as follows in
      -
      -
      - These fields are for EXT4_DYNAMIC_REV superblocks only.
-       
+
        Note: the difference between the compatible feature set and the
        incompatible feature set is that if there is a bit set in the
        incompatible feature set that the kernel doesn't know about, it should
        refuse to mount the filesystem.
-       
+
        e2fsck's requirements are more strict; if it doesn't know
        about a feature in either the compatible or incompatible feature set, it
        must abort and not try to meddle with things it doesn't understand...

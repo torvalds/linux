@@ -90,9 +90,9 @@ which data structures they work. Here's just a brief overview:
     possible).
 
   - You can get and set parts of the color map. Communication is done with 16
-    bits per color part (red, green, blue, transparency) to support all 
-    existing hardware. The driver does all the computations needed to apply 
-    it to the hardware (round it down to less bits, maybe throw away 
+    bits per color part (red, green, blue, transparency) to support all
+    existing hardware. The driver does all the computations needed to apply
+    it to the hardware (round it down to less bits, maybe throw away
     transparency).
 
 All this hardware abstraction makes the implementation of application programs
@@ -330,12 +330,12 @@ and on its mirrors.
 
 The latest version of fbset can be found at
 
-    http://www.linux-fbdev.org/ 
+    http://www.linux-fbdev.org/
 
-  
-10. Credits                                                       
-----------                                                       
-                
+
+10. Credits
+----------
+
 This readme was written by Geert Uytterhoeven, partly based on the original
 `X-framebuffer.README' by Roman Hodek and Martin Schaller. Section 6 was
 provided by Frank Neumann.

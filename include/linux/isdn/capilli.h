@@ -1,9 +1,9 @@
 /* $Id: capilli.h,v 1.1.2.2 2004/01/16 21:09:27 keil Exp $
- * 
+ *
  * Kernel CAPI 2.0 Driver Interface for Linux
- * 
+ *
  * Copyright 1999 by Carsten Paeth <calle@calle.de>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -48,7 +48,7 @@ struct capi_ctr {
 			      capi_register_params *);
 	void (*release_appl)(struct capi_ctr *, u16 appl);
 	u16  (*send_message)(struct capi_ctr *, struct sk_buff *skb);
-	
+
 	char *(*procinfo)(struct capi_ctr *);
 	int (*proc_show)(struct seq_file *, void *);
 
@@ -94,7 +94,7 @@ struct capi_driver {
 	int (*add_card)(struct capi_driver *driver, capicardparams *data);
 
 	/* management information for kcapi */
-	struct list_head list; 
+	struct list_head list;
 };
 
 void register_capi_driver(struct capi_driver *driver);

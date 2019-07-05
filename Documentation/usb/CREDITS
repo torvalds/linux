@@ -42,7 +42,7 @@ THANKS file in Inaky's driver):
         of Linux USB / UUSBD:
 
 	- 3Com GmbH for donating a ISDN Pro TA and supporting me
-	  in technical questions and with test equipment. I'd never 
+	  in technical questions and with test equipment. I'd never
 	  expect such a great help.
 
         - USAR Systems provided us with one of their excellent USB
@@ -72,7 +72,7 @@ THANKS file in Inaky's driver):
 
         - Genius Germany donated a USB mouse to test the mouse boot
           protocol. They've also donated a F-23 digital joystick and a
-          NetMouse Pro. Thanks! 
+          NetMouse Pro. Thanks!
 
         - AVM GmbH Berlin is supporting the development of the Linux
           USB driver for the AVM ISDN Controller B1 USB. AVM is a
@@ -85,7 +85,7 @@ THANKS file in Inaky's driver):
           code.
 
         - Many thanks to Logitech for contributing a three axis USB
-          mouse. 
+          mouse.
 
           Logitech designs, manufactures and markets
           Human Interface Devices, having a long history and
@@ -108,7 +108,7 @@ THANKS file in Inaky's driver):
           inner workings with a USB Inspector.
 
         - Thanks to Entrega for providing PCI to USB cards, hubs and
-          converter products for development. 
+          converter products for development.
 
 	- Thanks to ConnectTech for providing a WhiteHEAT usb to
 	  serial converter, and the documentation for the device to
@@ -117,7 +117,7 @@ THANKS file in Inaky's driver):
 	- Thanks to ADMtek for providing Pegasus and Pegasus II
 	  evaluation boards, specs and valuable advices during
 	  the driver development.
-	
+
         And thanks go to (hey! in no particular order :)
 
         - Oren Tirosh <orenti@hishome.net>, for standing so patiently

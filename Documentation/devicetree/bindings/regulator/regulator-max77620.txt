@@ -65,14 +65,14 @@ Following are additional properties:
 					Valid values are 0 to 7.
 					This is applicable if FPS source is
 					selected as FPS0, FPS1 or FPS2.
-			
+
 - maxim,active-fps-power-down-slot:	Sequencing event slot number on which
 					the regulator get disabled when master
 					FPS input event set to LOW.
 					Valid values are 0 to 7.
 					This is applicable if FPS source is
 					selected as FPS0, FPS1 or FPS2.
-			
+
 - maxim,suspend-fps-source:		This is same as property
 					"maxim,active-fps-source" but value
 					get configured when system enters in

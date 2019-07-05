@@ -98,7 +98,7 @@ CALLBACK(bios_emul, CCB_BIOS_EMUL, 5)
 EXPORT_SYMBOL(callback_getenv)
 EXPORT_SYMBOL(callback_setenv)
 EXPORT_SYMBOL(callback_save_env)
-	
+
 .data
 __alpha_using_srm:		# For use by bootpheader
 	.long 7			# value is not 1 for link debugging

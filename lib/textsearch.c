@@ -266,7 +266,7 @@ struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
 	int err = -ENOENT;
 	struct ts_config *conf;
 	struct ts_ops *ops;
-	
+
 	if (len == 0)
 		return ERR_PTR(-EINVAL);
 
@@ -298,7 +298,7 @@ struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
 errout:
 	if (ops)
 		module_put(ops->owner);
-		
+
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(textsearch_prepare);

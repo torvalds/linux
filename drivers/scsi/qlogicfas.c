@@ -1,9 +1,9 @@
 /*
  * Qlogic FAS408 ISA card driver
  *
- * Copyright 1994, Tom Zerucha.   
+ * Copyright 1994, Tom Zerucha.
  * tz@execpc.com
- * 
+ *
  * Redistributable under terms of the GNU General Public License
  *
  * For the avoidance of doubt the "preferred form" of this code is one which
@@ -44,9 +44,9 @@
 static char qlogicfas_name[] = "qlogicfas";
 
 /*
- *	Look for qlogic card and init if found 
+ *	Look for qlogic card and init if found
  */
- 
+
 static struct Scsi_Host *__qlogicfas_detect(struct scsi_host_template *host,
 								int qbase,
 								int qlirq)
@@ -168,7 +168,7 @@ static int qlogicfas_release(struct Scsi_Host *shost)
 
 	scsi_remove_host(shost);
 	if (shost->irq) {
-		qlogicfas408_disable_ints(priv);	
+		qlogicfas408_disable_ints(priv);
 		free_irq(shost->irq, shost);
 	}
 	if (shost->io_port && shost->n_io_port)

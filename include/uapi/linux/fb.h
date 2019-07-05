@@ -161,7 +161,7 @@ struct fb_fix_screeninfo {
 	__u32 smem_len;			/* Length of frame buffer mem */
 	__u32 type;			/* see FB_TYPE_*		*/
 	__u32 type_aux;			/* Interleave for interleaved Planes */
-	__u32 visual;			/* see FB_VISUAL_*		*/ 
+	__u32 visual;			/* see FB_VISUAL_*		*/
 	__u16 xpanstep;			/* zero if no hardware panning  */
 	__u16 ypanstep;			/* zero if no hardware panning  */
 	__u16 ywrapstep;		/* zero if no hardware ywrap    */
@@ -188,8 +188,8 @@ struct fb_fix_screeninfo {
 struct fb_bitfield {
 	__u32 offset;			/* beginning of bitfield	*/
 	__u32 length;			/* length of bitfield		*/
-	__u32 msb_right;		/* != 0 : Most significant bit is */ 
-					/* right */ 
+	__u32 msb_right;		/* != 0 : Most significant bit is */
+					/* right */
 };
 
 #define FB_NONSTD_HAM		1	/* Hold-And-Modify (HAM)        */
@@ -252,7 +252,7 @@ struct fb_var_screeninfo {
 	struct fb_bitfield red;		/* bitfield in fb mem if true color, */
 	struct fb_bitfield green;	/* else only length is significant */
 	struct fb_bitfield blue;
-	struct fb_bitfield transp;	/* transparency			*/	
+	struct fb_bitfield transp;	/* transparency			*/
 
 	__u32 nonstd;			/* != 0 Non standard pixel format */
 

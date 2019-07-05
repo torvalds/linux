@@ -62,7 +62,7 @@ if [ $count -ne 0 ]; then
 fi
 
 # Make sure we did find something
-count=`cat trace | grep 'schedule()' | wc -l` 
+count=`cat trace | grep 'schedule()' | wc -l`
 if [ $count -eq 0 ]; then
     fail "No schedule traces found?"
 fi
@@ -78,7 +78,7 @@ if [ $count -ne 0 ]; then
     fail "Graph filtering not working after stack tracer disabled?"
 fi
 
-count=`cat trace | grep 'schedule()' | wc -l` 
+count=`cat trace | grep 'schedule()' | wc -l`
 if [ $count -eq 0 ]; then
     fail "No schedule traces found?"
 fi

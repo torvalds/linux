@@ -224,7 +224,7 @@ static inline unsigned int ucb1x00_reg_read(struct ucb1x00 *ucb, unsigned int re
 	return mcp_reg_read(ucb->mcp, reg);
 }
 /**
- *	ucb1x00_set_audio_divisor - 
+ *	ucb1x00_set_audio_divisor -
  *	@ucb: UCB1x00 structure describing chip
  *	@div: SIB clock divisor
  */

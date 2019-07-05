@@ -106,7 +106,7 @@ struct sdla_dlci_conf {
    short Be_fwd;
    short CIR_bwd;
    short Bc_bwd;
-   short Be_bwd; 
+   short Be_bwd;
    short Tc_fwd;
    short Tc_bwd;
    short Tf_max;

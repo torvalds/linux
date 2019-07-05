@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
+ * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family
  * of PCI-SCSI IO processors.
  *
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
@@ -9,7 +9,7 @@
  * This driver is derived from the Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
- * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ * The sym53c8xx driver is derived from the ncr53c8xx driver that had been
  * a port of the FreeBSD ncr driver to Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
@@ -112,9 +112,9 @@ static char *sym_scsi_bus_mode(int mode)
 /*
  *  Soft reset the chip.
  *
- *  Raising SRST when the chip is running may cause 
+ *  Raising SRST when the chip is running may cause
  *  problems on dual function chips (see below).
- *  On the other hand, LVD devices need some delay 
+ *  On the other hand, LVD devices need some delay
  *  to settle and report actual BUS mode in STEST4.
  */
 static void sym_chip_reset (struct sym_hcb *np)
@@ -130,10 +130,10 @@ static void sym_chip_reset (struct sym_hcb *np)
 /*
  *  Really soft reset the chip.:)
  *
- *  Some 896 and 876 chip revisions may hang-up if we set 
- *  the SRST (soft reset) bit at the wrong time when SCRIPTS 
+ *  Some 896 and 876 chip revisions may hang-up if we set
+ *  the SRST (soft reset) bit at the wrong time when SCRIPTS
  *  are running.
- *  So, we need to abort the current operation prior to 
+ *  So, we need to abort the current operation prior to
  *  soft resetting the chip.
  */
 static void sym_soft_reset (struct sym_hcb *np)
@@ -173,7 +173,7 @@ static void sym_start_reset(struct sym_hcb *np)
 {
 	sym_reset_scsi_bus(np, 1);
 }
- 
+
 int sym_reset_scsi_bus(struct sym_hcb *np, int enab_int)
 {
 	u32 term;
@@ -183,7 +183,7 @@ int sym_reset_scsi_bus(struct sym_hcb *np, int enab_int)
 	if (enab_int)
 		OUTW(np, nc_sien, RST);
 	/*
-	 *  Enable Tolerant, reset IRQD if present and 
+	 *  Enable Tolerant, reset IRQD if present and
 	 *  properly set IRQ mode, prior to resetting the bus.
 	 */
 	OUTB(np, nc_stest3, TE);
@@ -197,7 +197,7 @@ int sym_reset_scsi_bus(struct sym_hcb *np, int enab_int)
 	/*
 	 *  Check for no terminators or SCSI bus shorts to ground.
 	 *  Read SCSI data bus, data parity bits and control signals.
-	 *  We are expecting RESET to be TRUE and other signals to be 
+	 *  We are expecting RESET to be TRUE and other signals to be
 	 *  FALSE.
 	 */
 	term =	INB(np, nc_sstat0);
@@ -268,18 +268,18 @@ static void sym_selectclock(struct sym_hcb *np, u_char scntl3)
 /*
  *  Determine the chip's clock frequency.
  *
- *  This is essential for the negotiation of the synchronous 
+ *  This is essential for the negotiation of the synchronous
  *  transfer rate.
  *
  *  Note: we have to return the correct value.
  *  THERE IS NO SAFE DEFAULT VALUE.
  *
  *  Most NCR/SYMBIOS boards are delivered with a 40 Mhz clock.
- *  53C860 and 53C875 rev. 1 support fast20 transfers but 
- *  do not have a clock doubler and so are provided with a 
- *  80 MHz clock. All other fast20 boards incorporate a doubler 
+ *  53C860 and 53C875 rev. 1 support fast20 transfers but
+ *  do not have a clock doubler and so are provided with a
+ *  80 MHz clock. All other fast20 boards incorporate a doubler
  *  and so should be delivered with a 40 MHz clock.
- *  The recent fast40 chips (895/896/895A/1010) use a 40 Mhz base 
+ *  The recent fast40 chips (895/896/895A/1010) use a 40 Mhz base
  *  clock and provide a clock quadrupler (160 Mhz).
  */
 
@@ -292,18 +292,18 @@ static unsigned getfreq (struct sym_hcb *np, int gen)
 	unsigned int f;
 
 	/*
-	 * Measure GEN timer delay in order 
+	 * Measure GEN timer delay in order
 	 * to calculate SCSI clock frequency
 	 *
 	 * This code will never execute too
-	 * many loop iterations (if DELAY is 
+	 * many loop iterations (if DELAY is
 	 * reasonably correct). It could get
 	 * too low a delay (too high a freq.)
-	 * if the CPU is slow executing the 
+	 * if the CPU is slow executing the
 	 * loop for some reason (an NMI, for
 	 * example). For this reason we will
-	 * if multiple measurements are to be 
-	 * performed trust the higher delay 
+	 * if multiple measurements are to be
+	 * performed trust the higher delay
 	 * (lower frequency returned).
 	 */
 	OUTW(np, nc_sien, 0);	/* mask all scsi interrupts */
@@ -340,12 +340,12 @@ static unsigned getfreq (struct sym_hcb *np, int gen)
  	OUTB(np, nc_scntl3, 0);
 
   	/*
- 	 * adjust for prescaler, and convert into KHz 
+ 	 * adjust for prescaler, and convert into KHz
   	 */
 	f = ms ? ((1 << gen) * (4340*4)) / ms : 0;
 
 	/*
-	 * The C1010-33 result is biased by a factor 
+	 * The C1010-33 result is biased by a factor
 	 * of 2/3 compared to earlier chips.
 	 */
 	if (np->features & FE_C10)
@@ -435,7 +435,7 @@ static int sym_getpciclock (struct sym_hcb *np)
 	int f = 0;
 
 	/*
-	 *  For now, we only need to know about the actual 
+	 *  For now, we only need to know about the actual
 	 *  PCI BUS clock frequency for C1010-66 chips.
 	 */
 #if 1
@@ -455,17 +455,17 @@ static int sym_getpciclock (struct sym_hcb *np)
 /*
  *  SYMBIOS chip clock divisor table.
  *
- *  Divisors are multiplied by 10,000,000 in order to make 
+ *  Divisors are multiplied by 10,000,000 in order to make
  *  calculations more simple.
  */
 #define _5M 5000000
 static const u32 div_10M[] = {2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
 
 /*
- *  Get clock factor and sync divisor for a given 
+ *  Get clock factor and sync divisor for a given
  *  synchronous factor period.
  */
-static int 
+static int
 sym_getsync(struct sym_hcb *np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 {
 	u32	clk = np->clock_khz;	/* SCSI clock frequency in kHz	*/
@@ -490,16 +490,16 @@ sym_getsync(struct sym_hcb *np, u_char dt, u_char sfac, u_char *divp, u_char *fa
 		kpc <<= 1;
 
 	/*
-	 *  For earliest C10 revision 0, we cannot use extra 
+	 *  For earliest C10 revision 0, we cannot use extra
 	 *  clocks for the setting of the SCSI clocking.
-	 *  Note that this limits the lowest sync data transfer 
+	 *  Note that this limits the lowest sync data transfer
 	 *  to 5 Mega-transfers per second and may result in
 	 *  using higher clock divisors.
 	 */
 #if 1
 	if ((np->features & (FE_C10|FE_U3EN)) == FE_C10) {
 		/*
-		 *  Look for the lowest clock divisor that allows an 
+		 *  Look for the lowest clock divisor that allows an
 		 *  output speed not faster than the period.
 		 */
 		while (div > 0) {
@@ -520,14 +520,14 @@ sym_getsync(struct sym_hcb *np, u_char dt, u_char sfac, u_char *divp, u_char *fa
 #endif
 
 	/*
-	 *  Look for the greatest clock divisor that allows an 
+	 *  Look for the greatest clock divisor that allows an
 	 *  input speed faster than the period.
 	 */
 	while (--div > 0)
 		if (kpc >= (div_10M[div] << 2)) break;
 
 	/*
-	 *  Calculate the lowest clock factor that allows an output 
+	 *  Calculate the lowest clock factor that allows an output
 	 *  speed not faster than the period, and the max output speed.
 	 *  If fak >= 1 we will set both XCLKH_ST and XCLKH_DT.
 	 *  If fak >= 2 we will also set XCLKS_ST and XCLKS_DT.
@@ -559,16 +559,16 @@ sym_getsync(struct sym_hcb *np, u_char dt, u_char sfac, u_char *divp, u_char *fa
 
 /*
  *  SYMBIOS chips allow burst lengths of 2, 4, 8, 16, 32, 64,
- *  128 transfers. All chips support at least 16 transfers 
- *  bursts. The 825A, 875 and 895 chips support bursts of up 
+ *  128 transfers. All chips support at least 16 transfers
+ *  bursts. The 825A, 875 and 895 chips support bursts of up
  *  to 128 transfers and the 895A and 896 support bursts of up
- *  to 64 transfers. All other chips support up to 16 
+ *  to 64 transfers. All other chips support up to 16
  *  transfers bursts.
  *
  *  For PCI 32 bit data transfers each transfer is a DWORD.
  *  It is a QUADWORD (8 bytes) for PCI 64 bit data transfers.
  *
- *  We use log base 2 (burst length) as internal code, with 
+ *  We use log base 2 (burst length) as internal code, with
  *  value 0 meaning "burst disabled".
  */
 
@@ -605,10 +605,10 @@ static inline void sym_init_burst(struct sym_hcb *np, u_char bc)
 /*
  *  Save initial settings of some IO registers.
  *  Assumed to have been set by BIOS.
- *  We cannot reset the chip prior to reading the 
+ *  We cannot reset the chip prior to reading the
  *  IO registers, since informations will be lost.
- *  Since the SCRIPTS processor may be running, this 
- *  is not safe on paper, but it seems to work quite 
+ *  Since the SCRIPTS processor may be running, this
+ *  is not safe on paper, but it seems to work quite
  *  well. :)
  */
 static void sym_save_initial_setting (struct sym_hcb *np)
@@ -663,7 +663,7 @@ static void sym_set_bus_mode(struct sym_hcb *np, struct sym_nvram *nvram)
 }
 
 /*
- *  Prepare io register values used by sym_start_up() 
+ *  Prepare io register values used by sym_start_up()
  *  according to selected and supported features.
  */
 static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, struct sym_nvram *nvram)
@@ -697,7 +697,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 		np->multiplier	= 1;
 
 	/*
-	 *  Measure SCSI clock frequency for chips 
+	 *  Measure SCSI clock frequency for chips
 	 *  it may vary from assumed one.
 	 */
 	if (np->features & FE_VARCLK)
@@ -759,7 +759,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 			np->maxoffs_dt = nvram->type ? 62 : 31;
 		}
 	}
-	
+
 	/*
 	 *  64 bit addressing  (895A/896/1010) ?
 	 */
@@ -801,10 +801,10 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 
 	/*
 	 *  DEL 352 - 53C810 Rev x11 - Part Number 609-0392140 - ITEM 2.
-	 *  This chip and the 860 Rev 1 may wrongly use PCI cache line 
-	 *  based transactions on LOAD/STORE instructions. So we have 
-	 *  to prevent these chips from using such PCI transactions in 
-	 *  this driver. The generic ncr driver that does not use 
+	 *  This chip and the 860 Rev 1 may wrongly use PCI cache line
+	 *  based transactions on LOAD/STORE instructions. So we have
+	 *  to prevent these chips from using such PCI transactions in
+	 *  this driver. The generic ncr driver that does not use
 	 *  LOAD/STORE instructions does not need this work-around.
 	 */
 	if ((pdev->device == PCI_DEVICE_ID_NCR_53C810 &&
@@ -815,7 +815,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 
 	/*
 	 *  Select all supported special features.
-	 *  If we are using on-board RAM for scripts, prefetch (PFEN) 
+	 *  If we are using on-board RAM for scripts, prefetch (PFEN)
 	 *  does not help, but burst op fetch (BOF) does.
 	 *  Disabling PFEN makes sure BOF will be used.
 	 */
@@ -869,11 +869,11 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 
 	/*
 	 *  Set LED support from SCRIPTS.
-	 *  Ignore this feature for boards known to use a 
-	 *  specific GPIO wiring and for the 895A, 896 
+	 *  Ignore this feature for boards known to use a
+	 *  specific GPIO wiring and for the 895A, 896
 	 *  and 1010 that drive the LED directly.
 	 */
-	if ((SYM_SETUP_SCSI_LED || 
+	if ((SYM_SETUP_SCSI_LED ||
 	     (nvram->type == SYM_SYMBIOS_NVRAM ||
 	      (nvram->type == SYM_TEKRAM_NVRAM &&
 	       pdev->device == PCI_DEVICE_ID_NCR_53C895))) &&
@@ -917,8 +917,8 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 */
 	printf("%s: %s, ID %d, Fast-%d, %s, %s\n", sym_name(np),
 		sym_nvram_type(nvram), np->myaddr,
-		(np->features & FE_ULTRA3) ? 80 : 
-		(np->features & FE_ULTRA2) ? 40 : 
+		(np->features & FE_ULTRA3) ? 80 :
+		(np->features & FE_ULTRA2) ? 40 :
 		(np->features & FE_ULTRA)  ? 20 : 10,
 		sym_scsi_bus_mode(np->scsi_mode),
 		(np->rv_scntl0 & 0xa)	? "parity checking" : "NO parity");
@@ -932,7 +932,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 			np->ram_ba ? ", using on-chip SRAM" : "");
 		printf("%s: using %s firmware.\n", sym_name(np), np->fw_name);
 		if (np->features & FE_NOPM)
-			printf("%s: handling phase mismatch from SCRIPTS.\n", 
+			printf("%s: handling phase mismatch from SCRIPTS.\n",
 			       sym_name(np));
 	}
 	/*
@@ -998,7 +998,7 @@ static int sym_snooptest(struct sym_hcb *np)
 		return err;
 restart_test:
 	/*
-	 *  Enable Master Parity Checking as we intend 
+	 *  Enable Master Parity Checking as we intend
 	 *  to enable it for normal operations.
 	 */
 	OUTB(np, nc_ctest4, (np->rv_ctest4 & MPEE));
@@ -1060,7 +1060,7 @@ restart_test:
 	 */
 	if (pc != SCRIPTZ_BA(np, snoopend)+8) {
 		printf ("CACHE TEST FAILED: script execution failed.\n");
-		printf ("start=%08lx, pc=%08lx, end=%08lx\n", 
+		printf ("start=%08lx, pc=%08lx, end=%08lx\n",
 			(u_long) SCRIPTZ_BA(np, snooptest), (u_long) pc,
 			(u_long) SCRIPTZ_BA(np, snoopend) +8);
 		return (0x40);
@@ -1133,7 +1133,7 @@ static void sym_log_hard_error(struct Scsi_Host *shost, u_short sist, u_char dst
 		script_base	= (u_char *) np->scripta0;
 		script_name	= "scripta";
 	}
-	else if (np->scriptb_ba < dsp && 
+	else if (np->scriptb_ba < dsp &&
 		 dsp <= np->scriptb_ba + np->scriptb_sz) {
 		script_ofs	= dsp - np->scriptb_ba;
 		script_size	= np->scriptb_sz;
@@ -1272,7 +1272,7 @@ static struct sym_chip sym_dev_table[] = {
 /*
  *  Look up the chip table.
  *
- *  Return a pointer to the chip entry if found, 
+ *  Return a pointer to the chip entry if found,
  *  zero otherwise.
  */
 struct sym_chip *
@@ -1296,7 +1296,7 @@ sym_lookup_chip_table (u_short device_id, u_char revision)
 #if SYM_CONF_DMA_ADDRESSING_MODE == 2
 /*
  *  Lookup the 64 bit DMA segments map.
- *  This is only used if the direct mapping 
+ *  This is only used if the direct mapping
  *  has been unsuccessful.
  */
 int sym_lookup_dmap(struct sym_hcb *np, u32 h, int s)
@@ -1329,7 +1329,7 @@ new:
 }
 
 /*
- *  Update IO registers scratch C..R so they will be 
+ *  Update IO registers scratch C..R so they will be
  *  in sync. with queued CCB expectations.
  */
 static void sym_update_dmap_regs(struct sym_hcb *np)
@@ -1399,7 +1399,7 @@ static void sym_check_goals(struct sym_hcb *np, struct scsi_target *starget,
 /*
  *  Prepare the next negotiation message if needed.
  *
- *  Fill in the part of message buffer that contains the 
+ *  Fill in the part of message buffer that contains the
  *  negotiation and the nego_status field of the CCB.
  *  Returns the size of the message in bytes.
  */
@@ -1451,7 +1451,7 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 	if (nego) {
 		tp->nego_cp = cp; /* Keep track a nego will be performed */
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
-			sym_print_nego_msg(np, cp->target, 
+			sym_print_nego_msg(np, cp->target,
 					  nego == NS_SYNC ? "sync msgout" :
 					  nego == NS_WIDE ? "wide msgout" :
 					  "ppr msgout", msgptr);
@@ -1470,11 +1470,11 @@ void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
 
 #ifdef SYM_CONF_IARB_SUPPORT
 	/*
-	 *  If the previously queued CCB is not yet done, 
-	 *  set the IARB hint. The SCRIPTS will go with IARB 
+	 *  If the previously queued CCB is not yet done,
+	 *  set the IARB hint. The SCRIPTS will go with IARB
 	 *  for this job when starting the previous one.
-	 *  We leave devices a chance to win arbitration by 
-	 *  not using more than 'iarb_max' consecutive 
+	 *  We leave devices a chance to win arbitration by
+	 *  not using more than 'iarb_max' consecutive
 	 *  immediate arbitrations.
 	 */
 	if (np->last_cp && np->iarb_count < np->iarb_max) {
@@ -1488,7 +1488,7 @@ void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
 
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 2
 	/*
-	 *  Make SCRIPTS aware of the 64 bit DMA 
+	 *  Make SCRIPTS aware of the 64 bit DMA
 	 *  segment registers not being up-to-date.
 	 */
 	if (np->dmap_dirty)
@@ -1529,14 +1529,14 @@ void sym_start_next_ccbs(struct sym_hcb *np, struct sym_lcb *lp, int maxn)
 	SYM_QUEHEAD *qp;
 	struct sym_ccb *cp;
 
-	/* 
+	/*
 	 *  Paranoia, as usual. :-)
 	 */
 	assert(!lp->started_tags || !lp->started_no_tag);
 
 	/*
 	 *  Try to start as many commands as asked by caller.
-	 *  Prevent from having both tagged and untagged 
+	 *  Prevent from having both tagged and untagged
 	 *  commands queued to the device at the same time.
 	 */
 	while (maxn--) {
@@ -1574,8 +1574,8 @@ void sym_start_next_ccbs(struct sym_hcb *np, struct sym_lcb *lp, int maxn)
 /*
  *  The chip may have completed jobs. Look at the DONE QUEUE.
  *
- *  On paper, memory read barriers may be needed here to 
- *  prevent out of order LOADs by the CPU from having 
+ *  On paper, memory read barriers may be needed here to
+ *  prevent out of order LOADs by the CPU from having
  *  prefetched stale data prior to DMA having occurred.
  */
 static int sym_wakeup_done (struct sym_hcb *np)
@@ -1615,14 +1615,14 @@ static int sym_wakeup_done (struct sym_hcb *np)
  *  Complete all CCBs queued to the COMP queue.
  *
  *  These CCBs are assumed:
- *  - Not to be referenced either by devices or 
+ *  - Not to be referenced either by devices or
  *    SCRIPTS-related queues and datas.
- *  - To have to be completed with an error condition 
+ *  - To have to be completed with an error condition
  *    or requeued.
  *
- *  The device queue freeze count is incremented 
+ *  The device queue freeze count is incremented
  *  for each CCB that does not prevent this.
- *  This function is called when all CCBs involved 
+ *  This function is called when all CCBs involved
  *  in error handling/recovery have been reaped.
  */
 static void sym_flush_comp_queue(struct sym_hcb *np, int cam_status)
@@ -1671,7 +1671,7 @@ static void sym_flush_comp_queue(struct sym_hcb *np, int cam_status)
 static void sym_flush_busy_queue (struct sym_hcb *np, int cam_status)
 {
 	/*
-	 *  Move all active CCBs to the COMP queue 
+	 *  Move all active CCBs to the COMP queue
 	 *  and flush this queue.
 	 */
 	sym_que_splice(&np->busy_ccbq, &np->comp_ccbq);
@@ -1704,7 +1704,7 @@ void sym_start_up(struct Scsi_Host *shost, int reason)
 		OUTB(np, nc_stest3, TE|CSF);
 		OUTONB(np, nc_ctest3, CLF);
 	}
- 
+
 	/*
 	 *  Clear Start Queue
 	 */
@@ -1737,7 +1737,7 @@ void sym_start_up(struct Scsi_Host *shost, int reason)
 
 	/*
 	 *  Install patches in scripts.
-	 *  This also let point to first position the start 
+	 *  This also let point to first position the start
 	 *  and done queue pointers used from SCRIPTS.
 	 */
 	np->fw_patch(shost);
@@ -1788,8 +1788,8 @@ void sym_start_up(struct Scsi_Host *shost, int reason)
 	/*
 	 *  C10101 rev. 0 errata.
 	 *  Errant SGE's when in narrow. Write bits 4 & 5 of
-	 *  STEST1 register to disable SGE. We probably should do 
-	 *  that from SCRIPTS for each selection/reselection, but 
+	 *  STEST1 register to disable SGE. We probably should do
+	 *  that from SCRIPTS for each selection/reselection, but
 	 *  I just don't want. :)
 	 */
 	if (pdev->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
@@ -1798,7 +1798,7 @@ void sym_start_up(struct Scsi_Host *shost, int reason)
 
 	/*
 	 *  DEL 441 - 53C876 Rev 5 - Part Number 609-0392787/2788 - ITEM 2.
-	 *  Disable overlapped arbitration for some dual function devices, 
+	 *  Disable overlapped arbitration for some dual function devices,
 	 *  regardless revision id (kind of post-chip-design feature. ;-))
 	 */
 	if (pdev->device == PCI_DEVICE_ID_NCR_53C875)
@@ -1807,8 +1807,8 @@ void sym_start_up(struct Scsi_Host *shost, int reason)
 		np->rv_ccntl0 |= DPR;
 
 	/*
-	 *  Write CCNTL0/CCNTL1 for chips capable of 64 bit addressing 
-	 *  and/or hardware phase mismatch, since only such chips 
+	 *  Write CCNTL0/CCNTL1 for chips capable of 64 bit addressing
+	 *  and/or hardware phase mismatch, since only such chips
 	 *  seem to support those IO registers.
 	 */
 	if (np->features & (FE_DAC|FE_NOPM)) {
@@ -1818,7 +1818,7 @@ void sym_start_up(struct Scsi_Host *shost, int reason)
 
 #if	SYM_CONF_DMA_ADDRESSING_MODE == 2
 	/*
-	 *  Set up scratch C and DRS IO registers to map the 32 bit 
+	 *  Set up scratch C and DRS IO registers to map the 32 bit
 	 *  DMA address range our data structures are located in.
 	 */
 	if (use_dac(np)) {
@@ -1854,7 +1854,7 @@ void sym_start_up(struct Scsi_Host *shost, int reason)
 
 	/*
 	 *  For 895/6 enable SBMC interrupt and save current SCSI bus mode.
-	 *  Try to eat the spurious SBMC interrupt that may occur when 
+	 *  Try to eat the spurious SBMC interrupt that may occur when
 	 *  we reset the chip but not the SCSI BUS (at initialization).
 	 */
 	if (np->features & (FE_ULTRA2|FE_ULTRA3)) {
@@ -1942,7 +1942,7 @@ static void sym_settrans(struct sym_hcb *np, int target, u_char opts, u_char ofs
 	uval = tp->head.uval;
 
 #if 0
-	printf("XXXX sval=%x wval=%x uval=%x (%x)\n", 
+	printf("XXXX sval=%x wval=%x uval=%x (%x)\n",
 		sval, wval, uval, np->rv_scntl3);
 #endif
 	/*
@@ -1991,7 +1991,7 @@ static void sym_settrans(struct sym_hcb *np, int target, u_char opts, u_char ofs
 	/*
 	 *   Stop there if sync parameters are unchanged.
 	 */
-	if (tp->head.sval == sval && 
+	if (tp->head.sval == sval &&
 	    tp->head.wval == wval &&
 	    tp->head.uval == uval)
 		return;
@@ -2120,7 +2120,7 @@ sym_setsync(struct sym_hcb *np, int target,
  *  We received a PPR.
  *  Let everything be aware of the changes.
  */
-static void 
+static void
 sym_setpprot(struct sym_hcb *np, int target, u_char opts, u_char ofs,
              u_char per, u_char wide, u_char div, u_char fak)
 {
@@ -2148,26 +2148,26 @@ sym_setpprot(struct sym_hcb *np, int target, u_char opts, u_char ofs,
  *  generic recovery from scsi interrupt
  *
  *  The doc says that when the chip gets an SCSI interrupt,
- *  it tries to stop in an orderly fashion, by completing 
- *  an instruction fetch that had started or by flushing 
+ *  it tries to stop in an orderly fashion, by completing
+ *  an instruction fetch that had started or by flushing
  *  the DMA fifo for a write to memory that was executing.
- *  Such a fashion is not enough to know if the instruction 
- *  that was just before the current DSP value has been 
+ *  Such a fashion is not enough to know if the instruction
+ *  that was just before the current DSP value has been
  *  executed or not.
  *
- *  There are some small SCRIPTS sections that deal with 
- *  the start queue and the done queue that may break any 
- *  assomption from the C code if we are interrupted 
- *  inside, so we reset if this happens. Btw, since these 
- *  SCRIPTS sections are executed while the SCRIPTS hasn't 
+ *  There are some small SCRIPTS sections that deal with
+ *  the start queue and the done queue that may break any
+ *  assomption from the C code if we are interrupted
+ *  inside, so we reset if this happens. Btw, since these
+ *  SCRIPTS sections are executed while the SCRIPTS hasn't
  *  started SCSI operations, it is very unlikely to happen.
  *
- *  All the driver data structures are supposed to be 
- *  allocated from the same 4 GB memory window, so there 
- *  is a 1 to 1 relationship between DSA and driver data 
- *  structures. Since we are careful :) to invalidate the 
- *  DSA when we complete a command or when the SCRIPTS 
- *  pushes a DSA into a queue, we can trust it when it 
+ *  All the driver data structures are supposed to be
+ *  allocated from the same 4 GB memory window, so there
+ *  is a 1 to 1 relationship between DSA and driver data
+ *  structures. Since we are careful :) to invalidate the
+ *  DSA when we complete a command or when the SCRIPTS
+ *  pushes a DSA into a queue, we can trust it when it
  *  points to a CCB.
  */
 static void sym_recover_scsi_int (struct sym_hcb *np, u_char hsts)
@@ -2177,8 +2177,8 @@ static void sym_recover_scsi_int (struct sym_hcb *np, u_char hsts)
 	struct sym_ccb *cp	= sym_ccb_from_dsa(np, dsa);
 
 	/*
-	 *  If we haven't been interrupted inside the SCRIPTS 
-	 *  critical pathes, we can safely restart the SCRIPTS 
+	 *  If we haven't been interrupted inside the SCRIPTS
+	 *  critical pathes, we can safely restart the SCRIPTS
 	 *  and trust the DSA value if it matches a CCB.
 	 */
 	if ((!(dsp > SCRIPTA_BA(np, getjob_begin) &&
@@ -2192,9 +2192,9 @@ static void sym_recover_scsi_int (struct sym_hcb *np, u_char hsts)
 		OUTB(np, nc_ctest3, np->rv_ctest3 | CLF); /* clear dma fifo  */
 		OUTB(np, nc_stest3, TE|CSF);		/* clear scsi fifo */
 		/*
-		 *  If we have a CCB, let the SCRIPTS call us back for 
-		 *  the handling of the error with SCRATCHA filled with 
-		 *  STARTPOS. This way, we will be able to freeze the 
+		 *  If we have a CCB, let the SCRIPTS call us back for
+		 *  the handling of the error with SCRATCHA filled with
+		 *  STARTPOS. This way, we will be able to freeze the
 		 *  device queue and requeue awaiting IOs.
 		 */
 		if (cp) {
@@ -2245,10 +2245,10 @@ static void sym_int_udc (struct sym_hcb *np)
 /*
  *  chip exception handler for SCSI bus mode change
  *
- *  spi2-r12 11.2.3 says a transceiver mode change must 
- *  generate a reset event and a device that detects a reset 
+ *  spi2-r12 11.2.3 says a transceiver mode change must
+ *  generate a reset event and a device that detects a reset
  *  event shall initiate a hard reset. It says also that a
- *  device that detects a mode change shall set data transfer 
+ *  device that detects a mode change shall set data transfer
  *  mode to eight bit asynchronous, etc...
  *  So, just reinitializing all except chip should be enough.
  */
@@ -2264,7 +2264,7 @@ static void sym_int_sbmc(struct Scsi_Host *shost)
 		sym_scsi_bus_mode(np->scsi_mode), sym_scsi_bus_mode(scsi_mode));
 
 	/*
-	 *  Should suspend command processing for a few seconds and 
+	 *  Should suspend command processing for a few seconds and
 	 *  reinitialize all except the chip.
 	 */
 	sym_start_up(shost, 2);
@@ -2273,25 +2273,25 @@ static void sym_int_sbmc(struct Scsi_Host *shost)
 /*
  *  chip exception handler for SCSI parity error.
  *
- *  When the chip detects a SCSI parity error and is 
- *  currently executing a (CH)MOV instruction, it does 
- *  not interrupt immediately, but tries to finish the 
- *  transfer of the current scatter entry before 
+ *  When the chip detects a SCSI parity error and is
+ *  currently executing a (CH)MOV instruction, it does
+ *  not interrupt immediately, but tries to finish the
+ *  transfer of the current scatter entry before
  *  interrupting. The following situations may occur:
  *
- *  - The complete scatter entry has been transferred 
+ *  - The complete scatter entry has been transferred
  *    without the device having changed phase.
- *    The chip will then interrupt with the DSP pointing 
+ *    The chip will then interrupt with the DSP pointing
  *    to the instruction that follows the MOV.
  *
- *  - A phase mismatch occurs before the MOV finished 
+ *  - A phase mismatch occurs before the MOV finished
  *    and phase errors are to be handled by the C code.
- *    The chip will then interrupt with both PAR and MA 
+ *    The chip will then interrupt with both PAR and MA
  *    conditions set.
  *
- *  - A phase mismatch occurs before the MOV finished and 
+ *  - A phase mismatch occurs before the MOV finished and
  *    phase errors are to be handled by SCRIPTS.
- *    The chip will load the DSP with the phase mismatch 
+ *    The chip will load the DSP with the phase mismatch
  *    JUMP address and interrupt the host processor.
  */
 static void sym_int_par (struct sym_hcb *np, u_short sist)
@@ -2325,7 +2325,7 @@ static void sym_int_par (struct sym_hcb *np, u_short sist)
 		goto reset_all;
 
 	/*
-	 *  Check instruction was a MOV, direction was INPUT and 
+	 *  Check instruction was a MOV, direction was INPUT and
 	 *  ATN is asserted.
 	 */
 	if ((cmd & 0xc0) || !(phase & 1) || !(sbcl & 0x8))
@@ -2345,8 +2345,8 @@ static void sym_int_par (struct sym_hcb *np, u_short sist)
 	/*
 	 *  If the old phase was DATA IN phase, we have to deal with
 	 *  the 3 situations described above.
-	 *  For other input phases (MSG IN and STATUS), the device 
-	 *  must resend the whole thing that failed parity checking 
+	 *  For other input phases (MSG IN and STATUS), the device
+	 *  must resend the whole thing that failed parity checking
 	 *  or signal error. So, jumping to dispatcher should be OK.
 	 */
 	if (phase == 1 || phase == 5) {
@@ -2414,8 +2414,8 @@ static void sym_int_ma (struct sym_hcb *np)
 	cp = sym_ccb_from_dsa(np, dsa);
 
 	/*
-	 *  Donnot take into account dma fifo and various buffers in 
-	 *  INPUT phase since the chip flushes everything before 
+	 *  Donnot take into account dma fifo and various buffers in
+	 *  INPUT phase since the chip flushes everything before
 	 *  raising the MA interrupt for interrupted INPUT phases.
 	 *  For DATA IN phase, we will check for the SWIDE later.
 	 */
@@ -2501,13 +2501,13 @@ static void sym_int_ma (struct sym_hcb *np)
 	}
 
 	if (!vdsp) {
-		printf ("%s: interrupted SCRIPT address not found.\n", 
+		printf ("%s: interrupted SCRIPT address not found.\n",
 			sym_name (np));
 		goto reset_all;
 	}
 
 	if (!cp) {
-		printf ("%s: SCSI phase error fixup: CCB already dequeued.\n", 
+		printf ("%s: SCSI phase error fixup: CCB already dequeued.\n",
 			sym_name (np));
 		goto reset_all;
 	}
@@ -2536,7 +2536,7 @@ static void sym_int_ma (struct sym_hcb *np)
 
 	/*
 	 *  check cmd against assumed interrupted script command.
-	 *  If dt data phase, the MOVE instruction hasn't bit 4 of 
+	 *  If dt data phase, the MOVE instruction hasn't bit 4 of
 	 *  the phase.
 	 */
 	if (((cmd & 2) ? cmd : (cmd & ~4)) != (scr_to_cpu(vdsp[0]) >> 24)) {
@@ -2561,9 +2561,9 @@ static void sym_int_ma (struct sym_hcb *np)
 	/*
 	 *  Choose the correct PM save area.
 	 *
-	 *  Look at the PM_SAVE SCRIPT if you want to understand 
-	 *  this stuff. The equivalent code is implemented in 
-	 *  SCRIPTS for the 895A, 896 and 1010 that are able to 
+	 *  Look at the PM_SAVE SCRIPT if you want to understand
+	 *  this stuff. The equivalent code is implemented in
+	 *  SCRIPTS for the 895A, 896 and 1010 that are able to
 	 *  handle PM from the SCRIPTS processor.
 	 */
 	hflags0 = INB(np, HF_PRT);
@@ -2612,7 +2612,7 @@ static void sym_int_ma (struct sym_hcb *np)
 
 		/*
 		 *  Set up the table indirect for the MOVE
-		 *  of the residual byte and adjust the data 
+		 *  of the residual byte and adjust the data
 		 *  pointer context.
 		 */
 		tmp = scr_to_cpu(pm->sg.addr);
@@ -2623,14 +2623,14 @@ static void sym_int_ma (struct sym_hcb *np)
 		pm->sg.size = cpu_to_scr(tmp - 1);
 
 		/*
-		 *  If only the residual byte is to be moved, 
+		 *  If only the residual byte is to be moved,
 		 *  no PM context is needed.
 		 */
 		if ((tmp&0xffffff) == 1)
 			newcmd = pm->ret;
 
 		/*
-		 *  Prepare the address of SCRIPTS that will 
+		 *  Prepare the address of SCRIPTS that will
 		 *  move the residual byte to memory.
 		 */
 		nxtdsp = SCRIPTB_BA(np, wsr_ma_helper);
@@ -2652,9 +2652,9 @@ static void sym_int_ma (struct sym_hcb *np)
 	return;
 
 	/*
-	 *  Unexpected phase changes that occurs when the current phase 
+	 *  Unexpected phase changes that occurs when the current phase
 	 *  is not a DATA IN or DATA OUT phase are due to error conditions.
-	 *  Such event may only happen when the SCRIPTS is using a 
+	 *  Such event may only happen when the SCRIPTS is using a
 	 *  multibyte SCSI MOVE.
 	 *
 	 *  Phase change		Some possible cause
@@ -2665,15 +2665,15 @@ static void sym_int_ma (struct sym_hcb *np)
 	 *  MSG OUT  --> COMMAND    Bogus target that discards extended
 	 *  			negotiation messages.
 	 *
-	 *  The code below does not care of the new phase and so 
+	 *  The code below does not care of the new phase and so
 	 *  trusts the target. Why to annoy it ?
 	 *  If the interrupted phase is COMMAND phase, we restart at
 	 *  dispatcher.
-	 *  If a target does not get all the messages after selection, 
-	 *  the code assumes blindly that the target discards extended 
+	 *  If a target does not get all the messages after selection,
+	 *  the code assumes blindly that the target discards extended
 	 *  messages and clears the negotiation status.
 	 *  If the target does not want all our response to negotiation,
-	 *  we force a SIR_NEGO_PROTO interrupt (it is a hack that avoids 
+	 *  we force a SIR_NEGO_PROTO interrupt (it is a hack that avoids
 	 *  bloat for such a should_not_happen situation).
 	 *  In all other situation, we reset the BUS.
 	 *  Are these assumptions reasonable ? (Wait and see ...)
@@ -2693,8 +2693,8 @@ unexpected_phase:
 #endif
 	case 6:	/* MSG OUT phase */
 		/*
-		 *  If the device may want to use untagged when we want 
-		 *  tagged, we prepare an IDENTIFY without disc. granted, 
+		 *  If the device may want to use untagged when we want
+		 *  tagged, we prepare an IDENTIFY without disc. granted,
 		 *  since we will not be able to handle reselect.
 		 *  Otherwise, we just don't care.
 		 */
@@ -2736,62 +2736,62 @@ reset_all:
 /*
  *  chip interrupt handler
  *
- *  In normal situations, interrupt conditions occur one at 
- *  a time. But when something bad happens on the SCSI BUS, 
- *  the chip may raise several interrupt flags before 
- *  stopping and interrupting the CPU. The additionnal 
- *  interrupt flags are stacked in some extra registers 
- *  after the SIP and/or DIP flag has been raised in the 
- *  ISTAT. After the CPU has read the interrupt condition 
- *  flag from SIST or DSTAT, the chip unstacks the other 
- *  interrupt flags and sets the corresponding bits in 
- *  SIST or DSTAT. Since the chip starts stacking once the 
- *  SIP or DIP flag is set, there is a small window of time 
+ *  In normal situations, interrupt conditions occur one at
+ *  a time. But when something bad happens on the SCSI BUS,
+ *  the chip may raise several interrupt flags before
+ *  stopping and interrupting the CPU. The additionnal
+ *  interrupt flags are stacked in some extra registers
+ *  after the SIP and/or DIP flag has been raised in the
+ *  ISTAT. After the CPU has read the interrupt condition
+ *  flag from SIST or DSTAT, the chip unstacks the other
+ *  interrupt flags and sets the corresponding bits in
+ *  SIST or DSTAT. Since the chip starts stacking once the
+ *  SIP or DIP flag is set, there is a small window of time
  *  where the stacking does not occur.
  *
- *  Typically, multiple interrupt conditions may happen in 
+ *  Typically, multiple interrupt conditions may happen in
  *  the following situations:
  *
  *  - SCSI parity error + Phase mismatch  (PAR|MA)
- *    When an parity error is detected in input phase 
- *    and the device switches to msg-in phase inside a 
+ *    When an parity error is detected in input phase
+ *    and the device switches to msg-in phase inside a
  *    block MOV.
  *  - SCSI parity error + Unexpected disconnect (PAR|UDC)
- *    When a stupid device does not want to handle the 
+ *    When a stupid device does not want to handle the
  *    recovery of an SCSI parity error.
  *  - Some combinations of STO, PAR, UDC, ...
- *    When using non compliant SCSI stuff, when user is 
- *    doing non compliant hot tampering on the BUS, when 
+ *    When using non compliant SCSI stuff, when user is
+ *    doing non compliant hot tampering on the BUS, when
  *    something really bad happens to a device, etc ...
  *
- *  The heuristic suggested by SYMBIOS to handle 
- *  multiple interrupts is to try unstacking all 
- *  interrupts conditions and to handle them on some 
+ *  The heuristic suggested by SYMBIOS to handle
+ *  multiple interrupts is to try unstacking all
+ *  interrupts conditions and to handle them on some
  *  priority based on error severity.
- *  This will work when the unstacking has been 
- *  successful, but we cannot be 100 % sure of that, 
- *  since the CPU may have been faster to unstack than 
- *  the chip is able to stack. Hmmm ... But it seems that 
+ *  This will work when the unstacking has been
+ *  successful, but we cannot be 100 % sure of that,
+ *  since the CPU may have been faster to unstack than
+ *  the chip is able to stack. Hmmm ... But it seems that
  *  such a situation is very unlikely to happen.
  *
- *  If this happen, for example STO caught by the CPU 
- *  then UDC happenning before the CPU have restarted 
- *  the SCRIPTS, the driver may wrongly complete the 
- *  same command on UDC, since the SCRIPTS didn't restart 
+ *  If this happen, for example STO caught by the CPU
+ *  then UDC happenning before the CPU have restarted
+ *  the SCRIPTS, the driver may wrongly complete the
+ *  same command on UDC, since the SCRIPTS didn't restart
  *  and the DSA still points to the same command.
- *  We avoid this situation by setting the DSA to an 
- *  invalid value when the CCB is completed and before 
+ *  We avoid this situation by setting the DSA to an
+ *  invalid value when the CCB is completed and before
  *  restarting the SCRIPTS.
  *
- *  Another issue is that we need some section of our 
- *  recovery procedures to be somehow uninterruptible but 
- *  the SCRIPTS processor does not provides such a 
- *  feature. For this reason, we handle recovery preferently 
- *  from the C code and check against some SCRIPTS critical 
+ *  Another issue is that we need some section of our
+ *  recovery procedures to be somehow uninterruptible but
+ *  the SCRIPTS processor does not provides such a
+ *  feature. For this reason, we handle recovery preferently
+ *  from the C code and check against some SCRIPTS critical
  *  sections from the C code.
  *
- *  Hopefully, the interrupt handling of the driver is now 
- *  able to resist to weird BUS error conditions, but donnot 
+ *  Hopefully, the interrupt handling of the driver is now
+ *  able to resist to weird BUS error conditions, but donnot
  *  ask me for any guarantee that it will never fail. :-)
  *  Use at your own decision and risk.
  */
@@ -2809,11 +2809,11 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 	 *  interrupt on the fly ?
 	 *  (SCRIPTS may still be running)
 	 *
-	 *  A `dummy read' is needed to ensure that the 
-	 *  clear of the INTF flag reaches the device 
+	 *  A `dummy read' is needed to ensure that the
+	 *  clear of the INTF flag reaches the device
 	 *  and that posted writes are flushed to memory
 	 *  before the scanning of the DONE queue.
-	 *  Note that SCRIPTS also (dummy) read to memory 
+	 *  Note that SCRIPTS also (dummy) read to memory
 	 *  prior to deliver the INTF interrupt condition.
 	 */
 	istat = INB(np, nc_istat);
@@ -2834,12 +2834,12 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 
 	/*
 	 *  PAR and MA interrupts may occur at the same time,
-	 *  and we need to know of both in order to handle 
-	 *  this situation properly. We try to unstack SCSI 
-	 *  interrupts for that reason. BTW, I dislike a LOT 
+	 *  and we need to know of both in order to handle
+	 *  this situation properly. We try to unstack SCSI
+	 *  interrupts for that reason. BTW, I dislike a LOT
 	 *  such a loop inside the interrupt routine.
-	 *  Even if DMA interrupt stacking is very unlikely to 
-	 *  happen, we also try unstacking these ones, since 
+	 *  Even if DMA interrupt stacking is very unlikely to
+	 *  happen, we also try unstacking these ones, since
 	 *  this has no performance impact.
 	 */
 	sist	= 0;
@@ -2868,8 +2868,8 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 			(unsigned)INL(np, nc_dsp),
 			(unsigned)INL(np, nc_dbc));
 	/*
-	 *  On paper, a memory read barrier may be needed here to 
-	 *  prevent out of order LOADs by the CPU from having 
+	 *  On paper, a memory read barrier may be needed here to
+	 *  prevent out of order LOADs by the CPU from having
 	 *  prefetched stale data prior to DMA having occurred.
 	 *  And since we are paranoid ... :)
 	 */
@@ -2878,14 +2878,14 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 	/*
 	 *  First, interrupts we want to service cleanly.
 	 *
-	 *  Phase mismatch (MA) is the most frequent interrupt 
-	 *  for chip earlier than the 896 and so we have to service 
+	 *  Phase mismatch (MA) is the most frequent interrupt
+	 *  for chip earlier than the 896 and so we have to service
 	 *  it as quickly as possible.
-	 *  A SCSI parity error (PAR) may be combined with a phase 
+	 *  A SCSI parity error (PAR) may be combined with a phase
 	 *  mismatch condition (MA).
-	 *  Programmed interrupts (SIR) are used to call the C code 
+	 *  Programmed interrupts (SIR) are used to call the C code
 	 *  from SCRIPTS.
-	 *  The single step interrupt (SSI) is not used in this 
+	 *  The single step interrupt (SSI) is not used in this
 	 *  driver.
 	 */
 	if (!(sist  & (STO|GEN|HTH|SGE|UDC|SBMC|RST)) &&
@@ -2899,14 +2899,14 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 	}
 
 	/*
-	 *  Now, interrupts that donnot happen in normal 
+	 *  Now, interrupts that donnot happen in normal
 	 *  situations and that we may need to recover from.
 	 *
 	 *  On SCSI RESET (RST), we reset everything.
-	 *  On SCSI BUS MODE CHANGE (SBMC), we complete all 
-	 *  active CCBs with RESET status, prepare all devices 
+	 *  On SCSI BUS MODE CHANGE (SBMC), we complete all
+	 *  active CCBs with RESET status, prepare all devices
 	 *  for negotiating again and restart the SCRIPTS.
-	 *  On STO and UDC, we complete the CCB with the corres- 
+	 *  On STO and UDC, we complete the CCB with the corres-
 	 *  ponding status and restart the SCRIPTS.
 	 */
 	if (sist & RST) {
@@ -2954,14 +2954,14 @@ unknown_int:
 }
 
 /*
- *  Dequeue from the START queue all CCBs that match 
+ *  Dequeue from the START queue all CCBs that match
  *  a given target/lun/task condition (-1 means all),
- *  and move them from the BUSY queue to the COMP queue 
+ *  and move them from the BUSY queue to the COMP queue
  *  with DID_SOFT_ERROR status condition.
  *  This function is used during error handling/recovery.
  *  It is called with SCRIPTS not running.
  */
-static int 
+static int
 sym_dequeue_from_squeue(struct sym_hcb *np, int i, int target, int lun, int task)
 {
 	int j;
@@ -2973,7 +2973,7 @@ sym_dequeue_from_squeue(struct sym_hcb *np, int i, int target, int lun, int task
 	assert((i >= 0) && (i < 2*MAX_QUEUE));
 
 	/*
-	 *  Walk until end of START queue and dequeue every job 
+	 *  Walk until end of START queue and dequeue every job
 	 *  that matches the target/lun/task condition.
 	 */
 	j = i;
@@ -3012,19 +3012,19 @@ sym_dequeue_from_squeue(struct sym_hcb *np, int i, int target, int lun, int task
 /*
  *  chip handler for bad SCSI status condition
  *
- *  In case of bad SCSI status, we unqueue all the tasks 
- *  currently queued to the controller but not yet started 
+ *  In case of bad SCSI status, we unqueue all the tasks
+ *  currently queued to the controller but not yet started
  *  and then restart the SCRIPTS processor immediately.
  *
  *  QUEUE FULL and BUSY conditions are handled the same way.
- *  Basically all the not yet started tasks are requeued in 
+ *  Basically all the not yet started tasks are requeued in
  *  device queue and the queue is frozen until a completion.
  *
- *  For CHECK CONDITION and COMMAND TERMINATED status, we use 
- *  the CCB of the failed command to prepare a REQUEST SENSE 
+ *  For CHECK CONDITION and COMMAND TERMINATED status, we use
+ *  the CCB of the failed command to prepare a REQUEST SENSE
  *  SCSI command and queue it to the controller queue.
  *
- *  SCRATCHA is assumed to have been loaded with STARTPOS 
+ *  SCRATCHA is assumed to have been loaded with STARTPOS
  *  before the SCRIPTS called the C code.
  */
 static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb *cp)
@@ -3041,7 +3041,7 @@ static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb 
 	i = (INL(np, nc_scratcha) - np->squeue_ba) / 4;
 
 	/*
-	 *  The last CCB queued used for IARB hint may be 
+	 *  The last CCB queued used for IARB hint may be
 	 *  no longer relevant. Forget it.
 	 */
 #ifdef SYM_CONF_IARB_SUPPORT
@@ -3089,7 +3089,7 @@ static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb 
 		cp->sv_resid = sym_compute_residual(np, cp);
 
 		/*
-		 *  Prepare all needed data structures for 
+		 *  Prepare all needed data structures for
 		 *  requesting sense data.
 		 */
 
@@ -3097,11 +3097,11 @@ static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb 
 		msglen = 1;
 
 		/*
-		 *  If we are currently using anything different from 
+		 *  If we are currently using anything different from
 		 *  async. 8 bit data transfers with that target,
-		 *  start a negotiation, since the device may want 
-		 *  to report us a UNIT ATTENTION condition due to 
-		 *  a cause we currently ignore, and we donnot want 
+		 *  start a negotiation, since the device may want
+		 *  to report us a UNIT ATTENTION condition due to
+		 *  a cause we currently ignore, and we donnot want
 		 *  to be stuck with WIDE and/or SYNC data transfer.
 		 *
 		 *  cp->nego_status is filled by sym_prepare_nego().
@@ -3170,15 +3170,15 @@ static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb 
 }
 
 /*
- *  After a device has accepted some management message 
- *  as BUS DEVICE RESET, ABORT TASK, etc ..., or when 
- *  a device signals a UNIT ATTENTION condition, some 
- *  tasks are thrown away by the device. We are required 
- *  to reflect that on our tasks list since the device 
+ *  After a device has accepted some management message
+ *  as BUS DEVICE RESET, ABORT TASK, etc ..., or when
+ *  a device signals a UNIT ATTENTION condition, some
+ *  tasks are thrown away by the device. We are required
+ *  to reflect that on our tasks list since the device
  *  will never complete these tasks.
  *
- *  This function move from the BUSY queue to the COMP 
- *  queue all disconnected CCBs for a given target that 
+ *  This function move from the BUSY queue to the COMP
+ *  queue all disconnected CCBs for a given target that
  *  match the following criteria:
  *  - lun=-1  means any logical UNIT otherwise a given one.
  *  - task=-1 means any task, otherwise a given one.
@@ -3197,8 +3197,8 @@ int sym_clear_tasks(struct sym_hcb *np, int cam_status, int target, int lun, int
 	sym_que_init(&np->busy_ccbq);
 
 	/*
-	 *  Put all CCBs that matches our criteria into 
-	 *  the COMP queue and put back other ones into 
+	 *  Put all CCBs that matches our criteria into
+	 *  the COMP queue and put back other ones into
 	 *  the BUSY queue.
 	 */
 	while ((qp = sym_remque_head(&qtmp)) != NULL) {
@@ -3208,7 +3208,7 @@ int sym_clear_tasks(struct sym_hcb *np, int cam_status, int target, int lun, int
 		if (cp->host_status != HS_DISCONNECT ||
 		    cp->target != target	     ||
 		    (lun  != -1 && cp->lun != lun)   ||
-		    (task != -1 && 
+		    (task != -1 &&
 			(cp->tag != NO_TAG && cp->scsi_smsg[2] != task))) {
 			sym_insque_tail(&cp->link_ccbq, &np->busy_ccbq);
 			continue;
@@ -3229,41 +3229,41 @@ printf("XXXX TASK @%p CLEARED\n", cp);
 /*
  *  chip handler for TASKS recovery
  *
- *  We cannot safely abort a command, while the SCRIPTS 
- *  processor is running, since we just would be in race 
+ *  We cannot safely abort a command, while the SCRIPTS
+ *  processor is running, since we just would be in race
  *  with it.
  *
- *  As long as we have tasks to abort, we keep the SEM 
- *  bit set in the ISTAT. When this bit is set, the 
- *  SCRIPTS processor interrupts (SIR_SCRIPT_STOPPED) 
+ *  As long as we have tasks to abort, we keep the SEM
+ *  bit set in the ISTAT. When this bit is set, the
+ *  SCRIPTS processor interrupts (SIR_SCRIPT_STOPPED)
  *  each time it enters the scheduler.
  *
  *  If we have to reset a target, clear tasks of a unit,
- *  or to perform the abort of a disconnected job, we 
- *  restart the SCRIPTS for selecting the target. Once 
+ *  or to perform the abort of a disconnected job, we
+ *  restart the SCRIPTS for selecting the target. Once
  *  selected, the SCRIPTS interrupts (SIR_TARGET_SELECTED).
- *  If it loses arbitration, the SCRIPTS will interrupt again 
+ *  If it loses arbitration, the SCRIPTS will interrupt again
  *  the next time it will enter its scheduler, and so on ...
  *
- *  On SIR_TARGET_SELECTED, we scan for the more 
+ *  On SIR_TARGET_SELECTED, we scan for the more
  *  appropriate thing to do:
  *
- *  - If nothing, we just sent a M_ABORT message to the 
+ *  - If nothing, we just sent a M_ABORT message to the
  *    target to get rid of the useless SCSI bus ownership.
  *    According to the specs, no tasks shall be affected.
- *  - If the target is to be reset, we send it a M_RESET 
+ *  - If the target is to be reset, we send it a M_RESET
  *    message.
- *  - If a logical UNIT is to be cleared , we send the 
+ *  - If a logical UNIT is to be cleared , we send the
  *    IDENTIFY(lun) + M_ABORT.
- *  - If an untagged task is to be aborted, we send the 
+ *  - If an untagged task is to be aborted, we send the
  *    IDENTIFY(lun) + M_ABORT.
- *  - If a tagged task is to be aborted, we send the 
+ *  - If a tagged task is to be aborted, we send the
  *    IDENTIFY(lun) + task attributes + M_ABORT_TAG.
  *
- *  Once our 'kiss of death' :) message has been accepted 
- *  by the target, the SCRIPTS interrupts again 
- *  (SIR_ABORT_SENT). On this interrupt, we complete 
- *  all the CCBs that should have been aborted by the 
+ *  Once our 'kiss of death' :) message has been accepted
+ *  by the target, the SCRIPTS interrupts again
+ *  (SIR_ABORT_SENT). On this interrupt, we complete
+ *  all the CCBs that should have been aborted by the
  *  target according to our message.
  */
 static void sym_sir_task_recovery(struct sym_hcb *np, int num)
@@ -3278,7 +3278,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 	switch(num) {
 	/*
 	 *  The SCRIPTS processor stopped before starting
-	 *  the next command in order to allow us to perform 
+	 *  the next command in order to allow us to perform
 	 *  some task recovery.
 	 */
 	case SIR_SCRIPT_STOPPED:
@@ -3287,7 +3287,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		 */
 		for (i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
 			tp = &np->target[i];
-			if (tp->to_reset || 
+			if (tp->to_reset ||
 			    (tp->lun0p && tp->lun0p->to_clear)) {
 				target = i;
 				break;
@@ -3305,7 +3305,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		}
 
 		/*
-		 *  If not, walk the busy queue for any 
+		 *  If not, walk the busy queue for any
 		 *  disconnected CCB to be aborted.
 		 */
 		if (target == -1) {
@@ -3321,7 +3321,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		}
 
 		/*
-		 *  If some target is to be selected, 
+		 *  If some target is to be selected,
 		 *  prepare and start the selection.
 		 */
 		if (target != -1) {
@@ -3336,7 +3336,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 
 		/*
 		 *  Now look for a CCB to abort that haven't started yet.
-		 *  Btw, the SCRIPTS processor is still stopped, so 
+		 *  Btw, the SCRIPTS processor is still stopped, so
 		 *  we are not in race.
 		 */
 		i = 0;
@@ -3350,8 +3350,8 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 				continue;
 #ifdef SYM_CONF_IARB_SUPPORT
 			/*
-			 *    If we are using IMMEDIATE ARBITRATION, we donnot 
-			 *    want to cancel the last queued CCB, since the 
+			 *    If we are using IMMEDIATE ARBITRATION, we donnot
+			 *    want to cancel the last queued CCB, since the
 			 *    SCRIPTS may have anticipated the selection.
 			 */
 			if (cp == np->last_cp) {
@@ -3364,7 +3364,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		}
 		if (!i) {
 			/*
-			 *  We are done, so we donnot need 
+			 *  We are done, so we donnot need
 			 *  to synchronize with the SCRIPTS anylonger.
 			 *  Remove the SEM flag from the ISTAT.
 			 */
@@ -3373,8 +3373,8 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 			break;
 		}
 		/*
-		 *  Compute index of next position in the start 
-		 *  queue the SCRIPTS intends to start and dequeue 
+		 *  Compute index of next position in the start
+		 *  queue the SCRIPTS intends to start and dequeue
 		 *  all CCBs for that device that haven't been started.
 		 */
 		i = (INL(np, nc_scratcha) - np->squeue_ba) / 4;
@@ -3403,7 +3403,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		sym_flush_comp_queue(np, 0);
 		break;
 	/*
-	 *  The SCRIPTS processor has selected a target 
+	 *  The SCRIPTS processor has selected a target
 	 *  we may have some manual recovery to perform for.
 	 */
 	case SIR_TARGET_SELECTED:
@@ -3413,8 +3413,8 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		np->abrt_tbl.addr = cpu_to_scr(vtobus(np->abrt_msg));
 
 		/*
-		 *  If the target is to be reset, prepare a 
-		 *  M_RESET message and clear the to_reset flag 
+		 *  If the target is to be reset, prepare a
+		 *  M_RESET message and clear the to_reset flag
 		 *  since we donnot expect this operation to fail.
 		 */
 		if (tp->to_reset) {
@@ -3439,7 +3439,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		}
 
 		/*
-		 *  If a logical unit is to be cleared, prepare 
+		 *  If a logical unit is to be cleared, prepare
 		 *  an IDENTIFY(lun) + ABORT MESSAGE.
 		 */
 		if (lun != -1) {
@@ -3452,7 +3452,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		}
 
 		/*
-		 *  Otherwise, look for some disconnected job to 
+		 *  Otherwise, look for some disconnected job to
 		 *  abort for this target.
 		 */
 		i = 0;
@@ -3470,10 +3470,10 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		}
 
 		/*
-		 *  If we have none, probably since the device has 
+		 *  If we have none, probably since the device has
 		 *  completed the command before we won abitration,
 		 *  send a M_ABORT message without IDENTIFY.
-		 *  According to the specs, the device must just 
+		 *  According to the specs, the device must just
 		 *  disconnect the BUS and not abort any task.
 		 */
 		if (!i) {
@@ -3489,9 +3489,9 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		np->abrt_msg[0] = IDENTIFY(0, cp->lun);
 
 		/*
-		 *  If we want to abort an untagged command, we 
+		 *  If we want to abort an untagged command, we
 		 *  will send a IDENTIFY + M_ABORT.
-		 *  Otherwise (tagged command), we will send 
+		 *  Otherwise (tagged command), we will send
 		 *  a IDENTITFY + task attributes + ABORT TAG.
 		 */
 		if (cp->tag == NO_TAG) {
@@ -3504,8 +3504,8 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 			np->abrt_tbl.size = 4;
 		}
 		/*
-		 *  Keep track of software timeout condition, since the 
-		 *  peripheral driver may not count retries on abort 
+		 *  Keep track of software timeout condition, since the
+		 *  peripheral driver may not count retries on abort
 		 *  conditions not due to timeout.
 		 */
 		if (cp->to_abort == 2)
@@ -3514,14 +3514,14 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		break;
 
 	/*
-	 *  The target has accepted our message and switched 
+	 *  The target has accepted our message and switched
 	 *  to BUS FREE phase as we expected.
 	 */
 	case SIR_ABORT_SENT:
 		target = INB(np, nc_sdid) & 0xf;
 		tp = &np->target[target];
 		starget = tp->starget;
-		
+
 		/*
 		**  If we didn't abort anything, leave here.
 		*/
@@ -3529,11 +3529,11 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 			break;
 
 		/*
-		 *  If we sent a M_RESET, then a hardware reset has 
+		 *  If we sent a M_RESET, then a hardware reset has
 		 *  been performed by the target.
 		 *  - Reset everything to async 8 bit
 		 *  - Tell ourself to negotiate next time :-)
-		 *  - Prepare to clear all disconnected CCBs for 
+		 *  - Prepare to clear all disconnected CCBs for
 		 *    this target from our task list (lun=task=-1)
 		 */
 		lun = -1;
@@ -3553,9 +3553,9 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		}
 
 		/*
-		 *  Otherwise, check for the LUN and TASK(s) 
+		 *  Otherwise, check for the LUN and TASK(s)
 		 *  concerned by the cancelation.
-		 *  If it is not ABORT_TAG then it is CLEAR_QUEUE 
+		 *  If it is not ABORT_TAG then it is CLEAR_QUEUE
 		 *  or an ABORT message :-)
 		 */
 		else {
@@ -3565,7 +3565,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		}
 
 		/*
-		 *  Complete all the CCBs the device should have 
+		 *  Complete all the CCBs the device should have
 		 *  aborted due to our 'kiss of death' message.
 		 */
 		i = (INL(np, nc_scratcha) - np->squeue_ba) / 4;
@@ -3598,29 +3598,29 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 }
 
 /*
- *  Gerard's alchemy:) that deals with with the data 
+ *  Gerard's alchemy:) that deals with with the data
  *  pointer for both MDP and the residual calculation.
  *
- *  I didn't want to bloat the code by more than 200 
+ *  I didn't want to bloat the code by more than 200
  *  lines for the handling of both MDP and the residual.
- *  This has been achieved by using a data pointer 
- *  representation consisting in an index in the data 
- *  array (dp_sg) and a negative offset (dp_ofs) that 
+ *  This has been achieved by using a data pointer
+ *  representation consisting in an index in the data
+ *  array (dp_sg) and a negative offset (dp_ofs) that
  *  have the following meaning:
  *
  *  - dp_sg = SYM_CONF_MAX_SG
  *    we are at the end of the data script.
  *  - dp_sg < SYM_CONF_MAX_SG
- *    dp_sg points to the next entry of the scatter array 
+ *    dp_sg points to the next entry of the scatter array
  *    we want to transfer.
  *  - dp_ofs < 0
- *    dp_ofs represents the residual of bytes of the 
+ *    dp_ofs represents the residual of bytes of the
  *    previous entry scatter entry we will send first.
  *  - dp_ofs = 0
  *    no residual to send first.
  *
- *  The function sym_evaluate_dp() accepts an arbitray 
- *  offset (basically from the MDP message) and returns 
+ *  The function sym_evaluate_dp() accepts an arbitray
+ *  offset (basically from the MDP message) and returns
  *  the corresponding values of dp_sg and dp_ofs.
  */
 
@@ -3632,7 +3632,7 @@ static int sym_evaluate_dp(struct sym_hcb *np, struct sym_ccb *cp, u32 scr, int 
 	struct sym_pmc *pm;
 
 	/*
-	 *  Compute the resulted data pointer in term of a script 
+	 *  Compute the resulted data pointer in term of a script
 	 *  address within some DATA script and a signed byte offset.
 	 */
 	dp_scr = scr;
@@ -3660,7 +3660,7 @@ static int sym_evaluate_dp(struct sym_hcb *np, struct sym_ccb *cp, u32 scr, int 
 	/*
 	 *  Deduce the index of the sg entry.
 	 *  Keep track of the index of the first valid entry.
-	 *  If result is dp_sg = SYM_CONF_MAX_SG, then we are at the 
+	 *  If result is dp_sg = SYM_CONF_MAX_SG, then we are at the
 	 *  end of the data.
 	 */
 	tmp = scr_to_cpu(cp->goalp);
@@ -3678,7 +3678,7 @@ static int sym_evaluate_dp(struct sym_hcb *np, struct sym_ccb *cp, u32 scr, int 
 	 *      dp_ofs = 0 and dp_sg is the index of the sg entry
 	 *      the data pointer belongs to (or the end of the data)
 	 *  Or,
-	 *      dp_ofs < 0 and dp_sg is the index of the sg entry 
+	 *      dp_ofs < 0 and dp_sg is the index of the sg entry
 	 *      the data pointer belongs to + 1.
 	 */
 	if (dp_ofs < 0) {
@@ -3736,9 +3736,9 @@ out_err:
 /*
  *  chip handler for MODIFY DATA POINTER MESSAGE
  *
- *  We also call this function on IGNORE WIDE RESIDUE 
+ *  We also call this function on IGNORE WIDE RESIDUE
  *  messages that do not match a SWIDE full condition.
- *  Btw, we assume in that situation that such a message 
+ *  Btw, we assume in that situation that such a message
  *  is equivalent to a MODIFY DATA POINTER (offset=-1).
  */
 
@@ -3759,7 +3759,7 @@ static void sym_modify_dp(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb
 		goto out_reject;
 
 	/*
-	 *  Apply our alchemy:) (see comments in sym_evaluate_dp()), 
+	 *  Apply our alchemy:) (see comments in sym_evaluate_dp()),
 	 *  to the resulted data pointer.
 	 */
 	dp_sg = sym_evaluate_dp(np, cp, dp_scr, &dp_ofs);
@@ -3767,14 +3767,14 @@ static void sym_modify_dp(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb
 		goto out_reject;
 
 	/*
-	 *  And our alchemy:) allows to easily calculate the data 
+	 *  And our alchemy:) allows to easily calculate the data
 	 *  script address we want to return for the next data phase.
 	 */
 	dp_ret = cpu_to_scr(cp->goalp);
 	dp_ret = dp_ret - 8 - (SYM_CONF_MAX_SG - dp_sg) * (2*4);
 
 	/*
-	 *  If offset / scatter entry is zero we donnot need 
+	 *  If offset / scatter entry is zero we donnot need
 	 *  a context for the new current data pointer.
 	 */
 	if (dp_ofs == 0) {
@@ -3805,9 +3805,9 @@ static void sym_modify_dp(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb
 
 	/*
 	 *  Set up the new current data pointer.
-	 *  ofs < 0 there, and for the next data phase, we 
-	 *  want to transfer part of the data of the sg entry 
-	 *  corresponding to index dp_sg-1 prior to returning 
+	 *  ofs < 0 there, and for the next data phase, we
+	 *  want to transfer part of the data of the sg entry
+	 *  corresponding to index dp_sg-1 prior to returning
 	 *  to the main data script.
 	 */
 	pm->ret = cpu_to_scr(dp_ret);
@@ -3829,15 +3829,15 @@ out_reject:
 /*
  *  chip calculation of the data residual.
  *
- *  As I used to say, the requirement of data residual 
- *  in SCSI is broken, useless and cannot be achieved 
+ *  As I used to say, the requirement of data residual
+ *  in SCSI is broken, useless and cannot be achieved
  *  without huge complexity.
  *  But most OSes and even the official CAM require it.
- *  When stupidity happens to be so widely spread inside 
+ *  When stupidity happens to be so widely spread inside
  *  a community, it gets hard to convince.
  *
- *  Anyway, I don't care, since I am not going to use 
- *  any software that considers this data residual as 
+ *  Anyway, I don't care, since I am not going to use
+ *  any software that considers this data residual as
  *  a relevant information. :)
  */
 
@@ -3848,9 +3848,9 @@ int sym_compute_residual(struct sym_hcb *np, struct sym_ccb *cp)
 
 	/*
 	 *  Check for some data lost or just thrown away.
-	 *  We are not required to be quite accurate in this 
-	 *  situation. Btw, if we are odd for output and the 
-	 *  device claims some more data, it may well happen 
+	 *  We are not required to be quite accurate in this
+	 *  situation. Btw, if we are odd for output and the
+	 *  device claims some more data, it may well happen
 	 *  than our residual be zero. :-)
 	 */
 	if (cp->xerr_status & (XE_EXTRA_DATA|XE_SODL_UNRUN|XE_SWIDE_OVRUN)) {
@@ -3887,7 +3887,7 @@ int sym_compute_residual(struct sym_hcb *np, struct sym_ccb *cp)
 	}
 
 	/*
-	 *  We are now full comfortable in the computation 
+	 *  We are now full comfortable in the computation
 	 *  of the data residual (2's complement).
 	 */
 	resid = -cp->ext_ofs;
@@ -3926,14 +3926,14 @@ int sym_compute_residual(struct sym_hcb *np, struct sym_ccb *cp)
  *
  *  If we receive a negotiation message while not in HS_NEGOTIATE
  *  state, it's a target initiated negotiation. We prepare a
- *  (hopefully) valid answer, set our parameters, and send back 
+ *  (hopefully) valid answer, set our parameters, and send back
  *  this answer to the target.
  *
  *  If the target doesn't fetch the answer (no message out phase),
  *  we assume the negotiation has failed, and fall back to default
  *  settings (SIR_NEGO_PROTO interrupt).
  *
- *  When we set the values, we adjust them in all ccbs belonging 
+ *  When we set the values, we adjust them in all ccbs belonging
  *  to this target, in the controller's register, and in the "phys"
  *  field of the controller's struct sym_hcb.
  */
@@ -3941,7 +3941,7 @@ int sym_compute_residual(struct sym_hcb *np, struct sym_ccb *cp)
 /*
  *  chip handler for SYNCHRONOUS DATA TRANSFER REQUEST (SDTR) message.
  */
-static int  
+static int
 sym_sync_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 {
 	int target = cp->target;
@@ -3985,7 +3985,7 @@ sym_sync_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 	}
 
 	/*
-	 *  If it was an answer we want to change, 
+	 *  If it was an answer we want to change,
 	 *  then it isn't acceptable. Reject it.
 	 */
 	if (!req && chg)
@@ -4056,7 +4056,7 @@ reject_it:
 /*
  *  chip handler for PARALLEL PROTOCOL REQUEST (PPR) message.
  */
-static int 
+static int
 sym_ppr_nego_check(struct sym_hcb *np, int req, int target)
 {
 	struct sym_tcb *tp = &np->target[target];
@@ -4111,7 +4111,7 @@ sym_ppr_nego_check(struct sym_hcb *np, int req, int target)
 		goto reject_it;
 
 	/*
-	 *  If it was an answer we want to change, 
+	 *  If it was an answer we want to change,
 	 *  then it isn't acceptable. Reject it.
 	 */
 	if (!req && chg)
@@ -4144,7 +4144,7 @@ sym_ppr_nego_check(struct sym_hcb *np, int req, int target)
 reject_it:
 	sym_setpprot (np, target, 0, 0, 0, 0, 0, 0);
 	/*
-	 *  If it is a device response that should result in  
+	 *  If it is a device response that should result in
 	 *  ST, we may want to try a legacy negotiation later.
 	 */
 	if (!req && !opts) {
@@ -4193,7 +4193,7 @@ reject_it:
 /*
  *  chip handler for WIDE DATA TRANSFER REQUEST (WDTR) message.
  */
-static int  
+static int
 sym_wide_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 {
 	int target = cp->target;
@@ -4223,7 +4223,7 @@ sym_wide_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 	}
 
 	/*
-	 *  If it was an answer we want to change, 
+	 *  If it was an answer we want to change,
 	 *  then it isn't acceptable. Reject it.
 	 */
 	if (!req && chg)
@@ -4284,7 +4284,7 @@ static void sym_wide_nego(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb
 	} else {		/* Was a response. */
 		/*
 		 * Negotiate for SYNC immediately after WIDE response.
-		 * This allows to negotiate for both WIDE and SYNC on 
+		 * This allows to negotiate for both WIDE and SYNC on
 		 * a single SCSI command (Suggested by Justin Gibbs).
 		 */
 		if (tp->tgoal.offset) {
@@ -4313,12 +4313,12 @@ reject_it:
 /*
  *  Reset DT, SYNC or WIDE to default settings.
  *
- *  Called when a negotiation does not succeed either 
+ *  Called when a negotiation does not succeed either
  *  on rejection or on protocol error.
  *
- *  A target that understands a PPR message should never 
+ *  A target that understands a PPR message should never
  *  reject it, and messing with it is very unlikely.
- *  So, if a PPR makes problems, we may just want to 
+ *  So, if a PPR makes problems, we may just want to
  *  try a legacy negotiation later.
  */
 static void sym_nego_default(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb *cp)
@@ -4349,7 +4349,7 @@ static void sym_nego_default(struct sym_hcb *np, struct sym_tcb *tp, struct sym_
 }
 
 /*
- *  chip handler for MESSAGE REJECT received in response to 
+ *  chip handler for MESSAGE REJECT received in response to
  *  PPR, WIDE or SYNCHRONOUS negotiation.
  */
 static void sym_nego_rejected(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb *cp)
@@ -4382,7 +4382,7 @@ static void sym_int_sir(struct sym_hcb *np)
 	switch (num) {
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 2
 	/*
-	 *  SCRIPTS tell us that we may have to update 
+	 *  SCRIPTS tell us that we may have to update
 	 *  64 bit DMA segment registers.
 	 */
 	case SIR_DMAP_DIRTY:
@@ -4390,7 +4390,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		goto out;
 #endif
 	/*
-	 *  Command has been completed with error condition 
+	 *  Command has been completed with error condition
 	 *  or has been auto-sensed.
 	 */
 	case SIR_COMPLETE_ERROR:
@@ -4406,7 +4406,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		sym_sir_task_recovery(np, num);
 		return;
 	/*
-	 *  The device didn't go to MSG OUT phase after having 
+	 *  The device didn't go to MSG OUT phase after having
 	 *  been selected with ATN.  We do not want to handle that.
 	 */
 	case SIR_SEL_ATN_NO_MSG_OUT:
@@ -4414,7 +4414,7 @@ static void sym_int_sir(struct sym_hcb *np)
 				"No MSG OUT phase after selection with ATN\n");
 		goto out_stuck;
 	/*
-	 *  The device didn't switch to MSG IN phase after 
+	 *  The device didn't switch to MSG IN phase after
 	 *  having reselected the initiator.
 	 */
 	case SIR_RESEL_NO_MSG_IN:
@@ -4422,7 +4422,7 @@ static void sym_int_sir(struct sym_hcb *np)
 				"No MSG IN phase after reselection\n");
 		goto out_stuck;
 	/*
-	 *  After reselection, the device sent a message that wasn't 
+	 *  After reselection, the device sent a message that wasn't
 	 *  an IDENTIFY.
 	 */
 	case SIR_RESEL_NO_IDENTIFY:
@@ -4436,7 +4436,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		np->msgout[0] = M_RESET;
 		goto out;
 	/*
-	 *  The device reselected for an untagged nexus and we 
+	 *  The device reselected for an untagged nexus and we
 	 *  haven't any.
 	 */
 	case SIR_RESEL_BAD_I_T_L:
@@ -4449,7 +4449,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		np->msgout[0] = M_ABORT_TAG;
 		goto out;
 	/*
-	 *  The SCRIPTS let us know that the device has grabbed 
+	 *  The SCRIPTS let us know that the device has grabbed
 	 *  our message and will abort the job.
 	 */
 	case SIR_RESEL_ABORTED:
@@ -4459,7 +4459,7 @@ static void sym_int_sir(struct sym_hcb *np)
 			"message %x sent on bad reselection\n", np->lastmsg);
 		goto out;
 	/*
-	 *  The SCRIPTS let us know that a message has been 
+	 *  The SCRIPTS let us know that a message has been
 	 *  successfully sent to the device.
 	 */
 	case SIR_MSG_OUT_DONE:
@@ -4476,7 +4476,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		goto out;
 	/*
 	 *  The device didn't send a GOOD SCSI status.
-	 *  We may have some work to do prior to allow 
+	 *  We may have some work to do prior to allow
 	 *  the SCRIPTS processor to continue.
 	 */
 	case SIR_BAD_SCSI_STATUS:
@@ -4485,7 +4485,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		sym_sir_bad_scsi_status(np, num, cp);
 		return;
 	/*
-	 *  We are asked by the SCRIPTS to prepare a 
+	 *  We are asked by the SCRIPTS to prepare a
 	 *  REJECT message.
 	 */
 	case SIR_REJECT_TO_SEND:
@@ -4493,8 +4493,8 @@ static void sym_int_sir(struct sym_hcb *np)
 		np->msgout[0] = M_REJECT;
 		goto out;
 	/*
-	 *  We have been ODD at the end of a DATA IN 
-	 *  transfer and the device didn't send a 
+	 *  We have been ODD at the end of a DATA IN
+	 *  transfer and the device didn't send a
 	 *  IGNORE WIDE RESIDUE message.
 	 *  It is a data overrun condition.
 	 */
@@ -4505,7 +4505,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		}
 		goto out;
 	/*
-	 *  We have been ODD at the end of a DATA OUT 
+	 *  We have been ODD at the end of a DATA OUT
 	 *  transfer.
 	 *  It is a data underrun condition.
 	 */
@@ -4516,7 +4516,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		}
 		goto out;
 	/*
-	 *  The device wants us to tranfer more data than 
+	 *  The device wants us to tranfer more data than
 	 *  expected or in the wrong direction.
 	 *  The number of extra bytes is in scratcha.
 	 *  It is a data overrun condition.
@@ -4546,7 +4546,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		switch (np->msgin [0]) {
 		/*
 		 *  We received an extended message.
-		 *  We handle MODIFY DATA POINTER, SDTR, WDTR 
+		 *  We handle MODIFY DATA POINTER, SDTR, WDTR
 		 *  and reject all other extended messages.
 		 */
 		case M_EXTENDED:
@@ -4555,7 +4555,7 @@ static void sym_int_sir(struct sym_hcb *np)
 				if (DEBUG_FLAGS & DEBUG_POINTER)
 					sym_print_msg(cp, "extended msg ",
 						      np->msgin);
-				tmp = (np->msgin[3]<<24) + (np->msgin[4]<<16) + 
+				tmp = (np->msgin[3]<<24) + (np->msgin[4]<<16) +
 				      (np->msgin[5]<<8)  + (np->msgin[6]);
 				sym_modify_dp(np, tp, cp, tmp);
 				return;
@@ -4574,9 +4574,9 @@ static void sym_int_sir(struct sym_hcb *np)
 			break;
 		/*
 		 *  We received a 1/2 byte message not handled from SCRIPTS.
-		 *  We are only expecting MESSAGE REJECT and IGNORE WIDE 
-		 *  RESIDUE messages that haven't been anticipated by 
-		 *  SCRIPTS on SWIDE full condition. Unanticipated IGNORE 
+		 *  We are only expecting MESSAGE REJECT and IGNORE WIDE
+		 *  RESIDUE messages that haven't been anticipated by
+		 *  SCRIPTS on SWIDE full condition. Unanticipated IGNORE
 		 *  WIDE RESIDUE messages are aliased as MODIFY DP (-1).
 		 */
 		case M_IGN_RESIDUE:
@@ -4684,7 +4684,7 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 			}
 			/*
 			 *  Get a tag for this SCSI IO and set up
-			 *  the CCB bus address for reselection, 
+			 *  the CCB bus address for reselection,
 			 *  and count it for this LUN.
 			 *  Toggle reselect path to tagged.
 			 */
@@ -4709,7 +4709,7 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 		}
 		/*
 		 *  This command will not be tagged.
-		 *  If we already have either a tagged or untagged 
+		 *  If we already have either a tagged or untagged
 		 *  one, refuse to overlap this untagged one.
 		 */
 		else {
@@ -4784,7 +4784,7 @@ void sym_free_ccb (struct sym_hcb *np, struct sym_ccb *cp)
 	 */
 	if (lp) {
 		/*
-		 *  If tagged, release the tag, set the relect path 
+		 *  If tagged, release the tag, set the relect path
 		 */
 		if (cp->tag != NO_TAG) {
 #ifdef SYM_OPT_LIMIT_COMMAND_REORDERING
@@ -4797,14 +4797,14 @@ void sym_free_ccb (struct sym_hcb *np, struct sym_ccb *cp)
 			if (++lp->if_tag == SYM_CONF_MAX_TASK)
 				lp->if_tag = 0;
 			/*
-			 *  Make the reselect path invalid, 
+			 *  Make the reselect path invalid,
 			 *  and uncount this CCB.
 			 */
 			lp->itlq_tbl[cp->tag] = cpu_to_scr(np->bad_itlq_ba);
 			--lp->busy_itlq;
 		} else {	/* Untagged */
 			/*
-			 *  Make the reselect path invalid, 
+			 *  Make the reselect path invalid,
 			 *  and uncount this CCB.
 			 */
 			lp->head.itl_task_sa = cpu_to_scr(np->bad_itl_ba);
@@ -4819,8 +4819,8 @@ void sym_free_ccb (struct sym_hcb *np, struct sym_ccb *cp)
 	}
 
 	/*
-	 *  We donnot queue more than 1 ccb per target 
-	 *  with negotiation at any time. If this ccb was 
+	 *  We donnot queue more than 1 ccb per target
+	 *  with negotiation at any time. If this ccb was
 	 *  used for negotiation, clear this info in the tcb.
 	 */
 	if (cp == tp->nego_cp)
@@ -4867,7 +4867,7 @@ static struct sym_ccb *sym_alloc_ccb(struct sym_hcb *np)
 	int hcode;
 
 	/*
-	 *  Prevent from allocating more CCBs than we can 
+	 *  Prevent from allocating more CCBs than we can
 	 *  queue to the controller.
 	 */
 	if (np->actccbs >= SYM_CONF_MAX_START)
@@ -4954,7 +4954,7 @@ static void sym_init_tcb (struct sym_hcb *np, u_char tn)
 #if 0	/*  Hmmm... this checking looks paranoid. */
 	/*
 	 *  Check some alignments required by the chip.
-	 */	
+	 */
 	assert (((offsetof(struct sym_reg, nc_sxfer) ^
 		offsetof(struct sym_tcb, head.sval)) &3) == 0);
 	assert (((offsetof(struct sym_reg, nc_scntl3) ^
@@ -5053,7 +5053,7 @@ static void sym_alloc_lcb_tags (struct sym_hcb *np, u_char tn, u_char ln)
 	int i;
 
 	/*
-	 *  Allocate the task table and and the tag allocation 
+	 *  Allocate the task table and and the tag allocation
 	 *  circular buffer. We want both or none.
 	 */
 	lp->itlq_tbl = sym_calloc_dma(SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
@@ -5078,7 +5078,7 @@ static void sym_alloc_lcb_tags (struct sym_hcb *np, u_char tn, u_char ln)
 		lp->cb_tags[i] = i;
 
 	/*
-	 *  Make the task table available to SCRIPTS, 
+	 *  Make the task table available to SCRIPTS,
 	 *  And accept tagged commands now.
 	 */
 	lp->head.itlq_tbl_sa = cpu_to_scr(vtobus(lp->itlq_tbl));
@@ -5176,8 +5176,8 @@ int sym_queue_scsiio(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *
 #ifdef SYM_OPT_LIMIT_COMMAND_REORDERING
 		/*
 		 *  Avoid too much reordering of SCSI commands.
-		 *  The algorithm tries to prevent completion of any 
-		 *  tagged command from being delayed against more 
+		 *  The algorithm tries to prevent completion of any
+		 *  tagged command from being delayed against more
 		 *  than 3 times the max number of queued commands.
 		 */
 		if (lp && lp->tags_since > 3*SYM_CONF_MAX_TAG) {
@@ -5195,10 +5195,10 @@ int sym_queue_scsiio(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *
 		msgptr[msglen++] = order;
 
 		/*
-		 *  For less than 128 tags, actual tags are numbered 
-		 *  1,3,5,..2*MAXTAGS+1,since we may have to deal 
-		 *  with devices that have problems with #TAG 0 or too 
-		 *  great #TAG numbers. For more tags (up to 256), 
+		 *  For less than 128 tags, actual tags are numbered
+		 *  1,3,5,..2*MAXTAGS+1,since we may have to deal
+		 *  with devices that have problems with #TAG 0 or too
+		 *  great #TAG numbers. For more tags (up to 256),
 		 *  we use directly our tag number.
 		 */
 #if SYM_CONF_MAX_TASK > (512/4)
@@ -5260,7 +5260,7 @@ int sym_queue_scsiio(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *
 	cp->ext_ofs = 0;
 
 	/*
-	 *  Build the CDB and DATA descriptor block 
+	 *  Build the CDB and DATA descriptor block
 	 *  and start the IO.
 	 */
 	return sym_setup_data_and_start(np, cmd, cp);
@@ -5339,13 +5339,13 @@ int sym_abort_scsiio(struct sym_hcb *np, struct scsi_cmnd *cmd, int timed_out)
 }
 
 /*
- *  Complete execution of a SCSI command with extended 
+ *  Complete execution of a SCSI command with extended
  *  error, SCSI status error, or having been auto-sensed.
  *
- *  The SCRIPTS processor is not running there, so we 
- *  can safely access IO registers and remove JOBs from  
+ *  The SCRIPTS processor is not running there, so we
+ *  can safely access IO registers and remove JOBs from
  *  the START queue.
- *  SCRATCHA is assumed to have been loaded with STARTPOS 
+ *  SCRATCHA is assumed to have been loaded with STARTPOS
  *  before the SCRIPTS called the C code.
  */
 void sym_complete_error(struct sym_hcb *np, struct sym_ccb *cp)
@@ -5401,7 +5401,7 @@ if (resid)
 #endif
 
 	/*
-	 *  Dequeue all queued CCBs for that device 
+	 *  Dequeue all queued CCBs for that device
 	 *  not yet started by SCRIPTS.
 	 */
 	i = (INL(np, nc_scratcha) - np->squeue_ba) / 4;
@@ -5457,7 +5457,7 @@ finish:
 	sym_insque_head(&cp->link_ccbq, &np->comp_ccbq);
 
 	/*
-	 *  Complete all those commands with either error 
+	 *  Complete all those commands with either error
 	 *  or requeue condition.
 	 */
 	sym_flush_comp_queue(np, 0);
@@ -5473,10 +5473,10 @@ finish:
 /*
  *  Complete execution of a successful SCSI command.
  *
- *  Only successful commands go to the DONE queue, 
- *  since we need to have the SCRIPTS processor 
+ *  Only successful commands go to the DONE queue,
+ *  since we need to have the SCRIPTS processor
  *  stopped on any error condition.
- *  The SCRIPTS processor is running while we are 
+ *  The SCRIPTS processor is running while we are
  *  completing successful commands.
  */
 void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
@@ -5513,8 +5513,8 @@ void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
 		resid = sym_compute_residual(np, cp);
 
 	/*
-	 *  Wrong transfer residuals may be worse than just always 
-	 *  returning zero. User can disable this feature in 
+	 *  Wrong transfer residuals may be worse than just always
+	 *  returning zero. User can disable this feature in
 	 *  sym53c8xx.h. Residual support is enabled by default.
 	 */
 	if (!SYM_SETUP_RESIDUAL_SUPPORT)
@@ -5584,27 +5584,27 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	np->fw_name	 = fw->name;
 
 	/*
-	 *  Save setting of some IO registers, so we will 
+	 *  Save setting of some IO registers, so we will
 	 *  be able to probe specific implementations.
 	 */
 	sym_save_initial_setting (np);
 
 	/*
-	 *  Reset the chip now, since it has been reported 
-	 *  that SCSI clock calibration may not work properly 
+	 *  Reset the chip now, since it has been reported
+	 *  that SCSI clock calibration may not work properly
 	 *  if the chip is currently active.
 	 */
 	sym_chip_reset(np);
 
 	/*
-	 *  Prepare controller and devices settings, according 
+	 *  Prepare controller and devices settings, according
 	 *  to chip features, user set-up and driver set-up.
 	 */
 	sym_prepare_setting(shost, np, nvram);
 
 	/*
 	 *  Check the PCI clock frequency.
-	 *  Must be performed after prepare_setting since it destroys 
+	 *  Must be performed after prepare_setting since it destroys
 	 *  STEST1 that is used to probe for the clock doubler.
 	 */
 	i = sym_getpciclock(np);
@@ -5660,7 +5660,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	sym_que_init(&np->comp_ccbq);
 
 	/*
-	 *  Initialization for optional handling 
+	 *  Initialization for optional handling
 	 *  of device queueing.
 	 */
 #ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
@@ -5673,7 +5673,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 		goto attach_failed;
 
 	/*
-	 *  Calculate BUS addresses where we are going 
+	 *  Calculate BUS addresses where we are going
 	 *  to load the SCRIPTS.
 	 */
 	np->scripta_ba	= vtobus(np->scripta0);
@@ -5704,7 +5704,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	np->fw_setup(np, fw);
 
 	/*
-	 *  Bind SCRIPTS with physical addresses usable by the 
+	 *  Bind SCRIPTS with physical addresses usable by the
 	 *  SCRIPTS processor (as seen from the BUS = BUS addresses).
 	 */
 	sym_fw_bind_script(np, (u32 *) np->scripta0, np->scripta_sz);
@@ -5713,9 +5713,9 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 
 #ifdef SYM_CONF_IARB_SUPPORT
 	/*
-	 *    If user wants IARB to be set when we win arbitration 
-	 *    and have other jobs, compute the max number of consecutive 
-	 *    settings of IARB hints before we leave devices a chance to 
+	 *    If user wants IARB to be set when we win arbitration
+	 *    and have other jobs, compute the max number of consecutive
+	 *    settings of IARB hints before we leave devices a chance to
 	 *    arbitrate for reselection.
 	 */
 #ifdef	SYM_SETUP_IARB_MAX
@@ -5745,9 +5745,9 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	np->bad_itlq_ba		= vtobus(&np->bad_itlq);
 
 	/*
-	 *  Allocate and prepare the lun JUMP table that is used 
+	 *  Allocate and prepare the lun JUMP table that is used
 	 *  for a target prior the probing of devices (bad lun table).
-	 *  A private table will be allocated for the target on the 
+	 *  A private table will be allocated for the target on the
 	 *  first INQUIRY response received.
 	 */
 	np->badluntbl = sym_calloc_dma(256, "BADLUNTBL");
@@ -5758,7 +5758,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	memset32(np->badluntbl, cpu_to_scr(vtobus(&np->badlun_sa)), 64);
 
 	/*
-	 *  Prepare the bus address array that contains the bus 
+	 *  Prepare the bus address array that contains the bus
 	 *  address of each target control block.
 	 *  For now, assume all logical units are wrong. :)
 	 */
@@ -5825,7 +5825,7 @@ void sym_hcb_free(struct sym_hcb *np)
 			sym_mfree_dma(tp->luntbl, 256, "LUNTBL");
 #if SYM_CONF_MAX_LUN > 1
 		kfree(tp->lunmp);
-#endif 
+#endif
 	}
 	if (np->targtbl)
 		sym_mfree_dma(np->targtbl, 256, "TARGTBL");

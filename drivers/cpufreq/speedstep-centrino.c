@@ -332,7 +332,7 @@ static unsigned int get_cur_freq(unsigned int cpu)
 		/*
 		 * On some CPUs, we can see transient MSR values (which are
 		 * not present in _PSS), while CPU is doing some automatic
-		 * P-state transition (like TM2). Get the last freq set 
+		 * P-state transition (like TM2). Get the last freq set
 		 * in PERF_CTL.
 		 */
 		rdmsr_on_cpu(cpu, MSR_IA32_PERF_CTL, &l, &h);

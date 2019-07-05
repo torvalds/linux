@@ -426,15 +426,15 @@ struct nsp_sync_table {
 
 static struct nsp_sync_table nsp_sync_table_40M[] = {
 	{0x0c, 0x0c, 0x1, 0},	/* 20MB	  50ns*/
-	{0x19, 0x19, 0x3, 1},	/* 10MB	 100ns*/ 
-	{0x1a, 0x25, 0x5, 2},	/* 7.5MB 150ns*/ 
+	{0x19, 0x19, 0x3, 1},	/* 10MB	 100ns*/
+	{0x1a, 0x25, 0x5, 2},	/* 7.5MB 150ns*/
 	{0x26, 0x32, 0x7, 3},	/* 5MB	 200ns*/
 	{   0,    0,   0, 0},
 };
 
 static struct nsp_sync_table nsp_sync_table_20M[] = {
-	{0x19, 0x19, 0x1, 0},	/* 10MB	 100ns*/ 
-	{0x1a, 0x25, 0x2, 0},	/* 7.5MB 150ns*/ 
+	{0x19, 0x19, 0x1, 0},	/* 10MB	 100ns*/
+	{0x1a, 0x25, 0x2, 0},	/* 7.5MB 150ns*/
 	{0x26, 0x32, 0x3, 1},	/* 5MB	 200ns*/
 	{   0,    0,   0, 0},
 };
@@ -1297,7 +1297,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 	}
 
 	//nsp_dbg(NSP_DEBUG_INTR, "out");
-	return IRQ_HANDLED; 	
+	return IRQ_HANDLED;
 
 timer_out:
 	nsp_start_timer(tmpSC, 1000/102);

@@ -173,7 +173,7 @@ Each pipe has two sink pads and three source pads for the following purpose:
       - source
       - 3A statistics
 
-Each pad is connected to a corresponding V4L2 video interface, exposed to 
+Each pad is connected to a corresponding V4L2 video interface, exposed to
 userspace as a V4L2 video device node.
 
 Device operation

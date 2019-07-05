@@ -10,7 +10,7 @@ Overview
 --------
 
 Plug and Play provides a means of detecting and setting resources for legacy or
-otherwise unconfigurable devices.  The Linux Plug and Play Layer provides these 
+otherwise unconfigurable devices.  The Linux Plug and Play Layer provides these
 services to compatible drivers.
 
 
@@ -18,7 +18,7 @@ The User Interface
 ------------------
 
 The Linux Plug and Play user interface provides a means to activate PnP devices
-for legacy and user level drivers that do not support Linux Plug and Play.  The 
+for legacy and user level drivers that do not support Linux Plug and Play.  The
 user interface is integrated into sysfs.
 
 In addition to the standard sysfs file the following are created in each
@@ -113,9 +113,9 @@ The Unified Plug and Play Layer
 -------------------------------
 
 All Plug and Play drivers, protocols, and services meet at a central location
-called the Plug and Play Layer.  This layer is responsible for the exchange of 
-information between PnP drivers and PnP protocols.  Thus it automatically 
-forwards commands to the proper protocol.  This makes writing PnP drivers 
+called the Plug and Play Layer.  This layer is responsible for the exchange of
+information between PnP drivers and PnP protocols.  Thus it automatically
+forwards commands to the proper protocol.  This makes writing PnP drivers
 significantly easier.
 
 The following functions are available from the Plug and Play Layer:

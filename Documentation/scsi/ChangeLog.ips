@@ -1,59 +1,59 @@
 IBM ServeRAID driver Change Log
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        5.00.01  - Sarasota ( 5i ) adapters must always be scanned first  
-                 - Get rid on IOCTL_NEW_COMMAND code  
-                 - Add Extended DCDB Commands for Tape Support in 5I                  
-        
+        5.00.01  - Sarasota ( 5i ) adapters must always be scanned first
+                 - Get rid on IOCTL_NEW_COMMAND code
+                 - Add Extended DCDB Commands for Tape Support in 5I
+
         4.90.11  - Don't actually RESET unless it's physically required
                  - Remove unused compile options
-        
+
         4.90.08  - Data Corruption if First Scatter Gather Element is > 64K
-        
-        4.90.08  - Increase Delays in Flashing ( Trombone Only - 4H )        
-        
+
+        4.90.08  - Increase Delays in Flashing ( Trombone Only - 4H )
+
         4.90.05  - Use New PCI Architecture to facilitate Hot Plug Development
-        
+
         4.90.01  - Add ServeRAID Version Checking
 
         4.80.26  - Clean up potential code problems ( Arjan's recommendations )
-        
-        4.80.21  - Change memcpy() to copy_to_user() in NVRAM Page 5 IOCTL path   
-        
+
+        4.80.21  - Change memcpy() to copy_to_user() in NVRAM Page 5 IOCTL path
+
         4.80.20  - Set max_sectors in Scsi_Host structure ( if >= 2.4.7 kernel )
                  - 5 second delay needed after resetting an i960 adapter
-        
-        4.80.14  - Take all semaphores off stack                    
-                 - Clean Up New_IOCTL path
-                   
-        4.80.04  - Eliminate calls to strtok() if 2.4.x or greater 
-                 - Adjustments to Device Queue Depth               
 
-        4.80.00  - Make ia64 Safe    
-        
-        4.72.01  - I/O Mapped Memory release ( so "insmod ips" does not Fail )    
-                 - Don't Issue Internal FFDC Command if there are Active Commands 
-                 - Close Window for getting too many IOCTL's active 
-                   
-        4.72.00  - Allow for a Scatter-Gather Element to exceed MAX_XFER Size     
-        
-        4.71.00  - Change all memory allocations to not use GFP_DMA flag 
-                 - Code Clean-Up for 2.4.x kernel      
-        
+        4.80.14  - Take all semaphores off stack
+                 - Clean Up New_IOCTL path
+
+        4.80.04  - Eliminate calls to strtok() if 2.4.x or greater
+                 - Adjustments to Device Queue Depth
+
+        4.80.00  - Make ia64 Safe
+
+        4.72.01  - I/O Mapped Memory release ( so "insmod ips" does not Fail )
+                 - Don't Issue Internal FFDC Command if there are Active Commands
+                 - Close Window for getting too many IOCTL's active
+
+        4.72.00  - Allow for a Scatter-Gather Element to exceed MAX_XFER Size
+
+        4.71.00  - Change all memory allocations to not use GFP_DMA flag
+                 - Code Clean-Up for 2.4.x kernel
+
         4.70.15  - Fix Breakup for very large ( non-SG ) requests
-        
-        4.70.13  - Don't release HA Lock in ips_next() until SC taken off queue  
-                 - Unregister SCSI device in ips_release()                        
-                 - Don't Send CDB's if we already know the device is not present  
-                 
+
+        4.70.13  - Don't release HA Lock in ips_next() until SC taken off queue
+                 - Unregister SCSI device in ips_release()
+                 - Don't Send CDB's if we already know the device is not present
+
         4.70.12  - Corrective actions for bad controller ( during initialization )
-        
-        4.70.09  - Use a Common ( Large Buffer ) for Flashing from the JCRM CD    
-                 - Add IPSSEND Flash Support                                      
-                 - Set Sense Data for Unknown SCSI Command                        
-                 - Use Slot Number from NVRAM Page 5 
+
+        4.70.09  - Use a Common ( Large Buffer ) for Flashing from the JCRM CD
+                 - Add IPSSEND Flash Support
+                 - Set Sense Data for Unknown SCSI Command
+                 - Use Slot Number from NVRAM Page 5
                  - Restore caller's DCDB Structure
-                                       
+
         4.20.14  - Update patch files for kernel 2.4.0-test5
 
         4.20.13  - Fix some failure cases / reset code

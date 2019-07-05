@@ -106,7 +106,7 @@ Reason:   Either the router's kernel is not configured for IP
 	  computers.
 
 If your problem is not listed here, please contact our
-technical support for help. 
+technical support for help.
 You can send email to:
   linux@syskonnect.de
 When contacting our technical support,

@@ -62,7 +62,7 @@ static void amiga_write_control(struct parport *p, unsigned char control)
 	DPRINTK(KERN_DEBUG "write_control %02x\n",control);
 	/* No implementation possible */
 }
-	
+
 static unsigned char amiga_read_control( struct parport *p)
 {
 	DPRINTK(KERN_DEBUG "read_control \n");

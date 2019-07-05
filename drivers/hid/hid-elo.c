@@ -193,7 +193,7 @@ static bool elo_broken_firmware(struct usb_device *dev)
 	u16 fw_lvl = le16_to_cpu(dev->descriptor.bcdDevice);
 	u16 child_vid, child_pid;
 	int i;
-    
+
 	if (!use_fw_quirk)
 		return false;
 	if (fw_lvl != 0x10d)
@@ -205,8 +205,8 @@ static bool elo_broken_firmware(struct usb_device *dev)
 		child_pid = le16_to_cpu(child->descriptor.idProduct);
 
 		/*
-		 * If one of the devices below is present attached as a sibling of 
-		 * the touch controller then  this is a newer IBM 4820 monitor that 
+		 * If one of the devices below is present attached as a sibling of
+		 * the touch controller then  this is a newer IBM 4820 monitor that
 		 * does not need the IBM-requested workaround if fw level is
 		 * 0x010d - aka 'M'.
 		 * No other HW can have this combination.

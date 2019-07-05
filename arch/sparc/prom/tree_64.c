@@ -311,7 +311,7 @@ EXPORT_SYMBOL(prom_finddevice);
 int prom_node_has_property(phandle node, const char *prop)
 {
 	char buf [32];
-        
+
 	*buf = 0;
 	do {
 		prom_nextprop(node, buf, buf);
@@ -334,7 +334,7 @@ prom_setprop(phandle node, const char *pname, char *value, int size)
 		return 0;
 	if ((pname == 0) || (value == 0))
 		return 0;
-	
+
 #ifdef CONFIG_SUN_LDOMS
 	if (ldom_domaining_enabled) {
 		ldom_set_var(pname, value);
@@ -360,7 +360,7 @@ inline phandle prom_inst2pkg(int inst)
 {
 	unsigned long args[5];
 	phandle node;
-	
+
 	args[0] = (unsigned long) "instance-to-package";
 	args[1] = 1;
 	args[2] = 1;

@@ -9,7 +9,7 @@
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
  * the License for the specific language governing rights and
- * limitations under the License. 
+ * limitations under the License.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -142,7 +142,7 @@ static void ricoh_zoom_video(struct pcmcia_socket *sock, int onoff)
                 reg |=  RL5C4XX_ZV_ENABLE;
         else
                 reg &= ~RL5C4XX_ZV_ENABLE;
-	
+
         config_writeb(socket, RL5C4XX_MISC_CONTROL, reg);
 }
 
@@ -155,7 +155,7 @@ static void ricoh_set_zv(struct yenta_socket *socket)
                         /* There may be more .. */
 		case  PCI_DEVICE_ID_RICOH_RL5C478:
 			socket->socket.zoom_video = ricoh_zoom_video;
-			break;  
+			break;
                 }
         }
 }

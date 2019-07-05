@@ -398,7 +398,7 @@ static void wm8958_dsp_apply(struct snd_soc_component *component, int path, int 
 			return;
 
 		snd_soc_component_update_bits(component, WM8958_DSP2_CONFIG,
-				    WM8958_MBC_ENA, 0);	
+				    WM8958_MBC_ENA, 0);
 		snd_soc_component_write(component, WM8958_DSP2_EXECCONTROL,
 			      WM8958_DSP2_STOP);
 		snd_soc_component_update_bits(component, WM8958_DSP2_PROGRAM,

@@ -136,7 +136,7 @@ static __inline__ void scm_recv(struct socket *sock, struct msghdr *msg,
 
 	if (!scm->fp)
 		return;
-	
+
 	scm_detach_fds(msg, scm);
 }
 

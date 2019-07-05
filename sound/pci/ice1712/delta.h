@@ -9,7 +9,7 @@
  *                          Digigram VX442
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- */      
+ */
 
 #define DELTA_DEVICE_DESC \
 		"{MidiMan M Audio,Delta 1010},"\

@@ -27,8 +27,8 @@ multipath-y	+= md-multipath.o
 faulty-y	+= md-faulty.o
 
 # Note: link order is important.  All raid personalities
-# and must come before md.o, as they each initialise 
-# themselves, and md.o may use the personalities when it 
+# and must come before md.o, as they each initialise
+# themselves, and md.o may use the personalities when it
 # auto-initialised.
 
 obj-$(CONFIG_MD_LINEAR)		+= linear.o

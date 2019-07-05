@@ -179,7 +179,7 @@ static int snd_dt019x_input_sw_get(struct snd_kcontrol *kcontrol, struct snd_ctl
 	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	unsigned char oval;
-	
+
 	spin_lock_irqsave(&sb->mixer_lock, flags);
 	oval = snd_sbmixer_read(sb, SB_DT019X_CAPTURE_SW);
 	spin_unlock_irqrestore(&sb->mixer_lock, flags);
@@ -216,7 +216,7 @@ static int snd_dt019x_input_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 	unsigned long flags;
 	int change;
 	unsigned char nval, oval;
-	
+
 	if (ucontrol->value.enumerated.item[0] > 4)
 		return -EINVAL;
 	switch (ucontrol->value.enumerated.item[0]) {
@@ -320,7 +320,7 @@ static int snd_sb8mixer_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	unsigned char oval;
-	
+
 	spin_lock_irqsave(&sb->mixer_lock, flags);
 	oval = snd_sbmixer_read(sb, SB_DSP_CAPTURE_SOURCE);
 	spin_unlock_irqrestore(&sb->mixer_lock, flags);
@@ -344,7 +344,7 @@ static int snd_sb8mixer_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	unsigned long flags;
 	int change;
 	unsigned char nval, oval;
-	
+
 	if (ucontrol->value.enumerated.item[0] > 2)
 		return -EINVAL;
 	switch (ucontrol->value.enumerated.item[0]) {
@@ -400,7 +400,7 @@ static int snd_sb16mixer_get_input_sw(struct snd_kcontrol *kcontrol, struct snd_
 	ucontrol->value.integer.value[2] = (val1 >> right_shift) & 0x01;
 	ucontrol->value.integer.value[3] = (val2 >> right_shift) & 0x01;
 	return 0;
-}                                                                                                                   
+}
 
 static int snd_sb16mixer_put_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

@@ -155,7 +155,7 @@ struct snd_ali_channel_control {
 		unsigned int aint;
 		unsigned int ainten;
 	} data;
-		
+
 	/* register addresses */
 	struct REGS {
 		unsigned int start;
@@ -181,7 +181,7 @@ struct snd_ali_voice {
 	struct snd_ali *codec;
 	struct snd_pcm_substream *substream;
 	struct snd_ali_voice *extra;
-	
+
 	int eso;                /* final ESO value for channel */
 	int count;              /* runtime->period_size */
 
@@ -194,7 +194,7 @@ struct snd_ali_voice {
 
 struct snd_alidev {
 
-	struct snd_ali_voice voices[ALI_CHANNELS];	
+	struct snd_ali_voice voices[ALI_CHANNELS];
 
 	unsigned int	chcnt;			/* num of opened channels */
 	unsigned int	chmap;			/* bitmap for opened channels */
@@ -267,7 +267,7 @@ static void snd_ali_codec_poke(struct snd_ali *, int, unsigned short,
 static inline unsigned int snd_ali_5451_peek(struct snd_ali *codec,
 					     unsigned int port)
 {
-	return (unsigned int)inl(ALI_REG(codec, port)); 
+	return (unsigned int)inl(ALI_REG(codec, port));
 }
 
 static inline void snd_ali_5451_poke(struct snd_ali *codec,
@@ -282,7 +282,7 @@ static int snd_ali_codec_ready(struct snd_ali *codec,
 {
 	unsigned long end_time;
 	unsigned int res;
-	
+
 	end_time = jiffies + msecs_to_jiffies(250);
 
 	for (;;) {
@@ -303,7 +303,7 @@ static int snd_ali_stimer_ready(struct snd_ali *codec)
 {
 	unsigned long end_time;
 	unsigned long dwChk1,dwChk2;
-	
+
 	dwChk1 = snd_ali_5451_peek(codec, ALI_STIMER);
 	end_time = jiffies + msecs_to_jiffies(250);
 
@@ -383,7 +383,7 @@ static unsigned short snd_ali_codec_peek(struct snd_ali *codec,
 		return ~0;
 	if (snd_ali_codec_ready(codec, port) < 0)
 		return ~0;
-	
+
 	return (snd_ali_5451_peek(codec, port) & 0xffff0000) >> 16;
 }
 
@@ -422,7 +422,7 @@ static int snd_ali_reset_5451(struct snd_ali *codec)
 	struct pci_dev *pci_dev;
 	unsigned short wCount, wReg;
 	unsigned int   dwVal;
-	
+
 	pci_dev = codec->pci_m1533;
 	if (pci_dev) {
 		pci_read_config_dword(pci_dev, 0x7c, &dwVal);
@@ -432,7 +432,7 @@ static int snd_ali_reset_5451(struct snd_ali *codec)
 		pci_write_config_dword(pci_dev, 0x7c, dwVal & 0xf7ffffff);
 		mdelay(5);
 	}
-	
+
 	pci_dev = codec->pci;
 	pci_read_config_dword(pci_dev, 0x44, &dwVal);
 	pci_write_config_dword(pci_dev, 0x44, dwVal | 0x000c0000);
@@ -440,7 +440,7 @@ static int snd_ali_reset_5451(struct snd_ali *codec)
 	pci_read_config_dword(pci_dev, 0x44, &dwVal);
 	pci_write_config_dword(pci_dev, 0x44, dwVal & 0xfffbffff);
 	mdelay(5);
-	
+
 	wCount = 200;
 	while(wCount--) {
 		wReg = snd_ali_codec_peek(codec, 0, AC97_POWERDOWN);
@@ -709,7 +709,7 @@ static unsigned int snd_ali_get_spdif_in_rate(struct snd_ali *codec)
 }
 
 static void snd_ali_enable_spdif_in(struct snd_ali *codec)
-{	
+{
 	unsigned int dwVal;
 
 	dwVal = inl(ALI_REG(codec, ALI_GLOBAL_CONTROL));
@@ -726,12 +726,12 @@ static void snd_ali_enable_spdif_in(struct snd_ali *codec)
 static void snd_ali_disable_spdif_in(struct snd_ali *codec)
 {
 	unsigned int dwVal;
-	
+
 	dwVal = inl(ALI_REG(codec, ALI_GLOBAL_CONTROL));
 	dwVal &= ~ALI_SPDIF_IN_SUPPORT;
 	outl(dwVal, ALI_REG(codec, ALI_GLOBAL_CONTROL));
-	
-	snd_ali_disable_special_channel(codec, ALI_SPDIF_IN_CHANNEL);	
+
+	snd_ali_disable_special_channel(codec, ALI_SPDIF_IN_CHANNEL);
 }
 
 
@@ -739,20 +739,20 @@ static void snd_ali_set_spdif_out_rate(struct snd_ali *codec, unsigned int rate)
 {
 	unsigned char  bVal;
 	unsigned int  dwRate;
-	
+
 	switch (rate) {
 	case 32000: dwRate = 0x300; break;
 	case 48000: dwRate = 0x200; break;
 	default: dwRate = 0; break;
 	}
-	
+
 	bVal  = inb(ALI_REG(codec, ALI_SPDIF_CTRL));
 	bVal &= (unsigned char)(~(1<<6));
-	
+
 	bVal |= 0x80;		/* select right */
 	outb(bVal, ALI_REG(codec, ALI_SPDIF_CTRL));
 	outb(dwRate | 0x20, ALI_REG(codec, ALI_SPDIF_CS + 2));
-	
+
 	bVal &= ~0x80;	/* select left */
 	outb(bVal, ALI_REG(codec, ALI_SPDIF_CTRL));
 	outw(rate | 0x10, ALI_REG(codec, ALI_SPDIF_CS + 2));
@@ -784,7 +784,7 @@ static void snd_ali_enable_spdif_out(struct snd_ali *codec)
 
 	bVal = inb(ALI_REG(codec, ALI_SPDIF_CTRL));
 	outb(bVal & ALI_SPDIF_OUT_CH_STATUS, ALI_REG(codec, ALI_SPDIF_CTRL));
-   
+
 	wVal = inw(ALI_REG(codec, ALI_GLOBAL_CONTROL));
 	wVal |= ALI_SPDIF_OUT_SEL_PCM;
 	outw(wVal, ALI_REG(codec, ALI_GLOBAL_CONTROL));
@@ -802,7 +802,7 @@ static void snd_ali_enable_spdif_chnout(struct snd_ali *codec)
 	wVal = inw(ALI_REG(codec, ALI_SPDIF_CS));
 	if (flag & ALI_SPDIF_OUT_NON_PCM)
    		wVal |= 0x0002;
-	else	
+	else
 		wVal &= (~0x0002);
    	outw(wVal, ALI_REG(codec, ALI_SPDIF_CS));
 */
@@ -863,7 +863,7 @@ static void snd_ali_update_ptr(struct snd_ali *codec, int channel)
 		} else {
 			snd_ali_stop_voice(codec, channel);
 			snd_ali_disable_voice_irq(codec, channel);
-		}	
+		}
 	} else if (codec->synth.voices[channel].synth) {
 		/* synth interrupt */
 	} else if (codec->synth.voices[channel].midi) {
@@ -987,7 +987,7 @@ static void snd_ali_write_voice_regs(struct snd_ali *codec,
 			 unsigned int EC)
 {
 	unsigned int ctlcmds[4];
-	
+
 	outb((unsigned char)(Channel & 0x001f), ALI_REG(codec, ALI_GC_CIR));
 
 	ctlcmds[0] =  (CSO << 16) | (ALPHA_FMS & 0x0000ffff);
@@ -1035,7 +1035,7 @@ static unsigned int snd_ali_convert_rate(unsigned int rate, int rec)
 			delta = 0x2ab;
 		else if (rate == 48000)
 			delta = 0x1000;
-		else 
+		else
 			delta = (((rate << 12) + rate) / 48000) & 0x0000ffff;
 	}
 
@@ -1066,7 +1066,7 @@ static unsigned int snd_ali_control_mode(struct snd_pcm_substream *substream)
 
 static int snd_ali_trigger(struct snd_pcm_substream *substream,
 			       int cmd)
-				    
+
 {
 	struct snd_ali *codec = snd_pcm_substream_chip(substream);
 	struct snd_pcm_substream *s;
@@ -1144,7 +1144,7 @@ static int snd_ali_playback_hw_params(struct snd_pcm_substream *substream,
 				       params_buffer_bytes(hw_params));
 	if (err < 0)
 		return err;
-	
+
 	/* voice management */
 
 	if (params_buffer_size(hw_params) / 2 !=
@@ -1210,15 +1210,15 @@ static int snd_ali_playback_prepare(struct snd_pcm_substream *substream)
 	unsigned int PAN;
 	unsigned int VOL;
 	unsigned int EC;
-	
+
 	dev_dbg(codec->card->dev, "playback_prepare ...\n");
 
-	spin_lock_irq(&codec->reg_lock);	
-	
+	spin_lock_irq(&codec->reg_lock);
+
 	/* set Delta (rate) value */
 	Delta = snd_ali_convert_rate(runtime->rate, 0);
 
-	if (pvoice->number == ALI_SPDIF_IN_CHANNEL || 
+	if (pvoice->number == ALI_SPDIF_IN_CHANNEL ||
 	    pvoice->number == ALI_PCM_IN_CHANNEL)
 		snd_ali_disable_special_channel(codec, pvoice->number);
 	else if (codec->spdif_support &&
@@ -1228,7 +1228,7 @@ static int snd_ali_playback_prepare(struct snd_pcm_substream *substream)
 		snd_ali_set_spdif_out_rate(codec, runtime->rate);
 		Delta = 0x1000;
 	}
-	
+
 	/* set Loop Back Address */
 	LBA = runtime->dma_addr;
 
@@ -1236,7 +1236,7 @@ static int snd_ali_playback_prepare(struct snd_pcm_substream *substream)
 	pvoice->count = runtime->period_size;
 
 	/* set target ESO for channel */
-	pvoice->eso = runtime->buffer_size; 
+	pvoice->eso = runtime->buffer_size;
 
 	dev_dbg(codec->card->dev, "playback_prepare: eso=%xh count=%xh\n",
 		       pvoice->eso, pvoice->count);
@@ -1310,14 +1310,14 @@ static int snd_ali_prepare(struct snd_pcm_substream *substream)
 	snd_ali_enable_special_channel(codec,pvoice->number);
 
 	Delta = (pvoice->number == ALI_MODEM_IN_CHANNEL ||
-		 pvoice->number == ALI_MODEM_OUT_CHANNEL) ? 
+		 pvoice->number == ALI_MODEM_OUT_CHANNEL) ?
 		0x1000 : snd_ali_convert_rate(runtime->rate, pvoice->mode);
 
 	/* Prepare capture intr channel */
 	if (pvoice->number == ALI_SPDIF_IN_CHANNEL) {
 
 		unsigned int rate;
-		
+
 		spin_unlock_irq(&codec->reg_lock);
 		if (codec->revision != ALI_5451_V02)
 			return -1;
@@ -1341,7 +1341,7 @@ static int snd_ali_prepare(struct snd_pcm_substream *substream)
 	}
 
 	/* set target ESO for channel  */
-	pvoice->eso = runtime->buffer_size; 
+	pvoice->eso = runtime->buffer_size;
 
 	/* set interrupt count size  */
 	pvoice->count = runtime->period_size;
@@ -1770,7 +1770,7 @@ static int snd_ali5451_spdif_put(struct snd_kcontrol *kcontrol,
 			}
 		}
 		break;
-	case 1: 
+	case 1:
 		change = (codec->spdif_mask & 0x04) ? 1 : 0;
 		change = change ^ spdif_enable;
 		if (change && (codec->spdif_mask & 0x02)) {
@@ -1800,7 +1800,7 @@ static int snd_ali5451_spdif_put(struct snd_kcontrol *kcontrol,
 		break;
 	}
 	spin_unlock_irq(&codec->reg_lock);
-	
+
 	return change;
 }
 
@@ -1872,23 +1872,23 @@ static int ali_suspend(struct device *dev)
 		snd_ac97_suspend(chip->ac97[i]);
 
 	spin_lock_irq(&chip->reg_lock);
-	
+
 	im->regs[ALI_MISCINT >> 2] = inl(ALI_REG(chip, ALI_MISCINT));
 	/* im->regs[ALI_START >> 2] = inl(ALI_REG(chip, ALI_START)); */
 	im->regs[ALI_STOP >> 2] = inl(ALI_REG(chip, ALI_STOP));
-	
+
 	/* disable all IRQ bits */
 	outl(0, ALI_REG(chip, ALI_MISCINT));
-	
-	for (i = 0; i < ALI_GLOBAL_REGS; i++) {	
+
+	for (i = 0; i < ALI_GLOBAL_REGS; i++) {
 		if ((i*4 == ALI_MISCINT) || (i*4 == ALI_STOP))
 			continue;
 		im->regs[i] = inl(ALI_REG(chip, i*4));
 	}
-	
+
 	for (i = 0; i < ALI_CHANNELS; i++) {
 		outb(i, ALI_REG(chip, ALI_GC_CIR));
-		for (j = 0; j < ALI_CHANNEL_REGS; j++) 
+		for (j = 0; j < ALI_CHANNEL_REGS; j++)
 			im->channel_regs[i][j] = inl(ALI_REG(chip, j*4 + 0xe0));
 	}
 
@@ -1911,30 +1911,30 @@ static int ali_resume(struct device *dev)
 		return 0;
 
 	spin_lock_irq(&chip->reg_lock);
-	
+
 	for (i = 0; i < ALI_CHANNELS; i++) {
 		outb(i, ALI_REG(chip, ALI_GC_CIR));
-		for (j = 0; j < ALI_CHANNEL_REGS; j++) 
+		for (j = 0; j < ALI_CHANNEL_REGS; j++)
 			outl(im->channel_regs[i][j], ALI_REG(chip, j*4 + 0xe0));
 	}
-	
-	for (i = 0; i < ALI_GLOBAL_REGS; i++) {	
+
+	for (i = 0; i < ALI_GLOBAL_REGS; i++) {
 		if ((i*4 == ALI_MISCINT) || (i*4 == ALI_STOP) ||
 		    (i*4 == ALI_START))
 			continue;
 		outl(im->regs[i], ALI_REG(chip, i*4));
 	}
-	
+
 	/* start HW channel */
 	outl(im->regs[ALI_START >> 2], ALI_REG(chip, ALI_START));
 	/* restore IRQ enable bits */
 	outl(im->regs[ALI_MISCINT >> 2], ALI_REG(chip, ALI_MISCINT));
-	
+
 	spin_unlock_irq(&chip->reg_lock);
 
 	for (i = 0 ; i < chip->num_of_codecs; i++)
 		snd_ac97_resume(chip->ac97[i]);
-	
+
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
@@ -1981,7 +1981,7 @@ static int snd_ali_chip_init(struct snd_ali *codec)
 		pci_read_config_byte(pci_dev, 0x59, &temp);
 		temp |= 0x80;
 		pci_write_config_byte(pci_dev, 0x59, temp);
-	
+
 		pci_dev = codec->pci_m7101;
 		pci_read_config_byte(pci_dev, 0xb8, &temp);
 		temp |= 0x20;
@@ -2113,7 +2113,7 @@ static int snd_ali_create(struct snd_card *card,
 		pcm_streams = 1;
 	if (pcm_streams > 32)
 		pcm_streams = 32;
-	
+
 	pci_set_master(pci);
 	pci_read_config_word(pci, PCI_COMMAND, &cmdw);
 	if ((cmdw & PCI_COMMAND_IO) != PCI_COMMAND_IO) {
@@ -2121,7 +2121,7 @@ static int snd_ali_create(struct snd_card *card,
 		pci_write_config_word(pci, PCI_COMMAND, cmdw);
 	}
 	pci_set_master(pci);
-	
+
 	if (snd_ali_resources(codec)) {
 		snd_ali_free(codec);
 		return -EBUSY;
@@ -2218,7 +2218,7 @@ static int snd_ali_probe(struct pci_dev *pci,
 	err = snd_ali_mixer(codec);
 	if (err < 0)
 		goto error;
-	
+
 	dev_dbg(&pci->dev, "pcm building ...\n");
 	err = snd_ali_build_pcms(codec);
 	if (err < 0)
@@ -2228,7 +2228,7 @@ static int snd_ali_probe(struct pci_dev *pci,
 
 	strcpy(card->driver, "ALI5451");
 	strcpy(card->shortname, "ALI 5451");
-	
+
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, codec->port, codec->irq);
 
@@ -2258,6 +2258,6 @@ static struct pci_driver ali5451_driver = {
 	.driver = {
 		.pm = ALI_PM_OPS,
 	},
-};                                
+};
 
 module_pci_driver(ali5451_driver);

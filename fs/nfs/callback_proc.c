@@ -78,7 +78,7 @@ __be32 nfs4_callback_recall(void *argp, void *resp,
 	struct cb_recallargs *args = argp;
 	struct inode *inode;
 	__be32 res;
-	
+
 	res = htonl(NFS4ERR_OP_NOT_IN_SESSION);
 	if (!cps->clp) /* Always set for v4.0. Set in cb_sequence for v4.1 */
 		goto out;

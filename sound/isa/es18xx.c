@@ -7,7 +7,7 @@
 /* GENERAL NOTES:
  *
  * BUGS:
- * - There are pops (we can't delay in trigger function, cause midlevel 
+ * - There are pops (we can't delay in trigger function, cause midlevel
  *   often need to trigger down and then up very quickly).
  *   Any ideas?
  * - Support for 16 bit DMA seems to be broken. I've no hardware to tune it.
@@ -28,7 +28,7 @@
  *
  * - there are a first full duplex pcm and a second playback only pcm
  *   (incompatible with first pcm capture)
- * 
+ *
  * - there is support for the capture volume and ESS Spatializer 3D effect.
  *
  * - contrarily to some pages in DS_1869.PDF the rates can be set
@@ -44,7 +44,7 @@
  *
  *   using both channel for playback stereo 16 bit samples at 44100 Hz
  *   the second pcm (Audio1) DMA slows down irregularly and sound is garbled.
- *   
+ *
  *   The same happens using Audio1 for captureing.
  *
  *   The Windows driver does not suffer of this (although it use Audio1
@@ -58,10 +58,10 @@
  *   seems to be effected (speaker_test plays a lower frequency). Can't find
  *   anything in the datasheet to account for this, so a Video Playback Switch
  *   control has been included to allow ZV to be enabled only when necessary.
- *   Then again on at least one test system the 0x71 bit 6 enable bit is not 
+ *   Then again on at least one test system the 0x71 bit 6 enable bit is not
  *   needed for ZV, so maybe the datasheet is entirely wrong here.
  */
- 
+
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/isa.h>
@@ -191,7 +191,7 @@ static int snd_es18xx_write(struct snd_es18xx *chip,
 {
 	unsigned long flags;
 	int ret;
-	
+
         spin_lock_irqsave(&chip->reg_lock, flags);
 	ret = snd_es18xx_dsp_command(chip, reg);
 	if (ret < 0)
@@ -395,7 +395,7 @@ static const struct snd_pcm_hw_constraint_ratnums old_hw_constraints_clocks  = {
 };
 
 
-static void snd_es18xx_rate_set(struct snd_es18xx *chip, 
+static void snd_es18xx_rate_set(struct snd_es18xx *chip,
 				struct snd_pcm_substream *substream,
 				int mode)
 {
@@ -415,7 +415,7 @@ static void snd_es18xx_rate_set(struct snd_es18xx *chip,
 
 	/* set filter register */
 	div0 = 256 - 7160000*20/(8*82*runtime->rate);
-		
+
 	if ((chip->caps & ES18XX_PCM2) && mode == DAC2) {
 		snd_es18xx_mixer_write(chip, 0x70, bits);
 		/*
@@ -586,7 +586,7 @@ static int snd_es18xx_capture_prepare(struct snd_pcm_substream *substream)
 #endif
 
         /* Set format */
-        snd_es18xx_write(chip, 0xB7, 
+        snd_es18xx_write(chip, 0xB7,
                          snd_pcm_format_unsigned(runtime->format) ? 0x51 : 0x71);
         snd_es18xx_write(chip, 0xB7, 0x90 |
                          ((runtime->channels == 1) ? 0x40 : 0x08) |
@@ -650,7 +650,7 @@ static int snd_es18xx_playback2_prepare(struct snd_es18xx *chip,
         /* Set format */
         snd_es18xx_write(chip, 0xB6,
                          snd_pcm_format_unsigned(runtime->format) ? 0x80 : 0x00);
-        snd_es18xx_write(chip, 0xB7, 
+        snd_es18xx_write(chip, 0xB7,
                          snd_pcm_format_unsigned(runtime->format) ? 0x51 : 0x71);
         snd_es18xx_write(chip, 0xB7, 0x90 |
                          (runtime->channels == 1 ? 0x40 : 0x08) |
@@ -828,7 +828,7 @@ static const struct snd_pcm_hardware snd_es18xx_playback =
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
-	.formats =		(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 | 
+	.formats =		(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 |
 				 SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE),
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		4000,
@@ -848,7 +848,7 @@ static const struct snd_pcm_hardware snd_es18xx_capture =
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
-	.formats =		(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 | 
+	.formats =		(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 |
 				 SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE),
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		4000,
@@ -870,7 +870,7 @@ static int snd_es18xx_playback_open(struct snd_pcm_substream *substream)
 
 	if (substream->number == 0 && (chip->caps & ES18XX_PCM2)) {
 		if ((chip->caps & ES18XX_DUPLEX_MONO) &&
-		    chip->capture_a_substream && 
+		    chip->capture_a_substream &&
 		    chip->capture_a_substream->runtime->channels != 1)
 			return -EAGAIN;
 		chip->playback_a_substream = substream;
@@ -914,7 +914,7 @@ static int snd_es18xx_playback_close(struct snd_pcm_substream *substream)
 		chip->playback_a_substream = NULL;
 	else
 		chip->playback_b_substream = NULL;
-	
+
 	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
@@ -981,10 +981,10 @@ static int snd_es18xx_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	int muxSource = snd_es18xx_mixer_read(chip, 0x1c) & 0x07;
 	if (!(chip->version == 0x1869 || chip->version == 0x1879)) {
 		muxSource = invMap4Source[muxSource];
-		if (muxSource==3 && 
+		if (muxSource==3 &&
 		    (chip->version == 0x1887 || chip->version == 0x1888) &&
 		    (snd_es18xx_mixer_read(chip, 0x7a) & 0x08)
-		) 
+		)
 			muxSource = 4;
 	}
 	ucontrol->value.enumerated.item[0] = muxSource;
@@ -1156,7 +1156,7 @@ static int snd_es18xx_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int invert = (kcontrol->private_value >> 24) & ES18XX_FL_INVERT;
 	int pm_port = (kcontrol->private_value >> 24) & ES18XX_FL_PMPORT;
 	unsigned char val;
-	
+
 	val = (ucontrol->value.integer.value[0] & mask);
 	if (invert)
 		val = mask - val;
@@ -1201,7 +1201,7 @@ static int snd_es18xx_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
 	unsigned char left, right;
-	
+
 	left = snd_es18xx_reg_read(chip, left_reg);
 	if (left_reg != right_reg)
 		right = snd_es18xx_reg_read(chip, right_reg);
@@ -1227,7 +1227,7 @@ static int snd_es18xx_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int invert = (kcontrol->private_value >> 22) & 1;
 	int change;
 	unsigned char val1, val2, mask1, mask2;
-	
+
 	val1 = ucontrol->value.integer.value[0] & mask;
 	val2 = ucontrol->value.integer.value[1] & mask;
 	if (invert) {
@@ -1245,7 +1245,7 @@ static int snd_es18xx_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 		if (snd_es18xx_reg_bits(chip, right_reg, mask2, val2) != val2)
 			change = 1;
 	} else {
-		change = (snd_es18xx_reg_bits(chip, left_reg, mask1 | mask2, 
+		change = (snd_es18xx_reg_bits(chip, left_reg, mask1 | mask2,
 					      val1 | val2) != (val1 | val2));
 	}
 	return change;
@@ -1253,7 +1253,7 @@ static int snd_es18xx_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 
 /* Mixer controls
  * These arrays contain setup data for mixer controls.
- * 
+ *
  * The controls that are universal to all chipsets are fully initialized
  * here.
  */
@@ -1327,7 +1327,7 @@ ES18XX_SINGLE("3D Control - Level", 0, 0x52, 0, 63, 0),
 }
 };
 
-static struct snd_kcontrol_new snd_es18xx_micpre1_control = 
+static struct snd_kcontrol_new snd_es18xx_micpre1_control =
 ES18XX_SINGLE("Mic Boost (+26dB)", 0, 0xa9, 2, 1, 0);
 
 static struct snd_kcontrol_new snd_es18xx_micpre2_control =
@@ -1572,7 +1572,7 @@ static int snd_es18xx_identify(struct snd_es18xx *chip)
 		chip->version = 0x688;
 		return 0;
 	}
-			
+
         outb(0x40, chip->port + 0x04);
 	udelay(10);
 	hi = inb(chip->port + 0x05);
@@ -1854,7 +1854,7 @@ static int snd_es18xx_mixer(struct snd_card *card)
 		for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_pcm2_controls); idx++) {
 			if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_es18xx_pcm2_controls[idx], chip))) < 0)
 				return err;
-		} 
+		}
 	} else {
 		for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_pcm1_controls); idx++) {
 			if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_es18xx_pcm1_controls[idx], chip))) < 0)
@@ -1896,7 +1896,7 @@ static int snd_es18xx_mixer(struct snd_card *card)
 			kctl->private_free = snd_es18xx_hwv_free;
 			if ((err = snd_ctl_add(card, kctl)) < 0)
 				return err;
-			
+
 		}
 	}
 	/* finish initializing other chipset specific controls
@@ -1940,11 +1940,11 @@ static int snd_es18xx_mixer(struct snd_card *card)
 	}
 	return 0;
 }
-       
+
 
 /* Card level */
 
-MODULE_AUTHOR("Christian Fischbach <fishbach@pool.informatik.rwth-aachen.de>, Abramo Bagnara <abramo@alsa-project.org>");  
+MODULE_AUTHOR("Christian Fischbach <fishbach@pool.informatik.rwth-aachen.de>, Abramo Bagnara <abramo@alsa-project.org>");
 MODULE_DESCRIPTION("ESS ES18xx AudioDrive");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ESS,ES1868 PnP AudioDrive},"
@@ -2119,7 +2119,7 @@ static int snd_audiodrive_probe(struct snd_card *card, int dev)
 		return err;
 
 	sprintf(card->driver, "ES%x", chip->version);
-	
+
 	sprintf(card->shortname, "ESS AudioDrive ES%x", chip->version);
 	if (dma1[dev] != dma2[dev])
 		sprintf(card->longname, "%s at 0x%lx, irq %d, dma1 %d, dma2 %d",

@@ -187,7 +187,7 @@ static void sticon_init(struct vc_data *c, int init)
     vc_cols = sti_onscreen_x(sti) / sti->font_width;
     vc_rows = sti_onscreen_y(sti) / sti->font_height;
     c->vc_can_do_color = 1;
-    
+
     if (init) {
 	c->vc_cols = vc_cols;
 	c->vc_rows = vc_rows;
@@ -259,7 +259,7 @@ static unsigned long sticon_getxy(struct vc_data *conp, unsigned long pos,
     unsigned long ret;
     if (pos >= conp->vc_origin && pos < conp->vc_scr_end) {
     	unsigned long offset = (pos - conp->vc_origin) / 2;
-    	
+
     	x = offset % conp->vc_cols;
     	y = offset / conp->vc_cols;
     	if (conp->vc_num == fg_console)
@@ -267,7 +267,7 @@ static unsigned long sticon_getxy(struct vc_data *conp, unsigned long pos,
     	ret = pos + (conp->vc_cols - x) * 2;
     } else if (conp->vc_num == fg_console && softback_lines) {
     	unsigned long offset = pos - softback_curr;
-    	
+
     	if (pos < softback_curr)
     	    offset += softback_end - softback_buf;
     	offset /= 2;
@@ -333,9 +333,9 @@ static const struct consw sti_con = {
 	.con_switch		= sticon_switch,
 	.con_blank		= sticon_blank,
 	.con_set_origin		= sticon_set_origin,
-	.con_save_screen	= sticon_save_screen, 
+	.con_save_screen	= sticon_save_screen,
 	.con_build_attr		= sticon_build_attr,
-	.con_invert_region	= sticon_invert_region, 
+	.con_invert_region	= sticon_invert_region,
 	.con_screen_pos		= sticon_screen_pos,
 	.con_getxy		= sticon_getxy,
 };

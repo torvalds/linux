@@ -12,7 +12,7 @@
  *     - Fixed deadlock on capture
  *     - Added Canyon3D-2 support by Rob Riggs <rob@pangalactic.org>
  */
- 
+
 #define CARD_NAME "ESS Maestro3/Allegro/Canyon3D-2"
 #define DRIVER_NAME "Maestro3"
 
@@ -487,7 +487,7 @@ MODULE_PARM_DESC(amp_gpio, "GPIO pin number for external amp. (default = -1)");
 #define KDATA_ADC2_LEFT_SUR_VOL			(KDATA_BASE_ADDR + 0x0045)
 #define KDATA_ADC2_RIGHT_SUR_VOL		(KDATA_BASE_ADDR + 0x0046)
 
-#define KDATA_CD_XFER0					(KDATA_BASE_ADDR + 0x0047)					
+#define KDATA_CD_XFER0					(KDATA_BASE_ADDR + 0x0047)
 #define KDATA_CD_XFER_ENDMARK			(KDATA_BASE_ADDR + 0x0048)
 #define KDATA_CD_LEFT_VOLUME			(KDATA_BASE_ADDR + 0x0049)
 #define KDATA_CD_RIGHT_VOLUME			(KDATA_BASE_ADDR + 0x004A)
@@ -680,7 +680,7 @@ MODULE_PARM_DESC(amp_gpio, "GPIO pin number for external amp. (default = -1)");
 /*
  * an arbitrary volume we set the internal
  * volume settings to so that the ac97 volume
- * range is a little less insane.  0x7fff is 
+ * range is a little less insane.  0x7fff is
  * max.
  */
 #define ARB_VOLUME ( 0x6800 )
@@ -716,13 +716,13 @@ struct m3_dma {
 	struct m3_list *index_list[3];
 
         int in_lists;
-	
+
 	struct list_head list;
 
 };
-    
+
 struct snd_m3 {
-	
+
 	struct snd_card *card;
 
 	unsigned long iobase;
@@ -1002,7 +1002,7 @@ static void snd_m3_remove_list(struct snd_m3 *chip, struct m3_list *list, int in
 static void snd_m3_inc_timer_users(struct snd_m3 *chip)
 {
 	chip->timer_users++;
-	if (chip->timer_users != 1) 
+	if (chip->timer_users != 1)
 		return;
 
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
@@ -1021,7 +1021,7 @@ static void snd_m3_inc_timer_users(struct snd_m3 *chip)
 static void snd_m3_dec_timer_users(struct snd_m3 *chip)
 {
 	chip->timer_users--;
-	if (chip->timer_users > 0)  
+	if (chip->timer_users > 0)
 		return;
 
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
@@ -1082,7 +1082,7 @@ static int snd_m3_pcm_stop(struct snd_m3 *chip, struct m3_dma *s,
 	case SNDRV_PCM_STREAM_PLAYBACK:
 		chip->dacs_active--;
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
-				  KDATA_MIXER_TASK_NUMBER, 
+				  KDATA_MIXER_TASK_NUMBER,
 				  chip->dacs_active);
 		break;
 	case SNDRV_PCM_STREAM_CAPTURE:
@@ -1131,7 +1131,7 @@ snd_m3_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 /*
  * setup
  */
-static void 
+static void
 snd_m3_pcm_setup1(struct snd_m3 *chip, struct m3_dma *s, struct snd_pcm_substream *subs)
 {
 	int dsp_in_size, dsp_out_size, dsp_in_buffer, dsp_out_buffer;
@@ -1195,7 +1195,7 @@ snd_m3_pcm_setup1(struct snd_m3 *chip, struct m3_dma *s, struct snd_pcm_substrea
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  s->inst.data + CDATA_IN_BUF_HEAD,
 			  dsp_in_buffer);
-    
+
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  s->inst.data + CDATA_IN_BUF_TAIL,
 			  dsp_in_buffer);
@@ -1222,7 +1222,7 @@ static void snd_m3_pcm_setup2(struct snd_m3 *chip, struct m3_dma *s,
 {
 	u32 freq;
 
-	/* 
+	/*
 	 * put us in the lists if we're not already there
 	 */
 	if (! s->in_lists) {
@@ -1237,16 +1237,16 @@ static void snd_m3_pcm_setup2(struct snd_m3 *chip, struct m3_dma *s,
 
 	/* write to 'mono' word */
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
-			  s->inst.data + SRC3_DIRECTION_OFFSET + 1, 
+			  s->inst.data + SRC3_DIRECTION_OFFSET + 1,
 			  runtime->channels == 2 ? 0 : 1);
 	/* write to '8bit' word */
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
-			  s->inst.data + SRC3_DIRECTION_OFFSET + 2, 
+			  s->inst.data + SRC3_DIRECTION_OFFSET + 2,
 			  snd_pcm_format_width(runtime->format) == 16 ? 0 : 1);
 
 	/* set up dac/adc rate */
 	freq = ((runtime->rate << 15) + 24000 ) / 48000;
-	if (freq) 
+	if (freq)
 		freq--;
 
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
@@ -1305,7 +1305,7 @@ snd_m3_playback_setup(struct snd_m3 *chip, struct m3_dma *s,
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  s->inst.data + SRC3_DIRECTION_OFFSET + 22,
 			  subs->runtime->rate > 45000 ? 0xff : 0);
-    
+
 	/* tell it which way dma is going? */
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  s->inst.data + CDATA_DMA_CONTROL,
@@ -1314,13 +1314,13 @@ snd_m3_playback_setup(struct snd_m3 *chip, struct m3_dma *s,
 	/*
 	 * set an armload of static initializers
 	 */
-	for (i = 0; i < ARRAY_SIZE(pv); i++) 
+	for (i = 0; i < ARRAY_SIZE(pv); i++)
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 				  s->inst.data + pv[i].addr, pv[i].val);
 }
 
 /*
- *    Native record driver 
+ *    Native record driver
  */
 static const struct rec_vals {
 	u16 addr, val;
@@ -1366,13 +1366,13 @@ snd_m3_capture_setup(struct snd_m3 *chip, struct m3_dma *s, struct snd_pcm_subst
 	/* tell it which way dma is going? */
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  s->inst.data + CDATA_DMA_CONTROL,
-			  DMACONTROL_DIRECTION + DMACONTROL_AUTOREPEAT + 
+			  DMACONTROL_DIRECTION + DMACONTROL_AUTOREPEAT +
 			  DMAC_PAGE3_SELECTOR + DMAC_BLOCKF_SELECTOR);
 
 	/*
 	 * set an armload of static initializers
 	 */
-	for (i = 0; i < ARRAY_SIZE(rv); i++) 
+	for (i = 0; i < ARRAY_SIZE(rv); i++)
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 				  s->inst.data + rv[i].addr, rv[i].val);
 }
@@ -1397,7 +1397,7 @@ static int snd_m3_pcm_hw_params(struct snd_pcm_substream *substream,
 static int snd_m3_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct m3_dma *s;
-	
+
 	if (substream->runtime->private_data == NULL)
 		return 0;
 	s = substream->runtime->private_data;
@@ -1859,7 +1859,7 @@ snd_m3_pcm(struct snd_m3 * chip, int device)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, chip->card->driver);
 	chip->pcm = pcm;
-	
+
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci), 64*1024, 64*1024);
 
@@ -1946,8 +1946,8 @@ static void snd_m3_remote_codec_config(struct snd_m3 *chip, int isremote)
 	     io + SDO_IN_DEST_CTRL);
 }
 
-/* 
- * hack, returns non zero on err 
+/*
+ * hack, returns non zero on err
  */
 static int snd_m3_try_read_vendor(struct snd_m3 *chip)
 {
@@ -1974,9 +1974,9 @@ static void snd_m3_ac97_reset(struct snd_m3 *chip)
 
 	if (chip->allegro_flag) {
 		/*
-		 * the onboard codec on the allegro seems 
+		 * the onboard codec on the allegro seems
 		 * to want to wait a very long time before
-		 * coming back to life 
+		 * coming back to life
 		 */
 		delay1 = 50;
 		delay2 = 800;
@@ -2049,7 +2049,7 @@ static int snd_m3_mixer(struct snd_m3 *chip)
 
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
 		return err;
-	
+
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
 	if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97)) < 0)
@@ -2092,7 +2092,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 
 	/* zero kernel data */
 	for (i = 0; i < (REV_B_DATA_MEMORY_UNIT_LENGTH * NUM_UNITS_KERNEL_DATA) / 2; i++)
-		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA, 
+		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 				  KDATA_BASE_ADDR + i, 0);
 
 	/* zero mixer data? */
@@ -2108,7 +2108,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 	/* write kernel into code memory.. */
 	data = (const __le16 *)chip->assp_kernel_image->data;
 	for (i = 0 ; i * 2 < chip->assp_kernel_image->size; i++) {
-		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
+		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE,
 				  REV_B_CODE_MEMORY_BEGIN + i,
 				  le16_to_cpu(data[i]));
 	}
@@ -2121,7 +2121,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 	 */
 	data = (const __le16 *)chip->assp_minisrc_image->data;
 	for (i = 0; i * 2 < chip->assp_minisrc_image->size; i++) {
-		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
+		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE,
 				  0x400 + i, le16_to_cpu(data[i]));
 	}
 
@@ -2142,7 +2142,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 	 * the minisrc is the only thing on
 	 * our task list..
 	 */
-	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA, 
+	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  KDATA_TASK0,
 			  0x400);
 
@@ -2178,14 +2178,14 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 
 static int snd_m3_assp_client_init(struct snd_m3 *chip, struct m3_dma *s, int index)
 {
-	int data_bytes = 2 * ( MINISRC_TMP_BUFFER_SIZE / 2 + 
+	int data_bytes = 2 * ( MINISRC_TMP_BUFFER_SIZE / 2 +
 			       MINISRC_IN_BUFFER_SIZE / 2 +
 			       1 + MINISRC_OUT_BUFFER_SIZE / 2 + 1 );
 	int address, i;
 
 	/*
 	 * the revb memory map has 0x1100 through 0x1c00
-	 * free.  
+	 * free.
 	 */
 
 	/*
@@ -2216,7 +2216,7 @@ static int snd_m3_assp_client_init(struct snd_m3 *chip, struct m3_dma *s, int in
 }
 
 
-/* 
+/*
  * this works for the reference board, have to find
  * out about others
  *
@@ -2296,7 +2296,7 @@ snd_m3_chip_init(struct snd_m3 *chip)
 	pci_read_config_dword(pcidev, PCI_ALLEGRO_CONFIG, &n);
 	n &= ~INT_CLK_SELECT;
 	if (!chip->allegro_flag) {
-		n &= ~INT_CLK_MULT_ENABLE; 
+		n &= ~INT_CLK_MULT_ENABLE;
 		n |= INT_CLK_SRC_NOT_PCI;
 	}
 	n &=  ~( CLK_MULT_MODE_SELECT | CLK_MULT_MODE_SELECT_2 );
@@ -2311,11 +2311,11 @@ snd_m3_chip_init(struct snd_m3 *chip)
 	t = inb(chip->iobase + ASSP_CONTROL_A);
 	t &= ~( DSP_CLK_36MHZ_SELECT  | ASSP_CLK_49MHZ_SELECT);
 	t |= ASSP_CLK_49MHZ_SELECT;
-	t |= ASSP_0_WS_ENABLE; 
+	t |= ASSP_0_WS_ENABLE;
 	outb(t, chip->iobase + ASSP_CONTROL_A);
 
 	snd_m3_assp_init(chip); /* download DSP code before starting ASSP below */
-	outb(RUN_ASSP, chip->iobase + ASSP_CONTROL_B); 
+	outb(RUN_ASSP, chip->iobase + ASSP_CONTROL_B);
 
 	outb(0x00, io + HARDWARE_VOL_CTRL);
 	outb(0x88, io + SHADOW_MIX_REG_VOICE);
@@ -2324,7 +2324,7 @@ snd_m3_chip_init(struct snd_m3 *chip)
 	outb(0x88, io + HW_VOL_COUNTER_MASTER);
 
 	return 0;
-} 
+}
 
 static void
 snd_m3_enable_ints(struct snd_m3 *chip)
@@ -2444,14 +2444,14 @@ static int m3_resume(struct device *dev)
 	/* restore dsp image */
 	dsp_index = 0;
 	for (i = REV_B_CODE_MEMORY_BEGIN; i <= REV_B_CODE_MEMORY_END; i++)
-		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, i, 
+		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, i,
 				  chip->suspend_mem[dsp_index++]);
 	for (i = REV_B_DATA_MEMORY_BEGIN ; i <= REV_B_DATA_MEMORY_END; i++)
-		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA, i, 
+		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA, i,
 				  chip->suspend_mem[dsp_index++]);
 
 	/* tell the dma engine to restart itself */
-	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA, 
+	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  KDATA_DMA_ACTIVE, 0);
 
         /* restore ac97 registers */
@@ -2619,7 +2619,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 		goto free_chip;
 
 	chip->iobase = pci_resource_start(pci, 0);
-	
+
 	/* just to be sure */
 	pci_set_master(pci);
 
@@ -2680,7 +2680,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 
 	*chip_ret = chip;
 
-	return 0; 
+	return 0;
 
 free_chip:
 	snd_m3_free(chip);
@@ -2774,5 +2774,5 @@ static struct pci_driver m3_driver = {
 		.pm = M3_PM_OPS,
 	},
 };
-	
+
 module_pci_driver(m3_driver);

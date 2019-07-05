@@ -205,7 +205,7 @@ bail1:
 bail0:
 	return NULL;
 }
-	
+
 
 void hpfs_brelse4(struct quad_buffer_head *qbh)
 {
@@ -215,7 +215,7 @@ void hpfs_brelse4(struct quad_buffer_head *qbh)
 	brelse(qbh->bh[1]);
 	brelse(qbh->bh[2]);
 	brelse(qbh->bh[3]);
-}	
+}
 
 void hpfs_mark_4buffers_dirty(struct quad_buffer_head *qbh)
 {

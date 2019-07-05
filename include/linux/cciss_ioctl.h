@@ -29,4 +29,4 @@ typedef struct _BIG_IOCTL32_Command_struct {
 #define CCISS_BIG_PASSTHRU32 _IOWR(CCISS_IOC_MAGIC, 18, BIG_IOCTL32_Command_struct)
 
 #endif /* CONFIG_COMPAT */
-#endif  
+#endif

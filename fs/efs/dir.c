@@ -50,7 +50,7 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 			break;
 		}
 
-		dirblock = (struct efs_dir *) bh->b_data; 
+		dirblock = (struct efs_dir *) bh->b_data;
 
 		if (be16_to_cpu(dirblock->magic) != EFS_DIRBLK_MAGIC) {
 			pr_err("%s(): invalid directory block\n", __func__);

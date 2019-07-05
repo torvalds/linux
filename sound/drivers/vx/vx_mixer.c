@@ -223,13 +223,13 @@ static int vx_adjust_audio_level(struct vx_core *chip, int audio, int capture,
 		rmh.Cmd[0] |=  VALID_AUDIO_IO_MONITORING_LEVEL;
 		rmh.Cmd[2] |= ((unsigned int)info->monitor_level << 10);
         }
-	if (info->has_mute) { 
+	if (info->has_mute) {
 		rmh.Cmd[0] |= VALID_AUDIO_IO_MUTE_LEVEL;
 		if (info->mute)
 			rmh.Cmd[2] |= AUDIO_IO_HAS_MUTE_LEVEL;
 	}
 	if (info->has_monitor_mute) {
-		/* validate flag for M2 at least to unmute it */ 
+		/* validate flag for M2 at least to unmute it */
 		rmh.Cmd[0] |=  VALID_AUDIO_IO_MUTE_MONITORING_1 | VALID_AUDIO_IO_MUTE_MONITORING_2;
 		if (info->monitor_mute)
 			rmh.Cmd[2] |= AUDIO_IO_HAS_MUTE_MONITORING_1;
@@ -238,7 +238,7 @@ static int vx_adjust_audio_level(struct vx_core *chip, int audio, int capture,
 	return vx_send_msg(chip, &rmh);
 }
 
-    
+
 #if 0 // not used
 static int vx_read_audio_level(struct vx_core *chip, int audio, int capture,
 			       struct vx_audio_level *info)
@@ -371,7 +371,7 @@ static int vx_get_audio_vu_meter(struct vx_core *chip, int audio, int capture, s
 	rmh.LgStat += 2 * VU_METER_CHANNELS;
 	if (capture)
 		rmh.Cmd[0] |= COMMAND_RECORD_MASK;
-    
+
         /* Add Audio IO mask */
 	rmh.Cmd[1] = 0;
 	for (i = 0; i < VU_METER_CHANNELS; i++)
@@ -388,7 +388,7 @@ static int vx_get_audio_vu_meter(struct vx_core *chip, int audio, int capture, s
 	}
 	return 0;
 }
-   
+
 
 /*
  * control API entries

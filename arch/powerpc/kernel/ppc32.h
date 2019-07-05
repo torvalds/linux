@@ -44,7 +44,7 @@ struct mcontext32 {
 	elf_vsrreghalf_t32      mc_vsregs __attribute__((__aligned__(16)));
 };
 
-struct ucontext32 { 
+struct ucontext32 {
 	unsigned int	  	uc_flags;
 	unsigned int 	  	uc_link;
 	compat_stack_t	 	uc_stack;

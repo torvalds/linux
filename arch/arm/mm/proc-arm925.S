@@ -459,7 +459,7 @@ __arm925_setup:
 	 *  R
 	 * .RVI ZFRS BLDP WCAM
 	 * .011 0001 ..11 1101
-	 * 
+	 *
 	 */
 	.type	arm925_crval, #object
 arm925_crval:

@@ -16,7 +16,7 @@
 #include <linux/types.h>
 #include <linux/magic.h>
 
-/* You must include something which defines the C99 uintXX_t types. 
+/* You must include something which defines the C99 uintXX_t types.
    We don't do it from here because this file is used in too many
    different environments. */
 

@@ -114,7 +114,7 @@ void bad_trap(struct pt_regs *regs, long lvl)
 void bad_trap_tl1(struct pt_regs *regs, long lvl)
 {
 	char buffer[36];
-	
+
 	if (notify_die(DIE_TRAP_TL1, "bad trap tl1", regs,
 		       0, lvl, SIGTRAP) == NOTIFY_STOP)
 		return;
@@ -1767,7 +1767,7 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
  * Bit1:	0=recoverable,1=unrecoverable
  *
  * The hardware has disabled both the I-cache and D-cache in
- * the %dcr register.  
+ * the %dcr register.
  */
 void cheetah_plus_parity_error(int type, struct pt_regs *regs)
 {
@@ -2442,10 +2442,10 @@ static void user_instruction_dump(unsigned int __user *pc)
 {
 	int i;
 	unsigned int buf[9];
-	
+
 	if ((((unsigned long) pc) & 3))
 		return;
-		
+
 	if (copy_from_user(buf, pc - 3, sizeof(buf)))
 		return;
 
@@ -2529,7 +2529,7 @@ void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int count = 0;
-	
+
 	/* Amuse the user. */
 	printk(
 "              \\|/ ____ \\|/\n"

@@ -29,7 +29,7 @@
  *	  routines for each chipset.
  *
  * Sep. 26, 2005	Karsten Wiese <annabellesgarden@yahoo.de>
- *	- Optimize position calculation for the 823x chips. 
+ *	- Optimize position calculation for the 823x chips.
  */
 
 #include <linux/io.h>
@@ -138,7 +138,7 @@ module_param(enable, bool, 0444);
 #define   VIA_REG_CTRL_TERMINATE	0x40	/* WO */
 #define   VIA_REG_CTRL_AUTOSTART	0x20
 #define   VIA_REG_CTRL_PAUSE		0x08	/* RW */
-#define   VIA_REG_CTRL_INT_STOP		0x04		
+#define   VIA_REG_CTRL_INT_STOP		0x04
 #define   VIA_REG_CTRL_INT_EOL		0x02
 #define   VIA_REG_CTRL_INT_FLAG		0x01
 #define   VIA_REG_CTRL_RESET		0x01	/* RW - probably reset? undocumented */
@@ -501,17 +501,17 @@ static inline unsigned int snd_via82xx_codec_xread(struct via82xx *chip)
 {
 	return inl(VIAREG(chip, AC97));
 }
- 
+
 static inline void snd_via82xx_codec_xwrite(struct via82xx *chip, unsigned int val)
 {
 	outl(val, VIAREG(chip, AC97));
 }
- 
+
 static int snd_via82xx_codec_ready(struct via82xx *chip, int secondary)
 {
 	unsigned int timeout = 1000;	/* 1ms */
 	unsigned int val;
-	
+
 	while (timeout-- > 0) {
 		udelay(1);
 		if (!((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY))
@@ -521,14 +521,14 @@ static int snd_via82xx_codec_ready(struct via82xx *chip, int secondary)
 		   secondary, snd_via82xx_codec_xread(chip));
 	return -EIO;
 }
- 
+
 static int snd_via82xx_codec_valid(struct via82xx *chip, int secondary)
 {
 	unsigned int timeout = 1000;	/* 1ms */
 	unsigned int val, val1;
 	unsigned int stat = !secondary ? VIA_REG_AC97_PRIMARY_VALID :
 					 VIA_REG_AC97_SECONDARY_VALID;
-	
+
 	while (timeout-- > 0) {
 		val = snd_via82xx_codec_xread(chip);
 		val1 = val & (VIA_REG_AC97_BUSY | stat);
@@ -538,7 +538,7 @@ static int snd_via82xx_codec_valid(struct via82xx *chip, int secondary)
 	}
 	return -EIO;
 }
- 
+
 static void snd_via82xx_codec_wait(struct snd_ac97 *ac97)
 {
 	struct via82xx *chip = ac97->private_data;
@@ -637,7 +637,7 @@ static irqreturn_t snd_via686_interrupt(int irq, void *dev_id)
 		if (viadev->substream && viadev->running) {
 			/*
 			 * Update hwptr_done based on 'period elapsed'
-			 * interrupts. We'll use it, when the chip returns 0 
+			 * interrupts. We'll use it, when the chip returns 0
 			 * for OFFSET_CURR_COUNT.
 			 */
 			if (c_status & VIA_REG_STAT_EOL)
@@ -686,7 +686,7 @@ static irqreturn_t snd_via8233_interrupt(int irq, void *dev_id)
 		if (substream && viadev->running) {
 			/*
 			 * Update hwptr_done based on 'period elapsed'
-			 * interrupts. We'll use it, when the chip returns 0 
+			 * interrupts. We'll use it, when the chip returns 0
 			 * for OFFSET_CURR_COUNT.
 			 */
 			if (c_status & VIA_REG_STAT_EOL)
@@ -859,7 +859,7 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(struct snd_pcm_substream *subst
 	struct viadev *viadev = substream->runtime->private_data;
 	unsigned int idx, count, res;
 	int status;
-	
+
 	if (snd_BUG_ON(!viadev->tbl_entries))
 		return 0;
 
@@ -869,7 +869,7 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(struct snd_pcm_substream *subst
 	if (!status)
 		status = inb(VIADEV_REG(viadev, OFFSET_STATUS));
 
-	/* An apparent bug in the 8251 is worked around by sending a 
+	/* An apparent bug in the 8251 is worked around by sending a
 	 * REG_CTRL_START. */
 	if (chip->revision == VIA_REV_8251 && (status & VIA_REG_STAT_EOL))
 		snd_via82xx_pcm_trigger(substream, SNDRV_PCM_TRIGGER_START);
@@ -901,7 +901,7 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(struct snd_pcm_substream *subst
 					res += viadev->fragsize;
 				}
 		}
-	}			    
+	}
 unlock:
 	viadev->lastpos = res;
 	spin_unlock(&chip->reg_lock);
@@ -1172,7 +1172,7 @@ static int snd_via82xx_pcm_open(struct via82xx *chip, struct viadev *viadev,
 	bool use_src = false;
 
 	runtime->hw = snd_via82xx_hw;
-	
+
 	/* set the hw rate condition */
 	ratep = &chip->rates[viadev->direction];
 	spin_lock_irq(&ratep->lock);
@@ -2121,7 +2121,7 @@ static void snd_via82xx_proc_read(struct snd_info_entry *entry,
 {
 	struct via82xx *chip = entry->private_data;
 	int i;
-	
+
 	snd_iprintf(buffer, "%s\n\n", chip->card->longname);
 	for (i = 0; i < 0xa0; i += 4) {
 		snd_iprintf(buffer, "%02x: %08x\n", i, inl(chip->port + i));
@@ -2171,7 +2171,7 @@ static int snd_via82xx_chip_init(struct via82xx *chip)
 		pci_write_config_byte(chip->pci, VIA_ACLINK_CTRL, VIA_ACLINK_CTRL_INIT);
 		udelay(100);
 	}
-	
+
 	/* Make sure VRA is enabled, in case we didn't do a
 	 * complete codec reset, above */
 	pci_read_config_byte(chip->pci, VIA_ACLINK_CTRL, &pval);
@@ -2559,7 +2559,7 @@ static int snd_via82xx_probe(struct pci_dev *pci,
 		err = -EINVAL;
 		goto __error;
 	}
-		
+
 	if ((err = snd_via82xx_create(card, pci, chip_type, pci->revision,
 				      ac97_clock, &chip)) < 0)
 		goto __error;

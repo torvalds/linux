@@ -236,7 +236,7 @@ static ssize_t q40_ctc_law(const u_char __user *userPtr, size_t userCount,
 	int bal = expand_bal;
 	int hSpeed = dmasound.hard.speed, sSpeed = dmasound.soft.speed;
 	int utotal, ftotal;
- 
+
 	ftotal = frameLeft;
 	utotal = userCount;
 	while (frameLeft) {

@@ -134,7 +134,7 @@ int main(int argc, char ** argv)
     /* Calculate the bootblock checksum */
     bootloader_image.bootblock_checksum = 0;
     for(i = 0; i < 63; i++) {
-	bootloader_image.bootblock_checksum += 
+	bootloader_image.bootblock_checksum +=
 			bootloader_image.bootblock_quadwords[i];
     }
 

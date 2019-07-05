@@ -9,7 +9,7 @@
 #include <asm/cache.h>
 
 	.text
-	
+
 /* This clears out any unused part of the destination buffer,
    just as the libc version does.  -- paulus */
 _GLOBAL(strncpy)

@@ -4,7 +4,7 @@
  *
  *      This chip is a horrid piece of engineering, and National
  *      denies any knowledge of its existence. Thus no datasheet is
- *      available off www.national.com. 
+ *      available off www.national.com.
  *
  *	(C) Copyright 2000 Linuxcare, Inc.
  * 	(C) Copyright 2000 Linuxcare Canada, Inc.
@@ -28,7 +28,7 @@
 
 
 /* NOTES:
- * 
+ *
  * Function 0 is an IDE controller. It is identical to a PC87415 IDE
  * controller (and identifies itself as such).
  *
@@ -255,7 +255,7 @@ superio_init(struct pci_dev *pcidev)
 	outb (0x00,IC_PIC2+1);	/* ICW2: N/A */
 	outb (0x02,IC_PIC2+1);	/* ICW3: Slave ID code */
 	outb (0x01,IC_PIC2+1);	/* ICW4: x86 mode */
-		
+
 	/* Program Operational Control Words */
 	outb (0xff,IC_PIC1+1);	/* OCW1: Mask all interrupts */
 	outb (0x68,IC_PIC1+0);	/* OCW3: OCW3 select | ESMM | SMM */
@@ -420,7 +420,7 @@ static void __init superio_parport_init(void)
 #ifdef CONFIG_PARPORT_PC
 	if (!parport_pc_probe_port(sio_dev.pp_base,
 			0 /*base_hi*/,
-			PAR_IRQ, 
+			PAR_IRQ,
 			PARPORT_DMA_NONE /* dma */,
 			NULL /*struct pci_dev* */,
 			0 /* shared irq flags */))

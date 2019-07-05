@@ -6,7 +6,7 @@
  *
  *  FEATURES currently supported:
  *    See ca0106_main.c for features.
- * 
+ *
  *  Changelog:
  *    Support interrupts per period.
  *    Removed noise from Center/LFE channel when in Analog mode.

@@ -4,7 +4,7 @@
  * drivers and users.
  *
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>
- * Copyright © 2006      Red Hat UK Limited 
+ * Copyright © 2006      Red Hat UK Limited
  */
 
 #include <linux/module.h>
@@ -1876,7 +1876,7 @@ static struct backing_dev_info * __init mtd_bdi_init(char *name)
 	bdi->name = name;
 	/*
 	 * We put '-0' suffix to the name to get the same name format as we
-	 * used to get. Since this is called only once, we get a unique name. 
+	 * used to get. Since this is called only once, we get a unique name.
 	 */
 	ret = bdi_register(bdi, "%.28s-0", name);
 	if (ret)

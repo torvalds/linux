@@ -74,7 +74,7 @@ handle_fpe(struct pt_regs *regs)
 	 * code expects an artificial last entry which contains zero
 	 *
 	 * also, the passed in fr registers contain one word that defines
-	 * the fpu type. the fpu type information is constructed 
+	 * the fpu type. the fpu type information is constructed
 	 * inside the emulation code
 	 */
 	__u64 frcopy[36];

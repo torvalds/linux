@@ -71,8 +71,8 @@
 #define R3964_MAX_RETRIES 5
 
 
-enum { R3964_IDLE, 
-	   R3964_TX_REQUEST, R3964_TRANSMITTING, 
+enum { R3964_IDLE,
+	   R3964_TX_REQUEST, R3964_TRANSMITTING,
 	   R3964_WAIT_ZVZ_BEFORE_TX_RETRY, R3964_WAIT_FOR_TX_ACK,
 	   R3964_WAIT_FOR_RX_BUF,
 	   R3964_RECEIVING, R3964_WAIT_FOR_BCC, R3964_WAIT_FOR_RX_REPEAT
@@ -114,13 +114,13 @@ struct r3964_message {
  * Header of received block in rx_buf/tx_buf:
  */
 
-struct r3964_block_header 
+struct r3964_block_header
 {
 	unsigned int length;             /* length in chars without header */
-	unsigned char *data;             /* usually data is located 
+	unsigned char *data;             /* usually data is located
                                         immediately behind this struct */
 	unsigned int locks;              /* only used in rx_buffer */
-	  
+
     struct r3964_block_header *next;
 	struct r3964_client_info *owner;  /* =NULL in rx_buffer */
 };

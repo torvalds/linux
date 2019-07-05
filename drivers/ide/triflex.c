@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * IDE Chipset driver for the Compaq TriFlex IDE controller.
- * 
+ *
  * Known to work with the Compaq Workstation 5x00 series.
  *
  * Copyright (C) 2002 Hewlett-Packard Development Group, L.P.
  * Author: Torben Mathiasen <torben.mathiasen@hp.com>
- * 
+ *
  * Loosely based on the piix & svwks drivers.
  *
  * Documentation:
@@ -33,7 +33,7 @@ static void triflex_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	switch (drive->dma_mode) {
 		case XFER_MW_DMA_2:
-			timing = 0x0103; 
+			timing = 0x0103;
 			break;
 		case XFER_MW_DMA_1:
 			timing = 0x0203;
@@ -65,7 +65,7 @@ static void triflex_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	triflex_timings &= ~(0xFFFF << (16 * unit));
 	triflex_timings |= (timing << (16 * unit));
-	
+
 	pci_write_config_dword(dev, channel_offset, triflex_timings);
 }
 

@@ -2279,8 +2279,8 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_nvm_update);
 /* NVM Config Read (indirect 0x0704) */
 struct i40e_aqc_nvm_config_read {
 	__le16	cmd_flags;
-#define I40E_AQ_ANVM_SINGLE_OR_MULTIPLE_FEATURES_MASK	1 
-#define I40E_AQ_ANVM_READ_SINGLE_FEATURE		0 
+#define I40E_AQ_ANVM_SINGLE_OR_MULTIPLE_FEATURES_MASK	1
+#define I40E_AQ_ANVM_READ_SINGLE_FEATURE		0
 #define I40E_AQ_ANVM_READ_MULTIPLE_FEATURES		1
 	__le16	element_count;
 	__le16	element_id;	/* Feature/field ID */

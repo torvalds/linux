@@ -491,7 +491,7 @@ static int fire_probe(struct platform_device *op)
 
 out_free_iommu:
 	kfree(pbm->iommu);
-			
+
 out_free_controller:
 	kfree(pbm);
 

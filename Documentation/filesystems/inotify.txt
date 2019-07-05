@@ -29,8 +29,8 @@ A: An fd-per-watch quickly consumes more file descriptors than are allowed,
    spaces is thus sensible.  The current design is what user-space developers
    want: Users initialize inotify, once, and add n watches, requiring but one
    fd and no twiddling with fd limits.  Initializing an inotify instance two
-   thousand times is silly.  If we can implement user-space's preferences 
-   cleanly--and we can, the idr layer makes stuff like this trivial--then we 
+   thousand times is silly.  If we can implement user-space's preferences
+   cleanly--and we can, the idr layer makes stuff like this trivial--then we
    should.
 
    There are other good arguments.  With a single fd, there is a single

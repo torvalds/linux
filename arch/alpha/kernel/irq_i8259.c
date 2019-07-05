@@ -149,10 +149,10 @@ isa_no_iack_sc_device_interrupt(unsigned long vector)
 	 * additional interrupts here if the common case can be
 	 * handled so much easier?
 	 */
-	/* 
+	/*
 	 *  The first read of gives you *all* interrupting lines.
 	 *  Therefore, read the mask register and and out those lines
-	 *  not enabled.  Note that some documentation has 21 and a1 
+	 *  not enabled.  Note that some documentation has 21 and a1
 	 *  write only.  This is not true.
 	 */
 	pic = inb(0x20) | (inb(0xA0) << 8);	/* read isr */

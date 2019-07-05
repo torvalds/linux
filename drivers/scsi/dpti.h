@@ -57,7 +57,7 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
 #define DPT_REVISION    '4'
 #define DPT_SUBREVISION '5'
 #define DPT_BETA	""
-#define DPT_MONTH      8 
+#define DPT_MONTH      8
 #define DPT_DAY        7
 #define DPT_YEAR        (2001-1980)
 
@@ -78,7 +78,7 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
 
 #define PCI_DPT_VENDOR_ID         (0x1044)	// DPT PCI Vendor ID
 #define PCI_DPT_DEVICE_ID         (0xA501)	// DPT PCI I2O Device ID
-#define PCI_DPT_RAPTOR_DEVICE_ID  (0xA511)	
+#define PCI_DPT_RAPTOR_DEVICE_ID  (0xA511)
 
 /* Debugging macro from Linux Device Drivers - Rubini */
 #undef PDEBUG
@@ -224,7 +224,7 @@ typedef struct _adpt_hba {
 	u32  reply_fifo_size;
 	u32* reply_pool;
 	dma_addr_t reply_pool_pa;
-	u32  sg_tablesize;	// Scatter/Gather List Size.       
+	u32  sg_tablesize;	// Scatter/Gather List Size.
 	u8  top_scsi_channel;
 	u8  top_scsi_id;
 	u64  top_scsi_lun;
@@ -244,7 +244,7 @@ typedef struct _adpt_hba {
 	void __iomem *FwDebugBuffer_P;	// Virtual Address Of FW Debug Buffer
 	u32   FwDebugBufferSize;	// FW Debug Buffer Size In Bytes
 	void __iomem *FwDebugStrLength_P;// Virtual Addr Of FW Debug String Len
-	void __iomem *FwDebugFlags_P;	// Virtual Address Of FW Debug Flags 
+	void __iomem *FwDebugFlags_P;	// Virtual Address Of FW Debug Flags
 	void __iomem *FwDebugBLEDflag_P;// Virtual Addr Of FW Debug BLED
 	void __iomem *FwDebugBLEDvalue_P;// Virtual Addr Of FW Debug BLED
 	u32 FwDebugFlags;
@@ -254,7 +254,7 @@ typedef struct _adpt_hba {
 struct sg_simple_element {
    u32  flag_count;
    u32 addr_bus;
-}; 
+};
 
 /*
  * Function Prototypes
@@ -266,12 +266,12 @@ static int adpt_i2o_build_sys_table(void);
 static irqreturn_t adpt_isr(int irq, void *dev_id);
 
 static void adpt_i2o_report_hba_unit(adpt_hba* pHba, struct i2o_device *d);
-static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid, 
+static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid,
 			int group, int field, void *buf, int buflen);
 #ifdef DEBUG
 static const char *adpt_i2o_get_class_name(int class);
 #endif
-static int adpt_i2o_issue_params(int cmd, adpt_hba* pHba, int tid, 
+static int adpt_i2o_issue_params(int cmd, adpt_hba* pHba, int tid,
 		  void *opblk, dma_addr_t opblk_pa, int oplen,
 		  void *resblk, dma_addr_t resblk_pa, int reslen);
 static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout);

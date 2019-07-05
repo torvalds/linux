@@ -7,18 +7,18 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or 
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- * 
+ *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@suse.cz>, or by paper mail:
  * Vojtech Pavlik, Ucitelska 1576, Prague 8, 182 00 Czech Republic
@@ -69,9 +69,9 @@ struct hiddev_report_info {
 	__u32 num_fields;
 };
 
-/* To do a GUSAGE/SUSAGE, fill in at least usage_code,  report_type and 
- * report_id.  Set report_id to REPORT_ID_UNKNOWN if the rest of the fields 
- * are unknown.  Otherwise use a usage_ref struct filled in from a previous 
+/* To do a GUSAGE/SUSAGE, fill in at least usage_code,  report_type and
+ * report_id.  Set report_id to REPORT_ID_UNKNOWN if the rest of the fields
+ * are unknown.  Otherwise use a usage_ref struct filled in from a previous
  * successful GUSAGE call to save time.  To actually send a value to the
  * device, perform a SUSAGE first, followed by a SREPORT.  An INITREPORT or a
  * GREPORT isn't necessary for a GUSAGE to return valid data.
@@ -111,7 +111,7 @@ struct hiddev_field_info {
 #define HID_FIELD_CONSTANT		0x001
 #define HID_FIELD_VARIABLE		0x002
 #define HID_FIELD_RELATIVE		0x004
-#define HID_FIELD_WRAP			0x008	
+#define HID_FIELD_WRAP			0x008
 #define HID_FIELD_NONLINEAR		0x010
 #define HID_FIELD_NO_PREFERRED		0x020
 #define HID_FIELD_NULL_STATE		0x040
@@ -138,7 +138,7 @@ struct hiddev_usage_ref_multi {
 
 /* FIELD_INDEX_NONE is returned in read() data from the kernel when flags
  * is set to (HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT) and a new report has
- * been sent by the device 
+ * been sent by the device
  */
 #define HID_FIELD_INDEX_NONE 0xffffffff
 
@@ -175,14 +175,14 @@ struct hiddev_usage_ref_multi {
 #define HIDIOCGUSAGES		_IOWR('H', 0x13, struct hiddev_usage_ref_multi)
 #define HIDIOCSUSAGES		_IOW('H', 0x14, struct hiddev_usage_ref_multi)
 
-/* 
+/*
  * Flags to be used in HIDIOCSFLAG
  */
 #define HIDDEV_FLAG_UREF	0x1
 #define HIDDEV_FLAG_REPORT	0x2
 #define HIDDEV_FLAGS		0x3
 
-/* To traverse the input report descriptor info for a HID device, perform the 
+/* To traverse the input report descriptor info for a HID device, perform the
  * following:
  *
  * rinfo.report_type = HID_REPORT_TYPE_INPUT;

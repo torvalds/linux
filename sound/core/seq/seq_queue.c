@@ -349,7 +349,7 @@ static int queue_access_lock(struct snd_seq_queue *q, int client)
 {
 	unsigned long flags;
 	int access_ok;
-	
+
 	spin_lock_irqsave(&q->owner_lock, flags);
 	access_ok = check_access(q, client);
 	if (access_ok)
@@ -635,7 +635,7 @@ static void queue_broadcast_event(struct snd_seq_queue *q, struct snd_seq_event 
 	struct snd_seq_event sev;
 
 	sev = *ev;
-	
+
 	sev.flags = SNDRV_SEQ_TIME_STAMP_TICK|SNDRV_SEQ_TIME_MODE_ABS;
 	sev.time.tick = q->timer->tick.cur_tick;
 	sev.queue = q->queue;
@@ -733,7 +733,7 @@ int snd_seq_control_queue(struct snd_seq_event *ev, int atomic, int hop)
 
 #ifdef CONFIG_SND_PROC_FS
 /* exported to seq_info.c */
-void snd_seq_info_queues_read(struct snd_info_entry *entry, 
+void snd_seq_info_queues_read(struct snd_info_entry *entry,
 			      struct snd_info_buffer *buffer)
 {
 	int i, bpm;

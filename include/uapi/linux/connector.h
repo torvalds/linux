@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * 	connector.h
- * 
+ *
  * 2004-2005 Copyright (c) Evgeniy Polyakov <zbr@ioremap.net>
  * All rights reserved.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -57,8 +57,8 @@
 #define CONNECTOR_MAX_MSG_SIZE		16384
 
 /*
- * idx and val are unique identifiers which 
- * are used for message routing and 
+ * idx and val are unique identifiers which
+ * are used for message routing and
  * must be registered in connector.h for in-kernel usage.
  */
 

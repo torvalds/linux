@@ -65,7 +65,7 @@ static struct irq_chip rx164_irq_type = {
 	.irq_mask_ack	= rx164_disable_irq,
 };
 
-static void 
+static void
 rx164_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;
@@ -115,7 +115,7 @@ rx164_init_irq(void)
  *
  * PASS1:
  *
- *      Slot    IDSEL   INTA    INTB    INTC    INTD    
+ *      Slot    IDSEL   INTA    INTB    INTC    INTD
  *      0       6       5       10      15      20
  *      1       7       4       9       14      19
  *      2       5       3       8       13      18
@@ -123,24 +123,24 @@ rx164_init_irq(void)
  *      4       10      1       6       11      16
  *
  * PASS2:
- *      Slot    IDSEL   INTA    INTB    INTC    INTD    
+ *      Slot    IDSEL   INTA    INTB    INTC    INTD
  *      0       5       1       7       12      17
  *      1       6       2       8       13      18
  *      2       8       3       9       14      19
  *      3       9       4       10      15      20
  *      4       10      5       11      16      6
- *      
+ *
  */
 
 /*
- * IdSel       
+ * IdSel
  *   5  32 bit PCI option slot 0
  *   6  64 bit PCI option slot 1
  *   7  PCI-ISA bridge
  *   7  64 bit PCI option slot 2
  *   9  32 bit PCI option slot 3
  *  10  PCI-PCI bridge
- * 
+ *
  */
 
 static int

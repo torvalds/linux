@@ -56,7 +56,7 @@ static int mixart_wait_nice_for_register_value(struct mixart_mgr *mgr,
 
 
 /*
-  structures needed to upload elf code packets 
+  structures needed to upload elf code packets
  */
 struct snd_mixart_elf32_ehdr {
 	u8      e_ident[16];
@@ -292,7 +292,7 @@ static int mixart_enum_physio(struct mixart_mgr *mgr)
 
 	for(k=0; k<mgr->num_cards; k++) {
 		mgr->chip[k]->uid_in_analog_physio = phys_io.uid[k];
-		mgr->chip[k]->uid_out_analog_physio = phys_io.uid[phys_io.nb_uid/2 + k]; 
+		mgr->chip[k]->uid_out_analog_physio = phys_io.uid[phys_io.nb_uid/2 + k];
 	}
 
 	return 0;
@@ -351,7 +351,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 	switch (index)   {
 	case MIXART_MOTHERBOARD_XLX_INDEX:
 
-		/* xilinx already loaded ? */ 
+		/* xilinx already loaded ? */
 		if (status_xilinx == 4) {
 			dev_dbg(&mgr->pci->dev, "xilinx is already loaded !\n");
 			return 0;
@@ -380,7 +380,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 
 		/* copy xilinx code */
 		memcpy_toio(  MIXART_MEM( mgr, MIXART_MOTHERBOARD_XLX_BASE_ADDRESS),  dsp->data,  dsp->size);
-    
+
 		/* set xilinx status to copy finished */
 		writel_be( 2, MIXART_MEM( mgr, MIXART_PSEUDOREG_MXLX_STATUS_OFFSET ));
 
@@ -459,7 +459,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 		if (mgr->board_type == MIXART_DAUGHTER_TYPE_NONE)
 			break;  /* no daughter board; the file does not have to be loaded, continue after the switch */
 
-		/* only if aesebu daughter board presence (elf code must run)  */ 
+		/* only if aesebu daughter board presence (elf code must run)  */
 		if (mgr->board_type != MIXART_DAUGHTER_TYPE_AES )
 			return -EINVAL;
 
@@ -470,7 +470,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 			       status_daught);
 			return -EIO; /* modprob -r may help ? */
 		}
- 
+
 		/* check daughterboard xilinx validity */
 		if (((u32*)(dsp->data))[0] == 0xffffffff)
 			return -EINVAL;

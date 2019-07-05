@@ -37,7 +37,7 @@ struct snd_seq_device {
  *		2. allocate private data and initialize it
  *		3. call snd_hwdep_register
  *		4. store the instance to dev->driver_data pointer.
- *		
+ *
  * remove:
  *	Release the private data.
  *	Typically, call snd_device_free(dev->card, dev->driver_data)

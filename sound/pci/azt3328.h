@@ -107,7 +107,7 @@ enum azf_freq_t {
 #undef AZF_FREQ
 };
 
-/** DirectX timer, main interrupt area (FIXME: and something else?) **/ 
+/** DirectX timer, main interrupt area (FIXME: and something else?) **/
 #define IDX_IO_TIMER_VALUE	0x60 /* found this timer area by pure luck :-) */
   /* timer countdown value; triggers IRQ when timer is finished */
   #define TIMER_VALUE_MASK		0x000fffffUL
@@ -194,7 +194,7 @@ enum azf_freq_t {
 
 
 /*** Gameport area port indices ***/
-/* (only 0x06 of 0x08 bytes saved/restored by Windows driver) */ 
+/* (only 0x06 of 0x08 bytes saved/restored by Windows driver) */
 #define AZF_IO_SIZE_GAME		0x08
 #define AZF_IO_SIZE_GAME_PM		0x06
 
@@ -330,7 +330,7 @@ enum {
   #define MIXER_ADVCTL2_MIX		0x0200 /* Mono output select 0=Mix, 1=Mic; Win driver: "MonoSelectSource"?? */
   #define MIXER_ADVCTL2_3D		0x2000 /* 3D Enhancement 1=on */
   #define MIXER_ADVCTL2_POP		0x8000 /* Pcm Out Path, 0=pre 3D, 1=post 3D */
-  
+
 #define IDX_MIXER_SOMETHING30H	0x30 /* used, but unknown??? */
 
 /* driver internal flags */

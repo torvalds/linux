@@ -20,7 +20,7 @@
 ! GNU as (as of 2.9.1) changes bf/s into bt/s and bra, when the address
 ! to be jumped is too far, but it causes illegal slot exception.
 
-/*	
+/*
  * entry.S contains the system-call and fault low-level handling routines.
  * This also contains the timer-interrupt handler, as well as all interrupts
  * and faults that can result in a task-switch.
@@ -76,7 +76,7 @@ OFF_TRA	=  (16*4+6*4)
 #define current		r7	/* r7_bank1 */
 
 #include <asm/entry-macros.S>
-	
+
 /*
  * Kernel mode register usage:
  *	k0	scratch
@@ -281,7 +281,7 @@ restore_all:
 
 ! common exception handler
 #include "../../entry-common.S"
-	
+
 ! Exception Vector Base
 !
 !	Should be aligned page boundary.

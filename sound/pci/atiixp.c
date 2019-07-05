@@ -251,7 +251,7 @@ struct atiixp {
 	unsigned long addr;
 	void __iomem *remap_addr;
 	int irq;
-	
+
 	struct snd_ac97_bus *ac97_bus;
 	struct snd_ac97 *ac97[NUM_ATI_CODECS];
 
@@ -337,7 +337,7 @@ static int snd_atiixp_update_bits(struct atiixp *chip, unsigned int reg,
  * list.  although we can change the list dynamically, in this version,
  * a static RING of buffer descriptors is used.
  *
- * the ring is built in this function, and is set up to the hardware. 
+ * the ring is built in this function, and is set up to the hardware.
  */
 static int atiixp_build_dma_packets(struct atiixp *chip, struct atiixp_dma *dma,
 				    struct snd_pcm_substream *substream,
@@ -458,7 +458,7 @@ static void snd_atiixp_codec_write(struct atiixp *chip, unsigned short codec,
 				   unsigned short reg, unsigned short val)
 {
 	unsigned int data;
-    
+
 	if (snd_atiixp_acquire_codec(chip) < 0)
 		return;
 	data = ((unsigned int)val << ATI_REG_PHYS_OUT_DATA_SHIFT) |
@@ -473,7 +473,7 @@ static unsigned short snd_atiixp_ac97_read(struct snd_ac97 *ac97,
 {
 	struct atiixp *chip = ac97->private_data;
 	return snd_atiixp_codec_read(chip, ac97->num, reg);
-    
+
 }
 
 static void snd_atiixp_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
@@ -499,7 +499,7 @@ static int snd_atiixp_aclink_reset(struct atiixp *chip)
 	atiixp_read(chip, CMD);
 	udelay(10);
 	atiixp_update(chip, CMD, ATI_REG_CMD_AC_SOFT_RESET, 0);
-    
+
 	timeout = 10;
 	while (! (atiixp_read(chip, CMD) & ATI_REG_CMD_ACLINK_ACTIVE)) {
 		/* do a hard reset */
@@ -569,7 +569,7 @@ static int snd_atiixp_codec_detect(struct atiixp *chip)
 	if (ac97_codec == -1)
 		ac97_codec = ac97_probing_bugs(chip->pci);
 	if (ac97_codec >= 0) {
-		chip->codec_not_ready_bits |= 
+		chip->codec_not_ready_bits |=
 			CODEC_CHECK_BITS ^ (1 << (ac97_codec + 10));
 		return 0;
 	}
@@ -846,7 +846,7 @@ static void atiixp_spdif_flush_dma(struct atiixp *chip)
 	/* DMA off, transfer on */
 	atiixp_spdif_enable_dma(chip, 0);
 	atiixp_spdif_enable_transfer(chip, 1);
-	
+
 	timeout = 100;
 	do {
 		if (! (atiixp_read(chip, SPDF_DMA_DT_SIZE) & ATI_REG_DMA_FIFO_USED))
@@ -924,7 +924,7 @@ static int snd_atiixp_playback_prepare(struct snd_pcm_substream *substream)
 	 */
 	atiixp_update(chip, 6CH_REORDER, ATI_REG_6CH_REORDER_EN,
 		      substream->runtime->channels >= 6 ? ATI_REG_6CH_REORDER_EN: 0);
-    
+
 	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
@@ -1220,7 +1220,7 @@ static const struct atiixp_dma_ops snd_atiixp_playback_dma_ops = {
 	.enable_transfer = atiixp_out_enable_transfer,
 	.flush_dma = atiixp_out_flush_dma,
 };
-	
+
 static const struct atiixp_dma_ops snd_atiixp_capture_dma_ops = {
 	.type = ATI_DMA_CAPTURE,
 	.llp_offset = ATI_REG_IN_DMA_LINKPTR,
@@ -1229,7 +1229,7 @@ static const struct atiixp_dma_ops snd_atiixp_capture_dma_ops = {
 	.enable_transfer = atiixp_in_enable_transfer,
 	.flush_dma = atiixp_in_flush_dma,
 };
-	
+
 static const struct atiixp_dma_ops snd_atiixp_spdif_dma_ops = {
 	.type = ATI_DMA_SPDIF,
 	.llp_offset = ATI_REG_SPDF_DMA_LINKPTR,
@@ -1238,7 +1238,7 @@ static const struct atiixp_dma_ops snd_atiixp_spdif_dma_ops = {
 	.enable_transfer = atiixp_spdif_enable_transfer,
 	.flush_dma = atiixp_spdif_flush_dma,
 };
-	
+
 
 static int snd_atiixp_pcm_new(struct atiixp *chip)
 {
@@ -1298,7 +1298,7 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 	/* no SPDIF support on codec? */
 	if (chip->pcms[ATI_PCM_SPDIF] && ! chip->pcms[ATI_PCM_SPDIF]->rates)
 		return 0;
-		
+
 	/* FIXME: non-48k sample rate doesn't work on my test machine with AD1888 */
 	if (chip->pcms[ATI_PCM_SPDIF])
 		chip->pcms[ATI_PCM_SPDIF]->rates = SNDRV_PCM_RATE_48000;
@@ -1646,7 +1646,7 @@ static int snd_atiixp_probe(struct pci_dev *pci,
 
 	if ((err = snd_atiixp_pcm_new(chip)) < 0)
 		goto __error;
-	
+
 	snd_atiixp_proc_init(chip);
 
 	snd_atiixp_chip_start(chip);

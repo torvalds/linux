@@ -3,8 +3,8 @@
  * dz.h: Serial port driver for DECstations equipped
  *       with the DZ chipset.
  *
- * Copyright (C) 1998 Olivier A. D. Lebaillif 
- *             
+ * Copyright (C) 1998 Olivier A. D. Lebaillif
+ *
  * Email: olivier.lebaillif@ifrsys.com
  *
  * Copyright (C) 2004, 2006  Maciej W. Rozycki
@@ -88,7 +88,7 @@
 #define DZ_CS7           0x0010               /* 7 bits per byte */
 #define DZ_CS8           0x0018               /* 8 bits per byte */
 
-#define DZ_CSTOPB        0x0020               /* 2 stop bits instead of one */ 
+#define DZ_CSTOPB        0x0020               /* 2 stop bits instead of one */
 
 #define DZ_PARENB        0x0040               /* Parity enable */
 #define DZ_PARODD        0x0080               /* Odd parity instead of even */
@@ -101,7 +101,7 @@
 #define DZ_B150          0x0400
 #define DZ_B300          0x0500
 #define DZ_B600          0x0600
-#define DZ_B1200         0x0700 
+#define DZ_B1200         0x0700
 #define DZ_B1800         0x0800
 #define DZ_B2000         0x0900
 #define DZ_B2400         0x0A00

@@ -129,7 +129,7 @@ static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
  *  this cpu,
  *  -ENOENT if it fails to find an 'enable-method' property,
  *  -ENXIO if the HW reports a failure or a misconfiguration,
- *  -ENOMEM if the HW report an memory allocation failure 
+ *  -ENOMEM if the HW report an memory allocation failure
  */
 int __init arm_cpuidle_init(int cpu)
 {

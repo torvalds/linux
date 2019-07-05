@@ -127,7 +127,7 @@ static struct pcic_ca2irq pcic_i_se6[] = {
  * Krups (courtesy of Varol Kaptan)
  * No documentation available, but it was easy to guess
  * because it was very similar to Espresso.
- *  
+ *
  * pin 0 - kbd, mouse, serial;
  * pin 1 - Ethernet;
  * pin 2 - igs (we do not use it);
@@ -422,7 +422,7 @@ static int __init pcic_init(void)
 	/*
 	 *      Switch off IOTLB translation.
 	 */
-	writeb(PCI_DVMA_CONTROL_IOTLB_DISABLE, 
+	writeb(PCI_DVMA_CONTROL_IOTLB_DISABLE,
 	       pcic->pcic_regs+PCI_DVMA_CONTROL);
 
 	/*
@@ -431,7 +431,7 @@ static int __init pcic_init(void)
 	 *      Why we couldn't set up 4GB and forget about it? XXX
 	 */
 	writel(0xF0000000UL, pcic->pcic_regs+PCI_SIZE_0);
-	writel(0+PCI_BASE_ADDRESS_SPACE_MEMORY, 
+	writel(0+PCI_BASE_ADDRESS_SPACE_MEMORY,
 	       pcic->pcic_regs+PCI_BASE_ADDRESS_0);
 
 	pcic_pbm_scan_bus(pcic);
@@ -451,7 +451,7 @@ static int pdev_to_pnode(struct linux_pbm_info *pbm, struct pci_dev *pdev)
 	phandle node = prom_getchild(pbm->prom_node);
 
 	while(node) {
-		err = prom_getproperty(node, "reg", 
+		err = prom_getproperty(node, "reg",
 				       (char *)&regs[0], sizeof(regs));
 		if(err != 0 && err != -1) {
 			unsigned long devfn = (regs[0].which_io >> 8) & 0xff;

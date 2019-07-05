@@ -19,7 +19,7 @@ config IP_SET_MAX
 	range 2 65534
 	depends on IP_SET
 	help
-	  You can define here default value of the maximum number 
+	  You can define here default value of the maximum number
 	  of IP sets for the kernel.
 
 	  The value can be overridden by the 'max_sets' module

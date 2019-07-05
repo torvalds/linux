@@ -107,11 +107,11 @@ struct tioca_common {
  * Convert a system [coretalk] address to a GART entry.  GART entries are
  * formed using the following:
  *
- *     data = ( (1<<63) |  ( (REMAP_NODE_ID << 40) | (MD_CHIPLET_ID << 38) | 
+ *     data = ( (1<<63) |  ( (REMAP_NODE_ID << 40) | (MD_CHIPLET_ID << 38) |
  * (REMAP_SYS_ADDR) ) >> 12 )
  *
  * DATA written to 1 GART TABLE Entry in system memory is remapped system
- * addr for 1 page 
+ * addr for 1 page
  *
  * The data is for coretalk address format right shifted 12 bits with a
  * valid bit.
@@ -119,7 +119,7 @@ struct tioca_common {
  *	GART_TABLE_ENTRY [ 25:0 ]  -- REMAP_SYS_ADDRESS[37:12].
  *	GART_TABLE_ENTRY [ 27:26 ] -- SHUB MD chiplet id.
  *	GART_TABLE_ENTRY [ 41:28 ] -- REMAP_NODE_ID.
- *	GART_TABLE_ENTRY [ 63 ]    -- Valid Bit 
+ *	GART_TABLE_ENTRY [ 63 ]    -- Valid Bit
  */
 static inline u64
 tioca_paddr_to_gart(unsigned long paddr)
@@ -153,7 +153,7 @@ tioca_physpage_to_gart(u64 page_addr)
 
 /**
  * tioca_tlbflush - invalidate cached SGI CA GART TLB entries
- * @tioca_kernel: CA context 
+ * @tioca_kernel: CA context
  *
  * Invalidate tlb entries for a given CA GART.  Main complexity is to account
  * for revA bug.

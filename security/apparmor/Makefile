@@ -73,7 +73,7 @@ cmd_make-caps = echo "static const char *const capability_names[] = {" > $@ ;\
 # Transforms lines from
 #    #define RLIMIT_STACK		3	/* max stack size */
 # to
-# RLIMIT_STACK, 
+# RLIMIT_STACK,
 #
 # and build the securityfs entries for the mapping.
 # Transforms lines from

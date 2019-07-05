@@ -22,12 +22,12 @@ struct snd_seq_queue {
 	char name[64];		/* name of this queue */
 
 	struct snd_seq_prioq	*tickq;		/* midi tick event queue */
-	struct snd_seq_prioq	*timeq;		/* real-time event queue */	
-	
+	struct snd_seq_prioq	*timeq;		/* real-time event queue */
+
 	struct snd_seq_timer *timer;	/* time keeper for this queue */
 	int	owner;		/* client that 'owns' the timer */
 	unsigned int	locked:1,	/* timer is only accesibble by owner if set */
-		klocked:1,	/* kernel lock (after START) */	
+		klocked:1,	/* kernel lock (after START) */
 		check_again:1,
 		check_blocked:1;
 
@@ -49,7 +49,7 @@ struct snd_seq_queue {
 /* get the number of current queues */
 int snd_seq_queue_get_cur_queues(void);
 
-/* delete queues */ 
+/* delete queues */
 void snd_seq_queues_delete(void);
 
 

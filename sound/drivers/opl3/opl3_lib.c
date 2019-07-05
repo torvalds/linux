@@ -3,7 +3,7 @@
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *                   Hannu Savolainen 1993-1996,
  *                   Rob Hooft
- *                   
+ *
  *  Routines for control of AdLib FM cards (OPL2/OPL3/OPL4 chips)
  *
  *  Most if code is ported from OSS/Lite.

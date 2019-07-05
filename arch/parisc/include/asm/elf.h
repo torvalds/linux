@@ -149,7 +149,7 @@
 					 * a function descriptor, not
 					 * an address */
 
-/* The following are PA function descriptors 
+/* The following are PA function descriptors
  *
  * addr:	the absolute address of the function
  * gp:		either the data pointer (r27) for non-PIC code or the
@@ -323,7 +323,7 @@ struct pt_regs;	/* forward declaration... */
 #define ELF_ARCH	EM_PARISC
 #define ELF_OSABI 	ELFOSABI_LINUX
 
-/* %r23 is set by ld.so to a pointer to a function which might be 
+/* %r23 is set by ld.so to a pointer to a function which might be
    registered using atexit.  This provides a means for the dynamic
    linker to call DT_FINI functions for shared libraries that have
    been loaded before the code runs.
@@ -342,7 +342,7 @@ struct pt_regs;	/* forward declaration... */
 
    (2 * TASK_SIZE / 3) turns into something undefined when run through a
    32 bit preprocessor and in some cases results in the kernel trying to map
-   ld.so to the kernel virtual base. Use a sane value instead. /Jes 
+   ld.so to the kernel virtual base. Use a sane value instead. /Jes
   */
 
 #define ELF_ET_DYN_BASE         (TASK_UNMAPPED_BASE + 0x01000000)

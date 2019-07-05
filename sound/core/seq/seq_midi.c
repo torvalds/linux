@@ -4,8 +4,8 @@
  *   Copyright (c) 1998 by Frank van de Pol <fvdpol@coil.demon.nl>
  *                         Jaroslav Kysela <perex@perex.cz>
  */
- 
-/* 
+
+/*
 Possible options for midisynth module:
 	- automatic opening of midi ports on first received event or subscription
 	  (close will be performed when client leaves)
@@ -417,7 +417,7 @@ snd_seq_midisynth_remove(struct device *_dev)
 	struct seq_midisynth *msynth;
 	struct snd_card *card = dev->card;
 	int device = dev->device, p, ports;
-	
+
 	mutex_lock(&register_mutex);
 	client = synths[card->number];
 	if (client == NULL || client->ports[device] == NULL) {

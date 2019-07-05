@@ -191,7 +191,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 					   sizeof (sym)))
 				goto fail;
 
-			if (copy_from_user(name, 
+			if (copy_from_user(name,
 					   spu_elf_start + shdr_str.sh_offset +
 					   sym.st_name,
 					   20))

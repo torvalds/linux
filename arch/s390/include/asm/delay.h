@@ -9,7 +9,7 @@
  *
  *  Delay routines calling functions in arch/s390/lib/delay.c
  */
- 
+
 #ifndef _S390_DELAY_H
 #define _S390_DELAY_H
 

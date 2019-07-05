@@ -1,10 +1,10 @@
 /*
  * Written by: Patricia Gaughen <gone@us.ibm.com>, IBM Corporation
- * August 2002: added remote node KVA remap - Martin J. Bligh 
+ * August 2002: added remote node KVA remap - Martin J. Bligh
  *
  * Copyright (C) 2002, IBM Corp.
  *
- * All rights reserved.          
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

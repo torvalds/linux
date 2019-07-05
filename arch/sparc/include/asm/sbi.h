@@ -16,7 +16,7 @@ struct sbi_regs {
 /* 0x0004 */	u32		ctl;		/* Control */
 /* 0x0008 */	u32		status;		/* Status */
 		u32		_unused1;
-		
+
 /* 0x0010 */	u32		cfg0;		/* Slot0 config reg */
 /* 0x0014 */	u32		cfg1;		/* Slot1 config reg */
 /* 0x0018 */	u32		cfg2;		/* Slot2 config reg */
@@ -95,7 +95,7 @@ static inline void set_sbi_tid(int devid, int targetid)
 static inline int get_sbi_ctl(int devid, int cfgno)
 {
 	int cfg;
-	
+
 	__asm__ __volatile__ ("lda [%1] %2, %0" :
 			      "=r" (cfg) :
 			      "r" ((ECSR_DEV_BASE(devid) | SBI_CFG0) + (cfgno<<2)),

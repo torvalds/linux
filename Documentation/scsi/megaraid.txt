@@ -61,7 +61,7 @@ uioc_t. The management module converts the older ioctl packets from the older
 applications into uioc_t. After driver handles the uioc_t, the common module
 will convert that back into the old format before returning to applications.
 
-As new applications evolve and replace the old ones, the old packet format 
+As new applications evolve and replace the old ones, the old packet format
 will be retired.
 
 Common module dedicates one uioc_t packet to each controller registered. This

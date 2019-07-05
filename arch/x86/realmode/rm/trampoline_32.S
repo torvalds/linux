@@ -70,5 +70,5 @@ GLOBAL(trampoline_header)
 	tr_gdt_pad:		.space	2
 	tr_gdt:			.space	6
 END(trampoline_header)
-	
+
 #include "trampoline_common.S"

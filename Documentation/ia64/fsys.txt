@@ -250,10 +250,10 @@ GLOBAL_ENTRY(fgettimeofday)
 .prologue
 .save ar.pfs, r11
 mov r11 = ar.pfs
-.body 
+.body
 
-mov r2 = 0xa000000000020660;;  // gate address 
-			       // found by inspection of System.map for the 
+mov r2 = 0xa000000000020660;;  // gate address
+			       // found by inspection of System.map for the
 			       // __kernel_syscall_via_epc() function.  See
 			       // below for how to do this for real.
 

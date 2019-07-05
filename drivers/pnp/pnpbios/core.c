@@ -7,7 +7,7 @@
  *   Plug and Play BIOS Specification, Version 1.0A, 5 May 1994
  *   Plug and Play BIOS Clarification Paper, 6 October 1994
  *     Compaq Computer Corporation, Phoenix Technologies Ltd., Intel Corp.
- * 
+ *
  * Originally (C) 1998 Christian Schmidt <schmidt@digadd.de>
  * Modifications (C) 1998 Tom Lees <tom@lpsg.demon.co.uk>
  * Minor reorganizations by David Hinds <dahinds@users.sourceforge.net>

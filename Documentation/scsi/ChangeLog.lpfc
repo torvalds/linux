@@ -453,7 +453,7 @@ Changes from 20041207 to 20041213
 	  returning.  Fixes some panics in iocb completion code path.
 
 Changes from 20041130 to 20041207
-	
+
 	* Changed version number to 8.0.16
 	* Hung dt session fix.  When the midlayer calls to abort a scsi
 	  command, make sure the driver does not complete post-abort
@@ -481,7 +481,7 @@ Changes from 20041123 to 20041130
 	  reservation conflicts, etc
 
 Changes from 20041018 to 20041123
-	
+
 	* Changed version number to 8.0.14
 	* Added new function "iterator" lpfc_sli_next_iocb_slot() which
 	  returns pointer to iocb entry at cmdidx if queue is not full.
@@ -906,15 +906,15 @@ Changes from 20040810 to 20040823
 	  Zephyr) support
 
 Changes from 20040730 to 20040810
-	
+
 	* Changed version number to 8.0.9
 	* Removed per HBA driver lock.  Driver now uses the host->host_lock
 	* Restored support for the 2.6.5 kernel for those linux distributions
 	  shipped with the 2.6.5 kernel.
 	* Applied patch from Christoph Hellwig (hch@infradead.org) as follows
-	  "[PATCH] use scsi host private data in ->proc_info.  
+	  "[PATCH] use scsi host private data in ->proc_info.
 	* Applied patch from Christoph Hellwig (hch@infradead.org) as follows
-	  "Re: [Emulex] Ready for next round.  This patch cleans up the memory 
+	  "Re: [Emulex] Ready for next round.  This patch cleans up the memory
 	  allocation routines a little and fixes a missing mempool_destroy and
 	  some missing error handling."
 	* Changed pointers assignments from 0 to NULL.
@@ -922,7 +922,7 @@ Changes from 20040730 to 20040810
 	  entry points that caused kernel to Oops or hang.
 	* Added fixes to targetless hosts that caused modprobe and insmod to hang.
 	* Ongoing cleanup to many files
-	  
+
 Changes from 20040723 to 20040730
 
 	* Changed version number to 8.0.8
@@ -1278,7 +1278,7 @@ Changes from 20040507 to 20040515
 	* Fixed crash on driver rmmod after error injection tests and
 	  lpfc_tasklet deadlock.
 	* Modified lpfc.conf to remove limit on number of support hosts
-	* Removed HBAAPI 
+	* Removed HBAAPI
 	* Removed duplication of SCSI opcodes from lpfc_fcp.h that are
 	  available in scsi/scsi.h
 	* Rework module_param usage
@@ -1493,7 +1493,7 @@ Changes from 20040402 to 20040409
 	* Move lpfc_stats and HBAEVT_t structures from lpfc_hba.h to
 	  lpfc.h
 	* Remove lpfc_hba.h
-	* Remove duplicate rc definitions from 
+	* Remove duplicate rc definitions from
 	* Removed code which used next pointer to store mbox structure.
 	* Cleaned up list iterations.
 	* Removed non list manipulation of the next pointers.
@@ -1564,7 +1564,7 @@ Changes from 20040326 to 20040402
 	* Ifdef Scheduler specific routines
 	* Removed following ununsed ioclt's: ELX_READ_IOCB
 	  ELX_READ_MEMSEG ELX_READ_BINFO ELX_READ_EINVAL ELX_READ_LHBA
-	  ELX_READ_LXHBA ELX_SET ELX_DBG LPFC_TRACE 
+	  ELX_READ_LXHBA ELX_SET ELX_DBG LPFC_TRACE
 	* Removed variable fc_dbg_flg
 	* Fixed a bug where HBA_Q_DEPTH was set incorrectly for
 	  3-digit HBAs.  Also changed can_queue so midlayer will only
@@ -1694,7 +1694,7 @@ Changes from 20040326 to 20040402
 	* Add PCI_DEVICE_ID_FIREFLY for LP6000
 	* Fixed known issues in 20040326: driver crashes on rmmod in
 	  both 2.4 and 2.6 kernels
-	
+
 
 Changes from 20040319 to 20040326
 
@@ -1796,7 +1796,7 @@ Changes from 20040319 to 20040326
 	* Removed usage of all memory pools.
 
 Changes from 20040312 to 20040319
-	
+
 	* Use dev_warn instead of printk for 2.6 kernels
 	* Correct Iocbq completion routine for 2.6 kernel case
 	* Change void *pOSCmd to Scsi_Smnd *pCmd

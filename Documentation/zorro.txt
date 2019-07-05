@@ -77,7 +77,7 @@ The treatment of these regions depends on the type of Zorro space:
 
   - Zorro II address space is always mapped and does not have to be mapped
     explicitly using z_ioremap().
-    
+
     Conversion from bus/physical Zorro II addresses to kernel virtual addresses
     and vice versa is done using::
 
@@ -86,7 +86,7 @@ The treatment of these regions depends on the type of Zorro space:
 
   - Zorro III address space must be mapped explicitly using z_ioremap() first
     before it can be accessed::
- 
+
 	virt_addr = z_ioremap(bus_addr, size);
 	...
 	z_iounmap(virt_addr);

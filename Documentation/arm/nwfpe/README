@@ -1,4 +1,4 @@
-This directory contains the version 0.92 test release of the NetWinder 
+This directory contains the version 0.92 test release of the NetWinder
 Floating Point Emulator.
 
 The majority of the code was written by me, Scott Bambrough It is
@@ -31,7 +31,7 @@ SoftFloat to the ARM was done by Phil Blundell, based on an earlier
 port of SoftFloat version 1 by Neil Carson for NetBSD/arm32.
 
 The file README.FPE contains a description of what has been implemented
-so far in the emulator.  The file TODO contains a information on what 
+so far in the emulator.  The file TODO contains a information on what
 remains to be done, and other ideas for the emulator.
 
 Bug reports, comments, suggestions should be directed to me at
@@ -48,7 +48,7 @@ Legal Notices
 
 The NetWinder Floating Point Emulator is free software.  Everything Rebel.com
 has written is provided under the GNU GPL.  See the file COPYING for copying
-conditions.  Excluded from the above is the SoftFloat code.  John Hauser's 
+conditions.  Excluded from the above is the SoftFloat code.  John Hauser's
 legal notice for SoftFloat is included below.
 
 -------------------------------------------------------------------------------

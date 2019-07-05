@@ -39,7 +39,7 @@ struct el_common_EV5_uncorrectable_mcheck {
                                                      <4> Tag error in bank 0
                                                      <5> Tag error in bank 1 */
         unsigned long   va;               /* Effective VA of fault or miss. */
-        unsigned long   mm_stat;          /* Holds the reason for D-stream 
+        unsigned long   mm_stat;          /* Holds the reason for D-stream
                                              fault or D-cache parity errors */
         unsigned long   sc_addr;          /* Address that was being accessed
                                              when EV5 detected Secondary cache
@@ -50,7 +50,7 @@ struct el_common_EV5_uncorrectable_mcheck {
         unsigned long   ei_addr;          /* Physical address of any transfer
                                              that is logged in EV5 EI_STAT */
         unsigned long   fill_syndrome;    /* For correcting ECC errors.     */
-        unsigned long   ei_stat;          /* Helps identify reason of any 
+        unsigned long   ei_stat;          /* Helps identify reason of any
                                              processor uncorrectable error
                                              at its external interface.     */
         unsigned long   ld_lock;          /* Contents of EV5 LD_LOCK register*/

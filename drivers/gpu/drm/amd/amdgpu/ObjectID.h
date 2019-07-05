@@ -1,5 +1,5 @@
 /*
-* Copyright 2006-2007 Advanced Micro Devices, Inc.  
+* Copyright 2006-2007 Advanced Micro Devices, Inc.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -37,13 +37,13 @@
 #define GRAPH_OBJECT_TYPE_CONNECTOR               0x3
 #define GRAPH_OBJECT_TYPE_ROUTER                  0x4
 /* deleted */
-#define GRAPH_OBJECT_TYPE_DISPLAY_PATH            0x6  
+#define GRAPH_OBJECT_TYPE_DISPLAY_PATH            0x6
 #define GRAPH_OBJECT_TYPE_GENERIC                 0x7
 
 /****************************************************/
 /* Encoder Object ID Definition                     */
 /****************************************************/
-#define ENCODER_OBJECT_ID_NONE                    0x00 
+#define ENCODER_OBJECT_ID_NONE                    0x00
 
 /* Radeon Class Display Hardware */
 #define ENCODER_OBJECT_ID_INTERNAL_LVDS           0x01
@@ -96,7 +96,7 @@
 /****************************************************/
 /* Connector Object ID Definition                   */
 /****************************************************/
-#define CONNECTOR_OBJECT_ID_NONE                  0x00 
+#define CONNECTOR_OBJECT_ID_NONE                  0x00
 #define CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I     0x01
 #define CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I       0x02
 #define CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D     0x03
@@ -157,7 +157,7 @@
 #define RESERVED1_ID_MASK                         0x0800
 #define OBJECT_TYPE_MASK                          0x7000
 #define RESERVED2_ID_MASK                         0x8000
-                                                  
+
 #define OBJECT_ID_SHIFT                           0x00
 #define ENUM_ID_SHIFT                             0x08
 #define OBJECT_TYPE_SHIFT                         0x0C
@@ -178,14 +178,14 @@
 /* Encoder Object ID definition - Shared with BIOS  */
 /****************************************************/
 /*
-#define ENCODER_INTERNAL_LVDS_ENUM_ID1        0x2101      
+#define ENCODER_INTERNAL_LVDS_ENUM_ID1        0x2101
 #define ENCODER_INTERNAL_TMDS1_ENUM_ID1       0x2102
 #define ENCODER_INTERNAL_TMDS2_ENUM_ID1       0x2103
 #define ENCODER_INTERNAL_DAC1_ENUM_ID1        0x2104
 #define ENCODER_INTERNAL_DAC2_ENUM_ID1        0x2105
 #define ENCODER_INTERNAL_SDVOA_ENUM_ID1       0x2106
 #define ENCODER_INTERNAL_SDVOB_ENUM_ID1       0x2107
-#define ENCODER_SIL170B_ENUM_ID1              0x2108  
+#define ENCODER_SIL170B_ENUM_ID1              0x2108
 #define ENCODER_CH7303_ENUM_ID1               0x2109
 #define ENCODER_CH7301_ENUM_ID1               0x210A
 #define ENCODER_INTERNAL_DVO1_ENUM_ID1        0x210B
@@ -199,8 +199,8 @@
 #define ENCODER_INTERNAL_KLDSCP_TMDS1_ENUM_ID1   0x2113
 #define ENCODER_INTERNAL_KLDSCP_DVO1_ENUM_ID1    0x2114
 #define ENCODER_INTERNAL_KLDSCP_DAC1_ENUM_ID1    0x2115
-#define ENCODER_INTERNAL_KLDSCP_DAC2_ENUM_ID1    0x2116  
-#define ENCODER_SI178_ENUM_ID1                   0x2117 
+#define ENCODER_INTERNAL_KLDSCP_DAC2_ENUM_ID1    0x2116
+#define ENCODER_SI178_ENUM_ID1                   0x2117
 #define ENCODER_MVPU_FPGA_ENUM_ID1               0x2118
 #define ENCODER_INTERNAL_DDI_ENUM_ID1            0x2119
 #define ENCODER_VT1625_ENUM_ID1                  0x211A
@@ -315,7 +315,7 @@
 
 #define ENCODER_SI178_ENUM_ID1                    ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
                                                    GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
-                                                   ENCODER_OBJECT_ID_SI178 << OBJECT_ID_SHIFT)  
+                                                   ENCODER_OBJECT_ID_SI178 << OBJECT_ID_SHIFT)
 
 #define ENCODER_MVPU_FPGA_ENUM_ID1                ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
                                                    GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
@@ -323,7 +323,7 @@
 
 #define ENCODER_INTERNAL_DDI_ENUM_ID1     (  GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
                                              GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
-                                             ENCODER_OBJECT_ID_INTERNAL_DDI << OBJECT_ID_SHIFT) 
+                                             ENCODER_OBJECT_ID_INTERNAL_DDI << OBJECT_ID_SHIFT)
 
 #define ENCODER_VT1625_ENUM_ID1            ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
                                              GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
@@ -351,7 +351,7 @@
 
 #define ENCODER_INTERNAL_KLDSCP_LVTMA_ENUM_ID1   ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
-                                                 ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA << OBJECT_ID_SHIFT)  
+                                                 ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA << OBJECT_ID_SHIFT)
 
 #define ENCODER_INTERNAL_UNIPHY1_ENUM_ID1         ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\

@@ -51,14 +51,14 @@ static inline void vmexit(void)
 {
 	if (!do_exit)
 		return;
-	
+
 	wait_cycles(VMEXIT_CYCLES);
 }
 static inline void vmentry(void)
 {
 	if (!do_exit)
 		return;
-	
+
 	wait_cycles(VMENTRY_CYCLES);
 }
 
@@ -108,7 +108,7 @@ static inline void busy_wait(void)
 	else
 		/* prevent compiler from removing busy loops */
 		barrier();
-} 
+}
 
 #if defined(__x86_64__) || defined(__i386__)
 #define smp_mb()     asm volatile("lock; addl $0,-132(%%rsp)" ::: "memory", "cc")

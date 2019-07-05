@@ -1051,7 +1051,7 @@ static void
 tape_34xx_cleanup_device(struct tape_device *device)
 {
 	tape_std_unassign(device);
-	
+
 	if (device->discdata) {
 		tape_34xx_delete_sbid_from(device, 0);
 		kfree(device->discdata);

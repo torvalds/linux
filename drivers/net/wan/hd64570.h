@@ -45,8 +45,8 @@
 #define MSCI0_OFFSET 0x20
 #define MSCI1_OFFSET 0x40
 
-#define TRBL   0x00		/* TX/RX buffer L */ 
-#define TRBH   0x01		/* TX/RX buffer H */ 
+#define TRBL   0x00		/* TX/RX buffer L */
+#define TRBH   0x01		/* TX/RX buffer H */
 #define ST0    0x02		/* Status 0 */
 #define ST1    0x03		/* Status 1 */
 #define ST2    0x04		/* Status 2 */
@@ -67,9 +67,9 @@
 #define TMC    0x15		/* Time Constant */
 #define RXS    0x16		/* RX Clock Source */
 #define TXS    0x17		/* TX Clock Source */
-#define TRC0   0x18		/* TX Ready Control 0 */ 
-#define TRC1   0x19		/* TX Ready Control 1 */ 
-#define RRC    0x1A		/* RX Ready Control */ 
+#define TRC0   0x18		/* TX Ready Control 0 */
+#define TRC1   0x19		/* TX Ready Control 1 */
+#define RRC    0x1A		/* RX Ready Control */
 #define CST0   0x1C		/* Current Status 0 */
 #define CST1   0x1D		/* Current Status 1 */
 

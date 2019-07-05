@@ -45,7 +45,7 @@ B.  Features
 	- Can concurrently run with xfree86 running with native i810 drivers
 
 	- Hardware Cursor Support
- 
+
 	- Supports EDID probing either by DDC/I2C or through the BIOS
 
 C.  List of available options

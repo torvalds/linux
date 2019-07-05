@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2004 Psion Teklogix
  * Copyright (C) 2004 David Brownell
- * Copyright (C) 2001 Cypress Semiconductor Inc. 
+ * Copyright (C) 2001 Cypress Semiconductor Inc.
  */
 
 /*

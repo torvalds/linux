@@ -502,7 +502,7 @@ static int sabre_probe(struct platform_device *op)
 	/*
 	 * Map in SABRE register set and report the presence of this SABRE.
 	 */
-	
+
 	pr_regs = of_get_property(dp, "reg", NULL);
 	err = -ENODEV;
 	if (!pr_regs) {

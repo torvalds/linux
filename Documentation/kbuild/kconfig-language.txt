@@ -222,7 +222,7 @@ module state. Dependency expressions have the following syntax:
            <expr> '&&' <expr>                   (7)
            <expr> '||' <expr>                   (8)
 
-Expressions are listed in decreasing order of precedence. 
+Expressions are listed in decreasing order of precedence.
 
 (1) Convert the symbol into an expression. Boolean and tristate symbols
     are simply converted into the respective expression values. All

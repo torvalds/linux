@@ -8,7 +8,7 @@
  *   Lowlevel functions for Terratec Aureon cards
  *
  *	Copyright (c) 2003 Takashi Iwai <tiwai@suse.de>
- */      
+ */
 
 #define  AUREON_DEVICE_DESC 	       "{Terratec,Aureon 5.1 Sky},"\
 				       "{Terratec,Aureon 7.1 Space},"\

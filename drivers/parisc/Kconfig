@@ -105,9 +105,9 @@ config CHASSIS_LCD_LED
 	  Say Y here if you want to enable support for the Heartbeat,
 	  Disk/Network activities LEDs on some PA-RISC machines,
 	  or support for the LCD that can be found on recent material.
-	
+
 	  This has nothing to do with LED State support for A and E class.
-	
+
 	  If unsure, say Y.
 
 config PDC_CHASSIS
@@ -124,7 +124,7 @@ config PDC_CHASSIS
 	  shown by the LED/LCD driver.
 	  This driver updates the state panel (LED and/or LCD) upon system
 	  state change (eg: boot, shutdown or panic).
-	  
+
 	  If unsure, say Y.
 
 
@@ -150,9 +150,9 @@ config PDC_STABLE
 	  Say Y here if you want to enable support for accessing Stable Storage
 	  variables (PDC non volatile variables such as Primary Boot Path,
 	  Console Path, Autoboot, Autosearch, etc) through SysFS.
-	
+
 	  If unsure, say Y.
-	
+
 	  To compile this driver as a module, choose M here.
 	  The module will be called pdc_stable.
 

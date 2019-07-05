@@ -18,7 +18,7 @@ Jay Estabrook.
 Major new features since Linux 2.0.x:
 
  * Support for multiple resolutions
- * Support for fixed-frequency and other oddball monitors 
+ * Support for fixed-frequency and other oddball monitors
    (by allowing the video mode to be set at boot time)
 
 User-visible changes since Linux 2.2.x:
@@ -44,11 +44,11 @@ font:X    - default font to use. All fonts are supported, including the
             SUN12x22 font which is very nice at high resolutions.
 
 mode:X    - default video mode. The following video modes are supported:
-            640x480-60, 800x600-56, 640x480-72, 800x600-60, 800x600-72, 
+            640x480-60, 800x600-56, 640x480-72, 800x600-60, 800x600-72,
 	    1024x768-60, 1152x864-60, 1024x768-70, 1024x768-76,
 	    1152x864-70, 1280x1024-61, 1024x768-85, 1280x1024-70,
 	    1152x864-84, 1280x1024-76, 1280x1024-85
- 
+
 
 Known Issues
 ============

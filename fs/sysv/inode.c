@@ -103,7 +103,7 @@ static int sysv_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-/* 
+/*
  * NXI <-> N0XI for PDP, XIN <-> XIN0 for le32, NIX <-> 0NIX for be32
  */
 static inline void read3byte(struct sysv_sb_info *sbi,

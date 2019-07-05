@@ -268,7 +268,7 @@ ret_sys_call:
 	/* System call success, clear Carry condition code. */
 	andn	%g3, %g2, %g3
 3:
-	stx	%g3, [%sp + PTREGS_OFF + PT_V9_TSTATE]	
+	stx	%g3, [%sp + PTREGS_OFF + PT_V9_TSTATE]
 	bne,pn	%icc, linux_syscall_trace2
 	 add	%l1, 0x4, %l2			! npc = npc+4
 	stx	%l1, [%sp + PTREGS_OFF + PT_V9_TPC]

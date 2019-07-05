@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen, IBM Corporation
- * 
- * Rewrite, cleanup, new allocation schemes, virtual merging: 
+ *
+ * Rewrite, cleanup, new allocation schemes, virtual merging:
  * Copyright (C) 2004 Olof Johansson, IBM Corporation
  *               and  Ben. Herrenschmidt, IBM Corporation
  *
@@ -166,7 +166,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
                                        unsigned long *handle,
                                        unsigned long mask,
                                        unsigned int align_order)
-{ 
+{
 	unsigned long n, end, start;
 	unsigned long limit;
 	int largealloc = npages > 15;
@@ -345,7 +345,7 @@ static bool iommu_free_check(struct iommu_table *tbl, dma_addr_t dma_addr,
 	    (entry < tbl->it_offset)) {
 		if (printk_ratelimit()) {
 			printk(KERN_INFO "iommu_free: invalid entry\n");
-			printk(KERN_INFO "\tentry     = 0x%lx\n", entry); 
+			printk(KERN_INFO "\tentry     = 0x%lx\n", entry);
 			printk(KERN_INFO "\tdma_addr  = 0x%llx\n", (u64)dma_addr);
 			printk(KERN_INFO "\tTable     = 0x%llx\n", (u64)tbl);
 			printk(KERN_INFO "\tbus#      = 0x%llx\n", (u64)tbl->it_busno);

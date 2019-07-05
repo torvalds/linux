@@ -581,7 +581,7 @@ send_synth_event(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, int dev)
 		ossev.l.chn = ev->data.control.channel;
 		break;
 	}
-	
+
 	snd_seq_oss_readq_put_timestamp(dp->readq, ev->time.tick, dp->seq_mode);
 	snd_seq_oss_readq_put_event(dp->readq, &ossev);
 
@@ -596,7 +596,7 @@ send_midi_event(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, struct seq
 {
 	char msg[32];
 	int len;
-	
+
 	snd_seq_oss_readq_put_timestamp(dp->readq, ev->time.tick, dp->seq_mode);
 	if (!dp->timer->running)
 		len = snd_seq_oss_timer_start(dp->timer);

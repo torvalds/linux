@@ -170,7 +170,7 @@ $do_wh64:
 $trailquad:
 	# zero to 16 quadwords left to store, plus any trailing bytes
 	# $1 is the number of quadwords left to go.
-	# 
+	#
 	nop			# .. .. .. E
 	nop			# .. .. E  ..
 	nop			# .. E  .. ..

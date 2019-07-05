@@ -5,8 +5,8 @@
  *	nettel.h -- Lineo (formerly Moreton Bay) NETtel support.
  *
  *	(C) Copyright 1999-2000, Moreton Bay (www.moretonbay.com)
- * 	(C) Copyright 2000-2001, Lineo Inc. (www.lineo.com) 
- * 	(C) Copyright 2001-2002, SnapGear Inc., (www.snapgear.com) 
+ * 	(C) Copyright 2000-2001, Lineo Inc. (www.lineo.com)
+ * 	(C) Copyright 2001-2002, SnapGear Inc., (www.snapgear.com)
  */
 
 /****************************************************************************/

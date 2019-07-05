@@ -59,13 +59,13 @@ static struct {
 } xen_remap_buf __initdata __aligned(PAGE_SIZE);
 static unsigned long xen_remap_mfn __initdata = INVALID_P2M_ENTRY;
 
-/* 
+/*
  * The maximum amount of extra memory compared to the base size.  The
  * main scaling factor is the size of struct page.  At extreme ratios
  * of base:extra, all the base memory can be filled with page
  * structures for the extra memory, leaving no space for anything
  * else.
- * 
+ *
  * 10x seems like a reasonable balance between scaling flexibility and
  * leaving a practically usable system.
  */

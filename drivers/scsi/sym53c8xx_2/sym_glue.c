@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
+ * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family
  * of PCI-SCSI IO processors.
  *
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
@@ -9,7 +9,7 @@
  * This driver is derived from the Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
- * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ * The sym53c8xx driver is derived from the ncr53c8xx driver that had been
  * a port of the FreeBSD ncr driver to Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
@@ -150,7 +150,7 @@ void sym_xpt_async_bus_reset(struct sym_hcb *np)
 }
 
 /*
- *  Choose the more appropriate CAM status if 
+ *  Choose the more appropriate CAM status if
  *  the IO encountered an extended error.
  */
 static int sym_xerr_cam_status(int cam_status, int x_status)
@@ -199,8 +199,8 @@ void sym_set_cam_result_error(struct sym_hcb *np, struct sym_ccb *cp, int resid)
 			       min(SCSI_SENSE_BUFFERSIZE, SYM_SNS_BBUF_LEN));
 #if 0
 			/*
-			 *  If the device reports a UNIT ATTENTION condition 
-			 *  due to a RESET condition, we should consider all 
+			 *  If the device reports a UNIT ATTENTION condition
+			 *  due to a RESET condition, we should consider all
 			 *  disconnect CCBs for this unit as aborted.
 			 */
 			if (1) {
@@ -393,9 +393,9 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 	cp->goalp	    = cpu_to_scr(goalp);
 
 	/*
-	 *  When `#ifed 1', the code below makes the driver 
+	 *  When `#ifed 1', the code below makes the driver
 	 *  panic on the first attempt to write to a SCSI device.
-	 *  It is the first test we want to do after a driver 
+	 *  It is the first test we want to do after a driver
 	 *  change that does not seem obviously safe. :)
 	 */
 #if 0
@@ -438,7 +438,7 @@ static void sym_timer(struct sym_hcb *np)
 	add_timer(&np->s.timer);
 
 	/*
-	 *  If we are resetting the ncr, wait for settle_time before 
+	 *  If we are resetting the ncr, wait for settle_time before
 	 *  clearing it. Then command processing will be resumed.
 	 */
 	if (np->s.settle_time_valid) {
@@ -460,11 +460,11 @@ static void sym_timer(struct sym_hcb *np)
 
 #ifdef SYM_CONF_PCIQ_MAY_MISS_COMPLETIONS
 	/*
-	 *  Some way-broken PCI bridges may lead to 
-	 *  completions being lost when the clearing 
-	 *  of the INTFLY flag by the CPU occurs 
+	 *  Some way-broken PCI bridges may lead to
+	 *  completions being lost when the clearing
+	 *  of the INTFLY flag by the CPU occurs
 	 *  concurrently with the chip raising this flag.
-	 *  If this ever happen, lost completions will 
+	 *  If this ever happen, lost completions will
 	 * be reaped here.
 	 */
 	sym_wakeup_done(np);
@@ -503,7 +503,7 @@ static int sym53c8xx_queue_command_lck(struct scsi_cmnd *cmd,
 	memset(ucp, 0, sizeof(*ucp));
 
 	/*
-	 *  Shorten our settle_time if needed for 
+	 *  Shorten our settle_time if needed for
 	 *  this command not to time out.
 	 */
 	if (np->s.settle_time_valid && cmd->request->timeout) {
@@ -869,7 +869,7 @@ static const char *sym53c8xx_info (struct Scsi_Host *host)
  *
  *  A read operation returns adapter information.
  *  A write operation is a control command.
- *  The string is parsed in the driver code and the command is passed 
+ *  The string is parsed in the driver code and the command is passed
  *  to the sym_usercmd() function.
  */
 
@@ -910,7 +910,7 @@ static void sym_exec_user_command (struct sym_hcb *np, struct sym_usrcmd *uc)
 	default:
 		/*
 		 * We assume that other commands apply to targets.
-		 * This should always be the case and avoid the below 
+		 * This should always be the case and avoid the below
 		 * 4 lines to be repeated 6 times.
 		 */
 		for (t = 0; t < SYM_CONF_MAX_TARGET; t++) {
@@ -1261,9 +1261,9 @@ static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
 	sym_data = shost_priv(shost);
 
 	/*
-	 *  Allocate immediately the host control block, 
+	 *  Allocate immediately the host control block,
 	 *  since we are only expecting to succeed. :)
-	 *  We keep track in the HCB of all the resources that 
+	 *  We keep track in the HCB of all the resources that
 	 *  are to be released on error.
 	 */
 	np = __sym_calloc_dma(&pdev->dev, sizeof(*np), "HCB");
@@ -1311,7 +1311,7 @@ static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
 
 	/*
 	 *  Install the interrupt handler.
-	 *  If we synchonize the C code with SCRIPTS on interrupt, 
+	 *  If we synchonize the C code with SCRIPTS on interrupt,
 	 *  we do not want to share the INTR line at all.
 	 */
 	if (request_irq(pdev->irq, sym53c8xx_intr, IRQF_SHARED, NAME53C8XX,
@@ -1616,7 +1616,7 @@ static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 
 	/*
 	 * Reset NCR chip.
-	 * We should use sym_soft_reset(), but we don't want to do 
+	 * We should use sym_soft_reset(), but we don't want to do
 	 * so, since we may not be safe if interrupts occur.
 	 */
 	printk("%s: resetting chip\n", sym_name(np));
@@ -1637,7 +1637,7 @@ static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 static struct scsi_host_template sym2_template = {
 	.module			= THIS_MODULE,
 	.name			= "sym53c8xx",
-	.info			= sym53c8xx_info, 
+	.info			= sym53c8xx_info,
 	.queuecommand		= sym53c8xx_queue_command,
 	.slave_alloc		= sym53c8xx_slave_alloc,
 	.slave_configure	= sym53c8xx_slave_configure,

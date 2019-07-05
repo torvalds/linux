@@ -5,7 +5,7 @@
  *   AK4524 / AK4528 / AK4529 / AK4355 / AK4381 interface
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- */      
+ */
 
 #include <linux/io.h>
 #include <linux/delay.h>

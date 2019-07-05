@@ -11,7 +11,7 @@
  *			statistics for filehandle lookup
  *	io <bytes-read> <bytes-written>
  *			statistics for IO throughput
- *	th <threads> <fullcnt> <10%-20%> <20%-30%> ... <90%-100%> <100%> 
+ *	th <threads> <fullcnt> <10%-20%> <20%-30%> ... <90%-100%> <100%>
  *			time (seconds) when nfsd thread usage above thresholds
  *			and number of times that all threads were in use
  *	ra cache-size  <10%  <20%  <30% ... <100% not-found
@@ -62,7 +62,7 @@ static int nfsd_proc_show(struct seq_file *seq, void *v)
 	for (i=0; i<11; i++)
 		seq_printf(seq, " %u", nfsdstats.ra_depth[i]);
 	seq_putc(seq, '\n');
-	
+
 	/* show my rpc info */
 	svc_seq_show(seq, &nfsd_svcstats);
 

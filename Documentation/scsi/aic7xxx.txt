@@ -14,7 +14,7 @@ The following information is available in this file:
 1. Supported Hardware
 
    The following Adaptec SCSI Chips and Host Adapters are supported by
-   the aic7xxx driver. 
+   the aic7xxx driver.
 
    Chip    MIPS  Host Bus  MaxSync  MaxWidth  SCBs  Notes
    ---------------------------------------------------------------
@@ -102,11 +102,11 @@ The following information is available in this file:
    AHA-2940U2B    aic7890   PCI/32      LVD-HD68F       LVD-HD68F
    AHA-2940U2 OEM aic7891   PCI/64
    AHA-2940U2W    aic7890   PCI/32      LVD-HD68F       LVD-HD68F
-                                        SE-HD68F 
+                                        SE-HD68F
                                          SE-50M
    AHA-2950U2B    aic7891   PCI/64      LVD-HD68F       LVD-HD68F
    AHA-2930U2     aic7890   PCI/32      LVD-HD68F       SE-HD50F
-                                         SE-50M 
+                                         SE-50M
    AHA-3950U2B    aic7897   PCI/64
    AHA-3950U2D    aic7897   PCI/64
    AHA-29160      aic7892   PCI/64-66
@@ -188,7 +188,7 @@ The following information is available in this file:
 
         WARNING: ALTERING OR ADDING THESE DRIVER PARAMETERS
                  INCORRECTLY CAN RENDER YOUR SYSTEM INOPERABLE.
-                 USE THEM WITH CAUTION. 
+                 USE THEM WITH CAUTION.
 
    Put a .conf file in the /etc/modprobe.d directory and add/edit a
    line containing 'options aic7xxx aic7xxx=[command[,command...]]' where
@@ -279,7 +279,7 @@ The following information is available in this file:
                         On Controller 1
                           specifies a tag depth of 32 for targets 0 and 2
                         All other targets retain the default depth.
-                        
+
      Possible Values: 1 - 253
        Default Value: 32
    -----------------------------------------------------------------
@@ -288,7 +288,7 @@ The following information is available in this file:
      Possible Values: 0 = 256ms, 1 = 128ms, 2 = 64ms, 3 = 32ms
        Default Value: 0
    -----------------------------------------------------------------
-              Option: dv: {value[,value...]} 
+              Option: dv: {value[,value...]}
           Definition: Set Domain Validation Policy on a per-controller basis.
                       Controllers may be omitted indicating that
                       they should retain the default read streaming setting.
@@ -315,20 +315,20 @@ The following information is available in this file:
 
 4. Adaptec Customer Support
 
-   A Technical Support Identification (TSID) Number is required for 
+   A Technical Support Identification (TSID) Number is required for
    Adaptec technical support.
     - The 12-digit TSID can be found on the white barcode-type label
-      included inside the box with your product.  The TSID helps us 
-      provide more efficient service by accurately identifying your 
+      included inside the box with your product.  The TSID helps us
+      provide more efficient service by accurately identifying your
       product and support status.
 
    Support Options
     - Search the Adaptec Support Knowledgebase (ASK) at
       http://ask.adaptec.com for articles, troubleshooting tips, and
       frequently asked questions about your product.
-    - For support via Email, submit your question to Adaptec's 
+    - For support via Email, submit your question to Adaptec's
       Technical Support Specialists at http://ask.adaptec.com/.
-     
+
    North America
     - Visit our Web site at http://www.adaptec.com/.
     - For information about Adaptec's support options, call
@@ -357,7 +357,7 @@ The following information is available in this file:
 
    Japan
     - Visit our web site at http://www.adaptec.co.jp/.
-    - To speak with a Technical Support Specialist, call 
+    - To speak with a Technical Support Specialist, call
       +81 3 5308 6120, Monday-Friday, 9:00 a.m. to 12:00 p.m.,
       1:00 p.m. to 6:00 p.m.
 

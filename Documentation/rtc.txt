@@ -86,9 +86,9 @@ a different value to /proc/sys/dev/rtc/max-user-freq. Note that the
 interrupt handler is only a few lines of code to minimize any possibility
 of this effect.
 
-Also, if the kernel time is synchronized with an external source, the 
-kernel will write the time back to the CMOS clock every 11 minutes. In 
-the process of doing this, the kernel briefly turns off RTC periodic 
+Also, if the kernel time is synchronized with an external source, the
+kernel will write the time back to the CMOS clock every 11 minutes. In
+the process of doing this, the kernel briefly turns off RTC periodic
 interrupts, so be aware of this if you are doing serious work. If you
 don't synchronize the kernel time with an external source (via ntp or
 whatever) then the kernel will keep its hands off the RTC, allowing you

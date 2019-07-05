@@ -170,7 +170,7 @@ static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 	pa = __raw_readw(MCFEPORT_EPPAR);
 	pa = (pa & ~(0x3 << (irq * 2))) | (tb << (irq * 2));
 	__raw_writew(pa, MCFEPORT_EPPAR);
-	
+
 	return 0;
 }
 

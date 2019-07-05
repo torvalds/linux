@@ -14,10 +14,10 @@ void lmcConsoleLog(char *type, unsigned char *ucData, int iLen)
 {
   int iNewLine = 1;
   char str[80], *pstr;
-  
+
   sprintf(str, KERN_DEBUG "lmc: %s: ", type);
   pstr = str+strlen(str);
-  
+
   if(iLen > 240){
       printk(KERN_DEBUG "lmc: Printing 240 chars... out of: %d\n", iLen);
     iLen = 240;
@@ -26,7 +26,7 @@ void lmcConsoleLog(char *type, unsigned char *ucData, int iLen)
       printk(KERN_DEBUG "lmc: Printing %d chars\n", iLen);
   }
 
-  while(iLen > 0) 
+  while(iLen > 0)
     {
       sprintf(pstr, "%02x ", *ucData);
       pstr+=3;

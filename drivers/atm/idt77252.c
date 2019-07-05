@@ -1,6 +1,6 @@
-/******************************************************************* 
+/*******************************************************************
  *
- * Copyright (c) 2000 ATecoM GmbH 
+ * Copyright (c) 2000 ATecoM GmbH
  *
  * The author may be reached at ecd@atecom.com.
  *
@@ -1303,7 +1303,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 			atomic_inc(&vcc->stats->rx_drop);
 			goto drop;
 		}
-	
+
 		if ((sb = dev_alloc_skb(64)) == NULL) {
 			printk("%s: Can't allocate buffers for AAL0.\n",
 			       card->name);
@@ -3488,7 +3488,7 @@ static int init_card(struct atm_dev *dev)
 		idt77252_eeprom_read_status(card));
 
 	for (i = 0; i < 0x80; i++) {
-		printk(" %02x", 
+		printk(" %02x",
 		idt77252_eeprom_read_byte(card, i)
 		);
 	}

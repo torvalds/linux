@@ -25,13 +25,13 @@ I.  Supported Devices.
     0e11	b030		Compaq Netelligent 10/100 TX UTP
     0e11	f130		Compaq NetFlex 3/P
     0e11	f150		Compaq NetFlex 3/P
-    108d	0012		Olicom OC-2325	
+    108d	0012		Olicom OC-2325
     108d	0013		Olicom OC-2183
-    108d	0014		Olicom OC-2326	
+    108d	0014		Olicom OC-2326
 
 
     Caveats:
-    
+
     I am not sure if 100BaseTX daughterboards (for those cards which
     support such things) will work.  I haven't had any solid evidence
     either way.
@@ -41,13 +41,13 @@ I.  Supported Devices.
 
     The "Netelligent 10 T/2 PCI UTP/Coax" (b012) device is untested,
     but I do not expect any problems.
-    
+
 
 II.   Driver Options
 	1. You can append debug=x to the end of the insmod line to get
            debug messages, where x is a bit field where the bits mean
 	   the following:
-	   
+
 	   0x01		Turn on general debugging messages.
 	   0x02		Turn on receive debugging messages.
 	   0x04		Turn on transmit debugging messages.
@@ -70,7 +70,7 @@ II.   Driver Options
 
 	5. You have to use speed=X duplex=Y together now. If you just
 	   do "insmod tlan.o speed=100" the driver will do Auto-Neg.
-	   To force a 10Mbps Half-Duplex link do "insmod tlan.o speed=10 
+	   To force a 10Mbps Half-Duplex link do "insmod tlan.o speed=10
 	   duplex=1".
 
 	6. If the driver is built into the kernel, you can use the 3rd
@@ -91,13 +91,13 @@ II.   Driver Options
 		0x10 = use 100BaseTx
 
 	   You also need to set both speed and duplex settings when forcing
-	   speeds with kernel-parameters. 
+	   speeds with kernel-parameters.
 	   ether=0,0,0x12,0,eth0 will force link to 100Mbps Half-Duplex.
 
 	7. If you have more than one tlan adapter in your system, you can
 	   use the above options on a per adapter basis. To force a 100Mbit/HD
 	   link with your eth1 adapter use:
-	   
+
 	   insmod tlan speed=0,100 duplex=0,1
 
 	   Now eth0 will use auto-neg and eth1 will be forced to 100Mbit/HD.

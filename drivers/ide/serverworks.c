@@ -309,7 +309,7 @@ static u8 svwks_cable_detect(ide_hwif_t *hwif)
 	/* Server Works */
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_SERVERWORKS)
 		return ata66_svwks_svwks (hwif);
-	
+
 	/* Dell PowerEdge */
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_DELL)
 		return ata66_svwks_dell (hwif);
@@ -391,7 +391,7 @@ static const struct ide_port_info serverworks_chipsets[] = {
  *	Called when the PCI registration layer (or the IDE initialization)
  *	finds a device matching our IDE device tables.
  */
- 
+
 static int svwks_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct ide_port_info d;

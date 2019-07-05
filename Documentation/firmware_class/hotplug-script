@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Simple hotplug script sample:
-# 
+#
 # Both $DEVPATH and $FIRMWARE are already provided in the environment.
 
 HOTPLUG_FW_DIR=/usr/lib/hotplug/firmware/

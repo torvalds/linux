@@ -1,4 +1,4 @@
-/* 
+/*
         pt.c    (c) 1998  Grant R. Guenther <grant@torque.net>
                           Under the terms of the GNU General Public License.
 
@@ -24,7 +24,7 @@
         some parameters from the insmod command line.  The following
         parameters are adjustable:
 
-            drive0      These four arguments can be arrays of       
+            drive0      These four arguments can be arrays of
             drive1      1-6 integers as follows:
             drive2
             drive3      <prt>,<pro>,<uni>,<mod>,<slv>,<dly>
@@ -54,7 +54,7 @@
                         choose the slave, -1 (the default) to choose the
                         first drive found.
 
-                <dly>   some parallel ports require the driver to 
+                <dly>   some parallel ports require the driver to
                         go more slowly.  -1 sets a default value that
                         should work with the chosen protocol.  Otherwise,
                         set this to a small integer, the larger it is
@@ -76,8 +76,8 @@
                         normal operation, 1 to see autoprobe progress
                         messages, or 2 to see additional debugging
                         output.  (default 0)
- 
-        If this driver is built into the kernel, you can use 
+
+        If this driver is built into the kernel, you can use
         the following command line parameters, with the same values
         as the corresponding module parameters listed above:
 
@@ -101,7 +101,7 @@
 	1.03    GRG 1998.08.15  Adjusted PT_TMO, use HZ in loop timing,
 				extra debugging
 	1.04    GRG 1998.09.24  Repair minor coding error, added jumbo support
-	
+
 */
 
 #define PT_VERSION      "1.04"

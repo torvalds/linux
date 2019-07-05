@@ -4,7 +4,7 @@
  *
  * Copyright 2002 Momentum Computer, Inc.
  * 	Author: Matthew Dharm <mdharm@momenco.com>
- * Copyright 2002 GALILEO TECHNOLOGY, LTD. 
+ * Copyright 2002 GALILEO TECHNOLOGY, LTD.
  */
 #ifndef __ASM_MV643XX_H
 #define __ASM_MV643XX_H
@@ -72,7 +72,7 @@
 /* internal registers space base address */
 #define MV64340_INTERNAL_SPACE_BASE_ADDR                            0x068
 
-/* Enables the CS , DEV_CS , PCI 0 and PCI 1 
+/* Enables the CS , DEV_CS , PCI 0 and PCI 1
    windows above */
 #define MV64340_BASE_ADDR_ENABLE                                    0x278
 
@@ -99,7 +99,7 @@
 #define MV64340_PCI_1_MEMORY2_HIGH_ADDR_REMAP                       0x350
 #define MV64340_PCI_1_MEMORY3_LOW_ADDR_REMAP                        0x318
 #define MV64340_PCI_1_MEMORY3_HIGH_ADDR_REMAP                       0x358
- 
+
 #define MV64340_CPU_PCI_0_HEADERS_RETARGET_CONTROL                  0x3b0
 #define MV64340_CPU_PCI_0_HEADERS_RETARGET_BASE                     0x3b8
 #define MV64340_CPU_PCI_1_HEADERS_RETARGET_CONTROL                  0x3c0
@@ -355,7 +355,7 @@
 #define MV64340_PCI_0_P2P_MEM1_BASE_ADDR_REMAP_HIGH                 0xd68
 #define MV64340_PCI_1_P2P_MEM1_BASE_ADDR_REMAP_HIGH                 0xde8
 #define MV64340_PCI_0_P2P_I_O_BASE_ADDR_REMAP                       0xd6c
-#define MV64340_PCI_1_P2P_I_O_BASE_ADDR_REMAP                       0xdec 
+#define MV64340_PCI_1_P2P_I_O_BASE_ADDR_REMAP                       0xdec
 #define MV64340_PCI_0_CPU_BASE_ADDR_REMAP_LOW                       0xd70
 #define MV64340_PCI_1_CPU_BASE_ADDR_REMAP_LOW                       0xdf0
 #define MV64340_PCI_0_CPU_BASE_ADDR_REMAP_HIGH                      0xd74
@@ -661,7 +661,7 @@
 /*******************************************/
 
          /* Address Decoding Register Map */
-           
+
 #define MV64340_CUNIT_BASE_ADDR_REG0                                0xf200
 #define MV64340_CUNIT_BASE_ADDR_REG1                                0xf208
 #define MV64340_CUNIT_BASE_ADDR_REG2                                0xf210
@@ -705,21 +705,21 @@
 
 #define MV64340_MPSC_CAUSE_REG(port)                               (0xb804 + (port<<3))
 #define MV64340_MPSC_MASK_REG(port)                                (0xb884 + (port<<3))
- 
+
 #define MV64340_MPSC_MAIN_CONFIG_LOW(port)                         (0x8000 + (port<<12))
-#define MV64340_MPSC_MAIN_CONFIG_HIGH(port)                        (0x8004 + (port<<12))    
-#define MV64340_MPSC_PROTOCOL_CONFIG(port)                         (0x8008 + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG1(port)                            (0x800c + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG2(port)                            (0x8010 + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG3(port)                            (0x8014 + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG4(port)                            (0x8018 + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG5(port)                            (0x801c + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG6(port)                            (0x8020 + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG7(port)                            (0x8024 + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG8(port)                            (0x8028 + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG9(port)                            (0x802c + (port<<12))    
-#define MV64340_MPSC_CHANNEL_REG10(port)                           (0x8030 + (port<<12))    
-        
+#define MV64340_MPSC_MAIN_CONFIG_HIGH(port)                        (0x8004 + (port<<12))
+#define MV64340_MPSC_PROTOCOL_CONFIG(port)                         (0x8008 + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG1(port)                            (0x800c + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG2(port)                            (0x8010 + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG3(port)                            (0x8014 + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG4(port)                            (0x8018 + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG5(port)                            (0x801c + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG6(port)                            (0x8020 + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG7(port)                            (0x8024 + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG8(port)                            (0x8028 + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG9(port)                            (0x802c + (port<<12))
+#define MV64340_MPSC_CHANNEL_REG10(port)                           (0x8030 + (port<<12))
+
         /*  MPSC0 Registers      */
 
 
@@ -727,15 +727,15 @@
 /*          SDMA Registers             */
 /***************************************/
 
-#define MV64340_SDMA_CONFIG_REG(channel)                        (0x4000 + (channel<<13))        
-#define MV64340_SDMA_COMMAND_REG(channel)                       (0x4008 + (channel<<13))        
-#define MV64340_SDMA_CURRENT_RX_DESCRIPTOR_POINTER(channel)     (0x4810 + (channel<<13))        
-#define MV64340_SDMA_CURRENT_TX_DESCRIPTOR_POINTER(channel)     (0x4c10 + (channel<<13))        
-#define MV64340_SDMA_FIRST_TX_DESCRIPTOR_POINTER(channel)       (0x4c14 + (channel<<13)) 
+#define MV64340_SDMA_CONFIG_REG(channel)                        (0x4000 + (channel<<13))
+#define MV64340_SDMA_COMMAND_REG(channel)                       (0x4008 + (channel<<13))
+#define MV64340_SDMA_CURRENT_RX_DESCRIPTOR_POINTER(channel)     (0x4810 + (channel<<13))
+#define MV64340_SDMA_CURRENT_TX_DESCRIPTOR_POINTER(channel)     (0x4c10 + (channel<<13))
+#define MV64340_SDMA_FIRST_TX_DESCRIPTOR_POINTER(channel)       (0x4c14 + (channel<<13))
 
 #define MV64340_SDMA_CAUSE_REG                                      0xb800
 #define MV64340_SDMA_MASK_REG                                       0xb880
-         
+
 /* BRG Interrupts */
 
 #define MV64340_BRG_CONFIG_REG(brg)                              (0xb200 + (brg<<3))
@@ -783,7 +783,7 @@
 #define MV64340_DMA_CHANNEL3_CURRENT_DESCRIPTOR_POINTER             0x87C
 
  /*  IDMA Address Decoding Base Address Registers  */
- 
+
 #define MV64340_DMA_BASE_ADDR_REG0                                  0xa00
 #define MV64340_DMA_BASE_ADDR_REG1                                  0xa08
 #define MV64340_DMA_BASE_ADDR_REG2                                  0xa10
@@ -792,9 +792,9 @@
 #define MV64340_DMA_BASE_ADDR_REG5                                  0xa28
 #define MV64340_DMA_BASE_ADDR_REG6                                  0xa30
 #define MV64340_DMA_BASE_ADDR_REG7                                  0xa38
- 
+
  /*  IDMA Address Decoding Size Address Register   */
- 
+
 #define MV64340_DMA_SIZE_REG0                                       0xa04
 #define MV64340_DMA_SIZE_REG1                                       0xa0c
 #define MV64340_DMA_SIZE_REG2                                       0xa14
@@ -804,9 +804,9 @@
 #define MV64340_DMA_SIZE_REG6                                       0xa34
 #define MV64340_DMA_SIZE_REG7                                       0xa3C
 
- /* IDMA Address Decoding High Address Remap and Access 
+ /* IDMA Address Decoding High Address Remap and Access
                   Protection Registers                    */
-                  
+
 #define MV64340_DMA_HIGH_ADDR_REMAP_REG0                            0xa60
 #define MV64340_DMA_HIGH_ADDR_REMAP_REG1                            0xa64
 #define MV64340_DMA_HIGH_ADDR_REMAP_REG2                            0xa68

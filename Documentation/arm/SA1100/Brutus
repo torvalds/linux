@@ -1,4 +1,4 @@
-Brutus is an evaluation platform for the SA1100 manufactured by Intel.  
+Brutus is an evaluation platform for the SA1100 manufactured by Intel.
 For more details, see:
 
 http://developer.intel.com
@@ -16,7 +16,7 @@ must be loaded at 0xc0008000 in Brutus's memory and execution started at
 entry.
 
 But prior to execute the kernel, a ramdisk image must also be loaded in
-memory.  Use memory address 0xd8000000 for this.  Note that the file 
+memory.  Use memory address 0xd8000000 for this.  Note that the file
 containing the (compressed) ramdisk image must not exceed 4 MB.
 
 Typically, you'll need angelboot to load the kernel.
@@ -49,9 +49,9 @@ Currently supported:
 	- audio output
 	- LCD screen
 	- keyboard
-	
-The actual Brutus support may not be complete without extra patches. 
-If such patches exist, they should be found from 
+
+The actual Brutus support may not be complete without extra patches.
+If such patches exist, they should be found from
 ftp.netwinder.org/users/n/nico.
 
 A full PCMCIA support is still missing, although it's possible to hack

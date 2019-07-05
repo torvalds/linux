@@ -1195,7 +1195,7 @@ static const struct hda_pintbl dell9200_d23_pin_configs[] = {
 };
 
 
-/* 
+/*
     STAC 9200-32 pin configs for
     102801B5 (Dell Inspiron 630m)
     102801D8 (Dell Inspiron 640m)
@@ -1212,13 +1212,13 @@ static const struct hda_pintbl dell9200_m21_pin_configs[] = {
 	{}
 };
 
-/* 
+/*
     STAC 9200-32 pin configs for
     102801C2 (Dell Latitude D620)
-    102801C8 
+    102801C8
     102801CC (Dell Latitude D820)
-    102801D4 
-    102801D6 
+    102801D4
+    102801D6
 */
 static const struct hda_pintbl dell9200_m22_pin_configs[] = {
 	{ 0x08, 0x40c003fa },
@@ -1232,7 +1232,7 @@ static const struct hda_pintbl dell9200_m22_pin_configs[] = {
 	{}
 };
 
-/* 
+/*
     STAC 9200-32 pin configs for
     102801CE (Dell XPS M1710)
     102801CF (Dell Precision M90)
@@ -1250,7 +1250,7 @@ static const struct hda_pintbl dell9200_m23_pin_configs[] = {
 };
 
 /*
-    STAC 9200-32 pin configs for 
+    STAC 9200-32 pin configs for
     102801C9
     102801CA
     102801CB (Dell Latitude 120L)
@@ -4402,7 +4402,7 @@ static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {
 	if (nid == codec->core.afg)
-		snd_iprintf(buffer, "Power-Map: 0x%02x\n", 
+		snd_iprintf(buffer, "Power-Map: 0x%02x\n",
 			    snd_hda_codec_read(codec, nid, 0,
 					       AC_VERB_IDT_GET_POWER_MAP, 0));
 }
@@ -4945,7 +4945,7 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	spec->aloopback_mask = 0x40;
 	spec->aloopback_shift = 0;
-	
+
 	/* GPIO0 High = EAPD */
 	spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
 	spec->gpio_data = 0x01;

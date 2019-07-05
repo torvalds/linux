@@ -111,7 +111,7 @@ asmlinkage void sparc64_set_context(struct pt_regs *regs)
 	if (fenab) {
 		unsigned long *fpregs = current_thread_info()->fpregs;
 		unsigned long fprs;
-		
+
 		fprs_write(0);
 		err |= __get_user(fprs, &(ucp->uc_mcontext.mc_fpregs.mcfpu_fprs));
 		if (fprs & FPRS_DL)
@@ -158,7 +158,7 @@ asmlinkage void sparc64_get_context(struct pt_regs *regs)
 #else
 	fenab = (current_thread_info()->fpsaved[0] & FPRS_FEF);
 #endif
-		
+
 	mcp = &ucp->uc_mcontext;
 	grp = &mcp->mc_gregs;
 
@@ -209,7 +209,7 @@ asmlinkage void sparc64_get_context(struct pt_regs *regs)
 	if (fenab) {
 		unsigned long *fpregs = current_thread_info()->fpregs;
 		unsigned long fprs;
-		
+
 		fprs = current_thread_info()->fpsaved[0];
 		if (fprs & FPRS_DL)
 			err |= copy_to_user(&(mcp->mc_fpregs.mcfpu_fregs), fpregs,
@@ -358,7 +358,7 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	/* 1. Make sure everything is clean */
 	synchronize_user_stack();
 	save_and_clear_fpu();
-	
+
 	wsaved = get_thread_wsaved();
 
 	sf_size = sizeof(struct rt_signal_frame);
@@ -400,7 +400,7 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	} else {
 		err |= __put_user(0, &sf->rwin_save);
 	}
-	
+
 	/* Setup sigaltstack */
 	err |= __save_altstack(&sf->stack, regs->u_regs[UREG_FP]);
 
@@ -425,7 +425,7 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	}
 	if (err)
 		return err;
-	
+
 	/* 3. signal handler back-trampoline and parameters */
 	regs->u_regs[UREG_FP] = ((unsigned long) sf) - STACK_BIAS;
 	regs->u_regs[UREG_I0] = ksig->sig;
@@ -479,7 +479,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	struct ksignal ksig;
 	int restart_syscall;
 	bool has_handler;
-	
+
 	/* It's a lot of work and synchronization to add a new ptrace
 	 * register for GDB to save and restore in order to get
 	 * orig_i0 correct for syscall restarts when debugging.
@@ -507,7 +507,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 		do_signal32(regs);
 		return;
 	}
-#endif	
+#endif
 
 	has_handler = get_signal(&ksig);
 

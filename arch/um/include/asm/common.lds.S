@@ -26,25 +26,25 @@
 	*(.uml.setup.init)
 	__uml_setup_end = .;
   }
-	
+
   .uml.help.init : {
 	__uml_help_start = .;
 	*(.uml.help.init)
 	__uml_help_end = .;
   }
-	
+
   .uml.postsetup.init : {
 	__uml_postsetup_start = .;
 	*(.uml.postsetup.init)
 	__uml_postsetup_end = .;
   }
-	
+
   .init.setup : {
 	INIT_SETUP(0)
   }
 
   PERCPU_SECTION(32)
-	
+
   .initcall.init : {
 	INIT_CALLS
   }

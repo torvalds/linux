@@ -3,7 +3,7 @@
  * rocket.h --- the exported interface of the rocket driver to its configuration program.
  *
  * Written by Theodore Ts'o, Copyright 1997.
- * Copyright 1997 Comtrol Corporation. 
+ * Copyright 1997 Comtrol Corporation.
  *
  */
 
@@ -100,7 +100,7 @@ struct rocket_version {
 #define MODEL_UPCI_RP32INTF   0x0801	/* RP UPCI 32 port w/external I/F     */
 #define MODEL_UPCI_RP8INTF    0x0802	/* RP UPCI 8 port w/external I/F      */
 #define MODEL_UPCI_RP16INTF   0x0803	/* RP UPCI 16 port w/external I/F     */
-#define MODEL_UPCI_RP8OCTA    0x0805	/* RP UPCI 8 port w/octa cable        */ 
+#define MODEL_UPCI_RP8OCTA    0x0805	/* RP UPCI 8 port w/octa cable        */
 #define MODEL_UPCI_RM3_8PORT  0x080C	/* RP UPCI Rocketmodem III 8 port     */
 #define MODEL_UPCI_RM3_4PORT  0x080C	/* RP UPCI Rocketmodem III 4 port     */
 

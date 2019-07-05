@@ -59,7 +59,7 @@ debug
     This option appears only when ``CONFIG_SND_DEBUG=y``.
     This option can be dynamically changed via sysfs
     /sys/modules/snd/parameters/debug file.
-  
+
 Module snd-pcm-oss
 ------------------
 
@@ -86,7 +86,7 @@ commas, such like ``dsp_map=0,1``.
 regarding opening the device.  When this option is non-zero,
 opening a busy OSS PCM device won't be blocked but return
 immediately with EAGAIN (just like O_NONBLOCK flag).
-    
+
 Module snd-rawmidi
 ------------------
 
@@ -165,9 +165,9 @@ Module for sound cards based on Analog Devices AD1816A/AD1815 ISA chips.
 
 clockfreq
     Clock frequency for AD1816A chip (default = 0, 33000Hz)
-    
+
 This module supports multiple cards, autoprobe and PnP.
-    
+
 Module snd-ad1848
 -----------------
 
@@ -179,10 +179,10 @@ irq
     IRQ # for AD1848  chip
 dma1
     DMA # for AD1848 chip (0,1,3)
-    
+
 This module supports multiple cards.  It does not support autoprobe
 thus main port must be specified!!! Other ports are optional.
-    
+
 The power-management is supported.
 
 Module snd-ad1889
@@ -237,7 +237,7 @@ Module for sound cards based on Avance Logic ALS4000 PCI chip.
 joystick_port
     port # for legacy joystick support;
     0 = disabled (default), 1 = auto-detect
-    
+
 This module supports multiple cards, autoprobe and PnP.
 
 The power-management is supported.
@@ -312,10 +312,10 @@ Development and reverse engineering work is being coordinated at
 http://savannah.nongnu.org/projects/openvortex/
 SPDIF output has a copy of the AC97 codec output, unless you use the
 ``spdif`` pcm device, which allows raw data passthru.
-The hardware EQ hardware and SPDIF is only present in the Vortex2 and 
+The hardware EQ hardware and SPDIF is only present in the Vortex2 and
 Advantage.
 
-Note: Some ALSA mixer applications don't handle the SPDIF sample rate 
+Note: Some ALSA mixer applications don't handle the SPDIF sample rate
 control correctly. If you have problems regarding this, try
 another ALSA compliant mixer (alsamixer works).
 
@@ -605,7 +605,7 @@ The power-management is supported.
 Module snd-cs5530
 -----------------
 
-Module for Cyrix/NatSemi Geode 5530 chip. 
+Module for Cyrix/NatSemi Geode 5530 chip.
 
 Module snd-cs5535audio
 ----------------------
@@ -628,7 +628,7 @@ Module for Creative Sound Blaster X-Fi boards (20k1 / 20k2 chips)
 * Creative Sound Blaster X-Fi Fatal1ty
 * Creative Sound Blaster X-Fi XtremeGamer
 * Creative Sound Blaster X-Fi XtremeMusic
-	
+
 reference_rate
     reference sample rate, 44100 or 48000 (default)
 multiple
@@ -687,7 +687,7 @@ When multiple PCM devices are created, snd-dummy gives different
 behavior to each PCM device:
 * 0 = interleaved with mmap support
 * 1 = non-interleaved with mmap support
-* 2 = interleaved without mmap 
+* 2 = interleaved without mmap
 * 3 = non-interleaved without mmap
 
 As default, snd-dummy drivers doesn't allocate the real buffers
@@ -715,7 +715,7 @@ Module for EMU10K1/EMU10k2 based PCI sound cards.
 * Sound Blaster PCI 512
 * Emu APS (partially supported)
 * Sound Blaster Audigy
-	
+
 extin
     bitmap of available external inputs for FX8010 (see bellow)
 extout
@@ -745,9 +745,9 @@ Input & Output configurations 			[extin/extout]
 * Creative Card 5.1/w Digital out + LiveDrive	[0x3fc3/0x1fff]
 * Creative Card 5.1 (c) 2003			[0x3fc3/0x7cff]
 * Creative Card all ins and outs		[0x3fff/0x7fff]
-  
+
 The power-management is supported.
-  
+
 Module snd-emu10k1x
 -------------------
 
@@ -762,10 +762,10 @@ Module for Ensoniq AudioPCI ES1370 PCI sound cards.
 
 * SoundBlaster PCI 64
 * SoundBlaster PCI 128
-    
+
 joystick
     Enable joystick (default off)
-  
+
 This module supports multiple cards and autoprobe.
 
 The power-management is supported.
@@ -778,11 +778,11 @@ Module for Ensoniq AudioPCI ES1371 PCI sound cards.
 * SoundBlaster PCI 64
 * SoundBlaster PCI 128
 * SoundBlaster Vibra PCI
-      
+
 joystick_port
     port # for joystick (0x200,0x208,0x210,0x218), 0 = disable
     (default), 1 = auto-detect
-  
+
 This module supports multiple cards and autoprobe.
 
 The power-management is supported.
@@ -869,7 +869,7 @@ use_pm
 enable_mpu
     enable MPU401 (0 = off, 1 = on, 2 = auto (default))
 joystick
-    enable joystick (default off)       
+    enable joystick (default off)
 
 This module supports multiple cards and autoprobe.
 
@@ -887,7 +887,7 @@ tea575x_tuner
     3 = MediaForte 64-PCR
     High 16-bits are video (radio) device number + 1;
     example: 0x10002 (MediaForte 256-PCPR, device 1)
-	  
+
 This module supports multiple cards and autoprobe.
 
 The power-management is supported.
@@ -1159,7 +1159,7 @@ Module for Envy24 (ICE1712) based PCI sound cards.
 * Digigram VX442
 * Lionstracs, Mediastaton
 * Terrasoniq TS 88
-			
+
 model
     Use the given board model, one of the following:
     delta1010, dio2496, delta66, delta44, audiophile, delta410,
@@ -1203,7 +1203,7 @@ Module for Envy24HT (VT/ICE1724), Envy24PT (VT1720) based PCI sound cards.
 * AudioTrak Prodigy 7.1 HD2
 * AudioTrak Prodigy 192
 * Pontis MS300
-* Albatron K8X800 Pro II 
+* Albatron K8X800 Pro II
 * Chaintech ZNF3-150
 * Chaintech ZNF3-250
 * Chaintech 9CJS
@@ -1215,7 +1215,7 @@ Module for Envy24HT (VT/ICE1724), Envy24PT (VT1720) based PCI sound cards.
 * ESI Maya44
 * Hercules Fortissimo IV
 * EGO-SYS WaveTerminal 192M
-			
+
 model
     Use the given board model, one of the following:
     revo51, revo71, amp2000, prodigy71, prodigy71lt,
@@ -1223,7 +1223,7 @@ model
     juli, aureon51, aureon71, universe, ap192, k8x800,
     phase22, phase28, ms300, av710, se200pci, se90pci,
     fortissimo4, sn25p, WT192M, maya44
-  
+
 This module supports multiple cards and autoprobe.
 
 Note: The supported board is detected by reading EEPROM or PCI
@@ -1262,12 +1262,12 @@ Module snd-intel8x0
 Module for AC'97 motherboards from Intel and compatibles.
 
 * Intel i810/810E, i815, i820, i830, i84x, MX440 ICH5, ICH6, ICH7,
-  6300ESB, ESB2 
+  6300ESB, ESB2
 * SiS 7012 (SiS 735)
 * NVidia NForce, NForce2, NForce3, MCP04, CK804 CK8, CK8S, MCP501
 * AMD AMD768, AMD8111
 * ALi m5455
-	  
+
 ac97_clock
     AC'97 codec clock base (0 = auto-detect)
 ac97_quirk
@@ -1305,10 +1305,10 @@ Module for Intel ICH (i8x0) chipset MC97 modems.
 * NVidia NForce, NForce2, NForce2s, NForce3
 * AMD AMD8111
 * ALi m5455
-	  
+
 ac97_clock
     AC'97 codec clock base (0 = auto-detect)
-  
+
 This module supports one card and autoprobe.
 
 Note: The default index value of this module is -2, i.e. the first
@@ -1446,13 +1446,13 @@ external_amp
     enable external amp (enabled by default)
 amp_gpio
     GPIO pin number for external amp (0-15) or -1 for default pin (8
-    for allegro, 1 for others) 
+    for allegro, 1 for others)
 
 This module supports autoprobe and multiple chips.
 
 Note: the binding of amplifier is dependent on hardware.
 If there is no sound even though all channels are unmuted, try to
-specify other gpio connection via amp_gpio option. 
+specify other gpio connection via amp_gpio option.
 For example, a Panasonic notebook might need ``amp_gpio=0x0d``
 option.
 
@@ -1569,7 +1569,7 @@ The driver requires firmware files ``turtlebeach/msndinit.bin`` and
 ``turtlebeach/msndperm.bin`` in the proper firmware directory.
 
 See Documentation/sound/cards/multisound.sh for important information
-about this driver.  Note that it has been discontinued, but the 
+about this driver.  Note that it has been discontinued, but the
 Voyetra Turtle Beach knowledge base entry for it is still available
 at
 http://www.turtlebeach.com
@@ -1812,9 +1812,9 @@ Module for sound cards based on the C-Media CMI8786/8787/8788 chip:
 * Sondigo Inferno
 * TempoTec HiFier Fantasia
 * TempoTec HiFier Serenade
-    
+
 This module supports autoprobe and multiple cards.
-  
+
 Module snd-pcsp
 ---------------
 
@@ -1885,7 +1885,7 @@ firmware path (e.g. /lib/firmware).
 Module snd-rme32
 ----------------
 
-Module for RME Digi32, Digi32 Pro and Digi32/8 (Sek'd Prodif32, 
+Module for RME Digi32, Digi32 Pro and Digi32/8 (Sek'd Prodif32,
 Prodif96 and Prodif Gold) sound cards.
 
 This module supports multiple cards.
@@ -2097,14 +2097,14 @@ debug_default
 wait_usecs
     How long to wait without sleeping, usecs (default:150);
     This magic number seems to give pretty optimal throughput
-    based on my limited experimentation. 
+    based on my limited experimentation.
     If you want to play around with it and find a better value, be
     my guest. Remember, the idea is to get a number that causes us
     to just busy wait for as many WaveFront commands as possible,
     without coming up with a number so large that we hog the whole
-    CPU. 
+    CPU.
     Specifically, with this number, out of about 134,000 status
-    waits, only about 250 result in a sleep. 
+    waits, only about 250 result in a sleep.
 sleep_interval
     How long to sleep when waiting for reply (default: 100)
 sleep_tries
@@ -2135,7 +2135,7 @@ Module snd-sonicvibes
 
 Module for S3 SonicVibes PCI sound cards.
 * PINE Schubert 32 PCI
-  
+
 reverb
     Reverb Enable - 1 = enable, 0 = disable (default);
     SoundCard must have onboard SRAM for this.
@@ -2184,7 +2184,7 @@ Module for Trident 4DWave DX/NX sound cards.
 * Jaton  SonicWave 4D
 * SiS SI7018 PCI Audio
 * Hoontech SoundTrack Digital 4DWave NX
-		    
+
 pcm_channels
     max channels (voices) reserved for PCM
 wavetable_size
@@ -2215,7 +2215,7 @@ nrpacks
 device_setup
     Device specific magic number (optional);
     Influence depends on the device
-    Default: 0x0000 
+    Default: 0x0000
 ignore_ctl_error
     Ignore any USB-controller regarding mixer interface (default: no)
 autoclock
@@ -2255,9 +2255,9 @@ Module for caiaq UB audio interfaces,
 * Native Instruments Kore Controller
 * Native Instruments Audio Kontrol 1
 * Native Instruments Audio 8 DJ
-	
+
 This module supports multiple devices, autoprobe and hotplugging.
-  
+
 Module snd-usb-usx2y
 --------------------
 
@@ -2557,7 +2557,7 @@ In this example, the interwave card is always loaded as the first card
 
 Alternative (and new) way to fixate the slot assignment is to use
 ``slots`` option of snd module.  In the case above, specify like the
-following: 
+following:
 ::
 
     options snd slots=snd-interwave,snd-ens1371
@@ -2575,7 +2575,7 @@ snd-ens1371, it will be assigned to the third or later slot.
 
 When a module name is given with '!', the slot will be given for any
 modules but that name.  For example, ``slots=!snd-pcsp`` will reserve
-the first slot for any modules but snd-pcsp. 
+the first slot for any modules but snd-pcsp.
 
 
 ALSA PCM devices to OSS devices mapping

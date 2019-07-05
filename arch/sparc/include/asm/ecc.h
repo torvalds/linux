@@ -33,7 +33,7 @@
 #define ECC_MBAE_SBUS     0x00000010
 #define ECC_MBAE_MOD3     0x00000008
 #define ECC_MBAE_MOD2     0x00000004
-#define ECC_MBAE_MOD1     0x00000002 
+#define ECC_MBAE_MOD1     0x00000002
 
 /* ECC Fault Control Register layout:
  *
@@ -44,7 +44,7 @@
  *
  * ECHECK:  Enable ECC checking.  0=off 1=on
  * EINT:  Enable Interrupts for correctable errors. 0=off 1=on
- */ 
+ */
 #define ECC_FCR_CHECK    0x00000002
 #define ECC_FCR_INTENAB  0x00000001
 

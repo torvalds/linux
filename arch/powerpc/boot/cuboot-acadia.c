@@ -159,7 +159,7 @@ static void acadia_fixups(void)
 	get_clocks();
 	dt_fixup_mac_address_by_alias("ethernet0", bd.bi_enetaddr);
 }
-	
+
 void platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		unsigned long r6, unsigned long r7)
 {

@@ -10,7 +10,7 @@
 #include <asm/segment.h>
 
 #include "realmode.h"
-	
+
 	.section ".header", "a"
 
 	.balign	16

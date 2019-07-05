@@ -2,7 +2,7 @@
  *  linux/drivers/video/i810.h -- Intel 810 General Definitions/Declarations
  *
  *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
- *      All Rights Reserved      
+ *      All Rights Reserved
  *
  *
  *  This file is subject to the terms and conditions of the GNU General Public
@@ -54,7 +54,7 @@
 #define SYNC_FLIP             0x00000000
 #define ASYNC_FLIP            0x00000040
 #define OPTYPE_MASK           0xE0000000
-#define PARSER_MASK           0x001F8000 
+#define PARSER_MASK           0x001F8000
 #define D2_MASK               0x001FC000         /* 2D mask */
 
 /* Instruction type */
@@ -62,13 +62,13 @@
 #define PARSER                0x00000000
 #define BLIT                  (0x02 << 29)
 #define RENDER                (0x03 << 29)
-            
+
 /* Parser */
 #define NOP                   0x00               /* No operation, padding */
 #define BP_INT                (0x01 << 23)         /* Breakpoint interrupt */
 #define USR_INT               (0x02 << 23)         /* User interrupt */
 #define WAIT_FOR_EVNT         (0x03 << 23)         /* Wait for event */
-#define FLUSH                 (0x04 << 23)              
+#define FLUSH                 (0x04 << 23)
 #define CONTEXT_SEL           (0x05 << 23)
 #define REPORT_HEAD           (0x07 << 23)
 #define ARB_ON_OFF            (0x08 << 23)
@@ -77,7 +77,7 @@
 #define LOAD_SCAN_EX          (0x13 << 23)
 #define FRONT_BUFFER          (0x14 << 23)
 #define DEST_BUFFER           (0x15 << 23)
-#define Z_BUFFER              (0x16 << 23)       
+#define Z_BUFFER              (0x16 << 23)
 
 #define STORE_DWORD_IMM       (0x20 << 23)
 #define STORE_DWORD_IDX       (0x21 << 23)
@@ -112,7 +112,7 @@
 #endif
 #ifndef PCI_DEVICE_ID_INTEL_82815_FULL_CTRL
   #define PCI_DEVICE_ID_INTEL_82815_FULL_CTRL     0x1130
-#endif 
+#endif
 
 /* General Defines */
 #define I810_PAGESIZE               4096
@@ -120,9 +120,9 @@
 #define SAREA_SIZE                  4096
 #define PCI_I810_MISCC              0x72
 #define MMIO_SIZE                   (512*1024)
-#define GTT_SIZE                    (16*1024) 
+#define GTT_SIZE                    (16*1024)
 #define RINGBUFFER_SIZE             (64*1024)
-#define CURSOR_SIZE                 4096 
+#define CURSOR_SIZE                 4096
 #define OFF                         0
 #define ON                          1
 #define MAX_KEY                     256
@@ -134,7 +134,7 @@
 #define MMIO_ADDR_MASK              (0x1FFF << (32 - 13))
 #define FREQ_MASK                   (1 << 4)
 #define SCR_OFF                     0x20
-#define DRAM_ON                     0x08            
+#define DRAM_ON                     0x08
 #define DRAM_OFF                    0xE7
 #define PG_ENABLE_MASK              0x01
 #define RING_SIZE_MASK              (RINGBUFFER_SIZE - 1)
@@ -146,7 +146,7 @@
 #define PIXCONF_2                   (0xF3 << 24)
 #define PIXCONF_1                   (0xF0 << 16)
 #define MN_MASK                     0x3FF03FF
-#define P_OR                        (0x7 << 4)                    
+#define P_OR                        (0x7 << 4)
 #define DAC_BIT                     (1 << 16)
 #define INTERLACE_BIT               (1 << 7)
 #define IER_MASK                    (3 << 13)
@@ -179,14 +179,14 @@
 #define HFMIN                       29000
 
 /* Cursor */
-#define CURSOR_ENABLE_MASK          0x1000             
+#define CURSOR_ENABLE_MASK          0x1000
 #define CURSOR_MODE_64_TRANS        4
 #define CURSOR_MODE_64_XOR	    5
-#define CURSOR_MODE_64_3C	    6	
+#define CURSOR_MODE_64_3C	    6
 #define COORD_INACTIVE              0
 #define COORD_ACTIVE                (1 << 4)
 #define EXTENDED_PALETTE	    1
-  
+
 /* AGP Memory Types*/
 #define AGP_NORMAL_MEMORY           0
 #define AGP_DCACHE_MEMORY	    1
@@ -196,7 +196,7 @@
 #define FRAMEBUFFER_REQ             1
 #define MMIO_REQ                    2
 #define PCI_DEVICE_ENABLED          4
-#define HAS_FONTCACHE               8 
+#define HAS_FONTCACHE               8
 
 /* driver flags */
 #define HAS_ACCELERATION            2
@@ -226,7 +226,7 @@ struct heap_data {
 	__u8 __iomem *virtual;
 	u32 offset;
 	u32 size;
-};	
+};
 
 struct state_registers {
 	u32 dclk_1d, dclk_2d, dclk_0ds;
@@ -285,13 +285,13 @@ struct i810fb_par {
 	u8 interlace;
 };
 
-/* 
+/*
  * Register I/O
  */
 #define i810_readb(where, mmio) readb(mmio + where)
 #define i810_readw(where, mmio) readw(mmio + where)
 #define i810_readl(where, mmio) readl(mmio + where)
-#define i810_writeb(where, mmio, val) writeb(val, mmio + where) 
+#define i810_writeb(where, mmio, val) writeb(val, mmio + where)
 #define i810_writew(where, mmio, val) writew(val, mmio + where)
 #define i810_writel(where, mmio, val) writel(val, mmio + where)
 

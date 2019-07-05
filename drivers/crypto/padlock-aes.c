@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* 
+/*
  * Cryptographic API.
  *
  * Support for VIA PadLock hardware crypto engine.

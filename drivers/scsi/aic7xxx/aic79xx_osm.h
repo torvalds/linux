@@ -242,7 +242,7 @@ struct ahd_linux_device {
 	int			active;
 
 	/*
-	 * The currently allowed number of 
+	 * The currently allowed number of
 	 * transactions that can be queued to
 	 * the device.  Must be signed for
 	 * conversion from tagged to untagged
@@ -256,7 +256,7 @@ struct ahd_linux_device {
 	 * device's queue is halted.
 	 */
 	u_int			qfrozen;
-	
+
 	/*
 	 * Cumulative command counter.
 	 */
@@ -340,7 +340,7 @@ struct ahd_platform_data {
 	/*
 	 * Fields accessed from interrupt context.
 	 */
-	struct scsi_target *starget[AHD_NUM_TARGETS]; 
+	struct scsi_target *starget[AHD_NUM_TARGETS];
 
 	spinlock_t		 spin_lock;
 	struct completion	*eh_done;

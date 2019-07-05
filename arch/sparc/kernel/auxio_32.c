@@ -21,7 +21,7 @@
 
 /* Probe and map in the Auxiliary I/O register */
 
-/* auxio_register is not static because it is referenced 
+/* auxio_register is not static because it is referenced
  * in entry.S::floppy_tdone
  */
 void __iomem *auxio_register = NULL;
@@ -77,7 +77,7 @@ void __init auxio_probe(void)
 
 unsigned char get_auxio(void)
 {
-	if(auxio_register) 
+	if(auxio_register)
 		return sbus_readb(auxio_register);
 	return 0;
 }

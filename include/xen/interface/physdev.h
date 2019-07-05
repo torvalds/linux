@@ -227,7 +227,7 @@ struct physdev_nr_pirqs {
  * the hypercall returns a free pirq */
 #define PHYSDEVOP_get_free_pirq    23
 struct physdev_get_free_pirq {
-    /* IN */ 
+    /* IN */
     int type;
     /* OUT */
     uint32_t pirq;

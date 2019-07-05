@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Symmetric key ciphers.
- * 
+ *
  * Copyright (c) 2007 Herbert Xu <herbert@gondor.apana.org.au>
  */
 

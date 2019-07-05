@@ -23,7 +23,7 @@ obj-$(CONFIG_X25_ASY)		+= x25_asy.o
 
 obj-$(CONFIG_LANMEDIA)		+= lmc/
 
-obj-$(CONFIG_DLCI)		+= dlci.o 
+obj-$(CONFIG_DLCI)		+= dlci.o
 obj-$(CONFIG_SDLA)		+= sdla.o
 obj-$(CONFIG_LAPBETHER)		+= lapbether.o
 obj-$(CONFIG_SBNI)		+= sbni.o

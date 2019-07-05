@@ -14,9 +14,9 @@
 /*
    This is Ken's linux wrapper for the PPC library
    Version 1.0.0 is the backpack driver for which source is not available
-   Version 2.0.0 is the first to have source released 
-   Version 2.0.1 is the "Cox-ified" source code 
-   Version 2.0.2 - fixed version string usage, and made ppc functions static 
+   Version 2.0.0 is the first to have source released
+   Version 2.0.1 is the "Cox-ified" source code
+   Version 2.0.2 - fixed version string usage, and made ppc functions static
 */
 
 
@@ -35,7 +35,7 @@
 
 /* PARAMETERS */
 static bool verbose; /* set this to 1 to see debugging messages and whatnot */
- 
+
 
 #define PPCSTRUCT(pi) ((Interface *)(pi->private))
 
@@ -80,7 +80,7 @@ static void bpck6_write_regr(PIA *pi, int cont, int reg, int val)
 
 static void bpck6_write_block( PIA *pi, char * buf, int len )
 {
-	ppc6_wr_port16_blk(PPCSTRUCT(pi),ATAPI_DATA,buf,(u32)len>>1); 
+	ppc6_wr_port16_blk(PPCSTRUCT(pi),ATAPI_DATA,buf,(u32)len>>1);
 }
 
 static void bpck6_read_block( PIA *pi, char * buf, int len )
@@ -97,18 +97,18 @@ static void bpck6_connect ( PIA *pi  )
 
 	if(pi->mode >=2)
   	{
-		PPCSTRUCT(pi)->mode=4+pi->mode-2;	
+		PPCSTRUCT(pi)->mode=4+pi->mode-2;
 	}
 	else if(pi->mode==1)
 	{
-		PPCSTRUCT(pi)->mode=3;	
+		PPCSTRUCT(pi)->mode=3;
 	}
 	else
 	{
-		PPCSTRUCT(pi)->mode=1;		
+		PPCSTRUCT(pi)->mode=1;
 	}
 
-	ppc6_open(PPCSTRUCT(pi));  
+	ppc6_open(PPCSTRUCT(pi));
 	ppc6_wr_extout(PPCSTRUCT(pi),0x3);
 }
 
@@ -128,7 +128,7 @@ static int bpck6_test_port ( PIA *pi )   /* check for 8-bit port */
 	{
 		printk(KERN_DEBUG "PARPORT indicates modes=%x for lp=0x%lx\n",
                		((struct pardevice*)(pi->pardev))->port->modes,
-			((struct pardevice *)(pi->pardev))->port->base); 
+			((struct pardevice *)(pi->pardev))->port->base);
 	}
 
 	/*copy over duplicate stuff.. initialize state info*/
@@ -136,13 +136,13 @@ static int bpck6_test_port ( PIA *pi )   /* check for 8-bit port */
 	PPCSTRUCT(pi)->lpt_addr=pi->port;
 
 	/* look at the parport device to see if what modes we can use */
-	if(((struct pardevice *)(pi->pardev))->port->modes & 
+	if(((struct pardevice *)(pi->pardev))->port->modes &
 		(PARPORT_MODE_EPP)
           )
 	{
 		return 5; /* Can do EPP*/
 	}
-	else if(((struct pardevice *)(pi->pardev))->port->modes & 
+	else if(((struct pardevice *)(pi->pardev))->port->modes &
 			(PARPORT_MODE_TRISTATE)
                )
 	{
@@ -167,7 +167,7 @@ static int bpck6_probe_unit ( PIA *pi )
 	PPCSTRUCT(pi)->ppc_id=pi->unit;
 
 	/*LOWER DOWN TO UNIDIRECTIONAL*/
-	PPCSTRUCT(pi)->mode=1;		
+	PPCSTRUCT(pi)->mode=1;
 
 	out=ppc6_open(PPCSTRUCT(pi));
 
@@ -217,13 +217,13 @@ static int bpck6_init_proto(PIA *pi)
 		return 0;
 	}
 
-	printk(KERN_ERR "%s: ERROR COULDN'T ALLOCATE MEMORY\n", pi->device); 
+	printk(KERN_ERR "%s: ERROR COULDN'T ALLOCATE MEMORY\n", pi->device);
 	return -1;
 }
 
 static void bpck6_release_proto(PIA *pi)
 {
-	kfree((void *)(pi->private)); 
+	kfree((void *)(pi->private));
 }
 
 static struct pi_protocol bpck6 = {

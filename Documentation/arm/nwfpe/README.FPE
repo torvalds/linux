@@ -32,10 +32,10 @@ Form 2 syntax:
 <LFM|SFM>{cond}<FD,EA> Fd, <count>, [Rn]{!}
 
 These instructions are fully implemented.  They store/load three words
-for each floating point register into the memory location given in the 
+for each floating point register into the memory location given in the
 instruction.  The format in memory is unlikely to be compatible with
 other implementations, in particular the actual hardware.  Specific
-mention of this is made in the ARM manuals.  
+mention of this is made in the ARM manuals.
 
 Floating Point Coprocessor Register Transfer Instructions (CPRT)
 ----------------------------------------------------------------
@@ -123,7 +123,7 @@ RPW{cond}<S|D|E>{P,M,Z} Fd, Fn, <Fm,#value> - reverse power
 POL{cond}<S|D|E>{P,M,Z} Fd, Fn, <Fm,#value> - polar angle (arctan2)
 
 LOG{cond}<S|D|E>{P,M,Z} Fd, <Fm,#value> - logarithm to base 10
-LGN{cond}<S|D|E>{P,M,Z} Fd, <Fm,#value> - logarithm to base e 
+LGN{cond}<S|D|E>{P,M,Z} Fd, <Fm,#value> - logarithm to base e
 EXP{cond}<S|D|E>{P,M,Z} Fd, <Fm,#value> - exponent
 SIN{cond}<S|D|E>{P,M,Z} Fd, <Fm,#value> - sine
 COS{cond}<S|D|E>{P,M,Z} Fd, <Fm,#value> - cosine
@@ -134,7 +134,7 @@ ATN{cond}<S|D|E>{P,M,Z} Fd, <Fm,#value> - arctangent
 
 These are not implemented.  They are not currently issued by the compiler,
 and are handled by routines in libc.  These are not implemented by the FPA11
-hardware, but are handled by the floating point support code.  They should 
+hardware, but are handled by the floating point support code.  They should
 be implemented in future versions.
 
 Signalling:
@@ -147,10 +147,10 @@ current_set[0] correctly.
 The kernel provided with this distribution (vmlinux-nwfpe-0.93) contains
 a fix for this problem and also incorporates the current version of the
 emulator directly.  It is possible to run with no floating point module
-loaded with this kernel.  It is provided as a demonstration of the 
+loaded with this kernel.  It is provided as a demonstration of the
 technology and for those who want to do floating point work that depends
 on signals.  It is not strictly necessary to use the module.
 
-A module (either the one provided by Russell King, or the one in this 
+A module (either the one provided by Russell King, or the one in this
 distribution) can be loaded to replace the functionality of the emulator
 built into the kernel.

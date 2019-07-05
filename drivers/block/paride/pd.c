@@ -1,4 +1,4 @@
-/* 
+/*
         pd.c    (c) 1997-8  Grant R. Guenther <grant@torque.net>
                             Under the terms of the GNU General Public License.
 
@@ -12,8 +12,8 @@
         The behaviour of the pd driver can be altered by setting
         some parameters from the insmod command line.  The following
         parameters are adjustable:
- 
-	    drive0  	These four arguments can be arrays of	    
+
+	    drive0  	These four arguments can be arrays of
 	    drive1	1-8 integers as follows:
 	    drive2
 	    drive3	<prt>,<pro>,<uni>,<mod>,<geo>,<sby>,<dly>,<slv>
@@ -48,7 +48,7 @@
 		<sby>   set this to zero to disable the power saving
 			standby mode, if needed.  (1 if not given)
 
-		<dly>   some parallel ports require the driver to 
+		<dly>   some parallel ports require the driver to
 			go more slowly.  -1 sets a default value that
 			should work with the chosen protocol.  Otherwise,
 			set this to a small integer, the larger it is
@@ -59,7 +59,7 @@
                         Set this to 0 to choose the master drive, 1 to
                         choose the slave, -1 (the default) to choose the
                         first drive found.
-			
+
 
             major       You may use this parameter to override the
                         default major number (45) that this driver
@@ -78,7 +78,7 @@
 			(default 64)
 
 	    verbose	This parameter controls the amount of logging
-			that the driver will do.  Set it to 0 for 
+			that the driver will do.  Set it to 0 for
 			normal operation, 1 to see autoprobe progress
 			messages, or 2 to see additional debugging
 			output.  (default 0)
@@ -99,14 +99,14 @@
 
         In addition, you can use the parameter pd.disable to disable
         the driver entirely.
- 
+
 */
 
 /* Changes:
 
 	1.01	GRG 1997.01.24	Restored pd_reset()
 				Added eject ioctl
-	1.02    GRG 1998.05.06  SMP spinlock changes, 
+	1.02    GRG 1998.05.06  SMP spinlock changes,
 				Added slave support
 	1.03    GRG 1998.06.16  Eliminate an Ugh.
 	1.04	GRG 1998.08.15  Extra debugging, use HZ in loop timing

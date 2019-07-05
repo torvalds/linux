@@ -4,7 +4,7 @@
  * Per Intel EFI Specification v1.02
  * http://developer.intel.com/technology/efi/efi.htm
  *
- * By Matt Domsch <Matt_Domsch@dell.com>  Fri Sep 22 22:15:56 CDT 2000  
+ * By Matt Domsch <Matt_Domsch@dell.com>  Fri Sep 22 22:15:56 CDT 2000
  *   Copyright 2000,2001 Dell Inc.
  ************************************************************/
 
@@ -33,7 +33,7 @@
 
 #define PARTITION_SYSTEM_GUID \
     EFI_GUID( 0xC12A7328, 0xF81F, 0x11d2, \
-              0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B) 
+              0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B)
 #define LEGACY_MBR_PARTITION_GUID \
     EFI_GUID( 0x024DEE41, 0x33E7, 0x11d3, \
               0x9D, 0x69, 0x00, 0x08, 0xC7, 0x81, 0xF3, 0x9F)

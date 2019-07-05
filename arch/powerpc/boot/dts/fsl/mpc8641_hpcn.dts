@@ -95,7 +95,7 @@
 				device_type = "tbi-phy";
 			};
 		};
-		
+
 		enet2: ethernet@26000 {
 			tbi-handle = <&tbi2>;
 			phy-handle = <&phy2>;

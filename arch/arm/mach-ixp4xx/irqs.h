@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * arch/arm/mach-ixp4xx/include/mach/irqs.h 
+ * arch/arm/mach-ixp4xx/include/mach/irqs.h
  *
  * IRQ definitions for IXP4XX based systems
  *

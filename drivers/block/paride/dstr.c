@@ -1,8 +1,8 @@
-/* 
+/*
         dstr.c    (c) 1997-8  Grant R. Guenther <grant@torque.net>
                               Under the terms of the GNU General Public License.
 
-        dstr.c is a low-level protocol driver for the 
+        dstr.c is a low-level protocol driver for the
         DataStor EP2000 parallel to IDE adapter chip.
 
 */
@@ -38,8 +38,8 @@
 #define P2	w2(5);w2(7);w2(5);w2(4);
 #define P3      w2(6);w2(4);w2(6);w2(4);
 
-/* cont = 0 - access the IDE register file 
-   cont = 1 - access the IDE command set 
+/* cont = 0 - access the IDE register file
+   cont = 1 - access the IDE command set
 */
 
 static int  cont_map[2] = { 0x20, 0x40 };
@@ -69,7 +69,7 @@ static int dstr_read_regr( PIA *pi, int cont, int regr )
 
         }
         return -1;
-}       
+}
 
 static void dstr_write_regr(  PIA *pi, int cont, int regr, int val )
 
@@ -77,10 +77,10 @@ static void dstr_write_regr(  PIA *pi, int cont, int regr, int val )
 
         r = regr + cont_map[cont];
 
-	w0(0x81); P1; 
+	w0(0x81); P1;
 	if (pi->mode >= 2) { w0(0x11); } else { w0(1); }
 	P2; w0(r); P1;
-	
+
         switch (pi->mode)  {
 
         case 0:
@@ -89,7 +89,7 @@ static void dstr_write_regr(  PIA *pi, int cont, int regr, int val )
 
 	case 2:
 	case 3:
-        case 4: w4(val); 
+        case 4: w4(val);
                 break;
         }
 }
@@ -110,7 +110,7 @@ static void dstr_disconnect ( PIA *pi )
 {       CCP(0x30);
         w0(pi->saved_r0);
         w2(pi->saved_r2);
-} 
+}
 
 static void dstr_read_block( PIA *pi, char * buf, int count )
 
@@ -126,7 +126,7 @@ static void dstr_read_block( PIA *pi, char * buf, int count )
                         w2(6); a = r1(); w2(4);
                         w2(6); b = r1(); w2(4);
                         buf[k] = j44(a,b);
-                } 
+                }
                 break;
 
         case 1: w0(0);
@@ -136,17 +136,17 @@ static void dstr_read_block( PIA *pi, char * buf, int count )
                 w2(4);
                 break;
 
-        case 2: w2(0x24); 
+        case 2: w2(0x24);
                 for (k=0;k<count;k++) buf[k] = r4();
                 w2(4);
                 break;
 
-        case 3: w2(0x24); 
+        case 3: w2(0x24);
                 for (k=0;k<count/2;k++) ((u16 *)buf)[k] = r4w();
                 w2(4);
                 break;
 
-        case 4: w2(0x24); 
+        case 4: w2(0x24);
                 for (k=0;k<count/4;k++) ((u32 *)buf)[k] = r4l();
                 w2(4);
                 break;

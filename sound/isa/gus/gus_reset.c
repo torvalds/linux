@@ -66,7 +66,7 @@ void snd_gf1_set_default_handlers(struct snd_gus_card * gus, unsigned int what)
 		gus->gf1.interrupt_handler_timer2 = snd_gf1_default_interrupt_handler_timer2;
 	if (what & SNDRV_GF1_HANDLER_VOICE) {
 		struct snd_gus_voice *voice;
-		
+
 		voice = &gus->gf1.voices[what & 0xffff];
 		voice->handler_wave =
 		voice->handler_volume = snd_gf1_default_interrupt_handler_wave_and_volume;
@@ -216,7 +216,7 @@ void snd_gf1_stop_voices(struct snd_gus_card * gus, unsigned short v_min, unsign
 	snd_gf1_clear_voices(gus, v_min, v_max);
 }
 
-static void snd_gf1_alloc_voice_use(struct snd_gus_card * gus, 
+static void snd_gf1_alloc_voice_use(struct snd_gus_card * gus,
 				    struct snd_gus_voice * pvoice,
 				    int type, int client, int port)
 {
@@ -259,7 +259,7 @@ struct snd_gus_voice *snd_gf1_alloc_voice(struct snd_gus_card * gus, int type, i
 			spin_unlock_irqrestore(&gus->voice_alloc, flags);
 			return pvoice;
 		}
-	} 
+	}
 	for (idx = 0; idx < 32; idx++) {
 		pvoice = &gus->gf1.voices[idx];
 		if (pvoice->midi && !pvoice->client) {
@@ -268,7 +268,7 @@ struct snd_gus_voice *snd_gf1_alloc_voice(struct snd_gus_card * gus, int type, i
 			spin_unlock_irqrestore(&gus->voice_alloc, flags);
 			return pvoice;
 		}
-	} 
+	}
 	spin_unlock_irqrestore(&gus->voice_alloc, flags);
 	return NULL;
 }

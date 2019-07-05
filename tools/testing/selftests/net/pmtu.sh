@@ -1126,7 +1126,7 @@ do
 done
 shift $(($OPTIND-1))
 
-IFS="	
+IFS="
 "
 
 for arg do

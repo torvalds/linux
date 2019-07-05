@@ -21,7 +21,7 @@ static inline int scx200_gpio_get(unsigned index) {
 	__SCx200_GPIO_BANK;
 	__SCx200_GPIO_IOADDR + 0x04;
 	__SCx200_GPIO_INDEX;
-		
+
 	return (inl(ioaddr) & (1<<index)) ? 1 : 0;
 }
 
@@ -32,7 +32,7 @@ static inline int scx200_gpio_get(unsigned index) {
 static inline int scx200_gpio_current(unsigned index) {
         __SCx200_GPIO_BANK;
 	__SCx200_GPIO_INDEX;
-		
+
 	return (scx200_gpio_shadow[bank] & (1<<index)) ? 1 : 0;
 }
 

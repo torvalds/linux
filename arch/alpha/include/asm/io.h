@@ -106,7 +106,7 @@ static inline dma_addr_t __deprecated isa_page_to_bus(struct page *page)
  * seen by a device (bus), and vice versa.
  *
  * Note that this only works for a limited range of kernel addresses,
- * and very well may not span all memory.  Consider this interface 
+ * and very well may not span all memory.  Consider this interface
  * deprecated in favour of the DMA-mapping API.
  */
 extern unsigned long __direct_map_base;

@@ -72,8 +72,8 @@ init_percpu_prof(unsigned long cpunum)
  * processor_probe - Determine if processor driver should claim this device.
  * @dev: The device which has been found.
  *
- * Determine if processor driver should claim this chip (return 0) or not 
- * (return 1).  If so, initialize the chip and tell other partners in crime 
+ * Determine if processor driver should claim this chip (return 0) or not
+ * (return 1).  If so, initialize the chip and tell other partners in crime
  * they have work to do.
  */
 static int __init processor_probe(struct parisc_device *dev)
@@ -206,7 +206,7 @@ static int __init processor_probe(struct parisc_device *dev)
 	}
 #endif
 
-	/* 
+	/*
 	 * Bring this CPU up now! (ignore bootstrap cpuid == 0)
 	 */
 #ifdef CONFIG_SMP
@@ -240,7 +240,7 @@ void __init collect_boot_cpu_data(void)
 	/* get CPU-Model Information... */
 #define p ((unsigned long *)&boot_cpu_data.pdc.model)
 	if (pdc_model_info(&boot_cpu_data.pdc.model) == PDC_OK) {
-		printk(KERN_INFO 
+		printk(KERN_INFO
 			"model %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
 
@@ -250,7 +250,7 @@ void __init collect_boot_cpu_data(void)
 #undef p
 
 	if (pdc_model_versions(&boot_cpu_data.pdc.versions, 0) == PDC_OK) {
-		printk(KERN_INFO "vers  %08lx\n", 
+		printk(KERN_INFO "vers  %08lx\n",
 			boot_cpu_data.pdc.versions);
 
 		add_device_randomness(&boot_cpu_data.pdc.versions,

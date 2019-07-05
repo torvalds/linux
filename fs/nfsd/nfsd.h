@@ -120,7 +120,7 @@ nfsd_user_namespace(const struct svc_rqst *rqstp)
 	return cred ? cred->user_ns : &init_user_ns;
 }
 
-/* 
+/*
  * NFSv4 State
  */
 #ifdef CONFIG_NFSD_V4

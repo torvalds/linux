@@ -4,7 +4,7 @@
 /*
  *	The following information is in its entirety obtained from:
  *
- *	Novell 'IPX Router Specification' Version 1.10 
+ *	Novell 'IPX Router Specification' Version 1.10
  *		Part No. 107-000029-001
  *
  *	Which is available from ftp.novell.com
@@ -19,7 +19,7 @@
 
 struct ipx_address {
 	__be32  net;
-	__u8    node[IPX_NODE_LEN]; 
+	__u8    node[IPX_NODE_LEN];
 	__be16  sock;
 };
 
@@ -72,7 +72,7 @@ struct ipx_interface {
 	int			if_ipx_offset;
 	unsigned char		if_internal;
 	unsigned char		if_primary;
-	
+
 	struct list_head	node; /* node in ipx_interfaces list */
 };
 

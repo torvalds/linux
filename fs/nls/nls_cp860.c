@@ -236,11 +236,11 @@ static const unsigned char page25[256] = {
 };
 
 static const unsigned char *const page_uni2charset[256] = {
-	page00, NULL,   NULL,   page03, NULL,   NULL,   NULL,   NULL,   
-	NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   
-	NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   
-	NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   
-	page20, NULL,   page22, page23, NULL,   page25, NULL,   NULL,   
+	page00, NULL,   NULL,   page03, NULL,   NULL,   NULL,   NULL,
+	NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,
+	NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,
+	NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,   NULL,
+	page20, NULL,   page22, page23, NULL,   page25, NULL,   NULL,
 };
 
 static const unsigned char charset2lower[256] = {

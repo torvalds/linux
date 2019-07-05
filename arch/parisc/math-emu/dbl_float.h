@@ -44,7 +44,7 @@
  * variable shifts.  The insignificant bits can be ignored.
  *      MTSAR f(varamount)
  *      VSHD	srcdst.high,srcdst.low => srcdst.low
- *	VSHD	0,srcdst.high => srcdst.high 
+ *	VSHD	0,srcdst.high => srcdst.high
  * This is very difficult to model with C expressions since the shift amount
  * could exceed 32.  */
 /* varamount must be less than 64 */
@@ -85,8 +85,8 @@
     } }
 #define Dbl_leftshiftby1_withextent(lefta,leftb,right,resulta,resultb)	\
     Shiftdouble(Dallp1(lefta), Dallp2(leftb), 31, Dallp1(resulta));	\
-    Shiftdouble(Dallp2(leftb), Extall(right), 31, Dallp2(resultb)) 
-    
+    Shiftdouble(Dallp2(leftb), Extall(right), 31, Dallp2(resultb))
+
 #define Dbl_rightshiftby1_withextent(leftb,right,dst)		\
     Extall(dst) = (Dallp2(leftb) << 31) | ((unsigned int)Extall(right) >> 1) | \
 		  Extlow(right)
@@ -94,7 +94,7 @@
 #define Dbl_arithrightshiftby1(srcdstA,srcdstB)			\
     Shiftdouble(Dallp1(srcdstA),Dallp2(srcdstB),1,Dallp2(srcdstB));\
     Dallp1(srcdstA) = (int)Dallp1(srcdstA) >> 1
-   
+
 /* Sign extend the sign bit with an integer destination */
 #define Dbl_signextendedsign(value)  Dsignedsign(value)
 
@@ -209,7 +209,7 @@
 #define Dbl_rightshiftby1(dbl_valueA,dbl_valueB) \
     Shiftdouble(Dallp1(dbl_valueA),Dallp2(dbl_valueB),1,Dallp2(dbl_valueB)); \
     Dallp1(dbl_valueA) >>= 1
-    
+
 /* This magnitude comparison uses the signless first words and
  * the regular part2 words.  The comparison is graphically:
  *
@@ -223,7 +223,7 @@
 #define Dbl_ismagnitudeless(leftB,rightB,signlessleft,signlessright)	\
       ((signlessleft <= signlessright) &&				\
        ( (signlessleft < signlessright) || (Dallp2(leftB)<Dallp2(rightB)) ))
-    
+
 #define Dbl_copytoint_exponentmantissap1(src,dest) \
     dest = Dexponentmantissap1(src)
 
@@ -248,7 +248,7 @@
 
 #define Dbl_copyfromptr(src,desta,destb) \
     Dallp1(desta) = src->wd0;		\
-    Dallp2(destb) = src->wd1 
+    Dallp2(destb) = src->wd1
 #define Dbl_copytoptr(srca,srcb,dest)	\
     dest->wd0 = Dallp1(srca);		\
     dest->wd1 = Dallp2(srcb)
@@ -329,7 +329,7 @@
          ((DBL_EMAX+DBL_BIAS) << (32-(1+DBL_EXP_LENGTH))) |	 	\
 	 ((1 << (32-(1+DBL_EXP_LENGTH))) - 1 );				\
     Dallp2(dbl_valueB) = 0xFFFFFFFF
-    
+
 
 /* The high bit is always zero so arithmetic or logical shifts will work. */
 #define Dbl_right_align(srcdstA,srcdstB,shift,extent)			\
@@ -369,7 +369,7 @@
 	else Extall(extent) = 0;					\
 	}
 
-/* 
+/*
  * Here we need to shift the result right to correct for an overshift
  * (due to the exponent becoming negative) during normalization.
  */
@@ -517,7 +517,7 @@
 	inexact = sticky;						\
     }
 
-/* 
+/*
  * The fused multiply add instructions requires a double extended format,
  * with 106 bits of mantissa.
  */
@@ -666,7 +666,7 @@
     Shiftdouble(Dextallp2(srcdstB),Dextallp3(srcdstC),1,Dextallp3(srcdstC)); \
     Shiftdouble(Dextallp1(srcdstA),Dextallp2(srcdstB),1,Dextallp2(srcdstB)); \
     Dextallp1(srcdstA) = (int)Dextallp1(srcdstA) >> 1
-   
+
 #define Dblext_leftshiftby8(valA,valB,valC,valD) \
     Shiftdouble(Dextallp1(valA),Dextallp2(valB),24,Dextallp1(valA)); \
     Shiftdouble(Dextallp2(valB),Dextallp3(valC),24,Dextallp2(valB)); \
@@ -719,12 +719,12 @@
 	Dextallp1(dest1) = Dallp1(src1); Dextallp2(dest2) = Dallp2(src2); \
 	Dextallp3(dest3) = 0; Dextallp4(dest4) = 0
 
-#define Dblext_set_sign(dbl_value,sign)  Dbl_set_sign(dbl_value,sign)  
+#define Dblext_set_sign(dbl_value,sign)  Dbl_set_sign(dbl_value,sign)
 #define Dblext_clear_signexponent_set_hidden(srcdst) \
-	Dbl_clear_signexponent_set_hidden(srcdst) 
-#define Dblext_clear_signexponent(srcdst) Dbl_clear_signexponent(srcdst) 
-#define Dblext_clear_sign(srcdst) Dbl_clear_sign(srcdst) 
-#define Dblext_isone_hidden(dbl_value) Dbl_isone_hidden(dbl_value) 
+	Dbl_clear_signexponent_set_hidden(srcdst)
+#define Dblext_clear_signexponent(srcdst) Dbl_clear_signexponent(srcdst)
+#define Dblext_clear_sign(srcdst) Dbl_clear_sign(srcdst)
+#define Dblext_isone_hidden(dbl_value) Dbl_isone_hidden(dbl_value)
 
 /*
  * The Fourword_add() macro assumes that integers are 4 bytes in size.

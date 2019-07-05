@@ -1528,7 +1528,7 @@ static int onenand_bbt_wait(struct mtd_info *mtd, int state)
  *
  * OneNAND read out-of-band data from the spare area for bbt scan
  */
-int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from, 
+int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
 {
 	struct onenand_chip *this = mtd->priv;
@@ -1678,7 +1678,7 @@ static void onenand_panic_wait(struct mtd_info *mtd)
 	struct onenand_chip *this = mtd->priv;
 	unsigned int interrupt;
 	int i;
-	
+
 	for (i = 0; i < 2000; i++) {
 		interrupt = this->read_word(this->base + ONENAND_REG_INTERRUPT);
 		if (interrupt & ONENAND_INT_MASTER)

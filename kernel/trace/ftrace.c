@@ -2076,11 +2076,11 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 	 * this record. Set flags to fail the compare against ENABLED.
 	 */
 	if (flag) {
-		if (!(rec->flags & FTRACE_FL_REGS) != 
+		if (!(rec->flags & FTRACE_FL_REGS) !=
 		    !(rec->flags & FTRACE_FL_REGS_EN))
 			flag |= FTRACE_FL_REGS;
 
-		if (!(rec->flags & FTRACE_FL_TRAMP) != 
+		if (!(rec->flags & FTRACE_FL_TRAMP) !=
 		    !(rec->flags & FTRACE_FL_TRAMP_EN))
 			flag |= FTRACE_FL_TRAMP;
 	}
@@ -2201,7 +2201,7 @@ ftrace_find_tramp_ops_next(struct dyn_ftrace *rec,
 
 		if (hash_contains_ip(ip, op->func_hash))
 			return op;
-	} 
+	}
 
 	return NULL;
 }
@@ -3458,7 +3458,7 @@ static int t_show(struct seq_file *m, void *v)
 		} else {
 			add_trampoline_func(m, NULL, rec);
 		}
-	}	
+	}
 
 	seq_putc(m, '\n');
 
@@ -4182,7 +4182,7 @@ int ftrace_func_mapper_add_ip(struct ftrace_func_mapper *mapper,
  * @ip: The instruction pointer address to remove the data from
  *
  * Returns the data if it is found, otherwise NULL.
- * Note, if the data pointer is used as the data itself, (see 
+ * Note, if the data pointer is used as the data itself, (see
  * ftrace_func_mapper_find_ip(), then the return value may be meaningless,
  * if the data pointer was set to zero.
  */

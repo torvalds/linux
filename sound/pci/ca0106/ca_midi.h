@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* 
+/*
  *  Copyright 10/16/2005 Tilman Kranz <tilde@tk-sls.de>
  *  Creative Audio MIDI, for the CA0106 Driver
  *  Version: 0.0.1
@@ -32,8 +32,8 @@ struct snd_ca_midi {
 	unsigned int midi_mode;
 	int port;
 	int tx_enable, rx_enable;
-	int ipr_tx, ipr_rx;            
-	
+	int ipr_tx, ipr_rx;
+
 	int input_avail, output_ready;
 	int ack, reset, enter_uart;
 

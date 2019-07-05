@@ -176,7 +176,7 @@ struct hpfs_spare_block
    I bet you can see it coming... */
 
 #define BAD_MAGIC 0
-       
+
 /* The hotfix map is 4 sectors long.  It looks like
 
        secno from[n_spares];
@@ -247,7 +247,7 @@ struct code_page_data
    16384 sectors is 8 meg, and each 8 meg band has a 4-sector bitmap.
    Bit order in the maps is little-endian.  0 means taken, 1 means free.
 
-   Bit map sectors are marked allocated in the bit maps, and so are sectors 
+   Bit map sectors are marked allocated in the bit maps, and so are sectors
    off the end of the partition.
 
    Band 0 is sectors 0-3fff, its map is in sectors 18-1b.

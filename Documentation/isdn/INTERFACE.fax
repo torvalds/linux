@@ -1,20 +1,20 @@
 $Id: INTERFACE.fax,v 1.2 2000/08/06 09:22:50 armin Exp $
 
 
-Description of the fax-subinterface between linklevel and hardwarelevel of 
-  isdn4linux. 
+Description of the fax-subinterface between linklevel and hardwarelevel of
+  isdn4linux.
 
   The communication between linklevel (LL) and hardwarelevel (HL) for fax
   is based on the struct T30_s (defined in isdnif.h).
-  This struct is allocated in the LL.  
-  In order to use fax, the LL provides the pointer to this struct with the 
-  command ISDN_CMD_SETL3 (parm.fax). This pointer expires in case of hangup 
-  and when a new channel to a new connection is assigned. 
+  This struct is allocated in the LL.
+  In order to use fax, the LL provides the pointer to this struct with the
+  command ISDN_CMD_SETL3 (parm.fax). This pointer expires in case of hangup
+  and when a new channel to a new connection is assigned.
 
 
 Data handling:
-  In send-mode the HL-driver has to handle the <DLE> codes and the bit-order 
-  conversion by itself. 
+  In send-mode the HL-driver has to handle the <DLE> codes and the bit-order
+  conversion by itself.
   In receive-mode the LL-driver takes care of the bit-order conversion
   (specified by +FBOR)
 
@@ -25,7 +25,7 @@ Structure T30_s description:
 
   If the HL-driver receives ISDN_CMD_FAXCMD, all needed information
   is in this struct set by the LL.
-  To signal information to the LL, the HL-driver has to set the 
+  To signal information to the LL, the HL-driver has to set the
   parameters and use ISDN_STAT_FAXIND.
   (Please refer to INTERFACE)
 
@@ -33,7 +33,7 @@ Structure T30_s:
 
   All members are 8-bit unsigned (__u8)
 
-  -  resolution     
+  -  resolution
   -  rate
   -  width
   -  length
@@ -55,7 +55,7 @@ Structure T30_s:
   -  r_id[]
   Remote faxmachine's parameters. To be set by HL-driver.
 
-  -  phase      
+  -  phase
   Defines the actual state of fax connection. Set by HL or LL
   depending on progress and type of connection.
   If the phase changes because of an AT command, the LL driver
@@ -68,20 +68,20 @@ Structure T30_s:
   (ISDN_TTY_FAX_CONN_[IN,OUT])
 
   -  code
-  Commands from LL to HL; possible constants : 
+  Commands from LL to HL; possible constants :
       ISDN_TTY_FAX_DR        signals +FDR command to HL
 
-      ISDN_TTY_FAX_DT        signals +FDT command to HL 
+      ISDN_TTY_FAX_DT        signals +FDT command to HL
 
       ISDN_TTY_FAX_ET        signals +FET command to HL
 
 
   Other than that the "code" is set with the hangup-code value at
   the end of connection for the +FHNG message.
-        
-  -  r_code 
+
+  -  r_code
   Commands from HL to LL; possible constants :
-      ISDN_TTY_FAX_CFR       output of +FCFR message. 
+      ISDN_TTY_FAX_CFR       output of +FCFR message.
 
       ISDN_TTY_FAX_RID       output of remote ID set in r_id[]
                              (+FCSI/+FTSI on send/receive)
@@ -100,7 +100,7 @@ Structure T30_s:
 
       ISDN_TTY_FAX_DIS       output of +FDIS message and values.
 
-      ISDN_TTY_FAX_SENT      signals that all data has been sent 
+      ISDN_TTY_FAX_SENT      signals that all data has been sent
                              and <DLE><ETX> is acknowledged,
                              OK message will be sent.
 
@@ -119,7 +119,7 @@ Structure T30_s:
 
 
   -  badlin
-  Value of +FBADLIN  
+  Value of +FBADLIN
 
   -  badmul
   Value of +FBADMUL
@@ -131,7 +131,7 @@ Structure T30_s:
   Value of +FET command in send-mode.
   Set by HL in receive-mode for +FET message.
 
-  -  pollid[]  
+  -  pollid[]
   ID-string, set by +FCIG
 
   -  cq
@@ -157,7 +157,7 @@ Structure T30_s:
   (+FNBC is not a known class 2 fax command, I added this to change the
    automatic "best capabilities" connection in the eicon HL-driver)
 
-  
+
 Armin
 mac@melware.de
 

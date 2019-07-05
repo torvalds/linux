@@ -25,7 +25,7 @@
 #define GEN_SUBSTRERR	-16	/* substring error */
 #define GEN_RANGERR	-17	/* range error */
 #define GEN_SUBRNG	-18
-#define GEN_SUBRNG1	-19	 
+#define GEN_SUBRNG1	-19
 #define GEN_SUBRNG2	-20
 #define GEN_SUBRNG3	-21	/* these report range errors for */
 #define GEN_SUBRNG4	-22	/* subscripting (indexing) at levels 0..7 */

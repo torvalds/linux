@@ -164,7 +164,7 @@ struct dsr_struct {
 struct hwrpb_struct {
 	unsigned long phys_addr;	/* check: physical address of the hwrpb */
 	unsigned long id;		/* check: "HWRPB\0\0\0" */
-	unsigned long revision;	
+	unsigned long revision;
 	unsigned long size;		/* size of hwrpb */
 	unsigned long cpuid;
 	unsigned long pagesize;		/* 8192, I hope */

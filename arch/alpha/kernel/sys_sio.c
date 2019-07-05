@@ -38,7 +38,7 @@
 
 #if defined(ALPHA_RESTORE_SRM_SETUP)
 /* Save LCA configuration data as the console had it set up.  */
-struct 
+struct
 {
 	unsigned int orig_route_tab; /* for SAVE/RESTORE */
 } saved_config __attribute((common));
@@ -184,7 +184,7 @@ noname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	 */
 	static char irq_tab[][5] = {
 		/*INT A   B   C   D */
-		{ 3,  3,  3,  3,  3}, /* idsel  6 (53c810) */ 
+		{ 3,  3,  3,  3,  3}, /* idsel  6 (53c810) */
 		{-1, -1, -1, -1, -1}, /* idsel  7 (SIO: PCI/ISA bridge) */
 		{ 2,  2, -1, -1, -1}, /* idsel  8 (Hack: slot closest ISA) */
 		{-1, -1, -1, -1, -1}, /* idsel  9 (unused) */

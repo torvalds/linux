@@ -53,7 +53,7 @@
 #define BA0_CLKCR2                              0x00000404
 #define BA0_PLLM                                0x00000408
 #define BA0_PLLCC                               0x0000040C
-#define BA0_FRR                                 0x00000410 
+#define BA0_FRR                                 0x00000410
 #define BA0_CFL1                                0x00000414
 #define BA0_CFL2                                0x00000418
 #define BA0_SERMC1                              0x00000420
@@ -969,7 +969,7 @@
  */
 #ifndef NO_CS4612
 #define ACCDA2_CD_MASK                          0x0000FFFF
-#define ACCDA2_CD_SHIFT                         0  
+#define ACCDA2_CD_SHIFT                         0
 #endif
 
 /*
@@ -1127,7 +1127,7 @@
 
 /*
  *  The following defines are for the flags in the PC/PCI grant register.
- */ 
+ */
 #ifndef NO_CS4612
 #define PCPCIG_GDC_MASK                         0x00000007
 #define PCPCIG_VL                               0x00008000
@@ -1149,7 +1149,7 @@
 #ifndef NO_CS4612
 #define EPCIPMC_GWU                             0x00000001
 #define EPCIPMC_FSPC                            0x00000002
-#endif 
+#endif
 
 /*
  *  The following defines are for the flags in the SP control register.
@@ -1592,7 +1592,7 @@
  *
  */
 
-#define CS46XX_MODE_OUTPUT	(1<<0)	 /* MIDI UART - output */ 
+#define CS46XX_MODE_OUTPUT	(1<<0)	 /* MIDI UART - output */
 #define CS46XX_MODE_INPUT	(1<<1)	 /* MIDI UART - input */
 
 /*
@@ -1619,7 +1619,7 @@
 
 struct snd_cs46xx_pcm {
 	struct snd_dma_buffer hw_buf;
-  
+
 	unsigned int ctl;
 	unsigned int shift;	/* Shift count to trasform frames in bytes */
 	struct snd_pcm_indirect pcm_rec;
@@ -1654,7 +1654,7 @@ struct snd_cs46xx {
 	} region;
 
 	unsigned int mode;
-	
+
 	struct {
 		struct snd_dma_buffer hw_buf;
 

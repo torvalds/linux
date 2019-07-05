@@ -75,7 +75,7 @@ static int __init asp_init_chip(struct parisc_device *dev)
 	asp.name = (asp.version == 1) ? "Asp" : "Cutoff";
 	asp.hpa = ASP_INTERRUPT_ADDR;
 
-	printk(KERN_INFO "%s version %d at 0x%lx found.\n", 
+	printk(KERN_INFO "%s version %d at 0x%lx found.\n",
 		asp.name, asp.version, (unsigned long)dev->hpa.start);
 
 	/* the IRQ ASP should use */
@@ -104,9 +104,9 @@ static int __init asp_init_chip(struct parisc_device *dev)
 	/* Mongoose is a sibling of Asp, not a child... */
 	gsc_fixup_irqs(parisc_parent(dev), &asp, asp_choose_irq);
 
-	/* initialize the chassis LEDs */ 
-#ifdef CONFIG_CHASSIS_LCD_LED	
-	register_led_driver(DISPLAY_MODEL_OLD_ASP, LED_CMD_REG_NONE, 
+	/* initialize the chassis LEDs */
+#ifdef CONFIG_CHASSIS_LCD_LED
+	register_led_driver(DISPLAY_MODEL_OLD_ASP, LED_CMD_REG_NONE,
 		    ASP_LED_ADDR);
 #endif
 

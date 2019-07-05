@@ -144,7 +144,7 @@ _GLOBAL(swsusp_arch_resume)
 
 	/*
 	 * Mappings from virtual addresses to physical addresses may be
-	 * different than they were prior to restoring hibernation state. 
+	 * different than they were prior to restoring hibernation state.
 	 * Invalidate the TLB so that the boot CPU is using the new
 	 * mappings.
 	 */

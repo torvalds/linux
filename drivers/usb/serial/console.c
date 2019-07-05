@@ -79,7 +79,7 @@ static int usb_console_setup(struct console *co, char *options)
 		if (*s)
 			doflow = (*s++ == 'r');
 	}
-	
+
 	/* Sane default */
 	if (baud == 0)
 		baud = 9600;

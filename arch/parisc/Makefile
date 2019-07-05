@@ -13,7 +13,7 @@
 # Copyright (C) 1994 by Linus Torvalds
 # Portions Copyright (C) 1999 The Puffin Group
 #
-# Modified for PA-RISC Linux by Paul Lahaie, Alex deVries, 
+# Modified for PA-RISC Linux by Paul Lahaie, Alex deVries,
 # Mike Shaver, Helge Deller and Martin K. Petersen
 #
 
@@ -85,7 +85,7 @@ cflags-$(CONFIG_PA7100LC)	+= -march=1.1 -mschedule=7100LC
 cflags-$(CONFIG_PA7300LC)	+= -march=1.1 -mschedule=7300
 cflags-$(CONFIG_PA8X00)		+= -march=2.0 -mschedule=8000
 
-head-y			:= arch/parisc/kernel/head.o 
+head-y			:= arch/parisc/kernel/head.o
 
 KBUILD_CFLAGS	+= $(cflags-y)
 

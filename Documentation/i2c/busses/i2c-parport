@@ -66,10 +66,10 @@ SDA  ----------x----x---| o---x---------------------------  pin 13
                                      |R|  |R|
                                      | |  | |
                                      ---  ---
-                                      |    | 
+                                      |    |
                                      ###  ###
                                      GND  GND
-        
+
 Remarks:
  - This is the exact pinout and electronics used on the Analog Devices
    evaluation boards.
@@ -84,7 +84,7 @@ Remarks:
    all connected lines MUST BE driven at the same state, else you'll short
    circuit the output buffers! So plugging the I2C adapter after loading
    the i2c-parport module might be a good safety since data line state
-   prior to init may be unknown. 
+   prior to init may be unknown.
  - This is 5V!
  - Obviously you cannot read SCL (so it's not really standard-compliant).
    Pretty easy to add, just copy the SDA part and use another input pin.
@@ -102,7 +102,7 @@ Side          ______________________________Vdd (+)         Side
                |    |            |    |
                |    |      |\    |    |
 SCL  ----------x--------x--| o---x------------------------  pin 15
-                    |   |  |/         | 
+                    |   |  |/         |
                     |   |             |
                     |   |   /|        |
                     |   ---o |-------------x--------------  pin 2
@@ -122,7 +122,7 @@ SDA  ---------------x---x--| o--------x-------------------  pin 10
                                           |R|  |R|
                                           | |  | |
                                           ---  ---
-                                           |    | 
+                                           |    |
                                           ###  ###
                                           GND  GND
 

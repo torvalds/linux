@@ -1,20 +1,20 @@
-/* 
+/*
 	bpck.c	(c) 1996-8  Grant R. Guenther <grant@torque.net>
 		            Under the terms of the GNU General Public License.
 
-	bpck.c is a low-level protocol driver for the MicroSolutions 
-	"backpack" parallel port IDE adapter.  
+	bpck.c is a low-level protocol driver for the MicroSolutions
+	"backpack" parallel port IDE adapter.
 
 */
 
 /* Changes:
 
-	1.01	GRG 1998.05.05 init_proto, release_proto, pi->delay 
+	1.01	GRG 1998.05.05 init_proto, release_proto, pi->delay
 	1.02    GRG 1998.08.15 default pi->delay returned to 4
 
 */
 
-#define	BPCK_VERSION	"1.02" 
+#define	BPCK_VERSION	"1.02"
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -38,8 +38,8 @@
 
 #define j44(l,h)     (((l>>3)&0x7)|((l>>4)&0x8)|((h<<1)&0x70)|(h&0x80))
 
-/* cont = 0 - access the IDE register file 
-   cont = 1 - access the IDE command set 
+/* cont = 0 - access the IDE register file
+   cont = 1 - access the IDE command set
    cont = 2 - use internal bpck register addressing
 */
 
@@ -74,7 +74,7 @@ static int bpck_read_regr( PIA *pi, int cont, int regr )
 
 	}
 	return -1;
-}	
+}
 
 static void bpck_write_regr( PIA *pi, int cont, int regr, int val )
 
@@ -136,7 +136,7 @@ static void bpck_write_block( PIA *pi, char * buf, int count )
                 w2(0);
                 WR(4,8);
                 break;
- 
+
         case 4: WR(4,0x48);
                 w0(0x40); w2(9); w2(0); w2(1);
                 for (i=0;i<count/4;i++) w4l(((u32 *)buf)[i]);
@@ -200,7 +200,7 @@ static int bpck_probe_unit ( PIA *pi )
 
 	id = pi->unit;
 	s = 0;
-	w2(4); w2(0xe); r2(); t2(2); 
+	w2(4); w2(0xe); r2(); t2(2);
 	o1 = r1()&0xf8;
 	o0 = r0();
 	w0(255-id); w2(4); w0(id);
@@ -210,19 +210,19 @@ static int bpck_probe_unit ( PIA *pi )
 	if ((f7) || (t != o1)) { t2(2); s = r1()&0xf8; }
 	if ((t == o1) && ((!f7) || (s == o1)))  {
 		w2(0x4c); w0(o0);
-		return 0;	
+		return 0;
 	}
 	t2(8); w0(0); t2(2); w2(0x4c); w0(o0);
 	return 1;
 }
-	
+
 static void bpck_connect ( PIA *pi  )
 
 {       pi->saved_r0 = r0();
 	w0(0xff-pi->unit); w2(4); w0(pi->unit);
-	t2(8); t2(8); t2(8); 
+	t2(8); t2(8); t2(8);
 	t2(2); t2(2);
-	
+
 	switch (pi->mode) {
 
 	case 0: t2(8); WR(4,0);
@@ -252,10 +252,10 @@ static void bpck_connect ( PIA *pi  )
 
 static void bpck_disconnect ( PIA *pi )
 
-{	w0(0); 
+{	w0(0);
 	if (pi->mode >= 2) { w2(9); w2(0); } else t2(2);
 	w2(0x4c); w0(pi->saved_r0);
-} 
+}
 
 static void bpck_force_spp ( PIA *pi )
 
@@ -263,12 +263,12 @@ static void bpck_force_spp ( PIA *pi )
 
 {       pi->saved_r0 = r0();
         w0(0xff-pi->unit); w2(4); w0(pi->unit);
-        t2(8); t2(8); t2(8); 
+        t2(8); t2(8); t2(8);
         t2(2); t2(2);
 
-        w2(0); 
-        w0(4); w2(9); w2(0); 
-        w0(0); w2(1); w2(3); w2(0);     
+        w2(0);
+        w0(4); w2(9); w2(0);
+        w0(0); w2(1); w2(3); w2(0);
         w0(0); w2(9); w2(0);
         w2(0x4c); w0(pi->saved_r0);
 }
@@ -355,25 +355,25 @@ static void bpck_read_eeprom ( PIA *pi, char * buf )
 	pi->mode = 0; pi->delay = 6;
 
 	bpck_connect(pi);
-	
+
 	WR(4,0);
 	for (i=0;i<64;i++) {
-	    WR(6,8);  
+	    WR(6,8);
 	    WR(6,0xc);
 	    p = 0x100;
 	    for (k=0;k<9;k++) {
 		f = (((i + 0x180) & p) != 0) * 2;
-		WR(6,f+0xc); 
-		WR(6,f+0xd); 
+		WR(6,f+0xc);
+		WR(6,f+0xd);
 		WR(6,f+0xc);
 		p = (p >> 1);
 	    }
 	    for (j=0;j<2;j++) {
 		v = 0;
 		for (k=0;k<8;k++) {
-		    WR(6,0xc); 
-		    WR(6,0xd); 
-		    WR(6,0xc); 
+		    WR(6,0xc);
+		    WR(6,0xd);
+		    WR(6,0xc);
 		    f = RR(0);
 		    v = 2*v + (f == 0x84);
 		}
@@ -407,7 +407,7 @@ static int bpck_test_port ( PIA *pi ) 	/* check for 8-bit port */
 
 	w2(0xc); i = r0(); w0(255-i); r = r0(); w0(i);
 	if (r != (255-i)) m = -1;
-	
+
 	if (m == 0) { w2(6); w2(0xc); r = r0(); w0(0xaa); w0(r); w0(0xaa); }
 	if (m == 2) { w2(0x26); w2(0xc); }
 

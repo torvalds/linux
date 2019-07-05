@@ -57,7 +57,7 @@ extern struct strarray strarray__socket_families;
 
 /**
  * augmented_arg: extra payload for syscall pointer arguments
- 
+
  * If perf_sample->raw_size is more than what a syscall sys_enter_FOO puts,
  * then its the arguments contents, so that we can show more than just a
  * pointer. This will be done initially with eBPF, the start of that is at the

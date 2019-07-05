@@ -23,7 +23,7 @@
 
 /* We need to flush the kernel's icache after loading modules.  The
    only other use of this macro is in load_aout_interp which is not
-   used on Alpha. 
+   used on Alpha.
 
    Note that this definition should *not* be used for userspace
    icache flushing.  While functional, it is _way_ overkill.  The

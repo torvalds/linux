@@ -11,11 +11,11 @@
     Digital Semiconductor   SROM   Specification.    The  driver   currently
     recognises the following chips:
 
-        DC21040  (no SROM) 
-	DC21041[A]  
-	DC21140[A] 
-	DC21142 
-	DC21143 
+        DC21040  (no SROM)
+	DC21041[A]
+	DC21140[A]
+	DC21142
+	DC21143
 
     So far the driver is known to work with the following cards:
 
@@ -25,7 +25,7 @@
 	SMC8432
 	SMC9332 (w/new SROM)
 	ZNYX31[45]
-	ZNYX346 10/100 4 port (can act as a 10/100 bridge!) 
+	ZNYX346 10/100 4 port (can act as a 10/100 bridge!)
 
     The driver has been tested on a relatively busy network using the DE425,
     DE434, DE435 and DE500 cards and benchmarked with 'ttcp': it transferred
@@ -61,7 +61,7 @@
     loading by:
 
                    insmod de4x5 io=0xghh           where g = bus number
-		                                        hh = device number   
+		                                        hh = device number
 
        NB: autoprobing for modules is now supported by default. You may just
            use:
@@ -75,11 +75,11 @@
     4) if you are wanting to add a new  card, goto 5. Otherwise, recompile a
     kernel with the de4x5 configuration turned off and reboot.
     5) insmod de4x5 [io=0xghh]
-    6) run the net startup bits for your new eth?? interface(s) manually 
-    (usually /etc/rc.inet[12] at boot time). 
+    6) run the net startup bits for your new eth?? interface(s) manually
+    (usually /etc/rc.inet[12] at boot time).
     7) enjoy!
 
-    To unload a module, turn off the associated interface(s) 
+    To unload a module, turn off the associated interface(s)
     'ifconfig eth?? down' then 'rmmod de4x5'.
 
     Automedia detection is included so that in  principle you can disconnect
@@ -90,7 +90,7 @@
     By  default,  the driver will  now   autodetect any  DECchip based card.
     Should you have a need to restrict the driver to DIGITAL only cards, you
     can compile with a  DEC_ONLY define, or if  loading as a module, use the
-    'dec_only=1'  parameter. 
+    'dec_only=1'  parameter.
 
     I've changed the timing routines to  use the kernel timer and scheduling
     functions  so that the  hangs  and other assorted problems that occurred
@@ -159,7 +159,7 @@
     following parameters are allowed:
 
             fdx        for full duplex
-	    autosense  to set the media/speed; with the following 
+	    autosense  to set the media/speed; with the following
 	               sub-parameters:
 		       TP, TP_NW, BNC, AUI, BNC_AUI, 100Mb, 10Mb, AUTO
 
@@ -169,7 +169,7 @@
         insmod de4x5 args='eth1:fdx autosense=BNC eth0:autosense=100Mb'.
 
     For a compiled in driver, in linux/drivers/net/CONFIG, place e.g.
-	DE4X5_OPTS = -DDE4X5_PARM='"eth0:fdx autosense=AUI eth2:autosense=TP"' 
+	DE4X5_OPTS = -DDE4X5_PARM='"eth0:fdx autosense=AUI eth2:autosense=TP"'
 
     Yes,  I know full duplex  isn't permissible on BNC  or AUI; they're just
     examples. By default, full duplex is turned  off and AUTO is the default

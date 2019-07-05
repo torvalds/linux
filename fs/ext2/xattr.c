@@ -371,7 +371,7 @@ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
 	size_t name_len, free, min_offs = sb->s_blocksize;
 	int not_found = 1, error;
 	char *end;
-	
+
 	/*
 	 * header -- Points either into bh, or to a temporarily
 	 *           allocated buffer.
@@ -383,7 +383,7 @@ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
 	 *             towards the end of the block).
 	 * end -- Points right after the block pointed to by header.
 	 */
-	
+
 	ea_idebug(inode, "name=%d.%s, value=%p, value_len=%ld",
 		  name_index, name, value, (long)value_len);
 
@@ -409,7 +409,7 @@ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
 		if (header->h_magic != cpu_to_le32(EXT2_XATTR_MAGIC) ||
 		    header->h_blocks != cpu_to_le32(1)) {
 bad_block:		ext2_error(sb, "ext2_xattr_set",
-				"inode %ld: bad block %d", inode->i_ino, 
+				"inode %ld: bad block %d", inode->i_ino,
 				   EXT2_I(inode)->i_file_acl);
 			error = -EIO;
 			goto cleanup;
@@ -473,7 +473,7 @@ bad_block:		ext2_error(sb, "ext2_xattr_set",
 		if (!here->e_value_block && here->e_value_size) {
 			size_t size = le32_to_cpu(here->e_value_size);
 
-			if (le16_to_cpu(here->e_value_offs) + size > 
+			if (le16_to_cpu(here->e_value_offs) + size >
 			    sb->s_blocksize || size > sb->s_blocksize)
 				goto bad_block;
 			free += EXT2_XATTR_SIZE(size);
@@ -681,7 +681,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 			set_buffer_uptodate(new_bh);
 			unlock_buffer(new_bh);
 			ext2_xattr_cache_insert(ea_block_cache, new_bh);
-			
+
 			ext2_xattr_update_super_block(sb);
 		}
 		mark_buffer_dirty(new_bh);
@@ -1003,7 +1003,7 @@ static void ext2_xattr_rehash(struct ext2_xattr_header *header,
 {
 	struct ext2_xattr_entry *here;
 	__u32 hash = 0;
-	
+
 	ext2_xattr_hash_entry(header, entry);
 	here = ENTRY(header+1);
 	while (!IS_LAST_ENTRY(here)) {

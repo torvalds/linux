@@ -32,7 +32,7 @@ Below are the essential guides that every developer should read.
    kernel-enforcement-statement
    kernel-driver-statement
 
-Other guides to the community that are of interest to most developers are: 
+Other guides to the community that are of interest to most developers are:
 
 .. toctree::
    :maxdepth: 1

@@ -18,7 +18,7 @@
 *  SYM53C500.c
 *	Bob Tracy (rct@frus.com)
 *	Original driver by Tom Corner (tcorner@via.at) was adapted
-*	from NCR53c406a.c which is Copyrighted (C) 1994, 1995, 1996 
+*	from NCR53c406a.c which is Copyrighted (C) 1994, 1995, 1996
 *	Normunds Saumanis (normunds@fi.ibm.com)
 *
 *  sym53c500.c
@@ -32,7 +32,7 @@
 #define VERBOSE_SYM53C500_DEBUG 0
 
 /*
-*  Set this to 0 if you encounter kernel lockups while transferring 
+*  Set this to 0 if you encounter kernel lockups while transferring
 *  data in PIO mode.  Note this can be changed via "sysfs".
 */
 #define USE_FAST_PIO 1
@@ -219,7 +219,7 @@ chip_init(int io_port)
 	outb(0x05, io_port + CLKCONV);	/* clock conversion factor */
 	outb(0x9C, io_port + SRTIMOUT);	/* Selection timeout */
 	outb(0x05, io_port + SYNCPRD);	/* Synchronous transfer period */
-	outb(SYNC_MODE, io_port + SYNCOFF);	/* synchronous mode */  
+	outb(SYNC_MODE, io_port + SYNCOFF);	/* synchronous mode */
 }
 
 static void
@@ -242,7 +242,7 @@ SYM53C500_pio_read(int fast_pio, int base, unsigned char *request, unsigned int 
 	while (reqlen) {
 		i = inb(base + PIO_STATUS);
 		/* VDEB(printk("pio_status=%x\n", i)); */
-		if (i & 0x80) 
+		if (i & 0x80)
 			return 0;
 
 		switch (i & 0x1e) {
@@ -252,7 +252,7 @@ SYM53C500_pio_read(int fast_pio, int base, unsigned char *request, unsigned int 
 			break;
 		case 0x0:
 			len = 1;
-			break; 
+			break;
 		case 0x8:	/* fifo 1/3 full */
 			len = 42;
 			break;
@@ -269,19 +269,19 @@ SYM53C500_pio_read(int fast_pio, int base, unsigned char *request, unsigned int 
 		}
 
 		if (len) {
-			if (len > reqlen) 
+			if (len > reqlen)
 				len = reqlen;
 
 			if (fast_pio && len > 3) {
 				insl(base + PIO_FIFO, request, len >> 2);
-				request += len & 0xfc; 
-				reqlen -= len & 0xfc; 
+				request += len & 0xfc;
+				reqlen -= len & 0xfc;
 			} else {
 				while (len--) {
 					*request++ = inb(base + PIO_FIFO);
 					reqlen--;
 				}
-			} 
+			}
 		}
 	}
 	return 0;
@@ -366,7 +366,7 @@ SYM53C500_intr(int irq, void *dev_id)
 	DEB(fifo_size = inb(port_base + FIFO_FLAGS) & 0x1f);
 
 #if SYM53C500_DEBUG
-	printk("status=%02x, seq_reg=%02x, int_reg=%02x, fifo_size=%02x", 
+	printk("status=%02x, seq_reg=%02x, int_reg=%02x, fifo_size=%02x",
 	    status, seq_reg, int_reg, fifo_size);
 	printk(", pio=%02x\n", pio_status);
 #endif /* SYM53C500_DEBUG */
@@ -532,12 +532,12 @@ SYM53C500_info(struct Scsi_Host *SChost)
 
 	DEB(printk("SYM53C500_info called\n"));
 	(void)snprintf(info_msg, sizeof(info_msg),
-	    "SYM53C500 at 0x%lx, IRQ %d, %s PIO mode.", 
+	    "SYM53C500 at 0x%lx, IRQ %d, %s PIO mode.",
 	    SChost->io_port, SChost->irq, data->fast_pio ? "fast" : "slow");
 	return (info_msg);
 }
 
-static int 
+static int
 SYM53C500_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	int i;
@@ -547,8 +547,8 @@ SYM53C500_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	VDEB(printk("SYM53C500_queue called\n"));
 
-	DEB(printk("cmd=%02x, cmd_len=%02x, target=%02x, lun=%02x, bufflen=%d\n", 
-	    SCpnt->cmnd[0], SCpnt->cmd_len, SCpnt->device->id, 
+	DEB(printk("cmd=%02x, cmd_len=%02x, target=%02x, lun=%02x, bufflen=%d\n",
+	    SCpnt->cmnd[0], SCpnt->cmd_len, SCpnt->device->id,
 		   (u8)SCpnt->device->lun,  scsi_bufflen(SCpnt)));
 
 	VDEB(for (i = 0; i < SCpnt->cmd_len; i++)
@@ -576,7 +576,7 @@ SYM53C500_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 static DEF_SCSI_QCMD(SYM53C500_queue)
 
-static int 
+static int
 SYM53C500_host_reset(struct scsi_cmnd *SCpnt)
 {
 	int port_base = SCpnt->device->host->io_port;
@@ -589,7 +589,7 @@ SYM53C500_host_reset(struct scsi_cmnd *SCpnt)
 	return SUCCESS;
 }
 
-static int 
+static int
 SYM53C500_biosparm(struct scsi_device *disk,
     struct block_device *dev,
     sector_t capacity, int *info_array)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family 
+ * Device driver for the SYMBIOS/LSILOGIC 53C8XX and 53C1010 family
  * of PCI-SCSI IO processors.
  *
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
@@ -8,7 +8,7 @@
  * This driver is derived from the Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
- * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ * The sym53c8xx driver is derived from the ncr53c8xx driver that had been
  * a port of the FreeBSD ncr driver to Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
@@ -68,7 +68,7 @@
 	SYM_GEN_Z(s, snooptest)		SYM_GEN_Z(s, snoopend)
 
 /*
- *  Generates structure interface that contains 
+ *  Generates structure interface that contains
  *  offsets within script A, B and Z.
  */
 #define	SYM_GEN_A(s, label)	s label;
@@ -87,7 +87,7 @@ struct sym_fwz_ofs {
 };
 
 /*
- *  Generates structure interface that contains 
+ *  Generates structure interface that contains
  *  bus addresses within script A, B and Z.
  */
 struct sym_fwa_ba {
@@ -113,7 +113,7 @@ struct sym_hcb;
 
 /*
  *  Generic structure that defines a firmware.
- */ 
+ */
 struct sym_fw {
 	char	*name;		/* Name we want to print out	*/
 	u32	*a_base;	/* Pointer to script A template	*/
@@ -165,8 +165,8 @@ struct sym_fw {
  *  PADDR_A generates a reference to another part of script A.
  *  PADDR_B generates a reference to another part of script B.
  *
- *  SYM_GEN_PADDR_A and SYM_GEN_PADDR_B are used to define respectively 
- *  the PADDR_A and PADDR_B macros for each firmware by setting argument 
+ *  SYM_GEN_PADDR_A and SYM_GEN_PADDR_B are used to define respectively
+ *  the PADDR_A and PADDR_B macros for each firmware by setting argument
  *  `s' to the name of the corresponding structure.
  *
  *  SCR_DATA_ZERO is used to allocate a DWORD of data in scripts areas.

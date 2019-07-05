@@ -13,7 +13,7 @@
  * This version is derived from the GnuPG implementation and the
  * Tiger-Perl interface written by Rafael Sevilla
  *
- * Adapted for Linux Kernel Crypto  by Aaron Grothe 
+ * Adapted for Linux Kernel Crypto  by Aaron Grothe
  * ajgrothe@yahoo.com, February 22, 2005
  */
 #include <crypto/internal/hash.h>

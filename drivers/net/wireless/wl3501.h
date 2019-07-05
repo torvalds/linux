@@ -242,7 +242,7 @@ struct iw_mgmt_essid_pset {
 /*
  * According to 802.11 Wireless Netowors, the definitive guide - O'Reilly
  * Pg 75
- */ 
+ */
 #define IW_DATA_RATE_MAX_LABELS 8
 
 struct iw_mgmt_data_rset {

@@ -14,7 +14,7 @@
  *           - January 2000
  *
  *    [2] MTD internal API documentation
- *           - http://www.linux-mtd.infradead.org/ 
+ *           - http://www.linux-mtd.infradead.org/
  *
  * Limitations:
  *

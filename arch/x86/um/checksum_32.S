@@ -24,28 +24,28 @@
 #include <asm/errno.h>
 #include <asm/asm.h>
 #include <asm/export.h>
-				
+
 /*
  * computes a partial checksum, e.g. for TCP/UDP fragments
  */
 
-/*	
+/*
 unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
  */
-		
+
 .text
 .align 4
 .globl csum_partial
-		
+
 #ifndef CONFIG_X86_USE_PPRO_CHECKSUM
 
-	  /*		
+	  /*
 	   * Experiments with Ethernet and SLIP connections show that buff
 	   * is aligned on either a 2-byte or 4-byte boundary.  We get at
 	   * least a twofold speedup on 486 and Pentium if it is 4-byte aligned.
 	   * Fortunately, it is easy to convert 2-byte alignment to 4-byte
 	   * alignment for the unrolled loop.
-	   */		
+	   */
 csum_partial:
 	pushl %esi
 	pushl %ebx
@@ -106,8 +106,8 @@ csum_partial:
 	shll $16,%ecx
 5:	movb (%esi),%cl
 6:	addl %ecx,%eax
-	adcl $0, %eax 
-7:	
+	adcl $0, %eax
+7:
 	popl %ebx
 	popl %esi
 	ret
@@ -123,15 +123,15 @@ csum_partial:
 	movl 16(%esp),%ecx	# Function arg: int len
 	movl 12(%esp),%esi	# Function arg:	const unsigned char *buf
 
-	testl $2, %esi         
-	jnz 30f                 
+	testl $2, %esi
+	jnz 30f
 10:
 	movl %ecx, %edx
 	movl %ecx, %ebx
 	andl $0x7c, %ebx
 	shrl $7, %ecx
 	addl %ebx,%esi
-	shrl $2, %ebx  
+	shrl $2, %ebx
 	negl %ebx
 	lea 45f(%ebx,%ebx,2), %ebx
 	testl %esi, %esi
@@ -143,8 +143,8 @@ csum_partial:
 	adcl $0, %eax
 	jmp 10b
 
-30:	subl $2, %ecx          
-	ja 20b                 
+30:	subl $2, %ecx
+	ja 20b
 	je 32f
 	movzbl (%esi),%ebx	# csumming 1 byte, 2-aligned
 	addl %ebx, %eax
@@ -155,12 +155,12 @@ csum_partial:
 	adcl $0, %eax
 	jmp 80f
 
-40: 
+40:
 	addl -128(%esi), %eax
 	adcl -124(%esi), %eax
 	adcl -120(%esi), %eax
-	adcl -116(%esi), %eax   
-	adcl -112(%esi), %eax   
+	adcl -116(%esi), %eax
+	adcl -112(%esi), %eax
 	adcl -108(%esi), %eax
 	adcl -104(%esi), %eax
 	adcl -100(%esi), %eax
@@ -172,11 +172,11 @@ csum_partial:
 	adcl -76(%esi), %eax
 	adcl -72(%esi), %eax
 	adcl -68(%esi), %eax
-	adcl -64(%esi), %eax     
-	adcl -60(%esi), %eax     
-	adcl -56(%esi), %eax     
-	adcl -52(%esi), %eax   
-	adcl -48(%esi), %eax   
+	adcl -64(%esi), %eax
+	adcl -60(%esi), %eax
+	adcl -56(%esi), %eax
+	adcl -52(%esi), %eax
+	adcl -48(%esi), %eax
 	adcl -44(%esi), %eax
 	adcl -40(%esi), %eax
 	adcl -36(%esi), %eax
@@ -205,10 +205,10 @@ csum_partial:
 	andl -128(%esi),%ebx	# esi is 4-aligned so should be ok
 	addl %ebx,%eax
 	adcl $0,%eax
-80: 
+80:
 	popl %ebx
 	popl %esi
 	ret
-				
+
 #endif
 	EXPORT_SYMBOL(csum_partial)

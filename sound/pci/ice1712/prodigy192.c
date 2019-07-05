@@ -38,7 +38,7 @@
  *	Copyright (c) 2003 Takashi Iwai <tiwai@suse.de>
  *      Copyright (c) 2003 Dimitromanolakis Apostolos <apostol@cs.utoronto.ca>
  *      Copyright (c) 2004 Kouichi ONO <co2b@ceres.dti.ne.jp>
- */      
+ */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -279,7 +279,7 @@ static int stac9460_mic_sw_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned char val;
-		
+
 	val = stac9460_get(ice, STAC946X_GENERAL_PURPOSE);
 	ucontrol->value.enumerated.item[0] = (val >> 7) & 0x1;
 	return 0;
@@ -550,7 +550,7 @@ static int ak4114_input_sw_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned char val;
-		
+
 	val = prodigy192_ak4114_read(ice, AK4114_REG_IO1);
 	/* AK4114_IPS0 bit = 0 -> RX0 = Toslink
 	 * AK4114_IPS0 bit = 1 -> RX1 = Coax
@@ -720,7 +720,7 @@ static int prodigy192_init(struct snd_ice1712 *ice)
 	ice->num_total_dacs = 6;
 	ice->num_total_adcs = 2;
 	ice->vt1720 = 0;  /* ice1724, e.g. 23 GPIOs */
-	
+
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;

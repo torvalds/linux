@@ -106,7 +106,7 @@ static void __exit alsa_seq_exit(void)
 
 	/* unregister proc interface */
 	snd_seq_info_done();
-	
+
 	/* delete timing queues */
 	snd_seq_queues_delete();
 

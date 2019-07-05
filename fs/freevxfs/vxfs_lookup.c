@@ -165,7 +165,7 @@ vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
 		kunmap(pp);
 		put_page(pp);
 	}
-	
+
 	return (ino);
 }
 
@@ -188,10 +188,10 @@ vxfs_lookup(struct inode *dip, struct dentry *dp, unsigned int flags)
 {
 	struct inode		*ip = NULL;
 	ino_t			ino;
-			 
+
 	if (dp->d_name.len > VXFS_NAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
-				 
+
 	ino = vxfs_inode_by_name(dip, dp);
 	if (ino)
 		ip = vxfs_iget(dip->i_sb, ino);

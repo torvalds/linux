@@ -248,9 +248,9 @@ int snd_pmac_attach_beep(struct snd_pmac *chip)
 	err = input_register_device(beep->dev);
 	if (err)
 		goto fail2;
- 
+
  	return 0;
- 
+
  fail2:	snd_ctl_remove(chip->card, beep_ctl);
  fail1:	input_free_device(input_dev);
 	if (dmabuf)

@@ -28,20 +28,20 @@
 
 #include "float.h"
 #include "sgl_float.h"
-    
+
 /*
  * sgl_cmp: compare two values
  */
 int
 sgl_fcmp (sgl_floating_point * leftptr, sgl_floating_point * rightptr,
 	  unsigned int cond, unsigned int *status)
-                                           
+
                        /* The predicate to be tested */
-                         
+
     {
     register unsigned int left, right;
     register int xorresult;
-        
+
     /* Create local copies of the numbers */
     left = *leftptr;
     right = *rightptr;
@@ -52,15 +52,15 @@ sgl_fcmp (sgl_floating_point * leftptr, sgl_floating_point * rightptr,
     if(    (Sgl_exponent(left) == SGL_INFINITY_EXPONENT)
         || (Sgl_exponent(right) == SGL_INFINITY_EXPONENT) )
 	{
-	/* Check if a NaN is involved.  Signal an invalid exception when 
+	/* Check if a NaN is involved.  Signal an invalid exception when
 	 * comparing a signaling NaN or when comparing quiet NaNs and the
 	 * low bit of the condition is set */
         if( (  (Sgl_exponent(left) == SGL_INFINITY_EXPONENT)
-	    && Sgl_isnotzero_mantissa(left) 
+	    && Sgl_isnotzero_mantissa(left)
 	    && (Exception(cond) || Sgl_isone_signaling(left)))
 	   ||
 	    (  (Sgl_exponent(right) == SGL_INFINITY_EXPONENT)
-	    && Sgl_isnotzero_mantissa(right) 
+	    && Sgl_isnotzero_mantissa(right)
 	    && (Exception(cond) || Sgl_isone_signaling(right)) ) )
 	    {
 	    if( Is_invalidtrap_enabled() ) {
@@ -92,7 +92,7 @@ sgl_fcmp (sgl_floating_point * leftptr, sgl_floating_point * rightptr,
         {
         /* left negative => less, left positive => greater.
          * equal is possible if both operands are zeros. */
-        if( Sgl_iszero_exponentmantissa(left) 
+        if( Sgl_iszero_exponentmantissa(left)
 	  && Sgl_iszero_exponentmantissa(right) )
             {
 	    Set_status_cbit(Equal(cond));

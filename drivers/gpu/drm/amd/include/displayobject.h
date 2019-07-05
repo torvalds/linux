@@ -1,14 +1,14 @@
 /****************************************************************************\
-* 
+*
 *  Module Name    displayobjectsoc15.h
-*  Project        
-*  Device         
+*  Project
+*  Device
 *
 *  Description    Contains the common definitions for display objects for SoC15 products.
 *
 *  Copyright 2014 Advanced Micro Devices, Inc.
 *
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 * and associated documentation files (the "Software"), to deal in the Software without restriction,
 * including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
 * and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
@@ -35,7 +35,7 @@
 
 
 /****************************************************
-* Display Object Type Definition 
+* Display Object Type Definition
 *****************************************************/
 enum display_object_type{
 DISPLAY_OBJECT_TYPE_NONE						=0x00,
@@ -45,7 +45,7 @@ DISPLAY_OBJECT_TYPE_CONNECTOR					=0x03
 };
 
 /****************************************************
-* Encorder Object Type Definition 
+* Encorder Object Type Definition
 *****************************************************/
 enum encoder_object_type{
 ENCODER_OBJECT_ID_NONE							 =0x00,
@@ -56,11 +56,11 @@ ENCODER_OBJECT_ID_INTERNAL_UNIPHY2				 =0x03,
 
 
 /****************************************************
-* Connector Object ID Definition 
+* Connector Object ID Definition
 *****************************************************/
 
 enum connector_object_type{
-CONNECTOR_OBJECT_ID_NONE						  =0x00, 
+CONNECTOR_OBJECT_ID_NONE						  =0x00,
 CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D			  =0x01,
 CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D				  =0x02,
 CONNECTOR_OBJECT_ID_HDMI_TYPE_A					  =0x03,
@@ -72,12 +72,12 @@ CONNECTOR_OBJECT_ID_OPM							  =0x07
 
 
 /****************************************************
-* Protection Object ID Definition 
+* Protection Object ID Definition
 *****************************************************/
 //No need
 
 /****************************************************
-*  Object ENUM ID Definition 
+*  Object ENUM ID Definition
 *****************************************************/
 
 enum object_enum_id{
@@ -90,7 +90,7 @@ OBJECT_ENUM_ID6									  =0x06
 };
 
 /****************************************************
-*Object ID Bit definition 
+*Object ID Bit definition
 *****************************************************/
 enum object_id_bit{
 OBJECT_ID_MASK									  =0x00FF,

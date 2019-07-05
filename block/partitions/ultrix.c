@@ -30,13 +30,13 @@ int ultrix_partition(struct parsed_partitions *state)
 	data = read_part_sector(state, (16384 - sizeof(*label))/512, &sect);
 	if (!data)
 		return -1;
-	
+
 	label = (struct ultrix_disklabel *)(data + 512 - sizeof(*label));
 
 	if (label->pt_magic == PT_MAGIC && label->pt_valid == PT_VALID) {
 		for (i=0; i<8; i++)
 			if (label->pt_part[i].pi_nblocks)
-				put_partition(state, i+1, 
+				put_partition(state, i+1,
 					      label->pt_part[i].pi_blkoff,
 					      label->pt_part[i].pi_nblocks);
 		put_dev_sector(sect);

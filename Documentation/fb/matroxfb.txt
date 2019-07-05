@@ -30,7 +30,7 @@ pass to the kernel this command line: "video=matroxfb:vesa:0x1BB".
 
 You should compile in both vgacon (to boot if you remove you Matrox from
 box) and matroxfb (for graphics mode). You should not compile-in vesafb
-unless you have primary display on non-Matrox VBE2.0 device (see 
+unless you have primary display on non-Matrox VBE2.0 device (see
 Documentation/fb/vesafb.txt for details).
 
 Currently supported video modes are (through vesa:... interface, PowerMac
@@ -41,12 +41,12 @@ has [as addon] compatibility code):
 
 bpp | 640x400  640x480  768x576  800x600  960x720
 ----+--------------------------------------------
-  4 |            0x12             0x102            
-  8 |  0x100    0x101    0x180    0x103    0x188   
- 15 |           0x110    0x181    0x113    0x189   
- 16 |           0x111    0x182    0x114    0x18A   
- 24 |           0x1B2    0x184    0x1B5    0x18C   
- 32 |           0x112    0x183    0x115    0x18B   
+  4 |            0x12             0x102
+  8 |  0x100    0x101    0x180    0x103    0x188
+ 15 |           0x110    0x181    0x113    0x189
+ 16 |           0x111    0x182    0x114    0x18A
+ 24 |           0x1B2    0x184    0x1B5    0x18C
+ 32 |           0x112    0x183    0x115    0x18B
 
 
 [Graphic modes (continued)]
@@ -85,7 +85,7 @@ works fine.
 
 Running another (accelerated) X-Server like XF86_SVGA works too. But (at least)
 XFree servers have big troubles in multihead configurations (even on first
-head, not even talking about second). Running XFree86 4.x accelerated mga 
+head, not even talking about second). Running XFree86 4.x accelerated mga
 driver is possible, but you must not enable DRI - if you do, resolution and
 color depth of your X desktop must match resolution and color depths of your
 virtual consoles, otherwise X will corrupt accelerator settings.
@@ -106,8 +106,8 @@ Configuration
 =============
 
 You can pass kernel command line options to matroxfb with
-`video=matroxfb:option1,option2:value2,option3' (multiple options should be 
-separated by comma, values are separated from options by `:'). 
+`video=matroxfb:option1,option2:value2,option3' (multiple options should be
+separated by comma, values are separated from options by `:').
 Accepted options:
 
 mem:X    - size of memory (X can be in megabytes, kilobytes or bytes)
@@ -146,7 +146,7 @@ noinit   - tells driver, that devices were already initialized. You should use
 	   strange pattern on screen and so on. Devices not enabled by BIOS
 	   are still initialized. It is default.
 init     - driver initializes every device it knows about.
-memtype  - specifies memory type, implies 'init'. This is valid only for G200 
+memtype  - specifies memory type, implies 'init'. This is valid only for G200
            and G400 and has following meaning:
              G200: 0 -> 2x128Kx32 chips, 2MB onboard, probably sgram
                    1 -> 2x128Kx32 chips, 4MB onboard, probably sgram
@@ -165,7 +165,7 @@ memtype  - specifies memory type, implies 'init'. This is valid only for G200
                    5 -> 2x1Mx32 SDRAM, 32MB
                    6 -> reserved
                    7 -> reserved
-           You should use sdram or sgram parameter in addition to memtype 
+           You should use sdram or sgram parameter in addition to memtype
            parameter.
 nomtrr   - disables write combining on frame buffer. This slows down driver but
            there is reported minor incompatibility between GUS DMA and XFree
@@ -322,11 +322,11 @@ And following misfeatures:
 And following features:
  + 4bpp is available only on Millennium I and Millennium II. It is hardware
    limitation.
- + selection between 1:5:5:5 and 5:6:5 16bpp videomode is done by -rgba 
+ + selection between 1:5:5:5 and 5:6:5 16bpp videomode is done by -rgba
    option of fbset: "fbset -depth 16 -rgba 5,5,5" selects 1:5:5:5, anything
    else selects 5:6:5 mode.
  + text mode uses 6 bit VGA palette instead of 8 bit (one of 262144 colors
-   instead of one of 16M colors). It is due to hardware limitation of 
+   instead of one of 16M colors). It is due to hardware limitation of
    Millennium I/II and SVGALib compatibility.
 
 
@@ -334,7 +334,7 @@ Benchmarks
 ==========
 It is time to redraw whole screen 1000 times in 1024x768, 60Hz. It is
 time for draw 6144000 characters on screen through /dev/vcsa
-(for 32bpp it is about 3GB of data (exactly 3000 MB); for 8x16 font in 
+(for 32bpp it is about 3GB of data (exactly 3000 MB); for 8x16 font in
 16 seconds, i.e. 187 MBps).
 Times were obtained from one older version of driver, now they are about 3%
 faster, it is kernel-space only time on P-II/350 MHz, Millennium I in 33 MHz
@@ -408,6 +408,6 @@ Driver supports dualhead G450 with some limitations:
  + kernel is not fully multihead ready, so some things are impossible to do.
  + if you compiled it as module, you must insert matroxfb_g450 and matroxfb_crtc2
    into kernel.
-	
+
 --
 Petr Vandrovec <vandrove@vc.cvut.cz>

@@ -94,7 +94,7 @@ default behaviour.
 	When inode64 is specified, it indicates that XFS is allowed
 	to create inodes at any location in the filesystem,
 	including those which will result in inode numbers occupying
-	more than 32 bits of significance. 
+	more than 32 bits of significance.
 
 	inode32 is provided for backwards compatibility with older
 	systems and applications, since 64 bits inode numbers might

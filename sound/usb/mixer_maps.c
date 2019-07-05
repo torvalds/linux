@@ -210,7 +210,7 @@ static struct usbmix_name_map live24ext_map[] = {
 /* LineX FM Transmitter entry - needed to bypass controls bug */
 static struct usbmix_name_map linex_map[] = {
 	/* 1: IT pcm */
-	/* 2: OT Speaker */ 
+	/* 2: OT Speaker */
 	{ 3, "Master" }, /* FU: master volume - left / right / mute */
 	{ 0 } /* terminator */
 };

@@ -37,7 +37,7 @@ struct concap_proto{
 					   be accessed via *pops methods only*/
 	/*
 	  :
-	  whatever 
+	  whatever
 	  :
 	  */
 };
@@ -48,16 +48,16 @@ struct concap_proto{
  */
 struct concap_device_ops{
 
-	/* to request data is submitted by device*/ 
+	/* to request data is submitted by device*/
 	int (*data_req)(struct concap_proto *, struct sk_buff *);
 
 	/* Control methods must be set to NULL by devices which do not
 	   support connection control.*/
-	/* to request a connection is set up */ 
+	/* to request a connection is set up */
 	int (*connect_req)(struct concap_proto *);
 
 	/* to request a connection is released */
-	int (*disconn_req)(struct concap_proto *);	
+	int (*disconn_req)(struct concap_proto *);
 };
 
 /* Operations to be supported by the encapsulation protocol. Called by
@@ -75,7 +75,7 @@ struct concap_proto_ops{
 	/* initialize the protocol's data. To be called at interface startup
 	   or when the device driver resets the interface. All services of the
 	   encapsulation protocol may be used after this*/
-	int (*restart)(struct concap_proto *cprot, 
+	int (*restart)(struct concap_proto *cprot,
 		       struct net_device *ndev,
 		       struct concap_device_ops *dops);
 
@@ -86,7 +86,7 @@ struct concap_proto_ops{
 	/* process a frame handed down to us by upper layer */
 	int (*encap_and_xmit)(struct concap_proto *cprot, struct sk_buff *skb);
 
-	/* to be called for each data entity received from lower layer*/ 
+	/* to be called for each data entity received from lower layer*/
 	int (*data_ind)(struct concap_proto *cprot, struct sk_buff *skb);
 
 	/* to be called when a connection was set up/down.
@@ -104,7 +104,7 @@ struct concap_proto_ops{
 
 /* dummy restart/close/connect/reset/disconn methods
  */
-extern int concap_nop(struct concap_proto *cprot); 
+extern int concap_nop(struct concap_proto *cprot);
 
 /* dummy submit method
  */

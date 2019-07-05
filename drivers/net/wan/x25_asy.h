@@ -6,7 +6,7 @@
 #define SL_NRUNIT	256		/* MAX number of X.25 channels;
 					   This can be overridden with
 					   insmod -ox25_asy_maxdev=nnn	*/
-#define SL_MTU		256	
+#define SL_MTU		256
 
 /* X25 async protocol characters. */
 #define X25_END         0x7E		/* indicates end of frame	*/

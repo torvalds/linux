@@ -267,7 +267,7 @@ xfs_fs_commit_blocks(
 		length = end - start;
 		if (!length)
 			continue;
-	
+
 		/*
 		 * Make sure reads through the pagecache see the new data.
 		 */

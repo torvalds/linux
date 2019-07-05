@@ -60,7 +60,7 @@
 /*
  * The OSF/1 version of <sys/procfs.h> makes gregset_t 46 entries long.
  * I have no idea why that is so.  For now, we just leave it at 33
- * (32 general regs + processor status word). 
+ * (32 general regs + processor status word).
  */
 #define ELF_NGREG	33
 #define ELF_NFPREG	32
@@ -92,7 +92,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #define ELF_ET_DYN_BASE		(TASK_UNMAPPED_BASE + 0x1000000)
 
-/* $0 is set by ld.so to a pointer to a function which might be 
+/* $0 is set by ld.so to a pointer to a function which might be
    registered using atexit.  This provides a mean for the dynamic
    linker to call DT_FINI functions for shared libraries that have
    been loaded before the code runs.
@@ -127,7 +127,7 @@ extern int dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task);
 	dump_elf_task_fp(*(DEST), TASK)
 
 /* This yields a mask that user programs can use to figure out what
-   instruction set this CPU supports.  This is trivial on Alpha, 
+   instruction set this CPU supports.  This is trivial on Alpha,
    but not so on other machines. */
 
 #define ELF_HWCAP  (~amask(-1))

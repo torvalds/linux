@@ -1708,7 +1708,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	setup_ksp_vsid(p, sp);
 
-#ifdef CONFIG_PPC64 
+#ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
 		p->thread.dscr_inherit = current->thread.dscr_inherit;
 		p->thread.dscr = mfspr(SPRN_DSCR);

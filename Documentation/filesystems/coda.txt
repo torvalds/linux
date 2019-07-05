@@ -1,4 +1,4 @@
-NOTE: 
+NOTE:
 This is one of the technical documents describing a component of
 Coda -- this document describes the client kernel-Venus interface.
 

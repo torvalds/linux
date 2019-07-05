@@ -10,9 +10,9 @@
  *
  * This function inserts the coalesced scatter/gather list chunks into the
  * I/O Controller's I/O Pdir.
- */ 
+ */
 static inline unsigned int
-iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents, 
+iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 		unsigned long hint,
 		void (*iommu_io_pdir_entry)(u64 *, space_t, unsigned long,
 					    unsigned long))
@@ -22,7 +22,7 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 	unsigned long dma_offset = 0, dma_len = 0;
 	u64 *pdirp = NULL;
 
-	/* Horrible hack.  For efficiency's sake, dma_sg starts one 
+	/* Horrible hack.  For efficiency's sake, dma_sg starts one
 	 * entry below the true start (it is immediately incremented
 	 * in the loop) */
 	 dma_sg--;
@@ -40,7 +40,7 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 		/*
 		** Look for the start of a new DMA stream
 		*/
-		
+
 		if (sg_dma_address(startsg) & PIDE_FLAG) {
 			u32 pide = sg_dma_address(startsg) & ~PIDE_FLAG;
 
@@ -64,9 +64,9 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 			pdirp = &(ioc->pdir_base[pide >> IOVP_SHIFT]);
 			prefetchw(pdirp);
 		}
-		
+
 		BUG_ON(pdirp == NULL);
-		
+
 		vaddr = (unsigned long)sg_virt(startsg);
 		sg_dma_len(dma_sg) += startsg->length;
 		size = startsg->length + dma_offset;
@@ -75,7 +75,7 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 		ioc->msg_pages += startsg->length >> IOVP_SHIFT;
 #endif
 		do {
-			iommu_io_pdir_entry(pdirp, KERNEL_SPACE, 
+			iommu_io_pdir_entry(pdirp, KERNEL_SPACE,
 					    vaddr, hint);
 			vaddr += IOVP_SIZE;
 			size -= IOVP_SIZE;
@@ -145,7 +145,7 @@ iommu_coalesce_chunks(struct ioc *ioc, struct device *dev,
 			** First make sure current dma stream won't
 			** exceed max_seg_size if we coalesce the
 			** next entry.
-			*/   
+			*/
 			if (unlikely(ALIGN(dma_len + dma_offset + startsg->length, IOVP_SIZE) >
 				     max_seg_size))
 				break;
@@ -159,7 +159,7 @@ iommu_coalesce_chunks(struct ioc *ioc, struct device *dev,
 			if (unlikely((prev_end != sg_start) ||
 				((prev_end | sg_start) & ~PAGE_MASK)))
 				break;
-			
+
 			dma_len += startsg->length;
 		}
 
@@ -171,7 +171,7 @@ iommu_coalesce_chunks(struct ioc *ioc, struct device *dev,
 		sg_dma_len(contig_sg) = dma_len;
 		dma_len = ALIGN(dma_len + dma_offset, IOVP_SIZE);
 		sg_dma_address(contig_sg) =
-			PIDE_FLAG 
+			PIDE_FLAG
 			| (iommu_alloc_range(ioc, dev, dma_len) << IOVP_SHIFT)
 			| dma_offset;
 		n_mappings++;

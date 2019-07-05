@@ -26,7 +26,7 @@
  *		config_mux()
  *
  *	The following HW dependent events are required :
- *		NONE 
+ *		NONE
  */
 
 #include "h/types.h"

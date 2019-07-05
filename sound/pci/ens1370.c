@@ -8,7 +8,7 @@
 /* Power-Management-Code ( CONFIG_PM )
  * for ens1371 only ( FIXME )
  * derived from cs4281.c, atiixp.c and via82xx.c
- * using http://www.alsa-project.org/~tiwai/writing-an-alsa-driver/ 
+ * using http://www.alsa-project.org/~tiwai/writing-an-alsa-driver/
  * by Kurt J. Bosch
  */
 
@@ -456,13 +456,13 @@ MODULE_DEVICE_TABLE(pci, snd_audiopci_ids);
 static const unsigned int snd_es1370_fixed_rates[] =
 	{5512, 11025, 22050, 44100};
 static const struct snd_pcm_hw_constraint_list snd_es1370_hw_constraints_rates = {
-	.count = 4, 
+	.count = 4,
 	.list = snd_es1370_fixed_rates,
 	.mask = 0,
 };
 static const struct snd_ratnum es1370_clock = {
 	.num = ES_1370_SRCLOCK,
-	.den_min = 29, 
+	.den_min = 29,
 	.den_max = 353,
 	.den_step = 1,
 };
@@ -483,7 +483,7 @@ static const struct snd_pcm_hw_constraint_ratdens snd_es1371_hw_constraints_dac_
 };
 static const struct snd_ratnum es1371_adc_clock = {
 	.num = 48000 << 15,
-	.den_min = 32768, 
+	.den_min = 32768,
 	.den_max = 393216,
 	.den_step = 1,
 };
@@ -531,7 +531,7 @@ static unsigned int snd_es1371_src_read(struct ensoniq * ensoniq, unsigned short
 
 	/* now, wait for busy and the correct time to read */
 	temp = snd_es1371_wait_src_ready(ensoniq);
-	
+
 	if ((temp & 0x00870000) != 0x00010000) {
 		/* wait for the right state */
 		for (i = 0; i < POLL_COUNT; i++) {
@@ -541,12 +541,12 @@ static unsigned int snd_es1371_src_read(struct ensoniq * ensoniq, unsigned short
 		}
 	}
 
-	/* hide the state bits */	
+	/* hide the state bits */
 	r = orig & (ES_1371_SRC_DISABLE | ES_1371_DIS_P1 |
 		   ES_1371_DIS_P2 | ES_1371_DIS_R1);
 	r |= ES_1371_SRC_RAM_ADDRO(reg);
 	outl(r, ES_REG(ensoniq, 1371_SMPRATE));
-	
+
 	return temp;
 }
 
@@ -676,7 +676,7 @@ static unsigned short snd_es1371_codec_read(struct snd_ac97 *ac97,
 			/* wait for WIP again */
 			for (t = 0; t < POLL_COUNT; t++) {
 				if (!(inl(ES_REG(ensoniq, 1371_CODEC)) & ES_1371_CODEC_WIP))
-					break;		
+					break;
 			}
 			/* now wait for the stinkin' data (RDY) */
 			for (t = 0; t < POLL_COUNT; t++) {
@@ -1056,7 +1056,7 @@ static const struct snd_pcm_hardware snd_ensoniq_playback1 =
 				SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 #else
 				(SNDRV_PCM_RATE_KNOT | 	/* 5512Hz rate */
-				 SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_22050 | 
+				 SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_22050 |
 				 SNDRV_PCM_RATE_44100),
 #endif
 	.rate_min =		4000,
@@ -1075,7 +1075,7 @@ static const struct snd_pcm_hardware snd_ensoniq_playback2 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_PAUSE | 
+				 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_PAUSE |
 				 SNDRV_PCM_INFO_SYNC_START),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
@@ -1423,7 +1423,7 @@ static int snd_es1371_spdif_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct ensoniq *ensoniq = snd_kcontrol_chip(kcontrol);
-	
+
 	spin_lock_irq(&ensoniq->reg_lock);
 	ucontrol->value.integer.value[0] = ensoniq->ctrl & ES_1373_SPDIF_THRU ? 1 : 0;
 	spin_unlock_irq(&ensoniq->reg_lock);
@@ -1436,7 +1436,7 @@ static int snd_es1371_spdif_put(struct snd_kcontrol *kcontrol,
 	struct ensoniq *ensoniq = snd_kcontrol_chip(kcontrol);
 	unsigned int nval1, nval2;
 	int change;
-	
+
 	nval1 = ucontrol->value.integer.value[0] ? ES_1373_SPDIF_THRU : 0;
 	nval2 = ucontrol->value.integer.value[0] ? ES_1373_SPDIF_EN : 0;
 	spin_lock_irq(&ensoniq->reg_lock);
@@ -1486,7 +1486,7 @@ static int snd_es1373_rear_get(struct snd_kcontrol *kcontrol,
 {
 	struct ensoniq *ensoniq = snd_kcontrol_chip(kcontrol);
 	int val = 0;
-	
+
 	spin_lock_irq(&ensoniq->reg_lock);
 	if ((ensoniq->cssr & (ES_1373_REAR_BIT27|ES_1373_REAR_BIT26|
 			      ES_1373_REAR_BIT24)) == ES_1373_REAR_BIT26)
@@ -1502,7 +1502,7 @@ static int snd_es1373_rear_put(struct snd_kcontrol *kcontrol,
 	struct ensoniq *ensoniq = snd_kcontrol_chip(kcontrol);
 	unsigned int nval1;
 	int change;
-	
+
 	nval1 = ucontrol->value.integer.value[0] ?
 		ES_1373_REAR_BIT26 : (ES_1373_REAR_BIT27|ES_1373_REAR_BIT24);
 	spin_lock_irq(&ensoniq->reg_lock);
@@ -1531,7 +1531,7 @@ static int snd_es1373_line_get(struct snd_kcontrol *kcontrol,
 {
 	struct ensoniq *ensoniq = snd_kcontrol_chip(kcontrol);
 	int val = 0;
-	
+
 	spin_lock_irq(&ensoniq->reg_lock);
 	if (ensoniq->ctrl & ES_1371_GPIO_OUT(4))
 	    	val = 1;
@@ -1546,7 +1546,7 @@ static int snd_es1373_line_put(struct snd_kcontrol *kcontrol,
 	struct ensoniq *ensoniq = snd_kcontrol_chip(kcontrol);
 	int changed;
 	unsigned int ctrl;
-	
+
 	spin_lock_irq(&ensoniq->reg_lock);
 	ctrl = ensoniq->ctrl;
 	if (ucontrol->value.integer.value[0])
@@ -1689,7 +1689,7 @@ static int snd_ensoniq_control_get(struct snd_kcontrol *kcontrol,
 {
 	struct ensoniq *ensoniq = snd_kcontrol_chip(kcontrol);
 	int mask = kcontrol->private_value;
-	
+
 	spin_lock_irq(&ensoniq->reg_lock);
 	ucontrol->value.integer.value[0] = ensoniq->ctrl & mask ? 1 : 0;
 	spin_unlock_irq(&ensoniq->reg_lock);
@@ -1703,7 +1703,7 @@ static int snd_ensoniq_control_put(struct snd_kcontrol *kcontrol,
 	int mask = kcontrol->private_value;
 	unsigned int nval;
 	int change;
-	
+
 	nval = ucontrol->value.integer.value[0] ? mask : 0;
 	spin_lock_irq(&ensoniq->reg_lock);
 	change = (ensoniq->ctrl & mask) != nval;
@@ -1867,7 +1867,7 @@ static inline void snd_ensoniq_free_gameport(struct ensoniq *ensoniq) { }
 
  */
 
-static void snd_ensoniq_proc_read(struct snd_info_entry *entry, 
+static void snd_ensoniq_proc_read(struct snd_info_entry *entry,
 				  struct snd_info_buffer *buffer)
 {
 	struct ensoniq *ensoniq = entry->private_data;
@@ -1979,7 +1979,7 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 	udelay(20);
 	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
 	/* Init the sample rate converter */
-	snd_es1371_wait_src_ready(ensoniq);	
+	snd_es1371_wait_src_ready(ensoniq);
 	outl(ES_1371_SRC_DISABLE, ES_REG(ensoniq, 1371_SMPRATE));
 	for (idx = 0; idx < 0x80; idx++)
 		snd_es1371_src_write(ensoniq, idx, 0);
@@ -2018,10 +2018,10 @@ static int snd_ensoniq_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct ensoniq *ensoniq = card->private_data;
-	
+
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
-#ifdef CHIP1371	
+#ifdef CHIP1371
 	snd_ac97_suspend(ensoniq->u.es1371.ac97);
 #else
 	/* try to reset AK4531 */
@@ -2032,7 +2032,7 @@ static int snd_ensoniq_suspend(struct device *dev)
 	inw(ES_REG(ensoniq, 1370_CODEC));
 	udelay(100);
 	snd_ak4531_suspend(ensoniq->u.es1370.ak4531);
-#endif	
+#endif
 	return 0;
 }
 
@@ -2043,11 +2043,11 @@ static int snd_ensoniq_resume(struct device *dev)
 
 	snd_ensoniq_chip_init(ensoniq);
 
-#ifdef CHIP1371	
+#ifdef CHIP1371
 	snd_ac97_resume(ensoniq->u.es1371.ac97);
 #else
 	snd_ak4531_resume(ensoniq->u.es1370.ak4531);
-#endif	
+#endif
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
@@ -2453,5 +2453,5 @@ static struct pci_driver ens137x_driver = {
 		.pm = SND_ENSONIQ_PM_OPS,
 	},
 };
-	
+
 module_pci_driver(ens137x_driver);

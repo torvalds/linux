@@ -5,19 +5,19 @@ The SA1100 serial port had its major/minor numbers officially assigned:
 > To: Nicolas Pitre <nico@CAM.ORG>
 > Cc: Device List Maintainer <device@lanana.org>
 > Subject: Re: device
-> 
+>
 > Okay.  Note that device numbers 204 and 205 are used for "low density
 > serial devices", so you will have a range of minors on those majors (the
 > tty device layer handles this just fine, so you don't have to worry about
 > doing anything special.)
-> 
+>
 > So your assignments are:
-> 
+>
 > 204 char        Low-density serial ports
 >                   5 = /dev/ttySA0               SA1100 builtin serial port 0
 >                   6 = /dev/ttySA1               SA1100 builtin serial port 1
 >                   7 = /dev/ttySA2               SA1100 builtin serial port 2
-> 
+>
 > 205 char        Low-density serial ports (alternate device)
 >                   5 = /dev/cusa0                Callout device for ttySA0
 >                   6 = /dev/cusa1                Callout device for ttySA1

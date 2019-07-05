@@ -117,7 +117,7 @@
 #define	_SIOW(x,y,t)	((int)(SIOC_IN|((sizeof(t)&SIOCPARM_MASK)<<16)|(x<<8)|y))
 /* this should be _SIORW, but stdio got there first */
 #define	_SIOWR(x,y,t)	((int)(SIOC_INOUT|((sizeof(t)&SIOCPARM_MASK)<<16)|(x<<8)|y))
-#define _SIOC_SIZE(x)	((x>>16)&SIOCPARM_MASK)	
+#define _SIOC_SIZE(x)	((x>>16)&SIOCPARM_MASK)
 #define _SIOC_DIR(x)	(x & 0xf0000000)
 #define _SIOC_NONE	SIOC_VOID
 #define _SIOC_READ	SIOC_OUT
@@ -206,7 +206,7 @@ typedef struct seq_event_rec {
  *	Gravis UltraSound. It tries to be universal format for uploading
  *	sample based patches but is probably too limited.
  *
- *      (PBD) As Hannu guessed, the GUS structure is too limited for 
+ *      (PBD) As Hannu guessed, the GUS structure is too limited for
  *      the WaveFront, but this is the right place for a constant definition.
  */
 
@@ -246,7 +246,7 @@ struct patch_info {
 		int len;	/* Size of the wave data in bytes */
 		int loop_start, loop_end; /* Byte offsets from the beginning */
 
-/* 
+/*
  * The base_freq and base_note fields are used when computing the
  * playback speed for a note. The base_note defines the tone frequency
  * which is heard if the sample is played using the base_freq as the
@@ -275,7 +275,7 @@ struct patch_info {
 		unsigned char	env_rate[ 6 ];	 /* GUS HW ramping rate */
 		unsigned char	env_offset[ 6 ]; /* 255 == 100% */
 
-	/* 
+	/*
 	 * The tremolo, vibrato and scale info are not supported yet.
 	 * Enable by setting the mode bits WAVE_TREMOLO, WAVE_VIBRATO or
 	 * WAVE_SCALE
@@ -284,14 +284,14 @@ struct patch_info {
 		unsigned char	tremolo_sweep;
 		unsigned char	tremolo_rate;
 		unsigned char	tremolo_depth;
-	
+
 		unsigned char	vibrato_sweep;
 		unsigned char	vibrato_rate;
 		unsigned char	vibrato_depth;
 
 		int		scale_frequency;
 		unsigned int	scale_factor;		/* from 0 to 2048 or 0 to 2 */
-	
+
 	        int		volume;
 		int		fractions;
 		int		reserved1;
@@ -312,7 +312,7 @@ struct sysex_info {
  * /dev/sequencer input events.
  *
  * The data written to the /dev/sequencer is a stream of events. Events
- * are records of 4 or 8 bytes. The first byte defines the size. 
+ * are records of 4 or 8 bytes. The first byte defines the size.
  * Any number of events can be written with a write call. There
  * is a set of macros for sending these events. Use these macros if you
  * want to maximize portability of your program.
@@ -445,13 +445,13 @@ struct sysex_info {
  *	of the associated synthesizer device. There is no limit to the size
  *	of the extended events. These events are not queued but executed
  *	immediately when the write() is called (execution can take several
- *	seconds of time). 
+ *	seconds of time).
  *
  *	When a SEQ_FULLSIZE message is written to the device, it must
  *	be written using exactly one write() call. Other events cannot
  *	be mixed to the same write.
- *	
- *	For FM synths (YM3812/OPL3) use struct sbi_instrument and write it to the 
+ *
+ *	For FM synths (YM3812/OPL3) use struct sbi_instrument and write it to the
  *	/dev/sequencer. Don't write other data together with the instrument structure
  *	Set the key field of the structure to FM_PATCH. The device field is used to
  *	route the patch to the corresponding device.
@@ -498,7 +498,7 @@ struct synth_info {	/* Read only */
 		int	nr_voices;
 		int	nr_drums;	/* Obsolete field */
 		int	instr_bank_size;
-		unsigned int	capabilities;	
+		unsigned int	capabilities;
 #define SYNTH_CAP_PERCMODE		0x00000001 /* No longer used */
 #define SYNTH_CAP_OPL3			0x00000002 /* Set if OPL3 supported */
 #define SYNTH_CAP_INPUT			0x00000004 /* Input (MIDI) device */
@@ -648,7 +648,7 @@ typedef struct buffmem_desc {
 
 /*
  * Application's profile defines the way how playback underrun situations should be handled.
- * 
+ *
  *	APF_NORMAL (the default) and APF_NETWORK make the driver to cleanup the
  *	playback buffer whenever an underrun occurs. This consumes some time
  *	prevents looping the existing buffer.
@@ -710,7 +710,7 @@ typedef struct copr_debug_buf {
 		int command;	/* Used internally. Set to 0 */
 		int parm1;
 		int parm2;
-		int flags;	
+		int flags;
 		int len;	/* Length of data in bytes */
 	} copr_debug_buf;
 
@@ -733,12 +733,12 @@ typedef struct copr_msg {
 /*********************************************
  * IOCTL commands for /dev/mixer
  */
-	
-/* 
+
+/*
  * Mixer devices
  *
  * There can be up to 20 different analog mixer channels. The
- * SOUND_MIXER_NRDEVICES gives the currently supported maximum. 
+ * SOUND_MIXER_NRDEVICES gives the currently supported maximum.
  * The SOUND_MIXER_READ_DEVMASK returns a bitmask which tells
  * the devices supported by the particular mixer.
  */
@@ -758,7 +758,7 @@ typedef struct copr_msg {
 #define SOUND_MIXER_RECLEV	11	/* Recording level */
 #define SOUND_MIXER_IGAIN	12	/* Input gain */
 #define SOUND_MIXER_OGAIN	13	/* Output gain */
-/* 
+/*
  * The AD1848 codec and compatibles have three line level inputs
  * (line, aux1 and aux2). Since each card manufacturer have assigned
  * different meanings to these inputs, it's inpractical to assign
@@ -963,7 +963,7 @@ typedef struct mixer_vol_table {
 #define SOUND_MIXER_GETLEVELS		_SIOWR('M', 116, mixer_vol_table)
 #define SOUND_MIXER_SETLEVELS		_SIOWR('M', 117, mixer_vol_table)
 
-/* 
+/*
  * An ioctl for identifying the driver version. It will return value
  * of the SOUND_VERSION macro used when compiling the driver.
  * This call was introduced in OSS version 3.6 and it will not work
@@ -977,7 +977,7 @@ typedef struct mixer_vol_table {
 
 /*
  * The 4 most significant bits of byte 0 specify the class of
- * the event: 
+ * the event:
  *
  *	0x8X = system level events,
  *	0x9X = device/port specific events, event[1] = device/port,
@@ -1096,16 +1096,16 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 /*
  * This variation of the sequencer macros is used just to format one event
  * using fixed buffer.
- * 
+ *
  * The program using the macro library must define the following macros before
  * using this library.
  *
- * #define _seqbuf 		 name of the buffer (unsigned char[]) 
+ * #define _seqbuf 		 name of the buffer (unsigned char[])
  * #define _SEQ_ADVBUF(len)	 If the applic needs to know the exact
  *				 size of the event, this macro can be used.
  *				 Otherwise this must be defined as empty.
  * #define _seqbufptr		 Define the name of index variable or 0 if
- *				 not required. 
+ *				 not required.
  */
 #define _SEQ_NEEDBUF(len)	/* empty */
 #endif
@@ -1165,7 +1165,7 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
  * sending any MIDI bytes but it's absolutely not possible. Trying to do
  * so _will_ cause problems with MPU401 intelligent mode).
  *
- * Sysex messages are sent in blocks of 1 to 6 bytes. Longer messages must be 
+ * Sysex messages are sent in blocks of 1 to 6 bytes. Longer messages must be
  * sent by calling SEQ_SYSEX() several times (there must be no other events
  * between them). First sysex fragment must have 0xf0 in the first byte
  * and the last byte (buf[len-1] of the last fragment must be 0xf7. No byte
@@ -1258,7 +1258,7 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 
 #define SEQ_PLAYAUDIO(devmask)		_LOCAL_EVENT(LOCL_STARTAUDIO, devmask)
 /*
- * Events for the level 1 interface only 
+ * Events for the level 1 interface only
  */
 
 #define SEQ_MIDIOUT(device, byte)	{_SEQ_NEEDBUF(4);\

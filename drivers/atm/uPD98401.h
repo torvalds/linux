@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* drivers/atm/uPD98401.h - NEC uPD98401 (SAR) declarations */
- 
+
 /* Written 1995 by Werner Almesberger, EPFL LRC */
- 
+
 
 #ifndef DRIVERS_ATM_uPD98401_H
 #define DRIVERS_ATM_uPD98401_H

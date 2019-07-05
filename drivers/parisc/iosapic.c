@@ -223,7 +223,7 @@ static struct irt_entry *iosapic_alloc_irt(int num_entries)
 {
 	unsigned long a;
 
-	/* The IRT needs to be 8-byte aligned for the PDC call. 
+	/* The IRT needs to be 8-byte aligned for the PDC call.
 	 * Normally kmalloc would guarantee larger alignment, but
 	 * if CONFIG_DEBUG_SLAB is enabled, then we can get only
 	 * 4-byte alignment on 32-bit kernels
@@ -239,13 +239,13 @@ static struct irt_entry *iosapic_alloc_irt(int num_entries)
  * @irt: The address to place the new IRT at
  * @return The number of entries found
  *
- * The "Get PCI INT Routing Table Size" option returns the number of 
- * entries in the PCI interrupt routing table for the cell specified 
- * in the cell_number argument.  The cell number must be for a cell 
+ * The "Get PCI INT Routing Table Size" option returns the number of
+ * entries in the PCI interrupt routing table for the cell specified
+ * in the cell_number argument.  The cell number must be for a cell
  * within the caller's protection domain.
  *
- * The "Get PCI INT Routing Table" option returns, for the cell 
- * specified in the cell_number argument, the PCI interrupt routing 
+ * The "Get PCI INT Routing Table" option returns, for the cell
+ * specified in the cell_number argument, the PCI interrupt routing
  * table in the caller allocated memory pointed to by mem_addr.
  * We assume the IRT only contains entries for I/O SAPIC and
  * calculate the size based on the size of I/O sapic entries.
@@ -408,7 +408,7 @@ irt_find_irqline(struct iosapic_info *isi, u8 slot, u8 intr_pin)
 			DBG_IRT(KERN_WARNING MODULE_NAME ":find_irqline(0x%p): skipping entry %d type %d\n", i, cnt, i->entry_type);
 			continue;
 		}
-		
+
 		if (i->entry_length != IRT_IOSAPIC_LENGTH) {
 			DBG_IRT(KERN_WARNING MODULE_NAME ":find_irqline(0x%p): skipping entry %d  length %d\n", i, cnt, i->entry_length);
 			continue;
@@ -586,7 +586,7 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 		*/
 		*dp1 = (u32) (vi->txn_addr);
 	} else {
-		/* 
+		/*
 		** eg if base_addr == 0xfffa0000),
 		**    we want to get 0xa0ff0000.
 		**

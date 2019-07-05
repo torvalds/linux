@@ -707,7 +707,7 @@ static int wm831x_power_remove(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
-		irq = wm831x_irq(wm831x, 
+		irq = wm831x_irq(wm831x,
 				 platform_get_irq_byname(pdev,
 							 wm831x_bat_irqs[i]));
 		free_irq(irq, wm831x_power);

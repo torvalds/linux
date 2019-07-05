@@ -134,7 +134,7 @@ static inline int map_uncached_pages(unsigned long vaddr, unsigned long size,
 	dir = pgd_offset_k(vaddr);
 	do {
 		pmd_t *pmd;
-		
+
 		pmd = pmd_alloc(NULL, dir, vaddr);
 		if (!pmd)
 			return -ENOMEM;
@@ -251,7 +251,7 @@ pcxl_alloc_range(size_t size)
 	mask = (u_long) -1L;
  	mask >>= BITS_PER_LONG - pages_needed;
 
-	DBG_RES("pcxl_alloc_range() size: %d pages_needed %d pages_mask 0x%08lx\n", 
+	DBG_RES("pcxl_alloc_range() size: %d pages_needed %d pages_mask 0x%08lx\n",
 		size, pages_needed, mask);
 
 	spin_lock_irqsave(&pcxl_res_lock, flags);
@@ -270,9 +270,9 @@ pcxl_alloc_range(size_t size)
 	dump_resmap();
 	panic("%s: pcxl_alloc_range() out of dma mapping resources\n",
 	      __FILE__);
-	
+
 resource_found:
-	
+
 	DBG_RES("pcxl_alloc_range() res_idx %d mask 0x%08lx res_hint: %d\n",
 		res_idx, mask, pcxl_res_hint);
 
@@ -283,7 +283,7 @@ resource_found:
 
 	dump_resmap();
 
-	/* 
+	/*
 	** return the corresponding vaddr in the pcxl dma map
 	*/
 	return (pcxl_dma_start + (res_idx << (PAGE_SHIFT + 3)));
@@ -307,7 +307,7 @@ pcxl_free_range(unsigned long vaddr, size_t size)
 	mask = (u_long) -1L;
  	mask >>= BITS_PER_LONG - pages_mapped;
 
-	DBG_RES("pcxl_free_range() res_idx: %d size: %d pages_mapped %d mask 0x%08lx\n", 
+	DBG_RES("pcxl_free_range() res_idx: %d size: %d pages_mapped %d mask 0x%08lx\n",
 		res_idx, size, pages_mapped, mask);
 
 	spin_lock_irqsave(&pcxl_res_lock, flags);
@@ -322,7 +322,7 @@ pcxl_free_range(unsigned long vaddr, size_t size)
 		panic("%s: pcxl_free_range() Too many pages to unmap.\n",
 		      __FILE__);
 	}
-	
+
 	pcxl_used_pages -= (pages_mapped ? pages_mapped : 1);
 	pcxl_used_bytes -= ((pages_mapped >> 3) ? (pages_mapped >> 3) : 1);
 

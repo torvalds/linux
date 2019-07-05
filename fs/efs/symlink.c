@@ -19,11 +19,11 @@ static int efs_symlink_readpage(struct file *file, struct page *page)
 	struct inode * inode = page->mapping->host;
 	efs_block_t size = inode->i_size;
 	int err;
-  
+
 	err = -ENAMETOOLONG;
 	if (size > 2 * EFS_BLOCKSIZE)
 		goto fail;
-  
+
 	/* read first 512 bytes of link target */
 	err = -EIO;
 	bh = sb_bread(inode->i_sb, efs_bmap(inode, 0));

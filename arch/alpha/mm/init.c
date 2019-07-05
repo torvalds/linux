@@ -111,7 +111,7 @@ switch_to_system_map(void)
 	pgd_val(swapper_pg_dir[1023]) =
 		(newptbr << 32) | pgprot_val(PAGE_KERNEL);
 
-	/* Set the vptb.  This is often done by the bootloader, but 
+	/* Set the vptb.  This is often done by the bootloader, but
 	   shouldn't be required.  */
 	if (hwrpb->vptb != 0xfffffffe00000000UL) {
 		wrvptptr(0xfffffffe00000000UL);

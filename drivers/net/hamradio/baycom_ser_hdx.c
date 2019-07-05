@@ -179,7 +179,7 @@ static inline void ser12_set_divisor(struct net_device *dev,
  * must call the TX arbitrator every 10ms
  */
 #define SER12_ARB_DIVIDER(bc)  (bc->opt_dcd ? 24 : 36)
-			       
+
 #define SER12_DCD_INTERVAL(bc) (bc->opt_dcd ? 12 : 240)
 
 static inline void ser12_tx(struct net_device *dev, struct baycom_state *bc)
@@ -342,7 +342,7 @@ static inline void ser12_rx(struct net_device *dev, struct baycom_state *bc)
 		bc->modem.shreg = 0x10000;
 	}
 	if(!bc->modem.ser12.dcd_time) {
-		if (bc->opt_dcd & 1) 
+		if (bc->opt_dcd & 1)
 			hdlcdrv_setdcd(&bc->hdrv, !((inb(MSR(dev->base_addr)) ^ bc->opt_dcd) & 0x80));
 		else
 			hdlcdrv_setdcd(&bc->hdrv, (bc->modem.ser12.dcd_sum0 +
@@ -376,11 +376,11 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 		case 6:
 			inb(LSR(dev->base_addr));
 			break;
-			
+
 		case 4:
 			inb(RBR(dev->base_addr));
 			break;
-			
+
 		case 2:
 			/*
 			 * check if transmitter active
@@ -393,7 +393,7 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 			}
 			outb(0x00, THR(dev->base_addr));
 			break;
-			
+
 		default:
 			inb(MSR(dev->base_addr));
 			break;
@@ -416,8 +416,8 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 
 enum uart { c_uart_unknown, c_uart_8250,
 	    c_uart_16450, c_uart_16550, c_uart_16550A};
-static const char *uart_str[] = { 
-	"unknown", "8250", "16450", "16550", "16550A" 
+static const char *uart_str[] = {
+	"unknown", "8250", "16450", "16550", "16550A"
 };
 
 static enum uart ser12_check_uart(unsigned int iobase)
@@ -468,7 +468,7 @@ static int ser12_open(struct net_device *dev)
 	memset(&bc->modem, 0, sizeof(bc->modem));
 	bc->hdrv.par.bitrate = 1200;
 	if ((u = ser12_check_uart(dev->base_addr)) == c_uart_unknown) {
-		release_region(dev->base_addr, SER12_EXTENT);       
+		release_region(dev->base_addr, SER12_EXTENT);
 		return -EIO;
 	}
 	outb(0, FCR(dev->base_addr));  /* disable FIFOs */
@@ -476,7 +476,7 @@ static int ser12_open(struct net_device *dev)
 	outb(0, IER(dev->base_addr));
 	if (request_irq(dev->irq, ser12_interrupt, IRQF_SHARED,
 			"baycom_ser12", dev)) {
-		release_region(dev->base_addr, SER12_EXTENT);       
+		release_region(dev->base_addr, SER12_EXTENT);
 		return -EBUSY;
 	}
 	/*
@@ -489,7 +489,7 @@ static int ser12_open(struct net_device *dev)
 	 * depending on the usage of the software DCD routine
 	 */
 	ser12_set_divisor(dev, bc->opt_dcd ? 6 : 4);
-	printk(KERN_INFO "%s: ser12 at iobase 0x%lx irq %u uart %s\n", 
+	printk(KERN_INFO "%s: ser12 at iobase 0x%lx irq %u uart %s\n",
 	       bc_drvname, dev->base_addr, dev->irq, uart_str[u]);
 	return 0;
 }
@@ -658,10 +658,10 @@ static int __init init_baycomserhdx(void)
 		if (!set_hw)
 			iobase[i] = irq[i] = 0;
 
-		dev = hdlcdrv_register(&ser12_ops, 
+		dev = hdlcdrv_register(&ser12_ops,
 				       sizeof(struct baycom_state),
 				       ifname, iobase[i], irq[i], 0);
-		if (IS_ERR(dev)) 
+		if (IS_ERR(dev))
 			break;
 
 		bc = netdev_priv(dev);

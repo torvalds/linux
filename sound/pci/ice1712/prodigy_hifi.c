@@ -215,7 +215,7 @@ static void ak4396_write(struct snd_ice1712 *ice, unsigned int reg,
 	snd_ice1712_gpio_set_dir(ice, AK4396_CSN|AK4396_CCLK|AK4396_CDTI);
 	snd_ice1712_gpio_set_mask(ice, ~(AK4396_CSN|AK4396_CCLK|AK4396_CDTI));
 	/* latch must be low when writing */
-	set_gpio_bit(ice, AK4396_CSN, 0); 
+	set_gpio_bit(ice, AK4396_CSN, 0);
 	block =  ((AK4396_ADDR & 0x03) << 14) | (1 << 13) |
 			((reg & 0x1f) << 8) | (data & 0xff);
 	ak4396_send_word(ice, block); /* REGISTER ADDRESS */
@@ -254,7 +254,7 @@ static int ak4396_dac_vol_get(struct snd_kcontrol *kcontrol,
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	struct prodigy_hifi_spec *spec = ice->spec;
 	int i;
-	
+
 	for (i = 0; i < 2; i++)
 		ucontrol->value.integer.value[i] = spec->vol[i];
 
@@ -267,7 +267,7 @@ static int ak4396_dac_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	struct prodigy_hifi_spec *spec = ice->spec;
 	int i;
 	int change = 0;
-	
+
 	mutex_lock(&ice->gpio_mutex);
 	for (i = 0; i < 2; i++) {
 		if (ucontrol->value.integer.value[i] != spec->vol[i]) {
@@ -313,7 +313,7 @@ static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index,
 		       unsigned short vol, unsigned short master)
 {
 	unsigned char nvol;
-	
+
 	if ((master & WM_VOL_MUTE) || (vol & WM_VOL_MUTE))
 		nvol = 0;
 	else {
@@ -321,7 +321,7 @@ static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index,
 				& WM_VOL_MAX;
 		nvol = (nvol ? (nvol + DAC_MIN) : 0) & 0xff;
 	}
-	
+
 	wm_put(ice, index, nvol);
 	wm_put_nocache(ice, index, 0x100 | nvol);
 }
@@ -330,7 +330,7 @@ static void wm8766_set_vol(struct snd_ice1712 *ice, unsigned int index,
 			   unsigned short vol, unsigned short master)
 {
 	unsigned char nvol;
-	
+
 	if ((master & WM_VOL_MUTE) || (vol & WM_VOL_MUTE))
 		nvol = 0;
 	else {
@@ -494,7 +494,7 @@ static int wm_master_vol_put(struct snd_kcontrol *kcontrol,
 			change = 1;
 		}
 	}
-	mutex_unlock(&ice->gpio_mutex);	
+	mutex_unlock(&ice->gpio_mutex);
 	return change;
 }
 
@@ -957,7 +957,7 @@ static void wm8776_init(struct snd_ice1712 *ice)
 		/* These come first to reduce init pop noise */
 		WM_ADC_MUX,	0x0003,	/* ADC mute */
 		/* 0x00c0 replaced by 0x0003 */
-		
+
 		WM_DAC_MUTE,	0x0001,	/* DAC softmute */
 		WM_DAC_CTRL1,	0x0000,	/* DAC mute */
 
@@ -1111,7 +1111,7 @@ static void ak4396_init(struct snd_ice1712 *ice)
 	static unsigned short ak4396_inits[] = {
 		AK4396_CTRL1,	   0x87,   /* I2S Normal Mode, 24 bit */
 		AK4396_CTRL2,	   0x02,
-		AK4396_CTRL3,	   0x00, 
+		AK4396_CTRL3,	   0x00,
 		AK4396_LCH_ATT,	 0x00,
 		AK4396_RCH_ATT,	 0x00,
 	};
@@ -1213,7 +1213,7 @@ static unsigned char prodigyhd2_eeprom[] = {
 };
 
 static unsigned char fortissimo4_eeprom[] = {
-	0x43,   /* SYSCONF: clock 512, ADC, 4DACs */	
+	0x43,   /* SYSCONF: clock 512, ADC, 4DACs */
 	0x80,   /* ACLINK: I2S */
 	0xfc,   /* I2S: vol, 96k, 24bit, 192k */
 	0xc1,   /* SPDIF: out-en, out-int */

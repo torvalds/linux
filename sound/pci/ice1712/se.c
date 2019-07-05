@@ -6,7 +6,7 @@
  *
  *	Copyright (c) 2007 Shin-ya Okada  sh_okada(at)d4.dion.ne.jp
  *                                        (at) -> @
- */      
+ */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -55,7 +55,7 @@ struct se_spec {
  *  WM8740
  *      A 2ch-DAC of main outputs.
  *      It setuped as I2S mode by wire, so no way to setup from software.
- *      The sample-rate are automatically changed. 
+ *      The sample-rate are automatically changed.
  *          ML/I2S (28pin) --------+
  *          MC/DM1 (27pin) -- 5V   |
  *          MD/DM0 (26pin) -- GND  |

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  */
- 
+
 /*
  * Vortex PCM ALSA driver.
  *
  * Supports ADB and WT DMA. Unfortunately, WT channels do not run yet.
- * It remains stuck,and DMA transfers do not happen. 
+ * It remains stuck,and DMA transfers do not happen.
  */
 #include <sound/asoundef.h>
 #include <linux/time.h>
@@ -128,7 +128,7 @@ static int snd_vortex_pcm_open(struct snd_pcm_substream *substream)
 	vortex_t *vortex = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
-	
+
 	/* Force equal size periods */
 	if ((err =
 	     snd_pcm_hw_constraint_integer(runtime,
@@ -612,7 +612,7 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 	if (!chip || idx < 0 || idx >= VORTEX_PCM_LAST)
 		return -ENODEV;
 
-	/* idx indicates which kind of PCM device. ADB, SPDIF, I2S and A3D share the 
+	/* idx indicates which kind of PCM device. ADB, SPDIF, I2S and A3D share the
 	 * same dma engine. WT uses it own separate dma engine which can't capture. */
 	if (idx == VORTEX_PCM_ADB)
 		nr_capt = nr;
@@ -634,9 +634,9 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 	if (idx == VORTEX_PCM_ADB)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 				&snd_vortex_playback_ops);
-	
+
 	/* pre-allocation of Scatter-Gather buffers */
-	
+
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci_dev),
 					      0x10000, 0x10000);

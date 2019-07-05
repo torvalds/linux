@@ -29,7 +29,7 @@ get_device() will return a pointer to the struct device passed to it
 if the reference is not already 0 (if it's in the process of being
 removed already).
 
-A driver can access the lock in the device structure using: 
+A driver can access the lock in the device structure using:
 
 void lock_device(struct device * dev);
 void unlock_device(struct device * dev);

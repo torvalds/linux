@@ -3,9 +3,9 @@
    The compile-time configurable defaults for the Linux SCSI tape driver.
 
    Copyright 1995 Kai Makisara.
-   
+
    Last modified: Wed Sep  2 21:24:07 1998 by root@home
-   
+
    Changed (and renamed) for OnStream SCSI drives garloff@suse.de
    2000-06-21
 
@@ -45,7 +45,7 @@
 /* The maximum number of tape buffers the driver allocates. The number
    is also constrained by the number of drives detected. Determines the
    maximum number of concurrently active tape drives. */
-#define OSST_MAX_BUFFERS OSST_MAX_TAPES 
+#define OSST_MAX_BUFFERS OSST_MAX_TAPES
 
 /* Maximum number of scatter/gather segments */
 /* Fit one buffer in pages and add one for the AUX header */

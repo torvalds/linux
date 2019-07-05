@@ -6,8 +6,8 @@ files: arch/s390/kernel/debug.c
 
 Description:
 ------------
-The goal of this feature is to provide a kernel debug logging API 
-where log records can be stored efficiently in memory, where each component 
+The goal of this feature is to provide a kernel debug logging API
+where log records can be stored efficiently in memory, where each component
 (e.g. device drivers) can have one separate debug log.
 One purpose of this is to inspect the debug logs after a production system crash
 in order to analyze the reason for the crash.
@@ -18,17 +18,17 @@ The debug feature may also very useful for kernel and driver development.
 
 Design:
 -------
-Kernel components (e.g. device drivers) can register themselves at the debug 
-feature with the function call debug_register(). This function initializes a 
-debug log for the caller. For each debug log exists a number of debug areas 
+Kernel components (e.g. device drivers) can register themselves at the debug
+feature with the function call debug_register(). This function initializes a
+debug log for the caller. For each debug log exists a number of debug areas
 where exactly one is active at one time.  Each debug area consists of contiguous
 pages in memory. In the debug areas there are stored debug entries (log records)
-which are written by event- and exception-calls. 
+which are written by event- and exception-calls.
 
 An event-call writes the specified debug entry to the active debug
-area and updates the log pointer for the active area. If the end 
-of the active debug area is reached, a wrap around is done (ring buffer) 
-and the next debug entry will be written at the beginning of the active 
+area and updates the log pointer for the active area. If the end
+of the active debug area is reached, a wrap around is done (ring buffer)
+and the next debug entry will be written at the beginning of the active
 debug area.
 
 An exception-call writes the specified debug entry to the log and
@@ -37,7 +37,7 @@ that the records which describe the origin of the exception are not
 overwritten when a wrap around for the current area occurs.
 
 The debug areas themselves are also ordered in form of a ring buffer.
-When an exception is thrown in the last debug area, the following debug 
+When an exception is thrown in the last debug area, the following debug
 entries are then written again in the very first area.
 
 There are three versions for the event- and exception-calls: One for
@@ -109,11 +109,11 @@ Parameter:    name:        Name of debug log (e.g. used for debugfs entry)
               nr_areas:    number of debug areas
               buf_size:    size of data area in each debug entry
 
-Return Value: Handle for generated debug area   
-              NULL if register failed 
+Return Value: Handle for generated debug area
+              NULL if register failed
 
-Description:  Allocates memory for a debug log     
-              Must not be called within an interrupt handler 
+Description:  Allocates memory for a debug log
+              Must not be called within an interrupt handler
 
 ----------------------------------------------------------------------------
 debug_info_t *debug_register_mode(char *name, int pages, int nr_areas,
@@ -139,23 +139,23 @@ Description:  Allocates memory for a debug log
 ---------------------------------------------------------------------------
 void debug_unregister (debug_info_t * id);
 
-Parameter:     id:   handle for debug log  
+Parameter:     id:   handle for debug log
 
-Return Value:  none 
+Return Value:  none
 
 Description:   frees memory for a debug log and removes all registered debug
 	       views.
-               Must not be called within an interrupt handler 
+               Must not be called within an interrupt handler
 
 ---------------------------------------------------------------------------
 void debug_set_level (debug_info_t * id, int new_level);
 
-Parameter:     id:        handle for debug log  
-               new_level: new debug level 
+Parameter:     id:        handle for debug log
+               new_level: new debug level
 
-Return Value:  none 
+Return Value:  none
 
-Description:   Sets new actual debug level if new_level is valid. 
+Description:   Sets new actual debug level if new_level is valid.
 
 ---------------------------------------------------------------------------
 bool debug_level_enabled (debug_info_t * id, int level);
@@ -178,142 +178,142 @@ Description:   stops the debug feature if stopping is allowed. Currently
                used in case of a kernel oops.
 
 ---------------------------------------------------------------------------
-debug_entry_t* debug_event (debug_info_t* id, int level, void* data, 
+debug_entry_t* debug_event (debug_info_t* id, int level, void* data,
                             int length);
 
-Parameter:     id:     handle for debug log  
-               level:  debug level           
-               data:   pointer to data for debug entry  
-               length: length of data in bytes       
+Parameter:     id:     handle for debug log
+               level:  debug level
+               data:   pointer to data for debug entry
+               length: length of data in bytes
 
-Return Value:  Address of written debug entry 
+Return Value:  Address of written debug entry
 
-Description:   writes debug entry to active debug area (if level <= actual 
-               debug level)    
+Description:   writes debug entry to active debug area (if level <= actual
+               debug level)
 
 ---------------------------------------------------------------------------
-debug_entry_t* debug_int_event (debug_info_t * id, int level, 
+debug_entry_t* debug_int_event (debug_info_t * id, int level,
                                 unsigned int data);
 debug_entry_t* debug_long_event(debug_info_t * id, int level,
                                 unsigned long data);
 
-Parameter:     id:     handle for debug log  
-               level:  debug level           
-               data:   integer value for debug entry           
+Parameter:     id:     handle for debug log
+               level:  debug level
+               data:   integer value for debug entry
 
-Return Value:  Address of written debug entry 
+Return Value:  Address of written debug entry
 
-Description:   writes debug entry to active debug area (if level <= actual 
-               debug level)    
+Description:   writes debug entry to active debug area (if level <= actual
+               debug level)
 
 ---------------------------------------------------------------------------
-debug_entry_t* debug_text_event (debug_info_t * id, int level, 
+debug_entry_t* debug_text_event (debug_info_t * id, int level,
                                  const char* data);
 
-Parameter:     id:     handle for debug log  
-               level:  debug level           
-               data:   string for debug entry  
+Parameter:     id:     handle for debug log
+               level:  debug level
+               data:   string for debug entry
 
-Return Value:  Address of written debug entry 
+Return Value:  Address of written debug entry
 
-Description:   writes debug entry in ascii format to active debug area 
-               (if level <= actual debug level)     
+Description:   writes debug entry in ascii format to active debug area
+               (if level <= actual debug level)
 
 ---------------------------------------------------------------------------
-debug_entry_t* debug_sprintf_event (debug_info_t * id, int level, 
+debug_entry_t* debug_sprintf_event (debug_info_t * id, int level,
                                     char* string,...);
 
-Parameter:     id:    handle for debug log 
+Parameter:     id:    handle for debug log
                level: debug level
-               string: format string for debug entry 
+               string: format string for debug entry
                ...: varargs used as in sprintf()
 
 Return Value:  Address of written debug entry
 
-Description:   writes debug entry with format string and varargs (longs) to 
-               active debug area (if level $<=$ actual debug level). 
+Description:   writes debug entry with format string and varargs (longs) to
+               active debug area (if level $<=$ actual debug level).
                floats and long long datatypes cannot be used as varargs.
 
 ---------------------------------------------------------------------------
 
-debug_entry_t* debug_exception (debug_info_t* id, int level, void* data, 
+debug_entry_t* debug_exception (debug_info_t* id, int level, void* data,
                                 int length);
 
-Parameter:     id:     handle for debug log  
-               level:  debug level           
-               data:   pointer to data for debug entry  
-               length: length of data in bytes       
+Parameter:     id:     handle for debug log
+               level:  debug level
+               data:   pointer to data for debug entry
+               length: length of data in bytes
 
-Return Value:  Address of written debug entry 
+Return Value:  Address of written debug entry
 
-Description:   writes debug entry to active debug area (if level <= actual 
-               debug level) and switches to next debug area  
+Description:   writes debug entry to active debug area (if level <= actual
+               debug level) and switches to next debug area
 
 ---------------------------------------------------------------------------
-debug_entry_t* debug_int_exception (debug_info_t * id, int level, 
+debug_entry_t* debug_int_exception (debug_info_t * id, int level,
                                     unsigned int data);
 debug_entry_t* debug_long_exception(debug_info_t * id, int level,
                                     unsigned long data);
 
-Parameter:     id:     handle for debug log  
-               level:  debug level           
-               data:   integer value for debug entry           
+Parameter:     id:     handle for debug log
+               level:  debug level
+               data:   integer value for debug entry
 
-Return Value:  Address of written debug entry 
+Return Value:  Address of written debug entry
 
-Description:   writes debug entry to active debug area (if level <= actual 
-               debug level) and switches to next debug area  
+Description:   writes debug entry to active debug area (if level <= actual
+               debug level) and switches to next debug area
 
 ---------------------------------------------------------------------------
-debug_entry_t* debug_text_exception (debug_info_t * id, int level, 
+debug_entry_t* debug_text_exception (debug_info_t * id, int level,
                                      const char* data);
 
-Parameter:     id:     handle for debug log  
-               level:  debug level           
-               data:   string for debug entry  
+Parameter:     id:     handle for debug log
+               level:  debug level
+               data:   string for debug entry
 
-Return Value:  Address of written debug entry 
+Return Value:  Address of written debug entry
 
-Description:   writes debug entry in ascii format to active debug area 
-               (if level <= actual debug level) and switches to next debug 
-               area  
+Description:   writes debug entry in ascii format to active debug area
+               (if level <= actual debug level) and switches to next debug
+               area
 
 ---------------------------------------------------------------------------
 debug_entry_t* debug_sprintf_exception (debug_info_t * id, int level,
                                         char* string,...);
 
-Parameter:     id:    handle for debug log  
-               level: debug level  
-               string: format string for debug entry  
+Parameter:     id:    handle for debug log
+               level: debug level
+               string: format string for debug entry
                ...: varargs used as in sprintf()
 
-Return Value:  Address of written debug entry 
+Return Value:  Address of written debug entry
 
-Description:   writes debug entry with format string and varargs (longs) to 
+Description:   writes debug entry with format string and varargs (longs) to
                active debug area (if level $<=$ actual debug level) and
-               switches to next debug area. 
+               switches to next debug area.
                floats and long long datatypes cannot be used as varargs.
 
 ---------------------------------------------------------------------------
 
 int debug_register_view (debug_info_t * id, struct debug_view *view);
 
-Parameter:     id:    handle for debug log  
-               view:  pointer to debug view struct 
+Parameter:     id:    handle for debug log
+               view:  pointer to debug view struct
 
-Return Value:  0  : ok 
-               < 0: Error 
+Return Value:  0  : ok
+               < 0: Error
 
 Description:   registers new debug view and creates debugfs dir entry
 
 ---------------------------------------------------------------------------
-int debug_unregister_view (debug_info_t * id, struct debug_view *view); 
+int debug_unregister_view (debug_info_t * id, struct debug_view *view);
 
-Parameter:     id:    handle for debug log  
-               view:  pointer to debug view struct 
+Parameter:     id:    handle for debug log
+               view:  pointer to debug view struct
 
-Return Value:  0  : ok 
-               < 0: Error 
+Return Value:  0  : ok
+               < 0: Error
 
 Description:   unregisters debug view and removes debugfs dir entry
 
@@ -398,7 +398,7 @@ module_exit(cleanup);
 
 Debugfs Interface
 ----------------
-Views to the debug logs can be investigated through reading the corresponding 
+Views to the debug logs can be investigated through reading the corresponding
 debugfs-files:
 
 Example:
@@ -409,10 +409,10 @@ flush  hex_ascii  level pages raw
 00 00974733272:680099 2 - 02 0006ad7e  07 ea 4a 90 | ....
 00 00974733272:682210 2 - 02 0006ade6  46 52 45 45 | FREE
 00 00974733272:682213 2 - 02 0006adf6  07 ea 4a 90 | ....
-00 00974733272:682281 1 * 02 0006ab08  41 4c 4c 43 | EXCP 
+00 00974733272:682281 1 * 02 0006ab08  41 4c 4c 43 | EXCP
 01 00974733272:682284 2 - 02 0006ab16  45 43 4b 44 | ECKD
 01 00974733272:682287 2 - 02 0006ab28  00 00 00 04 | ....
-01 00974733272:682289 2 - 02 0006ab3e  00 00 00 20 | ... 
+01 00974733272:682289 2 - 02 0006ab3e  00 00 00 20 | ...
 01 00974733272:682297 2 - 02 0006ad7e  07 ea 4a 90 | ....
 01 00974733272:684384 2 - 00 0006ade6  46 52 45 45 | FREE
 01 00974733272:684388 2 - 00 0006adf6  07 ea 4a 90 | ....
@@ -468,8 +468,8 @@ Example:
 lcrash Interface
 ----------------
 It is planned that the dump analysis tool lcrash gets an additional command
-'s390dbf' to display all the debug logs. With this tool it will be possible 
-to investigate the debug logs on a live system and with a memory dump after 
+'s390dbf' to display all the debug logs. With this tool it will be possible
+to investigate the debug logs on a live system and with a memory dump after
 a system crash.
 
 Investigating raw memory
@@ -494,16 +494,16 @@ order to see the debug entries well formatted.
 Predefined Views
 ----------------
 
-There are three predefined views: hex_ascii, raw and sprintf. 
-The hex_ascii view shows the data field in hex and ascii representation 
-(e.g. '45 43 4b 44 | ECKD'). 
+There are three predefined views: hex_ascii, raw and sprintf.
+The hex_ascii view shows the data field in hex and ascii representation
+(e.g. '45 43 4b 44 | ECKD').
 The raw view returns a bytestream as the debug areas are stored in memory.
 
 The sprintf view formats the debug entries in the same way as the sprintf
 function would do. The sprintf event/exception functions write to the
-debug entry a pointer to the format string (size = sizeof(long)) 
-and for each vararg a long value. So e.g. for a debug entry with a format 
-string plus two varargs one would need to allocate a (3 * sizeof(long)) 
+debug entry a pointer to the format string (size = sizeof(long))
+and for each vararg a long value. So e.g. for a debug entry with a format
+string plus two varargs one would need to allocate a (3 * sizeof(long))
 byte data area in the debug_register() function.
 
 IMPORTANT: Using "%s" in sprintf event functions is dangerous. You can only
@@ -519,7 +519,7 @@ than the sprintf-event and -exception functions.
 
 The format of the hex_ascii and sprintf view is as follows:
 - Number of area
-- Timestamp (formatted as seconds and microseconds since 00:00:00 Coordinated 
+- Timestamp (formatted as seconds and microseconds since 00:00:00 Coordinated
   Universal Time (UTC), January 1, 1970)
 - level of debug entry
 - Exception flag (* = Exception)
@@ -529,14 +529,14 @@ The format of the hex_ascii and sprintf view is as follows:
 
 The format of the raw view is:
 - Header as described in debug.h
-- datafield 
+- datafield
 
-A typical line of the hex_ascii view will look like the following (first line 
+A typical line of the hex_ascii view will look like the following (first line
 is only for explanation and will not be displayed when 'cating' the view):
 
 area  time           level exception cpu caller    data (hex + ascii)
 --------------------------------------------------------------------------
-00    00964419409:440690 1 -         00  88023fe   
+00    00964419409:440690 1 -         00  88023fe
 
 
 Defining views
@@ -546,8 +546,8 @@ Views are specified with the 'debug_view' structure. There are defined
 callback functions which are used for reading and writing the debugfs files:
 
 struct debug_view {
-        char name[DEBUG_MAX_PROCF_LEN];  
-        debug_prolog_proc_t* prolog_proc; 
+        char name[DEBUG_MAX_PROCF_LEN];
+        debug_prolog_proc_t* prolog_proc;
         debug_header_proc_t* header_proc;
         debug_format_proc_t* format_proc;
         debug_input_proc_t*  input_proc;
@@ -588,10 +588,10 @@ The output when reading a debugfs file is structured like this:
 
 When a view is read from the debugfs, the Debug Feature calls the
 'prolog_proc' once for writing the prolog.
-Then 'header_proc' and 'format_proc' are called for each 
+Then 'header_proc' and 'format_proc' are called for each
 existing debug entry.
 
-The input_proc can be used to implement functionality when it is written to 
+The input_proc can be used to implement functionality when it is written to
 the view (e.g. like with 'echo "0" > /sys/kernel/debug/s390dbf/dasd/level).
 
 For header_proc there can be used the default function
@@ -619,7 +619,7 @@ const char* messages[] =
 };
 
 static int debug_test_format_fn(
-   debug_info_t * id, struct debug_view *view, 
+   debug_info_t * id, struct debug_view *view,
    char *out_buf, const char *in_buf
 )
 {
@@ -628,7 +628,7 @@ static int debug_test_format_fn(
   if(id->buf_size >= 4) {
      int msg_nr = *((int*)in_buf);
      if(msg_nr < sizeof(messages)/sizeof(char*) - 1)
-        rc += sprintf(out_buf, "%s", messages[msg_nr]);	
+        rc += sprintf(out_buf, "%s", messages[msg_nr]);
      else
         rc += sprintf(out_buf, UNKNOWNSTR, msg_nr);
   }

@@ -3,7 +3,7 @@
  * These are the public elements of the Linux kernel X.25 implementation.
  *
  * 	History
- *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities 
+ *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities
  *					  negotiation.
  *	apr/02/05	Shaun Pereira Selective sub address matching with
  *					call user data
@@ -79,7 +79,7 @@ struct x25_subscrip_struct {
 
 /* values for above global_facil_mask */
 
-#define	X25_MASK_REVERSE	0x01	
+#define	X25_MASK_REVERSE	0x01
 #define	X25_MASK_THROUGHPUT	0x02
 #define	X25_MASK_PACKET_SIZE	0x04
 #define	X25_MASK_WINDOW_SIZE	0x08

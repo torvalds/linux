@@ -58,7 +58,7 @@ struct k_message {
                 eg_ctrl_info eg_info;
                 struct mpc_parameters params;
         } content;
-        struct atm_qos qos;       
+        struct atm_qos qos;
 } __ATM_API_ALIGN;
 
 struct llc_snap_hdr {
@@ -71,7 +71,7 @@ struct llc_snap_hdr {
 };
 
 /* TLVs this MPC recognizes */
-#define TLV_MPOA_DEVICE_TYPE         0x00a03e2a  
+#define TLV_MPOA_DEVICE_TYPE         0x00a03e2a
 
 /* MPOA device types in MPOA Device Type TLV */
 #define NON_MPOA    0
@@ -82,7 +82,7 @@ struct llc_snap_hdr {
 
 /* MPC parameter defaults */
 
-#define MPC_P1 10  /* Shortcut-Setup Frame Count  */ 
+#define MPC_P1 10  /* Shortcut-Setup Frame Count  */
 #define MPC_P2 1   /* Shortcut-Setup Frame Time   */
 #define MPC_P3 0   /* Flow-detection Protocols    */
 #define MPC_P4 5   /* MPC Initial Retry Time      */
@@ -120,7 +120,7 @@ struct llc_snap_hdr {
 #define CLEAN_UP_AND_EXIT     109
 #define SET_MPC_PARAMS        110 /* MPC configuration parameters    */
 
-/* Message types - bidirectional */       
+/* Message types - bidirectional */
 
 #define RELOAD                301 /* kill -HUP the daemon for reload */
 

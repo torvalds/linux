@@ -27,16 +27,16 @@ static inline void *qdisc_priv(struct Qdisc *q)
 	return (char *) q + QDISC_ALIGN(sizeof(struct Qdisc));
 }
 
-/* 
+/*
    Timer resolution MUST BE < 10% of min_schedulable_packet_size/bandwidth
-   
+
    Normal IP packet size ~ 512byte, hence:
 
    0.5Kbyte/1Mbyte/sec = 0.5msec, so that we need 50usec timer for
    10Mbit ethernet.
 
    10msec resolution -> <50Kbit/sec.
-   
+
    The result: [34]86 is not good choice for QoS router :-(
 
    The things are not so bad, because we may use artificial

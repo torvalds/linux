@@ -7,7 +7,7 @@
  */
 #define MAX_ZS_PORTS	4
 
-/* 
+/*
  * We wrap our port structure around the generic uart_port.
  */
 #define NUM_ZSREGS    17

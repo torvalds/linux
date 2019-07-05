@@ -59,7 +59,7 @@ config SND_AD1848
 	help
 	  Say Y here to include support for AD1848 (Analog Devices) or
 	  CS4248 (Cirrus Logic - Crystal Semiconductors) chips.
-	  
+
 	  For newer chips from Cirrus Logic, use the CS4231 or CS4232+
 	  drivers.
 
@@ -344,7 +344,7 @@ config SND_MIRO
 	select SND_MPU401_UART
 	select SND_PCM
 	help
-	  Say 'Y' or 'M' to include support for Miro miroSOUND PCM1 pro, 
+	  Say 'Y' or 'M' to include support for Miro miroSOUND PCM1 pro,
 	  miroSOUND PCM12 and miroSOUND PCM20 Radio soundcards.
 
 	  To compile this driver as a module, choose M here: the module
@@ -409,7 +409,7 @@ config SND_SSCAPE
 	select SND_WSS_LIB
 	select FW_LOADER
 	help
-	  Say Y here to include support for Ensoniq SoundScape 
+	  Say Y here to include support for Ensoniq SoundScape
 	  and Ensoniq OEM soundcards.
 
 	  The PCM audio is supported on SoundScape Classic, Elite, PnP

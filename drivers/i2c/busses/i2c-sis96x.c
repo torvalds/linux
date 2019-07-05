@@ -11,7 +11,7 @@
 
     This module relies on quirk_sis_96x_smbus (drivers/pci/quirks.c)
     for just about every machine for which users have reported.
-    If this module isn't detecting your 96x south bridge, have a 
+    If this module isn't detecting your 96x south bridge, have a
     look there.
 
     We assume there can only be one SiS96x with one SMBus interface.
@@ -182,7 +182,7 @@ static s32 sis96x_access(struct i2c_adapter * adap, u16 addr,
 			sis96x_write(SMB_BYTE, data->word & 0xff);
 			sis96x_write(SMB_BYTE + 1, (data->word & 0xff00) >> 8);
 		}
-		size = (size == I2C_SMBUS_PROC_CALL ? 
+		size = (size == I2C_SMBUS_PROC_CALL ?
 			SIS96x_PROC_CALL : SIS96x_WORD_DATA);
 		break;
 

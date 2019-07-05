@@ -15,7 +15,7 @@
  *
  *  History:
  *   0.1  21.09.1996  Started
- *        18.10.1996  Changed to new user space access routines 
+ *        18.10.1996  Changed to new user space access routines
  *                    (copy_{to,from}_user)
  *   0.2  21.11.1996  various small changes
  *   0.3  03.03.1997  fixed (hopefully) IP not working with ax.25 as a module
@@ -44,7 +44,7 @@
 #include <linux/skbuff.h>
 #include <linux/hdlcdrv.h>
 #include <linux/random.h>
-#include <net/ax25.h> 
+#include <net/ax25.h>
 #include <linux/uaccess.h>
 
 #include <linux/crc-ccitt.h>
@@ -110,11 +110,11 @@ static int calc_crc_ccitt(const unsigned char *buf, int cnt)
  * The HDLC routines
  */
 
-static int hdlc_rx_add_bytes(struct hdlcdrv_state *s, unsigned int bits, 
+static int hdlc_rx_add_bytes(struct hdlcdrv_state *s, unsigned int bits,
 			     int num)
 {
 	int added = 0;
-	
+
 	while (s->hdlcrx.rx_state && num >= 8) {
 		if (s->hdlcrx.len >= sizeof(s->hdlcrx.buffer)) {
 			s->hdlcrx.rx_state = 0;
@@ -134,9 +134,9 @@ static void hdlc_rx_flag(struct net_device *dev, struct hdlcdrv_state *s)
 	int pkt_len;
 	unsigned char *cp;
 
-	if (s->hdlcrx.len < 4) 
+	if (s->hdlcrx.len < 4)
 		return;
-	if (!check_crc_ccitt(s->hdlcrx.buffer, s->hdlcrx.len)) 
+	if (!check_crc_ccitt(s->hdlcrx.buffer, s->hdlcrx.len))
 		return;
 	pkt_len = s->hdlcrx.len - 2 + 1; /* KISS kludge */
 	if (!(skb = dev_alloc_skb(pkt_len))) {
@@ -156,14 +156,14 @@ void hdlcdrv_receiver(struct net_device *dev, struct hdlcdrv_state *s)
 {
 	int i;
 	unsigned int mask1, mask2, mask3, mask4, mask5, mask6, word;
-	
-	if (!s || s->magic != HDLCDRV_MAGIC) 
+
+	if (!s || s->magic != HDLCDRV_MAGIC)
 		return;
 	if (test_and_set_bit(0, &s->hdlcrx.in_hdlc_rx))
 		return;
 
 	while (!hdlcdrv_hbuf_empty(&s->hdlcrx.hbuf)) {
-		word = hdlcdrv_hbuf_get(&s->hdlcrx.hbuf);	
+		word = hdlcdrv_hbuf_get(&s->hdlcrx.hbuf);
 
 #ifdef HDLCDRV_DEBUG
 		hdlcdrv_add_bitbuffer_word(&s->bitbuf_hdlc, word);
@@ -174,16 +174,16 @@ void hdlcdrv_receiver(struct net_device *dev, struct hdlcdrv_state *s)
 		s->hdlcrx.bitbuf |= word << 16;
 		s->hdlcrx.numbits += 16;
 		for(i = 15, mask1 = 0x1fc00, mask2 = 0x1fe00, mask3 = 0x0fc00,
-		    mask4 = 0x1f800, mask5 = 0xf800, mask6 = 0xffff; 
-		    i >= 0; 
-		    i--, mask1 <<= 1, mask2 <<= 1, mask3 <<= 1, mask4 <<= 1, 
+		    mask4 = 0x1f800, mask5 = 0xf800, mask6 = 0xffff;
+		    i >= 0;
+		    i--, mask1 <<= 1, mask2 <<= 1, mask3 <<= 1, mask4 <<= 1,
 		    mask5 <<= 1, mask6 = (mask6 << 1) | 1) {
 			if ((s->hdlcrx.bitstream & mask1) == mask1)
 				s->hdlcrx.rx_state = 0; /* abort received */
 			else if ((s->hdlcrx.bitstream & mask2) == mask3) {
 				/* flag received */
 				if (s->hdlcrx.rx_state) {
-					hdlc_rx_add_bytes(s, s->hdlcrx.bitbuf 
+					hdlc_rx_add_bytes(s, s->hdlcrx.bitbuf
 							  << (8+i),
 							  s->hdlcrx.numbits
 							  -8-i);
@@ -214,9 +214,9 @@ static inline void do_kiss_params(struct hdlcdrv_state *s,
 
 #ifdef KISS_VERBOSE
 #define PKP(a,b) printk(KERN_INFO "hdlcdrv.c: channel params: " a "\n", b)
-#else /* KISS_VERBOSE */	      
-#define PKP(a,b) 
-#endif /* KISS_VERBOSE */	      
+#else /* KISS_VERBOSE */
+#define PKP(a,b)
+#endif /* KISS_VERBOSE */
 
 	if (len < 2)
 		return;
@@ -225,19 +225,19 @@ static inline void do_kiss_params(struct hdlcdrv_state *s,
 		s->ch_params.tx_delay = data[1];
 		PKP("TX delay = %ums", 10 * s->ch_params.tx_delay);
 		break;
-	case PARAM_PERSIST:   
+	case PARAM_PERSIST:
 		s->ch_params.ppersist = data[1];
 		PKP("p persistence = %u", s->ch_params.ppersist);
 		break;
-	case PARAM_SLOTTIME:  
+	case PARAM_SLOTTIME:
 		s->ch_params.slottime = data[1];
 		PKP("slot time = %ums", s->ch_params.slottime);
 		break;
-	case PARAM_TXTAIL:    
+	case PARAM_TXTAIL:
 		s->ch_params.tx_tail = data[1];
 		PKP("TX tail = %ums", s->ch_params.tx_tail);
 		break;
-	case PARAM_FULLDUP:   
+	case PARAM_FULLDUP:
 		s->ch_params.fulldup = !!data[1];
 		PKP("%s duplex", s->ch_params.fulldup ? "full" : "half");
 		break;
@@ -256,7 +256,7 @@ void hdlcdrv_transmitter(struct net_device *dev, struct hdlcdrv_state *s)
 	struct sk_buff *skb;
 	int pkt_len;
 
-	if (!s || s->magic != HDLCDRV_MAGIC) 
+	if (!s || s->magic != HDLCDRV_MAGIC)
 		return;
 	if (test_and_set_bit(0, &s->hdlctx.in_hdlc_tx))
 		return;
@@ -278,7 +278,7 @@ void hdlcdrv_transmitter(struct net_device *dev, struct hdlcdrv_state *s)
 		case 1:
 			if (s->hdlctx.numflags) {
 				s->hdlctx.numflags--;
-				s->hdlctx.bitbuf |= 
+				s->hdlctx.bitbuf |=
 					0x7e7e << s->hdlctx.numbits;
 				s->hdlctx.numbits += 16;
 				break;
@@ -330,14 +330,14 @@ void hdlcdrv_transmitter(struct net_device *dev, struct hdlcdrv_state *s)
 			mask2 = 0x10000;
 			mask3 = 0xffffffff >> (31-s->hdlctx.numbits);
 			s->hdlctx.numbits += 8;
-			for(i = 0; i < 8; i++, mask1 <<= 1, mask2 <<= 1, 
+			for(i = 0; i < 8; i++, mask1 <<= 1, mask2 <<= 1,
 			    mask3 = (mask3 << 1) | 1) {
-				if ((s->hdlctx.bitstream & mask1) != mask1) 
+				if ((s->hdlctx.bitstream & mask1) != mask1)
 					continue;
 				s->hdlctx.bitstream &= ~mask2;
-				s->hdlctx.bitbuf = 
+				s->hdlctx.bitbuf =
 					(s->hdlctx.bitbuf & mask3) |
-						((s->hdlctx.bitbuf & 
+						((s->hdlctx.bitbuf &
 						 (~mask3)) << 1);
 				s->hdlctx.numbits++;
 				mask3 = (mask3 << 1) | 1;
@@ -363,7 +363,7 @@ static void start_tx(struct net_device *dev, struct hdlcdrv_state *s)
 
 void hdlcdrv_arbitrate(struct net_device *dev, struct hdlcdrv_state *s)
 {
-	if (!s || s->magic != HDLCDRV_MAGIC || s->hdlctx.ptt || !s->skb) 
+	if (!s || s->magic != HDLCDRV_MAGIC || s->hdlctx.ptt || !s->skb)
 		return;
 	if (s->ch_params.fulldup) {
 		start_tx(dev, s);
@@ -415,8 +415,8 @@ static int hdlcdrv_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = (struct sockaddr *)addr;
 
 	/* addr is an AX.25 shifted ASCII mac address */
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len); 
-	return 0;                                         
+	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+	return 0;
 }
 
 /* --------------------------------------------------------------------- */
@@ -444,7 +444,7 @@ static int hdlcdrv_open(struct net_device *dev)
 	s->hdlcrx.hbuf.rd = s->hdlcrx.hbuf.wr = 0;
 	s->hdlcrx.in_hdlc_rx = 0;
 	s->hdlcrx.rx_state = 0;
-	
+
 	s->hdlctx.hbuf.rd = s->hdlctx.hbuf.wr = 0;
 	s->hdlctx.in_hdlc_tx = 0;
 	s->hdlctx.tx_state = 1;
@@ -462,8 +462,8 @@ static int hdlcdrv_open(struct net_device *dev)
 }
 
 /* --------------------------------------------------------------------- */
-/* 
- * The inverse routine to hdlcdrv_open(). 
+/*
+ * The inverse routine to hdlcdrv_open().
  */
 
 static int hdlcdrv_close(struct net_device *dev)
@@ -521,7 +521,7 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		s->ch_params.fulldup = bi.data.cp.fulldup;
 		s->hdlctx.slotcnt = 1;
 		return 0;
-		
+
 	case HDLCDRVCTL_GETMODEMPAR:
 		bi.data.mp.iobase = dev->base_addr;
 		bi.data.mp.irq = dev->irq;
@@ -542,8 +542,8 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		s->ptt_out.seriobase = bi.data.mp.seriobase;
 		s->ptt_out.pariobase = bi.data.mp.pariobase;
 		s->ptt_out.midiiobase = bi.data.mp.midiiobase;
-		return 0;	
-	
+		return 0;
+
 	case HDLCDRVCTL_GETSTAT:
 		bi.data.cs.ptt = hdlcdrv_ptt(s);
 		bi.data.cs.dcd = s->hdlcrx.dcd;
@@ -552,13 +552,13 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		bi.data.cs.tx_errors = dev->stats.tx_errors;
 		bi.data.cs.rx_packets = dev->stats.rx_packets;
 		bi.data.cs.rx_errors = dev->stats.rx_errors;
-		break;		
+		break;
 
 	case HDLCDRVCTL_OLDGETSTAT:
 		bi.data.ocs.ptt = hdlcdrv_ptt(s);
 		bi.data.ocs.dcd = s->hdlcrx.dcd;
 		bi.data.ocs.ptt_keyed = s->ptt_keyed;
-		break;		
+		break;
 
 	case HDLCDRVCTL_CALIBRATE:
 		if(!capable(CAP_SYS_RAWIO))
@@ -574,37 +574,37 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #ifndef HDLCDRV_DEBUG
 		return -EPERM;
 #else /* HDLCDRV_DEBUG */
-		if (s->bitbuf_channel.rd == s->bitbuf_channel.wr) 
+		if (s->bitbuf_channel.rd == s->bitbuf_channel.wr)
 			return -EAGAIN;
-		bi.data.bits = 
+		bi.data.bits =
 			s->bitbuf_channel.buffer[s->bitbuf_channel.rd];
 		s->bitbuf_channel.rd = (s->bitbuf_channel.rd+1) %
 			sizeof(s->bitbuf_channel.buffer);
 		break;
 #endif /* HDLCDRV_DEBUG */
-				
+
 	case HDLCDRVCTL_GETBITS:
 #ifndef HDLCDRV_DEBUG
 		return -EPERM;
 #else /* HDLCDRV_DEBUG */
-		if (s->bitbuf_hdlc.rd == s->bitbuf_hdlc.wr) 
+		if (s->bitbuf_hdlc.rd == s->bitbuf_hdlc.wr)
 			return -EAGAIN;
-		bi.data.bits = 
+		bi.data.bits =
 			s->bitbuf_hdlc.buffer[s->bitbuf_hdlc.rd];
 		s->bitbuf_hdlc.rd = (s->bitbuf_hdlc.rd+1) %
 			sizeof(s->bitbuf_hdlc.buffer);
-		break;		
+		break;
 #endif /* HDLCDRV_DEBUG */
 
 	case HDLCDRVCTL_DRIVERNAME:
 		if (s->ops && s->ops->drvname) {
-			strncpy(bi.data.drivername, s->ops->drvname, 
+			strncpy(bi.data.drivername, s->ops->drvname,
 				sizeof(bi.data.drivername));
 			break;
 		}
 		bi.data.drivername[0] = '\0';
 		break;
-		
+
 	}
 	if (copy_to_user(ifr->ifr_data, &bi, sizeof(bi)))
 		return -EFAULT;
@@ -627,8 +627,8 @@ static const struct net_device_ops hdlcdrv_netdev = {
  */
 static void hdlcdrv_setup(struct net_device *dev)
 {
-	static const struct hdlcdrv_channel_params dflt_ch_params = { 
-		20, 2, 10, 40, 0 
+	static const struct hdlcdrv_channel_params dflt_ch_params = {
+		20, 2, 10, 40, 0
 	};
 	struct hdlcdrv_state *s = netdev_priv(dev);
 
@@ -642,7 +642,7 @@ static void hdlcdrv_setup(struct net_device *dev)
 	s->hdlcrx.hbuf.rd = s->hdlcrx.hbuf.wr = 0;
 	s->hdlcrx.in_hdlc_rx = 0;
 	s->hdlcrx.rx_state = 0;
-	
+
 	spin_lock_init(&s->hdlctx.hbuf.lock);
 	s->hdlctx.hbuf.rd = s->hdlctx.hbuf.wr = 0;
 	s->hdlctx.in_hdlc_tx = 0;
@@ -665,10 +665,10 @@ static void hdlcdrv_setup(struct net_device *dev)
 	/* Fill in the fields of the device structure */
 
 	s->skb = NULL;
-	
+
 	dev->netdev_ops = &hdlcdrv_netdev;
 	dev->header_ops = &ax25_header_ops;
-	
+
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */
 	dev->hard_header_len = AX25_MAX_HEADER_LEN + AX25_BPQ_HEADER_LEN;
 	dev->mtu = AX25_DEF_PACLEN;        /* eth_mtu is the default */
@@ -681,8 +681,8 @@ static void hdlcdrv_setup(struct net_device *dev)
 /* --------------------------------------------------------------------- */
 struct net_device *hdlcdrv_register(const struct hdlcdrv_ops *ops,
 				    unsigned int privsize, const char *ifname,
-				    unsigned int baseaddr, unsigned int irq, 
-				    unsigned int dma) 
+				    unsigned int baseaddr, unsigned int irq,
+				    unsigned int dma)
 {
 	struct net_device *dev;
 	struct hdlcdrv_state *s;
@@ -719,7 +719,7 @@ struct net_device *hdlcdrv_register(const struct hdlcdrv_ops *ops,
 
 /* --------------------------------------------------------------------- */
 
-void hdlcdrv_unregister(struct net_device *dev) 
+void hdlcdrv_unregister(struct net_device *dev)
 {
 	struct hdlcdrv_state *s = netdev_priv(dev);
 
@@ -728,7 +728,7 @@ void hdlcdrv_unregister(struct net_device *dev)
 	if (s->opened && s->ops->close)
 		s->ops->close(dev);
 	unregister_netdev(dev);
-	
+
 	free_netdev(dev);
 }
 

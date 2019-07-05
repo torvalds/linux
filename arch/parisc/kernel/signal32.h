@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* 
+/*
  *    Copyright (C) 2001 Matthew Wilcox <willy at parisc-linux.org>
  *    Copyright (C) 2003 Carlos O'Donell <carlos at parisc-linux.org>
  */
@@ -63,10 +63,10 @@ struct compat_rt_sigframe {
 #define FUNCTIONCALLFRAME32     48
 #define PARISC_RT_SIGFRAME_SIZE32 (((sizeof(struct compat_rt_sigframe) + FUNCTIONCALLFRAME32) + SIGFRAME32) & -SIGFRAME32)
 
-long restore_sigcontext32(struct compat_sigcontext __user *sc, 
+long restore_sigcontext32(struct compat_sigcontext __user *sc,
 		struct compat_regfile __user *rf,
 		struct pt_regs *regs);
-long setup_sigcontext32(struct compat_sigcontext __user *sc, 
+long setup_sigcontext32(struct compat_sigcontext __user *sc,
 		struct compat_regfile __user *rf,
 		struct pt_regs *regs, int in_syscall);
 

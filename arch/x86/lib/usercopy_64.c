@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* 
+/*
  * User address space access functions.
  *
  * Copyright 1997 Andi Kleen <ak@muc.de>

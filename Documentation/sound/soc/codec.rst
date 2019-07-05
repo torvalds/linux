@@ -44,7 +44,7 @@ e.g.
 	.set_sysclk	= wm8731_set_dai_sysclk,
 	.set_fmt	= wm8731_set_dai_fmt,
   };
-  
+
   struct snd_soc_dai_driver wm8731_dai = {
 	.name = "wm8731-hifi",
 	.playback = {

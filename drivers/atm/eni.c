@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* drivers/atm/eni.c - Efficient Networks ENI155P device driver */
- 
+
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
- 
+
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -34,7 +34,7 @@
 #if !defined(__i386__) && !defined(__x86_64__)
 #ifndef ioremap_nocache
 #define ioremap_nocache(X,Y) ioremap(X,Y)
-#endif 
+#endif
 #endif
 
 /*
@@ -91,7 +91,7 @@ static void event_dump(void)
 #else
 
 
-/* 
+/*
  * NULL pointer checking
  */
 
@@ -113,7 +113,7 @@ static int ec = 0;
 
 static void EVENT(const char *s,unsigned long a,unsigned long b)
 {
-	ev[ec] = s; 
+	ev[ec] = s;
 	ev_a[ec] = a;
 	ev_b[ec] = b;
 	ec = (ec+1) % EV;
@@ -1805,7 +1805,7 @@ static void eni_do_release(struct atm_dev *dev)
 static int eni_start(struct atm_dev *dev)
 {
 	struct eni_dev *eni_dev;
-	
+
 	void __iomem *buf;
 	unsigned long buffer_mem;
 	int error;
@@ -2153,7 +2153,7 @@ static int eni_proc_read(struct atm_dev *dev,loff_t *pos,char *page)
 		    " (default)"
 #endif
 		    "\n","");
-	if (!--left) 
+	if (!--left)
 		return sprintf(page,"%4sBuffer multipliers: tx %d%%, rx %d%%\n",
 		    "",eni_dev->tx_mult,eni_dev->rx_mult);
 	for (i = 0; i < NR_CHAN; i++) {

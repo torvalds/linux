@@ -9,7 +9,7 @@
  * --
  *
  * Thu Apr 29 20:36:17 BST 1999 George David Morrison <gdm@gedamo.demon.co.uk>
- *   DSP can't respond to commands whilst in "high speed" mode. Caused 
+ *   DSP can't respond to commands whilst in "high speed" mode. Caused
  *   glitching during playback. Fixed.
  *
  * Wed Jul 12 22:02:55 CEST 2000 Uros Bizjak <uros@kss-loka.si>
@@ -212,7 +212,7 @@ static int snd_sb8_playback_trigger(struct snd_pcm_substream *substream,
 			snd_sbdsp_reset(chip);
 			if (runtime->channels > 1) {
 				spin_lock(&chip->mixer_lock);
-				/* restore output filter and set hardware to mono mode */ 
+				/* restore output filter and set hardware to mono mode */
 				snd_sbmixer_write(chip, SB_DSP_STEREO_SW, chip->force_mode16 & ~0x02);
 				spin_unlock(&chip->mixer_lock);
 			}
@@ -471,7 +471,7 @@ static const struct snd_pcm_hardware snd_sb8_capture =
 /*
  *
  */
- 
+
 static int snd_sb8_open(struct snd_pcm_substream *substream)
 {
 	struct snd_sb *chip = snd_pcm_substream_chip(substream);
@@ -531,7 +531,7 @@ static int snd_sb8_open(struct snd_pcm_substream *substream)
 		runtime->hw.buffer_bytes_max = 128 * 1024 * 1024;
 		runtime->hw.period_bytes_max = 128 * 1024 * 1024;
 	}
-	return 0;	
+	return 0;
 }
 
 static int snd_sb8_close(struct snd_pcm_substream *substream)
@@ -554,7 +554,7 @@ static int snd_sb8_close(struct snd_pcm_substream *substream)
 /*
  *  Initialization part
  */
- 
+
 static const struct snd_pcm_ops snd_sb8_playback_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,

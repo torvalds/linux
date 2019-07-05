@@ -243,7 +243,7 @@ swift_flush_tlb_page:
 	 nop
 #if 1
 	mov	0x400, %o1
-	sta	%g0, [%o1] ASI_M_FLUSH_PROBE	
+	sta	%g0, [%o1] ASI_M_FLUSH_PROBE
 #else
 	lda	[%g1] ASI_M_MMUREGS, %g5
 	sta	%o3, [%g1] ASI_M_MMUREGS

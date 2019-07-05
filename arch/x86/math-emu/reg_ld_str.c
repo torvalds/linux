@@ -959,7 +959,7 @@ int FPU_store_bcd(FPU_REG *st0_ptr, u_char st0_tag, u_char __user *d)
 
 /*===========================================================================*/
 
-/* r gets mangled such that sig is int, sign: 
+/* r gets mangled such that sig is int, sign:
    it is NOT normalized */
 /* The return value (in eax) is zero if the result is exact,
    if bits are changed due to rounding, truncation, etc, then

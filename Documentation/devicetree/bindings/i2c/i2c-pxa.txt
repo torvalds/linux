@@ -23,7 +23,7 @@ Examples:
 		interrupts = <7>;
 		mrvl,i2c-fast-mode;
 	};
-	
+
 	twsi2: i2c@d4025000 {
 		compatible = "mrvl,mmp-twsi";
 		reg = <0xd4025000 0x1000>;

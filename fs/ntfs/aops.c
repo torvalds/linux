@@ -1260,7 +1260,7 @@ unm_done:
 	/* Unlock any locked inodes. */
 	while (nr_locked_nis-- > 0) {
 		ntfs_inode *tni, *base_tni;
-		
+
 		tni = locked_nis[nr_locked_nis];
 		/* Get the base inode. */
 		mutex_lock(&tni->extent_lock);

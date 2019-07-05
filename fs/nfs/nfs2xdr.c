@@ -284,7 +284,7 @@ static int decode_fattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 	fattr->gid = make_kgid(userns, be32_to_cpup(p++));
 	if (!gid_valid(fattr->gid))
 		goto out_gid;
-		
+
 	fattr->size = be32_to_cpup(p++);
 	fattr->du.nfs2.blocksize = be32_to_cpup(p++);
 

@@ -101,7 +101,7 @@ struct ts_config
  *
  * Returns the position of the next occurrence of the pattern or
  * UINT_MAX if not match was found.
- */ 
+ */
 static inline unsigned int textsearch_next(struct ts_config *conf,
 					   struct ts_state *state)
 {
@@ -120,7 +120,7 @@ static inline unsigned int textsearch_next(struct ts_config *conf,
  *
  * Returns the position of first occurrence of the pattern or
  * UINT_MAX if no match was found.
- */ 
+ */
 static inline unsigned int textsearch_find(struct ts_config *conf,
 					   struct ts_state *state)
 {

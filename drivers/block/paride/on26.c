@@ -1,8 +1,8 @@
-/* 
+/*
         on26.c    (c) 1997-8  Grant R. Guenther <grant@torque.net>
                               Under the terms of the GNU General Public License.
 
-        on26.c is a low-level protocol driver for the 
+        on26.c is a low-level protocol driver for the
         OnSpec 90c26 parallel to IDE adapter chip.
 
 */
@@ -40,8 +40,8 @@
 #define P1	w2(5);w2(0xd);w2(5);w2(0xd);w2(5);w2(4);
 #define P2	w2(5);w2(7);w2(5);w2(4);
 
-/* cont = 0 - access the IDE register file 
-   cont = 1 - access the IDE command set 
+/* cont = 0 - access the IDE register file
+   cont = 1 - access the IDE command set
 */
 
 static int on26_read_regr( PIA *pi, int cont, int regr )
@@ -52,7 +52,7 @@ static int on26_read_regr( PIA *pi, int cont, int regr )
 
         switch (pi->mode)  {
 
-        case 0: w0(1); P1; w0(r); P2; w0(0); P1; 
+        case 0: w0(1); P1; w0(r); P2; w0(0); P1;
 		w2(6); a = r1(); w2(4);
 		w2(6); b = r1(); w2(4);
 		w2(6); w2(4); w2(6); w2(4);
@@ -71,7 +71,7 @@ static int on26_read_regr( PIA *pi, int cont, int regr )
 
         }
         return -1;
-}       
+}
 
 static void on26_write_regr( PIA *pi, int cont, int regr, int val )
 
@@ -89,7 +89,7 @@ static void on26_write_regr( PIA *pi, int cont, int regr, int val )
 	case 2:
 	case 3:
         case 4: w3(1); w3(1); w2(5); w4(r); w2(4);
-		w3(0); w3(0); 
+		w3(0); w3(0);
 		w2(5); w4(val); w2(4);
 		w2(5); w4(val); w2(4);
                 break;
@@ -120,7 +120,7 @@ static void on26_disconnect ( PIA *pi )
 	CCP(0x30);
         w0(pi->saved_r0);
         w2(pi->saved_r2);
-} 
+}
 
 #define	RESET_WAIT  200
 
@@ -138,7 +138,7 @@ static int on26_test_port( PIA *pi)  /* hard reset */
 
         w2(0xc);
 
-        CCP(0x30); CCP(0); 
+        CCP(0x30); CCP(0);
 
         w0(0xfe);w0(0xaa);w0(0x55);w0(0);w0(0xff);
         i = ((r1() & 0xf0) << 4); w0(0x87);
@@ -154,7 +154,7 @@ static int on26_test_port( PIA *pi)  /* hard reset */
             w0(2); P1; w0(8);   P2; udelay(100);
             w0(2); P1; w0(0xa); P2; udelay(100);
             w0(2); P1; w0(8);   P2; udelay(1000);
-            
+
             on26_write_regr(pi,0,6,0xa0);
 
             for (i=0;i<RESET_WAIT;i++) {
@@ -166,7 +166,7 @@ static int on26_test_port( PIA *pi)  /* hard reset */
                 mdelay(100);
             }
 
-	    if (i == RESET_WAIT) 
+	    if (i == RESET_WAIT)
 		printk("on26: Device reset failed (%x,%x)\n",x,y);
 
             w0(4); P1; w0(4); P1;
@@ -196,13 +196,13 @@ static void on26_read_block( PIA *pi, char * buf, int count )
                         w2(4); b = r1();
                         buf[k] = j44(a,b);
                 }
-		w0(2); P1; w0(8); P2; 
+		w0(2); P1; w0(8); P2;
                 break;
 
         case 1: w0(1); P1; w0(1); P2; w0(2); P1; w0(0x19); P2; w0(0); P1;
 		udelay(10);
                 for (k=0;k<count/2;k++) {
-                        w2(0x26); buf[2*k] = r0();  
+                        w2(0x26); buf[2*k] = r0();
 			w2(0x24); buf[2*k+1] = r0();
                 }
                 w0(2); P1; w0(9); P2;
@@ -238,12 +238,12 @@ static void on26_write_block( PIA *pi, char * buf, int count )
 
         switch (pi->mode) {
 
-        case 0: 
-        case 1: w0(1); P1; w0(1); P2; 
+        case 0:
+        case 1: w0(1); P1; w0(1); P2;
 		w0(2); P1; w0(0x18+pi->mode); P2; w0(0); P1;
 		udelay(10);
 		for (k=0;k<count/2;k++) {
-                        w2(5); w0(buf[2*k]); 
+                        w2(5); w0(buf[2*k]);
 			w2(7); w0(buf[2*k+1]);
                 }
                 w2(5); w2(4);

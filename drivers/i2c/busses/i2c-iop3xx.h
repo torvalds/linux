@@ -30,15 +30,15 @@
  */
 #define IOP3XX_ICR_UE		0x0040	/* 1=Unit Enable */
 /*
- * "NOTE: To avoid I2C bus integrity problems, 
- * the user needs to ensure that the GPIO Output Data Register - 
- * GPOD bits associated with an I2C port are cleared prior to setting 
- * the enable bit for that I2C serial port. 
- * The user prepares to enable I2C port 0 and 
+ * "NOTE: To avoid I2C bus integrity problems,
+ * the user needs to ensure that the GPIO Output Data Register -
+ * GPOD bits associated with an I2C port are cleared prior to setting
+ * the enable bit for that I2C serial port.
+ * The user prepares to enable I2C port 0 and
  * I2C port 1 by clearing GPOD bits 7:6 and GPOD bits 5:4, respectively.
  */
 #define IOP3XX_ICR_SCLEN	0x0020	/* 1=SCL enable for master mode */
-#define IOP3XX_ICR_MABORT	0x0010	/* 1=Send a STOP with no data 
+#define IOP3XX_ICR_MABORT	0x0010	/* 1=Send a STOP with no data
 					 * NB TBYTE must be clear */
 #define IOP3XX_ICR_TBYTE	0x0008	/* 1=Send/Receive a byte. i2c clears */
 #define IOP3XX_ICR_NACK		0x0004	/* 1=reply with NACK */

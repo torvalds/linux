@@ -247,222 +247,222 @@ static const struct reg_default wm1811_defaults[] = {
 };
 
 static const struct reg_default wm8994_defaults[] = {
-	{ 0x0001, 0x0000 },    /* R1     - Power Management (1) */ 
-	{ 0x0002, 0x6000 },    /* R2     - Power Management (2) */ 
-	{ 0x0003, 0x0000 },    /* R3     - Power Management (3) */ 
-	{ 0x0004, 0x0000 },    /* R4     - Power Management (4) */ 
-	{ 0x0005, 0x0000 },    /* R5     - Power Management (5) */ 
-	{ 0x0006, 0x0000 },    /* R6     - Power Management (6) */ 
-	{ 0x0015, 0x0000 },    /* R21    - Input Mixer (1) */ 
-	{ 0x0018, 0x008B },    /* R24    - Left Line Input 1&2 Volume */ 
-	{ 0x0019, 0x008B },    /* R25    - Left Line Input 3&4 Volume */ 
-	{ 0x001A, 0x008B },    /* R26    - Right Line Input 1&2 Volume */ 
-	{ 0x001B, 0x008B },    /* R27    - Right Line Input 3&4 Volume */ 
-	{ 0x001C, 0x006D },    /* R28    - Left Output Volume */ 
-	{ 0x001D, 0x006D },    /* R29    - Right Output Volume */ 
-	{ 0x001E, 0x0066 },    /* R30    - Line Outputs Volume */ 
-	{ 0x001F, 0x0020 },    /* R31    - HPOUT2 Volume */ 
-	{ 0x0020, 0x0079 },    /* R32    - Left OPGA Volume */ 
-	{ 0x0021, 0x0079 },    /* R33    - Right OPGA Volume */ 
-	{ 0x0022, 0x0003 },    /* R34    - SPKMIXL Attenuation */ 
-	{ 0x0023, 0x0003 },    /* R35    - SPKMIXR Attenuation */ 
-	{ 0x0024, 0x0011 },    /* R36    - SPKOUT Mixers */ 
-	{ 0x0025, 0x0140 },    /* R37    - ClassD */ 
-	{ 0x0026, 0x0079 },    /* R38    - Speaker Volume Left */ 
-	{ 0x0027, 0x0079 },    /* R39    - Speaker Volume Right */ 
-	{ 0x0028, 0x0000 },    /* R40    - Input Mixer (2) */ 
-	{ 0x0029, 0x0000 },    /* R41    - Input Mixer (3) */ 
-	{ 0x002A, 0x0000 },    /* R42    - Input Mixer (4) */ 
-	{ 0x002B, 0x0000 },    /* R43    - Input Mixer (5) */ 
-	{ 0x002C, 0x0000 },    /* R44    - Input Mixer (6) */ 
-	{ 0x002D, 0x0000 },    /* R45    - Output Mixer (1) */ 
-	{ 0x002E, 0x0000 },    /* R46    - Output Mixer (2) */ 
-	{ 0x002F, 0x0000 },    /* R47    - Output Mixer (3) */ 
-	{ 0x0030, 0x0000 },    /* R48    - Output Mixer (4) */ 
-	{ 0x0031, 0x0000 },    /* R49    - Output Mixer (5) */ 
-	{ 0x0032, 0x0000 },    /* R50    - Output Mixer (6) */ 
-	{ 0x0033, 0x0000 },    /* R51    - HPOUT2 Mixer */ 
-	{ 0x0034, 0x0000 },    /* R52    - Line Mixer (1) */ 
-	{ 0x0035, 0x0000 },    /* R53    - Line Mixer (2) */ 
-	{ 0x0036, 0x0000 },    /* R54    - Speaker Mixer */ 
-	{ 0x0037, 0x0000 },    /* R55    - Additional Control */ 
-	{ 0x0038, 0x0000 },    /* R56    - AntiPOP (1) */ 
-	{ 0x0039, 0x0000 },    /* R57    - AntiPOP (2) */ 
-	{ 0x003A, 0x0000 },    /* R58    - MICBIAS */ 
-	{ 0x003B, 0x000D },    /* R59    - LDO 1 */ 
-	{ 0x003C, 0x0003 },    /* R60    - LDO 2 */ 
-	{ 0x004C, 0x1F25 },    /* R76    - Charge Pump (1) */ 
-	{ 0x0051, 0x0004 },    /* R81    - Class W (1) */ 
-	{ 0x0055, 0x054A },    /* R85    - DC Servo (2) */ 
-	{ 0x0057, 0x0000 },    /* R87    - DC Servo (4) */ 
-	{ 0x0060, 0x0000 },    /* R96    - Analogue HP (1) */ 
-	{ 0x0101, 0x8004 },    /* R257   - Control Interface */ 
-	{ 0x0110, 0x0000 },    /* R272   - Write Sequencer Ctrl (1) */ 
-	{ 0x0111, 0x0000 },    /* R273   - Write Sequencer Ctrl (2) */ 
-	{ 0x0200, 0x0000 },    /* R512   - AIF1 Clocking (1) */ 
-	{ 0x0201, 0x0000 },    /* R513   - AIF1 Clocking (2) */ 
-	{ 0x0204, 0x0000 },    /* R516   - AIF2 Clocking (1) */ 
-	{ 0x0205, 0x0000 },    /* R517   - AIF2 Clocking (2) */ 
-	{ 0x0208, 0x0000 },    /* R520   - Clocking (1) */ 
-	{ 0x0209, 0x0000 },    /* R521   - Clocking (2) */ 
-	{ 0x0210, 0x0083 },    /* R528   - AIF1 Rate */ 
-	{ 0x0211, 0x0083 },    /* R529   - AIF2 Rate */ 
-	{ 0x0220, 0x0000 },    /* R544   - FLL1 Control (1) */ 
-	{ 0x0221, 0x0000 },    /* R545   - FLL1 Control (2) */ 
-	{ 0x0222, 0x0000 },    /* R546   - FLL1 Control (3) */ 
-	{ 0x0223, 0x0000 },    /* R547   - FLL1 Control (4) */ 
-	{ 0x0224, 0x0C80 },    /* R548   - FLL1 Control (5) */ 
-	{ 0x0240, 0x0000 },    /* R576   - FLL2 Control (1) */ 
-	{ 0x0241, 0x0000 },    /* R577   - FLL2 Control (2) */ 
-	{ 0x0242, 0x0000 },    /* R578   - FLL2 Control (3) */ 
-	{ 0x0243, 0x0000 },    /* R579   - FLL2 Control (4) */ 
-	{ 0x0244, 0x0C80 },    /* R580   - FLL2 Control (5) */ 
-	{ 0x0300, 0x4050 },    /* R768   - AIF1 Control (1) */ 
-	{ 0x0301, 0x4000 },    /* R769   - AIF1 Control (2) */ 
-	{ 0x0302, 0x0000 },    /* R770   - AIF1 Master/Slave */ 
-	{ 0x0303, 0x0040 },    /* R771   - AIF1 BCLK */ 
-	{ 0x0304, 0x0040 },    /* R772   - AIF1ADC LRCLK */ 
-	{ 0x0305, 0x0040 },    /* R773   - AIF1DAC LRCLK */ 
-	{ 0x0306, 0x0004 },    /* R774   - AIF1DAC Data */ 
-	{ 0x0307, 0x0100 },    /* R775   - AIF1ADC Data */ 
-	{ 0x0310, 0x4050 },    /* R784   - AIF2 Control (1) */ 
-	{ 0x0311, 0x4000 },    /* R785   - AIF2 Control (2) */ 
-	{ 0x0312, 0x0000 },    /* R786   - AIF2 Master/Slave */ 
-	{ 0x0313, 0x0040 },    /* R787   - AIF2 BCLK */ 
-	{ 0x0314, 0x0040 },    /* R788   - AIF2ADC LRCLK */ 
-	{ 0x0315, 0x0040 },    /* R789   - AIF2DAC LRCLK */ 
-	{ 0x0316, 0x0000 },    /* R790   - AIF2DAC Data */ 
-	{ 0x0317, 0x0000 },    /* R791   - AIF2ADC Data */ 
-	{ 0x0400, 0x00C0 },    /* R1024  - AIF1 ADC1 Left Volume */ 
-	{ 0x0401, 0x00C0 },    /* R1025  - AIF1 ADC1 Right Volume */ 
-	{ 0x0402, 0x00C0 },    /* R1026  - AIF1 DAC1 Left Volume */ 
-	{ 0x0403, 0x00C0 },    /* R1027  - AIF1 DAC1 Right Volume */ 
-	{ 0x0404, 0x00C0 },    /* R1028  - AIF1 ADC2 Left Volume */ 
-	{ 0x0405, 0x00C0 },    /* R1029  - AIF1 ADC2 Right Volume */ 
-	{ 0x0406, 0x00C0 },    /* R1030  - AIF1 DAC2 Left Volume */ 
-	{ 0x0407, 0x00C0 },    /* R1031  - AIF1 DAC2 Right Volume */ 
-	{ 0x0410, 0x0000 },    /* R1040  - AIF1 ADC1 Filters */ 
-	{ 0x0411, 0x0000 },    /* R1041  - AIF1 ADC2 Filters */ 
-	{ 0x0420, 0x0200 },    /* R1056  - AIF1 DAC1 Filters (1) */ 
-	{ 0x0421, 0x0010 },    /* R1057  - AIF1 DAC1 Filters (2) */ 
-	{ 0x0422, 0x0200 },    /* R1058  - AIF1 DAC2 Filters (1) */ 
-	{ 0x0423, 0x0010 },    /* R1059  - AIF1 DAC2 Filters (2) */ 
-	{ 0x0440, 0x0098 },    /* R1088  - AIF1 DRC1 (1) */ 
-	{ 0x0441, 0x0845 },    /* R1089  - AIF1 DRC1 (2) */ 
-	{ 0x0442, 0x0000 },    /* R1090  - AIF1 DRC1 (3) */ 
-	{ 0x0443, 0x0000 },    /* R1091  - AIF1 DRC1 (4) */ 
-	{ 0x0444, 0x0000 },    /* R1092  - AIF1 DRC1 (5) */ 
-	{ 0x0450, 0x0098 },    /* R1104  - AIF1 DRC2 (1) */ 
-	{ 0x0451, 0x0845 },    /* R1105  - AIF1 DRC2 (2) */ 
-	{ 0x0452, 0x0000 },    /* R1106  - AIF1 DRC2 (3) */ 
-	{ 0x0453, 0x0000 },    /* R1107  - AIF1 DRC2 (4) */ 
-	{ 0x0454, 0x0000 },    /* R1108  - AIF1 DRC2 (5) */ 
-	{ 0x0480, 0x6318 },    /* R1152  - AIF1 DAC1 EQ Gains (1) */ 
-	{ 0x0481, 0x6300 },    /* R1153  - AIF1 DAC1 EQ Gains (2) */ 
-	{ 0x0482, 0x0FCA },    /* R1154  - AIF1 DAC1 EQ Band 1 A */ 
-	{ 0x0483, 0x0400 },    /* R1155  - AIF1 DAC1 EQ Band 1 B */ 
-	{ 0x0484, 0x00D8 },    /* R1156  - AIF1 DAC1 EQ Band 1 PG */ 
-	{ 0x0485, 0x1EB5 },    /* R1157  - AIF1 DAC1 EQ Band 2 A */ 
-	{ 0x0486, 0xF145 },    /* R1158  - AIF1 DAC1 EQ Band 2 B */ 
-	{ 0x0487, 0x0B75 },    /* R1159  - AIF1 DAC1 EQ Band 2 C */ 
-	{ 0x0488, 0x01C5 },    /* R1160  - AIF1 DAC1 EQ Band 2 PG */ 
-	{ 0x0489, 0x1C58 },    /* R1161  - AIF1 DAC1 EQ Band 3 A */ 
-	{ 0x048A, 0xF373 },    /* R1162  - AIF1 DAC1 EQ Band 3 B */ 
-	{ 0x048B, 0x0A54 },    /* R1163  - AIF1 DAC1 EQ Band 3 C */ 
-	{ 0x048C, 0x0558 },    /* R1164  - AIF1 DAC1 EQ Band 3 PG */ 
-	{ 0x048D, 0x168E },    /* R1165  - AIF1 DAC1 EQ Band 4 A */ 
-	{ 0x048E, 0xF829 },    /* R1166  - AIF1 DAC1 EQ Band 4 B */ 
-	{ 0x048F, 0x07AD },    /* R1167  - AIF1 DAC1 EQ Band 4 C */ 
-	{ 0x0490, 0x1103 },    /* R1168  - AIF1 DAC1 EQ Band 4 PG */ 
-	{ 0x0491, 0x0564 },    /* R1169  - AIF1 DAC1 EQ Band 5 A */ 
-	{ 0x0492, 0x0559 },    /* R1170  - AIF1 DAC1 EQ Band 5 B */ 
-	{ 0x0493, 0x4000 },    /* R1171  - AIF1 DAC1 EQ Band 5 PG */ 
-	{ 0x04A0, 0x6318 },    /* R1184  - AIF1 DAC2 EQ Gains (1) */ 
-	{ 0x04A1, 0x6300 },    /* R1185  - AIF1 DAC2 EQ Gains (2) */ 
-	{ 0x04A2, 0x0FCA },    /* R1186  - AIF1 DAC2 EQ Band 1 A */ 
-	{ 0x04A3, 0x0400 },    /* R1187  - AIF1 DAC2 EQ Band 1 B */ 
-	{ 0x04A4, 0x00D8 },    /* R1188  - AIF1 DAC2 EQ Band 1 PG */ 
-	{ 0x04A5, 0x1EB5 },    /* R1189  - AIF1 DAC2 EQ Band 2 A */ 
-	{ 0x04A6, 0xF145 },    /* R1190  - AIF1 DAC2 EQ Band 2 B */ 
-	{ 0x04A7, 0x0B75 },    /* R1191  - AIF1 DAC2 EQ Band 2 C */ 
-	{ 0x04A8, 0x01C5 },    /* R1192  - AIF1 DAC2 EQ Band 2 PG */ 
-	{ 0x04A9, 0x1C58 },    /* R1193  - AIF1 DAC2 EQ Band 3 A */ 
-	{ 0x04AA, 0xF373 },    /* R1194  - AIF1 DAC2 EQ Band 3 B */ 
-	{ 0x04AB, 0x0A54 },    /* R1195  - AIF1 DAC2 EQ Band 3 C */ 
-	{ 0x04AC, 0x0558 },    /* R1196  - AIF1 DAC2 EQ Band 3 PG */ 
-	{ 0x04AD, 0x168E },    /* R1197  - AIF1 DAC2 EQ Band 4 A */ 
-	{ 0x04AE, 0xF829 },    /* R1198  - AIF1 DAC2 EQ Band 4 B */ 
-	{ 0x04AF, 0x07AD },    /* R1199  - AIF1 DAC2 EQ Band 4 C */ 
-	{ 0x04B0, 0x1103 },    /* R1200  - AIF1 DAC2 EQ Band 4 PG */ 
-	{ 0x04B1, 0x0564 },    /* R1201  - AIF1 DAC2 EQ Band 5 A */ 
-	{ 0x04B2, 0x0559 },    /* R1202  - AIF1 DAC2 EQ Band 5 B */ 
-	{ 0x04B3, 0x4000 },    /* R1203  - AIF1 DAC2 EQ Band 5 PG */ 
-	{ 0x0500, 0x00C0 },    /* R1280  - AIF2 ADC Left Volume */ 
-	{ 0x0501, 0x00C0 },    /* R1281  - AIF2 ADC Right Volume */ 
-	{ 0x0502, 0x00C0 },    /* R1282  - AIF2 DAC Left Volume */ 
-	{ 0x0503, 0x00C0 },    /* R1283  - AIF2 DAC Right Volume */ 
-	{ 0x0510, 0x0000 },    /* R1296  - AIF2 ADC Filters */ 
-	{ 0x0520, 0x0200 },    /* R1312  - AIF2 DAC Filters (1) */ 
-	{ 0x0521, 0x0010 },    /* R1313  - AIF2 DAC Filters (2) */ 
-	{ 0x0540, 0x0098 },    /* R1344  - AIF2 DRC (1) */ 
-	{ 0x0541, 0x0845 },    /* R1345  - AIF2 DRC (2) */ 
-	{ 0x0542, 0x0000 },    /* R1346  - AIF2 DRC (3) */ 
-	{ 0x0543, 0x0000 },    /* R1347  - AIF2 DRC (4) */ 
-	{ 0x0544, 0x0000 },    /* R1348  - AIF2 DRC (5) */ 
-	{ 0x0580, 0x6318 },    /* R1408  - AIF2 EQ Gains (1) */ 
-	{ 0x0581, 0x6300 },    /* R1409  - AIF2 EQ Gains (2) */ 
-	{ 0x0582, 0x0FCA },    /* R1410  - AIF2 EQ Band 1 A */ 
-	{ 0x0583, 0x0400 },    /* R1411  - AIF2 EQ Band 1 B */ 
-	{ 0x0584, 0x00D8 },    /* R1412  - AIF2 EQ Band 1 PG */ 
-	{ 0x0585, 0x1EB5 },    /* R1413  - AIF2 EQ Band 2 A */ 
-	{ 0x0586, 0xF145 },    /* R1414  - AIF2 EQ Band 2 B */ 
-	{ 0x0587, 0x0B75 },    /* R1415  - AIF2 EQ Band 2 C */ 
-	{ 0x0588, 0x01C5 },    /* R1416  - AIF2 EQ Band 2 PG */ 
-	{ 0x0589, 0x1C58 },    /* R1417  - AIF2 EQ Band 3 A */ 
-	{ 0x058A, 0xF373 },    /* R1418  - AIF2 EQ Band 3 B */ 
-	{ 0x058B, 0x0A54 },    /* R1419  - AIF2 EQ Band 3 C */ 
-	{ 0x058C, 0x0558 },    /* R1420  - AIF2 EQ Band 3 PG */ 
-	{ 0x058D, 0x168E },    /* R1421  - AIF2 EQ Band 4 A */ 
-	{ 0x058E, 0xF829 },    /* R1422  - AIF2 EQ Band 4 B */ 
-	{ 0x058F, 0x07AD },    /* R1423  - AIF2 EQ Band 4 C */ 
-	{ 0x0590, 0x1103 },    /* R1424  - AIF2 EQ Band 4 PG */ 
-	{ 0x0591, 0x0564 },    /* R1425  - AIF2 EQ Band 5 A */ 
-	{ 0x0592, 0x0559 },    /* R1426  - AIF2 EQ Band 5 B */ 
-	{ 0x0593, 0x4000 },    /* R1427  - AIF2 EQ Band 5 PG */ 
-	{ 0x0600, 0x0000 },    /* R1536  - DAC1 Mixer Volumes */ 
-	{ 0x0601, 0x0000 },    /* R1537  - DAC1 Left Mixer Routing */ 
-	{ 0x0602, 0x0000 },    /* R1538  - DAC1 Right Mixer Routing */ 
-	{ 0x0603, 0x0000 },    /* R1539  - DAC2 Mixer Volumes */ 
-	{ 0x0604, 0x0000 },    /* R1540  - DAC2 Left Mixer Routing */ 
-	{ 0x0605, 0x0000 },    /* R1541  - DAC2 Right Mixer Routing */ 
-	{ 0x0606, 0x0000 },    /* R1542  - AIF1 ADC1 Left Mixer Routing */ 
-	{ 0x0607, 0x0000 },    /* R1543  - AIF1 ADC1 Right Mixer Routing */ 
-	{ 0x0608, 0x0000 },    /* R1544  - AIF1 ADC2 Left Mixer Routing */ 
-	{ 0x0609, 0x0000 },    /* R1545  - AIF1 ADC2 Right mixer Routing */ 
-	{ 0x0610, 0x02C0 },    /* R1552  - DAC1 Left Volume */ 
-	{ 0x0611, 0x02C0 },    /* R1553  - DAC1 Right Volume */ 
-	{ 0x0612, 0x02C0 },    /* R1554  - DAC2 Left Volume */ 
-	{ 0x0613, 0x02C0 },    /* R1555  - DAC2 Right Volume */ 
-	{ 0x0614, 0x0000 },    /* R1556  - DAC Softmute */ 
-	{ 0x0620, 0x0002 },    /* R1568  - Oversampling */ 
-	{ 0x0621, 0x0000 },    /* R1569  - Sidetone */ 
-	{ 0x0700, 0x8100 },    /* R1792  - GPIO 1 */ 
-	{ 0x0701, 0xA101 },    /* R1793  - GPIO 2 */ 
-	{ 0x0702, 0xA101 },    /* R1794  - GPIO 3 */ 
-	{ 0x0703, 0xA101 },    /* R1795  - GPIO 4 */ 
-	{ 0x0704, 0xA101 },    /* R1796  - GPIO 5 */ 
-	{ 0x0705, 0xA101 },    /* R1797  - GPIO 6 */ 
-	{ 0x0706, 0xA101 },    /* R1798  - GPIO 7 */ 
-	{ 0x0707, 0xA101 },    /* R1799  - GPIO 8 */ 
-	{ 0x0708, 0xA101 },    /* R1800  - GPIO 9 */ 
-	{ 0x0709, 0xA101 },    /* R1801  - GPIO 10 */ 
-	{ 0x070A, 0xA101 },    /* R1802  - GPIO 11 */ 
-	{ 0x0720, 0x0000 },    /* R1824  - Pull Control (1) */ 
-	{ 0x0721, 0x0156 },    /* R1825  - Pull Control (2) */ 
-	{ 0x0738, 0x07FF },    /* R1848  - Interrupt Status 1 Mask */ 
-	{ 0x0739, 0xFFFF },    /* R1849  - Interrupt Status 2 Mask */ 
-	{ 0x0740, 0x0000 },    /* R1856  - Interrupt Control */ 
-	{ 0x0748, 0x003F },    /* R1864  - IRQ Debounce */ 
+	{ 0x0001, 0x0000 },    /* R1     - Power Management (1) */
+	{ 0x0002, 0x6000 },    /* R2     - Power Management (2) */
+	{ 0x0003, 0x0000 },    /* R3     - Power Management (3) */
+	{ 0x0004, 0x0000 },    /* R4     - Power Management (4) */
+	{ 0x0005, 0x0000 },    /* R5     - Power Management (5) */
+	{ 0x0006, 0x0000 },    /* R6     - Power Management (6) */
+	{ 0x0015, 0x0000 },    /* R21    - Input Mixer (1) */
+	{ 0x0018, 0x008B },    /* R24    - Left Line Input 1&2 Volume */
+	{ 0x0019, 0x008B },    /* R25    - Left Line Input 3&4 Volume */
+	{ 0x001A, 0x008B },    /* R26    - Right Line Input 1&2 Volume */
+	{ 0x001B, 0x008B },    /* R27    - Right Line Input 3&4 Volume */
+	{ 0x001C, 0x006D },    /* R28    - Left Output Volume */
+	{ 0x001D, 0x006D },    /* R29    - Right Output Volume */
+	{ 0x001E, 0x0066 },    /* R30    - Line Outputs Volume */
+	{ 0x001F, 0x0020 },    /* R31    - HPOUT2 Volume */
+	{ 0x0020, 0x0079 },    /* R32    - Left OPGA Volume */
+	{ 0x0021, 0x0079 },    /* R33    - Right OPGA Volume */
+	{ 0x0022, 0x0003 },    /* R34    - SPKMIXL Attenuation */
+	{ 0x0023, 0x0003 },    /* R35    - SPKMIXR Attenuation */
+	{ 0x0024, 0x0011 },    /* R36    - SPKOUT Mixers */
+	{ 0x0025, 0x0140 },    /* R37    - ClassD */
+	{ 0x0026, 0x0079 },    /* R38    - Speaker Volume Left */
+	{ 0x0027, 0x0079 },    /* R39    - Speaker Volume Right */
+	{ 0x0028, 0x0000 },    /* R40    - Input Mixer (2) */
+	{ 0x0029, 0x0000 },    /* R41    - Input Mixer (3) */
+	{ 0x002A, 0x0000 },    /* R42    - Input Mixer (4) */
+	{ 0x002B, 0x0000 },    /* R43    - Input Mixer (5) */
+	{ 0x002C, 0x0000 },    /* R44    - Input Mixer (6) */
+	{ 0x002D, 0x0000 },    /* R45    - Output Mixer (1) */
+	{ 0x002E, 0x0000 },    /* R46    - Output Mixer (2) */
+	{ 0x002F, 0x0000 },    /* R47    - Output Mixer (3) */
+	{ 0x0030, 0x0000 },    /* R48    - Output Mixer (4) */
+	{ 0x0031, 0x0000 },    /* R49    - Output Mixer (5) */
+	{ 0x0032, 0x0000 },    /* R50    - Output Mixer (6) */
+	{ 0x0033, 0x0000 },    /* R51    - HPOUT2 Mixer */
+	{ 0x0034, 0x0000 },    /* R52    - Line Mixer (1) */
+	{ 0x0035, 0x0000 },    /* R53    - Line Mixer (2) */
+	{ 0x0036, 0x0000 },    /* R54    - Speaker Mixer */
+	{ 0x0037, 0x0000 },    /* R55    - Additional Control */
+	{ 0x0038, 0x0000 },    /* R56    - AntiPOP (1) */
+	{ 0x0039, 0x0000 },    /* R57    - AntiPOP (2) */
+	{ 0x003A, 0x0000 },    /* R58    - MICBIAS */
+	{ 0x003B, 0x000D },    /* R59    - LDO 1 */
+	{ 0x003C, 0x0003 },    /* R60    - LDO 2 */
+	{ 0x004C, 0x1F25 },    /* R76    - Charge Pump (1) */
+	{ 0x0051, 0x0004 },    /* R81    - Class W (1) */
+	{ 0x0055, 0x054A },    /* R85    - DC Servo (2) */
+	{ 0x0057, 0x0000 },    /* R87    - DC Servo (4) */
+	{ 0x0060, 0x0000 },    /* R96    - Analogue HP (1) */
+	{ 0x0101, 0x8004 },    /* R257   - Control Interface */
+	{ 0x0110, 0x0000 },    /* R272   - Write Sequencer Ctrl (1) */
+	{ 0x0111, 0x0000 },    /* R273   - Write Sequencer Ctrl (2) */
+	{ 0x0200, 0x0000 },    /* R512   - AIF1 Clocking (1) */
+	{ 0x0201, 0x0000 },    /* R513   - AIF1 Clocking (2) */
+	{ 0x0204, 0x0000 },    /* R516   - AIF2 Clocking (1) */
+	{ 0x0205, 0x0000 },    /* R517   - AIF2 Clocking (2) */
+	{ 0x0208, 0x0000 },    /* R520   - Clocking (1) */
+	{ 0x0209, 0x0000 },    /* R521   - Clocking (2) */
+	{ 0x0210, 0x0083 },    /* R528   - AIF1 Rate */
+	{ 0x0211, 0x0083 },    /* R529   - AIF2 Rate */
+	{ 0x0220, 0x0000 },    /* R544   - FLL1 Control (1) */
+	{ 0x0221, 0x0000 },    /* R545   - FLL1 Control (2) */
+	{ 0x0222, 0x0000 },    /* R546   - FLL1 Control (3) */
+	{ 0x0223, 0x0000 },    /* R547   - FLL1 Control (4) */
+	{ 0x0224, 0x0C80 },    /* R548   - FLL1 Control (5) */
+	{ 0x0240, 0x0000 },    /* R576   - FLL2 Control (1) */
+	{ 0x0241, 0x0000 },    /* R577   - FLL2 Control (2) */
+	{ 0x0242, 0x0000 },    /* R578   - FLL2 Control (3) */
+	{ 0x0243, 0x0000 },    /* R579   - FLL2 Control (4) */
+	{ 0x0244, 0x0C80 },    /* R580   - FLL2 Control (5) */
+	{ 0x0300, 0x4050 },    /* R768   - AIF1 Control (1) */
+	{ 0x0301, 0x4000 },    /* R769   - AIF1 Control (2) */
+	{ 0x0302, 0x0000 },    /* R770   - AIF1 Master/Slave */
+	{ 0x0303, 0x0040 },    /* R771   - AIF1 BCLK */
+	{ 0x0304, 0x0040 },    /* R772   - AIF1ADC LRCLK */
+	{ 0x0305, 0x0040 },    /* R773   - AIF1DAC LRCLK */
+	{ 0x0306, 0x0004 },    /* R774   - AIF1DAC Data */
+	{ 0x0307, 0x0100 },    /* R775   - AIF1ADC Data */
+	{ 0x0310, 0x4050 },    /* R784   - AIF2 Control (1) */
+	{ 0x0311, 0x4000 },    /* R785   - AIF2 Control (2) */
+	{ 0x0312, 0x0000 },    /* R786   - AIF2 Master/Slave */
+	{ 0x0313, 0x0040 },    /* R787   - AIF2 BCLK */
+	{ 0x0314, 0x0040 },    /* R788   - AIF2ADC LRCLK */
+	{ 0x0315, 0x0040 },    /* R789   - AIF2DAC LRCLK */
+	{ 0x0316, 0x0000 },    /* R790   - AIF2DAC Data */
+	{ 0x0317, 0x0000 },    /* R791   - AIF2ADC Data */
+	{ 0x0400, 0x00C0 },    /* R1024  - AIF1 ADC1 Left Volume */
+	{ 0x0401, 0x00C0 },    /* R1025  - AIF1 ADC1 Right Volume */
+	{ 0x0402, 0x00C0 },    /* R1026  - AIF1 DAC1 Left Volume */
+	{ 0x0403, 0x00C0 },    /* R1027  - AIF1 DAC1 Right Volume */
+	{ 0x0404, 0x00C0 },    /* R1028  - AIF1 ADC2 Left Volume */
+	{ 0x0405, 0x00C0 },    /* R1029  - AIF1 ADC2 Right Volume */
+	{ 0x0406, 0x00C0 },    /* R1030  - AIF1 DAC2 Left Volume */
+	{ 0x0407, 0x00C0 },    /* R1031  - AIF1 DAC2 Right Volume */
+	{ 0x0410, 0x0000 },    /* R1040  - AIF1 ADC1 Filters */
+	{ 0x0411, 0x0000 },    /* R1041  - AIF1 ADC2 Filters */
+	{ 0x0420, 0x0200 },    /* R1056  - AIF1 DAC1 Filters (1) */
+	{ 0x0421, 0x0010 },    /* R1057  - AIF1 DAC1 Filters (2) */
+	{ 0x0422, 0x0200 },    /* R1058  - AIF1 DAC2 Filters (1) */
+	{ 0x0423, 0x0010 },    /* R1059  - AIF1 DAC2 Filters (2) */
+	{ 0x0440, 0x0098 },    /* R1088  - AIF1 DRC1 (1) */
+	{ 0x0441, 0x0845 },    /* R1089  - AIF1 DRC1 (2) */
+	{ 0x0442, 0x0000 },    /* R1090  - AIF1 DRC1 (3) */
+	{ 0x0443, 0x0000 },    /* R1091  - AIF1 DRC1 (4) */
+	{ 0x0444, 0x0000 },    /* R1092  - AIF1 DRC1 (5) */
+	{ 0x0450, 0x0098 },    /* R1104  - AIF1 DRC2 (1) */
+	{ 0x0451, 0x0845 },    /* R1105  - AIF1 DRC2 (2) */
+	{ 0x0452, 0x0000 },    /* R1106  - AIF1 DRC2 (3) */
+	{ 0x0453, 0x0000 },    /* R1107  - AIF1 DRC2 (4) */
+	{ 0x0454, 0x0000 },    /* R1108  - AIF1 DRC2 (5) */
+	{ 0x0480, 0x6318 },    /* R1152  - AIF1 DAC1 EQ Gains (1) */
+	{ 0x0481, 0x6300 },    /* R1153  - AIF1 DAC1 EQ Gains (2) */
+	{ 0x0482, 0x0FCA },    /* R1154  - AIF1 DAC1 EQ Band 1 A */
+	{ 0x0483, 0x0400 },    /* R1155  - AIF1 DAC1 EQ Band 1 B */
+	{ 0x0484, 0x00D8 },    /* R1156  - AIF1 DAC1 EQ Band 1 PG */
+	{ 0x0485, 0x1EB5 },    /* R1157  - AIF1 DAC1 EQ Band 2 A */
+	{ 0x0486, 0xF145 },    /* R1158  - AIF1 DAC1 EQ Band 2 B */
+	{ 0x0487, 0x0B75 },    /* R1159  - AIF1 DAC1 EQ Band 2 C */
+	{ 0x0488, 0x01C5 },    /* R1160  - AIF1 DAC1 EQ Band 2 PG */
+	{ 0x0489, 0x1C58 },    /* R1161  - AIF1 DAC1 EQ Band 3 A */
+	{ 0x048A, 0xF373 },    /* R1162  - AIF1 DAC1 EQ Band 3 B */
+	{ 0x048B, 0x0A54 },    /* R1163  - AIF1 DAC1 EQ Band 3 C */
+	{ 0x048C, 0x0558 },    /* R1164  - AIF1 DAC1 EQ Band 3 PG */
+	{ 0x048D, 0x168E },    /* R1165  - AIF1 DAC1 EQ Band 4 A */
+	{ 0x048E, 0xF829 },    /* R1166  - AIF1 DAC1 EQ Band 4 B */
+	{ 0x048F, 0x07AD },    /* R1167  - AIF1 DAC1 EQ Band 4 C */
+	{ 0x0490, 0x1103 },    /* R1168  - AIF1 DAC1 EQ Band 4 PG */
+	{ 0x0491, 0x0564 },    /* R1169  - AIF1 DAC1 EQ Band 5 A */
+	{ 0x0492, 0x0559 },    /* R1170  - AIF1 DAC1 EQ Band 5 B */
+	{ 0x0493, 0x4000 },    /* R1171  - AIF1 DAC1 EQ Band 5 PG */
+	{ 0x04A0, 0x6318 },    /* R1184  - AIF1 DAC2 EQ Gains (1) */
+	{ 0x04A1, 0x6300 },    /* R1185  - AIF1 DAC2 EQ Gains (2) */
+	{ 0x04A2, 0x0FCA },    /* R1186  - AIF1 DAC2 EQ Band 1 A */
+	{ 0x04A3, 0x0400 },    /* R1187  - AIF1 DAC2 EQ Band 1 B */
+	{ 0x04A4, 0x00D8 },    /* R1188  - AIF1 DAC2 EQ Band 1 PG */
+	{ 0x04A5, 0x1EB5 },    /* R1189  - AIF1 DAC2 EQ Band 2 A */
+	{ 0x04A6, 0xF145 },    /* R1190  - AIF1 DAC2 EQ Band 2 B */
+	{ 0x04A7, 0x0B75 },    /* R1191  - AIF1 DAC2 EQ Band 2 C */
+	{ 0x04A8, 0x01C5 },    /* R1192  - AIF1 DAC2 EQ Band 2 PG */
+	{ 0x04A9, 0x1C58 },    /* R1193  - AIF1 DAC2 EQ Band 3 A */
+	{ 0x04AA, 0xF373 },    /* R1194  - AIF1 DAC2 EQ Band 3 B */
+	{ 0x04AB, 0x0A54 },    /* R1195  - AIF1 DAC2 EQ Band 3 C */
+	{ 0x04AC, 0x0558 },    /* R1196  - AIF1 DAC2 EQ Band 3 PG */
+	{ 0x04AD, 0x168E },    /* R1197  - AIF1 DAC2 EQ Band 4 A */
+	{ 0x04AE, 0xF829 },    /* R1198  - AIF1 DAC2 EQ Band 4 B */
+	{ 0x04AF, 0x07AD },    /* R1199  - AIF1 DAC2 EQ Band 4 C */
+	{ 0x04B0, 0x1103 },    /* R1200  - AIF1 DAC2 EQ Band 4 PG */
+	{ 0x04B1, 0x0564 },    /* R1201  - AIF1 DAC2 EQ Band 5 A */
+	{ 0x04B2, 0x0559 },    /* R1202  - AIF1 DAC2 EQ Band 5 B */
+	{ 0x04B3, 0x4000 },    /* R1203  - AIF1 DAC2 EQ Band 5 PG */
+	{ 0x0500, 0x00C0 },    /* R1280  - AIF2 ADC Left Volume */
+	{ 0x0501, 0x00C0 },    /* R1281  - AIF2 ADC Right Volume */
+	{ 0x0502, 0x00C0 },    /* R1282  - AIF2 DAC Left Volume */
+	{ 0x0503, 0x00C0 },    /* R1283  - AIF2 DAC Right Volume */
+	{ 0x0510, 0x0000 },    /* R1296  - AIF2 ADC Filters */
+	{ 0x0520, 0x0200 },    /* R1312  - AIF2 DAC Filters (1) */
+	{ 0x0521, 0x0010 },    /* R1313  - AIF2 DAC Filters (2) */
+	{ 0x0540, 0x0098 },    /* R1344  - AIF2 DRC (1) */
+	{ 0x0541, 0x0845 },    /* R1345  - AIF2 DRC (2) */
+	{ 0x0542, 0x0000 },    /* R1346  - AIF2 DRC (3) */
+	{ 0x0543, 0x0000 },    /* R1347  - AIF2 DRC (4) */
+	{ 0x0544, 0x0000 },    /* R1348  - AIF2 DRC (5) */
+	{ 0x0580, 0x6318 },    /* R1408  - AIF2 EQ Gains (1) */
+	{ 0x0581, 0x6300 },    /* R1409  - AIF2 EQ Gains (2) */
+	{ 0x0582, 0x0FCA },    /* R1410  - AIF2 EQ Band 1 A */
+	{ 0x0583, 0x0400 },    /* R1411  - AIF2 EQ Band 1 B */
+	{ 0x0584, 0x00D8 },    /* R1412  - AIF2 EQ Band 1 PG */
+	{ 0x0585, 0x1EB5 },    /* R1413  - AIF2 EQ Band 2 A */
+	{ 0x0586, 0xF145 },    /* R1414  - AIF2 EQ Band 2 B */
+	{ 0x0587, 0x0B75 },    /* R1415  - AIF2 EQ Band 2 C */
+	{ 0x0588, 0x01C5 },    /* R1416  - AIF2 EQ Band 2 PG */
+	{ 0x0589, 0x1C58 },    /* R1417  - AIF2 EQ Band 3 A */
+	{ 0x058A, 0xF373 },    /* R1418  - AIF2 EQ Band 3 B */
+	{ 0x058B, 0x0A54 },    /* R1419  - AIF2 EQ Band 3 C */
+	{ 0x058C, 0x0558 },    /* R1420  - AIF2 EQ Band 3 PG */
+	{ 0x058D, 0x168E },    /* R1421  - AIF2 EQ Band 4 A */
+	{ 0x058E, 0xF829 },    /* R1422  - AIF2 EQ Band 4 B */
+	{ 0x058F, 0x07AD },    /* R1423  - AIF2 EQ Band 4 C */
+	{ 0x0590, 0x1103 },    /* R1424  - AIF2 EQ Band 4 PG */
+	{ 0x0591, 0x0564 },    /* R1425  - AIF2 EQ Band 5 A */
+	{ 0x0592, 0x0559 },    /* R1426  - AIF2 EQ Band 5 B */
+	{ 0x0593, 0x4000 },    /* R1427  - AIF2 EQ Band 5 PG */
+	{ 0x0600, 0x0000 },    /* R1536  - DAC1 Mixer Volumes */
+	{ 0x0601, 0x0000 },    /* R1537  - DAC1 Left Mixer Routing */
+	{ 0x0602, 0x0000 },    /* R1538  - DAC1 Right Mixer Routing */
+	{ 0x0603, 0x0000 },    /* R1539  - DAC2 Mixer Volumes */
+	{ 0x0604, 0x0000 },    /* R1540  - DAC2 Left Mixer Routing */
+	{ 0x0605, 0x0000 },    /* R1541  - DAC2 Right Mixer Routing */
+	{ 0x0606, 0x0000 },    /* R1542  - AIF1 ADC1 Left Mixer Routing */
+	{ 0x0607, 0x0000 },    /* R1543  - AIF1 ADC1 Right Mixer Routing */
+	{ 0x0608, 0x0000 },    /* R1544  - AIF1 ADC2 Left Mixer Routing */
+	{ 0x0609, 0x0000 },    /* R1545  - AIF1 ADC2 Right mixer Routing */
+	{ 0x0610, 0x02C0 },    /* R1552  - DAC1 Left Volume */
+	{ 0x0611, 0x02C0 },    /* R1553  - DAC1 Right Volume */
+	{ 0x0612, 0x02C0 },    /* R1554  - DAC2 Left Volume */
+	{ 0x0613, 0x02C0 },    /* R1555  - DAC2 Right Volume */
+	{ 0x0614, 0x0000 },    /* R1556  - DAC Softmute */
+	{ 0x0620, 0x0002 },    /* R1568  - Oversampling */
+	{ 0x0621, 0x0000 },    /* R1569  - Sidetone */
+	{ 0x0700, 0x8100 },    /* R1792  - GPIO 1 */
+	{ 0x0701, 0xA101 },    /* R1793  - GPIO 2 */
+	{ 0x0702, 0xA101 },    /* R1794  - GPIO 3 */
+	{ 0x0703, 0xA101 },    /* R1795  - GPIO 4 */
+	{ 0x0704, 0xA101 },    /* R1796  - GPIO 5 */
+	{ 0x0705, 0xA101 },    /* R1797  - GPIO 6 */
+	{ 0x0706, 0xA101 },    /* R1798  - GPIO 7 */
+	{ 0x0707, 0xA101 },    /* R1799  - GPIO 8 */
+	{ 0x0708, 0xA101 },    /* R1800  - GPIO 9 */
+	{ 0x0709, 0xA101 },    /* R1801  - GPIO 10 */
+	{ 0x070A, 0xA101 },    /* R1802  - GPIO 11 */
+	{ 0x0720, 0x0000 },    /* R1824  - Pull Control (1) */
+	{ 0x0721, 0x0156 },    /* R1825  - Pull Control (2) */
+	{ 0x0738, 0x07FF },    /* R1848  - Interrupt Status 1 Mask */
+	{ 0x0739, 0xFFFF },    /* R1849  - Interrupt Status 2 Mask */
+	{ 0x0740, 0x0000 },    /* R1856  - Interrupt Control */
+	{ 0x0748, 0x003F },    /* R1864  - IRQ Debounce */
 };
 
 static const struct reg_default wm8958_defaults[] = {

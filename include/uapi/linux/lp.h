@@ -3,7 +3,7 @@
  * usr/include/linux/lp.h c.1991-1992 James Wiegand
  * many modifications copyright (C) 1992 Michael K. Johnson
  * Interrupt support added 1993 Nigel Gamble
- * Removed 8255 status defines from inside __KERNEL__ Marcelo Tosatti 
+ * Removed 8255 status defines from inside __KERNEL__ Marcelo Tosatti
  */
 #ifndef _UAPI_LINUX_LP_H
 #define _UAPI_LINUX_LP_H
@@ -30,7 +30,7 @@
 #define LP_NO_REVERSE  0x0400 /* No reverse mode available. */
 #define LP_DATA_AVAIL  0x0800 /* Data is available. */
 
-/* 
+/*
  * bit defines for 8255 status port
  * base + 1
  * accessed with LP_S(minor), which gets the byte...

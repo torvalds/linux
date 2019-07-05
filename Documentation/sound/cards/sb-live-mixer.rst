@@ -5,7 +5,7 @@ Sound Blaster Live mixer / default DSP code
 
 The EMU10K1 chips have a DSP part which can be programmed to support
 various ways of sample processing, which is described here.
-(This article does not deal with the overall functionality of the 
+(This article does not deal with the overall functionality of the
 EMU10K1 chips. See the manuals section for further details.)
 
 The ALSA driver programs this portion of chip by default code
@@ -22,7 +22,7 @@ little endian streams without any modifications to the digital output
 to 8 raw PCM devices operating at 48kHz, 16-bit little endian. It would
 be easy to add support for multichannel devices to the current code,
 but the conversion routines exist only for stereo (2-channel streams)
-at the time. 
+at the time.
 
 Look to tram_poke routines in lowlevel/emu10k1/emufx.c for more details.
 
@@ -32,9 +32,9 @@ Digital mixer controls
 
 These controls are built using the DSP instructions. They offer extended
 functionality. Only the default build-in code in the ALSA driver is described
-here. Note that the controls work as attenuators: the maximum value is the 
-neutral position leaving the signal unchanged. Note that if the  same destination 
-is mentioned in multiple controls, the signal is accumulated and can be wrapped 
+here. Note that the controls work as attenuators: the maximum value is the
+neutral position leaving the signal unchanged. Note that if the  same destination
+is mentioned in multiple controls, the signal is accumulated and can be wrapped
 (set to maximal or minimal value without checking of overflow).
 
 
@@ -284,9 +284,9 @@ twelve values with this mapping:
 * 10 - right, C destination (FX-bus 0-15), default 2
 * 11 - right, D destination (FX-bus 0-15), default 3
 
-Don't forget that it's illegal to assign a channel to the same FX-bus accumulator 
+Don't forget that it's illegal to assign a channel to the same FX-bus accumulator
 more than once (it means 0=0 && 1=0 is an invalid combination).
- 
+
 ``name='EMU10K1 PCM Send Volume',index 0-31``
 ---------------------------------------------
 It specifies the attenuation (amount) for given destination in range 0-255.

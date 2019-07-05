@@ -69,7 +69,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 	if (!PageUptodate(page)) {
 		void *kaddr = kmap(page);
 		u64 dsize = i_size_read(inode);
- 
+
 		if (dsize > gfs2_max_stuffed_size(ip))
 			dsize = gfs2_max_stuffed_size(ip);
 

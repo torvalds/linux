@@ -5,7 +5,7 @@
  *   Lowlevel functions for Hoontech STDSP24
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- */      
+ */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -131,12 +131,12 @@ static void snd_ice1712_stdsp24_box_midi(struct snd_ice1712 *ice, int box, int m
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[3]);
 
 	udelay(100);
-	
+
 	ICE1712_STDSP24_2_MIDIIN(spec->boxbits, 0);
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[2]);
-	
+
 	mdelay(10);
-	
+
 	ICE1712_STDSP24_2_MIDIIN(spec->boxbits, 1);
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[2]);
 
@@ -175,7 +175,7 @@ static int hoontech_init(struct snd_ice1712 *ice, bool staudio)
 	ICE1712_STDSP24_1_CHN1(spec->boxbits, 1);
 	ICE1712_STDSP24_1_CHN2(spec->boxbits, 1);
 	ICE1712_STDSP24_1_CHN3(spec->boxbits, 1);
-	
+
 	ICE1712_STDSP24_SET_ADDR(spec->boxbits, 2);
 	ICE1712_STDSP24_CLOCK(spec->boxbits, 2, 1);
 	ICE1712_STDSP24_2_CHN4(spec->boxbits, 1);
@@ -303,7 +303,7 @@ static int snd_ice1712_value_init(struct snd_ice1712 *ice)
 
 	/* set the analog ADCs */
 	ice->num_total_adcs = 2;
-	
+
 	/* analog section */
 	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)

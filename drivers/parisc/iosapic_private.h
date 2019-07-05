@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* 
+/*
  *    Private structs/constants for PARISC IOSAPIC support
  *
  *    Copyright (C) 2000 Hewlett Packard (Grant Grundler)
@@ -20,7 +20,7 @@
 ** Interrupt Routing Stuff
 ** -----------------------
 ** The interrupt routing table consists of entries derived from
-** MP Specification Draft 1.5. There is one interrupt routing 
+** MP Specification Draft 1.5. There is one interrupt routing
 ** table per cell.  N- and L-class consist of a single cell.
 */
 struct irt_entry {
@@ -31,57 +31,57 @@ struct irt_entry {
 	/* Entry Length 16 indicates entry is 16 bytes long */
 	u8 entry_length;
 
-	/* 
-	** Interrupt Type of 0 indicates a vectored interrupt, 
-	** all other values are reserved 
+	/*
+	** Interrupt Type of 0 indicates a vectored interrupt,
+	** all other values are reserved
 	*/
 	u8 interrupt_type;
 
-	/* 
+	/*
 	** PO and EL
-	** Polarity of SAPIC I/O input signals: 
-	**    00 = Reserved 
-	**    01 = Active high 
-	**    10 = Reserved 
-	**    11 = Active low 
-	** Trigger mode of SAPIC I/O input signals: 
-	**    00 = Reserved 
-	**    01 = Edge-triggered 
-	**    10 = Reserved 
+	** Polarity of SAPIC I/O input signals:
+	**    00 = Reserved
+	**    01 = Active high
+	**    10 = Reserved
+	**    11 = Active low
+	** Trigger mode of SAPIC I/O input signals:
+	**    00 = Reserved
+	**    01 = Edge-triggered
+	**    10 = Reserved
 	**    11 = Level-triggered
 	*/
 	u8 polarity_trigger;
 
-	/* 
+	/*
 	** IRQ and DEVNO
 	** irq identifies PCI interrupt signal where
-	**    0x0 corresponds to INT_A#, 
-	**    0x1 corresponds to INT_B#, 
-	**    0x2 corresponds to INT_C# 
-	**    0x3 corresponds to INT_D# 
-	** PCI device number where interrupt originates 
+	**    0x0 corresponds to INT_A#,
+	**    0x1 corresponds to INT_B#,
+	**    0x2 corresponds to INT_C#
+	**    0x3 corresponds to INT_D#
+	** PCI device number where interrupt originates
 	*/
 	u8 src_bus_irq_devno;
 
 	/* Source Bus ID identifies the bus where interrupt signal comes from */
 	u8 src_bus_id;
 
-	/* 
+	/*
 	** Segment ID is unique across a protection domain and
-	** identifies a segment of PCI buses (reserved in 
-	** MP Specification Draft 1.5) 
+	** identifies a segment of PCI buses (reserved in
+	** MP Specification Draft 1.5)
 	*/
 	u8 src_seg_id;
 
-	/* 
-	** Destination I/O SAPIC INTIN# identifies the INTIN n pin 
-	** to which the signal is connected 
+	/*
+	** Destination I/O SAPIC INTIN# identifies the INTIN n pin
+	** to which the signal is connected
 	*/
 	u8 dest_iosapic_intin;
 
-	/* 
-	** Destination I/O SAPIC Address identifies the I/O SAPIC 
-	** to which the signal is connected 
+	/*
+	** Destination I/O SAPIC Address identifies the I/O SAPIC
+	** to which the signal is connected
 	*/
 	u64 dest_iosapic_addr;
 };

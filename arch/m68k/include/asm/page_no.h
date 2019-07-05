@@ -3,7 +3,7 @@
 #define _M68K_PAGE_NO_H
 
 #ifndef __ASSEMBLY__
- 
+
 extern unsigned long memory_start;
 extern unsigned long memory_end;
 

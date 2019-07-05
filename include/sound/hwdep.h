@@ -3,7 +3,7 @@
 #define __SOUND_HWDEP_H
 
 /*
- *  Hardware dependent layer 
+ *  Hardware dependent layer
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  */
 

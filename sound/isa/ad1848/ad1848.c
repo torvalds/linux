@@ -60,7 +60,7 @@ static int snd_ad1848_match(struct device *dev, unsigned int n)
 	}
 	if (irq[n] == SNDRV_AUTO_IRQ) {
 		dev_err(dev, "please specify irq\n");
-		return 0;	
+		return 0;
 	}
 	if (dma1[n] == SNDRV_AUTO_DMA) {
 		dev_err(dev, "please specify dma1\n");

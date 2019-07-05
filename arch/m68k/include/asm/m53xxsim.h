@@ -48,16 +48,16 @@
 #define	MCFSIM_IMRL		0xFC04800C
 #define	MCFSIM_IMRH		0xFC048008
 #define	MCFSIM_IMR		MCFSIM_IMRL
-#define	MCFSIM_ICR0		0xFC048040	
-#define	MCFSIM_ICR1		0xFC048041	
-#define	MCFSIM_ICR2		0xFC048042	
-#define	MCFSIM_ICR3		0xFC048043	
-#define	MCFSIM_ICR4		0xFC048044	
-#define	MCFSIM_ICR5		0xFC048045	
-#define	MCFSIM_ICR6		0xFC048046	
-#define	MCFSIM_ICR7		0xFC048047	
-#define	MCFSIM_ICR8		0xFC048048	
-#define	MCFSIM_ICR9		0xFC048049	
+#define	MCFSIM_ICR0		0xFC048040
+#define	MCFSIM_ICR1		0xFC048041
+#define	MCFSIM_ICR2		0xFC048042
+#define	MCFSIM_ICR3		0xFC048043
+#define	MCFSIM_ICR4		0xFC048044
+#define	MCFSIM_ICR5		0xFC048045
+#define	MCFSIM_ICR6		0xFC048046
+#define	MCFSIM_ICR7		0xFC048047
+#define	MCFSIM_ICR8		0xFC048048
+#define	MCFSIM_ICR9		0xFC048049
 #define	MCFSIM_ICR10		0xFC04804A
 #define	MCFSIM_ICR11		0xFC04804B
 
@@ -152,15 +152,15 @@
 #define MCFPM_LPCR		0xec090007
 
 /*
- *	The M5329EVB board needs a help getting its devices initialized 
- *	at kernel start time if dBUG doesn't set it up (for example 
+ *	The M5329EVB board needs a help getting its devices initialized
+ *	at kernel start time if dBUG doesn't set it up (for example
  *	it is not used), so we need to do it manually.
  */
 #ifdef __ASSEMBLER__
 .macro m5329EVB_setup
 	movel	#0xFC098000, %a7
 	movel	#0x0, (%a7)
-#define CORE_SRAM	0x80000000	
+#define CORE_SRAM	0x80000000
 #define CORE_SRAM_SIZE	0x8000
 	movel	#CORE_SRAM, %d0
 	addl	#0x221, %d0

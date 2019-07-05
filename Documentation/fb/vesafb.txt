@@ -42,28 +42,28 @@ VESA mode number. Here are those VESA mode numbers:
 
     | 640x480  800x600  1024x768 1280x1024
 ----+-------------------------------------
-256 |  0x101    0x103    0x105    0x107   
-32k |  0x110    0x113    0x116    0x119   
-64k |  0x111    0x114    0x117    0x11A   
-16M |  0x112    0x115    0x118    0x11B   
+256 |  0x101    0x103    0x105    0x107
+32k |  0x110    0x113    0x116    0x119
+64k |  0x111    0x114    0x117    0x11A
+16M |  0x112    0x115    0x118    0x11B
 
 The video mode number of the Linux kernel is the VESA mode number plus
 0x200.
- 
+
  Linux_kernel_mode_number = VESA_mode_number + 0x200
 
 So the table for the Kernel mode numbers are:
 
     | 640x480  800x600  1024x768 1280x1024
 ----+-------------------------------------
-256 |  0x301    0x303    0x305    0x307   
-32k |  0x310    0x313    0x316    0x319   
-64k |  0x311    0x314    0x317    0x31A   
-16M |  0x312    0x315    0x318    0x31B   
+256 |  0x301    0x303    0x305    0x307
+32k |  0x310    0x313    0x316    0x319
+64k |  0x311    0x314    0x317    0x31A
+16M |  0x312    0x315    0x318    0x31B
 
 To enable one of those modes you have to specify "vga=ask" in the
 lilo.conf file and rerun LILO. Then you can type in the desired
-mode at the "vga=ask" prompt. For example if you like to use 
+mode at the "vga=ask" prompt. For example if you like to use
 1024x768x256 colors you have to say "305" at this prompt.
 
 If this does not work, this might be because your BIOS does not support
@@ -72,7 +72,7 @@ Even if your board does, it might be the BIOS which does not.  VESA BIOS
 Extensions v2.0 are required, 1.2 is NOT sufficient.  You will get a
 "bad mode number" message if something goes wrong.
 
-1. Note: LILO cannot handle hex, for booting directly with 
+1. Note: LILO cannot handle hex, for booting directly with
          "vga=mode-number" you have to transform the numbers to decimal.
 2. Note: Some newer versions of LILO appear to work with those hex values,
          if you set the 0x in front of the numbers.
@@ -120,7 +120,7 @@ Accepted options:
 
 inverse	use inverse color map
 
-ypan	enable display panning using the VESA protected mode 
+ypan	enable display panning using the VESA protected mode
 	interface.  The visible screen is just a window of the
 	video memory, console scrolling is done by changing the
 	start of the window.
@@ -132,7 +132,7 @@ ypan	enable display panning using the VESA protected mode
 		  ugly flicker effects (boot logo flickers for
 		  example).
 
-ywrap	Same as ypan, but assumes your gfx board can wrap-around 
+ywrap	Same as ypan, but assumes your gfx board can wrap-around
 	the video memory (i.e. starts reading from top if it
 	reaches the end of video memory).  Faster than ypan.
 
@@ -177,5 +177,5 @@ Have fun!
 --
 Gerd Knorr <kraxel@goldbach.in-berlin.de>
 
-Minor (mostly typo) changes 
+Minor (mostly typo) changes
 by Nico Schmoigl <schmoigl@rumms.uni-mannheim.de>

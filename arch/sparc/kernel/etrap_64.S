@@ -26,7 +26,7 @@
  * %g4 and %g5 will be preserved %l4 and %l5 respectively.
  */
 
-		.text		
+		.text
 		.align	64
 		.globl	etrap_syscall, etrap, etrap_irq, etraptl1
 etrap:		rdpr	%pil, %g2

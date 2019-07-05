@@ -11,7 +11,7 @@
 #include <linux/fs.h>
 
 /* Note:
- * struct __debug_entry must be defined outside of #ifdef __KERNEL__ 
+ * struct __debug_entry must be defined outside of #ifdef __KERNEL__
  * in order to allow a user program to analyze the 'raw'-view.
  */
 

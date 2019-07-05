@@ -513,11 +513,11 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	 * (and therefore word length) anyway,
 	 * so the format will be the same.
 	 */
-	regmap_write(dev->i2s_regmap, BCM2835_I2S_RXC_A_REG, 
+	regmap_write(dev->i2s_regmap, BCM2835_I2S_RXC_A_REG,
 		  format
 		| BCM2835_I2S_CH1_POS(rx_ch1_pos)
 		| BCM2835_I2S_CH2_POS(rx_ch2_pos));
-	regmap_write(dev->i2s_regmap, BCM2835_I2S_TXC_A_REG, 
+	regmap_write(dev->i2s_regmap, BCM2835_I2S_TXC_A_REG,
 		  format
 		| BCM2835_I2S_CH1_POS(tx_ch1_pos)
 		| BCM2835_I2S_CH2_POS(tx_ch2_pos));

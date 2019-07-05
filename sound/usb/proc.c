@@ -41,7 +41,7 @@ static void proc_audio_usbid_read(struct snd_info_entry *entry, struct snd_info_
 {
 	struct snd_usb_audio *chip = entry->private_data;
 	if (!atomic_read(&chip->shutdown))
-		snd_iprintf(buffer, "%04x:%04x\n", 
+		snd_iprintf(buffer, "%04x:%04x\n",
 			    USB_ID_VENDOR(chip->usb_id),
 			    USB_ID_PRODUCT(chip->usb_id));
 }

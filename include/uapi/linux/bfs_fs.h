@@ -38,7 +38,7 @@ struct bfs_inode {
 	__u32 i_padding[4];
 };
 
-#define BFS_NAMELEN		14	
+#define BFS_NAMELEN		14
 #define BFS_DIRENT_SIZE		16
 #define BFS_DIRS_PER_BLOCK	32
 

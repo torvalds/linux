@@ -158,8 +158,8 @@ static void update_status_cbit();
 static void parisc_linux_get_fpu_type(u_int fpregs[])
 {
 	/* on pa-linux the fpu type is not filled in by the
-	 * caller; it is constructed here  
-	 */ 
+	 * caller; it is constructed here
+	 */
 	if (boot_cpu_data.cpu_type == pcxs)
 		fpregs[FPU_TYPE_FLAG_POS] = TIMEX_EXTEN_FLAG;
 	else if (boot_cpu_data.cpu_type == pcxt ||
@@ -269,12 +269,12 @@ emfpudispatch(u_int ir, u_int dummy1, u_int dummy2, u_int fpregs[])
 			return(PA83_UNIMP_EXCP);
 	}
 }
-	
+
 
 static u_int
 decode_0c(u_int ir, u_int class, u_int subop, u_int fpregs[])
 {
-	u_int r1,r2,t;		/* operand register offsets */ 
+	u_int r1,r2,t;		/* operand register offsets */
 	u_int fmt;		/* also sf for class 1 conversions */
 	u_int  df;		/* for class 1 conversions */
 	u_int *status;
@@ -620,7 +620,7 @@ decode_0c(u_int ir, u_int class, u_int subop, u_int fpregs[])
 			case 6:
 			case 7:
 				return(MAJOR_0C_EXCP);
-			
+
 			case 0: /* FADD */
 				switch (fmt) {
 				    case 0:
@@ -714,7 +714,7 @@ u_int fpregs[];
 		fmt = extru(ir,fp0efmtpos,1);
 	/*
 	 * An undefined combination, double precision accessing the
-	 * right half of a FPR, can get us into trouble.  
+	 * right half of a FPR, can get us into trouble.
 	 * Let's just force proper alignment on it.
 	 */
 	if (fmt == DBL) {
@@ -798,7 +798,7 @@ u_int fpregs[];
 					return(MAJOR_0E_EXCP);
 				}
 		} /* end of switch (subop */
-	
+
 	case 1: /* class 1 */
 		df = extru(ir,fpdfpos,2); /* get dest format */
 		/*
@@ -810,7 +810,7 @@ u_int fpregs[];
 		}
 		if ((df & 2) || (fmt & 2))
 			return(MAJOR_0E_EXCP);
-		
+
 		fmt = (fmt << 1) | df;
 		switch (subop) {
 			case 0: /* FCNVFF */
@@ -1014,7 +1014,7 @@ u_int fpregs[];
 			case 6:
 			case 7:
 				return(MAJOR_0E_EXCP);
-			
+
 			/*
 			 * Note that fmt is only 1 bit for class 3 */
 			case 0: /* FADD */
@@ -1203,7 +1203,7 @@ u_int fpregs[];
 
 		ta = (extru(ir,fptapos,4) | 0x10 ) << 1;	/* get offset */
 		ta |= extru(ir,fptapos-4,1);	/* add right word offset */
-		
+
 		if (ra == 0x20 &&(fpu_type_flags & TIMEX_ROLEX_FPU_MASK)) {
 			/* special case FMPYCFXT (really 0)
 			  * This instruction is only present on the Timex and
@@ -1274,7 +1274,7 @@ u_int fpregs[];
 		ta = extru(ir, fptapos, 5) * sizeof(double)/sizeof(u_int);
 		if (ta == 0)
 			return(MAJOR_26_EXCP);
-		
+
 		if (dbl_fmpy(&fpregs[rm1],&fpregs[rm2],&mtmp.ints.i1,&status))
 			error = 1;
 		if (dbl_fsub(&fpregs[ta], &fpregs[ra], &atmp.ints.i1,&status))
@@ -1310,7 +1310,7 @@ u_int fpregs[];
 
 		ta = (extru(ir,fptapos,4) | 0x10 ) << 1;	/* get offset */
 		ta |= extru(ir,fptapos-4,1);	/* add right word offset */
-		
+
 		if (sgl_fmpy(&fpregs[rm1],&fpregs[rm2],&mtmp.ints.i1,&status))
 			error = 1;
 		if (sgl_fsub(&fpregs[ta], &fpregs[ra], &atmp.ints.i1,&status))
@@ -1409,7 +1409,7 @@ u_int y_field;
 	 * otherwise update the specified bit in the Compare Array.
 	 * Note that the y-field will always be 0 for non-PA2.0 FPU's.
 	 */
-	if ((fpu_type & TIMEX_EXTEN_FLAG) || 
+	if ((fpu_type & TIMEX_EXTEN_FLAG) ||
 	    (fpu_type & ROLEX_EXTEN_FLAG) ||
 	    (fpu_type & PA2_0_FPU_FLAG)) {
 		if (y_field == 0) {

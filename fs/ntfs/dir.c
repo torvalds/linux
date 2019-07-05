@@ -60,7 +60,7 @@ ntfschar I30[5] = { cpu_to_le16('$'), cpu_to_le16('I'),
  *	       locked whilst being accessed otherwise we may find a corrupt
  *	       page due to it being under ->writepage at the moment which
  *	       applies the mst protection fixups before writing out and then
- *	       removes them again after the write is complete after which it 
+ *	       removes them again after the write is complete after which it
  *	       unlocks the page.
  */
 MFT_REF ntfs_lookup_inode_by_name(ntfs_inode *dir_ni, const ntfschar *uname,
@@ -1079,7 +1079,7 @@ static inline int ntfs_filldir(ntfs_volume *vol,
  *	       locked whilst being accessed otherwise we may find a corrupt
  *	       page due to it being under ->writepage at the moment which
  *	       applies the mst protection fixups before writing out and then
- *	       removes them again after the write is complete after which it 
+ *	       removes them again after the write is complete after which it
  *	       unlocks the page.
  */
 static int ntfs_readdir(struct file *file, struct dir_context *actor)

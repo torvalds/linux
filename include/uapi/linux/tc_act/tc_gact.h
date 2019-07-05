@@ -19,7 +19,7 @@ struct tc_gact_p {
 	__u16                 pval;
 	int                   paction;
 };
- 
+
 enum {
 	TCA_GACT_UNSPEC,
 	TCA_GACT_TM,
@@ -29,5 +29,5 @@ enum {
 	__TCA_GACT_MAX
 };
 #define TCA_GACT_MAX (__TCA_GACT_MAX - 1)
- 
+
 #endif

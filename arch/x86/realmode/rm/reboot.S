@@ -40,9 +40,9 @@ GLOBAL(machine_real_restart_paging_off)
 	wrmsr
 
 	movl	%edi, %eax
-	
+
 #endif /* CONFIG_X86_64 */
-	
+
 	/* Set up the IDT for real mode. */
 	lidtl	pa_machine_real_restart_idt
 

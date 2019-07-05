@@ -57,7 +57,7 @@ int utf8_to_utf32(const u8 *s, int inlen, unicode_t *pu)
 	unsigned long l;
 	int c0, c, nc;
 	const struct utf8_table *t;
-  
+
 	nc = 0;
 	c0 = *s;
 	l = c0;
@@ -251,7 +251,7 @@ int __register_nls(struct nls_table *nls, struct module *owner)
 	nls->next = tables;
 	tables = nls;
 	spin_unlock(&nls_lock);
-	return 0;	
+	return 0;
 }
 EXPORT_SYMBOL(__register_nls);
 
@@ -532,7 +532,7 @@ static struct nls_table default_table = {
 struct nls_table *load_nls_default(void)
 {
 	struct nls_table *default_nls;
-	
+
 	default_nls = load_nls(CONFIG_NLS_DEFAULT);
 	if (default_nls != NULL)
 		return default_nls;

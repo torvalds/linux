@@ -28,7 +28,7 @@ exception_trampoline0:
 	extu.b	r1,r1
 	jmp	@r0
 	  extu.w	r1,r1
-	 
+
 	.align	2
 1:	.long	exception_handler
 
@@ -49,7 +49,7 @@ exception_trampoline1:
 	mov.l	1f,r0
 	jmp	@r0
 	  extu.w	r1,r1
-	
+
 	.align	2
 1:	.long	exception_handler
 

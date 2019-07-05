@@ -146,7 +146,7 @@ static inline struct dn_scp *DN_SK(struct sock *sk)
  * As a general policy, this structure keeps all addresses in network
  * byte order, and all else in host byte order. Thus dst, src, dst_port
  * and src_port are in network order. All else is in host order.
- * 
+ *
  */
 #define DN_SKB_CB(skb) ((struct dn_skb_cb *)(skb)->cb)
 struct dn_skb_cb {

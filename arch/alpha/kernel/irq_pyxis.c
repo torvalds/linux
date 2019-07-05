@@ -64,7 +64,7 @@ static struct irq_chip pyxis_irq_type = {
 	.irq_unmask	= pyxis_enable_irq,
 };
 
-void 
+void
 pyxis_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;

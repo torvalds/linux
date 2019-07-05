@@ -77,9 +77,9 @@ ndo_start_xmit:
 	Context: Process with BHs disabled or BH (timer),
 	         will be called with interrupts disabled by netconsole.
 
-	Return codes: 
-	o NETDEV_TX_OK everything ok. 
-	o NETDEV_TX_BUSY Cannot transmit packet, try later 
+	Return codes:
+	o NETDEV_TX_OK everything ok.
+	o NETDEV_TX_BUSY Cannot transmit packet, try later
 	  Usually a bug, means queue start/stop flow control is broken in
 	  the driver. Note: the driver must NOT put the skb in its DMA ring.
 

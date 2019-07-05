@@ -11,19 +11,19 @@
 /* Frame buffer types */
 #define FBTYPE_NOTYPE           -1
 #define FBTYPE_SUN1BW           0   /* mono */
-#define FBTYPE_SUN1COLOR        1 
-#define FBTYPE_SUN2BW           2 
-#define FBTYPE_SUN2COLOR        3 
-#define FBTYPE_SUN2GP           4 
-#define FBTYPE_SUN5COLOR        5 
-#define FBTYPE_SUN3COLOR        6 
-#define FBTYPE_MEMCOLOR         7 
-#define FBTYPE_SUN4COLOR        8 
- 
-#define FBTYPE_NOTSUN1          9 
+#define FBTYPE_SUN1COLOR        1
+#define FBTYPE_SUN2BW           2
+#define FBTYPE_SUN2COLOR        3
+#define FBTYPE_SUN2GP           4
+#define FBTYPE_SUN5COLOR        5
+#define FBTYPE_SUN3COLOR        6
+#define FBTYPE_MEMCOLOR         7
+#define FBTYPE_SUN4COLOR        8
+
+#define FBTYPE_NOTSUN1          9
 #define FBTYPE_NOTSUN2          10
 #define FBTYPE_NOTSUN3          11
- 
+
 #define FBTYPE_SUNFAST_COLOR    12  /* cg6 */
 #define FBTYPE_SUNROP_COLOR     13
 #define FBTYPE_SUNFB_VIDEO      14
@@ -77,18 +77,18 @@ struct  fbcmap {
 #define FB_ATTR_NDEVSPECIFIC    8
 /* # of possible emulations */
 #define FB_ATTR_NEMUTYPES       4
- 
+
 struct fbsattr {
         int     flags;
         int     emu_type;	/* -1 if none */
         int     dev_specific[FB_ATTR_NDEVSPECIFIC];
 };
- 
+
 struct fbgattr {
         int     real_type;	/* real frame buffer type */
         int     owner;		/* unknown */
         struct fbtype fbtype;	/* real frame buffer fbtype */
-        struct fbsattr sattr;   
+        struct fbsattr sattr;
         int     emu_types[FB_ATTR_NEMUTYPES]; /* supported emulations */
 };
 #define FBIOSATTR  _IOW('F', 5, struct fbgattr) /* Unsupported: */
@@ -111,11 +111,11 @@ struct fbcursor {
 /* set/get cursor attributes/shape */
 #define FBIOSCURSOR     _IOW('F', 24, struct fbcursor)
 #define FBIOGCURSOR     _IOWR('F', 25, struct fbcursor)
- 
+
 /* set/get cursor position */
 #define FBIOSCURPOS     _IOW('F', 26, struct fbcurpos)
 #define FBIOGCURPOS     _IOW('F', 27, struct fbcurpos)
- 
+
 /* get max cursor size */
 #define FBIOGCURMAX     _IOR('F', 28, struct fbcurpos)
 
@@ -127,7 +127,7 @@ struct fb_wid_alloc {
 #define FB_WID_DBL_24		3
 	__u32	wa_type;
 	__s32	wa_index;	/* Set on return */
-	__u32	wa_count;	
+	__u32	wa_count;
 };
 struct fb_wid_item {
 	__u32	wi_type;

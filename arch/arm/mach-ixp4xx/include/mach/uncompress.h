@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * arch/arm/mach-ixp4xx/include/mach/uncompress.h 
+ * arch/arm/mach-ixp4xx/include/mach/uncompress.h
  *
  * Copyright (C) 2002 Intel Corporation.
  * Copyright (C) 2003-2004 MontaVista Software, Inc.

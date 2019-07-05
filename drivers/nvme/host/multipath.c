@@ -590,7 +590,7 @@ void nvme_mpath_add_disk(struct nvme_ns *ns, struct nvme_id_ns *id)
 		mutex_unlock(&ns->ctrl->ana_lock);
 	} else {
 		mutex_lock(&ns->head->lock);
-		ns->ana_state = NVME_ANA_OPTIMIZED; 
+		ns->ana_state = NVME_ANA_OPTIMIZED;
 		nvme_mpath_set_live(ns);
 		mutex_unlock(&ns->head->lock);
 	}

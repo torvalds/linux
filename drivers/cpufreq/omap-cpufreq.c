@@ -72,7 +72,7 @@ static int omap_target(struct cpufreq_policy *policy, unsigned int index)
 		volt_old = regulator_get_voltage(mpu_reg);
 	}
 
-	dev_dbg(mpu_dev, "cpufreq-omap: %u MHz, %ld mV --> %u MHz, %ld mV\n", 
+	dev_dbg(mpu_dev, "cpufreq-omap: %u MHz, %ld mV --> %u MHz, %ld mV\n",
 		old_freq / 1000, volt_old ? volt_old / 1000 : -1,
 		new_freq / 1000, volt ? volt / 1000 : -1);
 
@@ -172,7 +172,7 @@ static int omap_cpufreq_probe(struct platform_device *pdev)
 		pr_warn("%s: unable to get MPU regulator\n", __func__);
 		mpu_reg = NULL;
 	} else {
-		/* 
+		/*
 		 * Ensure physical regulator is present.
 		 * (e.g. could be dummy regulator.)
 		 */

@@ -363,7 +363,7 @@ ENTRY(start_info)
 /*
  * BSS section
  */
-	
+
 __PAGE_ALIGNED_BSS
 #ifdef CONFIG_MMU
 ENTRY(swapper_pg_dir)

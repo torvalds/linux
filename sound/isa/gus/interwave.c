@@ -748,7 +748,7 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 	err = snd_card_register(card);
 	if (err < 0)
 		return err;
-	
+
 	iwcard->wss = wss;
 	iwcard->gus = gus;
 	return 0;
@@ -854,7 +854,7 @@ static int snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 	}
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
-				
+
 	res = snd_interwave_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
 		return res;

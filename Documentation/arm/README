@@ -32,8 +32,8 @@ Compilation of kernel
 	eg.
     CROSS_COMPILE=arm-linux-
 
-  Do a 'make config', followed by 'make Image' to build the kernel 
-  (arch/arm/boot/Image).  A compressed image can be built by doing a 
+  Do a 'make config', followed by 'make Image' to build the kernel
+  (arch/arm/boot/Image).  A compressed image can be built by doing a
   'make zImage' instead of 'make Image'.
 
 
@@ -46,7 +46,7 @@ Bug reports etc
 
   Bug reports should be sent to linux-arm-kernel@lists.arm.linux.org.uk,
   or submitted through the web form at
-  http://www.arm.linux.org.uk/developer/ 
+  http://www.arm.linux.org.uk/developer/
 
   When sending bug reports, please ensure that they contain all relevant
   information, eg. the kernel messages that were printed before/during

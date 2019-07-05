@@ -41,7 +41,7 @@
  * GPL licensing note -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
- * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
+ * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99
  */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_hw.h,v 1.21 2002/10/14 18:22:46 mvojkovi Exp $ */
@@ -403,7 +403,7 @@ typedef volatile struct
     U032 RenderBufferOffset;
     U032 ZBufferOffset;
 } RivaSurface3D;
-    
+
 /***************************************************************************\
 *                                                                           *
 *                        Virtualized RIVA H/W interface.                    *
@@ -511,10 +511,10 @@ typedef struct _riva_hw_state
     U032 pllsel;
     U032 general;
     U032 crtcOwner;
-    U032 head; 
-    U032 head2; 
+    U032 head;
+    U032 head2;
     U032 config;
-    U032 cursorConfig;	
+    U032 cursorConfig;
     U032 cursor0;
     U032 cursor1;
     U032 cursor2;

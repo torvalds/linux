@@ -7,19 +7,19 @@
  */
 /*
  * BEGIN_DESC
- * 
- *  File: 
+ *
+ *  File:
  *      @(#)	pa/spmath/float.h		$Revision: 1.1 $
- * 
+ *
  *  Purpose:
  *      <<please update with a synopis of the functionality provided by this file>>
- * 
+ *
  *  BE header:  no
  *
  *  Shipped:  yes
  *	/usr/conf/pa/spmath/float.h
  *
- * END_DESC  
+ * END_DESC
 */
 
 #ifdef __NO_PA_HDRS
@@ -39,8 +39,8 @@
 /*
  * Declare the basic structures for the 3 different
  * floating-point precisions.
- *        
- * Single number  
+ *
+ * Single number
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  * |s|       exp     |               mantissa                      |
  * +-------+-------+-------+-------+-------+-------+-------+-------+
@@ -92,7 +92,7 @@
 #define	Is_sbit30(object) Bitfield_mask( 30,  1,object)
 #define	Is_sbit31(object) Bitfield_mask( 31,  1,object)
 
-/* 
+/*
  * Double number.
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  * |s|       exponent      |          mantissa part 1              |
@@ -169,7 +169,7 @@
 #define Is_dbit30p2(object) Bitfield_mask( 30,  1,object)
 #define Is_dbit31p2(object) Bitfield_mask( 31,  1,object)
 
-/* 
+/*
  * Quad number.
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  * |s|          exponent           |      mantissa part 1          |
@@ -231,7 +231,7 @@ typedef struct
 	Bitfield_extract( 1, 31,u_qlow31p3,qlow31p3)
 	Bitfield_extract( 0,  1,u_qhighp3,qhighp3)
 	Bitfield_extract( 0, 31,u_qhigh31p3,qhigh31p3)
-   */ 
+   */
 	} quad_u3;
     union
 	{
@@ -284,15 +284,15 @@ typedef struct
 /*
  * Declare the basic structures for the 3 different
  * fixed-point precisions.
- *        
- * Single number  
+ *
+ * Single number
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  * |s|                    integer                                  |
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  */
 typedef int sgl_integer;
 
-/* 
+/*
  * Double number.
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  * |s|                     high integer                            |
@@ -312,7 +312,7 @@ struct dblwd {
         unsigned int wd1;
 };
 
-/* 
+/*
  * Quad number.
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  * |s|                  integer part1                              |
@@ -347,7 +347,7 @@ typedef struct dblwd dbl_floating_point;
 typedef struct dint dbl_integer;
 typedef struct dblwd dbl_unsigned;
 
-/* 
+/*
  * Define the different precisions' parameters.
  */
 #define SGL_BITLENGTH 32
@@ -445,7 +445,7 @@ typedef int VOID;
 #define OPC_2E_UNDERFLOWEXCEPTION   0x0c
 #define OPC_2E_INEXACTEXCEPTION     0x12
 
-/* Declare exception registers equivalent to FPUs architecture 
+/* Declare exception registers equivalent to FPUs architecture
  *
  *  0 1 2 3 4 5 6 7 8 910 1 2 3 4 5 6 7 8 920 1 2 3 4 5 6 7 8 930 1
  * +-------+-------+-------+-------+-------+-------+-------+-------+

@@ -275,7 +275,7 @@ snd_mixart_add_ref_pipe(struct snd_mixart *chip, int pcm_number, int capture,
 			int j;
 			struct mixart_flowinfo *flowinfo;
 			struct mixart_bufferinfo *bufferinfo;
-			
+
 			/* we don't yet know the format, so config 16 bit pcm audio for instance */
 			buf->sgroup_req.stream_info[i].size_max_byte_frame = 1024;
 			buf->sgroup_req.stream_info[i].size_max_sample_frame = 256;
@@ -633,7 +633,7 @@ static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
 		if( subs->stream == SNDRV_PCM_STREAM_CAPTURE ) {
 			i += MIXART_PLAYBACK_STREAMS; /* in array capture is behind playback */
 		}
-		
+
 		bufferinfo = (struct mixart_bufferinfo *)chip->mgr->bufferinfo.area;
 		bufferinfo[i].buffer_address = subs->runtime->dma_addr;
 		bufferinfo[i].available_length = subs->runtime->dma_bytes;
@@ -1166,11 +1166,11 @@ static struct snd_info_entry_ops snd_mixart_proc_ops_BA1 = {
 };
 
 
-static void snd_mixart_proc_read(struct snd_info_entry *entry, 
+static void snd_mixart_proc_read(struct snd_info_entry *entry,
                                  struct snd_info_buffer *buffer)
 {
-	struct snd_mixart *chip = entry->private_data;        
-	u32 ref; 
+	struct snd_mixart *chip = entry->private_data;
+	u32 ref;
 
 	snd_iprintf(buffer, "Digigram miXart (alsa card %d)\n\n", chip->chip_idx);
 
@@ -1184,7 +1184,7 @@ static void snd_mixart_proc_read(struct snd_info_entry *entry,
 		default:                             snd_iprintf(buffer, "\tUNKNOWN!\n\n"); break;
 		}
 
-		snd_iprintf(buffer, "- system load -\n");	 
+		snd_iprintf(buffer, "- system load -\n");
 
 		/* get perf reference */
 
@@ -1212,7 +1212,7 @@ static void snd_mixart_proc_init(struct snd_mixart *chip)
 
 	if (! snd_card_proc_new(chip->card, "mixart_BA0", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;
-		entry->private_data = chip->mgr;	
+		entry->private_data = chip->mgr;
 		entry->c.ops = &snd_mixart_proc_ops_BA0;
 		entry->size = MIXART_BA0_SIZE;
 	}

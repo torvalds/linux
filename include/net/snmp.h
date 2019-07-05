@@ -2,7 +2,7 @@
 /*
  *
  *		SNMP MIB entries for the IP subsystem.
- *		
+ *
  *		Alan Cox <gw4pts@gw4pts.ampr.org>
  *
  *		We don't chose to implement SNMP in the kernel (this would
@@ -10,7 +10,7 @@
  *		however need to collect the MIB statistics and export them
  *		out of /proc (eventually)
  */
- 
+
 #ifndef _SNMP_H
 #define _SNMP_H
 

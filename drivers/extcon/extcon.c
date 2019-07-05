@@ -1032,7 +1032,7 @@ static void dummy_sysfs_dev_release(struct device *dev)
  * @supported_cable:	the array of the supported external connectors
  *			ending with EXTCON_NONE.
  *
- * Note that this function allocates the memory for extcon device 
+ * Note that this function allocates the memory for extcon device
  * and initialize default setting for the extcon device.
  *
  * Returns the pointer memory of allocated extcon_dev if success

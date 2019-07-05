@@ -1,6 +1,6 @@
 /*
  * IEEE 1284.3 Parallel port daisy chain and multiplexor code
- * 
+ *
  * Copyright (C) 1999, 2000  Tim Waugh <tim@cyberelk.demon.co.uk>
  *
  * This program is free software; you can redistribute it and/or
@@ -364,7 +364,7 @@ int parport_daisy_select(struct parport *port, int daisy, int mode)
 		// For these modes we should switch to ECP mode:
 		case IEEE1284_MODE_ECP:
 		case IEEE1284_MODE_ECPRLE:
-		case IEEE1284_MODE_ECPSWE: 
+		case IEEE1284_MODE_ECPSWE:
 			return !(cpp_daisy(port, 0xd0 + daisy) &
 				 PARPORT_STATUS_ERROR);
 

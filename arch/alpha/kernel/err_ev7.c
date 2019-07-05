@@ -30,7 +30,7 @@ ev7_collect_logout_frame_subpackets(struct el_subpacket *el_ptr,
 	 * A Marvel machine check frame is always packaged in an
 	 * el_subpacket of class HEADER, type LOGOUT_FRAME.
 	 */
-	if (el_ptr->class != EL_CLASS__HEADER || 
+	if (el_ptr->class != EL_CLASS__HEADER ||
 	    el_ptr->type != EL_TYPE__HEADER__LOGOUT_FRAME)
 		return NULL;
 
@@ -105,7 +105,7 @@ ev7_collect_logout_frame_subpackets(struct el_subpacket *el_ptr,
  				(struct ev7_pal_environmental_subpacket *)
 				subpacket->by_type.raw.data_start;
 			break;
-				
+
 		default:
 			/*
 			 * Don't know what kind of frame this is.
@@ -131,14 +131,14 @@ ev7_machine_check(unsigned long vector, unsigned long la_ptr)
 
 	err_print_prefix = KERN_CRIT;
 	printk("%s*CPU %s Error (Vector 0x%x) reported on CPU %d\n",
-	       err_print_prefix, 
+	       err_print_prefix,
 	       (vector == SCB_Q_PROCERR) ? "Correctable" : "Uncorrectable",
 	       (unsigned int)vector, (int)smp_processor_id());
 	el_process_subpacket(el_ptr);
 	err_print_prefix = saved_err_prefix;
 
-	/* 
-	 * Release the logout frame 
+	/*
+	 * Release the logout frame
 	 */
 	wrmces(0x7);
 	mb();
@@ -157,7 +157,7 @@ static char *el_ev7_processor_subpacket_annotation[] = {
 };
 
 static char *el_ev7_zbox_subpacket_annotation[] = {
-	"Subpacket Header", 	
+	"Subpacket Header",
 	"ZBOX(0): DRAM_ERR_STATUS_2 / DRAM_ERR_STATUS_1",
 	"ZBOX(0): DRAM_ERROR_CTL    / DRAM_ERR_STATUS_3",
 	"ZBOX(0): DIFT_TIMEOUT      / DRAM_ERR_ADR",
@@ -204,10 +204,10 @@ static char *el_ev7_io_subpacket_annotation[] = {
 	"PO3_ERR_SUM",		"PO3_TLB_ERR",	"PO3_SPL_COMPLT",
 	"PO3_TRANS_SUM",	"PO3_FIRST_ERR","PO3_MULT_ERR",
 	"DM CSR PH",		"DM CSR PH",	"DM CSR PH",
-	"DM CSR PH",		"reserved",	
+	"DM CSR PH",		"reserved",
 	NULL
 };
-	
+
 static struct el_subpacket_annotation el_ev7_pal_annotations[] = {
 	SUBPACKET_ANNOTATION(EL_CLASS__PAL,
 			     EL_TYPE__PAL__EV7_PROCESSOR,
@@ -249,7 +249,7 @@ ev7_process_pal_subpacket(struct el_subpacket *header)
 	case EL_TYPE__PAL__LOGOUT_FRAME:
 		printk("%s*** MCHK occurred on LPID %lld (RBOX %llx)\n",
 		       err_print_prefix,
-		       packet->by_type.logout.whami, 
+		       packet->by_type.logout.whami,
 		       packet->by_type.logout.rbox_whami);
 		el_print_timestamp(&packet->by_type.logout.timestamp);
 		printk("%s  EXC_ADDR: %016llx\n"
@@ -261,13 +261,13 @@ ev7_process_pal_subpacket(struct el_subpacket *header)
                                       packet->by_type.logout.subpacket_count);
 		break;
 	default:
-		printk("%s  ** PAL TYPE %d SUBPACKET\n", 
+		printk("%s  ** PAL TYPE %d SUBPACKET\n",
 		       err_print_prefix,
 		       header->type);
 		el_annotate_subpacket(header);
 		break;
 	}
-	
+
 	return (struct el_subpacket *)((unsigned long)header + header->length);
 }
 

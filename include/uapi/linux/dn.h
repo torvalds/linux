@@ -12,8 +12,8 @@
 
 */
 
-/* 
- * DNPROTO_NSP can't be the same as SOL_SOCKET, 
+/*
+ * DNPROTO_NSP can't be the same as SOL_SOCKET,
  * so increment each by one (compared to ULTRIX)
  */
 #define DNPROTO_NSP     2                       /* NSP protocol number       */
@@ -33,7 +33,7 @@
 #define DN_MAXNODEL	256
 #define DNBUFSIZE	65023
 
-/* 
+/*
  * SET/GET Socket options  - must match the DSO_ numbers below
  */
 #define SO_CONDATA      1

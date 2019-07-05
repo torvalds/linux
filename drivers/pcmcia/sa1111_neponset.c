@@ -34,7 +34,7 @@
  *     12INA       12V
  *     12INB       ground (slot B is CF)
  *
- * The MAX1600 CODE pin is tied to ground, placing the device in 
+ * The MAX1600 CODE pin is tied to ground, placing the device in
  * "Standard Intel code" mode. Refer to the Maxim data sheet for
  * the corresponding truth table.
  */

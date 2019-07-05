@@ -10,7 +10,7 @@ Notes on Maya44 USB Audio Support
 Feb 14, 2008
 
 Rainer Zimmermann <mail@lightshed.de>
- 
+
 STATE OF DEVELOPMENT
 ====================
 
@@ -61,7 +61,7 @@ the following files were added:
 * pci/ice1724/maya44.h
 * pci/ice1724/ice1724.patch
 * pci/ice1724/ice1724.h.patch - PROPOSED patch to ice1724.h (see SAMPLING RATES)
-* i2c/other/wm8776.c - low-level access routines for Wolfson WM8776 codecs 
+* i2c/other/wm8776.c - low-level access routines for Wolfson WM8776 codecs
 * include/wm8776.h
 
 

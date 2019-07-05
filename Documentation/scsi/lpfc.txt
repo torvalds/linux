@@ -15,10 +15,10 @@ LPFC Driver Release Notes:
   and extended attribute support is now part of the upstream kernel
   as of 2.6.12. We no longer need to provide patches for this support,
   nor a *full* version which has old an new kernel support.
-  
+
   The driver now requires a 2.6.12 (if pre-release, 2.6.12-rc1) or later
   kernel.
-  
+
   Please heed these dependencies....
 
 
@@ -30,7 +30,7 @@ history of the driver as we push for upstream acceptance.
 
 Cable pull and temporary device Loss:
 
-  In older revisions of the lpfc driver, the driver internally queued i/o 
+  In older revisions of the lpfc driver, the driver internally queued i/o
   received from the midlayer. In the cases where a cable was pulled, link
   jitter, or a device temporarily loses connectivity (due to its cable
   being removed, a switch rebooting, or a device reboot), the driver could
@@ -44,7 +44,7 @@ Cable pull and temporary device Loss:
 
   The community supporting kernel.org has driven an effort to remove
   internal queuing from all LLDDs. The philosophy is that internal
-  queuing is unnecessary as the block layer already performs the 
+  queuing is unnecessary as the block layer already performs the
   queuing. Removing the queues from the LLDD makes a more predictable
   and more simple LLDD.
 
@@ -53,7 +53,7 @@ Cable pull and temporary device Loss:
   In explaining the impacts of this change, Emulex has worked with the
   community in modifying the behavior of the SCSI midlayer so that SCSI
   devices can be temporarily suspended while transport events (such as
-  those described) can occur.  
+  those described) can occur.
 
   The proposed patch was posted to the linux-scsi mailing list. The patch
   is contained in the 2.6.10-rc2 (and later) patch kits. As such, this

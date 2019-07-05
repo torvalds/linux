@@ -3,8 +3,8 @@
  * rocket_int.h --- internal header file for rocket.c
  *
  * Written by Theodore Ts'o, Copyright 1997.
- * Copyright 1997 Comtrol Corporation.  
- * 
+ * Copyright 1997 Comtrol Corporation.
+ *
  */
 
 /*
@@ -839,7 +839,7 @@ Call:     sPCIGetControllerIntStatus(CtlP)
           CONTROLLER_T *CtlP; Ptr to controller structure
 Return:   unsigned char: The controller interrupt status in the lower 4
                          bits and bit 4.  Bits 0 through 3 represent AIOP's 0
-                         through 3 respectively. Bit 4 is set if the int 
+                         through 3 respectively. Bit 4 is set if the int
 			 was generated from periodic. If a bit is set the
 			 AIOP is interrupting.
 */
@@ -902,7 +902,7 @@ Function: sResetAiopByNum
 Purpose:  Reset the AIOP by number
 Call:     sResetAiopByNum(CTLP,AIOPNUM)
 	CONTROLLER_T CTLP; Ptr to controller structure
-	AIOPNUM; AIOP index 
+	AIOPNUM; AIOP index
 */
 #define sResetAiopByNum(CTLP,AIOPNUM) \
 do { \
@@ -1199,16 +1199,16 @@ struct r_port {
 #define PCI_DEVICE_ID_RP6M		0x000C	/* RocketModem 6 port                    */
 #define PCI_DEVICE_ID_RP4M		0x000D	/* RocketModem 4 port                    */
 #define PCI_DEVICE_ID_RP2_232           0x000E	/* Rocketport Plus 2 port RS232          */
-#define PCI_DEVICE_ID_RP2_422           0x000F	/* Rocketport Plus 2 port RS422          */ 
+#define PCI_DEVICE_ID_RP2_422           0x000F	/* Rocketport Plus 2 port RS422          */
 
 /* Universal PCI boards  */
-#define PCI_DEVICE_ID_URP32INTF		0x0801	/* Rocketport UPCI 32 port w/external I/F */ 
+#define PCI_DEVICE_ID_URP32INTF		0x0801	/* Rocketport UPCI 32 port w/external I/F */
 #define PCI_DEVICE_ID_URP8INTF		0x0802	/* Rocketport UPCI 8 port w/external I/F  */
 #define PCI_DEVICE_ID_URP16INTF		0x0803	/* Rocketport UPCI 16 port w/external I/F */
 #define PCI_DEVICE_ID_URP8OCTA		0x0805	/* Rocketport UPCI 8 port w/octa cable    */
 #define PCI_DEVICE_ID_UPCI_RM3_8PORT    0x080C	/* Rocketmodem III 8 port                 */
 #define PCI_DEVICE_ID_UPCI_RM3_4PORT    0x080D	/* Rocketmodem III 4 port                 */
 
-/* Compact PCI device */ 
+/* Compact PCI device */
 #define PCI_DEVICE_ID_CRP16INTF		0x0903	/* Rocketport Compact PCI 16 port w/external I/F */
 

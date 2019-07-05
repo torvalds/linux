@@ -4,7 +4,7 @@
 
 #include <linux/types.h>
 
-#define IPC_PRIVATE ((__kernel_key_t) 0)  
+#define IPC_PRIVATE ((__kernel_key_t) 0)
 
 /* Obsolete, used only for backwards compatibility and libc5 compiles */
 struct ipc_perm
@@ -14,7 +14,7 @@ struct ipc_perm
 	__kernel_gid_t	gid;
 	__kernel_uid_t	cuid;
 	__kernel_gid_t	cgid;
-	__kernel_mode_t	mode; 
+	__kernel_mode_t	mode;
 	unsigned short	seq;
 };
 
@@ -28,12 +28,12 @@ struct ipc_perm
 
 /* these fields are used by the DIPC package so the kernel as standard
    should avoid using them if possible */
-   
+
 #define IPC_DIPC 00010000  /* make it distributed */
 #define IPC_OWN  00020000  /* this machine is the DIPC owner */
 
-/* 
- * Control commands used with semctl, msgctl and shmctl 
+/*
+ * Control commands used with semctl, msgctl and shmctl
  * see also specific commands in sem.h, msg.h and shm.h
  */
 #define IPC_RMID 0     /* remove resource */

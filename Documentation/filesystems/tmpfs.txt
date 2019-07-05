@@ -14,7 +14,7 @@ If you compare it to ramfs (which was the template to create tmpfs)
 you gain swapping and limit checking. Another similar thing is the RAM
 disk (/dev/ram*), which simulates a fixed size hard disk in physical
 RAM, where you have to create an ordinary filesystem on top. Ramdisks
-cannot swap and you do not have the possibility to resize them. 
+cannot swap and you do not have the possibility to resize them.
 
 Since tmpfs lives completely in the page cache and on swap, all tmpfs
 pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
@@ -26,7 +26,7 @@ tmpfs has the following uses:
 
 1) There is always a kernel internal mount which you will not see at
    all. This is used for shared anonymous mappings and SYSV shared
-   memory. 
+   memory.
 
    This mount does not depend on CONFIG_TMPFS. If CONFIG_TMPFS is not
    set, the user visible part of tmpfs is not build. But the internal
@@ -56,7 +56,7 @@ tmpfs has the following uses:
 
 tmpfs has three mount options for sizing:
 
-size:      The limit of allocated bytes for this tmpfs instance. The 
+size:      The limit of allocated bytes for this tmpfs instance. The
            default is half of your physical RAM without swap. If you
            oversize your tmpfs instances the machine will deadlock
            since the OOM handler will not be able to free that memory.
@@ -129,7 +129,7 @@ To specify the initial root directory you can use the following mount
 options:
 
 mode:	The permissions as an octal number
-uid:	The user id 
+uid:	The user id
 gid:	The group id
 
 These options do not have any effect on remount. You can change these

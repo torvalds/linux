@@ -62,7 +62,7 @@ enum {
  *  +================================+
  */
 
-/* 
+/*
  * The following table maps a register index into the stack offset at
  * which the register is saved.  Register indices are 0-31 for integer
  * regs, 32-63 for fp regs, and 64 for the pc.  Notice that sp and
@@ -270,7 +270,7 @@ void user_disable_single_step(struct task_struct *child)
  * Make sure the single step bit is not set.
  */
 void ptrace_disable(struct task_struct *child)
-{ 
+{
 	user_disable_single_step(child);
 }
 
@@ -290,7 +290,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		ret = -EIO;
 		if (copied != sizeof(tmp))
 			break;
-		
+
 		force_successful_syscall_return();
 		ret = tmp;
 		break;

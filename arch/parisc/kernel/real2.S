@@ -165,7 +165,7 @@ ENTRY_CFI(rfi_virt2real)
 	nop
 	nop
 	nop
-	
+
 	rsm             PSW_SM_Q,%r0  /* disable Q & I bits to load iia queue */
 	mtctl		%r0, %cr17	/* Clear IIASQ tail */
 	mtctl		%r0, %cr17	/* Clear IIASQ head */
@@ -175,7 +175,7 @@ ENTRY_CFI(rfi_virt2real)
 	load32          REAL_MODE_PSW, %r1
 	mtctl		%r1, %cr22
 	rfi
-	
+
 	nop
 	nop
 	nop
@@ -202,7 +202,7 @@ ENTRY_CFI(rfi_real2virt)
 	nop
 	nop
 	nop
-	
+
 	rsm             PSW_SM_Q,%r0    /* disable Q bit to load iia queue */
 	mtctl		%r0, %cr17	/* Clear IIASQ tail */
 	mtctl		%r0, %cr17	/* Clear IIASQ head */
@@ -212,7 +212,7 @@ ENTRY_CFI(rfi_real2virt)
 	load32		KERNEL_PSW, %r1
 	mtctl		%r1, %cr22
 	rfi
-	
+
 	nop
 	nop
 	nop

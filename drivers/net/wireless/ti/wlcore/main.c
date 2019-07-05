@@ -3243,7 +3243,7 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 		/*
 		 * If interface in AP mode and created with allmulticast then disable
 		 * the firmware filters so that all multicast packets are passed
-		 * This is mandatory for MDNS based discovery protocols 
+		 * This is mandatory for MDNS based discovery protocols
 		 */
  		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
  			if (*total & FIF_ALLMULTI) {

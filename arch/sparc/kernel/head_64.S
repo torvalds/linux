@@ -458,7 +458,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	cmp	%g2, CPU_ID_NIAGARA2
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_NIAGARA2, %g4
-	
+
 4:
 	/* Athena */
 	sethi	%hi(prom_cpu_compatible), %g1

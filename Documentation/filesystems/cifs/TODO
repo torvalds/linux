@@ -27,7 +27,7 @@ open to reduce redundant opens (using deferred close and reference counts more).
 
 f) Finish inotify support so kde and gnome file list windows
 will autorefresh (partially complete by Asser). Needs minor kernel
-vfs change to support removing D_NOTIFY on a file.   
+vfs change to support removing D_NOTIFY on a file.
 
 g) Add GUI tool to configure /proc/fs/cifs settings and for display of
 the CIFS statistics (started)
@@ -102,9 +102,9 @@ types. Try nested symlinks (8 deep). Return max path name in stat -f information
 2) Improve xfstest's cifs/smb3 enablement and adapt xfstests where needed to test
 cifs/smb3 better
 
-3) Additional performance testing and optimization using iozone and similar - 
+3) Additional performance testing and optimization using iozone and similar -
 there are some easy changes that can be done to parallelize sequential writes,
-and when signing is disabled to request larger read sizes (larger than 
+and when signing is disabled to request larger read sizes (larger than
 negotiated size) and send larger write sizes to modern servers.
 
 4) More exhaustively test against less common servers

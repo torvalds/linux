@@ -87,7 +87,7 @@
 		cmp	\rv, #3			@ so accept either
 		bne	90f
 11:		lsr	\rv, \rp, #15		@ 17:15 are UART ID
-		and	\rv, #7	
+		and	\rv, #7
 		cmp	\rv, #0			@ UART 0?
 		beq	20f
 		cmp	\rv, #1			@ UART 1?

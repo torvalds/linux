@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* 
+/*
  *  Copyright 10/16/2005 Tilman Kranz <tilde@tk-sls.de>
  *  Creative Audio MIDI, for the CA0106 Driver
  *  Version: 0.0.1
@@ -109,7 +109,7 @@ static int ca_midi_input_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
-	
+
 	if (snd_BUG_ON(!midi->dev_id))
 		return -ENXIO;
 	spin_lock_irqsave(&midi->open_lock, flags);
@@ -172,13 +172,13 @@ static int ca_midi_output_close(struct snd_rawmidi_substream *substream)
 
 	if (snd_BUG_ON(!midi->dev_id))
 		return -ENXIO;
-	
+
 	spin_lock_irqsave(&midi->open_lock, flags);
 
 	midi->interrupt_disable(midi,midi->tx_enable);
 	midi->midi_mode &= ~CA_MIDI_MODE_OUTPUT;
 	midi->substream_output = NULL;
-	
+
 	if (!(midi->midi_mode & CA_MIDI_MODE_INPUT)) {
 		spin_unlock_irqrestore(&midi->open_lock, flags);
 		ca_midi_cmd(midi, midi->reset, 0);
@@ -215,7 +215,7 @@ static void ca_midi_output_trigger(struct snd_rawmidi_substream *substream, int 
 		unsigned char byte;
 
 		spin_lock_irqsave(&midi->output_lock, flags);
-	
+
 		/* try to send some amount of bytes here before interrupts */
 		while (max > 0) {
 			if (ca_midi_output_ready(midi)) {
@@ -294,7 +294,7 @@ int ca_midi_init(void *dev_id, struct snd_ca_midi *midi, int device, char *name)
 	                     SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = midi;
 	rmidi->private_free = ca_rmidi_free;
-	
+
 	midi->rmidi = rmidi;
 	return 0;
 }

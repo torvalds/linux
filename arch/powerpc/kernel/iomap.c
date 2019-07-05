@@ -12,7 +12,7 @@
 #include <asm/isa-bridge.h>
 
 /*
- * Here comes the ppc64 implementation of the IOMAP 
+ * Here comes the ppc64 implementation of the IOMAP
  * interfaces.
  */
 unsigned int ioread8(void __iomem *addr)

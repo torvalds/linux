@@ -2166,7 +2166,7 @@ static int __ocfs2_prepare_orphan_dir(struct inode *orphan_dir_inode,
  * Returns zero on success and the ret_orphan_dir, name and lookup
  * fields will be populated.
  *
- * Returns non-zero on failure. 
+ * Returns non-zero on failure.
  */
 static int ocfs2_prepare_orphan_dir(struct ocfs2_super *osb,
 				    struct inode **ret_orphan_dir,
@@ -2407,7 +2407,7 @@ leave:
  * Returns zero on success and the ret_orphan_dir, name and lookup
  * fields will be populated.
  *
- * Returns non-zero on failure. 
+ * Returns non-zero on failure.
  */
 static int ocfs2_prep_new_orphaned_file(struct inode *dir,
 					struct buffer_head *dir_bh,

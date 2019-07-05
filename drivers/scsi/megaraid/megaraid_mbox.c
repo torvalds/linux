@@ -1946,7 +1946,7 @@ megaraid_mbox_prepare_pthru(adapter_t *adapter, scb_t *scb,
 	target	= scb->dev_target;
 
 	// 0=6sec, 1=60sec, 2=10min, 3=3hrs, 4=NO timeout
-	pthru->timeout		= 4;	
+	pthru->timeout		= 4;
 	pthru->ars		= 1;
 	pthru->islogical	= 0;
 	pthru->channel		= 0;
@@ -1995,7 +1995,7 @@ megaraid_mbox_prepare_epthru(adapter_t *adapter, scb_t *scb,
 	target	= scb->dev_target;
 
 	// 0=6sec, 1=60sec, 2=10min, 3=3hrs, 4=NO timeout
-	epthru->timeout		= 4;	
+	epthru->timeout		= 4;
 	epthru->ars		= 1;
 	epthru->islogical	= 0;
 	epthru->channel		= 0;

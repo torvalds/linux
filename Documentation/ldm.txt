@@ -75,7 +75,7 @@ When Linux boots, you will see something like::
 Compiling LDM Support
 ---------------------
 
-To enable LDM, choose the following two options: 
+To enable LDM, choose the following two options:
 
   - "Advanced partition selection" CONFIG_PARTITION_ADVANCED
   - "Windows Logical Disk Manager (Dynamic Disk) support" CONFIG_LDM_PARTITION

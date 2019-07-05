@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* -*- linux-c -*- */
 
-/* 
+/*
  * Driver for USB Rio 500
  *
  * Cesar Miquel (miquel@df.uba.ar)
- * 
+ *
  * based on hp_scanner.c by David E. Nelson (dnelson@jump.net)
  *
  * Based upon mouse.c (Brad Keryan) and printer.c (Michael Gee).

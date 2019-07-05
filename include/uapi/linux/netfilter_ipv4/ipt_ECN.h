@@ -4,7 +4,7 @@
  * (C) 2002 by Harald Welte <laforge@gnumonks.org>
  *
  * This software is distributed under GNU GPL v2, 1991
- * 
+ *
  * ipt_ECN.h,v 1.3 2002/05/29 12:17:40 laforge Exp
 */
 #ifndef _IPT_ECN_TARGET_H

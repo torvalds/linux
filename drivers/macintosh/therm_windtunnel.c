@@ -1,9 +1,9 @@
-/* 
+/*
  *   Creation Date: <2003/03/14 20:54:13 samuel>
  *   Time-stamp: <2004/03/20 14:20:59 samuel>
- *   
+ *
  *	<therm_windtunnel.c>
- *	
+ *
  *	The G4 "windtunnel" has a single fan controlled by an
  *	ADM1030 fan controller and a DS1775 thermostat.
  *
@@ -20,11 +20,11 @@
  *   Copyright (C) 2003, 2004 Samuel Rydh (samuel@ibrium.se)
  *
  *   Loosely based upon 'thermostat.c' written by Benjamin Herrenschmidt
- *   
+ *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation
- *   
+ *
  */
 
 #include <linux/types.h>
@@ -49,10 +49,10 @@
 static struct {
 	volatile int		running;
 	struct task_struct	*poll_task;
-	
+
 	struct mutex	 	lock;
 	struct platform_device	*of_dev;
-	
+
 	struct i2c_client	*thermostat;
 	struct i2c_client	*fan;
 
@@ -128,7 +128,7 @@ write_reg( struct i2c_client *cl, int reg, int data, int len )
 	tmp[1] = (len == 1) ? data : (data >> 8);
 	tmp[2] = data;
 	len++;
-	
+
 	if( i2c_master_send(cl, tmp, len) != len )
 		return -ENODEV;
 	return 0;
@@ -369,7 +369,7 @@ attach_fan( struct i2c_client *cl )
 }
 
 static int
-attach_thermostat( struct i2c_client *cl ) 
+attach_thermostat( struct i2c_client *cl )
 {
 	int hyst_temp, os_temp, temp;
 
@@ -378,7 +378,7 @@ attach_thermostat( struct i2c_client *cl )
 
 	if( (temp=read_reg(cl, 0, 2)) < 0 )
 		goto out;
-	
+
 	/* temperature sanity check */
 	if( temp < 0x1600 || temp > 0x3c00 )
 		goto out;

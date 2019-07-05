@@ -31,7 +31,7 @@ struct atalk_iface {
 	struct atalk_netrange	nets;
 	struct atalk_iface	*next;
 };
-	
+
 struct atalk_sock {
 	/* struct sock has to be the first member of atalk_sock */
 	struct sock	sk;

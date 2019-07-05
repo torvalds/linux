@@ -4,9 +4,9 @@ Sound Blaster Audigy mixer / default DSP code
 
 This is based on sb-live-mixer.rst.
 
-The EMU10K2 chips have a DSP part which can be programmed to support 
+The EMU10K2 chips have a DSP part which can be programmed to support
 various ways of sample processing, which is described here.
-(This article does not deal with the overall functionality of the 
+(This article does not deal with the overall functionality of the
 EMU10K2 chips. See the manuals section for further details.)
 
 The ALSA driver programs this portion of chip by default code
@@ -18,9 +18,9 @@ Digital mixer controls
 
 These controls are built using the DSP instructions. They offer extended
 functionality. Only the default build-in code in the ALSA driver is described
-here. Note that the controls work as attenuators: the maximum value is the 
-neutral position leaving the signal unchanged. Note that if the  same destination 
-is mentioned in multiple controls, the signal is accumulated and can be wrapped 
+here. Note that the controls work as attenuators: the maximum value is the
+neutral position leaving the signal unchanged. Note that if the  same destination
+is mentioned in multiple controls, the signal is accumulated and can be wrapped
 (set to maximal or minimal value without checking of overflow).
 
 
@@ -47,15 +47,15 @@ FX-bus
 name='PCM Front Playback Volume',index=0
 ----------------------------------------
 This control is used to attenuate samples for left and right front PCM FX-bus
-accumulators. ALSA uses accumulators 8 and 9 for left and right front PCM 
-samples for 5.1 playback. The result samples are forwarded to the front DAC PCM 
+accumulators. ALSA uses accumulators 8 and 9 for left and right front PCM
+samples for 5.1 playback. The result samples are forwarded to the front DAC PCM
 slots of the Philips DAC.
 
 name='PCM Surround Playback Volume',index=0
 -------------------------------------------
 This control is used to attenuate samples for left and right surround PCM FX-bus
-accumulators. ALSA uses accumulators 2 and 3 for left and right surround PCM 
-samples for 5.1 playback. The result samples are forwarded to the surround DAC PCM 
+accumulators. ALSA uses accumulators 2 and 3 for left and right surround PCM
+samples for 5.1 playback. The result samples are forwarded to the surround DAC PCM
 slots of the Philips DAC.
 
 name='PCM Center Playback Volume',index=0
@@ -66,15 +66,15 @@ is forwarded to the center DAC PCM slot of the Philips DAC.
 
 name='PCM LFE Playback Volume',index=0
 --------------------------------------
-This control is used to attenuate sample for LFE PCM FX-bus accumulator. 
-ALSA uses accumulator 7 for LFE PCM sample for 5.1 playback. The result sample 
+This control is used to attenuate sample for LFE PCM FX-bus accumulator.
+ALSA uses accumulator 7 for LFE PCM sample for 5.1 playback. The result sample
 is forwarded to the LFE DAC PCM slot of the Philips DAC.
 
 name='PCM Playback Volume',index=0
 ----------------------------------
 This control is used to attenuate samples for left and right PCM FX-bus
 accumulators. ALSA uses accumulators 0 and 1 for left and right PCM samples for
-stereo playback. The result samples are forwarded to the front DAC PCM slots 
+stereo playback. The result samples are forwarded to the front DAC PCM slots
 of the Philips DAC.
 
 name='PCM Capture Volume',index=0
@@ -100,7 +100,7 @@ PCM device).
 name='Mic Playback Volume',index=0
 ----------------------------------
 This control is used to attenuate samples for left and right Mic input.
-For Mic input is used AC97 codec. The result samples are forwarded to 
+For Mic input is used AC97 codec. The result samples are forwarded to
 the front DAC PCM slots of the Philips DAC. Samples are forwarded to Mic
 capture FIFO (device 1 - 16bit/8KHz mono) too without volume control.
 
@@ -212,7 +212,7 @@ The closest value to pure signal is 20.
 
 name='Master Playback Volume',index=0
 -------------------------------------
-This control is used to attenuate samples for front, surround, center and 
+This control is used to attenuate samples for front, surround, center and
 LFE outputs.
 
 name='IEC958 Optical Raw Playback Switch',index=0
@@ -265,9 +265,9 @@ values with this mapping:
 * 22 - right, G destination (FX-bus 0-63), default 0
 * 23 - right, H destination (FX-bus 0-63), default 0
 
-Don't forget that it's illegal to assign a channel to the same FX-bus accumulator 
+Don't forget that it's illegal to assign a channel to the same FX-bus accumulator
 more than once (it means 0=0 && 1=0 is an invalid combination).
- 
+
 name='EMU10K1 PCM Send Volume',index 0-31
 -----------------------------------------
 It specifies the attenuation (amount) for given destination in range 0-255.

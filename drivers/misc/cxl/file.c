@@ -519,7 +519,7 @@ out:
 	return rc;
 }
 
-/* 
+/*
  * Note: if this is updated, we need to update api.c to patch the new ones in
  * too
  */

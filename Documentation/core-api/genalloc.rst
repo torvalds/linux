@@ -18,7 +18,7 @@ Code using this allocator should include <linux/genalloc.h>.  The action
 begins with the creation of a pool using one of:
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: gen_pool_create		
+   :functions: gen_pool_create
 
 .. kernel-doc:: lib/genalloc.c
    :functions: devm_gen_pool_create

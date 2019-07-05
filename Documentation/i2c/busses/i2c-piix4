@@ -20,7 +20,7 @@ Supported adapters:
   * Standard Microsystems (SMSC) SLC90E66 (Victory66) southbridge
     Datasheet: Publicly available at the SMSC website http://www.smsc.com
 
-Authors: 
+Authors:
 	Frodo Looijaard <frodol@dds.nl>
 	Philip Edelbrock <phil@netroedge.com>
 
@@ -39,7 +39,7 @@ Description
 
 The PIIX4 (properly known as the 82371AB) is an Intel chip with a lot of
 functionality. Among other things, it implements the PCI bus. One of its
-minor functions is implementing a System Management Bus. This is a true 
+minor functions is implementing a System Management Bus. This is a true
 SMBus - you can not access it on I2C levels. The good news is that it
 natively understands SMBus commands and you do not have to worry about
 timing problems. The bad news is that non-SMBus devices connected to it can

@@ -8,7 +8,7 @@
  *   Lowlevel functions for Audiotrak Prodigy Hifi
  *
  *	Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
- */      
+ */
 
 #define PRODIGY_HIFI_DEVICE_DESC 	       "{Audiotrak,Prodigy 7.1 HIFI},"\
                                            "{Audiotrak Prodigy HD2},"\

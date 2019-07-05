@@ -288,7 +288,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		 */
 		nfserr = nfserr_acces;
 		if (!newfhp->fh_dentry) {
-			printk(KERN_WARNING 
+			printk(KERN_WARNING
 				"nfsd_proc_create: file handle not verified\n");
 			goto out_unlock;
 		}
@@ -528,7 +528,7 @@ nfsd_proc_readdir(struct svc_rqst *rqstp)
 	loff_t		offset;
 
 	dprintk("nfsd: READDIR  %s %d bytes at %d\n",
-		SVCFH_fmt(&argp->fh),		
+		SVCFH_fmt(&argp->fh),
 		argp->count, argp->cookie);
 
 	/* Shrink to the client read size */
@@ -545,7 +545,7 @@ nfsd_proc_readdir(struct svc_rqst *rqstp)
 	resp->common.err = nfs_ok;
 	/* Read directory and encode entries on the fly */
 	offset = argp->cookie;
-	nfserr = nfsd_readdir(rqstp, &argp->fh, &offset, 
+	nfserr = nfsd_readdir(rqstp, &argp->fh, &offset,
 			      &resp->common, nfssvc_encode_entry);
 
 	resp->count = resp->buffer - argp->buffer;

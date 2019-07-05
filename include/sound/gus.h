@@ -242,7 +242,7 @@ struct snd_gus_voice {
 	unsigned char port;
 	unsigned char index;
 	unsigned char pad;
-	
+
 #ifdef CONFIG_SND_DEBUG
 	unsigned int interrupt_stat_wave;
 	unsigned int interrupt_stat_volume;
@@ -270,7 +270,7 @@ struct snd_gus_voice {
 	unsigned short vlo;
 	unsigned short vro;
 	unsigned short gf1_effect_volume;
-	
+
 	/* --- */
 
 	void *private_data;
@@ -379,7 +379,7 @@ struct snd_gf1 {
 	unsigned short pcm_volume_level_right;
 	unsigned short pcm_volume_level_left1;
 	unsigned short pcm_volume_level_right1;
-                                
+
 	unsigned char pcm_rcntrl_reg;
 	unsigned char pad_end;
 };

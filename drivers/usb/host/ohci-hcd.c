@@ -694,7 +694,7 @@ int ohci_setup(struct usb_hcd *hcd)
 	struct ohci_hcd		*ohci = hcd_to_ohci(hcd);
 
 	ohci_hcd_init(ohci);
-	
+
 	return ohci_init(ohci);
 }
 EXPORT_SYMBOL_GPL(ohci_setup);

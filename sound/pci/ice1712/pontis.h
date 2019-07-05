@@ -8,7 +8,7 @@
  *   Lowlevel functions for Pontis MS300 boards
  *
  *	Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
- */      
+ */
 
 #define PONTIS_DEVICE_DESC 	       "{Pontis,MS300},"
 

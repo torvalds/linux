@@ -373,7 +373,7 @@ static int cpio_mkfile(const char *name, const char *location,
 	}
 	ino++;
 	rc = 0;
-	
+
 error:
 	if (filebuf) free(filebuf);
 	if (file >= 0) close(file);

@@ -69,7 +69,7 @@
   __put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 #define __get_user(x, ptr) \
   __get_user_nocheck((x), (ptr), sizeof(*(ptr)))
-  
+
 /*
  * The "lda %1, 2b-1b(%0)" bits are magic to get the assembler to
  * encode the bits we need for resolving the exception.  See the

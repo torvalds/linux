@@ -11,8 +11,8 @@
  * simultaneously play back audio at 16bit 44100kHz, the device actually plays
  * back in the same format in which it is capturing. By forcing the chip to
  * always play/capture in 16/44100, we can let alsa-lib convert the samples and
- * that way we can hack up some full duplex audio. 
- * 
+ * that way we can hack up some full duplex audio.
+ *
  * XpressAudio(tm) is used on the Cyrix MediaGX (now NatSemi Geode) systems.
  * The older version (VSA1) provides fairly good soundblaster emulation
  * although there are a couple of bugs: large DMA buffers break record,
@@ -124,7 +124,7 @@ static int snd_cs5530_create(struct snd_card *card,
 
 	err = pci_request_regions(pci, "CS5530");
 	if (err < 0) {
-		kfree(chip); 
+		kfree(chip);
 		pci_disable_device(pci);
 		return err;
 	}

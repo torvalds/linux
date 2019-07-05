@@ -34,7 +34,7 @@
 	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 	LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 	OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-	SUCH DAMAGE.    
+	SUCH DAMAGE.
 
 	Revisions:
 
@@ -57,11 +57,11 @@ struct keyspan_usa90_portControlMessage
 
 	u8	setClocking,	// host requests baud rate be set
 		baudLo,			// host does baud divisor calculation
-		baudHi,			// host does baud divisor calculation 
-		
+		baudHi,			// host does baud divisor calculation
+
 		setLcr,			// host requests lcr be set
 		lcr,			// use PARITY, STOPBITS, DATABITS below
-		
+
 		setRxMode,		// set receive mode
 		rxMode,			// RXMODE_DMA or RXMODE_BYHAND
 
@@ -85,9 +85,9 @@ struct keyspan_usa90_portControlMessage
 		setDtr, 		// host requests DTR output be set
 		dtr;			// 1=on, 0=off
 
-	
+
 	/*
-		2.	configuration data which is simply used as is 
+		2.	configuration data which is simply used as is
 			and must be specified correctly in every host message.
 	*/
 
@@ -95,7 +95,7 @@ struct keyspan_usa90_portControlMessage
 		rxForwardingTimeout, // (1-31 in ms)
 		txAckSetting;	   // 0=don't ack, 1=normal, 2-255 TBD...
 	/*
-		3.	Firmware states which cause actions if they change					
+		3.	Firmware states which cause actions if they change
 		and must be specified correctly in every host message.
 	*/
 
@@ -107,7 +107,7 @@ struct keyspan_usa90_portControlMessage
 	/*
 		4.	commands which are flags only; these are processed in order
 			(so that, e.g., if rxFlush and rxForward flags are set, the
-			port will have no data to forward); any non-zero value 
+			port will have no data to forward); any non-zero value
 			is respected
 	*/
 
@@ -131,27 +131,27 @@ struct keyspan_usa90_portControlMessage
 #define		PARITY_MARK_1  		0x28   	// force parity MARK
 #define		PARITY_SPACE_0 		0x38	// force parity SPACE
 
-#define		TXFLOW_CTS			0x04	
+#define		TXFLOW_CTS			0x04
 #define		TXFLOW_DSR			0x08
-#define		TXFLOW_XOFF			0x01	
-#define		TXFLOW_XOFF_ANY		0x02	
+#define		TXFLOW_XOFF			0x01
+#define		TXFLOW_XOFF_ANY		0x02
 #define		TXFLOW_XOFF_BITS	(TXFLOW_XOFF | TXFLOW_XOFF_ANY)
 
-#define		RXFLOW_XOFF			0x10	
-#define		RXFLOW_RTS			0x20	
+#define		RXFLOW_XOFF			0x10
+#define		RXFLOW_RTS			0x20
 #define		RXFLOW_DTR			0x40
 #define		RXFLOW_DSR_SENSITIVITY	0x80
 
-#define		RXMODE_BYHAND		0x00	
-#define		RXMODE_DMA			0x02	
+#define		RXMODE_BYHAND		0x00
+#define		RXMODE_DMA			0x02
 
-#define		TXMODE_BYHAND		0x00	
-#define		TXMODE_DMA			0x02	
+#define		TXMODE_BYHAND		0x00
+#define		TXMODE_DMA			0x02
 
 
 // all things called "StatusMessage" are sent on the status endpoint
 
-struct keyspan_usa90_portStatusMessage	
+struct keyspan_usa90_portStatusMessage
 {
 	u8	msr,			// reports the actual MSR register
 		cts,			// reports CTS pin
@@ -166,7 +166,7 @@ struct keyspan_usa90_portStatusMessage
 		portState,		// PORTSTATE_xxx bits (useful for debugging)
 		messageAck,		// message acknowledgement
 		charAck,		// character acknowledgement
-		controlResponse;	// (value = returnStatus) a control message has been processed 
+		controlResponse;	// (value = returnStatus) a control message has been processed
 };
 
 // bits in RX data message when STAT byte is included
@@ -183,7 +183,7 @@ struct keyspan_usa90_portStatusMessage
 
 // MSR bits
 
-#define USA_MSR_dCTS	  		0x01		// CTS has changed since last report	
+#define USA_MSR_dCTS	  		0x01		// CTS has changed since last report
 #define USA_MSR_dDSR	  		0x02
 #define USA_MSR_dRI			0x04
 #define USA_MSR_dDCD	  		0x08

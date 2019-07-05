@@ -110,7 +110,7 @@ static inline void gfs2_update_request_times(struct gfs2_glock *gl)
 	gfs2_update_stats(&lks->lkstats[gltype], GFS2_LKS_SIRT, irt);	/* Global */
 	preempt_enable();
 }
- 
+
 static void gdlm_ast(void *arg)
 {
 	struct gfs2_glock *gl = arg;

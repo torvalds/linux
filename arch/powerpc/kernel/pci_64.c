@@ -2,7 +2,7 @@
 /*
  * Port for PPC64 David Engebretsen, IBM Corp.
  * Contains common pci routines for ppc64 platform, pSeries and iSeries brands.
- * 
+ *
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *   Rework, based on alpha PCI code.
  */

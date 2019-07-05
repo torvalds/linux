@@ -92,7 +92,7 @@
 	NFSERR_STALE_CLIENTID = 10022,	/*       v4 */
 	NFSERR_STALE_STATEID = 10023,   /*       v4 */
 	NFSERR_OLD_STATEID = 10024,     /*       v4 */
-	NFSERR_BAD_STATEID = 10025,     /*       v4 */  
+	NFSERR_BAD_STATEID = 10025,     /*       v4 */
 	NFSERR_BAD_SEQID = 10026,	/*       v4 */
 	NFSERR_NOT_SAME = 10027,	/*       v4 */
 	NFSERR_LOCK_RANGE = 10028,	/*       v4 */

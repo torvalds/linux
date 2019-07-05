@@ -6,7 +6,7 @@
  *	Portions (c) Copyright 1999 The Puffin Group Inc.
  *	Portions (c) Copyright 1999 Hewlett-Packard
  *
- *	by Alan Cox <alan@redhat.com> and 
+ *	by Alan Cox <alan@redhat.com> and
  * 	   Alex deVries <alex@onefishtwo.ca>
  */
 
@@ -71,12 +71,12 @@ lasi_init_irq(struct gsc_asic *this_lasi)
 	/* gsc_writel(0xFFFFFFFF, lasi_base+0x2000);*/	/* Parallel */
 	if(pdc_add_valid(lasi_base+0x4004) == PDC_OK)
 		gsc_writel(0xFFFFFFFF, lasi_base+0x4004);	/* Audio */
-	/* gsc_writel(0xFFFFFFFF, lasi_base+0x5000);*/	/* Serial */ 
+	/* gsc_writel(0xFFFFFFFF, lasi_base+0x5000);*/	/* Serial */
 	/* gsc_writel(0xFFFFFFFF, lasi_base+0x6000);*/	/* SCSI */
 	gsc_writel(0xFFFFFFFF, lasi_base+0x7000);	/* LAN */
 	gsc_writel(0xFFFFFFFF, lasi_base+0x8000);	/* Keyboard */
 	gsc_writel(0xFFFFFFFF, lasi_base+0xA000);	/* FDC */
-	
+
 	/* Ok we hit it on the head with a hammer, our Dog is now
 	** comatose and muzzled.  Devices will now unmask LASI
 	** interrupts as they are registered as irq's in the LASI range.
@@ -89,11 +89,11 @@ lasi_init_irq(struct gsc_asic *this_lasi)
 
 /*
    ** lasi_led_init()
-   ** 
+   **
    ** lasi_led_init() initializes the LED controller on the LASI.
    **
    ** Since Mirage and Electra machines use a different LED
-   ** address register, we need to check for these machines 
+   ** address register, we need to check for these machines
    ** explicitly.
  */
 
@@ -108,8 +108,8 @@ static void __init lasi_led_init(unsigned long lasi_hpa)
 	unsigned long datareg;
 
 	switch (CPU_HVERSION) {
-	/* Gecko machines have only one single LED, which can be permanently 
-	   turned on by writing a zero into the power control register. */ 
+	/* Gecko machines have only one single LED, which can be permanently
+	   turned on by writing a zero into the power control register. */
 	case 0x600:		/* Gecko (712/60) */
 	case 0x601:		/* Gecko (712/80) */
 	case 0x602:		/* Gecko (712/100) */
@@ -118,7 +118,7 @@ static void __init lasi_led_init(unsigned long lasi_hpa)
 	case 0x605:		/* Gecko (712/120) */
 		datareg = lasi_hpa + 0x0000C000;
 		gsc_writeb(0, datareg);
-		return; /* no need to register the LED interrupt-function */  
+		return; /* no need to register the LED interrupt-function */
 
 	/* Mirage and Electra machines need special offsets */
 	case 0x60A:		/* Mirage Jr (715/64) */
@@ -143,7 +143,7 @@ static void __init lasi_led_init(unsigned long lasi_hpa)
  *
  * Function for lasi to turn off the power.  This is accomplished by setting a
  * 1 to PWR_ON_L in the Power Control Register
- * 
+ *
  */
 
 static unsigned long lasi_power_off_hpa __read_mostly;
@@ -178,7 +178,7 @@ static int __init lasi_init_chip(struct parisc_device *dev)
 	printk(KERN_INFO "%s version %d at 0x%lx found.\n",
 		lasi->name, lasi->version, lasi->hpa);
 
-	/* initialize the chassis LEDs really early */ 
+	/* initialize the chassis LEDs really early */
 	lasi_led_init(lasi->hpa);
 
 	/* Stop LASI barking for a bit */
@@ -209,7 +209,7 @@ static int __init lasi_init_chip(struct parisc_device *dev)
 	if (ret) {
 		kfree(lasi);
 		return ret;
-	}    
+	}
 
 	gsc_fixup_irqs(dev, lasi, lasi_choose_irq);
 
@@ -219,7 +219,7 @@ static int __init lasi_init_chip(struct parisc_device *dev)
 	 * should set the HPA here */
 	lasi_power_off_hpa = lasi->hpa;
 	chassis_power_off = lasi_power_off;
-	
+
 	return ret;
 }
 

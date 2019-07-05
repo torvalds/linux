@@ -121,8 +121,8 @@ int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
 /* This is the base location for PIE (ET_DYN with INTERP) loads. */
 #define ELF_ET_DYN_BASE		0x400000UL
 
-/* When the program starts, a1 contains a pointer to a function to be 
-   registered with atexit, as per the SVR4 ABI.  A value of 0 means we 
+/* When the program starts, a1 contains a pointer to a function to be
+   registered with atexit, as per the SVR4 ABI.  A value of 0 means we
    have no such handler.  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->ARM_r0 = 0
 

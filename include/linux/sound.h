@@ -7,7 +7,7 @@
 /*
  *	Sound core interface functions
  */
- 
+
 struct device;
 extern int register_sound_special(const struct file_operations *fops, int unit);
 extern int register_sound_special_device(const struct file_operations *fops, int unit, struct device *dev);

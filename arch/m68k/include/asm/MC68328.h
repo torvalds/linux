@@ -21,12 +21,12 @@
 #define PUT_FIELD(field, val) (((val) << field##_SHIFT) & field##_MASK)
 #define GET_FIELD(reg, field) (((reg) & field##_MASK) >> field##_SHIFT)
 
-/********** 
+/**********
  *
  * 0xFFFFF0xx -- System Control
  *
  **********/
- 
+
 /*
  * System Control Register (SCR)
  */
@@ -46,14 +46,14 @@
  */
 #define MRR_ADDR 0xfffff004
 #define MRR      LONG_REF(MRR_ADDR)
- 
-/********** 
+
+/**********
  *
  * 0xFFFFF1xx -- Chip-Select logic
  *
  **********/
 
-/********** 
+/**********
  *
  * 0xFFFFF2xx -- Phase Locked Loop (PLL) & Power Control
  *
@@ -76,7 +76,7 @@
 #define GRPBASE_GBA_MASK  0xfff0	/* Group Base Address (bits 31-20) */
 
 /*
- * Group Base Address Mask Registers 
+ * Group Base Address Mask Registers
  */
 #define GRPMASKA_ADDR	0xfffff108
 #define GRPMASKB_ADDR	0xfffff10a
@@ -183,9 +183,9 @@
  * 0xFFFFF2xx -- Phase Locked Loop (PLL) & Power Control
  *
  **********/
- 
+
 /*
- * PLL Control Register 
+ * PLL Control Register
  */
 #define PLLCR_ADDR	0xfffff200
 #define PLLCR		WORD_REF(PLLCR_ADDR)
@@ -222,7 +222,7 @@
 
 #define PCTRL_WIDTH_MASK	0x1f	/* CPU Clock bursts width */
 #define PCTRL_WIDTH_SHIFT	0
-#define PCTRL_STOP		0x40	/* Enter power-save mode immediately */ 
+#define PCTRL_STOP		0x40	/* Enter power-save mode immediately */
 #define PCTRL_PCEN		0x80	/* Power Control Enable */
 
 /**********
@@ -231,7 +231,7 @@
  *
  **********/
 
-/* 
+/*
  * Interrupt Vector Register
  */
 #define IVR_ADDR	0xfffff300
@@ -259,14 +259,14 @@
  */
 #define IMR_ADDR	0xfffff304
 #define IMR		LONG_REF(IMR_ADDR)
- 
+
 /*
  * Define the names for bit positions first. This is useful for
  * request_irq
  */
 #define SPIM_IRQ_NUM	0	/* SPI Master interrupt */
 #define	TMR2_IRQ_NUM	1	/* Timer 2 interrupt */
-#define UART_IRQ_NUM	2	/* UART interrupt */	
+#define UART_IRQ_NUM	2	/* UART interrupt */
 #define	WDT_IRQ_NUM	3	/* Watchdog Timer interrupt */
 #define RTC_IRQ_NUM	4	/* RTC interrupt */
 #define	KB_IRQ_NUM	6	/* Keyboard Interrupt */
@@ -291,13 +291,13 @@
 /* '328-compatible definitions */
 #define SPI_IRQ_NUM	SPIM_IRQ_NUM
 #define TMR_IRQ_NUM	TMR1_IRQ_NUM
- 
+
 /*
  * Here go the bitmasks themselves
  */
 #define IMR_MSPIM 	(1 << SPIM_IRQ_NUM)	/* Mask SPI Master interrupt */
 #define	IMR_MTMR2	(1 << TMR2_IRQ_NUM)	/* Mask Timer 2 interrupt */
-#define IMR_MUART	(1 << UART_IRQ_NUM)	/* Mask UART interrupt */	
+#define IMR_MUART	(1 << UART_IRQ_NUM)	/* Mask UART interrupt */
 #define	IMR_MWDT	(1 << WDT_IRQ_NUM)	/* Mask Watchdog Timer interrupt */
 #define IMR_MRTC	(1 << RTC_IRQ_NUM)	/* Mask RTC interrupt */
 #define	IMR_MKB		(1 << KB_IRQ_NUM)	/* Mask Keyboard Interrupt */
@@ -323,7 +323,7 @@
 #define IMR_MSPI	IMR_MSPIM
 #define IMR_MTMR	IMR_MTMR1
 
-/* 
+/*
  * Interrupt Wake-Up Enable Register
  */
 #define IWR_ADDR	0xfffff308
@@ -331,7 +331,7 @@
 
 #define IWR_SPIM 	(1 << SPIM_IRQ_NUM)	/* SPI Master interrupt */
 #define	IWR_TMR2	(1 << TMR2_IRQ_NUM)	/* Timer 2 interrupt */
-#define IWR_UART	(1 << UART_IRQ_NUM)	/* UART interrupt */	
+#define IWR_UART	(1 << UART_IRQ_NUM)	/* UART interrupt */
 #define	IWR_WDT		(1 << WDT_IRQ_NUM)	/* Watchdog Timer interrupt */
 #define IWR_RTC		(1 << RTC_IRQ_NUM)	/* RTC interrupt */
 #define	IWR_KB		(1 << KB_IRQ_NUM)	/* Keyboard Interrupt */
@@ -353,15 +353,15 @@
 #define IWR_TMR1	(1 << TMR1_IRQ_NUM)	/* Timer 1 interrupt */
 #define IWR_IRQ7	(1 << IRQ7_IRQ_NUM)	/* IRQ7 */
 
-/* 
- * Interrupt Status Register 
+/*
+ * Interrupt Status Register
  */
 #define ISR_ADDR	0xfffff30c
 #define ISR		LONG_REF(ISR_ADDR)
 
 #define ISR_SPIM 	(1 << SPIM_IRQ_NUM)	/* SPI Master interrupt */
 #define	ISR_TMR2	(1 << TMR2_IRQ_NUM)	/* Timer 2 interrupt */
-#define ISR_UART	(1 << UART_IRQ_NUM)	/* UART interrupt */	
+#define ISR_UART	(1 << UART_IRQ_NUM)	/* UART interrupt */
 #define	ISR_WDT		(1 << WDT_IRQ_NUM)	/* Watchdog Timer interrupt */
 #define ISR_RTC		(1 << RTC_IRQ_NUM)	/* RTC interrupt */
 #define	ISR_KB		(1 << KB_IRQ_NUM)	/* Keyboard Interrupt */
@@ -387,15 +387,15 @@
 #define ISR_SPI	ISR_SPIM
 #define ISR_TMR	ISR_TMR1
 
-/* 
- * Interrupt Pending Register 
+/*
+ * Interrupt Pending Register
  */
 #define IPR_ADDR	0xfffff310
 #define IPR		LONG_REF(IPR_ADDR)
 
 #define IPR_SPIM 	(1 << SPIM_IRQ_NUM)	/* SPI Master interrupt */
 #define	IPR_TMR2	(1 << TMR2_IRQ_NUM)	/* Timer 2 interrupt */
-#define IPR_UART	(1 << UART_IRQ_NUM)	/* UART interrupt */	
+#define IPR_UART	(1 << UART_IRQ_NUM)	/* UART interrupt */
 #define	IPR_WDT		(1 << WDT_IRQ_NUM)	/* Watchdog Timer interrupt */
 #define IPR_RTC		(1 << RTC_IRQ_NUM)	/* RTC interrupt */
 #define	IPR_KB		(1 << KB_IRQ_NUM)	/* Keyboard Interrupt */
@@ -450,7 +450,7 @@
 #define PA_A22		PA(6)		/* Use A22 as PA(6) */
 #define PA_A23		PA(7)		/* Use A23 as PA(7) */
 
-/* 
+/*
  * Port B
  */
 #define PBDIR_ADDR	0xfffff408		/* Port B direction reg */
@@ -473,7 +473,7 @@
 #define PB_D6		PB(6)		/* Use D6 as PB(6) */
 #define PB_D7		PB(7)		/* Use D7 as PB(7) */
 
-/* 
+/*
  * Port C
  */
 #define PCDIR_ADDR	0xfffff410		/* Port C direction reg */
@@ -493,7 +493,7 @@
 #define PC_UDS		PC(1)		/* Use UDS   as PC(1) */
 #define PC_MOCLK	PC(0)		/* Use MOCLK as PC(0) */
 
-/* 
+/*
  * Port D
  */
 #define PDDIR_ADDR	0xfffff418		/* Port D direction reg */
@@ -522,7 +522,7 @@
 #define PD_KB6		PD(6)	/* Use KB6 as PD(6) */
 #define PD_KB7		PD(7)	/* Use KB7 as PD(7) */
 
-/* 
+/*
  * Port E
  */
 #define PEDIR_ADDR	0xfffff420		/* Port E direction reg */
@@ -545,7 +545,7 @@
 #define PE_CSB2		PE(6)	/* Use CSB2 as PE(6) */
 #define PE_CSB3		PE(7)	/* Use CSB3 as PE(7) */
 
-/* 
+/*
  * Port F
  */
 #define PFDIR_ADDR	0xfffff428		/* Port F direction reg */
@@ -570,7 +570,7 @@
 #define PF_A30		PF(6)	/* Use A30 as PF(6) */
 #define PF_A31		PF(7)	/* Use A31 as PF(7) */
 
-/* 
+/*
  * Port G
  */
 #define PGDIR_ADDR	0xfffff430		/* Port G direction reg */
@@ -594,7 +594,7 @@
 #define PG_TIN1		PG(6)	/* Use TIN1     as PG(6) */
 #define PG_RTCOUT	PG(7)	/* Use RTCOUT   as PG(7) */
 
-/* 
+/*
  * Port J
  */
 #define PJDIR_ADDR	0xfffff438		/* Port J direction reg */
@@ -605,11 +605,11 @@
 #define PJDATA		BYTE_REF(PJDATA_ADDR)
 #define PJSEL		BYTE_REF(PJSEL_ADDR)
 
-#define PJ(x)           (1 << (x)) 
+#define PJ(x)           (1 << (x))
 
 #define PJ_CSD3		PJ(7)	/* Use CSD3 as PJ(7) */
 
-/* 
+/*
  * Port K
  */
 #define PKDIR_ADDR	0xfffff440		/* Port K direction reg */
@@ -624,7 +624,7 @@
 
 #define PK(x)           (1 << (x))
 
-/* 
+/*
  * Port M
  */
 #define PMDIR_ADDR	0xfffff438		/* Port M direction reg */
@@ -646,7 +646,7 @@
  **********/
 
 /*
- * PWM Control Register 
+ * PWM Control Register
  */
 #define PWMC_ADDR	0xfffff500
 #define PWMC		WORD_REF(PWMC_ADDR)
@@ -669,8 +669,8 @@
 #define PWMP_ADDR	0xfffff502
 #define PWMP		WORD_REF(PWMP_ADDR)
 
-/* 
- * PWM Width Register 
+/*
+ * PWM Width Register
  */
 #define PWMW_ADDR	0xfffff504
 #define PWMW		WORD_REF(PWMW_ADDR)
@@ -687,7 +687,7 @@
  *
  **********/
 
-/* 
+/*
  * Timer Unit 1 and 2 Control Registers
  */
 #define TCTL1_ADDR	0xfffff600
@@ -777,13 +777,13 @@
 #define TSTAT		TSTAT1
 
 /*
- * Watchdog Compare Register 
+ * Watchdog Compare Register
  */
 #define WRR_ADDR	0xfffff61a
 #define WRR		WORD_REF(WRR_ADDR)
 
 /*
- * Watchdog Counter Register 
+ * Watchdog Counter Register
  */
 #define WCN_ADDR	0xfffff61c
 #define WCN		WORD_REF(WCN_ADDR)
@@ -886,7 +886,7 @@
 #define USTCNT_UARTEN		0x8000	/* UART Enable */
 
 /* 'EZ328-compatible definitions */
-#define USTCNT_TXAE	USTCNT_TXAVAILEN 
+#define USTCNT_TXAE	USTCNT_TXAVAILEN
 #define USTCNT_TXHE	USTCNT_TXHALFEN
 #define USTCNT_TXEE	USTCNT_TXEMPTYEN
 #define USTCNT_RXRE	USTCNT_RXREADYEN
@@ -915,7 +915,7 @@
 #define UBAUD_GPIODELTA		0x8000	/* GPIO pin value changed */
 
 /*
- * UART Receiver Register 
+ * UART Receiver Register
  */
 #define URX_ADDR	0xfffff904
 #define URX		WORD_REF(URX_ADDR)
@@ -934,7 +934,7 @@
 #define URX_FIFO_FULL	 0x8000	/* FIFO is Full */
 
 /*
- * UART Transmitter Register 
+ * UART Transmitter Register
  */
 #define UTX_ADDR	0xfffff906
 #define UTX		WORD_REF(UTX_ADDR)
@@ -957,7 +957,7 @@
 #define UTX_NOCTS	UTX_IGNORE_CTS
 
 /*
- * UART Miscellaneous Register 
+ * UART Miscellaneous Register
  */
 #define UMISC_ADDR	0xfffff908
 #define UMISC		WORD_REF(UMISC_ADDR)
@@ -1005,7 +1005,7 @@ typedef volatile struct {
  **********/
 
 /*
- * LCD Screen Starting Address Register 
+ * LCD Screen Starting Address Register
  */
 #define LSSA_ADDR	0xfffffa00
 #define LSSA		LONG_REF(LSSA_ADDR)
@@ -1013,7 +1013,7 @@ typedef volatile struct {
 #define LSSA_SSA_MASK	0xfffffffe	/* Bit 0 is reserved */
 
 /*
- * LCD Virtual Page Width Register 
+ * LCD Virtual Page Width Register
  */
 #define LVPW_ADDR	0xfffffa05
 #define LVPW		BYTE_REF(LVPW_ADDR)
@@ -1077,7 +1077,7 @@ typedef volatile struct {
 #define LBLKC_BKEN	0x80	/* Blink Enabled */
 
 /*
- * LCD Panel Interface Configuration Register 
+ * LCD Panel Interface Configuration Register
  */
 #define LPICF_ADDR	0xfffffa20
 #define LPICF		BYTE_REF(LPICF_ADDR)
@@ -1091,7 +1091,7 @@ typedef volatile struct {
 #define   LPICF_PBSIZ_4    0x04
 
 /*
- * LCD Polarity Configuration Register 
+ * LCD Polarity Configuration Register
  */
 #define LPOLCF_ADDR	0xfffffa21
 #define LPOLCF		BYTE_REF(LPOLCF_ADDR)
@@ -1146,7 +1146,7 @@ typedef volatile struct {
 #define LLBAR_LBAR_SHIFT 0
 
 /*
- * LCD Octet Terminal Count Register 
+ * LCD Octet Terminal Count Register
  */
 #define LOTCR_ADDR	0xfffffa2b
 #define LOTCR		BYTE_REF(LOTCR_ADDR)
@@ -1179,11 +1179,11 @@ typedef volatile struct {
 #define LGPMR		WORD_REF(LGPMR_ADDR)
 
 #define LGPMR_GLEVEL3_MASK	0x000f
-#define LGPMR_GLEVEL3_SHIFT	0 
+#define LGPMR_GLEVEL3_SHIFT	0
 #define LGPMR_GLEVEL2_MASK	0x00f0
-#define LGPMR_GLEVEL2_SHIFT	4 
+#define LGPMR_GLEVEL2_SHIFT	4
 #define LGPMR_GLEVEL0_MASK	0x0f00
-#define LGPMR_GLEVEL0_SHIFT	8 
+#define LGPMR_GLEVEL0_SHIFT	8
 #define LGPMR_GLEVEL1_MASK	0xf000
 #define LGPMR_GLEVEL1_SHIFT	12
 
@@ -1207,7 +1207,7 @@ typedef volatile struct {
 #define RTCTIME_HOURS_SHIFT	24
 
 /*
- *  RTC Alarm Register 
+ *  RTC Alarm Register
  */
 #define RTCALRM_ADDR    0xfffffb04
 #define RTCALRM         LONG_REF(RTCALRM_ADDR)
@@ -1233,7 +1233,7 @@ typedef volatile struct {
 #define RTCCTL_EN	RTCCTL_ENABLE
 
 /*
- * RTC Interrupt Status Register 
+ * RTC Interrupt Status Register
  */
 #define RTCISR_ADDR	0xfffffb0e
 #define RTCISR		WORD_REF(RTCISR_ADDR)
@@ -1256,7 +1256,7 @@ typedef volatile struct {
 #define RTCIENR_DAY	0x0008	/* 24-hour rollover interrupt enable */
 #define RTCIENR_1HZ	0x0010	/* 1Hz interrupt enable */
 
-/* 
+/*
  * Stopwatch Minutes Register
  */
 #define STPWCH_ADDR	0xfffffb12

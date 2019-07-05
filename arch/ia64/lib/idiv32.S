@@ -61,7 +61,7 @@ GLOBAL_ENTRY(NAME)
 	frcpa.s1 f6, p6 = f8, f9	// y0 = frcpa(b)
 	;;
 (p6)	fmpy.s1 f8 = f8, f6		// q0 = a*y0
-(p6)	fnma.s1 f6 = f9, f6, f1		// e0 = -b*y0 + 1 
+(p6)	fnma.s1 f6 = f9, f6, f1		// e0 = -b*y0 + 1
 	;;
 #ifdef MODULO
 	setf.sig f9 = in1		// f9 = -b

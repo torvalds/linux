@@ -93,7 +93,7 @@ snd_seq_oss_create_client(void)
 	 */
 	port_callback.event_input = receive_announce;
 	port->kernel = &port_callback;
-	
+
 	call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, port);
 	if ((system_port = port->addr.port) >= 0) {
 		struct snd_seq_port_subscribe subs;
@@ -389,11 +389,11 @@ free_devinfo(void *private)
 	struct seq_oss_devinfo *dp = (struct seq_oss_devinfo *)private;
 
 	snd_seq_oss_timer_delete(dp->timer);
-		
+
 	snd_seq_oss_writeq_delete(dp->writeq);
 
 	snd_seq_oss_readq_delete(dp->readq);
-	
+
 	kfree(dp);
 }
 

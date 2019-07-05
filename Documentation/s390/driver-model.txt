@@ -7,7 +7,7 @@ S/390 driver model interfaces
 All devices which can be addressed by means of ccws are called 'CCW devices' -
 even if they aren't actually driven by ccws.
 
-All ccw devices are accessed via a subchannel, this is reflected in the 
+All ccw devices are accessed via a subchannel, this is reflected in the
 structures under devices/:
 
 devices/
@@ -79,10 +79,10 @@ under include/asm/ccwdev.h.
 struct ccw_device {
         spinlock_t *ccwlock;
         struct ccw_device_private *private;
-	struct ccw_device_id id;	
+	struct ccw_device_id id;
 
-	struct ccw_driver *drv;		
-	struct device dev;		
+	struct ccw_driver *drv;
+	struct device dev;
 	int online;
 
 	void (*handler) (struct ccw_device *dev, unsigned long intparm,
@@ -90,9 +90,9 @@ struct ccw_device {
 };
 
 struct ccw_driver {
-	struct module *owner;		
-	struct ccw_device_id *ids;	
-	int (*probe) (struct ccw_device *); 
+	struct module *owner;
+	struct ccw_device_id *ids;
+	int (*probe) (struct ccw_device *);
 	int (*remove) (struct ccw_device *);
 	int (*set_online) (struct ccw_device *);
 	int (*set_offline) (struct ccw_device *);
@@ -109,12 +109,12 @@ and/or device types/models it is interested. This information can later be found
 in the struct ccw_device_id fields:
 
 struct ccw_device_id {
-	__u16	match_flags;	
+	__u16	match_flags;
 
-	__u16	cu_type;	
-	__u16	dev_type;	
-	__u8	cu_model;	
-	__u8	dev_model;	
+	__u16	cu_type;
+	__u16	dev_type;
+	__u8	cu_model;
+	__u8	dev_model;
 
 	unsigned long driver_info;
 };
@@ -125,7 +125,7 @@ probe:   This function is called by the device layer for each device the driver
 	 to put in dev->driver_data and create attributes (if needed). Also,
 	 the interrupt handler (see below) should be set here.
 
-int (*probe) (struct ccw_device *cdev); 
+int (*probe) (struct ccw_device *cdev);
 
 Parameters:  cdev     - the device to be probed.
 
@@ -173,7 +173,7 @@ notify: This function is called by the common I/O layer for some state changes
 	  return code of the notify function the device driver signals if it
 	  wants the device back: !0 for keeping, 0 to make the device being
 	  removed and re-registered.
-	
+
 int (*notify) (struct ccw_device *, int);
 
 Parameters:   cdev    - the device whose state changed.
@@ -181,12 +181,12 @@ Parameters:   cdev    - the device whose state changed.
 		        CIO_NO_PATH or CIO_OPER.
 
 The handler field of the struct ccw_device is meant to be set to the interrupt
-handler for the device. In order to accommodate drivers which use several 
+handler for the device. In order to accommodate drivers which use several
 distinct handlers (e.g. multi subchannel devices), this is a member of ccw_device
 instead of ccw_driver.
 The handler is registered with the common layer during set_online() processing
 before the driver is called, and is deregistered during set_offline() after the
-driver has been called. Also, after registering / before deregistering, path 
+driver has been called. Also, after registering / before deregistering, path
 grouping resp. disbanding of the path group (if applicable) are performed.
 
 void (*handler) (struct ccw_device *dev, unsigned long intparm, struct irb *irb);
@@ -198,7 +198,7 @@ Parameters:	dev	- the device the handler is called for
                 irb     - interruption response block which contains the accumulated
                           status.
 
-The device driver is called from the common ccw_device layer and can retrieve 
+The device driver is called from the common ccw_device layer and can retrieve
 information about the interrupt from the irb parameter.
 
 
@@ -253,7 +253,7 @@ cmg - The channel measurement group.
 3. System devices
 -----------------
 
-3.1 xpram 
+3.1 xpram
 ---------
 
 xpram shows up under devices/system/ as 'xpram'.

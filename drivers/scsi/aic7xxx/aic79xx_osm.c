@@ -305,7 +305,7 @@ static uint32_t aic79xx_periodic_otag;
  * SentinelRAID: 2500F R1
  * SentinelRAID: 2500F/1500F
  * SentinelRAID: 150F
- * 
+ *
  * To get around this LSI bug, you can set your board to 160 mode
  * or you can enable the SLOWCRC bit.
  */
@@ -339,7 +339,7 @@ MODULE_PARM_DESC(aic79xx,
 "	amplitude:<int>		Set the signal amplitude (0-7).\n"
 "	seltime:<int>		Selection Timeout:\n"
 "				(0/256ms,1/128ms,2/64ms,3/32ms)\n"
-"	slowcrc			Turn on the SLOWCRC bit (Rev B only)\n"		 
+"	slowcrc			Turn on the SLOWCRC bit (Rev B only)\n"
 "\n"
 "	Sample modprobe configuration file:\n"
 "	#	Enable verbose logging\n"
@@ -693,7 +693,7 @@ ahd_linux_slave_alloc(struct scsi_device *sdev)
 	 * a tagged queuing capable device.
 	 */
 	dev->maxtags = 0;
-	
+
 	return (0);
 }
 
@@ -768,7 +768,7 @@ static int
 ahd_linux_abort(struct scsi_cmnd *cmd)
 {
 	int error;
-	
+
 	error = ahd_linux_queue_abort_cmd(cmd);
 
 	return error;
@@ -1418,7 +1418,7 @@ ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 	default:
 	case AHD_QUEUE_NONE:
 		now_queuing = 0;
-		break; 
+		break;
 	case AHD_QUEUE_BASIC:
 		now_queuing = AHD_DEV_Q_BASIC;
 		break;
@@ -1676,7 +1676,7 @@ ahd_linux_isr(int irq, void *dev_id)
 	int	ours;
 
 	ahd = (struct ahd_softc *) dev_id;
-	ahd_lock(ahd, &flags); 
+	ahd_lock(ahd, &flags);
 	ours = ahd_intr(ahd);
 	ahd_unlock(ahd, &flags);
 	return IRQ_RETVAL(ours);
@@ -1889,7 +1889,7 @@ ahd_linux_handle_scsi_status(struct ahd_softc *ahd,
 			    sdev->sdev_target->id, sdev->lun,
 			    sdev->sdev_target->channel == 0 ? 'A' : 'B',
 			    ROLE_INITIATOR);
-	
+
 	/*
 	 * We don't currently trust the mid-layer to
 	 * properly deal with queue full or busy.  So,
@@ -2057,7 +2057,7 @@ ahd_linux_queue_cmd_complete(struct ahd_softc *ahd, struct scsi_cmnd *cmd)
 				do_fallback = 1;
 			} else {
 				struct scsi_sense_data *sense;
-				
+
 				sense = (struct scsi_sense_data *)
 					cmd->sense_buffer;
 				if (sense->extra_len >= 5 &&
@@ -2237,14 +2237,14 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 	ahd_dump_card_state(ahd);
 
 	disconnected = TRUE;
-	if (ahd_search_qinfifo(ahd, cmd->device->id, 
+	if (ahd_search_qinfifo(ahd, cmd->device->id,
 			       cmd->device->channel + 'A',
 			       cmd->device->lun,
 			       pending_scb->hscb->tag,
 			       ROLE_INITIATOR, CAM_REQ_ABORTED,
 			       SEARCH_COMPLETE) > 0) {
 		printk("%s:%d:%d:%d: Cmd aborted from QINFIFO\n",
-		       ahd_name(ahd), cmd->device->channel, 
+		       ahd_name(ahd), cmd->device->channel,
 		       cmd->device->id, (u8)cmd->device->lun);
 		retval = SUCCESS;
 		goto done;
@@ -2402,7 +2402,7 @@ static void ahd_linux_set_period(struct scsi_target *starget, int period)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2455,7 +2455,7 @@ static void ahd_linux_set_offset(struct scsi_target *starget, int offset)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2475,7 +2475,7 @@ static void ahd_linux_set_offset(struct scsi_target *starget, int offset)
 	if (offset != 0) {
 		period = tinfo->goal.period;
 		ppr_options = tinfo->goal.ppr_options;
-		ahd_find_syncrate(ahd, &period, &ppr_options, 
+		ahd_find_syncrate(ahd, &period, &ppr_options,
 				  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
 	}
 
@@ -2490,7 +2490,7 @@ static void ahd_linux_set_dt(struct scsi_target *starget, int dt)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2532,7 +2532,7 @@ static void ahd_linux_set_qas(struct scsi_target *starget, int qas)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2550,7 +2550,7 @@ static void ahd_linux_set_qas(struct scsi_target *starget, int qas)
 #endif
 
 	if (qas) {
-		ppr_options |= MSG_EXT_PPR_QAS_REQ; 
+		ppr_options |= MSG_EXT_PPR_QAS_REQ;
 	}
 
 	dt = ppr_options & MSG_EXT_PPR_DT_REQ;
@@ -2571,7 +2571,7 @@ static void ahd_linux_set_iu(struct scsi_target *starget, int iu)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2611,7 +2611,7 @@ static void ahd_linux_set_rd_strm(struct scsi_target *starget, int rdstrm)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2647,7 +2647,7 @@ static void ahd_linux_set_wr_flow(struct scsi_target *starget, int wrflow)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2683,7 +2683,7 @@ static void ahd_linux_set_rti(struct scsi_target *starget, int rti)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2727,7 +2727,7 @@ static void ahd_linux_set_pcomp_en(struct scsi_target *starget, int pcomp)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2777,7 +2777,7 @@ static void ahd_linux_set_hold_mcs(struct scsi_target *starget, int hold)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
 	struct ahd_tmode_tstate *tstate;
-	struct ahd_initiator_tinfo *tinfo 
+	struct ahd_initiator_tinfo *tinfo
 		= ahd_fetch_transinfo(ahd,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);

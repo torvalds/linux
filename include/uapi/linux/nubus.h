@@ -5,7 +5,7 @@
   Originally written by Alan Cox.
 
   Hacked to death by C. Scott Ananian and David Huggins-Daines.
-  
+
   Some of the constants in here are from the corresponding
   NetBSD/OpenBSD header file, by Allen Briggs.  We figured out the
   rest of them on our own. */
@@ -68,7 +68,7 @@ enum nubus_type_cpu {
  *  from Apple's FTP site at:
  *  ftp://dev.apple.com/devworld/Tool_Chest/Devices_-_Hardware/NuBus_Slot_Manager/
  *
- *  Alternately, TattleTech can be found at any Info-Mac mirror site.  
+ *  Alternately, TattleTech can be found at any Info-Mac mirror site.
  *  or from its distribution site: ftp://ftp.decismkr.com/dms
  */
 
@@ -82,7 +82,7 @@ enum nubus_drsw {
 	/* NUBUS_CAT_DISPLAY */
 	NUBUS_DRSW_APPLE        = 0x0001,
 	NUBUS_DRSW_APPLE_HIRES  = 0x0013, /* MacII HiRes card driver */
-	
+
 	/* NUBUS_CAT_NETWORK */
 	NUBUS_DRSW_3COM         = 0x0000,
 	NUBUS_DRSW_CABLETRON    = 0x0001,
@@ -142,7 +142,7 @@ enum nubus_drhw {
 	NUBUS_DRHW_RDIUS_PC24XP   = 0x0406, /* Radius PrecisionColor 24Xp */
 	NUBUS_DRHW_RDIUS_PC24X    = 0x040A, /* Radius PrecisionColor 24X */
 	NUBUS_DRHW_RDIUS_PC8XJ    = 0x040B, /* Radius PrecisionColor 8XJ */
-	
+
 	/* NUBUS_CAT_NETWORK */
 	NUBUS_DRHW_INTERLAN       = 0x0100,
 	NUBUS_DRHW_SMC9194        = 0x0101,

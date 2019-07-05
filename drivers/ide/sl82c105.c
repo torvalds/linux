@@ -6,7 +6,7 @@
  *
  * Drive tuning added from Rebel.com's kernel sources
  *  -- Russell King (15/11/98) linux@arm.linux.org.uk
- * 
+ *
  * Merge in Russell's HW workarounds, fix various problems
  * with the timing registers setup.
  *  -- Benjamin Herrenschmidt (01/11/03) benh@kernel.crashing.org
@@ -265,7 +265,7 @@ static u8 sl82c105_bridge_revision(struct pci_dev *dev)
 
 /*
  * Enable the PCI device
- * 
+ *
  * --BenH: It's arch fixup code that should enable channels that
  * have not been enabled by firmware. I decided we can still enable
  * channel 0 here at least, but channel 1 has to be enabled by

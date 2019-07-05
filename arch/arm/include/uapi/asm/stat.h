@@ -16,7 +16,7 @@ struct __old_kernel_stat {
 	unsigned long  st_ctime;
 };
 
-#define STAT_HAVE_NSEC 
+#define STAT_HAVE_NSEC
 
 struct stat {
 #if defined(__ARMEB__)

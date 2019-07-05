@@ -6,12 +6,12 @@
  *      Thanks to John Galbraith
  *
  *      This driver is for the 'Mark Of The Unicorn' (MOTU)
- *      MidiTimePiece AV multiport MIDI interface 
+ *      MidiTimePiece AV multiport MIDI interface
  *
  *      IOPORTS
  *      -------
  *      8 MIDI Ins and 8 MIDI outs
- *      Video Sync In (BNC), Word Sync Out (BNC), 
+ *      Video Sync In (BNC), Word Sync Out (BNC),
  *      ADAT Sync Out (DB9)
  *      SMPTE in/out (1/4")
  *      2 programmable pedal/footswitch inputs and 4 programmable MIDI controller knobs.
@@ -21,7 +21,7 @@
  *
  *      MISC FEATURES
  *      -------------
- *      Hardware MIDI routing, merging, and filtering   
+ *      Hardware MIDI routing, merging, and filtering
  *      MIDI Synchronization to Video, ADAT, SMPTE and other Clock sources
  *      128 'scene' memories, recallable from MIDI program change
  *
@@ -299,7 +299,7 @@ static void snd_mtpav_output_port_write(struct mtpav *mtp_card,
 	do {
 		if (outbyte & 0x80)
 			portp->running_status = outbyte;
-		
+
 		snd_mtpav_send_byte(mtp_card, outbyte);
 	} while (snd_rawmidi_transmit(substream, &outbyte, 1) == 1);
 }

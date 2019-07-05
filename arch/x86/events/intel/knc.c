@@ -315,7 +315,7 @@ __init int knc_pmu_init(void)
 {
 	x86_pmu = knc_pmu;
 
-	memcpy(hw_cache_event_ids, knc_hw_cache_event_ids, 
+	memcpy(hw_cache_event_ids, knc_hw_cache_event_ids,
 		sizeof(hw_cache_event_ids));
 
 	return 0;

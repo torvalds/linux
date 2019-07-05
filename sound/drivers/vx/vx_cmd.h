@@ -160,7 +160,7 @@ struct vx_cmd_info {
 
 #define BIT_SKIP_SOUND					0x08	// bit 3
 #define BIT_DATA_MODE					0x10	// bit 4
-    
+
 /* Bits in the CMD_MODIFY_CLOCK request. */
 #define CMD_MODIFY_CLOCK_FD_BIT     0x00000001
 #define CMD_MODIFY_CLOCK_T_BIT      0x00000002
@@ -178,7 +178,7 @@ struct vx_cmd_info {
 
 /* Values for the CMD_CONFIG_TIME_CODE RMH. */
 #define CONFIG_TIME_CODE_CANCEL     0x00001000
-    
+
 /* Mask to get only the effective time from the
  * high word out of the 2 returned by the DSP
  */
@@ -211,10 +211,10 @@ static inline void vx_set_pipe_cmd_params(struct vx_rmh *rmh, int is_capture,
 	if (is_capture)
 		rmh->Cmd[0] |= COMMAND_RECORD_MASK;
 	rmh->Cmd[0] |= (((u32)param1 & MASK_FIRST_FIELD) << FIELD_SIZE) & MASK_DSP_WORD;
-		
+
 	if (param2)
 		rmh->Cmd[0] |= ((u32)param2 & MASK_FIRST_FIELD) & MASK_DSP_WORD;
-	
+
 }
 
 /**

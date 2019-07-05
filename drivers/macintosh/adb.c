@@ -127,7 +127,7 @@ static int adb_scan_bus(void)
 	int i, highFree=0, noMovement;
 	int devmask = 0;
 	struct adb_request req;
-	
+
 	/* assumes adb_handler[] is all zeroes at this point */
 	for (i = 1; i < 16; i++) {
 		/* see if there is anything at address i */
@@ -199,7 +199,7 @@ static int adb_scan_bus(void)
 					    (highFree << 4) | 0xb,
 					    (i | 0x60), 0xfe);
 			}
-		}	
+		}
 	}
 
 	/* Now fill in the handler_id field of the adb_handler entries. */
@@ -322,7 +322,7 @@ static int __init adb_init(void)
 	if (adb_inited)
 		return 0;
 	adb_inited = 1;
-		
+
 	adb_controller = NULL;
 
 	i = 0;
@@ -356,10 +356,10 @@ static int
 do_adb_reset_bus(void)
 {
 	int ret;
-	
+
 	if (adb_controller == NULL)
 		return -ENXIO;
-		
+
 	if (adb_controller->autopoll)
 		adb_controller->autopoll(0);
 
@@ -396,7 +396,7 @@ do_adb_reset_bus(void)
 
 	blocking_notifier_call_chain(&adb_client_list,
 		ADB_MSG_POST_RESET, NULL);
-	
+
 	return ret;
 }
 
@@ -476,7 +476,7 @@ adb_register(int default_id, int handler_id, struct adb_ids *ids,
 	ids->nids = 0;
 	for (i = 1; i < 16; i++) {
 		if ((adb_handler[i].original_address == default_id) &&
-		    (!handler_id || (handler_id == adb_handler[i].handler_id) || 
+		    (!handler_id || (handler_id == adb_handler[i].handler_id) ||
 		    try_handler_change(i, handler_id))) {
 			if (adb_handler[i].handler != 0) {
 				pr_err("Two handlers for ADB device %d\n",
@@ -522,7 +522,7 @@ adb_input(unsigned char *buf, int nb, int autopoll)
 	int i, id;
 	static int dump_adb_input;
 	unsigned long flags;
-	
+
 	void (*handler)(unsigned char *, int, int);
 
 	/* We skip keystrokes and mouse moves when the sleep process
@@ -530,7 +530,7 @@ adb_input(unsigned char *buf, int nb, int autopoll)
 	 */
 	if (adb_got_sleep)
 		return;
-		
+
 	id = buf[0] >> 4;
 	if (dump_adb_input) {
 		pr_info("adb packet: ");
@@ -548,7 +548,7 @@ adb_input(unsigned char *buf, int nb, int autopoll)
 		wmb();
 		adb_handler[id].busy = 0;
 	}
-		
+
 }
 
 /* Try to change handler to new_id. Will return 1 if successful. */
@@ -738,7 +738,7 @@ static ssize_t adb_read(struct file *file, char __user *buf,
 			ret = -EIO;
 		if (req != NULL || ret != 0)
 			break;
-		
+
 		if (file->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
 			break;
@@ -755,7 +755,7 @@ static ssize_t adb_read(struct file *file, char __user *buf,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&state->wait_queue, &wait);
 	spin_unlock_irqrestore(&state->lock, flags);
-	
+
 	if (ret)
 		return ret;
 
@@ -790,7 +790,7 @@ static ssize_t adb_write(struct file *file, const char __user *buf,
 	req->done = adb_write_done;
 	req->arg = (void *) state;
 	req->complete = 0;
-	
+
 	ret = -EFAULT;
 	if (copy_from_user(req->data, buf, count))
 		goto out;
@@ -818,7 +818,7 @@ static ssize_t adb_write(struct file *file, const char __user *buf,
 		if (ret == 0)
 			ret = count;
 		goto out;
-	} else {	
+	} else {
 		req->reply_expected = ((req->data[1] & 0xc) == 0xc);
 		if (adb_controller && adb_controller->send_request)
 			ret = adb_controller->send_request(req, 0);

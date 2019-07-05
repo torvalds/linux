@@ -455,7 +455,7 @@ static int pontis_gpio_mask_get(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
-	
+
 static int pontis_gpio_mask_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
@@ -479,7 +479,7 @@ static int pontis_gpio_dir_get(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
-	
+
 static int pontis_gpio_dir_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);

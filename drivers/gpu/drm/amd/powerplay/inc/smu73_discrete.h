@@ -127,7 +127,7 @@ typedef struct SMU73_Discrete_MemoryLevel SMU73_Discrete_MemoryLevel;
 struct SMU73_Discrete_LinkLevel
 {
     uint8_t     PcieGenSpeed;           ///< 0:PciE-gen1 1:PciE-gen2 2:PciE-gen3
-    uint8_t     PcieLaneCount;          ///< 1=x1, 2=x2, 3=x4, 4=x8, 5=x12, 6=x16 
+    uint8_t     PcieLaneCount;          ///< 1=x1, 2=x2, 3=x4, 4=x8, 5=x12, 6=x16
     uint8_t     EnabledForActivity;
     uint8_t     SPC;
     uint32_t    DownThreshold;

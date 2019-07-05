@@ -5,7 +5,7 @@
  *	Alan Cox (GW4PTS) 	10/11/93
  */
 #ifndef _AX25_H
-#define _AX25_H 
+#define _AX25_H
 
 #include <linux/ax25.h>
 #include <linux/spinlock.h>
@@ -100,7 +100,7 @@
 
 /* Define Link State constants. */
 
-enum { 
+enum {
 	AX25_STATE_0,			/* Listening */
 	AX25_STATE_1,			/* SABM sent */
 	AX25_STATE_2,			/* DISC sent */

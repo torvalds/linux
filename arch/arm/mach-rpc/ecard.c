@@ -860,7 +860,7 @@ void __iomem *ecardm_iomap(struct expansion_card *ec, unsigned int res,
 	start += offset;
 	if (maxsize && end - start > maxsize)
 		end = start + maxsize;
-	
+
 	return devm_ioremap(&ec->dev, start, end - start);
 }
 EXPORT_SYMBOL(ecardm_iomap);

@@ -138,8 +138,8 @@ static unsigned int readtab[] = {
 	CLK_HIGH | SI_HIGH,     /* 1 */
 	CLK_LOW | SI_HIGH,
 	CLK_HIGH | SI_HIGH      /* 1 */
-};     
- 
+};
+
 /* Clock to read from/write to the EEPROM */
 static unsigned int clocktab[] = {
 	CLK_LOW,
@@ -159,13 +159,13 @@ static unsigned int clocktab[] = {
 	CLK_LOW,
 	CLK_HIGH,
 	CLK_LOW
-};     
+};
 
 static const struct atmdev_ops he_ops =
 {
 	.open =		he_open,
-	.close =	he_close,	
-	.ioctl =	he_ioctl,	
+	.close =	he_close,
+	.ioctl =	he_ioctl,
 	.send =		he_send,
 	.phy_put =	he_phy_put,
 	.phy_get =	he_phy_get,
@@ -448,7 +448,7 @@ static void he_init_rx_lbfp0(struct he_dev *he_dev)
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
 	unsigned lbuf_bufsize = he_dev->cells_per_lbuf * ATM_CELL_PAYLOAD;
 	unsigned row_offset = he_dev->r0_startrow * he_dev->bytes_per_row;
-	
+
 	lbufd_index = 0;
 	lbm_offset = he_readl(he_dev, RCMLBM_BA);
 
@@ -467,7 +467,7 @@ static void he_init_rx_lbfp0(struct he_dev *he_dev)
 		}
 		lbm_offset += 4;
 	}
-		
+
 	he_writel(he_dev, lbufd_index - 2, RLBF0_T);
 	he_writel(he_dev, he_dev->r0_numbuffs, RLBF0_C);
 }
@@ -478,7 +478,7 @@ static void he_init_rx_lbfp1(struct he_dev *he_dev)
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
 	unsigned lbuf_bufsize = he_dev->cells_per_lbuf * ATM_CELL_PAYLOAD;
 	unsigned row_offset = he_dev->r1_startrow * he_dev->bytes_per_row;
-	
+
 	lbufd_index = 1;
 	lbm_offset = he_readl(he_dev, RCMLBM_BA) + (2 * lbufd_index);
 
@@ -497,7 +497,7 @@ static void he_init_rx_lbfp1(struct he_dev *he_dev)
 		}
 		lbm_offset += 4;
 	}
-		
+
 	he_writel(he_dev, lbufd_index - 2, RLBF1_T);
 	he_writel(he_dev, he_dev->r1_numbuffs, RLBF1_C);
 }
@@ -508,7 +508,7 @@ static void he_init_tx_lbfp(struct he_dev *he_dev)
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
 	unsigned lbuf_bufsize = he_dev->cells_per_lbuf * ATM_CELL_PAYLOAD;
 	unsigned row_offset = he_dev->tx_startrow * he_dev->bytes_per_row;
-	
+
 	lbufd_index = he_dev->r0_numbuffs + he_dev->r1_numbuffs;
 	lbm_offset = he_readl(he_dev, RCMLBM_BA) + (2 * lbufd_index);
 
@@ -527,7 +527,7 @@ static void he_init_tx_lbfp(struct he_dev *he_dev)
 		}
 		lbm_offset += 2;
 	}
-		
+
 	he_writel(he_dev, lbufd_index - 1, TLBF_T);
 }
 
@@ -546,7 +546,7 @@ static int he_init_tpdrq(struct he_dev *he_dev)
 	he_dev->tpdrq_head = he_dev->tpdrq_base;
 
 	he_writel(he_dev, he_dev->tpdrq_phys, TPDRQ_B_H);
-	he_writel(he_dev, 0, TPDRQ_T);	
+	he_writel(he_dev, 0, TPDRQ_T);
 	he_writel(he_dev, CONFIG_TPDRQ_SIZE - 1, TPDRQ_S);
 
 	return 0;
@@ -670,13 +670,13 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 
 	for (reg = 0x100; reg < 0x1ff; ++reg)
 		he_writel_rcm(he_dev, 0x0, CONFIG_RCMABR + reg);
-	
+
 	/* initialize tNrm lookup table */
 
 	/* the manual makes reference to a routine in a sample driver
 	   for proper configuration; fortunately, we only need this
 	   in order to support abr connection */
-	
+
 	/* initialize rate to group table */
 
 	rate = he_dev->atm_dev->link_rate;
@@ -684,7 +684,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 
 	/*
 	 * 2.4 transmit internal functions
-	 * 
+	 *
 	 * we construct a copy of the rate grid used by the scheduler
 	 * in order to construct the rate to group table below
 	 */
@@ -706,7 +706,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 	 *
 	 * this table maps the upper 5 bits of exponent and mantissa
 	 * of the atm forum representation of the rate into an index
-	 * on rate grid  
+	 * on rate grid
 	 */
 
 	rate_atmf = 0;
@@ -714,7 +714,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 		man = (rate_atmf & 0x1f) << 4;
 		exp = rate_atmf >> 5;
 
-		/* 
+		/*
 			instead of '/ 512', use '>> 9' to prevent a call
 			to divdu3 on x86 platforms
 		*/
@@ -755,7 +755,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 		reg = (reg << 16) | ((i << 8) | buf);
 
 #define RTGTBL_OFFSET 0x400
-	  
+
 		if (rate_atmf & 0x1)
 			he_writel_rcm(he_dev, reg,
 				CONFIG_RCMABR + RTGTBL_OFFSET + (rate_atmf >> 1));
@@ -963,7 +963,7 @@ static int he_init_irq(struct he_dev *he_dev)
 			he_irq_handler, IRQF_SHARED, DEV_LABEL, he_dev)) {
 		hprintk("irq %d already in use\n", he_dev->pci_dev->irq);
 		return -EINVAL;
-	}   
+	}
 
 	he_dev->irq = he_dev->pci_dev->irq;
 
@@ -979,7 +979,7 @@ static int he_start(struct atm_dev *dev)
 	u16 command;
 	u32 gen_cntl_0, host_cntl, lb_swap;
 	u8 cache_size, timer;
-	
+
 	unsigned err;
 	unsigned int status, reg;
 	int i, group;
@@ -991,7 +991,7 @@ static int he_start(struct atm_dev *dev)
 	HPRINTK("membase = 0x%lx  irq = %d.\n", membase, pci_dev->irq);
 
 	/*
-	 * pci bus controller initialization 
+	 * pci bus controller initialization
 	 */
 
 	/* 4.3 pci bus controller-specific initialization */
@@ -1035,11 +1035,11 @@ static int he_start(struct atm_dev *dev)
 	/* from table 3.9
 	 *
 	 * LAT_TIMER = 1 + AVG_LAT + BURST_SIZE/BUS_SIZE
-	 * 
+	 *
 	 * AVG_LAT: The average first data read/write latency [maximum 16 clock cycles]
 	 * BURST_SIZE: 1536 bytes (read) for 622, 768 bytes (read) for 155 [192 clock cycles]
 	 *
-	 */ 
+	 */
 #define LAT_TIMER 209
 	if (timer < LAT_TIMER) {
 		HPRINTK("latency timer was %d, setting to %d\n", timer, LAT_TIMER);
@@ -1136,9 +1136,9 @@ static int he_start(struct atm_dev *dev)
 
 	/*
 	 *		local (cell) buffer memory map
-	 *                    
+	 *
 	 *             HE155                          HE622
-	 *                                                      
+	 *
 	 *        0 ____________1023 bytes  0 _______________________2047 bytes
 	 *         |            |            |                   |   |
 	 *         |  utility   |            |        rx0        |   |
@@ -1221,7 +1221,7 @@ static int he_start(struct atm_dev *dev)
 
 	/* 5.1.2 configure hardware dependent registers */
 
-	he_writel(he_dev, 
+	he_writel(he_dev,
 		SLICE_X(0x2) | ARB_RNUM_MAX(0xf) | TH_PRTY(0x3) |
 		RH_PRTY(0x3) | TL_PRTY(0x2) | RL_PRTY(0x1) |
 		(he_is622(he_dev) ? BUS_MULTI(0x28) : BUS_MULTI(0x46)) |
@@ -1241,7 +1241,7 @@ static int he_start(struct atm_dev *dev)
 
 	he_writel(he_dev, he_dev->cells_per_lbuf * ATM_CELL_PAYLOAD, LB_CONFIG);
 
-	he_writel(he_dev, 
+	he_writel(he_dev,
 		(he_is622(he_dev) ? UT_RD_DELAY(8) : UT_RD_DELAY(0)) |
 		(he_is622(he_dev) ? RC_UT_MODE(0) : RC_UT_MODE(1)) |
 		RX_VALVP(he_dev->vpibits) |
@@ -1317,7 +1317,7 @@ static int he_start(struct atm_dev *dev)
 	 *             |                   |
 	 *             |             rx0/1 |
 	 *             |       LBM         |   link lists of local
-	 *             |             tx    |   buffer memory 
+	 *             |             tx    |   buffer memory
 	 *             |                   |
 	 *       0xd000|___________________|
 	 *             |                   |
@@ -1409,13 +1409,13 @@ static int he_start(struct atm_dev *dev)
 	he_writel(he_dev, 0x0, OEC);
 	he_writel(he_dev, 0x0, DCC);
 	he_writel(he_dev, 0x0, CEC);
-	
+
 	/* 5.1.7 cs block initialization */
 
 	he_init_cs_block(he_dev);
 
 	/* 5.1.8 cs block connection memory initialization */
-	
+
 	if (he_init_cs_block_rcm(he_dev) < 0)
 		return -ENOMEM;
 
@@ -1427,7 +1427,7 @@ static int he_start(struct atm_dev *dev)
 					   sizeof(struct he_tpd), TPD_ALIGNMENT, 0);
 	if (he_dev->tpd_pool == NULL) {
 		hprintk("unable to create tpd dma_pool\n");
-		return -ENOMEM;         
+		return -ENOMEM;
 	}
 
 	INIT_LIST_HEAD(&he_dev->outstanding_tpds);
@@ -1600,7 +1600,7 @@ he_stop(struct he_dev *he_dev)
 		command &= ~(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
 		pci_write_config_word(he_dev->pci_dev, PCI_COMMAND, command);
 	}
-	
+
 	if (he_dev->membase)
 		iounmap(he_dev->membase);
 }
@@ -1614,9 +1614,9 @@ __alloc_tpd(struct he_dev *he_dev)
 	tpd = dma_pool_alloc(he_dev->tpd_pool, GFP_ATOMIC, &mapping);
 	if (tpd == NULL)
 		return NULL;
-			
+
 	tpd->status = TPD_ADDR(mapping);
-	tpd->reserved = 0; 
+	tpd->reserved = 0;
 	tpd->iovec[0].addr = 0; tpd->iovec[0].len = 0;
 	tpd->iovec[1].addr = 0; tpd->iovec[1].len = 0;
 	tpd->iovec[2].addr = 0; tpd->iovec[2].len = 0;
@@ -1684,7 +1684,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 				list_del(&heb->entry);
 				dma_pool_free(he_dev->rbpl_pool, heb, heb->mapping);
 			}
-					
+
 			goto next_rbrq_entry;
 		}
 
@@ -1815,7 +1815,7 @@ he_service_tbrq(struct he_dev *he_dev, int group)
 
 		HPRINTK("tbrq%d 0x%x%s%s\n",
 			group,
-			TBRQ_TPD(he_dev->tbrq_head), 
+			TBRQ_TPD(he_dev->tbrq_head),
 			TBRQ_EOS(he_dev->tbrq_head) ? " EOS" : "",
 			TBRQ_MULTIPLE(he_dev->tbrq_head) ? " MULTIPLE" : "");
 		tpd = NULL;
@@ -1850,7 +1850,7 @@ he_service_tbrq(struct he_dev *he_dev, int group)
 							DMA_TO_DEVICE);
 			if (tpd->iovec[slot].len & TPD_LST)
 				break;
-				
+
 		}
 
 		if (tpd->skb) {	/* && !TBRQ_MULTIPLE(he_dev->tbrq_head) */
@@ -1918,7 +1918,7 @@ he_service_rbpl(struct he_dev *he_dev, int group)
 
 		he_dev->rbpl_tail = new_tail;
 		++moved;
-	} 
+	}
 
 	if (moved)
 		he_writel(he_dev, RBPL_MASK(he_dev->rbpl_tail), G0_RBPL_T);
@@ -2207,7 +2207,7 @@ he_open(struct atm_vcc *vcc)
 
 				/* find an unused cs_stper register */
 				for (reg = 0; reg < HE_NUM_CS_STPER; ++reg)
-					if (he_dev->cs_stper[reg].inuse == 0 || 
+					if (he_dev->cs_stper[reg].inuse == 0 ||
 					    he_dev->cs_stper[reg].pcr == pcr_goal)
 							break;
 
@@ -2225,7 +2225,7 @@ he_open(struct atm_vcc *vcc)
 
 				clock = he_is622(he_dev) ? 66667000 : 50000000;
 				period = clock / pcr_goal;
-				
+
 				HPRINTK("rc_index = %d period = %d\n",
 								reg, period);
 
@@ -2296,7 +2296,7 @@ he_open(struct atm_vcc *vcc)
 
 		rsr1 = RSR1_GROUP(0) | RSR1_RBPL_ONLY;
 		rsr4 = RSR4_GROUP(0) | RSR4_RBPL_ONLY;
-		rsr0 = vcc->qos.rxtp.traffic_class == ATM_UBR ? 
+		rsr0 = vcc->qos.rxtp.traffic_class == ATM_UBR ?
 				(RSR0_EPD_ENABLE|RSR0_PPD_ENABLE) : 0;
 
 #ifdef USE_CHECKSUM_HW
@@ -2384,7 +2384,7 @@ he_close(struct atm_vcc *vcc)
 		int timeout;
 
 		HPRINTK("close tx cid 0x%x\n", cid);
-		
+
 		/* 2.1.2
 		 *
 		 * ... the host must first stop queueing packets to the TPDRQ
@@ -2414,7 +2414,7 @@ he_close(struct atm_vcc *vcc)
 
 		switch (vcc->qos.txtp.traffic_class) {
 			case ATM_UBR:
-				he_writel_tsr1(he_dev, 
+				he_writel_tsr1(he_dev,
 					TSR1_MCR(rate_to_atmf(200000))
 					| TSR1_PCR(0), cid);
 				break;
@@ -2541,7 +2541,7 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		char *pti_clp = (void *) (skb->data + 3);
 		int clp, pti;
 
-		pti = (*pti_clp & ATM_HDR_PTI_MASK) >> ATM_HDR_PTI_SHIFT; 
+		pti = (*pti_clp & ATM_HDR_PTI_MASK) >> ATM_HDR_PTI_SHIFT;
 		clp = (*pti_clp & ATM_HDR_CLP);
 		tpd->status |= TPD_CELLTYPE(pti);
 		if (clp)
@@ -2683,11 +2683,11 @@ he_phy_put(struct atm_dev *atm_dev, unsigned char val, unsigned long addr)
 	(void) he_readl(he_dev, FRAMER + (addr*4));		/* flush posted writes */
 	spin_unlock_irqrestore(&he_dev->global_lock, flags);
 }
- 
-	
+
+
 static unsigned char
 he_phy_get(struct atm_dev *atm_dev, unsigned long addr)
-{ 
+{
 	unsigned long flags;
 	struct he_dev *he_dev = HE_DEV(atm_dev);
 	unsigned reg;
@@ -2733,7 +2733,7 @@ he_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 	spin_unlock_irqrestore(&he_dev->global_lock, flags);
 
 	if (!left--)
-		return sprintf(page, "%16ld  %16ld  %13ld  %17ld\n\n", 
+		return sprintf(page, "%16ld  %16ld  %13ld  %17ld\n\n",
 							mcc, oec, dcc, cec);
 
 	if (!left--)
@@ -2793,17 +2793,17 @@ static u8 read_prom_byte(struct he_dev *he_dev, int addr)
 
 	val = readl(he_dev->membase + HOST_CNTL);
 	val &= 0xFFFFE0FF;
-       
+
 	/* Turn on write enable */
 	val |= 0x800;
 	he_writel(he_dev, val, HOST_CNTL);
-       
+
 	/* Send READ instruction */
 	for (i = 0; i < ARRAY_SIZE(readtab); i++) {
 		he_writel(he_dev, val | readtab[i], HOST_CNTL);
 		udelay(EEPROM_DELAY);
 	}
-       
+
 	/* Next, we need to send the byte address to read from */
 	for (i = 7; i >= 0; i--) {
 		he_writel(he_dev, val | clocktab[j++] | (((addr >> i) & 1) << 9), HOST_CNTL);
@@ -2811,12 +2811,12 @@ static u8 read_prom_byte(struct he_dev *he_dev, int addr)
 		he_writel(he_dev, val | clocktab[j++] | (((addr >> i) & 1) << 9), HOST_CNTL);
 		udelay(EEPROM_DELAY);
 	}
-       
+
 	j = 0;
 
 	val &= 0xFFFFF7FF;      /* Turn off write enable */
 	he_writel(he_dev, val, HOST_CNTL);
-       
+
 	/* Now, we can read data from the EEPROM by clocking it in */
 	for (i = 7; i >= 0; i--) {
 		he_writel(he_dev, val | clocktab[j++], HOST_CNTL);
@@ -2827,7 +2827,7 @@ static u8 read_prom_byte(struct he_dev *he_dev, int addr)
 		he_writel(he_dev, val | clocktab[j++], HOST_CNTL);
 		udelay(EEPROM_DELAY);
 	}
-       
+
 	he_writel(he_dev, val | ID_CS, HOST_CNTL);
 	udelay(EEPROM_DELAY);
 

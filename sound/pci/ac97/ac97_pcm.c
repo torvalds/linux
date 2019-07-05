@@ -244,7 +244,7 @@ int snd_ac97_set_rate(struct snd_ac97 *ac97, int reg, unsigned int rate)
 {
 	int dbl;
 	unsigned int tmp;
-	
+
 	dbl = rate > 48000;
 	if (dbl) {
 		if (!(ac97->flags & AC97_DOUBLE_RATE))

@@ -35,7 +35,7 @@
  * function "DeclBitfR" except its use is restricted to occur within a larger
  * enclosing structure or union definition.  This declaration is an unnamed
  * structure with the argument, name, as the member name and the argument,
- * uname, as the element name. 
+ * uname, as the element name.
  *----------------------------------------------------------------------- */
 #define Bitfield_extract(start, length, object) 	\
     ((object) >> (HOSTWDSZ - (start) - (length)) & 	\

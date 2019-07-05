@@ -201,7 +201,7 @@ static int snd_ak4117_rx_put(struct snd_kcontrol *kcontrol,
 	struct ak4117 *chip = snd_kcontrol_chip(kcontrol);
 	int change;
 	u8 old_val;
-	
+
 	spin_lock_irq(&chip->lock);
 	old_val = chip->regmap[AK4117_REG_IO];
 	change = !!ucontrol->value.integer.value[0] != ((old_val & AK4117_IPS) ? 1 : 0);
@@ -494,7 +494,7 @@ int snd_ak4117_check_rate_and_errors(struct ak4117 *ak4117, unsigned int flags)
 		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[10]->id);
 	if (c1 & AK4117_DTSCD)
 		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[11]->id);
-		
+
 	if (ak4117->change_callback && (c0 | c1) != 0)
 		ak4117->change_callback(ak4117, c0, c1);
 

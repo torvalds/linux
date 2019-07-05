@@ -8,7 +8,7 @@
  *  Version 0.04	Added second channel tuning
  *  Version 0.05	Enhanced tuning ; added qd6500 support
  *  Version 0.06	Added dos driver's list
- *  Version 0.07	Second channel bug fix 
+ *  Version 0.07	Second channel bug fix
  *
  * QDI QD6500/QD6580 EIDE controller fast support
  *

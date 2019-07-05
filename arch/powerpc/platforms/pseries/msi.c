@@ -77,7 +77,7 @@ static void rtas_disable_msi(struct pci_dev *pdev)
 	 * disabling MSI with the explicit interface also disables MSI-X
 	 */
 	if (rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, 0) != 0) {
-		/* 
+		/*
 		 * may have failed because explicit interface is not
 		 * present
 		 */

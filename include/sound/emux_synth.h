@@ -172,7 +172,7 @@ struct snd_emux_voice {
 	struct snd_emux *emu;	/* assigned root info */
 	void *hw;		/* hardware pointer (emu8000 or emu10k1) */
 	unsigned long ontime;	/* jiffies at note triggered */
-	
+
 	/* Emu8k/Emu10k1 registers */
 	struct soundfont_voice_info reg;
 

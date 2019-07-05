@@ -18,7 +18,7 @@
 
 /***************************************************************/
 /* structure exchanging data between isdn hl and divert module */
-/***************************************************************/ 
+/***************************************************************/
 typedef struct
   { ulong if_magic; /* magic info and version */
     int cmd; /* command */

@@ -98,7 +98,7 @@ static inline void dump_parport_state (char *str, struct parport *p)
 	for (i=0; i<2; i++) {
 		printk ("]  dcr(%s)=[", i ? "soft" : "hard");
 		dcr = i ? priv->ctr : inb (CONTROL (p));
-	
+
 		if (dcr & 0x20) {
 			printk ("rev");
 		} else {

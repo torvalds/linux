@@ -18,10 +18,10 @@
  * of the time the translations they handle are a disjunct set.
  * Basically the io-unit handles all dvma sbus activity.
  */
- 
-/* AIEEE, unlike the nice sun4m, these monsters have 
+
+/* AIEEE, unlike the nice sun4m, these monsters have
    fixed DMA range 64M */
- 
+
 #define IOUNIT_DMA_BASE	    0xfc000000 /* TOP - 64M */
 #define IOUNIT_DMA_SIZE	    0x04000000 /* 64M */
 /* We use last 1M for sparc_dvma_malloc */

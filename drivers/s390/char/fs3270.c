@@ -246,7 +246,7 @@ fs3270_read(struct file *filp, char __user *data, size_t count, loff_t *off)
 	struct raw3270_request *rq;
 	struct idal_buffer *ib;
 	ssize_t rc;
-	
+
 	if (count == 0 || count > 65535)
 		return -EINVAL;
 	fp = filp->private_data;

@@ -41,7 +41,7 @@
  * GPL licensing note -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
- * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
+ * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99
  */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_tbl.h,v 1.9 2002/01/30 01:35:03 mvojkovi Exp $ */
@@ -272,9 +272,9 @@ static unsigned nv4TablePFIFO[][2] =
     {0x0000048B, 0x00000000},
     {0x00000400, 0x00000000},
     {0x00000414, 0x00000000},
-    {0x00000084, 0x03000100},  
+    {0x00000084, 0x03000100},
     {0x00000085, 0x00000110},
-    {0x00000086, 0x00000112},  
+    {0x00000086, 0x00000112},
     {0x00000143, 0x0000FFFF},
     {0x00000496, 0x0000FFFF},
     {0x00000050, 0x00000000},
@@ -388,7 +388,7 @@ static unsigned nv4TablePRAMIN[][2] =
     {0x00000022, 0x80000001},
     {0x00000023, 0x80011143},
     {0x00000024, 0x80000002},
-    {0x00000025, 0x80011144}, 
+    {0x00000025, 0x80011144},
     {0x00000026, 0x80000003},
     {0x00000027, 0x8001114B},
     {0x00000028, 0x80000004},
@@ -853,7 +853,7 @@ static unsigned nv10TablePRAMIN[][2] =
     {0x00000502, 0x00000002},
     {0x00000503, 0x00000002},
 #ifdef __BIG_ENDIAN
-    {0x00000508, 0x01088043}, 
+    {0x00000508, 0x01088043},
 #else
     {0x00000508, 0x01008043},
 #endif
@@ -967,7 +967,7 @@ static unsigned nv10TablePRAMIN_15BPP[][2] =
     {0x0000052D, 0x00000902},
     {0x0000052E, 0x00000902},
     {0x00000535, 0x00000902},
-    {0x00000539, 0x00000902}, 
+    {0x00000539, 0x00000902},
     {0x0000053D, 0x00000902},
     {0x00000541, 0x00000902}
 };

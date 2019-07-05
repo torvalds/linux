@@ -125,10 +125,10 @@ static const char* model_name[] = {
  * appears to be an evolution of keylargo ATA4 with a timing register
  * extended to 2 32bits registers and a similar DBDMA channel. Other
  * registers seem to exist but I can't tell much about them.
- * 
+ *
  * So far, I'm using pre-calculated tables for this extracted from
  * the values used by the MacOS X driver.
- * 
+ *
  * The "PIO" register controls PIO and MDMA timings, the "ULTRA"
  * register controls the UDMA timings. At least, it seems bit 0
  * of this one enables UDMA vs. MDMA, and bits 4..7 are the
@@ -144,7 +144,7 @@ static const char* model_name[] = {
 /* 66Mhz cell, found in KeyLargo. Can do ultra mode 0 to 2 on
  * 40 connector cable and to 4 on 80 connector one.
  * Clock unit is 15ns (66Mhz)
- * 
+ *
  * 3 Values can be programmed:
  *  - Write data setup, which appears to match the cycle time. They
  *    also call it DIOW setup.
@@ -178,7 +178,7 @@ static const char* model_name[] = {
 
 /* 33Mhz cell, found in OHare, Heathrow (& Paddington) and KeyLargo
  * Can do pio & mdma modes, clock unit is 30ns (33Mhz)
- * 
+ *
  * The access time and recovery time can be programmed. Some older
  * Darwin code base limit OHare to 150ns cycle time. I decided to do
  * the same here fore safety against broken old hardware ;)
@@ -214,7 +214,7 @@ static const char* model_name[] = {
 #define KAUAI_FCR_UATA_ENABLE		0x00000001
 
 /* Rounded Multiword DMA timings
- * 
+ *
  * I gave up finding a generic formula for all controller
  * types and instead, built tables based on timing values
  * used by Apple in Darwin's implementation.
@@ -372,7 +372,7 @@ static inline u32
 kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
 {
 	int i;
-	
+
 	for (i=0; table[i].cycle_time; i++)
 		if (cycle_time > table[i+1].cycle_time)
 			return table[i].timing_reg;
@@ -383,17 +383,17 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
 /* allow up to 256 DBDMA commands per xfer */
 #define MAX_DCMDS		256
 
-/* 
+/*
  * Wait 1s for disk to answer on IDE bus after a hard reset
  * of the device (via GPIO/FCR).
- * 
+ *
  * Some devices seem to "pollute" the bus even after dropping
  * the BSY bit (typically some combo drives slave on the UDMA
  * bus) after a hard reset. Since we hard reset all drives on
  * KeyLargo ATA66, we have to keep that delay around. I may end
  * up not hard resetting anymore on these and keep the delay only
  * for older interfaces instead (we have to reset when coming
- * from MacOS...) --BenH. 
+ * from MacOS...) --BenH.
  */
 #define IDE_WAKEUP_DELAY	(1*HZ)
 
@@ -562,7 +562,7 @@ static void pmac_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 #ifdef IDE_PMAC_DEBUG
 	printk(KERN_ERR "%s: Set PIO timing for mode %d, reg: 0x%08x\n",
 		drive->name, pio,  *timings);
-#endif	
+#endif
 
 	*timings = t;
 	pmac_ide_do_update_timings(drive);
@@ -584,14 +584,14 @@ set_timings_udma_ata4(u32 *timings, u8 speed)
 	addrTicks = SYSCLK_TICKS_66(kl66_udma_timings[speed & 0xf].addrSetup);
 
 	*timings = ((*timings) & ~(TR_66_UDMA_MASK | TR_66_MDMA_MASK)) |
-			(wrDataSetupTicks << TR_66_UDMA_WRDATASETUP_SHIFT) | 
+			(wrDataSetupTicks << TR_66_UDMA_WRDATASETUP_SHIFT) |
 			(rdyToPauseTicks << TR_66_UDMA_RDY2PAUS_SHIFT) |
 			(addrTicks <<TR_66_UDMA_ADDRSETUP_SHIFT) |
 			TR_66_UDMA_EN;
 #ifdef IDE_PMAC_DEBUG
 	printk(KERN_ERR "ide_pmac: Set UDMA timing for mode %d, reg: 0x%08x\n",
 		speed & 0xf,  *timings);
-#endif	
+#endif
 
 	return 0;
 }
@@ -659,7 +659,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 	if ((id[ATA_ID_FIELD_VALID] & 2) && id[ATA_ID_EIDE_DMA_TIME])
 		cycleTime = max_t(int, id[ATA_ID_EIDE_DMA_TIME], cycleTime);
 
-	/* OHare limits according to some old Apple sources */	
+	/* OHare limits according to some old Apple sources */
 	if ((intf_type == controller_ohare) && (cycleTime < 150))
 		cycleTime = 150;
 	/* Get the proper timing array for this controller */
@@ -742,7 +742,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 		int halfTick = 0;
 		int origAccessTime = accessTime;
 		int origRecTime = recTime;
-		
+
 		accessTicks = SYSCLK_TICKS(accessTime);
 		accessTicks = max(accessTicks, 1U);
 		accessTicks = min(accessTicks, 0x1fU);
@@ -767,7 +767,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 #ifdef IDE_PMAC_DEBUG
 	printk(KERN_ERR "%s: Set MDMA timing for mode %d, reg: 0x%08x\n",
 		drive->name, speed & 0xf,  *timings);
-#endif	
+#endif
 }
 
 static void pmac_ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
@@ -805,7 +805,7 @@ static void pmac_ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	*timings = tl[0];
 	*timings2 = tl[1];
 
-	pmac_ide_do_update_timings(drive);	
+	pmac_ide_do_update_timings(drive);
 }
 
 /*
@@ -816,7 +816,7 @@ static void
 sanitize_timings(pmac_ide_hwif_t *pmif)
 {
 	unsigned int value, value2 = 0;
-	
+
 	switch(pmif->kind) {
 		case controller_sh_ata6:
 			value = 0x0a820c97;
@@ -856,13 +856,13 @@ static int pmac_ide_do_suspend(pmac_ide_hwif_t *pmif)
 	/* We clear the timings */
 	pmif->timings[0] = 0;
 	pmif->timings[1] = 0;
-	
+
 	disable_irq(pmif->irq);
 
 	/* The media bay will handle itself just fine */
 	if (on_media_bay(pmif))
 		return 0;
-	
+
 	/* Kauai has bus control FCRs directly here */
 	if (pmif->kauai_fcr) {
 		u32 fcr = readl(pmif->kauai_fcr);
@@ -1062,7 +1062,7 @@ static int pmac_ide_setup_device(pmac_ide_hwif_t *pmif, struct ide_hw *hw)
 		writel(KAUAI_FCR_UATA_MAGIC |
 		       KAUAI_FCR_UATA_RESET_N |
 		       KAUAI_FCR_UATA_ENABLE, pmif->kauai_fcr);
-	
+
 	/* Make sure we have sane timings */
 	sanitize_timings(pmif);
 
@@ -1154,7 +1154,7 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 		rc = -EBUSY;
 		goto out_free_pmif;
 	}
-			
+
 	/* XXX This is bogus. Should be fixed in the registry by checking
 	 * the kind of host interrupt controller, a bit like gatwick
 	 * fixes in irq.c. That works well enough for the single case
@@ -1275,7 +1275,7 @@ static int pmac_ide_pci_attach(struct pci_dev *pdev,
 		goto out_free_pmif;
 	}
 	pci_set_master(pdev);
-			
+
 	if (pci_request_regions(pdev, "Kauai ATA")) {
 		printk(KERN_ERR "ide-pmac: Cannot obtain PCI resources for "
 				"%pOF\n", np);
@@ -1366,7 +1366,7 @@ static void pmac_ide_macio_mb_event(struct macio_dev* mdev, int mb_state)
 #endif /* CONFIG_PMAC_MEDIABAY */
 
 
-static struct of_device_id pmac_ide_macio_match[] = 
+static struct of_device_id pmac_ide_macio_match[] =
 {
 	{
 	.name 		= "IDE",
@@ -1383,7 +1383,7 @@ static struct of_device_id pmac_ide_macio_match[] =
 	{},
 };
 
-static struct macio_driver pmac_ide_macio_driver = 
+static struct macio_driver pmac_ide_macio_driver =
 {
 	.driver = {
 		.name 		= "ide-pmac",
@@ -1601,15 +1601,15 @@ pmac_ide_dma_test_irq (ide_drive_t *drive)
 	unsigned long status, timeout;
 
 	/* We have to things to deal with here:
-	 * 
+	 *
 	 * - The dbdma won't stop if the command was started
 	 * but completed with an error without transferring all
 	 * datas. This happens when bad blocks are met during
 	 * a multi-block transfer.
-	 * 
+	 *
 	 * - The dbdma fifo hasn't yet finished flushing to
 	 * to system memory when the disk interrupt occurs.
-	 * 
+	 *
 	 */
 
 	/* If ACTIVE is cleared, the STOP command have passed and
@@ -1638,7 +1638,7 @@ pmac_ide_dma_test_irq (ide_drive_t *drive)
 			       hwif->index);
 			break;
 		}
-	}	
+	}
 	return 1;
 }
 

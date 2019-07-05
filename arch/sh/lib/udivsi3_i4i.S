@@ -123,7 +123,7 @@ div_ge64k_2:
 	and r1,r0
 	bra div_ge64k_end
 	xor r4,r0
-	
+
 div_r8:
 	shll16 r4
 	bra div_r8_2

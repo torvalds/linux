@@ -42,7 +42,7 @@ struct snd_seq_fifo *snd_seq_fifo_new(int poolsize)
 	f->head = NULL;
 	f->tail = NULL;
 	f->cells = 0;
-	
+
 	return f;
 }
 
@@ -73,7 +73,7 @@ void snd_seq_fifo_delete(struct snd_seq_fifo **fifo)
 		snd_seq_pool_done(f->pool);
 		snd_seq_pool_delete(&f->pool);
 	}
-	
+
 	kfree(f);
 }
 
@@ -116,7 +116,7 @@ int snd_seq_fifo_event_in(struct snd_seq_fifo *f,
 		snd_use_lock_free(&f->use_lock);
 		return err;
 	}
-		
+
 	/* append new cells to fifo */
 	spin_lock_irqsave(&f->lock, flags);
 	if (f->tail != NULL)

@@ -16,7 +16,7 @@
  * market by using some kind of translation from ATAPI to USB on the host,
  * and the peripheral would translate from USB back to ATAPI.
  *
- * SCM Microsystems (www.scmmicro.com) makes a device, sold to OEM's only, 
+ * SCM Microsystems (www.scmmicro.com) makes a device, sold to OEM's only,
  * which does the USB-to-ATAPI conversion.  By obtaining the data sheet on
  * their device under nondisclosure agreement, I have been able to write
  * this driver for Linux.
@@ -543,7 +543,7 @@ static int usbat_hp8200e_rw_block_test(struct us_data *us,
 		 * the data via a write-and-test.  Any other time we only
 		 * send the command to download the data -- the SCSI command
 		 * is still 'active' in some sense in the device.
-		 * 
+		 *
 		 * We're only going to try sending the data 10 times. After
 		 * that, we just return a failure.
 		 */
@@ -637,7 +637,7 @@ static int usbat_hp8200e_rw_block_test(struct us_data *us,
 			 * Read status: is the device angry, or just busy?
 			 */
 
- 			result = usbat_read(us, USBAT_ATA, 
+ 			result = usbat_read(us, USBAT_ATA,
 				direction==DMA_TO_DEVICE ?
 					USBAT_ATA_STATUS : USBAT_ATA_ALTSTATUS,
 				status);
@@ -753,7 +753,7 @@ static int usbat_read_blocks(struct us_data *us,
 	result = usbat_execute_command(us, command, 8);
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_FAILED;
-	
+
 	/* Read the blocks we just asked for */
 	result = usbat_bulk_read(us, buffer, len, use_sg);
 	if (result != USB_STOR_XFER_GOOD)
@@ -795,7 +795,7 @@ static int usbat_write_blocks(struct us_data *us,
 	result = usbat_execute_command(us, command, 8);
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_FAILED;
-	
+
 	/* Write the data */
 	result = usbat_bulk_write(us, buffer, len, use_sg);
 	if (result != USB_STOR_XFER_GOOD)
@@ -859,7 +859,7 @@ static int usbat_device_reset(struct us_data *us)
 							 USBAT_UIO_EPAD | USBAT_UIO_1);
 	if (rc != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
-			
+
 	/*
 	 * Enable peripheral control signals
 	 * (bring reset signal down)
@@ -957,7 +957,7 @@ static int usbat_flash_check_media(struct us_data *us,
 		rc = usbat_read_user_io(us, uio);
 		if (rc != USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
-		
+
 		info->sense_key = UNIT_ATTENTION;
 		info->sense_asc = 0x28;
 		info->sense_ascq = 0x00;
@@ -1159,7 +1159,7 @@ static int usbat_flash_read_data(struct us_data *us,
 		 */
 		len = min(totallen, alloclen);
 		thistime = (len / info->ssize) & 0xff;
- 
+
 		/* ATA command 0x20 (READ SECTORS) */
 		usbat_pack_ata_sector_cmd(command, thistime, sector, 0x20);
 
@@ -1172,9 +1172,9 @@ static int usbat_flash_read_data(struct us_data *us,
 		result = usbat_read_blocks(us, buffer, len, 0);
 		if (result != USB_STOR_TRANSPORT_GOOD)
 			goto leave;
-  	 
+
 		usb_stor_dbg(us, "%d bytes\n", len);
-	
+
 		/* Store the data in the transfer buffer */
 		usb_stor_access_xfer_buf(buffer, len, us->srb,
 					 &sg, &sg_offset, TO_XFER_BUF);
@@ -1300,7 +1300,7 @@ static int usbat_hp8200e_handle_read10(struct us_data *us,
 
 	if (scsi_bufflen(srb) < 0x10000) {
 
-		result = usbat_hp8200e_rw_block_test(us, USBAT_ATA, 
+		result = usbat_hp8200e_rw_block_test(us, USBAT_ATA,
 			registers, data, 19,
 			USBAT_ATA_DATA, USBAT_ATA_STATUS, 0xFD,
 			(USBAT_QUAL_FCQ | USBAT_QUAL_ALQ),
@@ -1369,9 +1369,9 @@ static int usbat_hp8200e_handle_read10(struct us_data *us,
 		data[7+7] = MSB_of(len / srb->transfersize); /* SCSI command */
 		data[7+8] = LSB_of(len / srb->transfersize); /* num sectors */
 
-		result = usbat_hp8200e_rw_block_test(us, USBAT_ATA, 
+		result = usbat_hp8200e_rw_block_test(us, USBAT_ATA,
 			registers, data, 19,
-			USBAT_ATA_DATA, USBAT_ATA_STATUS, 0xFD, 
+			USBAT_ATA_DATA, USBAT_ATA_STATUS, 0xFD,
 			(USBAT_QUAL_FCQ | USBAT_QUAL_ALQ),
 			DMA_FROM_DEVICE,
 			buffer,
@@ -1406,35 +1406,35 @@ static int usbat_select_and_test_registers(struct us_data *us)
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		if (usbat_read(us, USBAT_ATA, USBAT_ATA_STATUS, status) != 
+		if (usbat_read(us, USBAT_ATA, USBAT_ATA_STATUS, status) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		if (usbat_read(us, USBAT_ATA, USBAT_ATA_DEVICE, status) != 
+		if (usbat_read(us, USBAT_ATA, USBAT_ATA_DEVICE, status) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, status) != 
+		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, status) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_HI, status) != 
+		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_HI, status) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		if (usbat_write(us, USBAT_ATA, USBAT_ATA_LBA_ME, 0x55) != 
+		if (usbat_write(us, USBAT_ATA, USBAT_ATA_LBA_ME, 0x55) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		if (usbat_write(us, USBAT_ATA, USBAT_ATA_LBA_HI, 0xAA) != 
+		if (usbat_write(us, USBAT_ATA, USBAT_ATA_LBA_HI, 0xAA) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, status) != 
+		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, status) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, status) != 
+		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, status) !=
 				USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 	}
@@ -1531,7 +1531,7 @@ static int init_usbat(struct us_data *us, int devicetype)
 
 	usb_stor_dbg(us, "INIT 10\n");
 
-	if (usbat_get_device_type(us) == USBAT_DEV_FLASH) { 
+	if (usbat_get_device_type(us) == USBAT_DEV_FLASH) {
 		subcountH = 0x02;
 		subcountL = 0x00;
 	}
@@ -1594,7 +1594,7 @@ static int usbat_hp8200e_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	if (srb->sc_data_direction == DMA_TO_DEVICE) {
 
-		result = usbat_hp8200e_rw_block_test(us, USBAT_ATA, 
+		result = usbat_hp8200e_rw_block_test(us, USBAT_ATA,
 			registers, data, 19,
 			USBAT_ATA_DATA, USBAT_ATA_STATUS, 0xFD,
 			(USBAT_QUAL_FCQ | USBAT_QUAL_ALQ),
@@ -1649,7 +1649,7 @@ static int usbat_hp8200e_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		/* How many bytes to read in? Check cylL register */
 
-		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, status) != 
+		if (usbat_read(us, USBAT_ATA, USBAT_ATA_LBA_ME, status) !=
 		    	USB_STOR_XFER_GOOD) {
 			return USB_STOR_TRANSPORT_ERROR;
 		}

@@ -35,7 +35,7 @@ COMPILE TIME CONFIGURATION (go into AHA152X in drivers/scsi/Makefile):
  Don't test for BIOS signature (AHA-1510 or disabled BIOS)
 
 -DSETUP0="{ IOPORT, IRQ, SCSI_ID, RECONNECT, PARITY, SYNCHRONOUS, DELAY, EXT_TRANS }"
- override for the first controller 
+ override for the first controller
 
 -DSETUP1="{ IOPORT, IRQ, SCSI_ID, RECONNECT, PARITY, SYNCHRONOUS, DELAY, EXT_TRANS }"
  override for the second controller
@@ -101,7 +101,7 @@ exttrans=EXTTRANS0[,EXTTRANS1]
 If you use both alternatives the first will be taken.
 
 
-NOTES ON EXT_TRANS: 
+NOTES ON EXT_TRANS:
 
 SCSI uses block numbers to address blocks/sectors on a device.
 The BIOS uses a cylinder/head/sector addressing scheme (C/H/S)
@@ -177,7 +177,7 @@ REFERENCES USED:
 
  Drew Eckhardt (drew@cs.colorado.edu)
 
- Eric Youngdale (eric@andante.org) 
+ Eric Youngdale (eric@andante.org)
 
  special thanks to Eric Youngdale for the free(!) supplying the
  documentation on the chip.

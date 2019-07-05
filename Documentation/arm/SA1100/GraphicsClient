@@ -3,7 +3,7 @@ ADS GraphicsClient Plus Single Board Computer
 For more details, contact Applied Data Systems or see
 http://www.applieddata.net/products.html
 
-The original Linux support for this product has been provided by 
+The original Linux support for this product has been provided by
 Nicolas Pitre <nico@fluxnic.net>. Continued development work by
 Woojung Huh <whuh@applieddata.net>
 
@@ -14,7 +14,7 @@ board supports MTD/JFFS, so you could also mount something on there.
 Use 'make graphicsclient_config' before any 'make config'.  This will set up
 defaults for GraphicsClient Plus support.
 
-The kernel zImage is linked to be loaded and executed at 0xc0200000.  
+The kernel zImage is linked to be loaded and executed at 0xc0200000.
 Also the following registers should have the specified values upon entry:
 
 	r0 = 0

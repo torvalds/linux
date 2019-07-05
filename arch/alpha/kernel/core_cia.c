@@ -31,7 +31,7 @@
 
 
 /*
- * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
+ * NOTE: Herein lie back-to-back mb instructions.  They are magic.
  * One plausible explanation is that the i/o controller does not properly
  * handle the system transaction.  Another involves timing.  Ho hum.
  */
@@ -53,7 +53,7 @@
  *
  * Type 0:
  *
- *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1 
+ *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1
  *  3 2|1 0 9 8|7 6 5 4|3 2 1 0|9 8 7 6|5 4 3 2|1 0 9 8|7 6 5 4|3 2 1 0
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * | | |D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|F|F|F|R|R|R|R|R|R|0|0|
@@ -65,7 +65,7 @@
  *
  * Type 1:
  *
- *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1 
+ *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1
  *  3 2|1 0 9 8|7 6 5 4|3 2 1 0|9 8 7 6|5 4 3 2|1 0 9 8|7 6 5 4|3 2 1 0
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * | | | | | | | | | | |B|B|B|B|B|B|B|B|D|D|D|D|D|F|F|F|R|R|R|R|R|R|0|1|
@@ -76,11 +76,11 @@
  *	15:11	Device number (5 bits)
  *	10:8	function number
  *	 7:2	register number
- *  
+ *
  * Notes:
- *	The function number selects which function of a multi-function device 
+ *	The function number selects which function of a multi-function device
  *	(e.g., SCSI and Ethernet).
- * 
+ *
  *	The register selects a DWORD (32 bit) register offset.  Hence it
  *	doesn't get shifted by 2 bits as we want to "drop" the bottom two
  *	bits.
@@ -205,7 +205,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 	DBGC(("done\n"));
 }
 
-static int 
+static int
 cia_read_config(struct pci_bus *bus, unsigned int devfn, int where, int size,
 		u32 *value)
 {
@@ -224,7 +224,7 @@ cia_read_config(struct pci_bus *bus, unsigned int devfn, int where, int size,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int 
+static int
 cia_write_config(struct pci_bus *bus, unsigned int devfn, int where, int size,
 		 u32 value)
 {
@@ -241,7 +241,7 @@ cia_write_config(struct pci_bus *bus, unsigned int devfn, int where, int size,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_ops cia_pci_ops = 
+struct pci_ops cia_pci_ops =
 {
 	.read = 	cia_read_config,
 	.write =	cia_write_config,
@@ -561,7 +561,7 @@ failed:
 
 #if defined(ALPHA_RESTORE_SRM_SETUP)
 /* Save CIA configuration data as the console had it set up.  */
-struct 
+struct
 {
     unsigned int hae_mem;
     unsigned int hae_io;
@@ -615,7 +615,7 @@ cia_restore_srm_settings(void)
 
 	*(vip)CIA_IOC_HAE_MEM   = saved_config.hae_mem;
 	*(vip)CIA_IOC_HAE_IO    = saved_config.hae_io;
-	*(vip)CIA_IOC_PCI_W_DAC = saved_config.pci_dac_offset;	
+	*(vip)CIA_IOC_PCI_W_DAC = saved_config.pci_dac_offset;
 	*(vip)CIA_IOC_ERR_MASK  = saved_config.err_mask;
 	*(vip)CIA_IOC_CIA_CTRL  = saved_config.cia_ctrl;
 
@@ -662,7 +662,7 @@ do_init_arch(int is_pyxis)
 	   accesses.  That is the way we want to use it, and we do not
 	   want to depend on what ARC or SRM might have left behind.  */
 	*(vip)CIA_IOC_CFG = 0;
- 
+
 	/* Zero the HAEs.  */
 	*(vip)CIA_IOC_HAE_MEM = 0;
 	*(vip)CIA_IOC_HAE_IO = 0;
@@ -722,7 +722,7 @@ do_init_arch(int is_pyxis)
 	 *
 	 * ??? NetBSD hints that page tables must be aligned to 32K,
 	 * possibly due to a hardware bug.  This is over-aligned
-	 * from the 8K alignment one would expect for an 8MB window. 
+	 * from the 8K alignment one would expect for an 8MB window.
 	 * No description of what revisions affected.
 	 */
 
@@ -749,10 +749,10 @@ do_init_arch(int is_pyxis)
 	   elsewhere, we should not claim that we support DAC unless that
 	   4GB covers all of physical memory.
 
-	   On CIA rev 1, apparently W1 and W2 can't be used for SG. 
-	   At least, there are reports that it doesn't work for Alcor. 
-	   In that case, we have no choice but to use W3 for the TBIA 
-	   workaround, which means we can't use DAC at all. */ 
+	   On CIA rev 1, apparently W1 and W2 can't be used for SG.
+	   At least, there are reports that it doesn't work for Alcor.
+	   In that case, we have no choice but to use W3 for the TBIA
+	   workaround, which means we can't use DAC at all. */
 
 	tbia_window = 1;
 	if (is_pyxis) {
@@ -858,7 +858,7 @@ cia_decode_pci_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 		const char *cmd;
 		unsigned long addr, tmp;
 		int lock, dac;
-	
+
 		cmd = pci_cmd_desc[cia->pci_err0 & 0x7];
 		lock = (cia->pci_err0 >> 4) & 1;
 		dac = (cia->pci_err0 >> 5) & 1;

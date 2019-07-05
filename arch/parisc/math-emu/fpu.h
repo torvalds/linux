@@ -7,15 +7,15 @@
  */
 /*
  * BEGIN_DESC
- * 
- *  File: 
+ *
+ *  File:
  *      @(#)	pa/fp/fpu.h		$Revision: 1.1 $
- * 
+ *
  *  Purpose:
  *      <<please update with a synopis of the functionality provided by this file>>
- * 
- * 
- * END_DESC  
+ *
+ *
+ * END_DESC
 */
 
 #ifdef __NO_PA_HDRS
@@ -51,7 +51,7 @@
 
 /*
  * The only was to differeniate between TIMEX and ROLEX (or PCX-S and PCX-T)
- * is thorough the potential type field from the PDC_MODEL call.  The 
+ * is thorough the potential type field from the PDC_MODEL call.  The
  * following flags are used at assist this differeniation.
  */
 

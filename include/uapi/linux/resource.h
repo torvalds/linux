@@ -11,7 +11,7 @@
 
 /*
  * Definition of struct rusage taken from BSD 4.3 Reno
- * 
+ *
  * We don't support all of these yet, but we might as well have them....
  * Otherwise, each time we add new items, programs which depend on this
  * structure will lose.  This reduces the chances of that happening.

@@ -103,7 +103,7 @@ static struct posix_acl *reiserfs_posix_acl_from_disk(const void *value, size_t 
 			value = (char *)value + sizeof(reiserfs_acl_entry);
 			if ((char *)value > end)
 				goto fail;
-			acl->a_entries[n].e_uid = 
+			acl->a_entries[n].e_uid =
 				make_kuid(&init_user_ns,
 					  le32_to_cpu(entry->e_id));
 			break;

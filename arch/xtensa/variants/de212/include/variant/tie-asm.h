@@ -1,4 +1,4 @@
-/* 
+/*
  * tie-asm.h -- compile-time HAL assembler definitions dependent on CORE & TIE
  *
  *  NOTE:  This header file is not meant to be included directly.

@@ -16,16 +16,16 @@ The following information is available in this file:
 
 1. Supported Hardware
 
-   The following Adaptec SCSI Host Adapters are supported by this 
-   driver set. 
+   The following Adaptec SCSI Host Adapters are supported by this
+   driver set.
 
    Ultra320 ASIC              Description
    ----------------------------------------------------------------
-   AIC-7901A                  Single Channel 64-bit PCI-X 133MHz to 
+   AIC-7901A                  Single Channel 64-bit PCI-X 133MHz to
                               Ultra320 SCSI ASIC
-   AIC-7901B                  Single Channel 64-bit PCI-X 133MHz to 
+   AIC-7901B                  Single Channel 64-bit PCI-X 133MHz to
                               Ultra320 SCSI ASIC with Retained Training
-   AIC-7902A4                 Dual Channel 64-bit PCI-X 133MHz to 
+   AIC-7902A4                 Dual Channel 64-bit PCI-X 133MHz to
                               Ultra320 SCSI ASIC
    AIC-7902B                  Dual Channel 64-bit PCI-X 133MHz to
                               Ultra320 SCSI ASIC with Retained Training
@@ -33,10 +33,10 @@ The following information is available in this file:
    Ultra320 Adapters          Description                              ASIC
    --------------------------------------------------------------------------
    Adaptec SCSI Card 39320    Dual Channel 64-bit PCI-X 133MHz to   7902A4/7902B
-                              Ultra320 SCSI Card (one external 
+                              Ultra320 SCSI Card (one external
                               68-pin, two internal 68-pin)
    Adaptec SCSI Card 39320A   Dual Channel 64-bit PCI-X 133MHz to      7902B
-                              Ultra320 SCSI Card (one external 
+                              Ultra320 SCSI Card (one external
                               68-pin, two internal 68-pin)
    Adaptec SCSI Card 39320D   Dual Channel 64-bit PCI-X 133MHz to      7902A4
                               Ultra320 SCSI Card (two external VHDC
@@ -46,11 +46,11 @@ The following information is available in this file:
                               and one internal 68-pin) based on the
                               AIC-7902B ASIC
    Adaptec SCSI Card 29320    Single Channel 64-bit PCI-X 133MHz to    7901A
-                              Ultra320 SCSI Card (one external 
+                              Ultra320 SCSI Card (one external
                               68-pin, two internal 68-pin, one
                               internal 50-pin)
    Adaptec SCSI Card 29320A   Single Channel 64-bit PCI-X 133MHz to    7901B
-                              Ultra320 SCSI Card (one external 
+                              Ultra320 SCSI Card (one external
                               68-pin, two internal 68-pin, one
                               internal 50-pin)
    Adaptec SCSI Card 29320LP  Single Channel 64-bit Low Profile        7901A
@@ -152,7 +152,7 @@ The following information is available in this file:
    1.3.2 (February 19th, 2003)
         - Correct a Rev B. regression due to the GEM318
           compatibility fix included in 1.3.1.
-          
+
    1.3.1 (February 11th, 2003)
         - Add support for the 39320A.
         - Improve recovery for certain PCI-X errors.
@@ -195,7 +195,7 @@ The following information is available in this file:
           - Quick Arbitration Selection (QAS)
           - Retained Training Information (Rev B. ASIC only)
         - Interrupt Coalescing
-        - Initiator Mode (target mode not currently 
+        - Initiator Mode (target mode not currently
           supported)
         - Support for the PCI-X standard up to 133MHz
         - Support for the PCI v2.2 standard
@@ -213,7 +213,7 @@ The following information is available in this file:
 
         WARNING: ALTERING OR ADDING THESE DRIVER PARAMETERS
                  INCORRECTLY CAN RENDER YOUR SYSTEM INOPERABLE.
-                 USE THEM WITH CAUTION. 
+                 USE THEM WITH CAUTION.
 
    Put a .conf file in the /etc/modprobe.d/ directory and add/edit a
    line containing 'options aic79xx aic79xx=[command[,command...]]' where
@@ -282,7 +282,7 @@ The following information is available in this file:
                         On Controller 1
                           specifies a tag depth of 32 for targets 0 and 2
                         All other targets retain the default depth.
-                        
+
      Possible Values: 1 - 253
        Default Value: 32
    -----------------------------------------------------------------
@@ -307,7 +307,7 @@ The following information is available in this file:
                           enables read streaming for all targets.
                         All other targets retain the default read
                         streaming setting.
-                      
+
      Possible Values: 0x0000 - 0xffff
        Default Value: 0x0000
    -----------------------------------------------------------------
@@ -347,7 +347,7 @@ The following information is available in this file:
              Example: precomp:{1,,7}
                         On Controller 0 set precompensation to 1.
                         On Controller 2 set precompensation to 8.
-                      
+
      Possible Values: 0 - 7
        Default Value: Varies based on chip revision
    -----------------------------------------------------------------
@@ -360,7 +360,7 @@ The following information is available in this file:
              Example: slewrate :{1,,8}
                         On Controller 0 set slew rate to 1.
                         On Controller 2 set slew rate to 8.
-                      
+
      Possible Values: 0 - 15
        Default Value: Varies based on chip revision
    -----------------------------------------------------------------
@@ -373,7 +373,7 @@ The following information is available in this file:
              Example: amplitude :{1,,7}
                         On Controller 0 set amplitude to 1.
                         On Controller 2 set amplitude to 7.
-                      
+
      Possible Values: 1 - 7
        Default Value: Varies based on chip revision
    -----------------------------------------------------------------
@@ -399,8 +399,8 @@ The following information is available in this file:
           latest version.
 
    4.3. Operating System or Technology Limitations
-        
-        * PCI Hot Plug is untested and may cause the operating system 
+
+        * PCI Hot Plug is untested and may cause the operating system
           to stop responding.
         * Luns that are not numbered contiguously starting with 0 might not
           be automatically probed during system startup.  This is a limitation
@@ -418,20 +418,20 @@ The following information is available in this file:
 
 5. Adaptec Customer Support
 
-   A Technical Support Identification (TSID) Number is required for 
+   A Technical Support Identification (TSID) Number is required for
    Adaptec technical support.
     - The 12-digit TSID can be found on the white barcode-type label
-      included inside the box with your product.  The TSID helps us 
-      provide more efficient service by accurately identifying your 
+      included inside the box with your product.  The TSID helps us
+      provide more efficient service by accurately identifying your
       product and support status.
 
    Support Options
     - Search the Adaptec Support Knowledgebase (ASK) at
       http://ask.adaptec.com for articles, troubleshooting tips, and
       frequently asked questions about your product.
-    - For support via Email, submit your question to Adaptec's 
+    - For support via Email, submit your question to Adaptec's
       Technical Support Specialists at http://ask.adaptec.com/.
-     
+
    North America
     - Visit our Web site at http://www.adaptec.com/.
     - For information about Adaptec's support options, call
@@ -460,7 +460,7 @@ The following information is available in this file:
 
    Japan
     - Visit our web site at http://www.adaptec.co.jp/.
-    - To speak with a Technical Support Specialist, call 
+    - To speak with a Technical Support Specialist, call
       +81 3 5308 6120, Monday-Friday, 9:00 a.m. to 12:00 p.m.,
       1:00 p.m. to 6:00 p.m.
 

@@ -5,7 +5,7 @@
  *   Lowlevel functions for VT1720-based motherboards
  *
  *	Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
- */      
+ */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>

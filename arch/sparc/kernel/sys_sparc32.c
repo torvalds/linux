@@ -11,9 +11,9 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/capability.h>
-#include <linux/fs.h> 
-#include <linux/mm.h> 
-#include <linux/file.h> 
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/file.h>
 #include <linux/signal.h>
 #include <linux/resource.h>
 #include <linux/times.h>

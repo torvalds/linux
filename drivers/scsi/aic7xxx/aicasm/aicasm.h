@@ -58,7 +58,7 @@ typedef struct path_entry {
 	SLIST_ENTRY(path_entry) links;
 } *path_entry_t;
 
-typedef enum {  
+typedef enum {
 	QUOTED_INCLUDE,
 	BRACKETED_INCLUDE,
 	SOURCE_FILE

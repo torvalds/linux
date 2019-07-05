@@ -159,7 +159,7 @@ struct dsp_spos_instance {
 	struct dsp_symbol_entry * null_algorithm; /* used by PCMreaderSCB's */
 	struct dsp_symbol_entry * s16_up;         /* used by SRCtaskSCB's */
 
-	/* proc fs */  
+	/* proc fs */
 	struct snd_card *snd_card;
 	struct snd_info_entry * proc_dsp_dir;
 
@@ -190,7 +190,7 @@ struct dsp_spos_instance {
 
 	/* Capture record mixer SCB */
 	struct dsp_scb_descriptor * record_mixer_scb;
-    
+
 	/* CODEC input SCB */
 	struct dsp_scb_descriptor * codec_in_scb;
 

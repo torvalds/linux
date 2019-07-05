@@ -193,7 +193,7 @@ int __init prominfo_init(void)
 		if (!dir)
 			continue;
 		nasid = cnodeid_to_nasid(cnodeid);
-		proc_create_single_data("fit", 0, dir, proc_fit_show, 
+		proc_create_single_data("fit", 0, dir, proc_fit_show,
 				(void *)nasid);
 		proc_create_single_data("version", 0, dir, proc_version_show,
 				(void *)nasid);

@@ -142,7 +142,7 @@ int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 	 * to lose callbacks, however, so we're going to poll from
 	 * time to time just to make sure.
 	 *
-	 * For now, the retry frequency is pretty high; normally 
+	 * For now, the retry frequency is pretty high; normally
 	 * a 1 minute timeout would do. See the comment before
 	 * nlmclnt_lock for an explanation.
 	 */
@@ -169,7 +169,7 @@ __be32 nlmclnt_grant(const struct sockaddr *addr, const struct nlm_lock *lock)
 	__be32 res = nlm_lck_denied;
 
 	/*
-	 * Look up blocked request based on arguments. 
+	 * Look up blocked request based on arguments.
 	 * Warning: must not use cookie to match it!
 	 */
 	spin_lock(&nlm_blocked_lock);

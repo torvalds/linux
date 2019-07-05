@@ -51,7 +51,7 @@ static unsigned long clocktick __ro_after_init;	/* timer cycles per tick */
  * rate of 1.  The write-only register is 32-bits wide.  When the lowest
  * 32 bits of the read-only register compare equal to the write-only
  * register, it raises a maskable external interrupt.  Each processor has
- * an Interval Timer of its own and they are not synchronised.  
+ * an Interval Timer of its own and they are not synchronised.
  *
  * We want to generate an interrupt every 1/HZ seconds.  So we program
  * CR16 to interrupt every @clocktick cycles.  The it_value in cpu_data

@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; see the file COPYING.  If not, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- * 
+ *
  * Copyright (c) 2000-2003 Adaptec Inc.
  * All rights reserved.
  *
@@ -258,7 +258,7 @@ struct ahc_linux_device {
 	int			active;
 
 	/*
-	 * The currently allowed number of 
+	 * The currently allowed number of
 	 * transactions that can be queued to
 	 * the device.  Must be signed for
 	 * conversion from tagged to untagged
@@ -272,7 +272,7 @@ struct ahc_linux_device {
 	 * device's queue is halted.
 	 */
 	u_int			qfrozen;
-	
+
 	/*
 	 * Cumulative command counter.
 	 */
@@ -351,7 +351,7 @@ struct ahc_platform_data {
 	/*
 	 * Fields accessed from interrupt context.
 	 */
-	struct scsi_target *starget[AHC_NUM_TARGETS]; 
+	struct scsi_target *starget[AHC_NUM_TARGETS];
 
 	spinlock_t		 spin_lock;
 	u_int			 qfrozen;

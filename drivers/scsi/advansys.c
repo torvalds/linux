@@ -7328,7 +7328,7 @@ advansys_narrow_slave_configure(struct scsi_device *sdev, ASC_DVC_VAR *asc_dvc)
 				asc_dvc->cfg->can_tagged_qng |= tid_bit;
 				asc_dvc->use_tagged_qng |= tid_bit;
 			}
-			scsi_change_queue_depth(sdev, 
+			scsi_change_queue_depth(sdev,
 						asc_dvc->max_dvc_qng[sdev->id]);
 		}
 	} else {

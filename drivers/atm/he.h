@@ -191,9 +191,9 @@ struct he_tpdrq {
 
 struct he_hsp {
 	struct he_hsp_entry {
-		volatile u32 tbrq_tail; 
+		volatile u32 tbrq_tail;
 		volatile u32 reserved1[15];
-		volatile u32 rbrq_tail; 
+		volatile u32 rbrq_tail;
 		volatile u32 reserved2[15];
 	} group[HE_NUM_GROUPS];
 };
@@ -236,7 +236,7 @@ struct he_group {
 
 #define HE_LOOKUP_VCC(dev, cid) ((dev)->he_vcc_table[(cid)].vcc)
 
-struct he_vcc_table 
+struct he_vcc_table
 {
 	struct atm_vcc *vcc;
 };
@@ -457,7 +457,7 @@ struct he_vcc
 #define G0_RBPS_BS	0x8040c
 #define G0_RBPL_S	0x80410
 #define G0_RBPL_T	0x80414
-#define G0_RBPL_QI	0x80418 
+#define G0_RBPL_QI	0x80418
 #define G0_RBPL_BS	0x8041c
 
 #define	G1_RBPS_S	0x80420
@@ -616,11 +616,11 @@ struct he_vcc
 #define  TM_RW_WAIT(x)		(x<<2)
 #define  TM_SRAM_TYPE(x)	(x)
 
-#define TSRB_BA		0x80744	
-#define TSRC_BA		0x80748	
-#define TMABR_BA	0x8074c	
-#define TPD_BA		0x80750	
-#define TSRD_BA		0x80758	
+#define TSRB_BA		0x80744
+#define TSRC_BA		0x80748
+#define TMABR_BA	0x8074c
+#define TPD_BA		0x80750
+#define TSRD_BA		0x80758
 
 #define TX_CONFIG	0x80760
 #define  DRF_THRESH(x)		(x<<22)

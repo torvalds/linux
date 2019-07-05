@@ -2,7 +2,7 @@
 /*
  * NET		Generic infrastructure for INET connection oriented protocols.
  *
- *		Definitions for inet_connection_sock 
+ *		Definitions for inet_connection_sock
  *
  * Authors:	Many people, see the TCP sources
  *

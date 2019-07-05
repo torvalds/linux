@@ -319,7 +319,7 @@ static int ceph_readdir(struct file *file, struct dir_context *ctx)
 	/* always start with . and .. */
 	if (ctx->pos == 0) {
 		dout("readdir off 0 -> '.'\n");
-		if (!dir_emit(ctx, ".", 1, 
+		if (!dir_emit(ctx, ".", 1,
 			    ceph_translate_ino(inode->i_sb, inode->i_ino),
 			    inode->i_mode >> 12))
 			return 0;

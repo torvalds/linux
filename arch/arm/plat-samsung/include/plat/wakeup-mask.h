@@ -15,7 +15,7 @@
  * struct samsung_wakeup_mask - wakeup mask information
  * @irq: The interrupt associated with this wakeup.
  * @bit: The bit, as a (1 << bitno) controlling this source.
- */ 
+ */
 struct samsung_wakeup_mask {
 	unsigned int	irq;
 	u32		bit;

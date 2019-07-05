@@ -136,7 +136,7 @@ static inline int snd_card_proc_new(struct snd_card *card, const char *name,
 	return *entryp ? 0 : -ENOMEM;
 }
 
-static inline void snd_info_set_text_ops(struct snd_info_entry *entry, 
+static inline void snd_info_set_text_ops(struct snd_info_entry *entry,
 	void *private_data,
 	void (*read)(struct snd_info_entry *, struct snd_info_buffer *))
 {

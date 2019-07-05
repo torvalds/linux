@@ -1587,7 +1587,7 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 			rsi_send_rx_filter_frame(common, 0);
 	}
 	mutex_unlock(&common->mutex);
-	
+
 	return 0;
 }
 
@@ -1613,7 +1613,7 @@ static int rsi_mac80211_set_antenna(struct ieee80211_hw *hw,
 			tx_ant, rx_ant);
 		rsi_dbg(ERR_ZONE,
 			"Use 0 for int_ant, 1 for ext_ant\n");
-		return -EINVAL; 
+		return -EINVAL;
 	}
 
 	rsi_dbg(INFO_ZONE, "%s: Antenna map Tx %x Rx %d\n",
@@ -1630,9 +1630,9 @@ static int rsi_mac80211_set_antenna(struct ieee80211_hw *hw,
 		tx_ant ? "UFL" : "INT");
 
 	common->ant_in_use = antenna;
-	
+
 	mutex_unlock(&common->mutex);
-	
+
 	return 0;
 
 fail_set_antenna:
@@ -1642,13 +1642,13 @@ fail_set_antenna:
 }
 
 /**
- * rsi_mac80211_get_antenna() - This function is used to configure 
+ * rsi_mac80211_get_antenna() - This function is used to configure
  * 				tx and rx antennas.
  *
  * @hw: Pointer to the ieee80211_hw structure.
  * @tx_ant: Bitmap for tx antenna
  * @rx_ant: Bitmap for rx antenna
- * 
+ *
  * Return: 0 on success, negative error codes on failure.
  */
 static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
@@ -1663,8 +1663,8 @@ static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
 	*rx_ant = 0;
 
 	mutex_unlock(&common->mutex);
-	
-	return 0;	
+
+	return 0;
 }
 
 static int rsi_map_region_code(enum nl80211_dfs_regions region_code)
@@ -1688,10 +1688,10 @@ static void rsi_reg_notify(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct rsi_hw * adapter = hw->priv; 
+	struct rsi_hw * adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
 	int i;
-	
+
 	mutex_lock(&common->mutex);
 
 	rsi_dbg(INFO_ZONE, "country = %s dfs_region = %d\n",
@@ -1711,7 +1711,7 @@ static void rsi_reg_notify(struct wiphy *wiphy,
 	}
 	adapter->dfs_region = rsi_map_region_code(request->dfs_region);
 	rsi_dbg(INFO_ZONE, "RSI region code = %d\n", adapter->dfs_region);
-	
+
 	adapter->country[0] = request->alpha2[0];
 	adapter->country[1] = request->alpha2[1];
 

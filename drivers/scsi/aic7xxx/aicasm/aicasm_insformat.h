@@ -195,7 +195,7 @@ struct instruction {
 #define	AIC_OP_SHR	0x20
 #define	AIC_OP_ROR	0x30
 
-/* 16bit Ops. Low byte main opcode.  High byte extended opcode. */ 
+/* 16bit Ops. Low byte main opcode.  High byte extended opcode. */
 #define	AIC_OP_OR16	0x8005
 #define	AIC_OP_AND16	0x8105
 #define	AIC_OP_XOR16	0x8205

@@ -33,12 +33,12 @@
 
 
 /* Daughter board Type */
-#define DAUGHTER_TYPE_MASK     0x0F 
-#define DAUGHTER_VER_MASK      0xF0 
+#define DAUGHTER_TYPE_MASK     0x0F
+#define DAUGHTER_VER_MASK      0xF0
 #define DAUGHTER_TYPEVER_MASK  (DAUGHTER_TYPE_MASK|DAUGHTER_VER_MASK)
- 
-#define MIXART_DAUGHTER_TYPE_NONE     0x00 
-#define MIXART_DAUGHTER_TYPE_COBRANET 0x08 
+
+#define MIXART_DAUGHTER_TYPE_NONE     0x00
+#define MIXART_DAUGHTER_TYPE_COBRANET 0x08
 #define MIXART_DAUGHTER_TYPE_AES      0x0E
 
 
@@ -60,28 +60,28 @@
 #define  MIXART_PSEUDOREG_PERF_INTERR_LOAD_OFFSET  MIXART_PSEUDOREG+0x74     /* interrupt handling  load */
 
 /* motherboard xilinx loader info */
-#define  MIXART_PSEUDOREG_MXLX_BASE_ADDR_OFFSET    MIXART_PSEUDOREG+0x9C     /* 0x00600000 */ 
-#define  MIXART_PSEUDOREG_MXLX_SIZE_OFFSET         MIXART_PSEUDOREG+0xA0     /* xilinx size in bytes */ 
-#define  MIXART_PSEUDOREG_MXLX_STATUS_OFFSET       MIXART_PSEUDOREG+0xA4     /* status = EMBEBBED_STAT_XXX */ 
+#define  MIXART_PSEUDOREG_MXLX_BASE_ADDR_OFFSET    MIXART_PSEUDOREG+0x9C     /* 0x00600000 */
+#define  MIXART_PSEUDOREG_MXLX_SIZE_OFFSET         MIXART_PSEUDOREG+0xA0     /* xilinx size in bytes */
+#define  MIXART_PSEUDOREG_MXLX_STATUS_OFFSET       MIXART_PSEUDOREG+0xA4     /* status = EMBEBBED_STAT_XXX */
 
 /* elf loader info */
-#define  MIXART_PSEUDOREG_ELF_STATUS_OFFSET        MIXART_PSEUDOREG+0xB0     /* status = EMBEBBED_STAT_XXX */ 
+#define  MIXART_PSEUDOREG_ELF_STATUS_OFFSET        MIXART_PSEUDOREG+0xB0     /* status = EMBEBBED_STAT_XXX */
 
-/* 
+/*
 *  after the elf code is loaded, and the flowtable info was passed to it,
 *  the driver polls on this address, until it shows 1 (presence) or 2 (absence)
 *  once it is non-zero, the daughter board type may be read
 */
-#define  MIXART_PSEUDOREG_DBRD_PRESENCE_OFFSET     MIXART_PSEUDOREG+0x990   
+#define  MIXART_PSEUDOREG_DBRD_PRESENCE_OFFSET     MIXART_PSEUDOREG+0x990
 
 /* Global info structure */
 #define  MIXART_PSEUDOREG_DBRD_TYPE_OFFSET         MIXART_PSEUDOREG+0x994    /* Type and version of daughterboard  */
 
 
 /* daughterboard xilinx loader info */
-#define  MIXART_PSEUDOREG_DXLX_BASE_ADDR_OFFSET    MIXART_PSEUDOREG+0x998    /* get the address here where to write the file */ 
-#define  MIXART_PSEUDOREG_DXLX_SIZE_OFFSET         MIXART_PSEUDOREG+0x99C    /* xilinx size in bytes */ 
-#define  MIXART_PSEUDOREG_DXLX_STATUS_OFFSET       MIXART_PSEUDOREG+0x9A0    /* status = EMBEBBED_STAT_XXX */ 
+#define  MIXART_PSEUDOREG_DXLX_BASE_ADDR_OFFSET    MIXART_PSEUDOREG+0x998    /* get the address here where to write the file */
+#define  MIXART_PSEUDOREG_DXLX_SIZE_OFFSET         MIXART_PSEUDOREG+0x99C    /* xilinx size in bytes */
+#define  MIXART_PSEUDOREG_DXLX_STATUS_OFFSET       MIXART_PSEUDOREG+0x9A0    /* status = EMBEBBED_STAT_XXX */
 
 /*  */
 #define  MIXART_FLOWTABLE_PTR                      0x3000                    /* pointer to flow table */

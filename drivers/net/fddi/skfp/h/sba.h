@@ -11,7 +11,7 @@
 /*
  * Synchronous Bandwidth Allocation (SBA) structs
  */
- 
+
 #ifndef _SBA_
 #define _SBA_
 
@@ -102,7 +102,7 @@ struct s_sba {
 	 * SBA variables
 	 */
 	u_long	sba_t_neg ;		/* holds the last T_NEG */
-	long	sba_max_alloc ;		/* the parsed value of SBAAvailable */	
+	long	sba_max_alloc ;		/* the parsed value of SBAAvailable */
 
 	/*
 	 * SBA state machine variables
@@ -128,7 +128,7 @@ struct s_ess {
 	char	timer_count ;		/* counts every timer function call */
 
 	SMbuf	*sba_reply_pend ;	/* local reply for the sba is pending */
-	
+
 	/*
 	 * variables for the ess bandwidth control
 	 */

@@ -18,13 +18,13 @@ static void uwb_rsv_fill_column_alloc(struct uwb_rsv_alloc_info *ai)
 	unsigned char c;
 
 	for (col = ci->csi.start_col; col < UWB_NUM_ZONES; col += ci->csi.interval) {
-    
+
 		safe_mas   = ci->csi.safe_mas_per_col;
 		unsafe_mas = ci->csi.unsafe_mas_per_col;
-    
+
 		for (mas = 0; mas < UWB_MAS_PER_ZONE; mas++ ) {
 			if (bm[col * UWB_MAS_PER_ZONE + mas] == 0) {
-	
+
 				if (safe_mas > 0) {
 					safe_mas--;
 					c = UWB_RSV_MAS_SAFE;
@@ -51,7 +51,7 @@ static void uwb_rsv_fill_row_alloc(struct uwb_rsv_alloc_info *ai)
 	c = UWB_RSV_MAS_SAFE;
 	for (mas = UWB_MAS_PER_ZONE - 1; mas >= 0; mas--) {
 		if (ri->avail[mas] == 1) {
-      
+
 			if (rows > ri->used_rows) {
 				break;
 			} else if (rows > 7) {
@@ -123,7 +123,7 @@ static void uwb_rsv_fill_row_alloc(struct uwb_rsv_alloc_info *ai)
  *	deep = 0
  *		set 1 ->  {  1   3   5   7   9  11  13  15 }
  */
-static int uwb_rsv_find_best_column_set(struct uwb_rsv_alloc_info *ai, int interval, 
+static int uwb_rsv_find_best_column_set(struct uwb_rsv_alloc_info *ai, int interval,
 					int num_safe_mas, int num_unsafe_mas)
 {
 	struct uwb_rsv_col_info *ci = ai->ci;
@@ -132,7 +132,7 @@ static int uwb_rsv_find_best_column_set(struct uwb_rsv_alloc_info *ai, int inter
 	int deep, set, col, start_col_deep, col_start_set;
 	int start_col, max_mas_in_set, lowest_max_mas_in_deep;
 	int n_mas;
-	int found = UWB_RSV_ALLOC_NOT_FOUND; 
+	int found = UWB_RSV_ALLOC_NOT_FOUND;
 
 	tmp_csi.start_col = 0;
 	start_col_deep = interval;
@@ -147,7 +147,7 @@ static int uwb_rsv_find_best_column_set(struct uwb_rsv_alloc_info *ai, int inter
 			max_mas_in_set = 0;
 			start_col = start_col_deep + col_start_set;
 			for (col = start_col; col < UWB_NUM_ZONES; col += interval) {
-                
+
 				if (ci[col].max_avail_safe >= num_safe_mas &&
 				    ci[col].max_avail_unsafe >= n_mas) {
 					if (ci[col].highest_mas[n_mas] > max_mas_in_set)
@@ -169,7 +169,7 @@ static int uwb_rsv_find_best_column_set(struct uwb_rsv_alloc_info *ai, int inter
 			csi->start_col = tmp_csi.start_col;
 			found = UWB_RSV_ALLOC_FOUND;
 			break;
-		} else if ((lowest_max_mas_in_deep > 8) && 
+		} else if ((lowest_max_mas_in_deep > 8) &&
 			   (lowest_max_mas_in_deep != UWB_MAS_PER_ZONE) &&
 			   (found == UWB_RSV_ALLOC_NOT_FOUND)) {
 			csi->start_col = tmp_csi.start_col;
@@ -185,7 +185,7 @@ static int uwb_rsv_find_best_column_set(struct uwb_rsv_alloc_info *ai, int inter
 		ai->safe_allocated_mases = (UWB_NUM_ZONES / interval) * num_safe_mas;
 		ai->unsafe_allocated_mases = (UWB_NUM_ZONES / interval) * num_unsafe_mas;
 		ai->total_allocated_mases = ai->safe_allocated_mases + ai->unsafe_allocated_mases;
-		ai->interval = interval;		
+		ai->interval = interval;
 	}
 	return found;
 }
@@ -195,7 +195,7 @@ static void get_row_descriptors(struct uwb_rsv_alloc_info *ai)
 	unsigned char *bm = ai->bm;
 	struct uwb_rsv_row_info *ri = &ai->ri;
 	int col, mas;
-  
+
 	ri->free_rows = 16;
 	for (mas = 0; mas < UWB_MAS_PER_ZONE; mas ++) {
 		ri->avail[mas] = 1;
@@ -212,7 +212,7 @@ static void get_row_descriptors(struct uwb_rsv_alloc_info *ai)
 static void uwb_rsv_fill_column_info(unsigned char *bm, int column, struct uwb_rsv_col_info *rci)
 {
 	int mas;
-	int block_count = 0, start_block = 0; 
+	int block_count = 0, start_block = 0;
 	int previous_avail = 0;
 	int available = 0;
 	int safe_mas_in_row[UWB_MAS_PER_ZONE] = {
@@ -271,13 +271,13 @@ static int uwb_rsv_find_best_row_alloc(struct uwb_rsv_alloc_info *ai)
 			uwb_rsv_fill_row_alloc(ai);
 			return UWB_RSV_ALLOC_FOUND;
 		}
-	}  
+	}
 	return UWB_RSV_ALLOC_NOT_FOUND;
 }
 
 static int uwb_rsv_find_best_col_alloc(struct uwb_rsv_alloc_info *ai, int interval)
 {
-	int n_safe, n_unsafe, n_mas;  
+	int n_safe, n_unsafe, n_mas;
 	int n_column = UWB_NUM_ZONES / interval;
 	int max_per_zone = ai->max_mas / n_column;
 	int min_per_zone = ai->min_mas / n_column;
@@ -288,11 +288,11 @@ static int uwb_rsv_find_best_col_alloc(struct uwb_rsv_alloc_info *ai, int interv
 	if (min_per_zone > UWB_MAS_PER_ZONE) {
 		return UWB_RSV_ALLOC_NOT_FOUND;
 	}
-    
+
 	if (max_per_zone > UWB_MAS_PER_ZONE) {
 		max_per_zone = UWB_MAS_PER_ZONE;
 	}
-    
+
 	for (n_mas = max_per_zone; n_mas >= min_per_zone; n_mas--) {
 		if (uwb_rsv_find_best_column_set(ai, interval, 0, n_mas) == UWB_RSV_ALLOC_NOT_FOUND)
 			continue;
@@ -307,7 +307,7 @@ static int uwb_rsv_find_best_col_alloc(struct uwb_rsv_alloc_info *ai, int interv
 	return UWB_RSV_ALLOC_NOT_FOUND;
 }
 
-int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *available, 
+int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *available,
 				 struct uwb_mas_bm *result)
 {
 	struct uwb_rsv_alloc_info *ai;
@@ -335,7 +335,7 @@ int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *availab
 	}
 
 	get_column_descriptors(ai);
-        
+
 	for (interval = 16; interval >= 2; interval>>=1) {
 		if (interval > ai->max_interval)
 			continue;
@@ -364,10 +364,10 @@ int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *availab
 
 	result->safe   = ai->safe_allocated_mases;
 	result->unsafe = ai->unsafe_allocated_mases;
-	
-	kfree(ai);		
+
+	kfree(ai);
 	return UWB_RSV_ALLOC_FOUND;
-  
+
   alloc_not_found:
 	kfree(ai);
 	return UWB_RSV_ALLOC_NOT_FOUND;

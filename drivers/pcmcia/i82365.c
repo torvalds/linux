@@ -28,7 +28,7 @@
     and other provisions required by the GPL.  If you do not delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
-    
+
 ======================================================================*/
 
 #include <linux/module.h>
@@ -286,7 +286,7 @@ static void i365_set_pair(u_short sock, u_short reg, u_short data)
 
     The VIA controllers also use these routines, as they are mostly
     Cirrus lookalikes, without the timing registers.
-    
+
 ======================================================================*/
 
 #define flip(v,b,f) (v = ((f)<0) ? v : ((f) ? ((v)|(b)) : ((v)&(~b))))
@@ -372,7 +372,7 @@ static u_int __init cirrus_set_opts(u_short s, char *buf)
     Code to save and restore global state information for Vadem VG468
     and VG469 controllers, and to set and report global configuration
     options.
-    
+
 ======================================================================*/
 
 static void vg46x_get_state(u_short s)
@@ -394,7 +394,7 @@ static void vg46x_set_state(u_short s)
 static u_int __init vg46x_set_opts(u_short s, char *buf)
 {
     struct vg46x_state *p = &socket[s].state.vg46x;
-    
+
     flip(p->ctl, VG468_CTL_ASYNC, async_clock);
     flip(p->ema, VG469_MODE_CABLE, cable_mode);
     if (p->ctl & VG468_CTL_ASYNC)
@@ -419,7 +419,7 @@ static u_int __init vg46x_set_opts(u_short s, char *buf)
 /*======================================================================
 
     Generic routines to get and set controller options
-    
+
 ======================================================================*/
 
 static void get_bridge_state(u_short s)
@@ -472,7 +472,7 @@ static u_int __init set_bridge_opts(u_short s, u_short ns)
 /*======================================================================
 
     Interrupt testing code, for ISA and PCI interrupts
-    
+
 ======================================================================*/
 
 static volatile u_int irq_hits;
@@ -510,7 +510,7 @@ static u_int __init test_irq(u_short sock, int irq)
     /* mask all interrupts */
     i365_set(sock, I365_CSCINT, 0);
     pr_debug("i82365:    hits = %d\n", irq_hits);
-    
+
     return (irq_hits != 1);
 }
 
@@ -524,7 +524,7 @@ static u_int __init isa_scan(u_short sock, u_int mask0)
     /* Don't probe level-triggered interrupts -- reserved for PCI */
     mask0 &= ~(inb(PIC) | (inb(PIC+1) << 8));
 #endif
-    
+
     if (do_scan) {
 	set_bridge_state(sock);
 	i365_set(sock, I365_CSCINT, 0);
@@ -535,7 +535,7 @@ static u_int __init isa_scan(u_short sock, u_int mask0)
 	    if ((mask1 & (1 << i)) && (test_irq(sock, i) != 0))
 		mask1 ^= (1 << i);
     }
-    
+
     printk(KERN_INFO "    ISA irqs (");
     if (mask1) {
 	printk("scanned");
@@ -549,12 +549,12 @@ static u_int __init isa_scan(u_short sock, u_int mask0)
 	if (!cs_irq && (poll_interval == 0)) poll_interval = HZ;
     }
     printk(") = ");
-    
+
     for (i = 0; i < 16; i++)
 	if (mask1 & (1<<i))
 	    printk("%s%d", ((mask1 & ((1<<i)-1)) ? "," : ""), i);
     if (mask1 == 0) printk("none!");
-    
+
     return mask1;
 }
 
@@ -577,14 +577,14 @@ static int __init identify(unsigned int port, u_short sock)
     /* Use the next free entry in the socket table */
     socket[sockets].ioaddr = port;
     socket[sockets].psock = sock;
-    
+
     /* Wake up a sleepy Cirrus controller */
     if (wakeup) {
 	i365_bclr(sockets, PD67_MISC_CTL_2, PD67_MC2_SUSPEND);
 	/* Pause at least 50 ms */
 	mdelay(50);
     }
-    
+
     if ((val = i365_get(sockets, I365_IDENT)) & 0x70)
 	return -1;
     switch (val) {
@@ -597,7 +597,7 @@ static int __init identify(unsigned int port, u_short sock)
     case 0x88: case 0x89: case 0x8a:
 	type = IS_IBM; break;
     }
-    
+
     /* Check for Vadem VG-468 chips */
     outb(0x0e, port);
     outb(0x37, port);
@@ -612,7 +612,7 @@ static int __init identify(unsigned int port, u_short sock)
     val = i365_get(sockets, RF5C_CHIP_ID);
     if ((val == RF5C_CHIP_RF5C296) || (val == RF5C_CHIP_RF5C396))
 	type = IS_RF5Cx96;
-    
+
     /* Check for Cirrus CL-PD67xx chips */
     i365_set(sockets, PD67_CHIP_INFO, 0);
     val = i365_get(sockets, PD67_CHIP_INFO);
@@ -634,14 +634,14 @@ static int __init identify(unsigned int port, u_short sock)
     bound to a (non PC Card) Linux driver.  We leave these alone.
 
     We make an exception for cards that seem to be serial devices.
-    
+
 ======================================================================*/
 
 static int __init is_alive(u_short sock)
 {
     u_char stat;
     unsigned int start, stop;
-    
+
     stat = i365_get(sock, I365_STATUS);
     start = i365_get_pair(sock, I365_IO(0)+I365_W_START);
     stop = i365_get_pair(sock, I365_IO(0)+I365_W_STOP);
@@ -692,7 +692,7 @@ static void __init add_pcic(int ns, int type)
     mask &= I365_MASK & set_bridge_opts(base, ns);
     /* Scan for ISA interrupts */
     mask = isa_scan(base, mask);
-        
+
     /* Poll if only two interrupts available */
     if (!poll_interval) {
 	u_int tmp = (mask & 0xff20);
@@ -714,15 +714,15 @@ static void __init add_pcic(int ns, int type)
 	    printk(" status change on irq %d\n", cs_irq);
 	}
     }
-    
+
     if (!isa_irq) {
 	if (poll_interval == 0)
 	    poll_interval = HZ;
 	printk(" polling interval = %d ms\n",
 	       poll_interval * 1000 / HZ);
-	
+
     }
-    
+
     /* Update socket interrupt information, capabilities */
     for (i = 0; i < ns; i++) {
 	t[i].socket.features |= SS_CAP_PCCARD;
@@ -760,7 +760,7 @@ static void __init isa_probe(void)
 
     for (devid = id_table; devid->vendor; devid++) {
 	if ((dev = pnp_find_dev(NULL, devid->vendor, devid->function, NULL))) {
-	
+
 	    if (pnp_device_attach(dev) < 0)
 	    	continue;
 
@@ -887,11 +887,11 @@ static void pcic_interrupt_wrapper(struct timer_list *unused)
 static int i365_get_status(u_short sock, u_int *value)
 {
     u_int status;
-    
+
     status = i365_get(sock, I365_STATUS);
     *value = ((status & I365_CS_DETECT) == I365_CS_DETECT)
 	? SS_DETECT : 0;
-	
+
     if (i365_get(sock, I365_INTCTL) & I365_PC_IOCARD)
 	*value |= (status & I365_CS_STSCHG) ? 0 : SS_STSCHG;
     else {
@@ -912,7 +912,7 @@ static int i365_get_status(u_short sock, u_int *value)
 	    *value |= (status & VG469_VSENSE_A_VS2) ? 0 : SS_XVCARD;
 	}
     }
-    
+
     pr_debug("GetStatus(%d) = %#4.4x\n", sock, *value);
     return 0;
 } /* i365_get_status */
@@ -923,21 +923,21 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
 {
     struct i82365_socket *t = &socket[sock];
     u_char reg;
-    
+
     pr_debug("SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
 	  "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
 	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
-    
+
     /* First set global controller options */
     set_bridge_state(sock);
-    
+
     /* IO card, RESET flag, IO interrupt */
     reg = t->intr;
     reg |= state->io_irq;
     reg |= (state->flags & SS_RESET) ? 0 : I365_PC_RESET;
     reg |= (state->flags & SS_IOCARD) ? I365_PC_IOCARD : 0;
     i365_set(sock, I365_INTCTL, reg);
-    
+
     reg = I365_PWR_NORESET;
     if (state->flags & SS_PWR_AUTO) reg |= I365_PWR_AUTO;
     if (state->flags & SS_OUTPUT_ENA) reg |= I365_PWR_OUT;
@@ -1000,7 +1000,7 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
 	default:	return -EINVAL;
 	}
     }
-    
+
     if (reg != i365_get(sock, I365_POWER))
 	i365_set(sock, I365_POWER, reg);
 
@@ -1010,7 +1010,7 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
 	i365_bflip(sock, PD67_MISC_CTL_1, PD67_MC1_SPKR_ENA,
 		   state->flags & SS_SPKR_ENA);
     }
-    
+
     /* Card status change interrupt mask */
     reg = t->cs_irq << 4;
     if (state->csc_mask & SS_DETECT) reg |= I365_CSC_DETECT;
@@ -1023,7 +1023,7 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
     }
     i365_set(sock, I365_CSCINT, reg);
     i365_get(sock, I365_CSC);
-    
+
     return 0;
 } /* i365_set_socket */
 
@@ -1032,7 +1032,7 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
 static int i365_set_io_map(u_short sock, struct pccard_io_map *io)
 {
     u_char map, ioctl;
-    
+
     pr_debug("SetIOMap(%d, %d, %#2.2x, %d ns, "
 	  "%#llx-%#llx)\n", sock, io->map, io->flags, io->speed,
 	  (unsigned long long)io->start, (unsigned long long)io->stop);
@@ -1062,7 +1062,7 @@ static int i365_set_mem_map(u_short sock, struct pccard_mem_map *mem)
 {
     u_short base, i;
     u_char map;
-    
+
     pr_debug("SetMemMap(%d, %d, %#2.2x, %d ns, %#llx-%#llx, "
 	  "%#x)\n", sock, mem->map, mem->flags, mem->speed,
 	  (unsigned long long)mem->res->start,
@@ -1074,17 +1074,17 @@ static int i365_set_mem_map(u_short sock, struct pccard_mem_map *mem)
 	return -EINVAL;
     if ((mem->res->start > 0xffffff) || (mem->res->end > 0xffffff))
 	return -EINVAL;
-	
+
     /* Turn off the window before changing anything */
     if (i365_get(sock, I365_ADDRWIN) & I365_ENA_MEM(map))
 	i365_bclr(sock, I365_ADDRWIN, I365_ENA_MEM(map));
-    
+
     base = I365_MEM(map);
     i = (mem->res->start >> 12) & 0x0fff;
     if (mem->flags & MAP_16BIT) i |= I365_MEM_16BIT;
     if (mem->flags & MAP_0WS) i |= I365_MEM_0WS;
     i365_set_pair(sock, base+I365_W_START, i);
-    
+
     i = (mem->res->end >> 12) & 0x0fff;
     switch (to_cycles(mem->speed)) {
     case 0:	break;
@@ -1093,12 +1093,12 @@ static int i365_set_mem_map(u_short sock, struct pccard_mem_map *mem)
     default:	i |= I365_MEM_WS1 | I365_MEM_WS0; break;
     }
     i365_set_pair(sock, base+I365_W_STOP, i);
-    
+
     i = ((mem->card_start - mem->res->start) >> 12) & 0x3fff;
     if (mem->flags & MAP_WRPROT) i |= I365_MEM_WRPROT;
     if (mem->flags & MAP_ATTRIB) i |= I365_MEM_REG;
     i365_set_pair(sock, base+I365_W_OFF, i);
-    
+
     /* Turn on the window if necessary */
     if (mem->flags & MAP_ACTIVE)
 	i365_bset(sock, I365_ADDRWIN, I365_ENA_MEM(map));
@@ -1110,7 +1110,7 @@ static int i365_set_mem_map(u_short sock, struct pccard_mem_map *mem)
 
     Routines for accessing socket information and register dumps via
     /sys/class/pcmcia_socket/...
-    
+
 ======================================================================*/
 
 static ssize_t show_info(struct class_device *class_dev, char *buf)
@@ -1149,7 +1149,7 @@ static CLASS_DEVICE_ATTR(info, S_IRUGO, show_info, NULL);
 
 /*====================================================================*/
 
-/* this is horribly ugly... proper locking needs to be done here at 
+/* this is horribly ugly... proper locking needs to be done here at
  * some time... */
 #define LOCKED(x) do { \
 	int retval; \
@@ -1159,7 +1159,7 @@ static CLASS_DEVICE_ATTR(info, S_IRUGO, show_info, NULL);
 	spin_unlock_irqrestore(&isa_lock, flags); \
 	return retval; \
 } while (0)
-	
+
 
 static int pcic_get_status(struct pcmcia_socket *s, u_int *value)
 {
@@ -1293,7 +1293,7 @@ static int __init init_i82365(void)
     	poll_timer.expires = jiffies + poll_interval;
 	add_timer(&poll_timer);
     }
-    
+
     return 0;
 err_socket_release:
     for (i = 0; i < sockets; i++) {

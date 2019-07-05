@@ -45,7 +45,7 @@
 #define SNDRV_SEQ_EVENT_NOTEON		6
 #define SNDRV_SEQ_EVENT_NOTEOFF		7
 #define SNDRV_SEQ_EVENT_KEYPRESS	8
-	
+
 /** control messages (channel specific)
  * event data type = #snd_seq_ev_ctrl
  */
@@ -65,13 +65,13 @@
 #define SNDRV_SEQ_EVENT_QFRAME		22	/* midi time code quarter frame */
 #define SNDRV_SEQ_EVENT_TIMESIGN	23	/* SMF Time Signature event */
 #define SNDRV_SEQ_EVENT_KEYSIGN		24	/* SMF Key Signature event */
-	        
+
 /** timer messages
  * event data type = snd_seq_ev_queue_control
  */
 #define SNDRV_SEQ_EVENT_START		30	/* midi Real Time Start message */
 #define SNDRV_SEQ_EVENT_CONTINUE	31	/* midi Real Time Continue message */
-#define SNDRV_SEQ_EVENT_STOP		32	/* midi Real Time Stop message */	
+#define SNDRV_SEQ_EVENT_STOP		32	/* midi Real Time Stop message */
 #define	SNDRV_SEQ_EVENT_SETPOS_TICK	33	/* set tick queue position */
 #define SNDRV_SEQ_EVENT_SETPOS_TIME	34	/* set realtime queue position */
 #define SNDRV_SEQ_EVENT_TEMPO		35	/* (SMF) Tempo event */
@@ -274,7 +274,7 @@ struct snd_seq_event {
 	snd_seq_event_type_t type;	/* event type */
 	unsigned char flags;		/* event flags */
 	char tag;
-	
+
 	unsigned char queue;		/* schedule queue */
 	union snd_seq_timestamp time;	/* schedule time */
 
@@ -342,7 +342,7 @@ typedef int __bitwise snd_seq_client_type_t;
 #define	NO_CLIENT	((__force snd_seq_client_type_t) 0)
 #define	USER_CLIENT	((__force snd_seq_client_type_t) 1)
 #define	KERNEL_CLIENT	((__force snd_seq_client_type_t) 2)
-                        
+
 	/* event filter flags */
 #define SNDRV_SEQ_FILTER_BROADCAST	(1<<0)	/* accept broadcast messages */
 #define SNDRV_SEQ_FILTER_MULTICAST	(1<<1)	/* accept multicast messages */

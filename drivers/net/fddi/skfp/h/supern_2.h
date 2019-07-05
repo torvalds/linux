@@ -62,7 +62,7 @@
  */
 #define	FRM_SMT		(0)	/* asynchr. frames */
 #define	FRM_LLCA	(1)
-#define	FRM_IMPA	(2)	
+#define	FRM_IMPA	(2)
 #define	FRM_MAC		(4)	/* synchr. frames */
 #define	FRM_LLCS	(5)
 #define	FRM_IMPS	(6)
@@ -188,10 +188,10 @@ union tx_descr {
 #define TD_C_NFCS	0x02000000L	/* no frame check sequence */
 #define TD_C_XMTABT	0x01000000L	/* transmit abort */
 
-#define	TD_C_LNCNU	0x0000ff00L	
+#define	TD_C_LNCNU	0x0000ff00L
 #define TD_C_LNCNL	0x000000ffL
 #define TD_C_LNCN	0x0000ffffL	/* frame length lower/upper byte */
- 
+
 /*
  * transmit pointer
  */
@@ -289,9 +289,9 @@ struct tx_queue {
 #define FM_RPR		0x2d		/* r/w the read ptr. for receive qu. */
 #define FM_WPR		0x2e		/* r/w the write ptr. for receive qu.*/
 #define FM_SWPR		0x2f		/* r/w the shadow wr.-ptr. for rec.q.*/
-/* Supernet 3 */ 
-#define FM_RPR1         FM_RPR   
-#define FM_WPR1         FM_WPR 
+/* Supernet 3 */
+#define FM_RPR1         FM_RPR
+#define FM_WPR1         FM_WPR
 #define FM_SWPR1        FM_SWPR
 
 #define FM_WPXS		0x30		/* r/w the write ptr. for synchr. qu.*/
@@ -859,7 +859,7 @@ struct tx_queue {
 
 /*
  * PLC status register A (PL_STATUS_A: log. addr. 0x10)
- * It is used to report status information to the Node Processor about the 
+ * It is used to report status information to the Node Processor about the
  * Line State Machine (LSM).
  */
 #ifdef	MOT_ELM
@@ -927,7 +927,7 @@ struct tx_queue {
 #define	PL_PC6		(6<<7)		/* JOIN	   - 1. state to activ conn. */
 #define	PL_PC7		(7<<7)		/* VERIFY  - 2. - " - (3. ACTIVE) */
 #define	PL_PC8		(8<<7)		/* ACTIVE  - PHY has been incorporated*/
-#define	PL_PC9		(9<<7)		/* MAINT   - for test purposes or so 
+#define	PL_PC9		(9<<7)		/* MAINT   - for test purposes or so
 					   that PCM op. completely in softw. */
 
 #define	PL_PCI_SCRUB	0x0800		/* scrubbing function is being exec. */
@@ -970,7 +970,7 @@ struct tx_queue {
 /*
  * The PLC interrupt mask register (PL_INTR_MASK: log. addr. 0x02) constr. is
  * equal PL_INTR_EVENT register.
- * For each set bit, the setting of corresponding bit generate an int to NP. 
+ * For each set bit, the setting of corresponding bit generate an int to NP.
  */
 
 #ifdef	MOT_ELM
@@ -1025,7 +1025,7 @@ struct tx_queue {
 #define	PLC_QELM_A_BIST	0x5b6b		/* BIST signature of QELM Rev. A */
 
 /*
- 	FDDI board recources	
+ 	FDDI board recources
  */
 
 /*

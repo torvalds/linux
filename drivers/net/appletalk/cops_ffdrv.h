@@ -3,7 +3,7 @@
  *	The firmware this driver downloads into the Localtalk card is a
  *	separate program and is not GPL'd source code, even though the Linux
  *	side driver and the routine that loads this data into the card are.
- *	
+ *
  *	It is taken from the COPS SDK and is under the following license
  *
  *	This material is licensed to you strictly for use in conjunction with

@@ -5,7 +5,7 @@ static u32 SCRIPT[] = {
 ;
 ; Copyright (C) 2001 James.Bottomley@HansenPartnership.com
 ;;-----------------------------------------------------------------------------
-;;  
+;;
 ;;  This program is free software; you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
 ;;  the Free Software Foundation; either version 2 of the License, or
@@ -42,7 +42,7 @@ ABSOLUTE	ReceiveMsgAddress = 0	; Addr to receive msg
 ABSOLUTE	SGScriptStartAddress = 0
 
 ; The following represent status interrupts we use 3 hex digits for
-; this: 0xPRS where 
+; this: 0xPRS where
 
 ; P:
 ABSOLUTE	AFTER_SELECTION 	= 0x100
@@ -95,7 +95,7 @@ ABSOLUTE	DISCONNECT_DURING_DATA = 0x780
 
 ;
 ; Other interrupt conditions
-; 
+;
 ABSOLUTE	RESELECTED_DURING_SELECTION = 0x1000
 ABSOLUTE	COMPLETED_SELECTION_AS_TARGET = 0x1001
 ABSOLUTE	RESELECTION_IDENTIFIED = 0x1003
@@ -193,7 +193,7 @@ at 0x00000012 : */	0x0f000003,0x00000000,
 
 at 0x00000014 : */	0x98080000,0x00001003,
 /*
-	
+
 	ENTRY	SelectedAsTarget
 SelectedAsTarget:
 ; Basically tell the selecting device that there's nothing here

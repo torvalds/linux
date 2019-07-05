@@ -573,7 +573,7 @@ ahc_linux_target_alloc(struct scsi_target *starget)
 	target_offset = starget->id;
 	if (starget->channel != 0)
 		target_offset += 8;
-	  
+
 	if (starget->channel)
 		our_id = ahc->our_id_b;
 
@@ -599,18 +599,18 @@ ahc_linux_target_alloc(struct scsi_target *starget)
 			ultra = 0;
 			flags &= ~CFXFER;
 		}
-	    
+
 		if ((ahc->features & AHC_ULTRA2) != 0) {
 			scsirate = (flags & CFXFER) | (ultra ? 0x8 : 0);
 		} else {
 			scsirate = (flags & CFXFER) << 4;
-			maxsync = ultra ? AHC_SYNCRATE_ULTRA : 
+			maxsync = ultra ? AHC_SYNCRATE_ULTRA :
 				AHC_SYNCRATE_FAST;
 		}
 		spi_max_width(starget) = (flags & CFWIDEB) ? 1 : 0;
 		if (!(flags & CFSYNCH))
 			spi_max_offset(starget) = 0;
-		spi_min_period(starget) = 
+		spi_min_period(starget) =
 			ahc_find_period(ahc, scsirate, maxsync);
 
 		tinfo = ahc_fetch_transinfo(ahc, channel, ahc->our_id,
@@ -662,7 +662,7 @@ ahc_linux_slave_alloc(struct scsi_device *sdev)
 	 * a tagged queuing capable device.
 	 */
 	dev->maxtags = 0;
-	
+
 	spi_period(starget) = 0;
 
 	return 0;
@@ -1283,7 +1283,7 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct scsi_device *sdev,
 	default:
 	case AHC_QUEUE_NONE:
 		now_queuing = 0;
-		break; 
+		break;
 	case AHC_QUEUE_BASIC:
 		now_queuing = AHC_DEV_Q_BASIC;
 		break;
@@ -1484,10 +1484,10 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	hscb->scsioffset = tinfo->curr.offset;
 	if ((tstate->ultraenb & mask) != 0)
 		hscb->control |= ULTRAENB;
-	
+
 	if ((ahc->user_discenable & mask) != 0)
 		hscb->control |= DISCENB;
-	
+
 	if ((tstate->auto_negotiate & mask) != 0) {
 		scb->flags |= SCB_AUTO_NEGOTIATE;
 		scb->hscb->control |= MK_MESSAGE;
@@ -1547,7 +1547,7 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 		 */
 		scb->hscb->sgptr =
 			ahc_htole32(scb->sg_list_phys | SG_FULL_RESID);
-		
+
 		/*
 		 * Copy the first SG into the "current"
 		 * data pointer area.
@@ -1567,7 +1567,7 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	dev->commands_issued++;
 	if ((dev->flags & AHC_DEV_PERIODIC_OTAG) != 0)
 		dev->commands_since_idle_or_otag++;
-	
+
 	scb->flags |= SCB_ACTIVE;
 	if (untagged_q) {
 		TAILQ_INSERT_TAIL(untagged_q, scb, links.tqe);
@@ -1588,7 +1588,7 @@ ahc_linux_isr(int irq, void *dev_id)
 	int	ours;
 
 	ahc = (struct ahc_softc *) dev_id;
-	ahc_lock(ahc, &flags); 
+	ahc_lock(ahc, &flags);
 	ours = ahc_intr(ahc);
 	ahc_unlock(ahc, &flags);
 	return IRQ_RETVAL(ours);
@@ -1818,7 +1818,7 @@ ahc_linux_handle_scsi_status(struct ahc_softc *ahc,
 			    sdev->sdev_target->id, sdev->lun,
 			    sdev->sdev_target->channel == 0 ? 'A' : 'B',
 			    ROLE_INITIATOR);
-	
+
 	/*
 	 * We don't currently trust the mid-layer to
 	 * properly deal with queue full or busy.  So,
@@ -2345,7 +2345,7 @@ static void ahc_linux_set_period(struct scsi_target *starget, int period)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahc_softc *ahc = *((struct ahc_softc **)shost->hostdata);
 	struct ahc_tmode_tstate *tstate;
-	struct ahc_initiator_tinfo *tinfo 
+	struct ahc_initiator_tinfo *tinfo
 		= ahc_fetch_transinfo(ahc,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2389,7 +2389,7 @@ static void ahc_linux_set_offset(struct scsi_target *starget, int offset)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahc_softc *ahc = *((struct ahc_softc **)shost->hostdata);
 	struct ahc_tmode_tstate *tstate;
-	struct ahc_initiator_tinfo *tinfo 
+	struct ahc_initiator_tinfo *tinfo
 		= ahc_fetch_transinfo(ahc,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2417,7 +2417,7 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahc_softc *ahc = *((struct ahc_softc **)shost->hostdata);
 	struct ahc_tmode_tstate *tstate;
-	struct ahc_initiator_tinfo *tinfo 
+	struct ahc_initiator_tinfo *tinfo
 		= ahc_fetch_transinfo(ahc,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2455,7 +2455,7 @@ static void ahc_linux_set_qas(struct scsi_target *starget, int qas)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahc_softc *ahc = *((struct ahc_softc **)shost->hostdata);
 	struct ahc_tmode_tstate *tstate;
-	struct ahc_initiator_tinfo *tinfo 
+	struct ahc_initiator_tinfo *tinfo
 		= ahc_fetch_transinfo(ahc,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2483,7 +2483,7 @@ static void ahc_linux_set_iu(struct scsi_target *starget, int iu)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ahc_softc *ahc = *((struct ahc_softc **)shost->hostdata);
 	struct ahc_tmode_tstate *tstate;
-	struct ahc_initiator_tinfo *tinfo 
+	struct ahc_initiator_tinfo *tinfo
 		= ahc_fetch_transinfo(ahc,
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
@@ -2515,7 +2515,7 @@ static void ahc_linux_get_signalling(struct Scsi_Host *shost)
 
 	if (!(ahc->features & AHC_ULTRA2)) {
 		/* non-LVD chipset, may not have SBLKCTL reg */
-		spi_signalling(shost) = 
+		spi_signalling(shost) =
 			ahc->features & AHC_HVD ?
 			SPI_SIGNAL_HVD :
 			SPI_SIGNAL_SE;

@@ -147,7 +147,7 @@ static int power4_reg_setup(struct op_counter_config *ctr,
 extern void ppc_enable_pmcs(void);
 
 /*
- * Older CPUs require the MMCRA sample bit to be always set, but newer 
+ * Older CPUs require the MMCRA sample bit to be always set, but newer
  * CPUs only want it set for some groups. Eventually we will remove all
  * knowledge of this bit in the kernel, oprofile userspace should be
  * setting it when required.

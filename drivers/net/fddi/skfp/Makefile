@@ -11,7 +11,7 @@ skfp-objs :=  skfddi.o    hwmtm.o    fplustm.o  smt.o      cfm.o     \
 	      drvfbi.o   ess.o
 
 # NOTE:
-#   Compiling this driver produces some warnings (and some more are 
+#   Compiling this driver produces some warnings (and some more are
 #   switched off below), but I did not fix this, because the Hardware
 #   Module source (see skfddi.c for details) is used for different
 #   drivers, and fixing it for Linux might bring problems on other

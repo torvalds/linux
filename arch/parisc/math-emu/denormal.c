@@ -65,7 +65,7 @@ sgl_denormalize(unsigned int *sgl_opnd, boolean *inexactflag, int rmode)
 		}
 		break;
 	      case ROUNDNEAREST:
-		if (guardbit && (stickybit || 
+		if (guardbit && (stickybit ||
 		       Sgl_isone_lowmantissa(opnd))) {
 			   Sgl_increment(opnd);
 		}
@@ -107,7 +107,7 @@ dbl_denormalize(unsigned int *dbl_opndp1,
 		}
 		break;
 	      case ROUNDNEAREST:
-		if (guardbit && (stickybit || 
+		if (guardbit && (stickybit ||
 		       Dbl_isone_lowmantissap2(opndp2))) {
 			   Dbl_increment(opndp1,opndp2);
 		}

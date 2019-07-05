@@ -206,7 +206,7 @@ static int locomokbd_open(struct input_dev *dev)
 {
 	struct locomokbd *locomokbd = input_get_drvdata(dev);
 	u16 r;
-	
+
 	r = locomo_readl(locomokbd->base + LOCOMO_KIC) | 0x0010;
 	locomo_writel(r, locomokbd->base + LOCOMO_KIC);
 	return 0;
@@ -216,7 +216,7 @@ static void locomokbd_close(struct input_dev *dev)
 {
 	struct locomokbd *locomokbd = input_get_drvdata(dev);
 	u16 r;
-	
+
 	r = locomo_readl(locomokbd->base + LOCOMO_KIC) & ~0x0010;
 	locomo_writel(r, locomokbd->base + LOCOMO_KIC);
 }

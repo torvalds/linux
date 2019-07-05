@@ -24,7 +24,7 @@
 #include "pci_impl.h"
 
 /*
- * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
+ * NOTE: Herein lie back-to-back mb instructions.  They are magic.
  * One plausible explanation is that the i/o controller does not properly
  * handle the system transaction.  Another involves timing.  Ho hum.
  */
@@ -50,7 +50,7 @@
  *
  * Type 0:
  *
- *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1 
+ *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1
  *  3 2|1 0 9 8|7 6 5 4|3 2 1 0|9 8 7 6|5 4 3 2|1 0 9 8|7 6 5 4|3 2 1 0
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * | | |D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|D|F|F|F|R|R|R|R|R|R|0|0|
@@ -62,7 +62,7 @@
  *
  * Type 1:
  *
- *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1 
+ *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1
  *  3 2|1 0 9 8|7 6 5 4|3 2 1 0|9 8 7 6|5 4 3 2|1 0 9 8|7 6 5 4|3 2 1 0
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * | | | | | | | | | | |B|B|B|B|B|B|B|B|D|D|D|D|D|F|F|F|R|R|R|R|R|R|0|1|
@@ -73,11 +73,11 @@
  *	15:11	Device number (5 bits)
  *	10:8	function number
  *	 7:2	register number
- *  
+ *
  * Notes:
- *	The function number selects which function of a multi-function device 
+ *	The function number selects which function of a multi-function device
  *	(e.g., SCSI and Ethernet).
- * 
+ *
  *	The register selects a DWORD (32 bit) register offset.  Hence it
  *	doesn't get shifted by 2 bits as we want to "drop" the bottom two
  *	bits.
@@ -236,7 +236,7 @@ mcpcia_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_ops mcpcia_pci_ops = 
+struct pci_ops mcpcia_pci_ops =
 {
 	.read =		mcpcia_read_config,
 	.write =	mcpcia_write_config,
@@ -298,7 +298,7 @@ mcpcia_new_hose(int h)
 	io = alloc_resource();
 	mem = alloc_resource();
 	hae_mem = alloc_resource();
-			
+
 	hose->io_space = io;
 	hose->mem_space = hae_mem;
 	hose->sparse_mem_base = MCPCIA_SPARSE(mid) - IDENT_ADDR;
@@ -348,7 +348,7 @@ mcpcia_startup_hose(struct pci_controller *hose)
 
 	mcpcia_pci_clr_err(mid);
 
-	/* 
+	/*
 	 * Set up error reporting.
 	 */
 	tmp = *(vuip)MCPCIA_CAP_ERR(mid);
@@ -456,7 +456,7 @@ mcpcia_print_uncorrectable(struct el_MCPCIA_uncorrected_frame_mcheck *logout)
 	}
 	for (i = 0; i < 8; i += 2) {
 		printk("  shadow[%d-%d] = %16lx %16lx\n",
-		       i, i+1, frame->shadow[i], 
+		       i, i+1, frame->shadow[i],
 		       frame->shadow[i+1]);
 	}
 	printk("  Addr of excepting instruction  = %16lx\n",
@@ -472,9 +472,9 @@ mcpcia_print_uncorrectable(struct el_MCPCIA_uncorrected_frame_mcheck *logout)
 	printk("  CURRENT SETUP OF EV5 IBOX      = %16lx\n",
 	       frame->icsr);
 	printk("  I-CACHE Reg %s parity error   = %16lx\n",
-	       (frame->ic_perr_stat & 0x800L) ? 
-	       "Data" : "Tag", 
-	       frame->ic_perr_stat); 
+	       (frame->ic_perr_stat & 0x800L) ?
+	       "Data" : "Tag",
+	       frame->ic_perr_stat);
 	printk("  D-CACHE error Reg              = %16lx\n",
 	       frame->dc_perr_stat);
 	if (frame->dc_perr_stat & 0x2) {
@@ -590,7 +590,7 @@ mcpcia_machine_check(unsigned long vector, unsigned long la_ptr)
 	case 0:
 	    {
 		/* FIXME: how do we figure out which hose the
-		   error was on?  */	
+		   error was on?  */
 		struct pci_controller *hose;
 		for (hose = hose_head; hose; hose = hose->next)
 			mcpcia_pci_clr_err(MCPCIA_HOSE2MID(hose->index));

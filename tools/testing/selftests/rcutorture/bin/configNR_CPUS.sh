@@ -25,7 +25,7 @@ then
 fi
 if grep -q '^CONFIG_NR_CPUS=' $cf
 then
-	grep '^CONFIG_NR_CPUS=' $cf | 
+	grep '^CONFIG_NR_CPUS=' $cf |
 		sed -e 's/^CONFIG_NR_CPUS=\([0-9]*\).*$/\1/'
 	exit 0
 fi

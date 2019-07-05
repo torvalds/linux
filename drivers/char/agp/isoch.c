@@ -438,7 +438,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 			ret = -ENODEV;
 			goto free_and_exit;
 		}
-	}		
+	}
 
 	/*
 	 * Call functions to divide target resources amongst the AGP 3.0

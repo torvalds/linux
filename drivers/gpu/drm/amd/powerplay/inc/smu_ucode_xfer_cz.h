@@ -56,7 +56,7 @@
 #define END_OF_TASK_LIST     (uint16_t)0xffff
 
 // Size of DRAM regions (in bytes) requested by SMU:
-#define SMU_DRAM_REQ_MM_PWR_LOG 48 
+#define SMU_DRAM_REQ_MM_PWR_LOG 48
 
 #define UCODE_ID_SDMA0           0
 #define UCODE_ID_SDMA1           1
@@ -73,35 +73,35 @@
 #define UCODE_ID_DMCU_ERAM       12
 #define UCODE_ID_DMCU_IRAM       13
 
-#define UCODE_ID_SDMA0_MASK           0x00000001       
-#define UCODE_ID_SDMA1_MASK           0x00000002        
-#define UCODE_ID_CP_CE_MASK           0x00000004      
-#define UCODE_ID_CP_PFP_MASK          0x00000008         
-#define UCODE_ID_CP_ME_MASK           0x00000010          
-#define UCODE_ID_CP_MEC_JT1_MASK      0x00000020             
-#define UCODE_ID_CP_MEC_JT2_MASK      0x00000040          
-#define UCODE_ID_GMCON_RENG_MASK      0x00000080            
-#define UCODE_ID_RLC_G_MASK           0x00000100           
-#define UCODE_ID_RLC_SCRATCH_MASK     0x00000200         
-#define UCODE_ID_RLC_SRM_ARAM_MASK    0x00000400                
-#define UCODE_ID_RLC_SRM_DRAM_MASK    0x00000800                 
-#define UCODE_ID_DMCU_ERAM_MASK       0x00001000             
-#define UCODE_ID_DMCU_IRAM_MASK       0x00002000              
+#define UCODE_ID_SDMA0_MASK           0x00000001
+#define UCODE_ID_SDMA1_MASK           0x00000002
+#define UCODE_ID_CP_CE_MASK           0x00000004
+#define UCODE_ID_CP_PFP_MASK          0x00000008
+#define UCODE_ID_CP_ME_MASK           0x00000010
+#define UCODE_ID_CP_MEC_JT1_MASK      0x00000020
+#define UCODE_ID_CP_MEC_JT2_MASK      0x00000040
+#define UCODE_ID_GMCON_RENG_MASK      0x00000080
+#define UCODE_ID_RLC_G_MASK           0x00000100
+#define UCODE_ID_RLC_SCRATCH_MASK     0x00000200
+#define UCODE_ID_RLC_SRM_ARAM_MASK    0x00000400
+#define UCODE_ID_RLC_SRM_DRAM_MASK    0x00000800
+#define UCODE_ID_DMCU_ERAM_MASK       0x00001000
+#define UCODE_ID_DMCU_IRAM_MASK       0x00002000
 
-#define UCODE_ID_SDMA0_SIZE_BYTE           10368        
-#define UCODE_ID_SDMA1_SIZE_BYTE           10368          
-#define UCODE_ID_CP_CE_SIZE_BYTE           8576        
-#define UCODE_ID_CP_PFP_SIZE_BYTE          16768           
-#define UCODE_ID_CP_ME_SIZE_BYTE           16768            
-#define UCODE_ID_CP_MEC_JT1_SIZE_BYTE      384               
-#define UCODE_ID_CP_MEC_JT2_SIZE_BYTE      384            
-#define UCODE_ID_GMCON_RENG_SIZE_BYTE      4096              
-#define UCODE_ID_RLC_G_SIZE_BYTE           2048             
-#define UCODE_ID_RLC_SCRATCH_SIZE_BYTE     132           
-#define UCODE_ID_RLC_SRM_ARAM_SIZE_BYTE    8192                  
-#define UCODE_ID_RLC_SRM_DRAM_SIZE_BYTE    4096                   
-#define UCODE_ID_DMCU_ERAM_SIZE_BYTE       24576               
-#define UCODE_ID_DMCU_IRAM_SIZE_BYTE       1024                 
+#define UCODE_ID_SDMA0_SIZE_BYTE           10368
+#define UCODE_ID_SDMA1_SIZE_BYTE           10368
+#define UCODE_ID_CP_CE_SIZE_BYTE           8576
+#define UCODE_ID_CP_PFP_SIZE_BYTE          16768
+#define UCODE_ID_CP_ME_SIZE_BYTE           16768
+#define UCODE_ID_CP_MEC_JT1_SIZE_BYTE      384
+#define UCODE_ID_CP_MEC_JT2_SIZE_BYTE      384
+#define UCODE_ID_GMCON_RENG_SIZE_BYTE      4096
+#define UCODE_ID_RLC_G_SIZE_BYTE           2048
+#define UCODE_ID_RLC_SCRATCH_SIZE_BYTE     132
+#define UCODE_ID_RLC_SRM_ARAM_SIZE_BYTE    8192
+#define UCODE_ID_RLC_SRM_DRAM_SIZE_BYTE    4096
+#define UCODE_ID_DMCU_ERAM_SIZE_BYTE       24576
+#define UCODE_ID_DMCU_IRAM_SIZE_BYTE       1024
 
 #define NUM_UCODES               14
 
@@ -125,9 +125,9 @@ struct TOC {
 };
 
 // META DATA COMMAND Definitions
-#define METADATA_CMD_MODE0         0x00000103 
-#define METADATA_CMD_MODE1         0x00000113 
-#define METADATA_CMD_MODE2         0x00000123 
+#define METADATA_CMD_MODE0         0x00000103
+#define METADATA_CMD_MODE1         0x00000113
+#define METADATA_CMD_MODE2         0x00000123
 #define METADATA_CMD_MODE3         0x00000133
 #define METADATA_CMD_DELAY         0x00000203
 #define METADATA_CMD_CHNG_REGSPACE 0x00000303

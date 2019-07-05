@@ -2,7 +2,7 @@
 #ifndef __LINUX_DECNET_NETFILTER_H
 #define __LINUX_DECNET_NETFILTER_H
 
-/* DECnet-specific defines for netfilter. 
+/* DECnet-specific defines for netfilter.
  * This file (C) Steve Whitehouse 1999 derived from the
  * ipv4 netfilter header file which is
  * (C)1998 Rusty Russell -- This code is GPL.

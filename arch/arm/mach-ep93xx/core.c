@@ -677,9 +677,9 @@ int ep93xx_i2s_acquire(void)
 			EP93XX_SYSCON_DEVCFG_I2S_MASK);
 
 	/*
-	 * This is potentially racy with the clock api for i2s_mclk, sclk and 
+	 * This is potentially racy with the clock api for i2s_mclk, sclk and
 	 * lrclk. Since the i2s driver is the only user of those clocks we
-	 * rely on it to prevent parallel use of this function and the 
+	 * rely on it to prevent parallel use of this function and the
 	 * clock api for the i2s clocks.
 	 */
 	val = __raw_readl(EP93XX_SYSCON_I2SCLKDIV);

@@ -332,7 +332,7 @@ static int cpu_setup_pid(int cpu)
 
 	wf_cpu_pid_init(&cpu_pid[cpu], &pid);
 	cpu_pid[cpu].target = 4000;
-	
+
 	return 0;
 }
 

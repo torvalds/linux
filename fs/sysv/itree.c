@@ -140,7 +140,7 @@ static int alloc_branch(struct inode *inode,
 		if (!branch[n].key)
 			break;
 		/*
-		 * Get buffer_head for parent block, zero it out and set 
+		 * Get buffer_head for parent block, zero it out and set
 		 * the pointer to new one, then send parent to disk.
 		 */
 		parent = block_to_cpu(SYSV_SB(inode->i_sb), branch[n-1].key);

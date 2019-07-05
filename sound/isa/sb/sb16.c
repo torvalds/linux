@@ -244,7 +244,7 @@ static int snd_card_sb16_pnp(int dev, struct snd_card_sb16 *acard,
 
 	acard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (acard->dev == NULL)
-		return -ENODEV; 
+		return -ENODEV;
 
 #ifdef SNDRV_SBAWE_EMU8000
 	acard->devwt = pnp_request_card_device(card, id->devs[1].id, acard->dev);
@@ -252,11 +252,11 @@ static int snd_card_sb16_pnp(int dev, struct snd_card_sb16 *acard,
 	/* Audio initialization */
 	pdev = acard->dev;
 
-	err = pnp_activate_dev(pdev); 
-	if (err < 0) { 
-		snd_printk(KERN_ERR PFX "AUDIO pnp configure failure\n"); 
-		return err; 
-	} 
+	err = pnp_activate_dev(pdev);
+	if (err < 0) {
+		snd_printk(KERN_ERR PFX "AUDIO pnp configure failure\n");
+		return err;
+	}
 	port[dev] = pnp_port_start(pdev, 0);
 	mpu_port[dev] = pnp_port_start(pdev, 1);
 	fm_port[dev] = pnp_port_start(pdev, 2);
@@ -271,10 +271,10 @@ static int snd_card_sb16_pnp(int dev, struct snd_card_sb16 *acard,
 	/* WaveTable initialization */
 	pdev = acard->devwt;
 	if (pdev != NULL) {
-		err = pnp_activate_dev(pdev); 
-		if (err < 0) { 
-			goto __wt_error; 
-		} 
+		err = pnp_activate_dev(pdev);
+		if (err < 0) {
+			goto __wt_error;
+		}
 		awe_port[dev] = pnp_port_start(pdev, 0);
 		snd_printdd("pnp SB16: wavetable port=0x%llx\n",
 				(unsigned long long)pnp_port_start(pdev, 0));
@@ -296,7 +296,7 @@ __wt_error:
 static void snd_sb16_free(struct snd_card *card)
 {
 	struct snd_card_sb16 *acard = card->private_data;
-        
+
 	if (acard == NULL)
 		return;
 	release_and_free_resource(acard->fm_res);

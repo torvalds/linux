@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atm.h - general ATM declarations */
- 
+
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
- 
+
 
 /*
  * WARNING: User-space programs should not #include <linux/atm.h> directly.
@@ -142,7 +142,7 @@ struct atm_trafprm {
 	int		max_sdu;	/* maximum SDU in bytes */
         /* extra params for ABR */
         unsigned int 	icr;         	/* Initial Cell Rate (24-bit) */
-        unsigned int	tbe;		/* Transient Buffer Exposure (24-bit) */ 
+        unsigned int	tbe;		/* Transient Buffer Exposure (24-bit) */
         unsigned int 	frtt : 24;	/* Fixed Round Trip Time (24-bit) */
         unsigned int 	rif  : 4;       /* Rate Increment Factor (4-bit) */
         unsigned int 	rdf  : 4;       /* Rate Decrease Factor (4-bit) */
@@ -151,10 +151,10 @@ struct atm_trafprm {
         unsigned int adtf_pres :1;     	/* adtf present bit */
         unsigned int cdf_pres  :1;    	/* cdf present bit*/
         unsigned int nrm       :3;     	/* Max # of Cells for each forward RM cell (3-bit) */
-        unsigned int trm       :3;    	/* Time between forward RM cells (3-bit) */    
+        unsigned int trm       :3;    	/* Time between forward RM cells (3-bit) */
 	unsigned int adtf      :10;     /* ACR Decrease Time Factor (10-bit) */
 	unsigned int cdf       :3;      /* Cutoff Decrease Factor (3-bit) */
-        unsigned int spare     :9;      /* spare bits */ 
+        unsigned int spare     :9;      /* spare bits */
 };
 
 struct atm_qos {
@@ -190,7 +190,7 @@ struct sockaddr_atmpvc {
 #define ATM_AFI_DCC	0x39		/* DCC ATM Format */
 #define ATM_AFI_ICD	0x47		/* ICD ATM Format */
 #define ATM_AFI_E164	0x45		/* E.164 ATM Format */
-#define ATM_AFI_LOCAL	0x49		/* Local ATM Format */ 
+#define ATM_AFI_LOCAL	0x49		/* Local ATM Format */
 
 #define ATM_AFI_DCC_GROUP	0xBD	/* DCC ATM Group Format */
 #define ATM_AFI_ICD_GROUP	0xC5	/* ICD ATM Group Format */

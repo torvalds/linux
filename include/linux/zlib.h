@@ -49,7 +49,7 @@
       zlib_inflate itself to inflate the data.
 */
 
-/* 
+/*
      The 'zlib' compression library provides in-memory compression and
   decompression functions, including integrity checks of the uncompressed
   data.  This version of the library supports only one compression method
@@ -191,7 +191,7 @@ extern int zlib_deflate_workspacesize (int windowBits, int memLevel);
    exceed those passed here.
 */
 
-/* 
+/*
 extern int deflateInit (z_streamp strm, int level);
 
      Initializes the internal stream state for compression. The fields
@@ -269,7 +269,7 @@ extern int zlib_deflate (z_streamp strm, int flush);
   more input data, until it returns with Z_STREAM_END or an error. After
   deflate has returned Z_STREAM_END, the only possible operations on the
   stream are deflateReset or deflateEnd.
-  
+
     Z_FINISH can be used immediately after deflateInit if all the compression
   is to be done in a single step. In this case, avail_out must be at least
   0.1% larger than avail_in plus 12 bytes.  If deflate does not return
@@ -313,7 +313,7 @@ extern int zlib_inflate_workspacesize (void);
    returned in stream->workspace before calling zlib_inflateInit().
 */
 
-/* 
+/*
 extern int zlib_inflateInit (z_streamp strm);
 
      Initializes the internal stream state for decompression. The fields
@@ -450,7 +450,7 @@ extern int zlib_inflateEnd (z_streamp strm);
     The following functions are needed only in some special applications.
 */
 
-/*   
+/*
 extern int deflateInit2 (z_streamp strm,
                                      int  level,
                                      int  method,
@@ -510,7 +510,7 @@ static inline unsigned long deflateBound(unsigned long s)
 	return s + ((s + 7) >> 3) + ((s + 63) >> 6) + 11;
 }
 
-/*   
+/*
 extern int inflateInit2 (z_streamp strm, int  windowBits);
 
      This is another version of inflateInit with an extra parameter. The

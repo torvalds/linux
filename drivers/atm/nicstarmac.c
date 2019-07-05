@@ -115,8 +115,8 @@ static u_int32_t clocktab[] = {
 
 /*
  * This routine will clock the Read_Status_reg function into the X2520
- * eeprom, then pull the result from bit 16 of the NicSTaR's General Purpose 
- * register.  
+ * eeprom, then pull the result from bit 16 of the NicSTaR's General Purpose
+ * register.
  */
 #if 0
 u_int32_t nicstar_read_eprom_status(virt_addr_t base)
@@ -156,7 +156,7 @@ u_int32_t nicstar_read_eprom_status(virt_addr_t base)
 /*
  * This routine will clock the Read_data function into the X2520
  * eeprom, followed by the address to read from, through the NicSTaR's General
- * Purpose register.  
+ * Purpose register.
  */
 
 static u_int8_t read_eprom_byte(virt_addr_t base, u_int8_t offset)

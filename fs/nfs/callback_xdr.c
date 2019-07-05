@@ -672,7 +672,7 @@ static __be32 encode_compound_hdr_res(struct xdr_stream *xdr, struct cb_compound
 static __be32 encode_op_hdr(struct xdr_stream *xdr, uint32_t op, __be32 res)
 {
 	__be32 *p;
-	
+
 	p = xdr_reserve_space(xdr, 8);
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_RESOURCE_HDR);
@@ -687,7 +687,7 @@ static __be32 encode_getattr_res(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	const struct cb_getattrres *res = resp;
 	__be32 *savep = NULL;
 	__be32 status = res->status;
-	
+
 	if (unlikely(status != 0))
 		goto out;
 	status = encode_attr_bitmap(xdr, res->bitmap, ARRAY_SIZE(res->bitmap));

@@ -597,7 +597,7 @@ truncate_pat_collision(struct resource *root, struct resource *new)
 			/* AACCKK! totally overlaps! drop this range. */
 			return 1;
 		}
-	} 
+	}
 
 	if (tmp->end < end ) {
 		/* "end" of new one overlaps */
@@ -1210,7 +1210,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	 *
 	 * The following code works but doesn't get us what we want.
 	 * Well, only because firmware (v5.0) on C3000 doesn't program
-	 * the LBA BASE/MASE registers to be the exact inverse of 
+	 * the LBA BASE/MASE registers to be the exact inverse of
 	 * the corresponding SBA registers. Other Astro/Pluto
 	 * based platform firmware may do it right.
 	 *
@@ -1434,7 +1434,7 @@ lba_hw_init(struct lba_device *d)
 		/*
 		** PDC_PAT_BUG: PDC rev 40.48 on L2000.
 		** B2000/C3600/J6000 also have this problem?
-		** 
+		**
 		** Elroys with hot pluggable slots don't get configured
 		** correctly if the slot is empty.  ARB_MASK is set to 0
 		** and we can't master transactions on the bus if it's
@@ -1482,7 +1482,7 @@ lba_driver_probe(struct parisc_device *dev)
 	/* Read HW Rev First */
 	func_class = READ_REG32(addr + LBA_FCLASS);
 
-	if (IS_ELROY(dev)) {	
+	if (IS_ELROY(dev)) {
 		func_class &= 0xf;
 		switch (func_class) {
 		case 0:	version = "TR1.0"; break;
@@ -1522,7 +1522,7 @@ lba_driver_probe(struct parisc_device *dev)
 
 		/* We could use one printk for both Elroy and Mercury,
                  * but for the mask for func_class.
-                 */ 
+                 */
 		printk(KERN_INFO "%s version TR%d.%d (0x%x) found at 0x%lx\n",
 		       IS_MERCURY(dev) ? "Mercury" : "Quicksilver", major,
 		       minor, func_class, (long)dev->hpa.start);
@@ -1540,7 +1540,7 @@ lba_driver_probe(struct parisc_device *dev)
 	/* NOTE: PCI devices (e.g. 103c:1005 graphics card) which don't
 	**	have an IRT entry will get NULL back from iosapic code.
 	*/
-	
+
 	lba_dev = kzalloc(sizeof(struct lba_device), GFP_KERNEL);
 	if (!lba_dev) {
 		printk(KERN_ERR "lba_init_chip - couldn't alloc lba_device\n");
@@ -1700,7 +1700,7 @@ void lba_set_iregs(struct parisc_device *lba, u32 ibase, u32 imask)
 	/* Make sure we aren't trying to set bits that aren't writeable. */
 	WARN_ON((ibase & 0x001fffff) != 0);
 	WARN_ON((imask & 0x001fffff) != 0);
-	
+
 	DBG("%s() ibase 0x%x imask 0x%x\n", __func__, ibase, imask);
 	WRITE_REG32( imask, base_addr + LBA_IMASK);
 	WRITE_REG32( ibase, base_addr + LBA_IBASE);

@@ -1,11 +1,11 @@
-/* ppa.c   --  low level driver for the IOMEGA PPA3 
+/* ppa.c   --  low level driver for the IOMEGA PPA3
  * parallel port SCSI host adapter.
- * 
+ *
  * (The PPA3 is the embedded controller in the ZIP drive.)
- * 
+ *
  * (c) 1995,1996 Grant R. Guenther, grant@torque.net,
  * under the terms of the GNU General Public License.
- * 
+ *
  */
 
 #include <linux/init.h>
@@ -171,10 +171,10 @@ static inline void ppa_fail(ppa_struct *dev, int error_code)
 
 /*
  * Wait for the high bit to be set.
- * 
+ *
  * In principle, this could be tied to an interrupt, but the adapter
  * doesn't appear to be designed to support interrupts.  We spin on
- * the 0x80 ready bit. 
+ * the 0x80 ready bit.
  */
 static unsigned char ppa_wait(ppa_struct *dev)
 {
@@ -206,7 +206,7 @@ static unsigned char ppa_wait(ppa_struct *dev)
 }
 
 /*
- * Clear EPP Timeout Bit 
+ * Clear EPP Timeout Bit
  */
 static inline void epp_reset(unsigned short ppb)
 {
@@ -217,7 +217,7 @@ static inline void epp_reset(unsigned short ppb)
 	w_str(ppb, i & 0xfe);
 }
 
-/* 
+/*
  * Wait for empty ECP fifo (if we are in ECP fifo mode only)
  */
 static inline void ecp_sync(ppa_struct *dev)
@@ -451,14 +451,14 @@ static int ppa_select(ppa_struct *dev, int target)
 	return 1;
 }
 
-/* 
+/*
  * This is based on a trace of what the Iomega DOS 'guest' driver does.
  * I've tried several different kinds of parallel ports with guest and
  * coded this to react in the same ways that it does.
- * 
+ *
  * The return value from this function is just a hint about where the
  * handshaking failed.
- * 
+ *
  */
 static int ppa_init(ppa_struct *dev)
 {
@@ -507,7 +507,7 @@ static inline int ppa_send_command(struct scsi_cmnd *cmd)
  * The bulk flag enables some optimisations in the data transfer loops,
  * it should be true for any command that transfers data in integral
  * numbers of sectors.
- * 
+ *
  * The driver appears to remain stable if we speed up the parallel port
  * i/o in this function, but not elsewhere.
  */
@@ -549,17 +549,17 @@ static int ppa_completion(struct scsi_cmnd *cmd)
 		}
 
 		/* On some hardware we have SCSI disconnected (6th bit low)
-		 * for about 100usecs. It is too expensive to wait a 
+		 * for about 100usecs. It is too expensive to wait a
 		 * tick on every loop so we busy wait for no more than
-		 * 500usecs to give the drive a chance first. We do not 
-		 * change things for "normal" hardware since generally 
+		 * 500usecs to give the drive a chance first. We do not
+		 * change things for "normal" hardware since generally
 		 * the 6th bit is always high.
-		 * This makes the CPU load higher on some hardware 
-		 * but otherwise we can not get more than 50K/secs 
+		 * This makes the CPU load higher on some hardware
+		 * but otherwise we can not get more than 50K/secs
 		 * on this problem hardware.
 		 */
 		if ((r & 0xc0) != 0xc0) {
-			/* Wait for reconnection should be no more than 
+			/* Wait for reconnection should be no more than
 			 * jiffy/2 = 5ms = 5000 loops
 			 */
 			unsigned long k = dev->recon_tmo;
@@ -813,7 +813,7 @@ static int ppa_queuecommand_lck(struct scsi_cmnd *cmd,
 static DEF_SCSI_QCMD(ppa_queuecommand)
 
 /*
- * Apparently the disk->capacity attribute is off by 1 sector 
+ * Apparently the disk->capacity attribute is off by 1 sector
  * for all disk drives.  We add the one here, but it should really
  * be done in sd.c.  Even if it gets fixed there, this will still
  * work.

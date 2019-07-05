@@ -84,7 +84,7 @@ enum radeon_chip_flags {
 	CHIP_FLAGS_MASK		= 0xffff0000UL,
 	CHIP_IS_MOBILITY	= 0x00010000UL,
 	CHIP_IS_IGP		= 0x00020000UL,
-	CHIP_HAS_CRTC2		= 0x00040000UL,	
+	CHIP_HAS_CRTC2		= 0x00040000UL,
 };
 
 /*
@@ -230,7 +230,7 @@ struct radeon_regs {
 	/* Computed values for PLL */
 	u32		dot_clock_freq;
 	int		feedback_div;
-	int		post_div;	
+	int		post_div;
 
 	/* PLL registers */
 	u32		ppll_div_3;

@@ -47,7 +47,7 @@ static void __auxio_rmw(u8 bits_on, u8 bits_off, int ebus)
 			writel((u32) newval, auxio_register);
 		else
 			sbus_writeb(newval, auxio_register);
-		
+
 		spin_unlock_irqrestore(&auxio_lock, flags);
 	}
 }

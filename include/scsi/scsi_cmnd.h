@@ -104,7 +104,7 @@ struct scsi_cmnd {
 
 	unsigned transfersize;	/* How much we are guaranteed to
 				   transfer with each SCSI transfer
-				   (ie, between disconnect / 
+				   (ie, between disconnect /
 				   reconnects.   Probably == sector
 				   size */
 
@@ -122,8 +122,8 @@ struct scsi_cmnd {
 	void (*scsi_done) (struct scsi_cmnd *);
 
 	/*
-	 * The following fields can be written to by the host specific code. 
-	 * Everything else should be left alone. 
+	 * The following fields can be written to by the host specific code.
+	 * Everything else should be left alone.
 	 */
 	struct scsi_pointer SCp;	/* Scratchpad used by some host adapters */
 

@@ -3,8 +3,8 @@
  * Linux/PA-RISC Project (http://www.parisc-linux.org/)
  *
  * kernel entry points (interruptions, system call wrappers)
- *  Copyright (C) 1999,2000 Philipp Rumpf 
- *  Copyright (C) 1999 SuSE GmbH Nuernberg 
+ *  Copyright (C) 1999,2000 Philipp Rumpf
+ *  Copyright (C) 1999 SuSE GmbH Nuernberg
  *  Copyright (C) 2000 Hewlett-Packard (John Marvin)
  *  Copyright (C) 1999 Hewlett-Packard (Frank Rowand)
  */
@@ -159,7 +159,7 @@
 	b	intr_extint
 	mfsp    %sr7,%r16
 	.align	32
-	.endm	
+	.endm
 
 	.import	os_hpmc, code
 
@@ -200,7 +200,7 @@
 	.align		32
 	.endm
 #endif
-	
+
 	/*
 	 * itlb miss interruption handler (parisc 2.0)
 	 */
@@ -216,7 +216,7 @@
 
 	.align		32
 	.endm
-	
+
 #ifndef CONFIG_64BIT
 	/*
 	 * naitlb miss interruption handler (parisc 1.1 - 32 bit)
@@ -231,7 +231,7 @@
 	.align		32
 	.endm
 #endif
-	
+
 	/*
 	 * naitlb miss interruption handler (parisc 2.0)
 	 */
@@ -248,7 +248,7 @@
 
 	.align		32
 	.endm
-	
+
 #ifndef CONFIG_64BIT
 	/*
 	 * dtlb miss interruption handler (parisc 1.1 - 32 bit)
@@ -280,7 +280,7 @@
 
 	.align		32
 	.endm
-	
+
 #ifndef CONFIG_64BIT
 	/* nadtlb miss interruption handler (parisc 1.1 - 32 bit) */
 
@@ -293,7 +293,7 @@
 	.align		32
 	.endm
 #endif
-	
+
 	/* nadtlb miss interruption handler (parisc 2.0) */
 
 	.macro	nadtlb_20 code
@@ -308,7 +308,7 @@
 
 	.align		32
 	.endm
-	
+
 #ifndef CONFIG_64BIT
 	/*
 	 * dirty bit trap interruption handler (parisc 1.1 - 32 bit)
@@ -364,7 +364,7 @@
 	mfctl		%cr25,\reg
 	.endm
 
-	/* 
+	/*
 		space_check(spc,tmp,fault)
 
 		spc - The space we saw the fault with.
@@ -372,7 +372,7 @@
 		fault - Function to call on failure.
 
 		Only allow faults on different spaces from the
-		currently active one if we're the kernel 
+		currently active one if we're the kernel
 
 	*/
 	.macro		space_check	spc,tmp,fault
@@ -387,7 +387,7 @@
 	.endm
 
 	/* Look up a PTE in a 2-Level scheme (faulting at each
-	 * level if the entry isn't present 
+	 * level if the entry isn't present
 	 *
 	 * NOTE: we use ldw even for LP64, since the short pointers
 	 * can address up to 1TB
@@ -658,7 +658,7 @@
 #endif
 	or,COND(tr)	%r23,%r0,\pte
 	or		%r26,%r0,\pte
-	.endm 
+	.endm
 
 
 	/*
@@ -1020,7 +1020,7 @@ intr_extint:
 
 	ldo	PT_FR0(%r29), %r24
 	save_fp	%r24
-	
+
 	loadgp
 
 	copy	%r29, %r26	/* arg0 is pt_regs */
@@ -1104,7 +1104,7 @@ intr_save2:
 
 	ldo		PT_FR0(%r29), %r25
 	save_fp		%r25
-	
+
 	loadgp
 
 	copy		%r29, %r25	/* arg1 is pt_regs */
@@ -1160,7 +1160,7 @@ dtlb_miss_20w:
 	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot,t1
-	
+
 	idtlbt          pte,prot
 
 	tlb_unlock1	spc,t0,t1
@@ -1291,7 +1291,7 @@ dtlb_miss_20:
 
 dtlb_check_alias_20:
 	do_alias	spc,t0,t1,va,pte,prot,dtlb_fault,20
-	
+
 	idtlbt          pte,prot
 
 	rfir
@@ -1310,7 +1310,7 @@ nadtlb_miss_20:
 	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
-	
+
 	idtlbt		pte,prot
 
 	tlb_unlock1	spc,t0,t1
@@ -1339,8 +1339,8 @@ nadtlb_emulate:
 	 * of the instruction. Since we don't insert a translation
 	 * we can get a lot of faults during a flush loop, so it makes
 	 * sense to try to do it here with minimum overhead. We only
-	 * emulate fdc,fic,pdc,probew,prober instructions whose base 
-	 * and index registers are not shadowed. We defer everything 
+	 * emulate fdc,fic,pdc,probew,prober instructions whose base
+	 * and index registers are not shadowed. We defer everything
 	 * else to the "slow" path.
 	 */
 
@@ -1373,10 +1373,10 @@ nadtlb_nullify:
 	rfir
 	nop
 
-	/* 
+	/*
 		When there is no translation for the probe address then we
 		must nullify the insn and return zero in the target register.
-		This will indicate to the calling code that it does not have 
+		This will indicate to the calling code that it does not have
 		write/read privileges to this address.
 
 		This should technically work for prober and probew in PA 1.1,
@@ -1417,7 +1417,7 @@ itlb_miss_20w:
 	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot,t1
-	
+
 	iitlbt          pte,prot
 
 	tlb_unlock1	spc,t0,t1
@@ -1579,7 +1579,7 @@ dbit_trap_20w:
 	update_dirty	ptp,pte,t1
 
 	make_insert_tlb	spc,pte,prot,t1
-		
+
 	idtlbt          pte,prot
 
 	tlb_unlock0	spc,t0,t1
@@ -1625,7 +1625,7 @@ dbit_trap_20:
 	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
-	
+
 	idtlbt		pte,prot
 
 	tlb_unlock0	spc,t0,t1
@@ -1872,7 +1872,7 @@ syscall_restore:
 	ssm     PSW_SM_I, %r0
 
 	/* Set sr2 to zero for userspace syscalls to work. */
-	mtsp	%r0,%sr2 
+	mtsp	%r0,%sr2
 	mtsp	%r1,%sr4			   /* Restore sr4 */
 	mtsp	%r1,%sr5			   /* Restore sr5 */
 	mtsp	%r1,%sr6			   /* Restore sr6 */

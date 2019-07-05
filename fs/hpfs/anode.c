@@ -115,7 +115,7 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
 			return -1;
 		}
 		se = !fnod ? node : (node + 16384) & ~16383;
-	}	
+	}
 	if (!(se = hpfs_alloc_sector(s, se, 1, fsecno*ALLOC_M>ALLOC_FWD_MAX ? ALLOC_FWD_MAX : fsecno*ALLOC_M<ALLOC_FWD_MIN ? ALLOC_FWD_MIN : fsecno*ALLOC_M))) {
 		brelse(bh);
 		return -1;
@@ -449,7 +449,7 @@ void hpfs_truncate_btree(struct super_block *s, secno f, int fno, unsigned secs)
 				return;
 		if (!(anode = hpfs_map_anode(s, node, &bh))) return;
 		btree = &anode->btree;
-	}	
+	}
 	nodes = btree->n_used_nodes + btree->n_free_nodes;
 	for (i = 0; i < btree->n_used_nodes; i++)
 		if (le32_to_cpu(btree->u.external[i].file_secno) + le32_to_cpu(btree->u.external[i].length) >= secs) goto ff;

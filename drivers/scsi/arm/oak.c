@@ -63,9 +63,9 @@ printk("reading %p len %d\n", addr, len);
   {
     unsigned int status, timeout;
     unsigned long b;
-    
+
     timeout = 0x01FFFFFF;
-    
+
     while (((status = readw(base + STAT)) & 0x100)==0)
     {
       timeout--;

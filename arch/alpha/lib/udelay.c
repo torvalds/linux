@@ -12,7 +12,7 @@
 #include <linux/delay.h>
 
 /*
- * Use only for very small delays (< 1 msec). 
+ * Use only for very small delays (< 1 msec).
  *
  * The active part of our cycle counter is only 32-bits wide, and
  * we're treating the difference between two marks as signed.  On

@@ -8,7 +8,7 @@
  *   Lowlevel functions for Hoontech STDSP24
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- */      
+ */
 
 #define  HOONTECH_DEVICE_DESC \
 	"{Hoontech,SoundTrack DSP 24}," \

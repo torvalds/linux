@@ -3,16 +3,16 @@
  * Bus & driver management routines for devices within
  * a MacIO ASIC. Interface to new driver model mostly
  * stolen from the PCI version.
- * 
+ *
  *  Copyright (C) 2005 Ben. Herrenschmidt (benh@kernel.crashing.org)
  *
  * TODO:
- * 
+ *
  *  - Don't probe below media bay by default, but instead provide
  *    some hooks for media bay to dynamically add/remove it's own
  *    sub-devices.
  */
- 
+
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -34,11 +34,11 @@
 
 static struct macio_chip      *macio_on_hold;
 
-static int macio_bus_match(struct device *dev, struct device_driver *drv) 
+static int macio_bus_match(struct device *dev, struct device_driver *drv)
 {
 	const struct of_device_id * matches = drv->of_match_table;
 
-	if (!matches) 
+	if (!matches)
 		return 0;
 
 	return of_match_device(matches, dev) != NULL;
@@ -441,11 +441,11 @@ static int macio_skip_device(struct device_node *np)
 /**
  * macio_pci_add_devices - Adds sub-devices of mac-io to the device tree
  * @chip: pointer to the macio_chip holding the devices
- * 
+ *
  * This function will do the job of extracting devices from the
  * Open Firmware device tree, build macio_dev structures and add
  * them to the Linux device tree.
- * 
+ *
  * For now, childs of media-bay are added now as well. This will
  * change rsn though.
  */
@@ -455,7 +455,7 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 	struct macio_dev *rdev, *mdev, *mbdev = NULL, *sdev = NULL;
 	struct device *parent = NULL;
 	struct resource *root_res = &iomem_resource;
-	
+
 	/* Add a node for the macio bus itself */
 #ifdef CONFIG_PCI
 	if (chip->lbus.pdev) {
@@ -595,7 +595,7 @@ int macio_request_resource(struct macio_dev *dev, int resource_no,
 
 	if (macio_resource_len(dev, resource_no) == 0)
 		return 0;
-		
+
 	if (!request_mem_region(macio_resource_start(dev, resource_no),
 				macio_resource_len(dev, resource_no),
 				name))
@@ -603,7 +603,7 @@ int macio_request_resource(struct macio_dev *dev, int resource_no,
 
 	if (dr && resource_no < 32)
 		dr->res_mask |= 1 << resource_no;
-	
+
 	return 0;
 
 err_out:
@@ -648,7 +648,7 @@ void macio_release_resource(struct macio_dev *dev, int resource_no)
 int macio_request_resources(struct macio_dev *dev, const char *name)
 {
 	int i;
-	
+
 	for (i = 0; i < dev->n_resources; i++)
 		if (macio_request_resource(dev, i, name))
 			goto err_out;
@@ -657,7 +657,7 @@ int macio_request_resources(struct macio_dev *dev, const char *name)
 err_out:
 	while(--i >= 0)
 		macio_release_resource(dev, i);
-		
+
 	return -EBUSY;
 }
 
@@ -669,7 +669,7 @@ err_out:
 void macio_release_resources(struct macio_dev *dev)
 {
 	int i;
-	
+
 	for (i = 0; i < dev->n_resources; i++)
 		macio_release_resource(dev, i);
 }
@@ -681,7 +681,7 @@ static int macio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 {
 	struct device_node* np;
 	struct macio_chip* chip;
-	
+
 	if (ent->vendor != PCI_VENDOR_ID_APPLE)
 		return -ENODEV;
 
@@ -767,7 +767,7 @@ static struct pci_driver macio_pci_driver = {
 
 #endif /* CONFIG_PCI */
 
-static int __init macio_module_init (void) 
+static int __init macio_module_init (void)
 {
 #ifdef CONFIG_PCI
 	int rc;

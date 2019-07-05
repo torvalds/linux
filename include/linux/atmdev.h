@@ -170,7 +170,7 @@ struct atm_dev {
 	struct list_head dev_list;	/* linkage */
 };
 
- 
+
 /* OF: send_Oam Flags */
 
 #define ATM_OF_IMMED  1		/* Attempt immediate delivery */

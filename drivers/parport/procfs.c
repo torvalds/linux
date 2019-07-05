@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Sysctl interface for parport devices.
- * 
+ *
  * Authors: David Campbell
  *          Tim Waugh <tim@cyberelk.demon.co.uk>
  *          Philip Blundell <philb@gnu.org>
@@ -28,7 +28,7 @@
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
 
-#define PARPORT_MIN_TIMESLICE_VALUE 1ul 
+#define PARPORT_MIN_TIMESLICE_VALUE 1ul
 #define PARPORT_MAX_TIMESLICE_VALUE ((unsigned long) HZ)
 #define PARPORT_MIN_SPINTIME_VALUE 1
 #define PARPORT_MAX_SPINTIME_VALUE 1000
@@ -48,7 +48,7 @@ static int do_active_device(struct ctl_table *table, int write,
 		*lenp = 0;
 		return 0;
 	}
-	
+
 	for (dev = port->devices; dev ; dev = dev->next) {
 		if(dev == port->cad) {
 			len += sprintf(buffer, "%s\n", dev->name);
@@ -85,7 +85,7 @@ static int do_autoprobe(struct ctl_table *table, int write,
 		*lenp = 0;
 		return 0;
 	}
-	
+
 	if ((str = info->class_name) != NULL)
 		len += sprintf (buffer + len, "CLASS:%s;\n", str);
 
@@ -489,7 +489,7 @@ int parport_proc_register(struct parport *port)
 
 	t->vars[0].data = &port->spintime;
 	t->vars[5].child = t->device_dir;
-	
+
 	for (i = 0; i < 5; i++)
 		t->vars[6 + i].extra2 = &port->probe_info[i];
 
@@ -523,7 +523,7 @@ int parport_device_proc_register(struct pardevice *device)
 {
 	struct parport_device_sysctl_table *t;
 	struct parport * port = device->port;
-	
+
 	t = kmemdup(&parport_device_sysctl_template, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
 		return -ENOMEM;

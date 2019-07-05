@@ -258,7 +258,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 	}
 
 	if (timer25Mhz) {
-		set = TIMER0_25MHZ;		
+		set = TIMER0_25MHZ;
 		enable_mask = TIMER0_EN;
 	} else {
 		clr = TIMER0_25MHZ;
@@ -329,7 +329,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 	}
 
 	register_syscore_ops(&armada_370_xp_timer_syscore_ops);
-	
+
 	return 0;
 }
 

@@ -834,7 +834,7 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 
 	local_save_flags(irq_flags);
 	buffer = global_trace.trace_buffer.buffer;
-	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, alloc, 
+	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, alloc,
 					    irq_flags, pc);
 	if (!event)
 		return 0;
@@ -5559,7 +5559,7 @@ static void tracing_set_nop(struct trace_array *tr)
 {
 	if (tr->current_trace == &nop_trace)
 		return;
-	
+
 	tr->current_trace->enabled--;
 
 	if (tr->current_trace->reset)

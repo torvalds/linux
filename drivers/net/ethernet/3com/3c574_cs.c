@@ -12,7 +12,7 @@
 	following copyright:
 	Copyright 1993 United States Government as represented by the
 	Director, National Security Agency.
-	
+
 
 */
 
@@ -381,7 +381,7 @@ static int tc574_config(struct pcmcia_device *link)
 
 	{
 		int phy;
-		
+
 		/* Roadrunner only: Turn on the MII transceiver */
 		outw(0x8040, ioaddr + Wn3_Options);
 		mdelay(1);
@@ -390,7 +390,7 @@ static int tc574_config(struct pcmcia_device *link)
 		tc574_wait_for_completion(dev, RxReset);
 		mdelay(1);
 		outw(0x8040, ioaddr + Wn3_Options);
-		
+
 		EL3WINDOW(4);
 		for (phy = 1; phy <= 32; phy++) {
 			int mii_status;
@@ -619,7 +619,7 @@ static void tc574_reset(struct net_device *dev)
 	outw(0xc040, ioaddr + Wn3_Options);
 	EL3WINDOW(1);
 	spin_unlock_irqrestore(&lp->window_lock, flags);
-	
+
 	tc574_wait_for_completion(dev, TxReset);
 	tc574_wait_for_completion(dev, RxReset);
 	mdelay(1);
@@ -640,10 +640,10 @@ static void tc574_reset(struct net_device *dev)
 
 	/* .. enable any extra statistics bits.. */
 	outw(0x0040, ioaddr + Wn4_NetDiag);
-	
+
 	EL3WINDOW(1);
 	spin_unlock_irqrestore(&lp->window_lock, flags);
-	
+
 	/* .. re-sync MII and re-fill what NWay is advertising. */
 	mdio_sync(ioaddr, 32);
 	mdio_write(ioaddr, lp->phys, 4, lp->advertising);
@@ -676,24 +676,24 @@ static int el3_open(struct net_device *dev)
 
 	if (!pcmcia_dev_present(link))
 		return -ENODEV;
-	
+
 	link->open++;
 	netif_start_queue(dev);
-	
+
 	tc574_reset(dev);
 	lp->media.expires = jiffies + HZ;
 	add_timer(&lp->media);
-	
+
 	dev_dbg(&link->dev, "%s: opened, status %4.4x.\n",
 		  dev->name, inw(dev->base_addr + EL3_STATUS));
-	
+
 	return 0;
 }
 
 static void el3_tx_timeout(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
-	
+
 	netdev_notice(dev, "Transmit timed out!\n");
 	dump_status(dev);
 	dev->stats.tx_errors++;
@@ -708,7 +708,7 @@ static void pop_tx_status(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	int i;
-    
+
 	/* Clear the Tx status stack. */
 	for (i = 32; i > 0; i--) {
 		u_char tx_status = inb(ioaddr + TxStatus);
@@ -751,7 +751,7 @@ static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
 	/* TxFree appears only in Window 1, not offset 0x1c. */
 	if (inw(ioaddr + TxFree) <= 1536) {
 		netif_stop_queue(dev);
-		/* Interrupt us when the FIFO has room for max-sized packet. 
+		/* Interrupt us when the FIFO has room for max-sized packet.
 		   The threshold is in units of dwords. */
 		outw(SetTxThreshold + (1536>>2), ioaddr + EL3_CMD);
 	}
@@ -780,7 +780,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 		  dev->name, inw(ioaddr + EL3_STATUS));
 
 	spin_lock(&lp->window_lock);
-	
+
 	while ((status = inw(ioaddr + EL3_STATUS)) &
 		   (IntLatch | RxComplete | RxEarly | StatsFull)) {
 		if (!netif_device_present(dev) ||
@@ -847,7 +847,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 
 	pr_debug("%s: exiting interrupt, status %4.4x.\n",
 		  dev->name, inw(ioaddr + EL3_STATUS));
-		  
+
 	spin_unlock(&lp->window_lock);
 	return IRQ_RETVAL(handled);
 }
@@ -867,7 +867,7 @@ static void media_check(struct timer_list *t)
 
 	if (!netif_device_present(dev))
 		goto reschedule;
-	
+
 	/* Check for pending interrupt with expired latency timer: with
 	   this, we can limp along even if the interrupt is blocked */
 	if ((inw(ioaddr + EL3_STATUS) & IntLatch) && (inb(ioaddr + Timer) == 0xff)) {
@@ -892,7 +892,7 @@ static void media_check(struct timer_list *t)
 	media = mdio_read(ioaddr, lp->phys, 1);
 	partner = mdio_read(ioaddr, lp->phys, 5);
 	EL3WINDOW(1);
-	
+
 	if (media != lp->media_status) {
 		if ((media ^ lp->media_status) & 0x0004)
 			netdev_info(dev, "%s link beat\n",
@@ -957,7 +957,7 @@ static void update_stats(struct net_device *dev)
 
 	if (inw(ioaddr+EL3_STATUS) == 0xffff) /* No card. */
 		return;
-		
+
 	/* Unlike the 3c509 we need not turn off stats updates while reading. */
 	/* Switch to the stats window, and read everything. */
 	EL3WINDOW(6);
@@ -986,7 +986,7 @@ static int el3_rx(struct net_device *dev, int worklimit)
 {
 	unsigned int ioaddr = dev->base_addr;
 	short rx_status;
-	
+
 	pr_debug("%s: in rx_packet(), status %4.4x, rx_status %4.4x.\n",
 		  dev->name, inw(ioaddr+EL3_STATUS), inw(ioaddr+RxStatus));
 	while (!((rx_status = inw(ioaddr + RxStatus)) & 0x8000) &&
@@ -1118,17 +1118,17 @@ static int el3_close(struct net_device *dev)
 	struct pcmcia_device *link = lp->p_dev;
 
 	dev_dbg(&link->dev, "%s: shutting down ethercard.\n", dev->name);
-	
+
 	if (pcmcia_dev_present(link)) {
 		unsigned long flags;
 
 		/* Turn off statistics ASAP.  We update lp->stats below. */
 		outw(StatsDisable, ioaddr + EL3_CMD);
-		
+
 		/* Disable the receiver and transmitter. */
 		outw(RxDisable, ioaddr + EL3_CMD);
 		outw(TxDisable, ioaddr + EL3_CMD);
-		
+
 		/* Note: Switching to window 0 may disable the IRQ. */
 		EL3WINDOW(0);
 		spin_lock_irqsave(&lp->window_lock, flags);

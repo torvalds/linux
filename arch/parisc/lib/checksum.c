@@ -139,7 +139,7 @@ __wsum csum_partial_copy_from_user(const void __user *src,
 		memset(dst + len - missing, 0, missing);
 		*err_ptr = -EFAULT;
 	}
-		
+
 	return csum_partial(dst, len, sum);
 }
 EXPORT_SYMBOL(csum_partial_copy_from_user);

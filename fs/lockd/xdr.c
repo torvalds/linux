@@ -49,7 +49,7 @@ static __be32 *nlm_decode_cookie(__be32 *p, struct nlm_cookie *c)
 	unsigned int	len;
 
 	len = ntohl(*p++);
-	
+
 	if(len==0)
 	{
 		c->len=4;
@@ -61,7 +61,7 @@ static __be32 *nlm_decode_cookie(__be32 *p, struct nlm_cookie *c)
 		memcpy(c->data, p, len);
 		p+=XDR_QUADLEN(len);
 	}
-	else 
+	else
 	{
 		dprintk("lockd: bad cookie size %d (only cookies under "
 			"%d bytes are supported.)\n",

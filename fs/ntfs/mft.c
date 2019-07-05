@@ -2431,7 +2431,7 @@ have_alloc_rec:
 	old_data_size = vol->mft_ino->i_size;
 	while (ll > mft_ni->initialized_size) {
 		s64 new_initialized_size, mft_no;
-		
+
 		new_initialized_size = mft_ni->initialized_size +
 				vol->mft_record_size;
 		mft_no = mft_ni->initialized_size >> vol->mft_record_size_bits;
@@ -2779,7 +2779,7 @@ int ntfs_extent_mft_record_free(ntfs_inode *ni, MFT_RECORD *m)
 	int i, err;
 	le16 old_seq_no;
 	u16 seq_no;
-	
+
 	BUG_ON(NInoAttr(ni));
 	BUG_ON(ni->nr_extents != -1);
 

@@ -1,9 +1,9 @@
-/* 
+/*
 	on20.c	(c) 1996-8  Grant R. Guenther <grant@torque.net>
 		            Under the terms of the GNU General Public License.
 
         on20.c is a low-level protocol driver for the
-        Onspec 90c20 parallel to IDE adapter. 
+        Onspec 90c20 parallel to IDE adapter.
 */
 
 /* Changes:
@@ -29,8 +29,8 @@
 
 #define j44(a,b)  (((a>>4)&0x0f)|(b&0xf0))
 
-/* cont = 0 - access the IDE register file 
-   cont = 1 - access the IDE command set 
+/* cont = 0 - access the IDE register file
+   cont = 1 - access the IDE command set
 */
 
 static int on20_read_regr( PIA *pi, int cont, int regr )
@@ -48,13 +48,13 @@ static int on20_read_regr( PIA *pi, int cont, int regr )
                  w2(4); w2(6); w2(4); w2(6); w2(4);
 		 return j44(l,h);
 
-	case 1:  w2(4); w2(0x26); r = r0(); 
+	case 1:  w2(4); w2(0x26); r = r0();
                  w2(4); w2(0x26); w2(4);
 		 return r;
 
 	}
 	return -1;
-}	
+}
 
 static void on20_write_regr( PIA *pi, int cont, int regr, int val )
 
@@ -62,8 +62,8 @@ static void on20_write_regr( PIA *pi, int cont, int regr, int val )
 
 	r = (regr<<2) + 1 + cont;
 
-	op(1); vl(r); 
-	op(0); vl(val); 
+	op(1); vl(r);
+	op(0); vl(val);
 	op(0); vl(val);
 }
 
@@ -72,7 +72,7 @@ static void on20_connect ( PIA *pi)
 {	pi->saved_r0 = r0();
         pi->saved_r2 = r2();
 
-	w2(4);w0(0);w2(0xc);w2(4);w2(6);w2(4);w2(6);w2(4); 
+	w2(4);w0(0);w2(0xc);w2(4);w2(6);w2(4);w2(6);w2(4);
 	if (pi->mode) { op(2); vl(8); op(2); vl(9); }
 	       else   { op(2); vl(0); op(2); vl(8); }
 }
@@ -82,15 +82,15 @@ static void on20_disconnect ( PIA *pi )
 {	w2(4);w0(7);w2(4);w2(0xc);w2(4);
         w0(pi->saved_r0);
         w2(pi->saved_r2);
-} 
+}
 
 static void on20_read_block( PIA *pi, char * buf, int count )
 
-{	int     k, l, h; 
+{	int     k, l, h;
 
 	op(1); vl(1); op(0);
 
-	for (k=0;k<count;k++) 
+	for (k=0;k<count;k++)
 	    if (pi->mode) {
 		w2(4); w2(0x26); buf[k] = r0();
 	    } else {

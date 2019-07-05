@@ -325,7 +325,7 @@ static int ep93xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	/*
 	 * EP93xx I2S module can be setup so SCLK / LRCLK value can be
 	 * 32, 64, 128. MCLK / SCLK value can be 2 and 4.
-	 * We set LRCLK equal to `rate' and minimum SCLK / LRCLK 
+	 * We set LRCLK equal to `rate' and minimum SCLK / LRCLK
 	 * value is 64, because our sample size is 32 bit * 2 channels.
 	 * I2S standard permits us to transmit more bits than
 	 * the codec uses.

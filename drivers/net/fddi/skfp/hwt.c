@@ -213,7 +213,7 @@ u_long hwt_quick_read(struct s_smc *smc)
  *
  *	This function returnes after the amount of time is elapsed
  *	since the start time.
- * 
+ *
  * para	start		start time
  *	duration	time to wait
  *

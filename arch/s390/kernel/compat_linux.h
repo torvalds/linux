@@ -22,17 +22,17 @@ struct ipc_kludge_32 {
 typedef union
 {
 	__u64   d;
-	__u32   f; 
+	__u32   f;
 } freg_t32;
 
 typedef struct
 {
 	unsigned int	fpc;
 	unsigned int	pad;
-	freg_t32	fprs[__NUM_FPRS];              
+	freg_t32	fprs[__NUM_FPRS];
 } _s390_fp_regs32;
 
-typedef struct 
+typedef struct
 {
         __u32   mask;
         __u32	addr;
@@ -75,7 +75,7 @@ struct sigcontext32
 /* asm/ucontext.h */
 struct ucontext32 {
 	__u32			uc_flags;
-	__u32			uc_link;	/* pointer */	
+	__u32			uc_link;	/* pointer */
 	compat_stack_t		uc_stack;
 	_sigregs32		uc_mcontext;
 	compat_sigset_t		uc_sigmask;

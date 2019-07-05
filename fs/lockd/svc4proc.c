@@ -2,7 +2,7 @@
 /*
  * linux/fs/lockd/svc4proc.c
  *
- * Lockd server procedures. We don't implement the NLM_*_RES 
+ * Lockd server procedures. We don't implement the NLM_*_RES
  * procedures because we don't use the async procedures.
  *
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
@@ -55,7 +55,7 @@ nlm4svc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 no_locks:
 	nlmsvc_release_host(host);
  	if (error)
-		return error;	
+		return error;
 	return nlm_lck_denied_nolocks;
 }
 

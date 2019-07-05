@@ -552,7 +552,7 @@ __EXTERN_INLINE void __iomem *t2_ioportmap(unsigned long addr)
 	return (void __iomem *)(addr + T2_IO);
 }
 
-__EXTERN_INLINE void __iomem *t2_ioremap(unsigned long addr, 
+__EXTERN_INLINE void __iomem *t2_ioremap(unsigned long addr,
 					 unsigned long size)
 {
 	return (void __iomem *)(addr + T2_DENSE_MEM);

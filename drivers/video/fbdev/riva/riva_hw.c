@@ -41,7 +41,7 @@
  * GPL licensing note -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
- * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
+ * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99
  */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_hw.c,v 1.33 2002/08/05 20:47:06 mvojkovi Exp $ */
@@ -337,7 +337,7 @@ static int nv3_iterate(nv3_fifo_info *res_info, nv3_sim_state * state, nv3_arb_i
                 ainfo->first_vacc = 0;
                 if (last!=cur)
                 {
-                    ns =  1000000 * (vmisses*state->mem_page_miss + state->mem_latency)/state->mclk_khz; 
+                    ns =  1000000 * (vmisses*state->mem_page_miss + state->mem_latency)/state->mclk_khz;
                     vlwm = ns * ainfo->vdrain_rate/ 1000000;
                     vlwm = ainfo->vocc - vlwm;
                 }
@@ -424,7 +424,7 @@ static int nv3_iterate(nv3_fifo_info *res_info, nv3_sim_state * state, nv3_arb_i
         }
     }
 }
-static char nv3_arb(nv3_fifo_info * res_info, nv3_sim_state * state,  nv3_arb_info *ainfo) 
+static char nv3_arb(nv3_fifo_info * res_info, nv3_sim_state * state,  nv3_arb_info *ainfo)
 {
     long ens, vns, mns, gns;
     int mmisses, gmisses, vmisses, eburst_size, mburst_size;
@@ -533,7 +533,7 @@ static char nv3_arb(nv3_fifo_info * res_info, nv3_sim_state * state,  nv3_arb_in
 static char nv3_get_param(nv3_fifo_info *res_info, nv3_sim_state * state, nv3_arb_info *ainfo)
 {
     int done, g,v, p;
-    
+
     done = 0;
     for (p=0; p < 2; p++)
     {
@@ -542,7 +542,7 @@ static char nv3_get_param(nv3_fifo_info *res_info, nv3_sim_state * state, nv3_ar
             for (v=128; v >=32; v = v>> 1)
             {
                 ainfo->priority = p;
-                ainfo->gburst_size = g;     
+                ainfo->gburst_size = g;
                 ainfo->vburst_size = v;
                 done = nv3_arb(res_info, state,ainfo);
                 if (done && (g==128))
@@ -557,7 +557,7 @@ static char nv3_get_param(nv3_fifo_info *res_info, nv3_sim_state * state, nv3_ar
  Done:
     return done;
 }
-static void nv3CalcArbitration 
+static void nv3CalcArbitration
 (
     nv3_fifo_info * res_info,
     nv3_sim_state * state
@@ -607,8 +607,8 @@ static void nv3CalcArbitration
 }
 static void nv3UpdateArbitrationSettings
 (
-    unsigned      VClk, 
-    unsigned      pixelDepth, 
+    unsigned      VClk,
+    unsigned      pixelDepth,
     unsigned     *burst,
     unsigned     *lwm,
     RIVA_HW_INST *chip
@@ -617,7 +617,7 @@ static void nv3UpdateArbitrationSettings
     nv3_fifo_info fifo_data;
     nv3_sim_state sim_data;
     unsigned int M, N, P, pll, MClk;
-    
+
     pll = NV_RD32(&chip->PRAMDAC0[0x00000504/4], 0);
     M = (pll >> 0) & 0xFF; N = (pll >> 8) & 0xFF; P = (pll >> 16) & 0x0F;
     MClk = (N * chip->CrystalFreqKHz / M) >> P;
@@ -650,7 +650,7 @@ static void nv3UpdateArbitrationSettings
         *burst = 0x2;
     }
 }
-static void nv4CalcArbitration 
+static void nv4CalcArbitration
 (
     nv4_fifo_info *fifo,
     nv4_sim_state *arb
@@ -796,8 +796,8 @@ static void nv4CalcArbitration
 }
 static void nv4UpdateArbitrationSettings
 (
-    unsigned      VClk, 
-    unsigned      pixelDepth, 
+    unsigned      VClk,
+    unsigned      pixelDepth,
     unsigned     *burst,
     unsigned     *lwm,
     RIVA_HW_INST *chip
@@ -836,7 +836,7 @@ static void nv4UpdateArbitrationSettings
         *lwm   = fifo_data.graphics_lwm >> 3;
     }
 }
-static void nv10CalcArbitration 
+static void nv10CalcArbitration
 (
     nv10_fifo_info *fifo,
     nv10_sim_state *arb
@@ -900,7 +900,7 @@ static void nv10CalcArbitration
         mclks += 1;
 
     if ((!video_enable) && (arb->memory_width == 128))
-    {  
+    {
       mclk_extra = (bpp == 32) ? 31 : 42; /* Margin of error */
       min_mclk_extra = 17;
     }
@@ -1021,7 +1021,7 @@ static void nv10CalcArbitration
       pclks_2_top_fifo = (1024-clwm)/(8*width);
 
       /* pclk cycles to drain */
-      p1clk = m2us * pclk_freq/(1000*1000); 
+      p1clk = m2us * pclk_freq/(1000*1000);
       p2 = p1clk * bpp / 8; /* bytes drained. */
 
       if((p2 < m1) && (m1 > 0)) {
@@ -1040,9 +1040,9 @@ static void nv10CalcArbitration
         if (clwm > 1023){ /* Have some margin */
           fifo->valid = 0;
           found = 0;
-          if(min_mclk_extra == 0)   
+          if(min_mclk_extra == 0)
               found = 1; /* Can't adjust anymore! */
-          else 
+          else
               min_mclk_extra--;
         }
       }
@@ -1059,8 +1059,8 @@ static void nv10CalcArbitration
 }
 static void nv10UpdateArbitrationSettings
 (
-    unsigned      VClk, 
-    unsigned      pixelDepth, 
+    unsigned      VClk,
+    unsigned      pixelDepth,
     unsigned     *burst,
     unsigned     *lwm,
     RIVA_HW_INST *chip
@@ -1181,11 +1181,11 @@ static int CalcVClock
     unsigned DeltaNew, DeltaOld;
     unsigned VClk, Freq;
     unsigned M, N, P;
-    
+
     DeltaOld = 0xFFFFFFFF;
 
     VClk     = (unsigned)clockIn;
-    
+
     if (chip->CrystalFreqKHz == 13500)
     {
         lowM  = 7;
@@ -1195,7 +1195,7 @@ static int CalcVClock
     {
         lowM  = 8;
         highM = 14 - (chip->Architecture == NV_ARCH_03);
-    }                      
+    }
 
     highP = 4 - (chip->Architecture == NV_ARCH_03);
     for (P = 0; P <= highP; P ++)
@@ -1229,7 +1229,7 @@ static int CalcVClock
     return (DeltaOld != 0xFFFFFFFF);
 }
 /*
- * Calculate extended mode parameters (SVGA) and save in a 
+ * Calculate extended mode parameters (SVGA) and save in a
  * mode state structure.
  */
 int CalcStateExt
@@ -1264,8 +1264,8 @@ int CalcStateExt
     switch (chip->Architecture)
     {
         case NV_ARCH_03:
-            nv3UpdateArbitrationSettings(VClk, 
-                                         pixelDepth * 8, 
+            nv3UpdateArbitrationSettings(VClk,
+                                         pixelDepth * 8,
                                         &(state->arbitration0),
                                         &(state->arbitration1),
                                          chip);
@@ -1280,8 +1280,8 @@ int CalcStateExt
             state->repaint1 = hDisplaySize < 1280 ? 0x06 : 0x02;
             break;
         case NV_ARCH_04:
-            nv4UpdateArbitrationSettings(VClk, 
-                                         pixelDepth * 8, 
+            nv4UpdateArbitrationSettings(VClk,
+                                         pixelDepth * 8,
                                         &(state->arbitration0),
                                         &(state->arbitration1),
                                          chip);
@@ -1305,8 +1305,8 @@ int CalcStateExt
                                          &(state->arbitration1),
                                           chip, pdev);
             } else {
-                nv10UpdateArbitrationSettings(VClk, 
-                                          pixelDepth * 8, 
+                nv10UpdateArbitrationSettings(VClk,
+                                          pixelDepth * 8,
                                          &(state->arbitration0),
                                          &(state->arbitration1),
                                           chip);
@@ -1665,11 +1665,11 @@ static void LoadStateExt
             if(chip->flatPanel) {
                if((chip->Chipset & 0x0ff0) == 0x0110) {
                    NV_WR32(chip->PRAMDAC, 0x0528, state->dither);
-               } else 
+               } else
                if((chip->Chipset & 0x0ff0) >= 0x0170) {
                    NV_WR32(chip->PRAMDAC, 0x083C, state->dither);
                }
-            
+
                VGA_WR08(chip->PCIO, 0x03D4, 0x53);
                VGA_WR08(chip->PCIO, 0x03D5, 0);
                VGA_WR08(chip->PCIO, 0x03D4, 0x54);
@@ -1716,7 +1716,7 @@ static void LoadStateExt
           NV_WR32(chip->PRAMDAC0, 0x00000520, state->vpll2);
     }  else {
        NV_WR32(chip->PRAMDAC, 0x00000848 , state->scale);
-    }  
+    }
     NV_WR32(chip->PRAMDAC, 0x00000600 , state->general);
 
     /*
@@ -1726,7 +1726,7 @@ static void LoadStateExt
     NV_WR32(chip->PCRTC, 0x00000100, chip->VBlankBit);
     /*
      * Set interrupt enable.
-     */    
+     */
     NV_WR32(chip->PMC, 0x00000140, chip->EnableIRQ & 0x01);
     /*
      * Set current state pointer.
@@ -1821,7 +1821,7 @@ static void UnloadStateExt
 
             if((chip->Chipset & 0x0ff0) == 0x0110) {
                 state->dither = NV_RD32(chip->PRAMDAC, 0x0528);
-            } else 
+            } else
             if((chip->Chipset & 0x0ff0) >= 0x0170) {
                 state->dither = NV_RD32(chip->PRAMDAC, 0x083C);
             }
@@ -1986,7 +1986,7 @@ static void nv3GetConfig
     {
         if (((NV_RD32(chip->PMC, 0x00000000) & 0xF0) == 0x20)
          && ((NV_RD32(chip->PMC, 0x00000000) & 0x0F) >= 0x02))
-        {        
+        {
             /*
              * SDRAM 128 ZX.
              */
@@ -2003,12 +2003,12 @@ static void nv3GetConfig
                     chip->RamAmountKBytes = 1024 * 8;
                     break;
             }
-        }            
-        else            
+        }
+        else
         {
             chip->RamBandwidthKBytesPerSec = 1000000;
             chip->RamAmountKBytes          = 1024 * 8;
-        }            
+        }
     }
     else
     {
@@ -2028,7 +2028,7 @@ static void nv3GetConfig
                 chip->RamAmountKBytes = 1024 * 2;
                 break;
         }
-    }        
+    }
     chip->CrystalFreqKHz   = (NV_RD32(chip->PEXTDEV, 0x00000000) & 0x00000040) ? 14318 : 13500;
     chip->CURSOR           = &(chip->PRAMIN[0x00008000/4 - 0x0800/4]);
     chip->VBlankBit        = 0x00000100;

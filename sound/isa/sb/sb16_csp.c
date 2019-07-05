@@ -6,7 +6,7 @@
  *  SB16ASP/AWE32 CSP control
  *
  *  CSP microcode loader:
- *   alsa-tools/sb16_csp/ 
+ *   alsa-tools/sb16_csp/
  */
 
 #include <linux/delay.h>
@@ -287,7 +287,7 @@ static int snd_sb_csp_unuse(struct snd_sb_csp * p)
 }
 
 /*
- * load microcode via ioctl: 
+ * load microcode via ioctl:
  * code is user-space pointer
  */
 static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
@@ -669,7 +669,7 @@ static int snd_sb_csp_load(struct snd_sb_csp * p, const unsigned char *buf, int 
 	spin_unlock_irqrestore(&p->chip->reg_lock, flags);
 	return result;
 }
- 
+
 static int snd_sb_csp_load_user(struct snd_sb_csp * p, const unsigned char __user *buf, int size, int load_flags)
 {
 	int err;
@@ -718,7 +718,7 @@ static int snd_sb_csp_autoload(struct snd_sb_csp * p, snd_pcm_format_t pcm_sfmt,
 	int err = 0;
 
 	/* if CSP is running or manually loaded then exit */
-	if (p->running & (SNDRV_SB_CSP_ST_RUNNING | SNDRV_SB_CSP_ST_LOADED)) 
+	if (p->running & (SNDRV_SB_CSP_ST_RUNNING | SNDRV_SB_CSP_ST_LOADED))
 		return -EBUSY;
 
 	/* autoload microcode only if requested hardware codec is not already loaded */
@@ -751,7 +751,7 @@ static int snd_sb_csp_autoload(struct snd_sb_csp * p, snd_pcm_format_t pcm_sfmt,
 				p->mode = SNDRV_SB_CSP_MODE_DSP_READ;
 			}
 			p->acc_format = SNDRV_PCM_FMTBIT_IMA_ADPCM;
-			break;				  
+			break;
 		default:
 			/* Decouple CSP from IRQ and DMAREQ lines */
 			if (p->running & SNDRV_SB_CSP_ST_AUTO) {
@@ -775,7 +775,7 @@ static int snd_sb_csp_autoload(struct snd_sb_csp * p, snd_pcm_format_t pcm_sfmt,
 			p->acc_width = SNDRV_SB_CSP_SAMPLE_16BIT;	/* only 16 bit data */
 			p->acc_channels = SNDRV_SB_CSP_MONO | SNDRV_SB_CSP_STEREO;
 			p->acc_rates = SNDRV_SB_CSP_RATE_ALL;	/* HW codecs accept all rates */
-		}   
+		}
 
 	}
 	return (p->running & SNDRV_SB_CSP_ST_AUTO) ? 0 : -ENXIO;
@@ -952,7 +952,7 @@ static int snd_sb_csp_restart(struct snd_sb_csp * p)
 static int snd_sb_qsound_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_sb_csp *p = snd_kcontrol_chip(kcontrol);
-	
+
 	ucontrol->value.integer.value[0] = p->q_enabled ? 1 : 0;
 	return 0;
 }
@@ -963,7 +963,7 @@ static int snd_sb_qsound_switch_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	unsigned long flags;
 	int change;
 	unsigned char nval;
-	
+
 	nval = ucontrol->value.integer.value[0] & 0x01;
 	spin_lock_irqsave(&p->q_lock, flags);
 	change = p->q_enabled != nval;
@@ -985,7 +985,7 @@ static int snd_sb_qsound_space_get(struct snd_kcontrol *kcontrol, struct snd_ctl
 {
 	struct snd_sb_csp *p = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&p->q_lock, flags);
 	ucontrol->value.integer.value[0] = p->qpos_left;
 	ucontrol->value.integer.value[1] = p->qpos_right;
@@ -999,7 +999,7 @@ static int snd_sb_qsound_space_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 	unsigned long flags;
 	int change;
 	unsigned char nval1, nval2;
-	
+
 	nval1 = ucontrol->value.integer.value[0];
 	if (nval1 > SNDRV_SB_CSP_QSOUND_MAX_RIGHT)
 		nval1 = SNDRV_SB_CSP_QSOUND_MAX_RIGHT;
@@ -1065,8 +1065,8 @@ static void snd_sb_qsound_destroy(struct snd_sb_csp * p)
 	if (snd_BUG_ON(!p))
 		return;
 
-	card = p->chip->card;	
-	
+	card = p->chip->card;
+
 	down_write(&card->controls_rwsem);
 	if (p->qsound_switch)
 		snd_ctl_remove(card, p->qsound_switch);

@@ -386,7 +386,7 @@ ahd_pci_map_int(struct ahd_softc *ahd)
 			    IRQF_SHARED, "aic79xx", ahd);
 	if (!error)
 		ahd->platform_data->irq = ahd->dev_softc->irq;
-	
+
 	return (-error);
 }
 

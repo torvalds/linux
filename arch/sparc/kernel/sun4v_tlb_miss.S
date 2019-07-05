@@ -47,7 +47,7 @@
 sun4v_itlb_miss:
 	/* Load MMU Miss base into %g2.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2
-	
+
 	/* Load UTSB reg into %g1.  */
 	mov	SCRATCHPAD_UTSBREG1, %g1
 	ldxa	[%g1] ASI_SCRATCHPAD, %g1
@@ -93,7 +93,7 @@ sun4v_itlb_load:
 sun4v_dtlb_miss:
 	/* Load MMU Miss base into %g2.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2
-	
+
 	/* Load UTSB reg into %g1.  */
 	mov	SCRATCHPAD_UTSBREG1, %g1
 	ldxa	[%g1] ASI_SCRATCHPAD, %g1
@@ -138,7 +138,7 @@ sun4v_dtlb_prot:
 
 	/* Load MMU Miss base into %g5.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g5
-	
+
 	ldx	[%g5 + HV_FAULT_D_ADDR_OFFSET], %g5
 	rdpr	%tl, %g1
 	cmp	%g1, 1

@@ -4,8 +4,8 @@
  * Copyright (C) 1998  Eddie C. Dost  (ecd@skynet.be)
  * Copyright (C) 2000  Vinh Truong    (vinh.truong@eng.sun.com)
  * VT - The implementation is to support Sun Microelectronics (SME) platform
- *      environment monitoring.  SME platforms use pcf8584 as the i2c bus 
- *      controller to access pcf8591 (8-bit A/D and D/A converter) and 
+ *      environment monitoring.  SME platforms use pcf8584 as the i2c bus
+ *      controller to access pcf8591 (8-bit A/D and D/A converter) and
  *      pcf8571 (256 x 8-bit static low-voltage RAM with I2C-bus interface).
  *      At board level, it follows SME Firmware I2C Specification. Reference:
  * 	http://www-eu2.semiconductors.com/pip/PCF8584P
@@ -123,7 +123,7 @@
 #define ENVCTRL_GLOBALADDR_ADDR_MASK 	0x1F
 #define ENVCTRL_GLOBALADDR_PSTAT_MASK	0x60
 
-/* Node 0x70 ignored on CompactPCI CP1400/1500 platforms 
+/* Node 0x70 ignored on CompactPCI CP1400/1500 platforms
  * (see envctrl_init_i2c_child)
  */
 #define ENVCTRL_CPCI_IGNORED_NODE		0x70
@@ -143,10 +143,10 @@ struct pcf8584_channel {
 
 /* Each child device may have one or more tables of bytes to help decode
  * data. Table property as defined by the firmware.
- */ 
+ */
 struct pcf8584_tblprop {
         unsigned int type;
-        unsigned int scale;  
+        unsigned int scale;
         unsigned int offset; /* offset from the beginning of the table */
         unsigned int size;
 };
@@ -155,10 +155,10 @@ struct pcf8584_tblprop {
 struct i2c_child_t {
 	/* Either ADC or GPIO. */
 	unsigned char i2ctype;
-        unsigned long addr;    
+        unsigned long addr;
         struct pcf8584_channel chnl_array[PCF8584_MAX_CHANNELS];
 
-	/* Channel info. */ 
+	/* Channel info. */
 	unsigned int total_chnls;	/* Number of monitor channels. */
 	unsigned char fan_mask;		/* Byte mask for fan status channels. */
 	unsigned char voltage_mask;	/* Byte mask for voltage status channels. */
@@ -181,7 +181,7 @@ static char read_cpu;
 /* Forward declarations. */
 static struct i2c_child_t *envctrl_get_i2c_child(unsigned char);
 
-/* Function Description: Test the PIN bit (Pending Interrupt Not) 
+/* Function Description: Test the PIN bit (Pending Interrupt Not)
  * 			 to test when serial transmission is completed .
  * Return : None.
  */
@@ -190,10 +190,10 @@ static void envtrl_i2c_test_pin(void)
 	int limit = 1000000;
 
 	while (--limit > 0) {
-		if (!(readb(i2c + PCF8584_CSR) & STATUS_PIN)) 
+		if (!(readb(i2c + PCF8584_CSR) & STATUS_PIN))
 			break;
 		udelay(1);
-	} 
+	}
 
 	if (limit <= 0)
 		printk(KERN_INFO PFX "Pin status will not clear.\n");
@@ -211,7 +211,7 @@ static void envctrl_i2c_test_bb(void)
 		if (readb(i2c + PCF8584_CSR) & STATUS_BB)
 			break;
 		udelay(1);
-	} 
+	}
 
 	if (limit <= 0)
 		printk(KERN_INFO PFX "Busy bit will not clear.\n");
@@ -243,7 +243,7 @@ static int envctrl_i2c_read_addr(unsigned char addr)
 	}
 }
 
-/* Function Description: Send the address for write mode.  
+/* Function Description: Send the address for write mode.
  * Return : None.
  */
 static void envctrl_i2c_write_addr(unsigned char addr)
@@ -255,8 +255,8 @@ static void envctrl_i2c_write_addr(unsigned char addr)
 	writeb(OBD_SEND_START, i2c + PCF8584_CSR);
 }
 
-/* Function Description: Read 1 byte of data from addr 
- *			 set by envctrl_i2c_read_addr() 
+/* Function Description: Read 1 byte of data from addr
+ *			 set by envctrl_i2c_read_addr()
  * Return : Data from address set by envctrl_i2c_read_addr().
  */
 static unsigned char envctrl_i2c_read_data(void)
@@ -266,7 +266,7 @@ static unsigned char envctrl_i2c_read_data(void)
 	return readb(i2c + PCF8584_DATA);
 }
 
-/* Function Description: Instruct the device which port to read data from.  
+/* Function Description: Instruct the device which port to read data from.
  * Return : None.
  */
 static void envctrl_i2c_write_data(unsigned char port)
@@ -392,7 +392,7 @@ static int envctrl_read_cpu_info(int cpu, struct i2c_child_t *pchild,
 					  tbl, bufdata);
 }
 
-/* Function Description: Read noncpu-related data such as motherboard 
+/* Function Description: Read noncpu-related data such as motherboard
  *                       temperature.
  * Return: Number of read bytes. Data is stored in bufdata in ascii format.
  */
@@ -514,7 +514,7 @@ static unsigned char envctrl_i2c_voltage_status(struct i2c_child_t *pchild,
 
 				/* Break out when there is a mismatch. */
 				if (!(chnls_mask[i] & tmp))
-					break; 
+					break;
 			}
 		}
 
@@ -620,7 +620,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		if (copy_to_user(buf, data, ret))
 			ret = -EFAULT;
 		break;
-	
+
 	case ENVCTRL_RD_GLOBALADDRESS:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_GLOBALADDR_MON)))
 			return 0;
@@ -721,7 +721,7 @@ static const struct file_operations envctrl_fops = {
 	.open =			envctrl_open,
 	.release =		envctrl_release,
 	.llseek =		noop_llseek,
-};	
+};
 
 static struct miscdevice envctrl_dev = {
 	ENVCTRL_MINOR,
@@ -817,7 +817,7 @@ static void envctrl_init_globaladdr(struct i2c_child_t *pchild)
 {
 	int i;
 
-	/* Voltage/PowerSupply monitoring is piggybacked 
+	/* Voltage/PowerSupply monitoring is piggybacked
 	 * with Global Address on CompactPCI.  See comments
 	 * within envctrl_i2c_globaladdr for bit assignments.
 	 *
@@ -836,8 +836,8 @@ static void envctrl_init_globaladdr(struct i2c_child_t *pchild)
 		}
 	}
 
-	/* We only need to know if this child has global addressing 
-	 * line monitored.  We don't care which channels since we know 
+	/* We only need to know if this child has global addressing
+	 * line monitored.  We don't care which channels since we know
 	 * the mask already (ENVCTRL_GLOBALADDR_ADDR_MASK).
 	 */
 	pchild->mon_type[0] = ENVCTRL_GLOBALADDR_MON;
@@ -1005,16 +1005,16 @@ static int kenvctrld(void *__unused)
 
 		if (kthread_should_stop())
 			break;
-		
+
 		for (whichcpu = 0; whichcpu < ENVCTRL_MAX_CPU; ++whichcpu) {
 			if (0 < envctrl_read_cpu_info(whichcpu, cputemp,
 						      ENVCTRL_CPUTEMP_MON,
 						      tempbuf)) {
 				if (tempbuf[0] >= shutdown_temperature) {
-					printk(KERN_CRIT 
+					printk(KERN_CRIT
 						"%s: WARNING: CPU%i temperature %i C meets or exceeds "\
-						"shutdown threshold %i C\n", 
-						current->comm, whichcpu, 
+						"shutdown threshold %i C\n",
+						current->comm, whichcpu,
 						tempbuf[0], shutdown_temperature);
 					envctrl_do_shutdown();
 				}
@@ -1055,7 +1055,7 @@ static int envctrl_probe(struct platform_device *op)
 	writeb(CONTROL_PIN, i2c + PCF8584_CSR);
 	writeb(PCF8584_ADDRESS, i2c + PCF8584_DATA);
 
-	/* Set system clock and SCL frequencies. */ 
+	/* Set system clock and SCL frequencies. */
 	writeb(CONTROL_PIN | CONTROL_ES1, i2c + PCF8584_CSR);
 	writeb(CLK_4_43 | BUS_CLK_90, i2c + PCF8584_DATA);
 
@@ -1071,15 +1071,15 @@ static int envctrl_probe(struct platform_device *op)
 		goto out_iounmap;
 	}
 
-	/* Note above traversal routine post-incremented 'i' to accommodate 
+	/* Note above traversal routine post-incremented 'i' to accommodate
 	 * a next child device, so we decrement before reverse-traversal of
 	 * child devices.
 	 */
 	printk(KERN_INFO PFX "Initialized ");
 	for (--index; index >= 0; --index) {
-		printk("[%s 0x%lx]%s", 
-			(I2C_ADC == i2c_childlist[index].i2ctype) ? "adc" : 
-			((I2C_GPIO == i2c_childlist[index].i2ctype) ? "gpio" : "unknown"), 
+		printk("[%s 0x%lx]%s",
+			(I2C_ADC == i2c_childlist[index].i2ctype) ? "adc" :
+			((I2C_GPIO == i2c_childlist[index].i2ctype) ? "gpio" : "unknown"),
 			i2c_childlist[index].addr, (0 == index) ? "\n" : " ");
 	}
 

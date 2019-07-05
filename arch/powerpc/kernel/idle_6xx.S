@@ -76,7 +76,7 @@ BEGIN_FTR_SECTION
 	cmpwi	0,r4,0
 	beq	1f
 	lis	r3,HID0_NAP@h
-1:	
+1:
 END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 	cmpwi	0,r3,0
 	beqlr
@@ -113,10 +113,10 @@ BEGIN_FTR_SECTION
 	mfspr	r4,SPRN_HID1
 	oris	r4,r4,0x0001
 	mtspr	SPRN_HID1,r4
-1:	
+1:
 END_FTR_SECTION_IFSET(CPU_FTR_DUAL_PLL_750FX)
 
-	/* Go to NAP or DOZE now */	
+	/* Go to NAP or DOZE now */
 	mfspr	r4,SPRN_HID0
 	lis	r5,(HID0_NAP|HID0_SLEEP)@h
 BEGIN_FTR_SECTION

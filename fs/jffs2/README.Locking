@@ -29,7 +29,7 @@ was written afterwards. Hence, we can ensure the newly-obsoleted nodes
 don't actually get erased until the write-buffer has been flushed to
 the medium.
 
-With the introduction of NAND flash support and the write-buffer, 
+With the introduction of NAND flash support and the write-buffer,
 the alloc_sem is also used to protect the wbuf-related members of the
 jffs2_sb_info structure. Atomically reading the wbuf_len member to see
 if the wbuf is currently holding any data is permitted, though.
@@ -59,9 +59,9 @@ Instead of playing such games, we just have an extra internal
 mutex, which is obtained by the garbage collection code and also
 by the normal file system code _after_ allocation of space.
 
-Ordering constraints: 
+Ordering constraints:
 
-	1. Never attempt to allocate space or lock alloc_sem with 
+	1. Never attempt to allocate space or lock alloc_sem with
 	   any f->sem held.
 	2. Never attempt to lock two file mutexes in one thread.
 	   No ordering rules have been made for doing so.
@@ -110,9 +110,9 @@ if we need to deal with wrapping after 4 milliard inode numbers are used.
 
 Note, the f->sem guarantees that the correspondent jffs2_inode_cache
 will not be removed. So, it is allowed to access it without locking
-the inocache_lock spinlock. 
+the inocache_lock spinlock.
 
-Ordering constraints: 
+Ordering constraints:
 
 	If both erase_completion_lock and inocache_lock are needed, the
 	c->erase_completion has to be acquired first.
@@ -141,7 +141,7 @@ Suggestions for alternative solutions to this problem would be welcomed.
 This read/write semaphore protects against concurrent access to the
 write-behind buffer ('wbuf') used for flash chips where we must write
 in blocks. It protects both the contents of the wbuf and the metadata
-which indicates which flash region (if any) is currently covered by 
+which indicates which flash region (if any) is currently covered by
 the buffer.
 
 Ordering constraints:

@@ -222,15 +222,15 @@ int vt_waitactive(int n)
 
 
 
-static inline int 
+static inline int
 do_fontx_ioctl(int cmd, struct consolefontdesc __user *user_cfd, int perm, struct console_font_op *op)
 {
 	struct consolefontdesc cfdarg;
 	int i;
 
-	if (copy_from_user(&cfdarg, user_cfd, sizeof(struct consolefontdesc))) 
+	if (copy_from_user(&cfdarg, user_cfd, sizeof(struct consolefontdesc)))
 		return -EFAULT;
- 	
+
 	switch (cmd) {
 	case PIO_FONTX:
 		if (!perm)
@@ -262,7 +262,7 @@ do_fontx_ioctl(int cmd, struct consolefontdesc __user *user_cfd, int perm, struc
 	return -EINVAL;
 }
 
-static inline int 
+static inline int
 do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud, int perm, struct vc_data *vc)
 {
 	struct unimapdesc tmp;
@@ -328,7 +328,7 @@ static void vt_disallocate_all(void)
 
 /*
  * We handle the console-specific ioctl's here.  We allow the
- * capability to modify any console, not just the fg_console. 
+ * capability to modify any console, not just the fg_console.
  */
 int vt_ioctl(struct tty_struct *tty,
 	     unsigned int cmd, unsigned long arg)
@@ -358,7 +358,7 @@ int vt_ioctl(struct tty_struct *tty,
 	perm = 0;
 	if (current->signal->tty == tty || capable(CAP_SYS_TTY_CONFIG))
 		perm = 1;
- 
+
 	switch (cmd) {
 	case TIOCLINUX:
 		ret = tioclinux(tty, arg);
@@ -382,7 +382,7 @@ int vt_ioctl(struct tty_struct *tty,
 			return -EPERM;
 	{
 		unsigned int ticks, count;
-		
+
 		/*
 		 * Generate the tone for the appropriate number of ticks.
 		 * If the time is zero, turn off sound ourselves.
@@ -433,11 +433,11 @@ int vt_ioctl(struct tty_struct *tty,
 #endif
 
 	/* Linux m68k/i386 interface for setting the keyboard delay/repeat rate */
-		
+
 	case KDKBDREP:
 	{
 		struct kbd_repeat kbrep;
-		
+
 		if (!capable(CAP_SYS_TTY_CONFIG))
 			return -EPERM;
 
@@ -664,7 +664,7 @@ int vt_ioctl(struct tty_struct *tty,
 			if (! VT_IS_IN_USE(i))
 				break;
 		uival = i < MAX_NR_CONSOLES ? (i+1) : -1;
-		goto setint;		 
+		goto setint;
 
 	/*
 	 * ioctl(fd, VT_ACTIVATE, num) will cause us to switch to vt # num,

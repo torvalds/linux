@@ -28,7 +28,7 @@ Accepted options:
 font:X    - default font to use. All fonts are supported, including the
             SUN12x22 font which is very nice at high resolutions.
 
-	    
+
 mode:X    - default video mode with format [xres]x[yres]-<bpp>@<refresh rate>
             The following video modes are supported:
             640x640-16@60, 640x480-24@60, 640x480-32@60. The Dreamcast

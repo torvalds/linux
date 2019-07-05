@@ -265,7 +265,7 @@ static void snd_emu10k1_midi_output_trigger(struct snd_rawmidi_substream *substr
 	if (up) {
 		int max = 4;
 		unsigned char byte;
-	
+
 		/* try to send some amount of bytes here before interrupts */
 		spin_lock_irqsave(&midi->output_lock, flags);
 		while (max > 0) {

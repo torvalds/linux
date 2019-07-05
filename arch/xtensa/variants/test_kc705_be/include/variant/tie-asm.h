@@ -1,4 +1,4 @@
-/* 
+/*
  * tie-asm.h -- compile-time HAL assembler definitions dependent on CORE & TIE
  *
  *  NOTE:  This header file is not meant to be included directly.
@@ -188,7 +188,7 @@
 
 #define XCHAL_NCP_NUM_ATMPS	1
 
-    /* 
+    /*
      *  Macro to store the state of TIE coprocessor AudioEngineLX.
      *  Required parameters:
      *      ptr         Save area pointer address register (clobbered)
@@ -236,7 +236,7 @@
 	.endif
     .endm	// xchal_cp1_store
 
-    /* 
+    /*
      *  Macro to load the state of TIE coprocessor AudioEngineLX.
      *  Required parameters:
      *      ptr         Save area pointer address register (clobbered)

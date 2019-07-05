@@ -32,8 +32,8 @@
 
 #define SUPERIO_IDE_MAX_RETRIES 25
 
-/* Because of a defect in Super I/O, all reads of the PCI DMA status 
- * registers, IDE status register and the IDE select register need to be 
+/* Because of a defect in Super I/O, all reads of the PCI DMA status
+ * registers, IDE status register and the IDE select register need to be
  * retried
  */
 static u8 superio_ide_inb (unsigned long port)

@@ -65,13 +65,13 @@
 #define PPSMC_MSG_SetSoftMinByFreq               0x1A
 #define PPSMC_MSG_SetSoftMaxByFreq               0x1B
 #define PPSMC_MSG_SetHardMinByFreq               0x1C
-#define PPSMC_MSG_SetHardMaxByFreq               0x1D 
+#define PPSMC_MSG_SetHardMaxByFreq               0x1D
 #define PPSMC_MSG_GetMinDpmFreq                  0x1E
 #define PPSMC_MSG_GetMaxDpmFreq                  0x1F
 #define PPSMC_MSG_GetDpmFreqByIndex              0x20
 #define PPSMC_MSG_OverridePcieParameters         0x21
 #define PPSMC_MSG_SetMinDeepSleepDcefclk         0x22
-#define PPSMC_MSG_SetWorkloadMask                0x23 
+#define PPSMC_MSG_SetWorkloadMask                0x23
 #define PPSMC_MSG_SetUclkFastSwitch              0x24
 #define PPSMC_MSG_GetAvfsVoltageByDpm            0x25
 #define PPSMC_MSG_SetVideoFps                    0x26
@@ -81,7 +81,7 @@
 #define PPSMC_MSG_AllowGfxOff                    0x28
 #define PPSMC_MSG_DisallowGfxOff                 0x29
 #define PPSMC_MSG_PowerUpVcn					 0x2A
-#define PPSMC_MSG_PowerDownVcn					 0x2B	
+#define PPSMC_MSG_PowerDownVcn					 0x2B
 #define PPSMC_MSG_PowerUpJpeg                    0x2C
 #define PPSMC_MSG_PowerDownJpeg					 0x2D
 //reserve 0x2A to 0x2F for PG harvesting TBD
@@ -115,7 +115,7 @@
 #define PPSMC_MSG_ConfigureGfxDidt               0x3F
 #define PPSMC_MSG_NumOfDisplays                  0x40
 
-#define PPSMC_MSG_SetMemoryChannelConfig         0x41 
+#define PPSMC_MSG_SetMemoryChannelConfig         0x41
 #define PPSMC_MSG_SetGeminiMode                  0x42
 #define PPSMC_MSG_SetGeminiApertureHigh          0x43
 #define PPSMC_MSG_SetGeminiApertureLow           0x44

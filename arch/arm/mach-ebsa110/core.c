@@ -44,7 +44,7 @@ static struct irq_chip ebsa110_irq_chip = {
 	.irq_mask	= ebsa110_mask_irq,
 	.irq_unmask	= ebsa110_unmask_irq,
 };
- 
+
 static void __init ebsa110_init_irq(void)
 {
 	unsigned long flags;

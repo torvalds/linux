@@ -1410,7 +1410,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 	case SMT_P3210 :
 		if (long_val > 5000)
 			goto val_error ;
-		
+
 		if (long_val != 0 && mib_a->fddiPATHSbaPayload == 0)
 			goto val_error ;
 
@@ -1432,7 +1432,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 	case SMT_P3214 :		/* fddiPATHSbaAvailable */
 		if (long_val > 0x00BEBC20L)
 			goto val_error ;
-#ifdef SBA 
+#ifdef SBA
 		if (set && mib->fddiSBACommand == SB_STOP)
 			goto val_error ;
 #endif

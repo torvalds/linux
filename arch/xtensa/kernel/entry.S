@@ -450,7 +450,7 @@ common_exception:
 	/* Save optional registers. */
 
 	save_xtregs_opt a1 a3 a4 a5 a6 a7 PT_XTREGS_OPT
-	
+
 	/* Go to second-level dispatcher. Set up parameters to pass to the
 	 * exception handler and call the exception handler.
 	 */
@@ -491,7 +491,7 @@ common_exception_return:
 	 * We need to check some flags for signal handling and rescheduling,
 	 * and have to restore WB and WS, extra states, and all registers
 	 * in the register file that were in use in the user task.
-	 * Note that we don't disable interrupts here. 
+	 * Note that we don't disable interrupts here.
 	 */
 
 	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
@@ -1657,8 +1657,8 @@ ENTRY(fast_second_level_miss)
 
 2:	/* Special case for cache aliasing.
 	 * We (should) only get here if a clear_user_page, copy_user_page
-	 * or the aliased cache flush functions got preemptively interrupted 
-	 * by another task. Re-establish temporary mapping to the 
+	 * or the aliased cache flush functions got preemptively interrupted
+	 * by another task. Re-establish temporary mapping to the
 	 * TLBTEMP_BASE areas.
 	 */
 

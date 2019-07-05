@@ -111,7 +111,7 @@ struct rpc_rqst {
 						   state of the transport
 						   connection */
 	atomic_t		rq_pin;
-	
+
 	/*
 	 * Partial send handling
 	 */

@@ -374,7 +374,7 @@ ENTRY(cpu_arm1026_switch_mm)
 	mcr	p15, 0, r1, c8, c7, 0		@ invalidate I & D TLBs
 #endif
 	ret	lr
-        
+
 /*
  * cpu_arm1026_set_pte_ext(ptep, pte, ext)
  *
@@ -419,7 +419,7 @@ __arm1026_setup:
 	 *  R
 	 * .RVI ZFRS BLDP WCAM
 	 * .011 1001 ..11 0101
-	 * 
+	 *
 	 */
 	.type	arm1026_crval, #object
 arm1026_crval:

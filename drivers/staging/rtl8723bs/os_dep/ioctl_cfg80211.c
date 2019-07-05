@@ -685,7 +685,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 	}
 
 
-	if (!psta && check_fwstate(pmlmepriv, WIFI_AP_STATE)) /* group key */ 
+	if (!psta && check_fwstate(pmlmepriv, WIFI_AP_STATE)) /* group key */
 	{
 		if (param->u.crypt.set_tx == 0) /* group key */
 		{

@@ -29,16 +29,16 @@ unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, un
 
 	if (reg & 0xff000000) {
 		unsigned char size, offset;
-		
+
 		size = (reg >> 24) & 0x3f;
 		offset = (reg >> 16) & 0x1f;
 		mask = ((1 << size) - 1) << offset;
-		
+
 		spin_lock_irqsave(&emu->emu_lock, flags);
 		outl(regptr, emu->port + PTR);
 		val = inl(emu->port + DATA);
 		spin_unlock_irqrestore(&emu->emu_lock, flags);
-		
+
 		return (val & mask) >> offset;
 	} else {
 		spin_lock_irqsave(&emu->emu_lock, flags);
@@ -74,7 +74,7 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 		outl(regptr, emu->port + PTR);
 		data |= inl(emu->port + DATA) & ~mask;
 		outl(data, emu->port + DATA);
-		spin_unlock_irqrestore(&emu->emu_lock, flags);		
+		spin_unlock_irqrestore(&emu->emu_lock, flags);
 	} else {
 		spin_lock_irqsave(&emu->emu_lock, flags);
 		outl(regptr, emu->port + PTR);
@@ -85,13 +85,13 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 
 EXPORT_SYMBOL(snd_emu10k1_ptr_write);
 
-unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, 
-					  unsigned int reg, 
+unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu,
+					  unsigned int reg,
 					  unsigned int chn)
 {
 	unsigned long flags;
 	unsigned int regptr, val;
-  
+
 	regptr = (reg << 16) | chn;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
@@ -101,9 +101,9 @@ unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu,
 	return val;
 }
 
-void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, 
-				   unsigned int reg, 
-				   unsigned int chn, 
+void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu,
+				   unsigned int reg,
+				   unsigned int chn,
 				   unsigned int data)
 {
 	unsigned int regptr;
@@ -228,7 +228,7 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 		/* dump_stack(); */
 		err = -EINVAL;
 	}
-    
+
 	spin_unlock(&emu->i2c_lock);
 	return err;
 }

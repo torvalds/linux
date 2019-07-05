@@ -45,7 +45,7 @@ a lot of poorly written code out there.
 In trying to address this problem, the designers of System V UNIX came up
 with a "mandatory" locking scheme, whereby the operating system kernel would
 block attempts by a process to write to a file that another process holds a
-"read" -or- "shared" lock on, and block attempts to both read and write to a 
+"read" -or- "shared" lock on, and block attempts to both read and write to a
 file that a process holds a "write " -or- "exclusive" lock on.
 
 The System V mandatory locking scheme was intended to have as little impact as
@@ -110,7 +110,7 @@ should return EAGAIN.
 
 I'm afraid that this is such an esoteric area that the semantics described
 below are just as valid as any others, so long as the main points seem to
-agree. 
+agree.
 
 4. Semantics
 ------------

@@ -10,7 +10,7 @@
  * Ported to CryptoAPI by Colin Slater <hoho@tacomeat.net>
  *
  * The original author has disclaimed all copyright interest in this
- * code and thus put it in the public domain. The subsequent authors 
+ * code and thus put it in the public domain. The subsequent authors
  * have put this under the GNU General Public License.
  *
  * This code is a "clean room" implementation, written from the paper
@@ -100,7 +100,7 @@ static void twofish_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 	/* The four 32-bit chunks of the text. */
 	u32 a, b, c, d;
-	
+
 	/* Temporaries used by the round function. */
 	u32 x, y;
 
@@ -109,7 +109,7 @@ static void twofish_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	INPACK (1, b, 1);
 	INPACK (2, c, 2);
 	INPACK (3, d, 3);
-	
+
 	/* Encryption Feistel cycles. */
 	ENCCYCLE (0);
 	ENCCYCLE (1);
@@ -119,13 +119,13 @@ static void twofish_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	ENCCYCLE (5);
 	ENCCYCLE (6);
 	ENCCYCLE (7);
-	
+
 	/* Output whitening and unpacking. */
 	OUTUNPACK (0, c, 4);
 	OUTUNPACK (1, d, 5);
 	OUTUNPACK (2, a, 6);
 	OUTUNPACK (3, b, 7);
-	
+
 }
 
 /* Decrypt one block.  in and out may be the same. */
@@ -134,19 +134,19 @@ static void twofish_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	struct twofish_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *src = (const __le32 *)in;
 	__le32 *dst = (__le32 *)out;
-  
+
 	/* The four 32-bit chunks of the text. */
 	u32 a, b, c, d;
-	
+
 	/* Temporaries used by the round function. */
 	u32 x, y;
-	
+
 	/* Input whitening and packing. */
 	INPACK (0, c, 4);
 	INPACK (1, d, 5);
 	INPACK (2, a, 6);
 	INPACK (3, b, 7);
-	
+
 	/* Encryption Feistel cycles. */
 	DECCYCLE (7);
 	DECCYCLE (6);

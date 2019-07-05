@@ -21,23 +21,23 @@
  *
  *Revision 2.5  1998/08/03 16:57:01  ivan
  *added cyclades_idle_stats structure;
- * 
+ *
  *Revision 2.4  1998/06/01 12:09:53  ivan
  *removed closing_wait2 from cyclades_port structure;
  *
  *Revision 2.3  1998/03/16 18:01:12  ivan
- *changes in the cyclades_port structure to get it closer to the 
+ *changes in the cyclades_port structure to get it closer to the
  *standard serial port structure;
  *added constants for new ioctls;
  *
  *Revision 2.2  1998/02/17 16:50:00  ivan
- *changes in the cyclades_port structure (addition of shutdown_wait and 
+ *changes in the cyclades_port structure (addition of shutdown_wait and
  *chip_rev variables);
  *added constants for new ioctls and for CD1400 rev. numbers.
  *
  *Revision 2.1	1997/10/24 16:03:00  ivan
- *added rflow (which allows enabling the CD1400 special flow control 
- *feature) and rtsdtr_inv (which allows DTR/RTS pin inversion) to 
+ *added rflow (which allows enabling the CD1400 special flow control
+ *feature) and rtsdtr_inv (which allows DTR/RTS pin inversion) to
  *cyclades_port structure;
  *added Alpha support
  *
@@ -109,7 +109,7 @@ struct cyclades_icount {
 
 /*
  * This is our internal structure for each serial port's state.
- * 
+ *
  * Many fields are paralleled by the structure used by the serial_struct
  * structure.
  *

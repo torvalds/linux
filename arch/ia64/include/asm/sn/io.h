@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
@@ -129,11 +129,11 @@ ___sn_outl (unsigned int val, unsigned long port)
 }
 
 /*
- * The following routines are SN Platform specific, called when 
- * a reference is made to readX/writeX set macros.  SN Platform 
- * readX set of macros ensures that Posted DMA writes on the 
+ * The following routines are SN Platform specific, called when
+ * a reference is made to readX/writeX set macros.  SN Platform
+ * readX set of macros ensures that Posted DMA writes on the
  * Bridge is flushed.
- * 
+ *
  * The routines should be self explainatory.
  */
 

@@ -391,7 +391,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 
 	ret = regmap_update_bits(priv->regmap, TAS5086_CLOCK_CONTROL,
 				 TAS5086_CLOCK_SCLK_RATIO_48,
-				 (priv->sclk == 48 * priv->rate) ? 
+				 (priv->sclk == 48 * priv->rate) ?
 					TAS5086_CLOCK_SCLK_RATIO_48 : 0);
 	if (ret < 0)
 		return ret;

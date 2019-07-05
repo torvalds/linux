@@ -1,7 +1,7 @@
 /*
 ** z2ram - Amiga pseudo-driver to access 16bit-RAM in ZorroII space
 **         as a block device, to be used as a RAM disk or swap space
-** 
+**
 ** Copyright (C) 1994 by Ingo Wilken (Ingo.Wilken@informatik.uni-oldenburg.de)
 **
 ** ++Geert: support for zorro_unused_z2ram, better range checking
@@ -142,7 +142,7 @@ get_chipram( void )
 
 	z2ram_size++;
     }
-	
+
     return;
 }
 
@@ -196,7 +196,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 #else
 		vaddr = (unsigned long)z_remap_nocache_nonser(paddr, size);
 #endif
-		z2ram_map = 
+		z2ram_map =
 			kmalloc_array(size / Z2RAM_CHUNKSIZE,
                                       sizeof(z2ram_map[0]),
                                       GFP_KERNEL);
@@ -236,7 +236,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		get_chipram();
 
 		if ( z2ram_size != 0 )
-		    printk( KERN_INFO DEVICE_NAME 
+		    printk( KERN_INFO DEVICE_NAME
 			": using %iK Zorro II RAM and %iK Chip RAM (Total %dK)\n",
 			z2_count * Z2RAM_CHUNK1024,
 			chip_count * Z2RAM_CHUNK1024,
@@ -256,7 +256,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		get_z2ram();
 
 		if ( z2ram_size != 0 )
-		    printk( KERN_INFO DEVICE_NAME 
+		    printk( KERN_INFO DEVICE_NAME
 			": using %iK of Zorro II RAM\n",
 			z2_count * Z2RAM_CHUNK1024 );
 
@@ -274,16 +274,16 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		get_chipram();
 
 		if ( z2ram_size != 0 )
-		    printk( KERN_INFO DEVICE_NAME 
+		    printk( KERN_INFO DEVICE_NAME
 			": using %iK Chip RAM\n",
 			chip_count * Z2RAM_CHUNK1024 );
-		    
+
 	    break;
 
 	    default:
 		rc = -ENODEV;
 		goto err_out;
-	
+
 	    break;
 	}
 
@@ -343,7 +343,7 @@ static const struct blk_mq_ops z2_mq_ops = {
 	.queue_rq	= z2_queue_rq,
 };
 
-static int __init 
+static int __init
 z2_init(void)
 {
     int ret;
@@ -404,7 +404,7 @@ static void __exit z2_exit(void)
 
 	for ( j = 0 ; j < z2_count; j++ )
 	{
-	    set_bit( i++, zorro_unused_z2ram ); 
+	    set_bit( i++, zorro_unused_z2ram );
 	}
 
 	for ( j = 0 ; j < chip_count; j++ )
@@ -422,7 +422,7 @@ static void __exit z2_exit(void)
     }
 
     return;
-} 
+}
 
 module_init(z2_init);
 module_exit(z2_exit);

@@ -13,11 +13,11 @@ menuconfig TCG_TPM
 	  If you have a TPM security chip in your system, which
 	  implements the Trusted Computing Group's specification,
 	  say Yes and it will be accessible from within Linux.  For
-	  more information see <http://www.trustedcomputinggroup.org>. 
-	  An implementation of the Trusted Software Stack (TSS), the 
-	  userspace enablement piece of the specification, can be 
-	  obtained at: <http://sourceforge.net/projects/trousers>.  To 
-	  compile this driver as a module, choose M here; the module 
+	  more information see <http://www.trustedcomputinggroup.org>.
+	  An implementation of the Trusted Software Stack (TSS), the
+	  userspace enablement piece of the specification, can be
+	  obtained at: <http://sourceforge.net/projects/trousers>.  To
+	  compile this driver as a module, choose M here; the module
 	  will be called tpm. If unsure, say N.
 	  Notes:
 	  1) For more TPM drivers enable CONFIG_PNP, CONFIG_ACPI
@@ -101,17 +101,17 @@ config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
 	depends on X86
 	---help---
-	  If you have a TPM security chip from National Semiconductor 
-	  say Yes and it will be accessible from within Linux.  To 
-	  compile this driver as a module, choose M here; the module 
+	  If you have a TPM security chip from National Semiconductor
+	  say Yes and it will be accessible from within Linux.  To
+	  compile this driver as a module, choose M here; the module
 	  will be called tpm_nsc.
 
 config TCG_ATMEL
 	tristate "Atmel TPM Interface"
 	depends on PPC64 || HAS_IOPORT_MAP
 	---help---
-	  If you have a TPM security chip from Atmel say Yes and it 
-	  will be accessible from within Linux.  To compile this driver 
+	  If you have a TPM security chip from Atmel say Yes and it
+	  will be accessible from within Linux.  To compile this driver
 	  as a module, choose M here; the module will be called tpm_atmel.
 
 config TCG_INFINEON
@@ -124,7 +124,7 @@ config TCG_INFINEON
 	  To compile this driver as a module, choose M here; the module
 	  will be called tpm_infineon.
 	  Further information on this driver and the supported hardware
-	  can be found at http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
+	  can be found at http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/
 
 config TCG_IBMVTPM
 	tristate "IBM VTPM Interface"

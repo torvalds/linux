@@ -2344,7 +2344,7 @@ static void mgslpc_close(struct tty_struct *tty, struct file * filp)
 
 	tty_ldisc_flush(tty);
 	shutdown(info, tty);
-	
+
 	tty_port_close_end(port, tty);
 	tty_port_tty_set(port, NULL);
 cleanup:
@@ -2641,7 +2641,7 @@ static int rx_alloc_buffers(MGSLPC_INFO *info)
 		info->rx_buf = NULL;
 		return -ENOMEM;
 	}
-	
+
 	rx_reset_buffers(info);
 	return 0;
 }

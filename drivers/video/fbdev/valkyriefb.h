@@ -2,12 +2,12 @@
 /*
  * valkyriefb.h: Constants of all sorts for valkyriefb
  *
- *  Created 8 August 1998 by 
+ *  Created 8 August 1998 by
  *  Martin Costabel <costabel@wanadoo.fr> and Kevin Schoedel
  *
  * Vmode-switching changes and vmode 15/17 modifications created 29 August
  * 1998 by Barry K. Nathan <barryn@pobox.com>.
- * 
+ *
  * vmode 10 changed by Steven Borley <sjb@salix.demon.co.uk>, 14 mai 2000
  *
  * Ported to 68k Macintosh by David Huggins-Daines <dhd@debian.org>
@@ -98,7 +98,7 @@ struct valkyrie_regvals {
  */
 
 static struct valkyrie_regvals valkyrie_reg_init_17 = {
-    15, 
+    15,
     { 11, 28, 3 },  /* pixel clock = 79.55MHz for V=74.50Hz */
     { 1024, 0 },
 	1024, 768

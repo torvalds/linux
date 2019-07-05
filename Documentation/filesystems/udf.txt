@@ -47,7 +47,7 @@ the interactive user will always see the files on the disk as belonging to him.
 
 The remaining are for debugging and disaster recovery:
 
-	novrs		Skip volume sequence recognition 
+	novrs		Skip volume sequence recognition
 
 The following expect a offset from 0.
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Xpram.c -- the S/390 expanded memory RAM-disk
- *           
+ *
  * significant parts of this code are based on
  * the sbull device driver presented in
  * A. Rubini: Linux Device Drivers
@@ -18,7 +18,7 @@
  *        xpram_open
  *
  * "ad-hoc" partitioning:
- *    the expanded memory can be partitioned among several devices 
+ *    the expanded memory can be partitioned among several devices
  *    (with different minors). The partitioning set up can be
  *    set by kernel or module parameters (int devs & int sizes[])
  *
@@ -79,11 +79,11 @@ MODULE_PARM_DESC(sizes, "list of device (partition) sizes " \
 MODULE_LICENSE("GPL");
 
 /*
- * Copy expanded memory page (4kB) into main memory                  
- * Arguments                                                         
- *           page_addr:    address of target page                    
- *           xpage_index:  index of expandeded memory page           
- * Return value                                                      
+ * Copy expanded memory page (4kB) into main memory
+ * Arguments
+ *           page_addr:    address of target page
+ *           xpage_index:  index of expandeded memory page
+ * Return value
  *           0:            if operation succeeds
  *           -EIO:         if pgin failed
  *           -ENXIO:       if xpram has vanished
@@ -109,11 +109,11 @@ static int xpram_page_in (unsigned long page_addr, unsigned int xpage_index)
 }
 
 /*
- * Copy a 4kB page of main memory to an expanded memory page          
- * Arguments                                                          
- *           page_addr:    address of source page                     
- *           xpage_index:  index of expandeded memory page            
- * Return value                                                       
+ * Copy a 4kB page of main memory to an expanded memory page
+ * Arguments
+ *           page_addr:    address of source page
+ *           xpage_index:  index of expandeded memory page
+ * Return value
  *           0:            if operation succeeds
  *           -EIO:         if pgout failed
  *           -ENXIO:       if xpram has vanished
@@ -297,7 +297,7 @@ static int __init xpram_setup_sizes(unsigned long pages)
 		else
 			mem_auto_no++;
 	}
-	
+
 	pr_info("  number of devices (partitions): %d \n", xpram_devs);
 	for (i = 0; i < xpram_devs; i++) {
 		if (xpram_sizes[i])

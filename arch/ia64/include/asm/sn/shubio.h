@@ -563,7 +563,7 @@ typedef union ii_iscr1_u {
  * a Crosstalk packet. The 5 bits of OFFSET are concatenated with       *
  * SysAD[28:0] to form Crosstalk[33:0]. The upper Crosstalk[47:34]      *
  * are padded with zeros. Although the maximum Crosstalk space          *
- * addressable by the SHub is thus the lower 16 GBytes per widget       * 
+ * addressable by the SHub is thus the lower 16 GBytes per widget       *
  * (M-mode), however only <SUP >7</SUP>/<SUB >32nds</SUB> of this       *
  * space can be accessed.                                               *
  * For the N-mode (256 nodes, 4 GBytes/node), SysAD[30:28] (Big         *
@@ -1558,7 +1558,7 @@ typedef union ii_islapo_u {
  *									*
  *  Determines how long the wrapper will wait aftr an interrupt is	*
  * initially issued from the II before it times out the outstanding	*
- * interrupt and drops it from the interrupt queue.			* 
+ * interrupt and drops it from the interrupt queue.			*
  *									*
  ************************************************************************/
 
@@ -1577,7 +1577,7 @@ typedef union ii_iwi_u {
 /************************************************************************
  *									*
  *  Log errors which have occurred in the II wrapper. The errors are	*
- * cleared by writing to the IECLR register.				* 
+ * cleared by writing to the IECLR register.				*
  *									*
  ************************************************************************/
 
@@ -1607,7 +1607,7 @@ typedef union ii_iwel_u {
 
 /************************************************************************
  *									*
- *  Controls the II wrapper.						* 
+ *  Controls the II wrapper.						*
  *									*
  ************************************************************************/
 
@@ -1633,7 +1633,7 @@ typedef union ii_iwc_u {
 
 /************************************************************************
  *									*
- *  Status in the II wrapper.						* 
+ *  Status in the II wrapper.						*
  *									*
  ************************************************************************/
 
@@ -3039,7 +3039,7 @@ typedef union ii_ippr_u {
 
  Some of the IIO field masks and shifts are defined here.
  This is in order to maintain compatibility in SN0 and SN1 code
- 
+
 **************************************************************************/
 
 /*
@@ -3072,7 +3072,7 @@ typedef union ii_ippr_u {
  */
 #define IIO_ICDR_PND    	(1 << 4)
 
-/* 
+/*
  * IO BTE Length/Status (IIO_IBLS) register bit field definitions
  */
 #define IBLS_BUSY		(0x1UL << 20)
@@ -3130,7 +3130,7 @@ typedef union ii_ippr_u {
 #define IECLR_PRB_0		(1UL << 0)	/* clear err bit in PRB_0 reg */
 
 /*
- * IIO CRB control register Fields: IIO_ICCR 
+ * IIO CRB control register Fields: IIO_ICCR
  */
 #define	IIO_ICCR_PENDING	0x10000
 #define	IIO_ICCR_CMD_MASK	0xFF

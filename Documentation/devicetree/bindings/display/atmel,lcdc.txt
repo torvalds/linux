@@ -3,7 +3,7 @@ Atmel LCDC Framebuffer
 
 Required properties:
 - compatible :
-	"atmel,at91sam9261-lcdc" , 
+	"atmel,at91sam9261-lcdc" ,
 	"atmel,at91sam9263-lcdc" ,
 	"atmel,at91sam9g10-lcdc" ,
 	"atmel,at91sam9g45-lcdc" ,

@@ -48,7 +48,7 @@ The following types of reservations are supported:
 	All initiators with a registered key are considered reservation
 	holders.
 	Please reference the SPC spec on the meaning of a reservation
-	holder if you want to use this type. 
+	holder if you want to use this type.
 
  - PR_EXCLUSIVE_ACCESS_ALL_REGS
 
@@ -56,7 +56,7 @@ The following types of reservations are supported:
 	All initiators with a registered key are considered reservation
 	holders.
 	Please reference the SPC spec on the meaning of a reservation
-	holder if you want to use this type. 
+	holder if you want to use this type.
 
 
 The following ioctl are supported:

@@ -2,7 +2,7 @@ This is the full-colour version of the currently unofficial Linux logo
 ("currently unofficial" just means that there has been no paperwork and
 that I have not really announced it yet).  It was created by Larry Ewing,
 and is freely usable as long as you acknowledge Larry as the original
-artist. 
+artist.
 
 Note that there are black-and-white versions of this available that
 scale down to smaller sizes and are better for letterheads or whatever

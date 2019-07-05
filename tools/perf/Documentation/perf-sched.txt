@@ -37,16 +37,16 @@ There are several variants of 'perf sched':
   a dot signals an idle CPU.
 
   'perf sched timehist' provides an analysis of scheduling events.
-    
+
     Example usage:
         perf sched record -- sleep 1
         perf sched timehist
-    
+
    By default it shows the individual schedule events, including the wait
    time (time between sched-out and next sched-in events for the task), the
    task scheduling delay (time between wakeup and actually running) and run
    time for the task:
-    
+
                 time    cpu  task name             wait time  sch delay   run time
                              [tid/pid]                (msec)     (msec)     (msec)
       -------------- ------  --------------------  ---------  ---------  ---------
@@ -57,7 +57,7 @@ There are several variants of 'perf sched':
         79371.874723 [0005]  <idle>                    0.016      0.000      1.383
         79371.874746 [0005]  gcc[31949]                0.153      0.078      0.022
     ...
-    
+
    Times are in msec.usec.
 
 OPTIONS

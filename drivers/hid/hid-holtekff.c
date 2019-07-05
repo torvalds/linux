@@ -31,7 +31,7 @@
  * 	06  stop all effects
  * 	(the difference between 04 and 06 isn't known; win driver
  * 	 sends 06,04 on application init, and 06 otherwise)
- * 
+ *
  * Commands 01 and 02 need to be sent as pairs, i.e. you need to send 01
  * before each 02.
  *

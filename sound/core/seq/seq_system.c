@@ -16,21 +16,21 @@
 
 /*
  * Port "Timer"
- *      - send tempo /start/stop etc. events to this port to manipulate the 
+ *      - send tempo /start/stop etc. events to this port to manipulate the
  *        queue's timer. The queue address is specified in
  *	  data.queue.queue.
- *      - this port supports subscription. The received timer events are 
+ *      - this port supports subscription. The received timer events are
  *        broadcasted to all subscribed clients. The modified tempo
  *	  value is stored on data.queue.value.
  *	  The modifier client/port is not send.
  *
  * Port "Announce"
  *      - does not receive message
- *      - supports supscription. For each client or port attaching to or 
+ *      - supports supscription. For each client or port attaching to or
  *        detaching from the system an announcement is send to the subscribed
  *        clients.
  *
- * Idea: the subscription mechanism might also work handy for distributing 
+ * Idea: the subscription mechanism might also work handy for distributing
  * synchronisation and timing information. In this case we would ideally have
  * a list of subscribers for each type of sync (time, tick), for each timing
  * queue.
@@ -79,7 +79,7 @@ static int setheader(struct snd_seq_event * ev, int client, int port)
 void snd_seq_system_broadcast(int client, int port, int type)
 {
 	struct snd_seq_event ev;
-	
+
 	if (setheader(&ev, client, port) < 0)
 		return;
 	ev.type = type;

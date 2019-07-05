@@ -166,7 +166,7 @@
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0x000fffff 0xffff>;
-		interrupt-map = 
+		interrupt-map =
 			/* ChipCommon */
 			<0x00000000 0 &gic GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
 

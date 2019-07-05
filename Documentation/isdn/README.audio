@@ -87,7 +87,7 @@ General behavior and description of data formats/protocol.
       On incoming calls, if the application responds to a RING
       with ATA, depending on the calling service, the emulator
       responds with either CONNECT (data call) or VCON (voice call).
-      
+
       On outgoing voice calls, the emulator responds with VCON
       upon connection setup.
 

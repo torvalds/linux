@@ -19,9 +19,9 @@ the TNC over a serial line. It can be used as an alternative to KISS.
   buffer underrun or overrun has occurred, if the PTT is
   set and so on. This control data is processed at a higher priority than
   normal data, so a data stream can be interrupted at any time to issue an
-  important event. This helps to improve the channel access and timing 
-  algorithms as everything is computed in the PC. It would even be possible 
-  to experiment with something completely different from the known CSMA and 
+  important event. This helps to improve the channel access and timing
+  algorithms as everything is computed in the PC. It would even be possible
+  to experiment with something completely different from the known CSMA and
   DAMA channel access methods.
   This kind of real-time control is especially important to supply several
   TNCs that are connected between each other and the PC by a daisy chain
@@ -101,7 +101,7 @@ has to be modified.
   #endif
 
   Then find the line
-   
+
   int disc = N_AX25;
 
   and replace N_AX25 by N_6PACK.
@@ -110,11 +110,11 @@ has to be modified.
 
 Installing the driver:
 
-- Do an insmod 6pack. Look at your /var/log/messages file to check if the 
+- Do an insmod 6pack. Look at your /var/log/messages file to check if the
   module has printed its initialization message.
 
 - Do a spattach as you would launch kissattach when starting a KISS port.
-  Check if the kernel prints the message '6pack: TNC found'. 
+  Check if the kernel prints the message '6pack: TNC found'.
 
 - From here, everything should work as if you were setting up a KISS port.
   The only difference is that the network device that represents

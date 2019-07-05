@@ -23,7 +23,7 @@ multiple network interfaces into a single logical "bonded" interface.
 The behavior of the bonded interfaces depends upon the mode; generally
 speaking, modes provide either hot standby or load balancing services.
 Additionally, link integrity monitoring may be performed.
-	
+
 	The bonding driver originally came from Donald Becker's
 beowulf patches for kernel 2.0. It has changed quite a bit since, and
 the original tools from extreme-linux and beowulf sites will not work
@@ -1653,7 +1653,7 @@ that normal output policy selection should take place.  One benefit to simply
 leaving the qid for a slave to 0 is the multiqueue awareness in the bonding
 driver that is now present.  This awareness allows tc filters to be placed on
 slave devices as well as bond devices and the bonding driver will simply act as
-a pass-through for selecting output queues on the slave device rather than 
+a pass-through for selecting output queues on the slave device rather than
 output port selection.
 
 This feature first appeared in bonding driver version 3.7.0 and support for
@@ -2380,7 +2380,7 @@ broadcast: Like active-backup, there is not much advantage to this
 	the same speed and duplex.  Also, as with all bonding load
 	balance modes other than balance-rr, no single connection will
 	be able to utilize more than a single interface's worth of
-	bandwidth.  
+	bandwidth.
 
 	Additionally, the linux bonding 802.3ad implementation
 	distributes traffic by peer (using an XOR of MAC addresses
@@ -2439,7 +2439,7 @@ when they are configured in parallel as part of an isolated network
 between two or more systems, for example:
 
                        +-----------+
-                       |  Host A   | 
+                       |  Host A   |
                        +-+---+---+-+
                          |   |   |
                 +--------+   |   +---------+
@@ -2451,7 +2451,7 @@ between two or more systems, for example:
                 +--------+   |   +---------+
                          |   |   |
                        +-+---+---+-+
-                       |  Host B   | 
+                       |  Host B   |
                        +-----------+
 
 	In this configuration, the switches are isolated from one
@@ -2679,7 +2679,7 @@ bonding driver.
 (either the internal Ethernet Switch Module, or an external switch) to
 avoid fail-over delay issues when using bonding.
 
-	
+
 15. Frequently Asked Questions
 ==============================
 
@@ -2716,7 +2716,7 @@ monitored, and should it recover, it will rejoin the bond (in whatever
 manner is appropriate for the mode). See the sections on High
 Availability and the documentation for each mode for additional
 information.
-	
+
 	Link monitoring can be enabled via either the miimon or
 arp_interval parameters (described in the module parameters section,
 above).  In general, miimon monitors the carrier state as sensed by
@@ -2819,7 +2819,7 @@ be found at:
 http://vger.kernel.org/vger-lists.html#netdev
 
 Donald Becker's Ethernet Drivers and diag programs may be found at :
- - http://web.archive.org/web/*/http://www.scyld.com/network/ 
+ - http://web.archive.org/web/*/http://www.scyld.com/network/
 
 You will also find a lot of information regarding Ethernet, NWay, MII,
 etc. at www.scyld.com.

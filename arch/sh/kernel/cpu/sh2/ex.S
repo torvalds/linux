@@ -12,7 +12,7 @@
 !
 ! convert Exception Vector to Exception Number
 !
-exception_entry:	
+exception_entry:
 no	=	0
 	.rept	256
 	mov.l	r1,@-sp

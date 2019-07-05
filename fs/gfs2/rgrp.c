@@ -841,7 +841,7 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
  */
 u64 gfs2_ri_total(struct gfs2_sbd *sdp)
 {
-	u64 total_data = 0;	
+	u64 total_data = 0;
 	struct inode *inode = sdp->sd_rindex;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	char buf[sizeof(struct gfs2_rindex)];

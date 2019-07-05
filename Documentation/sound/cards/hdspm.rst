@@ -1,8 +1,8 @@
 =======================================
-Software Interface ALSA-DSP MADI Driver 
+Software Interface ALSA-DSP MADI Driver
 =======================================
 
-(translated from German, so no good English ;-), 
+(translated from German, so no good English ;-),
 
 2004 - winfried ritsch
 
@@ -14,7 +14,7 @@ special Controls are described and discussed below.
 
 Hardware functionality
 ======================
-   
+
 Audio transmission
 ------------------
 
@@ -26,7 +26,7 @@ Audio transmission
 		allocated. So also the throughput of the PCI system can be
 		scaled. (Only important for low performance boards).
 
-* Single Speed -- 1..64 channels 
+* Single Speed -- 1..64 channels
 
 .. note::
 		 (Note: Choosing the 56channel mode for transmission or as
@@ -43,7 +43,7 @@ Audio transmission
 		 so channel count for the driver
 
 
-* Quad Speed -- 1..16 channels 
+* Quad Speed -- 1..16 channels
 
 .. note::
 		 Choosing the 56-channel mode for
@@ -88,7 +88,7 @@ Audio transmission
 
    * Precise Pointer -- off
 					interrupt used for pointer-calculation
-				
+
    * Precise Pointer -- on
 					hardware pointer used.
 
@@ -99,7 +99,7 @@ Since DSP-MADI-Mixer has 8152 Fader, it does not make sense to
 use the standard mixer-controls, since this would break most of
 (especially graphic) ALSA-Mixer GUIs. So Mixer control has be
 provided by a 2-dimensional controller using the
-hwdep-interface. 
+hwdep-interface.
 
 Also all 128+256 Peak and RMS-Meter can be accessed via the
 hwdep-interface. Since it could be a performance problem always
@@ -123,7 +123,7 @@ conversion. A test-application shows the usage of the controller.
   * Name -- "System Clock Mode"
 
   * Access -- Read Write
-    
+
   * Values -- "Master" "Slave"
 
 .. note::
@@ -134,7 +134,7 @@ conversion. A test-application shows the usage of the controller.
 		  a studio should have working synchronisations setup. So use
 		  Clock-source-controller instead !!!!
 
-* Clock Source  
+* Clock Source
 
   * Name -- "Sample Clock Source"
 
@@ -198,7 +198,7 @@ conversion. A test-application shows the usage of the controller.
 
 
 		 Don't use to lower 5 Audio-bits on AES as additional Bits.
-        
+
 
 * Safe Mode oder Auto Input
 
@@ -246,7 +246,7 @@ Mixer
 
        fast mixer for the ALSA-mixer utils. The diagonal of the
        mixer-matrix is implemented from playback to output.
-       
+
 
 * Line Out
 
@@ -262,7 +262,7 @@ Mixer
 
 Information (only read access)
 ------------------------------
- 
+
 * Sample Rate
 
   * Name -- "System Sample Rate"
@@ -320,7 +320,7 @@ Information (only read access)
        MADI-Receiver is in 64 channel mode oder 56 channel mode.
 
 
-* AB_inp   --- not tested 
+* AB_inp   --- not tested
 
 		 Used input for Auto-Input.
 
@@ -334,13 +334,13 @@ Information (only read access)
 Calling Parameter
 =================
 
-* index int array (min = 1, max = 8) 
+* index int array (min = 1, max = 8)
 
      Index value for RME HDSPM interface. card-index within ALSA
 
      note: ALSA-standard
 
-* id string array (min = 1, max = 8) 
+* id string array (min = 1, max = 8)
 
      ID string for RME HDSPM interface.
 

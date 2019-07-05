@@ -106,7 +106,7 @@ DECLARE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 #define CPU_HVERSION ((boot_cpu_data.hversion >> 4) & 0x0FFF)
 
 typedef struct {
-	int seg;  
+	int seg;
 } mm_segment_t;
 
 #define ARCH_MIN_TASKALIGN	8
@@ -116,7 +116,7 @@ struct thread_struct {
 	unsigned long  task_size;
 	unsigned long  map_base;
 	unsigned long  flags;
-}; 
+};
 
 #define task_pt_regs(tsk) ((struct pt_regs *)&((tsk)->thread.regs))
 

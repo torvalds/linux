@@ -295,7 +295,7 @@ ia64_sn_console_putb(const char *buf, int len)
 	struct ia64_sal_retval ret_stuff;
 
 	ret_stuff.status = 0;
-	ret_stuff.v0 = 0; 
+	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
 	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTB, (u64)buf, (u64)len, 0, 0, 0, 0, 0);
@@ -391,14 +391,14 @@ ia64_sn_console_intr_status(void)
 	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_INTR, 
+	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_INTR,
 		 0, SAL_CONSOLE_INTR_STATUS,
 		 0, 0, 0, 0, 0);
 
 	if (ret_stuff.status == 0) {
 	    return ret_stuff.v0;
 	}
-	
+
 	return 0;
 }
 
@@ -414,7 +414,7 @@ ia64_sn_console_intr_enable(u64 intr)
 	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_INTR, 
+	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_INTR,
 		 intr, SAL_CONSOLE_INTR_ON,
 		 0, 0, 0, 0, 0);
 }
@@ -431,7 +431,7 @@ ia64_sn_console_intr_disable(u64 intr)
 	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_INTR, 
+	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_INTR,
 		 intr, SAL_CONSOLE_INTR_OFF,
 		 0, 0, 0, 0, 0);
 }
@@ -565,7 +565,7 @@ sn_system_serial_number(void) {
 		return(sn_system_serial_number_string);
 	}
 }
-	
+
 
 /*
  * Returns a unique id number for this system and partition (suitable for
@@ -640,10 +640,10 @@ sn_partition_reserved_page_pa(u64 buf, u64 *cookie, u64 *addr, u64 *len)
  * Values for the operation argument:
  *	1 = register this address range with SAL
  *	0 = unregister this address range with SAL
- * 
+ *
  * SAL maintains a reference count on an address range in case it is registered
  * multiple times.
- * 
+ *
  * On success, returns the reference count of the address range after the SAL
  * call has performed the current registration/unregistration.  Returns a
  * negative value if an error occurred.
@@ -778,8 +778,8 @@ ia64_sn_fru_capture(void)
  * or reset.
  */
 static inline u64
-ia64_sn_sysctl_iobrick_pci_op(nasid_t n, u64 connection_type, 
-			      u64 bus, char slot, 
+ia64_sn_sysctl_iobrick_pci_op(nasid_t n, u64 connection_type,
+			      u64 bus, char slot,
 			      u64 action)
 {
 	struct ia64_sal_retval rv = {0, 0, 0, 0};
@@ -996,7 +996,7 @@ ia64_sn_irtr_init(nasid_t nasid, void *buf, int len)
  *
  *  In:
  *	arg0 - SN_SAL_GET_SAPIC_INFO
- *	arg1 - sapicid (lid >> 16) 
+ *	arg1 - sapicid (lid >> 16)
  *  Out:
  *	v0 - nasid
  *	v1 - subnode
@@ -1030,27 +1030,27 @@ ia64_sn_get_sapic_info(int sapicid, int *nasid, int *subnode, int *slice)
 	if (slice) *slice = (int) ret_stuff.v2;
 	return 0;
 }
- 
+
 /*
  * Returns information about the HUB/SHUB.
  *  In:
  *	arg0 - SN_SAL_GET_SN_INFO
  * 	arg1 - 0 (other values reserved for future use)
  *  Out:
- *	v0 
+ *	v0
  *		[7:0]   - shub type (0=shub1, 1=shub2)
  *		[15:8]  - Log2 max number of nodes in entire system (includes
  *			  C-bricks, I-bricks, etc)
- *		[23:16] - Log2 of nodes per sharing domain			 
+ *		[23:16] - Log2 of nodes per sharing domain
  * 		[31:24] - partition ID
  * 		[39:32] - coherency_id
  * 		[47:40] - regionsize
- *	v1 
+ *	v1
  *		[15:0]  - nasid mask (ex., 0x7ff for 11 bit nasid)
  *	 	[23:15] - bit position of low nasid bit
  */
 static inline u64
-ia64_sn_get_sn_info(int fc, u8 *shubtype, u16 *nasid_bitmask, u8 *nasid_shift, 
+ia64_sn_get_sn_info(int fc, u8 *shubtype, u16 *nasid_bitmask, u8 *nasid_shift,
 		u8 *systemsize, u8 *sharing_domain_size, u8 *partid, u8 *coher, u8 *reg)
 {
 	struct ia64_sal_retval ret_stuff;
@@ -1092,7 +1092,7 @@ ia64_sn_get_sn_info(int fc, u8 *shubtype, u16 *nasid_bitmask, u8 *nasid_shift,
 	if (nasid_shift) *nasid_shift = (ret_stuff.v1 >> 16) & 0xff;
 	return 0;
 }
- 
+
 /*
  * This is the access point to the Altix PROM hardware performance
  * and status monitoring interface. For info on using this, see

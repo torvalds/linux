@@ -50,7 +50,7 @@ static void ufs_read_cylinder (struct super_block * sb,
 		if (!(UCPI_UBH(ucpi)->bh[i] = sb_bread(sb, UCPI_UBH(ucpi)->fragment + i)))
 			goto failed;
 	sbi->s_cgno[bitmap_nr] = cgno;
-			
+
 	ucpi->c_cgx	= fs32_to_cpu(sb, ucg->cg_cgx);
 	ucpi->c_ncyl	= fs16_to_cpu(sb, ucg->cg_ncyl);
 	ucpi->c_niblk	= fs16_to_cpu(sb, ucg->cg_niblk);
@@ -67,8 +67,8 @@ static void ufs_read_cylinder (struct super_block * sb,
 	ucpi->c_clusteroff = fs32_to_cpu(sb, ucg->cg_u.cg_44.cg_clusteroff);
 	ucpi->c_nclusterblks = fs32_to_cpu(sb, ucg->cg_u.cg_44.cg_nclusterblks);
 	UFSD("EXIT\n");
-	return;	
-	
+	return;
+
 failed:
 	for (j = 1; j < i; j++)
 		brelse (sbi->s_ucg[j]);
@@ -83,7 +83,7 @@ failed:
 void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 {
 	struct ufs_sb_info * sbi = UFS_SB(sb);
-	struct ufs_sb_private_info * uspi; 
+	struct ufs_sb_private_info * uspi;
 	struct ufs_cg_private_info * ucpi;
 	struct ufs_cylinder_group * ucg;
 	unsigned i;
@@ -103,7 +103,7 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 		return;
 	}
 	/*
-	 * rotor is not so important data, so we put it to disk 
+	 * rotor is not so important data, so we put it to disk
 	 * at the end of working with cylinder
 	 */
 	ucg->cg_rotor = cpu_to_fs32(sb, ucpi->c_rotor);
@@ -122,7 +122,7 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
  * Find cylinder group in cache and return it as pointer.
  * If cylinder group is not in cache, we will load it from disk.
  *
- * The cache is managed by LRU algorithm. 
+ * The cache is managed by LRU algorithm.
  */
 struct ufs_cg_private_info * ufs_load_cylinder (
 	struct super_block * sb, unsigned cgno)
@@ -167,7 +167,7 @@ struct ufs_cg_private_info * ufs_load_cylinder (
 		}
 	}
 	/*
-	 * Cylinder group number cg is in cache but it was not last used, 
+	 * Cylinder group number cg is in cache but it was not last used,
 	 * we will move to the first position
 	 */
 	for (i = 0; i < sbi->s_cg_loaded && sbi->s_cgno[i] != cgno; i++);

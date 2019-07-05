@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* 
+/*
  * Code to handle x86 style IRQs plus some generic interrupt stuff.
  *
  * Copyright (C) 1992 Linus Torvalds
@@ -354,7 +354,7 @@ unsigned long txn_alloc_addr(unsigned int virt_irq)
 		 !cpu_online(next_cpu)))
 		next_cpu++;
 
-	if (next_cpu >= nr_cpu_ids) 
+	if (next_cpu >= nr_cpu_ids)
 		next_cpu = 0;	/* nothing else, assign monarch */
 
 	return txn_affinity_addr(virt_irq, next_cpu);

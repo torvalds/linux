@@ -223,7 +223,7 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	data->clksrc.rating = 175;
 	data->clksrc.read = read_pit_clk;
 	data->clksrc.flags = CLOCK_SOURCE_IS_CONTINUOUS;
-	
+
 	ret = clocksource_register_hz(&data->clksrc, pit_rate);
 	if (ret) {
 		pr_err("Failed to register clocksource\n");

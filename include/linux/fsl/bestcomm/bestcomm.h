@@ -153,7 +153,7 @@ static inline struct bcom_bd
 }
 
 /**
- * bcom_buffer_done - Checks if a BestComm 
+ * bcom_buffer_done - Checks if a BestComm
  * @tsk: The BestComm task structure
  */
 static inline int

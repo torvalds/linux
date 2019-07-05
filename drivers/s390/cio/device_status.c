@@ -170,7 +170,7 @@ ccw_device_accumulate_esw(struct ccw_device *cdev, struct irb *irb)
 		if (irb->esw.esw0.erw.scavf)
 			/* ... and copy the secondary ccw address. */
 			cdev_irb->esw.esw0.saddr = irb->esw.esw0.saddr;
-		
+
 	}
 	/* FIXME: DCTI for format 2? */
 
@@ -251,7 +251,7 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 
 	/* Take care of the extended control bit and extended control word. */
 	ccw_device_accumulate_ecw(cdev, irb);
-	    
+
 	/* Accumulate function control. */
 	cdev_irb->scsw.cmd.fctl |= irb->scsw.cmd.fctl;
 	/* Copy activity control. */

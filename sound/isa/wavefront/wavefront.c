@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  ALSA card-level driver for Turtle Beach Wavefront cards 
+ *  ALSA card-level driver for Turtle Beach Wavefront cards
  *						(Maui,Tropez,Tropez+)
  *
  *  Copyright (c) 1997-1999 by Paul Barton-Davis <pbd@op.net>
@@ -154,7 +154,7 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 	/* Synth initialization */
 
 	pdev = acard->synth;
-	
+
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		snd_printk(KERN_ERR "PnP ICS2115 pnp configure failure\n");
@@ -182,20 +182,20 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 			cs4232_mpu_irq[dev] = pnp_irq(pdev, 0);
 		}
 
-		snd_printk (KERN_INFO "CS4232 MPU: port=0x%lx, irq=%i\n", 
-			    cs4232_mpu_port[dev], 
+		snd_printk (KERN_INFO "CS4232 MPU: port=0x%lx, irq=%i\n",
+			    cs4232_mpu_port[dev],
 			    cs4232_mpu_irq[dev]);
 	}
 
-	snd_printdd ("CS4232: pcm port=0x%lx, fm port=0x%lx, dma1=%i, dma2=%i, irq=%i\nICS2115: port=0x%lx, irq=%i\n", 
-		    cs4232_pcm_port[dev], 
+	snd_printdd ("CS4232: pcm port=0x%lx, fm port=0x%lx, dma1=%i, dma2=%i, irq=%i\nICS2115: port=0x%lx, irq=%i\n",
+		    cs4232_pcm_port[dev],
 		    fm_port[dev],
-		    dma1[dev], 
-		    dma2[dev], 
+		    dma1[dev],
+		    dma2[dev],
 		    cs4232_pcm_irq[dev],
-		    ics2115_port[dev], 
+		    ics2115_port[dev],
 		    ics2115_irq[dev]);
-	
+
 	return 0;
 }
 
@@ -207,7 +207,7 @@ static irqreturn_t snd_wavefront_ics2115_interrupt(int irq, void *dev_id)
 
 	acard = (snd_wavefront_card_t *) dev_id;
 
-	if (acard == NULL) 
+	if (acard == NULL)
 		return IRQ_NONE;
 
 	if (acard->wavefront.interrupts_are_midi) {
@@ -234,7 +234,7 @@ static struct snd_hwdep *snd_wavefront_new_synth(struct snd_card *card,
 
 	if (snd_hwdep_new(card, "WaveFront", hw_dev, &wavefront_synth) < 0)
 		return NULL;
-	strcpy (wavefront_synth->name, 
+	strcpy (wavefront_synth->name,
 		"WaveFront (ICS2115) wavetable synthesizer");
 	wavefront_synth->ops.open = snd_wavefront_synth_open;
 	wavefront_synth->ops.release = snd_wavefront_synth_release;
@@ -262,7 +262,7 @@ static struct snd_hwdep *snd_wavefront_new_fx(struct snd_card *card,
 	fx_processor->ops.open = snd_wavefront_fx_open;
 	fx_processor->ops.release = snd_wavefront_fx_release;
 	fx_processor->ops.ioctl = snd_wavefront_fx_ioctl;
-	
+
 	return fx_processor;
 }
 
@@ -313,7 +313,7 @@ static void
 snd_wavefront_free(struct snd_card *card)
 {
 	snd_wavefront_card_t *acard = (snd_wavefront_card_t *)card->private_data;
-	
+
 	if (acard) {
 		release_and_free_resource(acard->wavefront.res_base);
 		if (acard->wavefront.irq > 0)
@@ -407,7 +407,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		snd_printk(KERN_ERR "unable to use ICS2115 IRQ %d\n", ics2115_irq[dev]);
 		return -EBUSY;
 	}
-	
+
 	acard->wavefront.irq = ics2115_irq[dev];
 	acard->wavefront.base = ics2115_port[dev];
 
@@ -445,8 +445,8 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	/* ------ ICS2115 internal MIDI ------------ */
 
 	if (ics2115_port[dev] > 0 && ics2115_port[dev] != SNDRV_AUTO_PORT) {
-		ics2115_internal_rmidi = 
-			snd_wavefront_new_midi (card, 
+		ics2115_internal_rmidi =
+			snd_wavefront_new_midi (card,
 						midi_dev,
 						acard,
 						ics2115_port[dev],
@@ -461,8 +461,8 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	/* ------ ICS2115 external MIDI ------------ */
 
 	if (ics2115_port[dev] > 0 && ics2115_port[dev] != SNDRV_AUTO_PORT) {
-		ics2115_external_rmidi = 
-			snd_wavefront_new_midi (card, 
+		ics2115_external_rmidi =
+			snd_wavefront_new_midi (card,
 						midi_dev,
 						acard,
 						ics2115_port[dev],
@@ -498,7 +498,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 
 	/* ----- Register the card --------- */
 
-	/* Not safe to include "Turtle Beach" in longname, due to 
+	/* Not safe to include "Turtle Beach" in longname, due to
 	   length restrictions
 	*/
 
@@ -512,19 +512,19 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		sprintf(card->longname + strlen(card->longname), "&%d", dma2[dev]);
 
 	if (cs4232_mpu_port[dev] > 0 && cs4232_mpu_port[dev] != SNDRV_AUTO_PORT) {
-		sprintf (card->longname + strlen (card->longname), 
+		sprintf (card->longname + strlen (card->longname),
 			 " MPU-401 0x%lx irq %d",
 			 cs4232_mpu_port[dev],
 			 cs4232_mpu_irq[dev]);
 	}
 
-	sprintf (card->longname + strlen (card->longname), 
+	sprintf (card->longname + strlen (card->longname),
 		 " SYNTH 0x%lx irq %d",
 		 ics2115_port[dev],
 		 ics2115_irq[dev]);
 
 	return snd_card_register(card);
-}	
+}
 
 static int snd_wavefront_isa_match(struct device *pdev,
 				   unsigned int dev)
@@ -559,7 +559,7 @@ static int snd_wavefront_isa_probe(struct device *pdev,
 		snd_card_free(card);
 		return err;
 	}
-	
+
 	dev_set_drvdata(pdev, card);
 	return 0;
 }

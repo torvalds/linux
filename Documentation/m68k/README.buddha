@@ -55,43 +55,43 @@ $c00-$cff	IDE-Select 4 (Port 2, Register set 0,
 $d00-$dff	IDE-Select 5 (Port 3, Register set 1,
 			      Catweasel only!)
 
-$e00-$eff	local expansion port, on Catweasel Z-II the 
+$e00-$eff	local expansion port, on Catweasel Z-II the
 		Catweasel registers are also mapped here.
 		Never touch, use multidisk.device!
-		
-$f00		read only, Byte-access: Bit 7 shows the 
-		level of the IRQ-line of IDE port 0. 
+
+$f00		read only, Byte-access: Bit 7 shows the
+		level of the IRQ-line of IDE port 0.
 
 $f01-$f3f	mirror of $f00
 
-$f40		read only, Byte-access: Bit 7 shows the 
-		level of the IRQ-line of IDE port 1. 
+$f40		read only, Byte-access: Bit 7 shows the
+		level of the IRQ-line of IDE port 1.
 
 $f41-$f7f	mirror of $f40
 
-$f80		read only, Byte-access: Bit 7 shows the 
-		level of the IRQ-line of IDE port 2. 
+$f80		read only, Byte-access: Bit 7 shows the
+		level of the IRQ-line of IDE port 2.
 		(Catweasel only!)
 
 $f81-$fbf	mirror of $f80
 
 $fc0		write-only: Writing any value to this
-		register enables IRQs to be passed from the 
-		IDE ports to the Zorro bus. This mechanism 
-		has been implemented to be compatible with 
+		register enables IRQs to be passed from the
+		IDE ports to the Zorro bus. This mechanism
+		has been implemented to be compatible with
 		harddisks that are either defective or have
-		a buggy firmware and pull the IRQ line up 
-		while starting up. If interrupts would 
-		always be passed to the bus, the computer 
-		might not start up. Once enabled, this flag 
-		can not be disabled again. The level of the 
-		flag can not be determined by software 
+		a buggy firmware and pull the IRQ line up
+		while starting up. If interrupts would
+		always be passed to the bus, the computer
+		might not start up. Once enabled, this flag
+		can not be disabled again. The level of the
+		flag can not be determined by software
 		(what for? Write to me if it's necessary!).
 
 $fc1-$fff	mirror of $fc0
 
 $1000-$ffff	Buddha-Rom with offset $1000 in the rom
-		chip. The addresses $0 to $fff of the rom 
+		chip. The addresses $0 to $fff of the rom
 		chip cannot be read. Rom is Byte-wide and
 		mapped to even addresses.
 
@@ -175,7 +175,7 @@ When accessing IDE registers with A6=1 (for example $84x),
 the timing will always be mode 0 8-bit compatible, no matter
 what you have selected in the speed register:
 
-781ns select, IOR/IOW after 4 clock cycles (=314ns) aktive. 
+781ns select, IOR/IOW after 4 clock cycles (=314ns) aktive.
 
 All  the  timings with a very short select-signal (the 355ns
 fast  accesses)  depend  on the accelerator card used in the

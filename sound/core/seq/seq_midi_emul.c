@@ -419,7 +419,7 @@ rpn(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
 			/* MSB only / 1 semitone per 128 */
 			chan->gm_rpn_pitch_bend_range = val;
 			break;
-					
+
 		case 0x0001: /* fine tuning: */
 			/* MSB/LSB, 8192=center, 100/8192 cent step */
 			chan->gm_rpn_fine_tuning = val - 8192;

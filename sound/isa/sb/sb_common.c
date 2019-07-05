@@ -222,7 +222,7 @@ int snd_sbdsp_create(struct snd_card *card,
 	chip->dma8 = -1;
 	chip->dma16 = -1;
 	chip->port = port;
-	
+
 	if (request_irq(irq, irq_handler,
 			(hardware == SB_HW_ALS4000 ||
 			 hardware == SB_HW_CS5530) ?
@@ -236,7 +236,7 @@ int snd_sbdsp_create(struct snd_card *card,
 
 	if (hardware == SB_HW_ALS4000)
 		goto __skip_allocation;
-	
+
 	if ((chip->res_port = request_region(port, 16, "SoundBlaster")) == NULL) {
 		snd_printk(KERN_ERR "sb: can't grab port 0x%lx\n", port);
 		snd_sbdsp_free(chip);

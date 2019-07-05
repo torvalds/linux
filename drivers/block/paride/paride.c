@@ -1,9 +1,9 @@
-/* 
+/*
         paride.c  (c) 1997-8  Grant R. Guenther <grant@torque.net>
                               Under the terms of the GNU General Public License.
 
 	This is the base module for the family of device drivers
-        that support parallel port IDE devices.  
+        that support parallel port IDE devices.
 
 */
 
@@ -12,7 +12,7 @@
 	1.01	GRG 1998.05.03	Use spinlocks
 	1.02	GRG 1998.05.05  init_proto, release_proto, ktti
 	1.03	GRG 1998.08.15  eliminate compiler warning
-	1.04    GRG 1998.11.28  added support for FRIQ 
+	1.04    GRG 1998.11.28  added support for FRIQ
 	1.05    TMW 2000.06.06  use parport_find_number instead of
 				parport_enumerate
 	1.06    TMW 2001.03.26  more sane parport-or-not resource management

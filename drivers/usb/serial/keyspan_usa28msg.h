@@ -34,7 +34,7 @@
 	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 	LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 	OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-	SUCH DAMAGE.    
+	SUCH DAMAGE.
 
 	Note: these message formats are common to USA18, USA19, and USA28;
 	(for USA28X, see usa26msg.h)
@@ -42,10 +42,10 @@
 	Buffer formats for RX/TX data messages are not defined by
 	a structure, but are described here:
 
-	USB OUT (host -> USA28, transmit) messages contain a 
-	REQUEST_ACK indicator (set to 0xff to request an ACK at the 
+	USB OUT (host -> USA28, transmit) messages contain a
+	REQUEST_ACK indicator (set to 0xff to request an ACK at the
 	completion of transmit; 0x00 otherwise), followed by data.
-	If the port is configured for parity, the data will be an 
+	If the port is configured for parity, the data will be an
 	alternating string of parity and data bytes, so the message
 	format will be:
 
@@ -62,20 +62,20 @@
 
 	USB IN (USA28 -> host, receive) messages contain data and parity
 	if parity is configred, thusly:
-	
+
 		DAT PAR DAT PAR DAT PAR ...
 
 	for a total of 32 data bytes;
-	
+
 	If parity is not configured, the format is:
 
 		DAT DAT DAT ...
 
 	for a total of 64 data bytes.
 
-	In the TX messages (USB OUT), the 0x01 bit of the PARity byte is 
-	the parity bit.  In the RX messages (USB IN), the PARity byte is 
-	the content of the 8051's status register; the parity bit 
+	In the TX messages (USB OUT), the 0x01 bit of the PARity byte is
+	the parity bit.  In the RX messages (USB IN), the PARity byte is
+	the content of the 8051's status register; the parity bit
 	(RX_PARITY_BIT) is the 0x04 bit.
 
 	revision history:
@@ -142,7 +142,7 @@ struct keyspan_usa28_portControlMessage
 		rxForward,		// forward all inbound data, NOW
 		returnStatus,	// return current status n times (1 or 2)
 		resetDataToggle;// reset data toggle state to DATA0
-	
+
 };
 
 struct keyspan_usa28_portStatusMessage

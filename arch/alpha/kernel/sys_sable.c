@@ -182,9 +182,9 @@ sable_init_irq(void)
  *  6       PCI on board slot 0
  *  7       PCI on board slot 1
  *  8       PCI on board slot 2
- *   
  *
- * This two layered interrupt approach means that we allocate IRQ 16 and 
+ *
+ * This two layered interrupt approach means that we allocate IRQ 16 and
  * above for PCI interrupts.  The IRQ relates to which bit the interrupt
  * comes in on.  This makes interrupt processing much easier.
  */
@@ -223,12 +223,12 @@ sable_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
  *
  * Bit      Meaning               Kernel IRQ
  *------------------------------------------
- * 0        
- * 1        
- * 2        
+ * 0
+ * 1
+ * 2
  * 3        mouse			12
- * 4        
- * 5        
+ * 4
+ * 5
  * 6        keyboard			1
  * 7        floppy			6
  * 8        COM2			3
@@ -243,7 +243,7 @@ sable_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
  *17        EISA irq 10			10
  *18        EISA irq 11			11
  *19        EISA irq 12			-
- *20        
+ *20
  *21        EISA irq 14			14
  *22        EISA irq 15			15
  *23        IIC				-
@@ -300,7 +300,7 @@ lynx_update_irq_hw(unsigned long bit, unsigned long mask)
 	mb();
 	*(vulp)T2_AIR; /* re-read to force write */
 	mb();
-	*(vulp)T2_DIR = mask;    
+	*(vulp)T2_DIR = mask;
 	mb();
 	mb();
 }
@@ -494,7 +494,7 @@ static struct irq_chip sable_lynx_irq_type = {
 	.irq_mask_ack	= sable_lynx_mask_and_ack_irq,
 };
 
-static void 
+static void
 sable_lynx_srm_device_interrupt(unsigned long vector)
 {
 	/* Note that the vector reported by the SRM PALcode corresponds

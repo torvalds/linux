@@ -20,7 +20,7 @@
  * These are not normal C functions: instead of the normal
  * calling sequence, these expect their arguments in registers
  * $24 and $25, and return the result in $27. Register $28 may
- * be clobbered (assembly temporary), anything else must be saved. 
+ * be clobbered (assembly temporary), anything else must be saved.
  *
  * In short: painful.
  *

@@ -54,7 +54,7 @@ __again:
 			       "voice_verify = %i\n",
 			       voice, voice_status, inb(GUSP(gus, GF1PAGE)));
 #endif
-			pvoice = &gus->gf1.voices[voice]; 
+			pvoice = &gus->gf1.voices[voice];
 			if (pvoice->use) {
 				if (!(voice_status & 0x80)) {	/* voice position IRQ */
 					STAT_ADD(pvoice->interrupt_stat_wave);
@@ -99,7 +99,7 @@ __again:
 }
 
 #ifdef CONFIG_SND_DEBUG
-static void snd_gus_irq_info_read(struct snd_info_entry *entry, 
+static void snd_gus_irq_info_read(struct snd_info_entry *entry,
 				  struct snd_info_buffer *buffer)
 {
 	struct snd_gus_card *gus;

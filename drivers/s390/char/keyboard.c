@@ -373,7 +373,7 @@ do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
 	kb_table = (unsigned long) tmp.kb_table;
 #if MAX_NR_KEYMAPS < 256
 	if (kb_table >= MAX_NR_KEYMAPS)
-		return -EINVAL;	
+		return -EINVAL;
 	kb_table = array_index_nospec(kb_table , MAX_NR_KEYMAPS);
 #endif
 

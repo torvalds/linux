@@ -16,7 +16,7 @@ This is specially helpful for auto dialup links (diald), where the
 going up. So, the *same* (local AND masqueraded) connections requests that
 bring the link up will be able to get established.
 
-[*] At boot, by default no address rewriting is attempted. 
+[*] At boot, by default no address rewriting is attempted.
   To enable:
      # echo 1 > /proc/sys/net/ipv4/ip_dynaddr
   To enable verbose mode:

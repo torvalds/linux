@@ -398,7 +398,7 @@ static int wm5100_mixer_values[] = {
 	static WM5100_MUX_CTL_DECL(name##_in1); \
 	static WM5100_MUX_CTL_DECL(name##_in2); \
 	static WM5100_MUX_CTL_DECL(name##_in3); \
-	static WM5100_MUX_CTL_DECL(name##_in4) 
+	static WM5100_MUX_CTL_DECL(name##_in4)
 
 WM5100_MIXER_ENUMS(HPOUT1L, WM5100_OUT1LMIX_INPUT_1_SOURCE);
 WM5100_MIXER_ENUMS(HPOUT1R, WM5100_OUT1RMIX_INPUT_1_SOURCE);
@@ -1548,7 +1548,7 @@ static int wm5100_set_sysclk(struct snd_soc_component *component, int clk_id,
 		default:
 			dev_err(component->dev, "Invalid source %d\n", source);
 			return -EINVAL;
-		}	
+		}
 		return 0;
 
 	case WM5100_CLK_OPCLK:

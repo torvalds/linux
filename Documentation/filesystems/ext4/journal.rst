@@ -55,7 +55,7 @@ Generally speaking, the journal has this format:
      - descriptor\_block (data\_blocks or revocation\_block) [more data or
        revocations] commmit\_block
      - [more transactions...]
-   * - 
+   * -
      - One transaction
      -
 
@@ -85,7 +85,7 @@ superblock.
      - descriptor\_block (data\_blocks or revocation\_block) [more data or
        revocations] commmit\_block
      - [more transactions...]
-   * - 
+   * -
      -
      -
      - One transaction

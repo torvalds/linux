@@ -24,7 +24,7 @@ shutdown and follows some basic rules:-
 ::
 
    Startup Order :- DAC --> Mixers --> Output PGA --> Digital Unmute
-  
+
    Shutdown Order :- Digital Mute --> Output PGA --> Mixers --> DAC
 
 This assumes that the codec PCM output path from the DAC is via a mixer and then
@@ -41,7 +41,7 @@ startup or shutdown.
 ::
 
    Startup Order - Input PGA --> Mixers --> ADC
-  
+
    Shutdown Order - ADC --> Mixers --> Input PGA
 
 

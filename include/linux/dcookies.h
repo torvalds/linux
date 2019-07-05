@@ -9,16 +9,16 @@
 
 #ifndef DCOOKIES_H
 #define DCOOKIES_H
- 
+
 
 #ifdef CONFIG_PROFILING
- 
+
 #include <linux/dcache.h>
 #include <linux/types.h>
- 
+
 struct dcookie_user;
 struct path;
- 
+
 /**
  * dcookie_register - register a user of dcookies
  *
@@ -33,7 +33,7 @@ struct dcookie_user * dcookie_register(void);
  * any dcookie values returned from get_dcookie().
  */
 void dcookie_unregister(struct dcookie_user * user);
-  
+
 /**
  * get_dcookie - acquire a dcookie
  *

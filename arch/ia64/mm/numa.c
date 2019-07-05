@@ -6,7 +6,7 @@
  * This file contains NUMA specific variables and functions which can
  * be split away from DISCONTIGMEM and are used on NUMA machines with
  * contiguous memory.
- * 
+ *
  *                         2002/08/07 Erich Focht <efocht@ess.nec.de>
  */
 

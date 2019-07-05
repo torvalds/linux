@@ -879,7 +879,7 @@ Suppose the 28bit mask, and the code to be added would be like:
           pci_disable_device(pci);
           return -ENXIO;
   }
-  
+
 
 Resource Allocation
 -------------------
@@ -915,7 +915,7 @@ The allocation of an I/O port is done like this:
 ::
 
   err = pci_request_regions(pci, "My Chip");
-  if (err < 0) { 
+  if (err < 0) {
           kfree(chip);
           pci_disable_device(pci);
           return err;
@@ -1403,7 +1403,7 @@ function. It would be better to create a constructor for pcm, namely,
           int err;
 
           err = snd_pcm_new(chip->card, "My Chip", 0, 1, 1, &pcm);
-          if (err < 0) 
+          if (err < 0)
                   return err;
           pcm->private_data = chip;
           strcpy(pcm->name, "My Chip");
@@ -1546,7 +1546,7 @@ are the contents of this file:
           snd_pcm_uframes_t avail_max;
           snd_pcm_uframes_t hw_ptr_base;	/* Position at buffer restart */
           snd_pcm_uframes_t hw_ptr_interrupt; /* Position at interrupt time*/
-  
+
           /* -- HW params -- */
           snd_pcm_access_t access;	/* access mode */
           snd_pcm_format_t format;	/* SNDRV_PCM_FORMAT_* */
@@ -1564,7 +1564,7 @@ are the contents of this file:
           unsigned int info;
           unsigned int rate_num;
           unsigned int rate_den;
-  
+
           /* -- SW params -- */
           struct timespec tstamp_mode;	/* mmap timestamp is updated */
           unsigned int period_step;
@@ -1575,17 +1575,17 @@ are the contents of this file:
                                                   noise is nearest than this */
           snd_pcm_uframes_t silence_size;	/* Silence filling size */
           snd_pcm_uframes_t boundary;	/* pointers wrap point */
-  
+
           snd_pcm_uframes_t silenced_start;
           snd_pcm_uframes_t silenced_size;
-  
+
           snd_pcm_sync_id_t sync;		/* hardware synchronization ID */
-  
+
           /* -- mmap -- */
           volatile struct snd_pcm_mmap_status *status;
           volatile struct snd_pcm_mmap_control *control;
           atomic_t mmap_count;
-  
+
           /* -- locking / scheduling -- */
           spinlock_t lock;
           wait_queue_head_t sleep;
@@ -1595,21 +1595,21 @@ are the contents of this file:
           /* -- private section -- */
           void *private_data;
           void (*private_free)(struct snd_pcm_runtime *runtime);
-  
+
           /* -- hardware description -- */
           struct snd_pcm_hardware hw;
           struct snd_pcm_hw_constraints hw_constraints;
-  
+
           /* -- timer -- */
           unsigned int timer_resolution;	/* timer resolution */
-  
-          /* -- DMA -- */           
+
+          /* -- DMA -- */
           unsigned char *dma_area;	/* DMA area */
           dma_addr_t dma_addr;		/* physical bus address (not accessible from main CPU) */
           size_t dma_bytes;		/* size of DMA area */
-  
+
           struct snd_dma_buffer *dma_buffer_p;	/* allocated buffer */
-  
+
   #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
           /* -- OSS things -- */
           struct snd_pcm_oss_runtime oss;
@@ -2057,7 +2057,7 @@ pointer callback
 
 This callback is called when the PCM middle layer inquires the current
 hardware position on the buffer. The position must be returned in
-frames, ranging from 0 to ``buffer_size - 1``. 
+frames, ranging from 0 to ``buffer_size - 1``.
 
 This is called usually from the buffer-update routine in the pcm
 middle layer, which is invoked when :c:func:`snd_pcm_period_elapsed()`
@@ -2447,7 +2447,7 @@ The ``index`` field holds the index number of this control. If there
 are several different controls with the same name, they can be
 distinguished by the index number. This is the case when several
 codecs exist on the card. If the index is zero, you can omit the
-definition above. 
+definition above.
 
 The ``access`` field contains the access type of this control. Give
 the combination of bit masks, ``SNDRV_CTL_ELEM_ACCESS_XXX``,
@@ -2459,7 +2459,7 @@ for this record. When using the generic ``info``, ``get`` and ``put``
 callbacks, you can pass a value through this field. If several small
 numbers are necessary, you can combine them in bitwise. Or, it's
 possible to give a pointer (casted to unsigned long) of some record to
-this field, too. 
+this field, too.
 
 The ``tlv`` field can be used to provide metadata about the control;
 see the `Metadata`_ subsection.
@@ -3377,7 +3377,7 @@ Then set ``command``, ``private_data`` and ``private_free`` for the
 private access function, the private data and the destructor. The
 ``l_port`` and ``r_port`` are not necessarily set. Only the command
 must be set properly. You can retrieve the data from the
-``opl3->private_data`` field. 
+``opl3->private_data`` field.
 
 After creating the opl3 instance via :c:func:`snd_opl3_new()`,
 call :c:func:`snd_opl3_init()` to initialize the chip to the
@@ -3674,7 +3674,7 @@ The role of ``fill_silence`` callback is to set the given amount
 (``count``) of silence data at the specified offset (``pos``) on the
 hardware buffer. Suppose that the data format is signed (that is, the
 silent-data is 0), and the implementation using a memset-like function
-would be like: 
+would be like:
 
 ::
 

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* sonet.h - SONET/SHD physical layer control */
- 
+
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
- 
+
 
 #ifndef _UAPILINUX_SONET_H
 #define _UAPILINUX_SONET_H

@@ -184,7 +184,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 		set_pte((pte_t *)&pmdp->pmdv[i], __pte(0));
 }
 
-static inline int pgd_none(pgd_t pgd)          
+static inline int pgd_none(pgd_t pgd)
 {
 	return !(pgd_val(pgd) & 0xFFFFFFF);
 }
@@ -422,7 +422,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 
 	return remap_pfn_range(vma, from, phys_base >> PAGE_SHIFT, size, prot);
 }
-#define io_remap_pfn_range io_remap_pfn_range 
+#define io_remap_pfn_range io_remap_pfn_range
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 #define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \

@@ -4,7 +4,7 @@
 
 #include <asm/bitsperlong.h>
 
-/* 
+/*
  * The semid64_ds structure for parisc architecture.
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.

@@ -2,7 +2,7 @@ Description of the "concap" encapsulation protocol interface
 ============================================================
 
 The "concap" interface is intended to be used by network device
-drivers that need to process an encapsulation protocol. 
+drivers that need to process an encapsulation protocol.
 It is assumed that the protocol interacts with a linux network device by
 - data transmission
 - connection control (establish, release)
@@ -37,7 +37,7 @@ traditional linux network device drivers used to process the
 encapsulation protocol directly (usually by just providing a hard_header()
 method in the device structure) using some hardware type specific support
 functions. This is simple, direct and efficient. But it doesn't fit all
-the requirements for complex WAN encapsulations. 
+the requirements for complex WAN encapsulations.
 
 
    The configurability of the encapsulation protocol to be used
@@ -117,7 +117,7 @@ struct concap_proto_ops{
 	/* initialize the protocol's data. To be called at interface startup
 	   or when the device driver resets the interface. All services of the
 	   encapsulation protocol may be used after this*/
-	int (*restart)(struct concap_proto *cprot, 
+	int (*restart)(struct concap_proto *cprot,
 		       struct net_device *ndev,
 		       struct concap_device_ops *dops);
 
@@ -128,7 +128,7 @@ struct concap_proto_ops{
 	/* process a frame handed down to us by upper layer */
 	int (*encap_and_xmit)(struct concap_proto *cprot, struct sk_buff *skb);
 
-	/* to be called for each data entity received from lower layer*/ 
+	/* to be called for each data entity received from lower layer*/
 	int (*data_ind)(struct concap_proto *cprot, struct sk_buff *skb);
 
 	/* to be called when a connection was set up/down.
@@ -145,8 +145,8 @@ The data structures are defined in the header file include/linux/concap.h.
 A Network interface using encapsulation protocols must also provide
 some service primitives to the encapsulation protocol:
 
-- request data being submitted by lower layer (device hardware) 
-- request a connection being set up by lower layer 
+- request data being submitted by lower layer (device hardware)
+- request a connection being set up by lower layer
 - request a connection being released by lower layer
 
 The encapsulation protocol accesses those primitives via callbacks
@@ -154,20 +154,20 @@ provided by the network interface within a struct concap_device_ops.
 
 struct concap_device_ops{
 
-	/* to request data be submitted by device */ 
+	/* to request data be submitted by device */
 	int (*data_req)(struct concap_proto *, struct sk_buff *);
 
 	/* Control methods must be set to NULL by devices which do not
 	   support connection control. */
-	/* to request a connection be set up */ 
+	/* to request a connection be set up */
 	int (*connect_req)(struct concap_proto *);
 
 	/* to request a connection be released */
-	int (*disconn_req)(struct concap_proto *);	
+	int (*disconn_req)(struct concap_proto *);
 };
 
 The network interface does not explicitly provide a receive service
-because the encapsulation protocol directly calls netif_rx(). 
+because the encapsulation protocol directly calls netif_rx().
 
 
 
@@ -182,12 +182,12 @@ struct concap_proto{
 					   be accessed via *pops methods only*/
 	/*
 	  :
-	  whatever 
+	  whatever
 	  :
 	  */
 };
 
-Most of this is filled in when the device requests the protocol to 
+Most of this is filled in when the device requests the protocol to
 be reset (opend). The network interface must provide the net_dev and
 dops pointers. Other concap_proto members should be considered private
 data that are only accessed by the pops callback functions. Likewise,
@@ -201,7 +201,7 @@ encapsulation services could look like this:
 struct concap_device{
 	struct net_device net_dev;
 	struct my_priv  /* device->local stuff */
-			/* the my_priv struct might contain a 
+			/* the my_priv struct might contain a
 			   struct concap_device_ops *dops;
 	                   to provide the device specific callbacks
 			*/
@@ -246,7 +246,7 @@ procedure call layer.
 
 
 The device's data request function could also be defined as
- 
+
   int (*data_req)(struct net_device *ndev, struct sk_buff *skb);
 
 This might even allow for some protocol stacking. And the network

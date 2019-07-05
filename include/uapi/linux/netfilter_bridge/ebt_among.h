@@ -8,13 +8,13 @@
 #define EBT_AMONG_SRC 0x02
 
 /* Grzegorz Borowiak <grzes@gnu.univ.gda.pl> 2003
- * 
+ *
  * Write-once-read-many hash table, used for checking if a given
  * MAC address belongs to a set or not and possibly for checking
  * if it is related with a given IPv4 address.
  *
  * The hash value of an address is its last byte.
- * 
+ *
  * In real-world ethernet addresses, values of the last byte are
  * evenly distributed and there is no need to consider other bytes.
  * It would only slow the routines down.

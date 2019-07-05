@@ -1,7 +1,7 @@
 /* +++ trees.c */
 /* trees.c -- output deflated data using Huffman coding
  * Copyright (C) 1995-1996 Jean-loup Gailly
- * For conditions of distribution and use, see copyright notice in zlib.h 
+ * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
 /*
@@ -1097,7 +1097,7 @@ static void copy_block(
     s->last_eob_len = 8; /* enough lookahead for inflate */
 
     if (header) {
-        put_short(s, (ush)len);   
+        put_short(s, (ush)len);
         put_short(s, (ush)~len);
 #ifdef DEBUG_ZLIB
         s->bits_sent += 2*16;

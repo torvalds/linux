@@ -314,7 +314,7 @@ static void uctrl_get_event_status(struct uctrl_driver *driver)
 	uctrl_do_txn(driver, &txn);
 
 	dprintk(("bytes %x %x\n", (outbits[0] & 0xff), (outbits[1] & 0xff)));
-	driver->status.event_status = 
+	driver->status.event_status =
 		((outbits[0] & 0xff) << 8) | (outbits[1] & 0xff);
 	dprintk(("ev is %x\n", driver->status.event_status));
 }
@@ -334,7 +334,7 @@ static void uctrl_get_external_status(struct uctrl_driver *driver)
 	uctrl_do_txn(driver, &txn);
 
 	dprintk(("bytes %x %x\n", (outbits[0] & 0xff), (outbits[1] & 0xff)));
-	driver->status.external_status = 
+	driver->status.external_status =
 		((outbits[0] * 256) + (outbits[1]));
 	dprintk(("ex is %x\n", driver->status.external_status));
 	v = driver->status.external_status;
@@ -344,7 +344,7 @@ static void uctrl_get_external_status(struct uctrl_driver *driver)
 		}
 	}
 	dprintk(("\n"));
-	
+
 }
 
 static int uctrl_probe(struct platform_device *op)

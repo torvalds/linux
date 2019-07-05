@@ -183,7 +183,7 @@ static void __init pagezero_memconfig(void)
 **
 */
 
-static int __init 
+static int __init
 pat_query_module(ulong pcell_loc, ulong mod_index)
 {
 	pdc_pat_cell_mod_maddr_block_t *pa_pdc_cell;
@@ -243,7 +243,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 		break;
 
 	case PAT_ENTITY_MEM:
-		printk(KERN_DEBUG 
+		printk(KERN_DEBUG
 			"PAT_ENTITY_MEM: amount 0x%lx min_gni_base 0x%lx min_gni_len 0x%lx\n",
 			pa_pdc_cell->mod[0], pa_pdc_cell->mod[1],
 			pa_pdc_cell->mod[2]);
@@ -268,13 +268,13 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 				    IO_VIEW, &io_pdc_cell);
 		printk(KERN_DEBUG "ranges %ld\n", pa_pdc_cell->mod[1]);
 		for (i = 0; i < pa_pdc_cell->mod[1]; i++) {
-			printk(KERN_DEBUG 
-				"  PA_VIEW %ld: 0x%016lx 0x%016lx 0x%016lx\n", 
+			printk(KERN_DEBUG
+				"  PA_VIEW %ld: 0x%016lx 0x%016lx 0x%016lx\n",
 				i, pa_pdc_cell->mod[2 + i * 3],	/* type */
 				pa_pdc_cell->mod[3 + i * 3],	/* start */
 				pa_pdc_cell->mod[4 + i * 3]);	/* finish (ie end) */
-			printk(KERN_DEBUG 
-				"  IO_VIEW %ld: 0x%016lx 0x%016lx 0x%016lx\n", 
+			printk(KERN_DEBUG
+				"  IO_VIEW %ld: 0x%016lx 0x%016lx 0x%016lx\n",
 				i, io_pdc_cell.mod[2 + i * 3],	/* type */
 				io_pdc_cell.mod[3 + i * 3],	/* start */
 				io_pdc_cell.mod[4 + i * 3]);	/* finish (ie end) */
@@ -381,7 +381,7 @@ static int __init pat_inventory(void)
 	}
 
 #ifdef DEBUG_PAT
-	printk(KERN_DEBUG "CELL_GET_NUMBER: 0x%lx 0x%lx\n", cell_info.cell_num, 
+	printk(KERN_DEBUG "CELL_GET_NUMBER: 0x%lx 0x%lx\n", cell_info.cell_num,
 	       cell_info.cell_loc);
 #endif
 
@@ -515,7 +515,7 @@ static void __init snake_inventory(void)
  * firmware to the parisc device.
  */
 static void __init
-add_system_map_addresses(struct parisc_device *dev, int num_addrs, 
+add_system_map_addresses(struct parisc_device *dev, int num_addrs,
 			 int module_instance)
 {
 	int i;
@@ -530,13 +530,13 @@ add_system_map_addresses(struct parisc_device *dev, int num_addrs,
 	}
 
 	for(i = 1; i <= num_addrs; ++i) {
-		status = pdc_system_map_find_addrs(&addr_result, 
+		status = pdc_system_map_find_addrs(&addr_result,
 						   module_instance, i);
 		if(PDC_OK == status) {
 			dev->addr[dev->num_addrs] = (unsigned long)addr_result.mod_addr;
 			dev->num_addrs++;
 		} else {
-			printk(KERN_WARNING 
+			printk(KERN_WARNING
 			       "Bad PDC_FIND_ADDRESS status return (%ld) for index %d\n",
 			       status, i);
 		}
@@ -553,7 +553,7 @@ static void __init system_map_inventory(void)
 {
 	int i;
 	long status = PDC_OK;
-    
+
 	for (i = 0; i < 256; i++) {
 		struct parisc_device *dev;
 		struct pdc_system_map_mod_info module_result;
@@ -569,7 +569,7 @@ static void __init system_map_inventory(void)
 		dev = alloc_pa_dev(module_result.mod_addr, &module_path.path);
 		if (!dev)
 			continue;
-		
+
 		register_parisc_device(dev);
 
 		/* if available, get the additional addresses for a module */

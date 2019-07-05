@@ -301,7 +301,7 @@ struct sctp_cookie {
 	/* This holds the originating address of the INIT packet.  */
 	union sctp_addr peer_addr;
 
-	/* IG Section 2.35.3 
+	/* IG Section 2.35.3
 	 * Include the source port of the INIT-ACK
 	 */
 	__u16		my_port;
@@ -309,7 +309,7 @@ struct sctp_cookie {
 	__u8 prsctp_capable;
 
 	/* Padding for future use */
-	__u8 padding;  		
+	__u8 padding;
 
 	__u32 adaptation_ind;
 
@@ -469,7 +469,7 @@ struct sctp_af {
 					    union sctp_addr_param *,
 					    __be16 port, int iif);
 	int		(*to_addr_param) (const union sctp_addr *,
-					  union sctp_addr_param *); 
+					  union sctp_addr_param *);
 	int		(*addr_valid)	(union sctp_addr *,
 					 struct sctp_sock *,
 					 const struct sk_buff *);
@@ -1302,7 +1302,7 @@ struct sctp_endpoint {
  	 * 	    on every receive.
  	 */
  	__u8 *digest;
- 
+
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
 

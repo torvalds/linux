@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *      Low-level parallel-support for PC-style hardware integrated in the 
+ *      Low-level parallel-support for PC-style hardware integrated in the
  *	LASI-Controller (on GSC-Bus) for HP-PARISC Workstations
  *
  *	(C) 1999-2001 by Helge Deller <deller@gmx.de>
- * 
- * based on parport_pc.c by 
+ *
+ * based on parport_pc.c by
  * 	    Grant Guenther <grant@torque.net>
  * 	    Phil Blundell <philb@gnu.org>
  *          Tim Waugh <tim@cyberelk.demon.co.uk>
@@ -90,7 +90,7 @@ void parport_gsc_restore_state(struct parport *p, struct parport_state *s)
 	parport_writeb (s->u.pc.ctr, CONTROL (p));
 }
 
-struct parport_operations parport_gsc_ops = 
+struct parport_operations parport_gsc_ops =
 {
 	.write_data	= parport_gsc_write_data,
 	.read_data	= parport_gsc_read_data,
@@ -137,7 +137,7 @@ static int parport_SPP_supported(struct parport *pb)
 	unsigned char r, w;
 
 	/*
-	 * first clear an eventually pending EPP timeout 
+	 * first clear an eventually pending EPP timeout
 	 * I (sailer@ife.ee.ethz.ch) have an SMSC chipset
 	 * that does not even respond to SPP cycles if an EPP
 	 * timeout is pending
@@ -185,7 +185,7 @@ static int parport_SPP_supported(struct parport *pb)
  * allows us to read data from the data lines.  In theory we would get back
  * 0xff but any peripheral attached to the port may drag some or all of the
  * lines down to zero.  So if we get back anything that isn't the contents
- * of the data register we deem PS/2 support to be present. 
+ * of the data register we deem PS/2 support to be present.
  *
  * Some SPP ports have "half PS/2" ability - you can't turn off the line
  * drivers, but an external peripheral with sufficiently beefy drivers of
@@ -193,18 +193,18 @@ static int parport_SPP_supported(struct parport *pb)
  * where they can then be read back as normal.  Ports with this property
  * and the right type of device attached are likely to fail the SPP test,
  * (as they will appear to have stuck bits) and so the fact that they might
- * be misdetected here is rather academic. 
+ * be misdetected here is rather academic.
  */
 
 static int parport_PS2_supported(struct parport *pb)
 {
 	int ok = 0;
-  
+
 	clear_epp_timeout(pb);
 
 	/* try to tri-state the buffer */
 	parport_gsc_data_reverse (pb);
-	
+
 	parport_gsc_write_data(pb, 0x55);
 	if (parport_gsc_read_data(pb) != 0x55) ok++;
 
@@ -353,7 +353,7 @@ static int __init parport_init_chip(struct parisc_device *dev)
 	}
 
 	port = dev->hpa.start + PARPORT_GSC_OFFSET;
-	
+
 	/* some older machines with ASP-chip don't support
 	 * the enhanced parport modes.
 	 */
@@ -366,7 +366,7 @@ static int __init parport_init_chip(struct parisc_device *dev)
 	} else {
 		printk("%s: enhanced parport-modes not supported.\n", __func__);
 	}
-	
+
 	p = parport_gsc_probe_port(port, 0, dev->irq,
 			/* PARPORT_IRQ_NONE */ PARPORT_DMA_NONE, dev);
 	if (p)

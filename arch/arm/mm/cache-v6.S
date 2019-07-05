@@ -177,7 +177,7 @@ ENTRY(v6_flush_kern_dcache_area)
 	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D line
 #else
 	mcr	p15, 0, r0, c7, c15, 1		@ clean & invalidate unified line
-#endif	
+#endif
 	add	r0, r0, #D_CACHE_LINE_SIZE
 	cmp	r0, r1
 	blo	1b

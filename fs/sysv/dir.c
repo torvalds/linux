@@ -196,7 +196,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
 			if (!de->inode)
 				goto got_it;
 			err = -EEXIST;
-			if (namecompare(namelen, SYSV_NAMELEN, name, de->name)) 
+			if (namecompare(namelen, SYSV_NAMELEN, name, de->name))
 				goto out_page;
 			de++;
 		}
@@ -359,7 +359,7 @@ ino_t sysv_inode_by_name(struct dentry *dentry)
 	struct page *page;
 	struct sysv_dir_entry *de = sysv_find_entry (dentry, &page);
 	ino_t res = 0;
-	
+
 	if (de) {
 		res = fs16_to_cpu(SYSV_SB(dentry->d_sb), de->inode);
 		dir_put_page(page);

@@ -1,12 +1,12 @@
-/* 
+/*
 	friq.c	(c) 1998    Grant R. Guenther <grant@torque.net>
 		            Under the terms of the GNU General Public License
 
 	friq.c is a low-level protocol driver for the Freecom "IQ"
 	parallel port IDE adapter.   Early versions of this adapter
 	use the 'frpw' protocol.
-	
-	Freecom uses this adapter in a battery powered external 
+
+	Freecom uses this adapter in a battery powered external
 	CD-ROM drive.  It is also used in LS-120 drives by
 	Maxell and Panasonic, and other devices.
 
@@ -25,7 +25,7 @@
 	1.01	GRG 1998.12.20	 Added support for soft power switch
 */
 
-#define	FRIQ_VERSION	"1.01" 
+#define	FRIQ_VERSION	"1.01"
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -42,8 +42,8 @@
 
 #define j44(l,h)	(((l>>4)&0x0f)|(h&0xf0))
 
-/* cont = 0 - access the IDE register file 
-   cont = 1 - access the IDE command set 
+/* cont = 0 - access the IDE register file
+   cont = 1 - access the IDE command set
 */
 
 static int  cont_map[2] = { 0x08, 0x10 };
@@ -57,7 +57,7 @@ static int friq_read_regr( PIA *pi, int cont, int regr )
 	CMD(r);
 	w2(6); l = r1();
 	w2(4); h = r1();
-	w2(4); 
+	w2(4);
 
 	return j44(l,h);
 
@@ -80,7 +80,7 @@ static void friq_read_block_int( PIA *pi, char * buf, int count, int regr )
 
         switch(pi->mode) {
 
-        case 0: CMD(regr); 
+        case 0: CMD(regr);
                 for (k=0;k<count;k++) {
                         w2(6); l = r1();
                         w2(4); h = r1();
@@ -90,13 +90,13 @@ static void friq_read_block_int( PIA *pi, char * buf, int count, int regr )
                 break;
 
         case 1: ph = 2;
-                CMD(regr+0xc0); 
+                CMD(regr+0xc0);
                 w0(0xff);
                 for (k=0;k<count;k++) {
-                        w2(0xa4 + ph); 
+                        w2(0xa4 + ph);
                         buf[k] = r0();
                         ph = 2 - ph;
-                } 
+                }
                 w2(0xac); w2(0xa4); w2(4);
                 break;
 
@@ -135,7 +135,7 @@ static void friq_read_block( PIA *pi, char * buf, int count)
 }
 
 static void friq_write_block( PIA *pi, char * buf, int count )
- 
+
 {	int	k;
 
 	switch(pi->mode) {
@@ -178,14 +178,14 @@ static void friq_disconnect ( PIA *pi )
 {       CMD(0x20);
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
-} 
+}
 
 static int friq_test_proto( PIA *pi, char * scratch, int verbose )
 
 {       int     j, k, r;
 	int	e[2] = {0,0};
 
-	pi->saved_r0 = r0();	
+	pi->saved_r0 = r0();
 	w0(0xff); udelay(20); CMD(0x3d); /* turn the power on */
 	udelay(500);
 	w0(pi->saved_r0);

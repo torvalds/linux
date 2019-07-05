@@ -85,7 +85,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	 * range of blocks allocated for this file, we can grant it.
 	 */
 	if (bi->i_sblock && (phys <= bi->i_eblock)) {
-		dprintf("c=%d, b=%08lx, phys=%08lx (interim block granted)\n", 
+		dprintf("c=%d, b=%08lx, phys=%08lx (interim block granted)\n",
 				create, (unsigned long)block, phys);
 		map_bh(bh_result, sb, phys);
 		return 0;
@@ -104,7 +104,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	 * anywhere.
 	 */
 	if (bi->i_eblock == info->si_lf_eblk) {
-		dprintf("c=%d, b=%08lx, phys=%08lx (simple extension)\n", 
+		dprintf("c=%d, b=%08lx, phys=%08lx (simple extension)\n",
 				create, (unsigned long)block, phys);
 		map_bh(bh_result, sb, phys);
 		info->si_freeb -= phys - bi->i_eblock;
@@ -122,7 +122,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	}
 
 	if (bi->i_sblock) {
-		err = bfs_move_blocks(inode->i_sb, bi->i_sblock, 
+		err = bfs_move_blocks(inode->i_sb, bi->i_sblock,
 						bi->i_eblock, phys);
 		if (err) {
 			dprintf("failed to move ino=%08lx -> fs corruption\n",

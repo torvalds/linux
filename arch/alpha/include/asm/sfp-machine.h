@@ -23,7 +23,7 @@
 
 #ifndef _SFP_MACHINE_H
 #define _SFP_MACHINE_H
-   
+
 #define _FP_W_TYPE_SIZE		64
 #define _FP_W_TYPE		unsigned long
 #define _FP_WS_TYPE		signed long

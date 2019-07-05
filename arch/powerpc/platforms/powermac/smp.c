@@ -565,7 +565,7 @@ static void smp_core99_pulsar_tb_freeze(int freeze)
 
 static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 {
-	struct device_node *cc = NULL;	
+	struct device_node *cc = NULL;
 	struct device_node *p;
 	const char *name = NULL;
 	const u32 *reg;

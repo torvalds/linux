@@ -15,7 +15,7 @@ struct parisc_device {
 	char		hw_path;        /* The module number on this bus */
 	unsigned int	num_addrs;	/* some devices have additional address ranges. */
 	unsigned long	*addr;          /* which will be stored here */
- 
+
 #ifdef CONFIG_64BIT
 	/* parms for pdc_pat_cell_module() call */
 	unsigned long	pcell_loc;	/* Physical Cell location */
@@ -32,7 +32,7 @@ struct parisc_device {
 
 struct parisc_driver {
 	struct parisc_driver *next;
-	char *name; 
+	char *name;
 	const struct parisc_device_id *id_table;
 	int (*probe) (struct parisc_device *dev); /* New device discovered */
 	int (*remove) (struct parisc_device *dev);

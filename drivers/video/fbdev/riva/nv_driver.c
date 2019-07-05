@@ -25,7 +25,7 @@
  * GPL licensing note -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
- * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
+ * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99
  */
 
 /* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
@@ -48,7 +48,7 @@ static inline unsigned char MISCin(struct riva_par *par)
 	return (VGA_RD08(par->riva.PVIO, 0x3cc));
 }
 
-static Bool 
+static Bool
 riva_is_connected(struct riva_par *par, Bool second)
 {
 	volatile U032 __iomem *PRAMDAC = par->riva.PRAMDAC0;
@@ -63,7 +63,7 @@ riva_is_connected(struct riva_par *par, Bool second)
 	NV_WR32(PRAMDAC, 0x0608, reg608 & ~0x00010000);
 
 	NV_WR32(PRAMDAC, 0x052C, reg52C & 0x0000FEEE);
-	mdelay(1); 
+	mdelay(1);
 	NV_WR32(PRAMDAC, 0x052C, NV_RD32(PRAMDAC, 0x052C) | 1);
 
 	NV_WR32(par->riva.PRAMDAC0, 0x0610, 0x94050140);
@@ -140,7 +140,7 @@ riva_is_second(struct riva_par *par)
 				par->SecondCRTC = TRUE;
 			else
 				par->SecondCRTC = FALSE;
-		} else 
+		} else
 		if (riva_is_connected(par, 1)) {
 			if(NV_RD32(par->riva.PRAMDAC0, 0x0000252C) & 0x100)
 				par->SecondCRTC = TRUE;
@@ -182,7 +182,7 @@ unsigned long riva_get_memlen(struct riva_par *par)
 				}
 			} else {
 				memlen = 1024 * 8;
-			}            
+			}
 		} else 	{
 			/*
 			 * SGRAM 128.
@@ -198,7 +198,7 @@ unsigned long riva_get_memlen(struct riva_par *par)
 				memlen = 1024 * 2;
 				break;
 			}
-		}        
+		}
 		break;
 	case NV_ARCH_04:
 		if (NV_RD32(chip->PFB, 0x00000000) & 0x00000100) {
@@ -286,13 +286,13 @@ unsigned long riva_get_maxdclk(struct riva_par *par)
 				dclk = 800000;
 			} else {
 				dclk = 1000000;
-			}            
+			}
 		} else {
 			/*
 			 * SGRAM 128.
 			 */
 			dclk = 1000000;
-		} 
+		}
 		break;
 	case NV_ARCH_04:
 	case NV_ARCH_10:
@@ -336,7 +336,7 @@ riva_common_setup(struct riva_par *par)
 	par->riva.PVIO = par->ctrl_base + 0x000C0000;
 
 	par->riva.IO = (MISCin(par) & 0x01) ? 0x3D0 : 0x3B0;
-	
+
 	if (par->FlatPanel == -1) {
 		switch (par->Chipset & 0xffff) {
 		case 0x0112:   /* known laptop chips */
@@ -365,7 +365,7 @@ riva_common_setup(struct riva_par *par)
 		case 0x0329:
 		case 0x032C:
 		case 0x032D:
-			printk(KERN_INFO PFX 
+			printk(KERN_INFO PFX
 				"On a laptop.  Assuming Digital Flat Panel\n");
 			par->FlatPanel = 1;
 			break;
@@ -373,11 +373,11 @@ riva_common_setup(struct riva_par *par)
 			break;
 		}
 	}
-	
+
 	switch (par->Chipset & 0x0ff0) {
 	case 0x0110:
 		if (par->Chipset == NV_CHIP_GEFORCE2_GO)
-			par->SecondCRTC = TRUE; 
+			par->SecondCRTC = TRUE;
 #if defined(__powerpc__)
 		if (par->FlatPanel == 1)
 			par->SecondCRTC = TRUE;

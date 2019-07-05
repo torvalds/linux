@@ -4,7 +4,7 @@
  *
  * Original author: Chris Pallotta <chris@allmedia.com>
  * Current maintainer: Jim Van Zandt <jrv@vanzandt.mv.com>
- * 
+ *
  * 2000-03-18 Jim Van Zandt: Fix polling.
  *  Eliminate dtlk_timer_active flag and separate dtlk_stop_timer
  *  function.  Don't restart timer in dtlk_timer_tick.  Restart timer
@@ -322,7 +322,7 @@ static int dtlk_release(struct inode *inode, struct file *file)
 		break;
 	}
 	TRACE_RET;
-	
+
 	del_timer_sync(&dtlk_timer);
 
 	return 0;
@@ -402,7 +402,7 @@ static int __init dtlk_dev_probe(void)
 		       dtlk_portlist[i], (testval = inw_p(dtlk_portlist[i])));
 #endif
 
-		if (!request_region(dtlk_portlist[i], DTLK_IO_EXTENT, 
+		if (!request_region(dtlk_portlist[i], DTLK_IO_EXTENT,
 			       "dtlk"))
 			continue;
 		testval = inw_p(dtlk_portlist[i]);
@@ -419,7 +419,7 @@ static int __init dtlk_dev_probe(void)
 
                         /* put LPC port into known state, so
 			   dtlk_readable() gives valid result */
-			outb_p(0xff, dtlk_port_lpc); 
+			outb_p(0xff, dtlk_port_lpc);
 
                         /* INIT string and index marker */
 			dtlk_write_bytes("\036\1@\0\0012I\r", 8);
@@ -501,7 +501,7 @@ for (i = 0; i < 10; i++)			\
 /*
    static void dtlk_handle_error(char op, char rc, unsigned int minor)
    {
-   printk(KERN_INFO"\nDoubleTalk PC - MINOR: %d, OPCODE: %d, ERROR: %d\n", 
+   printk(KERN_INFO"\nDoubleTalk PC - MINOR: %d, OPCODE: %d, ERROR: %d\n",
    minor, op, rc);
    return;
    }

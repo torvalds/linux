@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* 
- *    Imagine for use with the Onyx (PCX-U) CPU interface 
+/*
+ *    Imagine for use with the Onyx (PCX-U) CPU interface
  *
  *    Copyright (C) 2001 Randolph Chung <tausq at parisc-linux.org>
  *    Copyright (C) 2001 Hewlett-Packard (Grant Grundler)
@@ -160,10 +160,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* tlbHandMiss
  *
- * ctr0: counts TLB misses 
- * ctr1: counts dmisses inside tlb miss handlers 
- * ctr2: counts cycles in the tlb miss handlers 
- * ctr3: counts overflows of ctr2 
+ * ctr0: counts TLB misses
+ * ctr1: counts dmisses inside tlb miss handlers
+ * ctr2: counts cycles in the tlb miss handlers
+ * ctr3: counts overflows of ctr2
  */
 {
 0x1c00c000,00000000,0x00060000,00000000,
@@ -345,7 +345,7 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
          0xffffffff, 0xffffffff},
 
 /* dmiss image
- * 
+ *
  * ctr0 : counts cycles
  * ctr1 : counts cycles where something retired
  * ctr2 : counts dmisses
@@ -390,12 +390,12 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
          0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
          0xffffffff, 0xffffffff },
 
-/* dcmiss 
+/* dcmiss
  *
- * ctr0: counts store instructions retired 
+ * ctr0: counts store instructions retired
  * ctr1: counts load instructions retired
- * ctr2: counts dmisses 
- * ctr3: counts READ_SHARED_OR_PRIV and READ_PRIVATE transactions on Runway 
+ * ctr2: counts dmisses
+ * ctr3: counts READ_SHARED_OR_PRIV and READ_PRIVATE transactions on Runway
  */
 {
 0x2c90c000,00000000,0x00060000,00000000,
@@ -438,10 +438,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* big_cpi
  *
- * ctr0: counts total cycles 
- * ctr1: counts overflows of ctr0 (for greater than 32-bit values) 
- * ctr2: counts overflows of ctr3 (for greater than 32-bit values) 
- * ctr3: counts unnullified instructions retired 
+ * ctr0: counts total cycles
+ * ctr1: counts overflows of ctr0 (for greater than 32-bit values)
+ * ctr2: counts overflows of ctr3 (for greater than 32-bit values)
+ * ctr3: counts unnullified instructions retired
  */
 {
 0x0c00c000,00000000,0x00060000,00000000,
@@ -484,10 +484,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* big_ls
  *
- * ctr0:counts the total number of cycles for which local_stall_A1 is asserted. 
- * ctr1: is the overflow for counter 0. 
- * ctr2: counts IFLUSH_AV 
- * ctr3: is the overflow for counter 2. 
+ * ctr0:counts the total number of cycles for which local_stall_A1 is asserted.
+ * ctr1: is the overflow for counter 0.
+ * ctr2: counts IFLUSH_AV
+ * ctr3: is the overflow for counter 2.
  */
 {
 0x0c000000,00000000,0x00060000,00000000,
@@ -530,9 +530,9 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* br_abort
  *
- * ctr0: counts BRAD_STALLH 
- * ctr1: counts ONE_QUAD 
- * ctr2: counts BR0_ABRT 
+ * ctr0: counts BRAD_STALLH
+ * ctr1: counts ONE_QUAD
+ * ctr2: counts BR0_ABRT
  * ctr3: counts BR1_ABRT
  */
 {
@@ -576,10 +576,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* isnt
  *
- * ctr0: counts the total number of cycles for which iside_notrans is asserted 
- * ctr1: counts the number of times iside_notrans is asserted for 1-4 cycles 
- * ctr2: counts the number of times iside_notrans is asserted for 5-7 cycles 
- * ctr3: counts the number of times iside_notrans is asserted for > 7 cycles 
+ * ctr0: counts the total number of cycles for which iside_notrans is asserted
+ * ctr1: counts the number of times iside_notrans is asserted for 1-4 cycles
+ * ctr2: counts the number of times iside_notrans is asserted for 5-7 cycles
+ * ctr3: counts the number of times iside_notrans is asserted for > 7 cycles
  */
 {
 0x0c018000,00000000,0x00060000,00000000,
@@ -622,10 +622,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* quadrant
  *
- * ctr0: Total number of instructions in quadrant 0 
- * ctr1: Total number of instructions in quadrant 1 
- * ctr2: Total number of instructions in quadrant 2 
- * ctr3: Total number of instructions in quadrant 3 
+ * ctr0: Total number of instructions in quadrant 0
+ * ctr1: Total number of instructions in quadrant 1
+ * ctr2: Total number of instructions in quadrant 2
+ * ctr3: Total number of instructions in quadrant 3
  * Works only with 32-bit
  */
 
@@ -670,10 +670,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* rw_pdfet (READ_PRIV transactions)
  *
- * ctr0: counts address valid cycles 
- * ctr1: counts *all* data valid cycles 
- * ctr2: is the overflow from counter 0 
- * ctr3: is the overflow from counter 1 
+ * ctr0: counts address valid cycles
+ * ctr1: counts *all* data valid cycles
+ * ctr2: is the overflow from counter 0
+ * ctr3: is the overflow from counter 1
  */
 {
 0x0c01e000,00000000,0x00060000,00000000,
@@ -716,9 +716,9 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* rw_wdfet (WRITEBACKS)
  *
- * ctr0: counts address valid cycles 
- * ctr1: counts *all* data valid cycles 
- * ctr2: is the overflow from counter 0 
+ * ctr0: counts address valid cycles
+ * ctr1: counts *all* data valid cycles
+ * ctr2: is the overflow from counter 0
  * ctr3: is the overflow from counter 1
  */
 {
@@ -762,10 +762,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* shlib_cpi
  *
- * ctr0: Total number of instructions in quad 0 
- * ctr1: Total number of CPU clock cycles in quad 0 
- * ctr2: total instructions without nullified   
- * ctr3: total number of CPU clock cycles 
+ * ctr0: Total number of instructions in quad 0
+ * ctr1: Total number of CPU clock cycles in quad 0
+ * ctr2: total instructions without nullified
+ * ctr3: total number of CPU clock cycles
  */
    {
    0x0c01e000,   0x00000000,   0x00060000,   0x00000000,
@@ -809,10 +809,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* addr_inv_abort_alu
  *
- * ctr0: counts ABORT_ALU0L 
- * ctr1: counts ABORT_ALU1L 
- * ctr2: counts ADDR0_INVALID 
- * ctr3: counts ADDR1_INVALID 
+ * ctr0: counts ABORT_ALU0L
+ * ctr1: counts ABORT_ALU1L
+ * ctr2: counts ADDR0_INVALID
+ * ctr3: counts ADDR1_INVALID
  */
 
 {
@@ -858,10 +858,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* brad_stall
  *
- * ctr0: counts the total number of cycles for which brad_stall is asserted 
- * ctr1: counts the number of times brad_stall is asserted for 1-4 cycles 
- * ctr2: counts the number of times brad_stall is asserted for 5-7 cycles 
- * ctr3: counts the number of times brad_stall is asserted for > 7 cycles 
+ * ctr0: counts the total number of cycles for which brad_stall is asserted
+ * ctr1: counts the number of times brad_stall is asserted for 1-4 cycles
+ * ctr2: counts the number of times brad_stall is asserted for 5-7 cycles
+ * ctr3: counts the number of times brad_stall is asserted for > 7 cycles
  */
 {
 0x0c002000,00000000,0x00060000,00000000,
@@ -904,10 +904,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* cntl_in_pipel
  *
- * ctr0: counts the total number of cycles for which cntl_in_pipel is asserted 
- * ctr1: counts the number of times cntl_in_pipel is asserted for 1-4 cycles 
- * ctr2: counts the number of times cntl_in_pipel is asserted for 5-7 cycles 
- * ctr3: counts the number of times cntl_in_pipel is asserted for > 7 cycles 
+ * ctr0: counts the total number of cycles for which cntl_in_pipel is asserted
+ * ctr1: counts the number of times cntl_in_pipel is asserted for 1-4 cycles
+ * ctr2: counts the number of times cntl_in_pipel is asserted for 5-7 cycles
+ * ctr3: counts the number of times cntl_in_pipel is asserted for > 7 cycles
  */
 {
 0x0c006000,00000000,0x00060000,00000000,
@@ -951,10 +951,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* dsnt_xfh
  *
- * ctr0: counts dside_notrans 
- * ctr1: counts xfhang 
- * ctr2: is the overflow for ctr0 
- * ctr3: is the overflow for ctr1 
+ * ctr0: counts dside_notrans
+ * ctr1: counts xfhang
+ * ctr2: is the overflow for ctr0
+ * ctr3: is the overflow for ctr1
  */
 {
 0x0c018000,00000000,0x00060000,00000000,
@@ -993,14 +993,14 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 0xffffffff,0xffffffff,0xffffffff,0xffffffff,
 0xffffffff,0xffffffff,0xffffffff,0xffffffff,
 0xffffffff,0xffffffff,0xffffffff,0xffffffff,
-0xffffffff,0xffffffff }, 
+0xffffffff,0xffffffff },
 
 /* fet_sig1
  *
- * ctr0: counts ICORE_AV 
- * ctr1: counts ITRANS_STALL 
- * ctr2: counts SEL_PCQH 
- * ctr3: counts OUT_OF_CONTEXT 
+ * ctr0: counts ICORE_AV
+ * ctr1: counts ITRANS_STALL
+ * ctr2: counts SEL_PCQH
+ * ctr3: counts OUT_OF_CONTEXT
  */
 {
 0x0c000000,00000000,0x00060000,00000000,
@@ -1043,10 +1043,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* fet_sig2
  *
- * ctr0: counts ICORE_AV  
- * ctr1: counts IRTN_AV 
- * ctr2: counts ADDRESS_INC 
- * ctr3: counts ADDRESS_DEC 
+ * ctr0: counts ICORE_AV
+ * ctr1: counts IRTN_AV
+ * ctr2: counts ADDRESS_INC
+ * ctr3: counts ADDRESS_DEC
  */
 {
 0x0c000000,00000000,0x00060000,00000000,
@@ -1089,10 +1089,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* g7_1
  *
- * ctr0: counts HIT_RETRY0 
- * ctr1: counts HIT_RETRY1 
- * ctr2: counts GO_TAG_E 
- * ctr3: counts GO_TAG_O 
+ * ctr0: counts HIT_RETRY0
+ * ctr1: counts HIT_RETRY1
+ * ctr2: counts GO_TAG_E
+ * ctr3: counts GO_TAG_O
  */
 {
 0x0c00e000,00000000,0x00060000,00000000,
@@ -1135,10 +1135,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* g7_2
  *
- * ctr0: counts HIT_DM0 
- * ctr1: counts HIT_DM1 
- * ctr2: counts GO_STORE_E 
- * ctr3: counts GO_STORE_O 
+ * ctr0: counts HIT_DM0
+ * ctr1: counts HIT_DM1
+ * ctr2: counts GO_STORE_E
+ * ctr3: counts GO_STORE_O
  */
 {
 0x0c00e000,00000000,0x00060000,00000000,
@@ -1181,9 +1181,9 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* g7_3
  *
- * ctr0: counts HIT_DV0 
- * ctr1: counts HIT_DV1 
- * ctr2: counts STBYPT_E (load bypasses from store queue) 
+ * ctr0: counts HIT_DV0
+ * ctr1: counts HIT_DV1
+ * ctr2: counts STBYPT_E (load bypasses from store queue)
  * ctr3: counts STBYPT_O
  */
 {
@@ -1227,10 +1227,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* g7_4
  *
- * ctr0: counts HIT_DIRTY0 
- * ctr1: counts HIT_DIRTY1 
- * ctr2: counts CA_BYP_E (quick launch) 
- * ctr3: counts CA_BYP_O 
+ * ctr0: counts HIT_DIRTY0
+ * ctr1: counts HIT_DIRTY1
+ * ctr2: counts CA_BYP_E (quick launch)
+ * ctr3: counts CA_BYP_O
  */
 {
 0x0c00e000,00000000,0x00060000,00000000,
@@ -1275,9 +1275,9 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 /* mpb_labort
  *
  * ctr0: counts L_ABORT_ALU0L
- * ctr1: counts L_ABORT_ALU1L 
- * ctr2: counts MPB0H 
- * ctr3: counts MPB1H 
+ * ctr1: counts L_ABORT_ALU1L
+ * ctr2: counts MPB0H
+ * ctr3: counts MPB1H
  */
 {
 0x0c00c000,00000000,0x00060000,00000000,
@@ -1320,9 +1320,9 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* panic
  *
- * ctr0: is the overflow for counter 1 
- * ctr1: counts traps and RFI's 
- * ctr2: counts panic traps 
+ * ctr0: is the overflow for counter 1
+ * ctr1: counts traps and RFI's
+ * ctr2: counts panic traps
  * ctr3: is the overflow for counter 2
  */
 {
@@ -1366,10 +1366,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* rare_inst
  *
- * ctr0: counts sync and syncdma instructions 
- * ctr1: counts pxtlbx,x instructions 
- * ctr2: counts ixtlbt instructions 
- * ctr3: counts cycles 
+ * ctr0: counts sync and syncdma instructions
+ * ctr1: counts pxtlbx,x instructions
+ * ctr2: counts ixtlbt instructions
+ * ctr3: counts cycles
  */
 {
 0x0c01e000,00000000,0x00060000,00000000,
@@ -1412,10 +1412,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* rw_dfet (for D-cache misses and writebacks)
  *
- * ctr0: counts address valid cycles 
- * ctr1: counts *all* data valid cycles 
- * ctr2: is the overflow from counter 0 
- * ctr3: is the overflow from counter 1 
+ * ctr0: counts address valid cycles
+ * ctr1: counts *all* data valid cycles
+ * ctr2: is the overflow from counter 0
+ * ctr3: is the overflow from counter 1
  */
 {
 0x0c01e000,00000000,0x00060000,00000000,
@@ -1458,10 +1458,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* rw_ifet (I-cache misses -- actually dumb READ transactions)
  *
- * ctr0: counts address valid cycles 
- * ctr1: counts *all* data valid cycles 
- * ctr2: is the overflow from counter 0 
- * ctr3: is the overflow from counter 1 
+ * ctr0: counts address valid cycles
+ * ctr1: counts *all* data valid cycles
+ * ctr2: is the overflow from counter 0
+ * ctr3: is the overflow from counter 1
  */
 {
 0x0c01e000,00000000,0x00060000,00000000,
@@ -1506,9 +1506,9 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 /* rw_sdfet (READ_SHARED_OR_PRIVATE transactions)
  *
  * ctr0: counts address valid cycles
- * ctr1: counts *all* data valid cycles 
- * ctr2: is the overflow from counter 0 
- * ctr3: is the overflow from counter 1 
+ * ctr1: counts *all* data valid cycles
+ * ctr2: is the overflow from counter 0
+ * ctr3: is the overflow from counter 1
  */
 {
 0x0c01e000,00000000,0x00060000,00000000,
@@ -1567,11 +1567,11 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  * eventually called for by the IFU; if it is close to 2, almost no prefetches
  * are useful and they are wasted bus traffic.
  *
- * ctr0: counts ICORE_AV 
- * ctr1: counts IRTN_AV 
- * ctr2: counts all non-coherent READ transactions on Runway. (TTYPE D0) 
+ * ctr0: counts ICORE_AV
+ * ctr1: counts IRTN_AV
+ * ctr2: counts all non-coherent READ transactions on Runway. (TTYPE D0)
  *	This should be just I-cache miss and I-prefetch transactions.
- * ctr3: counts total processor cycles 
+ * ctr3: counts total processor cycles
  */
 {
 0x0c000000,00000000,0x00060000,00000000,
@@ -1615,10 +1615,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 /* st_cond0
  *
  * ctr0: is the overflow for ctr1
- * ctr1: counts major ops 0C and 0E (fp ops, not fmac or fmpyadd) 
+ * ctr1: counts major ops 0C and 0E (fp ops, not fmac or fmpyadd)
  * ctr2: counts B,L (including long and push) and GATE (including nullified),
  *	 predicted not-taken
- * ctr3: is the overflow for ctr2 
+ * ctr3: is the overflow for ctr2
  */
 {
 0x4c01e000,00000000,0x00060000,00000000,
@@ -1661,10 +1661,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* st_cond1
  *
- * ctr0: is the overflow for ctr1 
- * ctr1: counts major ops 1x (most of the load/stores) 
- * ctr2: counts CMPB (dw) predicted not-taken 
- * ctr3: is the overflow for ctr2 
+ * ctr0: is the overflow for ctr1
+ * ctr1: counts major ops 1x (most of the load/stores)
+ * ctr2: counts CMPB (dw) predicted not-taken
+ * ctr3: is the overflow for ctr2
  */
 {
 0x4c01e000,00000000,0x00060000,00000000,
@@ -1707,10 +1707,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* st_cond2
  *
- * ctr0: is the overflow for ctr1 
- * ctr1: counts major op 03 
- * ctr2: counts CMPIB (dw) predicted not taken. 
- * ctr3: is the overflow for ctr2 
+ * ctr0: is the overflow for ctr1
+ * ctr1: counts major op 03
+ * ctr2: counts CMPIB (dw) predicted not taken.
+ * ctr3: is the overflow for ctr2
  */
 {
 0x4c01e000,00000000,0x00060000,00000000,
@@ -1753,10 +1753,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* st_cond3
  *
- * ctr0: is the overflow for ctr1 
- * ctr1: counts major ops 06 & 26 
- * ctr2: counts BB, BVB, MOVB, MOVIB (incl. nullified) predicted not-taken 
- * ctr3: is the overflow for ctr2 
+ * ctr0: is the overflow for ctr1
+ * ctr1: counts major ops 06 & 26
+ * ctr2: counts BB, BVB, MOVB, MOVIB (incl. nullified) predicted not-taken
+ * ctr3: is the overflow for ctr2
  */
 {
 0x4c01e000,00000000,0x00060000,00000000,
@@ -1799,10 +1799,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* st_cond4
  *
- * ctr0: is the overflow for ctr1 
- * ctr1: counts major op 2E 
- * ctr2: counts CMPB, CMPIB, ADDB, ADDIB (incl. nullified) predicted not-taken 
- * ctr3: is the overflow for ctr2 
+ * ctr0: is the overflow for ctr1
+ * ctr1: counts major op 2E
+ * ctr2: counts CMPB, CMPIB, ADDB, ADDIB (incl. nullified) predicted not-taken
+ * ctr3: is the overflow for ctr2
  */
 {
 0x4c01e000,00000000,0x00060000,00000000,
@@ -1845,10 +1845,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* st_unpred0
  *
- * ctr0: is the overflow for ctr1 
- * ctr1: counts BE and BE,L 
- * ctr2: counts BE and BE,L including nullified 
- * ctr3: is the overflow for ctr2 
+ * ctr0: is the overflow for ctr1
+ * ctr1: counts BE and BE,L
+ * ctr2: counts BE and BE,L including nullified
+ * ctr3: is the overflow for ctr2
  */
 {
 0x4c01e000,00000000,0x00060000,00000000,
@@ -1891,10 +1891,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* st_unpred1
  *
- * ctr0: is the overflow for ctr1 
- * ctr1: counts BLR, BV, BVE, BVE,L 
- * ctr2: counts BLR, BV, BVE, BVE,L including nullified 
- * ctr3: is the overflow for ctr2 
+ * ctr0: is the overflow for ctr1
+ * ctr1: counts BLR, BV, BVE, BVE,L
+ * ctr2: counts BLR, BV, BVE, BVE,L including nullified
+ * ctr3: is the overflow for ctr2
  */
 {
 0x4c01e000,00000000,0x00060000,00000000,
@@ -1937,10 +1937,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* unpred
  *
- * ctr0: counts non-nullified unpredictable branches 
- * ctr1: is the overflow for ctr0 
- * ctr2: counts all unpredictable branches (nullified or not) 
- * ctr3: is the overflow for ctr2 
+ * ctr0: counts non-nullified unpredictable branches
+ * ctr1: is the overflow for ctr0
+ * ctr2: counts all unpredictable branches (nullified or not)
+ * ctr3: is the overflow for ctr2
  */
 {
 0xcc01e000,00000000,0x00060000,00000000,
@@ -1980,14 +1980,14 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 0xffffffff,0xffffffff,0xffffffff,0xffffffff,
 0xffffffff,0xffffffff,0xffffffff,0xffffffff,
 0xffffffff,0xffffffff },
-   
+
 
 /* go_store
  *
- * ctr0: Overflow for counter 2 
- * ctr1: Overflow for counter 3 
- * ctr2: count of GO_STORE_E signal 
- * ctr3: count of GO_STORE_O signal 
+ * ctr0: Overflow for counter 2
+ * ctr1: Overflow for counter 3
+ * ctr2: count of GO_STORE_E signal
+ * ctr3: count of GO_STORE_O signal
  */
 
    {
@@ -2033,10 +2033,10 @@ static uint32_t onyx_images[][PCXU_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 /* shlib_call
  *
- * ctr0: SharedLib call Depth1 
- * ctr1: SharedLib call Depth2 
- * ctr2: SharedLib call Depth3 
- * ctr3: SharedLib call Depth>3 
+ * ctr0: SharedLib call Depth1
+ * ctr1: SharedLib call Depth2
+ * ctr2: SharedLib call Depth3
+ * ctr3: SharedLib call Depth>3
  */
    {
    0x0c01e000,   0x00000000,   0x00060000,   0x00000000,
@@ -2092,41 +2092,41 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  * ctr3 : total instructions retired, less nullified instructions
  */
    {
-   0x4c00c000,   0x00000000,   0x00060000,   0x00000000, 
-   0xe0e0e0e0,   0x00001fff,   0xfc00007f,   0xfff00001, 
-   0xffffc000,   0x07ffff00,   0x07ffffff,   0x6007ffff, 
-   0xff0007ff,   0xffff0007,   0xffffff00,   0x00000000, 
-   0x60f00000,   0x0fffff00,   0x000fffff,   0x00000fff, 
-   0xff00000f,   0xffff0000,   0x00000000,   0x00ffffff, 
-   0xfffff000,   0x0000000f,   0xffffffff,   0xff000000, 
-   0x0000ffff,   0xfffffff0,   0x00000000,   0x0fffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0x00270000,   0x00000055, 
-   0x0200000e,   0x4d300000,   0x00000000,   0x0ff00002, 
-   0x70000000,   0x00000020,   0x0000e400,   0x00000ff0, 
-   0x00000000,   0x00000000,   0x00000055,   0xffffff00, 
-   0x00000000,   0x0000ff00,   0x00000000,   0x0f000000, 
-   0x0000055f,   0xfffff000,   0x00000000,   0x000ff000, 
-   0x00000000,   0x00000000,   0x000055ff,   0xffff0000, 
-   0x00000000,   0x00ff0000,   0x00000000,   0xf0000000, 
-   0x000055ff,   0xffff0000,   0x00000000,   0x00ff0000, 
-   0x00000000,   0x00000000,   0x00055fff,   0xfff00000, 
-   0x00000000,   0x0ff00000,   0x00000030,   0x00000000, 
-   0x00157fff,   0xffc00000,   0x034c0000,   0x00000000, 
-   0x03fc0000,   0x00000000,   0x6fff0000,   0x00000000, 
-   0x60000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff7fbfc,   0x00000000,   0xffffafff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffafff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00030000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x4c00c000,   0x00000000,   0x00060000,   0x00000000,
+   0xe0e0e0e0,   0x00001fff,   0xfc00007f,   0xfff00001,
+   0xffffc000,   0x07ffff00,   0x07ffffff,   0x6007ffff,
+   0xff0007ff,   0xffff0007,   0xffffff00,   0x00000000,
+   0x60f00000,   0x0fffff00,   0x000fffff,   0x00000fff,
+   0xff00000f,   0xffff0000,   0x00000000,   0x00ffffff,
+   0xfffff000,   0x0000000f,   0xffffffff,   0xff000000,
+   0x0000ffff,   0xfffffff0,   0x00000000,   0x0fffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0x00270000,   0x00000055,
+   0x0200000e,   0x4d300000,   0x00000000,   0x0ff00002,
+   0x70000000,   0x00000020,   0x0000e400,   0x00000ff0,
+   0x00000000,   0x00000000,   0x00000055,   0xffffff00,
+   0x00000000,   0x0000ff00,   0x00000000,   0x0f000000,
+   0x0000055f,   0xfffff000,   0x00000000,   0x000ff000,
+   0x00000000,   0x00000000,   0x000055ff,   0xffff0000,
+   0x00000000,   0x00ff0000,   0x00000000,   0xf0000000,
+   0x000055ff,   0xffff0000,   0x00000000,   0x00ff0000,
+   0x00000000,   0x00000000,   0x00055fff,   0xfff00000,
+   0x00000000,   0x0ff00000,   0x00000030,   0x00000000,
+   0x00157fff,   0xffc00000,   0x034c0000,   0x00000000,
+   0x03fc0000,   0x00000000,   0x6fff0000,   0x00000000,
+   0x60000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff7fbfc,   0x00000000,   0xffffafff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffafff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00030000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
@@ -2188,41 +2188,41 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  */
 
    {
-   0x0c00c000,   0x00000000,   0x00060000,   0x00000000, 
-   0xe7e7e0e0,   0x00001fff,   0xfc00007f,   0xfff00001, 
-   0xfff00000,   0x07ffff00,   0x07ffffff,   0x6007ffff, 
-   0xa00007ff,   0xffff0007,   0xffffff00,   0x00000000, 
-   0x603001c1,   0xe0000001,   0xc0c00000,   0x00000fff, 
-   0xff00000f,   0xffff0000,   0x00000000,   0x00400000, 
-   0x00001000,   0x00000004,   0x00000000,   0x01000000, 
-   0x0000ffff,   0xfffffff0,   0x00000000,   0x0fffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0x00800000,   0x00153f7f, 
-   0x55000000,   0xaf800000,   0xc0000000,   0x0403f240, 
-   0x00000000,   0x00001010,   0x00004700,   0x00000ff0, 
-   0x00000000,   0x00000000,   0x00000055,   0xffffff00, 
-   0x00000000,   0x0000ff00,   0x00000000,   0x0f000000, 
-   0x0000055f,   0xfffff000,   0x00000000,   0x000ff000, 
-   0x00000000,   0x00000000,   0x000055ff,   0xffff0000, 
-   0x00000000,   0x00ff0000,   0x00000000,   0xf0000000, 
-   0x000055ff,   0xffff0000,   0x00000000,   0x00ff0000, 
-   0x00000000,   0x00000000,   0x00055fff,   0xfff00000, 
-   0x00000000,   0x0ff00000,   0x00000000,   0x00000000, 
-   0x00157fff,   0xffc00000,   0x00000000,   0x3fc00000, 
-   0x00040000,   0x00000000,   0x6fff0000,   0x00000000, 
-   0x60000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff7fbfc,   0x00000000,   0xffffafff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffafff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00030000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x0c00c000,   0x00000000,   0x00060000,   0x00000000,
+   0xe7e7e0e0,   0x00001fff,   0xfc00007f,   0xfff00001,
+   0xfff00000,   0x07ffff00,   0x07ffffff,   0x6007ffff,
+   0xa00007ff,   0xffff0007,   0xffffff00,   0x00000000,
+   0x603001c1,   0xe0000001,   0xc0c00000,   0x00000fff,
+   0xff00000f,   0xffff0000,   0x00000000,   0x00400000,
+   0x00001000,   0x00000004,   0x00000000,   0x01000000,
+   0x0000ffff,   0xfffffff0,   0x00000000,   0x0fffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0x00800000,   0x00153f7f,
+   0x55000000,   0xaf800000,   0xc0000000,   0x0403f240,
+   0x00000000,   0x00001010,   0x00004700,   0x00000ff0,
+   0x00000000,   0x00000000,   0x00000055,   0xffffff00,
+   0x00000000,   0x0000ff00,   0x00000000,   0x0f000000,
+   0x0000055f,   0xfffff000,   0x00000000,   0x000ff000,
+   0x00000000,   0x00000000,   0x000055ff,   0xffff0000,
+   0x00000000,   0x00ff0000,   0x00000000,   0xf0000000,
+   0x000055ff,   0xffff0000,   0x00000000,   0x00ff0000,
+   0x00000000,   0x00000000,   0x00055fff,   0xfff00000,
+   0x00000000,   0x0ff00000,   0x00000000,   0x00000000,
+   0x00157fff,   0xffc00000,   0x00000000,   0x3fc00000,
+   0x00040000,   0x00000000,   0x6fff0000,   0x00000000,
+   0x60000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff7fbfc,   0x00000000,   0xffffafff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffafff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00030000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
@@ -2234,41 +2234,41 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  * ctr3: overflow of ctr2
  */
    {
-   0x1c00c000,   0x00000000,   0x00060000,   0x00000000, 
-   0xe7e7e0e0,   0x00001fff,   0xfc00007f,   0xfff00001, 
-   0xfff00000,   0x07ffff00,   0x07ffffff,   0x6007ffff, 
-   0xa00007ff,   0xffff0007,   0xffffff00,   0x00000000, 
-   0x603001c1,   0xe0000001,   0xc0c00000,   0x00000fff, 
-   0xff00000f,   0xffff0000,   0x00000000,   0x00400000, 
-   0x00001000,   0x00000004,   0x00000000,   0x01000000, 
-   0x0000ffff,   0xfffffff0,   0x00000000,   0x0fffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0x006c0000,   0x01000054, 
-   0x02000002,   0xc3200000,   0xc00aa000,   0x0c03f240, 
-   0x00000000,   0x00001010,   0x000044f4,   0x00000c00, 
-   0xaa0000f0,   0x0f0000b0,   0x00005005,   0x0f5f0000, 
-   0x0001f000,   0x0000ff00,   0x00000000,   0x0f000000, 
-   0x0000055f,   0xfffff000,   0x00000000,   0x000ff000, 
-   0x00000000,   0x00000000,   0x000055ff,   0xffff0000, 
-   0x00000000,   0x00ff0000,   0x00000000,   0xf0000000, 
-   0x000055ff,   0xffff0000,   0x00000000,   0x00ff0000, 
-   0x00000000,   0x00000000,   0x00055fff,   0xfff00000, 
-   0x00000000,   0x0ff00a00,   0x000f0000,   0x24004000, 
-   0x15400001,   0x40c00003,   0x3da00000,   0x0002a800, 
-   0x00ff0000,   0x00000000,   0x6fff0000,   0x00000000, 
-   0x60000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff7fbfc,   0x00000000,   0xffffafff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffafff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00030000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x1c00c000,   0x00000000,   0x00060000,   0x00000000,
+   0xe7e7e0e0,   0x00001fff,   0xfc00007f,   0xfff00001,
+   0xfff00000,   0x07ffff00,   0x07ffffff,   0x6007ffff,
+   0xa00007ff,   0xffff0007,   0xffffff00,   0x00000000,
+   0x603001c1,   0xe0000001,   0xc0c00000,   0x00000fff,
+   0xff00000f,   0xffff0000,   0x00000000,   0x00400000,
+   0x00001000,   0x00000004,   0x00000000,   0x01000000,
+   0x0000ffff,   0xfffffff0,   0x00000000,   0x0fffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0x006c0000,   0x01000054,
+   0x02000002,   0xc3200000,   0xc00aa000,   0x0c03f240,
+   0x00000000,   0x00001010,   0x000044f4,   0x00000c00,
+   0xaa0000f0,   0x0f0000b0,   0x00005005,   0x0f5f0000,
+   0x0001f000,   0x0000ff00,   0x00000000,   0x0f000000,
+   0x0000055f,   0xfffff000,   0x00000000,   0x000ff000,
+   0x00000000,   0x00000000,   0x000055ff,   0xffff0000,
+   0x00000000,   0x00ff0000,   0x00000000,   0xf0000000,
+   0x000055ff,   0xffff0000,   0x00000000,   0x00ff0000,
+   0x00000000,   0x00000000,   0x00055fff,   0xfff00000,
+   0x00000000,   0x0ff00a00,   0x000f0000,   0x24004000,
+   0x15400001,   0x40c00003,   0x3da00000,   0x0002a800,
+   0x00ff0000,   0x00000000,   0x6fff0000,   0x00000000,
+   0x60000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff7fbfc,   0x00000000,   0xffffafff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffafff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00030000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
@@ -2281,41 +2281,41 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  */
 
    {
-   0xcc01e000,   0x00000000,   0x00000000,   0x00000000, 
-   0xa08080a0,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xfffffeff,   0xfffeffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000, 
-   0xf4ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0xd22d0000,   0x00000000, 
-   0x0000000b,   0x46000000,   0x00000000,   0x0ffff900, 
-   0x90000000,   0x00000000,   0x0000907e,   0x00000000, 
-   0x000000ff,   0xff00bfdf,   0x03030303,   0x03030000, 
-   0x000dbfff,   0xffffff00,   0x00000000,   0x0f0fffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000, 
-   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000, 
-   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff, 
-   0xffff5555,   0x55500000,   0x003f3ff0,   0x2766c000, 
-   0x00000000,   0x00000002,   0x67840000,   0x00000000, 
-   0x03fffc00,   0x00000000,   0xffff0000,   0x00000000, 
-   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff7fbfc,   0x00000000,   0xffffffff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00030000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0xcc01e000,   0x00000000,   0x00000000,   0x00000000,
+   0xa08080a0,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xfffffeff,   0xfffeffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000,
+   0xf4ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0xd22d0000,   0x00000000,
+   0x0000000b,   0x46000000,   0x00000000,   0x0ffff900,
+   0x90000000,   0x00000000,   0x0000907e,   0x00000000,
+   0x000000ff,   0xff00bfdf,   0x03030303,   0x03030000,
+   0x000dbfff,   0xffffff00,   0x00000000,   0x0f0fffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000,
+   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000,
+   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff,
+   0xffff5555,   0x55500000,   0x003f3ff0,   0x2766c000,
+   0x00000000,   0x00000002,   0x67840000,   0x00000000,
+   0x03fffc00,   0x00000000,   0xffff0000,   0x00000000,
+   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff7fbfc,   0x00000000,   0xffffffff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00030000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
@@ -2327,44 +2327,44 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  * ctr3: all branches
  */
    {
-   0xcc01e000,   0x00000000,   0x00000000,   0x00000000, 
-   0xe0c0c0e0,   0xffffffff,   0xffffffff,   0xffefffff, 
-   0xffffbfff,   0xfffffeff,   0xfffeffff,   0xfffffeff, 
-   0xfffffffe,   0xffffffff,   0xffffff00,   0x00000000, 
-   0xf4ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0xd22d0000,   0x00000000, 
-   0x0000000b,   0x46000000,   0x00000000,   0x0ffff900, 
-   0x90000000,   0x00000000,   0x0000907e,   0x00000000, 
-   0x000000ff,   0xff00bfdf,   0x03030303,   0x03030000, 
-   0x000dbfff,   0xffffff00,   0x00000000,   0x0f0fffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000, 
-   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000, 
-   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff, 
-   0xffff5555,   0x55500000,   0x003f3ff0,   0x2766c000, 
-   0x00000000,   0x00000002,   0x67840000,   0x00000000, 
-   0x03fffc00,   0x00000000,   0xffff0000,   0x00000000, 
-   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff7fbfc,   0x00000000,   0xffffffff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00030000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0xcc01e000,   0x00000000,   0x00000000,   0x00000000,
+   0xe0c0c0e0,   0xffffffff,   0xffffffff,   0xffefffff,
+   0xffffbfff,   0xfffffeff,   0xfffeffff,   0xfffffeff,
+   0xfffffffe,   0xffffffff,   0xffffff00,   0x00000000,
+   0xf4ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0xd22d0000,   0x00000000,
+   0x0000000b,   0x46000000,   0x00000000,   0x0ffff900,
+   0x90000000,   0x00000000,   0x0000907e,   0x00000000,
+   0x000000ff,   0xff00bfdf,   0x03030303,   0x03030000,
+   0x000dbfff,   0xffffff00,   0x00000000,   0x0f0fffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000,
+   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000,
+   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff,
+   0xffff5555,   0x55500000,   0x003f3ff0,   0x2766c000,
+   0x00000000,   0x00000002,   0x67840000,   0x00000000,
+   0x03fffc00,   0x00000000,   0xffff0000,   0x00000000,
+   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff7fbfc,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff7fbfc,   0x00000000,   0xffffffff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00030000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
-   
+
 /* IMISS image (Image 6)
  *
  * ctr0 : icache misses for retired instructions
@@ -2373,41 +2373,41 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  * ctr3 : number of retired instructions
  */
    {
-   0x2801e000,   0x00000000,   0x00010000,   0x00000000, 
-   0x00001000,   0xffffffff,   0xffffffff,   0xfff00fff, 
-   0xfffa3fff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000, 
-   0xf0ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0xf2fdf0f0,   0xf0f0f0f0, 
-   0xffffffff,   0xf6c00000,   0x00000000,   0x0ff55800, 
-   0x90000000,   0x00000000,   0x0000b0ff,   0xfffffff0, 
-   0x00000003,   0x0100bfff,   0x3f3f3f3f,   0x3f3f5555, 
-   0x555fffff,   0xffffff00,   0x00000000,   0x000fffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000, 
-   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000, 
-   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xfff00000,   0x000301b0,   0x2fefcfcf, 
-   0xcfcfcfcf,   0xd5555557,   0xf7b40000,   0x00000000, 
-   0x03c14000,   0x00000000,   0xffff0000,   0x00000000, 
-   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00130000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x2801e000,   0x00000000,   0x00010000,   0x00000000,
+   0x00001000,   0xffffffff,   0xffffffff,   0xfff00fff,
+   0xfffa3fff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000,
+   0xf0ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0xf2fdf0f0,   0xf0f0f0f0,
+   0xffffffff,   0xf6c00000,   0x00000000,   0x0ff55800,
+   0x90000000,   0x00000000,   0x0000b0ff,   0xfffffff0,
+   0x00000003,   0x0100bfff,   0x3f3f3f3f,   0x3f3f5555,
+   0x555fffff,   0xffffff00,   0x00000000,   0x000fffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000,
+   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000,
+   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xfff00000,   0x000301b0,   0x2fefcfcf,
+   0xcfcfcfcf,   0xd5555557,   0xf7b40000,   0x00000000,
+   0x03c14000,   0x00000000,   0xffff0000,   0x00000000,
+   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00130000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
@@ -2419,46 +2419,46 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  * ctr3 : number of retired instructions
  */
    {
-   0x2801e000,   0x00000000,   0x00010000,   0x00000000, 
-   0x00001000,   0xffffffff,   0xffffffff,   0xfff00fff, 
-   0xfffa3fff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000, 
-   0xf0ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0xf2fdf0f0,   0xf0f0f0f0, 
-   0xffffffff,   0xf6c00000,   0x00000000,   0x0ff55800, 
-   0x90000000,   0x00000000,   0x0000b0ff,   0xfffffff0, 
-   0x00000003,   0x0100bfff,   0x3f3f3f3f,   0x3f3f5555, 
-   0x555fffff,   0xffffff00,   0x00000000,   0x000fffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000, 
-   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000, 
-   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xfff00000,   0x000301b0,   0x2fefcfcf, 
-   0xcfcfcfcf,   0xd5555557,   0xf7b40000,   0x00000000, 
-   0x03c14000,   0x00000000,   0xffff0000,   0x00000000, 
-   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00130000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x2801e000,   0x00000000,   0x00010000,   0x00000000,
+   0x00001000,   0xffffffff,   0xffffffff,   0xfff00fff,
+   0xfffa3fff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000,
+   0xf0ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0xf2fdf0f0,   0xf0f0f0f0,
+   0xffffffff,   0xf6c00000,   0x00000000,   0x0ff55800,
+   0x90000000,   0x00000000,   0x0000b0ff,   0xfffffff0,
+   0x00000003,   0x0100bfff,   0x3f3f3f3f,   0x3f3f5555,
+   0x555fffff,   0xffffff00,   0x00000000,   0x000fffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000,
+   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000,
+   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xfff00000,   0x000301b0,   0x2fefcfcf,
+   0xcfcfcfcf,   0xd5555557,   0xf7b40000,   0x00000000,
+   0x03c14000,   0x00000000,   0xffff0000,   0x00000000,
+   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00130000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
 /* dmiss_access image    FROM DMISS_RATIO.IDF  (Image 8)
- * 
+ *
  * ctr0 : all loads and stores that retire (even lines)
  * ctr1 : all loads and stores that retire (odd lines)
  * ctr2 : dcache misses of retired loads/stores
@@ -2466,51 +2466,51 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  *        (Speculative and Non-Speculative)
  */
    {
-   0x2d81e000,   0x00000000,   0x00000000,   0x00000000, 
-   0x10101010,   0x00ffffff,   0xa003ffff,   0xfe800fff, 
-   0xfffa003f,   0xffffe8ff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000, 
-   0xf0ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0xd2280a00,   0x00000000, 
-   0x0000000b,   0x46000000,   0x00000005,   0x555ff900, 
-   0x80200000,   0x00000000,   0x0000907e,   0x00000000, 
-   0x00005555,   0xff80bf8b,   0xab030303,   0x03030000, 
-   0x000dbfff,   0xffffff00,   0x00000000,   0x000fffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000, 
-   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000, 
-   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff, 
-   0xffff5555,   0x55500000,   0x15153fe0,   0x27628880, 
-   0x00000000,   0x00000002,   0x67840000,   0x00000001, 
-   0x5557fc00,   0x00000000,   0xffff0000,   0x00000000, 
-   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00110000,   0x00000000, 
-   0xf4ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xf8ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0x00ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x2d81e000,   0x00000000,   0x00000000,   0x00000000,
+   0x10101010,   0x00ffffff,   0xa003ffff,   0xfe800fff,
+   0xfffa003f,   0xffffe8ff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000,
+   0xf0ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0xd2280a00,   0x00000000,
+   0x0000000b,   0x46000000,   0x00000005,   0x555ff900,
+   0x80200000,   0x00000000,   0x0000907e,   0x00000000,
+   0x00005555,   0xff80bf8b,   0xab030303,   0x03030000,
+   0x000dbfff,   0xffffff00,   0x00000000,   0x000fffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000,
+   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000,
+   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff,
+   0xffff5555,   0x55500000,   0x15153fe0,   0x27628880,
+   0x00000000,   0x00000002,   0x67840000,   0x00000001,
+   0x5557fc00,   0x00000000,   0xffff0000,   0x00000000,
+   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00110000,   0x00000000,
+   0xf4ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xf8ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0x00ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0x00ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
 
 /* big_cpi image  (Image 9)
- * 
- * ctr0 : Total number of CPU clock cycles. 
- * ctr1 : Unused 
+ *
+ * ctr0 : Total number of CPU clock cycles.
+ * ctr1 : Unused
  * ctr2 : Unused
- * ctr3 : Total number of Non-Nullified instructions retired. 
+ * ctr3 : Total number of Non-Nullified instructions retired.
  */
    {
    0x0c00c000,   0x00000000,   0x00060000,   0x00000000,
@@ -2552,11 +2552,11 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
    },
 
 /* big_ls image  (Image 10)
- * 
- * ctr0 : Total number of CPU clock cycles during which local_stall_A1 is asserted 
- * ctr1 : Overflow of Counter 0 
- * ctr2 : Total number of IFLUSH_AV 
- * ctr3 : Overflow of Counter 2 
+ *
+ * ctr0 : Total number of CPU clock cycles during which local_stall_A1 is asserted
+ * ctr1 : Overflow of Counter 0
+ * ctr2 : Total number of IFLUSH_AV
+ * ctr3 : Overflow of Counter 2
  */
    {
    0x0c000000,   0x00000000,   0x00060000,   0x00000000,
@@ -2598,7 +2598,7 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
    },
 
 /* br_abort image  (Image 12)
- * 
+ *
  * ctr0 : Total number of BRAD_STALLH
  * ctr1 : Total number of ONE_QUAD
  * ctr2 : Total number of BR0_ABRT
@@ -2646,11 +2646,11 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 
 /* isnt image  (Image 13)
- * 
- * ctr0 : Total number of cycles for which iside_notrans is asserted. 
- * ctr1 : Total number of times iside_notrans is asserted for 1-4 cycles. 
- * ctr2 : Total number of times iside_notrans is asserted for 5-7 cycles. 
- * ctr3 : Total number of times iside_notrans is asserted for > 7 cycles. 
+ *
+ * ctr0 : Total number of cycles for which iside_notrans is asserted.
+ * ctr1 : Total number of times iside_notrans is asserted for 1-4 cycles.
+ * ctr2 : Total number of times iside_notrans is asserted for 5-7 cycles.
+ * ctr3 : Total number of times iside_notrans is asserted for > 7 cycles.
  */
 
    {
@@ -2693,11 +2693,11 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
    },
 
 /* quadrant image  (image 14)
- * 
- * ctr0 : Total number of instructions in quadrant 0. 
- * ctr1 : Total number of instructions in quadrant 1. 
- * ctr2 : Total number of instructions in quadrant 2. 
- * ctr3 : Total number of instructions in quadrant 3. 
+ *
+ * ctr0 : Total number of instructions in quadrant 0.
+ * ctr1 : Total number of instructions in quadrant 1.
+ * ctr2 : Total number of instructions in quadrant 2.
+ * ctr3 : Total number of instructions in quadrant 3.
  *
  * Only works for 32-bit applications.
  */
@@ -2742,11 +2742,11 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
    },
 
 /* rw_pdfet image (Image 15)
- * 
- * ctr0 : Total of all READ_PRIV address valid cycles. 
- * ctr1 : Total of all READ_PRIV data valid cycles. 
- * ctr2 : Overflow of Counter 0. 
- * ctr3 : Overflow of Counter 1. 
+ *
+ * ctr0 : Total of all READ_PRIV address valid cycles.
+ * ctr1 : Total of all READ_PRIV data valid cycles.
+ * ctr2 : Overflow of Counter 0.
+ * ctr3 : Overflow of Counter 1.
  */
 
    {
@@ -2790,11 +2790,11 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
 
 
 /* rw_wdfet image  (Image 16)
- * 
- * ctr0 : Counts total number of writeback transactions. 
- * ctr1 : Total number of data valid Runway cycles. 
- * ctr2 : Overflow of Counter 0. 
- * ctr3 : Overflow of Counter 1. 
+ *
+ * ctr0 : Counts total number of writeback transactions.
+ * ctr1 : Total number of data valid Runway cycles.
+ * ctr2 : Overflow of Counter 0.
+ * ctr3 : Overflow of Counter 1.
  */
 
    {
@@ -2837,11 +2837,11 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
    },
 
 /* shlib_cpi image  (Image 17)
- * 
- * ctr0 : Total number of instructions in quadrant 0. 
- * ctr1 : Total number of CPU clock cycles in quadrant 0. 
- * ctr2 : Total number of Non-Nullified instructions retired. 
- * ctr3 : Total number of CPU clock cycles. 
+ *
+ * ctr0 : Total number of instructions in quadrant 0.
+ * ctr1 : Total number of CPU clock cycles in quadrant 0.
+ * ctr2 : Total number of Non-Nullified instructions retired.
+ * ctr3 : Total number of CPU clock cycles.
  *
  * Only works for 32-bit shared libraries.
  */
@@ -2886,11 +2886,11 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
    },
 
 /* flop image  (Image 18)
- * 
- * ctr0 : Total number of floating point instructions (opcode = 0xc). 
- * ctr1 : Total number of floating point instructions (opcode = 0xe, 0x6, 0x2e, 0x26). 
+ *
+ * ctr0 : Total number of floating point instructions (opcode = 0xc).
+ * ctr1 : Total number of floating point instructions (opcode = 0xe, 0x6, 0x2e, 0x26).
  * ctr2 : Unused
- * ctr3 : Unused 
+ * ctr3 : Unused
  */
 
    {
@@ -2940,89 +2940,89 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  * ctr3 : number of retired instructions
  */
    {
-   0x2801e000,   0x00000000,   0x00010000,   0x00000000, 
-   0x00001000,   0xffffffff,   0xffffffff,   0xfff00fff, 
-   0xfffa3fff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000, 
-   0xf0ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0xf2fdf0f0,   0xf0f0f0f0, 
-   0xffffffff,   0xf6c00000,   0x00000000,   0x0ff55800, 
-   0x90000000,   0x00000000,   0x0000b0ff,   0xfffffff0, 
-   0x00000003,   0x0100bfff,   0x3f3f3f3f,   0x3f3f5555, 
-   0x555fffff,   0xffffff00,   0x00000000,   0x000fffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000, 
-   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000, 
-   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xfff00000,   0x000301b0,   0x2fefcfcf, 
-   0xcfcfcfcf,   0xd5555557,   0xf7b40000,   0x00000000, 
-   0x03c14000,   0x00000000,   0xffff0000,   0x00000000, 
-   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00130000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x2801e000,   0x00000000,   0x00010000,   0x00000000,
+   0x00001000,   0xffffffff,   0xffffffff,   0xfff00fff,
+   0xfffa3fff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000,
+   0xf0ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0xf2fdf0f0,   0xf0f0f0f0,
+   0xffffffff,   0xf6c00000,   0x00000000,   0x0ff55800,
+   0x90000000,   0x00000000,   0x0000b0ff,   0xfffffff0,
+   0x00000003,   0x0100bfff,   0x3f3f3f3f,   0x3f3f5555,
+   0x555fffff,   0xffffff00,   0x00000000,   0x000fffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000,
+   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000,
+   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xfff00000,   0x000301b0,   0x2fefcfcf,
+   0xcfcfcfcf,   0xd5555557,   0xf7b40000,   0x00000000,
+   0x03c14000,   0x00000000,   0xffff0000,   0x00000000,
+   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00130000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
-/* branch   FROM br_report3.idf 
+/* branch   FROM br_report3.idf
  *
- * ctr0 : Total number of mispredicted branches. 
- * ctr1 : Some Non-Nullified unpredictable branches. 
+ * ctr0 : Total number of mispredicted branches.
+ * ctr1 : Some Non-Nullified unpredictable branches.
  * ctr2 : Total number of branches (Nullified + Non-Nullified)
- *        (Unpredicted+ Predicted Taken +Predicted Not Taken). 
+ *        (Unpredicted+ Predicted Taken +Predicted Not Taken).
  *	  Total of All Branches.
  * ctr3 : Remaining Non-Nullified unpredictable branches.
  */
    {
-   0x4001e000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0xffffffff,   0xff9fffff,   0xfe0fffff, 
-   0xffffbaff,   0xfdffc0ff,   0xfffdffff,   0xfffffeff, 
-   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000, 
-   0xf4ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0xd22d0000,   0x00000000, 
-   0x0000000b,   0x46000000,   0x00000000,   0x0ffff900, 
-   0x90000000,   0x00000000,   0x0000907e,   0x00000000, 
-   0x000000ff,   0xff00bfdf,   0x03030303,   0x03030000, 
-   0x000dbfff,   0xffffff00,   0x00000000,   0x000fffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000, 
-   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000, 
-   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff, 
-   0xffff5555,   0x55500000,   0x003f3ff0,   0x2766c000, 
-   0x00000000,   0x00000002,   0x67840000,   0x00000000, 
-   0x03fffc00,   0x00000000,   0xffff0000,   0x00000000, 
-   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00130000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x4001e000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0xffffffff,   0xff9fffff,   0xfe0fffff,
+   0xffffbaff,   0xfdffc0ff,   0xfffdffff,   0xfffffeff,
+   0xffffffff,   0xffffffff,   0xffffff00,   0x00000000,
+   0xf4ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0xd22d0000,   0x00000000,
+   0x0000000b,   0x46000000,   0x00000000,   0x0ffff900,
+   0x90000000,   0x00000000,   0x0000907e,   0x00000000,
+   0x000000ff,   0xff00bfdf,   0x03030303,   0x03030000,
+   0x000dbfff,   0xffffff00,   0x00000000,   0x000fffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000,
+   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000,
+   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff,
+   0xffff5555,   0x55500000,   0x003f3ff0,   0x2766c000,
+   0x00000000,   0x00000002,   0x67840000,   0x00000000,
+   0x03fffc00,   0x00000000,   0xffff0000,   0x00000000,
+   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00130000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
@@ -3034,51 +3034,51 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
  * ctr3: remaining procedure returns
  */
    {
-   0x4001e000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0xffffffff,   0xffa10300,   0x000fffff, 
-   0xffffbaf8,   0x3000007f,   0xffffffff,   0xfffffeff, 
-   0xff7fffff,   0xffffffff,   0xffffff00,   0x00000000, 
-   0xf2ffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffff0000,   0x00000000,   0x00000000,   0x00000000, 
-   0x00000000,   0x00000000,   0xd22d0000,   0x00000000, 
-   0x0000000b,   0x46000000,   0x00000000,   0x0ffff900, 
-   0x90000000,   0x00000000,   0x0000907e,   0x00000000, 
-   0x000000ff,   0xff00bfdf,   0x03030303,   0x03030000, 
-   0x000dbfff,   0xffffff00,   0x00000000,   0x000fffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000, 
-   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000, 
-   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff, 
-   0xffff5555,   0x55500000,   0x003f3ff0,   0x2766c000, 
-   0x00000000,   0x00000002,   0x67840000,   0x00000000, 
-   0x03fffc00,   0x00000000,   0xffff0000,   0x00000000, 
-   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff, 
-   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000, 
-   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff, 
-   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f, 
-   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc, 
-   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff, 
-   0xfe000000,   0x00000000,   0x00130000,   0x00000000, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
-   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff, 
+   0x4001e000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0xffffffff,   0xffa10300,   0x000fffff,
+   0xffffbaf8,   0x3000007f,   0xffffffff,   0xfffffeff,
+   0xff7fffff,   0xffffffff,   0xffffff00,   0x00000000,
+   0xf2ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffff0000,   0x00000000,   0x00000000,   0x00000000,
+   0x00000000,   0x00000000,   0xd22d0000,   0x00000000,
+   0x0000000b,   0x46000000,   0x00000000,   0x0ffff900,
+   0x90000000,   0x00000000,   0x0000907e,   0x00000000,
+   0x000000ff,   0xff00bfdf,   0x03030303,   0x03030000,
+   0x000dbfff,   0xffffff00,   0x00000000,   0x000fffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xfffff000,
+   0x00000000,   0x00ffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffff0000,   0x00000000,   0xf0ffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffff0000,
+   0x00000000,   0x0fffffff,   0xffffffff,   0xffffffff,
+   0xffff5555,   0x55500000,   0x003f3ff0,   0x2766c000,
+   0x00000000,   0x00000002,   0x67840000,   0x00000000,
+   0x03fffc00,   0x00000000,   0xffff0000,   0x00000000,
+   0xf0000000,   0x00000000,   0x00ffffff,   0xff3fffff,
+   0xffffffff,   0xffcfffff,   0xfff6fb7c,   0x00000000,
+   0x00ffffff,   0xff3fffff,   0xffffffff,   0xffcfffff,
+   0xfff6fb7c,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffff0fff,   0xffffff3f,
+   0xffffffff,   0xffffff7f,   0xffffffff,   0xfffffefc,
+   0x00000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0xffffffff,   0xfffff9ff,
+   0xfe000000,   0x00000000,   0x00130000,   0x00000000,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
+   0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    },
 
-/* icache_report image 
- * 
- * ctr0 : Icache misses actually used by the core. 
- * ctr1 : ICORE_AV (Icache misses the core THINKS it needs, including fetching down speculative paths). 
+/* icache_report image
+ *
+ * ctr0 : Icache misses actually used by the core.
+ * ctr1 : ICORE_AV (Icache misses the core THINKS it needs, including fetching down speculative paths).
  * ctr2 : READs on Runway (Icache misses that made it out to Runway, including
  *	  prefetches).
- * ctr3 : Prefetch returns (1x and 2x). 
+ * ctr3 : Prefetch returns (1x and 2x).
  */
    {
    0x00000000,   0x00000000,   0x00010000,   0x00000000,
@@ -3117,7 +3117,7 @@ static uint32_t cuda_images[][PCXW_IMAGE_SIZE/sizeof(uint32_t)] __ro_after_init 
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0x00ffffff,   0xffffffff,   0xffffffff,   0xffffffff,
    0xffffffff,   0xffffffff,   0xffffffff,   0xffffffff,
-   
+
    }
 
 };

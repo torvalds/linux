@@ -87,7 +87,7 @@ struct compressor {
  * The return value from decompress routine is the length of the
  * decompressed packet if successful, otherwise DECOMP_ERROR
  * or DECOMP_FATALERROR if an error occurred.
- * 
+ *
  * We need to make this distinction so that we can disable certain
  * useful functionality, namely sending a CCP reset-request as a result
  * of an error detected after decompression.  This is to avoid infringing

@@ -103,7 +103,7 @@ wildfire_init_hose(int qbbno, int hoseno)
          * Set up the PCI to main memory translation windows.
          *
          * Note: Window 3 is scatter-gather only
-         * 
+         *
          * Window 0 is scatter-gather 8MB at 8MB (for isa)
 	 * Window 1 is direct access 1GB at 1GB
 	 * Window 2 is direct access 1GB at 2GB
@@ -319,7 +319,7 @@ wildfire_init_arch(void)
 		wildfire_init_qbb(qbbno);
 	}
 
-	/* Normal direct PCI DMA mapping. */ 
+	/* Normal direct PCI DMA mapping. */
 	__direct_map_base = 0x40000000UL;
 	__direct_map_size = 0x80000000UL;
 }
@@ -372,13 +372,13 @@ mk_conf_addr(struct pci_bus *pbus, unsigned int device_fn, int where,
 
 	addr = (bus << 16) | (device_fn << 8) | where;
 	addr |= hose->config_space_base;
-		
+
 	*pci_addr = addr;
 	DBG_CFG(("mk_conf_addr: returning pci_addr 0x%lx\n", addr));
 	return 0;
 }
 
-static int 
+static int
 wildfire_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 		     int size, u32 *value)
 {
@@ -403,7 +403,7 @@ wildfire_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int 
+static int
 wildfire_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 		      int size, u32 value)
 {
@@ -434,7 +434,7 @@ wildfire_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_ops wildfire_pci_ops = 
+struct pci_ops wildfire_pci_ops =
 {
 	.read =		wildfire_read_config,
 	.write =	wildfire_write_config,
@@ -588,10 +588,10 @@ wildfire_dump_iop_regs(int qbbno)
 	printk(KERN_ERR " IOP_HOSE_CREDITS:    0x%16lx\n",
 	       iop->iop_hose_credits.csr);
 
-	for (i = 0; i < 4; i++) 
+	for (i = 0; i < 4; i++)
 		printk(KERN_ERR " IOP_HOSE_%d_INIT:     0x%16lx\n",
 		       i, iop->iop_hose[i].init.csr);
-	for (i = 0; i < 4; i++) 
+	for (i = 0; i < 4; i++)
 		printk(KERN_ERR " IOP_DEV_INT_TARGET_%d: 0x%16lx\n",
 		       i, iop->iop_dev_int[i].target.csr);
 
@@ -605,7 +605,7 @@ wildfire_dump_gp_regs(int qbbno)
 	int i;
 
 	printk(KERN_ERR "GP registers for QBB %d (%p)\n", qbbno, gp);
-	for (i = 0; i < 4; i++) 
+	for (i = 0; i < 4; i++)
 		printk(KERN_ERR " GPA_QBB_MAP_%d:     0x%16lx\n",
 		       i, gp->gpa_qbb_map[i].csr);
 

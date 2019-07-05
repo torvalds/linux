@@ -86,7 +86,7 @@ enum {
 #define GL_EXACT		0x0080
 #define GL_SKIP			0x0100
 #define GL_NOCACHE		0x0400
-  
+
 /*
  * lm_async_cb return flags
  *

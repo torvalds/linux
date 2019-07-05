@@ -2,14 +2,14 @@
  * Platform information definitions for the
  * universal Freescale Ethernet driver.
  *
- * Copyright (c) 2003 Intracom S.A. 
+ * Copyright (c) 2003 Intracom S.A.
  *  by Pantelis Antoniou <panto@intracom.gr>
  *
- * 2005 (c) MontaVista Software, Inc. 
+ * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
  *
- * This file is licensed under the terms of the GNU General Public License 
- * version 2. This program is licensed "as is" without any warranty of any 
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
 
@@ -130,7 +130,7 @@ struct fs_platform_info {
 	u32 mem_offset;
 	u32 dpram_offset;
 	u32 fcc_regs_c;
-	
+
 	u32 device_flags;
 
 	struct device_node *phy_node;

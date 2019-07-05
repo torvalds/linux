@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* 
+/*
  * NCR 5380 defines
  *
  * Copyright 1993, Drew Eckhardt
@@ -8,7 +8,7 @@
  * 	drew@colorado.edu
  *      +1 (303) 666-5836
  *
- * For more information, please consult 
+ * For more information, please consult
  *
  * NCR 5380 Family
  * SCSI Protocol Controller
@@ -60,7 +60,7 @@
 
 #define NDEBUG_ANY		0xFFFFFFFFUL
 
-/* 
+/*
  * The contents of the OUTPUT DATA register are asserted on the bus when
  * either arbitration is occurring or the phase-indicating signals (
  * IO, CD, MSG) in the TARGET COMMAND register and the ASSERT DATA
@@ -86,8 +86,8 @@
 
 #define MODE_REG		2
 /*
- * Note : BLOCK_DMA code will keep DRQ asserted for the duration of the 
- * transfer, causing the chip to hog the bus.  You probably don't want 
+ * Note : BLOCK_DMA code will keep DRQ asserted for the duration of the
+ * transfer, causing the chip to hog the bus.  You probably don't want
  * this.
  */
 #define MR_BLOCK_DMA_MODE	0x80	/* rw block mode DMA */
@@ -110,7 +110,7 @@
 
 #define STATUS_REG		4	/* ro */
 /*
- * Note : a set bit indicates an active signal, driven by us or another 
+ * Note : a set bit indicates an active signal, driven by us or another
  * device.
  */
 #define SR_RST			0x80
@@ -123,7 +123,7 @@
 #define SR_DBP			0x01
 
 /*
- * Setting a bit in this register will cause an interrupt to be generated when 
+ * Setting a bit in this register will cause an interrupt to be generated when
  * BSY is false and SEL true and this bit is asserted  on the bus.
  */
 #define SELECT_ENABLE_REG	4	/* wo */
@@ -141,7 +141,7 @@
 /* Write any value to this register to start a DMA send */
 #define START_DMA_SEND_REG	5	/* wo */
 
-/* 
+/*
  * Used in DMA transfer mode, data is latched from the SCSI bus on
  * the falling edge of REQ (ini) or ACK (tgt)
  */
@@ -180,9 +180,9 @@
 #define PHASE_MSGIN		(SR_MSG | SR_CD | SR_IO)
 #define PHASE_UNKNOWN		0xff
 
-/* 
- * Convert status register phase to something we can use to set phase in 
- * the target register so we can get phase mismatch interrupts on DMA 
+/*
+ * Convert status register phase to something we can use to set phase in
+ * the target register so we can get phase mismatch interrupts on DMA
  * transfers.
  */
 

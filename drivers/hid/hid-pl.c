@@ -87,7 +87,7 @@ static int plff_init(struct hid_device *hid)
 	   The input reports also contain a field which contains
 	   8 ff00.0001 usages and 8 boolean values. Their meaning is
 	   currently unknown.
-	   
+
 	   A version of the 0e8f:0003 exists that has all the values in
 	   separate fields and misses the extra input field, thus resembling
 	   Zeroplus (hid-zpff) devices.

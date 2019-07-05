@@ -6,7 +6,7 @@
  *
  *  FEATURES currently supported:
  *    See ca0106_main.c for features.
- * 
+ *
  *  Changelog:
  *    Support interrupts per period.
  *    Removed noise from Center/LFE channel when in Analog mode.
@@ -89,7 +89,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 	status[1] = (value >> 8) & 0xff;
 	status[2] = (value >> 16)  & 0xff;
 	status[3] = (value >> 24)  & 0xff;
-	
+
 	if (! (status[0] & IEC958_AES0_PROFESSIONAL)) {
 		/* consumer */
 		snd_iprintf(buffer, "Mode: consumer\n");
@@ -255,7 +255,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 	}
 }
 
-static void snd_ca0106_proc_iec958(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_iec958(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
@@ -266,7 +266,7 @@ static void snd_ca0106_proc_iec958(struct snd_info_entry *entry,
 		  (value & 0x100000) ? "Rate Locked" : "Not Rate Locked",
 		  (value & 0x200000) ? "SPDIF Locked" : "No SPDIF Lock",
 		  (value & 0x400000) ? "Audio Valid" : "No valid audio" );
-	snd_iprintf(buffer, "Estimated sample rate: %u\n", 
+	snd_iprintf(buffer, "Estimated sample rate: %u\n",
 		  ((value & 0xfffff) * 48000) / 0x8000 );
 	if (value & 0x200000) {
 		snd_iprintf(buffer, "IEC958/SPDIF input status:\n");
@@ -277,7 +277,7 @@ static void snd_ca0106_proc_iec958(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "\n");
 }
 
-static void snd_ca0106_proc_reg_write32(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_reg_write32(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
@@ -295,7 +295,7 @@ static void snd_ca0106_proc_reg_write32(struct snd_info_entry *entry,
         }
 }
 
-static void snd_ca0106_proc_reg_read32(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_reg_read32(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
@@ -311,7 +311,7 @@ static void snd_ca0106_proc_reg_read32(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_read16(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_reg_read16(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
@@ -327,7 +327,7 @@ static void snd_ca0106_proc_reg_read16(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_read8(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_reg_read8(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
@@ -343,7 +343,7 @@ static void snd_ca0106_proc_reg_read8(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_read1(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_reg_read1(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
@@ -361,7 +361,7 @@ static void snd_ca0106_proc_reg_read1(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_read2(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_reg_read2(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
@@ -379,7 +379,7 @@ static void snd_ca0106_proc_reg_read2(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_write(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_reg_write(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
@@ -393,7 +393,7 @@ static void snd_ca0106_proc_reg_write(struct snd_info_entry *entry,
         }
 }
 
-static void snd_ca0106_proc_i2c_write(struct snd_info_entry *entry, 
+static void snd_ca0106_proc_i2c_write(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;

@@ -33,9 +33,9 @@ mchk_dump_mem(void *data, size_t length, char **annotation)
 {
 	unsigned long *ldata = data;
 	size_t i;
-	
+
 	for (i = 0; (i * sizeof(*ldata)) < length; i++) {
-		if (annotation && !annotation[i]) 
+		if (annotation && !annotation[i])
 			annotation = NULL;
 		printk("%s    %08x: %016lx    %s\n",
 		       err_print_prefix,
@@ -55,9 +55,9 @@ mchk_dump_logout_frame(struct el_common *mchk_header)
 	         "    Proc Offset:  0x%08x\n"
 	         "    Sys Offset:   0x%08x\n"
   	         "  -- Processor Region --\n",
-	       err_print_prefix, 
+	       err_print_prefix,
 	       mchk_header->size, mchk_header->size,
-	       mchk_header->retry ? "RETRY " : "", 
+	       mchk_header->retry ? "RETRY " : "",
   	         mchk_header->err2 ? "SECOND_ERR " : "",
 	       mchk_header->code,
 	       mchk_header->frame_rev,
@@ -68,7 +68,7 @@ mchk_dump_logout_frame(struct el_common *mchk_header)
 		      ((unsigned long)mchk_header + mchk_header->proc_offset),
 		      mchk_header->sys_offset - mchk_header->proc_offset,
 		      NULL);
-	
+
 	printk("%s  -- System Region --\n", err_print_prefix);
 	mchk_dump_mem((void *)
 		      ((unsigned long)mchk_header + mchk_header->sys_offset),
@@ -104,21 +104,21 @@ el_process_header_subpacket(struct el_subpacket *header)
 	case EL_TYPE__HEADER__SYSTEM_ERROR_FRAME:
 		name = "SYSTEM ERROR";
 		length = header->by_type.sys_err.frame_length;
-		packet_count = 
+		packet_count =
 			header->by_type.sys_err.frame_packet_count;
 		timestamp.as_int = 0;
 		break;
 	case EL_TYPE__HEADER__SYSTEM_EVENT_FRAME:
 		name = "SYSTEM EVENT";
 		length = header->by_type.sys_event.frame_length;
-		packet_count = 
+		packet_count =
 			header->by_type.sys_event.frame_packet_count;
 		timestamp = header->by_type.sys_event.timestamp;
 		break;
 	case EL_TYPE__HEADER__HALT_FRAME:
 		name = "ERROR HALT";
 		length = header->by_type.err_halt.frame_length;
-		packet_count = 
+		packet_count =
 			header->by_type.err_halt.frame_packet_count;
 		timestamp = header->by_type.err_halt.timestamp;
 		break;
@@ -132,16 +132,16 @@ el_process_header_subpacket(struct el_subpacket *header)
 		printk("%s** Unknown header - CLASS %d TYPE %d, aborting\n",
 		       err_print_prefix,
 		       header->class, header->type);
-		return NULL;		
+		return NULL;
 	}
 
 	printk("%s*** %s:\n"
-	         "  CLASS %d, TYPE %d\n", 
+	         "  CLASS %d, TYPE %d\n",
 	       err_print_prefix,
 	       name,
 	       header->class, header->type);
 	el_print_timestamp(&timestamp);
-	
+
 	/*
 	 * Process the subpackets
 	 */
@@ -169,7 +169,7 @@ void
 el_print_timestamp(union el_timestamp *timestamp)
 {
 	if (timestamp->as_int)
-		printk("%s  TIMESTAMP: %d/%d/%02d %d:%02d:%0d\n", 
+		printk("%s  TIMESTAMP: %d/%d/%02d %d:%02d:%0d\n",
 		       err_print_prefix,
 		       timestamp->b.month, timestamp->b.day,
 		       timestamp->b.year, timestamp->b.hour,
@@ -200,7 +200,7 @@ el_process_subpacket(struct el_subpacket *header)
 	case EL_CLASS__TERMINATION:
 		/* Termination packet, there are no more */
 		break;
-	case EL_CLASS__HEADER: 
+	case EL_CLASS__HEADER:
 		next = el_process_header_subpacket(header);
 		break;
 	default:
@@ -216,7 +216,7 @@ el_process_subpacket(struct el_subpacket *header)
 	return next;
 }
 
-void 
+void
 el_annotate_subpacket(struct el_subpacket *header)
 {
 	struct el_subpacket_annotation *a;
@@ -248,7 +248,7 @@ cdl_process_console_data_log(int cpu, struct percpu_struct *pcpu)
 	printk("%s******* CONSOLE DATA LOG FOR CPU %d. *******\n"
 	         "*** Error(s) were logged on a previous boot\n",
 	       err_print_prefix, cpu);
-	
+
 	for (err = 0; header && (header->class != EL_CLASS__TERMINATION); err++)
 		header = el_process_subpacket(header);
 
@@ -256,7 +256,7 @@ cdl_process_console_data_log(int cpu, struct percpu_struct *pcpu)
 	pcpu->console_data_log_pa = 0;
 
 	printk("%s*** %d total error(s) logged\n"
-	         "**** END OF CONSOLE DATA LOG FOR CPU %d ****\n", 
+	         "**** END OF CONSOLE DATA LOG FOR CPU %d ****\n",
 	       err_print_prefix, err, cpu);
 }
 
@@ -268,7 +268,7 @@ cdl_check_console_data_log(void)
 
 	for (cpu = 0; cpu < hwrpb->nr_processors; cpu++) {
 		pcpu = (struct percpu_struct *)
-			((unsigned long)hwrpb + hwrpb->processor_offset 
+			((unsigned long)hwrpb + hwrpb->processor_offset
 			 + cpu * hwrpb->processor_size);
 		if (pcpu->console_data_log_pa)
 			cdl_process_console_data_log(cpu, pcpu);

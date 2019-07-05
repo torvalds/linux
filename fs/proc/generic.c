@@ -4,7 +4,7 @@
  *
  * This file contains generic proc-fs routines for handling
  * directories and files.
- * 
+ *
  * Copyright (C) 1991, 1992 Linus Torvalds.
  * Copyright (C) 1997 Theodore Ts'o
  */
@@ -549,7 +549,7 @@ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 	return proc_register(parent, p);
 }
 EXPORT_SYMBOL(proc_create_data);
- 
+
 struct proc_dir_entry *proc_create(const char *name, umode_t mode,
 				   struct proc_dir_entry *parent,
 				   const struct file_operations *proc_fops)

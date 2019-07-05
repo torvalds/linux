@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Raytheon wireless LAN PCMCIA card driver for Linux 
+/* Raytheon wireless LAN PCMCIA card driver for Linux
    A  PCMCIA client driver for the Raylink wireless network card
    Written by Corey Thomas
 */
@@ -12,9 +12,9 @@ struct beacon_rx {
     UCHAR timestamp[8];
     UCHAR beacon_intvl[2];
     UCHAR capability[2];
-    UCHAR elements[sizeof(struct essid_element) 
+    UCHAR elements[sizeof(struct essid_element)
                   + sizeof(struct rates_element)
-                  + sizeof(struct freq_hop_element) 
+                  + sizeof(struct freq_hop_element)
                   + sizeof(struct japan_call_sign_element)
                   + sizeof(struct tim_element)];
 };

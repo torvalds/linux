@@ -97,7 +97,7 @@ unsigned long klimit = (unsigned long) _end;
 
 /*
  * This still seems to be needed... -- paulus
- */ 
+ */
 struct screen_info screen_info = {
 	.orig_x = 0,
 	.orig_y = 25,

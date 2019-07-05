@@ -405,7 +405,7 @@ static inline u32 fsl_mpic_primary_get_version(void)
 /* Allocate the controller structure and setup the linux irq descs
  * for the range if interrupts passed in. No HW initialization is
  * actually performed.
- * 
+ *
  * @phys_addr:	physial base address of the MPIC
  * @flags:	flags, see constants above
  * @isu_size:	number of interrupts in an ISU. Use 0 to use a

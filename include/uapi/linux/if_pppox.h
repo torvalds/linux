@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /***************************************************************************
  * Linux PPP over X - Generic PPP transport layer sockets
- * Linux PPP over Ethernet (PPPoE) Socket Implementation (RFC 2516) 
+ * Linux PPP over Ethernet (PPPoE) Socket Implementation (RFC 2516)
  *
  * This file supplies definitions required by the PPP over Ethernet driver
  * (pppox.c).  All version information wrt this file is located in pppox.c
@@ -36,17 +36,17 @@
 #define PF_PPPOX	AF_PPPOX
 #endif /* !(AF_PPPOX) */
 
-/************************************************************************ 
- * PPPoE addressing definition 
- */ 
+/************************************************************************
+ * PPPoE addressing definition
+ */
 typedef __be16 sid_t;
 struct pppoe_addr {
 	sid_t         sid;                    /* Session identifier */
 	unsigned char remote[ETH_ALEN];       /* Remote address */
 	char          dev[IFNAMSIZ];          /* Local device to use */
-}; 
- 
-/************************************************************************ 
+};
+
+/************************************************************************
  * PPTP addressing definition
  */
 struct pptp_addr {

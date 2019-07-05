@@ -58,7 +58,7 @@ struct parport_state {
 		struct ax88796_parport_state ax88796;
 		/* Atari has not state. */
 		struct ip32_parport_state ip32;
-		void *misc; 
+		void *misc;
 	} u;
 };
 
@@ -125,7 +125,7 @@ struct parport_device_info {
 /* Each device can have two callback functions:
  *  1) a preemption function, called by the resource manager to request
  *     that the driver relinquish control of the port.  The driver should
- *     return zero if it agrees to release the port, and nonzero if it 
+ *     return zero if it agrees to release the port, and nonzero if it
  *     refuses.  Do not call parport_release() - the kernel will do this
  *     implicitly.
  *
@@ -331,10 +331,10 @@ struct pardev_cb {
    - kf is the wake-up function (may be NULL for no callback)
    - irq_func is the interrupt handler (may be NULL for no interrupts)
    - handle is a user pointer that gets handed to callback functions.  */
-struct pardevice *parport_register_device(struct parport *port, 
+struct pardevice *parport_register_device(struct parport *port,
 			  const char *name,
 			  int (*pf)(void *), void (*kf)(void *),
-			  void (*irq_func)(void *), 
+			  void (*irq_func)(void *),
 			  int flags, void *handle);
 
 struct pardevice *

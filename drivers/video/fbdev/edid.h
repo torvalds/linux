@@ -1,11 +1,11 @@
-/* 
+/*
  * drivers/video/edid.h - EDID/DDC Header
  *
  * Based on:
  *   1. XFree86 4.3.0, edid.h
  *      Copyright 1998 by Egbert Eich <Egbert.Eich@Physik.TU-Darmstadt.DE>
- * 
- *   2. John Fremlin <vii@users.sourceforge.net> and 
+ *
+ *   2. John Fremlin <vii@users.sourceforge.net> and
  *      Ani Joshi <ajoshi@unixbox.com>
  *
  * DDC is a Trademark of VESA (Video Electronics Standard Association).

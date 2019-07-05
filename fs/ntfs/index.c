@@ -99,7 +99,7 @@ void ntfs_index_ctx_put(ntfs_index_context *ictx)
  *	       locked whilst being accessed otherwise we may find a corrupt
  *	       page due to it being under ->writepage at the moment which
  *	       applies the mst protection fixups before writing out and then
- *	       removes them again after the write is complete after which it 
+ *	       removes them again after the write is complete after which it
  *	       unlocks the page.
  */
 int ntfs_index_lookup(const void *key, const int key_len,

@@ -31,7 +31,7 @@ struct vx_rmh {
 	u32	Stat[SIZE_MAX_STATUS];
 	u16	DspStat;	/* status type, RMP_SSIZE_XXX */
 };
-	
+
 typedef u64 pcx_time_t;
 
 #define VX_MAX_PIPES	16
@@ -490,7 +490,7 @@ enum {
 #define END_OF_BUFFER_EVENTS_PENDING    0x000400
 #define FATAL_DSP_ERROR                 0xff0000
 
-/* Stream Format Header Defines */ 
+/* Stream Format Header Defines */
 #define HEADER_FMT_BASE			0xFED00000
 #define HEADER_FMT_MONO			0x000000C0
 #define HEADER_FMT_INTEL		0x00008000

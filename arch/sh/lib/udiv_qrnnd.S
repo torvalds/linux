@@ -26,7 +26,7 @@ __udiv_qrnnd_16:
 	cmp/hi r6,r0
 	bt .Lots
 	.rept 16
-	div1 r6,r0 
+	div1 r6,r0
 	.endr
 	extu.w r0,r1
 	bt 0f

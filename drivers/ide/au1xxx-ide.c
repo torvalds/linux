@@ -251,13 +251,13 @@ static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 			if (iswrite) {
 				if (!au1xxx_dbdma_put_source(ahwif->tx_chan,
 					sg_phys(sg), tc, flags)) {
-					printk(KERN_ERR "%s failed %d\n", 
+					printk(KERN_ERR "%s failed %d\n",
 					       __func__, __LINE__);
 				}
 			} else  {
 				if (!au1xxx_dbdma_put_dest(ahwif->rx_chan,
 					sg_phys(sg), tc, flags)) {
-					printk(KERN_ERR "%s failed %d\n", 
+					printk(KERN_ERR "%s failed %d\n",
 					       __func__, __LINE__);
 				}
 			}
@@ -354,7 +354,7 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 	tsize    =  8; /*  1 */
 	devwidth = 32; /* 16 */
 
-#ifdef IDE_AU1XXX_BURSTMODE 
+#ifdef IDE_AU1XXX_BURSTMODE
 	flags = DEV_FLAGS_SYNC | DEV_FLAGS_BURSTABLE;
 #else
 	flags = DEV_FLAGS_SYNC;
@@ -368,18 +368,18 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 	auide_init_dbdma_dev(&source_dev_tab, dev_id, tsize, devwidth,
 			     DEV_FLAGS_IN | flags, auide->regbase);
  	auide->rx_dev_id = au1xxx_ddma_add_device( &source_dev_tab );
-	
+
 	/* We also need to add a target device for the DMA */
 	auide_init_dbdma_dev(&target_dev_tab, (u32)DSCR_CMD0_ALWAYS, tsize,
 			     devwidth, DEV_FLAGS_ANYUSE, auide->regbase);
-	auide->target_dev_id = au1xxx_ddma_add_device(&target_dev_tab);	
- 
+	auide->target_dev_id = au1xxx_ddma_add_device(&target_dev_tab);
+
 	/* Get a channel for TX */
 	auide->tx_chan = au1xxx_dbdma_chan_alloc(auide->target_dev_id,
 						 auide->tx_dev_id,
 						 auide_ddma_tx_callback,
 						 (void*)auide);
- 
+
 	/* Get a channel for RX */
 	auide->rx_chan = au1xxx_dbdma_chan_alloc(auide->rx_dev_id,
 						 auide->target_dev_id,
@@ -393,12 +393,12 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 
 	/* FIXME: check return value */
 	(void)ide_allocate_dma_engine(hwif);
-	
+
 	au1xxx_dbdma_start( auide->tx_chan );
 	au1xxx_dbdma_start( auide->rx_chan );
- 
+
 	return 0;
-} 
+}
 #else
 static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
@@ -406,7 +406,7 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 	dbdev_tab_t source_dev_tab;
 	int flags;
 
-#ifdef IDE_AU1XXX_BURSTMODE 
+#ifdef IDE_AU1XXX_BURSTMODE
 	flags = DEV_FLAGS_SYNC | DEV_FLAGS_BURSTABLE;
 #else
 	flags = DEV_FLAGS_SYNC;
@@ -420,27 +420,27 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 	auide_init_dbdma_dev(&source_dev_tab, (u32)DSCR_CMD0_ALWAYS, 8, 32,
 			     DEV_FLAGS_IN | flags, auide->regbase);
  	auide->rx_dev_id = au1xxx_ddma_add_device( &source_dev_tab );
-	
+
 	/* Get a channel for TX */
 	auide->tx_chan = au1xxx_dbdma_chan_alloc(DSCR_CMD0_ALWAYS,
 						 auide->tx_dev_id,
 						 NULL,
 						 (void*)auide);
- 
+
 	/* Get a channel for RX */
 	auide->rx_chan = au1xxx_dbdma_chan_alloc(auide->rx_dev_id,
 						 DSCR_CMD0_ALWAYS,
 						 NULL,
 						 (void*)auide);
- 
+
 	auide->tx_desc_head = (void*)au1xxx_dbdma_ring_alloc(auide->tx_chan,
 							     NUM_DESCRIPTORS);
 	auide->rx_desc_head = (void*)au1xxx_dbdma_ring_alloc(auide->rx_chan,
 							     NUM_DESCRIPTORS);
- 
+
 	au1xxx_dbdma_start( auide->tx_chan );
 	au1xxx_dbdma_start( auide->rx_chan );
- 	
+
 	return 0;
 }
 #endif

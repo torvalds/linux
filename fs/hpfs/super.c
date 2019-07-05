@@ -90,7 +90,7 @@ void hpfs_error(struct super_block *s, const char *fmt, ...)
 	hpfs_sb(s)->sb_was_error = 1;
 }
 
-/* 
+/*
  * A little trick to detect cycles in many hpfs structures and don't let the
  * kernel crash on corrupted filesystem. When first called, set c2 to 0.
  *
@@ -649,7 +649,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	/* Load bitmap directory */
 	if (!(sbi->sb_bmp_dir = hpfs_load_bitmap_directory(s, le32_to_cpu(superblock->bitmaps))))
 		goto bail4;
-	
+
 	/* Check for general fs errors*/
 	if (spareblock->dirty && !spareblock->old_wrote) {
 		if (errs == 2) {

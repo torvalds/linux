@@ -96,7 +96,7 @@ static void check_rela(Elf_Rela *rela, struct module *me)
 	case R_390_GLOB_DAT:
 	case R_390_JMP_SLOT:
 	case R_390_RELATIVE:
-		/* Only needed if we want to support loading of 
+		/* Only needed if we want to support loading of
 		   modules linked with -shared. */
 		break;
 	}
@@ -394,7 +394,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	case R_390_GLOB_DAT:	/* Create GOT entry.  */
 	case R_390_JMP_SLOT:	/* Create PLT entry.  */
 	case R_390_RELATIVE:	/* Adjust by program base.  */
-		/* Only needed if we want to support loading of 
+		/* Only needed if we want to support loading of
 		   modules linked with -shared. */
 		return -ENOEXEC;
 	default:

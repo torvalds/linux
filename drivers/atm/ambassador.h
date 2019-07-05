@@ -115,7 +115,7 @@
 
 #define SRB_OPEN_VC		0
 /* par_0: dwordswap(VC_number) */
-/* par_1: dwordswap(flags<<16) or wordswap(flags)*/ 
+/* par_1: dwordswap(flags<<16) or wordswap(flags)*/
 /* flags:		*/
 
 /* LANE:	0x0004		*/
@@ -167,7 +167,7 @@
 
 #define SRB_FLUSH_BUFFER_Q	15
 /* Only flags to define which buffer pool; all others must be zero */
-/* par_0: dwordswap(flags<<16) or wordswap(flags)*/ 
+/* par_0: dwordswap(flags<<16) or wordswap(flags)*/
 
 #define	SRB_GET_DMA_SPEEDS	16
 /* returns 		*/
@@ -180,7 +180,7 @@
 
 #define SRB_MODIFY_VC_FLAGS	18
 /* par_0: dwordswap(VC_number) */
-/* par_1: dwordswap(flags<<16) or wordswap(flags)*/ 
+/* par_1: dwordswap(flags<<16) or wordswap(flags)*/
 
 /* flags:		*/
 
@@ -274,7 +274,7 @@ typedef enum {
 
 /* bit fields for mailbox[0] return values */
 
-#define GPINT_TST_FAILURE               0x00000001      
+#define GPINT_TST_FAILURE               0x00000001
 #define SUNI_DATA_PATTERN_FAILURE       0x00000002
 #define SUNI_DATA_BITS_FAILURE          0x00000004
 #define SUNI_UTOPIA_FAILURE             0x00000008
@@ -474,7 +474,7 @@ typedef	struct {
    adapter the address of this block by sending a doorbell interrupt
    to the adapter after downloading the code and setting it going. The
    addresses have the top 10 bits set to 1010000010b -- really?
-   
+
    The host must initialise these before handing the block to the
    adapter. */
 
@@ -503,7 +503,7 @@ typedef struct {
 } adap_talk_block;
 
 /* This structure must be kept in line with the vcr image in sarmain.h
-   
+
    This is the structure in the host filled in by the adapter by
    GET_SUNI_STATS */
 
@@ -523,7 +523,7 @@ typedef enum {
 } amb_flags;
 
 #define NEXTQ(current,start,limit) \
-  ( (current)+1 < (limit) ? (current)+1 : (start) ) 
+  ( (current)+1 < (limit) ? (current)+1 : (start) )
 
 typedef struct {
   command * start;
@@ -618,15 +618,15 @@ struct amb_dev {
   amb_cq           cq;
   amb_txq          txq;
   amb_rxq          rxq[NUM_RX_POOLS];
-  
+
   struct mutex     vcc_sf;
   amb_tx_info      txer[NUM_VCS];
   struct atm_vcc * rxer[NUM_VCS];
   unsigned int     tx_avail;
   unsigned int     rx_avail;
-  
+
   amb_stats        stats;
-  
+
   struct atm_dev * atm_dev;
   struct pci_dev * pci_dev;
   struct timer_list housekeeping;

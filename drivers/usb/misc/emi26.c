@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* 
+/*
  * Emagic EMI 2|6 usb audio interface firmware loader.
  * Copyright (C) 2002
  * 	Tapio Laxström (tapio.laxstrom@iptime.fi)
@@ -23,7 +23,7 @@
 #define ANCHOR_LOAD_EXTERNAL	0xA3	/* This command is not implemented in the core. Requires firmware */
 #define ANCHOR_LOAD_FPGA	0xA5	/* This command is not implemented in the core. Requires firmware. Emagic extension */
 #define MAX_INTERNAL_ADDRESS	0x1B3F	/* This is the highest internal RAM address for the AN2131Q */
-#define CPUCS_REG		0x7F92  /* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */ 
+#define CPUCS_REG		0x7F92  /* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */
 #define INTERNAL_RAM(address)   (address <= MAX_INTERNAL_ADDRESS)
 
 static int emi26_writememory( struct usb_device *dev, int address,

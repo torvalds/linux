@@ -4,7 +4,7 @@ Low latency, multichannel audio with JACK and the emu10k1/emu10k2
 
 This document is a guide to using the emu10k1 based devices with JACK for low
 latency, multichannel recording functionality.  All of my recent work to allow
-Linux users to use the full capabilities of their hardware has been inspired 
+Linux users to use the full capabilities of their hardware has been inspired
 by the kX Project.  Without their work I never would have discovered the true
 power of this hardware.
 
@@ -39,7 +39,7 @@ The 16 input ports are connected to the 16 physical inputs.  Contrary to
 popular belief, all emu10k1 cards are multichannel cards.  Which of these
 input channels have physical inputs connected to them depends on the card
 model.  Trial and error is highly recommended; the pinout diagrams
-for the card have been reverse engineered by some enterprising kX users and are 
+for the card have been reverse engineered by some enterprising kX users and are
 available on the internet.  Meterbridge is helpful here, and the kX forums are
 packed with useful information.
 
@@ -59,7 +59,7 @@ JACK		Epilog		FXBUS2(nr)
 ==============  ========        ============
 capture_1	asio14		FXBUS2(0xe)
 capture_2	asio15		FXBUS2(0xf)
-capture_3	asio0		FXBUS2(0x0)	
+capture_3	asio0		FXBUS2(0x0)
 ~capture_4	Center		EXTOUT(0x11)	// mapped to by Center
 ~capture_5	LFE		EXTOUT(0x12)	// mapped to by LFE
 capture_6	asio3		FXBUS2(0x3)

@@ -57,7 +57,7 @@ struct nfsd_readlinkargs {
 	struct svc_fh		fh;
 	char *			buffer;
 };
-	
+
 struct nfsd_linkargs {
 	struct svc_fh		ffh;
 	struct svc_fh		tfh;

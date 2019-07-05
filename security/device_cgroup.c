@@ -401,14 +401,14 @@ static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
 			/*
 			 * new exception in the child doesn't matter, only
 			 * adding extra restrictions
-			 */ 
+			 */
 			return true;
 		} else {
 			/*
 			 * new exception in the child will add more devices
 			 * that can be acessed, so it can't match any of
 			 * parent's exceptions, even slightly
-			 */ 
+			 */
 			match = match_exception_partial(&dev_cgroup->exceptions,
 							refex->type,
 							refex->major,

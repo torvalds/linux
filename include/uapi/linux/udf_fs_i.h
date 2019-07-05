@@ -2,7 +2,7 @@
 /*
  * udf_fs_i.h
  *
- * This file is intended for the Linux kernel/module. 
+ * This file is intended for the Linux kernel/module.
  *
  * COPYRIGHT
  *	This file is distributed under the terms of the GNU General Public

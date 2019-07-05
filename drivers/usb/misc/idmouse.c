@@ -262,7 +262,7 @@ static int idmouse_open(struct inode *inode, struct file *file)
 		/* save our object in the file's private structure */
 		file->private_data = dev;
 
-	} 
+	}
 
 error:
 

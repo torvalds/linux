@@ -124,8 +124,8 @@ static int sr_fake_playtrkind(struct cdrom_device_info *cdi, struct cdrom_ti *ti
 		return ret;
 
 	ntracks = tochdr.cdth_trk1 - tochdr.cdth_trk0 + 1;
-	
-	if (ti->cdti_trk1 == ntracks) 
+
+	if (ti->cdti_trk1 == ntracks)
 		ti->cdti_trk1 = CDROM_LEADOUT;
 	else if (ti->cdti_trk1 != CDROM_LEADOUT)
 		ti->cdti_trk1 ++;
@@ -134,7 +134,7 @@ static int sr_fake_playtrkind(struct cdrom_device_info *cdi, struct cdrom_ti *ti
 	trk0_te.cdte_format = CDROM_MSF;
 	trk1_te.cdte_track = ti->cdti_trk1;
 	trk1_te.cdte_format = CDROM_MSF;
-	
+
 	ret = sr_read_tocentry(cdi, &trk0_te);
 	if (ret)
 		return ret;
@@ -554,7 +554,7 @@ static int sr_read_sector(Scsi_CD *cd, int lba, int blksize, unsigned char *dest
 
 /*
  * read a sector in raw mode to check the sector format
- * ret: 1 == mode2 (XA), 0 == mode1, <0 == error 
+ * ret: 1 == mode2 (XA), 0 == mode1, <0 == error
  */
 
 int sr_is_xa(Scsi_CD *cd)

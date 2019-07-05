@@ -1,4 +1,4 @@
-/* 
+/*
  * xtensa/config/core-isa.h -- HAL definitions that are dependent on Xtensa
  *				processor CORE configuration
  *
@@ -111,7 +111,7 @@
 #define XCHAL_HAVE_HIFI3		1	/* HiFi3 Audio Engine pkg */
 #define XCHAL_HAVE_HIFI2		0	/* HiFi2 Audio Engine pkg */
 #define XCHAL_HAVE_HIFI2EP		0	/* HiFi2EP */
-#define XCHAL_HAVE_HIFI_MINI		0	
+#define XCHAL_HAVE_HIFI_MINI		0
 #define XCHAL_HAVE_CONNXD2		0	/* ConnX D2 pkg */
 #define XCHAL_HAVE_BBE16		0	/* ConnX BBE16 pkg */
 #define XCHAL_HAVE_BBE16_RSQRT		0	/* BBE16 & vector recip sqrt */

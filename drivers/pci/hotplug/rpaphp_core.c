@@ -254,7 +254,7 @@ static int rpaphp_check_drc_props_v2(struct device_node *dn, char *drc_name,
 	/* Found it */
 
 	if (fndit)
-		sprintf(cell_drc_name, "%s%d", drc.drc_name_prefix, 
+		sprintf(cell_drc_name, "%s%d", drc.drc_name_prefix,
 			my_index);
 
 	if (((drc_name == NULL) ||

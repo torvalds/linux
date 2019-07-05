@@ -29,7 +29,7 @@ static int tioca_gart_init(struct tioca_kernel *);
 
 /**
  * tioca_gart_init - Initialize SGI TIOCA GART
- * @tioca_common: ptr to common prom/kernel struct identifying the 
+ * @tioca_common: ptr to common prom/kernel struct identifying the
  *
  * If the indicated tioca has devices present, initialize its associated
  * GART MMR's and kernel memory.
@@ -138,7 +138,7 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	    PHYS_TO_TIODMA(virt_to_phys(tioca_kern->ca_gart));
 
 	/*
-	 * Compute PCI/AGP convenience fields 
+	 * Compute PCI/AGP convenience fields
 	 */
 
 	offset = CA_PCI32_MAPPED_BASE - CA_APERATURE_BASE;
@@ -312,7 +312,7 @@ tioca_dma_d64(unsigned long paddr)
  *              and come from the xxx register bits [5:0]
  * [39:38] - Chiplet ID extracted from coretalk address [39:38]
  * [37:00] - node offset extracted from coretalk address [37:00]
- * 
+ *
  * Since the node id in general will be non-zero, and the chiplet id
  * will always be non-zero, it follows that the device must support
  * a dma mask of at least 0xffffffffff (40 bits) to target node 0
@@ -361,7 +361,7 @@ tioca_dma_d48(struct pci_dev *pdev, u64 paddr)
 }
 
 /**
- * tioca_dma_mapped - create a DMA mapping using a CA GART 
+ * tioca_dma_mapped - create a DMA mapping using a CA GART
  * @pdev: linux pci_dev representing the function
  * @paddr: host physical address to map
  * @req_size: len (bytes) to map

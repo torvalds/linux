@@ -275,7 +275,7 @@ cannot_optimize:
 
 	bne	byte_chunk
 	 and	%o2, 0xfffffff0, %o3
-	 
+
 	andcc	%o1, 1, %g0
 	be	10f
 	 nop
@@ -298,7 +298,7 @@ cannot_optimize:
 	 add	%o0, 0x10, %o0
 	b	2f
 	 and	%o2, 0xe, %o3
-	
+
 byte_chunk:
 	MOVE_SHORTCHUNK(o1, o0, -0x02, g2, g3)
 	MOVE_SHORTCHUNK(o1, o0, -0x04, g2, g3)

@@ -21,7 +21,7 @@ void hpfs_init_inode(struct inode *i)
 	i->i_mode = hpfs_sb(sb)->sb_mode;
 	i->i_size = -1;
 	i->i_blocks = -1;
-	
+
 	hpfs_inode->i_dno = 0;
 	hpfs_inode->i_n_secs = 0;
 	hpfs_inode->i_file_sec = 0;

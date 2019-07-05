@@ -45,7 +45,7 @@ config TULIP
 	select CRC32
 	---help---
 	  This driver is developed for the SMC EtherPower series Ethernet
-	  cards and also works with cards based on the DECchip 
+	  cards and also works with cards based on the DECchip
 	  21140 (Tulip series) chips.  Some LinkSys PCI cards are
 	  of this type.  (If your card is NOT SMC EtherPower 10/100 PCI
 	  (smc9332dst), you can also try the driver for "Generic DECchip"
@@ -125,7 +125,7 @@ config WINBOND_840
 	select CRC32
 	select MII
 	---help---
-	  This driver is for the Winbond W89c840 chip.  It also works with 
+	  This driver is for the Winbond W89c840 chip.  It also works with
 	  the TX9882 chip on the Compex RL100-ATX board.
 	  More specific information and updates are available from
 	  <http://www.scyld.com/network/drivers.html>.
@@ -153,7 +153,7 @@ config ULI526X
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called uli526x.
-	  
+
 config PCMCIA_XIRCOM
 	tristate "Xircom CardBus support"
 	depends on CARDBUS

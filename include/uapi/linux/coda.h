@@ -1,4 +1,4 @@
-/* 
+/*
    You may distribute this file under either of the two licenses that
    follow at your discretion.
 */
@@ -17,7 +17,7 @@ shown in the file LICENSE, or under the license shown below. The
 technical and financial contributors to Coda are listed in the file
 CREDITS.
 
-                        Additional copyrights 
+                        Additional copyrights
 */
 
 /*
@@ -52,7 +52,7 @@ Mellon the rights to redistribute these changes without encumbrance.
 /*
  *
  * Based on cfs.h from Mach, but revamped for increased simplicity.
- * Linux modifications by 
+ * Linux modifications by
  * Peter Braam, Aug 1996
  */
 
@@ -64,7 +64,7 @@ Mellon the rights to redistribute these changes without encumbrance.
 #if defined(__NetBSD__) || \
   ((defined(DJGPP) || defined(__CYGWIN32__)) && !defined(KERNEL))
 #include <sys/types.h>
-#endif 
+#endif
 
 #ifndef CODA_MAXSYMLINKS
 #define CODA_MAXSYMLINKS 10
@@ -80,7 +80,7 @@ typedef u_long dev_t;
 typedef void * caddr_t;
 #ifdef DOS
 typedef unsigned __int64 u_quad_t;
-#else 
+#else
 typedef unsigned long long u_quad_t;
 #endif
 
@@ -144,7 +144,7 @@ typedef unsigned int	   u_int32_t;
 #define C_O_EXCL	0x100
 #define C_O_CREAT	0x200
 
-/* these are to find mode bits in Venus */ 
+/* these are to find mode bits in Venus */
 #define C_M_READ  00400
 #define C_M_WRITE 00200
 
@@ -230,7 +230,7 @@ struct coda_vattr {
 	u_quad_t	va_filerev;	/* file modification number */
 };
 
-#endif 
+#endif
 
 /* structure used by CODA_STATFS for getting cache information from venus */
 struct coda_statfs {
@@ -283,7 +283,7 @@ struct coda_statfs {
 
 #define VC_MAXDATASIZE	    8192
 #define VC_MAXMSGSIZE      sizeof(union inputArgs)+sizeof(union outputArgs) +\
-                            VC_MAXDATASIZE  
+                            VC_MAXDATASIZE
 
 #define CIOC_KERNEL_VERSION _IOWR('c', 10, size_t)
 
@@ -303,7 +303,7 @@ struct coda_in_hdr {
 /* Really important that opcode and unique are 1st two fields! */
 struct coda_out_hdr {
     u_int32_t opcode;
-    u_int32_t unique;	
+    u_int32_t unique;
     u_int32_t result;
 };
 
@@ -425,7 +425,7 @@ struct  coda_lookup_in {
     struct coda_in_hdr ih;
     struct CodaFid VFid;
     int         name;		/* Place holder for data. */
-    int         flags;	
+    int         flags;
 };
 
 struct coda_lookup_out {
@@ -577,27 +577,27 @@ struct coda_purgeuser_out {
 
 /* coda_zapfile: */
 /* CODA_ZAPFILE is a venus->kernel call */
-struct coda_zapfile_out {  
+struct coda_zapfile_out {
     struct coda_out_hdr oh;
     struct CodaFid CodaFid;
 };
 
 /* coda_zapdir: */
-/* CODA_ZAPDIR is a venus->kernel call */	
-struct coda_zapdir_out {	  
+/* CODA_ZAPDIR is a venus->kernel call */
+struct coda_zapdir_out {
     struct coda_out_hdr oh;
     struct CodaFid CodaFid;
 };
 
 /* coda_purgefid: */
-/* CODA_PURGEFID is a venus->kernel call */	
-struct coda_purgefid_out { 
+/* CODA_PURGEFID is a venus->kernel call */
+struct coda_purgefid_out {
     struct coda_out_hdr oh;
     struct CodaFid CodaFid;
 };
 
 /* coda_replace: */
-/* CODA_REPLACE is a venus->kernel call */	
+/* CODA_REPLACE is a venus->kernel call */
 struct coda_replace_out { /* coda_replace is a venus->kernel call */
     struct coda_out_hdr oh;
     struct CodaFid NewFid;
@@ -642,9 +642,9 @@ struct coda_statfs_out {
     struct coda_statfs stat;
 };
 
-/* 
- * Occasionally, we don't cache the fid returned by CODA_LOOKUP. 
- * For instance, if the fid is inconsistent. 
+/*
+ * Occasionally, we don't cache the fid returned by CODA_LOOKUP.
+ * For instance, if the fid is inconsistent.
  * This case is handled by setting the top bit of the type result parameter.
  */
 #define CODA_NOCACHE          0x80000000
@@ -694,7 +694,7 @@ union outputArgs {
     struct coda_open_by_fd_out coda_open_by_fd;
     struct coda_open_by_path_out coda_open_by_path;
     struct coda_statfs_out coda_statfs;
-};    
+};
 
 union coda_downcalls {
     /* CODA_INVALIDATE is a venus->kernel call */

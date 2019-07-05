@@ -15,7 +15,7 @@ Known bugs:
 
 - The partition checker (drivers/block/genhd.c)
   doesn't work with devices which have 256 byte
-  blocks (some very old SCSI drives). 
+  blocks (some very old SCSI drives).
 
 - The feature to automatically make the fs clean
   might leave a trashed file system with the
@@ -86,7 +86,7 @@ Version 3.12
 more 2.4 fixes: [Roman Zippel]
 - s_lock changes
 - increased getblock mess
-- clear meta blocks 
+- clear meta blocks
 
 Version 3.11
 ------------

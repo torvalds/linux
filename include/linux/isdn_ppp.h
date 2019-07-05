@@ -57,36 +57,36 @@ struct isdn_ppp_resetparams {
 };
 
 /*
- * this is an 'old friend' from ppp-comp.h under a new name 
+ * this is an 'old friend' from ppp-comp.h under a new name
  * check the original include for more information
  */
 struct isdn_ppp_compressor {
   struct isdn_ppp_compressor *next, *prev;
   struct module *owner;
   int num; /* CCP compression protocol number */
-  
+
   void *(*alloc) (struct isdn_ppp_comp_data *);
   void (*free) (void *state);
   int  (*init) (void *state, struct isdn_ppp_comp_data *,
 		int unit,int debug);
-  
+
   /* The reset entry needs to get more exact information about the
      ResetReq or ResetAck it was called with. The parameters are
      obvious. If reset is called without a Req or Ack frame which
      could be handed into it, code MUST be set to 0. Using rsparm,
      the reset entry can control if and how a ResetAck is returned. */
-  
+
   void (*reset) (void *state, unsigned char code, unsigned char id,
 		 unsigned char *data, unsigned len,
 		 struct isdn_ppp_resetparams *rsparm);
-  
+
   int  (*compress) (void *state, struct sk_buff *in,
 		    struct sk_buff *skb_out, int proto);
-  
+
 	int  (*decompress) (void *state,struct sk_buff *in,
 			    struct sk_buff *skb_out,
 			    struct isdn_ppp_resetparams *rsparm);
-  
+
   void (*incomp) (void *state, struct sk_buff *in,int proto);
   void (*stat) (void *state, struct compstat *stats);
 };
@@ -111,7 +111,7 @@ typedef struct {
   				 * with smaller seq # will be dropped
 				 * unconditionally */
   spinlock_t lock;
-  int ref_ct;				 
+  int ref_ct;
   /* statistics */
   isdn_mppp_stats stats;
 } ippp_bundle;

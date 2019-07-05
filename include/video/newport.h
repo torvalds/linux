@@ -5,7 +5,7 @@
  *            hardware.
  *
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
- * 
+ *
  * Ulf Carlsson - Compatibility with the IRIX structures added
  */
 
@@ -30,7 +30,7 @@ union np_dcb {
 
 struct newport_rexregs {
 	npireg_t drawmode1;      /* GL extra mode bits */
-	
+
 #define DM1_PLANES         0x00000007
 #define    DM1_NOPLANES    0x00000000
 #define    DM1_RGBPLANES   0x00000001
@@ -38,7 +38,7 @@ struct newport_rexregs {
 #define    DM1_OLAYPLANES  0x00000004
 #define    DM1_PUPPLANES   0x00000005
 #define    DM1_CIDPLANES   0x00000006
-	
+
 #define NPORT_DMODE1_DDMASK      0x00000018
 #define NPORT_DMODE1_DD4         0x00000000
 #define NPORT_DMODE1_DD8         0x00000008
@@ -296,60 +296,60 @@ struct newport_regs {
 typedef struct {
 	unsigned int drawmode1;
 	unsigned int drawmode0;
-	unsigned int lsmode;   
+	unsigned int lsmode;
 	unsigned int lspattern;
 	unsigned int lspatsave;
-	unsigned int zpattern; 
+	unsigned int zpattern;
 	unsigned int colorback;
 	unsigned int colorvram;
-	unsigned int alpharef; 
-	unsigned int smask0x;  
-	unsigned int smask0y;  
-	unsigned int _xstart;  
-	unsigned int _ystart;  
-	unsigned int _xend;    
-	unsigned int _yend;    
-	unsigned int xsave;    
-	unsigned int xymove;   
-	unsigned int bresd;    
-	unsigned int bress1;   
+	unsigned int alpharef;
+	unsigned int smask0x;
+	unsigned int smask0y;
+	unsigned int _xstart;
+	unsigned int _ystart;
+	unsigned int _xend;
+	unsigned int _yend;
+	unsigned int xsave;
+	unsigned int xymove;
+	unsigned int bresd;
+	unsigned int bress1;
 	unsigned int bresoctinc1;
 	unsigned int bresrndinc2;
-	unsigned int brese1;     
-	unsigned int bress2;     
-	
-	unsigned int aweight0;    
-	unsigned int aweight1;    
-	unsigned int colorred;    
-	unsigned int coloralpha;  
-	unsigned int colorgrn;    
-	unsigned int colorblue;   
-	unsigned int slopered;    
-	unsigned int slopealpha;  
-	unsigned int slopegrn;    
-	unsigned int slopeblue;   
-	unsigned int wrmask;      
-	unsigned int hostrw0;     
-	unsigned int hostrw1;     
-	
+	unsigned int brese1;
+	unsigned int bress2;
+
+	unsigned int aweight0;
+	unsigned int aweight1;
+	unsigned int colorred;
+	unsigned int coloralpha;
+	unsigned int colorgrn;
+	unsigned int colorblue;
+	unsigned int slopered;
+	unsigned int slopealpha;
+	unsigned int slopegrn;
+	unsigned int slopeblue;
+	unsigned int wrmask;
+	unsigned int hostrw0;
+	unsigned int hostrw1;
+
         /* configregs */
-	
-	unsigned int smask1x;    
-	unsigned int smask1y;    
-	unsigned int smask2x;    
-	unsigned int smask2y;    
-	unsigned int smask3x;    
-	unsigned int smask3y;    
-	unsigned int smask4x;    
-	unsigned int smask4y;    
-	unsigned int topscan;    
-	unsigned int xywin;      
-	unsigned int clipmode;   
-	unsigned int config;     
-	
+
+	unsigned int smask1x;
+	unsigned int smask1y;
+	unsigned int smask2x;
+	unsigned int smask2y;
+	unsigned int smask3x;
+	unsigned int smask3y;
+	unsigned int smask4x;
+	unsigned int smask4y;
+	unsigned int topscan;
+	unsigned int xywin;
+	unsigned int clipmode;
+	unsigned int config;
+
         /* dcb registers */
-	unsigned int dcbmode;   
-	unsigned int dcbdata0;  
+	unsigned int dcbmode;
+	unsigned int dcbdata0;
 	unsigned int dcbdata1;
 } newport_ctx;
 
@@ -553,7 +553,7 @@ xmap9FIFOWait (struct newport_regs *rex)
         rex->set.dcbmode = DCB_XMAP0 | XM9_CRS_FIFO_AVAIL |
 		DCB_DATAWIDTH_1 | R_DCB_XMAP9_PROTOCOL;
         newport_bfwait (rex);
-	
+
         while ((rex->set.dcbdata0.bybytes.b3 & 3) != XM9_FIFO_EMPTY)
 		;
 }
@@ -566,10 +566,10 @@ xmap9SetModeReg (struct newport_regs *rex, unsigned int modereg, unsigned int da
                         DCB_DATAWIDTH_4 | W_DCB_XMAP9_PROTOCOL;
         else if (cfreq > 59)
             rex->set.dcbmode = DCB_XMAP_ALL | XM9_CRS_MODE_REG_DATA |
-		    DCB_DATAWIDTH_4 | WSLOW_DCB_XMAP9_PROTOCOL;    
+		    DCB_DATAWIDTH_4 | WSLOW_DCB_XMAP9_PROTOCOL;
         else
             rex->set.dcbmode = DCB_XMAP_ALL | XM9_CRS_MODE_REG_DATA |
-                        DCB_DATAWIDTH_4 | WAYSLOW_DCB_XMAP9_PROTOCOL; 
+                        DCB_DATAWIDTH_4 | WAYSLOW_DCB_XMAP9_PROTOCOL;
         rex->set.dcbdata0.byword = ((modereg) << 24) | (data24 & 0xffffff);
 }
 

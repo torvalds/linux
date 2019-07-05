@@ -2,7 +2,7 @@
 /*
  * arch/alpha/kernel/systbls.S
  *
- * The system call table. 
+ * The system call table.
  */
 
 #include <asm/unistd.h>

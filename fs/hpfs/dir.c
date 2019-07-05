@@ -118,7 +118,7 @@ static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 		ret = -ENOENT;
 		goto out;
 	}
-	
+
 	while (1) {
 		again:
 		/* This won't work when cycle is longer than number of dirents

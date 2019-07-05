@@ -240,7 +240,7 @@ cumanascsi_2_dma_pseudo(struct Scsi_Host *host, struct scsi_pointer *SCp,
 
 				if (status & STATUS_INT)
 					return;
-	    
+
 				if (!(status & STATUS_DRQ))
 					continue;
 

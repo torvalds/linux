@@ -6,7 +6,7 @@
 #
 # Copyright (C) 1995 by Linus Torvalds
 #
-# Blatantly stolen from in arch/i386/boot/install.sh by Dave Hansen 
+# Blatantly stolen from in arch/i386/boot/install.sh by Dave Hansen
 #
 # "make install" script for ppc64 architecture
 #

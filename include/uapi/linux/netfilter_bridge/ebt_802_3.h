@@ -12,7 +12,7 @@
 
 /*
  * If frame has DSAP/SSAP value 0xaa you must check the SNAP type
- * to discover what kind of packet we're carrying. 
+ * to discover what kind of packet we're carrying.
  */
 #define CHECK_TYPE 0xaa
 

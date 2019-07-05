@@ -146,7 +146,7 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 
 /*
  * New, all-improved, singing, dancing, iBCS2-compliant getdents()
- * interface. 
+ * interface.
  */
 struct linux_dirent {
 	unsigned long	d_ino;

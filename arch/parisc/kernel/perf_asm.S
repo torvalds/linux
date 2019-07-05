@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /*    low-level asm for "intrigue" (PA8500-8700 CPU perf counters)
- * 
+ *
  *    Copyright (C) 2001 Randolph Chung <tausq at parisc-linux.org>
  *    Copyright (C) 2001 Hewlett-Packard (Grant Grundler)
  */
@@ -44,7 +44,7 @@ ENTRY(perf_intrigue_enable_perf_counters)
 	pmenb                           ; enable performance monitor
 	ssm     0,0                     ; dummy op to ensure completion
 	sync                            ; follow ERS
-	andcm   %r26,%r25,%r26             ; clear bit now 
+	andcm   %r26,%r25,%r26             ; clear bit now
 	mtctl   %r26,ccr                 ; turn off performance coprocessor
 	nop                             ; NOPs as specified in ERS
 	nop
@@ -69,7 +69,7 @@ ENTRY(perf_intrigue_disable_perf_counters)
 	mtctl   %r26,ccr                 ; turn on performance coprocessor
 	pmdis                           ; disable performance monitor
 	ssm     0,0                     ; dummy op to ensure completion
-	andcm   %r26,%r25,%r26             ; clear bit now 
+	andcm   %r26,%r25,%r26             ; clear bit now
 	bve    (%r2)
 	mtctl   %r26,ccr                 ; turn off performance coprocessor
 	.exit
@@ -134,7 +134,7 @@ ENTRY(perf_rdr_shift_in_W)
 	nop
 	nop
 	nop
-	extrd,u		arg1,63,6,%r1	; setup shift amount by bits to move 
+	extrd,u		arg1,63,6,%r1	; setup shift amount by bits to move
 
 	mtsar		%r1
 	shladd		arg0,2,%r0,%r1	; %r1 = 4 * RDR number
@@ -152,7 +152,7 @@ ENTRY(perf_rdr_shift_in_W)
 	ssm		    0,0
 	MFDIAG_1	(28)
 	shrpd		ret0,%r0,%sar,%r1
-	MTDIAG_1	(1)			; mtdiag %dr1, %r1 
+	MTDIAG_1	(1)			; mtdiag %dr1, %r1
 	STDIAG		(0)
 	ssm		    0,0
 	b,n         perf_rdr_shift_in_W_leave
@@ -205,7 +205,7 @@ ENTRY(perf_rdr_shift_in_W)
 	ssm		0,0
 	nop
 
-	; 
+	;
 	; RDR 5 read sequence
 	;
 	sync
@@ -993,8 +993,8 @@ ENDPROC(perf_rdr_shift_out_W)
 ;*	ret0 = next 64 bits of rdr data from staging register
 ;*
 ;* Register usage:
-;*	arg0 : rdr to be read						                        
-;*	arg1 : bit length of rdr					                        
+;*	arg0 : rdr to be read
+;*	arg1 : bit length of rdr
 ;*	%r24 - original DR2 value
 ;*	%r23 - DR2 | DR2_SLOW_RET
 ;*	%r1  - scratch

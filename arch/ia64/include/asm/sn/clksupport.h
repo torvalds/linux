@@ -11,8 +11,8 @@
  * clock. The clock is monitonically increasing and can be accessed from any node
  * in the system. The clock is synchronized across nodes - all nodes see the
  * same value.
- * 
- *	RTC_COUNTER_ADDR - contains the address of the counter 
+ *
+ *	RTC_COUNTER_ADDR - contains the address of the counter
  *
  */
 

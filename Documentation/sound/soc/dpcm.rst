@@ -27,7 +27,7 @@ document for all examples :-
 ::
 
   | Front End PCMs    |  SoC DSP  | Back End DAIs | Audio devices |
-  
+
                       *************
   PCM0 <------------> *           * <----DAI0-----> Codec Headset
                       *           *
@@ -128,7 +128,7 @@ FE and BE DAI links
 ::
 
   | Front End PCMs    |  SoC DSP  | Back End DAIs | Audio devices |
-  
+
                       *************
   PCM0 <------------> *           * <----DAI0-----> Codec Headset
                       *           *

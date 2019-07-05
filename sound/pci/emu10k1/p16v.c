@@ -109,17 +109,17 @@
 
  /* hardware definition */
 static const struct snd_pcm_hardware snd_p16v_playback_hw = {
-	.info =			SNDRV_PCM_INFO_MMAP | 
+	.info =			SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				SNDRV_PCM_INFO_RESUME |
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_SYNC_START,
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE, /* Only supports 24-bit samples padded to 32 bits. */
-	.rates =		SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100, 
+	.rates =		SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100,
 	.rate_min =		44100,
 	.rate_max =		192000,
-	.channels_min =		8, 
+	.channels_min =		8,
 	.channels_max =		8,
 	.buffer_bytes_max =	((65536 - 64) * 8),
 	.period_bytes_min =	64,
@@ -136,7 +136,7 @@ static const struct snd_pcm_hardware snd_p16v_capture_hw = {
 				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100, 
+	.rates =		SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100,
 	.rate_min =		44100,
 	.rate_max =		192000,
 	.channels_min =		2,
@@ -178,7 +178,7 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
 	*/
 	runtime->private_data = epcm;
 	runtime->private_free = snd_p16v_pcm_free_substream;
-  
+
 	runtime->hw = snd_p16v_playback_hw;
 
         channel->emu = emu;
@@ -226,7 +226,7 @@ static int snd_p16v_pcm_open_capture_channel(struct snd_pcm_substream *substream
 	*/
 	runtime->private_data = epcm;
 	runtime->private_free = snd_p16v_pcm_free_substream;
-  
+
 	runtime->hw = snd_p16v_capture_hw;
 
 	channel->emu = emu;
@@ -322,7 +322,7 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	u32 period_size_bytes = frames_to_bytes(runtime, runtime->period_size);
 	int i;
 	u32 tmp;
-	
+
 #if 0 /* debug */
 	dev_dbg(emu->card->dev,
 		"prepare:channel_number=%d, rate=%d, "
@@ -360,7 +360,7 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 		table_base[i*2]=runtime->dma_addr+(i*period_size_bytes);
 		table_base[(i*2)+1]=period_size_bytes<<16;
 	}
- 
+
 	snd_emu10k1_ptr20_write(emu, PLAYBACK_LIST_ADDR, channel, emu->p16v_buffer.addr+(8*16*channel));
 	snd_emu10k1_ptr20_write(emu, PLAYBACK_LIST_SIZE, channel, (runtime->periods - 1) << 19);
 	snd_emu10k1_ptr20_write(emu, PLAYBACK_LIST_PTR, channel, 0);
@@ -621,13 +621,13 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 	struct snd_pcm_substream *substream;
 	int err;
         int capture=1;
-  
+
 	/* dev_dbg(emu->card->dev, "snd_p16v_pcm called. device=%d\n", device); */
 	emu->p16v_device_offset = device;
 
 	if ((err = snd_pcm_new(emu->card, "p16v", device, 1, capture, &pcm)) < 0)
 		return err;
-  
+
 	pcm->private_data = emu;
 	// Single playback 8 channel device.
 	// Single capture 2 channel device.
@@ -639,8 +639,8 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 	strcpy(pcm->name, "p16v");
 	emu->pcm_p16v = pcm;
 
-	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
-	    substream; 
+	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	    substream;
 	    substream = substream->next) {
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(emu->pci),
@@ -652,8 +652,8 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 		*/
 	}
 
-	for (substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream; 
-	      substream; 
+	for (substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+	      substream;
 	      substream = substream->next) {
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(emu->pci),
@@ -663,7 +663,7 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 			   "preallocate capture substream: err=%d\n", err);
 		*/
 	}
-  
+
 	return 0;
 }
 

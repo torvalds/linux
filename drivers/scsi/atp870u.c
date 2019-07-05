@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* 
+/*
  *  Copyright (C) 1997	Wu Ching Chen
  *  2.1.x update (C) 1998  Krzysztof G. Baranowski
  *  2.5.x update (C) 2002  Red Hat
@@ -137,16 +137,16 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 	}
 	if ((j & 0x80) == 0)
 		return IRQ_NONE;
-#ifdef ED_DBGP	
+#ifdef ED_DBGP
 	printk("atp870u_intr_handle enter\n");
-#endif	
+#endif
 	dev->in_int[c] = 1;
 	cmdp = atp_readb_io(dev, c, 0x10);
 	if (dev->working[c] != 0) {
 		if (is885(dev)) {
 			if ((atp_readb_io(dev, c, 0x16) & 0x80) == 0)
 				atp_writeb_io(dev, c, 0x16, (atp_readb_io(dev, c, 0x16) | 0x80));
-		}		
+		}
 		if ((atp_readb_pci(dev, c, 0x00) & 0x08) != 0)
 		{
 			for (k=0; k < 1000; k++) {
@@ -157,9 +157,9 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			}
 		}
 		atp_writeb_pci(dev, c, 0, 0x00);
-		
+
 		i = atp_readb_io(dev, c, 0x17);
-		
+
 		if (is885(dev))
 			atp_writeb_pci(dev, c, 2, 0x06);
 
@@ -185,7 +185,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			dev->r1f[c][target_id] |= j;
 #ifdef ED_DBGP
 		printk("atp870u_intr_handle status = %x\n",i);
-#endif	
+#endif
 		if (i == 0x85) {
 			if ((dev->last_cmd[c] & 0xf0) != 0x40) {
 			   dev->last_cmd[c] = 0xff;
@@ -198,31 +198,31 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				if (dev->id[c][target_id].last_len != adrcnt) {
 					k = dev->id[c][target_id].last_len;
 			   		k -= adrcnt;
-			   		dev->id[c][target_id].tran_len = k;			   
+			   		dev->id[c][target_id].tran_len = k;
 					dev->id[c][target_id].last_len = adrcnt;
 				}
 #ifdef ED_DBGP
 				printk("dev->id[c][target_id].last_len = %d dev->id[c][target_id].tran_len = %d\n",dev->id[c][target_id].last_len,dev->id[c][target_id].tran_len);
-#endif		
+#endif
 			}
 
 			/*
 			 *      Flip wide
-			 */			
+			 */
 			if (dev->wide_id[c] != 0) {
 				atp_writeb_io(dev, c, 0x1b, 0x01);
 				while ((atp_readb_io(dev, c, 0x1b) & 0x01) != 0x01)
 					atp_writeb_io(dev, c, 0x1b, 0x01);
-			}		
+			}
 			/*
 			 *	Issue more commands
 			 */
-			spin_lock_irqsave(dev->host->host_lock, flags);			 			 
+			spin_lock_irqsave(dev->host->host_lock, flags);
 			if (((dev->quhd[c] != dev->quend[c]) || (dev->last_cmd[c] != 0xff)) &&
 			    (dev->in_snd[c] == 0)) {
 #ifdef ED_DBGP
 				printk("Call sent_s870\n");
-#endif				
+#endif
 				send_s870(dev,c);
 			}
 			spin_unlock_irqrestore(dev->host->host_lock, flags);
@@ -232,7 +232,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			dev->in_int[c] = 0;
 #ifdef ED_DBGP
 				printk("Status 0x85 return\n");
-#endif				
+#endif
 			return IRQ_HANDLED;
 		}
 
@@ -262,17 +262,17 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 
 		if (is885(dev)) {
 			if ((i == 0x4c) || (i == 0x4d) || (i == 0x8c) || (i == 0x8d)) {
-		   		if ((i == 0x4c) || (i == 0x8c)) 
+		   		if ((i == 0x4c) || (i == 0x8c))
 		      			i=0x48;
-		   		else 
+		   		else
 		      			i=0x49;
-		   	}	
-			
+		   	}
+
 		}
 		if ((i == 0x80) || (i == 0x8f)) {
 #ifdef ED_DBGP
 			printk(KERN_DEBUG "Device reselect\n");
-#endif			
+#endif
 			lun = 0;
 			if (cmdp == 0x44 || i == 0x80)
 				lun = atp_readb_io(dev, c, 0x1d) & 0x07;
@@ -283,7 +283,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				if (cmdp == 0x41) {
 #ifdef ED_DBGP
 					printk("cmdp = 0x41\n");
-#endif						
+#endif
 					adrcnt = 0;
 					((unsigned char *) &adrcnt)[2] = atp_readb_io(dev, c, 0x12);
 					((unsigned char *) &adrcnt)[1] = atp_readb_io(dev, c, 0x13);
@@ -298,7 +298,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				} else {
 #ifdef ED_DBGP
 					printk("cmdp != 0x41\n");
-#endif						
+#endif
 					atp_writeb_io(dev, c, 0x10, 0x46);
 					dev->id[c][target_id].dirct = 0x00;
 					atp_writeb_io(dev, c, 0x12, 0x00);
@@ -330,13 +330,13 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			if (is885(dev))
 				atp_writeb_io(dev, c, 0x10, 0x45);
 			workreq = dev->id[c][target_id].curr_req;
-#ifdef ED_DBGP			
+#ifdef ED_DBGP
 			scmd_printk(KERN_DEBUG, workreq, "CDB");
 			for (l = 0; l < workreq->cmd_len; l++)
 				printk(KERN_DEBUG " %x",workreq->cmnd[l]);
 			printk("\n");
-#endif	
-			
+#endif
+
 			atp_writeb_io(dev, c, 0x0f, lun);
 			atp_writeb_io(dev, c, 0x11, dev->id[c][target_id].devsp);
 			adrcnt = dev->id[c][target_id].tran_len;
@@ -345,9 +345,9 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			atp_writeb_io(dev, c, 0x12, ((unsigned char *) &k)[2]);
 			atp_writeb_io(dev, c, 0x13, ((unsigned char *) &k)[1]);
 			atp_writeb_io(dev, c, 0x14, ((unsigned char *) &k)[0]);
-#ifdef ED_DBGP			
+#ifdef ED_DBGP
 			printk("k %x, k[0] 0x%x k[1] 0x%x k[2] 0x%x\n", k, atp_readb_io(dev, c, 0x14), atp_readb_io(dev, c, 0x13), atp_readb_io(dev, c, 0x12));
-#endif			
+#endif
 			/* Remap wide */
 			j = target_id;
 			if (target_id > 7) {
@@ -357,11 +357,11 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			j |= dev->id[c][target_id].dirct;
 			atp_writeb_io(dev, c, 0x15, j);
 			atp_writeb_io(dev, c, 0x16, 0x80);
-			
-			/* enable 32 bit fifo transfer */	
+
+			/* enable 32 bit fifo transfer */
 			if (is885(dev)) {
 				i = atp_readb_pci(dev, c, 1) & 0xf3;
-				//j=workreq->cmnd[0];	    		    	
+				//j=workreq->cmnd[0];
 				if ((workreq->cmnd[0] == 0x08) || (workreq->cmnd[0] == 0x28) || (workreq->cmnd[0] == 0x0a) || (workreq->cmnd[0] == 0x2a)) {
 				   i |= 0x0c;
 				}
@@ -371,12 +371,12 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 					atp_writeb_base(dev, 0x3b, (atp_readb_base(dev, 0x3b) & 0x3f) | 0xc0);
 				else
 					atp_writeb_base(dev, 0x3b, atp_readb_base(dev, 0x3b) & 0x3f);
-			} else {				
+			} else {
 				if ((workreq->cmnd[0] == 0x08) || (workreq->cmnd[0] == 0x28) || (workreq->cmnd[0] == 0x0a) || (workreq->cmnd[0] == 0x2a))
 					atp_writeb_base(dev, 0x3a, (atp_readb_base(dev, 0x3a) & 0xf3) | 0x08);
 				else
 					atp_writeb_base(dev, 0x3a, atp_readb_base(dev, 0x3a) & 0xf3);
-			}	
+			}
 			j = 0;
 			id = 1;
 			id = id << target_id;
@@ -394,12 +394,12 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				dev->in_int[c] = 0;
 #ifdef ED_DBGP
 				printk("dev->id[c][target_id].last_len = 0\n");
-#endif					
+#endif
 				return IRQ_HANDLED;
 			}
 #ifdef ED_DBGP
 			printk("target_id = %d adrcnt = %d\n",target_id,adrcnt);
-#endif			
+#endif
 			prd = dev->id[c][target_id].prd_pos;
 			while (adrcnt != 0) {
 				id = ((unsigned short int *)prd)[2];
@@ -421,7 +421,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 					if (adrcnt == 0) {
 						dev->id[c][target_id].prd_pos = prd;
 					}
-				}				
+				}
 			}
 			atp_writel_pci(dev, c, 0x04, dev->id[c][target_id].prdaddr);
 #ifdef ED_DBGP
@@ -440,7 +440,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				dev->in_int[c] = 0;
 #ifdef ED_DBGP
 				printk("status 0x80 return dirct != 0\n");
-#endif				
+#endif
 				return IRQ_HANDLED;
 			}
 			atp_writeb_io(dev, c, 0x18, 0x08);
@@ -448,7 +448,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			dev->in_int[c] = 0;
 #ifdef ED_DBGP
 			printk("status 0x80 return dirct = 0\n");
-#endif			
+#endif
 			return IRQ_HANDLED;
 		}
 
@@ -484,7 +484,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			(*workreq->scsi_done) (workreq);
 #ifdef ED_DBGP
 			   printk("workreq->scsi_done\n");
-#endif	
+#endif
 			/*
 			 *	Clear it off the queue
 			 */
@@ -498,7 +498,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				atp_writeb_io(dev, c, 0x1b, 0x01);
 				while ((atp_readb_io(dev, c, 0x1b) & 0x01) != 0x01)
 					atp_writeb_io(dev, c, 0x1b, 0x01);
-			} 
+			}
 			/*
 			 *	If there is stuff to send and nothing going then send it
 			 */
@@ -507,7 +507,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			    (dev->in_snd[c] == 0)) {
 #ifdef ED_DBGP
 			   printk("Call sent_s870(scsi_done)\n");
-#endif				   
+#endif
 			   send_s870(dev,c);
 			}
 			spin_unlock_irqrestore(dev->host->host_lock, flags);
@@ -593,17 +593,17 @@ static int atp870u_queuecommand_lck(struct scsi_cmnd *req_p,
 	if (scmd_channel(req_p) > 1) {
 		req_p->result = 0x00040000;
 		done(req_p);
-#ifdef ED_DBGP		
-		printk("atp870u_queuecommand : req_p->device->channel > 1\n");	
-#endif			
+#ifdef ED_DBGP
+		printk("atp870u_queuecommand : req_p->device->channel > 1\n");
+#endif
 		return 0;
 	}
 
 	host = req_p->device->host;
 	dev = (struct atp_unit *)&host->hostdata;
-		
 
-		
+
+
 	m = 1;
 	m = m << scmd_id(req_p);
 
@@ -620,14 +620,14 @@ static int atp870u_queuecommand_lck(struct scsi_cmnd *req_p,
 	if (done) {
 		req_p->scsi_done = done;
 	} else {
-#ifdef ED_DBGP		
+#ifdef ED_DBGP
 		printk( "atp870u_queuecommand: done can't be NULL\n");
-#endif		
+#endif
 		req_p->result = 0;
 		done(req_p);
 		return 0;
 	}
-	
+
 	/*
 	 *	Count new command
 	 */
@@ -635,7 +635,7 @@ static int atp870u_queuecommand_lck(struct scsi_cmnd *req_p,
 	if (dev->quend[c] >= qcnt) {
 		dev->quend[c] = 0;
 	}
-	
+
 	/*
 	 *	Check queue state
 	 */
@@ -643,27 +643,27 @@ static int atp870u_queuecommand_lck(struct scsi_cmnd *req_p,
 		if (dev->quend[c] == 0) {
 			dev->quend[c] = qcnt;
 		}
-#ifdef ED_DBGP		
+#ifdef ED_DBGP
 		printk("atp870u_queuecommand : dev->quhd[c] == dev->quend[c]\n");
-#endif		
+#endif
 		dev->quend[c]--;
 		req_p->result = 0x00020000;
-		done(req_p);	
+		done(req_p);
 		return 0;
 	}
 	dev->quereq[c][dev->quend[c]] = req_p;
-#ifdef ED_DBGP	
+#ifdef ED_DBGP
 	printk("dev->ioport[c] = %x atp_readb_io(dev, c, 0x1c) = %x dev->in_int[%d] = %d dev->in_snd[%d] = %d\n",dev->ioport[c],atp_readb_io(dev, c, 0x1c),c,dev->in_int[c],c,dev->in_snd[c]);
 #endif
 	if ((atp_readb_io(dev, c, 0x1c) == 0) && (dev->in_int[c] == 0) && (dev->in_snd[c] == 0)) {
 #ifdef ED_DBGP
 		printk("Call sent_s870(atp870u_queuecommand)\n");
-#endif		
+#endif
 		send_s870(dev,c);
 	}
-#ifdef ED_DBGP	
+#ifdef ED_DBGP
 	printk("atp870u_queuecommand : exit\n");
-#endif	
+#endif
 	return 0;
 }
 
@@ -674,7 +674,7 @@ static DEF_SCSI_QCMD(atp870u_queuecommand)
  *	@host: host
  *
  *	On entry there is work queued to be done. We move some of that work to the
- *	controller itself. 
+ *	controller itself.
  *
  *	Caller holds the host lock.
  */
@@ -689,7 +689,7 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 	unsigned long  sg_count;
 
 	if (dev->in_snd[c] != 0) {
-#ifdef ED_DBGP		
+#ifdef ED_DBGP
 		printk("cmnd in_snd\n");
 #endif
 		return;
@@ -744,7 +744,7 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 		printk(" %x",workreq->cmnd[i]);
 	}
 	printk("\n");
-#endif	
+#endif
 	l = scsi_bufflen(workreq);
 
 	if (is885(dev)) {
@@ -752,7 +752,7 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 		atp_writeb_base(dev, 0x29, j);
 		dev->r1f[c][scmd_id(workreq)] = 0;
 	}
-	
+
 	if (workreq->cmnd[0] == READ_CAPACITY) {
 		if (l > 8)
 			l = 8;
@@ -796,7 +796,7 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 	 *	Write the target
 	 */
 	atp_writeb_io(dev, c, 0x11, dev->id[c][target_id].devsp);
-#ifdef ED_DBGP	
+#ifdef ED_DBGP
 	printk("dev->id[%d][%d].devsp = %2x\n",c,target_id,dev->id[c][target_id].devsp);
 #endif
 
@@ -807,12 +807,12 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 	atp_writeb_io(dev, c, 0x12, ((unsigned char *) (&l))[2]);
 	atp_writeb_io(dev, c, 0x13, ((unsigned char *) (&l))[1]);
 	atp_writeb_io(dev, c, 0x14, ((unsigned char *) (&l))[0]);
-	j = target_id;	
+	j = target_id;
 	dev->id[c][j].last_len = l;
 	dev->id[c][j].tran_len = 0;
-#ifdef ED_DBGP	
+#ifdef ED_DBGP
 	printk("dev->id[%2d][%2d].last_len = %d\n",c,j,dev->id[c][j].last_len);
-#endif	
+#endif
 	/*
 	 *	Flip the wide bits
 	 */
@@ -832,8 +832,8 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 	if (l == 0) {
 		if (atp_readb_io(dev, c, 0x1c) == 0) {
 #ifdef ED_DBGP
-			printk("change SCSI_CMD_REG 0x08\n");	
-#endif				
+			printk("change SCSI_CMD_REG 0x08\n");
+#endif
 			atp_writeb_io(dev, c, 0x18, 0x08);
 		} else
 			dev->last_cmd[c] |= 0x40;
@@ -854,9 +854,9 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 		scsi_for_each_sg(workreq, sgpnt, sg_count, j) {
 			bttl = sg_dma_address(sgpnt);
 			l=sg_dma_len(sgpnt);
-#ifdef ED_DBGP		
+#ifdef ED_DBGP
 			printk("1. bttl %x, l %x\n",bttl, l);
-#endif			
+#endif
 			while (l > 0x10000) {
 				(((u16 *) (prd))[i + 3]) = 0x0000;
 				(((u16 *) (prd))[i + 2]) = 0x0000;
@@ -868,17 +868,17 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 			(((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
 			(((u16 *) (prd))[i + 2]) = cpu_to_le16(l);
 			(((u16 *) (prd))[i + 3]) = 0;
-			i += 0x04;			
+			i += 0x04;
 		}
-		(((u16 *) (prd))[i - 1]) = cpu_to_le16(0x8000);	
-#ifdef ED_DBGP		
+		(((u16 *) (prd))[i - 1]) = cpu_to_le16(0x8000);
+#ifdef ED_DBGP
 		printk("prd %4x %4x %4x %4x\n",(((unsigned short int *)prd)[0]),(((unsigned short int *)prd)[1]),(((unsigned short int *)prd)[2]),(((unsigned short int *)prd)[3]));
 		printk("2. bttl %x, l %x\n",bttl, l);
-#endif			
+#endif
 	}
-#ifdef ED_DBGP		
+#ifdef ED_DBGP
 	printk("send_s870: prdaddr_2 0x%8x target_id %d\n", dev->id[c][target_id].prdaddr,target_id);
-#endif	
+#endif
 	dev->id[c][target_id].prdaddr = dev->id[c][target_id].prd_bus;
 	atp_writel_pci(dev, c, 4, dev->id[c][target_id].prdaddr);
 	atp_writeb_pci(dev, c, 2, 0x06);
@@ -895,21 +895,21 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 			atp_writeb_base(dev, 0x3b, (atp_readb_base(dev, 0x3b) & 0x3f) | 0xc0);
 		else
 			atp_writeb_base(dev, 0x3b, atp_readb_base(dev, 0x3b) & 0x3f);
-	} else {		
+	} else {
 		if ((workreq->cmnd[0] == 0x08) || (workreq->cmnd[0] == 0x28) || (workreq->cmnd[0] == 0x0a) || (workreq->cmnd[0] == 0x2a))
 			atp_writeb_base(dev, 0x3a, (atp_readb_base(dev, 0x3a) & 0xf3) | 0x08);
 		else
 			atp_writeb_base(dev, 0x3a, atp_readb_base(dev, 0x3a) & 0xf3);
-	}	
+	}
 
 	if(workreq->sc_data_direction == DMA_TO_DEVICE) {
 		dev->id[c][target_id].dirct = 0x20;
 		if (atp_readb_io(dev, c, 0x1c) == 0) {
 			atp_writeb_io(dev, c, 0x18, 0x08);
 			atp_writeb_pci(dev, c, 0, 0x01);
-#ifdef ED_DBGP		
+#ifdef ED_DBGP
 		printk( "start DMA(to target)\n");
-#endif				
+#endif
 		} else {
 			dev->last_cmd[c] |= 0x40;
 		}
@@ -919,9 +919,9 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 	if (atp_readb_io(dev, c, 0x1c) == 0) {
 		atp_writeb_io(dev, c, 0x18, 0x08);
 		atp_writeb_pci(dev, c, 0, 0x09);
-#ifdef ED_DBGP		
+#ifdef ED_DBGP
 		printk( "start DMA(to host)\n");
-#endif			
+#endif
 	} else {
 		dev->last_cmd[c] |= 0x40;
 	}
@@ -1214,9 +1214,9 @@ static int atp870u_init_tables(struct Scsi_Host *host)
 			atp_dev->id[c][k].prdaddr = atp_dev->id[c][k].prd_bus;
 			atp_dev->id[c][k].devsp=0x20;
 			atp_dev->id[c][k].devtype = 0x7f;
-			atp_dev->id[c][k].curr_req = NULL;			   
+			atp_dev->id[c][k].curr_req = NULL;
 	   	}
-	   			
+
 	   	atp_dev->active_id[c] = 0;
 	   	atp_dev->wide_id[c] = 0;
 	   	atp_dev->host_id[c] = 0x07;
@@ -1225,14 +1225,14 @@ static int atp870u_init_tables(struct Scsi_Host *host)
 	   	atp_dev->last_cmd[c] = 0xff;
 	   	atp_dev->in_snd[c] = 0;
 	   	atp_dev->in_int[c] = 0;
-	   	
+
 	   	for (k = 0; k < qcnt; k++) {
 	   		  atp_dev->quereq[c][k] = NULL;
-	   	}	   		   
+	   	}
 	   	for (k = 0; k < 16; k++) {
 			   atp_dev->id[c][k].curr_req = NULL;
 			   atp_dev->sp[c][k] = 0x04;
-	   	}		   
+	   	}
 	}
 	return 0;
 }
@@ -1586,7 +1586,7 @@ static int atp870u_abort(struct scsi_cmnd * SCpnt)
 {
 	unsigned char  j, k, c;
 	struct scsi_cmnd *workrequ;
-	struct atp_unit *dev;	
+	struct atp_unit *dev;
 	struct Scsi_Host *host;
 	host = SCpnt->device->host;
 
@@ -1655,11 +1655,11 @@ static int atp870u_biosparam(struct scsi_device *disk, struct block_device *dev,
 }
 
 static void atp870u_remove (struct pci_dev *pdev)
-{	
+{
 	struct atp_unit *devext = pci_get_drvdata(pdev);
 	struct Scsi_Host *pshost = devext->host;
-	
-	
+
+
 	scsi_remove_host(pshost);
 	free_irq(pshost->irq, pshost);
 	pci_release_regions(pdev);
@@ -1982,7 +1982,7 @@ u3p_cmd:
 			m = m << i;
 			dev->wide_id[c] |= m;
 			dev->id[c][i].devsp = 0xce;
-#ifdef ED_DBGP		   
+#ifdef ED_DBGP
 			printk("dev->id[%2d][%2d].devsp = %2x\n",c,i,dev->id[c][i].devsp);
 #endif
 			continue;

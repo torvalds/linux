@@ -1928,7 +1928,7 @@ char *get_linestate(struct s_smc *smc, int np)
 char *get_pcmstate(struct s_smc *smc, int np)
 {
 	char *pcs ;
-	
+
 	SK_UNUSED(smc) ;
 
 	switch (inpw(PLC(np,PL_STATUS_B)) & PL_PCM_STATE) {

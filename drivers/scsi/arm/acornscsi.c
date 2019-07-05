@@ -153,7 +153,7 @@
 #ifdef USE_DMAC
 /*
  * DMAC setup parameters
- */ 
+ */
 #define INIT_DEVCON0	(DEVCON0_RQL|DEVCON0_EXW|DEVCON0_CMP)
 #define INIT_DEVCON1	(DEVCON1_BHLD)
 #define DMAC_READ	(MODECON_READ)
@@ -421,7 +421,7 @@ static signed char acornscsi_map[] = {
  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,
  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,
  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1
-};      
+};
 
 static char *acornscsi_interruptcode[] = {
     /* 0 */
@@ -467,8 +467,8 @@ void print_scsi_status(unsigned int ssr)
 		acornscsi_interrupttype[(ssr >> 4)],
 		acornscsi_interruptcode[acornscsi_map[ssr]]);
     else
-	printk("%X:%X", ssr >> 4, ssr & 0x0f);    
-}    
+	printk("%X:%X", ssr >> 4, ssr & 0x0f);
+}
 #endif
 
 static
@@ -777,7 +777,7 @@ intr_ret_t acornscsi_kick(AS_Host *host)
     }
 
     return INTR_PROCESSING;
-}    
+}
 
 /*
  * Function: void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp, unsigned int result)
@@ -1982,7 +1982,7 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 	    ADD_STATUS(8, ssr, host->scsi.phase, 1);
 	    ADD_STATUS(host->SCpnt->device->id, ssr, host->scsi.phase, 1);
 	    goto connected;
-	    
+
 	case 0x42:			/* select timed out				*/
 					/* -> PHASE_IDLE				*/
 	    acornscsi_done(host, &host->SCpnt, DID_NO_CONNECT);
@@ -2726,7 +2726,7 @@ int acornscsi_host_reset(struct scsi_cmnd *SCpnt)
 {
 	AS_Host *host = (AS_Host *)SCpnt->device->host->hostdata;
 	struct scsi_cmnd *SCptr;
-    
+
     host->stats.resets += 1;
 
 #if (DEBUG & DEBUG_RESET)
@@ -2773,7 +2773,7 @@ char *acornscsi_info(struct Scsi_Host *host)
     static char string[100], *p;
 
     p = string;
-    
+
     p += sprintf(string, "%s at port %08lX irq %d v%d.%d.%d"
 #ifdef CONFIG_SCSI_ACORNSCSI_SYNC
     " SYNC"
@@ -2796,7 +2796,7 @@ static int acornscsi_show_info(struct seq_file *m, struct Scsi_Host *instance)
     AS_Host *host;
 
     host  = (AS_Host *)instance->hostdata;
-    
+
     seq_printf(m, "AcornSCSI driver v%d.%d.%d"
 #ifdef CONFIG_SCSI_ACORNSCSI_SYNC
     " SYNC"

@@ -68,7 +68,7 @@ struct mctl {
 static const struct mctl maven_controls[] =
 {	{ { V4L2_CID_BRIGHTNESS, V4L2_CTRL_TYPE_INTEGER,
 	  "brightness",
-	  0, WLMAX - BLMIN, 1, 379 - BLMIN, 
+	  0, WLMAX - BLMIN, 1, 379 - BLMIN,
 	  0,
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.brightness) },
 	{ { V4L2_CID_CONTRAST, V4L2_CTRL_TYPE_INTEGER,
@@ -339,7 +339,7 @@ static void DAC1064_calcclock(unsigned int freq, unsigned int fmax,
 
 static unsigned char maven_compute_deflicker (const struct maven_data* md) {
 	unsigned char df;
-	
+
 	df = (md->version == MGATVO_B?0x40:0x00);
 	switch (md->primary_head->altout.tvo_params.deflicker) {
 		case 0:
@@ -483,7 +483,7 @@ static void maven_init_TVdata(const struct maven_data* md, struct mavenregs* dat
 
 	/* Set deflicker */
 	data->regs[0x93] = maven_compute_deflicker(md);
- 
+
 	/* set gamma */
 	{
 		const struct maven_gamma* g;
@@ -498,7 +498,7 @@ static void maven_init_TVdata(const struct maven_data* md, struct mavenregs* dat
 		data->regs[0x8A] = g->reg8a;
 		data->regs[0x8B] = g->reg8b;
 	}
- 
+
 	/* Set contrast / brightness */
 	{
 		int bl, wl;
@@ -514,7 +514,7 @@ static void maven_init_TVdata(const struct maven_data* md, struct mavenregs* dat
 		data->regs[0x20] =
 		data->regs[0x22] = minfo->altout.tvo_params.saturation;
 	}
- 
+
 	/* Set HUE */
 	data->regs[0x25] = minfo->altout.tvo_params.hue;
 	return;
@@ -1030,19 +1030,19 @@ static inline int maven_resync(struct maven_data* md) {
 	return 0;
 }
 
-static int maven_get_queryctrl (struct maven_data* md, 
+static int maven_get_queryctrl (struct maven_data* md,
 				struct v4l2_queryctrl *p) {
 	int i;
-	
+
 	i = get_ctrl_id(p->id);
 	if (i >= 0) {
 		*p = maven_controls[i].desc;
 		return 0;
 	}
 	if (i == -ENOENT) {
-		static const struct v4l2_queryctrl disctrl = 
+		static const struct v4l2_queryctrl disctrl =
 			{ .flags = V4L2_CTRL_FLAG_DISABLED };
-			
+
 		i = p->id;
 		*p = disctrl;
 		p->id = i;
@@ -1052,10 +1052,10 @@ static int maven_get_queryctrl (struct maven_data* md,
 	return -EINVAL;
 }
 
-static int maven_set_control (struct maven_data* md, 
+static int maven_set_control (struct maven_data* md,
 			      struct v4l2_control *p) {
 	int i;
-	
+
 	i = get_ctrl_id(p->id);
 	if (i < 0) return -EINVAL;
 
@@ -1115,7 +1115,7 @@ static int maven_set_control (struct maven_data* md,
 		break;
 		case MATROXFB_CID_TESTOUT:
 		{
-			unsigned char val 
+			unsigned char val
 			  = maven_get_reg(md->client, 0x8d);
 			if (p->value) val |= 0x10;
 			else          val &= ~0x10;
@@ -1128,15 +1128,15 @@ static int maven_set_control (struct maven_data* md,
 		}
 		break;
 	}
-	
+
 
 	return 0;
 }
 
-static int maven_get_control (struct maven_data* md, 
+static int maven_get_control (struct maven_data* md,
 			      struct v4l2_control *p) {
 	int i;
-	
+
 	i = get_ctrl_id(p->id);
 	if (i < 0) return -EINVAL;
 	p->value = *get_ctrl_ptr(md, i);

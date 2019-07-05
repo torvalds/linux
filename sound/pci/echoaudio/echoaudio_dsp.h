@@ -103,7 +103,7 @@
 #define CHI32_STATUS_IRQ		0x00000040
 
 
-/* 
+/*
  *
  * DSP commands sent via slave mode; these are sent to the DSP by write_dsp()
  *
@@ -369,7 +369,7 @@ SET_LAYLA24_FREQUENCY_REG command.
  * via input and output pipes.  LE means little-endian,
  * BE means big-endian.
  *
- * DSP_AUDIOFORM_MS_8   
+ * DSP_AUDIOFORM_MS_8
  *
  *    8-bit mono unsigned samples.  For playback,
  *    mono data is duplicated out the left and right channels
@@ -388,10 +388,10 @@ SET_LAYLA24_FREQUENCY_REG command.
  *    they would be stored in memory like this: 33 22 11 66 55 44.
  *
  * DSP_AUDIOFORM_MS_32LE
- * 
- *    24-bit signed little-endian mono samples in a 32-bit 
- *    container.  In other words, each sample is a 32-bit signed 
- *    integer, where the actual audio data is left-justified 
+ *
+ *    24-bit signed little-endian mono samples in a 32-bit
+ *    container.  In other words, each sample is a 32-bit signed
+ *    integer, where the actual audio data is left-justified
  *    in the 32 bits and only the 24 most significant bits are valid.
  *
  * DSP_AUDIOFORM_SS_8
@@ -435,8 +435,8 @@ SET_LAYLA24_FREQUENCY_REG command.
  * Super-interleave is defined as interleaving by 4 or more.  Darla20 and Gina20
  * do not support super interleave.
  *
- * 16 bit, 24 bit, and 32 bit little endian samples are supported for super 
- * interleave.  The interleave factor must be even.  16 - way interleave is the 
+ * 16 bit, 24 bit, and 32 bit little endian samples are supported for super
+ * interleave.  The interleave factor must be even.  16 - way interleave is the
  * current maximum, so you can interleave by 4, 6, 8, 10, 12, 14, and 16.
  *
  * The actual format code is derived by taking the define below and or-ing with

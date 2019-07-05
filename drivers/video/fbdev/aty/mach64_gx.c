@@ -365,7 +365,7 @@ static int aty_var_to_pll_18818(const struct fb_info *info, u32 vclk_per,
 	}
 	MHz100 *= 1000;
 	MHz100 = (REF_DIV_2595 * MHz100) / REF_FREQ_2595;
- 
+
 	MHz100 += 500;		/* + 0.5 round */
 	MHz100 /= 1000;
 

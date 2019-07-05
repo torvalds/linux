@@ -630,7 +630,7 @@ struct sctp_ifwdtsn_chunk {
  *	Address Parameter: 8 or 20 bytes (depending on type)
  *	The address is an address of the sender of the ASCONF chunk,
  *	the address MUST be considered part of the association by the
- *	peer endpoint. This field may be used by the receiver of the 
+ *	peer endpoint. This field may be used by the receiver of the
  *	ASCONF to help in finding the association. This parameter MUST
  *	be present in every ASCONF message i.e. it is a mandatory TLV
  *	parameter.
@@ -641,11 +641,11 @@ struct sctp_ifwdtsn_chunk {
  *	be present in an ASCONF Chunk.
  *
  * Section 3.1.2 Address Configuration Acknowledgement Chunk (ASCONF-ACK)
- * 
+ *
  *	Serial Number: 32 bits (unsigned integer)
  *	This value represents the Serial Number for the received ASCONF
  *	Chunk that is acknowledged by this chunk. This value is copied
- *	from the received ASCONF Chunk. 
+ *	from the received ASCONF Chunk.
  *
  *	ASCONF Parameter Response: TLV format
  *	The ASCONF Parameter Response is used in the ASCONF-ACK to

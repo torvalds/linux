@@ -121,7 +121,7 @@ struct vxfs_sb {
 	__fs32		vs_boffmask;		/* bsize - 1 */
 	__fs32		vs_old_inomask;		/* old_inopilb - 1 */
 	__fs32		vs_checksum;		/* checksum of V1 data */
-	
+
 	/*
 	 * Version 1, writable
 	 */
@@ -139,7 +139,7 @@ struct vxfs_sb {
 	__u8		vs_fpack[6];		/* FS pack name */
 	__fs32		vs_logversion;		/* log format version */
 	__u32		__unused5;		/* unused */
-	
+
 	/*
 	 * Version 2, Read-only
 	 */

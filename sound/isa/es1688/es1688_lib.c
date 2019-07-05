@@ -487,7 +487,7 @@ static snd_pcm_uframes_t snd_es1688_playback_pointer(struct snd_pcm_substream *s
 {
 	struct snd_es1688 *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
-	
+
 	if (chip->trigger_value != 0x05)
 		return 0;
 	ptr = snd_dma_pointer(chip->dma8, chip->dma_size);
@@ -498,7 +498,7 @@ static snd_pcm_uframes_t snd_es1688_capture_pointer(struct snd_pcm_substream *su
 {
 	struct snd_es1688 *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
-	
+
 	if (chip->trigger_value != 0x0f)
 		return 0;
 	ptr = snd_dma_pointer(chip->dma8, chip->dma_size);
@@ -632,7 +632,7 @@ int snd_es1688_create(struct snd_card *card,
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_es1688_dev_free,
 	};
-                                
+
 	int err;
 
 	if (chip == NULL)
@@ -640,7 +640,7 @@ int snd_es1688_create(struct snd_card *card,
 	chip->irq = -1;
 	chip->dma8 = -1;
 	chip->hardware = ES1688_HW_UNDEF;
-	
+
 	chip->res_port = request_region(port + 4, 12, "ES1688");
 	if (chip->res_port == NULL) {
 		snd_printk(KERN_ERR "es1688: can't grab port 0x%lx\n", port + 4);
@@ -761,7 +761,7 @@ static int snd_es1688_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	unsigned long flags;
 	unsigned char oval, nval;
 	int change;
-	
+
 	if (ucontrol->value.enumerated.item[0] > 8)
 		return -EINVAL;
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -799,7 +799,7 @@ static int snd_es1688_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = (snd_es1688_mixer_read(chip, reg) >> shift) & mask;
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -818,7 +818,7 @@ static int snd_es1688_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	int change;
 	unsigned char oval, nval;
-	
+
 	nval = (ucontrol->value.integer.value[0] & mask);
 	if (invert)
 		nval = mask - nval;
@@ -861,14 +861,14 @@ static int snd_es1688_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
 	unsigned char left, right;
-	
+
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	if (left_reg < 0xa0)
 		left = snd_es1688_mixer_read(chip, left_reg);
 	else
 		left = snd_es1688_read(chip, left_reg);
 	if (left_reg != right_reg) {
-		if (right_reg < 0xa0) 
+		if (right_reg < 0xa0)
 			right = snd_es1688_mixer_read(chip, right_reg);
 		else
 			right = snd_es1688_read(chip, right_reg);
@@ -896,7 +896,7 @@ static int snd_es1688_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	int invert = (kcontrol->private_value >> 22) & 1;
 	int change;
 	unsigned char val1, val2, oval1, oval2;
-	
+
 	val1 = ucontrol->value.integer.value[0] & mask;
 	val2 = ucontrol->value.integer.value[1] & mask;
 	if (invert) {
@@ -941,7 +941,7 @@ static int snd_es1688_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 			else
 				snd_es1688_write(chip, left_reg, val1);
 		}
-			
+
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return change;
@@ -981,7 +981,7 @@ static unsigned char snd_es1688_init_table[][2] = {
 	{ ES1688_RECLEV_DEV, 0 },
 	{ ES1688_REC_DEV, 0x17 }
 };
-                                        
+
 int snd_es1688_mixer(struct snd_card *card, struct snd_es1688 *chip)
 {
 	unsigned int idx;

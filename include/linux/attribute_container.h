@@ -50,11 +50,11 @@ void attribute_container_remove_device(struct device *dev,
 				       void (*fn)(struct attribute_container *,
 						  struct device *,
 						  struct device *));
-void attribute_container_device_trigger(struct device *dev, 
+void attribute_container_device_trigger(struct device *dev,
 					int (*fn)(struct attribute_container *,
 						  struct device *,
 						  struct device *));
-void attribute_container_trigger(struct device *dev, 
+void attribute_container_trigger(struct device *dev,
 				 int (*fn)(struct attribute_container *,
 					   struct device *));
 int attribute_container_add_attrs(struct device *classdev);

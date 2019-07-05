@@ -268,7 +268,7 @@ get_sigframe(struct ksignal *ksig, unsigned long sp, size_t frame_size)
 }
 
 static long
-setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, 
+setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 		 unsigned long mask, unsigned long sp)
 {
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
@@ -361,7 +361,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	regs->r17 = 0;				/* a1: exception code */
 	regs->r18 = (unsigned long) &frame->sc;	/* a2: sigcontext pointer */
 	wrusp((unsigned long) frame);
-	
+
 #if DEBUG_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
 		current->comm, current->pid, frame, regs->pc, regs->r26);
@@ -387,7 +387,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	err |= __put_user(0, &frame->uc.uc_link);
 	err |= __put_user(set->sig[0], &frame->uc.uc_osf_sigmask);
 	err |= __save_altstack(&frame->uc.uc_stack, oldsp);
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, 
+	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs,
 				set->sig[0], oldsp);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)

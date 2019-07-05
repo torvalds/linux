@@ -289,7 +289,7 @@ asmlinkage long parisc_ftruncate64(unsigned int fd,
 	return ksys_ftruncate(fd, (long)high << 32 | low);
 }
 
-/* stubs for the benefit of the syscall_table since truncate64 and truncate 
+/* stubs for the benefit of the syscall_table since truncate64 and truncate
  * are identical on LP64 */
 asmlinkage long sys_truncate64(const char __user * path, unsigned long length)
 {

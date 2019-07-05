@@ -1460,7 +1460,7 @@ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 						nvmeq->sq_cmds);
 		if (nvmeq->sq_dma_addr) {
 			set_bit(NVMEQ_SQ_CMB, &nvmeq->flags);
-			return 0; 
+			return 0;
 		}
 	}
 
@@ -2110,7 +2110,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 
 	if (nr_io_queues == 0)
 		return 0;
-	
+
 	clear_bit(NVMEQ_ENABLED, &adminq->flags);
 
 	if (dev->cmb_use_sqes) {

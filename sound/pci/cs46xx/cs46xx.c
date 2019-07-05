@@ -6,7 +6,7 @@
 
 /*
   NOTES:
-  - sometimes the sound is metallic and sibilant, unloading and 
+  - sometimes the sound is metallic and sibilant, unloading and
     reloading the module may solve this.
 */
 

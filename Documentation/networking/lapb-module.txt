@@ -2,7 +2,7 @@
 
 		      Jonathan Naylor 29.12.96
 
-Changed (Henner Eisen, 2000-10-29): int return value for data_indication() 
+Changed (Henner Eisen, 2000-10-29): int return value for data_indication()
 
 The LAPB module will be a separately compiled module for use by any parts of
 the Linux operating system that require a LAPB service. This document

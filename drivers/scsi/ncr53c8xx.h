@@ -15,7 +15,7 @@
 **
 **  Being given that this driver originates from the FreeBSD version, and
 **  in order to keep synergy on both, any suggested enhancements and corrections
-**  received on Linux are automatically a potential candidate for the FreeBSD 
+**  received on Linux are automatically a potential candidate for the FreeBSD
 **  version.
 **
 **  The original driver has been written for 386bsd and FreeBSD by
@@ -45,14 +45,14 @@
 
 
 /*
-**	If you want a driver as small as possible, donnot define the 
+**	If you want a driver as small as possible, donnot define the
 **	following options.
 */
 #define SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT
 #define SCSI_NCR_DEBUG_INFO_SUPPORT
 
 /*
-**	To disable integrity checking, do not define the 
+**	To disable integrity checking, do not define the
 **	following option.
 */
 #ifdef	CONFIG_SCSI_NCR53C8XX_INTEGRITY_CHECK
@@ -66,14 +66,14 @@
 */
 
 /*
- * For Ultra2 and Ultra3 SCSI support option, use special features. 
+ * For Ultra2 and Ultra3 SCSI support option, use special features.
  *
  * Value (default) means:
  *	bit 0 : all features enabled, except:
  *		bit 1 : PCI Write And Invalidate.
  *		bit 2 : Data Phase Mismatch handling from SCRIPTS.
  *
- * Use boot options ncr53c8xx=specf:1 if you want all chip features to be 
+ * Use boot options ncr53c8xx=specf:1 if you want all chip features to be
  * enabled by the driver.
  */
 #define	SCSI_NCR_SETUP_SPECIAL_FEATURES		(3)
@@ -96,7 +96,7 @@
 #endif
 
 /*
- * Allow tagged command queuing support if configured with default number 
+ * Allow tagged command queuing support if configured with default number
  * of tags set to max (see above).
  */
 #ifdef	CONFIG_SCSI_NCR53C8XX_DEFAULT_TAGS
@@ -190,11 +190,11 @@
 /*
 **	Work-around common bridge misbehaviour.
 **
-**	- Do not flush posted writes in the opposite 
+**	- Do not flush posted writes in the opposite
 **	  direction on read.
 **	- May reorder DMA writes to memory.
 **
-**	This option should not affect performances 
+**	This option should not affect performances
 **	significantly, so it is the default.
 */
 #if	SCSI_NCR_PCIQ_WORK_AROUND_OPT == 1
@@ -203,16 +203,16 @@
 #define	SCSI_NCR_PCIQ_MAY_MISS_COMPLETIONS
 
 /*
-**	Same as option 1, but also deal with 
+**	Same as option 1, but also deal with
 **	misconfigured interrupts.
 **
 **	- Edge triggered instead of level sensitive.
 **	- No interrupt line connected.
 **	- IRQ number misconfigured.
-**	
-**	If no interrupt is delivered, the driver will 
-**	catch the interrupt conditions 10 times per 
-**	second. No need to say that this option is 
+**
+**	If no interrupt is delivered, the driver will
+**	catch the interrupt conditions 10 times per
+**	second. No need to say that this option is
 **	not recommended.
 */
 #elif	SCSI_NCR_PCIQ_WORK_AROUND_OPT == 2
@@ -222,9 +222,9 @@
 #define	SCSI_NCR_PCIQ_BROKEN_INTR
 
 /*
-**	Some bridge designers decided to flush 
+**	Some bridge designers decided to flush
 **	everything prior to deliver the interrupt.
-**	This option tries to deal with such a 
+**	This option tries to deal with such a
 **	behaviour.
 */
 #elif	SCSI_NCR_PCIQ_WORK_AROUND_OPT == 3
@@ -241,9 +241,9 @@
 #define SCSI_NCR_MAX_TARGET	(16)
 
 /*
-**   Compute some desirable value for CAN_QUEUE 
+**   Compute some desirable value for CAN_QUEUE
 **   and CMD_PER_LUN.
-**   The driver will use lower values if these 
+**   The driver will use lower values if these
 **   ones appear to be too large.
 */
 #define SCSI_NCR_CAN_QUEUE	(8*SCSI_NCR_MAX_TAGS + 2*SCSI_NCR_MAX_TARGET)
@@ -256,7 +256,7 @@
 
 /*
  *  IO functions definition for big/little endian CPU support.
- *  For now, the NCR is only supported in little endian addressing mode, 
+ *  For now, the NCR is only supported in little endian addressing mode,
  */
 
 #ifdef	__BIG_ENDIAN
@@ -315,10 +315,10 @@
 
 
 /*
- *  If the NCR uses big endian addressing mode over the 
- *  PCI, actual io register addresses for byte and word 
+ *  If the NCR uses big endian addressing mode over the
+ *  PCI, actual io register addresses for byte and word
  *  accesses must be changed according to lane routing.
- *  Btw, ncr_offb() and ncr_offw() macros only apply to 
+ *  Btw, ncr_offb() and ncr_offw() macros only apply to
  *  constants and so donnot generate bloated code.
  */
 
@@ -338,7 +338,7 @@
  *  If the CPU and the NCR use same endian-ness addressing,
  *  no byte reordering is needed for script patching.
  *  Macro cpu_to_scr() is to be used for script patching.
- *  Macro scr_to_cpu() is to be used for getting a DWORD 
+ *  Macro scr_to_cpu() is to be used for getting a DWORD
  *  from the script.
  */
 
@@ -363,11 +363,11 @@
  *  Access to the controller chip.
  *
  *  If the CPU and the NCR use same endian-ness addressing,
- *  no byte reordering is needed for accessing chip io 
- *  registers. Functions suffixed by '_raw' are assumed 
- *  to access the chip over the PCI without doing byte 
- *  reordering. Functions suffixed by '_l2b' are 
- *  assumed to perform little-endian to big-endian byte 
+ *  no byte reordering is needed for accessing chip io
+ *  registers. Functions suffixed by '_raw' are assumed
+ *  to access the chip over the PCI without doing byte
+ *  reordering. Functions suffixed by '_l2b' are
+ *  assumed to perform little-endian to big-endian byte
  *  reordering, those suffixed by '_b2l' blah, blah,
  *  blah, ...
  */
@@ -424,7 +424,7 @@
 #define OUTL(r, val)	OUTL_OFF (offsetof(struct ncr_reg,r), (val))
 
 /*
- *  Set bit field ON, OFF 
+ *  Set bit field ON, OFF
  */
 
 #define OUTONB(r, m)	OUTB(r, INB(r) | (m))
@@ -791,7 +791,7 @@ struct ncr_reg {
 	#define   SCLK    0x80	/* Use the PCI clock as SCSI clock	*/
 	#define   DBLEN   0x08	/* clock doubler running		*/
 	#define   DBLSEL  0x04	/* clock doubler selected		*/
-  
+
 
 /*4e*/  u8	nc_stest2;
 	#define   ROF     0x40	/* reset scsi offset (after gross error!) */
@@ -881,10 +881,10 @@ struct ncr_reg {
 /*e2*/  u8	nc_crccntl0;	/* CRC control register             */
 	#define   SNDCRC  0x10	/* Send CRC Request                 */
 /*e3*/  u8	nc_crccntl1;	/* CRC control register             */
-/*e4*/  u32	nc_crcdata;	/* CRC data register                */ 
+/*e4*/  u32	nc_crcdata;	/* CRC data register                */
 /*e8*/  u32	nc_e8_;		/* rsvd 			    */
 /*ec*/  u32	nc_ec_;		/* rsvd 			    */
-/*f0*/  u16	nc_dfbc;	/* DMA FIFO byte count              */ 
+/*f0*/  u16	nc_dfbc;	/* DMA FIFO byte count              */
 
 };
 
@@ -980,11 +980,11 @@ struct scr_tblsel {
         u8	sel_scntl3;
         u8	sel_id;
         u8	sel_sxfer;
-        u8	sel_scntl4;	
+        u8	sel_scntl4;
 };
 #else
 struct scr_tblsel {
-        u8	sel_scntl4;	
+        u8	sel_scntl4;
         u8	sel_sxfer;
         u8	sel_id;
         u8	sel_scntl3;
@@ -1075,15 +1075,15 @@ struct scr_tblsel {
 **	<< 0 >>
 **
 **-----------------------------------------------------------
-**	On 810A, 860, 825A, 875, 895 and 896 chips the content 
+**	On 810A, 860, 825A, 875, 895 and 896 chips the content
 **	of SFBR register can be used as data (SCR_SFBR_DATA).
-**	The 896 has additional IO registers starting at 
-**	offset 0x80. Bit 7 of register offset is stored in 
+**	The 896 has additional IO registers starting at
+**	offset 0x80. Bit 7 of register offset is stored in
 **	bit 7 of the SCRIPTS instruction first DWORD.
 **-----------------------------------------------------------
 */
 
-#define SCR_REG_OFS(ofs) ((((ofs) & 0x7f) << 16ul) + ((ofs) & 0x80)) 
+#define SCR_REG_OFS(ofs) ((((ofs) & 0x7f) << 16ul) + ((ofs) & 0x80))
 
 #define SCR_SFBR_REG(reg,op,data) \
         (0x68000000 | (SCR_REG_OFS(REG(reg))) | (op) | (((data)&0xff)<<8ul))
@@ -1272,7 +1272,7 @@ do {						\
 
 /*==========================================================
 **
-**	Structures used by the detection routine to transmit 
+**	Structures used by the detection routine to transmit
 **	device configuration to the attach function.
 **
 **==========================================================
@@ -1291,7 +1291,7 @@ struct ncr_slot {
 
 /*==========================================================
 **
-**	Structure used by detection routine to save data on 
+**	Structure used by detection routine to save data on
 **	each detected board for attach.
 **
 **==========================================================

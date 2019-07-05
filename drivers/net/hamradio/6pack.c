@@ -373,7 +373,7 @@ out_mem:
  * use a single global rwlock for all ttys in ppp line discipline.
  */
 static DEFINE_RWLOCK(disc_data_lock);
-                                                                                
+
 static struct sixpack *sp_get(struct tty_struct *tty)
 {
 	struct sixpack *sp;

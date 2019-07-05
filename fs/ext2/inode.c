@@ -1157,7 +1157,7 @@ static void ext2_free_branches(struct inode *inode, __le32 *p, __le32 *q, int de
 			/*
 			 * A read failure? Report error and clear slot
 			 * (should be rare).
-			 */ 
+			 */
 			if (!bh) {
 				ext2_error(inode->i_sb, "ext2_free_branches",
 					"Read failure, inode=%ld, block=%ld",
@@ -1517,14 +1517,14 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 		if (raw_inode->i_block[0])
 			init_special_inode(inode, inode->i_mode,
 			   old_decode_dev(le32_to_cpu(raw_inode->i_block[0])));
-		else 
+		else
 			init_special_inode(inode, inode->i_mode,
 			   new_decode_dev(le32_to_cpu(raw_inode->i_block[1])));
 	}
 	brelse (bh);
 	unlock_new_inode(inode);
 	return inode;
-	
+
 bad_inode:
 	iget_failed(inode);
 	return ERR_PTR(ret);
@@ -1605,7 +1605,7 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 			}
 		}
 	}
-	
+
 	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
 		if (old_valid_dev(inode->i_rdev)) {

@@ -189,7 +189,7 @@ static __be32 *read_buf(struct nfsd4_compoundargs *argp, u32 nbytes)
 		p = argp->tmpp = kmalloc(nbytes, GFP_KERNEL);
 		if (!p)
 			return NULL;
-		
+
 	}
 	/*
 	 * The following memcpy is safe because read_buf is always
@@ -763,7 +763,7 @@ static __be32
 nfsd4_decode_lockt(struct nfsd4_compoundargs *argp, struct nfsd4_lockt *lockt)
 {
 	DECODE_HEAD;
-		        
+
 	READ_BUF(32);
 	lockt->lt_type = be32_to_cpup(p++);
 	if((lockt->lt_type < NFS4_READ_LT) || (lockt->lt_type > NFS4_WRITEW_LT))
@@ -1033,7 +1033,7 @@ static __be32
 nfsd4_decode_open_downgrade(struct nfsd4_compoundargs *argp, struct nfsd4_open_downgrade *open_down)
 {
 	DECODE_HEAD;
-		    
+
 	status = nfsd4_decode_stateid(argp, &open_down->od_stateid);
 	if (status)
 		return status;
@@ -4509,9 +4509,9 @@ status:
 	write_bytes_to_xdr_buf(xdr->buf, post_err_offset - 4, &op->status, 4);
 }
 
-/* 
- * Encode the reply stored in the stateowner reply cache 
- * 
+/*
+ * Encode the reply stored in the stateowner reply cache
+ *
  * XDR note: do not encode rp->rp_buflen: the buffer contains the
  * previously sent already encoded operation.
  */

@@ -8,7 +8,7 @@
  *
  ******************************************************************************/
 
-/* 
+/*
  * Operating system-dependent definitions that have to be defined
  * before any other header files are included.
  */
@@ -36,7 +36,7 @@
 // -----------------------
 
 
-// SMT Definitions 
+// SMT Definitions
 // -----------------------
 #define SYNC	       		/* allow synchronous frames */
 

@@ -5,7 +5,7 @@
 ** Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
 ** Copyright (C) 1999 David Mosberger-Tang <davidm@hpl.hp.com>
 ** Copyright (C) 2001,2004 Grant Grundler <grundler@parisc-linux.org>
-** 
+**
 ** Lots of stuff stolen from arch/alpha/kernel/smp.c
 ** ...and then parisc stole from arch/ia64/kernel/smp.c. Thanks David! :^)
 **
@@ -99,11 +99,11 @@ ipi_init(int cpuid)
 
 
 /*
-** Yoink this CPU from the runnable list... 
+** Yoink this CPU from the runnable list...
 **
 */
 static void
-halt_processor(void) 
+halt_processor(void)
 {
 	/* REVISIT : redirect I/O Interrupts to another CPU? */
 	/* REVISIT : does PM *know* this CPU isn't available? */
@@ -115,7 +115,7 @@ halt_processor(void)
 
 
 irqreturn_t __irq_entry
-ipi_interrupt(int irq, void *dev_id) 
+ipi_interrupt(int irq, void *dev_id)
 {
 	int this_cpu = smp_processor_id();
 	struct cpuinfo_parisc *p = &per_cpu(cpu_data, this_cpu);
@@ -143,7 +143,7 @@ ipi_interrupt(int irq, void *dev_id)
 			case IPI_NOP:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_NOP\n", this_cpu);
 				break;
-				
+
 			case IPI_RESCHEDULE:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_RESCHEDULE\n", this_cpu);
 				inc_irq_stat(irq_resched_count);
@@ -217,7 +217,7 @@ static inline void
 send_IPI_allbutself(enum ipi_message_type op)
 {
 	int i;
-	
+
 	for_each_online_cpu(i) {
 		if (i != smp_processor_id())
 			send_IPI_single(i, op);
@@ -225,10 +225,10 @@ send_IPI_allbutself(enum ipi_message_type op)
 }
 
 
-inline void 
+inline void
 smp_send_stop(void)	{ send_IPI_allbutself(IPI_CPU_STOP); }
 
-void 
+void
 smp_send_reschedule(int cpu) { send_IPI_single(cpu, IPI_RESCHEDULE); }
 
 void
@@ -328,7 +328,7 @@ int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	*/
 	cpu_now_booting = cpuid;
 
-	/* 
+	/*
 	** boot strap code needs to know the task address since
 	** it also contains the process stack.
 	*/
@@ -341,16 +341,16 @@ int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	** This gets PDC to release the CPU from a very tight loop.
 	**
 	** From the PA-RISC 2.0 Firmware Architecture Reference Specification:
-	** "The MEM_RENDEZ vector specifies the location of OS_RENDEZ which 
-	** is executed after receiving the rendezvous signal (an interrupt to 
-	** EIR{0}). MEM_RENDEZ is valid only when it is nonzero and the 
+	** "The MEM_RENDEZ vector specifies the location of OS_RENDEZ which
+	** is executed after receiving the rendezvous signal (an interrupt to
+	** EIR{0}). MEM_RENDEZ is valid only when it is nonzero and the
 	** contents of memory are valid."
 	*/
 	gsc_writel(TIMER_IRQ - CPU_IRQ_BASE, p->hpa);
 	mb();
 
-	/* 
-	 * OK, wait a bit for that CPU to finish staggering about. 
+	/*
+	 * OK, wait a bit for that CPU to finish staggering about.
 	 * Slave will set a bit when it reaches smp_cpu_init().
 	 * Once the "monarch CPU" sees the bit change, it can move on.
 	 */

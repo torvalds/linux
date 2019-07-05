@@ -36,11 +36,11 @@ static int __init cats_hw_init(void)
 		outb(0x07, INDEX_PORT);
 		outb(0x03, DATA_PORT);
 
-		/* Set parallel port to DMA channel 3, ECP+EPP1.9, 
+		/* Set parallel port to DMA channel 3, ECP+EPP1.9,
 		   enable EPP timeout */
 		outb(0x74, INDEX_PORT);
 		outb(0x03, DATA_PORT);
-	
+
 		outb(0xf0, INDEX_PORT);
 		outb(0x0f, DATA_PORT);
 

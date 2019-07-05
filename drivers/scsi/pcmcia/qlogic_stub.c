@@ -28,7 +28,7 @@
     and other provisions required by the GPL.  If you do not delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
-    
+
 ======================================================================*/
 
 #include <linux/module.h>
@@ -117,7 +117,7 @@ static struct Scsi_Host *qlogic_detect(struct scsi_host_template *host,
 	priv->qbase = qbase;
 	priv->qinitid = qinitid;
 	priv->shost = shost;
-	priv->int_type = INT_TYPE;					
+	priv->int_type = INT_TYPE;
 
 	if (request_irq(qlirq, qlogicfas408_ihandl, 0, qlogic_name, shost))
 		goto free_scsi_host;
@@ -138,7 +138,7 @@ free_interrupt:
 
 free_scsi_host:
 	scsi_host_put(shost);
-	
+
 err:
 	return NULL;
 }
@@ -218,7 +218,7 @@ static int qlogic_config(struct pcmcia_device * link)
 	else
 		host = qlogic_detect(&qlogicfas_driver_template, link,
 			link->resource[0]->start, link->irq);
-	
+
 	if (!host) {
 		printk(KERN_INFO "%s: no SCSI devices found\n", qlogic_name);
 		goto failed;

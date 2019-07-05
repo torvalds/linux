@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *	Types and definitions for AF_INET6 
- *	Linux INET6 implementation 
+ *	Types and definitions for AF_INET6
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	Sources:
  *	IPv6 Program Interfaces for BSD Systems

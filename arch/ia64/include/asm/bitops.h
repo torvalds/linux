@@ -194,7 +194,7 @@ __change_bit (int nr, volatile void *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.  
+ * This operation is atomic and cannot be reordered.
  * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int
@@ -228,7 +228,7 @@ test_and_set_bit (int nr, volatile void *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.  
+ * This operation is non-atomic and can be reordered.
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -248,7 +248,7 @@ __test_and_set_bit (int nr, volatile void *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.  
+ * This operation is atomic and cannot be reordered.
  * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int
@@ -273,7 +273,7 @@ test_and_clear_bit (int nr, volatile void *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.  
+ * This operation is non-atomic and can be reordered.
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -293,7 +293,7 @@ __test_and_clear_bit(int nr, volatile void * addr)
  * @nr: Bit to change
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.  
+ * This operation is atomic and cannot be reordered.
  * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int

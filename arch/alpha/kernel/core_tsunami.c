@@ -28,7 +28,7 @@
 
 /* Save Tsunami configuration data as the console had it set up.  */
 
-struct 
+struct
 {
 	unsigned long wsba[4];
 	unsigned long wsm[4];
@@ -36,7 +36,7 @@ struct
 } saved_config[2] __attribute__((common));
 
 /*
- * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
+ * NOTE: Herein lie back-to-back mb instructions.  They are magic.
  * One plausible explanation is that the I/O controller does not properly
  * handle the system transaction.  Another involves timing.  Ho hum.
  */
@@ -67,7 +67,7 @@ struct
  *
  * Type 1:
  *
- *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1 
+ *  3 3|3 3 2 2|2 2 2 2|2 2 2 2|1 1 1 1|1 1 1 1|1 1
  *  3 2|1 0 9 8|7 6 5 4|3 2 1 0|9 8 7 6|5 4 3 2|1 0 9 8|7 6 5 4|3 2 1 0
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * | | | | | | | | | | |B|B|B|B|B|B|B|B|D|D|D|D|D|F|F|F|R|R|R|R|R|R|0|1|
@@ -78,11 +78,11 @@ struct
  *	15:11	Device number (5 bits)
  *	10:8	function number
  *	 7:2	register number
- *  
+ *
  * Notes:
- *	The function number selects which function of a multi-function device 
+ *	The function number selects which function of a multi-function device
  *	(e.g., SCSI and Ethernet).
- * 
+ *
  *	The register selects a DWORD (32 bit) register offset.  Hence it
  *	doesn't get shifted by 2 bits as we want to "drop" the bottom two
  *	bits.
@@ -99,20 +99,20 @@ mk_conf_addr(struct pci_bus *pbus, unsigned int device_fn, int where,
 	DBG_CFG(("mk_conf_addr(bus=%d ,device_fn=0x%x, where=0x%x, "
 		 "pci_addr=0x%p, type1=0x%p)\n",
 		 bus, device_fn, where, pci_addr, type1));
-	
+
 	if (!pbus->parent) /* No parent means peer PCI bus. */
 		bus = 0;
 	*type1 = (bus != 0);
 
 	addr = (bus << 16) | (device_fn << 8) | where;
 	addr |= hose->config_space_base;
-		
+
 	*pci_addr = addr;
 	DBG_CFG(("mk_conf_addr: returning pci_addr 0x%lx\n", addr));
 	return 0;
 }
 
-static int 
+static int
 tsunami_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 		    int size, u32 *value)
 {
@@ -137,7 +137,7 @@ tsunami_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int 
+static int
 tsunami_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 		     int size, u32 value)
 {
@@ -168,7 +168,7 @@ tsunami_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_ops tsunami_pci_ops = 
+struct pci_ops tsunami_pci_ops =
 {
 	.read =		tsunami_read_config,
 	.write = 	tsunami_write_config,
@@ -187,7 +187,7 @@ tsunami_pci_tbi(struct pci_controller *hose, dma_addr_t start, dma_addr_t end)
 	if (((start ^ end) & 0xffff0000) == 0)
 		csr = &pchip->tlbiv.csr;
 
-	/* For TBIA, it doesn't matter what value we write.  For TBI, 
+	/* For TBIA, it doesn't matter what value we write.  For TBI,
 	   it's the shifted tag bits.  */
 	value = (start & 0xffff0000) >> 12;
 
@@ -287,7 +287,7 @@ tsunami_init_one_pchip(tsunami_pchip *pchip, int index)
 		printk(KERN_ERR "Failed to request MEM on hose %d\n", index);
 
 	/*
-	 * Save the existing PCI window translations.  SRM will 
+	 * Save the existing PCI window translations.  SRM will
 	 * need them when we go to reboot.
 	 */
 
@@ -311,7 +311,7 @@ tsunami_init_one_pchip(tsunami_pchip *pchip, int index)
 	 * Set up the PCI to main memory translation windows.
 	 *
 	 * Note: Window 3 is scatter-gather only
-	 * 
+	 *
 	 * Window 0 is scatter-gather 8MB at 8MB (for isa)
 	 * Window 1 is scatter-gather (up to) 1GB at 1GB
 	 * Window 2 is direct access 2GB at 2GB
@@ -377,7 +377,7 @@ tsunami_init_arch(void)
 {
 #ifdef NXM_MACHINE_CHECKS_ON_TSUNAMI
 	unsigned long tmp;
-	
+
 	/* Ho hum.. init_arch is called before init_IRQ, but we need to be
 	   able to handle machine checks.  So install the handler now.  */
 	wrent(entInt, 0);

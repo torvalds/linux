@@ -366,7 +366,7 @@ static int jffs2_dynrubin_compress(unsigned char *data_in,
 }
 
 static void rubin_do_decompress(int bit_divider, int *bits,
-				unsigned char *cdata_in, 
+				unsigned char *cdata_in,
 				unsigned char *page_out, uint32_t srclen,
 				uint32_t destlen)
 {

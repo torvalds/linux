@@ -38,9 +38,9 @@ struct dlci_add
 #define DLCI_GET_CONF	(SIOCDEVPRIVATE + 2)
 #define DLCI_SET_CONF	(SIOCDEVPRIVATE + 3)
 
-/* 
- * These are related to the Sangoma SDLA and should remain in order. 
- * Code within the SDLA module is based on the specifics of this 
+/*
+ * These are related to the Sangoma SDLA and should remain in order.
+ * Code within the SDLA module is based on the specifics of this
  * structure.  Change at your own peril.
  */
 struct dlci_conf {
@@ -50,7 +50,7 @@ struct dlci_conf {
    short Be_fwd;
    short CIR_bwd;
    short Bc_bwd;
-   short Be_bwd; 
+   short Be_bwd;
 
 /* these are part of the status read */
    short Tc_fwd;
@@ -77,11 +77,11 @@ struct dlci_conf {
 #define FRAD_LAST_IOCTL	FRAD_SET_CONF
 
 /*
- * Based on the setup for the Sangoma SDLA.  If changes are 
- * necessary to this structure, a routine will need to be 
+ * Based on the setup for the Sangoma SDLA.  If changes are
+ * necessary to this structure, a routine will need to be
  * added to that module to copy fields.
  */
-struct frad_conf 
+struct frad_conf
 {
    short station;
    short flags;

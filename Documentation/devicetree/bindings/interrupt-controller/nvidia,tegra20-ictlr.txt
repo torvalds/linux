@@ -12,7 +12,7 @@ Required properties:
 - compatible : should be: "nvidia,tegra<chip>-ictlr". The LIC on
   subsequent SoCs remained backwards-compatible with Tegra30, so on
   Tegra generations later than Tegra30 the compatible value should
-  include "nvidia,tegra30-ictlr".	
+  include "nvidia,tegra30-ictlr".
 - reg : Specifies base physical address and size of the registers.
   Each controller must be described separately (Tegra20 has 4 of them,
   whereas Tegra30 and later have 5).

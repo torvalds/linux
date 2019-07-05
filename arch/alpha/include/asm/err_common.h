@@ -86,12 +86,12 @@ struct el_subpacket {
 	union {
 		struct {	/* Class 5, Type 1 - System Error	*/
 			u32 frame_length;
-			u32 frame_packet_count;			
-		} sys_err;			
+			u32 frame_packet_count;
+		} sys_err;
 		struct {	/* Class 5, Type 2 - System Event 	*/
 			union el_timestamp timestamp;
 			u32 frame_length;
-			u32 frame_packet_count;			
+			u32 frame_packet_count;
 		} sys_event;
 		struct {	/* Class 5, Type 3 - Double Error Halt	*/
 			u16 halt_code;
@@ -103,7 +103,7 @@ struct el_subpacket {
 		struct {	/* Clasee 5, Type 19 - Logout Frame Header */
 			u32 frame_length;
 			u32 frame_flags;
-			u32 cpu_offset;	
+			u32 cpu_offset;
 			u32 system_offset;
 		} logout_header;
 		struct {	/* Class 12 - Regatta			*/

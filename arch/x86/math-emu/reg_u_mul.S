@@ -50,7 +50,7 @@ ENTRY(FPU_u_mul)
 	movl	%esp,%ebp
 #ifndef NON_REENTRANT_FPU
 	subl	$8,%esp
-#endif /* NON_REENTRANT_FPU */ 
+#endif /* NON_REENTRANT_FPU */
 
 	pushl	%esi
 	pushl	%edi
@@ -145,6 +145,6 @@ L_exit:
 	popl	%esi
 	leave
 	ret
-#endif /* PARANOID */ 
+#endif /* PARANOID */
 
 ENDPROC(FPU_u_mul)

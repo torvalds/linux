@@ -58,7 +58,7 @@ EXPORT_SYMBOL(fscache_operation_init);
 void fscache_enqueue_operation(struct fscache_operation *op)
 {
 	struct fscache_cookie *cookie = op->object->cookie;
-	
+
 	_enter("{OBJ%x OP%x,%u}",
 	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
 

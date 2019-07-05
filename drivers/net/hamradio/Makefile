@@ -3,7 +3,7 @@
 # Makefile for the Linux AX.25 and HFMODEM device drivers.
 #
 #
-# 19971130 	Moved the amateur radio related network drivers from 
+# 19971130 	Moved the amateur radio related network drivers from
 #		drivers/net/ to drivers/hamradio for easier maintenance.
 #               Joerg Reuter DL1BKE <jreuter@yaina.de>
 #

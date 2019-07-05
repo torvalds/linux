@@ -6,7 +6,7 @@
 #include <linux/time_types.h>
 
 struct sock_extended_err {
-	__u32	ee_errno;	
+	__u32	ee_errno;
 	__u8	ee_origin;
 	__u8	ee_type;
 	__u8	ee_code;

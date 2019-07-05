@@ -312,7 +312,7 @@ bool use_buf(unsigned *lenp, void **bufp)
 	smp_release();
 	host.used_idx++;
 	ring.used->idx = host.used_idx;
-	
+
 	return true;
 }
 

@@ -269,7 +269,7 @@ do_icpe_tl1_fatal:
 	 add		%sp, PTREGS_OFF, %o1
 	ba,a,pt		%xcc, rtrap
 	.size		do_icpe_tl1,.-do_icpe_tl1
-	
+
 	.type		dcpe_icpe_tl1_common,#function
 dcpe_icpe_tl1_common:
 	/* Flush D-cache, re-enable D/I caches in DCU and finally

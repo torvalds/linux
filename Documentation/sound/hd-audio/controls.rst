@@ -54,7 +54,7 @@ Headphone as Line Out
 
 Mic Jack Mode, Line Jack Mode, etc
   These enum controls the direction and the bias of the input jack
-  pins.  Depending on the jack type, it can set as "Mic In" and "Line 
+  pins.  Depending on the jack type, it can set as "Mic In" and "Line
   In", for determining the input bias, or it can be set to "Line Out"
   when the pin is a multi-I/O jack for surround channels.
 
@@ -94,7 +94,7 @@ Dynamic Power-Control
 Jack Detect
   This control is provided only for VT1708 codec which gives no proper
   unsolicited event per jack plug.  When this is on, the driver polls
-  the jack detection so that the headphone auto-mute can work, while 
+  the jack detection so that the headphone auto-mute can work, while
   turning this off would reduce the power consumption.
 
 

@@ -2,7 +2,7 @@
 /*
     NetWinder Floating Point Emulator
     (c) Rebel.com, 1998-1999
-    
+
     Direct questions, comments to Scott Bambrough <scottb@netwinder.org>
 
 */

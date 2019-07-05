@@ -589,7 +589,7 @@ static int snd_emu1010_adc_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	unsigned int val, cache;
 	val = ucontrol->value.integer.value[0];
 	cache = emu->emu1010.adc_pads;
-	if (val == 1) 
+	if (val == 1)
 		cache = cache | mask;
 	else
 		cache = cache & ~mask;
@@ -637,7 +637,7 @@ static int snd_emu1010_dac_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	unsigned int val, cache;
 	val = ucontrol->value.integer.value[0];
 	cache = emu->emu1010.dac_pads;
-	if (val == 1) 
+	if (val == 1)
 		cache = cache | mask;
 	else
 		cache = cache & ~mask;
@@ -676,7 +676,7 @@ static int snd_emu1010_internal_clock_info(struct snd_kcontrol *kcontrol,
 	static const char * const texts[4] = {
 		"44100", "48000", "SPDIF", "ADAT"
 	};
-		
+
 	return snd_ctl_enum_info(uinfo, 1, 4, texts);
 }
 
@@ -738,7 +738,7 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			/* Unmute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
 			break;
-			
+
 		case 2: /* Take clock from S/PDIF IN */
 			/* Mute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
@@ -750,14 +750,14 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			/* Set LEDs on Audio Dock */
 			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
 				EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_LOCK );
-			/* FIXME: We should set EMU_HANA_DOCK_LEDS_2_LOCK only when clock signal is present and valid */	
+			/* FIXME: We should set EMU_HANA_DOCK_LEDS_2_LOCK only when clock signal is present and valid */
 			/* Allow DLL to settle */
 			msleep(10);
 			/* Unmute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
 			break;
-		
-		case 3: 			
+
+		case 3:
 			/* Take clock from ADAT IN */
 			/* Mute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
@@ -768,14 +768,14 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 				EMU_HANA_WCLOCK_HANA_ADAT_IN | EMU_HANA_WCLOCK_1X );
 			/* Set LEDs on Audio Dock */
 			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_LOCK );
-			/* FIXME: We should set EMU_HANA_DOCK_LEDS_2_LOCK only when clock signal is present and valid */	
+			/* FIXME: We should set EMU_HANA_DOCK_LEDS_2_LOCK only when clock signal is present and valid */
 			/* Allow DLL to settle */
 			msleep(10);
 			/*   Unmute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
-			 
-			
-			break;		
+
+
+			break;
 		}
 	}
         return change;
@@ -1070,7 +1070,7 @@ static int snd_audigy_spdif_output_rate_get(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int tmp;
 	unsigned long flags;
-	
+
 
 	spin_lock_irqsave(&emu->reg_lock, flags);
 	tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
@@ -1114,7 +1114,7 @@ static int snd_audigy_spdif_output_rate_put(struct snd_kcontrol *kcontrol,
 		break;
 	}
 
-	
+
 	spin_lock_irqsave(&emu->reg_lock, flags);
 	reg = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
 	tmp = reg & ~A_SPDIF_RATE_MASK;
@@ -1238,7 +1238,7 @@ static int snd_emu10k1_send_routing_get(struct snd_kcontrol *kcontrol,
 	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (voice = 0; voice < 3; voice++)
 		for (idx = 0; idx < num_efx; idx++)
-			ucontrol->value.integer.value[(voice * num_efx) + idx] = 
+			ucontrol->value.integer.value[(voice * num_efx) + idx] =
 				mix->send_routing[voice][idx] & mask;
 	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
@@ -1263,7 +1263,7 @@ static int snd_emu10k1_send_routing_put(struct snd_kcontrol *kcontrol,
 				mix->send_routing[voice][idx] = val;
 				change = 1;
 			}
-		}	
+		}
 	if (change && mix->epcm) {
 		if (mix->epcm->voices[0] && mix->epcm->voices[1]) {
 			update_emu10k1_fxrt(emu, mix->epcm->voices[0]->number,
@@ -1451,7 +1451,7 @@ static int snd_emu10k1_efx_send_routing_get(struct snd_kcontrol *kcontrol,
 
 	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (idx = 0; idx < num_efx; idx++)
-		ucontrol->value.integer.value[idx] = 
+		ucontrol->value.integer.value[idx] =
 			mix->send_routing[0][idx] & mask;
 	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
@@ -1475,7 +1475,7 @@ static int snd_emu10k1_efx_send_routing_put(struct snd_kcontrol *kcontrol,
 			mix->send_routing[0][idx] = val;
 			change = 1;
 		}
-	}	
+	}
 
 	if (change && mix->epcm) {
 		if (mix->epcm->voices[ch]) {
@@ -1637,7 +1637,7 @@ static int snd_emu10k1_shared_spdif_get(struct snd_kcontrol *kcontrol,
 	if (emu->card_capabilities->invert_shared_spdif)
 		ucontrol->value.integer.value[0] =
 			!ucontrol->value.integer.value[0];
-		
+
 	return 0;
 }
 
@@ -1906,7 +1906,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		if ((err = snd_ac97_bus(emu->card, 0, &ops, NULL, &pbus)) < 0)
 			return err;
 		pbus->no_vra = 1; /* we don't need VRA */
-		
+
 		memset(&ac97, 0, sizeof(ac97));
 		ac97.private_data = emu;
 		ac97.private_free = snd_emu10k1_mixer_free_ac97;
@@ -1931,7 +1931,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 				0x0200, 0x0200);
 			if (emu->card_capabilities->adc_1361t)
 				c = audigy_remove_ctls_1361t_adc;
-			else 
+			else
 				c = audigy_remove_ctls;
 		} else {
 			/*
@@ -2012,13 +2012,13 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	kctl->id.device = multi_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
-	
+
 	if ((kctl = emu->ctl_efx_send_volume = snd_ctl_new1(&snd_emu10k1_efx_send_volume_control, emu)) == NULL)
 		return -ENOMEM;
 	kctl->id.device = multi_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
-	
+
 	if ((kctl = emu->ctl_efx_attn = snd_ctl_new1(&snd_emu10k1_efx_attn_control, emu)) == NULL)
 		return -ENOMEM;
 	kctl->id.device = multi_device;
@@ -2029,27 +2029,27 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	for (pcm = 0; pcm < 32; pcm++) {
 		struct snd_emu10k1_pcm_mixer *mix;
 		int v;
-		
+
 		mix = &emu->pcm_mixer[pcm];
 		mix->epcm = NULL;
 
 		for (v = 0; v < 4; v++)
-			mix->send_routing[0][v] = 
-				mix->send_routing[1][v] = 
+			mix->send_routing[0][v] =
+				mix->send_routing[1][v] =
 				mix->send_routing[2][v] = v;
-		
+
 		memset(&mix->send_volume, 0, sizeof(mix->send_volume));
 		mix->send_volume[0][0] = mix->send_volume[0][1] =
 		mix->send_volume[1][0] = mix->send_volume[2][1] = 255;
-		
+
 		mix->attn[0] = mix->attn[1] = mix->attn[2] = 0xffff;
 	}
-	
+
 	/* initialize the routing and volume table for the multichannel playback stream */
 	for (pcm = 0; pcm < NUM_EFX_PLAYBACK; pcm++) {
 		struct snd_emu10k1_pcm_mixer *mix;
 		int v;
-		
+
 		mix = &emu->efx_pcm_mixer[pcm];
 		mix->epcm = NULL;
 
@@ -2060,13 +2060,13 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		if (emu->audigy)
 			for (v = 0; v < 4; v++)
 				mix->send_routing[0][4+v] = 60+v;
-		
+
 		memset(&mix->send_volume, 0, sizeof(mix->send_volume));
 		mix->send_volume[0][0]  = 255;
-		
+
 		mix->attn[0] = 0xffff;
 	}
-	
+
 	if (! emu->card_capabilities->ecard) { /* FIXME: APS has these controls? */
 		/* sb live! and audigy */
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu)) == NULL)
@@ -2208,7 +2208,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 				return err;
 		}
 	}
-		
+
 	if (emu->card_capabilities->ac97_chip && emu->audigy) {
 		err = snd_ctl_add(card, snd_ctl_new1(&snd_audigy_capture_boost,
 						     emu));

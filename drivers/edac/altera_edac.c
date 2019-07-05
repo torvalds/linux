@@ -2187,7 +2187,7 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 		if (!of_device_is_available(child))
 			continue;
 
-		if (of_device_is_compatible(child, "altr,socfpga-a10-l2-ecc") || 
+		if (of_device_is_compatible(child, "altr,socfpga-a10-l2-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-a10-ocram-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-eth-mac-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-nand-ecc") ||

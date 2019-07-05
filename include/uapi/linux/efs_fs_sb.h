@@ -52,7 +52,7 @@ struct efs_sb_info {
 	__u32	fs_start;	/* first block of filesystem */
 	__u32	first_block;	/* first data block in filesystem */
 	__u32	total_blocks;	/* total number of blocks in filesystem */
-	__u32	group_size;	/* # of blocks a group consists of */ 
+	__u32	group_size;	/* # of blocks a group consists of */
 	__u32	data_free;	/* # of free data blocks */
 	__u32	inode_free;	/* # of free inodes */
 	__u16	inode_blocks;	/* # of blocks used for inodes in every grp */

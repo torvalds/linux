@@ -422,7 +422,7 @@ static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt)
 
 	/*
 	 * we do lazy blocksize switching (when reading XA sectors,
-	 * see CDROMREADMODE2 ioctl) 
+	 * see CDROMREADMODE2 ioctl)
 	 */
 	s_size = cd->device->sector_size;
 	if (s_size > 2048) {
@@ -643,7 +643,7 @@ static const struct block_device_operations sr_bdops =
 	.ioctl		= sr_block_ioctl,
 	.check_events	= sr_block_check_events,
 	.revalidate_disk = sr_block_revalidate_disk,
-	/* 
+	/*
 	 * No compat_ioctl for now because sr_block_ioctl never
 	 * seems to pass arbitrary ioctls down to host drivers.
 	 */
@@ -666,7 +666,7 @@ static int sr_open(struct cdrom_device_info *cdi, int purpose)
 	return 0;
 
 error_out:
-	return retval;	
+	return retval;
 }
 
 static void sr_release(struct cdrom_device_info *cdi)

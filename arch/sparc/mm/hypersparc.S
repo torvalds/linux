@@ -29,7 +29,7 @@ hypersparc_flush_cache_all:
 	ld	[%g4 + %lo(vac_cache_size)], %g5
 	sethi	%hi(vac_line_size), %g1
 	ld	[%g1 + %lo(vac_line_size)], %g2
-1:	
+1:
 	subcc	%g5, %g2, %g5			! hyper_flush_unconditional_combined
 	bne	1b
 	 sta	%g0, [%g5] ASI_M_FLUSH_CTX
@@ -324,7 +324,7 @@ hypersparc_flush_tlb_page_out:
 	 sta	%g5, [%g1] ASI_M_MMUREGS
 
 	__INIT
-	
+
 	/* High speed page clear/copy. */
 hypersparc_bzero_1page:
 /* NOTE: This routine has to be shorter than 40insns --jj */

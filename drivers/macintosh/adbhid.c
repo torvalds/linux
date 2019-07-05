@@ -13,12 +13,12 @@
  * Adapted to ADB changes and support for more devices by
  * Benjamin Herrenschmidt. Adapted from code in MkLinux
  * and reworked.
- * 
+ *
  * Supported devices:
  *
  * - Standard 1 button mouse
  * - All standard Apple Extended protocol (handler ID 4)
- * - mouseman and trackman mice & trackballs 
+ * - mouseman and trackman mice & trackballs
  * - PowerBook Trackpad (default setup: enable tapping)
  * - MicroSpeed mouse & trackball (needs testing)
  * - CH Products Trackball Pro (needs testing)
@@ -662,7 +662,7 @@ static void real_leds(unsigned char leds, int device)
 	spin_lock_irqsave(&leds_lock, flags);
 	if (!leds_req_pending) {
 		leds_req_pending = 1;
-		spin_unlock_irqrestore(&leds_lock, flags);	       
+		spin_unlock_irqrestore(&leds_lock, flags);
 		adb_request(&led_request, leds_done, 0, 3,
 			    ADB_WRITEREG(device, KEYB_LEDREG), 0xff, ~leds);
 		return;
@@ -674,7 +674,7 @@ static void real_leds(unsigned char leds, int device)
 		}
 		leds_pending[device] = leds | 0x100;
 	}
-	spin_unlock_irqrestore(&leds_lock, flags);	       
+	spin_unlock_irqrestore(&leds_lock, flags);
 }
 
 /*
@@ -1084,7 +1084,7 @@ adbhid_probe(void)
 	adbhid_input_devcleanup(reg);
 }
 
-static void 
+static void
 init_trackpad(int id)
 {
 	struct adb_request req;
@@ -1136,7 +1136,7 @@ init_trackpad(int id)
         }
 }
 
-static void 
+static void
 init_trackball(int id)
 {
 	struct adb_request req;
@@ -1209,7 +1209,7 @@ init_microspeed(int id)
 
 	/* This will initialize mice using the Microspeed, MacPoint and
 	   other compatible firmware. Bit 12 enables extended protocol.
-	   
+
 	   Register 1 Listen (4 Bytes)
             0 -  3     Button is mouse (set also for double clicking!!!)
             4 -  7     Button is locking (affects change speed also)
@@ -1224,7 +1224,7 @@ init_microspeed(int id)
             0 -  7     Product code
             8 - 23     undefined, reserved
            24 - 31     Version number
-        
+
        Speed 0 is max. 1 to 255 set speed in increments of 1/256 of max.
  */
 	adb_request(&req, NULL, ADBREQ_SYNC, 5,
@@ -1247,7 +1247,7 @@ init_ms_a3(int id)
 	ADB_WRITEREG(id, 0x2),
 	    0x00,
 	    0x07);
- 
+
  	adb_request(&req, NULL, ADBREQ_SYNC, 1, ADB_FLUSH(id));
 }
 
@@ -1271,6 +1271,6 @@ static int __init adbhid_init(void)
 static void __exit adbhid_exit(void)
 {
 }
- 
+
 module_init(adbhid_init);
 module_exit(adbhid_exit);

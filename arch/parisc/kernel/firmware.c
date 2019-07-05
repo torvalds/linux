@@ -47,7 +47,7 @@
  *
  *		return retval;
  *	}
- *					prumpf	991016	
+ *					prumpf	991016
  */
 
 #include <stdarg.h>
@@ -80,7 +80,7 @@ extern unsigned long pdc_result2[NUM_PDC_RESULT];
 #define WIDE_FIRMWARE 0x1
 #define NARROW_FIRMWARE 0x2
 
-/* Firmware needs to be initially set to narrow to determine the 
+/* Firmware needs to be initially set to narrow to determine the
  * actual firmware width. */
 int parisc_narrow_firmware __ro_after_init = 1;
 #endif
@@ -163,10 +163,10 @@ void set_firmware_width_unlocked(void)
 	if (pdc_result[0] != NARROW_FIRMWARE)
 		parisc_narrow_firmware = 0;
 }
-	
+
 /**
  * set_firmware_width - Determine if the firmware is wide or narrow.
- * 
+ *
  * This function must be called before any pdc_* function that uses the
  * convert_to_wide function.
  */
@@ -211,7 +211,7 @@ void pdc_emergency_unlock(void)
  *
  * This PDC call attempts to read from the specified address and verifies
  * if the address is valid.
- * 
+ *
  * The return value is PDC_OK (0) in case accessing this address is valid.
  */
 int pdc_add_valid(unsigned long address)
@@ -275,7 +275,7 @@ int __init pdc_chassis_info(struct pdc_chassis_info *chassis_info, void *led_inf
 /**
  * pdc_pat_chassis_send_log - Sends a PDC PAT CHASSIS log message.
  * @retval: -1 on error, 0 on success. Other value are PDC errors
- * 
+ *
  * Must be correctly formatted or expect system crash
  */
 #ifdef CONFIG_64BIT
@@ -283,7 +283,7 @@ int pdc_pat_chassis_send_log(unsigned long state, unsigned long data)
 {
 	int retval = 0;
 	unsigned long flags;
-        
+
 	if (!is_pdc_pat())
 		return -1;
 
@@ -379,7 +379,7 @@ int pdc_iodc_read(unsigned long *actcnt, unsigned long hpa, unsigned int index,
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdc_lock, flags);
-	retval = mem_pdc_call(PDC_IODC, PDC_IODC_READ, __pa(pdc_result), hpa, 
+	retval = mem_pdc_call(PDC_IODC, PDC_IODC_READ, __pa(pdc_result), hpa,
 			      index, __pa(pdc_result2), iodc_data_size);
 	convert_to_wide(pdc_result);
 	*actcnt = pdc_result[0];
@@ -406,7 +406,7 @@ int pdc_system_map_find_mods(struct pdc_system_map_mod_info *pdc_mod_info,
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdc_lock, flags);
-	retval = mem_pdc_call(PDC_SYSTEM_MAP, PDC_FIND_MODULE, __pa(pdc_result), 
+	retval = mem_pdc_call(PDC_SYSTEM_MAP, PDC_FIND_MODULE, __pa(pdc_result),
 			      __pa(pdc_result2), mod_index);
 	convert_to_wide(pdc_result);
 	memcpy(pdc_mod_info, pdc_result, sizeof(*pdc_mod_info));
@@ -422,11 +422,11 @@ int pdc_system_map_find_mods(struct pdc_system_map_mod_info *pdc_mod_info,
  * @pdc_addr_info: Return buffer address.
  * @mod_index: Fixed address module index.
  * @addr_index: Address range index.
- * 
+ *
  * Retrieve additional information about subsequent address ranges for modules
- * with multiple address ranges.  
+ * with multiple address ranges.
  */
-int pdc_system_map_find_addrs(struct pdc_system_map_addr_info *pdc_addr_info, 
+int pdc_system_map_find_addrs(struct pdc_system_map_addr_info *pdc_addr_info,
 			      long mod_index, long addr_index)
 {
 	int retval;
@@ -449,7 +449,7 @@ int pdc_system_map_find_addrs(struct pdc_system_map_addr_info *pdc_addr_info,
  *
  * Returns the version numbers, identifiers, and capabilities from the processor module.
  */
-int pdc_model_info(struct pdc_model *model) 
+int pdc_model_info(struct pdc_model *model)
 {
 	int retval;
 	unsigned long flags;
@@ -635,7 +635,7 @@ int pdc_spaceid_bits(unsigned long *space_bits)
  *
  * Returns information about the hardware Block TLB.
  */
-int pdc_btlb_info(struct pdc_btlb_info *btlb) 
+int pdc_btlb_info(struct pdc_btlb_info *btlb)
 {
         int retval;
 	unsigned long flags;
@@ -652,7 +652,7 @@ int pdc_btlb_info(struct pdc_btlb_info *btlb)
 }
 
 /**
- * pdc_mem_map_hpa - Find fixed module information.  
+ * pdc_mem_map_hpa - Find fixed module information.
  * @address: The return buffer
  * @mod_path: pointer to dev path structure.
  *
@@ -845,7 +845,7 @@ int pdc_get_initiator(struct hardware_path *hwpath, struct pdc_initiator *initia
 #define IS_SPROCKETS() (strlen(boot_cpu_data.pdc.sys_model_name) == 14 && \
 	strncmp(boot_cpu_data.pdc.sys_model_name, "9000/785", 8) == 0)
 
-	retval = mem_pdc_call(PDC_INITIATOR, PDC_GET_INITIATOR, 
+	retval = mem_pdc_call(PDC_INITIATOR, PDC_GET_INITIATOR,
 			      __pa(pdc_result), __pa(hwpath));
 	if (retval < PDC_OK)
 		goto out;
@@ -894,14 +894,14 @@ EXPORT_SYMBOL(pdc_get_initiator);
  * This PDC function returns the number of entries in the specified cell's
  * interrupt table.
  * Similar to PDC_PAT stuff - but added for Forte/Allegro boxes
- */ 
+ */
 int pdc_pci_irt_size(unsigned long *num_entries, unsigned long hpa)
 {
 	int retval;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdc_lock, flags);
-	retval = mem_pdc_call(PDC_PCI_INDEX, PDC_PCI_GET_INT_TBL_SIZE, 
+	retval = mem_pdc_call(PDC_PCI_INDEX, PDC_PCI_GET_INT_TBL_SIZE,
 			      __pa(pdc_result), hpa);
 	convert_to_wide(pdc_result);
 	*num_entries = pdc_result[0];
@@ -910,11 +910,11 @@ int pdc_pci_irt_size(unsigned long *num_entries, unsigned long hpa)
 	return retval;
 }
 
-/** 
+/**
  * pdc_pci_irt - Get the PCI interrupt routing table.
  * @num_entries: The number of entries in the table.
  * @hpa: The Hard Physical Address of the device.
- * @tbl: 
+ * @tbl:
  *
  * Get the PCI interrupt routing table for the device at the given HPA.
  * Similar to PDC_PAT stuff - but added for Forte/Allegro boxes
@@ -928,7 +928,7 @@ int pdc_pci_irt(unsigned long num_entries, unsigned long hpa, void *tbl)
 
 	spin_lock_irqsave(&pdc_lock, flags);
 	pdc_result[0] = num_entries;
-	retval = mem_pdc_call(PDC_PCI_INDEX, PDC_PCI_GET_INT_TBL, 
+	retval = mem_pdc_call(PDC_PCI_INDEX, PDC_PCI_GET_INT_TBL,
 			      __pa(pdc_result), hpa, __pa(tbl));
 	spin_unlock_irqrestore(&pdc_lock, flags);
 
@@ -938,7 +938,7 @@ int pdc_pci_irt(unsigned long num_entries, unsigned long hpa, void *tbl)
 
 #if 0	/* UNTEST CODE - left here in case someone needs it */
 
-/** 
+/**
  * pdc_pci_config_read - read PCI config space.
  * @hpa		token from PDC to indicate which PCI device
  * @pci_addr	configuration space address to read from
@@ -953,7 +953,7 @@ unsigned int pdc_pci_config_read(void *hpa, unsigned long cfg_addr)
 	spin_lock_irqsave(&pdc_lock, flags);
 	pdc_result[0] = 0;
 	pdc_result[1] = 0;
-	retval = mem_pdc_call(PDC_PCI_INDEX, PDC_PCI_READ_CONFIG, 
+	retval = mem_pdc_call(PDC_PCI_INDEX, PDC_PCI_READ_CONFIG,
 			      __pa(pdc_result), hpa, cfg_addr&~3UL, 4UL);
 	spin_unlock_irqrestore(&pdc_lock, flags);
 
@@ -961,7 +961,7 @@ unsigned int pdc_pci_config_read(void *hpa, unsigned long cfg_addr)
 }
 
 
-/** 
+/**
  * pdc_pci_config_write - read PCI config space.
  * @hpa		token from PDC to indicate which PCI device
  * @pci_addr	configuration space address to write
@@ -976,7 +976,7 @@ void pdc_pci_config_write(void *hpa, unsigned long cfg_addr, unsigned int val)
 
 	spin_lock_irqsave(&pdc_lock, flags);
 	pdc_result[0] = 0;
-	retval = mem_pdc_call(PDC_PCI_INDEX, PDC_PCI_WRITE_CONFIG, 
+	retval = mem_pdc_call(PDC_PCI_INDEX, PDC_PCI_WRITE_CONFIG,
 			      __pa(pdc_result), hpa,
 			      cfg_addr&~3UL, 4UL, (unsigned long) val);
 	spin_unlock_irqrestore(&pdc_lock, flags);
@@ -1053,7 +1053,7 @@ int pdc_mem_pdt_read_entries(struct pdc_mem_read_pdt *pret,
  * @usec: The number of micro seconds.
  *
  * Set the Time-Of-Day clock.
- */ 
+ */
 int pdc_tod_set(unsigned long sec, unsigned long usec)
 {
         int retval;
@@ -1131,7 +1131,7 @@ int __init pdc_soft_power_info(unsigned long *power_reg)
 	unsigned long flags;
 
 	*power_reg = (unsigned long) (-1);
-	
+
 	spin_lock_irqsave(&pdc_lock, flags);
 	retval = mem_pdc_call(PDC_SOFT_POWER, PDC_SOFT_POWER_INFO, __pa(pdc_result), 0);
 	if (retval == PDC_OK) {
@@ -1145,13 +1145,13 @@ int __init pdc_soft_power_info(unsigned long *power_reg)
 
 /*
  * pdc_soft_power_button - Control the soft power button behaviour
- * @sw_control: 0 for hardware control, 1 for software control 
+ * @sw_control: 0 for hardware control, 1 for software control
  *
  *
  * This PDC function places the soft power button under software or
  * hardware control.
- * Under software control the OS may control to when to allow to shut 
- * down the system. Under hardware control pressing the power button 
+ * Under software control the OS may control to when to allow to shut
+ * down the system. Under hardware control pressing the power button
  * powers off the system immediately.
  */
 int pdc_soft_power_button(int sw_control)
@@ -1184,7 +1184,7 @@ void pdc_io_reset(void)
  * pdc_io_reset_devices - Hack to Stop USB controller
  *
  * If PDC used the usb controller, the usb controller
- * is still running and will crash the machines during iommu 
+ * is still running and will crash the machines during iommu
  * setup, because of still running DMA. This PDC call
  * stops the USB controller.
  * Normally called after calling pdc_io_reset().
@@ -1260,12 +1260,12 @@ int pdc_iodc_getc(void)
 	/* Bail if no console input device. */
 	if (!PAGE0->mem_kbd.iodc_io)
 		return 0;
-	
+
 	/* wait for a keyboard (rs232)-input */
 	spin_lock_irqsave(&pdc_lock, flags);
 	real32_call(PAGE0->mem_kbd.iodc_io,
 		    (unsigned long)PAGE0->mem_kbd.hpa, ENTRY_IO_CIN,
-		    PAGE0->mem_kbd.spa, __pa(PAGE0->mem_kbd.dp.layers), 
+		    PAGE0->mem_kbd.spa, __pa(PAGE0->mem_kbd.dp.layers),
 		    __pa(iodc_retbuf), 0, __pa(iodc_dbuf), 1, 0);
 
 	ch = *iodc_dbuf;
@@ -1274,7 +1274,7 @@ int pdc_iodc_getc(void)
 
 	if (status == 0)
 	    return -1;
-	
+
 	return ch;
 }
 
@@ -1285,7 +1285,7 @@ int pdc_sti_call(unsigned long func, unsigned long flags,
         int retval;
 	unsigned long irqflags;
 
-        spin_lock_irqsave(&pdc_lock, irqflags);  
+        spin_lock_irqsave(&pdc_lock, irqflags);
         retval = real32_call(func, flags, inptr, outputr, glob_cfg);
         spin_unlock_irqrestore(&pdc_lock, irqflags);
 
@@ -1333,7 +1333,7 @@ int pdc_pat_cell_module(unsigned long *actcnt, unsigned long ploc, unsigned long
 	static struct pdc_pat_cell_mod_maddr_block result __attribute__ ((aligned (8)));
 
 	spin_lock_irqsave(&pdc_lock, flags);
-	retval = mem_pdc_call(PDC_PAT_CELL, PDC_PAT_CELL_MODULE, __pa(pdc_result), 
+	retval = mem_pdc_call(PDC_PAT_CELL, PDC_PAT_CELL_MODULE, __pa(pdc_result),
 			      ploc, mod, view_type, __pa(&result));
 	if(!retval) {
 		*actcnt = pdc_result[0];
@@ -1445,14 +1445,14 @@ int pdc_pat_get_irt(void *r_addr, unsigned long cell_num)
  * @offset: The offset with respect to the beginning of the buffer.
  *
  */
-int pdc_pat_pd_get_addr_map(unsigned long *actual_len, void *mem_addr, 
+int pdc_pat_pd_get_addr_map(unsigned long *actual_len, void *mem_addr,
 			    unsigned long count, unsigned long offset)
 {
 	int retval;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdc_lock, flags);
-	retval = mem_pdc_call(PDC_PAT_PD, PDC_PAT_PD_GET_ADDR_MAP, __pa(pdc_result), 
+	retval = mem_pdc_call(PDC_PAT_PD, PDC_PAT_PD_GET_ADDR_MAP, __pa(pdc_result),
 			      __pa(pdc_result2), count, offset);
 	*actual_len = pdc_result[0];
 	memcpy(mem_addr, pdc_result2, *actual_len);
@@ -1491,7 +1491,7 @@ int pdc_pat_pd_get_pdc_revisions(unsigned long *legacy_rev,
 /**
  * pdc_pat_io_pci_cfg_read - Read PCI configuration space.
  * @pci_addr: PCI configuration space address for which the read request is being made.
- * @pci_size: Size of read in bytes. Valid values are 1, 2, and 4. 
+ * @pci_size: Size of read in bytes. Valid values are 1, 2, and 4.
  * @mem_addr: Pointer to return memory buffer.
  *
  */
@@ -1516,8 +1516,8 @@ int pdc_pat_io_pci_cfg_read(unsigned long pci_addr, int pci_size, u32 *mem_addr)
 /**
  * pdc_pat_io_pci_cfg_write - Retrieve information about memory address ranges.
  * @pci_addr: PCI configuration space address for which the write  request is being made.
- * @pci_size: Size of write in bytes. Valid values are 1, 2, and 4. 
- * @value: Pointer to 1, 2, or 4 byte value in low order end of argument to be 
+ * @pci_size: Size of write in bytes. Valid values are 1, 2, and 4.
+ * @value: Pointer to 1, 2, or 4 byte value in low order end of argument to be
  *         written to PCI Config space.
  *
  */
@@ -1699,9 +1699,9 @@ long real32_call(unsigned long fn, ...)
 	va_list args;
 	extern struct narrow_stack real_stack;
 	extern unsigned long real32_call_asm(unsigned int *,
-					     unsigned int *, 
+					     unsigned int *,
 					     unsigned int);
-	
+
 	va_start(args, fn);
 	real_stack.arg0 = va_arg(args, unsigned int);
 	real_stack.arg1 = va_arg(args, unsigned int);
@@ -1718,7 +1718,7 @@ long real32_call(unsigned long fn, ...)
 	real_stack.arg12 = va_arg(args, unsigned int);
 	real_stack.arg13 = va_arg(args, unsigned int);
 	va_end(args);
-	
+
 	return real32_call_asm(&real_stack.sp, &real_stack.arg0, fn);
 }
 
@@ -1750,9 +1750,9 @@ long real64_call(unsigned long fn, ...)
 	va_list args;
 	extern struct wide_stack real64_stack;
 	extern unsigned long real64_call_asm(unsigned long *,
-					     unsigned long *, 
+					     unsigned long *,
 					     unsigned long);
-    
+
 	va_start(args, fn);
 	real64_stack.arg0 = va_arg(args, unsigned long);
 	real64_stack.arg1 = va_arg(args, unsigned long);
@@ -1769,7 +1769,7 @@ long real64_call(unsigned long fn, ...)
 	real64_stack.arg12 = va_arg(args, unsigned long);
 	real64_stack.arg13 = va_arg(args, unsigned long);
 	va_end(args);
-	
+
 	return real64_call_asm(&real64_stack.sp, &real64_stack.arg0, fn);
 }
 

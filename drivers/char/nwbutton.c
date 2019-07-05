@@ -120,7 +120,7 @@ static void button_consume_callbacks (int bpcount)
 	}
 }
 
-/* 
+/*
  * This function is called when the button_timer times out.
  * ie. When you don't press the button for bdelay jiffies, this is taken to
  * mean you have ended the sequence of key presses, and this function is
@@ -139,13 +139,13 @@ static void button_sequence_finished(struct timer_list *unused)
 	wake_up_interruptible (&button_wait_queue);
 }
 
-/* 
+/*
  *  This handler is called when the orange button is pressed (GPIO 10 of the
  *  SuperIO chip, which maps to logical IRQ 26). If the press_count is 0,
  *  this is the first press, so it starts a timer and increments the counter.
  *  If it is higher than 0, it deletes the old timer, starts a new one, and
  *  increments the counter.
- */ 
+ */
 
 static irqreturn_t button_handler (int irq, void *dev_id)
 {
@@ -176,7 +176,7 @@ static int button_read (struct file *filp, char __user *buffer,
 		 ? -EFAULT : bcount;
 }
 
-/* 
+/*
  * This structure is the file operations structure, which specifies what
  * callbacks functions the kernel should call when a user mode process
  * attempts to perform these operations on the device.
@@ -188,7 +188,7 @@ static const struct file_operations button_fops = {
 	.llseek		= noop_llseek,
 };
 
-/* 
+/*
  * This structure is the misc device structure, which specifies the minor
  * device number (158 in this case), the name of the device (for /proc/misc),
  * and the address of the above file operations structure.
@@ -233,7 +233,7 @@ static int __init nwbutton_init(void)
 	return 0;
 }
 
-static void __exit nwbutton_exit (void) 
+static void __exit nwbutton_exit (void)
 {
 	free_irq (IRQ_NETWINDER_BUTTON, NULL);
 	misc_deregister (&button_misc_device);

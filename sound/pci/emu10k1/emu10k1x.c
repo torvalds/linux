@@ -93,7 +93,7 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
 /* Emu10k1x pointer-offset register set, accessed through the PTR and DATA registers			*/
 /********************************************************************************************************/
 #define PLAYBACK_LIST_ADDR	0x00		/* Base DMA address of a list of pointers to each period/size */
-						/* One list entry: 4 bytes for DMA address, 
+						/* One list entry: 4 bytes for DMA address,
 						 * 4 bytes for period_size << 16.
 						 * One list entry is 8 bytes long.
 						 * One list entry for each period in the buffer.
@@ -172,7 +172,7 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
  *  - channel 1 is the rear channel
  *  - channel 2 is the center/lfe channel
  * Volume is controlled by the AC97 for the front and rear channels by
- * the PCM Playback Volume, Sigmatel Surround Playback Volume and 
+ * the PCM Playback Volume, Sigmatel Surround Playback Volume and
  * Surround Playback Volume. The Sigmatel 4-Speaker Stereo switch affects
  * the front/rear channel mixing in the REAR OUT jack. When using the
  * 4-Speaker Stereo, both front and rear channels will be mixed in the
@@ -185,7 +185,7 @@ struct emu10k1x_voice {
 	struct emu10k1x *emu;
 	int number;
 	int use;
-  
+
 	struct emu10k1x_pcm *epcm;
 };
 
@@ -241,7 +241,7 @@ struct emu10k1x {
 
 /* hardware definition */
 static const struct snd_pcm_hardware snd_emu10k1x_playback_hw = {
-	.info =			(SNDRV_PCM_INFO_MMAP | 
+	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -260,7 +260,7 @@ static const struct snd_pcm_hardware snd_emu10k1x_playback_hw = {
 };
 
 static const struct snd_pcm_hardware snd_emu10k1x_capture_hw = {
-	.info =			(SNDRV_PCM_INFO_MMAP | 
+	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -278,13 +278,13 @@ static const struct snd_pcm_hardware snd_emu10k1x_capture_hw = {
 	.fifo_size =		0,
 };
 
-static unsigned int snd_emu10k1x_ptr_read(struct emu10k1x * emu, 
-					  unsigned int reg, 
+static unsigned int snd_emu10k1x_ptr_read(struct emu10k1x * emu,
+					  unsigned int reg,
 					  unsigned int chn)
 {
 	unsigned long flags;
 	unsigned int regptr, val;
-  
+
 	regptr = (reg << 16) | chn;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);
@@ -294,9 +294,9 @@ static unsigned int snd_emu10k1x_ptr_read(struct emu10k1x * emu,
 	return val;
 }
 
-static void snd_emu10k1x_ptr_write(struct emu10k1x *emu, 
-				   unsigned int reg, 
-				   unsigned int chn, 
+static void snd_emu10k1x_ptr_write(struct emu10k1x *emu,
+				   unsigned int reg,
+				   unsigned int chn,
 				   unsigned int data)
 {
 	unsigned int regptr;
@@ -383,10 +383,10 @@ static int snd_emu10k1x_playback_open(struct snd_pcm_substream *substream)
 		return -ENOMEM;
 	epcm->emu = chip;
 	epcm->substream = substream;
-  
+
 	runtime->private_data = epcm;
 	runtime->private_free = snd_emu10k1x_pcm_free_substream;
-  
+
 	runtime->hw = snd_emu10k1x_playback_hw;
 
 	return 0;
@@ -423,7 +423,7 @@ static int snd_emu10k1x_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	if (runtime->private_data == NULL)
 		return 0;
-	
+
 	epcm = runtime->private_data;
 
 	if (epcm->voice) {
@@ -445,7 +445,7 @@ static int snd_emu10k1x_pcm_prepare(struct snd_pcm_substream *substream)
 	u32 *table_base = (u32 *)(emu->dma_buffer.area+1024*voice);
 	u32 period_size_bytes = frames_to_bytes(runtime, runtime->period_size);
 	int i;
-	
+
 	for(i = 0; i < runtime->periods; i++) {
 		*table_base++=runtime->dma_addr+(i*period_size_bytes);
 		*table_base++=period_size_bytes<<16;
@@ -520,8 +520,8 @@ snd_emu10k1x_pcm_pointer(struct snd_pcm_substream *substream)
 
 	if(ptr4 == 0 && ptr1 == frames_to_bytes(runtime, runtime->buffer_size))
 		return 0;
-	
-	if (ptr3 != ptr4) 
+
+	if (ptr3 != ptr4)
 		ptr1 = snd_emu10k1x_ptr_read(emu, PLAYBACK_POINTER, channel);
 	ptr2 = bytes_to_frames(runtime, ptr1);
 	ptr2 += (ptr4 >> 3) * runtime->period_size;
@@ -643,14 +643,14 @@ static int snd_emu10k1x_pcm_trigger_capture(struct snd_pcm_substream *substream,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		snd_emu10k1x_intr_enable(emu, INTE_CAP_0_LOOP | 
+		snd_emu10k1x_intr_enable(emu, INTE_CAP_0_LOOP |
 					 INTE_CAP_0_HALF_LOOP);
 		snd_emu10k1x_ptr_write(emu, TRIGGER_CHANNEL, 0, snd_emu10k1x_ptr_read(emu, TRIGGER_CHANNEL, 0)|TRIGGER_CAPTURE);
 		epcm->running = 1;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		epcm->running = 0;
-		snd_emu10k1x_intr_disable(emu, INTE_CAP_0_LOOP | 
+		snd_emu10k1x_intr_disable(emu, INTE_CAP_0_LOOP |
 					  INTE_CAP_0_HALF_LOOP);
 		snd_emu10k1x_ptr_write(emu, TRIGGER_CHANNEL, 0, snd_emu10k1x_ptr_read(emu, TRIGGER_CHANNEL, 0) & ~(TRIGGER_CAPTURE));
 		break;
@@ -697,7 +697,7 @@ static unsigned short snd_emu10k1x_ac97_read(struct snd_ac97 *ac97,
 	struct emu10k1x *emu = ac97->private_data;
 	unsigned long flags;
 	unsigned short val;
-  
+
 	spin_lock_irqsave(&emu->emu_lock, flags);
 	outb(reg, emu->port + AC97ADDRESS);
 	val = inw(emu->port + AC97DATA);
@@ -710,7 +710,7 @@ static void snd_emu10k1x_ac97_write(struct snd_ac97 *ac97,
 {
 	struct emu10k1x *emu = ac97->private_data;
 	unsigned long flags;
-  
+
 	spin_lock_irqsave(&emu->emu_lock, flags);
 	outb(reg, emu->port + AC97ADDRESS);
 	outw(val, emu->port + AC97DATA);
@@ -726,7 +726,7 @@ static int snd_emu10k1x_ac97(struct emu10k1x *chip)
 		.write = snd_emu10k1x_ac97_write,
 		.read = snd_emu10k1x_ac97_read,
 	};
-  
+
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
 		return err;
 	pbus->no_vra = 1; /* we don't need VRA */
@@ -790,30 +790,30 @@ static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id)
 		if (cap_voice->use)
 			snd_emu10k1x_pcm_interrupt(chip, cap_voice);
 		else
-			snd_emu10k1x_intr_disable(chip, 
+			snd_emu10k1x_intr_disable(chip,
 						  INTE_CAP_0_LOOP |
 						  INTE_CAP_0_HALF_LOOP);
 	}
-		
+
 	mask = IPR_CH_0_LOOP|IPR_CH_0_HALF_LOOP;
 	for (i = 0; i < 3; i++) {
 		if (status & mask) {
 			if (pvoice->use)
 				snd_emu10k1x_pcm_interrupt(chip, pvoice);
-			else 
+			else
 				snd_emu10k1x_intr_disable(chip, mask);
 		}
 		pvoice++;
 		mask <<= 1;
 	}
-		
+
 	if (status & (IPR_MIDITRANSBUFEMPTY|IPR_MIDIRECVBUFEMPTY)) {
 		if (chip->midi.interrupt)
 			chip->midi.interrupt(chip, status);
 		else
 			snd_emu10k1x_intr_disable(chip, INTE_MIDITXENABLE|INTE_MIDIRXENABLE);
 	}
-		
+
 	// acknowledge the interrupt if necessary
 	outl(status, chip->port + IPR);
 
@@ -839,15 +839,15 @@ static int snd_emu10k1x_pcm(struct emu10k1x *emu, int device)
 	const struct snd_pcm_chmap_elem *map = NULL;
 	int err;
 	int capture = 0;
-  
+
 	if (device == 0)
 		capture = 1;
-	
+
 	if ((err = snd_pcm_new(emu->card, "emu10k1x", device, 1, capture, &pcm)) < 0)
 		return err;
-  
+
 	pcm->private_data = emu;
-	
+
 	switch(device) {
 	case 0:
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_emu10k1x_playback_ops);
@@ -877,9 +877,9 @@ static int snd_emu10k1x_pcm(struct emu10k1x *emu, int device)
 	emu->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(emu->pci), 
+					      snd_dma_pci_data(emu->pci),
 					      32*1024, 32*1024);
-  
+
 	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, map, 2,
 				     1 << 2, NULL);
 }
@@ -918,10 +918,10 @@ static int snd_emu10k1x_create(struct snd_card *card,
 
 	spin_lock_init(&chip->emu_lock);
 	spin_lock_init(&chip->voice_lock);
-  
+
 	chip->port = pci_resource_start(pci, 0);
 	if ((chip->res_port = request_region(chip->port, 8,
-					     "EMU10K1X")) == NULL) { 
+					     "EMU10K1X")) == NULL) {
 		dev_err(card->dev, "cannot allocate the port 0x%lx\n",
 			chip->port);
 		snd_emu10k1x_free(chip);
@@ -935,7 +935,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
-  
+
 	if(snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 			       4 * 1024, &chip->dma_buffer) < 0) {
 		snd_emu10k1x_free(chip);
@@ -950,7 +950,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	dev_info(card->dev, "Model %04x Rev %08x Serial %08x\n", chip->model,
 		   chip->revision, chip->serial);
 
-	outl(0, chip->port + INTE);	
+	outl(0, chip->port + INTE);
 
 	for(ch = 0; ch < 3; ch++) {
 		chip->voices[ch].emu = chip;
@@ -972,19 +972,19 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	 *  P                 = 0     (Consumer)
 	 */
 	snd_emu10k1x_ptr_write(chip, SPCS0, 0,
-			       chip->spdif_bits[0] = 
+			       chip->spdif_bits[0] =
 			       SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
 			       SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 			       SPCS_GENERATIONSTATUS | 0x00001200 |
 			       0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
 	snd_emu10k1x_ptr_write(chip, SPCS1, 0,
-			       chip->spdif_bits[1] = 
+			       chip->spdif_bits[1] =
 			       SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
 			       SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 			       SPCS_GENERATIONSTATUS | 0x00001200 |
 			       0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
 	snd_emu10k1x_ptr_write(chip, SPCS2, 0,
-			       chip->spdif_bits[2] = 
+			       chip->spdif_bits[2] =
 			       SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
 			       SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 			       SPCS_GENERATIONSTATUS | 0x00001200 |
@@ -1005,7 +1005,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	return 0;
 }
 
-static void snd_emu10k1x_proc_reg_read(struct snd_info_entry *entry, 
+static void snd_emu10k1x_proc_reg_read(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct emu10k1x *emu = entry->private_data;
@@ -1033,7 +1033,7 @@ static void snd_emu10k1x_proc_reg_read(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_emu10k1x_proc_reg_write(struct snd_info_entry *entry, 
+static void snd_emu10k1x_proc_reg_write(struct snd_info_entry *entry,
 					struct snd_info_buffer *buffer)
 {
 	struct emu10k1x *emu = entry->private_data;
@@ -1316,7 +1316,7 @@ static int snd_emu10k1x_midi_input_open(struct snd_rawmidi_substream *substream)
 	struct emu10k1x *emu;
 	struct emu10k1x_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
-	
+
 	emu = midi->emu;
 	if (snd_BUG_ON(!emu))
 		return -ENXIO;
@@ -1438,7 +1438,7 @@ static void snd_emu10k1x_midi_output_trigger(struct snd_rawmidi_substream *subst
 	if (up) {
 		int max = 4;
 		unsigned char byte;
-	
+
 		/* try to send some amount of bytes here before interrupts */
 		spin_lock_irqsave(&midi->output_lock, flags);
 		while (max > 0) {
@@ -1576,7 +1576,7 @@ static int snd_emu10k1x_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	
+
 	if ((err = snd_emu10k1x_midi(chip)) < 0) {
 		snd_card_free(card);
 		return err;

@@ -228,11 +228,11 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 		data0 = (1UL << SH2_PTC_A_SHFT) |
 			(nbits << SH2_PTC_PS_SHFT) |
 		    	(1UL << SH2_PTC_START_SHFT);
-		ptc0 = (long *)GLOBAL_MMR_PHYS_ADDR(0, SH2_PTC + 
+		ptc0 = (long *)GLOBAL_MMR_PHYS_ADDR(0, SH2_PTC +
 			(rr_value << SH2_PTC_RID_SHFT));
 		ptc1 = NULL;
 	}
-	
+
 
 	mynasid = get_nasid();
 	use_cpu_ptcga = local_node_uses_ptc_ga(shub1);
@@ -316,7 +316,7 @@ done:
 /*
  * sn2_ptc_deadlock_recovery
  *
- * Recover from PTC deadlocks conditions. Recovery requires stepping thru each 
+ * Recover from PTC deadlocks conditions. Recovery requires stepping thru each
  * TLB flush transaction.  The recovery sequence is somewhat tricky & is
  * coded in assembly language.
  */
@@ -411,7 +411,7 @@ EXPORT_SYMBOL(sn_send_IPI_phys);
  * @redirect: redirect the IPI?
  *
  * Sends an IPI (InterProcessor Interrupt) to the processor specified by
- * @cpuid.  @vector specifies the command to send, while @delivery_mode can 
+ * @cpuid.  @vector specifies the command to send, while @delivery_mode can
  * be one of the following
  *
  * %IA64_IPI_DM_INT - pend an interrupt

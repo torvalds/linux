@@ -340,7 +340,7 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 		PSYCHO_PCICTRL_EEN);
 	tmp &= ~(PSYCHO_PCICTRL_SBH_INT);
 	upa_writeq(tmp, base + PSYCHO_PCIA_CTRL);
-		     
+
 	tmp = upa_readq(base + PSYCHO_PCIB_CTRL);
 	tmp |= (PSYCHO_PCICTRL_SERR |
 		PSYCHO_PCICTRL_SBH_ERR |

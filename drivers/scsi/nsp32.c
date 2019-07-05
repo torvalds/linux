@@ -416,7 +416,7 @@ static void nsp32_build_reject(struct scsi_cmnd *SCpnt)
 	data->msgoutbuf[pos] = MESSAGE_REJECT; pos++;
 	data->msgout_len = pos;
 }
-	
+
 /*
  * timer
  */
@@ -481,7 +481,7 @@ static int nsp32_selection_autopara(struct scsi_cmnd *SCpnt)
 			 * the sending order of the message is:
 			 *  MCNT 3: MSG#0 -> MSG#1 -> MSG#2
 			 *  MCNT 2:          MSG#1 -> MSG#2
-			 *  MCNT 1:                   MSG#2    
+			 *  MCNT 1:                   MSG#2
 			 */
 			msgout >>= 8;
 			msgout |= ((unsigned int)(data->msgoutbuf[i]) << 24);
@@ -642,7 +642,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 			 * the sending order of the message is:
 			 *  MCNT 3: MSG#0 -> MSG#1 -> MSG#2
 			 *  MCNT 2:          MSG#1 -> MSG#2
-			 *  MCNT 1:                   MSG#2    
+			 *  MCNT 1:                   MSG#2
 			 */
 			msgout >>= 8;
 			msgout |= ((unsigned int)(data->msgoutbuf[i]) << 24);
@@ -662,7 +662,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 
 	/*
 	 * set SREQ hazard killer sampling rate
-	 * 
+	 *
 	 * TODO: sample_rate (BASE+0F) is 0 when internal clock = 40MHz.
 	 *      check other internal clock!
 	 */
@@ -739,9 +739,9 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 
 /*
  * Arbitration Status Check
- *	
+ *
  * Note: Arbitration counter is waited during ARBIT_GO is not lifting.
- *	 Using udelay(1) consumes CPU time and system time, but 
+ *	 Using udelay(1) consumes CPU time and system time, but
  *	 arbitration delay time is defined minimal 2.4us in SCSI
  *	 specification, thus udelay works as coarse grained wait timer.
  */
@@ -966,7 +966,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 	/* Build IDENTIFY */
 	nsp32_build_identify(SCpnt);
 
-	/* 
+	/*
 	 * If target is the first time to transfer after the reset
 	 * (target don't have SDTR_DONE and SDTR_INITIATOR), sync
 	 * message SDTR is needed to do synchronous transfer.
@@ -1086,7 +1086,7 @@ static int nsp32hw_init(nsp32_hw_data *data)
 
 	/*
 	 * initialize MISC_WRRD register
-	 * 
+	 *
 	 * Note: Designated parameters is obeyed as following:
 	 *	MISC_SCSI_DIRECTION_DETECTOR_SELECT: It must be set.
 	 *	MISC_MASTER_TERMINATION_SELECT:      It must be set.
@@ -1163,7 +1163,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 	 * IRQ check, then enable IRQ mask
 	 */
 	irq_stat = nsp32_read2(base, IRQ_STATUS);
-	nsp32_dbg(NSP32_DEBUG_INTR, 
+	nsp32_dbg(NSP32_DEBUG_INTR,
 		  "enter IRQ: %d, IRQstatus: 0x%x", irq, irq_stat);
 	/* is this interrupt comes from Ninja asic? */
 	if ((irq_stat & IRQSTATUS_ANY_IRQ) == 0) {
@@ -1265,13 +1265,13 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 				  "Data in/out phase processed");
 
 			/* read BMCNT, SGT pointer addr */
-			nsp32_dbg(NSP32_DEBUG_INTR, "BMCNT=0x%lx", 
+			nsp32_dbg(NSP32_DEBUG_INTR, "BMCNT=0x%lx",
 				    nsp32_read4(base, BM_CNT));
-			nsp32_dbg(NSP32_DEBUG_INTR, "addr=0x%lx", 
+			nsp32_dbg(NSP32_DEBUG_INTR, "addr=0x%lx",
 				    nsp32_read4(base, SGT_ADR));
-			nsp32_dbg(NSP32_DEBUG_INTR, "SACK=0x%lx", 
+			nsp32_dbg(NSP32_DEBUG_INTR, "SACK=0x%lx",
 				    nsp32_read4(base, SACK_CNT));
-			nsp32_dbg(NSP32_DEBUG_INTR, "SSACK=0x%lx", 
+			nsp32_dbg(NSP32_DEBUG_INTR, "SSACK=0x%lx",
 				    nsp32_read4(base, SAVED_SACK_CNT));
 
 			scsi_set_resid(SCpnt, 0); /* all data transferred! */
@@ -1306,7 +1306,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 			 * Read CSB and substitute CSB for SCpnt->result
 			 * to save status phase stutas byte.
 			 * scsi error handler checks host_byte (DID_*:
-			 * low level driver to indicate status), then checks 
+			 * low level driver to indicate status), then checks
 			 * status_byte (SCSI status byte).
 			 */
 			SCpnt->result =	(int)nsp32_read1(base, SCSI_CSB_IN);
@@ -1314,7 +1314,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 
 		if (auto_stat & ILLEGAL_PHASE) {
 			/* Illegal phase is detected. SACK is not back. */
-			nsp32_msg(KERN_WARNING, 
+			nsp32_msg(KERN_WARNING,
 				  "AUTO SCSI ILLEGAL PHASE OCCUR!!!!");
 
 			/* TODO: currently we don't have any action... bus reset? */
@@ -1561,7 +1561,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 	 *
 	 * VALID:
 	 *   Save Data Pointer is received. Adjust pointer.
-	 *   
+	 *
 	 * NO-VALID:
 	 *   SCSI-3 says if Save Data Pointer is not received, then we restart
 	 *   processing and we can't adjust any SCSI data pointer in next data
@@ -1574,7 +1574,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		 * Check sack_cnt/saved_sack_cnt, then adjust sg table if
 		 * needed.
 		 */
-		if (!(execph & MSGIN_00_VALID) && 
+		if (!(execph & MSGIN_00_VALID) &&
 		    ((execph & DATA_IN_PHASE) || (execph & DATA_OUT_PHASE))) {
 			unsigned int sacklen, s_sacklen;
 
@@ -1617,7 +1617,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		 * no processing.
 		 */
 	}
-	
+
 	if (execph & MSGIN_03_VALID) {
 		/* MsgIn03 was valid to be processed. No need processing. */
 	}
@@ -1639,7 +1639,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		 * negotiating.
 		 */
 		if (execph & (MSGIN_00_VALID | MSGIN_04_VALID)) {
-			/* 
+			/*
 			 * If valid message is received, then
 			 * negotiation is succeeded.
 			 */
@@ -1667,7 +1667,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 
 		SCpnt->SCp.Status  = nsp32_read1(base, SCSI_CSB_IN);
 		SCpnt->SCp.Message = 0;
-		nsp32_dbg(NSP32_DEBUG_BUSFREE, 
+		nsp32_dbg(NSP32_DEBUG_BUSFREE,
 			  "normal end stat=0x%x resid=0x%x\n",
 			  SCpnt->SCp.Status, scsi_get_resid(SCpnt));
 		SCpnt->result = (DID_OK             << 16) |
@@ -1680,7 +1680,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		/* MsgIn 04: Disconnect */
 		SCpnt->SCp.Status  = nsp32_read1(base, SCSI_CSB_IN);
 		SCpnt->SCp.Message = 4;
-		
+
 		nsp32_dbg(NSP32_DEBUG_BUSFREE, "disconnect");
 		return TRUE;
 	} else {
@@ -1719,7 +1719,7 @@ static void nsp32_adjust_busfree(struct scsi_cmnd *SCpnt, unsigned int s_sacklen
 	s_sacklen -= le32_to_cpu(sgt[old_entry].addr) & 3;
 
 	/*
-	 * calculate new_entry from sack count and each sgt[].len 
+	 * calculate new_entry from sack count and each sgt[].len
 	 * calculate the byte which is intent to send
 	 */
 	sentlen = 0;
@@ -1737,7 +1737,7 @@ static void nsp32_adjust_busfree(struct scsi_cmnd *SCpnt, unsigned int s_sacklen
 
 	if (sentlen == s_sacklen) {
 		/* XXX: confirm it's ok or not */
-		/* In this case, it's ok because we are at 
+		/* In this case, it's ok because we are at
 		   the head element of the sg. restlen is correctly calculated. */
 	}
 
@@ -1753,7 +1753,7 @@ static void nsp32_adjust_busfree(struct scsi_cmnd *SCpnt, unsigned int s_sacklen
 
 	/* set cur_entry with new_entry */
 	data->cur_entry = new_entry;
- 
+
 	return;
 
  last:
@@ -1783,7 +1783,7 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 	//unsigned short command;
 	long new_sgtp;
 	int i;
-	
+
 	nsp32_dbg(NSP32_DEBUG_MSGOUTOCCUR,
 		  "enter: msgout_len: 0x%x", data->msgout_len);
 
@@ -1796,11 +1796,11 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 	}
 
 	/*
-	 * Set SGTP ADDR current entry for restarting AUTOSCSI, 
+	 * Set SGTP ADDR current entry for restarting AUTOSCSI,
 	 * because SGTP is incremented next point.
 	 * There is few statement in the specification...
 	 */
- 	new_sgtp = data->cur_lunt->sglun_paddr + 
+ 	new_sgtp = data->cur_lunt->sglun_paddr +
 		   (data->cur_lunt->cur_entry * sizeof(nsp32_sgtable));
 
 	/*
@@ -1970,7 +1970,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 			goto reject;
 		}
 	}
-	
+
 	/*
 	 * processing messages except for IDENTIFY
 	 *
@@ -1986,10 +1986,10 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 		 * These messages should not be occurred.
 		 * They should be processed on AutoSCSI sequencer.
 		 */
-		nsp32_msg(KERN_WARNING, 
+		nsp32_msg(KERN_WARNING,
 			   "unexpected message of AutoSCSI MsgIn: 0x%x", msg);
 		break;
-		
+
 	case RESTORE_POINTERS:
 		/*
 		 * AutoMsgIn03 is disabled, and HBA gets this message.
@@ -2015,7 +2015,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 		/*
 		 * set new sg pointer
 		 */
-		new_sgtp = data->cur_lunt->sglun_paddr + 
+		new_sgtp = data->cur_lunt->sglun_paddr +
 			(data->cur_lunt->cur_entry * sizeof(nsp32_sgtable));
 		nsp32_write4(base, SGT_ADR, new_sgtp);
 
@@ -2026,13 +2026,13 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 		 * These messages should not be occurred.
 		 * They should be processed on AutoSCSI sequencer.
 		 */
-		nsp32_msg (KERN_WARNING, 
+		nsp32_msg (KERN_WARNING,
 			   "unexpected message of AutoSCSI MsgIn: SAVE_POINTERS");
-		
+
 		break;
-		
+
 	case MESSAGE_REJECT:
-		/* If previous message_out is sending SDTR, and get 
+		/* If previous message_out is sending SDTR, and get
 		   message_reject from target, SDTR negotiation is failed */
 		if (data->cur_target->sync_flag &
 				(SDTR_INITIATOR | SDTR_TARGET)) {
@@ -2051,7 +2051,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	case LINKED_CMD_COMPLETE:
 	case LINKED_FLG_CMD_COMPLETE:
 		/* queue tag is not supported currently */
-		nsp32_msg (KERN_WARNING, 
+		nsp32_msg (KERN_WARNING,
 			   "unsupported message: 0x%x", msgtype);
 		break;
 
@@ -2104,7 +2104,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 		}
 
 		/*
-		 * Reach here means regular length of each type of 
+		 * Reach here means regular length of each type of
 		 * extended messages.
 		 */
 		switch (data->msginbuf[2]) {
@@ -2139,12 +2139,12 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 			goto reject; /* not implemented yet */
 
 			break;
-			
+
 		default:
 			goto reject;
 		}
 		break;
-		
+
 	default:
 		goto reject;
 	}
@@ -2160,7 +2160,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 		 * AutoSCSI restart, at the same time MsgOutOccur should be
 		 * happened (however, such situation is really possible...?).
 		 */
-		if (data->msgout_len > 0) {	
+		if (data->msgout_len > 0) {
 			nsp32_write4(base, SCSI_MSG_OUT, 0);
 			command |= AUTO_ATN;
 		}
@@ -2202,7 +2202,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	return;
 
  reject:
-	nsp32_msg(KERN_WARNING, 
+	nsp32_msg(KERN_WARNING,
 		  "invalid or unsupported MessageIn, rejected. "
 		  "current msg: 0x%x (len: 0x%x), processing msg: 0x%x",
 		  msg, data->msgin_len, msgtype);
@@ -2213,7 +2213,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 }
 
 /*
- * 
+ *
  */
 static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 {
@@ -2234,16 +2234,16 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 	 * If this inititor sent the SDTR message, then target responds SDTR,
 	 * initiator SYNCREG, ACKWIDTH from SDTR parameter.
 	 * Messages are not appropriate, then send back reject message.
-	 * If initiator did not send the SDTR, but target sends SDTR, 
+	 * If initiator did not send the SDTR, but target sends SDTR,
 	 * initiator calculator the appropriate parameter and send back SDTR.
-	 */	
+	 */
 	if (target->sync_flag & SDTR_INITIATOR) {
 		/*
 		 * Initiator sent SDTR, the target responds and
 		 * send back negotiation SDTR.
 		 */
 		nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "target responds SDTR");
-	
+
 		target->sync_flag &= ~SDTR_INITIATOR;
 		target->sync_flag |= SDTR_DONE;
 
@@ -2257,7 +2257,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 			 */
 			goto reject;
 		}
-		
+
 		if (get_offset == ASYNC_OFFSET) {
 			/*
 			 * Negotiation is succeeded, the target want
@@ -2288,7 +2288,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 
 		if (entry < 0) {
 			/*
-			 * Target want to use long period which is not 
+			 * Target want to use long period which is not
 			 * acceptable NinjaSCSI-32Bi/UDE.
 			 */
 			goto reject;
@@ -2301,7 +2301,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 	} else {
 		/* Target send SDTR to initiator. */
 		nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "target send SDTR");
-	
+
 		target->sync_flag |= SDTR_INITIATOR;
 
 		/* offset: */
@@ -2465,7 +2465,7 @@ static void nsp32_wait_req(nsp32_hw_data *data, int state)
 	do {
 		bus = nsp32_read1(base, SCSI_BUS_MONITOR);
 		if ((bus & BUSMON_REQ) == req_bit) {
-			nsp32_dbg(NSP32_DEBUG_WAIT, 
+			nsp32_dbg(NSP32_DEBUG_WAIT,
 				  "wait_time: %d", wait_time);
 			return;
 		}
@@ -2625,7 +2625,7 @@ static int nsp32_detect(struct pci_dev *pdev)
 	 */
 
 	/*
-	 * setup DMA 
+	 * setup DMA
 	 */
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) != 0) {
 		nsp32_msg (KERN_ERR, "failed to set PCI DMA mask");
@@ -2730,7 +2730,7 @@ static int nsp32_detect(struct pci_dev *pdev)
          */
 	res = request_region(host->io_port, host->n_io_port, "nsp32");
 	if (res == NULL) {
-		nsp32_msg(KERN_ERR, 
+		nsp32_msg(KERN_ERR,
 			  "I/O region 0x%lx+0x%lx is already used",
 			  data->BaseAddress, data->NumAddress);
 		goto free_irq;
@@ -2758,7 +2758,7 @@ static int nsp32_detect(struct pci_dev *pdev)
  free_autoparam:
 	dma_free_coherent(&pdev->dev, sizeof(nsp32_autoparam),
 			    data->autoparam, data->auto_paddr);
-	
+
  scsi_unregister:
 	scsi_host_put(host);
 
@@ -2882,7 +2882,7 @@ static int nsp32_eh_host_reset(struct scsi_cmnd *SCpnt)
 	unsigned int      base = SCpnt->device->host->io_port;
 	nsp32_hw_data    *data = (nsp32_hw_data *)host->hostdata;
 
-	nsp32_msg(KERN_INFO, "Host Reset");	
+	nsp32_msg(KERN_INFO, "Host Reset");
 	nsp32_dbg(NSP32_DEBUG_BUSRESET, "SCpnt=0x%x", SCpnt);
 
 	spin_lock_irq(SCpnt->device->host->host_lock);
@@ -2956,7 +2956,7 @@ static int nsp32_getprom_param(nsp32_hw_data *data)
  * AT24C01A (Logitec: LHA-600S), AT24C02 (Melco Buffalo: IFC-USLP) data map:
  *
  *   ROMADDR
- *   0x00 - 0x06 :  Device Synchronous Transfer Period (SCSI ID 0 - 6) 
+ *   0x00 - 0x06 :  Device Synchronous Transfer Period (SCSI ID 0 - 6)
  *			Value 0x0: ASYNC, 0x0c: Ultra-20M, 0x19: Fast-10M
  *   0x07        :  HBA Synchronous Transfer Period
  *			Value 0: AutoSync, 1: Manual Setting
@@ -3050,7 +3050,7 @@ static int nsp32_getprom_at24(nsp32_hw_data *data)
  * C16 110 (I-O Data: SC-NBD) data map:
  *
  *   ROMADDR
- *   0x00 - 0x06 :  Device Synchronous Transfer Period (SCSI ID 0 - 6) 
+ *   0x00 - 0x06 :  Device Synchronous Transfer Period (SCSI ID 0 - 6)
  *			Value 0x0: 20MB/S, 0x1: 10MB/S, 0x2: 5MB/S, 0x3: ASYNC
  *   0x07        :  0 (HBA Synchronous Transfer Period: Auto Sync)
  *   0x08 - 0x0f :  Not Used? (0x0)
@@ -3170,7 +3170,7 @@ static int nsp32_prom_read(nsp32_hw_data *data, int romaddr)
 	for (i = 7; i >= 0; i--) {
 		val += (nsp32_prom_read_bit(data) << i);
 	}
-	
+
 	/* no ack */
 	nsp32_prom_write_bit(data, 1);
 
@@ -3377,8 +3377,8 @@ static struct pci_driver nsp32_driver = {
 	.probe		= nsp32_probe,
 	.remove		= nsp32_remove,
 #ifdef CONFIG_PM
-	.suspend	= nsp32_suspend, 
-	.resume		= nsp32_resume, 
+	.suspend	= nsp32_suspend,
+	.resume		= nsp32_resume,
 #endif
 };
 

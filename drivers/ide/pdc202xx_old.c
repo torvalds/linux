@@ -296,7 +296,7 @@ static const struct ide_port_info pdc202xx_chipsets[] = {
  *	Called when the PCI registration layer (or the IDE initialization)
  *	finds a device matching our IDE device tables.
  */
- 
+
 static int pdc202xx_init_one(struct pci_dev *dev,
 			     const struct pci_device_id *id)
 {

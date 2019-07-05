@@ -14,7 +14,7 @@
 #define __ASM_ARCH_NEPONSET_H
 
 /*
- * Neponset definitions: 
+ * Neponset definitions:
  */
 #define NCR_GP01_OFF		(1<<0)
 #define NCR_TP_PWR_EN		(1<<1)

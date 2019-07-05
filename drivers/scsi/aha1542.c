@@ -894,9 +894,9 @@ static int aha1542_dev_reset(struct scsi_cmnd *cmd)
 	ccb[mbo].linkptr[0] = ccb[mbo].linkptr[1] = ccb[mbo].linkptr[2] = 0;
 	ccb[mbo].commlinkid = 0;
 
-	/* 
-	 * Now tell the 1542 to flush all pending commands for this 
-	 * target 
+	/*
+	 * Now tell the 1542 to flush all pending commands for this
+	 * target
 	 */
 	aha1542_outb(sh->io_port, CMD_START_SCSI);
 	spin_unlock_irqrestore(sh->host_lock, flags);
@@ -915,7 +915,7 @@ static int aha1542_reset(struct scsi_cmnd *cmd, u8 reset_cmd)
 	int i;
 
 	spin_lock_irqsave(sh->host_lock, flags);
-	/* 
+	/*
 	 * This does a scsi reset for all devices on the bus.
 	 * In principle, we could also reset the 1542 - should
 	 * we do this?  Try this first, and we can add that later
@@ -939,7 +939,7 @@ static int aha1542_reset(struct scsi_cmnd *cmd, u8 reset_cmd)
 	/*
 	 * Now try to pick up the pieces.  For all pending commands,
 	 * free any internal data structures, and basically clear things
-	 * out.  We do not try and restart any commands or anything - 
+	 * out.  We do not try and restart any commands or anything -
 	 * the strategy handler takes care of that crap.
 	 */
 	shost_printk(KERN_WARNING, cmd->device->host, "Sent BUS RESET to scsi host %d\n", cmd->device->host->host_no);
@@ -1008,10 +1008,10 @@ static struct scsi_host_template driver_template = {
 	.eh_bus_reset_handler	= aha1542_bus_reset,
 	.eh_host_reset_handler	= aha1542_host_reset,
 	.bios_param		= aha1542_biosparam,
-	.can_queue		= AHA1542_MAILBOXES, 
+	.can_queue		= AHA1542_MAILBOXES,
 	.this_id		= 7,
 	.sg_tablesize		= 16,
-	.unchecked_isa_dma	= 1, 
+	.unchecked_isa_dma	= 1,
 };
 
 static int aha1542_isa_match(struct device *pdev, unsigned int ndev)

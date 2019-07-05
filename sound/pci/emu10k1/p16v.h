@@ -66,14 +66,14 @@
 /********************************************************************************************************/
 /* Audigy2 P16V pointer-offset register set, accessed through the PTR2 and DATA2 registers                     */
 /********************************************************************************************************/
-                                                                                                                           
+
 /* The sample rate of the SPDIF outputs is set by modifying a register in the EMU10K2 PTR register A_SPDIF_SAMPLERATE.
  * The sample rate is also controlled by the same registers that control the rate of the EMU10K2 sample rate converters.
  */
 
 /* Initially all registers from 0x00 to 0x3f have zero contents. */
 #define PLAYBACK_LIST_ADDR	0x00		/* Base DMA address of a list of pointers to each period/size */
-						/* One list entry: 4 bytes for DMA address, 
+						/* One list entry: 4 bytes for DMA address,
 						 * 4 bytes for period_size << 16.
 						 * One list entry is 8 bytes long.
 						 * One list entry for each period in the buffer.
@@ -152,11 +152,11 @@
 						 *                               3 - 192 khz
 						 *                               7 - undefined rate.
 						 * [19] Channel 0. 1 - Valid, 0 - Not Valid.
-						 * [22:20] Channel 1 Detected sample rate. 
+						 * [22:20] Channel 1 Detected sample rate.
 						 * [23] Channel 1. 1 - Valid, 0 - Not Valid.
-						 * [26:24] Channel 2 Detected sample rate. 
+						 * [26:24] Channel 2 Detected sample rate.
 						 * [27] Channel 2. 1 - Valid, 0 - Not Valid.
-						 * [30:28] Channel 3 Detected sample rate. 
+						 * [30:28] Channel 3 Detected sample rate.
 						 * [31] Channel 3. 1 - Valid, 0 - Not Valid.
 						 */
 /* 0x18 - 0x1f unused */
@@ -189,7 +189,7 @@
 /* 0x43,0x48 do not remember settings */
 /* 0x41-45 unused */
 #define WATERMARK            0x46		/* Test bit to indicate cache level usage */
-						/* Values it can have while playing on channel 0. 
+						/* Values it can have while playing on channel 0.
 						 * 0000f000, 0000f004, 0000f008, 0000f00c.
 						 * Readonly.
 						 */
@@ -238,7 +238,7 @@
 						 * [23:16] The corresponding P16V channel to SRCMulti SPDIF enabled.
 						 * [31:24] The corresponding E10K2 channel to SRCMulti SPDIF enabled.
 						 */
-						/* Bypass P16V 0xff00ff00 
+						/* Bypass P16V 0xff00ff00
 						 * Bitmap. 0 = Off, 1 = On.
 						 * P16V playback outputs:
 						 * 0xXXXXXXX1 = PCM0 Left. (Front)

@@ -20,7 +20,7 @@ static void radeon_gpio_setscl(void* data, int state)
 	struct radeon_i2c_chan 	*chan = data;
 	struct radeonfb_info	*rinfo = chan->rinfo;
 	u32			val;
-	
+
 	val = INREG(chan->ddc_reg) & ~(VGA_DDC_CLK_OUT_EN);
 	if (!state)
 		val |= VGA_DDC_CLK_OUT_EN;
@@ -34,7 +34,7 @@ static void radeon_gpio_setsda(void* data, int state)
 	struct radeon_i2c_chan 	*chan = data;
 	struct radeonfb_info	*rinfo = chan->rinfo;
 	u32			val;
-	
+
 	val = INREG(chan->ddc_reg) & ~(VGA_DDC_DATA_OUT_EN);
 	if (!state)
 		val |= VGA_DDC_DATA_OUT_EN;
@@ -48,7 +48,7 @@ static int radeon_gpio_getscl(void* data)
 	struct radeon_i2c_chan 	*chan = data;
 	struct radeonfb_info	*rinfo = chan->rinfo;
 	u32			val;
-	
+
 	val = INREG(chan->ddc_reg);
 
 	return (val & VGA_DDC_CLK_INPUT) ? 1 : 0;
@@ -59,7 +59,7 @@ static int radeon_gpio_getsda(void* data)
 	struct radeon_i2c_chan 	*chan = data;
 	struct radeonfb_info	*rinfo = chan->rinfo;
 	u32			val;
-	
+
 	val = INREG(chan->ddc_reg);
 
 	return (val & VGA_DDC_DATA_INPUT) ? 1 : 0;
@@ -80,10 +80,10 @@ static int radeon_setup_i2c_bus(struct radeon_i2c_chan *chan, const char *name)
 	chan->algo.getscl		= radeon_gpio_getscl;
 	chan->algo.udelay		= 10;
 	chan->algo.timeout		= 20;
-	chan->algo.data 		= chan;	
-	
+	chan->algo.data 		= chan;
+
 	i2c_set_adapdata(&chan->adapter, chan);
-	
+
 	/* Raise SCL and SDA */
 	radeon_gpio_setsda(chan, 1);
 	radeon_gpio_setscl(chan, 1);

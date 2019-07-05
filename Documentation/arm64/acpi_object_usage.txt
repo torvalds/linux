@@ -157,7 +157,7 @@ IORT   Signature Reserved (signature == "IORT")
        and GIC ITSs, and how those various components are connected together,
        such as identifying which components are behind which SMMUs/ITSs.
        This table will only be required on certain SBSA platforms (e.g.,
-       when using GICv3-ITS and an SMMU); on SBSA Level 0 platforms, it 
+       when using GICv3-ITS and an SMMU); on SBSA Level 0 platforms, it
        remains optional.
 
 IVRS   Signature Reserved (signature == "IVRS")
@@ -422,8 +422,8 @@ _OSC   6.2.11          This method can be a global method in ACPI (i.e.,
                        by the kernel community, then register it with the
                        UEFI Forum.
 
-\_OSI  5.7.2           Deprecated on ARM64.  As far as ACPI firmware is 
-		       concerned, _OSI is not to be used to determine what 
+\_OSI  5.7.2           Deprecated on ARM64.  As far as ACPI firmware is
+		       concerned, _OSI is not to be used to determine what
 		       sort of system is being used or what functionality
 		       is provided.  The _OSC method is to be used instead.
 
@@ -447,7 +447,7 @@ _PSx   7.3.2-5         Use as needed; power management specific.  If _PS0 is
                        usage, change them in these methods.
 
 _RDI   8.4.4.4         Recommended for use with processor definitions (_HID
-		       ACPI0010) on arm64.  This should only be used in 
+		       ACPI0010) on arm64.  This should only be used in
 		       conjunction with _LPI.
 
 \_REV  5.7.4           Always returns the latest version of ACPI supported.

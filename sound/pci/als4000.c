@@ -19,15 +19,15 @@
  *  refer to: ALS4000a.PDF specs Ver 1.0, May 28th, 1998.
  *
  *  The ALS4000 seems to be the PCI-cousin of the ALS100. It contains an
- *  ALS100-like SB DSP/mixer, an OPL3 synth, a MPU401 and a gameport 
- *  interface. These subsystems can be mapped into ISA io-port space, 
- *  using the PCI-interface. In addition, the PCI-bit provides DMA and IRQ 
+ *  ALS100-like SB DSP/mixer, an OPL3 synth, a MPU401 and a gameport
+ *  interface. These subsystems can be mapped into ISA io-port space,
+ *  using the PCI-interface. In addition, the PCI-bit provides DMA and IRQ
  *  services to the subsystems.
- * 
+ *
  * While ALS4000 is very similar to a SoundBlaster, the differences in
  * DMA and capturing require more changes to the SoundBlaster than
  * desirable, so I made this separate driver.
- * 
+ *
  * The ALS4000 can do real full duplex playback/capture.
  *
  * FMDAC:
@@ -213,7 +213,7 @@ static inline void snd_als4k_gcr_write(struct snd_sb *sb,
 					 u32 val)
 {
 	snd_als4k_gcr_write_addr(sb->alt_port, reg, val);
-}	
+}
 
 static inline u32 snd_als4k_gcr_read_addr(unsigned long iobase,
 						 enum als4k_gcr_t reg)
@@ -322,7 +322,7 @@ static const struct {
 } playback_cmd_vals[]={
 /* ALS4000_FORMAT_U8_MONO */
 { SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_UNS_MONO },
-/* ALS4000_FORMAT_S8_MONO */	
+/* ALS4000_FORMAT_S8_MONO */
 { SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_SIGN_MONO },
 /* ALS4000_FORMAT_U16L_MONO */
 { SB_DSP4_OUT16_AI, SB_DSP_DMA16_ON, SB_DSP_DMA16_OFF, SB_DSP4_MODE_UNS_MONO },
@@ -330,7 +330,7 @@ static const struct {
 { SB_DSP4_OUT16_AI, SB_DSP_DMA16_ON, SB_DSP_DMA16_OFF, SB_DSP4_MODE_SIGN_MONO },
 /* ALS4000_FORMAT_U8_STEREO */
 { SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_UNS_STEREO },
-/* ALS4000_FORMAT_S8_STEREO */	
+/* ALS4000_FORMAT_S8_STEREO */
 { SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_SIGN_STEREO },
 /* ALS4000_FORMAT_U16L_STEREO */
 { SB_DSP4_OUT16_AI, SB_DSP_DMA16_ON, SB_DSP_DMA16_OFF, SB_DSP4_MODE_UNS_STEREO },
@@ -344,14 +344,14 @@ enum { CMD_WIDTH8=0x04, CMD_SIGNED=0x10, CMD_MONO=0x80, CMD_STEREO=0xA0 };
 static const unsigned char capture_cmd_vals[]=
 {
 CMD_WIDTH8|CMD_MONO,			/* ALS4000_FORMAT_U8_MONO */
-CMD_WIDTH8|CMD_SIGNED|CMD_MONO,		/* ALS4000_FORMAT_S8_MONO */	
+CMD_WIDTH8|CMD_SIGNED|CMD_MONO,		/* ALS4000_FORMAT_S8_MONO */
 CMD_MONO,				/* ALS4000_FORMAT_U16L_MONO */
 CMD_SIGNED|CMD_MONO,			/* ALS4000_FORMAT_S16L_MONO */
 CMD_WIDTH8|CMD_STEREO,			/* ALS4000_FORMAT_U8_STEREO */
-CMD_WIDTH8|CMD_SIGNED|CMD_STEREO,	/* ALS4000_FORMAT_S8_STEREO */	
+CMD_WIDTH8|CMD_SIGNED|CMD_STEREO,	/* ALS4000_FORMAT_S8_STEREO */
 CMD_STEREO,				/* ALS4000_FORMAT_U16L_STEREO */
 CMD_SIGNED|CMD_STEREO,			/* ALS4000_FORMAT_S16L_STEREO */
-};	
+};
 #define capture_cmd(chip) (capture_cmd_vals[(chip)->capture_format])
 
 static int snd_als4000_hw_params(struct snd_pcm_substream *substream,
@@ -374,10 +374,10 @@ static int snd_als4000_capture_prepare(struct snd_pcm_substream *substream)
 	unsigned count;
 
 	chip->capture_format = snd_als4000_get_format(runtime);
-		
+
 	size = snd_pcm_lib_buffer_bytes(substream);
 	count = snd_pcm_lib_period_bytes(substream);
-	
+
 	if (chip->capture_format & ALS4000_FORMAT_16BIT)
 		count >>= 1;
 	count--;
@@ -401,14 +401,14 @@ static int snd_als4000_playback_prepare(struct snd_pcm_substream *substream)
 	unsigned count;
 
 	chip->playback_format = snd_als4000_get_format(runtime);
-	
+
 	size = snd_pcm_lib_buffer_bytes(substream);
 	count = snd_pcm_lib_period_bytes(substream);
-	
+
 	if (chip->playback_format & ALS4000_FORMAT_16BIT)
 		count >>= 1;
 	count--;
-	
+
 	/* FIXME: from second playback on, there's a lot more clicks and pops
 	 * involved here than on first playback. Fiddling with
 	 * tons of different settings didn't help (DMA, speaker on/off,
@@ -418,16 +418,16 @@ static int snd_als4000_playback_prepare(struct snd_pcm_substream *substream)
 	spin_lock_irq(&chip->reg_lock);
 	snd_als4000_set_rate(chip, runtime->rate);
 	snd_als4000_set_playback_dma(chip, runtime->dma_addr, size);
-	
+
 	/* SPEAKER_ON not needed, since dma_on seems to also enable speaker */
 	/* snd_sbdsp_command(chip, SB_DSP_SPEAKER_ON); */
 	snd_sbdsp_command(chip, playback_cmd(chip).dsp_cmd);
 	snd_sbdsp_command(chip, playback_cmd(chip).format);
 	snd_sbdsp_command(chip, count & 0xff);
 	snd_sbdsp_command(chip, count >> 8);
-	snd_sbdsp_command(chip, playback_cmd(chip).dma_off);	
+	snd_sbdsp_command(chip, playback_cmd(chip).dma_off);
 	spin_unlock_irq(&chip->reg_lock);
-	
+
 	return 0;
 }
 
@@ -435,7 +435,7 @@ static int snd_als4000_capture_trigger(struct snd_pcm_substream *substream, int 
 {
 	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	int result = 0;
-	
+
 	/* FIXME race condition in here!!!
 	   chip->mode non-atomic update gets consistently protected
 	   by reg_lock always, _except_ for this place!!
@@ -494,7 +494,7 @@ static snd_pcm_uframes_t snd_als4000_capture_pointer(struct snd_pcm_substream *s
 	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	unsigned int result;
 
-	spin_lock(&chip->reg_lock);	
+	spin_lock(&chip->reg_lock);
 	result = snd_als4k_gcr_read(chip, ALS4K_GCRA4_FIFO2_CURRENT_ADDR);
 	spin_unlock(&chip->reg_lock);
 	result &= 0xffff;
@@ -506,7 +506,7 @@ static snd_pcm_uframes_t snd_als4000_playback_pointer(struct snd_pcm_substream *
 	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	unsigned result;
 
-	spin_lock(&chip->reg_lock);	
+	spin_lock(&chip->reg_lock);
 	result = snd_als4k_gcr_read(chip, ALS4K_GCRA0_FIFO1_CURRENT_ADDR);
 	spin_unlock(&chip->reg_lock);
 	result &= 0xffff;
@@ -548,12 +548,12 @@ static irqreturn_t snd_als4000_interrupt(int irq, void *dev_id)
 	/* ACK the PCI block IRQ */
 	snd_als4k_iobase_writeb(chip->alt_port,
 			 ALS4K_IOB_0E_IRQTYPE_SB_CR1E_MPU, pci_irqstatus);
-	
+
 	spin_lock(&chip->mixer_lock);
 	/* SPECS_PAGE: 20 */
 	sb_irqstatus = snd_sbmixer_read(chip, SB_DSP4_IRQSTATUS);
 	spin_unlock(&chip->mixer_lock);
-	
+
 	if (sb_irqstatus & SB_IRQTYPE_8BIT)
 		snd_sb_ack_8bit(chip);
 	if (sb_irqstatus & SB_IRQTYPE_16BIT)
@@ -740,7 +740,7 @@ static void snd_als4000_configure(struct snd_sb *chip)
 	snd_als4_cr_write(chip, ALS4K_CR0_SB_CONFIG,
 				 tmp & ~ALS4K_CR0_MX80_81_REG_WRITE_ENABLE);
 	spin_unlock_irq(&chip->mixer_lock);
-	
+
 	spin_lock_irq(&chip->reg_lock);
 	/* enable interrupts */
 	snd_als4k_gcr_write(chip, ALS4K_GCR8C_MISC_CTRL,
@@ -873,7 +873,7 @@ static int snd_card_als4000_probe(struct pci_dev *pci,
 	pci_read_config_word(pci, PCI_COMMAND, &word);
 	pci_write_config_word(pci, PCI_COMMAND, word | PCI_COMMAND_IO);
 	pci_set_master(pci);
-	
+
 	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
 			   sizeof(*acard) /* private_data: acard */,
 			   &card);
@@ -934,7 +934,7 @@ static int snd_card_als4000_probe(struct pci_dev *pci,
 	}
 	if ((err = snd_sbmixer_new(chip)) < 0) {
 		goto out_err;
-	}	    
+	}
 
 	if (snd_opl3_create(card,
 				iobase + ALS4K_IOB_10_ADLIB_ADDR0,
@@ -961,7 +961,7 @@ static int snd_card_als4000_probe(struct pci_dev *pci,
 
 out_err:
 	snd_card_free(card);
-	
+
 out:
 	return err;
 }
@@ -979,7 +979,7 @@ static int snd_als4000_suspend(struct device *dev)
 	struct snd_sb *chip = acard->chip;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	
+
 	snd_sbmixer_suspend(chip);
 	return 0;
 }

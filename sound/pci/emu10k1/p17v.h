@@ -13,11 +13,11 @@
 /* 00 - 07: Not used */
 #define P17V_PLAYBACK_FIFO_PTR	0x08	/* Current playback fifo pointer
 					 * and number of sound samples in cache.
-					 */  
+					 */
 /* 09 - 12: Not used */
 #define P17V_CAPTURE_FIFO_PTR	0x13	/* Current capture fifo pointer
 					 * and number of sound samples in cache.
-					 */  
+					 */
 /* 14 - 17: Not used */
 #define P17V_PB_CHN_SEL		0x18	/* P17v playback channel select */
 #define P17V_SE_SLOT_SEL_L	0x19	/* Sound Engine slot select low */
@@ -44,7 +44,7 @@
 #define I2C_A_ADC_LAST		0x00000400	/*I2C last transaction */
 #define I2C_A_ADC_BYTE		0x00000800	/*I2C one byte mode */
 
-#define I2C_D_ADC_REG_MASK	0xfe000000  	/*ADC address register */ 
+#define I2C_D_ADC_REG_MASK	0xfe000000  	/*ADC address register */
 #define I2C_D_ADC_DAT_MASK	0x01ff0000  	/*ADC data register */
 
 #define ADC_TIMEOUT		0x00000007	/*ADC Timeout Clock Disable */
