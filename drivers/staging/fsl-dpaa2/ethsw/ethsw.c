@@ -1460,13 +1460,23 @@ static int ethsw_probe_port(struct ethsw_core *ethsw, u16 port_idx)
 	err = register_netdev(port_netdev);
 	if (err < 0) {
 		dev_err(dev, "register_netdev error %d\n", err);
-		free_netdev(port_netdev);
-		return err;
+		goto err_register_netdev;
 	}
 
 	ethsw->ports[port_idx] = port_priv;
 
-	return ethsw_port_init(port_priv, port_idx);
+	err = ethsw_port_init(port_priv, port_idx);
+	if (err)
+		goto err_ethsw_port_init;
+
+	return 0;
+
+err_ethsw_port_init:
+	unregister_netdev(port_netdev);
+err_register_netdev:
+	free_netdev(port_netdev);
+
+	return err;
 }
 
 static int ethsw_probe(struct fsl_mc_device *sw_dev)
