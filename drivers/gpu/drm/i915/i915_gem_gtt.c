@@ -594,8 +594,6 @@ static void cleanup_page_dma(struct i915_address_space *vm,
 
 #define kmap_atomic_px(px) kmap_atomic(px_base(px)->page)
 
-#define setup_px(vm, px) setup_page_dma((vm), px_base(px))
-#define cleanup_px(vm, px) cleanup_page_dma((vm), px_base(px))
 #define fill_px(vm, px, v) fill_page_dma((vm), px_base(px), (v))
 #define fill32_px(vm, px, v) fill_page_dma_32((vm), px_base(px), (v))
 
@@ -697,7 +695,7 @@ static struct i915_page_table *alloc_pt(struct i915_address_space *vm)
 	if (unlikely(!pt))
 		return ERR_PTR(-ENOMEM);
 
-	if (unlikely(setup_px(vm, pt))) {
+	if (unlikely(setup_page_dma(vm, &pt->base))) {
 		kfree(pt);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -709,7 +707,7 @@ static struct i915_page_table *alloc_pt(struct i915_address_space *vm)
 
 static void free_pt(struct i915_address_space *vm, struct i915_page_table *pt)
 {
-	cleanup_px(vm, pt);
+	cleanup_page_dma(vm, &pt->base);
 	kfree(pt);
 }
 
@@ -752,7 +750,7 @@ static struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 	if (unlikely(!pd))
 		return ERR_PTR(-ENOMEM);
 
-	if (unlikely(setup_px(vm, pd))) {
+	if (unlikely(setup_page_dma(vm, &pd->base))) {
 		kfree(pd);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -769,7 +767,7 @@ static void free_pd(struct i915_address_space *vm,
 		    struct i915_page_directory *pd)
 {
 	if (likely(pd_has_phys_page(pd)))
-		cleanup_px(vm, pd);
+		cleanup_page_dma(vm, &pd->base);
 
 	kfree(pd);
 }
@@ -1649,7 +1647,7 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	}
 
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
-		err = setup_px(&ppgtt->vm, ppgtt->pd);
+		err = setup_page_dma(&ppgtt->vm, &ppgtt->pd->base);
 		if (err)
 			goto err_free_pdp;
 
