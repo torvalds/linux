@@ -548,6 +548,8 @@ void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
 static int mvpp2_cls_ethtool_flow_to_type(int flow_type)
 {
 	switch (flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS)) {
+	case ETHER_FLOW:
+		return MVPP22_FLOW_ETHERNET;
 	case TCP_V4_FLOW:
 		return MVPP22_FLOW_TCP4;
 	case TCP_V6_FLOW:
