@@ -600,6 +600,20 @@ void etnaviv_gpu_start_fe(struct etnaviv_gpu *gpu, u32 address, u16 prefetch)
 	}
 }
 
+static void etnaviv_gpu_start_fe_idleloop(struct etnaviv_gpu *gpu)
+{
+	u32 address = etnaviv_cmdbuf_get_va(&gpu->buffer, &gpu->cmdbuf_mapping);
+	u16 prefetch;
+
+	/* setup the MMU */
+	etnaviv_iommu_restore(gpu, gpu->mmu_context);
+
+	/* Start command processor */
+	prefetch = etnaviv_buffer_init(gpu);
+
+	etnaviv_gpu_start_fe(gpu, address, prefetch);
+}
+
 static void etnaviv_gpu_setup_pulse_eater(struct etnaviv_gpu *gpu)
 {
 	/*
@@ -633,8 +647,6 @@ static void etnaviv_gpu_setup_pulse_eater(struct etnaviv_gpu *gpu)
 
 static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 {
-	u16 prefetch;
-
 	if ((etnaviv_is_model_rev(gpu, GC320, 0x5007) ||
 	     etnaviv_is_model_rev(gpu, GC320, 0x5220)) &&
 	    gpu_read(gpu, VIVS_HI_CHIP_TIME) != 0x2062400) {
@@ -680,15 +692,9 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	/* setup the pulse eater */
 	etnaviv_gpu_setup_pulse_eater(gpu);
 
-	/* setup the MMU */
-	etnaviv_iommu_restore(gpu, gpu->mmu_context);
-
-	/* Start command processor */
-	prefetch = etnaviv_buffer_init(gpu);
-
 	gpu_write(gpu, VIVS_HI_INTR_ENBL, ~0U);
-	etnaviv_gpu_start_fe(gpu, etnaviv_cmdbuf_get_va(&gpu->buffer,
-			     &gpu->cmdbuf_mapping), prefetch);
+
+	etnaviv_gpu_start_fe_idleloop(gpu);
 }
 
 int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
