@@ -6,7 +6,7 @@
 # mode may be any of: tags, TAGS, cscope
 #
 # Uses the following environment variables:
-# ARCH, SUBARCH, SRCARCH, srctree, src, obj
+# SUBARCH, SRCARCH, srctree
 
 if [ "$KBUILD_VERBOSE" = "1" ]; then
 	set -x
@@ -36,7 +36,7 @@ elif [ "${ALLSOURCE_ARCHS}" = "all" ]; then
 	ALLSOURCE_ARCHS=$(find ${tree}arch/ -mindepth 1 -maxdepth 1 -type d -printf '%f ')
 fi
 
-# find sources in arch/$ARCH
+# find sources in arch/$1
 find_arch_sources()
 {
 	for i in $archincludedir; do
