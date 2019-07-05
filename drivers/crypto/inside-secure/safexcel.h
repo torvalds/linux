@@ -256,35 +256,7 @@
 #define EIP197_PE_EIP96_TOKEN_CTRL_POST_REUSE_CTX	BIT(20)
 
 /* EIP197_PE_EIP96_FUNCTION_EN */
-#define EIP197_FUNCTION_RSVD			(BIT(6) | BIT(15) | BIT(20) | BIT(23))
-#define EIP197_PROTOCOL_HASH_ONLY		BIT(0)
-#define EIP197_PROTOCOL_ENCRYPT_ONLY		BIT(1)
-#define EIP197_PROTOCOL_HASH_ENCRYPT		BIT(2)
-#define EIP197_PROTOCOL_HASH_DECRYPT		BIT(3)
-#define EIP197_PROTOCOL_ENCRYPT_HASH		BIT(4)
-#define EIP197_PROTOCOL_DECRYPT_HASH		BIT(5)
-#define EIP197_ALG_ARC4				BIT(7)
-#define EIP197_ALG_AES_ECB			BIT(8)
-#define EIP197_ALG_AES_CBC			BIT(9)
-#define EIP197_ALG_AES_CTR_ICM			BIT(10)
-#define EIP197_ALG_AES_OFB			BIT(11)
-#define EIP197_ALG_AES_CFB			BIT(12)
-#define EIP197_ALG_DES_ECB			BIT(13)
-#define EIP197_ALG_DES_CBC			BIT(14)
-#define EIP197_ALG_DES_OFB			BIT(16)
-#define EIP197_ALG_DES_CFB			BIT(17)
-#define EIP197_ALG_3DES_ECB			BIT(18)
-#define EIP197_ALG_3DES_CBC			BIT(19)
-#define EIP197_ALG_3DES_OFB			BIT(21)
-#define EIP197_ALG_3DES_CFB			BIT(22)
-#define EIP197_ALG_MD5				BIT(24)
-#define EIP197_ALG_HMAC_MD5			BIT(25)
-#define EIP197_ALG_SHA1				BIT(26)
-#define EIP197_ALG_HMAC_SHA1			BIT(27)
-#define EIP197_ALG_SHA2				BIT(28)
-#define EIP197_ALG_HMAC_SHA2			BIT(29)
-#define EIP197_ALG_AES_XCBC_MAC			BIT(30)
-#define EIP197_ALG_GCM_HASH			BIT(31)
+#define EIP197_FUNCTION_ALL			0xffffffff
 
 /* EIP197_PE_EIP96_CONTEXT_CTRL */
 #define EIP197_CONTEXT_SIZE(n)			(n)
@@ -333,6 +305,7 @@ struct safexcel_context_record {
 /* control1 */
 #define CONTEXT_CONTROL_CRYPTO_MODE_ECB		(0 << 0)
 #define CONTEXT_CONTROL_CRYPTO_MODE_CBC		(1 << 0)
+#define CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD	(6 << 0)
 #define CONTEXT_CONTROL_IV0			BIT(5)
 #define CONTEXT_CONTROL_IV1			BIT(6)
 #define CONTEXT_CONTROL_IV2			BIT(7)
@@ -718,6 +691,7 @@ extern struct safexcel_alg_template safexcel_alg_ecb_des3_ede;
 extern struct safexcel_alg_template safexcel_alg_cbc_des3_ede;
 extern struct safexcel_alg_template safexcel_alg_ecb_aes;
 extern struct safexcel_alg_template safexcel_alg_cbc_aes;
+extern struct safexcel_alg_template safexcel_alg_ctr_aes;
 extern struct safexcel_alg_template safexcel_alg_md5;
 extern struct safexcel_alg_template safexcel_alg_sha1;
 extern struct safexcel_alg_template safexcel_alg_sha224;

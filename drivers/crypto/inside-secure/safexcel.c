@@ -404,17 +404,9 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		      EIP197_PE_EIP96_TOKEN_CTRL_POST_REUSE_CTX;
 		writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_TOKEN_CTRL(pe));
 
-		/* H/W capabilities selection */
-		val = EIP197_FUNCTION_RSVD;
-		val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
-		val |= EIP197_PROTOCOL_ENCRYPT_HASH | EIP197_PROTOCOL_HASH_DECRYPT;
-		val |= EIP197_ALG_DES_ECB | EIP197_ALG_DES_CBC;
-		val |= EIP197_ALG_3DES_ECB | EIP197_ALG_3DES_CBC;
-		val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
-		val |= EIP197_ALG_MD5 | EIP197_ALG_HMAC_MD5;
-		val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
-		val |= EIP197_ALG_SHA2 | EIP197_ALG_HMAC_SHA2;
-		writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN(pe));
+		/* H/W capabilities selection: just enable everything */
+		writel(EIP197_FUNCTION_ALL,
+		       EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN(pe));
 	}
 
 	/* Command Descriptor Rings prepare */
@@ -858,6 +850,7 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_cbc_des3_ede,
 	&safexcel_alg_ecb_aes,
 	&safexcel_alg_cbc_aes,
+	&safexcel_alg_ctr_aes,
 	&safexcel_alg_md5,
 	&safexcel_alg_sha1,
 	&safexcel_alg_sha224,
