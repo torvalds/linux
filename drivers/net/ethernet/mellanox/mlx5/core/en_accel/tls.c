@@ -190,6 +190,11 @@ void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 	struct net_device *netdev = priv->netdev;
 	u32 caps;
 
+	if (mlx5_accel_is_ktls_device(priv->mdev)) {
+		mlx5e_ktls_build_netdev(priv);
+		return;
+	}
+
 	if (!mlx5_accel_is_tls_device(priv->mdev))
 		return;
 

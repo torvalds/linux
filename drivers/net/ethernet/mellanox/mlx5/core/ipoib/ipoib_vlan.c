@@ -210,7 +210,7 @@ static int mlx5i_pkey_open(struct net_device *netdev)
 		goto err_unint_underlay_qp;
 	}
 
-	err = mlx5e_create_tis(mdev, 0 /* tc */, ipriv->qp.qpn, &epriv->tisn[0]);
+	err = mlx5i_create_tis(mdev, ipriv->qp.qpn, &epriv->tisn[0]);
 	if (err) {
 		mlx5_core_warn(mdev, "create child tis failed, %d\n", err);
 		goto err_remove_rx_uderlay_qp;

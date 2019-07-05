@@ -209,7 +209,10 @@ struct mlx5e_umr_wqe {
 	struct mlx5_wqe_ctrl_seg       ctrl;
 	struct mlx5_wqe_umr_ctrl_seg   uctrl;
 	struct mlx5_mkey_seg           mkc;
-	struct mlx5_mtt                inline_mtts[0];
+	union {
+		struct mlx5_mtt        inline_mtts[0];
+		u8                     tls_static_params_ctx[0];
+	};
 };
 
 extern const char mlx5e_self_tests[][ETH_GSTRING_LEN];
@@ -333,6 +336,9 @@ struct mlx5e_tx_wqe_info {
 	u32 num_bytes;
 	u8  num_wqebbs;
 	u8  num_dma;
+#ifdef CONFIG_MLX5_EN_TLS
+	skb_frag_t *resync_dump_frag;
+#endif
 };
 
 enum mlx5e_dma_map_type {
@@ -390,6 +396,7 @@ struct mlx5e_txqsq {
 	void __iomem              *uar_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
+	u16                        stop_room;
 	u8                         min_inline_mode;
 	struct device             *pdev;
 	__be32                     mkey_be;
@@ -548,12 +555,6 @@ struct mlx5e_icosq {
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
 } ____cacheline_aligned_in_smp;
-
-static inline bool
-mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
-{
-	return (mlx5_wq_cyc_ctr2ix(wq, cc - pc) >= n) || (cc == pc);
-}
 
 struct mlx5e_wqe_frag_info {
 	struct mlx5e_dma_info *di;
@@ -1023,102 +1024,6 @@ static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
 		MLX5_CAP_ETH(mdev, swp_csum) && MLX5_CAP_ETH(mdev, swp_lso);
 }
 
-struct mlx5e_swp_spec {
-	__be16 l3_proto;
-	u8 l4_proto;
-	u8 is_tun;
-	__be16 tun_l3_proto;
-	u8 tun_l4_proto;
-};
-
-static inline void
-mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
-		   struct mlx5e_swp_spec *swp_spec)
-{
-	/* SWP offsets are in 2-bytes words */
-	eseg->swp_outer_l3_offset = skb_network_offset(skb) / 2;
-	if (swp_spec->l3_proto == htons(ETH_P_IPV6))
-		eseg->swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L3_IPV6;
-	if (swp_spec->l4_proto) {
-		eseg->swp_outer_l4_offset = skb_transport_offset(skb) / 2;
-		if (swp_spec->l4_proto == IPPROTO_UDP)
-			eseg->swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L4_UDP;
-	}
-
-	if (swp_spec->is_tun) {
-		eseg->swp_inner_l3_offset = skb_inner_network_offset(skb) / 2;
-		if (swp_spec->tun_l3_proto == htons(ETH_P_IPV6))
-			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
-	} else { /* typically for ipsec when xfrm mode != XFRM_MODE_TUNNEL */
-		eseg->swp_inner_l3_offset = skb_network_offset(skb) / 2;
-		if (swp_spec->l3_proto == htons(ETH_P_IPV6))
-			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
-	}
-	switch (swp_spec->tun_l4_proto) {
-	case IPPROTO_UDP:
-		eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_UDP;
-		/* fall through */
-	case IPPROTO_TCP:
-		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
-		break;
-	}
-}
-
-static inline void mlx5e_sq_fetch_wqe(struct mlx5e_txqsq *sq,
-				      struct mlx5e_tx_wqe **wqe,
-				      u16 *pi)
-{
-	struct mlx5_wq_cyc *wq = &sq->wq;
-
-	*pi  = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	*wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
-	memset(*wqe, 0, sizeof(**wqe));
-}
-
-static inline
-struct mlx5e_tx_wqe *mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
-{
-	u16                         pi   = mlx5_wq_cyc_ctr2ix(wq, *pc);
-	struct mlx5e_tx_wqe        *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
-	struct mlx5_wqe_ctrl_seg   *cseg = &wqe->ctrl;
-
-	memset(cseg, 0, sizeof(*cseg));
-
-	cseg->opmod_idx_opcode = cpu_to_be32((*pc << 8) | MLX5_OPCODE_NOP);
-	cseg->qpn_ds           = cpu_to_be32((sqn << 8) | 0x01);
-
-	(*pc)++;
-
-	return wqe;
-}
-
-static inline
-void mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc,
-		     void __iomem *uar_map,
-		     struct mlx5_wqe_ctrl_seg *ctrl)
-{
-	ctrl->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
-	/* ensure wqe is visible to device before updating doorbell record */
-	dma_wmb();
-
-	*wq->db = cpu_to_be32(pc);
-
-	/* ensure doorbell record is visible to device before ringing the
-	 * doorbell
-	 */
-	wmb();
-
-	mlx5_write64((__be32 *)ctrl, uar_map);
-}
-
-static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
-{
-	struct mlx5_core_cq *mcq;
-
-	mcq = &cq->mcq;
-	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, cq->wq.cc);
-}
-
 extern const struct ethtool_ops mlx5e_ethtool_ops;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 extern const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops;
@@ -1154,8 +1059,7 @@ int mlx5e_create_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs);
 void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs);
 void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt);
 
-int mlx5e_create_tis(struct mlx5_core_dev *mdev, int tc,
-		     u32 underlay_qpn, u32 *tisn);
+int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn);
 void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn);
 
 int mlx5e_create_tises(struct mlx5e_priv *priv);
