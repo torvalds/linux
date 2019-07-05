@@ -53,7 +53,11 @@ xchk_setup_xattr_buf(
 		sc->buf = NULL;
 	}
 
-	ab = kmem_zalloc_large(sizeof(*ab) + sz, flags);
+	/*
+	 * Don't zero the buffer upon allocation to avoid runtime overhead.
+	 * All users must be careful never to read uninitialized contents.
+	 */
+	ab = kmem_alloc_large(sizeof(*ab) + sz, flags);
 	if (!ab)
 		return -ENOMEM;
 
