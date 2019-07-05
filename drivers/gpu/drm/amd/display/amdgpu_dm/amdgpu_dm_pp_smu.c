@@ -911,11 +911,11 @@ void dm_pp_get_funcs(
 		/* todo set_pme_wa_enable cause 4k@6ohz display not light up */
 		funcs->nv_funcs.set_pme_wa_enable = NULL;
 		/* todo debug waring message */
-		funcs->nv_funcs.set_hard_min_uclk_by_freq = NULL;
+		funcs->nv_funcs.set_hard_min_uclk_by_freq = pp_nv_set_hard_min_uclk_by_freq;
 		/* todo  compare data with window driver*/
-		funcs->nv_funcs.get_maximum_sustainable_clocks = NULL;
+		funcs->nv_funcs.get_maximum_sustainable_clocks = pp_nv_get_maximum_sustainable_clocks;
 		/*todo  compare data with window driver */
-		funcs->nv_funcs.get_uclk_dpm_states = NULL;
+		funcs->nv_funcs.get_uclk_dpm_states = pp_nv_get_uclk_dpm_states;
 		break;
 #endif
 	default:
