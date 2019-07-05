@@ -67,10 +67,6 @@ char *get_current_dir_name(void);
 int sched_getcpu(void);
 #endif
 
-#ifndef HAVE_SETNS_SUPPORT
-int setns(int fd, int nstype);
-#endif
-
 extern bool perf_singlethreaded;
 
 void perf_set_singlethreaded(void);
