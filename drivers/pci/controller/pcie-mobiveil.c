@@ -565,7 +565,7 @@ static void mobiveil_pcie_enable_msi(struct mobiveil_pcie *pcie)
 
 static int mobiveil_host_init(struct mobiveil_pcie *pcie)
 {
-	u32 value, pab_ctrl, type = 0;
+	u32 value, pab_ctrl, type;
 	struct resource_entry *win;
 
 	/* setup bus numbers */
@@ -617,18 +617,18 @@ static int mobiveil_host_init(struct mobiveil_pcie *pcie)
 
 	/* Get the I/O and memory ranges from DT */
 	resource_list_for_each_entry(win, &pcie->resources) {
-		type = 0;
 		if (resource_type(win->res) == IORESOURCE_MEM)
 			type = MEM_WINDOW_TYPE;
-		if (resource_type(win->res) == IORESOURCE_IO)
+		else if (resource_type(win->res) == IORESOURCE_IO)
 			type = IO_WINDOW_TYPE;
-		if (type) {
-			/* configure outbound translation window */
-			program_ob_windows(pcie, pcie->ob_wins_configured,
-					   win->res->start,
-					   win->res->start - win->offset,
-					   type, resource_size(win->res));
-		}
+		else
+			continue;
+
+		/* configure outbound translation window */
+		program_ob_windows(pcie, pcie->ob_wins_configured,
+				   win->res->start,
+				   win->res->start - win->offset,
+				   type, resource_size(win->res));
 	}
 
 	/* fixup for PCIe class register */
