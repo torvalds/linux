@@ -17,21 +17,48 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/io.h>
+#include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
 
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
 #endif
 
+#include <linux/intel_th.h>
 #include "intel_th.h"
 #include "msu.h"
 
 #define msc_dev(x) (&(x)->thdev->dev)
 
+/*
+ * Lockout state transitions:
+ *   READY -> INUSE -+-> LOCKED -+-> READY -> etc.
+ *                   \-----------/
+ * WIN_READY:	window can be used by HW
+ * WIN_INUSE:	window is in use
+ * WIN_LOCKED:	window is filled up and is being processed by the buffer
+ * handling code
+ *
+ * All state transitions happen automatically, except for the LOCKED->READY,
+ * which needs to be signalled by the buffer code by calling
+ * intel_th_msc_window_unlock().
+ *
+ * When the interrupt handler has to switch to the next window, it checks
+ * whether it's READY, and if it is, it performs the switch and tracing
+ * continues. If it's LOCKED, it stops the trace.
+ */
+enum lockout_state {
+	WIN_READY = 0,
+	WIN_INUSE,
+	WIN_LOCKED
+};
+
 /**
  * struct msc_window - multiblock mode window descriptor
  * @entry:	window list linkage (msc::win_list)
  * @pgoff:	page offset into the buffer that this window starts at
+ * @lockout:	lockout state, see comment below
+ * @lo_lock:	lockout state serialization
  * @nr_blocks:	number of blocks (pages) in this window
  * @nr_segs:	number of segments in this window (<= @nr_blocks)
  * @_sgt:	array of block descriptors
@@ -40,6 +67,8 @@
 struct msc_window {
 	struct list_head	entry;
 	unsigned long		pgoff;
+	enum lockout_state	lockout;
+	spinlock_t		lo_lock;
 	unsigned int		nr_blocks;
 	unsigned int		nr_segs;
 	struct msc		*msc;
@@ -77,6 +106,8 @@ struct msc_iter {
  * struct msc - MSC device representation
  * @reg_base:		register window base address
  * @thdev:		intel_th_device pointer
+ * @mbuf:		MSU buffer, if assigned
+ * @mbuf_priv		MSU buffer's private data, if @mbuf
  * @win_list:		list of windows in multiblock mode
  * @single_sgt:		single mode buffer
  * @cur_win:		current window
@@ -100,6 +131,10 @@ struct msc {
 	void __iomem		*msu_base;
 	struct intel_th_device	*thdev;
 
+	const struct msu_buffer	*mbuf;
+	void			*mbuf_priv;
+
+	struct work_struct	work;
 	struct list_head	win_list;
 	struct sg_table		single_sgt;
 	struct msc_window	*cur_win;
@@ -125,6 +160,101 @@ struct msc {
 	unsigned int		burst_len;
 	unsigned int		index;
 };
+
+static LIST_HEAD(msu_buffer_list);
+static struct mutex msu_buffer_mutex;
+
+/**
+ * struct msu_buffer_entry - internal MSU buffer bookkeeping
+ * @entry:	link to msu_buffer_list
+ * @mbuf:	MSU buffer object
+ * @owner:	module that provides this MSU buffer
+ */
+struct msu_buffer_entry {
+	struct list_head	entry;
+	const struct msu_buffer	*mbuf;
+	struct module		*owner;
+};
+
+static struct msu_buffer_entry *__msu_buffer_entry_find(const char *name)
+{
+	struct msu_buffer_entry *mbe;
+
+	lockdep_assert_held(&msu_buffer_mutex);
+
+	list_for_each_entry(mbe, &msu_buffer_list, entry) {
+		if (!strcmp(mbe->mbuf->name, name))
+			return mbe;
+	}
+
+	return NULL;
+}
+
+static const struct msu_buffer *
+msu_buffer_get(const char *name)
+{
+	struct msu_buffer_entry *mbe;
+
+	mutex_lock(&msu_buffer_mutex);
+	mbe = __msu_buffer_entry_find(name);
+	if (mbe && !try_module_get(mbe->owner))
+		mbe = NULL;
+	mutex_unlock(&msu_buffer_mutex);
+
+	return mbe ? mbe->mbuf : NULL;
+}
+
+static void msu_buffer_put(const struct msu_buffer *mbuf)
+{
+	struct msu_buffer_entry *mbe;
+
+	mutex_lock(&msu_buffer_mutex);
+	mbe = __msu_buffer_entry_find(mbuf->name);
+	if (mbe)
+		module_put(mbe->owner);
+	mutex_unlock(&msu_buffer_mutex);
+}
+
+int intel_th_msu_buffer_register(const struct msu_buffer *mbuf,
+				 struct module *owner)
+{
+	struct msu_buffer_entry *mbe;
+	int ret = 0;
+
+	mbe = kzalloc(sizeof(*mbe), GFP_KERNEL);
+	if (!mbe)
+		return -ENOMEM;
+
+	mutex_lock(&msu_buffer_mutex);
+	if (__msu_buffer_entry_find(mbuf->name)) {
+		ret = -EEXIST;
+		kfree(mbe);
+		goto unlock;
+	}
+
+	mbe->mbuf = mbuf;
+	mbe->owner = owner;
+	list_add_tail(&mbe->entry, &msu_buffer_list);
+unlock:
+	mutex_unlock(&msu_buffer_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(intel_th_msu_buffer_register);
+
+void intel_th_msu_buffer_unregister(const struct msu_buffer *mbuf)
+{
+	struct msu_buffer_entry *mbe;
+
+	mutex_lock(&msu_buffer_mutex);
+	mbe = __msu_buffer_entry_find(mbuf->name);
+	if (mbe) {
+		list_del(&mbe->entry);
+		kfree(mbe);
+	}
+	mutex_unlock(&msu_buffer_mutex);
+}
+EXPORT_SYMBOL_GPL(intel_th_msu_buffer_unregister);
 
 static inline bool msc_block_is_empty(struct msc_block_desc *bdesc)
 {
@@ -186,6 +316,25 @@ static struct msc_window *msc_next_window(struct msc_window *win)
 					entry);
 
 	return list_next_entry(win, entry);
+}
+
+static size_t msc_win_total_sz(struct msc_window *win)
+{
+	unsigned int blk;
+	size_t size = 0;
+
+	for (blk = 0; blk < win->nr_segs; blk++) {
+		struct msc_block_desc *bdesc = msc_win_block(win, blk);
+
+		if (msc_block_wrapped(bdesc))
+			return win->nr_blocks << PAGE_SHIFT;
+
+		size += msc_total_sz(bdesc);
+		if (msc_block_last_written(bdesc))
+			break;
+	}
+
+	return size;
 }
 
 /**
@@ -527,6 +676,9 @@ static int intel_th_msu_init(struct msc *msc)
 	if (!msc->do_irq)
 		return 0;
 
+	if (!msc->mbuf)
+		return 0;
+
 	mintctl = ioread32(msc->msu_base + REG_MSU_MINTCTL);
 	mintctl |= msc->index ? M1BLIE : M0BLIE;
 	iowrite32(mintctl, msc->msu_base + REG_MSU_MINTCTL);
@@ -554,6 +706,44 @@ static void intel_th_msu_deinit(struct msc *msc)
 	iowrite32(mintctl, msc->msu_base + REG_MSU_MINTCTL);
 }
 
+static int msc_win_set_lockout(struct msc_window *win,
+			       enum lockout_state expect,
+			       enum lockout_state new)
+{
+	enum lockout_state old;
+	unsigned long flags;
+	int ret = 0;
+
+	if (!win->msc->mbuf)
+		return 0;
+
+	spin_lock_irqsave(&win->lo_lock, flags);
+	old = win->lockout;
+
+	if (old != expect) {
+		ret = -EINVAL;
+		dev_warn_ratelimited(msc_dev(win->msc),
+				     "expected lockout state %d, got %d\n",
+				     expect, old);
+		goto unlock;
+	}
+
+	win->lockout = new;
+
+unlock:
+	spin_unlock_irqrestore(&win->lo_lock, flags);
+
+	if (ret) {
+		if (expect == WIN_READY && old == WIN_LOCKED)
+			return -EBUSY;
+
+		/* from intel_th_msc_window_unlock(), don't warn if not locked */
+		if (expect == WIN_LOCKED && old == new)
+			return 0;
+	}
+
+	return ret;
+}
 /**
  * msc_configure() - set up MSC hardware
  * @msc:	the MSC device to configure
@@ -571,8 +761,12 @@ static int msc_configure(struct msc *msc)
 	if (msc->mode > MSC_MODE_MULTI)
 		return -ENOTSUPP;
 
-	if (msc->mode == MSC_MODE_MULTI)
+	if (msc->mode == MSC_MODE_MULTI) {
+		if (msc_win_set_lockout(msc->cur_win, WIN_READY, WIN_INUSE))
+			return -EBUSY;
+
 		msc_buffer_clear_hw_header(msc);
+	}
 
 	reg = msc->base_addr >> PAGE_SHIFT;
 	iowrite32(reg, msc->reg_base + REG_MSU_MSC0BAR);
@@ -594,10 +788,14 @@ static int msc_configure(struct msc *msc)
 
 	iowrite32(reg, msc->reg_base + REG_MSU_MSC0CTL);
 
+	intel_th_msu_init(msc);
+
 	msc->thdev->output.multiblock = msc->mode == MSC_MODE_MULTI;
 	intel_th_trace_enable(msc->thdev);
 	msc->enabled = 1;
 
+	if (msc->mbuf && msc->mbuf->activate)
+		msc->mbuf->activate(msc->mbuf_priv);
 
 	return 0;
 }
@@ -611,10 +809,17 @@ static int msc_configure(struct msc *msc)
  */
 static void msc_disable(struct msc *msc)
 {
+	struct msc_window *win = msc->cur_win;
 	u32 reg;
 
 	lockdep_assert_held(&msc->buf_mutex);
 
+	if (msc->mode == MSC_MODE_MULTI)
+		msc_win_set_lockout(win, WIN_INUSE, WIN_LOCKED);
+
+	if (msc->mbuf && msc->mbuf->deactivate)
+		msc->mbuf->deactivate(msc->mbuf_priv);
+	intel_th_msu_deinit(msc);
 	intel_th_trace_disable(msc->thdev);
 
 	if (msc->mode == MSC_MODE_SINGLE) {
@@ -630,6 +835,11 @@ static void msc_disable(struct msc *msc)
 	reg = ioread32(msc->reg_base + REG_MSU_MSC0CTL);
 	reg &= ~MSC_EN;
 	iowrite32(reg, msc->reg_base + REG_MSU_MSC0CTL);
+
+	if (msc->mbuf && msc->mbuf->ready)
+		msc->mbuf->ready(msc->mbuf_priv, win->sgt,
+				 msc_win_total_sz(win));
+
 	msc->enabled = 0;
 
 	iowrite32(0, msc->reg_base + REG_MSU_MSC0BAR);
@@ -640,6 +850,10 @@ static void msc_disable(struct msc *msc)
 
 	reg = ioread32(msc->reg_base + REG_MSU_MSC0STS);
 	dev_dbg(msc_dev(msc), "MSCnSTS: %08x\n", reg);
+
+	reg = ioread32(msc->reg_base + REG_MSU_MSUSTS);
+	reg &= msc->index ? MSUSTS_MSC1BLAST : MSUSTS_MSC0BLAST;
+	iowrite32(reg, msc->reg_base + REG_MSU_MSUSTS);
 }
 
 static int intel_th_msc_activate(struct intel_th_device *thdev)
@@ -856,6 +1070,8 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 
 	win->msc = msc;
 	win->sgt = &win->_sgt;
+	win->lockout = WIN_READY;
+	spin_lock_init(&win->lo_lock);
 
 	if (!list_empty(&msc->win_list)) {
 		struct msc_window *prev = list_last_entry(&msc->win_list,
@@ -865,8 +1081,13 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 		win->pgoff = prev->pgoff + prev->nr_blocks;
 	}
 
-	ret = __msc_buffer_win_alloc(win, nr_blocks);
-	if (ret < 0)
+	if (msc->mbuf && msc->mbuf->alloc_window)
+		ret = msc->mbuf->alloc_window(msc->mbuf_priv, &win->sgt,
+					      nr_blocks << PAGE_SHIFT);
+	else
+		ret = __msc_buffer_win_alloc(win, nr_blocks);
+
+	if (ret <= 0)
 		goto err_nomem;
 
 	msc_buffer_set_uc(win, ret);
@@ -925,7 +1146,10 @@ static void msc_buffer_win_free(struct msc *msc, struct msc_window *win)
 
 	msc_buffer_set_wb(win);
 
-	__msc_buffer_win_free(msc, win);
+	if (msc->mbuf && msc->mbuf->free_window)
+		msc->mbuf->free_window(msc->mbuf_priv, win->sgt);
+	else
+		__msc_buffer_win_free(msc, win);
 
 	kfree(win);
 }
@@ -1462,17 +1686,76 @@ static void msc_win_switch(struct msc *msc)
 	intel_th_trace_switch(msc->thdev);
 }
 
+/**
+ * intel_th_msc_window_unlock - put the window back in rotation
+ * @dev:	MSC device to which this relates
+ * @sgt:	buffer's sg_table for the window, does nothing if NULL
+ */
+void intel_th_msc_window_unlock(struct device *dev, struct sg_table *sgt)
+{
+	struct msc *msc = dev_get_drvdata(dev);
+	struct msc_window *win;
+
+	if (!sgt)
+		return;
+
+	win = msc_find_window(msc, sgt, false);
+	if (!win)
+		return;
+
+	msc_win_set_lockout(win, WIN_LOCKED, WIN_READY);
+}
+EXPORT_SYMBOL_GPL(intel_th_msc_window_unlock);
+
+static void msc_work(struct work_struct *work)
+{
+	struct msc *msc = container_of(work, struct msc, work);
+
+	intel_th_msc_deactivate(msc->thdev);
+}
+
 static irqreturn_t intel_th_msc_interrupt(struct intel_th_device *thdev)
 {
 	struct msc *msc = dev_get_drvdata(&thdev->dev);
 	u32 msusts = ioread32(msc->msu_base + REG_MSU_MSUSTS);
 	u32 mask = msc->index ? MSUSTS_MSC1BLAST : MSUSTS_MSC0BLAST;
+	struct msc_window *win, *next_win;
 
-	if (!(msusts & mask)) {
-		if (msc->enabled)
-			return IRQ_HANDLED;
+	if (!msc->do_irq || !msc->mbuf)
 		return IRQ_NONE;
+
+	msusts &= mask;
+
+	if (!msusts)
+		return msc->enabled ? IRQ_HANDLED : IRQ_NONE;
+
+	iowrite32(msusts, msc->msu_base + REG_MSU_MSUSTS);
+
+	if (!msc->enabled)
+		return IRQ_NONE;
+
+	/* grab the window before we do the switch */
+	win = msc->cur_win;
+	if (!win)
+		return IRQ_HANDLED;
+	next_win = msc_next_window(win);
+	if (!next_win)
+		return IRQ_HANDLED;
+
+	/* next window: if READY, proceed, if LOCKED, stop the trace */
+	if (msc_win_set_lockout(next_win, WIN_READY, WIN_INUSE)) {
+		schedule_work(&msc->work);
+		return IRQ_HANDLED;
 	}
+
+	/* current window: INUSE -> LOCKED */
+	msc_win_set_lockout(win, WIN_INUSE, WIN_LOCKED);
+
+	msc_win_switch(msc);
+
+	if (msc->mbuf && msc->mbuf->ready)
+		msc->mbuf->ready(msc->mbuf_priv, win->sgt,
+				 msc_win_total_sz(win));
 
 	return IRQ_HANDLED;
 }
@@ -1511,21 +1794,43 @@ wrap_store(struct device *dev, struct device_attribute *attr, const char *buf,
 
 static DEVICE_ATTR_RW(wrap);
 
+static void msc_buffer_unassign(struct msc *msc)
+{
+	lockdep_assert_held(&msc->buf_mutex);
+
+	if (!msc->mbuf)
+		return;
+
+	msc->mbuf->unassign(msc->mbuf_priv);
+	msu_buffer_put(msc->mbuf);
+	msc->mbuf_priv = NULL;
+	msc->mbuf = NULL;
+}
+
 static ssize_t
 mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct msc *msc = dev_get_drvdata(dev);
+	const char *mode = msc_mode[msc->mode];
+	ssize_t ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", msc_mode[msc->mode]);
+	mutex_lock(&msc->buf_mutex);
+	if (msc->mbuf)
+		mode = msc->mbuf->name;
+	ret = scnprintf(buf, PAGE_SIZE, "%s\n", mode);
+	mutex_unlock(&msc->buf_mutex);
+
+	return ret;
 }
 
 static ssize_t
 mode_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	   size_t size)
 {
+	const struct msu_buffer *mbuf = NULL;
 	struct msc *msc = dev_get_drvdata(dev);
 	size_t len = size;
-	char *cp;
+	char *cp, *mode;
 	int i, ret;
 
 	if (!capable(CAP_SYS_RAWIO))
@@ -1535,17 +1840,59 @@ mode_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	if (cp)
 		len = cp - buf;
 
-	for (i = 0; i < ARRAY_SIZE(msc_mode); i++)
-		if (!strncmp(msc_mode[i], buf, len))
-			goto found;
+	mode = kstrndup(buf, len, GFP_KERNEL);
+	i = match_string(msc_mode, ARRAY_SIZE(msc_mode), mode);
+	if (i >= 0)
+		goto found;
+
+	/* Buffer sinks only work with a usable IRQ */
+	if (!msc->do_irq) {
+		kfree(mode);
+		return -EINVAL;
+	}
+
+	mbuf = msu_buffer_get(mode);
+	kfree(mode);
+	if (mbuf)
+		goto found;
 
 	return -EINVAL;
 
 found:
 	mutex_lock(&msc->buf_mutex);
+	ret = 0;
+
+	/* Same buffer: do nothing */
+	if (mbuf && mbuf == msc->mbuf) {
+		/* put the extra reference we just got */
+		msu_buffer_put(mbuf);
+		goto unlock;
+	}
+
 	ret = msc_buffer_unlocked_free_unless_used(msc);
-	if (!ret)
-		msc->mode = i;
+	if (ret)
+		goto unlock;
+
+	if (mbuf) {
+		void *mbuf_priv = mbuf->assign(dev, &i);
+
+		if (!mbuf_priv) {
+			ret = -ENOMEM;
+			goto unlock;
+		}
+
+		msc_buffer_unassign(msc);
+		msc->mbuf_priv = mbuf_priv;
+		msc->mbuf = mbuf;
+	} else {
+		msc_buffer_unassign(msc);
+	}
+
+	msc->mode = i;
+
+unlock:
+	if (ret && mbuf)
+		msu_buffer_put(mbuf);
 	mutex_unlock(&msc->buf_mutex);
 
 	return ret ? ret : size;
@@ -1667,7 +2014,12 @@ win_switch_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	mutex_lock(&msc->buf_mutex);
-	if (msc->mode != MSC_MODE_MULTI)
+	/*
+	 * Window switch can only happen in the "multi" mode.
+	 * If a external buffer is engaged, they have the full
+	 * control over window switching.
+	 */
+	if (msc->mode != MSC_MODE_MULTI || msc->mbuf)
 		ret = -ENOTSUPP;
 	else
 		msc_win_switch(msc);
@@ -1720,10 +2072,7 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 	msc->reg_base = base + msc->index * 0x100;
 	msc->msu_base = base;
 
-	err = intel_th_msu_init(msc);
-	if (err)
-		return err;
-
+	INIT_WORK(&msc->work, msc_work);
 	err = intel_th_msc_init(msc);
 	if (err)
 		return err;
@@ -1739,7 +2088,6 @@ static void intel_th_msc_remove(struct intel_th_device *thdev)
 	int ret;
 
 	intel_th_msc_deactivate(thdev);
-	intel_th_msu_deinit(msc);
 
 	/*
 	 * Buffers should not be used at this point except if the
