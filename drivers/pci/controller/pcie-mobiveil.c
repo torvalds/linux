@@ -446,8 +446,6 @@ static int mobiveil_pcie_parse_dt(struct mobiveil_pcie *pcie)
 		return -ENODEV;
 	}
 
-	irq_set_chained_handler_and_data(pcie->irq, mobiveil_pcie_isr, pcie);
-
 	return 0;
 }
 
@@ -871,6 +869,8 @@ static int mobiveil_pcie_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed creating IRQ Domain\n");
 		goto error;
 	}
+
+	irq_set_chained_handler_and_data(pcie->irq, mobiveil_pcie_isr, pcie);
 
 	ret = devm_request_pci_bus_resources(dev, &pcie->resources);
 	if (ret)
