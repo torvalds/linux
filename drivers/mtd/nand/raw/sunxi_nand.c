@@ -43,7 +43,6 @@
 #define NFC_REG_RCMD_SET	0x0028
 #define NFC_REG_WCMD_SET	0x002C
 #define NFC_REG_A10_IO_DATA	0x0030
-#define NFC_REG_A23_IO_DATA	0x0300
 #define NFC_REG_ECC_CTL		0x0034
 #define NFC_REG_ECC_ST		0x0038
 #define NFC_REG_DEBUG		0x003C
@@ -205,14 +204,10 @@ static inline struct sunxi_nand_chip *to_sunxi_nand(struct nand_chip *nand)
  * NAND Controller capabilities structure: stores NAND controller capabilities
  * for distinction between compatible strings.
  *
- * @sram_through_ahb:	On A23, we choose to access the internal RAM through AHB
- *                      instead of MBUS (less configuration). A10, A10s, A13 and
- *                      A20 use the MBUS but no extra configuration is needed.
  * @reg_io_data:	I/O data register
  * @dma_maxburst:	DMA maxburst
  */
 struct sunxi_nfc_caps {
-	bool sram_through_ahb;
 	unsigned int reg_io_data;
 	unsigned int dma_maxburst;
 };
@@ -368,29 +363,10 @@ static int sunxi_nfc_dma_op_prepare(struct sunxi_nfc *nfc, const void *buf,
 		goto err_unmap_buf;
 	}
 
-	/*
-	 * On A23, we suppose the "internal RAM" (p.12 of the NFC user manual)
-	 * refers to the NAND controller's internal SRAM. This memory is mapped
-	 * and so is accessible from the AHB. It seems that it can also be
-	 * accessed by the MBUS. MBUS accesses are mandatory when using the
-	 * internal DMA instead of the external DMA engine.
-	 *
-	 * During DMA I/O operation, either we access this memory from the AHB
-	 * by clearing the NFC_RAM_METHOD bit, or we set the bit and use the
-	 * MBUS. In this case, we should also configure the MBUS DMA length
-	 * NFC_REG_MDMA_CNT(0xC4) to be chunksize * nchunks. NAND I/O over MBUS
-	 * are also limited to 32kiB pages.
-	 */
-	if (nfc->caps->sram_through_ahb)
-		writel(readl(nfc->regs + NFC_REG_CTL) & ~NFC_RAM_METHOD,
-		       nfc->regs + NFC_REG_CTL);
-	else
-		writel(readl(nfc->regs + NFC_REG_CTL) | NFC_RAM_METHOD,
-		       nfc->regs + NFC_REG_CTL);
-
+	writel(readl(nfc->regs + NFC_REG_CTL) | NFC_RAM_METHOD,
+	       nfc->regs + NFC_REG_CTL);
 	writel(nchunks, nfc->regs + NFC_REG_SECTOR_NUM);
 	writel(chunksize, nfc->regs + NFC_REG_CNT);
-
 	dmat = dmaengine_submit(dmad);
 
 	ret = dma_submit_error(dmat);
@@ -2199,20 +2175,10 @@ static const struct sunxi_nfc_caps sunxi_nfc_a10_caps = {
 	.dma_maxburst = 4,
 };
 
-static const struct sunxi_nfc_caps sunxi_nfc_a23_caps = {
-	.sram_through_ahb = true,
-	.reg_io_data = NFC_REG_A23_IO_DATA,
-	.dma_maxburst = 8,
-};
-
 static const struct of_device_id sunxi_nfc_ids[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-nand",
 		.data = &sunxi_nfc_a10_caps,
-	},
-	{
-		.compatible = "allwinner,sun8i-a23-nand-controller",
-		.data = &sunxi_nfc_a23_caps,
 	},
 	{ /* sentinel */ }
 };
