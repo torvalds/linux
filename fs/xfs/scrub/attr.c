@@ -20,13 +20,19 @@
 #include "scrub/dabtree.h"
 #include "scrub/attr.h"
 
-/* Allocate enough memory to hold an attr value and attr block bitmaps. */
+/*
+ * Allocate enough memory to hold an attr value and attr block bitmaps,
+ * reallocating the buffer if necessary.  Buffer contents are not preserved
+ * across a reallocation.
+ */
 int
 xchk_setup_xattr_buf(
 	struct xfs_scrub	*sc,
-	size_t			value_size)
+	size_t			value_size,
+	xfs_km_flags_t		flags)
 {
 	size_t			sz;
+	struct xchk_xattr_buf	*ab = sc->buf;
 
 	/*
 	 * We need enough space to read an xattr value from the file or enough
@@ -36,10 +42,23 @@ xchk_setup_xattr_buf(
 	sz = 3 * sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
 	sz = max_t(size_t, sz, value_size);
 
-	sc->buf = kmem_zalloc_large(sz, KM_SLEEP);
-	if (!sc->buf)
+	/*
+	 * If there's already a buffer, figure out if we need to reallocate it
+	 * to accommodate a larger size.
+	 */
+	if (ab) {
+		if (sz <= ab->sz)
+			return 0;
+		kmem_free(ab);
+		sc->buf = NULL;
+	}
+
+	ab = kmem_zalloc_large(sizeof(*ab) + sz, flags);
+	if (!ab)
 		return -ENOMEM;
 
+	ab->sz = sz;
+	sc->buf = ab;
 	return 0;
 }
 
@@ -51,9 +70,16 @@ xchk_setup_xattr(
 {
 	int			error;
 
-	error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX);
-	if (error)
-		return error;
+	/*
+	 * We failed to get memory while checking attrs, so this time try to
+	 * get all the memory we're ever going to need.  Allocate the buffer
+	 * without the inode lock held, which means we can sleep.
+	 */
+	if (sc->flags & XCHK_TRY_HARDER) {
+		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX, KM_SLEEP);
+		if (error)
+			return error;
+	}
 
 	return xchk_setup_inode_contents(sc, ip, 0);
 }
@@ -104,6 +130,19 @@ xchk_xattr_listent(
 		return;
 	}
 
+	/*
+	 * Try to allocate enough memory to extrat the attr value.  If that
+	 * doesn't work, we overload the seen_enough variable to convey
+	 * the error message back to the main scrub function.
+	 */
+	error = xchk_setup_xattr_buf(sx->sc, valuelen, KM_MAYFAIL);
+	if (error == -ENOMEM)
+		error = -EDEADLOCK;
+	if (error) {
+		context->seen_enough = error;
+		return;
+	}
+
 	args.flags = ATTR_KERNOTIME;
 	if (flags & XFS_ATTR_ROOT)
 		args.flags |= ATTR_ROOT;
@@ -117,7 +156,7 @@ xchk_xattr_listent(
 	args.hashval = xfs_da_hashname(args.name, args.namelen);
 	args.trans = context->tp;
 	args.value = xchk_xattr_valuebuf(sx->sc);
-	args.valuelen = XATTR_SIZE_MAX;
+	args.valuelen = valuelen;
 
 	error = xfs_attr_get_ilocked(context->dp, &args);
 	if (error == -EEXIST)
@@ -270,16 +309,26 @@ xchk_xattr_block(
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
 	struct xfs_attr_leaf_entry	*ent;
 	struct xfs_attr_leaf_entry	*entries;
-	unsigned long			*usedmap = xchk_xattr_usedmap(ds->sc);
+	unsigned long			*usedmap;
 	char				*buf_end;
 	size_t				off;
 	__u32				last_hashval = 0;
 	unsigned int			usedbytes = 0;
 	unsigned int			hdrsize;
 	int				i;
+	int				error;
 
 	if (*last_checked == blk->blkno)
 		return 0;
+
+	/* Allocate memory for block usage checking. */
+	error = xchk_setup_xattr_buf(ds->sc, 0, KM_MAYFAIL);
+	if (error == -ENOMEM)
+		return -EDEADLOCK;
+	if (error)
+		return error;
+	usedmap = xchk_xattr_usedmap(ds->sc);
+
 	*last_checked = blk->blkno;
 	bitmap_zero(usedmap, mp->m_attr_geo->blksize);
 

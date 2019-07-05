@@ -10,6 +10,9 @@
  * Temporary storage for online scrub and repair of extended attributes.
  */
 struct xchk_xattr_buf {
+	/* Size of @buf, in bytes. */
+	size_t			sz;
+
 	/*
 	 * Memory buffer -- either used for extracting attr values while
 	 * walking the attributes; or for computing attr block bitmaps when
@@ -62,6 +65,7 @@ xchk_xattr_dstmap(
 			BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
 }
 
-int xchk_setup_xattr_buf(struct xfs_scrub *sc, size_t value_size);
+int xchk_setup_xattr_buf(struct xfs_scrub *sc, size_t value_size,
+		xfs_km_flags_t flags);
 
 #endif	/* __XFS_SCRUB_ATTR_H__ */
