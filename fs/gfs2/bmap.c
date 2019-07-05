@@ -1065,53 +1065,37 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
-	bool unstuff, alloc_required;
+	bool unstuff;
 	int ret;
-
-	ret = gfs2_write_lock(inode);
-	if (ret)
-		return ret;
 
 	unstuff = gfs2_is_stuffed(ip) &&
 		  pos + length > gfs2_max_stuffed_size(ip);
 
-	ret = gfs2_iomap_get(inode, pos, length, flags, iomap, mp);
-	if (ret)
-		goto out_unlock;
+	if (unstuff || iomap->type == IOMAP_HOLE) {
+		unsigned int data_blocks, ind_blocks;
+		struct gfs2_alloc_parms ap = {};
+		unsigned int rblocks;
+		struct gfs2_trans *tr;
 
-	alloc_required = unstuff || iomap->type == IOMAP_HOLE;
-
-	if (alloc_required || gfs2_is_jdata(ip))
 		gfs2_write_calc_reserv(ip, iomap->length, &data_blocks,
 				       &ind_blocks);
-
-	if (alloc_required) {
-		struct gfs2_alloc_parms ap = {
-			.target = data_blocks + ind_blocks
-		};
-
+		ap.target = data_blocks + ind_blocks;
 		ret = gfs2_quota_lock_check(ip, &ap);
 		if (ret)
-			goto out_unlock;
+			return ret;
 
 		ret = gfs2_inplace_reserve(ip, &ap);
 		if (ret)
 			goto out_qunlock;
-	}
 
-	rblocks = RES_DINODE + ind_blocks;
-	if (gfs2_is_jdata(ip))
-		rblocks += data_blocks;
-	if (ind_blocks || data_blocks)
-		rblocks += RES_STATFS + RES_QUOTA;
-	if (inode == sdp->sd_rindex)
-		rblocks += 2 * RES_STATFS;
-	if (alloc_required)
+		rblocks = RES_DINODE + ind_blocks;
+		if (gfs2_is_jdata(ip))
+			rblocks += data_blocks;
+		if (ind_blocks || data_blocks)
+			rblocks += RES_STATFS + RES_QUOTA;
+		if (inode == sdp->sd_rindex)
+			rblocks += 2 * RES_STATFS;
 		rblocks += gfs2_rg_blocks(ip, data_blocks + ind_blocks);
-
-	if (unstuff || iomap->type == IOMAP_HOLE) {
-		struct gfs2_trans *tr;
 
 		ret = gfs2_trans_begin(sdp, rblocks,
 				       iomap->length >> inode->i_blkbits);
@@ -1153,14 +1137,15 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
 out_trans_end:
 	gfs2_trans_end(sdp);
 out_trans_fail:
-	if (alloc_required)
-		gfs2_inplace_release(ip);
+	gfs2_inplace_release(ip);
 out_qunlock:
-	if (alloc_required)
-		gfs2_quota_unlock(ip);
-out_unlock:
-	gfs2_write_unlock(inode);
+	gfs2_quota_unlock(ip);
 	return ret;
+}
+
+static inline bool gfs2_iomap_need_write_lock(unsigned flags)
+{
+	return (flags & IOMAP_WRITE) && !(flags & IOMAP_DIRECT);
 }
 
 static int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
@@ -1173,20 +1158,39 @@ static int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	iomap->flags |= IOMAP_F_BUFFER_HEAD;
 
 	trace_gfs2_iomap_start(ip, pos, length, flags);
-	if ((flags & IOMAP_WRITE) && !(flags & IOMAP_DIRECT)) {
-		ret = gfs2_iomap_begin_write(inode, pos, length, flags, iomap, &mp);
-	} else {
-		ret = gfs2_iomap_get(inode, pos, length, flags, iomap, &mp);
-
-		/*
-		 * Silently fall back to buffered I/O for stuffed files or if
-		 * we've hot a hole (see gfs2_file_direct_write).
-		 */
-		if ((flags & IOMAP_WRITE) && (flags & IOMAP_DIRECT) &&
-		    iomap->type != IOMAP_MAPPED)
-			ret = -ENOTBLK;
+	if (gfs2_iomap_need_write_lock(flags)) {
+		ret = gfs2_write_lock(inode);
+		if (ret)
+			goto out;
 	}
+
+	ret = gfs2_iomap_get(inode, pos, length, flags, iomap, &mp);
+	if (ret)
+		goto out_unlock;
+
+	switch(flags & IOMAP_WRITE) {
+	case IOMAP_WRITE:
+		if (flags & IOMAP_DIRECT) {
+			/*
+			 * Silently fall back to buffered I/O for stuffed files
+			 * or if we've got a hole (see gfs2_file_direct_write).
+			 */
+			if (iomap->type != IOMAP_MAPPED)
+				ret = -ENOTBLK;
+			goto out_unlock;
+		}
+		break;
+	default:
+		goto out_unlock;
+	}
+
+	ret = gfs2_iomap_begin_write(inode, pos, length, flags, iomap, &mp);
+
+out_unlock:
+	if (ret && gfs2_iomap_need_write_lock(flags))
+		gfs2_write_unlock(inode);
 	release_metapath(&mp);
+out:
 	trace_gfs2_iomap_end(ip, iomap, ret);
 	return ret;
 }
@@ -1197,8 +1201,14 @@ static int gfs2_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
-	if ((flags & (IOMAP_WRITE | IOMAP_DIRECT)) != IOMAP_WRITE)
-		goto out;
+	switch (flags & IOMAP_WRITE) {
+	case IOMAP_WRITE:
+		if (flags & IOMAP_DIRECT)
+			return 0;
+		break;
+	default:
+		 return 0;
+	}
 
 	if (!gfs2_is_stuffed(ip))
 		gfs2_ordered_add_inode(ip);
@@ -1231,8 +1241,8 @@ static int gfs2_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 
 out_unlock:
-	gfs2_write_unlock(inode);
-out:
+	if (gfs2_iomap_need_write_lock(flags))
+		gfs2_write_unlock(inode);
 	return 0;
 }
 
