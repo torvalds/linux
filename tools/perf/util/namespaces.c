@@ -7,6 +7,7 @@
 #include "namespaces.h"
 #include "util.h"
 #include "event.h"
+#include "get_current_dir_name.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
