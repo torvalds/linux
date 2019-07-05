@@ -7,6 +7,7 @@
 #define __ETNAVIV_GPU_H__
 
 #include "etnaviv_cmdbuf.h"
+#include "etnaviv_gem.h"
 #include "etnaviv_drv.h"
 
 struct etnaviv_gem_submit;
@@ -84,7 +85,6 @@ struct etnaviv_event {
 };
 
 struct etnaviv_cmdbuf_suballoc;
-struct etnaviv_cmdbuf;
 struct regulator;
 struct clk;
 
@@ -102,6 +102,7 @@ struct etnaviv_gpu {
 	bool initialized;
 
 	/* 'ring'-buffer: */
+	struct etnaviv_vram_mapping cmdbuf_mapping;
 	struct etnaviv_cmdbuf buffer;
 	int exec_state;
 

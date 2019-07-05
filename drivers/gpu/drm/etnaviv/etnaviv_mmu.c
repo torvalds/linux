@@ -334,52 +334,71 @@ void etnaviv_iommu_restore(struct etnaviv_gpu *gpu)
 		etnaviv_iommuv2_restore(gpu);
 }
 
-int etnaviv_iommu_get_suballoc_va(struct etnaviv_gpu *gpu, dma_addr_t paddr,
-				  struct drm_mm_node *vram_node, size_t size,
-				  u32 *iova)
+int etnaviv_iommu_get_suballoc_va(struct etnaviv_iommu *mmu,
+				  struct etnaviv_vram_mapping *mapping,
+				  u32 memory_base, dma_addr_t paddr,
+				  size_t size)
 {
-	struct etnaviv_iommu *mmu = gpu->mmu;
+	mutex_lock(&mmu->lock);
 
+	/*
+	 * For MMUv1 we don't add the suballoc region to the pagetables, as
+	 * those GPUs can only work with cmdbufs accessed through the linear
+	 * window. Instead we manufacture a mapping to make it look uniform
+	 * to the upper layers.
+	 */
 	if (mmu->version == ETNAVIV_IOMMU_V1) {
-		*iova = paddr - gpu->memory_base;
-		return 0;
+		mapping->iova = paddr - memory_base;
 	} else {
+		struct drm_mm_node *node = &mapping->vram_node;
 		int ret;
 
-		mutex_lock(&mmu->lock);
-		ret = etnaviv_iommu_find_iova(mmu, vram_node, size);
+		ret = etnaviv_iommu_find_iova(mmu, node, size);
 		if (ret < 0) {
 			mutex_unlock(&mmu->lock);
 			return ret;
 		}
-		ret = etnaviv_domain_map(mmu->domain, vram_node->start, paddr,
-					 size, ETNAVIV_PROT_READ);
-		if (ret < 0) {
-			drm_mm_remove_node(vram_node);
-			mutex_unlock(&mmu->lock);
-			return ret;
-		}
-		gpu->mmu->need_flush = true;
-		mutex_unlock(&mmu->lock);
 
-		*iova = (u32)vram_node->start;
-		return 0;
+		mapping->iova = node->start;
+		ret = etnaviv_domain_map(mmu->domain, node->start, paddr, size,
+					 ETNAVIV_PROT_READ);
+
+		if (ret < 0) {
+			drm_mm_remove_node(node);
+			mutex_unlock(&mmu->lock);
+			return ret;
+		}
+
+		mmu->need_flush = true;
 	}
+
+	list_add_tail(&mapping->mmu_node, &mmu->mappings);
+	mapping->use = 1;
+
+	mutex_unlock(&mmu->lock);
+
+	return 0;
 }
 
-void etnaviv_iommu_put_suballoc_va(struct etnaviv_gpu *gpu,
-				   struct drm_mm_node *vram_node, size_t size,
-				   u32 iova)
+void etnaviv_iommu_put_suballoc_va(struct etnaviv_iommu *mmu,
+		  struct etnaviv_vram_mapping *mapping)
 {
-	struct etnaviv_iommu *mmu = gpu->mmu;
+	struct drm_mm_node *node = &mapping->vram_node;
 
-	if (mmu->version == ETNAVIV_IOMMU_V2) {
-		mutex_lock(&mmu->lock);
-		etnaviv_domain_unmap(mmu->domain, iova, size);
-		drm_mm_remove_node(vram_node);
-		mutex_unlock(&mmu->lock);
-	}
+	if (!mapping->use)
+		return;
+
+	mapping->use = 0;
+
+	if (mmu->version == ETNAVIV_IOMMU_V1)
+		return;
+
+	mutex_lock(&mmu->lock);
+	etnaviv_domain_unmap(mmu->domain, node->start, node->size);
+	drm_mm_remove_node(node);
+	mutex_unlock(&mmu->lock);
 }
+
 size_t etnaviv_iommu_dump_size(struct etnaviv_iommu *iommu)
 {
 	return iommu->domain->ops->dump_size(iommu->domain);
