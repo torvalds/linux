@@ -48,8 +48,15 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_nop) },
 
 #ifdef CONFIG_MLX5_EN_TLS
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_encrypted_packets) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_encrypted_bytes) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_ctx) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_ooo) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_resync_bytes) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_drop_no_sync_data) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_drop_bypass_req) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_dump_packets) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_dump_bytes) },
 #endif
 
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_lro_packets) },
@@ -271,8 +278,15 @@ static void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 			s->tx_csum_none		+= sq_stats->csum_none;
 			s->tx_csum_partial	+= sq_stats->csum_partial;
 #ifdef CONFIG_MLX5_EN_TLS
-			s->tx_tls_ooo		+= sq_stats->tls_ooo;
-			s->tx_tls_resync_bytes	+= sq_stats->tls_resync_bytes;
+			s->tx_tls_encrypted_packets += sq_stats->tls_encrypted_packets;
+			s->tx_tls_encrypted_bytes   += sq_stats->tls_encrypted_bytes;
+			s->tx_tls_ctx               += sq_stats->tls_ctx;
+			s->tx_tls_ooo               += sq_stats->tls_ooo;
+			s->tx_tls_resync_bytes      += sq_stats->tls_resync_bytes;
+			s->tx_tls_drop_no_sync_data += sq_stats->tls_drop_no_sync_data;
+			s->tx_tls_drop_bypass_req   += sq_stats->tls_drop_bypass_req;
+			s->tx_tls_dump_bytes        += sq_stats->tls_dump_bytes;
+			s->tx_tls_dump_packets      += sq_stats->tls_dump_packets;
 #endif
 			s->tx_cqes		+= sq_stats->cqes;
 		}
@@ -1293,6 +1307,16 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, csum_partial_inner) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, added_vlan_packets) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, nop) },
+#ifdef CONFIG_MLX5_EN_TLS
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_encrypted_packets) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_encrypted_bytes) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_ctx) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_ooo) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_drop_no_sync_data) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_drop_bypass_req) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_dump_packets) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_dump_bytes) },
+#endif
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, csum_none) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, stopped) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, dropped) },

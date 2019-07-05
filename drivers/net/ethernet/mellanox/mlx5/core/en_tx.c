@@ -38,6 +38,7 @@
 #include "en/txrx.h"
 #include "ipoib/ipoib.h"
 #include "en_accel/en_accel.h"
+#include "en_accel/ktls.h"
 #include "lib/clock.h"
 
 static void mlx5e_dma_unmap_wqe_err(struct mlx5e_txqsq *sq, u8 num_dma)
@@ -321,10 +322,16 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 #ifdef CONFIG_MLX5_EN_IPSEC
 		struct mlx5_wqe_eth_seg cur_eth = wqe->eth;
 #endif
+#ifdef CONFIG_MLX5_EN_TLS
+		struct mlx5_wqe_ctrl_seg cur_ctrl = wqe->ctrl;
+#endif
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 		wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
 #ifdef CONFIG_MLX5_EN_IPSEC
 		wqe->eth = cur_eth;
+#endif
+#ifdef CONFIG_MLX5_EN_TLS
+		wqe->ctrl = cur_ctrl;
 #endif
 	}
 
@@ -473,6 +480,14 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 			skb = wi->skb;
 
 			if (unlikely(!skb)) {
+#ifdef CONFIG_MLX5_EN_TLS
+				if (wi->resync_dump_frag) {
+					struct mlx5e_sq_dma *dma =
+						mlx5e_dma_get(sq, dma_fifo_cc++);
+
+					mlx5e_ktls_tx_handle_resync_dump_comp(sq, wi, dma);
+				}
+#endif
 				sqcc += wi->num_wqebbs;
 				continue;
 			}

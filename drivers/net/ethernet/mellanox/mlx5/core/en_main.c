@@ -3156,6 +3156,9 @@ int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn)
 
 	MLX5_SET(tisc, tisc, transport_domain, mdev->mlx5e_res.td.tdn);
 
+	if (MLX5_GET(tisc, tisc, tls_en))
+		MLX5_SET(tisc, tisc, pd, mdev->mlx5e_res.pdn);
+
 	if (mlx5_lag_is_lacp_owner(mdev))
 		MLX5_SET(tisc, tisc, strict_lag_tx_port_affinity, 1);
 
