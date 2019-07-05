@@ -454,24 +454,6 @@ static void komeda_crtc_vblank_disable(struct drm_crtc *crtc)
 	mdev->funcs->on_off_vblank(mdev, kcrtc->master->id, false);
 }
 
-static int
-komeda_crtc_atomic_get_property(struct drm_crtc *crtc,
-				const struct drm_crtc_state *state,
-				struct drm_property *property, uint64_t *val)
-{
-	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
-	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(state);
-
-	if (property == kcrtc->clock_ratio_property) {
-		*val = kcrtc_st->clock_ratio;
-	} else {
-		DRM_DEBUG_DRIVER("Unknown property %s\n", property->name);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static const struct drm_crtc_funcs komeda_crtc_funcs = {
 	.gamma_set		= drm_atomic_helper_legacy_gamma_set,
 	.destroy		= drm_crtc_cleanup,
@@ -482,7 +464,6 @@ static const struct drm_crtc_funcs komeda_crtc_funcs = {
 	.atomic_destroy_state	= komeda_crtc_atomic_destroy_state,
 	.enable_vblank		= komeda_crtc_vblank_enable,
 	.disable_vblank		= komeda_crtc_vblank_disable,
-	.atomic_get_property	= komeda_crtc_atomic_get_property,
 };
 
 int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms,
@@ -514,22 +495,6 @@ int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms,
 
 		kms->n_crtcs++;
 	}
-
-	return 0;
-}
-
-static int komeda_crtc_create_clock_ratio_property(struct komeda_crtc *kcrtc)
-{
-	struct drm_crtc *crtc = &kcrtc->base;
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(crtc->dev, DRM_MODE_PROP_ATOMIC,
-					 "CLOCK_RATIO", 0, U64_MAX);
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&crtc->base, prop, 0);
-	kcrtc->clock_ratio_property = prop;
 
 	return 0;
 }
@@ -589,10 +554,6 @@ static int komeda_crtc_add(struct komeda_kms_dev *kms,
 	drm_crtc_vblank_reset(crtc);
 
 	crtc->port = kcrtc->master->of_output_port;
-
-	err = komeda_crtc_create_clock_ratio_property(kcrtc);
-	if (err)
-		return err;
 
 	err = komeda_crtc_create_slave_planes_property(kcrtc);
 	if (err)

@@ -95,9 +95,6 @@ struct komeda_crtc {
 	/** @disable_done: this flip_done is for tracing the disable */
 	struct completion *disable_done;
 
-	/** @clock_ratio_property: property for ratio of (aclk << 32)/pxlclk */
-	struct drm_property *clock_ratio_property;
-
 	/** @slave_planes_property: property for slaves of the planes */
 	struct drm_property *slave_planes_property;
 };
