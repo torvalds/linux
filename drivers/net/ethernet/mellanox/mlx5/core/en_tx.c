@@ -335,7 +335,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		struct mlx5_wqe_eth_seg cur_eth = wqe->eth;
 #endif
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
-		mlx5e_sq_fetch_wqe(sq, &wqe, &pi);
+		wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
 #ifdef CONFIG_MLX5_EN_IPSEC
 		wqe->eth = cur_eth;
 #endif
@@ -397,7 +397,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 pi;
 
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
-	mlx5e_sq_fetch_wqe(sq, &wqe, &pi);
+	wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
 
 	/* might send skbs and update wqe and pi */
 	skb = mlx5e_accel_handle_tx(skb, sq, dev, &wqe, &pi);
