@@ -998,9 +998,7 @@ out:
 			return ret;
 
 		/* Start rlc autoload after psp recieved all the gfx firmware */
-		if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM ||
-		    (adev->asic_type == CHIP_NAVI14 &&
-		     ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G)) {
+		if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM) {
 			ret = psp_rlc_autoload(psp);
 			if (ret) {
 				DRM_ERROR("Failed to start rlc autoload\n");

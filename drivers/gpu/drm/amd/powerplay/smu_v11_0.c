@@ -1359,6 +1359,7 @@ static int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case CHIP_VEGA20:
 		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		mutex_lock(&smu->mutex);
