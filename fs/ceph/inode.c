@@ -584,16 +584,6 @@ void ceph_evict_inode(struct inode *inode)
 	ceph_put_string(rcu_dereference_raw(ci->i_layout.pool_ns));
 }
 
-int ceph_drop_inode(struct inode *inode)
-{
-	/*
-	 * Positve dentry and corresponding inode are always accompanied
-	 * in MDS reply. So no need to keep inode in the cache after
-	 * dropping all its aliases.
-	 */
-	return 1;
-}
-
 static inline blkcnt_t calc_inode_blocks(u64 size)
 {
 	return (size + (1<<9) - 1) >> 9;
