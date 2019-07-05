@@ -37,7 +37,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/accel.h>
 
-#ifdef CONFIG_MLX5_ACCEL
+#ifdef CONFIG_MLX5_FPGA_IPSEC
 
 #define MLX5_IPSEC_DEV(mdev) (mlx5_accel_ipsec_device_caps(mdev) & \
 			      MLX5_ACCEL_IPSEC_CAP_DEVICE)

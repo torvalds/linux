@@ -37,8 +37,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/tls.h>
 
-#ifdef CONFIG_MLX5_ACCEL
-
+#ifdef CONFIG_MLX5_FPGA_TLS
 enum {
 	MLX5_ACCEL_TLS_TX = BIT(0),
 	MLX5_ACCEL_TLS_RX = BIT(1),
@@ -88,7 +87,6 @@ static inline bool mlx5_accel_is_tls_device(struct mlx5_core_dev *mdev) { return
 static inline u32 mlx5_accel_tls_device_caps(struct mlx5_core_dev *mdev) { return 0; }
 static inline int mlx5_accel_tls_init(struct mlx5_core_dev *mdev) { return 0; }
 static inline void mlx5_accel_tls_cleanup(struct mlx5_core_dev *mdev) { }
-
 #endif
 
 #endif	/* __MLX5_ACCEL_TLS_H__ */

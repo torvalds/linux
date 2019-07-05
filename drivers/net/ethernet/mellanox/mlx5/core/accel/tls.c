@@ -35,6 +35,8 @@
 
 #include "accel/tls.h"
 #include "mlx5_core.h"
+
+#ifdef CONFIG_MLX5_FPGA_TLS
 #include "fpga/tls.h"
 
 int mlx5_accel_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
@@ -78,3 +80,4 @@ void mlx5_accel_tls_cleanup(struct mlx5_core_dev *mdev)
 {
 	mlx5_fpga_tls_cleanup(mdev);
 }
+#endif
