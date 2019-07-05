@@ -77,6 +77,11 @@ mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
 	mlx5_write64((__be32 *)ctrl, uar_map);
 }
 
+static inline bool mlx5e_transport_inline_tx_wqe(struct mlx5e_tx_wqe *wqe)
+{
+	return !!wqe->ctrl.tisn;
+}
+
 static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 {
 	struct mlx5_core_cq *mcq;
