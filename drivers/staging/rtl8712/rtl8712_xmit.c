@@ -739,7 +739,7 @@ static void dump_xframe(struct _adapter *padapter,
 
 int r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	int res = _SUCCESS;
+	int res;
 
 	res = r8712_xmitframe_coalesce(padapter, pxmitframe->pkt, pxmitframe);
 	pxmitframe->pkt = NULL;
