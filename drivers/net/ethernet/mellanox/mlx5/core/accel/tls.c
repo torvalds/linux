@@ -35,6 +35,7 @@
 
 #include "accel/tls.h"
 #include "mlx5_core.h"
+#include "lib/mlx5.h"
 
 #ifdef CONFIG_MLX5_FPGA_TLS
 #include "fpga/tls.h"
@@ -63,7 +64,8 @@ int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
 
 bool mlx5_accel_is_tls_device(struct mlx5_core_dev *mdev)
 {
-	return mlx5_fpga_is_tls_device(mdev);
+	return mlx5_fpga_is_tls_device(mdev) ||
+		mlx5_accel_is_ktls_device(mdev);
 }
 
 u32 mlx5_accel_tls_device_caps(struct mlx5_core_dev *mdev)
@@ -79,5 +81,43 @@ int mlx5_accel_tls_init(struct mlx5_core_dev *mdev)
 void mlx5_accel_tls_cleanup(struct mlx5_core_dev *mdev)
 {
 	mlx5_fpga_tls_cleanup(mdev);
+}
+#endif
+
+#ifdef CONFIG_MLX5_TLS
+int mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
+			 struct tls_crypto_info *crypto_info,
+			 u32 *p_key_id)
+{
+	u32 sz_bytes;
+	void *key;
+
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_AES_GCM_128: {
+		struct tls12_crypto_info_aes_gcm_128 *info =
+			(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+
+		key      = info->key;
+		sz_bytes = sizeof(info->key);
+		break;
+	}
+	case TLS_CIPHER_AES_GCM_256: {
+		struct tls12_crypto_info_aes_gcm_256 *info =
+			(struct tls12_crypto_info_aes_gcm_256 *)crypto_info;
+
+		key      = info->key;
+		sz_bytes = sizeof(info->key);
+		break;
+	}
+	default:
+		return -EINVAL;
+	}
+
+	return mlx5_create_encryption_key(mdev, key, sz_bytes, p_key_id);
+}
+
+void mlx5_ktls_destroy_key(struct mlx5_core_dev *mdev, u32 key_id)
+{
+	mlx5_destroy_encryption_key(mdev, key_id);
 }
 #endif
