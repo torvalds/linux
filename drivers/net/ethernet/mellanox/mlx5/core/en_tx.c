@@ -35,6 +35,7 @@
 #include <net/geneve.h>
 #include <net/dsfield.h>
 #include "en.h"
+#include "en/txrx.h"
 #include "ipoib/ipoib.h"
 #include "en_accel/en_accel.h"
 #include "lib/clock.h"
@@ -51,38 +52,6 @@
 #define MLX5E_SQ_STOP_ROOM (2 * MLX5_SEND_WQE_MAX_WQEBBS +\
 			    MLX5E_SQ_NOPS_ROOM)
 #endif
-
-static inline void mlx5e_tx_dma_unmap(struct device *pdev,
-				      struct mlx5e_sq_dma *dma)
-{
-	switch (dma->type) {
-	case MLX5E_DMA_MAP_SINGLE:
-		dma_unmap_single(pdev, dma->addr, dma->size, DMA_TO_DEVICE);
-		break;
-	case MLX5E_DMA_MAP_PAGE:
-		dma_unmap_page(pdev, dma->addr, dma->size, DMA_TO_DEVICE);
-		break;
-	default:
-		WARN_ONCE(true, "mlx5e_tx_dma_unmap unknown DMA type!\n");
-	}
-}
-
-static inline struct mlx5e_sq_dma *mlx5e_dma_get(struct mlx5e_txqsq *sq, u32 i)
-{
-	return &sq->db.dma_fifo[i & sq->dma_fifo_mask];
-}
-
-static inline void mlx5e_dma_push(struct mlx5e_txqsq *sq,
-				  dma_addr_t addr,
-				  u32 size,
-				  enum mlx5e_dma_map_type map_type)
-{
-	struct mlx5e_sq_dma *dma = mlx5e_dma_get(sq, sq->dma_fifo_pc++);
-
-	dma->addr = addr;
-	dma->size = size;
-	dma->type = map_type;
-}
 
 static void mlx5e_dma_unmap_wqe_err(struct mlx5e_txqsq *sq, u8 num_dma)
 {
@@ -277,23 +246,6 @@ dma_unmap_wqe_err:
 	return -ENOMEM;
 }
 
-static inline void mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq,
-					   struct mlx5_wq_cyc *wq,
-					   u16 pi, u16 nnops)
-{
-	struct mlx5e_tx_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
-
-	edge_wi = wi + nnops;
-
-	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
-	for (; wi < edge_wi; wi++) {
-		wi->skb        = NULL;
-		wi->num_wqebbs = 1;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	}
-	sq->stats->nop += nnops;
-}
-
 static inline void
 mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		     u8 opcode, u16 ds_cnt, u8 num_wqebbs, u32 num_bytes, u8 num_dma,
@@ -325,8 +277,6 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	if (send_doorbell)
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
 }
-
-#define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
 netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more)

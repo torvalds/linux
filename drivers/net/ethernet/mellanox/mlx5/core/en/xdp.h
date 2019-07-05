@@ -33,6 +33,7 @@
 #define __MLX5_EN_XDP_H__
 
 #include "en.h"
+#include "en/txrx.h"
 
 #define MLX5E_XDP_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
 #define MLX5E_XDP_TX_EMPTY_DS_COUNT \
