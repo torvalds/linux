@@ -499,26 +499,6 @@ int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms,
 	return 0;
 }
 
-static int komeda_crtc_create_slave_planes_property(struct komeda_crtc *kcrtc)
-{
-	struct drm_crtc *crtc = &kcrtc->base;
-	struct drm_property *prop;
-
-	if (kcrtc->slave_planes == 0)
-		return 0;
-
-	prop = drm_property_create_range(crtc->dev, DRM_MODE_PROP_IMMUTABLE,
-					 "slave_planes", 0, U32_MAX);
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&crtc->base, prop, kcrtc->slave_planes);
-
-	kcrtc->slave_planes_property = prop;
-
-	return 0;
-}
-
 static struct drm_plane *
 get_crtc_primary(struct komeda_kms_dev *kms, struct komeda_crtc *crtc)
 {
@@ -554,10 +534,6 @@ static int komeda_crtc_add(struct komeda_kms_dev *kms,
 	drm_crtc_vblank_reset(crtc);
 
 	crtc->port = kcrtc->master->of_output_port;
-
-	err = komeda_crtc_create_slave_planes_property(kcrtc);
-	if (err)
-		return err;
 
 	return err;
 }
