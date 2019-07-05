@@ -448,12 +448,6 @@ int intel_engines_init_mmio(struct drm_i915_private *i915)
 	if (WARN_ON(mask != engine_mask))
 		device_info->engine_mask = mask;
 
-	/* We always presume we have at least RCS available for later probing */
-	if (WARN_ON(!HAS_ENGINE(i915, RCS0))) {
-		err = -ENODEV;
-		goto cleanup;
-	}
-
 	RUNTIME_INFO(i915)->num_engines = hweight32(mask);
 
 	intel_gt_check_and_clear_faults(&i915->gt);
