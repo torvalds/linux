@@ -49,8 +49,10 @@ etnaviv_cmdbuf_suballoc_new(struct etnaviv_gpu * gpu)
 
 	suballoc->vaddr = dma_alloc_wc(gpu->dev, SUBALLOC_SIZE,
 				       &suballoc->paddr, GFP_KERNEL);
-	if (!suballoc->vaddr)
+	if (!suballoc->vaddr) {
+		ret = -ENOMEM;
 		goto free_suballoc;
+	}
 
 	ret = etnaviv_iommu_get_suballoc_va(gpu, suballoc->paddr,
 					    &suballoc->vram_node, SUBALLOC_SIZE,
@@ -65,7 +67,7 @@ free_dma:
 free_suballoc:
 	kfree(suballoc);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc)
