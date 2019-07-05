@@ -794,7 +794,7 @@ static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 	int offsetx, offsety;
 	dma_addr_t offset;
 
-	fmt = rvin_format_from_pixel(vin->format.pixelformat);
+	fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
 
 	/*
 	 * There is no HW support for composition do the beast we can

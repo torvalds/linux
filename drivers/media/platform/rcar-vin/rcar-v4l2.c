@@ -56,9 +56,13 @@ static const struct rvin_video_format rvin_formats[] = {
 	},
 };
 
-const struct rvin_video_format *rvin_format_from_pixel(u32 pixelformat)
+const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
+						       u32 pixelformat)
 {
 	int i;
+
+	if (vin->info->model == RCAR_M1 && pixelformat == V4L2_PIX_FMT_XBGR32)
+		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(rvin_formats); i++)
 		if (rvin_formats[i].fourcc == pixelformat)
@@ -67,11 +71,12 @@ const struct rvin_video_format *rvin_format_from_pixel(u32 pixelformat)
 	return NULL;
 }
 
-static u32 rvin_format_bytesperline(struct v4l2_pix_format *pix)
+static u32 rvin_format_bytesperline(struct rvin_dev *vin,
+				    struct v4l2_pix_format *pix)
 {
 	const struct rvin_video_format *fmt;
 
-	fmt = rvin_format_from_pixel(pix->pixelformat);
+	fmt = rvin_format_from_pixel(vin, pix->pixelformat);
 
 	if (WARN_ON(!fmt))
 		return -EINVAL;
@@ -91,9 +96,7 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 {
 	u32 walign;
 
-	if (!rvin_format_from_pixel(pix->pixelformat) ||
-	    (vin->info->model == RCAR_M1 &&
-	     pix->pixelformat == V4L2_PIX_FMT_XBGR32))
+	if (!rvin_format_from_pixel(vin, pix->pixelformat))
 		pix->pixelformat = RVIN_DEFAULT_FORMAT;
 
 	switch (pix->field) {
@@ -125,7 +128,7 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 	v4l_bound_align_image(&pix->width, 2, vin->info->max_width, walign,
 			      &pix->height, 4, vin->info->max_height, 2, 0);
 
-	pix->bytesperline = rvin_format_bytesperline(pix);
+	pix->bytesperline = rvin_format_bytesperline(vin, pix);
 	pix->sizeimage = rvin_format_sizeimage(pix);
 
 	vin_dbg(vin, "Format %ux%u bpl: %u size: %u\n",
@@ -181,9 +184,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	if (pad_cfg == NULL)
 		return -ENOMEM;
 
-	if (!rvin_format_from_pixel(pix->pixelformat) ||
-	    (vin->info->model == RCAR_M1 &&
-	     pix->pixelformat == V4L2_PIX_FMT_XBGR32))
+	if (!rvin_format_from_pixel(vin, pix->pixelformat))
 		pix->pixelformat = RVIN_DEFAULT_FORMAT;
 
 	v4l2_fill_mbus_format(&format.format, pix, vin->mbus_code);
@@ -384,7 +385,7 @@ static int rvin_s_selection(struct file *file, void *fh,
 		while ((r.top * vin->format.bytesperline) & HW_BUFFER_MASK)
 			r.top--;
 
-		fmt = rvin_format_from_pixel(vin->format.pixelformat);
+		fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
 		while ((r.left * fmt->bpp) & HW_BUFFER_MASK)
 			r.left--;
 
