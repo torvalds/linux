@@ -753,11 +753,100 @@ static int mlxsw_sp1_ptp_mtpppc_set(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mtpppc), mtpppc_pl);
 }
 
+struct mlxsw_sp1_ptp_shaper_params {
+	u32 ethtool_speed;
+	enum mlxsw_reg_qpsc_port_speed port_speed;
+	u8 shaper_time_exp;
+	u8 shaper_time_mantissa;
+	u8 shaper_inc;
+	u8 shaper_bs;
+	u8 port_to_shaper_credits;
+	int ing_timestamp_inc;
+	int egr_timestamp_inc;
+};
+
+static const struct mlxsw_sp1_ptp_shaper_params
+mlxsw_sp1_ptp_shaper_params[] = {
+	{
+		.ethtool_speed		= SPEED_100,
+		.port_speed		= MLXSW_REG_QPSC_PORT_SPEED_100M,
+		.shaper_time_exp	= 4,
+		.shaper_time_mantissa	= 12,
+		.shaper_inc		= 9,
+		.shaper_bs		= 1,
+		.port_to_shaper_credits	= 1,
+		.ing_timestamp_inc	= -313,
+		.egr_timestamp_inc	= 313,
+	},
+	{
+		.ethtool_speed		= SPEED_1000,
+		.port_speed		= MLXSW_REG_QPSC_PORT_SPEED_1G,
+		.shaper_time_exp	= 0,
+		.shaper_time_mantissa	= 12,
+		.shaper_inc		= 6,
+		.shaper_bs		= 0,
+		.port_to_shaper_credits	= 1,
+		.ing_timestamp_inc	= -35,
+		.egr_timestamp_inc	= 35,
+	},
+	{
+		.ethtool_speed		= SPEED_10000,
+		.port_speed		= MLXSW_REG_QPSC_PORT_SPEED_10G,
+		.shaper_time_exp	= 0,
+		.shaper_time_mantissa	= 2,
+		.shaper_inc		= 14,
+		.shaper_bs		= 1,
+		.port_to_shaper_credits	= 1,
+		.ing_timestamp_inc	= -11,
+		.egr_timestamp_inc	= 11,
+	},
+	{
+		.ethtool_speed		= SPEED_25000,
+		.port_speed		= MLXSW_REG_QPSC_PORT_SPEED_25G,
+		.shaper_time_exp	= 0,
+		.shaper_time_mantissa	= 0,
+		.shaper_inc		= 11,
+		.shaper_bs		= 1,
+		.port_to_shaper_credits	= 1,
+		.ing_timestamp_inc	= -14,
+		.egr_timestamp_inc	= 14,
+	},
+};
+
+#define MLXSW_SP1_PTP_SHAPER_PARAMS_LEN ARRAY_SIZE(mlxsw_sp1_ptp_shaper_params)
+
+static int mlxsw_sp1_ptp_shaper_params_set(struct mlxsw_sp *mlxsw_sp)
+{
+	const struct mlxsw_sp1_ptp_shaper_params *params;
+	char qpsc_pl[MLXSW_REG_QPSC_LEN];
+	int i, err;
+
+	for (i = 0; i < MLXSW_SP1_PTP_SHAPER_PARAMS_LEN; i++) {
+		params = &mlxsw_sp1_ptp_shaper_params[i];
+		mlxsw_reg_qpsc_pack(qpsc_pl, params->port_speed,
+				    params->shaper_time_exp,
+				    params->shaper_time_mantissa,
+				    params->shaper_inc, params->shaper_bs,
+				    params->port_to_shaper_credits,
+				    params->ing_timestamp_inc,
+				    params->egr_timestamp_inc);
+		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpsc), qpsc_pl);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_ptp_state *ptp_state;
 	u16 message_type;
 	int err;
+
+	err = mlxsw_sp1_ptp_shaper_params_set(mlxsw_sp);
+	if (err)
+		return ERR_PTR(err);
 
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
 	if (!ptp_state)
@@ -907,6 +996,71 @@ static int mlxsw_sp1_ptp_mtpppc_update(struct mlxsw_sp_port *mlxsw_sp_port,
 				       ing_types, egr_types);
 }
 
+static bool mlxsw_sp1_ptp_hwtstamp_enabled(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	return mlxsw_sp_port->ptp.ing_types || mlxsw_sp_port->ptp.egr_types;
+}
+
+static int
+mlxsw_sp1_ptp_port_shaper_set(struct mlxsw_sp_port *mlxsw_sp_port, bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char qeec_pl[MLXSW_REG_QEEC_LEN];
+
+	mlxsw_reg_qeec_ptps_pack(qeec_pl, mlxsw_sp_port->local_port, enable);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qeec), qeec_pl);
+}
+
+static int mlxsw_sp1_ptp_port_shaper_check(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char ptys_pl[MLXSW_REG_PTYS_LEN];
+	u32 eth_proto_oper, speed;
+	bool ptps = false;
+	int err, i;
+
+	if (!mlxsw_sp1_ptp_hwtstamp_enabled(mlxsw_sp_port))
+		return mlxsw_sp1_ptp_port_shaper_set(mlxsw_sp_port, false);
+
+	port_type_speed_ops = mlxsw_sp->port_type_speed_ops;
+	port_type_speed_ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl,
+					       mlxsw_sp_port->local_port, 0,
+					       false);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
+	if (err)
+		return err;
+	port_type_speed_ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, NULL, NULL,
+						 &eth_proto_oper);
+
+	speed = port_type_speed_ops->from_ptys_speed(mlxsw_sp, eth_proto_oper);
+	for (i = 0; i < MLXSW_SP1_PTP_SHAPER_PARAMS_LEN; i++) {
+		if (mlxsw_sp1_ptp_shaper_params[i].ethtool_speed == speed) {
+			ptps = true;
+			break;
+		}
+	}
+
+	return mlxsw_sp1_ptp_port_shaper_set(mlxsw_sp_port, ptps);
+}
+
+void mlxsw_sp1_ptp_shaper_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	int err;
+
+	mlxsw_sp_port = container_of(dwork, struct mlxsw_sp_port,
+				     ptp.shaper_dw);
+
+	if (!mlxsw_sp1_ptp_hwtstamp_enabled(mlxsw_sp_port))
+		return;
+
+	err = mlxsw_sp1_ptp_port_shaper_check(mlxsw_sp_port);
+	if (err)
+		netdev_err(mlxsw_sp_port->dev, "Failed to set up PTP shaper\n");
+}
+
 int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			       struct hwtstamp_config *config)
 {
@@ -927,6 +1081,10 @@ int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->ptp.hwtstamp_config = *config;
 	mlxsw_sp_port->ptp.ing_types = ing_types;
 	mlxsw_sp_port->ptp.egr_types = egr_types;
+
+	err = mlxsw_sp1_ptp_port_shaper_check(mlxsw_sp_port);
+	if (err)
+		return err;
 
 	/* Notify the ioctl caller what we are actually timestamping. */
 	config->rx_filter = rx_filter;

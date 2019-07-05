@@ -171,6 +171,7 @@ struct mlxsw_sp_ptp_ops {
 			    struct hwtstamp_config *config);
 	int (*hwtstamp_set)(struct mlxsw_sp_port *mlxsw_sp_port,
 			    struct hwtstamp_config *config);
+	void (*shaper_work)(struct work_struct *work);
 	int (*get_ts_info)(struct mlxsw_sp *mlxsw_sp,
 			   struct ethtool_ts_info *info);
 };
@@ -2655,28 +2656,33 @@ mlxsw_sp1_from_ptys_link(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto,
 	}
 }
 
+static u32
+mlxsw_sp1_from_ptys_speed(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto)
+{
+	int i;
+
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if (ptys_eth_proto & mlxsw_sp1_port_link_mode[i].mask)
+			return mlxsw_sp1_port_link_mode[i].speed;
+	}
+
+	return SPEED_UNKNOWN;
+}
+
 static void
 mlxsw_sp1_from_ptys_speed_duplex(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 				 u32 ptys_eth_proto,
 				 struct ethtool_link_ksettings *cmd)
 {
-	u32 speed = SPEED_UNKNOWN;
-	u8 duplex = DUPLEX_UNKNOWN;
-	int i;
+	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.duplex = DUPLEX_UNKNOWN;
 
 	if (!carrier_ok)
-		goto out;
+		return;
 
-	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
-		if (ptys_eth_proto & mlxsw_sp1_port_link_mode[i].mask) {
-			speed = mlxsw_sp1_port_link_mode[i].speed;
-			duplex = DUPLEX_FULL;
-			break;
-		}
-	}
-out:
-	cmd->base.speed = speed;
-	cmd->base.duplex = duplex;
+	cmd->base.speed = mlxsw_sp1_from_ptys_speed(mlxsw_sp, ptys_eth_proto);
+	if (cmd->base.speed != SPEED_UNKNOWN)
+		cmd->base.duplex = DUPLEX_FULL;
 }
 
 static u32
@@ -2747,6 +2753,7 @@ static const struct mlxsw_sp_port_type_speed_ops
 mlxsw_sp1_port_type_speed_ops = {
 	.from_ptys_supported_port	= mlxsw_sp1_from_ptys_supported_port,
 	.from_ptys_link			= mlxsw_sp1_from_ptys_link,
+	.from_ptys_speed		= mlxsw_sp1_from_ptys_speed,
 	.from_ptys_speed_duplex		= mlxsw_sp1_from_ptys_speed_duplex,
 	.to_ptys_advert_link		= mlxsw_sp1_to_ptys_advert_link,
 	.to_ptys_speed			= mlxsw_sp1_to_ptys_speed,
@@ -2997,28 +3004,33 @@ mlxsw_sp2_from_ptys_link(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto,
 	}
 }
 
+static u32
+mlxsw_sp2_from_ptys_speed(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto)
+{
+	int i;
+
+	for (i = 0; i < MLXSW_SP2_PORT_LINK_MODE_LEN; i++) {
+		if (ptys_eth_proto & mlxsw_sp2_port_link_mode[i].mask)
+			return mlxsw_sp2_port_link_mode[i].speed;
+	}
+
+	return SPEED_UNKNOWN;
+}
+
 static void
 mlxsw_sp2_from_ptys_speed_duplex(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 				 u32 ptys_eth_proto,
 				 struct ethtool_link_ksettings *cmd)
 {
-	u32 speed = SPEED_UNKNOWN;
-	u8 duplex = DUPLEX_UNKNOWN;
-	int i;
+	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.duplex = DUPLEX_UNKNOWN;
 
 	if (!carrier_ok)
-		goto out;
+		return;
 
-	for (i = 0; i < MLXSW_SP2_PORT_LINK_MODE_LEN; i++) {
-		if (ptys_eth_proto & mlxsw_sp2_port_link_mode[i].mask) {
-			speed = mlxsw_sp2_port_link_mode[i].speed;
-			duplex = DUPLEX_FULL;
-			break;
-		}
-	}
-out:
-	cmd->base.speed = speed;
-	cmd->base.duplex = duplex;
+	cmd->base.speed = mlxsw_sp2_from_ptys_speed(mlxsw_sp, ptys_eth_proto);
+	if (cmd->base.speed != SPEED_UNKNOWN)
+		cmd->base.duplex = DUPLEX_FULL;
 }
 
 static bool
@@ -3129,6 +3141,7 @@ static const struct mlxsw_sp_port_type_speed_ops
 mlxsw_sp2_port_type_speed_ops = {
 	.from_ptys_supported_port	= mlxsw_sp2_from_ptys_supported_port,
 	.from_ptys_link			= mlxsw_sp2_from_ptys_link,
+	.from_ptys_speed		= mlxsw_sp2_from_ptys_speed,
 	.from_ptys_speed_duplex		= mlxsw_sp2_from_ptys_speed_duplex,
 	.to_ptys_advert_link		= mlxsw_sp2_to_ptys_advert_link,
 	.to_ptys_speed			= mlxsw_sp2_to_ptys_speed,
@@ -3457,8 +3470,9 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 			return err;
 	}
 
-	/* Make sure the max shaper is disabled in all hierarchies that
-	 * support it.
+	/* Make sure the max shaper is disabled in all hierarchies that support
+	 * it. Note that this disables ptps (PTP shaper), but that is intended
+	 * for the initial configuration.
 	 */
 	err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
 					    MLXSW_REG_QEEC_HIERARCY_PORT, 0, 0,
@@ -3703,6 +3717,9 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	}
 	mlxsw_sp_port->default_vlan = mlxsw_sp_port_vlan;
 
+	INIT_DELAYED_WORK(&mlxsw_sp_port->ptp.shaper_dw,
+			  mlxsw_sp->ptp_ops->shaper_work);
+
 	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
 	err = register_netdev(dev);
 	if (err) {
@@ -3757,6 +3774,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
 
 	cancel_delayed_work_sync(&mlxsw_sp_port->periodic_hw_stats.update_dw);
+	cancel_delayed_work_sync(&mlxsw_sp_port->ptp.shaper_dw);
 	mlxsw_sp_port_ptp_clear(mlxsw_sp_port);
 	mlxsw_core_port_clear(mlxsw_sp->core, local_port, mlxsw_sp);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
@@ -4042,6 +4060,7 @@ static void mlxsw_sp_pude_event_func(const struct mlxsw_reg_info *reg,
 	if (status == MLXSW_PORT_OPER_STATUS_UP) {
 		netdev_info(mlxsw_sp_port->dev, "link up\n");
 		netif_carrier_on(mlxsw_sp_port->dev);
+		mlxsw_core_schedule_dw(&mlxsw_sp_port->ptp.shaper_dw, 0);
 	} else {
 		netdev_info(mlxsw_sp_port->dev, "link down\n");
 		netif_carrier_off(mlxsw_sp_port->dev);
@@ -4559,6 +4578,7 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
 	.transmitted	= mlxsw_sp1_ptp_transmitted,
 	.hwtstamp_get	= mlxsw_sp1_ptp_hwtstamp_get,
 	.hwtstamp_set	= mlxsw_sp1_ptp_hwtstamp_set,
+	.shaper_work	= mlxsw_sp1_ptp_shaper_work,
 	.get_ts_info	= mlxsw_sp1_ptp_get_ts_info,
 };
 
@@ -4571,6 +4591,7 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.transmitted	= mlxsw_sp2_ptp_transmitted,
 	.hwtstamp_get	= mlxsw_sp2_ptp_hwtstamp_get,
 	.hwtstamp_set	= mlxsw_sp2_ptp_hwtstamp_set,
+	.shaper_work	= mlxsw_sp2_ptp_shaper_work,
 	.get_ts_info	= mlxsw_sp2_ptp_get_ts_info,
 };
 
