@@ -31,7 +31,14 @@ static u32 gb_i2c_functionality_map(u32 gb_i2c_functionality)
 	return gb_i2c_functionality;	/* All bits the same for now */
 }
 
-static int gb_i2c_functionality_operation(struct gb_i2c_device *gb_i2c_dev)
+/*
+ * Do initial setup of the i2c device.  This includes verifying we
+ * can support it (based on the protocol version it advertises).
+ * If that's OK, we get and cached its functionality bits.
+ *
+ * Note: gb_i2c_dev->connection is assumed to have been valid.
+ */
+static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 {
 	struct gb_i2c_functionality_response response;
 	u32 functionality;
@@ -234,19 +241,6 @@ static const struct i2c_algorithm gb_i2c_algorithm = {
 	/* .smbus_xfer	= gb_i2c_smbus_xfer, */
 	.functionality	= gb_i2c_functionality,
 };
-
-/*
- * Do initial setup of the i2c device.  This includes verifying we
- * can support it (based on the protocol version it advertises).
- * If that's OK, we get and cached its functionality bits.
- *
- * Note: gb_i2c_dev->connection is assumed to have been valid.
- */
-static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
-{
-	/* Assume the functionality never changes, just get it once */
-	return gb_i2c_functionality_operation(gb_i2c_dev);
-}
 
 static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
 			const struct gbphy_device_id *id)
