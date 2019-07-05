@@ -8,24 +8,18 @@
 #include "bpf_helpers.h"
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u64 *value;
-} result_number SEC(".maps") = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.max_entries	= 11,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 11);
+	__type(key, __u32);
+	__type(value, __u64);
+} result_number SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 5);
+	__type(key, __u32);
 	const char (*value)[32];
-} result_string SEC(".maps") = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.max_entries	= 5,
-};
+} result_string SEC(".maps");
 
 struct foo {
 	__u8  a;
@@ -34,14 +28,11 @@ struct foo {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct foo *value;
-} result_struct SEC(".maps") = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.max_entries	= 5,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 5);
+	__type(key, __u32);
+	__type(value, struct foo);
+} result_struct SEC(".maps");
 
 /* Relocation tests for __u64s. */
 static       __u64 num0;

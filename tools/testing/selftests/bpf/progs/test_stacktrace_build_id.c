@@ -9,51 +9,36 @@
 #endif
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u32 *value;
-} control_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u32);
+} control_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u32 *value;
-} stackid_hmap SEC(".maps") = {
-	.type = BPF_MAP_TYPE_HASH,
-	.max_entries = 16384,
-};
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 16384);
+	__type(key, __u32);
+	__type(value, __u32);
+} stackid_hmap SEC(".maps");
 
 typedef struct bpf_stack_build_id stack_trace_t[PERF_MAX_STACK_DEPTH];
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 map_flags;
-	__u32 key_size;
-	__u32 value_size;
-} stackmap SEC(".maps") = {
-	.type = BPF_MAP_TYPE_STACK_TRACE,
-	.max_entries = 128,
-	.map_flags = BPF_F_STACK_BUILD_ID,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(stack_trace_t),
-};
+	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
+	__uint(max_entries, 128);
+	__uint(map_flags, BPF_F_STACK_BUILD_ID);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(stack_trace_t));
+} stackmap SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 128);
+	__type(key, __u32);
 	/* there seems to be a bug in kernel not handling typedef properly */
 	struct bpf_stack_build_id (*value)[PERF_MAX_STACK_DEPTH];
-} stack_amap SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 128,
-};
+} stack_amap SEC(".maps");
 
 /* taken from /sys/kernel/debug/tracing/events/random/urandom_read/format */
 struct random_urandom_args {

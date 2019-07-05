@@ -3,12 +3,12 @@
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
 
-struct bpf_map_def SEC("maps") tx_port = {
-	.type = BPF_MAP_TYPE_DEVMAP,
-	.key_size = sizeof(int),
-	.value_size = sizeof(int),
-	.max_entries = 8,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_DEVMAP);
+	__uint(max_entries, 8);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(int));
+} tx_port SEC(".maps");
 
 SEC("redirect_map_0")
 int xdp_redirect_map_0(struct xdp_md *xdp)

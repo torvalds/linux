@@ -5,24 +5,18 @@
 #include "bpf_helpers.h"
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u64 *value;
-} info_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u64);
+} info_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u64 *value;
-} status_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u64);
+} status_map SEC(".maps");
 
 SEC("send_signal_demo")
 int bpf_send_signal_test(void *ctx)

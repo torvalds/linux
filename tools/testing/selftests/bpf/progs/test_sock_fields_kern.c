@@ -28,44 +28,32 @@ enum bpf_linum_array_idx {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct sockaddr_in6 *value;
-} addr_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = __NR_BPF_ADDR_ARRAY_IDX,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, __NR_BPF_ADDR_ARRAY_IDX);
+	__type(key, __u32);
+	__type(value, struct sockaddr_in6);
+} addr_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct bpf_sock *value;
-} sock_result_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = __NR_BPF_RESULT_ARRAY_IDX,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, __NR_BPF_RESULT_ARRAY_IDX);
+	__type(key, __u32);
+	__type(value, struct bpf_sock);
+} sock_result_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct bpf_tcp_sock *value;
-} tcp_sock_result_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = __NR_BPF_RESULT_ARRAY_IDX,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, __NR_BPF_RESULT_ARRAY_IDX);
+	__type(key, __u32);
+	__type(value, struct bpf_tcp_sock);
+} tcp_sock_result_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u32 *value;
-} linum_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = __NR_BPF_LINUM_ARRAY_IDX,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, __NR_BPF_LINUM_ARRAY_IDX);
+	__type(key, __u32);
+	__type(value, __u32);
+} linum_map SEC(".maps");
 
 struct bpf_spinlock_cnt {
 	struct bpf_spin_lock lock;
@@ -73,24 +61,18 @@ struct bpf_spinlock_cnt {
 };
 
 struct {
-	__u32 type;
-	__u32 map_flags;
-	int *key;
-	struct bpf_spinlock_cnt *value;
-} sk_pkt_out_cnt SEC(".maps") = {
-	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.map_flags = BPF_F_NO_PREALLOC,
-};
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct bpf_spinlock_cnt);
+} sk_pkt_out_cnt SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 map_flags;
-	int *key;
-	struct bpf_spinlock_cnt *value;
-} sk_pkt_out_cnt10 SEC(".maps") = {
-	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.map_flags = BPF_F_NO_PREALLOC,
-};
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct bpf_spinlock_cnt);
+} sk_pkt_out_cnt10 SEC(".maps");
 
 static bool is_loopback6(__u32 *a6)
 {

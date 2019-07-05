@@ -21,14 +21,11 @@ struct bpf_map_def SEC("maps") btf_map_legacy = {
 BPF_ANNOTATE_KV_PAIR(btf_map_legacy, int, struct ipv_counts);
 
 struct {
-	int *key;
-	struct ipv_counts *value;
-	unsigned int type;
-	unsigned int max_entries;
-} btf_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 4,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 4);
+	__type(key, int);
+	__type(value, struct ipv_counts);
+} btf_map SEC(".maps");
 
 struct dummy_tracepoint_args {
 	unsigned long long pad;

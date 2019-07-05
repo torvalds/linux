@@ -166,54 +166,39 @@ struct eth_hdr {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	struct vip *key;
-	struct vip_meta *value;
-} vip_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_HASH,
-	.max_entries = MAX_VIPS,
-};
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, MAX_VIPS);
+	__type(key, struct vip);
+	__type(value, struct vip_meta);
+} vip_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u32 *value;
-} ch_rings SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = CH_RINGS_SIZE,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, CH_RINGS_SIZE);
+	__type(key, __u32);
+	__type(value, __u32);
+} ch_rings SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct real_definition *value;
-} reals SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = MAX_REALS,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, MAX_REALS);
+	__type(key, __u32);
+	__type(value, struct real_definition);
+} reals SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct vip_stats *value;
-} stats SEC(".maps") = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.max_entries = MAX_VIPS,
-};
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, MAX_VIPS);
+	__type(key, __u32);
+	__type(value, struct vip_stats);
+} stats SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct ctl_value *value;
-} ctl_array SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = CTL_MAP_SIZE,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, CTL_MAP_SIZE);
+	__type(key, __u32);
+	__type(value, struct ctl_value);
+} ctl_array SEC(".maps");
 
 static __u32 get_packet_hash(struct packet_description *pckt,
 			     bool ipv6)

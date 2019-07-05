@@ -15,24 +15,18 @@
 #include "test_tcpbpf.h"
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct tcpbpf_globals *value;
-} global_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 4,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 4);
+	__type(key, __u32);
+	__type(value, struct tcpbpf_globals);
+} global_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	int *value;
-} sockopt_results SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 2,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 2);
+	__type(key, __u32);
+	__type(value, int);
+} sockopt_results SEC(".maps");
 
 static inline void update_event_map(int event)
 {
