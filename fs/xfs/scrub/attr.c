@@ -18,7 +18,7 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
-
+#include "scrub/attr.h"
 
 /* Set us up to scrub an inode's extended attributes. */
 int
@@ -101,7 +101,7 @@ xchk_xattr_listent(
 	args.namelen = namelen;
 	args.hashval = xfs_da_hashname(args.name, args.namelen);
 	args.trans = context->tp;
-	args.value = sx->sc->buf;
+	args.value = xchk_xattr_valuebuf(sx->sc);
 	args.valuelen = XATTR_SIZE_MAX;
 
 	error = xfs_attr_get_ilocked(context->dp, &args);
@@ -160,13 +160,12 @@ xchk_xattr_check_freemap(
 	unsigned long			*map,
 	struct xfs_attr3_icleaf_hdr	*leafhdr)
 {
-	unsigned long			*freemap;
-	unsigned long			*dstmap;
+	unsigned long			*freemap = xchk_xattr_freemap(sc);
+	unsigned long			*dstmap = xchk_xattr_dstmap(sc);
 	unsigned int			mapsize = sc->mp->m_attr_geo->blksize;
 	int				i;
 
 	/* Construct bitmap of freemap contents. */
-	freemap = (unsigned long *)sc->buf + BITS_TO_LONGS(mapsize);
 	bitmap_zero(freemap, mapsize);
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
 		if (!xchk_xattr_set_map(sc, freemap,
@@ -176,7 +175,6 @@ xchk_xattr_check_freemap(
 	}
 
 	/* Look for bits that are set in freemap and are marked in use. */
-	dstmap = freemap + BITS_TO_LONGS(mapsize);
 	return bitmap_and(dstmap, freemap, map, mapsize) == 0;
 }
 
@@ -191,13 +189,13 @@ xchk_xattr_entry(
 	char				*buf_end,
 	struct xfs_attr_leafblock	*leaf,
 	struct xfs_attr3_icleaf_hdr	*leafhdr,
-	unsigned long			*usedmap,
 	struct xfs_attr_leaf_entry	*ent,
 	int				idx,
 	unsigned int			*usedbytes,
 	__u32				*last_hashval)
 {
 	struct xfs_mount		*mp = ds->state->mp;
+	unsigned long			*usedmap = xchk_xattr_usedmap(ds->sc);
 	char				*name_end;
 	struct xfs_attr_leaf_name_local	*lentry;
 	struct xfs_attr_leaf_name_remote *rentry;
@@ -257,7 +255,7 @@ xchk_xattr_block(
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
 	struct xfs_attr_leaf_entry	*ent;
 	struct xfs_attr_leaf_entry	*entries;
-	unsigned long			*usedmap = ds->sc->buf;
+	unsigned long			*usedmap = xchk_xattr_usedmap(ds->sc);
 	char				*buf_end;
 	size_t				off;
 	__u32				last_hashval = 0;
@@ -314,7 +312,7 @@ xchk_xattr_block(
 
 		/* Check the entry and nameval. */
 		xchk_xattr_entry(ds, level, buf_end, leaf, &leafhdr,
-				usedmap, ent, i, &usedbytes, &last_hashval);
+				ent, i, &usedbytes, &last_hashval);
 
 		if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			goto out;
