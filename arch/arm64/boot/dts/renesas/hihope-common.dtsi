@@ -10,6 +10,7 @@
 / {
 	aliases {
 		serial0 = &scif2;
+		serial1 = &hscif0;
 	};
 
 	chosen {
@@ -30,6 +31,13 @@
 
 	leds {
 		compatible = "gpio-leds";
+
+		bt_active_led {
+			label = "blue:bt";
+			gpios = <&gpio7  0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "hci0-power";
+			default-state = "off";
+		};
 
 		led0 {
 			gpios = <&gpio6 11 GPIO_ACTIVE_HIGH>;
@@ -153,6 +161,19 @@
 	};
 };
 
+&hscif0 {
+	pinctrl-0 = <&hscif0_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "ti,wl1837-st";
+		enable-gpios = <&gpio_expander 2 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &hsusb {
 	dr_mode = "otg";
 	status = "okay";
@@ -193,6 +214,11 @@
 &pfc {
 	pinctrl-0 = <&scif_clk_pins>;
 	pinctrl-names = "default";
+
+	hscif0_pins: hscif0 {
+		groups = "hscif0_data", "hscif0_ctrl";
+		function = "hscif0";
+	};
 
 	scif2_pins: scif2 {
 		groups = "scif2_data_a";
