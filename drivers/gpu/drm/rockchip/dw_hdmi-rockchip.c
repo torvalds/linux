@@ -443,6 +443,18 @@ static void dw_hdmi_rockchip_genphy_disable(struct dw_hdmi *dw_hdmi, void *data)
 	phy_power_off(hdmi->phy);
 }
 
+static void dw_hdmi_rk3228_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	dw_hdmi_phy_setup_hpd(dw_hdmi, data);
+
+	regmap_write(hdmi->regmap, RK3228_GRF_SOC_CON2,
+		     RK3228_DDC_MASK_EN);
+	regmap_write(hdmi->regmap, RK3228_GRF_SOC_CON6,
+		     RK3228_IO_3V_DOMAIN);
+}
+
 static enum drm_connector_status
 dw_hdmi_rk3328_read_hpd(struct dw_hdmi *dw_hdmi, void *data)
 {
@@ -493,6 +505,7 @@ static const struct dw_hdmi_phy_ops rk3228_hdmi_phy_ops = {
 	.disable	= dw_hdmi_rockchip_genphy_disable,
 	.read_hpd	= dw_hdmi_phy_read_hpd,
 	.update_hpd	= dw_hdmi_phy_update_hpd,
+	.setup_hpd	= dw_hdmi_rk3228_setup_hpd,
 };
 
 static struct rockchip_hdmi_chip_data rk3228_chip_data = {
