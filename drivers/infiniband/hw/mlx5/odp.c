@@ -1558,9 +1558,9 @@ mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 	eq->irq_nb.notifier_call = mlx5_ib_eq_pf_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
-		.mask = 1 << MLX5_EVENT_TYPE_PAGE_FAULT,
 		.nent = MLX5_IB_NUM_PF_EQE,
 	};
+	param.mask[0] = 1ull << MLX5_EVENT_TYPE_PAGE_FAULT;
 	eq->core = mlx5_eq_create_generic(dev->mdev, &param);
 	if (IS_ERR(eq->core)) {
 		err = PTR_ERR(eq->core);

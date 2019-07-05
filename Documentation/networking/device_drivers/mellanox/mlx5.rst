@@ -10,6 +10,7 @@ Contents
 ========
 
 - `Enabling the driver and kconfig options`_
+- `Devlink info`_
 - `Devlink health reporters`_
 
 Enabling the driver and kconfig options
@@ -101,6 +102,24 @@ Enabling the driver and kconfig options
 - CONFIG_VXLAN: When chosen, mlx5 vxaln support will be enabled.
 - CONFIG_MLXFW: When chosen, mlx5 firmware flashing support will be enabled (via devlink and ethtool).
 
+Devlink info
+============
+
+The devlink info reports the running and stored firmware versions on device.
+It also prints the device PSID which represents the HCA board type ID.
+
+User command example::
+
+   $ devlink dev info pci/0000:00:06.0
+      pci/0000:00:06.0:
+      driver mlx5_core
+      versions:
+         fixed:
+            fw.psid MT_0000000009
+         running:
+            fw.version 16.26.0100
+         stored:
+            fw.version 16.26.0100
 
 Devlink health reporters
 ========================
