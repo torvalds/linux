@@ -101,6 +101,7 @@ void p_err(const char *fmt, ...);
 void p_info(const char *fmt, ...);
 
 bool is_prefix(const char *pfx, const char *str);
+int detect_common_prefix(const char *arg, ...);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __noreturn;
 
