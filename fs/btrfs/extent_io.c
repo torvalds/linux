@@ -4611,7 +4611,6 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	ret = btrfs_lookup_file_extent(NULL, root, path,
 			btrfs_ino(BTRFS_I(inode)), -1, 0);
 	if (ret < 0) {
-		btrfs_free_path(path);
 		goto out_free_ulist;
 	} else {
 		WARN_ON(!ret);
@@ -4764,11 +4763,11 @@ out_free:
 		ret = emit_last_fiemap_cache(fieinfo, &cache);
 	free_extent_map(em);
 out:
-	btrfs_free_path(path);
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start, start + len - 1,
 			     &cached_state);
 
 out_free_ulist:
+	btrfs_free_path(path);
 	ulist_free(roots);
 	ulist_free(tmp_ulist);
 	return ret;
