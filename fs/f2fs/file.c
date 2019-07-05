@@ -2964,9 +2964,6 @@ static int f2fs_ioc_set_pin_file(struct file *filp, unsigned long arg)
 	__u32 pin;
 	int ret = 0;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (get_user(pin, (__u32 __user *)arg))
 		return -EFAULT;
 
