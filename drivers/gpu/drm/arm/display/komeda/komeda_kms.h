@@ -33,9 +33,6 @@ struct komeda_plane {
 	 * Layers with same capabilities.
 	 */
 	struct komeda_layer *layer;
-
-	/** @prop_layer_split: for on/off layer_split */
-	struct drm_property *prop_layer_split;
 };
 
 /**

@@ -188,40 +188,6 @@ komeda_plane_atomic_destroy_state(struct drm_plane *plane,
 	kfree(to_kplane_st(state));
 }
 
-static int
-komeda_plane_atomic_get_property(struct drm_plane *plane,
-				 const struct drm_plane_state *state,
-				 struct drm_property *property,
-				 uint64_t *val)
-{
-	struct komeda_plane *kplane = to_kplane(plane);
-	struct komeda_plane_state *st = to_kplane_st(state);
-
-	if (property == kplane->prop_layer_split)
-		*val = st->layer_split;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int
-komeda_plane_atomic_set_property(struct drm_plane *plane,
-				 struct drm_plane_state *state,
-				 struct drm_property *property,
-				 uint64_t val)
-{
-	struct komeda_plane *kplane = to_kplane(plane);
-	struct komeda_plane_state *st = to_kplane_st(state);
-
-	if (property == kplane->prop_layer_split)
-		st->layer_split = !!val;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
 static bool
 komeda_plane_format_mod_supported(struct drm_plane *plane,
 				  u32 format, u64 modifier)
@@ -241,31 +207,8 @@ static const struct drm_plane_funcs komeda_plane_funcs = {
 	.reset			= komeda_plane_reset,
 	.atomic_duplicate_state	= komeda_plane_atomic_duplicate_state,
 	.atomic_destroy_state	= komeda_plane_atomic_destroy_state,
-	.atomic_get_property	= komeda_plane_atomic_get_property,
-	.atomic_set_property	= komeda_plane_atomic_set_property,
 	.format_mod_supported	= komeda_plane_format_mod_supported,
 };
-
-static int
-komeda_plane_create_layer_properties(struct komeda_plane *kplane,
-				     struct komeda_layer *layer)
-{
-	struct drm_device *drm = kplane->base.dev;
-	struct drm_plane *plane = &kplane->base;
-	struct drm_property *prop = NULL;
-
-	/* property: layer split */
-	if (layer->right) {
-		prop = drm_property_create_bool(drm, DRM_MODE_PROP_ATOMIC,
-						"layer_split");
-		if (!prop)
-			return -ENOMEM;
-		kplane->prop_layer_split = prop;
-		drm_object_attach_property(&plane->base, prop, 0);
-	}
-
-	return 0;
-}
 
 /* for komeda, which is pipeline can be share between crtcs */
 static u32 get_possible_crtcs(struct komeda_kms_dev *kms,
@@ -357,10 +300,6 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 			BIT(DRM_MODE_BLEND_PIXEL_NONE) |
 			BIT(DRM_MODE_BLEND_PREMULTI)   |
 			BIT(DRM_MODE_BLEND_COVERAGE));
-	if (err)
-		goto cleanup;
-
-	err = komeda_plane_create_layer_properties(kplane, layer);
 	if (err)
 		goto cleanup;
 
