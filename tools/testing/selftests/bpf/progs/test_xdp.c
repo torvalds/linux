@@ -23,24 +23,18 @@
 int _version SEC("version") = 1;
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u64 *value;
-} rxcnt SEC(".maps") = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.max_entries = 256,
-};
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 256);
+	__type(key, __u32);
+	__type(value, __u64);
+} rxcnt SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	struct vip *key;
-	struct iptnl_info *value;
-} vip2tnl SEC(".maps") = {
-	.type = BPF_MAP_TYPE_HASH,
-	.max_entries = MAX_IPTNL_ENTRIES,
-};
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, MAX_IPTNL_ENTRIES);
+	__type(key, struct vip);
+	__type(value, struct iptnl_info);
+} vip2tnl SEC(".maps");
 
 static __always_inline void count_tx(__u32 protocol)
 {

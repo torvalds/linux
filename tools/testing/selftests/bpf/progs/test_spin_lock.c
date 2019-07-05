@@ -11,14 +11,11 @@ struct hmap_elem {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	int *key;
-	struct hmap_elem *value;
-} hmap SEC(".maps") = {
-	.type = BPF_MAP_TYPE_HASH,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, struct hmap_elem);
+} hmap SEC(".maps");
 
 struct cls_elem {
 	struct bpf_spin_lock lock;
@@ -26,12 +23,10 @@ struct cls_elem {
 };
 
 struct {
-	__u32 type;
-	struct bpf_cgroup_storage_key *key;
-	struct cls_elem *value;
-} cls_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_CGROUP_STORAGE,
-};
+	__uint(type, BPF_MAP_TYPE_CGROUP_STORAGE);
+	__type(key, struct bpf_cgroup_storage_key);
+	__type(value, struct cls_elem);
+} cls_map SEC(".maps");
 
 struct bpf_vqueue {
 	struct bpf_spin_lock lock;
@@ -42,14 +37,11 @@ struct bpf_vqueue {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	int *key;
-	struct bpf_vqueue *value;
-} vqueue SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, struct bpf_vqueue);
+} vqueue SEC(".maps");
 
 #define CREDIT_PER_NS(delta, rate) (((delta) * rate) >> 20)
 

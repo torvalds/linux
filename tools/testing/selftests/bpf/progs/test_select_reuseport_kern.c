@@ -22,56 +22,39 @@ int _version SEC("version") = 1;
 #endif
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 key_size;
-	__u32 value_size;
-} outer_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY_OF_MAPS,
-	.max_entries = 1,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+	__uint(max_entries, 1);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(__u32));
+} outer_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u32 *value;
-} result_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = NR_RESULTS,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, NR_RESULTS);
+	__type(key, __u32);
+	__type(value, __u32);
+} result_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	int *value;
-} tmp_index_ovr_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, int);
+} tmp_index_ovr_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u32 *value;
-} linum_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u32);
+} linum_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct data_check *value;
-} data_check_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct data_check);
+} data_check_map SEC(".maps");
 
 #define GOTO_DONE(_result) ({			\
 	result = (_result);			\
