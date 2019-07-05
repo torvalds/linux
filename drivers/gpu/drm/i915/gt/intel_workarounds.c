@@ -1354,7 +1354,7 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 	if (I915_SELFTEST_ONLY(INTEL_GEN(engine->i915) < 8))
 		return;
 
-	if (engine->id == RCS0)
+	if (engine->class == RENDER_CLASS)
 		rcs_engine_wa_init(engine, wal);
 	else
 		xcs_engine_wa_init(engine, wal);
