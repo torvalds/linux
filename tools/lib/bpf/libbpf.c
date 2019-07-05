@@ -1029,40 +1029,40 @@ static const struct btf_type *skip_mods_and_typedefs(const struct btf *btf,
 	}
 }
 
-static bool get_map_field_int(const char *map_name,
-			      const struct btf *btf,
+/*
+ * Fetch integer attribute of BTF map definition. Such attributes are
+ * represented using a pointer to an array, in which dimensionality of array
+ * encodes specified integer value. E.g., int (*type)[BPF_MAP_TYPE_ARRAY];
+ * encodes `type => BPF_MAP_TYPE_ARRAY` key/value pair completely using BTF
+ * type definition, while using only sizeof(void *) space in ELF data section.
+ */
+static bool get_map_field_int(const char *map_name, const struct btf *btf,
 			      const struct btf_type *def,
-			      const struct btf_member *m,
-			      const void *data, __u32 *res) {
+			      const struct btf_member *m, __u32 *res) {
 	const struct btf_type *t = skip_mods_and_typedefs(btf, m->type);
 	const char *name = btf__name_by_offset(btf, m->name_off);
-	__u32 int_info = *(const __u32 *)(const void *)(t + 1);
+	const struct btf_array *arr_info;
+	const struct btf_type *arr_t;
 
-	if (BTF_INFO_KIND(t->info) != BTF_KIND_INT) {
-		pr_warning("map '%s': attr '%s': expected INT, got %u.\n",
+	if (BTF_INFO_KIND(t->info) != BTF_KIND_PTR) {
+		pr_warning("map '%s': attr '%s': expected PTR, got %u.\n",
 			   map_name, name, BTF_INFO_KIND(t->info));
 		return false;
 	}
-	if (t->size != 4 || BTF_INT_BITS(int_info) != 32 ||
-	    BTF_INT_OFFSET(int_info)) {
-		pr_warning("map '%s': attr '%s': expected 32-bit non-bitfield integer, "
-			   "got %u-byte (%d-bit) one with bit offset %d.\n",
-			   map_name, name, t->size, BTF_INT_BITS(int_info),
-			   BTF_INT_OFFSET(int_info));
-		return false;
-	}
-	if (BTF_INFO_KFLAG(def->info) && BTF_MEMBER_BITFIELD_SIZE(m->offset)) {
-		pr_warning("map '%s': attr '%s': bitfield is not supported.\n",
-			   map_name, name);
-		return false;
-	}
-	if (m->offset % 32) {
-		pr_warning("map '%s': attr '%s': unaligned fields are not supported.\n",
-			   map_name, name);
-		return false;
-	}
 
-	*res = *(const __u32 *)(data + m->offset / 8);
+	arr_t = btf__type_by_id(btf, t->type);
+	if (!arr_t) {
+		pr_warning("map '%s': attr '%s': type [%u] not found.\n",
+			   map_name, name, t->type);
+		return false;
+	}
+	if (BTF_INFO_KIND(arr_t->info) != BTF_KIND_ARRAY) {
+		pr_warning("map '%s': attr '%s': expected ARRAY, got %u.\n",
+			   map_name, name, BTF_INFO_KIND(arr_t->info));
+		return false;
+	}
+	arr_info = (const void *)(arr_t + 1);
+	*res = arr_info->nelems;
 	return true;
 }
 
@@ -1075,7 +1075,6 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	const struct btf_var_secinfo *vi;
 	const struct btf_var *var_extra;
 	const struct btf_member *m;
-	const void *def_data;
 	const char *map_name;
 	struct bpf_map *map;
 	int vlen, i;
@@ -1132,7 +1131,6 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	pr_debug("map '%s': at sec_idx %d, offset %zu.\n",
 		 map_name, map->sec_idx, map->sec_offset);
 
-	def_data = data->d_buf + vi->offset;
 	vlen = BTF_INFO_VLEN(def->info);
 	m = (const void *)(def + 1);
 	for (i = 0; i < vlen; i++, m++) {
@@ -1145,19 +1143,19 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 		}
 		if (strcmp(name, "type") == 0) {
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &map->def.type))
+					       &map->def.type))
 				return -EINVAL;
 			pr_debug("map '%s': found type = %u.\n",
 				 map_name, map->def.type);
 		} else if (strcmp(name, "max_entries") == 0) {
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &map->def.max_entries))
+					       &map->def.max_entries))
 				return -EINVAL;
 			pr_debug("map '%s': found max_entries = %u.\n",
 				 map_name, map->def.max_entries);
 		} else if (strcmp(name, "map_flags") == 0) {
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &map->def.map_flags))
+					       &map->def.map_flags))
 				return -EINVAL;
 			pr_debug("map '%s': found map_flags = %u.\n",
 				 map_name, map->def.map_flags);
@@ -1165,7 +1163,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			__u32 sz;
 
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &sz))
+					       &sz))
 				return -EINVAL;
 			pr_debug("map '%s': found key_size = %u.\n",
 				 map_name, sz);
@@ -1208,7 +1206,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			__u32 sz;
 
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &sz))
+					       &sz))
 				return -EINVAL;
 			pr_debug("map '%s': found value_size = %u.\n",
 				 map_name, sz);
