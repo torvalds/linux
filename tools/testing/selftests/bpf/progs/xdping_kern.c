@@ -17,12 +17,12 @@
 
 #include "xdping.h"
 
-struct bpf_map_def SEC("maps") ping_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct pinginfo),
-	.max_entries = 256,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 256);
+	__type(key, __u32);
+	__type(value, struct pinginfo);
+} ping_map SEC(".maps");
 
 static __always_inline void swap_src_dst_mac(void *data)
 {
