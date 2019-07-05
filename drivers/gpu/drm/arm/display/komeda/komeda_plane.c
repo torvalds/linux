@@ -197,9 +197,7 @@ komeda_plane_atomic_get_property(struct drm_plane *plane,
 	struct komeda_plane *kplane = to_kplane(plane);
 	struct komeda_plane_state *st = to_kplane_st(state);
 
-	if (property == kplane->prop_img_enhancement)
-		*val = st->img_enhancement;
-	else if (property == kplane->prop_layer_split)
+	if (property == kplane->prop_layer_split)
 		*val = st->layer_split;
 	else
 		return -EINVAL;
@@ -216,9 +214,7 @@ komeda_plane_atomic_set_property(struct drm_plane *plane,
 	struct komeda_plane *kplane = to_kplane(plane);
 	struct komeda_plane_state *st = to_kplane_st(state);
 
-	if (property == kplane->prop_img_enhancement)
-		st->img_enhancement = !!val;
-	else if (property == kplane->prop_layer_split)
+	if (property == kplane->prop_layer_split)
 		st->layer_split = !!val;
 	else
 		return -EINVAL;
@@ -257,17 +253,6 @@ komeda_plane_create_layer_properties(struct komeda_plane *kplane,
 	struct drm_device *drm = kplane->base.dev;
 	struct drm_plane *plane = &kplane->base;
 	struct drm_property *prop = NULL;
-
-	/* property: layer image_enhancement */
-	if (layer->base.supported_outputs & KOMEDA_PIPELINE_SCALERS) {
-		prop = drm_property_create_bool(drm, DRM_MODE_PROP_ATOMIC,
-						"img_enhancement");
-		if (!prop)
-			return -ENOMEM;
-
-		drm_object_attach_property(&plane->base, prop, 0);
-		kplane->prop_img_enhancement = prop;
-	}
 
 	/* property: layer split */
 	if (layer->right) {

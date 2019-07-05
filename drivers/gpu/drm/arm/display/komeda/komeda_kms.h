@@ -34,8 +34,6 @@ struct komeda_plane {
 	 */
 	struct komeda_layer *layer;
 
-	/** @prop_img_enhancement: for on/off image enhancement */
-	struct drm_property *prop_img_enhancement;
 	/** @prop_layer_split: for on/off layer_split */
 	struct drm_property *prop_layer_split;
 };
