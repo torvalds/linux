@@ -279,8 +279,11 @@ static int fastrpc_buf_alloc(struct fastrpc_user *fl, struct device *dev,
 
 	buf->virt = dma_alloc_coherent(dev, buf->size, (dma_addr_t *)&buf->phys,
 				       GFP_KERNEL);
-	if (!buf->virt)
+	if (!buf->virt) {
+		mutex_destroy(&buf->lock);
+		kfree(buf);
 		return -ENOMEM;
+	}
 
 	if (fl->sctx && fl->sctx->sid)
 		buf->phys += ((u64)fl->sctx->sid << 32);
