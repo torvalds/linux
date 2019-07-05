@@ -625,8 +625,10 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 				     sizeof(unsigned long) * BITS_PER_BYTE;
 	priv->qpl_cfg.qpl_id_map = kvzalloc(BITS_TO_LONGS(num_qpls) *
 					    sizeof(unsigned long), GFP_KERNEL);
-	if (!priv->qpl_cfg.qpl_id_map)
+	if (!priv->qpl_cfg.qpl_id_map) {
+		err = -ENOMEM;
 		goto free_qpls;
+	}
 
 	return 0;
 
