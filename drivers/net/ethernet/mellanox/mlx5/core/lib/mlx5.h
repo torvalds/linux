@@ -79,4 +79,9 @@ struct mlx5_pme_stats {
 void mlx5_get_pme_stats(struct mlx5_core_dev *dev, struct mlx5_pme_stats *stats);
 int mlx5_notifier_call_chain(struct mlx5_events *events, unsigned int event, void *data);
 
+/* Crypto */
+int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
+			       void *key, u32 sz_bytes, u32 *p_key_id);
+void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id);
+
 #endif
