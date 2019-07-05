@@ -137,7 +137,6 @@ struct etnaviv_gpu {
 	int irq;
 
 	struct etnaviv_iommu *mmu;
-	struct etnaviv_cmdbuf_suballoc *cmdbuf_suballoc;
 
 	/* Power Control: */
 	struct clk *clk_bus;

@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-struct etnaviv_gpu;
+struct device;
 struct etnaviv_iommu;
 struct etnaviv_vram_mapping;
 struct etnaviv_cmdbuf_suballoc;
@@ -25,7 +25,7 @@ struct etnaviv_cmdbuf {
 };
 
 struct etnaviv_cmdbuf_suballoc *
-etnaviv_cmdbuf_suballoc_new(struct etnaviv_gpu * gpu);
+etnaviv_cmdbuf_suballoc_new(struct device *dev);
 void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc);
 int etnaviv_cmdbuf_suballoc_map(struct etnaviv_cmdbuf_suballoc *suballoc,
 				struct etnaviv_iommu *mmu,

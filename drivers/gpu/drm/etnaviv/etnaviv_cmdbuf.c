@@ -13,13 +13,13 @@
 #include "etnaviv_mmu.h"
 #include "etnaviv_perfmon.h"
 
-#define SUBALLOC_SIZE		SZ_256K
+#define SUBALLOC_SIZE		SZ_512K
 #define SUBALLOC_GRANULE	SZ_4K
 #define SUBALLOC_GRANULES	(SUBALLOC_SIZE / SUBALLOC_GRANULE)
 
 struct etnaviv_cmdbuf_suballoc {
 	/* suballocated dma buffer properties */
-	struct etnaviv_gpu *gpu;
+	struct device *dev;
 	void *vaddr;
 	dma_addr_t paddr;
 
@@ -31,7 +31,7 @@ struct etnaviv_cmdbuf_suballoc {
 };
 
 struct etnaviv_cmdbuf_suballoc *
-etnaviv_cmdbuf_suballoc_new(struct etnaviv_gpu * gpu)
+etnaviv_cmdbuf_suballoc_new(struct device *dev)
 {
 	struct etnaviv_cmdbuf_suballoc *suballoc;
 	int ret;
@@ -40,11 +40,11 @@ etnaviv_cmdbuf_suballoc_new(struct etnaviv_gpu * gpu)
 	if (!suballoc)
 		return ERR_PTR(-ENOMEM);
 
-	suballoc->gpu = gpu;
+	suballoc->dev = dev;
 	mutex_init(&suballoc->lock);
 	init_waitqueue_head(&suballoc->free_event);
 
-	suballoc->vaddr = dma_alloc_wc(gpu->dev, SUBALLOC_SIZE,
+	suballoc->vaddr = dma_alloc_wc(dev, SUBALLOC_SIZE,
 				       &suballoc->paddr, GFP_KERNEL);
 	if (!suballoc->vaddr) {
 		ret = -ENOMEM;
@@ -76,7 +76,7 @@ void etnaviv_cmdbuf_suballoc_unmap(struct etnaviv_iommu *mmu,
 
 void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc)
 {
-	dma_free_wc(suballoc->gpu->dev, SUBALLOC_SIZE, suballoc->vaddr,
+	dma_free_wc(suballoc->dev, SUBALLOC_SIZE, suballoc->vaddr,
 		    suballoc->paddr);
 	kfree(suballoc);
 }
@@ -101,7 +101,7 @@ retry:
 						       suballoc->free_space,
 						       msecs_to_jiffies(10 * 1000));
 		if (!ret) {
-			dev_err(suballoc->gpu->dev,
+			dev_err(suballoc->dev,
 				"Timeout waiting for cmdbuf space\n");
 			return -ETIMEDOUT;
 		}

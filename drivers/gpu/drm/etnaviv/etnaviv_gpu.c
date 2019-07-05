@@ -693,6 +693,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 
 int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 {
+	struct etnaviv_drm_private *priv = gpu->drm->dev_private;
 	int ret, i;
 
 	ret = pm_runtime_get_sync(gpu->dev);
@@ -760,23 +761,16 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
-	gpu->cmdbuf_suballoc = etnaviv_cmdbuf_suballoc_new(gpu);
-	if (IS_ERR(gpu->cmdbuf_suballoc)) {
-		dev_err(gpu->dev, "Failed to create cmdbuf suballocator\n");
-		ret = PTR_ERR(gpu->cmdbuf_suballoc);
-		goto destroy_iommu;
-	}
-
-	ret = etnaviv_cmdbuf_suballoc_map(gpu->cmdbuf_suballoc, gpu->mmu,
+	ret = etnaviv_cmdbuf_suballoc_map(priv->cmdbuf_suballoc, gpu->mmu,
 					  &gpu->cmdbuf_mapping,
 					  gpu->memory_base);
 	if (ret) {
 		dev_err(gpu->dev, "failed to map cmdbuf suballoc\n");
-		goto destroy_suballoc;
+		goto destroy_iommu;
 	}
 
 	/* Create buffer: */
-	ret = etnaviv_cmdbuf_init(gpu->cmdbuf_suballoc, &gpu->buffer,
+	ret = etnaviv_cmdbuf_init(priv->cmdbuf_suballoc, &gpu->buffer,
 				  PAGE_SIZE);
 	if (ret) {
 		dev_err(gpu->dev, "could not create command buffer\n");
@@ -815,8 +809,6 @@ free_buffer:
 	etnaviv_cmdbuf_free(&gpu->buffer);
 unmap_suballoc:
 	etnaviv_cmdbuf_suballoc_unmap(gpu->mmu, &gpu->cmdbuf_mapping);
-destroy_suballoc:
-	etnaviv_cmdbuf_suballoc_destroy(gpu->cmdbuf_suballoc);
 destroy_iommu:
 	etnaviv_iommu_destroy(gpu->mmu);
 fail:
@@ -1692,7 +1684,6 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 	if (gpu->initialized) {
 		etnaviv_cmdbuf_free(&gpu->buffer);
 		etnaviv_cmdbuf_suballoc_unmap(gpu->mmu, &gpu->cmdbuf_mapping);
-		etnaviv_cmdbuf_suballoc_destroy(gpu->cmdbuf_suballoc);
 		etnaviv_iommu_destroy(gpu->mmu);
 		gpu->initialized = false;
 	}
