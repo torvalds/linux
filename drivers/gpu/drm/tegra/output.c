@@ -126,8 +126,12 @@ int tegra_output_probe(struct tegra_output *output)
 						       "nvidia,hpd-gpio", 0,
 						       GPIOD_IN,
 						       "HDMI hotplug detect");
-	if (IS_ERR(output->hpd_gpio))
-		return PTR_ERR(output->hpd_gpio);
+	if (IS_ERR(output->hpd_gpio)) {
+		if (PTR_ERR(output->hpd_gpio) != -ENOENT)
+			return PTR_ERR(output->hpd_gpio);
+
+		output->hpd_gpio = NULL;
+	}
 
 	if (output->hpd_gpio) {
 		err = gpiod_to_irq(output->hpd_gpio);
