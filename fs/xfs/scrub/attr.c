@@ -20,25 +20,40 @@
 #include "scrub/dabtree.h"
 #include "scrub/attr.h"
 
+/* Allocate enough memory to hold an attr value and attr block bitmaps. */
+int
+xchk_setup_xattr_buf(
+	struct xfs_scrub	*sc,
+	size_t			value_size)
+{
+	size_t			sz;
+
+	/*
+	 * We need enough space to read an xattr value from the file or enough
+	 * space to hold three copies of the xattr free space bitmap.  We don't
+	 * need the buffer space for both purposes at the same time.
+	 */
+	sz = 3 * sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
+	sz = max_t(size_t, sz, value_size);
+
+	sc->buf = kmem_zalloc_large(sz, KM_SLEEP);
+	if (!sc->buf)
+		return -ENOMEM;
+
+	return 0;
+}
+
 /* Set us up to scrub an inode's extended attributes. */
 int
 xchk_setup_xattr(
 	struct xfs_scrub	*sc,
 	struct xfs_inode	*ip)
 {
-	size_t			sz;
+	int			error;
 
-	/*
-	 * Allocate the buffer without the inode lock held.  We need enough
-	 * space to read every xattr value in the file or enough space to
-	 * hold three copies of the xattr free space bitmap.  (Not both at
-	 * the same time.)
-	 */
-	sz = max_t(size_t, XATTR_SIZE_MAX, 3 * sizeof(long) *
-			BITS_TO_LONGS(sc->mp->m_attr_geo->blksize));
-	sc->buf = kmem_zalloc_large(sz, KM_SLEEP);
-	if (!sc->buf)
-		return -ENOMEM;
+	error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX);
+	if (error)
+		return error;
 
 	return xchk_setup_inode_contents(sc, ip, 0);
 }
