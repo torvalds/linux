@@ -758,22 +758,14 @@ static struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 	return pd;
 }
 
-static inline bool pd_has_phys_page(const struct i915_page_directory * const pd)
-{
-	return pd->base.page;
-}
-
 static void free_pd(struct i915_address_space *vm,
 		    struct i915_page_directory *pd)
 {
-	if (likely(pd_has_phys_page(pd)))
-		cleanup_page_dma(vm, &pd->base);
-
+	cleanup_page_dma(vm, &pd->base);
 	kfree(pd);
 }
 
 #define init_pd(vm, pd, to) {					\
-	GEM_DEBUG_BUG_ON(!pd_has_phys_page(pd));		\
 	fill_px((vm), (pd), gen8_pde_encode(px_dma(to), I915_CACHE_LLC)); \
 	memset_p((pd)->entry, (to), 512);				\
 }
@@ -1604,6 +1596,50 @@ static void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt)
 	ppgtt->vm.vma_ops.clear_pages = clear_pages;
 }
 
+static void init_pd_n(struct i915_address_space *vm,
+		      struct i915_page_directory *pd,
+		      struct i915_page_directory *to,
+		      const unsigned int entries)
+{
+	const u64 daddr = gen8_pde_encode(px_dma(to), I915_CACHE_LLC);
+	u64 * const vaddr = kmap_atomic(pd->base.page);
+
+	memset64(vaddr, daddr, entries);
+	kunmap_atomic(vaddr);
+
+	memset_p(pd->entry, to, entries);
+}
+
+static struct i915_page_directory *
+gen8_alloc_top_pd(struct i915_address_space *vm)
+{
+	struct i915_page_directory *pd;
+
+	if (i915_vm_is_4lvl(vm)) {
+		pd = alloc_pd(vm);
+		if (!IS_ERR(pd))
+			init_pd(vm, pd, vm->scratch_pdp);
+
+		return pd;
+	}
+
+	/* 3lvl */
+	pd = __alloc_pd();
+	if (!pd)
+		return ERR_PTR(-ENOMEM);
+
+	pd->entry[GEN8_3LVL_PDPES] = NULL;
+
+	if (unlikely(setup_page_dma(vm, &pd->base))) {
+		kfree(pd);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	init_pd_n(vm, pd, vm->scratch_pd, GEN8_3LVL_PDPES);
+
+	return pd;
+}
+
 /*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
  * with a net effect resembling a 2-level page table in normal x86 terms. Each
@@ -1640,34 +1676,21 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	if (err)
 		goto err_free;
 
-	ppgtt->pd = __alloc_pd();
-	if (!ppgtt->pd) {
-		err = -ENOMEM;
+	ppgtt->pd = gen8_alloc_top_pd(&ppgtt->vm);
+	if (IS_ERR(ppgtt->pd)) {
+		err = PTR_ERR(ppgtt->pd);
 		goto err_free_scratch;
 	}
 
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
-		err = setup_page_dma(&ppgtt->vm, &ppgtt->pd->base);
-		if (err)
-			goto err_free_pdp;
-
-		init_pd(&ppgtt->vm, ppgtt->pd, ppgtt->vm.scratch_pdp);
-
 		ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc_4lvl;
 		ppgtt->vm.insert_entries = gen8_ppgtt_insert_4lvl;
 		ppgtt->vm.clear_range = gen8_ppgtt_clear_4lvl;
 	} else {
-		/*
-		 * We don't need to setup dma for top level pdp, only
-		 * for entries. So point entries to scratch.
-		 */
-		memset_p(ppgtt->pd->entry, ppgtt->vm.scratch_pd,
-			 GEN8_3LVL_PDPES);
-
 		if (intel_vgpu_active(i915)) {
 			err = gen8_preallocate_top_level_pdp(ppgtt);
 			if (err)
-				goto err_free_pdp;
+				goto err_free_pd;
 		}
 
 		ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc_3lvl;
@@ -1682,7 +1705,7 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 
 	return ppgtt;
 
-err_free_pdp:
+err_free_pd:
 	free_pd(&ppgtt->vm, ppgtt->pd);
 err_free_scratch:
 	gen8_free_scratch(&ppgtt->vm);
