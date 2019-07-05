@@ -181,7 +181,6 @@ struct vop_plane_state {
 	bool r2y_en;
 	int color_space;
 	unsigned int csc_mode;
-	bool enable;
 	int global_alpha;
 	int blend_mode;
 	unsigned long offset;
@@ -1394,7 +1393,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 
 	crtc = crtc ? crtc : plane->state->crtc;
 	if (!crtc || !fb)
-		goto out_disable;
+		return 0;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
 	if (WARN_ON(!crtc_state))
@@ -1416,7 +1415,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		return ret;
 
 	if (!state->visible)
-		goto out_disable;
+		return 0;
 
 	vop_plane_state->format = vop_convert_format(fb->format->format);
 	if (vop_plane_state->format < 0)
@@ -1474,16 +1473,11 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	return 0;
-
-out_disable:
-	vop_plane_state->enable = false;
-	return 0;
 }
 
 static void vop_plane_atomic_disable(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct vop_plane_state *vop_plane_state = to_vop_plane_state(old_state);
 	struct vop_win *win = to_vop_win(plane);
 	struct vop *vop = to_vop(old_state->crtc);
 
@@ -1504,8 +1498,6 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 		VOP_WIN_SET(vop, win, yrgb_mst, 0);
 
 	spin_unlock(&vop->reg_lock);
-
-	vop_plane_state->enable = false;
 }
 
 static void vop_plane_atomic_update(struct drm_plane *plane,
@@ -1813,7 +1805,7 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 {
 	struct rockchip_drm_private *private = plane->dev->dev_private;
 	struct vop_win *win = to_vop_win(plane);
-	struct vop_plane_state *plane_state = &win->state;
+	struct vop_plane_state *plane_state = to_vop_plane_state(state);
 
 	if (property == win->vop->plane_zpos_prop) {
 		plane_state->zpos = val;
@@ -1856,8 +1848,8 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 					 struct drm_property *property,
 					 uint64_t *val)
 {
+	struct vop_plane_state *plane_state = to_vop_plane_state(state);
 	struct vop_win *win = to_vop_win(plane);
-	struct vop_plane_state *plane_state = &win->state;
 	struct rockchip_drm_private *private = plane->dev->dev_private;
 
 	if (property == win->vop->plane_zpos_prop) {
@@ -2918,7 +2910,6 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 
 		plane = &win->base;
 		pstate = state->planes[drm_plane_index(plane)].state;
-		//pstate = state->plane_states[drm_plane_index(plane)];
 		/*
 		 * plane might not have changed, in which case take
 		 * current state:
@@ -2927,7 +2918,7 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 			pstate = plane->state;
 		plane_state = to_vop_plane_state(pstate);
 
-		if (!plane_state->enable)
+		if (!pstate->visible)
 			pzpos[cnt].zpos = INT_MAX;
 		else
 			pzpos[cnt].zpos = plane_state->zpos;
@@ -3165,7 +3156,7 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 
 	VOP_CTRL_SET(vop, afbdc_en, s->afbdc_en);
 
-	VOP_CTRL_SET(vop, dsp_layer_sel, /*s->dsp_layer_sel*/0x24);
+	VOP_CTRL_SET(vop, dsp_layer_sel, s->dsp_layer_sel);
 
 	s->left_margin = 100;
 	s->right_margin = 100;
