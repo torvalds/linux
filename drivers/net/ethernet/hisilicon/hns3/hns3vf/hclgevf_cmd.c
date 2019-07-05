@@ -177,6 +177,38 @@ void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
 		desc->flag &= cpu_to_le16(~HCLGEVF_CMD_FLAG_WR);
 }
 
+static int hclgevf_cmd_convert_err_code(u16 desc_ret)
+{
+	switch (desc_ret) {
+	case HCLGEVF_CMD_EXEC_SUCCESS:
+		return 0;
+	case HCLGEVF_CMD_NO_AUTH:
+		return -EPERM;
+	case HCLGEVF_CMD_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	case HCLGEVF_CMD_QUEUE_FULL:
+		return -EXFULL;
+	case HCLGEVF_CMD_NEXT_ERR:
+		return -ENOSR;
+	case HCLGEVF_CMD_UNEXE_ERR:
+		return -ENOTBLK;
+	case HCLGEVF_CMD_PARA_ERR:
+		return -EINVAL;
+	case HCLGEVF_CMD_RESULT_ERR:
+		return -ERANGE;
+	case HCLGEVF_CMD_TIMEOUT:
+		return -ETIME;
+	case HCLGEVF_CMD_HILINK_ERR:
+		return -ENOLINK;
+	case HCLGEVF_CMD_QUEUE_ILLEGAL:
+		return -ENXIO;
+	case HCLGEVF_CMD_INVALID:
+		return -EBADR;
+	default:
+		return -EIO;
+	}
+}
+
 /* hclgevf_cmd_send - send command to command queue
  * @hw: pointer to the hw struct
  * @desc: prefilled descriptor for describing the command
@@ -259,11 +291,7 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 			else
 				retval = le16_to_cpu(desc[0].retval);
 
-			if ((enum hclgevf_cmd_return_status)retval ==
-			    HCLGEVF_CMD_EXEC_SUCCESS)
-				status = 0;
-			else
-				status = -EIO;
+			status = hclgevf_cmd_convert_err_code(retval);
 			hw->cmq.last_status = (enum hclgevf_cmd_status)retval;
 			ntc++;
 			handle++;

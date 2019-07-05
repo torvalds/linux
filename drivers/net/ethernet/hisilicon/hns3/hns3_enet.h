@@ -610,7 +610,7 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 
 #define hnae3_buf_size(_ring) ((_ring)->buf_size)
 #define hnae3_page_order(_ring) (get_order(hnae3_buf_size(_ring)))
-#define hnae3_page_size(_ring) (PAGE_SIZE << hnae3_page_order(_ring))
+#define hnae3_page_size(_ring) (PAGE_SIZE << (u32)hnae3_page_order(_ring))
 
 /* iterator for handling rings in ring group */
 #define hns3_for_each_ring(pos, head) \

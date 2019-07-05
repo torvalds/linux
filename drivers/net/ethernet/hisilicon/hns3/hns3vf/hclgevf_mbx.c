@@ -102,7 +102,8 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 					  ~HCLGE_MBX_NEED_RESP_BIT;
 	req->msg[0] = code;
 	req->msg[1] = subcode;
-	memcpy(&req->msg[2], msg_data, msg_len);
+	if (msg_data)
+		memcpy(&req->msg[2], msg_data, msg_len);
 
 	/* synchronous send */
 	if (need_resp) {

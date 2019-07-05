@@ -1360,8 +1360,9 @@ static int hclge_map_tqps_to_func(struct hclge_dev *hdev, u16 func_id,
 	req = (struct hclge_tqp_map_cmd *)desc.data;
 	req->tqp_id = cpu_to_le16(tqp_pid);
 	req->tqp_vf = func_id;
-	req->tqp_flag = !is_pf << HCLGE_TQP_MAP_TYPE_B |
-			1 << HCLGE_TQP_MAP_EN_B;
+	req->tqp_flag = 1U << HCLGE_TQP_MAP_EN_B;
+	if (!is_pf)
+		req->tqp_flag |= 1U << HCLGE_TQP_MAP_TYPE_B;
 	req->tqp_vid = cpu_to_le16(tqp_vid);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -2320,7 +2321,8 @@ static int hclge_set_autoneg_en(struct hclge_dev *hdev, bool enable)
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_AN_MODE, false);
 
 	req = (struct hclge_config_auto_neg_cmd *)desc.data;
-	hnae3_set_bit(flag, HCLGE_MAC_CFG_AN_EN_B, !!enable);
+	if (enable)
+		hnae3_set_bit(flag, HCLGE_MAC_CFG_AN_EN_B, 1U);
 	req->cfg_an_cmd_flag = cpu_to_le32(flag);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -2663,6 +2665,7 @@ static int hclge_get_sfp_info(struct hclge_dev *hdev, struct hclge_mac *mac)
 		mac->speed_ability = le32_to_cpu(resp->speed_ability);
 		mac->autoneg = resp->autoneg;
 		mac->support_autoneg = resp->autoneg_ability;
+		mac->speed_type = QUERY_ACTIVE_SPEED;
 		if (!resp->active_fec)
 			mac->fec_mode = 0;
 		else
@@ -4091,11 +4094,11 @@ int hclge_rss_init_hw(struct hclge_dev *hdev)
 	struct hclge_vport *vport = hdev->vport;
 	u8 *rss_indir = vport[0].rss_indirection_tbl;
 	u16 rss_size = vport[0].alloc_rss_size;
+	u16 tc_offset[HCLGE_MAX_TC_NUM] = {0};
+	u16 tc_size[HCLGE_MAX_TC_NUM] = {0};
 	u8 *key = vport[0].rss_hash_key;
 	u8 hfunc = vport[0].rss_algo;
-	u16 tc_offset[HCLGE_MAX_TC_NUM];
 	u16 tc_valid[HCLGE_MAX_TC_NUM];
-	u16 tc_size[HCLGE_MAX_TC_NUM];
 	u16 roundup_size;
 	unsigned int i;
 	int ret;
@@ -5934,20 +5937,20 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, false);
-	hnae3_set_bit(loop_en, HCLGE_MAC_TX_EN_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_RX_EN_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_PAD_TX_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_PAD_RX_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_1588_TX_B, 0);
-	hnae3_set_bit(loop_en, HCLGE_MAC_1588_RX_B, 0);
-	hnae3_set_bit(loop_en, HCLGE_MAC_APP_LP_B, 0);
-	hnae3_set_bit(loop_en, HCLGE_MAC_LINE_LP_B, 0);
-	hnae3_set_bit(loop_en, HCLGE_MAC_FCS_TX_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_RX_FCS_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_RX_FCS_STRIP_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_RX_OVERSIZE_TRUNCATE_B, enable);
-	hnae3_set_bit(loop_en, HCLGE_MAC_TX_UNDER_MIN_ERR_B, enable);
+
+	if (enable) {
+		hnae3_set_bit(loop_en, HCLGE_MAC_TX_EN_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_RX_EN_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_PAD_TX_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_PAD_RX_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_FCS_TX_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_RX_FCS_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_RX_FCS_STRIP_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_RX_OVERSIZE_TRUNCATE_B, 1U);
+		hnae3_set_bit(loop_en, HCLGE_MAC_TX_UNDER_MIN_ERR_B, 1U);
+	}
+
 	req->txrx_pad_fcs_loop_en = cpu_to_le32(loop_en);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -6309,8 +6312,8 @@ static int hclge_update_desc_vfid(struct hclge_desc *desc, int vfid, bool clr)
 {
 #define HCLGE_VF_NUM_IN_FIRST_DESC 192
 
-	int word_num;
-	int bit_num;
+	unsigned int word_num;
+	unsigned int bit_num;
 
 	if (vfid > 255 || vfid < 0)
 		return -EIO;
@@ -7971,7 +7974,8 @@ static int hclge_send_reset_tqp_cmd(struct hclge_dev *hdev, u16 queue_id,
 
 	req = (struct hclge_reset_tqp_queue_cmd *)desc.data;
 	req->tqp_id = cpu_to_le16(queue_id & HCLGE_RING_ID_MASK);
-	hnae3_set_bit(req->reset_req, HCLGE_TQP_RESET_B, enable);
+	if (enable)
+		hnae3_set_bit(req->reset_req, HCLGE_TQP_RESET_B, 1U);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -8179,8 +8183,9 @@ static void hclge_get_pauseparam(struct hnae3_handle *handle, u32 *auto_neg,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	struct phy_device *phydev = hdev->hw.mac.phydev;
 
-	*auto_neg = hclge_get_autoneg(handle);
+	*auto_neg = phydev ? hclge_get_autoneg(handle) : 0;
 
 	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
 		*rx_en = 0;
@@ -8211,11 +8216,13 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	u32 fc_autoneg;
 
-	fc_autoneg = hclge_get_autoneg(handle);
-	if (auto_neg != fc_autoneg) {
-		dev_info(&hdev->pdev->dev,
-			 "To change autoneg please use: ethtool -s <dev> autoneg <on|off>\n");
-		return -EOPNOTSUPP;
+	if (phydev) {
+		fc_autoneg = hclge_get_autoneg(handle);
+		if (auto_neg != fc_autoneg) {
+			dev_info(&hdev->pdev->dev,
+				 "To change autoneg please use: ethtool -s <dev> autoneg <on|off>\n");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
@@ -8226,16 +8233,13 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 
 	hclge_set_flowctrl_adv(hdev, rx_en, tx_en);
 
-	if (!fc_autoneg)
+	if (!auto_neg)
 		return hclge_cfg_pauseparam(hdev, rx_en, tx_en);
 
 	if (phydev)
 		return phy_start_aneg(phydev);
 
-	if (hdev->pdev->revision == 0x20)
-		return -EOPNOTSUPP;
-
-	return hclge_restart_autoneg(handle);
+	return -EOPNOTSUPP;
 }
 
 static void hclge_get_ksettings_an_result(struct hnae3_handle *handle,
@@ -9035,12 +9039,12 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	u16 tc_offset[HCLGE_MAX_TC_NUM] = {0};
 	struct hclge_dev *hdev = vport->back;
+	u16 tc_size[HCLGE_MAX_TC_NUM] = {0};
 	int cur_rss_size = kinfo->rss_size;
 	int cur_tqps = kinfo->num_tqps;
-	u16 tc_offset[HCLGE_MAX_TC_NUM];
 	u16 tc_valid[HCLGE_MAX_TC_NUM];
-	u16 tc_size[HCLGE_MAX_TC_NUM];
 	u16 roundup_size;
 	u32 *rss_indir;
 	unsigned int i;

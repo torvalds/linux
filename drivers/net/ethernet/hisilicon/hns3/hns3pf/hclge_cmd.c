@@ -188,12 +188,43 @@ static bool hclge_is_special_opcode(u16 opcode)
 	return false;
 }
 
+static int hclge_cmd_convert_err_code(u16 desc_ret)
+{
+	switch (desc_ret) {
+	case HCLGE_CMD_EXEC_SUCCESS:
+		return 0;
+	case HCLGE_CMD_NO_AUTH:
+		return -EPERM;
+	case HCLGE_CMD_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	case HCLGE_CMD_QUEUE_FULL:
+		return -EXFULL;
+	case HCLGE_CMD_NEXT_ERR:
+		return -ENOSR;
+	case HCLGE_CMD_UNEXE_ERR:
+		return -ENOTBLK;
+	case HCLGE_CMD_PARA_ERR:
+		return -EINVAL;
+	case HCLGE_CMD_RESULT_ERR:
+		return -ERANGE;
+	case HCLGE_CMD_TIMEOUT:
+		return -ETIME;
+	case HCLGE_CMD_HILINK_ERR:
+		return -ENOLINK;
+	case HCLGE_CMD_QUEUE_ILLEGAL:
+		return -ENXIO;
+	case HCLGE_CMD_INVALID:
+		return -EBADR;
+	default:
+		return -EIO;
+	}
+}
+
 static int hclge_cmd_check_retval(struct hclge_hw *hw, struct hclge_desc *desc,
 				  int num, int ntc)
 {
 	u16 opcode, desc_ret;
 	int handle;
-	int retval;
 
 	opcode = le16_to_cpu(desc[0].opcode);
 	for (handle = 0; handle < num; handle++) {
@@ -207,17 +238,9 @@ static int hclge_cmd_check_retval(struct hclge_hw *hw, struct hclge_desc *desc,
 	else
 		desc_ret = le16_to_cpu(desc[0].retval);
 
-	if (desc_ret == HCLGE_CMD_EXEC_SUCCESS)
-		retval = 0;
-	else if (desc_ret == HCLGE_CMD_NO_AUTH)
-		retval = -EPERM;
-	else if (desc_ret == HCLGE_CMD_NOT_SUPPORTED)
-		retval = -EOPNOTSUPP;
-	else
-		retval = -EIO;
 	hw->cmq.last_status = desc_ret;
 
-	return retval;
+	return hclge_cmd_convert_err_code(desc_ret);
 }
 
 /**
