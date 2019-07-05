@@ -256,6 +256,39 @@ static void nv_gpu_pci_config_reset(struct amdgpu_device *adev)
 }
 #endif
 
+static int nv_asic_mode1_reset(struct amdgpu_device *adev)
+{
+	u32 i;
+	int ret = 0;
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+	dev_info(adev->dev, "GPU mode1 reset\n");
+
+	/* disable BM */
+	pci_clear_master(adev->pdev);
+
+	pci_save_state(adev->pdev);
+
+	ret = psp_gpu_reset(adev);
+	if (ret)
+		dev_err(adev->dev, "GPU mode1 reset failed\n");
+
+	pci_restore_state(adev->pdev);
+
+	/* wait for asic to come out of reset */
+	for (i = 0; i < adev->usec_timeout; i++) {
+		u32 memsize = adev->nbio_funcs->get_memsize(adev);
+
+		if (memsize != 0xffffffff)
+			break;
+		udelay(1);
+	}
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+
+	return ret;
+}
 static int nv_asic_reset(struct amdgpu_device *adev)
 {
 
@@ -270,9 +303,10 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 	int ret = 0;
 	struct smu_context *smu = &adev->smu;
 
-	if (smu_baco_is_support(smu)) {
+	if (smu_baco_is_support(smu))
 		ret = smu_baco_reset(smu);
-	}
+	else
+		ret = nv_asic_mode1_reset(adev);
 
 	return ret;
 }
