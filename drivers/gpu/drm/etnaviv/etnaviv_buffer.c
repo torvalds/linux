@@ -118,7 +118,8 @@ static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu,
 	u32 *ptr = buf->vaddr + off;
 
 	dev_info(gpu->dev, "virt %p phys 0x%08x free 0x%08x\n",
-			ptr, etnaviv_cmdbuf_get_va(buf, &gpu->cmdbuf_mapping) +
+			ptr, etnaviv_cmdbuf_get_va(buf,
+			&gpu->mmu_context->cmdbuf_mapping) +
 			off, size - len * 4 - off);
 
 	print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
@@ -152,7 +153,8 @@ static u32 etnaviv_buffer_reserve(struct etnaviv_gpu *gpu,
 	if (buffer->user_size + cmd_dwords * sizeof(u64) > buffer->size)
 		buffer->user_size = 0;
 
-	return etnaviv_cmdbuf_get_va(buffer, &gpu->cmdbuf_mapping) +
+	return etnaviv_cmdbuf_get_va(buffer,
+				     &gpu->mmu_context->cmdbuf_mapping) +
 	       buffer->user_size;
 }
 
@@ -166,7 +168,8 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 	buffer->user_size = 0;
 
 	CMD_WAIT(buffer);
-	CMD_LINK(buffer, 2, etnaviv_cmdbuf_get_va(buffer, &gpu->cmdbuf_mapping)
+	CMD_LINK(buffer, 2,
+		 etnaviv_cmdbuf_get_va(buffer, &gpu->mmu_context->cmdbuf_mapping)
 		 + buffer->user_size - 4);
 
 	return buffer->user_size / 8;
@@ -293,7 +296,8 @@ void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event)
 
 	/* Append waitlink */
 	CMD_WAIT(buffer);
-	CMD_LINK(buffer, 2, etnaviv_cmdbuf_get_va(buffer, &gpu->cmdbuf_mapping)
+	CMD_LINK(buffer, 2,
+		 etnaviv_cmdbuf_get_va(buffer, &gpu->mmu_context->cmdbuf_mapping)
 		 + buffer->user_size - 4);
 
 	/*
@@ -308,26 +312,29 @@ void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event)
 
 /* Append a command buffer to the ring buffer. */
 void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
-	unsigned int event, struct etnaviv_cmdbuf *cmdbuf)
+	struct etnaviv_iommu_context *mmu_context, unsigned int event,
+	struct etnaviv_cmdbuf *cmdbuf)
 {
 	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 return_target, return_dwords;
 	u32 link_target, link_dwords;
 	bool switch_context = gpu->exec_state != exec_state;
+	bool switch_mmu_context = gpu->mmu_context != mmu_context;
 	unsigned int new_flush_seq = READ_ONCE(gpu->mmu_context->flush_seq);
-	bool need_flush = gpu->flush_seq != new_flush_seq;
+	bool need_flush = switch_mmu_context || gpu->flush_seq != new_flush_seq;
 
 	lockdep_assert_held(&gpu->lock);
 
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
 
-	link_target = etnaviv_cmdbuf_get_va(cmdbuf, &gpu->cmdbuf_mapping);
+	link_target = etnaviv_cmdbuf_get_va(cmdbuf,
+					    &gpu->mmu_context->cmdbuf_mapping);
 	link_dwords = cmdbuf->size / 8;
 
 	/*
-	 * If we need maintanence prior to submitting this buffer, we will
+	 * If we need maintenance prior to submitting this buffer, we will
 	 * need to append a mmu flush load state, followed by a new
 	 * link to this buffer - a total of four additional words.
 	 */
@@ -349,7 +356,24 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 		if (switch_context)
 			extra_dwords += 4;
 
+		/* PTA load command */
+		if (switch_mmu_context && gpu->sec_mode == ETNA_SEC_KERNEL)
+			extra_dwords += 1;
+
 		target = etnaviv_buffer_reserve(gpu, buffer, extra_dwords);
+		/*
+		 * Switch MMU context if necessary. Must be done after the
+		 * link target has been calculated, as the jump forward in the
+		 * kernel ring still uses the last active MMU context before
+		 * the switch.
+		 */
+		if (switch_mmu_context) {
+			struct etnaviv_iommu_context *old_context = gpu->mmu_context;
+
+			etnaviv_iommu_context_get(mmu_context);
+			gpu->mmu_context = mmu_context;
+			etnaviv_iommu_context_put(old_context);
+		}
 
 		if (need_flush) {
 			/* Add the MMU flush */
@@ -361,10 +385,23 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 					       VIVS_GL_FLUSH_MMU_FLUSH_PEMMU |
 					       VIVS_GL_FLUSH_MMU_FLUSH_UNK4);
 			} else {
+				u32 flush = VIVS_MMUv2_CONFIGURATION_MODE_MASK |
+					    VIVS_MMUv2_CONFIGURATION_FLUSH_FLUSH;
+
+				if (switch_mmu_context &&
+				    gpu->sec_mode == ETNA_SEC_KERNEL) {
+					unsigned short id =
+						etnaviv_iommuv2_get_pta_id(gpu->mmu_context);
+					CMD_LOAD_STATE(buffer,
+						VIVS_MMUv2_PTA_CONFIG,
+						VIVS_MMUv2_PTA_CONFIG_INDEX(id));
+				}
+
+				if (gpu->sec_mode == ETNA_SEC_NONE)
+					flush |= etnaviv_iommuv2_get_mtlb_addr(gpu->mmu_context);
+
 				CMD_LOAD_STATE(buffer, VIVS_MMUv2_CONFIGURATION,
-					VIVS_MMUv2_CONFIGURATION_MODE_MASK |
-					VIVS_MMUv2_CONFIGURATION_ADDRESS_MASK |
-					VIVS_MMUv2_CONFIGURATION_FLUSH_FLUSH);
+					       flush);
 				CMD_SEM(buffer, SYNC_RECIPIENT_FE,
 					SYNC_RECIPIENT_PE);
 				CMD_STALL(buffer, SYNC_RECIPIENT_FE,
@@ -380,6 +417,8 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 		}
 
 		/* And the link to the submitted buffer */
+		link_target = etnaviv_cmdbuf_get_va(cmdbuf,
+					&gpu->mmu_context->cmdbuf_mapping);
 		CMD_LINK(buffer, link_dwords, link_target);
 
 		/* Update the link target to point to above instructions */
@@ -416,13 +455,14 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 	CMD_LOAD_STATE(buffer, VIVS_GL_EVENT, VIVS_GL_EVENT_EVENT_ID(event) |
 		       VIVS_GL_EVENT_FROM_PE);
 	CMD_WAIT(buffer);
-	CMD_LINK(buffer, 2, etnaviv_cmdbuf_get_va(buffer, &gpu->cmdbuf_mapping)
+	CMD_LINK(buffer, 2,
+		 etnaviv_cmdbuf_get_va(buffer, &gpu->mmu_context->cmdbuf_mapping)
 		 + buffer->user_size - 4);
 
 	if (drm_debug & DRM_UT_DRIVER)
 		pr_info("stream link to 0x%08x @ 0x%08x %p\n",
 			return_target,
-			etnaviv_cmdbuf_get_va(cmdbuf, &gpu->cmdbuf_mapping),
+			etnaviv_cmdbuf_get_va(cmdbuf, &gpu->mmu_context->cmdbuf_mapping),
 			cmdbuf->vaddr);
 
 	if (drm_debug & DRM_UT_DRIVER) {

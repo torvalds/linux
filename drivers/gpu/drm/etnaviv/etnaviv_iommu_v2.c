@@ -206,7 +206,7 @@ static void etnaviv_iommuv2_restore_sec(struct etnaviv_gpu *gpu,
 		  VIVS_MMUv2_SAFE_ADDRESS_CONFIG_SEC_SAFE_ADDR_HIGH(
 		  upper_32_bits(context->global->bad_page_dma)));
 
-	context->global->v2.pta_cpu[0] = v2_context->mtlb_dma |
+	context->global->v2.pta_cpu[v2_context->id] = v2_context->mtlb_dma |
 				 	 VIVS_MMUv2_CONFIGURATION_MODE_MODE4_K;
 
 	/* trigger a PTA load through the FE */
@@ -218,6 +218,19 @@ static void etnaviv_iommuv2_restore_sec(struct etnaviv_gpu *gpu,
 	gpu_write(gpu, VIVS_MMUv2_SEC_CONTROL, VIVS_MMUv2_SEC_CONTROL_ENABLE);
 }
 
+u32 etnaviv_iommuv2_get_mtlb_addr(struct etnaviv_iommu_context *context)
+{
+	struct etnaviv_iommuv2_context *v2_context = to_v2_context(context);
+
+	return v2_context->mtlb_dma;
+}
+
+unsigned short etnaviv_iommuv2_get_pta_id(struct etnaviv_iommu_context *context)
+{
+	struct etnaviv_iommuv2_context *v2_context = to_v2_context(context);
+
+	return v2_context->id;
+}
 static void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu,
 				    struct etnaviv_iommu_context *context)
 {
@@ -271,6 +284,8 @@ etnaviv_iommuv2_context_alloc(struct etnaviv_iommu_global *global)
 
 	memset32(v2_context->mtlb_cpu, MMUv2_PTE_EXCEPTION,
 		 MMUv2_MAX_STLB_ENTRIES);
+
+	global->v2.pta_cpu[v2_context->id] = v2_context->mtlb_dma;
 
 	context = &v2_context->base;
 	context->global = global;

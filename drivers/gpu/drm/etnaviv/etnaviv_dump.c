@@ -173,12 +173,12 @@ void etnaviv_core_dump(struct etnaviv_gem_submit *submit)
 	etnaviv_core_dump_mem(&iter, ETDUMP_BUF_RING, gpu->buffer.vaddr,
 			      gpu->buffer.size,
 			      etnaviv_cmdbuf_get_va(&gpu->buffer,
-						    &gpu->cmdbuf_mapping));
+					&gpu->mmu_context->cmdbuf_mapping));
 
 	etnaviv_core_dump_mem(&iter, ETDUMP_BUF_CMD,
 			      submit->cmdbuf.vaddr, submit->cmdbuf.size,
 			      etnaviv_cmdbuf_get_va(&submit->cmdbuf,
-						    &gpu->cmdbuf_mapping));
+					&gpu->mmu_context->cmdbuf_mapping));
 
 	/* Reserve space for the bomap */
 	if (n_bomap_pages) {

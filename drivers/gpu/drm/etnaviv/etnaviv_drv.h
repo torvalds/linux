@@ -25,10 +25,7 @@ struct etnaviv_gem_submit;
 struct etnaviv_iommu_global;
 
 struct etnaviv_file_private {
-	/*
-	 * When per-context address spaces are supported we'd keep track of
-	 * the context's page-tables here.
-	 */
+	struct etnaviv_iommu_context	*mmu;
 	struct drm_sched_entity		sched_entity[ETNA_MAX_PIPES];
 };
 
@@ -75,6 +72,7 @@ u16 etnaviv_buffer_config_pta(struct etnaviv_gpu *gpu, unsigned short id);
 void etnaviv_buffer_end(struct etnaviv_gpu *gpu);
 void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event);
 void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
+	struct etnaviv_iommu_context *mmu,
 	unsigned int event, struct etnaviv_cmdbuf *cmdbuf);
 void etnaviv_validate_init(void);
 bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu,

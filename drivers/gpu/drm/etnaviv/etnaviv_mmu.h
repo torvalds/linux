@@ -47,6 +47,8 @@ struct etnaviv_iommu_global {
 	void *bad_page_cpu;
 	dma_addr_t bad_page_dma;
 
+	u32 memory_base;
+
 	/*
 	 * This union holds members needed by either MMUv1 or MMUv2, which
 	 * can not exist at the same time.
@@ -74,6 +76,9 @@ struct etnaviv_iommu_context {
 	struct list_head mappings;
 	struct drm_mm mm;
 	unsigned int flush_seq;
+
+	/* Not part of the context, but needs to have the same lifetime */
+	struct etnaviv_vram_mapping cmdbuf_mapping;
 };
 
 int etnaviv_iommu_global_init(struct etnaviv_gpu *gpu);
@@ -98,7 +103,8 @@ size_t etnaviv_iommu_dump_size(struct etnaviv_iommu_context *ctx);
 void etnaviv_iommu_dump(struct etnaviv_iommu_context *ctx, void *buf);
 
 struct etnaviv_iommu_context *
-etnaviv_iommu_context_init(struct etnaviv_iommu_global *global);
+etnaviv_iommu_context_init(struct etnaviv_iommu_global *global,
+			   struct etnaviv_cmdbuf_suballoc *suballoc);
 static inline void etnaviv_iommu_context_get(struct etnaviv_iommu_context *ctx)
 {
 	kref_get(&ctx->refcount);
@@ -111,5 +117,8 @@ struct etnaviv_iommu_context *
 etnaviv_iommuv1_context_alloc(struct etnaviv_iommu_global *global);
 struct etnaviv_iommu_context *
 etnaviv_iommuv2_context_alloc(struct etnaviv_iommu_global *global);
+
+u32 etnaviv_iommuv2_get_mtlb_addr(struct etnaviv_iommu_context *context);
+unsigned short etnaviv_iommuv2_get_pta_id(struct etnaviv_iommu_context *context);
 
 #endif /* __ETNAVIV_MMU_H__ */

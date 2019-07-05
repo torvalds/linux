@@ -103,12 +103,8 @@ struct etnaviv_gpu {
 	bool initialized;
 
 	/* 'ring'-buffer: */
-	struct etnaviv_vram_mapping cmdbuf_mapping;
 	struct etnaviv_cmdbuf buffer;
 	int exec_state;
-
-	/* bus base address of memory  */
-	u32 memory_base;
 
 	/* event management: */
 	DECLARE_BITMAP(event_bitmap, ETNA_NR_EVENTS);
