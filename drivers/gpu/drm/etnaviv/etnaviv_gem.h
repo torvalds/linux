@@ -25,7 +25,7 @@ struct etnaviv_vram_mapping {
 	struct list_head scan_node;
 	struct list_head mmu_node;
 	struct etnaviv_gem_object *object;
-	struct etnaviv_iommu *mmu;
+	struct etnaviv_iommu_context *context;
 	struct drm_mm_node vram_node;
 	unsigned int use;
 	u32 iova;

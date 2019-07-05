@@ -681,7 +681,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	etnaviv_gpu_setup_pulse_eater(gpu);
 
 	/* setup the MMU */
-	etnaviv_iommu_restore(gpu);
+	etnaviv_iommu_restore(gpu, gpu->mmu_context);
 
 	/* Start command processor */
 	prefetch = etnaviv_buffer_init(gpu);
@@ -754,14 +754,19 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
-	gpu->mmu = etnaviv_iommu_new(gpu);
-	if (IS_ERR(gpu->mmu)) {
-		dev_err(gpu->dev, "Failed to instantiate GPU IOMMU\n");
-		ret = PTR_ERR(gpu->mmu);
+	ret = etnaviv_iommu_global_init(gpu);
+	if (ret)
 		goto fail;
+
+	gpu->mmu_context = etnaviv_iommu_context_init(priv->mmu_global);
+	if (IS_ERR(gpu->mmu_context)) {
+		dev_err(gpu->dev, "Failed to instantiate GPU IOMMU\n");
+		ret = PTR_ERR(gpu->mmu_context);
+		goto iommu_global_fini;
 	}
 
-	ret = etnaviv_cmdbuf_suballoc_map(priv->cmdbuf_suballoc, gpu->mmu,
+	ret = etnaviv_cmdbuf_suballoc_map(priv->cmdbuf_suballoc,
+					  gpu->mmu_context,
 					  &gpu->cmdbuf_mapping,
 					  gpu->memory_base);
 	if (ret) {
@@ -777,7 +782,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto unmap_suballoc;
 	}
 
-	if (gpu->mmu->version == ETNAVIV_IOMMU_V1 &&
+	if (!(gpu->identity.minor_features1 & chipMinorFeatures1_MMU_VERSION) &&
 	    etnaviv_cmdbuf_get_va(&gpu->buffer, &gpu->cmdbuf_mapping) > 0x80000000) {
 		ret = -EINVAL;
 		dev_err(gpu->dev,
@@ -808,9 +813,11 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 free_buffer:
 	etnaviv_cmdbuf_free(&gpu->buffer);
 unmap_suballoc:
-	etnaviv_cmdbuf_suballoc_unmap(gpu->mmu, &gpu->cmdbuf_mapping);
+	etnaviv_cmdbuf_suballoc_unmap(gpu->mmu_context, &gpu->cmdbuf_mapping);
 destroy_iommu:
-	etnaviv_iommu_destroy(gpu->mmu);
+	etnaviv_iommu_context_put(gpu->mmu_context);
+iommu_global_fini:
+	etnaviv_iommu_global_fini(gpu);
 fail:
 	pm_runtime_mark_last_busy(gpu->dev);
 	pm_runtime_put_autosuspend(gpu->dev);
@@ -1683,8 +1690,10 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 
 	if (gpu->initialized) {
 		etnaviv_cmdbuf_free(&gpu->buffer);
-		etnaviv_cmdbuf_suballoc_unmap(gpu->mmu, &gpu->cmdbuf_mapping);
-		etnaviv_iommu_destroy(gpu->mmu);
+		etnaviv_cmdbuf_suballoc_unmap(gpu->mmu_context,
+					      &gpu->cmdbuf_mapping);
+		etnaviv_iommu_context_put(gpu->mmu_context);
+		etnaviv_iommu_global_fini(gpu);
 		gpu->initialized = false;
 	}
 

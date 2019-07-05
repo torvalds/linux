@@ -207,7 +207,7 @@ u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe
 	return buffer->user_size / 8;
 }
 
-u16 etnaviv_buffer_config_pta(struct etnaviv_gpu *gpu)
+u16 etnaviv_buffer_config_pta(struct etnaviv_gpu *gpu, unsigned short id)
 {
 	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
 
@@ -216,7 +216,7 @@ u16 etnaviv_buffer_config_pta(struct etnaviv_gpu *gpu)
 	buffer->user_size = 0;
 
 	CMD_LOAD_STATE(buffer, VIVS_MMUv2_PTA_CONFIG,
-		       VIVS_MMUv2_PTA_CONFIG_INDEX(0));
+		       VIVS_MMUv2_PTA_CONFIG_INDEX(id));
 
 	CMD_END(buffer);
 
@@ -315,7 +315,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 	u32 return_target, return_dwords;
 	u32 link_target, link_dwords;
 	bool switch_context = gpu->exec_state != exec_state;
-	unsigned int new_flush_seq = READ_ONCE(gpu->mmu->flush_seq);
+	unsigned int new_flush_seq = READ_ONCE(gpu->mmu_context->flush_seq);
 	bool need_flush = gpu->flush_seq != new_flush_seq;
 
 	lockdep_assert_held(&gpu->lock);
@@ -339,7 +339,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 
 		/* flush command */
 		if (need_flush) {
-			if (gpu->mmu->version == ETNAVIV_IOMMU_V1)
+			if (gpu->mmu_context->global->version == ETNAVIV_IOMMU_V1)
 				extra_dwords += 1;
 			else
 				extra_dwords += 3;
@@ -353,7 +353,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 
 		if (need_flush) {
 			/* Add the MMU flush */
-			if (gpu->mmu->version == ETNAVIV_IOMMU_V1) {
+			if (gpu->mmu_context->global->version == ETNAVIV_IOMMU_V1) {
 				CMD_LOAD_STATE(buffer, VIVS_GL_FLUSH_MMU,
 					       VIVS_GL_FLUSH_MMU_FLUSH_FEMMU |
 					       VIVS_GL_FLUSH_MMU_FLUSH_UNK1 |

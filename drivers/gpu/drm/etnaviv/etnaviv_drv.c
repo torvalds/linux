@@ -119,9 +119,9 @@ static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 	seq_printf(m, "Active Objects (%s):\n", dev_name(gpu->dev));
 
-	mutex_lock(&gpu->mmu->lock);
-	drm_mm_print(&gpu->mmu->mm, &p);
-	mutex_unlock(&gpu->mmu->lock);
+	mutex_lock(&gpu->mmu_context->lock);
+	drm_mm_print(&gpu->mmu_context->mm, &p);
+	mutex_unlock(&gpu->mmu_context->lock);
 
 	return 0;
 }

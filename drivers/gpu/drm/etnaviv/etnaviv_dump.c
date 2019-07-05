@@ -93,7 +93,7 @@ static void etnaviv_core_dump_registers(struct core_dump_iterator *iter,
 }
 
 static void etnaviv_core_dump_mmu(struct core_dump_iterator *iter,
-	struct etnaviv_iommu *mmu, size_t mmu_size)
+	struct etnaviv_iommu_context *mmu, size_t mmu_size)
 {
 	etnaviv_iommu_dump(mmu, iter->data);
 
@@ -125,9 +125,9 @@ void etnaviv_core_dump(struct etnaviv_gem_submit *submit)
 		return;
 	etnaviv_dump_core = false;
 
-	mutex_lock(&gpu->mmu->lock);
+	mutex_lock(&gpu->mmu_context->lock);
 
-	mmu_size = etnaviv_iommu_dump_size(gpu->mmu);
+	mmu_size = etnaviv_iommu_dump_size(gpu->mmu_context);
 
 	/* We always dump registers, mmu, ring, hanging cmdbuf and end marker */
 	n_obj = 5;
@@ -157,7 +157,7 @@ void etnaviv_core_dump(struct etnaviv_gem_submit *submit)
 	iter.start = __vmalloc(file_size, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY,
 			       PAGE_KERNEL);
 	if (!iter.start) {
-		mutex_unlock(&gpu->mmu->lock);
+		mutex_unlock(&gpu->mmu_context->lock);
 		dev_warn(gpu->dev, "failed to allocate devcoredump file\n");
 		return;
 	}
@@ -169,7 +169,7 @@ void etnaviv_core_dump(struct etnaviv_gem_submit *submit)
 	memset(iter.hdr, 0, iter.data - iter.start);
 
 	etnaviv_core_dump_registers(&iter, gpu);
-	etnaviv_core_dump_mmu(&iter, gpu->mmu, mmu_size);
+	etnaviv_core_dump_mmu(&iter, gpu->mmu_context, mmu_size);
 	etnaviv_core_dump_mem(&iter, ETDUMP_BUF_RING, gpu->buffer.vaddr,
 			      gpu->buffer.size,
 			      etnaviv_cmdbuf_get_va(&gpu->buffer,
@@ -221,7 +221,7 @@ void etnaviv_core_dump(struct etnaviv_gem_submit *submit)
 					 obj->base.size);
 	}
 
-	mutex_unlock(&gpu->mmu->lock);
+	mutex_unlock(&gpu->mmu_context->lock);
 
 	etnaviv_core_dump_header(&iter, ETDUMP_BUF_END, iter.data);
 

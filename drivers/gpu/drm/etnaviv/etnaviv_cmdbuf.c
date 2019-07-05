@@ -60,18 +60,18 @@ free_suballoc:
 }
 
 int etnaviv_cmdbuf_suballoc_map(struct etnaviv_cmdbuf_suballoc *suballoc,
-				struct etnaviv_iommu *mmu,
+				struct etnaviv_iommu_context *context,
 				struct etnaviv_vram_mapping *mapping,
 				u32 memory_base)
 {
-	return etnaviv_iommu_get_suballoc_va(mmu, mapping, memory_base,
+	return etnaviv_iommu_get_suballoc_va(context, mapping, memory_base,
 					     suballoc->paddr, SUBALLOC_SIZE);
 }
 
-void etnaviv_cmdbuf_suballoc_unmap(struct etnaviv_iommu *mmu,
+void etnaviv_cmdbuf_suballoc_unmap(struct etnaviv_iommu_context *context,
 				   struct etnaviv_vram_mapping *mapping)
 {
-	etnaviv_iommu_put_suballoc_va(mmu, mapping);
+	etnaviv_iommu_put_suballoc_va(context, mapping);
 }
 
 void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc)
