@@ -758,19 +758,18 @@ void assert_forcewakes_active(struct intel_uncore *uncore,
 	 * Check that the caller has an explicit wakeref and we don't mistake
 	 * it for the auto wakeref.
 	 */
-	local_irq_disable();
 	for_each_fw_domain_masked(domain, fw_domains, uncore, tmp) {
+		unsigned int actual = READ_ONCE(domain->wake_count);
 		unsigned int expect = 1;
 
 		if (hrtimer_active(&domain->timer) && READ_ONCE(domain->active))
 			expect++; /* pending automatic release */
 
-		if (WARN(domain->wake_count < expect,
+		if (WARN(actual < expect,
 			 "Expected domain %d to be held awake by caller, count=%d\n",
-			 domain->id, domain->wake_count))
+			 domain->id, actual))
 			break;
 	}
-	local_irq_enable();
 }
 
 /* We give fast paths for the really cool registers */
