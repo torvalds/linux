@@ -724,6 +724,11 @@ static int msc_win_set_lockout(struct msc_window *win,
 
 	win->lockout = new;
 
+	if (old == expect && new == WIN_LOCKED)
+		atomic_inc(&win->msc->user_count);
+	else if (old == expect && old == WIN_LOCKED)
+		atomic_dec(&win->msc->user_count);
+
 unlock:
 	spin_unlock_irqrestore(&win->lo_lock, flags);
 
