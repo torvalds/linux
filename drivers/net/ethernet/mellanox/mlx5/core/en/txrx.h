@@ -6,6 +6,20 @@
 
 #include "en.h"
 
+#define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
+#define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
+			    MLX5E_SQ_NOPS_ROOM)
+
+#ifndef CONFIG_MLX5_EN_TLS
+#define MLX5E_SQ_TLS_ROOM (0)
+#else
+/* TLS offload requires additional stop_room for:
+ *  - a resync SKB.
+ */
+#define MLX5E_SQ_TLS_ROOM  \
+	(MLX5_SEND_WQE_MAX_WQEBBS)
+#endif
+
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
 static inline bool

@@ -390,6 +390,7 @@ struct mlx5e_txqsq {
 	void __iomem              *uar_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
+	u16                        stop_room;
 	u8                         min_inline_mode;
 	struct device             *pdev;
 	__be32                     mkey_be;
