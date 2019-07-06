@@ -662,9 +662,10 @@ struct smb2_tree_disconnect_rsp {
  * [3] : durable context
  * [4] : posix context
  * [5] : time warp context
- * [6] : compound padding
+ * [6] : query id context
+ * [7] : compound padding
  */
-#define SMB2_CREATE_IOV_SIZE 7
+#define SMB2_CREATE_IOV_SIZE 8
 
 struct smb2_create_req {
 	struct smb2_sync_hdr sync_hdr;
@@ -688,10 +689,10 @@ struct smb2_create_req {
 
 /*
  * Maximum size of a SMB2_CREATE response is 64 (smb2 header) +
- * 88 (fixed part of create response) + 520 (path) + 150 (contexts) +
+ * 88 (fixed part of create response) + 520 (path) + 208 (contexts) +
  * 2 bytes of padding.
  */
-#define MAX_SMB2_CREATE_RESPONSE_SIZE 824
+#define MAX_SMB2_CREATE_RESPONSE_SIZE 880
 
 struct smb2_create_rsp {
 	struct smb2_sync_hdr sync_hdr;
@@ -818,7 +819,7 @@ struct durable_reconnect_context_v2 {
 struct on_disk_id {
 	__le64 DiskFileId;
 	__le64 VolumeId;
-	__u64  Reserved[4];
+	__u32  Reserved[4];
 } __packed;
 
 /* See MS-SMB2 2.2.14.2.12 */
@@ -839,6 +840,12 @@ struct crt_twarp_ctxt {
 	__u8	Name[8];
 	__le64	Timestamp;
 
+} __packed;
+
+/* See MS-SMB2 2.2.13.2.9 */
+struct crt_query_id_ctxt {
+	struct create_context ccontext;
+	__u8	Name[8];
 } __packed;
 
 #define COPY_CHUNK_RES_KEY_SIZE	24
