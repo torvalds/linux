@@ -228,9 +228,12 @@ ifeq ("$(origin M)", "command line")
   KBUILD_EXTMOD := $(M)
 endif
 
+export KBUILD_CHECKSRC KBUILD_EXTMOD
+
 ifeq ($(abs_srctree),$(abs_objtree))
         # building in the source tree
         srctree := .
+	building_out_of_srctree :=
 else
         ifeq ($(abs_srctree)/,$(dir $(abs_objtree)))
                 # building in a subdirectory of the source tree
@@ -238,19 +241,13 @@ else
         else
                 srctree := $(abs_srctree)
         endif
-
-	# TODO:
-	# KBUILD_SRC is only used to distinguish in-tree/out-of-tree build.
-	# Replace it with $(srctree) or something.
-	KBUILD_SRC := $(abs_srctree)
+	building_out_of_srctree := 1
 endif
-
-export KBUILD_CHECKSRC KBUILD_EXTMOD KBUILD_SRC
 
 objtree		:= .
 VPATH		:= $(srctree)
 
-export srctree objtree VPATH
+export building_out_of_srctree srctree objtree VPATH
 
 # To make sure we do not include .config for any of the *config targets
 # catch them early, and hand them over to scripts/kconfig/Makefile
@@ -453,7 +450,7 @@ USERINCLUDE    := \
 LINUXINCLUDE    := \
 		-I$(srctree)/arch/$(SRCARCH)/include \
 		-I$(objtree)/arch/$(SRCARCH)/include/generated \
-		$(if $(filter .,$(srctree)),,-I$(srctree)/include) \
+		$(if $(building_out_of_srctree),-I$(srctree)/include) \
 		-I$(objtree)/include \
 		$(USERINCLUDE)
 
@@ -514,7 +511,7 @@ PHONY += outputmakefile
 # At the same time when output Makefile generated, generate .gitignore to
 # ignore whole output directory
 outputmakefile:
-ifneq ($(srctree),.)
+ifdef building_out_of_srctree
 	$(Q)ln -fsn $(srctree) source
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkmakefile $(srctree)
 	$(Q)test -e .gitignore || \
@@ -1101,7 +1098,7 @@ PHONY += prepare archprepare prepare1 prepare3
 # and if so do:
 # 1) Check that make has not been executed in the kernel src $(srctree)
 prepare3: include/config/kernel.release
-ifneq ($(srctree),.)
+ifdef building_out_of_srctree
 	@$(kecho) '  Using $(srctree) as source for kernel'
 	$(Q)if [ -f $(srctree)/.config -o \
 		 -d $(srctree)/include/config -o \
