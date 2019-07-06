@@ -154,6 +154,7 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx_info->skb->data;
 	struct mt76x02_txwi *txwi = txwi_ptr;
+	bool ampdu = IEEE80211_SKB_CB(tx_info->skb)->flags & IEEE80211_TX_CTL_AMPDU;
 	int hdrlen, len, pid, qsel = MT_QSEL_EDCA;
 
 	if (qid == MT_TXQ_PSD && wcid && wcid->idx < 128)
@@ -164,9 +165,15 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	mt76x02_mac_write_txwi(dev, txwi, tx_info->skb, wcid, sta, len);
 
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
+
+	/* encode packet rate for no-skb packet id to fix up status reporting */
+	if (pid == MT_PACKET_ID_NO_SKB)
+		pid = MT_PACKET_ID_HAS_RATE |
+		      (le16_to_cpu(txwi->rate) & MT_RXWI_RATE_INDEX);
+
 	txwi->pktid = pid;
 
-	if (pid >= MT_PACKET_ID_FIRST)
+	if (mt76_is_skb_pktid(pid) && ampdu)
 		qsel = MT_QSEL_MGMT;
 
 	tx_info->info = FIELD_PREP(MT_TXD_INFO_QSEL, qsel) |

@@ -62,6 +62,9 @@ enum rtw_supported_band {
 	RTW_BAND_MAX,
 };
 
+/* now, support upto 80M bw */
+#define RTW_MAX_CHANNEL_WIDTH RTW_CHANNEL_WIDTH_80
+
 enum rtw_bandwidth {
 	RTW_CHANNEL_WIDTH_20	= 0,
 	RTW_CHANNEL_WIDTH_40	= 1,
@@ -286,10 +289,16 @@ enum rtw_trx_desc_rate {
 };
 
 enum rtw_regulatory_domains {
-	RTW_REGD_FCC	= 0,
-	RTW_REGD_MKK	= 1,
-	RTW_REGD_ETSI	= 2,
-	RTW_REGD_WW	= 3,
+	RTW_REGD_FCC		= 0,
+	RTW_REGD_MKK		= 1,
+	RTW_REGD_ETSI		= 2,
+	RTW_REGD_IC		= 3,
+	RTW_REGD_KCC		= 4,
+	RTW_REGD_ACMA		= 5,
+	RTW_REGD_CHILE		= 6,
+	RTW_REGD_UKRAINE	= 7,
+	RTW_REGD_MEXICO		= 8,
+	RTW_REGD_WW,
 
 	RTW_REGD_MAX
 };
@@ -413,6 +422,10 @@ struct rtw_channel_params {
 	u8 center_chan;
 	u8 bandwidth;
 	u8 primary_chan_idx;
+	/* center channel by different available bandwidth,
+	 * val of (bw > current bandwidth) is invalid
+	 */
+	u8 cch_by_bw[RTW_MAX_CHANNEL_WIDTH + 1];
 };
 
 struct rtw_hw_reg {
@@ -984,6 +997,12 @@ struct rtw_hal {
 	u8 current_channel;
 	u8 current_band_width;
 	u8 current_band_type;
+
+	/* center channel for different available bandwidth,
+	 * val of (bw > current_band_width) is invalid
+	 */
+	u8 cch_by_bw[RTW_MAX_CHANNEL_WIDTH + 1];
+
 	u8 sec_ch_offset;
 	u8 rf_type;
 	u8 rf_path_num;

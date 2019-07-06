@@ -9,6 +9,7 @@
 #include <linux/etherdevice.h>
 #include "mt7615.h"
 #include "mac.h"
+#include "eeprom.h"
 
 static void mt7615_phy_init(struct mt7615_dev *dev)
 {
@@ -62,16 +63,11 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_AGG_ARCR_RATE_DOWN_RATIO_EN |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4)));
-
-	dev->mt76.global_wcid.idx = MT7615_WTBL_RESERVED;
-	dev->mt76.global_wcid.hw_key_idx = -1;
-	rcu_assign_pointer(dev->mt76.wcid[MT7615_WTBL_RESERVED],
-			   &dev->mt76.global_wcid);
 }
 
 static int mt7615_init_hardware(struct mt7615_dev *dev)
 {
-	int ret;
+	int ret, idx;
 
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
@@ -97,6 +93,15 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	mt7615_phy_init(dev);
 	mt7615_mcu_ctrl_pm_state(dev, 0);
 	mt7615_mcu_del_wtbl_all(dev);
+
+	/* Beacon and mgmt frames should occupy wcid 0 */
+	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7615_WTBL_STA - 1);
+	if (idx)
+		return -ENOSPC;
+
+	dev->mt76.global_wcid.idx = idx;
+	dev->mt76.global_wcid.hw_key_idx = -1;
+	rcu_assign_pointer(dev->mt76.wcid[idx], &dev->mt76.global_wcid);
 
 	return 0;
 }
@@ -133,6 +138,9 @@ static const struct ieee80211_iface_limit if_limits[] = {
 	{
 		.max = MT7615_MAX_INTERFACES,
 		.types = BIT(NL80211_IFTYPE_AP) |
+#ifdef CONFIG_MAC80211_MESH
+			 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
 			 BIT(NL80211_IFTYPE_STATION)
 	}
 };
@@ -156,6 +164,48 @@ static int mt7615_init_debugfs(struct mt7615_dev *dev)
 		return -ENOMEM;
 
 	return 0;
+}
+
+static void
+mt7615_init_txpower(struct mt7615_dev *dev,
+		    struct ieee80211_supported_band *sband)
+{
+	int i, n_chains = hweight8(dev->mt76.antenna_mask), target_chains;
+	u8 *eep = (u8 *)dev->mt76.eeprom.data;
+	enum nl80211_band band = sband->band;
+
+	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
+	for (i = 0; i < sband->n_channels; i++) {
+		struct ieee80211_channel *chan = &sband->channels[i];
+		u8 target_power = 0;
+		int j;
+
+		for (j = 0; j < target_chains; j++) {
+			int index;
+
+			index = mt7615_eeprom_get_power_index(dev, chan, j);
+			target_power = max(target_power, eep[index]);
+		}
+
+		target_power = DIV_ROUND_UP(target_power, 2);
+		switch (n_chains) {
+		case 4:
+			target_power += 6;
+			break;
+		case 3:
+			target_power += 4;
+			break;
+		case 2:
+			target_power += 3;
+			break;
+		default:
+			break;
+		}
+
+		chan->max_power = min_t(int, chan->max_reg_power,
+					target_power);
+		chan->orig_mpwr = target_power;
+	}
 }
 
 int mt7615_register_device(struct mt7615_dev *dev)
@@ -195,12 +245,18 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	dev->mt76.antenna_mask = 0xf;
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+#ifdef CONFIG_MAC80211_MESH
+				 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
 				 BIT(NL80211_IFTYPE_AP);
 
 	ret = mt76_register_device(&dev->mt76, true, mt7615_rates,
 				   ARRAY_SIZE(mt7615_rates));
 	if (ret)
 		return ret;
+
+	mt7615_init_txpower(dev, &dev->mt76.sband_2g.sband);
+	mt7615_init_txpower(dev, &dev->mt76.sband_5g.sband);
 
 	hw->max_tx_fragments = MT_TXP_MAX_BUF_NUM;
 
@@ -212,6 +268,10 @@ void mt7615_unregister_device(struct mt7615_dev *dev)
 	struct mt76_txwi_cache *txwi;
 	int id;
 
+	mt76_unregister_device(&dev->mt76);
+	mt7615_mcu_exit(dev);
+	mt7615_dma_cleanup(dev);
+
 	spin_lock_bh(&dev->token_lock);
 	idr_for_each_entry(&dev->token, txwi, id) {
 		mt7615_txp_skb_unmap(&dev->mt76, txwi);
@@ -221,9 +281,6 @@ void mt7615_unregister_device(struct mt7615_dev *dev)
 	}
 	spin_unlock_bh(&dev->token_lock);
 	idr_destroy(&dev->token);
-	mt76_unregister_device(&dev->mt76);
-	mt7615_mcu_exit(dev);
-	mt7615_dma_cleanup(dev);
 
-	ieee80211_free_hw(mt76_hw(dev));
+	mt76_free_device(&dev->mt76);
 }
