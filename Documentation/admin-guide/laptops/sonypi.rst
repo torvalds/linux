@@ -53,7 +53,7 @@ module or sonypi.<param>=<value> on the kernel boot line when sonypi is
 statically linked into the kernel). Those options are:
 
 	=============== =======================================================
-	minor: 		minor number of the misc device /dev/sonypi,
+	minor:		minor number of the misc device /dev/sonypi,
 			default is -1 (automatic allocation, see /proc/misc
 			or kernel logs)
 
@@ -89,24 +89,22 @@ statically linked into the kernel). Those options are:
 			set to 0xffffffff, meaning that all possible events
 			will be tried. You can use the following bits to
 			construct your own event mask (from
-			drivers/char/sonypi.h):
+			drivers/char/sonypi.h)::
 
-				========================	======
-				SONYPI_JOGGER_MASK 		0x0001
-				SONYPI_CAPTURE_MASK 		0x0002
-				SONYPI_FNKEY_MASK 		0x0004
-				SONYPI_BLUETOOTH_MASK 		0x0008
-				SONYPI_PKEY_MASK 		0x0010
-				SONYPI_BACK_MASK 		0x0020
-				SONYPI_HELP_MASK 		0x0040
-				SONYPI_LID_MASK 		0x0080
-				SONYPI_ZOOM_MASK 		0x0100
-				SONYPI_THUMBPHRASE_MASK 	0x0200
+				SONYPI_JOGGER_MASK		0x0001
+				SONYPI_CAPTURE_MASK		0x0002
+				SONYPI_FNKEY_MASK		0x0004
+				SONYPI_BLUETOOTH_MASK		0x0008
+				SONYPI_PKEY_MASK		0x0010
+				SONYPI_BACK_MASK		0x0020
+				SONYPI_HELP_MASK		0x0040
+				SONYPI_LID_MASK			0x0080
+				SONYPI_ZOOM_MASK		0x0100
+				SONYPI_THUMBPHRASE_MASK		0x0200
 				SONYPI_MEYE_MASK		0x0400
 				SONYPI_MEMORYSTICK_MASK		0x0800
 				SONYPI_BATTERY_MASK		0x1000
 				SONYPI_WIRELESS_MASK		0x2000
-				========================	======
 
 	useinput:	if set (which is the default) two input devices are
 			created, one which interprets the jogdial events as

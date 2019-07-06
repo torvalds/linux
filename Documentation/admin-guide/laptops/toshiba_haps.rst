@@ -75,11 +75,11 @@ The sysfs files under /sys/devices/LNXSYSTM:00/LNXSYBUS:00/TOS620A:00/ are:
 protection_level   The protection_level is readable and writeable, and
 		   provides a way to let userspace query the current protection
 		   level, as well as set the desired protection level, the
-		   available protection levels are:
+		   available protection levels are::
 
-		   ============   =======   ==========   ========
-		   0 - Disabled   1 - Low   2 - Medium   3 - High
-		   ============   =======   ==========   ========
+		     ============   =======   ==========   ========
+		     0 - Disabled   1 - Low   2 - Medium   3 - High
+		     ============   =======   ==========   ========
 
 reset_protection   The reset_protection entry is writeable only, being "1"
 		   the only parameter it accepts, it is used to trigger
