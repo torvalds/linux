@@ -6,14 +6,11 @@
 #include "bpf_helpers.h"
 
 struct {
-	int type;
-	int max_entries;
-	int *key;
-	int *value;
-} results_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 4,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 4);
+	__type(key, int);
+	__type(value, int);
+} results_map SEC(".maps");
 
 SEC("kprobe/sys_nanosleep")
 int handle_sys_nanosleep_entry(struct pt_regs *ctx)
