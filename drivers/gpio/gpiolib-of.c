@@ -154,6 +154,7 @@ static void of_gpio_flags_quirks(struct device_node *np,
 							of_node_full_name(child));
 					*flags |= OF_GPIO_ACTIVE_LOW;
 				}
+				of_node_put(child);
 				break;
 			}
 		}
