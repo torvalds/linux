@@ -517,7 +517,7 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 }
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef	CONFIG_DEBUG_FS
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -547,6 +547,19 @@ static int tegra_dbg_gpio_show(struct seq_file *s, void *unused)
 }
 
 DEFINE_SHOW_ATTRIBUTE(tegra_dbg_gpio);
+
+static void tegra_gpio_debuginit(struct tegra_gpio_info *tgi)
+{
+	debugfs_create_file("tegra_gpio", 0444, NULL, tgi,
+			    &tegra_dbg_gpio_fops);
+}
+
+#else
+
+static inline void tegra_gpio_debuginit(struct tegra_gpio_info *tgi)
+{
+}
+
 #endif
 
 static const struct dev_pm_ops tegra_gpio_pm_ops = {
@@ -671,8 +684,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
-	debugfs_create_file("tegra_gpio", 0444, NULL, tgi,
-			    &tegra_dbg_gpio_fops);
+	tegra_gpio_debuginit(tgi);
 
 	return 0;
 }
