@@ -2383,11 +2383,6 @@ parse_reparse_posix(struct reparse_posix_data *symlink_buf,
 	/* See MS-FSCC 2.1.2.6 for the 'NFS' style reparse tags */
 	len = le16_to_cpu(symlink_buf->ReparseDataLength);
 
-	if (len + sizeof(struct reparse_data_buffer) > plen) {
-		cifs_dbg(VFS, "srv returned malformed symlink buffer\n");
-		return -EINVAL;
-	}
-
 	if (le64_to_cpu(symlink_buf->InodeType) != NFS_SPECFILE_LNK) {
 		cifs_dbg(VFS, "%lld not a supported symlink type\n",
 			le64_to_cpu(symlink_buf->InodeType));
@@ -2437,22 +2432,38 @@ parse_reparse_symlink(struct reparse_symlink_data_buffer *symlink_buf,
 }
 
 static int
-parse_reparse_point(struct reparse_symlink_data_buffer *buf,
-		      u32 plen, char **target_path,
-		      struct cifs_sb_info *cifs_sb)
+parse_reparse_point(struct reparse_data_buffer *buf,
+		    u32 plen, char **target_path,
+		    struct cifs_sb_info *cifs_sb)
 {
+	if (plen < sizeof(struct reparse_data_buffer)) {
+		cifs_dbg(VFS, "reparse buffer is too small. Must be "
+			 "at least 8 bytes but was %d\n", plen);
+		return -EIO;
+	}
+
+	if (plen < le16_to_cpu(buf->ReparseDataLength) +
+	    sizeof(struct reparse_data_buffer)) {
+		cifs_dbg(VFS, "srv returned invalid reparse buf "
+			 "length: %d\n", plen);
+		return -EIO;
+	}
+
 	/* See MS-FSCC 2.1.2 */
-	if (le32_to_cpu(buf->ReparseTag) == IO_REPARSE_TAG_NFS)
-		return parse_reparse_posix((struct reparse_posix_data *)buf,
+	switch (le32_to_cpu(buf->ReparseTag)) {
+	case IO_REPARSE_TAG_NFS:
+		return parse_reparse_posix(
+			(struct reparse_posix_data *)buf,
 			plen, target_path, cifs_sb);
-	else if (le32_to_cpu(buf->ReparseTag) == IO_REPARSE_TAG_SYMLINK)
-		return parse_reparse_symlink(buf, plen, target_path,
-					cifs_sb);
-
-	cifs_dbg(VFS, "srv returned invalid symlink buffer tag:%d\n",
-		le32_to_cpu(buf->ReparseTag));
-
-	return -EIO;
+	case IO_REPARSE_TAG_SYMLINK:
+		return parse_reparse_symlink(
+			(struct reparse_symlink_data_buffer *)buf,
+			plen, target_path, cifs_sb);
+	default:
+		cifs_dbg(VFS, "srv returned unknown symlink buffer "
+			 "tag:0x%08x\n", le32_to_cpu(buf->ReparseTag));
+		return -EOPNOTSUPP;
+	}
 }
 
 #define SMB2_SYMLINK_STRUCT_SIZE \
@@ -2581,23 +2592,8 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 			goto querty_exit;
 		}
 
-		if (plen < 8) {
-			cifs_dbg(VFS, "reparse buffer is too small. Must be "
-				 "at least 8 bytes but was %d\n", plen);
-			rc = -EIO;
-			goto querty_exit;
-		}
-
-		if (plen < le16_to_cpu(reparse_buf->ReparseDataLength) + 8) {
-			cifs_dbg(VFS, "srv returned invalid reparse buf "
-				 "length: %d\n", plen);
-			rc = -EIO;
-			goto querty_exit;
-		}
-
-		rc = parse_reparse_point(
-			(struct reparse_symlink_data_buffer *)reparse_buf,
-			plen, target_path, cifs_sb);
+		rc = parse_reparse_point(reparse_buf, plen, target_path,
+					 cifs_sb);
 		goto querty_exit;
 	}
 
