@@ -51,6 +51,7 @@
 #define NFC_REG_USER_DATA(x)	(0x0050 + ((x) * 4))
 #define NFC_REG_SPARE_AREA	0x00A0
 #define NFC_REG_PAT_ID		0x00A4
+#define NFC_REG_MDMA_CNT	0x00C4
 #define NFC_RAM0_BASE		0x0400
 #define NFC_RAM1_BASE		0x0800
 
@@ -69,6 +70,7 @@
 #define NFC_PAGE_SHIFT(x)	(((x) < 10 ? 0 : (x) - 10) << 8)
 #define NFC_SAM			BIT(12)
 #define NFC_RAM_METHOD		BIT(14)
+#define NFC_DMA_TYPE_NORMAL	BIT(15)
 #define NFC_DEBUG_CTL		BIT(31)
 
 /* define bit use in NFC_ST */
@@ -205,14 +207,13 @@ static inline struct sunxi_nand_chip *to_sunxi_nand(struct nand_chip *nand)
  * NAND Controller capabilities structure: stores NAND controller capabilities
  * for distinction between compatible strings.
  *
- * @sram_through_ahb:	On A23, we choose to access the internal RAM through AHB
- *                      instead of MBUS (less configuration). A10, A10s, A13 and
- *                      A20 use the MBUS but no extra configuration is needed.
+ * @extra_mbus_conf:	Contrary to A10, A10s and A13, accessing internal RAM
+ *			through MBUS on A23/A33 needs extra configuration.
  * @reg_io_data:	I/O data register
  * @dma_maxburst:	DMA maxburst
  */
 struct sunxi_nfc_caps {
-	bool sram_through_ahb;
+	bool extra_mbus_conf;
 	unsigned int reg_io_data;
 	unsigned int dma_maxburst;
 };
@@ -368,28 +369,12 @@ static int sunxi_nfc_dma_op_prepare(struct sunxi_nfc *nfc, const void *buf,
 		goto err_unmap_buf;
 	}
 
-	/*
-	 * On A23, we suppose the "internal RAM" (p.12 of the NFC user manual)
-	 * refers to the NAND controller's internal SRAM. This memory is mapped
-	 * and so is accessible from the AHB. It seems that it can also be
-	 * accessed by the MBUS. MBUS accesses are mandatory when using the
-	 * internal DMA instead of the external DMA engine.
-	 *
-	 * During DMA I/O operation, either we access this memory from the AHB
-	 * by clearing the NFC_RAM_METHOD bit, or we set the bit and use the
-	 * MBUS. In this case, we should also configure the MBUS DMA length
-	 * NFC_REG_MDMA_CNT(0xC4) to be chunksize * nchunks. NAND I/O over MBUS
-	 * are also limited to 32kiB pages.
-	 */
-	if (nfc->caps->sram_through_ahb)
-		writel(readl(nfc->regs + NFC_REG_CTL) & ~NFC_RAM_METHOD,
-		       nfc->regs + NFC_REG_CTL);
-	else
-		writel(readl(nfc->regs + NFC_REG_CTL) | NFC_RAM_METHOD,
-		       nfc->regs + NFC_REG_CTL);
-
+	writel(readl(nfc->regs + NFC_REG_CTL) | NFC_RAM_METHOD,
+	       nfc->regs + NFC_REG_CTL);
 	writel(nchunks, nfc->regs + NFC_REG_SECTOR_NUM);
 	writel(chunksize, nfc->regs + NFC_REG_CNT);
+	if (nfc->caps->extra_mbus_conf)
+		writel(chunksize * nchunks, nfc->regs + NFC_REG_MDMA_CNT);
 
 	dmat = dmaengine_submit(dmad);
 
@@ -2151,6 +2136,11 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 		dmac_cfg.src_maxburst = nfc->caps->dma_maxburst;
 		dmac_cfg.dst_maxburst = nfc->caps->dma_maxburst;
 		dmaengine_slave_config(nfc->dmac, &dmac_cfg);
+
+		if (nfc->caps->extra_mbus_conf)
+			writel(readl(nfc->regs + NFC_REG_CTL) |
+			       NFC_DMA_TYPE_NORMAL, nfc->regs + NFC_REG_CTL);
+
 	} else {
 		dev_warn(dev, "failed to request rxtx DMA channel\n");
 	}
@@ -2200,7 +2190,7 @@ static const struct sunxi_nfc_caps sunxi_nfc_a10_caps = {
 };
 
 static const struct sunxi_nfc_caps sunxi_nfc_a23_caps = {
-	.sram_through_ahb = true,
+	.extra_mbus_conf = true,
 	.reg_io_data = NFC_REG_A23_IO_DATA,
 	.dma_maxburst = 8,
 };
