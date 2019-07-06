@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Geode GX framebuffer driver.
  *
  *   Copyright (C) 2006 Arcom Control Systems Ltd.
- *
- *   This program is free software; you can redistribute it and/or modify it
- *   under the terms of the GNU General Public License as published by the
- *   Free Software Foundation; either version 2 of the License, or (at your
- *   option) any later version.
- *
  *
  * This driver assumes that the BIOS has created a virtual PCI device header
  * for the video device. The PCI header is assumed to contain the following

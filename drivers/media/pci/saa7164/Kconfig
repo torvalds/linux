@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_SAA7164
 	tristate "NXP SAA7164 support"
 	depends on DVB_CORE && VIDEO_DEV && PCI && I2C

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 all: test
 test: vsock_diag_test
 vsock_diag_test: vsock_diag_test.o timeout.o control.o

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WL1251
 	tristate "TI wl1251 driver support"
 	depends on MAC80211

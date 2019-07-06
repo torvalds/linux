@@ -75,7 +75,7 @@ void set_revision_id_for_vmcs12(struct kvm_nested_state *state,
 				u32 vmcs12_revision)
 {
 	/* Set revision_id in vmcs12 to vmcs12_revision. */
-	*(u32 *)(state->data) = vmcs12_revision;
+	memcpy(state->data, &vmcs12_revision, sizeof(u32));
 }
 
 void set_default_state(struct kvm_nested_state *state)

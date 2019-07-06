@@ -560,10 +560,10 @@ tcp_comp_sack_delay_ns - LONG INTEGER
 	Default : 1,000,000 ns (1 ms)
 
 tcp_comp_sack_nr - INTEGER
-	Max numer of SACK that can be compressed.
+	Max number of SACK that can be compressed.
 	Using 0 disables SACK compression.
 
-	Detault : 44
+	Default : 44
 
 tcp_slow_start_after_idle - BOOLEAN
 	If set, provide RFC2861 behavior and time out the congestion

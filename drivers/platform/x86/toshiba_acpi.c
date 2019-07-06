@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  toshiba_acpi.c - Toshiba Laptop ACPI Extras
  *
@@ -5,19 +6,6 @@
  *  Copyright (C) 2008 Philip Langdale
  *  Copyright (C) 2010 Pierre Ducroquet
  *  Copyright (C) 2014-2016 Azael Avalos
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
  *
  *  The devolpment page for this driver is located at
  *  http://memebeam.org/toys/ToshibaAcpiDriver.

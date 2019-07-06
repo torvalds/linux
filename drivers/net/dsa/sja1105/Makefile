@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_NET_DSA_SJA1105) += sja1105.o
 
 sja1105-objs := \

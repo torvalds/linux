@@ -1,11 +1,8 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Copyright © 2008 IBM Corporation
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version
-# 2 of the License, or (at your option) any later version.
 
 # This script checks prom_init.o to see what external symbols it
 # is using, if it finds symbols not in the whitelist it returns

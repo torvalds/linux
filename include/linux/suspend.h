@@ -359,7 +359,7 @@ extern void mark_free_pages(struct zone *zone);
  *	platforms which require special recovery actions in that situation.
  */
 struct platform_hibernation_ops {
-	int (*begin)(void);
+	int (*begin)(pm_message_t stage);
 	void (*end)(void);
 	int (*pre_snapshot)(void);
 	void (*finish)(void);

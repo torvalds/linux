@@ -354,6 +354,7 @@ static const struct blk_mq_ops bsg_mq_ops = {
  * @dev: device to attach bsg device to
  * @name: device to give bsg device
  * @job_fn: bsg job handler
+ * @timeout: timeout handler function pointer
  * @dd_job_size: size of LLD data needed for each job
  */
 struct request_queue *bsg_setup_queue(struct device *dev, const char *name,

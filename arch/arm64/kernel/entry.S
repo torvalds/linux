@@ -336,8 +336,8 @@ alternative_if ARM64_WORKAROUND_845719
 alternative_else_nop_endif
 #endif
 3:
-#ifdef CONFIG_ARM64_ERRATUM_1188873
-alternative_if_not ARM64_WORKAROUND_1188873
+#ifdef CONFIG_ARM64_ERRATUM_1418040
+alternative_if_not ARM64_WORKAROUND_1418040
 	b	4f
 alternative_else_nop_endif
 	/*

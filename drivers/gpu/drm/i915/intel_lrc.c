@@ -164,7 +164,7 @@
 #define WA_TAIL_DWORDS 2
 #define WA_TAIL_BYTES (sizeof(u32) * WA_TAIL_DWORDS)
 
-#define ACTIVE_PRIORITY (I915_PRIORITY_NEWCLIENT | I915_PRIORITY_NOSEMAPHORE)
+#define ACTIVE_PRIORITY (I915_PRIORITY_NOSEMAPHORE)
 
 static int execlists_context_deferred_alloc(struct intel_context *ce,
 					    struct intel_engine_cs *engine);

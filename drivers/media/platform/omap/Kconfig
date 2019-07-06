@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_OMAP2_VOUT_VRFB
 	bool
 	default y

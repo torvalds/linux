@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Intel i7 core/Nehalem Memory Controller kernel module
  *
  * This driver supports the memory controllers found on the Intel
  * processor families i7core, i7core 7xx/8xx, i5core, Xeon 35xx,
  * Xeon 55xx and Xeon 56xx also known as Nehalem, Nehalem-EP, Lynnfield
  * and Westmere-EP.
- *
- * This file may be distributed under the terms of the
- * GNU General Public License version 2 only.
  *
  * Copyright (c) 2009-2010 by:
  *	 Mauro Carvalho Chehab

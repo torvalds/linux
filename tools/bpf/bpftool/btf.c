@@ -208,8 +208,8 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 		break;
 	}
 	case BTF_KIND_FWD: {
-		const char *fwd_kind = BTF_INFO_KIND(t->info) ? "union"
-							      : "struct";
+		const char *fwd_kind = BTF_INFO_KFLAG(t->info) ? "union"
+							       : "struct";
 
 		if (json_output)
 			jsonw_string_field(w, "fwd_kind", fwd_kind);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  smssdio.c - Siano 1xxx SDIO interface driver
  *
@@ -5,12 +6,6 @@
  *
  * Based on code by Siano Mobile Silicon, Inc.,
  * Copyright (C) 2006-2008, Uri Shkolnik
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
  *
  * This hardware is a bit odd in that all transfers should be done
  * to/from the SMSSDIO_DATA register, yet the "increase address" bit

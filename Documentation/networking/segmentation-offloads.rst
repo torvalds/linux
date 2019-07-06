@@ -18,7 +18,7 @@ The following technologies are described:
  * Generic Segmentation Offload - GSO
  * Generic Receive Offload - GRO
  * Partial Generic Segmentation Offload - GSO_PARTIAL
- * SCTP accelleration with GSO - GSO_BY_FRAGS
+ * SCTP acceleration with GSO - GSO_BY_FRAGS
 
 
 TCP Segmentation Offload
@@ -148,7 +148,7 @@ that the IPv4 ID field is incremented in the case that a given header does
 not have the DF bit set.
 
 
-SCTP accelleration with GSO
+SCTP acceleration with GSO
 ===========================
 
 SCTP - despite the lack of hardware support - can still take advantage of

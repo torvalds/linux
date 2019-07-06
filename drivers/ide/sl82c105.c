@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SL82C105/Winbond 553 IDE driver
  *

@@ -718,12 +718,11 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  * the output section, any use of such directives is undefined.
  *
  * The yield itself consists of the following:
- * - Check whether the preempt count is exactly 1, in which case disabling
- *   preemption once will make the task preemptible. If this is not the case,
- *   yielding is pointless.
- * - Check whether TIF_NEED_RESCHED is set, and if so, disable and re-enable
- *   kernel mode NEON (which will trigger a reschedule), and branch to the
- *   yield fixup code.
+ * - Check whether the preempt count is exactly 1 and a reschedule is also
+ *   needed. If so, calling of preempt_enable() in kernel_neon_end() will
+ *   trigger a reschedule. If it is not the case, yielding is pointless.
+ * - Disable and re-enable kernel mode NEON, and branch to the yield fixup
+ *   code.
  *
  * This macro sequence may clobber all CPU state that is not guaranteed by the
  * AAPCS to be preserved across an ordinary function call.

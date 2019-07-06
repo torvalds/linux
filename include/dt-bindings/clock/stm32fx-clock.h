@@ -1,9 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * stm32fx-clock.h
  *
  * Copyright (C) 2016 STMicroelectronics
  * Author: Gabriel Fernandez for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 /*

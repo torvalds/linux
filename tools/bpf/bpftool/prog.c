@@ -879,6 +879,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		}
 	}
 
+	set_max_rlimit();
+
 	obj = __bpf_object__open_xattr(&attr, bpf_flags);
 	if (IS_ERR_OR_NULL(obj)) {
 		p_err("failed to open object file");
@@ -957,8 +959,6 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		p_err("map idx '%d' not used", map_replace[j].idx);
 		goto err_close_obj;
 	}
-
-	set_max_rlimit();
 
 	err = bpf_object__load(obj);
 	if (err) {

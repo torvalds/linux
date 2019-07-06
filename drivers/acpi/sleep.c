@@ -1132,15 +1132,19 @@ void __init acpi_no_s4_hw_signature(void)
 	nosigcheck = true;
 }
 
-static int acpi_hibernation_begin(void)
+static int acpi_hibernation_begin(pm_message_t stage)
 {
-	int error;
+	if (!nvs_nosave) {
+		int error = suspend_nvs_alloc();
+		if (error)
+			return error;
+	}
 
-	error = nvs_nosave ? 0 : suspend_nvs_alloc();
-	if (!error)
-		acpi_pm_start(ACPI_STATE_S4);
+	if (stage.event == PM_EVENT_HIBERNATE)
+		pm_set_suspend_via_firmware();
 
-	return error;
+	acpi_pm_start(ACPI_STATE_S4);
+	return 0;
 }
 
 static int acpi_hibernation_enter(void)
@@ -1200,7 +1204,7 @@ static const struct platform_hibernation_ops acpi_hibernation_ops = {
  *		function is used if the pre-ACPI 2.0 suspend ordering has been
  *		requested.
  */
-static int acpi_hibernation_begin_old(void)
+static int acpi_hibernation_begin_old(pm_message_t stage)
 {
 	int error;
 	/*
@@ -1211,16 +1215,21 @@ static int acpi_hibernation_begin_old(void)
 	acpi_sleep_tts_switch(ACPI_STATE_S4);
 
 	error = acpi_sleep_prepare(ACPI_STATE_S4);
+	if (error)
+		return error;
 
-	if (!error) {
-		if (!nvs_nosave)
-			error = suspend_nvs_alloc();
-		if (!error) {
-			acpi_target_sleep_state = ACPI_STATE_S4;
-			acpi_scan_lock_acquire();
-		}
+	if (!nvs_nosave) {
+		error = suspend_nvs_alloc();
+		if (error)
+			return error;
 	}
-	return error;
+
+	if (stage.event == PM_EVENT_HIBERNATE)
+		pm_set_suspend_via_firmware();
+
+	acpi_target_sleep_state = ACPI_STATE_S4;
+	acpi_scan_lock_acquire();
+	return 0;
 }
 
 /*

@@ -178,11 +178,15 @@ struct usb_line6 {
 			fifo;
 	} messages;
 
+	/* Work for delayed PCM startup */
+	struct delayed_work startup_work;
+
 	/* If MIDI is supported, buffer_message contains the pre-processed data;
 	 * otherwise the data is only in urb_listen (buffer_incoming).
 	 */
 	void (*process_message)(struct usb_line6 *);
 	void (*disconnect)(struct usb_line6 *line6);
+	void (*startup)(struct usb_line6 *line6);
 };
 
 extern char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1,

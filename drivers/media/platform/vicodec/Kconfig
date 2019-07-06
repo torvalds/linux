@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_VICODEC
 	tristate "Virtual Codec Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2

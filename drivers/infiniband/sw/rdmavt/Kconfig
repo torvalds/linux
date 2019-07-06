@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_RDMAVT
 	tristate "RDMA verbs transport library"
 	depends on X86_64 && ARCH_DMA_ADDR_T_64BIT

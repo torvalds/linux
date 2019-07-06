@@ -51,6 +51,10 @@ struct phylink {
 
 	/* The link configuration settings */
 	struct phylink_link_state link_config;
+
+	/* The current settings */
+	phy_interface_t cur_interface;
+
 	struct gpio_desc *link_gpio;
 	struct timer_list link_poll;
 	void (*get_fixed_state)(struct net_device *dev,
@@ -422,28 +426,21 @@ static void phylink_resolve(struct work_struct *w)
 
 		case MLO_AN_INBAND:
 			phylink_get_mac_state(pl, &link_state);
-			if (pl->phydev) {
-				bool changed = false;
 
-				link_state.link = link_state.link &&
-						  pl->phy_state.link;
+			/* If we have a phy, the "up" state is the union of
+			 * both the PHY and the MAC */
+			if (pl->phydev)
+				link_state.link &= pl->phy_state.link;
 
-				if (pl->phy_state.interface !=
-				    link_state.interface) {
-					link_state.interface = pl->phy_state.interface;
-					changed = true;
-				}
+			/* Only update if the PHY link is up */
+			if (pl->phydev && pl->phy_state.link) {
+				link_state.interface = pl->phy_state.interface;
 
-				/* Propagate the flow control from the PHY
-				 * to the MAC. Also propagate the interface
-				 * if changed.
-				 */
-				if (pl->phy_state.link || changed) {
-					link_state.pause |= pl->phy_state.pause;
-					phylink_resolve_flow(pl, &link_state);
-
-					phylink_mac_config(pl, &link_state);
-				}
+				/* If we have a PHY, we need to update with
+				 * the pause mode bits. */
+				link_state.pause |= pl->phy_state.pause;
+				phylink_resolve_flow(pl, &link_state);
+				phylink_mac_config(pl, &link_state);
 			}
 			break;
 		}
@@ -453,12 +450,12 @@ static void phylink_resolve(struct work_struct *w)
 		if (!link_state.link) {
 			netif_carrier_off(ndev);
 			pl->ops->mac_link_down(ndev, pl->link_an_mode,
-					       pl->phy_state.interface);
+					       pl->cur_interface);
 			netdev_info(ndev, "Link is Down\n");
 		} else {
+			pl->cur_interface = link_state.interface;
 			pl->ops->mac_link_up(ndev, pl->link_an_mode,
-					     pl->phy_state.interface,
-					     pl->phydev);
+					     pl->cur_interface, pl->phydev);
 
 			netif_carrier_on(ndev);
 

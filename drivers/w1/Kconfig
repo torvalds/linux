@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig W1
 	tristate "Dallas's 1-wire support"
 	depends on HAS_IOMEM

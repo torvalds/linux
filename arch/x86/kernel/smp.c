@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Intel SMP support routines.
  *
@@ -6,9 +7,6 @@
  *      (c) 2002,2003 Andi Kleen, SuSE Labs.
  *
  *	i386 and x86_64 integration by Glauber Costa <gcosta@redhat.com>
- *
- *	This code is released under the GNU General Public License version 2 or
- *	later.
  */
 
 #include <linux/init.h>

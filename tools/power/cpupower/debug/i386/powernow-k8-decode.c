@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2004 Bruno Ducrot <ducrot@poupinou.org>
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  *
  * Based on code found in
  * linux/arch/i386/kernel/cpu/cpufreq/powernow-k8.c

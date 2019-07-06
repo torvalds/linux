@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
  /*
  *	x86 SMP booting functions
  *
@@ -11,9 +12,6 @@
  *	Thanks to Intel for making available several different Pentium,
  *	Pentium Pro and Pentium-II/Xeon MP machines.
  *	Original development of Linux SMP code supported by Caldera.
- *
- *	This code is released under the GNU General Public License version 2 or
- *	later.
  *
  *	Fixes
  *		Felix Koop	:	NR_CPUS used properly

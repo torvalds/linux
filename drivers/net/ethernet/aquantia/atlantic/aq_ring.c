@@ -223,10 +223,10 @@ void aq_ring_queue_stop(struct aq_ring_s *ring)
 bool aq_ring_tx_clean(struct aq_ring_s *self)
 {
 	struct device *dev = aq_nic_get_dev(self->aq_nic);
-	unsigned int budget = AQ_CFG_TX_CLEAN_BUDGET;
+	unsigned int budget;
 
-	for (; self->sw_head != self->hw_head && budget--;
-		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
+	for (budget = AQ_CFG_TX_CLEAN_BUDGET;
+	     budget && self->sw_head != self->hw_head; budget--) {
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
 
 		if (likely(buff->is_mapped)) {
@@ -251,6 +251,7 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 
 		buff->pa = 0U;
 		buff->eop_index = 0xffffU;
+		self->sw_head = aq_ring_next_dx(self, self->sw_head);
 	}
 
 	return !!budget;
@@ -298,35 +299,47 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		unsigned int i = 0U;
 		u16 hdr_len;
 
-		if (buff->is_error)
-			continue;
-
 		if (buff->is_cleaned)
 			continue;
 
 		if (!buff->is_eop) {
-			for (next_ = buff->next,
-			     buff_ = &self->buff_ring[next_]; true;
-			     next_ = buff_->next,
-			     buff_ = &self->buff_ring[next_]) {
+			buff_ = buff;
+			do {
+				next_ = buff_->next,
+				buff_ = &self->buff_ring[next_];
 				is_rsc_completed =
 					aq_ring_dx_in_range(self->sw_head,
 							    next_,
 							    self->hw_head);
 
-				if (unlikely(!is_rsc_completed)) {
-					is_rsc_completed = false;
+				if (unlikely(!is_rsc_completed))
 					break;
-				}
 
-				if (buff_->is_eop)
-					break;
-			}
+				buff->is_error |= buff_->is_error;
+
+			} while (!buff_->is_eop);
 
 			if (!is_rsc_completed) {
 				err = 0;
 				goto err_exit;
 			}
+			if (buff->is_error) {
+				buff_ = buff;
+				do {
+					next_ = buff_->next,
+					buff_ = &self->buff_ring[next_];
+
+					buff_->is_cleaned = true;
+				} while (!buff_->is_eop);
+
+				++self->stats.rx.errors;
+				continue;
+			}
+		}
+
+		if (buff->is_error) {
+			++self->stats.rx.errors;
+			continue;
 		}
 
 		dma_sync_single_range_for_cpu(aq_nic_get_dev(self->aq_nic),
@@ -389,6 +402,12 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 							AQ_CFG_RX_FRAME_MAX);
 					page_ref_inc(buff_->rxdata.page);
 					buff_->is_cleaned = 1;
+
+					buff->is_ip_cso &= buff_->is_ip_cso;
+					buff->is_udp_cso &= buff_->is_udp_cso;
+					buff->is_tcp_cso &= buff_->is_tcp_cso;
+					buff->is_cso_err |= buff_->is_cso_err;
+
 				} while (!buff_->is_eop);
 			}
 		}

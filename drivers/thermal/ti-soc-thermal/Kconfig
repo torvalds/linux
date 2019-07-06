@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config TI_SOC_THERMAL
 	tristate "Texas Instruments SoCs temperature sensor driver"
 	help

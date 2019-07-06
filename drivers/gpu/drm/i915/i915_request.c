@@ -502,15 +502,6 @@ void __i915_request_unsubmit(struct i915_request *request)
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 
-	/*
-	 * As we do not allow WAIT to preempt inflight requests,
-	 * once we have executed a request, along with triggering
-	 * any execution callbacks, we must preserve its ordering
-	 * within the non-preemptible FIFO.
-	 */
-	BUILD_BUG_ON(__NO_PREEMPTION & ~I915_PRIORITY_MASK); /* only internal */
-	request->sched.attr.priority |= __NO_PREEMPTION;
-
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
 		i915_request_cancel_breadcrumb(request);
 
@@ -582,18 +573,7 @@ semaphore_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 
 	switch (state) {
 	case FENCE_COMPLETE:
-		/*
-		 * We only check a small portion of our dependencies
-		 * and so cannot guarantee that there remains no
-		 * semaphore chain across all. Instead of opting
-		 * for the full NOSEMAPHORE boost, we go for the
-		 * smaller (but still preempting) boost of
-		 * NEWCLIENT. This will be enough to boost over
-		 * a busywaiting request (as that cannot be
-		 * NEWCLIENT) without accidentally boosting
-		 * a busywait over real work elsewhere.
-		 */
-		i915_schedule_bump_priority(request, I915_PRIORITY_NEWCLIENT);
+		i915_schedule_bump_priority(request, I915_PRIORITY_NOSEMAPHORE);
 		break;
 
 	case FENCE_FREE:
@@ -874,12 +854,6 @@ emit_semaphore_wait(struct i915_request *to,
 	if (err < 0)
 		return err;
 
-	err = i915_sw_fence_await_dma_fence(&to->semaphore,
-					    &from->fence, 0,
-					    I915_FENCE_GFP);
-	if (err < 0)
-		return err;
-
 	/* We need to pin the signaler's HWSP until we are finished reading. */
 	err = i915_timeline_read_hwsp(from, to, &hwsp_offset);
 	if (err)
@@ -945,8 +919,18 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 						    &from->fence, 0,
 						    I915_FENCE_GFP);
 	}
+	if (ret < 0)
+		return ret;
 
-	return ret < 0 ? ret : 0;
+	if (to->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN) {
+		ret = i915_sw_fence_await_dma_fence(&to->semaphore,
+						    &from->fence, 0,
+						    I915_FENCE_GFP);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 int
@@ -1237,7 +1221,7 @@ void i915_request_add(struct i915_request *request)
 		 * the bulk clients. (FQ_CODEL)
 		 */
 		if (list_empty(&request->sched.signalers_list))
-			attr.priority |= I915_PRIORITY_NEWCLIENT;
+			attr.priority |= I915_PRIORITY_WAIT;
 
 		engine->schedule(request, &attr);
 	}

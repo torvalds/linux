@@ -733,8 +733,8 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	struct sock *sk = sock->sk;
 	struct qrtr_node *node;
 	struct sk_buff *skb;
-	u32 type = 0;
 	size_t plen;
+	u32 type;
 	int rc;
 
 	if (msg->msg_flags & ~(MSG_DONTWAIT))
@@ -809,9 +809,9 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 		/* control messages already require the type as 'command' */
 		skb_copy_bits(skb, 0, &qrtr_type, 4);
-		type = le32_to_cpu(qrtr_type);
 	}
 
+	type = le32_to_cpu(qrtr_type);
 	rc = enqueue_fn(node, skb, type, &ipc->us, addr);
 	if (rc >= 0)
 		rc = len;

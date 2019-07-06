@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_SOC_SIRF
 	tristate "SoC Audio for the SiRF SoC chips"
 	depends on ARCH_SIRF || COMPILE_TEST

@@ -129,7 +129,7 @@ static int hibernation_test(int level) { return 0; }
 static int platform_begin(int platform_mode)
 {
 	return (platform_mode && hibernation_ops) ?
-		hibernation_ops->begin() : 0;
+		hibernation_ops->begin(PMSG_FREEZE) : 0;
 }
 
 /**
@@ -542,7 +542,7 @@ int hibernation_platform_enter(void)
 	 * hibernation_ops->finish() before saving the image, so we should let
 	 * the firmware know that we're going to enter the sleep state after all
 	 */
-	error = hibernation_ops->begin();
+	error = hibernation_ops->begin(PMSG_HIBERNATE);
 	if (error)
 		goto Close;
 

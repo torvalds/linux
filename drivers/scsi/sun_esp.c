@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* sun_esp.c: ESP front-end for Sparc SBUS systems.
  *
  * Copyright (C) 2007, 2008 David S. Miller (davem@davemloft.net)

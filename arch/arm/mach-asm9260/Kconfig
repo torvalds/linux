@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MACH_ASM9260
 	bool "Alphascale ASM9260"
 	depends on ARCH_MULTI_V5

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support Intel RAPL energy consumption counters
  * Copyright (C) 2013 Google, Inc., Stephane Eranian

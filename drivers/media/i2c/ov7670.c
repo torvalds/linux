@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A V4L2 driver for OmniVision OV7670 cameras.
  *
@@ -6,9 +7,6 @@
  * McClelland's ovcamchip code.
  *
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
- *
- * This file may be distributed under the terms of the GNU General
- * Public License, version 2.
  */
 #include <linux/clk.h>
 #include <linux/init.h>

@@ -43,7 +43,6 @@
 #include "bpf.h"
 #include "btf.h"
 #include "str_error.h"
-#include "libbpf_util.h"
 #include "libbpf_internal.h"
 
 #ifndef EM_BPF
@@ -1696,7 +1695,7 @@ bpf_object__probe_caps(struct bpf_object *obj)
 	for (i = 0; i < ARRAY_SIZE(probe_fn); i++) {
 		ret = probe_fn[i](obj);
 		if (ret < 0)
-			return ret;
+			pr_debug("Probe #%d failed with %d.\n", i, ret);
 	}
 
 	return 0;

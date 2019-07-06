@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2007 Andi Kleen, SUSE Labs.
- * Subject to the GPL, v.2
  *
  * This contains most of the x86 vDSO kernel-side code.
  */

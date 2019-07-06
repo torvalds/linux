@@ -592,9 +592,6 @@ static inline int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr);
 void kvm_clr_pmu_events(u32 clr);
 
-void __pmu_switch_to_host(struct kvm_cpu_context *host_ctxt);
-bool __pmu_switch_to_guest(struct kvm_cpu_context *host_ctxt);
-
 void kvm_vcpu_pmu_restore_guest(struct kvm_vcpu *vcpu);
 void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu);
 #else

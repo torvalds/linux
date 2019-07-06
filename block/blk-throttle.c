@@ -1220,7 +1220,7 @@ static bool throtl_can_upgrade(struct throtl_data *td,
 	struct throtl_grp *this_tg);
 /**
  * throtl_pending_timer_fn - timer function for service_queue->pending_timer
- * @arg: the throtl_service_queue being serviced
+ * @t: the pending_timer member of the throtl_service_queue being serviced
  *
  * This timer is armed when a child throtl_grp with active bio's become
  * pending and queued on the service_queue's pending_tree and expires when

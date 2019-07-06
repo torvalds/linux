@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config RC_MAP
 	tristate "Compile Remote Controller keymap modules"
 	depends on RC_CORE

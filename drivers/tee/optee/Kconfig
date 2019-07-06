@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # OP-TEE Trusted Execution Environment Configuration
 config OPTEE
 	tristate "OP-TEE"

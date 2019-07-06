@@ -4,9 +4,9 @@ Required properties:
 - compatible: "fsl,imxXX-nand"
 - reg: address range of the nfc block
 - interrupts: irq to be used
-- nand-bus-width: see nand.txt
-- nand-ecc-mode: see nand.txt
-- nand-on-flash-bbt: see nand.txt
+- nand-bus-width: see nand-controller.yaml
+- nand-ecc-mode: see nand-controller.yaml
+- nand-on-flash-bbt: see nand-controller.yaml
 
 Example:
 
