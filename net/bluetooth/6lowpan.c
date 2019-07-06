@@ -168,18 +168,6 @@ static inline struct lowpan_peer *peer_lookup_dst(struct lowpan_btle_dev *dev,
 
 	BT_DBG("peers %d addr %pI6c rt %p", count, daddr, rt);
 
-	/* If we have multiple 6lowpan peers, then check where we should
-	 * send the packet. If only one peer exists, then we can send the
-	 * packet right away.
-	 */
-	if (count == 1) {
-		rcu_read_lock();
-		peer = list_first_or_null_rcu(&dev->peers, struct lowpan_peer,
-					      list);
-		rcu_read_unlock();
-		return peer;
-	}
-
 	if (!rt) {
 		if (ipv6_addr_any(&lowpan_cb(skb)->gw)) {
 			/* There is neither route nor gateway,
