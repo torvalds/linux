@@ -179,4 +179,8 @@ LIBBPF_0.0.4 {
 		btf_dump__new;
 		btf__parse_elf;
 		libbpf_num_possible_cpus;
+		perf_buffer__free;
+		perf_buffer__new;
+		perf_buffer__new_raw;
+		perf_buffer__poll;
 } LIBBPF_0.0.3;
