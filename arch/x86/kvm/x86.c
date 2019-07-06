@@ -51,6 +51,7 @@
 #include <linux/kvm_irqfd.h>
 #include <linux/irqbypass.h>
 #include <linux/sched/stat.h>
+#include <linux/sched/isolation.h>
 #include <linux/mem_encrypt.h>
 
 #include <trace/events/kvm.h>
@@ -152,6 +153,9 @@ EXPORT_SYMBOL_GPL(enable_vmware_backdoor);
 
 static bool __read_mostly force_emulation_prefix = false;
 module_param(force_emulation_prefix, bool, S_IRUGO);
+
+int __read_mostly pi_inject_timer = -1;
+module_param(pi_inject_timer, bint, S_IRUGO | S_IWUSR);
 
 #define KVM_NR_SHARED_MSRS 16
 
@@ -7058,6 +7062,8 @@ int kvm_arch_init(void *opaque)
 		host_xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
 
 	kvm_lapic_init();
+	if (pi_inject_timer == -1)
+		pi_inject_timer = housekeeping_enabled(HK_FLAG_TIMER);
 #ifdef CONFIG_X86_64
 	pvclock_gtod_register_notifier(&pvclock_gtod_notifier);
 
