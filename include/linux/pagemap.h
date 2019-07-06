@@ -333,19 +333,6 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
 			mapping_gfp_mask(mapping));
 }
 
-static inline struct page *find_subpage(struct page *page, pgoff_t offset)
-{
-	unsigned long mask;
-
-	if (PageHuge(page))
-		return page;
-
-	VM_BUG_ON_PAGE(PageTail(page), page);
-
-	mask = (1UL << compound_order(page)) - 1;
-	return page + (offset & mask);
-}
-
 struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
 struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset);
 unsigned find_get_entries(struct address_space *mapping, pgoff_t start,

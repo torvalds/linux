@@ -463,7 +463,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
 
 		for (i = 1; i < HPAGE_PMD_NR; i++) {
 			xas_next(&xas);
-			xas_store(&xas, newpage);
+			xas_store(&xas, newpage + i);
 		}
 	}
 
