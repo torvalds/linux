@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-VERSION = 5
-PATCHLEVEL = 2
+VERSION = 6
+PATCHLEVEL = 0
 SUBLEVEL = 0
-EXTRAVERSION = -rc7
-NAME = Bobtail Squid
+EXTRAVERSION =
+NAME = cat dog
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
