@@ -1802,7 +1802,6 @@ static int axienet_probe(struct platform_device *pdev)
 	if (IS_ERR(lp->dma_regs)) {
 		dev_err(&pdev->dev, "could not map DMA regs\n");
 		ret = PTR_ERR(lp->dma_regs);
-		of_node_put(np);
 		goto free_netdev;
 	}
 	if ((lp->rx_irq <= 0) || (lp->tx_irq <= 0)) {
