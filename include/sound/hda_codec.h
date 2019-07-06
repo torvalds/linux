@@ -18,6 +18,9 @@
 #include <sound/hda_verbs.h>
 #include <sound/hda_regmap.h>
 
+#define IS_BXT(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x5a98)
+#define IS_CFL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa348)
+
 /*
  * Structures
  */

@@ -62,21 +62,32 @@ static const struct snd_soc_ops mxs_sgtl5000_hifi_ops = {
 #define MXS_SGTL5000_DAI_FMT (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | \
 	SND_SOC_DAIFMT_CBS_CFS)
 
+
+SND_SOC_DAILINK_DEFS(hifi_tx,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "sgtl5000")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(hifi_rx,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "sgtl5000")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 	{
 		.name		= "HiFi Tx",
 		.stream_name	= "HiFi Playback",
-		.codec_dai_name	= "sgtl5000",
 		.dai_fmt	= MXS_SGTL5000_DAI_FMT,
 		.ops		= &mxs_sgtl5000_hifi_ops,
 		.playback_only	= true,
+		SND_SOC_DAILINK_REG(hifi_tx),
 	}, {
 		.name		= "HiFi Rx",
 		.stream_name	= "HiFi Capture",
-		.codec_dai_name	= "sgtl5000",
 		.dai_fmt	= MXS_SGTL5000_DAI_FMT,
 		.ops		= &mxs_sgtl5000_hifi_ops,
 		.capture_only	= true,
+		SND_SOC_DAILINK_REG(hifi_rx),
 	},
 };
 
@@ -111,12 +122,12 @@ static int mxs_sgtl5000_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < 2; i++) {
-		mxs_sgtl5000_dai[i].codec_name = NULL;
-		mxs_sgtl5000_dai[i].codec_of_node = codec_np;
-		mxs_sgtl5000_dai[i].cpu_dai_name = NULL;
-		mxs_sgtl5000_dai[i].cpu_of_node = saif_np[i];
-		mxs_sgtl5000_dai[i].platform_name = NULL;
-		mxs_sgtl5000_dai[i].platform_of_node = saif_np[i];
+		mxs_sgtl5000_dai[i].codecs->name = NULL;
+		mxs_sgtl5000_dai[i].codecs->of_node = codec_np;
+		mxs_sgtl5000_dai[i].cpus->dai_name = NULL;
+		mxs_sgtl5000_dai[i].cpus->of_node = saif_np[i];
+		mxs_sgtl5000_dai[i].platforms->name = NULL;
+		mxs_sgtl5000_dai[i].platforms->of_node = saif_np[i];
 	}
 
 	of_node_put(codec_np);

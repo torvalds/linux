@@ -159,22 +159,11 @@ static void asoc_simple_clk_disable(struct asoc_simple_dai *dai)
 
 int asoc_simple_parse_clk(struct device *dev,
 			  struct device_node *node,
-			  struct device_node *dai_of_node,
 			  struct asoc_simple_dai *simple_dai,
-			  const char *dai_name,
 			  struct snd_soc_dai_link_component *dlc)
 {
 	struct clk *clk;
 	u32 val;
-
-	/*
-	 * Use snd_soc_dai_link_component instead of legacy style.
-	 * It is only for codec, but cpu will be supported in the future.
-	 * see
-	 *	soc-core.c :: snd_soc_init_multicodec()
-	 */
-	if (dlc)
-		dai_of_node	= dlc->of_node;
 
 	/*
 	 * Parse dai->sysclk come from "clocks = <&xxx>"
@@ -190,7 +179,7 @@ int asoc_simple_parse_clk(struct device *dev,
 	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
 	} else {
-		clk = devm_get_clk_from_child(dev, dai_of_node, NULL);
+		clk = devm_get_clk_from_child(dev, dlc->of_node, NULL);
 		if (!IS_ERR(clk))
 			simple_dai->sysclk = clk_get_rate(clk);
 	}
@@ -359,7 +348,7 @@ void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link)
 {
 	/* Assumes platform == cpu */
 	if (!dai_link->platforms->of_node)
-		dai_link->platforms->of_node = dai_link->cpu_of_node;
+		dai_link->platforms->of_node = dai_link->cpus->of_node;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 
@@ -376,7 +365,7 @@ void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 	 *	fmt_multiple_name()
 	 */
 	if (is_single_links)
-		dai_link->cpu_dai_name = NULL;
+		dai_link->cpus->dai_name = NULL;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
 
@@ -386,7 +375,7 @@ int asoc_simple_clean_reference(struct snd_soc_card *card)
 	int i;
 
 	for_each_card_prelinks(card, i, dai_link) {
-		of_node_put(dai_link->cpu_of_node);
+		of_node_put(dai_link->cpus->of_node);
 		of_node_put(dai_link->codecs->of_node);
 	}
 	return 0;
@@ -576,6 +565,8 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	 *	simple-card-utils.c :: asoc_simple_canonicalize_platform()
 	 */
 	for (i = 0; i < li->link; i++) {
+		dai_link[i].cpus		= &dai_props[i].cpus;
+		dai_link[i].num_cpus		= 1;
 		dai_link[i].codecs		= &dai_props[i].codecs;
 		dai_link[i].num_codecs		= 1;
 		dai_link[i].platforms		= &dai_props[i].platforms;
