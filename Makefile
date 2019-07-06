@@ -244,6 +244,10 @@ else
 	building_out_of_srctree := 1
 endif
 
+ifneq ($(KBUILD_ABS_SRCTREE),)
+srctree := $(abs_srctree)
+endif
+
 objtree		:= .
 VPATH		:= $(srctree)
 

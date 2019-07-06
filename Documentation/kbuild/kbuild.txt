@@ -183,6 +183,15 @@ The output directory is often set using "O=..." on the commandline.
 
 The value can be overridden in which case the default value is ignored.
 
+KBUILD_ABS_SRCTREE
+--------------------------------------------------
+Kbuild uses a relative path to point to the tree when possible. For instance,
+when building in the source tree, the source tree path is '.'
+
+Setting this flag requests Kbuild to use absolute path to the source tree.
+There are some useful cases to do so, like when generating tag files with
+absolute path entries etc.
+
 KBUILD_SIGN_PIN
 --------------------------------------------------
 This variable allows a passphrase or PIN to be passed to the sign-file
