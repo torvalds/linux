@@ -6,6 +6,7 @@
 #
 from docutils import nodes
 from sphinx import addnodes
+from sphinx.environment import NoUri
 import re
 
 #
@@ -55,8 +56,15 @@ def markup_funcs(docname, app, node):
                                           reftype = 'function',
                                           reftarget = target, modname = None,
                                           classname = None)
-            xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                     'function', target, pxref, lit_text)
+            #
+            # XXX The Latex builder will throw NoUri exceptions here,
+            # work around that by ignoring them.
+            #
+            try:
+                xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                         'function', target, pxref, lit_text)
+            except NoUri:
+                xref = None
         #
         # Toss the xref into the list if we got it; otherwise just put
         # the function text.
