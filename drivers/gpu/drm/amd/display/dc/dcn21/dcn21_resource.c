@@ -1470,6 +1470,7 @@ static struct dce_hwseq *dcn21_hwseq_create(
 		hws->regs = &hwseq_reg;
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
+		hws->wa.DEGVIDCN21 = true;
 	}
 	return hws;
 }

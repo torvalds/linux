@@ -1533,6 +1533,10 @@ static void dcn20_program_front_end_for_ctx(
 				msleep(1);
 		}
 	}
+
+	/* WA to apply WM setting*/
+	if (dc->hwseq->wa.DEGVIDCN21)
+		dc->res_pool->hubbub->funcs->apply_DEDCN21_147_wa(dc->res_pool->hubbub);
 }
 
 
