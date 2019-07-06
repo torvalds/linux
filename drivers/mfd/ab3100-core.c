@@ -575,58 +575,27 @@ static const struct file_operations ab3100_get_set_reg_fops = {
 	.llseek = noop_llseek,
 };
 
-static struct dentry *ab3100_dir;
-static struct dentry *ab3100_reg_file;
 static struct ab3100_get_set_reg_priv ab3100_get_priv;
-static struct dentry *ab3100_get_reg_file;
 static struct ab3100_get_set_reg_priv ab3100_set_priv;
-static struct dentry *ab3100_set_reg_file;
 
 static void ab3100_setup_debugfs(struct ab3100 *ab3100)
 {
-	int err;
+	struct dentry *ab3100_dir;
 
 	ab3100_dir = debugfs_create_dir("ab3100", NULL);
-	if (!ab3100_dir)
-		goto exit_no_debugfs;
 
-	ab3100_reg_file = debugfs_create_file("registers",
-				S_IRUGO, ab3100_dir, ab3100,
-				&ab3100_registers_fops);
-	if (!ab3100_reg_file) {
-		err = -ENOMEM;
-		goto exit_destroy_dir;
-	}
+	debugfs_create_file("registers", S_IRUGO, ab3100_dir, ab3100,
+			    &ab3100_registers_fops);
 
 	ab3100_get_priv.ab3100 = ab3100;
 	ab3100_get_priv.mode = false;
-	ab3100_get_reg_file = debugfs_create_file("get_reg",
-				S_IWUSR, ab3100_dir, &ab3100_get_priv,
-				&ab3100_get_set_reg_fops);
-	if (!ab3100_get_reg_file) {
-		err = -ENOMEM;
-		goto exit_destroy_reg;
-	}
+	debugfs_create_file("get_reg", S_IWUSR, ab3100_dir, &ab3100_get_priv,
+			    &ab3100_get_set_reg_fops);
 
 	ab3100_set_priv.ab3100 = ab3100;
 	ab3100_set_priv.mode = true;
-	ab3100_set_reg_file = debugfs_create_file("set_reg",
-				S_IWUSR, ab3100_dir, &ab3100_set_priv,
-				&ab3100_get_set_reg_fops);
-	if (!ab3100_set_reg_file) {
-		err = -ENOMEM;
-		goto exit_destroy_get_reg;
-	}
-	return;
-
- exit_destroy_get_reg:
-	debugfs_remove(ab3100_get_reg_file);
- exit_destroy_reg:
-	debugfs_remove(ab3100_reg_file);
- exit_destroy_dir:
-	debugfs_remove(ab3100_dir);
- exit_no_debugfs:
-	return;
+	debugfs_create_file("set_reg", S_IWUSR, ab3100_dir, &ab3100_set_priv,
+			    &ab3100_get_set_reg_fops);
 }
 #else
 static inline void ab3100_setup_debugfs(struct ab3100 *ab3100)
