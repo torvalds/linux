@@ -182,7 +182,7 @@ DEFINE_SHOW_ATTRIBUTE(status);
 
 static void ti_sn_debugfs_init(struct ti_sn_bridge *pdata)
 {
-	pdata->debugfs = debugfs_create_dir("ti_sn65dsi86", NULL);
+	pdata->debugfs = debugfs_create_dir(dev_name(pdata->dev), NULL);
 
 	debugfs_create_file("status", 0600, pdata->debugfs, pdata,
 			&status_fops);
