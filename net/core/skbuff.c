@@ -707,6 +707,105 @@ void kfree_skb_list(struct sk_buff *segs)
 }
 EXPORT_SYMBOL(kfree_skb_list);
 
+/* Dump skb information and contents.
+ *
+ * Must only be called from net_ratelimit()-ed paths.
+ *
+ * Dumps up to can_dump_full whole packets if full_pkt, headers otherwise.
+ */
+void skb_dump(const char *level, const struct sk_buff *skb, bool full_pkt)
+{
+	static atomic_t can_dump_full = ATOMIC_INIT(5);
+	struct skb_shared_info *sh = skb_shinfo(skb);
+	struct net_device *dev = skb->dev;
+	struct sock *sk = skb->sk;
+	struct sk_buff *list_skb;
+	bool has_mac, has_trans;
+	int headroom, tailroom;
+	int i, len, seg_len;
+
+	if (full_pkt)
+		full_pkt = atomic_dec_if_positive(&can_dump_full) >= 0;
+
+	if (full_pkt)
+		len = skb->len;
+	else
+		len = min_t(int, skb->len, MAX_HEADER + 128);
+
+	headroom = skb_headroom(skb);
+	tailroom = skb_tailroom(skb);
+
+	has_mac = skb_mac_header_was_set(skb);
+	has_trans = skb_transport_header_was_set(skb);
+
+	printk("%sskb len=%u headroom=%u headlen=%u tailroom=%u\n"
+	       "mac=(%d,%d) net=(%d,%d) trans=%d\n"
+	       "shinfo(txflags=%u nr_frags=%u gso(size=%hu type=%u segs=%hu))\n"
+	       "csum(0x%x ip_summed=%u complete_sw=%u valid=%u level=%u)\n"
+	       "hash(0x%x sw=%u l4=%u) proto=0x%04x pkttype=%u iif=%d\n",
+	       level, skb->len, headroom, skb_headlen(skb), tailroom,
+	       has_mac ? skb->mac_header : -1,
+	       has_mac ? skb_mac_header_len(skb) : -1,
+	       skb->network_header,
+	       has_trans ? skb_network_header_len(skb) : -1,
+	       has_trans ? skb->transport_header : -1,
+	       sh->tx_flags, sh->nr_frags,
+	       sh->gso_size, sh->gso_type, sh->gso_segs,
+	       skb->csum, skb->ip_summed, skb->csum_complete_sw,
+	       skb->csum_valid, skb->csum_level,
+	       skb->hash, skb->sw_hash, skb->l4_hash,
+	       ntohs(skb->protocol), skb->pkt_type, skb->skb_iif);
+
+	if (dev)
+		printk("%sdev name=%s feat=0x%pNF\n",
+		       level, dev->name, &dev->features);
+	if (sk)
+		printk("%ssk family=%hu type=%hu proto=%hu\n",
+		       level, sk->sk_family, sk->sk_type, sk->sk_protocol);
+
+	if (full_pkt && headroom)
+		print_hex_dump(level, "skb headroom: ", DUMP_PREFIX_OFFSET,
+			       16, 1, skb->head, headroom, false);
+
+	seg_len = min_t(int, skb_headlen(skb), len);
+	if (seg_len)
+		print_hex_dump(level, "skb linear:   ", DUMP_PREFIX_OFFSET,
+			       16, 1, skb->data, seg_len, false);
+	len -= seg_len;
+
+	if (full_pkt && tailroom)
+		print_hex_dump(level, "skb tailroom: ", DUMP_PREFIX_OFFSET,
+			       16, 1, skb_tail_pointer(skb), tailroom, false);
+
+	for (i = 0; len && i < skb_shinfo(skb)->nr_frags; i++) {
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		u32 p_off, p_len, copied;
+		struct page *p;
+		u8 *vaddr;
+
+		skb_frag_foreach_page(frag, frag->page_offset,
+				      skb_frag_size(frag), p, p_off, p_len,
+				      copied) {
+			seg_len = min_t(int, p_len, len);
+			vaddr = kmap_atomic(p);
+			print_hex_dump(level, "skb frag:     ",
+				       DUMP_PREFIX_OFFSET,
+				       16, 1, vaddr + p_off, seg_len, false);
+			kunmap_atomic(vaddr);
+			len -= seg_len;
+			if (!len)
+				break;
+		}
+	}
+
+	if (full_pkt && skb_has_frag_list(skb)) {
+		printk("skb fraglist:\n");
+		skb_walk_frags(skb, list_skb)
+			skb_dump(level, list_skb, true);
+	}
+}
+EXPORT_SYMBOL(skb_dump);
+
 /**
  *	skb_tx_error - report an sk_buff xmit error
  *	@skb: buffer that triggered an error
