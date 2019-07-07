@@ -635,12 +635,8 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 		cip_header = ctx_header + 2;
 		err = check_cip_header(s, cip_header, *payload_length,
 				       data_blocks, dbc, syt);
-		if (err < 0) {
-			if (err != -EAGAIN)
-				return err;
-
-			*data_blocks = 0;
-		}
+		if (err < 0)
+			return err;
 	} else {
 		cip_header = NULL;
 		err = 0;
@@ -653,9 +649,6 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 		else
 			*dbc = 0;
 	}
-
-	if (err < 0)
-		return err;
 
 	s->data_block_counter = *dbc;
 
