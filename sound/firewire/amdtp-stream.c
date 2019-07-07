@@ -700,7 +700,8 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 {
 	struct amdtp_stream *s = private_data;
 	const __be32 *ctx_header = header;
-	unsigned int i, packets = header_length / sizeof(*ctx_header);
+	unsigned int packets = header_length / sizeof(*ctx_header);
+	int i;
 
 	if (s->packet_index < 0)
 		return;
@@ -708,7 +709,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	for (i = 0; i < packets; ++i) {
 		u32 cycle;
 		unsigned int syt;
-		unsigned int data_block;
+		unsigned int data_blocks;
 		__be32 *buffer;
 		unsigned int pcm_frames;
 		struct {
@@ -719,12 +720,13 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 		cycle = compute_it_cycle(*ctx_header);
 		syt = calculate_syt(s, cycle);
-		data_block = calculate_data_blocks(s, syt);
+		data_blocks = calculate_data_blocks(s, syt);
 		buffer = s->buffer.packets[s->packet_index].buffer;
-		pcm_frames = s->process_data_blocks(s, buffer, data_block, &syt);
+		pcm_frames = s->process_data_blocks(s, buffer, data_blocks,
+						    &syt);
 
-		build_it_pkt_header(s, cycle, &template.params, data_block, syt,
-				    i);
+		build_it_pkt_header(s, cycle, &template.params, data_blocks,
+				    syt, i);
 
 		if (queue_out_packet(s, &template.params) < 0) {
 			cancel_stream(s);
