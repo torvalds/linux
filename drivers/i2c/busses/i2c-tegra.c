@@ -636,7 +636,7 @@ static void tegra_dvc_init(struct tegra_i2c_dev *i2c_dev)
 	dvc_writel(i2c_dev, val, DVC_CTRL_REG1);
 }
 
-static int tegra_i2c_runtime_resume(struct device *dev)
+static int __maybe_unused tegra_i2c_runtime_resume(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 	int ret;
@@ -665,7 +665,7 @@ static int tegra_i2c_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int tegra_i2c_runtime_suspend(struct device *dev)
+static int __maybe_unused tegra_i2c_runtime_suspend(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
@@ -1711,8 +1711,7 @@ static int tegra_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int tegra_i2c_suspend(struct device *dev)
+static int __maybe_unused tegra_i2c_suspend(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
@@ -1721,7 +1720,7 @@ static int tegra_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_i2c_resume(struct device *dev)
+static int __maybe_unused tegra_i2c_resume(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 	int err;
@@ -1741,18 +1740,13 @@ static const struct dev_pm_ops tegra_i2c_pm = {
 			   NULL)
 };
 
-#define TEGRA_I2C_PM	(&tegra_i2c_pm)
-#else
-#define TEGRA_I2C_PM	NULL
-#endif
-
 static struct platform_driver tegra_i2c_driver = {
 	.probe   = tegra_i2c_probe,
 	.remove  = tegra_i2c_remove,
 	.driver  = {
 		.name  = "tegra-i2c",
 		.of_match_table = tegra_i2c_of_match,
-		.pm    = TEGRA_I2C_PM,
+		.pm    = &tegra_i2c_pm,
 	},
 };
 
