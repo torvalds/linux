@@ -51,42 +51,6 @@
 		serial3 = &serial_3;
 	};
 
-	gpu: gpu@13000000 {
-		compatible = "samsung,exynos4210-mali", "arm,mali-400";
-		reg = <0x13000000 0x10000>;
-		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "gp",
-				  "gpmmu",
-				  "pp0",
-				  "ppmmu0",
-				  "pp1",
-				  "ppmmu1",
-				  "pp2",
-				  "ppmmu2",
-				  "pp3",
-				  "ppmmu3",
-				  "pmu";
-		/*
-		 * CLK_G3D is not actually bus clock but a IP-level clock.
-		 * The bus clock is not described in hardware manual.
-		 */
-		clocks = <&clock CLK_G3D>,
-			 <&clock CLK_SCLK_G3D>;
-		clock-names = "bus", "core";
-		power-domains = <&pd_g3d>;
-		status = "disabled";
-	};
-
 	pmu: pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupt-parent = <&combiner>;
@@ -449,6 +413,20 @@
 				phys = <&exynos_usbphy 1>;
 				status = "disabled";
 			};
+		};
+
+		gpu: gpu@13000000 {
+			compatible = "samsung,exynos4210-mali", "arm,mali-400";
+			reg = <0x13000000 0x10000>;
+			/*
+			 * CLK_G3D is not actually bus clock but a IP-level clock.
+			 * The bus clock is not described in hardware manual.
+			 */
+			clocks = <&clock CLK_G3D>,
+				 <&clock CLK_SCLK_G3D>;
+			clock-names = "bus", "core";
+			power-domains = <&pd_g3d>;
+			status = "disabled";
 		};
 
 		i2s1: i2s@13960000 {
