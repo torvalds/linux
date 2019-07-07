@@ -510,13 +510,13 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 		cip_header = NULL;
 	}
 
+	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
+			   index);
+
 	if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
 		s->data_block_counter =
 				(s->data_block_counter + data_blocks) & 0xff;
 	}
-
-	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
-			   index);
 }
 
 static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
