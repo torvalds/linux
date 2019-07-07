@@ -168,6 +168,8 @@ gpio_keys_polled_get_devtree_pdata(struct device *dev)
 	pdata->rep = device_property_present(dev, "autorepeat");
 	device_property_read_u32(dev, "poll-interval", &pdata->poll_interval);
 
+	device_property_read_string(dev, "label", &pdata->name);
+
 	device_for_each_child_node(dev, child) {
 		if (fwnode_property_read_u32(child, "linux,code",
 					     &button->code)) {
@@ -270,7 +272,7 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 
 	input = poll_dev->input;
 
-	input->name = pdev->name;
+	input->name = pdata->name ?: pdev->name;
 	input->phys = DRV_NAME"/input0";
 
 	input->id.bustype = BUS_HOST;
