@@ -13,6 +13,7 @@
 #include <linux/hardirq.h>
 #include <linux/jhash.h>
 #include <linux/refcount.h>
+#include <linux/jump_label_ratelimit.h>
 #include <net/if_inet6.h>
 #include <net/ndisc.h>
 #include <net/flow.h>
@@ -389,7 +390,18 @@ static inline void txopt_put(struct ipv6_txoptions *opt)
 		kfree_rcu(opt, rcu);
 }
 
-struct ip6_flowlabel *fl6_sock_lookup(struct sock *sk, __be32 label);
+struct ip6_flowlabel *__fl6_sock_lookup(struct sock *sk, __be32 label);
+
+extern struct static_key_false_deferred ipv6_flowlabel_exclusive;
+static inline struct ip6_flowlabel *fl6_sock_lookup(struct sock *sk,
+						    __be32 label)
+{
+	if (static_branch_unlikely(&ipv6_flowlabel_exclusive.key))
+		return __fl6_sock_lookup(sk, label) ? : ERR_PTR(-ENOENT);
+
+	return NULL;
+}
+
 struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions *opt_space,
 					 struct ip6_flowlabel *fl,
 					 struct ipv6_txoptions *fopt);
