@@ -59,6 +59,7 @@
 #include <linux/errqueue.h>
 #include <linux/prefetch.h>
 #include <linux/if_vlan.h>
+#include <linux/mpls.h>
 
 #include <net/protocol.h>
 #include <net/dst.h>
@@ -5563,6 +5564,35 @@ int skb_mpls_update_lse(struct sk_buff *skb, __be32 mpls_lse)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(skb_mpls_update_lse);
+
+/**
+ * skb_mpls_dec_ttl() - decrement the TTL of the outermost MPLS header
+ *
+ * @skb: buffer
+ *
+ * Expects skb->data at mac header.
+ *
+ * Returns 0 on success, -errno otherwise.
+ */
+int skb_mpls_dec_ttl(struct sk_buff *skb)
+{
+	u32 lse;
+	u8 ttl;
+
+	if (unlikely(!eth_p_mpls(skb->protocol)))
+		return -EINVAL;
+
+	lse = be32_to_cpu(mpls_hdr(skb)->label_stack_entry);
+	ttl = (lse & MPLS_LS_TTL_MASK) >> MPLS_LS_TTL_SHIFT;
+	if (!--ttl)
+		return -EINVAL;
+
+	lse &= ~MPLS_LS_TTL_MASK;
+	lse |= ttl << MPLS_LS_TTL_SHIFT;
+
+	return skb_mpls_update_lse(skb, cpu_to_be32(lse));
+}
+EXPORT_SYMBOL_GPL(skb_mpls_dec_ttl);
 
 /**
  * alloc_skb_with_frags - allocate skb with page frags
