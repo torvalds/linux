@@ -22,6 +22,8 @@ static int midi_open(struct snd_rawmidi_substream *substream)
 	if (err >= 0) {
 		++bebob->substreams_counter;
 		err = snd_bebob_stream_start_duplex(bebob);
+		if (err < 0)
+			--bebob->substreams_counter;
 	}
 	mutex_unlock(&bebob->mutex);
 	if (err < 0)
