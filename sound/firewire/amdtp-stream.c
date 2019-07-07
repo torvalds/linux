@@ -646,8 +646,12 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 		err = 0;
 		*data_blocks = *payload_length / sizeof(__be32) /
 			       s->data_block_quadlets;
-		*dbc = s->data_block_counter;
 		*syt = 0;
+
+		if (s->data_block_counter != UINT_MAX)
+			*dbc = s->data_block_counter;
+		else
+			*dbc = 0;
 	}
 
 	if (err >= 0 && s->flags & CIP_DBC_IS_END_EVENT)
