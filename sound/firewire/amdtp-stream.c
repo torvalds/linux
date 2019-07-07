@@ -490,7 +490,11 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 				unsigned int data_blocks, unsigned int syt,
 				unsigned int index)
 {
+	unsigned int payload_length;
 	__be32 *cip_header;
+
+	payload_length = data_blocks * sizeof(__be32) * s->data_block_quadlets;
+	params->payload_length = payload_length;
 
 	if (s->flags & CIP_DBC_IS_END_EVENT) {
 		s->data_block_counter =
@@ -501,6 +505,7 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 		cip_header = (__be32 *)params->header;
 		generate_cip_header(s, cip_header, syt);
 		params->header_length = 2 * sizeof(__be32);
+		payload_length += params->header_length;
 	} else {
 		cip_header = NULL;
 	}
@@ -510,11 +515,8 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 				(s->data_block_counter + data_blocks) & 0xff;
 	}
 
-	params->payload_length =
-			data_blocks * sizeof(__be32) * s->data_block_quadlets;
-
-	trace_amdtp_packet(s, cycle, cip_header, params->payload_length,
-			   data_blocks, index);
+	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
+			   index);
 }
 
 static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
