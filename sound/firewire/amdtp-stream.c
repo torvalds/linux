@@ -654,8 +654,10 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 			*dbc = 0;
 	}
 
-	if (err >= 0 && s->flags & CIP_DBC_IS_END_EVENT)
-		s->data_block_counter = *dbc;
+	if (err < 0)
+		return err;
+
+	s->data_block_counter = *dbc;
 
 	trace_amdtp_packet(s, cycle, cip_header, *payload_length, *data_blocks,
 			   index);
