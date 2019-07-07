@@ -616,9 +616,10 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 			       const __be32 *ctx_header,
 			       unsigned int *payload_length,
-			       unsigned int *data_blocks, unsigned int *dbc,
-			       unsigned int *syt, unsigned int index)
+			       unsigned int *data_blocks, unsigned int *syt,
+			       unsigned int index)
 {
+	unsigned int dbc;
 	const __be32 *cip_header;
 	int err;
 
@@ -634,7 +635,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	if (!(s->flags & CIP_NO_HEADER)) {
 		cip_header = ctx_header + 2;
 		err = check_cip_header(s, cip_header, *payload_length,
-				       data_blocks, dbc, syt);
+				       data_blocks, &dbc, syt);
 		if (err < 0)
 			return err;
 	} else {
@@ -645,12 +646,12 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 		*syt = 0;
 
 		if (s->data_block_counter != UINT_MAX)
-			*dbc = s->data_block_counter;
+			dbc = s->data_block_counter;
 		else
-			*dbc = 0;
+			dbc = 0;
 	}
 
-	s->data_block_counter = *dbc;
+	s->data_block_counter = dbc;
 
 	trace_amdtp_packet(s, cycle, cip_header, *payload_length, *data_blocks,
 			   index);
@@ -758,7 +759,6 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		u32 cycle;
 		unsigned int payload_length;
 		unsigned int data_blocks;
-		unsigned int dbc;
 		unsigned int syt;
 		__be32 *buffer;
 		unsigned int pcm_frames = 0;
@@ -768,7 +768,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 		cycle = compute_cycle_count(ctx_header[1]);
 		err = parse_ir_ctx_header(s, cycle, ctx_header, &payload_length,
-					  &data_blocks, &dbc, &syt, i);
+					  &data_blocks, &syt, i);
 		if (err < 0 && err != -EAGAIN)
 			break;
 
@@ -778,8 +778,8 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 							    data_blocks, &syt);
 
 			if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
-				s->data_block_counter =
-						(dbc + data_blocks) & 0xff;
+				s->data_block_counter += data_blocks;
+				s->data_block_counter &= 0xff;
 			}
 		}
 
