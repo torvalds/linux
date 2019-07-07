@@ -23,6 +23,8 @@ static int midi_capture_open(struct snd_rawmidi_substream *substream)
 	if (err >= 0) {
 		++oxfw->substreams_count;
 		err = snd_oxfw_stream_start_duplex(oxfw);
+		if (err < 0)
+			--oxfw->substreams_count;
 	}
 
 	mutex_unlock(&oxfw->mutex);
