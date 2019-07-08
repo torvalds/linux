@@ -345,6 +345,8 @@ __scmi_xfer_put(struct scmi_xfers_info *minfo, struct scmi_xfer *xfer)
  */
 static void scmi_rx_callback(struct mbox_client *cl, void *m)
 {
+	u8 msg_type;
+	u32 msg_hdr;
 	u16 xfer_id;
 	struct scmi_xfer *xfer;
 	struct scmi_chan_info *cinfo = client_to_scmi_chan_info(cl);
@@ -353,7 +355,12 @@ static void scmi_rx_callback(struct mbox_client *cl, void *m)
 	struct scmi_xfers_info *minfo = &info->tx_minfo;
 	struct scmi_shared_mem __iomem *mem = cinfo->payload;
 
-	xfer_id = MSG_XTRACT_TOKEN(ioread32(&mem->msg_header));
+	msg_hdr = ioread32(&mem->msg_header);
+	msg_type = MSG_XTRACT_TYPE(msg_hdr);
+	xfer_id = MSG_XTRACT_TOKEN(msg_hdr);
+
+	if (msg_type == MSG_TYPE_NOTIFICATION)
+		return; /* Notifications not yet supported */
 
 	/* Are we even expecting this? */
 	if (!test_bit(xfer_id, minfo->xfer_alloc_table)) {
@@ -366,7 +373,11 @@ static void scmi_rx_callback(struct mbox_client *cl, void *m)
 	scmi_dump_header_dbg(dev, &xfer->hdr);
 
 	scmi_fetch_response(xfer, mem);
-	complete(&xfer->done);
+
+	if (msg_type == MSG_TYPE_DELAYED_RESP)
+		complete(xfer->async_done);
+	else
+		complete(&xfer->done);
 }
 
 /**
@@ -467,6 +478,34 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	 */
 	mbox_client_txdone(cinfo->chan, ret);
 
+	return ret;
+}
+
+#define SCMI_MAX_RESPONSE_TIMEOUT	(2 * MSEC_PER_SEC)
+
+/**
+ * scmi_do_xfer_with_response() - Do one transfer and wait until the delayed
+ *	response is received
+ *
+ * @handle: Pointer to SCMI entity handle
+ * @xfer: Transfer to initiate and wait for response
+ *
+ * Return: -ETIMEDOUT in case of no delayed response, if transmit error,
+ *	return corresponding error, else if all goes well, return 0.
+ */
+int scmi_do_xfer_with_response(const struct scmi_handle *handle,
+			       struct scmi_xfer *xfer)
+{
+	int ret, timeout = msecs_to_jiffies(SCMI_MAX_RESPONSE_TIMEOUT);
+	DECLARE_COMPLETION_ONSTACK(async_response);
+
+	xfer->async_done = &async_response;
+
+	ret = scmi_do_xfer(handle, xfer);
+	if (!ret && !wait_for_completion_timeout(xfer->async_done, timeout))
+		ret = -ETIMEDOUT;
+
+	xfer->async_done = NULL;
 	return ret;
 }
 
