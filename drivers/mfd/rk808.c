@@ -1412,7 +1412,7 @@ static int rk808_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int rk8xx_suspend(struct device *dev)
+static int __maybe_unused rk8xx_suspend(struct device *dev)
 {
 	int i, ret = 0;
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
@@ -1457,7 +1457,7 @@ static int rk8xx_suspend(struct device *dev)
 	return ret;
 }
 
-static int rk8xx_resume(struct device *dev)
+static int __maybe_unused rk8xx_resume(struct device *dev)
 {
 	int i, ret = 0;
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
