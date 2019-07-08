@@ -1023,9 +1023,8 @@ static int sc27xx_fgu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_add_action(dev, sc27xx_fgu_disable, data);
+	ret = devm_add_action_or_reset(dev, sc27xx_fgu_disable, data);
 	if (ret) {
-		sc27xx_fgu_disable(data);
 		dev_err(dev, "failed to add fgu disable action\n");
 		return ret;
 	}
