@@ -90,19 +90,6 @@ static void mux_configure8(struct fsl_edma_chan *fsl_chan, void __iomem *addr,
 	iowrite8(val8, addr + off);
 }
 
-void mux_configure32(struct fsl_edma_chan *fsl_chan, void __iomem *addr,
-		     u32 off, u32 slot, bool enable)
-{
-	u32 val;
-
-	if (enable)
-		val = EDMAMUX_CHCFG_ENBL << 24 | slot;
-	else
-		val = EDMAMUX_CHCFG_DIS;
-
-	iowrite32(val, addr + off * 4);
-}
-
 void fsl_edma_chan_mux(struct fsl_edma_chan *fsl_chan,
 			unsigned int slot, bool enable)
 {
@@ -116,10 +103,7 @@ void fsl_edma_chan_mux(struct fsl_edma_chan *fsl_chan,
 	muxaddr = fsl_chan->edma->muxbase[ch / chans_per_mux];
 	slot = EDMAMUX_CHCFG_SOURCE(slot);
 
-	if (fsl_chan->edma->drvdata->version == v3)
-		mux_configure32(fsl_chan, muxaddr, ch_off, slot, enable);
-	else
-		mux_configure8(fsl_chan, muxaddr, ch_off, slot, enable);
+	mux_configure8(fsl_chan, muxaddr, ch_off, slot, enable);
 }
 EXPORT_SYMBOL_GPL(fsl_edma_chan_mux);
 
