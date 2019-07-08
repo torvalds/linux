@@ -207,6 +207,10 @@ HWCAP_FLAGM
 
     Functionality implied by ID_AA64ISAR0_EL1.TS == 0b0001.
 
+HWCAP2_FLAGM2
+
+    Functionality implied by ID_AA64ISAR0_EL1.TS == 0b0010.
+
 HWCAP_SSBS
 
     Functionality implied by ID_AA64PFR1_EL1.SSBS == 0b0010.
@@ -222,6 +226,10 @@ HWCAP_PACG
     Functionality implied by ID_AA64ISAR1_EL1.GPA == 0b0001 or
     ID_AA64ISAR1_EL1.GPI == 0b0001, as described by
     Documentation/arm64/pointer-authentication.txt.
+
+HWCAP2_FRINT
+
+    Functionality implied by ID_AA64ISAR1_EL1.FRINTTS == 0b0001.
 
 
 4. Unused AT_HWCAP bits

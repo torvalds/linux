@@ -181,11 +181,7 @@ static void init_gic_priority_masking(void)
 
 	WARN_ON(!(cpuflags & PSR_I_BIT));
 
-	gic_write_pmr(GIC_PRIO_IRQOFF);
-
-	/* We can only unmask PSR.I if we can take aborts */
-	if (!(cpuflags & PSR_A_BIT))
-		write_sysreg(cpuflags & ~PSR_I_BIT, daif);
+	gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
 }
 
 /*
@@ -834,18 +830,23 @@ void arch_irq_work_raise(void)
 }
 #endif
 
-/*
- * ipi_cpu_stop - handle IPI from smp_send_stop()
- */
-static void ipi_cpu_stop(unsigned int cpu)
+static void local_cpu_stop(void)
 {
-	set_cpu_online(cpu, false);
+	set_cpu_online(smp_processor_id(), false);
 
 	local_daif_mask();
 	sdei_mask_local_cpu();
+	cpu_park_loop();
+}
 
-	while (1)
-		cpu_relax();
+/*
+ * We need to implement panic_smp_self_stop() for parallel panic() calls, so
+ * that cpu_online_mask gets correctly updated and smp_send_stop() can skip
+ * CPUs that have already stopped themselves.
+ */
+void panic_smp_self_stop(void)
+{
+	local_cpu_stop();
 }
 
 #ifdef CONFIG_KEXEC_CORE
@@ -898,7 +899,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-		ipi_cpu_stop(cpu);
+		local_cpu_stop();
 		irq_exit();
 		break;
 
