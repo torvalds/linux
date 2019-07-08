@@ -112,7 +112,7 @@ struct scmi_chan_info {
  * @version: SCMI revision information containing protocol version,
  *	implementation version and (sub-)vendor identification.
  * @minfo: Message info
- * @tx_idr: IDR object to map protocol id to channel info pointer
+ * @tx_idr: IDR object to map protocol id to Tx channel info pointer
  * @protocols_imp: List of protocols implemented, currently maximum of
  *	MAX_PROTOCOLS_IMP elements allocated by the base protocol
  * @node: List head
@@ -640,22 +640,27 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 	return 0;
 }
 
-static int scmi_mailbox_check(struct device_node *np)
+static int scmi_mailbox_check(struct device_node *np, int idx)
 {
-	return of_parse_phandle_with_args(np, "mboxes", "#mbox-cells", 0, NULL);
+	return of_parse_phandle_with_args(np, "mboxes", "#mbox-cells",
+					  idx, NULL);
 }
 
-static inline int
-scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev, int prot_id)
+static int scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev,
+				int prot_id, bool tx)
 {
-	int ret;
+	int ret, idx;
 	struct resource res;
 	resource_size_t size;
 	struct device_node *shmem, *np = dev->of_node;
 	struct scmi_chan_info *cinfo;
 	struct mbox_client *cl;
+	const char *desc = tx ? "Tx" : "Rx";
 
-	if (scmi_mailbox_check(np)) {
+	/* Transmit channel is first entry i.e. index 0 */
+	idx = tx ? 0 : 1;
+
+	if (scmi_mailbox_check(np, idx)) {
 		cinfo = idr_find(&info->tx_idr, SCMI_PROTOCOL_BASE);
 		goto idr_alloc;
 	}
@@ -669,31 +674,31 @@ scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev, int prot_id)
 	cl = &cinfo->cl;
 	cl->dev = dev;
 	cl->rx_callback = scmi_rx_callback;
-	cl->tx_prepare = scmi_tx_prepare;
+	cl->tx_prepare = tx ? scmi_tx_prepare : NULL;
 	cl->tx_block = false;
-	cl->knows_txdone = true;
+	cl->knows_txdone = tx;
 
-	shmem = of_parse_phandle(np, "shmem", 0);
+	shmem = of_parse_phandle(np, "shmem", idx);
 	ret = of_address_to_resource(shmem, 0, &res);
 	of_node_put(shmem);
 	if (ret) {
-		dev_err(dev, "failed to get SCMI Tx payload mem resource\n");
+		dev_err(dev, "failed to get SCMI %s payload memory\n", desc);
 		return ret;
 	}
 
 	size = resource_size(&res);
 	cinfo->payload = devm_ioremap(info->dev, res.start, size);
 	if (!cinfo->payload) {
-		dev_err(dev, "failed to ioremap SCMI Tx payload\n");
+		dev_err(dev, "failed to ioremap SCMI %s payload\n", desc);
 		return -EADDRNOTAVAIL;
 	}
 
-	/* Transmit channel is first entry i.e. index 0 */
-	cinfo->chan = mbox_request_channel(cl, 0);
+	cinfo->chan = mbox_request_channel(cl, idx);
 	if (IS_ERR(cinfo->chan)) {
 		ret = PTR_ERR(cinfo->chan);
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to request SCMI Tx mailbox\n");
+			dev_err(dev, "failed to request SCMI %s mailbox\n",
+				desc);
 		return ret;
 	}
 
@@ -721,7 +726,7 @@ scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
 		return;
 	}
 
-	if (scmi_mbox_chan_setup(info, &sdev->dev, prot_id)) {
+	if (scmi_mbox_chan_setup(info, &sdev->dev, prot_id, true)) {
 		dev_err(&sdev->dev, "failed to setup transport\n");
 		scmi_device_destroy(sdev);
 		return;
@@ -741,7 +746,7 @@ static int scmi_probe(struct platform_device *pdev)
 	struct device_node *child, *np = dev->of_node;
 
 	/* Only mailbox method supported, check for the presence of one */
-	if (scmi_mailbox_check(np)) {
+	if (scmi_mailbox_check(np, 0)) {
 		dev_err(dev, "no mailbox found in %pOF\n", np);
 		return -EINVAL;
 	}
@@ -769,7 +774,7 @@ static int scmi_probe(struct platform_device *pdev)
 	handle->dev = info->dev;
 	handle->version = &info->version;
 
-	ret = scmi_mbox_chan_setup(info, dev, SCMI_PROTOCOL_BASE);
+	ret = scmi_mbox_chan_setup(info, dev, SCMI_PROTOCOL_BASE, true);
 	if (ret)
 		return ret;
 
