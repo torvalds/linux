@@ -710,6 +710,10 @@ static void set_signal_archinfo(unsigned long address,
 	 * To avoid leaking information about the kernel page
 	 * table layout, pretend that user-mode accesses to
 	 * kernel addresses are always protection faults.
+	 *
+	 * NB: This means that failed vsyscalls with vsyscall=none
+	 * will have the PROT bit.  This doesn't leak any
+	 * information and does not appear to cause any problems.
 	 */
 	if (address >= TASK_SIZE_MAX)
 		error_code |= X86_PF_PROT;
@@ -1369,16 +1373,18 @@ void do_user_addr_fault(struct pt_regs *regs,
 
 #ifdef CONFIG_X86_64
 	/*
-	 * Instruction fetch faults in the vsyscall page might need
-	 * emulation.  The vsyscall page is at a high address
-	 * (>PAGE_OFFSET), but is considered to be part of the user
-	 * address space.
+	 * Faults in the vsyscall page might need emulation.  The
+	 * vsyscall page is at a high address (>PAGE_OFFSET), but is
+	 * considered to be part of the user address space.
 	 *
 	 * The vsyscall page does not have a "real" VMA, so do this
 	 * emulation before we go searching for VMAs.
+	 *
+	 * PKRU never rejects instruction fetches, so we don't need
+	 * to consider the PF_PK bit.
 	 */
-	if ((hw_error_code & X86_PF_INSTR) && is_vsyscall_vaddr(address)) {
-		if (emulate_vsyscall(regs, address))
+	if (is_vsyscall_vaddr(address)) {
+		if (emulate_vsyscall(hw_error_code, regs, address))
 			return;
 	}
 #endif
