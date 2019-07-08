@@ -356,12 +356,10 @@ static void cpufreq_notify_transition(struct cpufreq_policy *policy,
 		 * which is not equal to what the cpufreq core thinks is
 		 * "old frequency".
 		 */
-		if (!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
-			if (policy->cur && (policy->cur != freqs->old)) {
-				pr_debug("Warning: CPU frequency is %u, cpufreq assumed %u kHz\n",
-					 freqs->old, policy->cur);
-				freqs->old = policy->cur;
-			}
+		if (policy->cur && policy->cur != freqs->old) {
+			pr_debug("Warning: CPU frequency is %u, cpufreq assumed %u kHz\n",
+				 freqs->old, policy->cur);
+			freqs->old = policy->cur;
 		}
 
 		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
@@ -631,7 +629,7 @@ static int cpufreq_parse_policy(char *str_governor,
 }
 
 /**
- * cpufreq_parse_governor - parse a governor string only for !setpolicy
+ * cpufreq_parse_governor - parse a governor string only for has_target()
  */
 static int cpufreq_parse_governor(char *str_governor,
 				  struct cpufreq_policy *policy)
@@ -1114,13 +1112,25 @@ static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy, unsigned int cp
 	return ret;
 }
 
+static void refresh_frequency_limits(struct cpufreq_policy *policy)
+{
+	struct cpufreq_policy new_policy = *policy;
+
+	pr_debug("updating policy for CPU %u\n", policy->cpu);
+
+	new_policy.min = policy->user_policy.min;
+	new_policy.max = policy->user_policy.max;
+
+	cpufreq_set_policy(policy, &new_policy);
+}
+
 static void handle_update(struct work_struct *work)
 {
 	struct cpufreq_policy *policy =
 		container_of(work, struct cpufreq_policy, update);
-	unsigned int cpu = policy->cpu;
-	pr_debug("handle_update for cpu %u called\n", cpu);
-	cpufreq_update_policy(cpu);
+
+	pr_debug("handle_update for cpu %u called\n", policy->cpu);
+	refresh_frequency_limits(policy);
 }
 
 static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
@@ -1300,7 +1310,7 @@ static int cpufreq_online(unsigned int cpu)
 		policy->max = policy->user_policy.max;
 	}
 
-	if (cpufreq_driver->get && !cpufreq_driver->setpolicy) {
+	if (cpufreq_driver->get && has_target()) {
 		policy->cur = cpufreq_driver->get(policy->cpu);
 		if (!policy->cur) {
 			pr_err("%s: ->get() failed\n", __func__);
@@ -1375,8 +1385,7 @@ static int cpufreq_online(unsigned int cpu)
 	if (cpufreq_driver->ready)
 		cpufreq_driver->ready(policy);
 
-	if (IS_ENABLED(CONFIG_CPU_THERMAL) &&
-	    cpufreq_driver->flags & CPUFREQ_IS_COOLING_DEV)
+	if (cpufreq_thermal_control_enabled(cpufreq_driver))
 		policy->cdev = of_cpufreq_cooling_register(policy);
 
 	pr_debug("initialization complete\n");
@@ -1466,8 +1475,7 @@ static int cpufreq_offline(unsigned int cpu)
 		goto unlock;
 	}
 
-	if (IS_ENABLED(CONFIG_CPU_THERMAL) &&
-	    cpufreq_driver->flags & CPUFREQ_IS_COOLING_DEV) {
+	if (cpufreq_thermal_control_enabled(cpufreq_driver)) {
 		cpufreq_cooling_unregister(policy->cdev);
 		policy->cdev = NULL;
 	}
@@ -1546,6 +1554,30 @@ static void cpufreq_out_of_sync(struct cpufreq_policy *policy,
 	cpufreq_freq_transition_end(policy, &freqs, 0);
 }
 
+static unsigned int cpufreq_verify_current_freq(struct cpufreq_policy *policy, bool update)
+{
+	unsigned int new_freq;
+
+	new_freq = cpufreq_driver->get(policy->cpu);
+	if (!new_freq)
+		return 0;
+
+	/*
+	 * If fast frequency switching is used with the given policy, the check
+	 * against policy->cur is pointless, so skip it in that case.
+	 */
+	if (policy->fast_switch_enabled || !has_target())
+		return new_freq;
+
+	if (policy->cur != new_freq) {
+		cpufreq_out_of_sync(policy, new_freq);
+		if (update)
+			schedule_work(&policy->update);
+	}
+
+	return new_freq;
+}
+
 /**
  * cpufreq_quick_get - get the CPU frequency (in kHz) from policy->cur
  * @cpu: CPU number
@@ -1601,31 +1633,10 @@ EXPORT_SYMBOL(cpufreq_quick_get_max);
 
 static unsigned int __cpufreq_get(struct cpufreq_policy *policy)
 {
-	unsigned int ret_freq = 0;
-
 	if (unlikely(policy_is_inactive(policy)))
-		return ret_freq;
+		return 0;
 
-	ret_freq = cpufreq_driver->get(policy->cpu);
-
-	/*
-	 * If fast frequency switching is used with the given policy, the check
-	 * against policy->cur is pointless, so skip it in that case too.
-	 */
-	if (policy->fast_switch_enabled)
-		return ret_freq;
-
-	if (ret_freq && policy->cur &&
-		!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
-		/* verify no discrepancy between actual and
-					saved value exists */
-		if (unlikely(ret_freq != policy->cur)) {
-			cpufreq_out_of_sync(policy, ret_freq);
-			schedule_work(&policy->update);
-		}
-	}
-
-	return ret_freq;
+	return cpufreq_verify_current_freq(policy, true);
 }
 
 /**
@@ -1651,24 +1662,6 @@ unsigned int cpufreq_get(unsigned int cpu)
 	return ret_freq;
 }
 EXPORT_SYMBOL(cpufreq_get);
-
-static unsigned int cpufreq_update_current_freq(struct cpufreq_policy *policy)
-{
-	unsigned int new_freq;
-
-	new_freq = cpufreq_driver->get(policy->cpu);
-	if (!new_freq)
-		return 0;
-
-	if (!policy->cur) {
-		pr_debug("cpufreq: Driver did not initialize current freq\n");
-		policy->cur = new_freq;
-	} else if (policy->cur != new_freq && has_target()) {
-		cpufreq_out_of_sync(policy, new_freq);
-	}
-
-	return new_freq;
-}
 
 static struct subsys_interface cpufreq_interface = {
 	.name		= "cpufreq",
@@ -2150,8 +2143,8 @@ static int cpufreq_start_governor(struct cpufreq_policy *policy)
 
 	pr_debug("%s: for CPU %u\n", __func__, policy->cpu);
 
-	if (cpufreq_driver->get && !cpufreq_driver->setpolicy)
-		cpufreq_update_current_freq(policy);
+	if (cpufreq_driver->get)
+		cpufreq_verify_current_freq(policy, false);
 
 	if (policy->governor->start) {
 		ret = policy->governor->start(policy);
@@ -2392,7 +2385,6 @@ int cpufreq_set_policy(struct cpufreq_policy *policy,
 void cpufreq_update_policy(unsigned int cpu)
 {
 	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpu);
-	struct cpufreq_policy new_policy;
 
 	if (!policy)
 		return;
@@ -2401,16 +2393,11 @@ void cpufreq_update_policy(unsigned int cpu)
 	 * BIOS might change freq behind our back
 	 * -> ask driver for current freq and notify governors about a change
 	 */
-	if (cpufreq_driver->get && !cpufreq_driver->setpolicy &&
-	    (cpufreq_suspended || WARN_ON(!cpufreq_update_current_freq(policy))))
+	if (cpufreq_driver->get && has_target() &&
+	    (cpufreq_suspended || WARN_ON(!cpufreq_verify_current_freq(policy, false))))
 		goto unlock;
 
-	pr_debug("updating policy for CPU %u\n", cpu);
-	memcpy(&new_policy, policy, sizeof(*policy));
-	new_policy.min = policy->user_policy.min;
-	new_policy.max = policy->user_policy.max;
-
-	cpufreq_set_policy(policy, &new_policy);
+	refresh_frequency_limits(policy);
 
 unlock:
 	cpufreq_cpu_release(policy);
