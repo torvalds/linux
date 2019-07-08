@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # show_deltas: Read list of printk messages instrumented with
 # time data, and format with time deltas.
@@ -7,7 +8,6 @@
 #
 # Copyright 2003 Sony Corporation
 #
-# GPL 2.0 applies.
 
 import sys
 import string

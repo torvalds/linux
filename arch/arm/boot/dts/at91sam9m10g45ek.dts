@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9m10g45ek.dts - Device Tree file for AT91SAM9M10G45-EK board
  *
  *  Copyright (C) 2011 Atmel,
  *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include "at91sam9g45.dtsi"

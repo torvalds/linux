@@ -1972,26 +1972,6 @@ out:
 	}
 }
 
-static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)
-{
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	const struct fw_img *img = &mvm->fw->img[IWL_UCODE_WOWLAN];
-	u32 len = img->sec[IWL_UCODE_SECTION_DATA].len;
-	u32 offs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-
-	if (!mvm->store_d3_resume_sram)
-		return;
-
-	if (!mvm->d3_resume_sram) {
-		mvm->d3_resume_sram = kzalloc(len, GFP_KERNEL);
-		if (!mvm->d3_resume_sram)
-			return;
-	}
-
-	iwl_trans_read_mem_bytes(mvm->trans, offs, mvm->d3_resume_sram, len);
-#endif
-}
-
 static void iwl_mvm_d3_disconnect_iter(void *data, u8 *mac,
 				       struct ieee80211_vif *vif)
 {
@@ -2054,8 +2034,6 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	}
 
 	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
-	/* query SRAM first in case we want event logging */
-	iwl_mvm_read_d3_sram(mvm);
 
 	if (iwl_mvm_check_rt_status(mvm, vif)) {
 		set_bit(STATUS_FW_ERROR, &mvm->trans->status);

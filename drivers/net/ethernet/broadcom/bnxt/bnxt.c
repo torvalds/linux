@@ -1642,6 +1642,8 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		skb = bnxt_copy_skb(bnapi, data_ptr, len, dma_addr);
 		bnxt_reuse_rx_data(rxr, cons, data);
 		if (!skb) {
+			if (agg_bufs)
+				bnxt_reuse_rx_agg_bufs(cpr, cp_cons, agg_bufs);
 			rc = -ENOMEM;
 			goto next_rx;
 		}
@@ -6377,7 +6379,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
 		return 0;
 
-	if (bp->flags & BNXT_FLAG_ROCE_CAP) {
+	if ((bp->flags & BNXT_FLAG_ROCE_CAP) && !is_kdump_kernel()) {
 		pg_lvl = 2;
 		extra_qps = 65536;
 		extra_srqs = 8192;
@@ -7616,22 +7618,23 @@ static void bnxt_clear_int_mode(struct bnxt *bp)
 	bp->flags &= ~BNXT_FLAG_USING_MSIX;
 }
 
-int bnxt_reserve_rings(struct bnxt *bp)
+int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init)
 {
 	int tcs = netdev_get_num_tc(bp->dev);
-	bool reinit_irq = false;
+	bool irq_cleared = false;
 	int rc;
 
 	if (!bnxt_need_reserve_rings(bp))
 		return 0;
 
-	if (BNXT_NEW_RM(bp) && (bnxt_get_num_msix(bp) != bp->total_irqs)) {
+	if (irq_re_init && BNXT_NEW_RM(bp) &&
+	    bnxt_get_num_msix(bp) != bp->total_irqs) {
 		bnxt_ulp_irq_stop(bp);
 		bnxt_clear_int_mode(bp);
-		reinit_irq = true;
+		irq_cleared = true;
 	}
 	rc = __bnxt_reserve_rings(bp);
-	if (reinit_irq) {
+	if (irq_cleared) {
 		if (!rc)
 			rc = bnxt_init_int_mode(bp);
 		bnxt_ulp_irq_restart(bp, rc);
@@ -8530,7 +8533,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 			return rc;
 		}
 	}
-	rc = bnxt_reserve_rings(bp);
+	rc = bnxt_reserve_rings(bp, irq_re_init);
 	if (rc)
 		return rc;
 	if ((bp->flags & BNXT_FLAG_RFS) &&
@@ -10434,7 +10437,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 
 	if (sh)
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
-	dflt_rings = netif_get_num_default_rss_queues();
+	dflt_rings = is_kdump_kernel() ? 1 : netif_get_num_default_rss_queues();
 	/* Reduce default rings on multi-port cards so that total default
 	 * rings do not exceed CPU count.
 	 */
@@ -10722,11 +10725,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err_pci_clean;
 	}
 
-	/* Read the adapter's DSN to use as the eswitch switch_id */
-	rc = bnxt_pcie_dsn_get(bp, bp->switch_id);
-	if (rc)
-		goto init_err_pci_clean;
-
+	if (BNXT_PF(bp)) {
+		/* Read the adapter's DSN to use as the eswitch switch_id */
+		rc = bnxt_pcie_dsn_get(bp, bp->switch_id);
+		if (rc)
+			goto init_err_pci_clean;
+	}
 	bnxt_hwrm_func_qcfg(bp);
 	bnxt_hwrm_vnic_qcaps(bp);
 	bnxt_hwrm_port_led_qcaps(bp);

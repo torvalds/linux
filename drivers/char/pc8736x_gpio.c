@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/char/pc8736x_gpio.c
 
    National Semiconductor PC8736x GPIO driver.  Allows a user space

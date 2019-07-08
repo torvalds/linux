@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kexec: kexec_file_load system call
  *
  * Copyright (C) 2014 Red Hat Inc.
  * Authors:
  *      Vivek Goyal <vgoyal@redhat.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

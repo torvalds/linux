@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/fs/pnode.h
  *
  * (C) Copyright IBM Corporation 2005.
- *	Released under GPL v2.
- *
  */
 #ifndef _LINUX_PNODE_H
 #define _LINUX_PNODE_H

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Architectures that offer an FUNCTION_TRACER implementation should
 #  select HAVE_FUNCTION_TRACER:

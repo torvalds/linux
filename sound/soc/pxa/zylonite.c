@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * zylonite.c  --  SoC audio for Zylonite
  *
  * Copyright 2008 Wolfson Microelectronics PLC.
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -127,34 +122,40 @@ static const struct snd_soc_ops zylonite_voice_ops = {
 	.hw_params = zylonite_voice_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(ac97,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9713-codec", "wm9713-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
+SND_SOC_DAILINK_DEFS(ac97_aux,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97-aux")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9713-codec", "wm9713-aux")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
+SND_SOC_DAILINK_DEFS(voice,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa-ssp-dai.2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9713-codec", "wm9713-voice")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link zylonite_dai[] = {
 {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
-	.codec_name = "wm9713-codec",
-	.platform_name = "pxa-pcm-audio",
-	.cpu_dai_name = "pxa2xx-ac97",
-	.codec_dai_name = "wm9713-hifi",
 	.init = zylonite_wm9713_init,
+	SND_SOC_DAILINK_REG(ac97),
 },
 {
 	.name = "AC97 Aux",
 	.stream_name = "AC97 Aux",
-	.codec_name = "wm9713-codec",
-	.platform_name = "pxa-pcm-audio",
-	.cpu_dai_name = "pxa2xx-ac97-aux",
-	.codec_dai_name = "wm9713-aux",
+	SND_SOC_DAILINK_REG(ac97_aux),
 },
 {
 	.name = "WM9713 Voice",
 	.stream_name = "WM9713 Voice",
-	.codec_name = "wm9713-codec",
-	.platform_name = "pxa-pcm-audio",
-	.cpu_dai_name = "pxa-ssp-dai.2",
-	.codec_dai_name = "wm9713-voice",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &zylonite_voice_ops,
+	SND_SOC_DAILINK_REG(voice),
 },
 };
 

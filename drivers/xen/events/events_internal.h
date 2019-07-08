@@ -1,10 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Xen Event Channels (internal header)
  *
  * Copyright (C) 2013 Citrix Systems R&D Ltd.
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2 or later.  See the file COPYING for more details.
  */
 #ifndef __EVENTS_INTERNAL_H__
 #define __EVENTS_INTERNAL_H__

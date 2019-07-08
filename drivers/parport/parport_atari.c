@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Low-level parallel port routines for the Atari builtin port
  *
  * Author: Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>

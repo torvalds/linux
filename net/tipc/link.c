@@ -1728,7 +1728,6 @@ void tipc_link_failover_prepare(struct tipc_link *l, struct tipc_link *tnl,
 	 * node has entered SELF_DOWN_PEER_LEAVING and both peer nodes
 	 * would have to start over from scratch instead.
 	 */
-	WARN_ON(l && tipc_link_is_up(l));
 	tnl->drop_point = 1;
 	tnl->failover_reasm_skb = NULL;
 

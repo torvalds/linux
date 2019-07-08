@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/mxm8x10.c
  *
@@ -13,10 +14,6 @@
  * 2010-01-09: Edwin Peer <epeer@tmtservices.co.za>
  * 	       Hennie van der Merwe <hvdmerwe@tmtservices.co.za>
  *             rework for upstream merge
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/serial_8250.h>

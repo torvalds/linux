@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sim710.c - Copyright (C) 1999 Richard Hirst <richard@sleepie.demon.co.uk>
  *
  *----------------------------------------------------------------------------
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by 
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *----------------------------------------------------------------------------
  *
  * MCA card detection code by Trent McNair. (now deleted)
@@ -23,7 +11,6 @@
  * Auto probing of EISA config space from Trevor Hemsley.
  *
  * Rewritten to use 53c700.c by James.Bottomley@SteelEye.com
- *
  */
 
 #include <linux/module.h>

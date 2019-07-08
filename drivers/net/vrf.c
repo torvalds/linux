@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vrf.c: device driver to encapsulate a VRF space
  *
@@ -6,11 +7,6 @@
  * Copyright (c) 2015 David Ahern <dsa@cumulusnetworks.com>
  *
  * Based on dummy, team and ipvlan drivers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -354,8 +350,8 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *dev = dst->dev;
+	const struct in6_addr *nexthop;
 	struct neighbour *neigh;
-	struct in6_addr *nexthop;
 	int ret;
 
 	nf_reset(skb);

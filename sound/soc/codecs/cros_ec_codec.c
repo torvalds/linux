@@ -413,7 +413,7 @@ static int cros_ec_codec_platform_probe(struct platform_device *pd)
 
 	platform_set_drvdata(pd, codec_data);
 
-	return snd_soc_register_component(dev, &cros_ec_component_driver,
+	return devm_snd_soc_register_component(dev, &cros_ec_component_driver,
 					  cros_ec_dai, ARRAY_SIZE(cros_ec_dai));
 }
 

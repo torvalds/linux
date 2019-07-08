@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CAIF Interface registration.
  * Copyright (C) ST-Ericsson AB 2010
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  *
  * Borrowed heavily from file: pn_dev.c. Thanks to Remi Denis-Courmont
  *  and Sakari Ailus <sakari.ailus@nokia.com>

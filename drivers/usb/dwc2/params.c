@@ -253,6 +253,15 @@ static void dwc2_set_param_phy_utmi_width(struct dwc2_hsotg *hsotg)
 	val = (hsotg->hw_params.utmi_phy_data_width ==
 	       GHWCFG4_UTMI_PHY_DATA_WIDTH_8) ? 8 : 16;
 
+	if (hsotg->phy) {
+		/*
+		 * If using the generic PHY framework, check if the PHY bus
+		 * width is 8-bit and set the phyif appropriately.
+		 */
+		if (phy_get_bus_width(hsotg->phy) == 8)
+			val = 8;
+	}
+
 	hsotg->params.phy_utmi_width = val;
 }
 

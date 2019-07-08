@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * snappercl15.c -- SoC audio for Bluewater Systems Snapper CL15 module
  *
  * Copyright (C) 2008 Bluewater Systems Ltd
  * Author: Ryan Mallon
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/platform_device.h>
@@ -65,16 +60,19 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"MICIN", NULL, "Mic Jack"},
 };
 
+SND_SOC_DAILINK_DEFS(aic23,
+	DAILINK_COMP_ARRAY(COMP_CPU("ep93xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic23-codec.0-001a",
+				      "tlv320aic23-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("ep93xx-i2s")));
+
 static struct snd_soc_dai_link snappercl15_dai = {
 	.name		= "tlv320aic23",
 	.stream_name	= "AIC23",
-	.cpu_dai_name	= "ep93xx-i2s",
-	.codec_dai_name	= "tlv320aic23-hifi",
-	.codec_name	= "tlv320aic23-codec.0-001a",
-	.platform_name	= "ep93xx-i2s",
 	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			  SND_SOC_DAIFMT_CBS_CFS,
 	.ops		= &snappercl15_ops,
+	SND_SOC_DAILINK_REG(aic23),
 };
 
 static struct snd_soc_card snd_soc_snappercl15 = {

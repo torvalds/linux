@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kvm eventfd support - use eventfd objects to signal various KVM events
  *
@@ -6,19 +7,6 @@
  *
  * Author:
  *	Gregory Haskins <ghaskins@novell.com>
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
 #include <linux/kvm_host.h>
@@ -43,6 +31,12 @@
 #ifdef CONFIG_HAVE_KVM_IRQFD
 
 static struct workqueue_struct *irqfd_cleanup_wq;
+
+bool __attribute__((weak))
+kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args)
+{
+	return true;
+}
 
 static void
 irqfd_inject(struct work_struct *work)
@@ -296,6 +290,9 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 
 	if (!kvm_arch_intc_initialized(kvm))
 		return -EAGAIN;
+
+	if (!kvm_arch_irqfd_allowed(kvm, args))
+		return -EINVAL;
 
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL_ACCOUNT);
 	if (!irqfd)

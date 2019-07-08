@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9260.dtsi - Device Tree Include file for AT91SAM9260 family SoC
  *
  *  Copyright (C) 2011 Atmel,
  *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>,
  *                2011 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <dt-bindings/pinctrl/at91.h>

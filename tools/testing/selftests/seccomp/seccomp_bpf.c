@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012 The Chromium OS Authors. All rights reserved.
- * Use of this source code is governed by the GPLv2 license.
  *
  * Test code for seccomp bpf.
  */

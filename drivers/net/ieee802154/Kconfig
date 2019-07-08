@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig IEEE802154_DRIVERS
 	tristate "IEEE 802.15.4 drivers"
 	depends on NETDEVICES && IEEE802154

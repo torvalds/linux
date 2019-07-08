@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for DBRI sound chip found on Sparcs.
  * Copyright (C) 2004, 2005 Martin Habets (mhabets@users.sourceforge.net)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # ALSA Sparc drivers
 
 menuconfig SND_SPARC

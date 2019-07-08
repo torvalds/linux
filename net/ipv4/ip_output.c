@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -317,12 +318,24 @@ static int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *sk
 static int ip_mc_finish_output(struct net *net, struct sock *sk,
 			       struct sk_buff *skb)
 {
+	struct rtable *new_rt;
 	int ret;
 
 	ret = BPF_CGROUP_RUN_PROG_INET_EGRESS(sk, skb);
 	if (ret) {
 		kfree_skb(skb);
 		return ret;
+	}
+
+	/* Reset rt_iif so that inet_iif() will return skb->skb_iif. Setting
+	 * this to non-zero causes ipi_ifindex in in_pktinfo to be overwritten,
+	 * see ipv4_pktinfo_prepare().
+	 */
+	new_rt = rt_dst_clone(net->loopback_dev, skb_rtable(skb));
+	if (new_rt) {
+		new_rt->rt_iif = 0;
+		skb_dst_drop(skb);
+		skb_dst_set(skb, &new_rt->dst);
 	}
 
 	return dev_loopback_xmit(net, sk, skb);
@@ -877,7 +890,7 @@ static int __ip_append_data(struct sock *sk,
 	int csummode = CHECKSUM_NONE;
 	struct rtable *rt = (struct rtable *)cork->dst;
 	unsigned int wmem_alloc_delta = 0;
-	bool paged, extra_uref;
+	bool paged, extra_uref = false;
 	u32 tskey = 0;
 
 	skb = skb_peek_tail(queue);
@@ -917,7 +930,7 @@ static int __ip_append_data(struct sock *sk,
 		uarg = sock_zerocopy_realloc(sk, length, skb_zcopy(skb));
 		if (!uarg)
 			return -ENOBUFS;
-		extra_uref = true;
+		extra_uref = !skb_zcopy(skb);	/* only ref on new uarg */
 		if (rt->dst.dev->features & NETIF_F_SG &&
 		    csummode == CHECKSUM_PARTIAL) {
 			paged = true;

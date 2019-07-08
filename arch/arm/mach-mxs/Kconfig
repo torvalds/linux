@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SOC_IMX23
 	bool
 	select ARM_AMBA

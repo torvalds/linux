@@ -58,13 +58,14 @@ stable kernels.
 | ARM            | Cortex-A72      | #853709         | N/A                         |
 | ARM            | Cortex-A73      | #858921         | ARM64_ERRATUM_858921        |
 | ARM            | Cortex-A55      | #1024718        | ARM64_ERRATUM_1024718       |
-| ARM            | Cortex-A76      | #1188873        | ARM64_ERRATUM_1188873       |
+| ARM            | Cortex-A76      | #1188873,1418040| ARM64_ERRATUM_1418040       |
 | ARM            | Cortex-A76      | #1165522        | ARM64_ERRATUM_1165522       |
 | ARM            | Cortex-A76      | #1286807        | ARM64_ERRATUM_1286807       |
-| ARM            | Neoverse-N1     | #1188873        | ARM64_ERRATUM_1188873       |
-| ARM            | MMU-500         | #841119,#826419 | N/A                         |
+| ARM            | Cortex-A76      | #1463225        | ARM64_ERRATUM_1463225       |
+| ARM            | Neoverse-N1     | #1188873,1418040| ARM64_ERRATUM_1418040       |
+| ARM            | MMU-500         | #841119,826419  | N/A                         |
 |                |                 |                 |                             |
-| Cavium         | ThunderX ITS    | #22375, #24313  | CAVIUM_ERRATUM_22375        |
+| Cavium         | ThunderX ITS    | #22375,24313    | CAVIUM_ERRATUM_22375        |
 | Cavium         | ThunderX ITS    | #23144          | CAVIUM_ERRATUM_23144        |
 | Cavium         | ThunderX GICv3  | #23154          | CAVIUM_ERRATUM_23154        |
 | Cavium         | ThunderX Core   | #27456          | CAVIUM_ERRATUM_27456        |

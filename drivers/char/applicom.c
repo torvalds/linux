@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Derived from Applicom driver ac.c for SCO Unix                            */
 /* Ported by David Woodhouse, Axiom (Cambridge) Ltd.                         */
 /* dwmw2@infradead.org 30/8/98                                               */

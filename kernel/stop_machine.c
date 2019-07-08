@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * kernel/stop_machine.c
  *
@@ -5,8 +6,6 @@
  * Copyright (C) 2008, 2005	Rusty Russell rusty@rustcorp.com.au
  * Copyright (C) 2010		SUSE Linux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
- *
- * This file is released under the GPLv2 and any later version.
  */
 #include <linux/completion.h>
 #include <linux/cpu.h>

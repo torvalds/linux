@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HiSilicon Hixxxx UFS Driver
  *
  * Copyright (c) 2016-2017 Linaro Ltd.
  * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
- *
- * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <linux/time.h>

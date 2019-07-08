@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Extensible Firmware Interface
  *
  * Based on Extensible Firmware Interface Specification version 2.4
  *
  * Copyright (C) 2013, 2014 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/efi.h>

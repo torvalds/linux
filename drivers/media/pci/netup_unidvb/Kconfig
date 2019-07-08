@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_NETUP_UNIDVB
 	tristate "NetUP Universal DVB card support"
 	depends on DVB_CORE && VIDEO_DEV && PCI && I2C && SPI_MASTER

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	xt_ipvs - kernel module to match IPVS connection properties
  *

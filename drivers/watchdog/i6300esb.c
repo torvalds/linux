@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	i6300esb:	Watchdog timer driver for Intel 6300ESB chipset
  *
  *	(c) Copyright 2004 Google Inc.
  *	(c) Copyright 2005 David Härdeman <david@2gen.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	based on i810-tco.c which is in turn based on softdog.c
  *
