@@ -101,6 +101,12 @@ struct page_pool {
 	struct ptr_ring ring;
 
 	atomic_t pages_state_release_cnt;
+
+	/* A page_pool is strictly tied to a single RX-queue being
+	 * protected by NAPI, due to above pp_alloc_cache. This
+	 * refcnt serves purpose is to simplify drivers error handling.
+	 */
+	refcount_t user_cnt;
 };
 
 struct page *page_pool_alloc_pages(struct page_pool *pool, gfp_t gfp);
@@ -132,6 +138,15 @@ static inline void page_pool_free(struct page_pool *pool)
 #ifdef CONFIG_PAGE_POOL
 	__page_pool_free(pool);
 #endif
+}
+
+/* Drivers use this instead of page_pool_free */
+static inline void page_pool_destroy(struct page_pool *pool)
+{
+	if (!pool)
+		return;
+
+	page_pool_free(pool);
 }
 
 /* Never call this directly, use helpers below */
@@ -199,6 +214,16 @@ static inline bool is_page_pool_compiled_in(void)
 #else
 	return false;
 #endif
+}
+
+static inline void page_pool_get(struct page_pool *pool)
+{
+	refcount_inc(&pool->user_cnt);
+}
+
+static inline bool page_pool_put(struct page_pool *pool)
+{
+	return refcount_dec_and_test(&pool->user_cnt);
 }
 
 #endif /* _NET_PAGE_POOL_H */
