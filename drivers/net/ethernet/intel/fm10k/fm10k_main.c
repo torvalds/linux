@@ -315,7 +315,7 @@ static struct sk_buff *fm10k_fetch_rx_buffer(struct fm10k_ring *rx_ring,
 		/* prefetch first cache line of first page */
 		prefetch(page_addr);
 #if L1_CACHE_BYTES < 128
-		prefetch(page_addr + L1_CACHE_BYTES);
+		prefetch((void *)((u8 *)page_addr + L1_CACHE_BYTES));
 #endif
 
 		/* allocate a skb to store the frags */
