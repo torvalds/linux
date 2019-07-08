@@ -1018,14 +1018,15 @@ done:
 
 static int nvme_tcp_try_recv(struct nvme_tcp_queue *queue)
 {
-	struct sock *sk = queue->sock->sk;
+	struct socket *sock = queue->sock;
+	struct sock *sk = sock->sk;
 	read_descriptor_t rd_desc;
 	int consumed;
 
 	rd_desc.arg.data = queue;
 	rd_desc.count = 1;
 	lock_sock(sk);
-	consumed = tcp_read_sock(sk, &rd_desc, nvme_tcp_recv_skb);
+	consumed = sock->ops->read_sock(sk, &rd_desc, nvme_tcp_recv_skb);
 	release_sock(sk);
 	return consumed;
 }
