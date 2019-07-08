@@ -2809,7 +2809,8 @@ fence_driver_init:
 		return r;
 	}
 
-	r = amdgpu_pmu_init(adev);
+	if (IS_ENABLED(CONFIG_PERF_EVENTS))
+		r = amdgpu_pmu_init(adev);
 	if (r)
 		dev_err(adev->dev, "amdgpu_pmu_init failed\n");
 
@@ -2881,7 +2882,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_debugfs_regs_cleanup(adev);
 	device_remove_file(adev->dev, &dev_attr_pcie_replay_count);
 	amdgpu_ucode_sysfs_fini(adev);
-	amdgpu_pmu_fini(adev);
+	if (IS_ENABLED(CONFIG_PERF_EVENTS))
+		amdgpu_pmu_fini(adev);
 	amdgpu_debugfs_preempt_cleanup(adev);
 	if (amdgpu_discovery)
 		amdgpu_discovery_fini(adev);
