@@ -45,8 +45,6 @@ struct sifive_fu540_macb_mgmt {
 	struct clk_hw hw;
 };
 
-static struct sifive_fu540_macb_mgmt *mgmt;
-
 #define MACB_RX_BUFFER_SIZE	128
 #define RX_BUFFER_MULTIPLE	64  /* bytes */
 
@@ -3627,6 +3625,8 @@ static int macb_init(struct platform_device *pdev)
 #define AT91ETHER_MAX_RBUFF_SZ	0x600
 /* max number of receive buffers */
 #define AT91ETHER_MAX_RX_DESCR	9
+
+static struct sifive_fu540_macb_mgmt *mgmt;
 
 /* Initialize and start the Receiver and Transmit subsystems */
 static int at91ether_start(struct net_device *dev)
