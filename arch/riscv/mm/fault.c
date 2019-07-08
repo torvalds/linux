@@ -272,9 +272,6 @@ vmalloc_fault:
 		 * entries, but in RISC-V, SFENCE.VMA specifies an
 		 * ordering constraint, not a cache flush; it is
 		 * necessary even after writing invalid entries.
-		 * Relying on flush_tlb_fix_spurious_fault would
-		 * suffice, but the extra traps reduce
-		 * performance. So, eagerly SFENCE.VMA.
 		 */
 		local_flush_tlb_page(addr);
 
