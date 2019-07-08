@@ -6353,12 +6353,21 @@ static int gfx_v9_0_get_cu_info(struct amdgpu_device *adev,
 {
 	int i, j, k, counter, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
-	unsigned disable_masks[4 * 2];
+	unsigned disable_masks[4 * 4];
 
 	if (!adev || !cu_info)
 		return -EINVAL;
 
-	amdgpu_gfx_parse_disable_cu(disable_masks, 4, 2);
+	/*
+	 * 16 comes from bitmap array size 4*4, and it can cover all gfx9 ASICs
+	 */
+	if (adev->gfx.config.max_shader_engines *
+		adev->gfx.config.max_sh_per_se > 16)
+		return -EINVAL;
+
+	amdgpu_gfx_parse_disable_cu(disable_masks,
+				    adev->gfx.config.max_shader_engines,
+				    adev->gfx.config.max_sh_per_se);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
@@ -6367,11 +6376,23 @@ static int gfx_v9_0_get_cu_info(struct amdgpu_device *adev,
 			ao_bitmap = 0;
 			counter = 0;
 			gfx_v9_0_select_se_sh(adev, i, j, 0xffffffff);
-			if (i < 4 && j < 2)
-				gfx_v9_0_set_user_cu_inactive_bitmap(
-					adev, disable_masks[i * 2 + j]);
+			gfx_v9_0_set_user_cu_inactive_bitmap(
+				adev, disable_masks[i * adev->gfx.config.max_sh_per_se + j]);
 			bitmap = gfx_v9_0_get_cu_active_bitmap(adev);
-			cu_info->bitmap[i][j] = bitmap;
+
+			/*
+			 * The bitmap(and ao_cu_bitmap) in cu_info structure is
+			 * 4x4 size array, and it's usually suitable for Vega
+			 * ASICs which has 4*2 SE/SH layout.
+			 * But for Arcturus, SE/SH layout is changed to 8*1.
+			 * To mostly reduce the impact, we make it compatible
+			 * with current bitmap array as below:
+			 *    SE4,SH0 --> bitmap[0][1]
+			 *    SE5,SH0 --> bitmap[1][1]
+			 *    SE6,SH0 --> bitmap[2][1]
+			 *    SE7,SH0 --> bitmap[3][1]
+			 */
+			cu_info->bitmap[i % 4][j + i / 4] = bitmap;
 
 			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
 				if (bitmap & mask) {
@@ -6384,7 +6405,7 @@ static int gfx_v9_0_get_cu_info(struct amdgpu_device *adev,
 			active_cu_number += counter;
 			if (i < 2 && j < 2)
 				ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
-			cu_info->ao_cu_bitmap[i][j] = ao_bitmap;
+			cu_info->ao_cu_bitmap[i % 4][j + i / 4] = ao_bitmap;
 		}
 	}
 	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
