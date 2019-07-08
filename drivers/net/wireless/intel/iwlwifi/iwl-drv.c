@@ -1560,6 +1560,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
 		 drv->fw.fw_version, op->name);
 
+	iwl_dbg_tlv_load_bin(drv->trans->dev, drv->trans);
+
 	/* add this device to the list of devices using this op_mode */
 	list_add_tail(&drv->list, &op->drv);
 
@@ -1635,8 +1637,6 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 
 	init_completion(&drv->request_firmware_complete);
 	INIT_LIST_HEAD(&drv->list);
-
-	iwl_dbg_tlv_load_bin(drv->trans->dev, drv->trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* Create the device debugfs entries. */
