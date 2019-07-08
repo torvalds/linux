@@ -3028,15 +3028,17 @@ static void icl_put_dplls(struct intel_atomic_state *state,
 	new_crtc_state->shared_dpll = NULL;
 
 	for (id = ICL_PORT_DPLL_DEFAULT; id < ICL_PORT_DPLL_COUNT; id++) {
-		const struct icl_port_dpll *port_dpll =
+		const struct icl_port_dpll *old_port_dpll =
 			&old_crtc_state->icl_port_dplls[id];
+		struct icl_port_dpll *new_port_dpll =
+			&new_crtc_state->icl_port_dplls[id];
 
-		if (!port_dpll->pll)
+		new_port_dpll->pll = NULL;
+
+		if (!old_port_dpll->pll)
 			continue;
 
-		intel_unreference_shared_dpll(state, crtc, port_dpll->pll);
-
-		/* FIXME: Clear the icl_port_dplls from the new crtc state */
+		intel_unreference_shared_dpll(state, crtc, old_port_dpll->pll);
 	}
 }
 
