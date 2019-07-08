@@ -247,6 +247,7 @@ config POWER_RESET_SC27XX
 
 config NVMEM_REBOOT_MODE
 	tristate "Generic NVMEM reboot mode driver"
+	depends on OF
 	select REBOOT_MODE
 	help
 	  Say y here will enable reboot mode driver. This will
