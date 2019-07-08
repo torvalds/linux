@@ -1989,6 +1989,9 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		}
 	}
 
+	if (event & BNXT_REDIRECT_EVENT)
+		xdp_do_flush_map();
+
 	if (event & BNXT_TX_EVENT) {
 		struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
 		u16 prod = txr->tx_prod;
@@ -2254,9 +2257,23 @@ static void bnxt_free_tx_skbs(struct bnxt *bp)
 
 		for (j = 0; j < max_idx;) {
 			struct bnxt_sw_tx_bd *tx_buf = &txr->tx_buf_ring[j];
-			struct sk_buff *skb = tx_buf->skb;
+			struct sk_buff *skb;
 			int k, last;
 
+			if (i < bp->tx_nr_rings_xdp &&
+			    tx_buf->action == XDP_REDIRECT) {
+				dma_unmap_single(&pdev->dev,
+					dma_unmap_addr(tx_buf, mapping),
+					dma_unmap_len(tx_buf, len),
+					PCI_DMA_TODEVICE);
+				xdp_return_frame(tx_buf->xdpf);
+				tx_buf->action = 0;
+				tx_buf->xdpf = NULL;
+				j++;
+				continue;
+			}
+
+			skb = tx_buf->skb;
 			if (!skb) {
 				j++;
 				continue;
@@ -2516,6 +2533,13 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 		rc = xdp_rxq_info_reg(&rxr->xdp_rxq, bp->dev, i);
 		if (rc < 0)
 			return rc;
+
+		rc = xdp_rxq_info_reg_mem_model(&rxr->xdp_rxq,
+						MEM_TYPE_PAGE_SHARED, NULL);
+		if (rc) {
+			xdp_rxq_info_unreg(&rxr->xdp_rxq);
+			return rc;
+		}
 
 		rc = bnxt_alloc_ring(bp, &ring->ring_mem);
 		if (rc)
@@ -10233,6 +10257,7 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_udp_tunnel_add	= bnxt_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= bnxt_udp_tunnel_del,
 	.ndo_bpf		= bnxt_xdp,
+	.ndo_xdp_xmit		= bnxt_xdp_xmit,
 	.ndo_bridge_getlink	= bnxt_bridge_getlink,
 	.ndo_bridge_setlink	= bnxt_bridge_setlink,
 	.ndo_get_devlink_port	= bnxt_get_devlink_port,

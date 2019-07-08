@@ -53,6 +53,20 @@ static void __bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 	tx_buf->action = XDP_TX;
 }
 
+static void __bnxt_xmit_xdp_redirect(struct bnxt *bp,
+				     struct bnxt_tx_ring_info *txr,
+				     dma_addr_t mapping, u32 len,
+				     struct xdp_frame *xdpf)
+{
+	struct bnxt_sw_tx_bd *tx_buf;
+
+	tx_buf = bnxt_xmit_bd(bp, txr, mapping, len);
+	tx_buf->action = XDP_REDIRECT;
+	tx_buf->xdpf = xdpf;
+	dma_unmap_addr_set(tx_buf, mapping, mapping);
+	dma_unmap_len_set(tx_buf, len, 0);
+}
+
 void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 {
 	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
@@ -66,7 +80,17 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 	for (i = 0; i < nr_pkts; i++) {
 		tx_buf = &txr->tx_buf_ring[tx_cons];
 
-		if (tx_buf->action == XDP_TX) {
+		if (tx_buf->action == XDP_REDIRECT) {
+			struct pci_dev *pdev = bp->pdev;
+
+			dma_unmap_single(&pdev->dev,
+					 dma_unmap_addr(tx_buf, mapping),
+					 dma_unmap_len(tx_buf, len),
+					 PCI_DMA_TODEVICE);
+			xdp_return_frame(tx_buf->xdpf);
+			tx_buf->action = 0;
+			tx_buf->xdpf = NULL;
+		} else if (tx_buf->action == XDP_TX) {
 			rx_doorbell_needed = true;
 			last_tx_cons = tx_cons;
 		}
@@ -101,19 +125,19 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		return false;
 
 	pdev = bp->pdev;
-	txr = rxr->bnapi->tx_ring;
 	rx_buf = &rxr->rx_buf_ring[cons];
 	offset = bp->rx_offset;
 
+	mapping = rx_buf->mapping - bp->rx_dma_offset;
+	dma_sync_single_for_cpu(&pdev->dev, mapping + offset, *len, bp->rx_dir);
+
+	txr = rxr->bnapi->tx_ring;
 	xdp.data_hard_start = *data_ptr - offset;
 	xdp.data = *data_ptr;
 	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = *data_ptr + *len;
 	xdp.rxq = &rxr->xdp_rxq;
 	orig_data = xdp.data;
-	mapping = rx_buf->mapping - bp->rx_dma_offset;
-
-	dma_sync_single_for_cpu(&pdev->dev, mapping + offset, *len, bp->rx_dir);
 
 	rcu_read_lock();
 	act = bpf_prog_run_xdp(xdp_prog, &xdp);
@@ -149,6 +173,30 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 				NEXT_RX(rxr->rx_prod));
 		bnxt_reuse_rx_data(rxr, cons, page);
 		return true;
+	case XDP_REDIRECT:
+		/* if we are calling this here then we know that the
+		 * redirect is coming from a frame received by the
+		 * bnxt_en driver.
+		 */
+		dma_unmap_page_attrs(&pdev->dev, mapping,
+				     PAGE_SIZE, bp->rx_dir,
+				     DMA_ATTR_WEAK_ORDERING);
+
+		/* if we are unable to allocate a new buffer, abort and reuse */
+		if (bnxt_alloc_rx_data(bp, rxr, rxr->rx_prod, GFP_ATOMIC)) {
+			trace_xdp_exception(bp->dev, xdp_prog, act);
+			bnxt_reuse_rx_data(rxr, cons, page);
+			return true;
+		}
+
+		if (xdp_do_redirect(bp->dev, &xdp, xdp_prog)) {
+			trace_xdp_exception(bp->dev, xdp_prog, act);
+			__free_page(page);
+			return true;
+		}
+
+		*event |= BNXT_REDIRECT_EVENT;
+		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
 		/* Fall thru */
@@ -160,6 +208,56 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		break;
 	}
 	return true;
+}
+
+int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
+		  struct xdp_frame **frames, u32 flags)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bpf_prog *xdp_prog = READ_ONCE(bp->xdp_prog);
+	struct pci_dev *pdev = bp->pdev;
+	struct bnxt_tx_ring_info *txr;
+	dma_addr_t mapping;
+	int drops = 0;
+	int ring;
+	int i;
+
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state) ||
+	    !bp->tx_nr_rings_xdp ||
+	    !xdp_prog)
+		return -EINVAL;
+
+	ring = smp_processor_id() % bp->tx_nr_rings_xdp;
+	txr = &bp->tx_ring[ring];
+
+	for (i = 0; i < num_frames; i++) {
+		struct xdp_frame *xdp = frames[i];
+
+		if (!txr || !bnxt_tx_avail(bp, txr) ||
+		    !(bp->bnapi[ring]->flags & BNXT_NAPI_FLAG_XDP)) {
+			xdp_return_frame_rx_napi(xdp);
+			drops++;
+			continue;
+		}
+
+		mapping = dma_map_single(&pdev->dev, xdp->data, xdp->len,
+					 DMA_TO_DEVICE);
+
+		if (dma_mapping_error(&pdev->dev, mapping)) {
+			xdp_return_frame_rx_napi(xdp);
+			drops++;
+			continue;
+		}
+		__bnxt_xmit_xdp_redirect(bp, txr, mapping, xdp->len, xdp);
+	}
+
+	if (flags & XDP_XMIT_FLUSH) {
+		/* Sync BD data before updating doorbell */
+		wmb();
+		bnxt_db_write(bp, &txr->tx_db, txr->tx_prod);
+	}
+
+	return num_frames - drops;
 }
 
 /* Under rtnl_lock */
