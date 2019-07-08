@@ -7,6 +7,7 @@ menuconfig INFINIBAND
 	depends on m || IPV6 != m
 	depends on !ALPHA
 	select IRQ_POLL
+	select DIMLIB
 	---help---
 	  Core support for InfiniBand (IB).  Make sure to also select
 	  any protocols you wish to use as well as drivers for your

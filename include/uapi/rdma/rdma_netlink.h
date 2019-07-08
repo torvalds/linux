@@ -521,6 +521,11 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY_VALUE,	/* u64 */
 
 	/*
+	 * CQ adaptive moderatio (DIM)
+	 */
+	RDMA_NLDEV_ATTR_DEV_DIM,                /* u8 */
+
+	/*
 	 * Always the end
 	 */
 	RDMA_NLDEV_ATTR_MAX

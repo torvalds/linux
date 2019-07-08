@@ -52,6 +52,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 					.len = RDMA_NLDEV_ATTR_EMPTY_STRING },
 	[RDMA_NLDEV_ATTR_CHARDEV_TYPE]		= { .type = NLA_NUL_STRING,
 					.len = RDMA_NLDEV_ATTR_CHARDEV_TYPE_SIZE },
+	[RDMA_NLDEV_ATTR_DEV_DIM]               = { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_DEV_INDEX]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_DEV_NAME]		= { .type = NLA_NUL_STRING,
 					.len = IB_DEVICE_NAME_MAX },
@@ -251,6 +252,8 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 			      RDMA_NLDEV_ATTR_PAD))
 		return -EMSGSIZE;
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_NODE_TYPE, device->node_type))
+		return -EMSGSIZE;
+	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_DIM, device->use_cq_dim))
 		return -EMSGSIZE;
 
 	/*
@@ -550,6 +553,9 @@ static int fill_res_cq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	/* Poll context is only valid for kernel CQs */
 	if (rdma_is_kernel_res(res) &&
 	    nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_POLL_CTX, cq->poll_ctx))
+		goto err;
+
+	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_DIM, (cq->dim != NULL)))
 		goto err;
 
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CQN, res->id))
@@ -868,6 +874,14 @@ static int nldev_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		ns_fd = nla_get_u32(tb[RDMA_NLDEV_NET_NS_FD]);
 		err = ib_device_set_netns_put(skb, device, ns_fd);
 		goto put_done;
+	}
+
+	if (tb[RDMA_NLDEV_ATTR_DEV_DIM]) {
+		u8 use_dim;
+
+		use_dim = nla_get_u8(tb[RDMA_NLDEV_ATTR_DEV_DIM]);
+		err = ib_device_set_dim(device,  use_dim);
+		goto done;
 	}
 
 done:
