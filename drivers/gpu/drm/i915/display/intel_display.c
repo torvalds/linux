@@ -11783,15 +11783,14 @@ static bool c8_planes_changed(const struct intel_crtc_state *new_crtc_state)
 	return !old_crtc_state->c8_planes != !new_crtc_state->c8_planes;
 }
 
-static int intel_crtc_atomic_check(struct drm_crtc *_crtc,
-				   struct drm_crtc_state *_crtc_state)
+static int intel_crtc_atomic_check(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(_crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
-		to_intel_crtc_state(_crtc_state);
-	int ret;
+		intel_atomic_get_new_crtc_state(state, crtc);
 	bool mode_changed = needs_modeset(crtc_state);
+	int ret;
 
 	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv) &&
 	    mode_changed && !crtc_state->base.active)
@@ -11862,10 +11861,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *_crtc,
 
 	return ret;
 }
-
-static const struct drm_crtc_helper_funcs intel_helper_funcs = {
-	.atomic_check = intel_crtc_atomic_check,
-};
 
 static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 {
@@ -13541,6 +13536,42 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 	new_crtc_state->has_drrs = old_crtc_state->has_drrs;
 }
 
+static int intel_atomic_check_planes(struct intel_atomic_state *state)
+{
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	int i, ret;
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		ret = intel_plane_atomic_check(state, plane);
+		if (ret) {
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] atomic driver check failed\n",
+					 plane->base.base.id, plane->base.name);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int intel_atomic_check_crtcs(struct intel_atomic_state *state)
+{
+	struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		int ret = intel_crtc_atomic_check(state, crtc);
+		if (ret) {
+			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic driver check failed\n",
+					 crtc->base.base.id, crtc->base.name);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * intel_atomic_check - validate state object
  * @dev: drm device
@@ -13604,7 +13635,11 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	ret = drm_atomic_helper_check_planes(dev, &state->base);
+	ret = intel_atomic_check_planes(state);
+	if (ret)
+		goto fail;
+
+	ret = intel_atomic_check_crtcs(state);
 	if (ret)
 		goto fail;
 
@@ -15174,8 +15209,6 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		       dev_priv->plane_to_crtc_mapping[i9xx_plane] != NULL);
 		dev_priv->plane_to_crtc_mapping[i9xx_plane] = intel_crtc;
 	}
-
-	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
 	intel_color_init(intel_crtc);
 
