@@ -650,7 +650,6 @@ static int fm10k_set_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *ec)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_q_vector *qv;
 	u16 tx_itr, rx_itr;
 	int i;
 
@@ -676,7 +675,8 @@ static int fm10k_set_coalesce(struct net_device *dev,
 
 	/* update q_vectors */
 	for (i = 0; i < interface->num_q_vectors; i++) {
-		qv = interface->q_vector[i];
+		struct fm10k_q_vector *qv = interface->q_vector[i];
+
 		qv->tx.itr = tx_itr;
 		qv->rx.itr = rx_itr;
 	}
