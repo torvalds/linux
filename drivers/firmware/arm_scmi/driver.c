@@ -113,6 +113,7 @@ struct scmi_chan_info {
  *	implementation version and (sub-)vendor identification.
  * @minfo: Message info
  * @tx_idr: IDR object to map protocol id to Tx channel info pointer
+ * @rx_idr: IDR object to map protocol id to Rx channel info pointer
  * @protocols_imp: List of protocols implemented, currently maximum of
  *	MAX_PROTOCOLS_IMP elements allocated by the base protocol
  * @node: List head
@@ -125,6 +126,7 @@ struct scmi_info {
 	struct scmi_handle handle;
 	struct scmi_xfers_info minfo;
 	struct idr tx_idr;
+	struct idr rx_idr;
 	u8 *protocols_imp;
 	struct list_head node;
 	int users;
@@ -655,13 +657,17 @@ static int scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev,
 	struct device_node *shmem, *np = dev->of_node;
 	struct scmi_chan_info *cinfo;
 	struct mbox_client *cl;
+	struct idr *idr;
 	const char *desc = tx ? "Tx" : "Rx";
 
 	/* Transmit channel is first entry i.e. index 0 */
 	idx = tx ? 0 : 1;
+	idr = tx ? &info->tx_idr : &info->rx_idr;
 
 	if (scmi_mailbox_check(np, idx)) {
-		cinfo = idr_find(&info->tx_idr, SCMI_PROTOCOL_BASE);
+		cinfo = idr_find(idr, SCMI_PROTOCOL_BASE);
+		if (unlikely(!cinfo)) /* Possible only if platform has no Rx */
+			return -EINVAL;
 		goto idr_alloc;
 	}
 
@@ -703,7 +709,7 @@ static int scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev,
 	}
 
 idr_alloc:
-	ret = idr_alloc(&info->tx_idr, cinfo, prot_id, prot_id + 1, GFP_KERNEL);
+	ret = idr_alloc(idr, cinfo, prot_id, prot_id + 1, GFP_KERNEL);
 	if (ret != prot_id) {
 		dev_err(dev, "unable to allocate SCMI idr slot err %d\n", ret);
 		return ret;
@@ -711,6 +717,17 @@ idr_alloc:
 
 	cinfo->handle = &info->handle;
 	return 0;
+}
+
+static inline int
+scmi_mbox_txrx_setup(struct scmi_info *info, struct device *dev, int prot_id)
+{
+	int ret = scmi_mbox_chan_setup(info, dev, prot_id, true);
+
+	if (!ret) /* Rx is optional, hence no error check */
+		scmi_mbox_chan_setup(info, dev, prot_id, false);
+
+	return ret;
 }
 
 static inline void
@@ -726,7 +743,7 @@ scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
 		return;
 	}
 
-	if (scmi_mbox_chan_setup(info, &sdev->dev, prot_id, true)) {
+	if (scmi_mbox_txrx_setup(info, &sdev->dev, prot_id)) {
 		dev_err(&sdev->dev, "failed to setup transport\n");
 		scmi_device_destroy(sdev);
 		return;
@@ -769,12 +786,13 @@ static int scmi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 	idr_init(&info->tx_idr);
+	idr_init(&info->rx_idr);
 
 	handle = &info->handle;
 	handle->dev = info->dev;
 	handle->version = &info->version;
 
-	ret = scmi_mbox_chan_setup(info, dev, SCMI_PROTOCOL_BASE, true);
+	ret = scmi_mbox_txrx_setup(info, dev, SCMI_PROTOCOL_BASE);
 	if (ret)
 		return ret;
 
@@ -843,6 +861,10 @@ static int scmi_remove(struct platform_device *pdev)
 	/* Safe to free channels since no more users */
 	ret = idr_for_each(idr, scmi_mbox_free_channel, idr);
 	idr_destroy(&info->tx_idr);
+
+	idr = &info->rx_idr;
+	ret = idr_for_each(idr, scmi_mbox_free_channel, idr);
+	idr_destroy(&info->rx_idr);
 
 	return ret;
 }
