@@ -430,7 +430,6 @@ struct kernfs_node *kernfs_get_active(struct kernfs_node *kn)
  */
 void kernfs_put_active(struct kernfs_node *kn)
 {
-	struct kernfs_root *root = kernfs_root(kn);
 	int v;
 
 	if (unlikely(!kn))
@@ -442,7 +441,7 @@ void kernfs_put_active(struct kernfs_node *kn)
 	if (likely(v != KN_DEACTIVATED_BIAS))
 		return;
 
-	wake_up_all(&root->deactivate_waitq);
+	wake_up_all(&kernfs_root(kn)->deactivate_waitq);
 }
 
 /**
