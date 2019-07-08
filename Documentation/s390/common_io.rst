@@ -1,5 +1,9 @@
-S/390 common I/O-Layer - command line parameters, procfs and debugfs entries
-============================================================================
+======================
+S/390 common I/O-Layer
+======================
+
+command line parameters, procfs and debugfs entries
+===================================================
 
 Command line parameters
 -----------------------
@@ -13,7 +17,7 @@ Command line parameters
 	device := {all | [!]ipldev | [!]condev | [!]<devno> | [!]<devno>-<devno>}
 
   The given devices will be ignored by the common I/O-layer; no detection
-  and device sensing will be done on any of those devices. The subchannel to 
+  and device sensing will be done on any of those devices. The subchannel to
   which the device in question is attached will be treated as if no device was
   attached.
 
@@ -28,14 +32,20 @@ Command line parameters
   keywords can be used to refer to the CCW based boot device and CCW console
   device respectively (these are probably useful only when combined with the '!'
   operator). The '!' operator will cause the I/O-layer to _not_ ignore a device.
-  The command line is parsed from left to right.
+  The command line
+  is parsed from left to right.
 
-  For example, 
+  For example::
+
 	cio_ignore=0.0.0023-0.0.0042,0.0.4711
+
   will ignore all devices ranging from 0.0.0023 to 0.0.0042 and the device
   0.0.4711, if detected.
-  As another example,
+
+  As another example::
+
 	cio_ignore=all,!0.0.4711,!0.0.fd00-0.0.fd02
+
   will ignore all devices but 0.0.4711, 0.0.fd00, 0.0.fd01, 0.0.fd02.
 
   By default, no devices are ignored.
@@ -48,40 +58,45 @@ Command line parameters
 
   Lists the ranges of devices (by bus id) which are ignored by common I/O.
 
-  You can un-ignore certain or all devices by piping to /proc/cio_ignore. 
-  "free all" will un-ignore all ignored devices, 
+  You can un-ignore certain or all devices by piping to /proc/cio_ignore.
+  "free all" will un-ignore all ignored devices,
   "free <device range>, <device range>, ..." will un-ignore the specified
   devices.
 
   For example, if devices 0.0.0023 to 0.0.0042 and 0.0.4711 are ignored,
+
   - echo free 0.0.0030-0.0.0032 > /proc/cio_ignore
     will un-ignore devices 0.0.0030 to 0.0.0032 and will leave devices 0.0.0023
     to 0.0.002f, 0.0.0033 to 0.0.0042 and 0.0.4711 ignored;
   - echo free 0.0.0041 > /proc/cio_ignore will furthermore un-ignore device
     0.0.0041;
-  - echo free all > /proc/cio_ignore will un-ignore all remaining ignored 
+  - echo free all > /proc/cio_ignore will un-ignore all remaining ignored
     devices.
 
-  When a device is un-ignored, device recognition and sensing is performed and 
+  When a device is un-ignored, device recognition and sensing is performed and
   the device driver will be notified if possible, so the device will become
   available to the system. Note that un-ignoring is performed asynchronously.
 
-  You can also add ranges of devices to be ignored by piping to 
+  You can also add ranges of devices to be ignored by piping to
   /proc/cio_ignore; "add <device range>, <device range>, ..." will ignore the
   specified devices.
 
   Note: While already known devices can be added to the list of devices to be
-        ignored, there will be no effect on then. However, if such a device
+	ignored, there will be no effect on then. However, if such a device
 	disappears and then reappears, it will then be ignored. To make
 	known devices go away, you need the "purge" command (see below).
 
-  For example,
+  For example::
+
 	"echo add 0.0.a000-0.0.accc, 0.0.af00-0.0.afff > /proc/cio_ignore"
+
   will add 0.0.a000-0.0.accc and 0.0.af00-0.0.afff to the list of ignored
   devices.
 
-  You can remove already known but now ignored devices via
+  You can remove already known but now ignored devices via::
+
 	"echo purge > /proc/cio_ignore"
+
   All devices ignored but still registered and not online (= not in use)
   will be deregistered and thus removed from the system.
 
@@ -115,11 +130,11 @@ debugfs entries
     Various debug messages from the common I/O-layer.
 
   - /sys/kernel/debug/s390dbf/cio_trace/hex_ascii
-    Logs the calling of functions in the common I/O-layer and, if applicable, 
+    Logs the calling of functions in the common I/O-layer and, if applicable,
     which subchannel they were called for, as well as dumps of some data
     structures (like irb in an error case).
 
-  The level of logging can be changed to be more or less verbose by piping to 
+  The level of logging can be changed to be more or less verbose by piping to
   /sys/kernel/debug/s390dbf/cio_*/level a number between 0 and 6; see the
-  documentation on the S/390 debug feature (Documentation/s390/s390dbf.txt)
+  documentation on the S/390 debug feature (Documentation/s390/s390dbf.rst)
   for details.

@@ -1,4 +1,6 @@
+==================================
 The s390 SCSI dump tool (zfcpdump)
+==================================
 
 System z machines (z900 or higher) provide hardware support for creating system
 dumps on SCSI disks. The dump process is initiated by booting a dump tool, which

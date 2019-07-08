@@ -1,3 +1,4 @@
+==================================
 vfio-ccw: the basic infrastructure
 ==================================
 
@@ -11,9 +12,11 @@ virtual machine, while vfio is the means.
 Different than other hardware architectures, s390 has defined a unified
 I/O access method, which is so called Channel I/O. It has its own access
 patterns:
+
 - Channel programs run asynchronously on a separate (co)processor.
 - The channel subsystem will access any memory designated by the caller
   in the channel program directly, i.e. there is no iommu involved.
+
 Thus when we introduce vfio support for these devices, we realize it
 with a mediated device (mdev) implementation. The vfio mdev will be
 added to an iommu group, so as to make itself able to be managed by the
@@ -24,6 +27,7 @@ to perform I/O instructions.
 
 This document does not intend to explain the s390 I/O architecture in
 every detail. More information/reference could be found here:
+
 - A good start to know Channel I/O in general:
   https://en.wikipedia.org/wiki/Channel_I/O
 - s390 architecture:
@@ -80,6 +84,7 @@ until interrupted. The I/O completion result is received by the
 interrupt handler in the form of interrupt response block (IRB).
 
 Back to vfio-ccw, in short:
+
 - ORBs and channel programs are built in guest kernel (with guest
   physical addresses).
 - ORBs and channel programs are passed to the host kernel.
@@ -106,6 +111,7 @@ it gets sent to hardware.
 
 Within this implementation, we have two drivers for two types of
 devices:
+
 - The vfio_ccw driver for the physical subchannel device.
   This is an I/O subchannel driver for the real subchannel device.  It
   realizes a group of callbacks and registers to the mdev framework as a
@@ -137,7 +143,7 @@ devices:
   vfio_pin_pages and a vfio_unpin_pages interfaces from the vfio iommu
   backend for the physical devices to pin and unpin pages by demand.
 
-Below is a high Level block diagram.
+Below is a high Level block diagram::
 
  +-------------+
  |             |
@@ -158,6 +164,7 @@ Below is a high Level block diagram.
  +-------------+
 
 The process of how these work together.
+
 1. vfio_ccw.ko drives the physical I/O subchannel, and registers the
    physical device (with callbacks) to mdev framework.
    When vfio_ccw probing the subchannel device, it registers device
@@ -178,17 +185,17 @@ vfio-ccw I/O region
 
 An I/O region is used to accept channel program request from user
 space and store I/O interrupt result for user space to retrieve. The
-definition of the region is:
+definition of the region is::
 
-struct ccw_io_region {
-#define ORB_AREA_SIZE 12
-	__u8	orb_area[ORB_AREA_SIZE];
-#define SCSW_AREA_SIZE 12
-	__u8	scsw_area[SCSW_AREA_SIZE];
-#define IRB_AREA_SIZE 96
-	__u8	irb_area[IRB_AREA_SIZE];
-	__u32	ret_code;
-} __packed;
+  struct ccw_io_region {
+  #define ORB_AREA_SIZE 12
+	  __u8    orb_area[ORB_AREA_SIZE];
+  #define SCSW_AREA_SIZE 12
+	  __u8    scsw_area[SCSW_AREA_SIZE];
+  #define IRB_AREA_SIZE 96
+	  __u8    irb_area[IRB_AREA_SIZE];
+	  __u32   ret_code;
+  } __packed;
 
 While starting an I/O request, orb_area should be filled with the
 guest ORB, and scsw_area should be filled with the SCSW of the Virtual
@@ -205,7 +212,7 @@ vfio-ccw follows what vfio-pci did on the s390 platform and uses
 vfio-iommu-type1 as the vfio iommu backend.
 
 * CCW translation APIs
-  A group of APIs (start with 'cp_') to do CCW translation. The CCWs
+  A group of APIs (start with `cp_`) to do CCW translation. The CCWs
   passed in by a user space program are organized with their guest
   physical memory addresses. These APIs will copy the CCWs into kernel
   space, and assemble a runnable kernel channel program by updating the
@@ -217,12 +224,14 @@ vfio-iommu-type1 as the vfio iommu backend.
   This driver utilizes the CCW translation APIs and introduces
   vfio_ccw, which is the driver for the I/O subchannel devices you want
   to pass through.
-  vfio_ccw implements the following vfio ioctls:
+  vfio_ccw implements the following vfio ioctls::
+
     VFIO_DEVICE_GET_INFO
     VFIO_DEVICE_GET_IRQ_INFO
     VFIO_DEVICE_GET_REGION_INFO
     VFIO_DEVICE_RESET
     VFIO_DEVICE_SET_IRQS
+
   This provides an I/O region, so that the user space program can pass a
   channel program to the kernel, to do further CCW translation before
   issuing them to a real device.
@@ -236,32 +245,49 @@ bit more detail how an I/O request triggered by the QEMU guest will be
 handled (without error handling).
 
 Explanation:
-Q1-Q7: QEMU side process.
-K1-K5: Kernel side process.
 
-Q1. Get I/O region info during initialization.
-Q2. Setup event notifier and handler to handle I/O completion.
+- Q1-Q7: QEMU side process.
+- K1-K5: Kernel side process.
 
-... ...
+Q1.
+    Get I/O region info during initialization.
 
-Q3. Intercept a ssch instruction.
-Q4. Write the guest channel program and ORB to the I/O region.
-    K1. Copy from guest to kernel.
-    K2. Translate the guest channel program to a host kernel space
-        channel program, which becomes runnable for a real device.
-    K3. With the necessary information contained in the orb passed in
-        by QEMU, issue the ccwchain to the device.
-    K4. Return the ssch CC code.
-Q5. Return the CC code to the guest.
+Q2.
+    Setup event notifier and handler to handle I/O completion.
 
 ... ...
 
-    K5. Interrupt handler gets the I/O result and write the result to
-        the I/O region.
-    K6. Signal QEMU to retrieve the result.
-Q6. Get the signal and event handler reads out the result from the I/O
+Q3.
+    Intercept a ssch instruction.
+Q4.
+    Write the guest channel program and ORB to the I/O region.
+
+    K1.
+	Copy from guest to kernel.
+    K2.
+	Translate the guest channel program to a host kernel space
+	channel program, which becomes runnable for a real device.
+    K3.
+	With the necessary information contained in the orb passed in
+	by QEMU, issue the ccwchain to the device.
+    K4.
+	Return the ssch CC code.
+Q5.
+    Return the CC code to the guest.
+
+... ...
+
+    K5.
+	Interrupt handler gets the I/O result and write the result to
+	the I/O region.
+    K6.
+	Signal QEMU to retrieve the result.
+
+Q6.
+    Get the signal and event handler reads out the result from the I/O
     region.
-Q7. Update the irb for the guest.
+Q7.
+    Update the irb for the guest.
 
 Limitations
 -----------
@@ -295,6 +321,6 @@ Reference
 1. ESA/s390 Principles of Operation manual (IBM Form. No. SA22-7832)
 2. ESA/390 Common I/O Device Commands manual (IBM Form. No. SA22-7204)
 3. https://en.wikipedia.org/wiki/Channel_I/O
-4. Documentation/s390/cds.txt
+4. Documentation/s390/cds.rst
 5. Documentation/vfio.txt
 6. Documentation/vfio-mediated-device.txt

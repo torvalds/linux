@@ -23,7 +23,6 @@ show up in /proc/sys/kernel:
 - auto_msgmni
 - bootloader_type	     [ X86 only ]
 - bootloader_version	     [ X86 only ]
-- callhome		     [ S390 only ]
 - cap_last_cap
 - core_pattern
 - core_pipe_limit
@@ -168,21 +167,6 @@ file will contain the value 564 = 0x234.
 
 See the type_of_loader and ext_loader_ver fields in
 Documentation/x86/boot.txt for additional information.
-
-==============================================================
-
-callhome:
-
-Controls the kernel's callhome behavior in case of a kernel panic.
-
-The s390 hardware allows an operating system to send a notification
-to a service organization (callhome) in case of an operating system panic.
-
-When the value in this file is 0 (which is the default behavior)
-nothing happens in case of a kernel panic. If this value is set to "1"
-the complete kernel oops message is send to the IBM customer service
-organization in case the mainframe the Linux operating system is running
-on has a service contract with IBM.
 
 ==============================================================
 
