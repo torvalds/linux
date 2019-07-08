@@ -1377,7 +1377,6 @@ static void *cache_seq_next(struct seq_file *m, void *p, loff_t *pos)
 				hlist_first_rcu(&cd->hash_table[hash])),
 				struct cache_head, cache_list);
 }
-EXPORT_SYMBOL_GPL(cache_seq_next);
 
 void *cache_seq_start_rcu(struct seq_file *m, loff_t *pos)
 	__acquires(RCU)
