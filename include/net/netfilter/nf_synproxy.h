@@ -39,6 +39,11 @@ unsigned int ipv6_synproxy_hook(void *priv, struct sk_buff *skb,
 				const struct nf_hook_state *nhs);
 int nf_synproxy_ipv6_init(struct synproxy_net *snet, struct net *net);
 void nf_synproxy_ipv6_fini(struct synproxy_net *snet, struct net *net);
+#else
+static inline int
+nf_synproxy_ipv6_init(struct synproxy_net *snet, struct net *net) { return 0; }
+static inline void
+nf_synproxy_ipv6_fini(struct synproxy_net *snet, struct net *net) {};
 #endif /* CONFIG_IPV6 */
 
 #endif /* _NF_SYNPROXY_SHARED_H */

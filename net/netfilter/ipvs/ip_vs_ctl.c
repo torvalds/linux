@@ -525,6 +525,7 @@ static void ip_vs_rs_hash(struct netns_ipvs *ipvs, struct ip_vs_dest *dest)
 			port = dest->tun_port;
 			break;
 		case IP_VS_CONN_F_TUNNEL_TYPE_IPIP:
+		case IP_VS_CONN_F_TUNNEL_TYPE_GRE:
 			port = 0;
 			break;
 		default:

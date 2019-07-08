@@ -234,7 +234,7 @@ static int nf_hook_bridge_pre(struct sk_buff *skb, struct sk_buff **pskb)
 			kfree_skb(skb);
 			return RX_HANDLER_CONSUMED;
 		case NF_QUEUE:
-			ret = nf_queue(skb, &state, e, i, verdict);
+			ret = nf_queue(skb, &state, i, verdict);
 			if (ret == 1)
 				continue;
 			return RX_HANDLER_CONSUMED;

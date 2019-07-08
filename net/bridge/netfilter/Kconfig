@@ -9,6 +9,12 @@ menuconfig NF_TABLES_BRIDGE
 	bool "Ethernet Bridge nf_tables support"
 
 if NF_TABLES_BRIDGE
+
+config NFT_BRIDGE_META
+	tristate "Netfilter nf_table bridge meta support"
+	help
+	  Add support for bridge dedicated meta key.
+
 config NFT_BRIDGE_REJECT
 	tristate "Netfilter nf_tables bridge reject support"
 	depends on NFT_REJECT && NFT_REJECT_IPV4 && NFT_REJECT_IPV6
