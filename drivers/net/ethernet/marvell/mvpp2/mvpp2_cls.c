@@ -548,6 +548,8 @@ void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
 static int mvpp2_cls_ethtool_flow_to_type(int flow_type)
 {
 	switch (flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS)) {
+	case ETHER_FLOW:
+		return MVPP22_FLOW_ETHERNET;
 	case TCP_V4_FLOW:
 		return MVPP22_FLOW_TCP4;
 	case TCP_V6_FLOW:
@@ -1373,6 +1375,10 @@ int mvpp2_ethtool_cls_rule_ins(struct mvpp2_port *port,
 
 	efs->rule.flow = ethtool_rule->rule;
 	efs->rule.flow_type = mvpp2_cls_ethtool_flow_to_type(info->fs.flow_type);
+	if (efs->rule.flow_type < 0) {
+		ret = efs->rule.flow_type;
+		goto clean_rule;
+	}
 
 	ret = mvpp2_cls_rfs_parse_rule(&efs->rule);
 	if (ret)
