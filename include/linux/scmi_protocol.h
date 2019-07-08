@@ -188,6 +188,26 @@ struct scmi_sensor_ops {
 };
 
 /**
+ * struct scmi_reset_ops - represents the various operations provided
+ *	by SCMI Reset Protocol
+ *
+ * @num_domains_get: get the count of reset domains provided by SCMI
+ * @name_get: gets the name of a reset domain
+ * @latency_get: gets the reset latency for the specified reset domain
+ * @reset: resets the specified reset domain
+ * @assert: explicitly assert reset signal of the specified reset domain
+ * @deassert: explicitly deassert reset signal of the specified reset domain
+ */
+struct scmi_reset_ops {
+	int (*num_domains_get)(const struct scmi_handle *handle);
+	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
+	int (*latency_get)(const struct scmi_handle *handle, u32 domain);
+	int (*reset)(const struct scmi_handle *handle, u32 domain);
+	int (*assert)(const struct scmi_handle *handle, u32 domain);
+	int (*deassert)(const struct scmi_handle *handle, u32 domain);
+};
+
+/**
  * struct scmi_handle - Handle returned to ARM SCMI clients for usage.
  *
  * @dev: pointer to the SCMI device
@@ -196,6 +216,7 @@ struct scmi_sensor_ops {
  * @perf_ops: pointer to set of performance protocol operations
  * @clk_ops: pointer to set of clock protocol operations
  * @sensor_ops: pointer to set of sensor protocol operations
+ * @reset_ops: pointer to set of reset protocol operations
  * @perf_priv: pointer to private data structure specific to performance
  *	protocol(for internal use only)
  * @clk_priv: pointer to private data structure specific to clock
@@ -203,6 +224,8 @@ struct scmi_sensor_ops {
  * @power_priv: pointer to private data structure specific to power
  *	protocol(for internal use only)
  * @sensor_priv: pointer to private data structure specific to sensors
+ *	protocol(for internal use only)
+ * @reset_priv: pointer to private data structure specific to reset
  *	protocol(for internal use only)
  */
 struct scmi_handle {
@@ -212,11 +235,13 @@ struct scmi_handle {
 	struct scmi_clk_ops *clk_ops;
 	struct scmi_power_ops *power_ops;
 	struct scmi_sensor_ops *sensor_ops;
+	struct scmi_reset_ops *reset_ops;
 	/* for protocol internal use */
 	void *perf_priv;
 	void *clk_priv;
 	void *power_priv;
 	void *sensor_priv;
+	void *reset_priv;
 };
 
 enum scmi_std_protocol {
@@ -226,6 +251,7 @@ enum scmi_std_protocol {
 	SCMI_PROTOCOL_PERF = 0x13,
 	SCMI_PROTOCOL_CLOCK = 0x14,
 	SCMI_PROTOCOL_SENSOR = 0x15,
+	SCMI_PROTOCOL_RESET = 0x16,
 };
 
 struct scmi_device {
