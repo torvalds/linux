@@ -187,10 +187,3 @@ Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Version of the u-boot running on the device's CPU
-
-What:           /sys/class/habanalabs/hl<n>/write_open_cnt
-Date:           Jan 2019
-KernelVersion:  5.1
-Contact:        oded.gabbay@gmail.com
-Description:    Displays the total number of user processes that are currently
-                opened on the device's file

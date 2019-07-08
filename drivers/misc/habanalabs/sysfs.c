@@ -351,14 +351,6 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%s\n", str);
 }
 
-static ssize_t write_open_cnt_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct hl_device *hdev = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", hdev->user_ctx ? 1 : 0);
-}
-
 static ssize_t soft_reset_cnt_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -461,7 +453,6 @@ static DEVICE_ATTR_RO(soft_reset_cnt);
 static DEVICE_ATTR_RO(status);
 static DEVICE_ATTR_RO(thermal_ver);
 static DEVICE_ATTR_RO(uboot_ver);
-static DEVICE_ATTR_RO(write_open_cnt);
 
 static struct bin_attribute bin_attr_eeprom = {
 	.attr = {.name = "eeprom", .mode = (0444)},
@@ -488,7 +479,6 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_thermal_ver.attr,
 	&dev_attr_uboot_ver.attr,
-	&dev_attr_write_open_cnt.attr,
 	NULL,
 };
 
