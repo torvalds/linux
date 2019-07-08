@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Asahi Kasei EMD Corporation AK8974
  * and Aichi Steel AMI305 magnetometer chips.

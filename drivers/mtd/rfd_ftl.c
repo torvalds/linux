@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rfd_ftl.c -- resident flash disk (flash translation layer)
  *

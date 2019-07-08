@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 extra-y := head.o vmlinux.lds
 
 obj-y += entry.o atomic.o signal.o traps.o irq.o time.o vdso.o

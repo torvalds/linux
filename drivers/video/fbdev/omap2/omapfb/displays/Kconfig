@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "OMAPFB Panel and Encoder Drivers"
 	depends on FB_OMAP2_DSS
 

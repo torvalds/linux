@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WCN36XX
 	tristate "Qualcomm Atheros WCN3660/3680 support"
 	depends on MAC80211 && HAS_DMA

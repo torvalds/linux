@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * x86 APERF/MPERF KHz calculation for
  * /sys/.../cpufreq/scaling_cur_freq
  *
  * Copyright (C) 2017 Intel Corp.
  * Author: Len Brown <len.brown@intel.com>
- *
- * This file is licensed under GPLv2.
  */
 
 #include <linux/delay.h>

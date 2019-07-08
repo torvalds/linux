@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * adt7x10.c - Part of lm_sensors, Linux kernel modules for hardware
  *	 monitoring
@@ -5,20 +6,6 @@
  * Hartmut Knaack <knaack.h@gmx.de> 2012-07-22
  * based on lm75.c by Frodo Looijaard <frodol@dds.nl>
  * and adt7410.c from iio-staging by Sonic Zhang <sonic.zhang@analog.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>

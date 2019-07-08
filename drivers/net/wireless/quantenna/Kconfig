@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WLAN_VENDOR_QUANTENNA
 	bool "Quantenna wireless cards support"
 	default y

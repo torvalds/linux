@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2017 Benjamin Herrenschmidt, IBM Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #ifndef _KVM_PPC_BOOK3S_XIVE_H
@@ -141,6 +138,7 @@ struct kvmppc_xive {
 	struct kvmppc_xive_ops *ops;
 	struct address_space   *mapping;
 	struct mutex mapping_lock;
+	struct mutex lock;
 };
 
 #define KVMPPC_XIVE_Q_COUNT	8

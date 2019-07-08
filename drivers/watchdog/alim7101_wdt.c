@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	ALi M7101 PMU Computer Watchdog Timer driver
  *

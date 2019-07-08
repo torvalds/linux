@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * In-kernel rpcbind client supporting versions 2, 3, and 4 of the rpcbind
  * protocol

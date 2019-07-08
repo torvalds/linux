@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  CPU frequency scaling for OMAP using OPP information
  *
@@ -8,10 +9,6 @@
  *
  * Copyright (C) 2007-2011 Texas Instruments, Inc.
  * - OMAP3/4 support by Rajendra Nayak, Santosh Shilimkar
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

@@ -3830,7 +3830,13 @@ int btrfs_qgroup_add_swapped_blocks(struct btrfs_trans_handle *trans,
 							    subvol_slot);
 	block->last_snapshot = last_snapshot;
 	block->level = level;
-	if (bg->flags & BTRFS_BLOCK_GROUP_DATA)
+
+	/*
+	 * If we have bg == NULL, we're called from btrfs_recover_relocation(),
+	 * no one else can modify tree blocks thus we qgroup will not change
+	 * no matter the value of trace_leaf.
+	 */
+	if (bg && bg->flags & BTRFS_BLOCK_GROUP_DATA)
 		block->trace_leaf = true;
 	else
 		block->trace_leaf = false;

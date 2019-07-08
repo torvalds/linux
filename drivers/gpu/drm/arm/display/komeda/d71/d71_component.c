@@ -245,7 +245,7 @@ static void d71_layer_dump(struct komeda_component *c, struct seq_file *sf)
 	seq_printf(sf, "%sAD_V_CROP:\t\t0x%X\n", prefix, v[2]);
 }
 
-static struct komeda_component_funcs d71_layer_funcs = {
+static const struct komeda_component_funcs d71_layer_funcs = {
 	.update		= d71_layer_update,
 	.disable	= d71_layer_disable,
 	.dump_register	= d71_layer_dump,
@@ -391,7 +391,7 @@ static void d71_compiz_dump(struct komeda_component *c, struct seq_file *sf)
 	seq_printf(sf, "CU_USER_HIGH:\t\t0x%X\n", v[1]);
 }
 
-static struct komeda_component_funcs d71_compiz_funcs = {
+static const struct komeda_component_funcs d71_compiz_funcs = {
 	.update		= d71_compiz_update,
 	.disable	= d71_component_disable,
 	.dump_register	= d71_compiz_dump,
@@ -467,7 +467,7 @@ static void d71_improc_dump(struct komeda_component *c, struct seq_file *sf)
 		seq_printf(sf, "IPS_RGB_YUV_COEFF%u:\t0x%X\n", i, v[i]);
 }
 
-static struct komeda_component_funcs d71_improc_funcs = {
+static const struct komeda_component_funcs d71_improc_funcs = {
 	.update		= d71_improc_update,
 	.disable	= d71_component_disable,
 	.dump_register	= d71_improc_dump,
@@ -580,7 +580,7 @@ static void d71_timing_ctrlr_dump(struct komeda_component *c,
 	seq_printf(sf, "BS_USER:\t\t0x%X\n", v[4]);
 }
 
-static struct komeda_component_funcs d71_timing_ctrlr_funcs = {
+static const struct komeda_component_funcs d71_timing_ctrlr_funcs = {
 	.update		= d71_timing_ctrlr_update,
 	.disable	= d71_timing_ctrlr_disable,
 	.dump_register	= d71_timing_ctrlr_dump,

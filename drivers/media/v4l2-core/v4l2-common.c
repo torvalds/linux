@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Video for Linux Two
  *
@@ -7,14 +8,8 @@
  *	This file replaces the videodev.c file that comes with the
  *	regular kernel distribution.
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  * Author:	Bill Dirks <bill@thedirks.org>
  *		based on code by Alan Cox, <alan@cymru.net>
- *
  */
 
 /*
@@ -22,11 +17,6 @@
  *
  *	A generic video device interface for the LINUX operating system
  *	using a set of device structures/vectors for low level operations.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Author:	Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *

@@ -140,7 +140,7 @@ static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
 	params->op = args->op;
 
 	if (args->input_ptr && args->input_size) {
-		input = memdup_user((const void __user *) args->input_ptr,
+		input = memdup_user(u64_to_user_ptr(args->input_ptr),
 					args->input_size);
 		if (IS_ERR(input)) {
 			rc = PTR_ERR(input);

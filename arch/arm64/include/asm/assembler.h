@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Based on arch/arm/include/asm/assembler.h, arch/arm/mm/proc-macros.S
  *
  * Copyright (C) 1996-2000 Russell King
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASSEMBLY__
 #error "Only include this from assembly code"
@@ -718,12 +707,11 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  * the output section, any use of such directives is undefined.
  *
  * The yield itself consists of the following:
- * - Check whether the preempt count is exactly 1, in which case disabling
- *   preemption once will make the task preemptible. If this is not the case,
- *   yielding is pointless.
- * - Check whether TIF_NEED_RESCHED is set, and if so, disable and re-enable
- *   kernel mode NEON (which will trigger a reschedule), and branch to the
- *   yield fixup code.
+ * - Check whether the preempt count is exactly 1 and a reschedule is also
+ *   needed. If so, calling of preempt_enable() in kernel_neon_end() will
+ *   trigger a reschedule. If it is not the case, yielding is pointless.
+ * - Disable and re-enable kernel mode NEON, and branch to the yield fixup
+ *   code.
  *
  * This macro sequence may clobber all CPU state that is not guaranteed by the
  * AAPCS to be preserved across an ordinary function call.

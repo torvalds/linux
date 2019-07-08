@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Intel MIC & related support"
 
 comment "Intel MIC Bus Driver"

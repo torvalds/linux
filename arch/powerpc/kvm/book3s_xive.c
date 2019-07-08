@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017 Benjamin Herrenschmidt, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) "xive-kvm: " fmt
@@ -271,14 +268,14 @@ static int xive_provision_queue(struct kvm_vcpu *vcpu, u8 prio)
 	return rc;
 }
 
-/* Called with kvm_lock held */
+/* Called with xive->lock held */
 static int xive_check_provisioning(struct kvm *kvm, u8 prio)
 {
 	struct kvmppc_xive *xive = kvm->arch.xive;
 	struct kvm_vcpu *vcpu;
 	int i, rc;
 
-	lockdep_assert_held(&kvm->lock);
+	lockdep_assert_held(&xive->lock);
 
 	/* Already provisioned ? */
 	if (xive->qmap & (1 << prio))
@@ -621,9 +618,12 @@ int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
 		 irq, server, priority);
 
 	/* First, check provisioning of queues */
-	if (priority != MASKED)
+	if (priority != MASKED) {
+		mutex_lock(&xive->lock);
 		rc = xive_check_provisioning(xive->kvm,
 			      xive_prio_from_guest(priority));
+		mutex_unlock(&xive->lock);
+	}
 	if (rc) {
 		pr_devel("  provisioning failure %d !\n", rc);
 		return rc;
@@ -1199,7 +1199,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		return -ENOMEM;
 
 	/* We need to synchronize with queue provisioning */
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&xive->lock);
 	vcpu->arch.xive_vcpu = xc;
 	xc->xive = xive;
 	xc->vcpu = vcpu;
@@ -1283,7 +1283,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		xive_vm_esb_load(&xc->vp_ipi_data, XIVE_ESB_SET_PQ_00);
 
 bail:
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&xive->lock);
 	if (r) {
 		kvmppc_xive_cleanup_vcpu(vcpu);
 		return r;
@@ -1527,13 +1527,12 @@ static int xive_get_source(struct kvmppc_xive *xive, long irq, u64 addr)
 struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
 	struct kvmppc_xive *xive, int irq)
 {
-	struct kvm *kvm = xive->kvm;
 	struct kvmppc_xive_src_block *sb;
 	int i, bid;
 
 	bid = irq >> KVMPPC_XICS_ICS_SHIFT;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&xive->lock);
 
 	/* block already exists - somebody else got here first */
 	if (xive->src_blocks[bid])
@@ -1560,7 +1559,7 @@ struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
 		xive->max_sbid = bid;
 
 out:
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&xive->lock);
 	return xive->src_blocks[bid];
 }
 
@@ -1670,9 +1669,9 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	/* If we have a priority target the interrupt */
 	if (act_prio != MASKED) {
 		/* First, check provisioning of queues */
-		mutex_lock(&xive->kvm->lock);
+		mutex_lock(&xive->lock);
 		rc = xive_check_provisioning(xive->kvm, act_prio);
-		mutex_unlock(&xive->kvm->lock);
+		mutex_unlock(&xive->lock);
 
 		/* Target interrupt */
 		if (rc == 0)
@@ -1826,7 +1825,6 @@ static void kvmppc_xive_cleanup_irq(u32 hw_num, struct xive_irq_data *xd)
 {
 	xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_01);
 	xive_native_configure_irq(hw_num, 0, MASKED, 0);
-	xive_cleanup_irq_data(xd);
 }
 
 void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb)
@@ -1840,9 +1838,10 @@ void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb)
 			continue;
 
 		kvmppc_xive_cleanup_irq(state->ipi_number, &state->ipi_data);
+		xive_cleanup_irq_data(&state->ipi_data);
 		xive_native_free_irq(state->ipi_number);
 
-		/* Pass-through, cleanup too */
+		/* Pass-through, cleanup too but keep IRQ hw data */
 		if (state->pt_number)
 			kvmppc_xive_cleanup_irq(state->pt_number, state->pt_data);
 
@@ -1859,21 +1858,10 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 	struct kvm *kvm = xive->kvm;
 	struct kvm_vcpu *vcpu;
 	int i;
-	int was_ready;
 
 	pr_devel("Releasing xive device\n");
 
-	debugfs_remove(xive->dentry);
-
 	/*
-	 * Clearing mmu_ready temporarily while holding kvm->lock
-	 * is a way of ensuring that no vcpus can enter the guest
-	 * until we drop kvm->lock.  Doing kick_all_cpus_sync()
-	 * ensures that any vcpu executing inside the guest has
-	 * exited the guest.  Once kick_all_cpus_sync() has finished,
-	 * we know that no vcpu can be executing the XIVE push or
-	 * pull code, or executing a XICS hcall.
-	 *
 	 * Since this is the device release function, we know that
 	 * userspace does not have any open fd referring to the
 	 * device.  Therefore there can not be any of the device
@@ -1881,9 +1869,8 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 	 * and similarly, the connect_vcpu and set/clr_mapped
 	 * functions also cannot be being executed.
 	 */
-	was_ready = kvm->arch.mmu_ready;
-	kvm->arch.mmu_ready = 0;
-	kick_all_cpus_sync();
+
+	debugfs_remove(xive->dentry);
 
 	/*
 	 * We should clean up the vCPU interrupt presenters first.
@@ -1892,12 +1879,22 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 		/*
 		 * Take vcpu->mutex to ensure that no one_reg get/set ioctl
 		 * (i.e. kvmppc_xive_[gs]et_icp) can be done concurrently.
+		 * Holding the vcpu->mutex also means that the vcpu cannot
+		 * be executing the KVM_RUN ioctl, and therefore it cannot
+		 * be executing the XIVE push or pull code or accessing
+		 * the XIVE MMIO regions.
 		 */
 		mutex_lock(&vcpu->mutex);
 		kvmppc_xive_cleanup_vcpu(vcpu);
 		mutex_unlock(&vcpu->mutex);
 	}
 
+	/*
+	 * Now that we have cleared vcpu->arch.xive_vcpu, vcpu->arch.irq_type
+	 * and vcpu->arch.xive_esc_[vr]addr on each vcpu, we are safe
+	 * against xive code getting called during vcpu execution or
+	 * set/get one_reg operations.
+	 */
 	kvm->arch.xive = NULL;
 
 	/* Mask and free interrupts */
@@ -1910,8 +1907,6 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 
 	if (xive->vp_base != XIVE_INVALID_VP)
 		xive_native_free_vp_block(xive->vp_base);
-
-	kvm->arch.mmu_ready = was_ready;
 
 	/*
 	 * A reference of the kvmppc_xive pointer is now kept under
@@ -1967,6 +1962,7 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 	dev->private = xive;
 	xive->dev = dev;
 	xive->kvm = kvm;
+	mutex_init(&xive->lock);
 
 	/* Already there ? */
 	if (kvm->arch.xive)

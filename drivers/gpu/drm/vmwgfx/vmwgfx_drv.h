@@ -296,7 +296,7 @@ struct vmw_sg_table {
 struct vmw_piter {
 	struct page **pages;
 	const dma_addr_t *addrs;
-	struct sg_page_iter iter;
+	struct sg_dma_page_iter iter;
 	unsigned long i;
 	unsigned long num_pages;
 	bool (*next)(struct vmw_piter *);

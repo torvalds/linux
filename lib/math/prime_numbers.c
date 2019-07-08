@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "prime numbers: " fmt "\n"
 
 #include <linux/module.h>

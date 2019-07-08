@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Aspeed pinctrl support
 
 ccflags-y += $(call cc-option,-Woverride-init)

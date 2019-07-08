@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for radios with Silicon Labs Si4713 FM Radio Transmitters
 #

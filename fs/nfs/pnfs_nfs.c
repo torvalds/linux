@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common NFS I/O  operations for the pnfs file based
  * layout drivers.

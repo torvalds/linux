@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap-abe-twl6040.c  --  SoC audio for TI OMAP based boards with ABE and
  *			   twl6040 codec
  *
  * Author: Misael Lopez Cruz <misael.lopez@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/clk.h>
@@ -34,6 +20,18 @@
 #include "omap-dmic.h"
 #include "omap-mcpdm.h"
 #include "../codecs/twl6040.h"
+
+SND_SOC_DAILINK_DEFS(link0,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC("twl6040-codec",
+				      "twl6040-legacy")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(link1,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC("dmic-codec",
+				      "dmic-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 struct abe_twl6040 {
 	struct snd_soc_card card;
@@ -255,10 +253,14 @@ static int omap_abe_probe(struct platform_device *pdev)
 
 	priv->dai_links[0].name = "DMIC";
 	priv->dai_links[0].stream_name = "TWL6040";
-	priv->dai_links[0].cpu_of_node = dai_node;
-	priv->dai_links[0].platform_of_node = dai_node;
-	priv->dai_links[0].codec_dai_name = "twl6040-legacy";
-	priv->dai_links[0].codec_name = "twl6040-codec";
+	priv->dai_links[0].cpus = link0_cpus;
+	priv->dai_links[0].num_cpus = 1;
+	priv->dai_links[0].cpus->of_node = dai_node;
+	priv->dai_links[0].platforms = link0_platforms;
+	priv->dai_links[0].num_platforms = 1;
+	priv->dai_links[0].platforms->of_node = dai_node;
+	priv->dai_links[0].codecs = link0_codecs;
+	priv->dai_links[0].num_codecs = 1;
 	priv->dai_links[0].init = omap_abe_twl6040_init;
 	priv->dai_links[0].ops = &omap_abe_ops;
 
@@ -267,10 +269,14 @@ static int omap_abe_probe(struct platform_device *pdev)
 		num_links = 2;
 		priv->dai_links[1].name = "TWL6040";
 		priv->dai_links[1].stream_name = "DMIC Capture";
-		priv->dai_links[1].cpu_of_node = dai_node;
-		priv->dai_links[1].platform_of_node = dai_node;
-		priv->dai_links[1].codec_dai_name = "dmic-hifi";
-		priv->dai_links[1].codec_name = "dmic-codec";
+		priv->dai_links[1].cpus = link1_cpus;
+		priv->dai_links[1].num_cpus = 1;
+		priv->dai_links[1].cpus->of_node = dai_node;
+		priv->dai_links[1].platforms = link1_platforms;
+		priv->dai_links[1].num_platforms = 1;
+		priv->dai_links[1].platforms->of_node = dai_node;
+		priv->dai_links[1].codecs = link1_codecs;
+		priv->dai_links[1].num_codecs = 1;
 		priv->dai_links[1].init = omap_abe_dmic_init;
 		priv->dai_links[1].ops = &omap_abe_dmic_ops;
 	} else {

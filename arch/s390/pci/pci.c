@@ -528,7 +528,10 @@ static int zpci_setup_bus_resources(struct zpci_dev *zdev,
 		if (zdev->bars[i].val & 4)
 			flags |= IORESOURCE_MEM_64;
 
-		addr = ZPCI_ADDR(entry);
+		if (static_branch_likely(&have_mio))
+			addr = (unsigned long) zdev->bars[i].mio_wb;
+		else
+			addr = ZPCI_ADDR(entry);
 		size = 1UL << zdev->bars[i].size;
 
 		res = __alloc_res(zdev, addr, size, flags);
