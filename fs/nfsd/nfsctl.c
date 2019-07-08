@@ -1218,7 +1218,7 @@ static void clear_ncl(struct inode *inode)
 }
 
 
-struct nfsdfs_client *__get_nfsdfs_client(struct inode *inode)
+static struct nfsdfs_client *__get_nfsdfs_client(struct inode *inode)
 {
 	struct nfsdfs_client *nc = inode->i_private;
 
