@@ -1390,7 +1390,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   reserved_at_6c8[0x28];
 	u8	   sf_base_id[0x10];
 
-	u8	   reserved_at_700[0x100];
+	u8	   reserved_at_700[0x80];
+	u8	   vhca_tunnel_commands[0x40];
+	u8	   reserved_at_7c0[0x40];
 };
 
 enum mlx5_flow_destination_type {
@@ -9694,7 +9696,7 @@ struct mlx5_ifc_general_obj_in_cmd_hdr_bits {
 	u8         opcode[0x10];
 	u8         uid[0x10];
 
-	u8         reserved_at_20[0x10];
+	u8         vhca_tunnel_id[0x10];
 	u8         obj_type[0x10];
 
 	u8         obj_id[0x20];

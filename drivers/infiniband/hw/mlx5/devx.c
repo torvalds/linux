@@ -894,12 +894,16 @@ static int devx_get_uid(struct mlx5_ib_ucontext *c, void *cmd_in)
 
 	return c->devx_uid;
 }
-static bool devx_is_general_cmd(void *in)
+
+static bool devx_is_general_cmd(void *in, struct mlx5_ib_dev *dev)
 {
 	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
 
-	if (opcode >= MLX5_CMD_OP_GENERAL_START &&
-	    opcode < MLX5_CMD_OP_GENERAL_END)
+	/* Pass all cmds for vhca_tunnel as general, tracking is done in FW */
+	if ((MLX5_CAP_GEN_64(dev->mdev, vhca_tunnel_commands) &&
+	     MLX5_GET(general_obj_in_cmd_hdr, in, vhca_tunnel_id)) ||
+	    (opcode >= MLX5_CMD_OP_GENERAL_START &&
+	     opcode < MLX5_CMD_OP_GENERAL_END))
 		return true;
 
 	switch (opcode) {
@@ -1025,7 +1029,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OTHER)(
 		return uid;
 
 	/* Only white list of some general HCA commands are allowed for this method. */
-	if (!devx_is_general_cmd(cmd_in))
+	if (!devx_is_general_cmd(cmd_in, dev))
 		return -EINVAL;
 
 	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
@@ -1410,6 +1414,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 	u32 obj_id;
 	u16 opcode;
 
+	if (MLX5_GET(general_obj_in_cmd_hdr, cmd_in, vhca_tunnel_id))
+		return -EINVAL;
+
 	uid = devx_get_uid(c, cmd_in);
 	if (uid < 0)
 		return uid;
@@ -1509,6 +1516,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
 	int err;
 	int uid;
 
+	if (MLX5_GET(general_obj_in_cmd_hdr, cmd_in, vhca_tunnel_id))
+		return -EINVAL;
+
 	uid = devx_get_uid(c, cmd_in);
 	if (uid < 0)
 		return uid;
@@ -1550,6 +1560,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 	int err;
 	int uid;
 	struct mlx5_ib_dev *mdev = to_mdev(c->ibucontext.device);
+
+	if (MLX5_GET(general_obj_in_cmd_hdr, cmd_in, vhca_tunnel_id))
+		return -EINVAL;
 
 	uid = devx_get_uid(c, cmd_in);
 	if (uid < 0)
@@ -1687,6 +1700,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_ASYNC_QUERY)(
 	struct mlx5_ib_dev *mdev = to_mdev(c->ibucontext.device);
 	struct devx_async_cmd_event_file *ev_file;
 	struct devx_async_data *async_data;
+
+	if (MLX5_GET(general_obj_in_cmd_hdr, cmd_in, vhca_tunnel_id))
+		return -EINVAL;
 
 	uid = devx_get_uid(c, cmd_in);
 	if (uid < 0)
