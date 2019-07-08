@@ -7692,7 +7692,7 @@ static int sctp_getsockopt_interleaving_supported(struct sock *sk, int len,
 		goto out;
 	}
 
-	params.assoc_value = asoc ? asoc->intl_enable
+	params.assoc_value = asoc ? asoc->peer.intl_capable
 				  : sctp_sk(sk)->strm_interleave;
 
 	if (put_user(len, optlen))
