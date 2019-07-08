@@ -1183,12 +1183,12 @@ struct tx_task_t {
 	wait_queue_head_t waiting;
 };
 
-static DEFINE_PER_CPU(struct tx_task_t, tx_task_g);
+static DEFINE_PER_CPU(struct tx_task_t, siw_tx_task_g);
 
 void siw_stop_tx_thread(int nr_cpu)
 {
 	kthread_stop(siw_tx_thread[nr_cpu]);
-	wake_up(&per_cpu(tx_task_g, nr_cpu).waiting);
+	wake_up(&per_cpu(siw_tx_task_g, nr_cpu).waiting);
 }
 
 int siw_run_sq(void *data)
@@ -1196,7 +1196,7 @@ int siw_run_sq(void *data)
 	const int nr_cpu = (unsigned int)(long)data;
 	struct llist_node *active;
 	struct siw_qp *qp;
-	struct tx_task_t *tx_task = &per_cpu(tx_task_g, nr_cpu);
+	struct tx_task_t *tx_task = &per_cpu(siw_tx_task_g, nr_cpu);
 
 	init_llist_head(&tx_task->active);
 	init_waitqueue_head(&tx_task->waiting);
@@ -1261,9 +1261,9 @@ int siw_sq_start(struct siw_qp *qp)
 	}
 	siw_qp_get(qp);
 
-	llist_add(&qp->tx_list, &per_cpu(tx_task_g, qp->tx_cpu).active);
+	llist_add(&qp->tx_list, &per_cpu(siw_tx_task_g, qp->tx_cpu).active);
 
-	wake_up(&per_cpu(tx_task_g, qp->tx_cpu).waiting);
+	wake_up(&per_cpu(siw_tx_task_g, qp->tx_cpu).waiting);
 
 	return 0;
 }

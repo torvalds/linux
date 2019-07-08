@@ -126,7 +126,7 @@ static int siw_dev_qualified(struct net_device *netdev)
 	return 0;
 }
 
-static DEFINE_PER_CPU(atomic_t, use_cnt = ATOMIC_INIT(0));
+static DEFINE_PER_CPU(atomic_t, siw_use_cnt);
 
 static struct {
 	struct cpumask **tx_valid_cpus;
@@ -215,7 +215,7 @@ int siw_get_tx_cpu(struct siw_device *sdev)
 		if (!siw_tx_thread[cpu])
 			continue;
 
-		usage = atomic_read(&per_cpu(use_cnt, cpu));
+		usage = atomic_read(&per_cpu(siw_use_cnt, cpu));
 		if (usage <= min_use) {
 			tx_cpu = cpu;
 			min_use = usage;
@@ -226,7 +226,7 @@ int siw_get_tx_cpu(struct siw_device *sdev)
 
 out:
 	if (tx_cpu >= 0)
-		atomic_inc(&per_cpu(use_cnt, tx_cpu));
+		atomic_inc(&per_cpu(siw_use_cnt, tx_cpu));
 	else
 		pr_warn("siw: no tx cpu found\n");
 
@@ -235,7 +235,7 @@ out:
 
 void siw_put_tx_cpu(int cpu)
 {
-	atomic_dec(&per_cpu(use_cnt, cpu));
+	atomic_dec(&per_cpu(siw_use_cnt, cpu));
 }
 
 static struct ib_qp *siw_get_base_qp(struct ib_device *base_dev, int id)
