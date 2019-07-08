@@ -3594,37 +3594,6 @@ static void intel_ddi_update_pipe(struct intel_encoder *encoder,
 		intel_hdcp_disable(to_intel_connector(conn_state->connector));
 }
 
-static void intel_ddi_set_fia_lane_count(struct intel_encoder *encoder,
-					 const struct intel_crtc_state *pipe_config,
-					 enum port port)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	u32 val = I915_READ(PORT_TX_DFLEXDPMLE1);
-	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
-
-	WARN_ON(lane_reversal && dig_port->tc_mode != TC_PORT_LEGACY);
-
-	val &= ~DFLEXDPMLE1_DPMLETC_MASK(tc_port);
-	switch (pipe_config->lane_count) {
-	case 1:
-		val |= (lane_reversal) ? DFLEXDPMLE1_DPMLETC_ML3(tc_port) :
-		DFLEXDPMLE1_DPMLETC_ML0(tc_port);
-		break;
-	case 2:
-		val |= (lane_reversal) ? DFLEXDPMLE1_DPMLETC_ML3_2(tc_port) :
-		DFLEXDPMLE1_DPMLETC_ML1_0(tc_port);
-		break;
-	case 4:
-		val |= DFLEXDPMLE1_DPMLETC_ML3_0(tc_port);
-		break;
-	default:
-		MISSING_CASE(pipe_config->lane_count);
-	}
-	I915_WRITE(PORT_TX_DFLEXDPMLE1, val);
-}
-
 static void
 intel_ddi_update_prepare(struct intel_atomic_state *state,
 			 struct intel_encoder *encoder,
@@ -3657,7 +3626,6 @@ intel_ddi_pre_pll_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	bool is_tc_port = intel_port_is_tc(dev_priv, encoder->port);
-	enum port port = encoder->port;
 
 	if (is_tc_port)
 		intel_tc_port_get_link(dig_port, crtc_state->lane_count);
@@ -3666,18 +3634,15 @@ intel_ddi_pre_pll_enable(struct intel_encoder *encoder,
 		intel_display_power_get(dev_priv,
 					intel_ddi_main_link_aux_domain(dig_port));
 
-	if (IS_GEN9_LP(dev_priv))
+	if (is_tc_port && dig_port->tc_mode != TC_PORT_TBT_ALT)
+		/*
+		 * Program the lane count for static/dynamic connections on
+		 * Type-C ports.  Skip this step for TBT.
+		 */
+		intel_tc_port_set_fia_lane_count(dig_port, crtc_state->lane_count);
+	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_phy_set_lane_optim_mask(encoder,
 						crtc_state->lane_lat_optim_mask);
-
-	/*
-	 * Program the lane count for static/dynamic connections on Type-C ports.
-	 * Skip this step for TBT.
-	 */
-	if (dig_port->tc_mode == TC_PORT_TBT_ALT)
-		return;
-
-	intel_ddi_set_fia_lane_count(encoder, crtc_state, port);
 }
 
 static void

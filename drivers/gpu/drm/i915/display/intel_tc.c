@@ -67,6 +67,39 @@ int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 	}
 }
 
+void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
+				      int required_lanes)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
+	struct intel_uncore *uncore = &i915->uncore;
+	u32 val;
+
+	WARN_ON(lane_reversal && dig_port->tc_mode != TC_PORT_LEGACY);
+
+	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPMLE1);
+	val &= ~DFLEXDPMLE1_DPMLETC_MASK(tc_port);
+
+	switch (required_lanes) {
+	case 1:
+		val |= lane_reversal ? DFLEXDPMLE1_DPMLETC_ML3(tc_port) :
+			DFLEXDPMLE1_DPMLETC_ML0(tc_port);
+		break;
+	case 2:
+		val |= lane_reversal ? DFLEXDPMLE1_DPMLETC_ML3_2(tc_port) :
+			DFLEXDPMLE1_DPMLETC_ML1_0(tc_port);
+		break;
+	case 4:
+		val |= DFLEXDPMLE1_DPMLETC_ML3_0(tc_port);
+		break;
+	default:
+		MISSING_CASE(required_lanes);
+	}
+
+	intel_uncore_write(uncore, PORT_TX_DFLEXDPMLE1, val);
+}
+
 static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
 				      u32 live_status_mask)
 {
