@@ -471,7 +471,7 @@ mode_fixup(struct drm_atomic_state *state)
 			continue;
 
 		funcs = crtc->helper_private;
-		if (!funcs->mode_fixup)
+		if (!funcs || !funcs->mode_fixup)
 			continue;
 
 		ret = funcs->mode_fixup(crtc, &new_crtc_state->mode,
