@@ -167,9 +167,9 @@ enum scmi_sensor_class {
  *
  * @count_get: get the count of sensors provided by SCMI
  * @info_get: get the information of the specified sensor
- * @configuration_set: control notifications on cross-over events for
+ * @trip_point_notify: control notifications on cross-over events for
  *	the trip-points
- * @trip_point_set: selects and configures a trip-point of interest
+ * @trip_point_config: selects and configures a trip-point of interest
  * @reading_get: gets the current value of the sensor
  */
 struct scmi_sensor_ops {
@@ -177,10 +177,10 @@ struct scmi_sensor_ops {
 
 	const struct scmi_sensor_info *(*info_get)
 		(const struct scmi_handle *handle, u32 sensor_id);
-	int (*configuration_set)(const struct scmi_handle *handle,
-				 u32 sensor_id);
-	int (*trip_point_set)(const struct scmi_handle *handle, u32 sensor_id,
-			      u8 trip_id, u64 trip_value);
+	int (*trip_point_notify)(const struct scmi_handle *handle,
+				 u32 sensor_id, bool enable);
+	int (*trip_point_config)(const struct scmi_handle *handle,
+				 u32 sensor_id, u8 trip_id, u64 trip_value);
 	int (*reading_get)(const struct scmi_handle *handle, u32 sensor_id,
 			   bool async, u64 *value);
 };
