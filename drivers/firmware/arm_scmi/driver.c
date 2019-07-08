@@ -182,7 +182,7 @@ static inline int scmi_to_linux_errno(int errno)
 static inline void scmi_dump_header_dbg(struct device *dev,
 					struct scmi_msg_hdr *hdr)
 {
-	dev_dbg(dev, "Command ID: %x Sequence ID: %x Protocol: %x\n",
+	dev_dbg(dev, "Message ID: %x Sequence ID: %x Protocol: %x\n",
 		hdr->id, hdr->seq, hdr->protocol_id);
 }
 
@@ -241,7 +241,7 @@ static void scmi_rx_callback(struct mbox_client *cl, void *m)
  * @hdr: pointer to header containing all the information on message id,
  *	protocol id and sequence id.
  *
- * Return: 32-bit packed command header to be sent to the platform.
+ * Return: 32-bit packed message header to be sent to the platform.
  */
 static inline u32 pack_scmi_header(struct scmi_msg_hdr *hdr)
 {
@@ -280,7 +280,7 @@ static void scmi_tx_prepare(struct mbox_client *cl, void *m)
  *
  * @handle: Pointer to SCMI entity handle
  *
- * Helper function which is used by various command functions that are
+ * Helper function which is used by various message functions that are
  * exposed to clients of this driver for allocating a message traffic event.
  *
  * This function can sleep depending on pending requests already in the system
