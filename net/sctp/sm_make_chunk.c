@@ -261,7 +261,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 		num_ext += 2;
 	}
 
-	if (asoc->reconf_enable) {
+	if (asoc->ep->reconf_enable) {
 		extensions[num_ext] = SCTP_CID_RECONF;
 		num_ext += 1;
 	}
@@ -2007,8 +2007,7 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
 	for (i = 0; i < num_ext; i++) {
 		switch (param.ext->chunks[i]) {
 		case SCTP_CID_RECONF:
-			if (asoc->reconf_enable &&
-			    !asoc->peer.reconf_capable)
+			if (asoc->ep->reconf_enable)
 				asoc->peer.reconf_capable = 1;
 			break;
 		case SCTP_CID_FWD_TSN:
