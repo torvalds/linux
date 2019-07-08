@@ -1026,7 +1026,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			req->r_callback = ceph_aio_complete_req;
 			req->r_inode = inode;
 			req->r_priv = aio_req;
-			list_add_tail(&req->r_unsafe_item, &aio_req->osd_reqs);
+			list_add_tail(&req->r_private_item, &aio_req->osd_reqs);
 
 			pos += len;
 			continue;
@@ -1086,8 +1086,8 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		while (!list_empty(&osd_reqs)) {
 			req = list_first_entry(&osd_reqs,
 					       struct ceph_osd_request,
-					       r_unsafe_item);
-			list_del_init(&req->r_unsafe_item);
+					       r_private_item);
+			list_del_init(&req->r_private_item);
 			if (ret >= 0)
 				ret = ceph_osdc_start_request(req->r_osdc,
 							      req, false);

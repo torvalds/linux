@@ -198,9 +198,9 @@ struct ceph_osd_request {
 	bool              r_mempool;
 	struct completion r_completion;       /* private to osd_client.c */
 	ceph_osdc_callback_t r_callback;
-	struct list_head  r_unsafe_item;
 
 	struct inode *r_inode;         	      /* for use by callbacks */
+	struct list_head r_private_item;      /* ditto */
 	void *r_priv;			      /* ditto */
 
 	/* set by submitter */

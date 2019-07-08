@@ -478,7 +478,7 @@ static void request_release_checks(struct ceph_osd_request *req)
 {
 	WARN_ON(!RB_EMPTY_NODE(&req->r_node));
 	WARN_ON(!RB_EMPTY_NODE(&req->r_mc_node));
-	WARN_ON(!list_empty(&req->r_unsafe_item));
+	WARN_ON(!list_empty(&req->r_private_item));
 	WARN_ON(req->r_osd);
 }
 
@@ -538,7 +538,7 @@ static void request_init(struct ceph_osd_request *req)
 	init_completion(&req->r_completion);
 	RB_CLEAR_NODE(&req->r_node);
 	RB_CLEAR_NODE(&req->r_mc_node);
-	INIT_LIST_HEAD(&req->r_unsafe_item);
+	INIT_LIST_HEAD(&req->r_private_item);
 
 	target_init(&req->r_t);
 }
