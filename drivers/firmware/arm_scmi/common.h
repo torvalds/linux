@@ -48,11 +48,11 @@ struct scmi_msg_resp_prot_version {
 /**
  * struct scmi_msg_hdr - Message(Tx/Rx) header
  *
- * @id: The identifier of the command being sent
- * @protocol_id: The identifier of the protocol used to send @id command
- * @seq: The token to identify the message. when a message/command returns,
- *	the platform returns the whole message header unmodified including
- *	the token
+ * @id: The identifier of the message being sent
+ * @protocol_id: The identifier of the protocol used to send @id message
+ * @seq: The token to identify the message. When a message returns, the
+ *	platform returns the whole message header unmodified including the
+ *	token
  * @status: Status of the transfer once it's complete
  * @poll_completion: Indicate if the transfer needs to be polled for
  *	completion or interrupt mode is used
