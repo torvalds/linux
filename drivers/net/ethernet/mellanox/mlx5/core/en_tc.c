@@ -1522,11 +1522,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_OPTS)) {
+	if (mlx5e_get_tc_tun(filter_dev)) {
 		if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
 			return -EOPNOTSUPP;
 
