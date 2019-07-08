@@ -2041,6 +2041,7 @@ static __latent_entropy struct task_struct *copy_process(
 					      O_RDWR | O_CLOEXEC);
 		if (IS_ERR(pidfile)) {
 			put_unused_fd(pidfd);
+			retval = PTR_ERR(pidfile);
 			goto bad_fork_free_pid;
 		}
 		get_pid(pid);	/* held by pidfile now */
