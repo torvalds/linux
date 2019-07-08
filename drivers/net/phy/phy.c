@@ -298,12 +298,8 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	linkmode_copy(phydev->advertising, advertising);
 
-	if (AUTONEG_ENABLE == cmd->autoneg)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-				 phydev->advertising);
-	else
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-				   phydev->advertising);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			 phydev->advertising, AUTONEG_ENABLE == cmd->autoneg);
 
 	phydev->duplex = cmd->duplex;
 
@@ -353,12 +349,8 @@ int phy_ethtool_ksettings_set(struct phy_device *phydev,
 
 	linkmode_copy(phydev->advertising, advertising);
 
-	if (autoneg == AUTONEG_ENABLE)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-				 phydev->advertising);
-	else
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-				   phydev->advertising);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			 phydev->advertising, autoneg == AUTONEG_ENABLE);
 
 	phydev->duplex = duplex;
 
