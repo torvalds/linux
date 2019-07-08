@@ -61,6 +61,7 @@
 #include <linux/cgroup_rdma.h>
 #include <linux/irqflags.h>
 #include <linux/preempt.h>
+#include <linux/dim.h>
 #include <uapi/rdma/ib_user_verbs.h>
 #include <rdma/rdma_counter.h>
 #include <rdma/restrack.h>
@@ -1509,6 +1510,7 @@ struct ib_cq {
 		struct work_struct	work;
 	};
 	struct workqueue_struct *comp_wq;
+	struct dim *dim;
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
@@ -2576,6 +2578,8 @@ struct ib_device {
 	u16                          is_switch:1;
 	/* Indicates kernel verbs support, should not be used in drivers */
 	u16                          kverbs_provider:1;
+	/* CQ adaptive moderation (RDMA DIM) */
+	u16                          use_cq_dim:1;
 	u8                           node_type;
 	u8                           phys_port_cnt;
 	struct ib_device_attr        attrs;
