@@ -6428,6 +6428,8 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	     MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
 		mutex_init(&dev->lb.mutex);
 
+	dev->ib_dev.use_cq_dim = true;
+
 	return 0;
 }
 
