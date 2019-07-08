@@ -859,6 +859,10 @@ static struct i915_request *dummy_request(struct intel_engine_cs *engine)
 	i915_sw_fence_init(&rq->submit, dummy_notify);
 	set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
 
+	spin_lock_init(&rq->lock);
+	rq->fence.lock = &rq->lock;
+	INIT_LIST_HEAD(&rq->fence.cb_list);
+
 	return rq;
 }
 
