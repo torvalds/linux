@@ -20,7 +20,6 @@
 #define NET_IP_ALIGN	0
 
 #ifndef __ASSEMBLY__
-#ifdef __KERNEL__
 
 #include <linux/build_bug.h>
 #include <linux/cache.h>
@@ -282,8 +281,6 @@ static inline void spin_lock_prefetch(const void *ptr)
 }
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
-
-#endif
 
 extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */
 extern void __init minsigstksz_setup(void);

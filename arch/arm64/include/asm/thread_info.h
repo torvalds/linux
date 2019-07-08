@@ -8,8 +8,6 @@
 #ifndef __ASM_THREAD_INFO_H
 #define __ASM_THREAD_INFO_H
 
-#ifdef __KERNEL__
-
 #include <linux/compiler.h>
 
 #ifndef __ASSEMBLY__
@@ -121,5 +119,4 @@ void arch_release_task_struct(struct task_struct *tsk);
 	.addr_limit	= KERNEL_DS,					\
 }
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_THREAD_INFO_H */

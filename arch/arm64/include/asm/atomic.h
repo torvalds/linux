@@ -15,8 +15,6 @@
 #include <asm/barrier.h>
 #include <asm/lse.h>
 
-#ifdef __KERNEL__
-
 #define __ARM64_IN_ATOMIC_IMPL
 
 #if defined(CONFIG_ARM64_LSE_ATOMICS) && defined(CONFIG_AS_LSE)
@@ -157,5 +155,4 @@
 
 #include <asm-generic/atomic-instrumented.h>
 
-#endif
-#endif
+#endif /* __ASM_ATOMIC_H */
