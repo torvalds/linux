@@ -130,6 +130,8 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	int index;
 	int timeout = 2000;
 
+	mutex_lock(&psp->mutex);
+
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
 
 	memcpy(psp->cmd_buf_mem, cmd, sizeof(struct psp_gfx_cmd_resp));
@@ -139,6 +141,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 			     fence_mc_addr, index);
 	if (ret) {
 		atomic_dec(&psp->fence_value);
+		mutex_unlock(&psp->mutex);
 		return ret;
 	}
 
@@ -161,8 +164,10 @@ psp_cmd_submit_buf(struct psp_context *psp,
 				  ucode->ucode_id);
 		DRM_WARN("psp command failed and response status is (%d)\n",
 			  psp->cmd_buf_mem->resp.status);
-		if (!timeout)
+		if (!timeout) {
+			mutex_unlock(&psp->mutex);
 			return -EINVAL;
+		}
 	}
 
 	/* get xGMI session id from response buffer */
@@ -172,6 +177,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		ucode->tmr_mc_addr_lo = psp->cmd_buf_mem->resp.fw_addr_lo;
 		ucode->tmr_mc_addr_hi = psp->cmd_buf_mem->resp.fw_addr_hi;
 	}
+	mutex_unlock(&psp->mutex);
 
 	return ret;
 }
@@ -1188,10 +1194,16 @@ failed:
 
 int psp_gpu_reset(struct amdgpu_device *adev)
 {
+	int ret;
+
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		return 0;
 
-	return psp_mode1_reset(&adev->psp);
+	mutex_lock(&adev->psp.mutex);
+	ret = psp_mode1_reset(&adev->psp);
+	mutex_unlock(&adev->psp.mutex);
+
+	return ret;
 }
 
 int psp_rlc_autoload_start(struct psp_context *psp)

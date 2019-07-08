@@ -201,6 +201,7 @@ struct psp_context
 	uint8_t				*ta_ras_start_addr;
 	struct psp_xgmi_context		xgmi_context;
 	struct psp_ras_context		ras;
+	struct mutex			mutex;
 };
 
 struct amdgpu_psp_funcs {
