@@ -430,6 +430,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	if (flags & ~(XDP_SHARED_UMEM | XDP_COPY | XDP_ZEROCOPY))
 		return -EINVAL;
 
+	rtnl_lock();
 	mutex_lock(&xs->mutex);
 	if (xs->state != XSK_READY) {
 		err = -EBUSY;
@@ -515,6 +516,7 @@ out_unlock:
 		xs->state = XSK_BOUND;
 out_release:
 	mutex_unlock(&xs->mutex);
+	rtnl_unlock();
 	return err;
 }
 
