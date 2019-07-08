@@ -140,7 +140,7 @@ uint amdgpu_smu_memory_pool_size = 0;
 uint amdgpu_dc_feature_mask = 0;
 int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
-int amdgpu_discovery = 0;
+int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
 
 struct amdgpu_mgpu_info mgpu_info = {
@@ -593,6 +593,7 @@ module_param_named(mcbp, amdgpu_mcbp, int, 0444);
 /**
  * DOC: discovery (int)
  * Allow driver to discover hardware IP information from IP Discovery table at the top of VRAM.
+ * (-1 = auto (default), 0 = disabled, 1 = enabled)
  */
 MODULE_PARM_DESC(discovery,
 	"Allow driver to discover hardware IPs from IP Discovery table at the top of VRAM");
