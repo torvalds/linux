@@ -58,9 +58,8 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 	}
 
 	dflow->en_img_enhancement = !!kplane_st->img_enhancement;
-	dflow->en_split = !!kplane_st->layer_split;
 
-	komeda_complete_data_flow_cfg(dflow, fb);
+	komeda_complete_data_flow_cfg(kplane->layer, dflow, fb);
 
 	return 0;
 }

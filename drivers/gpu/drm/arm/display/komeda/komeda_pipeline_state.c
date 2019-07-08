@@ -784,9 +784,11 @@ komeda_timing_ctrlr_validate(struct komeda_timing_ctrlr *ctrlr,
 	return 0;
 }
 
-void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow,
+void komeda_complete_data_flow_cfg(struct komeda_layer *layer,
+				   struct komeda_data_flow_cfg *dflow,
 				   struct drm_framebuffer *fb)
 {
+	struct komeda_scaler *scaler = layer->base.pipeline->scalers[0];
 	u32 w = dflow->in_w;
 	u32 h = dflow->in_h;
 
@@ -803,6 +805,13 @@ void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow,
 
 	dflow->en_scaling = (w != dflow->out_w) || (h != dflow->out_h);
 	dflow->is_yuv = fb->format->is_yuv;
+
+	/* try to enable split if scaling exceed the scaler's acceptable
+	 * input/output range.
+	 */
+	if (dflow->en_scaling && scaler)
+		dflow->en_split = !in_range(&scaler->hsize, dflow->in_w) ||
+				  !in_range(&scaler->hsize, dflow->out_w);
 }
 
 static bool merger_is_available(struct komeda_pipeline *pipe,
