@@ -199,6 +199,7 @@ config BNXT
 	select FW_LOADER
 	select LIBCRC32C
 	select NET_DEVLINK
+	select PAGE_POOL
 	---help---
 	  This driver supports Broadcom NetXtreme-C/E 10/25/40/50 gigabit
 	  Ethernet cards.  To compile this driver as a module, choose M here:
