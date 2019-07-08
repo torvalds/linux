@@ -501,43 +501,10 @@ static int calc_wqe_bt_page_shift(struct hns_roce_dev *hr_dev,
 	return bt_pg_shift - PAGE_SHIFT;
 }
 
-static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
-				       struct ib_qp_cap *cap,
-				       struct hns_roce_qp *hr_qp)
+static int set_extend_sge_param(struct hns_roce_dev *hr_dev,
+				struct hns_roce_qp *hr_qp)
 {
 	struct device *dev = hr_dev->dev;
-	u32 page_size;
-	u32 max_cnt;
-	int size;
-
-	if (cap->max_send_wr  > hr_dev->caps.max_wqes  ||
-	    cap->max_send_sge > hr_dev->caps.max_sq_sg ||
-	    cap->max_inline_data > hr_dev->caps.max_sq_inline) {
-		dev_err(dev, "SQ WR or sge or inline data error!\n");
-		return -EINVAL;
-	}
-
-	hr_qp->sq.wqe_shift = ilog2(hr_dev->caps.max_sq_desc_sz);
-	hr_qp->sq_max_wqes_per_wr = 1;
-	hr_qp->sq_spare_wqes = 0;
-
-	if (hr_dev->caps.min_wqes)
-		max_cnt = max(cap->max_send_wr, hr_dev->caps.min_wqes);
-	else
-		max_cnt = cap->max_send_wr;
-
-	hr_qp->sq.wqe_cnt = roundup_pow_of_two(max_cnt);
-	if ((u32)hr_qp->sq.wqe_cnt > hr_dev->caps.max_wqes) {
-		dev_err(dev, "while setting kernel sq size, sq.wqe_cnt too large\n");
-		return -EINVAL;
-	}
-
-	/* Get data_seg numbers */
-	max_cnt = max(1U, cap->max_send_sge);
-	if (hr_dev->caps.max_sq_sg <= 2)
-		hr_qp->sq.max_gs = roundup_pow_of_two(max_cnt);
-	else
-		hr_qp->sq.max_gs = max_cnt;
 
 	if (hr_qp->sq.max_gs > 2) {
 		hr_qp->sge.sge_cnt = roundup_pow_of_two(hr_qp->sq.wqe_cnt *
@@ -558,6 +525,52 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 				hr_qp->sge.sge_cnt);
 			return -EINVAL;
 		}
+	}
+
+	return 0;
+}
+
+static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
+				       struct ib_qp_cap *cap,
+				       struct hns_roce_qp *hr_qp)
+{
+	struct device *dev = hr_dev->dev;
+	u32 page_size;
+	u32 max_cnt;
+	int size;
+	int ret;
+
+	if (cap->max_send_wr  > hr_dev->caps.max_wqes  ||
+	    cap->max_send_sge > hr_dev->caps.max_sq_sg ||
+	    cap->max_inline_data > hr_dev->caps.max_sq_inline) {
+		dev_err(dev, "SQ WR or sge or inline data error!\n");
+		return -EINVAL;
+	}
+
+	hr_qp->sq.wqe_shift = ilog2(hr_dev->caps.max_sq_desc_sz);
+
+	if (hr_dev->caps.min_wqes)
+		max_cnt = max(cap->max_send_wr, hr_dev->caps.min_wqes);
+	else
+		max_cnt = cap->max_send_wr;
+
+	hr_qp->sq.wqe_cnt = roundup_pow_of_two(max_cnt);
+	if ((u32)hr_qp->sq.wqe_cnt > hr_dev->caps.max_wqes) {
+		dev_err(dev, "while setting kernel sq size, sq.wqe_cnt too large\n");
+		return -EINVAL;
+	}
+
+	/* Get data_seg numbers */
+	max_cnt = max(1U, cap->max_send_sge);
+	if (hr_dev->caps.max_sq_sg <= 2)
+		hr_qp->sq.max_gs = roundup_pow_of_two(max_cnt);
+	else
+		hr_qp->sq.max_gs = max_cnt;
+
+	ret = set_extend_sge_param(hr_dev, hr_qp);
+	if (ret) {
+		dev_err(dev, "set extend sge parameters fail\n");
+		return ret;
 	}
 
 	/* Get buf size, SQ and RQ are aligned to PAGE_SIZE */
@@ -942,11 +955,13 @@ err_db:
 		hns_roce_free_db(hr_dev, &hr_qp->rdb);
 
 err_rq_sge_list:
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE)
+	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
+	     hns_roce_qp_has_rq(init_attr))
 		kfree(hr_qp->rq_inl_buf.wqe_list[0].sg_list);
 
 err_wqe_list:
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE)
+	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
+	     hns_roce_qp_has_rq(init_attr))
 		kfree(hr_qp->rq_inl_buf.wqe_list);
 
 err_out:

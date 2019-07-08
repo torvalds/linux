@@ -654,8 +654,6 @@ struct hns_roce_qp {
 	u32			doorbell_qpn;
 	__le32			sq_signal_bits;
 	u32			sq_next_wqe;
-	int			sq_max_wqes_per_wr;
-	int			sq_spare_wqes;
 	struct hns_roce_wq	sq;
 
 	struct ib_umem		*umem;
