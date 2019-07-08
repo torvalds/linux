@@ -22,6 +22,7 @@
  * Authors: AMD
  *
  */
+#include <linux/delay.h>
 
 #include "dm_services.h"
 #include "dm_helpers.h"
