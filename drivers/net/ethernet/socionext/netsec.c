@@ -743,9 +743,7 @@ static void *netsec_alloc_rx_data(struct netsec_priv *priv,
 	 */
 	*desc_len = PAGE_SIZE - NETSEC_RX_BUF_NON_DATA;
 	dma_dir = page_pool_get_dma_dir(dring->page_pool);
-	dma_sync_single_for_device(priv->dev,
-				   *dma_handle - NETSEC_RXBUF_HEADROOM,
-				   PAGE_SIZE, dma_dir);
+	dma_sync_single_for_device(priv->dev, *dma_handle, *desc_len, dma_dir);
 
 	return page_address(page);
 }
