@@ -16816,11 +16816,9 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 			intel_crtc_compute_pixel_rate(crtc_state);
 
-			if (dev_priv->display.modeset_calc_cdclk) {
-				min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
-				if (WARN_ON(min_cdclk < 0))
-					min_cdclk = 0;
-			}
+			min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
+			if (WARN_ON(min_cdclk < 0))
+				min_cdclk = 0;
 
 			drm_calc_timestamping_constants(&crtc->base,
 							&crtc_state->base.adjusted_mode);
