@@ -13307,8 +13307,6 @@ static void intel_modeset_clear_plls(struct intel_atomic_state *state)
 		if (!needs_modeset(new_crtc_state))
 			continue;
 
-		new_crtc_state->shared_dpll = NULL;
-
 		intel_release_shared_dplls(state, crtc);
 	}
 }

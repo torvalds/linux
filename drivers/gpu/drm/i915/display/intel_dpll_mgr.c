@@ -323,13 +323,17 @@ static void intel_unreference_shared_dpll(struct intel_atomic_state *state,
 static void intel_put_dpll(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc)
 {
-	struct intel_crtc_state *crtc_state =
+	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
-	if (!crtc_state->shared_dpll)
+	new_crtc_state->shared_dpll = NULL;
+
+	if (!old_crtc_state->shared_dpll)
 		return;
 
-	intel_unreference_shared_dpll(state, crtc, crtc_state->shared_dpll);
+	intel_unreference_shared_dpll(state, crtc, old_crtc_state->shared_dpll);
 }
 
 /**
@@ -3015,13 +3019,17 @@ static bool icl_get_dplls(struct intel_atomic_state *state,
 static void icl_put_dplls(struct intel_atomic_state *state,
 			  struct intel_crtc *crtc)
 {
-	struct intel_crtc_state *crtc_state =
+	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	enum icl_port_dpll_id id;
 
+	new_crtc_state->shared_dpll = NULL;
+
 	for (id = ICL_PORT_DPLL_DEFAULT; id < ICL_PORT_DPLL_COUNT; id++) {
-		struct icl_port_dpll *port_dpll =
-			&crtc_state->icl_port_dplls[id];
+		const struct icl_port_dpll *port_dpll =
+			&old_crtc_state->icl_port_dplls[id];
 
 		if (!port_dpll->pll)
 			continue;
