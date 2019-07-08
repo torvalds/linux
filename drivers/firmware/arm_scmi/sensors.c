@@ -136,9 +136,10 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 		}
 
 		for (cnt = 0; cnt < num_returned; cnt++) {
-			u32 attrh;
+			u32 attrh, attrl;
 			struct scmi_sensor_info *s;
 
+			attrl = le32_to_cpu(buf->desc[cnt].attributes_low);
 			attrh = le32_to_cpu(buf->desc[cnt].attributes_high);
 			s = &si->sensors[desc_index + cnt];
 			s->id = le32_to_cpu(buf->desc[cnt].id);
@@ -147,6 +148,8 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 			/* Sign extend to a full s8 */
 			if (s->scale & SENSOR_SCALE_SIGN)
 				s->scale |= SENSOR_SCALE_EXTEND;
+			s->async = SUPPORTS_ASYNC_READ(attrl);
+			s->num_trip_points = NUM_TRIP_POINTS(attrl);
 			strlcpy(s->name, buf->desc[cnt].name, SCMI_MAX_STR_SIZE);
 		}
 
@@ -214,8 +217,11 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 				   u32 sensor_id, u64 *value)
 {
 	int ret;
+	__le32 *pval;
 	struct scmi_xfer *t;
 	struct scmi_msg_sensor_reading_get *sensor;
+	struct sensors_info *si = handle->sensor_priv;
+	struct scmi_sensor_info *s = si->sensors + sensor_id;
 
 	ret = scmi_xfer_get_init(handle, SENSOR_READING_GET,
 				 SCMI_PROTOCOL_SENSOR, sizeof(*sensor),
@@ -223,16 +229,24 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 	if (ret)
 		return ret;
 
+	pval = t->rx.buf;
 	sensor = t->tx.buf;
 	sensor->id = cpu_to_le32(sensor_id);
-	sensor->flags = cpu_to_le32(0);
 
-	ret = scmi_do_xfer(handle, t);
-	if (!ret) {
-		__le32 *pval = t->rx.buf;
-
-		*value = le32_to_cpu(*pval);
-		*value |= (u64)le32_to_cpu(*(pval + 1)) << 32;
+	if (s->async) {
+		sensor->flags = cpu_to_le32(SENSOR_READ_ASYNC);
+		ret = scmi_do_xfer_with_response(handle, t);
+		if (!ret) {
+			*value = le32_to_cpu(*(pval + 1));
+			*value |= (u64)le32_to_cpu(*(pval + 2)) << 32;
+		}
+	} else {
+		sensor->flags = cpu_to_le32(0);
+		ret = scmi_do_xfer(handle, t);
+		if (!ret) {
+			*value = le32_to_cpu(*pval);
+			*value |= (u64)le32_to_cpu(*(pval + 1)) << 32;
+		}
 	}
 
 	scmi_xfer_put(handle, t);
