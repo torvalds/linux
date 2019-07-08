@@ -23,7 +23,7 @@ static inline bool dev_is_dma_coherent(struct device *dev)
 /*
  * Check if an allocation needs to be marked uncached to be coherent.
  */
-static inline bool dma_alloc_need_uncached(struct device *dev,
+static __always_inline bool dma_alloc_need_uncached(struct device *dev,
 		unsigned long attrs)
 {
 	if (dev_is_dma_coherent(dev))
