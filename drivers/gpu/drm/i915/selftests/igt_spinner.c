@@ -19,6 +19,7 @@ int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)
 
 	memset(spin, 0, sizeof(*spin));
 	spin->i915 = i915;
+	spin->gt = &i915->gt;
 
 	spin->hws = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(spin->hws)) {
