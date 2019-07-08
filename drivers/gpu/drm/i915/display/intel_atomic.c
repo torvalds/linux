@@ -378,13 +378,6 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 						plane->base.id);
 					return PTR_ERR(state);
 				}
-
-				/*
-				 * the plane is added after plane checks are run,
-				 * but since this plane is unchanged just do the
-				 * minimum required validation.
-				 */
-				crtc_state->base.planes_changed = true;
 			}
 
 			intel_plane = to_intel_plane(plane);
