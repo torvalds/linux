@@ -669,6 +669,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	struct msm_kms *kms;
 	struct msm_gem_address_space *aspace;
 	int irq, i, ret;
+	struct device *iommu_dev;
 
 	/* priv->kms would have been populated by the MDP5 driver */
 	kms = priv->kms;
@@ -708,7 +709,11 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->platform.iommu) {
-		aspace = msm_gem_address_space_create(&pdev->dev,
+		iommu_dev = &pdev->dev;
+		if (!iommu_dev->iommu_fwspec)
+			iommu_dev = iommu_dev->parent;
+
+		aspace = msm_gem_address_space_create(iommu_dev,
 				config->platform.iommu, "mdp5");
 		if (IS_ERR(aspace)) {
 			ret = PTR_ERR(aspace);
