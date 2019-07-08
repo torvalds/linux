@@ -297,41 +297,41 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 	 * it so that we can return it to the device.
 	 */
 
-#if PAGE_SIZE == 4096
-	if (len <= priv->rx_copybreak) {
-		/* Just copy small packets */
-		skb = gve_rx_copy(dev, napi, page_info, len);
-		goto have_skb;
-	}
-	if (unlikely(!gve_can_recycle_pages(dev))) {
-		skb = gve_rx_copy(dev, napi, page_info, len);
-		goto have_skb;
-	}
-	pagecount = page_count(page_info->page);
-	if (pagecount == 1) {
-		/* No part of this page is used by any SKBs; we attach
-		 * the page fragment to a new SKB and pass it up the
-		 * stack.
-		 */
-		skb = gve_rx_add_frags(dev, napi, page_info, len);
-		if (!skb)
-			return true;
-		/* Make sure the kernel stack can't release the page */
-		get_page(page_info->page);
-		/* "flip" to other packet buffer on this page */
-		gve_rx_flip_buff(page_info, &rx->data.data_ring[idx]);
-	} else if (pagecount >= 2) {
-		/* We have previously passed the other half of this
-		 * page up the stack, but it has not yet been freed.
-		 */
-		skb = gve_rx_copy(dev, napi, page_info, len);
+	if (PAGE_SIZE == 4096) {
+		if (len <= priv->rx_copybreak) {
+			/* Just copy small packets */
+			skb = gve_rx_copy(dev, napi, page_info, len);
+			goto have_skb;
+		}
+		if (unlikely(!gve_can_recycle_pages(dev))) {
+			skb = gve_rx_copy(dev, napi, page_info, len);
+			goto have_skb;
+		}
+		pagecount = page_count(page_info->page);
+		if (pagecount == 1) {
+			/* No part of this page is used by any SKBs; we attach
+			 * the page fragment to a new SKB and pass it up the
+			 * stack.
+			 */
+			skb = gve_rx_add_frags(dev, napi, page_info, len);
+			if (!skb)
+				return true;
+			/* Make sure the kernel stack can't release the page */
+			get_page(page_info->page);
+			/* "flip" to other packet buffer on this page */
+			gve_rx_flip_buff(page_info, &rx->data.data_ring[idx]);
+		} else if (pagecount >= 2) {
+			/* We have previously passed the other half of this
+			 * page up the stack, but it has not yet been freed.
+			 */
+			skb = gve_rx_copy(dev, napi, page_info, len);
+		} else {
+			WARN(pagecount < 1, "Pagecount should never be < 1");
+			return false;
+		}
 	} else {
-		WARN(pagecount < 1, "Pagecount should never be < 1");
-		return false;
+		skb = gve_rx_copy(dev, napi, page_info, len);
 	}
-#else
-	skb = gve_rx_copy(dev, napi, page_info, len);
-#endif
 
 have_skb:
 	/* We didn't manage to allocate an skb but we haven't had any
