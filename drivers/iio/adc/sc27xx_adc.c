@@ -546,10 +546,9 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	ret = devm_add_action(dev, sc27xx_adc_free_hwlock,
+	ret = devm_add_action_or_reset(dev, sc27xx_adc_free_hwlock,
 			      sc27xx_data->hwlock);
 	if (ret) {
-		sc27xx_adc_free_hwlock(sc27xx_data->hwlock);
 		dev_err(dev, "failed to add hwspinlock action\n");
 		return ret;
 	}
@@ -563,9 +562,8 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_add_action(dev, sc27xx_adc_disable, sc27xx_data);
+	ret = devm_add_action_or_reset(dev, sc27xx_adc_disable, sc27xx_data);
 	if (ret) {
-		sc27xx_adc_disable(sc27xx_data);
 		dev_err(dev, "failed to add ADC disable action\n");
 		return ret;
 	}
