@@ -231,6 +231,7 @@ struct io_ring_ctx {
 	struct task_struct	*sqo_thread;	/* if using sq thread polling */
 	struct mm_struct	*sqo_mm;
 	wait_queue_head_t	sqo_wait;
+	struct completion	sqo_thread_started;
 
 	struct {
 		/* CQ ring */
@@ -406,6 +407,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	ctx->flags = p->flags;
 	init_waitqueue_head(&ctx->cq_wait);
 	init_completion(&ctx->ctx_done);
+	init_completion(&ctx->sqo_thread_started);
 	mutex_init(&ctx->uring_lock);
 	init_waitqueue_head(&ctx->wait);
 	for (i = 0; i < ARRAY_SIZE(ctx->pending_async); i++) {
@@ -2219,6 +2221,8 @@ static int io_sq_thread(void *data)
 	unsigned inflight;
 	unsigned long timeout;
 
+	complete(&ctx->sqo_thread_started);
+
 	old_fs = get_fs();
 	set_fs(USER_DS);
 
@@ -2462,6 +2466,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 {
 	if (ctx->sqo_thread) {
+		wait_for_completion(&ctx->sqo_thread_started);
 		/*
 		 * The park is a bit of a work-around, without it we get
 		 * warning spews on shutdown with SQPOLL set and affinity
