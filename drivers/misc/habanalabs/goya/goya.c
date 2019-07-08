@@ -695,8 +695,8 @@ static int goya_sw_init(struct hl_device *hdev)
 		goto free_dma_pool;
 	}
 
-	dev_dbg(hdev->dev, "cpu accessible memory at bus address 0x%llx\n",
-		hdev->cpu_accessible_dma_address);
+	dev_dbg(hdev->dev, "cpu accessible memory at bus address %pad\n",
+		&hdev->cpu_accessible_dma_address);
 
 	hdev->cpu_accessible_dma_pool = gen_pool_create(ilog2(32), -1);
 	if (!hdev->cpu_accessible_dma_pool) {
