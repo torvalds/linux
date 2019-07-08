@@ -45,6 +45,19 @@ const char *acpi_power_state_string(int state)
 	}
 }
 
+static int acpi_dev_pm_explicit_get(struct acpi_device *device, int *state)
+{
+	unsigned long long psc;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(device->handle, "_PSC", NULL, &psc);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	*state = psc;
+	return 0;
+}
+
 /**
  * acpi_device_get_power - Get power state of an ACPI device.
  * @device: Device to get the power state of.
@@ -53,10 +66,16 @@ const char *acpi_power_state_string(int state)
  * This function does not update the device's power.state field, but it may
  * update its parent's power.state field (when the parent's power state is
  * unknown and the device's power state turns out to be D0).
+ *
+ * Also, it does not update power resource reference counters to ensure that
+ * the power state returned by it will be persistent and it may return a power
+ * state shallower than previously set by acpi_device_set_power() for @device
+ * (if that power state depends on any power resources).
  */
 int acpi_device_get_power(struct acpi_device *device, int *state)
 {
 	int result = ACPI_STATE_UNKNOWN;
+	int error;
 
 	if (!device || !state)
 		return -EINVAL;
@@ -73,18 +92,16 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	 * if available.
 	 */
 	if (device->power.flags.power_resources) {
-		int error = acpi_power_get_inferred_state(device, &result);
+		error = acpi_power_get_inferred_state(device, &result);
 		if (error)
 			return error;
 	}
 	if (device->power.flags.explicit_get) {
-		acpi_handle handle = device->handle;
-		unsigned long long psc;
-		acpi_status status;
+		int psc;
 
-		status = acpi_evaluate_integer(handle, "_PSC", NULL, &psc);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
+		error = acpi_dev_pm_explicit_get(device, &psc);
+		if (error)
+			return error;
 
 		/*
 		 * The power resources settings may indicate a power state
@@ -118,7 +135,6 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 
 	return 0;
 }
-EXPORT_SYMBOL(acpi_device_get_power);
 
 static int acpi_dev_pm_explicit_set(struct acpi_device *adev, int state)
 {
@@ -152,7 +168,8 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 
 	/* Make sure this is a valid target state */
 
-	if (state == device->power.state) {
+	/* There is a special case for D0 addressed below. */
+	if (state > ACPI_STATE_D0 && state == device->power.state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] already in %s\n",
 				  device->pnp.bus_id,
 				  acpi_power_state_string(state)));
@@ -202,9 +219,15 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 			return -ENODEV;
 		}
 
-		result = acpi_dev_pm_explicit_set(device, state);
-		if (result)
-			goto end;
+		/*
+		 * If the device goes from D3hot to D3cold, _PS3 has been
+		 * evaluated for it already, so skip it in that case.
+		 */
+		if (device->power.state < ACPI_STATE_D3_HOT) {
+			result = acpi_dev_pm_explicit_set(device, state);
+			if (result)
+				goto end;
+		}
 
 		if (device->power.flags.power_resources)
 			result = acpi_power_transition(device, target_state);
@@ -214,6 +237,30 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 			if (result)
 				goto end;
 		}
+
+		if (device->power.state == ACPI_STATE_D0) {
+			int psc;
+
+			/* Nothing to do here if _PSC is not present. */
+			if (!device->power.flags.explicit_get)
+				return 0;
+
+			/*
+			 * The power state of the device was set to D0 last
+			 * time, but that might have happened before a
+			 * system-wide transition involving the platform
+			 * firmware, so it may be necessary to evaluate _PS0
+			 * for the device here.  However, use extra care here
+			 * and evaluate _PSC to check the device's current power
+			 * state, and only invoke _PS0 if the evaluation of _PSC
+			 * is successful and it returns a power state different
+			 * from D0.
+			 */
+			result = acpi_dev_pm_explicit_get(device, &psc);
+			if (result || psc == ACPI_STATE_D0)
+				return 0;
+		}
+
 		result = acpi_dev_pm_explicit_set(device, ACPI_STATE_D0);
 	}
 

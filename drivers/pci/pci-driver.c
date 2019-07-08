@@ -678,6 +678,7 @@ static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
 static int pci_pm_prepare(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
 
 	if (drv && drv->pm && drv->pm->prepare) {
 		int error = drv->pm->prepare(dev);
@@ -687,7 +688,15 @@ static int pci_pm_prepare(struct device *dev)
 		if (!error && dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_PREPARE))
 			return 0;
 	}
-	return pci_dev_keep_suspended(to_pci_dev(dev));
+	if (pci_dev_need_resume(pci_dev))
+		return 0;
+
+	/*
+	 * The PME setting needs to be adjusted here in case the direct-complete
+	 * optimization is used with respect to this device.
+	 */
+	pci_dev_adjust_pme(pci_dev);
+	return 1;
 }
 
 static void pci_pm_complete(struct device *dev)
@@ -701,7 +710,14 @@ static void pci_pm_complete(struct device *dev)
 	if (pm_runtime_suspended(dev) && pm_resume_via_firmware()) {
 		pci_power_t pre_sleep_state = pci_dev->current_state;
 
-		pci_update_current_state(pci_dev, pci_dev->current_state);
+		pci_refresh_power_state(pci_dev);
+		/*
+		 * On platforms with ACPI this check may also trigger for
+		 * devices sharing power resources if one of those power
+		 * resources has been activated as a result of a change of the
+		 * power state of another device sharing it.  However, in that
+		 * case it is also better to resume the device, in general.
+		 */
 		if (pci_dev->current_state < pre_sleep_state)
 			pm_request_resume(dev);
 	}
@@ -757,9 +773,11 @@ static int pci_pm_suspend(struct device *dev)
 	 * better to resume the device from runtime suspend here.
 	 */
 	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
-	    !pci_dev_keep_suspended(pci_dev)) {
+	    pci_dev_need_resume(pci_dev)) {
 		pm_runtime_resume(dev);
 		pci_dev->state_saved = false;
+	} else {
+		pci_dev_adjust_pme(pci_dev);
 	}
 
 	if (pm->suspend) {
@@ -1130,10 +1148,13 @@ static int pci_pm_poweroff(struct device *dev)
 
 	/* The reason to do that is the same as in pci_pm_suspend(). */
 	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
-	    !pci_dev_keep_suspended(pci_dev))
+	    pci_dev_need_resume(pci_dev)) {
 		pm_runtime_resume(dev);
+		pci_dev->state_saved = false;
+	} else {
+		pci_dev_adjust_pme(pci_dev);
+	}
 
-	pci_dev->state_saved = false;
 	if (pm->poweroff) {
 		int error;
 
