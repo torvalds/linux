@@ -24,11 +24,12 @@ static const char *tc_port_mode_name(enum tc_port_mode mode)
 
 u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+	struct intel_uncore *uncore = &i915->uncore;
 	u32 lane_mask;
 
-	lane_mask = I915_READ(PORT_TX_DFLEXDPSP);
+	lane_mask = intel_uncore_read(uncore, PORT_TX_DFLEXDPSP);
 
 	WARN_ON(lane_mask == 0xffffffff);
 
@@ -38,7 +39,7 @@ u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 
 int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	intel_wakeref_t wakeref;
 	u32 lane_mask;
 
@@ -46,7 +47,7 @@ int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 		return 4;
 
 	lane_mask = 0;
-	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref)
+	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref)
 		lane_mask = intel_tc_port_get_lane_mask(dig_port);
 
 	switch (lane_mask) {
@@ -89,12 +90,13 @@ static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
 
 static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+	struct intel_uncore *uncore = &i915->uncore;
 	u32 mask = 0;
 	u32 val;
 
-	val = I915_READ(PORT_TX_DFLEXDPSP);
+	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPSP);
 
 	if (val == 0xffffffff) {
 		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, nothing connected\n",
@@ -107,7 +109,7 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 	if (val & TC_LIVE_STATE_TC(tc_port))
 		mask |= BIT(TC_PORT_DP_ALT);
 
-	if (I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port))
+	if (intel_uncore_read(uncore, SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port))
 		mask |= BIT(TC_PORT_LEGACY);
 
 	/* The sink can be connected only in a single mode. */
@@ -119,11 +121,12 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 
 static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
-	val = I915_READ(PORT_TX_DFLEXDPPMS);
+	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPPMS);
 	if (val == 0xffffffff) {
 		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assuming not complete\n",
 			      dig_port->tc_port_name);
@@ -136,11 +139,12 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 				     bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
-	val = I915_READ(PORT_TX_DFLEXDPCSSS);
+	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPCSSS);
 	if (val == 0xffffffff) {
 		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, can't set safe-mode to %s\n",
 			      dig_port->tc_port_name,
@@ -153,7 +157,7 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	if (!enable)
 		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
 
-	I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
+	intel_uncore_write(uncore, PORT_TX_DFLEXDPCSSS, val);
 
 	if (enable && wait_for(!icl_tc_phy_status_complete(dig_port), 10))
 		DRM_DEBUG_KMS("Port %s: PHY complete clear timed out\n",
@@ -164,11 +168,12 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 
 static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
-	val = I915_READ(PORT_TX_DFLEXDPCSSS);
+	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPCSSS);
 	if (val == 0xffffffff) {
 		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assume safe mode\n",
 			      dig_port->tc_port_name);
@@ -317,11 +322,11 @@ intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
 static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
 				     int required_lanes)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	enum tc_port_mode old_tc_mode = dig_port->tc_mode;
 
-	intel_display_power_flush_work(dev_priv);
-	WARN_ON(intel_display_power_is_enabled(dev_priv,
+	intel_display_power_flush_work(i915);
+	WARN_ON(intel_display_power_is_enabled(i915,
 					       intel_aux_power_domain(dig_port)));
 
 	icl_tc_phy_disconnect(dig_port);
@@ -404,10 +409,10 @@ bool intel_tc_port_connected(struct intel_digital_port *dig_port)
 static void __intel_tc_port_lock(struct intel_digital_port *dig_port,
 				 int required_lanes)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	intel_wakeref_t wakeref;
 
-	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DISPLAY_CORE);
+	wakeref = intel_display_power_get(i915, POWER_DOMAIN_DISPLAY_CORE);
 
 	mutex_lock(&dig_port->tc_lock);
 
@@ -426,12 +431,12 @@ void intel_tc_port_lock(struct intel_digital_port *dig_port)
 
 void intel_tc_port_unlock(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	intel_wakeref_t wakeref = fetch_and_zero(&dig_port->tc_lock_wakeref);
 
 	mutex_unlock(&dig_port->tc_lock);
 
-	intel_display_power_put_async(dev_priv, POWER_DOMAIN_DISPLAY_CORE,
+	intel_display_power_put_async(i915, POWER_DOMAIN_DISPLAY_CORE,
 				      wakeref);
 }
 
