@@ -943,6 +943,7 @@ static void rkcif_buf_queue(struct vb2_buffer *vb)
 
 static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 {
+	u32 fourcc;
 	struct rkcif_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkcif_device *dev = stream->cifdev;
 
@@ -951,6 +952,16 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 		stream->pixm.height,
 		stream->pixm.plane_fmt[1].sizeimage,
 		stream->pixm.plane_fmt[2].sizeimage);
+	/*
+	 * rk cif don't support output yuyv fmt data
+	 * if user request yuyv fmt, the input mode must be RAW8
+	 * and the width is double Because the real input fmt is
+	 * yuyv
+	 */
+	fourcc  = stream->cif_fmt_out->fourcc;
+	if (fourcc == V4L2_PIX_FMT_YUYV || fourcc == V4L2_PIX_FMT_YVYU ||
+	    fourcc == V4L2_PIX_FMT_UYVY || fourcc == V4L2_PIX_FMT_VYUY)
+		dummy_buf->size *= 2;
 
 	dummy_buf->vaddr = dma_alloc_coherent(dev->dev, dummy_buf->size,
 					      &dummy_buf->dma_addr,
