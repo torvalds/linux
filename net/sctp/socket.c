@@ -1913,7 +1913,7 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 		if (err)
 			goto err;
 
-		if (sp->strm_interleave) {
+		if (asoc->ep->intl_enable) {
 			timeo = sock_sndtimeo(sk, 0);
 			err = sctp_wait_for_connect(asoc, &timeo);
 			if (err) {
@@ -3581,7 +3581,7 @@ static int sctp_setsockopt_fragment_interleave(struct sock *sk,
 	sctp_sk(sk)->frag_interleave = !!val;
 
 	if (!sctp_sk(sk)->frag_interleave)
-		sctp_sk(sk)->strm_interleave = 0;
+		sctp_sk(sk)->ep->intl_enable = 0;
 
 	return 0;
 }
@@ -4484,7 +4484,7 @@ static int sctp_setsockopt_interleaving_supported(struct sock *sk,
 		goto out;
 	}
 
-	sp->strm_interleave = !!params.assoc_value;
+	sp->ep->intl_enable = !!params.assoc_value;
 
 	retval = 0;
 
@@ -7693,7 +7693,7 @@ static int sctp_getsockopt_interleaving_supported(struct sock *sk, int len,
 	}
 
 	params.assoc_value = asoc ? asoc->peer.intl_capable
-				  : sctp_sk(sk)->strm_interleave;
+				  : sctp_sk(sk)->ep->intl_enable;
 
 	if (put_user(len, optlen))
 		goto out;

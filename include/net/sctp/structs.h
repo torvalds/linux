@@ -219,7 +219,6 @@ struct sctp_sock {
 		disable_fragments:1,
 		v4mapped:1,
 		frag_interleave:1,
-		strm_interleave:1,
 		recvrcvinfo:1,
 		recvnxtinfo:1,
 		data_ready_signalled:1;
@@ -1324,6 +1323,7 @@ struct sctp_endpoint {
 	struct list_head endpoint_shared_keys;
 	__u16 active_key_id;
 	__u8  auth_enable:1,
+	      intl_enable:1,
 	      prsctp_enable:1,
 	      reconf_enable:1;
 

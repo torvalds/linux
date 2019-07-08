@@ -269,7 +269,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	if (sp->adaptation_ind)
 		chunksize += sizeof(aiparam);
 
-	if (sp->strm_interleave) {
+	if (asoc->ep->intl_enable) {
 		extensions[num_ext] = SCTP_CID_I_DATA;
 		num_ext += 1;
 	}
@@ -2027,7 +2027,7 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
 				asoc->peer.asconf_capable = 1;
 			break;
 		case SCTP_CID_I_DATA:
-			if (sctp_sk(asoc->base.sk)->strm_interleave)
+			if (asoc->ep->intl_enable)
 				asoc->peer.intl_capable = 1;
 			break;
 		default:
