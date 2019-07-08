@@ -3020,10 +3020,13 @@ static int vega20_get_fan_speed_percent(struct smu_context *smu,
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
 	ret = smu_get_current_rpm(smu, &current_rpm);
+	if (ret)
+		return ret;
+
 	percent = current_rpm * 100 / pptable->FanMaximumRpm;
 	*speed = percent > 100 ? 100 : percent;
 
-	return ret;
+	return 0;
 }
 
 static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
