@@ -26,6 +26,7 @@
 
 #include "dcn20_hubbub.h"
 #include "reg_helper.h"
+#include "clk_mgr.h"
 
 #define REG(reg)\
 	hubbub1->regs->reg
@@ -553,6 +554,16 @@ static void hubbub2_program_watermarks(
 	 */
 	hubbub1_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
 	hubbub1_program_stutter_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
+
+	/*
+	 * There's a special case when going from p-state support to p-state unsupported
+	 * here we are going to LOWER watermarks to go to dummy p-state only, but this has
+	 * to be done prepare_bandwidth, not optimize
+	 */
+	if (hubbub1->base.ctx->dc->clk_mgr->clks.prev_p_state_change_support == true &&
+		hubbub1->base.ctx->dc->clk_mgr->clks.p_state_change_support == false)
+		safe_to_lower = true;
+
 	hubbub1_program_pstate_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
 
 	REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,

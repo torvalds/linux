@@ -1443,16 +1443,16 @@ void dcn20_prepare_bandwidth(
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
+			context,
+			false);
+
 	/* program dchubbub watermarks */
 	hubbub->funcs->program_watermarks(hubbub,
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);
-
-	dc->clk_mgr->funcs->update_clocks(
-			dc->clk_mgr,
-			context,
-			false);
 }
 
 void dcn20_optimize_bandwidth(

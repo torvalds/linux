@@ -36,6 +36,7 @@ enum dml_project {
 	DML_PROJECT_RAVEN1,
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	DML_PROJECT_NAVI10,
+	DML_PROJECT_NAVI10v2,
 #endif
 };
 

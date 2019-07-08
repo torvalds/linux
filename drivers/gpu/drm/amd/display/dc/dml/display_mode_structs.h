@@ -100,6 +100,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	unsigned int vmm_page_size_bytes;
 	unsigned int hostvm_min_page_size_bytes;
 	double dram_clock_change_latency_us;
+	double dummy_pstate_latency_us;
 	double writeback_dram_clock_change_latency_us;
 	unsigned int return_bus_width_bytes;
 	unsigned int voltage_override;

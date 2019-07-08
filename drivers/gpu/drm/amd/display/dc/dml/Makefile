@@ -38,6 +38,8 @@ ifdef CONFIG_DRM_AMD_DC_DCN2_0
 CFLAGS_display_mode_vba.o := $(dml_ccflags)
 CFLAGS_display_mode_vba_20.o := $(dml_ccflags)
 CFLAGS_display_rq_dlg_calc_20.o := $(dml_ccflags)
+CFLAGS_display_mode_vba_20v2.o := $(dml_ccflags)
+CFLAGS_display_rq_dlg_calc_20v2.o := $(dml_ccflags)
 endif
 ifdef CONFIG_DRM_AMD_DCN3AG
 CFLAGS_display_mode_vba_3ag.o := $(dml_ccflags)
@@ -51,6 +53,7 @@ DML = display_mode_lib.o display_rq_dlg_helpers.o dml1_display_rq_dlg_calc.o \
 
 ifdef CONFIG_DRM_AMD_DC_DCN2_0
 DML += display_mode_vba.o dcn20/display_rq_dlg_calc_20.o dcn20/display_mode_vba_20.o
+DML += dcn20/display_rq_dlg_calc_20v2.o dcn20/display_mode_vba_20v2.o
 endif
 
 AMD_DAL_DML = $(addprefix $(AMDDALPATH)/dc/dml/,$(DML))

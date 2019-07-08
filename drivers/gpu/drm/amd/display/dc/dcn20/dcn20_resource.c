@@ -2427,7 +2427,7 @@ void dcn20_calculate_dlg_params(
 	}
 }
 
-bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
+static bool dcn20_validate_bandwidth_internal(struct dc *dc, struct dc_state *context,
 		bool fast_validate)
 {
 	bool out = false;
@@ -2477,6 +2477,62 @@ validate_out:
 	BW_VAL_TRACE_FINISH();
 
 	return out;
+}
+
+
+bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
+		bool fast_validate)
+{
+	bool voltage_supported = false;
+	bool full_pstate_supported = false;
+	bool dummy_pstate_supported = false;
+	double p_state_latency_us = context->bw_ctx.dml.soc.dram_clock_change_latency_us;
+
+	if (fast_validate)
+		return dcn20_validate_bandwidth_internal(dc, context, true);
+
+
+	// Best case, we support full UCLK switch latency
+	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
+	full_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
+
+	if (context->bw_ctx.dml.soc.dummy_pstate_latency_us == 0 ||
+		(voltage_supported && full_pstate_supported)) {
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+		goto restore_dml_state;
+	}
+
+	// Fallback #1: Try to only support G6 temperature read latency
+	context->bw_ctx.dml.soc.dram_clock_change_latency_us = context->bw_ctx.dml.soc.dummy_pstate_latency_us;
+
+	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
+	dummy_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
+
+	if (voltage_supported && dummy_pstate_supported) {
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
+		goto restore_dml_state;
+	}
+
+	// Fallback #2: Retry with "new" DCN20 to support G6 temperature read latency
+	memcpy (&context->bw_ctx.dml, &dc->work_arounds.alternate_dml, sizeof (struct display_mode_lib));
+	context->bw_ctx.dml.soc.dram_clock_change_latency_us = context->bw_ctx.dml.soc.dummy_pstate_latency_us;
+
+	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
+	dummy_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
+
+	if (voltage_supported && dummy_pstate_supported) {
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
+		goto restore_dml_state;
+	}
+
+	// ERROR: fallback #2 is supposed to always work.
+	ASSERT(false);
+
+restore_dml_state:
+	memcpy(&context->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
+	context->bw_ctx.dml.soc.dram_clock_change_latency_us = p_state_latency_us;
+
+	return voltage_supported;
 }
 
 struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
@@ -3085,6 +3141,7 @@ static bool construct(
 	}
 
 	dml_init_instance(&dc->dml, &dcn2_0_soc, &dcn2_0_ip, DML_PROJECT_NAVI10);
+	dml_init_instance(&dc->work_arounds.alternate_dml, &dcn2_0_soc, &dcn2_0_ip, DML_PROJECT_NAVI10v2);
 
 	if (!dc->debug.disable_pplib_wm_range) {
 		struct pp_smu_wm_range_sets ranges = {0};

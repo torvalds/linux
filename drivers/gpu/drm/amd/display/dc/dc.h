@@ -121,6 +121,7 @@ struct dc_caps {
 struct dc_bug_wa {
 	bool no_connect_phy_config;
 	bool dedcn20_305_wa;
+	struct display_mode_lib alternate_dml;
 };
 #endif
 
@@ -263,6 +264,12 @@ struct dc_clocks {
 	int phyclk_khz;
 	int dramclk_khz;
 	bool p_state_change_support;
+
+	/*
+	 * Elements below are not compared for the purposes of
+	 * optimization required
+	 */
+	bool prev_p_state_change_support;
 };
 
 struct dc_bw_validation_profile {

@@ -201,6 +201,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	if (should_update_pstate_support(safe_to_lower, new_clocks->p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
+		clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
 		clk_mgr_base->clks.p_state_change_support = new_clocks->p_state_change_support;
 		if (pp_smu && pp_smu->set_pstate_handshake_support)
 			pp_smu->set_pstate_handshake_support(&pp_smu->pp_smu, clk_mgr_base->clks.p_state_change_support);
@@ -308,6 +309,7 @@ void dcn2_init_clocks(struct clk_mgr *clk_mgr)
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 	// Assumption is that boot state always supports pstate
 	clk_mgr->clks.p_state_change_support = true;
+	clk_mgr->clks.prev_p_state_change_support = true;
 }
 
 void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
