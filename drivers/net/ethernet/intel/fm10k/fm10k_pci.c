@@ -698,8 +698,6 @@ static void fm10k_watchdog_subtask(struct fm10k_intfc *interface)
  */
 static void fm10k_check_hang_subtask(struct fm10k_intfc *interface)
 {
-	int i;
-
 	/* If we're down or resetting, just bail */
 	if (test_bit(__FM10K_DOWN, interface->state) ||
 	    test_bit(__FM10K_RESETTING, interface->state))
@@ -711,6 +709,8 @@ static void fm10k_check_hang_subtask(struct fm10k_intfc *interface)
 	interface->next_tx_hang_check = jiffies + (2 * HZ);
 
 	if (netif_carrier_ok(interface->netdev)) {
+		int i;
+
 		/* Force detection of hung controller */
 		for (i = 0; i < interface->num_tx_queues; i++)
 			set_check_for_tx_hang(interface->tx_ring[i]);
