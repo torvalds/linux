@@ -20,7 +20,7 @@
 #include "strlist.h"
 #include "thread.h"
 #include "thread_map.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include "map.h"
 #include "symbol.h"
 #include "symbol/kallsyms.h"
@@ -158,9 +158,7 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 	if (name) {
 		char *nl;
 
-		name += 5;  /* strlen("Name:") */
-		name = ltrim(name);
-
+		name = skip_spaces(name + 5);  /* strlen("Name:") */
 		nl = strchr(name, '\n');
 		if (nl)
 			*nl = '\0';
@@ -1486,7 +1484,7 @@ static size_t perf_event__fprintf_lost(union perf_event *event, FILE *fp)
 
 size_t perf_event__fprintf_ksymbol(union perf_event *event, FILE *fp)
 {
-	return fprintf(fp, " ksymbol event with addr %" PRIx64 " len %u type %u flags 0x%x name %s\n",
+	return fprintf(fp, " addr %" PRIx64 " len %u type %u flags 0x%x name %s\n",
 		       event->ksymbol_event.addr, event->ksymbol_event.len,
 		       event->ksymbol_event.ksym_type,
 		       event->ksymbol_event.flags, event->ksymbol_event.name);
@@ -1494,7 +1492,7 @@ size_t perf_event__fprintf_ksymbol(union perf_event *event, FILE *fp)
 
 size_t perf_event__fprintf_bpf_event(union perf_event *event, FILE *fp)
 {
-	return fprintf(fp, " bpf event with type %u, flags %u, id %u\n",
+	return fprintf(fp, " type %u, flags %u, id %u\n",
 		       event->bpf_event.type, event->bpf_event.flags,
 		       event->bpf_event.id);
 }

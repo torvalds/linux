@@ -14,7 +14,8 @@
 #include "machine.h"
 #include "vdso.h"
 #include "debug.h"
-#include "sane_ctype.h"
+#include "util.h"
+#include <linux/ctype.h>
 #include <symbol/kallsyms.h>
 
 #ifndef EM_AARCH64
@@ -699,7 +700,6 @@ bool __weak elf__needs_adjust_symbols(GElf_Ehdr ehdr)
 int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		 enum dso_binary_type type)
 {
-	int err = -1;
 	GElf_Ehdr ehdr;
 	Elf *elf;
 	int fd;
@@ -793,7 +793,7 @@ out_elf_end:
 	elf_end(elf);
 out_close:
 	close(fd);
-	return err;
+	return -1;
 }
 
 /**

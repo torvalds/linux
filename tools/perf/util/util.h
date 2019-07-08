@@ -43,7 +43,6 @@ ssize_t readn(int fd, void *buf, size_t n);
 ssize_t writen(int fd, const void *buf, size_t n);
 
 size_t hex_width(u64 v);
-int hex2u64(const char *ptr, u64 *val);
 
 extern unsigned int page_size;
 int __pure cacheline_size(void);
