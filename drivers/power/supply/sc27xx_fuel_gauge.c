@@ -957,81 +957,82 @@ disable_fgu:
 
 static int sc27xx_fgu_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct power_supply_config fgu_cfg = { };
 	struct sc27xx_fgu_data *data;
 	int ret, irq;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	data->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!data->regmap) {
-		dev_err(&pdev->dev, "failed to get regmap\n");
+		dev_err(dev, "failed to get regmap\n");
 		return -ENODEV;
 	}
 
-	ret = device_property_read_u32(&pdev->dev, "reg", &data->base);
+	ret = device_property_read_u32(dev, "reg", &data->base);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to get fgu address\n");
+		dev_err(dev, "failed to get fgu address\n");
 		return ret;
 	}
 
-	data->channel = devm_iio_channel_get(&pdev->dev, "bat-temp");
+	data->channel = devm_iio_channel_get(dev, "bat-temp");
 	if (IS_ERR(data->channel)) {
-		dev_err(&pdev->dev, "failed to get IIO channel\n");
+		dev_err(dev, "failed to get IIO channel\n");
 		return PTR_ERR(data->channel);
 	}
 
-	data->charge_chan = devm_iio_channel_get(&pdev->dev, "charge-vol");
+	data->charge_chan = devm_iio_channel_get(dev, "charge-vol");
 	if (IS_ERR(data->charge_chan)) {
-		dev_err(&pdev->dev, "failed to get charge IIO channel\n");
+		dev_err(dev, "failed to get charge IIO channel\n");
 		return PTR_ERR(data->charge_chan);
 	}
 
-	data->gpiod = devm_gpiod_get(&pdev->dev, "bat-detect", GPIOD_IN);
+	data->gpiod = devm_gpiod_get(dev, "bat-detect", GPIOD_IN);
 	if (IS_ERR(data->gpiod)) {
-		dev_err(&pdev->dev, "failed to get battery detection GPIO\n");
+		dev_err(dev, "failed to get battery detection GPIO\n");
 		return PTR_ERR(data->gpiod);
 	}
 
 	ret = gpiod_get_value_cansleep(data->gpiod);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get gpio state\n");
+		dev_err(dev, "failed to get gpio state\n");
 		return ret;
 	}
 
 	data->bat_present = !!ret;
 	mutex_init(&data->lock);
-	data->dev = &pdev->dev;
+	data->dev = dev;
 	platform_set_drvdata(pdev, data);
 
 	fgu_cfg.drv_data = data;
 	fgu_cfg.of_node = np;
-	data->battery = devm_power_supply_register(&pdev->dev, &sc27xx_fgu_desc,
+	data->battery = devm_power_supply_register(dev, &sc27xx_fgu_desc,
 						   &fgu_cfg);
 	if (IS_ERR(data->battery)) {
-		dev_err(&pdev->dev, "failed to register power supply\n");
+		dev_err(dev, "failed to register power supply\n");
 		return PTR_ERR(data->battery);
 	}
 
 	ret = sc27xx_fgu_hw_init(data);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize fgu hardware\n");
+		dev_err(dev, "failed to initialize fgu hardware\n");
 		return ret;
 	}
 
-	ret = devm_add_action(&pdev->dev, sc27xx_fgu_disable, data);
+	ret = devm_add_action(dev, sc27xx_fgu_disable, data);
 	if (ret) {
 		sc27xx_fgu_disable(data);
-		dev_err(&pdev->dev, "failed to add fgu disable action\n");
+		dev_err(dev, "failed to add fgu disable action\n");
 		return ret;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq resource specified\n");
+		dev_err(dev, "no irq resource specified\n");
 		return irq;
 	}
 
@@ -1046,17 +1047,17 @@ static int sc27xx_fgu_probe(struct platform_device *pdev)
 
 	irq = gpiod_to_irq(data->gpiod);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to translate GPIO to IRQ\n");
+		dev_err(dev, "failed to translate GPIO to IRQ\n");
 		return irq;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+	ret = devm_request_threaded_irq(dev, irq, NULL,
 					sc27xx_fgu_bat_detection,
 					IRQF_ONESHOT | IRQF_TRIGGER_RISING |
 					IRQF_TRIGGER_FALLING,
 					pdev->name, data);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to request IRQ\n");
+		dev_err(dev, "failed to request IRQ\n");
 		return ret;
 	}
 
