@@ -54,6 +54,7 @@
 #include <net/pkt_cls.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <net/page_pool.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -668,19 +669,20 @@ next_tx_int:
 }
 
 static struct page *__bnxt_alloc_rx_page(struct bnxt *bp, dma_addr_t *mapping,
+					 struct bnxt_rx_ring_info *rxr,
 					 gfp_t gfp)
 {
 	struct device *dev = &bp->pdev->dev;
 	struct page *page;
 
-	page = alloc_page(gfp);
+	page = page_pool_dev_alloc_pages(rxr->page_pool);
 	if (!page)
 		return NULL;
 
 	*mapping = dma_map_page_attrs(dev, page, 0, PAGE_SIZE, bp->rx_dir,
 				      DMA_ATTR_WEAK_ORDERING);
 	if (dma_mapping_error(dev, *mapping)) {
-		__free_page(page);
+		page_pool_recycle_direct(rxr->page_pool, page);
 		return NULL;
 	}
 	*mapping += bp->rx_dma_offset;
@@ -716,7 +718,8 @@ int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	dma_addr_t mapping;
 
 	if (BNXT_RX_PAGE_MODE(bp)) {
-		struct page *page = __bnxt_alloc_rx_page(bp, &mapping, gfp);
+		struct page *page =
+			__bnxt_alloc_rx_page(bp, &mapping, rxr, gfp);
 
 		if (!page)
 			return -ENOMEM;
@@ -2360,7 +2363,7 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 				dma_unmap_page_attrs(&pdev->dev, mapping,
 						     PAGE_SIZE, bp->rx_dir,
 						     DMA_ATTR_WEAK_ORDERING);
-				__free_page(data);
+				page_pool_recycle_direct(rxr->page_pool, data);
 			} else {
 				dma_unmap_single_attrs(&pdev->dev, mapping,
 						       bp->rx_buf_use_size,
@@ -2497,6 +2500,8 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 		if (xdp_rxq_info_is_reg(&rxr->xdp_rxq))
 			xdp_rxq_info_unreg(&rxr->xdp_rxq);
 
+		rxr->page_pool = NULL;
+
 		kfree(rxr->rx_tpa);
 		rxr->rx_tpa = NULL;
 
@@ -2509,6 +2514,26 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 		ring = &rxr->rx_agg_ring_struct;
 		bnxt_free_ring(bp, &ring->ring_mem);
 	}
+}
+
+static int bnxt_alloc_rx_page_pool(struct bnxt *bp,
+				   struct bnxt_rx_ring_info *rxr)
+{
+	struct page_pool_params pp = { 0 };
+
+	pp.pool_size = bp->rx_ring_size;
+	pp.nid = dev_to_node(&bp->pdev->dev);
+	pp.dev = &bp->pdev->dev;
+	pp.dma_dir = DMA_BIDIRECTIONAL;
+
+	rxr->page_pool = page_pool_create(&pp);
+	if (IS_ERR(rxr->page_pool)) {
+		int err = PTR_ERR(rxr->page_pool);
+
+		rxr->page_pool = NULL;
+		return err;
+	}
+	return 0;
 }
 
 static int bnxt_alloc_rx_rings(struct bnxt *bp)
@@ -2530,14 +2555,24 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 
 		ring = &rxr->rx_ring_struct;
 
-		rc = xdp_rxq_info_reg(&rxr->xdp_rxq, bp->dev, i);
-		if (rc < 0)
+		rc = bnxt_alloc_rx_page_pool(bp, rxr);
+		if (rc)
 			return rc;
 
+		rc = xdp_rxq_info_reg(&rxr->xdp_rxq, bp->dev, i);
+		if (rc < 0) {
+			page_pool_free(rxr->page_pool);
+			rxr->page_pool = NULL;
+			return rc;
+		}
+
 		rc = xdp_rxq_info_reg_mem_model(&rxr->xdp_rxq,
-						MEM_TYPE_PAGE_SHARED, NULL);
+						MEM_TYPE_PAGE_POOL,
+						rxr->page_pool);
 		if (rc) {
 			xdp_rxq_info_unreg(&rxr->xdp_rxq);
+			page_pool_free(rxr->page_pool);
+			rxr->page_pool = NULL;
 			return rc;
 		}
 

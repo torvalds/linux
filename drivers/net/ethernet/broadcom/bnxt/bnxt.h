@@ -26,6 +26,8 @@
 #include <net/xdp.h>
 #include <linux/dim.h>
 
+struct page_pool;
+
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
 	#define TX_BD_TYPE					(0x3f << 0)
@@ -799,6 +801,7 @@ struct bnxt_rx_ring_info {
 	struct bnxt_ring_struct	rx_ring_struct;
 	struct bnxt_ring_struct	rx_agg_ring_struct;
 	struct xdp_rxq_info	xdp_rxq;
+	struct page_pool	*page_pool;
 };
 
 struct bnxt_cp_ring_info {
