@@ -18,7 +18,6 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 			    struct komeda_data_flow_cfg *dflow)
 {
 	struct komeda_plane *kplane = to_kplane(st->plane);
-	struct komeda_plane_state *kplane_st = to_kplane_st(st);
 	struct drm_framebuffer *fb = st->fb;
 	const struct komeda_format_caps *caps = to_kfb(fb)->format_caps;
 	struct komeda_pipeline *pipe = kplane->layer->base.pipeline;
@@ -56,8 +55,6 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 							fb->modifier));
 		return -EINVAL;
 	}
-
-	dflow->en_img_enhancement = !!kplane_st->img_enhancement;
 
 	komeda_complete_data_flow_cfg(kplane->layer, dflow, fb);
 
@@ -173,8 +170,6 @@ komeda_plane_atomic_duplicate_state(struct drm_plane *plane)
 	__drm_atomic_helper_plane_duplicate_state(plane, &new->base);
 
 	old = to_kplane_st(plane->state);
-
-	new->img_enhancement = old->img_enhancement;
 
 	return &new->base;
 }

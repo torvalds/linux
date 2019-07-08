@@ -806,6 +806,10 @@ void komeda_complete_data_flow_cfg(struct komeda_layer *layer,
 	dflow->en_scaling = (w != dflow->out_w) || (h != dflow->out_h);
 	dflow->is_yuv = fb->format->is_yuv;
 
+	/* try to enable image enhancer if data flow is a 2x+ upscaling */
+	dflow->en_img_enhancement = dflow->out_w >= 2 * w ||
+				    dflow->out_h >= 2 * h;
+
 	/* try to enable split if scaling exceed the scaler's acceptable
 	 * input/output range.
 	 */
