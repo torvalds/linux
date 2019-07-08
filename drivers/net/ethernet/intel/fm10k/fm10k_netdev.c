@@ -169,7 +169,6 @@ void fm10k_unmap_and_free_tx_resource(struct fm10k_ring *ring,
  **/
 static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
 {
-	struct fm10k_tx_buffer *tx_buffer;
 	unsigned long size;
 	u16 i;
 
@@ -179,7 +178,8 @@ static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
 
 	/* Free all the Tx ring sk_buffs */
 	for (i = 0; i < tx_ring->count; i++) {
-		tx_buffer = &tx_ring->tx_buffer[i];
+		struct fm10k_tx_buffer *tx_buffer = &tx_ring->tx_buffer[i];
+
 		fm10k_unmap_and_free_tx_resource(tx_ring, tx_buffer);
 	}
 
