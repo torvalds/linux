@@ -268,7 +268,7 @@ static int qca_inject_cmd_complete_event(struct hci_dev *hdev)
 
 	evt = skb_put(skb, sizeof(*evt));
 	evt->ncmd = 1;
-	evt->opcode = QCA_HCI_CC_OPCODE;
+	evt->opcode = cpu_to_le16(QCA_HCI_CC_OPCODE);
 
 	skb_put_u8(skb, QCA_HCI_CC_SUCCESS);
 
