@@ -182,7 +182,7 @@ struct scmi_sensor_ops {
 	int (*trip_point_config)(const struct scmi_handle *handle,
 				 u32 sensor_id, u8 trip_id, u64 trip_value);
 	int (*reading_get)(const struct scmi_handle *handle, u32 sensor_id,
-			   bool async, u64 *value);
+			   u64 *value);
 };
 
 /**
