@@ -33,7 +33,7 @@
 #include "mp/mp_12_0_0_sh_mask.h"
 
 #define REG(reg_name) \
-	(MP1_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
+	(MP0_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
 
 #define FN(reg_name, field) \
 	FD(reg_name##__##field)
