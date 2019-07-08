@@ -81,9 +81,11 @@ Non-RMW ops:
 
 The non-RMW ops are (typically) regular LOADs and STOREs and are canonically
 implemented using READ_ONCE(), WRITE_ONCE(), smp_load_acquire() and
-smp_store_release() respectively.
+smp_store_release() respectively. Therefore, if you find yourself only using
+the Non-RMW operations of atomic_t, you do not in fact need atomic_t at all
+and are doing it wrong.
 
-The one detail to this is that atomic_set{}() should be observable to the RMW
+A subtle detail of atomic_set{}() is that it should be observable to the RMW
 ops. That is:
 
   C atomic-set
@@ -199,6 +201,9 @@ op whenever possible.
 These helper barriers exist because architectures have varying implicit
 ordering on their SMP atomic primitives. For example our TSO architectures
 provide full ordered atomics and these barriers are no-ops.
+
+NOTE: when the atomic RmW ops are fully ordered, they should also imply a
+compiler barrier.
 
 Thus:
 
