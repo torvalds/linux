@@ -505,7 +505,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		intel_encoder->type = INTEL_OUTPUT_DVO;
 		intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 		intel_encoder->port = port;
-		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B);
 
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:

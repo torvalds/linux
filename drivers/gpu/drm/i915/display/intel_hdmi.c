@@ -3269,11 +3269,11 @@ void intel_hdmi_init(struct drm_i915_private *dev_priv,
 	intel_encoder->port = port;
 	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)
-			intel_encoder->crtc_mask = 1 << 2;
+			intel_encoder->crtc_mask = BIT(PIPE_C);
 		else
-			intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+			intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B);
 	} else {
-		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
 	}
 	intel_encoder->cloneable = 1 << INTEL_OUTPUT_ANALOG;
 	/*
