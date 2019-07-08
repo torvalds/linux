@@ -78,6 +78,8 @@ fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
 static inline void
 fw_domain_arm_timer(struct intel_uncore_forcewake_domain *d)
 {
+	GEM_BUG_ON(d->uncore->fw_domains_timer & d->mask);
+	d->uncore->fw_domains_timer |= d->mask;
 	d->wake_count++;
 	hrtimer_start_range_ns(&d->timer,
 			       NSEC_PER_MSEC,
@@ -353,9 +355,10 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 		return HRTIMER_RESTART;
 
 	spin_lock_irqsave(&uncore->lock, irqflags);
-	if (WARN_ON(domain->wake_count == 0))
-		domain->wake_count++;
 
+	uncore->fw_domains_timer &= ~domain->mask;
+
+	GEM_BUG_ON(!domain->wake_count);
 	if (--domain->wake_count == 0)
 		uncore->funcs.force_wake_put(uncore, domain->mask);
 
@@ -673,8 +676,7 @@ static void __intel_uncore_forcewake_put(struct intel_uncore *uncore,
 	fw_domains &= uncore->fw_domains;
 
 	for_each_fw_domain_masked(domain, fw_domains, uncore, tmp) {
-		if (WARN_ON(domain->wake_count == 0))
-			continue;
+		GEM_BUG_ON(!domain->wake_count);
 
 		if (--domain->wake_count) {
 			domain->active = true;
@@ -764,7 +766,7 @@ void assert_forcewakes_active(struct intel_uncore *uncore,
 		unsigned int actual = READ_ONCE(domain->wake_count);
 		unsigned int expect = 1;
 
-		if (hrtimer_active(&domain->timer) && READ_ONCE(domain->active))
+		if (uncore->fw_domains_timer & domain->mask)
 			expect++; /* pending automatic release */
 
 		if (WARN(actual < expect,
@@ -1160,8 +1162,7 @@ static noinline void ___force_wake_auto(struct intel_uncore *uncore,
 static inline void __force_wake_auto(struct intel_uncore *uncore,
 				     enum forcewake_domains fw_domains)
 {
-	if (WARN_ON(!fw_domains))
-		return;
+	GEM_BUG_ON(!fw_domains);
 
 	/* Turn on all requested but inactive supported forcewake domains. */
 	fw_domains &= uncore->fw_domains;
