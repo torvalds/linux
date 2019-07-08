@@ -26,6 +26,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
@@ -999,7 +1000,7 @@ static void add_cpu_dev_symlink(struct cpufreq_policy *policy, unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 
-	if (!dev)
+	if (unlikely(!dev))
 		return;
 
 	if (cpumask_test_and_set_cpu(cpu, policy->real_cpus))
@@ -1117,14 +1118,16 @@ static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy, unsigned int cp
 
 static void refresh_frequency_limits(struct cpufreq_policy *policy)
 {
-	struct cpufreq_policy new_policy = *policy;
+	struct cpufreq_policy new_policy;
 
-	pr_debug("updating policy for CPU %u\n", policy->cpu);
+	if (!policy_is_inactive(policy)) {
+		new_policy = *policy;
+		pr_debug("updating policy for CPU %u\n", policy->cpu);
 
-	new_policy.min = policy->user_policy.min;
-	new_policy.max = policy->user_policy.max;
-
-	cpufreq_set_policy(policy, &new_policy);
+		new_policy.min = policy->user_policy.min;
+		new_policy.max = policy->user_policy.max;
+		cpufreq_set_policy(policy, &new_policy);
+	}
 }
 
 static void handle_update(struct work_struct *work)
@@ -1133,60 +1136,27 @@ static void handle_update(struct work_struct *work)
 		container_of(work, struct cpufreq_policy, update);
 
 	pr_debug("handle_update for cpu %u called\n", policy->cpu);
+	down_write(&policy->rwsem);
 	refresh_frequency_limits(policy);
+	up_write(&policy->rwsem);
 }
 
-static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
+static int cpufreq_notifier_min(struct notifier_block *nb, unsigned long freq,
+				void *data)
 {
-	struct cpufreq_policy *policy;
-	int ret;
+	struct cpufreq_policy *policy = container_of(nb, struct cpufreq_policy, nb_min);
 
-	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
-	if (!policy)
-		return NULL;
+	schedule_work(&policy->update);
+	return 0;
+}
 
-	if (!alloc_cpumask_var(&policy->cpus, GFP_KERNEL))
-		goto err_free_policy;
+static int cpufreq_notifier_max(struct notifier_block *nb, unsigned long freq,
+				void *data)
+{
+	struct cpufreq_policy *policy = container_of(nb, struct cpufreq_policy, nb_max);
 
-	if (!zalloc_cpumask_var(&policy->related_cpus, GFP_KERNEL))
-		goto err_free_cpumask;
-
-	if (!zalloc_cpumask_var(&policy->real_cpus, GFP_KERNEL))
-		goto err_free_rcpumask;
-
-	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
-				   cpufreq_global_kobject, "policy%u", cpu);
-	if (ret) {
-		pr_err("%s: failed to init policy->kobj: %d\n", __func__, ret);
-		/*
-		 * The entire policy object will be freed below, but the extra
-		 * memory allocated for the kobject name needs to be freed by
-		 * releasing the kobject.
-		 */
-		kobject_put(&policy->kobj);
-		goto err_free_real_cpus;
-	}
-
-	INIT_LIST_HEAD(&policy->policy_list);
-	init_rwsem(&policy->rwsem);
-	spin_lock_init(&policy->transition_lock);
-	init_waitqueue_head(&policy->transition_wait);
-	init_completion(&policy->kobj_unregister);
-	INIT_WORK(&policy->update, handle_update);
-
-	policy->cpu = cpu;
-	return policy;
-
-err_free_real_cpus:
-	free_cpumask_var(policy->real_cpus);
-err_free_rcpumask:
-	free_cpumask_var(policy->related_cpus);
-err_free_cpumask:
-	free_cpumask_var(policy->cpus);
-err_free_policy:
-	kfree(policy);
-
-	return NULL;
+	schedule_work(&policy->update);
+	return 0;
 }
 
 static void cpufreq_policy_put_kobj(struct cpufreq_policy *policy)
@@ -1211,8 +1181,90 @@ static void cpufreq_policy_put_kobj(struct cpufreq_policy *policy)
 	pr_debug("wait complete\n");
 }
 
+static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
+{
+	struct cpufreq_policy *policy;
+	struct device *dev = get_cpu_device(cpu);
+	int ret;
+
+	if (!dev)
+		return NULL;
+
+	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
+	if (!policy)
+		return NULL;
+
+	if (!alloc_cpumask_var(&policy->cpus, GFP_KERNEL))
+		goto err_free_policy;
+
+	if (!zalloc_cpumask_var(&policy->related_cpus, GFP_KERNEL))
+		goto err_free_cpumask;
+
+	if (!zalloc_cpumask_var(&policy->real_cpus, GFP_KERNEL))
+		goto err_free_rcpumask;
+
+	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
+				   cpufreq_global_kobject, "policy%u", cpu);
+	if (ret) {
+		dev_err(dev, "%s: failed to init policy->kobj: %d\n", __func__, ret);
+		/*
+		 * The entire policy object will be freed below, but the extra
+		 * memory allocated for the kobject name needs to be freed by
+		 * releasing the kobject.
+		 */
+		kobject_put(&policy->kobj);
+		goto err_free_real_cpus;
+	}
+
+	policy->nb_min.notifier_call = cpufreq_notifier_min;
+	policy->nb_max.notifier_call = cpufreq_notifier_max;
+
+	ret = dev_pm_qos_add_notifier(dev, &policy->nb_min,
+				      DEV_PM_QOS_MIN_FREQUENCY);
+	if (ret) {
+		dev_err(dev, "Failed to register MIN QoS notifier: %d (%*pbl)\n",
+			ret, cpumask_pr_args(policy->cpus));
+		goto err_kobj_remove;
+	}
+
+	ret = dev_pm_qos_add_notifier(dev, &policy->nb_max,
+				      DEV_PM_QOS_MAX_FREQUENCY);
+	if (ret) {
+		dev_err(dev, "Failed to register MAX QoS notifier: %d (%*pbl)\n",
+			ret, cpumask_pr_args(policy->cpus));
+		goto err_min_qos_notifier;
+	}
+
+	INIT_LIST_HEAD(&policy->policy_list);
+	init_rwsem(&policy->rwsem);
+	spin_lock_init(&policy->transition_lock);
+	init_waitqueue_head(&policy->transition_wait);
+	init_completion(&policy->kobj_unregister);
+	INIT_WORK(&policy->update, handle_update);
+
+	policy->cpu = cpu;
+	return policy;
+
+err_min_qos_notifier:
+	dev_pm_qos_remove_notifier(dev, &policy->nb_min,
+				   DEV_PM_QOS_MIN_FREQUENCY);
+err_kobj_remove:
+	cpufreq_policy_put_kobj(policy);
+err_free_real_cpus:
+	free_cpumask_var(policy->real_cpus);
+err_free_rcpumask:
+	free_cpumask_var(policy->related_cpus);
+err_free_cpumask:
+	free_cpumask_var(policy->cpus);
+err_free_policy:
+	kfree(policy);
+
+	return NULL;
+}
+
 static void cpufreq_policy_free(struct cpufreq_policy *policy)
 {
+	struct device *dev = get_cpu_device(policy->cpu);
 	unsigned long flags;
 	int cpu;
 
@@ -1223,6 +1275,11 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 	for_each_cpu(cpu, policy->related_cpus)
 		per_cpu(cpufreq_cpu_data, cpu) = NULL;
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+	dev_pm_qos_remove_notifier(dev, &policy->nb_max,
+				   DEV_PM_QOS_MAX_FREQUENCY);
+	dev_pm_qos_remove_notifier(dev, &policy->nb_min,
+				   DEV_PM_QOS_MIN_FREQUENCY);
 
 	cpufreq_policy_put_kobj(policy);
 	free_cpumask_var(policy->real_cpus);
@@ -2283,6 +2340,8 @@ int cpufreq_set_policy(struct cpufreq_policy *policy,
 		       struct cpufreq_policy *new_policy)
 {
 	struct cpufreq_governor *old_gov;
+	struct device *cpu_dev = get_cpu_device(policy->cpu);
+	unsigned long min, max;
 	int ret;
 
 	pr_debug("setting new policy for CPU %u: %u - %u kHz\n",
@@ -2297,11 +2356,27 @@ int cpufreq_set_policy(struct cpufreq_policy *policy,
 	if (new_policy->min > new_policy->max)
 		return -EINVAL;
 
+	/*
+	 * PM QoS framework collects all the requests from users and provide us
+	 * the final aggregated value here.
+	 */
+	min = dev_pm_qos_read_value(cpu_dev, DEV_PM_QOS_MIN_FREQUENCY);
+	max = dev_pm_qos_read_value(cpu_dev, DEV_PM_QOS_MAX_FREQUENCY);
+
+	if (min > new_policy->min)
+		new_policy->min = min;
+	if (max < new_policy->max)
+		new_policy->max = max;
+
 	/* verify the cpu speed can be set within this limit */
 	ret = cpufreq_driver->verify(new_policy);
 	if (ret)
 		return ret;
 
+	/*
+	 * The notifier-chain shall be removed once all the users of
+	 * CPUFREQ_ADJUST are moved to use the QoS framework.
+	 */
 	/* adjust if necessary - all reasons */
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 			CPUFREQ_ADJUST, new_policy);
