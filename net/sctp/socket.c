@@ -7325,7 +7325,7 @@ static int sctp_getsockopt_pr_supported(struct sock *sk, int len,
 		goto out;
 	}
 
-	params.assoc_value = asoc ? asoc->prsctp_enable
+	params.assoc_value = asoc ? asoc->peer.prsctp_capable
 				  : sctp_sk(sk)->ep->prsctp_enable;
 
 	if (put_user(len, optlen))
