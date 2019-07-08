@@ -1847,8 +1847,11 @@ int rvt_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 			wqe = rvt_get_rwqe_ptr(&qp->r_rq, wq->head);
 			wqe->wr_id = wr->wr_id;
 			wqe->num_sge = wr->num_sge;
-			for (i = 0; i < wr->num_sge; i++)
-				wqe->sg_list[i] = wr->sg_list[i];
+			for (i = 0; i < wr->num_sge; i++) {
+				wqe->sg_list[i].addr = wr->sg_list[i].addr;
+				wqe->sg_list[i].length = wr->sg_list[i].length;
+				wqe->sg_list[i].lkey = wr->sg_list[i].lkey;
+			}
 			/*
 			 * Make sure queue entry is written
 			 * before the head index.
@@ -2250,13 +2253,32 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		wqe = rvt_get_rwqe_ptr(&srq->rq, wq->head);
 		wqe->wr_id = wr->wr_id;
 		wqe->num_sge = wr->num_sge;
-		for (i = 0; i < wr->num_sge; i++)
-			wqe->sg_list[i] = wr->sg_list[i];
+		for (i = 0; i < wr->num_sge; i++) {
+			wqe->sg_list[i].addr = wr->sg_list[i].addr;
+			wqe->sg_list[i].length = wr->sg_list[i].length;
+			wqe->sg_list[i].lkey = wr->sg_list[i].lkey;
+		}
 		/* Make sure queue entry is written before the head index. */
 		smp_store_release(&wq->head, next);
 		spin_unlock_irqrestore(&srq->rq.kwq->p_lock, flags);
 	}
 	return 0;
+}
+
+/*
+ * rvt used the internal kernel struct as part of its ABI, for now make sure
+ * the kernel struct does not change layout. FIXME: rvt should never cast the
+ * user struct to a kernel struct.
+ */
+static struct ib_sge *rvt_cast_sge(struct rvt_wqe_sge *sge)
+{
+	BUILD_BUG_ON(offsetof(struct ib_sge, addr) !=
+		     offsetof(struct rvt_wqe_sge, addr));
+	BUILD_BUG_ON(offsetof(struct ib_sge, length) !=
+		     offsetof(struct rvt_wqe_sge, length));
+	BUILD_BUG_ON(offsetof(struct ib_sge, lkey) !=
+		     offsetof(struct rvt_wqe_sge, lkey));
+	return (struct ib_sge *)sge;
 }
 
 /*
@@ -2282,7 +2304,7 @@ static int init_sge(struct rvt_qp *qp, struct rvt_rwqe *wqe)
 			continue;
 		/* Check LKEY */
 		ret = rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
-				  NULL, &wqe->sg_list[i],
+				  NULL, rvt_cast_sge(&wqe->sg_list[i]),
 				  IB_ACCESS_LOCAL_WRITE);
 		if (unlikely(ret <= 0))
 			goto bad_lkey;

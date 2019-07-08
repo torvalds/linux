@@ -10,10 +10,15 @@
 
 #include <linux/types.h>
 #include <rdma/ib_user_verbs.h>
-#include <rdma/ib_verbs.h>
 #ifndef RDMA_ATOMIC_UAPI
 #define RDMA_ATOMIC_UAPI(_type, _name) struct{ _type val; } _name
 #endif
+
+struct rvt_wqe_sge {
+	__aligned_u64 addr;
+	__u32 length;
+	__u32 lkey;
+};
 
 /*
  * This structure is used to contain the head pointer, tail pointer,
@@ -39,7 +44,7 @@ struct rvt_rwqe {
 	__u64 wr_id;
 	__u8 num_sge;
 	__u8 padding[7];
-	struct ib_sge sg_list[];
+	struct rvt_wqe_sge sg_list[];
 };
 
 /*
