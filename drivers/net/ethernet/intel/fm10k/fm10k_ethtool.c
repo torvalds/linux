@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include <linux/vmalloc.h>
 
@@ -222,7 +222,6 @@ static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
 				      const unsigned int size)
 {
 	unsigned int i;
-	char *p;
 
 	if (!pointer) {
 		/* memory is not zero allocated so we have to clear it */
@@ -232,7 +231,7 @@ static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
 	}
 
 	for (i = 0; i < size; i++) {
-		p = (char *)pointer + stats[i].stat_offset;
+		char *p = (char *)pointer + stats[i].stat_offset;
 
 		switch (stats[i].sizeof_stat) {
 		case sizeof(u64):
