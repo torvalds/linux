@@ -287,7 +287,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 					const char *name)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	struct i915_gem_context *ctx;
+	struct i915_gem_context *ctx, *tmp;
 	struct igt_spinner spin;
 	intel_wakeref_t wakeref;
 	int err;
@@ -295,56 +295,59 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	pr_info("Checking %d whitelisted registers (RING_NONPRIV) [%s]\n",
 		engine->whitelist.count, name);
 
-	err = igt_spinner_init(&spin, i915);
-	if (err)
-		return err;
-
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
+	err = igt_spinner_init(&spin, i915);
+	if (err)
+		goto out_ctx;
+
 	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Invalid whitelist *before* %s reset!\n", name);
-		goto out;
+		goto out_spin;
 	}
 
 	err = switch_to_scratch_context(engine, &spin);
 	if (err)
-		goto out;
+		goto out_spin;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = reset(engine);
 
 	igt_spinner_end(&spin);
-	igt_spinner_fini(&spin);
 
 	if (err) {
 		pr_err("%s reset failed\n", name);
-		goto out;
+		goto out_spin;
 	}
 
 	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Whitelist not preserved in context across %s reset!\n",
 		       name);
-		goto out;
+		goto out_spin;
 	}
 
+	tmp = kernel_context(i915);
+	if (IS_ERR(tmp)) {
+		err = PTR_ERR(tmp);
+		goto out_spin;
+	}
 	kernel_context_close(ctx);
-
-	ctx = kernel_context(i915);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	ctx = tmp;
 
 	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Invalid whitelist *after* %s reset in fresh context!\n",
 		       name);
-		goto out;
+		goto out_spin;
 	}
 
-out:
+out_spin:
+	igt_spinner_fini(&spin);
+out_ctx:
 	kernel_context_close(ctx);
 	return err;
 }
