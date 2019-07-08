@@ -19,8 +19,9 @@
 #include "bnxt.h"
 #include "bnxt_xdp.h"
 
-void __bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
-		     dma_addr_t mapping, u32 len, u16 rx_prod)
+struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
+				   struct bnxt_tx_ring_info *txr,
+				   dma_addr_t mapping, u32 len)
 {
 	struct bnxt_sw_tx_bd *tx_buf;
 	struct tx_bd *txbd;
@@ -29,7 +30,6 @@ void __bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 
 	prod = txr->tx_prod;
 	tx_buf = &txr->tx_buf_ring[prod];
-	tx_buf->rx_prod = rx_prod;
 
 	txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
 	flags = (len << TX_BD_LEN_SHIFT) | (1 << TX_BD_FLAGS_BD_CNT_SHIFT) |
@@ -40,30 +40,43 @@ void __bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 
 	prod = NEXT_TX(prod);
 	txr->tx_prod = prod;
+	return tx_buf;
+}
+
+static void __bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
+			    dma_addr_t mapping, u32 len, u16 rx_prod)
+{
+	struct bnxt_sw_tx_bd *tx_buf;
+
+	tx_buf = bnxt_xmit_bd(bp, txr, mapping, len);
+	tx_buf->rx_prod = rx_prod;
+	tx_buf->action = XDP_TX;
 }
 
 void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 {
 	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	bool rx_doorbell_needed = false;
 	struct bnxt_sw_tx_bd *tx_buf;
 	u16 tx_cons = txr->tx_cons;
 	u16 last_tx_cons = tx_cons;
-	u16 rx_prod;
 	int i;
 
 	for (i = 0; i < nr_pkts; i++) {
-		last_tx_cons = tx_cons;
+		tx_buf = &txr->tx_buf_ring[tx_cons];
+
+		if (tx_buf->action == XDP_TX) {
+			rx_doorbell_needed = true;
+			last_tx_cons = tx_cons;
+		}
 		tx_cons = NEXT_TX(tx_cons);
 	}
 	txr->tx_cons = tx_cons;
-	if (bnxt_tx_avail(bp, txr) == bp->tx_ring_size) {
-		rx_prod = rxr->rx_prod;
-	} else {
+	if (rx_doorbell_needed) {
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
-		rx_prod = tx_buf->rx_prod;
+		bnxt_db_write(bp, &rxr->rx_db, tx_buf->rx_prod);
 	}
-	bnxt_db_write(bp, &rxr->rx_db, rx_prod);
 }
 
 /* returns the following:

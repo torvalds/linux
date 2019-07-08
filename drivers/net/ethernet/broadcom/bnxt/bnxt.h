@@ -596,6 +596,7 @@ struct bnxt_sw_tx_bd {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	u8			is_gso;
 	u8			is_push;
+	u8			action;
 	union {
 		unsigned short		nr_frags;
 		u16			rx_prod;
