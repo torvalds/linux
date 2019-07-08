@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2014, 2017-2019, The Linux Foundation.
  * All rights reserved.
@@ -265,9 +265,11 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	reset->regmap = regmap;
 	reset->reset_map = desc->resets;
 
-	ret = devm_reset_controller_register(dev, &reset->rcdev);
-	if (ret)
-		return ret;
+	if (desc->num_resets) {
+		ret = devm_reset_controller_register(dev, &reset->rcdev);
+		if (ret)
+			return ret;
+	}
 
 	if (desc->gdscs && desc->num_gdscs) {
 		scd = devm_kzalloc(dev, sizeof(*scd), GFP_KERNEL);
