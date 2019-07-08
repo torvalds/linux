@@ -129,16 +129,6 @@ bool dim2_sysfs_get_state_cb(void)
 }
 
 /**
- * dimcb_io_write - callback from HAL to write value to an I/O register
- * @ptr32: register address
- * @value: value to write
- */
-void dimcb_io_write(u32 __iomem *ptr32, u32 value)
-{
-	writel(value, ptr32);
-}
-
-/**
  * dimcb_on_error - callback from HAL to report miscommunication between
  * HDM and HAL
  * @error_id: Error ID
