@@ -471,7 +471,7 @@ static inline bool check_bytes_per_frame(u32 bytes_per_frame)
 	return true;
 }
 
-static inline u16 norm_ctrl_async_buffer_size(u16 buf_size)
+u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
 {
 	u16 const max_size = (u16)ADT1_CTRL_ASYNC_BD_MASK + 1u;
 
@@ -652,7 +652,7 @@ static bool channel_start(struct dim_channel *ch, u32 buf_addr, u16 buf_size)
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE, "Bad buffer size");
 
 	if (ch->packet_length == 0 && ch->bytes_per_frame == 0 &&
-	    buf_size != norm_ctrl_async_buffer_size(buf_size))
+	    buf_size != dim_norm_ctrl_async_buffer_size(buf_size))
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE,
 				    "Bad control/async buffer size");
 
@@ -778,11 +778,6 @@ void dim_service_mlb_int_irq(void)
 {
 	dimcb_io_write(&g.dim2->MS0, 0);
 	dimcb_io_write(&g.dim2->MS1, 0);
-}
-
-u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
-{
-	return norm_ctrl_async_buffer_size(buf_size);
 }
 
 /**
