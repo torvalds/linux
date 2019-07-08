@@ -342,6 +342,13 @@ _bpftool()
                 load|loadall)
                     local obj
 
+                    # Propose "load/loadall" to complete "bpftool prog load",
+                    # or bash tries to complete "load" as a filename below.
+                    if [[ ${#words[@]} -eq 3 ]]; then
+                        COMPREPLY=( $( compgen -W "load loadall" -- "$cur" ) )
+                        return 0
+                    fi
+
                     if [[ ${#words[@]} -lt 6 ]]; then
                         _filedir
                         return 0
@@ -435,7 +442,7 @@ _bpftool()
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'dump help pin attach detach \
-                            load show list tracelog run' -- "$cur" ) )
+                            load loadall show list tracelog run' -- "$cur" ) )
                     ;;
             esac
             ;;
