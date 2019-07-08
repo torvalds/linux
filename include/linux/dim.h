@@ -82,6 +82,7 @@ struct dim_stats {
  * @prev_stats: Measured rates from previous iteration (for comparison)
  * @start_sample: Sampled data at start of current iteration
  * @work: Work to perform on action required
+ * @priv: A pointer to the struct that points to dim
  * @profile_ix: Current moderation profile
  * @mode: CQ period count mode
  * @tune_state: Algorithm tuning state (see below)
@@ -95,6 +96,7 @@ struct dim {
 	struct dim_sample start_sample;
 	struct dim_sample measuring_sample;
 	struct work_struct work;
+	void *priv;
 	u8 profile_ix;
 	u8 mode;
 	u8 tune_state;
@@ -362,5 +364,39 @@ struct dim_cq_moder net_dim_get_def_tx_moderation(u8 cq_period_mode);
  * required action.
  */
 void net_dim(struct dim *dim, struct dim_sample end_sample);
+
+/* RDMA DIM */
+
+/*
+ * RDMA DIM profile:
+ * profile size must be of RDMA_DIM_PARAMS_NUM_PROFILES.
+ */
+#define RDMA_DIM_PARAMS_NUM_PROFILES 9
+#define RDMA_DIM_START_PROFILE 0
+
+static const struct dim_cq_moder
+rdma_dim_prof[RDMA_DIM_PARAMS_NUM_PROFILES] = {
+	{1,   0, 1,  0},
+	{1,   0, 4,  0},
+	{2,   0, 4,  0},
+	{2,   0, 8,  0},
+	{4,   0, 8,  0},
+	{16,  0, 8,  0},
+	{16,  0, 16, 0},
+	{32,  0, 16, 0},
+	{32,  0, 32, 0},
+};
+
+/**
+ * rdma_dim - Runs the adaptive moderation.
+ * @dim: The moderation struct.
+ * @completions: The number of completions collected in this round.
+ *
+ * Each call to rdma_dim takes the latest amount of completions that
+ * have been collected and counts them as a new event.
+ * Once enough events have been collected the algorithm decides a new
+ * moderation level.
+ */
+void rdma_dim(struct dim *dim, u64 completions);
 
 #endif /* DIM_H */
