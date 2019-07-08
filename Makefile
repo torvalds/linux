@@ -899,6 +899,12 @@ ifdef CONFIG_FTRACE_MCOUNT_USE_RECORDMCOUNT
     BUILD_C_RECORDMCOUNT := y
     export BUILD_C_RECORDMCOUNT
   endif
+# ensure -fcf-protection is disabled when using retpoline as it is
+# incompatible with -mindirect-branch=thunk-extern
+ifdef CONFIG_RETPOLINE
+KBUILD_CFLAGS += $(call cc-option,-fcf-protection=none,)
+endif
+
 endif
 ifdef CONFIG_HAVE_FENTRY
   # s390-linux-gnu-gcc did not support -mfentry until gcc-9.
