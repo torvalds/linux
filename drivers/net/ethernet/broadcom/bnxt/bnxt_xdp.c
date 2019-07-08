@@ -19,8 +19,8 @@
 #include "bnxt.h"
 #include "bnxt_xdp.h"
 
-void bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
-		   dma_addr_t mapping, u32 len, u16 rx_prod)
+void __bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
+		     dma_addr_t mapping, u32 len, u16 rx_prod)
 {
 	struct bnxt_sw_tx_bd *tx_buf;
 	struct tx_bd *txbd;
@@ -132,8 +132,8 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		*event = BNXT_TX_EVENT;
 		dma_sync_single_for_device(&pdev->dev, mapping + offset, *len,
 					   bp->rx_dir);
-		bnxt_xmit_xdp(bp, txr, mapping + offset, *len,
-			      NEXT_RX(rxr->rx_prod));
+		__bnxt_xmit_xdp(bp, txr, mapping + offset, *len,
+				NEXT_RX(rxr->rx_prod));
 		bnxt_reuse_rx_data(rxr, cons, page);
 		return true;
 	default:
