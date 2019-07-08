@@ -250,6 +250,7 @@ tx_post_resync_params(struct mlx5e_txqsq *sq,
 	}
 	default:
 		WARN_ON(1);
+		return;
 	}
 
 	skip_static_post = !memcmp(rec_seq, &rn_be, rec_seq_sz);
