@@ -228,6 +228,21 @@ unsigned int flow_block_cb_decref(struct flow_block_cb *block_cb)
 }
 EXPORT_SYMBOL(flow_block_cb_decref);
 
+bool flow_block_cb_is_busy(tc_setup_cb_t *cb, void *cb_ident,
+			   struct list_head *driver_block_list)
+{
+	struct flow_block_cb *block_cb;
+
+	list_for_each_entry(block_cb, driver_block_list, driver_list) {
+		if (block_cb->cb == cb &&
+		    block_cb->cb_ident == cb_ident)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(flow_block_cb_is_busy);
+
 int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       struct list_head *driver_block_list,
 			       tc_setup_cb_t *cb, void *cb_ident, void *cb_priv,
@@ -243,6 +258,9 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
+		if (flow_block_cb_is_busy(cb, cb_ident, driver_block_list))
+			return -EBUSY;
+
 		block_cb = flow_block_cb_alloc(f->net, cb, cb_ident,
 					       cb_priv, NULL);
 		if (IS_ERR(block_cb))

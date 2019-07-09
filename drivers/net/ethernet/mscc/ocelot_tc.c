@@ -153,6 +153,9 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
+		if (flow_block_cb_is_busy(cb, port, &ocelot_block_cb_list))
+			return -EBUSY;
+
 		block_cb = flow_block_cb_alloc(f->net, cb, port, port, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);

@@ -1320,6 +1320,10 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
+		if (flow_block_cb_is_busy(nfp_flower_setup_tc_block_cb, repr,
+					  &nfp_block_cb_list))
+			return -EBUSY;
+
 		block_cb = flow_block_cb_alloc(f->net,
 					       nfp_flower_setup_tc_block_cb,
 					       repr, repr, NULL);

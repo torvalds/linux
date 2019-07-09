@@ -1698,6 +1698,10 @@ static int mlxsw_sp_setup_tc_block(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
+		if (flow_block_cb_is_busy(cb, mlxsw_sp_port,
+					  &mlxsw_sp_block_cb_list))
+			return -EBUSY;
+
 		block_cb = flow_block_cb_alloc(f->net, cb, mlxsw_sp_port,
 					       mlxsw_sp_port, NULL);
 		if (IS_ERR(block_cb))

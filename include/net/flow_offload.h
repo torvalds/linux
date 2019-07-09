@@ -296,6 +296,9 @@ static inline void flow_block_cb_remove(struct flow_block_cb *block_cb,
 	list_move(&block_cb->list, &offload->cb_list);
 }
 
+bool flow_block_cb_is_busy(tc_setup_cb_t *cb, void *cb_ident,
+			   struct list_head *driver_block_list);
+
 int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       struct list_head *driver_list, tc_setup_cb_t *cb,
 			       void *cb_ident, void *cb_priv, bool ingress_only);

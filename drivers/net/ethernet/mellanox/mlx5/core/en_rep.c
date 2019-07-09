@@ -722,6 +722,10 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		if (indr_priv)
 			return -EEXIST;
 
+		if (flow_block_cb_is_busy(mlx5e_rep_indr_setup_block_cb,
+					  indr_priv, &mlx5e_block_cb_list))
+			return -EBUSY;
+
 		indr_priv = kmalloc(sizeof(*indr_priv), GFP_KERNEL);
 		if (!indr_priv)
 			return -ENOMEM;
