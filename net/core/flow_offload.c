@@ -172,7 +172,7 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       bool ingress_only)
 {
 	if (ingress_only &&
-	    f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+	    f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
 
 	f->driver_block_list = driver_block_list;

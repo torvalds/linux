@@ -27,10 +27,9 @@ int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
 #define tc_block_offload flow_block_offload
-#define tcf_block_binder_type flow_block_binder_type
 
 struct tcf_block_ext_info {
-	enum tcf_block_binder_type binder_type;
+	enum flow_block_binder_type binder_type;
 	tcf_chain_head_change_t *chain_head_change;
 	void *chain_head_change_priv;
 	u32 block_index;

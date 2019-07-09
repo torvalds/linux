@@ -306,7 +306,7 @@ int ocelot_setup_tc_block_flower_bind(struct ocelot_port *port,
 	struct tcf_block_cb *block_cb;
 	int ret;
 
-	if (f->binder_type == TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
+	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
 		return -EOPNOTSUPP;
 
 	block_cb = tcf_block_cb_lookup(f->block,

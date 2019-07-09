@@ -947,9 +947,9 @@ static int dsa_slave_setup_tc_block(struct net_device *dev,
 {
 	tc_setup_cb_t *cb;
 
-	if (f->binder_type == TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		cb = dsa_slave_setup_tc_block_cb_ig;
-	else if (f->binder_type == TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
+	else if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
 		cb = dsa_slave_setup_tc_block_cb_eg;
 	else
 		return -EOPNOTSUPP;

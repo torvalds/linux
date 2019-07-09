@@ -701,7 +701,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 	struct mlx5e_rep_indr_block_priv *indr_priv;
 	int err = 0;
 
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
 
 	switch (f->command) {
