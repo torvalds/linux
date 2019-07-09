@@ -25,6 +25,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drmP.h>
 #include <video/mipi_display.h>
+#include <asm/unaligned.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
@@ -261,6 +262,21 @@ struct dw_mipi_dsi {
 	const struct dw_mipi_dsi_plat_data *pdata;
 };
 
+static inline struct dw_mipi_dsi *host_to_dsi(struct mipi_dsi_host *host)
+{
+	return container_of(host, struct dw_mipi_dsi, host);
+}
+
+static inline struct dw_mipi_dsi *con_to_dsi(struct drm_connector *con)
+{
+	return container_of(con, struct dw_mipi_dsi, connector);
+}
+
+static inline struct dw_mipi_dsi *encoder_to_dsi(struct drm_encoder *encoder)
+{
+	return container_of(encoder, struct dw_mipi_dsi, encoder);
+}
+
 static void grf_field_write(struct dw_mipi_dsi *dsi, enum grf_reg_fields index,
 			    unsigned int val)
 {
@@ -280,19 +296,64 @@ static void grf_field_write(struct dw_mipi_dsi *dsi, enum grf_reg_fields index,
 	regmap_write(dsi->grf, reg, (val << lsb) | (GENMASK(msb, lsb) << 16));
 }
 
-static inline struct dw_mipi_dsi *host_to_dsi(struct mipi_dsi_host *host)
+static inline void dpishutdn_assert(struct dw_mipi_dsi *dsi)
 {
-	return container_of(host, struct dw_mipi_dsi, host);
+	grf_field_write(dsi, DPISHUTDN, 1);
 }
 
-static inline struct dw_mipi_dsi *con_to_dsi(struct drm_connector *con)
+static inline void dpishutdn_deassert(struct dw_mipi_dsi *dsi)
 {
-	return container_of(con, struct dw_mipi_dsi, connector);
+	grf_field_write(dsi, DPISHUTDN, 0);
 }
 
-static inline struct dw_mipi_dsi *encoder_to_dsi(struct drm_encoder *encoder)
+static int genif_wait_w_pld_fifo_not_full(struct dw_mipi_dsi *dsi)
 {
-	return container_of(encoder, struct dw_mipi_dsi, encoder);
+	u32 sts;
+	int ret;
+
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       sts, !(sts & GEN_PLD_W_FULL),
+				       0, 1000);
+	if (ret < 0) {
+		DRM_DEV_ERROR(dsi->dev, "generic write payload fifo is full\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int genif_wait_cmd_fifo_not_full(struct dw_mipi_dsi *dsi)
+{
+	u32 sts;
+	int ret;
+
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       sts, !(sts & GEN_CMD_FULL),
+				       0, 1000);
+	if (ret < 0) {
+		DRM_DEV_ERROR(dsi->dev, "generic write cmd fifo is full\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int genif_wait_write_fifo_empty(struct dw_mipi_dsi *dsi)
+{
+	u32 sts;
+	u32 mask;
+	int ret;
+
+	mask = GEN_CMD_EMPTY | GEN_PLD_W_EMPTY;
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       sts, (sts & mask) == mask,
+				       0, 1000);
+	if (ret < 0) {
+		DRM_DEV_ERROR(dsi->dev, "generic write fifo is full\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static inline void testif_testclk_assert(struct dw_mipi_dsi *dsi)
@@ -620,148 +681,236 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 	return 0;
 }
 
-static void dw_mipi_message_config(struct dw_mipi_dsi *dsi,
-				   const struct mipi_dsi_msg *msg)
+static int dw_mipi_dsi_turn_on_peripheral(struct dw_mipi_dsi *dsi)
 {
-	bool lpm = msg->flags & MIPI_DSI_MSG_USE_LPM;
-	u32 val = 0;
+	dpishutdn_assert(dsi);
+	udelay(20);
+	dpishutdn_deassert(dsi);
 
-	if (msg->flags & MIPI_DSI_MSG_REQ_ACK)
-		val |= ACK_RQST_EN;
-
-	if (lpm)
-		val |= MAX_RD_PKT_SIZE | DCS_LW_TX | DCS_SR_0P_TX |
-		       DCS_SW_1P_TX | DCS_SW_0P_TX | GEN_LW_TX |
-		       GEN_SR_2P_TX | GEN_SR_1P_TX | GEN_SR_0P_TX |
-		       GEN_SW_2P_TX | GEN_SW_1P_TX | GEN_SW_0P_TX;
-
-	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, lpm ? 0 : PHY_TXREQUESTCLKHS);
-	regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, val);
+	return 0;
 }
 
-static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 hdr_val)
+static int dw_mipi_dsi_shutdown_peripheral(struct dw_mipi_dsi *dsi)
 {
+	dpishutdn_deassert(dsi);
+	udelay(20);
+	dpishutdn_assert(dsi);
+
+	return 0;
+}
+
+static int dw_mipi_dsi_read_from_fifo(struct dw_mipi_dsi *dsi,
+				      const struct mipi_dsi_msg *msg)
+{
+	u8 *payload = msg->rx_buf;
+	unsigned int vrefresh = drm_mode_vrefresh(&dsi->mode);
+	u16 length;
+	u32 val;
 	int ret;
-	u32 val, mask;
 
 	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
-				       val, !(val & GEN_CMD_FULL), 1000,
-				       CMD_PKT_STATUS_TIMEOUT_US);
-	if (ret < 0) {
+				       val, !(val & GEN_RD_CMD_BUSY),
+				       0, DIV_ROUND_UP(1000000, vrefresh));
+	if (ret) {
 		DRM_DEV_ERROR(dsi->dev,
-			      "failed to get available command FIFO\n");
+			      "entire response isn't stored in the FIFO\n");
 		return ret;
 	}
 
-	regmap_write(dsi->regmap, DSI_GEN_HDR, hdr_val);
+	/* Receive payload */
+	for (length = msg->rx_len; length; length -= 4) {
+		ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+					       val, !(val & GEN_PLD_R_EMPTY),
+					       0, 1000);
+		if (ret) {
+			DRM_DEV_ERROR(dsi->dev, "Read payload FIFO is empty\n");
+			return ret;
+		}
 
-	mask = GEN_CMD_EMPTY | GEN_PLD_W_EMPTY;
-	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
-				       val, (val & mask) == mask,
-				       1000, CMD_PKT_STATUS_TIMEOUT_US);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dsi->dev, "failed to write command FIFO\n");
-		return ret;
+		regmap_read(dsi->regmap, DSI_GEN_PLD_DATA, &val);
+
+		switch (length) {
+		case 3:
+			payload[2] = (val >> 16) & 0xff;
+			/* Fall through */
+		case 2:
+			payload[1] = (val >> 8) & 0xff;
+			/* Fall through */
+		case 1:
+			payload[0] = val & 0xff;
+			return 0;
+		}
+
+		payload[0] = (val >>  0) & 0xff;
+		payload[1] = (val >>  8) & 0xff;
+		payload[2] = (val >> 16) & 0xff;
+		payload[3] = (val >> 24) & 0xff;
+		payload += 4;
 	}
 
 	return 0;
 }
 
-static int dw_mipi_dsi_dcs_short_write(struct dw_mipi_dsi *dsi,
-				       const struct mipi_dsi_msg *msg)
+static ssize_t dw_mipi_dsi_transfer(struct dw_mipi_dsi *dsi,
+				    const struct mipi_dsi_msg *msg)
 {
-	const u8 *tx_buf = msg->tx_buf;
-	u8 gen_wc_msbyte = 0, gen_wc_lsbyte = 0;
+	struct mipi_dsi_packet packet;
+	int ret;
 	u32 val;
 
-	if (msg->tx_len > 0)
-		gen_wc_lsbyte = tx_buf[0];
-	if (msg->tx_len > 1)
-		gen_wc_msbyte = tx_buf[1] << 8;
+	if (msg->flags & MIPI_DSI_MSG_REQ_ACK)
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG,
+				   ACK_RQST_EN, ACK_RQST_EN);
 
-	if (msg->tx_len > 2) {
-		DRM_DEV_ERROR(dsi->dev,
-			      "too long tx buf length %zu for short write\n",
-			      msg->tx_len);
+	if (msg->flags & MIPI_DSI_MSG_USE_LPM) {
+		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG,
+				   LP_CMD_EN, LP_CMD_EN);
+	} else {
+		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG, LP_CMD_EN, 0);
+		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+				   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
+	}
+
+	switch (msg->type) {
+	case MIPI_DSI_SHUTDOWN_PERIPHERAL:
+		return dw_mipi_dsi_shutdown_peripheral(dsi);
+	case MIPI_DSI_TURN_ON_PERIPHERAL:
+		return dw_mipi_dsi_turn_on_peripheral(dsi);
+	case MIPI_DSI_DCS_SHORT_WRITE:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_SW_0P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   DCS_SW_0P_TX : 0);
+		break;
+	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_SW_1P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   DCS_SW_1P_TX : 0);
+		break;
+	case MIPI_DSI_DCS_LONG_WRITE:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_LW_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   DCS_LW_TX : 0);
+		break;
+	case MIPI_DSI_DCS_READ:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_SR_0P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   DCS_SR_0P_TX : 0);
+		break;
+	case MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG,
+				   MAX_RD_PKT_SIZE,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   MAX_RD_PKT_SIZE : 0);
+		break;
+	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SW_0P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SW_0P_TX : 0);
+		break;
+	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SW_1P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SW_1P_TX : 0);
+		break;
+	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SW_2P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SW_2P_TX : 0);
+		break;
+	case MIPI_DSI_GENERIC_LONG_WRITE:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_LW_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_LW_TX : 0);
+		break;
+	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SR_0P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SR_0P_TX : 0);
+		break;
+	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SR_1P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SR_1P_TX : 0);
+		break;
+	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SR_2P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SR_2P_TX : 0);
+		break;
+	default:
 		return -EINVAL;
 	}
 
-	val = GEN_WC_MSBYTE(gen_wc_msbyte) | GEN_WC_LSBYTE(gen_wc_lsbyte) |
-	      GEN_VC(dsi->channel) | GEN_DT(msg->type);
-
-	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, val);
-}
-
-static int dw_mipi_dsi_dcs_long_write(struct dw_mipi_dsi *dsi,
-				      const struct mipi_dsi_msg *msg)
-{
-	const u8 *tx_buf = msg->tx_buf;
-	int len = msg->tx_len, pld_data_bytes = sizeof(u32), ret;
-	u32 hdr_val;
-	u32 remainder;
-	u32 val;
-
-	hdr_val = GEN_WC_MSBYTE((msg->tx_len >> 8) & 0xff) |
-		  GEN_WC_LSBYTE(msg->tx_len & 0xff) | GEN_VC(dsi->channel) |
-		  GEN_DT(msg->type);
-
-	if (msg->tx_len < 3) {
-		DRM_DEV_ERROR(dsi->dev,
-			      "wrong tx buf length %zu for long write\n",
-			      msg->tx_len);
-		return -EINVAL;
+	/* create a packet to the DSI protocol */
+	ret = mipi_dsi_create_packet(&packet, msg);
+	if (ret) {
+		DRM_DEV_ERROR(dsi->dev, "failed to create packet: %d\n", ret);
+		return ret;
 	}
 
-	while (DIV_ROUND_UP(len, pld_data_bytes)) {
-		if (len < pld_data_bytes) {
-			remainder = 0;
-			memcpy(&remainder, tx_buf, len);
-			regmap_write(dsi->regmap, DSI_GEN_PLD_DATA, remainder);
-			len = 0;
-		} else {
-			memcpy(&remainder, tx_buf, pld_data_bytes);
-			regmap_write(dsi->regmap, DSI_GEN_PLD_DATA, remainder);
-			tx_buf += pld_data_bytes;
-			len -= pld_data_bytes;
-		}
-
-		ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
-					       val, !(val & GEN_PLD_W_FULL),
-					       1000, CMD_PKT_STATUS_TIMEOUT_US);
-		if (ret < 0) {
-			DRM_DEV_ERROR(dsi->dev,
-				      "failed to get available write payload FIFO\n");
+	/* Send payload */
+	while (packet.payload_length >= 4) {
+		/*
+		 * Alternatively, you can always keep the FIFO
+		 * nearly full by monitoring the FIFO state until
+		 * it is not full, and then writea single word of data.
+		 * This solution is more resource consuming
+		 * but it simultaneously avoids FIFO starvation,
+		 * making it possible to use FIFO sizes smaller than
+		 * the amount of data of the longest packet to be written.
+		 */
+		ret = genif_wait_w_pld_fifo_not_full(dsi);
+		if (ret)
 			return ret;
-		}
+
+		val = get_unaligned_le32(packet.payload);
+		regmap_write(dsi->regmap, DSI_GEN_PLD_DATA, val);
+
+		packet.payload += 4;
+		packet.payload_length -= 4;
 	}
 
-	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, hdr_val);
+	val = 0;
+	switch (packet.payload_length) {
+	case 3:
+		val |= packet.payload[2] << 16;
+		/* Fall through */
+	case 2:
+		val |= packet.payload[1] << 8;
+		/* Fall through */
+	case 1:
+		val |= packet.payload[0];
+		regmap_write(dsi->regmap, DSI_GEN_PLD_DATA, val);
+		break;
+	}
+
+	ret = genif_wait_cmd_fifo_not_full(dsi);
+	if (ret)
+		return ret;
+
+	/* Send packet header */
+	val = get_unaligned_le32(packet.header);
+	regmap_write(dsi->regmap, DSI_GEN_HDR, val);
+
+	ret = genif_wait_write_fifo_empty(dsi);
+	if (ret)
+		return ret;
+
+	if (msg->rx_len) {
+		ret = dw_mipi_dsi_read_from_fifo(dsi, msg);
+		if (ret < 0)
+			return ret;
+	}
+
+	return msg->tx_len;
 }
 
 static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
 					 const struct mipi_dsi_msg *msg)
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
-	int ret;
 
-	dw_mipi_message_config(dsi, msg);
-
-	switch (msg->type) {
-	case MIPI_DSI_DCS_SHORT_WRITE:
-	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
-	case MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE:
-		ret = dw_mipi_dsi_dcs_short_write(dsi, msg);
-		break;
-	case MIPI_DSI_DCS_LONG_WRITE:
-		ret = dw_mipi_dsi_dcs_long_write(dsi, msg);
-		break;
-	default:
-		DRM_DEV_ERROR(dsi->dev, "unsupported message type 0x%02x\n",
-			      msg->type);
-		ret = -EINVAL;
-	}
-
-	return ret;
+	return dw_mipi_dsi_transfer(dsi, msg);
 }
 
 static const struct mipi_dsi_host_ops dw_mipi_dsi_host_ops = {
