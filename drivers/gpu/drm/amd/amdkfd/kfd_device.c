@@ -469,7 +469,9 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x66a4, &vega20_device_info },	/* Vega20 */
 	{ 0x66a7, &vega20_device_info },	/* Vega20 */
 	{ 0x66af, &vega20_device_info },	/* Vega20 */
-	/* Navi10 */
+	{ 0x738C, &arcturus_device_info },	/* Arcturus */
+	{ 0x7388, &arcturus_device_info },	/* Arcturus */
+	{ 0x738E, &arcturus_device_info },	/* Arcturus */
 	{ 0x7310, &navi10_device_info },	/* Navi10 */
 	{ 0x7312, &navi10_device_info },	/* Navi10 */
 	{ 0x7318, &navi10_device_info },	/* Navi10 */
