@@ -2111,7 +2111,7 @@ static int __init mlxplat_init(void)
 					mlxplat_regmap_config);
 	if (IS_ERR(priv->regmap)) {
 		err = PTR_ERR(priv->regmap);
-		return err;
+		goto fail_alloc;
 	}
 
 	err = mlxplat_mlxcpld_verify_bus_topology(&nr);
