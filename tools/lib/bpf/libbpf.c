@@ -32,6 +32,9 @@
 #include <linux/limits.h>
 #include <linux/perf_event.h>
 #include <linux/ring_buffer.h>
+#include <sys/epoll.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -1028,40 +1031,40 @@ static const struct btf_type *skip_mods_and_typedefs(const struct btf *btf,
 	}
 }
 
-static bool get_map_field_int(const char *map_name,
-			      const struct btf *btf,
+/*
+ * Fetch integer attribute of BTF map definition. Such attributes are
+ * represented using a pointer to an array, in which dimensionality of array
+ * encodes specified integer value. E.g., int (*type)[BPF_MAP_TYPE_ARRAY];
+ * encodes `type => BPF_MAP_TYPE_ARRAY` key/value pair completely using BTF
+ * type definition, while using only sizeof(void *) space in ELF data section.
+ */
+static bool get_map_field_int(const char *map_name, const struct btf *btf,
 			      const struct btf_type *def,
-			      const struct btf_member *m,
-			      const void *data, __u32 *res) {
+			      const struct btf_member *m, __u32 *res) {
 	const struct btf_type *t = skip_mods_and_typedefs(btf, m->type);
 	const char *name = btf__name_by_offset(btf, m->name_off);
-	__u32 int_info = *(const __u32 *)(const void *)(t + 1);
+	const struct btf_array *arr_info;
+	const struct btf_type *arr_t;
 
-	if (BTF_INFO_KIND(t->info) != BTF_KIND_INT) {
-		pr_warning("map '%s': attr '%s': expected INT, got %u.\n",
+	if (BTF_INFO_KIND(t->info) != BTF_KIND_PTR) {
+		pr_warning("map '%s': attr '%s': expected PTR, got %u.\n",
 			   map_name, name, BTF_INFO_KIND(t->info));
 		return false;
 	}
-	if (t->size != 4 || BTF_INT_BITS(int_info) != 32 ||
-	    BTF_INT_OFFSET(int_info)) {
-		pr_warning("map '%s': attr '%s': expected 32-bit non-bitfield integer, "
-			   "got %u-byte (%d-bit) one with bit offset %d.\n",
-			   map_name, name, t->size, BTF_INT_BITS(int_info),
-			   BTF_INT_OFFSET(int_info));
-		return false;
-	}
-	if (BTF_INFO_KFLAG(def->info) && BTF_MEMBER_BITFIELD_SIZE(m->offset)) {
-		pr_warning("map '%s': attr '%s': bitfield is not supported.\n",
-			   map_name, name);
-		return false;
-	}
-	if (m->offset % 32) {
-		pr_warning("map '%s': attr '%s': unaligned fields are not supported.\n",
-			   map_name, name);
-		return false;
-	}
 
-	*res = *(const __u32 *)(data + m->offset / 8);
+	arr_t = btf__type_by_id(btf, t->type);
+	if (!arr_t) {
+		pr_warning("map '%s': attr '%s': type [%u] not found.\n",
+			   map_name, name, t->type);
+		return false;
+	}
+	if (BTF_INFO_KIND(arr_t->info) != BTF_KIND_ARRAY) {
+		pr_warning("map '%s': attr '%s': expected ARRAY, got %u.\n",
+			   map_name, name, BTF_INFO_KIND(arr_t->info));
+		return false;
+	}
+	arr_info = (const void *)(arr_t + 1);
+	*res = arr_info->nelems;
 	return true;
 }
 
@@ -1074,7 +1077,6 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	const struct btf_var_secinfo *vi;
 	const struct btf_var *var_extra;
 	const struct btf_member *m;
-	const void *def_data;
 	const char *map_name;
 	struct bpf_map *map;
 	int vlen, i;
@@ -1131,7 +1133,6 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	pr_debug("map '%s': at sec_idx %d, offset %zu.\n",
 		 map_name, map->sec_idx, map->sec_offset);
 
-	def_data = data->d_buf + vi->offset;
 	vlen = BTF_INFO_VLEN(def->info);
 	m = (const void *)(def + 1);
 	for (i = 0; i < vlen; i++, m++) {
@@ -1144,19 +1145,19 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 		}
 		if (strcmp(name, "type") == 0) {
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &map->def.type))
+					       &map->def.type))
 				return -EINVAL;
 			pr_debug("map '%s': found type = %u.\n",
 				 map_name, map->def.type);
 		} else if (strcmp(name, "max_entries") == 0) {
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &map->def.max_entries))
+					       &map->def.max_entries))
 				return -EINVAL;
 			pr_debug("map '%s': found max_entries = %u.\n",
 				 map_name, map->def.max_entries);
 		} else if (strcmp(name, "map_flags") == 0) {
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &map->def.map_flags))
+					       &map->def.map_flags))
 				return -EINVAL;
 			pr_debug("map '%s': found map_flags = %u.\n",
 				 map_name, map->def.map_flags);
@@ -1164,7 +1165,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			__u32 sz;
 
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &sz))
+					       &sz))
 				return -EINVAL;
 			pr_debug("map '%s': found key_size = %u.\n",
 				 map_name, sz);
@@ -1207,7 +1208,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			__u32 sz;
 
 			if (!get_map_field_int(map_name, obj->btf, def, m,
-					       def_data, &sz))
+					       &sz))
 				return -EINVAL;
 			pr_debug("map '%s': found value_size = %u.\n",
 				 map_name, sz);
@@ -2115,6 +2116,7 @@ static int
 bpf_object__create_maps(struct bpf_object *obj)
 {
 	struct bpf_create_map_attr create_attr = {};
+	int nr_cpus = 0;
 	unsigned int i;
 	int err;
 
@@ -2137,7 +2139,22 @@ bpf_object__create_maps(struct bpf_object *obj)
 		create_attr.map_flags = def->map_flags;
 		create_attr.key_size = def->key_size;
 		create_attr.value_size = def->value_size;
-		create_attr.max_entries = def->max_entries;
+		if (def->type == BPF_MAP_TYPE_PERF_EVENT_ARRAY &&
+		    !def->max_entries) {
+			if (!nr_cpus)
+				nr_cpus = libbpf_num_possible_cpus();
+			if (nr_cpus < 0) {
+				pr_warning("failed to determine number of system CPUs: %d\n",
+					   nr_cpus);
+				err = nr_cpus;
+				goto err_out;
+			}
+			pr_debug("map '%s': setting size to %d\n",
+				 map->name, nr_cpus);
+			create_attr.max_entries = nr_cpus;
+		} else {
+			create_attr.max_entries = def->max_entries;
+		}
 		create_attr.btf_fd = 0;
 		create_attr.btf_key_type_id = 0;
 		create_attr.btf_value_type_id = 0;
@@ -2154,9 +2171,10 @@ bpf_object__create_maps(struct bpf_object *obj)
 		*pfd = bpf_create_map_xattr(&create_attr);
 		if (*pfd < 0 && (create_attr.btf_key_type_id ||
 				 create_attr.btf_value_type_id)) {
-			cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
+			err = -errno;
+			cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
 			pr_warning("Error in bpf_create_map_xattr(%s):%s(%d). Retrying without BTF.\n",
-				   map->name, cp, errno);
+				   map->name, cp, err);
 			create_attr.btf_fd = 0;
 			create_attr.btf_key_type_id = 0;
 			create_attr.btf_value_type_id = 0;
@@ -2168,11 +2186,11 @@ bpf_object__create_maps(struct bpf_object *obj)
 		if (*pfd < 0) {
 			size_t j;
 
-			err = *pfd;
+			err = -errno;
 err_out:
-			cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
-			pr_warning("failed to create map (name: '%s'): %s\n",
-				   map->name, cp);
+			cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
+			pr_warning("failed to create map (name: '%s'): %s(%d)\n",
+				   map->name, cp, err);
 			for (j = 0; j < i; j++)
 				zclose(obj->maps[j].fd);
 			return err;
@@ -3941,6 +3959,372 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 	return 0;
 }
 
+struct bpf_link {
+	int (*destroy)(struct bpf_link *link);
+};
+
+int bpf_link__destroy(struct bpf_link *link)
+{
+	int err;
+
+	if (!link)
+		return 0;
+
+	err = link->destroy(link);
+	free(link);
+
+	return err;
+}
+
+struct bpf_link_fd {
+	struct bpf_link link; /* has to be at the top of struct */
+	int fd; /* hook FD */
+};
+
+static int bpf_link__destroy_perf_event(struct bpf_link *link)
+{
+	struct bpf_link_fd *l = (void *)link;
+	int err;
+
+	err = ioctl(l->fd, PERF_EVENT_IOC_DISABLE, 0);
+	if (err)
+		err = -errno;
+
+	close(l->fd);
+	return err;
+}
+
+struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
+						int pfd)
+{
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link_fd *link;
+	int prog_fd, err;
+
+	if (pfd < 0) {
+		pr_warning("program '%s': invalid perf event FD %d\n",
+			   bpf_program__title(prog, false), pfd);
+		return ERR_PTR(-EINVAL);
+	}
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warning("program '%s': can't attach BPF program w/o FD (did you load it?)\n",
+			   bpf_program__title(prog, false));
+		return ERR_PTR(-EINVAL);
+	}
+
+	link = malloc(sizeof(*link));
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+	link->link.destroy = &bpf_link__destroy_perf_event;
+	link->fd = pfd;
+
+	if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
+		err = -errno;
+		free(link);
+		pr_warning("program '%s': failed to attach to pfd %d: %s\n",
+			   bpf_program__title(prog, false), pfd,
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return ERR_PTR(err);
+	}
+	if (ioctl(pfd, PERF_EVENT_IOC_ENABLE, 0) < 0) {
+		err = -errno;
+		free(link);
+		pr_warning("program '%s': failed to enable pfd %d: %s\n",
+			   bpf_program__title(prog, false), pfd,
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return ERR_PTR(err);
+	}
+	return (struct bpf_link *)link;
+}
+
+/*
+ * this function is expected to parse integer in the range of [0, 2^31-1] from
+ * given file using scanf format string fmt. If actual parsed value is
+ * negative, the result might be indistinguishable from error
+ */
+static int parse_uint_from_file(const char *file, const char *fmt)
+{
+	char buf[STRERR_BUFSIZE];
+	int err, ret;
+	FILE *f;
+
+	f = fopen(file, "r");
+	if (!f) {
+		err = -errno;
+		pr_debug("failed to open '%s': %s\n", file,
+			 libbpf_strerror_r(err, buf, sizeof(buf)));
+		return err;
+	}
+	err = fscanf(f, fmt, &ret);
+	if (err != 1) {
+		err = err == EOF ? -EIO : -errno;
+		pr_debug("failed to parse '%s': %s\n", file,
+			libbpf_strerror_r(err, buf, sizeof(buf)));
+		fclose(f);
+		return err;
+	}
+	fclose(f);
+	return ret;
+}
+
+static int determine_kprobe_perf_type(void)
+{
+	const char *file = "/sys/bus/event_source/devices/kprobe/type";
+
+	return parse_uint_from_file(file, "%d\n");
+}
+
+static int determine_uprobe_perf_type(void)
+{
+	const char *file = "/sys/bus/event_source/devices/uprobe/type";
+
+	return parse_uint_from_file(file, "%d\n");
+}
+
+static int determine_kprobe_retprobe_bit(void)
+{
+	const char *file = "/sys/bus/event_source/devices/kprobe/format/retprobe";
+
+	return parse_uint_from_file(file, "config:%d\n");
+}
+
+static int determine_uprobe_retprobe_bit(void)
+{
+	const char *file = "/sys/bus/event_source/devices/uprobe/format/retprobe";
+
+	return parse_uint_from_file(file, "config:%d\n");
+}
+
+static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
+				 uint64_t offset, int pid)
+{
+	struct perf_event_attr attr = {};
+	char errmsg[STRERR_BUFSIZE];
+	int type, pfd, err;
+
+	type = uprobe ? determine_uprobe_perf_type()
+		      : determine_kprobe_perf_type();
+	if (type < 0) {
+		pr_warning("failed to determine %s perf type: %s\n",
+			   uprobe ? "uprobe" : "kprobe",
+			   libbpf_strerror_r(type, errmsg, sizeof(errmsg)));
+		return type;
+	}
+	if (retprobe) {
+		int bit = uprobe ? determine_uprobe_retprobe_bit()
+				 : determine_kprobe_retprobe_bit();
+
+		if (bit < 0) {
+			pr_warning("failed to determine %s retprobe bit: %s\n",
+				   uprobe ? "uprobe" : "kprobe",
+				   libbpf_strerror_r(bit, errmsg,
+						     sizeof(errmsg)));
+			return bit;
+		}
+		attr.config |= 1 << bit;
+	}
+	attr.size = sizeof(attr);
+	attr.type = type;
+	attr.config1 = (uint64_t)(void *)name; /* kprobe_func or uprobe_path */
+	attr.config2 = offset;		       /* kprobe_addr or probe_offset */
+
+	/* pid filter is meaningful only for uprobes */
+	pfd = syscall(__NR_perf_event_open, &attr,
+		      pid < 0 ? -1 : pid /* pid */,
+		      pid == -1 ? 0 : -1 /* cpu */,
+		      -1 /* group_fd */, PERF_FLAG_FD_CLOEXEC);
+	if (pfd < 0) {
+		err = -errno;
+		pr_warning("%s perf_event_open() failed: %s\n",
+			   uprobe ? "uprobe" : "kprobe",
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return err;
+	}
+	return pfd;
+}
+
+struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
+					    bool retprobe,
+					    const char *func_name)
+{
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link *link;
+	int pfd, err;
+
+	pfd = perf_event_open_probe(false /* uprobe */, retprobe, func_name,
+				    0 /* offset */, -1 /* pid */);
+	if (pfd < 0) {
+		pr_warning("program '%s': failed to create %s '%s' perf event: %s\n",
+			   bpf_program__title(prog, false),
+			   retprobe ? "kretprobe" : "kprobe", func_name,
+			   libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
+		return ERR_PTR(pfd);
+	}
+	link = bpf_program__attach_perf_event(prog, pfd);
+	if (IS_ERR(link)) {
+		close(pfd);
+		err = PTR_ERR(link);
+		pr_warning("program '%s': failed to attach to %s '%s': %s\n",
+			   bpf_program__title(prog, false),
+			   retprobe ? "kretprobe" : "kprobe", func_name,
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return link;
+	}
+	return link;
+}
+
+struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
+					    bool retprobe, pid_t pid,
+					    const char *binary_path,
+					    size_t func_offset)
+{
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link *link;
+	int pfd, err;
+
+	pfd = perf_event_open_probe(true /* uprobe */, retprobe,
+				    binary_path, func_offset, pid);
+	if (pfd < 0) {
+		pr_warning("program '%s': failed to create %s '%s:0x%zx' perf event: %s\n",
+			   bpf_program__title(prog, false),
+			   retprobe ? "uretprobe" : "uprobe",
+			   binary_path, func_offset,
+			   libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
+		return ERR_PTR(pfd);
+	}
+	link = bpf_program__attach_perf_event(prog, pfd);
+	if (IS_ERR(link)) {
+		close(pfd);
+		err = PTR_ERR(link);
+		pr_warning("program '%s': failed to attach to %s '%s:0x%zx': %s\n",
+			   bpf_program__title(prog, false),
+			   retprobe ? "uretprobe" : "uprobe",
+			   binary_path, func_offset,
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return link;
+	}
+	return link;
+}
+
+static int determine_tracepoint_id(const char *tp_category,
+				   const char *tp_name)
+{
+	char file[PATH_MAX];
+	int ret;
+
+	ret = snprintf(file, sizeof(file),
+		       "/sys/kernel/debug/tracing/events/%s/%s/id",
+		       tp_category, tp_name);
+	if (ret < 0)
+		return -errno;
+	if (ret >= sizeof(file)) {
+		pr_debug("tracepoint %s/%s path is too long\n",
+			 tp_category, tp_name);
+		return -E2BIG;
+	}
+	return parse_uint_from_file(file, "%d\n");
+}
+
+static int perf_event_open_tracepoint(const char *tp_category,
+				      const char *tp_name)
+{
+	struct perf_event_attr attr = {};
+	char errmsg[STRERR_BUFSIZE];
+	int tp_id, pfd, err;
+
+	tp_id = determine_tracepoint_id(tp_category, tp_name);
+	if (tp_id < 0) {
+		pr_warning("failed to determine tracepoint '%s/%s' perf event ID: %s\n",
+			   tp_category, tp_name,
+			   libbpf_strerror_r(tp_id, errmsg, sizeof(errmsg)));
+		return tp_id;
+	}
+
+	attr.type = PERF_TYPE_TRACEPOINT;
+	attr.size = sizeof(attr);
+	attr.config = tp_id;
+
+	pfd = syscall(__NR_perf_event_open, &attr, -1 /* pid */, 0 /* cpu */,
+		      -1 /* group_fd */, PERF_FLAG_FD_CLOEXEC);
+	if (pfd < 0) {
+		err = -errno;
+		pr_warning("tracepoint '%s/%s' perf_event_open() failed: %s\n",
+			   tp_category, tp_name,
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return err;
+	}
+	return pfd;
+}
+
+struct bpf_link *bpf_program__attach_tracepoint(struct bpf_program *prog,
+						const char *tp_category,
+						const char *tp_name)
+{
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link *link;
+	int pfd, err;
+
+	pfd = perf_event_open_tracepoint(tp_category, tp_name);
+	if (pfd < 0) {
+		pr_warning("program '%s': failed to create tracepoint '%s/%s' perf event: %s\n",
+			   bpf_program__title(prog, false),
+			   tp_category, tp_name,
+			   libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
+		return ERR_PTR(pfd);
+	}
+	link = bpf_program__attach_perf_event(prog, pfd);
+	if (IS_ERR(link)) {
+		close(pfd);
+		err = PTR_ERR(link);
+		pr_warning("program '%s': failed to attach to tracepoint '%s/%s': %s\n",
+			   bpf_program__title(prog, false),
+			   tp_category, tp_name,
+			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+		return link;
+	}
+	return link;
+}
+
+static int bpf_link__destroy_fd(struct bpf_link *link)
+{
+	struct bpf_link_fd *l = (void *)link;
+
+	return close(l->fd);
+}
+
+struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
+						    const char *tp_name)
+{
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link_fd *link;
+	int prog_fd, pfd;
+
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warning("program '%s': can't attach before loaded\n",
+			   bpf_program__title(prog, false));
+		return ERR_PTR(-EINVAL);
+	}
+
+	link = malloc(sizeof(*link));
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+	link->link.destroy = &bpf_link__destroy_fd;
+
+	pfd = bpf_raw_tracepoint_open(tp_name, prog_fd);
+	if (pfd < 0) {
+		pfd = -errno;
+		free(link);
+		pr_warning("program '%s': failed to attach to raw tracepoint '%s': %s\n",
+			   bpf_program__title(prog, false), tp_name,
+			   libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
+		return ERR_PTR(pfd);
+	}
+	link->fd = pfd;
+	return (struct bpf_link *)link;
+}
+
 enum bpf_perf_event_ret
 bpf_perf_event_read_simple(void *mmap_mem, size_t mmap_size, size_t page_size,
 			   void **copy_mem, size_t *copy_size,
@@ -3987,6 +4371,370 @@ bpf_perf_event_read_simple(void *mmap_mem, size_t mmap_size, size_t page_size,
 
 	ring_buffer_write_tail(header, data_tail);
 	return ret;
+}
+
+struct perf_buffer;
+
+struct perf_buffer_params {
+	struct perf_event_attr *attr;
+	/* if event_cb is specified, it takes precendence */
+	perf_buffer_event_fn event_cb;
+	/* sample_cb and lost_cb are higher-level common-case callbacks */
+	perf_buffer_sample_fn sample_cb;
+	perf_buffer_lost_fn lost_cb;
+	void *ctx;
+	int cpu_cnt;
+	int *cpus;
+	int *map_keys;
+};
+
+struct perf_cpu_buf {
+	struct perf_buffer *pb;
+	void *base; /* mmap()'ed memory */
+	void *buf; /* for reconstructing segmented data */
+	size_t buf_size;
+	int fd;
+	int cpu;
+	int map_key;
+};
+
+struct perf_buffer {
+	perf_buffer_event_fn event_cb;
+	perf_buffer_sample_fn sample_cb;
+	perf_buffer_lost_fn lost_cb;
+	void *ctx; /* passed into callbacks */
+
+	size_t page_size;
+	size_t mmap_size;
+	struct perf_cpu_buf **cpu_bufs;
+	struct epoll_event *events;
+	int cpu_cnt;
+	int epoll_fd; /* perf event FD */
+	int map_fd; /* BPF_MAP_TYPE_PERF_EVENT_ARRAY BPF map FD */
+};
+
+static void perf_buffer__free_cpu_buf(struct perf_buffer *pb,
+				      struct perf_cpu_buf *cpu_buf)
+{
+	if (!cpu_buf)
+		return;
+	if (cpu_buf->base &&
+	    munmap(cpu_buf->base, pb->mmap_size + pb->page_size))
+		pr_warning("failed to munmap cpu_buf #%d\n", cpu_buf->cpu);
+	if (cpu_buf->fd >= 0) {
+		ioctl(cpu_buf->fd, PERF_EVENT_IOC_DISABLE, 0);
+		close(cpu_buf->fd);
+	}
+	free(cpu_buf->buf);
+	free(cpu_buf);
+}
+
+void perf_buffer__free(struct perf_buffer *pb)
+{
+	int i;
+
+	if (!pb)
+		return;
+	if (pb->cpu_bufs) {
+		for (i = 0; i < pb->cpu_cnt && pb->cpu_bufs[i]; i++) {
+			struct perf_cpu_buf *cpu_buf = pb->cpu_bufs[i];
+
+			bpf_map_delete_elem(pb->map_fd, &cpu_buf->map_key);
+			perf_buffer__free_cpu_buf(pb, cpu_buf);
+		}
+		free(pb->cpu_bufs);
+	}
+	if (pb->epoll_fd >= 0)
+		close(pb->epoll_fd);
+	free(pb->events);
+	free(pb);
+}
+
+static struct perf_cpu_buf *
+perf_buffer__open_cpu_buf(struct perf_buffer *pb, struct perf_event_attr *attr,
+			  int cpu, int map_key)
+{
+	struct perf_cpu_buf *cpu_buf;
+	char msg[STRERR_BUFSIZE];
+	int err;
+
+	cpu_buf = calloc(1, sizeof(*cpu_buf));
+	if (!cpu_buf)
+		return ERR_PTR(-ENOMEM);
+
+	cpu_buf->pb = pb;
+	cpu_buf->cpu = cpu;
+	cpu_buf->map_key = map_key;
+
+	cpu_buf->fd = syscall(__NR_perf_event_open, attr, -1 /* pid */, cpu,
+			      -1, PERF_FLAG_FD_CLOEXEC);
+	if (cpu_buf->fd < 0) {
+		err = -errno;
+		pr_warning("failed to open perf buffer event on cpu #%d: %s\n",
+			   cpu, libbpf_strerror_r(err, msg, sizeof(msg)));
+		goto error;
+	}
+
+	cpu_buf->base = mmap(NULL, pb->mmap_size + pb->page_size,
+			     PROT_READ | PROT_WRITE, MAP_SHARED,
+			     cpu_buf->fd, 0);
+	if (cpu_buf->base == MAP_FAILED) {
+		cpu_buf->base = NULL;
+		err = -errno;
+		pr_warning("failed to mmap perf buffer on cpu #%d: %s\n",
+			   cpu, libbpf_strerror_r(err, msg, sizeof(msg)));
+		goto error;
+	}
+
+	if (ioctl(cpu_buf->fd, PERF_EVENT_IOC_ENABLE, 0) < 0) {
+		err = -errno;
+		pr_warning("failed to enable perf buffer event on cpu #%d: %s\n",
+			   cpu, libbpf_strerror_r(err, msg, sizeof(msg)));
+		goto error;
+	}
+
+	return cpu_buf;
+
+error:
+	perf_buffer__free_cpu_buf(pb, cpu_buf);
+	return (struct perf_cpu_buf *)ERR_PTR(err);
+}
+
+static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
+					      struct perf_buffer_params *p);
+
+struct perf_buffer *perf_buffer__new(int map_fd, size_t page_cnt,
+				     const struct perf_buffer_opts *opts)
+{
+	struct perf_buffer_params p = {};
+	struct perf_event_attr attr = {
+		.config = PERF_COUNT_SW_BPF_OUTPUT,
+		.type = PERF_TYPE_SOFTWARE,
+		.sample_type = PERF_SAMPLE_RAW,
+		.sample_period = 1,
+		.wakeup_events = 1,
+	};
+
+	p.attr = &attr;
+	p.sample_cb = opts ? opts->sample_cb : NULL;
+	p.lost_cb = opts ? opts->lost_cb : NULL;
+	p.ctx = opts ? opts->ctx : NULL;
+
+	return __perf_buffer__new(map_fd, page_cnt, &p);
+}
+
+struct perf_buffer *
+perf_buffer__new_raw(int map_fd, size_t page_cnt,
+		     const struct perf_buffer_raw_opts *opts)
+{
+	struct perf_buffer_params p = {};
+
+	p.attr = opts->attr;
+	p.event_cb = opts->event_cb;
+	p.ctx = opts->ctx;
+	p.cpu_cnt = opts->cpu_cnt;
+	p.cpus = opts->cpus;
+	p.map_keys = opts->map_keys;
+
+	return __perf_buffer__new(map_fd, page_cnt, &p);
+}
+
+static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
+					      struct perf_buffer_params *p)
+{
+	struct bpf_map_info map = {};
+	char msg[STRERR_BUFSIZE];
+	struct perf_buffer *pb;
+	__u32 map_info_len;
+	int err, i;
+
+	if (page_cnt & (page_cnt - 1)) {
+		pr_warning("page count should be power of two, but is %zu\n",
+			   page_cnt);
+		return ERR_PTR(-EINVAL);
+	}
+
+	map_info_len = sizeof(map);
+	err = bpf_obj_get_info_by_fd(map_fd, &map, &map_info_len);
+	if (err) {
+		err = -errno;
+		pr_warning("failed to get map info for map FD %d: %s\n",
+			   map_fd, libbpf_strerror_r(err, msg, sizeof(msg)));
+		return ERR_PTR(err);
+	}
+
+	if (map.type != BPF_MAP_TYPE_PERF_EVENT_ARRAY) {
+		pr_warning("map '%s' should be BPF_MAP_TYPE_PERF_EVENT_ARRAY\n",
+			   map.name);
+		return ERR_PTR(-EINVAL);
+	}
+
+	pb = calloc(1, sizeof(*pb));
+	if (!pb)
+		return ERR_PTR(-ENOMEM);
+
+	pb->event_cb = p->event_cb;
+	pb->sample_cb = p->sample_cb;
+	pb->lost_cb = p->lost_cb;
+	pb->ctx = p->ctx;
+
+	pb->page_size = getpagesize();
+	pb->mmap_size = pb->page_size * page_cnt;
+	pb->map_fd = map_fd;
+
+	pb->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+	if (pb->epoll_fd < 0) {
+		err = -errno;
+		pr_warning("failed to create epoll instance: %s\n",
+			   libbpf_strerror_r(err, msg, sizeof(msg)));
+		goto error;
+	}
+
+	if (p->cpu_cnt > 0) {
+		pb->cpu_cnt = p->cpu_cnt;
+	} else {
+		pb->cpu_cnt = libbpf_num_possible_cpus();
+		if (pb->cpu_cnt < 0) {
+			err = pb->cpu_cnt;
+			goto error;
+		}
+		if (map.max_entries < pb->cpu_cnt)
+			pb->cpu_cnt = map.max_entries;
+	}
+
+	pb->events = calloc(pb->cpu_cnt, sizeof(*pb->events));
+	if (!pb->events) {
+		err = -ENOMEM;
+		pr_warning("failed to allocate events: out of memory\n");
+		goto error;
+	}
+	pb->cpu_bufs = calloc(pb->cpu_cnt, sizeof(*pb->cpu_bufs));
+	if (!pb->cpu_bufs) {
+		err = -ENOMEM;
+		pr_warning("failed to allocate buffers: out of memory\n");
+		goto error;
+	}
+
+	for (i = 0; i < pb->cpu_cnt; i++) {
+		struct perf_cpu_buf *cpu_buf;
+		int cpu, map_key;
+
+		cpu = p->cpu_cnt > 0 ? p->cpus[i] : i;
+		map_key = p->cpu_cnt > 0 ? p->map_keys[i] : i;
+
+		cpu_buf = perf_buffer__open_cpu_buf(pb, p->attr, cpu, map_key);
+		if (IS_ERR(cpu_buf)) {
+			err = PTR_ERR(cpu_buf);
+			goto error;
+		}
+
+		pb->cpu_bufs[i] = cpu_buf;
+
+		err = bpf_map_update_elem(pb->map_fd, &map_key,
+					  &cpu_buf->fd, 0);
+		if (err) {
+			err = -errno;
+			pr_warning("failed to set cpu #%d, key %d -> perf FD %d: %s\n",
+				   cpu, map_key, cpu_buf->fd,
+				   libbpf_strerror_r(err, msg, sizeof(msg)));
+			goto error;
+		}
+
+		pb->events[i].events = EPOLLIN;
+		pb->events[i].data.ptr = cpu_buf;
+		if (epoll_ctl(pb->epoll_fd, EPOLL_CTL_ADD, cpu_buf->fd,
+			      &pb->events[i]) < 0) {
+			err = -errno;
+			pr_warning("failed to epoll_ctl cpu #%d perf FD %d: %s\n",
+				   cpu, cpu_buf->fd,
+				   libbpf_strerror_r(err, msg, sizeof(msg)));
+			goto error;
+		}
+	}
+
+	return pb;
+
+error:
+	if (pb)
+		perf_buffer__free(pb);
+	return ERR_PTR(err);
+}
+
+struct perf_sample_raw {
+	struct perf_event_header header;
+	uint32_t size;
+	char data[0];
+};
+
+struct perf_sample_lost {
+	struct perf_event_header header;
+	uint64_t id;
+	uint64_t lost;
+	uint64_t sample_id;
+};
+
+static enum bpf_perf_event_ret
+perf_buffer__process_record(struct perf_event_header *e, void *ctx)
+{
+	struct perf_cpu_buf *cpu_buf = ctx;
+	struct perf_buffer *pb = cpu_buf->pb;
+	void *data = e;
+
+	/* user wants full control over parsing perf event */
+	if (pb->event_cb)
+		return pb->event_cb(pb->ctx, cpu_buf->cpu, e);
+
+	switch (e->type) {
+	case PERF_RECORD_SAMPLE: {
+		struct perf_sample_raw *s = data;
+
+		if (pb->sample_cb)
+			pb->sample_cb(pb->ctx, cpu_buf->cpu, s->data, s->size);
+		break;
+	}
+	case PERF_RECORD_LOST: {
+		struct perf_sample_lost *s = data;
+
+		if (pb->lost_cb)
+			pb->lost_cb(pb->ctx, cpu_buf->cpu, s->lost);
+		break;
+	}
+	default:
+		pr_warning("unknown perf sample type %d\n", e->type);
+		return LIBBPF_PERF_EVENT_ERROR;
+	}
+	return LIBBPF_PERF_EVENT_CONT;
+}
+
+static int perf_buffer__process_records(struct perf_buffer *pb,
+					struct perf_cpu_buf *cpu_buf)
+{
+	enum bpf_perf_event_ret ret;
+
+	ret = bpf_perf_event_read_simple(cpu_buf->base, pb->mmap_size,
+					 pb->page_size, &cpu_buf->buf,
+					 &cpu_buf->buf_size,
+					 perf_buffer__process_record, cpu_buf);
+	if (ret != LIBBPF_PERF_EVENT_CONT)
+		return ret;
+	return 0;
+}
+
+int perf_buffer__poll(struct perf_buffer *pb, int timeout_ms)
+{
+	int i, cnt, err;
+
+	cnt = epoll_wait(pb->epoll_fd, pb->events, pb->cpu_cnt, timeout_ms);
+	for (i = 0; i < cnt; i++) {
+		struct perf_cpu_buf *cpu_buf = pb->events[i].data.ptr;
+
+		err = perf_buffer__process_records(pb, cpu_buf);
+		if (err) {
+			pr_warning("error while processing records: %d\n", err);
+			return err;
+		}
+	}
+	return cnt < 0 ? -errno : cnt;
 }
 
 struct bpf_prog_info_array_desc {

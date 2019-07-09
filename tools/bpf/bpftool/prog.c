@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 
 #include <linux/err.h>
+#include <linux/sizes.h>
 
 #include <bpf.h>
 #include <btf.h>
@@ -748,6 +749,344 @@ static int do_detach(int argc, char **argv)
 	return 0;
 }
 
+static int check_single_stdin(char *file_data_in, char *file_ctx_in)
+{
+	if (file_data_in && file_ctx_in &&
+	    !strcmp(file_data_in, "-") && !strcmp(file_ctx_in, "-")) {
+		p_err("cannot use standard input for both data_in and ctx_in");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int get_run_data(const char *fname, void **data_ptr, unsigned int *size)
+{
+	size_t block_size = 256;
+	size_t buf_size = block_size;
+	size_t nb_read = 0;
+	void *tmp;
+	FILE *f;
+
+	if (!fname) {
+		*data_ptr = NULL;
+		*size = 0;
+		return 0;
+	}
+
+	if (!strcmp(fname, "-"))
+		f = stdin;
+	else
+		f = fopen(fname, "r");
+	if (!f) {
+		p_err("failed to open %s: %s", fname, strerror(errno));
+		return -1;
+	}
+
+	*data_ptr = malloc(block_size);
+	if (!*data_ptr) {
+		p_err("failed to allocate memory for data_in/ctx_in: %s",
+		      strerror(errno));
+		goto err_fclose;
+	}
+
+	while ((nb_read += fread(*data_ptr + nb_read, 1, block_size, f))) {
+		if (feof(f))
+			break;
+		if (ferror(f)) {
+			p_err("failed to read data_in/ctx_in from %s: %s",
+			      fname, strerror(errno));
+			goto err_free;
+		}
+		if (nb_read > buf_size - block_size) {
+			if (buf_size == UINT32_MAX) {
+				p_err("data_in/ctx_in is too long (max: %d)",
+				      UINT32_MAX);
+				goto err_free;
+			}
+			/* No space for fread()-ing next chunk; realloc() */
+			buf_size *= 2;
+			tmp = realloc(*data_ptr, buf_size);
+			if (!tmp) {
+				p_err("failed to reallocate data_in/ctx_in: %s",
+				      strerror(errno));
+				goto err_free;
+			}
+			*data_ptr = tmp;
+		}
+	}
+	if (f != stdin)
+		fclose(f);
+
+	*size = nb_read;
+	return 0;
+
+err_free:
+	free(*data_ptr);
+	*data_ptr = NULL;
+err_fclose:
+	if (f != stdin)
+		fclose(f);
+	return -1;
+}
+
+static void hex_print(void *data, unsigned int size, FILE *f)
+{
+	size_t i, j;
+	char c;
+
+	for (i = 0; i < size; i += 16) {
+		/* Row offset */
+		fprintf(f, "%07zx\t", i);
+
+		/* Hexadecimal values */
+		for (j = i; j < i + 16 && j < size; j++)
+			fprintf(f, "%02x%s", *(uint8_t *)(data + j),
+				j % 2 ? " " : "");
+		for (; j < i + 16; j++)
+			fprintf(f, "  %s", j % 2 ? " " : "");
+
+		/* ASCII values (if relevant), '.' otherwise */
+		fprintf(f, "| ");
+		for (j = i; j < i + 16 && j < size; j++) {
+			c = *(char *)(data + j);
+			if (c < ' ' || c > '~')
+				c = '.';
+			fprintf(f, "%c%s", c, j == i + 7 ? " " : "");
+		}
+
+		fprintf(f, "\n");
+	}
+}
+
+static int
+print_run_output(void *data, unsigned int size, const char *fname,
+		 const char *json_key)
+{
+	size_t nb_written;
+	FILE *f;
+
+	if (!fname)
+		return 0;
+
+	if (!strcmp(fname, "-")) {
+		f = stdout;
+		if (json_output) {
+			jsonw_name(json_wtr, json_key);
+			print_data_json(data, size);
+		} else {
+			hex_print(data, size, f);
+		}
+		return 0;
+	}
+
+	f = fopen(fname, "w");
+	if (!f) {
+		p_err("failed to open %s: %s", fname, strerror(errno));
+		return -1;
+	}
+
+	nb_written = fwrite(data, 1, size, f);
+	fclose(f);
+	if (nb_written != size) {
+		p_err("failed to write output data/ctx: %s", strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int alloc_run_data(void **data_ptr, unsigned int size_out)
+{
+	*data_ptr = calloc(size_out, 1);
+	if (!*data_ptr) {
+		p_err("failed to allocate memory for output data/ctx: %s",
+		      strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int do_run(int argc, char **argv)
+{
+	char *data_fname_in = NULL, *data_fname_out = NULL;
+	char *ctx_fname_in = NULL, *ctx_fname_out = NULL;
+	struct bpf_prog_test_run_attr test_attr = {0};
+	const unsigned int default_size = SZ_32K;
+	void *data_in = NULL, *data_out = NULL;
+	void *ctx_in = NULL, *ctx_out = NULL;
+	unsigned int repeat = 1;
+	int fd, err;
+
+	if (!REQ_ARGS(4))
+		return -1;
+
+	fd = prog_parse_fd(&argc, &argv);
+	if (fd < 0)
+		return -1;
+
+	while (argc) {
+		if (detect_common_prefix(*argv, "data_in", "data_out",
+					 "data_size_out", NULL))
+			return -1;
+		if (detect_common_prefix(*argv, "ctx_in", "ctx_out",
+					 "ctx_size_out", NULL))
+			return -1;
+
+		if (is_prefix(*argv, "data_in")) {
+			NEXT_ARG();
+			if (!REQ_ARGS(1))
+				return -1;
+
+			data_fname_in = GET_ARG();
+			if (check_single_stdin(data_fname_in, ctx_fname_in))
+				return -1;
+		} else if (is_prefix(*argv, "data_out")) {
+			NEXT_ARG();
+			if (!REQ_ARGS(1))
+				return -1;
+
+			data_fname_out = GET_ARG();
+		} else if (is_prefix(*argv, "data_size_out")) {
+			char *endptr;
+
+			NEXT_ARG();
+			if (!REQ_ARGS(1))
+				return -1;
+
+			test_attr.data_size_out = strtoul(*argv, &endptr, 0);
+			if (*endptr) {
+				p_err("can't parse %s as output data size",
+				      *argv);
+				return -1;
+			}
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "ctx_in")) {
+			NEXT_ARG();
+			if (!REQ_ARGS(1))
+				return -1;
+
+			ctx_fname_in = GET_ARG();
+			if (check_single_stdin(data_fname_in, ctx_fname_in))
+				return -1;
+		} else if (is_prefix(*argv, "ctx_out")) {
+			NEXT_ARG();
+			if (!REQ_ARGS(1))
+				return -1;
+
+			ctx_fname_out = GET_ARG();
+		} else if (is_prefix(*argv, "ctx_size_out")) {
+			char *endptr;
+
+			NEXT_ARG();
+			if (!REQ_ARGS(1))
+				return -1;
+
+			test_attr.ctx_size_out = strtoul(*argv, &endptr, 0);
+			if (*endptr) {
+				p_err("can't parse %s as output context size",
+				      *argv);
+				return -1;
+			}
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "repeat")) {
+			char *endptr;
+
+			NEXT_ARG();
+			if (!REQ_ARGS(1))
+				return -1;
+
+			repeat = strtoul(*argv, &endptr, 0);
+			if (*endptr) {
+				p_err("can't parse %s as repeat number",
+				      *argv);
+				return -1;
+			}
+			NEXT_ARG();
+		} else {
+			p_err("expected no more arguments, 'data_in', 'data_out', 'data_size_out', 'ctx_in', 'ctx_out', 'ctx_size_out' or 'repeat', got: '%s'?",
+			      *argv);
+			return -1;
+		}
+	}
+
+	err = get_run_data(data_fname_in, &data_in, &test_attr.data_size_in);
+	if (err)
+		return -1;
+
+	if (data_in) {
+		if (!test_attr.data_size_out)
+			test_attr.data_size_out = default_size;
+		err = alloc_run_data(&data_out, test_attr.data_size_out);
+		if (err)
+			goto free_data_in;
+	}
+
+	err = get_run_data(ctx_fname_in, &ctx_in, &test_attr.ctx_size_in);
+	if (err)
+		goto free_data_out;
+
+	if (ctx_in) {
+		if (!test_attr.ctx_size_out)
+			test_attr.ctx_size_out = default_size;
+		err = alloc_run_data(&ctx_out, test_attr.ctx_size_out);
+		if (err)
+			goto free_ctx_in;
+	}
+
+	test_attr.prog_fd	= fd;
+	test_attr.repeat	= repeat;
+	test_attr.data_in	= data_in;
+	test_attr.data_out	= data_out;
+	test_attr.ctx_in	= ctx_in;
+	test_attr.ctx_out	= ctx_out;
+
+	err = bpf_prog_test_run_xattr(&test_attr);
+	if (err) {
+		p_err("failed to run program: %s", strerror(errno));
+		goto free_ctx_out;
+	}
+
+	err = 0;
+
+	if (json_output)
+		jsonw_start_object(json_wtr);	/* root */
+
+	/* Do not exit on errors occurring when printing output data/context,
+	 * we still want to print return value and duration for program run.
+	 */
+	if (test_attr.data_size_out)
+		err += print_run_output(test_attr.data_out,
+					test_attr.data_size_out,
+					data_fname_out, "data_out");
+	if (test_attr.ctx_size_out)
+		err += print_run_output(test_attr.ctx_out,
+					test_attr.ctx_size_out,
+					ctx_fname_out, "ctx_out");
+
+	if (json_output) {
+		jsonw_uint_field(json_wtr, "retval", test_attr.retval);
+		jsonw_uint_field(json_wtr, "duration", test_attr.duration);
+		jsonw_end_object(json_wtr);	/* root */
+	} else {
+		fprintf(stdout, "Return value: %u, duration%s: %uns\n",
+			test_attr.retval,
+			repeat > 1 ? " (average)" : "", test_attr.duration);
+	}
+
+free_ctx_out:
+	free(ctx_out);
+free_ctx_in:
+	free(ctx_in);
+free_data_out:
+	free(data_out);
+free_data_in:
+	free(data_in);
+
+	return err;
+}
+
 static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
 	struct bpf_object_load_attr load_attr = { 0 };
@@ -1058,6 +1397,11 @@ static int do_help(int argc, char **argv)
 		"                         [pinmaps MAP_DIR]\n"
 		"       %s %s attach PROG ATTACH_TYPE [MAP]\n"
 		"       %s %s detach PROG ATTACH_TYPE [MAP]\n"
+		"       %s %s run PROG \\\n"
+		"                         data_in FILE \\\n"
+		"                         [data_out FILE [data_size_out L]] \\\n"
+		"                         [ctx_in FILE [ctx_out FILE [ctx_size_out M]]] \\\n"
+		"                         [repeat N]\n"
 		"       %s %s tracelog\n"
 		"       %s %s help\n"
 		"\n"
@@ -1079,7 +1423,8 @@ static int do_help(int argc, char **argv)
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2]);
 
 	return 0;
 }
@@ -1095,6 +1440,7 @@ static const struct cmd cmds[] = {
 	{ "attach",	do_attach },
 	{ "detach",	do_detach },
 	{ "tracelog",	do_tracelog },
+	{ "run",	do_run },
 	{ 0 }
 };
 

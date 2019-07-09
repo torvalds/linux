@@ -16,26 +16,18 @@ struct stack_trace_t {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 key_size;
-	__u32 value_size;
-} perfmap SEC(".maps") = {
-	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-	.max_entries = 2,
-	.key_size = sizeof(int),
-	.value_size = sizeof(__u32),
-};
+	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+	__uint(max_entries, 2);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(__u32));
+} perfmap SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct stack_trace_t *value;
-} stackdata_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct stack_trace_t);
+} stackdata_map SEC(".maps");
 
 /* Allocate per-cpu space twice the needed. For the code below
  *   usize = bpf_get_stack(ctx, raw_data, max_len, BPF_F_USER_STACK);
@@ -56,14 +48,11 @@ struct {
  * This is an acceptable workaround since there is one entry here.
  */
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
 	__u64 (*value)[2 * MAX_STACK_RAWTP];
-} rawdata_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.max_entries = 1,
-};
+} rawdata_map SEC(".maps");
 
 SEC("tracepoint/raw_syscalls/sys_enter")
 int bpf_prog1(void *ctx)

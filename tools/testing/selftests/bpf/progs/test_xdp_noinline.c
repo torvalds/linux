@@ -164,66 +164,47 @@ struct lb_stats {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	struct vip_definition *key;
-	struct vip_meta *value;
-} vip_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_HASH,
-	.max_entries = 512,
-};
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 512);
+	__type(key, struct vip_definition);
+	__type(value, struct vip_meta);
+} vip_map SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 map_flags;
-	struct flow_key *key;
-	struct real_pos_lru *value;
-} lru_cache SEC(".maps") = {
-	.type = BPF_MAP_TYPE_LRU_HASH,
-	.max_entries = 300,
-	.map_flags = 1U << 1,
-};
+	__uint(type, BPF_MAP_TYPE_LRU_HASH);
+	__uint(max_entries, 300);
+	__uint(map_flags, 1U << 1);
+	__type(key, struct flow_key);
+	__type(value, struct real_pos_lru);
+} lru_cache SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	__u32 *value;
-} ch_rings SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 12 * 655,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 12 * 655);
+	__type(key, __u32);
+	__type(value, __u32);
+} ch_rings SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct real_definition *value;
-} reals SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 40,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 40);
+	__type(key, __u32);
+	__type(value, struct real_definition);
+} reals SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct lb_stats *value;
-} stats SEC(".maps") = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.max_entries = 515,
-};
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 515);
+	__type(key, __u32);
+	__type(value, struct lb_stats);
+} stats SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct ctl_value *value;
-} ctl_array SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 16,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 16);
+	__type(key, __u32);
+	__type(value, struct ctl_value);
+} ctl_array SEC(".maps");
 
 struct eth_hdr {
 	unsigned char eth_dest[6];

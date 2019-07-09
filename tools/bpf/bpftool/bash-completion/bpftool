@@ -342,6 +342,13 @@ _bpftool()
                 load|loadall)
                     local obj
 
+                    # Propose "load/loadall" to complete "bpftool prog load",
+                    # or bash tries to complete "load" as a filename below.
+                    if [[ ${#words[@]} -eq 3 ]]; then
+                        COMPREPLY=( $( compgen -W "load loadall" -- "$cur" ) )
+                        return 0
+                    fi
+
                     if [[ ${#words[@]} -lt 6 ]]; then
                         _filedir
                         return 0
@@ -408,10 +415,34 @@ _bpftool()
                 tracelog)
                     return 0
                     ;;
+                run)
+                    if [[ ${#words[@]} -lt 5 ]]; then
+                        _filedir
+                        return 0
+                    fi
+                    case $prev in
+                        id)
+                            _bpftool_get_prog_ids
+                            return 0
+                            ;;
+                        data_in|data_out|ctx_in|ctx_out)
+                            _filedir
+                            return 0
+                            ;;
+                        repeat|data_size_out|ctx_size_out)
+                            return 0
+                            ;;
+                        *)
+                            _bpftool_once_attr 'data_in data_out data_size_out \
+                                ctx_in ctx_out ctx_size_out repeat'
+                            return 0
+                            ;;
+                    esac
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'dump help pin attach detach load \
-                            show list tracelog' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'dump help pin attach detach \
+                            load loadall show list tracelog run' -- "$cur" ) )
                     ;;
             esac
             ;;

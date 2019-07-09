@@ -12,14 +12,11 @@ struct hmap_elem {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct hmap_elem *value;
-} hash_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_HASH,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct hmap_elem);
+} hash_map SEC(".maps");
 
 struct array_elem {
 	struct bpf_spin_lock lock;
@@ -27,14 +24,11 @@ struct array_elem {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	int *key;
-	struct array_elem *value;
-} array_map SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, struct array_elem);
+} array_map SEC(".maps");
 
 SEC("map_lock_demo")
 int bpf_map_lock_test(struct __sk_buff *skb)

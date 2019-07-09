@@ -58,26 +58,18 @@ struct frag_hdr {
 };
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 key_size;
-	__u32 value_size;
-} jmp_table SEC(".maps") = {
-	.type = BPF_MAP_TYPE_PROG_ARRAY,
-	.max_entries = 8,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
-};
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(max_entries, 8);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(__u32));
+} jmp_table SEC(".maps");
 
 struct {
-	__u32 type;
-	__u32 max_entries;
-	__u32 *key;
-	struct bpf_flow_keys *value;
-} last_dissection SEC(".maps") = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.max_entries = 1,
-};
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct bpf_flow_keys);
+} last_dissection SEC(".maps");
 
 static __always_inline int export_flow_keys(struct bpf_flow_keys *keys,
 					    int ret)

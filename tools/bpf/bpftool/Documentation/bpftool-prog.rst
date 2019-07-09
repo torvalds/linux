@@ -29,6 +29,7 @@ PROG COMMANDS
 |	**bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog tracelog**
+|	**bpftool** **prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -145,6 +146,39 @@ DESCRIPTION
 		  This should be used only for debugging purposes. For
 		  streaming data from BPF programs to user space, one can use
 		  perf events (see also **bpftool-map**\ (8)).
+
+	**bpftool prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
+		  Run BPF program *PROG* in the kernel testing infrastructure
+		  for BPF, meaning that the program works on the data and
+		  context provided by the user, and not on actual packets or
+		  monitored functions etc. Return value and duration for the
+		  test run are printed out to the console.
+
+		  Input data is read from the *FILE* passed with **data_in**.
+		  If this *FILE* is "**-**", input data is read from standard
+		  input. Input context, if any, is read from *FILE* passed with
+		  **ctx_in**. Again, "**-**" can be used to read from standard
+		  input, but only if standard input is not already in use for
+		  input data. If a *FILE* is passed with **data_out**, output
+		  data is written to that file. Similarly, output context is
+		  written to the *FILE* passed with **ctx_out**. For both
+		  output flows, "**-**" can be used to print to the standard
+		  output (as plain text, or JSON if relevant option was
+		  passed). If output keywords are omitted, output data and
+		  context are discarded. Keywords **data_size_out** and
+		  **ctx_size_out** are used to pass the size (in bytes) for the
+		  output buffers to the kernel, although the default of 32 kB
+		  should be more than enough for most cases.
+
+		  Keyword **repeat** is used to indicate the number of
+		  consecutive runs to perform. Note that output data and
+		  context printed to files correspond to the last of those
+		  runs. The duration printed out at the end of the runs is an
+		  average over all runs performed by the command.
+
+		  Not all program types support test run. Among those which do,
+		  not all of them can take the **ctx_in**/**ctx_out**
+		  arguments. bpftool does not perform checks on program types.
 
 	**bpftool prog help**
 		  Print short help message.

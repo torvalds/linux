@@ -13,14 +13,11 @@ struct socket_cookie {
 };
 
 struct {
-	__u32 type;
-	__u32 map_flags;
-	int *key;
-	struct socket_cookie *value;
-} socket_cookies SEC(".maps") = {
-	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.map_flags = BPF_F_NO_PREALLOC,
-};
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct socket_cookie);
+} socket_cookies SEC(".maps");
 
 SEC("cgroup/connect6")
 int set_cookie(struct bpf_sock_addr *ctx)

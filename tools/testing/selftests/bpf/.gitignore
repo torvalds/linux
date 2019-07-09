@@ -42,3 +42,4 @@ xdping
 test_sockopt
 test_sockopt_sk
 test_sockopt_multi
+test_tcp_rtt

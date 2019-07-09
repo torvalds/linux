@@ -11,20 +11,16 @@
 #define NS_PER_SEC	1000000000
 
 struct {
-	__u32 type;
-	struct bpf_cgroup_storage_key *key;
-	struct percpu_net_cnt *value;
-} percpu_netcnt SEC(".maps") = {
-	.type = BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
-};
+	__uint(type, BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE);
+	__type(key, struct bpf_cgroup_storage_key);
+	__type(value, struct percpu_net_cnt);
+} percpu_netcnt SEC(".maps");
 
 struct {
-	__u32 type;
-	struct bpf_cgroup_storage_key *key;
-	struct net_cnt *value;
-} netcnt SEC(".maps") = {
-	.type = BPF_MAP_TYPE_CGROUP_STORAGE,
-};
+	__uint(type, BPF_MAP_TYPE_CGROUP_STORAGE);
+	__type(key, struct bpf_cgroup_storage_key);
+	__type(value, struct net_cnt);
+} netcnt SEC(".maps");
 
 SEC("cgroup/skb")
 int bpf_nextcnt(struct __sk_buff *skb)

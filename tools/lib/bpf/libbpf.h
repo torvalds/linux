@@ -165,6 +165,27 @@ LIBBPF_API int bpf_program__pin(struct bpf_program *prog, const char *path);
 LIBBPF_API int bpf_program__unpin(struct bpf_program *prog, const char *path);
 LIBBPF_API void bpf_program__unload(struct bpf_program *prog);
 
+struct bpf_link;
+
+LIBBPF_API int bpf_link__destroy(struct bpf_link *link);
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_perf_event(struct bpf_program *prog, int pfd);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_kprobe(struct bpf_program *prog, bool retprobe,
+			   const char *func_name);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_uprobe(struct bpf_program *prog, bool retprobe,
+			   pid_t pid, const char *binary_path,
+			   size_t func_offset);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_tracepoint(struct bpf_program *prog,
+			       const char *tp_category,
+			       const char *tp_name);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
+				   const char *tp_name);
+
 struct bpf_insn;
 
 /*
@@ -337,6 +358,26 @@ LIBBPF_API int bpf_prog_load(const char *file, enum bpf_prog_type type,
 LIBBPF_API int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
 LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
 
+struct perf_buffer;
+
+typedef void (*perf_buffer_sample_fn)(void *ctx, int cpu,
+				      void *data, __u32 size);
+typedef void (*perf_buffer_lost_fn)(void *ctx, int cpu, __u64 cnt);
+
+/* common use perf buffer options */
+struct perf_buffer_opts {
+	/* if specified, sample_cb is called for each sample */
+	perf_buffer_sample_fn sample_cb;
+	/* if specified, lost_cb is called for each batch of lost samples */
+	perf_buffer_lost_fn lost_cb;
+	/* ctx is provided to sample_cb and lost_cb */
+	void *ctx;
+};
+
+LIBBPF_API struct perf_buffer *
+perf_buffer__new(int map_fd, size_t page_cnt,
+		 const struct perf_buffer_opts *opts);
+
 enum bpf_perf_event_ret {
 	LIBBPF_PERF_EVENT_DONE	= 0,
 	LIBBPF_PERF_EVENT_ERROR	= -1,
@@ -344,6 +385,35 @@ enum bpf_perf_event_ret {
 };
 
 struct perf_event_header;
+
+typedef enum bpf_perf_event_ret
+(*perf_buffer_event_fn)(void *ctx, int cpu, struct perf_event_header *event);
+
+/* raw perf buffer options, giving most power and control */
+struct perf_buffer_raw_opts {
+	/* perf event attrs passed directly into perf_event_open() */
+	struct perf_event_attr *attr;
+	/* raw event callback */
+	perf_buffer_event_fn event_cb;
+	/* ctx is provided to event_cb */
+	void *ctx;
+	/* if cpu_cnt == 0, open all on all possible CPUs (up to the number of
+	 * max_entries of given PERF_EVENT_ARRAY map)
+	 */
+	int cpu_cnt;
+	/* if cpu_cnt > 0, cpus is an array of CPUs to open ring buffers on */
+	int *cpus;
+	/* if cpu_cnt > 0, map_keys specify map keys to set per-CPU FDs for */
+	int *map_keys;
+};
+
+LIBBPF_API struct perf_buffer *
+perf_buffer__new_raw(int map_fd, size_t page_cnt,
+		     const struct perf_buffer_raw_opts *opts);
+
+LIBBPF_API void perf_buffer__free(struct perf_buffer *pb);
+LIBBPF_API int perf_buffer__poll(struct perf_buffer *pb, int timeout_ms);
+
 typedef enum bpf_perf_event_ret
 	(*bpf_perf_event_print_t)(struct perf_event_header *hdr,
 				  void *private_data);

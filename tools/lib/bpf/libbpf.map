@@ -167,10 +167,20 @@ LIBBPF_0.0.3 {
 
 LIBBPF_0.0.4 {
 	global:
+		bpf_link__destroy;
+		bpf_object__load_xattr;
+		bpf_program__attach_kprobe;
+		bpf_program__attach_perf_event;
+		bpf_program__attach_raw_tracepoint;
+		bpf_program__attach_tracepoint;
+		bpf_program__attach_uprobe;
 		btf_dump__dump_type;
 		btf_dump__free;
 		btf_dump__new;
 		btf__parse_elf;
-		bpf_object__load_xattr;
 		libbpf_num_possible_cpus;
+		perf_buffer__free;
+		perf_buffer__new;
+		perf_buffer__new_raw;
+		perf_buffer__poll;
 } LIBBPF_0.0.3;
