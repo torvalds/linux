@@ -901,74 +901,33 @@ struct snd_soc_dai_link {
 	const char *stream_name;		/* Stream name */
 
 	/*
-	 *	cpu_name
-	 *	cpu_of_node
-	 *	cpu_dai_name
-	 *
-	 * These are legacy style, and will be replaced to
-	 * modern style (= snd_soc_dai_link_component) in the future,
-	 * but, not yet supported so far.
-	 * If modern style was supported for CPU, all driver will switch
-	 * to use it, and, legacy style code will be removed from ALSA SoC.
-	 */
-	/*
 	 * You MAY specify the link's CPU-side device, either by device name,
 	 * or by DT/OF node, but not both. If this information is omitted,
 	 * the CPU-side DAI is matched using .cpu_dai_name only, which hence
 	 * must be globally unique. These fields are currently typically used
 	 * only for codec to codec links, or systems using device tree.
 	 */
-	const char *cpu_name;
-	struct device_node *cpu_of_node;
 	/*
 	 * You MAY specify the DAI name of the CPU DAI. If this information is
 	 * omitted, the CPU-side DAI is matched using .cpu_name/.cpu_of_node
 	 * only, which only works well when that device exposes a single DAI.
 	 */
-	const char *cpu_dai_name;
+	struct snd_soc_dai_link_component *cpus;
+	unsigned int num_cpus;
 
-	/*
-	 *	codec_name
-	 *	codec_of_node
-	 *	codec_dai_name
-	 *
-	 * These are legacy style, it will be converted to modern style
-	 * (= snd_soc_dai_link_component) automatically in soc-core
-	 * if driver is using legacy style.
-	 * Driver shouldn't use both legacy and modern style in the same time.
-	 * If modern style was supported for CPU, all driver will switch
-	 * to use it, and, legacy style code will be removed from ALSA SoC.
-	 */
 	/*
 	 * You MUST specify the link's codec, either by device name, or by
 	 * DT/OF node, but not both.
 	 */
-	const char *codec_name;
-	struct device_node *codec_of_node;
 	/* You MUST specify the DAI name within the codec */
-	const char *codec_dai_name;
-
 	struct snd_soc_dai_link_component *codecs;
 	unsigned int num_codecs;
 
 	/*
-	 *	platform_name
-	 *	platform_of_node
-	 *
-	 * These are legacy style, it will be converted to modern style
-	 * (= snd_soc_dai_link_component) automatically in soc-core
-	 * if driver is using legacy style.
-	 * Driver shouldn't use both legacy and modern style in the same time.
-	 * If modern style was supported for CPU, all driver will switch
-	 * to use it, and, legacy style code will be removed from ALSA SoC.
-	 */
-	/*
 	 * You MAY specify the link's platform/PCM/DMA driver, either by
 	 * device name, or by DT/OF node, but not both. Some forms of link
-	 * do not need a platform.
+	 * do not need a platform. In such case, platforms are not mandatory.
 	 */
-	const char *platform_name;
-	struct device_node *platform_of_node;
 	struct snd_soc_dai_link_component *platforms;
 	unsigned int num_platforms;
 
@@ -1030,12 +989,6 @@ struct snd_soc_dai_link {
 	/* Do not create a PCM for this DAI link (Backend link) */
 	unsigned int ignore:1;
 
-	/*
-	 * This driver uses legacy platform naming. Set by the core, machine
-	 * drivers should not modify this value.
-	 */
-	unsigned int legacy_platform:1;
-
 	struct list_head list; /* DAI link list of the soc card */
 	struct snd_soc_dobj dobj; /* For topology */
 };
@@ -1043,6 +996,100 @@ struct snd_soc_dai_link {
 	for ((i) = 0;							\
 	     ((i) < link->num_codecs) && ((codec) = &link->codecs[i]);	\
 	     (i)++)
+
+#define for_each_link_platforms(link, i, platform)			\
+	for ((i) = 0;							\
+	     ((i) < link->num_platforms) &&				\
+	     ((platform) = &link->platforms[i]);			\
+	     (i)++)
+
+/*
+ * Sample 1 : Single CPU/Codec/Platform
+ *
+ * SND_SOC_DAILINK_DEFS(test,
+ *	DAILINK_COMP_ARRAY(COMP_CPU("cpu_dai")),
+ *	DAILINK_COMP_ARRAY(COMP_CODEC("codec", "codec_dai")),
+ *	DAILINK_COMP_ARRAY(COMP_PLATFORM("platform")));
+ *
+ * struct snd_soc_dai_link link = {
+ *	...
+ *	SND_SOC_DAILINK_REG(test),
+ * };
+ *
+ * Sample 2 : Multi CPU/Codec, no Platform
+ *
+ * SND_SOC_DAILINK_DEFS(test,
+ *	DAILINK_COMP_ARRAY(COMP_CPU("cpu_dai1"),
+ *			   COMP_CPU("cpu_dai2")),
+ *	DAILINK_COMP_ARRAY(COMP_CODEC("codec1", "codec_dai1"),
+ *			   COMP_CODEC("codec2", "codec_dai2")));
+ *
+ * struct snd_soc_dai_link link = {
+ *	...
+ *	SND_SOC_DAILINK_REG(test),
+ * };
+ *
+ * Sample 3 : Define each CPU/Codec/Platform manually
+ *
+ * SND_SOC_DAILINK_DEF(test_cpu,
+ *		DAILINK_COMP_ARRAY(COMP_CPU("cpu_dai1"),
+ *				   COMP_CPU("cpu_dai2")));
+ * SND_SOC_DAILINK_DEF(test_codec,
+ *		DAILINK_COMP_ARRAY(COMP_CODEC("codec1", "codec_dai1"),
+ *				   COMP_CODEC("codec2", "codec_dai2")));
+ * SND_SOC_DAILINK_DEF(test_platform,
+ *		DAILINK_COMP_ARRAY(COMP_PLATFORM("platform")));
+ *
+ * struct snd_soc_dai_link link = {
+ *	...
+ *	SND_SOC_DAILINK_REG(test_cpu,
+ *			    test_codec,
+ *			    test_platform),
+ * };
+ *
+ * Sample 4 : Sample3 without platform
+ *
+ * struct snd_soc_dai_link link = {
+ *	...
+ *	SND_SOC_DAILINK_REG(test_cpu,
+ *			    test_codec);
+ * };
+ */
+
+#define SND_SOC_DAILINK_REG1(name)	 SND_SOC_DAILINK_REG3(name##_cpus, name##_codecs, name##_platforms)
+#define SND_SOC_DAILINK_REG2(cpu, codec) SND_SOC_DAILINK_REG3(cpu, codec, null_dailink_component)
+#define SND_SOC_DAILINK_REG3(cpu, codec, platform)	\
+	.cpus		= cpu,				\
+	.num_cpus	= ARRAY_SIZE(cpu),		\
+	.codecs		= codec,			\
+	.num_codecs	= ARRAY_SIZE(codec),		\
+	.platforms	= platform,			\
+	.num_platforms	= ARRAY_SIZE(platform)
+
+#define SND_SOC_DAILINK_REGx(_1, _2, _3, func, ...) func
+#define SND_SOC_DAILINK_REG(...) \
+	SND_SOC_DAILINK_REGx(__VA_ARGS__,		\
+			SND_SOC_DAILINK_REG3,	\
+			SND_SOC_DAILINK_REG2,	\
+			SND_SOC_DAILINK_REG1)(__VA_ARGS__)
+
+#define SND_SOC_DAILINK_DEF(name, def...)		\
+	static struct snd_soc_dai_link_component name[]	= { def }
+
+#define SND_SOC_DAILINK_DEFS(name, cpu, codec, platform...)	\
+	SND_SOC_DAILINK_DEF(name##_cpus, cpu);			\
+	SND_SOC_DAILINK_DEF(name##_codecs, codec);		\
+	SND_SOC_DAILINK_DEF(name##_platforms, platform)
+
+#define DAILINK_COMP_ARRAY(param...)	param
+#define COMP_EMPTY()			{ }
+#define COMP_CPU(_dai)			{ .dai_name = _dai, }
+#define COMP_CODEC(_name, _dai)		{ .name = _name, .dai_name = _dai, }
+#define COMP_PLATFORM(_name)		{ .name = _name }
+#define COMP_DUMMY()			{ .name = "snd-soc-dummy", .dai_name = "snd-soc-dummy-dai", }
+
+extern struct snd_soc_dai_link_component null_dailink_component[0];
+
 
 struct snd_soc_codec_conf {
 	/*
@@ -1189,7 +1236,7 @@ struct snd_soc_card {
 	     (i)++)
 
 #define for_each_card_links(card, link)				\
-	list_for_each_entry(dai_link, &(card)->dai_link_list, list)
+	list_for_each_entry(link, &(card)->dai_link_list, list)
 #define for_each_card_links_safe(card, link, _link)			\
 	list_for_each_entry_safe(link, _link, &(card)->dai_link_list, list)
 
@@ -1214,7 +1261,6 @@ struct snd_soc_pcm_runtime {
 
 	/* Dynamic PCM BE runtime data */
 	struct snd_soc_dpcm_runtime dpcm[2];
-	int fe_compr;
 
 	long pmdown_time;
 
@@ -1239,6 +1285,7 @@ struct snd_soc_pcm_runtime {
 	/* bit field */
 	unsigned int dev_registered:1;
 	unsigned int pop_wait:1;
+	unsigned int fe_compr:1; /* for Dynamic PCM */
 };
 #define for_each_rtd_codec_dai(rtd, i, dai)\
 	for ((i) = 0;						       \
@@ -1607,15 +1654,11 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 		if (!name)
 			return -ENOMEM;
 
-		if (dai_link->platforms)
-			/* only single platform is supported for now */
-			dai_link->platforms->name = name;
-		else
-			/*
-			 * legacy mode, this case will be removed when all
-			 * derivers are switched to modern style dai_link.
-			 */
-			dai_link->platform_name = name;
+		if (!dai_link->platforms)
+			return -EINVAL;
+
+		/* only single platform is supported for now */
+		dai_link->platforms->name = name;
 	}
 
 	return 0;
