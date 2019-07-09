@@ -1102,26 +1102,42 @@ payload contents" for more information.
     See also Documentation/security/keys/request-key.rst.
 
 
+ *  To search for a key in a specific domain, call:
+
+	struct key *request_key_tag(const struct key_type *type,
+				    const char *description,
+				    struct key_tag *domain_tag,
+				    const char *callout_info);
+
+    This is identical to request_key(), except that a domain tag may be
+    specifies that causes search algorithm to only match keys matching that
+    tag.  The domain_tag may be NULL, specifying a global domain that is
+    separate from any nominated domain.
+
+
  *  To search for a key, passing auxiliary data to the upcaller, call::
 
 	struct key *request_key_with_auxdata(const struct key_type *type,
 					     const char *description,
+					     struct key_tag *domain_tag,
 					     const void *callout_info,
 					     size_t callout_len,
 					     void *aux);
 
-    This is identical to request_key(), except that the auxiliary data is
-    passed to the key_type->request_key() op if it exists, and the callout_info
-    is a blob of length callout_len, if given (the length may be 0).
+    This is identical to request_key_tag(), except that the auxiliary data is
+    passed to the key_type->request_key() op if it exists, and the
+    callout_info is a blob of length callout_len, if given (the length may be
+    0).
 
 
  *  To search for a key under RCU conditions, call::
 
 	struct key *request_key_rcu(const struct key_type *type,
-				    const char *description);
+				    const char *description,
+				    struct key_tag *domain_tag);
 
-    which is similar to request_key() except that it does not check for keys
-    that are under construction and it will not call out to userspace to
+    which is similar to request_key_tag() except that it does not check for
+    keys that are under construction and it will not call out to userspace to
     construct a key if it can't find a match.
 
 
@@ -1162,11 +1178,13 @@ payload contents" for more information.
 
 	key_ref_t keyring_search(key_ref_t keyring_ref,
 				 const struct key_type *type,
-				 const char *description)
+				 const char *description,
+				 bool recurse)
 
-    This searches the keyring tree specified for a matching key. Error ENOKEY
-    is returned upon failure (use IS_ERR/PTR_ERR to determine). If successful,
-    the returned key will need to be released.
+    This searches the specified keyring only (recurse == false) or keyring tree
+    (recurse == true) specified for a matching key. Error ENOKEY is returned
+    upon failure (use IS_ERR/PTR_ERR to determine). If successful, the returned
+    key will need to be released.
 
     The possession attribute from the keyring reference is used to control
     access through the permissions mask and is propagated to the returned key
