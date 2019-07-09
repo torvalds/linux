@@ -213,12 +213,14 @@ config LIB80211
 
 config LIB80211_CRYPT_WEP
 	tristate
+	select CRYPTO_LIB_ARC4
 
 config LIB80211_CRYPT_CCMP
 	tristate
 
 config LIB80211_CRYPT_TKIP
 	tristate
+	select CRYPTO_LIB_ARC4
 
 config LIB80211_DEBUG
 	bool "lib80211 debugging messages"

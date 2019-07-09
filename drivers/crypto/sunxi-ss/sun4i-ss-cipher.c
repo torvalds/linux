@@ -12,7 +12,7 @@
  */
 #include "sun4i-ss.h"
 
-static int sun4i_ss_opti_poll(struct skcipher_request *areq)
+static int noinline_for_stack sun4i_ss_opti_poll(struct skcipher_request *areq)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
 	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
@@ -114,6 +114,29 @@ release_ss:
 	return err;
 }
 
+
+static int noinline_for_stack sun4i_ss_cipher_poll_fallback(struct skcipher_request *areq)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *ctx = skcipher_request_ctx(areq);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, op->fallback_tfm);
+	int err;
+
+	skcipher_request_set_sync_tfm(subreq, op->fallback_tfm);
+	skcipher_request_set_callback(subreq, areq->base.flags, NULL,
+				      NULL);
+	skcipher_request_set_crypt(subreq, areq->src, areq->dst,
+				   areq->cryptlen, areq->iv);
+	if (ctx->mode & SS_DECRYPTION)
+		err = crypto_skcipher_decrypt(subreq);
+	else
+		err = crypto_skcipher_encrypt(subreq);
+	skcipher_request_zero(subreq);
+
+	return err;
+}
+
 /* Generic function that support SG with size not multiple of 4 */
 static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 {
@@ -140,8 +163,6 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 	unsigned int todo;
 	struct sg_mapping_iter mi, mo;
 	unsigned int oi, oo;	/* offset for in and out */
-	char buf[4 * SS_RX_MAX];/* buffer for linearize SG src */
-	char bufo[4 * SS_TX_MAX]; /* buffer for linearize SG dst */
 	unsigned int ob = 0;	/* offset in buf */
 	unsigned int obo = 0;	/* offset in bufo*/
 	unsigned int obl = 0;	/* length of data in bufo */
@@ -178,20 +199,8 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 	if (no_chunk == 1 && !need_fallback)
 		return sun4i_ss_opti_poll(areq);
 
-	if (need_fallback) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, op->fallback_tfm);
-		skcipher_request_set_sync_tfm(subreq, op->fallback_tfm);
-		skcipher_request_set_callback(subreq, areq->base.flags, NULL,
-					      NULL);
-		skcipher_request_set_crypt(subreq, areq->src, areq->dst,
-					   areq->cryptlen, areq->iv);
-		if (ctx->mode & SS_DECRYPTION)
-			err = crypto_skcipher_decrypt(subreq);
-		else
-			err = crypto_skcipher_encrypt(subreq);
-		skcipher_request_zero(subreq);
-		return err;
-	}
+	if (need_fallback)
+		return sun4i_ss_cipher_poll_fallback(areq);
 
 	spin_lock_irqsave(&ss->slock, flags);
 
@@ -224,6 +233,8 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 
 	while (oleft) {
 		if (ileft) {
+			char buf[4 * SS_RX_MAX];/* buffer for linearize SG src */
+
 			/*
 			 * todo is the number of consecutive 4byte word that we
 			 * can read from current SG
@@ -281,6 +292,8 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 				oo = 0;
 			}
 		} else {
+			char bufo[4 * SS_TX_MAX]; /* buffer for linearize SG dst */
+
 			/*
 			 * read obl bytes in bufo, we read at maximum for
 			 * emptying the device
