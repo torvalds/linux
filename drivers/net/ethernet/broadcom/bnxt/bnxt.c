@@ -2500,6 +2500,7 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 		if (xdp_rxq_info_is_reg(&rxr->xdp_rxq))
 			xdp_rxq_info_unreg(&rxr->xdp_rxq);
 
+		page_pool_destroy(rxr->page_pool);
 		rxr->page_pool = NULL;
 
 		kfree(rxr->rx_tpa);
@@ -2560,19 +2561,14 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 			return rc;
 
 		rc = xdp_rxq_info_reg(&rxr->xdp_rxq, bp->dev, i);
-		if (rc < 0) {
-			page_pool_free(rxr->page_pool);
-			rxr->page_pool = NULL;
+		if (rc < 0)
 			return rc;
-		}
 
 		rc = xdp_rxq_info_reg_mem_model(&rxr->xdp_rxq,
 						MEM_TYPE_PAGE_POOL,
 						rxr->page_pool);
 		if (rc) {
 			xdp_rxq_info_unreg(&rxr->xdp_rxq);
-			page_pool_free(rxr->page_pool);
-			rxr->page_pool = NULL;
 			return rc;
 		}
 
