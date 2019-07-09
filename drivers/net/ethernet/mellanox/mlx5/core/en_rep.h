@@ -86,6 +86,7 @@ struct mlx5e_rep_priv {
 	struct mlx5_flow_handle *vport_rx_rule;
 	struct list_head       vport_sqs_list;
 	struct mlx5_rep_uplink_priv uplink_priv; /* valid for uplink rep */
+	struct devlink_port dl_port;
 };
 
 static inline
