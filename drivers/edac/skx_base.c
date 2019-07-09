@@ -639,7 +639,7 @@ static int __init skx_init(void)
 	}
 
 	list_for_each_entry(d, skx_edac_list, list) {
-		rc = skx_get_src_id(d, &src_id);
+		rc = skx_get_src_id(d, 0xf0, &src_id);
 		if (rc < 0)
 			goto fail;
 		rc = skx_get_node_id(d, &node_id);

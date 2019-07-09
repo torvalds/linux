@@ -5828,6 +5828,12 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/sb_edac.c
 
+EDAC-SIFIVE
+M:	Yash Shah <yash.shah@sifive.com>
+L:	linux-edac@vger.kernel.org
+S:	Supported
+F:	drivers/edac/sifive_edac.c
+
 EDAC-SKYLAKE
 M:	Tony Luck <tony.luck@intel.com>
 L:	linux-edac@vger.kernel.org
