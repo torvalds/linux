@@ -210,7 +210,7 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				  struct gpio_array *array_info,
 				  unsigned long *value_bitmap);
 
-extern struct spinlock gpio_lock;
+extern spinlock_t gpio_lock;
 extern struct list_head gpio_devices;
 
 struct gpio_desc {
