@@ -718,6 +718,11 @@ struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
 	return NULL;
 }
 
+struct kfd2kgd_calls *amdgpu_amdkfd_arcturus_get_functions(void)
+{
+	return NULL;
+}
+
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_10_0_get_functions(void)
 {
 	return NULL;
