@@ -236,7 +236,7 @@ void lkdtm_CORRUPT_USER_DS(void)
 	set_fs(KERNEL_DS);
 
 	/* Make sure we do not keep running with a KERNEL_DS! */
-	force_sig(SIGKILL, current);
+	force_sig(SIGKILL);
 }
 
 /* Test that VMAP_STACK is actually allocating with a leading guard page */

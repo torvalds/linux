@@ -1365,20 +1365,20 @@ fault:
 		return;
 
 	die_if_kernel("Unhandled kernel unaligned access", regs);
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 
 	return;
 
 sigbus:
 	die_if_kernel("Unhandled kernel unaligned access", regs);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 
 	return;
 
 sigill:
 	die_if_kernel
 	    ("Unhandled kernel unaligned access or invalid instruction", regs);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 /* Recode table from 16-bit register notation to 32-bit GPR. */
@@ -1991,20 +1991,20 @@ fault:
 		return;
 
 	die_if_kernel("Unhandled kernel unaligned access", regs);
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 
 	return;
 
 sigbus:
 	die_if_kernel("Unhandled kernel unaligned access", regs);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 
 	return;
 
 sigill:
 	die_if_kernel
 	    ("Unhandled kernel unaligned access or invalid instruction", regs);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
@@ -2271,20 +2271,20 @@ fault:
 		return;
 
 	die_if_kernel("Unhandled kernel unaligned access", regs);
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 
 	return;
 
 sigbus:
 	die_if_kernel("Unhandled kernel unaligned access", regs);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 
 	return;
 
 sigill:
 	die_if_kernel
 	    ("Unhandled kernel unaligned access or invalid instruction", regs);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 asmlinkage void do_ade(struct pt_regs *regs)
@@ -2364,7 +2364,7 @@ asmlinkage void do_ade(struct pt_regs *regs)
 
 sigbus:
 	die_if_kernel("Kernel unaligned instruction access", regs);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 
 	/*
 	 * XXX On return from the signal handler we should advance the epc

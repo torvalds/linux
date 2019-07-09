@@ -249,7 +249,7 @@ retry:
 	}
 	if (user_mode(regs)) {
 		force_sig_fault(signal, code, (void __user *) address,
-				0, __ISR_VALID, isr, current);
+				0, __ISR_VALID, isr);
 		return;
 	}
 

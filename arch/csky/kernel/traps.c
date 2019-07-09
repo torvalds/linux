@@ -106,7 +106,7 @@ void buserr(struct pt_regs *regs)
 	pr_err("User mode Bus Error\n");
 	show_regs(regs);
 
-	force_sig_fault(SIGSEGV, 0, (void __user *)regs->pc, current);
+	force_sig_fault(SIGSEGV, 0, (void __user *)regs->pc);
 }
 
 #define USR_BKPT 0x1464
