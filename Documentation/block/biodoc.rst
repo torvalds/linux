@@ -9,6 +9,7 @@ Notes on the Generic Block Layer Rewrite in Linux 2.5
 	here might still be useful.
 
 Notes Written on Jan 15, 2002:
+
 	- Jens Axboe <jens.axboe@oracle.com>
 	- Suparna Bhattacharya <suparna@in.ibm.com>
 
@@ -172,8 +173,8 @@ Some new queue property settings:
 
 New queue flags:
 
-	QUEUE_FLAG_CLUSTER (see 3.2.2)
-	QUEUE_FLAG_QUEUED (see 3.2.4)
+	- QUEUE_FLAG_CLUSTER (see 3.2.2)
+	- QUEUE_FLAG_QUEUED (see 3.2.4)
 
 
 ii. High-mem i/o capabilities are now considered the default
@@ -478,7 +479,7 @@ With this multipage bio design:
 - Splitting of an i/o request across multiple devices (as in the case of
   lvm or raid) is achieved by cloning the bio (where the clone points to
   the same bi_io_vec array, but with the index and size accordingly modified)
-- A linked list of bios is used as before for unrelated merges [*]_ - this
+- A linked list of bios is used as before for unrelated merges [#]_ - this
   avoids reallocs and makes independent completions easier to handle.
 - Code that traverses the req list can find all the segments of a bio
   by using rq_for_each_segment.  This handles the fact that a request
@@ -489,7 +490,7 @@ With this multipage bio design:
   [TBD: Should preferably also have a bi_voffset and bi_vlen to avoid modifying
   bi_offset an len fields]
 
-.. [*]
+.. [#]
 
 	unrelated merges -- a request ends up containing two or more bios that
 	didn't originate from the same place.
