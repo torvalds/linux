@@ -880,8 +880,8 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 	}
 
 	dqm->vmid_bitmap = (1 << dqm->dev->vm_info.vmid_num_kfd) - 1;
-	dqm->sdma_bitmap = (1ULL << get_num_sdma_queues(dqm)) - 1;
-	dqm->xgmi_sdma_bitmap = (1ULL << get_num_xgmi_sdma_queues(dqm)) - 1;
+	dqm->sdma_bitmap = ~0ULL >> (64 - get_num_sdma_queues(dqm));
+	dqm->xgmi_sdma_bitmap = ~0ULL >> (64 - get_num_xgmi_sdma_queues(dqm));
 
 	return 0;
 }
@@ -1019,8 +1019,8 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	dqm->sdma_queue_count = 0;
 	dqm->xgmi_sdma_queue_count = 0;
 	dqm->active_runlist = false;
-	dqm->sdma_bitmap = (1ULL << get_num_sdma_queues(dqm)) - 1;
-	dqm->xgmi_sdma_bitmap = (1ULL << get_num_xgmi_sdma_queues(dqm)) - 1;
+	dqm->sdma_bitmap = ~0ULL >> (64 - get_num_sdma_queues(dqm));
+	dqm->xgmi_sdma_bitmap = ~0ULL >> (64 - get_num_xgmi_sdma_queues(dqm));
 
 	INIT_WORK(&dqm->hw_exception_work, kfd_process_hw_exception);
 
