@@ -410,6 +410,21 @@ latex_documents = [
      'The kernel development community', 'manual'),
 ]
 
+# Add all other index files from Documentation/ subdirectories
+for fn in os.listdir('.'):
+    doc = os.path.join(fn, "index")
+    if os.path.exists(doc + ".rst"):
+        has = False
+        for l in latex_documents:
+            if l[0] == doc:
+                has = True
+                break
+        if not has:
+            latex_documents.append((doc, fn + '.tex',
+                                    'Linux %s Documentation' % fn.capitalize(),
+                                    'The kernel development community',
+                                    'manual'))
+
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
 #latex_logo = None
