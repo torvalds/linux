@@ -16,6 +16,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
+#define SC_PPE_RESET_DREQ		0x026C
+
 #define PPE_CFG_RX_ADDR			0x100
 #define PPE_CFG_POOL_GRP		0x300
 #define PPE_CFG_RX_BUF_SIZE		0x400
@@ -60,6 +62,8 @@
 #endif /* CONFIG_HI13X1_GMAC */
 
 #define PPE_HIS_RX_PKT_CNT		0x804
+
+#define RESET_DREQ_ALL			0xffffffff
 
 /* REG_INTERRUPT */
 #define RCV_INT				BIT(10)
@@ -168,6 +172,9 @@ struct rx_desc {
 
 struct hip04_priv {
 	void __iomem *base;
+#if defined(CONFIG_HI13X1_GMAC)
+	void __iomem *sysctrl_base;
+#endif
 	int phy_mode;
 	int chan;
 	unsigned int port;
@@ -242,6 +249,13 @@ static void hip04_config_port(struct net_device *ndev, u32 speed, u32 duplex)
 
 	val = GE_MODE_CHANGE_EN;
 	writel_relaxed(val, priv->base + GE_MODE_CHANGE_REG);
+}
+
+static void hip04_reset_dreq(struct hip04_priv *priv)
+{
+#if defined(CONFIG_HI13X1_GMAC)
+	writel_relaxed(RESET_DREQ_ALL, priv->sysctrl_base + SC_PPE_RESET_DREQ);
+#endif
 }
 
 static void hip04_reset_ppe(struct hip04_priv *priv)
@@ -853,6 +867,15 @@ static int hip04_mac_probe(struct platform_device *pdev)
 		goto init_fail;
 	}
 
+#if defined(CONFIG_HI13X1_GMAC)
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	priv->sysctrl_base = devm_ioremap_resource(d, res);
+	if (IS_ERR(priv->sysctrl_base)) {
+		ret = PTR_ERR(priv->sysctrl_base);
+		goto init_fail;
+	}
+#endif
+
 	ret = of_parse_phandle_with_fixed_args(node, "port-handle", 2, 0, &arg);
 	if (ret < 0) {
 		dev_warn(d, "no port-handle\n");
@@ -921,6 +944,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	ndev->irq = irq;
 	netif_napi_add(ndev, &priv->napi, hip04_rx_poll, NAPI_POLL_WEIGHT);
 
+	hip04_reset_dreq(priv);
 	hip04_reset_ppe(priv);
 	if (priv->phy_mode == PHY_INTERFACE_MODE_MII)
 		hip04_config_port(ndev, SPEED_100, DUPLEX_FULL);
