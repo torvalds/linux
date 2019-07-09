@@ -880,7 +880,10 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 
 	if (datalen) {
 		u64_stats_update_begin(&r_vec->tx_sync);
-		r_vec->hw_tls_tx++;
+		if (!skb_is_gso(skb))
+			r_vec->hw_tls_tx++;
+		else
+			r_vec->hw_tls_tx += skb_shinfo(skb)->gso_segs;
 		u64_stats_update_end(&r_vec->tx_sync);
 	}
 
