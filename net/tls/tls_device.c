@@ -214,6 +214,7 @@ static void tls_device_resync_tx(struct sock *sk, struct tls_context *tls_ctx,
 {
 	struct net_device *netdev;
 	struct sk_buff *skb;
+	int err = 0;
 	u8 *rcd_sn;
 
 	skb = tcp_write_queue_tail(sk);
@@ -225,9 +226,12 @@ static void tls_device_resync_tx(struct sock *sk, struct tls_context *tls_ctx,
 	down_read(&device_offload_lock);
 	netdev = tls_ctx->netdev;
 	if (netdev)
-		netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq, rcd_sn,
-						   TLS_OFFLOAD_CTX_DIR_TX);
+		err = netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq,
+							 rcd_sn,
+							 TLS_OFFLOAD_CTX_DIR_TX);
 	up_read(&device_offload_lock);
+	if (err)
+		return;
 
 	clear_bit_unlock(TLS_TX_SYNC_SCHED, &tls_ctx->flags);
 }
@@ -879,6 +883,8 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto free_offload_ctx;
 	}
 
+	prot->version = crypto_info->version;
+	prot->cipher_type = crypto_info->cipher_type;
 	prot->prepend_size = TLS_HEADER_SIZE + nonce_size;
 	prot->tag_size = tag_size;
 	prot->overhead_size = prot->prepend_size + prot->tag_size;

@@ -304,9 +304,9 @@ struct tlsdev_ops {
 	void (*tls_dev_del)(struct net_device *netdev,
 			    struct tls_context *ctx,
 			    enum tls_offload_ctx_dir direction);
-	void (*tls_dev_resync)(struct net_device *netdev,
-			       struct sock *sk, u32 seq, u8 *rcd_sn,
-			       enum tls_offload_ctx_dir direction);
+	int (*tls_dev_resync)(struct net_device *netdev,
+			      struct sock *sk, u32 seq, u8 *rcd_sn,
+			      enum tls_offload_ctx_dir direction);
 };
 
 enum tls_offload_sync_type {
