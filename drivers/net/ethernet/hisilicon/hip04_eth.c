@@ -120,12 +120,20 @@
 #define PPE_CFG_STS_RX_PKT_CNT_RC	BIT(0)
 #define PPE_CFG_QOS_VMID_MODE		BIT(15)
 #define PPE_CFG_BUS_LOCAL_REL		(BIT(9) | BIT(15) | BIT(19) | BIT(23))
+
+/* buf unit size is cache_line_size, which is 64, so the shift is 6 */
+#define PPE_BUF_SIZE_SHIFT		6
+#define PPE_TX_BUF_HOLD			BIT(31)
 #else
 #define PPE_CFG_QOS_VMID_GRP_SHIFT	8
 #define PPE_CFG_RX_CTRL_ALIGN_SHIFT	11
 #define PPE_CFG_STS_RX_PKT_CNT_RC	BIT(12)
 #define PPE_CFG_QOS_VMID_MODE		BIT(14)
 #define PPE_CFG_BUS_LOCAL_REL		BIT(14)
+
+/* buf unit size is 1, so the shift is 6 */
+#define PPE_BUF_SIZE_SHIFT		0
+#define PPE_TX_BUF_HOLD			0
 #endif /* CONFIG_HI13X1_GMAC */
 
 #define PPE_CFG_RX_FIFO_FSFU		BIT(11)
@@ -286,7 +294,7 @@ static void hip04_config_fifo(struct hip04_priv *priv)
 	val |= PPE_CFG_QOS_VMID_MODE;
 	writel_relaxed(val, priv->base + PPE_CFG_QOS_VMID_GEN);
 
-	val = RX_BUF_SIZE;
+	val = RX_BUF_SIZE >> PPE_BUF_SIZE_SHIFT;
 	regmap_write(priv->map, priv->port * 4 + PPE_CFG_RX_BUF_SIZE, val);
 
 	val = RX_DESC_NUM << PPE_CFG_RX_DEPTH_SHIFT;
@@ -369,12 +377,18 @@ static void hip04_mac_disable(struct net_device *ndev)
 
 static void hip04_set_xmit_desc(struct hip04_priv *priv, dma_addr_t phys)
 {
-	writel(phys, priv->base + PPE_CFG_CPU_ADD_ADDR);
+	u32 val;
+
+	val = phys >> PPE_BUF_SIZE_SHIFT | PPE_TX_BUF_HOLD;
+	writel(val, priv->base + PPE_CFG_CPU_ADD_ADDR);
 }
 
 static void hip04_set_recv_desc(struct hip04_priv *priv, dma_addr_t phys)
 {
-	regmap_write(priv->map, priv->port * 4 + PPE_CFG_RX_ADDR, phys);
+	u32 val;
+
+	val = phys >> PPE_BUF_SIZE_SHIFT;
+	regmap_write(priv->map, priv->port * 4 + PPE_CFG_RX_ADDR, val);
 }
 
 static u32 hip04_recv_cnt(struct hip04_priv *priv)
