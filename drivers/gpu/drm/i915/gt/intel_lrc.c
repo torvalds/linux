@@ -306,6 +306,9 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 {
 	int last_prio;
 
+	if (!intel_engine_has_semaphores(engine))
+		return false;
+
 	/*
 	 * Check if the current priority hint merits a preemption attempt.
 	 *
@@ -903,6 +906,9 @@ static bool
 need_timeslice(struct intel_engine_cs *engine, const struct i915_request *rq)
 {
 	int hint;
+
+	if (!intel_engine_has_semaphores(engine))
+		return false;
 
 	if (list_is_last(&rq->sched.link, &engine->active.requests))
 		return false;
@@ -2656,7 +2662,8 @@ static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 	*cs++ = MI_USER_INTERRUPT;
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	cs = emit_preempt_busywait(request, cs);
+	if (intel_engine_has_semaphores(request->engine))
+		cs = emit_preempt_busywait(request, cs);
 
 	request->tail = intel_ring_offset(request, cs);
 	assert_ring_tail_valid(request->ring, request->tail);
@@ -2680,7 +2687,8 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 	*cs++ = MI_USER_INTERRUPT;
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	cs = emit_preempt_busywait(request, cs);
+	if (intel_engine_has_semaphores(request->engine))
+		cs = emit_preempt_busywait(request, cs);
 
 	request->tail = intel_ring_offset(request, cs);
 	assert_ring_tail_valid(request->ring, request->tail);
@@ -2728,10 +2736,11 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->unpark = NULL;
 
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
-	if (!intel_vgpu_active(engine->i915))
+	if (!intel_vgpu_active(engine->i915)) {
 		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
-		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
+		if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
+			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
+	}
 }
 
 static void execlists_destroy(struct intel_engine_cs *engine)
@@ -3419,7 +3428,6 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 	ve->base.class = OTHER_CLASS;
 	ve->base.uabi_class = I915_ENGINE_CLASS_INVALID;
 	ve->base.instance = I915_ENGINE_CLASS_INVALID_VIRTUAL;
-	ve->base.flags = I915_ENGINE_IS_VIRTUAL;
 
 	/*
 	 * The decision on whether to submit a request using semaphores
@@ -3516,7 +3524,11 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 		ve->base.emit_fini_breadcrumb = sibling->emit_fini_breadcrumb;
 		ve->base.emit_fini_breadcrumb_dw =
 			sibling->emit_fini_breadcrumb_dw;
+
+		ve->base.flags = sibling->flags;
 	}
+
+	ve->base.flags |= I915_ENGINE_IS_VIRTUAL;
 
 	return &ve->context;
 

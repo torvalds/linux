@@ -269,6 +269,9 @@ static int live_timeslice_preempt(void *arg)
 		enum intel_engine_id id;
 
 		for_each_engine(engine, i915, id) {
+			if (!intel_engine_has_preemption(engine))
+				continue;
+
 			memset(vaddr, 0, PAGE_SIZE);
 
 			err = slice_semaphore_queue(engine, vma, count);
@@ -353,6 +356,9 @@ static int live_busywait_preempt(void *arg)
 		struct i915_request *lo, *hi;
 		struct igt_live_test t;
 		u32 *cs;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
 
 		if (!intel_engine_can_store_dword(engine))
 			continue;

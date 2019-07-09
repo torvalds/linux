@@ -829,6 +829,8 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	int ret;
 
+	engine->set_default_submission(engine);
+
 	/* We may need to do things with the shrinker which
 	 * require us to immediately switch back to the default
 	 * context. This can cause a problem as pinning the
@@ -846,8 +848,6 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 		goto err_unpin;
 
 	engine->emit_fini_breadcrumb_dw = ret;
-
-	engine->set_default_submission(engine);
 
 	return 0;
 
