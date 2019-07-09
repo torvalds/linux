@@ -106,6 +106,7 @@ enum tca_id {
 	TCA_ID_SAMPLE = TCA_ACT_SAMPLE,
 	TCA_ID_CTINFO,
 	TCA_ID_MPLS,
+	TCA_ID_CT,
 	/* other actions go here */
 	__TCA_ID_MAX = 255
 };
