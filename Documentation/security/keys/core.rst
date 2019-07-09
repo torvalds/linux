@@ -433,6 +433,10 @@ The main syscalls are:
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
 
+     To link a key into the destination keyring the key must grant link
+     permission on the key to the caller and the keyring must grant write
+     permission.
+
      See also Documentation/security/keys/request-key.rst.
 
 
@@ -1111,36 +1115,14 @@ payload contents" for more information.
     is a blob of length callout_len, if given (the length may be 0).
 
 
- *  A key can be requested asynchronously by calling one of::
+ *  To search for a key under RCU conditions, call::
 
-	struct key *request_key_async(const struct key_type *type,
-				      const char *description,
-				      const void *callout_info,
-				      size_t callout_len);
+	struct key *request_key_rcu(const struct key_type *type,
+				    const char *description);
 
-    or::
-
-	struct key *request_key_async_with_auxdata(const struct key_type *type,
-						   const char *description,
-						   const char *callout_info,
-					     	   size_t callout_len,
-					     	   void *aux);
-
-    which are asynchronous equivalents of request_key() and
-    request_key_with_auxdata() respectively.
-
-    These two functions return with the key potentially still under
-    construction.  To wait for construction completion, the following should be
-    called::
-
-	int wait_for_key_construction(struct key *key, bool intr);
-
-    The function will wait for the key to finish being constructed and then
-    invokes key_validate() to return an appropriate value to indicate the state
-    of the key (0 indicates the key is usable).
-
-    If intr is true, then the wait can be interrupted by a signal, in which
-    case error ERESTARTSYS will be returned.
+    which is similar to request_key() except that it does not check for keys
+    that are under construction and it will not call out to userspace to
+    construct a key if it can't find a match.
 
 
  *  When it is no longer required, the key should be released using::

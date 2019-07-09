@@ -54,7 +54,7 @@ static void request_key_auth_free_preparse(struct key_preparsed_payload *prep)
 static int request_key_auth_instantiate(struct key *key,
 					struct key_preparsed_payload *prep)
 {
-	key->payload.data[0] = (struct request_key_auth *)prep->data;
+	rcu_assign_keypointer(key, (struct request_key_auth *)prep->data);
 	return 0;
 }
 
@@ -64,7 +64,7 @@ static int request_key_auth_instantiate(struct key *key,
 static void request_key_auth_describe(const struct key *key,
 				      struct seq_file *m)
 {
-	struct request_key_auth *rka = get_request_key_auth(key);
+	struct request_key_auth *rka = dereference_key_rcu(key);
 
 	seq_puts(m, "key:");
 	seq_puts(m, key->description);
@@ -79,7 +79,7 @@ static void request_key_auth_describe(const struct key *key,
 static long request_key_auth_read(const struct key *key,
 				  char __user *buffer, size_t buflen)
 {
-	struct request_key_auth *rka = get_request_key_auth(key);
+	struct request_key_auth *rka = dereference_key_locked(key);
 	size_t datalen;
 	long ret;
 
@@ -98,23 +98,6 @@ static long request_key_auth_read(const struct key *key,
 	return ret;
 }
 
-/*
- * Handle revocation of an authorisation token key.
- *
- * Called with the key sem write-locked.
- */
-static void request_key_auth_revoke(struct key *key)
-{
-	struct request_key_auth *rka = get_request_key_auth(key);
-
-	kenter("{%d}", key->serial);
-
-	if (rka->cred) {
-		put_cred(rka->cred);
-		rka->cred = NULL;
-	}
-}
-
 static void free_request_key_auth(struct request_key_auth *rka)
 {
 	if (!rka)
@@ -128,15 +111,42 @@ static void free_request_key_auth(struct request_key_auth *rka)
 }
 
 /*
+ * Dispose of the request_key_auth record under RCU conditions
+ */
+static void request_key_auth_rcu_disposal(struct rcu_head *rcu)
+{
+	struct request_key_auth *rka =
+		container_of(rcu, struct request_key_auth, rcu);
+
+	free_request_key_auth(rka);
+}
+
+/*
+ * Handle revocation of an authorisation token key.
+ *
+ * Called with the key sem write-locked.
+ */
+static void request_key_auth_revoke(struct key *key)
+{
+	struct request_key_auth *rka = dereference_key_locked(key);
+
+	kenter("{%d}", key->serial);
+	rcu_assign_keypointer(key, NULL);
+	call_rcu(&rka->rcu, request_key_auth_rcu_disposal);
+}
+
+/*
  * Destroy an instantiation authorisation token key.
  */
 static void request_key_auth_destroy(struct key *key)
 {
-	struct request_key_auth *rka = get_request_key_auth(key);
+	struct request_key_auth *rka = rcu_access_pointer(key->payload.rcu_data0);
 
 	kenter("{%d}", key->serial);
-
-	free_request_key_auth(rka);
+	if (rka) {
+		rcu_assign_keypointer(key, NULL);
+		call_rcu(&rka->rcu, request_key_auth_rcu_disposal);
+	}
 }
 
 /*
@@ -245,7 +255,9 @@ struct key *key_get_instantiation_authkey(key_serial_t target_id)
 
 	ctx.index_key.desc_len = sprintf(description, "%x", target_id);
 
-	authkey_ref = search_process_keyrings(&ctx);
+	rcu_read_lock();
+	authkey_ref = search_process_keyrings_rcu(&ctx);
+	rcu_read_unlock();
 
 	if (IS_ERR(authkey_ref)) {
 		authkey = ERR_CAST(authkey_ref);

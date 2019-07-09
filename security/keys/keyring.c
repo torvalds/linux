@@ -831,7 +831,7 @@ found:
 }
 
 /**
- * keyring_search_aux - Search a keyring tree for a key matching some criteria
+ * keyring_search_rcu - Search a keyring tree for a matching key under RCU
  * @keyring_ref: A pointer to the keyring with possession indicator.
  * @ctx: The keyring search context.
  *
@@ -843,7 +843,9 @@ found:
  * addition, the LSM gets to forbid keyring searches and key matches.
  *
  * The search is performed as a breadth-then-depth search up to the prescribed
- * limit (KEYRING_SEARCH_MAX_DEPTH).
+ * limit (KEYRING_SEARCH_MAX_DEPTH).  The caller must hold the RCU read lock to
+ * prevent keyrings from being destroyed or rearranged whilst they are being
+ * searched.
  *
  * Keys are matched to the type provided and are then filtered by the match
  * function, which is given the description to use in any way it sees fit.  The
@@ -862,7 +864,7 @@ found:
  * In the case of a successful return, the possession attribute from
  * @keyring_ref is propagated to the returned key reference.
  */
-key_ref_t keyring_search_aux(key_ref_t keyring_ref,
+key_ref_t keyring_search_rcu(key_ref_t keyring_ref,
 			     struct keyring_search_context *ctx)
 {
 	struct key *keyring;
@@ -884,11 +886,9 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 			return ERR_PTR(err);
 	}
 
-	rcu_read_lock();
 	ctx->now = ktime_get_real_seconds();
 	if (search_nested_keyrings(keyring, ctx))
 		__key_get(key_ref_to_ptr(ctx->result));
-	rcu_read_unlock();
 	return ctx->result;
 }
 
@@ -898,7 +898,7 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
  * @type: The type of keyring we want to find.
  * @description: The name of the keyring we want to find.
  *
- * As keyring_search_aux() above, but using the current task's credentials and
+ * As keyring_search_rcu() above, but using the current task's credentials and
  * type's default matching function and preferred search method.
  */
 key_ref_t keyring_search(key_ref_t keyring,
@@ -924,7 +924,9 @@ key_ref_t keyring_search(key_ref_t keyring,
 			return ERR_PTR(ret);
 	}
 
-	key = keyring_search_aux(keyring, &ctx);
+	rcu_read_lock();
+	key = keyring_search_rcu(keyring, &ctx);
+	rcu_read_unlock();
 
 	if (type->match_free)
 		type->match_free(&ctx.match_data);

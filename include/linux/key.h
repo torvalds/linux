@@ -269,22 +269,14 @@ extern struct key *request_key(struct key_type *type,
 			       const char *description,
 			       const char *callout_info);
 
+extern struct key *request_key_rcu(struct key_type *type,
+				   const char *description);
+
 extern struct key *request_key_with_auxdata(struct key_type *type,
 					    const char *description,
 					    const void *callout_info,
 					    size_t callout_len,
 					    void *aux);
-
-extern struct key *request_key_async(struct key_type *type,
-				     const char *description,
-				     const void *callout_info,
-				     size_t callout_len);
-
-extern struct key *request_key_async_with_auxdata(struct key_type *type,
-						  const char *description,
-						  const void *callout_info,
-						  size_t callout_len,
-						  void *aux);
 
 extern int wait_for_key_construction(struct key *key, bool intr);
 

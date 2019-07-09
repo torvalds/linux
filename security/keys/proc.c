@@ -175,7 +175,9 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	 * skip if the key does not indicate the possessor can view it
 	 */
 	if (key->perm & KEY_POS_VIEW) {
-		skey_ref = search_my_process_keyrings(&ctx);
+		rcu_read_lock();
+		skey_ref = search_cred_keyrings_rcu(&ctx);
+		rcu_read_unlock();
 		if (!IS_ERR(skey_ref)) {
 			key_ref_put(skey_ref);
 			key_ref = make_key_ref(key, 1);

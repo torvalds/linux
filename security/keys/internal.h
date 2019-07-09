@@ -135,11 +135,11 @@ struct keyring_search_context {
 
 extern bool key_default_cmp(const struct key *key,
 			    const struct key_match_data *match_data);
-extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
+extern key_ref_t keyring_search_rcu(key_ref_t keyring_ref,
 				    struct keyring_search_context *ctx);
 
-extern key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx);
-extern key_ref_t search_process_keyrings(struct keyring_search_context *ctx);
+extern key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx);
+extern key_ref_t search_process_keyrings_rcu(struct keyring_search_context *ctx);
 
 extern struct key *find_keyring_by_name(const char *name, bool uid_keyring);
 

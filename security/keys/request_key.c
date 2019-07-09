@@ -18,6 +18,31 @@
 
 #define key_negative_timeout	60	/* default timeout on a negative key's existence */
 
+static struct key *check_cached_key(struct keyring_search_context *ctx)
+{
+#ifdef CONFIG_KEYS_REQUEST_CACHE
+	struct key *key = current->cached_requested_key;
+
+	if (key &&
+	    ctx->match_data.cmp(key, &ctx->match_data) &&
+	    !(key->flags & ((1 << KEY_FLAG_INVALIDATED) |
+			    (1 << KEY_FLAG_REVOKED))))
+		return key_get(key);
+#endif
+	return NULL;
+}
+
+static void cache_requested_key(struct key *key)
+{
+#ifdef CONFIG_KEYS_REQUEST_CACHE
+	struct task_struct *t = current;
+
+	key_put(t->cached_requested_key);
+	t->cached_requested_key = key_get(key);
+	set_tsk_thread_flag(t, TIF_NOTIFY_RESUME);
+#endif
+}
+
 /**
  * complete_request_key - Complete the construction of a key.
  * @authkey: The authorisation key.
@@ -218,7 +243,7 @@ static int construct_key(struct key *key, const void *callout_info,
 	/* check that the actor called complete_request_key() prior to
 	 * returning an error */
 	WARN_ON(ret < 0 &&
-		!test_bit(KEY_FLAG_REVOKED, &authkey->flags));
+		!test_bit(KEY_FLAG_INVALIDATED, &authkey->flags));
 
 	key_put(authkey);
 	kleave(" = %d", ret);
@@ -381,7 +406,9 @@ static int construct_alloc_key(struct keyring_search_context *ctx,
 	 * waited for locks */
 	mutex_lock(&key_construction_mutex);
 
-	key_ref = search_process_keyrings(ctx);
+	rcu_read_lock();
+	key_ref = search_process_keyrings_rcu(ctx);
+	rcu_read_unlock();
 	if (!IS_ERR(key_ref))
 		goto key_already_present;
 
@@ -556,10 +583,26 @@ struct key *request_key_and_link(struct key_type *type,
 		}
 	}
 
+	key = check_cached_key(&ctx);
+	if (key)
+		return key;
+
 	/* search all the process keyrings for a key */
-	key_ref = search_process_keyrings(&ctx);
+	rcu_read_lock();
+	key_ref = search_process_keyrings_rcu(&ctx);
+	rcu_read_unlock();
 
 	if (!IS_ERR(key_ref)) {
+		if (dest_keyring) {
+			ret = key_task_permission(key_ref, current_cred(),
+						  KEY_NEED_LINK);
+			if (ret < 0) {
+				key_ref_put(key_ref);
+				key = ERR_PTR(ret);
+				goto error_free;
+			}
+		}
+
 		key = key_ref_to_ptr(key_ref);
 		if (dest_keyring) {
 			ret = key_link(dest_keyring, key);
@@ -569,6 +612,9 @@ struct key *request_key_and_link(struct key_type *type,
 				goto error_free;
 			}
 		}
+
+		/* Only cache the key on immediate success */
+		cache_requested_key(key);
 	} else if (PTR_ERR(key_ref) != -EAGAIN) {
 		key = ERR_CAST(key_ref);
 	} else  {
@@ -689,52 +735,51 @@ struct key *request_key_with_auxdata(struct key_type *type,
 }
 EXPORT_SYMBOL(request_key_with_auxdata);
 
-/*
- * request_key_async - Request a key (allow async construction)
- * @type: Type of key.
- * @description: The searchable description of the key.
- * @callout_info: The data to pass to the instantiation upcall (or NULL).
- * @callout_len: The length of callout_info.
+/**
+ * request_key_rcu - Request key from RCU-read-locked context
+ * @type: The type of key we want.
+ * @description: The name of the key we want.
  *
- * As for request_key_and_link() except that it does not add the returned key
- * to a keyring if found, new keys are always allocated in the user's quota and
- * no auxiliary data can be passed.
+ * Request a key from a context that we may not sleep in (such as RCU-mode
+ * pathwalk).  Keys under construction are ignored.
  *
- * The caller should call wait_for_key_construction() to wait for the
- * completion of the returned key if it is still undergoing construction.
+ * Return a pointer to the found key if successful, -ENOKEY if we couldn't find
+ * a key or some other error if the key found was unsuitable or inaccessible.
  */
-struct key *request_key_async(struct key_type *type,
-			      const char *description,
-			      const void *callout_info,
-			      size_t callout_len)
+struct key *request_key_rcu(struct key_type *type, const char *description)
 {
-	return request_key_and_link(type, description, callout_info,
-				    callout_len, NULL, NULL,
-				    KEY_ALLOC_IN_QUOTA);
-}
-EXPORT_SYMBOL(request_key_async);
+	struct keyring_search_context ctx = {
+		.index_key.type		= type,
+		.index_key.description	= description,
+		.index_key.desc_len	= strlen(description),
+		.cred			= current_cred(),
+		.match_data.cmp		= key_default_cmp,
+		.match_data.raw_data	= description,
+		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
+		.flags			= (KEYRING_SEARCH_DO_STATE_CHECK |
+					   KEYRING_SEARCH_SKIP_EXPIRED),
+	};
+	struct key *key;
+	key_ref_t key_ref;
 
-/*
- * request a key with auxiliary data for the upcaller (allow async construction)
- * @type: Type of key.
- * @description: The searchable description of the key.
- * @callout_info: The data to pass to the instantiation upcall (or NULL).
- * @callout_len: The length of callout_info.
- * @aux: Auxiliary data for the upcall.
- *
- * As for request_key_and_link() except that it does not add the returned key
- * to a keyring if found and new keys are always allocated in the user's quota.
- *
- * The caller should call wait_for_key_construction() to wait for the
- * completion of the returned key if it is still undergoing construction.
- */
-struct key *request_key_async_with_auxdata(struct key_type *type,
-					   const char *description,
-					   const void *callout_info,
-					   size_t callout_len,
-					   void *aux)
-{
-	return request_key_and_link(type, description, callout_info,
-				    callout_len, aux, NULL, KEY_ALLOC_IN_QUOTA);
+	kenter("%s,%s", type->name, description);
+
+	key = check_cached_key(&ctx);
+	if (key)
+		return key;
+
+	/* search all the process keyrings for a key */
+	key_ref = search_process_keyrings_rcu(&ctx);
+	if (IS_ERR(key_ref)) {
+		key = ERR_CAST(key_ref);
+		if (PTR_ERR(key_ref) == -EAGAIN)
+			key = ERR_PTR(-ENOKEY);
+	} else {
+		key = key_ref_to_ptr(key_ref);
+		cache_requested_key(key);
+	}
+
+	kleave(" = %p", key);
+	return key;
 }
-EXPORT_SYMBOL(request_key_async_with_auxdata);
+EXPORT_SYMBOL(request_key_rcu);

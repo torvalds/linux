@@ -23,18 +23,8 @@ or::
 
 or::
 
-	struct key *request_key_async(const struct key_type *type,
-				      const char *description,
-				      const char *callout_info,
-				      size_t callout_len);
-
-or::
-
-	struct key *request_key_async_with_auxdata(const struct key_type *type,
-						   const char *description,
-						   const char *callout_info,
-					     	   size_t callout_len,
-						   void *aux);
+	struct key *request_key_rcu(const struct key_type *type,
+				    const char *description);
 
 Or by userspace invoking the request_key system call::
 
@@ -48,14 +38,14 @@ does not need to link the key to a keyring to prevent it from being immediately
 destroyed.  The kernel interface returns a pointer directly to the key, and
 it's up to the caller to destroy the key.
 
-The request_key*_with_auxdata() calls are like the in-kernel request_key*()
-calls, except that they permit auxiliary data to be passed to the upcaller (the
+The request_key_with_auxdata() calls is like the in-kernel request_key() call,
+except that they permit auxiliary data to be passed to the upcaller (the
 default is NULL).  This is only useful for those key types that define their
 own upcall mechanism rather than using /sbin/request-key.
 
-The two async in-kernel calls may return keys that are still in the process of
-being constructed.  The two non-async ones will wait for construction to
-complete first.
+The request_key_rcu() call is like the in-kernel request_key() call, except
+that it doesn't check for keys that are under construction and doesn't attempt
+to construct missing keys.
 
 The userspace interface links the key to a keyring associated with the process
 to prevent the key from going away, and returns the serial number of the key to
@@ -148,7 +138,7 @@ The Search Algorithm
 
 A search of any particular keyring proceeds in the following fashion:
 
-  1) When the key management code searches for a key (keyring_search_aux) it
+  1) When the key management code searches for a key (keyring_search_rcu) it
      firstly calls key_permission(SEARCH) on the keyring it's starting with,
      if this denies permission, it doesn't search further.
 
@@ -166,6 +156,9 @@ A search of any particular keyring proceeds in the following fashion:
 The process stops immediately a valid key is found with permission granted to
 use it.  Any error from a previous match attempt is discarded and the key is
 returned.
+
+When request_key() is invoked, if CONFIG_KEYS_REQUEST_CACHE=y, a per-task
+one-key cache is first checked for a match.
 
 When search_process_keyrings() is invoked, it performs the following searches
 until one succeeds:
@@ -186,7 +179,9 @@ until one succeeds:
       c) The calling process's session keyring is searched.
 
 The moment one succeeds, all pending errors are discarded and the found key is
-returned.
+returned.  If CONFIG_KEYS_REQUEST_CACHE=y, then that key is placed in the
+per-task cache, displacing the previous key.  The cache is cleared on exit or
+just prior to resumption of userspace.
 
 Only if all these fail does the whole thing fail with the highest priority
 error.  Note that several errors may have come from LSM.
