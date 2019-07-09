@@ -1900,22 +1900,13 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 	} else if (len > rdp->qlen_last_fqs_check + qhimark) {
 		/* ... or if many callbacks queued. */
 		rdp->qlen_last_fqs_check = len;
-		if (!rdp->nocb_cb_sleep &&
-		    rcu_segcblist_ready_cbs(&rdp->cblist)) {
-			// Already going full tilt, so don't try to rewake.
-			rcu_nocb_unlock_irqrestore(rdp, flags);
-		} else {
+		if (rdp->nocb_cb_sleep ||
+		    !rcu_segcblist_ready_cbs(&rdp->cblist)) {
 			rcu_advance_cbs_nowake(rdp->mynode, rdp);
-			if (!irqs_disabled_flags(flags)) {
-				wake_nocb_gp(rdp, false, flags);
-				trace_rcu_nocb_wake(rcu_state.name, rdp->cpu,
-						    TPS("WakeOvf"));
-			} else {
-				wake_nocb_gp_defer(rdp, RCU_NOCB_WAKE_FORCE,
-						   TPS("WakeOvfIsDeferred"));
-				rcu_nocb_unlock_irqrestore(rdp, flags);
-			}
+			wake_nocb_gp_defer(rdp, RCU_NOCB_WAKE_FORCE,
+					   TPS("WakeOvfIsDeferred"));
 		}
+		rcu_nocb_unlock_irqrestore(rdp, flags);
 	} else {
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("WakeNot"));
 		rcu_nocb_unlock_irqrestore(rdp, flags);
