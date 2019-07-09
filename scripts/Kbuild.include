@@ -79,8 +79,8 @@ endef
 # would try to directly execute the shell builtin 'command'. This workaround
 # should be kept for a long time since this issue was fixed only after the
 # GNU Make 4.2.1 release.
-cc-cross-prefix = $(firstword $(foreach c, $(filter-out -%, $(1)), \
-			$(if $(shell command -v $(c)gcc 2>/dev/null), $(c))))
+cc-cross-prefix = $(firstword $(foreach c, $(1), \
+			$(if $(shell command -v -- $(c)gcc 2>/dev/null), $(c))))
 
 # output directory for tests below
 TMPOUT := $(if $(KBUILD_EXTMOD),$(firstword $(KBUILD_EXTMOD))/)
