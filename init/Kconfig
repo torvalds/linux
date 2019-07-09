@@ -850,7 +850,7 @@ config BLK_CGROUP
 	CONFIG_CFQ_GROUP_IOSCHED=y; for enabling throttling policy, set
 	CONFIG_BLK_DEV_THROTTLING=y.
 
-	See Documentation/cgroup-v1/blkio-controller.txt for more information.
+	See Documentation/cgroup-v1/blkio-controller.rst for more information.
 
 config DEBUG_BLK_CGROUP
 	bool "IO controller debugging"

@@ -1,5 +1,6 @@
+=========================
 Network classifier cgroup
--------------------------
+=========================
 
 The Network classifier cgroup provides an interface to
 tag network packets with a class identifier (classid).
@@ -17,23 +18,27 @@ values is 0xAAAABBBB; AAAA is the major handle number and BBBB
 is the minor handle number.
 Reading net_cls.classid yields a decimal result.
 
-Example:
-mkdir /sys/fs/cgroup/net_cls
-mount -t cgroup -onet_cls net_cls /sys/fs/cgroup/net_cls
-mkdir /sys/fs/cgroup/net_cls/0
-echo 0x100001 >  /sys/fs/cgroup/net_cls/0/net_cls.classid
-	- setting a 10:1 handle.
+Example::
 
-cat /sys/fs/cgroup/net_cls/0/net_cls.classid
-1048577
+	mkdir /sys/fs/cgroup/net_cls
+	mount -t cgroup -onet_cls net_cls /sys/fs/cgroup/net_cls
+	mkdir /sys/fs/cgroup/net_cls/0
+	echo 0x100001 >  /sys/fs/cgroup/net_cls/0/net_cls.classid
 
-configuring tc:
-tc qdisc add dev eth0 root handle 10: htb
+- setting a 10:1 handle::
 
-tc class add dev eth0 parent 10: classid 10:1 htb rate 40mbit
- - creating traffic class 10:1
+	cat /sys/fs/cgroup/net_cls/0/net_cls.classid
+	1048577
 
-tc filter add dev eth0 parent 10: protocol ip prio 10 handle 1: cgroup
+- configuring tc::
 
-configuring iptables, basic example:
-iptables -A OUTPUT -m cgroup ! --cgroup 0x100001 -j DROP
+	tc qdisc add dev eth0 root handle 10: htb
+	tc class add dev eth0 parent 10: classid 10:1 htb rate 40mbit
+
+- creating traffic class 10:1::
+
+	tc filter add dev eth0 parent 10: protocol ip prio 10 handle 1: cgroup
+
+configuring iptables, basic example::
+
+	iptables -A OUTPUT -m cgroup ! --cgroup 0x100001 -j DROP

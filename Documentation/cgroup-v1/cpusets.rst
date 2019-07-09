@@ -1,35 +1,36 @@
-				CPUSETS
-				-------
+=======
+CPUSETS
+=======
 
 Copyright (C) 2004 BULL SA.
+
 Written by Simon.Derr@bull.net
 
-Portions Copyright (c) 2004-2006 Silicon Graphics, Inc.
-Modified by Paul Jackson <pj@sgi.com>
-Modified by Christoph Lameter <cl@linux.com>
-Modified by Paul Menage <menage@google.com>
-Modified by Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
+- Portions Copyright (c) 2004-2006 Silicon Graphics, Inc.
+- Modified by Paul Jackson <pj@sgi.com>
+- Modified by Christoph Lameter <cl@linux.com>
+- Modified by Paul Menage <menage@google.com>
+- Modified by Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
 
-CONTENTS:
-=========
+.. CONTENTS:
 
-1. Cpusets
-  1.1 What are cpusets ?
-  1.2 Why are cpusets needed ?
-  1.3 How are cpusets implemented ?
-  1.4 What are exclusive cpusets ?
-  1.5 What is memory_pressure ?
-  1.6 What is memory spread ?
-  1.7 What is sched_load_balance ?
-  1.8 What is sched_relax_domain_level ?
-  1.9 How do I use cpusets ?
-2. Usage Examples and Syntax
-  2.1 Basic Usage
-  2.2 Adding/removing cpus
-  2.3 Setting flags
-  2.4 Attaching processes
-3. Questions
-4. Contact
+   1. Cpusets
+     1.1 What are cpusets ?
+     1.2 Why are cpusets needed ?
+     1.3 How are cpusets implemented ?
+     1.4 What are exclusive cpusets ?
+     1.5 What is memory_pressure ?
+     1.6 What is memory spread ?
+     1.7 What is sched_load_balance ?
+     1.8 What is sched_relax_domain_level ?
+     1.9 How do I use cpusets ?
+   2. Usage Examples and Syntax
+     2.1 Basic Usage
+     2.2 Adding/removing cpus
+     2.3 Setting flags
+     2.4 Attaching processes
+   3. Questions
+   4. Contact
 
 1. Cpusets
 ==========
@@ -48,7 +49,7 @@ hooks, beyond what is already present, required to manage dynamic
 job placement on large systems.
 
 Cpusets use the generic cgroup subsystem described in
-Documentation/cgroup-v1/cgroups.txt.
+Documentation/cgroup-v1/cgroups.rst.
 
 Requests by a task, using the sched_setaffinity(2) system call to
 include CPUs in its CPU affinity mask, and using the mbind(2) and
@@ -157,7 +158,7 @@ modifying cpusets is via this cpuset file system.
 The /proc/<pid>/status file for each task has four added lines,
 displaying the task's cpus_allowed (on which CPUs it may be scheduled)
 and mems_allowed (on which Memory Nodes it may obtain memory),
-in the two formats seen in the following example:
+in the two formats seen in the following example::
 
   Cpus_allowed:   ffffffff,ffffffff,ffffffff,ffffffff
   Cpus_allowed_list:      0-127
@@ -181,6 +182,7 @@ files describing that cpuset:
  - cpuset.sched_relax_domain_level: the searching range when migrating tasks
 
 In addition, only the root cpuset has the following file:
+
  - cpuset.memory_pressure_enabled flag: compute memory_pressure?
 
 New cpusets are created using the mkdir system call or shell
@@ -266,7 +268,8 @@ to monitor a cpuset for signs of memory pressure.  It's up to the
 batch manager or other user code to decide what to do about it and
 take action.
 
-==> Unless this feature is enabled by writing "1" to the special file
+==>
+    Unless this feature is enabled by writing "1" to the special file
     /dev/cpuset/memory_pressure_enabled, the hook in the rebalance
     code of __alloc_pages() for this metric reduces to simply noticing
     that the cpuset_memory_pressure_enabled flag is zero.  So only
@@ -399,6 +402,7 @@ have tasks running on them unless explicitly assigned.
 
 This default load balancing across all CPUs is not well suited for
 the following two situations:
+
  1) On large systems, load balancing across many CPUs is expensive.
     If the system is managed using cpusets to place independent jobs
     on separate sets of CPUs, full load balancing is unnecessary.
@@ -501,6 +505,7 @@ all the CPUs that must be load balanced.
 The cpuset code builds a new such partition and passes it to the
 scheduler sched domain setup code, to have the sched domains rebuilt
 as necessary, whenever:
+
  - the 'cpuset.sched_load_balance' flag of a cpuset with non-empty CPUs changes,
  - or CPUs come or go from a cpuset with this flag enabled,
  - or 'cpuset.sched_relax_domain_level' value of a cpuset with non-empty CPUs
@@ -553,13 +558,15 @@ this searching range as you like.  This file takes int value which
 indicates size of searching range in levels ideally as follows,
 otherwise initial value -1 that indicates the cpuset has no request.
 
-  -1  : no request. use system default or follow request of others.
-   0  : no search.
-   1  : search siblings (hyperthreads in a core).
-   2  : search cores in a package.
-   3  : search cpus in a node [= system wide on non-NUMA system]
-   4  : search nodes in a chunk of node [on NUMA system]
-   5  : search system wide [on NUMA system]
+====== ===========================================================
+  -1   no request. use system default or follow request of others.
+   0   no search.
+   1   search siblings (hyperthreads in a core).
+   2   search cores in a package.
+   3   search cpus in a node [= system wide on non-NUMA system]
+   4   search nodes in a chunk of node [on NUMA system]
+   5   search system wide [on NUMA system]
+====== ===========================================================
 
 The system default is architecture dependent.  The system default
 can be changed using the relax_domain_level= boot parameter.
@@ -578,13 +585,14 @@ and whether it is acceptable or not depends on your situation.
 Don't modify this file if you are not sure.
 
 If your situation is:
+
  - The migration costs between each cpu can be assumed considerably
    small(for you) due to your special application's behavior or
    special hardware support for CPU cache etc.
  - The searching cost doesn't have impact(for you) or you can make
    the searching cost enough small by managing cpuset to compact etc.
  - The latency is required even it sacrifices cache hit rate etc.
-then increasing 'sched_relax_domain_level' would benefit you.
+   then increasing 'sched_relax_domain_level' would benefit you.
 
 
 1.9 How do I use cpusets ?
@@ -678,7 +686,7 @@ To start a new job that is to be contained within a cpuset, the steps are:
 
 For example, the following sequence of commands will setup a cpuset
 named "Charlie", containing just CPUs 2 and 3, and Memory Node 1,
-and then start a subshell 'sh' in that cpuset:
+and then start a subshell 'sh' in that cpuset::
 
   mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
   cd /sys/fs/cgroup/cpuset
@@ -693,6 +701,7 @@ and then start a subshell 'sh' in that cpuset:
   cat /proc/self/cpuset
 
 There are ways to query or modify cpusets:
+
  - via the cpuset file system directly, using the various cd, mkdir, echo,
    cat, rmdir commands from the shell, or their equivalent from C.
  - via the C library libcpuset.
@@ -722,115 +731,133 @@ Then under /sys/fs/cgroup/cpuset you can find a tree that corresponds to the
 tree of the cpusets in the system. For instance, /sys/fs/cgroup/cpuset
 is the cpuset that holds the whole system.
 
-If you want to create a new cpuset under /sys/fs/cgroup/cpuset:
-# cd /sys/fs/cgroup/cpuset
-# mkdir my_cpuset
+If you want to create a new cpuset under /sys/fs/cgroup/cpuset::
 
-Now you want to do something with this cpuset.
-# cd my_cpuset
+  # cd /sys/fs/cgroup/cpuset
+  # mkdir my_cpuset
 
-In this directory you can find several files:
-# ls
-cgroup.clone_children  cpuset.memory_pressure
-cgroup.event_control   cpuset.memory_spread_page
-cgroup.procs           cpuset.memory_spread_slab
-cpuset.cpu_exclusive   cpuset.mems
-cpuset.cpus            cpuset.sched_load_balance
-cpuset.mem_exclusive   cpuset.sched_relax_domain_level
-cpuset.mem_hardwall    notify_on_release
-cpuset.memory_migrate  tasks
+Now you want to do something with this cpuset::
+
+  # cd my_cpuset
+
+In this directory you can find several files::
+
+  # ls
+  cgroup.clone_children  cpuset.memory_pressure
+  cgroup.event_control   cpuset.memory_spread_page
+  cgroup.procs           cpuset.memory_spread_slab
+  cpuset.cpu_exclusive   cpuset.mems
+  cpuset.cpus            cpuset.sched_load_balance
+  cpuset.mem_exclusive   cpuset.sched_relax_domain_level
+  cpuset.mem_hardwall    notify_on_release
+  cpuset.memory_migrate  tasks
 
 Reading them will give you information about the state of this cpuset:
 the CPUs and Memory Nodes it can use, the processes that are using
 it, its properties.  By writing to these files you can manipulate
 the cpuset.
 
-Set some flags:
-# /bin/echo 1 > cpuset.cpu_exclusive
+Set some flags::
 
-Add some cpus:
-# /bin/echo 0-7 > cpuset.cpus
+  # /bin/echo 1 > cpuset.cpu_exclusive
 
-Add some mems:
-# /bin/echo 0-7 > cpuset.mems
+Add some cpus::
 
-Now attach your shell to this cpuset:
-# /bin/echo $$ > tasks
+  # /bin/echo 0-7 > cpuset.cpus
+
+Add some mems::
+
+  # /bin/echo 0-7 > cpuset.mems
+
+Now attach your shell to this cpuset::
+
+  # /bin/echo $$ > tasks
 
 You can also create cpusets inside your cpuset by using mkdir in this
-directory.
-# mkdir my_sub_cs
+directory::
 
-To remove a cpuset, just use rmdir:
-# rmdir my_sub_cs
+  # mkdir my_sub_cs
+
+To remove a cpuset, just use rmdir::
+
+  # rmdir my_sub_cs
+
 This will fail if the cpuset is in use (has cpusets inside, or has
 processes attached).
 
 Note that for legacy reasons, the "cpuset" filesystem exists as a
 wrapper around the cgroup filesystem.
 
-The command
+The command::
 
-mount -t cpuset X /sys/fs/cgroup/cpuset
+  mount -t cpuset X /sys/fs/cgroup/cpuset
 
-is equivalent to
+is equivalent to::
 
-mount -t cgroup -ocpuset,noprefix X /sys/fs/cgroup/cpuset
-echo "/sbin/cpuset_release_agent" > /sys/fs/cgroup/cpuset/release_agent
+  mount -t cgroup -ocpuset,noprefix X /sys/fs/cgroup/cpuset
+  echo "/sbin/cpuset_release_agent" > /sys/fs/cgroup/cpuset/release_agent
 
 2.2 Adding/removing cpus
 ------------------------
 
 This is the syntax to use when writing in the cpus or mems files
-in cpuset directories:
+in cpuset directories::
 
-# /bin/echo 1-4 > cpuset.cpus		-> set cpus list to cpus 1,2,3,4
-# /bin/echo 1,2,3,4 > cpuset.cpus	-> set cpus list to cpus 1,2,3,4
+  # /bin/echo 1-4 > cpuset.cpus		-> set cpus list to cpus 1,2,3,4
+  # /bin/echo 1,2,3,4 > cpuset.cpus	-> set cpus list to cpus 1,2,3,4
 
 To add a CPU to a cpuset, write the new list of CPUs including the
-CPU to be added. To add 6 to the above cpuset:
+CPU to be added. To add 6 to the above cpuset::
 
-# /bin/echo 1-4,6 > cpuset.cpus	-> set cpus list to cpus 1,2,3,4,6
+  # /bin/echo 1-4,6 > cpuset.cpus	-> set cpus list to cpus 1,2,3,4,6
 
 Similarly to remove a CPU from a cpuset, write the new list of CPUs
 without the CPU to be removed.
 
-To remove all the CPUs:
+To remove all the CPUs::
 
-# /bin/echo "" > cpuset.cpus		-> clear cpus list
+  # /bin/echo "" > cpuset.cpus		-> clear cpus list
 
 2.3 Setting flags
 -----------------
 
-The syntax is very simple:
+The syntax is very simple::
 
-# /bin/echo 1 > cpuset.cpu_exclusive 	-> set flag 'cpuset.cpu_exclusive'
-# /bin/echo 0 > cpuset.cpu_exclusive 	-> unset flag 'cpuset.cpu_exclusive'
+  # /bin/echo 1 > cpuset.cpu_exclusive 	-> set flag 'cpuset.cpu_exclusive'
+  # /bin/echo 0 > cpuset.cpu_exclusive 	-> unset flag 'cpuset.cpu_exclusive'
 
 2.4 Attaching processes
 -----------------------
 
-# /bin/echo PID > tasks
+::
+
+  # /bin/echo PID > tasks
 
 Note that it is PID, not PIDs. You can only attach ONE task at a time.
-If you have several tasks to attach, you have to do it one after another:
+If you have several tasks to attach, you have to do it one after another::
 
-# /bin/echo PID1 > tasks
-# /bin/echo PID2 > tasks
+  # /bin/echo PID1 > tasks
+  # /bin/echo PID2 > tasks
 	...
-# /bin/echo PIDn > tasks
+  # /bin/echo PIDn > tasks
 
 
 3. Questions
 ============
 
-Q: what's up with this '/bin/echo' ?
-A: bash's builtin 'echo' command does not check calls to write() against
+Q:
+   what's up with this '/bin/echo' ?
+
+A:
+   bash's builtin 'echo' command does not check calls to write() against
    errors. If you use it in the cpuset file system, you won't be
    able to tell whether a command succeeded or failed.
 
-Q: When I attach processes, only the first of the line gets really attached !
-A: We can only return one error code per call to write(). So you should also
+Q:
+   When I attach processes, only the first of the line gets really attached !
+
+A:
+   We can only return one error code per call to write(). So you should also
    put only ONE pid.
 
 4. Contact

@@ -1,5 +1,6 @@
+==================
 HugeTLB Controller
--------------------
+==================
 
 The HugeTLB controller allows to limit the HugeTLB usage per control group and
 enforces the controller limit during page fault. Since HugeTLB doesn't
@@ -16,16 +17,16 @@ With the above step, the initial or the parent HugeTLB group becomes
 visible at /sys/fs/cgroup. At bootup, this group includes all the tasks in
 the system. /sys/fs/cgroup/tasks lists the tasks in this cgroup.
 
-New groups can be created under the parent group /sys/fs/cgroup.
+New groups can be created under the parent group /sys/fs/cgroup::
 
-# cd /sys/fs/cgroup
-# mkdir g1
-# echo $$ > g1/tasks
+  # cd /sys/fs/cgroup
+  # mkdir g1
+  # echo $$ > g1/tasks
 
 The above steps create a new group g1 and move the current shell
 process (bash) into it.
 
-Brief summary of control files
+Brief summary of control files::
 
  hugetlb.<hugepagesize>.limit_in_bytes     # set/show limit of "hugepagesize" hugetlb usage
  hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
@@ -33,17 +34,17 @@ Brief summary of control files
  hugetlb.<hugepagesize>.failcnt		   # show the number of allocation failure due to HugeTLB limit
 
 For a system supporting three hugepage sizes (64k, 32M and 1G), the control
-files include:
+files include::
 
-hugetlb.1GB.limit_in_bytes
-hugetlb.1GB.max_usage_in_bytes
-hugetlb.1GB.usage_in_bytes
-hugetlb.1GB.failcnt
-hugetlb.64KB.limit_in_bytes
-hugetlb.64KB.max_usage_in_bytes
-hugetlb.64KB.usage_in_bytes
-hugetlb.64KB.failcnt
-hugetlb.32MB.limit_in_bytes
-hugetlb.32MB.max_usage_in_bytes
-hugetlb.32MB.usage_in_bytes
-hugetlb.32MB.failcnt
+  hugetlb.1GB.limit_in_bytes
+  hugetlb.1GB.max_usage_in_bytes
+  hugetlb.1GB.usage_in_bytes
+  hugetlb.1GB.failcnt
+  hugetlb.64KB.limit_in_bytes
+  hugetlb.64KB.max_usage_in_bytes
+  hugetlb.64KB.usage_in_bytes
+  hugetlb.64KB.failcnt
+  hugetlb.32MB.limit_in_bytes
+  hugetlb.32MB.max_usage_in_bytes
+  hugetlb.32MB.usage_in_bytes
+  hugetlb.32MB.failcnt
