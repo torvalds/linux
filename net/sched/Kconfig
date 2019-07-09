@@ -842,6 +842,17 @@ config NET_ACT_CSUM
 	  To compile this code as a module, choose M here: the
 	  module will be called act_csum.
 
+config NET_ACT_MPLS
+	tristate "MPLS manipulation"
+	depends on NET_CLS_ACT
+	help
+	  Say Y here to push or pop MPLS headers.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_mpls.
+
 config NET_ACT_VLAN
         tristate "Vlan manipulation"
         depends on NET_CLS_ACT
