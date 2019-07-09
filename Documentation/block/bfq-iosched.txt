@@ -38,13 +38,13 @@ stack). To give an idea of the limits with BFQ, on slow or average
 CPUs, here are, first, the limits of BFQ for three different CPUs, on,
 respectively, an average laptop, an old desktop, and a cheap embedded
 system, in case full hierarchical support is enabled (i.e.,
-CONFIG_BFQ_GROUP_IOSCHED is set), but CONFIG_DEBUG_BLK_CGROUP is not
+CONFIG_BFQ_GROUP_IOSCHED is set), but CONFIG_BFQ_CGROUP_DEBUG is not
 set (Section 4-2):
 - Intel i7-4850HQ: 400 KIOPS
 - AMD A8-3850: 250 KIOPS
 - ARM CortexTM-A53 Octa-core: 80 KIOPS
 
-If CONFIG_DEBUG_BLK_CGROUP is set (and of course full hierarchical
+If CONFIG_BFQ_CGROUP_DEBUG is set (and of course full hierarchical
 support is enabled), then the sustainable throughput with BFQ
 decreases, because all blkio.bfq* statistics are created and updated
 (Section 4-2). For BFQ, this leads to the following maximum
@@ -537,19 +537,19 @@ or io.bfq.weight.
 
 As for cgroups-v1 (blkio controller), the exact set of stat files
 created, and kept up-to-date by bfq, depends on whether
-CONFIG_DEBUG_BLK_CGROUP is set. If it is set, then bfq creates all
+CONFIG_BFQ_CGROUP_DEBUG is set. If it is set, then bfq creates all
 the stat files documented in
 Documentation/cgroup-v1/blkio-controller.rst. If, instead,
-CONFIG_DEBUG_BLK_CGROUP is not set, then bfq creates only the files
+CONFIG_BFQ_CGROUP_DEBUG is not set, then bfq creates only the files
 blkio.bfq.io_service_bytes
 blkio.bfq.io_service_bytes_recursive
 blkio.bfq.io_serviced
 blkio.bfq.io_serviced_recursive
 
-The value of CONFIG_DEBUG_BLK_CGROUP greatly influences the maximum
+The value of CONFIG_BFQ_CGROUP_DEBUG greatly influences the maximum
 throughput sustainable with bfq, because updating the blkio.bfq.*
 stats is rather costly, especially for some of the stats enabled by
-CONFIG_DEBUG_BLK_CGROUP.
+CONFIG_BFQ_CGROUP_DEBUG.
 
 Parameters to set
 -----------------

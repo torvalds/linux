@@ -36,6 +36,13 @@ config BFQ_GROUP_IOSCHED
        Enable hierarchical scheduling in BFQ, using the blkio
        (cgroups-v1) or io (cgroups-v2) controller.
 
+config BFQ_CGROUP_DEBUG
+	bool "BFQ IO controller debugging"
+	depends on BFQ_GROUP_IOSCHED
+	---help---
+	Enable some debugging help. Currently it exports additional stat
+	files in a cgroup which can be useful for debugging.
+
 endmenu
 
 endif

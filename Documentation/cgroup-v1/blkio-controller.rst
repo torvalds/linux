@@ -82,7 +82,7 @@ Various user visible config options
 CONFIG_BLK_CGROUP
 	- Block IO controller.
 
-CONFIG_DEBUG_BLK_CGROUP
+CONFIG_BFQ_CGROUP_DEBUG
 	- Debug help. Right now some additional stats file show up in cgroup
 	  if this option is enabled.
 
@@ -202,13 +202,13 @@ Proportional weight policy files
 	  write, sync or async.
 
 - blkio.avg_queue_size
-	- Debugging aid only enabled if CONFIG_DEBUG_BLK_CGROUP=y.
+	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
 	  The average queue size for this cgroup over the entire time of this
 	  cgroup's existence. Queue size samples are taken each time one of the
 	  queues of this cgroup gets a timeslice.
 
 - blkio.group_wait_time
-	- Debugging aid only enabled if CONFIG_DEBUG_BLK_CGROUP=y.
+	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
 	  This is the amount of time the cgroup had to wait since it became busy
 	  (i.e., went from 0 to 1 request queued) to get a timeslice for one of
 	  its queues. This is different from the io_wait_time which is the
@@ -219,7 +219,7 @@ Proportional weight policy files
 	  got a timeslice and will not include the current delta.
 
 - blkio.empty_time
-	- Debugging aid only enabled if CONFIG_DEBUG_BLK_CGROUP=y.
+	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
 	  This is the amount of time a cgroup spends without any pending
 	  requests when not being served, i.e., it does not include any time
 	  spent idling for one of the queues of the cgroup. This is in
@@ -228,7 +228,7 @@ Proportional weight policy files
 	  time it had a pending request and will not include the current delta.
 
 - blkio.idle_time
-	- Debugging aid only enabled if CONFIG_DEBUG_BLK_CGROUP=y.
+	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
 	  This is the amount of time spent by the IO scheduler idling for a
 	  given cgroup in anticipation of a better request than the existing ones
 	  from other queues/cgroups. This is in nanoseconds. If this is read
@@ -237,7 +237,7 @@ Proportional weight policy files
 	  the current delta.
 
 - blkio.dequeue
-	- Debugging aid only enabled if CONFIG_DEBUG_BLK_CGROUP=y. This
+	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y. This
 	  gives the statistics about how many a times a group was dequeued
 	  from service tree of the device. First two fields specify the major
 	  and minor number of the device and third field specifies the number

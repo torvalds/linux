@@ -436,7 +436,6 @@ struct bio {
        struct bvec_iter	bi_iter;	/* current index into bio_vec array */
 
        unsigned int	bi_size;     /* total size in bytes */
-       unsigned short 	bi_phys_segments; /* segments after physaddr coalesce*/
        unsigned short	bi_hw_segments; /* segments after DMA remapping */
        unsigned int	bi_max;	     /* max bio_vecs we can hold
                                         used as index into pool */

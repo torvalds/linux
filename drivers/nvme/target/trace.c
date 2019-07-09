@@ -1,44 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * NVM Express device driver tracepoints
+ * NVM Express target device driver tracepoints
  * Copyright (c) 2018 Johannes Thumshirn, SUSE Linux GmbH
  */
 
 #include <asm/unaligned.h>
 #include "trace.h"
 
-static const char *nvme_trace_create_sq(struct trace_seq *p, u8 *cdw10)
-{
-	const char *ret = trace_seq_buffer_ptr(p);
-	u16 sqid = get_unaligned_le16(cdw10);
-	u16 qsize = get_unaligned_le16(cdw10 + 2);
-	u16 sq_flags = get_unaligned_le16(cdw10 + 4);
-	u16 cqid = get_unaligned_le16(cdw10 + 6);
-
-
-	trace_seq_printf(p, "sqid=%u, qsize=%u, sq_flags=0x%x, cqid=%u",
-			 sqid, qsize, sq_flags, cqid);
-	trace_seq_putc(p, 0);
-
-	return ret;
-}
-
-static const char *nvme_trace_create_cq(struct trace_seq *p, u8 *cdw10)
-{
-	const char *ret = trace_seq_buffer_ptr(p);
-	u16 cqid = get_unaligned_le16(cdw10);
-	u16 qsize = get_unaligned_le16(cdw10 + 2);
-	u16 cq_flags = get_unaligned_le16(cdw10 + 4);
-	u16 irq_vector = get_unaligned_le16(cdw10 + 6);
-
-	trace_seq_printf(p, "cqid=%u, qsize=%u, cq_flags=0x%x, irq_vector=%u",
-			 cqid, qsize, cq_flags, irq_vector);
-	trace_seq_putc(p, 0);
-
-	return ret;
-}
-
-static const char *nvme_trace_admin_identify(struct trace_seq *p, u8 *cdw10)
+static const char *nvmet_trace_admin_identify(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 	u8 cns = cdw10[0];
@@ -50,7 +19,7 @@ static const char *nvme_trace_admin_identify(struct trace_seq *p, u8 *cdw10)
 	return ret;
 }
 
-static const char *nvme_trace_admin_get_features(struct trace_seq *p,
+static const char *nvmet_trace_admin_get_features(struct trace_seq *p,
 						 u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -64,7 +33,7 @@ static const char *nvme_trace_admin_get_features(struct trace_seq *p,
 	return ret;
 }
 
-static const char *nvme_trace_read_write(struct trace_seq *p, u8 *cdw10)
+static const char *nvmet_trace_read_write(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 	u64 slba = get_unaligned_le64(cdw10);
@@ -81,7 +50,7 @@ static const char *nvme_trace_read_write(struct trace_seq *p, u8 *cdw10)
 	return ret;
 }
 
-static const char *nvme_trace_dsm(struct trace_seq *p, u8 *cdw10)
+static const char *nvmet_trace_dsm(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
@@ -93,7 +62,7 @@ static const char *nvme_trace_dsm(struct trace_seq *p, u8 *cdw10)
 	return ret;
 }
 
-static const char *nvme_trace_common(struct trace_seq *p, u8 *cdw10)
+static const char *nvmet_trace_common(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
@@ -103,39 +72,36 @@ static const char *nvme_trace_common(struct trace_seq *p, u8 *cdw10)
 	return ret;
 }
 
-const char *nvme_trace_parse_admin_cmd(struct trace_seq *p,
-				       u8 opcode, u8 *cdw10)
+const char *nvmet_trace_parse_admin_cmd(struct trace_seq *p,
+		u8 opcode, u8 *cdw10)
 {
 	switch (opcode) {
-	case nvme_admin_create_sq:
-		return nvme_trace_create_sq(p, cdw10);
-	case nvme_admin_create_cq:
-		return nvme_trace_create_cq(p, cdw10);
 	case nvme_admin_identify:
-		return nvme_trace_admin_identify(p, cdw10);
+		return nvmet_trace_admin_identify(p, cdw10);
 	case nvme_admin_get_features:
-		return nvme_trace_admin_get_features(p, cdw10);
+		return nvmet_trace_admin_get_features(p, cdw10);
 	default:
-		return nvme_trace_common(p, cdw10);
+		return nvmet_trace_common(p, cdw10);
 	}
 }
 
-const char *nvme_trace_parse_nvm_cmd(struct trace_seq *p,
-				     u8 opcode, u8 *cdw10)
+const char *nvmet_trace_parse_nvm_cmd(struct trace_seq *p,
+		u8 opcode, u8 *cdw10)
 {
 	switch (opcode) {
 	case nvme_cmd_read:
 	case nvme_cmd_write:
 	case nvme_cmd_write_zeroes:
-		return nvme_trace_read_write(p, cdw10);
+		return nvmet_trace_read_write(p, cdw10);
 	case nvme_cmd_dsm:
-		return nvme_trace_dsm(p, cdw10);
+		return nvmet_trace_dsm(p, cdw10);
 	default:
-		return nvme_trace_common(p, cdw10);
+		return nvmet_trace_common(p, cdw10);
 	}
 }
 
-static const char *nvme_trace_fabrics_property_set(struct trace_seq *p, u8 *spc)
+static const char *nvmet_trace_fabrics_property_set(struct trace_seq *p,
+		u8 *spc)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 	u8 attrib = spc[0];
@@ -148,7 +114,8 @@ static const char *nvme_trace_fabrics_property_set(struct trace_seq *p, u8 *spc)
 	return ret;
 }
 
-static const char *nvme_trace_fabrics_connect(struct trace_seq *p, u8 *spc)
+static const char *nvmet_trace_fabrics_connect(struct trace_seq *p,
+		u8 *spc)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 	u16 recfmt = get_unaligned_le16(spc);
@@ -163,7 +130,8 @@ static const char *nvme_trace_fabrics_connect(struct trace_seq *p, u8 *spc)
 	return ret;
 }
 
-static const char *nvme_trace_fabrics_property_get(struct trace_seq *p, u8 *spc)
+static const char *nvmet_trace_fabrics_property_get(struct trace_seq *p,
+		u8 *spc)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 	u8 attrib = spc[0];
@@ -174,7 +142,7 @@ static const char *nvme_trace_fabrics_property_get(struct trace_seq *p, u8 *spc)
 	return ret;
 }
 
-static const char *nvme_trace_fabrics_common(struct trace_seq *p, u8 *spc)
+static const char *nvmet_trace_fabrics_common(struct trace_seq *p, u8 *spc)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
@@ -183,22 +151,22 @@ static const char *nvme_trace_fabrics_common(struct trace_seq *p, u8 *spc)
 	return ret;
 }
 
-const char *nvme_trace_parse_fabrics_cmd(struct trace_seq *p,
+const char *nvmet_trace_parse_fabrics_cmd(struct trace_seq *p,
 		u8 fctype, u8 *spc)
 {
 	switch (fctype) {
 	case nvme_fabrics_type_property_set:
-		return nvme_trace_fabrics_property_set(p, spc);
+		return nvmet_trace_fabrics_property_set(p, spc);
 	case nvme_fabrics_type_connect:
-		return nvme_trace_fabrics_connect(p, spc);
+		return nvmet_trace_fabrics_connect(p, spc);
 	case nvme_fabrics_type_property_get:
-		return nvme_trace_fabrics_property_get(p, spc);
+		return nvmet_trace_fabrics_property_get(p, spc);
 	default:
-		return nvme_trace_fabrics_common(p, spc);
+		return nvmet_trace_fabrics_common(p, spc);
 	}
 }
 
-const char *nvme_trace_disk_name(struct trace_seq *p, char *name)
+const char *nvmet_trace_disk_name(struct trace_seq *p, char *name)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
@@ -209,4 +177,25 @@ const char *nvme_trace_disk_name(struct trace_seq *p, char *name)
 	return ret;
 }
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(nvme_sq);
+const char *nvmet_trace_ctrl_name(struct trace_seq *p, struct nvmet_ctrl *ctrl)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	/*
+	 * XXX: We don't know the controller instance before executing the
+	 * connect command itself because the connect command for the admin
+	 * queue will not provide the cntlid which will be allocated in this
+	 * command.  In case of io queues, the controller instance will be
+	 * mapped by the extra data of the connect command.
+	 * If we can know the extra data of the connect command in this stage,
+	 * we can update this print statement later.
+	 */
+	if (ctrl)
+		trace_seq_printf(p, "%d", ctrl->cntlid);
+	else
+		trace_seq_printf(p, "_");
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+

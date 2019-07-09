@@ -154,11 +154,6 @@ struct bio {
 	blk_status_t		bi_status;
 	u8			bi_partno;
 
-	/* Number of segments in this BIO after
-	 * physical address coalescing is performed.
-	 */
-	unsigned int		bi_phys_segments;
-
 	struct bvec_iter	bi_iter;
 
 	atomic_t		__bi_remaining;
@@ -210,7 +205,6 @@ struct bio {
  */
 enum {
 	BIO_NO_PAGE_REF,	/* don't put release vec pages */
-	BIO_SEG_VALID,		/* bi_phys_segments valid */
 	BIO_CLONED,		/* doesn't own data */
 	BIO_BOUNCED,		/* bio is a bounce bio */
 	BIO_USER_MAPPED,	/* contains user pages */

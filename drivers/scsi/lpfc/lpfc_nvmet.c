@@ -1139,6 +1139,22 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 	spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 }
 
+static void
+lpfc_nvmet_discovery_event(struct nvmet_fc_target_port *tgtport)
+{
+	struct lpfc_nvmet_tgtport *tgtp;
+	struct lpfc_hba *phba;
+	uint32_t rc;
+
+	tgtp = tgtport->private;
+	phba = tgtp->phba;
+
+	rc = lpfc_issue_els_rscn(phba->pport, 0);
+	lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+			"6420 NVMET subsystem change: Notification %s\n",
+			(rc) ? "Failed" : "Sent");
+}
+
 static struct nvmet_fc_target_template lpfc_tgttemplate = {
 	.targetport_delete = lpfc_nvmet_targetport_delete,
 	.xmt_ls_rsp     = lpfc_nvmet_xmt_ls_rsp,
@@ -1146,6 +1162,7 @@ static struct nvmet_fc_target_template lpfc_tgttemplate = {
 	.fcp_abort      = lpfc_nvmet_xmt_fcp_abort,
 	.fcp_req_release = lpfc_nvmet_xmt_fcp_release,
 	.defer_rcv	= lpfc_nvmet_defer_rcv,
+	.discovery_event = lpfc_nvmet_discovery_event,
 
 	.max_hw_queues  = 1,
 	.max_sgl_segments = LPFC_NVMET_DEFAULT_SEGS,

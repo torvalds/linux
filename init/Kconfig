@@ -852,14 +852,6 @@ config BLK_CGROUP
 
 	See Documentation/cgroup-v1/blkio-controller.rst for more information.
 
-config DEBUG_BLK_CGROUP
-	bool "IO controller debugging"
-	depends on BLK_CGROUP
-	default n
-	---help---
-	Enable some debugging help. Currently it exports additional stat
-	files in a cgroup which can be useful for debugging.
-
 config CGROUP_WRITEBACK
 	bool
 	depends on MEMCG && BLK_CGROUP

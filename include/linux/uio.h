@@ -19,9 +19,6 @@ struct kvec {
 };
 
 enum iter_type {
-	/* set if ITER_BVEC doesn't hold a bv_page ref */
-	ITER_BVEC_FLAG_NO_REF = 2,
-
 	/* iter types */
 	ITER_IOVEC = 4,
 	ITER_KVEC = 8,
@@ -56,7 +53,7 @@ struct iov_iter {
 
 static inline enum iter_type iov_iter_type(const struct iov_iter *i)
 {
-	return i->type & ~(READ | WRITE | ITER_BVEC_FLAG_NO_REF);
+	return i->type & ~(READ | WRITE);
 }
 
 static inline bool iter_is_iovec(const struct iov_iter *i)
@@ -87,11 +84,6 @@ static inline bool iov_iter_is_discard(const struct iov_iter *i)
 static inline unsigned char iov_iter_rw(const struct iov_iter *i)
 {
 	return i->type & (READ | WRITE);
-}
-
-static inline bool iov_iter_bvec_no_ref(const struct iov_iter *i)
-{
-	return (i->type & ITER_BVEC_FLAG_NO_REF) != 0;
 }
 
 /*
