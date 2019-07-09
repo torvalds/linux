@@ -564,7 +564,7 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 
 	if (skb_ensure_writable(skb, hdrlen + sizeof(*inside)))
 		return 0;
-	if (nf_ip_checksum(skb, hooknum, hdrlen, 0))
+	if (nf_ip_checksum(skb, hooknum, hdrlen, IPPROTO_ICMP))
 		return 0;
 
 	inside = (void *)skb->data + hdrlen;
