@@ -158,6 +158,9 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	int interlace;
 	u64 tmp;
 
+	if (!hdisplay || !vdisplay)
+		return NULL;
+
 	/* allocate the drm_display_mode structure. If failure, we will
 	 * return directly
 	 */
@@ -391,6 +394,9 @@ drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
 	unsigned int hblank, total_pixels, pixel_freq;
 	int hsync, hfront_porch, vodd_front_porch_lines;
 	unsigned int tmp1, tmp2;
+
+	if (!hdisplay || !vdisplay)
+		return NULL;
 
 	drm_mode = drm_mode_create(dev);
 	if (!drm_mode)
