@@ -17,12 +17,17 @@
 
 #define CNN55XX_DEV_ID	0x12
 #define UCODE_HLEN 48
-#define SE_GROUP 0
+#define DEFAULT_SE_GROUP 0
+#define DEFAULT_AE_GROUP 0
 
-#define DRIVER_VERSION "1.1"
+#define DRIVER_VERSION "1.2"
+#define CNN55XX_UCD_BLOCK_SIZE 32768
+#define CNN55XX_MAX_UCODE_SIZE (CNN55XX_UCD_BLOCK_SIZE * 2)
 #define FW_DIR "cavium/"
 /* SE microcode */
 #define SE_FW	FW_DIR "cnn55xx_se.fw"
+/* AE microcode */
+#define AE_FW	FW_DIR "cnn55xx_ae.fw"
 
 static const char nitrox_driver_name[] = "CNN55XX";
 
@@ -72,10 +77,10 @@ struct ucode {
 /**
  * write_to_ucd_unit - Write Firmware to NITROX UCD unit
  */
-static void write_to_ucd_unit(struct nitrox_device *ndev,
-			      struct ucode *ucode)
+static void write_to_ucd_unit(struct nitrox_device *ndev, u32 ucode_size,
+			      u64 *ucode_data, int block_num)
 {
-	u32 code_size = be32_to_cpu(ucode->code_size) * 2;
+	u32 code_size;
 	u64 offset, data;
 	int i = 0;
 
@@ -96,11 +101,12 @@ static void write_to_ucd_unit(struct nitrox_device *ndev,
 
 	/* set the block number */
 	offset = UCD_UCODE_LOAD_BLOCK_NUM;
-	nitrox_write_csr(ndev, offset, 0);
+	nitrox_write_csr(ndev, offset, block_num);
 
+	code_size = ucode_size;
 	code_size = roundup(code_size, 8);
 	while (code_size) {
-		data = ucode->code[i];
+		data = ucode_data[i];
 		/* write 8 bytes at a time */
 		offset = UCD_UCODE_LOAD_IDX_DATAX(i);
 		nitrox_write_csr(ndev, offset, data);
@@ -108,29 +114,23 @@ static void write_to_ucd_unit(struct nitrox_device *ndev,
 		i++;
 	}
 
-	/* put all SE cores in group 0 */
-	offset = POM_GRP_EXECMASKX(SE_GROUP);
-	nitrox_write_csr(ndev, offset, (~0ULL));
-
-	for (i = 0; i < ndev->hw.se_cores; i++) {
-		/*
-		 * write block number and firware length
-		 * bit:<2:0> block number
-		 * bit:3 is set SE uses 32KB microcode
-		 * bit:3 is clear SE uses 64KB microcode
-		 */
-		offset = UCD_SE_EID_UCODE_BLOCK_NUMX(i);
-		nitrox_write_csr(ndev, offset, 0x8);
-	}
 	usleep_range(300, 400);
 }
 
-static int nitrox_load_fw(struct nitrox_device *ndev, const char *fw_name)
+static int nitrox_load_fw(struct nitrox_device *ndev)
 {
 	const struct firmware *fw;
+	const char *fw_name;
 	struct ucode *ucode;
-	int ret;
+	u64 *ucode_data;
+	u64 offset;
+	union ucd_core_eid_ucode_block_num core_2_eid_val;
+	union aqm_grp_execmsk_lo aqm_grp_execmask_lo;
+	union aqm_grp_execmsk_hi aqm_grp_execmask_hi;
+	u32 ucode_size;
+	int ret, i = 0;
 
+	fw_name = SE_FW;
 	dev_info(DEV(ndev), "Loading firmware \"%s\"\n", fw_name);
 
 	ret = request_firmware(&fw, fw_name, DEV(ndev));
@@ -140,12 +140,100 @@ static int nitrox_load_fw(struct nitrox_device *ndev, const char *fw_name)
 	}
 
 	ucode = (struct ucode *)fw->data;
-	/* copy the firmware version */
-	memcpy(ndev->hw.fw_name, ucode->version, (VERSION_LEN - 2));
-	ndev->hw.fw_name[VERSION_LEN - 1] = '\0';
 
-	write_to_ucd_unit(ndev, ucode);
+	ucode_size = be32_to_cpu(ucode->code_size) * 2;
+	if (!ucode_size || ucode_size > CNN55XX_MAX_UCODE_SIZE) {
+		dev_err(DEV(ndev), "Invalid ucode size: %u for firmware %s\n",
+			ucode_size, fw_name);
+		release_firmware(fw);
+		return -EINVAL;
+	}
+	ucode_data = ucode->code;
+
+	/* copy the firmware version */
+	memcpy(&ndev->hw.fw_name[0][0], ucode->version, (VERSION_LEN - 2));
+	ndev->hw.fw_name[0][VERSION_LEN - 1] = '\0';
+
+	/* Load SE Firmware on UCD Block 0 */
+	write_to_ucd_unit(ndev, ucode_size, ucode_data, 0);
+
 	release_firmware(fw);
+
+	/* put all SE cores in DEFAULT_SE_GROUP */
+	offset = POM_GRP_EXECMASKX(DEFAULT_SE_GROUP);
+	nitrox_write_csr(ndev, offset, (~0ULL));
+
+	/* write block number and firmware length
+	 * bit:<2:0> block number
+	 * bit:3 is set SE uses 32KB microcode
+	 * bit:3 is clear SE uses 64KB microcode
+	 */
+	core_2_eid_val.value = 0ULL;
+	core_2_eid_val.ucode_blk = 0;
+	if (ucode_size <= CNN55XX_UCD_BLOCK_SIZE)
+		core_2_eid_val.ucode_len = 1;
+	else
+		core_2_eid_val.ucode_len = 0;
+
+	for (i = 0; i < ndev->hw.se_cores; i++) {
+		offset = UCD_SE_EID_UCODE_BLOCK_NUMX(i);
+		nitrox_write_csr(ndev, offset, core_2_eid_val.value);
+	}
+
+
+	fw_name = AE_FW;
+	dev_info(DEV(ndev), "Loading firmware \"%s\"\n", fw_name);
+
+	ret = request_firmware(&fw, fw_name, DEV(ndev));
+	if (ret < 0) {
+		dev_err(DEV(ndev), "failed to get firmware %s\n", fw_name);
+		return ret;
+	}
+
+	ucode = (struct ucode *)fw->data;
+
+	ucode_size = be32_to_cpu(ucode->code_size) * 2;
+	if (!ucode_size || ucode_size > CNN55XX_MAX_UCODE_SIZE) {
+		dev_err(DEV(ndev), "Invalid ucode size: %u for firmware %s\n",
+			ucode_size, fw_name);
+		release_firmware(fw);
+		return -EINVAL;
+	}
+	ucode_data = ucode->code;
+
+	/* copy the firmware version */
+	memcpy(&ndev->hw.fw_name[1][0], ucode->version, (VERSION_LEN - 2));
+	ndev->hw.fw_name[1][VERSION_LEN - 1] = '\0';
+
+	/* Load AE Firmware on UCD Block 2 */
+	write_to_ucd_unit(ndev, ucode_size, ucode_data, 2);
+
+	release_firmware(fw);
+
+	/* put all AE cores in DEFAULT_AE_GROUP */
+	offset = AQM_GRP_EXECMSK_LOX(DEFAULT_AE_GROUP);
+	aqm_grp_execmask_lo.exec_0_to_39 = 0xFFFFFFFFFFULL;
+	nitrox_write_csr(ndev, offset, aqm_grp_execmask_lo.value);
+	offset = AQM_GRP_EXECMSK_HIX(DEFAULT_AE_GROUP);
+	aqm_grp_execmask_hi.exec_40_to_79 = 0xFFFFFFFFFFULL;
+	nitrox_write_csr(ndev, offset, aqm_grp_execmask_hi.value);
+
+	/* write block number and firmware length
+	 * bit:<2:0> block number
+	 * bit:3 is set SE uses 32KB microcode
+	 * bit:3 is clear SE uses 64KB microcode
+	 */
+	core_2_eid_val.value = 0ULL;
+	core_2_eid_val.ucode_blk = 0;
+	if (ucode_size <= CNN55XX_UCD_BLOCK_SIZE)
+		core_2_eid_val.ucode_len = 1;
+	else
+		core_2_eid_val.ucode_len = 0;
+
+	for (i = 0; i < ndev->hw.ae_cores; i++) {
+		offset = UCD_AE_EID_UCODE_BLOCK_NUMX(i);
+		nitrox_write_csr(ndev, offset, core_2_eid_val.value);
+	}
 
 	return 0;
 }
@@ -309,8 +397,8 @@ static int nitrox_pf_hw_init(struct nitrox_device *ndev)
 	nitrox_config_lbc_unit(ndev);
 	nitrox_config_rand_unit(ndev);
 
-	/* load firmware on SE cores */
-	err = nitrox_load_fw(ndev, SE_FW);
+	/* load firmware on cores */
+	err = nitrox_load_fw(ndev);
 	if (err)
 		return err;
 

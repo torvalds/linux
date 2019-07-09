@@ -10,6 +10,8 @@
 #define VERSION_LEN 32
 /* Maximum queues in PF mode */
 #define MAX_PF_QUEUES	64
+/* Maximum UCD Blocks */
+#define CNN55XX_MAX_UCD_BLOCKS	8
 
 /**
  * struct nitrox_cmdq - NITROX command queue
@@ -74,7 +76,7 @@ struct nitrox_cmdq {
  */
 struct nitrox_hw {
 	char partname[IFNAMSIZ * 2];
-	char fw_name[VERSION_LEN];
+	char fw_name[CNN55XX_MAX_UCD_BLOCKS][VERSION_LEN];
 
 	int freq;
 	u16 vendor_id;

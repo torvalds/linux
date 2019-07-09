@@ -40,9 +40,77 @@
 #define EMU_FUSE_MAPX(_i)	(0x1402708 + ((_i) * 0x40000))
 
 /* UCD registers */
+#define UCD_SE_EID_UCODE_BLOCK_NUMX(_i)	(0x12C0000 + ((_i) * 0x1000))
+#define UCD_AE_EID_UCODE_BLOCK_NUMX(_i)	(0x12C0008 + ((_i) * 0x800))
 #define UCD_UCODE_LOAD_BLOCK_NUM	0x12C0010
 #define UCD_UCODE_LOAD_IDX_DATAX(_i)	(0x12C0018 + ((_i) * 0x20))
-#define UCD_SE_EID_UCODE_BLOCK_NUMX(_i)	(0x12C0000 + ((_i) * 0x1000))
+#define UCD_SE_CNTX(_i)			(0x12C0040 + ((_i) * 0x1000))
+#define UCD_AE_CNTX(_i)			(0x12C0048 + ((_i) * 0x800))
+
+/* AQM registers */
+#define AQM_CTL                         0x1300000
+#define AQM_INT                         0x1300008
+#define AQM_DBELL_OVF_LO                0x1300010
+#define AQM_DBELL_OVF_HI                0x1300018
+#define AQM_DBELL_OVF_LO_W1S            0x1300020
+#define AQM_DBELL_OVF_LO_ENA_W1C        0x1300028
+#define AQM_DBELL_OVF_LO_ENA_W1S        0x1300030
+#define AQM_DBELL_OVF_HI_W1S            0x1300038
+#define AQM_DBELL_OVF_HI_ENA_W1C        0x1300040
+#define AQM_DBELL_OVF_HI_ENA_W1S        0x1300048
+#define AQM_DMA_RD_ERR_LO               0x1300050
+#define AQM_DMA_RD_ERR_HI               0x1300058
+#define AQM_DMA_RD_ERR_LO_W1S           0x1300060
+#define AQM_DMA_RD_ERR_LO_ENA_W1C       0x1300068
+#define AQM_DMA_RD_ERR_LO_ENA_W1S       0x1300070
+#define AQM_DMA_RD_ERR_HI_W1S           0x1300078
+#define AQM_DMA_RD_ERR_HI_ENA_W1C       0x1300080
+#define AQM_DMA_RD_ERR_HI_ENA_W1S       0x1300088
+#define AQM_EXEC_NA_LO                  0x1300090
+#define AQM_EXEC_NA_HI                  0x1300098
+#define AQM_EXEC_NA_LO_W1S              0x13000A0
+#define AQM_EXEC_NA_LO_ENA_W1C          0x13000A8
+#define AQM_EXEC_NA_LO_ENA_W1S          0x13000B0
+#define AQM_EXEC_NA_HI_W1S              0x13000B8
+#define AQM_EXEC_NA_HI_ENA_W1C          0x13000C0
+#define AQM_EXEC_NA_HI_ENA_W1S          0x13000C8
+#define AQM_EXEC_ERR_LO                 0x13000D0
+#define AQM_EXEC_ERR_HI                 0x13000D8
+#define AQM_EXEC_ERR_LO_W1S             0x13000E0
+#define AQM_EXEC_ERR_LO_ENA_W1C         0x13000E8
+#define AQM_EXEC_ERR_LO_ENA_W1S         0x13000F0
+#define AQM_EXEC_ERR_HI_W1S             0x13000F8
+#define AQM_EXEC_ERR_HI_ENA_W1C         0x1300100
+#define AQM_EXEC_ERR_HI_ENA_W1S         0x1300108
+#define AQM_ECC_INT                     0x1300110
+#define AQM_ECC_INT_W1S                 0x1300118
+#define AQM_ECC_INT_ENA_W1C             0x1300120
+#define AQM_ECC_INT_ENA_W1S             0x1300128
+#define AQM_ECC_CTL                     0x1300130
+#define AQM_BIST_STATUS                 0x1300138
+#define AQM_CMD_INF_THRX(x)             (0x1300400 + ((x) * 0x8))
+#define AQM_CMD_INFX(x)                 (0x1300800 + ((x) * 0x8))
+#define AQM_GRP_EXECMSK_LOX(x)          (0x1300C00 + ((x) * 0x10))
+#define AQM_GRP_EXECMSK_HIX(x)          (0x1300C08 + ((x) * 0x10))
+#define AQM_ACTIVITY_STAT_LO            0x1300C80
+#define AQM_ACTIVITY_STAT_HI            0x1300C88
+#define AQM_Q_CMD_PROCX(x)              (0x1301000 + ((x) * 0x8))
+#define AQM_PERF_CTL_LO                 0x1301400
+#define AQM_PERF_CTL_HI                 0x1301408
+#define AQM_PERF_CNT                    0x1301410
+
+#define AQMQ_DRBLX(x)                   (0x20000 + ((x) * 0x40000))
+#define AQMQ_QSZX(x)                    (0x20008 + ((x) * 0x40000))
+#define AQMQ_BADRX(x)                   (0x20010 + ((x) * 0x40000))
+#define AQMQ_NXT_CMDX(x)                (0x20018 + ((x) * 0x40000))
+#define AQMQ_CMD_CNTX(x)                (0x20020 + ((x) * 0x40000))
+#define AQMQ_CMP_THRX(x)                (0x20028 + ((x) * 0x40000))
+#define AQMQ_CMP_CNTX(x)                (0x20030 + ((x) * 0x40000))
+#define AQMQ_TIM_LDX(x)                 (0x20038 + ((x) * 0x40000))
+#define AQMQ_TIMERX(x)                  (0x20040 + ((x) * 0x40000))
+#define AQMQ_ENX(x)                     (0x20048 + ((x) * 0x40000))
+#define AQMQ_ACTIVITY_STATX(x)          (0x20050 + ((x) * 0x40000))
+#define AQM_VF_CMP_STATX(x)             (0x28000 + ((x) * 0x40000))
 
 /* NPS core registers */
 #define NPS_CORE_GBL_VFCFG	0x1000000
@@ -133,6 +201,60 @@
 
 /* PEM registers */
 #define PEM0_INT 0x1080428
+
+/**
+ * struct ucd_core_eid_ucode_block_num - Core Eid to Ucode Blk Mapping Registers
+ * @ucode_len: Ucode length identifier 32KB or 64KB
+ * @ucode_blk: Ucode Block Number
+ */
+union ucd_core_eid_ucode_block_num {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_4_63 : 60;
+		u64 ucode_len : 1;
+		u64 ucode_blk : 3;
+#else
+		u64 ucode_blk : 3;
+		u64 ucode_len : 1;
+		u64 raz_4_63 : 60;
+#endif
+	};
+};
+
+/**
+ * struct aqm_grp_execmsk_lo - Available AE engines for the group
+ * @exec_0_to_39: AE engines 0 to 39 status
+ */
+union aqm_grp_execmsk_lo {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_40_63 : 24;
+		u64 exec_0_to_39 : 40;
+#else
+		u64 exec_0_to_39 : 40;
+		u64 raz_40_63 : 24;
+#endif
+	};
+};
+
+/**
+ * struct aqm_grp_execmsk_hi - Available AE engines for the group
+ * @exec_40_to_79: AE engines 40 to 79 status
+ */
+union aqm_grp_execmsk_hi {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_40_63 : 24;
+		u64 exec_40_to_79 : 40;
+#else
+		u64 exec_40_to_79 : 40;
+		u64 raz_40_63 : 24;
+#endif
+	};
+};
 
 /**
  * struct emu_fuse_map - EMU Fuse Map Registers
