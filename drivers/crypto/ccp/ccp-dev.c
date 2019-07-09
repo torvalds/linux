@@ -8,6 +8,7 @@
  * Author: Gary R Hook <gary.hook@amd.com>
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
@@ -25,6 +26,11 @@
 #include <linux/ccp.h>
 
 #include "ccp-dev.h"
+
+/* Limit CCP use to a specifed number of queues per device */
+static unsigned int nqueues = 0;
+module_param(nqueues, uint, 0444);
+MODULE_PARM_DESC(nqueues, "Number of queues per CCP (minimum 1; default: all available)");
 
 struct ccp_tasklet_data {
 	struct completion completion;
@@ -591,6 +597,11 @@ int ccp_dev_init(struct sp_device *sp)
 	if (!ccp)
 		goto e_err;
 	sp->ccp_data = ccp;
+
+	if (!nqueues || (nqueues > MAX_HW_QUEUES))
+		ccp->max_q_count = MAX_HW_QUEUES;
+	else
+		ccp->max_q_count = nqueues;
 
 	ccp->vdata = (struct ccp_vdata *)sp->dev_vdata->ccp_vdata;
 	if (!ccp->vdata || !ccp->vdata->version) {

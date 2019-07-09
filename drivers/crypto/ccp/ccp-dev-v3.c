@@ -379,7 +379,7 @@ static int ccp_init(struct ccp_device *ccp)
 	/* Find available queues */
 	ccp->qim = 0;
 	qmr = ioread32(ccp->io_regs + Q_MASK_REG);
-	for (i = 0; i < MAX_HW_QUEUES; i++) {
+	for (i = 0; (i < MAX_HW_QUEUES) && (ccp->cmd_q_count < ccp->max_q_count); i++) {
 		if (!(qmr & (1 << i)))
 			continue;
 

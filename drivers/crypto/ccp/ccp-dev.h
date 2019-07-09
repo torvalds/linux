@@ -379,6 +379,7 @@ struct ccp_device {
 	 */
 	struct ccp_cmd_queue cmd_q[MAX_HW_QUEUES];
 	unsigned int cmd_q_count;
+	unsigned int max_q_count;
 
 	/* Support for the CCP True RNG
 	 */
