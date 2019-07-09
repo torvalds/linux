@@ -45,6 +45,7 @@
 #include <linux/posix-timers.h>
 #include <linux/livepatch.h>
 #include <linux/cgroup.h>
+#include <linux/audit.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -54,7 +55,6 @@
 #include <asm/unistd.h>
 #include <asm/siginfo.h>
 #include <asm/cacheflush.h>
-#include "audit.h"	/* audit_signal_info() */
 
 /*
  * SLAB caches for signal bits.
