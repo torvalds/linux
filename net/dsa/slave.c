@@ -301,6 +301,9 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		ret = dsa_port_bridge_flags(dp, attr->u.brport_flags, trans);
 		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_MROUTER:
+		ret = dsa_port_mrouter(dp->cpu_dp, attr->u.mrouter, trans);
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
