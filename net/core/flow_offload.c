@@ -176,6 +176,7 @@ struct flow_block_cb *flow_block_cb_alloc(struct net *net, tc_setup_cb_t *cb,
 	if (!block_cb)
 		return ERR_PTR(-ENOMEM);
 
+	block_cb->net = net;
 	block_cb->cb = cb;
 	block_cb->cb_ident = cb_ident;
 	block_cb->cb_priv = cb_priv;
@@ -193,6 +194,22 @@ void flow_block_cb_free(struct flow_block_cb *block_cb)
 	kfree(block_cb);
 }
 EXPORT_SYMBOL(flow_block_cb_free);
+
+struct flow_block_cb *flow_block_cb_lookup(struct flow_block_offload *f,
+					   tc_setup_cb_t *cb, void *cb_ident)
+{
+	struct flow_block_cb *block_cb;
+
+	list_for_each_entry(block_cb, f->driver_block_list, driver_list) {
+		if (block_cb->net == f->net &&
+		    block_cb->cb == cb &&
+		    block_cb->cb_ident == cb_ident)
+			return block_cb;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(flow_block_cb_lookup);
 
 int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       struct list_head *driver_block_list,
