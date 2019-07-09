@@ -242,6 +242,16 @@ enum smu_message_type
 	SMU_MSG_PowerDownJpeg,
 	SMU_MSG_BacoAudioD3PME,
 	SMU_MSG_ArmD3,
+	SMU_MSG_RunGfxDcBtc,
+	SMU_MSG_RunSocDcBtc,
+	SMU_MSG_SetMemoryChannelEnable,
+	SMU_MSG_SetDfSwitchType,
+	SMU_MSG_GetVoltageByDpm,
+	SMU_MSG_GetVoltageByDpmOverdrive,
+	SMU_MSG_PowerUpVcn0,
+	SMU_MSG_PowerDownVcn01,
+	SMU_MSG_PowerUpVcn1,
+	SMU_MSG_PowerDownVcn1,
 	SMU_MSG_MAX_COUNT,
 };
 
