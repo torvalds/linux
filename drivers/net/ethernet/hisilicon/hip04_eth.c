@@ -178,6 +178,7 @@ struct hip04_priv {
 	int phy_mode;
 	int chan;
 	unsigned int port;
+	unsigned int group;
 	unsigned int speed;
 	unsigned int duplex;
 	unsigned int reg_inten;
@@ -278,10 +279,10 @@ static void hip04_config_fifo(struct hip04_priv *priv)
 	val |= PPE_CFG_STS_RX_PKT_CNT_RC;
 	writel_relaxed(val, priv->base + PPE_CFG_STS_MODE);
 
-	val = BIT(priv->port);
+	val = BIT(priv->group);
 	regmap_write(priv->map, priv->port * 4 + PPE_CFG_POOL_GRP, val);
 
-	val = priv->port << PPE_CFG_QOS_VMID_GRP_SHIFT;
+	val = priv->group << PPE_CFG_QOS_VMID_GRP_SHIFT;
 	val |= PPE_CFG_QOS_VMID_MODE;
 	writel_relaxed(val, priv->base + PPE_CFG_QOS_VMID_GEN);
 
@@ -876,7 +877,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	}
 #endif
 
-	ret = of_parse_phandle_with_fixed_args(node, "port-handle", 2, 0, &arg);
+	ret = of_parse_phandle_with_fixed_args(node, "port-handle", 3, 0, &arg);
 	if (ret < 0) {
 		dev_warn(d, "no port-handle\n");
 		goto init_fail;
@@ -884,6 +885,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 
 	priv->port = arg.args[0];
 	priv->chan = arg.args[1] * RX_DESC_NUM;
+	priv->group = arg.args[2];
 
 	hrtimer_init(&priv->tx_coalesce_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
