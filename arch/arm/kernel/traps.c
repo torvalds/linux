@@ -722,10 +722,11 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_BADABORT) {
+		pr_err("8<--- cut here ---\n");
 		pr_err("[%d] %s: bad data abort: code %d instr 0x%08lx\n",
 		       task_pid_nr(current), current->comm, code, instr);
 		dump_instr(KERN_ERR, regs);
-		show_pte(current->mm, addr);
+		show_pte(KERN_ERR, current->mm, addr);
 	}
 #endif
 
