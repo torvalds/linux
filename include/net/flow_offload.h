@@ -281,6 +281,10 @@ void flow_block_cb_free(struct flow_block_cb *block_cb);
 struct flow_block_cb *flow_block_cb_lookup(struct flow_block_offload *offload,
 					   tc_setup_cb_t *cb, void *cb_ident);
 
+void *flow_block_cb_priv(struct flow_block_cb *block_cb);
+void flow_block_cb_incref(struct flow_block_cb *block_cb);
+unsigned int flow_block_cb_decref(struct flow_block_cb *block_cb);
+
 static inline void flow_block_cb_add(struct flow_block_cb *block_cb,
 				     struct flow_block_offload *offload)
 {
