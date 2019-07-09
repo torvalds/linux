@@ -112,8 +112,9 @@ nfp_net_tls_communicate_simple(struct nfp_net *nn, struct sk_buff *skb,
 	struct nfp_crypto_reply_simple *reply;
 	int err;
 
-	err = nfp_ccm_mbox_communicate(nn, skb, type,
-				       sizeof(*reply), sizeof(*reply));
+	err = __nfp_ccm_mbox_communicate(nn, skb, type,
+					 sizeof(*reply), sizeof(*reply),
+					 type == NFP_CCM_TYPE_CRYPTO_DEL);
 	if (err) {
 		nn_dp_warn(&nn->dp, "failed to %s TLS: %d\n", name, err);
 		return err;
