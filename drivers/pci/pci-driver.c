@@ -678,6 +678,7 @@ static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
 static int pci_pm_prepare(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
 
 	if (drv && drv->pm && drv->pm->prepare) {
 		int error = drv->pm->prepare(dev);
@@ -687,7 +688,15 @@ static int pci_pm_prepare(struct device *dev)
 		if (!error && dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_PREPARE))
 			return 0;
 	}
-	return pci_dev_keep_suspended(to_pci_dev(dev));
+	if (pci_dev_need_resume(pci_dev))
+		return 0;
+
+	/*
+	 * The PME setting needs to be adjusted here in case the direct-complete
+	 * optimization is used with respect to this device.
+	 */
+	pci_dev_adjust_pme(pci_dev);
+	return 1;
 }
 
 static void pci_pm_complete(struct device *dev)
@@ -701,7 +710,14 @@ static void pci_pm_complete(struct device *dev)
 	if (pm_runtime_suspended(dev) && pm_resume_via_firmware()) {
 		pci_power_t pre_sleep_state = pci_dev->current_state;
 
-		pci_update_current_state(pci_dev, pci_dev->current_state);
+		pci_refresh_power_state(pci_dev);
+		/*
+		 * On platforms with ACPI this check may also trigger for
+		 * devices sharing power resources if one of those power
+		 * resources has been activated as a result of a change of the
+		 * power state of another device sharing it.  However, in that
+		 * case it is also better to resume the device, in general.
+		 */
 		if (pci_dev->current_state < pre_sleep_state)
 			pm_request_resume(dev);
 	}
@@ -757,9 +773,11 @@ static int pci_pm_suspend(struct device *dev)
 	 * better to resume the device from runtime suspend here.
 	 */
 	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
-	    !pci_dev_keep_suspended(pci_dev)) {
+	    pci_dev_need_resume(pci_dev)) {
 		pm_runtime_resume(dev);
 		pci_dev->state_saved = false;
+	} else {
+		pci_dev_adjust_pme(pci_dev);
 	}
 
 	if (pm->suspend) {
@@ -994,15 +1012,15 @@ static int pci_pm_freeze(struct device *dev)
 	}
 
 	/*
-	 * This used to be done in pci_pm_prepare() for all devices and some
-	 * drivers may depend on it, so do it here.  Ideally, runtime-suspended
-	 * devices should not be touched during freeze/thaw transitions,
-	 * however.
+	 * Resume all runtime-suspended devices before creating a snapshot
+	 * image of system memory, because the restore kernel generally cannot
+	 * be expected to always handle them consistently and they need to be
+	 * put into the runtime-active metastate during system resume anyway,
+	 * so it is better to ensure that the state saved in the image will be
+	 * always consistent with that.
 	 */
-	if (!dev_pm_smart_suspend_and_suspended(dev)) {
-		pm_runtime_resume(dev);
-		pci_dev->state_saved = false;
-	}
+	pm_runtime_resume(dev);
+	pci_dev->state_saved = false;
 
 	if (pm->freeze) {
 		int error;
@@ -1016,21 +1034,10 @@ static int pci_pm_freeze(struct device *dev)
 	return 0;
 }
 
-static int pci_pm_freeze_late(struct device *dev)
-{
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		return 0;
-
-	return pm_generic_freeze_late(dev);
-}
-
 static int pci_pm_freeze_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
-
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		return 0;
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_FREEZE);
@@ -1060,16 +1067,6 @@ static int pci_pm_thaw_noirq(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
 	int error = 0;
-
-	/*
-	 * If the device is in runtime suspend, the code below may not work
-	 * correctly with it, so skip that code and make the PM core skip all of
-	 * the subsequent "thaw" callbacks for the device.
-	 */
-	if (dev_pm_smart_suspend_and_suspended(dev)) {
-		dev_pm_skip_next_resume_phases(dev);
-		return 0;
-	}
 
 	if (pcibios_pm_ops.thaw_noirq) {
 		error = pcibios_pm_ops.thaw_noirq(dev);
@@ -1130,10 +1127,13 @@ static int pci_pm_poweroff(struct device *dev)
 
 	/* The reason to do that is the same as in pci_pm_suspend(). */
 	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
-	    !pci_dev_keep_suspended(pci_dev))
+	    pci_dev_need_resume(pci_dev)) {
 		pm_runtime_resume(dev);
+		pci_dev->state_saved = false;
+	} else {
+		pci_dev_adjust_pme(pci_dev);
+	}
 
-	pci_dev->state_saved = false;
 	if (pm->poweroff) {
 		int error;
 
@@ -1205,10 +1205,6 @@ static int pci_pm_restore_noirq(struct device *dev)
 	struct device_driver *drv = dev->driver;
 	int error = 0;
 
-	/* This is analogous to the pci_pm_resume_noirq() case. */
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		pm_runtime_set_active(dev);
-
 	if (pcibios_pm_ops.restore_noirq) {
 		error = pcibios_pm_ops.restore_noirq(dev);
 		if (error)
@@ -1258,7 +1254,6 @@ static int pci_pm_restore(struct device *dev)
 #else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define pci_pm_freeze		NULL
-#define pci_pm_freeze_late	NULL
 #define pci_pm_freeze_noirq	NULL
 #define pci_pm_thaw		NULL
 #define pci_pm_thaw_noirq	NULL
@@ -1384,7 +1379,6 @@ static const struct dev_pm_ops pci_dev_pm_ops = {
 	.suspend_late = pci_pm_suspend_late,
 	.resume = pci_pm_resume,
 	.freeze = pci_pm_freeze,
-	.freeze_late = pci_pm_freeze_late,
 	.thaw = pci_pm_thaw,
 	.poweroff = pci_pm_poweroff,
 	.poweroff_late = pci_pm_poweroff_late,
