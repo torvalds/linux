@@ -338,15 +338,14 @@ xfs_inumbers_walk(
 		.xi_version	= XFS_INUMBERS_VERSION_V5,
 	};
 	struct xfs_inumbers_chunk *ic = data;
-	xfs_agino_t		agino;
 	int			error;
 
 	error = ic->formatter(ic->breq, &inogrp);
 	if (error && error != XFS_IBULK_ABORT)
 		return error;
 
-	agino = irec->ir_startino + XFS_INODES_PER_CHUNK;
-	ic->breq->startino = XFS_AGINO_TO_INO(mp, agno, agino);
+	ic->breq->startino = XFS_AGINO_TO_INO(mp, agno, irec->ir_startino) +
+			XFS_INODES_PER_CHUNK;
 	return error;
 }
 
