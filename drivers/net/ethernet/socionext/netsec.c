@@ -328,11 +328,6 @@ struct netsec_rx_pkt_info {
 	bool err_flag;
 };
 
-static void netsec_set_tx_de(struct netsec_priv *priv,
-			     struct netsec_desc_ring *dring,
-			     const struct netsec_tx_pkt_ctrl *tx_ctrl,
-			     const struct netsec_desc *desc, void *buf);
-
 static void netsec_write(struct netsec_priv *priv, u32 reg_addr, u32 val)
 {
 	writel(val, priv->ioaddr + reg_addr);
@@ -778,6 +773,47 @@ static void netsec_finalize_xdp_rx(struct netsec_priv *priv, u32 xdp_res,
 		netsec_xdp_ring_tx_db(priv, pkts);
 }
 
+static void netsec_set_tx_de(struct netsec_priv *priv,
+			     struct netsec_desc_ring *dring,
+			     const struct netsec_tx_pkt_ctrl *tx_ctrl,
+			     const struct netsec_desc *desc, void *buf)
+{
+	int idx = dring->head;
+	struct netsec_de *de;
+	u32 attr;
+
+	de = dring->vaddr + (DESC_SZ * idx);
+
+	attr = (1 << NETSEC_TX_SHIFT_OWN_FIELD) |
+	       (1 << NETSEC_TX_SHIFT_PT_FIELD) |
+	       (NETSEC_RING_GMAC << NETSEC_TX_SHIFT_TDRID_FIELD) |
+	       (1 << NETSEC_TX_SHIFT_FS_FIELD) |
+	       (1 << NETSEC_TX_LAST) |
+	       (tx_ctrl->cksum_offload_flag << NETSEC_TX_SHIFT_CO) |
+	       (tx_ctrl->tcp_seg_offload_flag << NETSEC_TX_SHIFT_SO) |
+	       (1 << NETSEC_TX_SHIFT_TRS_FIELD);
+	if (idx == DESC_NUM - 1)
+		attr |= (1 << NETSEC_TX_SHIFT_LD_FIELD);
+
+	de->data_buf_addr_up = upper_32_bits(desc->dma_addr);
+	de->data_buf_addr_lw = lower_32_bits(desc->dma_addr);
+	de->buf_len_info = (tx_ctrl->tcp_seg_len << 16) | desc->len;
+	de->attr = attr;
+	/* under spin_lock if using XDP */
+	if (!dring->is_xdp)
+		dma_wmb();
+
+	dring->desc[idx] = *desc;
+	if (desc->buf_type == TYPE_NETSEC_SKB)
+		dring->desc[idx].skb = buf;
+	else if (desc->buf_type == TYPE_NETSEC_XDP_TX ||
+		 desc->buf_type == TYPE_NETSEC_XDP_NDO)
+		dring->desc[idx].xdpf = buf;
+
+	/* move head ahead */
+	dring->head = (dring->head + 1) % DESC_NUM;
+}
+
 /* The current driver only supports 1 Txq, this should run under spin_lock() */
 static u32 netsec_xdp_queue_one(struct netsec_priv *priv,
 				struct xdp_frame *xdpf, bool is_ndo)
@@ -1041,46 +1077,6 @@ static int netsec_napi_poll(struct napi_struct *napi, int budget)
 	return done;
 }
 
-static void netsec_set_tx_de(struct netsec_priv *priv,
-			     struct netsec_desc_ring *dring,
-			     const struct netsec_tx_pkt_ctrl *tx_ctrl,
-			     const struct netsec_desc *desc, void *buf)
-{
-	int idx = dring->head;
-	struct netsec_de *de;
-	u32 attr;
-
-	de = dring->vaddr + (DESC_SZ * idx);
-
-	attr = (1 << NETSEC_TX_SHIFT_OWN_FIELD) |
-	       (1 << NETSEC_TX_SHIFT_PT_FIELD) |
-	       (NETSEC_RING_GMAC << NETSEC_TX_SHIFT_TDRID_FIELD) |
-	       (1 << NETSEC_TX_SHIFT_FS_FIELD) |
-	       (1 << NETSEC_TX_LAST) |
-	       (tx_ctrl->cksum_offload_flag << NETSEC_TX_SHIFT_CO) |
-	       (tx_ctrl->tcp_seg_offload_flag << NETSEC_TX_SHIFT_SO) |
-	       (1 << NETSEC_TX_SHIFT_TRS_FIELD);
-	if (idx == DESC_NUM - 1)
-		attr |= (1 << NETSEC_TX_SHIFT_LD_FIELD);
-
-	de->data_buf_addr_up = upper_32_bits(desc->dma_addr);
-	de->data_buf_addr_lw = lower_32_bits(desc->dma_addr);
-	de->buf_len_info = (tx_ctrl->tcp_seg_len << 16) | desc->len;
-	de->attr = attr;
-	/* under spin_lock if using XDP */
-	if (!dring->is_xdp)
-		dma_wmb();
-
-	dring->desc[idx] = *desc;
-	if (desc->buf_type == TYPE_NETSEC_SKB)
-		dring->desc[idx].skb = buf;
-	else if (desc->buf_type == TYPE_NETSEC_XDP_TX ||
-		 desc->buf_type == TYPE_NETSEC_XDP_NDO)
-		dring->desc[idx].xdpf = buf;
-
-	/* move head ahead */
-	dring->head = (dring->head + 1) % DESC_NUM;
-}
 
 static int netsec_desc_used(struct netsec_desc_ring *dring)
 {
