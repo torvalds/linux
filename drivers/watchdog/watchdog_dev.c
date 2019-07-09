@@ -825,7 +825,7 @@ static int watchdog_open(struct inode *inode, struct file *file)
 		kref_get(&wd_data->kref);
 
 	/* dev/watchdog is a virtual (and thus non-seekable) filesystem */
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 
 out_mod:
 	module_put(wd_data->wdd->ops->owner);

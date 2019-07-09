@@ -300,7 +300,7 @@ static int cedrus_probe(struct platform_device *pdev)
 			 "Failed to initialize V4L2 M2M device\n");
 		ret = PTR_ERR(dev->m2m_dev);
 
-		goto err_video;
+		goto err_v4l2;
 	}
 
 	dev->mdev.dev = &pdev->dev;
@@ -310,22 +310,22 @@ static int cedrus_probe(struct platform_device *pdev)
 	dev->mdev.ops = &cedrus_m2m_media_ops;
 	dev->v4l2_dev.mdev = &dev->mdev;
 
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	if (ret) {
+		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
+		goto err_m2m;
+	}
+
+	v4l2_info(&dev->v4l2_dev,
+		  "Device registered as /dev/video%d\n", vfd->num);
+
 	ret = v4l2_m2m_register_media_controller(dev->m2m_dev, vfd,
 						 MEDIA_ENT_F_PROC_VIDEO_DECODER);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to initialize V4L2 M2M media controller\n");
-		goto err_m2m;
+		goto err_video;
 	}
-
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
-	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
-		goto err_v4l2;
-	}
-
-	v4l2_info(&dev->v4l2_dev,
-		  "Device registered as /dev/video%d\n", vfd->num);
 
 	ret = media_device_register(&dev->mdev);
 	if (ret) {
@@ -339,10 +339,10 @@ static int cedrus_probe(struct platform_device *pdev)
 
 err_m2m_mc:
 	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
-err_m2m:
-	v4l2_m2m_release(dev->m2m_dev);
 err_video:
 	video_unregister_device(&dev->vfd);
+err_m2m:
+	v4l2_m2m_release(dev->m2m_dev);
 err_v4l2:
 	v4l2_device_unregister(&dev->v4l2_dev);
 
@@ -396,6 +396,11 @@ static const struct cedrus_variant sun50i_h5_cedrus_variant = {
 	.capabilities	= CEDRUS_CAPABILITY_UNTILED,
 };
 
+static const struct cedrus_variant sun50i_h6_cedrus_variant = {
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED,
+	.quirks		= CEDRUS_QUIRK_NO_DMA_OFFSET,
+};
+
 static const struct of_device_id cedrus_dt_match[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-video-engine",
@@ -424,6 +429,10 @@ static const struct of_device_id cedrus_dt_match[] = {
 	{
 		.compatible = "allwinner,sun50i-h5-video-engine",
 		.data = &sun50i_h5_cedrus_variant,
+	},
+	{
+		.compatible = "allwinner,sun50i-h6-video-engine",
+		.data = &sun50i_h6_cedrus_variant,
 	},
 	{ /* sentinel */ }
 };

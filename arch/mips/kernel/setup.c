@@ -27,6 +27,7 @@
 #include <linux/dma-contiguous.h>
 #include <linux/decompress/generic.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -178,6 +179,7 @@ static bool __init __maybe_unused memory_region_available(phys_addr_t start,
 				in_ram = true;
 			break;
 		case BOOT_MEM_RESERVED:
+		case BOOT_MEM_NOMAP:
 			if ((start >= start_ && start < end_) ||
 			    (start < start_ && start + size >= start_))
 				free = false;
@@ -212,6 +214,9 @@ static void __init print_memory_map(void)
 			break;
 		case BOOT_MEM_RESERVED:
 			printk(KERN_CONT "(reserved)\n");
+			break;
+		case BOOT_MEM_NOMAP:
+			printk(KERN_CONT "(nomap)\n");
 			break;
 		default:
 			printk(KERN_CONT "type %lu\n", boot_mem_map.map[i].type);
@@ -371,7 +376,6 @@ static void __init bootmem_init(void)
 
 static void __init bootmem_init(void)
 {
-	unsigned long reserved_end;
 	phys_addr_t ramstart = PHYS_ADDR_MAX;
 	int i;
 
@@ -382,10 +386,10 @@ static void __init bootmem_init(void)
 	 * will reserve the area used for the initrd.
 	 */
 	init_initrd();
-	reserved_end = (unsigned long) PFN_UP(__pa_symbol(&_end));
 
-	memblock_reserve(PHYS_OFFSET,
-			 (reserved_end << PAGE_SHIFT) - PHYS_OFFSET);
+	/* Reserve memory occupied by kernel. */
+	memblock_reserve(__pa_symbol(&_text),
+			__pa_symbol(&_end) - __pa_symbol(&_text));
 
 	/*
 	 * max_low_pfn is not a number of pages. The number of pages
@@ -394,10 +398,7 @@ static void __init bootmem_init(void)
 	min_low_pfn = ~0UL;
 	max_low_pfn = 0;
 
-	/*
-	 * Find the highest page frame number we have available
-	 * and the lowest used RAM address
-	 */
+	/* Find the highest and lowest page frame numbers we have available. */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
 
@@ -427,13 +428,6 @@ static void __init bootmem_init(void)
 			max_low_pfn = end;
 		if (start < min_low_pfn)
 			min_low_pfn = start;
-		if (end <= reserved_end)
-			continue;
-#ifdef CONFIG_BLK_DEV_INITRD
-		/* Skip zones before initrd and initrd itself */
-		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
-			continue;
-#endif
 	}
 
 	if (min_low_pfn >= max_low_pfn)
@@ -474,6 +468,7 @@ static void __init bootmem_init(void)
 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 	}
 
+	/* Install all valid RAM ranges to the memblock memory region */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
 
@@ -481,97 +476,37 @@ static void __init bootmem_init(void)
 		end = PFN_DOWN(boot_mem_map.map[i].addr
 				+ boot_mem_map.map[i].size);
 
-		if (start <= min_low_pfn)
+		if (start < min_low_pfn)
 			start = min_low_pfn;
-		if (start >= end)
-			continue;
-
 #ifndef CONFIG_HIGHMEM
+		/* Ignore highmem regions if highmem is unsupported */
 		if (end > max_low_pfn)
 			end = max_low_pfn;
-
-		/*
-		 * ... finally, is the area going away?
-		 */
+#endif
 		if (end <= start)
 			continue;
-#endif
 
 		memblock_add_node(PFN_PHYS(start), PFN_PHYS(end - start), 0);
-	}
 
-	/*
-	 * Register fully available low RAM pages with the bootmem allocator.
-	 */
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		unsigned long start, end, size;
-
-		start = PFN_UP(boot_mem_map.map[i].addr);
-		end   = PFN_DOWN(boot_mem_map.map[i].addr
-				    + boot_mem_map.map[i].size);
-
-		/*
-		 * Reserve usable memory.
-		 */
+		/* Reserve any memory except the ordinary RAM ranges. */
 		switch (boot_mem_map.map[i].type) {
 		case BOOT_MEM_RAM:
 			break;
-		case BOOT_MEM_INIT_RAM:
-			memory_present(0, start, end);
+		case BOOT_MEM_NOMAP: /* Discard the range from the system. */
+			memblock_remove(PFN_PHYS(start), PFN_PHYS(end - start));
 			continue;
-		default:
-			/* Not usable memory */
-			if (start > min_low_pfn && end < max_low_pfn)
-				memblock_reserve(boot_mem_map.map[i].addr,
-						boot_mem_map.map[i].size);
-
-			continue;
+		default: /* Reserve the rest of the memory types at boot time */
+			memblock_reserve(PFN_PHYS(start), PFN_PHYS(end - start));
+			break;
 		}
 
 		/*
-		 * We are rounding up the start address of usable memory
-		 * and at the end of the usable range downwards.
+		 * In any case the added to the memblock memory regions
+		 * (highmem/lowmem, available/reserved, etc) are considered
+		 * as present, so inform sparsemem about them.
 		 */
-		if (start >= max_low_pfn)
-			continue;
-		if (start < reserved_end)
-			start = reserved_end;
-		if (end > max_low_pfn)
-			end = max_low_pfn;
-
-		/*
-		 * ... finally, is the area going away?
-		 */
-		if (end <= start)
-			continue;
-		size = end - start;
-
-		/* Register lowmem ranges */
 		memory_present(0, start, end);
 	}
-
-#ifdef CONFIG_RELOCATABLE
-	/*
-	 * The kernel reserves all memory below its _end symbol as bootmem,
-	 * but the kernel may now be at a much higher address. The memory
-	 * between the original and new locations may be returned to the system.
-	 */
-	if (__pa_symbol(_text) > __pa_symbol(VMLINUX_LOAD_ADDRESS)) {
-		unsigned long offset;
-		extern void show_kernel_relocation(const char *level);
-
-		offset = __pa_symbol(_text) - __pa_symbol(VMLINUX_LOAD_ADDRESS);
-		memblock_free(__pa_symbol(VMLINUX_LOAD_ADDRESS), offset);
-
-#if defined(CONFIG_DEBUG_KERNEL) && defined(CONFIG_DEBUG_INFO)
-		/*
-		 * This information is necessary when debugging the kernel
-		 * But is a security vulnerability otherwise!
-		 */
-		show_kernel_relocation(KERN_INFO);
-#endif
-	}
-#endif
 
 	/*
 	 * Reserve initrd memory if needed.
@@ -781,7 +716,6 @@ static void __init request_crashkernel(struct resource *res)
  */
 static void __init arch_mem_init(char **cmdline_p)
 {
-	struct memblock_region *reg;
 	extern void plat_mem_setup(void);
 
 	/*
@@ -809,6 +743,9 @@ static void __init arch_mem_init(char **cmdline_p)
 	arch_mem_addpart(PFN_UP(__pa_symbol(&__init_begin)) << PAGE_SHIFT,
 			 PFN_DOWN(__pa_symbol(&__init_end)) << PAGE_SHIFT,
 			 BOOT_MEM_INIT_RAM);
+	arch_mem_addpart(PFN_DOWN(__pa_symbol(&__bss_start)) << PAGE_SHIFT,
+			 PFN_UP(__pa_symbol(&__bss_stop)) << PAGE_SHIFT,
+			 BOOT_MEM_RAM);
 
 	pr_info("Determined physical RAM map:\n");
 	print_memory_map();
@@ -884,13 +821,16 @@ static void __init arch_mem_init(char **cmdline_p)
 	plat_swiotlb_setup();
 
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
-	/* Tell bootmem about cma reserved memblock section */
-	for_each_memblock(reserved, reg)
-		if (reg->size != 0)
-			memblock_reserve(reg->base, reg->size);
 
-	reserve_bootmem_region(__pa_symbol(&__nosave_begin),
-			__pa_symbol(&__nosave_end)); /* Reserve for hibernation */
+	/* Reserve for hibernation. */
+	memblock_reserve(__pa_symbol(&__nosave_begin),
+		__pa_symbol(&__nosave_end) - __pa_symbol(&__nosave_begin));
+
+	fdt_init_reserved_mem();
+
+	memblock_dump_all();
+
+	early_memtest(PFN_PHYS(min_low_pfn), PFN_PHYS(max_low_pfn));
 }
 
 static void __init resource_init(void)
@@ -935,6 +875,7 @@ static void __init resource_init(void)
 			res->flags |= IORESOURCE_SYSRAM;
 			break;
 		case BOOT_MEM_RESERVED:
+		case BOOT_MEM_NOMAP:
 		default:
 			res->name = "reserved";
 		}

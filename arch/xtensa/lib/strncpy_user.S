@@ -13,8 +13,8 @@
 
 #include <linux/errno.h>
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * char *__strncpy_user(char *dst, const char *src, size_t len)

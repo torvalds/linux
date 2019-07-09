@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm9081.c  --  WM9081 ALSA SoC Audio driver
  *
  * Author: Mark Brown
  *
  * Copyright 2009-12 Wolfson Microelectronics plc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>

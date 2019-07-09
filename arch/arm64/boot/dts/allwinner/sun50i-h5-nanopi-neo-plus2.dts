@@ -78,7 +78,6 @@
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -96,7 +95,6 @@
 
 	vdd_cpux: gpio-regulator {
 		compatible = "regulator-gpio";
-		pinctrl-names = "default";
 		regulator-name = "vdd-cpux";
 		regulator-type = "voltage";
 		regulator-boot-on;
@@ -112,7 +110,6 @@
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
 		post-power-on-delay-ms = <200>;
 	};
@@ -191,7 +188,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

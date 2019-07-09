@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * vvar.h: Shared vDSO/kernel variable declarations
  * Copyright (c) 2011 Andy Lutomirski
- * Subject to the GNU General Public License, version 2
  *
  * A handful of variables are accessible (read-only) from userspace
  * code in the vsyscall page and the vdso.  They are declared here.

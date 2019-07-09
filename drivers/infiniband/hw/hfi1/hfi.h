@@ -54,7 +54,6 @@
 #include <linux/list.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
@@ -65,6 +64,7 @@
 #include <linux/kthread.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/xarray.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
@@ -537,6 +537,37 @@ static inline void hfi1_16B_set_qpn(struct opa_16b_mgmt *mgmt,
 {
 	mgmt->dest_qpn = cpu_to_be32(dest_qp & OPA_16B_MGMT_QPN_MASK);
 	mgmt->src_qpn = cpu_to_be32(src_qp & OPA_16B_MGMT_QPN_MASK);
+}
+
+/**
+ * hfi1_get_rc_ohdr - get extended header
+ * @opah - the opaheader
+ */
+static inline struct ib_other_headers *
+hfi1_get_rc_ohdr(struct hfi1_opa_header *opah)
+{
+	struct ib_other_headers *ohdr;
+	struct ib_header *hdr = NULL;
+	struct hfi1_16b_header *hdr_16b = NULL;
+
+	/* Find out where the BTH is */
+	if (opah->hdr_type == HFI1_PKT_TYPE_9B) {
+		hdr = &opah->ibh;
+		if (ib_get_lnh(hdr) == HFI1_LRH_BTH)
+			ohdr = &hdr->u.oth;
+		else
+			ohdr = &hdr->u.l.oth;
+	} else {
+		u8 l4;
+
+		hdr_16b = &opah->opah;
+		l4  = hfi1_16B_get_l4(hdr_16b);
+		if (l4 == OPA_16B_L4_IB_LOCAL)
+			ohdr = &hdr_16b->u.oth;
+		else
+			ohdr = &hdr_16b->u.l.oth;
+	}
+	return ohdr;
 }
 
 struct rvt_sge_state;
@@ -1021,8 +1052,8 @@ struct hfi1_asic_data {
 struct hfi1_vnic_data {
 	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
 	struct kmem_cache *txreq_cache;
+	struct xarray vesws;
 	u8 num_vports;
-	struct idr vesw_idr;
 	u8 rmt_start;
 	u8 num_ctxt;
 };
@@ -1041,7 +1072,6 @@ struct sdma_vl_map;
 typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
-	struct list_head list;
 	/* pointers to related structs for this device */
 	/* pci access data structure */
 	struct pci_dev *pcidev;
@@ -1426,8 +1456,7 @@ struct hfi1_filedata {
 	struct mm_struct *mm;
 };
 
-extern struct list_head hfi1_dev_list;
-extern spinlock_t hfi1_devs_lock;
+extern struct xarray hfi1_dev_table;
 struct hfi1_devdata *hfi1_lookup(int unit);
 
 static inline unsigned long uctxt_offset(struct hfi1_ctxtdata *uctxt)

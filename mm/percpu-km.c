@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mm/percpu-km.c - kernel memory based chunk allocation
  *
  * Copyright (C) 2010		SUSE Linux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
- *
- * This file is released under the GPLv2.
  *
  * Chunks are allocated as a contiguous kernel memory using gfp
  * allocation.  This is to be used on nommu architectures.
@@ -70,7 +69,7 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
 	chunk->base_addr = page_address(pages);
 
 	spin_lock_irqsave(&pcpu_lock, flags);
-	pcpu_chunk_populated(chunk, 0, nr_pages, false);
+	pcpu_chunk_populated(chunk, 0, nr_pages);
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	pcpu_stats_chunk_alloc();

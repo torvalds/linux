@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/bus/ti-sysc.h>
@@ -148,6 +145,9 @@
 		l4_per: interconnect@48000000 {
 		};
 
+		l4_abe: interconnect@40100000 {
+		};
+
 		ocmcram: ocmcram@40304000 {
 			compatible = "mmio-sram";
 			reg = <0x40304000 0xa000>; /* 40k */
@@ -214,130 +214,6 @@
 			#iommu-cells = <0>;
 			ti,iommu-bus-err-back;
 		};
-		target-module@40130000 {
-			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "wd_timer3";
-			reg = <0x40130000 0x4>,
-			      <0x40130010 0x4>,
-			      <0x40130014 0x4>;
-			reg-names = "rev", "sysc", "syss";
-			ti,sysc-mask = <(SYSC_OMAP2_EMUFREE |
-					 SYSC_OMAP2_SOFTRESET)>;
-			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
-					<SYSC_IDLE_SMART>,
-					<SYSC_IDLE_SMART_WKUP>;
-			ti,syss-mask = <1>;
-			/* Domains (V, P, C): abe, abe_pwrdm, abe_clkdm */
-			clocks = <&abe_clkctrl OMAP4_WD_TIMER3_CLKCTRL 0>;
-			clock-names = "fck";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x00000000 0x40130000 0x1000>, /* MPU private access */
-				 <0x49030000 0x49030000 0x0080>; /* L3 Interconnect */
-
-			wdt3: wdt@0 {
-				compatible = "ti,omap4-wdt", "ti,omap3-wdt";
-				reg = <0x0 0x80>;
-				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-			};
-		};
-
-		mcpdm: mcpdm@40132000 {
-			compatible = "ti,omap4-mcpdm";
-			reg = <0x40132000 0x7f>, /* MPU private access */
-			      <0x49032000 0x7f>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "mcpdm";
-			dmas = <&sdma 65>,
-			       <&sdma 66>;
-			dma-names = "up_link", "dn_link";
-			status = "disabled";
-		};
-
-		dmic: dmic@4012e000 {
-			compatible = "ti,omap4-dmic";
-			reg = <0x4012e000 0x7f>, /* MPU private access */
-			      <0x4902e000 0x7f>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "dmic";
-			dmas = <&sdma 67>;
-			dma-names = "up_link";
-			status = "disabled";
-		};
-
-		mcbsp1: mcbsp@40122000 {
-			compatible = "ti,omap4-mcbsp";
-			reg = <0x40122000 0xff>, /* MPU private access */
-			      <0x49022000 0xff>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "common";
-			ti,buffer-size = <128>;
-			ti,hwmods = "mcbsp1";
-			dmas = <&sdma 33>,
-			       <&sdma 34>;
-			dma-names = "tx", "rx";
-			status = "disabled";
-		};
-
-		mcbsp2: mcbsp@40124000 {
-			compatible = "ti,omap4-mcbsp";
-			reg = <0x40124000 0xff>, /* MPU private access */
-			      <0x49024000 0xff>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "common";
-			ti,buffer-size = <128>;
-			ti,hwmods = "mcbsp2";
-			dmas = <&sdma 17>,
-			       <&sdma 18>;
-			dma-names = "tx", "rx";
-			status = "disabled";
-		};
-
-		mcbsp3: mcbsp@40126000 {
-			compatible = "ti,omap4-mcbsp";
-			reg = <0x40126000 0xff>, /* MPU private access */
-			      <0x49026000 0xff>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "common";
-			ti,buffer-size = <128>;
-			ti,hwmods = "mcbsp3";
-			dmas = <&sdma 19>,
-			       <&sdma 20>;
-			dma-names = "tx", "rx";
-			status = "disabled";
-		};
-
-		target-module@40128000 {
-			compatible = "ti,sysc-mcasp", "ti,sysc";
-			ti,hwmods = "mcasp";
-			reg = <0x40128000 0x4>,
-			      <0x40128004 0x4>;
-			reg-names = "rev", "sysc";
-			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
-					<SYSC_IDLE_SMART>,
-					<SYSC_IDLE_SMART_WKUP>;
-			clocks = <&abe_clkctrl OMAP4_MCASP_CLKCTRL 0>;
-			clock-names = "fck";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x00000000 0x40128000 0x1000>, /* MPU */
-				 <0x49028000 0x49028000 0x1000>; /* L3 */
-
-			/*
-			 * Child device unsupported by davinci-mcasp. At least
-			 * RX path is disabled for omap4, and only DIT mode
-			 * works with no I2S. See also old Android kernel
-			 * omap-mcasp driver for more information.
-			 */
-		};
-
 		target-module@4012c000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "slimbus1";
@@ -357,33 +233,6 @@
 				 <0x4902c000 0x4902c000 0x1000>; /* L3 */
 
 			/* No child device binding or driver in mainline */
-		};
-
-		target-module@401f1000 {
-			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "aess";
-			reg = <0x401f1000 0x4>,
-			      <0x401f1010 0x4>;
-			reg-names = "rev", "sysc";
-			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
-					<SYSC_IDLE_SMART>,
-					<SYSC_IDLE_SMART_WKUP>;
-			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
-					<SYSC_IDLE_SMART>;
-			clocks = <&abe_clkctrl OMAP4_AESS_CLKCTRL 0>;
-			clock-names = "fck";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x00000000 0x401f1000 0x1000>, /* MPU */
-				 <0x490f1000 0x490f1000 0x1000>; /* L3 */
-
-			/*
-			 * No child device binding or driver in mainline.
-			 * See Android tree and related upstreaming efforts
-			 * for the old driver.
-			 */
 		};
 
 		dmm@4e000000 {
@@ -415,43 +264,6 @@
 			hw-caps-read-idle-ctrl;
 			hw-caps-ll-interface;
 			hw-caps-temp-alert;
-		};
-
-		timer5: timer@40138000 {
-			compatible = "ti,omap4430-timer";
-			reg = <0x40138000 0x80>,
-			      <0x49038000 0x80>;
-			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "timer5";
-			ti,timer-dsp;
-		};
-
-		timer6: timer@4013a000 {
-			compatible = "ti,omap4430-timer";
-			reg = <0x4013a000 0x80>,
-			      <0x4903a000 0x80>;
-			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "timer6";
-			ti,timer-dsp;
-		};
-
-		timer7: timer@4013c000 {
-			compatible = "ti,omap4430-timer";
-			reg = <0x4013c000 0x80>,
-			      <0x4903c000 0x80>;
-			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "timer7";
-			ti,timer-dsp;
-		};
-
-		timer8: timer@4013e000 {
-			compatible = "ti,omap4430-timer";
-			reg = <0x4013e000 0x80>,
-			      <0x4903e000 0x80>;
-			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "timer8";
-			ti,timer-pwm;
-			ti,timer-dsp;
 		};
 
 		aes1: aes@4b501000 {
@@ -629,4 +441,5 @@
 };
 
 #include "omap4-l4.dtsi"
+#include "omap4-l4-abe.dtsi"
 #include "omap44xx-clocks.dtsi"

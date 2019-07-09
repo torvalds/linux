@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/fs/nfs/delegation.c
  *
@@ -1031,6 +1032,18 @@ void nfs_mark_test_expired_all_delegations(struct nfs_client *clp)
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
 		nfs_delegation_mark_test_expired_server(server);
 	rcu_read_unlock();
+}
+
+/**
+ * nfs_test_expired_all_delegations - test all delegations for a client
+ * @clp: nfs_client to process
+ *
+ * Helper for handling "recallable state revoked" status from server.
+ */
+void nfs_test_expired_all_delegations(struct nfs_client *clp)
+{
+	nfs_mark_test_expired_all_delegations(clp);
+	nfs4_schedule_state_manager(clp);
 }
 
 /**

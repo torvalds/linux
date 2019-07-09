@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
@@ -54,10 +55,19 @@ static const struct i2c_device_id bmg160_i2c_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, bmg160_i2c_id);
 
+static const struct of_device_id bmg160_of_match[] = {
+	{ .compatible = "bosch,bmg160" },
+	{ .compatible = "bosch,bmi055_gyro" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, bmg160_of_match);
+
 static struct i2c_driver bmg160_i2c_driver = {
 	.driver = {
 		.name	= "bmg160_i2c",
 		.acpi_match_table = ACPI_PTR(bmg160_acpi_match),
+		.of_match_table = bmg160_of_match,
 		.pm	= &bmg160_pm_ops,
 	},
 	.probe		= bmg160_i2c_probe,

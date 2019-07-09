@@ -277,9 +277,11 @@ extern unsigned long __vmalloc_end;
 extern unsigned long __kernel_virt_start;
 extern unsigned long __kernel_virt_size;
 extern unsigned long __kernel_io_start;
+extern unsigned long __kernel_io_end;
 #define KERN_VIRT_START __kernel_virt_start
-#define KERN_VIRT_SIZE  __kernel_virt_size
 #define KERN_IO_START  __kernel_io_start
+#define KERN_IO_END __kernel_io_end
+
 extern struct page *vmemmap;
 extern unsigned long ioremap_bot;
 extern unsigned long pci_io_base;
@@ -296,8 +298,7 @@ extern unsigned long pci_io_base;
 
 #include <asm/barrier.h>
 /*
- * The second half of the kernel virtual space is used for IO mappings,
- * it's itself carved into the PIO region (ISA and PHB IO space) and
+ * IO space itself carved into the PIO region (ISA and PHB IO space) and
  * the ioremap space
  *
  *  ISA_IO_BASE = KERN_IO_START, 64K reserved area
@@ -310,7 +311,7 @@ extern unsigned long pci_io_base;
 #define  PHB_IO_BASE	(ISA_IO_END)
 #define  PHB_IO_END	(KERN_IO_START + FULL_IO_SIZE)
 #define IOREMAP_BASE	(PHB_IO_END)
-#define IOREMAP_END	(KERN_VIRT_START + KERN_VIRT_SIZE)
+#define IOREMAP_END	(KERN_IO_END)
 
 /* Advertise special mapping type for AGP */
 #define HAVE_PAGE_AGP
@@ -875,6 +876,23 @@ static inline int pmd_present(pmd_t pmd)
 	return false;
 }
 
+static inline int pmd_is_serializing(pmd_t pmd)
+{
+	/*
+	 * If the pmd is undergoing a split, the _PAGE_PRESENT bit is clear
+	 * and _PAGE_INVALID is set (see pmd_present, pmdp_invalidate).
+	 *
+	 * This condition may also occur when flushing a pmd while flushing
+	 * it (see ptep_modify_prot_start), so callers must ensure this
+	 * case is fine as well.
+	 */
+	if ((pmd_raw(pmd) & cpu_to_be64(_PAGE_PRESENT | _PAGE_INVALID)) ==
+						cpu_to_be64(_PAGE_INVALID))
+		return true;
+
+	return false;
+}
+
 static inline int pmd_bad(pmd_t pmd)
 {
 	if (radix_enabled())
@@ -992,7 +1010,8 @@ extern struct page *pgd_page(pgd_t pgd);
 	(((pte_t *) pmd_page_vaddr(*(dir))) + pte_index(addr))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
-#define pte_unmap(pte)			do { } while(0)
+
+static inline void pte_unmap(pte_t *pte) { }
 
 /* to find an entry in a kernel page-table-directory */
 /* This now only contains the vmalloc pages */
@@ -1090,6 +1109,19 @@ static inline int pmd_protnone(pmd_t pmd)
 #define pmd_access_permitted pmd_access_permitted
 static inline bool pmd_access_permitted(pmd_t pmd, bool write)
 {
+	/*
+	 * pmdp_invalidate sets this combination (which is not caught by
+	 * !pte_present() check in pte_access_permitted), to prevent
+	 * lock-free lookups, as part of the serialize_against_pte_lookup()
+	 * synchronisation.
+	 *
+	 * This also catches the case where the PTE's hardware PRESENT bit is
+	 * cleared while TLB is flushed, which is suboptimal but should not
+	 * be frequent.
+	 */
+	if (pmd_is_serializing(pmd))
+		return false;
+
 	return pte_access_permitted(pmd_pte(pmd), write);
 }
 

@@ -728,7 +728,7 @@ static struct queue_sysfs_entry throtl_sample_time_entry = {
 };
 #endif
 
-static struct attribute *default_attrs[] = {
+static struct attribute *queue_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
@@ -769,6 +769,25 @@ static struct attribute *default_attrs[] = {
 #endif
 	NULL,
 };
+
+static umode_t queue_attr_visible(struct kobject *kobj, struct attribute *attr,
+				int n)
+{
+	struct request_queue *q =
+		container_of(kobj, struct request_queue, kobj);
+
+	if (attr == &queue_io_timeout_entry.attr &&
+		(!q->mq_ops || !q->mq_ops->timeout))
+			return 0;
+
+	return attr->mode;
+}
+
+static struct attribute_group queue_attr_group = {
+	.attrs = queue_attrs,
+	.is_visible = queue_attr_visible,
+};
+
 
 #define to_queue(atr) container_of((atr), struct queue_sysfs_entry, attr)
 
@@ -821,6 +840,36 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 	kmem_cache_free(blk_requestq_cachep, q);
 }
 
+/* Unconfigure the I/O scheduler and dissociate from the cgroup controller. */
+static void blk_exit_queue(struct request_queue *q)
+{
+	/*
+	 * Since the I/O scheduler exit code may access cgroup information,
+	 * perform I/O scheduler exit before disassociating from the block
+	 * cgroup controller.
+	 */
+	if (q->elevator) {
+		ioc_clear_queue(q);
+		__elevator_exit(q, q->elevator);
+		q->elevator = NULL;
+	}
+
+	/*
+	 * Remove all references to @q from the block cgroup controller before
+	 * restoring @q->queue_lock to avoid that restoring this pointer causes
+	 * e.g. blkcg_print_blkgs() to crash.
+	 */
+	blkcg_exit_queue(q);
+
+	/*
+	 * Since the cgroup code may dereference the @q->backing_dev_info
+	 * pointer, only decrease its reference count after having removed the
+	 * association with the block cgroup controller.
+	 */
+	bdi_put(q->backing_dev_info);
+}
+
+
 /**
  * __blk_release_queue - release a request queue
  * @work: pointer to the release_work member of the request queue to be released
@@ -841,22 +890,9 @@ static void __blk_release_queue(struct work_struct *work)
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
 
-	if (!blk_queue_dead(q)) {
-		/*
-		 * Last reference was dropped without having called
-		 * blk_cleanup_queue().
-		 */
-		WARN_ONCE(blk_queue_init_done(q),
-			  "request queue %p has been registered but blk_cleanup_queue() has not been called for that queue\n",
-			  q);
-		blk_exit_queue(q);
-	}
-
-	WARN(blk_queue_root_blkg(q),
-	     "request queue %p is being released but it has not yet been removed from the blkcg controller\n",
-	     q);
-
 	blk_free_queue_stats(q->stats);
+
+	blk_exit_queue(q);
 
 	blk_queue_free_zone_bitmaps(q);
 
@@ -890,7 +926,6 @@ static const struct sysfs_ops queue_sysfs_ops = {
 
 struct kobj_type blk_queue_ktype = {
 	.sysfs_ops	= &queue_sysfs_ops,
-	.default_attrs	= default_attrs,
 	.release	= blk_release_queue,
 };
 
@@ -936,6 +971,14 @@ int blk_register_queue(struct gendisk *disk)
 	ret = kobject_add(&q->kobj, kobject_get(&dev->kobj), "%s", "queue");
 	if (ret < 0) {
 		blk_trace_remove_sysfs(dev);
+		goto unlock;
+	}
+
+	ret = sysfs_create_group(&q->kobj, &queue_attr_group);
+	if (ret) {
+		blk_trace_remove_sysfs(dev);
+		kobject_del(&q->kobj);
+		kobject_put(&dev->kobj);
 		goto unlock;
 	}
 

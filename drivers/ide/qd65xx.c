@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1996-2001  Linus Torvalds & author (see below)
  */

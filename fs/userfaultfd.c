@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  fs/userfaultfd.c
  *
  *  Copyright (C) 2007  Davide Libenzi <davidel@xmailserver.org>
  *  Copyright (C) 2008-2009 Red Hat, Inc.
  *  Copyright (C) 2015  Red Hat, Inc.
- *
- *  This work is licensed under the terms of the GNU GPL, version 2. See
- *  the COPYING file in the top-level directory.
  *
  *  Some part derived from fs/eventfd.c (anon inode setup) and
  *  mm/ksm.c (mm hashing).
@@ -29,6 +27,8 @@
 #include <linux/ioctl.h>
 #include <linux/security.h>
 #include <linux/hugetlb.h>
+
+int sysctl_unprivileged_userfaultfd __read_mostly = 1;
 
 static struct kmem_cache *userfaultfd_ctx_cachep __read_mostly;
 
@@ -1929,6 +1929,9 @@ SYSCALL_DEFINE1(userfaultfd, int, flags)
 {
 	struct userfaultfd_ctx *ctx;
 	int fd;
+
+	if (!sysctl_unprivileged_userfaultfd && !capable(CAP_SYS_PTRACE))
+		return -EPERM;
 
 	BUG_ON(!current->mm);
 

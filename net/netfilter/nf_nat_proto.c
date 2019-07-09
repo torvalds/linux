@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -725,7 +722,7 @@ nf_nat_ipv4_local_fn(void *priv, struct sk_buff *skb,
 	return ret;
 }
 
-static const struct nf_hook_ops nf_nat_ipv4_ops[] = {
+const struct nf_hook_ops nf_nat_ipv4_ops[] = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= nf_nat_ipv4_in,
@@ -758,13 +755,14 @@ static const struct nf_hook_ops nf_nat_ipv4_ops[] = {
 
 int nf_nat_ipv4_register_fn(struct net *net, const struct nf_hook_ops *ops)
 {
-	return nf_nat_register_fn(net, ops, nf_nat_ipv4_ops, ARRAY_SIZE(nf_nat_ipv4_ops));
+	return nf_nat_register_fn(net, ops->pf, ops, nf_nat_ipv4_ops,
+				  ARRAY_SIZE(nf_nat_ipv4_ops));
 }
 EXPORT_SYMBOL_GPL(nf_nat_ipv4_register_fn);
 
 void nf_nat_ipv4_unregister_fn(struct net *net, const struct nf_hook_ops *ops)
 {
-	nf_nat_unregister_fn(net, ops, ARRAY_SIZE(nf_nat_ipv4_ops));
+	nf_nat_unregister_fn(net, ops->pf, ops, ARRAY_SIZE(nf_nat_ipv4_ops));
 }
 EXPORT_SYMBOL_GPL(nf_nat_ipv4_unregister_fn);
 
@@ -925,20 +923,6 @@ nf_nat_ipv6_out(void *priv, struct sk_buff *skb,
 	return ret;
 }
 
-static int nat_route_me_harder(struct net *net, struct sk_buff *skb)
-{
-#ifdef CONFIG_IPV6_MODULE
-	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
-
-	if (!v6_ops)
-		return -EHOSTUNREACH;
-
-	return v6_ops->route_me_harder(net, skb);
-#else
-	return ip6_route_me_harder(net, skb);
-#endif
-}
-
 static unsigned int
 nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
@@ -958,7 +942,7 @@ nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 
 		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.dst.u3,
 				      &ct->tuplehash[!dir].tuple.src.u3)) {
-			err = nat_route_me_harder(state->net, skb);
+			err = nf_ip6_route_me_harder(state->net, skb);
 			if (err < 0)
 				ret = NF_DROP_ERR(err);
 		}
@@ -977,7 +961,7 @@ nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 	return ret;
 }
 
-static const struct nf_hook_ops nf_nat_ipv6_ops[] = {
+const struct nf_hook_ops nf_nat_ipv6_ops[] = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= nf_nat_ipv6_in,
@@ -1010,14 +994,44 @@ static const struct nf_hook_ops nf_nat_ipv6_ops[] = {
 
 int nf_nat_ipv6_register_fn(struct net *net, const struct nf_hook_ops *ops)
 {
-	return nf_nat_register_fn(net, ops, nf_nat_ipv6_ops,
+	return nf_nat_register_fn(net, ops->pf, ops, nf_nat_ipv6_ops,
 				  ARRAY_SIZE(nf_nat_ipv6_ops));
 }
 EXPORT_SYMBOL_GPL(nf_nat_ipv6_register_fn);
 
 void nf_nat_ipv6_unregister_fn(struct net *net, const struct nf_hook_ops *ops)
 {
-	nf_nat_unregister_fn(net, ops, ARRAY_SIZE(nf_nat_ipv6_ops));
+	nf_nat_unregister_fn(net, ops->pf, ops, ARRAY_SIZE(nf_nat_ipv6_ops));
 }
 EXPORT_SYMBOL_GPL(nf_nat_ipv6_unregister_fn);
 #endif /* CONFIG_IPV6 */
+
+#if defined(CONFIG_NF_TABLES_INET) && IS_ENABLED(CONFIG_NFT_NAT)
+int nf_nat_inet_register_fn(struct net *net, const struct nf_hook_ops *ops)
+{
+	int ret;
+
+	if (WARN_ON_ONCE(ops->pf != NFPROTO_INET))
+		return -EINVAL;
+
+	ret = nf_nat_register_fn(net, NFPROTO_IPV6, ops, nf_nat_ipv6_ops,
+				 ARRAY_SIZE(nf_nat_ipv6_ops));
+	if (ret)
+		return ret;
+
+	ret = nf_nat_register_fn(net, NFPROTO_IPV4, ops, nf_nat_ipv4_ops,
+				 ARRAY_SIZE(nf_nat_ipv4_ops));
+	if (ret)
+		nf_nat_ipv6_unregister_fn(net, ops);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_nat_inet_register_fn);
+
+void nf_nat_inet_unregister_fn(struct net *net, const struct nf_hook_ops *ops)
+{
+	nf_nat_unregister_fn(net, NFPROTO_IPV4, ops, ARRAY_SIZE(nf_nat_ipv4_ops));
+	nf_nat_unregister_fn(net, NFPROTO_IPV6, ops, ARRAY_SIZE(nf_nat_ipv6_ops));
+}
+EXPORT_SYMBOL_GPL(nf_nat_inet_unregister_fn);
+#endif /* NFT INET NAT */

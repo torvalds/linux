@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ZD1211RW
 	tristate "ZyDAS ZD1211/ZD1211B USB-wireless support"
 	depends on USB && MAC80211

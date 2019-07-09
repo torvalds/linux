@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
  * Parts came from builtin-{top,stat,record}.c, see those files for further
  * copyright notes.
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include <byteswap.h>
@@ -812,6 +811,8 @@ static void apply_config_terms(struct perf_evsel *evsel,
 			attr->write_backward = term->val.overwrite ? 1 : 0;
 			break;
 		case PERF_EVSEL__CONFIG_TERM_DRV_CFG:
+			break;
+		case PERF_EVSEL__CONFIG_TERM_PERCORE:
 			break;
 		default:
 			break;

@@ -42,11 +42,6 @@ struct tx4939rtc_plat_data {
 	spinlock_t lock;
 };
 
-static struct tx4939rtc_plat_data *get_tx4939rtc_plat_data(struct device *dev)
-{
-	return platform_get_drvdata(to_platform_device(dev));
-}
-
 static int tx4939_rtc_cmd(struct tx4939_rtc_reg __iomem *rtcreg, int cmd)
 {
 	int i = 0;
@@ -64,7 +59,7 @@ static int tx4939_rtc_cmd(struct tx4939_rtc_reg __iomem *rtcreg, int cmd)
 
 static int tx4939_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
+	struct tx4939rtc_plat_data *pdata = dev_get_drvdata(dev);
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
 	unsigned long secs = rtc_tm_to_time64(tm);
 	int i, ret;
@@ -89,7 +84,7 @@ static int tx4939_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 static int tx4939_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
+	struct tx4939rtc_plat_data *pdata = dev_get_drvdata(dev);
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
 	int i, ret;
 	unsigned long sec;
@@ -115,7 +110,7 @@ static int tx4939_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int tx4939_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
+	struct tx4939rtc_plat_data *pdata = dev_get_drvdata(dev);
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
 	int i, ret;
 	unsigned long sec;
@@ -140,7 +135,7 @@ static int tx4939_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int tx4939_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
+	struct tx4939rtc_plat_data *pdata = dev_get_drvdata(dev);
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
 	int i, ret;
 	unsigned long sec;
@@ -170,7 +165,7 @@ static int tx4939_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int tx4939_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
-	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
+	struct tx4939rtc_plat_data *pdata = dev_get_drvdata(dev);
 
 	spin_lock_irq(&pdata->lock);
 	tx4939_rtc_cmd(pdata->rtcreg,
@@ -182,7 +177,7 @@ static int tx4939_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static irqreturn_t tx4939_rtc_interrupt(int irq, void *dev_id)
 {
-	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev_id);
+	struct tx4939rtc_plat_data *pdata = dev_get_drvdata(dev_id);
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
 	unsigned long events = RTC_IRQF;
 

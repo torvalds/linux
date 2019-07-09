@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Powermac setup and early boot code plus other random bits.
  *
@@ -11,12 +12,6 @@
  *    Copyright (C) 1995 Linus Torvalds
  *
  *  Maintained by Benjamin Herrenschmidt (benh@kernel.crashing.org)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 /*

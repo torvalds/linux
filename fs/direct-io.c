@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/direct-io.c
  *
@@ -538,7 +539,6 @@ static struct bio *dio_await_one(struct dio *dio)
 static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio)
 {
 	struct bio_vec *bvec;
-	unsigned i;
 	blk_status_t err = bio->bi_status;
 
 	if (err) {
@@ -553,7 +553,7 @@ static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio)
 	} else {
 		struct bvec_iter_all iter_all;
 
-		bio_for_each_segment_all(bvec, bio, i, iter_all) {
+		bio_for_each_segment_all(bvec, bio, iter_all) {
 			struct page *page = bvec->bv_page;
 
 			if (dio->op == REQ_OP_READ && !PageCompound(page) &&

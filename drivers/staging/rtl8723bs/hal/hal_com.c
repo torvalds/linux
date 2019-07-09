@@ -18,7 +18,7 @@ u8 rtw_hal_data_init(struct adapter *padapter)
 	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
 		padapter->hal_data_sz = sizeof(struct hal_com_data);
 		padapter->HalData = vzalloc(padapter->hal_data_sz);
-		if (padapter->HalData == NULL) {
+		if (!padapter->HalData) {
 			DBG_8192C("cannot alloc memory for HAL DATA\n");
 			return _FAIL;
 		}
@@ -909,7 +909,7 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 	int i;
 	u8 trigger;
 
-	if (buf == NULL)
+	if (!buf)
 		goto exit;
 
 	trigger = rtw_read8(adapter, REG_C2HEVT_CLEAR);
@@ -982,7 +982,7 @@ void rtw_hal_update_sta_rate_mask(struct adapter *padapter, struct sta_info *pst
 	u8 i, rf_type, limit;
 	u32 tx_ra_bitmap;
 
-	if (psta == NULL)
+	if (!psta)
 		return;
 
 	tx_ra_bitmap = 0;
@@ -1389,11 +1389,11 @@ bool IsHexDigit(char chTmp)
 u32 MapCharToHexDigit(char chTmp)
 {
 	if (chTmp >= '0' && chTmp <= '9')
-		return (chTmp - '0');
+		return chTmp - '0';
 	else if (chTmp >= 'a' && chTmp <= 'f')
-		return (10 + (chTmp - 'a'));
+		return 10 + (chTmp - 'a');
 	else if (chTmp >= 'A' && chTmp <= 'F')
-		return (10 + (chTmp - 'A'));
+		return 10 + (chTmp - 'A');
 	else
 		return 0;
 }
@@ -1407,7 +1407,7 @@ bool GetHexValueFromString(char *szStr, u32 *pu4bVal, u32 *pu4bMove)
 	char *szScan = szStr;
 
 	/*  Check input parameter. */
-	if (szStr == NULL || pu4bVal == NULL || pu4bMove == NULL) {
+	if (!szStr || !pu4bVal || !pu4bMove) {
 		DBG_871X("GetHexValueFromString(): Invalid input arguments! szStr: %p, pu4bVal: %p, pu4bMove: %p\n",
 			 szStr, pu4bVal, pu4bMove);
 		return false;
@@ -1618,14 +1618,14 @@ void rtw_get_raw_rssi_info(void *sel, struct adapter *padapter)
 	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
 
 	if (isCCKrate)
-		psample_pkt_rssi->mimo_singal_strength[0] = psample_pkt_rssi->pwdball;
+		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
 		DBG_871X_SEL_NL(
 			sel,
-			"RF_PATH_%d =>singal_strength:%d(%%), singal_quality:%d(%%)\n",
-			rf_path, psample_pkt_rssi->mimo_singal_strength[rf_path],
-			psample_pkt_rssi->mimo_singal_quality[rf_path]
+			"RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)\n",
+			rf_path, psample_pkt_rssi->mimo_signal_strength[rf_path],
+			psample_pkt_rssi->mimo_signal_quality[rf_path]
 		);
 
 		if (!isCCKrate) {
@@ -1651,11 +1651,11 @@ void rtw_dump_raw_rssi_info(struct adapter *padapter)
 	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
 
 	if (isCCKrate)
-		psample_pkt_rssi->mimo_singal_strength[0] = psample_pkt_rssi->pwdball;
+		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		DBG_871X("RF_PATH_%d =>singal_strength:%d(%%), singal_quality:%d(%%)"
-			, rf_path, psample_pkt_rssi->mimo_singal_strength[rf_path], psample_pkt_rssi->mimo_singal_quality[rf_path]);
+		DBG_871X("RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)"
+			, rf_path, psample_pkt_rssi->mimo_signal_strength[rf_path], psample_pkt_rssi->mimo_signal_quality[rf_path]);
 
 		if (!isCCKrate) {
 			printk(", rx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
@@ -1682,8 +1682,8 @@ void rtw_store_phy_info(struct adapter *padapter, union recv_frame *prframe)
 	psample_pkt_rssi->pwr_all = pPhyInfo->recv_signal_power;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		psample_pkt_rssi->mimo_singal_strength[rf_path] = pPhyInfo->rx_mimo_signal_strength[rf_path];
-		psample_pkt_rssi->mimo_singal_quality[rf_path] = pPhyInfo->rx_mimo_signal_quality[rf_path];
+		psample_pkt_rssi->mimo_signal_strength[rf_path] = pPhyInfo->rx_mimo_signal_strength[rf_path];
+		psample_pkt_rssi->mimo_signal_quality[rf_path] = pPhyInfo->rx_mimo_signal_quality[rf_path];
 		if (!isCCKrate) {
 			psample_pkt_rssi->ofdm_pwr[rf_path] = pPhyInfo->RxPwr[rf_path];
 			psample_pkt_rssi->ofdm_snr[rf_path] = pPhyInfo->RxSNR[rf_path];

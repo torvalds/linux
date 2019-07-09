@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -205,11 +206,6 @@
  *	Hirokazu Takahashi	:	Use copy_from_user() instead of
  *					csum_and_copy_from_user() if possible.
  *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or(at your option) any later version.
- *
  * Description of States:
  *
  *	TCP_SYN_SENT		sent a connection request, waiting for ack
@@ -320,6 +316,11 @@ struct tcp_splice_state {
  */
 unsigned long tcp_memory_pressure __read_mostly;
 EXPORT_SYMBOL_GPL(tcp_memory_pressure);
+
+DEFINE_STATIC_KEY_FALSE(tcp_rx_skb_cache_key);
+EXPORT_SYMBOL(tcp_rx_skb_cache_key);
+
+DEFINE_STATIC_KEY_FALSE(tcp_tx_skb_cache_key);
 
 void tcp_enter_memory_pressure(struct sock *sk)
 {
@@ -456,18 +457,6 @@ void tcp_init_sock(struct sock *sk)
 	sk->sk_route_forced_caps = NETIF_F_GSO;
 }
 EXPORT_SYMBOL(tcp_init_sock);
-
-void tcp_init_transfer(struct sock *sk, int bpf_op)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	tcp_mtup_init(sk);
-	icsk->icsk_af_ops->rebuild_header(sk);
-	tcp_init_metrics(sk);
-	tcp_call_bpf(sk, bpf_op, 0, NULL);
-	tcp_init_congestion_control(sk);
-	tcp_init_buffer_space(sk);
-}
 
 static void tcp_tx_timestamp(struct sock *sk, u16 tsflags)
 {
@@ -865,6 +854,18 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 {
 	struct sk_buff *skb;
 
+	if (likely(!size)) {
+		skb = sk->sk_tx_skb_cache;
+		if (skb) {
+			skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
+			sk->sk_tx_skb_cache = NULL;
+			pskb_trim(skb, 0);
+			INIT_LIST_HEAD(&skb->tcp_tsorted_anchor);
+			skb_shinfo(skb)->tx_flags = 0;
+			memset(TCP_SKB_CB(skb), 0, sizeof(struct tcp_skb_cb));
+			return skb;
+		}
+	}
 	/* The TCP header must be at least 32-bit aligned.  */
 	size = ALIGN(size, 4);
 
@@ -1098,30 +1099,6 @@ int tcp_sendpage(struct sock *sk, struct page *page, int offset,
 }
 EXPORT_SYMBOL(tcp_sendpage);
 
-/* Do not bother using a page frag for very small frames.
- * But use this heuristic only for the first skb in write queue.
- *
- * Having no payload in skb->head allows better SACK shifting
- * in tcp_shift_skb_data(), reducing sack/rack overhead, because
- * write queue has less skbs.
- * Each skb can hold up to MAX_SKB_FRAGS * 32Kbytes, or ~0.5 MB.
- * This also speeds up tso_fragment(), since it wont fallback
- * to tcp_fragment().
- */
-static int linear_payload_sz(bool first_skb)
-{
-	if (first_skb)
-		return SKB_WITH_OVERHEAD(2048 - MAX_TCP_HEADER);
-	return 0;
-}
-
-static int select_size(bool first_skb, bool zc)
-{
-	if (zc)
-		return 0;
-	return linear_payload_sz(first_skb);
-}
-
 void tcp_free_fastopen_req(struct tcp_sock *tp)
 {
 	if (tp->fastopen_req) {
@@ -1272,7 +1249,6 @@ restart:
 
 		if (copy <= 0 || !tcp_skb_can_collapse_to(skb)) {
 			bool first_skb;
-			int linear;
 
 new_segment:
 			if (!sk_stream_memory_free(sk))
@@ -1283,8 +1259,7 @@ new_segment:
 				goto restart;
 			}
 			first_skb = tcp_rtx_and_write_queues_empty(sk);
-			linear = select_size(first_skb, zc);
-			skb = sk_stream_alloc_skb(sk, linear, sk->sk_allocation,
+			skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation,
 						  first_skb);
 			if (!skb)
 				goto wait_for_memory;
@@ -2552,6 +2527,11 @@ void tcp_write_queue_purge(struct sock *sk)
 		sk_wmem_free_skb(sk, skb);
 	}
 	tcp_rtx_queue_purge(sk);
+	skb = sk->sk_tx_skb_cache;
+	if (skb) {
+		__kfree_skb(skb);
+		sk->sk_tx_skb_cache = NULL;
+	}
 	INIT_LIST_HEAD(&tcp_sk(sk)->tsorted_sent_queue);
 	sk_mem_reclaim(sk);
 	tcp_clear_all_retrans_hints(tcp_sk(sk));
@@ -2587,6 +2567,10 @@ int tcp_disconnect(struct sock *sk, int flags)
 
 	tcp_clear_xmit_timers(sk);
 	__skb_queue_purge(&sk->sk_receive_queue);
+	if (sk->sk_rx_skb_cache) {
+		__kfree_skb(sk->sk_rx_skb_cache);
+		sk->sk_rx_skb_cache = NULL;
+	}
 	tp->copied_seq = tp->rcv_nxt;
 	tp->urg_data = 0;
 	tcp_write_queue_purge(sk);
@@ -3889,6 +3873,7 @@ void __init tcp_init(void)
 	unsigned long limit;
 	unsigned int i;
 
+	BUILD_BUG_ON(TCP_MIN_SND_MSS <= MAX_TCP_OPTION_SPACE);
 	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) >
 		     FIELD_SIZEOF(struct sk_buff, cb));
 

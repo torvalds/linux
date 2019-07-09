@@ -10,6 +10,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/slab.h>
 #include <linux/bitfield.h>
@@ -348,7 +349,7 @@ static unsigned long clk_sccg_pll_recalc_rate(struct clk_hw *hw,
 
 	temp64 = parent_rate;
 
-	val = clk_readl(pll->base + PLL_CFG0);
+	val = readl(pll->base + PLL_CFG0);
 	if (val & SSCG_PLL_BYPASS2_MASK) {
 		temp64 = parent_rate;
 	} else if (val & SSCG_PLL_BYPASS1_MASK) {
@@ -371,10 +372,10 @@ static int clk_sccg_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 val;
 
 	/* set bypass here too since the parent might be the same */
-	val = clk_readl(pll->base + PLL_CFG0);
+	val = readl(pll->base + PLL_CFG0);
 	val &= ~SSCG_PLL_BYPASS_MASK;
 	val |= FIELD_PREP(SSCG_PLL_BYPASS_MASK, setup->bypass);
-	clk_writel(val, pll->base + PLL_CFG0);
+	writel(val, pll->base + PLL_CFG0);
 
 	val = readl_relaxed(pll->base + PLL_CFG2);
 	val &= ~(PLL_DIVF1_MASK | PLL_DIVF2_MASK);
@@ -395,7 +396,7 @@ static u8 clk_sccg_pll_get_parent(struct clk_hw *hw)
 	u32 val;
 	u8 ret = pll->parent;
 
-	val = clk_readl(pll->base + PLL_CFG0);
+	val = readl(pll->base + PLL_CFG0);
 	if (val & SSCG_PLL_BYPASS2_MASK)
 		ret = pll->bypass2;
 	else if (val & SSCG_PLL_BYPASS1_MASK)
@@ -408,10 +409,10 @@ static int clk_sccg_pll_set_parent(struct clk_hw *hw, u8 index)
 	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
 	u32 val;
 
-	val = clk_readl(pll->base + PLL_CFG0);
+	val = readl(pll->base + PLL_CFG0);
 	val &= ~SSCG_PLL_BYPASS_MASK;
 	val |= FIELD_PREP(SSCG_PLL_BYPASS_MASK, pll->setup.bypass);
-	clk_writel(val, pll->base + PLL_CFG0);
+	writel(val, pll->base + PLL_CFG0);
 
 	return clk_sccg_pll_wait_lock(pll);
 }

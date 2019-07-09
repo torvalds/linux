@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if MMP_DISP
 
 config MMP_DISP_CONTROLLER

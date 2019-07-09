@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Framework and drivers for configuring and reading different PHYs
  * Based on code in sungem_phy.c and (long-removed) gianfar_phy.c
@@ -5,12 +6,6 @@
  * Author: Andy Fleming
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #ifndef __PHY_H
@@ -308,13 +303,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  *
  * HALTED: PHY is up, but no polling or interrupts are done. Or
  * PHY is in an error state.
- *
- * - phy_start moves to RESUMING
- *
- * RESUMING: PHY was halted, but now wants to run again.
- * - If we are forcing, or aneg is done, timer moves to RUNNING
- * - If aneg is not done, timer moves to AN
- * - phy_stop moves to HALTED
+ * - phy_start moves to UP
  */
 enum phy_state {
 	PHY_DOWN = 0,
@@ -324,7 +313,6 @@ enum phy_state {
 	PHY_RUNNING,
 	PHY_NOLINK,
 	PHY_FORCING,
-	PHY_RESUMING
 };
 
 /**
@@ -345,6 +333,7 @@ struct phy_c45_device_ids {
  * is_c45:  Set to true if this phy uses clause 45 addressing.
  * is_internal: Set to true if this phy is internal to a MAC.
  * is_pseudo_fixed_link: Set to true if this phy is an Ethernet switch, etc.
+ * is_gigabit_capable: Set to true if PHY supports 1000Mbps
  * has_fixups: Set to true if this phy has fixups/quirks.
  * suspended: Set to true if this phy has been suspended successfully.
  * sysfs_links: Internal boolean tracking sysfs symbolic links setup/removal.
@@ -382,6 +371,7 @@ struct phy_device {
 	unsigned is_c45:1;
 	unsigned is_internal:1;
 	unsigned is_pseudo_fixed_link:1;
+	unsigned is_gigabit_capable:1;
 	unsigned has_fixups:1;
 	unsigned suspended:1;
 	unsigned sysfs_links:1;
@@ -390,6 +380,7 @@ struct phy_device {
 	unsigned autoneg:1;
 	/* The most recently read link state */
 	unsigned link:1;
+	unsigned autoneg_complete:1;
 
 	/* Interrupts are enabled */
 	unsigned interrupts:1;
@@ -1075,6 +1066,7 @@ void phy_attached_info(struct phy_device *phydev);
 
 /* Clause 22 PHY */
 int genphy_config_init(struct phy_device *phydev);
+int genphy_read_abilities(struct phy_device *phydev);
 int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
 int genphy_config_eee_advert(struct phy_device *phydev);
@@ -1150,6 +1142,7 @@ void phy_request_interrupt(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
 int phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
 void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode);
+void phy_advertise_supported(struct phy_device *phydev);
 void phy_support_sym_pause(struct phy_device *phydev);
 void phy_support_asym_pause(struct phy_device *phydev);
 void phy_set_sym_pause(struct phy_device *phydev, bool rx, bool tx,

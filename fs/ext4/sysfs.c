@@ -238,6 +238,9 @@ EXT4_ATTR_FEATURE(meta_bg_resize);
 #ifdef CONFIG_FS_ENCRYPTION
 EXT4_ATTR_FEATURE(encryption);
 #endif
+#ifdef CONFIG_UNICODE
+EXT4_ATTR_FEATURE(casefold);
+#endif
 EXT4_ATTR_FEATURE(metadata_csum_seed);
 
 static struct attribute *ext4_feat_attrs[] = {
@@ -246,6 +249,9 @@ static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(meta_bg_resize),
 #ifdef CONFIG_FS_ENCRYPTION
 	ATTR_LIST(encryption),
+#endif
+#ifdef CONFIG_UNICODE
+	ATTR_LIST(casefold),
 #endif
 	ATTR_LIST(metadata_csum_seed),
 	NULL,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_tmr.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -390,7 +377,7 @@ int core_tmr_lun_reset(
 	if (!preempt_and_abort_list &&
 	     (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)) {
 		spin_lock(&dev->dev_reservation_lock);
-		dev->dev_reserved_node_acl = NULL;
+		dev->reservation_holder = NULL;
 		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS;
 		spin_unlock(&dev->dev_reservation_lock);
 		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");

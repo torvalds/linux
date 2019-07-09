@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale Integrated Flash Controller NAND driver
  *
  * Copyright 2011-2012 Freescale Semiconductor, Inc
  *
  * Author: Dipen Dudhat <Dipen.Dudhat@freescale.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -722,9 +709,9 @@ static int fsl_ifc_attach_chip(struct nand_chip *chip)
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 
 	dev_dbg(priv->dev, "%s: nand->numchips = %d\n", __func__,
-							chip->numchips);
+		nanddev_ntargets(&chip->base));
 	dev_dbg(priv->dev, "%s: nand->chipsize = %lld\n", __func__,
-							chip->chipsize);
+	        nanddev_target_size(&chip->base));
 	dev_dbg(priv->dev, "%s: nand->pagemask = %8x\n", __func__,
 							chip->pagemask);
 	dev_dbg(priv->dev, "%s: nand->legacy.chip_delay = %d\n", __func__,

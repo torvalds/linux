@@ -126,4 +126,11 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
 }
 #endif
 
+#ifndef __HAVE_ARCH_GIGANTIC_PAGE_RUNTIME_SUPPORTED
+static inline bool gigantic_page_runtime_supported(void)
+{
+	return IS_ENABLED(CONFIG_ARCH_HAS_GIGANTIC_PAGE);
+}
+#endif /* __HAVE_ARCH_GIGANTIC_PAGE_RUNTIME_SUPPORTED */
+
 #endif /* _ASM_GENERIC_HUGETLB_H */

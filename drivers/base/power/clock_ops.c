@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/power/clock_ops.c - Generic clock manipulation PM callbacks
  *
  * Copyright (c) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Renesas Electronics Corp.
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/kernel.h>

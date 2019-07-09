@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/ctype.h>
@@ -123,22 +119,16 @@ static int aafs_show_path(struct seq_file *seq, struct dentry *dentry)
 	return 0;
 }
 
-static void aafs_i_callback(struct rcu_head *head)
+static void aafs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	if (S_ISLNK(inode->i_mode))
 		kfree(inode->i_link);
 	free_inode_nonrcu(inode);
 }
 
-static void aafs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, aafs_i_callback);
-}
-
 static const struct super_operations aafs_super_ops = {
 	.statfs = simple_statfs,
-	.destroy_inode = aafs_destroy_inode,
+	.free_inode = aafs_free_inode,
 	.show_path = aafs_show_path,
 };
 

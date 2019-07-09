@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * User-space Probes (UProbes) for sparc
  *
  * Copyright (C) 2013 Oracle Inc.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authors:
  *	Jose E. Marchesi <jose.marchesi@oracle.com>
@@ -29,7 +17,6 @@
 #include <linux/kdebug.h>
 
 #include <asm/cacheflush.h>
-#include <linux/uaccess.h>
 
 /* Compute the address of the breakpoint instruction and return it.
  *

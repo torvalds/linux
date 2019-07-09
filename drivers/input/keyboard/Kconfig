@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Input core configuration
 #
@@ -137,6 +138,17 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
 
+config KEYBOARD_QT1050
+	tristate "Microchip AT42QT1050 Touch Sensor Chip"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here if you want to use Microchip AT42QT1050 QTouch
+	  Sensor chip as input device.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called qt1050
+
 config KEYBOARD_QT1070
        tristate "Atmel AT42QT1070 Touch Sensor Chip"
        depends on I2C
@@ -194,7 +206,7 @@ config KEYBOARD_LKKBD
 
 config KEYBOARD_EP93XX
 	tristate "EP93xx Matrix Keypad support"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here to enable the matrix keypad on the Cirrus EP93XX.

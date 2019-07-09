@@ -416,8 +416,8 @@ int ath10k_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct nlattr *tb[ATH10K_TM_ATTR_MAX + 1];
 	int ret;
 
-	ret = nla_parse(tb, ATH10K_TM_ATTR_MAX, data, len, ath10k_tm_policy,
-			NULL);
+	ret = nla_parse_deprecated(tb, ATH10K_TM_ATTR_MAX, data, len,
+				   ath10k_tm_policy, NULL);
 	if (ret)
 		return ret;
 

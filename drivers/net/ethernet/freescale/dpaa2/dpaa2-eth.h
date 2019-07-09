@@ -334,6 +334,7 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_ch_stats stats;
 	struct dpaa2_eth_ch_xdp xdp;
 	struct xdp_rxq_info xdp_rxq;
+	struct list_head *rx_list;
 };
 
 struct dpaa2_eth_dist_fields {
@@ -341,6 +342,7 @@ struct dpaa2_eth_dist_fields {
 	enum net_prot cls_prot;
 	int cls_field;
 	int size;
+	u64 id;
 };
 
 struct dpaa2_eth_cls_rule {
@@ -393,6 +395,7 @@ struct dpaa2_eth_priv {
 
 	/* enabled ethtool hashing bits */
 	u64 rx_hash_fields;
+	u64 rx_cls_fields;
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
 	struct bpf_prog *xdp_prog;
@@ -436,6 +439,12 @@ static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
 	(dpaa2_eth_cmp_dpni_ver((priv), DPNI_RX_DIST_KEY_VER_MAJOR,	\
 				DPNI_RX_DIST_KEY_VER_MINOR) < 0)
 
+#define dpaa2_eth_fs_enabled(priv)	\
+	(!((priv)->dpni_attrs.options & DPNI_OPT_NO_FS))
+
+#define dpaa2_eth_fs_mask_enabled(priv)	\
+	((priv)->dpni_attrs.options & DPNI_OPT_HAS_KEY_MASKING)
+
 #define dpaa2_eth_fs_count(priv)        \
 	((priv)->dpni_attrs.fs_entries)
 
@@ -447,6 +456,18 @@ enum dpaa2_eth_rx_dist {
 	DPAA2_ETH_RX_DIST_HASH,
 	DPAA2_ETH_RX_DIST_CLS
 };
+
+/* Unique IDs for the supported Rx classification header fields */
+#define DPAA2_ETH_DIST_ETHDST		BIT(0)
+#define DPAA2_ETH_DIST_ETHSRC		BIT(1)
+#define DPAA2_ETH_DIST_ETHTYPE		BIT(2)
+#define DPAA2_ETH_DIST_VLAN		BIT(3)
+#define DPAA2_ETH_DIST_IPSRC		BIT(4)
+#define DPAA2_ETH_DIST_IPDST		BIT(5)
+#define DPAA2_ETH_DIST_IPPROTO		BIT(6)
+#define DPAA2_ETH_DIST_L4SRC		BIT(7)
+#define DPAA2_ETH_DIST_L4DST		BIT(8)
+#define DPAA2_ETH_DIST_ALL		(~0ULL)
 
 static inline
 unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
@@ -482,7 +503,9 @@ static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 }
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
-int dpaa2_eth_cls_key_size(void);
+int dpaa2_eth_set_cls(struct net_device *net_dev, u64 key);
+int dpaa2_eth_cls_key_size(u64 key);
 int dpaa2_eth_cls_fld_off(int prot, int field);
+void dpaa2_eth_cls_trim_rule(void *key_mem, u64 fields);
 
 #endif	/* __DPAA2_H */

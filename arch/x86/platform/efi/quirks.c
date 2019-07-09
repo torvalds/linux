@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "efi: " fmt
 
 #include <linux/init.h>
@@ -511,6 +512,9 @@ int __init efi_reuse_config(u64 tables, int nr_tables)
 	int i, sz, ret = 0;
 	void *p, *tablep;
 	struct efi_setup_data *data;
+
+	if (nr_tables == 0)
+		return 0;
 
 	if (!efi_setup)
 		return 0;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 obj-y					:= highbank.o system.o smc.o
 
 plus_sec := $(call as-instr,.arch_extension sec,+sec)

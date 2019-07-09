@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Common functions for Palm LD, T5, TX, Z72
  *
  * Copyright (C) 2010
  * Marek Vasut <marek.vasut@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #ifndef	__INCLUDE_MACH_PALM27X__
 #define	__INCLUDE_MACH_PALM27X__

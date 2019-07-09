@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
@@ -252,6 +253,22 @@ config TI_SCI_PROTOCOL
 
 	  This protocol library is used by client drivers to use the features
 	  provided by the system controller.
+
+config TRUSTED_FOUNDATIONS
+	bool "Trusted Foundations secure monitor support"
+	depends on ARM && CPU_V7
+	help
+	  Some devices (including most early Tegra-based consumer devices on
+	  the market) are booted with the Trusted Foundations secure monitor
+	  active, requiring some core operations to be performed by the secure
+	  monitor instead of the kernel.
+
+	  This option allows the kernel to invoke the secure monitor whenever
+	  required on devices using Trusted Foundations. See the functions and
+	  comments in linux/firmware/trusted_foundations.h or the device tree
+	  bindings for "tlm,trusted-foundations" for details on how to use it.
+
+	  Choose N if you don't know what this is about.
 
 config HAVE_ARM_SMCCC
 	bool

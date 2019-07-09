@@ -57,18 +57,18 @@ Required properties:
 	- GXL (S905X, S905D) : "amlogic,meson-gxl-vpu"
 	- GXM (S912) : "amlogic,meson-gxm-vpu"
 	followed by the common "amlogic,meson-gx-vpu"
+	- G12A (S905X2, S905Y2, S905D2) : "amlogic,meson-g12a-vpu"
 - reg: base address and size of he following memory-mapped regions :
 	- vpu
 	- hhi
-	- dmc
 - reg-names: should contain the names of the previous memory regions
 - interrupts: should contain the VENC Vsync interrupt number
+- amlogic,canvas: phandle to canvas provider node as described in the file
+	../soc/amlogic/amlogic,canvas.txt
 
 Optional properties:
 - power-domains: Optional phandle to associated power domain as described in
 	the file ../power/power_domain.txt
-- amlogic,canvas: phandle to canvas provider node as described in the file
-	../soc/amlogic/amlogic,canvas.txt
 
 Required nodes:
 
@@ -84,6 +84,9 @@ corresponding to each VPU output.
  S905X (GXL)	CVBS VDAC	HDMI-TX
  S905D (GXL)	CVBS VDAC	HDMI-TX
  S912 (GXM)	CVBS VDAC	HDMI-TX
+ S905X2 (G12A)	CVBS VDAC	HDMI-TX
+ S905Y2 (G12A)	CVBS VDAC	HDMI-TX
+ S905D2 (G12A)	CVBS VDAC	HDMI-TX
 
 Example:
 

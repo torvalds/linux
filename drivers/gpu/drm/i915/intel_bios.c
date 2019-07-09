@@ -760,6 +760,31 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.psr.tp1_wakeup_time_us = psr_table->tp1_wakeup_time * 100;
 		dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = psr_table->tp2_tp3_wakeup_time * 100;
 	}
+
+	if (bdb->version >= 226) {
+		u32 wakeup_time = psr_table->psr2_tp2_tp3_wakeup_time;
+
+		wakeup_time = (wakeup_time >> (2 * panel_type)) & 0x3;
+		switch (wakeup_time) {
+		case 0:
+			wakeup_time = 500;
+			break;
+		case 1:
+			wakeup_time = 100;
+			break;
+		case 3:
+			wakeup_time = 50;
+			break;
+		default:
+		case 2:
+			wakeup_time = 2500;
+			break;
+		}
+		dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us = wakeup_time;
+	} else {
+		/* Reusing PSR1 wakeup time for PSR2 in older VBTs */
+		dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us = dev_priv->vbt.psr.tp2_tp3_wakeup_time_us;
+	}
 }
 
 static void parse_dsi_backlight_ports(struct drm_i915_private *dev_priv,
@@ -1222,10 +1247,11 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 	if (!info->alternate_ddc_pin)
 		return;
 
-	for_each_port_masked(p, (1 << port) - 1) {
+	for (p = PORT_A; p < I915_MAX_PORTS; p++) {
 		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
 
-		if (info->alternate_ddc_pin != i->alternate_ddc_pin)
+		if (p == port || !i->present ||
+		    info->alternate_ddc_pin != i->alternate_ddc_pin)
 			continue;
 
 		DRM_DEBUG_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
@@ -1239,8 +1265,8 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 		 * port. Otherwise they share the same ddc bin and
 		 * system couldn't communicate with them separately.
 		 *
-		 * Due to parsing the ports in alphabetical order,
-		 * a higher port will always clobber a lower one.
+		 * Due to parsing the ports in child device order,
+		 * a later device will always clobber an earlier one.
 		 */
 		i->supports_dvi = false;
 		i->supports_hdmi = false;
@@ -1258,10 +1284,11 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 	if (!info->alternate_aux_channel)
 		return;
 
-	for_each_port_masked(p, (1 << port) - 1) {
+	for (p = PORT_A; p < I915_MAX_PORTS; p++) {
 		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
 
-		if (info->alternate_aux_channel != i->alternate_aux_channel)
+		if (p == port || !i->present ||
+		    info->alternate_aux_channel != i->alternate_aux_channel)
 			continue;
 
 		DRM_DEBUG_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
@@ -1275,8 +1302,8 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 		 * port. Otherwise they share the same aux channel
 		 * and system couldn't communicate with them separately.
 		 *
-		 * Due to parsing the ports in alphabetical order,
-		 * a higher port will always clobber a lower one.
+		 * Due to parsing the ports in child device order,
+		 * a later device will always clobber an earlier one.
 		 */
 		i->supports_dp = false;
 		i->alternate_aux_channel = 0;
@@ -1324,48 +1351,57 @@ static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 	return 0;
 }
 
-static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
-			   u8 bdb_version)
+static enum port dvo_port_to_port(u8 dvo_port)
 {
-	struct child_device_config *it, *child = NULL;
-	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
-	int i, j;
-	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
-	/* Each DDI port can have more than one value on the "DVO Port" field,
+	/*
+	 * Each DDI port can have more than one value on the "DVO Port" field,
 	 * so look for all the possible values for each port.
 	 */
-	int dvo_ports[][3] = {
-		{DVO_PORT_HDMIA, DVO_PORT_DPA, -1},
-		{DVO_PORT_HDMIB, DVO_PORT_DPB, -1},
-		{DVO_PORT_HDMIC, DVO_PORT_DPC, -1},
-		{DVO_PORT_HDMID, DVO_PORT_DPD, -1},
-		{DVO_PORT_CRT, DVO_PORT_HDMIE, DVO_PORT_DPE},
-		{DVO_PORT_HDMIF, DVO_PORT_DPF, -1},
+	static const int dvo_ports[][3] = {
+		[PORT_A] = { DVO_PORT_HDMIA, DVO_PORT_DPA, -1},
+		[PORT_B] = { DVO_PORT_HDMIB, DVO_PORT_DPB, -1},
+		[PORT_C] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1},
+		[PORT_D] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1},
+		[PORT_E] = { DVO_PORT_CRT, DVO_PORT_HDMIE, DVO_PORT_DPE},
+		[PORT_F] = { DVO_PORT_HDMIF, DVO_PORT_DPF, -1},
 	};
+	enum port port;
+	int i;
 
-	/*
-	 * Find the first child device to reference the port, report if more
-	 * than one found.
-	 */
-	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
-		it = dev_priv->vbt.child_dev + i;
-
-		for (j = 0; j < 3; j++) {
-			if (dvo_ports[port][j] == -1)
+	for (port = PORT_A; port < ARRAY_SIZE(dvo_ports); port++) {
+		for (i = 0; i < ARRAY_SIZE(dvo_ports[port]); i++) {
+			if (dvo_ports[port][i] == -1)
 				break;
 
-			if (it->dvo_port == dvo_ports[port][j]) {
-				if (child) {
-					DRM_DEBUG_KMS("More than one child device for port %c in VBT, using the first.\n",
-						      port_name(port));
-				} else {
-					child = it;
-				}
-			}
+			if (dvo_port == dvo_ports[port][i])
+				return port;
 		}
 	}
-	if (!child)
+
+	return PORT_NONE;
+}
+
+static void parse_ddi_port(struct drm_i915_private *dev_priv,
+			   const struct child_device_config *child,
+			   u8 bdb_version)
+{
+	struct ddi_vbt_port_info *info;
+	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
+	enum port port;
+
+	port = dvo_port_to_port(child->dvo_port);
+	if (port == PORT_NONE)
 		return;
+
+	info = &dev_priv->vbt.ddi_port_info[port];
+
+	if (info->present) {
+		DRM_DEBUG_KMS("More than one child device for port %c in VBT, using the first.\n",
+			      port_name(port));
+		return;
+	}
+
+	info->present = true;
 
 	is_dvi = child->device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
 	is_dp = child->device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
@@ -1498,19 +1534,20 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 static void parse_ddi_ports(struct drm_i915_private *dev_priv, u8 bdb_version)
 {
-	enum port port;
+	const struct child_device_config *child;
+	int i;
 
 	if (!HAS_DDI(dev_priv) && !IS_CHERRYVIEW(dev_priv))
-		return;
-
-	if (!dev_priv->vbt.child_dev_num)
 		return;
 
 	if (bdb_version < 155)
 		return;
 
-	for (port = PORT_A; port < I915_MAX_PORTS; port++)
-		parse_ddi_port(dev_priv, port, bdb_version);
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		child = dev_priv->vbt.child_dev + i;
+
+		parse_ddi_port(dev_priv, child, bdb_version);
+	}
 }
 
 static void
@@ -2094,8 +2131,8 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv,
 		dvo_port = child->dvo_port;
 
 		if (dvo_port == DVO_PORT_MIPIA ||
-		    (dvo_port == DVO_PORT_MIPIB && IS_ICELAKE(dev_priv)) ||
-		    (dvo_port == DVO_PORT_MIPIC && !IS_ICELAKE(dev_priv))) {
+		    (dvo_port == DVO_PORT_MIPIB && INTEL_GEN(dev_priv) >= 11) ||
+		    (dvo_port == DVO_PORT_MIPIC && INTEL_GEN(dev_priv) < 11)) {
 			if (port)
 				*port = dvo_port - DVO_PORT_MIPIA;
 			return true;

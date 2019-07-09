@@ -8151,7 +8151,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_wake_queue(txq);
 	}
 
-	if (!skb->xmit_more || netif_xmit_stopped(txq)) {
+	if (!netdev_xmit_more() || netif_xmit_stopped(txq)) {
 		/* Packets are ready, update Tx producer idx on card. */
 		tw32_tx_mbox(tnapi->prodmbox, entry);
 	}
@@ -12756,9 +12756,6 @@ static int tg3_set_phys_id(struct net_device *dev,
 			    enum ethtool_phys_id_state state)
 {
 	struct tg3 *tp = netdev_priv(dev);
-
-	if (!netif_running(tp->dev))
-		return -EAGAIN;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:

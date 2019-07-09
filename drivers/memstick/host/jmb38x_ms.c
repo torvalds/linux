@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  jmb38x_ms.c - JMicron jmb38x MemoryStick card reader
  *
  *  Copyright (C) 2008 Alex Dubov <oakad@yahoo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/spinlock.h>
@@ -259,9 +255,11 @@ static unsigned int jmb38x_ms_write_data(struct jmb38x_ms_host *host,
 	case 3:
 		host->io_word[0] |= buf[off + 2] << 16;
 		host->io_pos++;
+		/* fall through */
 	case 2:
 		host->io_word[0] |= buf[off + 1] << 8;
 		host->io_pos++;
+		/* fall through */
 	case 1:
 		host->io_word[0] |= buf[off];
 		host->io_pos++;
@@ -368,7 +366,6 @@ static int jmb38x_ms_transfer_data(struct jmb38x_ms_host *host)
 static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 {
 	struct jmb38x_ms_host *host = memstick_priv(msh);
-	unsigned char *data;
 	unsigned int data_len, cmd, t_val;
 
 	if (!(STATUS_HAS_MEDIA & readl(host->addr + STATUS))) {
@@ -399,8 +396,6 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 		else
 			cmd |= TPC_WAIT_INT;
 	}
-
-	data = host->req->data;
 
 	if (!no_dma)
 		host->cmd_flags |= DMA_DATA;

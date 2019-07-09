@@ -168,7 +168,7 @@
 &pinctrl {
 	lan8720a {
 		phy_int: phy-int {
-			rockchip,pins = <RK_GPIO1 26 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

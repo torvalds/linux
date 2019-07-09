@@ -115,7 +115,7 @@ struct mthca_qp_path {
 	u8     hop_limit;
 	__be32 sl_tclass_flowlabel;
 	u8     rgid[16];
-} __attribute__((packed));
+} __packed;
 
 struct mthca_qp_context {
 	__be32 flags;
@@ -154,14 +154,14 @@ struct mthca_qp_context {
 	__be16 rq_wqe_counter;	/* reserved on Tavor */
 	__be16 sq_wqe_counter;	/* reserved on Tavor */
 	u32    reserved3[18];
-} __attribute__((packed));
+} __packed;
 
 struct mthca_qp_param {
 	__be32 opt_param_mask;
 	u32    reserved1;
 	struct mthca_qp_context context;
 	u32    reserved2[62];
-} __attribute__((packed));
+} __packed;
 
 enum {
 	MTHCA_QP_OPTPAR_ALT_ADDR_PATH     = 1 << 0,

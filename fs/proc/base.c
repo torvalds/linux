@@ -510,7 +510,7 @@ static ssize_t lstats_write(struct file *file, const char __user *buf,
 
 	if (!task)
 		return -ESRCH;
-	clear_all_latency_tracing(task);
+	clear_tsk_latency_tracing(task);
 	put_task_struct(task);
 
 	return count;
@@ -2534,6 +2534,11 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 	if (current != task) {
 		rcu_read_unlock();
 		return -EACCES;
+	}
+	/* Prevent changes to overridden credentials. */
+	if (current_cred() != current_real_cred()) {
+		rcu_read_unlock();
+		return -EBUSY;
 	}
 	rcu_read_unlock();
 

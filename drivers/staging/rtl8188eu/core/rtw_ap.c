@@ -68,7 +68,7 @@ static void update_BCNTIM(struct adapter *padapter)
 
 	/* update TIM IE */
 	p = rtw_get_ie(pie + _FIXED_IE_LENGTH_, _TIM_IE_, &tim_ielen,
-			pnetwork_mlmeext->ie_length - _FIXED_IE_LENGTH_);
+		       pnetwork_mlmeext->ie_length - _FIXED_IE_LENGTH_);
 	if (p && tim_ielen > 0) {
 		tim_ielen += 2;
 		premainder_ie = p + tim_ielen;
@@ -89,7 +89,7 @@ static void update_BCNTIM(struct adapter *padapter)
 			       &tmp_len, (pnetwork_mlmeext->ie_length -
 					  _BEACON_IE_OFFSET_));
 		if (p)
-			offset += tmp_len+2;
+			offset += tmp_len + 2;
 
 		/* DS Parameter Set IE, len = 3 */
 		offset += 3;
@@ -162,7 +162,7 @@ static u8 chk_sta_is_alive(struct sta_info *psta)
 	return ret;
 }
 
-void	expire_timeout_chk(struct adapter *padapter)
+void expire_timeout_chk(struct adapter *padapter)
 {
 	struct list_head *phead, *plist;
 	u8 updated = 0;
@@ -367,7 +367,6 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 		sta_band |= WIRELESS_11G | WIRELESS_11B;
 	else
 		sta_band |= WIRELESS_11B;
-
 
 	psta->wireless_mode = sta_band;
 
@@ -923,7 +922,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 
 		pht_cap->mcs.rx_mask[0] = 0xff;
 		pht_cap->mcs.rx_mask[1] = 0x0;
-		memcpy(&pmlmepriv->htpriv.ht_cap, p+2, ie_len);
+		memcpy(&pmlmepriv->htpriv.ht_cap, p + 2, ie_len);
 	}
 
 	/* parsing HT_INFO_IE */
@@ -1123,9 +1122,11 @@ static void update_bcn_erpinfo_ie(struct adapter *padapter)
 		struct ndis_802_11_var_ie *pIE = (struct ndis_802_11_var_ie *)p;
 
 		if (pmlmepriv->num_sta_non_erp == 1)
-			pIE->data[0] |= RTW_ERP_INFO_NON_ERP_PRESENT|RTW_ERP_INFO_USE_PROTECTION;
+			pIE->data[0] |= RTW_ERP_INFO_NON_ERP_PRESENT |
+					RTW_ERP_INFO_USE_PROTECTION;
 		else
-			pIE->data[0] &= ~(RTW_ERP_INFO_NON_ERP_PRESENT|RTW_ERP_INFO_USE_PROTECTION);
+			pIE->data[0] &= ~(RTW_ERP_INFO_NON_ERP_PRESENT |
+					  RTW_ERP_INFO_USE_PROTECTION);
 
 		if (pmlmepriv->num_sta_no_short_preamble > 0)
 			pIE->data[0] |= RTW_ERP_INFO_BARKER_PREAMBLE_MODE;
@@ -1154,12 +1155,13 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 	if (!pwps_ie_src)
 		return;
 
-	pwps_ie = rtw_get_wps_ie(ie+_FIXED_IE_LENGTH_, ielen-_FIXED_IE_LENGTH_, NULL, &wps_ielen);
+	pwps_ie = rtw_get_wps_ie(ie + _FIXED_IE_LENGTH_,
+				 ielen - _FIXED_IE_LENGTH_, NULL, &wps_ielen);
 
 	if (!pwps_ie || wps_ielen == 0)
 		return;
 
-	wps_offset = (uint)(pwps_ie-ie);
+	wps_offset = (uint)(pwps_ie - ie);
 
 	premainder_ie = pwps_ie + wps_ielen;
 
@@ -1172,15 +1174,15 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 	}
 
 	wps_ielen = (uint)pwps_ie_src[1];/* to get ie data len */
-	if ((wps_offset+wps_ielen+2+remainder_ielen) <= MAX_IE_SZ) {
-		memcpy(pwps_ie, pwps_ie_src, wps_ielen+2);
-		pwps_ie += (wps_ielen+2);
+	if (wps_offset + wps_ielen + 2 + remainder_ielen <= MAX_IE_SZ) {
+		memcpy(pwps_ie, pwps_ie_src, wps_ielen + 2);
+		pwps_ie += wps_ielen + 2;
 
 		if (pbackup_remainder_ie)
 			memcpy(pwps_ie, pbackup_remainder_ie, remainder_ielen);
 
 		/* update ie_length */
-		pnetwork->ie_length = wps_offset + (wps_ielen+2) + remainder_ielen;
+		pnetwork->ie_length = wps_offset + wps_ielen + 2 + remainder_ielen;
 	}
 
 	kfree(pbackup_remainder_ie);

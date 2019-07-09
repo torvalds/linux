@@ -171,6 +171,7 @@ static const struct v4l2_subdev_ops clu_ops = {
 
 static void clu_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_clu *clu = to_clu(&entity->subdev);

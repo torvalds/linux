@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  HIDPP protocol for Logitech Unifying receivers
  *
@@ -6,11 +7,6 @@
  *  Copyright (c) 2013-2014 Red Hat Inc.
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -2862,7 +2858,7 @@ static u8 *hidpp10_consumer_keys_report_fixup(struct hidpp_device *hidpp,
 					      u8 *_rdesc, unsigned int *rsize)
 {
 	/* Note 0 terminated so we can use strnstr to search for this. */
-	const char consumer_rdesc_start[] = {
+	static const char consumer_rdesc_start[] = {
 		0x05, 0x0C,	/* USAGE_PAGE (Consumer Devices)       */
 		0x09, 0x01,	/* USAGE (Consumer Control)            */
 		0xA1, 0x01,	/* COLLECTION (Application)            */

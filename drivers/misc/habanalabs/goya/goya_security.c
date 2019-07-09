@@ -6,6 +6,7 @@
  */
 
 #include "goyaP.h"
+#include "include/goya/asic_reg/goya_regs.h"
 
 /*
  * goya_set_block_as_protected - set the given block as protected
@@ -2159,6 +2160,8 @@ static void goya_init_protection_bits(struct hl_device *hdev)
 	 * Bits 7-11 represents the word offset inside the 128 bytes.
 	 * Bits 2-6 represents the bit location inside the word.
 	 */
+	u32 pb_addr, mask;
+	u8 word_offset;
 
 	goya_pb_set_block(hdev, mmPCI_NRTR_BASE);
 	goya_pb_set_block(hdev, mmPCI_RD_REGULATOR_BASE);
@@ -2237,6 +2240,14 @@ static void goya_init_protection_bits(struct hl_device *hdev)
 	goya_pb_set_block(hdev, mmPCIE_AUX_BASE);
 	goya_pb_set_block(hdev, mmPCIE_DB_RSV_BASE);
 	goya_pb_set_block(hdev, mmPCIE_PHY_BASE);
+	goya_pb_set_block(hdev, mmTPC0_NRTR_BASE);
+	goya_pb_set_block(hdev, mmTPC_PLL_BASE);
+
+	pb_addr = (mmTPC_PLL_CLK_RLX_0 & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmTPC_PLL_CLK_RLX_0 & PROT_BITS_OFFS) >> 7) << 2;
+	mask = 1 << ((mmTPC_PLL_CLK_RLX_0 & 0x7C) >> 2);
+
+	WREG32(pb_addr + word_offset, mask);
 
 	goya_init_mme_protection_bits(hdev);
 
@@ -2294,8 +2305,8 @@ void goya_init_security(struct hl_device *hdev)
 	u32 lbw_rng10_base = 0xFCC60000 & DMA_MACRO_LBW_RANGE_BASE_R_MASK;
 	u32 lbw_rng10_mask = 0xFFFE0000 & DMA_MACRO_LBW_RANGE_BASE_R_MASK;
 
-	u32 lbw_rng11_base = 0xFCE00000 & DMA_MACRO_LBW_RANGE_BASE_R_MASK;
-	u32 lbw_rng11_mask = 0xFFFFC000 & DMA_MACRO_LBW_RANGE_BASE_R_MASK;
+	u32 lbw_rng11_base = 0xFCE02000 & DMA_MACRO_LBW_RANGE_BASE_R_MASK;
+	u32 lbw_rng11_mask = 0xFFFFE000 & DMA_MACRO_LBW_RANGE_BASE_R_MASK;
 
 	u32 lbw_rng12_base = 0xFE484000 & DMA_MACRO_LBW_RANGE_BASE_R_MASK;
 	u32 lbw_rng12_mask = 0xFFFFF000 & DMA_MACRO_LBW_RANGE_BASE_R_MASK;

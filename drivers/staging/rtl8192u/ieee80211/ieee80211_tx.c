@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  *  Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of version 2 of the GNU General Public License as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
- *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
- *  The full GNU General Public License is included in this distribution in the
- *  file called LICENSE.
  *
  *  Contact Information:
  *  James P. Ketrenos <ipw2100-admin@linux.intel.com>
@@ -318,17 +303,17 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 		return;
 	//check packet and mode later
 #ifdef TO_DO_LIST
-	if(pTcb->PacketLength >= 4096)
+	if (pTcb->PacketLength >= 4096)
 		return;
 	// For RTL819X, if pairwisekey = wep/tkip, we don't aggrregation.
-	if(!Adapter->HalFunc.GetNmodeSupportBySecCfgHandler(Adapter))
+	if (!Adapter->HalFunc.GetNmodeSupportBySecCfgHandler(Adapter))
 		return;
 #endif
-	if(!ieee->GetNmodeSupportBySecCfg(ieee->dev))
+	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
 	{
 		return;
 	}
-	if(pHTInfo->bCurrentAMPDUEnable)
+	if (pHTInfo->bCurrentAMPDUEnable)
 	{
 		if (!GetTs(ieee, (struct ts_common_info **)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true))
 		{
@@ -398,18 +383,18 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, struct cb_desc *tcb_
 
 	tcb_desc->bUseShortGI		= false;
 
-	if(!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
+	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
 		return;
 
-	if(pHTInfo->bForcedShortGI)
+	if (pHTInfo->bForcedShortGI)
 	{
 		tcb_desc->bUseShortGI = true;
 		return;
 	}
 
-	if((pHTInfo->bCurBW40MHz==true) && pHTInfo->bCurShortGI40MHz)
+	if ((pHTInfo->bCurBW40MHz==true) && pHTInfo->bCurShortGI40MHz)
 		tcb_desc->bUseShortGI = true;
-	else if((pHTInfo->bCurBW40MHz==false) && pHTInfo->bCurShortGI20MHz)
+	else if ((pHTInfo->bCurBW40MHz==false) && pHTInfo->bCurShortGI20MHz)
 		tcb_desc->bUseShortGI = true;
 }
 
@@ -420,13 +405,13 @@ static void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee,
 
 	tcb_desc->bPacketBW = false;
 
-	if(!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
+	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
 		return;
 
-	if(tcb_desc->bMulticast || tcb_desc->bBroadcast)
+	if (tcb_desc->bMulticast || tcb_desc->bBroadcast)
 		return;
 
-	if((tcb_desc->data_rate & 0x80)==0) // If using legacy rate, it shall use 20MHz channel.
+	if ((tcb_desc->data_rate & 0x80)==0) // If using legacy rate, it shall use 20MHz channel.
 		return;
 	//BandWidthAutoSwitch is for auto switch to 20 or 40 in long distance
 	if(pHTInfo->bCurBW40MHz && pHTInfo->bCurTxBW40MHz && !ieee->bandwidth_auto_switch.bforced_tx20Mhz)
@@ -851,7 +836,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		  else
 			ieee->seq_ctrl[0]++;
 		}
-	}else{
+	} else {
 		if (unlikely(skb->len < sizeof(struct rtl_80211_hdr_3addr))) {
 			printk(KERN_WARNING "%s: skb too small (%d).\n",
 			ieee->dev->name, skb->len);

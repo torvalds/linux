@@ -222,6 +222,8 @@ struct io_ring_ctx {
 		unsigned		sq_mask;
 		unsigned		sq_thread_idle;
 		struct io_uring_sqe	*sq_sqes;
+
+		struct list_head	defer_list;
 	} ____cacheline_aligned_in_smp;
 
 	/* IO offload */
@@ -229,7 +231,6 @@ struct io_ring_ctx {
 	struct task_struct	*sqo_thread;	/* if using sq thread polling */
 	struct mm_struct	*sqo_mm;
 	wait_queue_head_t	sqo_wait;
-	unsigned		sqo_stop;
 
 	struct {
 		/* CQ ring */
@@ -239,6 +240,7 @@ struct io_ring_ctx {
 		unsigned		cq_mask;
 		struct wait_queue_head	cq_wait;
 		struct fasync_struct	*cq_fasync;
+		struct eventfd_ctx	*cq_ev_fd;
 	} ____cacheline_aligned_in_smp;
 
 	/*
@@ -326,9 +328,11 @@ struct io_kiocb {
 #define REQ_F_IOPOLL_COMPLETED	2	/* polled IO has completed */
 #define REQ_F_FIXED_FILE	4	/* ctx owns file */
 #define REQ_F_SEQ_PREV		8	/* sequential with previous */
-#define REQ_F_PREPPED		16	/* prep already done */
+#define REQ_F_IO_DRAIN		16	/* drain existing IO first */
+#define REQ_F_IO_DRAINED	32	/* drain done */
 	u64			user_data;
-	u64			error;
+	u32			error;	/* iopoll result from callback */
+	u32			sequence;
 
 	struct work_struct	work;
 };
@@ -355,6 +359,8 @@ struct io_submit_state {
 	unsigned int		used_refs;
 	unsigned int		ios_left;
 };
+
+static void io_sq_wq_submit_work(struct work_struct *work);
 
 static struct kmem_cache *req_cachep;
 
@@ -407,10 +413,36 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	spin_lock_init(&ctx->completion_lock);
 	INIT_LIST_HEAD(&ctx->poll_list);
 	INIT_LIST_HEAD(&ctx->cancel_list);
+	INIT_LIST_HEAD(&ctx->defer_list);
 	return ctx;
 }
 
-static void io_commit_cqring(struct io_ring_ctx *ctx)
+static inline bool io_sequence_defer(struct io_ring_ctx *ctx,
+				     struct io_kiocb *req)
+{
+	if ((req->flags & (REQ_F_IO_DRAIN|REQ_F_IO_DRAINED)) != REQ_F_IO_DRAIN)
+		return false;
+
+	return req->sequence > ctx->cached_cq_tail + ctx->sq_ring->dropped;
+}
+
+static struct io_kiocb *io_get_deferred_req(struct io_ring_ctx *ctx)
+{
+	struct io_kiocb *req;
+
+	if (list_empty(&ctx->defer_list))
+		return NULL;
+
+	req = list_first_entry(&ctx->defer_list, struct io_kiocb, list);
+	if (!io_sequence_defer(ctx, req)) {
+		list_del_init(&req->list);
+		return req;
+	}
+
+	return NULL;
+}
+
+static void __io_commit_cqring(struct io_ring_ctx *ctx)
 {
 	struct io_cq_ring *ring = ctx->cq_ring;
 
@@ -422,6 +454,18 @@ static void io_commit_cqring(struct io_ring_ctx *ctx)
 			wake_up_interruptible(&ctx->cq_wait);
 			kill_fasync(&ctx->cq_fasync, SIGIO, POLL_IN);
 		}
+	}
+}
+
+static void io_commit_cqring(struct io_ring_ctx *ctx)
+{
+	struct io_kiocb *req;
+
+	__io_commit_cqring(ctx);
+
+	while ((req = io_get_deferred_req(ctx)) != NULL) {
+		req->flags |= REQ_F_IO_DRAINED;
+		queue_work(ctx->sqo_wq, &req->work);
 	}
 }
 
@@ -444,7 +488,7 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 }
 
 static void io_cqring_fill_event(struct io_ring_ctx *ctx, u64 ki_user_data,
-				 long res, unsigned ev_flags)
+				 long res)
 {
 	struct io_uring_cqe *cqe;
 
@@ -457,7 +501,7 @@ static void io_cqring_fill_event(struct io_ring_ctx *ctx, u64 ki_user_data,
 	if (cqe) {
 		WRITE_ONCE(cqe->user_data, ki_user_data);
 		WRITE_ONCE(cqe->res, res);
-		WRITE_ONCE(cqe->flags, ev_flags);
+		WRITE_ONCE(cqe->flags, 0);
 	} else {
 		unsigned overflow = READ_ONCE(ctx->cq_ring->overflow);
 
@@ -471,15 +515,17 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 		wake_up(&ctx->wait);
 	if (waitqueue_active(&ctx->sqo_wait))
 		wake_up(&ctx->sqo_wait);
+	if (ctx->cq_ev_fd)
+		eventfd_signal(ctx->cq_ev_fd, 1);
 }
 
 static void io_cqring_add_event(struct io_ring_ctx *ctx, u64 user_data,
-				long res, unsigned ev_flags)
+				long res)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
-	io_cqring_fill_event(ctx, user_data, res, ev_flags);
+	io_cqring_fill_event(ctx, user_data, res);
 	io_commit_cqring(ctx);
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
@@ -581,7 +627,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		req = list_first_entry(done, struct io_kiocb, list);
 		list_del(&req->list);
 
-		io_cqring_fill_event(ctx, req->user_data, req->error, 0);
+		io_cqring_fill_event(ctx, req->user_data, req->error);
 		(*nr_events)++;
 
 		if (refcount_dec_and_test(&req->refs)) {
@@ -729,7 +775,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
 
 	kiocb_end_write(kiocb);
 
-	io_cqring_add_event(req->ctx, req->user_data, res, 0);
+	io_cqring_add_event(req->ctx, req->user_data, res);
 	io_put_req(req);
 }
 
@@ -848,9 +894,6 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 
 	if (!req->file)
 		return -EBADF;
-	/* For -EAGAIN retry, everything is already prepped */
-	if (req->flags & REQ_F_PREPPED)
-		return 0;
 
 	if (force_nonblock && !io_file_supports_async(req->file))
 		force_nonblock = false;
@@ -893,7 +936,6 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 			return -EINVAL;
 		kiocb->ki_complete = io_complete_rw;
 	}
-	req->flags |= REQ_F_PREPPED;
 	return 0;
 }
 
@@ -1168,7 +1210,7 @@ static int io_nop(struct io_kiocb *req, u64 user_data)
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 
-	io_cqring_add_event(ctx, user_data, err, 0);
+	io_cqring_add_event(ctx, user_data, err);
 	io_put_req(req);
 	return 0;
 }
@@ -1179,16 +1221,12 @@ static int io_prep_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (!req->file)
 		return -EBADF;
-	/* Prep already done (EAGAIN retry) */
-	if (req->flags & REQ_F_PREPPED)
-		return 0;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index))
 		return -EINVAL;
 
-	req->flags |= REQ_F_PREPPED;
 	return 0;
 }
 
@@ -1217,7 +1255,51 @@ static int io_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				end > 0 ? end : LLONG_MAX,
 				fsync_flags & IORING_FSYNC_DATASYNC);
 
-	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
+	io_cqring_add_event(req->ctx, sqe->user_data, ret);
+	io_put_req(req);
+	return 0;
+}
+
+static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	int ret = 0;
+
+	if (!req->file)
+		return -EBADF;
+
+	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index))
+		return -EINVAL;
+
+	return ret;
+}
+
+static int io_sync_file_range(struct io_kiocb *req,
+			      const struct io_uring_sqe *sqe,
+			      bool force_nonblock)
+{
+	loff_t sqe_off;
+	loff_t sqe_len;
+	unsigned flags;
+	int ret;
+
+	ret = io_prep_sfr(req, sqe);
+	if (ret)
+		return ret;
+
+	/* sync_file_range always requires a blocking context */
+	if (force_nonblock)
+		return -EAGAIN;
+
+	sqe_off = READ_ONCE(sqe->off);
+	sqe_len = READ_ONCE(sqe->len);
+	flags = READ_ONCE(sqe->sync_range_flags);
+
+	ret = sync_file_range(req->rw.ki_filp, sqe_off, sqe_len, flags);
+
+	io_cqring_add_event(req->ctx, sqe->user_data, ret);
 	io_put_req(req);
 	return 0;
 }
@@ -1275,7 +1357,7 @@ static int io_poll_remove(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	}
 	spin_unlock_irq(&ctx->completion_lock);
 
-	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
+	io_cqring_add_event(req->ctx, sqe->user_data, ret);
 	io_put_req(req);
 	return 0;
 }
@@ -1284,7 +1366,7 @@ static void io_poll_complete(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			     __poll_t mask)
 {
 	req->poll.done = true;
-	io_cqring_fill_event(ctx, req->user_data, mangle_poll(mask), 0);
+	io_cqring_fill_event(ctx, req->user_data, mangle_poll(mask));
 	io_commit_cqring(ctx);
 }
 
@@ -1424,7 +1506,6 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		spin_unlock(&poll->head->lock);
 	}
 	if (mask) { /* no async, we'd stolen it */
-		req->error = mangle_poll(mask);
 		ipt.error = 0;
 		io_poll_complete(ctx, req, mask);
 	}
@@ -1435,6 +1516,34 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		io_put_req(req);
 	}
 	return ipt.error;
+}
+
+static int io_req_defer(struct io_ring_ctx *ctx, struct io_kiocb *req,
+			const struct io_uring_sqe *sqe)
+{
+	struct io_uring_sqe *sqe_copy;
+
+	if (!io_sequence_defer(ctx, req) && list_empty(&ctx->defer_list))
+		return 0;
+
+	sqe_copy = kmalloc(sizeof(*sqe_copy), GFP_KERNEL);
+	if (!sqe_copy)
+		return -EAGAIN;
+
+	spin_lock_irq(&ctx->completion_lock);
+	if (!io_sequence_defer(ctx, req) && list_empty(&ctx->defer_list)) {
+		spin_unlock_irq(&ctx->completion_lock);
+		kfree(sqe_copy);
+		return 0;
+	}
+
+	memcpy(sqe_copy, sqe, sizeof(*sqe_copy));
+	req->submit.sqe = sqe_copy;
+
+	INIT_WORK(&req->work, io_sq_wq_submit_work);
+	list_add_tail(&req->list, &ctx->defer_list);
+	spin_unlock_irq(&ctx->completion_lock);
+	return -EIOCBQUEUED;
 }
 
 static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
@@ -1475,6 +1584,9 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		break;
 	case IORING_OP_POLL_REMOVE:
 		ret = io_poll_remove(req, s->sqe);
+		break;
+	case IORING_OP_SYNC_FILE_RANGE:
+		ret = io_sync_file_range(req, s->sqe, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1574,7 +1686,7 @@ restart:
 		io_put_req(req);
 
 		if (ret) {
-			io_cqring_add_event(ctx, sqe->user_data, ret, 0);
+			io_cqring_add_event(ctx, sqe->user_data, ret);
 			io_put_req(req);
 		}
 
@@ -1684,6 +1796,11 @@ static int io_req_set_file(struct io_ring_ctx *ctx, const struct sqe_submit *s,
 	flags = READ_ONCE(s->sqe->flags);
 	fd = READ_ONCE(s->sqe->fd);
 
+	if (flags & IOSQE_IO_DRAIN) {
+		req->flags |= REQ_F_IO_DRAIN;
+		req->sequence = ctx->cached_sq_head - 1;
+	}
+
 	if (!io_op_needs_file(s->sqe)) {
 		req->file = NULL;
 		return 0;
@@ -1713,7 +1830,7 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 	int ret;
 
 	/* enforce forwards compatibility on users */
-	if (unlikely(s->sqe->flags & ~IOSQE_FIXED_FILE))
+	if (unlikely(s->sqe->flags & ~(IOSQE_FIXED_FILE | IOSQE_IO_DRAIN)))
 		return -EINVAL;
 
 	req = io_get_req(ctx, state);
@@ -1723,6 +1840,13 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 	ret = io_req_set_file(ctx, s, state, req);
 	if (unlikely(ret))
 		goto out;
+
+	ret = io_req_defer(ctx, req, s->sqe);
+	if (ret) {
+		if (ret == -EIOCBQUEUED)
+			ret = 0;
+		return ret;
+	}
 
 	ret = __io_submit_sqe(ctx, req, s, true);
 	if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
@@ -1867,7 +1991,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, struct sqe_submit *sqes,
 			continue;
 		}
 
-		io_cqring_add_event(ctx, sqes[i].sqe->user_data, ret, 0);
+		io_cqring_add_event(ctx, sqes[i].sqe->user_data, ret);
 	}
 
 	if (statep)
@@ -1890,7 +2014,7 @@ static int io_sq_thread(void *data)
 	set_fs(USER_DS);
 
 	timeout = inflight = 0;
-	while (!kthread_should_stop() && !ctx->sqo_stop) {
+	while (!kthread_should_park()) {
 		bool all_fixed, mm_fault = false;
 		int i;
 
@@ -1952,7 +2076,7 @@ static int io_sq_thread(void *data)
 			smp_mb();
 
 			if (!io_get_sqring(ctx, &sqes[0])) {
-				if (kthread_should_stop()) {
+				if (kthread_should_park()) {
 					finish_wait(&ctx->sqo_wait, &wait);
 					break;
 				}
@@ -2002,8 +2126,7 @@ static int io_sq_thread(void *data)
 		mmput(cur_mm);
 	}
 
-	if (kthread_should_park())
-		kthread_parkme();
+	kthread_parkme();
 
 	return 0;
 }
@@ -2032,7 +2155,7 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit)
 
 		ret = io_submit_sqe(ctx, &s, statep);
 		if (ret)
-			io_cqring_add_event(ctx, s.sqe->user_data, ret, 0);
+			io_cqring_add_event(ctx, s.sqe->user_data, ret);
 	}
 	io_commit_sqring(ctx);
 
@@ -2044,6 +2167,8 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit)
 
 static unsigned io_cqring_events(struct io_cq_ring *ring)
 {
+	/* See comment at the top of this file */
+	smp_rmb();
 	return READ_ONCE(ring->r.tail) - READ_ONCE(ring->r.head);
 }
 
@@ -2056,11 +2181,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 {
 	struct io_cq_ring *ring = ctx->cq_ring;
 	sigset_t ksigmask, sigsaved;
-	DEFINE_WAIT(wait);
 	int ret;
 
-	/* See comment at the top of this file */
-	smp_rmb();
 	if (io_cqring_events(ring) >= min_events)
 		return 0;
 
@@ -2078,23 +2200,9 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 			return ret;
 	}
 
-	do {
-		prepare_to_wait(&ctx->wait, &wait, TASK_INTERRUPTIBLE);
-
-		ret = 0;
-		/* See comment at the top of this file */
-		smp_rmb();
-		if (io_cqring_events(ring) >= min_events)
-			break;
-
-		schedule();
-
+	ret = wait_event_interruptible(ctx->wait, io_cqring_events(ring) >= min_events);
+	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
-		if (signal_pending(current))
-			break;
-	} while (1);
-
-	finish_wait(&ctx->wait, &wait);
 
 	if (sig)
 		restore_user_sigmask(sig, &sigsaved);
@@ -2135,8 +2243,11 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 {
 	if (ctx->sqo_thread) {
-		ctx->sqo_stop = 1;
-		mb();
+		/*
+		 * The park is a bit of a work-around, without it we get
+		 * warning spews on shutdown with SQPOLL set and affinity
+		 * set to a single CPU.
+		 */
 		kthread_park(ctx->sqo_thread);
 		kthread_stop(ctx->sqo_thread);
 		ctx->sqo_thread = NULL;
@@ -2225,7 +2336,6 @@ static int io_sqe_files_scm(struct io_ring_ctx *ctx)
 	left = ctx->nr_user_files;
 	while (left) {
 		unsigned this_files = min_t(unsigned, left, SCM_MAX_FD);
-		int ret;
 
 		ret = __io_sqe_files_scm(ctx, this_files, total);
 		if (ret)
@@ -2330,11 +2440,12 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 			ctx->sq_thread_idle = HZ;
 
 		if (p->flags & IORING_SETUP_SQ_AFF) {
-			int cpu = array_index_nospec(p->sq_thread_cpu,
-							nr_cpu_ids);
+			int cpu = p->sq_thread_cpu;
 
 			ret = -EINVAL;
-			if (!cpu_possible(cpu))
+			if (cpu >= nr_cpu_ids)
+				goto err;
+			if (!cpu_online(cpu))
 				goto err;
 
 			ctx->sqo_thread = kthread_create_on_cpu(io_sq_thread,
@@ -2505,7 +2616,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
 
 		ret = io_copy_iov(ctx, &iov, arg, i);
 		if (ret)
-			break;
+			goto err;
 
 		/*
 		 * Don't impose further limits on the size and buffer
@@ -2560,8 +2671,9 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, void __user *arg,
 
 		ret = 0;
 		down_read(&current->mm->mmap_sem);
-		pret = get_user_pages_longterm(ubuf, nr_pages, FOLL_WRITE,
-						pages, vmas);
+		pret = get_user_pages(ubuf, nr_pages,
+				      FOLL_WRITE | FOLL_LONGTERM,
+				      pages, vmas);
 		if (pret == nr_pages) {
 			/* don't support file backed memory */
 			for (j = 0; j < nr_pages; j++) {
@@ -2621,6 +2733,38 @@ err:
 	return ret;
 }
 
+static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg)
+{
+	__s32 __user *fds = arg;
+	int fd;
+
+	if (ctx->cq_ev_fd)
+		return -EBUSY;
+
+	if (copy_from_user(&fd, fds, sizeof(*fds)))
+		return -EFAULT;
+
+	ctx->cq_ev_fd = eventfd_ctx_fdget(fd);
+	if (IS_ERR(ctx->cq_ev_fd)) {
+		int ret = PTR_ERR(ctx->cq_ev_fd);
+		ctx->cq_ev_fd = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int io_eventfd_unregister(struct io_ring_ctx *ctx)
+{
+	if (ctx->cq_ev_fd) {
+		eventfd_ctx_put(ctx->cq_ev_fd);
+		ctx->cq_ev_fd = NULL;
+		return 0;
+	}
+
+	return -ENXIO;
+}
+
 static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_finish_async(ctx);
@@ -2630,10 +2774,13 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	io_iopoll_reap_events(ctx);
 	io_sqe_buffer_unregister(ctx);
 	io_sqe_files_unregister(ctx);
+	io_eventfd_unregister(ctx);
 
 #if defined(CONFIG_UNIX)
-	if (ctx->ring_sock)
+	if (ctx->ring_sock) {
+		ctx->ring_sock->file = NULL; /* so that iput() is called */
 		sock_release(ctx->ring_sock);
+	}
 #endif
 
 	io_mem_free(ctx->sq_ring);
@@ -3042,6 +3189,18 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (arg || nr_args)
 			break;
 		ret = io_sqe_files_unregister(ctx);
+		break;
+	case IORING_REGISTER_EVENTFD:
+		ret = -EINVAL;
+		if (nr_args != 1)
+			break;
+		ret = io_eventfd_register(ctx, arg);
+		break;
+	case IORING_UNREGISTER_EVENTFD:
+		ret = -EINVAL;
+		if (arg || nr_args)
+			break;
+		ret = io_eventfd_unregister(ctx);
 		break;
 	default:
 		ret = -EINVAL;

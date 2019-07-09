@@ -246,38 +246,38 @@ static const struct file_operations request_fops = {
 struct media_request *
 media_request_get_by_fd(struct media_device *mdev, int request_fd)
 {
-	struct file *filp;
+	struct fd f;
 	struct media_request *req;
 
 	if (!mdev || !mdev->ops ||
 	    !mdev->ops->req_validate || !mdev->ops->req_queue)
-		return ERR_PTR(-EACCES);
+		return ERR_PTR(-EBADR);
 
-	filp = fget(request_fd);
-	if (!filp)
+	f = fdget(request_fd);
+	if (!f.file)
 		goto err_no_req_fd;
 
-	if (filp->f_op != &request_fops)
+	if (f.file->f_op != &request_fops)
 		goto err_fput;
-	req = filp->private_data;
+	req = f.file->private_data;
 	if (req->mdev != mdev)
 		goto err_fput;
 
 	/*
 	 * Note: as long as someone has an open filehandle of the request,
-	 * the request can never be released. The fget() above ensures that
+	 * the request can never be released. The fdget() above ensures that
 	 * even if userspace closes the request filehandle, the release()
 	 * fop won't be called, so the media_request_get() always succeeds
 	 * and there is no race condition where the request was released
 	 * before media_request_get() is called.
 	 */
 	media_request_get(req);
-	fput(filp);
+	fdput(f);
 
 	return req;
 
 err_fput:
-	fput(filp);
+	fdput(f);
 
 err_no_req_fd:
 	dev_dbg(mdev->dev, "cannot find request_fd %d\n", request_fd);
@@ -407,7 +407,7 @@ int media_request_object_bind(struct media_request *req,
 	int ret = -EBUSY;
 
 	if (WARN_ON(!ops->release))
-		return -EACCES;
+		return -EBADR;
 
 	spin_lock_irqsave(&req->lock, flags);
 

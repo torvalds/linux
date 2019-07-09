@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Connection tracking protocol helper module for SCTP.
  *
@@ -6,10 +7,6 @@
  *
  * SCTP is defined in RFC 2960. References to various sections in this code
  * are to this RFC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -520,7 +517,7 @@ static int sctp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	struct nlattr *nest_parms;
 
 	spin_lock_bh(&ct->lock);
-	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_SCTP | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_SCTP);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -563,8 +560,8 @@ static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
 	if (!attr)
 		return 0;
 
-	err = nla_parse_nested(tb, CTA_PROTOINFO_SCTP_MAX, attr,
-			       sctp_nla_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, CTA_PROTOINFO_SCTP_MAX, attr,
+					  sctp_nla_policy, NULL);
 	if (err < 0)
 		return err;
 

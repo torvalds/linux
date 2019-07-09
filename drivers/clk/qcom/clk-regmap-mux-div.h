@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2017, Linaro Limited
  * Author: Georgi Djakov <georgi.djakov@linaro.org>

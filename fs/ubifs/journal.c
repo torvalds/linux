@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -852,10 +840,11 @@ out_free:
 int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 {
 	int err, lnum, offs;
-	struct ubifs_ino_node *ino;
+	struct ubifs_ino_node *ino, *ino_start;
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	int sync = 0, write_len, ilen = UBIFS_INO_NODE_SZ;
+	int sync = 0, write_len = 0, ilen = UBIFS_INO_NODE_SZ;
 	int last_reference = !inode->i_nlink;
+	int kill_xattrs = ui->xattr_cnt && last_reference;
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnl("ino %lu, nlink %u", inode->i_ino, inode->i_nlink);
@@ -867,14 +856,16 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 	if (!last_reference) {
 		ilen += ui->data_len;
 		sync = IS_SYNC(inode);
+	} else if (kill_xattrs) {
+		write_len += UBIFS_INO_NODE_SZ * ui->xattr_cnt;
 	}
 
 	if (ubifs_authenticated(c))
-		write_len = ALIGN(ilen, 8) + ubifs_auth_node_sz(c);
+		write_len += ALIGN(ilen, 8) + ubifs_auth_node_sz(c);
 	else
-		write_len = ilen;
+		write_len += ilen;
 
-	ino = kmalloc(write_len, GFP_NOFS);
+	ino_start = ino = kmalloc(write_len, GFP_NOFS);
 	if (!ino)
 		return -ENOMEM;
 
@@ -883,12 +874,59 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 	if (err)
 		goto out_free;
 
+	if (kill_xattrs) {
+		union ubifs_key key;
+		struct fscrypt_name nm = {0};
+		struct inode *xino;
+		struct ubifs_dent_node *xent, *pxent = NULL;
+
+		if (ui->xattr_cnt >= ubifs_xattr_max_cnt(c)) {
+			ubifs_err(c, "Cannot delete inode, it has too much xattrs!");
+			goto out_release;
+		}
+
+		lowest_xent_key(c, &key, inode->i_ino);
+		while (1) {
+			xent = ubifs_tnc_next_ent(c, &key, &nm);
+			if (IS_ERR(xent)) {
+				err = PTR_ERR(xent);
+				if (err == -ENOENT)
+					break;
+
+				goto out_release;
+			}
+
+			fname_name(&nm) = xent->name;
+			fname_len(&nm) = le16_to_cpu(xent->nlen);
+
+			xino = ubifs_iget(c->vfs_sb, xent->inum);
+			if (IS_ERR(xino)) {
+				err = PTR_ERR(xino);
+				ubifs_err(c, "dead directory entry '%s', error %d",
+					  xent->name, err);
+				ubifs_ro_mode(c, err);
+				goto out_release;
+			}
+			ubifs_assert(c, ubifs_inode(xino)->xattr);
+
+			clear_nlink(xino);
+			pack_inode(c, ino, xino, 0);
+			ino = (void *)ino + UBIFS_INO_NODE_SZ;
+			iput(xino);
+
+			kfree(pxent);
+			pxent = xent;
+			key_read(c, &xent->key, &key);
+		}
+		kfree(pxent);
+	}
+
 	pack_inode(c, ino, inode, 1);
 	err = ubifs_node_calc_hash(c, ino, hash);
 	if (err)
 		goto out_release;
 
-	err = write_head(c, BASEHD, ino, write_len, &lnum, &offs, sync);
+	err = write_head(c, BASEHD, ino_start, write_len, &lnum, &offs, sync);
 	if (err)
 		goto out_release;
 	if (!sync)
@@ -903,7 +941,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		if (err)
 			goto out_ro;
 		ubifs_delete_orphan(c, inode->i_ino);
-		err = ubifs_add_dirt(c, lnum, ilen);
+		err = ubifs_add_dirt(c, lnum, write_len);
 	} else {
 		union ubifs_key key;
 
@@ -917,7 +955,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 	spin_lock(&ui->ui_lock);
 	ui->synced_i_size = ui->ui_size;
 	spin_unlock(&ui->ui_lock);
-	kfree(ino);
+	kfree(ino_start);
 	return 0;
 
 out_release:
@@ -926,7 +964,7 @@ out_ro:
 	ubifs_ro_mode(c, err);
 	finish_reservation(c);
 out_free:
-	kfree(ino);
+	kfree(ino_start);
 	return err;
 }
 
@@ -966,8 +1004,8 @@ int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
 
 	ubifs_assert(c, inode->i_nlink == 0);
 
-	if (ui->del_cmtno != c->cmt_no)
-		/* A commit happened for sure */
+	if (ui->xattr_cnt || ui->del_cmtno != c->cmt_no)
+		/* A commit happened for sure or inode hosts xattrs */
 		return ubifs_jnl_write_inode(c, inode);
 
 	down_read(&c->commit_sem);

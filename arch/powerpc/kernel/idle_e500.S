@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2008 Freescale Semiconductor, Inc. All rights reserved.
  * Dave Liu <daveliu@freescale.com>
  * copy from idle_6xx.S and modify for e500 based processor,
  * implement the power_save function in idle.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>

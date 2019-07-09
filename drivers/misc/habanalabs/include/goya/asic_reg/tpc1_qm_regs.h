@@ -176,4 +176,3 @@
 #define mmTPC1_QM_CQ_BUF_RDATA                                       0xE4830C
 
 #endif /* ASIC_REG_TPC1_QM_REGS_H_ */
-

@@ -435,7 +435,6 @@
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
-			qcom,controlled-remotely = <1>;
 			qcom,ee = <0>;
 			status = "okay";
 		};
@@ -477,6 +476,27 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&blsp1_uart2_default>;
 			status = "okay";
+		};
+
+		ethernet: ethernet@7a80000 {
+			compatible = "qcom,qcs404-ethqos";
+			reg = <0x07a80000 0x10000>,
+				<0x07a96000 0x100>;
+			reg-names = "stmmaceth", "rgmii";
+			clock-names = "stmmaceth", "pclk", "ptp_ref", "rgmii";
+			clocks = <&gcc GCC_ETH_AXI_CLK>,
+				<&gcc GCC_ETH_SLAVE_AHB_CLK>,
+				<&gcc GCC_ETH_PTP_CLK>,
+				<&gcc GCC_ETH_RGMII_CLK>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_lpi";
+
+			snps,tso;
+			rx-fifo-depth = <4096>;
+			tx-fifo-depth = <4096>;
+
+			status = "disabled";
 		};
 
 		wifi: wifi@a000000 {
@@ -659,7 +679,6 @@
 			clocks = <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
-			qcom,controlled-remotely = <1>;
 			qcom,ee = <0>;
 			status = "disabled";
 		};

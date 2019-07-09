@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
 config NDS32
-        def_bool y
+	def_bool y
 	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
@@ -51,20 +52,20 @@ config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
 config GENERIC_CSUM
-        def_bool y
+	def_bool y
 
 config GENERIC_HWEIGHT
-        def_bool y
+	def_bool y
 
 config GENERIC_LOCKBREAK
-        def_bool y
+	def_bool y
 	depends on PREEMPT
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config STACKTRACE_SUPPORT
-        def_bool y
+	def_bool y
 
 config FIX_EARLYCON_MEM
 	def_bool y
@@ -79,11 +80,11 @@ config NR_CPUS
 	default 1
 
 config MMU
-        def_bool y
+	def_bool y
 
 config NDS32_BUILTIN_DTB
-        string "Builtin DTB"
-        default ""
+	string "Builtin DTB"
+	default ""
 	help
 	  User can use it to specify the dts of the SoC
 endmenu

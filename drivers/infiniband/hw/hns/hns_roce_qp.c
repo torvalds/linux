@@ -45,17 +45,14 @@
 
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 {
-	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_qp *qp;
 
-	spin_lock(&qp_table->lock);
-
+	xa_lock(&hr_dev->qp_table_xa);
 	qp = __hns_roce_qp_lookup(hr_dev, qpn);
 	if (qp)
 		atomic_inc(&qp->refcount);
-
-	spin_unlock(&qp_table->lock);
+	xa_unlock(&hr_dev->qp_table_xa);
 
 	if (!qp) {
 		dev_warn(dev, "Async event for bogus QP %08x\n", qpn);
@@ -147,29 +144,20 @@ EXPORT_SYMBOL_GPL(to_hns_roce_state);
 static int hns_roce_gsi_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 				 struct hns_roce_qp *hr_qp)
 {
-	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
+	struct xarray *xa = &hr_dev->qp_table_xa;
 	int ret;
 
 	if (!qpn)
 		return -EINVAL;
 
 	hr_qp->qpn = qpn;
-
-	spin_lock_irq(&qp_table->lock);
-	ret = radix_tree_insert(&hr_dev->qp_table_tree,
-				hr_qp->qpn & (hr_dev->caps.num_qps - 1), hr_qp);
-	spin_unlock_irq(&qp_table->lock);
-	if (ret) {
-		dev_err(hr_dev->dev, "QPC radix_tree_insert failed\n");
-		goto err_put_irrl;
-	}
-
 	atomic_set(&hr_qp->refcount, 1);
 	init_completion(&hr_qp->free);
 
-	return 0;
-
-err_put_irrl:
+	ret = xa_err(xa_store_irq(xa, hr_qp->qpn & (hr_dev->caps.num_qps - 1),
+				hr_qp, GFP_KERNEL));
+	if (ret)
+		dev_err(hr_dev->dev, "QPC xa_store failed\n");
 
 	return ret;
 }
@@ -220,17 +208,9 @@ static int hns_roce_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 		}
 	}
 
-	spin_lock_irq(&qp_table->lock);
-	ret = radix_tree_insert(&hr_dev->qp_table_tree,
-				hr_qp->qpn & (hr_dev->caps.num_qps - 1), hr_qp);
-	spin_unlock_irq(&qp_table->lock);
-	if (ret) {
-		dev_err(dev, "QPC radix_tree_insert failed\n");
+	ret = hns_roce_gsi_qp_alloc(hr_dev, qpn, hr_qp);
+	if (ret)
 		goto err_put_sccc;
-	}
-
-	atomic_set(&hr_qp->refcount, 1);
-	init_completion(&hr_qp->free);
 
 	return 0;
 
@@ -255,13 +235,12 @@ err_out:
 
 void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
-	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
+	struct xarray *xa = &hr_dev->qp_table_xa;
 	unsigned long flags;
 
-	spin_lock_irqsave(&qp_table->lock, flags);
-	radix_tree_delete(&hr_dev->qp_table_tree,
-			  hr_qp->qpn & (hr_dev->caps.num_qps - 1));
-	spin_unlock_irqrestore(&qp_table->lock, flags);
+	xa_lock_irqsave(xa, flags);
+	__xa_erase(xa, hr_qp->qpn & (hr_dev->caps.num_qps - 1));
+	xa_unlock_irqrestore(xa, flags);
 }
 EXPORT_SYMBOL_GPL(hns_roce_qp_remove);
 
@@ -1154,8 +1133,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 	int ret;
 
 	mutex_init(&qp_table->scc_mutex);
-	spin_lock_init(&qp_table->lock);
-	INIT_RADIX_TREE(&hr_dev->qp_table_tree, GFP_ATOMIC);
+	xa_init(&hr_dev->qp_table_xa);
 
 	/* In hw v1, a port include two SQP, six ports total 12 */
 	if (hr_dev->caps.max_sq_sg <= 2)

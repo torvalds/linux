@@ -411,7 +411,7 @@ static int ad7124_init_channel_vref(struct ad7124_state *st,
 			dev_err(&st->sd.spi->dev,
 				"Error, trying to use external voltage reference without a %s regulator.\n",
 				ad7124_ref_names[refsel]);
-				return PTR_ERR(st->vref[refsel]);
+			return PTR_ERR(st->vref[refsel]);
 		}
 		st->channel_config[channel_number].vref_mv =
 			regulator_get_voltage(st->vref[refsel]);

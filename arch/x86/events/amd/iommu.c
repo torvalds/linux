@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Advanced Micro Devices, Inc.
  *
@@ -5,10 +6,6 @@
  * Author: Suravee Suthikulpanit <Suraveee.Suthikulpanit@amd.com>
  *
  * Perf: amd_iommu - AMD IOMMU Performance Counter PMU implementation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	"perf/amd_iommu: " fmt
@@ -393,7 +390,7 @@ static __init int _init_events_attrs(void)
 	return 0;
 }
 
-const struct attribute_group *amd_iommu_attr_groups[] = {
+static const struct attribute_group *amd_iommu_attr_groups[] = {
 	&amd_iommu_format_group,
 	&amd_iommu_cpumask_group,
 	&amd_iommu_events_group,

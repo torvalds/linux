@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Maintain an RxRPC server socket to do AFS communications through
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/slab.h>
@@ -21,7 +17,6 @@
 struct workqueue_struct *afs_async_calls;
 
 static void afs_wake_up_call_waiter(struct sock *, struct rxrpc_call *, unsigned long);
-static long afs_wait_for_call_to_complete(struct afs_call *, struct afs_addr_cursor *);
 static void afs_wake_up_async_call(struct sock *, struct rxrpc_call *, unsigned long);
 static void afs_delete_async_call(struct work_struct *);
 static void afs_process_async_call(struct work_struct *);
@@ -189,7 +184,7 @@ void afs_put_call(struct afs_call *call)
 		if (call->type->destructor)
 			call->type->destructor(call);
 
-		afs_put_server(call->net, call->cm_server);
+		afs_put_server(call->net, call->server);
 		afs_put_cb_interest(call->net, call->cbi);
 		afs_put_addrlist(call->alist);
 		kfree(call->request);
@@ -361,10 +356,10 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 }
 
 /*
- * initiate a call
+ * Initiate a call and synchronously queue up the parameters for dispatch.  Any
+ * error is stored into the call struct, which the caller must check for.
  */
-long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
-		   gfp_t gfp, bool async)
+void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 {
 	struct sockaddr_rxrpc *srx = &ac->alist->addrs[ac->index];
 	struct rxrpc_call *rxcall;
@@ -382,7 +377,6 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 	       call, call->type->name, key_serial(call->key),
 	       atomic_read(&call->net->nr_outstanding_calls));
 
-	call->async = async;
 	call->addr_ix = ac->index;
 	call->alist = afs_get_addrlist(ac->alist);
 
@@ -415,10 +409,11 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 	rxcall = rxrpc_kernel_begin_call(call->net->socket, srx, call->key,
 					 (unsigned long)call,
 					 tx_total_len, gfp,
-					 (async ?
+					 (call->async ?
 					  afs_wake_up_async_call :
 					  afs_wake_up_call_waiter),
 					 call->upgrade,
+					 call->intr,
 					 call->debug_id);
 	if (IS_ERR(rxcall)) {
 		ret = PTR_ERR(rxcall);
@@ -427,6 +422,10 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 	}
 
 	call->rxcall = rxcall;
+
+	if (call->max_lifespan)
+		rxrpc_kernel_set_max_life(call->net->socket, rxcall,
+					  call->max_lifespan);
 
 	/* send the request */
 	iov[0].iov_base	= call->request;
@@ -453,13 +452,11 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 
 	/* Note that at this point, we may have received the reply or an abort
 	 * - and an asynchronous call may already have completed.
+	 *
+	 * afs_wait_for_call_to_complete(call, ac)
+	 * must be called to synchronously clean up.
 	 */
-	if (call->async) {
-		afs_put_call(call);
-		return -EINPROGRESS;
-	}
-
-	return afs_wait_for_call_to_complete(call, ac);
+	return;
 
 error_do_abort:
 	if (ret != -ECONNABORTED) {
@@ -495,9 +492,7 @@ error_kill_call:
 
 	ac->error = ret;
 	call->state = AFS_CALL_COMPLETE;
-	afs_put_call(call);
 	_leave(" = %d", ret);
-	return ret;
 }
 
 /*
@@ -535,11 +530,11 @@ static void afs_deliver_to_call(struct afs_call *call)
 			return;
 		}
 
-		if (call->want_reply_time &&
+		if (!call->have_reply_time &&
 		    rxrpc_kernel_get_reply_time(call->net->socket,
 						call->rxcall,
 						&call->reply_time))
-			call->want_reply_time = false;
+			call->have_reply_time = true;
 
 		ret = call->type->deliver(call);
 		state = READ_ONCE(call->state);
@@ -604,10 +599,10 @@ call_complete:
 }
 
 /*
- * wait synchronously for a call to complete
+ * Wait synchronously for a call to complete and clean up the call struct.
  */
-static long afs_wait_for_call_to_complete(struct afs_call *call,
-					  struct afs_addr_cursor *ac)
+long afs_wait_for_call_to_complete(struct afs_call *call,
+				   struct afs_addr_cursor *ac)
 {
 	signed long rtt2, timeout;
 	long ret;
@@ -619,6 +614,10 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 	DECLARE_WAITQUEUE(myself, current);
 
 	_enter("");
+
+	ret = call->error;
+	if (ret < 0)
+		goto out;
 
 	rtt = rxrpc_kernel_get_rtt(call->net->socket, call->rxcall);
 	rtt2 = nsecs_to_jiffies64(rtt) * 2;
@@ -650,7 +649,7 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 			break;
 		}
 
-		if (timeout == 0 &&
+		if (call->intr && timeout == 0 &&
 		    life == last_life && signal_pending(current)) {
 			if (stalled)
 				break;
@@ -693,16 +692,16 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 	ret = ac->error;
 	switch (ret) {
 	case 0:
-		if (call->ret_reply0) {
-			ret = (long)call->reply[0];
-			call->reply[0] = NULL;
-		}
+		ret = call->ret0;
+		call->ret0 = 0;
+
 		/* Fall through */
 	case -ECONNABORTED:
 		ac->responded = true;
 		break;
 	}
 
+out:
 	_debug("call complete");
 	afs_put_call(call);
 	_leave(" = %p", (void *)ret);
@@ -923,6 +922,7 @@ void afs_send_empty_reply(struct afs_call *call)
 		_debug("oom");
 		rxrpc_kernel_abort_call(net->socket, call->rxcall,
 					RX_USER_ABORT, -ENOMEM, "KOO");
+		/* Fall through */
 	default:
 		_leave(" [error]");
 		return;

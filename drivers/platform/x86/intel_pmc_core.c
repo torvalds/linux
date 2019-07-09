@@ -19,6 +19,8 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
+#include <linux/suspend.h>
 #include <linux/uaccess.h>
 
 #include <asm/cpu_device_id.h>
@@ -828,7 +830,7 @@ static const struct pci_device_id pmc_pci_ids[] = {
  * the platform BIOS enforces 24Mhx Crystal to shutdown
  * before PMC can assert SLP_S0#.
  */
-int quirk_xtal_ignore(const struct dmi_system_id *id)
+static int quirk_xtal_ignore(const struct dmi_system_id *id)
 {
 	struct pmc_dev *pmcdev = &pmc;
 	u32 value;
@@ -854,12 +856,16 @@ static const struct dmi_system_id pmc_core_dmi_table[]  = {
 	{}
 };
 
-static int __init pmc_core_probe(void)
+static int pmc_core_probe(struct platform_device *pdev)
 {
+	static bool device_initialized;
 	struct pmc_dev *pmcdev = &pmc;
 	const struct x86_cpu_id *cpu_id;
 	u64 slp_s0_addr;
 	int err;
+
+	if (device_initialized)
+		return -ENODEV;
 
 	cpu_id = x86_match_cpu(intel_pmc_core_ids);
 	if (!cpu_id)
@@ -886,30 +892,178 @@ static int __init pmc_core_probe(void)
 		return -ENOMEM;
 
 	mutex_init(&pmcdev->lock);
+	platform_set_drvdata(pdev, pmcdev);
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit();
+	dmi_check_system(pmc_core_dmi_table);
 
 	err = pmc_core_dbgfs_register(pmcdev);
 	if (err < 0) {
-		pr_warn(" debugfs register failed.\n");
+		dev_warn(&pdev->dev, "debugfs register failed.\n");
 		iounmap(pmcdev->regbase);
 		return err;
 	}
 
-	dmi_check_system(pmc_core_dmi_table);
-	pr_info(" initialized\n");
+	device_initialized = true;
+	dev_info(&pdev->dev, " initialized\n");
+
 	return 0;
 }
-module_init(pmc_core_probe)
 
-static void __exit pmc_core_remove(void)
+static int pmc_core_remove(struct platform_device *pdev)
 {
-	struct pmc_dev *pmcdev = &pmc;
+	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
 
 	pmc_core_dbgfs_unregister(pmcdev);
+	platform_set_drvdata(pdev, NULL);
 	mutex_destroy(&pmcdev->lock);
 	iounmap(pmcdev->regbase);
+	return 0;
 }
-module_exit(pmc_core_remove)
+
+#ifdef CONFIG_PM_SLEEP
+
+static bool warn_on_s0ix_failures;
+module_param(warn_on_s0ix_failures, bool, 0644);
+MODULE_PARM_DESC(warn_on_s0ix_failures, "Check and warn for S0ix failures");
+
+static int pmc_core_suspend(struct device *dev)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+
+	pmcdev->check_counters = false;
+
+	/* No warnings on S0ix failures */
+	if (!warn_on_s0ix_failures)
+		return 0;
+
+	/* Check if the syspend will actually use S0ix */
+	if (pm_suspend_via_firmware())
+		return 0;
+
+	/* Save PC10 residency for checking later */
+	if (rdmsrl_safe(MSR_PKG_C10_RESIDENCY, &pmcdev->pc10_counter))
+		return -EIO;
+
+	/* Save S0ix residency for checking later */
+	if (pmc_core_dev_state_get(pmcdev, &pmcdev->s0ix_counter))
+		return -EIO;
+
+	pmcdev->check_counters = true;
+	return 0;
+}
+
+static inline bool pmc_core_is_pc10_failed(struct pmc_dev *pmcdev)
+{
+	u64 pc10_counter;
+
+	if (rdmsrl_safe(MSR_PKG_C10_RESIDENCY, &pc10_counter))
+		return false;
+
+	if (pc10_counter == pmcdev->pc10_counter)
+		return true;
+
+	return false;
+}
+
+static inline bool pmc_core_is_s0ix_failed(struct pmc_dev *pmcdev)
+{
+	u64 s0ix_counter;
+
+	if (pmc_core_dev_state_get(pmcdev, &s0ix_counter))
+		return false;
+
+	if (s0ix_counter == pmcdev->s0ix_counter)
+		return true;
+
+	return false;
+}
+
+static int pmc_core_resume(struct device *dev)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+	const struct pmc_bit_map **maps = pmcdev->map->slps0_dbg_maps;
+	int offset = pmcdev->map->slps0_dbg_offset;
+	const struct pmc_bit_map *map;
+	u32 data;
+
+	if (!pmcdev->check_counters)
+		return 0;
+
+	if (!pmc_core_is_s0ix_failed(pmcdev))
+		return 0;
+
+	if (pmc_core_is_pc10_failed(pmcdev)) {
+		/* S0ix failed because of PC10 entry failure */
+		dev_info(dev, "CPU did not enter PC10!!! (PC10 cnt=0x%llx)\n",
+			 pmcdev->pc10_counter);
+		return 0;
+	}
+
+	/* The real interesting case - S0ix failed - lets ask PMC why. */
+	dev_warn(dev, "CPU did not enter SLP_S0!!! (S0ix cnt=%llu)\n",
+		 pmcdev->s0ix_counter);
+	while (*maps) {
+		map = *maps;
+		data = pmc_core_reg_read(pmcdev, offset);
+		offset += 4;
+		while (map->name) {
+			dev_dbg(dev, "SLP_S0_DBG: %-32s\tState: %s\n",
+				map->name,
+				data & map->bit_mask ? "Yes" : "No");
+			map++;
+		}
+		maps++;
+	}
+	return 0;
+}
+
+#endif
+
+static const struct dev_pm_ops pmc_core_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pmc_core_suspend, pmc_core_resume)
+};
+
+static struct platform_driver pmc_core_driver = {
+	.driver = {
+		.name = "intel_pmc_core",
+		.pm = &pmc_core_pm_ops,
+	},
+	.probe = pmc_core_probe,
+	.remove = pmc_core_remove,
+};
+
+static struct platform_device pmc_core_device = {
+	.name = "intel_pmc_core",
+};
+
+static int __init pmc_core_init(void)
+{
+	int ret;
+
+	if (!x86_match_cpu(intel_pmc_core_ids))
+		return -ENODEV;
+
+	ret = platform_driver_register(&pmc_core_driver);
+	if (ret)
+		return ret;
+
+	ret = platform_device_register(&pmc_core_device);
+	if (ret) {
+		platform_driver_unregister(&pmc_core_driver);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void __exit pmc_core_exit(void)
+{
+	platform_device_unregister(&pmc_core_device);
+	platform_driver_unregister(&pmc_core_driver);
+}
+
+module_init(pmc_core_init)
+module_exit(pmc_core_exit)
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel PMC Core Driver");

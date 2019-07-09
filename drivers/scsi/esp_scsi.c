@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* esp_scsi.c: ESP SCSI driver.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)
@@ -1031,7 +1032,7 @@ static int esp_check_spur_intr(struct esp *esp)
 
 static void esp_schedule_reset(struct esp *esp)
 {
-	esp_log_reset("esp_schedule_reset() from %pf\n",
+	esp_log_reset("esp_schedule_reset() from %ps\n",
 		      __builtin_return_address(0));
 	esp->flags |= ESP_FLAG_RESETTING;
 	esp_event(esp, ESP_EVENT_RESET);

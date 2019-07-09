@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2018 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -387,7 +376,7 @@ static void _dpu_plane_set_ot_limit(struct drm_plane *plane,
 	ot_params.width = drm_rect_width(&pdpu->pipe_cfg.src_rect);
 	ot_params.height = drm_rect_height(&pdpu->pipe_cfg.src_rect);
 	ot_params.is_wfd = !pdpu->is_rt_pipe;
-	ot_params.frame_rate = crtc->mode.vrefresh;
+	ot_params.frame_rate = drm_mode_vrefresh(&crtc->mode);
 	ot_params.vbif_idx = VBIF_RT;
 	ot_params.clk_ctrl = pdpu->pipe_hw->cap->clk_ctrl;
 	ot_params.rd = true;
@@ -780,7 +769,6 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	struct dpu_plane_state *pstate = to_dpu_plane_state(new_state);
 	struct dpu_hw_fmt_layout layout;
 	struct drm_gem_object *obj;
-	struct msm_gem_object *msm_obj;
 	struct dma_fence *fence;
 	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
 	int ret;
@@ -799,8 +787,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	 *       implicit fence and fb prepare by hand here.
 	 */
 	obj = msm_framebuffer_bo(new_state->fb, 0);
-	msm_obj = to_msm_bo(obj);
-	fence = reservation_object_get_excl_rcu(msm_obj->resv);
+	fence = reservation_object_get_excl_rcu(obj->resv);
 	if (fence)
 		drm_atomic_set_fence_for_plane(new_state, fence);
 

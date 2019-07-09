@@ -292,7 +292,6 @@ static int gb_hid_parse(struct hid_device *hid)
 
 	rdesc = kzalloc(rsize, GFP_KERNEL);
 	if (!rdesc) {
-		dbg_hid("couldn't allocate rdesc memory\n");
 		return -ENOMEM;
 	}
 

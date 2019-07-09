@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright(c) 2016 - 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016-2018 Intel Corporation. All rights reserved.
  */
 #include <linux/dma-mapping.h>
 #include <linux/mei.h>

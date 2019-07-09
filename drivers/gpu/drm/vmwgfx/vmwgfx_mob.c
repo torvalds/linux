@@ -146,9 +146,8 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for OTable setup.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
@@ -202,12 +201,9 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 		return;
 
 	bo = otable->page_table->pt_bo;
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for OTable "
-			  "takedown.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return;
-	}
 
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->header.id = SVGA_3D_CMD_SET_OTABLE_BASE;
@@ -614,16 +610,14 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
 		BUG_ON(ret != 0);
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for Memory "
-			  "Object unbinding.\n");
-	} else {
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (cmd) {
 		cmd->header.id = SVGA_3D_CMD_DESTROY_GB_MOB;
 		cmd->header.size = sizeof(cmd->body);
 		cmd->body.mobid = mob->id;
 		vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	}
+
 	if (bo) {
 		vmw_bo_fence_single(bo, NULL);
 		ttm_bo_unreserve(bo);
@@ -683,12 +677,9 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 	vmw_fifo_resource_inc(dev_priv);
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for Memory "
-			  "Object binding.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		goto out_no_cmd_space;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_MOB64;
 	cmd->header.size = sizeof(cmd->body);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Libata based driver for Apple "macio" family of PATA controllers
  *

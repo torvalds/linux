@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * FPGA Manager Driver for Altera Arria/Cyclone/Stratix CvP
  *
  * Copyright (C) 2017 DENX Software Engineering
  *
  * Anatolij Gustschin <agust@denx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  *
  * Manage Altera FPGA firmware using PCIe CvP.
  * Firmware must be in binary "rbf" format.

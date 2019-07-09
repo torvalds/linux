@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C client/driver for the ST M41T80 family of i2c rtc chips.
  *
@@ -6,11 +7,6 @@
  * Based on m41t00.c by Mark A. Greer <mgreer@mvista.com>
  *
  * 2006 (c) mycable GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -802,7 +798,7 @@ static int wdt_open(struct inode *inode, struct file *file)
 		 */
 		wdt_is_open = 1;
 		mutex_unlock(&m41t80_rtc_mutex);
-		return nonseekable_open(inode, file);
+		return stream_open(inode, file);
 	}
 	return -ENODEV;
 }

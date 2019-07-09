@@ -25,6 +25,7 @@ compatible: must be one of:
     o "atmel,at91sam9n12"
     o "atmel,at91sam9rl"
     o "atmel,at91sam9xe"
+    o "microchip,sam9x60"
  * "atmel,sama5" for SoCs using a Cortex-A5, shall be extended with the specific
    SoC family:
     o "atmel,sama5d2" shall be extended with the specific SoC compatible:

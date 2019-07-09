@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Copyright (c) 2011, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/of.h>
 #include <linux/of_dma.h>
@@ -54,10 +45,15 @@
 
 #define DML_OFFSET			0x800
 
-void dml_start_xfer(struct mmci_host *host, struct mmc_data *data)
+static int qcom_dma_start(struct mmci_host *host, unsigned int *datactrl)
 {
 	u32 config;
 	void __iomem *base = host->base + DML_OFFSET;
+	struct mmc_data *data = host->data;
+	int ret = mmci_dmae_start(host, datactrl);
+
+	if (ret)
+		return ret;
 
 	if (data->flags & MMC_DATA_READ) {
 		/* Read operation: configure DML for producer operation */
@@ -96,6 +92,7 @@ void dml_start_xfer(struct mmci_host *host, struct mmc_data *data)
 
 	/* make sure the dml is configured before dma is triggered */
 	wmb();
+	return 0;
 }
 
 static int of_get_dml_pipe_index(struct device_node *np, const char *name)
@@ -133,7 +130,6 @@ static int qcom_dma_setup(struct mmci_host *host)
 	producer_id = of_get_dml_pipe_index(np, "rx");
 
 	if (producer_id < 0 || consumer_id < 0) {
-		host->variant->qcom_dml = false;
 		mmci_dmae_release(host);
 		return -EINVAL;
 	}
@@ -183,13 +179,19 @@ static int qcom_dma_setup(struct mmci_host *host)
 	return 0;
 }
 
+static u32 qcom_get_dctrl_cfg(struct mmci_host *host)
+{
+	return MCI_DPSM_ENABLE | (host->data->blksz << 4);
+}
+
 static struct mmci_host_ops qcom_variant_ops = {
 	.prep_data = mmci_dmae_prep_data,
 	.unprep_data = mmci_dmae_unprep_data,
+	.get_datactrl_cfg = qcom_get_dctrl_cfg,
 	.get_next_data = mmci_dmae_get_next_data,
 	.dma_setup = qcom_dma_setup,
 	.dma_release = mmci_dmae_release,
-	.dma_start = mmci_dmae_start,
+	.dma_start = qcom_dma_start,
 	.dma_finalize = mmci_dmae_finalize,
 	.dma_error = mmci_dmae_error,
 };

@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RainShadow Tech HDMI CEC driver
  *
  * Copyright 2016 Hans Verkuil <hverkuil@xs4all.nl
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version of 2 of the License, or (at your
- * option) any later version. See the file COPYING in the main directory of
- * this archive for more details.
  */
 
 /*

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Touchscreen driver configuration
 #
@@ -1311,5 +1312,15 @@ config TOUCHSCREEN_ROHM_BU21023
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bu21023_ts.
+
+config TOUCHSCREEN_IQS5XX
+	tristate "Azoteq IQS550/572/525 trackpad/touchscreen controller"
+	depends on I2C
+	help
+	  Say Y to enable support for the Azoteq IQS550/572/525
+	  family of trackpad/touchscreen controllers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iqs5xx.
 
 endif

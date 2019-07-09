@@ -66,6 +66,7 @@ struct virtio_ccw_device {
 	bool device_lost;
 	unsigned int config_ready;
 	void *airq_info;
+	u64 dma_mask;
 };
 
 struct vq_info_block_legacy {
@@ -108,7 +109,6 @@ struct virtio_rev_info {
 struct virtio_ccw_vq_info {
 	struct virtqueue *vq;
 	int num;
-	void *queue;
 	union {
 		struct vq_info_block s;
 		struct vq_info_block_legacy l;
@@ -423,7 +423,6 @@ static void virtio_ccw_del_vq(struct virtqueue *vq, struct ccw1 *ccw)
 	struct virtio_ccw_device *vcdev = to_vc_device(vq->vdev);
 	struct virtio_ccw_vq_info *info = vq->priv;
 	unsigned long flags;
-	unsigned long size;
 	int ret;
 	unsigned int index = vq->index;
 
@@ -461,8 +460,6 @@ static void virtio_ccw_del_vq(struct virtqueue *vq, struct ccw1 *ccw)
 			 ret, index);
 
 	vring_del_virtqueue(vq);
-	size = PAGE_ALIGN(vring_size(info->num, KVM_VIRTIO_CCW_RING_ALIGN));
-	free_pages_exact(info->queue, size);
 	kfree(info->info_block);
 	kfree(info);
 }
@@ -494,8 +491,9 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 	int err;
 	struct virtqueue *vq = NULL;
 	struct virtio_ccw_vq_info *info;
-	unsigned long size = 0; /* silence the compiler */
+	u64 queue;
 	unsigned long flags;
+	bool may_reduce;
 
 	/* Allocate queue. */
 	info = kzalloc(sizeof(struct virtio_ccw_vq_info), GFP_KERNEL);
@@ -516,37 +514,34 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 		err = info->num;
 		goto out_err;
 	}
-	size = PAGE_ALIGN(vring_size(info->num, KVM_VIRTIO_CCW_RING_ALIGN));
-	info->queue = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
-	if (info->queue == NULL) {
-		dev_warn(&vcdev->cdev->dev, "no queue\n");
-		err = -ENOMEM;
-		goto out_err;
-	}
+	may_reduce = vcdev->revision > 0;
+	vq = vring_create_virtqueue(i, info->num, KVM_VIRTIO_CCW_RING_ALIGN,
+				    vdev, true, may_reduce, ctx,
+				    virtio_ccw_kvm_notify, callback, name);
 
-	vq = vring_new_virtqueue(i, info->num, KVM_VIRTIO_CCW_RING_ALIGN, vdev,
-				 true, ctx, info->queue, virtio_ccw_kvm_notify,
-				 callback, name);
 	if (!vq) {
 		/* For now, we fail if we can't get the requested size. */
 		dev_warn(&vcdev->cdev->dev, "no vq\n");
 		err = -ENOMEM;
 		goto out_err;
 	}
+	/* it may have been reduced */
+	info->num = virtqueue_get_vring_size(vq);
 
 	/* Register it with the host. */
+	queue = virtqueue_get_desc_addr(vq);
 	if (vcdev->revision == 0) {
-		info->info_block->l.queue = (__u64)info->queue;
+		info->info_block->l.queue = queue;
 		info->info_block->l.align = KVM_VIRTIO_CCW_RING_ALIGN;
 		info->info_block->l.index = i;
 		info->info_block->l.num = info->num;
 		ccw->count = sizeof(info->info_block->l);
 	} else {
-		info->info_block->s.desc = (__u64)info->queue;
+		info->info_block->s.desc = queue;
 		info->info_block->s.index = i;
 		info->info_block->s.num = info->num;
-		info->info_block->s.avail = (__u64)virtqueue_get_avail(vq);
-		info->info_block->s.used = (__u64)virtqueue_get_used(vq);
+		info->info_block->s.avail = (__u64)virtqueue_get_avail_addr(vq);
+		info->info_block->s.used = (__u64)virtqueue_get_used_addr(vq);
 		ccw->count = sizeof(info->info_block->s);
 	}
 	ccw->cmd_code = CCW_CMD_SET_VQ;
@@ -572,8 +567,6 @@ out_err:
 	if (vq)
 		vring_del_virtqueue(vq);
 	if (info) {
-		if (info->queue)
-			free_pages_exact(info->queue, size);
 		kfree(info->info_block);
 	}
 	kfree(info);
@@ -780,12 +773,8 @@ out_free:
 static void ccw_transport_features(struct virtio_device *vdev)
 {
 	/*
-	 * Packed ring isn't enabled on virtio_ccw for now,
-	 * because virtio_ccw uses some legacy accessors,
-	 * e.g. virtqueue_get_avail() and virtqueue_get_used()
-	 * which aren't available in packed ring currently.
+	 * Currently nothing to do here.
 	 */
-	__virtio_clear_bit(vdev, VIRTIO_F_RING_PACKED);
 }
 
 static int virtio_ccw_finalize_features(struct virtio_device *vdev)
@@ -1266,6 +1255,16 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 		ret = -ENOMEM;
 		goto out_free;
 	}
+
+	vcdev->vdev.dev.parent = &cdev->dev;
+	cdev->dev.dma_mask = &vcdev->dma_mask;
+	/* we are fine with common virtio infrastructure using 64 bit DMA */
+	ret = dma_set_mask_and_coherent(&cdev->dev, DMA_BIT_MASK(64));
+	if (ret) {
+		dev_warn(&cdev->dev, "Failed to enable 64-bit DMA.\n");
+		goto out_free;
+	}
+
 	vcdev->config_block = kzalloc(sizeof(*vcdev->config_block),
 				   GFP_DMA | GFP_KERNEL);
 	if (!vcdev->config_block) {
@@ -1280,7 +1279,6 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 
 	vcdev->is_thinint = virtio_ccw_use_airq; /* at least try */
 
-	vcdev->vdev.dev.parent = &cdev->dev;
 	vcdev->vdev.dev.release = virtio_ccw_release_dev;
 	vcdev->vdev.config = &virtio_ccw_config_ops;
 	vcdev->cdev = cdev;

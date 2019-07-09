@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drxd_hard.c: DVB-T Demodulator Micronas DRX3975D-A2,DRX397xD-B1
  *
  * Copyright (C) 2003-2007 Micronas
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/kernel.h>
@@ -2263,61 +2251,41 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		case DRX_CHANNEL_LOW:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_PRIO_LO;
 			status = Write16(state, EC_SB_REG_PRIOR__A, EC_SB_REG_PRIOR_LO, 0x0000);
-			if (status < 0)
-				break;
 			break;
 		case DRX_CHANNEL_HIGH:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_PRIO_HI;
 			status = Write16(state, EC_SB_REG_PRIOR__A, EC_SB_REG_PRIOR_HI, 0x0000);
-			if (status < 0)
-				break;
 			break;
-
 		}
 
 		switch (p->code_rate_HP) {
 		case FEC_1_2:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_1_2;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C1_2, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_RATE__M;
 			/* fall through */
 		case FEC_2_3:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_2_3;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C2_3, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		case FEC_3_4:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_3_4;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C3_4, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		case FEC_5_6:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_5_6;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C5_6, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		case FEC_7_8:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_7_8;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C7_8, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		}
 		if (status < 0)

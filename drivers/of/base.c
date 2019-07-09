@@ -1350,8 +1350,9 @@ int of_phandle_iterator_next(struct of_phandle_iterator *it)
 		 * property data length
 		 */
 		if (it->cur + count > it->list_end) {
-			pr_err("%pOF: arguments longer than property\n",
-			       it->parent);
+			pr_err("%pOF: %s = %d found %d\n",
+			       it->parent, it->cells_name,
+			       count, it->cell_count);
 			goto err;
 		}
 	}

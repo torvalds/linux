@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Low-level exception handling code
  *
  * Copyright (C) 2012 ARM Ltd.
  * Authors:	Catalin Marinas <catalin.marinas@arm.com>
  *		Will Deacon <will.deacon@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/arm-smccc.h>
@@ -336,8 +325,8 @@ alternative_if ARM64_WORKAROUND_845719
 alternative_else_nop_endif
 #endif
 3:
-#ifdef CONFIG_ARM64_ERRATUM_1188873
-alternative_if_not ARM64_WORKAROUND_1188873
+#ifdef CONFIG_ARM64_ERRATUM_1418040
+alternative_if_not ARM64_WORKAROUND_1418040
 	b	4f
 alternative_else_nop_endif
 	/*

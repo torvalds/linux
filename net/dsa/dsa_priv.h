@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * net/dsa/dsa_priv.h - Hardware switch handling
  * Copyright (c) 2008-2009 Marvell Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __DSA_PRIV_H
@@ -84,22 +80,12 @@ struct dsa_slave_priv {
 };
 
 /* dsa.c */
-const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
+const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol);
+void dsa_tag_driver_put(const struct dsa_device_ops *ops);
+
 bool dsa_schedule_work(struct work_struct *work);
 const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops);
 
-/* legacy.c */
-#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
-int dsa_legacy_register(void);
-void dsa_legacy_unregister(void);
-#else
-static inline int dsa_legacy_register(void)
-{
-	return 0;
-}
-
-static inline void dsa_legacy_unregister(void) { }
-#endif
 int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid,
@@ -169,6 +155,8 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		      struct switchdev_trans *trans);
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan);
+int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags);
+int dsa_port_vid_del(struct dsa_port *dp, u16 vid);
 int dsa_port_link_register_of(struct dsa_port *dp);
 void dsa_port_link_unregister_of(struct dsa_port *dp);
 
@@ -181,6 +169,8 @@ int dsa_slave_suspend(struct net_device *slave_dev);
 int dsa_slave_resume(struct net_device *slave_dev);
 int dsa_slave_register_notifier(void);
 void dsa_slave_unregister_notifier(void);
+
+void *dsa_defer_xmit(struct sk_buff *skb, struct net_device *dev);
 
 static inline struct dsa_port *dsa_slave_to_port(const struct net_device *dev)
 {
@@ -200,34 +190,4 @@ dsa_slave_to_master(const struct net_device *dev)
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);
-
-/* tag_brcm.c */
-extern const struct dsa_device_ops brcm_netdev_ops;
-extern const struct dsa_device_ops brcm_prepend_netdev_ops;
-
-/* tag_dsa.c */
-extern const struct dsa_device_ops dsa_netdev_ops;
-
-/* tag_edsa.c */
-extern const struct dsa_device_ops edsa_netdev_ops;
-
-/* tag_gswip.c */
-extern const struct dsa_device_ops gswip_netdev_ops;
-
-/* tag_ksz.c */
-extern const struct dsa_device_ops ksz9477_netdev_ops;
-extern const struct dsa_device_ops ksz9893_netdev_ops;
-
-/* tag_lan9303.c */
-extern const struct dsa_device_ops lan9303_netdev_ops;
-
-/* tag_mtk.c */
-extern const struct dsa_device_ops mtk_netdev_ops;
-
-/* tag_qca.c */
-extern const struct dsa_device_ops qca_netdev_ops;
-
-/* tag_trailer.c */
-extern const struct dsa_device_ops trailer_netdev_ops;
-
 #endif

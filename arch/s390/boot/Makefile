@@ -58,7 +58,6 @@ define cmd_section_cmp
 	touch $@
 endef
 
-OBJCOPYFLAGS_bzImage := --pad-to $$(readelf -s $(obj)/compressed/vmlinux | awk '/\<_end\>/ {print or(strtonum("0x"$$2),4095)+1}')
 $(obj)/bzImage: $(obj)/compressed/vmlinux $(obj)/section_cmp.boot.data $(obj)/section_cmp.boot.preserved.data FORCE
 	$(call if_changed,objcopy)
 

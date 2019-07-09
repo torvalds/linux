@@ -27,6 +27,7 @@
 #define __DRM_SYNCOBJ_H__
 
 #include <linux/dma-fence.h>
+#include <linux/dma-fence-chain.h>
 
 struct drm_file;
 
@@ -112,6 +113,10 @@ drm_syncobj_fence_get(struct drm_syncobj *syncobj)
 
 struct drm_syncobj *drm_syncobj_find(struct drm_file *file_private,
 				     u32 handle);
+void drm_syncobj_add_point(struct drm_syncobj *syncobj,
+			   struct dma_fence_chain *chain,
+			   struct dma_fence *fence,
+			   uint64_t point);
 void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 			       struct dma_fence *fence);
 int drm_syncobj_find_fence(struct drm_file *file_private,

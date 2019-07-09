@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1995  Linus Torvalds
  *
@@ -521,7 +522,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
 		     this_cpu_read(irq_count) != -1);
 
-	switch_fpu_prepare(prev_fpu, cpu);
+	if (!test_thread_flag(TIF_NEED_FPU_LOAD))
+		switch_fpu_prepare(prev_fpu, cpu);
 
 	/* We must save %fs and %gs before load_TLS() because
 	 * %fs and %gs may be cleared by load_TLS().
@@ -539,9 +541,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/*
 	 * Leave lazy mode, flushing any hypercalls made here.  This
 	 * must be done after loading TLS entries in the GDT but before
-	 * loading segments that might reference them, and and it must
-	 * be done before fpu__restore(), so the TS bit is up to
-	 * date.
+	 * loading segments that might reference them.
 	 */
 	arch_end_context_switch(next_p);
 
@@ -569,13 +569,13 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	x86_fsgsbase_load(prev, next);
 
-	switch_fpu_finish(next_fpu, cpu);
-
 	/*
 	 * Switch the PDA and FPU contexts.
 	 */
 	this_cpu_write(current_task, next_p);
 	this_cpu_write(cpu_current_top_of_stack, task_top_of_stack(next_p));
+
+	switch_fpu_finish(next_fpu);
 
 	/* Reload sp0. */
 	update_task_stack(next_p);

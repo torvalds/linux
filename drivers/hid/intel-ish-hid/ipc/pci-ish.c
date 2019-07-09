@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCI glue for ISHTP provider device (ISH) driver
  *
  * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -192,6 +184,7 @@ static void ish_remove(struct pci_dev *pdev)
 	struct ishtp_device *ishtp_dev = pci_get_drvdata(pdev);
 
 	ishtp_bus_remove_all_clients(ishtp_dev, false);
+	pdev->dev_flags &= ~PCI_DEV_FLAGS_NO_D3;
 	ish_device_disable(ishtp_dev);
 }
 

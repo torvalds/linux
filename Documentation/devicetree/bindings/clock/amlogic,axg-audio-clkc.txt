@@ -6,7 +6,8 @@ devices.
 
 Required Properties:
 
-- compatible	: should be "amlogic,axg-audio-clkc" for the A113X and A113D
+- compatible	: should be "amlogic,axg-audio-clkc" for the A113X and A113D,
+		  "amlogic,g12a-audio-clkc" for G12A.
 - reg		: physical base address of the clock controller and length of
 		  memory mapped region.
 - clocks	: a list of phandle + clock-specifier pairs for the clocks listed

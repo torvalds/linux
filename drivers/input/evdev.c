@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Event char devices, giving access to raw input device events.
  *
  * Copyright (c) 1999-2002 Vojtech Pavlik
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -503,14 +500,13 @@ static int evdev_open(struct inode *inode, struct file *file)
 {
 	struct evdev *evdev = container_of(inode->i_cdev, struct evdev, cdev);
 	unsigned int bufsize = evdev_compute_buffer_size(evdev->handle.dev);
-	unsigned int size = sizeof(struct evdev_client) +
-					bufsize * sizeof(struct input_event);
 	struct evdev_client *client;
 	int error;
 
-	client = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+	client = kzalloc(struct_size(client, buffer, bufsize),
+			 GFP_KERNEL | __GFP_NOWARN);
 	if (!client)
-		client = vzalloc(size);
+		client = vzalloc(struct_size(client, buffer, bufsize));
 	if (!client)
 		return -ENOMEM;
 
@@ -524,7 +520,7 @@ static int evdev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	return 0;
 

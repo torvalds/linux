@@ -1654,6 +1654,11 @@
 	padctl@7009f000 {
 		status = "okay";
 
+		avdd-pll-utmip-supply = <&pp1800>;
+		avdd-pll-uerefe-supply = <&pp1050_avdd>;
+		dvdd-pex-pll-supply = <&avddio_1v05>;
+		hvdd-pex-pll-e-supply = <&pp1800>;
+
 		pads {
 			usb2 {
 				status = "okay";
@@ -1750,6 +1755,13 @@
 
 		cpu@3 {
 			enable-method = "psci";
+		};
+
+		idle-states {
+			cpu-sleep {
+				arm,psci-suspend-param = <0x00010007>;
+				status = "okay";
+			};
 		};
 	};
 

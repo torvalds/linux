@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <net/tcp.h>
 
 /* The bandwidth estimator estimates the rate at which the network

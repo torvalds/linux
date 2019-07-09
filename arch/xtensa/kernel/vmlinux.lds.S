@@ -18,8 +18,8 @@
 #include <asm/page.h>
 #include <asm/thread_info.h>
 
+#include <asm/core.h>
 #include <asm/vectors.h>
-#include <variant/core.h>
 
 OUTPUT_ARCH(xtensa)
 ENTRY(_start)

@@ -128,7 +128,6 @@ enum rtl8712_h2c_cmd {
 	MAX_H2CCMD
 };
 
-
 #define _GetBBReg_CMD_		_Read_BBREG_CMD_
 #define _SetBBReg_CMD_		_Write_BBREG_CMD_
 #define _GetRFReg_CMD_		_Read_RFREG_CMD_

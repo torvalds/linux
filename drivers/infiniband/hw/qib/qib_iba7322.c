@@ -6137,7 +6137,7 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 static int setup_txselect(const char *str, const struct kernel_param *kp)
 {
 	struct qib_devdata *dd;
-	unsigned long val;
+	unsigned long index, val;
 	char *n;
 
 	if (strlen(str) >= ARRAY_SIZE(txselect_list)) {
@@ -6153,7 +6153,7 @@ static int setup_txselect(const char *str, const struct kernel_param *kp)
 	}
 	strncpy(txselect_list, str, ARRAY_SIZE(txselect_list) - 1);
 
-	list_for_each_entry(dd, &qib_dev_list, list)
+	xa_for_each(&qib_dev_table, index, dd)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
 			set_no_qsfp_atten(dd, 1);
 	return 0;

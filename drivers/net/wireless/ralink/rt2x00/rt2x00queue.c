@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -674,7 +663,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	spin_lock(&queue->tx_lock);
 
 	if (unlikely(rt2x00queue_full(queue))) {
-		rt2x00_err(queue->rt2x00dev, "Dropping frame due to full tx queue %d\n",
+		rt2x00_dbg(queue->rt2x00dev, "Dropping frame due to full tx queue %d\n",
 			   queue->qid);
 		ret = -ENOBUFS;
 		goto out;
@@ -1042,7 +1031,6 @@ void rt2x00queue_start_queues(struct rt2x00_dev *rt2x00dev)
 	 */
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_start_queue(queue);
-	rt2x00dev->last_nostatus_check = jiffies;
 
 	rt2x00queue_start_queue(rt2x00dev->rx);
 }

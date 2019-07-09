@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Texas Instruments Ethernet Switch Driver
  *
  * Copyright (C) 2013 Texas Instruments
  *
  * Module Author: Mugunthan V N <mugunthanvnm@ti.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/platform_device.h>

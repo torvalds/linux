@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # BCM2835 Platform Support
 snd-soc-bcm2835-i2s-objs := bcm2835-i2s.o
 

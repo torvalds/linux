@@ -42,6 +42,7 @@ struct caam_alg_entry {
 	int class2_alg_type;
 	bool rfc3686;
 	bool geniv;
+	bool nodkp;
 };
 
 struct caam_aead_alg {
@@ -1480,7 +1481,7 @@ static int caam_cra_init_aead(struct crypto_aead *tfm)
 
 	crypto_aead_set_reqsize(tfm, sizeof(struct caam_request));
 	return caam_cra_init(crypto_aead_ctx(tfm), &caam_alg->caam,
-			     alg->setkey == aead_setkey);
+			     !caam_alg->caam.nodkp);
 }
 
 static void caam_exit_common(struct caam_ctx *ctx)
@@ -1641,6 +1642,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
+			.nodkp = true,
 		},
 	},
 	{
@@ -1659,6 +1661,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
+			.nodkp = true,
 		},
 	},
 	/* Galois Counter Mode */
@@ -1678,6 +1681,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
+			.nodkp = true,
 		}
 	},
 	/* single-pass ipsec_esp descriptor */
@@ -2755,6 +2759,7 @@ static struct caam_aead_alg driver_aeads[] = {
 					   OP_ALG_AAI_AEAD,
 			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
 					   OP_ALG_AAI_AEAD,
+			.nodkp = true,
 		},
 	},
 	{
@@ -2777,6 +2782,7 @@ static struct caam_aead_alg driver_aeads[] = {
 					   OP_ALG_AAI_AEAD,
 			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
 					   OP_ALG_AAI_AEAD,
+			.nodkp = true,
 		},
 	},
 	{

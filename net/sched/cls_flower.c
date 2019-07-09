@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/cls_flower.c		Flower classifier
  *
  * Copyright (c) 2015 Jiri Pirko <jiri@resnulli.us>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -14,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/rhashtable.h>
 #include <linux/workqueue.h>
+#include <linux/refcount.h>
 
 #include <linux/if_ether.h>
 #include <linux/in6.h>
@@ -75,6 +72,7 @@ struct fl_flow_mask {
 	struct list_head filters;
 	struct rcu_work rwork;
 	struct list_head list;
+	refcount_t refcnt;
 };
 
 struct fl_flow_tmplt {
@@ -86,7 +84,9 @@ struct fl_flow_tmplt {
 
 struct cls_fl_head {
 	struct rhashtable ht;
+	spinlock_t masks_lock; /* Protect masks list */
 	struct list_head masks;
+	struct list_head hw_filters;
 	struct rcu_work rwork;
 	struct idr handle_idr;
 };
@@ -99,11 +99,18 @@ struct cls_fl_filter {
 	struct tcf_result res;
 	struct fl_flow_key key;
 	struct list_head list;
+	struct list_head hw_list;
 	u32 handle;
 	u32 flags;
 	u32 in_hw_count;
 	struct rcu_work rwork;
 	struct net_device *hw_dev;
+	/* Flower classifier is unlocked, which means that its reference counter
+	 * can be changed concurrently without any kind of external
+	 * synchronization. Use atomic reference counter to be concurrency-safe.
+	 */
+	refcount_t refcnt;
+	bool deleted;
 };
 
 static const struct rhashtable_params mask_ht_params = {
@@ -304,16 +311,22 @@ static int fl_init(struct tcf_proto *tp)
 	if (!head)
 		return -ENOBUFS;
 
+	spin_lock_init(&head->masks_lock);
 	INIT_LIST_HEAD_RCU(&head->masks);
+	INIT_LIST_HEAD(&head->hw_filters);
 	rcu_assign_pointer(tp->root, head);
 	idr_init(&head->handle_idr);
 
 	return rhashtable_init(&head->ht, &mask_ht_params);
 }
 
-static void fl_mask_free(struct fl_flow_mask *mask)
+static void fl_mask_free(struct fl_flow_mask *mask, bool mask_init_done)
 {
-	rhashtable_destroy(&mask->ht);
+	/* temporary masks don't have their filters list and ht initialized */
+	if (mask_init_done) {
+		WARN_ON(!list_empty(&mask->filters));
+		rhashtable_destroy(&mask->ht);
+	}
 	kfree(mask);
 }
 
@@ -322,23 +335,41 @@ static void fl_mask_free_work(struct work_struct *work)
 	struct fl_flow_mask *mask = container_of(to_rcu_work(work),
 						 struct fl_flow_mask, rwork);
 
-	fl_mask_free(mask);
+	fl_mask_free(mask, true);
 }
 
-static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask,
-			bool async)
+static void fl_uninit_mask_free_work(struct work_struct *work)
 {
-	if (!list_empty(&mask->filters))
+	struct fl_flow_mask *mask = container_of(to_rcu_work(work),
+						 struct fl_flow_mask, rwork);
+
+	fl_mask_free(mask, false);
+}
+
+static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask)
+{
+	if (!refcount_dec_and_test(&mask->refcnt))
 		return false;
 
 	rhashtable_remove_fast(&head->ht, &mask->ht_node, mask_ht_params);
+
+	spin_lock(&head->masks_lock);
 	list_del_rcu(&mask->list);
-	if (async)
-		tcf_queue_work(&mask->rwork, fl_mask_free_work);
-	else
-		fl_mask_free(mask);
+	spin_unlock(&head->masks_lock);
+
+	tcf_queue_work(&mask->rwork, fl_mask_free_work);
 
 	return true;
+}
+
+static struct cls_fl_head *fl_head_dereference(struct tcf_proto *tp)
+{
+	/* Flower classifier only changes root pointer during init and destroy.
+	 * Users must obtain reference to tcf_proto instance before calling its
+	 * API, so tp->root pointer is protected from concurrent call to
+	 * fl_destroy() by reference counting.
+	 */
+	return rcu_dereference_raw(tp->root);
 }
 
 static void __fl_destroy_filter(struct cls_fl_filter *f)
@@ -353,37 +384,50 @@ static void fl_destroy_filter_work(struct work_struct *work)
 	struct cls_fl_filter *f = container_of(to_rcu_work(work),
 					struct cls_fl_filter, rwork);
 
-	rtnl_lock();
 	__fl_destroy_filter(f);
-	rtnl_unlock();
 }
 
 static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f,
-				 struct netlink_ext_ack *extack)
+				 bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = tp->chain->block;
+
+	if (!rtnl_held)
+		rtnl_lock();
 
 	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, extack);
 	cls_flower.command = TC_CLSFLOWER_DESTROY;
 	cls_flower.cookie = (unsigned long) f;
 
 	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
+	spin_lock(&tp->lock);
+	list_del_init(&f->hw_list);
 	tcf_block_offload_dec(block, &f->flags);
+	spin_unlock(&tp->lock);
+
+	if (!rtnl_held)
+		rtnl_unlock();
 }
 
 static int fl_hw_replace_filter(struct tcf_proto *tp,
-				struct cls_fl_filter *f,
+				struct cls_fl_filter *f, bool rtnl_held,
 				struct netlink_ext_ack *extack)
 {
+	struct cls_fl_head *head = fl_head_dereference(tp);
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = tp->chain->block;
 	bool skip_sw = tc_skip_sw(f->flags);
-	int err;
+	int err = 0;
+
+	if (!rtnl_held)
+		rtnl_lock();
 
 	cls_flower.rule = flow_rule_alloc(tcf_exts_num_actions(&f->exts));
-	if (!cls_flower.rule)
-		return -ENOMEM;
+	if (!cls_flower.rule) {
+		err = -ENOMEM;
+		goto errout;
+	}
 
 	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, extack);
 	cls_flower.command = TC_CLSFLOWER_REPLACE;
@@ -396,34 +440,50 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts);
 	if (err) {
 		kfree(cls_flower.rule);
-		if (skip_sw) {
+		if (skip_sw)
 			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
-			return err;
-		}
-		return 0;
+		else
+			err = 0;
+		goto errout;
 	}
 
 	err = tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, skip_sw);
 	kfree(cls_flower.rule);
 
 	if (err < 0) {
-		fl_hw_destroy_filter(tp, f, NULL);
-		return err;
+		fl_hw_destroy_filter(tp, f, true, NULL);
+		goto errout;
 	} else if (err > 0) {
 		f->in_hw_count = err;
+		err = 0;
+		spin_lock(&tp->lock);
 		tcf_block_offload_inc(block, &f->flags);
+		spin_unlock(&tp->lock);
 	}
 
-	if (skip_sw && !(f->flags & TCA_CLS_FLAGS_IN_HW))
-		return -EINVAL;
+	if (skip_sw && !(f->flags & TCA_CLS_FLAGS_IN_HW)) {
+		err = -EINVAL;
+		goto errout;
+	}
 
-	return 0;
+	spin_lock(&tp->lock);
+	list_add(&f->hw_list, &head->hw_filters);
+	spin_unlock(&tp->lock);
+errout:
+	if (!rtnl_held)
+		rtnl_unlock();
+
+	return err;
 }
 
-static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
+static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f,
+			       bool rtnl_held)
 {
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = tp->chain->block;
+
+	if (!rtnl_held)
+		rtnl_lock();
 
 	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, NULL);
 	cls_flower.command = TC_CLSFLOWER_STATS;
@@ -435,27 +495,81 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	tcf_exts_stats_update(&f->exts, cls_flower.stats.bytes,
 			      cls_flower.stats.pkts,
 			      cls_flower.stats.lastused);
+
+	if (!rtnl_held)
+		rtnl_unlock();
 }
 
-static bool __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
-			struct netlink_ext_ack *extack)
+static void __fl_put(struct cls_fl_filter *f)
 {
-	struct cls_fl_head *head = rtnl_dereference(tp->root);
-	bool async = tcf_exts_get_net(&f->exts);
-	bool last;
+	if (!refcount_dec_and_test(&f->refcnt))
+		return;
 
-	idr_remove(&head->handle_idr, f->handle);
-	list_del_rcu(&f->list);
-	last = fl_mask_put(head, f->mask, async);
-	if (!tc_skip_hw(f->flags))
-		fl_hw_destroy_filter(tp, f, extack);
-	tcf_unbind_filter(tp, &f->res);
-	if (async)
+	if (tcf_exts_get_net(&f->exts))
 		tcf_queue_work(&f->rwork, fl_destroy_filter_work);
 	else
 		__fl_destroy_filter(f);
+}
 
-	return last;
+static struct cls_fl_filter *__fl_get(struct cls_fl_head *head, u32 handle)
+{
+	struct cls_fl_filter *f;
+
+	rcu_read_lock();
+	f = idr_find(&head->handle_idr, handle);
+	if (f && !refcount_inc_not_zero(&f->refcnt))
+		f = NULL;
+	rcu_read_unlock();
+
+	return f;
+}
+
+static struct cls_fl_filter *fl_get_next_filter(struct tcf_proto *tp,
+						unsigned long *handle)
+{
+	struct cls_fl_head *head = fl_head_dereference(tp);
+	struct cls_fl_filter *f;
+
+	rcu_read_lock();
+	while ((f = idr_get_next_ul(&head->handle_idr, handle))) {
+		/* don't return filters that are being deleted */
+		if (refcount_inc_not_zero(&f->refcnt))
+			break;
+		++(*handle);
+	}
+	rcu_read_unlock();
+
+	return f;
+}
+
+static int __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
+		       bool *last, bool rtnl_held,
+		       struct netlink_ext_ack *extack)
+{
+	struct cls_fl_head *head = fl_head_dereference(tp);
+
+	*last = false;
+
+	spin_lock(&tp->lock);
+	if (f->deleted) {
+		spin_unlock(&tp->lock);
+		return -ENOENT;
+	}
+
+	f->deleted = true;
+	rhashtable_remove_fast(&f->mask->ht, &f->ht_node,
+			       f->mask->filter_ht_params);
+	idr_remove(&head->handle_idr, f->handle);
+	list_del_rcu(&f->list);
+	spin_unlock(&tp->lock);
+
+	*last = fl_mask_put(head, f->mask);
+	if (!tc_skip_hw(f->flags))
+		fl_hw_destroy_filter(tp, f, rtnl_held, extack);
+	tcf_unbind_filter(tp, &f->res);
+	__fl_put(f);
+
+	return 0;
 }
 
 static void fl_destroy_sleepable(struct work_struct *work)
@@ -472,13 +586,15 @@ static void fl_destroy_sleepable(struct work_struct *work)
 static void fl_destroy(struct tcf_proto *tp, bool rtnl_held,
 		       struct netlink_ext_ack *extack)
 {
-	struct cls_fl_head *head = rtnl_dereference(tp->root);
+	struct cls_fl_head *head = fl_head_dereference(tp);
 	struct fl_flow_mask *mask, *next_mask;
 	struct cls_fl_filter *f, *next;
+	bool last;
 
 	list_for_each_entry_safe(mask, next_mask, &head->masks, list) {
 		list_for_each_entry_safe(f, next, &mask->filters, list) {
-			if (__fl_delete(tp, f, extack))
+			__fl_delete(tp, f, &last, rtnl_held, extack);
+			if (last)
 				break;
 		}
 	}
@@ -488,11 +604,18 @@ static void fl_destroy(struct tcf_proto *tp, bool rtnl_held,
 	tcf_queue_work(&head->rwork, fl_destroy_sleepable);
 }
 
+static void fl_put(struct tcf_proto *tp, void *arg)
+{
+	struct cls_fl_filter *f = arg;
+
+	__fl_put(f);
+}
+
 static void *fl_get(struct tcf_proto *tp, u32 handle)
 {
-	struct cls_fl_head *head = rtnl_dereference(tp->root);
+	struct cls_fl_head *head = fl_head_dereference(tp);
 
-	return idr_find(&head->handle_idr, handle);
+	return __fl_get(head, handle);
 }
 
 static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
@@ -768,8 +891,9 @@ static int fl_set_geneve_opt(const struct nlattr *nla, struct fl_flow_key *key,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX,
-			       nla, geneve_opt_policy, extack);
+	err = nla_parse_nested_deprecated(tb,
+					  TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX,
+					  nla, geneve_opt_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -831,18 +955,18 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 	const struct nlattr *nla_enc_key, *nla_opt_key, *nla_opt_msk = NULL;
 	int err, option_len, key_depth, msk_depth = 0;
 
-	err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS],
-				  TCA_FLOWER_KEY_ENC_OPTS_MAX,
-				  enc_opts_policy, extack);
+	err = nla_validate_nested_deprecated(tb[TCA_FLOWER_KEY_ENC_OPTS],
+					     TCA_FLOWER_KEY_ENC_OPTS_MAX,
+					     enc_opts_policy, extack);
 	if (err)
 		return err;
 
 	nla_enc_key = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS]);
 
 	if (tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]) {
-		err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK],
-					  TCA_FLOWER_KEY_ENC_OPTS_MAX,
-					  enc_opts_policy, extack);
+		err = nla_validate_nested_deprecated(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK],
+						     TCA_FLOWER_KEY_ENC_OPTS_MAX,
+						     enc_opts_policy, extack);
 		if (err)
 			return err;
 
@@ -1227,12 +1351,15 @@ static struct fl_flow_mask *fl_create_new_mask(struct cls_fl_head *head,
 
 	INIT_LIST_HEAD_RCU(&newmask->filters);
 
-	err = rhashtable_insert_fast(&head->ht, &newmask->ht_node,
-				     mask_ht_params);
+	refcount_set(&newmask->refcnt, 1);
+	err = rhashtable_replace_fast(&head->ht, &mask->ht_node,
+				      &newmask->ht_node, mask_ht_params);
 	if (err)
 		goto errout_destroy;
 
+	spin_lock(&head->masks_lock);
 	list_add_tail_rcu(&newmask->list, &head->masks);
+	spin_unlock(&head->masks_lock);
 
 	return newmask;
 
@@ -1250,41 +1377,71 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 				struct fl_flow_mask *mask)
 {
 	struct fl_flow_mask *newmask;
+	int ret = 0;
 
-	fnew->mask = rhashtable_lookup_fast(&head->ht, mask, mask_ht_params);
+	rcu_read_lock();
+
+	/* Insert mask as temporary node to prevent concurrent creation of mask
+	 * with same key. Any concurrent lookups with same key will return
+	 * -EAGAIN because mask's refcnt is zero.
+	 */
+	fnew->mask = rhashtable_lookup_get_insert_fast(&head->ht,
+						       &mask->ht_node,
+						       mask_ht_params);
 	if (!fnew->mask) {
-		if (fold)
-			return -EINVAL;
+		rcu_read_unlock();
+
+		if (fold) {
+			ret = -EINVAL;
+			goto errout_cleanup;
+		}
 
 		newmask = fl_create_new_mask(head, mask);
-		if (IS_ERR(newmask))
-			return PTR_ERR(newmask);
+		if (IS_ERR(newmask)) {
+			ret = PTR_ERR(newmask);
+			goto errout_cleanup;
+		}
 
 		fnew->mask = newmask;
+		return 0;
+	} else if (IS_ERR(fnew->mask)) {
+		ret = PTR_ERR(fnew->mask);
 	} else if (fold && fold->mask != fnew->mask) {
-		return -EINVAL;
+		ret = -EINVAL;
+	} else if (!refcount_inc_not_zero(&fnew->mask->refcnt)) {
+		/* Mask was deleted concurrently, try again */
+		ret = -EAGAIN;
 	}
+	rcu_read_unlock();
+	return ret;
 
-	return 0;
+errout_cleanup:
+	rhashtable_remove_fast(&head->ht, &mask->ht_node,
+			       mask_ht_params);
+	return ret;
 }
 
 static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 			struct cls_fl_filter *f, struct fl_flow_mask *mask,
 			unsigned long base, struct nlattr **tb,
 			struct nlattr *est, bool ovr,
-			struct fl_flow_tmplt *tmplt,
+			struct fl_flow_tmplt *tmplt, bool rtnl_held,
 			struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, true,
+	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, rtnl_held,
 				extack);
 	if (err < 0)
 		return err;
 
 	if (tb[TCA_FLOWER_CLASSID]) {
 		f->res.classid = nla_get_u32(tb[TCA_FLOWER_CLASSID]);
+		if (!rtnl_held)
+			rtnl_lock();
 		tcf_bind_filter(tp, &f->res, base);
+		if (!rtnl_held)
+			rtnl_unlock();
 	}
 
 	err = fl_set_key(net, tb, &f->key, &mask->key, extack);
@@ -1302,25 +1459,52 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 	return 0;
 }
 
+static int fl_ht_insert_unique(struct cls_fl_filter *fnew,
+			       struct cls_fl_filter *fold,
+			       bool *in_ht)
+{
+	struct fl_flow_mask *mask = fnew->mask;
+	int err;
+
+	err = rhashtable_lookup_insert_fast(&mask->ht,
+					    &fnew->ht_node,
+					    mask->filter_ht_params);
+	if (err) {
+		*in_ht = false;
+		/* It is okay if filter with same key exists when
+		 * overwriting.
+		 */
+		return fold && err == -EEXIST ? 0 : err;
+	}
+
+	*in_ht = true;
+	return 0;
+}
+
 static int fl_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle, struct nlattr **tca,
 		     void **arg, bool ovr, bool rtnl_held,
 		     struct netlink_ext_ack *extack)
 {
-	struct cls_fl_head *head = rtnl_dereference(tp->root);
+	struct cls_fl_head *head = fl_head_dereference(tp);
 	struct cls_fl_filter *fold = *arg;
 	struct cls_fl_filter *fnew;
 	struct fl_flow_mask *mask;
 	struct nlattr **tb;
+	bool in_ht;
 	int err;
 
-	if (!tca[TCA_OPTIONS])
-		return -EINVAL;
+	if (!tca[TCA_OPTIONS]) {
+		err = -EINVAL;
+		goto errout_fold;
+	}
 
 	mask = kzalloc(sizeof(struct fl_flow_mask), GFP_KERNEL);
-	if (!mask)
-		return -ENOBUFS;
+	if (!mask) {
+		err = -ENOBUFS;
+		goto errout_fold;
+	}
 
 	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
 	if (!tb) {
@@ -1328,8 +1512,8 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		goto errout_mask_alloc;
 	}
 
-	err = nla_parse_nested(tb, TCA_FLOWER_MAX, tca[TCA_OPTIONS],
-			       fl_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
+					  tca[TCA_OPTIONS], fl_policy, NULL);
 	if (err < 0)
 		goto errout_tb;
 
@@ -1343,6 +1527,8 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		err = -ENOBUFS;
 		goto errout_tb;
 	}
+	INIT_LIST_HEAD(&fnew->hw_list);
+	refcount_set(&fnew->refcnt, 1);
 
 	err = tcf_exts_init(&fnew->exts, net, TCA_FLOWER_ACT, 0);
 	if (err < 0)
@@ -1358,7 +1544,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	err = fl_set_parms(net, tp, fnew, mask, base, tb, tca[TCA_RATE], ovr,
-			   tp->chain->tmplt_priv, extack);
+			   tp->chain->tmplt_priv, rtnl_held, extack);
 	if (err)
 		goto errout;
 
@@ -1366,169 +1552,247 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	if (err)
 		goto errout;
 
-	if (!handle) {
-		handle = 1;
-		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
-				    INT_MAX, GFP_KERNEL);
-	} else if (!fold) {
-		/* user specifies a handle and it doesn't exist */
-		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
-				    handle, GFP_KERNEL);
-	}
+	err = fl_ht_insert_unique(fnew, fold, &in_ht);
 	if (err)
 		goto errout_mask;
-	fnew->handle = handle;
-
-	if (!fold && __fl_lookup(fnew->mask, &fnew->mkey)) {
-		err = -EEXIST;
-		goto errout_idr;
-	}
-
-	err = rhashtable_insert_fast(&fnew->mask->ht, &fnew->ht_node,
-				     fnew->mask->filter_ht_params);
-	if (err)
-		goto errout_idr;
 
 	if (!tc_skip_hw(fnew->flags)) {
-		err = fl_hw_replace_filter(tp, fnew, extack);
+		err = fl_hw_replace_filter(tp, fnew, rtnl_held, extack);
 		if (err)
-			goto errout_mask_ht;
+			goto errout_ht;
 	}
 
 	if (!tc_in_hw(fnew->flags))
 		fnew->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
 
+	spin_lock(&tp->lock);
+
+	/* tp was deleted concurrently. -EAGAIN will cause caller to lookup
+	 * proto again or create new one, if necessary.
+	 */
+	if (tp->deleting) {
+		err = -EAGAIN;
+		goto errout_hw;
+	}
+
 	if (fold) {
+		/* Fold filter was deleted concurrently. Retry lookup. */
+		if (fold->deleted) {
+			err = -EAGAIN;
+			goto errout_hw;
+		}
+
+		fnew->handle = handle;
+
+		if (!in_ht) {
+			struct rhashtable_params params =
+				fnew->mask->filter_ht_params;
+
+			err = rhashtable_insert_fast(&fnew->mask->ht,
+						     &fnew->ht_node,
+						     params);
+			if (err)
+				goto errout_hw;
+			in_ht = true;
+		}
+
+		refcount_inc(&fnew->refcnt);
 		rhashtable_remove_fast(&fold->mask->ht,
 				       &fold->ht_node,
 				       fold->mask->filter_ht_params);
+		idr_replace(&head->handle_idr, fnew, fnew->handle);
+		list_replace_rcu(&fold->list, &fnew->list);
+		fold->deleted = true;
+
+		spin_unlock(&tp->lock);
+
+		fl_mask_put(head, fold->mask);
 		if (!tc_skip_hw(fold->flags))
-			fl_hw_destroy_filter(tp, fold, NULL);
+			fl_hw_destroy_filter(tp, fold, rtnl_held, NULL);
+		tcf_unbind_filter(tp, &fold->res);
+		/* Caller holds reference to fold, so refcnt is always > 0
+		 * after this.
+		 */
+		refcount_dec(&fold->refcnt);
+		__fl_put(fold);
+	} else {
+		if (handle) {
+			/* user specifies a handle and it doesn't exist */
+			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+					    handle, GFP_ATOMIC);
+
+			/* Filter with specified handle was concurrently
+			 * inserted after initial check in cls_api. This is not
+			 * necessarily an error if NLM_F_EXCL is not set in
+			 * message flags. Returning EAGAIN will cause cls_api to
+			 * try to update concurrently inserted rule.
+			 */
+			if (err == -ENOSPC)
+				err = -EAGAIN;
+		} else {
+			handle = 1;
+			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+					    INT_MAX, GFP_ATOMIC);
+		}
+		if (err)
+			goto errout_hw;
+
+		refcount_inc(&fnew->refcnt);
+		fnew->handle = handle;
+		list_add_tail_rcu(&fnew->list, &fnew->mask->filters);
+		spin_unlock(&tp->lock);
 	}
 
 	*arg = fnew;
 
-	if (fold) {
-		idr_replace(&head->handle_idr, fnew, fnew->handle);
-		list_replace_rcu(&fold->list, &fnew->list);
-		tcf_unbind_filter(tp, &fold->res);
-		tcf_exts_get_net(&fold->exts);
-		tcf_queue_work(&fold->rwork, fl_destroy_filter_work);
-	} else {
-		list_add_tail_rcu(&fnew->list, &fnew->mask->filters);
-	}
-
 	kfree(tb);
-	kfree(mask);
+	tcf_queue_work(&mask->rwork, fl_uninit_mask_free_work);
 	return 0;
 
-errout_mask_ht:
-	rhashtable_remove_fast(&fnew->mask->ht, &fnew->ht_node,
-			       fnew->mask->filter_ht_params);
-
-errout_idr:
-	if (!fold)
-		idr_remove(&head->handle_idr, fnew->handle);
-
+errout_ht:
+	spin_lock(&tp->lock);
+errout_hw:
+	fnew->deleted = true;
+	spin_unlock(&tp->lock);
+	if (!tc_skip_hw(fnew->flags))
+		fl_hw_destroy_filter(tp, fnew, rtnl_held, NULL);
+	if (in_ht)
+		rhashtable_remove_fast(&fnew->mask->ht, &fnew->ht_node,
+				       fnew->mask->filter_ht_params);
 errout_mask:
-	fl_mask_put(head, fnew->mask, false);
-
+	fl_mask_put(head, fnew->mask);
 errout:
-	tcf_exts_destroy(&fnew->exts);
-	kfree(fnew);
+	__fl_put(fnew);
 errout_tb:
 	kfree(tb);
 errout_mask_alloc:
-	kfree(mask);
+	tcf_queue_work(&mask->rwork, fl_uninit_mask_free_work);
+errout_fold:
+	if (fold)
+		__fl_put(fold);
 	return err;
 }
 
 static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
 		     bool rtnl_held, struct netlink_ext_ack *extack)
 {
-	struct cls_fl_head *head = rtnl_dereference(tp->root);
+	struct cls_fl_head *head = fl_head_dereference(tp);
 	struct cls_fl_filter *f = arg;
+	bool last_on_mask;
+	int err = 0;
 
-	rhashtable_remove_fast(&f->mask->ht, &f->ht_node,
-			       f->mask->filter_ht_params);
-	__fl_delete(tp, f, extack);
+	err = __fl_delete(tp, f, &last_on_mask, rtnl_held, extack);
 	*last = list_empty(&head->masks);
-	return 0;
+	__fl_put(f);
+
+	return err;
 }
 
 static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 		    bool rtnl_held)
 {
-	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f;
 
 	arg->count = arg->skip;
 
-	while ((f = idr_get_next_ul(&head->handle_idr,
-				    &arg->cookie)) != NULL) {
+	while ((f = fl_get_next_filter(tp, &arg->cookie)) != NULL) {
 		if (arg->fn(tp, f, arg) < 0) {
+			__fl_put(f);
 			arg->stop = 1;
 			break;
 		}
-		arg->cookie = f->handle + 1;
+		__fl_put(f);
+		arg->cookie++;
 		arg->count++;
 	}
+}
+
+static struct cls_fl_filter *
+fl_get_next_hw_filter(struct tcf_proto *tp, struct cls_fl_filter *f, bool add)
+{
+	struct cls_fl_head *head = fl_head_dereference(tp);
+
+	spin_lock(&tp->lock);
+	if (list_empty(&head->hw_filters)) {
+		spin_unlock(&tp->lock);
+		return NULL;
+	}
+
+	if (!f)
+		f = list_entry(&head->hw_filters, struct cls_fl_filter,
+			       hw_list);
+	list_for_each_entry_continue(f, &head->hw_filters, hw_list) {
+		if (!(add && f->deleted) && refcount_inc_not_zero(&f->refcnt)) {
+			spin_unlock(&tp->lock);
+			return f;
+		}
+	}
+
+	spin_unlock(&tp->lock);
+	return NULL;
 }
 
 static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 			void *cb_priv, struct netlink_ext_ack *extack)
 {
-	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = tp->chain->block;
-	struct fl_flow_mask *mask;
-	struct cls_fl_filter *f;
+	struct cls_fl_filter *f = NULL;
 	int err;
 
-	list_for_each_entry(mask, &head->masks, list) {
-		list_for_each_entry(f, &mask->filters, list) {
-			if (tc_skip_hw(f->flags))
-				continue;
+	/* hw_filters list can only be changed by hw offload functions after
+	 * obtaining rtnl lock. Make sure it is not changed while reoffload is
+	 * iterating it.
+	 */
+	ASSERT_RTNL();
 
-			cls_flower.rule =
-				flow_rule_alloc(tcf_exts_num_actions(&f->exts));
-			if (!cls_flower.rule)
-				return -ENOMEM;
-
-			tc_cls_common_offload_init(&cls_flower.common, tp,
-						   f->flags, extack);
-			cls_flower.command = add ?
-				TC_CLSFLOWER_REPLACE : TC_CLSFLOWER_DESTROY;
-			cls_flower.cookie = (unsigned long)f;
-			cls_flower.rule->match.dissector = &mask->dissector;
-			cls_flower.rule->match.mask = &mask->key;
-			cls_flower.rule->match.key = &f->mkey;
-
-			err = tc_setup_flow_action(&cls_flower.rule->action,
-						   &f->exts);
-			if (err) {
-				kfree(cls_flower.rule);
-				if (tc_skip_sw(f->flags)) {
-					NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
-					return err;
-				}
-				continue;
-			}
-
-			cls_flower.classid = f->res.classid;
-
-			err = cb(TC_SETUP_CLSFLOWER, &cls_flower, cb_priv);
-			kfree(cls_flower.rule);
-
-			if (err) {
-				if (add && tc_skip_sw(f->flags))
-					return err;
-				continue;
-			}
-
-			tc_cls_offload_cnt_update(block, &f->in_hw_count,
-						  &f->flags, add);
+	while ((f = fl_get_next_hw_filter(tp, f, add))) {
+		cls_flower.rule =
+			flow_rule_alloc(tcf_exts_num_actions(&f->exts));
+		if (!cls_flower.rule) {
+			__fl_put(f);
+			return -ENOMEM;
 		}
+
+		tc_cls_common_offload_init(&cls_flower.common, tp, f->flags,
+					   extack);
+		cls_flower.command = add ?
+			TC_CLSFLOWER_REPLACE : TC_CLSFLOWER_DESTROY;
+		cls_flower.cookie = (unsigned long)f;
+		cls_flower.rule->match.dissector = &f->mask->dissector;
+		cls_flower.rule->match.mask = &f->mask->key;
+		cls_flower.rule->match.key = &f->mkey;
+
+		err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts);
+		if (err) {
+			kfree(cls_flower.rule);
+			if (tc_skip_sw(f->flags)) {
+				NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+				__fl_put(f);
+				return err;
+			}
+			goto next_flow;
+		}
+
+		cls_flower.classid = f->res.classid;
+
+		err = cb(TC_SETUP_CLSFLOWER, &cls_flower, cb_priv);
+		kfree(cls_flower.rule);
+
+		if (err) {
+			if (add && tc_skip_sw(f->flags)) {
+				__fl_put(f);
+				return err;
+			}
+			goto next_flow;
+		}
+
+		spin_lock(&tp->lock);
+		tc_cls_offload_cnt_update(block, &f->in_hw_count, &f->flags,
+					  add);
+		spin_unlock(&tp->lock);
+next_flow:
+		__fl_put(f);
 	}
 
 	return 0;
@@ -1587,8 +1851,8 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
 	if (!tb)
 		return ERR_PTR(-ENOBUFS);
-	err = nla_parse_nested(tb, TCA_FLOWER_MAX, tca[TCA_OPTIONS],
-			       fl_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
+					  tca[TCA_OPTIONS], fl_policy, NULL);
 	if (err)
 		goto errout_tb;
 
@@ -1786,7 +2050,7 @@ static int fl_dump_key_geneve_opt(struct sk_buff *skb,
 	struct nlattr *nest;
 	int opt_off = 0;
 
-	nest = nla_nest_start(skb, TCA_FLOWER_KEY_ENC_OPTS_GENEVE);
+	nest = nla_nest_start_noflag(skb, TCA_FLOWER_KEY_ENC_OPTS_GENEVE);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -1822,7 +2086,7 @@ static int fl_dump_key_options(struct sk_buff *skb, int enc_opt_type,
 	if (!enc_opts->len)
 		return 0;
 
-	nest = nla_nest_start(skb, enc_opt_type);
+	nest = nla_nest_start_noflag(skb, enc_opt_type);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -2061,31 +2325,37 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 	struct cls_fl_filter *f = fh;
 	struct nlattr *nest;
 	struct fl_flow_key *key, *mask;
+	bool skip_hw;
 
 	if (!f)
 		return skb->len;
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 
+	spin_lock(&tp->lock);
+
 	if (f->res.classid &&
 	    nla_put_u32(skb, TCA_FLOWER_CLASSID, f->res.classid))
-		goto nla_put_failure;
+		goto nla_put_failure_locked;
 
 	key = &f->key;
 	mask = &f->mask->key;
+	skip_hw = tc_skip_hw(f->flags);
 
 	if (fl_dump_key(skb, net, key, mask))
-		goto nla_put_failure;
-
-	if (!tc_skip_hw(f->flags))
-		fl_hw_update_stats(tp, f);
+		goto nla_put_failure_locked;
 
 	if (f->flags && nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags))
-		goto nla_put_failure;
+		goto nla_put_failure_locked;
+
+	spin_unlock(&tp->lock);
+
+	if (!skip_hw)
+		fl_hw_update_stats(tp, f, rtnl_held);
 
 	if (nla_put_u32(skb, TCA_FLOWER_IN_HW_COUNT, f->in_hw_count))
 		goto nla_put_failure;
@@ -2100,6 +2370,8 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	return skb->len;
 
+nla_put_failure_locked:
+	spin_unlock(&tp->lock);
 nla_put_failure:
 	nla_nest_cancel(skb, nest);
 	return -1;
@@ -2111,7 +2383,7 @@ static int fl_tmplt_dump(struct sk_buff *skb, struct net *net, void *tmplt_priv)
 	struct fl_flow_key *key, *mask;
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -2144,6 +2416,7 @@ static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.init		= fl_init,
 	.destroy	= fl_destroy,
 	.get		= fl_get,
+	.put		= fl_put,
 	.change		= fl_change,
 	.delete		= fl_delete,
 	.walk		= fl_walk,
@@ -2154,6 +2427,7 @@ static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.tmplt_destroy	= fl_tmplt_destroy,
 	.tmplt_dump	= fl_tmplt_dump,
 	.owner		= THIS_MODULE,
+	.flags		= TCF_PROTO_OPS_DOIT_UNLOCKED,
 };
 
 static int __init cls_fl_init(void)

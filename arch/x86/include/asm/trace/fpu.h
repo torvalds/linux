@@ -13,22 +13,22 @@ DECLARE_EVENT_CLASS(x86_fpu,
 
 	TP_STRUCT__entry(
 		__field(struct fpu *, fpu)
-		__field(bool, initialized)
+		__field(bool, load_fpu)
 		__field(u64, xfeatures)
 		__field(u64, xcomp_bv)
 		),
 
 	TP_fast_assign(
 		__entry->fpu		= fpu;
-		__entry->initialized	= fpu->initialized;
+		__entry->load_fpu	= test_thread_flag(TIF_NEED_FPU_LOAD);
 		if (boot_cpu_has(X86_FEATURE_OSXSAVE)) {
 			__entry->xfeatures = fpu->state.xsave.header.xfeatures;
 			__entry->xcomp_bv  = fpu->state.xsave.header.xcomp_bv;
 		}
 	),
-	TP_printk("x86/fpu: %p initialized: %d xfeatures: %llx xcomp_bv: %llx",
+	TP_printk("x86/fpu: %p load: %d xfeatures: %llx xcomp_bv: %llx",
 			__entry->fpu,
-			__entry->initialized,
+			__entry->load_fpu,
 			__entry->xfeatures,
 			__entry->xcomp_bv
 	)
@@ -60,11 +60,6 @@ DEFINE_EVENT(x86_fpu, x86_fpu_regs_activated,
 );
 
 DEFINE_EVENT(x86_fpu, x86_fpu_regs_deactivated,
-	TP_PROTO(struct fpu *fpu),
-	TP_ARGS(fpu)
-);
-
-DEFINE_EVENT(x86_fpu, x86_fpu_activate_state,
 	TP_PROTO(struct fpu *fpu),
 	TP_ARGS(fpu)
 );

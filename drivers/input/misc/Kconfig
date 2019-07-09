@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Input misc drivers configuration
 #
@@ -190,6 +191,15 @@ config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
 
+config INPUT_MAX77650_ONKEY
+	tristate "Maxim MAX77650 ONKEY support"
+	depends on MFD_MAX77650
+	help
+	  Support the ONKEY of the MAX77650 PMIC as an input device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called max77650-onkey.
+
 config INPUT_MAX77693_HAPTIC
 	tristate "MAXIM MAX77693/MAX77843 haptic controller support"
 	depends on (MFD_MAX77693 || MFD_MAX77843) && PWM
@@ -289,6 +299,18 @@ config INPUT_GPIO_DECODER
 
 	 To compile this driver as a module, choose M here: the module
 	 will be called gpio_decoder.
+
+config INPUT_GPIO_VIBRA
+	tristate "GPIO vibrator support"
+	depends on GPIOLIB || COMPILE_TEST
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here to get support for GPIO based vibrator devices.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called gpio-vibra.
 
 config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"

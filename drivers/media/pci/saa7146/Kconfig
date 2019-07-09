@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_HEXIUM_GEMINI
 	tristate "Hexium Gemini frame grabber"
 	depends on PCI && VIDEO_V4L2 && I2C
 	select VIDEO_SAA7146_VV
-	---help---
+	help
 	  This is a video4linux driver for the Hexium Gemini frame
 	  grabber card by Hexium. Please note that the Gemini Dual
 	  card is *not* fully supported.
@@ -14,7 +15,7 @@ config VIDEO_HEXIUM_ORION
 	tristate "Hexium HV-PCI6 and Orion frame grabber"
 	depends on PCI && VIDEO_V4L2 && I2C
 	select VIDEO_SAA7146_VV
-	---help---
+	help
 	  This is a video4linux driver for the Hexium HV-PCI6 and
 	  Orion frame grabber cards by Hexium.
 
@@ -30,7 +31,7 @@ config VIDEO_MXB
 	select VIDEO_TDA9840 if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_TEA6415C if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_TEA6420 if MEDIA_SUBDRV_AUTOSELECT
-	---help---
+	help
 	  This is a video4linux driver for the 'Multimedia eXtension Board'
 	  TV card by Siemens-Nixdorf.
 

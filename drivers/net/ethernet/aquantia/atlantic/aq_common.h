@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_common.h: Basic includes for all files in project. */
@@ -40,9 +37,6 @@
 #define AQ_DEVICE_ID_AQC109S	0x89B1
 #define AQ_DEVICE_ID_AQC111S	0x91B1
 #define AQ_DEVICE_ID_AQC112S	0x92B1
-
-#define AQ_DEVICE_ID_AQC111E	0x51B1
-#define AQ_DEVICE_ID_AQC112E	0x52B1
 
 #define HW_ATL_NIC_NAME "aQuantia AQtion 10Gbit Network Adapter"
 

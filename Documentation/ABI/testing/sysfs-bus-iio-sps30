@@ -1,6 +1,6 @@
 What:		/sys/bus/iio/devices/iio:deviceX/start_cleaning
 Date:		December 2018
-KernelVersion:	4.22
+KernelVersion:	5.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Writing 1 starts sensor self cleaning. Internal fan accelerates

@@ -44,6 +44,7 @@
 #endif
 
 extern __thread volatile struct rseq __rseq_abi;
+extern int __rseq_handled;
 
 #define rseq_likely(x)		__builtin_expect(!!(x), 1)
 #define rseq_unlikely(x)	__builtin_expect(!!(x), 0)

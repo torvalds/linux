@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Oskar Andero <oskar.andero@gmail.com>
  * Copyright (C) 2014 Rose Technology
@@ -34,10 +35,6 @@
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21298c.pdf  mcp3204/08
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21700E.pdf  mcp3301
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21950D.pdf  mcp3550/1/3
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>

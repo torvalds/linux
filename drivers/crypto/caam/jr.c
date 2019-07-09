@@ -213,7 +213,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 		mb();
 
 		/* set done */
-		wr_reg32_relaxed(&jrp->rregs->outring_rmvd, 1);
+		wr_reg32(&jrp->rregs->outring_rmvd, 1);
 
 		jrp->out_ring_read_index = (jrp->out_ring_read_index + 1) &
 					   (JOBR_DEPTH - 1);

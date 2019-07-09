@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* fs/ internal definitions
  *
  * Copyright (C) 2006 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 struct super_block;
@@ -44,7 +40,7 @@ static inline int __sync_blockdev(struct block_device *bdev, int wait)
 extern void guard_bio_eod(int rw, struct bio *bio);
 extern int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 		get_block_t *get_block, struct iomap *iomap);
-int __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
+void __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
 		struct page *page);
 
 /*
@@ -55,8 +51,11 @@ extern void __init chrdev_init(void);
 /*
  * fs_context.c
  */
+extern const struct fs_context_operations legacy_fs_context_ops;
 extern int parse_monolithic_mount_data(struct fs_context *, void *);
 extern void fc_drop_locked(struct fs_context *);
+extern void vfs_clean_context(struct fs_context *fc);
+extern int finish_clean_context(struct fs_context *fc);
 
 /*
  * namei.c
@@ -89,11 +88,10 @@ extern int sb_prepare_remount_readonly(struct super_block *);
 
 extern void __init mnt_init(void);
 
-extern int __mnt_want_write(struct vfsmount *);
 extern int __mnt_want_write_file(struct file *);
-extern void __mnt_drop_write(struct vfsmount *);
 extern void __mnt_drop_write_file(struct file *);
 
+extern void dissolve_on_fput(struct vfsmount *);
 /*
  * fs_struct.c
  */
@@ -157,6 +155,7 @@ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
 extern int d_set_mounted(struct dentry *dentry);
 extern long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc);
 extern struct dentry *d_alloc_cursor(struct dentry *);
+extern struct dentry * d_alloc_pseudo(struct super_block *, const struct qstr *);
 
 /*
  * read_write.c

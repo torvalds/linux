@@ -2928,27 +2928,27 @@ mptsas_exp_repmanufacture_info(MPT_ADAPTER *ioc,
 	if (ioc->sas_mgmt.status & MPT_MGMT_STATUS_RF_VALID) {
 		u8 *tmp;
 
-	smprep = (SmpPassthroughReply_t *)ioc->sas_mgmt.reply;
-	if (le16_to_cpu(smprep->ResponseDataLength) !=
-		sizeof(struct rep_manu_reply))
+		smprep = (SmpPassthroughReply_t *)ioc->sas_mgmt.reply;
+		if (le16_to_cpu(smprep->ResponseDataLength) !=
+		    sizeof(struct rep_manu_reply))
 			goto out_free;
 
-	manufacture_reply = data_out + sizeof(struct rep_manu_request);
-	strncpy(edev->vendor_id, manufacture_reply->vendor_id,
-		SAS_EXPANDER_VENDOR_ID_LEN);
-	strncpy(edev->product_id, manufacture_reply->product_id,
-		SAS_EXPANDER_PRODUCT_ID_LEN);
-	strncpy(edev->product_rev, manufacture_reply->product_rev,
-		SAS_EXPANDER_PRODUCT_REV_LEN);
-	edev->level = manufacture_reply->sas_format;
-	if (manufacture_reply->sas_format) {
-		strncpy(edev->component_vendor_id,
-			manufacture_reply->component_vendor_id,
+		manufacture_reply = data_out + sizeof(struct rep_manu_request);
+		strncpy(edev->vendor_id, manufacture_reply->vendor_id,
+			SAS_EXPANDER_VENDOR_ID_LEN);
+		strncpy(edev->product_id, manufacture_reply->product_id,
+			SAS_EXPANDER_PRODUCT_ID_LEN);
+		strncpy(edev->product_rev, manufacture_reply->product_rev,
+			SAS_EXPANDER_PRODUCT_REV_LEN);
+		edev->level = manufacture_reply->sas_format;
+		if (manufacture_reply->sas_format) {
+			strncpy(edev->component_vendor_id,
+				manufacture_reply->component_vendor_id,
 				SAS_EXPANDER_COMPONENT_VENDOR_ID_LEN);
-		tmp = (u8 *)&manufacture_reply->component_id;
-		edev->component_id = tmp[0] << 8 | tmp[1];
-		edev->component_revision_id =
-			manufacture_reply->component_revision_id;
+			tmp = (u8 *)&manufacture_reply->component_id;
+			edev->component_id = tmp[0] << 8 | tmp[1];
+			edev->component_revision_id =
+				manufacture_reply->component_revision_id;
 		}
 	} else {
 		printk(MYIOC_s_ERR_FMT

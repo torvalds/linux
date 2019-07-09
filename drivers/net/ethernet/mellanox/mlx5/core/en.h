@@ -240,8 +240,8 @@ struct mlx5e_params {
 	bool rx_cqe_compress_def;
 	struct net_dim_cq_moder rx_cq_moderation;
 	struct net_dim_cq_moder tx_cq_moderation;
+	bool tunneled_offload_en;
 	bool lro_en;
-	u32 lro_wqe_sz;
 	u8  tx_min_inline_mode;
 	bool vlan_strip_disable;
 	bool scatter_fcs_en;
@@ -385,6 +385,7 @@ struct mlx5e_txqsq {
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
+	int                        ch_ix;
 	int                        txq_ix;
 	u32                        rate_limit;
 	struct work_struct         recover_work;
@@ -410,14 +411,17 @@ struct mlx5e_xdp_info_fifo {
 
 struct mlx5e_xdp_wqe_info {
 	u8 num_wqebbs;
-	u8 num_ds;
+	u8 num_pkts;
 };
 
 struct mlx5e_xdp_mpwqe {
 	/* Current MPWQE session */
 	struct mlx5e_tx_wqe *wqe;
 	u8                   ds_count;
+	u8                   pkt_count;
 	u8                   max_ds_count;
+	u8                   complete;
+	u8                   inline_on;
 };
 
 struct mlx5e_xdpsq;
@@ -429,7 +433,6 @@ struct mlx5e_xdpsq {
 	/* dirtied @completion */
 	u32                        xdpi_fifo_cc;
 	u16                        cc;
-	bool                       redirect_flush;
 
 	/* dirtied @xmit */
 	u32                        xdpi_fifo_pc ____cacheline_aligned_in_smp;
@@ -462,10 +465,10 @@ struct mlx5e_xdpsq {
 
 struct mlx5e_icosq {
 	/* data path */
+	u16                        cc;
+	u16                        pc;
 
-	/* dirtied @xmit */
-	u16                        pc ____cacheline_aligned_in_smp;
-
+	struct mlx5_wqe_ctrl_seg  *doorbell_cseg;
 	struct mlx5e_cq            cq;
 
 	/* write@xmit, read@completion */
@@ -532,7 +535,8 @@ typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
 enum mlx5e_rq_flag {
-	MLX5E_RQ_FLAG_XDP_XMIT = BIT(0),
+	MLX5E_RQ_FLAG_XDP_XMIT,
+	MLX5E_RQ_FLAG_XDP_REDIRECT,
 };
 
 struct mlx5e_rq_frag_info {
@@ -563,8 +567,10 @@ struct mlx5e_rq {
 			struct mlx5e_mpw_info *info;
 			mlx5e_fp_skb_from_cqe_mpwrq skb_from_cqe_mpwrq;
 			u16                    num_strides;
+			u16                    actual_wq_head;
 			u8                     log_stride_sz;
-			bool                   umr_in_progress;
+			u8                     umr_in_progress;
+			u8                     umr_last_bulk;
 		} mpwqe;
 	};
 	struct {
@@ -769,12 +775,12 @@ struct mlx5e_profile {
 void mlx5e_build_ptys2ethtool_map(void);
 
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev,
-		       select_queue_fallback_t fallback);
+		       struct net_device *sb_dev);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5e_tx_wqe *wqe, u16 pi);
+			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
 
+void mlx5e_trigger_irq(struct mlx5e_icosq *sq);
 void mlx5e_completion_event(struct mlx5_core_cq *mcq);
 void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
 int mlx5e_napi_poll(struct napi_struct *napi, int budget);
@@ -886,6 +892,53 @@ static inline bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev)
 		MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ft_field_support.inner_ip_version));
 }
 
+static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_ETH(mdev, swp) &&
+		MLX5_CAP_ETH(mdev, swp_csum) && MLX5_CAP_ETH(mdev, swp_lso);
+}
+
+struct mlx5e_swp_spec {
+	__be16 l3_proto;
+	u8 l4_proto;
+	u8 is_tun;
+	__be16 tun_l3_proto;
+	u8 tun_l4_proto;
+};
+
+static inline void
+mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
+		   struct mlx5e_swp_spec *swp_spec)
+{
+	/* SWP offsets are in 2-bytes words */
+	eseg->swp_outer_l3_offset = skb_network_offset(skb) / 2;
+	if (swp_spec->l3_proto == htons(ETH_P_IPV6))
+		eseg->swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L3_IPV6;
+	if (swp_spec->l4_proto) {
+		eseg->swp_outer_l4_offset = skb_transport_offset(skb) / 2;
+		if (swp_spec->l4_proto == IPPROTO_UDP)
+			eseg->swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L4_UDP;
+	}
+
+	if (swp_spec->is_tun) {
+		eseg->swp_inner_l3_offset = skb_inner_network_offset(skb) / 2;
+		if (swp_spec->tun_l3_proto == htons(ETH_P_IPV6))
+			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
+	} else { /* typically for ipsec when xfrm mode != XFRM_MODE_TUNNEL */
+		eseg->swp_inner_l3_offset = skb_network_offset(skb) / 2;
+		if (swp_spec->l3_proto == htons(ETH_P_IPV6))
+			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
+	}
+	switch (swp_spec->tun_l4_proto) {
+	case IPPROTO_UDP:
+		eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_UDP;
+		/* fall through */
+	case IPPROTO_TCP:
+		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
+		break;
+	}
+}
+
 static inline void mlx5e_sq_fetch_wqe(struct mlx5e_txqsq *sq,
 				      struct mlx5e_tx_wqe **wqe,
 				      u16 *pi)
@@ -930,7 +983,7 @@ void mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc,
 	 */
 	wmb();
 
-	mlx5_write64((__be32 *)ctrl, uar_map, NULL);
+	mlx5_write64((__be32 *)ctrl, uar_map);
 }
 
 static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
@@ -1042,6 +1095,7 @@ mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *prof
 int mlx5e_attach_netdev(struct mlx5e_priv *priv);
 void mlx5e_detach_netdev(struct mlx5e_priv *priv);
 void mlx5e_destroy_netdev(struct mlx5e_priv *priv);
+void mlx5e_set_netdev_mtu_boundaries(struct mlx5e_priv *priv);
 void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			    struct mlx5e_rss_params *rss_params,
 			    struct mlx5e_params *params,
@@ -1059,6 +1113,7 @@ void mlx5e_del_vxlan_port(struct net_device *netdev, struct udp_tunnel_info *ti)
 netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 				       struct net_device *netdev,
 				       netdev_features_t features);
+int mlx5e_set_features(struct net_device *netdev, netdev_features_t features);
 #ifdef CONFIG_MLX5_ESWITCH
 int mlx5e_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
 int mlx5e_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate, int max_tx_rate);

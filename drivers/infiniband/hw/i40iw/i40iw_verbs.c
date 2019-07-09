@@ -291,18 +291,15 @@ static void i40iw_dealloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_
 /**
  * i40iw_alloc_pd - allocate protection domain
  * @pd: PD pointer
- * @context: user context created during alloc
  * @udata: user data
  */
-static int i40iw_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
-			  struct ib_udata *udata)
+static int i40iw_alloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	struct i40iw_alloc_pd_resp uresp;
 	struct i40iw_sc_pd *sc_pd;
-	struct i40iw_ucontext *ucontext;
 	u32 pd_id = 0;
 	int err;
 
@@ -318,8 +315,9 @@ static int i40iw_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
 
 	sc_pd = &iwpd->sc_pd;
 
-	if (context) {
-		ucontext = to_ucontext(context);
+	if (udata) {
+		struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+			udata, struct i40iw_ucontext, ibucontext);
 		dev->iw_pd_ops->pd_init(dev, sc_pd, pd_id, ucontext->abi_ver);
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.pd_id = pd_id;
@@ -342,8 +340,9 @@ error:
 /**
  * i40iw_dealloc_pd - deallocate pd
  * @ibpd: ptr of pd to be deallocated
+ * @udata: user data or null for kernel object
  */
-static void i40iw_dealloc_pd(struct ib_pd *ibpd)
+static void i40iw_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);
 	struct i40iw_device *iwdev = to_iwdev(ibpd->device);
@@ -413,7 +412,7 @@ static void i40iw_clean_cqes(struct i40iw_qp *iwqp, struct i40iw_cq *iwcq)
  * i40iw_destroy_qp - destroy qp
  * @ibqp: qp's ib pointer also to get to device's qp address
  */
-static int i40iw_destroy_qp(struct ib_qp *ibqp)
+static int i40iw_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct i40iw_qp *iwqp = to_iwqp(ibqp);
 
@@ -744,8 +743,8 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		err_code = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 		if (err_code) {
 			i40iw_pr_err("copy_to_udata failed\n");
-			i40iw_destroy_qp(&iwqp->ibqp);
-			   /* let the completion of the qp destroy free the qp */
+			i40iw_destroy_qp(&iwqp->ibqp, udata);
+			/* let the completion of the qp destroy free the qp */
 			return ERR_PTR(err_code);
 		}
 	}
@@ -1063,8 +1062,9 @@ void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq)
 /**
  * i40iw_destroy_cq - destroy cq
  * @ib_cq: cq pointer
+ * @udata: user data or NULL for kernel object
  */
-static int i40iw_destroy_cq(struct ib_cq *ib_cq)
+static int i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct i40iw_cq *iwcq;
 	struct i40iw_device *iwdev;
@@ -1089,12 +1089,10 @@ static int i40iw_destroy_cq(struct ib_cq *ib_cq)
  * i40iw_create_cq - create cq
  * @ibdev: device pointer from stack
  * @attr: attributes for cq
- * @context: user context created during alloc
  * @udata: user data
  */
 static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 				     const struct ib_cq_init_attr *attr,
-				     struct ib_ucontext *context,
 				     struct ib_udata *udata)
 {
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
@@ -1144,14 +1142,14 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	info.ceq_id_valid = true;
 	info.ceqe_mask = 1;
 	info.type = I40IW_CQ_TYPE_IWARP;
-	if (context) {
-		struct i40iw_ucontext *ucontext;
+	if (udata) {
+		struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+			udata, struct i40iw_ucontext, ibucontext);
 		struct i40iw_create_cq_req req;
 		struct i40iw_cq_mr *cqmr;
 
 		memset(&req, 0, sizeof(req));
 		iwcq->user_mode = true;
-		ucontext = to_ucontext(context);
 		if (ib_copy_from_udata(&req, udata, sizeof(struct i40iw_create_cq_req))) {
 			err_code = -EFAULT;
 			goto cq_free_resources;
@@ -1221,7 +1219,7 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 		goto cq_free_resources;
 	}
 
-	if (context) {
+	if (udata) {
 		struct i40iw_create_cq_resp resp;
 
 		memset(&resp, 0, sizeof(resp));
@@ -1340,50 +1338,19 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 	struct i40iw_pbl *iwpbl = &iwmr->iwpbl;
 	struct i40iw_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct i40iw_pble_info *pinfo;
-	struct sg_dma_page_iter sg_iter;
-	u64 pg_addr = 0;
+	struct ib_block_iter biter;
 	u32 idx = 0;
-	bool first_pg = true;
 
 	pinfo = (level == I40IW_LEVEL_1) ? NULL : palloc->level2.leaf;
 
 	if (iwmr->type == IW_MEMREG_TYPE_QP)
 		iwpbl->qp_mr.sq_page = sg_page(region->sg_head.sgl);
 
-	for_each_sg_dma_page (region->sg_head.sgl, &sg_iter, region->nmap, 0) {
-		pg_addr = sg_page_iter_dma_address(&sg_iter);
-		if (first_pg)
-			*pbl = cpu_to_le64(pg_addr & iwmr->page_msk);
-		else if (!(pg_addr & ~iwmr->page_msk))
-			*pbl = cpu_to_le64(pg_addr);
-		else
-			continue;
-
-		first_pg = false;
+	rdma_for_each_block(region->sg_head.sgl, &biter, region->nmap,
+			    iwmr->page_size) {
+		*pbl = rdma_block_iter_dma_address(&biter);
 		pbl = i40iw_next_pbl_addr(pbl, &pinfo, &idx);
 	}
-}
-
-/**
- * i40iw_set_hugetlb_params - set MR pg size and mask to huge pg values.
- * @addr: virtual address
- * @iwmr: mr pointer for this memory registration
- */
-static void i40iw_set_hugetlb_values(u64 addr, struct i40iw_mr *iwmr)
-{
-	struct vm_area_struct *vma;
-	struct hstate *h;
-
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, addr);
-	if (vma && is_vm_hugetlb_page(vma)) {
-		h = hstate_vma(vma);
-		if (huge_page_size(h) == 0x200000) {
-			iwmr->page_size = huge_page_size(h);
-			iwmr->page_msk = huge_page_mask(h);
-		}
-	}
-	up_read(&current->mm->mmap_sem);
 }
 
 /**
@@ -1601,10 +1568,10 @@ static int i40iw_hw_alloc_stag(struct i40iw_device *iwdev, struct i40iw_mr *iwmr
  * @pd: ibpd pointer
  * @mr_type: memory for stag registrion
  * @max_num_sg: man number of pages
+ * @udata: user data or NULL for kernel objects
  */
-static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd,
-				    enum ib_mr_type mr_type,
-				    u32 max_num_sg)
+static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+				    u32 max_num_sg, struct ib_udata *udata)
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);
@@ -1841,10 +1808,9 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	iwmr->ibmr.device = pd->device;
 
 	iwmr->page_size = PAGE_SIZE;
-	iwmr->page_msk = PAGE_MASK;
-
-	if (region->hugetlb && (req.reg_type == IW_MEMREG_TYPE_MEM))
-		i40iw_set_hugetlb_values(start, iwmr);
+	if (req.reg_type == IW_MEMREG_TYPE_MEM)
+		iwmr->page_size = ib_umem_find_best_pgsz(region, SZ_4K | SZ_2M,
+							 virt);
 
 	region_length = region->length + (start & (iwmr->page_size - 1));
 	pg_shift = ffs(iwmr->page_size) - 1;
@@ -2038,7 +2004,7 @@ static void i40iw_del_memlist(struct i40iw_mr *iwmr,
  * i40iw_dereg_mr - deregister mr
  * @ib_mr: mr ptr for dereg
  */
-static int i40iw_dereg_mr(struct ib_mr *ib_mr)
+static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct ib_pd *ibpd = ib_mr->pd;
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);
@@ -2058,9 +2024,12 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 	if (iwmr->type != IW_MEMREG_TYPE_MEM) {
 		/* region is released. only test for userness. */
 		if (iwmr->region) {
-			struct i40iw_ucontext *ucontext;
+			struct i40iw_ucontext *ucontext =
+				rdma_udata_to_drv_context(
+					udata,
+					struct i40iw_ucontext,
+					ibucontext);
 
-			ucontext = to_ucontext(ibpd->uobject->context);
 			i40iw_del_memlist(iwmr, ucontext);
 		}
 		if (iwpbl->pbl_allocated && iwmr->type != IW_MEMREG_TYPE_QP)
@@ -2703,6 +2672,14 @@ static const struct ib_device_ops i40iw_dev_ops = {
 	.get_dma_mr = i40iw_get_dma_mr,
 	.get_hw_stats = i40iw_get_hw_stats,
 	.get_port_immutable = i40iw_port_immutable,
+	.iw_accept = i40iw_accept,
+	.iw_add_ref = i40iw_add_ref,
+	.iw_connect = i40iw_connect,
+	.iw_create_listen = i40iw_create_listen,
+	.iw_destroy_listen = i40iw_destroy_listen,
+	.iw_get_qp = i40iw_get_qp,
+	.iw_reject = i40iw_reject,
+	.iw_rem_ref = i40iw_rem_ref,
 	.map_mr_sg = i40iw_map_mr_sg,
 	.mmap = i40iw_mmap,
 	.modify_qp = i40iw_modify_qp,
@@ -2766,22 +2743,8 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.phys_port_cnt = 1;
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
-	iwibdev->ibdev.iwcm = kzalloc(sizeof(*iwibdev->ibdev.iwcm), GFP_KERNEL);
-	if (!iwibdev->ibdev.iwcm) {
-		ib_dealloc_device(&iwibdev->ibdev);
-		return NULL;
-	}
-
-	iwibdev->ibdev.iwcm->add_ref = i40iw_add_ref;
-	iwibdev->ibdev.iwcm->rem_ref = i40iw_rem_ref;
-	iwibdev->ibdev.iwcm->get_qp = i40iw_get_qp;
-	iwibdev->ibdev.iwcm->connect = i40iw_connect;
-	iwibdev->ibdev.iwcm->accept = i40iw_accept;
-	iwibdev->ibdev.iwcm->reject = i40iw_reject;
-	iwibdev->ibdev.iwcm->create_listen = i40iw_create_listen;
-	iwibdev->ibdev.iwcm->destroy_listen = i40iw_destroy_listen;
-	memcpy(iwibdev->ibdev.iwcm->ifname, netdev->name,
-	       sizeof(iwibdev->ibdev.iwcm->ifname));
+	memcpy(iwibdev->ibdev.iw_ifname, netdev->name,
+	       sizeof(iwibdev->ibdev.iw_ifname));
 	ib_set_device_ops(&iwibdev->ibdev, &i40iw_dev_ops);
 
 	return iwibdev;
@@ -2812,8 +2775,6 @@ void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev)
 		return;
 
 	ib_unregister_device(&iwibdev->ibdev);
-	kfree(iwibdev->ibdev.iwcm);
-	iwibdev->ibdev.iwcm = NULL;
 	wait_event_timeout(iwibdev->iwdev->close_wq,
 			   !atomic64_read(&iwibdev->iwdev->use_count),
 			   I40IW_EVENT_TIMEOUT);
@@ -2841,8 +2802,6 @@ int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 
 	return 0;
 error:
-	kfree(iwdev->iwibdev->ibdev.iwcm);
-	iwdev->iwibdev->ibdev.iwcm = NULL;
 	ib_dealloc_device(&iwdev->iwibdev->ibdev);
 	return ret;
 }

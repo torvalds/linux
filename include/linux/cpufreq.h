@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/include/linux/cpufreq.h
  *
  * Copyright (C) 2001 Russell King
  *           (C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef _LINUX_CPUFREQ_H
 #define _LINUX_CPUFREQ_H
@@ -40,13 +37,6 @@ enum cpufreq_table_sorting {
 	CPUFREQ_TABLE_UNSORTED,
 	CPUFREQ_TABLE_SORTED_ASCENDING,
 	CPUFREQ_TABLE_SORTED_DESCENDING
-};
-
-struct cpufreq_freqs {
-	unsigned int cpu;	/* cpu nr */
-	unsigned int old;
-	unsigned int new;
-	u8 flags;		/* flags of cpufreq_driver, see below. */
 };
 
 struct cpufreq_cpuinfo {
@@ -154,6 +144,13 @@ struct cpufreq_policy {
 
 	/* Pointer to the cooling device if used for thermal mitigation */
 	struct thermal_cooling_device *cdev;
+};
+
+struct cpufreq_freqs {
+	struct cpufreq_policy *policy;
+	unsigned int old;
+	unsigned int new;
+	u8 flags;		/* flags of cpufreq_driver, see below. */
 };
 
 /* Only for ACPI */

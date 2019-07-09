@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Intel ISH HID support"
 	depends on (X86_64 || COMPILE_TEST) && PCI
 

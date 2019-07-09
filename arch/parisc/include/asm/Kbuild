@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generated-y += syscall_table_32.h
 generated-y += syscall_table_64.h
 generated-y += syscall_table_c32.h
@@ -10,7 +11,6 @@ generic-y += hw_irq.h
 generic-y += irq_regs.h
 generic-y += irq_work.h
 generic-y += kdebug.h
-generic-y += kprobes.h
 generic-y += kvm_para.h
 generic-y += local.h
 generic-y += local64.h
@@ -20,7 +20,6 @@ generic-y += mmiowb.h
 generic-y += percpu.h
 generic-y += preempt.h
 generic-y += seccomp.h
-generic-y += segment.h
 generic-y += trace_clock.h
 generic-y += user.h
 generic-y += vga.h

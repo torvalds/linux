@@ -1,10 +1,12 @@
 * Renesas R-Car generation 3 USB 2.0 PHY
 
 This file provides information on what the device node for the R-Car generation
-3 and RZ/G2 USB 2.0 PHY contain.
+3, RZ/G1C and RZ/G2 USB 2.0 PHY contain.
 
 Required properties:
-- compatible: "renesas,usb2-phy-r8a774a1" if the device is a part of an R8A774A1
+- compatible: "renesas,usb2-phy-r8a77470" if the device is a part of an R8A77470
+	      SoC.
+	      "renesas,usb2-phy-r8a774a1" if the device is a part of an R8A774A1
 	      SoC.
 	      "renesas,usb2-phy-r8a774c0" if the device is a part of an R8A774C0
 	      SoC.
@@ -27,7 +29,13 @@ Required properties:
 
 - reg: offset and length of the partial USB 2.0 Host register block.
 - clocks: clock phandle and specifier pair(s).
-- #phy-cells: see phy-bindings.txt in the same directory, must be <0>.
+- #phy-cells: see phy-bindings.txt in the same directory, must be <1> (and
+	      using <0> is deprecated).
+
+The phandle's argument in the PHY specifier is the INT_STATUS bit of controller:
+- 1 = USBH_INTA (OHCI)
+- 2 = USBH_INTB (EHCI)
+- 3 = UCOM_INT (OTG and BC)
 
 Optional properties:
 To use a USB channel where USB 2.0 Host and HSUSB (USB 2.0 Peripheral) are

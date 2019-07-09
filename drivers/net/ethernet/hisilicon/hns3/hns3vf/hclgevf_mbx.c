@@ -49,8 +49,8 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (i >= HCLGEVF_MAX_TRY_TIMES) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not get mbx resp(=%d) from PF in %d tries\n",
-			hdev->mbx_resp.received_resp, i);
+			"VF could not get mbx(%d,%d) resp(=%d) from PF in %d tries\n",
+			code0, code1, hdev->mbx_resp.received_resp, i);
 		return -EIO;
 	}
 
@@ -68,8 +68,11 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (!(r_code0 == code0 && r_code1 == code1 && !mbx_resp->resp_status)) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not match resp code(code0=%d,code1=%d), %d",
+			"VF could not match resp code(code0=%d,code1=%d), %d\n",
 			code0, code1, mbx_resp->resp_status);
+		dev_err(&hdev->pdev->dev,
+			"VF could not match resp r_code(r_code0=%d,r_code1=%d)\n",
+			r_code0, r_code1);
 		return -EIO;
 	}
 
@@ -95,6 +98,8 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 	}
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
+	req->mbx_need_resp |= need_resp ? HCLGE_MBX_NEED_RESP_BIT :
+					  ~HCLGE_MBX_NEED_RESP_BIT;
 	req->msg[0] = code;
 	req->msg[1] = subcode;
 	memcpy(&req->msg[2], msg_data, msg_len);
@@ -198,6 +203,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		case HCLGE_MBX_LINK_STAT_CHANGE:
 		case HCLGE_MBX_ASSERTING_RESET:
 		case HCLGE_MBX_LINK_STAT_MODE:
+		case HLCGE_MBX_PUSH_VLAN_INFO:
 			/* set this mbx event as pending. This is required as we
 			 * might loose interrupt event when mbx task is busy
 			 * handling. This shall be cleared when mbx task just
@@ -208,7 +214,8 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			/* we will drop the async msg if we find ARQ as full
 			 * and continue with next message
 			 */
-			if (hdev->arq.count >= HCLGE_MBX_MAX_ARQ_MSG_NUM) {
+			if (atomic_read(&hdev->arq.count) >=
+			    HCLGE_MBX_MAX_ARQ_MSG_NUM) {
 				dev_warn(&hdev->pdev->dev,
 					 "Async Q full, dropping msg(%d)\n",
 					 req->msg[1]);
@@ -220,7 +227,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			memcpy(&msg_q[0], req->msg,
 			       HCLGE_MBX_MAX_ARQ_MSG_SIZE * sizeof(u16));
 			hclge_mbx_tail_ptr_move_arq(hdev->arq);
-			hdev->arq.count++;
+			atomic_inc(&hdev->arq.count);
 
 			hclgevf_mbx_task_schedule(hdev);
 
@@ -243,8 +250,8 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 {
 	enum hnae3_reset_type reset_type;
-	u16 link_status;
-	u16 *msg_q;
+	u16 link_status, state;
+	u16 *msg_q, *vlan_info;
 	u8 duplex;
 	u32 speed;
 	u32 tail;
@@ -272,7 +279,6 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			link_status = le16_to_cpu(msg_q[1]);
 			memcpy(&speed, &msg_q[2], sizeof(speed));
 			duplex = (u8)le16_to_cpu(msg_q[4]);
-			hdev->hw.mac.media_type = (u8)le16_to_cpu(msg_q[5]);
 
 			/* update upper layer with new link link status */
 			hclgevf_update_link_status(hdev, link_status);
@@ -300,6 +306,12 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			hclgevf_reset_task_schedule(hdev);
 
 			break;
+		case HLCGE_MBX_PUSH_VLAN_INFO:
+			state = le16_to_cpu(msg_q[1]);
+			vlan_info = &msg_q[1];
+			hclgevf_update_port_base_vlan_info(hdev, state,
+							   (u8 *)vlan_info, 8);
+			break;
 		default:
 			dev_err(&hdev->pdev->dev,
 				"fetched unsupported(%d) message from arq\n",
@@ -308,7 +320,7 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 		}
 
 		hclge_mbx_head_ptr_move_arq(hdev->arq);
-		hdev->arq.count--;
+		atomic_dec(&hdev->arq.count);
 		msg_q = hdev->arq.msg_q[hdev->arq.head];
 	}
 }

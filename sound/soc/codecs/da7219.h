@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * da7219.h - DA7219 ALSA SoC Codec Driver
  *
  * Copyright (c) 2015 Dialog Semiconductor
  *
  * Author: Adam Thomson <Adam.Thomson.Opensource@diasemi.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __DA7219_H
@@ -820,10 +816,10 @@ struct da7219_priv {
 	struct mutex pll_lock;
 
 #ifdef CONFIG_COMMON_CLK
-	struct clk_hw dai_clks_hw;
+	struct clk_hw dai_clks_hw[DA7219_DAI_NUM_CLKS];
 #endif
-	struct clk_lookup *dai_clks_lookup;
-	struct clk *dai_clks;
+	struct clk_lookup *dai_clks_lookup[DA7219_DAI_NUM_CLKS];
+	struct clk *dai_clks[DA7219_DAI_NUM_CLKS];
 
 	struct clk *mclk;
 	unsigned int mclk_rate;

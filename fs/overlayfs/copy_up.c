@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Copyright (C) 2011 Novell Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -37,7 +34,7 @@ static int ovl_ccup_get(char *buf, const struct kernel_param *param)
 }
 
 module_param_call(check_copy_up, ovl_ccup_set, ovl_ccup_get, NULL, 0644);
-MODULE_PARM_DESC(ovl_check_copy_up, "Obsolete; does nothing");
+MODULE_PARM_DESC(check_copy_up, "Obsolete; does nothing");
 
 int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
@@ -909,14 +906,14 @@ static bool ovl_open_need_copy_up(struct dentry *dentry, int flags)
 	return true;
 }
 
-int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
+int ovl_maybe_copy_up(struct dentry *dentry, int flags)
 {
 	int err = 0;
 
-	if (ovl_open_need_copy_up(dentry, file_flags)) {
+	if (ovl_open_need_copy_up(dentry, flags)) {
 		err = ovl_want_write(dentry);
 		if (!err) {
-			err = ovl_copy_up_flags(dentry, file_flags);
+			err = ovl_copy_up_flags(dentry, flags);
 			ovl_drop_write(dentry);
 		}
 	}

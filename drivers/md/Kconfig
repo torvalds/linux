@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Block device driver configuration
 #
@@ -433,6 +434,15 @@ config DM_DELAY
 	---help---
 	A target that delays reads and/or writes and can send
 	them to different devices.  Useful for testing.
+
+	If unsure, say N.
+
+config DM_DUST
+	tristate "Bad sector simulation target"
+	depends on BLK_DEV_DM
+	---help---
+	A target that simulates bad sector behavior.
+	Useful for testing.
 
 	If unsure, say N.
 

@@ -93,7 +93,7 @@ static void sr_oa_regs(struct intel_vgpu_workload *workload,
 		i915_mmio_reg_offset(EU_PERF_CNTL6),
 	};
 
-	if (workload->ring_id != RCS)
+	if (workload->ring_id != RCS0)
 		return;
 
 	if (save) {
@@ -149,7 +149,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	COPY_REG_MASKED(ctx_ctrl);
 	COPY_REG(ctx_timestamp);
 
-	if (ring_id == RCS) {
+	if (ring_id == RCS0) {
 		COPY_REG(bb_per_ctx_ptr);
 		COPY_REG(rcs_indirect_ctx);
 		COPY_REG(rcs_indirect_ctx_offset);
@@ -177,7 +177,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 
 	context_page_num = context_page_num >> PAGE_SHIFT;
 
-	if (IS_BROADWELL(gvt->dev_priv) && ring_id == RCS)
+	if (IS_BROADWELL(gvt->dev_priv) && ring_id == RCS0)
 		context_page_num = 19;
 
 	i = 2;
@@ -298,11 +298,28 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	struct i915_request *req = workload->req;
 	void *shadow_ring_buffer_va;
 	u32 *cs;
+	int err;
 
-	if ((IS_KABYLAKE(req->i915) || IS_BROXTON(req->i915)
-		|| IS_COFFEELAKE(req->i915))
-		&& is_inhibit_context(req->hw_context))
+	if (IS_GEN(req->i915, 9) && is_inhibit_context(req->hw_context))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
+
+	/*
+	 * To track whether a request has started on HW, we can emit a
+	 * breadcrumb at the beginning of the request and check its
+	 * timeline's HWSP to see if the breadcrumb has advanced past the
+	 * start of this request. Actually, the request must have the
+	 * init_breadcrumb if its timeline set has_init_bread_crumb, or the
+	 * scheduler might get a wrong state of it during reset. Since the
+	 * requests from gvt always set the has_init_breadcrumb flag, here
+	 * need to do the emit_init_breadcrumb for all the requests.
+	 */
+	if (req->engine->emit_init_breadcrumb) {
+		err = req->engine->emit_init_breadcrumb(req);
+		if (err) {
+			gvt_vgpu_err("fail to emit init breadcrumb\n");
+			return err;
+		}
+	}
 
 	/* allocate shadow ring buffer */
 	cs = intel_ring_begin(workload->req, workload->rb_len / sizeof(u32));
@@ -434,8 +451,7 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	if (ret)
 		goto err_unpin;
 
-	if ((workload->ring_id == RCS) &&
-	    (workload->wa_ctx.indirect_ctx.size != 0)) {
+	if (workload->ring_id == RCS0 && workload->wa_ctx.indirect_ctx.size) {
 		ret = intel_gvt_scan_and_shadow_wa_ctx(&workload->wa_ctx);
 		if (ret)
 			goto err_shadow;
@@ -796,14 +812,35 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	void *src;
 	unsigned long context_gpa, context_page_num;
 	int i;
+	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	u32 ring_base;
+	u32 head, tail;
+	u16 wrap_count;
 
 	gvt_dbg_sched("ring id %d workload lrca %x\n", rq->engine->id,
 		      workload->ctx_desc.lrca);
 
+	head = workload->rb_head;
+	tail = workload->rb_tail;
+	wrap_count = workload->guest_rb_head >> RB_HEAD_WRAP_CNT_OFF;
+
+	if (tail < head) {
+		if (wrap_count == RB_HEAD_WRAP_CNT_MAX)
+			wrap_count = 0;
+		else
+			wrap_count += 1;
+	}
+
+	head = (wrap_count << RB_HEAD_WRAP_CNT_OFF) | tail;
+
+	ring_base = dev_priv->engine[workload->ring_id]->mmio_base;
+	vgpu_vreg_t(vgpu, RING_TAIL(ring_base)) = tail;
+	vgpu_vreg_t(vgpu, RING_HEAD(ring_base)) = head;
+
 	context_page_num = rq->engine->context_size;
 	context_page_num = context_page_num >> PAGE_SHIFT;
 
-	if (IS_BROADWELL(gvt->dev_priv) && rq->engine->id == RCS)
+	if (IS_BROADWELL(gvt->dev_priv) && rq->engine->id == RCS0)
 		context_page_num = 19;
 
 	i = 2;
@@ -851,13 +888,13 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 }
 
 void intel_vgpu_clean_workloads(struct intel_vgpu *vgpu,
-				unsigned long engine_mask)
+				intel_engine_mask_t engine_mask)
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine;
 	struct intel_vgpu_workload *pos, *n;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 
 	/* free the unsubmited workloads in the queues. */
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
@@ -903,8 +940,8 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 				workload->status = 0;
 		}
 
-		if (!workload->status && !(vgpu->resetting_eng &
-					   ENGINE_MASK(ring_id))) {
+		if (!workload->status &&
+		    !(vgpu->resetting_eng & BIT(ring_id))) {
 			update_guest_context(workload);
 
 			for_each_set_bit(event, workload->pending_events,
@@ -927,7 +964,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 
 	list_del_init(&workload->list);
 
-	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id))) {
+	if (workload->status || vgpu->resetting_eng & BIT(ring_id)) {
 		/* if workload->status is not successful means HW GPU
 		 * has occurred GPU hang or something wrong with i915/GVT,
 		 * and GVT won't inject context switch interrupt to guest.
@@ -941,7 +978,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 		 * cleaned up during the resetting process later, so doing
 		 * the workload clean up here doesn't have any impact.
 		 **/
-		intel_vgpu_clean_workloads(vgpu, ENGINE_MASK(ring_id));
+		intel_vgpu_clean_workloads(vgpu, BIT(ring_id));
 	}
 
 	workload->complete(workload);
@@ -1001,7 +1038,7 @@ static int workload_thread(void *priv)
 				workload->ring_id, workload);
 
 		if (need_force_wake)
-			intel_uncore_forcewake_get(gvt->dev_priv,
+			intel_uncore_forcewake_get(&gvt->dev_priv->uncore,
 					FORCEWAKE_ALL);
 
 		ret = dispatch_workload(workload);
@@ -1023,7 +1060,7 @@ complete:
 		complete_current_workload(gvt, ring_id);
 
 		if (need_force_wake)
-			intel_uncore_forcewake_put(gvt->dev_priv,
+			intel_uncore_forcewake_put(&gvt->dev_priv->uncore,
 					FORCEWAKE_ALL);
 
 		intel_runtime_pm_put_unchecked(gvt->dev_priv);
@@ -1114,9 +1151,9 @@ i915_context_ppgtt_root_restore(struct intel_vgpu_submission *s)
 	struct i915_hw_ppgtt *i915_ppgtt = s->shadow_ctx->ppgtt;
 	int i;
 
-	if (i915_vm_is_48bit(&i915_ppgtt->vm))
+	if (i915_vm_is_4lvl(&i915_ppgtt->vm)) {
 		px_dma(&i915_ppgtt->pml4) = s->i915_context_pml4;
-	else {
+	} else {
 		for (i = 0; i < GEN8_3LVL_PDPES; i++)
 			px_dma(i915_ppgtt->pdp.page_directory[i]) =
 						s->i915_context_pdps[i];
@@ -1150,7 +1187,7 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
  *
  */
 void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
-		unsigned long engine_mask)
+				 intel_engine_mask_t engine_mask)
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
 
@@ -1167,7 +1204,7 @@ i915_context_ppgtt_root_save(struct intel_vgpu_submission *s)
 	struct i915_hw_ppgtt *i915_ppgtt = s->shadow_ctx->ppgtt;
 	int i;
 
-	if (i915_vm_is_48bit(&i915_ppgtt->vm))
+	if (i915_vm_is_4lvl(&i915_ppgtt->vm))
 		s->i915_context_pml4 = px_dma(&i915_ppgtt->pml4);
 	else {
 		for (i = 0; i < GEN8_3LVL_PDPES; i++)
@@ -1240,7 +1277,7 @@ out_shadow_ctx:
  *
  */
 int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
-				     unsigned long engine_mask,
+				     intel_engine_mask_t engine_mask,
 				     unsigned int interface)
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
@@ -1344,7 +1381,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 	struct execlist_ctx_descriptor_format *desc = &workload->ctx_desc;
 	struct intel_vgpu_mm *mm;
 	struct intel_vgpu *vgpu = workload->vgpu;
-	intel_gvt_gtt_type_t root_entry_type;
+	enum intel_gvt_gtt_type root_entry_type;
 	u64 pdps[GVT_RING_CTX_NR_PDPS];
 
 	switch (desc->addressing_mode) {
@@ -1399,6 +1436,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	u64 ring_context_gpa;
 	u32 head, tail, start, ctl, ctx_ctl, per_ctx, indirect_ctx;
+	u32 guest_head;
 	int ret;
 
 	ring_context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
@@ -1413,6 +1451,8 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 
 	intel_gvt_hypervisor_read_gpa(vgpu, ring_context_gpa +
 			RING_CTX_OFF(ring_tail.val), &tail, 4);
+
+	guest_head = head;
 
 	head &= RB_HEAD_OFF_MASK;
 	tail &= RB_TAIL_OFF_MASK;
@@ -1446,11 +1486,12 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	workload->ctx_desc = *desc;
 	workload->ring_context_gpa = ring_context_gpa;
 	workload->rb_head = head;
+	workload->guest_rb_head = guest_head;
 	workload->rb_tail = tail;
 	workload->rb_start = start;
 	workload->rb_ctl = ctl;
 
-	if (ring_id == RCS) {
+	if (ring_id == RCS0) {
 		intel_gvt_hypervisor_read_gpa(vgpu, ring_context_gpa +
 			RING_CTX_OFF(bb_per_ctx_ptr.val), &per_ctx, 4);
 		intel_gvt_hypervisor_read_gpa(vgpu, ring_context_gpa +

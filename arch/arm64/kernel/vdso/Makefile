@@ -12,8 +12,8 @@ obj-vdso := gettimeofday.o note.o sigreturn.o
 targets := $(obj-vdso) vdso.so vdso.so.dbg
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
-ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1 \
-		$(call ld-option, --hash-style=sysv) -n -T
+ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1 --hash-style=sysv \
+		--build-id -n -T
 
 # Disable gcov profiling for VDSO code
 GCOV_PROFILE := n

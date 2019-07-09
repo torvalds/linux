@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ECRYPT_FS
 	tristate "eCrypt filesystem layer support"
 	depends on KEYS && CRYPTO && (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)

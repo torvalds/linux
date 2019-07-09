@@ -26,14 +26,14 @@ Optional children node properties:
 		 "hw" is supported.
 - nand-ecc-algo: string, algorithm of NAND ECC.
 		 Supported values with "hw" ECC mode are: "rs", "bch".
-- nand-bus-width : See nand.txt
-- nand-on-flash-bbt: See nand.txt
+- nand-bus-width : See nand-controller.yaml
+- nand-on-flash-bbt: See nand-controller.yaml
 - nand-ecc-strength: integer representing the number of bits to correct
 		     per ECC step (always 512). Supported strength using HW ECC
 		     modes are:
 		     - RS: 4, 6, 8
 		     - BCH: 4, 8, 14, 16
-- nand-ecc-maximize: See nand.txt
+- nand-ecc-maximize: See nand-controller.yaml
 - nand-is-boot-medium: Makes sure only ECC strengths supported by the boot ROM
 		       are chosen.
 - wp-gpios: GPIO specifier for the write protect pin.

@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Takashi Iwai <tiwai@suse.de>
  * 
  *  Generic memory allocators
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/slab.h>
@@ -29,53 +14,6 @@
 #include <asm/set_memory.h>
 #endif
 #include <sound/memalloc.h>
-
-/*
- *
- *  Generic memory allocators
- *
- */
-
-/**
- * snd_malloc_pages - allocate pages with the given size
- * @size: the size to allocate in bytes
- * @gfp_flags: the allocation conditions, GFP_XXX
- *
- * Allocates the physically contiguous pages with the given size.
- *
- * Return: The pointer of the buffer, or %NULL if no enough memory.
- */
-void *snd_malloc_pages(size_t size, gfp_t gfp_flags)
-{
-	int pg;
-
-	if (WARN_ON(!size))
-		return NULL;
-	if (WARN_ON(!gfp_flags))
-		return NULL;
-	gfp_flags |= __GFP_COMP;	/* compound page lets parts be mapped */
-	pg = get_order(size);
-	return (void *) __get_free_pages(gfp_flags, pg);
-}
-EXPORT_SYMBOL(snd_malloc_pages);
-
-/**
- * snd_free_pages - release the pages
- * @ptr: the buffer pointer to release
- * @size: the allocated buffer size
- *
- * Releases the buffer allocated via snd_malloc_pages().
- */
-void snd_free_pages(void *ptr, size_t size)
-{
-	int pg;
-
-	if (ptr == NULL)
-		return;
-	pg = get_order(size);
-	free_pages((unsigned long) ptr, pg);
-}
-EXPORT_SYMBOL(snd_free_pages);
 
 /*
  *
@@ -190,8 +128,8 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 	dmab->bytes = 0;
 	switch (type) {
 	case SNDRV_DMA_TYPE_CONTINUOUS:
-		dmab->area = snd_malloc_pages(size,
-					(__force gfp_t)(unsigned long)device);
+		dmab->area = alloc_pages_exact(size,
+					       (__force gfp_t)(unsigned long)device);
 		dmab->addr = 0;
 		break;
 #ifdef CONFIG_HAS_DMA
@@ -275,7 +213,7 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
 {
 	switch (dmab->dev.type) {
 	case SNDRV_DMA_TYPE_CONTINUOUS:
-		snd_free_pages(dmab->area, dmab->bytes);
+		free_pages_exact(dmab->area, dmab->bytes);
 		break;
 #ifdef CONFIG_HAS_DMA
 #ifdef CONFIG_GENERIC_ALLOCATOR

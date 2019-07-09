@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	SNAP data link layer. Derived from 802.2
  *
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *		from the 802.2 layer by Greg Page.
  *		Merged in additions from Greg Page's psnap.c.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>

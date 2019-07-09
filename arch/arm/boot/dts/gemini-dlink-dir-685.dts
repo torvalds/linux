@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,19200n8 root=/dev/sda1 rw rootwait";
+		bootargs = "console=ttyS0,19200n8 root=/dev/sda1 rw rootwait consoleblank=300";
 		stdout-path = "uart0:19200n8";
 	};
 
@@ -267,44 +267,50 @@
 			/* 32MB of flash */
 			reg = <0x30000000 0x02000000>;
 
-			/*
-			 * This "RedBoot" is the Storlink derivative.
-			 */
-			partition@0 {
-				label = "RedBoot";
-				reg = <0x00000000 0x00040000>;
-				read-only;
-			};
-			/*
-			 * This firmware image contains the kernel catenated
-			 * with the squashfs root filesystem. For some reason
-			 * this is called "upgrade" on the vendor system.
-			 */
-			partition@40000 {
-				label = "upgrade";
-				reg = <0x00040000 0x01f40000>;
-				read-only;
-			};
-			/* RGDB, Residental Gateway Database? */
-			partition@1f80000 {
-				label = "rgdb";
-				reg = <0x01f80000 0x00040000>;
-				read-only;
-			};
-			/*
-			 * This partition contains MAC addresses for WAN,
-			 * WLAN and LAN, and the country code (for wireless
-			 * I guess).
-			 */
-			partition@1fc0000 {
-				label = "nvram";
-				reg = <0x01fc0000 0x00020000>;
-				read-only;
-			};
-			partition@1fe0000 {
-				label = "LangPack";
-				reg = <0x01fe0000 0x00020000>;
-				read-only;
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				/*
+				 * This "RedBoot" is the Storlink derivative.
+				 */
+				partition@0 {
+					label = "RedBoot";
+					reg = <0x00000000 0x00040000>;
+					read-only;
+				};
+				/*
+				 * This firmware image contains the kernel catenated
+				 * with the squashfs root filesystem. For some reason
+				 * this is called "upgrade" on the vendor system.
+				 */
+				partition@40000 {
+					label = "upgrade";
+					reg = <0x00040000 0x01f40000>;
+					read-only;
+				};
+				/* RGDB, Residental Gateway Database? */
+				partition@1f80000 {
+					label = "rgdb";
+					reg = <0x01f80000 0x00040000>;
+					read-only;
+				};
+				/*
+				 * This partition contains MAC addresses for WAN,
+				 * WLAN and LAN, and the country code (for wireless
+				 * I guess).
+				 */
+				partition@1fc0000 {
+					label = "nvram";
+					reg = <0x01fc0000 0x00020000>;
+					read-only;
+				};
+				partition@1fe0000 {
+					label = "LangPack";
+					reg = <0x01fe0000 0x00020000>;
+					read-only;
+				};
 			};
 		};
 

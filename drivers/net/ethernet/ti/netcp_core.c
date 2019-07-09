@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Keystone NetCP Core driver
  *
@@ -8,15 +9,6 @@
  *		Santosh Shilimkar <santosh.shilimkar@ti.com>
  *		Murali Karicheri <m-karicheri2@ti.com>
  *		Wingman Kwok <w-kwok2@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/io.h>
@@ -2045,7 +2037,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		devm_release_mem_region(dev, res.start, size);
 	} else {
 		mac_addr = of_get_mac_address(node_interface);
-		if (mac_addr)
+		if (!IS_ERR(mac_addr))
 			ether_addr_copy(ndev->dev_addr, mac_addr);
 		else
 			eth_random_addr(ndev->dev_addr);

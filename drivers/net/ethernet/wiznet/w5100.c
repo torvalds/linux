@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ethernet driver for the WIZnet W5100 chip.
  *
  * Copyright (C) 2006-2008 WIZnet Co.,Ltd.
  * Copyright (C) 2012 Mike Sinkovsky <msink@permonline.ru>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/kernel.h>
@@ -1158,7 +1157,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	INIT_WORK(&priv->setrx_work, w5100_setrx_work);
 	INIT_WORK(&priv->restart_work, w5100_restart_work);
 
-	if (mac_addr)
+	if (!IS_ERR_OR_NULL(mac_addr))
 		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
 	else
 		eth_hw_addr_random(ndev);

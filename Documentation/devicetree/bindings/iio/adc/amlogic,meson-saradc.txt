@@ -9,6 +9,7 @@ Required properties:
 			- "amlogic,meson-gxl-saradc" for GXL
 			- "amlogic,meson-gxm-saradc" for GXM
 			- "amlogic,meson-axg-saradc" for AXG
+			- "amlogic,meson-g12a-saradc" for AXG
 		along with the generic "amlogic,meson-saradc"
 - reg:		the physical base address and length of the registers
 - interrupts:	the interrupt indicating end of sampling

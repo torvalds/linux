@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generic-y += barrier.h
 generic-y += bug.h
 generic-y += bugs.h
@@ -34,7 +35,6 @@ generic-y += qspinlock.h
 generic-y += qrwlock_types.h
 generic-y += qrwlock.h
 generic-y += sections.h
-generic-y += segment.h
 generic-y += shmparam.h
 generic-y += switch_to.h
 generic-y += topology.h

@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Bridge multicast support.
  *
  * Copyright (c) 2010 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <linux/err.h>
@@ -44,7 +39,6 @@ static const struct rhashtable_params br_mdb_rht_params = {
 	.key_offset = offsetof(struct net_bridge_mdb_entry, addr),
 	.key_len = sizeof(struct br_ip),
 	.automatic_shrinking = true,
-	.locks_mul = 1,
 };
 
 static void br_multicast_start_querier(struct net_bridge *br,
@@ -64,23 +58,6 @@ static void br_ip6_multicast_leave_group(struct net_bridge *br,
 					 const struct in6_addr *group,
 					 __u16 vid, const unsigned char *src);
 #endif
-
-static inline int br_ip_equal(const struct br_ip *a, const struct br_ip *b)
-{
-	if (a->proto != b->proto)
-		return 0;
-	if (a->vid != b->vid)
-		return 0;
-	switch (a->proto) {
-	case htons(ETH_P_IP):
-		return a->u.ip4 == b->u.ip4;
-#if IS_ENABLED(CONFIG_IPV6)
-	case htons(ETH_P_IPV6):
-		return ipv6_addr_equal(&a->u.ip6, &b->u.ip6);
-#endif
-	}
-	return 0;
-}
 
 static struct net_bridge_mdb_entry *br_mdb_ip_get_rcu(struct net_bridge *br,
 						      struct br_ip *dst)
@@ -517,7 +494,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 	if (src)
 		memcpy(p->eth_addr, src, ETH_ALEN);
 	else
-		memset(p->eth_addr, 0xff, ETH_ALEN);
+		eth_broadcast_addr(p->eth_addr);
 
 	return p;
 }
@@ -2194,7 +2171,7 @@ int br_multicast_list_adjacent(struct net_device *dev,
 	int count = 0;
 
 	rcu_read_lock();
-	if (!br_ip_list || !br_port_exists(dev))
+	if (!br_ip_list || !netif_is_bridge_port(dev))
 		goto unlock;
 
 	port = br_port_get_rcu(dev);
@@ -2241,7 +2218,7 @@ bool br_multicast_has_querier_anywhere(struct net_device *dev, int proto)
 	bool ret = false;
 
 	rcu_read_lock();
-	if (!br_port_exists(dev))
+	if (!netif_is_bridge_port(dev))
 		goto unlock;
 
 	port = br_port_get_rcu(dev);
@@ -2277,7 +2254,7 @@ bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto)
 	bool ret = false;
 
 	rcu_read_lock();
-	if (!br_port_exists(dev))
+	if (!netif_is_bridge_port(dev))
 		goto unlock;
 
 	port = br_port_get_rcu(dev);

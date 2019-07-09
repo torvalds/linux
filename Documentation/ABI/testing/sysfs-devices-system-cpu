@@ -484,6 +484,7 @@ What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/spectre_v2
 		/sys/devices/system/cpu/vulnerabilities/spec_store_bypass
 		/sys/devices/system/cpu/vulnerabilities/l1tf
+		/sys/devices/system/cpu/vulnerabilities/mds
 Date:		January 2018
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Information about CPU vulnerabilities
@@ -496,8 +497,7 @@ Description:	Information about CPU vulnerabilities
 		"Vulnerable"	  CPU is affected and no mitigation in effect
 		"Mitigation: $M"  CPU is affected and mitigation $M is in effect
 
-		Details about the l1tf file can be found in
-		Documentation/admin-guide/l1tf.rst
+		See also: Documentation/admin-guide/hw-vuln/index.rst
 
 What:		/sys/devices/system/cpu/smt
 		/sys/devices/system/cpu/smt/active

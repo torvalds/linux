@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author:Mark Yao <mark.yao@rock-chips.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <drm/drmP.h>
@@ -137,6 +129,9 @@ static const struct vop_common rk3036_common = {
 	.standby = VOP_REG_SYNC(RK3036_SYS_CTRL, 0x1, 30),
 	.out_mode = VOP_REG(RK3036_DSP_CTRL0, 0xf, 0),
 	.dsp_blank = VOP_REG(RK3036_DSP_CTRL1, 0x1, 24),
+	.dither_down_sel = VOP_REG(RK3036_DSP_CTRL0, 0x1, 27),
+	.dither_down_en = VOP_REG(RK3036_DSP_CTRL0, 0x1, 11),
+	.dither_down_mode = VOP_REG(RK3036_DSP_CTRL0, 0x1, 10),
 	.cfg_done = VOP_REG_SYNC(RK3036_REG_CFG_DONE, 0x1, 0),
 };
 
@@ -200,6 +195,9 @@ static const struct vop_common px30_common = {
 	.standby = VOP_REG_SYNC(PX30_SYS_CTRL2, 0x1, 1),
 	.out_mode = VOP_REG(PX30_DSP_CTRL2, 0xf, 16),
 	.dsp_blank = VOP_REG(PX30_DSP_CTRL2, 0x1, 14),
+	.dither_down_en = VOP_REG(PX30_DSP_CTRL2, 0x1, 8),
+	.dither_down_sel = VOP_REG(PX30_DSP_CTRL2, 0x1, 7),
+	.dither_down_mode = VOP_REG(PX30_DSP_CTRL2, 0x1, 6),
 	.cfg_done = VOP_REG_SYNC(PX30_REG_CFG_DONE, 0x1, 0),
 };
 
@@ -365,6 +363,8 @@ static const struct vop_common rk3066_common = {
 	.standby = VOP_REG(RK3066_SYS_CTRL0, 0x1, 1),
 	.out_mode = VOP_REG(RK3066_DSP_CTRL0, 0xf, 0),
 	.cfg_done = VOP_REG(RK3066_REG_CFG_DONE, 0x1, 0),
+	.dither_down_en = VOP_REG(RK3066_DSP_CTRL0, 0x1, 11),
+	.dither_down_mode = VOP_REG(RK3066_DSP_CTRL0, 0x1, 10),
 	.dsp_blank = VOP_REG(RK3066_DSP_CTRL1, 0x1, 24),
 };
 
@@ -458,6 +458,9 @@ static const struct vop_common rk3188_common = {
 	.standby = VOP_REG(RK3188_SYS_CTRL, 0x1, 30),
 	.out_mode = VOP_REG(RK3188_DSP_CTRL0, 0xf, 0),
 	.cfg_done = VOP_REG(RK3188_REG_CFG_DONE, 0x1, 0),
+	.dither_down_sel = VOP_REG(RK3188_DSP_CTRL0, 0x1, 27),
+	.dither_down_en = VOP_REG(RK3188_DSP_CTRL0, 0x1, 11),
+	.dither_down_mode = VOP_REG(RK3188_DSP_CTRL0, 0x1, 10),
 	.dsp_blank = VOP_REG(RK3188_DSP_CTRL1, 0x3, 24),
 };
 
@@ -585,8 +588,10 @@ static const struct vop_common rk3288_common = {
 	.standby = VOP_REG_SYNC(RK3288_SYS_CTRL, 0x1, 22),
 	.gate_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 23),
 	.mmu_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 20),
+	.dither_down_sel = VOP_REG(RK3288_DSP_CTRL1, 0x1, 4),
+	.dither_down_mode = VOP_REG(RK3288_DSP_CTRL1, 0x1, 3),
+	.dither_down_en = VOP_REG(RK3288_DSP_CTRL1, 0x1, 2),
 	.pre_dither_down = VOP_REG(RK3288_DSP_CTRL1, 0x1, 1),
-	.dither_down = VOP_REG(RK3288_DSP_CTRL1, 0xf, 1),
 	.dither_up = VOP_REG(RK3288_DSP_CTRL1, 0x1, 6),
 	.data_blank = VOP_REG(RK3288_DSP_CTRL0, 0x1, 19),
 	.dsp_blank = VOP_REG(RK3288_DSP_CTRL0, 0x3, 18),
@@ -878,7 +883,10 @@ static const struct vop_misc rk3328_misc = {
 
 static const struct vop_common rk3328_common = {
 	.standby = VOP_REG_SYNC(RK3328_SYS_CTRL, 0x1, 22),
-	.dither_down = VOP_REG(RK3328_DSP_CTRL1, 0xf, 1),
+	.dither_down_sel = VOP_REG(RK3328_DSP_CTRL1, 0x1, 4),
+	.dither_down_mode = VOP_REG(RK3328_DSP_CTRL1, 0x1, 3),
+	.dither_down_en = VOP_REG(RK3328_DSP_CTRL1, 0x1, 2),
+	.pre_dither_down = VOP_REG(RK3328_DSP_CTRL1, 0x1, 1),
 	.dither_up = VOP_REG(RK3328_DSP_CTRL1, 0x1, 6),
 	.dsp_blank = VOP_REG(RK3328_DSP_CTRL0, 0x3, 18),
 	.out_mode = VOP_REG(RK3328_DSP_CTRL0, 0xf, 0),

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config STMMAC_ETH
 	tristate "STMicroelectronics 10/100/1000/EQOS Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA

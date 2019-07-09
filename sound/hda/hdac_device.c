@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HD-audio codec core device
  */
@@ -55,6 +56,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	codec->bus = bus;
 	codec->addr = addr;
 	codec->type = HDA_DEV_CORE;
+	mutex_init(&codec->widget_lock);
 	pm_runtime_set_active(&codec->dev);
 	pm_runtime_get_noresume(&codec->dev);
 	atomic_set(&codec->in_pm, 0);
@@ -141,7 +143,9 @@ int snd_hdac_device_register(struct hdac_device *codec)
 	err = device_add(&codec->dev);
 	if (err < 0)
 		return err;
+	mutex_lock(&codec->widget_lock);
 	err = hda_widget_sysfs_init(codec);
+	mutex_unlock(&codec->widget_lock);
 	if (err < 0) {
 		device_del(&codec->dev);
 		return err;
@@ -158,7 +162,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_register);
 void snd_hdac_device_unregister(struct hdac_device *codec)
 {
 	if (device_is_registered(&codec->dev)) {
+		mutex_lock(&codec->widget_lock);
 		hda_widget_sysfs_exit(codec);
+		mutex_unlock(&codec->widget_lock);
 		device_del(&codec->dev);
 		snd_hdac_bus_remove_device(codec->bus, codec);
 	}
@@ -404,7 +410,9 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec, bool sysfs)
 	}
 
 	if (sysfs) {
+		mutex_lock(&codec->widget_lock);
 		err = hda_widget_sysfs_reinit(codec, start_nid, nums);
+		mutex_unlock(&codec->widget_lock);
 		if (err < 0)
 			return err;
 	}

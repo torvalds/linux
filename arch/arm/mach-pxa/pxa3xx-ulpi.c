@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/pxa3xx-ulpi.c
  *
@@ -7,10 +8,6 @@
  *
  * 2010-13-07: Igor Grinberg <grinberg@compulab.co.il>
  *             initial version: pxa310 USB Host mode support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

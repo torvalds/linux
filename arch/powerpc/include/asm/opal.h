@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * PowerNV OPAL definitions.
  *
  * Copyright 2011 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _ASM_POWERPC_OPAL_H
@@ -203,6 +199,7 @@ int64_t opal_set_param(uint64_t token, uint32_t param_id, uint64_t buffer,
 int64_t opal_sensor_read(uint32_t sensor_hndl, int token, __be32 *sensor_data);
 int64_t opal_sensor_read_u64(u32 sensor_hndl, int token, __be64 *sensor_data);
 int64_t opal_handle_hmi(void);
+int64_t opal_handle_hmi2(__be64 *out_flags);
 int64_t opal_register_dump_region(uint32_t id, uint64_t start, uint64_t end);
 int64_t opal_unregister_dump_region(uint32_t id);
 int64_t opal_slw_set_reg(uint64_t cpu_pir, uint64_t sprn, uint64_t val);
@@ -279,6 +276,13 @@ int64_t opal_xive_allocate_irq(uint32_t chip_id);
 int64_t opal_xive_free_irq(uint32_t girq);
 int64_t opal_xive_sync(uint32_t type, uint32_t id);
 int64_t opal_xive_dump(uint32_t type, uint32_t id);
+int64_t opal_xive_get_queue_state(uint64_t vp, uint32_t prio,
+				  __be32 *out_qtoggle,
+				  __be32 *out_qindex);
+int64_t opal_xive_set_queue_state(uint64_t vp, uint32_t prio,
+				  uint32_t qtoggle,
+				  uint32_t qindex);
+int64_t opal_xive_get_vp_state(uint64_t vp, __be64 *out_w01);
 int64_t opal_pci_set_p2p(uint64_t phb_init, uint64_t phb_target,
 			uint64_t desc, uint16_t pe_number);
 
@@ -352,6 +356,7 @@ int opal_power_control_init(void);
 extern int opal_machine_check(struct pt_regs *regs);
 extern bool opal_mce_check_early_recovery(struct pt_regs *regs);
 extern int opal_hmi_exception_early(struct pt_regs *regs);
+extern int opal_hmi_exception_early2(struct pt_regs *regs);
 extern int opal_handle_hmi_exception(struct pt_regs *regs);
 
 extern void opal_shutdown(void);

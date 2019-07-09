@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PowerPC version derived from arch/arm/mm/consistent.c
  *    Copyright (C) 2001 Dan Malek (dmalek@jlc.net)
@@ -16,10 +17,6 @@
  * Added in_interrupt() safe dma_alloc_coherent()/dma_free_coherent()
  * implementation. This is pulled straight from ARM and barely
  * modified. -Matt
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/sched.h>
@@ -36,7 +33,7 @@
 #include <asm/tlbflush.h>
 #include <asm/dma.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 /*
  * This address range defaults to a value that is safe for all

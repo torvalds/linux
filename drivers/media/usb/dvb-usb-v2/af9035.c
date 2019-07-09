@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Afatech AF9035 DVB USB driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
  * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "af9035.h"
@@ -846,6 +833,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 	state->af9033_config[1].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 	state->af9033_config[0].ts_mode = AF9033_TS_MODE_USB;
 	state->af9033_config[1].ts_mode = AF9033_TS_MODE_SERIAL;
+	state->it930x_addresses = 0;
 
 	if (state->chip_type == 0x9135) {
 		/* feed clock for integrated RF tuner */
@@ -872,6 +860,10 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		 * IT930x is an USB bridge, only single demod-single tuner
 		 * configurations seen so far.
 		 */
+		if ((le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_AVERMEDIA) &&
+		    (le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_AVERMEDIA_TD310)) {
+			state->it930x_addresses = 1;
+		}
 		return 0;
 	}
 
@@ -1218,6 +1210,48 @@ static int it930x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	dev_dbg(&intf->dev, "adap->id=%d\n", adap->id);
 
+	/* I2C master bus 2 clock speed 300k */
+	ret = af9035_wr_reg(d, 0x00f6a7, 0x07);
+	if (ret < 0)
+		goto err;
+
+	/* I2C master bus 1,3 clock speed 300k */
+	ret = af9035_wr_reg(d, 0x00f103, 0x07);
+	if (ret < 0)
+		goto err;
+
+	/* set gpio11 low */
+	ret = af9035_wr_reg_mask(d, 0xd8d4, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	ret = af9035_wr_reg_mask(d, 0xd8d5, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	ret = af9035_wr_reg_mask(d, 0xd8d3, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	/* Tuner enable using gpiot2_en, gpiot2_on and gpiot2_o (reset) */
+	ret = af9035_wr_reg_mask(d, 0xd8b8, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	ret = af9035_wr_reg_mask(d, 0xd8b9, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	ret = af9035_wr_reg_mask(d, 0xd8b7, 0x00, 0x01);
+	if (ret < 0)
+		goto err;
+
+	msleep(200);
+
+	ret = af9035_wr_reg_mask(d, 0xd8b7, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
 	memset(&si2168_config, 0, sizeof(si2168_config));
 	si2168_config.i2c_adapter = &adapter;
 	si2168_config.fe = &adap->fe[0];
@@ -1225,8 +1259,9 @@ static int it930x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	state->af9033_config[adap->id].fe = &adap->fe[0];
 	state->af9033_config[adap->id].ops = &state->ops;
-	ret = af9035_add_i2c_dev(d, "si2168", 0x67, &si2168_config,
-				&d->i2c_adap);
+	ret = af9035_add_i2c_dev(d, "si2168",
+				 it930x_addresses_table[state->it930x_addresses].frontend_i2c_addr,
+				 &si2168_config, &d->i2c_adap);
 	if (ret)
 		goto err;
 
@@ -1575,54 +1610,12 @@ static int it930x_tuner_attach(struct dvb_usb_adapter *adap)
 
 	dev_dbg(&intf->dev, "adap->id=%d\n", adap->id);
 
-	/* I2C master bus 2 clock speed 300k */
-	ret = af9035_wr_reg(d, 0x00f6a7, 0x07);
-	if (ret < 0)
-		goto err;
-
-	/* I2C master bus 1,3 clock speed 300k */
-	ret = af9035_wr_reg(d, 0x00f103, 0x07);
-	if (ret < 0)
-		goto err;
-
-	/* set gpio11 low */
-	ret = af9035_wr_reg_mask(d, 0xd8d4, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg_mask(d, 0xd8d5, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg_mask(d, 0xd8d3, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	/* Tuner enable using gpiot2_en, gpiot2_on and gpiot2_o (reset) */
-	ret = af9035_wr_reg_mask(d, 0xd8b8, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg_mask(d, 0xd8b9, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg_mask(d, 0xd8b7, 0x00, 0x01);
-	if (ret < 0)
-		goto err;
-
-	msleep(200);
-
-	ret = af9035_wr_reg_mask(d, 0xd8b7, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
 	memset(&si2157_config, 0, sizeof(si2157_config));
 	si2157_config.fe = adap->fe[0];
-	si2157_config.if_port = 1;
-	ret = af9035_add_i2c_dev(d, "si2157", 0x63,
-			&si2157_config, state->i2c_adapter_demod);
-
+	si2157_config.if_port = it930x_addresses_table[state->it930x_addresses].tuner_if_port;
+	ret = af9035_add_i2c_dev(d, "si2157",
+				 it930x_addresses_table[state->it930x_addresses].tuner_i2c_addr,
+				 &si2157_config, state->i2c_adapter_demod);
 	if (ret)
 		goto err;
 
@@ -2128,6 +2121,8 @@ static const struct usb_device_id af9035_id_table[] = {
 	/* IT930x devices */
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9303,
 		&it930x_props, "ITE 9303 Generic", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_TD310,
+		&it930x_props, "AVerMedia TD310 DVB-T2", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9035_id_table);

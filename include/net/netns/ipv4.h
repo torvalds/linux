@@ -9,6 +9,7 @@
 #include <linux/uidgid.h>
 #include <net/inet_frag.h>
 #include <linux/rcupdate.h>
+#include <linux/siphash.h>
 
 struct tcpm_hash_bucket;
 struct ctl_table_header;
@@ -116,6 +117,7 @@ struct netns_ipv4 {
 #endif
 	int sysctl_tcp_mtu_probing;
 	int sysctl_tcp_base_mss;
+	int sysctl_tcp_min_snd_mss;
 	int sysctl_tcp_probe_threshold;
 	u32 sysctl_tcp_probe_interval;
 
@@ -217,5 +219,6 @@ struct netns_ipv4 {
 	unsigned int	ipmr_seq;	/* protected by rtnl_mutex */
 
 	atomic_t	rt_genid;
+	siphash_key_t	ip_id_key;
 };
 #endif

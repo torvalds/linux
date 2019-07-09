@@ -191,8 +191,6 @@ static int uniphier_wdt_probe(struct platform_device *pdev)
 	if (!wdev)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, wdev);
-
 	parent = of_get_parent(dev->of_node); /* parent should be syscon node */
 	regmap = syscon_node_to_regmap(parent);
 	of_node_put(parent);

@@ -21,6 +21,7 @@ _GLOBAL(load_vr_state)
 	REST_32VRS(0,r4,r3)
 	blr
 EXPORT_SYMBOL(load_vr_state)
+_ASM_NOKPROBE_SYMBOL(load_vr_state); /* used by restore_math */
 
 /*
  * Store VMX state into memory, including VSCR.

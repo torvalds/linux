@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP2/3/4 Power/Reset Management (PRM) bitfield definitions
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2010 Nokia Corporation
  *
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __ARCH_ARM_MACH_OMAP2_PRM_H
 #define __ARCH_ARM_MACH_OMAP2_PRM_H

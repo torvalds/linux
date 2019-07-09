@@ -132,7 +132,6 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 			return;
 		}
 		spin_lock(&journal->j_list_lock);
-		nblocks = jbd2_space_needed(journal);
 		space_left = jbd2_log_space_left(journal);
 		if (space_left < nblocks) {
 			int chkpt = journal->j_checkpoint_transactions != NULL;

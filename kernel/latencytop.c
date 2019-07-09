@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * latencytop.c: Latency display infrastructure
  *
  * (C) Copyright 2008 Intel Corporation
  * Author: Arjan van de Ven <arjan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 /*
@@ -67,12 +63,9 @@ static struct latency_record latency_record[MAXLR];
 
 int latencytop_enabled;
 
-void clear_all_latency_tracing(struct task_struct *p)
+void clear_tsk_latency_tracing(struct task_struct *p)
 {
 	unsigned long flags;
-
-	if (!latencytop_enabled)
-		return;
 
 	raw_spin_lock_irqsave(&latency_lock, flags);
 	memset(&p->latency_record, 0, sizeof(p->latency_record));
@@ -95,9 +88,6 @@ account_global_scheduler_latency(struct task_struct *tsk,
 {
 	int firstnonnull = MAXLR + 1;
 	int i;
-
-	if (!latencytop_enabled)
-		return;
 
 	/* skip kernel threads for now */
 	if (!tsk->mm)

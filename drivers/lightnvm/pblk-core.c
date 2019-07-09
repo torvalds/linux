@@ -562,10 +562,8 @@ int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 
 int pblk_submit_io_sync_sem(struct pblk *pblk, struct nvm_rq *rqd)
 {
-	struct ppa_addr *ppa_list;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	int ret;
-
-	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
 
 	pblk_down_chunk(pblk, ppa_list[0]);
 	ret = pblk_submit_io_sync(pblk, rqd);
@@ -725,6 +723,7 @@ int pblk_line_smeta_read(struct pblk *pblk, struct pblk_line *line)
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct bio *bio;
+	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	u64 paddr = pblk_line_smeta_start(pblk, line);
 	int i, ret;
@@ -748,9 +747,10 @@ int pblk_line_smeta_read(struct pblk *pblk, struct pblk_line *line)
 	rqd.opcode = NVM_OP_PREAD;
 	rqd.nr_ppas = lm->smeta_sec;
 	rqd.is_seq = 1;
+	ppa_list = nvm_rq_to_ppa_list(&rqd);
 
 	for (i = 0; i < lm->smeta_sec; i++, paddr++)
-		rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
+		ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 
 	ret = pblk_submit_io_sync(pblk, &rqd);
 	if (ret) {
@@ -761,8 +761,10 @@ int pblk_line_smeta_read(struct pblk *pblk, struct pblk_line *line)
 
 	atomic_dec(&pblk->inflight_io);
 
-	if (rqd.error)
+	if (rqd.error && rqd.error != NVM_RSP_WARN_HIGHECC) {
 		pblk_log_read_err(pblk, &rqd);
+		ret = -EIO;
+	}
 
 clear_rqd:
 	pblk_free_rqd_meta(pblk, &rqd);
@@ -775,6 +777,7 @@ static int pblk_line_smeta_write(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct bio *bio;
+	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	__le64 *lba_list = emeta_to_lbas(pblk, line->emeta->buf);
 	__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
@@ -799,12 +802,13 @@ static int pblk_line_smeta_write(struct pblk *pblk, struct pblk_line *line,
 	rqd.opcode = NVM_OP_PWRITE;
 	rqd.nr_ppas = lm->smeta_sec;
 	rqd.is_seq = 1;
+	ppa_list = nvm_rq_to_ppa_list(&rqd);
 
 	for (i = 0; i < lm->smeta_sec; i++, paddr++) {
 		struct pblk_sec_meta *meta = pblk_get_meta(pblk,
 							   rqd.meta_list, i);
 
-		rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
+		ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 		meta->lba = lba_list[paddr] = addr_empty;
 	}
 
@@ -834,8 +838,9 @@ int pblk_line_emeta_read(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
-	void *ppa_list, *meta_list;
+	void *ppa_list_buf, *meta_list;
 	struct bio *bio;
+	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	u64 paddr = line->emeta_ssec;
 	dma_addr_t dma_ppa_list, dma_meta_list;
@@ -851,7 +856,7 @@ int pblk_line_emeta_read(struct pblk *pblk, struct pblk_line *line,
 	if (!meta_list)
 		return -ENOMEM;
 
-	ppa_list = meta_list + pblk_dma_meta_size(pblk);
+	ppa_list_buf = meta_list + pblk_dma_meta_size(pblk);
 	dma_ppa_list = dma_meta_list + pblk_dma_meta_size(pblk);
 
 next_rq:
@@ -872,11 +877,12 @@ next_rq:
 
 	rqd.bio = bio;
 	rqd.meta_list = meta_list;
-	rqd.ppa_list = ppa_list;
+	rqd.ppa_list = ppa_list_buf;
 	rqd.dma_meta_list = dma_meta_list;
 	rqd.dma_ppa_list = dma_ppa_list;
 	rqd.opcode = NVM_OP_PREAD;
 	rqd.nr_ppas = rq_ppas;
+	ppa_list = nvm_rq_to_ppa_list(&rqd);
 
 	for (i = 0; i < rqd.nr_ppas; ) {
 		struct ppa_addr ppa = addr_to_gen_ppa(pblk, paddr, line_id);
@@ -904,7 +910,7 @@ next_rq:
 		}
 
 		for (j = 0; j < min; j++, i++, paddr++)
-			rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line_id);
+			ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line_id);
 	}
 
 	ret = pblk_submit_io_sync(pblk, &rqd);
@@ -916,8 +922,11 @@ next_rq:
 
 	atomic_dec(&pblk->inflight_io);
 
-	if (rqd.error)
+	if (rqd.error && rqd.error != NVM_RSP_WARN_HIGHECC) {
 		pblk_log_read_err(pblk, &rqd);
+		ret = -EIO;
+		goto free_rqd_dma;
+	}
 
 	emeta_buf += rq_len;
 	left_ppas -= rq_ppas;
@@ -1162,7 +1171,6 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	off = bit * geo->ws_opt;
 	bitmap_set(line->map_bitmap, off, lm->smeta_sec);
 	line->sec_in_line -= lm->smeta_sec;
-	line->smeta_ssec = off;
 	line->cur_sec = off + lm->smeta_sec;
 
 	if (init && pblk_line_smeta_write(pblk, line, off)) {
@@ -1521,10 +1529,8 @@ void pblk_ppa_to_line_put(struct pblk *pblk, struct ppa_addr ppa)
 
 void pblk_rq_to_line_put(struct pblk *pblk, struct nvm_rq *rqd)
 {
-	struct ppa_addr *ppa_list;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	int i;
-
-	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
 
 	for (i = 0; i < rqd->nr_ppas; i++)
 		pblk_ppa_to_line_put(pblk, ppa_list[i]);
@@ -1699,6 +1705,14 @@ static void __pblk_line_put(struct pblk *pblk, struct pblk_line *line)
 
 	spin_lock(&line->lock);
 	WARN_ON(line->state != PBLK_LINESTATE_GC);
+	if (line->w_err_gc->has_gc_err) {
+		spin_unlock(&line->lock);
+		pblk_err(pblk, "line %d had errors during GC\n", line->id);
+		pblk_put_line_back(pblk, line);
+		line->w_err_gc->has_gc_err = 0;
+		return;
+	}
+
 	line->state = PBLK_LINESTATE_FREE;
 	trace_pblk_line_state(pblk_disk_name(pblk), line->id,
 					line->state);
@@ -2023,7 +2037,7 @@ void pblk_update_map(struct pblk *pblk, sector_t lba, struct ppa_addr ppa)
 	struct ppa_addr ppa_l2p;
 
 	/* logic error: lba out-of-bounds. Ignore update */
-	if (!(lba < pblk->rl.nr_secs)) {
+	if (!(lba < pblk->capacity)) {
 		WARN(1, "pblk: corrupted L2P map request\n");
 		return;
 	}
@@ -2063,7 +2077,7 @@ int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa_new,
 #endif
 
 	/* logic error: lba out-of-bounds. Ignore update */
-	if (!(lba < pblk->rl.nr_secs)) {
+	if (!(lba < pblk->capacity)) {
 		WARN(1, "pblk: corrupted L2P map request\n");
 		return 0;
 	}
@@ -2109,7 +2123,7 @@ void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 	}
 
 	/* logic error: lba out-of-bounds. Ignore update */
-	if (!(lba < pblk->rl.nr_secs)) {
+	if (!(lba < pblk->capacity)) {
 		WARN(1, "pblk: corrupted L2P map request\n");
 		return;
 	}
@@ -2135,8 +2149,8 @@ out:
 	spin_unlock(&pblk->trans_lock);
 }
 
-void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
-			 sector_t blba, int nr_secs)
+int pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
+			 sector_t blba, int nr_secs, bool *from_cache)
 {
 	int i;
 
@@ -2150,10 +2164,19 @@ void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
 		if (!pblk_ppa_empty(ppa) && !pblk_addr_in_cache(ppa)) {
 			struct pblk_line *line = pblk_ppa_to_line(pblk, ppa);
 
+			if (i > 0 && *from_cache)
+				break;
+			*from_cache = false;
+
 			kref_get(&line->ref);
+		} else {
+			if (i > 0 && !*from_cache)
+				break;
+			*from_cache = true;
 		}
 	}
 	spin_unlock(&pblk->trans_lock);
+	return i;
 }
 
 void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
@@ -2167,7 +2190,7 @@ void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
 		lba = lba_list[i];
 		if (lba != ADDR_EMPTY) {
 			/* logic error: lba out-of-bounds. Ignore update */
-			if (!(lba < pblk->rl.nr_secs)) {
+			if (!(lba < pblk->capacity)) {
 				WARN(1, "pblk: corrupted L2P map request\n");
 				continue;
 			}

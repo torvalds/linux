@@ -87,7 +87,7 @@ static struct phy_driver upd60620_driver[1] = { {
 	.phy_id         = UPD60620_PHY_ID,
 	.phy_id_mask    = 0xfffffffe,
 	.name           = "Renesas uPD60620",
-	.features       = PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.flags          = 0,
 	.config_init    = upd60620_config_init,
 	.read_status    = upd60620_read_status,

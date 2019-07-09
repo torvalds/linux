@@ -321,6 +321,7 @@ architectures:
 - ppc
 - mips
 - s390
+- parisc
 
 Configuring Kprobes
 ===================

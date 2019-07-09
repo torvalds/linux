@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Initial setup-routines for HP 9000 based hardware.
  *
@@ -9,21 +10,6 @@
  *    Modifications copyright 2001 Ryan Bradetich <rbradetich@uswest.net>
  *
  *    Initial PA-RISC Version: 04-23-1999 by Helge Deller
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -43,10 +29,10 @@
 #include <asm/irq.h>		/* for struct irq_region */
 #include <asm/parisc-device.h>
 
-struct system_cpuinfo_parisc boot_cpu_data __read_mostly;
+struct system_cpuinfo_parisc boot_cpu_data __ro_after_init;
 EXPORT_SYMBOL(boot_cpu_data);
 #ifdef CONFIG_PA8X00
-int _parisc_requires_coherency __read_mostly;
+int _parisc_requires_coherency __ro_after_init;
 EXPORT_SYMBOL(_parisc_requires_coherency);
 #endif
 
@@ -305,7 +291,8 @@ void __init collect_boot_cpu_data(void)
 
 	if (pdc_model_platform_info(orig_prod_num, current_prod_num, serial_no) == PDC_OK) {
 		printk(KERN_INFO "product %s, original product %s, S/N: %s\n",
-			current_prod_num, orig_prod_num, serial_no);
+			current_prod_num[0] ? current_prod_num : "n/a",
+			orig_prod_num, serial_no);
 		add_device_randomness(orig_prod_num, strlen(orig_prod_num));
 		add_device_randomness(current_prod_num, strlen(current_prod_num));
 		add_device_randomness(serial_no, strlen(serial_no));

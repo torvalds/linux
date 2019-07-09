@@ -23,8 +23,6 @@ struct sysv_sb_info {
 	struct super_block *s_sb;	/* VFS superblock */
 	int	       s_type;		/* file system type: FSTYPE_{XENIX|SYSV|COH} */
 	char	       s_bytesex;	/* bytesex (le/be/pdp) */
-	char	       s_truncate;	/* if 1: names > SYSV_NAMELEN chars are truncated */
-					/* if 0: they are disallowed (ENAMETOOLONG) */
 	unsigned int   s_inodes_per_block;	/* number of inodes per block */
 	unsigned int   s_inodes_per_block_1;	/* inodes_per_block - 1 */
 	unsigned int   s_inodes_per_block_bits;	/* log2(inodes_per_block) */
@@ -166,7 +164,6 @@ extern const struct file_operations sysv_file_operations;
 extern const struct file_operations sysv_dir_operations;
 extern const struct address_space_operations sysv_aops;
 extern const struct super_operations sysv_sops;
-extern const struct dentry_operations sysv_dentry_operations;
 
 
 enum {

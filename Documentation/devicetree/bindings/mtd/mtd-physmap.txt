@@ -96,3 +96,19 @@ An example using SRAM:
 		bank-width = <2>;
 	};
 
+An example using gpio-addrs
+
+	flash@20000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "cfi-flash", "jedec-flash";
+		reg = <0x20000000 0x02000000>;
+		ranges = <0 0x00000000 0x02000000
+		          1 0x02000000 0x02000000>;
+		bank-width = <2>;
+		addr-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		partition@0 {
+			label = "test-part1";
+			reg = <0 0x04000000>;
+		};
+	};

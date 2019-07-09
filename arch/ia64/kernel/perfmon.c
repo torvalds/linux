@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file implements the perfmon-2 subsystem which is used
  * to program the IA-64 Performance Monitoring Unit (PMU).

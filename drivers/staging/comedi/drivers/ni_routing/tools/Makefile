@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # this make file is simply to help autogenerate these files:
 # 	ni_route_values.h
 #	ni_device_routes.h

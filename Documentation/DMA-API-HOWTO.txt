@@ -147,7 +147,7 @@ networking subsystems make sure that the buffers they use are valid
 for you to DMA from/to.
 
 DMA addressing capabilities
-==========================
+===========================
 
 By default, the kernel assumes that your device can address 32-bits of DMA
 addressing.  For a 64-bit capable device, this needs to be increased, and for
@@ -365,13 +365,12 @@ __get_free_pages() (but takes size instead of a page order).  If your
 driver needs regions sized smaller than a page, you may prefer using
 the dma_pool interface, described below.
 
-The consistent DMA mapping interfaces, for non-NULL dev, will by
-default return a DMA address which is 32-bit addressable.  Even if the
-device indicates (via DMA mask) that it may address the upper 32-bits,
-consistent allocation will only return > 32-bit addresses for DMA if
-the consistent DMA mask has been explicitly changed via
-dma_set_coherent_mask().  This is true of the dma_pool interface as
-well.
+The consistent DMA mapping interfaces, will by default return a DMA address
+which is 32-bit addressable.  Even if the device indicates (via the DMA mask)
+that it may address the upper 32-bits, consistent allocation will only
+return > 32-bit addresses for DMA if the consistent DMA mask has been
+explicitly changed via dma_set_coherent_mask().  This is true of the
+dma_pool interface as well.
 
 dma_alloc_coherent() returns two values: the virtual address which you
 can use to access it from the CPU and dma_handle which you pass to the

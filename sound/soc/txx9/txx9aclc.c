@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic TXx9 ACLC platform driver
  *
@@ -5,10 +6,6 @@
  *
  * Based on RBTX49xx patch from CELF patch archive.
  * (C) Copyright TOSHIBA CORPORATION 2004-2006
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

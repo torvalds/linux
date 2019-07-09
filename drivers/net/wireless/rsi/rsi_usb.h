@@ -22,8 +22,9 @@
 #include "rsi_main.h"
 #include "rsi_common.h"
 
-#define RSI_USB_VID_9113	0x1618
+#define RSI_USB_VENDOR_ID	0x1618
 #define RSI_USB_PID_9113	0x9113
+#define RSI_USB_PID_9116	0x9116
 
 #define USB_INTERNAL_REG_1           0x25000
 #define RSI_USB_READY_MAGIC_NUM      0xab

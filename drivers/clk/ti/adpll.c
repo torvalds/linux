@@ -14,6 +14,7 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of_device.h>

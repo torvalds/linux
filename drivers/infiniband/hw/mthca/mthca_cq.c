@@ -77,7 +77,7 @@ struct mthca_cq_context {
 	__be32 ci_db;		/* Arbel only */
 	__be32 state_db;	/* Arbel only */
 	u32    reserved;
-} __attribute__((packed));
+} __packed;
 
 #define MTHCA_CQ_STATUS_OK          ( 0 << 28)
 #define MTHCA_CQ_STATUS_OVERFLOW    ( 9 << 28)

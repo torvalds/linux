@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/video/backlight/pwm_bl.c
  *
  * simple PWM based backlight control, board code has to setup
  * 1) pin configuration so PWM waveforms can output
  * 2) platform_data being correctly configured
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -154,21 +151,6 @@ static const struct backlight_ops pwm_backlight_ops = {
 
 #ifdef CONFIG_OF
 #define PWM_LUMINANCE_SCALE	10000 /* luminance scale */
-
-/* An integer based power function */
-static u64 int_pow(u64 base, int exp)
-{
-	u64 result = 1;
-
-	while (exp) {
-		if (exp & 1)
-			result *= base;
-		exp >>= 1;
-		base *= base;
-	}
-
-	return result;
-}
 
 /*
  * CIE lightness to PWM conversion.

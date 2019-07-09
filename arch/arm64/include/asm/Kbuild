@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generic-y += bugs.h
 generic-y += delay.h
 generic-y += div64.h
@@ -17,10 +18,8 @@ generic-y += mmiowb.h
 generic-y += msi.h
 generic-y += qrwlock.h
 generic-y += qspinlock.h
-generic-y += segment.h
 generic-y += serial.h
 generic-y += set_memory.h
-generic-y += sizes.h
 generic-y += switch_to.h
 generic-y += trace_clock.h
 generic-y += unaligned.h

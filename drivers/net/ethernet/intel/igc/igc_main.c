@@ -620,6 +620,55 @@ static void igc_configure_tx(struct igc_adapter *adapter)
  */
 static void igc_setup_mrqc(struct igc_adapter *adapter)
 {
+	struct igc_hw *hw = &adapter->hw;
+	u32 j, num_rx_queues;
+	u32 mrqc, rxcsum;
+	u32 rss_key[10];
+
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
+	for (j = 0; j < 10; j++)
+		wr32(IGC_RSSRK(j), rss_key[j]);
+
+	num_rx_queues = adapter->rss_queues;
+
+	if (adapter->rss_indir_tbl_init != num_rx_queues) {
+		for (j = 0; j < IGC_RETA_SIZE; j++)
+			adapter->rss_indir_tbl[j] =
+			(j * num_rx_queues) / IGC_RETA_SIZE;
+		adapter->rss_indir_tbl_init = num_rx_queues;
+	}
+	igc_write_rss_indir_tbl(adapter);
+
+	/* Disable raw packet checksumming so that RSS hash is placed in
+	 * descriptor on writeback.  No need to enable TCP/UDP/IP checksum
+	 * offloads as they are enabled by default
+	 */
+	rxcsum = rd32(IGC_RXCSUM);
+	rxcsum |= IGC_RXCSUM_PCSD;
+
+	/* Enable Receive Checksum Offload for SCTP */
+	rxcsum |= IGC_RXCSUM_CRCOFL;
+
+	/* Don't need to set TUOFL or IPOFL, they default to 1 */
+	wr32(IGC_RXCSUM, rxcsum);
+
+	/* Generate RSS hash based on packet types, TCP/UDP
+	 * port numbers and/or IPv4/v6 src and dst addresses
+	 */
+	mrqc = IGC_MRQC_RSS_FIELD_IPV4 |
+	       IGC_MRQC_RSS_FIELD_IPV4_TCP |
+	       IGC_MRQC_RSS_FIELD_IPV6 |
+	       IGC_MRQC_RSS_FIELD_IPV6_TCP |
+	       IGC_MRQC_RSS_FIELD_IPV6_TCP_EX;
+
+	if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV4_UDP)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV4_UDP;
+	if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV6_UDP)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV6_UDP;
+
+	mrqc |= IGC_MRQC_ENABLE_RSS_MQ;
+
+	wr32(IGC_MRQC, mrqc);
 }
 
 /**
@@ -890,7 +939,7 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 	/* Make sure there is space in the ring for the next send. */
 	igc_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
-	if (netif_xmit_stopped(txring_txq(tx_ring)) || !skb->xmit_more) {
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more()) {
 		writel(i, tx_ring->tail);
 	}
 
@@ -1145,7 +1194,7 @@ static struct sk_buff *igc_construct_skb(struct igc_ring *rx_ring,
 	/* Determine available headroom for copy */
 	headlen = size;
 	if (headlen > IGC_RX_HDR_LEN)
-		headlen = eth_get_headlen(va, IGC_RX_HDR_LEN);
+		headlen = eth_get_headlen(skb->dev, va, IGC_RX_HDR_LEN);
 
 	/* align pull length to size of long to optimize memcpy performance */
 	memcpy(__skb_put(skb, headlen), va, ALIGN(headlen, sizeof(long)));
@@ -1733,12 +1782,200 @@ void igc_up(struct igc_adapter *adapter)
  * igc_update_stats - Update the board statistics counters
  * @adapter: board private structure
  */
-static void igc_update_stats(struct igc_adapter *adapter)
+void igc_update_stats(struct igc_adapter *adapter)
 {
+	struct rtnl_link_stats64 *net_stats = &adapter->stats64;
+	struct pci_dev *pdev = adapter->pdev;
+	struct igc_hw *hw = &adapter->hw;
+	u64 _bytes, _packets;
+	u64 bytes, packets;
+	unsigned int start;
+	u32 mpc;
+	int i;
+
+	/* Prevent stats update while adapter is being reset, or if the pci
+	 * connection is down.
+	 */
+	if (adapter->link_speed == 0)
+		return;
+	if (pci_channel_offline(pdev))
+		return;
+
+	packets = 0;
+	bytes = 0;
+
+	rcu_read_lock();
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		struct igc_ring *ring = adapter->rx_ring[i];
+		u32 rqdpc = rd32(IGC_RQDPC(i));
+
+		if (hw->mac.type >= igc_i225)
+			wr32(IGC_RQDPC(i), 0);
+
+		if (rqdpc) {
+			ring->rx_stats.drops += rqdpc;
+			net_stats->rx_fifo_errors += rqdpc;
+		}
+
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->rx_syncp);
+			_bytes = ring->rx_stats.bytes;
+			_packets = ring->rx_stats.packets;
+		} while (u64_stats_fetch_retry_irq(&ring->rx_syncp, start));
+		bytes += _bytes;
+		packets += _packets;
+	}
+
+	net_stats->rx_bytes = bytes;
+	net_stats->rx_packets = packets;
+
+	packets = 0;
+	bytes = 0;
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct igc_ring *ring = adapter->tx_ring[i];
+
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->tx_syncp);
+			_bytes = ring->tx_stats.bytes;
+			_packets = ring->tx_stats.packets;
+		} while (u64_stats_fetch_retry_irq(&ring->tx_syncp, start));
+		bytes += _bytes;
+		packets += _packets;
+	}
+	net_stats->tx_bytes = bytes;
+	net_stats->tx_packets = packets;
+	rcu_read_unlock();
+
+	/* read stats registers */
+	adapter->stats.crcerrs += rd32(IGC_CRCERRS);
+	adapter->stats.gprc += rd32(IGC_GPRC);
+	adapter->stats.gorc += rd32(IGC_GORCL);
+	rd32(IGC_GORCH); /* clear GORCL */
+	adapter->stats.bprc += rd32(IGC_BPRC);
+	adapter->stats.mprc += rd32(IGC_MPRC);
+	adapter->stats.roc += rd32(IGC_ROC);
+
+	adapter->stats.prc64 += rd32(IGC_PRC64);
+	adapter->stats.prc127 += rd32(IGC_PRC127);
+	adapter->stats.prc255 += rd32(IGC_PRC255);
+	adapter->stats.prc511 += rd32(IGC_PRC511);
+	adapter->stats.prc1023 += rd32(IGC_PRC1023);
+	adapter->stats.prc1522 += rd32(IGC_PRC1522);
+	adapter->stats.symerrs += rd32(IGC_SYMERRS);
+	adapter->stats.sec += rd32(IGC_SEC);
+
+	mpc = rd32(IGC_MPC);
+	adapter->stats.mpc += mpc;
+	net_stats->rx_fifo_errors += mpc;
+	adapter->stats.scc += rd32(IGC_SCC);
+	adapter->stats.ecol += rd32(IGC_ECOL);
+	adapter->stats.mcc += rd32(IGC_MCC);
+	adapter->stats.latecol += rd32(IGC_LATECOL);
+	adapter->stats.dc += rd32(IGC_DC);
+	adapter->stats.rlec += rd32(IGC_RLEC);
+	adapter->stats.xonrxc += rd32(IGC_XONRXC);
+	adapter->stats.xontxc += rd32(IGC_XONTXC);
+	adapter->stats.xoffrxc += rd32(IGC_XOFFRXC);
+	adapter->stats.xofftxc += rd32(IGC_XOFFTXC);
+	adapter->stats.fcruc += rd32(IGC_FCRUC);
+	adapter->stats.gptc += rd32(IGC_GPTC);
+	adapter->stats.gotc += rd32(IGC_GOTCL);
+	rd32(IGC_GOTCH); /* clear GOTCL */
+	adapter->stats.rnbc += rd32(IGC_RNBC);
+	adapter->stats.ruc += rd32(IGC_RUC);
+	adapter->stats.rfc += rd32(IGC_RFC);
+	adapter->stats.rjc += rd32(IGC_RJC);
+	adapter->stats.tor += rd32(IGC_TORH);
+	adapter->stats.tot += rd32(IGC_TOTH);
+	adapter->stats.tpr += rd32(IGC_TPR);
+
+	adapter->stats.ptc64 += rd32(IGC_PTC64);
+	adapter->stats.ptc127 += rd32(IGC_PTC127);
+	adapter->stats.ptc255 += rd32(IGC_PTC255);
+	adapter->stats.ptc511 += rd32(IGC_PTC511);
+	adapter->stats.ptc1023 += rd32(IGC_PTC1023);
+	adapter->stats.ptc1522 += rd32(IGC_PTC1522);
+
+	adapter->stats.mptc += rd32(IGC_MPTC);
+	adapter->stats.bptc += rd32(IGC_BPTC);
+
+	adapter->stats.tpt += rd32(IGC_TPT);
+	adapter->stats.colc += rd32(IGC_COLC);
+
+	adapter->stats.algnerrc += rd32(IGC_ALGNERRC);
+
+	adapter->stats.tsctc += rd32(IGC_TSCTC);
+	adapter->stats.tsctfc += rd32(IGC_TSCTFC);
+
+	adapter->stats.iac += rd32(IGC_IAC);
+	adapter->stats.icrxoc += rd32(IGC_ICRXOC);
+	adapter->stats.icrxptc += rd32(IGC_ICRXPTC);
+	adapter->stats.icrxatc += rd32(IGC_ICRXATC);
+	adapter->stats.ictxptc += rd32(IGC_ICTXPTC);
+	adapter->stats.ictxatc += rd32(IGC_ICTXATC);
+	adapter->stats.ictxqec += rd32(IGC_ICTXQEC);
+	adapter->stats.ictxqmtc += rd32(IGC_ICTXQMTC);
+	adapter->stats.icrxdmtc += rd32(IGC_ICRXDMTC);
+
+	/* Fill out the OS statistics structure */
+	net_stats->multicast = adapter->stats.mprc;
+	net_stats->collisions = adapter->stats.colc;
+
+	/* Rx Errors */
+
+	/* RLEC on some newer hardware can be incorrect so build
+	 * our own version based on RUC and ROC
+	 */
+	net_stats->rx_errors = adapter->stats.rxerrc +
+		adapter->stats.crcerrs + adapter->stats.algnerrc +
+		adapter->stats.ruc + adapter->stats.roc +
+		adapter->stats.cexterr;
+	net_stats->rx_length_errors = adapter->stats.ruc +
+				      adapter->stats.roc;
+	net_stats->rx_crc_errors = adapter->stats.crcerrs;
+	net_stats->rx_frame_errors = adapter->stats.algnerrc;
+	net_stats->rx_missed_errors = adapter->stats.mpc;
+
+	/* Tx Errors */
+	net_stats->tx_errors = adapter->stats.ecol +
+			       adapter->stats.latecol;
+	net_stats->tx_aborted_errors = adapter->stats.ecol;
+	net_stats->tx_window_errors = adapter->stats.latecol;
+	net_stats->tx_carrier_errors = adapter->stats.tncrs;
+
+	/* Tx Dropped needs to be maintained elsewhere */
+
+	/* Management Stats */
+	adapter->stats.mgptc += rd32(IGC_MGTPTC);
+	adapter->stats.mgprc += rd32(IGC_MGTPRC);
+	adapter->stats.mgpdc += rd32(IGC_MGTPDC);
 }
 
 static void igc_nfc_filter_exit(struct igc_adapter *adapter)
 {
+	struct igc_nfc_filter *rule;
+
+	spin_lock(&adapter->nfc_lock);
+
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
+		igc_erase_filter(adapter, rule);
+
+	hlist_for_each_entry(rule, &adapter->cls_flower_list, nfc_node)
+		igc_erase_filter(adapter, rule);
+
+	spin_unlock(&adapter->nfc_lock);
+}
+
+static void igc_nfc_filter_restore(struct igc_adapter *adapter)
+{
+	struct igc_nfc_filter *rule;
+
+	spin_lock(&adapter->nfc_lock);
+
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
+		igc_add_filter(adapter, rule);
+
+	spin_unlock(&adapter->nfc_lock);
 }
 
 /**
@@ -1885,6 +2122,86 @@ static struct net_device_stats *igc_get_stats(struct net_device *netdev)
 	return &netdev->stats;
 }
 
+static netdev_features_t igc_fix_features(struct net_device *netdev,
+					  netdev_features_t features)
+{
+	/* Since there is no support for separate Rx/Tx vlan accel
+	 * enable/disable make sure Tx flag is always in same state as Rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
+
+	return features;
+}
+
+static int igc_set_features(struct net_device *netdev,
+			    netdev_features_t features)
+{
+	netdev_features_t changed = netdev->features ^ features;
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	/* Add VLAN support */
+	if (!(changed & (NETIF_F_RXALL | NETIF_F_NTUPLE)))
+		return 0;
+
+	if (!(features & NETIF_F_NTUPLE)) {
+		struct hlist_node *node2;
+		struct igc_nfc_filter *rule;
+
+		spin_lock(&adapter->nfc_lock);
+		hlist_for_each_entry_safe(rule, node2,
+					  &adapter->nfc_filter_list, nfc_node) {
+			igc_erase_filter(adapter, rule);
+			hlist_del(&rule->nfc_node);
+			kfree(rule);
+		}
+		spin_unlock(&adapter->nfc_lock);
+		adapter->nfc_filter_count = 0;
+	}
+
+	netdev->features = features;
+
+	if (netif_running(netdev))
+		igc_reinit_locked(adapter);
+	else
+		igc_reset(adapter);
+
+	return 1;
+}
+
+static netdev_features_t
+igc_features_check(struct sk_buff *skb, struct net_device *dev,
+		   netdev_features_t features)
+{
+	unsigned int network_hdr_len, mac_hdr_len;
+
+	/* Make certain the headers can be described by a context descriptor */
+	mac_hdr_len = skb_network_header(skb) - skb->data;
+	if (unlikely(mac_hdr_len > IGC_MAX_MAC_HDR_LEN))
+		return features & ~(NETIF_F_HW_CSUM |
+				    NETIF_F_SCTP_CRC |
+				    NETIF_F_HW_VLAN_CTAG_TX |
+				    NETIF_F_TSO |
+				    NETIF_F_TSO6);
+
+	network_hdr_len = skb_checksum_start(skb) - skb_network_header(skb);
+	if (unlikely(network_hdr_len >  IGC_MAX_NETWORK_HDR_LEN))
+		return features & ~(NETIF_F_HW_CSUM |
+				    NETIF_F_SCTP_CRC |
+				    NETIF_F_TSO |
+				    NETIF_F_TSO6);
+
+	/* We can only support IPv4 TSO in tunnels if we can mangle the
+	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 */
+	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
+		features &= ~NETIF_F_TSO;
+
+	return features;
+}
+
 /**
  * igc_configure - configure the hardware for RX and TX
  * @adapter: private board structure
@@ -1901,6 +2218,7 @@ static void igc_configure(struct igc_adapter *adapter)
 	igc_setup_mrqc(adapter);
 	igc_setup_rctl(adapter);
 
+	igc_nfc_filter_restore(adapter);
 	igc_configure_tx(adapter);
 	igc_configure_rx(adapter);
 
@@ -1960,6 +2278,127 @@ static void igc_set_default_mac_filter(struct igc_adapter *adapter)
 	mac_table->state = IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
 
 	igc_rar_set_index(adapter, 0);
+}
+
+/* If the filter to be added and an already existing filter express
+ * the same address and address type, it should be possible to only
+ * override the other configurations, for example the queue to steer
+ * traffic.
+ */
+static bool igc_mac_entry_can_be_used(const struct igc_mac_addr *entry,
+				      const u8 *addr, const u8 flags)
+{
+	if (!(entry->state & IGC_MAC_STATE_IN_USE))
+		return true;
+
+	if ((entry->state & IGC_MAC_STATE_SRC_ADDR) !=
+	    (flags & IGC_MAC_STATE_SRC_ADDR))
+		return false;
+
+	if (!ether_addr_equal(addr, entry->addr))
+		return false;
+
+	return true;
+}
+
+/* Add a MAC filter for 'addr' directing matching traffic to 'queue',
+ * 'flags' is used to indicate what kind of match is made, match is by
+ * default for the destination address, if matching by source address
+ * is desired the flag IGC_MAC_STATE_SRC_ADDR can be used.
+ */
+static int igc_add_mac_filter_flags(struct igc_adapter *adapter,
+				    const u8 *addr, const u8 queue,
+				    const u8 flags)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int rar_entries = hw->mac.rar_entry_count;
+	int i;
+
+	if (is_zero_ether_addr(addr))
+		return -EINVAL;
+
+	/* Search for the first empty entry in the MAC table.
+	 * Do not touch entries at the end of the table reserved for the VF MAC
+	 * addresses.
+	 */
+	for (i = 0; i < rar_entries; i++) {
+		if (!igc_mac_entry_can_be_used(&adapter->mac_table[i],
+					       addr, flags))
+			continue;
+
+		ether_addr_copy(adapter->mac_table[i].addr, addr);
+		adapter->mac_table[i].queue = queue;
+		adapter->mac_table[i].state |= IGC_MAC_STATE_IN_USE | flags;
+
+		igc_rar_set_index(adapter, i);
+		return i;
+	}
+
+	return -ENOSPC;
+}
+
+int igc_add_mac_steering_filter(struct igc_adapter *adapter,
+				const u8 *addr, u8 queue, u8 flags)
+{
+	return igc_add_mac_filter_flags(adapter, addr, queue,
+					IGC_MAC_STATE_QUEUE_STEERING | flags);
+}
+
+/* Remove a MAC filter for 'addr' directing matching traffic to
+ * 'queue', 'flags' is used to indicate what kind of match need to be
+ * removed, match is by default for the destination address, if
+ * matching by source address is to be removed the flag
+ * IGC_MAC_STATE_SRC_ADDR can be used.
+ */
+static int igc_del_mac_filter_flags(struct igc_adapter *adapter,
+				    const u8 *addr, const u8 queue,
+				    const u8 flags)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int rar_entries = hw->mac.rar_entry_count;
+	int i;
+
+	if (is_zero_ether_addr(addr))
+		return -EINVAL;
+
+	/* Search for matching entry in the MAC table based on given address
+	 * and queue. Do not touch entries at the end of the table reserved
+	 * for the VF MAC addresses.
+	 */
+	for (i = 0; i < rar_entries; i++) {
+		if (!(adapter->mac_table[i].state & IGC_MAC_STATE_IN_USE))
+			continue;
+		if ((adapter->mac_table[i].state & flags) != flags)
+			continue;
+		if (adapter->mac_table[i].queue != queue)
+			continue;
+		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
+			continue;
+
+		/* When a filter for the default address is "deleted",
+		 * we return it to its initial configuration
+		 */
+		if (adapter->mac_table[i].state & IGC_MAC_STATE_DEFAULT) {
+			adapter->mac_table[i].state =
+				IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
+		} else {
+			adapter->mac_table[i].state = 0;
+			adapter->mac_table[i].queue = 0;
+			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+		}
+
+		igc_rar_set_index(adapter, i);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+int igc_del_mac_steering_filter(struct igc_adapter *adapter,
+				const u8 *addr, u8 queue, u8 flags)
+{
+	return igc_del_mac_filter_flags(adapter, addr, queue,
+					IGC_MAC_STATE_QUEUE_STEERING | flags);
 }
 
 /**
@@ -3429,6 +3868,9 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_set_mac_address	= igc_set_mac,
 	.ndo_change_mtu		= igc_change_mtu,
 	.ndo_get_stats		= igc_get_stats,
+	.ndo_fix_features	= igc_fix_features,
+	.ndo_set_features	= igc_set_features,
+	.ndo_features_check	= igc_features_check,
 };
 
 /* PCIe configuration access */
@@ -3657,6 +4099,9 @@ static int igc_probe(struct pci_dev *pdev,
 	err = igc_sw_init(adapter);
 	if (err)
 		goto err_sw_init;
+
+	/* copy netdev features into list of user selectable features */
+	netdev->hw_features |= NETIF_F_NTUPLE;
 
 	/* MTU range: 68 - 9216 */
 	netdev->min_mtu = ETH_MIN_MTU;

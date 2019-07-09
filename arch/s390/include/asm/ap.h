@@ -160,8 +160,8 @@ struct ap_config_info {
 	unsigned char Nd;		/* max # of Domains - 1 */
 	unsigned char _reserved3[10];
 	unsigned int apm[8];		/* AP ID mask */
-	unsigned int aqm[8];		/* AP queue mask */
-	unsigned int adm[8];		/* AP domain mask */
+	unsigned int aqm[8];		/* AP (usage) queue mask */
+	unsigned int adm[8];		/* AP (control) domain mask */
 	unsigned char _reserved4[16];
 } __aligned(8);
 

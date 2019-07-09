@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Merged with mainline ieee80211.h in Aug 2004.  Original ieee802_11
  * remains copyright by the original authors
@@ -15,11 +16,6 @@
  *
  * Modified for Realtek's wi-fi cards by Andrea Merello
  * <andrea.merello@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 #ifndef IEEE80211_H
 #define IEEE80211_H
@@ -296,7 +292,7 @@ struct cb_desc {
 #define ieee80211_wx_get_encode_ext	ieee80211_wx_get_encode_ext_rsl
 
 
-typedef struct ieee_param {
+struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
 	union {
@@ -323,7 +319,7 @@ typedef struct ieee_param {
 			u8 key[0];
 		} crypt;
 	} u;
-} ieee_param;
+};
 
 
 // linux under 2.6.9 release may not support it, so modify it for common use
@@ -1462,23 +1458,23 @@ struct tx_pending {
 	struct ieee80211_txb *txb;
 };
 
-typedef struct _bandwidth_autoswitch {
+struct bandwidth_autoswitch {
 	long threshold_20Mhzto40Mhz;
 	long	threshold_40Mhzto20Mhz;
 	bool bforced_tx20Mhz;
 	bool bautoswitch_enable;
-} bandwidth_autoswitch, *pbandwidth_autoswitch;
+};
 
 
 //added by amy for order
 
 #define REORDER_WIN_SIZE	128
 #define REORDER_ENTRY_NUM	128
-typedef struct _RX_REORDER_ENTRY {
+struct rx_reorder_entry {
 	struct list_head	List;
 	u16			SeqNum;
 	struct ieee80211_rxb *prxb;
-} RX_REORDER_ENTRY, *PRX_REORDER_ENTRY;
+};
 //added by amy for order
 typedef enum _Fsync_State {
 	Default_Fsync,
@@ -1506,9 +1502,9 @@ typedef enum _RT_JOIN_ACTION {
 	RT_NO_ACTION  = 4,
 } RT_JOIN_ACTION;
 
-typedef struct _IbssParms {
+struct ibss_parms {
 	u16   atimWin;
-} IbssParms, *PIbssParms;
+};
 #define MAX_NUM_RATES	264 // Max num of support rates element: 8,  Max num of ext. support rate: 255. 061122, by rcnjko.
 
 // RF state.
@@ -1518,7 +1514,7 @@ typedef	enum _RT_RF_POWER_STATE {
 	eRfOff
 } RT_RF_POWER_STATE;
 
-typedef struct _RT_POWER_SAVE_CONTROL {
+struct rt_power_save_control {
 
 	//
 	// Inactive Power Save(IPS) : Disable RF when disconnected
@@ -1554,7 +1550,7 @@ typedef struct _RT_POWER_SAVE_CONTROL {
 	struct octet_string			tmpSuppRateSet;
 	u8					tmpSuppRateBuf[MAX_NUM_RATES];
 	bool				bTmpSuppRate;
-	IbssParms				tmpIbpm;
+	struct ibss_parms			tmpIbpm;
 	bool				bTmpIbpm;
 
 	//
@@ -1562,7 +1558,7 @@ typedef struct _RT_POWER_SAVE_CONTROL {
 	//
 	bool				bLeisurePs;
 
-} RT_POWER_SAVE_CONTROL, *PRT_POWER_SAVE_CONTROL;
+};
 
 typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_SW		BIT(31)
@@ -1586,7 +1582,7 @@ typedef enum {
 } country_code_type_t;
 
 #define RT_MAX_LD_SLOT_NUM	10
-typedef struct _RT_LINK_DETECT_T {
+struct rt_link_detect {
 
 	u32				NumRecvBcnInPeriod;
 	u32				NumRecvDataInPeriod;
@@ -1599,7 +1595,7 @@ typedef struct _RT_LINK_DETECT_T {
 	u32				NumTxOkInPeriod;
 	u32				NumRxOkInPeriod;
 	bool				bBusyTraffic;
-} RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
+};
 
 
 struct ieee80211_device {
@@ -1654,7 +1650,7 @@ struct ieee80211_device {
 	struct list_head		Rx_TS_Unused_List;
 	struct rx_ts_record		RxTsRecord[TOTAL_TS_NUM];
 //#ifdef TO_DO_LIST
-	RX_REORDER_ENTRY	RxReorderEntry[128];
+	struct rx_reorder_entry	RxReorderEntry[128];
 	struct list_head		RxReorder_Unused_List;
 //#endif
 	// Qos related. Added by Annie, 2005-11-01.
@@ -1871,14 +1867,14 @@ struct ieee80211_device {
 	Fsync_State			fsync_state;
 	bool		bis_any_nonbepkts;
 	//20Mhz 40Mhz AutoSwitch Threshold
-	bandwidth_autoswitch bandwidth_auto_switch;
+	struct bandwidth_autoswitch bandwidth_auto_switch;
 	//for txpower tracking
 	bool FwRWRF;
 
 	//added by amy for AP roaming
-	RT_LINK_DETECT_T	LinkDetectInfo;
+	struct rt_link_detect LinkDetectInfo;
 	//added by amy for ps
-	RT_POWER_SAVE_CONTROL	PowerSaveControl;
+	struct rt_power_save_control PowerSaveControl;
 //}
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
 	struct  tx_pending tx_pending;

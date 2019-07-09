@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	Real Time Clock driver for Wolfson Microelectronics WM831x
  *
  *	Copyright (C) 2009 Wolfson Microelectronics PLC.
  *
  *  Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  *
  */
 
@@ -155,7 +151,7 @@ static int wm831x_rtc_readtime(struct device *dev, struct rtc_time *tm)
 		if (memcmp(time1, time2, sizeof(time1)) == 0) {
 			u32 time = (time1[0] << 16) | time1[1];
 
-			rtc_time_to_tm(time, tm);
+			rtc_time64_to_tm(time, tm);
 			return 0;
 		}
 
@@ -169,14 +165,16 @@ static int wm831x_rtc_readtime(struct device *dev, struct rtc_time *tm)
 /*
  * Set current time and date in RTC
  */
-static int wm831x_rtc_set_mmss(struct device *dev, unsigned long time)
+static int wm831x_rtc_settime(struct device *dev, struct rtc_time *tm)
 {
 	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
 	struct wm831x *wm831x = wm831x_rtc->wm831x;
 	struct rtc_time new_tm;
-	unsigned long new_time;
+	unsigned long time, new_time;
 	int ret;
 	int count = 0;
+
+	time = rtc_tm_to_time64(tm);
 
 	ret = wm831x_reg_write(wm831x, WM831X_RTC_TIME_1,
 			       (time >> 16) & 0xffff);
@@ -215,11 +213,7 @@ static int wm831x_rtc_set_mmss(struct device *dev, unsigned long time)
 	if (ret < 0)
 		return ret;
 
-	ret = rtc_tm_to_time(&new_tm, &new_time);
-	if (ret < 0) {
-		dev_err(dev, "Failed to convert time: %d\n", ret);
-		return ret;
-	}
+	new_time = rtc_tm_to_time64(&new_tm);
 
 	/* Allow a second of change in case of tick */
 	if (new_time - time > 1) {
@@ -249,7 +243,7 @@ static int wm831x_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	time = (data[0] << 16) | data[1];
 
-	rtc_time_to_tm(time, &alrm->time);
+	rtc_time64_to_tm(time, &alrm->time);
 
 	ret = wm831x_reg_read(wm831x_rtc->wm831x, WM831X_RTC_CONTROL);
 	if (ret < 0) {
@@ -288,11 +282,7 @@ static int wm831x_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	int ret;
 	unsigned long time;
 
-	ret = rtc_tm_to_time(&alrm->time, &time);
-	if (ret < 0) {
-		dev_err(dev, "Failed to convert time: %d\n", ret);
-		return ret;
-	}
+	time = rtc_tm_to_time64(&alrm->time);
 
 	ret = wm831x_rtc_stop_alarm(wm831x_rtc);
 	if (ret < 0) {
@@ -346,7 +336,7 @@ static irqreturn_t wm831x_alm_irq(int irq, void *data)
 
 static const struct rtc_class_ops wm831x_rtc_ops = {
 	.read_time = wm831x_rtc_readtime,
-	.set_mmss = wm831x_rtc_set_mmss,
+	.set_time = wm831x_rtc_settime,
 	.read_alarm = wm831x_rtc_readalarm,
 	.set_alarm = wm831x_rtc_setalarm,
 	.alarm_irq_enable = wm831x_rtc_alarm_irq_enable,
@@ -356,11 +346,10 @@ static const struct rtc_class_ops wm831x_rtc_ops = {
 /* Turn off the alarm if it should not be a wake source. */
 static int wm831x_rtc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(&pdev->dev);
+	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
 	int ret, enable;
 
-	if (wm831x_rtc->alarm_enabled && device_may_wakeup(&pdev->dev))
+	if (wm831x_rtc->alarm_enabled && device_may_wakeup(dev))
 		enable = WM831X_RTC_ALM_ENA;
 	else
 		enable = 0;
@@ -368,7 +357,7 @@ static int wm831x_rtc_suspend(struct device *dev)
 	ret = wm831x_set_bits(wm831x_rtc->wm831x, WM831X_RTC_CONTROL,
 			      WM831X_RTC_ALM_ENA, enable);
 	if (ret != 0)
-		dev_err(&pdev->dev, "Failed to update RTC alarm: %d\n", ret);
+		dev_err(dev, "Failed to update RTC alarm: %d\n", ret);
 
 	return 0;
 }
@@ -378,15 +367,13 @@ static int wm831x_rtc_suspend(struct device *dev)
  */
 static int wm831x_rtc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(&pdev->dev);
+	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
 	int ret;
 
 	if (wm831x_rtc->alarm_enabled) {
 		ret = wm831x_rtc_start_alarm(wm831x_rtc);
 		if (ret != 0)
-			dev_err(&pdev->dev,
-				"Failed to restart RTC alarm: %d\n", ret);
+			dev_err(dev, "Failed to restart RTC alarm: %d\n", ret);
 	}
 
 	return 0;
@@ -395,14 +382,13 @@ static int wm831x_rtc_resume(struct device *dev)
 /* Unconditionally disable the alarm */
 static int wm831x_rtc_freeze(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(&pdev->dev);
+	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
 	int ret;
 
 	ret = wm831x_set_bits(wm831x_rtc->wm831x, WM831X_RTC_CONTROL,
 			      WM831X_RTC_ALM_ENA, 0);
 	if (ret != 0)
-		dev_err(&pdev->dev, "Failed to stop RTC alarm: %d\n", ret);
+		dev_err(dev, "Failed to stop RTC alarm: %d\n", ret);
 
 	return 0;
 }
@@ -429,19 +415,23 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	ret = wm831x_reg_read(wm831x, WM831X_RTC_CONTROL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to read RTC control: %d\n", ret);
-		goto err;
+		return ret;
 	}
 	if (ret & WM831X_RTC_ALM_ENA)
 		wm831x_rtc->alarm_enabled = 1;
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	wm831x_rtc->rtc = devm_rtc_device_register(&pdev->dev, "wm831x",
-					      &wm831x_rtc_ops, THIS_MODULE);
-	if (IS_ERR(wm831x_rtc->rtc)) {
-		ret = PTR_ERR(wm831x_rtc->rtc);
-		goto err;
-	}
+	wm831x_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(wm831x_rtc->rtc))
+		return PTR_ERR(wm831x_rtc->rtc);
+
+	wm831x_rtc->rtc->ops = &wm831x_rtc_ops;
+	wm831x_rtc->rtc->range_max = U32_MAX;
+
+	ret = rtc_register_device(wm831x_rtc->rtc);
+	if (ret)
+		return ret;
 
 	ret = devm_request_threaded_irq(&pdev->dev, alm_irq, NULL,
 				wm831x_alm_irq,
@@ -455,9 +445,6 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	wm831x_rtc_add_randomness(wm831x);
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static const struct dev_pm_ops wm831x_rtc_pm_ops = {
