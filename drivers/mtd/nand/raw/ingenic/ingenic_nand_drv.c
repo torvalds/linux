@@ -418,6 +418,7 @@ static int ingenic_nand_init_chips(struct ingenic_nfc *nfc,
 		ret = ingenic_nand_init_chip(pdev, nfc, np, i);
 		if (ret) {
 			ingenic_nand_cleanup_chips(nfc);
+			of_node_put(np);
 			return ret;
 		}
 
