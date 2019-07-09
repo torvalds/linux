@@ -321,17 +321,6 @@ static inline void iwl_fw_flush_dumps(struct iwl_fw_runtime *fwrt)
 	}
 }
 
-static inline void iwl_fw_cancel_dumps(struct iwl_fw_runtime *fwrt)
-{
-	int i;
-
-	iwl_dbg_tlv_del_timers(fwrt->trans);
-	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
-		cancel_delayed_work_sync(&fwrt->dump.wks[i].wk);
-		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
-	}
-}
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
 {

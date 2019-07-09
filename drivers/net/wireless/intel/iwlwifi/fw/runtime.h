@@ -203,6 +203,10 @@ static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)
 		kfree(active->trig);
 		active->trig = NULL;
 	}
+
+	iwl_dbg_tlv_del_timers(fwrt->trans);
+	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
+		cancel_delayed_work_sync(&fwrt->dump.wks[i].wk);
 }
 
 void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt);
