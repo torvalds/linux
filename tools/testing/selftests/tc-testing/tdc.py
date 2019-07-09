@@ -122,15 +122,15 @@ class PluginMgr:
         for pgn_inst in reversed(self.plugin_instances):
             pgn_inst.post_suite(index)
 
-    def call_pre_case(self, testid, test_name, *, test_skip=False):
+    def call_pre_case(self, caseinfo, *, test_skip=False):
         for pgn_inst in self.plugin_instances:
             try:
-                pgn_inst.pre_case(testid, test_name, test_skip)
+                pgn_inst.pre_case(caseinfo, test_skip)
             except Exception as ee:
                 print('exception {} in call to pre_case for {} plugin'.
                       format(ee, pgn_inst.__class__))
                 print('test_ordinal is {}'.format(test_ordinal))
-                print('testid is {}'.format(testid))
+                print('testid is {}'.format(caseinfo['id']))
                 raise
 
     def call_post_case(self):
@@ -261,14 +261,14 @@ def run_one_test(pm, args, index, tidx):
             res = TestResult(tidx['id'], tidx['name'])
             res.set_result(ResultState.skip)
             res.set_errormsg('Test case designated as skipped.')
-            pm.call_pre_case(tidx['id'], tidx['name'], test_skip=True)
+            pm.call_pre_case(tidx, test_skip=True)
             pm.call_post_execute()
             return res
 
     # populate NAMES with TESTID for this test
     NAMES['TESTID'] = tidx['id']
 
-    pm.call_pre_case(tidx['id'], tidx['name'])
+    pm.call_pre_case(tidx)
     prepare_env(args, pm, 'setup', "-----> prepare stage", tidx["setup"])
 
     if (args.verbose > 0):
