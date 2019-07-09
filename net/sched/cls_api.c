@@ -673,6 +673,9 @@ static void tc_indr_block_cb_del(struct tc_indr_block_cb *indr_block_cb)
 	kfree(indr_block_cb);
 }
 
+static int tcf_block_setup(struct tcf_block *block,
+			   struct flow_block_offload *bo);
+
 static void tc_indr_block_ing_cmd(struct tc_indr_block_dev *indr_dev,
 				  struct tc_indr_block_cb *indr_block_cb,
 				  enum flow_block_command command)
@@ -683,12 +686,14 @@ static void tc_indr_block_ing_cmd(struct tc_indr_block_dev *indr_dev,
 		.net		= dev_net(indr_dev->dev),
 		.block		= indr_dev->block,
 	};
+	INIT_LIST_HEAD(&bo.cb_list);
 
 	if (!indr_dev->block)
 		return;
 
 	indr_block_cb->cb(indr_dev->dev, indr_block_cb->cb_priv, TC_SETUP_BLOCK,
 			  &bo);
+	tcf_block_setup(indr_dev->block, &bo);
 }
 
 int __tc_indr_block_cb_register(struct net_device *dev, void *cb_priv,
@@ -773,6 +778,7 @@ static void tc_indr_block_call(struct tcf_block *block, struct net_device *dev,
 		.block		= block,
 		.extack		= extack,
 	};
+	INIT_LIST_HEAD(&bo.cb_list);
 
 	indr_dev = tc_indr_block_dev_lookup(dev);
 	if (!indr_dev)
@@ -783,6 +789,8 @@ static void tc_indr_block_call(struct tcf_block *block, struct net_device *dev,
 	list_for_each_entry(indr_block_cb, &indr_dev->cb_list, list)
 		indr_block_cb->cb(dev, indr_block_cb->cb_priv, TC_SETUP_BLOCK,
 				  &bo);
+
+	tcf_block_setup(block, &bo);
 }
 
 static bool tcf_block_offload_in_use(struct tcf_block *block)
@@ -797,13 +805,20 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 				 struct netlink_ext_ack *extack)
 {
 	struct tc_block_offload bo = {};
+	int err;
 
 	bo.net = dev_net(dev);
 	bo.command = command;
 	bo.binder_type = ei->binder_type;
 	bo.block = block;
 	bo.extack = extack;
-	return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
+	INIT_LIST_HEAD(&bo.cb_list);
+
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
+	if (err < 0)
+		return err;
+
+	return tcf_block_setup(block, &bo);
 }
 
 static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
@@ -1636,6 +1651,77 @@ void tcf_block_cb_unregister(struct tcf_block *block,
 	__tcf_block_cb_unregister(block, block_cb);
 }
 EXPORT_SYMBOL(tcf_block_cb_unregister);
+
+static int tcf_block_bind(struct tcf_block *block,
+			  struct flow_block_offload *bo)
+{
+	struct flow_block_cb *block_cb, *next;
+	int err, i = 0;
+
+	list_for_each_entry(block_cb, &bo->cb_list, list) {
+		err = tcf_block_playback_offloads(block, block_cb->cb,
+						  block_cb->cb_priv, true,
+						  tcf_block_offload_in_use(block),
+						  bo->extack);
+		if (err)
+			goto err_unroll;
+
+		i++;
+	}
+	list_splice(&bo->cb_list, &block->cb_list);
+
+	return 0;
+
+err_unroll:
+	list_for_each_entry_safe(block_cb, next, &bo->cb_list, list) {
+		if (i-- > 0) {
+			list_del(&block_cb->list);
+			tcf_block_playback_offloads(block, block_cb->cb,
+						    block_cb->cb_priv, false,
+						    tcf_block_offload_in_use(block),
+						    NULL);
+		}
+		flow_block_cb_free(block_cb);
+	}
+
+	return err;
+}
+
+static void tcf_block_unbind(struct tcf_block *block,
+			     struct flow_block_offload *bo)
+{
+	struct flow_block_cb *block_cb, *next;
+
+	list_for_each_entry_safe(block_cb, next, &bo->cb_list, list) {
+		tcf_block_playback_offloads(block, block_cb->cb,
+					    block_cb->cb_priv, false,
+					    tcf_block_offload_in_use(block),
+					    NULL);
+		list_del(&block_cb->list);
+		flow_block_cb_free(block_cb);
+	}
+}
+
+static int tcf_block_setup(struct tcf_block *block,
+			   struct flow_block_offload *bo)
+{
+	int err;
+
+	switch (bo->command) {
+	case FLOW_BLOCK_BIND:
+		err = tcf_block_bind(block, bo);
+		break;
+	case FLOW_BLOCK_UNBIND:
+		err = 0;
+		tcf_block_unbind(block, bo);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
+}
 
 /* Main classifier routine: scans classifier chain attached
  * to this qdisc, (optionally) tests for protocol and asks
