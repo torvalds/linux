@@ -654,12 +654,12 @@ static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 		eop = (entry->attr >> NETSEC_TX_LAST) & 1;
 		dma_rmb();
 
-		if (desc->buf_type == TYPE_NETSEC_SKB)
+		/* if buf_type is either TYPE_NETSEC_SKB or
+		 * TYPE_NETSEC_XDP_NDO we mapped it
+		 */
+		if (desc->buf_type != TYPE_NETSEC_XDP_TX)
 			dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
 					 DMA_TO_DEVICE);
-		else if (desc->buf_type == TYPE_NETSEC_XDP_NDO)
-			dma_unmap_single(priv->dev, desc->dma_addr,
-					 desc->len, DMA_TO_DEVICE);
 
 		if (!eop)
 			goto next;
