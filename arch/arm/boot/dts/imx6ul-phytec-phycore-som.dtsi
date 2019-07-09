@@ -10,7 +10,7 @@
 #include "imx6ul.dtsi"
 
 / {
-	model = "Phytec phyCORE i.MX6 UltraLite";
+	model = "PHYTEC phyCORE-i.MX6 UltraLite";
 	compatible = "phytec,imx6ul-pcl063", "fsl,imx6ul";
 
 	chosen {

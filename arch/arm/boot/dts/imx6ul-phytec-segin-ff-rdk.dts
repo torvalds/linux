@@ -5,12 +5,12 @@
  */
 
 /dts-v1/;
-#include "imx6ul-phytec-pcl063.dtsi"
-#include "imx6ul-phytec-phyboard-segin.dtsi"
-#include "imx6ul-phytec-peb-eval-01.dtsi"
+#include "imx6ul-phytec-phycore-som.dtsi"
+#include "imx6ul-phytec-segin.dtsi"
+#include "imx6ul-phytec-segin-peb-eval-01.dtsi"
 
 / {
-	model = "Phytec phyBOARD-Segin i.MX6 UltraLite Full Featured";
+	model = "PHYTEC phyBOARD-Segin i.MX6 UltraLite Full Featured";
 	compatible = "phytec,imx6ul-pbacd10", "phytec,imx6ul-pcl063", "fsl,imx6ul";
 };
 

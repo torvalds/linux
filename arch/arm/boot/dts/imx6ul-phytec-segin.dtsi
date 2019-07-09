@@ -5,7 +5,7 @@
  */
 
 / {
-	model = "Phytec phyBOARD-Segin i.MX6 UltraLite";
+	model = "PHYTEC phyBOARD-Segin i.MX6 UltraLite";
 	compatible = "phytec,imx6ul-pbacd-10", "phytec,imx6ul-pcl063", "fsl,imx6ul";
 
 	aliases {
