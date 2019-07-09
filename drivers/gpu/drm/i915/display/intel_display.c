@@ -6685,6 +6685,20 @@ bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port)
 	return false;
 }
 
+bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
+{
+	if (phy == PHY_NONE)
+		return false;
+
+	if (IS_ELKHARTLAKE(dev_priv))
+		return phy <= PHY_C;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		return phy <= PHY_B;
+
+	return false;
+}
+
 bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port)
 {
 	if (INTEL_GEN(dev_priv) >= 11 && !IS_ELKHARTLAKE(dev_priv))
@@ -6693,9 +6707,25 @@ bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port)
 	return false;
 }
 
+bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy)
+{
+	if (INTEL_GEN(dev_priv) >= 11 && !IS_ELKHARTLAKE(dev_priv))
+		return phy >= PHY_C && phy <= PHY_F;
+
+	return false;
+}
+
+enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
+{
+	if (IS_ELKHARTLAKE(i915) && port == PORT_D)
+		return PHY_A;
+
+	return (enum phy)port;
+}
+
 enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv, enum port port)
 {
-	if (!intel_port_is_tc(dev_priv, port))
+	if (!intel_phy_is_tc(dev_priv, intel_port_to_phy(dev_priv, port)))
 		return PORT_TC_NONE;
 
 	return port - PORT_C;
