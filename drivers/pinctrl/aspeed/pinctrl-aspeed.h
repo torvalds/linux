@@ -16,6 +16,8 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/regmap.h>
 
+#include "pinmux-aspeed.h"
+
 /*
  * The ASPEED SoCs provide typically more than 200 pins for GPIO and other
  * functions. The SoC function enabled on a pin is determined on a priority
