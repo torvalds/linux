@@ -711,6 +711,9 @@ struct amdgpu_df_funcs {
 					 int is_disable);
 	void (*pmc_get_count)(struct amdgpu_device *adev, uint64_t config,
 					 uint64_t *count);
+	uint64_t (*get_fica)(struct amdgpu_device *adev, uint32_t ficaa_val);
+	void (*set_fica)(struct amdgpu_device *adev, uint32_t ficaa_val,
+			 uint32_t ficadl_val, uint32_t ficadh_val);
 };
 /* Define the HW IP blocks will be used in driver , add more if necessary */
 enum amd_hw_ip_block_type {
