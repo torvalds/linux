@@ -2012,6 +2012,70 @@ ftrace_stub:
 #endif
 ENDPROC_CFI(mcount)
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+#ifdef CONFIG_64BIT
+#define FTRACE_FRAME_SIZE (2*FRAME_SIZE)
+#else
+#define FTRACE_FRAME_SIZE FRAME_SIZE
+#endif
+ENTRY_CFI(ftrace_caller, caller,frame=FTRACE_FRAME_SIZE,CALLS,SAVE_RP,SAVE_SP)
+ftrace_caller:
+	.global ftrace_caller
+
+	STREG	%r3, -FTRACE_FRAME_SIZE+1*REG_SZ(%sp)
+	ldo	-FTRACE_FRAME_SIZE(%sp), %r3
+	STREG	%rp, -RP_OFFSET(%r3)
+
+	/* Offset 0 is already allocated for %r1 */
+	STREG	%r23, 2*REG_SZ(%r3)
+	STREG	%r24, 3*REG_SZ(%r3)
+	STREG	%r25, 4*REG_SZ(%r3)
+	STREG	%r26, 5*REG_SZ(%r3)
+	STREG	%r28, 6*REG_SZ(%r3)
+	STREG	%r29, 7*REG_SZ(%r3)
+#ifdef CONFIG_64BIT
+	STREG	%r19, 8*REG_SZ(%r3)
+	STREG	%r20, 9*REG_SZ(%r3)
+	STREG	%r21, 10*REG_SZ(%r3)
+	STREG	%r22, 11*REG_SZ(%r3)
+	STREG	%r27, 12*REG_SZ(%r3)
+	STREG	%r31, 13*REG_SZ(%r3)
+	loadgp
+	ldo	-16(%sp),%r29
+#endif
+	LDREG	0(%r3), %r25
+	copy	%rp, %r26
+	ldo	-8(%r25), %r25
+	b,l	ftrace_function_trampoline, %rp
+	copy	%r3, %r24
+
+	LDREG	-RP_OFFSET(%r3), %rp
+	LDREG	2*REG_SZ(%r3), %r23
+	LDREG	3*REG_SZ(%r3), %r24
+	LDREG	4*REG_SZ(%r3), %r25
+	LDREG	5*REG_SZ(%r3), %r26
+	LDREG	6*REG_SZ(%r3), %r28
+	LDREG	7*REG_SZ(%r3), %r29
+#ifdef CONFIG_64BIT
+	LDREG	8*REG_SZ(%r3), %r19
+	LDREG	9*REG_SZ(%r3), %r20
+	LDREG	10*REG_SZ(%r3), %r21
+	LDREG	11*REG_SZ(%r3), %r22
+	LDREG	12*REG_SZ(%r3), %r27
+	LDREG	13*REG_SZ(%r3), %r31
+#endif
+	LDREG	1*REG_SZ(%r3), %r3
+
+	LDREGM	-FTRACE_FRAME_SIZE(%sp), %r1
+	/* Adjust return point to jump back to beginning of traced function */
+	ldo	-4(%r1), %r1
+	bv,n	(%r1)
+
+ENDPROC_CFI(ftrace_caller)
+
+#endif
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.align 8
 ENTRY_CFI(return_to_handler, caller,frame=FRAME_SIZE)

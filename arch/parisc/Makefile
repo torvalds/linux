@@ -47,6 +47,24 @@ ifneq ($(SUBARCH),$(UTS_MACHINE))
 	endif
 endif
 
+ifdef CONFIG_DYNAMIC_FTRACE
+ifdef CONFIG_64BIT
+NOP_COUNT := 8
+else
+NOP_COUNT := 5
+endif
+
+export CC_USING_RECORD_MCOUNT:=1
+export CC_USING_PATCHABLE_FUNCTION_ENTRY:=1
+
+KBUILD_AFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY=1
+KBUILD_CFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY=1 \
+		 -DFTRACE_PATCHABLE_FUNCTION_SIZE=$(NOP_COUNT)
+
+CC_FLAGS_FTRACE := -fpatchable-function-entry=$(NOP_COUNT),$(shell echo $$(($(NOP_COUNT)-1)))
+KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/parisc/kernel/module.lds
+endif
+
 OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
 
 cflags-y	:= -pipe
