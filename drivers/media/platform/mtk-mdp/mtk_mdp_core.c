@@ -147,13 +147,16 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 		comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 		if (!comp) {
 			ret = -ENOMEM;
+			of_node_put(node);
 			goto err_comp;
 		}
 		mdp->comp[comp_id] = comp;
 
 		ret = mtk_mdp_comp_init(dev, node, comp, comp_id);
-		if (ret)
+		if (ret) {
+			of_node_put(node);
 			goto err_comp;
+		}
 	}
 
 	mdp->job_wq = create_singlethread_workqueue(MTK_MDP_MODULE_NAME);
