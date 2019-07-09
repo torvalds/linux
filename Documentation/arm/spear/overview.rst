@@ -15,6 +15,7 @@ Introduction
   Hierarchy in SPEAr is as follows:
 
   SPEAr (Platform)
+
 	- SPEAr3XX (3XX SOC series, based on ARM9)
 		- SPEAr300 (SOC)
 			- SPEAr300 Evaluation Board
