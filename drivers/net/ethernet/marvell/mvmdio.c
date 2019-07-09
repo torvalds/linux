@@ -64,7 +64,7 @@
 
 struct orion_mdio_dev {
 	void __iomem *regs;
-	struct clk *clk[3];
+	struct clk *clk[4];
 	/*
 	 * If we have access to the error interrupt pin (which is
 	 * somewhat misnamed as it not only reflects internal errors
