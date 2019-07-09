@@ -155,17 +155,30 @@ nfp_net_tls_set_ipver_vlan(struct nfp_crypto_req_add_front *front, u8 ipver)
 						   NFP_NET_TLS_VLAN_UNUSED));
 }
 
+static void
+nfp_net_tls_assign_conn_id(struct nfp_net *nn,
+			   struct nfp_crypto_req_add_front *front)
+{
+	u32 len;
+	u64 id;
+
+	id = atomic64_inc_return(&nn->ktls_conn_id_gen);
+	len = front->key_len - NFP_NET_TLS_NON_ADDR_KEY_LEN;
+
+	memcpy(front->l3_addrs, &id, sizeof(id));
+	memset(front->l3_addrs + sizeof(id), 0, len - sizeof(id));
+}
+
 static struct nfp_crypto_req_add_back *
-nfp_net_tls_set_ipv4(struct nfp_crypto_req_add_v4 *req, struct sock *sk,
-		     int direction)
+nfp_net_tls_set_ipv4(struct nfp_net *nn, struct nfp_crypto_req_add_v4 *req,
+		     struct sock *sk, int direction)
 {
 	struct inet_sock *inet = inet_sk(sk);
 
 	req->front.key_len += sizeof(__be32) * 2;
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
-		req->src_ip = inet->inet_saddr;
-		req->dst_ip = inet->inet_daddr;
+		nfp_net_tls_assign_conn_id(nn, &req->front);
 	} else {
 		req->src_ip = inet->inet_daddr;
 		req->dst_ip = inet->inet_saddr;
@@ -175,8 +188,8 @@ nfp_net_tls_set_ipv4(struct nfp_crypto_req_add_v4 *req, struct sock *sk,
 }
 
 static struct nfp_crypto_req_add_back *
-nfp_net_tls_set_ipv6(struct nfp_crypto_req_add_v6 *req, struct sock *sk,
-		     int direction)
+nfp_net_tls_set_ipv6(struct nfp_net *nn, struct nfp_crypto_req_add_v6 *req,
+		     struct sock *sk, int direction)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -184,8 +197,7 @@ nfp_net_tls_set_ipv6(struct nfp_crypto_req_add_v6 *req, struct sock *sk,
 	req->front.key_len += sizeof(struct in6_addr) * 2;
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
-		memcpy(req->src_ip, &np->saddr, sizeof(req->src_ip));
-		memcpy(req->dst_ip, &sk->sk_v6_daddr, sizeof(req->dst_ip));
+		nfp_net_tls_assign_conn_id(nn, &req->front);
 	} else {
 		memcpy(req->src_ip, &sk->sk_v6_daddr, sizeof(req->src_ip));
 		memcpy(req->dst_ip, &np->saddr, sizeof(req->dst_ip));
@@ -205,8 +217,8 @@ nfp_net_tls_set_l4(struct nfp_crypto_req_add_front *front,
 	front->l4_proto = IPPROTO_TCP;
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
-		back->src_port = inet->inet_sport;
-		back->dst_port = inet->inet_dport;
+		back->src_port = 0;
+		back->dst_port = 0;
 	} else {
 		back->src_port = inet->inet_dport;
 		back->dst_port = inet->inet_sport;
@@ -260,6 +272,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	struct nfp_crypto_reply_add *reply;
 	struct sk_buff *skb;
 	size_t req_sz;
+	void *req;
 	bool ipv6;
 	int err;
 
@@ -302,16 +315,17 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 
 	front = (void *)skb->data;
 	front->ep_id = 0;
-	front->key_len = 8;
+	front->key_len = NFP_NET_TLS_NON_ADDR_KEY_LEN;
 	front->opcode = nfp_tls_1_2_dir_to_opcode(direction);
 	memset(front->resv, 0, sizeof(front->resv));
 
 	nfp_net_tls_set_ipver_vlan(front, ipv6 ? 6 : 4);
 
+	req = (void *)skb->data;
 	if (ipv6)
-		back = nfp_net_tls_set_ipv6((void *)skb->data, sk, direction);
+		back = nfp_net_tls_set_ipv6(nn, req, sk, direction);
 	else
-		back = nfp_net_tls_set_ipv4((void *)skb->data, sk, direction);
+		back = nfp_net_tls_set_ipv4(nn, req, sk, direction);
 
 	nfp_net_tls_set_l4(front, back, sk, direction);
 
@@ -329,7 +343,8 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	err = nfp_ccm_mbox_communicate(nn, skb, NFP_CCM_TYPE_CRYPTO_ADD,
 				       sizeof(*reply), sizeof(*reply));
 	if (err) {
-		nn_dp_warn(&nn->dp, "failed to add TLS: %d\n", err);
+		nn_dp_warn(&nn->dp, "failed to add TLS: %d (%d)\n",
+			   err, direction == TLS_OFFLOAD_CTX_DIR_TX);
 		/* communicate frees skb on error */
 		goto err_conn_remove;
 	}
