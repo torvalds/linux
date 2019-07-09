@@ -96,7 +96,7 @@ EXPORT_SYMBOL(key_type_keyring);
  * Semaphore to serialise link/link calls to prevent two link calls in parallel
  * introducing a cycle.
  */
-static DECLARE_RWSEM(keyring_serialise_link_sem);
+static DEFINE_MUTEX(keyring_serialise_link_lock);
 
 /*
  * Publish the name of a keyring so that it can be found by name (if it has
@@ -516,7 +516,7 @@ EXPORT_SYMBOL(keyring_alloc);
  * @keyring: The keyring being added to.
  * @type: The type of key being added.
  * @payload: The payload of the key intended to be added.
- * @data: Additional data for evaluating restriction.
+ * @restriction_key: Keys providing additional data for evaluating restriction.
  *
  * Reject the addition of any links to a keyring.  It can be overridden by
  * passing KEY_ALLOC_BYPASS_RESTRICTION to key_instantiate_and_link() when
@@ -972,9 +972,13 @@ static bool keyring_detect_restriction_cycle(const struct key *dest_keyring,
 
 /**
  * keyring_restrict - Look up and apply a restriction to a keyring
- *
- * @keyring: The keyring to be restricted
+ * @keyring_ref: The keyring to be restricted
+ * @type: The key type that will provide the restriction checker.
  * @restriction: The restriction options to apply to the keyring
+ *
+ * Look up a keyring and apply a restriction to it.  The restriction is managed
+ * by the specific key type, but can be configured by the options specified in
+ * the restriction string.
  */
 int keyring_restrict(key_ref_t keyring_ref, const char *type,
 		     const char *restriction)
@@ -1192,13 +1196,67 @@ static int keyring_detect_cycle(struct key *A, struct key *B)
 }
 
 /*
+ * Lock keyring for link.
+ */
+int __key_link_lock(struct key *keyring,
+		    const struct keyring_index_key *index_key)
+	__acquires(&keyring->sem)
+	__acquires(&keyring_serialise_link_lock)
+{
+	if (keyring->type != &key_type_keyring)
+		return -ENOTDIR;
+
+	down_write(&keyring->sem);
+
+	/* Serialise link/link calls to prevent parallel calls causing a cycle
+	 * when linking two keyring in opposite orders.
+	 */
+	if (index_key->type == &key_type_keyring)
+		mutex_lock(&keyring_serialise_link_lock);
+
+	return 0;
+}
+
+/*
+ * Lock keyrings for move (link/unlink combination).
+ */
+int __key_move_lock(struct key *l_keyring, struct key *u_keyring,
+		    const struct keyring_index_key *index_key)
+	__acquires(&l_keyring->sem)
+	__acquires(&u_keyring->sem)
+	__acquires(&keyring_serialise_link_lock)
+{
+	if (l_keyring->type != &key_type_keyring ||
+	    u_keyring->type != &key_type_keyring)
+		return -ENOTDIR;
+
+	/* We have to be very careful here to take the keyring locks in the
+	 * right order, lest we open ourselves to deadlocking against another
+	 * move operation.
+	 */
+	if (l_keyring < u_keyring) {
+		down_write(&l_keyring->sem);
+		down_write_nested(&u_keyring->sem, 1);
+	} else {
+		down_write(&u_keyring->sem);
+		down_write_nested(&l_keyring->sem, 1);
+	}
+
+	/* Serialise link/link calls to prevent parallel calls causing a cycle
+	 * when linking two keyring in opposite orders.
+	 */
+	if (index_key->type == &key_type_keyring)
+		mutex_lock(&keyring_serialise_link_lock);
+
+	return 0;
+}
+
+/*
  * Preallocate memory so that a key can be linked into to a keyring.
  */
 int __key_link_begin(struct key *keyring,
 		     const struct keyring_index_key *index_key,
 		     struct assoc_array_edit **_edit)
-	__acquires(&keyring->sem)
-	__acquires(&keyring_serialise_link_sem)
 {
 	struct assoc_array_edit *edit;
 	int ret;
@@ -1207,20 +1265,13 @@ int __key_link_begin(struct key *keyring,
 	       keyring->serial, index_key->type->name, index_key->description);
 
 	BUG_ON(index_key->desc_len == 0);
+	BUG_ON(*_edit != NULL);
 
-	if (keyring->type != &key_type_keyring)
-		return -ENOTDIR;
-
-	down_write(&keyring->sem);
+	*_edit = NULL;
 
 	ret = -EKEYREVOKED;
 	if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
-		goto error_krsem;
-
-	/* serialise link/link calls to prevent parallel calls causing a cycle
-	 * when linking two keyring in opposite orders */
-	if (index_key->type == &key_type_keyring)
-		down_write(&keyring_serialise_link_sem);
+		goto error;
 
 	/* Create an edit script that will insert/replace the key in the
 	 * keyring tree.
@@ -1231,7 +1282,7 @@ int __key_link_begin(struct key *keyring,
 				  NULL);
 	if (IS_ERR(edit)) {
 		ret = PTR_ERR(edit);
-		goto error_sem;
+		goto error;
 	}
 
 	/* If we're not replacing a link in-place then we're going to need some
@@ -1250,11 +1301,7 @@ int __key_link_begin(struct key *keyring,
 
 error_cancel:
 	assoc_array_cancel_edit(edit);
-error_sem:
-	if (index_key->type == &key_type_keyring)
-		up_write(&keyring_serialise_link_sem);
-error_krsem:
-	up_write(&keyring->sem);
+error:
 	kleave(" = %d", ret);
 	return ret;
 }
@@ -1299,13 +1346,10 @@ void __key_link_end(struct key *keyring,
 		    const struct keyring_index_key *index_key,
 		    struct assoc_array_edit *edit)
 	__releases(&keyring->sem)
-	__releases(&keyring_serialise_link_sem)
+	__releases(&keyring_serialise_link_lock)
 {
 	BUG_ON(index_key->type == NULL);
 	kenter("%d,%s,", keyring->serial, index_key->type->name);
-
-	if (index_key->type == &key_type_keyring)
-		up_write(&keyring_serialise_link_sem);
 
 	if (edit) {
 		if (!edit->dead_leaf) {
@@ -1315,6 +1359,9 @@ void __key_link_end(struct key *keyring,
 		assoc_array_cancel_edit(edit);
 	}
 	up_write(&keyring->sem);
+
+	if (index_key->type == &key_type_keyring)
+		mutex_unlock(&keyring_serialise_link_lock);
 }
 
 /*
@@ -1350,7 +1397,7 @@ static int __key_link_check_restriction(struct key *keyring, struct key *key)
  */
 int key_link(struct key *keyring, struct key *key)
 {
-	struct assoc_array_edit *edit;
+	struct assoc_array_edit *edit = NULL;
 	int ret;
 
 	kenter("{%d,%d}", keyring->serial, refcount_read(&keyring->usage));
@@ -1358,21 +1405,87 @@ int key_link(struct key *keyring, struct key *key)
 	key_check(keyring);
 	key_check(key);
 
-	ret = __key_link_begin(keyring, &key->index_key, &edit);
-	if (ret == 0) {
-		kdebug("begun {%d,%d}", keyring->serial, refcount_read(&keyring->usage));
-		ret = __key_link_check_restriction(keyring, key);
-		if (ret == 0)
-			ret = __key_link_check_live_key(keyring, key);
-		if (ret == 0)
-			__key_link(key, &edit);
-		__key_link_end(keyring, &key->index_key, edit);
-	}
+	ret = __key_link_lock(keyring, &key->index_key);
+	if (ret < 0)
+		goto error;
 
+	ret = __key_link_begin(keyring, &key->index_key, &edit);
+	if (ret < 0)
+		goto error_end;
+
+	kdebug("begun {%d,%d}", keyring->serial, refcount_read(&keyring->usage));
+	ret = __key_link_check_restriction(keyring, key);
+	if (ret == 0)
+		ret = __key_link_check_live_key(keyring, key);
+	if (ret == 0)
+		__key_link(key, &edit);
+
+error_end:
+	__key_link_end(keyring, &key->index_key, edit);
+error:
 	kleave(" = %d {%d,%d}", ret, keyring->serial, refcount_read(&keyring->usage));
 	return ret;
 }
 EXPORT_SYMBOL(key_link);
+
+/*
+ * Lock a keyring for unlink.
+ */
+static int __key_unlink_lock(struct key *keyring)
+	__acquires(&keyring->sem)
+{
+	if (keyring->type != &key_type_keyring)
+		return -ENOTDIR;
+
+	down_write(&keyring->sem);
+	return 0;
+}
+
+/*
+ * Begin the process of unlinking a key from a keyring.
+ */
+static int __key_unlink_begin(struct key *keyring, struct key *key,
+			      struct assoc_array_edit **_edit)
+{
+	struct assoc_array_edit *edit;
+
+	BUG_ON(*_edit != NULL);
+	
+	edit = assoc_array_delete(&keyring->keys, &keyring_assoc_array_ops,
+				  &key->index_key);
+	if (IS_ERR(edit))
+		return PTR_ERR(edit);
+
+	if (!edit)
+		return -ENOENT;
+
+	*_edit = edit;
+	return 0;
+}
+
+/*
+ * Apply an unlink change.
+ */
+static void __key_unlink(struct key *keyring, struct key *key,
+			 struct assoc_array_edit **_edit)
+{
+	assoc_array_apply_edit(*_edit);
+	*_edit = NULL;
+	key_payload_reserve(keyring, keyring->datalen - KEYQUOTA_LINK_BYTES);
+}
+
+/*
+ * Finish unlinking a key from to a keyring.
+ */
+static void __key_unlink_end(struct key *keyring,
+			     struct key *key,
+			     struct assoc_array_edit *edit)
+	__releases(&keyring->sem)
+{
+	if (edit)
+		assoc_array_cancel_edit(edit);
+	up_write(&keyring->sem);
+}
 
 /**
  * key_unlink - Unlink the first link to a key from a keyring.
@@ -1393,36 +1506,97 @@ EXPORT_SYMBOL(key_link);
  */
 int key_unlink(struct key *keyring, struct key *key)
 {
-	struct assoc_array_edit *edit;
+	struct assoc_array_edit *edit = NULL;
 	int ret;
 
 	key_check(keyring);
 	key_check(key);
 
-	if (keyring->type != &key_type_keyring)
-		return -ENOTDIR;
+	ret = __key_unlink_lock(keyring);
+	if (ret < 0)
+		return ret;
 
-	down_write(&keyring->sem);
-
-	edit = assoc_array_delete(&keyring->keys, &keyring_assoc_array_ops,
-				  &key->index_key);
-	if (IS_ERR(edit)) {
-		ret = PTR_ERR(edit);
-		goto error;
-	}
-	ret = -ENOENT;
-	if (edit == NULL)
-		goto error;
-
-	assoc_array_apply_edit(edit);
-	key_payload_reserve(keyring, keyring->datalen - KEYQUOTA_LINK_BYTES);
-	ret = 0;
-
-error:
-	up_write(&keyring->sem);
+	ret = __key_unlink_begin(keyring, key, &edit);
+	if (ret == 0)
+		__key_unlink(keyring, key, &edit);
+	__key_unlink_end(keyring, key, edit);
 	return ret;
 }
 EXPORT_SYMBOL(key_unlink);
+
+/**
+ * key_move - Move a key from one keyring to another
+ * @key: The key to move
+ * @from_keyring: The keyring to remove the link from.
+ * @to_keyring: The keyring to make the link in.
+ * @flags: Qualifying flags, such as KEYCTL_MOVE_EXCL.
+ *
+ * Make a link in @to_keyring to a key, such that the keyring holds a reference
+ * on that key and the key can potentially be found by searching that keyring
+ * whilst simultaneously removing a link to the key from @from_keyring.
+ *
+ * This function will write-lock both keyring's semaphores and will consume
+ * some of the user's key data quota to hold the link on @to_keyring.
+ *
+ * Returns 0 if successful, -ENOTDIR if either keyring isn't a keyring,
+ * -EKEYREVOKED if either keyring has been revoked, -ENFILE if the second
+ * keyring is full, -EDQUOT if there is insufficient key data quota remaining
+ * to add another link or -ENOMEM if there's insufficient memory.  If
+ * KEYCTL_MOVE_EXCL is set, then -EEXIST will be returned if there's already a
+ * matching key in @to_keyring.
+ *
+ * It is assumed that the caller has checked that it is permitted for a link to
+ * be made (the keyring should have Write permission and the key Link
+ * permission).
+ */
+int key_move(struct key *key,
+	     struct key *from_keyring,
+	     struct key *to_keyring,
+	     unsigned int flags)
+{
+	struct assoc_array_edit *from_edit = NULL, *to_edit = NULL;
+	int ret;
+
+	kenter("%d,%d,%d", key->serial, from_keyring->serial, to_keyring->serial);
+
+	if (from_keyring == to_keyring)
+		return 0;
+
+	key_check(key);
+	key_check(from_keyring);
+	key_check(to_keyring);
+
+	ret = __key_move_lock(from_keyring, to_keyring, &key->index_key);
+	if (ret < 0)
+		goto out;
+	ret = __key_unlink_begin(from_keyring, key, &from_edit);
+	if (ret < 0)
+		goto error;
+	ret = __key_link_begin(to_keyring, &key->index_key, &to_edit);
+	if (ret < 0)
+		goto error;
+
+	ret = -EEXIST;
+	if (to_edit->dead_leaf && (flags & KEYCTL_MOVE_EXCL))
+		goto error;
+
+	ret = __key_link_check_restriction(to_keyring, key);
+	if (ret < 0)
+		goto error;
+	ret = __key_link_check_live_key(to_keyring, key);
+	if (ret < 0)
+		goto error;
+
+	__key_unlink(from_keyring, key, &from_edit);
+	__key_link(key, &to_edit);
+error:
+	__key_link_end(to_keyring, &key->index_key, to_edit);
+	__key_unlink_end(from_keyring, key, from_edit);
+out:
+	kleave(" = %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL(key_move);
 
 /**
  * keyring_clear - Clear a keyring

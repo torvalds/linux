@@ -577,6 +577,27 @@ The keyctl syscall functions are:
      added.
 
 
+  *  Move a key from one keyring to another::
+
+	long keyctl(KEYCTL_MOVE,
+		    key_serial_t id,
+		    key_serial_t from_ring_id,
+		    key_serial_t to_ring_id,
+		    unsigned int flags);
+
+     Move the key specified by "id" from the keyring specified by
+     "from_ring_id" to the keyring specified by "to_ring_id".  If the two
+     keyrings are the same, nothing is done.
+
+     "flags" can have KEYCTL_MOVE_EXCL set in it to cause the operation to fail
+     with EEXIST if a matching key exists in the destination keyring, otherwise
+     such a key will be replaced.
+
+     A process must have link permission on the key for this function to be
+     successful and write permission on both keyrings.  Any errors that can
+     occur from KEYCTL_LINK also apply on the destination keyring here.
+
+
   *  Unlink a key or keyring from another keyring::
 
 	long keyctl(KEYCTL_UNLINK, key_serial_t keyring, key_serial_t key);

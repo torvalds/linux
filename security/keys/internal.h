@@ -89,6 +89,10 @@ extern wait_queue_head_t request_key_conswq;
 extern struct key_type *key_type_lookup(const char *type);
 extern void key_type_put(struct key_type *ktype);
 
+extern int __key_link_lock(struct key *keyring,
+			   const struct keyring_index_key *index_key);
+extern int __key_move_lock(struct key *l_keyring, struct key *u_keyring,
+			   const struct keyring_index_key *index_key);
 extern int __key_link_begin(struct key *keyring,
 			    const struct keyring_index_key *index_key,
 			    struct assoc_array_edit **_edit);
@@ -211,6 +215,7 @@ extern long keyctl_update_key(key_serial_t, const void __user *, size_t);
 extern long keyctl_revoke_key(key_serial_t);
 extern long keyctl_keyring_clear(key_serial_t);
 extern long keyctl_keyring_link(key_serial_t, key_serial_t);
+extern long keyctl_keyring_move(key_serial_t, key_serial_t, key_serial_t, unsigned int);
 extern long keyctl_keyring_unlink(key_serial_t, key_serial_t);
 extern long keyctl_describe_key(key_serial_t, char __user *, size_t);
 extern long keyctl_keyring_search(key_serial_t, const char __user *,
@@ -319,6 +324,8 @@ static inline long keyctl_pkey_e_d_s(int op,
 	return -EOPNOTSUPP;
 }
 #endif
+
+extern long keyctl_capabilities(unsigned char __user *_buffer, size_t buflen);
 
 /*
  * Debugging key validation
