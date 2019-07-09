@@ -2,6 +2,7 @@
 #ifndef __LINUX_PKT_SCHED_H
 #define __LINUX_PKT_SCHED_H
 
+#include <linux/const.h>
 #include <linux/types.h>
 
 /* Logical priority bands not depending on specific packet scheduler.
