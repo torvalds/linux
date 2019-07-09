@@ -573,8 +573,7 @@ void imx_media_fill_default_mbus_fields(struct v4l2_mbus_framefmt *tryfmt,
 EXPORT_SYMBOL_GPL(imx_media_fill_default_mbus_fields);
 
 int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
-				  struct v4l2_rect *compose,
-				  const struct v4l2_mbus_framefmt *mbus,
+				  struct v4l2_mbus_framefmt *mbus,
 				  const struct imx_media_pixfmt *cc)
 {
 	u32 width;
@@ -621,17 +620,6 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 	pix->sizeimage = cc->planar ? ((stride * pix->height * cc->bpp) >> 3) :
 			 stride * pix->height;
 
-	/*
-	 * set capture compose rectangle, which is fixed to the
-	 * source subdevice mbus format.
-	 */
-	if (compose) {
-		compose->left = 0;
-		compose->top = 0;
-		compose->width = mbus->width;
-		compose->height = mbus->height;
-	}
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(imx_media_mbus_fmt_to_pix_fmt);
@@ -643,10 +631,12 @@ int imx_media_mbus_fmt_to_ipu_image(struct ipu_image *image,
 
 	memset(image, 0, sizeof(*image));
 
-	ret = imx_media_mbus_fmt_to_pix_fmt(&image->pix, &image->rect,
-					    mbus, NULL);
+	ret = imx_media_mbus_fmt_to_pix_fmt(&image->pix, mbus, NULL);
 	if (ret)
 		return ret;
+
+	image->rect.width = mbus->width;
+	image->rect.height = mbus->height;
 
 	return 0;
 }
@@ -675,29 +665,28 @@ int imx_media_ipu_image_to_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 }
 EXPORT_SYMBOL_GPL(imx_media_ipu_image_to_mbus_fmt);
 
-void imx_media_free_dma_buf(struct imx_media_dev *imxmd,
+void imx_media_free_dma_buf(struct device *dev,
 			    struct imx_media_dma_buf *buf)
 {
 	if (buf->virt)
-		dma_free_coherent(imxmd->md.dev, buf->len,
-				  buf->virt, buf->phys);
+		dma_free_coherent(dev, buf->len, buf->virt, buf->phys);
 
 	buf->virt = NULL;
 	buf->phys = 0;
 }
 EXPORT_SYMBOL_GPL(imx_media_free_dma_buf);
 
-int imx_media_alloc_dma_buf(struct imx_media_dev *imxmd,
+int imx_media_alloc_dma_buf(struct device *dev,
 			    struct imx_media_dma_buf *buf,
 			    int size)
 {
-	imx_media_free_dma_buf(imxmd, buf);
+	imx_media_free_dma_buf(dev, buf);
 
 	buf->len = PAGE_ALIGN(size);
-	buf->virt = dma_alloc_coherent(imxmd->md.dev, buf->len, &buf->phys,
+	buf->virt = dma_alloc_coherent(dev, buf->len, &buf->phys,
 				       GFP_DMA | GFP_KERNEL);
 	if (!buf->virt) {
-		dev_err(imxmd->md.dev, "failed to alloc dma buffer\n");
+		dev_err(dev, "%s: failed\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -764,35 +753,37 @@ imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
 EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_devname);
 
 /*
- * Adds a video device to the master video device list. This is called by
- * an async subdev that owns a video device when it is registered.
+ * Adds a video device to the master video device list. This is called
+ * when a video device is registered.
  */
-int imx_media_add_video_device(struct imx_media_dev *imxmd,
-			       struct imx_media_video_dev *vdev)
+void imx_media_add_video_device(struct imx_media_dev *imxmd,
+				struct imx_media_video_dev *vdev)
 {
 	mutex_lock(&imxmd->mutex);
 
 	list_add_tail(&vdev->list, &imxmd->vdev_list);
 
 	mutex_unlock(&imxmd->mutex);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(imx_media_add_video_device);
 
 /*
- * Search upstream/downstream for a subdevice in the current pipeline
- * with given grp_id, starting from start_entity. Returns the subdev's
- * source/sink pad that it was reached from. If grp_id is zero, just
- * returns the nearest source/sink pad to start_entity. Must be called
- * with mdev->graph_mutex held.
+ * Search upstream/downstream for a subdevice or video device pad in the
+ * current pipeline, starting from start_entity. Returns the device's
+ * source/sink pad that it was reached from. Must be called with
+ * mdev->graph_mutex held.
+ *
+ * If grp_id != 0, finds a subdevice's pad of given grp_id.
+ * Else If buftype != 0, finds a video device's pad of given buffer type.
+ * Else, returns the nearest source/sink pad to start_entity.
  */
-static struct media_pad *
-find_pipeline_pad(struct imx_media_dev *imxmd,
-		  struct media_entity *start_entity,
-		  u32 grp_id, bool upstream)
+struct media_pad *
+imx_media_pipeline_pad(struct media_entity *start_entity, u32 grp_id,
+		       enum v4l2_buf_type buftype, bool upstream)
 {
 	struct media_entity *me = start_entity;
 	struct media_pad *pad = NULL;
+	struct video_device *vfd;
 	struct v4l2_subdev *sd;
 	int i;
 
@@ -804,16 +795,27 @@ find_pipeline_pad(struct imx_media_dev *imxmd,
 			continue;
 
 		pad = media_entity_remote_pad(spad);
-		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
+		if (!pad)
 			continue;
 
-		if (grp_id != 0) {
-			sd = media_entity_to_v4l2_subdev(pad->entity);
-			if (sd->grp_id & grp_id)
-				return pad;
+		if (grp_id) {
+			if (is_media_entity_v4l2_subdev(pad->entity)) {
+				sd = media_entity_to_v4l2_subdev(pad->entity);
+				if (sd->grp_id & grp_id)
+					return pad;
+			}
 
-			return find_pipeline_pad(imxmd, pad->entity,
-						 grp_id, upstream);
+			return imx_media_pipeline_pad(pad->entity, grp_id,
+						      buftype, upstream);
+		} else if (buftype) {
+			if (is_media_entity_v4l2_video_device(pad->entity)) {
+				vfd = media_entity_to_video_device(pad->entity);
+				if (buftype == vfd->queue->type)
+					return pad;
+			}
+
+			return imx_media_pipeline_pad(pad->entity, grp_id,
+						      buftype, upstream);
 		} else {
 			return pad;
 		}
@@ -821,28 +823,33 @@ find_pipeline_pad(struct imx_media_dev *imxmd,
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(imx_media_pipeline_pad);
 
 /*
- * Search upstream for a subdev in the current pipeline with
- * given grp_id. Must be called with mdev->graph_mutex held.
+ * Search upstream/downstream for a subdev or video device in the current
+ * pipeline. Must be called with mdev->graph_mutex held.
  */
-static struct v4l2_subdev *
-find_upstream_subdev(struct imx_media_dev *imxmd,
-		     struct media_entity *start_entity,
-		     u32 grp_id)
+static struct media_entity *
+find_pipeline_entity(struct media_entity *start, u32 grp_id,
+		     enum v4l2_buf_type buftype, bool upstream)
 {
+	struct media_pad *pad = NULL;
+	struct video_device *vfd;
 	struct v4l2_subdev *sd;
-	struct media_pad *pad;
 
-	if (is_media_entity_v4l2_subdev(start_entity)) {
-		sd = media_entity_to_v4l2_subdev(start_entity);
+	if (grp_id && is_media_entity_v4l2_subdev(start)) {
+		sd = media_entity_to_v4l2_subdev(start);
 		if (sd->grp_id & grp_id)
-			return sd;
+			return &sd->entity;
+	} else if (buftype && is_media_entity_v4l2_video_device(start)) {
+		vfd = media_entity_to_video_device(pad->entity);
+		if (buftype == vfd->queue->type)
+			return &vfd->entity;
 	}
 
-	pad = find_pipeline_pad(imxmd, start_entity, grp_id, true);
+	pad = imx_media_pipeline_pad(start, grp_id, buftype, upstream);
 
-	return pad ? media_entity_to_v4l2_subdev(pad->entity) : NULL;
+	return pad ? pad->entity : NULL;
 }
 
 /*
@@ -850,42 +857,19 @@ find_upstream_subdev(struct imx_media_dev *imxmd,
  * start entity in the current pipeline.
  * Must be called with mdev->graph_mutex held.
  */
-int imx_media_find_mipi_csi2_channel(struct imx_media_dev *imxmd,
-				     struct media_entity *start_entity)
+int imx_media_pipeline_csi2_channel(struct media_entity *start_entity)
 {
 	struct media_pad *pad;
 	int ret = -EPIPE;
 
-	pad = find_pipeline_pad(imxmd, start_entity, IMX_MEDIA_GRP_ID_CSI2,
-				true);
-	if (pad) {
+	pad = imx_media_pipeline_pad(start_entity, IMX_MEDIA_GRP_ID_CSI2,
+				     0, true);
+	if (pad)
 		ret = pad->index - 1;
-		dev_dbg(imxmd->md.dev, "found vc%d from %s\n",
-			ret, start_entity->name);
-	}
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(imx_media_find_mipi_csi2_channel);
-
-/*
- * Find a source pad reached upstream from the given start entity in
- * the current pipeline. Must be called with mdev->graph_mutex held.
- */
-struct media_pad *
-imx_media_find_upstream_pad(struct imx_media_dev *imxmd,
-			    struct media_entity *start_entity,
-			    u32 grp_id)
-{
-	struct media_pad *pad;
-
-	pad = find_pipeline_pad(imxmd, start_entity, grp_id, true);
-	if (!pad)
-		return ERR_PTR(-ENODEV);
-
-	return pad;
-}
-EXPORT_SYMBOL_GPL(imx_media_find_upstream_pad);
+EXPORT_SYMBOL_GPL(imx_media_pipeline_csi2_channel);
 
 /*
  * Find a subdev reached upstream from the given start entity in
@@ -893,19 +877,37 @@ EXPORT_SYMBOL_GPL(imx_media_find_upstream_pad);
  * Must be called with mdev->graph_mutex held.
  */
 struct v4l2_subdev *
-imx_media_find_upstream_subdev(struct imx_media_dev *imxmd,
-			       struct media_entity *start_entity,
-			       u32 grp_id)
+imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
+			  bool upstream)
 {
-	struct v4l2_subdev *sd;
+	struct media_entity *me;
 
-	sd = find_upstream_subdev(imxmd, start_entity, grp_id);
-	if (!sd)
+	me = find_pipeline_entity(start_entity, grp_id, 0, upstream);
+	if (!me)
 		return ERR_PTR(-ENODEV);
 
-	return sd;
+	return media_entity_to_v4l2_subdev(me);
 }
-EXPORT_SYMBOL_GPL(imx_media_find_upstream_subdev);
+EXPORT_SYMBOL_GPL(imx_media_pipeline_subdev);
+
+/*
+ * Find a subdev reached upstream from the given start entity in
+ * the current pipeline.
+ * Must be called with mdev->graph_mutex held.
+ */
+struct video_device *
+imx_media_pipeline_video_device(struct media_entity *start_entity,
+				enum v4l2_buf_type buftype, bool upstream)
+{
+	struct media_entity *me;
+
+	me = find_pipeline_entity(start_entity, 0, buftype, upstream);
+	if (!me)
+		return ERR_PTR(-ENODEV);
+
+	return media_entity_to_video_device(me);
+}
+EXPORT_SYMBOL_GPL(imx_media_pipeline_video_device);
 
 /*
  * Turn current pipeline streaming on/off starting from entity.
