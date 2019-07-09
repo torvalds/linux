@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <net/netlink.h>
 
-extern struct sock *crypto_nlsk;
-
 struct crypto_alg *crypto_alg_match(struct crypto_user_alg *p, int exact);
 
 #ifdef CONFIG_CRYPTO_STATS
