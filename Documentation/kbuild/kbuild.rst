@@ -18,7 +18,7 @@ This file lists all modules that are built into the kernel. This is used
 by modprobe to not fail when trying to load something builtin.
 
 modules.builtin.modinfo
---------------------------------------------------
+-----------------------
 This file contains modinfo from all modules that are built into the kernel.
 Unlike modinfo of a separate module, all fields are prefixed with module name.
 
@@ -153,6 +153,7 @@ Install script called when using "make install".
 The default name is "installkernel".
 
 The script will be called with the following arguments:
+
    - $1 - kernel version
    - $2 - kernel image file
    - $3 - kernel map file
