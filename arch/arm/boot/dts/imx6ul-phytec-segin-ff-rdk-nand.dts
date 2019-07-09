@@ -34,6 +34,18 @@
 	status = "okay";
 };
 
+&ethphy1 {
+	status = "okay";
+};
+
+&ethphy2 {
+	status = "okay";
+};
+
+&fec1 {
+	status = "okay";
+};
+
 &fec2 {
 	status = "okay";
 };
