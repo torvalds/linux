@@ -254,14 +254,6 @@ save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 	WARN_ONCE(1, KERN_INFO "save_stack_trace_regs() not implemented yet.\n");
 }
 
-__weak int
-save_stack_trace_tsk_reliable(struct task_struct *tsk,
-			      struct stack_trace *trace)
-{
-	WARN_ONCE(1, KERN_INFO "save_stack_tsk_reliable() not implemented yet.\n");
-	return -ENOSYS;
-}
-
 /**
  * stack_trace_save - Save a stack trace into a storage array
  * @store:	Pointer to storage array
