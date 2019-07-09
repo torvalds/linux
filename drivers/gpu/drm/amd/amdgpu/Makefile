@@ -163,6 +163,7 @@ amdgpu-y += \
 	 amdgpu_amdkfd_gpuvm.o \
 	 amdgpu_amdkfd_gfx_v8.o \
 	 amdgpu_amdkfd_gfx_v9.o \
+	 amdgpu_amdkfd_arcturus.o \
 	 amdgpu_amdkfd_gfx_v10.o
 
 ifneq ($(CONFIG_DRM_AMDGPU_CIK),)
