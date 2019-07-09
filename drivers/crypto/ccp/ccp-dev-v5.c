@@ -970,8 +970,10 @@ static int ccp5_init(struct ccp_device *ccp)
 	if (ret)
 		goto e_hwrng;
 
+#ifdef CONFIG_CRYPTO_DEV_CCP_DEBUGFS
 	/* Set up debugfs entries */
 	ccp5_debugfs_setup(ccp);
+#endif
 
 	return 0;
 
@@ -1009,11 +1011,13 @@ static void ccp5_destroy(struct ccp_device *ccp)
 	/* Remove this device from the list of available units first */
 	ccp_del_device(ccp);
 
+#ifdef CONFIG_CRYPTO_DEV_CCP_DEBUGFS
 	/* We're in the process of tearing down the entire driver;
 	 * when all the devices are gone clean up debugfs
 	 */
 	if (ccp_present())
 		ccp5_debugfs_destroy();
+#endif
 
 	/* Disable and clear interrupts */
 	ccp5_disable_queue_interrupts(ccp);

@@ -46,3 +46,11 @@ config CRYPTO_DEV_SP_PSP
 	 management commands in Secure Encrypted Virtualization (SEV) mode,
 	 along with software-based Trusted Execution Environment (TEE) to
 	 enable third-party trusted applications.
+
+config CRYPTO_DEV_CCP_DEBUGFS
+	bool "Enable CCP Internals in DebugFS"
+	default n
+	depends on CRYPTO_DEV_SP_CCP
+	help
+	  Expose CCP device information such as operation statistics, feature
+	  information, and descriptor queue contents.
