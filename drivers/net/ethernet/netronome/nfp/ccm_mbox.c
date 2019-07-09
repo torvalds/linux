@@ -13,7 +13,7 @@
  * form a batch.  Threads come in with CMSG formed in an skb, then
  * enqueue that skb onto the request queue.  If threads skb is first
  * in queue this thread will handle the mailbox operation.  It copies
- * up to 16 messages into the mailbox (making sure that both requests
+ * up to 64 messages into the mailbox (making sure that both requests
  * and replies will fit.  After FW is done processing the batch it
  * copies the data out and wakes waiting threads.
  * If a thread is waiting it either gets its the message completed
@@ -23,9 +23,9 @@
  * to limit potential cache line bounces.
  */
 
-#define NFP_CCM_MBOX_BATCH_LIMIT	16
+#define NFP_CCM_MBOX_BATCH_LIMIT	64
 #define NFP_CCM_TIMEOUT			(NFP_NET_POLL_TIMEOUT * 1000)
-#define NFP_CCM_MAX_QLEN		256
+#define NFP_CCM_MAX_QLEN		1024
 
 enum nfp_net_mbox_cmsg_state {
 	NFP_NET_MBOX_CMSG_STATE_QUEUED,
