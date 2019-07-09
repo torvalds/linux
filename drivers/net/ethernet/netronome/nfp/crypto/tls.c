@@ -4,6 +4,7 @@
 #include <linux/bitfield.h>
 #include <linux/ipv6.h>
 #include <linux/skbuff.h>
+#include <linux/string.h>
 #include <net/tls.h>
 
 #include "../ccm.h"
@@ -340,8 +341,22 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	memcpy(&back->salt, tls_ci->salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
 	memcpy(back->rec_no, tls_ci->rec_seq, sizeof(tls_ci->rec_seq));
 
+	/* Get an extra ref on the skb so we can wipe the key after */
+	skb_get(skb);
+
 	err = nfp_ccm_mbox_communicate(nn, skb, NFP_CCM_TYPE_CRYPTO_ADD,
 				       sizeof(*reply), sizeof(*reply));
+	reply = (void *)skb->data;
+
+	/* We depend on CCM MBOX code not reallocating skb we sent
+	 * so we can clear the key material out of the memory.
+	 */
+	if (!WARN_ON_ONCE((u8 *)back < skb->head ||
+			  (u8 *)back > skb_end_pointer(skb)) &&
+	    !WARN_ON_ONCE((u8 *)&reply[1] > (u8 *)back))
+		memzero_explicit(back, sizeof(*back));
+	dev_consume_skb_any(skb); /* the extra ref from skb_get() above */
+
 	if (err) {
 		nn_dp_warn(&nn->dp, "failed to add TLS: %d (%d)\n",
 			   err, direction == TLS_OFFLOAD_CTX_DIR_TX);
@@ -349,7 +364,6 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 		goto err_conn_remove;
 	}
 
-	reply = (void *)skb->data;
 	err = -be32_to_cpu(reply->error);
 	if (err) {
 		if (err == -ENOSPC) {
