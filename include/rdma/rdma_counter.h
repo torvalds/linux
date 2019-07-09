@@ -9,10 +9,10 @@
 #include <linux/mutex.h>
 #include <linux/pid_namespace.h>
 
-#include <rdma/ib_verbs.h>
 #include <rdma/restrack.h>
 #include <rdma/rdma_netlink.h>
 
+struct ib_device;
 struct ib_qp;
 
 struct auto_mode_param {

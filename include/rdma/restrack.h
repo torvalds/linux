@@ -14,6 +14,9 @@
 #include <uapi/rdma/rdma_netlink.h>
 #include <linux/xarray.h>
 
+struct ib_device;
+struct sk_buff;
+
 /**
  * enum rdma_restrack_type - HW objects to track
  */
@@ -51,8 +54,6 @@ enum rdma_restrack_type {
 	 */
 	RDMA_RESTRACK_MAX
 };
-
-struct ib_device;
 
 /**
  * struct rdma_restrack_entry - metadata per-entry
