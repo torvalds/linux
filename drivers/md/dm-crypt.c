@@ -2158,6 +2158,14 @@ static int crypt_wipe_key(struct crypt_config *cc)
 
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 	get_random_bytes(&cc->key, cc->key_size);
+
+	/* Wipe IV private keys */
+	if (cc->iv_gen_ops && cc->iv_gen_ops->wipe) {
+		r = cc->iv_gen_ops->wipe(cc);
+		if (r)
+			return r;
+	}
+
 	kzfree(cc->key_string);
 	cc->key_string = NULL;
 	r = crypt_setkey(cc);
@@ -3050,14 +3058,8 @@ static int crypt_message(struct dm_target *ti, unsigned argc, char **argv,
 				memset(cc->key, 0, cc->key_size * sizeof(u8));
 			return ret;
 		}
-		if (argc == 2 && !strcasecmp(argv[1], "wipe")) {
-			if (cc->iv_gen_ops && cc->iv_gen_ops->wipe) {
-				ret = cc->iv_gen_ops->wipe(cc);
-				if (ret)
-					return ret;
-			}
+		if (argc == 2 && !strcasecmp(argv[1], "wipe"))
 			return crypt_wipe_key(cc);
-		}
 	}
 
 error:
