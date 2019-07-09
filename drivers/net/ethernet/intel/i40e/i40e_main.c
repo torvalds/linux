@@ -7759,15 +7759,15 @@ int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
 /**
  * i40e_parse_cls_flower - Parse tc flower filters provided by kernel
  * @vsi: Pointer to VSI
- * @cls_flower: Pointer to struct tc_cls_flower_offload
+ * @cls_flower: Pointer to struct flow_cls_offload
  * @filter: Pointer to cloud filter structure
  *
  **/
 static int i40e_parse_cls_flower(struct i40e_vsi *vsi,
-				 struct tc_cls_flower_offload *f,
+				 struct flow_cls_offload *f,
 				 struct i40e_cloud_filter *filter)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 	u16 n_proto_mask = 0, n_proto_key = 0, addr_type = 0;
 	struct i40e_pf *pf = vsi->back;
@@ -8001,11 +8001,11 @@ static int i40e_handle_tclass(struct i40e_vsi *vsi, u32 tc,
 /**
  * i40e_configure_clsflower - Configure tc flower filters
  * @vsi: Pointer to VSI
- * @cls_flower: Pointer to struct tc_cls_flower_offload
+ * @cls_flower: Pointer to struct flow_cls_offload
  *
  **/
 static int i40e_configure_clsflower(struct i40e_vsi *vsi,
-				    struct tc_cls_flower_offload *cls_flower)
+				    struct flow_cls_offload *cls_flower)
 {
 	int tc = tc_classid_to_hwtc(vsi->netdev, cls_flower->classid);
 	struct i40e_cloud_filter *filter = NULL;
@@ -8097,11 +8097,11 @@ static struct i40e_cloud_filter *i40e_find_cloud_filter(struct i40e_vsi *vsi,
 /**
  * i40e_delete_clsflower - Remove tc flower filters
  * @vsi: Pointer to VSI
- * @cls_flower: Pointer to struct tc_cls_flower_offload
+ * @cls_flower: Pointer to struct flow_cls_offload
  *
  **/
 static int i40e_delete_clsflower(struct i40e_vsi *vsi,
-				 struct tc_cls_flower_offload *cls_flower)
+				 struct flow_cls_offload *cls_flower)
 {
 	struct i40e_cloud_filter *filter = NULL;
 	struct i40e_pf *pf = vsi->back;
@@ -8144,16 +8144,16 @@ static int i40e_delete_clsflower(struct i40e_vsi *vsi,
  * @type_data: offload data
  **/
 static int i40e_setup_tc_cls_flower(struct i40e_netdev_priv *np,
-				    struct tc_cls_flower_offload *cls_flower)
+				    struct flow_cls_offload *cls_flower)
 {
 	struct i40e_vsi *vsi = np->vsi;
 
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return i40e_configure_clsflower(vsi, cls_flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return i40e_delete_clsflower(vsi, cls_flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;

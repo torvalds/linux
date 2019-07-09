@@ -303,4 +303,34 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       struct list_head *driver_list, tc_setup_cb_t *cb,
 			       void *cb_ident, void *cb_priv, bool ingress_only);
 
+enum flow_cls_command {
+	FLOW_CLS_REPLACE,
+	FLOW_CLS_DESTROY,
+	FLOW_CLS_STATS,
+	FLOW_CLS_TMPLT_CREATE,
+	FLOW_CLS_TMPLT_DESTROY,
+};
+
+struct flow_cls_common_offload {
+	u32 chain_index;
+	__be16 protocol;
+	u32 prio;
+	struct netlink_ext_ack *extack;
+};
+
+struct flow_cls_offload {
+	struct flow_cls_common_offload common;
+	enum flow_cls_command command;
+	unsigned long cookie;
+	struct flow_rule *rule;
+	struct flow_stats stats;
+	u32 classid;
+};
+
+static inline struct flow_rule *
+flow_cls_offload_flow_rule(struct flow_cls_offload *flow_cmd)
+{
+	return flow_cmd->rule;
+}
+
 #endif /* _NET_FLOW_OFFLOAD_H */

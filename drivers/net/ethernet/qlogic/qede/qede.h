@@ -551,7 +551,7 @@ int qede_txq_has_work(struct qede_tx_queue *txq);
 void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, u8 count);
 void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
 int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
-			    struct tc_cls_flower_offload *f);
+			    struct flow_cls_offload *f);
 
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))

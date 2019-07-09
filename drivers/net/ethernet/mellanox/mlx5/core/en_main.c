@@ -3426,17 +3426,17 @@ out:
 
 #ifdef CONFIG_MLX5_ESWITCH
 static int mlx5e_setup_tc_cls_flower(struct mlx5e_priv *priv,
-				     struct tc_cls_flower_offload *cls_flower,
+				     struct flow_cls_offload *cls_flower,
 				     int flags)
 {
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return mlx5e_configure_flower(priv->netdev, priv, cls_flower,
 					      flags);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return mlx5e_delete_flower(priv->netdev, priv, cls_flower,
 					   flags);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return mlx5e_stats_flower(priv->netdev, priv, cls_flower,
 					  flags);
 	default:

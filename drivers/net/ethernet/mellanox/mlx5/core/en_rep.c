@@ -656,7 +656,7 @@ static void mlx5e_rep_indr_clean_block_privs(struct mlx5e_rep_priv *rpriv)
 
 static int
 mlx5e_rep_indr_offload(struct net_device *netdev,
-		       struct tc_cls_flower_offload *flower,
+		       struct flow_cls_offload *flower,
 		       struct mlx5e_rep_indr_block_priv *indr_priv)
 {
 	struct mlx5e_priv *priv = netdev_priv(indr_priv->rpriv->netdev);
@@ -664,13 +664,13 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 	int err = 0;
 
 	switch (flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		err = mlx5e_configure_flower(netdev, priv, flower, flags);
 		break;
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		err = mlx5e_delete_flower(netdev, priv, flower, flags);
 		break;
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		err = mlx5e_stats_flower(netdev, priv, flower, flags);
 		break;
 	default:
@@ -1144,16 +1144,16 @@ static int mlx5e_rep_close(struct net_device *dev)
 
 static int
 mlx5e_rep_setup_tc_cls_flower(struct mlx5e_priv *priv,
-			      struct tc_cls_flower_offload *cls_flower, int flags)
+			      struct flow_cls_offload *cls_flower, int flags)
 {
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return mlx5e_configure_flower(priv->netdev, priv, cls_flower,
 					      flags);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return mlx5e_delete_flower(priv->netdev, priv, cls_flower,
 					   flags);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return mlx5e_stats_flower(priv->netdev, priv, cls_flower,
 					  flags);
 	default:

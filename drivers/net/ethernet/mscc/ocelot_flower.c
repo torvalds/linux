@@ -19,7 +19,7 @@ static u16 get_prio(u32 prio)
 	return prio >> 16;
 }
 
-static int ocelot_flower_parse_action(struct tc_cls_flower_offload *f,
+static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 				      struct ocelot_ace_rule *rule)
 {
 	const struct flow_action_entry *a;
@@ -44,10 +44,10 @@ static int ocelot_flower_parse_action(struct tc_cls_flower_offload *f,
 	return 0;
 }
 
-static int ocelot_flower_parse(struct tc_cls_flower_offload *f,
+static int ocelot_flower_parse(struct flow_cls_offload *f,
 			       struct ocelot_ace_rule *ocelot_rule)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 
 	if (dissector->used_keys &
@@ -174,7 +174,7 @@ finished_key_parsing:
 }
 
 static
-struct ocelot_ace_rule *ocelot_ace_rule_create(struct tc_cls_flower_offload *f,
+struct ocelot_ace_rule *ocelot_ace_rule_create(struct flow_cls_offload *f,
 					       struct ocelot_port_block *block)
 {
 	struct ocelot_ace_rule *rule;
@@ -188,7 +188,7 @@ struct ocelot_ace_rule *ocelot_ace_rule_create(struct tc_cls_flower_offload *f,
 	return rule;
 }
 
-static int ocelot_flower_replace(struct tc_cls_flower_offload *f,
+static int ocelot_flower_replace(struct flow_cls_offload *f,
 				 struct ocelot_port_block *port_block)
 {
 	struct ocelot_ace_rule *rule;
@@ -212,7 +212,7 @@ static int ocelot_flower_replace(struct tc_cls_flower_offload *f,
 	return 0;
 }
 
-static int ocelot_flower_destroy(struct tc_cls_flower_offload *f,
+static int ocelot_flower_destroy(struct flow_cls_offload *f,
 				 struct ocelot_port_block *port_block)
 {
 	struct ocelot_ace_rule rule;
@@ -230,7 +230,7 @@ static int ocelot_flower_destroy(struct tc_cls_flower_offload *f,
 	return 0;
 }
 
-static int ocelot_flower_stats_update(struct tc_cls_flower_offload *f,
+static int ocelot_flower_stats_update(struct flow_cls_offload *f,
 				      struct ocelot_port_block *port_block)
 {
 	struct ocelot_ace_rule rule;
@@ -247,15 +247,15 @@ static int ocelot_flower_stats_update(struct tc_cls_flower_offload *f,
 	return 0;
 }
 
-static int ocelot_setup_tc_cls_flower(struct tc_cls_flower_offload *f,
+static int ocelot_setup_tc_cls_flower(struct flow_cls_offload *f,
 				      struct ocelot_port_block *port_block)
 {
 	switch (f->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return ocelot_flower_replace(f, port_block);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return ocelot_flower_destroy(f, port_block);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return ocelot_flower_stats_update(f, port_block);
 	default:
 		return -EOPNOTSUPP;

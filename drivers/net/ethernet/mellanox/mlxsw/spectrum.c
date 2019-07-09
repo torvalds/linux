@@ -1508,21 +1508,21 @@ static int mlxsw_sp_setup_tc_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int
 mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_acl_block *acl_block,
-			     struct tc_cls_flower_offload *f)
+			     struct flow_cls_offload *f)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_acl_block_mlxsw_sp(acl_block);
 
 	switch (f->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return mlxsw_sp_flower_replace(mlxsw_sp, acl_block, f);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		mlxsw_sp_flower_destroy(mlxsw_sp, acl_block, f);
 		return 0;
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return mlxsw_sp_flower_stats(mlxsw_sp, acl_block, f);
-	case TC_CLSFLOWER_TMPLT_CREATE:
+	case FLOW_CLS_TMPLT_CREATE:
 		return mlxsw_sp_flower_tmplt_create(mlxsw_sp, acl_block, f);
-	case TC_CLSFLOWER_TMPLT_DESTROY:
+	case FLOW_CLS_TMPLT_DESTROY:
 		mlxsw_sp_flower_tmplt_destroy(mlxsw_sp, acl_block, f);
 		return 0;
 	default:

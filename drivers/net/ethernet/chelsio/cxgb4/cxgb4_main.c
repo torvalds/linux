@@ -3135,14 +3135,14 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 }
 
 static int cxgb_setup_tc_flower(struct net_device *dev,
-				struct tc_cls_flower_offload *cls_flower)
+				struct flow_cls_offload *cls_flower)
 {
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return cxgb4_tc_flower_replace(dev, cls_flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return cxgb4_tc_flower_destroy(dev, cls_flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return cxgb4_tc_flower_stats(dev, cls_flower);
 	default:
 		return -EOPNOTSUPP;

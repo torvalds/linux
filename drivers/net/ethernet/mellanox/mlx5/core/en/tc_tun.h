@@ -33,12 +33,12 @@ struct mlx5e_tc_tunnel {
 				   struct mlx5e_encap_entry *e);
 	int (*parse_udp_ports)(struct mlx5e_priv *priv,
 			       struct mlx5_flow_spec *spec,
-			       struct tc_cls_flower_offload *f,
+			       struct flow_cls_offload *f,
 			       void *headers_c,
 			       void *headers_v);
 	int (*parse_tunnel)(struct mlx5e_priv *priv,
 			    struct mlx5_flow_spec *spec,
-			    struct tc_cls_flower_offload *f,
+			    struct flow_cls_offload *f,
 			    void *headers_c,
 			    void *headers_v);
 };
@@ -68,13 +68,13 @@ bool mlx5e_tc_tun_device_to_offload(struct mlx5e_priv *priv,
 int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 		       struct mlx5e_priv *priv,
 		       struct mlx5_flow_spec *spec,
-		       struct tc_cls_flower_offload *f,
+		       struct flow_cls_offload *f,
 		       void *headers_c,
 		       void *headers_v, u8 *match_level);
 
 int mlx5e_tc_tun_parse_udp_ports(struct mlx5e_priv *priv,
 				 struct mlx5_flow_spec *spec,
-				 struct tc_cls_flower_offload *f,
+				 struct flow_cls_offload *f,
 				 void *headers_c,
 				 void *headers_v);
 

@@ -2578,11 +2578,11 @@ static int igb_offload_cbs(struct igb_adapter *adapter,
 #define VLAN_PRIO_FULL_MASK (0x07)
 
 static int igb_parse_cls_flower(struct igb_adapter *adapter,
-				struct tc_cls_flower_offload *f,
+				struct flow_cls_offload *f,
 				int traffic_class,
 				struct igb_nfc_filter *input)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct netlink_ext_ack *extack = f->common.extack;
 
@@ -2660,7 +2660,7 @@ static int igb_parse_cls_flower(struct igb_adapter *adapter,
 }
 
 static int igb_configure_clsflower(struct igb_adapter *adapter,
-				   struct tc_cls_flower_offload *cls_flower)
+				   struct flow_cls_offload *cls_flower)
 {
 	struct netlink_ext_ack *extack = cls_flower->common.extack;
 	struct igb_nfc_filter *filter, *f;
@@ -2722,7 +2722,7 @@ err_parse:
 }
 
 static int igb_delete_clsflower(struct igb_adapter *adapter,
-				struct tc_cls_flower_offload *cls_flower)
+				struct flow_cls_offload *cls_flower)
 {
 	struct igb_nfc_filter *filter;
 	int err;
@@ -2752,14 +2752,14 @@ out:
 }
 
 static int igb_setup_tc_cls_flower(struct igb_adapter *adapter,
-				   struct tc_cls_flower_offload *cls_flower)
+				   struct flow_cls_offload *cls_flower)
 {
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return igb_configure_clsflower(adapter, cls_flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return igb_delete_clsflower(adapter, cls_flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;
