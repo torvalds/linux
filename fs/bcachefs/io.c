@@ -1039,22 +1039,18 @@ static struct promote_op *__promote_alloc(struct bch_fs *c,
 					  struct bpos pos,
 					  struct extent_ptr_decoded *pick,
 					  struct bch_io_opts opts,
-					  unsigned rbio_sectors,
+					  unsigned sectors,
 					  struct bch_read_bio **rbio)
 {
 	struct promote_op *op = NULL;
 	struct bio *bio;
-	unsigned rbio_pages = DIV_ROUND_UP(rbio_sectors, PAGE_SECTORS);
-	/* data might have to be decompressed in the write path: */
-	unsigned wbio_pages = DIV_ROUND_UP(pick->crc.uncompressed_size,
-					   PAGE_SECTORS);
+	unsigned pages = DIV_ROUND_UP(sectors, PAGE_SECTORS);
 	int ret;
 
 	if (!percpu_ref_tryget(&c->writes))
 		return NULL;
 
-	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * wbio_pages,
-		     GFP_NOIO);
+	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * pages, GFP_NOIO);
 	if (!op)
 		goto err;
 
@@ -1062,34 +1058,32 @@ static struct promote_op *__promote_alloc(struct bch_fs *c,
 	op->pos = pos;
 
 	/*
-	 * promotes require bouncing, but if the extent isn't
-	 * checksummed/compressed it might be too big for the mempool:
+	 * We don't use the mempool here because extents that aren't
+	 * checksummed or compressed can be too big for the mempool:
 	 */
-	if (rbio_sectors > c->sb.encoded_extent_max) {
-		*rbio = kzalloc(sizeof(struct bch_read_bio) +
-				sizeof(struct bio_vec) * rbio_pages,
-				GFP_NOIO);
-		if (!*rbio)
-			goto err;
+	*rbio = kzalloc(sizeof(struct bch_read_bio) +
+			sizeof(struct bio_vec) * pages,
+			GFP_NOIO);
+	if (!*rbio)
+		goto err;
 
-		rbio_init(&(*rbio)->bio, opts);
-		bio_init(&(*rbio)->bio, NULL, (*rbio)->bio.bi_inline_vecs, rbio_pages, 0);
+	rbio_init(&(*rbio)->bio, opts);
+	bio_init(&(*rbio)->bio, NULL, (*rbio)->bio.bi_inline_vecs, pages, 0);
 
-		if (bch2_bio_alloc_pages(&(*rbio)->bio, rbio_sectors << 9,
-					 GFP_NOIO))
-			goto err;
+	if (bch2_bio_alloc_pages(&(*rbio)->bio, sectors << 9,
+				 GFP_NOIO))
+		goto err;
 
-		(*rbio)->bounce		= true;
-		(*rbio)->split		= true;
-		(*rbio)->kmalloc	= true;
-	}
+	(*rbio)->bounce		= true;
+	(*rbio)->split		= true;
+	(*rbio)->kmalloc	= true;
 
 	if (rhashtable_lookup_insert_fast(&c->promote_table, &op->hash,
 					  bch_promote_params))
 		goto err;
 
 	bio = &op->write.op.wbio.bio;
-	bio_init(bio, NULL, bio->bi_inline_vecs, wbio_pages, 0);
+	bio_init(bio, NULL, bio->bi_inline_vecs, pages, 0);
 
 	ret = bch2_migrate_write_init(c, &op->write,
 			writepoint_hashed((unsigned long) current),
@@ -1123,8 +1117,9 @@ static inline struct promote_op *promote_alloc(struct bch_fs *c,
 					       bool *read_full)
 {
 	bool promote_full = *read_full || READ_ONCE(c->promote_whole_extents);
+	/* data might have to be decompressed in the write path: */
 	unsigned sectors = promote_full
-		? pick->crc.compressed_size
+		? max(pick->crc.compressed_size, pick->crc.live_size)
 		: bvec_iter_sectors(iter);
 	struct bpos pos = promote_full
 		? bkey_start_pos(k.k)
@@ -1659,7 +1654,16 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 	}
 
 	if (rbio) {
-		/* promote already allocated bounce rbio */
+		/*
+		 * promote already allocated bounce rbio:
+		 * promote needs to allocate a bio big enough for uncompressing
+		 * data in the write path, but we're not going to use it all
+		 * here:
+		 */
+		BUG_ON(rbio->bio.bi_iter.bi_size <
+		       pick.crc.compressed_size << 9);
+		rbio->bio.bi_iter.bi_size =
+			pick.crc.compressed_size << 9;
 	} else if (bounce) {
 		unsigned sectors = pick.crc.compressed_size;
 

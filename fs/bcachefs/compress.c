@@ -241,19 +241,10 @@ int bch2_bio_uncompress_inplace(struct bch_fs *c, struct bio *bio,
 	}
 
 	/*
-	 * might have to free existing pages and retry allocation from mempool -
-	 * do this _after_ decompressing:
+	 * XXX: don't have a good way to assert that the bio was allocated with
+	 * enough space, we depend on bch2_move_extent doing the right thing
 	 */
-	if (bio->bi_iter.bi_size < crc->live_size << 9) {
-		if (bch2_bio_alloc_pages(bio, (crc->live_size << 9) -
-					 bio->bi_iter.bi_size,
-					 GFP_NOFS)) {
-			bch2_bio_free_pages_pool(c, bio);
-			bio->bi_iter.bi_size = 0;
-			bio->bi_vcnt = 0;
-			bch2_bio_alloc_pages_pool(c, bio, crc->live_size << 9);
-		}
-	}
+	bio->bi_iter.bi_size = crc->live_size << 9;
 
 	memcpy_to_bio(bio, bio->bi_iter, data.b + (crc->offset << 9));
 
