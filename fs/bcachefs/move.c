@@ -461,7 +461,7 @@ static int bch2_move_extent(struct bch_fs *c,
 	 * ctxt when doing wakeup
 	 */
 	closure_get(&ctxt->cl);
-	bch2_read_extent(c, &io->rbio, e.s_c,
+	bch2_read_extent(c, &io->rbio, e.s_c, 0,
 			 BCH_READ_NODECODE|
 			 BCH_READ_LAST_FRAGMENT);
 	return 0;

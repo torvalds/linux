@@ -1240,7 +1240,7 @@ retry:
 		goto out;
 	}
 
-	ret = __bch2_read_extent(c, rbio, bvec_iter, k, failed, flags);
+	ret = __bch2_read_extent(c, rbio, bvec_iter, k, 0, failed, flags);
 	if (ret == READ_RETRY)
 		goto retry;
 	if (ret)
@@ -1272,17 +1272,22 @@ retry:
 			   POS(inode, bvec_iter.bi_sector),
 			   BTREE_ITER_SLOTS, k, ret) {
 		BKEY_PADDED(k) tmp;
-		unsigned bytes;
+		unsigned bytes, offset_into_extent;
 
 		bkey_reassemble(&tmp.k, k);
 		k = bkey_i_to_s_c(&tmp.k);
+
 		bch2_trans_unlock(&trans);
 
-		bytes = min_t(unsigned, bvec_iter.bi_size,
-			      (k.k->p.offset - bvec_iter.bi_sector) << 9);
+		offset_into_extent = iter->pos.offset -
+			bkey_start_offset(k.k);
+
+		bytes = min_t(unsigned, bvec_iter_sectors(bvec_iter),
+			      (k.k->size - offset_into_extent)) << 9;
 		swap(bvec_iter.bi_size, bytes);
 
-		ret = __bch2_read_extent(c, rbio, bvec_iter, k, failed, flags);
+		ret = __bch2_read_extent(c, rbio, bvec_iter, k,
+				offset_into_extent, failed, flags);
 		switch (ret) {
 		case READ_RETRY:
 			goto retry;
@@ -1463,7 +1468,7 @@ static void __bch2_read_endio(struct work_struct *work)
 		goto nodecode;
 
 	/* Adjust crc to point to subset of data we want: */
-	crc.offset     += rbio->bvec_iter.bi_sector - rbio->pos.offset;
+	crc.offset     += rbio->offset_into_extent;
 	crc.live_size	= bvec_iter_sectors(rbio->bvec_iter);
 
 	if (crc.compression_type != BCH_COMPRESSION_NONE) {
@@ -1574,6 +1579,7 @@ static void bch2_read_endio(struct bio *bio)
 
 int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 		       struct bvec_iter iter, struct bkey_s_c k,
+		       unsigned offset_into_extent,
 		       struct bch_io_failures *failed, unsigned flags)
 {
 	struct extent_ptr_decoded pick;
@@ -1606,7 +1612,6 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 		if (pick.crc.compressed_size > orig->bio.bi_vcnt * PAGE_SECTORS)
 			goto hole;
 
-		iter.bi_sector	= pos.offset;
 		iter.bi_size	= pick.crc.compressed_size << 9;
 		goto noclone;
 	}
@@ -1620,8 +1625,7 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 	if (narrow_crcs && (flags & BCH_READ_USER_MAPPED))
 		flags |= BCH_READ_MUST_BOUNCE;
 
-	EBUG_ON(bkey_start_offset(k.k) > iter.bi_sector ||
-		k.k->p.offset < bvec_iter_end_sector(iter));
+	BUG_ON(offset_into_extent + bvec_iter_sectors(iter) > k.k->size);
 
 	if (pick.crc.compression_type != BCH_COMPRESSION_NONE ||
 	    (pick.crc.csum_type != BCH_CSUM_NONE &&
@@ -1642,15 +1646,16 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 			(bvec_iter_sectors(iter) != pick.crc.uncompressed_size ||
 			 bvec_iter_sectors(iter) != pick.crc.live_size ||
 			 pick.crc.offset ||
-			 iter.bi_sector != pos.offset));
+			 offset_into_extent));
 
+		pos.offset += offset_into_extent;
 		pick.ptr.offset += pick.crc.offset +
-			(iter.bi_sector - pos.offset);
+			offset_into_extent;
 		pick.crc.compressed_size	= bvec_iter_sectors(iter);
 		pick.crc.uncompressed_size	= bvec_iter_sectors(iter);
 		pick.crc.offset			= 0;
 		pick.crc.live_size		= bvec_iter_sectors(iter);
-		pos.offset			= iter.bi_sector;
+		offset_into_extent		= 0;
 	}
 
 	if (rbio) {
@@ -1707,6 +1712,7 @@ noclone:
 	else
 		rbio->end_io	= orig->bio.bi_end_io;
 	rbio->bvec_iter		= iter;
+	rbio->offset_into_extent= offset_into_extent;
 	rbio->flags		= flags;
 	rbio->have_ioref	= pick_ret > 0 && bch2_dev_get_ioref(ca, READ);
 	rbio->narrow_crcs	= narrow_crcs;
@@ -1834,7 +1840,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 			   POS(inode, rbio->bio.bi_iter.bi_sector),
 			   BTREE_ITER_SLOTS, k, ret) {
 		BKEY_PADDED(k) tmp;
-		unsigned bytes;
+		unsigned bytes, offset_into_extent;
 
 		/*
 		 * Unlock the iterator while the btree node's lock is still in
@@ -1844,14 +1850,17 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 		k = bkey_i_to_s_c(&tmp.k);
 		bch2_trans_unlock(&trans);
 
-		bytes = min_t(unsigned, rbio->bio.bi_iter.bi_size,
-			      (k.k->p.offset - rbio->bio.bi_iter.bi_sector) << 9);
+		offset_into_extent = iter->pos.offset -
+			bkey_start_offset(k.k);
+
+		bytes = min_t(unsigned, bio_sectors(&rbio->bio),
+			      (k.k->size - offset_into_extent)) << 9;
 		swap(rbio->bio.bi_iter.bi_size, bytes);
 
 		if (rbio->bio.bi_iter.bi_size == bytes)
 			flags |= BCH_READ_LAST_FRAGMENT;
 
-		bch2_read_extent(c, rbio, k, flags);
+		bch2_read_extent(c, rbio, k, offset_into_extent, flags);
 
 		if (flags & BCH_READ_LAST_FRAGMENT)
 			return;

@@ -1005,7 +1005,6 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 		       struct readpages_iter *readpages_iter)
 {
 	struct bch_fs *c = trans->c;
-	struct bio *bio = &rbio->bio;
 	int flags = BCH_READ_RETRY_IF_STALE|
 		BCH_READ_MAY_PROMOTE;
 
@@ -1015,9 +1014,10 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 	while (1) {
 		BKEY_PADDED(k) tmp;
 		struct bkey_s_c k;
-		unsigned bytes;
+		unsigned bytes, offset_into_extent;
 
-		bch2_btree_iter_set_pos(iter, POS(inum, bio->bi_iter.bi_sector));
+		bch2_btree_iter_set_pos(iter,
+				POS(inum, rbio->bio.bi_iter.bi_sector));
 
 		k = bch2_btree_iter_peek_slot(iter);
 		BUG_ON(!k.k);
@@ -1025,14 +1025,17 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 		if (IS_ERR(k.k)) {
 			int ret = btree_iter_err(iter);
 			BUG_ON(!ret);
-			bcache_io_error(c, bio, "btree IO error %i", ret);
-			bio_endio(bio);
+			bcache_io_error(c, &rbio->bio, "btree IO error %i", ret);
+			bio_endio(&rbio->bio);
 			return;
 		}
 
 		bkey_reassemble(&tmp.k, k);
 		bch2_trans_unlock(trans);
 		k = bkey_i_to_s_c(&tmp.k);
+
+		offset_into_extent = iter->pos.offset -
+			bkey_start_offset(k.k);
 
 		if (readpages_iter) {
 			bool want_full_extent = false;
@@ -1048,27 +1051,27 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 			}
 
 			readpage_bio_extend(readpages_iter,
-					    bio, k.k->p.offset,
+					    &rbio->bio, k.k->p.offset,
 					    want_full_extent);
 		}
 
-		bytes = (min_t(u64, k.k->p.offset, bio_end_sector(bio)) -
-			 bio->bi_iter.bi_sector) << 9;
-		swap(bio->bi_iter.bi_size, bytes);
+		bytes = min_t(unsigned, bio_sectors(&rbio->bio),
+			      (k.k->size - offset_into_extent)) << 9;
+		swap(rbio->bio.bi_iter.bi_size, bytes);
 
-		if (bytes == bio->bi_iter.bi_size)
+		if (rbio->bio.bi_iter.bi_size == bytes)
 			flags |= BCH_READ_LAST_FRAGMENT;
 
 		if (bkey_extent_is_allocation(k.k))
-			bch2_add_page_sectors(bio, k);
+			bch2_add_page_sectors(&rbio->bio, k);
 
-		bch2_read_extent(c, rbio, k, flags);
+		bch2_read_extent(c, rbio, k, offset_into_extent, flags);
 
 		if (flags & BCH_READ_LAST_FRAGMENT)
 			return;
 
-		swap(bio->bi_iter.bi_size, bytes);
-		bio_advance(bio, bytes);
+		swap(rbio->bio.bi_iter.bi_size, bytes);
+		bio_advance(&rbio->bio, bytes);
 	}
 }
 

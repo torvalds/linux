@@ -38,6 +38,8 @@ struct bch_read_bio {
 	 */
 	struct bvec_iter	bvec_iter;
 
+	unsigned		offset_into_extent;
+
 	u16			flags;
 	union {
 	struct {
