@@ -56,7 +56,6 @@ struct crash_memmap_data {
  */
 crash_vmclear_fn __rcu *crash_vmclear_loaded_vmcss = NULL;
 EXPORT_SYMBOL_GPL(crash_vmclear_loaded_vmcss);
-unsigned long crash_zero_bytes;
 
 static inline void cpu_crash_vmclear_loaded_vmcss(void)
 {
@@ -173,6 +172,9 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_KEXEC_FILE
+
+static unsigned long crash_zero_bytes;
+
 static int get_nr_ram_ranges_callback(struct resource *res, void *arg)
 {
 	unsigned int *nr_ranges = arg;
