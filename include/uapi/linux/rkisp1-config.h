@@ -114,7 +114,14 @@
 #define CIFISP_STAT_HIST			(1 << 3)
 #define CIFISP_STAT_EMB_DATA			(1 << 4)
 
+/* ADD DATA */
 #define CIFISP_ADD_DATA_FIFO_SIZE		(2048 * 4)
+
+/* Private v4l2 event */
+#define CIFISP_V4L2_EVENT_STREAM_START	\
+				(V4L2_EVENT_PRIVATE_START + 1)
+#define CIFISP_V4L2_EVENT_STREAM_STOP	\
+				(V4L2_EVENT_PRIVATE_START + 2)
 
 /*
  * private control id

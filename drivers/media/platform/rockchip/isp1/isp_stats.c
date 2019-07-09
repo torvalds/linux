@@ -211,7 +211,7 @@ static int rkisp1_stats_init_vb2_queue(struct vb2_queue *q,
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &stats_vdev->dev->apilock;
+	q->lock = &stats_vdev->dev->iqlock;
 	q->dev = stats_vdev->dev->dev;
 
 	return vb2_queue_init(q);
@@ -630,7 +630,7 @@ int rkisp1_register_stats_vdev(struct rkisp1_isp_stats_vdev *stats_vdev,
 	vdev->ioctl_ops = &rkisp1_stats_ioctl;
 	vdev->fops = &rkisp1_stats_fops;
 	vdev->release = video_device_release_empty;
-	vdev->lock = &dev->apilock;
+	vdev->lock = &dev->iqlock;
 	vdev->v4l2_dev = v4l2_dev;
 	vdev->queue = &node->buf_queue;
 	vdev->device_caps = V4L2_CAP_META_CAPTURE | V4L2_CAP_STREAMING;

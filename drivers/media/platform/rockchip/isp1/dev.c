@@ -1062,9 +1062,11 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	isp_dev->num_clk_rate_tbl = match_data->num_clk_rate_tbl;
 
 	mutex_init(&isp_dev->apilock);
+	mutex_init(&isp_dev->iqlock);
 	atomic_set(&isp_dev->pipe.power_cnt, 0);
 	atomic_set(&isp_dev->pipe.stream_cnt, 0);
 	atomic_set(&isp_dev->open_cnt, 0);
+	init_waitqueue_head(&isp_dev->sync_onoff);
 	isp_dev->pipe.open = rkisp1_pipeline_open;
 	isp_dev->pipe.close = rkisp1_pipeline_close;
 	isp_dev->pipe.set_stream = rkisp1_pipeline_set_stream;

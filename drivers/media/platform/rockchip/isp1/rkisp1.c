@@ -610,6 +610,64 @@ static int rkisp1_config_cif(struct rkisp1_device *dev)
 	return 0;
 }
 
+static bool rkisp1_is_need_3a(struct rkisp1_device *dev)
+{
+	struct rkisp1_isp_subdev *isp_sdev = &dev->isp_sdev;
+
+	return isp_sdev->in_fmt.fmt_type == FMT_BAYER &&
+	       isp_sdev->out_fmt.fmt_type == FMT_YUV;
+}
+
+static void rkisp1_start_3a_run(struct rkisp1_device *dev)
+{
+	struct rkisp1_isp_params_vdev *params_vdev = &dev->params_vdev;
+	struct video_device *vdev = &params_vdev->vnode.vdev;
+	struct v4l2_event ev = {
+		.type = CIFISP_V4L2_EVENT_STREAM_START,
+	};
+	int ret;
+
+	if (!rkisp1_is_need_3a(dev))
+		return;
+
+	v4l2_event_queue(vdev, &ev);
+	/* rk3326/px30 require first params queued before
+	 * rkisp1_params_configure_isp() called
+	 */
+	ret = wait_event_timeout(dev->sync_onoff,
+			params_vdev->streamon && !params_vdev->first_params,
+			msecs_to_jiffies(1000));
+	if (!ret)
+		v4l2_warn(&dev->v4l2_dev,
+			  "waiting on params stream on event timeout\n");
+	else
+		v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
+			 "Waiting for 3A on use %d ms\n", 1000 - ret);
+}
+
+static void rkisp1_stop_3a_run(struct rkisp1_device *dev)
+{
+	struct rkisp1_isp_params_vdev *params_vdev = &dev->params_vdev;
+	struct video_device *vdev = &params_vdev->vnode.vdev;
+	struct v4l2_event ev = {
+		.type = CIFISP_V4L2_EVENT_STREAM_STOP,
+	};
+	int ret;
+
+	if (!rkisp1_is_need_3a(dev))
+		return;
+
+	v4l2_event_queue(vdev, &ev);
+	ret = wait_event_timeout(dev->sync_onoff, !params_vdev->streamon,
+				 msecs_to_jiffies(1000));
+	if (!ret)
+		v4l2_warn(&dev->v4l2_dev,
+			  "waiting on params stream off event timeout\n");
+	else
+		v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
+			 "Waiting for 3A off use %d ms\n", 1000 - ret);
+}
+
 /* Mess register operations to stop isp */
 static int rkisp1_isp_stop(struct rkisp1_device *dev)
 {
@@ -1347,8 +1405,13 @@ static int rkisp1_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	struct rkisp1_device *isp_dev = sd_to_isp_dev(sd);
 	int ret = 0;
 
-	if (!on)
+	if (!on) {
+		rkisp1_stop_3a_run(isp_dev);
+
 		return rkisp1_isp_stop(isp_dev);
+	}
+
+	rkisp1_start_3a_run(isp_dev);
 
 	atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
 	ret = rkisp1_config_cif(isp_dev);

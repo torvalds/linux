@@ -36,6 +36,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>	/* for ISP params */
+#include <media/v4l2-event.h>
 #include <linux/rk-preisp.h>
 #include "dev.h"
 #include "regs.h"
@@ -2406,6 +2407,21 @@ static int rkisp1_params_querycap(struct file *file,
 	return 0;
 }
 
+static int rkisp1_params_subs_evt(struct v4l2_fh *fh,
+				  const struct v4l2_event_subscription *sub)
+{
+	if (sub->id != 0)
+		return -EINVAL;
+
+	switch (sub->type) {
+	case CIFISP_V4L2_EVENT_STREAM_START:
+	case CIFISP_V4L2_EVENT_STREAM_STOP:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
+	default:
+		return -EINVAL;
+	}
+}
+
 /* ISP params video device IOCTLs */
 static const struct v4l2_ioctl_ops rkisp1_params_ioctl = {
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
@@ -2421,7 +2437,9 @@ static const struct v4l2_ioctl_ops rkisp1_params_ioctl = {
 	.vidioc_g_fmt_meta_out = rkisp1_params_g_fmt_meta_out,
 	.vidioc_s_fmt_meta_out = rkisp1_params_g_fmt_meta_out,
 	.vidioc_try_fmt_meta_out = rkisp1_params_g_fmt_meta_out,
-	.vidioc_querycap = rkisp1_params_querycap
+	.vidioc_querycap = rkisp1_params_querycap,
+	.vidioc_subscribe_event = rkisp1_params_subs_evt,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe
 };
 
 static int rkisp1_params_vb2_queue_setup(struct vb2_queue *vq,
@@ -2465,6 +2483,7 @@ static void rkisp1_params_vb2_buf_queue(struct vb2_buffer *vb)
 		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		params_vdev->first_params = false;
 		params_vdev->cur_params = *new_params;
+		wake_up(&params_vdev->dev->sync_onoff);
 		return;
 	}
 
@@ -2477,6 +2496,7 @@ static void rkisp1_params_vb2_buf_queue(struct vb2_buffer *vb)
 static void rkisp1_params_vb2_stop_streaming(struct vb2_queue *vq)
 {
 	struct rkisp1_isp_params_vdev *params_vdev = vq->drv_priv;
+	struct rkisp1_device *dev = params_vdev->dev;
 	struct rkisp1_buffer *buf;
 	unsigned long flags;
 	int i;
@@ -2484,6 +2504,7 @@ static void rkisp1_params_vb2_stop_streaming(struct vb2_queue *vq)
 	/* stop params input firstly */
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	params_vdev->streamon = false;
+	wake_up(&dev->sync_onoff);
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
 	for (i = 0; i < RKISP1_ISP_PARAMS_REQ_BUFS_MAX; i++) {
@@ -2556,7 +2577,7 @@ rkisp1_params_init_vb2_queue(struct vb2_queue *q,
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &params_vdev->dev->apilock;
+	q->lock = &params_vdev->dev->iqlock;
 	q->dev = params_vdev->dev->dev;
 
 	return vb2_queue_init(q);
@@ -2600,7 +2621,7 @@ int rkisp1_register_params_vdev(struct rkisp1_isp_params_vdev *params_vdev,
 	 * Provide a mutex to v4l2 core. It will be used
 	 * to protect all fops and v4l2 ioctls.
 	 */
-	vdev->lock = &dev->apilock;
+	vdev->lock = &dev->iqlock;
 	vdev->v4l2_dev = v4l2_dev;
 	vdev->queue = &node->buf_queue;
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_META_OUTPUT;
