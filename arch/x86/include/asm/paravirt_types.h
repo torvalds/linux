@@ -88,7 +88,7 @@ struct pv_init_ops {
 	 * the number of bytes of code generated, as we nop pad the
 	 * rest in generic code.
 	 */
-	unsigned (*patch)(u8 type, void *insnbuf,
+	unsigned (*patch)(u8 type, void *insn_buff,
 			  unsigned long addr, unsigned len);
 } __no_randomize_layout;
 
@@ -370,18 +370,11 @@ extern struct paravirt_patch_template pv_ops;
 /* Simple instruction patching code. */
 #define NATIVE_LABEL(a,x,b) "\n\t.globl " a #x "_" #b "\n" a #x "_" #b ":\n\t"
 
-#define DEF_NATIVE(ops, name, code)					\
-	__visible extern const char start_##ops##_##name[], end_##ops##_##name[];	\
-	asm(NATIVE_LABEL("start_", ops, name) code NATIVE_LABEL("end_", ops, name))
+unsigned paravirt_patch_ident_64(void *insn_buff, unsigned len);
+unsigned paravirt_patch_default(u8 type, void *insn_buff, unsigned long addr, unsigned len);
+unsigned paravirt_patch_insns(void *insn_buff, unsigned len, const char *start, const char *end);
 
-unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len);
-unsigned paravirt_patch_default(u8 type, void *insnbuf,
-				unsigned long addr, unsigned len);
-
-unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
-			      const char *start, const char *end);
-
-unsigned native_patch(u8 type, void *ibuf, unsigned long addr, unsigned len);
+unsigned native_patch(u8 type, void *insn_buff, unsigned long addr, unsigned len);
 
 int paravirt_disable_iospace(void);
 
@@ -679,8 +672,8 @@ u64 _paravirt_ident_64(u64);
 
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch_site {
-	u8 *instr; 		/* original instructions */
-	u8 instrtype;		/* type of this instruction */
+	u8 *instr;		/* original instructions */
+	u8 type;		/* type of this instruction */
 	u8 len;			/* length of original instruction */
 };
 
