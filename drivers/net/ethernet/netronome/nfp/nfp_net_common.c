@@ -822,11 +822,11 @@ static void nfp_net_tx_csum(struct nfp_net_dp *dp,
 	u64_stats_update_end(&r_vec->tx_sync);
 }
 
-#ifdef CONFIG_TLS_DEVICE
 static struct sk_buff *
 nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 	       struct sk_buff *skb, u64 *tls_handle, int *nr_frags)
 {
+#ifdef CONFIG_TLS_DEVICE
 	struct nfp_net_tls_offload_ctx *ntls;
 	struct sk_buff *nskb;
 	bool resync_pending;
@@ -889,9 +889,9 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 
 	memcpy(tls_handle, ntls->fw_handle, sizeof(ntls->fw_handle));
 	ntls->next_seq += datalen;
+#endif
 	return skb;
 }
-#endif
 
 static void nfp_net_tx_xmit_more_flush(struct nfp_net_tx_ring *tx_ring)
 {
@@ -985,13 +985,11 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-#ifdef CONFIG_TLS_DEVICE
 	skb = nfp_net_tls_tx(dp, r_vec, skb, &tls_handle, &nr_frags);
 	if (unlikely(!skb)) {
 		nfp_net_tx_xmit_more_flush(tx_ring);
 		return NETDEV_TX_OK;
 	}
-#endif
 
 	md_bytes = nfp_net_prep_tx_meta(skb, tls_handle);
 	if (unlikely(md_bytes < 0))
