@@ -6876,9 +6876,10 @@ void gen6_rps_boost(struct i915_request *rq)
 	/* Serializes with i915_request_retire() */
 	boost = false;
 	spin_lock_irqsave(&rq->lock, flags);
-	if (!rq->waitboost && !dma_fence_is_signaled_locked(&rq->fence)) {
+	if (!i915_request_has_waitboost(rq) &&
+	    !dma_fence_is_signaled_locked(&rq->fence)) {
 		boost = !atomic_fetch_inc(&rps->num_waiters);
-		rq->waitboost = true;
+		rq->flags |= I915_REQUEST_WAITBOOST;
 	}
 	spin_unlock_irqrestore(&rq->lock, flags);
 	if (!boost)

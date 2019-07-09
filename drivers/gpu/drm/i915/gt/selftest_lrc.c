@@ -721,6 +721,114 @@ static void preempt_client_fini(struct preempt_client *c)
 	kernel_context_close(c->ctx);
 }
 
+static int live_nopreempt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct preempt_client a, b;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	int err = -ENOMEM;
+
+	/*
+	 * Verify that we can disable preemption for an individual request
+	 * that may be being observed and not want to be interrupted.
+	 */
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
+		return 0;
+
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+	if (preempt_client_init(i915, &a))
+		goto err_unlock;
+	if (preempt_client_init(i915, &b))
+		goto err_client_a;
+	b.ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX);
+
+	for_each_engine(engine, i915, id) {
+		struct i915_request *rq_a, *rq_b;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
+
+		engine->execlists.preempt_hang.count = 0;
+
+		rq_a = igt_spinner_create_request(&a.spin,
+						  a.ctx, engine,
+						  MI_ARB_CHECK);
+		if (IS_ERR(rq_a)) {
+			err = PTR_ERR(rq_a);
+			goto err_client_b;
+		}
+
+		/* Low priority client, but unpreemptable! */
+		rq_a->flags |= I915_REQUEST_NOPREEMPT;
+
+		i915_request_add(rq_a);
+		if (!igt_wait_for_spinner(&a.spin, rq_a)) {
+			pr_err("First client failed to start\n");
+			goto err_wedged;
+		}
+
+		rq_b = igt_spinner_create_request(&b.spin,
+						  b.ctx, engine,
+						  MI_ARB_CHECK);
+		if (IS_ERR(rq_b)) {
+			err = PTR_ERR(rq_b);
+			goto err_client_b;
+		}
+
+		i915_request_add(rq_b);
+
+		/* B is much more important than A! (But A is unpreemptable.) */
+		GEM_BUG_ON(rq_prio(rq_b) <= rq_prio(rq_a));
+
+		/* Wait long enough for preemption and timeslicing */
+		if (igt_wait_for_spinner(&b.spin, rq_b)) {
+			pr_err("Second client started too early!\n");
+			goto err_wedged;
+		}
+
+		igt_spinner_end(&a.spin);
+
+		if (!igt_wait_for_spinner(&b.spin, rq_b)) {
+			pr_err("Second client failed to start\n");
+			goto err_wedged;
+		}
+
+		igt_spinner_end(&b.spin);
+
+		if (engine->execlists.preempt_hang.count) {
+			pr_err("Preemption recorded x%d; should have been suppressed!\n",
+			       engine->execlists.preempt_hang.count);
+			err = -EINVAL;
+			goto err_wedged;
+		}
+
+		if (igt_flush_test(i915, I915_WAIT_LOCKED))
+			goto err_wedged;
+	}
+
+	err = 0;
+err_client_b:
+	preempt_client_fini(&b);
+err_client_a:
+	preempt_client_fini(&a);
+err_unlock:
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+
+err_wedged:
+	igt_spinner_end(&b.spin);
+	igt_spinner_end(&a.spin);
+	i915_gem_set_wedged(i915);
+	err = -EIO;
+	goto err_client_b;
+}
+
 static int live_suppress_self_preempt(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -2028,6 +2136,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_busywait_preempt),
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
+		SUBTEST(live_nopreempt),
 		SUBTEST(live_suppress_self_preempt),
 		SUBTEST(live_suppress_wait_preempt),
 		SUBTEST(live_chain_preempt),

@@ -292,7 +292,7 @@ static bool i915_request_retire(struct i915_request *rq)
 		dma_fence_signal_locked(&rq->fence);
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
 		i915_request_cancel_breadcrumb(rq);
-	if (rq->waitboost) {
+	if (i915_request_has_waitboost(rq)) {
 		GEM_BUG_ON(!atomic_read(&rq->i915->gt_pm.rps.num_waiters));
 		atomic_dec(&rq->i915->gt_pm.rps.num_waiters);
 	}
@@ -684,7 +684,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->file_priv = NULL;
 	rq->batch = NULL;
 	rq->capture_list = NULL;
-	rq->waitboost = false;
+	rq->flags = 0;
 	rq->execution_mask = ALL_ENGINES;
 
 	INIT_LIST_HEAD(&rq->active_list);

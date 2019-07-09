@@ -707,6 +707,16 @@ static inline int rq_prio(const struct i915_request *rq)
 	return rq->sched.attr.priority | __NO_PREEMPTION;
 }
 
+static inline int effective_prio(const struct i915_request *rq)
+{
+	int prio = rq_prio(rq);
+
+	if (i915_request_has_nopreempt(rq))
+		prio = I915_PRIORITY_UNPREEMPTABLE;
+
+	return prio;
+}
+
 static struct i915_request *schedule_in(struct i915_request *rq, int idx)
 {
 	trace_i915_request_in(rq, idx);
@@ -747,7 +757,8 @@ static void __guc_dequeue(struct intel_engine_cs *engine)
 				&engine->i915->guc.preempt_work[engine->id];
 			int prio = execlists->queue_priority_hint;
 
-			if (i915_scheduler_need_preempt(prio, rq_prio(last))) {
+			if (i915_scheduler_need_preempt(prio,
+							effective_prio(last))) {
 				intel_write_status_page(engine,
 							I915_GEM_HWS_PREEMPT,
 							GUC_PREEMPT_INPROGRESS);
