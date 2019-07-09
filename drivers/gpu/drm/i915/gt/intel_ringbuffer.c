@@ -76,7 +76,8 @@ gen2_render_ring_flush(struct i915_request *rq, u32 mode)
 	*cs++ = cmd;
 	while (num_store_dw--) {
 		*cs++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
-		*cs++ = intel_gt_scratch_offset(rq->engine->gt);
+		*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+						INTEL_GT_SCRATCH_FIELD_DEFAULT);
 		*cs++ = 0;
 	}
 	*cs++ = MI_FLUSH | MI_NO_WRITE_FLUSH;
@@ -149,7 +150,8 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 	 */
 	if (mode & EMIT_INVALIDATE) {
 		*cs++ = GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE;
-		*cs++ = intel_gt_scratch_offset(rq->engine->gt) |
+		*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+						INTEL_GT_SCRATCH_FIELD_DEFAULT) |
 			PIPE_CONTROL_GLOBAL_GTT;
 		*cs++ = 0;
 		*cs++ = 0;
@@ -158,7 +160,8 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 			*cs++ = MI_FLUSH;
 
 		*cs++ = GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE;
-		*cs++ = intel_gt_scratch_offset(rq->engine->gt) |
+		*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+						INTEL_GT_SCRATCH_FIELD_DEFAULT) |
 			PIPE_CONTROL_GLOBAL_GTT;
 		*cs++ = 0;
 		*cs++ = 0;
@@ -212,7 +215,8 @@ static int
 gen6_emit_post_sync_nonzero_flush(struct i915_request *rq)
 {
 	u32 scratch_addr =
-		intel_gt_scratch_offset(rq->engine->gt) + 2 * CACHELINE_BYTES;
+		intel_gt_scratch_offset(rq->engine->gt,
+					INTEL_GT_SCRATCH_FIELD_RENDER_FLUSH);
 	u32 *cs;
 
 	cs = intel_ring_begin(rq, 6);
@@ -246,7 +250,8 @@ static int
 gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 {
 	u32 scratch_addr =
-		intel_gt_scratch_offset(rq->engine->gt) + 2 * CACHELINE_BYTES;
+		intel_gt_scratch_offset(rq->engine->gt,
+					INTEL_GT_SCRATCH_FIELD_RENDER_FLUSH);
 	u32 *cs, flags = 0;
 	int ret;
 
@@ -304,7 +309,8 @@ static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	*cs++ = GFX_OP_PIPE_CONTROL(4);
 	*cs++ = PIPE_CONTROL_QW_WRITE;
-	*cs++ = intel_gt_scratch_offset(rq->engine->gt) |
+	*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+					INTEL_GT_SCRATCH_FIELD_DEFAULT) |
 		PIPE_CONTROL_GLOBAL_GTT;
 	*cs++ = 0;
 
@@ -349,7 +355,8 @@ static int
 gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 {
 	u32 scratch_addr =
-		intel_gt_scratch_offset(rq->engine->gt) + 2 * CACHELINE_BYTES;
+		intel_gt_scratch_offset(rq->engine->gt,
+					INTEL_GT_SCRATCH_FIELD_RENDER_FLUSH);
 	u32 *cs, flags = 0;
 
 	/*
@@ -1078,7 +1085,9 @@ i830_emit_bb_start(struct i915_request *rq,
 		   u64 offset, u32 len,
 		   unsigned int dispatch_flags)
 {
-	u32 *cs, cs_offset = intel_gt_scratch_offset(rq->engine->gt);
+	u32 *cs, cs_offset =
+		intel_gt_scratch_offset(rq->engine->gt,
+					INTEL_GT_SCRATCH_FIELD_DEFAULT);
 
 	GEM_BUG_ON(rq->engine->gt->scratch->size < I830_WA_SIZE);
 
@@ -1522,7 +1531,8 @@ static int flush_pd_dir(struct i915_request *rq)
 	/* Stall until the page table load is complete */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
-	*cs++ = intel_gt_scratch_offset(rq->engine->gt);
+	*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+					INTEL_GT_SCRATCH_FIELD_DEFAULT);
 	*cs++ = MI_NOOP;
 
 	intel_ring_advance(rq, cs);
@@ -1638,7 +1648,8 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 			/* Insert a delay before the next switch! */
 			*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 			*cs++ = i915_mmio_reg_offset(last_reg);
-			*cs++ = intel_gt_scratch_offset(rq->engine->gt);
+			*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+							INTEL_GT_SCRATCH_FIELD_DEFAULT);
 			*cs++ = MI_NOOP;
 		}
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;

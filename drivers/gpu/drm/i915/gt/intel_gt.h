@@ -24,9 +24,10 @@ void intel_gt_chipset_flush(struct intel_gt *gt);
 int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size);
 void intel_gt_fini_scratch(struct intel_gt *gt);
 
-static inline u32 intel_gt_scratch_offset(const struct intel_gt *gt)
+static inline u32 intel_gt_scratch_offset(const struct intel_gt *gt,
+					  enum intel_gt_scratch_field field)
 {
-	return i915_ggtt_offset(gt->scratch);
+	return i915_ggtt_offset(gt->scratch) + field;
 }
 
 #endif /* __INTEL_GT_H__ */

@@ -60,4 +60,19 @@ struct intel_gt {
 	u32 pm_ier;
 };
 
+enum intel_gt_scratch_field {
+	/* 8 bytes */
+	INTEL_GT_SCRATCH_FIELD_DEFAULT = 0,
+
+	/* 8 bytes */
+	INTEL_GT_SCRATCH_FIELD_CLEAR_SLM_WA = 128,
+
+	/* 8 bytes */
+	INTEL_GT_SCRATCH_FIELD_RENDER_FLUSH = 128,
+
+	/* 8 bytes */
+	INTEL_GT_SCRATCH_FIELD_COHERENTL3_WA = 256,
+
+};
+
 #endif /* __INTEL_GT_TYPES_H__ */
