@@ -586,6 +586,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		vega20_reg_base_init(adev);
 		break;
+	case CHIP_ARCTURUS:
+		arct_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}
