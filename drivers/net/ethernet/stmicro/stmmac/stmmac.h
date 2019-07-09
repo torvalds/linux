@@ -20,6 +20,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/reset.h>
+#include <net/page_pool.h>
 
 struct stmmac_resources {
 	void __iomem *addr;
@@ -54,14 +55,19 @@ struct stmmac_tx_queue {
 	u32 mss;
 };
 
+struct stmmac_rx_buffer {
+	struct page *page;
+	dma_addr_t addr;
+};
+
 struct stmmac_rx_queue {
 	u32 rx_count_frames;
 	u32 queue_index;
+	struct page_pool *page_pool;
+	struct stmmac_rx_buffer *buf_pool;
 	struct stmmac_priv *priv_data;
 	struct dma_extended_desc *dma_erx;
 	struct dma_desc *dma_rx ____cacheline_aligned_in_smp;
-	struct sk_buff **rx_skbuff;
-	dma_addr_t *rx_skbuff_dma;
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
 	u32 rx_zeroc_thresh;
