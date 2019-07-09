@@ -479,7 +479,7 @@ static int do_cmd_download_fw(struct rk1608_state *pdata,
 	if (args->argc == 2 && args->argv[1].type == AUTO_ARG_TYPE_STR)
 		fw_name = args->argv[1].m_str;
 
-	ret = rk1608_download_fw(pdata->spi, fw_name);
+	ret = rk1608_download_fw(pdata, pdata->spi, fw_name);
 	if (ret)
 		dev_err(pdata->dev, "download firmware failed!\n");
 	else
@@ -564,7 +564,7 @@ static int do_cmd_recv_msg(struct rk1608_state *pdata,
 	char buf[256] = "";
 	int ret = 0;
 
-	ret = rk1608_msq_recv_msg(pdata->spi, &m);
+	ret = rk1608_msq_recv_msg(pdata, pdata->spi, &m);
 	if (ret || !m)
 		return 0;
 
@@ -787,7 +787,7 @@ static long rk1608_dev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 		dev_info(pdata->dev, "download fw:%s\n", fw_name);
-		ret = rk1608_download_fw(pdata->spi, fw_name);
+		ret = rk1608_download_fw(pdata, pdata->spi, fw_name);
 		break;
 	}
 	case PREISP_WRITE: {
@@ -805,7 +805,7 @@ static long rk1608_dev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		ret = rk1608_safe_write(pdata->spi, pkt.addr, data, pkt.data_len);
+		ret = rk1608_safe_write(pdata, pdata->spi, pkt.addr, data, pkt.data_len);
 		kfree(data);
 		break;
 	}
@@ -824,7 +824,7 @@ static long rk1608_dev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		ret = rk1608_safe_read(pdata->spi, pkt.addr, data, pkt.data_len);
+		ret = rk1608_safe_read(pdata, pdata->spi, pkt.addr, data, pkt.data_len);
 		if (ret) {
 			kfree(data);
 			break;
