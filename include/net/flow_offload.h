@@ -260,6 +260,20 @@ struct flow_block_offload {
 	struct netlink_ext_ack *extack;
 };
 
+struct flow_block_cb {
+	struct list_head	list;
+	tc_setup_cb_t		*cb;
+	void			*cb_ident;
+	void			*cb_priv;
+	void			(*release)(void *cb_priv);
+	unsigned int		refcnt;
+};
+
+struct flow_block_cb *flow_block_cb_alloc(struct net *net, tc_setup_cb_t *cb,
+					  void *cb_ident, void *cb_priv,
+					  void (*release)(void *cb_priv));
+void flow_block_cb_free(struct flow_block_cb *block_cb);
+
 int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       struct list_head *driver_list, tc_setup_cb_t *cb,
 			       void *cb_ident, void *cb_priv, bool ingress_only);
