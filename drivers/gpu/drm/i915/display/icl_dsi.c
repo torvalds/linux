@@ -560,14 +560,16 @@ static void gen11_dsi_gate_clocks(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 tmp;
 	enum port port;
+	enum phy phy;
 
 	mutex_lock(&dev_priv->dpll_lock);
-	tmp = I915_READ(DPCLKA_CFGCR0_ICL);
+	tmp = I915_READ(ICL_DPCLKA_CFGCR0);
 	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp |= DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+		phy = intel_port_to_phy(dev_priv, port);
+		tmp |= ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 	}
 
-	I915_WRITE(DPCLKA_CFGCR0_ICL, tmp);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, tmp);
 	mutex_unlock(&dev_priv->dpll_lock);
 }
 
@@ -577,14 +579,16 @@ static void gen11_dsi_ungate_clocks(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 tmp;
 	enum port port;
+	enum phy phy;
 
 	mutex_lock(&dev_priv->dpll_lock);
-	tmp = I915_READ(DPCLKA_CFGCR0_ICL);
+	tmp = I915_READ(ICL_DPCLKA_CFGCR0);
 	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+		phy = intel_port_to_phy(dev_priv, port);
+		tmp &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 	}
 
-	I915_WRITE(DPCLKA_CFGCR0_ICL, tmp);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, tmp);
 	mutex_unlock(&dev_priv->dpll_lock);
 }
 
@@ -595,23 +599,26 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	enum port port;
+	enum phy phy;
 	u32 val;
 
 	mutex_lock(&dev_priv->dpll_lock);
 
-	val = I915_READ(DPCLKA_CFGCR0_ICL);
+	val = I915_READ(ICL_DPCLKA_CFGCR0);
 	for_each_dsi_port(port, intel_dsi->ports) {
-		val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
-		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
+		phy = intel_port_to_phy(dev_priv, port);
+		val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
+		val |= ICL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy);
 	}
-	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		val &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+		phy = intel_port_to_phy(dev_priv, port);
+		val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 	}
-	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
-	POSTING_READ(DPCLKA_CFGCR0_ICL);
+	POSTING_READ(ICL_DPCLKA_CFGCR0);
 
 	mutex_unlock(&dev_priv->dpll_lock);
 }

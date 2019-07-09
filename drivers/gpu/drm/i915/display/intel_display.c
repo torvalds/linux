@@ -10096,7 +10096,7 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	u32 temp;
 
 	if (intel_port_is_combophy(dev_priv, port)) {
-		temp = I915_READ(DPCLKA_CFGCR0_ICL) &
+		temp = I915_READ(ICL_DPCLKA_CFGCR0) &
 		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
 		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
 		port_dpll_id = ICL_PORT_DPLL_DEFAULT;

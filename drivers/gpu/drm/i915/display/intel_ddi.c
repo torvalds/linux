@@ -2729,12 +2729,13 @@ u32 ddi_signal_levels(struct intel_dp *intel_dp)
 
 static inline
 u32 icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
-			      enum port port)
+			      enum phy phy)
 {
-	if (intel_port_is_combophy(dev_priv, port)) {
-		return ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(port);
-	} else if (intel_port_is_tc(dev_priv, port)) {
-		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+	if (intel_phy_is_combo(dev_priv, phy)) {
+		return ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
+	} else if (intel_phy_is_tc(dev_priv, phy)) {
+		enum tc_port tc_port = intel_port_to_tc(dev_priv,
+							(enum port)phy);
 
 		return ICL_DPCLKA_CFGCR0_TC_CLK_OFF(tc_port);
 	}
@@ -2747,23 +2748,33 @@ static void icl_map_plls_to_ports(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
-	enum port port = encoder->port;
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	u32 val;
 
 	mutex_lock(&dev_priv->dpll_lock);
 
-	val = I915_READ(DPCLKA_CFGCR0_ICL);
-	WARN_ON((val & icl_dpclka_cfgcr0_clk_off(dev_priv, port)) == 0);
+	val = I915_READ(ICL_DPCLKA_CFGCR0);
+	WARN_ON((val & icl_dpclka_cfgcr0_clk_off(dev_priv, phy)) == 0);
 
-	if (intel_port_is_combophy(dev_priv, port)) {
-		val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
-		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
-		I915_WRITE(DPCLKA_CFGCR0_ICL, val);
-		POSTING_READ(DPCLKA_CFGCR0_ICL);
+	if (intel_phy_is_combo(dev_priv, phy)) {
+		/*
+		 * Even though this register references DDIs, note that we
+		 * want to pass the PHY rather than the port (DDI).  For
+		 * ICL, port=phy in all cases so it doesn't matter, but for
+		 * EHL the bspec notes the following:
+		 *
+		 *   "DDID clock tied to DDIA clock, so DPCLKA_CFGCR0 DDIA
+		 *   Clock Select chooses the PLL for both DDIA and DDID and
+		 *   drives port A in all cases."
+		 */
+		val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
+		val |= ICL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy);
+		I915_WRITE(ICL_DPCLKA_CFGCR0, val);
+		POSTING_READ(ICL_DPCLKA_CFGCR0);
 	}
 
-	val &= ~icl_dpclka_cfgcr0_clk_off(dev_priv, port);
-	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+	val &= ~icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
 	mutex_unlock(&dev_priv->dpll_lock);
 }
@@ -2771,14 +2782,14 @@ static void icl_map_plls_to_ports(struct intel_encoder *encoder,
 static void icl_unmap_plls_to_ports(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	u32 val;
 
 	mutex_lock(&dev_priv->dpll_lock);
 
-	val = I915_READ(DPCLKA_CFGCR0_ICL);
-	val |= icl_dpclka_cfgcr0_clk_off(dev_priv, port);
-	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+	val = I915_READ(ICL_DPCLKA_CFGCR0);
+	val |= icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
 	mutex_unlock(&dev_priv->dpll_lock);
 }
@@ -2836,11 +2847,13 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 		ddi_clk_needed = false;
 	}
 
-	val = I915_READ(DPCLKA_CFGCR0_ICL);
+	val = I915_READ(ICL_DPCLKA_CFGCR0);
 	for_each_port_masked(port, port_mask) {
+		enum phy phy = intel_port_to_phy(dev_priv, port);
+
 		bool ddi_clk_ungated = !(val &
 					 icl_dpclka_cfgcr0_clk_off(dev_priv,
-								   port));
+								   phy));
 
 		if (ddi_clk_needed == ddi_clk_ungated)
 			continue;
@@ -2852,10 +2865,10 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 		if (WARN_ON(ddi_clk_needed))
 			continue;
 
-		DRM_NOTE("Port %c is disabled/in DSI mode with an ungated DDI clock, gate it\n",
-			 port_name(port));
-		val |= icl_dpclka_cfgcr0_clk_off(dev_priv, port);
-		I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+		DRM_NOTE("PHY %c is disabled/in DSI mode with an ungated DDI clock, gate it\n",
+			 phy_name(port));
+		val |= icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
+		I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 	}
 }
 
