@@ -465,11 +465,11 @@ hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	priv->tx_skb[tx_head] = skb;
 	priv->tx_phys[tx_head] = phys;
-	desc->send_addr = cpu_to_be32(phys);
-	desc->send_size = cpu_to_be32(skb->len);
-	desc->cfg = cpu_to_be32(TX_CLEAR_WB | TX_FINISH_CACHE_INV);
+	desc->send_addr = (__force u32)cpu_to_be32(phys);
+	desc->send_size = (__force u32)cpu_to_be32(skb->len);
+	desc->cfg = (__force u32)cpu_to_be32(TX_CLEAR_WB | TX_FINISH_CACHE_INV);
 	phys = priv->tx_desc_dma + tx_head * sizeof(struct tx_desc);
-	desc->wb_addr = cpu_to_be32(phys);
+	desc->wb_addr = (__force u32)cpu_to_be32(phys);
 	skb_tx_timestamp(skb);
 
 	hip04_set_xmit_desc(priv, phys);
