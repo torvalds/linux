@@ -1309,6 +1309,15 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 		goto err_out;
 	}
 
+	err = xdp_rxq_info_reg(&dring->xdp_rxq, priv->ndev, 0);
+	if (err)
+		goto err_out;
+
+	err = xdp_rxq_info_reg_mem_model(&dring->xdp_rxq, MEM_TYPE_PAGE_POOL,
+					 dring->page_pool);
+	if (err)
+		goto err_out;
+
 	for (i = 0; i < DESC_NUM; i++) {
 		struct netsec_desc *desc = &dring->desc[i];
 		dma_addr_t dma_handle;
@@ -1327,14 +1336,6 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 	}
 
 	netsec_rx_fill(priv, 0, DESC_NUM);
-	err = xdp_rxq_info_reg(&dring->xdp_rxq, priv->ndev, 0);
-	if (err)
-		goto err_out;
-
-	err = xdp_rxq_info_reg_mem_model(&dring->xdp_rxq, MEM_TYPE_PAGE_POOL,
-					 dring->page_pool);
-	if (err)
-		goto err_out;
 
 	return 0;
 
