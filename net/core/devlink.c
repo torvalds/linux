@@ -515,6 +515,10 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 		return 0;
 	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_FLAVOUR, attrs->flavour))
 		return -EMSGSIZE;
+	if (devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PHYSICAL &&
+	    devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_CPU &&
+	    devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_DSA)
+		return 0;
 	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_NUMBER,
 			attrs->phys.port_number))
 		return -EMSGSIZE;
