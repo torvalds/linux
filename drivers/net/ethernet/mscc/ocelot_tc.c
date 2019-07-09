@@ -147,14 +147,14 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 	}
 
 	switch (f->command) {
-	case TC_BLOCK_BIND:
+	case FLOW_BLOCK_BIND:
 		ret = tcf_block_cb_register(f->block, cb, port,
 					    port, f->extack);
 		if (ret)
 			return ret;
 
 		return ocelot_setup_tc_block_flower_bind(port, f);
-	case TC_BLOCK_UNBIND:
+	case FLOW_BLOCK_UNBIND:
 		ocelot_setup_tc_block_flower_unbind(port, f);
 		tcf_block_cb_unregister(f->block, cb, port);
 		return 0;

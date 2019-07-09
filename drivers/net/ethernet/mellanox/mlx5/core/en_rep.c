@@ -705,7 +705,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		return -EOPNOTSUPP;
 
 	switch (f->command) {
-	case TC_BLOCK_BIND:
+	case FLOW_BLOCK_BIND:
 		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev);
 		if (indr_priv)
 			return -EEXIST;
@@ -728,7 +728,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		}
 
 		return err;
-	case TC_BLOCK_UNBIND:
+	case FLOW_BLOCK_UNBIND:
 		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev);
 		if (!indr_priv)
 			return -ENOENT;

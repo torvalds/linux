@@ -239,8 +239,8 @@ static inline void flow_stats_update(struct flow_stats *flow_stats,
 }
 
 enum flow_block_command {
-	TC_BLOCK_BIND,
-	TC_BLOCK_UNBIND,
+	FLOW_BLOCK_BIND,
+	FLOW_BLOCK_UNBIND,
 };
 
 enum flow_block_binder_type {

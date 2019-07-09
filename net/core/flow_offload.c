@@ -178,10 +178,10 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 	f->driver_block_list = driver_block_list;
 
 	switch (f->command) {
-	case TC_BLOCK_BIND:
+	case FLOW_BLOCK_BIND:
 		return tcf_block_cb_register(f->block, cb, cb_ident, cb_priv,
 					     f->extack);
-	case TC_BLOCK_UNBIND:
+	case FLOW_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block, cb, cb_ident);
 		return 0;
 	default:
