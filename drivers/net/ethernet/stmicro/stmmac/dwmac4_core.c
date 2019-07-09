@@ -454,7 +454,7 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 			reg++;
 		}
 
-		while (reg <= GMAC_MAX_PERFECT_ADDRESSES) {
+		while (reg < GMAC_MAX_PERFECT_ADDRESSES) {
 			writel(0, ioaddr + GMAC_ADDR_HIGH(reg));
 			writel(0, ioaddr + GMAC_ADDR_LOW(reg));
 			reg++;
