@@ -438,7 +438,7 @@ bool dcn10_did_underflow_occur(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	return false;
 }
 
-static void enable_power_gating_plane(
+static void dcn10_enable_power_gating_plane(
 	struct dce_hwseq *hws,
 	bool enable)
 {
@@ -460,7 +460,7 @@ static void enable_power_gating_plane(
 	REG_UPDATE(DOMAIN7_PG_CONFIG, DOMAIN7_POWER_FORCEON, force_on);
 }
 
-static void disable_vga(
+static void dcn10_disable_vga(
 	struct dce_hwseq *hws)
 {
 	unsigned int in_vga1_mode = 0;
@@ -493,7 +493,7 @@ static void disable_vga(
 	REG_UPDATE(VGA_TEST_CONTROL, VGA_TEST_RENDER_START, 1);
 }
 
-static void dpp_pg_control(
+static void dcn10_dpp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dpp_inst,
 		bool power_on)
@@ -545,7 +545,7 @@ static void dpp_pg_control(
 	}
 }
 
-static void hubp_pg_control(
+static void dcn10_hubp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int hubp_inst,
 		bool power_on)
@@ -605,8 +605,8 @@ static void power_on_plane(
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		dpp_pg_control(hws, plane_id, true);
-		hubp_pg_control(hws, plane_id, true);
+		hws->ctx->dc->hwss.dpp_pg_control(hws, plane_id, true);
+		hws->ctx->dc->hwss.hubp_pg_control(hws, plane_id, true);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		DC_LOG_DEBUG(
@@ -627,7 +627,7 @@ static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
 
-	hubp_pg_control(hws, 0, false);
+	dc->hwss.hubp_pg_control(hws, 0, false);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 
@@ -656,7 +656,7 @@ static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
 
-	hubp_pg_control(hws, 0, true);
+	dc->hwss.hubp_pg_control(hws, 0, true);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 
@@ -664,10 +664,23 @@ static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 	hws->wa_state.DEGVIDCN10_253_applied = true;
 }
 
-static void bios_golden_init(struct dc *dc)
+static void dcn10_bios_golden_init(struct dc *dc)
 {
 	struct dc_bios *bp = dc->ctx->dc_bios;
 	int i;
+	bool allow_self_fresh_force_enable = true;
+
+	if (dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled)
+		allow_self_fresh_force_enable =
+				dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled(dc->res_pool->hubbub);
+
+
+	/* WA for making DF sleep when idle after resume from S0i3.
+	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE is set to 1 by
+	 * command table, if DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0
+	 * before calling command table and it changed to 1 after,
+	 * it should be set back to 0.
+	 */
 
 	/* initialize dcn global */
 	bp->funcs->enable_disp_power_gating(bp,
@@ -678,6 +691,12 @@ static void bios_golden_init(struct dc *dc)
 		bp->funcs->enable_disp_power_gating(bp,
 				CONTROLLER_ID_D0 + i, ASIC_PIPE_DISABLE);
 	}
+
+	if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
+		if (allow_self_fresh_force_enable == false &&
+				dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled(dc->res_pool->hubbub))
+			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub, true);
+
 }
 
 static void false_optc_underflow_wa(
@@ -971,7 +990,7 @@ void hwss1_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
-static void plane_atomic_power_down(struct dc *dc,
+static void dcn10_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp)
 {
@@ -981,8 +1000,8 @@ static void plane_atomic_power_down(struct dc *dc,
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		dpp_pg_control(hws, dpp->inst, false);
-		hubp_pg_control(hws, hubp->inst, false);
+		dc->hwss.dpp_pg_control(hws, dpp->inst, false);
+		dc->hwss.hubp_pg_control(hws, hubp->inst, false);
 		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
@@ -994,7 +1013,7 @@ static void plane_atomic_power_down(struct dc *dc,
 /* disable HW used by plane.
  * note:  cannot disable until disconnect is complete
  */
-static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
+static void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
@@ -1014,7 +1033,7 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->power_gated = true;
 	dc->optimized_required = false; /* We're powering off, no need to optimize */
 
-	plane_atomic_power_down(dc,
+	dc->hwss.plane_atomic_power_down(dc,
 			pipe_ctx->plane_res.dpp,
 			pipe_ctx->plane_res.hubp);
 
@@ -1033,7 +1052,7 @@ static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (!pipe_ctx->plane_res.hubp || pipe_ctx->plane_res.hubp->power_gated)
 		return;
 
-	plane_atomic_disable(dc, pipe_ctx);
+	dc->hwss.plane_atomic_disable(dc, pipe_ctx);
 
 	apply_DEGVIDCN10_253_wa(dc);
 
@@ -1068,9 +1087,14 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		 * command table.
 		 */
 		if (tg->funcs->is_tg_enabled(tg)) {
-			tg->funcs->lock(tg);
-			tg->funcs->set_blank(tg, true);
-			hwss_wait_for_blank_complete(tg);
+			if (dc->hwss.init_blank != NULL) {
+				dc->hwss.init_blank(dc, tg);
+				tg->funcs->lock(tg);
+			} else {
+				tg->funcs->lock(tg);
+				tg->funcs->set_blank(tg, true);
+				hwss_wait_for_blank_complete(tg);
+			}
 		}
 	}
 
@@ -1114,12 +1138,12 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
-		hwss1_plane_atomic_disconnect(dc, pipe_ctx);
+		dc->hwss.plane_atomic_disconnect(dc, pipe_ctx);
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->unlock(tg);
 
-		dcn10_disable_plane(dc, pipe_ctx);
+		dc->hwss.disable_plane(dc, pipe_ctx);
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;
@@ -1135,8 +1159,17 @@ static void dcn10_init_hw(struct dc *dc)
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
+	struct resource_pool *res_pool = dc->res_pool;
+
+	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
+		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
+
+	// Initialize the dccg
+	if (dc->res_pool->dccg && dc->res_pool->dccg->funcs->dccg_init)
+		dc->res_pool->dccg->funcs->dccg_init(res_pool->dccg);
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+
 		REG_WRITE(REFCLK_CNTL, 0);
 		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
 		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
@@ -1150,30 +1183,39 @@ static void dcn10_init_hw(struct dc *dc)
 			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 		}
 
-		enable_power_gating_plane(dc->hwseq, true);
+		//Enable ability to power gate / don't force power on permanently
+		dc->hwss.enable_power_gating_plane(hws, true);
 
-		/* end of FPGA. Below if real ASIC */
 		return;
 	}
 
 	if (!dcb->funcs->is_accelerated_mode(dcb)) {
-		bool allow_self_fresh_force_enable =
-			hububu1_is_allow_self_refresh_enabled(
-						dc->res_pool->hubbub);
+		dc->hwss.bios_golden_init(dc);
+		if (dc->ctx->dc_bios->fw_info_valid) {
+			res_pool->ref_clocks.xtalin_clock_inKhz =
+					dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-		bios_golden_init(dc);
+			if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+				if (res_pool->dccg && res_pool->hubbub) {
 
-		/* WA for making DF sleep when idle after resume from S0i3.
-		 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE is set to 1 by
-		 * command table, if DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0
-		 * before calling command table and it changed to 1 after,
-		 * it should be set back to 0.
-		 */
-		if (allow_self_fresh_force_enable == false &&
-				hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub))
-			hubbub1_allow_self_refresh_control(dc->res_pool->hubbub, true);
+					(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
+							dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
+							&res_pool->ref_clocks.dccg_ref_clock_inKhz);
 
-		disable_vga(dc->hwseq);
+					(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
+							res_pool->ref_clocks.dccg_ref_clock_inKhz,
+							&res_pool->ref_clocks.dchub_ref_clock_inKhz);
+				} else {
+					// Not all ASICs have DCCG sw component
+					res_pool->ref_clocks.dccg_ref_clock_inKhz =
+							res_pool->ref_clocks.xtalin_clock_inKhz;
+					res_pool->ref_clocks.dchub_ref_clock_inKhz =
+							res_pool->ref_clocks.xtalin_clock_inKhz;
+				}
+			}
+		} else
+			ASSERT_CRITICAL(false);
+		dc->hwss.disable_vga(dc->hwseq);
 	}
 
 	for (i = 0; i < dc->link_count; i++) {
@@ -1191,6 +1233,13 @@ static void dcn10_init_hw(struct dc *dc)
 			link->link_status.link_active = true;
 	}
 
+	/* Power gate DSCs */
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	for (i = 0; i < res_pool->res_cap->num_dsc; i++)
+		if (dc->hwss.dsc_pg_control != NULL)
+			dc->hwss.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
+#endif
+
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
 	 * pipes we want to use.
@@ -1199,10 +1248,21 @@ static void dcn10_init_hw(struct dc *dc)
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
 		dc->hwss.init_pipes(dc, dc->current_state);
+		for (i = 0; i < res_pool->pipe_count; i++) {
+			struct hubp *hubp = res_pool->hubps[i];
+			struct dpp *dpp = res_pool->dpps[i];
+
+			hubp->funcs->hubp_init(hubp);
+			res_pool->opps[i]->mpc_tree_params.opp_id = res_pool->opps[i]->inst;
+			dc->hwss.plane_atomic_power_down(dc, dpp, hubp);
+		}
+
+		apply_DEGVIDCN10_253_wa(dc);
 	}
 
-	for (i = 0; i < dc->res_pool->audio_count; i++) {
-		struct audio *audio = dc->res_pool->audios[i];
+
+	for (i = 0; i < res_pool->audio_count; i++) {
+		struct audio *audio = res_pool->audios[i];
 
 		audio->funcs->hw_init(audio);
 	}
@@ -1230,7 +1290,7 @@ static void dcn10_init_hw(struct dc *dc)
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
 
-	enable_power_gating_plane(dc->hwseq, true);
+	dc->hwss.enable_power_gating_plane(dc->hwseq, true);
 
 	memset(&dc->clk_mgr->clks, 0, sizeof(dc->clk_mgr->clks));
 }
@@ -1789,7 +1849,7 @@ static void dcn10_enable_plane(
 	}
 }
 
-static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
+static void dcn10_program_gamut_remap(struct pipe_ctx *pipe_ctx)
 {
 	int i = 0;
 	struct dpp_grph_csc_adjustment adjust;
@@ -2220,7 +2280,7 @@ void update_dchubp_dpp(
 
 	if (plane_state->update_flags.bits.full_update) {
 		/*gamut remap*/
-		program_gamut_remap(pipe_ctx);
+		dc->hwss.program_gamut_remap(pipe_ctx);
 
 		dc->hwss.program_output_csc(dc,
 				pipe_ctx,
@@ -2457,7 +2517,7 @@ static void dcn10_apply_ctx_for_surface(
 			if (old_pipe_ctx->stream_res.tg == tg &&
 			    old_pipe_ctx->plane_res.hubp &&
 			    old_pipe_ctx->plane_res.hubp->opp_id != OPP_ID_INVALID)
-				dcn10_disable_plane(dc, old_pipe_ctx);
+				dc->hwss.disable_plane(dc, old_pipe_ctx);
 		}
 
 		if ((!pipe_ctx->plane_state ||
@@ -2505,7 +2565,7 @@ static void dcn10_apply_ctx_for_surface(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (removed_pipe[i])
-			dcn10_disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+			dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (removed_pipe[i]) {
@@ -2597,7 +2657,7 @@ static void dcn10_optimize_bandwidth(
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
-static void set_drr(struct pipe_ctx **pipe_ctx,
+static void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 		int num_pipes, int vmin, int vmax)
 {
 	int i = 0;
@@ -2622,7 +2682,7 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 	}
 }
 
-static void get_position(struct pipe_ctx **pipe_ctx,
+static void dcn10_get_position(struct pipe_ctx **pipe_ctx,
 		int num_pipes,
 		struct crtc_position *position)
 {
@@ -2634,7 +2694,7 @@ static void get_position(struct pipe_ctx **pipe_ctx,
 		pipe_ctx[i]->stream_res.tg->funcs->get_position(pipe_ctx[i]->stream_res.tg, position);
 }
 
-static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
+static void dcn10_set_static_screen_control(struct pipe_ctx **pipe_ctx,
 		int num_pipes, const struct dc_static_screen_events *events)
 {
 	unsigned int i;
@@ -3125,7 +3185,7 @@ static void dcn10_get_clock(struct dc *dc,
 }
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
-	.program_gamut_remap = program_gamut_remap,
+	.program_gamut_remap = dcn10_program_gamut_remap,
 	.init_hw = dcn10_init_hw,
 	.init_pipes = dcn10_init_pipes,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
@@ -3158,18 +3218,18 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.optimize_bandwidth = dcn10_optimize_bandwidth,
 	.reset_hw_ctx_wrap = dcn10_reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn10_enable_stream_timing,
-	.set_drr = set_drr,
-	.get_position = get_position,
-	.set_static_screen_control = set_static_screen_control,
+	.set_drr = dcn10_set_drr,
+	.get_position = dcn10_get_position,
+	.set_static_screen_control = dcn10_set_static_screen_control,
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dce110_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,
 	.get_hw_state = dcn10_get_hw_state,
 	.clear_status_bits = dcn10_clear_status_bits,
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
-	.edp_backlight_control = hwss_edp_backlight_control,
-	.edp_power_control = hwss_edp_power_control,
-	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
+	.edp_backlight_control = dce110_edp_backlight_control,
+	.edp_power_control = dce110_edp_power_control,
+	.edp_wait_for_hpd_ready = dce110_edp_wait_for_hpd_ready,
 	.set_cursor_position = dcn10_set_cursor_position,
 	.set_cursor_attribute = dcn10_set_cursor_attribute,
 	.set_cursor_sdr_white_level = dcn10_set_cursor_sdr_white_level,
@@ -3179,6 +3239,16 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt,
 	.set_clock = dcn10_set_clock,
 	.get_clock = dcn10_get_clock,
+	.did_underflow_occur = dcn10_did_underflow_occur,
+	.init_blank = NULL,
+	.disable_vga = dcn10_disable_vga,
+	.bios_golden_init = dcn10_bios_golden_init,
+	.plane_atomic_disable = dcn10_plane_atomic_disable,
+	.plane_atomic_power_down = dcn10_plane_atomic_power_down,
+	.enable_power_gating_plane = dcn10_enable_power_gating_plane,
+	.dpp_pg_control = dcn10_dpp_pg_control,
+	.hubp_pg_control = dcn10_hubp_pg_control,
+	.dsc_pg_control = NULL,
 };
 
 

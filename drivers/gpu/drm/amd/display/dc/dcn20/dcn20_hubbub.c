@@ -582,7 +582,7 @@ static const struct hubbub_funcs hubbub2_funcs = {
 	.get_dcc_compression_cap = hubbub2_get_dcc_compression_cap,
 	.wm_read_state = hubbub2_wm_read_state,
 	.get_dchub_ref_freq = hubbub2_get_dchub_ref_freq,
-	.program_watermarks = hubbub2_program_watermarks,
+	.program_watermarks = hubbub2_program_watermarks
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,

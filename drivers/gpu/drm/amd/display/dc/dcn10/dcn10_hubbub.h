@@ -247,7 +247,7 @@ void hubbub1_program_watermarks(
 
 void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow);
 
-bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubub);
+bool hubbub1_is_allow_self_refresh_enabled(struct hubbub *hubub);
 
 void hubbub1_toggle_watermark_change_req(
 		struct hubbub *hubbub);

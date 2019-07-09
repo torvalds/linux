@@ -78,6 +78,8 @@ struct stream_resource;
 struct dc_phy_addr_space_config;
 struct dc_virtual_addr_space_config;
 #endif
+struct hubp;
+struct dpp;
 
 struct hw_sequencer_funcs {
 
@@ -279,6 +281,36 @@ struct hw_sequencer_funcs {
 	void (*setup_periodic_interrupt)(struct pipe_ctx *pipe_ctx, enum vline_select vline);
 	void (*setup_vupdate_interrupt)(struct pipe_ctx *pipe_ctx);
 	bool (*did_underflow_occur)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+
+	void (*init_blank)(struct dc *dc, struct timing_generator *tg);
+	void (*disable_vga)(struct dce_hwseq *hws);
+	void (*bios_golden_init)(struct dc *dc);
+	void (*plane_atomic_power_down)(struct dc *dc,
+			struct dpp *dpp,
+			struct hubp *hubp);
+
+	void (*plane_atomic_disable)(
+			struct dc *dc, struct pipe_ctx *pipe_ctx);
+
+	void (*enable_power_gating_plane)(
+		struct dce_hwseq *hws,
+		bool enable);
+
+	void (*dpp_pg_control)(
+			struct dce_hwseq *hws,
+			unsigned int dpp_inst,
+			bool power_on);
+
+	void (*hubp_pg_control)(
+			struct dce_hwseq *hws,
+			unsigned int hubp_inst,
+			bool power_on);
+
+	void (*dsc_pg_control)(
+			struct dce_hwseq *hws,
+			unsigned int dsc_inst,
+			bool power_on);
+
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*update_odm)(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);

@@ -141,6 +141,10 @@ struct hubbub_funcs {
 			struct dcn_watermark_set *watermarks,
 			unsigned int refclk_mhz,
 			bool safe_to_lower);
+
+	bool (*is_allow_self_refresh_enabled)(struct hubbub *hubbub);
+	void (*allow_self_refresh_control)(struct hubbub *hubbub, bool allow);
+
 };
 
 struct hubbub {

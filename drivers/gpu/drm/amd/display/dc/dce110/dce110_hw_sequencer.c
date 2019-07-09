@@ -731,7 +731,7 @@ static enum bp_result link_transmitter_control(
  * @brief
  * eDP only.
  */
-void hwss_edp_wait_for_hpd_ready(
+void dce110_edp_wait_for_hpd_ready(
 		struct dc_link *link,
 		bool power_up)
 {
@@ -799,7 +799,7 @@ void hwss_edp_wait_for_hpd_ready(
 	}
 }
 
-void hwss_edp_power_control(
+void dce110_edp_power_control(
 		struct dc_link *link,
 		bool power_up)
 {
@@ -881,7 +881,7 @@ void hwss_edp_power_control(
  * @brief
  * eDP only. Control the backlight of the eDP panel
  */
-void hwss_edp_backlight_control(
+void dce110_edp_backlight_control(
 		struct dc_link *link,
 		bool enable)
 {
@@ -2758,9 +2758,9 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
-	.edp_backlight_control = hwss_edp_backlight_control,
-	.edp_power_control = hwss_edp_power_control,
-	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
+	.edp_backlight_control = dce110_edp_backlight_control,
+	.edp_power_control = dce110_edp_power_control,
+	.edp_wait_for_hpd_ready = dce110_edp_wait_for_hpd_ready,
 	.set_cursor_position = dce110_set_cursor_position,
 	.set_cursor_attribute = dce110_set_cursor_attribute
 };

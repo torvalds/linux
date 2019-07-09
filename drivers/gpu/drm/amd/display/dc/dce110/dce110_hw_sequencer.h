@@ -73,15 +73,15 @@ void dce110_optimize_bandwidth(
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);
 
-void hwss_edp_power_control(
+void dce110_edp_power_control(
 		struct dc_link *link,
 		bool power_up);
 
-void hwss_edp_backlight_control(
+void dce110_edp_backlight_control(
 	struct dc_link *link,
 	bool enable);
 
-void hwss_edp_wait_for_hpd_ready(
+void dce110_edp_wait_for_hpd_ready(
 		struct dc_link *link,
 		bool power_up);
 
