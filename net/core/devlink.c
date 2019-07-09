@@ -515,14 +515,16 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 		return 0;
 	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_FLAVOUR, attrs->flavour))
 		return -EMSGSIZE;
-	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_NUMBER, attrs->port_number))
+	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_NUMBER,
+			attrs->phys.port_number))
 		return -EMSGSIZE;
 	if (!attrs->split)
 		return 0;
-	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_SPLIT_GROUP, attrs->port_number))
+	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_SPLIT_GROUP,
+			attrs->phys.port_number))
 		return -EMSGSIZE;
 	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_SPLIT_SUBPORT_NUMBER,
-			attrs->split_subport_number))
+			attrs->phys.split_subport_number))
 		return -EMSGSIZE;
 	return 0;
 }
@@ -5738,6 +5740,29 @@ void devlink_port_type_clear(struct devlink_port *devlink_port)
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_clear);
 
+static int __devlink_port_attrs_set(struct devlink_port *devlink_port,
+				    enum devlink_port_flavour flavour,
+				    const unsigned char *switch_id,
+				    unsigned char switch_id_len)
+{
+	struct devlink_port_attrs *attrs = &devlink_port->attrs;
+
+	if (WARN_ON(devlink_port->registered))
+		return -EEXIST;
+	attrs->set = true;
+	attrs->flavour = flavour;
+	if (switch_id) {
+		attrs->switch_port = true;
+		if (WARN_ON(switch_id_len > MAX_PHYS_ITEM_ID_LEN))
+			switch_id_len = MAX_PHYS_ITEM_ID_LEN;
+		memcpy(attrs->switch_id.id, switch_id, switch_id_len);
+		attrs->switch_id.id_len = switch_id_len;
+	} else {
+		attrs->switch_port = false;
+	}
+	return 0;
+}
+
 /**
  *	devlink_port_attrs_set - Set port attributes
  *
@@ -5760,23 +5785,15 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 			    unsigned char switch_id_len)
 {
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
+	int ret;
 
-	if (WARN_ON(devlink_port->registered))
+	ret = __devlink_port_attrs_set(devlink_port, flavour,
+				       switch_id, switch_id_len);
+	if (ret)
 		return;
-	attrs->set = true;
-	attrs->flavour = flavour;
-	attrs->port_number = port_number;
 	attrs->split = split;
-	attrs->split_subport_number = split_subport_number;
-	if (switch_id) {
-		attrs->switch_port = true;
-		if (WARN_ON(switch_id_len > MAX_PHYS_ITEM_ID_LEN))
-			switch_id_len = MAX_PHYS_ITEM_ID_LEN;
-		memcpy(attrs->switch_id.id, switch_id, switch_id_len);
-		attrs->switch_id.id_len = switch_id_len;
-	} else {
-		attrs->switch_port = false;
-	}
+	attrs->phys.port_number = port_number;
+	attrs->phys.split_subport_number = split_subport_number;
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_set);
 
@@ -5792,10 +5809,11 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 	switch (attrs->flavour) {
 	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
 		if (!attrs->split)
-			n = snprintf(name, len, "p%u", attrs->port_number);
+			n = snprintf(name, len, "p%u", attrs->phys.port_number);
 		else
-			n = snprintf(name, len, "p%us%u", attrs->port_number,
-				     attrs->split_subport_number);
+			n = snprintf(name, len, "p%us%u",
+				     attrs->phys.port_number,
+				     attrs->phys.split_subport_number);
 		break;
 	case DEVLINK_PORT_FLAVOUR_CPU:
 	case DEVLINK_PORT_FLAVOUR_DSA:

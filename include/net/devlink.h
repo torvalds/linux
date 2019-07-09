@@ -38,14 +38,23 @@ struct devlink {
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
+struct devlink_port_phys_attrs {
+	u32 port_number; /* Same value as "split group".
+			  * A physical port which is visible to the user
+			  * for a given port flavour.
+			  */
+	u32 split_subport_number;
+};
+
 struct devlink_port_attrs {
 	u8 set:1,
 	   split:1,
 	   switch_port:1;
 	enum devlink_port_flavour flavour;
-	u32 port_number; /* same value as "split group" */
-	u32 split_subport_number;
 	struct netdev_phys_item_id switch_id;
+	union {
+		struct devlink_port_phys_attrs phys;
+	};
 };
 
 struct devlink_port {
