@@ -25,7 +25,7 @@ static char *create;
  * Format: dm-mod.create=<name>,<uuid>,<minor>,<flags>,<table>[,<table>+][;<name>,<uuid>,<minor>,<flags>,<table>[,<table>+]+]
  * Table format: <start_sector> <num_sectors> <target_type> <target_args>
  *
- * See Documentation/device-mapper/dm-init.txt for dm-mod.create="..." format
+ * See Documentation/device-mapper/dm-init.rst for dm-mod.create="..." format
  * details.
  */
 

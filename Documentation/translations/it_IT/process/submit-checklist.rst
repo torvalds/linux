@@ -43,7 +43,7 @@ sottomissione delle patch, in particolare
 
 6) Le opzioni ``CONFIG``, nuove o modificate, non scombussolano il menu
    di configurazione e sono preimpostate come disabilitate a meno che non
-   soddisfino i criteri descritti in ``Documentation/kbuild/kconfig-language.txt``
+   soddisfino i criteri descritti in ``Documentation/kbuild/kconfig-language.rst``
    alla punto "Voci di menu: valori predefiniti".
 
 7) Tutte le nuove opzioni ``Kconfig`` hanno un messaggio di aiuto.

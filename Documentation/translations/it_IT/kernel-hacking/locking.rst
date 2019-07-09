@@ -468,7 +468,7 @@ e tutti gli oggetti che contiene. Ecco il codice::
             if ((obj = kmalloc(sizeof(*obj), GFP_KERNEL)) == NULL)
                     return -ENOMEM;
 
-            strlcpy(obj->name, name, sizeof(obj->name));
+            strscpy(obj->name, name, sizeof(obj->name));
             obj->id = id;
             obj->popularity = 0;
 
@@ -678,7 +678,7 @@ Ecco il codice::
      }
 
     @@ -63,6 +94,7 @@
-             strlcpy(obj->name, name, sizeof(obj->name));
+             strscpy(obj->name, name, sizeof(obj->name));
              obj->id = id;
              obj->popularity = 0;
     +        obj->refcnt = 1; /* The cache holds a reference */
@@ -792,7 +792,7 @@ contatore stesso.
      }
 
     @@ -94,7 +76,7 @@
-             strlcpy(obj->name, name, sizeof(obj->name));
+             strscpy(obj->name, name, sizeof(obj->name));
              obj->id = id;
              obj->popularity = 0;
     -        obj->refcnt = 1; /* The cache holds a reference */

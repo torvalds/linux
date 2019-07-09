@@ -18,7 +18,7 @@ For more information on the features of cpusets, see
 Documentation/cgroup-v1/cpusets.rst.
 There are a number of different configurations you can use for your needs.  For
 more information on the numa=fake command line option and its various ways of
-configuring fake nodes, see Documentation/x86/x86_64/boot-options.txt.
+configuring fake nodes, see Documentation/x86/x86_64/boot-options.rst.
 
 For the purposes of this introduction, we'll assume a very primitive NUMA
 emulation setup of "numa=fake=4*512,".  This will split our system memory into

@@ -1,3 +1,5 @@
+:orphan:
+
 STM32H743 Overview
 ==================
 

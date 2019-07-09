@@ -115,9 +115,6 @@ Kernel utility functions
 .. kernel-doc:: kernel/rcu/tree.c
    :export:
 
-.. kernel-doc:: kernel/rcu/tree_plugin.h
-   :export:
-
 .. kernel-doc:: kernel/rcu/update.c
    :export:
 

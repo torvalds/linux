@@ -154,7 +154,7 @@ is 0x15 and the full version number is 0x234, this file will contain
 the value 340 = 0x154.
 
 See the type_of_loader and ext_loader_type fields in
-Documentation/x86/boot.txt for additional information.
+Documentation/x86/boot.rst for additional information.
 
 ==============================================================
 
@@ -166,7 +166,7 @@ The complete bootloader version number.  In the example above, this
 file will contain the value 564 = 0x234.
 
 See the type_of_loader and ext_loader_ver fields in
-Documentation/x86/boot.txt for additional information.
+Documentation/x86/boot.rst for additional information.
 
 ==============================================================
 

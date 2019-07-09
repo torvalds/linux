@@ -331,7 +331,7 @@ config ACPI_CUSTOM_DSDT_FILE
 	depends on !STANDALONE
 	help
 	  This option supports a custom DSDT by linking it into the kernel.
-	  See Documentation/acpi/dsdt-override.txt
+	  See Documentation/admin-guide/acpi/dsdt-override.rst
 
 	  Enter the full path name to the file which includes the AmlCode
 	  or dsdt_aml_code declaration.
@@ -353,7 +353,7 @@ config ACPI_TABLE_UPGRADE
 	  This option provides functionality to upgrade arbitrary ACPI tables
 	  via initrd. No functional change if no ACPI tables are passed via
 	  initrd, therefore it's safe to say Y.
-	  See Documentation/acpi/initrd_table_override.txt for details
+	  See Documentation/admin-guide/acpi/initrd_table_override.rst for details
 
 config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
 	bool "Override ACPI tables from built-in initrd"
@@ -363,7 +363,7 @@ config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
 	  This option provides functionality to override arbitrary ACPI tables
 	  from built-in uncompressed initrd.
 
-	  See Documentation/acpi/initrd_table_override.txt for details
+	  See Documentation/admin-guide/acpi/initrd_table_override.rst for details
 
 config ACPI_DEBUG
 	bool "Debug Statements"
@@ -372,7 +372,7 @@ config ACPI_DEBUG
 	  output and increases the kernel size by around 50K.
 
 	  Use the acpi.debug_layer and acpi.debug_level kernel command-line
-	  parameters documented in Documentation/acpi/debug.txt and
+	  parameters documented in Documentation/firmware-guide/acpi/debug.rst and
 	  Documentation/admin-guide/kernel-parameters.rst to control the type and
 	  amount of debug output.
 
@@ -443,7 +443,7 @@ config ACPI_CUSTOM_METHOD
 	help
 	  This debug facility allows ACPI AML methods to be inserted and/or
 	  replaced without rebooting the system. For details refer to:
-	  Documentation/acpi/method-customizing.txt.
+	  Documentation/firmware-guide/acpi/method-customizing.rst.
 
 	  NOTE: This option is security sensitive, because it allows arbitrary
 	  kernel memory to be written to by root (uid=0) users, allowing them

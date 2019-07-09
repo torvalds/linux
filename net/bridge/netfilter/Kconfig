@@ -114,7 +114,7 @@ config BRIDGE_EBT_LIMIT
 	  equivalent of the iptables limit match.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config BRIDGE_EBT_MARK
 	tristate "ebt: mark filter support"

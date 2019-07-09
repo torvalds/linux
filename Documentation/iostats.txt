@@ -97,6 +97,10 @@ Field  9 -- # of I/Os currently in progress
 Field 10 -- # of milliseconds spent doing I/Os
     This field increases so long as field 9 is nonzero.
 
+    Since 5.0 this field counts jiffies when at least one request was
+    started or completed. If request runs more than 2 jiffies then some
+    I/O time will not be accounted unless there are other requests.
+
 Field 11 -- weighted # of milliseconds spent doing I/Os
     This field is incremented at each I/O start, I/O completion, I/O
     merge, or read of these stats by the number of I/Os in progress

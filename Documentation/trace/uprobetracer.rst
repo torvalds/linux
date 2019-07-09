@@ -152,10 +152,15 @@ events, you need to enable it by::
 
     # echo 1 > events/uprobes/enable
 
-Lets disable the event after sleeping for some time.
+Lets start tracing, sleep for some time and stop tracing.
 ::
 
+    # echo 1 > tracing_on
     # sleep 20
+    # echo 0 > tracing_on
+
+Also, you can disable the event by::
+
     # echo 0 > events/uprobes/enable
 
 And you can see the traced information via /sys/kernel/debug/tracing/trace.

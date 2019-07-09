@@ -399,7 +399,7 @@ config SMP
 	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
 	  Management" code will be disabled if you say Y here.
 
-	  See also <file:Documentation/x86/i386/IO-APIC.txt>,
+	  See also <file:Documentation/x86/i386/IO-APIC.rst>,
 	  <file:Documentation/lockup-watchdogs.txt> and the SMP-HOWTO available at
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -1308,7 +1308,7 @@ config MICROCODE
 	  the Linux kernel.
 
 	  The preferred method to load microcode from a detached initrd is described
-	  in Documentation/x86/microcode.txt. For that you need to enable
+	  in Documentation/x86/microcode.rst. For that you need to enable
 	  CONFIG_BLK_DEV_INITRD in order for the loader to be able to scan the
 	  initrd for microcode blobs.
 
@@ -1347,7 +1347,7 @@ config MICROCODE_OLD_INTERFACE
 	  It is inadequate because it runs too late to be able to properly
 	  load microcode on a machine and it needs special tools. Instead, you
 	  should've switched to the early loading method with the initrd or
-	  builtin microcode by now: Documentation/x86/microcode.txt
+	  builtin microcode by now: Documentation/x86/microcode.rst
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
@@ -1496,7 +1496,7 @@ config X86_5LEVEL
 	  A kernel with the option enabled can be booted on machines that
 	  support 4- or 5-level paging.
 
-	  See Documentation/x86/x86_64/5level-paging.txt for more
+	  See Documentation/x86/x86_64/5level-paging.rst for more
 	  information.
 
 	  Say N if unsure.
@@ -1644,7 +1644,7 @@ config ARCH_MEMORY_PROBE
 	depends on X86_64 && MEMORY_HOTPLUG
 	help
 	  This option enables a sysfs memory/probe interface for testing.
-	  See Documentation/memory-hotplug.txt for more information.
+	  See Documentation/admin-guide/mm/memory-hotplug.rst for more information.
 	  If you are unsure how to answer this question, answer N.
 
 config ARCH_PROC_KCORE_TEXT
@@ -1801,7 +1801,7 @@ config MTRR
 	  You can safely say Y even if your machine doesn't have MTRRs, you'll
 	  just add about 9 KB to your kernel.
 
-	  See <file:Documentation/x86/mtrr.txt> for more information.
+	  See <file:Documentation/x86/mtrr.rst> for more information.
 
 config MTRR_SANITIZER
 	def_bool y
@@ -1913,7 +1913,7 @@ config X86_INTEL_MPX
 	  process and adds some branches to paths used during
 	  exec() and munmap().
 
-	  For details, see Documentation/x86/intel_mpx.txt
+	  For details, see Documentation/x86/intel_mpx.rst
 
 	  If unsure, say N.
 
@@ -1929,7 +1929,7 @@ config X86_INTEL_MEMORY_PROTECTION_KEYS
 	  page-based protections, but without requiring modification of the
 	  page tables when an application changes protection domains.
 
-	  For details, see Documentation/x86/protection-keys.txt
+	  For details, see Documentation/core-api/protection-keys.rst
 
 	  If unsure, say y.
 
@@ -2055,7 +2055,7 @@ config CRASH_DUMP
 	  to a memory address not used by the main kernel or BIOS using
 	  PHYSICAL_START, or it must be built as a relocatable image
 	  (CONFIG_RELOCATABLE=y).
-	  For more details see Documentation/kdump/kdump.txt
+	  For more details see Documentation/kdump/kdump.rst
 
 config KEXEC_JUMP
 	bool "kexec jump"
@@ -2092,7 +2092,7 @@ config PHYSICAL_START
 	  the reserved region.  In other words, it can be set based on
 	  the "X" value as specified in the "crashkernel=YM@XM"
 	  command line boot parameter passed to the panic-ed
-	  kernel. Please take a look at Documentation/kdump/kdump.txt
+	  kernel. Please take a look at Documentation/kdump/kdump.rst
 	  for more details about crash dumps.
 
 	  Usage of bzImage for capturing the crash dump is recommended as

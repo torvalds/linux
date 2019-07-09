@@ -3901,7 +3901,7 @@ F:	Documentation/devicetree/bindings/hwmon/cirrus,lochnagar.txt
 F:	Documentation/devicetree/bindings/pinctrl/cirrus,lochnagar.txt
 F:	Documentation/devicetree/bindings/regulator/cirrus,lochnagar.txt
 F:	Documentation/devicetree/bindings/sound/cirrus,lochnagar.txt
-F:	Documentation/hwmon/lochnagar
+F:	Documentation/hwmon/lochnagar.rst
 
 CISCO FCOE HBA DRIVER
 M:	Satish Kharat <satishkh@cisco.com>
@@ -4820,7 +4820,7 @@ S:	Maintained
 W:	http://plugable.com/category/projects/udlfb/
 F:	drivers/video/fbdev/udlfb.c
 F:	include/video/udlfb.h
-F:	Documentation/fb/udlfb.txt
+F:	Documentation/fb/udlfb.rst
 
 DISTRIBUTED LOCK MANAGER (DLM)
 M:	Christine Caulfield <ccaulfie@redhat.com>
@@ -6287,7 +6287,7 @@ FPGA DFL DRIVERS
 M:	Wu Hao <hao.wu@intel.com>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
-F:	Documentation/fpga/dfl.txt
+F:	Documentation/fpga/dfl.rst
 F:	include/uapi/linux/fpga-dfl.h
 F:	drivers/fpga/dfl*
 
@@ -7064,7 +7064,7 @@ F:	drivers/media/usb/hdpvr/
 HEWLETT PACKARD ENTERPRISE ILO NMI WATCHDOG DRIVER
 M:	Jerry Hoemann <jerry.hoemann@hpe.com>
 S:	Supported
-F:	Documentation/watchdog/hpwdt.txt
+F:	Documentation/watchdog/hpwdt.rst
 F:	drivers/watchdog/hpwdt.c
 
 HEWLETT-PACKARD SMART ARRAY RAID DRIVER (hpsa)
@@ -7247,7 +7247,7 @@ F:	drivers/net/ethernet/hp/hp100.*
 HPET:	High Precision Event Timers driver
 M:	Clemens Ladisch <clemens@ladisch.de>
 S:	Maintained
-F:	Documentation/timers/hpet.txt
+F:	Documentation/timers/hpet.rst
 F:	drivers/char/hpet.c
 F:	include/linux/hpet.h
 F:	include/uapi/linux/hpet.h
@@ -7667,7 +7667,7 @@ IDE/ATAPI DRIVERS
 M:	Borislav Petkov <bp@alien8.de>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
-F:	Documentation/cdrom/ide-cd
+F:	Documentation/cdrom/ide-cd.rst
 F:	drivers/ide/ide-cd*
 
 IDEAPAD LAPTOP EXTRAS DRIVER
@@ -7980,7 +7980,7 @@ INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
 M:	Maik Broemme <mbroemme@libmpq.org>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/fb/intelfb.txt
+F:	Documentation/fb/intelfb.rst
 F:	drivers/video/fbdev/intelfb/
 
 INTEL GPIO DRIVERS
@@ -11359,7 +11359,7 @@ NXP FXAS21002C DRIVER
 M:	Rui Miguel Silva <rmfrfs@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/iio/gyroscope/fxas21002c.txt
+F:	Documentation/devicetree/bindings/iio/gyroscope/nxp,fxas21002c.txt
 F:	drivers/iio/gyro/fxas21002c_core.c
 F:	drivers/iio/gyro/fxas21002c.h
 F:	drivers/iio/gyro/fxas21002c_i2c.c
@@ -12737,7 +12737,7 @@ M:	Rodolfo Giometti <giometti@enneenne.com>
 W:	http://wiki.enneenne.com/index.php/LinuxPPS_support
 L:	linuxpps@ml.enneenne.com (subscribers-only)
 S:	Maintained
-F:	Documentation/pps/
+F:	Documentation/driver-api/pps.rst
 F:	Documentation/devicetree/bindings/pps/pps-gpio.txt
 F:	Documentation/ABI/testing/sysfs-pps
 F:	drivers/pps/
@@ -12843,7 +12843,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 W:	http://linuxptp.sourceforge.net/
 F:	Documentation/ABI/testing/sysfs-ptp
-F:	Documentation/ptp/*
+F:	Documentation/driver-api/ptp.rst
 F:	drivers/net/phy/dp83640*
 F:	drivers/ptp/*
 F:	include/linux/ptp_cl*
@@ -14437,7 +14437,7 @@ M:	Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/sm712*
-F:	Documentation/fb/sm712fb.txt
+F:	Documentation/fb/sm712fb.rst
 
 SIMPLE FIRMWARE INTERFACE (SFI)
 M:	Len Brown <lenb@kernel.org>
@@ -14507,7 +14507,7 @@ SIS FRAMEBUFFER DRIVER
 M:	Thomas Winischhofer <thomas@winischhofer.net>
 W:	http://www.winischhofer.net/linuxsisvga.shtml
 S:	Maintained
-F:	Documentation/fb/sisfb.txt
+F:	Documentation/fb/sisfb.rst
 F:	drivers/video/fbdev/sis/
 F:	include/video/sisfb.h
 
@@ -16704,7 +16704,7 @@ M:	Michal Januszewski <spock@gentoo.org>
 L:	linux-fbdev@vger.kernel.org
 W:	https://github.com/mjanusz/v86d
 S:	Maintained
-F:	Documentation/fb/uvesafb.txt
+F:	Documentation/fb/uvesafb.rst
 F:	drivers/video/fbdev/uvesafb.*
 
 VF610 NAND DRIVER

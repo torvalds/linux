@@ -68,7 +68,7 @@ endef
 
 ######
 # gcc support functions
-# See documentation in Documentation/kbuild/makefiles.txt
+# See documentation in Documentation/kbuild/makefiles.rst
 
 # cc-cross-prefix
 # Usage: CROSS_COMPILE := $(call cc-cross-prefix, m68k-linux-gnu- m68k-linux-)
@@ -210,7 +210,7 @@ objectify = $(foreach o,$(1),$(if $(filter /%,$(o)),$(o),$(obj)/$(o)))
 # if_changed_dep  - as if_changed, but uses fixdep to reveal dependencies
 #                   including used config symbols
 # if_changed_rule - as if_changed but execute rule instead
-# See Documentation/kbuild/makefiles.txt for more info
+# See Documentation/kbuild/makefiles.rst for more info
 
 ifneq ($(KBUILD_NOCMDDEP),1)
 # Check if both arguments are the same including their order. Result is empty

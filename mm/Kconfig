@@ -166,7 +166,7 @@ config MEMORY_HOTPLUG_DEFAULT_ONLINE
 	  onlining policy (/sys/devices/system/memory/auto_online_blocks) which
 	  determines what happens to newly added memory regions. Policy setting
 	  can always be changed at runtime.
-	  See Documentation/memory-hotplug.txt for more information.
+	  See Documentation/admin-guide/mm/memory-hotplug.rst for more information.
 
 	  Say Y here if you want all hot-plugged memory blocks to appear in
 	  'online' state by default.

@@ -183,7 +183,7 @@ config CHR_DEV_SCH
 	
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt> and
+	  say M here and read <file:Documentation/kbuild/modules.rst> and
 	  <file:Documentation/scsi/scsi.txt>. The module will be called ch.o.
 	  If unsure, say N.
 
@@ -1474,7 +1474,7 @@ config ZFCP
 
           This driver is also available as a module. This module will be
           called zfcp. If you want to compile it as a module, say M here
-          and read <file:Documentation/kbuild/modules.txt>.
+          and read <file:Documentation/kbuild/modules.rst>.
 
 config SCSI_PMCRAID
 	tristate "PMC SIERRA Linux MaxRAID adapter support"
