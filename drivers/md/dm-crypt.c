@@ -290,9 +290,6 @@ static struct crypto_aead *any_tfm_aead(struct crypt_config *cc)
  *       is calculated from initial key, sector number and mixed using CRC32.
  *       Note that this encryption scheme is vulnerable to watermarking attacks
  *       and should be used for old compatible containers access only.
- *
- * plumb: unimplemented, see:
- * http://article.gmane.org/gmane.linux.kernel.device-mapper.dm-crypt/454
  */
 
 static int crypt_iv_plain_gen(struct crypt_config *cc, u8 *iv,
