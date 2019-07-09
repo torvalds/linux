@@ -147,6 +147,14 @@ static void nfp_net_tls_del_fw(struct nfp_net *nn, __be32 *fw_handle)
 				       NFP_CCM_TYPE_CRYPTO_DEL);
 }
 
+static void
+nfp_net_tls_set_ipver_vlan(struct nfp_crypto_req_add_front *front, u8 ipver)
+{
+	front->ipver_vlan = cpu_to_be16(FIELD_PREP(NFP_NET_TLS_IPVER, ipver) |
+					FIELD_PREP(NFP_NET_TLS_VLAN,
+						   NFP_NET_TLS_VLAN_UNUSED));
+}
+
 static struct nfp_crypto_req_add_back *
 nfp_net_tls_set_ipv4(struct nfp_crypto_req_add_v4 *req, struct sock *sk,
 		     int direction)
@@ -154,9 +162,6 @@ nfp_net_tls_set_ipv4(struct nfp_crypto_req_add_v4 *req, struct sock *sk,
 	struct inet_sock *inet = inet_sk(sk);
 
 	req->front.key_len += sizeof(__be32) * 2;
-	req->front.ipver_vlan = cpu_to_be16(FIELD_PREP(NFP_NET_TLS_IPVER, 4) |
-					    FIELD_PREP(NFP_NET_TLS_VLAN,
-						       NFP_NET_TLS_VLAN_UNUSED));
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
 		req->src_ip = inet->inet_saddr;
@@ -177,9 +182,6 @@ nfp_net_tls_set_ipv6(struct nfp_crypto_req_add_v6 *req, struct sock *sk,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 
 	req->front.key_len += sizeof(struct in6_addr) * 2;
-	req->front.ipver_vlan = cpu_to_be16(FIELD_PREP(NFP_NET_TLS_IPVER, 6) |
-					    FIELD_PREP(NFP_NET_TLS_VLAN,
-						       NFP_NET_TLS_VLAN_UNUSED));
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
 		memcpy(req->src_ip, &np->saddr, sizeof(req->src_ip));
@@ -303,6 +305,8 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	front->key_len = 8;
 	front->opcode = nfp_tls_1_2_dir_to_opcode(direction);
 	memset(front->resv, 0, sizeof(front->resv));
+
+	nfp_net_tls_set_ipver_vlan(front, ipv6 ? 6 : 4);
 
 	if (ipv6)
 		back = nfp_net_tls_set_ipv6((void *)skb->data, sk, direction);
