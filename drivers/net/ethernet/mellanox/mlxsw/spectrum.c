@@ -1585,33 +1585,45 @@ static int mlxsw_sp_setup_tc_block_cb_flower(enum tc_setup_type type,
 	}
 }
 
+static void mlxsw_sp_tc_block_flower_release(void *cb_priv)
+{
+	struct mlxsw_sp_acl_block *acl_block = cb_priv;
+
+	mlxsw_sp_acl_block_destroy(acl_block);
+}
+
+static LIST_HEAD(mlxsw_sp_block_cb_list);
+
 static int
 mlxsw_sp_setup_tc_block_flower_bind(struct mlxsw_sp_port *mlxsw_sp_port,
-				    struct tcf_block *block, bool ingress,
-				    struct netlink_ext_ack *extack)
+			            struct flow_block_offload *f, bool ingress)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_acl_block *acl_block;
-	struct tcf_block_cb *block_cb;
+	struct flow_block_cb *block_cb;
+	bool register_block = false;
 	int err;
 
-	block_cb = tcf_block_cb_lookup(block, mlxsw_sp_setup_tc_block_cb_flower,
-				       mlxsw_sp);
+	block_cb = flow_block_cb_lookup(f, mlxsw_sp_setup_tc_block_cb_flower,
+					mlxsw_sp);
 	if (!block_cb) {
-		acl_block = mlxsw_sp_acl_block_create(mlxsw_sp, block->net);
+		acl_block = mlxsw_sp_acl_block_create(mlxsw_sp, f->net);
 		if (!acl_block)
 			return -ENOMEM;
-		block_cb = __tcf_block_cb_register(block,
-						   mlxsw_sp_setup_tc_block_cb_flower,
-						   mlxsw_sp, acl_block, extack);
+		block_cb = flow_block_cb_alloc(f->net,
+					       mlxsw_sp_setup_tc_block_cb_flower,
+					       mlxsw_sp, acl_block,
+					       mlxsw_sp_tc_block_flower_release);
 		if (IS_ERR(block_cb)) {
+			mlxsw_sp_acl_block_destroy(acl_block);
 			err = PTR_ERR(block_cb);
 			goto err_cb_register;
 		}
+		register_block = true;
 	} else {
-		acl_block = tcf_block_cb_priv(block_cb);
+		acl_block = flow_block_cb_priv(block_cb);
 	}
-	tcf_block_cb_incref(block_cb);
+	flow_block_cb_incref(block_cb);
 	err = mlxsw_sp_acl_block_bind(mlxsw_sp, acl_block,
 				      mlxsw_sp_port, ingress);
 	if (err)
@@ -1622,28 +1634,31 @@ mlxsw_sp_setup_tc_block_flower_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 	else
 		mlxsw_sp_port->eg_acl_block = acl_block;
 
+	if (register_block) {
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &mlxsw_sp_block_cb_list);
+	}
+
 	return 0;
 
 err_block_bind:
-	if (!tcf_block_cb_decref(block_cb)) {
-		__tcf_block_cb_unregister(block, block_cb);
+	if (!flow_block_cb_decref(block_cb))
+		flow_block_cb_free(block_cb);
 err_cb_register:
-		mlxsw_sp_acl_block_destroy(acl_block);
-	}
 	return err;
 }
 
 static void
 mlxsw_sp_setup_tc_block_flower_unbind(struct mlxsw_sp_port *mlxsw_sp_port,
-				      struct tcf_block *block, bool ingress)
+				      struct flow_block_offload *f, bool ingress)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_acl_block *acl_block;
-	struct tcf_block_cb *block_cb;
+	struct flow_block_cb *block_cb;
 	int err;
 
-	block_cb = tcf_block_cb_lookup(block, mlxsw_sp_setup_tc_block_cb_flower,
-				       mlxsw_sp);
+	block_cb = flow_block_cb_lookup(f, mlxsw_sp_setup_tc_block_cb_flower,
+					mlxsw_sp);
 	if (!block_cb)
 		return;
 
@@ -1652,18 +1667,19 @@ mlxsw_sp_setup_tc_block_flower_unbind(struct mlxsw_sp_port *mlxsw_sp_port,
 	else
 		mlxsw_sp_port->eg_acl_block = NULL;
 
-	acl_block = tcf_block_cb_priv(block_cb);
+	acl_block = flow_block_cb_priv(block_cb);
 	err = mlxsw_sp_acl_block_unbind(mlxsw_sp, acl_block,
 					mlxsw_sp_port, ingress);
-	if (!err && !tcf_block_cb_decref(block_cb)) {
-		__tcf_block_cb_unregister(block, block_cb);
-		mlxsw_sp_acl_block_destroy(acl_block);
+	if (!err && !flow_block_cb_decref(block_cb)) {
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 	}
 }
 
 static int mlxsw_sp_setup_tc_block(struct mlxsw_sp_port *mlxsw_sp_port,
-				   struct tc_block_offload *f)
+				   struct flow_block_offload *f)
 {
+	struct flow_block_cb *block_cb;
 	tc_setup_cb_t *cb;
 	bool ingress;
 	int err;
@@ -1678,24 +1694,32 @@ static int mlxsw_sp_setup_tc_block(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -EOPNOTSUPP;
 	}
 
+	f->driver_block_list = &mlxsw_sp_block_cb_list;
+
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
-		err = tcf_block_cb_register(f->block, cb, mlxsw_sp_port,
-					    mlxsw_sp_port, f->extack);
-		if (err)
-			return err;
-		err = mlxsw_sp_setup_tc_block_flower_bind(mlxsw_sp_port,
-							  f->block, ingress,
-							  f->extack);
+		block_cb = flow_block_cb_alloc(f->net, cb, mlxsw_sp_port,
+					       mlxsw_sp_port, NULL);
+		if (IS_ERR(block_cb))
+			return PTR_ERR(block_cb);
+		err = mlxsw_sp_setup_tc_block_flower_bind(mlxsw_sp_port, f,
+							  ingress);
 		if (err) {
-			tcf_block_cb_unregister(f->block, cb, mlxsw_sp_port);
+			flow_block_cb_free(block_cb);
 			return err;
 		}
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &mlxsw_sp_block_cb_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
 		mlxsw_sp_setup_tc_block_flower_unbind(mlxsw_sp_port,
-						      f->block, ingress);
-		tcf_block_cb_unregister(f->block, cb, mlxsw_sp_port);
+						      f, ingress);
+		block_cb = flow_block_cb_lookup(f, cb, mlxsw_sp_port);
+		if (!block_cb)
+			return -ENOENT;
+
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 		return 0;
 	default:
 		return -EOPNOTSUPP;

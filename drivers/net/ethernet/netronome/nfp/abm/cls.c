@@ -262,9 +262,12 @@ static int nfp_abm_setup_tc_block_cb(enum tc_setup_type type,
 	}
 }
 
+static LIST_HEAD(nfp_abm_block_cb_list);
+
 int nfp_abm_setup_cls_block(struct net_device *netdev, struct nfp_repr *repr,
-			    struct tc_block_offload *f)
+			    struct flow_block_offload *f)
 {
-	return flow_block_cb_setup_simple(f, NULL, nfp_abm_setup_tc_block_cb,
+	return flow_block_cb_setup_simple(f, &nfp_abm_block_cb_list,
+					  nfp_abm_setup_tc_block_cb,
 					  repr, repr, true);
 }

@@ -160,6 +160,8 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	return 0;
 }
 
+static LIST_HEAD(nfp_bpf_block_cb_list);
+
 static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			    enum tc_setup_type type, void *type_data)
 {
@@ -167,7 +169,8 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return flow_block_cb_setup_simple(type_data, NULL,
+		return flow_block_cb_setup_simple(type_data,
+						  &nfp_bpf_block_cb_list,
 						  nfp_bpf_setup_tc_block_cb,
 						  nn, nn, true);
 	default:

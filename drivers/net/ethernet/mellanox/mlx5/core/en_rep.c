@@ -693,16 +693,28 @@ static int mlx5e_rep_indr_setup_block_cb(enum tc_setup_type type,
 	}
 }
 
+static void mlx5e_rep_indr_tc_block_unbind(void *cb_priv)
+{
+	struct mlx5e_rep_indr_block_priv *indr_priv = cb_priv;
+
+	list_del(&indr_priv->list);
+	kfree(indr_priv);
+}
+
+static LIST_HEAD(mlx5e_block_cb_list);
+
 static int
 mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 			      struct mlx5e_rep_priv *rpriv,
-			      struct tc_block_offload *f)
+			      struct flow_block_offload *f)
 {
 	struct mlx5e_rep_indr_block_priv *indr_priv;
-	int err = 0;
+	struct flow_block_cb *block_cb;
 
 	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
+
+	f->driver_block_list = &mlx5e_block_cb_list;
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
@@ -719,26 +731,32 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		list_add(&indr_priv->list,
 			 &rpriv->uplink_priv.tc_indr_block_priv_list);
 
-		err = tcf_block_cb_register(f->block,
-					    mlx5e_rep_indr_setup_block_cb,
-					    indr_priv, indr_priv, f->extack);
-		if (err) {
+		block_cb = flow_block_cb_alloc(f->net,
+					       mlx5e_rep_indr_setup_block_cb,
+					       indr_priv, indr_priv,
+					       mlx5e_rep_indr_tc_block_unbind);
+		if (IS_ERR(block_cb)) {
 			list_del(&indr_priv->list);
 			kfree(indr_priv);
+			return PTR_ERR(block_cb);
 		}
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &mlx5e_block_cb_list);
 
-		return err;
+		return 0;
 	case FLOW_BLOCK_UNBIND:
 		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev);
 		if (!indr_priv)
 			return -ENOENT;
 
-		tcf_block_cb_unregister(f->block,
-					mlx5e_rep_indr_setup_block_cb,
-					indr_priv);
-		list_del(&indr_priv->list);
-		kfree(indr_priv);
+		block_cb = flow_block_cb_lookup(f,
+						mlx5e_rep_indr_setup_block_cb,
+						indr_priv);
+		if (!block_cb)
+			return -ENOENT;
 
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 		return 0;
 	default:
 		return -EOPNOTSUPP;

@@ -680,11 +680,11 @@ static void tc_indr_block_ing_cmd(struct tc_indr_block_dev *indr_dev,
 				  struct tc_indr_block_cb *indr_block_cb,
 				  enum flow_block_command command)
 {
-	struct tc_block_offload bo = {
+	struct flow_block_offload bo = {
 		.command	= command,
 		.binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
 		.net		= dev_net(indr_dev->dev),
-		.block		= indr_dev->block,
+		.block_shared	= tcf_block_shared(indr_dev->block),
 	};
 	INIT_LIST_HEAD(&bo.cb_list);
 
@@ -771,11 +771,11 @@ static void tc_indr_block_call(struct tcf_block *block, struct net_device *dev,
 {
 	struct tc_indr_block_cb *indr_block_cb;
 	struct tc_indr_block_dev *indr_dev;
-	struct tc_block_offload bo = {
+	struct flow_block_offload bo = {
 		.command	= command,
 		.binder_type	= ei->binder_type,
 		.net		= dev_net(dev),
-		.block		= block,
+		.block_shared	= tcf_block_shared(block),
 		.extack		= extack,
 	};
 	INIT_LIST_HEAD(&bo.cb_list);
@@ -804,13 +804,13 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 				 enum flow_block_command command,
 				 struct netlink_ext_ack *extack)
 {
-	struct tc_block_offload bo = {};
+	struct flow_block_offload bo = {};
 	int err;
 
 	bo.net = dev_net(dev);
 	bo.command = command;
 	bo.binder_type = ei->binder_type;
-	bo.block = block;
+	bo.block_shared = tcf_block_shared(block);
 	bo.extack = extack;
 	INIT_LIST_HEAD(&bo.cb_list);
 
@@ -3245,7 +3245,7 @@ EXPORT_SYMBOL(tcf_exts_dump_stats);
 int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 		     void *type_data, bool err_stop)
 {
-	struct tcf_block_cb *block_cb;
+	struct flow_block_cb *block_cb;
 	int ok_count = 0;
 	int err;
 

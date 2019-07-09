@@ -249,13 +249,12 @@ enum flow_block_binder_type {
 	FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
 };
 
-struct tcf_block;
 struct netlink_ext_ack;
 
 struct flow_block_offload {
 	enum flow_block_command command;
 	enum flow_block_binder_type binder_type;
-	struct tcf_block *block;
+	bool block_shared;
 	struct net *net;
 	struct list_head cb_list;
 	struct list_head *driver_block_list;

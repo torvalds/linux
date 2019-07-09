@@ -26,8 +26,6 @@ struct tcf_walker {
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
-#define tc_block_offload flow_block_offload
-
 struct tcf_block_ext_info {
 	enum flow_block_binder_type binder_type;
 	tcf_chain_head_change_t *chain_head_change;

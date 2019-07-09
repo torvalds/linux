@@ -128,35 +128,51 @@ static int ocelot_setup_tc_block_cb_eg(enum tc_setup_type type,
 					cb_priv, false);
 }
 
+static LIST_HEAD(ocelot_block_cb_list);
+
 static int ocelot_setup_tc_block(struct ocelot_port *port,
-				 struct tc_block_offload *f)
+				 struct flow_block_offload *f)
 {
+	struct flow_block_cb *block_cb;
 	tc_setup_cb_t *cb;
-	int ret;
+	int err;
 
 	netdev_dbg(port->dev, "tc_block command %d, binder_type %d\n",
 		   f->command, f->binder_type);
 
 	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS) {
 		cb = ocelot_setup_tc_block_cb_ig;
-		port->tc.block_shared = tcf_block_shared(f->block);
+		port->tc.block_shared = f->block_shared;
 	} else if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS) {
 		cb = ocelot_setup_tc_block_cb_eg;
 	} else {
 		return -EOPNOTSUPP;
 	}
 
+	f->driver_block_list = &ocelot_block_cb_list;
+
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
-		ret = tcf_block_cb_register(f->block, cb, port,
-					    port, f->extack);
-		if (ret)
-			return ret;
+		block_cb = flow_block_cb_alloc(f->net, cb, port, port, NULL);
+		if (IS_ERR(block_cb))
+			return PTR_ERR(block_cb);
 
-		return ocelot_setup_tc_block_flower_bind(port, f);
+		err = ocelot_setup_tc_block_flower_bind(port, f);
+		if (err < 0) {
+			flow_block_cb_free(block_cb);
+			return err;
+		}
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, f->driver_block_list);
+		return 0;
 	case FLOW_BLOCK_UNBIND:
+		block_cb = flow_block_cb_lookup(f, cb, port);
+		if (!block_cb)
+			return -ENOENT;
+
 		ocelot_setup_tc_block_flower_unbind(port, f);
-		tcf_block_cb_unregister(f->block, cb, port);
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 		return 0;
 	default:
 		return -EOPNOTSUPP;

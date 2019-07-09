@@ -161,6 +161,8 @@ static int bnxt_vf_rep_setup_tc_block_cb(enum tc_setup_type type,
 	}
 }
 
+static LIST_HEAD(bnxt_vf_block_cb_list);
+
 static int bnxt_vf_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 				void *type_data)
 {
@@ -168,7 +170,8 @@ static int bnxt_vf_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return flow_block_cb_setup_simple(type_data, NULL,
+		return flow_block_cb_setup_simple(type_data,
+						  &bnxt_vf_block_cb_list,
 						  bnxt_vf_rep_setup_tc_block_cb,
 						  vf_rep, vf_rep, true);
 	default:

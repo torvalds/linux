@@ -2,7 +2,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <net/flow_offload.h>
-#include <net/pkt_cls.h>
 
 struct flow_rule *flow_rule_alloc(unsigned int num_actions)
 {
@@ -234,6 +233,8 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       tc_setup_cb_t *cb, void *cb_ident, void *cb_priv,
 			       bool ingress_only)
 {
+	struct flow_block_cb *block_cb;
+
 	if (ingress_only &&
 	    f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
@@ -242,10 +243,21 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
-		return tcf_block_cb_register(f->block, cb, cb_ident, cb_priv,
-					     f->extack);
+		block_cb = flow_block_cb_alloc(f->net, cb, cb_ident,
+					       cb_priv, NULL);
+		if (IS_ERR(block_cb))
+			return PTR_ERR(block_cb);
+
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, driver_block_list);
+		return 0;
 	case FLOW_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, cb, cb_ident);
+		block_cb = flow_block_cb_lookup(f, cb, cb_ident);
+		if (!block_cb)
+			return -ENOENT;
+
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 		return 0;
 	default:
 		return -EOPNOTSUPP;

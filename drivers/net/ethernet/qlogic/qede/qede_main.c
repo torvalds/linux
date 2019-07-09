@@ -579,6 +579,8 @@ static int qede_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
+static LIST_HEAD(qede_block_cb_list);
+
 static int
 qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
 		      void *type_data)
@@ -588,7 +590,8 @@ qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return flow_block_cb_setup_simple(type_data, NULL,
+		return flow_block_cb_setup_simple(type_data,
+						  &qede_block_cb_list,
 						  qede_setup_tc_block_cb,
 						  edev, edev, true);
 	case TC_SETUP_QDISC_MQPRIO:

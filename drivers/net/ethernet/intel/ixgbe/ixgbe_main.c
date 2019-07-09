@@ -9614,6 +9614,8 @@ static int ixgbe_setup_tc_mqprio(struct net_device *dev,
 	return ixgbe_setup_tc(dev, mqprio->num_tc);
 }
 
+static LIST_HEAD(ixgbe_block_cb_list);
+
 static int __ixgbe_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			    void *type_data)
 {
@@ -9621,7 +9623,8 @@ static int __ixgbe_setup_tc(struct net_device *dev, enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return flow_block_cb_setup_simple(type_data, NULL,
+		return flow_block_cb_setup_simple(type_data,
+						  &ixgbe_block_cb_list,
 						  ixgbe_setup_tc_block_cb,
 						  adapter, adapter, true);
 	case TC_SETUP_QDISC_MQPRIO:

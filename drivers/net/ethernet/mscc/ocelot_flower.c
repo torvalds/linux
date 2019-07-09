@@ -299,36 +299,45 @@ static void ocelot_port_block_destroy(struct ocelot_port_block *block)
 	kfree(block);
 }
 
+static void ocelot_tc_block_unbind(void *cb_priv)
+{
+	struct ocelot_port_block *port_block = cb_priv;
+
+	ocelot_port_block_destroy(port_block);
+}
+
 int ocelot_setup_tc_block_flower_bind(struct ocelot_port *port,
-				      struct tc_block_offload *f)
+				      struct flow_block_offload *f)
 {
 	struct ocelot_port_block *port_block;
-	struct tcf_block_cb *block_cb;
+	struct flow_block_cb *block_cb;
 	int ret;
 
 	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
 		return -EOPNOTSUPP;
 
-	block_cb = tcf_block_cb_lookup(f->block,
-				       ocelot_setup_tc_block_cb_flower, port);
+	block_cb = flow_block_cb_lookup(f, ocelot_setup_tc_block_cb_flower,
+					port);
 	if (!block_cb) {
 		port_block = ocelot_port_block_create(port);
 		if (!port_block)
 			return -ENOMEM;
 
-		block_cb =
-			__tcf_block_cb_register(f->block,
-						ocelot_setup_tc_block_cb_flower,
-						port, port_block, f->extack);
+		block_cb = flow_block_cb_alloc(f->net,
+					       ocelot_setup_tc_block_cb_flower,
+					       port, port_block,
+					       ocelot_tc_block_unbind);
 		if (IS_ERR(block_cb)) {
 			ret = PTR_ERR(block_cb);
 			goto err_cb_register;
 		}
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, f->driver_block_list);
 	} else {
-		port_block = tcf_block_cb_priv(block_cb);
+		port_block = flow_block_cb_priv(block_cb);
 	}
 
-	tcf_block_cb_incref(block_cb);
+	flow_block_cb_incref(block_cb);
 	return 0;
 
 err_cb_register:
@@ -338,20 +347,17 @@ err_cb_register:
 }
 
 void ocelot_setup_tc_block_flower_unbind(struct ocelot_port *port,
-					 struct tc_block_offload *f)
+					 struct flow_block_offload *f)
 {
-	struct ocelot_port_block *port_block;
-	struct tcf_block_cb *block_cb;
+	struct flow_block_cb *block_cb;
 
-	block_cb = tcf_block_cb_lookup(f->block,
-				       ocelot_setup_tc_block_cb_flower, port);
+	block_cb = flow_block_cb_lookup(f, ocelot_setup_tc_block_cb_flower,
+					port);
 	if (!block_cb)
 		return;
 
-	port_block = tcf_block_cb_priv(block_cb);
-	if (!tcf_block_cb_decref(block_cb)) {
-		tcf_block_cb_unregister(f->block,
-					ocelot_setup_tc_block_cb_flower, port);
-		ocelot_port_block_destroy(port_block);
+	if (!flow_block_cb_decref(block_cb)) {
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 	}
 }

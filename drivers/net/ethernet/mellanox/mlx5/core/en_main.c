@@ -3459,6 +3459,8 @@ static int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 }
 #endif
 
+static LIST_HEAD(mlx5e_block_cb_list);
+
 static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			  void *type_data)
 {
@@ -3467,7 +3469,8 @@ static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	switch (type) {
 #ifdef CONFIG_MLX5_ESWITCH
 	case TC_SETUP_BLOCK:
-		return flow_block_cb_setup_simple(type_data, NULL,
+		return flow_block_cb_setup_simple(type_data,
+						  &mlx5e_block_cb_list,
 						  mlx5e_setup_tc_block_cb,
 						  priv, priv, true);
 #endif

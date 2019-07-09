@@ -3113,6 +3113,8 @@ static int iavf_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
+static LIST_HEAD(iavf_block_cb_list);
+
 /**
  * iavf_setup_tc - configure multiple traffic classes
  * @netdev: network interface device structure
@@ -3133,7 +3135,8 @@ static int iavf_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 	case TC_SETUP_QDISC_MQPRIO:
 		return __iavf_setup_tc(netdev, type_data);
 	case TC_SETUP_BLOCK:
-		return flow_block_cb_setup_simple(type_data, NULL,
+		return flow_block_cb_setup_simple(type_data,
+						  &iavf_block_cb_list,
 						  iavf_setup_tc_block_cb,
 						  adapter, adapter, true);
 	default:

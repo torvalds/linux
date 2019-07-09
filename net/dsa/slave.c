@@ -942,9 +942,12 @@ static int dsa_slave_setup_tc_block_cb_eg(enum tc_setup_type type,
 	return dsa_slave_setup_tc_block_cb(type, type_data, cb_priv, false);
 }
 
+static LIST_HEAD(dsa_slave_block_cb_list);
+
 static int dsa_slave_setup_tc_block(struct net_device *dev,
-				    struct tc_block_offload *f)
+				    struct flow_block_offload *f)
 {
+	struct flow_block_cb *block_cb;
 	tc_setup_cb_t *cb;
 
 	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
@@ -954,11 +957,24 @@ static int dsa_slave_setup_tc_block(struct net_device *dev,
 	else
 		return -EOPNOTSUPP;
 
+	f->driver_block_list = &dsa_slave_block_cb_list;
+
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
-		return tcf_block_cb_register(f->block, cb, dev, dev, f->extack);
+		block_cb = flow_block_cb_alloc(f->net, cb, dev, dev, NULL);
+		if (IS_ERR(block_cb))
+			return PTR_ERR(block_cb);
+
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &dsa_slave_block_cb_list);
+		return 0;
 	case FLOW_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, cb, dev);
+		block_cb = flow_block_cb_lookup(f, cb, dev);
+		if (!block_cb)
+			return -ENOENT;
+
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
