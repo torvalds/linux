@@ -443,6 +443,7 @@ static void  proc_thermal_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int proc_thermal_resume(struct device *dev)
 {
 	struct proc_thermal_device *proc_dev;
@@ -452,6 +453,9 @@ static int proc_thermal_resume(struct device *dev)
 
 	return 0;
 }
+#else
+#define proc_thermal_resume NULL
+#endif
 
 static SIMPLE_DEV_PM_OPS(proc_thermal_pm, NULL, proc_thermal_resume);
 
