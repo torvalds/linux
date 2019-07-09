@@ -1,3 +1,4 @@
+====================
 One-shot LED Trigger
 ====================
 
@@ -17,27 +18,27 @@ additional "invert" property specifies if the LED has to stay off (normal) or
 on (inverted) when not rearmed.
 
 The trigger can be activated from user space on led class devices as shown
-below:
+below::
 
   echo oneshot > trigger
 
 This adds sysfs attributes to the LED that are documented in:
 Documentation/ABI/testing/sysfs-class-led-trigger-oneshot
 
-Example use-case: network devices, initialization:
+Example use-case: network devices, initialization::
 
   echo oneshot > trigger # set trigger for this led
   echo 33 > delay_on     # blink at 1 / (33 + 33) Hz on continuous traffic
   echo 33 > delay_off
 
-interface goes up:
+interface goes up::
 
   echo 1 > invert # set led as normally-on, turn the led on
 
-packet received/transmitted:
+packet received/transmitted::
 
   echo 1 > shot # led starts blinking, ignored if already blinking
 
-interface goes down
+interface goes down::
 
   echo 0 > invert # set led as normally-off, turn the led off
