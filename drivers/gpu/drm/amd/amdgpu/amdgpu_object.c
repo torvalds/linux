@@ -80,9 +80,6 @@ static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
 	if (bo->pin_count > 0)
 		amdgpu_bo_subtract_pin_size(bo);
 
-	if (bo->kfd_bo)
-		amdgpu_amdkfd_unreserve_memory_limit(bo);
-
 	amdgpu_bo_kunmap(bo);
 
 	if (bo->gem_base.import_attach)
@@ -1218,6 +1215,42 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 
 	/* move_notify is called before move happens */
 	trace_amdgpu_bo_move(abo, new_mem->mem_type, old_mem->mem_type);
+}
+
+/**
+ * amdgpu_bo_move_notify - notification about a BO being released
+ * @bo: pointer to a buffer object
+ *
+ * Wipes VRAM buffers whose contents should not be leaked before the
+ * memory is released.
+ */
+void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
+{
+	struct dma_fence *fence = NULL;
+	struct amdgpu_bo *abo;
+	int r;
+
+	if (!amdgpu_bo_is_amdgpu_bo(bo))
+		return;
+
+	abo = ttm_to_amdgpu_bo(bo);
+
+	if (abo->kfd_bo)
+		amdgpu_amdkfd_unreserve_memory_limit(abo);
+
+	if (bo->mem.mem_type != TTM_PL_VRAM || !bo->mem.mm_node ||
+	    !(abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE))
+		return;
+
+	reservation_object_lock(bo->resv, NULL);
+
+	r = amdgpu_fill_buffer(abo, AMDGPU_POISON, bo->resv, &fence);
+	if (!WARN_ON(r)) {
+		amdgpu_bo_fence(abo, fence, false);
+		dma_fence_put(fence);
+	}
+
+	reservation_object_unlock(bo->resv);
 }
 
 /**
