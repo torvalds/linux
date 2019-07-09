@@ -165,11 +165,11 @@ static void mt76u_copy(struct mt76_dev *dev, u32 offset,
 
 	mutex_lock(&usb->usb_ctrl_mtx);
 	for (i = 0; i < DIV_ROUND_UP(len, 4); i++) {
-		put_unaligned_le32(val[i], usb->data);
+		put_unaligned(val[i], (u32 *) usb->data);
 		ret = __mt76u_vendor_request(dev, MT_VEND_MULTI_WRITE,
 					     USB_DIR_OUT | USB_TYPE_VENDOR,
 					     0, offset + i * 4, usb->data,
-					     sizeof(__le32));
+					     sizeof(u32));
 		if (ret < 0)
 			break;
 	}
