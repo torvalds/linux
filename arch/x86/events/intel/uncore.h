@@ -108,7 +108,7 @@ struct intel_uncore_extra_reg {
 
 struct intel_uncore_box {
 	int pci_phys_id;
-	int pkgid;	/* Logical package ID */
+	int dieid;	/* Logical die ID */
 	int n_active;	/* number of active events */
 	int n_events;
 	int cpu;	/* cpu to collect events */
@@ -467,7 +467,7 @@ static inline void uncore_box_exit(struct intel_uncore_box *box)
 
 static inline bool uncore_box_is_fake(struct intel_uncore_box *box)
 {
-	return (box->pkgid < 0);
+	return (box->dieid < 0);
 }
 
 static inline struct intel_uncore_pmu *uncore_event_to_pmu(struct perf_event *event)

@@ -96,10 +96,10 @@ struct platform_data {
 	struct device_attribute name_attr;
 };
 
-/* Keep track of how many package pointers we allocated in init() */
-static int max_packages __read_mostly;
-/* Array of package pointers. Serialized by cpu hotplug lock */
-static struct platform_device **pkg_devices;
+/* Keep track of how many zone pointers we allocated in init() */
+static int max_zones __read_mostly;
+/* Array of zone pointers. Serialized by cpu hotplug lock */
+static struct platform_device **zone_devices;
 
 static ssize_t show_label(struct device *dev,
 				struct device_attribute *devattr, char *buf)
@@ -422,10 +422,10 @@ static int chk_ucode_version(unsigned int cpu)
 
 static struct platform_device *coretemp_get_pdev(unsigned int cpu)
 {
-	int pkgid = topology_logical_package_id(cpu);
+	int id = topology_logical_die_id(cpu);
 
-	if (pkgid >= 0 && pkgid < max_packages)
-		return pkg_devices[pkgid];
+	if (id >= 0 && id < max_zones)
+		return zone_devices[id];
 	return NULL;
 }
 
@@ -531,7 +531,7 @@ static int coretemp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct platform_data *pdata;
 
-	/* Initialize the per-package data structures */
+	/* Initialize the per-zone data structures */
 	pdata = devm_kzalloc(dev, sizeof(struct platform_data), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
@@ -566,13 +566,13 @@ static struct platform_driver coretemp_driver = {
 
 static struct platform_device *coretemp_device_add(unsigned int cpu)
 {
-	int err, pkgid = topology_logical_package_id(cpu);
+	int err, zoneid = topology_logical_die_id(cpu);
 	struct platform_device *pdev;
 
-	if (pkgid < 0)
+	if (zoneid < 0)
 		return ERR_PTR(-ENOMEM);
 
-	pdev = platform_device_alloc(DRVNAME, pkgid);
+	pdev = platform_device_alloc(DRVNAME, zoneid);
 	if (!pdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -582,7 +582,7 @@ static struct platform_device *coretemp_device_add(unsigned int cpu)
 		return ERR_PTR(err);
 	}
 
-	pkg_devices[pkgid] = pdev;
+	zone_devices[zoneid] = pdev;
 	return pdev;
 }
 
@@ -690,7 +690,7 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	 * the rest.
 	 */
 	if (cpumask_empty(&pd->cpumask)) {
-		pkg_devices[topology_logical_package_id(cpu)] = NULL;
+		zone_devices[topology_logical_die_id(cpu)] = NULL;
 		platform_device_unregister(pdev);
 		return 0;
 	}
@@ -728,10 +728,10 @@ static int __init coretemp_init(void)
 	if (!x86_match_cpu(coretemp_ids))
 		return -ENODEV;
 
-	max_packages = topology_max_packages();
-	pkg_devices = kcalloc(max_packages, sizeof(struct platform_device *),
+	max_zones = topology_max_packages() * topology_max_die_per_package();
+	zone_devices = kcalloc(max_zones, sizeof(struct platform_device *),
 			      GFP_KERNEL);
-	if (!pkg_devices)
+	if (!zone_devices)
 		return -ENOMEM;
 
 	err = platform_driver_register(&coretemp_driver);
@@ -747,7 +747,7 @@ static int __init coretemp_init(void)
 
 outdrv:
 	platform_driver_unregister(&coretemp_driver);
-	kfree(pkg_devices);
+	kfree(zone_devices);
 	return err;
 }
 module_init(coretemp_init)
@@ -756,7 +756,7 @@ static void __exit coretemp_exit(void)
 {
 	cpuhp_remove_state(coretemp_hp_online);
 	platform_driver_unregister(&coretemp_driver);
-	kfree(pkg_devices);
+	kfree(zone_devices);
 }
 module_exit(coretemp_exit)
 
