@@ -3,9 +3,9 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "i915_drv.h"
 #include "intel_display.h"
 #include "intel_dp_mst.h"
-#include "i915_drv.h"
 #include "intel_tc.h"
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)

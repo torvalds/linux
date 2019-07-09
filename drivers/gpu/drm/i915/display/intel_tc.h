@@ -6,8 +6,9 @@
 #ifndef __INTEL_TC_H__
 #define __INTEL_TC_H__
 
-#include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/types.h>
+
 #include "intel_drv.h"
 
 bool intel_tc_port_connected(struct intel_digital_port *dig_port);
