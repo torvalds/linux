@@ -997,8 +997,8 @@ static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 {
-	regmap_write(dsi->regmap, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x40) |
-		     PHY_LP2HS_TIME(0x40) | MAX_RD_TIME(10000));
+	regmap_write(dsi->regmap, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x14) |
+		     PHY_LP2HS_TIME(0x10) | MAX_RD_TIME(10000));
 
 	regmap_write(dsi->regmap, DSI_PHY_TMR_LPCLK_CFG,
 		     PHY_CLKHS2LP_TIME(0x40) | PHY_CLKLP2HS_TIME(0x40));
