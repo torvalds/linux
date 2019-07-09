@@ -23,6 +23,14 @@
 #include <keys/user-type.h>
 #include "ar-internal.h"
 
+static struct key_acl rxrpc_null_key_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.nr_ace	= 1,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE_SEARCH | KEY_ACE_READ),
+	}
+};
+
 static int rxrpc_vet_description_s(const char *);
 static int rxrpc_preparse(struct key_preparsed_payload *);
 static int rxrpc_preparse_s(struct key_preparsed_payload *);
@@ -910,7 +918,8 @@ int rxrpc_request_key(struct rxrpc_sock *rx, char __user *optval, int optlen)
 	if (IS_ERR(description))
 		return PTR_ERR(description);
 
-	key = request_key_net(&key_type_rxrpc, description, sock_net(&rx->sk), NULL);
+	key = request_key_net(&key_type_rxrpc, description, sock_net(&rx->sk),
+			      NULL, NULL);
 	if (IS_ERR(key)) {
 		kfree(description);
 		_leave(" = %ld", PTR_ERR(key));
@@ -941,7 +950,8 @@ int rxrpc_server_keyring(struct rxrpc_sock *rx, char __user *optval,
 	if (IS_ERR(description))
 		return PTR_ERR(description);
 
-	key = request_key_net(&key_type_keyring, description, sock_net(&rx->sk), NULL);
+	key = request_key_net(&key_type_keyring, description, sock_net(&rx->sk),
+			      NULL, NULL);
 	if (IS_ERR(key)) {
 		kfree(description);
 		_leave(" = %ld", PTR_ERR(key));
@@ -974,7 +984,8 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 	_enter("");
 
 	key = key_alloc(&key_type_rxrpc, "x",
-			GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred, 0,
+			GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
+			&internal_key_acl,
 			KEY_ALLOC_NOT_IN_QUOTA, NULL);
 	if (IS_ERR(key)) {
 		_leave(" = -ENOMEM [alloc %ld]", PTR_ERR(key));
@@ -1022,7 +1033,7 @@ struct key *rxrpc_get_null_key(const char *keyname)
 
 	key = key_alloc(&key_type_rxrpc, keyname,
 			GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
-			KEY_POS_SEARCH, KEY_ALLOC_NOT_IN_QUOTA, NULL);
+			&rxrpc_null_key_acl, KEY_ALLOC_NOT_IN_QUOTA, NULL);
 	if (IS_ERR(key))
 		return key;
 

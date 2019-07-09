@@ -72,6 +72,25 @@ struct idmap {
 	const struct cred	*cred;
 };
 
+static struct key_acl nfs_idmap_key_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.nr_ace	= 2,
+	.possessor_viewable = true,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE_VIEW | KEY_ACE_SEARCH | KEY_ACE_READ),
+		KEY_OWNER_ACE(KEY_ACE_VIEW),
+	}
+};
+
+static struct key_acl nfs_idmap_keyring_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.nr_ace	= 2,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE_SEARCH | KEY_ACE_WRITE),
+		KEY_OWNER_ACE(KEY_ACE_VIEW | KEY_ACE_READ),
+	}
+};
+
 static struct user_namespace *idmap_userns(const struct idmap *idmap)
 {
 	if (idmap && idmap->cred)
@@ -208,8 +227,7 @@ int nfs_idmap_init(void)
 
 	keyring = keyring_alloc(".id_resolver",
 				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
-				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
-				KEY_USR_VIEW | KEY_USR_READ,
+				&nfs_idmap_keyring_acl,
 				KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
@@ -287,11 +305,13 @@ static struct key *nfs_idmap_request_key(const char *name, size_t namelen,
 		return ERR_PTR(ret);
 
 	if (!idmap->cred || idmap->cred->user_ns == &init_user_ns)
-		rkey = request_key(&key_type_id_resolver, desc, "");
+		rkey = request_key(&key_type_id_resolver, desc, "",
+				   &nfs_idmap_key_acl);
 	if (IS_ERR(rkey)) {
 		mutex_lock(&idmap->idmap_mutex);
 		rkey = request_key_with_auxdata(&key_type_id_resolver_legacy,
-						desc, NULL, "", 0, idmap);
+						desc, NULL, "", 0, idmap,
+						&nfs_idmap_key_acl);
 		mutex_unlock(&idmap->idmap_mutex);
 	}
 	if (!IS_ERR(rkey))
@@ -320,8 +340,6 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 	}
 
 	rcu_read_lock();
-	rkey->perm |= KEY_USR_VIEW;
-
 	ret = key_validate(rkey);
 	if (ret < 0)
 		goto out_up;

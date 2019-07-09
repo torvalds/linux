@@ -30,7 +30,7 @@ struct key *request_trusted_key(const char *trusted_desc,
 	struct trusted_key_payload *tpayload;
 	struct key *tkey;
 
-	tkey = request_key(&key_type_trusted, trusted_desc, NULL);
+	tkey = request_key(&key_type_trusted, trusted_desc, NULL, NULL);
 	if (IS_ERR(tkey))
 		goto error;
 

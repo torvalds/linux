@@ -27,49 +27,14 @@
 /* key handle serial number */
 typedef int32_t key_serial_t;
 
-/* key handle permissions mask */
-typedef uint32_t key_perm_t;
-
 struct key;
 struct net;
 
 #ifdef CONFIG_KEYS
 
+#include <linux/keyctl.h>
+
 #undef KEY_DEBUGGING
-
-#define KEY_POS_VIEW	0x01000000	/* possessor can view a key's attributes */
-#define KEY_POS_READ	0x02000000	/* possessor can read key payload / view keyring */
-#define KEY_POS_WRITE	0x04000000	/* possessor can update key payload / add link to keyring */
-#define KEY_POS_SEARCH	0x08000000	/* possessor can find a key in search / search a keyring */
-#define KEY_POS_LINK	0x10000000	/* possessor can create a link to a key/keyring */
-#define KEY_POS_SETATTR	0x20000000	/* possessor can set key attributes */
-#define KEY_POS_ALL	0x3f000000
-
-#define KEY_USR_VIEW	0x00010000	/* user permissions... */
-#define KEY_USR_READ	0x00020000
-#define KEY_USR_WRITE	0x00040000
-#define KEY_USR_SEARCH	0x00080000
-#define KEY_USR_LINK	0x00100000
-#define KEY_USR_SETATTR	0x00200000
-#define KEY_USR_ALL	0x003f0000
-
-#define KEY_GRP_VIEW	0x00000100	/* group permissions... */
-#define KEY_GRP_READ	0x00000200
-#define KEY_GRP_WRITE	0x00000400
-#define KEY_GRP_SEARCH	0x00000800
-#define KEY_GRP_LINK	0x00001000
-#define KEY_GRP_SETATTR	0x00002000
-#define KEY_GRP_ALL	0x00003f00
-
-#define KEY_OTH_VIEW	0x00000001	/* third party permissions... */
-#define KEY_OTH_READ	0x00000002
-#define KEY_OTH_WRITE	0x00000004
-#define KEY_OTH_SEARCH	0x00000008
-#define KEY_OTH_LINK	0x00000010
-#define KEY_OTH_SETATTR	0x00000020
-#define KEY_OTH_ALL	0x0000003f
-
-#define KEY_PERM_UNDEF	0xffffffff
 
 struct seq_file;
 struct user_struct;
@@ -112,6 +77,36 @@ union key_payload {
 	void __rcu		*rcu_data0;
 	void			*data[4];
 };
+
+struct key_ace {
+	unsigned int		type;
+	unsigned int		perm;
+	union {
+		kuid_t		uid;
+		kgid_t		gid;
+		unsigned int	subject_id;
+	};
+};
+
+struct key_acl {
+	refcount_t		usage;
+	unsigned short		nr_ace;
+	bool			possessor_viewable;
+	struct rcu_head		rcu;
+	struct key_ace		aces[];
+};
+
+#define KEY_POSSESSOR_ACE(perms) {			\
+		.type = KEY_ACE_SUBJ_STANDARD,		\
+		.perm = perms,				\
+		.subject_id = KEY_ACE_POSSESSOR		\
+	}
+
+#define KEY_OWNER_ACE(perms) {				\
+		.type = KEY_ACE_SUBJ_STANDARD,		\
+		.perm = perms,				\
+		.subject_id = KEY_ACE_OWNER		\
+	}
 
 /*****************************************************************************/
 /*
@@ -179,6 +174,7 @@ struct key {
 	struct rw_semaphore	sem;		/* change vs change sem */
 	struct key_user		*user;		/* owner of this key */
 	void			*security;	/* security data for this key */
+	struct key_acl		__rcu *acl;
 	union {
 		time64_t	expiry;		/* time at which key expires (or 0) */
 		time64_t	revoked_at;	/* time at which key was revoked */
@@ -186,7 +182,6 @@ struct key {
 	time64_t		last_used_at;	/* last time used for LRU keyring discard */
 	kuid_t			uid;
 	kgid_t			gid;
-	key_perm_t		perm;		/* access permissions */
 	unsigned short		quotalen;	/* length added to quota */
 	unsigned short		datalen;	/* payload data length
 						 * - may not match RCU dereferenced payload
@@ -210,6 +205,7 @@ struct key {
 #define KEY_FLAG_ROOT_CAN_INVAL	7	/* set if key can be invalidated by root without permission */
 #define KEY_FLAG_KEEP		8	/* set if key should not be removed */
 #define KEY_FLAG_UID_KEYRING	9	/* set if key is a user or user session keyring */
+#define KEY_FLAG_HAS_ACL	10	/* Set if KEYCTL_SETACL called on key */
 
 	/* the key type and key description string
 	 * - the desc is used to match a key against search criteria
@@ -258,7 +254,7 @@ extern struct key *key_alloc(struct key_type *type,
 			     const char *desc,
 			     kuid_t uid, kgid_t gid,
 			     const struct cred *cred,
-			     key_perm_t perm,
+			     struct key_acl *acl,
 			     unsigned long flags,
 			     struct key_restriction *restrict_link);
 
@@ -295,7 +291,8 @@ static inline void key_ref_put(key_ref_t key_ref)
 extern struct key *request_key_tag(struct key_type *type,
 				   const char *description,
 				   struct key_tag *domain_tag,
-				   const char *callout_info);
+				   const char *callout_info,
+				   struct key_acl *acl);
 
 extern struct key *request_key_rcu(struct key_type *type,
 				   const char *description,
@@ -306,21 +303,24 @@ extern struct key *request_key_with_auxdata(struct key_type *type,
 					    struct key_tag *domain_tag,
 					    const void *callout_info,
 					    size_t callout_len,
-					    void *aux);
+					    void *aux,
+					    struct key_acl *acl);
 
 /**
  * request_key - Request a key and wait for construction
  * @type: Type of key.
  * @description: The searchable description of the key.
  * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ * @acl: The ACL to attach to a new key (or NULL).
  *
  * As for request_key_tag(), but with the default global domain tag.
  */
 static inline struct key *request_key(struct key_type *type,
 				      const char *description,
-				      const char *callout_info)
+				      const char *callout_info,
+				      struct key_acl *acl)
 {
-	return request_key_tag(type, description, NULL, callout_info);
+	return request_key_tag(type, description, NULL, callout_info, acl);
 }
 
 #ifdef CONFIG_NET
@@ -330,6 +330,7 @@ static inline struct key *request_key(struct key_type *type,
  * @description: The searchable description of the key.
  * @net: The network namespace that is the key's domain of operation.
  * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ * @acl: The ACL to attach to a new key (or NULL).
  *
  * As for request_key() except that it does not add the returned key to a
  * keyring if found, new keys are always allocated in the user's quota, the
@@ -339,8 +340,8 @@ static inline struct key *request_key(struct key_type *type,
  * Furthermore, it then works as wait_for_key_construction() to wait for the
  * completion of keys undergoing construction with a non-interruptible wait.
  */
-#define request_key_net(type, description, net, callout_info) \
-	request_key_tag(type, description, net->key_domain, callout_info);
+#define request_key_net(type, description, net, callout_info, acl)	\
+	request_key_tag(type, description, net->key_domain, callout_info, acl);
 #endif /* CONFIG_NET */
 
 extern int wait_for_key_construction(struct key *key, bool intr);
@@ -352,7 +353,7 @@ extern key_ref_t key_create_or_update(key_ref_t keyring,
 				      const char *description,
 				      const void *payload,
 				      size_t plen,
-				      key_perm_t perm,
+				      struct key_acl *acl,
 				      unsigned long flags);
 
 extern int key_update(key_ref_t key,
@@ -372,7 +373,7 @@ extern int key_unlink(struct key *keyring,
 
 extern struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 				 const struct cred *cred,
-				 key_perm_t perm,
+				 struct key_acl *acl,
 				 unsigned long flags,
 				 struct key_restriction *restrict_link,
 				 struct key *dest);
@@ -405,19 +406,29 @@ static inline key_serial_t key_serial(const struct key *key)
 extern void key_set_timeout(struct key *, unsigned);
 
 extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
-				 key_perm_t perm);
+				 u32 desired_perm);
 extern void key_free_user_ns(struct user_namespace *);
 
 /*
  * The permissions required on a key that we're looking up.
  */
-#define	KEY_NEED_VIEW	0x01	/* Require permission to view attributes */
-#define	KEY_NEED_READ	0x02	/* Require permission to read content */
-#define	KEY_NEED_WRITE	0x04	/* Require permission to update / modify */
-#define	KEY_NEED_SEARCH	0x08	/* Require permission to search (keyring) or find (key) */
-#define	KEY_NEED_LINK	0x10	/* Require permission to link */
-#define	KEY_NEED_SETATTR 0x20	/* Require permission to change attributes */
-#define	KEY_NEED_ALL	0x3f	/* All the above permissions */
+#define	KEY_NEED_VIEW	0x001	/* Require permission to view attributes */
+#define	KEY_NEED_READ	0x002	/* Require permission to read content */
+#define	KEY_NEED_WRITE	0x004	/* Require permission to update / modify */
+#define	KEY_NEED_SEARCH	0x008	/* Require permission to search (keyring) or find (key) */
+#define	KEY_NEED_LINK	0x010	/* Require permission to link */
+#define	KEY_NEED_SETSEC	0x020	/* Require permission to set owner, group, ACL */
+#define	KEY_NEED_INVAL	0x040	/* Require permission to invalidate key */
+#define	KEY_NEED_REVOKE	0x080	/* Require permission to revoke key */
+#define	KEY_NEED_JOIN	0x100	/* Require permission to join keyring as session */
+#define	KEY_NEED_CLEAR	0x200	/* Require permission to clear a keyring */
+#define KEY_NEED_ALL	0x3ff
+
+#define OLD_KEY_NEED_SETATTR 0x20 /* Used to be Require permission to change attributes */
+
+extern struct key_acl internal_key_acl;
+extern struct key_acl internal_keyring_acl;
+extern struct key_acl internal_writable_keyring_acl;
 
 static inline short key_read_state(const struct key *key)
 {

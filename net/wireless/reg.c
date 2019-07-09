@@ -741,8 +741,7 @@ static void __init load_keys_from_buffer(const u8 *p, unsigned int buflen)
 
 		key = key_create_or_update(make_key_ref(builtin_regdb_keys, 1),
 					   "asymmetric", NULL, p, plen,
-					   ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
-					    KEY_USR_VIEW | KEY_USR_READ),
+					   &internal_key_acl, 
 					   KEY_ALLOC_NOT_IN_QUOTA |
 					   KEY_ALLOC_BUILT_IN |
 					   KEY_ALLOC_BYPASS_RESTRICTION);
@@ -768,8 +767,7 @@ static int __init load_builtin_regdb_keys(void)
 	builtin_regdb_keys =
 		keyring_alloc(".builtin_regdb_keys",
 			      KUIDT_INIT(0), KGIDT_INIT(0), current_cred(),
-			      ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			      KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH),
+			      &internal_keyring_acl, 
 			      KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(builtin_regdb_keys))
 		return PTR_ERR(builtin_regdb_keys);

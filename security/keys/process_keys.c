@@ -32,6 +32,47 @@ struct key_user root_key_user = {
 	.uid		= GLOBAL_ROOT_UID,
 };
 
+static struct key_acl user_reg_keyring_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.possessor_viewable = true,
+	.nr_ace	= 2,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE_WRITE | KEY_ACE_SEARCH),
+		KEY_OWNER_ACE(KEY_ACE_VIEW | KEY_ACE_READ),
+	}
+};
+
+static struct key_acl user_keyring_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.possessor_viewable = true,
+	.nr_ace	= 2,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE_VIEW | KEY_ACE_READ | KEY_ACE_WRITE |
+				  KEY_ACE_SEARCH | KEY_ACE_LINK),
+		KEY_OWNER_ACE(KEY_ACE__PERMS & ~(KEY_ACE_JOIN | KEY_ACE_SET_SECURITY)),
+	}
+};
+
+static struct key_acl session_keyring_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.possessor_viewable = true,
+	.nr_ace	= 2,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE__PERMS & ~KEY_ACE_JOIN),
+		KEY_OWNER_ACE(KEY_ACE_VIEW | KEY_ACE_READ),
+	}
+};
+
+static struct key_acl thread_and_process_keyring_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.possessor_viewable = true,
+	.nr_ace	= 2,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE__PERMS & ~(KEY_ACE_JOIN | KEY_ACE_SET_SECURITY)),
+		KEY_OWNER_ACE(KEY_ACE_VIEW),
+	}
+};
+
 /*
  * Get or create a user register keyring.
  */
@@ -51,11 +92,8 @@ static struct key *get_user_register(struct user_namespace *user_ns)
 	if (!reg_keyring) {
 		reg_keyring = keyring_alloc(".user_reg",
 					    user_ns->owner, INVALID_GID,
-					    &init_cred,
-					    KEY_POS_WRITE | KEY_POS_SEARCH |
-					    KEY_USR_VIEW | KEY_USR_READ,
-					    0,
-					    NULL, NULL);
+					    &init_cred, &user_reg_keyring_acl,
+					    0, NULL, NULL);
 		if (!IS_ERR(reg_keyring))
 			smp_store_release(&user_ns->user_keyring_register,
 					  reg_keyring);
@@ -77,13 +115,10 @@ int look_up_user_keyrings(struct key **_user_keyring,
 	const struct cred *cred = current_cred();
 	struct user_namespace *user_ns = current_user_ns();
 	struct key *reg_keyring, *uid_keyring, *session_keyring;
-	key_perm_t user_keyring_perm;
 	key_ref_t uid_keyring_r, session_keyring_r;
 	uid_t uid = from_kuid(user_ns, cred->user->uid);
 	char buf[20];
 	int ret;
-
-	user_keyring_perm = (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL;
 
 	kenter("%u", uid);
 
@@ -104,7 +139,7 @@ int look_up_user_keyrings(struct key **_user_keyring,
 	kdebug("_uid %p", uid_keyring_r);
 	if (uid_keyring_r == ERR_PTR(-EAGAIN)) {
 		uid_keyring = keyring_alloc(buf, cred->user->uid, INVALID_GID,
-					    cred, user_keyring_perm,
+					    cred, &user_keyring_acl,
 					    KEY_ALLOC_UID_KEYRING |
 					    KEY_ALLOC_IN_QUOTA,
 					    NULL, reg_keyring);
@@ -126,7 +161,7 @@ int look_up_user_keyrings(struct key **_user_keyring,
 	kdebug("_uid_ses %p", session_keyring_r);
 	if (session_keyring_r == ERR_PTR(-EAGAIN)) {
 		session_keyring = keyring_alloc(buf, cred->user->uid, INVALID_GID,
-						cred, user_keyring_perm,
+						cred, &user_keyring_acl,
 						KEY_ALLOC_UID_KEYRING |
 						KEY_ALLOC_IN_QUOTA,
 						NULL, NULL);
@@ -226,7 +261,7 @@ int install_thread_keyring_to_cred(struct cred *new)
 		return 0;
 
 	keyring = keyring_alloc("_tid", new->uid, new->gid, new,
-				KEY_POS_ALL | KEY_USR_VIEW,
+				&thread_and_process_keyring_acl,
 				KEY_ALLOC_QUOTA_OVERRUN,
 				NULL, NULL);
 	if (IS_ERR(keyring))
@@ -273,7 +308,7 @@ int install_process_keyring_to_cred(struct cred *new)
 		return 0;
 
 	keyring = keyring_alloc("_pid", new->uid, new->gid, new,
-				KEY_POS_ALL | KEY_USR_VIEW,
+				&thread_and_process_keyring_acl,
 				KEY_ALLOC_QUOTA_OVERRUN,
 				NULL, NULL);
 	if (IS_ERR(keyring))
@@ -328,8 +363,7 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 			flags = KEY_ALLOC_IN_QUOTA;
 
 		keyring = keyring_alloc("_ses", cred->uid, cred->gid, cred,
-					KEY_POS_ALL | KEY_USR_VIEW | KEY_USR_READ,
-					flags, NULL, NULL);
+					&session_keyring_acl, flags, NULL, NULL);
 		if (IS_ERR(keyring))
 			return PTR_ERR(keyring);
 	} else {
@@ -609,7 +643,7 @@ bool lookup_user_key_possessed(const struct key *key,
  * returned key reference.
  */
 key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
-			  key_perm_t perm)
+			  unsigned int desired_perm)
 {
 	struct keyring_search_context ctx = {
 		.match_data.cmp		= lookup_user_key_possessed,
@@ -784,12 +818,12 @@ try_again:
 		case -ERESTARTSYS:
 			goto invalid_key;
 		default:
-			if (perm)
+			if (desired_perm)
 				goto invalid_key;
 		case 0:
 			break;
 		}
-	} else if (perm) {
+	} else if (desired_perm) {
 		ret = key_validate(key);
 		if (ret < 0)
 			goto invalid_key;
@@ -801,9 +835,11 @@ try_again:
 		goto invalid_key;
 
 	/* check the permissions */
-	ret = key_task_permission(key_ref, ctx.cred, perm);
-	if (ret < 0)
-		goto invalid_key;
+	if (desired_perm) {
+		ret = key_task_permission(key_ref, ctx.cred, desired_perm);
+		if (ret < 0)
+			goto invalid_key;
+	}
 
 	key->last_used_at = ktime_get_real_seconds();
 
@@ -868,13 +904,13 @@ long join_session_keyring(const char *name)
 	if (PTR_ERR(keyring) == -ENOKEY) {
 		/* not found - try and create a new one */
 		keyring = keyring_alloc(
-			name, old->uid, old->gid, old,
-			KEY_POS_ALL | KEY_USR_VIEW | KEY_USR_READ | KEY_USR_LINK,
+			name, old->uid, old->gid, old, &joinable_keyring_acl,
 			KEY_ALLOC_IN_QUOTA, NULL, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error2;
 		}
+		goto no_perm_test;
 	} else if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error2;
@@ -883,6 +919,12 @@ long join_session_keyring(const char *name)
 		goto error3;
 	}
 
+	ret = key_task_permission(make_key_ref(keyring, false), old,
+				  KEY_NEED_JOIN);
+	if (ret < 0)
+		goto error3;
+
+no_perm_test:
 	/* we've got a keyring - now to install it */
 	ret = install_session_keyring_to_cred(new, keyring);
 	if (ret < 0)

@@ -91,7 +91,7 @@ ecryptfs_get_encrypted_key_payload_data(struct key *key)
 
 static inline struct key *ecryptfs_get_encrypted_key(char *sig)
 {
-	return request_key(&key_type_encrypted, sig, NULL);
+	return request_key(&key_type_encrypted, sig, NULL, NULL);
 }
 
 #else

@@ -16,6 +16,15 @@
 #include <keys/system_keyring.h>
 
 
+static struct key_acl integrity_blacklist_keyring_acl = {
+	.usage	= REFCOUNT_INIT(1),
+	.nr_ace	= 2,
+	.aces = {
+		KEY_POSSESSOR_ACE(KEY_ACE_SEARCH | KEY_ACE_WRITE),
+		KEY_OWNER_ACE(KEY_ACE_VIEW | KEY_ACE_READ | KEY_ACE_WRITE | KEY_ACE_SEARCH),
+	}
+};
+
 struct key *ima_blacklist_keyring;
 
 /*
@@ -35,9 +44,7 @@ __init int ima_mok_init(void)
 
 	ima_blacklist_keyring = keyring_alloc(".ima_blacklist",
 				KUIDT_INIT(0), KGIDT_INIT(0), current_cred(),
-				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
-				KEY_USR_VIEW | KEY_USR_READ |
-				KEY_USR_WRITE | KEY_USR_SEARCH,
+			        &integrity_blacklist_keyring_acl,
 				KEY_ALLOC_NOT_IN_QUOTA,
 				restriction, NULL);
 
