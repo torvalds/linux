@@ -6671,20 +6671,6 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
-bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port)
-{
-	if (port == PORT_NONE)
-		return false;
-
-	if (IS_ELKHARTLAKE(dev_priv))
-		return port <= PORT_C;
-
-	if (INTEL_GEN(dev_priv) >= 11)
-		return port <= PORT_B;
-
-	return false;
-}
-
 bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
 {
 	if (phy == PHY_NONE)
@@ -6695,14 +6681,6 @@ bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		return phy <= PHY_B;
-
-	return false;
-}
-
-bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port)
-{
-	if (INTEL_GEN(dev_priv) >= 11 && !IS_ELKHARTLAKE(dev_priv))
-		return port >= PORT_C && port <= PORT_F;
 
 	return false;
 }
@@ -6756,8 +6734,9 @@ enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum phy phy = intel_port_to_phy(dev_priv, dig_port->base.port);
 
-	if (intel_port_is_tc(dev_priv, dig_port->base.port) &&
+	if (intel_phy_is_tc(dev_priv, phy) &&
 	    dig_port->tc_mode == TC_PORT_TBT_ALT) {
 		switch (dig_port->aux_ch) {
 		case AUX_CH_C:
@@ -10091,16 +10070,17 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
 {
+	enum phy phy = intel_port_to_phy(dev_priv, port);
 	enum icl_port_dpll_id port_dpll_id;
 	enum intel_dpll_id id;
 	u32 temp;
 
-	if (intel_port_is_combophy(dev_priv, port)) {
+	if (intel_phy_is_combo(dev_priv, phy)) {
 		temp = I915_READ(ICL_DPCLKA_CFGCR0) &
-		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
-		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
+			ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
+		id = temp >> ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy);
 		port_dpll_id = ICL_PORT_DPLL_DEFAULT;
-	} else if (intel_port_is_tc(dev_priv, port)) {
+	} else if (intel_phy_is_tc(dev_priv, phy)) {
 		u32 clk_sel = I915_READ(DDI_CLK_SEL(port)) & DDI_CLK_SEL_MASK;
 
 		if (clk_sel == DDI_CLK_SEL_MG) {
@@ -16962,9 +16942,11 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 
 	/* Sanitize the TypeC port mode upfront, encoders depend on this */
 	for_each_intel_encoder(dev, encoder) {
+		enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+
 		/* We need to sanitize only the MST primary port. */
 		if (encoder->type != INTEL_OUTPUT_DP_MST &&
-		    intel_port_is_tc(dev_priv, encoder->port))
+		    intel_phy_is_tc(dev_priv, phy))
 			intel_tc_port_sanitize(enc_to_dig_port(&encoder->base));
 	}
 

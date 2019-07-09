@@ -489,7 +489,9 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 	aux_ch = icl_tc_phy_aux_ch(dev_priv, power_well);
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		if (!intel_port_is_tc(dev_priv, encoder->port))
+		enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+
+		if (!intel_phy_is_tc(dev_priv, phy))
 			continue;
 
 		/* We'll check the MST primary port */

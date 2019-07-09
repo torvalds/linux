@@ -2584,7 +2584,8 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 	struct skl_wrpll_params pll_params = { 0 };
 	bool ret;
 
-	if (intel_port_is_tc(dev_priv, encoder->port))
+	if (intel_phy_is_tc(dev_priv, intel_port_to_phy(dev_priv,
+							encoder->port)))
 		ret = icl_calc_tbt_pll(crtc_state, &pll_params);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) ||
 		 intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
@@ -3004,14 +3005,14 @@ static bool icl_get_dplls(struct intel_atomic_state *state,
 			  struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	enum port port = encoder->port;
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	if (intel_port_is_combophy(dev_priv, port))
+	if (intel_phy_is_combo(dev_priv, phy))
 		return icl_get_combo_phy_dpll(state, crtc, encoder);
-	else if (intel_port_is_tc(dev_priv, port))
+	else if (intel_phy_is_tc(dev_priv, phy))
 		return icl_get_tc_phy_dplls(state, crtc, encoder);
 
-	MISSING_CASE(port);
+	MISSING_CASE(phy);
 
 	return false;
 }

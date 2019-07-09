@@ -297,9 +297,9 @@ static int icl_max_source_rate(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
+	enum phy phy = intel_port_to_phy(dev_priv, dig_port->base.port);
 
-	if (intel_port_is_combophy(dev_priv, port) &&
+	if (intel_phy_is_combo(dev_priv, phy) &&
 	    !IS_ELKHARTLAKE(dev_priv) &&
 	    !intel_dp_is_edp(intel_dp))
 		return 540000;
@@ -1192,7 +1192,8 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	struct drm_i915_private *i915 =
 			to_i915(intel_dig_port->base.base.dev);
 	struct intel_uncore *uncore = &i915->uncore;
-	bool is_tc_port = intel_port_is_tc(i915, intel_dig_port->base.port);
+	enum phy phy = intel_port_to_phy(i915, intel_dig_port->base.port);
+	bool is_tc_port = intel_phy_is_tc(i915, phy);
 	i915_reg_t ch_ctl, ch_data[5];
 	u32 aux_clock_divider;
 	enum intel_display_power_domain aux_domain =
@@ -5211,10 +5212,11 @@ static bool icl_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	if (intel_port_is_combophy(dev_priv, encoder->port))
+	if (intel_phy_is_combo(dev_priv, phy))
 		return icl_combo_port_connected(dev_priv, dig_port);
-	else if (intel_port_is_tc(dev_priv, encoder->port))
+	else if (intel_phy_is_tc(dev_priv, phy))
 		return intel_tc_port_connected(dig_port);
 	else
 		MISSING_CASE(encoder->hpd_pin);
@@ -7113,6 +7115,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_encoder->port;
+	enum phy phy = intel_port_to_phy(dev_priv, port);
 	int type;
 
 	/* Initialize the work for modeset in case of link train failure */
@@ -7139,7 +7142,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		 * Currently we don't support eDP on TypeC ports, although in
 		 * theory it could work on TypeC legacy ports.
 		 */
-		WARN_ON(intel_port_is_tc(dev_priv, port));
+		WARN_ON(intel_phy_is_tc(dev_priv, phy));
 		type = DRM_MODE_CONNECTOR_eDP;
 	} else {
 		type = DRM_MODE_CONNECTOR_DisplayPort;

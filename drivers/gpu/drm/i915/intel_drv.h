@@ -1492,9 +1492,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
-bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port);
 bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy);
-bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port);
 bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy);
 enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
 			      enum port port);
