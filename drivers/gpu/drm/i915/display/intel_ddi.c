@@ -2414,7 +2414,7 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder,
 }
 
 static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
-					u32 level, enum port port, int type,
+					u32 level, enum phy phy, int type,
 					int rate)
 {
 	const struct cnl_ddi_buf_trans *ddi_translations = NULL;
@@ -2432,41 +2432,41 @@ static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
 	}
 
 	/* Set PORT_TX_DW5 */
-	val = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+	val = I915_READ(ICL_PORT_TX_DW5_LN0(phy));
 	val &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK |
 		  TAP2_DISABLE | TAP3_DISABLE);
 	val |= SCALING_MODE_SEL(0x2);
 	val |= RTERM_SELECT(0x6);
 	val |= TAP3_DISABLE;
-	I915_WRITE(ICL_PORT_TX_DW5_GRP(port), val);
+	I915_WRITE(ICL_PORT_TX_DW5_GRP(phy), val);
 
 	/* Program PORT_TX_DW2 */
-	val = I915_READ(ICL_PORT_TX_DW2_LN0(port));
+	val = I915_READ(ICL_PORT_TX_DW2_LN0(phy));
 	val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 		 RCOMP_SCALAR_MASK);
 	val |= SWING_SEL_UPPER(ddi_translations[level].dw2_swing_sel);
 	val |= SWING_SEL_LOWER(ddi_translations[level].dw2_swing_sel);
 	/* Program Rcomp scalar for every table entry */
 	val |= RCOMP_SCALAR(0x98);
-	I915_WRITE(ICL_PORT_TX_DW2_GRP(port), val);
+	I915_WRITE(ICL_PORT_TX_DW2_GRP(phy), val);
 
 	/* Program PORT_TX_DW4 */
 	/* We cannot write to GRP. It would overwrite individual loadgen. */
 	for (ln = 0; ln <= 3; ln++) {
-		val = I915_READ(ICL_PORT_TX_DW4_LN(ln, port));
+		val = I915_READ(ICL_PORT_TX_DW4_LN(ln, phy));
 		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 			 CURSOR_COEFF_MASK);
 		val |= POST_CURSOR_1(ddi_translations[level].dw4_post_cursor_1);
 		val |= POST_CURSOR_2(ddi_translations[level].dw4_post_cursor_2);
 		val |= CURSOR_COEFF(ddi_translations[level].dw4_cursor_coeff);
-		I915_WRITE(ICL_PORT_TX_DW4_LN(ln, port), val);
+		I915_WRITE(ICL_PORT_TX_DW4_LN(ln, phy), val);
 	}
 
 	/* Program PORT_TX_DW7 */
-	val = I915_READ(ICL_PORT_TX_DW7_LN0(port));
+	val = I915_READ(ICL_PORT_TX_DW7_LN0(phy));
 	val &= ~N_SCALAR_MASK;
 	val |= N_SCALAR(ddi_translations[level].dw7_n_scalar);
-	I915_WRITE(ICL_PORT_TX_DW7_GRP(port), val);
+	I915_WRITE(ICL_PORT_TX_DW7_GRP(phy), val);
 }
 
 static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
@@ -2474,7 +2474,7 @@ static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 					      enum intel_output_type type)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	int width = 0;
 	int rate = 0;
 	u32 val;
@@ -2495,12 +2495,12 @@ static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	 * set PORT_PCS_DW1 cmnkeeper_enable to 1b,
 	 * else clear to 0b.
 	 */
-	val = I915_READ(ICL_PORT_PCS_DW1_LN0(port));
+	val = I915_READ(ICL_PORT_PCS_DW1_LN0(phy));
 	if (type == INTEL_OUTPUT_HDMI)
 		val &= ~COMMON_KEEPER_EN;
 	else
 		val |= COMMON_KEEPER_EN;
-	I915_WRITE(ICL_PORT_PCS_DW1_GRP(port), val);
+	I915_WRITE(ICL_PORT_PCS_DW1_GRP(phy), val);
 
 	/* 2. Program loadgen select */
 	/*
@@ -2510,33 +2510,33 @@ static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	 * > 6 GHz (LN0=0, LN1=0, LN2=0, LN3=0)
 	 */
 	for (ln = 0; ln <= 3; ln++) {
-		val = I915_READ(ICL_PORT_TX_DW4_LN(ln, port));
+		val = I915_READ(ICL_PORT_TX_DW4_LN(ln, phy));
 		val &= ~LOADGEN_SELECT;
 
 		if ((rate <= 600000 && width == 4 && ln >= 1) ||
 		    (rate <= 600000 && width < 4 && (ln == 1 || ln == 2))) {
 			val |= LOADGEN_SELECT;
 		}
-		I915_WRITE(ICL_PORT_TX_DW4_LN(ln, port), val);
+		I915_WRITE(ICL_PORT_TX_DW4_LN(ln, phy), val);
 	}
 
 	/* 3. Set PORT_CL_DW5 SUS Clock Config to 11b */
-	val = I915_READ(ICL_PORT_CL_DW5(port));
+	val = I915_READ(ICL_PORT_CL_DW5(phy));
 	val |= SUS_CLOCK_CONFIG;
-	I915_WRITE(ICL_PORT_CL_DW5(port), val);
+	I915_WRITE(ICL_PORT_CL_DW5(phy), val);
 
 	/* 4. Clear training enable to change swing values */
-	val = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+	val = I915_READ(ICL_PORT_TX_DW5_LN0(phy));
 	val &= ~TX_TRAINING_EN;
-	I915_WRITE(ICL_PORT_TX_DW5_GRP(port), val);
+	I915_WRITE(ICL_PORT_TX_DW5_GRP(phy), val);
 
 	/* 5. Program swing and de-emphasis */
-	icl_ddi_combo_vswing_program(dev_priv, level, port, type, rate);
+	icl_ddi_combo_vswing_program(dev_priv, level, phy, type, rate);
 
 	/* 6. Set training enable to trigger update */
-	val = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+	val = I915_READ(ICL_PORT_TX_DW5_LN0(phy));
 	val |= TX_TRAINING_EN;
-	I915_WRITE(ICL_PORT_TX_DW5_GRP(port), val);
+	I915_WRITE(ICL_PORT_TX_DW5_GRP(phy), val);
 }
 
 static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
@@ -3121,6 +3121,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
+	enum phy phy = intel_port_to_phy(dev_priv, port);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	int level = intel_ddi_dp_level(intel_dp);
@@ -3156,7 +3157,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		bool lane_reversal =
 			dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
 
-		intel_combo_phy_power_up_lanes(dev_priv, port, false,
+		intel_combo_phy_power_up_lanes(dev_priv, phy, false,
 					       crtc_state->lane_count,
 					       lane_reversal);
 	}

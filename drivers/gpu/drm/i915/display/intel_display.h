@@ -268,6 +268,10 @@ enum phy {
 	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)	\
 		for_each_if((__ports_mask) & BIT(__port))
 
+#define for_each_phy_masked(__phy, __phys_mask) \
+	for ((__phy) = PHY_A; (__phy) < I915_MAX_PHYS; (__phy)++)	\
+		for_each_if((__phys_mask) & BIT(__phy))
+
 #define for_each_crtc(dev, crtc) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
 
