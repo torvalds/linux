@@ -2520,7 +2520,7 @@ static int __init ib_core_init(void)
 		goto err_mad;
 	}
 
-	ret = register_lsm_notifier(&ibdev_lsm_nb);
+	ret = register_blocking_lsm_notifier(&ibdev_lsm_nb);
 	if (ret) {
 		pr_warn("Couldn't register LSM notifier. ret %d\n", ret);
 		goto err_sa;
@@ -2539,7 +2539,7 @@ static int __init ib_core_init(void)
 	return 0;
 
 err_compat:
-	unregister_lsm_notifier(&ibdev_lsm_nb);
+	unregister_blocking_lsm_notifier(&ibdev_lsm_nb);
 err_sa:
 	ib_sa_cleanup();
 err_mad:
@@ -2565,7 +2565,7 @@ static void __exit ib_core_cleanup(void)
 	nldev_exit();
 	rdma_nl_unregister(RDMA_NL_LS);
 	unregister_pernet_device(&rdma_dev_net_ops);
-	unregister_lsm_notifier(&ibdev_lsm_nb);
+	unregister_blocking_lsm_notifier(&ibdev_lsm_nb);
 	ib_sa_cleanup();
 	ib_mad_cleanup();
 	addr_cleanup();
