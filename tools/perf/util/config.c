@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <linux/string.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #define MAXNAME (256)
 
@@ -739,11 +739,15 @@ int perf_config(config_fn_t fn, void *data)
 			if (ret < 0) {
 				pr_err("Error: wrong config key-value pair %s=%s\n",
 				       key, value);
-				break;
+				/*
+				 * Can't be just a 'break', as perf_config_set__for_each_entry()
+				 * expands to two nested for() loops.
+				 */
+				goto out;
 			}
 		}
 	}
-
+out:
 	return ret;
 }
 

@@ -12,6 +12,7 @@
 #include "print_binary.h"
 #include "thread_map.h"
 #include "mmap.h"
+#include "util.h"
 
 #if PY_MAJOR_VERSION < 3
 #define _PyUnicode_FromString(arg) \
