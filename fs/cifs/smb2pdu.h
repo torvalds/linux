@@ -166,6 +166,8 @@ struct smb2_err_rsp {
 	__u8   ErrorData[1];  /* variable length */
 } __packed;
 
+#define SYMLINK_ERROR_TAG 0x4c4d5953
+
 struct smb2_symlink_err_rsp {
 	__le32 SymLinkLength;
 	__le32 SymLinkErrorTag;
