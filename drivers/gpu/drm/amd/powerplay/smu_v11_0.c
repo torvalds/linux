@@ -46,6 +46,7 @@
 #include "asic_reg/smuio/smuio_11_0_0_sh_mask.h"
 
 MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
+MODULE_FIRMWARE("amdgpu/arcturus_smc.bin");
 MODULE_FIRMWARE("amdgpu/navi10_smc.bin");
 MODULE_FIRMWARE("amdgpu/navi14_smc.bin");
 
@@ -156,6 +157,9 @@ static int smu_v11_0_init_microcode(struct smu_context *smu)
 	case CHIP_VEGA20:
 		chip_name = "vega20";
 		break;
+	case CHIP_ARCTURUS:
+		chip_name = "arcturus";
+		break;
 	case CHIP_NAVI10:
 		chip_name = "navi10";
 		break;
@@ -207,7 +211,7 @@ static int smu_v11_0_load_microcode(struct smu_context *smu)
 	uint32_t i;
 	uint32_t mp1_fw_flags;
 
-	hdr = (const struct smc_firmware_header_v1_0 *)	adev->pm.fw->data;
+	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
 	src = (const uint32_t *)(adev->pm.fw->data +
 		le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
@@ -300,7 +304,8 @@ static int smu_v11_0_set_pptable_v2_0(struct smu_context *smu, void **table, uin
 	return 0;
 }
 
-static int smu_v11_0_set_pptable_v2_1(struct smu_context *smu, void **table, uint32_t *size, uint32_t pptable_id)
+static int smu_v11_0_set_pptable_v2_1(struct smu_context *smu, void **table,
+				      uint32_t *size, uint32_t pptable_id)
 {
 	struct amdgpu_device *adev = smu->adev;
 	const struct smc_firmware_header_v2_1 *v2_1;
