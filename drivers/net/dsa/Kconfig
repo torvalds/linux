@@ -111,6 +111,8 @@ config NET_DSA_VITESSE_VSC73XX
 
 config NET_DSA_VITESSE_VSC73XX_SPI
 	tristate "Vitesse VSC7385/7388/7395/7398 SPI mode support"
+	depends on OF
+	depends on NET_DSA
 	depends on SPI
 	select NET_DSA_VITESSE_VSC73XX
 	---help---
@@ -119,6 +121,8 @@ config NET_DSA_VITESSE_VSC73XX_SPI
 
 config NET_DSA_VITESSE_VSC73XX_PLATFORM
 	tristate "Vitesse VSC7385/7388/7395/7398 Platform mode support"
+	depends on OF
+	depends on NET_DSA
 	depends on HAS_IOMEM
 	select NET_DSA_VITESSE_VSC73XX
 	---help---
