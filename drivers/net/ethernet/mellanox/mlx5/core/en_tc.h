@@ -54,12 +54,12 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht);
 void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht);
 
 int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
-			   struct tc_cls_flower_offload *f, int flags);
+			   struct flow_cls_offload *f, int flags);
 int mlx5e_delete_flower(struct net_device *dev, struct mlx5e_priv *priv,
-			struct tc_cls_flower_offload *f, int flags);
+			struct flow_cls_offload *f, int flags);
 
 int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
-		       struct tc_cls_flower_offload *f, int flags);
+		       struct flow_cls_offload *f, int flags);
 
 struct mlx5e_encap_entry;
 void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,

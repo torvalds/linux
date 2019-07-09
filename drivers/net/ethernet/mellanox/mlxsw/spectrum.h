@@ -807,19 +807,19 @@ extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_block *block,
-			    struct tc_cls_flower_offload *f);
+			    struct flow_cls_offload *f);
 void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_block *block,
-			     struct tc_cls_flower_offload *f);
+			     struct flow_cls_offload *f);
 int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 			  struct mlxsw_sp_acl_block *block,
-			  struct tc_cls_flower_offload *f);
+			  struct flow_cls_offload *f);
 int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_block *block,
-				 struct tc_cls_flower_offload *f);
+				 struct flow_cls_offload *f);
 void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_block *block,
-				   struct tc_cls_flower_offload *f);
+				   struct flow_cls_offload *f);
 
 /* spectrum_qdisc.c */
 int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port);

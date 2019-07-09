@@ -78,7 +78,7 @@ nf_tables-objs := nf_tables_core.o nf_tables_api.o nft_chain_filter.o \
 		  nf_tables_trace.o nft_immediate.o nft_cmp.o nft_range.o \
 		  nft_bitwise.o nft_byteorder.o nft_payload.o nft_lookup.o \
 		  nft_dynset.o nft_meta.o nft_rt.o nft_exthdr.o \
-		  nft_chain_route.o
+		  nft_chain_route.o nf_tables_offload.o
 
 nf_tables_set-objs := nf_tables_set_core.o \
 		      nft_set_hash.o nft_set_bitmap.o nft_set_rbtree.o

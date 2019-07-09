@@ -2578,11 +2578,11 @@ static int igb_offload_cbs(struct igb_adapter *adapter,
 #define VLAN_PRIO_FULL_MASK (0x07)
 
 static int igb_parse_cls_flower(struct igb_adapter *adapter,
-				struct tc_cls_flower_offload *f,
+				struct flow_cls_offload *f,
 				int traffic_class,
 				struct igb_nfc_filter *input)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct netlink_ext_ack *extack = f->common.extack;
 
@@ -2660,7 +2660,7 @@ static int igb_parse_cls_flower(struct igb_adapter *adapter,
 }
 
 static int igb_configure_clsflower(struct igb_adapter *adapter,
-				   struct tc_cls_flower_offload *cls_flower)
+				   struct flow_cls_offload *cls_flower)
 {
 	struct netlink_ext_ack *extack = cls_flower->common.extack;
 	struct igb_nfc_filter *filter, *f;
@@ -2722,7 +2722,7 @@ err_parse:
 }
 
 static int igb_delete_clsflower(struct igb_adapter *adapter,
-				struct tc_cls_flower_offload *cls_flower)
+				struct flow_cls_offload *cls_flower)
 {
 	struct igb_nfc_filter *filter;
 	int err;
@@ -2752,14 +2752,14 @@ out:
 }
 
 static int igb_setup_tc_cls_flower(struct igb_adapter *adapter,
-				   struct tc_cls_flower_offload *cls_flower)
+				   struct flow_cls_offload *cls_flower)
 {
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return igb_configure_clsflower(adapter, cls_flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return igb_delete_clsflower(adapter, cls_flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;
@@ -2778,25 +2778,6 @@ static int igb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	case TC_SETUP_CLSFLOWER:
 		return igb_setup_tc_cls_flower(adapter, type_data);
 
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int igb_setup_tc_block(struct igb_adapter *adapter,
-			      struct tc_block_offload *f)
-{
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block, igb_setup_tc_block_cb,
-					     adapter, adapter, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, igb_setup_tc_block_cb,
-					adapter);
-		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2825,6 +2806,8 @@ static int igb_offload_txtime(struct igb_adapter *adapter,
 	return 0;
 }
 
+static LIST_HEAD(igb_block_cb_list);
+
 static int igb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			void *type_data)
 {
@@ -2834,7 +2817,11 @@ static int igb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	case TC_SETUP_QDISC_CBS:
 		return igb_offload_cbs(adapter, type_data);
 	case TC_SETUP_BLOCK:
-		return igb_setup_tc_block(adapter, type_data);
+		return flow_block_cb_setup_simple(type_data,
+						  &igb_block_cb_list,
+						  igb_setup_tc_block_cb,
+						  adapter, adapter, true);
+
 	case TC_SETUP_QDISC_ETF:
 		return igb_offload_txtime(adapter, type_data);
 

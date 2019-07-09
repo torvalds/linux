@@ -54,13 +54,13 @@ static int mlx5e_gen_ip_tunnel_header_gretap(char buf[],
 
 static int mlx5e_tc_tun_parse_gretap(struct mlx5e_priv *priv,
 				     struct mlx5_flow_spec *spec,
-				     struct tc_cls_flower_offload *f,
+				     struct flow_cls_offload *f,
 				     void *headers_c,
 				     void *headers_v)
 {
 	void *misc_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
 	void *misc_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 
 	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ip_protocol);
 	MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol, IPPROTO_GRE);

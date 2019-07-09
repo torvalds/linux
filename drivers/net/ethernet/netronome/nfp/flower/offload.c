@@ -121,9 +121,9 @@ nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
 	return 0;
 }
 
-static bool nfp_flower_check_higher_than_mac(struct tc_cls_flower_offload *f)
+static bool nfp_flower_check_higher_than_mac(struct flow_cls_offload *f)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 
 	return flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS) ||
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS) ||
@@ -131,9 +131,9 @@ static bool nfp_flower_check_higher_than_mac(struct tc_cls_flower_offload *f)
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP);
 }
 
-static bool nfp_flower_check_higher_than_l3(struct tc_cls_flower_offload *f)
+static bool nfp_flower_check_higher_than_l3(struct flow_cls_offload *f)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 
 	return flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS) ||
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP);
@@ -212,11 +212,11 @@ static int
 nfp_flower_calculate_key_layers(struct nfp_app *app,
 				struct net_device *netdev,
 				struct nfp_fl_key_ls *ret_key_ls,
-				struct tc_cls_flower_offload *flow,
+				struct flow_cls_offload *flow,
 				enum nfp_flower_tun_type *tun_type,
 				struct netlink_ext_ack *extack)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct flow_match_basic basic = { NULL, NULL};
 	struct nfp_flower_priv *priv = app->priv;
@@ -866,7 +866,7 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 				     struct nfp_fl_payload *sub_flow1,
 				     struct nfp_fl_payload *sub_flow2)
 {
-	struct tc_cls_flower_offload merge_tc_off;
+	struct flow_cls_offload merge_tc_off;
 	struct nfp_flower_priv *priv = app->priv;
 	struct netlink_ext_ack *extack = NULL;
 	struct nfp_fl_payload *merge_flow;
@@ -962,7 +962,7 @@ err_destroy_merge_flow:
  */
 static int
 nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
-		       struct tc_cls_flower_offload *flow)
+		       struct flow_cls_offload *flow)
 {
 	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
 	struct nfp_flower_priv *priv = app->priv;
@@ -1125,7 +1125,7 @@ nfp_flower_del_linked_merge_flows(struct nfp_app *app,
  */
 static int
 nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
-		       struct tc_cls_flower_offload *flow)
+		       struct flow_cls_offload *flow)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct netlink_ext_ack *extack = NULL;
@@ -1232,7 +1232,7 @@ nfp_flower_update_merge_stats(struct nfp_app *app,
  */
 static int
 nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
-		     struct tc_cls_flower_offload *flow)
+		     struct flow_cls_offload *flow)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct netlink_ext_ack *extack = NULL;
@@ -1265,17 +1265,17 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 
 static int
 nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
-			struct tc_cls_flower_offload *flower)
+			struct flow_cls_offload *flower)
 {
 	if (!eth_proto_is_802_3(flower->common.protocol))
 		return -EOPNOTSUPP;
 
 	switch (flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return nfp_flower_add_offload(app, netdev, flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return nfp_flower_del_offload(app, netdev, flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return nfp_flower_get_stats(app, netdev, flower);
 	default:
 		return -EOPNOTSUPP;
@@ -1302,27 +1302,45 @@ static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
 	}
 }
 
+static LIST_HEAD(nfp_block_cb_list);
+
 static int nfp_flower_setup_tc_block(struct net_device *netdev,
-				     struct tc_block_offload *f)
+				     struct flow_block_offload *f)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
 	struct nfp_flower_repr_priv *repr_priv;
+	struct flow_block_cb *block_cb;
 
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
 
 	repr_priv = repr->app_priv;
-	repr_priv->block_shared = tcf_block_shared(f->block);
+	repr_priv->block_shared = f->block_shared;
+	f->driver_block_list = &nfp_block_cb_list;
 
 	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block,
-					     nfp_flower_setup_tc_block_cb,
-					     repr, repr, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block,
-					nfp_flower_setup_tc_block_cb,
-					repr);
+	case FLOW_BLOCK_BIND:
+		if (flow_block_cb_is_busy(nfp_flower_setup_tc_block_cb, repr,
+					  &nfp_block_cb_list))
+			return -EBUSY;
+
+		block_cb = flow_block_cb_alloc(f->net,
+					       nfp_flower_setup_tc_block_cb,
+					       repr, repr, NULL);
+		if (IS_ERR(block_cb))
+			return PTR_ERR(block_cb);
+
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &nfp_block_cb_list);
+		return 0;
+	case FLOW_BLOCK_UNBIND:
+		block_cb = flow_block_cb_lookup(f, nfp_flower_setup_tc_block_cb,
+						repr);
+		if (!block_cb)
+			return -ENOENT;
+
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
@@ -1367,7 +1385,7 @@ static int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
 					  void *type_data, void *cb_priv)
 {
 	struct nfp_flower_indr_block_cb_priv *priv = cb_priv;
-	struct tc_cls_flower_offload *flower = type_data;
+	struct flow_cls_offload *flower = type_data;
 
 	if (flower->common.chain_index)
 		return -EOPNOTSUPP;
@@ -1381,21 +1399,29 @@ static int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
 	}
 }
 
+static void nfp_flower_setup_indr_tc_release(void *cb_priv)
+{
+	struct nfp_flower_indr_block_cb_priv *priv = cb_priv;
+
+	list_del(&priv->list);
+	kfree(priv);
+}
+
 static int
 nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
-			       struct tc_block_offload *f)
+			       struct flow_block_offload *f)
 {
 	struct nfp_flower_indr_block_cb_priv *cb_priv;
 	struct nfp_flower_priv *priv = app->priv;
-	int err;
+	struct flow_block_cb *block_cb;
 
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS &&
-	    !(f->binder_type == TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS &&
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS &&
+	    !(f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS &&
 	      nfp_flower_internal_port_can_offload(app, netdev)))
 		return -EOPNOTSUPP;
 
 	switch (f->command) {
-	case TC_BLOCK_BIND:
+	case FLOW_BLOCK_BIND:
 		cb_priv = kmalloc(sizeof(*cb_priv), GFP_KERNEL);
 		if (!cb_priv)
 			return -ENOMEM;
@@ -1404,26 +1430,32 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		cb_priv->app = app;
 		list_add(&cb_priv->list, &priv->indr_block_cb_priv);
 
-		err = tcf_block_cb_register(f->block,
-					    nfp_flower_setup_indr_block_cb,
-					    cb_priv, cb_priv, f->extack);
-		if (err) {
+		block_cb = flow_block_cb_alloc(f->net,
+					       nfp_flower_setup_indr_block_cb,
+					       cb_priv, cb_priv,
+					       nfp_flower_setup_indr_tc_release);
+		if (IS_ERR(block_cb)) {
 			list_del(&cb_priv->list);
 			kfree(cb_priv);
+			return PTR_ERR(block_cb);
 		}
 
-		return err;
-	case TC_BLOCK_UNBIND:
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &nfp_block_cb_list);
+		return 0;
+	case FLOW_BLOCK_UNBIND:
 		cb_priv = nfp_flower_indr_block_cb_priv_lookup(app, netdev);
 		if (!cb_priv)
 			return -ENOENT;
 
-		tcf_block_cb_unregister(f->block,
-					nfp_flower_setup_indr_block_cb,
-					cb_priv);
-		list_del(&cb_priv->list);
-		kfree(cb_priv);
+		block_cb = flow_block_cb_lookup(f,
+						nfp_flower_setup_indr_block_cb,
+						cb_priv);
+		if (!block_cb)
+			return -ENOENT;
 
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
