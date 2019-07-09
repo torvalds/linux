@@ -530,8 +530,8 @@ static int hip04_rx_poll(struct napi_struct *napi, int budget)
 		priv->rx_phys[priv->rx_head] = 0;
 
 		desc = (struct rx_desc *)skb->data;
-		len = be16_to_cpu(desc->pkt_len);
-		err = be32_to_cpu(desc->pkt_err);
+		len = be16_to_cpu((__force __be16)desc->pkt_len);
+		err = be32_to_cpu((__force __be32)desc->pkt_err);
 
 		if (0 == len) {
 			dev_kfree_skb_any(skb);
