@@ -579,25 +579,6 @@ static int qede_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
-static int qede_setup_tc_block(struct qede_dev *edev,
-			       struct tc_block_offload *f)
-{
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block,
-					     qede_setup_tc_block_cb,
-					     edev, edev, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, qede_setup_tc_block_cb, edev);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static int
 qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
 		      void *type_data)
@@ -607,7 +588,9 @@ qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return qede_setup_tc_block(edev, type_data);
+		return flow_block_cb_setup_simple(type_data, NULL,
+						  qede_setup_tc_block_cb,
+						  edev, edev, true);
 	case TC_SETUP_QDISC_MQPRIO:
 		mqprio = type_data;
 

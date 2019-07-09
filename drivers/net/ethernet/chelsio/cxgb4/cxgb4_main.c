@@ -3190,32 +3190,16 @@ static int cxgb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
-static int cxgb_setup_tc_block(struct net_device *dev,
-			       struct tc_block_offload *f)
-{
-	struct port_info *pi = netdev2pinfo(dev);
-
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block, cxgb_setup_tc_block_cb,
-					     pi, dev, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, cxgb_setup_tc_block_cb, pi);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			 void *type_data)
 {
+	struct port_info *pi = netdev2pinfo(dev);
+
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return cxgb_setup_tc_block(dev, type_data);
+		return flow_block_cb_setup_simple(type_data, NULL,
+						  cxgb_setup_tc_block_cb,
+						  pi, dev, true);
 	default:
 		return -EOPNOTSUPP;
 	}

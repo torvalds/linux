@@ -265,19 +265,6 @@ static int nfp_abm_setup_tc_block_cb(enum tc_setup_type type,
 int nfp_abm_setup_cls_block(struct net_device *netdev, struct nfp_repr *repr,
 			    struct tc_block_offload *f)
 {
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block,
-					     nfp_abm_setup_tc_block_cb,
-					     repr, repr, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, nfp_abm_setup_tc_block_cb,
-					repr);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
+	return flow_block_cb_setup_simple(f, NULL, nfp_abm_setup_tc_block_cb,
+					  repr, repr, true);
 }

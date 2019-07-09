@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <net/flow_dissector.h>
+#include <net/sch_generic.h>
 
 struct flow_match {
 	struct flow_dissector	*dissector;
@@ -236,5 +237,31 @@ static inline void flow_stats_update(struct flow_stats *flow_stats,
 	flow_stats->bytes	+= bytes;
 	flow_stats->lastused	= max_t(u64, flow_stats->lastused, lastused);
 }
+
+enum flow_block_command {
+	TC_BLOCK_BIND,
+	TC_BLOCK_UNBIND,
+};
+
+enum flow_block_binder_type {
+	TCF_BLOCK_BINDER_TYPE_UNSPEC,
+	TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
+	TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
+};
+
+struct tcf_block;
+struct netlink_ext_ack;
+
+struct flow_block_offload {
+	enum flow_block_command command;
+	enum flow_block_binder_type binder_type;
+	struct tcf_block *block;
+	struct list_head *driver_block_list;
+	struct netlink_ext_ack *extack;
+};
+
+int flow_block_cb_setup_simple(struct flow_block_offload *f,
+			       struct list_head *driver_list, tc_setup_cb_t *cb,
+			       void *cb_ident, void *cb_priv, bool ingress_only);
 
 #endif /* _NET_FLOW_OFFLOAD_H */

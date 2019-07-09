@@ -26,11 +26,9 @@ struct tcf_walker {
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
-enum tcf_block_binder_type {
-	TCF_BLOCK_BINDER_TYPE_UNSPEC,
-	TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
-	TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
-};
+#define tc_block_offload flow_block_offload
+#define tc_block_command flow_block_command
+#define tcf_block_binder_type flow_block_binder_type
 
 struct tcf_block_ext_info {
 	enum tcf_block_binder_type binder_type;
@@ -609,18 +607,6 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 		     void *type_data, bool err_stop);
 unsigned int tcf_exts_num_actions(struct tcf_exts *exts);
-
-enum tc_block_command {
-	TC_BLOCK_BIND,
-	TC_BLOCK_UNBIND,
-};
-
-struct tc_block_offload {
-	enum tc_block_command command;
-	enum tcf_block_binder_type binder_type;
-	struct tcf_block *block;
-	struct netlink_ext_ack *extack;
-};
 
 struct tc_cls_common_offload {
 	u32 chain_index;
