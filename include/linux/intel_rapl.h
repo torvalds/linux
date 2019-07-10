@@ -95,11 +95,15 @@ struct rapl_domain {
  * @platform_rapl_domain:	Optional. Some RAPL interface may have platform
  *				level RAPL control.
  * @pcap_rapl_online:		CPU hotplug state for each RAPL interface.
+ * @reg_unit:			Register for getting energy/power/time unit.
+ * @regs:			Register sets for different RAPL Domains.
  */
 struct rapl_if_priv {
 	struct powercap_control_type *control_type;
 	struct rapl_domain *platform_rapl_domain;
 	enum cpuhp_state pcap_rapl_online;
+	u32 reg_unit;
+	u32 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
 };
 
 /* maximum rapl package domain name: package-%d-die-%d */
