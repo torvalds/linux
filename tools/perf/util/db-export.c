@@ -299,6 +299,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	};
 	struct thread *main_thread;
 	struct comm *comm = NULL;
+	struct comm *curr_comm;
 	int err;
 
 	err = db_export__evsel(dbe, evsel);
@@ -348,6 +349,13 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 			if (err)
 				goto out_put;
 		}
+	}
+
+	curr_comm = thread__comm(thread);
+	if (curr_comm) {
+		err = db_export__comm(dbe, curr_comm, thread);
+		if (err)
+			goto out_put;
 	}
 
 	es.db_id = ++dbe->sample_last_db_id;
