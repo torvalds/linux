@@ -32,6 +32,9 @@
 
 #define AMDGPU_MAX_VCN_INSTANCES	2
 
+#define AMDGPU_VCN_HARVEST_VCN0 (1 << 0)
+#define AMDGPU_VCN_HARVEST_VCN1 (1 << 1)
+
 #define VCN_DEC_CMD_FENCE		0x00000000
 #define VCN_DEC_CMD_TRAP		0x00000001
 #define VCN_DEC_CMD_WRITE_REG		0x00000004
@@ -187,6 +190,7 @@ struct amdgpu_vcn {
 	struct amdgpu_vcn_inst	inst[AMDGPU_MAX_VCN_INSTANCES];
 	struct amdgpu_vcn_reg	internal;
 
+	unsigned	harvest_config;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,
 		struct dpg_pause_state *new_state);
 };

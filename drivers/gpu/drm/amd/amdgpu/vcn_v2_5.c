@@ -72,11 +72,24 @@ static int amdgpu_ih_clientid_vcns[] = {
 static int vcn_v2_5_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	if (adev->asic_type == CHIP_ARCTURUS)
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		u32 harvest;
+		int i;
 
 		adev->vcn.num_vcn_inst = VCN25_MAX_HW_INSTANCES_ARCTURUS;
-	else
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			harvest = RREG32_SOC15(UVD, i, mmCC_UVD_HARVESTING);
+			if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
+				adev->vcn.harvest_config |= 1 << i;
+		}
+
+		if (adev->vcn.harvest_config == (AMDGPU_VCN_HARVEST_VCN0 |
+						 AMDGPU_VCN_HARVEST_VCN1))
+			/* both instances are harvested, disable the block */
+			return -ENOENT;
+	} else
 		adev->vcn.num_vcn_inst = 1;
+
 	adev->vcn.num_enc_rings = 2;
 
 	vcn_v2_5_set_dec_ring_funcs(adev);
@@ -101,6 +114,8 @@ static int vcn_v2_5_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (j = 0; j < adev->vcn.num_vcn_inst; j++) {
+		if (adev->vcn.harvest_config & (1 << j))
+			continue;
 		/* VCN DEC TRAP */
 		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[j],
 				VCN_2_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT, &adev->vcn.inst[j].irq);
@@ -148,6 +163,8 @@ static int vcn_v2_5_sw_init(void *handle)
 		return r;
 
 	for (j = 0; j < adev->vcn.num_vcn_inst; j++) {
+		if (adev->vcn.harvest_config & (1 << j))
+			continue;
 		adev->vcn.internal.context_id = mmUVD_CONTEXT_ID_INTERNAL_OFFSET;
 		adev->vcn.internal.ib_vmid = mmUVD_LMI_RBC_IB_VMID_INTERNAL_OFFSET;
 		adev->vcn.internal.ib_bar_low = mmUVD_LMI_RBC_IB_64BIT_BAR_LOW_INTERNAL_OFFSET;
@@ -234,6 +251,8 @@ static int vcn_v2_5_hw_init(void *handle)
 	int i, j, r;
 
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+		if (adev->vcn.harvest_config & (1 << j))
+			continue;
 		ring = &adev->vcn.inst[j].ring_dec;
 
 		adev->nbio_funcs->vcn_doorbell_range(adev, ring->use_doorbell,
@@ -284,6 +303,8 @@ static int vcn_v2_5_hw_fini(void *handle)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		ring = &adev->vcn.inst[i].ring_dec;
 
 		if (RREG32_SOC15(VCN, i, mmUVD_STATUS))
@@ -359,6 +380,8 @@ static void vcn_v2_5_mc_resume(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* cache window 0: fw */
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 			WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW,
@@ -414,6 +437,8 @@ static void vcn_v2_5_disable_clock_gating(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* UVD disable CGC */
 		data = RREG32_SOC15(VCN, i, mmUVD_CGC_CTRL);
 		if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
@@ -530,6 +555,8 @@ static void vcn_v2_5_enable_clock_gating(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* enable UVD CGC */
 		data = RREG32_SOC15(VCN, i, mmUVD_CGC_CTRL);
 		if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
@@ -591,6 +618,8 @@ static int jpeg_v2_5_start(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		ring = &adev->vcn.inst[i].ring_jpeg;
 		/* disable anti hang mechanism */
 		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_JPEG_POWER_STATUS), 0,
@@ -661,6 +690,8 @@ static int jpeg_v2_5_stop(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* reset JMI */
 		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_JMI_CNTL),
 			UVD_JMI_CNTL__SOFT_RESET_MASK,
@@ -689,6 +720,8 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 	int i, j, k, r;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* disable register anti-hang mechanism */
 		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_POWER_STATUS), 0,
 			~UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
@@ -702,6 +735,8 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 	vcn_v2_5_disable_clock_gating(adev);
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* enable VCPU clock */
 		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CNTL),
 			UVD_VCPU_CNTL__CLK_EN_MASK, ~UVD_VCPU_CNTL__CLK_EN_MASK);
@@ -749,6 +784,8 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 	vcn_v2_5_mc_resume(adev);
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* VCN global tiling registers */
 		WREG32_SOC15(UVD, i, mmUVD_GFX8_ADDR_CONFIG,
 			adev->gfx.config.gb_addr_config);
@@ -861,6 +898,8 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev)
 		return r;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* wait for vcn idle */
 		SOC15_WAIT_ON_RREG(VCN, i, mmUVD_STATUS, UVD_STATUS__IDLE, 0x7, r);
 		if (r)
@@ -1177,6 +1216,8 @@ static void vcn_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		adev->vcn.inst[i].ring_dec.funcs = &vcn_v2_5_dec_ring_vm_funcs;
 		adev->vcn.inst[i].ring_dec.me = i;
 		DRM_INFO("VCN(%d) decode is enabled in VM mode\n", i);
@@ -1188,6 +1229,8 @@ static void vcn_v2_5_set_enc_ring_funcs(struct amdgpu_device *adev)
 	int i, j;
 
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+		if (adev->vcn.harvest_config & (1 << j))
+			continue;
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 			adev->vcn.inst[j].ring_enc[i].funcs = &vcn_v2_5_enc_ring_vm_funcs;
 			adev->vcn.inst[j].ring_enc[i].me = j;
@@ -1201,6 +1244,8 @@ static void vcn_v2_5_set_jpeg_ring_funcs(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		adev->vcn.inst[i].ring_jpeg.funcs = &vcn_v2_5_jpeg_ring_vm_funcs;
 		adev->vcn.inst[i].ring_jpeg.me = i;
 		DRM_INFO("VCN(%d) jpeg decode is enabled in VM mode\n", i);
@@ -1213,6 +1258,8 @@ static bool vcn_v2_5_is_idle(void *handle)
 	int i, ret = 1;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		ret &= (RREG32_SOC15(VCN, i, mmUVD_STATUS) == UVD_STATUS__IDLE);
 	}
 
@@ -1225,6 +1272,8 @@ static int vcn_v2_5_wait_for_idle(void *handle)
 	int i, ret = 0;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		SOC15_WAIT_ON_RREG(VCN, i, mmUVD_STATUS, UVD_STATUS__IDLE,
 			UVD_STATUS__IDLE, ret);
 		if (ret)
@@ -1331,6 +1380,8 @@ static void vcn_v2_5_set_irq_funcs(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		adev->vcn.inst[i].irq.num_types = adev->vcn.num_enc_rings + 2;
 		adev->vcn.inst[i].irq.funcs = &vcn_v2_5_irq_funcs;
 	}

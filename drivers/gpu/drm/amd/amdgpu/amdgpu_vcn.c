@@ -148,6 +148,9 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
+
 		r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
 						AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.inst[i].vcpu_bo,
 						&adev->vcn.inst[i].gpu_addr, &adev->vcn.inst[i].cpu_addr);
@@ -181,6 +184,8 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	}
 
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+		if (adev->vcn.harvest_config & (1 << j))
+			continue;
 		kvfree(adev->vcn.inst[j].saved_bo);
 
 		amdgpu_bo_free_kernel(&adev->vcn.inst[j].vcpu_bo,
@@ -209,6 +214,8 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 	cancel_delayed_work_sync(&adev->vcn.idle_work);
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		if (adev->vcn.inst[i].vcpu_bo == NULL)
 			return 0;
 
@@ -231,6 +238,8 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		if (adev->vcn.inst[i].vcpu_bo == NULL)
 			return -EINVAL;
 
@@ -267,6 +276,8 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 	unsigned int i, j;
 
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+		if (adev->vcn.harvest_config & (1 << j))
+			continue;
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 			fence[j] += amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_enc[i]);
 		}
