@@ -78,7 +78,7 @@ struct rapl_package;
 struct rapl_domain {
 	const char *name;
 	enum rapl_domain_type id;
-	int regs[RAPL_DOMAIN_REG_MAX];
+	u64 regs[RAPL_DOMAIN_REG_MAX];
 	struct powercap_zone power_zone;
 	struct rapl_domain_data rdd;
 	struct rapl_power_limit rpl[NR_POWER_LIMITS];
@@ -89,7 +89,7 @@ struct rapl_domain {
 };
 
 struct reg_action {
-	u32 reg;
+	u64 reg;
 	u64 mask;
 	u64 value;
 	int err;
@@ -113,8 +113,8 @@ struct rapl_if_priv {
 	struct powercap_control_type *control_type;
 	struct rapl_domain *platform_rapl_domain;
 	enum cpuhp_state pcap_rapl_online;
-	u32 reg_unit;
-	u32 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
+	u64 reg_unit;
+	u64 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
 	int (*read_raw)(int cpu, struct reg_action *ra);
 	int (*write_raw)(int cpu, struct reg_action *ra);
 };

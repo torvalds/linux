@@ -689,7 +689,7 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 	ra.mask = rp->mask;
 
 	if (rd->rp->priv->read_raw(cpu, &ra)) {
-		pr_debug("failed to read reg 0x%x on cpu %d\n", ra.reg, cpu);
+		pr_debug("failed to read reg 0x%llx on cpu %d\n", ra.reg, cpu);
 		return -EIO;
 	}
 
@@ -749,7 +749,7 @@ static int rapl_check_unit_core(struct rapl_package *rp, int cpu)
 	ra.reg = rp->priv->reg_unit;
 	ra.mask = ~0;
 	if (rp->priv->read_raw(cpu, &ra)) {
-		pr_err("Failed to read power unit REG 0x%x on CPU %d, exit.\n",
+		pr_err("Failed to read power unit REG 0x%llx on CPU %d, exit.\n",
 		       rp->priv->reg_unit, cpu);
 		return -ENODEV;
 	}
@@ -777,7 +777,7 @@ static int rapl_check_unit_atom(struct rapl_package *rp, int cpu)
 	ra.reg = rp->priv->reg_unit;
 	ra.mask = ~0;
 	if (rp->priv->read_raw(cpu, &ra)) {
-		pr_err("Failed to read power unit REG 0x%x on CPU %d, exit.\n",
+		pr_err("Failed to read power unit REG 0x%llx on CPU %d, exit.\n",
 		       rp->priv->reg_unit, cpu);
 		return -ENODEV;
 	}
