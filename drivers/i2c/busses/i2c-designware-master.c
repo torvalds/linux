@@ -40,6 +40,13 @@ static const struct dmi_system_id i2c_dw_no_runtime_pm[] = {
 		},
 	},
 	{
+		.ident = "Dell Inspiron 7590",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7590"),
+		},
+	},
+	{
 		.ident = "Dell Vostro 5390",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -51,6 +58,13 @@ static const struct dmi_system_id i2c_dw_no_runtime_pm[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 5391"),
+		},
+	},
+	{
+		.ident = "Dell Vostro 7590",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 7590"),
 		},
 	},
 	{ }
