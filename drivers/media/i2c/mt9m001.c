@@ -726,8 +726,7 @@ static const struct v4l2_subdev_ops mt9m001_subdev_ops = {
 	.pad	= &mt9m001_subdev_pad_ops,
 };
 
-static int mt9m001_probe(struct i2c_client *client,
-			 const struct i2c_device_id *did)
+static int mt9m001_probe(struct i2c_client *client)
 {
 	struct mt9m001 *mt9m001;
 	struct i2c_adapter *adapter = client->adapter;
@@ -872,7 +871,7 @@ static struct i2c_driver mt9m001_i2c_driver = {
 		.pm = &mt9m001_pm_ops,
 		.of_match_table = mt9m001_of_match,
 	},
-	.probe		= mt9m001_probe,
+	.probe_new	= mt9m001_probe,
 	.remove		= mt9m001_remove,
 	.id_table	= mt9m001_id,
 };

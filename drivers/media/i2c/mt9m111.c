@@ -1243,8 +1243,7 @@ out_put_fw:
 	return ret;
 }
 
-static int mt9m111_probe(struct i2c_client *client,
-			 const struct i2c_device_id *did)
+static int mt9m111_probe(struct i2c_client *client)
 {
 	struct mt9m111 *mt9m111;
 	struct i2c_adapter *adapter = client->adapter;
@@ -1388,7 +1387,7 @@ static struct i2c_driver mt9m111_i2c_driver = {
 		.name = "mt9m111",
 		.of_match_table = of_match_ptr(mt9m111_of_match),
 	},
-	.probe		= mt9m111_probe,
+	.probe_new	= mt9m111_probe,
 	.remove		= mt9m111_remove,
 	.id_table	= mt9m111_id,
 };

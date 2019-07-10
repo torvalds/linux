@@ -275,8 +275,7 @@ static const struct v4l2_subdev_ops s5k6a3_subdev_ops = {
 	.pad = &s5k6a3_pad_ops,
 };
 
-static int s5k6a3_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int s5k6a3_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct s5k6a3 *sensor;
@@ -378,7 +377,7 @@ static struct i2c_driver s5k6a3_driver = {
 		.of_match_table	= of_match_ptr(s5k6a3_of_match),
 		.name		= S5K6A3_DRV_NAME,
 	},
-	.probe		= s5k6a3_probe,
+	.probe_new	= s5k6a3_probe,
 	.remove		= s5k6a3_remove,
 	.id_table	= s5k6a3_ids,
 };

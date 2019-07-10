@@ -1695,8 +1695,7 @@ static const char * const tvp5150_test_patterns[2] = {
 	"Black screen"
 };
 
-static int tvp5150_probe(struct i2c_client *c,
-			 const struct i2c_device_id *id)
+static int tvp5150_probe(struct i2c_client *c)
 {
 	struct tvp5150 *core;
 	struct v4l2_subdev *sd;
@@ -1845,7 +1844,7 @@ static struct i2c_driver tvp5150_driver = {
 		.of_match_table = of_match_ptr(tvp5150_of_match),
 		.name	= "tvp5150",
 	},
-	.probe		= tvp5150_probe,
+	.probe_new	= tvp5150_probe,
 	.remove		= tvp5150_remove,
 	.id_table	= tvp5150_id,
 };

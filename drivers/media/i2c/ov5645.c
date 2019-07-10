@@ -1039,8 +1039,7 @@ static const struct v4l2_subdev_ops ov5645_subdev_ops = {
 	.pad = &ov5645_subdev_pad_ops,
 };
 
-static int ov5645_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov5645_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *endpoint;
@@ -1275,7 +1274,7 @@ static struct i2c_driver ov5645_i2c_driver = {
 		.of_match_table = of_match_ptr(ov5645_of_match),
 		.name  = "ov5645",
 	},
-	.probe  = ov5645_probe,
+	.probe_new = ov5645_probe,
 	.remove = ov5645_remove,
 	.id_table = ov5645_id,
 };

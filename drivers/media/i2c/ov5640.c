@@ -2936,8 +2936,7 @@ power_off:
 	return ret;
 }
 
-static int ov5640_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov5640_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct fwnode_handle *endpoint;
@@ -3100,7 +3099,7 @@ static struct i2c_driver ov5640_i2c_driver = {
 		.of_match_table	= ov5640_dt_ids,
 	},
 	.id_table = ov5640_id,
-	.probe    = ov5640_probe,
+	.probe_new = ov5640_probe,
 	.remove   = ov5640_remove,
 };
 

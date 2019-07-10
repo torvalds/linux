@@ -1062,8 +1062,7 @@ static const struct regmap_config ov7740_regmap_config = {
 	.max_register	= OV7740_MAX_REGISTER,
 };
 
-static int ov7740_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov7740_probe(struct i2c_client *client)
 {
 	struct ov7740 *ov7740;
 	struct v4l2_subdev *sd;
@@ -1225,7 +1224,7 @@ static struct i2c_driver ov7740_i2c_driver = {
 		.pm = &ov7740_pm_ops,
 		.of_match_table = of_match_ptr(ov7740_of_match),
 	},
-	.probe    = ov7740_probe,
+	.probe_new = ov7740_probe,
 	.remove   = ov7740_remove,
 	.id_table = ov7740_id,
 };

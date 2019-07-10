@@ -1384,8 +1384,7 @@ done:
 	return pdata;
 }
 
-static int ov2659_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov2659_probe(struct i2c_client *client)
 {
 	const struct ov2659_platform_data *pdata = ov2659_get_pdata(client);
 	struct v4l2_subdev *sd;
@@ -1513,7 +1512,7 @@ static struct i2c_driver ov2659_i2c_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = of_match_ptr(ov2659_of_match),
 	},
-	.probe		= ov2659_probe,
+	.probe_new	= ov2659_probe,
 	.remove		= ov2659_remove,
 	.id_table	= ov2659_id,
 };
