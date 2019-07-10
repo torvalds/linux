@@ -246,13 +246,18 @@ struct dw_mipi_dsi {
 	struct drm_panel *panel;
 	struct drm_display_mode mode;
 	struct device *dev;
+	struct device_node *client;
 	struct regmap *grf;
 	struct clk *pclk;
 	struct mipi_dphy dphy;
 	struct regmap *regmap;
+	struct reset_control *rst;
 	int id;
 
-	int dpms_mode;
+	/* dual-channel */
+	struct dw_mipi_dsi *master;
+	struct dw_mipi_dsi *slave;
+
 	unsigned int lane_mbps; /* per lane */
 	u32 channel;
 	u32 lanes;
@@ -657,27 +662,24 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
 
-	if (device->lanes < 1 || device->lanes > 4)
+	if (dsi->master)
+		return 0;
+
+	if (device->lanes < 1 || device->lanes > 8)
 		return -EINVAL;
 
+	dsi->client = device->dev.of_node;
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
-	dsi->panel = of_drm_find_panel(device->dev.of_node);
-	if (!IS_ERR(dsi->panel))
-		return drm_panel_attach(dsi->panel, &dsi->connector);
 
-	return -EINVAL;
+	return 0;
 }
 
 static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 				   struct mipi_dsi_device *device)
 {
-	struct dw_mipi_dsi *dsi = host_to_dsi(host);
-
-	drm_panel_detach(dsi->panel);
-
 	return 0;
 }
 
@@ -902,6 +904,9 @@ static ssize_t dw_mipi_dsi_transfer(struct dw_mipi_dsi *dsi,
 			return ret;
 	}
 
+	if (dsi->slave)
+		dw_mipi_dsi_transfer(dsi->slave, msg);
+
 	return msg->tx_len;
 }
 
@@ -940,7 +945,6 @@ static void dw_mipi_dsi_set_vid_mode(struct dw_mipi_dsi *dsi)
 {
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(VIDEO_MODE));
-	dw_mipi_dsi_video_mode_config(dsi);
 	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
 	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
 }
@@ -955,6 +959,23 @@ static void dw_mipi_dsi_set_cmd_mode(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 {
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
+	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
+
+	if (dsi->slave)
+		dw_mipi_dsi_disable(dsi->slave);
+}
+
+static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
+{
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	mipi_dphy_power_off(dsi);
+	clk_disable_unprepare(dsi->pclk);
+	pm_runtime_put(dsi->dev);
+
+	if (dsi->slave)
+		dw_mipi_dsi_post_disable(dsi->slave);
 }
 
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
@@ -1021,9 +1042,14 @@ static void dw_mipi_dsi_packet_handler_config(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi)
 {
 	struct drm_display_mode *mode = &dsi->mode;
+	u32 vid_pkt_size;
 
-	regmap_write(dsi->regmap, DSI_VID_PKT_SIZE,
-		     VID_PKT_SIZE(mode->hdisplay));
+	if (dsi->slave || dsi->master)
+		vid_pkt_size = mode->hdisplay / 2;
+	else
+		vid_pkt_size = mode->hdisplay;
+
+	regmap_write(dsi->regmap, DSI_VID_PKT_SIZE, VID_PKT_SIZE(vid_pkt_size));
 }
 
 static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
@@ -1111,24 +1137,10 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 
-	if (dsi->dpms_mode != DRM_MODE_DPMS_ON)
-		return;
-
-	if (clk_prepare_enable(dsi->pclk)) {
-		DRM_DEV_ERROR(dsi->dev, "Failed to enable pclk\n");
-		return;
-	}
-
 	drm_panel_disable(dsi->panel);
-
-	dw_mipi_dsi_set_cmd_mode(dsi);
-	drm_panel_unprepare(dsi->panel);
-
 	dw_mipi_dsi_disable(dsi);
-	mipi_dphy_power_off(dsi);
-	pm_runtime_put(dsi->dev);
-	clk_disable_unprepare(dsi->pclk);
-	dsi->dpms_mode = DRM_MODE_DPMS_OFF;
+	drm_panel_unprepare(dsi->panel);
+	dw_mipi_dsi_post_disable(dsi);
 }
 
 static void dw_mipi_dsi_vop_routing(struct dw_mipi_dsi *dsi)
@@ -1139,6 +1151,8 @@ static void dw_mipi_dsi_vop_routing(struct dw_mipi_dsi *dsi)
 						 &dsi->encoder);
 
 	grf_field_write(dsi, VOPSEL, pipe);
+	if (dsi->slave)
+		grf_field_write(dsi->slave, VOPSEL, pipe);
 }
 
 static unsigned long dw_mipi_dsi_get_lane_rate(struct dw_mipi_dsi *dsi)
@@ -1159,7 +1173,7 @@ static unsigned long dw_mipi_dsi_get_lane_rate(struct dw_mipi_dsi *dsi)
 	if (bpp < 0)
 		bpp = 24;
 
-	lanes = dsi->lanes;
+	lanes = dsi->slave ? dsi->lanes * 2 : dsi->lanes;
 	tmp = (u64)mode->clock * 1000 * bpp;
 	do_div(tmp, lanes);
 
@@ -1238,29 +1252,19 @@ static void dw_mipi_dsi_calc_pll_cfg(struct dw_mipi_dsi *dsi,
 	dsi->lane_mbps = best_freq / USEC_PER_SEC;
 	dphy->input_div = best_prediv;
 	dphy->feedback_div = best_fbdiv;
+	if (dsi->slave) {
+		dsi->slave->lane_mbps = dsi->lane_mbps;
+		dsi->slave->dphy.input_div = dphy->input_div;
+		dsi->slave->dphy.feedback_div = dphy->feedback_div;
+	}
 }
 
-static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
+static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 {
-	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
-	unsigned long lane_rate = dw_mipi_dsi_get_lane_rate(dsi);
-
-	if (dsi->dpms_mode == DRM_MODE_DPMS_ON)
-		return;
-
-	dw_mipi_dsi_calc_pll_cfg(dsi, lane_rate);
-
-	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
-		     dsi->lane_mbps, dsi->lanes);
-
-	dw_mipi_dsi_vop_routing(dsi);
-
-	if (clk_prepare_enable(dsi->pclk)) {
-		DRM_DEV_ERROR(dsi->dev, "Failed to enable pclk\n");
-		return;
-	}
 
 	pm_runtime_get_sync(dsi->dev);
+	clk_prepare_enable(dsi->pclk);
+
 	dw_mipi_dsi_init(dsi);
 	dw_mipi_dsi_dpi_config(dsi);
 	dw_mipi_dsi_packet_handler_config(dsi);
@@ -1272,19 +1276,35 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	dw_mipi_dsi_dphy_timing_config(dsi);
 	dw_mipi_dsi_dphy_interface_config(dsi);
 	dw_mipi_dsi_clear_err(dsi);
-
 	mipi_dphy_power_on(dsi);
-
 	dw_mipi_dsi_set_cmd_mode(dsi);
-	if (drm_panel_prepare(dsi->panel))
-		DRM_DEV_ERROR(dsi->dev, "failed to prepare panel\n");
 
+	if (dsi->slave)
+		dw_mipi_dsi_pre_enable(dsi->slave);
+}
+
+static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
+{
 	dw_mipi_dsi_set_vid_mode(dsi);
+
+	if (dsi->slave)
+		dw_mipi_dsi_enable(dsi->slave);
+}
+
+static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
+{
+	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+	unsigned long lane_rate = dw_mipi_dsi_get_lane_rate(dsi);
+
+	dw_mipi_dsi_calc_pll_cfg(dsi, lane_rate);
+	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
+		     dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
+
+	dw_mipi_dsi_vop_routing(dsi);
+	dw_mipi_dsi_pre_enable(dsi);
+	drm_panel_prepare(dsi->panel);
+	dw_mipi_dsi_enable(dsi);
 	drm_panel_enable(dsi->panel);
-
-	clk_disable_unprepare(dsi->pclk);
-
-	dsi->dpms_mode = DRM_MODE_DPMS_ON;
 }
 
 static int
@@ -1312,6 +1332,9 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
 
+	if (dsi->slave)
+		s->output_flags |= ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL;
+
 	return 0;
 }
 
@@ -1323,6 +1346,8 @@ dw_mipi_dsi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 
 	drm_mode_copy(&dsi->mode, &crtc_state->adjusted_mode);
+	if (dsi->slave)
+		drm_mode_copy(&dsi->slave->mode, &crtc_state->adjusted_mode);
 }
 
 static const struct drm_encoder_helper_funcs
@@ -1362,13 +1387,51 @@ static const struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int dw_mipi_dsi_register(struct drm_device *drm,
-				struct dw_mipi_dsi *dsi)
+static int dw_mipi_dsi_dual_channel_probe(struct dw_mipi_dsi *dsi)
 {
+	struct device_node *np;
+	struct platform_device *secondary;
+
+	np = of_parse_phandle(dsi->dev->of_node, "rockchip,dual-channel", 0);
+	if (np) {
+		secondary = of_find_device_by_node(np);
+		dsi->slave = platform_get_drvdata(secondary);
+		of_node_put(np);
+
+		if (!dsi->slave)
+			return -EPROBE_DEFER;
+
+		dsi->slave->master = dsi;
+		dsi->lanes /= 2;
+
+		dsi->slave->lanes = dsi->lanes;
+		dsi->slave->channel = dsi->channel;
+		dsi->slave->format = dsi->format;
+		dsi->slave->mode_flags = dsi->mode_flags;
+	}
+
+	return 0;
+}
+
+static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
+			    void *data)
+{
+	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
+	struct drm_device *drm = data;
 	struct drm_encoder *encoder = &dsi->encoder;
 	struct drm_connector *connector = &dsi->connector;
-	struct device *dev = dsi->dev;
 	int ret;
+
+	ret = dw_mipi_dsi_dual_channel_probe(dsi);
+	if (ret)
+		return ret;
+
+	if (dsi->master)
+		return 0;
+
+	dsi->panel = of_drm_find_panel(dsi->client);
+	if (IS_ERR(dsi->panel))
+		return -EPROBE_DEFER;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm,
 							     dev->of_node);
@@ -1381,26 +1444,50 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 	if (encoder->possible_crtcs == 0)
 		return -EPROBE_DEFER;
 
-	drm_encoder_helper_add(&dsi->encoder,
-			       &dw_mipi_dsi_encoder_helper_funcs);
-	ret = drm_encoder_init(drm, &dsi->encoder, &dw_mipi_dsi_encoder_funcs,
+	ret = drm_encoder_init(drm, encoder, &dw_mipi_dsi_encoder_funcs,
 			       DRM_MODE_ENCODER_DSI, NULL);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "Failed to initialize encoder with drm\n");
 		return ret;
 	}
 
+	drm_encoder_helper_add(encoder, &dw_mipi_dsi_encoder_helper_funcs);
+
+	drm_connector_init(drm, connector, &dw_mipi_dsi_atomic_connector_funcs,
+			   DRM_MODE_CONNECTOR_DSI);
 	drm_connector_helper_add(connector,
 				 &dw_mipi_dsi_connector_helper_funcs);
-
-	drm_connector_init(drm, &dsi->connector,
-			   &dw_mipi_dsi_atomic_connector_funcs,
-			   DRM_MODE_CONNECTOR_DSI);
-
 	drm_connector_attach_encoder(connector, encoder);
 
+	ret = drm_panel_attach(dsi->panel, connector);
+	if (ret) {
+		DRM_DEV_ERROR(dsi->dev, "Failed to attach panel: %d\n", ret);
+		goto err_cleanup;
+	}
+
 	return 0;
+
+err_cleanup:
+	connector->funcs->destroy(connector);
+	encoder->funcs->destroy(encoder);
+	return ret;
 }
+
+static void dw_mipi_dsi_unbind(struct device *dev, struct device *master,
+			       void *data)
+{
+	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
+
+	drm_panel_detach(dsi->panel);
+
+	dsi->connector.funcs->destroy(&dsi->connector);
+	dsi->encoder.funcs->destroy(&dsi->encoder);
+}
+
+static const struct component_ops dw_mipi_dsi_ops = {
+	.bind	= dw_mipi_dsi_bind,
+	.unbind	= dw_mipi_dsi_unbind,
+};
 
 static const struct regmap_config dw_mipi_dsi_regmap_config = {
 	.name = "host",
@@ -1411,12 +1498,9 @@ static const struct regmap_config dw_mipi_dsi_regmap_config = {
 	.max_register = DSI_MAX_REGISGER,
 };
 
-static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
-			    void *data)
+static int dw_mipi_dsi_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct reset_control *apb_rst;
-	struct drm_device *drm = data;
+	struct device *dev = &pdev->dev;
 	struct dw_mipi_dsi *dsi;
 	struct resource *res;
 	void __iomem *regs;
@@ -1434,29 +1518,25 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	dsi->dev = dev;
 	dsi->id = id;
 	dsi->pdata = of_device_get_match_data(dev);
-	dsi->dpms_mode = DRM_MODE_DPMS_OFF;
+	platform_set_drvdata(pdev, dsi);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
+	dsi->pclk = devm_clk_get(dev, "pclk");
+	if (IS_ERR(dsi->pclk)) {
+		ret = PTR_ERR(dsi->pclk);
+		DRM_DEV_ERROR(dev, "Unable to get pclk: %d\n", ret);
+		return ret;
+	}
+
 	dsi->regmap = devm_regmap_init_mmio(dev, regs,
 					    &dw_mipi_dsi_regmap_config);
 	if (IS_ERR(dsi->regmap)) {
 		ret = PTR_ERR(dsi->regmap);
 		DRM_DEV_ERROR(dev, "failed to init register map: %d\n", ret);
-		return ret;
-	}
-
-	ret = mipi_dphy_attach(dsi);
-	if (ret)
-		return ret;
-
-	dsi->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(dsi->pclk)) {
-		ret = PTR_ERR(dsi->pclk);
-		DRM_DEV_ERROR(dev, "Unable to get pclk: %d\n", ret);
 		return ret;
 	}
 
@@ -1468,93 +1548,38 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		return ret;
 	}
 
-	/*
-	 * Note that the reset was not defined in the initial device tree, so
-	 * we have to be prepared for it not being found.
-	 */
-	apb_rst = devm_reset_control_get(dev, "apb");
-	if (IS_ERR(apb_rst)) {
-		ret = PTR_ERR(apb_rst);
-		if (ret == -ENOENT) {
-			apb_rst = NULL;
-		} else {
-			DRM_DEV_ERROR(dev,
-				      "Unable to get reset control: %d\n", ret);
-			return ret;
-		}
-	}
-
-	if (apb_rst) {
-		ret = clk_prepare_enable(dsi->pclk);
-		if (ret) {
-			DRM_DEV_ERROR(dev, "Failed to enable pclk\n");
-			return ret;
-		}
-
-		reset_control_assert(apb_rst);
-		usleep_range(10, 20);
-		reset_control_deassert(apb_rst);
-
-		clk_disable_unprepare(dsi->pclk);
-	}
-
-	ret = dw_mipi_dsi_register(drm, dsi);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "Failed to register mipi_dsi: %d\n", ret);
+	dsi->rst = devm_reset_control_get(dev, "apb");
+	if (IS_ERR(dsi->rst)) {
+		ret = PTR_ERR(dsi->rst);
+		DRM_DEV_ERROR(dev,
+			      "Unable to get reset control: %d\n", ret);
 		return ret;
 	}
+
+	ret = mipi_dphy_attach(dsi);
+	if (ret)
+		return ret;
 
 	dsi->host.ops = &dw_mipi_dsi_host_ops;
 	dsi->host.dev = dev;
 	ret = mipi_dsi_host_register(&dsi->host);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "Failed to register MIPI host: %d\n", ret);
-		goto err_cleanup;
+		return ret;
 	}
 
-	if (!dsi->panel) {
-		ret = -EPROBE_DEFER;
-		goto err_mipi_dsi_host;
-	}
-
-	dev_set_drvdata(dev, dsi);
 	pm_runtime_enable(dev);
 
-	return 0;
-
-err_mipi_dsi_host:
-	mipi_dsi_host_unregister(&dsi->host);
-err_cleanup:
-	dsi->connector.funcs->destroy(&dsi->connector);
-	dsi->encoder.funcs->destroy(&dsi->encoder);
-	return ret;
-}
-
-static void dw_mipi_dsi_unbind(struct device *dev, struct device *master,
-			       void *data)
-{
-	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
-
-	mipi_dsi_host_unregister(&dsi->host);
-	pm_runtime_disable(dev);
-
-	dsi->connector.funcs->destroy(&dsi->connector);
-	dsi->encoder.funcs->destroy(&dsi->encoder);
-}
-
-static const struct component_ops dw_mipi_dsi_ops = {
-	.bind	= dw_mipi_dsi_bind,
-	.unbind	= dw_mipi_dsi_unbind,
-};
-
-static int dw_mipi_dsi_probe(struct platform_device *pdev)
-{
 	return component_add(&pdev->dev, &dw_mipi_dsi_ops);
 }
 
 static int dw_mipi_dsi_remove(struct platform_device *pdev)
 {
-	component_del(&pdev->dev, &dw_mipi_dsi_ops);
+	struct dw_mipi_dsi *dsi = platform_get_drvdata(pdev);
+
+	component_del(dsi->dev, &dw_mipi_dsi_ops);
+	mipi_dsi_host_unregister(&dsi->host);
+	pm_runtime_disable(dsi->dev);
 
 	return 0;
 }
