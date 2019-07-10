@@ -1569,28 +1569,10 @@ static void config_oa_regs(struct drm_i915_private *dev_priv,
 	}
 }
 
-static int hsw_enable_metric_set(struct i915_perf_stream *stream)
+static void delay_after_mux(void)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
-	const struct i915_oa_config *oa_config = stream->oa_config;
-
-	/* PRM:
-	 *
-	 * OA unit is using “crclk” for its functionality. When trunk
-	 * level clock gating takes place, OA clock would be gated,
-	 * unable to count the events from non-render clock domain.
-	 * Render clock gating must be disabled when OA is enabled to
-	 * count the events from non-render domain. Unit level clock
-	 * gating for RCS should also be disabled.
-	 */
-	I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
-				    ~GEN7_DOP_CLOCK_GATE_ENABLE));
-	I915_WRITE(GEN6_UCGCTL1, (I915_READ(GEN6_UCGCTL1) |
-				  GEN6_CSUNIT_CLOCK_GATE_DISABLE));
-
-	config_oa_regs(dev_priv, oa_config->mux_regs, oa_config->mux_regs_len);
-
-	/* It apparently takes a fairly long time for a new MUX
+	/*
+	 * It apparently takes a fairly long time for a new MUX
 	 * configuration to be be applied after these register writes.
 	 * This delay duration was derived empirically based on the
 	 * render_basic config but hopefully it covers the maximum
@@ -1612,6 +1594,30 @@ static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 	 * a delay at this location would mitigate any invalid reports.
 	 */
 	usleep_range(15000, 20000);
+}
+
+static int hsw_enable_metric_set(struct i915_perf_stream *stream)
+{
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+	const struct i915_oa_config *oa_config = stream->oa_config;
+
+	/*
+	 * PRM:
+	 *
+	 * OA unit is using “crclk” for its functionality. When trunk
+	 * level clock gating takes place, OA clock would be gated,
+	 * unable to count the events from non-render clock domain.
+	 * Render clock gating must be disabled when OA is enabled to
+	 * count the events from non-render domain. Unit level clock
+	 * gating for RCS should also be disabled.
+	 */
+	I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
+				    ~GEN7_DOP_CLOCK_GATE_ENABLE));
+	I915_WRITE(GEN6_UCGCTL1, (I915_READ(GEN6_UCGCTL1) |
+				  GEN6_CSUNIT_CLOCK_GATE_DISABLE));
+
+	config_oa_regs(dev_priv, oa_config->mux_regs, oa_config->mux_regs_len);
+	delay_after_mux();
 
 	config_oa_regs(dev_priv, oa_config->b_counter_regs,
 		       oa_config->b_counter_regs_len);
@@ -1837,6 +1843,7 @@ static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 		return ret;
 
 	config_oa_regs(dev_priv, oa_config->mux_regs, oa_config->mux_regs_len);
+	delay_after_mux();
 
 	config_oa_regs(dev_priv, oa_config->b_counter_regs,
 		       oa_config->b_counter_regs_len);
