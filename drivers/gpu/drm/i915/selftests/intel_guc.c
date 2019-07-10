@@ -105,12 +105,7 @@ static int ring_doorbell_nop(struct intel_guc_client *client)
  */
 static int validate_client(struct intel_guc_client *client, int client_priority)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(client->guc);
-	struct i915_gem_context *ctx_owner = dev_priv->kernel_context;
-
-	if (client->owner != ctx_owner ||
-	    client->engines != INTEL_INFO(dev_priv)->engine_mask ||
-	    client->priority != client_priority ||
+	if (client->priority != client_priority ||
 	    client->doorbell_id == GUC_DOORBELL_INVALID)
 		return -EINVAL;
 	else
@@ -247,10 +242,7 @@ static int igt_guc_doorbells(void *arg)
 		goto unlock;
 
 	for (i = 0; i < ATTEMPTS; i++) {
-		clients[i] = guc_client_alloc(dev_priv,
-					      INTEL_INFO(dev_priv)->engine_mask,
-					      i % GUC_CLIENT_PRIORITY_NUM,
-					      dev_priv->kernel_context);
+		clients[i] = guc_client_alloc(guc, i % GUC_CLIENT_PRIORITY_NUM);
 
 		if (!clients[i]) {
 			pr_err("[%d] No guc client\n", i);

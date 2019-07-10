@@ -363,10 +363,7 @@ static void guc_stage_desc_pool_destroy(struct intel_guc *guc)
 static void guc_stage_desc_init(struct intel_guc_client *client)
 {
 	struct intel_guc *guc = client->guc;
-	struct i915_gem_context *ctx = client->owner;
-	struct i915_gem_engines_iter it;
 	struct guc_stage_desc *desc;
-	struct intel_context *ce;
 	u32 gfx_addr;
 
 	desc = __get_stage_desc(client);
@@ -379,55 +376,6 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 	desc->stage_id = client->stage_id;
 	desc->priority = client->priority;
 	desc->db_id = client->doorbell_id;
-
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
-		struct guc_execlist_context *lrc;
-
-		if (!(ce->engine->mask & client->engines))
-			continue;
-
-		/* TODO: We have a design issue to be solved here. Only when we
-		 * receive the first batch, we know which engine is used by the
-		 * user. But here GuC expects the lrc and ring to be pinned. It
-		 * is not an issue for default context, which is the only one
-		 * for now who owns a GuC client. But for future owner of GuC
-		 * client, need to make sure lrc is pinned prior to enter here.
-		 */
-		if (!ce->state)
-			break;	/* XXX: continue? */
-
-		/*
-		 * XXX: When this is a GUC_STAGE_DESC_ATTR_KERNEL client (proxy
-		 * submission or, in other words, not using a direct submission
-		 * model) the KMD's LRCA is not used for any work submission.
-		 * Instead, the GuC uses the LRCA of the user mode context (see
-		 * guc_add_request below).
-		 */
-		lrc = &desc->lrc[ce->engine->guc_id];
-		lrc->context_desc = lower_32_bits(ce->lrc_desc);
-
-		/* The state page is after PPHWSP */
-		lrc->ring_lrca = intel_guc_ggtt_offset(guc, ce->state) +
-				 LRC_STATE_PN * PAGE_SIZE;
-
-		/* XXX: In direct submission, the GuC wants the HW context id
-		 * here. In proxy submission, it wants the stage id
-		 */
-		lrc->context_id = (client->stage_id << GUC_ELC_CTXID_OFFSET) |
-				(ce->engine->guc_id << GUC_ELC_ENGINE_OFFSET);
-
-		lrc->ring_begin = intel_guc_ggtt_offset(guc, ce->ring->vma);
-		lrc->ring_end = lrc->ring_begin + ce->ring->size - 1;
-		lrc->ring_next_free_location = lrc->ring_begin;
-		lrc->ring_current_tail_pointer_value = 0;
-
-		desc->engines_used |= BIT(ce->engine->guc_id);
-	}
-	i915_gem_context_unlock_engines(ctx);
-
-	DRM_DEBUG_DRIVER("Host engines 0x%x => GuC engines used 0x%x\n",
-			 client->engines, desc->engines_used);
-	WARN_ON(desc->engines_used == 0);
 
 	/*
 	 * The doorbell, process descriptor, and workqueue are all parts
@@ -836,8 +784,7 @@ static bool guc_verify_doorbells(struct intel_guc *guc)
 
 /**
  * guc_client_alloc() - Allocate an intel_guc_client
- * @dev_priv:	driver private data structure
- * @engines:	The set of engines to enable for this client
+ * @guc:	the intel_guc structure
  * @priority:	four levels priority _CRITICAL, _HIGH, _NORMAL and _LOW
  *		The kernel client to replace ExecList submission is created with
  *		NORMAL priority. Priority of a client for scheduler can be HIGH,
@@ -848,13 +795,9 @@ static bool guc_verify_doorbells(struct intel_guc *guc)
  * Return:	An intel_guc_client object if success, else NULL.
  */
 static struct intel_guc_client *
-guc_client_alloc(struct drm_i915_private *dev_priv,
-		 u32 engines,
-		 u32 priority,
-		 struct i915_gem_context *ctx)
+guc_client_alloc(struct intel_guc *guc, u32 priority)
 {
 	struct intel_guc_client *client;
-	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
 	void *vaddr;
 	int ret;
@@ -864,8 +807,6 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 		return ERR_PTR(-ENOMEM);
 
 	client->guc = guc;
-	client->owner = ctx;
-	client->engines = engines;
 	client->priority = priority;
 	client->doorbell_id = GUC_DOORBELL_INVALID;
 	spin_lock_init(&client->wq_lock);
@@ -910,8 +851,8 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	else
 		client->proc_desc_offset = (GUC_DB_SIZE / 2);
 
-	DRM_DEBUG_DRIVER("new priority %u client %p for engine(s) 0x%x: stage_id %u\n",
-			 priority, client, client->engines, client->stage_id);
+	DRM_DEBUG_DRIVER("new priority %u client %p: stage_id %u\n",
+			 priority, client, client->stage_id);
 	DRM_DEBUG_DRIVER("doorbell id %u, cacheline offset 0x%lx\n",
 			 client->doorbell_id, client->doorbell_offset);
 
@@ -951,15 +892,11 @@ static inline bool ctx_save_restore_disabled(struct intel_context *ce)
 
 static int guc_clients_create(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_guc_client *client;
 
 	GEM_BUG_ON(guc->execbuf_client);
 
-	client = guc_client_alloc(dev_priv,
-				  INTEL_INFO(dev_priv)->engine_mask,
-				  GUC_CLIENT_PRIORITY_KMD_NORMAL,
-				  dev_priv->kernel_context);
+	client = guc_client_alloc(guc, GUC_CLIENT_PRIORITY_KMD_NORMAL);
 	if (IS_ERR(client)) {
 		DRM_ERROR("Failed to create GuC client for submission!\n");
 		return PTR_ERR(client);

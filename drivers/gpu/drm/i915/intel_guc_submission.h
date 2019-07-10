@@ -58,11 +58,9 @@ struct drm_i915_private;
 struct intel_guc_client {
 	struct i915_vma *vma;
 	void *vaddr;
-	struct i915_gem_context *owner;
 	struct intel_guc *guc;
 
 	/* bitmap of (host) engine ids */
-	u32 engines;
 	u32 priority;
 	u32 stage_id;
 	u32 proc_desc_offset;
