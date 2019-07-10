@@ -46,6 +46,7 @@
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
+#include "drm_crtc_helper_internal.h"
 #include "drm_internal.h"
 
 static bool drm_fbdev_emulation = true;
