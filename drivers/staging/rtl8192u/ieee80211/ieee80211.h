@@ -2426,7 +2426,7 @@ static inline const char *escape_essid(const char *essid, u8 essid_len)
 		return escaped;
 	}
 
-	snprintf(escaped, sizeof(escaped), "%*pEn", essid_len, essid);
+	snprintf(escaped, sizeof(escaped), "%*pE", essid_len, essid);
 	return escaped;
 }
 
