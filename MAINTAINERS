@@ -12679,6 +12679,7 @@ F:	drivers/base/power/
 F:	include/linux/pm.h
 F:	include/linux/pm_*
 F:	include/linux/powercap.h
+F:	include/linux/intel_rapl.h
 F:	drivers/powercap/
 F:	kernel/configs/nopm.config
 

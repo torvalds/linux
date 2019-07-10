@@ -18,8 +18,9 @@
 #include <linux/cpu.h>
 #include <linux/powercap.h>
 #include <linux/suspend.h>
-#include <asm/iosf_mbi.h>
+#include <linux/intel_rapl.h>
 
+#include <asm/iosf_mbi.h>
 #include <asm/processor.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
@@ -74,58 +75,8 @@ enum unit_type {
 	TIME_UNIT,
 };
 
-enum rapl_domain_type {
-	RAPL_DOMAIN_PACKAGE, /* entire package/socket */
-	RAPL_DOMAIN_PP0, /* core power plane */
-	RAPL_DOMAIN_PP1, /* graphics uncore */
-	RAPL_DOMAIN_DRAM,/* DRAM control_type */
-	RAPL_DOMAIN_PLATFORM, /* PSys control_type */
-	RAPL_DOMAIN_MAX,
-};
-
-enum rapl_domain_reg_id {
-	RAPL_DOMAIN_REG_LIMIT,
-	RAPL_DOMAIN_REG_STATUS,
-	RAPL_DOMAIN_REG_PERF,
-	RAPL_DOMAIN_REG_POLICY,
-	RAPL_DOMAIN_REG_INFO,
-	RAPL_DOMAIN_REG_MAX,
-};
-
 /* per domain data, some are optional */
-enum rapl_primitives {
-	ENERGY_COUNTER,
-	POWER_LIMIT1,
-	POWER_LIMIT2,
-	FW_LOCK,
-
-	PL1_ENABLE,  /* power limit 1, aka long term */
-	PL1_CLAMP,   /* allow frequency to go below OS request */
-	PL2_ENABLE,  /* power limit 2, aka short term, instantaneous */
-	PL2_CLAMP,
-
-	TIME_WINDOW1, /* long term */
-	TIME_WINDOW2, /* short term */
-	THERMAL_SPEC_POWER,
-	MAX_POWER,
-
-	MIN_POWER,
-	MAX_TIME_WINDOW,
-	THROTTLED_TIME,
-	PRIORITY_LEVEL,
-
-	/* below are not raw primitive data */
-	AVERAGE_POWER,
-	NR_RAPL_PRIMITIVES,
-};
-
 #define NR_RAW_PRIMITIVES (NR_RAPL_PRIMITIVES - 2)
-
-/* Can be expanded to include events, etc.*/
-struct rapl_domain_data {
-	u64 primitives[NR_RAPL_PRIMITIVES];
-	unsigned long timestamp;
-};
 
 struct msrl_action {
 	u32 msr_no;
@@ -138,59 +89,11 @@ struct msrl_action {
 #define	DOMAIN_STATE_POWER_LIMIT_SET    BIT(1)
 #define DOMAIN_STATE_BIOS_LOCKED        BIT(2)
 
-#define NR_POWER_LIMITS (2)
-struct rapl_power_limit {
-	struct powercap_zone_constraint *constraint;
-	int prim_id; /* primitive ID used to enable */
-	struct rapl_domain *domain;
-	const char *name;
-	u64 last_power_limit;
-};
-
 static const char pl1_name[] = "long_term";
 static const char pl2_name[] = "short_term";
 
-struct rapl_package;
-struct rapl_domain {
-	const char *name;
-	enum rapl_domain_type id;
-	int regs[RAPL_DOMAIN_REG_MAX];
-	struct powercap_zone power_zone;
-	struct rapl_domain_data rdd;
-	struct rapl_power_limit rpl[NR_POWER_LIMITS];
-	u64 attr_map; /* track capabilities */
-	unsigned int state;
-	unsigned int domain_energy_unit;
-	struct rapl_package *rp;
-};
 #define power_zone_to_rapl_domain(_zone) \
 	container_of(_zone, struct rapl_domain, power_zone)
-
-/* maximum rapl package domain name: package-%d-die-%d */
-#define PACKAGE_DOMAIN_NAME_LENGTH 30
-
-
-/* Each rapl package contains multiple domains, these are the common
- * data across RAPL domains within a package.
- */
-struct rapl_package {
-	unsigned int id; /* logical die id, equals physical 1-die systems */
-	unsigned int nr_domains;
-	unsigned long domain_map; /* bit map of active domains */
-	unsigned int power_unit;
-	unsigned int energy_unit;
-	unsigned int time_unit;
-	struct rapl_domain *domains; /* array of domains, sized at runtime */
-	struct powercap_zone *power_zone; /* keep track of parent zone */
-	unsigned long power_limit_irq; /* keep track of package power limit
-					* notify interrupt enable status.
-					*/
-	struct list_head plist;
-	int lead_cpu; /* one active cpu per package for access */
-	/* Track active cpus */
-	struct cpumask cpumask;
-	char name[PACKAGE_DOMAIN_NAME_LENGTH];
-};
 
 struct rapl_defaults {
 	u8 floor_freq_reg_addr;
