@@ -1106,8 +1106,10 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		      sock_flag(rds_rs_to_sk(rs), SOCK_ZEROCOPY));
 	int num_sgs = ceil(payload_len, PAGE_SIZE);
 	int namelen;
-	struct rds_iov_vector_arr vct = {0};
+	struct rds_iov_vector_arr vct;
 	int ind;
+
+	memset(&vct, 0, sizeof(vct));
 
 	/* expect 1 RDMA CMSG per rds_sendmsg. can still grow if more needed. */
 	vct.incr = 1;

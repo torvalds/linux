@@ -848,11 +848,11 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 	if  (rc < 0)
 		lsk->sk_err = -rc;
 	if (rc < 0 || lsk->sk_state == SMC_CLOSED) {
+		new_sk->sk_prot->unhash(new_sk);
 		if (new_clcsock)
 			sock_release(new_clcsock);
 		new_sk->sk_state = SMC_CLOSED;
 		sock_set_flag(new_sk, SOCK_DEAD);
-		new_sk->sk_prot->unhash(new_sk);
 		sock_put(new_sk); /* final */
 		*new_smc = NULL;
 		goto out;
@@ -903,11 +903,11 @@ struct sock *smc_accept_dequeue(struct sock *parent,
 
 		smc_accept_unlink(new_sk);
 		if (new_sk->sk_state == SMC_CLOSED) {
+			new_sk->sk_prot->unhash(new_sk);
 			if (isk->clcsock) {
 				sock_release(isk->clcsock);
 				isk->clcsock = NULL;
 			}
-			new_sk->sk_prot->unhash(new_sk);
 			sock_put(new_sk); /* final */
 			continue;
 		}
@@ -932,6 +932,7 @@ void smc_close_non_accepted(struct sock *sk)
 		sock_set_flag(sk, SOCK_DEAD);
 		sk->sk_shutdown |= SHUTDOWN_MASK;
 	}
+	sk->sk_prot->unhash(sk);
 	if (smc->clcsock) {
 		struct socket *tcp;
 
@@ -947,7 +948,6 @@ void smc_close_non_accepted(struct sock *sk)
 			smc_conn_free(&smc->conn);
 	}
 	release_sock(sk);
-	sk->sk_prot->unhash(sk);
 	sock_put(sk); /* final sock_put */
 }
 

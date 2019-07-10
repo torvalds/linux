@@ -673,6 +673,7 @@ static int mlxreg_hotplug_remove(struct platform_device *pdev)
 
 	/* Clean interrupts setup. */
 	mlxreg_hotplug_unset_irq(priv);
+	devm_free_irq(&pdev->dev, priv->irq, priv);
 
 	return 0;
 }
