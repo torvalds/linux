@@ -1077,7 +1077,7 @@ EFI_DEVICE_PATH_PROTOCOL* creat_windows_loader_device(void)
               sizeof( EFI_DEVICE_PATH_PROTOCOL ) +
               sizeof_bootmg_file_path_as_wstring +
               sizeof( end_device_path_node ) );
-        DebugMSG( "windows_loader_device @ 0x%p\n", windows_loader_device );
+        DebugMSG( "windows_loader_device @ 0x%px", windows_loader_device );
 
         windows_loader_device->Type    = 0x4,    /* Media Device Path. */
         windows_loader_device->SubType = 0x4,    /* File Path. */
@@ -1230,14 +1230,14 @@ efi_status_t efi_handle_protocol_DevicePath( void* handle, void** interface )
         DebugMSG( "Called" );
 
         if (handle != BOOT_DEVICE_HANDLE) {
-                DebugMSG( "unknown handle %px\n", handle );
+                DebugMSG( "unknown handle %px", handle );
 
                 return EFI_UNSUPPORTED;
         }
 
         *interface = (void*)windows_boot_device_path;
 
-        DebugMSG( "Returning constant boot device path @ %px\n",
+        DebugMSG( "Returning constant boot device path @ %px",
                    windows_boot_device_path );
 
         DumpBuffer( "Boot Device Path", (uint8_t*) *interface, sizeof( windows_boot_device_path ) );
@@ -1325,6 +1325,93 @@ void efi_setup_11_mapping( void* addr, size_t size )
         up_write(&mm->mmap_sem);
 }
 
+#define EFI_MAX_MEMORY_MAPPINGS 1000
+#define EFI_DEFAULT_MEM_ATTRIBUTES ( EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT | EFI_MEMORY_WB )
+
+typedef struct {
+	u32 type;
+	u32 pad;
+	u64 phys_addr;
+	u64 virt_addr;
+	u64 num_pages;
+	u64 attribute;
+    u64 pad2;
+} EFI_MEMORY_DESCRIPTOR;
+
+EFI_MEMORY_DESCRIPTOR efi_memory_mappings[EFI_MAX_MEMORY_MAPPINGS];
+uint16_t efi_next_available_mem_mapping                         = 0;
+uint64_t efi_mem_map_epoch                                      = 0;
+
+void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
+                                   UINTN                 NumberOfPages,
+                                   void*                 allocation )
+{
+        EFI_MEMORY_DESCRIPTOR *mem_map  = NULL;
+
+        DebugMSG( "Registering %lld pages of type %s @ %px",
+                   NumberOfPages, get_efi_mem_type_str( MemoryType ),
+                   allocation );
+
+        BUG_ON( efi_next_available_mem_mapping >= EFI_MAX_MEMORY_MAPPINGS );
+
+        /* TODO: Search if the memory address already exists in
+         * &efi_memory_mappings. If so, use that mapping. */
+        mem_map = &efi_memory_mappings[ efi_next_available_mem_mapping++ ];
+        memset( mem_map, 0, sizeof( *mem_map ) );
+        mem_map->type      = MemoryType;
+        mem_map->pad       = 0;
+        mem_map->phys_addr = virt_to_phys( allocation );
+        mem_map->virt_addr = 0;  // Similar to EDK-II code
+        mem_map->num_pages = NumberOfPages;
+        mem_map->attribute = EFI_DEFAULT_MEM_ATTRIBUTES;
+
+        efi_mem_map_epoch++;
+}
+
+efi_status_t efi_unregister_allocation( efi_physical_addr_t PhysicalAddress,
+                                        UINTN               NumberOfPages )
+{
+        uint16_t              i                 = 0;
+        EFI_MEMORY_DESCRIPTOR *mem_map          = NULL;
+        u64                   offset_in_mapping = 0;
+        efi_physical_addr_t   end_of_region     = 0;
+
+        for( ; i < efi_next_available_mem_mapping; i++ ) {
+                mem_map  = &efi_memory_mappings[i];
+
+                end_of_region = mem_map->phys_addr +
+                                mem_map->num_pages * PAGE_SIZE;
+                if (PhysicalAddress < mem_map->phys_addr ||
+                    PhysicalAddress >= end_of_region)
+                        continue;
+
+                offset_in_mapping = PhysicalAddress - mem_map->phys_addr;
+
+                DebugMSG( "Located mapping phys->virt: 0x%llx->0x%llx "
+                          "(%lld pages, offset=0x%llx)",
+                          mem_map->phys_addr, mem_map->virt_addr,
+                          NumberOfPages, offset_in_mapping );
+
+                if (offset_in_mapping != 0 ||
+                    mem_map->num_pages != NumberOfPages ) {
+                       DebugMSG( "Free request is different than allocation!!" );
+                       /* TODO: handle greacefully. For example, allow
+                        * reclaiming parts or regions */
+                       return EFI_INVALID_PARAMETER;
+                }
+
+                break;
+        }
+
+        if (i == efi_next_available_mem_mapping) {
+                DebugMSG( "Couldn't find mapping." );
+                return EFI_INVALID_PARAMETER;
+        }
+
+        mem_map->type = EfiConventionalMemory; /* Memory is free now */
+
+        return EFI_SUCCESS;
+}
 
 /*********** EFI hooks ************************/
 __attribute__((ms_abi)) efi_status_t efi_hook_RaiseTPL(void)
@@ -1341,19 +1428,77 @@ __attribute__((ms_abi)) efi_status_t efi_hook_RestoreTPL(void)
          return EFI_UNSUPPORTED;
 }
 
-__attribute__((ms_abi)) efi_status_t efi_hook_FreePages(void)
+__attribute__((ms_abi)) efi_status_t efi_hook_FreePages(
+                                          efi_physical_addr_t PhysicalAddress,
+                                          UINTN               NumberOfPages )
 {
-         DebugMSG( "BOOT SERVICE #3 called" );
+        DebugMSG( "Physical address = 0x%llx, NumberOfPages = %lld",
+                   PhysicalAddress, NumberOfPages );
 
-         return EFI_UNSUPPORTED;
+        return efi_unregister_allocation( PhysicalAddress, NumberOfPages );
 }
 
-__attribute__((ms_abi)) efi_status_t efi_hook_GetMemoryMap(void)
-{
-         DebugMSG( "BOOT SERVICE #4 called" );
+__attribute__((ms_abi)) efi_status_t efi_hook_GetMemoryMap(
+                                     unsigned long         *MemoryMapSize,
+                                     EFI_MEMORY_DESCRIPTOR *MemoryMap,
+                                     unsigned long         *MapKey,
+                                     unsigned long         *DescriptorSize,
+                                     u32                   *DescriptorVersion)
 
-         return EFI_UNSUPPORTED;
+{
+        unsigned long current_mapping_size  =
+               efi_next_available_mem_mapping * sizeof( EFI_MEMORY_DESCRIPTOR );
+        int entryIdx                        = 0;
+        EFI_MEMORY_DESCRIPTOR *entry        = NULL;
+        efi_status_t status                 = EFI_SUCCESS;
+        uint8_t* current_offset             = ( uint8_t* )MemoryMap;
+
+        *DescriptorVersion        = 1;
+        *DescriptorSize           = sizeof( EFI_MEMORY_DESCRIPTOR );
+
+        DebugMSG( "MemoryMapSize @ %px "
+                  "MemoryMap @ %px "
+                  "DescriptorSize = %ld "
+                  "DescriptorVersion = %d",
+                  MemoryMapSize, MemoryMap,
+                  *DescriptorSize, *DescriptorVersion );
+
+        if (*MemoryMapSize < current_mapping_size ) {
+                unsigned long mmap_size_in  = *MemoryMapSize;
+                *MemoryMapSize              = current_mapping_size;
+                status                      = EFI_BUFFER_TOO_SMALL;
+                DebugMSG( "Buffer too small. MemoryMapSize = %ld bytes, "
+                          "need %ld. status = 0x%lx",
+                           mmap_size_in, *MemoryMapSize, status );
+
+                return status;
+        }
+
+        memcpy( current_offset, efi_memory_mappings, current_mapping_size );
+        current_offset += current_mapping_size;
+
+        *MemoryMapSize  = current_offset - ( uint8_t* )MemoryMap;
+        *MapKey         = efi_mem_map_epoch;
+
+        DebugMSG( "MemoryMapSize = %ld MapKey = 0x%lx",
+                  *MemoryMapSize, *MapKey );
+
+        entry = MemoryMap;
+        while( entry < ( EFI_MEMORY_DESCRIPTOR* )current_offset ) {
+                DebugMSG( "%3d: %-25s, 0x%16llx -> 0x%16llx, %5lld, 0x%016llx",
+                    entryIdx++, get_efi_mem_type_str(entry->type),
+                    entry->phys_addr, entry->virt_addr,
+                    entry->num_pages, entry->attribute );
+
+                /* Pointer arithmatics will add sizeof( EFI_MEMORY_DESCRIPTOR )
+                 * */
+                entry += 1;
+        }
+
+        return EFI_SUCCESS;
 }
+
+#define NUM_PAGES(size) ((size-1) / PAGE_SIZE + 1)
 
 __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePool(
                         EFI_MEMORY_TYPE pool_type,
@@ -1365,6 +1510,8 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePool(
         DebugMSG( "pool_type = 0x%x (%s), size = 0x%lx",
                   pool_type, get_efi_mem_type_str( pool_type ), size );
 
+        /* TODO: search for free memory which is EfiConventionalMemory, instead
+         * of always allocating new kernel memory */
         allocation = kmalloc( size, GFP_KERNEL | GFP_DMA );
         if (allocation == NULL)
                 return EFI_OUT_OF_RESOURCES;
@@ -1375,8 +1522,7 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePool(
         efi_setup_11_mapping( allocation, size );
         *buffer = ( void* )virt_to_phys( allocation );
 
-        /* TODO: Register memory allocation in some "database". We will need
-         * this to create MemoryMap later on */
+        efi_register_mem_allocation( pool_type, NUM_PAGES( size ), allocation );
 
         return EFI_SUCCESS;
 }
@@ -1390,7 +1536,7 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePages(
         efi_status_t status = EFI_UNSUPPORTED;
 
         DebugMSG( "Num pages = %lld; Allocation type: %s; "
-                  "Memory type: %s; Requested address = 0x%llx\n",
+                  "Memory type: %s; Requested address = 0x%llx",
                    NumberOfPages,
                    get_efi_allocation_type_str( Type ),
                    get_efi_mem_type_str( MemoryType ),
@@ -1413,6 +1559,9 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePages(
                           virt_to_phys( allocation) );
 
                 efi_setup_11_mapping( allocation, NumberOfPages * PAGE_SIZE );
+                efi_register_mem_allocation( MemoryType,
+                                             NumberOfPages,
+                                             allocation );
 
                 /* TODO: maintain bookkeeping of thois allocation for MemMap */
 
@@ -1437,7 +1586,7 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePages(
 
 __attribute__((ms_abi)) efi_status_t efi_hook_FreePool(void* buff)
 {
-         DebugMSG( "BOOT SERVICE #6 called" );
+         DebugMSG( "buff @ %px; TODO: implement bookkeeping", buff );
 
          /* TODO: We need to do some book keeping for the sake of MemoryMap */
 
@@ -1912,8 +2061,18 @@ typedef uint64_t (*EFI_APP_ENTRY)( void* imageHandle, void* systemTable  )
 
 void launch_efi_app(EFI_APP_ENTRY efiApp, efi_system_table_t *systab)
 {
-        EFI_HANDLE ImageHandle = (void*)0xDEADBEEF; /* Obviously fake */
+        /* Fake handle */
+        EFI_HANDLE          ImageHandle   = (void*)0xDEADBEEF;
 
+        /* We need to create a large pool of EfiConventionalMemory, so Windows
+         * loader will believe there is sufficient memory. Otherwise it won't
+         * even call the EFI AllocatePages function and fail with error code
+         * 0xC0000017 (STATUS_NO_MEMORY) */
+        efi_physical_addr_t pool          = 0x100000;
+        UINTN               pool_pages    = 200;
+
+        efi_hook_AllocatePages( AllocateAnyPages, EfiConventionalMemory,
+                                pool_pages, &pool );
         efiApp( ImageHandle, systab );
 }
 
