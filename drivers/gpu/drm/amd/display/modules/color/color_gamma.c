@@ -60,12 +60,12 @@ static struct translate_from_linear_space_args scratch_gamma_args;
 static struct fixed31_32 pow_buffer[NUM_PTS_IN_REGION];
 static struct fixed31_32 gamma_of_2; // 2^gamma
 int pow_buffer_ptr = -1;
-
-static const int32_t gamma_numerator01[] = { 31308,	180000,	0};
-static const int32_t gamma_numerator02[] = { 12920,	4500,	0};
-static const int32_t gamma_numerator03[] = { 55,	99,	0};
-static const int32_t gamma_numerator04[] = { 55,	99,	0};
-static const int32_t gamma_numerator05[] = { 2400,	2200, 2200};
+										/*sRGB	 709 2.2 2.4 P3*/
+static const int32_t gamma_numerator01[] = { 31308,	180000,	0,	0,	0};
+static const int32_t gamma_numerator02[] = { 12920,	4500,	0,	0,	0};
+static const int32_t gamma_numerator03[] = { 55,	99,		0,	0,	0};
+static const int32_t gamma_numerator04[] = { 55,	99,		0,	0,	0};
+static const int32_t gamma_numerator05[] = { 2400,	2200,	2200, 2400, 2600};
 
 static bool pq_initialized; /* = false; */
 static bool de_pq_initialized; /* = false; */
@@ -270,23 +270,28 @@ struct dividers {
 	struct fixed31_32 divider3;
 };
 
-enum gamma_type_index {
-	gamma_type_index_2_4,
-	gamma_type_index_2_2,
-	gamma_type_index_2_2_flat
-};
 
-static void build_coefficients(struct gamma_coefficients *coefficients, enum gamma_type_index type)
+static bool build_coefficients(struct gamma_coefficients *coefficients, enum dc_transfer_func_predefined type)
 {
-
 
 	uint32_t i = 0;
 	uint32_t index = 0;
+	bool ret = true;
 
-	if (type == gamma_type_index_2_2)
+	if (type == TRANSFER_FUNCTION_SRGB)
+		index = 0;
+	else if (type == TRANSFER_FUNCTION_BT709)
 		index = 1;
-	else if (type == gamma_type_index_2_2_flat)
+	else if (type == TRANSFER_FUNCTION_GAMMA22)
 		index = 2;
+	else if (type == TRANSFER_FUNCTION_GAMMA24)
+		index = 3;
+	else if (type == TRANSFER_FUNCTION_GAMMA26)
+		index = 4;
+	else {
+		ret = false;
+		goto release;
+	}
 
 	do {
 		coefficients->a0[i] = dc_fixpt_from_fraction(
@@ -302,6 +307,8 @@ static void build_coefficients(struct gamma_coefficients *coefficients, enum gam
 
 		++i;
 	} while (i != ARRAY_SIZE(coefficients->a0));
+release:
+	return ret;
 }
 
 static struct fixed31_32 translate_from_linear_space(
@@ -738,11 +745,12 @@ static void build_de_pq(struct pwl_float_data_ex *de_pq,
 	}
 }
 
-static void build_regamma(struct pwl_float_data_ex *rgb_regamma,
+static bool build_regamma(struct pwl_float_data_ex *rgb_regamma,
 		uint32_t hw_points_num,
-		const struct hw_x_point *coordinate_x, enum gamma_type_index type)
+		const struct hw_x_point *coordinate_x, enum dc_transfer_func_predefined type)
 {
 	uint32_t i;
+	bool ret = false;
 
 	struct gamma_coefficients *coeff;
 	struct pwl_float_data_ex *rgb = rgb_regamma;
@@ -750,9 +758,10 @@ static void build_regamma(struct pwl_float_data_ex *rgb_regamma,
 
 	coeff = kvzalloc(sizeof(*coeff), GFP_KERNEL);
 	if (!coeff)
-		return;
+		goto release;
 
-	build_coefficients(coeff, type);
+	if (!build_coefficients(coeff, type))
+		goto release;
 
 	memset(pow_buffer, 0, NUM_PTS_IN_REGION * sizeof(struct fixed31_32));
 	pow_buffer_ptr = 0; // see variable definition for more info
@@ -768,8 +777,10 @@ static void build_regamma(struct pwl_float_data_ex *rgb_regamma,
 		++i;
 	}
 	pow_buffer_ptr = -1; // reset back to no optimize
-
+	ret = true;
+release:
 	kfree(coeff);
+	return ret;
 }
 
 static void hermite_spline_eetf(struct fixed31_32 input_x,
@@ -944,15 +955,18 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	return true;
 }
 
-static void build_degamma(struct pwl_float_data_ex *curve,
+static bool build_degamma(struct pwl_float_data_ex *curve,
 		uint32_t hw_points_num,
-		const struct hw_x_point *coordinate_x, enum gamma_type_index type)
+		const struct hw_x_point *coordinate_x, enum dc_transfer_func_predefined type)
 {
 	uint32_t i;
 	struct gamma_coefficients coeff;
 	uint32_t begin_index, end_index;
+	bool ret = false;
 
-	build_coefficients(&coeff, type);
+	if (!build_coefficients(&coeff, type))
+		goto release;
+
 	i = 0;
 
 	/* X points is 2^-25 to 2^7
@@ -981,6 +995,9 @@ static void build_degamma(struct pwl_float_data_ex *curve,
 		curve[i].b = dc_fixpt_one;
 		i++;
 	}
+	ret = true;
+release:
+	return ret;
 }
 
 static void build_hlg_degamma(struct pwl_float_data_ex *degamma,
@@ -1675,6 +1692,12 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 				MAX_HW_POINTS,
 				coordinates_x,
 				fs_params);
+	} else if (tf == TRANSFER_FUNCTION_HLG) {
+		build_freesync_hdr(rgb_regamma,
+				MAX_HW_POINTS,
+				coordinates_x,
+				fs_params);
+
 	} else {
 		tf_pts->end_exponent = 0;
 		tf_pts->x_point_at_y1_red = 1;
@@ -1683,9 +1706,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 
 		build_regamma(rgb_regamma,
 				MAX_HW_POINTS,
-				coordinates_x, tf == TRANSFER_FUNCTION_SRGB ? gamma_type_index_2_4 :
-					tf == TRANSFER_FUNCTION_GAMMA22 ?
-					gamma_type_index_2_2_flat : gamma_type_index_2_2);
+				coordinates_x, tf);
 	}
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
 			coordinates_x, axis_x, rgb_regamma,
@@ -1886,13 +1907,19 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 				MAX_HW_POINTS,
 				coordinates_x);
 	else if (tf == TRANSFER_FUNCTION_SRGB ||
-			tf == TRANSFER_FUNCTION_BT709)
+		tf == TRANSFER_FUNCTION_BT709 ||
+		tf == TRANSFER_FUNCTION_GAMMA22 ||
+		tf == TRANSFER_FUNCTION_GAMMA24 ||
+		tf == TRANSFER_FUNCTION_GAMMA26)
 		build_degamma(curve,
 				MAX_HW_POINTS,
 				coordinates_x,
-				tf == TRANSFER_FUNCTION_SRGB ?
-				gamma_type_index_2_4 : tf == TRANSFER_FUNCTION_GAMMA22 ?
-				gamma_type_index_2_2_flat : gamma_type_index_2_2);
+				tf);
+	else if (tf == TRANSFER_FUNCTION_HLG)
+		build_hlg_degamma(curve,
+				MAX_HW_POINTS,
+				coordinates_x,
+				true);
 	else if (tf == TRANSFER_FUNCTION_LINEAR) {
 		// just copy coordinates_x into curve
 		i = 0;
@@ -1979,7 +2006,10 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 
 		kvfree(rgb_regamma);
 	} else if (trans == TRANSFER_FUNCTION_SRGB ||
-			  trans == TRANSFER_FUNCTION_BT709) {
+		trans == TRANSFER_FUNCTION_BT709 ||
+		trans == TRANSFER_FUNCTION_GAMMA22 ||
+		trans == TRANSFER_FUNCTION_GAMMA24 ||
+		trans == TRANSFER_FUNCTION_GAMMA26) {
 		rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
 				       sizeof(*rgb_regamma),
 				       GFP_KERNEL);
@@ -1993,9 +2023,7 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		build_regamma(rgb_regamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				trans == TRANSFER_FUNCTION_SRGB ?
-				gamma_type_index_2_4 : trans == TRANSFER_FUNCTION_GAMMA22 ?
-				gamma_type_index_2_2_flat : gamma_type_index_2_2);
+				trans);
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = rgb_regamma[i].r;
 			points->green[i]  = rgb_regamma[i].g;
@@ -2004,8 +2032,7 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		ret = true;
 
 		kvfree(rgb_regamma);
-	} else if (trans == TRANSFER_FUNCTION_HLG ||
-		trans == TRANSFER_FUNCTION_HLG12) {
+	} else if (trans == TRANSFER_FUNCTION_HLG) {
 		rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
 				       sizeof(*rgb_regamma),
 				       GFP_KERNEL);
@@ -2015,7 +2042,7 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		build_hlg_regamma(rgb_regamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				trans == TRANSFER_FUNCTION_HLG12 ? true:false);
+				true);
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = rgb_regamma[i].r;
 			points->green[i]  = rgb_regamma[i].g;
@@ -2065,8 +2092,10 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 
 		kvfree(rgb_degamma);
 	} else if (trans == TRANSFER_FUNCTION_SRGB ||
-			  trans == TRANSFER_FUNCTION_BT709 ||
-			  trans == TRANSFER_FUNCTION_GAMMA22) {
+		trans == TRANSFER_FUNCTION_BT709 ||
+		trans == TRANSFER_FUNCTION_GAMMA22 ||
+		trans == TRANSFER_FUNCTION_GAMMA24 ||
+		trans == TRANSFER_FUNCTION_GAMMA26) {
 		rgb_degamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
 				       sizeof(*rgb_degamma),
 				       GFP_KERNEL);
@@ -2076,9 +2105,7 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 		build_degamma(rgb_degamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				trans == TRANSFER_FUNCTION_SRGB ?
-				gamma_type_index_2_4 : trans == TRANSFER_FUNCTION_GAMMA22 ?
-				gamma_type_index_2_2_flat : gamma_type_index_2_2);
+				trans);
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = rgb_degamma[i].r;
 			points->green[i]  = rgb_degamma[i].g;
@@ -2087,8 +2114,7 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 		ret = true;
 
 		kvfree(rgb_degamma);
-	} else if (trans == TRANSFER_FUNCTION_HLG ||
-		trans == TRANSFER_FUNCTION_HLG12) {
+	} else if (trans == TRANSFER_FUNCTION_HLG) {
 		rgb_degamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
 				       sizeof(*rgb_degamma),
 				       GFP_KERNEL);
@@ -2098,7 +2124,7 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 		build_hlg_degamma(rgb_degamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				trans == TRANSFER_FUNCTION_HLG12 ? true:false);
+				true);
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = rgb_degamma[i].r;
 			points->green[i]  = rgb_degamma[i].g;
