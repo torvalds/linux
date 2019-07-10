@@ -70,7 +70,7 @@ EXPORT_SYMBOL_GPL(__blk_req_zone_write_unlock);
 static inline unsigned int __blkdev_nr_zones(struct request_queue *q,
 					     sector_t nr_sectors)
 {
-	unsigned long zone_sectors = blk_queue_zone_sectors(q);
+	sector_t zone_sectors = blk_queue_zone_sectors(q);
 
 	return (nr_sectors + zone_sectors - 1) >> ilog2(zone_sectors);
 }
