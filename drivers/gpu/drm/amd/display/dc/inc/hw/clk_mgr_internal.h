@@ -191,6 +191,7 @@ struct state_dependent_clocks {
 
 struct clk_mgr_internal {
 	struct clk_mgr base;
+	int smu_ver;
 	struct pp_smu_funcs *pp_smu;
 	struct clk_mgr_internal_funcs *funcs;
 
