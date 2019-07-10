@@ -25,7 +25,7 @@ static int map_wc_opcode[SIW_NUM_OPCODES] = {
 };
 
 static struct {
-	enum siw_opcode siw;
+	enum siw_wc_status siw;
 	enum ib_wc_status ib;
 } map_cqe_status[SIW_NUM_WC_STATUS] = {
 	{ SIW_WC_SUCCESS, IB_WC_SUCCESS },
