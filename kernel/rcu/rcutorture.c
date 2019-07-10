@@ -161,6 +161,7 @@ static atomic_long_t n_rcu_torture_timers;
 static long n_barrier_attempts;
 static long n_barrier_successes; /* did rcu_barrier test succeed? */
 static struct list_head rcu_torture_removed;
+static unsigned long shutdown_jiffies;
 
 static int rcu_torture_writer_state;
 #define RTWS_FIXED_DELAY	0
@@ -227,6 +228,15 @@ static u64 notrace rcu_trace_clock_local(void)
 	return 0ULL;
 }
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
+
+/*
+ * Stop aggressive CPU-hog tests a bit before the end of the test in order
+ * to avoid interfering with test shutdown.
+ */
+static bool shutdown_time_arrived(void)
+{
+	return shutdown_secs && time_after(jiffies, shutdown_jiffies - 30 * HZ);
+}
 
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
 static DEFINE_MUTEX(boost_mutex);	/* protect setting boost_starttime */
@@ -1787,6 +1797,7 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 	WRITE_ONCE(rcu_fwd_startat, jiffies);
 	stopat = rcu_fwd_startat + dur;
 	while (time_before(jiffies, stopat) &&
+	       !shutdown_time_arrived() &&
 	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
 		idx = cur_ops->readlock();
 		udelay(10);
@@ -1796,6 +1807,7 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 	}
 	(*tested_tries)++;
 	if (!time_before(jiffies, stopat) &&
+	    !shutdown_time_arrived() &&
 	    !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
 		(*tested)++;
 		cver = READ_ONCE(rcu_torture_current_version) - cver;
@@ -1854,6 +1866,7 @@ static void rcu_torture_fwd_prog_cr(void)
 	gps = cur_ops->get_gp_seq();
 	rcu_launder_gp_seq_start = gps;
 	while (time_before(jiffies, stopat) &&
+	       !shutdown_time_arrived() &&
 	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
 		rfcp = READ_ONCE(rcu_fwd_cb_head);
 		rfcpn = NULL;
@@ -1886,7 +1899,8 @@ static void rcu_torture_fwd_prog_cr(void)
 	cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
 	(void)rcu_torture_fwd_prog_cbfree();
 
-	if (!torture_must_stop() && !READ_ONCE(rcu_fwd_emergency_stop)) {
+	if (!torture_must_stop() && !READ_ONCE(rcu_fwd_emergency_stop) &&
+	    !shutdown_time_arrived()) {
 		WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
 		pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld\n",
 			 __func__,
@@ -2467,6 +2481,7 @@ rcu_torture_init(void)
 			goto unwind;
 		rcutor_hp = firsterr;
 	}
+	shutdown_jiffies = jiffies + shutdown_secs * HZ;
 	firsterr = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
 	if (firsterr)
 		goto unwind;
