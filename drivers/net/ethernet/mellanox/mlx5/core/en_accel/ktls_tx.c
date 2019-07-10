@@ -25,23 +25,17 @@ static void
 fill_static_params_ctx(void *ctx, struct mlx5e_ktls_offload_context_tx *priv_tx)
 {
 	struct tls_crypto_info *crypto_info = priv_tx->crypto_info;
+	struct tls12_crypto_info_aes_gcm_128 *info;
 	char *initial_rn, *gcm_iv;
 	u16 salt_sz, rec_seq_sz;
 	char *salt, *rec_seq;
 	u8 tls_version;
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128: {
-		struct tls12_crypto_info_aes_gcm_128 *info =
-			(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
-
-		EXTRACT_INFO_FIELDS;
-		break;
-	}
-	default:
-		WARN_ON(1);
+	if (WARN_ON(crypto_info->cipher_type != TLS_CIPHER_AES_GCM_128))
 		return;
-	}
+
+	info = (struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	EXTRACT_INFO_FIELDS;
 
 	gcm_iv      = MLX5_ADDR_OF(tls_static_params, ctx, gcm_iv);
 	initial_rn  = MLX5_ADDR_OF(tls_static_params, ctx, initial_record_number);
@@ -234,24 +228,18 @@ tx_post_resync_params(struct mlx5e_txqsq *sq,
 		      u64 rcd_sn)
 {
 	struct tls_crypto_info *crypto_info = priv_tx->crypto_info;
+	struct tls12_crypto_info_aes_gcm_128 *info;
 	__be64 rn_be = cpu_to_be64(rcd_sn);
 	bool skip_static_post;
 	u16 rec_seq_sz;
 	char *rec_seq;
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128: {
-		struct tls12_crypto_info_aes_gcm_128 *info =
-			(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
-
-		rec_seq = info->rec_seq;
-		rec_seq_sz = sizeof(info->rec_seq);
-		break;
-	}
-	default:
-		WARN_ON(1);
+	if (WARN_ON(crypto_info->cipher_type != TLS_CIPHER_AES_GCM_128))
 		return;
-	}
+
+	info = (struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	rec_seq = info->rec_seq;
+	rec_seq_sz = sizeof(info->rec_seq);
 
 	skip_static_post = !memcmp(rec_seq, &rn_be, rec_seq_sz);
 	if (!skip_static_post)
