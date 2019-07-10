@@ -2247,8 +2247,8 @@ static void get_active_converter_info(
 	case DOWNSTREAM_VGA:
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_DP_VGA_CONVERTER;
 		break;
-	case DOWNSTREAM_DVI_HDMI:
-		/* At this point we don't know is it DVI or HDMI,
+	case DOWNSTREAM_DVI_HDMI_DP_PLUS_PLUS:
+		/* At this point we don't know is it DVI or HDMI or DP++,
 		 * assume DVI.*/
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_DP_DVI_CONVERTER;
 		break;
@@ -2265,6 +2265,10 @@ static void get_active_converter_info(
 				det_caps, sizeof(det_caps));
 
 		switch (port_caps->bits.DWN_STRM_PORTX_TYPE) {
+		/*Handle DP case as DONGLE_NONE*/
+		case DOWN_STREAM_DETAILED_DP:
+			link->dpcd_caps.dongle_type = DISPLAY_DONGLE_NONE;
+			break;
 		case DOWN_STREAM_DETAILED_VGA:
 			link->dpcd_caps.dongle_type =
 				DISPLAY_DONGLE_DP_VGA_CONVERTER;
@@ -2274,6 +2278,8 @@ static void get_active_converter_info(
 				DISPLAY_DONGLE_DP_DVI_CONVERTER;
 			break;
 		case DOWN_STREAM_DETAILED_HDMI:
+		case DOWN_STREAM_DETAILED_DP_PLUS_PLUS:
+			/*Handle DP++ active converter case, process DP++ case as HDMI case according DP1.4 spec*/
 			link->dpcd_caps.dongle_type =
 				DISPLAY_DONGLE_DP_HDMI_CONVERTER;
 
@@ -2289,14 +2295,18 @@ static void get_active_converter_info(
 
 				link->dpcd_caps.dongle_caps.is_dp_hdmi_s3d_converter =
 					hdmi_caps.bits.FRAME_SEQ_TO_FRAME_PACK;
-				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_pass_through =
-					hdmi_caps.bits.YCrCr422_PASS_THROUGH;
-				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_pass_through =
-					hdmi_caps.bits.YCrCr420_PASS_THROUGH;
-				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_converter =
-					hdmi_caps.bits.YCrCr422_CONVERSION;
-				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_converter =
-					hdmi_caps.bits.YCrCr420_CONVERSION;
+				/*YCBCR capability only for HDMI case*/
+				if (port_caps->bits.DWN_STRM_PORTX_TYPE
+						== DOWN_STREAM_DETAILED_HDMI) {
+					link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_pass_through =
+							hdmi_caps.bits.YCrCr422_PASS_THROUGH;
+					link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_pass_through =
+							hdmi_caps.bits.YCrCr420_PASS_THROUGH;
+					link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_converter =
+							hdmi_caps.bits.YCrCr422_CONVERSION;
+					link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_converter =
+							hdmi_caps.bits.YCrCr420_CONVERSION;
+				}
 
 				link->dpcd_caps.dongle_caps.dp_hdmi_max_bpc =
 					translate_dpcd_max_bpc(
