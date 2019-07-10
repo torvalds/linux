@@ -188,10 +188,6 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.fw_mon_smem_cycle_cnt_ptr_addr = 0xa0c174,			\
 	.fw_mon_smem_cycle_cnt_ptr_msk = 0xfffff
 
-#define IWL_DEVICE_AX200_COMMON						\
-	IWL_DEVICE_22000_COMMON,					\
-	.umac_prph_offset = 0x300000
-
 #define IWL_DEVICE_22500						\
 	IWL_DEVICE_22000_COMMON,					\
 	.device_family = IWL_DEVICE_FAMILY_22000,			\
@@ -206,7 +202,8 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.csr = &iwl_csr_v2
 
 #define IWL_DEVICE_AX210						\
-	IWL_DEVICE_AX200_COMMON,					\
+	IWL_DEVICE_22000_COMMON,					\
+	.umac_prph_offset = 0x300000,					\
 	.device_family = IWL_DEVICE_FAMILY_AX210,			\
 	.base_params = &iwl_22560_base_params,				\
 	.csr = &iwl_csr_v1,						\
