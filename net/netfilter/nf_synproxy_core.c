@@ -470,7 +470,7 @@ synproxy_send_client_synack(struct net *net,
 	struct iphdr *iph, *niph;
 	struct tcphdr *nth;
 	unsigned int tcp_hdr_size;
-	u16 mss = opts->mss;
+	u16 mss = opts->mss_encode;
 
 	iph = ip_hdr(skb);
 
@@ -884,7 +884,7 @@ synproxy_send_client_synack_ipv6(struct net *net,
 	struct ipv6hdr *iph, *niph;
 	struct tcphdr *nth;
 	unsigned int tcp_hdr_size;
-	u16 mss = opts->mss;
+	u16 mss = opts->mss_encode;
 
 	iph = ipv6_hdr(skb);
 
