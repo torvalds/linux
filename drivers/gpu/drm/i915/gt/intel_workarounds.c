@@ -537,12 +537,6 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 		 intel_uncore_read(engine->uncore, GEN8_L3CNTLREG) |
 		 GEN8_ERRDETBCTRL);
 
-	/* WaDisableBankHangMode:icl */
-	wa_write(wal,
-		 GEN8_L3CNTLREG,
-		 intel_uncore_read(engine->uncore, GEN8_L3CNTLREG) |
-		 GEN8_ERRDETBCTRL);
-
 	/* Wa_1604370585:icl (pre-prod)
 	 * Formerly known as WaPushConstantDereferenceHoldDisable
 	 */
