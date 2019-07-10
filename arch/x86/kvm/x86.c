@@ -8046,7 +8046,18 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	kvm_x86_ops->handle_exit_irqoff(vcpu);
 
+	/*
+	 * Consume any pending interrupts, including the possible source of
+	 * VM-Exit on SVM and any ticks that occur between VM-Exit and now.
+	 * An instruction is required after local_irq_enable() to fully unblock
+	 * interrupts on processors that implement an interrupt shadow, the
+	 * stat.exits increment will do nicely.
+	 */
+	kvm_before_interrupt(vcpu);
+	local_irq_enable();
 	++vcpu->stat.exits;
+	local_irq_disable();
+	kvm_after_interrupt(vcpu);
 
 	guest_exit_irqoff();
 	if (lapic_in_kernel(vcpu)) {

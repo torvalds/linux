@@ -6184,15 +6184,7 @@ out:
 
 static void svm_handle_exit_irqoff(struct kvm_vcpu *vcpu)
 {
-	kvm_before_interrupt(vcpu);
-	local_irq_enable();
-	/*
-	 * We must have an instruction with interrupts enabled, so
-	 * the timer interrupt isn't delayed by the interrupt shadow.
-	 */
-	asm("nop");
-	local_irq_disable();
-	kvm_after_interrupt(vcpu);
+
 }
 
 static void svm_sched_in(struct kvm_vcpu *vcpu, int cpu)
