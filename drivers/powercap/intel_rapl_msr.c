@@ -20,6 +20,7 @@
 #include <linux/suspend.h>
 #include <linux/intel_rapl.h>
 #include <linux/processor.h>
+#include <linux/platform_device.h>
 
 #include <asm/iosf_mbi.h>
 #include <asm/cpu_device_id.h>
@@ -122,7 +123,7 @@ static int rapl_msr_write_raw(int cpu, struct reg_action *ra)
 	return ra->err;
 }
 
-static int __init rapl_msr_init(void)
+static int rapl_msr_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -152,15 +153,30 @@ out:
 	return ret;
 }
 
-static void __exit rapl_msr_exit(void)
+static int rapl_msr_remove(struct platform_device *pdev)
 {
 	cpuhp_remove_state(rapl_msr_priv.pcap_rapl_online);
 	rapl_remove_platform_domain(&rapl_msr_priv);
 	powercap_unregister_control_type(rapl_msr_priv.control_type);
+	return 0;
 }
 
-module_init(rapl_msr_init);
-module_exit(rapl_msr_exit);
+static const struct platform_device_id rapl_msr_ids[] = {
+	{ .name = "intel_rapl_msr", },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, rapl_msr_ids);
+
+static struct platform_driver intel_rapl_msr_driver = {
+	.probe = rapl_msr_probe,
+	.remove = rapl_msr_remove,
+	.id_table = rapl_msr_ids,
+	.driver = {
+		.name = "intel_rapl_msr",
+	},
+};
+
+module_platform_driver(intel_rapl_msr_driver);
 
 MODULE_DESCRIPTION("Driver for Intel RAPL (Running Average Power Limit) control via MSR interface");
 MODULE_AUTHOR("Zhang Rui <rui.zhang@intel.com>");

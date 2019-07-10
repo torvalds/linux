@@ -18,10 +18,11 @@
 #include <linux/cpu.h>
 #include <linux/powercap.h>
 #include <linux/suspend.h>
-#include <asm/iosf_mbi.h>
 #include <linux/intel_rapl.h>
-
 #include <linux/processor.h>
+#include <linux/platform_device.h>
+
+#include <asm/iosf_mbi.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 
@@ -136,8 +137,6 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 static u64 rapl_unit_xlate(struct rapl_domain *rd,
 			   enum unit_type type, u64 value, int to_raw);
 static void package_power_limit_irq_save(struct rapl_package *rp);
-static int rapl_init_core(void);
-static void rapl_remove_core(void);
 
 static LIST_HEAD(rapl_packages);	/* guarded by CPU hotplug lock */
 
@@ -1262,8 +1261,6 @@ void rapl_remove_package(struct rapl_package *rp)
 	powercap_unregister_zone(rp->priv->control_type,
 				 &rd_package->power_zone);
 	list_del(&rp->plist);
-	if (list_empty(&rapl_packages))
-		rapl_remove_core();
 	kfree(rp);
 }
 EXPORT_SYMBOL_GPL(rapl_remove_package);
@@ -1291,10 +1288,6 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 	struct rapl_package *rp;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	int ret;
-
-	ret = rapl_init_core();
-	if (ret)
-		return ERR_PTR(ret);
 
 	rp = kzalloc(sizeof(struct rapl_package), GFP_KERNEL);
 	if (!rp)
@@ -1413,13 +1406,12 @@ static struct notifier_block rapl_pm_notifier = {
 	.notifier_call = rapl_pm_callback,
 };
 
-static int rapl_init_core(void)
+static struct platform_device *rapl_msr_platdev;
+
+static int __init rapl_init(void)
 {
 	const struct x86_cpu_id *id;
 	int ret;
-
-	if (rapl_defaults)
-		return 0;
 
 	id = x86_match_cpu(rapl_ids);
 	if (!id) {
@@ -1432,15 +1424,34 @@ static int rapl_init_core(void)
 	rapl_defaults = (struct rapl_defaults *)id->driver_data;
 
 	ret = register_pm_notifier(&rapl_pm_notifier);
+	if (ret)
+		return ret;
 
-	return 0;
+	rapl_msr_platdev = platform_device_alloc("intel_rapl_msr", 0);
+	if (!rapl_msr_platdev) {
+		ret = -ENOMEM;
+		goto end;
+	}
+
+	ret = platform_device_add(rapl_msr_platdev);
+	if (ret)
+		platform_device_put(rapl_msr_platdev);
+
+end:
+	if (ret)
+		unregister_pm_notifier(&rapl_pm_notifier);
+
+	return ret;
 }
 
-static void rapl_remove_core(void)
+static void __exit rapl_exit(void)
 {
+	platform_device_unregister(rapl_msr_platdev);
 	unregister_pm_notifier(&rapl_pm_notifier);
-	rapl_defaults = NULL;
 }
+
+module_init(rapl_init);
+module_exit(rapl_exit);
 
 MODULE_DESCRIPTION("Intel Runtime Average Power Limit (RAPL) common code");
 MODULE_AUTHOR("Jacob Pan <jacob.jun.pan@intel.com>");
