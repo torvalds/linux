@@ -1321,6 +1321,13 @@ static int __iommu_attach_device(struct iommu_domain *domain,
 				 struct device *dev)
 {
 	int ret;
+
+	/* Hack for disable iommu */
+	if (!domain) {
+		ret = dev->bus->iommu_ops->attach_dev(domain, dev);
+		return ret;
+	}
+
 	if ((domain->ops->is_attach_deferred != NULL) &&
 	    domain->ops->is_attach_deferred(domain, dev))
 		return 0;
