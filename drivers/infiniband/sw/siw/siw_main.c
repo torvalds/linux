@@ -88,7 +88,7 @@ static void siw_device_cleanup(struct ib_device *base_dev)
 
 static int siw_create_tx_threads(void)
 {
-	int cpu, rv, assigned = 0;
+	int cpu, assigned = 0;
 
 	for_each_online_cpu(cpu) {
 		/* Skip HT cores */
@@ -99,9 +99,7 @@ static int siw_create_tx_threads(void)
 			kthread_create(siw_run_sq, (unsigned long *)(long)cpu,
 				       "siw_tx/%d", cpu);
 		if (IS_ERR(siw_tx_thread[cpu])) {
-			rv = PTR_ERR(siw_tx_thread[cpu]);
 			siw_tx_thread[cpu] = NULL;
-			pr_info("Creating TX thread for CPU %d failed", cpu);
 			continue;
 		}
 		kthread_bind(siw_tx_thread[cpu], cpu);

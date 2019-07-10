@@ -1201,8 +1201,6 @@ int siw_run_sq(void *data)
 	init_llist_head(&tx_task->active);
 	init_waitqueue_head(&tx_task->waiting);
 
-	pr_info("Started siw TX thread on CPU %u\n", nr_cpu);
-
 	while (1) {
 		struct llist_node *fifo_list = NULL;
 
@@ -1240,8 +1238,6 @@ int siw_run_sq(void *data)
 			siw_sq_resume(qp);
 		}
 	}
-	pr_info("Stopped siw TX thread on CPU %u\n", nr_cpu);
-
 	return 0;
 }
 
