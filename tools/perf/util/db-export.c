@@ -71,16 +71,10 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 	thread->db_id = ++dbe->thread_last_db_id;
 
 	if (main_thread) {
-		if (main_thread != thread) {
-			err = db_export__thread(dbe, main_thread, machine,
-						comm, main_thread);
+		if (main_thread != thread && comm) {
+			err = db_export__comm_thread(dbe, comm, thread);
 			if (err)
 				return err;
-			if (comm) {
-				err = db_export__comm_thread(dbe, comm, thread);
-				if (err)
-					return err;
-			}
 		}
 		main_thread_db_id = main_thread->db_id;
 	}
@@ -308,12 +302,24 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		return err;
 
 	main_thread = thread__main_thread(al->machine, thread);
-	if (main_thread)
+	if (main_thread) {
 		comm = machine__thread_exec_comm(al->machine, main_thread);
+		/*
+		 * A thread has a reference to the main thread, so export the
+		 * main thread first.
+		 */
+		err = db_export__thread(dbe, main_thread, al->machine, comm,
+					main_thread);
+		if (err)
+			goto out_put;
+	}
 
-	err = db_export__thread(dbe, thread, al->machine, comm, main_thread);
-	if (err)
-		goto out_put;
+	if (thread != main_thread) {
+		err = db_export__thread(dbe, thread, al->machine, comm,
+					main_thread);
+		if (err)
+			goto out_put;
+	}
 
 	if (comm) {
 		err = db_export__exec_comm(dbe, comm, main_thread);
