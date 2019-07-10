@@ -24,6 +24,10 @@
 #include <crypto/akcipher.h>
 #include <crypto/internal/rsa.h>
 
+/* We want the module name in front of our messages */
+#undef pr_fmt
+#define	pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #define	CCP_LOG_LEVEL	KERN_INFO
 
 #define CCP_CRA_PRIORITY	300
