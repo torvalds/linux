@@ -38,8 +38,8 @@
 #define POWER_LIMIT2_MASK       (0x7FFFULL<<32)
 #define POWER_LIMIT2_ENABLE     BIT_ULL(47)
 #define POWER_LIMIT2_CLAMP      BIT_ULL(48)
-#define POWER_PACKAGE_LOCK      BIT_ULL(63)
-#define POWER_PP_LOCK           BIT(31)
+#define POWER_HIGH_LOCK         BIT_ULL(63)
+#define POWER_LOW_LOCK          BIT(31)
 
 #define TIME_WINDOW1_MASK       (0x7FULL<<17)
 #define TIME_WINDOW2_MASK       (0x7FULL<<49)
@@ -513,60 +513,38 @@ static const struct powercap_zone_constraint_ops constraint_ops = {
 /* called after domain detection and package level data are set */
 static void rapl_init_domains(struct rapl_package *rp)
 {
-	int i;
+	enum rapl_domain_type i;
+	enum rapl_domain_reg_id j;
 	struct rapl_domain *rd = rp->domains;
 
 	for (i = 0; i < RAPL_DOMAIN_MAX; i++) {
 		unsigned int mask = rp->domain_map & (1 << i);
 
-		rd->regs[RAPL_DOMAIN_REG_LIMIT] =
-		    rp->priv->regs[i][RAPL_DOMAIN_REG_LIMIT];
-		rd->regs[RAPL_DOMAIN_REG_STATUS] =
-		    rp->priv->regs[i][RAPL_DOMAIN_REG_STATUS];
-		rd->regs[RAPL_DOMAIN_REG_PERF] =
-		    rp->priv->regs[i][RAPL_DOMAIN_REG_PERF];
-		rd->regs[RAPL_DOMAIN_REG_POLICY] =
-		    rp->priv->regs[i][RAPL_DOMAIN_REG_POLICY];
-		rd->regs[RAPL_DOMAIN_REG_INFO] =
-		    rp->priv->regs[i][RAPL_DOMAIN_REG_INFO];
+		if (!mask)
+			continue;
 
-		switch (mask) {
-		case BIT(RAPL_DOMAIN_PACKAGE):
-			rd->name = rapl_domain_names[RAPL_DOMAIN_PACKAGE];
-			rd->id = RAPL_DOMAIN_PACKAGE;
-			rd->rpl[0].prim_id = PL1_ENABLE;
-			rd->rpl[0].name = pl1_name;
+		rd->rp = rp;
+		rd->name = rapl_domain_names[i];
+		rd->id = i;
+		rd->rpl[0].prim_id = PL1_ENABLE;
+		rd->rpl[0].name = pl1_name;
+		/* some domain may support two power limits */
+		if (rp->priv->limits[i] == 2) {
 			rd->rpl[1].prim_id = PL2_ENABLE;
 			rd->rpl[1].name = pl2_name;
-			break;
-		case BIT(RAPL_DOMAIN_PP0):
-			rd->name = rapl_domain_names[RAPL_DOMAIN_PP0];
-			rd->id = RAPL_DOMAIN_PP0;
-			rd->rpl[0].prim_id = PL1_ENABLE;
-			rd->rpl[0].name = pl1_name;
-			break;
-		case BIT(RAPL_DOMAIN_PP1):
-			rd->name = rapl_domain_names[RAPL_DOMAIN_PP1];
-			rd->id = RAPL_DOMAIN_PP1;
-			rd->rpl[0].prim_id = PL1_ENABLE;
-			rd->rpl[0].name = pl1_name;
-			break;
-		case BIT(RAPL_DOMAIN_DRAM):
-			rd->name = rapl_domain_names[RAPL_DOMAIN_DRAM];
-			rd->id = RAPL_DOMAIN_DRAM;
-			rd->rpl[0].prim_id = PL1_ENABLE;
-			rd->rpl[0].name = pl1_name;
+		}
+
+		for (j = 0; j < RAPL_DOMAIN_REG_MAX; j++)
+			rd->regs[j] = rp->priv->regs[i][j];
+
+		if (i == RAPL_DOMAIN_DRAM) {
 			rd->domain_energy_unit =
 			    rapl_defaults->dram_domain_energy_unit;
 			if (rd->domain_energy_unit)
 				pr_info("DRAM domain energy unit %dpj\n",
 					rd->domain_energy_unit);
-			break;
 		}
-		if (mask) {
-			rd->rp = rp;
-			rd++;
-		}
+		rd++;
 	}
 }
 
@@ -613,7 +591,7 @@ static struct rapl_primitive_info rpi[] = {
 			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
 	PRIMITIVE_INFO_INIT(POWER_LIMIT2, POWER_LIMIT2_MASK, 32,
 			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
-	PRIMITIVE_INFO_INIT(FW_LOCK, POWER_PP_LOCK, 31,
+	PRIMITIVE_INFO_INIT(FW_LOCK, POWER_LOW_LOCK, 31,
 			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
 	PRIMITIVE_INFO_INIT(PL1_ENABLE, POWER_LIMIT1_ENABLE, 15,
 			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
@@ -675,9 +653,9 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 
 	cpu = rd->rp->lead_cpu;
 
-	/* special-case package domain, which uses a different bit */
-	if (prim == FW_LOCK && rd->id == RAPL_DOMAIN_PACKAGE) {
-		rp->mask = POWER_PACKAGE_LOCK;
+	/* domain with 2 limits has different bit */
+	if (prim == FW_LOCK && rd->rp->priv->limits[rd->id] == 2) {
+		rp->mask = POWER_HIGH_LOCK;
 		rp->shift = 63;
 	}
 	/* non-hardware data are collected by the polling thread */

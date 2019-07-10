@@ -41,6 +41,7 @@ static struct rapl_if_priv rapl_msr_priv = {
 		MSR_DRAM_POWER_LIMIT, MSR_DRAM_ENERGY_STATUS, MSR_DRAM_PERF_STATUS, 0, MSR_DRAM_POWER_INFO },
 	.regs[RAPL_DOMAIN_PLATFORM] = {
 		MSR_PLATFORM_POWER_LIMIT, MSR_PLATFORM_ENERGY_STATUS, 0, 0, 0},
+	.limits[RAPL_DOMAIN_PACKAGE] = 2,
 };
 
 /* Handles CPU hotplug on multi-socket systems.

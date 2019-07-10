@@ -104,6 +104,7 @@ struct reg_action {
  * @pcap_rapl_online:		CPU hotplug state for each RAPL interface.
  * @reg_unit:			Register for getting energy/power/time unit.
  * @regs:			Register sets for different RAPL Domains.
+ * @limits:			Number of power limits supported by each domain.
  * @read_raw:			Callback for reading RAPL interface specific
  *				registers.
  * @write_raw:			Callback for writing RAPL interface specific
@@ -115,6 +116,7 @@ struct rapl_if_priv {
 	enum cpuhp_state pcap_rapl_online;
 	u64 reg_unit;
 	u64 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
+	int limits[RAPL_DOMAIN_MAX];
 	int (*read_raw)(int cpu, struct reg_action *ra);
 	int (*write_raw)(int cpu, struct reg_action *ra);
 };
