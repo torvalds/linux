@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 Samsung Electronics Co.Ltd
  * Authors:
@@ -6,41 +7,34 @@
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *
  * Based on drivers/media/video/s5p-tv/mixer_reg.c
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
-#include <drm/drmP.h>
-
-#include "regs-mixer.h"
-#include "regs-vp.h"
-
-#include <linux/kernel.h>
-#include <linux/ktime.h>
-#include <linux/spinlock.h>
-#include <linux/wait.h>
+#include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/delay.h>
-#include <linux/pm_runtime.h>
-#include <linux/clk.h>
-#include <linux/regulator/consumer.h>
+#include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/component.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
-#include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
+#include "regs-mixer.h"
+#include "regs-vp.h"
 
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2

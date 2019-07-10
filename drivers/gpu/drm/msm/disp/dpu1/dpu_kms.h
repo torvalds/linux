@@ -197,12 +197,8 @@ void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
  * @mode:   File mode within debugfs
  * @parent: Parent directory entry within debugfs, can be NULL
  * @regset: Pointer to persistent register block definition
- *
- * Return: dentry pointer for newly created file, use either debugfs_remove()
- *         or debugfs_remove_recursive() (on a parent directory) to remove the
- *         file
  */
-void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
+void dpu_debugfs_create_regset32(const char *name, umode_t mode,
 		void *parent, struct dpu_debugfs_regset32 *regset);
 
 /**

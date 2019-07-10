@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "msm_kms.h"
@@ -233,63 +225,79 @@ static int dsi_mgr_bridge_get_id(struct drm_bridge *bridge)
 	return dsi_bridge->id;
 }
 
+static bool dsi_mgr_is_cmd_mode(struct msm_dsi *msm_dsi)
+{
+	unsigned long host_flags = msm_dsi_host_get_mode_flags(msm_dsi->host);
+	return !(host_flags & MIPI_DSI_MODE_VIDEO);
+}
+
+void msm_dsi_manager_setup_encoder(int id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	struct drm_encoder *encoder = msm_dsi_get_encoder(msm_dsi);
+
+	if (encoder && kms->funcs->set_encoder_mode)
+		kms->funcs->set_encoder_mode(kms, encoder,
+					     dsi_mgr_is_cmd_mode(msm_dsi));
+}
+
+static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
+{
+	struct msm_drm_private *priv = conn->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
+	struct msm_dsi *master_dsi, *slave_dsi;
+	struct drm_panel *panel;
+
+	if (IS_DUAL_DSI() && !IS_MASTER_DSI_LINK(id)) {
+		master_dsi = other_dsi;
+		slave_dsi = msm_dsi;
+	} else {
+		master_dsi = msm_dsi;
+		slave_dsi = other_dsi;
+	}
+
+	/*
+	 * There is only 1 panel in the global panel list for dual DSI mode.
+	 * Therefore slave dsi should get the drm_panel instance from master
+	 * dsi.
+	 */
+	panel = msm_dsi_host_get_panel(master_dsi->host);
+	if (IS_ERR(panel)) {
+		DRM_ERROR("Could not find panel for %u (%ld)\n", msm_dsi->id,
+			  PTR_ERR(panel));
+		return PTR_ERR(panel);
+	}
+
+	if (!panel || !IS_DUAL_DSI())
+		goto out;
+
+	drm_object_attach_property(&conn->base,
+				   conn->dev->mode_config.tile_property, 0);
+
+	/*
+	 * Set split display info to kms once dual DSI panel is connected to
+	 * both hosts.
+	 */
+	if (other_dsi && other_dsi->panel && kms->funcs->set_split_display) {
+		kms->funcs->set_split_display(kms, master_dsi->encoder,
+					      slave_dsi->encoder,
+					      dsi_mgr_is_cmd_mode(msm_dsi));
+	}
+
+out:
+	msm_dsi->panel = panel;
+	return 0;
+}
+
 static enum drm_connector_status dsi_mgr_connector_detect(
 		struct drm_connector *connector, bool force)
 {
 	int id = dsi_mgr_connector_get_id(connector);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
-	struct msm_drm_private *priv = connector->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-
-	DBG("id=%d", id);
-	if (!msm_dsi->panel) {
-		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host,
-						&msm_dsi->device_flags);
-
-		/* There is only 1 panel in the global panel list
-		 * for dual DSI mode. Therefore slave dsi should get
-		 * the drm_panel instance from master dsi, and
-		 * keep using the panel flags got from the current DSI link.
-		 */
-		if (!msm_dsi->panel && IS_DUAL_DSI() &&
-			!IS_MASTER_DSI_LINK(id) && other_dsi)
-			msm_dsi->panel = msm_dsi_host_get_panel(
-					other_dsi->host, NULL);
-
-
-		if (msm_dsi->panel && kms->funcs->set_encoder_mode) {
-			bool cmd_mode = !(msm_dsi->device_flags &
-					  MIPI_DSI_MODE_VIDEO);
-			struct drm_encoder *encoder =
-					msm_dsi_get_encoder(msm_dsi);
-
-			kms->funcs->set_encoder_mode(kms, encoder, cmd_mode);
-		}
-
-		if (msm_dsi->panel && IS_DUAL_DSI())
-			drm_object_attach_property(&connector->base,
-				connector->dev->mode_config.tile_property, 0);
-
-		/* Set split display info to kms once dual DSI panel is
-		 * connected to both hosts.
-		 */
-		if (msm_dsi->panel && IS_DUAL_DSI() &&
-			other_dsi && other_dsi->panel) {
-			bool cmd_mode = !(msm_dsi->device_flags &
-						MIPI_DSI_MODE_VIDEO);
-			struct drm_encoder *encoder = msm_dsi_get_encoder(
-					dsi_mgr_get_dsi(DSI_ENCODER_MASTER));
-			struct drm_encoder *slave_enc = msm_dsi_get_encoder(
-					dsi_mgr_get_dsi(DSI_ENCODER_SLAVE));
-
-			if (kms->funcs->set_split_display)
-				kms->funcs->set_split_display(kms, encoder,
-							slave_enc, cmd_mode);
-			else
-				pr_err("mdp does not support dual DSI\n");
-		}
-	}
 
 	return msm_dsi->panel ? connector_status_connected :
 		connector_status_disconnected;
@@ -603,7 +611,17 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 
 	drm_connector_attach_encoder(connector, msm_dsi->encoder);
 
+	ret = msm_dsi_manager_panel_init(connector, id);
+	if (ret) {
+		DRM_DEV_ERROR(msm_dsi->dev->dev, "init panel failed %d\n", ret);
+		goto fail;
+	}
+
 	return connector;
+
+fail:
+	connector->funcs->destroy(msm_dsi->connector);
+	return ERR_PTR(ret);
 }
 
 bool msm_dsi_manager_validate_current_config(u8 id)
@@ -757,35 +775,6 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len)
 	msm_dsi_host_cmd_xfer_commit(host, dma_base, len);
 
 	return true;
-}
-
-void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct drm_device *dev = msm_dsi->dev;
-	struct msm_drm_private *priv;
-	struct msm_kms *kms;
-	struct drm_encoder *encoder;
-	bool cmd_mode;
-
-	/*
-	 * drm_device pointer is assigned to msm_dsi only in the modeset_init
-	 * path. If mipi_dsi_attach() happens in DSI driver's probe path
-	 * (generally the case when we're connected to a drm_panel of the type
-	 * mipi_dsi_device), this would be NULL. In such cases, try to set the
-	 * encoder mode in the DSI connector's detect() op.
-	 */
-	if (!dev)
-		return;
-
-	priv = dev->dev_private;
-	kms = priv->kms;
-	encoder = msm_dsi_get_encoder(msm_dsi);
-	cmd_mode = !(device_flags &
-				 MIPI_DSI_MODE_VIDEO);
-
-	if (encoder && kms->funcs->set_encoder_mode)
-		kms->funcs->set_encoder_mode(kms, encoder, cmd_mode);
 }
 
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi)

@@ -63,7 +63,9 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	if (stream->psr_version != 0)
 		vscPacketRevision = 2;
 
-	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+	/* Update to revision 5 for extended colorimetry support for DPCD 1.4+ */
+	if (stream->link->dpcd_caps.dpcd_rev.raw >= 0x14 &&
+			stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED)
 		vscPacketRevision = 5;
 
 	/* VSC packet not needed based on the features

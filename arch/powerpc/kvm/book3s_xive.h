@@ -141,6 +141,7 @@ struct kvmppc_xive {
 	struct kvmppc_xive_ops *ops;
 	struct address_space   *mapping;
 	struct mutex mapping_lock;
+	struct mutex lock;
 };
 
 #define KVMPPC_XIVE_Q_COUNT	8

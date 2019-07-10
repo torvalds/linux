@@ -11,7 +11,6 @@
  */
 /dts-v1/;
 
-#include <dt-bindings/net/ti-dp83867.h>
 #include <dt-bindings/reset/snps,hsdk-reset.h>
 
 / {
@@ -167,6 +166,24 @@
 			#clock-cells = <0>;
 		};
 
+		gpu_core_clk: gpu-core-clk {
+			compatible = "fixed-clock";
+			clock-frequency = <400000000>;
+			#clock-cells = <0>;
+		};
+
+		gpu_dma_clk: gpu-dma-clk {
+			compatible = "fixed-clock";
+			clock-frequency = <400000000>;
+			#clock-cells = <0>;
+		};
+
+		gpu_cfg_clk: gpu-cfg-clk {
+			compatible = "fixed-clock";
+			clock-frequency = <200000000>;
+			#clock-cells = <0>;
+		};
+
 		dmac_core_clk: dmac-core-clk {
 			compatible = "fixed-clock";
 			clock-frequency = <400000000>;
@@ -187,6 +204,7 @@
 			interrupt-names = "macirq";
 			phy-mode = "rgmii";
 			snps,pbl = <32>;
+			snps,multicast-filter-bins = <256>;
 			clocks = <&gmacclk>;
 			clock-names = "stmmaceth";
 			phy-handle = <&phy0>;
@@ -195,15 +213,15 @@
 			mac-address = [00 00 00 00 00 00]; /* Filled in by U-Boot */
 			dma-coherent;
 
+			tx-fifo-depth = <4096>;
+			rx-fifo-depth = <4096>;
+
 			mdio {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "snps,dwmac-mdio";
 				phy0: ethernet-phy@0 {
 					reg = <0>;
-					ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
-					ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
-					ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
 				};
 			};
 		};
@@ -237,6 +255,14 @@
 			dma-coherent;
 		};
 
+		creg_gpio: gpio@14b0 {
+			compatible = "snps,creg-gpio-hsdk";
+			reg = <0x14b0 0x4>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <2>;
+		};
+
 		gpio: gpio@3000 {
 			compatible = "snps,dw-apb-gpio";
 			reg = <0x3000 0x20>;
@@ -250,6 +276,17 @@
 				snps,nr-gpios = <24>;
 				reg = <0>;
 			};
+		};
+
+		gpu_3d: gpu@90000 {
+			compatible = "vivante,gc";
+			reg = <0x90000 0x4000>;
+			clocks = <&gpu_dma_clk>,
+				 <&gpu_cfg_clk>,
+				 <&gpu_core_clk>,
+				 <&gpu_core_clk>;
+			clock-names = "bus", "reg", "core", "shader";
+			interrupts = <28>;
 		};
 
 		dmac: dmac@80000 {

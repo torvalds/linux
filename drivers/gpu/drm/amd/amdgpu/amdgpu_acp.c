@@ -24,6 +24,7 @@
  */
 
 #include <linux/irqdomain.h>
+#include <linux/pci.h>
 #include <linux/pm_domain.h>
 #include <linux/platform_device.h>
 #include <sound/designware_i2s.h>

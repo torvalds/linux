@@ -46,9 +46,7 @@
 * This is a workaround for a bug that has existed since R5xx and has not been
 * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
 */
-static void optc1_apply_front_porch_workaround(
-	struct timing_generator *optc,
-	struct dc_crtc_timing *timing)
+static void apply_front_porch_workaround(struct dc_crtc_timing *timing)
 {
 	if (timing->flags.INTERLACE == 1) {
 		if (timing->v_front_porch < 2)
@@ -60,24 +58,33 @@ static void optc1_apply_front_porch_workaround(
 }
 
 void optc1_program_global_sync(
-		struct timing_generator *optc)
+		struct timing_generator *optc,
+		int vready_offset,
+		int vstartup_start,
+		int vupdate_offset,
+		int vupdate_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	if (optc->dlg_otg_param.vstartup_start == 0) {
+	optc1->vready_offset = vready_offset;
+	optc1->vstartup_start = vstartup_start;
+	optc1->vupdate_offset = vupdate_offset;
+	optc1->vupdate_width = vupdate_width;
+
+	if (optc1->vstartup_start == 0) {
 		BREAK_TO_DEBUGGER();
 		return;
 	}
 
 	REG_SET(OTG_VSTARTUP_PARAM, 0,
-		VSTARTUP_START, optc->dlg_otg_param.vstartup_start);
+		VSTARTUP_START, optc1->vstartup_start);
 
 	REG_SET_2(OTG_VUPDATE_PARAM, 0,
-			VUPDATE_OFFSET, optc->dlg_otg_param.vupdate_offset,
-			VUPDATE_WIDTH, optc->dlg_otg_param.vupdate_width);
+			VUPDATE_OFFSET, optc1->vupdate_offset,
+			VUPDATE_WIDTH, optc1->vupdate_width);
 
 	REG_SET(OTG_VREADY_PARAM, 0,
-			VREADY_OFFSET, optc->dlg_otg_param.vready_offset);
+			VREADY_OFFSET, optc1->vready_offset);
 }
 
 static void optc1_disable_stereo(struct timing_generator *optc)
@@ -132,25 +139,32 @@ void optc1_setup_vertical_interrupt2(
 void optc1_program_timing(
 	struct timing_generator *optc,
 	const struct dc_crtc_timing *dc_crtc_timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios)
 {
 	struct dc_crtc_timing patched_crtc_timing;
-	uint32_t vesa_sync_start;
 	uint32_t asic_blank_end;
 	uint32_t asic_blank_start;
 	uint32_t v_total;
 	uint32_t v_sync_end;
-	uint32_t v_init, v_fp2;
 	uint32_t h_sync_polarity, v_sync_polarity;
 	uint32_t start_point = 0;
 	uint32_t field_num = 0;
 	uint32_t h_div_2;
-	int32_t vertical_line_start;
 
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
+	optc1->signal = signal;
+	optc1->vready_offset = vready_offset;
+	optc1->vstartup_start = vstartup_start;
+	optc1->vupdate_offset = vupdate_offset;
+	optc1->vupdate_width = vupdate_width;
 	patched_crtc_timing = *dc_crtc_timing;
-	optc1_apply_front_porch_workaround(optc, &patched_crtc_timing);
+	apply_front_porch_workaround(&patched_crtc_timing);
 
 	/* Load horizontal timing */
 
@@ -163,23 +177,15 @@ void optc1_program_timing(
 			OTG_H_SYNC_A_START, 0,
 			OTG_H_SYNC_A_END, patched_crtc_timing.h_sync_width);
 
-	/* asic_h_blank_end = HsyncWidth + HbackPorch =
-	 * vesa. usHorizontalTotal - vesa. usHorizontalSyncStart -
-	 * vesa.h_left_border
-	 */
-	vesa_sync_start = patched_crtc_timing.h_addressable +
-			patched_crtc_timing.h_border_right +
+	/* blank_start = line end - front porch */
+	asic_blank_start = patched_crtc_timing.h_total -
 			patched_crtc_timing.h_front_porch;
 
-	asic_blank_end = patched_crtc_timing.h_total -
-			vesa_sync_start -
+	/* blank_end = blank_start - active */
+	asic_blank_end = asic_blank_start -
+			patched_crtc_timing.h_border_right -
+			patched_crtc_timing.h_addressable -
 			patched_crtc_timing.h_border_left;
-
-	/* h_blank_start = v_blank_end + v_active */
-	asic_blank_start = asic_blank_end +
-			patched_crtc_timing.h_border_left +
-			patched_crtc_timing.h_addressable +
-			patched_crtc_timing.h_border_right;
 
 	REG_UPDATE_2(OTG_H_BLANK_START_END,
 			OTG_H_BLANK_START, asic_blank_start,
@@ -212,24 +218,15 @@ void optc1_program_timing(
 			OTG_V_SYNC_A_START, 0,
 			OTG_V_SYNC_A_END, v_sync_end);
 
-	vesa_sync_start = patched_crtc_timing.v_addressable +
-			patched_crtc_timing.v_border_bottom +
+	/* blank_start = frame end - front porch */
+	asic_blank_start = patched_crtc_timing.v_total -
 			patched_crtc_timing.v_front_porch;
 
-	asic_blank_end = (patched_crtc_timing.v_total -
-			vesa_sync_start -
-			patched_crtc_timing.v_border_top);
-
-	/* v_blank_start = v_blank_end + v_active */
-	asic_blank_start = asic_blank_end +
-			(patched_crtc_timing.v_border_top +
-			patched_crtc_timing.v_addressable +
-			patched_crtc_timing.v_border_bottom);
-
-	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
-	v_fp2 = 0;
-	if (vertical_line_start < 0)
-		v_fp2 = -vertical_line_start;
+	/* blank_end = blank_start - active */
+	asic_blank_end = asic_blank_start -
+			patched_crtc_timing.v_border_bottom -
+			patched_crtc_timing.v_addressable -
+			patched_crtc_timing.v_border_top;
 
 	REG_UPDATE_2(OTG_V_BLANK_START_END,
 			OTG_V_BLANK_START, asic_blank_start,
@@ -242,10 +239,9 @@ void optc1_program_timing(
 	REG_UPDATE(OTG_V_SYNC_A_CNTL,
 		OTG_V_SYNC_A_POL, v_sync_polarity);
 
-	v_init = asic_blank_start;
-	if (optc->dlg_otg_param.signal == SIGNAL_TYPE_DISPLAY_PORT ||
-		optc->dlg_otg_param.signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
-		optc->dlg_otg_param.signal == SIGNAL_TYPE_EDP) {
+	if (optc1->signal == SIGNAL_TYPE_DISPLAY_PORT ||
+			optc1->signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
+			optc1->signal == SIGNAL_TYPE_EDP) {
 		start_point = 1;
 		if (patched_crtc_timing.flags.INTERLACE == 1)
 			field_num = 1;
@@ -253,13 +249,10 @@ void optc1_program_timing(
 
 	/* Interlace */
 	if (REG(OTG_INTERLACE_CONTROL)) {
-		if (patched_crtc_timing.flags.INTERLACE == 1) {
+		if (patched_crtc_timing.flags.INTERLACE == 1)
 			REG_UPDATE(OTG_INTERLACE_CONTROL,
 					OTG_INTERLACE_ENABLE, 1);
-			v_init = v_init / 2;
-			if ((optc->dlg_otg_param.vstartup_start/2)*2 > asic_blank_end)
-				v_fp2 = v_fp2 / 2;
-		} else
+		else
 			REG_UPDATE(OTG_INTERLACE_CONTROL,
 					OTG_INTERLACE_ENABLE, 0);
 	}
@@ -268,16 +261,18 @@ void optc1_program_timing(
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 0);
 
-	REG_UPDATE_2(CONTROL,
-			VTG0_FP2, v_fp2,
-			VTG0_VCOUNT_INIT, v_init);
-
 	/* original code is using VTG offset to address OTG reg, seems wrong */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_START_POINT_CNTL, start_point,
 			OTG_FIELD_NUMBER_CNTL, field_num);
 
-	optc1_program_global_sync(optc);
+	optc->funcs->program_global_sync(optc,
+			vready_offset,
+			vstartup_start,
+			vupdate_offset,
+			vupdate_width);
+
+	optc->funcs->set_vtg_params(optc, dc_crtc_timing);
 
 	/* TODO
 	 * patched_crtc_timing.flags.HORZ_COUNT_BY_TWO == 1
@@ -294,6 +289,48 @@ void optc1_program_timing(
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_BY2, h_div_2 || optc1->comb_opp_id != 0xf);
 
+}
+
+void optc1_set_vtg_params(struct timing_generator *optc,
+		const struct dc_crtc_timing *dc_crtc_timing)
+{
+	struct dc_crtc_timing patched_crtc_timing;
+	uint32_t asic_blank_end;
+	uint32_t v_init;
+	uint32_t v_fp2 = 0;
+	int32_t vertical_line_start;
+
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	patched_crtc_timing = *dc_crtc_timing;
+	apply_front_porch_workaround(&patched_crtc_timing);
+
+	/* VCOUNT_INIT is the start of blank */
+	v_init = patched_crtc_timing.v_total - patched_crtc_timing.v_front_porch;
+
+	/* end of blank = v_init - active */
+	asic_blank_end = v_init -
+			patched_crtc_timing.v_border_bottom -
+			patched_crtc_timing.v_addressable -
+			patched_crtc_timing.v_border_top;
+
+	/* if VSTARTUP is before VSYNC, FP2 is the offset, otherwise 0 */
+	vertical_line_start = asic_blank_end - optc1->vstartup_start + 1;
+	if (vertical_line_start < 0)
+		v_fp2 = -vertical_line_start;
+
+	/* Interlace */
+	if (REG(OTG_INTERLACE_CONTROL)) {
+		if (patched_crtc_timing.flags.INTERLACE == 1) {
+			v_init = v_init / 2;
+			if ((optc1->vstartup_start/2)*2 > asic_blank_end)
+				v_fp2 = v_fp2 / 2;
+		}
+	}
+
+	REG_UPDATE_2(CONTROL,
+			VTG0_FP2, v_fp2,
+			VTG0_VCOUNT_INIT, v_init);
 }
 
 void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable)
@@ -547,6 +584,13 @@ uint32_t optc1_get_vblank_counter(struct timing_generator *optc)
 void optc1_lock(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t regval = 0;
+
+	regval = REG_READ(OTG_CONTROL);
+
+	/* otg is not running, do not need to be locked */
+	if ((regval & 0x1) == 0x0)
+		return;
 
 	REG_SET(OTG_GLOBAL_CONTROL0, 0,
 			OTG_MASTER_UPDATE_LOCK_SEL, optc->inst);
@@ -554,10 +598,12 @@ void optc1_lock(struct timing_generator *optc)
 			OTG_MASTER_UPDATE_LOCK, 1);
 
 	/* Should be fast, status does not update on maximus */
-	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS) {
+
 		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
 				UPDATE_LOCK_STATUS, 1,
 				1, 10);
+	}
 }
 
 void optc1_unlock(struct timing_generator *optc)
@@ -754,6 +800,32 @@ void optc1_set_static_screen_control(
 			OTG_STATIC_SCREEN_FRAME_COUNT, 2);
 }
 
+void optc1_setup_manual_trigger(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_GLOBAL_CONTROL2, 0,
+			MANUAL_FLOW_CONTROL_SEL, optc->inst);
+
+	REG_SET_8(OTG_TRIGA_CNTL, 0,
+			OTG_TRIGA_SOURCE_SELECT, 22,
+			OTG_TRIGA_SOURCE_PIPE_SELECT, optc->inst,
+			OTG_TRIGA_RISING_EDGE_DETECT_CNTL, 1,
+			OTG_TRIGA_FALLING_EDGE_DETECT_CNTL, 0,
+			OTG_TRIGA_POLARITY_SELECT, 0,
+			OTG_TRIGA_FREQUENCY_SELECT, 0,
+			OTG_TRIGA_DELAY, 0,
+			OTG_TRIGA_CLEAR, 1);
+}
+
+void optc1_program_manual_trigger(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_MANUAL_FLOW_CONTROL, 0,
+			MANUAL_FLOW_CONTROL, 1);
+}
+
 
 /**
  *****************************************************************************
@@ -786,6 +858,10 @@ void optc1_set_drr(
 				OTG_FORCE_LOCK_ON_EVENT, 0,
 				OTG_SET_V_TOTAL_MIN_MASK_EN, 0,
 				OTG_SET_V_TOTAL_MIN_MASK, 0);
+
+		// Setup manual flow control for EOF via TRIG_A
+		optc->funcs->setup_manual_trigger(optc);
+
 	} else {
 		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
 				OTG_SET_V_TOTAL_MIN_MASK, 0,
@@ -1420,6 +1496,9 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.clear_optc_underflow = optc1_clear_optc_underflow,
 		.get_crc = optc1_get_crc,
 		.configure_crc = optc1_configure_crc,
+		.set_vtg_params = optc1_set_vtg_params,
+		.program_manual_trigger = optc1_program_manual_trigger,
+		.setup_manual_trigger = optc1_setup_manual_trigger
 };
 
 void dcn10_timing_generator_init(struct optc *optc1)
@@ -1437,10 +1516,28 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->comb_opp_id = 0xf;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* "Containter" vs. "pixel" is a concept within HW blocks, mostly those closer to the back-end. It works like this:
+ *
+ * - In most of the formats (RGB or YCbCr 4:4:4, 4:2:2 uncompressed and DSC 4:2:2 Simple) pixel rate is the same as
+ *   containter rate.
+ *
+ * - In 4:2:0 (DSC or uncompressed) there are two pixels per container, hence the target container rate has to be
+ *   halved to maintain the correct pixel rate.
+ *
+ * - Unlike 4:2:2 uncompressed, DSC 4:2:2 Native also has two pixels per container (this happens when DSC is applied
+ *   to it) and has to be treated the same as 4:2:0, i.e. target containter rate has to be halved in this case as well.
+ *
+ */
+#endif
 bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 {
 	bool two_pix = timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	two_pix = two_pix || (timing->flags.DSC && timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
+			&& !timing->dsc_cfg.ycbcr422_simple);
+#endif
 	return two_pix;
 }
 

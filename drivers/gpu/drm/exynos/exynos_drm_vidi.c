@@ -1,30 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* exynos_drm_vidi.c
  *
  * Copyright (C) 2012 Samsung Electronics Co.Ltd
  * Authors:
  *	Inki Dae <inki.dae@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
-#include <drm/drmP.h>
 
+#include <linux/component.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/component.h>
 #include <linux/timer.h>
-
-#include <drm/exynos_drm.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+#include <drm/exynos_drm.h>
 
-#include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"

@@ -1233,19 +1233,14 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 {
 	struct drm_crtc *crtc = (struct drm_crtc *) s->private;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	int i;
 
 	seq_printf(s, "client type: %d\n", dpu_crtc_get_client_type(crtc));
 	seq_printf(s, "intf_mode: %d\n", dpu_crtc_get_intf_mode(crtc));
 	seq_printf(s, "core_clk_rate: %llu\n",
 			dpu_crtc->cur_perf.core_clk_rate);
-	for (i = DPU_CORE_PERF_DATA_BUS_ID_MNOC;
-			i < DPU_CORE_PERF_DATA_BUS_ID_MAX; i++) {
-		seq_printf(s, "bw_ctl[%d]: %llu\n", i,
-				dpu_crtc->cur_perf.bw_ctl[i]);
-		seq_printf(s, "max_per_pipe_ib[%d]: %llu\n", i,
-				dpu_crtc->cur_perf.max_per_pipe_ib[i]);
-	}
+	seq_printf(s, "bw_ctl: %llu\n", dpu_crtc->cur_perf.bw_ctl);
+	seq_printf(s, "max_per_pipe_ib: %llu\n",
+				dpu_crtc->cur_perf.max_per_pipe_ib);
 
 	return 0;
 }
@@ -1264,10 +1259,7 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 
 	dpu_crtc->debugfs_root = debugfs_create_dir(dpu_crtc->name,
 			crtc->dev->primary->debugfs_root);
-	if (!dpu_crtc->debugfs_root)
-		return -ENOMEM;
 
-	/* don't error check these */
 	debugfs_create_file("status", 0400,
 			dpu_crtc->debugfs_root,
 			dpu_crtc, &debugfs_status_fops);

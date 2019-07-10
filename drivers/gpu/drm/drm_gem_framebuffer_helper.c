@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drm gem framebuffer helper functions
  *
  * Copyright (C) 2017 Noralf Trønnes
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/dma-buf.h>
@@ -14,7 +10,6 @@
 #include <linux/reservation.h>
 #include <linux/slab.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_damage_helper.h>
@@ -285,6 +280,9 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * There is no need for &drm_plane_helper_funcs.cleanup_fb hook for simple
  * gem based framebuffer drivers which have their buffers always pinned in
  * memory.
+ *
+ * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
+ * explicit fencing in atomic modeset updates.
  */
 int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
@@ -315,6 +313,9 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_prepare_fb);
  * &dma_buf attached, extracts the exclusive fence and attaches it to plane
  * state for the atomic helper to wait on. Drivers can use this as their
  * &drm_simple_display_pipe_funcs.prepare_fb callback.
+ *
+ * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
+ * explicit fencing in atomic modeset updates.
  */
 int drm_gem_fb_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 					      struct drm_plane_state *plane_state)

@@ -202,6 +202,7 @@ void goya_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);
 int goya_armcp_info_get(struct hl_device *hdev);
 int goya_debug_coresight(struct hl_device *hdev, void *data);
+void goya_halt_coresight(struct hl_device *hdev);
 
 void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
 int goya_mmu_clear_pgt_range(struct hl_device *hdev);

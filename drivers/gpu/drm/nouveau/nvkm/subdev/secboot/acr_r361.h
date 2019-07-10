@@ -67,6 +67,5 @@ void acr_r361_generate_hs_bl_desc(const struct hsf_load_header *, void *, u64);
 extern const struct acr_r352_ls_func acr_r361_ls_fecs_func;
 extern const struct acr_r352_ls_func acr_r361_ls_gpccs_func;
 extern const struct acr_r352_ls_func acr_r361_ls_pmu_func;
-extern const struct acr_r352_ls_func acr_r361_ls_sec2_func;
-
+extern const struct acr_r352_lsf_func acr_r361_ls_sec2_func_0;
 #endif

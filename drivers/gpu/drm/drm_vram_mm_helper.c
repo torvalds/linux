@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
 #include <drm/drm_vram_mm_helper.h>
-#include <drm/drmP.h>
+
 #include <drm/ttm/ttm_page_alloc.h>
 
 /**

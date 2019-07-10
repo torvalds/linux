@@ -177,21 +177,23 @@ struct detailed_timing {
 #define DRM_EDID_INPUT_BLANK_TO_BLACK  (1 << 4)
 #define DRM_EDID_INPUT_VIDEO_LEVEL     (3 << 5)
 #define DRM_EDID_INPUT_DIGITAL         (1 << 7)
-#define DRM_EDID_DIGITAL_DEPTH_MASK    (7 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_UNDEF   (0 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_6       (1 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_8       (2 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_10      (3 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_12      (4 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_14      (5 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_16      (6 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_RSVD    (7 << 4)
-#define DRM_EDID_DIGITAL_TYPE_UNDEF    (0)
-#define DRM_EDID_DIGITAL_TYPE_DVI      (1)
-#define DRM_EDID_DIGITAL_TYPE_HDMI_A   (2)
-#define DRM_EDID_DIGITAL_TYPE_HDMI_B   (3)
-#define DRM_EDID_DIGITAL_TYPE_MDDI     (4)
-#define DRM_EDID_DIGITAL_TYPE_DP       (5)
+#define DRM_EDID_DIGITAL_DEPTH_MASK    (7 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_UNDEF   (0 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_6       (1 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_8       (2 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_10      (3 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_12      (4 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_14      (5 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_16      (6 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_RSVD    (7 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_MASK     (7 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_UNDEF    (0 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_DVI      (1 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_HDMI_A   (2 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_HDMI_B   (3 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_MDDI     (4 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_DP       (5 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_DFP_1_X       (1 << 0) /* 1.3 */
 
 #define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0)
 #define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 1)
@@ -476,6 +478,7 @@ struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
 				     struct i2c_adapter *adapter);
 struct edid *drm_edid_duplicate(const struct edid *edid);
 int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
+int drm_add_override_edid_modes(struct drm_connector *connector);
 
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
 enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);

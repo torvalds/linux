@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD7904/AD7914/AD7923/AD7924 SPI ADC driver
  *
  * Copyright 2011 Analog Devices Inc (from AD7923 Driver)
  * Copyright 2012 CS Systemes d'Information
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/device.h>

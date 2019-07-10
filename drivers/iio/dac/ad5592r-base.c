@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD5592R Digital <-> Analog converters driver
  *
  * Copyright 2014-2016 Analog Devices Inc.
  * Author: Paul Cercueil <paul.cercueil@analog.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/bitops.h>

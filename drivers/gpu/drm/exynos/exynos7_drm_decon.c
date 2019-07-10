@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/gpu/drm/exynos/exynos7_drm_decon.c
  *
  * Copyright (C) 2014 Samsung Electronics Co.Ltd
  * Authors:
  *	Akshu Agarwal <akshua@gmail.com>
  *	Ajay Kumar <ajaykumar.rs@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
-#include <drm/drmP.h>
-#include <drm/exynos_drm.h>
 
 #include <linux/clk.h>
 #include <linux/component.h>
@@ -26,10 +19,14 @@
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+#include <drm/exynos_drm.h>
+
 #include "exynos_drm_crtc.h"
-#include "exynos_drm_plane.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
+#include "exynos_drm_plane.h"
 #include "regs-decon7.h"
 
 /*

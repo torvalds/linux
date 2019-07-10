@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (c) 2009, Citrix Systems, Inc.
  *  Copyright (c) 2010, Microsoft Corporation.
  *  Copyright (c) 2011, Novell Inc.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -614,5 +606,7 @@ static void __exit mousevsc_exit(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Microsoft Hyper-V Synthetic HID Driver");
+
 module_init(mousevsc_init);
 module_exit(mousevsc_exit);

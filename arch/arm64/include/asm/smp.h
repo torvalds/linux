@@ -53,6 +53,12 @@ DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
  */
 #define raw_smp_processor_id() (*raw_cpu_ptr(&cpu_number))
 
+/*
+ * Logical CPU mapping.
+ */
+extern u64 __cpu_logical_map[NR_CPUS];
+#define cpu_logical_map(cpu)    __cpu_logical_map[cpu]
+
 struct seq_file;
 
 /*

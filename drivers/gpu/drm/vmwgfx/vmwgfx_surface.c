@@ -68,6 +68,20 @@ struct vmw_surface_offset {
 	uint32_t bo_offset;
 };
 
+/**
+ * vmw_surface_dirty - Surface dirty-tracker
+ * @cache: Cached layout information of the surface.
+ * @size: Accounting size for the struct vmw_surface_dirty.
+ * @num_subres: Number of subresources.
+ * @boxes: Array of SVGA3dBoxes indicating dirty regions. One per subresource.
+ */
+struct vmw_surface_dirty {
+	struct svga3dsurface_cache cache;
+	size_t size;
+	u32 num_subres;
+	SVGA3dBox boxes[0];
+};
+
 static void vmw_user_surface_free(struct vmw_resource *res);
 static struct vmw_resource *
 vmw_user_surface_base_to_res(struct ttm_base_object *base);
@@ -96,6 +110,13 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 				  struct drm_vmw_gb_surface_ref_ext_rep *rep,
 				  struct drm_file *file_priv);
 
+static void vmw_surface_dirty_free(struct vmw_resource *res);
+static int vmw_surface_dirty_alloc(struct vmw_resource *res);
+static int vmw_surface_dirty_sync(struct vmw_resource *res);
+static void vmw_surface_dirty_range_add(struct vmw_resource *res, size_t start,
+					size_t end);
+static int vmw_surface_clean(struct vmw_resource *res);
+
 static const struct vmw_user_resource_conv user_surface_conv = {
 	.object_type = VMW_RES_SURFACE,
 	.base_obj_to_res = vmw_user_surface_base_to_res,
@@ -112,6 +133,8 @@ static const struct vmw_res_func vmw_legacy_surface_func = {
 	.res_type = vmw_res_surface,
 	.needs_backup = false,
 	.may_evict = true,
+	.prio = 1,
+	.dirty_prio = 1,
 	.type_name = "legacy surfaces",
 	.backup_placement = &vmw_srf_placement,
 	.create = &vmw_legacy_srf_create,
@@ -124,12 +147,19 @@ static const struct vmw_res_func vmw_gb_surface_func = {
 	.res_type = vmw_res_surface,
 	.needs_backup = true,
 	.may_evict = true,
+	.prio = 1,
+	.dirty_prio = 2,
 	.type_name = "guest backed surfaces",
 	.backup_placement = &vmw_mob_placement,
 	.create = vmw_gb_surface_create,
 	.destroy = vmw_gb_surface_destroy,
 	.bind = vmw_gb_surface_bind,
-	.unbind = vmw_gb_surface_unbind
+	.unbind = vmw_gb_surface_unbind,
+	.dirty_alloc = vmw_surface_dirty_alloc,
+	.dirty_free = vmw_surface_dirty_free,
+	.dirty_sync = vmw_surface_dirty_sync,
+	.dirty_range_add = vmw_surface_dirty_range_add,
+	.clean = vmw_surface_clean,
 };
 
 /**
@@ -637,6 +667,7 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	struct vmw_private *dev_priv = srf->res.dev_priv;
 	uint32_t size = user_srf->size;
 
+	WARN_ON_ONCE(res->dirty);
 	if (user_srf->master)
 		drm_master_put(&user_srf->master);
 	kfree(srf->offsets);
@@ -915,12 +946,6 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
 
-		if (READ_ONCE(vmw_fpriv(file_priv)->locked_master)) {
-			DRM_ERROR("Locked master refused legacy "
-				  "surface reference.\n");
-			return -EACCES;
-		}
-
 		handle = u_handle;
 	}
 
@@ -1170,9 +1195,15 @@ static int vmw_gb_surface_bind(struct vmw_resource *res,
 		cmd2->header.id = SVGA_3D_CMD_UPDATE_GB_SURFACE;
 		cmd2->header.size = sizeof(cmd2->body);
 		cmd2->body.sid = res->id;
-		res->backup_dirty = false;
 	}
 	vmw_fifo_commit(dev_priv, submit_size);
+
+	if (res->backup->dirty && res->backup_dirty) {
+		/* We've just made a full upload. Cear dirty regions. */
+		vmw_bo_dirty_clear_res(res);
+	}
+
+	res->backup_dirty = false;
 
 	return 0;
 }
@@ -1638,7 +1669,8 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 			}
 		}
 	} else if (req->base.drm_surface_flags &
-		   drm_vmw_surface_flag_create_buffer)
+		   (drm_vmw_surface_flag_create_buffer |
+		    drm_vmw_surface_flag_coherent))
 		ret = vmw_user_bo_alloc(dev_priv, tfile,
 					res->backup_size,
 					req->base.drm_surface_flags &
@@ -1650,6 +1682,26 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&res);
 		goto out_unlock;
+	}
+
+	if (req->base.drm_surface_flags & drm_vmw_surface_flag_coherent) {
+		struct vmw_buffer_object *backup = res->backup;
+
+		ttm_bo_reserve(&backup->base, false, false, NULL);
+		if (!res->func->dirty_alloc)
+			ret = -EINVAL;
+		if (!ret)
+			ret = vmw_bo_dirty_add(backup);
+		if (!ret) {
+			res->coherent = true;
+			ret = res->func->dirty_alloc(res);
+		}
+		ttm_bo_unreserve(&backup->base);
+		if (ret) {
+			vmw_resource_unreference(&res);
+			goto out_unlock;
+		}
+
 	}
 
 	tmp = vmw_resource_reference(res);
@@ -1759,4 +1811,339 @@ out_bad_resource:
 	ttm_base_object_unref(&base);
 
 	return ret;
+}
+
+/**
+ * vmw_subres_dirty_add - Add a dirty region to a subresource
+ * @dirty: The surfaces's dirty tracker.
+ * @loc_start: The location corresponding to the start of the region.
+ * @loc_end: The location corresponding to the end of the region.
+ *
+ * As we are assuming that @loc_start and @loc_end represent a sequential
+ * range of backing store memory, if the region spans multiple lines then
+ * regardless of the x coordinate, the full lines are dirtied.
+ * Correspondingly if the region spans multiple z slices, then full rather
+ * than partial z slices are dirtied.
+ */
+static void vmw_subres_dirty_add(struct vmw_surface_dirty *dirty,
+				 const struct svga3dsurface_loc *loc_start,
+				 const struct svga3dsurface_loc *loc_end)
+{
+	const struct svga3dsurface_cache *cache = &dirty->cache;
+	SVGA3dBox *box = &dirty->boxes[loc_start->sub_resource];
+	u32 mip = loc_start->sub_resource % cache->num_mip_levels;
+	const struct drm_vmw_size *size = &cache->mip[mip].size;
+	u32 box_c2 = box->z + box->d;
+
+	if (WARN_ON(loc_start->sub_resource >= dirty->num_subres))
+		return;
+
+	if (box->d == 0 || box->z > loc_start->z)
+		box->z = loc_start->z;
+	if (box_c2 < loc_end->z)
+		box->d = loc_end->z - box->z;
+
+	if (loc_start->z + 1 == loc_end->z) {
+		box_c2 = box->y + box->h;
+		if (box->h == 0 || box->y > loc_start->y)
+			box->y = loc_start->y;
+		if (box_c2 < loc_end->y)
+			box->h = loc_end->y - box->y;
+
+		if (loc_start->y + 1 == loc_end->y) {
+			box_c2 = box->x + box->w;
+			if (box->w == 0 || box->x > loc_start->x)
+				box->x = loc_start->x;
+			if (box_c2 < loc_end->x)
+				box->w = loc_end->x - box->x;
+		} else {
+			box->x = 0;
+			box->w = size->width;
+		}
+	} else {
+		box->y = 0;
+		box->h = size->height;
+		box->x = 0;
+		box->w = size->width;
+	}
+}
+
+/**
+ * vmw_subres_dirty_full - Mark a full subresource as dirty
+ * @dirty: The surface's dirty tracker.
+ * @subres: The subresource
+ */
+static void vmw_subres_dirty_full(struct vmw_surface_dirty *dirty, u32 subres)
+{
+	const struct svga3dsurface_cache *cache = &dirty->cache;
+	u32 mip = subres % cache->num_mip_levels;
+	const struct drm_vmw_size *size = &cache->mip[mip].size;
+	SVGA3dBox *box = &dirty->boxes[subres];
+
+	box->x = 0;
+	box->y = 0;
+	box->z = 0;
+	box->w = size->width;
+	box->h = size->height;
+	box->d = size->depth;
+}
+
+/*
+ * vmw_surface_tex_dirty_add_range - The dirty_add_range callback for texture
+ * surfaces.
+ */
+static void vmw_surface_tex_dirty_range_add(struct vmw_resource *res,
+					    size_t start, size_t end)
+{
+	struct vmw_surface_dirty *dirty =
+		(struct vmw_surface_dirty *) res->dirty;
+	size_t backup_end = res->backup_offset + res->backup_size;
+	struct svga3dsurface_loc loc1, loc2;
+	const struct svga3dsurface_cache *cache;
+
+	start = max_t(size_t, start, res->backup_offset) - res->backup_offset;
+	end = min(end, backup_end) - res->backup_offset;
+	cache = &dirty->cache;
+	svga3dsurface_get_loc(cache, &loc1, start);
+	svga3dsurface_get_loc(cache, &loc2, end - 1);
+	svga3dsurface_inc_loc(cache, &loc2);
+
+	if (loc1.sub_resource + 1 == loc2.sub_resource) {
+		/* Dirty range covers a single sub-resource */
+		vmw_subres_dirty_add(dirty, &loc1, &loc2);
+	} else {
+		/* Dirty range covers multiple sub-resources */
+		struct svga3dsurface_loc loc_min, loc_max;
+		u32 sub_res = loc1.sub_resource;
+
+		svga3dsurface_max_loc(cache, loc1.sub_resource, &loc_max);
+		vmw_subres_dirty_add(dirty, &loc1, &loc_max);
+		svga3dsurface_min_loc(cache, loc2.sub_resource - 1, &loc_min);
+		vmw_subres_dirty_add(dirty, &loc_min, &loc2);
+		for (sub_res = loc1.sub_resource + 1;
+		     sub_res < loc2.sub_resource - 1; ++sub_res)
+			vmw_subres_dirty_full(dirty, sub_res);
+	}
+}
+
+/*
+ * vmw_surface_tex_dirty_add_range - The dirty_add_range callback for buffer
+ * surfaces.
+ */
+static void vmw_surface_buf_dirty_range_add(struct vmw_resource *res,
+					    size_t start, size_t end)
+{
+	struct vmw_surface_dirty *dirty =
+		(struct vmw_surface_dirty *) res->dirty;
+	const struct svga3dsurface_cache *cache = &dirty->cache;
+	size_t backup_end = res->backup_offset + cache->mip_chain_bytes;
+	SVGA3dBox *box = &dirty->boxes[0];
+	u32 box_c2;
+
+	box->h = box->d = 1;
+	start = max_t(size_t, start, res->backup_offset) - res->backup_offset;
+	end = min(end, backup_end) - res->backup_offset;
+	box_c2 = box->x + box->w;
+	if (box->w == 0 || box->x > start)
+		box->x = start;
+	if (box_c2 < end)
+		box->w = end - box->x;
+}
+
+/*
+ * vmw_surface_tex_dirty_add_range - The dirty_add_range callback for surfaces
+ */
+static void vmw_surface_dirty_range_add(struct vmw_resource *res, size_t start,
+					size_t end)
+{
+	struct vmw_surface *srf = vmw_res_to_srf(res);
+
+	if (WARN_ON(end <= res->backup_offset ||
+		    start >= res->backup_offset + res->backup_size))
+		return;
+
+	if (srf->format == SVGA3D_BUFFER)
+		vmw_surface_buf_dirty_range_add(res, start, end);
+	else
+		vmw_surface_tex_dirty_range_add(res, start, end);
+}
+
+/*
+ * vmw_surface_dirty_sync - The surface's dirty_sync callback.
+ */
+static int vmw_surface_dirty_sync(struct vmw_resource *res)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	bool has_dx = 0;
+	u32 i, num_dirty;
+	struct vmw_surface_dirty *dirty =
+		(struct vmw_surface_dirty *) res->dirty;
+	size_t alloc_size;
+	const struct svga3dsurface_cache *cache = &dirty->cache;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXUpdateSubResource body;
+	} *cmd1;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdUpdateGBImage body;
+	} *cmd2;
+	void *cmd;
+
+	num_dirty = 0;
+	for (i = 0; i < dirty->num_subres; ++i) {
+		const SVGA3dBox *box = &dirty->boxes[i];
+
+		if (box->d)
+			num_dirty++;
+	}
+
+	if (!num_dirty)
+		goto out;
+
+	alloc_size = num_dirty * ((has_dx) ? sizeof(*cmd1) : sizeof(*cmd2));
+	cmd = VMW_FIFO_RESERVE(dev_priv, alloc_size);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd1 = cmd;
+	cmd2 = cmd;
+
+	for (i = 0; i < dirty->num_subres; ++i) {
+		const SVGA3dBox *box = &dirty->boxes[i];
+
+		if (!box->d)
+			continue;
+
+		/*
+		 * DX_UPDATE_SUBRESOURCE is aware of array surfaces.
+		 * UPDATE_GB_IMAGE is not.
+		 */
+		if (has_dx) {
+			cmd1->header.id = SVGA_3D_CMD_DX_UPDATE_SUBRESOURCE;
+			cmd1->header.size = sizeof(cmd1->body);
+			cmd1->body.sid = res->id;
+			cmd1->body.subResource = i;
+			cmd1->body.box = *box;
+			cmd1++;
+		} else {
+			cmd2->header.id = SVGA_3D_CMD_UPDATE_GB_IMAGE;
+			cmd2->header.size = sizeof(cmd2->body);
+			cmd2->body.image.sid = res->id;
+			cmd2->body.image.face = i / cache->num_mip_levels;
+			cmd2->body.image.mipmap = i -
+				(cache->num_mip_levels * cmd2->body.image.face);
+			cmd2->body.box = *box;
+			cmd2++;
+		}
+
+	}
+	vmw_fifo_commit(dev_priv, alloc_size);
+ out:
+	memset(&dirty->boxes[0], 0, sizeof(dirty->boxes[0]) *
+	       dirty->num_subres);
+
+	return 0;
+}
+
+/*
+ * vmw_surface_dirty_alloc - The surface's dirty_alloc callback.
+ */
+static int vmw_surface_dirty_alloc(struct vmw_resource *res)
+{
+	struct vmw_surface *srf = vmw_res_to_srf(res);
+	struct vmw_surface_dirty *dirty;
+	u32 num_layers = 1;
+	u32 num_mip;
+	u32 num_subres;
+	u32 num_samples;
+	size_t dirty_size, acc_size;
+	static struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
+	int ret;
+
+	if (srf->array_size)
+		num_layers = srf->array_size;
+	else if (srf->flags & SVGA3D_SURFACE_CUBEMAP)
+		num_layers *= SVGA3D_MAX_SURFACE_FACES;
+
+	num_mip = srf->mip_levels[0];
+	if (!num_mip)
+		num_mip = 1;
+
+	num_subres = num_layers * num_mip;
+	dirty_size = sizeof(*dirty) + num_subres * sizeof(dirty->boxes[0]);
+	acc_size = ttm_round_pot(dirty_size);
+	ret = ttm_mem_global_alloc(vmw_mem_glob(res->dev_priv),
+				   acc_size, &ctx);
+	if (ret) {
+		VMW_DEBUG_USER("Out of graphics memory for surface "
+			       "dirty tracker.\n");
+		return ret;
+	}
+
+	dirty = kvzalloc(dirty_size, GFP_KERNEL);
+	if (!dirty) {
+		ret = -ENOMEM;
+		goto out_no_dirty;
+	}
+
+	num_samples = max_t(u32, 1, srf->multisample_count);
+	ret = svga3dsurface_setup_cache(&srf->base_size, srf->format, num_mip,
+					num_layers, num_samples, &dirty->cache);
+	if (ret)
+		goto out_no_cache;
+
+	dirty->num_subres = num_subres;
+	dirty->size = acc_size;
+	res->dirty = (struct vmw_resource_dirty *) dirty;
+
+	return 0;
+
+out_no_cache:
+	kvfree(dirty);
+out_no_dirty:
+	ttm_mem_global_free(vmw_mem_glob(res->dev_priv), acc_size);
+	return ret;
+}
+
+/*
+ * vmw_surface_dirty_free - The surface's dirty_free callback
+ */
+static void vmw_surface_dirty_free(struct vmw_resource *res)
+{
+	struct vmw_surface_dirty *dirty =
+		(struct vmw_surface_dirty *) res->dirty;
+	size_t acc_size = dirty->size;
+
+	kvfree(dirty);
+	ttm_mem_global_free(vmw_mem_glob(res->dev_priv), acc_size);
+	res->dirty = NULL;
+}
+
+/*
+ * vmw_surface_clean - The surface's clean callback
+ */
+static int vmw_surface_clean(struct vmw_resource *res)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	size_t alloc_size;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdReadbackGBSurface body;
+	} *cmd;
+
+	alloc_size = sizeof(*cmd);
+	cmd = VMW_FIFO_RESERVE(dev_priv, alloc_size);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->header.id = SVGA_3D_CMD_READBACK_GB_SURFACE;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.sid = res->id;
+	vmw_fifo_commit(dev_priv, alloc_size);
+
+	return 0;
 }

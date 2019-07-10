@@ -39,7 +39,7 @@
  *    costly and simplifies things. We can revisit this in the future.
  *
  * Layout
- * ''''''
+ * ~~~~~~
  *
  * Keep things in this file ordered by WA type, as per the above (context, GT,
  * display, register whitelist, batchbuffer). Then, inside each type, keep the
@@ -530,6 +530,12 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
+
+	/* WaDisableBankHangMode:icl */
+	wa_write(wal,
+		 GEN8_L3CNTLREG,
+		 intel_uncore_read(engine->uncore, GEN8_L3CNTLREG) |
+		 GEN8_ERRDETBCTRL);
 
 	/* WaDisableBankHangMode:icl */
 	wa_write(wal,

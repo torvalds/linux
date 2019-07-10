@@ -23,21 +23,21 @@
  * Authors:
  *     David Airlie
  */
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
+#include <linux/vga_switcheroo.h>
+
+#include <drm/amdgpu_drm.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/amdgpu_drm.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+
 #include "amdgpu.h"
 #include "cikd.h"
 #include "amdgpu_gem.h"
-
-#include <drm/drm_fb_helper.h>
-
-#include <linux/vga_switcheroo.h>
 
 #include "amdgpu_display.h"
 

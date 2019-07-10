@@ -98,10 +98,10 @@ static int reloc_data(enum aarch64_reloc_op op, void *place, u64 val, int len)
 
 	/*
 	 * The ELF psABI for AArch64 documents the 16-bit and 32-bit place
-	 * relative relocations as having a range of [-2^15, 2^16) or
-	 * [-2^31, 2^32), respectively. However, in order to be able to detect
-	 * overflows reliably, we have to choose whether we interpret such
-	 * quantities as signed or as unsigned, and stick with it.
+	 * relative and absolute relocations as having a range of [-2^15, 2^16)
+	 * or [-2^31, 2^32), respectively. However, in order to be able to
+	 * detect overflows reliably, we have to choose whether we interpret
+	 * such quantities as signed or as unsigned, and stick with it.
 	 * The way we organize our address space requires a signed
 	 * interpretation of 32-bit relative references, so let's use that
 	 * for all R_AARCH64_PRELxx relocations. This means our upper
@@ -111,13 +111,35 @@ static int reloc_data(enum aarch64_reloc_op op, void *place, u64 val, int len)
 	switch (len) {
 	case 16:
 		*(s16 *)place = sval;
-		if (sval < S16_MIN || sval > S16_MAX)
-			return -ERANGE;
+		switch (op) {
+		case RELOC_OP_ABS:
+			if (sval < 0 || sval > U16_MAX)
+				return -ERANGE;
+			break;
+		case RELOC_OP_PREL:
+			if (sval < S16_MIN || sval > S16_MAX)
+				return -ERANGE;
+			break;
+		default:
+			pr_err("Invalid 16-bit data relocation (%d)\n", op);
+			return 0;
+		}
 		break;
 	case 32:
 		*(s32 *)place = sval;
-		if (sval < S32_MIN || sval > S32_MAX)
-			return -ERANGE;
+		switch (op) {
+		case RELOC_OP_ABS:
+			if (sval < 0 || sval > U32_MAX)
+				return -ERANGE;
+			break;
+		case RELOC_OP_PREL:
+			if (sval < S32_MIN || sval > S32_MAX)
+				return -ERANGE;
+			break;
+		default:
+			pr_err("Invalid 32-bit data relocation (%d)\n", op);
+			return 0;
+		}
 		break;
 	case 64:
 		*(s64 *)place = sval;

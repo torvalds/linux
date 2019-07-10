@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for STM32 DMA controller
  *
@@ -6,8 +7,6 @@
  * Copyright (C) M'boumba Cedric Madianga 2015
  * Author: M'boumba Cedric Madianga <cedric.madianga@gmail.com>
  *         Pierre-Yves Mordret <pierre-yves.mordret@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/clk.h>

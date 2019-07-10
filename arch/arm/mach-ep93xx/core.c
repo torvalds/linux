@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/core.c
  * Core routines for Cirrus EP93xx chips.
@@ -7,11 +8,6 @@
  *
  * Thanks go to Michael Burian and Ray Lehtiniemi for their key
  * role in the ep93xx linux community.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #define pr_fmt(fmt) "ep93xx " KBUILD_MODNAME ": " fmt

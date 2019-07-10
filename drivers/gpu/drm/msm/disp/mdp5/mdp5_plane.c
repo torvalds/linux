@@ -16,6 +16,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_damage_helper.h>
 #include <drm/drm_print.h>
 #include "mdp5_kms.h"
 
@@ -502,6 +503,8 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
 					   struct drm_plane_state *new_state)
 {
+	struct drm_framebuffer *old_fb = plane->state->fb;
+
 	plane->state->src_x = new_state->src_x;
 	plane->state->src_y = new_state->src_y;
 	plane->state->crtc_x = new_state->crtc_x;
@@ -524,6 +527,8 @@ static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
 
 	*to_mdp5_plane_state(plane->state) =
 		*to_mdp5_plane_state(new_state);
+
+	new_state->fb = old_fb;
 }
 
 static const struct drm_plane_helper_funcs mdp5_plane_helper_funcs = {
@@ -1094,6 +1099,8 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &mdp5_plane_helper_funcs);
 
 	mdp5_plane_install_properties(plane, &plane->base);
+
+	drm_plane_enable_fb_damage_clips(plane);
 
 	return plane;
 

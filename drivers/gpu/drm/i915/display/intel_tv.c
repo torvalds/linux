@@ -1821,16 +1821,18 @@ static const struct drm_connector_funcs intel_tv_connector_funcs = {
 };
 
 static int intel_tv_atomic_check(struct drm_connector *connector,
-				 struct drm_connector_state *new_state)
+				 struct drm_atomic_state *state)
 {
+	struct drm_connector_state *new_state;
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_connector_state *old_state;
 
+	new_state = drm_atomic_get_new_connector_state(state, connector);
 	if (!new_state->crtc)
 		return 0;
 
-	old_state = drm_atomic_get_old_connector_state(new_state->state, connector);
-	new_crtc_state = drm_atomic_get_new_crtc_state(new_state->state, new_state->crtc);
+	old_state = drm_atomic_get_old_connector_state(state, connector);
+	new_crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
 
 	if (old_state->tv.mode != new_state->tv.mode ||
 	    old_state->tv.margins.left != new_state->tv.margins.left ||

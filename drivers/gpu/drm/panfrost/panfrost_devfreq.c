@@ -140,7 +140,9 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 		return 0;
 
 	ret = dev_pm_opp_of_add_table(&pfdev->pdev->dev);
-	if (ret)
+	if (ret == -ENODEV) /* Optional, continue without devfreq */
+		return 0;
+	else if (ret)
 		return ret;
 
 	panfrost_devfreq_reset(pfdev);
@@ -170,6 +172,9 @@ void panfrost_devfreq_resume(struct panfrost_device *pfdev)
 {
 	int i;
 
+	if (!pfdev->devfreq.devfreq)
+		return;
+
 	panfrost_devfreq_reset(pfdev);
 	for (i = 0; i < NUM_JOB_SLOTS; i++)
 		pfdev->devfreq.slot[i].busy = false;
@@ -179,6 +184,9 @@ void panfrost_devfreq_resume(struct panfrost_device *pfdev)
 
 void panfrost_devfreq_suspend(struct panfrost_device *pfdev)
 {
+	if (!pfdev->devfreq.devfreq)
+		return;
+
 	devfreq_suspend_device(pfdev->devfreq.devfreq);
 }
 
@@ -187,6 +195,9 @@ static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev, i
 	struct panfrost_devfreq_slot *devfreq_slot = &pfdev->devfreq.slot[slot];
 	ktime_t now;
 	ktime_t last;
+
+	if (!pfdev->devfreq.devfreq)
+		return;
 
 	now = ktime_get();
 	last = pfdev->devfreq.slot[slot].time_last_update;

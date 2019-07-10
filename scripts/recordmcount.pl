@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0-only
 # (c) 2008, Steven Rostedt <srostedt@redhat.com>
-# Licensed under the terms of the GNU GPL License version 2
 #
 # recordmcount.pl - makes a section called __mcount_loc that holds
 #                   all the offsets to the calls to mcount.

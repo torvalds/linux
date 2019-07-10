@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2010 Matt Turner.
  * Copyright 2012 Red Hat
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Authors: Matthew Garrett
  * 	    Matt Turner
@@ -158,11 +155,8 @@ struct mga_cursor {
 	*/
 	struct drm_gem_vram_object *pixels_1;
 	struct drm_gem_vram_object *pixels_2;
-	u64 pixels_1_gpu_addr, pixels_2_gpu_addr;
 	/* The currently displayed icon, this points to one of pixels_1, or pixels_2 */
 	struct drm_gem_vram_object *pixels_current;
-	/* The previously displayed icon */
-	struct drm_gem_vram_object *pixels_prev;
 };
 
 struct mga_mc {

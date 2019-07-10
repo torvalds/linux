@@ -1080,6 +1080,11 @@ struct macb_ptp_info {
 			 struct ifreq *ifr, int cmd);
 };
 
+struct macb_pm_data {
+	u32 scrt2;
+	u32 usrio;
+};
+
 struct macb_config {
 	u32			caps;
 	unsigned int		dma_burst_length;
@@ -1220,6 +1225,8 @@ struct macb {
 	int	tx_bd_rd_prefetch;
 
 	u32	rx_intr_mask;
+
+	struct macb_pm_data pm_data;
 };
 
 #ifdef CONFIG_MACB_USE_HWSTAMP

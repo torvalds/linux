@@ -442,6 +442,9 @@ extern struct ttm_bo_global {
  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver.
  * @man: An array of mem_type_managers.
  * @vma_manager: Address space manager
+ * @vm_ops: Pointer to the struct vm_operations_struct used for this
+ * device's VM operations. The driver may override this before the first
+ * mmap() call.
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
  * @dev_mapping: A pointer to the struct address_space representing the
@@ -460,6 +463,7 @@ struct ttm_bo_device {
 	struct ttm_bo_global *glob;
 	struct ttm_bo_driver *driver;
 	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
+	const struct vm_operations_struct *vm_ops;
 
 	/*
 	 * Protected by internal locks.
@@ -487,6 +491,8 @@ struct ttm_bo_device {
 
 	bool no_retry;
 };
+
+extern const struct vm_operations_struct ttm_bo_vm_ops;
 
 /**
  * struct ttm_lru_bulk_move_pos
@@ -767,11 +773,12 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
  */
 static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
-	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-		spin_lock(&bo->bdev->glob->lru_lock);
+	spin_lock(&bo->bdev->glob->lru_lock);
+	if (list_empty(&bo->lru))
 		ttm_bo_add_to_lru(bo);
-		spin_unlock(&bo->bdev->glob->lru_lock);
-	}
+	else
+		ttm_bo_move_to_lru_tail(bo, NULL);
+	spin_unlock(&bo->bdev->glob->lru_lock);
 	reservation_object_unlock(bo->resv);
 }
 

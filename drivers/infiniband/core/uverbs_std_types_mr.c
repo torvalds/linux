@@ -148,7 +148,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	return 0;
 
 err_dereg:
-	ib_dereg_mr_user(mr, &attrs->driver_udata);
+	ib_dereg_mr_user(mr, uverbs_get_cleared_udata(attrs));
 
 	return ret;
 }

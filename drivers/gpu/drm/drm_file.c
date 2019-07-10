@@ -31,17 +31,20 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/dma-fence.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 
 #include <drm/drm_client.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
 
-#include "drm_legacy.h"
-#include "drm_internal.h"
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
+#include "drm_legacy.h"
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);

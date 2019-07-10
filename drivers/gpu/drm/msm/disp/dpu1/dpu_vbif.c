@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -318,8 +310,6 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 	int i, j;
 
 	entry = debugfs_create_dir("vbif", debugfs_root);
-	if (IS_ERR_OR_NULL(entry))
-		return;
 
 	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
 		struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
@@ -327,8 +317,6 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 		snprintf(vbif_name, sizeof(vbif_name), "%d", vbif->id);
 
 		debugfs_vbif = debugfs_create_dir(vbif_name, entry);
-		if (IS_ERR_OR_NULL(debugfs_vbif))
-			continue;
 
 		debugfs_create_u32("features", 0600, debugfs_vbif,
 			(u32 *)&vbif->features);

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2010 Matt Turner.
  * Copyright 2012 Red Hat
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Authors: Matthew Garrett
  *          Matt Turner
@@ -26,7 +23,7 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	struct drm_gem_vram_object *gbo;
 	int src_offset, dst_offset;
 	int bpp = mfbdev->mfb.base.format->cpp[0];
-	int ret = -EBUSY;
+	int ret;
 	u8 *dst;
 	bool unmap = false;
 	bool store_for_later = false;
@@ -36,16 +33,18 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	obj = mfbdev->mfb.obj;
 	gbo = drm_gem_vram_of_gem(obj);
 
-	/* Try to lock the BO. If we fail with -EBUSY then
-	 * the BO is being moved and we should store up the
-	 * damage until later.
-	 */
-	if (drm_can_sleep())
-		ret = drm_gem_vram_lock(gbo, true);
-	if (ret) {
-		if (ret != -EBUSY)
-			return;
-
+	if (drm_can_sleep()) {
+		/* We pin the BO so it won't be moved during the
+		 * update. The actual location, video RAM or system
+		 * memory, is not important.
+		 */
+		ret = drm_gem_vram_pin(gbo, 0);
+		if (ret) {
+			if (ret != -EBUSY)
+				return;
+			store_for_later = true;
+		}
+	} else {
 		store_for_later = true;
 	}
 
@@ -100,7 +99,7 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 		drm_gem_vram_kunmap(gbo);
 
 out:
-	drm_gem_vram_unlock(gbo);
+	drm_gem_vram_unpin(gbo);
 }
 
 static void mga_fillrect(struct fb_info *info,

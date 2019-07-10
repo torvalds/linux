@@ -19,7 +19,7 @@
 #include "check.h"
 #include "msdos.h"
 
-/**
+/*
  * ldm_debug/info/error/crit - Output an error message
  * @f:    A printf format string containing the message
  * @...:  Variables to substitute into @f

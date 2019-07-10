@@ -249,6 +249,7 @@
 #define DP_DSC_PEAK_THROUGHPUT              0x06B
 # define DP_DSC_THROUGHPUT_MODE_0_MASK      (0xf << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_SHIFT     0
+# define DP_DSC_THROUGHPUT_MODE_0_UPSUPPORTED 0
 # define DP_DSC_THROUGHPUT_MODE_0_340       (1 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_400       (2 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_450       (3 << 0)
@@ -263,8 +264,10 @@
 # define DP_DSC_THROUGHPUT_MODE_0_900       (12 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_950       (13 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_1000      (14 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_170       (15 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_MASK      (0xf << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_SHIFT     4
+# define DP_DSC_THROUGHPUT_MODE_1_UPSUPPORTED 0
 # define DP_DSC_THROUGHPUT_MODE_1_340       (1 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_400       (2 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_450       (3 << 4)
@@ -279,6 +282,7 @@
 # define DP_DSC_THROUGHPUT_MODE_1_900       (12 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_950       (13 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_1000      (14 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_170       (15 << 4)
 
 #define DP_DSC_MAX_SLICE_WIDTH              0x06C
 #define DP_DSC_MIN_SLICE_WIDTH_VALUE        2560
@@ -351,6 +355,11 @@
 # define DP_FEC_UNCORR_BLK_ERROR_COUNT_CAP  (1 << 1)
 # define DP_FEC_CORR_BLK_ERROR_COUNT_CAP    (1 << 2)
 # define DP_FEC_BIT_ERROR_COUNT_CAP	    (1 << 3)
+
+/* DP Extended DSC Capabilities */
+#define DP_DSC_BRANCH_OVERALL_THROUGHPUT_0  0x0a0   /* DP 1.4a SCR */
+#define DP_DSC_BRANCH_OVERALL_THROUGHPUT_1  0x0a1
+#define DP_DSC_BRANCH_MAX_LINE_WIDTH        0x0a2
 
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
@@ -1414,6 +1423,13 @@ enum drm_dp_quirk {
 	 * driver still need to implement proper handling for such device.
 	 */
 	DP_DPCD_QUIRK_NO_PSR,
+	/**
+	 * @DP_DPCD_QUIRK_NO_SINK_COUNT:
+	 *
+	 * The device does not set SINK_COUNT to a non-zero value.
+	 * The driver should ignore SINK_COUNT during detection.
+	 */
+	DP_DPCD_QUIRK_NO_SINK_COUNT,
 };
 
 /**

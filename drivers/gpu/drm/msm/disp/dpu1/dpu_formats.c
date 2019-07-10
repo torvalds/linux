@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -479,90 +471,6 @@ static const struct dpu_format dpu_format_map[] = {
 };
 
 /*
- * A5x tile formats tables:
- * These tables hold the A5x tile formats supported.
- */
-static const struct dpu_format dpu_format_map_tile[] = {
-	INTERLEAVED_RGB_FMT_TILED(BGR565,
-		0, COLOR_5BIT, COLOR_6BIT, COLOR_5BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
-		false, 2, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(ARGB8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
-		true, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(ABGR8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
-		true, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(XBGR8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		false, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(RGBA8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(BGRA8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
-		true, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(BGRX8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
-		false, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(XRGB8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
-		false, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(RGBX8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		false, 4, 0,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(ABGR2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	INTERLEAVED_RGB_FMT_TILED(XBGR2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_UBWC, 1, DPU_TILE_HEIGHT_TILED),
-
-	PSEUDO_YUV_FMT_TILED(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_NV12),
-
-	PSEUDO_YUV_FMT_TILED(NV21,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C2_R_Cr, C1_B_Cb,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_NV12),
-};
-
-/*
  * UBWC formats table:
  * This table holds the UBWC formats supported.
  * If a compression ratio needs to be used for this or any other format,
@@ -604,32 +512,6 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 		C1_B_Cb, C2_R_Cr,
 		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV |
 				DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
-};
-
-static const struct dpu_format dpu_format_map_p010[] = {
-	PSEUDO_YUV_FMT_LOOSE(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, (DPU_FORMAT_FLAG_YUV | DPU_FORMAT_FLAG_DX),
-		DPU_FETCH_LINEAR, 2),
-};
-
-static const struct dpu_format dpu_format_map_p010_ubwc[] = {
-	PSEUDO_YUV_FMT_LOOSE_TILED(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, (DPU_FORMAT_FLAG_YUV | DPU_FORMAT_FLAG_DX |
-				DPU_FORMAT_FLAG_COMPRESSED),
-		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
-};
-
-static const struct dpu_format dpu_format_map_tp10_ubwc[] = {
-	PSEUDO_YUV_FMT_TILED(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
-		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, (DPU_FORMAT_FLAG_YUV | DPU_FORMAT_FLAG_DX |
-				DPU_FORMAT_FLAG_COMPRESSED),
 		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
 };
 

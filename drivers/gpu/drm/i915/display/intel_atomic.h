@@ -28,7 +28,7 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 						struct drm_property *property,
 						u64 val);
 int intel_digital_connector_atomic_check(struct drm_connector *conn,
-					 struct drm_connector_state *new_state);
+					 struct drm_atomic_state *state);
 struct drm_connector_state *
 intel_digital_connector_duplicate_state(struct drm_connector *connector);
 

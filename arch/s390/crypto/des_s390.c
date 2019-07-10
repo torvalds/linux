@@ -14,6 +14,7 @@
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
 #include <linux/fips.h>
+#include <linux/mutex.h>
 #include <crypto/algapi.h>
 #include <crypto/des.h>
 #include <asm/cpacf.h>
@@ -21,7 +22,7 @@
 #define DES3_KEY_SIZE	(3 * DES_KEY_SIZE)
 
 static u8 *ctrblk;
-static DEFINE_SPINLOCK(ctrblk_lock);
+static DEFINE_MUTEX(ctrblk_lock);
 
 static cpacf_mask_t km_functions, kmc_functions, kmctr_functions;
 
@@ -374,7 +375,7 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, unsigned long fc,
 	unsigned int n, nbytes;
 	int ret, locked;
 
-	locked = spin_trylock(&ctrblk_lock);
+	locked = mutex_trylock(&ctrblk_lock);
 
 	ret = blkcipher_walk_virt_block(desc, walk, DES_BLOCK_SIZE);
 	while ((nbytes = walk->nbytes) >= DES_BLOCK_SIZE) {
@@ -391,7 +392,7 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, unsigned long fc,
 		ret = blkcipher_walk_done(desc, walk, nbytes - n);
 	}
 	if (locked)
-		spin_unlock(&ctrblk_lock);
+		mutex_unlock(&ctrblk_lock);
 	/* final block may be < DES_BLOCK_SIZE, copy only nbytes */
 	if (nbytes) {
 		cpacf_kmctr(fc, ctx->key, buf, walk->src.virt.addr,

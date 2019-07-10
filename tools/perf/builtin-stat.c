@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * builtin-stat.c
  *
@@ -37,8 +38,6 @@
  *   Mike Galbraith <efault@gmx.de>
  *   Paul Mackerras <paulus@samba.org>
  *   Jaswinder Singh Rajput <jaswinder@kernel.org>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include "perf.h"

@@ -912,6 +912,7 @@ struct drm_amdgpu_info_firmware {
 #define AMDGPU_VRAM_TYPE_HBM   6
 #define AMDGPU_VRAM_TYPE_DDR3  7
 #define AMDGPU_VRAM_TYPE_DDR4  8
+#define AMDGPU_VRAM_TYPE_GDDR6 9
 
 struct drm_amdgpu_info_device {
 	/** PCI Device ID */
@@ -991,6 +992,8 @@ struct drm_amdgpu_info_device {
 	__u64 high_va_offset;
 	/** The maximum high virtual address */
 	__u64 high_va_max;
+	/* gfx10 pa_sc_tile_steering_override */
+	__u32 pa_sc_tile_steering_override;
 };
 
 struct drm_amdgpu_info_hw_ip {
@@ -1044,6 +1047,7 @@ struct drm_amdgpu_info_vce_clock_table {
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
 #define AMDGPU_FAMILY_AI			141 /* Vega10 */
 #define AMDGPU_FAMILY_RV			142 /* Raven */
+#define AMDGPU_FAMILY_NV			143 /* Navi10 */
 
 #if defined(__cplusplus)
 }

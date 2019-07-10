@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DPU_CORE_PERF_H_
@@ -42,8 +34,8 @@ enum dpu_core_perf_data_bus_id {
  * @core_clk_rate: core clock rate request
  */
 struct dpu_core_perf_params {
-	u64 max_per_pipe_ib[DPU_CORE_PERF_DATA_BUS_ID_MAX];
-	u64 bw_ctl[DPU_CORE_PERF_DATA_BUS_ID_MAX];
+	u64 max_per_pipe_ib;
+	u64 bw_ctl;
 	u64 core_clk_rate;
 };
 

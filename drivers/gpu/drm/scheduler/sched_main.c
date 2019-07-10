@@ -286,16 +286,17 @@ static void drm_sched_job_timedout(struct work_struct *work)
 	job = list_first_entry_or_null(&sched->ring_mirror_list,
 				       struct drm_sched_job, node);
 
-	if (job)
+	if (job) {
 		job->sched->ops->timedout_job(job);
 
-	/*
-	 * Guilty job did complete and hence needs to be manually removed
-	 * See drm_sched_stop doc.
-	 */
-	if (sched->free_guilty) {
-		job->sched->ops->free_job(job);
-		sched->free_guilty = false;
+		/*
+		 * Guilty job did complete and hence needs to be manually removed
+		 * See drm_sched_stop doc.
+		 */
+		if (sched->free_guilty) {
+			job->sched->ops->free_job(job);
+			sched->free_guilty = false;
+		}
 	}
 
 	spin_lock_irqsave(&sched->job_list_lock, flags);
@@ -352,6 +353,7 @@ EXPORT_SYMBOL(drm_sched_increase_karma);
  * drm_sched_stop - stop the scheduler
  *
  * @sched: scheduler instance
+ * @bad: job which caused the time out
  *
  * Stop the scheduler and also removes and frees all completed jobs.
  * Note: bad job will not be freed as it might be used later and so it's
@@ -421,6 +423,7 @@ EXPORT_SYMBOL(drm_sched_stop);
  * drm_sched_job_recovery - recover jobs after a reset
  *
  * @sched: scheduler instance
+ * @full_recovery: proceed with complete sched restart
  *
  */
 void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)

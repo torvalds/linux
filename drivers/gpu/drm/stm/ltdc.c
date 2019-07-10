@@ -16,6 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
 #include <drm/drm_atomic.h>
@@ -444,6 +445,7 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct drm_device *ddev = crtc->dev;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -457,6 +459,8 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	/* immediately commit disable of layers before switching off LTDC */
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_IMR);
+
+	pm_runtime_put_sync(ddev->dev);
 }
 
 #define CLK_TOLERANCE_HZ 50
@@ -505,21 +509,33 @@ static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
 				 struct drm_display_mode *adjusted_mode)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct drm_device *ddev = crtc->dev;
 	int rate = mode->clock * 1000;
+	bool runtime_active;
+	int ret;
 
-	/*
-	 * TODO clk_round_rate() does not work yet. When ready, it can
-	 * be used instead of clk_set_rate() then clk_get_rate().
-	 */
+	runtime_active = pm_runtime_active(ddev->dev);
 
-	clk_disable(ldev->pixel_clk);
+	if (runtime_active)
+		pm_runtime_put_sync(ddev->dev);
+
 	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
 		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
 		return false;
 	}
-	clk_enable(ldev->pixel_clk);
 
 	adjusted_mode->clock = clk_get_rate(ldev->pixel_clk) / 1000;
+
+	if (runtime_active) {
+		ret = pm_runtime_get_sync(ddev->dev);
+		if (ret) {
+			DRM_ERROR("Failed to fixup mode, cannot get sync\n");
+			return false;
+		}
+	}
+
+	DRM_DEBUG_DRIVER("requested clock %dkHz, adjusted clock %dkHz\n",
+			 mode->clock, adjusted_mode->clock);
 
 	return true;
 }
@@ -527,11 +543,21 @@ static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
 static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct drm_device *ddev = crtc->dev;
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct videomode vm;
 	u32 hsync, vsync, accum_hbp, accum_vbp, accum_act_w, accum_act_h;
 	u32 total_width, total_height;
 	u32 val;
+	int ret;
+
+	if (!pm_runtime_active(ddev->dev)) {
+		ret = pm_runtime_get_sync(ddev->dev);
+		if (ret) {
+			DRM_ERROR("Failed to set mode, cannot get sync\n");
+			return;
+		}
+	}
 
 	drm_display_mode_to_videomode(mode, &vm);
 
@@ -592,6 +618,7 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_crtc_state)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct drm_device *ddev = crtc->dev;
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
 	DRM_DEBUG_ATOMIC("\n");
@@ -604,12 +631,12 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 	if (event) {
 		crtc->state->event = NULL;
 
-		spin_lock_irq(&crtc->dev->event_lock);
+		spin_lock_irq(&ddev->event_lock);
 		if (drm_crtc_vblank_get(crtc) == 0)
 			drm_crtc_arm_vblank_event(crtc, event);
 		else
 			drm_crtc_send_vblank_event(crtc, event);
-		spin_unlock_irq(&crtc->dev->event_lock);
+		spin_unlock_irq(&ddev->event_lock);
 	}
 }
 
@@ -665,15 +692,19 @@ bool ltdc_crtc_scanoutpos(struct drm_device *ddev, unsigned int pipe,
 	 * Computation for the two first cases are identical so we can
 	 * simplify the code and only test if line > vactive_end
 	 */
-	line = reg_read(ldev->regs, LTDC_CPSR) & CPSR_CYPOS;
-	vactive_start = reg_read(ldev->regs, LTDC_BPCR) & BPCR_AVBP;
-	vactive_end = reg_read(ldev->regs, LTDC_AWCR) & AWCR_AAH;
-	vtotal = reg_read(ldev->regs, LTDC_TWCR) & TWCR_TOTALH;
+	if (pm_runtime_active(ddev->dev)) {
+		line = reg_read(ldev->regs, LTDC_CPSR) & CPSR_CYPOS;
+		vactive_start = reg_read(ldev->regs, LTDC_BPCR) & BPCR_AVBP;
+		vactive_end = reg_read(ldev->regs, LTDC_AWCR) & AWCR_AAH;
+		vtotal = reg_read(ldev->regs, LTDC_TWCR) & TWCR_TOTALH;
 
-	if (line > vactive_end)
-		*vpos = line - vtotal - vactive_start;
-	else
-		*vpos = line - vactive_start;
+		if (line > vactive_end)
+			*vpos = line - vtotal - vactive_start;
+		else
+			*vpos = line - vactive_start;
+	} else {
+		*vpos = 0;
+	}
 
 	*hpos = 0;
 
@@ -1198,7 +1229,7 @@ int ltdc_load(struct drm_device *ddev)
 		goto err;
 	}
 
-	DRM_INFO("ltdc hw version 0x%08x - ready\n", ldev->caps.hw_version);
+	DRM_DEBUG_DRIVER("ltdc hw version 0x%08x\n", ldev->caps.hw_version);
 
 	/* Add endpoints panels or bridges if any */
 	for (i = 0; i < MAX_ENDPOINTS; i++) {
@@ -1245,8 +1276,11 @@ int ltdc_load(struct drm_device *ddev)
 	/* Allow usage of vblank without having to call drm_irq_install */
 	ddev->irq_enabled = 1;
 
-	return 0;
+	clk_disable_unprepare(ldev->pixel_clk);
 
+	pm_runtime_enable(ddev->dev);
+
+	return 0;
 err:
 	for (i = 0; i < MAX_ENDPOINTS; i++)
 		drm_panel_bridge_remove(bridge[i]);
@@ -1258,7 +1292,6 @@ err:
 
 void ltdc_unload(struct drm_device *ddev)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
 	int i;
 
 	DRM_DEBUG_DRIVER("\n");
@@ -1266,7 +1299,7 @@ void ltdc_unload(struct drm_device *ddev)
 	for (i = 0; i < MAX_ENDPOINTS; i++)
 		drm_of_panel_bridge_remove(ddev->dev->of_node, 0, i);
 
-	clk_disable_unprepare(ldev->pixel_clk);
+	pm_runtime_disable(ddev->dev);
 }
 
 MODULE_AUTHOR("Philippe Cornu <philippe.cornu@st.com>");

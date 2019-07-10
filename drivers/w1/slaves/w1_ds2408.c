@@ -138,7 +138,7 @@ static ssize_t status_control_read(struct file *filp, struct kobject *kobj,
 		W1_F29_REG_CONTROL_AND_STATUS, buf);
 }
 
-#ifdef fCONFIG_W1_SLAVE_DS2408_READBACK
+#ifdef CONFIG_W1_SLAVE_DS2408_READBACK
 static bool optional_read_back_valid(struct w1_slave *sl, u8 expected)
 {
 	u8 w1_buf[3];

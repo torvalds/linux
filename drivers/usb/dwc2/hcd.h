@@ -171,7 +171,8 @@ struct dwc2_hcd_pipe_info {
 	u8 ep_num;
 	u8 pipe_type;
 	u8 pipe_dir;
-	u16 mps;
+	u16 maxp;
+	u16 maxp_mult;
 };
 
 struct dwc2_hcd_iso_packet_desc {
@@ -264,6 +265,7 @@ struct dwc2_hs_transfer_time {
  *                       - USB_ENDPOINT_XFER_ISOC
  * @ep_is_in:           Endpoint direction
  * @maxp:               Value from wMaxPacketSize field of Endpoint Descriptor
+ * @maxp_mult:          Multiplier for maxp
  * @dev_speed:          Device speed. One of the following values:
  *                       - USB_SPEED_LOW
  *                       - USB_SPEED_FULL
@@ -340,6 +342,7 @@ struct dwc2_qh {
 	u8 ep_type;
 	u8 ep_is_in;
 	u16 maxp;
+	u16 maxp_mult;
 	u8 dev_speed;
 	u8 data_toggle;
 	u8 ping_state;
@@ -503,9 +506,14 @@ static inline u8 dwc2_hcd_get_pipe_type(struct dwc2_hcd_pipe_info *pipe)
 	return pipe->pipe_type;
 }
 
-static inline u16 dwc2_hcd_get_mps(struct dwc2_hcd_pipe_info *pipe)
+static inline u16 dwc2_hcd_get_maxp(struct dwc2_hcd_pipe_info *pipe)
 {
-	return pipe->mps;
+	return pipe->maxp;
+}
+
+static inline u16 dwc2_hcd_get_maxp_mult(struct dwc2_hcd_pipe_info *pipe)
+{
+	return pipe->maxp_mult;
 }
 
 static inline u8 dwc2_hcd_get_dev_addr(struct dwc2_hcd_pipe_info *pipe)
@@ -619,12 +627,6 @@ static inline bool dbg_urb(struct urb *urb)
 
 static inline bool dbg_perio(void) { return false; }
 #endif
-
-/* High bandwidth multiplier as encoded in highspeed endpoint descriptors */
-#define dwc2_hb_mult(wmaxpacketsize) (1 + (((wmaxpacketsize) >> 11) & 0x03))
-
-/* Packet size for any kind of endpoint descriptor */
-#define dwc2_max_packet(wmaxpacketsize) ((wmaxpacketsize) & 0x07ff)
 
 /*
  * Returns true if frame1 index is greater than frame2 index. The comparison
