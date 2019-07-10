@@ -30,6 +30,8 @@
 #define AMDGPU_VCN_FIRMWARE_OFFSET	256
 #define AMDGPU_VCN_MAX_ENC_RINGS	3
 
+#define AMDGPU_MAX_VCN_INSTANCES	2
+
 #define VCN_DEC_CMD_FENCE		0x00000000
 #define VCN_DEC_CMD_TRAP		0x00000001
 #define VCN_DEC_CMD_WRITE_REG		0x00000004
@@ -155,30 +157,38 @@ struct amdgpu_vcn_reg{
 	unsigned	jpeg_pitch;
 };
 
-struct amdgpu_vcn {
+struct amdgpu_vcn_inst {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
-	unsigned		fw_version;
 	void			*saved_bo;
-	struct delayed_work	idle_work;
-	const struct firmware	*fw;	/* VCN firmware */
 	struct amdgpu_ring	ring_dec;
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
 	struct amdgpu_ring	ring_jpeg;
 	struct amdgpu_irq_src	irq;
+	struct amdgpu_vcn_reg	external;
+};
+
+struct amdgpu_vcn {
+	unsigned		fw_version;
+	struct delayed_work	idle_work;
+	const struct firmware	*fw;	/* VCN firmware */
 	unsigned		num_enc_rings;
 	enum amd_powergating_state cur_state;
 	struct dpg_pause_state pause_state;
-	struct amdgpu_vcn_reg	internal, external;
-	int (*pause_dpg_mode)(struct amdgpu_device *adev,
-		struct dpg_pause_state *new_state);
 
 	bool			indirect_sram;
 	struct amdgpu_bo	*dpg_sram_bo;
 	void			*dpg_sram_cpu_addr;
 	uint64_t		dpg_sram_gpu_addr;
 	uint32_t		*dpg_sram_curr_addr;
+
+	uint8_t	num_vcn_inst;
+	struct amdgpu_vcn_inst	inst[AMDGPU_MAX_VCN_INSTANCES];
+	struct amdgpu_vcn_reg	internal;
+
+	int (*pause_dpg_mode)(struct amdgpu_device *adev,
+		struct dpg_pause_state *new_state);
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);

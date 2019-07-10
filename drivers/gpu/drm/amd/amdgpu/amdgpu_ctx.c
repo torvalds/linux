@@ -154,15 +154,15 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			num_rings = 1;
 			break;
 		case AMDGPU_HW_IP_VCN_DEC:
-			rings[0] = &adev->vcn.ring_dec;
+			rings[0] = &adev->vcn.inst[0].ring_dec;
 			num_rings = 1;
 			break;
 		case AMDGPU_HW_IP_VCN_ENC:
-			rings[0] = &adev->vcn.ring_enc[0];
+			rings[0] = &adev->vcn.inst[0].ring_enc[0];
 			num_rings = 1;
 			break;
 		case AMDGPU_HW_IP_VCN_JPEG:
-			rings[0] = &adev->vcn.ring_jpeg;
+			rings[0] = &adev->vcn.inst[0].ring_jpeg;
 			num_rings = 1;
 			break;
 		}
