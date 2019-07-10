@@ -95,7 +95,7 @@ int db_export__exec_comm(struct db_export *dbe, struct comm *comm,
 	comm->db_id = ++dbe->comm_last_db_id;
 
 	if (dbe->export_comm) {
-		err = dbe->export_comm(dbe, comm);
+		err = dbe->export_comm(dbe, comm, main_thread);
 		if (err)
 			return err;
 	}
