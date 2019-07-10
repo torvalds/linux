@@ -216,13 +216,11 @@ void drm_dsc_pps_payload_pack(struct drm_dsc_picture_parameter_set *pps_payload,
 	 */
 	for (i = 0; i < DSC_NUM_BUF_RANGES; i++) {
 		pps_payload->rc_range_parameters[i] =
-			((dsc_cfg->rc_range_params[i].range_min_qp <<
-			  DSC_PPS_RC_RANGE_MINQP_SHIFT) |
-			 (dsc_cfg->rc_range_params[i].range_max_qp <<
-			  DSC_PPS_RC_RANGE_MAXQP_SHIFT) |
-			 (dsc_cfg->rc_range_params[i].range_bpg_offset));
-		pps_payload->rc_range_parameters[i] =
-			cpu_to_be16(pps_payload->rc_range_parameters[i]);
+			cpu_to_be16((dsc_cfg->rc_range_params[i].range_min_qp <<
+				     DSC_PPS_RC_RANGE_MINQP_SHIFT) |
+				    (dsc_cfg->rc_range_params[i].range_max_qp <<
+				     DSC_PPS_RC_RANGE_MAXQP_SHIFT) |
+				    (dsc_cfg->rc_range_params[i].range_bpg_offset));
 	}
 
 	/* PPS 88 */
